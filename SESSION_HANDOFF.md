@@ -24,6 +24,8 @@
 
 ## 현재 상태
 
+- 진행 중: `flutter pub get` 후 modified로 보이는 Flutter generated registrant 파일들을 Git 관리에서 제외하는 작업을 진행 중이다. `.gitignore`에 `**/Flutter/GeneratedPluginRegistrant.swift`, `**/flutter/generated_plugin_registrant.cc`, `**/flutter/generated_plugin_registrant.h`, `**/flutter/generated_plugins.cmake`, `**/android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java`, `**/ios/Runner/GeneratedPluginRegistrant.h`, `**/ios/Runner/GeneratedPluginRegistrant.m` 패턴을 추가했다. `git rm --cached`로 root/macos/windows 및 `third_party/mssql_connection`, `third_party/webview_windows/example`의 tracked generated registrant/cmake 14개 파일을 index에서 제거했고, 로컬 파일은 ignored 상태로 유지된다. 남은 검증: `git ls-files` 대상 0건, `git check-ignore --no-index` 매칭, `git diff --check -- .gitignore SESSION_HANDOFF.md`, 커밋/푸시.
+
 - 완료: 사용자 질문으로 `https://github.com/itsng1998-collab/label_manager.git` 원격 저장소 변경 제안 이력이 있는지 확인했다. 현재 `git remote -v`의 `origin`은 `https://github.com/hwangdeuk-code/label_manager.git`이며, `SESSION_HANDOFF.md`, 워크스페이스 전체, 로컬 세션 저장소 검색에서 `itsng1998-collab/label_manager` 또는 해당 원격 저장소 변경 제안 기록은 발견되지 않았다. 원격 설정 변경은 하지 않았다.
 
 - 완료: 사용자 요청으로 `SESSION_HANDOFF.md`를 확인해 이전 세션 작업 맥락을 복구했다. 현재 추가 코드 변경 없이 이전 세션 기준 상태로 대기 중이다. 다음 요청이 오면 최신 인수인계의 RTF Viewer/플로팅창/Windows 배포 로그 분석 흐름을 기준으로 이어서 진행한다. 커밋: `c4602e1 Record handoff review`.
