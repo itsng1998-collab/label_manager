@@ -372,6 +372,50 @@ void main() {
     expect(image.extraFields[fortuneBarcodeIdLabelPrintExcludedExtraKey], true);
   });
 
+  test('barcode object ID label scales with resized barcode', () {
+    const extraFields = <String, Object?>{
+      'fortuneBarcode': true,
+      fortuneBarcodeObjectIdExtraKey: 'ID',
+      fortuneBarcodeBodyHeightExtraKey: 60,
+      fortuneBarcodeIdLabelPrintExcludedExtraKey: true,
+    };
+    const largeImage = FortuneImage(
+      id: 'large',
+      src: 'missing-large',
+      left: 20,
+      top: 20,
+      width: 120,
+      height: 60,
+      extraFields: extraFields,
+    );
+    const smallImage = FortuneImage(
+      id: 'small',
+      src: 'missing-small',
+      left: 170,
+      top: 35,
+      width: 60,
+      height: 30,
+      extraFields: extraFields,
+    );
+
+    final largeMetrics = fortuneBarcodeObjectIdLabelMetrics(
+      const Rect.fromLTWH(20, 20, 120, 60),
+      largeImage,
+    );
+    final smallMetrics = fortuneBarcodeObjectIdLabelMetrics(
+      const Rect.fromLTWH(170, 35, 60, 30),
+      smallImage,
+    );
+
+    expect(largeMetrics, isNotNull);
+    expect(smallMetrics, isNotNull);
+    expect(largeMetrics!.boxRect.width, greaterThan(smallMetrics!.boxRect.width));
+    expect(largeMetrics.boxRect.height, greaterThan(smallMetrics.boxRect.height));
+    expect(largeMetrics.fontSize, greaterThan(smallMetrics.fontSize));
+    expect(smallMetrics.boxRect.width, lessThan(28));
+    expect(smallMetrics.boxRect.height, lessThan(16));
+  });
+
   testWidgets('barcode dialog forwards leading and trailing text values', (
     tester,
   ) async {

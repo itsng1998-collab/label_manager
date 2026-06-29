@@ -44175,6 +44175,108 @@ const String fortuneBarcodeBodyHeightExtraKey = 'barcodeBodyHeight';
 const String fortuneBarcodeIdLabelPrintExcludedExtraKey =
   'barcodeIdLabelPrintExcluded';
 
+class FortuneBarcodeObjectIdLabelMetrics {
+  const FortuneBarcodeObjectIdLabelMetrics({
+    required this.bodyRect,
+    required this.boxRect,
+    required this.fontSize,
+    required this.textMaxWidth,
+    required this.strokeWidth,
+  });
+
+  final Rect bodyRect;
+  final Rect boxRect;
+  final double fontSize;
+  final double textMaxWidth;
+  final double strokeWidth;
+}
+
+FortuneBarcodeObjectIdLabelMetrics? fortuneBarcodeObjectIdLabelMetrics(
+  Rect rect,
+  FortuneImage image, {
+  TextDirection textDirection = TextDirection.ltr,
+}) {
+  if (image.extraFields['fortuneBarcode'] != true) {
+    return null;
+  }
+  final objectId = image.extraFields[fortuneBarcodeObjectIdExtraKey]
+      ?.toString()
+      .trim();
+  if (objectId == null || objectId.isEmpty) {
+    return null;
+  }
+  final bodyHeight = _fortuneBarcodeBodyHeightForLabel(image);
+  final bodyRatio = image.height <= 0
+      ? 1.0
+      : (bodyHeight / image.height).clamp(0.0, 1.0);
+  final bodyRect = Rect.fromLTWH(
+    rect.left,
+    rect.top,
+    rect.width,
+    math.max(1.0, rect.height * bodyRatio),
+  );
+  if (bodyRect.width < 12 || bodyRect.height < 10) {
+    return null;
+  }
+  final fontSize = math.max(4.0, math.min(18.0, bodyRect.height * 0.18));
+  final textMaxWidth = math.max(8.0, bodyRect.width * 0.7);
+  final textPainter = TextPainter(
+    text: TextSpan(
+      text: objectId,
+      style: TextStyle(
+        color: const Color(0xff000000),
+        fontSize: fontSize,
+        height: 1,
+        fontWeight: FontWeight.w600,
+      ),
+    ),
+    maxLines: 1,
+    ellipsis: '...',
+    textDirection: textDirection,
+  )..layout(maxWidth: textMaxWidth);
+  final horizontalPadding = math.max(2.0, bodyRect.width * 0.04);
+  final verticalPadding = math.max(1.0, bodyRect.height * 0.04);
+  final minBoxWidth = math.min(
+    bodyRect.width,
+    math.max(8.0, bodyRect.width * 0.18),
+  );
+  final minBoxHeight = math.min(
+    bodyRect.height,
+    math.max(5.0, bodyRect.height * 0.12),
+  );
+  final boxWidth = math.max(
+    math.min(bodyRect.width * 0.46, textPainter.width + horizontalPadding * 2),
+    minBoxWidth,
+  );
+  final boxHeight = math.max(
+    math.min(bodyRect.height * 0.28, textPainter.height + verticalPadding * 2),
+    minBoxHeight,
+  );
+  final box = Rect.fromCenter(
+    center: bodyRect.center,
+    width: math.min(bodyRect.width, boxWidth),
+    height: math.min(bodyRect.height, boxHeight),
+  );
+  return FortuneBarcodeObjectIdLabelMetrics(
+    bodyRect: bodyRect,
+    boxRect: box,
+    fontSize: fontSize,
+    textMaxWidth: textMaxWidth,
+    strokeWidth: math.max(0.5, box.height * 0.06),
+  );
+}
+
+double _fortuneBarcodeBodyHeightForLabel(FortuneImage image) {
+  final raw = image.extraFields[fortuneBarcodeBodyHeightExtraKey];
+  if (raw is num) {
+    return math.max(1.0, raw.toDouble());
+  }
+  if (raw is String) {
+    return math.max(1.0, double.tryParse(raw.trim()) ?? image.height);
+  }
+  return image.height;
+}
+
 const double fortuneDataVerificationDialogWidth = 550.0;
 const double fortuneDataVerificationDialogHeight = 463.0;
 const double fortuneDataVerificationDialogMinTop = 18.0;
@@ -75229,56 +75331,32 @@ class FortuneSheetPainter extends CustomPainter {
   }
 
   void _drawBarcodeObjectIdLabel(Canvas canvas, Rect rect, FortuneImage image) {
-    if (image.extraFields['fortuneBarcode'] != true) {
+    final metrics = fortuneBarcodeObjectIdLabelMetrics(
+      rect,
+      image,
+      textDirection: textDirection,
+    );
+    if (metrics == null) {
       return;
     }
     final objectId = image.extraFields[fortuneBarcodeObjectIdExtraKey]
-        ?.toString()
+        .toString()
         .trim();
-    if (objectId == null || objectId.isEmpty) {
-      return;
-    }
-    final bodyHeight = _barcodeBodyHeightForLabel(image);
-    final bodyRatio = image.height <= 0
-        ? 1.0
-        : (bodyHeight / image.height).clamp(0.0, 1.0);
-    final bodyRect = Rect.fromLTWH(
-      rect.left,
-      rect.top,
-      rect.width,
-      math.max(1.0, rect.height * bodyRatio),
-    );
-    if (bodyRect.width < 12 || bodyRect.height < 10) {
-      return;
-    }
-    final fontSize = math.max(9.0, math.min(18.0, bodyRect.height * 0.18));
     final textPainter = TextPainter(
       text: TextSpan(
         text: objectId,
         style: TextStyle(
           color: const Color(0xff000000),
-          fontSize: fontSize,
+          fontSize: metrics.fontSize,
           height: 1,
           fontWeight: FontWeight.w600,
         ),
       ),
       maxLines: 1,
       ellipsis: '...',
-      textDirection: TextDirection.ltr,
-    )..layout(maxWidth: math.max(8.0, bodyRect.width * 0.7));
-    final boxWidth = math.max(
-      math.min(bodyRect.width * 0.46, textPainter.width + 16),
-      math.min(bodyRect.width, 28.0),
-    );
-    final boxHeight = math.max(
-      math.min(bodyRect.height * 0.28, textPainter.height + 8),
-      math.min(bodyRect.height, 16.0),
-    );
-    final box = Rect.fromCenter(
-      center: bodyRect.center,
-      width: math.min(bodyRect.width, boxWidth),
-      height: math.min(bodyRect.height, boxHeight),
-    );
+      textDirection: textDirection,
+    )..layout(maxWidth: metrics.textMaxWidth);
+    final box = metrics.boxRect;
     final rotation = _imageRotationDegrees(image.extraFields['rotation']) % 360;
     if (rotation != 0) {
       canvas.save();
@@ -75291,7 +75369,7 @@ class FortuneSheetPainter extends CustomPainter {
       box,
       Paint()
         ..style = PaintingStyle.stroke
-        ..strokeWidth = math.max(1.0, box.height * 0.06)
+        ..strokeWidth = metrics.strokeWidth
         ..color = const Color(0xff000000),
     );
     textPainter.paint(
@@ -75304,17 +75382,6 @@ class FortuneSheetPainter extends CustomPainter {
     if (rotation != 0) {
       canvas.restore();
     }
-  }
-
-  double _barcodeBodyHeightForLabel(FortuneImage image) {
-    final raw = image.extraFields[fortuneBarcodeBodyHeightExtraKey];
-    if (raw is num) {
-      return math.max(1.0, raw.toDouble());
-    }
-    if (raw is String) {
-      return math.max(1.0, double.tryParse(raw.trim()) ?? image.height);
-    }
-    return image.height;
   }
 
   double _imageRotationDegrees(Object? value) {
