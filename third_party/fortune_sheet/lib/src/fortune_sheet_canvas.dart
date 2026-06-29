@@ -2145,6 +2145,7 @@ class FortuneSheetCanvas extends StatefulWidget {
     this.imagePicker,
     this.barcodeRenderer,
     this.barcodeFormats = const <FortuneBarcodeFormatOption>[],
+    this.barcodeObjectIds = const <String>[],
     this.onChange,
     this.onOp,
     this.locale = const FortuneSheetLocale(),
@@ -2159,6 +2160,7 @@ class FortuneSheetCanvas extends StatefulWidget {
   final FortuneImagePicker? imagePicker;
   final FortuneBarcodeRenderer? barcodeRenderer;
   final List<FortuneBarcodeFormatOption> barcodeFormats;
+  final List<String> barcodeObjectIds;
   final ValueChanged<FortuneWorkbook>? onChange;
   final FortuneOpCallback? onOp;
   final FortuneSheetLocale locale;
@@ -2390,9 +2392,6 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   final FocusNode _barcodeTextFocusNode = FocusNode(
     debugLabel: 'FortuneBarcodeTextEditor',
   );
-  final FocusNode _barcodeObjectIdFocusNode = FocusNode(
-    debugLabel: 'FortuneBarcodeObjectIdEditor',
-  );
   final FocusNode _barcodeWidthFocusNode = FocusNode(
     debugLabel: 'FortuneBarcodeWidthEditor',
   );
@@ -2536,8 +2535,6 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   final GlobalKey<EditableTextState> _imageInsertRotationEditableKey =
       GlobalKey<EditableTextState>();
   final GlobalKey<EditableTextState> _barcodeTextEditableKey =
-      GlobalKey<EditableTextState>();
-    final GlobalKey<EditableTextState> _barcodeObjectIdEditableKey =
       GlobalKey<EditableTextState>();
   final GlobalKey<EditableTextState> _barcodeWidthEditableKey =
       GlobalKey<EditableTextState>();
@@ -2712,6 +2709,10 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   String? _barcodeEditingFormatId;
   String? _barcodeEditingFormatLabel;
   bool _barcodeFormatChanged = false;
+  int _barcodeObjectIdIndex = 0;
+  bool _barcodeObjectIdMenuOpen = false;
+  int? _barcodeObjectIdMenuHoveredIndex;
+  double _barcodeObjectIdMenuScrollOffset = 0;
   int _barcodeFormatIndex = 0;
   bool _barcodeAspectLocked = true;
   bool _barcodeFormatMenuOpen = false;
@@ -2831,10 +2832,6 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
 
   List<({FocusNode focusNode, TextEditingController controller})>
   get _barcodeDialogInputs => [
-    (
-      focusNode: _barcodeObjectIdFocusNode,
-      controller: _barcodeObjectIdController,
-    ),
     (focusNode: _barcodeTextFocusNode, controller: _barcodeTextController),
     (focusNode: _barcodeWidthFocusNode, controller: _barcodeWidthController),
     (focusNode: _barcodeHeightFocusNode, controller: _barcodeHeightController),
@@ -2870,7 +2867,6 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     _focusNode.addListener(_handleSheetFocusChanged);
     _imageInsertWidthController.addListener(_handleImageInsertWidthChanged);
     _imageInsertHeightController.addListener(_handleImageInsertHeightChanged);
-    _barcodeObjectIdController.addListener(_handleBarcodeObjectIdChanged);
     _barcodeTextController.addListener(_handleBarcodeTextChanged);
     _barcodeWidthController.addListener(_handleBarcodeWidthChanged);
     _barcodeHeightController.addListener(_handleBarcodeHeightChanged);
@@ -2932,18 +2928,6 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     }
     setState(() {
       if (_barcodeErrorText == '내용을 입력하세요.' && _barcodeCanConfirm) {
-        _barcodeErrorText = null;
-      }
-    });
-  }
-
-  void _handleBarcodeObjectIdChanged() {
-    if (!_barcodeDialogOpen || !mounted) {
-      return;
-    }
-    setState(() {
-      if (_barcodeErrorText == 'ID를 입력하세요.' &&
-          _barcodeObjectIdController.text.trim().isNotEmpty) {
         _barcodeErrorText = null;
       }
     });
@@ -5737,7 +5721,6 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     _imageInsertWidthFocusNode.dispose();
     _imageInsertHeightFocusNode.dispose();
     _imageInsertRotationFocusNode.dispose();
-    _barcodeObjectIdFocusNode.dispose();
     _barcodeTextFocusNode.dispose();
     _barcodeWidthFocusNode.dispose();
     _barcodeHeightFocusNode.dispose();
@@ -5781,7 +5764,6 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     _imageInsertHeightController.removeListener(
       _handleImageInsertHeightChanged,
     );
-    _barcodeObjectIdController.removeListener(_handleBarcodeObjectIdChanged);
     _barcodeTextController.removeListener(_handleBarcodeTextChanged);
     _barcodeWidthController.removeListener(_handleBarcodeWidthChanged);
     _barcodeHeightController.removeListener(_handleBarcodeHeightChanged);
@@ -6003,6 +5985,15 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       _commitEditing();
       _commitSheetRename();
       final command = _barcodeDialogCommandAt(local);
+      if (_barcodeObjectIdMenuOpen &&
+          (command == null ||
+              (command != 'object-id' && !command.startsWith('object-id-')))) {
+        setState(() {
+          _barcodeObjectIdMenuOpen = false;
+          _barcodeObjectIdMenuHoveredIndex = null;
+          _barcodeObjectIdMenuScrollOffset = 0;
+        });
+      }
       if (_barcodeFormatMenuOpen &&
           (command == null ||
               (command != 'format' && !command.startsWith('format-')))) {
@@ -8179,6 +8170,19 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   }
 
   bool _scrollBarcodeMenu(Offset local, double deltaY) {
+    if (_scrollBarcodeTextMenu(
+      local,
+      deltaY,
+      open: _barcodeObjectIdMenuOpen,
+      itemCount: _effectiveBarcodeObjectIds.length,
+      scrollOffset: _barcodeObjectIdMenuScrollOffset,
+      menuRect: fortuneBarcodeObjectIdMenuRect,
+      setScrollOffset: (value) => _barcodeObjectIdMenuScrollOffset = value,
+      setHoveredIndex: (value) => _barcodeObjectIdMenuHoveredIndex = value,
+      indexAt: _barcodeObjectIdMenuIndexAt,
+    )) {
+      return true;
+    }
     if (_scrollBarcodeFormatMenu(local, deltaY)) {
       return true;
     }
@@ -9102,6 +9106,10 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     }
     final command = _barcodeDialogCommandAt(local);
     final hoverControl = command == null || command == 'modal' ? null : command;
+    final objectIdMenuIndex =
+      hoverControl != null && hoverControl.startsWith('object-id-')
+      ? int.tryParse(hoverControl.substring('object-id-'.length))
+      : null;
     final menuIndex = hoverControl != null && hoverControl.startsWith('format-')
         ? int.tryParse(hoverControl.substring('format-'.length))
         : null;
@@ -9129,12 +9137,14 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         ? SystemMouseCursors.basic
         : SystemMouseCursors.click;
     if (_barcodeHoveredControl != hoverControl ||
+      _barcodeObjectIdMenuHoveredIndex != objectIdMenuIndex ||
         _barcodeFormatMenuHoveredIndex != menuIndex ||
         _barcodeTextFontMenuHoveredIndex != textFontMenuIndex ||
         _barcodeTextFontSizeMenuHoveredIndex != textFontSizeMenuIndex ||
         _mouseCursor != cursor) {
       setState(() {
         _barcodeHoveredControl = hoverControl;
+        _barcodeObjectIdMenuHoveredIndex = objectIdMenuIndex;
         _barcodeFormatMenuHoveredIndex = menuIndex;
         _barcodeTextFontMenuHoveredIndex = textFontMenuIndex;
         _barcodeTextFontSizeMenuHoveredIndex = textFontSizeMenuIndex;
@@ -9156,8 +9166,12 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         ).contains(local)) {
       return false;
     }
-    return fortuneBarcodeObjectIdInputRect(rect).contains(local) ||
-      fortuneBarcodeTextInputRect(rect).contains(local) ||
+    if (_barcodeObjectIdMenuOpen &&
+        fortuneBarcodeObjectIdMenuRect(rect, _effectiveBarcodeObjectIds.length)
+            .contains(local)) {
+      return false;
+    }
+    return fortuneBarcodeTextInputRect(rect).contains(local) ||
         fortuneBarcodeModuleScaleInputRect(rect).contains(local) ||
         fortuneBarcodeBarHeightInputRect(rect).contains(local) ||
         fortuneBarcodeWidthInputRect(rect).contains(local) ||
@@ -21934,6 +21948,50 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         : widget.barcodeFormats;
   }
 
+  List<String> get _effectiveBarcodeObjectIds {
+    final result = <String>[];
+    final seen = <String>{};
+    for (final raw in widget.barcodeObjectIds) {
+      final value = raw.trim();
+      if (value.isEmpty) {
+        continue;
+      }
+      if (seen.add(value.toLowerCase())) {
+        result.add(value);
+      }
+    }
+    if (result.isEmpty) {
+      result.add('#BARCODE');
+    }
+    final current = _barcodeObjectIdController.text.trim();
+    if (_barcodeDialogOpen &&
+        current.isNotEmpty &&
+        seen.add(current.toLowerCase())) {
+      result.add(current);
+    }
+    return result;
+  }
+
+  int _barcodeObjectIdIndexForValue(String value) {
+    final normalized = value.trim().toLowerCase();
+    final options = _effectiveBarcodeObjectIds;
+    final index = options.indexWhere(
+      (option) => option.toLowerCase() == normalized,
+    );
+    return index < 0 ? 0 : index;
+  }
+
+  String get _selectedBarcodeObjectId {
+    final options = _effectiveBarcodeObjectIds;
+    final index = _barcodeObjectIdIndex.clamp(0, options.length - 1);
+    return options[index];
+  }
+
+  void _setBarcodeObjectIdSelection(String value) {
+    _setImageInsertControllerText(_barcodeObjectIdController, value);
+    _barcodeObjectIdIndex = _barcodeObjectIdIndexForValue(value);
+  }
+
   FortuneBarcodeFormatOption get _selectedBarcodeFormat {
     if (_barcodeIsEditing &&
         !_barcodeFormatChanged &&
@@ -22024,6 +22082,40 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     return (selectedCenter - visibleHeight / 2)
         .clamp(0.0, maxScrollOffset)
         .toDouble();
+  }
+
+  double _initialBarcodeObjectIdMenuScrollOffset() {
+    final options = _effectiveBarcodeObjectIds;
+    final maxScrollOffset = fortuneBarcodeObjectIdMenuMaxScrollOffset(
+      options.length,
+    );
+    if (maxScrollOffset <= 0 || options.isEmpty) {
+      return 0;
+    }
+    final index = _barcodeObjectIdIndex.clamp(0, options.length - 1);
+    const visibleHeight = 8 * fortuneContextMenuRowHeight;
+    final selectedCenter =
+        index * fortuneContextMenuRowHeight + fortuneContextMenuRowHeight / 2;
+    return (selectedCenter - visibleHeight / 2)
+        .clamp(0.0, maxScrollOffset)
+        .toDouble();
+  }
+
+  int? _barcodeObjectIdMenuIndexAt(Offset local) {
+    final rect = _barcodeDialogRect();
+    if (rect == null || !_barcodeObjectIdMenuOpen) {
+      return null;
+    }
+    final options = _effectiveBarcodeObjectIds;
+    final menu = fortuneBarcodeObjectIdMenuRect(rect, options.length);
+    if (!menu.contains(local)) {
+      return null;
+    }
+    final index =
+        ((local.dy - menu.top + _barcodeObjectIdMenuScrollOffset) /
+                fortuneContextMenuRowHeight)
+            .floor();
+    return index >= 0 && index < options.length ? index : null;
   }
 
   int? _barcodeFormatMenuIndexAt(Offset local) {
@@ -22187,6 +22279,10 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       _barcodeEditingFormatId = null;
       _barcodeEditingFormatLabel = null;
       _barcodeFormatChanged = false;
+      _setBarcodeObjectIdSelection(_effectiveBarcodeObjectIds.first);
+      _barcodeObjectIdMenuOpen = false;
+      _barcodeObjectIdMenuHoveredIndex = null;
+      _barcodeObjectIdMenuScrollOffset = 0;
       _barcodeFormatIndex = _defaultBarcodeFormatIndex();
       _barcodeAspectLocked = true;
       _barcodeFormatMenuOpen = false;
@@ -22206,10 +22302,6 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       _barcodeErrorText = null;
       _toolbarHoveredKey = null;
       _toolbarHoveredComboArrowKey = null;
-      _setImageInsertControllerText(
-        _barcodeObjectIdController,
-        _nextBarcodeObjectId(),
-      );
       _setImageInsertControllerText(_barcodeTextController, '');
       _setImageInsertControllerText(_barcodeModuleScaleController, '3');
       _setImageInsertControllerText(_barcodeBarHeightController, '10');
@@ -22254,6 +22346,12 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       _barcodeEditingFormatId = originalFormat.id;
       _barcodeEditingFormatLabel = originalFormat.label;
       _barcodeFormatChanged = false;
+      _setBarcodeObjectIdSelection(
+        extra[fortuneBarcodeObjectIdExtraKey]?.toString() ?? image.id,
+      );
+      _barcodeObjectIdMenuOpen = false;
+      _barcodeObjectIdMenuHoveredIndex = null;
+      _barcodeObjectIdMenuScrollOffset = 0;
       _barcodeFormatIndex = fallbackFormatIndex;
       _barcodeAspectLocked = true;
       _barcodeFormatMenuOpen = false;
@@ -22280,10 +22378,6 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       _toolbarHoveredComboArrowKey = null;
       _barcodeUpdatingPair = true;
       try {
-        _setImageInsertControllerText(
-          _barcodeObjectIdController,
-          extra[fortuneBarcodeObjectIdExtraKey]?.toString() ?? image.id,
-        );
         _setImageInsertControllerText(
           _barcodeTextController,
           extra['barcodeText']?.toString() ?? '',
@@ -22353,8 +22447,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     final leadingText = _barcodeLeadingQuietZoneController.text;
     final trailingText = _barcodeTrailingQuietZoneController.text;
     if (objectId.isEmpty) {
-      _barcodeObjectIdFocusNode.requestFocus();
-      setState(() => _barcodeErrorText = 'ID를 입력하세요.');
+      setState(() => _barcodeErrorText = 'ID를 선택하세요.');
       return;
     }
     if (text.isEmpty) {
@@ -22497,6 +22590,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         _barcodeFormatChanged = false;
         _barcodeHoveredControl = null;
         _barcodePressedControl = null;
+        _barcodeObjectIdMenuOpen = false;
+        _barcodeObjectIdMenuHoveredIndex = null;
+        _barcodeObjectIdMenuScrollOffset = 0;
         _barcodeFormatMenuOpen = false;
         _barcodeFormatMenuHoveredIndex = null;
         _barcodeFormatMenuScrollOffset = 0;
@@ -22542,6 +22638,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         _barcodeFormatChanged = false;
         _barcodeHoveredControl = null;
         _barcodePressedControl = null;
+        _barcodeObjectIdMenuOpen = false;
+        _barcodeObjectIdMenuHoveredIndex = null;
+        _barcodeObjectIdMenuScrollOffset = 0;
         _barcodeFormatMenuOpen = false;
         _barcodeFormatMenuHoveredIndex = null;
         _barcodeFormatMenuScrollOffset = 0;
@@ -22572,6 +22671,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       _barcodeFormatChanged = false;
       _barcodeHoveredControl = null;
       _barcodePressedControl = null;
+      _barcodeObjectIdMenuOpen = false;
+      _barcodeObjectIdMenuHoveredIndex = null;
+      _barcodeObjectIdMenuScrollOffset = 0;
       _barcodeFormatMenuOpen = false;
       _barcodeFormatMenuHoveredIndex = null;
       _barcodeFormatMenuScrollOffset = 0;
@@ -22834,6 +22936,25 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       _barcodeFormatMenuScrollOffset = nextOpen
           ? _initialBarcodeFormatMenuScrollOffset()
           : 0;
+      _barcodeObjectIdMenuOpen = false;
+      _barcodeTextFontMenuOpen = false;
+      _barcodeTextFontSizeMenuOpen = false;
+      _barcodeErrorText = null;
+    });
+  }
+
+  void _toggleBarcodeObjectIdMenu() {
+    if (!_barcodeDialogOpen) {
+      return;
+    }
+    setState(() {
+      final nextOpen = !_barcodeObjectIdMenuOpen;
+      _barcodeObjectIdMenuOpen = nextOpen;
+      _barcodeObjectIdMenuHoveredIndex = null;
+      _barcodeObjectIdMenuScrollOffset = nextOpen
+          ? _initialBarcodeObjectIdMenuScrollOffset()
+          : 0;
+      _barcodeFormatMenuOpen = false;
       _barcodeTextFontMenuOpen = false;
       _barcodeTextFontSizeMenuOpen = false;
       _barcodeErrorText = null;
@@ -22854,6 +22975,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
               _barcodeTextFontOptions.length,
             )
           : 0;
+      _barcodeObjectIdMenuOpen = false;
       _barcodeFormatMenuOpen = false;
       _barcodeTextFontSizeMenuOpen = false;
       _barcodeErrorText = null;
@@ -22874,8 +22996,27 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
               _barcodeTextFontSizeOptions.length,
             )
           : 0;
+      _barcodeObjectIdMenuOpen = false;
       _barcodeFormatMenuOpen = false;
       _barcodeTextFontMenuOpen = false;
+      _barcodeErrorText = null;
+    });
+  }
+
+  void _selectBarcodeObjectId(int index) {
+    final options = _effectiveBarcodeObjectIds;
+    if (!_barcodeDialogOpen || options.isEmpty) {
+      return;
+    }
+    setState(() {
+      _barcodeObjectIdIndex = index.clamp(0, options.length - 1);
+      _setImageInsertControllerText(
+        _barcodeObjectIdController,
+        options[_barcodeObjectIdIndex],
+      );
+      _barcodeObjectIdMenuOpen = false;
+      _barcodeObjectIdMenuHoveredIndex = null;
+      _barcodeObjectIdMenuScrollOffset = 0;
       _barcodeErrorText = null;
     });
   }
@@ -22977,23 +23118,6 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     final random = math.Random().nextInt(0x7fffffff).toRadixString(36);
     final time = DateTime.now().millisecondsSinceEpoch.toRadixString(36);
     return 'img_${random}_$time';
-  }
-
-  String _nextBarcodeObjectId() {
-    final used = <String>{
-      for (final image in _workbook.activeSheet.images)
-        if (_isBarcodeImage(image))
-          (image.extraFields[fortuneBarcodeObjectIdExtraKey]?.toString() ??
-                  image.id)
-              .trim(),
-    }..remove('');
-    for (var index = 1; index < 100000; index += 1) {
-      final candidate = 'barcode-$index';
-      if (!used.contains(candidate)) {
-        return candidate;
-      }
-    }
-    return 'barcode-${used.length + 1}';
   }
 
   Future<ui.Image?> _decodeImageBytes(Uint8List bytes) async {
@@ -33875,6 +33999,12 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         return 'format-$index';
       }
     }
+    if (_barcodeObjectIdMenuOpen) {
+      final index = _barcodeObjectIdMenuIndexAt(local);
+      if (index != null) {
+        return 'object-id-$index';
+      }
+    }
     if (_barcodeTextFontMenuOpen) {
       final index = _barcodeTextFontMenuIndexAt(local);
       if (index != null) {
@@ -33986,7 +34116,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       return;
     }
     if (command == 'object-id') {
-      _barcodeObjectIdFocusNode.requestFocus();
+      _toggleBarcodeObjectIdMenu();
       return;
     }
     if (command == 'width') {
@@ -34039,6 +34169,13 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       final index = int.tryParse(command.substring('format-'.length));
       if (index != null) {
         _selectBarcodeFormat(index);
+      }
+      return;
+    }
+    if (command.startsWith('object-id-')) {
+      final index = int.tryParse(command.substring('object-id-'.length));
+      if (index != null) {
+        _selectBarcodeObjectId(index);
       }
       return;
     }
@@ -39986,15 +40123,6 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     return Positioned.fill(
       child: Stack(
         children: [
-          if (!_barcodeFormatMenuIntersects(size, objectIdRect))
-            _buildBarcodeDialogInput(
-              key: const ValueKey('fortune-barcode-object-id-input'),
-              editableKey: _barcodeObjectIdEditableKey,
-              rect: objectIdRect,
-              controller: _barcodeObjectIdController,
-              focusNode: _barcodeObjectIdFocusNode,
-              keyboardType: TextInputType.text,
-            ),
           if (!_barcodeFormatMenuIntersects(size, textRect))
             _buildBarcodeDialogInput(
               key: const ValueKey('fortune-barcode-text-input'),
@@ -40077,6 +40205,13 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         fortuneBarcodeFormatMenuRect(
           dialogRect,
           _effectiveBarcodeFormats.length,
+        ).overlaps(rect)) {
+      return true;
+    }
+    if (_barcodeObjectIdMenuOpen &&
+        fortuneBarcodeObjectIdMenuRect(
+          dialogRect,
+          _effectiveBarcodeObjectIds.length,
         ).overlaps(rect)) {
       return true;
     }
@@ -40971,7 +41106,14 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
                 barcodeDialogOpen: _barcodeDialogOpen,
                 barcodeEditing: _barcodeIsEditing,
                 barcodeCanConfirm: _barcodeCanConfirm,
-                barcodeObjectId: _barcodeObjectIdController.text,
+                barcodeObjectId: _selectedBarcodeObjectId,
+                barcodeObjectIdOptions: _effectiveBarcodeObjectIds,
+                barcodeObjectIdMenuOpen: _barcodeObjectIdMenuOpen,
+                barcodeObjectIdMenuHoveredIndex:
+                  _barcodeObjectIdMenuHoveredIndex,
+                barcodeObjectIdMenuSelectedIndex: _barcodeObjectIdIndex,
+                barcodeObjectIdMenuScrollOffset:
+                  _barcodeObjectIdMenuScrollOffset,
                 barcodeFormatLabel: _selectedBarcodeFormat.label,
                 barcodeFormatOptions: [
                   for (final format in _effectiveBarcodeFormats) format.label,

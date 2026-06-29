@@ -709,6 +709,7 @@ class LabelSheetWorkbench extends StatefulWidget {
     this.initialWorkbook,
     this.labelSize,
     this.labelRtf,
+    this.barcodeObjectIds = const <String>[],
     this.onInitialLoadComplete,
     this.onGridRectChanged,
     this.onSave,
@@ -718,6 +719,7 @@ class LabelSheetWorkbench extends StatefulWidget {
   final FortuneWorkbook? initialWorkbook;
   final LabelSize? labelSize;
   final String? labelRtf;
+  final List<String> barcodeObjectIds;
   final VoidCallback? onInitialLoadComplete;
   final ValueChanged<ui.Rect>? onGridRectChanged;
   final FutureOr<void> Function(
@@ -1350,6 +1352,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
               locale: _locale,
               barcodeRenderer: labelSheetBarcodeRenderer,
               barcodeFormats: labelSheetBarcodeFormats,
+              barcodeObjectIds: widget.barcodeObjectIds,
               gridClientSize: _gridClientSize,
               showFormulaBar: false,
               showSheetTabs: false,

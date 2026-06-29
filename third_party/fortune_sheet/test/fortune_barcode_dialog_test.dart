@@ -301,6 +301,7 @@ void main() {
                   barcodeFormats: const [
                     FortuneBarcodeFormatOption(id: 'code128', label: 'Code128'),
                   ],
+                  barcodeObjectIds: const ['#BARCODE', '#QRCODE'],
                   barcodeRenderer: (request) async {
                     return FortuneBarcodeRenderResult(
                       bytes: _transparentPng,
@@ -340,14 +341,35 @@ void main() {
     );
     await tester.pump();
 
-    final objectIdInput = find.descendant(
-      of: find.byKey(const ValueKey('fortune-barcode-object-id-input')),
-      matching: find.byType(EditableText),
+    expect(
+      find.byKey(const ValueKey('fortune-barcode-object-id-input')),
+      findsNothing,
     );
-    expect(objectIdInput, findsOneWidget);
-    expect(tester.widget<EditableText>(objectIdInput).controller.text, 'barcode-1');
+    expect(painter().barcodeObjectId, '#BARCODE');
+    expect(painter().barcodeObjectIdOptions, ['#BARCODE', '#QRCODE']);
 
-    await tester.enterText(objectIdInput, 'BC-001');
+    final dialogRect = fortuneBarcodeDialogRect(
+      const Size(900, 700),
+      editing: false,
+    );
+    await tester.tapAt(
+      topLeft + fortuneBarcodeObjectIdInputRect(dialogRect).center,
+    );
+    await tester.pump();
+
+    expect(painter().barcodeObjectIdMenuOpen, isTrue);
+    expect(painter().barcodeObjectIdMenuSelectedIndex, 0);
+
+    final objectIdMenu = fortuneBarcodeObjectIdMenuRect(dialogRect, 2);
+    await tester.tapAt(
+      topLeft +
+          objectIdMenu.topLeft +
+          const Offset(10, 1.5 * fortuneContextMenuRowHeight),
+    );
+    await tester.pump();
+
+    expect(painter().barcodeObjectId, '#QRCODE');
+
     await tester.enterText(
       find.descendant(
         of: find.byKey(const ValueKey('fortune-barcode-text-input')),
@@ -357,17 +379,13 @@ void main() {
     );
     await tester.pump();
 
-    final dialogRect = fortuneBarcodeDialogRect(
-      const Size(900, 700),
-      editing: false,
-    );
     await tester.tapAt(
       topLeft + fortuneBarcodeConfirmButtonRect(dialogRect).center,
     );
     await tester.pumpAndSettle();
 
     final image = painter().workbook.activeSheet.images.single;
-    expect(image.extraFields[fortuneBarcodeObjectIdExtraKey], 'BC-001');
+    expect(image.extraFields[fortuneBarcodeObjectIdExtraKey], '#QRCODE');
     expect(image.extraFields[fortuneBarcodeBodyHeightExtraKey], greaterThan(0));
     expect(image.extraFields[fortuneBarcodeIdLabelPrintExcludedExtraKey], true);
   });
@@ -858,6 +876,7 @@ void main() {
             barcodeFormats: const [
               FortuneBarcodeFormatOption(id: 'code128', label: 'Code128'),
             ],
+            barcodeObjectIds: const ['OLD-ID', 'NEW-ID'],
             barcodeRenderer: (request) async {
               return FortuneBarcodeRenderResult(
                 bytes: _transparentPng,
@@ -906,22 +925,27 @@ void main() {
     await tester.pump();
 
     expect(painter().barcodeDialogOpen, isTrue);
-    final objectIdInput = find.descendant(
-      of: find.byKey(const ValueKey('fortune-barcode-object-id-input')),
-      matching: find.byType(EditableText),
-    );
-    expect(
-      tester.widget<EditableText>(objectIdInput).controller.text,
-      'OLD-ID',
-    );
-
-    await tester.enterText(objectIdInput, 'NEW-ID');
-    await tester.pump();
+    expect(painter().barcodeObjectId, 'OLD-ID');
+    expect(painter().barcodeObjectIdMenuSelectedIndex, 0);
 
     final dialogRect = fortuneBarcodeDialogRect(
       const Size(900, 700),
       editing: true,
     );
+    await tester.tapAt(
+      topLeft + fortuneBarcodeObjectIdInputRect(dialogRect).center,
+    );
+    await tester.pump();
+
+    expect(painter().barcodeObjectIdMenuOpen, isTrue);
+    final objectIdMenu = fortuneBarcodeObjectIdMenuRect(dialogRect, 2);
+    await tester.tapAt(
+      topLeft + objectIdMenu.topLeft + const Offset(10, 1.5 * fortuneContextMenuRowHeight),
+    );
+    await tester.pump();
+
+    expect(painter().barcodeObjectId, 'NEW-ID');
+
     await tester.tapAt(
       topLeft + fortuneBarcodeConfirmButtonRect(dialogRect).center,
     );
@@ -930,6 +954,126 @@ void main() {
     final updated = painter().workbook.activeSheet.images.single;
     expect(updated.extraFields[fortuneBarcodeObjectIdExtraKey], 'NEW-ID');
     expect(updated.extraFields[fortuneBarcodeIdLabelPrintExcludedExtraKey], true);
+  });
+
+  testWidgets('barcode edit object ID menu scrolls to restored selection', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    const barcodeImage = FortuneImage(
+      id: 'barcode-1',
+      src:
+          'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=',
+      left: 20,
+      top: 20,
+      width: 120,
+      height: 60,
+      extraFields: {
+        'fortuneBarcode': true,
+        fortuneBarcodeObjectIdExtraKey: '#QRCODE-10',
+        'barcodeText': '12345',
+        'barcodeFormatId': 'code128',
+        'barcodeFormatLabel': 'Code128',
+        'barcodeModuleScale': 3,
+        'barcodeBarHeight': 10,
+      },
+    );
+    final workbook = FortuneWorkbook(
+      sheets: [
+        FortuneSheet(id: 's1', name: 'Sheet1', images: const [barcodeImage]),
+      ],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SizedBox(
+          width: 900,
+          height: 700,
+          child: FortuneSheetCanvas(
+            workbook: workbook,
+            barcodeFormats: const [
+              FortuneBarcodeFormatOption(id: 'code128', label: 'Code128'),
+            ],
+            barcodeObjectIds: const [
+              '#BARCODE-0',
+              '#BARCODE-1',
+              '#BARCODE-2',
+              '#BARCODE-3',
+              '#BARCODE-4',
+              '#BARCODE-5',
+              '#BARCODE-6',
+              '#BARCODE-7',
+              '#BARCODE-8',
+              '#BARCODE-9',
+              '#QRCODE-10',
+            ],
+            barcodeRenderer: (_) async => FortuneBarcodeRenderResult(
+              bytes: _transparentPng,
+              pixelWidth: 120,
+              pixelHeight: 60,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    FortuneSheetPainter painter() {
+      return tester
+          .widgetList<CustomPaint>(
+            find.descendant(
+              of: find.byType(FortuneSheetCanvas),
+              matching: find.byType(CustomPaint),
+            ),
+          )
+          .map((paint) => paint.painter)
+          .whereType<FortuneSheetPainter>()
+          .single;
+    }
+
+    final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
+    final settings = painter().workbook.settings;
+    final imageCenter =
+        topLeft +
+        Offset(
+          settings.rowHeaderWidth + barcodeImage.left + barcodeImage.width / 2,
+          settings.effectiveToolbarHeight +
+              settings.effectiveFormulaBarHeight +
+              settings.columnHeaderHeight +
+              barcodeImage.top +
+              barcodeImage.height / 2,
+        );
+    await tester.sendEventToBinding(
+      PointerDownEvent(
+        position: imageCenter,
+        buttons: kSecondaryMouseButton,
+        kind: PointerDeviceKind.mouse,
+      ),
+    );
+    await tester.sendEventToBinding(PointerUpEvent(position: imageCenter));
+    await tester.pump();
+
+    expect(painter().barcodeDialogOpen, isTrue);
+    expect(painter().barcodeObjectId, '#QRCODE-10');
+    expect(painter().barcodeObjectIdMenuSelectedIndex, 10);
+
+    final dialogRect = fortuneBarcodeDialogRect(
+      const Size(900, 700),
+      editing: true,
+    );
+    await tester.tapAt(
+      topLeft + fortuneBarcodeObjectIdInputRect(dialogRect).center,
+    );
+    await tester.pump();
+
+    expect(painter().barcodeObjectIdMenuOpen, isTrue);
+    expect(painter().barcodeObjectIdMenuSelectedIndex, 10);
+    expect(painter().barcodeObjectIdMenuScrollOffset, greaterThan(0));
   });
 
   testWidgets('barcode edit keeps existing size when only text font changes', (
@@ -1290,7 +1434,7 @@ void main() {
         matching: find.byType(EditableText),
       ),
     );
-    expect(editableTexts, hasLength(9));
+    expect(editableTexts, hasLength(8));
     for (final editableText in editableTexts) {
       expect(editableText.selectionControls, isNotNull);
       expect(editableText.contextMenuBuilder, isNotNull);

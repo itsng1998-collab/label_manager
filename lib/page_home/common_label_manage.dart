@@ -29,6 +29,26 @@ class _CommonLabelManageState extends State<CommonLabelManage> {
   bool _rightWidthChangedByUser = false;
   static const double _handleWidth = 8;
 
+  static List<String> _barcodeObjectIdsFor(
+    List<TColumnBase> specialColumns,
+    List<TColumn> columns,
+  ) {
+    final result = <String>[];
+    final seen = <String>{};
+    for (final column in [...specialColumns, ...columns]) {
+      final keyword = column.keyword.trim();
+      final lower = keyword.toLowerCase();
+      if (keyword.isEmpty ||
+          (!lower.contains('barcode') && !lower.contains('qrcode'))) {
+        continue;
+      }
+      if (seen.add(lower)) {
+        result.add(keyword);
+      }
+    }
+    return result.isEmpty ? const ['#BARCODE'] : result;
+  }
+
   @override
   Widget build(BuildContext context) {
     debugLog(
@@ -45,6 +65,10 @@ class _CommonLabelManageState extends State<CommonLabelManage> {
         final rightLower = maxRight < minRight ? maxRight : minRight;
         final columns = TColumn.datas ?? const <TColumn>[];
         final specialColumns = TColumnSpecial.datas ?? const <TColumnBase>[];
+        final barcodeObjectIds = _barcodeObjectIdsFor(
+          specialColumns,
+          columns,
+        );
         final fitRightWidth = [
           _CommonLabelTableState.tableWidthFor(context, specialColumns),
           _CommonLabelTableState.tableWidthFor(context, columns),
@@ -74,6 +98,7 @@ class _CommonLabelManageState extends State<CommonLabelManage> {
                 child: ClipRect(
                   child: FortuneSheetPage(
                     labelSize: widget.labelSize,
+                    barcodeObjectIds: barcodeObjectIds,
                     onSheetReady: widget.onSheetReady,
                     onGridRectChanged: widget.onGridRectChanged,
                   ),

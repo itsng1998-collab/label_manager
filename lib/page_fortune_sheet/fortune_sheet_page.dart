@@ -13,11 +13,13 @@ class FortuneSheetPage extends StatelessWidget {
   const FortuneSheetPage({
     super.key,
     this.labelSize,
+    this.barcodeObjectIds = const <String>[],
     this.onSheetReady,
     this.onGridRectChanged,
   });
 
   final LabelSize? labelSize;
+  final List<String> barcodeObjectIds;
   final VoidCallback? onSheetReady;
   final ValueChanged<Rect>? onGridRectChanged;
 
@@ -45,6 +47,7 @@ class FortuneSheetPage extends StatelessWidget {
         initialWorkbook: savedWorkbook,
         labelSize: labelSize,
         labelRtf: rtf,
+        barcodeObjectIds: barcodeObjectIds,
         onInitialLoadComplete: onSheetReady,
         onGridRectChanged: onGridRectChanged,
         onSave: (width, height, encodedWorkbook) =>

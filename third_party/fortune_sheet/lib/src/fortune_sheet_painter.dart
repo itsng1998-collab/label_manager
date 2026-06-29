@@ -59913,6 +59913,21 @@ Rect fortuneBarcodeObjectIdInputRect(Rect dialogRect) {
   );
 }
 
+Rect fortuneBarcodeObjectIdMenuRect(Rect dialogRect, int itemCount) {
+  final combo = fortuneBarcodeObjectIdInputRect(dialogRect);
+  final visibleCount = math.min(8, itemCount);
+  return Rect.fromLTWH(
+    combo.left,
+    combo.bottom + 2,
+    combo.width,
+    visibleCount * fortuneContextMenuRowHeight,
+  );
+}
+
+double fortuneBarcodeObjectIdMenuMaxScrollOffset(int itemCount) {
+  return math.max(0, itemCount - 8) * fortuneContextMenuRowHeight;
+}
+
 Rect fortuneBarcodeTextInputRect(Rect dialogRect) {
   final idInput = fortuneBarcodeObjectIdInputRect(dialogRect);
   return Rect.fromLTWH(
@@ -61105,6 +61120,11 @@ class FortuneSheetPainter extends CustomPainter {
     this.barcodeEditing = false,
     this.barcodeCanConfirm = false,
     this.barcodeObjectId = '',
+    this.barcodeObjectIdOptions = const <String>[],
+    this.barcodeObjectIdMenuOpen = false,
+    this.barcodeObjectIdMenuHoveredIndex,
+    this.barcodeObjectIdMenuSelectedIndex,
+    this.barcodeObjectIdMenuScrollOffset = 0,
     this.barcodeFormatLabel = '',
     this.barcodeFormatOptions = const <String>[],
     this.barcodeFormatMenuOpen = false,
@@ -61295,6 +61315,11 @@ class FortuneSheetPainter extends CustomPainter {
   final bool barcodeEditing;
   final bool barcodeCanConfirm;
   final String barcodeObjectId;
+  final List<String> barcodeObjectIdOptions;
+  final bool barcodeObjectIdMenuOpen;
+  final int? barcodeObjectIdMenuHoveredIndex;
+  final int? barcodeObjectIdMenuSelectedIndex;
+  final double barcodeObjectIdMenuScrollOffset;
   final String barcodeFormatLabel;
   final List<String> barcodeFormatOptions;
   final bool barcodeFormatMenuOpen;
@@ -68060,6 +68085,14 @@ class FortuneSheetPainter extends CustomPainter {
     _drawInputShell(canvas, formatCombo);
     _drawText(
       canvas,
+      barcodeObjectId,
+      objectIdInput.deflate(8),
+      fontSize: 12,
+      color: const Color(0xff222222),
+    );
+    _drawComboArrow(canvas, objectIdInput.right - 18, objectIdInput.center.dy);
+    _drawText(
+      canvas,
       barcodeFormatLabel,
       formatCombo.deflate(8),
       fontSize: 12,
@@ -68182,6 +68215,16 @@ class FortuneSheetPainter extends CustomPainter {
     );
     if (barcodeFormatMenuOpen) {
       _drawBarcodeFormatMenu(canvas, rect);
+    }
+    if (barcodeObjectIdMenuOpen) {
+      _drawBarcodeTextMenu(
+        canvas,
+        fortuneBarcodeObjectIdMenuRect(rect, barcodeObjectIdOptions.length),
+        barcodeObjectIdOptions,
+        barcodeObjectIdMenuHoveredIndex,
+        barcodeObjectIdMenuSelectedIndex,
+        barcodeObjectIdMenuScrollOffset,
+      );
     }
     if (barcodeTextFontMenuOpen) {
       _drawBarcodeTextMenu(
