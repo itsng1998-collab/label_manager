@@ -1167,7 +1167,9 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
         fortuneSheetGridClientPhysicalSize(workbook.activeSheet) ??
         _gridClientSize ??
         const FortuneSheetGridClientPhysicalSize(widthMm: 100, heightMm: 100);
-    final encoded = labelSheetEncodeWorkbookSave(workbook);
+    final encoded = labelSheetEncodeWorkbookSave(
+      labelSheetWorkbookForPrintAreaSave(workbook),
+    );
     try {
       await Future<void>.sync(
         () => callback(

@@ -138,6 +138,105 @@ void main() {
     expect(cell.inlineRuns![1].extraFields['lineHeight'], 1.5);
   });
 
+  test('label sheet save crops to print area and overflowing content', () {
+    final workbook = FortuneWorkbook(
+      sheets: [
+        FortuneSheet(
+          id: 's1',
+          name: 'Label',
+          rowHeights: const {0: 20, 1: 20, 2: 20, 3: 20},
+          columnWidths: const {0: 20, 1: 20, 2: 20, 3: 20},
+          cells: {
+            const FortuneCellCoord(0, 0): const FortuneCell(value: 'inside'),
+            const FortuneCellCoord(0, 1): const FortuneCell(
+              value: 'overflow',
+              fontSize: 12,
+            ),
+            const FortuneCellCoord(0, 4): const FortuneCell(value: 'outside'),
+          },
+          extraFields: const {
+            fortuneSheetGridClientWidthMmKey: 10,
+            fortuneSheetGridClientHeightMmKey: 10,
+          },
+        ),
+      ],
+    );
+
+    final saved = labelSheetWorkbookForPrintAreaSave(workbook).activeSheet;
+
+    expect(saved.rowCount, 2);
+    expect(saved.columnCount, greaterThan(2));
+    expect(saved.cells, contains(const FortuneCellCoord(0, 0)));
+    expect(saved.cells, contains(const FortuneCellCoord(0, 1)));
+    expect(saved.cells, isNot(contains(const FortuneCellCoord(0, 4))));
+    expect(saved.rowHeights.keys, everyElement(lessThan(saved.rowCount!)));
+    expect(
+      saved.columnWidths.keys,
+      everyElement(lessThan(saved.columnCount!)),
+    );
+  });
+
+  test('label sheet save keeps overflow border and image ranges', () {
+    final workbook = FortuneWorkbook(
+      sheets: [
+        FortuneSheet(
+          id: 's1',
+          name: 'Label',
+          rowHeights: const {0: 20, 1: 20, 2: 20, 3: 20, 4: 20},
+          columnWidths: const {0: 20, 1: 20, 2: 20, 3: 20, 4: 20},
+          cells: {
+            const FortuneCellCoord(3, 3): const FortuneCell(
+              value: 'kept by border',
+            ),
+            const FortuneCellCoord(4, 4): const FortuneCell(value: 'outside'),
+          },
+          borderInfo: const [
+            FortuneBorderInfo(
+              rangeType: 'range',
+              borderType: 'border-all',
+              color: Color(0xff000000),
+              style: 1,
+              ranges: [
+                FortuneRange(
+                  rowStart: 1,
+                  rowEnd: 3,
+                  columnStart: 1,
+                  columnEnd: 3,
+                ),
+              ],
+            ),
+          ],
+          images: const [
+            FortuneImage(
+              id: 'barcode-1',
+              src: 'data:image/png;base64,AAA=',
+              left: 30,
+              top: 30,
+              width: 45,
+              height: 45,
+              extraFields: {'kind': 'barcode'},
+            ),
+          ],
+          extraFields: const {
+            fortuneSheetGridClientWidthMmKey: 10,
+            fortuneSheetGridClientHeightMmKey: 10,
+          },
+        ),
+      ],
+    );
+
+    final saved = labelSheetWorkbookForPrintAreaSave(workbook).activeSheet;
+
+    expect(saved.rowCount, 4);
+    expect(saved.columnCount, 4);
+    expect(saved.borderInfo, hasLength(1));
+    expect(saved.borderInfo.single.ranges.single.rowEnd, 3);
+    expect(saved.borderInfo.single.ranges.single.columnEnd, 3);
+    expect(saved.images.map((image) => image.id), ['barcode-1']);
+    expect(saved.cells, contains(const FortuneCellCoord(3, 3)));
+    expect(saved.cells, isNot(contains(const FortuneCellCoord(4, 4))));
+  });
+
   test('label sheet save codec loads newer payload best effort', () {
     final workbookJson = FortuneSheetCodec.workbookToJson(
       FortuneWorkbook(

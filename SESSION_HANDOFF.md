@@ -17,12 +17,15 @@
 - 오래되어 현재 판단에 불필요한 누적 인수인계 사항은 자동으로 적정 시점에 정리한다. 정리 시 진행 중/미검증/블로커/다음 작업에 필요한 정보는 유지하고, 이미 커밋·검증이 끝난 세부 로그는 요약 또는 삭제한다.
 - LabelSheet에서 원본 시트와 맞추는 작업은 wrapper 중복 구현보다 `fortune_sheet`의 공용 API, 설정 hook, helper, 또는 원본 동작 보정으로 해결하는 것을 우선한다.
 - Git 관리는 2026-06-24 사용자 요청으로 로컬 관리 활성화됨. 작업 완료 시 관련 변경분을 검토하고 로컬 Git 커밋까지 진행한다.
+- Git 커밋 메시지와 push 관련 설명/주석은 한글로 작성한다.
 - 기존 unrelated dirty 파일은 staging/commit에서 제외한다.
 - 배포파일 작성(`flutter build windows --release`, `inno_setup_installer.ps1`, installer EXE/ZIP 생성 등)은 사용자가 명시적으로 요청할 때만 실행한다. 일반 작업 완료 검증에서는 자동으로 배포 패키징까지 진행하지 않는다.
 - 솔루션 루트 구조나 로컬 패키지 경로를 바꾸면 이 파일에 변경 경로와 검증 명령을 기록한다. Git 상태와 커밋 정보도 함께 갱신한다.
 - 라벨 시트 저장 포맷을 수정할 때는 `lib/page_fortune_sheet/label_sheet_save_codec.dart`의 `_labelSheetSaveFeatureKeys`에 항목별 feature key를 추가/정렬해 `labelSheetSaveFormatVersion`과 `labelSheetSaveFeatureVersions`가 자동 산출되도록 유지한다. 새로 지원하는 workbook/sheet/config/cell/cellType/inlineRun JSON 필드는 같은 파일의 allow-list 및 `labelSheetSanitizeWorkbookSaveJson` 경로에 반드시 반영하고, 상위 버전 payload가 지원 필드만 best-effort 로드하고 unknown 필드는 재저장 시 버려지는 테스트를 갱신한다.
 
 ## 현재 상태
+
+- 완료: 공용라벨관리 조정 시트 저장 시 저장 payload를 인쇄영역 기준으로 축소하되, 셀 텍스트/테두리/이미지/바코드가 인쇄영역 밖으로 이어지는 행/열까지 포함하도록 `lib/page_fortune_sheet/label_sheet_save_codec.dart`에 `labelSheetWorkbookForPrintAreaSave`를 추가하고, `LabelSheetWorkbench._handleSave`가 인코딩 전에 이 변환을 적용하도록 수정했다. 인쇄영역과 교차하는 원본 셀/테두리/이미지만 확장 기준으로 삼아, 확장된 범위 안의 무관한 바깥 요소가 다시 저장 범위를 키우지 않게 했다. `test/label_sheet_toolbar_test.dart`에 텍스트 overflow, 테두리 overflow, 이미지/바코드 overflow, 완전 외부 요소 제외 테스트를 추가했다. 검증 성공: `C:/flutter/bin/flutter.bat analyze --no-fatal-infos lib/page_fortune_sheet/label_sheet_save_codec.dart lib/page_fortune_sheet/label_sheet_workbench.dart test/label_sheet_toolbar_test.dart`, `C:/flutter/bin/flutter.bat test test/label_sheet_toolbar_test.dart --name "label sheet save (crops to print area and overflowing content|keeps overflow border and image ranges)"`, `git diff --check -- lib/page_fortune_sheet/label_sheet_save_codec.dart lib/page_fortune_sheet/label_sheet_workbench.dart test/label_sheet_toolbar_test.dart SESSION_HANDOFF.md`. 참고: `C:/flutter/bin/flutter.bat test test/label_sheet_toolbar_test.dart` 전체 실행은 53개 통과/3개 실패로 종료했으며, 실패는 이번 저장 범위 테스트가 아닌 기존 RTF/AI 쪽 테스트로 보인다.
 
 - 완료: `flutter pub get` 후 modified로 보이는 Flutter generated registrant 파일들을 Git 관리에서 제외했다. `.gitignore`에 `**/Flutter/GeneratedPluginRegistrant.swift`, `**/flutter/generated_plugin_registrant.cc`, `**/flutter/generated_plugin_registrant.h`, `**/flutter/generated_plugins.cmake`, `**/android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java`, `**/ios/Runner/GeneratedPluginRegistrant.h`, `**/ios/Runner/GeneratedPluginRegistrant.m` 패턴을 추가했다. `git rm --cached`로 root/macos/windows 및 `third_party/mssql_connection`, `third_party/webview_windows/example`의 tracked generated registrant/cmake 14개 파일을 index에서 제거했고, 로컬 파일은 ignored 상태로 유지된다. 검증 성공: 대상 `git ls-files` 0건, `git check-ignore --no-index` 매칭, `git diff --check -- .gitignore SESSION_HANDOFF.md`. 커밋: `5aee52c Stop tracking generated Flutter registrants`.
 
