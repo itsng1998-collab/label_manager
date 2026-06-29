@@ -37,6 +37,8 @@ void main() {
       const Size(900, 700),
       editing: false,
     );
+    final objectId = fortuneBarcodeObjectIdInputRect(dialogRect);
+    final format = fortuneBarcodeFormatComboRect(dialogRect);
     final leading = fortuneBarcodeLeadingQuietZoneInputRect(dialogRect);
     final trailing = fortuneBarcodeTrailingQuietZoneInputRect(dialogRect);
     final fontCombo = fortuneBarcodeTextFontComboRect(dialogRect);
@@ -50,6 +52,8 @@ void main() {
       checkbox.bottom,
     );
 
+    expect(objectId.bottom, lessThan(format.top));
+    expect(format.bottom, lessThan(fontCombo.top));
     expect(trailing.top, leading.top);
     expect(fontCombo.bottom, lessThan(leading.top));
     expect(fontSizeCombo.bottom, lessThan(trailing.top));
@@ -267,6 +271,105 @@ void main() {
 
     expect(renderCount, 1);
     expect(painter().barcodeDialogOpen, isFalse);
+  });
+
+  testWidgets('barcode insert stores object ID metadata', (tester) async {
+    tester.view.physicalSize = const Size(900, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    final workbook = FortuneWorkbook(
+      settings: const FortuneSettings(
+        toolbarItems: [fortuneToolbarBarcodeCommand],
+      ),
+      sheets: [FortuneSheet(id: 's1', name: 'Sheet1')],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Overlay(
+          initialEntries: [
+            OverlayEntry(
+              builder: (context) => SizedBox(
+                width: 900,
+                height: 700,
+                child: FortuneSheetCanvas(
+                  workbook: workbook,
+                  barcodeFormats: const [
+                    FortuneBarcodeFormatOption(id: 'code128', label: 'Code128'),
+                  ],
+                  barcodeRenderer: (request) async {
+                    return FortuneBarcodeRenderResult(
+                      bytes: _transparentPng,
+                      pixelWidth: 120,
+                      pixelHeight: 60,
+                    );
+                  },
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    FortuneSheetPainter painter() {
+      return tester
+          .widgetList<CustomPaint>(
+            find.descendant(
+              of: find.byType(FortuneSheetCanvas),
+              matching: find.byType(CustomPaint),
+            ),
+          )
+          .map((paint) => paint.painter)
+          .whereType<FortuneSheetPainter>()
+          .single;
+    }
+
+    final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
+    await tester.tapAt(
+      topLeft +
+          toolbarItemCenter(
+            fortuneToolbarBarcodeCommand,
+            width: 900,
+            items: workbook.settings.toolbarItems,
+          ),
+    );
+    await tester.pump();
+
+    final objectIdInput = find.descendant(
+      of: find.byKey(const ValueKey('fortune-barcode-object-id-input')),
+      matching: find.byType(EditableText),
+    );
+    expect(objectIdInput, findsOneWidget);
+    expect(tester.widget<EditableText>(objectIdInput).controller.text, 'barcode-1');
+
+    await tester.enterText(objectIdInput, 'BC-001');
+    await tester.enterText(
+      find.descendant(
+        of: find.byKey(const ValueKey('fortune-barcode-text-input')),
+        matching: find.byType(EditableText),
+      ),
+      '12345',
+    );
+    await tester.pump();
+
+    final dialogRect = fortuneBarcodeDialogRect(
+      const Size(900, 700),
+      editing: false,
+    );
+    await tester.tapAt(
+      topLeft + fortuneBarcodeConfirmButtonRect(dialogRect).center,
+    );
+    await tester.pumpAndSettle();
+
+    final image = painter().workbook.activeSheet.images.single;
+    expect(image.extraFields[fortuneBarcodeObjectIdExtraKey], 'BC-001');
+    expect(image.extraFields[fortuneBarcodeBodyHeightExtraKey], greaterThan(0));
+    expect(image.extraFields[fortuneBarcodeIdLabelPrintExcludedExtraKey], true);
   });
 
   testWidgets('barcode dialog forwards leading and trailing text values', (
@@ -651,6 +754,122 @@ void main() {
     expect(updated.height, 80);
   });
 
+  testWidgets('barcode edit updates object ID metadata', (tester) async {
+    tester.view.physicalSize = const Size(900, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    const barcodeImage = FortuneImage(
+      id: 'barcode-1',
+      src:
+          'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=',
+      left: 20,
+      top: 20,
+      width: 120,
+      height: 60,
+      extraFields: {
+        'fortuneBarcode': true,
+        fortuneBarcodeObjectIdExtraKey: 'OLD-ID',
+        'barcodeText': '12345',
+        'barcodeFormatId': 'code128',
+        'barcodeFormatLabel': 'Code128',
+        'barcodeModuleScale': 3,
+        'barcodeBarHeight': 10,
+      },
+    );
+    final workbook = FortuneWorkbook(
+      sheets: [
+        FortuneSheet(id: 's1', name: 'Sheet1', images: const [barcodeImage]),
+      ],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SizedBox(
+          width: 900,
+          height: 700,
+          child: FortuneSheetCanvas(
+            workbook: workbook,
+            barcodeFormats: const [
+              FortuneBarcodeFormatOption(id: 'code128', label: 'Code128'),
+            ],
+            barcodeRenderer: (request) async {
+              return FortuneBarcodeRenderResult(
+                bytes: _transparentPng,
+                pixelWidth: 120,
+                pixelHeight: 60,
+              );
+            },
+          ),
+        ),
+      ),
+    );
+
+    FortuneSheetPainter painter() {
+      return tester
+          .widgetList<CustomPaint>(
+            find.descendant(
+              of: find.byType(FortuneSheetCanvas),
+              matching: find.byType(CustomPaint),
+            ),
+          )
+          .map((paint) => paint.painter)
+          .whereType<FortuneSheetPainter>()
+          .single;
+    }
+
+    final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
+    final settings = painter().workbook.settings;
+    final imageCenter =
+        topLeft +
+        Offset(
+          settings.rowHeaderWidth + barcodeImage.left + barcodeImage.width / 2,
+          settings.effectiveToolbarHeight +
+              settings.effectiveFormulaBarHeight +
+              settings.columnHeaderHeight +
+              barcodeImage.top +
+              barcodeImage.height / 2,
+        );
+    await tester.sendEventToBinding(
+      PointerDownEvent(
+        position: imageCenter,
+        buttons: kSecondaryMouseButton,
+        kind: PointerDeviceKind.mouse,
+      ),
+    );
+    await tester.sendEventToBinding(PointerUpEvent(position: imageCenter));
+    await tester.pump();
+
+    expect(painter().barcodeDialogOpen, isTrue);
+    final objectIdInput = find.descendant(
+      of: find.byKey(const ValueKey('fortune-barcode-object-id-input')),
+      matching: find.byType(EditableText),
+    );
+    expect(
+      tester.widget<EditableText>(objectIdInput).controller.text,
+      'OLD-ID',
+    );
+
+    await tester.enterText(objectIdInput, 'NEW-ID');
+    await tester.pump();
+
+    final dialogRect = fortuneBarcodeDialogRect(
+      const Size(900, 700),
+      editing: true,
+    );
+    await tester.tapAt(
+      topLeft + fortuneBarcodeConfirmButtonRect(dialogRect).center,
+    );
+    await tester.pumpAndSettle();
+
+    final updated = painter().workbook.activeSheet.images.single;
+    expect(updated.extraFields[fortuneBarcodeObjectIdExtraKey], 'NEW-ID');
+    expect(updated.extraFields[fortuneBarcodeIdLabelPrintExcludedExtraKey], true);
+  });
+
   testWidgets('barcode edit keeps existing size when only text font changes', (
     tester,
   ) async {
@@ -1009,7 +1228,7 @@ void main() {
         matching: find.byType(EditableText),
       ),
     );
-    expect(editableTexts, hasLength(8));
+    expect(editableTexts, hasLength(9));
     for (final editableText in editableTexts) {
       expect(editableText.selectionControls, isNotNull);
       expect(editableText.contextMenuBuilder, isNotNull);

@@ -2390,6 +2390,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   final FocusNode _barcodeTextFocusNode = FocusNode(
     debugLabel: 'FortuneBarcodeTextEditor',
   );
+  final FocusNode _barcodeObjectIdFocusNode = FocusNode(
+    debugLabel: 'FortuneBarcodeObjectIdEditor',
+  );
   final FocusNode _barcodeWidthFocusNode = FocusNode(
     debugLabel: 'FortuneBarcodeWidthEditor',
   );
@@ -2480,6 +2483,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   final TextEditingController _imageInsertRotationController =
       TextEditingController(text: '0');
   final TextEditingController _barcodeTextController = TextEditingController();
+  final TextEditingController _barcodeObjectIdController =
+      TextEditingController();
   final TextEditingController _barcodeWidthController = TextEditingController();
   final TextEditingController _barcodeHeightController =
       TextEditingController();
@@ -2531,6 +2536,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   final GlobalKey<EditableTextState> _imageInsertRotationEditableKey =
       GlobalKey<EditableTextState>();
   final GlobalKey<EditableTextState> _barcodeTextEditableKey =
+      GlobalKey<EditableTextState>();
+    final GlobalKey<EditableTextState> _barcodeObjectIdEditableKey =
       GlobalKey<EditableTextState>();
   final GlobalKey<EditableTextState> _barcodeWidthEditableKey =
       GlobalKey<EditableTextState>();
@@ -2824,6 +2831,10 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
 
   List<({FocusNode focusNode, TextEditingController controller})>
   get _barcodeDialogInputs => [
+    (
+      focusNode: _barcodeObjectIdFocusNode,
+      controller: _barcodeObjectIdController,
+    ),
     (focusNode: _barcodeTextFocusNode, controller: _barcodeTextController),
     (focusNode: _barcodeWidthFocusNode, controller: _barcodeWidthController),
     (focusNode: _barcodeHeightFocusNode, controller: _barcodeHeightController),
@@ -2859,6 +2870,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     _focusNode.addListener(_handleSheetFocusChanged);
     _imageInsertWidthController.addListener(_handleImageInsertWidthChanged);
     _imageInsertHeightController.addListener(_handleImageInsertHeightChanged);
+    _barcodeObjectIdController.addListener(_handleBarcodeObjectIdChanged);
     _barcodeTextController.addListener(_handleBarcodeTextChanged);
     _barcodeWidthController.addListener(_handleBarcodeWidthChanged);
     _barcodeHeightController.addListener(_handleBarcodeHeightChanged);
@@ -2920,6 +2932,18 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     }
     setState(() {
       if (_barcodeErrorText == '내용을 입력하세요.' && _barcodeCanConfirm) {
+        _barcodeErrorText = null;
+      }
+    });
+  }
+
+  void _handleBarcodeObjectIdChanged() {
+    if (!_barcodeDialogOpen || !mounted) {
+      return;
+    }
+    setState(() {
+      if (_barcodeErrorText == 'ID를 입력하세요.' &&
+          _barcodeObjectIdController.text.trim().isNotEmpty) {
         _barcodeErrorText = null;
       }
     });
@@ -5713,6 +5737,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     _imageInsertWidthFocusNode.dispose();
     _imageInsertHeightFocusNode.dispose();
     _imageInsertRotationFocusNode.dispose();
+    _barcodeObjectIdFocusNode.dispose();
     _barcodeTextFocusNode.dispose();
     _barcodeWidthFocusNode.dispose();
     _barcodeHeightFocusNode.dispose();
@@ -5756,6 +5781,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     _imageInsertHeightController.removeListener(
       _handleImageInsertHeightChanged,
     );
+    _barcodeObjectIdController.removeListener(_handleBarcodeObjectIdChanged);
     _barcodeTextController.removeListener(_handleBarcodeTextChanged);
     _barcodeWidthController.removeListener(_handleBarcodeWidthChanged);
     _barcodeHeightController.removeListener(_handleBarcodeHeightChanged);
@@ -5773,6 +5799,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     _imageInsertWidthController.dispose();
     _imageInsertHeightController.dispose();
     _imageInsertRotationController.dispose();
+    _barcodeObjectIdController.dispose();
     _barcodeTextController.dispose();
     _barcodeWidthController.dispose();
     _barcodeHeightController.dispose();
@@ -9129,7 +9156,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         ).contains(local)) {
       return false;
     }
-    return fortuneBarcodeTextInputRect(rect).contains(local) ||
+    return fortuneBarcodeObjectIdInputRect(rect).contains(local) ||
+      fortuneBarcodeTextInputRect(rect).contains(local) ||
         fortuneBarcodeModuleScaleInputRect(rect).contains(local) ||
         fortuneBarcodeBarHeightInputRect(rect).contains(local) ||
         fortuneBarcodeWidthInputRect(rect).contains(local) ||
@@ -22139,7 +22167,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     return image.extraFields['fortuneBarcode'] == true;
   }
 
-  bool get _barcodeCanConfirm => _barcodeTextController.text.trim().isNotEmpty;
+  bool get _barcodeCanConfirm =>
+      _barcodeObjectIdController.text.trim().isNotEmpty &&
+      _barcodeTextController.text.trim().isNotEmpty;
 
   void _showBarcodeInsertDialog() {
     final sheet = _workbook.activeSheet;
@@ -22176,6 +22206,10 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       _barcodeErrorText = null;
       _toolbarHoveredKey = null;
       _toolbarHoveredComboArrowKey = null;
+      _setImageInsertControllerText(
+        _barcodeObjectIdController,
+        _nextBarcodeObjectId(),
+      );
       _setImageInsertControllerText(_barcodeTextController, '');
       _setImageInsertControllerText(_barcodeModuleScaleController, '3');
       _setImageInsertControllerText(_barcodeBarHeightController, '10');
@@ -22247,6 +22281,10 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       _barcodeUpdatingPair = true;
       try {
         _setImageInsertControllerText(
+          _barcodeObjectIdController,
+          extra[fortuneBarcodeObjectIdExtraKey]?.toString() ?? image.id,
+        );
+        _setImageInsertControllerText(
           _barcodeTextController,
           extra['barcodeText']?.toString() ?? '',
         );
@@ -22305,6 +22343,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       return;
     }
     final text = _barcodeTextController.text.trim();
+    final objectId = _barcodeObjectIdController.text.trim();
     final widthValue = double.tryParse(_barcodeWidthController.text.trim());
     final heightValue = double.tryParse(_barcodeHeightController.text.trim());
     final moduleScale =
@@ -22313,6 +22352,11 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         double.tryParse(_barcodeBarHeightController.text.trim()) ?? 10;
     final leadingText = _barcodeLeadingQuietZoneController.text;
     final trailingText = _barcodeTrailingQuietZoneController.text;
+    if (objectId.isEmpty) {
+      _barcodeObjectIdFocusNode.requestFocus();
+      setState(() => _barcodeErrorText = 'ID를 입력하세요.');
+      return;
+    }
     if (text.isEmpty) {
       _barcodeTextFocusNode.requestFocus();
       setState(() => _barcodeErrorText = '내용을 입력하세요.');
@@ -22384,6 +22428,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     final src = _bytesDataUri(result.bytes, result.mimeType);
     final extraFields = <String, Object?>{
       'fortuneBarcode': true,
+      fortuneBarcodeObjectIdExtraKey: objectId,
       'barcodeText': text,
       'barcodeFormatId': format.id,
       'barcodeFormatLabel': format.label,
@@ -22397,6 +22442,13 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       'barcodeShowText': _barcodeShowHumanReadableText,
       'barcodeHumanReadableFontFamily': _selectedBarcodeTextFontFamily,
       'barcodeHumanReadableFontSize': _barcodeHumanReadableFontSize,
+        fortuneBarcodeBodyHeightExtraKey: _barcodeShowHumanReadableText
+          ? math.min(requestedBarHeight, imageHeight)
+          : imageHeight,
+        // The ID label is an editor-only overlay drawn above the barcode body.
+        // Print/export paths must exclude it and use this metadata only to
+        // identify barcode objects.
+        fortuneBarcodeIdLabelPrintExcludedExtraKey: true,
     };
     if (usesMillimeters) {
       extraFields['widthMm'] = widthValue > 0
@@ -22918,6 +22970,23 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     final random = math.Random().nextInt(0x7fffffff).toRadixString(36);
     final time = DateTime.now().millisecondsSinceEpoch.toRadixString(36);
     return 'img_${random}_$time';
+  }
+
+  String _nextBarcodeObjectId() {
+    final used = <String>{
+      for (final image in _workbook.activeSheet.images)
+        if (_isBarcodeImage(image))
+          (image.extraFields[fortuneBarcodeObjectIdExtraKey]?.toString() ??
+                  image.id)
+              .trim(),
+    }..remove('');
+    for (var index = 1; index < 100000; index += 1) {
+      final candidate = 'barcode-$index';
+      if (!used.contains(candidate)) {
+        return candidate;
+      }
+    }
+    return 'barcode-${used.length + 1}';
   }
 
   Future<ui.Image?> _decodeImageBytes(Uint8List bytes) async {
@@ -33695,6 +33764,11 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     return rect == null ? null : fortuneBarcodeTextInputRect(rect);
   }
 
+  Rect? _barcodeObjectIdInputRect([Size? overrideSize]) {
+    final rect = _barcodeDialogRect(overrideSize);
+    return rect == null ? null : fortuneBarcodeObjectIdInputRect(rect);
+  }
+
   Rect? _barcodeWidthInputRect([Size? overrideSize]) {
     final rect = _barcodeDialogRect(overrideSize);
     return rect == null ? null : fortuneBarcodeWidthInputRect(rect);
@@ -33806,6 +33880,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         return 'text-font-size-$index';
       }
     }
+    if (fortuneBarcodeObjectIdInputRect(rect).contains(local)) {
+      return 'object-id';
+    }
     if (fortuneBarcodeTextInputRect(rect).contains(local)) {
       return 'text';
     }
@@ -33899,6 +33976,10 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     }
     if (command == 'text') {
       _barcodeTextFocusNode.requestFocus();
+      return;
+    }
+    if (command == 'object-id') {
+      _barcodeObjectIdFocusNode.requestFocus();
       return;
     }
     if (command == 'width') {
@@ -39802,6 +39883,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     bool signed = false,
   }) {
     return Positioned(
+      key: key,
       left: rect.left + 7,
       top: rect.top + 4 + _dialogInputVerticalOffset,
       width: math.max(24, rect.width - 14),
@@ -39874,6 +39956,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     if (!_barcodeDialogOpen) {
       return const SizedBox.shrink();
     }
+    final objectIdRect = _barcodeObjectIdInputRect(size);
     final textRect = _barcodeTextInputRect(size);
     final moduleScaleRect = _barcodeModuleScaleInputRect(size);
     final barHeightRect = _barcodeBarHeightInputRect(size);
@@ -39882,7 +39965,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     final leadingQuietZoneRect = _barcodeLeadingQuietZoneInputRect(size);
     final trailingQuietZoneRect = _barcodeTrailingQuietZoneInputRect(size);
     final rotationRect = _barcodeRotationInputRect(size);
-    if (textRect == null ||
+    if (objectIdRect == null ||
+      textRect == null ||
         moduleScaleRect == null ||
         barHeightRect == null ||
         widthRect == null ||
@@ -39895,6 +39979,15 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     return Positioned.fill(
       child: Stack(
         children: [
+          if (!_barcodeFormatMenuIntersects(size, objectIdRect))
+            _buildBarcodeDialogInput(
+              key: const ValueKey('fortune-barcode-object-id-input'),
+              editableKey: _barcodeObjectIdEditableKey,
+              rect: objectIdRect,
+              controller: _barcodeObjectIdController,
+              focusNode: _barcodeObjectIdFocusNode,
+              keyboardType: TextInputType.text,
+            ),
           if (!_barcodeFormatMenuIntersects(size, textRect))
             _buildBarcodeDialogInput(
               key: const ValueKey('fortune-barcode-text-input'),
@@ -40005,6 +40098,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     bool signed = false,
   }) {
     return Positioned(
+      key: key,
       left: rect.left + 7,
       top: rect.top + 4 + _dialogInputVerticalOffset,
       width: math.max(24, rect.width - 14),
@@ -40870,6 +40964,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
                 barcodeDialogOpen: _barcodeDialogOpen,
                 barcodeEditing: _barcodeIsEditing,
                 barcodeCanConfirm: _barcodeCanConfirm,
+                barcodeObjectId: _barcodeObjectIdController.text,
                 barcodeFormatLabel: _selectedBarcodeFormat.label,
                 barcodeFormatOptions: [
                   for (final format in _effectiveBarcodeFormats) format.label,

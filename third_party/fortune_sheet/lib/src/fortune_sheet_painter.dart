@@ -44154,8 +44154,8 @@ const double fortuneImageInsertDialogIconGap = 10.0;
 const double fortuneImageInsertDialogFileButtonWidth = 82.0;
 const double fortuneImageInsertDialogConfirmButtonWidth = 54.0;
 const double fortuneImageInsertDialogCancelButtonWidth = 54.0;
-const double fortuneBarcodeDialogHeight = 440.0;
-const double fortuneBarcodeEditDialogHeight = 440.0;
+const double fortuneBarcodeDialogHeight = 474.0;
+const double fortuneBarcodeEditDialogHeight = 474.0;
 const double fortuneBarcodeDialogWidth = 470.0;
 const double fortuneBarcodeDialogLabelWidth = 138.0;
 const double fortuneBarcodeDialogFormatWidth = 168.0;
@@ -44170,6 +44170,10 @@ const double fortuneBarcodeDialogShowTextLabelWidth = 210.0;
 const double fortuneBarcodeDialogIconSize = 24.0;
 const double fortuneBarcodeDialogCloseSize = 9.0;
 const double fortuneBarcodeDialogIconGap = 4.0;
+const String fortuneBarcodeObjectIdExtraKey = 'barcodeObjectId';
+const String fortuneBarcodeBodyHeightExtraKey = 'barcodeBodyHeight';
+const String fortuneBarcodeIdLabelPrintExcludedExtraKey =
+  'barcodeIdLabelPrintExcluded';
 
 const double fortuneDataVerificationDialogWidth = 550.0;
 const double fortuneDataVerificationDialogHeight = 463.0;
@@ -59755,18 +59759,7 @@ Rect fortuneBarcodeCloseButtonRect(Rect dialogRect) {
   );
 }
 
-Rect fortuneBarcodeTextInputRect(Rect dialogRect) {
-  return Rect.fromLTWH(
-    dialogRect.left +
-        fortuneImageInsertDialogPaddingLeft +
-        fortuneBarcodeDialogLabelWidth,
-    dialogRect.top + 76,
-    fortuneBarcodeDialogFullInputWidth,
-    fortuneImageInsertDialogInputHeight,
-  );
-}
-
-Rect fortuneBarcodeFormatComboRect(Rect dialogRect) {
+Rect fortuneBarcodeObjectIdInputRect(Rect dialogRect) {
   return Rect.fromLTWH(
     dialogRect.left +
         fortuneImageInsertDialogPaddingLeft +
@@ -59777,12 +59770,33 @@ Rect fortuneBarcodeFormatComboRect(Rect dialogRect) {
   );
 }
 
+Rect fortuneBarcodeTextInputRect(Rect dialogRect) {
+  final idInput = fortuneBarcodeObjectIdInputRect(dialogRect);
+  return Rect.fromLTWH(
+    idInput.left,
+    dialogRect.top + 110,
+    idInput.width,
+    idInput.height,
+  );
+}
+
+Rect fortuneBarcodeFormatComboRect(Rect dialogRect) {
+  return Rect.fromLTWH(
+    dialogRect.left +
+        fortuneImageInsertDialogPaddingLeft +
+        fortuneBarcodeDialogLabelWidth,
+    dialogRect.top + 76,
+    fortuneBarcodeDialogFullInputWidth,
+    fortuneImageInsertDialogInputHeight,
+  );
+}
+
 Rect fortuneBarcodeModuleScaleInputRect(Rect dialogRect) {
   return Rect.fromLTWH(
     dialogRect.left +
         fortuneImageInsertDialogPaddingLeft +
         fortuneBarcodeDialogLabelWidth,
-    dialogRect.top + 110,
+    dialogRect.top + 144,
     fortuneBarcodeDialogFullInputWidth,
     fortuneImageInsertDialogInputHeight,
   );
@@ -59793,7 +59807,7 @@ Rect fortuneBarcodeBarHeightInputRect(Rect dialogRect) {
     dialogRect.left +
         fortuneImageInsertDialogPaddingLeft +
         fortuneBarcodeDialogLabelWidth,
-    dialogRect.top + 144,
+    dialogRect.top + 178,
     fortuneBarcodeDialogFullInputWidth,
     fortuneImageInsertDialogInputHeight,
   );
@@ -59850,7 +59864,7 @@ Rect fortuneBarcodeWidthInputRect(Rect dialogRect) {
     dialogRect.left +
         fortuneImageInsertDialogPaddingLeft +
         fortuneBarcodeDialogLabelWidth,
-    dialogRect.top + 178,
+    dialogRect.top + 212,
     fortuneBarcodeDialogFullInputWidth,
     fortuneImageInsertDialogInputHeight,
   );
@@ -59860,7 +59874,7 @@ Rect fortuneBarcodeHeightInputRect(Rect dialogRect) {
   final widthInput = fortuneBarcodeWidthInputRect(dialogRect);
   return Rect.fromLTWH(
     widthInput.left,
-    dialogRect.top + 212,
+    dialogRect.top + 246,
     widthInput.width,
     widthInput.height,
   );
@@ -59885,7 +59899,7 @@ Rect fortuneBarcodeRotationInputRect(Rect dialogRect) {
     dialogRect.left +
         fortuneImageInsertDialogPaddingLeft +
         fortuneBarcodeDialogLabelWidth,
-    dialogRect.top + 246,
+    dialogRect.top + 280,
     fortuneBarcodeDialogFullInputWidth,
     fortuneImageInsertDialogInputHeight,
   );
@@ -59904,7 +59918,7 @@ Rect fortuneBarcodeRotateButtonRect(Rect dialogRect) {
 Rect fortuneBarcodeLeadingQuietZoneInputRect(Rect dialogRect) {
   return Rect.fromLTWH(
     dialogRect.left + 46,
-    dialogRect.top + 326,
+    dialogRect.top + 360,
     fortuneBarcodeDialogSmallInputWidth,
     fortuneImageInsertDialogInputHeight,
   );
@@ -59915,7 +59929,7 @@ Rect fortuneBarcodeTextFontComboRect(Rect dialogRect) {
     dialogRect.left +
         fortuneImageInsertDialogPaddingLeft +
         fortuneBarcodeDialogLabelWidth,
-    dialogRect.top + 286,
+    dialogRect.top + 320,
     fortuneBarcodeDialogTextFontWidth,
     fortuneImageInsertDialogInputHeight,
   );
@@ -60947,6 +60961,7 @@ class FortuneSheetPainter extends CustomPainter {
     this.barcodeDialogOpen = false,
     this.barcodeEditing = false,
     this.barcodeCanConfirm = false,
+    this.barcodeObjectId = '',
     this.barcodeFormatLabel = '',
     this.barcodeFormatOptions = const <String>[],
     this.barcodeFormatMenuOpen = false,
@@ -61136,6 +61151,7 @@ class FortuneSheetPainter extends CustomPainter {
   final bool barcodeDialogOpen;
   final bool barcodeEditing;
   final bool barcodeCanConfirm;
+  final String barcodeObjectId;
   final String barcodeFormatLabel;
   final List<String> barcodeFormatOptions;
   final bool barcodeFormatMenuOpen;
@@ -67884,14 +67900,17 @@ class FortuneSheetPainter extends CustomPainter {
       );
     }
 
+    final objectIdInput = fortuneBarcodeObjectIdInputRect(rect);
     final textInput = fortuneBarcodeTextInputRect(rect);
     final formatCombo = fortuneBarcodeFormatComboRect(rect);
+    drawLabel('ID', objectIdInput.top + 4);
     drawLabel('형식', formatCombo.top + 4);
     drawLabel('값', textInput.top + 4);
     final moduleScaleInput = fortuneBarcodeModuleScaleInputRect(rect);
     final barHeightInput = fortuneBarcodeBarHeightInputRect(rect);
     drawLabel('막대/모듈 두께의 배율', moduleScaleInput.top + 4);
     drawLabel('바코드 높이', barHeightInput.top + 4);
+    _drawInputShell(canvas, objectIdInput);
     _drawInputShell(canvas, textInput);
     _drawInputShell(canvas, moduleScaleInput);
     _drawInputShell(canvas, barHeightInput);
@@ -75078,6 +75097,7 @@ class FortuneSheetPainter extends CustomPainter {
           rotationDegrees: _imageRotationDegrees(image.extraFields['rotation']),
         );
       }
+      _drawBarcodeObjectIdLabel(canvas, rect, image);
       if (image.id == activeImageId) {
         _drawActiveImageSelection(canvas, rect, clip);
       }
@@ -75206,6 +75226,95 @@ class FortuneSheetPainter extends CustomPainter {
     if (normalizedRotation != 0) {
       canvas.restore();
     }
+  }
+
+  void _drawBarcodeObjectIdLabel(Canvas canvas, Rect rect, FortuneImage image) {
+    if (image.extraFields['fortuneBarcode'] != true) {
+      return;
+    }
+    final objectId = image.extraFields[fortuneBarcodeObjectIdExtraKey]
+        ?.toString()
+        .trim();
+    if (objectId == null || objectId.isEmpty) {
+      return;
+    }
+    final bodyHeight = _barcodeBodyHeightForLabel(image);
+    final bodyRatio = image.height <= 0
+        ? 1.0
+        : (bodyHeight / image.height).clamp(0.0, 1.0);
+    final bodyRect = Rect.fromLTWH(
+      rect.left,
+      rect.top,
+      rect.width,
+      math.max(1.0, rect.height * bodyRatio),
+    );
+    if (bodyRect.width < 12 || bodyRect.height < 10) {
+      return;
+    }
+    final fontSize = math.max(9.0, math.min(18.0, bodyRect.height * 0.18));
+    final textPainter = TextPainter(
+      text: TextSpan(
+        text: objectId,
+        style: TextStyle(
+          color: const Color(0xff000000),
+          fontSize: fontSize,
+          height: 1,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+      maxLines: 1,
+      ellipsis: '...',
+      textDirection: TextDirection.ltr,
+    )..layout(maxWidth: math.max(8.0, bodyRect.width * 0.7));
+    final boxWidth = math.max(
+      math.min(bodyRect.width * 0.46, textPainter.width + 16),
+      math.min(bodyRect.width, 28.0),
+    );
+    final boxHeight = math.max(
+      math.min(bodyRect.height * 0.28, textPainter.height + 8),
+      math.min(bodyRect.height, 16.0),
+    );
+    final box = Rect.fromCenter(
+      center: bodyRect.center,
+      width: math.min(bodyRect.width, boxWidth),
+      height: math.min(bodyRect.height, boxHeight),
+    );
+    final rotation = _imageRotationDegrees(image.extraFields['rotation']) % 360;
+    if (rotation != 0) {
+      canvas.save();
+      canvas.translate(rect.center.dx, rect.center.dy);
+      canvas.rotate(rotation * math.pi / 180);
+      canvas.translate(-rect.center.dx, -rect.center.dy);
+    }
+    canvas.drawRect(box, Paint()..color = const Color(0xffffffff));
+    canvas.drawRect(
+      box,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = math.max(1.0, box.height * 0.06)
+        ..color = const Color(0xff000000),
+    );
+    textPainter.paint(
+      canvas,
+      Offset(
+        box.left + (box.width - textPainter.width) / 2,
+        box.top + (box.height - textPainter.height) / 2,
+      ),
+    );
+    if (rotation != 0) {
+      canvas.restore();
+    }
+  }
+
+  double _barcodeBodyHeightForLabel(FortuneImage image) {
+    final raw = image.extraFields[fortuneBarcodeBodyHeightExtraKey];
+    if (raw is num) {
+      return math.max(1.0, raw.toDouble());
+    }
+    if (raw is String) {
+      return math.max(1.0, double.tryParse(raw.trim()) ?? image.height);
+    }
+    return image.height;
   }
 
   double _imageRotationDegrees(Object? value) {
@@ -75677,6 +75786,7 @@ class FortuneSheetPainter extends CustomPainter {
         oldDelegate.barcodeDialogOpen != barcodeDialogOpen ||
         oldDelegate.barcodeEditing != barcodeEditing ||
         oldDelegate.barcodeCanConfirm != barcodeCanConfirm ||
+        oldDelegate.barcodeObjectId != barcodeObjectId ||
         oldDelegate.barcodeFormatLabel != barcodeFormatLabel ||
         !_listEquals(oldDelegate.barcodeFormatOptions, barcodeFormatOptions) ||
         oldDelegate.barcodeFormatMenuOpen != barcodeFormatMenuOpen ||
