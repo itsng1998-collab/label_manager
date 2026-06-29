@@ -44172,6 +44172,7 @@ const double fortuneBarcodeDialogCloseSize = 9.0;
 const double fortuneBarcodeDialogIconGap = 4.0;
 const String fortuneBarcodeObjectIdExtraKey = 'barcodeObjectId';
 const String fortuneBarcodeBodyHeightExtraKey = 'barcodeBodyHeight';
+const String fortuneBarcodeBodyRatioExtraKey = 'barcodeBodyRatio';
 const String fortuneBarcodeIdLabelPrintExcludedExtraKey =
   'barcodeIdLabelPrintExcluded';
 
@@ -44205,10 +44206,7 @@ FortuneBarcodeObjectIdLabelMetrics? fortuneBarcodeObjectIdLabelMetrics(
   if (objectId == null || objectId.isEmpty) {
     return null;
   }
-  final bodyHeight = _fortuneBarcodeBodyHeightForLabel(image);
-  final bodyRatio = image.height <= 0
-      ? 1.0
-      : (bodyHeight / image.height).clamp(0.0, 1.0);
+  final bodyRatio = _fortuneBarcodeBodyRatioForLabel(image);
   final bodyRect = Rect.fromLTWH(
     rect.left,
     rect.top,
@@ -44266,6 +44264,25 @@ FortuneBarcodeObjectIdLabelMetrics? fortuneBarcodeObjectIdLabelMetrics(
   );
 }
 
+double _fortuneBarcodeBodyRatioForLabel(FortuneImage image) {
+  final rawRatio = image.extraFields[fortuneBarcodeBodyRatioExtraKey];
+  if (rawRatio is num) {
+    return rawRatio.toDouble().clamp(0.0, 1.0);
+  }
+  if (rawRatio is String) {
+    final parsed = double.tryParse(rawRatio.trim());
+    if (parsed != null) {
+      return parsed.clamp(0.0, 1.0);
+    }
+  }
+  final bodyHeight = _fortuneBarcodeBodyHeightForLabel(image);
+  final originalHeight = _fortuneBarcodeOriginalHeightForBodyRatio(image);
+  if (originalHeight <= 0) {
+    return 1.0;
+  }
+  return (bodyHeight / originalHeight).clamp(0.0, 1.0);
+}
+
 double _fortuneBarcodeBodyHeightForLabel(FortuneImage image) {
   final raw = image.extraFields[fortuneBarcodeBodyHeightExtraKey];
   if (raw is num) {
@@ -44273,6 +44290,30 @@ double _fortuneBarcodeBodyHeightForLabel(FortuneImage image) {
   }
   if (raw is String) {
     return math.max(1.0, double.tryParse(raw.trim()) ?? image.height);
+  }
+  return image.height;
+}
+
+double _fortuneBarcodeOriginalHeightForBodyRatio(FortuneImage image) {
+  final rawHeightMm = image.extraFields['heightMm'];
+  if (rawHeightMm is num && rawHeightMm > 0) {
+    return fortuneMillimetersToLogicalPixels(rawHeightMm);
+  }
+  if (rawHeightMm is String) {
+    final parsed = double.tryParse(rawHeightMm.trim());
+    if (parsed != null && parsed > 0) {
+      return fortuneMillimetersToLogicalPixels(parsed);
+    }
+  }
+  final rawOriginHeight = image.extraFields['originHeight'];
+  if (rawOriginHeight is num && rawOriginHeight > 0) {
+    return rawOriginHeight.toDouble();
+  }
+  if (rawOriginHeight is String) {
+    final parsed = double.tryParse(rawOriginHeight.trim());
+    if (parsed != null && parsed > 0) {
+      return parsed;
+    }
   }
   return image.height;
 }

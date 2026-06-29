@@ -22442,9 +22442,16 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       'barcodeShowText': _barcodeShowHumanReadableText,
       'barcodeHumanReadableFontFamily': _selectedBarcodeTextFontFamily,
       'barcodeHumanReadableFontSize': _barcodeHumanReadableFontSize,
-        fortuneBarcodeBodyHeightExtraKey: _barcodeShowHumanReadableText
+      fortuneBarcodeBodyHeightExtraKey: _barcodeShowHumanReadableText
           ? math.min(requestedBarHeight, imageHeight)
           : imageHeight,
+      fortuneBarcodeBodyRatioExtraKey: imageHeight <= 0
+          ? 1.0
+          : ((_barcodeShowHumanReadableText
+                    ? math.min(requestedBarHeight, imageHeight)
+                    : imageHeight) /
+                imageHeight)
+              .clamp(0.0, 1.0),
         // The ID label is an editor-only overlay drawn above the barcode body.
         // Print/export paths must exclude it and use this metadata only to
         // identify barcode objects.

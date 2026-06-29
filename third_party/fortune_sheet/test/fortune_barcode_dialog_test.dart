@@ -377,15 +377,25 @@ void main() {
       'fortuneBarcode': true,
       fortuneBarcodeObjectIdExtraKey: 'ID',
       fortuneBarcodeBodyHeightExtraKey: 60,
+      fortuneBarcodeBodyRatioExtraKey: 0.75,
       fortuneBarcodeIdLabelPrintExcludedExtraKey: true,
     };
+    const originalImage = FortuneImage(
+      id: 'original',
+      src: 'missing-original',
+      left: 20,
+      top: 20,
+      width: 120,
+      height: 80,
+      extraFields: extraFields,
+    );
     const largeImage = FortuneImage(
       id: 'large',
       src: 'missing-large',
       left: 20,
       top: 20,
-      width: 120,
-      height: 60,
+      width: 240,
+      height: 160,
       extraFields: extraFields,
     );
     const smallImage = FortuneImage(
@@ -394,24 +404,32 @@ void main() {
       left: 170,
       top: 35,
       width: 60,
-      height: 30,
+      height: 40,
       extraFields: extraFields,
     );
 
+    final originalMetrics = fortuneBarcodeObjectIdLabelMetrics(
+      const Rect.fromLTWH(20, 20, 120, 80),
+      originalImage,
+    );
     final largeMetrics = fortuneBarcodeObjectIdLabelMetrics(
-      const Rect.fromLTWH(20, 20, 120, 60),
+      const Rect.fromLTWH(20, 20, 240, 160),
       largeImage,
     );
     final smallMetrics = fortuneBarcodeObjectIdLabelMetrics(
-      const Rect.fromLTWH(170, 35, 60, 30),
+      const Rect.fromLTWH(170, 35, 60, 40),
       smallImage,
     );
 
+    expect(originalMetrics, isNotNull);
     expect(largeMetrics, isNotNull);
     expect(smallMetrics, isNotNull);
-    expect(largeMetrics!.boxRect.width, greaterThan(smallMetrics!.boxRect.width));
-    expect(largeMetrics.boxRect.height, greaterThan(smallMetrics.boxRect.height));
-    expect(largeMetrics.fontSize, greaterThan(smallMetrics.fontSize));
+    expect(largeMetrics!.bodyRect.height, greaterThan(originalMetrics!.bodyRect.height));
+    expect(smallMetrics!.bodyRect.height, lessThan(originalMetrics.bodyRect.height));
+    expect(largeMetrics.boxRect.width, greaterThan(originalMetrics.boxRect.width));
+    expect(smallMetrics.boxRect.width, lessThan(originalMetrics.boxRect.width));
+    expect(largeMetrics.fontSize, greaterThan(originalMetrics.fontSize));
+    expect(smallMetrics.fontSize, lessThan(originalMetrics.fontSize));
     expect(smallMetrics.boxRect.width, lessThan(28));
     expect(smallMetrics.boxRect.height, lessThan(16));
   });
