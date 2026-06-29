@@ -1,0 +1,567 @@
+:root {
+  --label-width-mm: 60;
+  --label-height-mm: 40;
+  --sheet-shadow: 0 12px 30px rgba(0, 0, 0, 0.12);
+  --sheet-border: 1px solid #d1d7dc;
+  --sheet-bg: #ffffff;
+  /*
+    IMPORTANT (DO NOT CHANGE casually)
+    -------------------------------
+    편집 중(contenteditable)과 표시(canvas/DOM) 모두에서 위/아래첨자 위치를 안정적으로 맞추기 위한
+    "고정" 기준값이다. 이 값은 런타임 JS에서 다음 위치에 의해 참조된다.
+      - JS: buildSupSubRunStyle() -> var(--fs-*-shift)
+      - JS: applySupSubShiftToLmRuns() -> readRootShiftEm('--fs-*-shift')
+
+    임의 수정 시 발생 가능한 문제:
+      - 첨자+자간/장평 복합에서 편집 중 위치가 흔들리거나
+      - 커밋 전/후(overlay vs canvas) 위치가 달라지고
+      - 플랫폼(Windows/WebView2 vs Android) 간 불일치가 재발한다.
+
+    변경이 반드시 필요하면:
+      1) Windows + Android 모두에서 "편집 중"/"커밋 후"를 육안 확인
+      2) 복합 케이스(위첨자+자간, 아래첨자+장평, 줄간격 포함) 재검증
+      3) 이 파일의 플랫폼 오버라이드 블록도 함께 조정
+  */
+  /* Visual-only tweak for unicode subscript glyphs (₀..₉ etc). */
+  --fs-subshift: 0.14em;
+  /* Visual-only tweak for unicode superscript glyphs (⁰..⁹ etc). Negative moves up. */
+  --fs-supshift: -0.12em;
+}
+
+/*
+  Sup/Sub는 <sup>/<sub>가 아니라 유니코드 글리프(⁰, ₀ 등)로 저장된다.
+  Windows(WebView2)에서 폰트별 기준선/크기가 달라 "첨자 표시가 틀어지는" 문제가 생길 수 있어
+  unicode-range로 "첨자 글리프"에만 Segoe UI Symbol을 적용한다.
+  (기본 텍스트 폰트는 기존 Noto/Malgun을 유지)
+*/
+@font-face {
+  font-family: 'FS-SupSub-Windows';
+  /* Prefer Segoe UI first; Symbol can have different metrics */
+  src: local('Segoe UI'), local('Segoe UI Symbol');
+  /* superscripts/subscripts */
+  unicode-range: U+00B2-00B3, U+00B9, U+2070-209F;
+}
+
+@font-face {
+  font-family: 'FS-SupSub-Android';
+  /* Android WebView typically has Noto/Roboto families available */
+  src: local('Noto Sans Symbols2'), local('Noto Sans Symbols'), local('Noto Sans'), local('Roboto');
+  /* superscripts/subscripts */
+  unicode-range: U+00B2-00B3, U+00B9, U+2070-209F;
+}
+
+@font-face {
+  font-family: 'FS-Base';
+  src: url('fonts/NotoSansKR-Regular.ttf') format('truetype'),
+       url('fonts/Pretendard-Regular.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'FS-Base';
+  src: url('fonts/NotoSansKR-Bold.ttf') format('truetype'),
+       url('fonts/Pretendard-Bold.otf') format('opentype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Noto Sans KR';
+  src: url('fonts/NotoSansKR-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Noto Sans KR';
+  src: url('fonts/NotoSansKR-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Pretendard';
+  src: url('fonts/Pretendard-Regular.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Pretendard';
+  src: url('fonts/Pretendard-Bold.otf') format('opentype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/*
+  '맑은 고딕'은 Windows 시스템 폰트이다.
+  FortuneSheet의 폰트 목록에서 '맑은 고딕'을 선택했을 때 오프라인에서도 동작하도록
+  local() 폴백 + 번들 폰트 fallback을 제공한다.
+*/
+@font-face {
+  font-family: '맑은 고딕';
+  src: local('Malgun Gothic'), local('맑은 고딕'),
+       url('fonts/Pretendard-Regular.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: '맑은 고딕';
+  src: local('Malgun Gothic Bold'), local('Malgun Gothic'), local('맑은 고딕'),
+       url('fonts/Pretendard-Bold.otf') format('opentype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  background: #f3f5f7;
+  /* 기본 폰트는 플랫폼 공통으로 유지 */
+  font-family: "FS-Base", "Noto Sans KR", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+  color: #1f2328;
+  overflow: hidden;
+}
+
+/* Windows(WebView2)에서만 첨자 글리프용 폰트를 앞에 둔다. */
+html[data-fs-platform="windows"],
+html[data-fs-platform="windows"] body {
+  font-family: "FS-SupSub-Windows", "FS-Base", "Noto Sans KR", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+  /*
+    IMPORTANT (DO NOT CHANGE casually)
+    Windows(WebView2)에서는 폰트 메트릭 차이 때문에 기본(:root) 값과 별도 튜닝이 필요하다.
+    아래 값은 "편집 중"/"커밋 후" 일치 기준으로 맞춘 값이므로, 무단 변경 금지.
+  */
+  --fs-subshift: 0.22em;
+  --fs-supshift: -0.28em;
+}
+
+/* Android(webview_flutter)에서도 첨자 글리프 전용 폰트를 앞에 둔다. */
+html[data-fs-platform="android"],
+html[data-fs-platform="android"] body {
+  font-family: "FS-SupSub-Android", "FS-Base", "Noto Sans KR", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+  /*
+    IMPORTANT (DO NOT CHANGE casually)
+    Android(WebView) 폰트/렌더링 차이로 별도 튜닝 값.
+    Windows와 동일한 절대값이 "정답"이 아니며, 여기 값도 무단 변경 금지.
+  */
+  --fs-subshift: 0.16em;
+  --fs-supshift: -0.16em;
+}
+
+/* Wrapped unicode subscript glyphs are lowered visually (display-only). */
+.fs-subglyph {
+  display: inline-block;
+  transform: translateY(var(--fs-subshift));
+}
+
+/* Wrapped unicode superscript glyphs are raised visually (display-only). */
+.fs-supglyph {
+  display: inline-block;
+  transform: translateY(var(--fs-supshift));
+}
+
+#app {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  padding: 0;
+  overflow: hidden;
+}
+
+#app,
+#app * {
+  box-sizing: border-box;
+}
+
+#sheet-root,
+#sheet-root * {
+  box-sizing: border-box;
+}
+
+/*
+  FortuneSheet vendor CSS는 편집 입력 박스(.luckysheet-input-box*) 기본 폰트를 Arial로 고정한다.
+  엔진 기본(ff=0)은 Times New Roman이므로, 초기/편집 중 caret 폰트 판독이 Arial로 튀지 않도록
+  입력 박스의 "기본" font-family만 Times New Roman으로 맞춘다.
+  (인라인/부분 선택 폰트 적용은 이 규칙에 의해 막히면 안 되므로 !important는 사용하지 않는다)
+*/
+.luckysheet-input-box,
+.luckysheet-input-box-inner {
+  font-family: "Times New Roman", "FS-Base", "Noto Sans KR", "Malgun Gothic", serif;
+}
+
+#sheet-root {
+  min-width: 0;
+  min-height: 0;
+  background: var(--sheet-bg);
+  box-shadow: none;
+  border-radius: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: stretch;
+  padding: 0;
+  margin: 0;
+}
+
+#sheet-root .fortune-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+#sheet-root .fortune-sheet-container {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+#sheet-root .fortune-sheet-area {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  background: #ffffff;
+  border: none;
+  /* 드롭다운/서브팝업이 영역 밖으로 나갈 때 잘리지 않도록 한다. */
+  overflow: visible;
+}
+
+#sheet-root .fortune-workarea {
+  flex: 0 0 auto;
+  width: 100%;
+  height: auto;
+  margin: 0;
+  padding: 0;
+}
+
+#sheet-root .fortune-col-body {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+#sheet-root .fortune-toolbar {
+  display: flex !important;
+  /* 툴바 드롭다운/서브팝업이 캔버스 레이어 뒤로 가려지지 않게 한다. */
+  position: relative;
+  z-index: 1200;
+  overflow: visible;
+  /* FortuneSheet 기본 CSS가 padding-left: 15px 를 줘서 툴바가 들어가 보인다. */
+  padding-left: 0 !important;
+  margin-left: 0 !important;
+  justify-content: flex-start !important;
+}
+
+.fortune-sheet-tabs,
+#fortune-sheet-tabs,
+.tab-bar,
+.tab-list {
+  display: none !important;
+}
+#sheet-root .fortune-sheet-canvas,
+#sheet-root .fortune-sheet-canvas-placeholder {
+  width: 100%;
+  height: 100%;
+}
+
+#sheet-root .fortune-stat-area,
+#sheet-root .luckysheet-sheet-selection-calInfo {
+  display: none !important;
+}
+
+#sheet-root .barcode-wrapper {
+  position: absolute;
+  user-select: none;
+  transform-origin: center center;
+}
+
+#sheet-root .barcode-img {
+  width: 100%;
+  height: 100%;
+  pointer-events: auto;
+  cursor: move;
+  -webkit-user-drag: none;
+}
+
+#sheet-root .barcode-selection-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  outline: 1px dashed #0078d7;
+  display: none;
+  pointer-events: none;
+}
+
+#sheet-root .barcode-wrapper.selected .barcode-selection-overlay {
+  display: block;
+}
+
+#sheet-root .barcode-handle {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background-color: #ffffff;
+  border: 1px solid #0078d7;
+  border-radius: 50%;
+  display: none;
+}
+
+#sheet-root .barcode-wrapper.selected .barcode-handle {
+  display: block;
+}
+
+#sheet-root .br-handle {
+  bottom: -5px;
+  right: -5px;
+  cursor: se-resize;
+}
+
+#sheet-root .rot-handle {
+  top: -20px;
+  left: 50%;
+  transform: translateX(-50%);
+  cursor: crosshair;
+}
+
+#sheet-root .rot-handle-line {
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  width: 1px;
+  height: 12px;
+  background-color: #0078d7;
+  display: none;
+  pointer-events: none;
+}
+
+#sheet-root .barcode-wrapper.selected .rot-handle-line {
+  display: block;
+}
+
+#sheet-root .fortune-img-layer {
+  pointer-events: none;
+}
+
+/*
+  BUGFIX: 셀을 클릭했는데 컬럼 전체가 선택되는 현상 방지
+  -------------------------------------------------
+  일부 환경(특히 Windows/WebView2)에서 FortuneSheet가 계산한 columnHeaderHeight가 비정상적으로 커지면
+  `.fortune-col-header-hover`가 시트 본문까지 덮어 클릭이 헤더 클릭으로 처리되어 컬럼 전체 선택이 발생한다.
+  JS에서 계산한 `--fs-col-header-h` 값을 그대로 쓰되, CSS에서 상한을 clamp로 제한해 헤더 레이어가 커지지 않도록 한다.
+*/
+:root {
+  --fs-col-header-h-clamped: clamp(18px, var(--fs-col-header-h, 19px), 28px);
+}
+
+#sheet-root .fortune-col-header,
+#sheet-root .fortune-col-header-wrap {
+  height: var(--fs-col-header-h-clamped) !important;
+  max-height: var(--fs-col-header-h-clamped) !important;
+  overflow: hidden !important;
+}
+
+#sheet-root .fortune-col-header-hover,
+#sheet-root .fortune-col-header-selected {
+  height: 100% !important;
+}
+
+/*
+  BUGFIX: 테두리(Border) 메뉴/하위팝업 호버 안정화
+  ----------------------------------------------
+  borderColor/borderStyle 항목은 하위 팝업(.fortune-border-select-menu)을 option 내부에 absolute로
+  표시한다. 기존에 bottom 값을 올려 여백을 확보하면, 항목->하위팝업으로 마우스를 이동할 때
+  "호버 갭"이 생겨 mouseleave가 먼저 발생해 팝업이 깜빡이거나 잘 안 뜨는 문제가 생길 수 있다.
+
+  해결:
+  - 위치(bottom)는 건드리지 않고(갭 제거), 팝업 내부 padding으로 하단 여유를 확보한다.
+  - overflow/z-index를 보강해 잘림/가려짐을 줄인다.
+*/
+
+/* border 옵션 컨테이너는 하위 absolute 팝업이 잘리지 않게 한다. */
+#sheet-root .toolbar-item-sub-menu {
+  overflow: visible;
+  z-index: 1201;
+  /* 요청: 테두리(부모) 팝업 하단 여백 추가 */
+  /* vendor가 inline style로 padding을 주는 경우가 있어 !important로 덮어쓴다. */
+  padding-bottom: 10px !important;
+}
+
+/* JS에서 마지막 항목 아래에 삽입하는 바닥 여백(스페이서) */
+#sheet-root .toolbar-item-sub-menu > .lm-toolbar-bottom-spacer {
+  height: 5px;
+  flex: 0 0 auto;
+  pointer-events: none;
+}
+
+/* 포탈 렌더로 #sheet-root 밖에 뜨는 경우 대비(동일 스페이서 스타일) */
+.toolbar-item-sub-menu > .lm-toolbar-bottom-spacer {
+  height: 5px;
+  flex: 0 0 auto;
+  pointer-events: none;
+}
+
+/*
+  실제 "부모" 테두리 팝업 컨테이너가 `.toolbar-item-sub-menu`가 아니라
+  `.fortune-border-select-menu.fortune-toolbar-select`(스크롤/높이 제한 포함)로 렌더되는 케이스가 있어
+  해당 컨테이너에 직접 하단 여백을 준다.
+*/
+#sheet-root .fortune-border-select-menu.fortune-toolbar-select {
+  padding-bottom: 10px !important;
+}
+
+/* 포탈 렌더로 #sheet-root 밖에 뜨는 경우 대비 */
+.fortune-border-select-menu.fortune-toolbar-select {
+  padding-bottom: 10px !important;
+}
+
+/* JS가 이 컨테이너에 직접 넣는 스페이서 */
+#sheet-root .fortune-border-select-menu.fortune-toolbar-select > .lm-toolbar-bottom-spacer,
+.fortune-border-select-menu.fortune-toolbar-select > .lm-toolbar-bottom-spacer {
+  height: 5px;
+  pointer-events: none;
+}
+
+/* JS가 "테두리 루트 팝업"으로 판정한 fortune-toolbar-select에 부여하는 클래스 */
+#sheet-root .fortune-toolbar-select.lm-border-root-menu,
+.fortune-toolbar-select.lm-border-root-menu {
+  padding-bottom: 14px !important;
+}
+
+#sheet-root .fortune-toolbar-select.lm-border-root-menu > .lm-toolbar-bottom-spacer,
+.fortune-toolbar-select.lm-border-root-menu > .lm-toolbar-bottom-spacer {
+  height: 6px;
+  pointer-events: none;
+}
+
+/* 각 옵션을 positioning 컨텍스트로 만들어 하위 팝업의 기준을 안정화한다. */
+#sheet-root .toolbar-item-sub-menu .fortune-border-select-option {
+  position: relative;
+  overflow: visible;
+  /* option -> submenu 이동 시 "hover 갭"이 생기지 않게 hitbox를 조금 키운다. */
+  padding-right: 14px;
+}
+
+/* option 오른쪽에 투명 hitbox를 추가해 option->submenu 이동 시 leave를 완화한다. */
+#sheet-root .toolbar-item-sub-menu .fortune-border-select-option::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: -14px;
+  width: 14px;
+  height: 100%;
+  background: transparent;
+  pointer-events: auto;
+}
+
+/* 하위 팝업: vendor 위치 계산을 우선(좌표 강제 금지), 대신 잘림/우선순위만 보강 */
+#sheet-root .toolbar-item-sub-menu .fortune-border-select-menu {
+  padding-bottom: 18px !important;
+  box-sizing: border-box;
+  z-index: 1205 !important;
+  overflow: visible !important;
+  pointer-events: auto;
+}
+
+/* JS에서 vendor hide를 이기기 위한 강제 표시 클래스 */
+#sheet-root .toolbar-item-sub-menu .fortune-border-select-menu.lm-force-show {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+/* 스타일/색상 서브 항목 자체에도 약간의 여유를 준다. */
+/*
+  NOTE:
+  border style/color picker 메뉴는 구현/버전에 따라 `.toolbar-item-sub-menu` 밖에서 렌더될 수 있다.
+  따라서 selector를 `#sheet-root` 하위로 넓혀 항상 적용되게 한다.
+*/
+#sheet-root .fortune-border-style-picker-menu,
+#sheet-root .fortune-border-color-picker-menu {
+  padding-bottom: 12px !important;
+  box-sizing: border-box;
+  z-index: 1210 !important;
+  overflow: visible !important;
+  pointer-events: auto;
+  /* WebView2/포탈 렌더 환경에서 일부 케이스로 scale(0) 등으로 계산되어 안 보이는 문제 방지 */
+  transform: none !important;
+}
+
+/* 포탈 렌더(#sheet-root 밖) 대비: 전역에도 동일 규칙 적용 */
+.fortune-border-style-picker-menu,
+.fortune-border-color-picker-menu,
+#fortune-change-color {
+  transform: none !important;
+  z-index: 1210 !important;
+}
+
+/* 컬러 팝업(vendor: #fortune-change-color)은 고정 크기/absolute 배치라 겹침이 잘 나므로 최소 크기만 보강 */
+#fortune-change-color {
+  min-width: 164px !important;
+  min-height: 252px !important;
+}
+
+/* 스타일 피커(선 스타일 목록) 항목 간격 축소 */
+#sheet-root .fortune-boder-style-picker,
+.fortune-boder-style-picker {
+  margin: 0 !important;
+  padding: 0 !important;
+  gap: 0 !important;
+}
+
+#sheet-root .fortune-boder-style-picker .fortune-border-style-picker-menu,
+.fortune-boder-style-picker .fortune-border-style-picker-menu {
+  margin: 0 !important;
+  padding: 2px 6px !important;
+  min-height: 0 !important;
+  line-height: 1.1 !important;
+}
+
+#sheet-root .fortune-boder-style-picker .fortune-border-style-picker-menu,
+.fortune-boder-style-picker .fortune-border-style-picker-menu {
+  height: auto !important;
+  display: flex !important;
+  align-items: center !important;
+}
+
+/* "기본" 항목(리셋)은 너무 눌리면 클릭이 어려워 최소 패딩만 유지 */
+#sheet-root .fortune-border-style-picker-menu.fortune-border-style-reset,
+.fortune-border-style-picker-menu.fortune-border-style-reset {
+  padding: 4px 6px !important;
+  margin: 0 !important;
+  line-height: 1.1 !important;
+}
+
+/* color/style picker 메뉴도 강제 표시 클래스가 먹도록 확장 */
+#sheet-root .fortune-border-style-picker-menu.lm-force-show,
+#sheet-root .fortune-border-color-picker-menu.lm-force-show {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+

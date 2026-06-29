@@ -1,0 +1,12 @@
+.external/
+*.iml
+android/
+build/
+ios/
+lib/main.dart
+linux/
+macos/
+SESSION_HANDOFF.md
+test/failures/
+web/
+windows/

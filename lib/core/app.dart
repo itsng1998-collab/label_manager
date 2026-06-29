@@ -1,0 +1,23 @@
+// 한글 주석: 전역 정의 파일
+// 앱 전역에서 참조되는 상수 및 변수들을 모아둡니다.
+
+// ignore_for_file: constant_identifier_names
+
+const String APP_TITLE = 'ITS&G Label Manager';
+const String APP_TITLE_SHORT = 'Label Manager';
+const String START = 'Start';
+const String END = 'End';
+
+// StartupHomePage.initState()에서 설정됨.
+String appPackageName = '';
+String appVersion = '';
+
+bool isAutoLogin = false;
+bool isDesktop = true;
+bool isShowLogo = true;
+
+// 추적 로그 활성화 여부 (기본값: true)
+bool traceLogEnabled = true;
+
+// Android
+int? androidSdkInt;

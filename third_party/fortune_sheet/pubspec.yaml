@@ -1,0 +1,31 @@
+name: fortune_sheet
+description: "A Flutter canvas port of FortuneSheet."
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.11.5
+
+dependencies:
+  file_selector: ^1.0.3
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+  plugin:
+    platforms:
+      android:
+        package: com.example.fortune_sheet
+        pluginClass: FortuneSheetPlugin
+      ios:
+        pluginClass: FortuneSheetPlugin
+      macos:
+        pluginClass: FortuneSheetPlugin
+      windows:
+        pluginClass: FortuneSheetPlugin

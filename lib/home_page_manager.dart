@@ -1,0 +1,1348 @@
+import 'dart:async';
+import 'dart:io' show Platform;
+
+import 'package:collection/collection.dart';
+import 'package:dropdown_button2/dropdown_button2.dart';
+import 'package:flutter/material.dart';
+import 'package:tabbed_view/tabbed_view.dart';
+
+import 'package:label_manager/core/app.dart';
+import 'package:label_manager/core/auto_login_guard.dart';
+import 'package:label_manager/core/ui_scale.dart';
+import 'package:label_manager/models/brand.dart';
+import 'package:label_manager/models/column_content.dart';
+import 'package:label_manager/models/column_type.dart';
+import 'package:label_manager/models/column_special.dart';
+import 'package:label_manager/models/column.dart';
+import 'package:label_manager/models/customer.dart';
+import 'package:label_manager/models/item_of_market.dart';
+import 'package:label_manager/models/label_size.dart';
+import 'package:label_manager/models/market.dart';
+import 'package:label_manager/models/user.dart';
+import 'package:label_manager/page_fortune_sheet/label_sheet_rtf_import.dart';
+import 'package:label_manager/page_fortune_sheet/label_sheet_rtf_preview.dart';
+import 'package:label_manager/utils/log_context.dart';
+import 'package:label_manager/utils/on_messages.dart';
+import 'package:label_manager/page_home/item_manage.dart';
+import 'package:label_manager/page_home/common_label_manage.dart';
+import 'package:label_manager/page_home/preview_floating_window.dart';
+
+/// 로그인 이후 메인 UI
+class HomePageManager extends StatefulWidget {
+  final Brand? selectedBrand;
+  final ValueChanged<Brand?> onBrandChanged;
+  final LabelSize? selectedLabelSize;
+  final ValueChanged<LabelSize?> onLabelSizeChanged;
+
+  const HomePageManager({
+    super.key,
+    required this.selectedBrand,
+    required this.onBrandChanged,
+    required this.selectedLabelSize,
+    required this.onLabelSizeChanged,
+  });
+
+  @override
+  State<HomePageManager> createState() => _HomePageManagerState();
+}
+
+class _HomePageManagerState extends State<HomePageManager> {
+  static const double _rtfPreviewInitialReadableScale = 1.0;
+
+  late TabbedViewController _tabController;
+  final TextEditingController _tabSearchController = TextEditingController();
+  final GlobalKey _commonLabelPreviewButtonKey = GlobalKey();
+  int? _labelSizesBrandId;
+  int _labelLoadToken = 0;
+  PreviewFloatingWindow? _itemPreviewWindow;
+  PreviewFloatingWindow? _commonLabelPreviewWindow;
+  Timer? _rtfPreviewResizeDebounce;
+  List<TabData> _tabs = const <TabData>[];
+  LabelSize? _currentLabelSize;
+  String? _rtfPreviewReadyKey;
+  String? _rtfPreviewTargetKey;
+  String? _rtfPreviewWindowKey;
+  Size? _rtfPreviewTargetContentSize;
+  Rect? _commonLabelGridRect;
+  bool _autoSelectedCommonLabelOnce = false;
+  bool _commonLabelTabActivated = false;
+  bool _commonLabelPreviewClosedByUser = false;
+
+  bool get _isAutoLoginMode => AutoLoginGuard.instance.enabled;
+  LabelSize? get _effectiveLabelSize => _currentLabelSize;
+  String get _labelContentKey {
+    final labelSize = _effectiveLabelSize;
+    return '${labelSize?.labelSizeId ?? 'none'}:'
+        '${labelSize?.labelSizeCommon?.width ?? 0}:'
+        '${labelSize?.labelSizeCommon?.height ?? 0}';
+  }
+
+  List<DropdownMenuItem<Brand>> _brandDropdownItems(List<Brand> brands) =>
+      brands
+          .map(
+            (brand) => DropdownMenuItem<Brand>(
+              value: brand,
+              child: Text(brand.brandName, overflow: TextOverflow.ellipsis),
+            ),
+          )
+          .toList();
+
+  Brand? _resolveSelectedBrand(List<Brand> brands, Brand? selectedBrand) {
+    if (selectedBrand == null) return null;
+    for (final brand in brands) {
+      if (brand.brandId == selectedBrand.brandId) {
+        return brand;
+      }
+    }
+    return null;
+  }
+
+  List<DropdownMenuItem<LabelSize>> _labelSizeDropdownItems(
+    List<LabelSize> labelSizes,
+  ) => labelSizes
+      .map(
+        (label) => DropdownMenuItem<LabelSize>(
+          value: label,
+          child: Text(label.labelSizeName, overflow: TextOverflow.ellipsis),
+        ),
+      )
+      .toList();
+
+  LabelSize? _resolveSelectedLabelSize(
+    List<LabelSize> labelSizes,
+    LabelSize? selectedLabelSize,
+  ) {
+    if (selectedLabelSize == null) return null;
+    for (final label in labelSizes) {
+      if (label.labelSizeId == selectedLabelSize.labelSizeId) {
+        return label;
+      }
+    }
+    return null;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _currentLabelSize = widget.selectedLabelSize;
+    _tabController = _createTabController();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      await _loadBrands();
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant HomePageManager oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.selectedLabelSize?.labelSizeId !=
+        widget.selectedLabelSize?.labelSizeId) {
+      _currentLabelSize = widget.selectedLabelSize;
+    }
+    if (oldWidget.selectedBrand?.brandId != widget.selectedBrand?.brandId) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _scheduleLabelSizeLoad(widget.selectedBrand, selectFirstLabel: true);
+      });
+    }
+  }
+
+  Brand? _findBrandByName(String? brandName) {
+    if (brandName == null) return null;
+    final brands = Brand.datas ?? const <Brand>[];
+    for (final brand in brands) {
+      if (brand.brandName == brandName) {
+        return brand;
+      }
+    }
+    return null;
+  }
+
+  Brand? _findBrandById(int? brandId) {
+    if (brandId == null) return null;
+    final brands = Brand.datas ?? const <Brand>[];
+    for (final brand in brands) {
+      if (brand.brandId == brandId) {
+        return brand;
+      }
+    }
+    return null;
+  }
+
+  Future<void> _loadBrands() async {
+    void afterSnackBarVisible() async {
+      try {
+        debugLog(START);
+        await TColumnType.init();
+        final brands = await BrandDAO.getByCustomerIdByBrandOrder(
+          Customer.instance!.customerId,
+        );
+        if (!mounted) return;
+
+        final prevBrands = Brand.datas ?? <Brand>[];
+        final listEq = const ListEquality<Brand>();
+        final changed =
+            prevBrands.length != brands!.length ||
+            !listEq.equals(prevBrands, brands);
+        if (changed) {
+          setState(() {});
+        }
+
+        final resolved = _resolveSelectedBrand(brands, widget.selectedBrand);
+        final fallback = brands.isNotEmpty ? brands.first : null;
+
+        if (resolved == null && fallback != null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            widget.onBrandChanged(fallback);
+          });
+        }
+
+        final targetBrand = resolved ?? fallback ?? widget.selectedBrand;
+        await _scheduleLabelSizeLoad(targetBrand);
+      } finally {
+        if (mounted) {
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        }
+        debugLog(END);
+      }
+    }
+
+    showSnackBar(
+      context,
+      '브랜드 데이터를 불러오고 있습니다...',
+      type: SnackBarType.inProgress,
+      onVisible: afterSnackBarVisible,
+    );
+  }
+
+  void _handleBrandChanged(Brand? brand) {
+    if (_isAutoLoginMode) return;
+    widget.onBrandChanged(brand);
+  }
+
+  Future<void> _scheduleLabelSizeLoad(
+    Brand? brand, {
+    bool selectFirstLabel = false,
+  }) async {
+    try {
+      debugLog(START);
+
+      final target =
+          brand ??
+          _findBrandById(widget.selectedBrand?.brandId) ??
+          _findBrandByName(widget.selectedBrand?.brandName);
+
+      if (target == null) {
+        _labelSizesBrandId = null;
+        LabelSize.setDatas(<LabelSize>[]);
+        setState(() {});
+        _handleLabelSizeChanged(null);
+        return;
+      }
+
+      if (_labelSizesBrandId == target.brandId && LabelSize.datas != null) {
+        final current = LabelSize.datas ?? const <LabelSize>[];
+
+        if (current.isEmpty) {
+          _handleLabelSizeChanged(null);
+        } else if (selectFirstLabel) {
+          _handleLabelSizeChanged(current.first);
+        } else {
+          final resolved = _resolveSelectedLabelSize(
+            current,
+            widget.selectedLabelSize,
+          );
+
+          final fallback = current.isNotEmpty ? current.first : null;
+
+          if (resolved == null && fallback != null) {
+            _handleLabelSizeChanged(fallback);
+          }
+        }
+
+        return;
+      }
+
+      final token = ++_labelLoadToken;
+      _labelSizesBrandId = null;
+      LabelSize.setDatas(<LabelSize>[]);
+      setState(() {});
+
+      final labelSizes = await LabelSizeDAO.getByBrandIdByLabelSizeOrder(
+        target.brandId,
+      );
+
+      if (!mounted || token != _labelLoadToken) return;
+      LabelSize.setDatas(labelSizes);
+      _labelSizesBrandId = target.brandId;
+      setState(() {});
+
+      if (labelSizes!.isEmpty) {
+        _handleLabelSizeChanged(null);
+        return;
+      }
+
+      final resolved = _resolveSelectedLabelSize(
+        labelSizes,
+        widget.selectedLabelSize,
+      );
+
+      final fallback = labelSizes.isNotEmpty ? labelSizes.first : null;
+      final selected = selectFirstLabel
+          ? fallback
+          : resolved ?? fallback ?? widget.selectedLabelSize;
+      _handleLabelSizeChanged(selected);
+    } finally {
+      debugLog(END);
+    }
+  }
+
+  Future<void> _handleLabelSizeChanged(LabelSize? labelSize) async {
+    try {
+      debugLog(START);
+
+      final currentLabelSizeId = _currentLabelSize?.labelSizeId;
+      final selectedLabelSizeId = widget.selectedLabelSize?.labelSizeId;
+      if (labelSize?.labelSizeId == currentLabelSizeId &&
+          labelSize?.labelSizeId == selectedLabelSizeId) {
+        debugLog('skip unchanged labelSizeId=${labelSize?.labelSizeId}');
+        return;
+      }
+
+      if (labelSize == null) {
+        _currentLabelSize = null;
+        _rtfPreviewReadyKey = null;
+        _commonLabelTabActivated = false;
+        _commonLabelPreviewClosedByUser = false;
+        widget.onLabelSizeChanged(null);
+        ItemOfMarket.datas = <ItemOfMarket>[];
+        _resetTabs();
+        return;
+      }
+
+      _currentLabelSize = labelSize;
+      _rtfPreviewReadyKey = null;
+      _commonLabelTabActivated = false;
+      _commonLabelPreviewClosedByUser = false;
+      widget.onLabelSizeChanged(labelSize);
+      TColumn.datas = await TColumnDAO.getByLabelSizeId(labelSize.labelSizeId);
+      TColumnContent.datas = await TColumnContentDAO.getByLabelSizeId(
+        labelSize.labelSizeId,
+      );
+      TColumnSpecial.datas = await TColumnSpecial.getByLabelSizeId(
+        labelSize.labelSizeId,
+      );
+      ItemOfMarket.datas =
+          await ItemOfMarketDAO.getByItemOfMarketAndLabelSizeId(
+            Market.instance!.marketId,
+            labelSize.labelSizeId,
+          );
+      debugLog(
+        'loaded labelSizeId=${labelSize.labelSizeId}, '
+        'columns=${TColumn.datas?.length ?? 0}, '
+        'contents=${TColumnContent.datas?.length ?? 0}, '
+        'specials=${TColumnSpecial.datas?.length ?? 0}, '
+        'items=${ItemOfMarket.datas?.length ?? 0}',
+      );
+      _resetTabs();
+    } catch (e) {
+      debugLog('$e');
+    } finally {
+      debugLog(END);
+    }
+  }
+
+  void _resetTabs() {
+    final selectedTabValue = _selectedTabValue();
+    debugLog(
+      'selectedTabValue=$selectedTabValue, '
+      'labelContentKey=$_labelContentKey, items=${ItemOfMarket.datas?.length ?? 0}',
+    );
+    _tabController = _createTabController();
+    _restoreSelectedTab(selectedTabValue);
+    setState(() {});
+    _syncPreviewWindowWithSelectedTab();
+    _maybeAutoSelectCommonLabel();
+  }
+
+  Object? _selectedTabValue() {
+    final selectedIndex = _tabController.selectedIndex;
+    if (selectedIndex == null ||
+        selectedIndex < 0 ||
+        selectedIndex >= _tabs.length) {
+      return null;
+    }
+    return _tabs[selectedIndex].value;
+  }
+
+  void _restoreSelectedTab(Object? selectedTabValue) {
+    if (selectedTabValue == null) {
+      return;
+    }
+    final index = _tabs.indexWhere((tab) => tab.value == selectedTabValue);
+    if (index < 0) {
+      return;
+    }
+    _tabController.selectedIndex = index;
+  }
+
+  void _syncPreviewWindowWithSelectedTab() {
+    final selectedIndex = _tabController.selectedIndex;
+    final selectedTab =
+        selectedIndex != null &&
+            selectedIndex >= 0 &&
+            selectedIndex < _tabs.length
+        ? _tabs[selectedIndex]
+        : null;
+    if (selectedTab?.value == 'items') {
+      _showItemPreviewWindow();
+    } else if (selectedTab?.value == 'common_label') {
+      if (_activateCommonLabelTabIfNeeded()) {
+        return;
+      }
+      _showRtfPreviewWindow();
+    } else {
+      _hideFloatingWindows();
+    }
+  }
+
+  TabbedViewController _createTabController() {
+    _tabs = _buildTabs();
+    return TabbedViewController(_tabs, onTabSelection: _onTabSelection);
+  }
+
+  void _onTabSelection(int? index, TabData? tab) {
+    if (tab?.value == 'items') {
+      _showItemPreviewWindow();
+    } else if (tab?.value == 'common_label') {
+      if (_activateCommonLabelTabIfNeeded()) {
+        return;
+      }
+      _showRtfPreviewWindow();
+    } else {
+      _hideFloatingWindows();
+    }
+  }
+
+  bool _activateCommonLabelTabIfNeeded() {
+    if (_commonLabelTabActivated) {
+      return false;
+    }
+    final selectedTabValue = _selectedTabValue() ?? 'common_label';
+    _commonLabelTabActivated = true;
+    _rtfPreviewReadyKey = null;
+    _tabController = _createTabController();
+    _restoreSelectedTab(selectedTabValue);
+    setState(() {});
+    return true;
+  }
+
+  void _maybeAutoSelectCommonLabel() {
+    if (!_isAutoLoginMode || _autoSelectedCommonLabelOnce) return;
+    _autoSelectedCommonLabelOnce = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _selectCommonLabelTab();
+    });
+  }
+
+  void _selectCommonLabelTab() {
+    if (_tabs.length <= 1) return;
+    final idx = _tabs.indexWhere((tab) => tab.value == 'common_label');
+    if (idx < 0) return;
+    if (_tabController.selectedIndex == idx) return;
+    _tabController.selectedIndex = idx;
+    _onTabSelection(idx, _tabs[idx]);
+  }
+
+  List<TabData> _buildTabs() {
+    debugLog(
+      'labelContentKey=$_labelContentKey, '
+      'labelSizeId=${_effectiveLabelSize?.labelSizeId}, '
+      'items=${ItemOfMarket.datas?.length ?? 0}, '
+      'columns=${TColumn.datas?.length ?? 0}',
+    );
+    return [
+      TabData(
+        value: 'items',
+        text: '품목관리(F1)',
+        content: ItemManage(
+          key: ValueKey('items:$_labelContentKey'),
+          items: ItemOfMarket.datas ?? const <ItemOfMarket>[],
+        ),
+        closable: false,
+        keepAlive: true,
+      ),
+      TabData(
+        value: 'common_label',
+        text: '공용라벨관리(F2)',
+        content: _commonLabelTabActivated
+            ? CommonLabelManage(
+                key: ValueKey('common_label:$_labelContentKey'),
+                title: '공용라벨관리',
+                labelSize: _effectiveLabelSize,
+                onSheetReady: _handleCommonLabelSheetReady,
+                onGridRectChanged: _handleCommonLabelGridRectChanged,
+              )
+            : const SizedBox.shrink(),
+        closable: false,
+        keepAlive: true,
+      ),
+      TabData(
+        value: 'label_print',
+        text: '라벨출력(F3)',
+        content: const _PlaceholderTab(title: '라벨출력'),
+        closable: false,
+        keepAlive: true,
+      ),
+      TabData(
+        value: 'auto_update',
+        text: '자동품목갱신',
+        content: const _PlaceholderTab(title: '자동품목갱신'),
+        closable: false,
+        keepAlive: true,
+      ),
+      TabData(
+        value: 'scale_output',
+        text: '저울출력',
+        content: const _PlaceholderTab(title: '저울출력'),
+        closable: false,
+        keepAlive: true,
+      ),
+    ];
+  }
+
+  TabbedViewThemeData _buildTabbedTheme() {
+    final theme = TabbedViewThemeData.minimalist(
+      brightness: Brightness.light,
+      colorSet: Colors.grey,
+      fontSize: 14,
+      tabRadius: 3,
+    );
+
+    theme.tabsArea
+      ..color = const Color(0xFFF7F8FA)
+      ..border = const BorderSide(color: Color(0xFFE6E6E6))
+      ..initialGap = 0
+      ..middleGap = 4
+      ..buttonsGap = 0
+      ..buttonColor = Colors.transparent
+      ..hoveredButtonColor = Colors.transparent
+      ..disabledButtonColor = Colors.transparent;
+
+    theme.tab
+      ..padding = const EdgeInsets.fromLTRB(18, 9.5, 18, 9.5)
+      ..paddingWithoutButton = const EdgeInsets.fromLTRB(18, 9.5, 18, 9.5)
+      ..textStyle = const TextStyle(
+        fontSize: 14,
+        fontWeight: FontWeight.w400,
+        color: Color(0xFF1F2429),
+      )
+      ..buttonsGap = 0
+      ..buttonColor = Colors.transparent
+      ..hoveredButtonColor = Colors.transparent
+      ..disabledButtonColor = Colors.transparent
+      ..buttonPadding = EdgeInsets.zero;
+
+    theme.contentArea
+      ..color = Colors.white
+      ..padding = EdgeInsets.zero;
+
+    theme.divider = const BorderSide(color: Color(0xFFE6E6E6));
+    theme.isDividerWithinTabArea = true;
+
+    return theme;
+  }
+
+  void _showItemPreviewWindow() {
+    _commonLabelPreviewWindow?.hide();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (_selectedTabValue() != 'items') return;
+      _commonLabelPreviewWindow?.hide();
+      _itemPreviewWindow?.hide();
+    });
+  }
+
+  void _showRtfPreviewWindow() {
+    _itemPreviewWindow?.hide();
+    if (!_commonLabelTabActivated) {
+      _commonLabelPreviewWindow?.hide();
+      return;
+    }
+    final rtf = _effectiveLabelSize?.labelSizeCommon?.rtf;
+    if (!Platform.isWindows || !labelSheetLooksLikeRichEditRtf(rtf)) {
+      _commonLabelPreviewWindow?.hide();
+      return;
+    }
+    final readyKey = _rtfPreviewKey(_effectiveLabelSize, rtf!);
+    if (_rtfPreviewReadyKey != readyKey) {
+      _commonLabelPreviewWindow?.hide();
+      return;
+    }
+    if (_rtfPreviewTargetKey != readyKey) {
+      _rtfPreviewResizeDebounce?.cancel();
+      _rtfPreviewTargetKey = readyKey;
+      _rtfPreviewTargetContentSize = null;
+      _rtfPreviewWindowKey = null;
+      _commonLabelPreviewWindow?.dispose();
+      _commonLabelPreviewWindow = null;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final currentRtf = _effectiveLabelSize?.labelSizeCommon?.rtf;
+      if (_selectedTabValue() != 'common_label' ||
+          !Platform.isWindows ||
+          !labelSheetLooksLikeRichEditRtf(currentRtf) ||
+          _rtfPreviewReadyKey !=
+              _rtfPreviewKey(_effectiveLabelSize, currentRtf!)) {
+        _commonLabelPreviewWindow?.hide();
+        return;
+      }
+      _itemPreviewWindow?.hide();
+      if (_commonLabelPreviewClosedByUser) {
+        _commonLabelPreviewWindow?.hide();
+        setState(() {});
+        return;
+      }
+      final shouldRebuildPreview = _rtfPreviewWindowKey != readyKey;
+      final preview = shouldRebuildPreview ? _buildRtfPreview(currentRtf) : null;
+      _commonLabelPreviewWindow ??= PreviewFloatingWindow(
+        initialSize: Size(
+          LabelSheetRtfPreview.pixelsForMm(
+                _effectiveLabelSize?.labelSizeCommon?.width ?? 100,
+              ) +
+              8,
+          LabelSheetRtfPreview.pixelsForMm(
+                _effectiveLabelSize?.labelSizeCommon?.height ?? 100,
+              ) +
+              8,
+        ),
+        tooltip: 'RTF 미리보기: 저장 포맷이 RTF이면 보이고 수정 후 저장하면 보이지 않음',
+        onRectChanged: _handleRtfPreviewWindowRectChanged,
+        onResizeCompleted: _handleRtfPreviewWindowResizeCompleted,
+        onCloseRequested: _handleCommonLabelPreviewCloseRequested,
+      );
+      if (shouldRebuildPreview) {
+        _rtfPreviewWindowKey = readyKey;
+        _commonLabelPreviewWindow!
+          ..setTooltip('RTF 미리보기: 저장 포맷이 RTF이면 보이고 수정 후 저장하면 보이지 않음')
+          ..setChild(preview);
+      }
+      _commonLabelPreviewWindow!.show(context, child: preview);
+      setState(() {});
+      _alignCommonLabelPreviewWindowToGrid();
+    });
+  }
+
+  Future<void> _handleCommonLabelPreviewCloseRequested() async {
+    final window = _commonLabelPreviewWindow;
+    if (window == null || !window.isVisible) return;
+    final target = _commonLabelPreviewButtonRect() ?? window.rect.center & Size.zero;
+    await window.hideToRect(target.inflate(1));
+    if (!mounted) return;
+    _commonLabelPreviewClosedByUser = true;
+    setState(() {});
+  }
+
+  Rect? _commonLabelPreviewButtonRect() {
+    final context = _commonLabelPreviewButtonKey.currentContext;
+    if (context == null) return null;
+    final renderObject = context.findRenderObject();
+    if (renderObject is! RenderBox || !renderObject.hasSize) return null;
+    final topLeft = renderObject.localToGlobal(Offset.zero);
+    return topLeft & renderObject.size;
+  }
+
+  void _restoreCommonLabelPreviewWindow() {
+    if (_selectedTabValue() != 'common_label') return;
+    _commonLabelPreviewClosedByUser = false;
+    setState(() {});
+    _showRtfPreviewWindow();
+  }
+
+  Widget _buildRtfPreview(String rtf) {
+    final targetSize = _rtfPreviewTargetContentSize;
+    final targetWidth = targetSize?.width.round();
+    final targetHeight = targetSize?.height.round();
+    return LabelSheetRtfPreview(
+      key: ValueKey(
+        'rtf-preview:${_effectiveLabelSize?.labelSizeId}:${rtf.hashCode}',
+      ),
+      rtf: rtf,
+      width: targetWidth,
+      height: targetHeight,
+      widthMm: _effectiveLabelSize?.labelSizeCommon?.width ?? 100,
+      heightMm: _effectiveLabelSize?.labelSizeCommon?.height ?? 100,
+      onImageSizeResolved: (imageSize) {
+        final window = _commonLabelPreviewWindow;
+        if (!mounted ||
+            window == null ||
+            _rtfPreviewTargetContentSize != null) {
+          return;
+        }
+        const padding = LabelSheetRtfPreview.defaultPadding;
+        window.setSize(
+          context,
+          Size(
+            imageSize.width * _rtfPreviewInitialReadableScale +
+                padding.horizontal,
+            imageSize.height * _rtfPreviewInitialReadableScale +
+                padding.vertical,
+          ),
+        );
+        _alignCommonLabelPreviewWindowToGrid();
+      },
+    );
+  }
+
+  void _handleCommonLabelGridRectChanged(Rect rect) {
+    _commonLabelGridRect = rect;
+    if (_selectedTabValue() == 'common_label') {
+      _alignCommonLabelPreviewWindowToGrid();
+    }
+  }
+
+  void _alignCommonLabelPreviewWindowToGrid() {
+    final window = _commonLabelPreviewWindow;
+    final gridRect = _commonLabelGridRect;
+    if (!mounted || window == null || !window.isVisible || gridRect == null) {
+      return;
+    }
+    window.alignBottomRightTo(context, gridRect.bottomRight);
+  }
+
+  void _handleRtfPreviewWindowRectChanged(
+    Rect rect, {
+    required bool isResizing,
+  }) {
+    if (!isResizing) {
+      return;
+    }
+    _updateRtfPreviewTargetFromRect(rect, isResizing: isResizing);
+  }
+
+  void _handleRtfPreviewWindowResizeCompleted(Rect rect) {
+    _updateRtfPreviewTargetFromRect(rect, isResizing: false, force: true);
+  }
+
+  void _updateRtfPreviewTargetFromRect(
+    Rect rect, {
+    required bool isResizing,
+    bool force = false,
+  }) {
+    final rtf = _effectiveLabelSize?.labelSizeCommon?.rtf;
+    if (!mounted ||
+        !Platform.isWindows ||
+        !labelSheetLooksLikeRichEditRtf(rtf)) {
+      return;
+    }
+    const padding = LabelSheetRtfPreview.defaultPadding;
+    final next = Size(
+      (rect.width - padding.horizontal).clamp(1.0, double.infinity),
+      (rect.height - padding.vertical).clamp(1.0, double.infinity),
+    );
+    final current = _rtfPreviewTargetContentSize;
+    if (!force &&
+        current != null &&
+        current.width.round() == next.width.round() &&
+        current.height.round() == next.height.round()) {
+      return;
+    }
+    _rtfPreviewTargetContentSize = next;
+    debugLog(
+      'rtf preview target logical='
+      '${next.width.round()}x${next.height.round()} resizing=$isResizing force=$force',
+    );
+    if (isResizing) {
+      _rtfPreviewResizeDebounce?.cancel();
+      _rtfPreviewResizeDebounce = Timer(
+        const Duration(milliseconds: 150),
+        _refreshRtfPreviewChild,
+      );
+      return;
+    }
+    _rtfPreviewResizeDebounce?.cancel();
+    _rtfPreviewResizeDebounce = null;
+    _refreshRtfPreviewChild();
+  }
+
+  void _refreshRtfPreviewChild() {
+    _rtfPreviewResizeDebounce = null;
+    if (!mounted || _selectedTabValue() != 'common_label') return;
+    final rtf = _effectiveLabelSize?.labelSizeCommon?.rtf;
+    final window = _commonLabelPreviewWindow;
+    if (window == null ||
+        !window.isVisible ||
+        !labelSheetLooksLikeRichEditRtf(rtf)) {
+      return;
+    }
+    debugLog('rtf preview recapture child refresh');
+    window.setChild(_buildRtfPreview(rtf!));
+  }
+
+  void _hideFloatingWindows() {
+    _itemPreviewWindow?.hide();
+    _commonLabelPreviewWindow?.hide();
+    _rtfPreviewResizeDebounce?.cancel();
+    _rtfPreviewResizeDebounce = null;
+  }
+
+  void _handleTopDropdownMenuStateChanged(bool isOpen) {
+    final selectedTab = _selectedTabValue();
+    final window = _commonLabelPreviewWindow;
+    debugLog(
+      'top dropdown menu state isOpen=$isOpen '
+      'tab=$selectedTab previewVisible=${window?.isVisible ?? false} '
+      'previewRouteId=${window?.debugRouteId ?? 'none'}',
+    );
+    if (!isOpen || selectedTab != 'common_label') {
+      return;
+    }
+    window?.keepBelowRoutePopups(context);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final postFrameTab = _selectedTabValue();
+      final postFrameWindow = _commonLabelPreviewWindow;
+      debugLog(
+        'top dropdown menu postFrame '
+        'mounted=$mounted tab=$postFrameTab '
+        'previewVisible=${postFrameWindow?.isVisible ?? false} '
+        'previewRouteId=${postFrameWindow?.debugRouteId ?? 'none'}',
+      );
+      if (!mounted || postFrameTab != 'common_label') return;
+      postFrameWindow?.keepBelowRoutePopups(context);
+    });
+  }
+
+  String _rtfPreviewKey(LabelSize? labelSize, String rtf) =>
+      '${labelSize?.labelSizeId ?? 'none'}:${rtf.length}:${rtf.hashCode}';
+
+  void _handleCommonLabelSheetReady() {
+    if (!_commonLabelTabActivated) {
+      return;
+    }
+    final rtf = _effectiveLabelSize?.labelSizeCommon?.rtf;
+    if (!Platform.isWindows || !labelSheetLooksLikeRichEditRtf(rtf)) {
+      return;
+    }
+    _rtfPreviewReadyKey = _rtfPreviewKey(_effectiveLabelSize, rtf!);
+    if (_selectedTabValue() == 'common_label') {
+      _showRtfPreviewWindow();
+    }
+  }
+
+  @override
+  void dispose() {
+    _rtfPreviewResizeDebounce?.cancel();
+    _itemPreviewWindow?.dispose();
+    _commonLabelPreviewWindow?.dispose();
+    _tabController.dispose();
+    _tabSearchController.dispose();
+    super.dispose();
+  }
+
+  void _onTabSearch() {
+    final query = _tabSearchController.text.trim();
+    if (query.isEmpty) return;
+    // TODO: 검색 로직
+  }
+
+  Widget _buildTabTrailing(BuildContext context) {
+    final double fieldWidth = lmSize(isDesktop ? 260.0 : 200.0);
+    final double fieldHeight = lmSize(37.0);
+    final theme = Theme.of(context);
+    final Color buttonColor = theme.colorScheme.secondaryFixed;
+    final Color onButtonColor = theme.colorScheme.onSecondaryFixed;
+
+    return SizedBox(
+      height: fieldHeight,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          _buildCommonLabelPreviewButton(context),
+          Transform.translate(
+            offset: const Offset(0, -1),
+            child: SizedBox(
+              width: fieldWidth,
+              child: TextField(
+                controller: _tabSearchController,
+                style: const TextStyle(fontSize: 13),
+                textAlignVertical: TextAlignVertical.center,
+                textInputAction: TextInputAction.search,
+                onSubmitted: (_) => _onTabSearch(),
+                decoration: InputDecoration(
+                  isDense: true,
+                  hintText: '검색어 입력',
+                  contentPadding: lmInsetsSymmetric(
+                    horizontal: 12,
+                    vertical: isDesktop ? 8 : 4,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(6),
+                    borderSide: const BorderSide(color: Color(0xFFCED4DA)),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(6),
+                    borderSide: const BorderSide(color: Color(0xFFCED4DA)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(6),
+                    borderSide: const BorderSide(color: Color(0xFF3B82F6)),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          SizedBox(width: lmSize(8)),
+          Transform.translate(
+            offset: const Offset(0, -1),
+            child: SizedBox(
+              height: fieldHeight - lmSize(10),
+              child: FilledButton.icon(
+                onPressed: _onTabSearch,
+                icon: Icon(Icons.search, size: lmSize(14), color: onButtonColor),
+                label: Text(
+                  '검색',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: onButtonColor,
+                  ),
+                ),
+                style: FilledButton.styleFrom(
+                  backgroundColor: buttonColor,
+                  padding: lmInsetsSymmetric(horizontal: 10),
+                  minimumSize: Size(0, fieldHeight - lmSize(10)),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCommonLabelPreviewButton(BuildContext context) {
+    final selected = _selectedTabValue() == 'common_label';
+    final window = _commonLabelPreviewWindow;
+    final shouldShow = selected &&
+        _commonLabelPreviewClosedByUser &&
+        window != null &&
+        !window.isVisible;
+    final shouldKeepSlot = selected && window != null;
+    final button = _PreviewRestoreButton(
+      key: _commonLabelPreviewButtonKey,
+      visible: shouldShow,
+      onPressed: _restoreCommonLabelPreviewWindow,
+    );
+    if (!shouldKeepSlot) {
+      return SizedBox(key: _commonLabelPreviewButtonKey, width: 0, height: 0);
+    }
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [button, SizedBox(width: lmSize(8))],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final brands = Brand.datas ?? const <Brand>[];
+    final brandItems = _brandDropdownItems(brands);
+    final resolvedBrand = _resolveSelectedBrand(brands, widget.selectedBrand);
+    final labelSizes = LabelSize.datas ?? const <LabelSize>[];
+    final labelItems = _labelSizeDropdownItems(labelSizes);
+    final resolvedLabel = _resolveSelectedLabelSize(
+      labelSizes,
+      _effectiveLabelSize,
+    );
+
+    final tabbedView = TabbedViewTheme(
+      data: _buildTabbedTheme(),
+      child: TabbedView(
+        controller: _tabController,
+        tabReorderEnabled: false,
+        trailing: _buildTabTrailing(context),
+      ),
+    );
+
+    final result = Column(
+      children: [
+        Padding(
+          padding: lmInsetsOnly(left: 12, right: 12, bottom: 8),
+          child: Card(
+            elevation: 2,
+            surfaceTintColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+              side: const BorderSide(color: Color(0xFFE6E6E6)),
+            ),
+            child: _TopControlArea(
+              onBrandChanged: _handleBrandChanged,
+              onLabelSizeChanged: _handleLabelSizeChanged,
+              onDropdownMenuStateChanged: _handleTopDropdownMenuStateChanged,
+              brandItems: brandItems,
+              resolvedBrand: resolvedBrand,
+              labelItems: labelItems,
+              resolvedLabel: resolvedLabel,
+            ),
+          ),
+        ),
+        Expanded(
+          child: Padding(
+            padding: lmInsetsOnly(left: 12, right: 12, bottom: 12),
+            child: Card(
+              elevation: 2,
+              surfaceTintColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+                side: const BorderSide(color: Color(0xFFE6E6E6)),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: Column(children: [Expanded(child: tabbedView)]),
+            ),
+          ),
+        ),
+      ],
+    );
+    return result;
+  }
+}
+
+class _PreviewRestoreButton extends StatefulWidget {
+  const _PreviewRestoreButton({
+    super.key,
+    required this.visible,
+    required this.onPressed,
+  });
+
+  final bool visible;
+  final VoidCallback onPressed;
+
+  @override
+  State<_PreviewRestoreButton> createState() => _PreviewRestoreButtonState();
+}
+
+class _PreviewRestoreButtonState extends State<_PreviewRestoreButton> {
+  bool _hovered = false;
+  bool _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final background = _pressed
+        ? const Color(0xFFDADCE0)
+        : _hovered
+        ? const Color(0xFFF1F3F4)
+        : Colors.white;
+    final foreground = _pressed
+        ? const Color(0xFF202124)
+        : _hovered
+        ? const Color(0xFF3C4043)
+        : const Color(0xFF3B4652);
+    return Visibility(
+      visible: widget.visible,
+      maintainState: true,
+      maintainAnimation: true,
+      maintainSize: true,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        onEnter: (_) => setState(() => _hovered = true),
+        onExit: (_) => setState(() {
+          _hovered = false;
+          _pressed = false;
+        }),
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTapDown: (_) => setState(() => _pressed = true),
+          onTapCancel: () => setState(() => _pressed = false),
+          onTapUp: (_) => setState(() => _pressed = false),
+          onTap: widget.onPressed,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 90),
+            width: lmSize(28),
+            height: lmSize(28),
+            decoration: BoxDecoration(
+              color: background,
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(
+                color: _hovered
+                    ? const Color(0xFF9AA0A6)
+                    : const Color(0xFFCED4DA),
+              ),
+              boxShadow: _hovered
+                  ? const [
+                      BoxShadow(
+                        color: Color(0x16000000),
+                        blurRadius: 5,
+                        offset: Offset(0, 2),
+                      ),
+                    ]
+                  : null,
+            ),
+            child: Icon(Icons.preview, size: lmSize(17), color: foreground),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TopControlArea extends StatelessWidget {
+  final ValueChanged<Brand?> onBrandChanged;
+  final ValueChanged<LabelSize?> onLabelSizeChanged;
+  final ValueChanged<bool> onDropdownMenuStateChanged;
+  final List<DropdownMenuItem<Brand>> brandItems;
+  final Brand? resolvedBrand;
+  final List<DropdownMenuItem<LabelSize>> labelItems;
+  final LabelSize? resolvedLabel;
+
+  const _TopControlArea({
+    required this.onBrandChanged,
+    required this.onLabelSizeChanged,
+    required this.onDropdownMenuStateChanged,
+    required this.brandItems,
+    required this.resolvedBrand,
+    required this.labelItems,
+    required this.resolvedLabel,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return Container(
+          color: Colors.transparent,
+          padding: lmInsetsAll(8),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                minWidth: constraints.maxWidth,
+                maxWidth: constraints.maxWidth,
+              ),
+              child: IntrinsicHeight(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    SizedBox(
+                      width: lmSize(isDesktop ? 250 : 200),
+                      child: Container(
+                        padding: lmInsetsSymmetric(
+                          horizontal: 10,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: const Color(0xFFCED4DA)),
+                        ),
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          '${Customer.instance?.customerName ?? ''} (${User.instance?.userId ?? ''})',
+                          style: const TextStyle(fontSize: 14),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ),
+                    SizedBox(width: lmSize(12)),
+                    Row(
+                      children: [
+                        _DropdownField<Brand>(
+                          label: '브랜드',
+                          value: resolvedBrand,
+                          items: brandItems,
+                          onChanged: brandItems.isEmpty ? null : onBrandChanged,
+                          onMenuStateChange: onDropdownMenuStateChanged,
+                          width: isDesktop ? 220 : 150,
+                          labelWidth: 48,
+                        ),
+                        SizedBox(width: lmSize(6)),
+                        SizedBox(
+                          height: lmSize(36),
+                          child: OutlinedButton(
+                            onPressed: null,
+                            style: OutlinedButton.styleFrom(
+                              minimumSize: lmSize2(60, 36),
+                              padding: lmInsetsSymmetric(
+                                horizontal: 8,
+                              ),
+                            ),
+                            child: const Text(
+                              '설정',
+                              style: TextStyle(fontSize: 14),
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: lmSize(10)),
+                        _DropdownField<LabelSize>(
+                          label: '라벨',
+                          value: resolvedLabel,
+                          items: labelItems,
+                          onChanged: labelItems.isEmpty
+                              ? null
+                              : onLabelSizeChanged,
+                          onMenuStateChange: onDropdownMenuStateChanged,
+                          width: isDesktop ? 220 : 150,
+                          labelWidth: 48,
+                        ),
+                        SizedBox(width: lmSize(6)),
+                        SizedBox(
+                          height: lmSize(36),
+                          child: OutlinedButton(
+                            onPressed: null,
+                            style: OutlinedButton.styleFrom(
+                              minimumSize: lmSize2(60, 36),
+                              padding: lmInsetsSymmetric(
+                                horizontal: 8,
+                              ),
+                            ),
+                            child: const Text(
+                              '설정',
+                              style: TextStyle(fontSize: 14),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const Spacer(),
+                    ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxWidth: lmSize(isDesktop ? 450 : 370),
+                      ),
+                      child: Container(
+                        width: lmSize(isDesktop ? 430 : 350),
+                        height: lmSize(36),
+                        padding: lmInsetsSymmetric(
+                          horizontal: 12,
+                          vertical: 5,
+                        ),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(6),
+                          color: Theme.of(context).cardColor,
+                        ),
+                        clipBehavior: Clip.antiAlias,
+                        alignment: Alignment.center,
+                        child: isShowLogo
+                            ? Image.asset(
+                                'assets/images/LogoPhone.webp',
+                                fit: BoxFit.contain,
+                                alignment: Alignment.center,
+                                filterQuality: FilterQuality.high,
+                              )
+                            : null,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _DropdownField<T> extends StatelessWidget {
+  final String label;
+  final T? value;
+  final List<DropdownMenuItem<T>> items;
+  final ValueChanged<T?>? onChanged;
+  final ValueChanged<bool>? onMenuStateChange;
+  final double width;
+  final double labelWidth;
+
+  const _DropdownField({
+    required this.label,
+    required this.value,
+    required this.items,
+    this.onChanged,
+    this.onMenuStateChange,
+    this.width = 170,
+    this.labelWidth = 80,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          width: lmSize(labelWidth),
+          child: Text(
+            '$label:',
+            textAlign: TextAlign.right,
+            style: const TextStyle(fontSize: 13),
+          ),
+        ),
+        SizedBox(width: lmSize(6)),
+        SizedBox(
+          width: lmSize(width),
+          child: DropdownButtonFormField2<T>(
+            value: value,
+            items: items,
+            onChanged: (onChanged != null && items.isNotEmpty)
+                ? onChanged
+                : null,
+            onMenuStateChange: onMenuStateChange,
+            style: const TextStyle(fontSize: 14, color: Colors.black),
+            isExpanded: true,
+            buttonStyleData: ButtonStyleData(
+              height: lmSize(28),
+              padding: lmInsetsSymmetric(horizontal: 2),
+            ),
+            dropdownStyleData: DropdownStyleData(
+              useRootNavigator: true,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(4),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x14000000),
+                    blurRadius: 8,
+                    offset: Offset(0, 2),
+                  ),
+                ],
+              ),
+            ),
+            menuItemStyleData: MenuItemStyleData(height: lmSize(28)),
+            decoration: InputDecoration(
+              isDense: true,
+              contentPadding: lmInsetsSymmetric(
+                horizontal: 4,
+                vertical: 10,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(4),
+                borderSide: const BorderSide(color: Color(0xFFCED4DA)),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(4),
+                borderSide: const BorderSide(color: Color(0xFFCED4DA)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(4),
+                borderSide: const BorderSide(color: Color(0xFF3B82F6)),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _PlaceholderTab extends StatelessWidget {
+  final String title;
+  const _PlaceholderTab({required this.title});
+  @override
+  Widget build(BuildContext context) {
+    return Center(child: Text('$title (준비 중)'));
+  }
+}
