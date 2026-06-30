@@ -2139,6 +2139,14 @@ class FortuneSheetController {
     _state?._clearControllerHoverState();
   }
 
+  Future<FortuneSheetCapture?> captureRangeAsPng(
+    FortuneRange range, {
+    double pixelRatio = 1,
+  }) {
+    return _state?._captureRangeAsPng(range, pixelRatio: pixelRatio) ??
+        Future<FortuneSheetCapture?>.value();
+  }
+
   void _attach(_FortuneSheetCanvasState state) {
     _state = state;
   }
@@ -2150,11 +2158,32 @@ class FortuneSheetController {
   }
 }
 
+class FortuneSheetCapture {
+  const FortuneSheetCapture({
+    required this.pngBytes,
+    required this.logicalSize,
+    required this.pixelSize,
+  });
+
+  final Uint8List pngBytes;
+  final Size logicalSize;
+  final Size pixelSize;
+}
+
 class _FortuneScreenshotCapture {
-  const _FortuneScreenshotCapture({required this.dataUrl, required this.image});
+  const _FortuneScreenshotCapture({
+    required this.dataUrl,
+    required this.image,
+    required this.pngBytes,
+    required this.logicalSize,
+    required this.pixelSize,
+  });
 
   final String dataUrl;
   final ui.Image image;
+  final Uint8List pngBytes;
+  final Size logicalSize;
+  final Size pixelSize;
 }
 
 class _FortuneScreenshotConditionStyle {
@@ -14216,6 +14245,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
 
   Future<_FortuneScreenshotCapture?> _generateScreenshotCapture(
     FortuneRange range,
+    {
+    double? pixelRatio,
+  }
   ) async {
     final sheet = _workbook.activeSheet;
     final settings = _workbook.settings;
@@ -14232,9 +14264,11 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     final originY = rowTop(range.rowStart);
     final captureWidth = math.max(1.0, columnRight(range.columnEnd) - originX);
     final captureHeight = math.max(1.0, rowBottom(range.rowEnd) - originY);
-    final devicePixelRatio = settings.devicePixelRatio > 0
+    final devicePixelRatio =
+      pixelRatio ??
+      (settings.devicePixelRatio > 0
         ? settings.devicePixelRatio
-        : View.of(context).devicePixelRatio;
+        : View.of(context).devicePixelRatio);
     final bounds = Rect.fromLTWH(0, 0, captureWidth, captureHeight);
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
@@ -14453,10 +14487,35 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       image.dispose();
       return null;
     }
+    final pngBytes = bytes.buffer.asUint8List();
     return _FortuneScreenshotCapture(
-      dataUrl:
-          'data:image/png;base64,${base64Encode(bytes.buffer.asUint8List())}',
+      dataUrl: 'data:image/png;base64,${base64Encode(pngBytes)}',
       image: image,
+      pngBytes: Uint8List.fromList(pngBytes),
+      logicalSize: Size(captureWidth, captureHeight),
+      pixelSize: Size(
+        (captureWidth * devicePixelRatio).ceilToDouble(),
+        (captureHeight * devicePixelRatio).ceilToDouble(),
+      ),
+    );
+  }
+
+  Future<FortuneSheetCapture?> _captureRangeAsPng(
+    FortuneRange range, {
+    required double pixelRatio,
+  }) async {
+    final capture = await _generateScreenshotCapture(
+      range,
+      pixelRatio: math.max(0.01, pixelRatio),
+    );
+    if (capture == null) {
+      return null;
+    }
+    capture.image.dispose();
+    return FortuneSheetCapture(
+      pngBytes: capture.pngBytes,
+      logicalSize: capture.logicalSize,
+      pixelSize: capture.pixelSize,
     );
   }
 

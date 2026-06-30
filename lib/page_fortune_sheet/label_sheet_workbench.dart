@@ -16,7 +16,9 @@ import 'package:label_manager/page_fortune_sheet/label_sheet_ai_import.dart';
 import 'package:label_manager/page_fortune_sheet/label_sheet_import_model.dart';
 import 'package:label_manager/page_fortune_sheet/label_sheet_rtf_import.dart';
 import 'package:label_manager/page_fortune_sheet/label_sheet_save_codec.dart';
+import 'package:label_manager/printing/label_sheet_print_job.dart';
 import 'package:label_manager/printing/label_printer_preferences.dart';
+import 'package:label_manager/printing/printer_profiles.dart';
 import 'package:label_manager/printing/raw_printer_win32.dart';
 import 'package:label_manager/utils/on_messages.dart';
 import 'package:printing/printing.dart';
@@ -1266,6 +1268,165 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     await LabelPrinterPreferences.savePreferredPrintSettings(settings);
   }
 
+  Future<void> _handleIssuePrintSettings() async {
+    final printer = await _selectedPrintSettingsPrinter();
+    if (!mounted) {
+      return;
+    }
+    if (printer == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('발행할 프린터를 선택하세요.')),
+      );
+      return;
+    }
+    final sheet = _controller.getSheet();
+    final physicalSize = sheet == null
+        ? null
+        : fortuneSheetGridClientPhysicalSize(sheet);
+    if (sheet == null || physicalSize == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('라벨 출력 영역을 찾을 수 없습니다.')),
+      );
+      return;
+    }
+
+    final options = _currentPrintOptions();
+    final dpi = await _printDpiForPrinter(printer);
+    final capture = await _controller.captureRangeAsPng(
+      _labelSheetPrintRange(sheet, physicalSize),
+      pixelRatio: dpi / fortuneSheetLogicalPixelsPerInch,
+    );
+    if (!mounted) {
+      return;
+    }
+    if (capture == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('라벨 이미지를 생성할 수 없습니다.')),
+      );
+      return;
+    }
+
+    final metrics = LabelSheetPrintPageMetrics(
+      labelWidthMm: physicalSize.widthMm,
+      labelHeightMm: physicalSize.heightMm,
+      dpi: dpi,
+    );
+    final pdfBytes = await buildLabelSheetPdfBytes(
+      pngBytes: capture.pngBytes,
+      metrics: metrics,
+      options: options,
+    );
+    final profile = detectPrinterProfile(printer);
+    var printed = false;
+    if (profile.canSendRaw && profile.language == PrinterLanguage.ezpl) {
+      try {
+        final ezplBytes = await buildLabelSheetEzplRasterBytes(
+          pngBytes: capture.pngBytes,
+          metrics: metrics,
+          options: options,
+        );
+        await RawPrinterWin32.sendRaw(printer, ezplBytes);
+        printed = true;
+      } catch (error) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('EZPL 출력 실패, 일반 인쇄창으로 전환합니다: $error')),
+          );
+        }
+      }
+    }
+    if (printed || !mounted) {
+      return;
+    }
+    await Printing.layoutPdf(
+      name: 'ITSnG_Label_${DateTime.now().millisecondsSinceEpoch}',
+      onLayout: (_) async => pdfBytes,
+    );
+  }
+
+  Future<Printer?> _selectedPrintSettingsPrinter() async {
+    final selectedName = _printSelectedPrinterName.trim();
+    if (selectedName.isEmpty) {
+      return null;
+    }
+    final printers = await (widget.printerListProvider ?? Printing.listPrinters)();
+    final normalizedSelected = selectedName.toLowerCase();
+    for (final printer in printers) {
+      if (printer.name.trim().toLowerCase() == normalizedSelected) {
+        return printer;
+      }
+    }
+    return null;
+  }
+
+  Future<double> _printDpiForPrinter(Printer printer) async {
+    if (Platform.isWindows) {
+      final dpi = await RawPrinterWin32.queryPrinterDpi(printer);
+      if (dpi != null && dpi > 0) {
+        return dpi.toDouble();
+      }
+    }
+    return detectPrinterProfile(printer).dpi ?? 203;
+  }
+
+  LabelSheetPrintOptions _currentPrintOptions() {
+    return LabelSheetPrintOptions(
+      copies: math.max(1, int.tryParse(_printCopiesController.text.trim()) ?? 1),
+      leftMarginMm: _doubleFromPrintInput(_printLeftMarginController.text),
+      topMarginMm: _doubleFromPrintInput(_printTopMarginController.text),
+      extraAreaMm: _doubleFromPrintInput(_printExtraAreaController.text),
+      autoSpacingPercent: _printAutoSpacing == 'none'
+          ? null
+          : int.tryParse(_printAutoSpacing),
+      orientation: _printOrientation == 'vertical'
+          ? LabelSheetPrintOrientation.vertical
+          : LabelSheetPrintOrientation.horizontal,
+    );
+  }
+
+  double _doubleFromPrintInput(String value) {
+    return math.max(0, double.tryParse(value.trim()) ?? 0);
+  }
+
+  FortuneRange _labelSheetPrintRange(
+    FortuneSheet sheet,
+    FortuneSheetGridClientPhysicalSize physicalSize,
+  ) {
+    final logicalSize = physicalSize.logicalSize;
+    return FortuneRange(
+      rowStart: 0,
+      rowEnd: _lastPrintIndexForExtent(
+        logicalSize.height,
+        lengthForIndex: (row) => sheet.rowHeights[row] ?? sheet.defaultRowHeight ?? 19,
+      ),
+      columnStart: 0,
+      columnEnd: _lastPrintIndexForExtent(
+        logicalSize.width,
+        lengthForIndex: (column) =>
+            sheet.columnWidths[column] ?? sheet.defaultColWidth ?? 73,
+      ),
+    );
+  }
+
+  int _lastPrintIndexForExtent(
+    double extent, {
+    required double Function(int index) lengthForIndex,
+  }) {
+    if (extent <= 0) {
+      return 0;
+    }
+    var offset = 0.0;
+    var index = 0;
+    while (offset < extent) {
+      offset += lengthForIndex(index);
+      if (offset >= extent) {
+        return index;
+      }
+      index += 1;
+    }
+    return index;
+  }
+
   void _closePrintSettingsDialog() {
     if (!_printSettingsDialogOpen) {
       return;
@@ -1575,6 +1736,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
                   });
                 },
                 onSelectPrinter: _handleSelectPrinter,
+                onIssue: () => unawaited(_handleIssuePrintSettings()),
                 onApply: () => unawaited(_handleApplyPrintSettings()),
                 onClose: _closePrintSettingsDialog,
               ),
@@ -2009,6 +2171,7 @@ class _LabelSheetPrintSettingsDialog extends StatelessWidget {
     required this.onAutoSpacingChanged,
     required this.onOrientationChanged,
     required this.onSelectPrinter,
+    required this.onIssue,
     required this.onApply,
     required this.onClose,
   });
@@ -2023,6 +2186,7 @@ class _LabelSheetPrintSettingsDialog extends StatelessWidget {
   final ValueChanged<String?> onAutoSpacingChanged;
   final ValueChanged<String?> onOrientationChanged;
   final VoidCallback onSelectPrinter;
+  final VoidCallback onIssue;
   final VoidCallback onApply;
   final VoidCallback onClose;
 
@@ -2233,7 +2397,7 @@ class _LabelSheetPrintSettingsDialog extends StatelessWidget {
               bottom: 12,
               width: 84,
               height: 30,
-              child: _PrintDialogButton(label: '발행', onPressed: () {}),
+              child: _PrintDialogButton(label: '발행', onPressed: onIssue),
             ),
             Positioned(
               left: 334,
