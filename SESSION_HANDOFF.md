@@ -27,6 +27,8 @@
 
 ## 현재 상태
 
+- 완료: 브랜드 설정 다이얼로그에서 컬럼 왼쪽 스와이프 시 표시되는 수정/삽입/삭제 버튼 폭을 20% 줄였다. `lib/widgets/swipe_action_table.dart`: 공통 스와이프 액션 버튼 폭 상수 `_actionWidth`를 48에서 38.4로 변경해 버튼 3개 전체 레일 폭도 기존 144에서 115.2로 축소되도록 했다. 검증 성공: `C:/flutter/bin/flutter.bat analyze --no-fatal-warnings --no-fatal-infos lib/home_page_manager.dart lib/widgets/swipe_action_table.dart lib/page_home/common_label_manage.dart`, `C:/flutter/bin/flutter.bat test test/common_label_manage_test.dart`.
+
 - 완료: 브랜드 설정 다이얼로그 테이블 공통 툴팁 위치를 현재 커서 기준으로 수정했다. `lib/widgets/swipe_action_table.dart`: `_TableBodyTooltip`이 `MouseRegion`의 enter/hover 이벤트에서 커서 global 좌표를 저장하고, `OverlayEntry` builder에서 overlay 좌표계로 변환해 `Positioned`를 배치하도록 변경했다. 이제 툴팁은 테이블 좌상단 고정이 아니라 커서 오른쪽 아래에 표시되며, 기존 0.5초 후 표시/3초 후 닫힘/이탈 즉시 닫힘 동작은 유지된다. 검증 성공: `C:/flutter/bin/flutter.bat analyze --no-fatal-warnings --no-fatal-infos lib/home_page_manager.dart lib/widgets/swipe_action_table.dart lib/page_home/common_label_manage.dart`, `C:/flutter/bin/flutter.bat test test/common_label_manage_test.dart`.
 
 - 완료: 브랜드 설정 다이얼로그의 테이블 공통 툴팁이 3초 후 닫히지 않던 문제를 수정했다. `lib/widgets/swipe_action_table.dart`: 기본 `Tooltip` 대신 `OverlayEntry`와 `Timer` 기반 `_TableBodyTooltip`으로 바꿔 hover 0.5초 후 표시, 표시 3초 후 강제 닫힘, table body 이탈 시 즉시 닫힘으로 동작하게 했다. `lib/home_page_manager.dart`: 스와이프 후 수정/삽입/삭제 아이콘 배경색을 더 밝은 그레이 계열로 변경했다. 검증 성공: `C:/flutter/bin/flutter.bat analyze --no-fatal-warnings --no-fatal-infos lib/home_page_manager.dart lib/widgets/swipe_action_table.dart lib/page_home/common_label_manage.dart`, `C:/flutter/bin/flutter.bat test test/common_label_manage_test.dart`.
