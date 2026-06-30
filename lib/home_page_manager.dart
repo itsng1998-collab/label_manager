@@ -26,6 +26,7 @@ import 'package:label_manager/utils/on_messages.dart';
 import 'package:label_manager/page_home/item_manage.dart';
 import 'package:label_manager/page_home/common_label_manage.dart';
 import 'package:label_manager/page_home/preview_floating_window.dart';
+import 'package:label_manager/widgets/swipe_action_table.dart';
 
 /// 로그인 이후 메인 UI
 class HomePageManager extends StatefulWidget {
@@ -423,6 +424,20 @@ class _HomePageManagerState extends State<HomePageManager> {
     } else {
       _hideFloatingWindows();
     }
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  Future<void> _openBrandSettingsDialog() async {
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      builder: (dialogContext) => _BrandSettingsDialog(
+        brands: Brand.datas ?? const <Brand>[],
+        onClose: () => Navigator.of(dialogContext).pop(),
+      ),
+    );
   }
 
   bool _activateCommonLabelTabIfNeeded() {
@@ -987,6 +1002,7 @@ class _HomePageManagerState extends State<HomePageManager> {
       labelSizes,
       _effectiveLabelSize,
     );
+    final settingsEnabled = _selectedTabValue() == 'common_label';
 
     final tabbedView = TabbedViewTheme(
       data: _buildTabbedTheme(),
@@ -1012,6 +1028,11 @@ class _HomePageManagerState extends State<HomePageManager> {
               onBrandChanged: _handleBrandChanged,
               onLabelSizeChanged: _handleLabelSizeChanged,
               onDropdownMenuStateChanged: _handleTopDropdownMenuStateChanged,
+                settingsEnabled: settingsEnabled,
+                onBrandSettingsPressed: settingsEnabled
+                  ? _openBrandSettingsDialog
+                  : null,
+                onLabelSettingsPressed: settingsEnabled ? () {} : null,
               brandItems: brandItems,
               resolvedBrand: resolvedBrand,
               labelItems: labelItems,
@@ -1122,6 +1143,9 @@ class _TopControlArea extends StatelessWidget {
   final ValueChanged<Brand?> onBrandChanged;
   final ValueChanged<LabelSize?> onLabelSizeChanged;
   final ValueChanged<bool> onDropdownMenuStateChanged;
+  final bool settingsEnabled;
+  final VoidCallback? onBrandSettingsPressed;
+  final VoidCallback? onLabelSettingsPressed;
   final List<DropdownMenuItem<Brand>> brandItems;
   final Brand? resolvedBrand;
   final List<DropdownMenuItem<LabelSize>> labelItems;
@@ -1131,6 +1155,9 @@ class _TopControlArea extends StatelessWidget {
     required this.onBrandChanged,
     required this.onLabelSizeChanged,
     required this.onDropdownMenuStateChanged,
+    required this.settingsEnabled,
+    required this.onBrandSettingsPressed,
+    required this.onLabelSettingsPressed,
     required this.brandItems,
     required this.resolvedBrand,
     required this.labelItems,
@@ -1192,7 +1219,7 @@ class _TopControlArea extends StatelessWidget {
                         SizedBox(
                           height: lmSize(36),
                           child: OutlinedButton(
-                            onPressed: null,
+                            onPressed: onBrandSettingsPressed,
                             style: OutlinedButton.styleFrom(
                               minimumSize: lmSize2(60, 36),
                               padding: lmInsetsSymmetric(
@@ -1221,7 +1248,7 @@ class _TopControlArea extends StatelessWidget {
                         SizedBox(
                           height: lmSize(36),
                           child: OutlinedButton(
-                            onPressed: null,
+                            onPressed: onLabelSettingsPressed,
                             style: OutlinedButton.styleFrom(
                               minimumSize: lmSize2(60, 36),
                               padding: lmInsetsSymmetric(
@@ -1370,5 +1397,165 @@ class _PlaceholderTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(child: Text('$title (준비 중)'));
+  }
+}
+
+class _BrandSettingsDialog extends StatelessWidget {
+  const _BrandSettingsDialog({required this.brands, required this.onClose});
+
+  final List<Brand> brands;
+  final VoidCallback onClose;
+
+  static const double _dialogWidth = 300;
+
+  @override
+  Widget build(BuildContext context) {
+    final dialogHeight = MediaQuery.sizeOf(context).height / 4;
+    return Dialog(
+      insetPadding: const EdgeInsets.all(24),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+      clipBehavior: Clip.antiAlias,
+      child: SizedBox(
+        width: _dialogWidth,
+        height: dialogHeight,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
+              height: 36,
+              padding: const EdgeInsets.only(left: 12, right: 4),
+              color: const Color(0xfff7f7f7),
+              child: Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      '브랜드 설정',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: '닫기',
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints.tightFor(
+                      width: 28,
+                      height: 28,
+                    ),
+                    icon: const _BrandDialogCloseIcon(),
+                    onPressed: onClose,
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: SwipeActionTable<Brand>(
+                rows: brands,
+                fillLastColumn: true,
+                autoFitColumns: false,
+                rowSwipeEnabled: true,
+                rowTooltip: '컬럼 왼쪽 스와이프 수정/삽입/삭제',
+                showActionsWhenEmpty: true,
+                actions: _brandRowActions(),
+                emptyActions: _brandEmptyActions(),
+                columns: const [
+                  SwipeActionTableColumn<Brand>(
+                    header: '브랜드 이름',
+                    initialWidth: 220,
+                    minWidth: 120,
+                    fillRemaining: true,
+                    text: _brandNameText,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  static String _brandNameText(Brand brand) => brand.brandName;
+
+  static List<SwipeActionTableAction> _brandRowActions() {
+    return const [
+      SwipeActionTableAction(
+        icon: Icons.edit,
+        tooltip: '수정',
+        backgroundColor: Color(0xff4b5563),
+        onPressed: _noop,
+      ),
+      SwipeActionTableAction(
+        icon: Icons.add,
+        tooltip: '삽입',
+        backgroundColor: Color(0xff2563eb),
+        onPressed: _noop,
+      ),
+      SwipeActionTableAction(
+        icon: Icons.delete,
+        tooltip: '삭제',
+        backgroundColor: Color(0xffef4444),
+        onPressed: _noop,
+      ),
+    ];
+  }
+
+  static List<SwipeActionTableAction> _brandEmptyActions() {
+    return const [
+      SwipeActionTableAction(
+        icon: Icons.edit,
+        tooltip: '수정',
+        backgroundColor: Color(0xff4b5563),
+      ),
+      SwipeActionTableAction(
+        icon: Icons.add,
+        tooltip: '삽입',
+        backgroundColor: Color(0xff2563eb),
+        onPressed: _noop,
+      ),
+      SwipeActionTableAction(
+        icon: Icons.delete,
+        tooltip: '삭제',
+        backgroundColor: Color(0xffef4444),
+      ),
+    ];
+  }
+
+  static void _noop() {}
+}
+
+class _BrandDialogCloseIcon extends StatelessWidget {
+  const _BrandDialogCloseIcon();
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      size: const Size(16, 16),
+      painter: _BrandDialogCloseIconPainter(),
+    );
+  }
+}
+
+class _BrandDialogCloseIconPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final glyphRect = Rect.fromCenter(
+      center: Offset(size.width / 2, size.height / 2),
+      width: 11,
+      height: 11,
+    );
+    final paint = Paint()
+      ..color = const Color(0xff9a9a9a)
+      ..strokeWidth = 1.4
+      ..strokeCap = StrokeCap.round;
+    canvas.drawLine(glyphRect.topLeft, glyphRect.bottomRight, paint);
+    canvas.drawLine(glyphRect.topRight, glyphRect.bottomLeft, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _BrandDialogCloseIconPainter oldDelegate) {
+    return false;
   }
 }

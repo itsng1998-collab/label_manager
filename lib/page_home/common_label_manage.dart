@@ -7,6 +7,7 @@ import 'package:label_manager/models/column.dart';
 import 'package:label_manager/models/label_size.dart';
 import 'package:label_manager/page_label_sheet/label_sheet_page.dart';
 import 'package:label_manager/utils/log_context.dart';
+import 'package:label_manager/widgets/swipe_action_table.dart';
 
 @visibleForTesting
 List<String> commonLabelBarcodeObjectIdsFor(
@@ -78,8 +79,8 @@ class _CommonLabelManageState extends State<CommonLabelManage> {
           columns,
         );
         final fitRightWidth = [
-          _CommonLabelTableState.tableWidthFor(context, specialColumns),
-          _CommonLabelTableState.tableWidthFor(context, columns),
+          _CommonLabelTable.tableWidthFor(context, specialColumns),
+          _CommonLabelTable.tableWidthFor(context, columns),
           minRight,
         ].reduce((a, b) => a > b ? a : b).clamp(rightLower, maxRight);
 
@@ -222,126 +223,13 @@ class _RightPaneState extends State<_RightPane> {
   }
 }
 
-class _CommonLabelTable extends StatefulWidget {
+class _CommonLabelTable extends StatelessWidget {
   final List<TColumnBase> columns;
   const _CommonLabelTable({required this.columns});
 
-  @override
-  State<_CommonLabelTable> createState() => _CommonLabelTableState();
-}
-
-class _CommonLabelTableState extends State<_CommonLabelTable> {
   static const List<double> _baseWidths = [110, 140, 70];
   static const List<String> _baseHeaders = ['키워드', '이름', '필수등록'];
-  static const Color _headerSeparatorColor = Color(0xFFBDBDBD);
-  static const Color _bodySeparatorColor = Color(0xFFE6E8EB);
-  static const double _headerHeight = 36;
-  static const double _rowHeight = 28;
   static const double _rowNumberWidth = 40;
-
-  final ScrollController _hScrollHeader = ScrollController();
-  final ScrollController _hScrollBody = ScrollController();
-  final ScrollController _vScrollBody = ScrollController();
-  final ScrollController _vScrollIndex = ScrollController();
-  bool _syncingVertical = false;
-  bool _syncingHorizontal = false;
-  late List<double> _widths;
-  int? _draggingIndex;
-  int? _selectedIndex;
-  String? _columnsSignature;
-
-  @override
-  void initState() {
-    super.initState();
-    _widths = List<double>.from(_baseWidths);
-    _hScrollBody.addListener(_syncHorizontalFromBody);
-    _hScrollHeader.addListener(_syncHorizontalFromHeader);
-    _vScrollBody.addListener(_syncVerticalScrollFromBody);
-    _vScrollIndex.addListener(_syncVerticalScrollFromIndex);
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _syncAutoWidthsIfNeeded();
-  }
-
-  @override
-  void didUpdateWidget(covariant _CommonLabelTable oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    _syncAutoWidthsIfNeeded();
-  }
-
-  @override
-  void dispose() {
-    _hScrollHeader.dispose();
-    _hScrollBody.dispose();
-    _vScrollBody.dispose();
-    _vScrollIndex.dispose();
-    super.dispose();
-  }
-
-  void _startResize(int index) {
-    setState(() => _draggingIndex = index);
-  }
-
-  void _updateResize(DragUpdateDetails d) {
-    final idx = _draggingIndex;
-    if (idx == null) return;
-    final minLeft = _minWidth(idx);
-    final minRight = _minWidth(idx + 1);
-    final delta = d.delta.dx;
-    final left = (_widths[idx] + delta).clamp(minLeft, double.infinity);
-    final right = (_widths[idx + 1] - delta).clamp(minRight, double.infinity);
-    setState(() {
-      _widths[idx] = left;
-      _widths[idx + 1] = right;
-    });
-  }
-
-  void _updateLastResize(DragUpdateDetails d) {
-    final last = _widths.length - 1;
-    setState(() {
-      _widths[last] = (_widths[last] + d.delta.dx).clamp(
-        _minWidth(last),
-        double.infinity,
-      );
-    });
-  }
-
-  void _endResize() {
-    setState(() => _draggingIndex = null);
-  }
-
-  void _syncAutoWidthsIfNeeded() {
-    final signature = _columnsAutoFitSignature();
-    if (_columnsSignature == signature) {
-      return;
-    }
-    _columnsSignature = signature;
-    _widths = _autoFitWidths();
-  }
-
-  String _columnsAutoFitSignature() {
-    return widget.columns
-        .map(
-          (column) =>
-              '${column.keyword}\u001f${column.columnName}\u001f${column.useMissingKeywordCheck}',
-        )
-        .join('\u001e');
-  }
-
-  List<double> _autoFitWidths() {
-    final scaler = MediaQuery.of(context).textScaler;
-    return List<double>.generate(
-      _baseHeaders.length,
-      (index) => _autoFitWidth(index, scaler),
-    );
-  }
-
-  double _autoFitWidth(int index, TextScaler scaler) {
-    return autoFitWidth(index, widget.columns, scaler);
-  }
 
   static double tableWidthFor(BuildContext context, List<TColumnBase> columns) {
     final scaler = MediaQuery.of(context).textScaler;
@@ -378,11 +266,6 @@ class _CommonLabelTableState extends State<_CommonLabelTable> {
     return painter.size.width;
   }
 
-  void _autoFitColumn(int idx) {
-    final scaler = MediaQuery.of(context).textScaler;
-    setState(() => _widths[idx] = _autoFitWidth(idx, scaler));
-  }
-
   static String _headerTitle(int idx) => _baseHeaders[idx];
 
   static String _cellText(TColumnBase row, int idx) {
@@ -394,309 +277,43 @@ class _CommonLabelTableState extends State<_CommonLabelTable> {
 
   static double _minWidth(int idx) => idx < _baseWidths.length ? 60.0 : 70.0;
 
-  void _syncVerticalScrollFromBody() {
-    if (_syncingVertical) return;
-    if (!_vScrollBody.hasClients || !_vScrollIndex.hasClients) return;
-    _syncingVertical = true;
-    final target = _vScrollBody.offset.clamp(
-      _vScrollIndex.position.minScrollExtent,
-      _vScrollIndex.position.maxScrollExtent,
-    );
-    _vScrollIndex.jumpTo(target.toDouble());
-    _syncingVertical = false;
-  }
-
-  void _syncVerticalScrollFromIndex() {
-    if (_syncingVertical) return;
-    if (!_vScrollIndex.hasClients || !_vScrollBody.hasClients) return;
-    _syncingVertical = true;
-    final target = _vScrollIndex.offset.clamp(
-      _vScrollBody.position.minScrollExtent,
-      _vScrollBody.position.maxScrollExtent,
-    );
-    _vScrollBody.jumpTo(target.toDouble());
-    _syncingVertical = false;
-  }
-
-  void _syncHorizontalFromBody() {
-    if (_syncingHorizontal) return;
-    if (!_hScrollBody.hasClients || !_hScrollHeader.hasClients) return;
-    _syncingHorizontal = true;
-    final target = _hScrollBody.offset.clamp(
-      _hScrollHeader.position.minScrollExtent,
-      _hScrollHeader.position.maxScrollExtent,
-    );
-    _hScrollHeader.jumpTo(target.toDouble());
-    _syncingHorizontal = false;
-  }
-
-  void _syncHorizontalFromHeader() {
-    if (_syncingHorizontal) return;
-    if (!_hScrollHeader.hasClients || !_hScrollBody.hasClients) return;
-    _syncingHorizontal = true;
-    final target = _hScrollHeader.offset.clamp(
-      _hScrollBody.position.minScrollExtent,
-      _hScrollBody.position.maxScrollExtent,
-    );
-    _hScrollBody.jumpTo(target.toDouble());
-    _syncingHorizontal = false;
-  }
-
-  Widget _buildHeader() {
-    const double handleWidth = 4.0;
-    final lastIndex = _widths.length - 1;
-    return Container(
-      color: const Color(0xFF0E2F66),
-      height: _headerHeight,
-      padding: EdgeInsets.zero,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: List.generate(_widths.length, (i) {
-          final isLast = i == lastIndex;
-          final cell = SizedBox(
-            width: _widths[i],
-            child: Center(
-              child: Text(
-                _headerTitle(i),
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          );
-          return Stack(
-            children: [
-              cell,
-              Positioned(
-                right: -2,
-                top: 0,
-                bottom: 0,
-                child: MouseRegion(
-                  cursor: SystemMouseCursors.resizeLeftRight,
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.translucent,
-                    onHorizontalDragStart: (_) => _startResize(i),
-                    onHorizontalDragUpdate: isLast
-                        ? _updateLastResize
-                        : _updateResize,
-                    onHorizontalDragEnd: (_) => _endResize(),
-                    onDoubleTap: () => _autoFitColumn(i),
-                    child: SizedBox(
-                      width: handleWidth,
-                      child: Container(
-                        width: 1,
-                        height: double.infinity,
-                        color: isLast
-                            ? Colors.transparent
-                            : _headerSeparatorColor,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          );
-        }),
-      ),
-    );
-  }
-
-  Widget _buildRowNumberHeader() {
-    return Container(
-      width: _rowNumberWidth,
-      height: _headerHeight,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: const Color(0xFF0E2F66),
-        border: Border(right: BorderSide(color: _headerSeparatorColor)),
-      ),
-    );
-  }
-
-  Widget _buildRowNumberList() {
-    return SizedBox(
-      width: _rowNumberWidth,
-      child: ListView.builder(
-        controller: _vScrollIndex,
-        itemCount: widget.columns.length,
-        itemBuilder: (context, index) {
-          return Container(
-            height: _rowHeight,
-            decoration: BoxDecoration(
-              color: const Color(0xFF0E2F66),
-              border: Border(
-                right: BorderSide(color: _bodySeparatorColor),
-                top: const BorderSide(color: Color(0xFFE6E8EB)),
-                bottom: const BorderSide(color: Color(0xFFE6E8EB)),
-              ),
-            ),
-            alignment: Alignment.center,
-            child: Text(
-              '${index + 1}',
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildCell(TColumnBase row, int idx) {
-    if (idx == 2) {
-      return SizedBox(
-        width: _widths[idx],
-        child: Center(
-          child: Transform.scale(
-            scale: 0.9,
-            child: Checkbox(
-              value: row.useMissingKeywordCheck,
-              onChanged: (v) {
-                setState(() {
-                  row.useMissingKeywordCheck = v ?? false;
-                });
-              },
-              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            ),
-          ),
-        ),
-      );
-    }
-    return _BodyCell(text: _cellText(row, idx), width: _widths[idx]);
-  }
-
   @override
   Widget build(BuildContext context) {
-    final contentWidth = _widths.reduce((a, b) => a + b);
-    final separators = List<double>.generate(
-      _widths.length - 1,
-      (i) => _widths.sublist(0, i + 1).reduce((a, b) => a + b),
-    );
-
-    return Column(
-      children: [
-        Row(
-          children: [
-            _buildRowNumberHeader(),
-            Expanded(
-              child: MouseRegion(
-                cursor: _draggingIndex != null
-                    ? SystemMouseCursors.resizeLeftRight
-                    : MouseCursor.defer,
-                child: SingleChildScrollView(
-                  controller: _hScrollHeader,
-                  scrollDirection: Axis.horizontal,
-                  child: SizedBox(width: contentWidth, child: _buildHeader()),
-                ),
-              ),
-            ),
-          ],
-        ),
-        Expanded(
-          child: Row(
-            children: [
-              _buildRowNumberList(),
-              Expanded(
-                child: MouseRegion(
-                  cursor: _draggingIndex != null
-                      ? SystemMouseCursors.resizeLeftRight
-                      : MouseCursor.defer,
-                  child: Scrollbar(
-                    controller: _hScrollBody,
-                    thumbVisibility: true,
-                    child: SingleChildScrollView(
-                      controller: _hScrollBody,
-                      scrollDirection: Axis.horizontal,
-                      child: SizedBox(
-                        width: contentWidth,
-                        child: ListView.builder(
-                          controller: _vScrollBody,
-                          itemCount: widget.columns.length,
-                          itemBuilder: (context, index) {
-                            final row = widget.columns[index];
-                            return SizedBox(
-                              height: _rowHeight,
-                              child: Stack(
-                                children: [
-                                  Container(
-                                    decoration: BoxDecoration(
-                                      color: _selectedIndex == index
-                                          ? const Color(0xFFE3F2FD)
-                                          : (index.isEven
-                                                ? Colors.white
-                                                : const Color(0xFFF2F4F7)),
-                                      border: const Border(
-                                        bottom: BorderSide(
-                                          color: Color(0xFFE6E8EB),
-                                        ),
-                                      ),
-                                    ),
-                                    child: Row(
-                                      children: List.generate(
-                                        _baseHeaders.length,
-                                        (i) => _buildCell(row, i),
-                                      ),
-                                    ),
-                                  ),
-                                  ...separators.map(
-                                    (x) => Positioned(
-                                      left: x - 1,
-                                      top: 0,
-                                      bottom: 0,
-                                      child: Container(
-                                        width: 1,
-                                        color: _bodySeparatorColor,
-                                      ),
-                                    ),
-                                  ),
-                                  Positioned.fill(
-                                    right: _widths.last,
-                                    child: Material(
-                                      color: Colors.transparent,
-                                      child: InkWell(
-                                        hoverColor: Colors.transparent,
-                                        splashColor: Colors.transparent,
-                                        highlightColor: Colors.transparent,
-                                        onTap: () => setState(
-                                          () => _selectedIndex = index,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            );
-                          },
-                        ),
-                      ),
+    return SwipeActionTable<TColumnBase>(
+      rows: columns,
+      columns: [
+        for (var index = 0; index < _baseHeaders.length; index += 1)
+          SwipeActionTableColumn<TColumnBase>(
+            header: _headerTitle(index),
+            initialWidth: _baseWidths[index],
+            minWidth: _minWidth(index),
+            text: (row) => _cellText(row, index),
+            cellBuilder: index == 2
+                ? (context, row, width) => SizedBox(
+                    width: width,
+                    child: StatefulBuilder(
+                      builder: (context, setCellState) {
+                        return Center(
+                          child: Transform.scale(
+                            scale: 0.9,
+                            child: Checkbox(
+                              value: row.useMissingKeywordCheck,
+                              onChanged: (value) {
+                                setCellState(() {
+                                  row.useMissingKeywordCheck = value ?? false;
+                                });
+                              },
+                              materialTapTargetSize:
+                                  MaterialTapTargetSize.shrinkWrap,
+                            ),
+                          ),
+                        );
+                      },
                     ),
-                  ),
-                ),
-              ),
-            ],
+                  )
+                : null,
           ),
-        ),
       ],
-    );
-  }
-}
-
-class _BodyCell extends StatelessWidget {
-  final String text;
-  final double width;
-  const _BodyCell({required this.text, required this.width});
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: width,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 6),
-        child: Text(text, maxLines: 1, overflow: TextOverflow.ellipsis),
-      ),
     );
   }
 }

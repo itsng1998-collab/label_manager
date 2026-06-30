@@ -1,0 +1,655 @@
+import 'package:flutter/material.dart';
+
+class SwipeActionTableColumn<T> {
+  const SwipeActionTableColumn({
+    required this.header,
+    required this.text,
+    this.initialWidth = 120,
+    this.minWidth = 60,
+    this.fillRemaining = false,
+    this.cellBuilder,
+  });
+
+  final String header;
+  final String Function(T row) text;
+  final double initialWidth;
+  final double minWidth;
+  final bool fillRemaining;
+  final Widget Function(BuildContext context, T row, double width)? cellBuilder;
+}
+
+class SwipeActionTableAction {
+  const SwipeActionTableAction({
+    required this.icon,
+    required this.tooltip,
+    required this.backgroundColor,
+    this.onPressed,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final Color backgroundColor;
+  final VoidCallback? onPressed;
+}
+
+class SwipeActionTable<T> extends StatefulWidget {
+  const SwipeActionTable({
+    super.key,
+    required this.rows,
+    required this.columns,
+    this.rowSwipeEnabled = false,
+    this.actions = const <SwipeActionTableAction>[],
+    this.showActionsWhenEmpty = false,
+    this.emptyActions,
+    this.rowTooltip,
+    this.rowNumberWidth = 40,
+    this.headerHeight = 36,
+    this.rowHeight = 28,
+    this.autoFitColumns = true,
+    this.fillLastColumn = false,
+  });
+
+  final List<T> rows;
+  final List<SwipeActionTableColumn<T>> columns;
+  final bool rowSwipeEnabled;
+  final List<SwipeActionTableAction> actions;
+  final bool showActionsWhenEmpty;
+  final List<SwipeActionTableAction>? emptyActions;
+  final String? rowTooltip;
+  final double rowNumberWidth;
+  final double headerHeight;
+  final double rowHeight;
+  final bool autoFitColumns;
+  final bool fillLastColumn;
+
+  @override
+  State<SwipeActionTable<T>> createState() => _SwipeActionTableState<T>();
+}
+
+class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
+  static const Color _headerColor = Color(0xFF0E2F66);
+  static const Color _headerSeparatorColor = Color(0xFFBDBDBD);
+  static const Color _bodySeparatorColor = Color(0xFFE6E8EB);
+  static const double _actionWidth = 48;
+
+  final ScrollController _hScrollHeader = ScrollController();
+  final ScrollController _hScrollBody = ScrollController();
+  final ScrollController _vScrollBody = ScrollController();
+  final ScrollController _vScrollIndex = ScrollController();
+  bool _syncingVertical = false;
+  bool _syncingHorizontal = false;
+  late List<double> _widths;
+  int? _draggingIndex;
+  int? _selectedIndex;
+  int? _openActionIndex;
+  String? _tableSignature;
+
+  @override
+  void initState() {
+    super.initState();
+    _widths = _initialWidths();
+    _hScrollBody.addListener(_syncHorizontalFromBody);
+    _hScrollHeader.addListener(_syncHorizontalFromHeader);
+    _vScrollBody.addListener(_syncVerticalScrollFromBody);
+    _vScrollIndex.addListener(_syncVerticalScrollFromIndex);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _syncAutoWidthsIfNeeded();
+  }
+
+  @override
+  void didUpdateWidget(covariant SwipeActionTable<T> oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.columns.length != widget.columns.length) {
+      _widths = _initialWidths();
+      _tableSignature = null;
+    }
+    if ((_selectedIndex ?? -1) >= widget.rows.length) {
+      _selectedIndex = null;
+    }
+    if ((_openActionIndex ?? -1) >= widget.rows.length) {
+      _openActionIndex = null;
+    }
+    _syncAutoWidthsIfNeeded();
+  }
+
+  @override
+  void dispose() {
+    _hScrollHeader.dispose();
+    _hScrollBody.dispose();
+    _vScrollBody.dispose();
+    _vScrollIndex.dispose();
+    super.dispose();
+  }
+
+  List<double> _initialWidths() {
+    return [for (final column in widget.columns) column.initialWidth];
+  }
+
+  void _syncAutoWidthsIfNeeded() {
+    if (!widget.autoFitColumns || widget.columns.isEmpty) {
+      return;
+    }
+    final signature = _autoFitSignature();
+    if (_tableSignature == signature) {
+      return;
+    }
+    _tableSignature = signature;
+    _widths = _autoFitWidths();
+  }
+
+  String _autoFitSignature() {
+    return [
+      for (final column in widget.columns) column.header,
+      for (final row in widget.rows)
+        for (final column in widget.columns) column.text(row),
+    ].join('\u001f');
+  }
+
+  List<double> _autoFitWidths() {
+    final scaler = MediaQuery.of(context).textScaler;
+    const style = TextStyle(fontSize: 14);
+    return List<double>.generate(widget.columns.length, (index) {
+      final column = widget.columns[index];
+      var maxWidth = _measureText(column.header, style, scaler) + 24;
+      for (final row in widget.rows) {
+        final width = _measureText(column.text(row), style, scaler) + 24;
+        if (width > maxWidth) {
+          maxWidth = width;
+        }
+      }
+      return maxWidth < column.minWidth ? column.minWidth : maxWidth;
+    });
+  }
+
+  static double _measureText(String text, TextStyle style, TextScaler scaler) {
+    final painter = TextPainter(
+      text: TextSpan(text: text, style: style),
+      maxLines: 1,
+      textDirection: TextDirection.ltr,
+      textScaler: scaler,
+    )..layout();
+    return painter.size.width;
+  }
+
+  void _startResize(int index) {
+    setState(() => _draggingIndex = index);
+  }
+
+  void _updateResize(DragUpdateDetails details) {
+    final index = _draggingIndex;
+    if (index == null || index + 1 >= _widths.length) {
+      return;
+    }
+    final leftMin = widget.columns[index].minWidth;
+    final rightMin = widget.columns[index + 1].minWidth;
+    final left = (_widths[index] + details.delta.dx).clamp(
+      leftMin,
+      double.infinity,
+    );
+    final right = (_widths[index + 1] - details.delta.dx).clamp(
+      rightMin,
+      double.infinity,
+    );
+    setState(() {
+      _widths[index] = left;
+      _widths[index + 1] = right;
+    });
+  }
+
+  void _updateLastResize(DragUpdateDetails details) {
+    final last = _widths.length - 1;
+    setState(() {
+      _widths[last] = (_widths[last] + details.delta.dx).clamp(
+        widget.columns[last].minWidth,
+        double.infinity,
+      );
+    });
+  }
+
+  void _endResize() {
+    setState(() => _draggingIndex = null);
+  }
+
+  void _autoFitColumn(int index) {
+    if (!widget.autoFitColumns) {
+      return;
+    }
+    final scaler = MediaQuery.of(context).textScaler;
+    const style = TextStyle(fontSize: 14);
+    final column = widget.columns[index];
+    var width = _measureText(column.header, style, scaler) + 24;
+    for (final row in widget.rows) {
+      final rowWidth = _measureText(column.text(row), style, scaler) + 24;
+      if (rowWidth > width) {
+        width = rowWidth;
+      }
+    }
+    setState(() {
+      _widths[index] = width < column.minWidth ? column.minWidth : width;
+    });
+  }
+
+  void _syncVerticalScrollFromBody() {
+    if (_syncingVertical) return;
+    if (!_vScrollBody.hasClients || !_vScrollIndex.hasClients) return;
+    _syncingVertical = true;
+    _vScrollIndex.jumpTo(
+      _vScrollBody.offset.clamp(
+        _vScrollIndex.position.minScrollExtent,
+        _vScrollIndex.position.maxScrollExtent,
+      ),
+    );
+    _syncingVertical = false;
+  }
+
+  void _syncVerticalScrollFromIndex() {
+    if (_syncingVertical) return;
+    if (!_vScrollIndex.hasClients || !_vScrollBody.hasClients) return;
+    _syncingVertical = true;
+    _vScrollBody.jumpTo(
+      _vScrollIndex.offset.clamp(
+        _vScrollBody.position.minScrollExtent,
+        _vScrollBody.position.maxScrollExtent,
+      ),
+    );
+    _syncingVertical = false;
+  }
+
+  void _syncHorizontalFromBody() {
+    if (_syncingHorizontal) return;
+    if (!_hScrollBody.hasClients || !_hScrollHeader.hasClients) return;
+    _syncingHorizontal = true;
+    _hScrollHeader.jumpTo(
+      _hScrollBody.offset.clamp(
+        _hScrollHeader.position.minScrollExtent,
+        _hScrollHeader.position.maxScrollExtent,
+      ),
+    );
+    _syncingHorizontal = false;
+  }
+
+  void _syncHorizontalFromHeader() {
+    if (_syncingHorizontal) return;
+    if (!_hScrollHeader.hasClients || !_hScrollBody.hasClients) return;
+    _syncingHorizontal = true;
+    _hScrollBody.jumpTo(
+      _hScrollHeader.offset.clamp(
+        _hScrollBody.position.minScrollExtent,
+        _hScrollBody.position.maxScrollExtent,
+      ),
+    );
+    _syncingHorizontal = false;
+  }
+
+  List<double> _effectiveWidths(double viewportWidth) {
+    final widths = List<double>.from(_widths);
+    if (widths.isEmpty) {
+      return widths;
+    }
+    final fillIndex = widget.columns.lastIndexWhere(
+      (column) => column.fillRemaining,
+    );
+    final targetIndex = fillIndex >= 0
+        ? fillIndex
+        : (widget.fillLastColumn ? widths.length - 1 : -1);
+    if (targetIndex < 0) {
+      return widths;
+    }
+    final reserved = widget.rowNumberWidth +
+        widths.asMap().entries.fold<double>(
+          0,
+          (sum, entry) => entry.key == targetIndex ? sum : sum + entry.value,
+        );
+    final remaining = viewportWidth - reserved;
+    if (remaining > widths[targetIndex]) {
+      widths[targetIndex] = remaining;
+    }
+    return widths;
+  }
+
+  Widget _buildHeader(List<double> widths) {
+    const double handleWidth = 4.0;
+    final lastIndex = widths.length - 1;
+    return Container(
+      color: _headerColor,
+      height: widget.headerHeight,
+      padding: EdgeInsets.zero,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: List.generate(widths.length, (index) {
+          final isLast = index == lastIndex;
+          final cell = SizedBox(
+            width: widths[index],
+            child: Center(
+              child: Text(
+                widget.columns[index].header,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          );
+          return Stack(
+            children: [
+              cell,
+              Positioned(
+                right: -2,
+                top: 0,
+                bottom: 0,
+                child: MouseRegion(
+                  cursor: SystemMouseCursors.resizeLeftRight,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.translucent,
+                    onHorizontalDragStart: (_) => _startResize(index),
+                    onHorizontalDragUpdate: isLast
+                        ? _updateLastResize
+                        : _updateResize,
+                    onHorizontalDragEnd: (_) => _endResize(),
+                    onDoubleTap: () => _autoFitColumn(index),
+                    child: SizedBox(
+                      width: handleWidth,
+                      child: Container(
+                        width: 1,
+                        height: double.infinity,
+                        color: isLast ? Colors.transparent : _headerSeparatorColor,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          );
+        }),
+      ),
+    );
+  }
+
+  Widget _buildRowNumberHeader() {
+    return Container(
+      width: widget.rowNumberWidth,
+      height: widget.headerHeight,
+      alignment: Alignment.center,
+      decoration: const BoxDecoration(
+        color: _headerColor,
+        border: Border(right: BorderSide(color: _headerSeparatorColor)),
+      ),
+    );
+  }
+
+  Widget _buildRowNumberList() {
+    return SizedBox(
+      width: widget.rowNumberWidth,
+      child: ListView.builder(
+        controller: _vScrollIndex,
+        itemCount: widget.rows.length,
+        itemBuilder: (context, index) => _buildRowNumber(index),
+      ),
+    );
+  }
+
+  Widget _buildRowNumber(int index) {
+    return Container(
+      height: widget.rowHeight,
+      decoration: const BoxDecoration(
+        color: _headerColor,
+        border: Border(
+          right: BorderSide(color: _bodySeparatorColor),
+          top: BorderSide(color: _bodySeparatorColor),
+          bottom: BorderSide(color: _bodySeparatorColor),
+        ),
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        '${index + 1}',
+        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+      ),
+    );
+  }
+
+  Widget _buildCell(T row, int index, List<double> widths) {
+    final column = widget.columns[index];
+    final custom = column.cellBuilder;
+    if (custom != null) {
+      return custom(context, row, widths[index]);
+    }
+    return SizedBox(
+      width: widths[index],
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 6),
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: Text(
+            column.text(row),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActionRail(List<SwipeActionTableAction> actions) {
+    return Align(
+      alignment: Alignment.centerRight,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final action in actions)
+            Tooltip(
+              message: action.tooltip,
+              child: SizedBox(
+                width: _actionWidth,
+                height: widget.rowHeight,
+                child: Material(
+                  color: action.onPressed == null
+                      ? action.backgroundColor.withValues(alpha: 0.45)
+                      : action.backgroundColor,
+                  child: IconButton(
+                    padding: EdgeInsets.zero,
+                    icon: Icon(action.icon, size: 18, color: Colors.white),
+                    onPressed: action.onPressed,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDataRow(T row, int index, List<double> widths) {
+    final contentWidth = widths.fold<double>(0, (sum, width) => sum + width);
+    final separators = List<double>.generate(
+      widths.length - 1,
+      (separatorIndex) => widths
+          .sublist(0, separatorIndex + 1)
+          .fold<double>(0, (sum, width) => sum + width),
+    );
+    final actionsWidth = widget.actions.length * _actionWidth;
+    final isOpen = widget.rowSwipeEnabled && _openActionIndex == index;
+    final rowContent = SizedBox(
+      width: contentWidth,
+      height: widget.rowHeight,
+      child: Stack(
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              color: _selectedIndex == index
+                  ? const Color(0xFFE3F2FD)
+                  : (index.isEven ? Colors.white : const Color(0xFFF2F4F7)),
+              border: const Border(bottom: BorderSide(color: _bodySeparatorColor)),
+            ),
+            child: Row(
+              children: List.generate(
+                widget.columns.length,
+                (cellIndex) => _buildCell(row, cellIndex, widths),
+              ),
+            ),
+          ),
+          for (final x in separators)
+            Positioned(
+              left: x - 1,
+              top: 0,
+              bottom: 0,
+              child: Container(width: 1, color: _bodySeparatorColor),
+            ),
+          Positioned.fill(
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                hoverColor: Colors.transparent,
+                splashColor: Colors.transparent,
+                highlightColor: Colors.transparent,
+                onTap: () => setState(() => _selectedIndex = index),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+    Widget foreground = AnimatedContainer(
+      duration: const Duration(milliseconds: 160),
+      curve: Curves.easeOut,
+      transform: Matrix4.translationValues(isOpen ? -actionsWidth : 0, 0, 0),
+      child: rowContent,
+    );
+    final tooltip = widget.rowTooltip;
+    if (tooltip != null && tooltip.isNotEmpty) {
+      foreground = Tooltip(
+        message: tooltip,
+        waitDuration: const Duration(milliseconds: 500),
+        showDuration: const Duration(seconds: 3),
+        child: foreground,
+      );
+    }
+    return SizedBox(
+      width: contentWidth,
+      height: widget.rowHeight,
+      child: ClipRect(
+        child: Stack(
+          children: [
+            if (widget.rowSwipeEnabled && widget.actions.isNotEmpty)
+              Positioned.fill(child: _buildActionRail(widget.actions)),
+            GestureDetector(
+              behavior: HitTestBehavior.translucent,
+              onHorizontalDragUpdate: widget.rowSwipeEnabled
+                  ? (details) {
+                      if (details.delta.dx < -2) {
+                        setState(() => _openActionIndex = index);
+                      } else if (details.delta.dx > 2) {
+                        setState(() => _openActionIndex = null);
+                      }
+                    }
+                  : null,
+              child: foreground,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyBody(List<double> widths) {
+    final contentWidth = widths.fold<double>(0, (sum, width) => sum + width);
+    final actions = widget.emptyActions ?? widget.actions;
+    if (!widget.showActionsWhenEmpty || actions.isEmpty) {
+      return SizedBox(width: contentWidth);
+    }
+    return SizedBox(
+      width: contentWidth,
+      height: widget.rowHeight,
+      child: Stack(
+        children: [
+          Container(color: Colors.white),
+          Positioned.fill(child: _buildActionRail(actions)),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final widths = _effectiveWidths(constraints.maxWidth);
+        final contentWidth = widths.fold<double>(0, (sum, width) => sum + width);
+        return Column(
+          children: [
+            Row(
+              children: [
+                _buildRowNumberHeader(),
+                Expanded(
+                  child: MouseRegion(
+                    cursor: _draggingIndex != null
+                        ? SystemMouseCursors.resizeLeftRight
+                        : MouseCursor.defer,
+                    child: SingleChildScrollView(
+                      controller: _hScrollHeader,
+                      scrollDirection: Axis.horizontal,
+                      child: SizedBox(
+                        width: contentWidth,
+                        child: _buildHeader(widths),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            Expanded(
+              child: Row(
+                children: [
+                  _buildRowNumberList(),
+                  Expanded(
+                    child: MouseRegion(
+                      cursor: _draggingIndex != null
+                          ? SystemMouseCursors.resizeLeftRight
+                          : MouseCursor.defer,
+                      child: Scrollbar(
+                        controller: _vScrollBody,
+                        thumbVisibility: true,
+                        child: Scrollbar(
+                          controller: _hScrollBody,
+                          thumbVisibility: true,
+                          notificationPredicate: (notification) =>
+                              notification.metrics.axis == Axis.horizontal,
+                          child: SingleChildScrollView(
+                            controller: _hScrollBody,
+                            scrollDirection: Axis.horizontal,
+                            child: SizedBox(
+                              width: contentWidth,
+                              child: ListView.builder(
+                                controller: _vScrollBody,
+                                itemCount: widget.rows.isEmpty
+                                    ? 1
+                                    : widget.rows.length,
+                                itemBuilder: (context, index) {
+                                  if (widget.rows.isEmpty) {
+                                    return _buildEmptyBody(widths);
+                                  }
+                                  return _buildDataRow(
+                                    widget.rows[index],
+                                    index,
+                                    widths,
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
