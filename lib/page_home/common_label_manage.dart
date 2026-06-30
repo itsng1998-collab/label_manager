@@ -6,6 +6,28 @@ import 'package:label_manager/models/label_size.dart';
 import 'package:label_manager/page_fortune_sheet/fortune_sheet_page.dart';
 import 'package:label_manager/utils/log_context.dart';
 
+@visibleForTesting
+List<String> commonLabelBarcodeObjectIdsFor(
+  List<TColumnBase> specialColumns,
+  List<TColumn> columns,
+) {
+  final result = <String>[];
+  final seen = <String>{};
+  for (final column in [...specialColumns, ...columns]) {
+    final keyword = column.keyword.trim();
+    final lower = keyword.toLowerCase();
+    if (keyword.isEmpty ||
+        (!lower.contains('barcode') && !lower.contains('qrcode'))) {
+      continue;
+    }
+    final objectId = keyword.startsWith('#') ? keyword : '#$keyword';
+    if (seen.add(objectId.toLowerCase())) {
+      result.add(objectId);
+    }
+  }
+  return result.isEmpty ? const ['#BARCODE'] : result;
+}
+
 class CommonLabelManage extends StatefulWidget {
   final String title;
   final LabelSize? labelSize;
@@ -29,26 +51,6 @@ class _CommonLabelManageState extends State<CommonLabelManage> {
   bool _rightWidthChangedByUser = false;
   static const double _handleWidth = 8;
 
-  static List<String> _barcodeObjectIdsFor(
-    List<TColumnBase> specialColumns,
-    List<TColumn> columns,
-  ) {
-    final result = <String>[];
-    final seen = <String>{};
-    for (final column in [...specialColumns, ...columns]) {
-      final keyword = column.keyword.trim();
-      final lower = keyword.toLowerCase();
-      if (keyword.isEmpty ||
-          (!lower.contains('barcode') && !lower.contains('qrcode'))) {
-        continue;
-      }
-      if (seen.add(lower)) {
-        result.add(keyword);
-      }
-    }
-    return result.isEmpty ? const ['#BARCODE'] : result;
-  }
-
   @override
   Widget build(BuildContext context) {
     debugLog(
@@ -65,7 +67,7 @@ class _CommonLabelManageState extends State<CommonLabelManage> {
         final rightLower = maxRight < minRight ? maxRight : minRight;
         final columns = TColumn.datas ?? const <TColumn>[];
         final specialColumns = TColumnSpecial.datas ?? const <TColumnBase>[];
-        final barcodeObjectIds = _barcodeObjectIdsFor(
+        final barcodeObjectIds = commonLabelBarcodeObjectIdsFor(
           specialColumns,
           columns,
         );
