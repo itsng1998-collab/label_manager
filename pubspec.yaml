@@ -43,10 +43,8 @@ dependencies:
   file_selector: ^1.0.4
   file_selector_platform_interface: ^2.6.2 # file_selector 패키지 사용 시 필요
   flutter_launcher_icons: ^0.14.4
-  flutter_quill: ^11.4.2
   flutter_zxing: ^2.3.0
   html: ^0.15.4
-  dart_quill_delta: ^10.8.3
   http: ^1.5.0
   image: ^4.9.1
   intl: ^0.20.2
