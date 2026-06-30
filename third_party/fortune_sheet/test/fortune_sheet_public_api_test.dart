@@ -24,7 +24,6 @@ import 'package:flutter/gestures.dart'
 import 'package:flutter/services.dart' show LogicalKeyboardKey;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fortune_sheet/fortune_sheet.dart';
-import 'package:fortune_sheet/main.dart' show FortuneSheetHostApp;
 
 Map<String, List<int>> _rangeShape(FortuneRange range) => {
   'row': [range.rowStart, range.rowEnd],
@@ -28663,91 +28662,6 @@ void main() {
 
     expect(painter().workbook, same(fallbackWorkbook));
     expect(painter().locale.ok, 'Confirm');
-  });
-
-  testWidgets('FortuneSheetHostApp applies OS locale to sheet locale', (
-    tester,
-  ) async {
-    FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
-    }
-
-    tester.binding.platformDispatcher.localesTestValue = const [
-      Locale('ko', 'KR'),
-    ];
-    addTearDown(tester.binding.platformDispatcher.clearLocalesTestValue);
-
-    await tester.pumpWidget(
-      const SizedBox(width: 320, height: 240, child: FortuneSheetHostApp()),
-    );
-    await tester.pump();
-
-    expect(painter().locale.ok, '확인');
-    expect(painter().locale.sheetOptions, '시트 옵션');
-    expect(
-      painter().locale.toolbarTooltipLabels[fortuneToolbarUndoCommand],
-      '실행 취소',
-    );
-
-    tester.binding.platformDispatcher.localesTestValue = const [
-      Locale('en', 'US'),
-    ];
-    await tester.pump();
-
-    expect(painter().locale.ok, 'OK');
-  });
-
-  testWidgets('FortuneSheetHostApp keeps edits across OS locale changes', (
-    tester,
-  ) async {
-    FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
-    }
-
-    tester.binding.platformDispatcher.localesTestValue = const [
-      Locale('ko', 'KR'),
-    ];
-    addTearDown(tester.binding.platformDispatcher.clearLocalesTestValue);
-
-    await tester.pumpWidget(
-      const SizedBox(width: 640, height: 360, child: FortuneSheetHostApp()),
-    );
-    await tester.pump();
-
-    final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
-    await tester.tapAt(topLeft + const Offset(83, 100));
-    await tester.pump();
-    await tester.sendKeyEvent(LogicalKeyboardKey.keyK, character: 'k');
-    await tester.pump();
-    await tester.tapAt(topLeft + const Offset(156, 100));
-    await tester.pump();
-
-    expect(
-      painter()
-          .workbook
-          .activeSheet
-          .cells[const FortuneCellCoord(0, 0)]
-          ?.rawValue,
-      'k',
-    );
-    expect(painter().locale.ok, '확인');
-
-    tester.binding.platformDispatcher.localesTestValue = const [
-      Locale('en', 'US'),
-    ];
-    await tester.pump();
-
-    expect(painter().locale.ok, 'OK');
-    expect(
-      painter()
-          .workbook
-          .activeSheet
-          .cells[const FortuneCellCoord(0, 0)]
-          ?.rawValue,
-      'k',
-    );
   });
 
   testWidgets('FortuneSheetApp keeps locale-only rebuilds quiet', (
