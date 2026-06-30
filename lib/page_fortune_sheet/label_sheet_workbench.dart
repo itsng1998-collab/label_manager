@@ -1929,13 +1929,17 @@ class _LabelSheetPrintSettingsDialog extends StatelessWidget {
                     const SizedBox(width: 7),
                     const _PrintDialogCenteredLabel('왼쪽'),
                     const SizedBox(width: 8),
-                    _PrintDialogInput(controller: leftMarginController),
+                    _PrintDialogShiftedDown(
+                      child: _PrintDialogInput(controller: leftMarginController),
+                    ),
                     const SizedBox(width: 8),
                     const _PrintDialogCenteredLabel('mm'),
                     const SizedBox(width: 24),
                     const _PrintDialogCenteredLabel('위쪽'),
                     const SizedBox(width: 8),
-                    _PrintDialogInput(controller: topMarginController),
+                    _PrintDialogShiftedDown(
+                      child: _PrintDialogInput(controller: topMarginController),
+                    ),
                     const SizedBox(width: 8),
                     const _PrintDialogCenteredLabel('mm'),
                   ],
@@ -1999,7 +2003,7 @@ class _LabelSheetPrintSettingsDialog extends StatelessWidget {
             Positioned(
               left: 103,
               top: 106,
-              width: 297,
+              width: 295,
               height: 30,
               child: _PrintDialogInsetValue(value: selectedPrinterName),
             ),
@@ -2014,14 +2018,16 @@ class _LabelSheetPrintSettingsDialog extends StatelessWidget {
               ),
             ),
             Positioned(
-              left: 102,
+              left: 104,
               top: 148,
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   const _PrintDialogCenteredLabel('추가 영역'),
                   const SizedBox(width: 8),
-                  _PrintDialogInput(controller: extraAreaController),
+                  _PrintDialogShiftedDown(
+                    child: _PrintDialogInput(controller: extraAreaController),
+                  ),
                   const SizedBox(width: 8),
                   const _PrintDialogCenteredLabel('mm'),
                 ],
@@ -2057,15 +2063,15 @@ class _LabelSheetPrintSettingsDialog extends StatelessWidget {
               ),
             ),
             Positioned(
-              left: 86,
-              top: 175,
+              left: 91,
+              top: 178,
               width: 84,
               height: 38,
               child: _PrintDialogInput(
                 controller: copiesController,
-                fontSize: 30,
+                fontSize: 26,
                 height: 38,
-                contentPadding: const EdgeInsets.fromLTRB(8, 0, 8, 4),
+                contentPadding: const EdgeInsets.fromLTRB(8, 1, 8, 5),
               ),
             ),
             Positioned(
@@ -2106,7 +2112,7 @@ class _LabelSheetPrintSettingsDialog extends StatelessWidget {
   );
   static const double _compactDropdownHeight = 28;
   static const double _compactDropdownMenuItemHeight = 28;
-  static const double _autoSpacingDropdownWidth = 94;
+  static const double _autoSpacingDropdownWidth = 106;
 
   static final List<DropdownMenuItem<String>> _autoSpacingItems = [
     const DropdownMenuItem(
@@ -2185,6 +2191,17 @@ class _PrintDialogCenteredLabel extends StatelessWidget {
         child: Text(label, style: _LabelSheetPrintSettingsDialog._labelStyle),
       ),
     );
+  }
+}
+
+class _PrintDialogShiftedDown extends StatelessWidget {
+  const _PrintDialogShiftedDown({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Transform.translate(offset: const Offset(0, 3), child: child);
   }
 }
 
