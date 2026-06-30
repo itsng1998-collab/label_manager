@@ -61195,6 +61195,8 @@ class FortuneSheetPainter extends CustomPainter {
     this.barcodeTextFontSizeMenuScrollOffset = 0,
     this.barcodeHoveredControl,
     this.barcodePressedControl,
+    this.dialogCloseHoveredKey,
+    this.dialogClosePressedKey,
     this.barcodeErrorText,
     this.hyperlinkDialogOpen = false,
     this.hyperlinkDialogDisplayText = '',
@@ -61390,6 +61392,8 @@ class FortuneSheetPainter extends CustomPainter {
   final double barcodeTextFontSizeMenuScrollOffset;
   final String? barcodeHoveredControl;
   final String? barcodePressedControl;
+  final String? dialogCloseHoveredKey;
+  final String? dialogClosePressedKey;
   final String? barcodeErrorText;
   final bool hyperlinkDialogOpen;
   final String hyperlinkDialogDisplayText;
@@ -67273,7 +67277,11 @@ class FortuneSheetPainter extends CustomPainter {
       Paint()..color = const Color(0x1a000000),
     );
     _drawShadowBox(canvas, rect, radius: 4, border: const Color(0x33000000));
-    _drawCloseGlyph(canvas, fortuneCustomSortCloseButtonRect(rect));
+    _drawDialogCloseButton(
+      canvas,
+      fortuneCustomSortCloseButtonRect(rect),
+      'custom-sort',
+    );
     _drawText(
       canvas,
       _customSortRangeTitle(),
@@ -67378,7 +67386,11 @@ class FortuneSheetPainter extends CustomPainter {
       radius: fortuneFormatSearchDialogBorderRadius,
       border: const Color(0x11000000),
     );
-    _drawCloseGlyph(canvas, fortuneFormatSearchCloseButtonRect(rect));
+    _drawDialogCloseButton(
+      canvas,
+      fortuneFormatSearchCloseButtonRect(rect),
+      'format-search',
+    );
     _drawText(
       canvas,
       title,
@@ -67631,7 +67643,11 @@ class FortuneSheetPainter extends CustomPainter {
       radius: fortuneFormulaSearchDialogBorderRadius,
       border: fortuneFormulaSearchDialogBorderColor,
     );
-    _drawCloseGlyph(canvas, fortuneFormulaSearchCloseButtonRect(rect));
+    _drawDialogCloseButton(
+      canvas,
+      fortuneFormulaSearchCloseButtonRect(rect),
+      'formula-search',
+    );
 
     _drawText(
       canvas,
@@ -67969,7 +67985,11 @@ class FortuneSheetPainter extends CustomPainter {
       bold: true,
       color: const Color(0xff222222),
     );
-    _drawCloseGlyph(canvas, fortuneImageInsertCloseButtonRect(rect));
+    _drawDialogCloseButton(
+      canvas,
+      fortuneImageInsertCloseButtonRect(rect),
+      'image-insert',
+    );
 
     final labelLeft = rect.left + fortuneImageInsertDialogPaddingLeft;
     void drawLabel(String label, double top) {
@@ -68765,9 +68785,12 @@ class FortuneSheetPainter extends CustomPainter {
       radius: fortuneHyperlinkDialogBorderRadius,
       border: fortuneHyperlinkDialogBorderColor,
     );
-    _drawCloseGlyph(
+    final closeRect = fortuneHyperlinkRangeSelectionCloseButtonRect(rect);
+    _drawDialogCloseButton(
       canvas,
-      fortuneHyperlinkRangeSelectionCloseButtonRect(rect).deflate(3),
+      closeRect,
+      'hyperlink-range',
+      glyphRect: closeRect.deflate(3),
     );
     _drawText(
       canvas,
@@ -69185,7 +69208,11 @@ class FortuneSheetPainter extends CustomPainter {
       radius: fortuneDataVerificationDialogBorderRadius,
       border: const Color(0x11000000),
     );
-    _drawCloseGlyph(canvas, fortuneDataVerificationCloseButtonRect(rect));
+    _drawDialogCloseButton(
+      canvas,
+      fortuneDataVerificationCloseButtonRect(rect),
+      'data-verification',
+    );
 
     _drawText(
       canvas,
@@ -69479,7 +69506,11 @@ class FortuneSheetPainter extends CustomPainter {
       ),
       Paint()..color = const Color(0xffffffff),
     );
-    _drawCloseGlyph(canvas, fortuneSplitTextCloseButtonRect(rect));
+    _drawDialogCloseButton(
+      canvas,
+      fortuneSplitTextCloseButtonRect(rect),
+      'split-text',
+    );
     _drawText(
       canvas,
       locale.splitTextTitle,
@@ -69651,7 +69682,11 @@ class FortuneSheetPainter extends CustomPainter {
       ),
       Paint()..color = const Color(0xffffffff),
     );
-    _drawCloseGlyph(canvas, fortuneLocationCloseButtonRect(rect));
+    _drawDialogCloseButton(
+      canvas,
+      fortuneLocationCloseButtonRect(rect),
+      'location',
+    );
     _drawText(
       canvas,
       locale.location,
@@ -69834,7 +69869,11 @@ class FortuneSheetPainter extends CustomPainter {
       true,
     );
     canvas.drawRRect(rrect, Paint()..color = const Color(0xffffffff));
-    _drawCloseGlyph(canvas, fortuneLocationMessageCloseButtonRect(rect));
+    _drawDialogCloseButton(
+      canvas,
+      fortuneLocationMessageCloseButtonRect(rect),
+      'location-message',
+    );
     _drawText(
       canvas,
       message,
@@ -69884,7 +69923,13 @@ class FortuneSheetPainter extends CustomPainter {
       rect,
       fortuneScreenshotDialogBorderRadius,
     );
-    _drawCloseGlyph(canvas, fortuneScreenshotCloseButtonRect(rect).deflate(8));
+    final closeRect = fortuneScreenshotCloseButtonRect(rect);
+    _drawDialogCloseButton(
+      canvas,
+      closeRect,
+      'screenshot',
+      glyphRect: closeRect.deflate(8),
+    );
     _drawText(
       canvas,
       locale.screenshotTipSuccess,
@@ -70004,7 +70049,13 @@ class FortuneSheetPainter extends CustomPainter {
       offset: searchDialogOffset,
     );
     _drawFloatingDialogSurface(canvas, rect, 6);
-    _drawCloseGlyph(canvas, fortuneSearchCloseButtonRect(rect).deflate(8));
+    final closeRect = fortuneSearchCloseButtonRect(rect);
+    _drawDialogCloseButton(
+      canvas,
+      closeRect,
+      'search',
+      glyphRect: closeRect.deflate(8),
+    );
     _drawSearchTab(
       canvas,
       fortuneSearchFindTabRect(rect),
@@ -70119,14 +70170,35 @@ class FortuneSheetPainter extends CustomPainter {
     canvas.drawRRect(rrect, Paint()..color = const Color(0xffffffff));
   }
 
-  void _drawCloseGlyph(Canvas canvas, Rect rect) {
+  void _drawDialogCloseButton(
+    Canvas canvas,
+    Rect rect,
+    String key, {
+    Rect? glyphRect,
+  }) {
+    final pressed = dialogClosePressedKey == key;
+    final hovered = pressed || dialogCloseHoveredKey == key;
+    if (hovered) {
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(rect, const Radius.circular(4)),
+        Paint()..color = pressed ? const Color(0xffdadce0) : const Color(0xfff1f3f4),
+      );
+    }
+    _drawCloseGlyph(
+      canvas,
+      glyphRect ?? rect,
+      color: hovered ? const Color(0xff3c4043) : const Color(0xff9a9a9a),
+    );
+  }
+
+  void _drawCloseGlyph(Canvas canvas, Rect rect, {Color color = const Color(0xff9a9a9a)}) {
     final glyphRect = Rect.fromCenter(
       center: rect.center,
       width: fortuneSheetDialogCloseGlyphSize,
       height: fortuneSheetDialogCloseGlyphSize,
     );
     final paint = Paint()
-      ..color = const Color(0xff9a9a9a)
+      ..color = color
       ..strokeWidth = 1.4
       ..strokeCap = StrokeCap.round;
     canvas.drawLine(glyphRect.topLeft, glyphRect.bottomRight, paint);
@@ -70134,7 +70206,7 @@ class FortuneSheetPainter extends CustomPainter {
   }
 
   void _drawBarcodeCloseGlyph(Canvas canvas, Rect rect) {
-    _drawCloseGlyph(canvas, rect);
+    _drawDialogCloseButton(canvas, rect, 'barcode');
   }
 
   void _drawSearchTab(Canvas canvas, Rect rect, String label, bool selected) {
@@ -70368,7 +70440,11 @@ class FortuneSheetPainter extends CustomPainter {
       radius: fortuneConditionRuleDialogBorderRadius,
       border: fortuneConditionRuleDialogBorderColor,
     );
-    _drawCloseGlyph(canvas, fortuneConditionRuleCloseButtonRect(rect));
+    _drawDialogCloseButton(
+      canvas,
+      fortuneConditionRuleCloseButtonRect(rect),
+      'condition-rule',
+    );
     _drawText(
       canvas,
       _conditionRuleTitle(),
@@ -75964,6 +76040,8 @@ class FortuneSheetPainter extends CustomPainter {
             barcodeTextFontSizeMenuScrollOffset ||
         oldDelegate.barcodeHoveredControl != barcodeHoveredControl ||
         oldDelegate.barcodePressedControl != barcodePressedControl ||
+        oldDelegate.dialogCloseHoveredKey != dialogCloseHoveredKey ||
+        oldDelegate.dialogClosePressedKey != dialogClosePressedKey ||
         oldDelegate.barcodeErrorText != barcodeErrorText ||
         oldDelegate.hyperlinkDialogOpen != hyperlinkDialogOpen ||
         oldDelegate.hyperlinkDialogDisplayText != hyperlinkDialogDisplayText ||

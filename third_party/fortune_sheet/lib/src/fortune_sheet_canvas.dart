@@ -2869,6 +2869,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   String? _conditionFormatSubmenuKey;
   int? _conditionFormatHoveredTopLevelIndex;
   int? _conditionFormatHoveredSubmenuIndex;
+  String? _dialogCloseHoveredKey;
+  String? _dialogClosePressedKey;
   FortuneCell? _formatPainterCell;
   FortuneCellCoord? _formatPainterCoord;
   FortuneRange? _formatPainterSourceRange;
@@ -5908,6 +5910,19 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     );
     _cancelSheetTabLongPress();
     _cancelSheetTabDrag();
+
+    final closeKey = _dialogCloseButtonKeyAt(local);
+    if (closeKey != null) {
+      _commitEditing();
+      _commitSheetRename();
+      setState(() {
+        _dialogClosePressedKey = closeKey;
+        _dialogCloseHoveredKey = closeKey;
+        _imageInsertHoveredControl = null;
+        _barcodeHoveredControl = null;
+      });
+      return;
+    }
 
     if (_handleToolbarPopupPointerDown(event)) {
       return;
@@ -8973,6 +8988,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   }
 
   void _handlePointerMove(PointerMoveEvent event) {
+    if (_updateDialogCloseHover(event.localPosition)) {
+      return;
+    }
     if (_imageInsertDialogOpen) {
       if (!_isImageInsertDialogInputPosition(event.localPosition)) {
         _updateImageInsertDialogHover(event.localPosition);
@@ -9066,6 +9084,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   }
 
   void _handlePointerHover(PointerHoverEvent event) {
+    if (_updateDialogCloseHover(event.localPosition)) {
+      return;
+    }
     if (_updateImageInsertDialogHover(event.localPosition)) {
       return;
     }
@@ -9843,6 +9864,19 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     if (_editorContextMenuOpeningPointer == event.pointer) {
       _editorContextMenuOpeningPointer = null;
     }
+    final pressedCloseKey = _dialogClosePressedKey;
+    if (pressedCloseKey != null) {
+      final closeKey = _dialogCloseButtonKeyAt(event.localPosition);
+      final shouldActivate = closeKey == pressedCloseKey;
+      setState(() {
+        _dialogClosePressedKey = null;
+        _dialogCloseHoveredKey = shouldActivate ? null : closeKey;
+      });
+      if (shouldActivate) {
+        _activateDialogCloseButton(pressedCloseKey);
+      }
+      return;
+    }
     _clearImageInsertPressedControl();
     _clearBarcodePressedControl();
     if (_imageInsertDialogOpen) {
@@ -9923,6 +9957,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     if (_editorContextMenuOpeningPointer == event.pointer) {
       _editorContextMenuOpeningPointer = null;
     }
+    _clearDialogClosePressedKey();
     _clearImageInsertPressedControl();
     _clearBarcodePressedControl();
     if (_imageInsertDialogOpen) {
@@ -34223,6 +34258,136 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     return 'modal';
   }
 
+  String? _dialogCloseButtonKeyAt(Offset local) {
+    final locationMessageRect = _locationMessageDialogRect();
+    if (locationMessageRect != null &&
+        fortuneLocationMessageCloseButtonRect(
+          locationMessageRect,
+        ).contains(local)) {
+      return 'location-message';
+    }
+    final screenshotRect = _screenshotDialogRect();
+    if (screenshotRect != null &&
+        fortuneScreenshotCloseButtonRect(screenshotRect).contains(local)) {
+      return 'screenshot';
+    }
+    final searchRect = _searchDialogRect();
+    if (searchRect != null &&
+        fortuneSearchCloseButtonRect(searchRect).contains(local)) {
+      return 'search';
+    }
+    final customSortRect = _customSortDialogRect();
+    if (customSortRect != null &&
+        fortuneCustomSortCloseButtonRect(customSortRect).contains(local)) {
+      return 'custom-sort';
+    }
+    final imageInsertRect = _imageInsertDialogRect();
+    if (imageInsertRect != null &&
+        fortuneImageInsertCloseButtonRect(imageInsertRect).contains(local)) {
+      return 'image-insert';
+    }
+    final barcodeRect = _barcodeDialogRect();
+    if (barcodeRect != null &&
+        fortuneBarcodeCloseButtonRect(barcodeRect).contains(local)) {
+      return 'barcode';
+    }
+    final hyperlinkDialogRect = _hyperlinkDialogRect();
+    if (_hyperlinkDialogSelectingCellRange &&
+        hyperlinkDialogRect != null &&
+        fortuneHyperlinkRangeSelectionCloseButtonRect(
+          hyperlinkDialogRect,
+        ).contains(local)) {
+      return 'hyperlink-range';
+    }
+    final dataVerificationRect = _dataVerificationDialogRect();
+    if (dataVerificationRect != null &&
+        fortuneDataVerificationCloseButtonRect(
+          dataVerificationRect,
+        ).contains(local)) {
+      return 'data-verification';
+    }
+    final splitTextRect = _splitTextDialogRect();
+    if (splitTextRect != null &&
+        fortuneSplitTextCloseButtonRect(splitTextRect).contains(local)) {
+      return 'split-text';
+    }
+    final locationRect = _locationDialogRect();
+    if (locationRect != null &&
+        fortuneLocationCloseButtonRect(locationRect).contains(local)) {
+      return 'location';
+    }
+    final formatSearchRect = _formatSearchDialogRect();
+    if (formatSearchRect != null &&
+        fortuneFormatSearchCloseButtonRect(formatSearchRect).contains(local)) {
+      return 'format-search';
+    }
+    final formulaSearchRect = _formulaSearchDialogRect();
+    if (formulaSearchRect != null &&
+        fortuneFormulaSearchCloseButtonRect(formulaSearchRect).contains(local)) {
+      return 'formula-search';
+    }
+    final conditionRuleRect = _conditionRuleDialogRect();
+    if (conditionRuleRect != null &&
+        fortuneConditionRuleCloseButtonRect(conditionRuleRect).contains(local)) {
+      return 'condition-rule';
+    }
+    return null;
+  }
+
+  bool _updateDialogCloseHover(Offset local) {
+    final closeKey = _dialogCloseButtonKeyAt(local);
+    if (closeKey != null) {
+      if (_dialogCloseHoveredKey != closeKey ||
+          _imageInsertHoveredControl != null ||
+          _barcodeHoveredControl != null) {
+        setState(() {
+          _dialogCloseHoveredKey = closeKey;
+          _imageInsertHoveredControl = null;
+          _barcodeHoveredControl = null;
+        });
+      }
+      _setMouseCursor(SystemMouseCursors.click);
+      return true;
+    }
+    if (_dialogCloseHoveredKey != null) {
+      setState(() {
+        _dialogCloseHoveredKey = null;
+      });
+    }
+    return false;
+  }
+
+  void _activateDialogCloseButton(String key) {
+    switch (key) {
+      case 'location-message':
+        _activateLocationMessageDialogCommand('cancel');
+      case 'screenshot':
+        _activateScreenshotDialogCommand('close');
+      case 'search':
+        _activateSearchDialogCommand('close');
+      case 'custom-sort':
+        _activateCustomSortDialogCommand('cancel');
+      case 'image-insert':
+        _activateImageInsertDialogCommand('cancel');
+      case 'barcode':
+        _activateBarcodeDialogCommand('cancel');
+      case 'hyperlink-range':
+        _activateHyperlinkDialogCommand('cancel-range');
+      case 'data-verification':
+        _activateDataVerificationDialogCommand('cancel');
+      case 'split-text':
+        _activateSplitTextDialogCommand('cancel');
+      case 'location':
+        _activateLocationDialogCommand('cancel');
+      case 'format-search':
+        _activateFormatSearchDialogCommand('cancel');
+      case 'formula-search':
+        _activateFormulaSearchDialogCommand('cancel');
+      case 'condition-rule':
+        _activateConditionRuleDialogCommand('cancel');
+    }
+  }
+
   void _activateImageInsertDialogCommand(String? command) {
     if (command == null || command == 'modal') {
       return;
@@ -34368,6 +34533,15 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     }
     setState(() {
       _imageInsertPressedControl = null;
+    });
+  }
+
+  void _clearDialogClosePressedKey() {
+    if (_dialogClosePressedKey == null) {
+      return;
+    }
+    setState(() {
+      _dialogClosePressedKey = null;
     });
   }
 
@@ -41591,6 +41765,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
                     _barcodeTextFontSizeMenuScrollOffset,
                 barcodeHoveredControl: _barcodeHoveredControl,
                 barcodePressedControl: _barcodePressedControl,
+                dialogCloseHoveredKey: _dialogCloseHoveredKey,
+                dialogClosePressedKey: _dialogClosePressedKey,
                 barcodeErrorText: _barcodeErrorText,
                 hyperlinkDialogOpen: _hyperlinkDialogOpen,
                 hyperlinkDialogDisplayText:

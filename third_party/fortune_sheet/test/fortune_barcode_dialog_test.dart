@@ -166,6 +166,97 @@ void main() {
     expect(painter().barcodeFormatMenuScrollOffset, greaterThan(0));
   });
 
+  testWidgets('barcode close button owns hover and pressed feedback', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    final workbook = FortuneWorkbook(
+      settings: const FortuneSettings(
+        toolbarItems: [fortuneToolbarBarcodeCommand],
+      ),
+      sheets: [FortuneSheet(id: 's1', name: 'Sheet1')],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SizedBox(
+          width: 900,
+          height: 700,
+          child: FortuneSheetCanvas(
+            workbook: workbook,
+            barcodeFormats: const [
+              FortuneBarcodeFormatOption(id: 'code128', label: 'Code128'),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    FortuneSheetPainter painter() {
+      return tester
+          .widgetList<CustomPaint>(
+            find.descendant(
+              of: find.byType(FortuneSheetCanvas),
+              matching: find.byType(CustomPaint),
+            ),
+          )
+          .map((paint) => paint.painter)
+          .whereType<FortuneSheetPainter>()
+          .single;
+    }
+
+    final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
+    await tester.tapAt(
+      topLeft +
+          toolbarItemCenter(
+            fortuneToolbarBarcodeCommand,
+            width: 900,
+            items: workbook.settings.toolbarItems,
+          ),
+    );
+    await tester.pump();
+
+    expect(painter().barcodeDialogOpen, isTrue);
+
+    final dialogRect = fortuneBarcodeDialogRect(
+      const Size(900, 700),
+      editing: false,
+    );
+    final closeCenter = topLeft + fortuneBarcodeCloseButtonRect(dialogRect).center;
+
+    await tester.sendEventToBinding(PointerHoverEvent(position: closeCenter));
+    await tester.pump();
+
+    expect(painter().dialogCloseHoveredKey, 'barcode');
+    expect(painter().barcodeHoveredControl, isNull);
+
+    await tester.sendEventToBinding(
+      PointerDownEvent(
+        position: closeCenter,
+        buttons: kPrimaryMouseButton,
+        kind: PointerDeviceKind.mouse,
+      ),
+    );
+    await tester.pump();
+
+    expect(painter().barcodeDialogOpen, isTrue);
+    expect(painter().dialogClosePressedKey, 'barcode');
+    expect(painter().barcodePressedControl, isNull);
+
+    await tester.sendEventToBinding(PointerUpEvent(position: closeCenter));
+    await tester.pump();
+
+    expect(painter().barcodeDialogOpen, isFalse);
+    expect(painter().dialogCloseHoveredKey, isNull);
+    expect(painter().dialogClosePressedKey, isNull);
+  });
+
   testWidgets('barcode insert button follows text value presence', (
     tester,
   ) async {
