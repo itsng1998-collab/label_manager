@@ -1410,7 +1410,7 @@ class _BrandSettingsDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dialogHeight = MediaQuery.sizeOf(context).height / 3;
+    final dialogHeight = MediaQuery.sizeOf(context).height / 2;
     return Dialog(
       insetPadding: const EdgeInsets.all(24),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
@@ -1452,7 +1452,7 @@ class _BrandSettingsDialog extends StatelessWidget {
             ),
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.only(left: 4, right: 4, bottom: 4),
+                padding: const EdgeInsets.only(left: 8, right: 8, bottom: 8),
                 child: SwipeActionTable<Brand>(
                   rows: brands,
                   fillLastColumn: true,

@@ -539,16 +539,6 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
       child: ClipRect(
         child: Stack(
           children: [
-            if (widget.rowSwipeEnabled && widget.actions.isNotEmpty)
-              AnimatedPositioned(
-                duration: const Duration(milliseconds: 160),
-                curve: Curves.easeOut,
-                top: 0,
-                bottom: 0,
-                right: isOpen ? 0 : -actionsWidth,
-                width: actionsWidth,
-                child: _buildActionRail(widget.actions),
-              ),
             GestureDetector(
               behavior: HitTestBehavior.translucent,
               onHorizontalDragUpdate: widget.rowSwipeEnabled
@@ -562,6 +552,24 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
                   : null,
               child: foreground,
             ),
+            if (widget.rowSwipeEnabled && widget.actions.isNotEmpty)
+              AnimatedPositioned(
+                duration: const Duration(milliseconds: 160),
+                curve: Curves.easeOut,
+                top: 0,
+                bottom: 0,
+                right: isOpen ? 0 : -actionsWidth,
+                width: actionsWidth,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.translucent,
+                  onHorizontalDragUpdate: (details) {
+                    if (details.delta.dx > 2) {
+                      setState(() => _openActionIndex = null);
+                    }
+                  },
+                  child: _buildActionRail(widget.actions),
+                ),
+              ),
           ],
         ),
       ),
