@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'package:label_manager/core/app.dart';
@@ -16,12 +18,16 @@ class FortuneSheetPage extends StatelessWidget {
     this.barcodeObjectIds = const <String>[],
     this.onSheetReady,
     this.onGridRectChanged,
+    this.onBeforePrintSettingsDialog,
+    this.onPrintSettingsDialogClosed,
   });
 
   final LabelSize? labelSize;
   final List<String> barcodeObjectIds;
   final VoidCallback? onSheetReady;
   final ValueChanged<Rect>? onGridRectChanged;
+  final FutureOr<void> Function()? onBeforePrintSettingsDialog;
+  final VoidCallback? onPrintSettingsDialogClosed;
 
   @override
   Widget build(BuildContext context) {
@@ -50,6 +56,8 @@ class FortuneSheetPage extends StatelessWidget {
         barcodeObjectIds: barcodeObjectIds,
         onInitialLoadComplete: onSheetReady,
         onGridRectChanged: onGridRectChanged,
+        onBeforePrintSettingsDialog: onBeforePrintSettingsDialog,
+        onPrintSettingsDialogClosed: onPrintSettingsDialogClosed,
         onSave: (width, height, encodedWorkbook) =>
           _handleSaveLabelSheet(context, width, height, encodedWorkbook),
       ),

@@ -67,6 +67,7 @@ class _HomePageManagerState extends State<HomePageManager> {
   bool _autoSelectedCommonLabelOnce = false;
   bool _commonLabelTabActivated = false;
   bool _commonLabelPreviewClosedByUser = false;
+  bool _commonLabelPreviewHiddenForPrintSettings = false;
 
   bool get _isAutoLoginMode => AutoLoginGuard.instance.enabled;
   LabelSize? get _effectiveLabelSize => _currentLabelSize;
@@ -483,6 +484,10 @@ class _HomePageManagerState extends State<HomePageManager> {
                 labelSize: _effectiveLabelSize,
                 onSheetReady: _handleCommonLabelSheetReady,
                 onGridRectChanged: _handleCommonLabelGridRectChanged,
+                onBeforePrintSettingsDialog:
+                    _handleCommonLabelPrintSettingsOpening,
+                onPrintSettingsDialogClosed:
+                    _handleCommonLabelPrintSettingsClosed,
               )
             : const SizedBox.shrink(),
         closable: false,
@@ -659,6 +664,29 @@ class _HomePageManagerState extends State<HomePageManager> {
     _commonLabelPreviewClosedByUser = false;
     setState(() {});
     _showRtfPreviewWindow();
+  }
+
+  Future<void> _handleCommonLabelPrintSettingsOpening() async {
+    if (_selectedTabValue() != 'common_label') return;
+    final window = _commonLabelPreviewWindow;
+    if (window == null || !window.isVisible) return;
+
+    _commonLabelPreviewHiddenForPrintSettings = true;
+    _commonLabelPreviewClosedByUser = true;
+    window.hide();
+    setState(() {});
+    await WidgetsBinding.instance.endOfFrame;
+  }
+
+  void _handleCommonLabelPrintSettingsClosed() {
+    if (!_commonLabelPreviewHiddenForPrintSettings) return;
+    _commonLabelPreviewHiddenForPrintSettings = false;
+    _commonLabelPreviewClosedByUser = false;
+    if (!mounted) return;
+    setState(() {});
+    if (_selectedTabValue() == 'common_label') {
+      _showRtfPreviewWindow();
+    }
   }
 
   Widget _buildRtfPreview(String rtf) {

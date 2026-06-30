@@ -743,6 +743,8 @@ class LabelSheetWorkbench extends StatefulWidget {
     this.barcodeObjectIds = const <String>[],
     this.onInitialLoadComplete,
     this.onGridRectChanged,
+    this.onBeforePrintSettingsDialog,
+    this.onPrintSettingsDialogClosed,
     this.onSave,
     super.key,
   });
@@ -753,6 +755,8 @@ class LabelSheetWorkbench extends StatefulWidget {
   final List<String> barcodeObjectIds;
   final VoidCallback? onInitialLoadComplete;
   final ValueChanged<ui.Rect>? onGridRectChanged;
+  final FutureOr<void> Function()? onBeforePrintSettingsDialog;
+  final VoidCallback? onPrintSettingsDialogClosed;
   final FutureOr<void> Function(
     int widthMm,
     int heightMm,
@@ -1199,7 +1203,18 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
   }
 
   void _handlePrint() {
+    unawaited(_openPrintSettingsDialog());
+  }
+
+  Future<void> _openPrintSettingsDialog() async {
     fortuneSheetDebugLog('label sheet print toolbar click');
+    final callback = widget.onBeforePrintSettingsDialog;
+    if (callback != null) {
+      await Future<void>.sync(callback);
+    }
+    if (!mounted) {
+      return;
+    }
     setState(() {
       _printSettingsDialogOpen = true;
     });
@@ -1212,6 +1227,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     setState(() {
       _printSettingsDialogOpen = false;
     });
+    widget.onPrintSettingsDialogClosed?.call();
   }
 
   Future<void> _handleSelectPrinter() async {

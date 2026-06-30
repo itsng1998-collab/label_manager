@@ -607,8 +607,8 @@ void main() {
     );
 
     expect(find.text('300'), findsOneWidget);
-  await tester.tap(find.text('300'));
-  await tester.pumpAndSettle();
+    await tester.tap(find.text('300'));
+    await tester.pumpAndSettle();
 
     await tester.tap(find.text('닫기'));
     await tester.pump();
@@ -617,6 +617,66 @@ void main() {
       find.byKey(const ValueKey('label-sheet-print-settings-dialog')),
       findsNothing,
     );
+  });
+
+  testWidgets('label sheet print dialog waits for lifecycle callback', (
+    tester,
+  ) async {
+    final beforeCompleter = Completer<void>();
+    final events = <String>[];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 600,
+            height: 360,
+            child: LabelSheetWorkbench(
+              initialWorkbook: FortuneWorkbook(
+                sheets: [FortuneSheet(id: 's1', name: 'Label')],
+              ),
+              onBeforePrintSettingsDialog: () {
+                events.add('before');
+                return beforeCompleter.future;
+              },
+              onPrintSettingsDialogClosed: () {
+                events.add('closed');
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    final printItem = tester
+        .widget<FortuneSheetApp>(find.byType(FortuneSheetApp))
+        .settings!
+        .customToolbarItems
+        .singleWhere((item) => item.key == labelSheetPrintToolbarCommand);
+    printItem.onClick!(printItem);
+    await tester.pump();
+
+    expect(events, ['before']);
+    expect(
+      find.byKey(const ValueKey('label-sheet-print-settings-dialog')),
+      findsNothing,
+    );
+
+    beforeCompleter.complete();
+    await tester.pump();
+    await tester.pump();
+
+    expect(
+      find.byKey(const ValueKey('label-sheet-print-settings-dialog')),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.text('닫기'));
+    await tester.pump();
+
+    expect(events, ['before', 'closed']);
   });
 
   testWidgets('label sheet print dialog traps tab focus inside dialog', (
