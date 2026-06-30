@@ -300,7 +300,9 @@ void _addEzplBorderLine(
   final top = math.min(y1, y2);
   final boxWidth = math.max(width, (x2 - x1).abs());
   final boxHeight = math.max(width, (y2 - y1).abs());
-  commands.add(ascii.encode('X$left,$top,$boxWidth,$boxHeight,$width\r\n'));
+  commands.add(
+    ascii.encode('R$left,$top,${left + boxWidth},${top + boxHeight},$width,$width\r\n'),
+  );
 }
 
 int _borderStrokeDots(
@@ -354,6 +356,7 @@ void _addHybridSheetBarcodes(
       1,
       _metadataDouble(image.extraFields['barcodeModuleScale'], 2).round(),
     );
+    final wide = math.max(narrow + 1, (narrow * 2.5).round());
     final height = math.max(
       8,
       metrics.dotsFromMm(
@@ -365,7 +368,7 @@ void _addHybridSheetBarcodes(
     final humanReadable = image.extraFields['barcodeShowText'] == true ? '1' : '0';
     final escaped = _escapeEzplText(text);
     commands.add(
-      ascii.encode('$command$x,$y,$narrow,$height,$humanReadable,$escaped\r\n'),
+      ascii.encode('$command$x,$y,$narrow,$wide,$height,0,$humanReadable,$escaped\r\n'),
     );
   }
 }
@@ -422,16 +425,16 @@ bool _canRenderNativeBarcode(FortuneImage image) {
 String? _ezplBarcodeCommandForFormat(String format) {
   final normalized = format.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
   if (normalized.contains('code128')) {
-    return 'BA';
+    return 'BQ';
   }
   if (normalized.contains('code39')) {
-    return 'B3';
+    return 'BA';
   }
   if (normalized.contains('ean13')) {
     return 'BE';
   }
   if (normalized.contains('ean8')) {
-    return 'B8';
+    return 'BB';
   }
   return null;
 }

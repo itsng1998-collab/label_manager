@@ -143,8 +143,8 @@ void main() {
       allowInvalid: true,
     );
     expect(text, contains('~G'));
-    expect(text, contains('X1,2,20,1,1'));
-    expect(text, contains('BA1,2,2,8,0,123456'));
+    expect(text, contains('R1,2,21,3,1,1'));
+    expect(text, contains('BQ1,2,2,5,8,0,0,123456'));
     expect(text, endsWith('E\r\n'));
   });
 }
