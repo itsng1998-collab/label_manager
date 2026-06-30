@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 class SwipeActionTableColumn<T> {
@@ -683,10 +684,10 @@ class _TableBodyTooltip extends StatefulWidget {
 }
 
 class _TableBodyTooltipState extends State<_TableBodyTooltip> {
-  final LayerLink _layerLink = LayerLink();
   Timer? _showTimer;
   Timer? _hideTimer;
   OverlayEntry? _entry;
+  Offset? _cursorGlobalPosition;
 
   @override
   void didUpdateWidget(covariant _TableBodyTooltip oldWidget) {
@@ -706,7 +707,11 @@ class _TableBodyTooltipState extends State<_TableBodyTooltip> {
 
   void _scheduleTooltip() {
     final text = widget.message;
-    if (text == null || text.isEmpty || _entry != null) {
+    final cursorGlobalPosition = _cursorGlobalPosition;
+    if (text == null ||
+        text.isEmpty ||
+        cursorGlobalPosition == null ||
+        _entry != null) {
       return;
     }
     _showTimer?.cancel();
@@ -719,41 +724,48 @@ class _TableBodyTooltipState extends State<_TableBodyTooltip> {
         return;
       }
       _entry = OverlayEntry(
-        builder: (context) => Positioned.fill(
-          child: IgnorePointer(
-            child: CompositedTransformFollower(
-              link: _layerLink,
-              showWhenUnlinked: false,
-              offset: const Offset(12, 28),
-              child: Align(
-                alignment: Alignment.topLeft,
-                child: Material(
-                  color: Colors.transparent,
-                  child: Container(
-                    constraints: const BoxConstraints(maxWidth: 260),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 5,
-                    ),
-                    decoration: BoxDecoration(
-                      color: const Color(0xff303030),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      text,
-                      style: const TextStyle(color: Colors.white, fontSize: 12),
-                    ),
+        builder: (context) {
+          final overlayBox = overlay.context.findRenderObject() as RenderBox?;
+          final cursorGlobalPosition = _cursorGlobalPosition;
+          if (overlayBox == null || cursorGlobalPosition == null) {
+            return const SizedBox.shrink();
+          }
+          final position = overlayBox.globalToLocal(cursorGlobalPosition);
+          return Positioned(
+            left: position.dx + 12,
+            top: position.dy + 18,
+            child: IgnorePointer(
+              child: Material(
+                color: Colors.transparent,
+                child: Container(
+                  constraints: const BoxConstraints(maxWidth: 260),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xff303030),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    text,
+                    style: const TextStyle(color: Colors.white, fontSize: 12),
                   ),
                 ),
               ),
             ),
-          ),
-        ),
+          );
+        },
       );
       overlay.insert(_entry!);
       _hideTimer?.cancel();
       _hideTimer = Timer(const Duration(seconds: 3), _hideTooltip);
     });
+  }
+
+  void _updateCursorPosition(PointerHoverEvent event) {
+    _cursorGlobalPosition = event.position;
+    _entry?.markNeedsBuild();
   }
 
   void _hideTooltip() {
@@ -771,13 +783,14 @@ class _TableBodyTooltipState extends State<_TableBodyTooltip> {
     if (text == null || text.isEmpty) {
       return widget.child;
     }
-    return CompositedTransformTarget(
-      link: _layerLink,
-      child: MouseRegion(
-        onEnter: (_) => _scheduleTooltip(),
-        onExit: (_) => _hideTooltip(),
-        child: widget.child,
-      ),
+    return MouseRegion(
+      onEnter: (event) {
+        _cursorGlobalPosition = event.position;
+        _scheduleTooltip();
+      },
+      onHover: _updateCursorPosition,
+      onExit: (_) => _hideTooltip(),
+      child: widget.child,
     );
   }
 }
