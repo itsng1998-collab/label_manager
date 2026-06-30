@@ -108,7 +108,8 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
   @override
   void didUpdateWidget(covariant SwipeActionTable<T> oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.columns.length != widget.columns.length) {
+    if (oldWidget.columns.length != widget.columns.length ||
+        _initialWidthsChanged(oldWidget.columns, widget.columns)) {
       _widths = _initialWidths();
       _tableSignature = null;
     }
@@ -132,6 +133,18 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
 
   List<double> _initialWidths() {
     return [for (final column in widget.columns) column.initialWidth];
+  }
+
+  bool _initialWidthsChanged(
+    List<SwipeActionTableColumn<T>> oldColumns,
+    List<SwipeActionTableColumn<T>> newColumns,
+  ) {
+    for (var index = 0; index < oldColumns.length; index += 1) {
+      if (oldColumns[index].initialWidth != newColumns[index].initialWidth) {
+        return true;
+      }
+    }
+    return false;
   }
 
   void _syncAutoWidthsIfNeeded() {

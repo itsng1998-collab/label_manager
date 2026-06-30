@@ -79,8 +79,10 @@ class _CommonLabelManageState extends State<CommonLabelManage> {
           columns,
         );
         final fitRightWidth = [
-          _CommonLabelTable.tableWidthFor(context, specialColumns),
-          _CommonLabelTable.tableWidthFor(context, columns),
+          _CommonLabelTable.tableWidthFor(context, [
+            ...specialColumns,
+            ...columns,
+          ]),
           minRight,
         ].reduce((a, b) => a > b ? a : b).clamp(rightLower, maxRight);
 
@@ -166,6 +168,11 @@ class _RightPaneState extends State<_RightPane> {
         final totalHeight = constraints.maxHeight;
         const double minTop = 120;
         const double minBottom = 100;
+        final columns = List<TColumnBase>.from(TColumn.datas ?? const []);
+        final columnWidths = _CommonLabelTable.columnWidthsFor(context, [
+          ...widget.columns,
+          ...columns,
+        ]);
 
         var topHeight = totalHeight * _topFraction;
         topHeight = topHeight.clamp(
@@ -180,7 +187,10 @@ class _RightPaneState extends State<_RightPane> {
               title: '특별 항목',
               icon: Icons.checklist,
               height: topHeight,
-              child: _CommonLabelTable(columns: widget.columns),
+              child: _CommonLabelTable(
+                columns: widget.columns,
+                columnWidths: columnWidths,
+              ),
             ),
             _HSplitter(
               height: _handleHeight,
@@ -213,7 +223,8 @@ class _RightPaneState extends State<_RightPane> {
                 ),
               ),
               child: _CommonLabelTable(
-                columns: List<TColumnBase>.from(TColumn.datas ?? const []),
+                columns: columns,
+                columnWidths: columnWidths,
               ),
             ),
           ],
@@ -225,19 +236,30 @@ class _RightPaneState extends State<_RightPane> {
 
 class _CommonLabelTable extends StatelessWidget {
   final List<TColumnBase> columns;
-  const _CommonLabelTable({required this.columns});
+  final List<double>? columnWidths;
+  const _CommonLabelTable({required this.columns, this.columnWidths});
 
   static const List<double> _baseWidths = [110, 140, 70];
   static const List<String> _baseHeaders = ['키워드', '이름', '필수등록'];
   static const double _rowNumberWidth = 40;
 
   static double tableWidthFor(BuildContext context, List<TColumnBase> columns) {
-    final scaler = MediaQuery.of(context).textScaler;
     return _rowNumberWidth +
-        List<double>.generate(
-          _baseHeaders.length,
-          (index) => autoFitWidth(index, columns, scaler),
+        columnWidthsFor(
+          context,
+          columns,
         ).reduce((a, b) => a + b);
+  }
+
+  static List<double> columnWidthsFor(
+    BuildContext context,
+    List<TColumnBase> columns,
+  ) {
+    final scaler = MediaQuery.of(context).textScaler;
+    return List<double>.generate(
+      _baseHeaders.length,
+      (index) => autoFitWidth(index, columns, scaler),
+    );
   }
 
   static double autoFitWidth(
@@ -285,7 +307,7 @@ class _CommonLabelTable extends StatelessWidget {
         for (var index = 0; index < _baseHeaders.length; index += 1)
           SwipeActionTableColumn<TColumnBase>(
             header: _headerTitle(index),
-            initialWidth: _baseWidths[index],
+            initialWidth: columnWidths?[index] ?? _baseWidths[index],
             minWidth: _minWidth(index),
             text: (row) => _cellText(row, index),
             cellBuilder: index == 2
@@ -314,6 +336,7 @@ class _CommonLabelTable extends StatelessWidget {
                 : null,
           ),
       ],
+      autoFitColumns: columnWidths == null,
     );
   }
 }

@@ -27,6 +27,8 @@
 
 ## 현재 상태
 
+- 완료: 공용라벨관리 우측의 `특별 항목`/`사용 항목` 테이블 컬럼 폭을 서로 맞췄다. `lib/page_home/common_label_manage.dart`: 두 테이블 데이터를 합친 목록 기준으로 컬럼별 auto-fit 폭을 계산하고, 해당 폭 리스트를 두 `_CommonLabelTable`에 동일하게 전달한다. 우측 pane 자동 폭 계산도 같은 합산 기준을 사용해 컬럼별 더 넓은 쪽 기준 폭이 잘리지 않도록 했다. `lib/widgets/swipe_action_table.dart`: 외부에서 전달된 `initialWidth`가 데이터 로드 후 바뀌는 경우 내부 `_widths` 상태를 갱신하도록 보정했다. 검증 성공: `C:/flutter/bin/flutter.bat analyze --no-fatal-warnings --no-fatal-infos lib/home_page_manager.dart lib/page_home/common_label_manage.dart lib/widgets/swipe_action_table.dart`, `C:/flutter/bin/flutter.bat test test/common_label_manage_test.dart`.
+
 - 완료: 브랜드 설정 다이얼로그에서 컬럼 왼쪽 스와이프 시 표시되는 수정/삽입/삭제 버튼 폭을 20% 줄였다. `lib/widgets/swipe_action_table.dart`: 공통 스와이프 액션 버튼 폭 상수 `_actionWidth`를 48에서 38.4로 변경해 버튼 3개 전체 레일 폭도 기존 144에서 115.2로 축소되도록 했다. 검증 성공: `C:/flutter/bin/flutter.bat analyze --no-fatal-warnings --no-fatal-infos lib/home_page_manager.dart lib/widgets/swipe_action_table.dart lib/page_home/common_label_manage.dart`, `C:/flutter/bin/flutter.bat test test/common_label_manage_test.dart`.
 
 - 완료: 브랜드 설정 다이얼로그 테이블 공통 툴팁 위치를 현재 커서 기준으로 수정했다. `lib/widgets/swipe_action_table.dart`: `_TableBodyTooltip`이 `MouseRegion`의 enter/hover 이벤트에서 커서 global 좌표를 저장하고, `OverlayEntry` builder에서 overlay 좌표계로 변환해 `Positioned`를 배치하도록 변경했다. 이제 툴팁은 테이블 좌상단 고정이 아니라 커서 오른쪽 아래에 표시되며, 기존 0.5초 후 표시/3초 후 닫힘/이탈 즉시 닫힘 동작은 유지된다. 검증 성공: `C:/flutter/bin/flutter.bat analyze --no-fatal-warnings --no-fatal-infos lib/home_page_manager.dart lib/widgets/swipe_action_table.dart lib/page_home/common_label_manage.dart`, `C:/flutter/bin/flutter.bat test test/common_label_manage_test.dart`.
