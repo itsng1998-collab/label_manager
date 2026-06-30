@@ -1226,6 +1226,9 @@ class _TopControlArea extends StatelessWidget {
                               padding: lmInsetsSymmetric(
                                 horizontal: 8,
                               ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
                             ),
                             child: const Text(
                               '설정',
@@ -1254,6 +1257,9 @@ class _TopControlArea extends StatelessWidget {
                               minimumSize: lmSize2(60, 36),
                               padding: lmInsetsSymmetric(
                                 horizontal: 8,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
                               ),
                             ),
                             child: const Text(

@@ -27,6 +27,8 @@
 
 ## 현재 상태
 
+- 완료: 상단 브랜드/라벨 `설정` 버튼의 outline 코너 곡선을 줄였다. `lib/home_page_manager.dart`: 두 `OutlinedButton` style에 `RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))`을 명시해 기본 버튼 radius보다 절반 수준으로 각진 형태가 되도록 했다. 검증 성공: `C:/flutter/bin/flutter.bat analyze --no-fatal-warnings --no-fatal-infos lib/home_page_manager.dart`.
+
 - 완료: 브랜드 설정 다이얼로그 인라인 에디터 outline이 수정 버튼 영역까지 이어지는 문제를 수정했다. `lib/widgets/swipe_action_table.dart`: row content를 고정한 채 action rail을 overlay로 여는 모드에서, 현재 행이 인라인 편집 중이고 액션 레일이 열린 경우 마지막 컬럼 폭에서 action rail 폭을 제외한 `rowWidths`를 셀 빌더에 전달하도록 변경했다. 이로써 `TextField` outline은 수정/삽입/삭제 버튼 앞 컬럼 영역까지만 그려진다. 검증 성공: `C:/flutter/bin/flutter.bat analyze --no-fatal-warnings --no-fatal-infos lib/home_page_manager.dart lib/widgets/swipe_action_table.dart lib/page_home/common_label_manage.dart`, `C:/flutter/bin/flutter.bat test test/common_label_manage_test.dart`.
 
 - 완료: 브랜드 설정 다이얼로그 인라인 편집기 입력 이벤트 차단 문제를 수정했다. `lib/widgets/swipe_action_table.dart`: `SwipeActionTable`에 `isRowContentInteractive`를 추가해 인라인 편집 중인 행에서는 행 전체 선택용 `InkWell` 오버레이와 row foreground 스와이프 `GestureDetector`를 제거한다. 이로써 `TextField`가 클릭/드래그/방향키/복사/컷/붙여넣기/우클릭 메뉴 같은 기본 입력 이벤트를 직접 처리한다. 수정 버튼 눌림 상태는 기존 두꺼운 테두리 대신 더 어두운 배경, 안쪽으로 들어간 방향의 명암 border, 아이콘 1px 이동으로 눌린 효과를 적용했다. `lib/home_page_manager.dart`: 브랜드 설정 테이블에서 현재 편집 중인 행을 `isRowContentInteractive`에 연결했다. 검증 성공: `C:/flutter/bin/flutter.bat analyze --no-fatal-warnings --no-fatal-infos lib/home_page_manager.dart lib/widgets/swipe_action_table.dart lib/page_home/common_label_manage.dart`, `C:/flutter/bin/flutter.bat test test/common_label_manage_test.dart`.
