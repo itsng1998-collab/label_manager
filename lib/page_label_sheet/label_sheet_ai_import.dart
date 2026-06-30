@@ -7,7 +7,7 @@ import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:fortune_sheet/fortune_sheet.dart';
 import 'package:http/http.dart' as http;
 import 'package:image/image.dart' as imglib;
-import 'package:label_manager/page_fortune_sheet/label_sheet_import_model.dart';
+import 'package:label_manager/page_label_sheet/label_sheet_import_model.dart';
 
 const String labelSheetDefaultCopilotModel = 'openai/gpt-4.1';
 

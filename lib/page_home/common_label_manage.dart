@@ -5,7 +5,7 @@ import 'package:label_manager/models/column_base.dart';
 import 'package:label_manager/models/column_special.dart';
 import 'package:label_manager/models/column.dart';
 import 'package:label_manager/models/label_size.dart';
-import 'package:label_manager/page_fortune_sheet/fortune_sheet_page.dart';
+import 'package:label_manager/page_label_sheet/label_sheet_page.dart';
 import 'package:label_manager/utils/log_context.dart';
 
 @visibleForTesting
@@ -104,7 +104,7 @@ class _CommonLabelManageState extends State<CommonLabelManage> {
                 icon: Icons.folder_open,
                 hideHeader: true,
                 child: ClipRect(
-                  child: FortuneSheetPage(
+                  child: LabelSheetPage(
                     labelSize: widget.labelSize,
                     barcodeObjectIds: barcodeObjectIds,
                     onSheetReady: widget.onSheetReady,

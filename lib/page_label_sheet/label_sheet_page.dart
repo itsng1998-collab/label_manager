@@ -5,14 +5,14 @@ import 'package:flutter/material.dart';
 import 'package:label_manager/core/app.dart';
 import 'package:label_manager/core/ui_scale.dart';
 import 'package:label_manager/models/label_size.dart';
-import 'package:label_manager/page_fortune_sheet/label_sheet_rtf_import.dart';
-import 'package:label_manager/page_fortune_sheet/label_sheet_save_codec.dart';
-import 'package:label_manager/page_fortune_sheet/label_sheet_workbench.dart';
+import 'package:label_manager/page_label_sheet/label_sheet_rtf_import.dart';
+import 'package:label_manager/page_label_sheet/label_sheet_save_codec.dart';
+import 'package:label_manager/page_label_sheet/label_sheet_workbench.dart';
 import 'package:label_manager/utils/log_context.dart';
 import 'package:label_manager/utils/on_messages.dart';
 
-class FortuneSheetPage extends StatelessWidget {
-  const FortuneSheetPage({
+class LabelSheetPage extends StatelessWidget {
+  const LabelSheetPage({
     super.key,
     this.labelSize,
     this.barcodeObjectIds = const <String>[],

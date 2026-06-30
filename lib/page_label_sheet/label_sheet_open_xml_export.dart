@@ -3,7 +3,7 @@ import 'dart:ui';
 
 import 'package:archive/archive.dart';
 import 'package:fortune_sheet/fortune_sheet.dart';
-import 'package:label_manager/page_fortune_sheet/label_sheet_import_model.dart';
+import 'package:label_manager/page_label_sheet/label_sheet_import_model.dart';
 
 const String labelSheetOpenXmlTestPath = '.tmp/test.xlsx';
 const String labelSheetOpenXmlFallbackTestPath = '.tmp/test_latest.xlsx';

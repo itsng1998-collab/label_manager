@@ -13,15 +13,15 @@ import 'package:http/testing.dart';
 import 'package:image/image.dart' as imglib;
 import 'package:label_manager/models/label_size.dart';
 import 'package:label_manager/page_home/preview_floating_window.dart';
-import 'package:label_manager/page_fortune_sheet/label_sheet_ai_import.dart';
-import 'package:label_manager/page_fortune_sheet/fortune_sheet_page.dart';
-import 'package:label_manager/page_fortune_sheet/label_sheet_import_model.dart';
-import 'package:label_manager/page_fortune_sheet/label_sheet_native_open_xml.dart';
-import 'package:label_manager/page_fortune_sheet/label_sheet_open_xml_export.dart';
-import 'package:label_manager/page_fortune_sheet/label_sheet_rtf_import.dart';
-import 'package:label_manager/page_fortune_sheet/label_sheet_rtf_preview.dart';
-import 'package:label_manager/page_fortune_sheet/label_sheet_save_codec.dart';
-import 'package:label_manager/page_fortune_sheet/label_sheet_workbench.dart';
+import 'package:label_manager/page_label_sheet/label_sheet_ai_import.dart';
+import 'package:label_manager/page_label_sheet/label_sheet_page.dart';
+import 'package:label_manager/page_label_sheet/label_sheet_import_model.dart';
+import 'package:label_manager/page_label_sheet/label_sheet_native_open_xml.dart';
+import 'package:label_manager/page_label_sheet/label_sheet_open_xml_export.dart';
+import 'package:label_manager/page_label_sheet/label_sheet_rtf_import.dart';
+import 'package:label_manager/page_label_sheet/label_sheet_rtf_preview.dart';
+import 'package:label_manager/page_label_sheet/label_sheet_save_codec.dart';
+import 'package:label_manager/page_label_sheet/label_sheet_workbench.dart';
 import 'package:label_manager/printing/label_printer_preferences.dart';
 import 'package:printing/printing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -1114,7 +1114,7 @@ void main() {
         child: SizedBox(
           width: 400,
           height: 300,
-          child: FortuneSheetPage(
+          child: LabelSheetPage(
             labelSize: LabelSize(
               labelSizeId: 1,
               brandId: 1,

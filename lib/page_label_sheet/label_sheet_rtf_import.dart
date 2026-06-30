@@ -10,9 +10,9 @@ import 'package:fortune_sheet/fortune_sheet.dart';
 import 'package:html/dom.dart' as html_dom;
 import 'package:html/parser.dart' as html_parser;
 import 'package:image/image.dart' as imglib;
-import 'package:label_manager/page_fortune_sheet/label_sheet_import_model.dart';
-import 'package:label_manager/page_fortune_sheet/label_sheet_native_open_xml.dart';
-import 'package:label_manager/page_fortune_sheet/label_sheet_open_xml_export.dart';
+import 'package:label_manager/page_label_sheet/label_sheet_import_model.dart';
+import 'package:label_manager/page_label_sheet/label_sheet_native_open_xml.dart';
+import 'package:label_manager/page_label_sheet/label_sheet_open_xml_export.dart';
 import 'package:label_manager/utils/log_context.dart';
 
 String? _preferredKoreanAnsiCharset;
