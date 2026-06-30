@@ -2212,7 +2212,7 @@ class _LabelSheetPrintSettingsDialog extends StatelessWidget {
               bottom: 12,
               width: 84,
               height: 30,
-              child: _PrintDialogButton(label: '닫기', onPressed: onClose),
+              child: _PrintDialogButton(label: '취소', onPressed: onClose),
             ),
           ],
         ),
