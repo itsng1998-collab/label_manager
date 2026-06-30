@@ -124,12 +124,16 @@ class FortuneBarcodeRenderResult {
     this.mimeType = 'image/png',
     this.pixelWidth,
     this.pixelHeight,
+    this.bodyTop,
+    this.bodyHeight,
   });
 
   final Uint8List bytes;
   final String mimeType;
   final int? pixelWidth;
   final int? pixelHeight;
+  final int? bodyTop;
+  final int? bodyHeight;
 }
 
 class _FortuneRichTextEditingController extends TextEditingController {
@@ -22518,6 +22522,11 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     final imageHeight = requestedHeight > 0
         ? requestedHeight
         : (result.pixelHeight ?? 60).toDouble();
+    final renderedBodyTop = (result.bodyTop ?? 0).toDouble();
+    final renderedBodyHeight = _barcodeShowHumanReadableText
+      ? (result.bodyHeight?.toDouble() ??
+          math.min(requestedBarHeight, imageHeight))
+      : imageHeight;
     final src = _bytesDataUri(result.bytes, result.mimeType);
     final extraFields = <String, Object?>{
       'fortuneBarcode': true,
@@ -22535,15 +22544,11 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       'barcodeShowText': _barcodeShowHumanReadableText,
       'barcodeHumanReadableFontFamily': _selectedBarcodeTextFontFamily,
       'barcodeHumanReadableFontSize': _barcodeHumanReadableFontSize,
-      fortuneBarcodeBodyHeightExtraKey: _barcodeShowHumanReadableText
-          ? math.min(requestedBarHeight, imageHeight)
-          : imageHeight,
+      fortuneBarcodeBodyTopExtraKey: renderedBodyTop,
+      fortuneBarcodeBodyHeightExtraKey: renderedBodyHeight,
       fortuneBarcodeBodyRatioExtraKey: imageHeight <= 0
           ? 1.0
-          : ((_barcodeShowHumanReadableText
-                    ? math.min(requestedBarHeight, imageHeight)
-                    : imageHeight) /
-                imageHeight)
+          : (renderedBodyHeight / imageHeight)
               .clamp(0.0, 1.0),
         // The ID label is an editor-only overlay drawn above the barcode body.
         // Print/export paths must exclude it and use this metadata only to

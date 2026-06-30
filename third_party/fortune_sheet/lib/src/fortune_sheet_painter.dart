@@ -44171,6 +44171,7 @@ const double fortuneBarcodeDialogIconSize = 24.0;
 const double fortuneBarcodeDialogCloseSize = 9.0;
 const double fortuneBarcodeDialogIconGap = 4.0;
 const String fortuneBarcodeObjectIdExtraKey = 'barcodeObjectId';
+const String fortuneBarcodeBodyTopExtraKey = 'barcodeBodyTop';
 const String fortuneBarcodeBodyHeightExtraKey = 'barcodeBodyHeight';
 const String fortuneBarcodeBodyRatioExtraKey = 'barcodeBodyRatio';
 const String fortuneBarcodeIdLabelPrintExcludedExtraKey =
@@ -44207,12 +44208,18 @@ FortuneBarcodeObjectIdLabelMetrics? fortuneBarcodeObjectIdLabelMetrics(
   if (objectId == null || objectId.isEmpty) {
     return null;
   }
+  final bodyTopRatio = _fortuneBarcodeBodyTopRatioForLabel(image);
   final bodyRatio = _fortuneBarcodeBodyRatioForLabel(image);
+  final bodyTop = rect.top + rect.height * bodyTopRatio;
+  final bodyHeight = math.min(
+    math.max(1.0, rect.height * bodyRatio),
+    math.max(1.0, rect.bottom - bodyTop),
+  );
   final bodyRect = Rect.fromLTWH(
     rect.left,
-    rect.top,
+    bodyTop,
     rect.width,
-    math.max(1.0, rect.height * bodyRatio),
+    bodyHeight,
   );
   if (bodyRect.width < 12 || bodyRect.height < 10) {
     return null;
@@ -44282,6 +44289,24 @@ FortuneBarcodeObjectIdLabelMetrics? fortuneBarcodeObjectIdLabelMetrics(
     textMaxWidth: textMaxWidth,
     strokeWidth: math.max(0.5, box.height * 0.06),
   );
+}
+
+double _fortuneBarcodeBodyTopRatioForLabel(FortuneImage image) {
+  final raw = image.extraFields[fortuneBarcodeBodyTopExtraKey];
+  final originalHeight = _fortuneBarcodeOriginalHeightForBodyRatio(image);
+  if (originalHeight <= 0) {
+    return 0.0;
+  }
+  if (raw is num) {
+    return (raw.toDouble() / originalHeight).clamp(0.0, 1.0);
+  }
+  if (raw is String) {
+    final parsed = double.tryParse(raw.trim());
+    if (parsed != null) {
+      return (parsed / originalHeight).clamp(0.0, 1.0);
+    }
+  }
+  return 0.0;
 }
 
 double _fortuneBarcodeBodyRatioForLabel(FortuneImage image) {

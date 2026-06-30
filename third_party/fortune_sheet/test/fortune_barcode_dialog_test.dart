@@ -464,6 +464,39 @@ void main() {
     expect(smallMetrics.boxRect.height, lessThan(16));
   });
 
+  test('barcode object ID label centers on rendered bar bounds', () {
+    const image = FortuneImage(
+      id: 'barcode',
+      src: 'missing',
+      left: 20,
+      top: 20,
+      width: 120,
+      height: 80,
+      extraFields: {
+        'fortuneBarcode': true,
+        fortuneBarcodeObjectIdExtraKey: 'ID',
+        fortuneBarcodeBodyTopExtraKey: 8,
+        fortuneBarcodeBodyHeightExtraKey: 48,
+        fortuneBarcodeBodyRatioExtraKey: 0.6,
+        fortuneBarcodeIdLabelPrintExcludedExtraKey: true,
+        'originHeight': 80,
+      },
+    );
+
+    final metrics = fortuneBarcodeObjectIdLabelMetrics(
+      const Rect.fromLTWH(20, 20, 240, 160),
+      image,
+    );
+
+    expect(metrics, isNotNull);
+    expect(metrics!.bodyRect.top, closeTo(36, 0.001));
+    expect(metrics.bodyRect.height, closeTo(96, 0.001));
+    expect(
+      metrics.boxRect.center.dy,
+      closeTo(metrics.bodyRect.center.dy, 0.001),
+    );
+  });
+
   testWidgets('barcode dialog forwards leading and trailing text values', (
     tester,
   ) async {

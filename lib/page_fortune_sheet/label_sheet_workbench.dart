@@ -172,6 +172,7 @@ Future<FortuneBarcodeRenderResult?> labelSheetBarcodeRenderer(
     height: bodyHeight,
     interpolation: imglib.Interpolation.nearest,
   );
+  final bodyBounds = _labelSheetBarcodeInkVerticalBounds(scaledBarcode);
   final pngBytes = await _labelSheetComposeBarcodePng(
     request,
     scaledBarcode,
@@ -184,7 +185,33 @@ Future<FortuneBarcodeRenderResult?> labelSheetBarcodeRenderer(
     mimeType: 'image/png',
     pixelWidth: width,
     pixelHeight: height,
+    bodyTop: bodyBounds.top,
+    bodyHeight: bodyBounds.height,
   );
+}
+
+({int top, int height}) _labelSheetBarcodeInkVerticalBounds(
+  imglib.Image barcode,
+) {
+  var top = -1;
+  var bottom = -1;
+  for (var y = 0; y < barcode.height; y += 1) {
+    var hasInk = false;
+    for (var x = 0; x < barcode.width; x += 1) {
+      if (barcode.getPixel(x, y).r < 128) {
+        hasInk = true;
+        break;
+      }
+    }
+    if (hasInk) {
+      top = top < 0 ? y : top;
+      bottom = y;
+    }
+  }
+  if (top < 0 || bottom < top) {
+    return (top: 0, height: math.max(1, barcode.height));
+  }
+  return (top: top, height: math.max(1, bottom - top + 1));
 }
 
 @visibleForTesting
