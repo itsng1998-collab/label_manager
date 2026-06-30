@@ -43,6 +43,26 @@ Map<String, Object?> _decodeLabelSheetSaveWorkbookJson(String encoded) {
   );
 }
 
+bool _primaryFocusIsInside(WidgetTester tester, Finder rootFinder) {
+  final rootElement = tester.element(rootFinder);
+  final focusedContext = FocusManager.instance.primaryFocus?.context;
+  if (focusedContext is! Element) {
+    return false;
+  }
+  if (focusedContext == rootElement) {
+    return true;
+  }
+  var inside = false;
+  focusedContext.visitAncestorElements((ancestor) {
+    if (ancestor == rootElement) {
+      inside = true;
+      return false;
+    }
+    return true;
+  });
+  return inside;
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -597,6 +617,74 @@ void main() {
       find.byKey(const ValueKey('label-sheet-print-settings-dialog')),
       findsNothing,
     );
+  });
+
+  testWidgets('label sheet print dialog traps tab focus inside dialog', (
+    tester,
+  ) async {
+    final beforeFocusNode = FocusNode();
+    final afterFocusNode = FocusNode();
+    addTearDown(beforeFocusNode.dispose);
+    addTearDown(afterFocusNode.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Column(
+            children: [
+              TextField(focusNode: beforeFocusNode),
+              Expanded(
+                child: LabelSheetWorkbench(
+                  initialWorkbook: FortuneWorkbook(
+                    sheets: [FortuneSheet(id: 's1', name: 'Label')],
+                  ),
+                ),
+              ),
+              TextField(focusNode: afterFocusNode),
+            ],
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    final printItem = tester
+        .widget<FortuneSheetApp>(find.byType(FortuneSheetApp))
+        .settings!
+        .customToolbarItems
+        .singleWhere((item) => item.key == labelSheetPrintToolbarCommand);
+    printItem.onClick!(printItem);
+    await tester.pump();
+
+    final dialogFinder = find.byKey(
+      const ValueKey('label-sheet-print-settings-dialog'),
+    );
+    expect(dialogFinder, findsOneWidget);
+
+    await tester.tap(
+      find.descendant(of: dialogFinder, matching: find.byType(TextField)).last,
+    );
+    await tester.pump();
+    expect(_primaryFocusIsInside(tester, dialogFinder), isTrue);
+
+    for (var index = 0; index < 10; index += 1) {
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pump();
+      expect(_primaryFocusIsInside(tester, dialogFinder), isTrue);
+      expect(beforeFocusNode.hasFocus, isFalse);
+      expect(afterFocusNode.hasFocus, isFalse);
+    }
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+    for (var index = 0; index < 10; index += 1) {
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pump();
+      expect(_primaryFocusIsInside(tester, dialogFinder), isTrue);
+      expect(beforeFocusNode.hasFocus, isFalse);
+      expect(afterFocusNode.hasFocus, isFalse);
+    }
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
   });
 
   testWidgets('label sheet save button is disabled after clear sheet', (

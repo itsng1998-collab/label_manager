@@ -950,6 +950,7 @@ Future<void> createTextAt(_PainterPageState state, Offset scenePoint) async {
 
   final result = await showDialog<bool>(
     context: state.context,
+    traversalEdgeBehavior: TraversalEdgeBehavior.closedLoop,
     builder: (ctx) {
       return StatefulBuilder(
         builder: (ctx, setStateDialog) => AlertDialog(

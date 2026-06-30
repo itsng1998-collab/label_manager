@@ -1346,6 +1346,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     return showDialog<_LabelImageImportAction>(
       context: context,
       barrierDismissible: false,
+      traversalEdgeBehavior: TraversalEdgeBehavior.closedLoop,
       builder: (_) => _LabelImageImportDialog(
         bytes: bytes,
         mimeType: mimeType,
@@ -1465,32 +1466,34 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
         child: Center(
           child: GestureDetector(
             onTap: () {},
-            child: _LabelSheetPrintSettingsDialog(
-              leftMarginController: _printLeftMarginController,
-              topMarginController: _printTopMarginController,
-              extraAreaController: _printExtraAreaController,
-              copiesController: _printCopiesController,
-              autoSpacing: _printAutoSpacing,
-              orientation: _printOrientation,
-              selectedPrinterName: _printSelectedPrinterName,
-              onAutoSpacingChanged: (value) {
-                if (value == null) {
-                  return;
-                }
-                setState(() {
-                  _printAutoSpacing = value;
-                });
-              },
-              onOrientationChanged: (value) {
-                if (value == null) {
-                  return;
-                }
-                setState(() {
-                  _printOrientation = value;
-                });
-              },
-              onSelectPrinter: _handleSelectPrinter,
-              onClose: _closePrintSettingsDialog,
+            child: _ClosedLoopDialogFocus(
+              child: _LabelSheetPrintSettingsDialog(
+                leftMarginController: _printLeftMarginController,
+                topMarginController: _printTopMarginController,
+                extraAreaController: _printExtraAreaController,
+                copiesController: _printCopiesController,
+                autoSpacing: _printAutoSpacing,
+                orientation: _printOrientation,
+                selectedPrinterName: _printSelectedPrinterName,
+                onAutoSpacingChanged: (value) {
+                  if (value == null) {
+                    return;
+                  }
+                  setState(() {
+                    _printAutoSpacing = value;
+                  });
+                },
+                onOrientationChanged: (value) {
+                  if (value == null) {
+                    return;
+                  }
+                  setState(() {
+                    _printOrientation = value;
+                  });
+                },
+                onSelectPrinter: _handleSelectPrinter,
+                onClose: _closePrintSettingsDialog,
+              ),
             ),
           ),
         ),
@@ -1511,6 +1514,71 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       if (!mounted) return;
       callback();
     });
+  }
+}
+
+class _ClosedLoopDialogFocus extends StatelessWidget {
+  const _ClosedLoopDialogFocus({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return FocusScope(
+      autofocus: true,
+      child: Builder(
+        builder: (dialogFocusContext) {
+          return Shortcuts(
+            shortcuts: const <ShortcutActivator, Intent>{
+              SingleActivator(LogicalKeyboardKey.tab): NextFocusIntent(),
+              SingleActivator(
+                LogicalKeyboardKey.tab,
+                shift: true,
+              ): PreviousFocusIntent(),
+            },
+            child: Actions(
+              actions: <Type, Action<Intent>>{
+                NextFocusIntent: CallbackAction<NextFocusIntent>(
+                  onInvoke: (intent) {
+                    _moveFocusWithinDialog(dialogFocusContext, forward: true);
+                    return null;
+                  },
+                ),
+                PreviousFocusIntent: CallbackAction<PreviousFocusIntent>(
+                  onInvoke: (intent) {
+                    _moveFocusWithinDialog(dialogFocusContext, forward: false);
+                    return null;
+                  },
+                ),
+              },
+            child: FocusTraversalGroup(child: child),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  static void _moveFocusWithinDialog(
+    BuildContext context, {
+    required bool forward,
+  }) {
+    final scope = FocusScope.of(context);
+    final nodes = scope.traversalDescendants
+        .where((node) => node.canRequestFocus && !node.skipTraversal)
+        .toList(growable: false);
+    if (nodes.isEmpty) {
+      return;
+    }
+    final current = FocusManager.instance.primaryFocus;
+    var index = current == null ? -1 : nodes.indexOf(current);
+    if (index < 0 && current != null) {
+      index = nodes.indexWhere((node) => current.ancestors.contains(node));
+    }
+    final targetIndex = forward
+        ? (index + 1) % nodes.length
+        : (index <= 0 ? nodes.length - 1 : index - 1);
+    nodes[targetIndex].requestFocus();
   }
 }
 

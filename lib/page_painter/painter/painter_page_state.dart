@@ -523,6 +523,7 @@ class _PainterPageState extends State<PainterPage> {
     final choice = await showDialog<int>(
       context: context,
       barrierDismissible: false,
+      traversalEdgeBehavior: TraversalEdgeBehavior.closedLoop,
       builder: (ctx) {
         return AlertDialog(
           title: const Text('로그아웃'),

@@ -43,6 +43,7 @@ Future<void> saveAsPng(_PainterPageState state, BuildContext context) async {
 
   await showDialog<void>(
     context: context,
+    traversalEdgeBehavior: TraversalEdgeBehavior.closedLoop,
     builder: (_) => AlertDialog(
       title: const Text('Exported PNG Preview'),
       content: Image.memory(bytes),
@@ -144,6 +145,7 @@ Future<void> showPrintDialog(
   final bool? printed = await showDialog<bool>(
     context: context,
     barrierDismissible: false,
+    traversalEdgeBehavior: TraversalEdgeBehavior.closedLoop,
     builder: (dialogContext) {
       Printer? selected = preferredPrinter;
       bool isPrinting = false;
@@ -607,6 +609,7 @@ Future<void> _showPreviewDialog(BuildContext context, _LabelDocument document) {
 
   return showDialog<void>(
     context: context,
+    traversalEdgeBehavior: TraversalEdgeBehavior.closedLoop,
     builder: (ctx) => AlertDialog(
       title: const Text('라벨 미리보기'),
       content: SizedBox(

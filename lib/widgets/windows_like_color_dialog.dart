@@ -78,6 +78,7 @@ Future<Color?> showWindowsLikeColorDialog(
   return showDialog<Color>(
     context: context,
     barrierDismissible: true,
+    traversalEdgeBehavior: TraversalEdgeBehavior.closedLoop,
     builder: (ctx) => _WindowsLikeColorDialog(
       initialColor: initialColor,
       originColor: originColor ?? initialColor,
@@ -223,6 +224,8 @@ class _WindowsLikeColorDialogState extends State<_WindowsLikeColorDialog> {
                         onLongPressRemove: (index) async {
                           final ok = await showDialog<bool>(
                             context: context,
+                            traversalEdgeBehavior:
+                                TraversalEdgeBehavior.closedLoop,
                             builder: (ctx) => AlertDialog(
                               title: const Text('삭제 확인'),
                               content: const Text('해당 사용자 정의 색상을 삭제할까요?'),

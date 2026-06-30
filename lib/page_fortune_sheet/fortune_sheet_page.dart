@@ -89,6 +89,7 @@ class FortuneSheetPage extends StatelessWidget {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
         await showDialog<void>(
           context: context,
+          traversalEdgeBehavior: TraversalEdgeBehavior.closedLoop,
           builder: (dialogContext) => AlertDialog(
             title: const Text('라벨 저장 실패'),
             content: Text(e.toString()),

@@ -39,6 +39,7 @@ class StartupDialog extends StatefulWidget {
     return showDialog(
       context: context,
       barrierDismissible: false,
+      traversalEdgeBehavior: TraversalEdgeBehavior.closedLoop,
       builder: (_) => StartupDialog(
         onLogin: onLogin,
         serverName: serverName,
