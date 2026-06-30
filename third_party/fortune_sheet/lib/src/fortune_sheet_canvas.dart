@@ -2143,12 +2143,14 @@ class FortuneSheetController {
     FortuneRange range, {
     double pixelRatio = 1,
     bool includeGridLines = true,
+    bool includeCellBorders = true,
     bool includeLabelAreaBoundary = true,
   }) {
     return _state?._captureRangeAsPng(
           range,
           pixelRatio: pixelRatio,
           includeGridLines: includeGridLines,
+          includeCellBorders: includeCellBorders,
           includeLabelAreaBoundary: includeLabelAreaBoundary,
         ) ??
         Future<FortuneSheetCapture?>.value();
@@ -14255,6 +14257,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     {
     double? pixelRatio,
     bool includeGridLines = true,
+    bool includeCellBorders = true,
     bool includeLabelAreaBoundary = true,
   }
   ) async {
@@ -14368,7 +14371,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
           );
         }
         final borders = borderCompute[anchor];
-        if (borders != null) {
+        if (includeCellBorders && borders != null) {
           _drawScreenshotCellBorders(canvas, rect, borders);
         }
       }
@@ -14515,12 +14518,14 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     FortuneRange range, {
     required double pixelRatio,
     required bool includeGridLines,
+    required bool includeCellBorders,
     required bool includeLabelAreaBoundary,
   }) async {
     final capture = await _generateScreenshotCapture(
       range,
       pixelRatio: math.max(0.01, pixelRatio),
       includeGridLines: includeGridLines,
+      includeCellBorders: includeCellBorders,
       includeLabelAreaBoundary: includeLabelAreaBoundary,
     );
     if (capture == null) {

@@ -1296,6 +1296,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       _labelSheetPrintRange(sheet, physicalSize),
       pixelRatio: dpi / fortuneSheetLogicalPixelsPerInch,
       includeGridLines: false,
+      includeCellBorders: false,
       includeLabelAreaBoundary: false,
     );
     if (!mounted) {
@@ -1322,8 +1323,10 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     var printed = false;
     if (profile.canSendRaw && profile.language == PrinterLanguage.ezpl) {
       try {
-        final ezplBytes = await buildLabelSheetEzplRasterBytes(
-          pngBytes: capture.pngBytes,
+        final ezplBytes = await buildLabelSheetHybridEzplBytes(
+          sheet: sheet,
+          range: _labelSheetPrintRange(sheet, physicalSize),
+          fallbackPngBytes: capture.pngBytes,
           metrics: metrics,
           options: options,
         );

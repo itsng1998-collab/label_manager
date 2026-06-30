@@ -22,7 +22,7 @@ bool _isWhite(ByteData pixels, int width, int x, int y) {
 }
 
 void main() {
-  testWidgets('print capture excludes grid and label area boundary', (
+  testWidgets('print capture excludes grid borders and label area boundary', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(240, 180);
@@ -45,6 +45,22 @@ void main() {
           rowCount: 2,
           columnCount: 2,
           showGridLines: true,
+          borderInfo: const [
+            FortuneBorderInfo(
+              rangeType: 'range',
+              borderType: 'border-all',
+              color: ui.Color(0xff000000),
+              style: 1,
+              ranges: [
+                FortuneRange(
+                  rowStart: 0,
+                  rowEnd: 1,
+                  columnStart: 0,
+                  columnEnd: 1,
+                ),
+              ],
+            ),
+          ],
           extraFields: const {
             fortuneSheetGridClientWidthMmKey: 20,
             fortuneSheetGridClientHeightMmKey: 20,
@@ -83,6 +99,7 @@ void main() {
         ),
         pixelRatio: 1,
         includeGridLines: false,
+        includeCellBorders: false,
         includeLabelAreaBoundary: false,
       ),
     );
