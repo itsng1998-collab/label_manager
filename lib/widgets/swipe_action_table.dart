@@ -528,16 +528,22 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
 
   Widget _buildDataRow(T row, int index, List<double> widths) {
     final contentWidth = widths.fold<double>(0, (sum, width) => sum + width);
-    final separators = List<double>.generate(
-      widths.length - 1,
-      (separatorIndex) => widths
-          .sublist(0, separatorIndex + 1)
-          .fold<double>(0, (sum, width) => sum + width),
-    );
     final actionsWidth = widget.actions.length * _actionWidth;
     final isOpen = widget.rowSwipeEnabled && _openActionIndex == index;
     final isRowContentInteractive =
-      widget.isRowContentInteractive?.call(row, index) ?? false;
+        widget.isRowContentInteractive?.call(row, index) ?? false;
+    final rowWidths = isRowContentInteractive &&
+            isOpen &&
+            widget.keepRowContentOnSwipe &&
+            widths.isNotEmpty
+        ? _withTrailingInset(widths, actionsWidth)
+        : widths;
+    final separators = List<double>.generate(
+      rowWidths.length - 1,
+      (separatorIndex) => rowWidths
+          .sublist(0, separatorIndex + 1)
+          .fold<double>(0, (sum, width) => sum + width),
+    );
     final rowContent = SizedBox(
       width: contentWidth,
       height: widget.rowHeight,
@@ -553,7 +559,7 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
             child: Row(
               children: List.generate(
                 widget.columns.length,
-                (cellIndex) => _buildCell(row, cellIndex, widths),
+                (cellIndex) => _buildCell(row, cellIndex, rowWidths),
               ),
             ),
           ),
@@ -637,6 +643,15 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
         ),
       ),
     );
+  }
+
+  List<double> _withTrailingInset(List<double> widths, double inset) {
+    final adjusted = List<double>.from(widths);
+    adjusted[adjusted.length - 1] = (adjusted.last - inset).clamp(
+      0,
+      double.infinity,
+    );
+    return adjusted;
   }
 
   Widget _buildEmptyBody(List<double> widths) {
