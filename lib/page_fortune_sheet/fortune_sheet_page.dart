@@ -18,16 +18,16 @@ class FortuneSheetPage extends StatelessWidget {
     this.barcodeObjectIds = const <String>[],
     this.onSheetReady,
     this.onGridRectChanged,
-    this.onBeforePrintSettingsDialog,
-    this.onPrintSettingsDialogClosed,
+    this.onBeforeSheetDialog,
+    this.onSheetDialogClosed,
   });
 
   final LabelSize? labelSize;
   final List<String> barcodeObjectIds;
   final VoidCallback? onSheetReady;
   final ValueChanged<Rect>? onGridRectChanged;
-  final FutureOr<void> Function()? onBeforePrintSettingsDialog;
-  final VoidCallback? onPrintSettingsDialogClosed;
+  final FutureOr<void> Function()? onBeforeSheetDialog;
+  final VoidCallback? onSheetDialogClosed;
 
   @override
   Widget build(BuildContext context) {
@@ -56,8 +56,8 @@ class FortuneSheetPage extends StatelessWidget {
         barcodeObjectIds: barcodeObjectIds,
         onInitialLoadComplete: onSheetReady,
         onGridRectChanged: onGridRectChanged,
-        onBeforePrintSettingsDialog: onBeforePrintSettingsDialog,
-        onPrintSettingsDialogClosed: onPrintSettingsDialogClosed,
+        onBeforeSheetDialog: onBeforeSheetDialog,
+        onSheetDialogClosed: onSheetDialogClosed,
         onSave: (width, height, encodedWorkbook) =>
           _handleSaveLabelSheet(context, width, height, encodedWorkbook),
       ),

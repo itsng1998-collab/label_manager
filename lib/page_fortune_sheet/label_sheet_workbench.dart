@@ -693,6 +693,7 @@ FortuneSettings labelSheetSettings(
   VoidCallback? onImportLabelImage,
   FutureOr<void> Function()? onSave,
   VoidCallback? onPrint,
+  FortuneDialogVisibilityChanged? onDialogVisibilityChanged,
   bool saveEnabled = true,
   String importImageTooltip = 'Import label image',
   String saveTooltip = 'Save',
@@ -733,6 +734,7 @@ FortuneSettings labelSheetSettings(
     headerContextMenu: labelSheetContextMenuItems(base.headerContextMenu),
     sheetTabContextMenu: labelSheetContextMenuItems(base.sheetTabContextMenu),
     filterContextMenu: labelSheetContextMenuItems(base.filterContextMenu),
+    onDialogVisibilityChanged: onDialogVisibilityChanged,
   );
 }
 
@@ -744,8 +746,8 @@ class LabelSheetWorkbench extends StatefulWidget {
     this.barcodeObjectIds = const <String>[],
     this.onInitialLoadComplete,
     this.onGridRectChanged,
-    this.onBeforePrintSettingsDialog,
-    this.onPrintSettingsDialogClosed,
+    this.onBeforeSheetDialog,
+    this.onSheetDialogClosed,
     this.printerListProvider,
     this.onSave,
     super.key,
@@ -757,8 +759,8 @@ class LabelSheetWorkbench extends StatefulWidget {
   final List<String> barcodeObjectIds;
   final VoidCallback? onInitialLoadComplete;
   final ValueChanged<ui.Rect>? onGridRectChanged;
-  final FutureOr<void> Function()? onBeforePrintSettingsDialog;
-  final VoidCallback? onPrintSettingsDialogClosed;
+  final FutureOr<void> Function()? onBeforeSheetDialog;
+  final VoidCallback? onSheetDialogClosed;
   final LabelPrinterListProvider? printerListProvider;
   final FutureOr<void> Function(
     int widthMm,
@@ -823,6 +825,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
         onImportLabelImage: _handleImportLabelImage,
         onSave: _handleSave,
         onPrint: _handlePrint,
+        onDialogVisibilityChanged: _handleFortuneDialogVisibilityChanged,
         saveEnabled: _isDirty,
         importImageTooltip: _labelSheetImportImageTooltip(),
         saveTooltip: _labelSheetSaveTooltip(),
@@ -1211,10 +1214,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
 
   Future<void> _openPrintSettingsDialog() async {
     fortuneSheetDebugLog('label sheet print toolbar click');
-    final callback = widget.onBeforePrintSettingsDialog;
-    if (callback != null) {
-      await Future<void>.sync(callback);
-    }
+    await _notifyBeforeSheetDialog();
     if (!mounted) {
       return;
     }
@@ -1238,7 +1238,22 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     setState(() {
       _printSettingsDialogOpen = false;
     });
-    widget.onPrintSettingsDialogClosed?.call();
+    widget.onSheetDialogClosed?.call();
+  }
+
+  Future<void> _notifyBeforeSheetDialog() async {
+    final callback = widget.onBeforeSheetDialog;
+    if (callback != null) {
+      await Future<void>.sync(callback);
+    }
+  }
+
+  void _handleFortuneDialogVisibilityChanged(bool open) {
+    if (open) {
+      unawaited(_notifyBeforeSheetDialog());
+      return;
+    }
+    widget.onSheetDialogClosed?.call();
   }
 
   Future<void> _handleSelectPrinter() async {
@@ -1368,28 +1383,33 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     required FortuneSheet sheet,
   }) async {
     final prefs = await SharedPreferences.getInstance();
+    await _notifyBeforeSheetDialog();
     if (!mounted) {
       return null;
     }
     final physicalSize =
         fortuneSheetGridClientPhysicalSize(sheet) ??
         const FortuneSheetGridClientPhysicalSize(widthMm: 100, heightMm: 100);
-    return showDialog<_LabelImageImportAction>(
-      context: context,
-      barrierDismissible: false,
-      traversalEdgeBehavior: TraversalEdgeBehavior.closedLoop,
-      builder: (_) => _LabelImageImportDialog(
-        bytes: bytes,
-        mimeType: mimeType,
-        fileName: fileName,
-        sheet: sheet,
-        physicalSize: physicalSize,
-        initialToken: prefs.getString(_labelSheetCopilotTokenPrefsKey) ?? '',
-        initialModel:
-            prefs.getString(_labelSheetCopilotModelPrefsKey) ??
-            labelSheetDefaultCopilotModel,
-      ),
-    );
+    try {
+      return await showDialog<_LabelImageImportAction>(
+        context: context,
+        barrierDismissible: false,
+        traversalEdgeBehavior: TraversalEdgeBehavior.closedLoop,
+        builder: (_) => _LabelImageImportDialog(
+          bytes: bytes,
+          mimeType: mimeType,
+          fileName: fileName,
+          sheet: sheet,
+          physicalSize: physicalSize,
+          initialToken: prefs.getString(_labelSheetCopilotTokenPrefsKey) ?? '',
+          initialModel:
+              prefs.getString(_labelSheetCopilotModelPrefsKey) ??
+              labelSheetDefaultCopilotModel,
+        ),
+      );
+    } finally {
+      widget.onSheetDialogClosed?.call();
+    }
   }
 
   static String _labelSheetMimeTypeForName(String fileName) {

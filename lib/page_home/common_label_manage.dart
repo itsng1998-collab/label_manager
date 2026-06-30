@@ -35,16 +35,16 @@ class CommonLabelManage extends StatefulWidget {
   final LabelSize? labelSize;
   final VoidCallback? onSheetReady;
   final ValueChanged<Rect>? onGridRectChanged;
-  final FutureOr<void> Function()? onBeforePrintSettingsDialog;
-  final VoidCallback? onPrintSettingsDialogClosed;
+  final FutureOr<void> Function()? onBeforeSheetDialog;
+  final VoidCallback? onSheetDialogClosed;
   const CommonLabelManage({
     super.key,
     required this.title,
     this.labelSize,
     this.onSheetReady,
     this.onGridRectChanged,
-    this.onBeforePrintSettingsDialog,
-    this.onPrintSettingsDialogClosed,
+    this.onBeforeSheetDialog,
+    this.onSheetDialogClosed,
   });
 
   @override
@@ -109,10 +109,8 @@ class _CommonLabelManageState extends State<CommonLabelManage> {
                     barcodeObjectIds: barcodeObjectIds,
                     onSheetReady: widget.onSheetReady,
                     onGridRectChanged: widget.onGridRectChanged,
-                    onBeforePrintSettingsDialog:
-                        widget.onBeforePrintSettingsDialog,
-                    onPrintSettingsDialogClosed:
-                        widget.onPrintSettingsDialogClosed,
+                    onBeforeSheetDialog: widget.onBeforeSheetDialog,
+                    onSheetDialogClosed: widget.onSheetDialogClosed,
                   ),
                 ),
               ),

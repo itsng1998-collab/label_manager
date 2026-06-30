@@ -12,6 +12,7 @@ typedef FortuneAfterSelectionChangeHook =
 typedef FortuneCustomToolbarItemClick =
     void Function(FortuneCustomToolbarItem item);
 typedef FortuneFontProvider = Future<List<String>> Function();
+typedef FortuneDialogVisibilityChanged = FutureOr<void> Function(bool open);
 
 class FortuneCustomToolbarItem {
   const FortuneCustomToolbarItem({
@@ -23464,6 +23465,7 @@ class FortuneSettings {
     this.afterDeleteSheet,
     this.beforeUpdateSheetName,
     this.afterUpdateSheetName,
+    this.onDialogVisibilityChanged,
   });
 
   final int column;
@@ -23523,6 +23525,7 @@ class FortuneSettings {
   final AfterDeleteSheetHook? afterDeleteSheet;
   final BeforeUpdateSheetNameHook? beforeUpdateSheetName;
   final AfterUpdateSheetNameHook? afterUpdateSheetName;
+  final FortuneDialogVisibilityChanged? onDialogVisibilityChanged;
 
   double get effectiveToolbarHeight => showToolbar ? toolbarHeight : 0;
 
@@ -23541,6 +23544,7 @@ class FortuneSettings {
     List<String>? headerContextMenu,
     List<String>? sheetTabContextMenu,
     List<String>? filterContextMenu,
+    FortuneDialogVisibilityChanged? onDialogVisibilityChanged,
   }) {
     return FortuneSettings(
       column: column,
@@ -23600,6 +23604,8 @@ class FortuneSettings {
       afterDeleteSheet: afterDeleteSheet,
       beforeUpdateSheetName: beforeUpdateSheetName,
       afterUpdateSheetName: afterUpdateSheetName,
+      onDialogVisibilityChanged:
+          onDialogVisibilityChanged ?? this.onDialogVisibilityChanged,
     );
   }
 }

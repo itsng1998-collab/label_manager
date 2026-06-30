@@ -2880,6 +2880,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   bool _formatPainterPersistent = false;
   final Map<String, ui.Image> _decodedImages = <String, ui.Image>{};
   final Set<String> _imageDecodeInProgress = <String>{};
+  bool? _lastDialogVisibilityNotified;
 
   List<({FocusNode focusNode, TextEditingController controller})>
   get _imageInsertDialogInputs => [
@@ -5767,6 +5768,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
 
   @override
   void dispose() {
+    _notifyDialogVisibilityClosedOnDispose();
     widget.controller?._detach(this);
     _focusNode.removeListener(_handleSheetFocusChanged);
     for (final input in _imageInsertDialogInputs) {
@@ -30330,6 +30332,42 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         _searchDialogOpen;
   }
 
+  bool get _anySheetDialogOpen =>
+      _activeDialogOpen || _imageInsertDialogOpen || _barcodeDialogOpen;
+
+  void _notifyDialogVisibilityIfChanged() {
+    final open = _anySheetDialogOpen;
+    if (_lastDialogVisibilityNotified == null && !open) {
+      _lastDialogVisibilityNotified = false;
+      return;
+    }
+    if (_lastDialogVisibilityNotified == open) {
+      return;
+    }
+    _lastDialogVisibilityNotified = open;
+    final callback = _workbook.settings.onDialogVisibilityChanged;
+    if (callback == null) {
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted && open) {
+        return;
+      }
+      unawaited(Future<void>.sync(() => callback(open)));
+    });
+  }
+
+  void _notifyDialogVisibilityClosedOnDispose() {
+    if (_lastDialogVisibilityNotified != true) {
+      return;
+    }
+    final callback = _workbook.settings.onDialogVisibilityChanged;
+    if (callback == null) {
+      return;
+    }
+    unawaited(Future<void>.sync(() => callback(false)));
+  }
+
   bool _isSelectionNavigationKey(LogicalKeyboardKey key) {
     return key == LogicalKeyboardKey.arrowUp ||
         key == LogicalKeyboardKey.arrowDown ||
@@ -41613,6 +41651,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
 
   @override
   Widget build(BuildContext context) {
+    _notifyDialogVisibilityIfChanged();
     return Focus(
       focusNode: _focusNode,
       autofocus: true,

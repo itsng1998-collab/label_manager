@@ -257,6 +257,84 @@ void main() {
     expect(painter().dialogClosePressedKey, isNull);
   });
 
+  testWidgets('sheet dialog visibility callback follows barcode dialog', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    final visibility = <bool>[];
+    final workbook = FortuneWorkbook(
+      settings: FortuneSettings(
+        toolbarItems: const [fortuneToolbarBarcodeCommand],
+        onDialogVisibilityChanged: (open) {
+          visibility.add(open);
+        },
+      ),
+      sheets: [FortuneSheet(id: 's1', name: 'Sheet1')],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SizedBox(
+          width: 900,
+          height: 700,
+          child: FortuneSheetCanvas(
+            workbook: workbook,
+            barcodeFormats: const [
+              FortuneBarcodeFormatOption(id: 'code128', label: 'Code128'),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    FortuneSheetPainter painter() {
+      return tester
+          .widgetList<CustomPaint>(
+            find.descendant(
+              of: find.byType(FortuneSheetCanvas),
+              matching: find.byType(CustomPaint),
+            ),
+          )
+          .map((paint) => paint.painter)
+          .whereType<FortuneSheetPainter>()
+          .single;
+    }
+
+    final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
+    await tester.tapAt(
+      topLeft +
+          toolbarItemCenter(
+            fortuneToolbarBarcodeCommand,
+            width: 900,
+            items: workbook.settings.toolbarItems,
+          ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    expect(painter().barcodeDialogOpen, isTrue);
+    expect(visibility, [true]);
+
+    final dialogRect = fortuneBarcodeDialogRect(
+      const Size(900, 700),
+      editing: false,
+    );
+    await tester.tapAt(
+      topLeft + fortuneBarcodeCloseButtonRect(dialogRect).center,
+    );
+    await tester.pump();
+    await tester.pump();
+
+    expect(painter().barcodeDialogOpen, isFalse);
+    expect(visibility, [true, false]);
+  });
+
   testWidgets('barcode insert button follows text value presence', (
     tester,
   ) async {

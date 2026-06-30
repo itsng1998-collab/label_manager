@@ -686,11 +686,11 @@ void main() {
               initialWorkbook: FortuneWorkbook(
                 sheets: [FortuneSheet(id: 's1', name: 'Label')],
               ),
-              onBeforePrintSettingsDialog: () {
+              onBeforeSheetDialog: () {
                 events.add('before');
                 return beforeCompleter.future;
               },
-              onPrintSettingsDialogClosed: () {
+              onSheetDialogClosed: () {
                 events.add('closed');
               },
             ),

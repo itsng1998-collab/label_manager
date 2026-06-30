@@ -67,7 +67,7 @@ class _HomePageManagerState extends State<HomePageManager> {
   bool _autoSelectedCommonLabelOnce = false;
   bool _commonLabelTabActivated = false;
   bool _commonLabelPreviewClosedByUser = false;
-  bool _commonLabelPreviewHiddenForPrintSettings = false;
+  bool _commonLabelPreviewHiddenForSheetDialog = false;
 
   bool get _isAutoLoginMode => AutoLoginGuard.instance.enabled;
   LabelSize? get _effectiveLabelSize => _currentLabelSize;
@@ -484,10 +484,8 @@ class _HomePageManagerState extends State<HomePageManager> {
                 labelSize: _effectiveLabelSize,
                 onSheetReady: _handleCommonLabelSheetReady,
                 onGridRectChanged: _handleCommonLabelGridRectChanged,
-                onBeforePrintSettingsDialog:
-                    _handleCommonLabelPrintSettingsOpening,
-                onPrintSettingsDialogClosed:
-                    _handleCommonLabelPrintSettingsClosed,
+                onBeforeSheetDialog: _handleCommonLabelSheetDialogOpening,
+                onSheetDialogClosed: _handleCommonLabelSheetDialogClosed,
               )
             : const SizedBox.shrink(),
         closable: false,
@@ -666,21 +664,21 @@ class _HomePageManagerState extends State<HomePageManager> {
     _showRtfPreviewWindow();
   }
 
-  Future<void> _handleCommonLabelPrintSettingsOpening() async {
+  Future<void> _handleCommonLabelSheetDialogOpening() async {
     if (_selectedTabValue() != 'common_label') return;
     final window = _commonLabelPreviewWindow;
     if (window == null || !window.isVisible) return;
 
-    _commonLabelPreviewHiddenForPrintSettings = true;
+    _commonLabelPreviewHiddenForSheetDialog = true;
     _commonLabelPreviewClosedByUser = true;
     window.hide();
     setState(() {});
     await WidgetsBinding.instance.endOfFrame;
   }
 
-  void _handleCommonLabelPrintSettingsClosed() {
-    if (!_commonLabelPreviewHiddenForPrintSettings) return;
-    _commonLabelPreviewHiddenForPrintSettings = false;
+  void _handleCommonLabelSheetDialogClosed() {
+    if (!_commonLabelPreviewHiddenForSheetDialog) return;
+    _commonLabelPreviewHiddenForSheetDialog = false;
     _commonLabelPreviewClosedByUser = false;
     if (!mounted) return;
     setState(() {});
