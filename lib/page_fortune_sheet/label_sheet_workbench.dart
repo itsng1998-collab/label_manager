@@ -812,6 +812,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
   String _printAutoSpacing = 'none';
   String _printOrientation = 'horizontal';
   String _printSelectedPrinterName = '';
+  bool _applyingPrintSettingsPreference = false;
 
   FortuneWorkbook get _baseWorkbook =>
       widget.initialWorkbook ??
@@ -917,6 +918,9 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
   @override
   void initState() {
     super.initState();
+    _printLeftMarginController.addListener(_savePrintSettingsPreferenceIfReady);
+    _printTopMarginController.addListener(_savePrintSettingsPreferenceIfReady);
+    _printExtraAreaController.addListener(_savePrintSettingsPreferenceIfReady);
     _zoomFocusNode
       ..addListener(_handleZoomFocusChanged)
       ..onKeyEvent = _handleZoomInputKeyEvent;
@@ -930,6 +934,11 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       ScaffoldMessenger.maybeOf(context)?.hideCurrentSnackBar();
     }
     _zoomController.dispose();
+    _printLeftMarginController.removeListener(
+      _savePrintSettingsPreferenceIfReady,
+    );
+    _printTopMarginController.removeListener(_savePrintSettingsPreferenceIfReady);
+    _printExtraAreaController.removeListener(_savePrintSettingsPreferenceIfReady);
     _printLeftMarginController.dispose();
     _printTopMarginController.dispose();
     _printExtraAreaController.dispose();
@@ -1218,17 +1227,60 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     if (!mounted) {
       return;
     }
-    final preferredPrinterName =
-        await LabelPrinterPreferences.loadPreferredPrinterName(
+    final preferredPrintSettings =
+        await LabelPrinterPreferences.loadPreferredPrintSettings(
           listPrinters: widget.printerListProvider,
         );
     if (!mounted) {
       return;
     }
+    _applyPrintSettingsPreference(preferredPrintSettings);
     setState(() {
-      _printSelectedPrinterName = preferredPrinterName ?? '';
       _printSettingsDialogOpen = true;
     });
+  }
+
+  void _applyPrintSettingsPreference(
+    LabelSheetPreferredPrintSettings? settings,
+  ) {
+    _applyingPrintSettingsPreference = true;
+    try {
+      _printLeftMarginController.text = settings?.leftMargin ?? '0.0';
+      _printTopMarginController.text = settings?.topMargin ?? '0.0';
+      _printExtraAreaController.text = settings?.extraArea ?? '0.0';
+      _printCopiesController.text = '1';
+      _printAutoSpacing = settings?.autoSpacing ?? 'none';
+      _printOrientation = settings?.orientation ?? 'horizontal';
+      _printSelectedPrinterName = settings?.printerName ?? '';
+    } finally {
+      _applyingPrintSettingsPreference = false;
+    }
+  }
+
+  LabelSheetPreferredPrintSettings? _currentPrintSettingsPreference() {
+    final printerName = _printSelectedPrinterName.trim();
+    if (printerName.isEmpty) {
+      return null;
+    }
+    return LabelSheetPreferredPrintSettings(
+      printerName: printerName,
+      leftMargin: _printLeftMarginController.text,
+      topMargin: _printTopMarginController.text,
+      autoSpacing: _printAutoSpacing,
+      extraArea: _printExtraAreaController.text,
+      orientation: _printOrientation,
+    );
+  }
+
+  void _savePrintSettingsPreferenceIfReady() {
+    if (_applyingPrintSettingsPreference) {
+      return;
+    }
+    final settings = _currentPrintSettingsPreference();
+    if (settings == null) {
+      return;
+    }
+    unawaited(LabelPrinterPreferences.savePreferredPrintSettings(settings));
   }
 
   void _closePrintSettingsDialog() {
@@ -1265,7 +1317,15 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     if (!mounted || printerName == null || printerName.isEmpty) {
       return;
     }
-    await LabelPrinterPreferences.savePreferredPrinterName(printerName);
+    final settings = LabelSheetPreferredPrintSettings(
+      printerName: printerName,
+      leftMargin: _printLeftMarginController.text,
+      topMargin: _printTopMarginController.text,
+      autoSpacing: _printAutoSpacing,
+      extraArea: _printExtraAreaController.text,
+      orientation: _printOrientation,
+    );
+    await LabelPrinterPreferences.savePreferredPrintSettings(settings);
     if (!mounted) {
       return;
     }
@@ -1534,6 +1594,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
                   setState(() {
                     _printAutoSpacing = value;
                   });
+                  _savePrintSettingsPreferenceIfReady();
                 },
                 onOrientationChanged: (value) {
                   if (value == null) {
@@ -1542,6 +1603,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
                   setState(() {
                     _printOrientation = value;
                   });
+                  _savePrintSettingsPreferenceIfReady();
                 },
                 onSelectPrinter: _handleSelectPrinter,
                 onClose: _closePrintSettingsDialog,

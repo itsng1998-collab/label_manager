@@ -90,6 +90,11 @@ Finder _printDialogCloseButtonFinder() {
   return closeFinder.evaluate().isNotEmpty ? closeFinder : find.text('취소');
 }
 
+List<String> _editableTextValues(WidgetTester tester) => tester
+    .widgetList<EditableText>(find.byType(EditableText))
+    .map((editableText) => editableText.controller.text)
+    .toList();
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -707,11 +712,16 @@ void main() {
     expect(_currentFortunePainter(tester).toolbarHoveredKey, isNull);
   });
 
-  testWidgets('label sheet print dialog displays saved preferred printer', (
+  testWidgets('label sheet print dialog restores saved preferred settings', (
     tester,
   ) async {
     SharedPreferences.setMockInitialValues(<String, Object>{
       labelSheetPreferredPrinterNamePrefsKey: 'Stored Printer',
+      labelSheetPreferredPrintLeftMarginPrefsKey: '1.5',
+      labelSheetPreferredPrintTopMarginPrefsKey: '2.5',
+      labelSheetPreferredPrintAutoSpacingPrefsKey: '120',
+      labelSheetPreferredPrintExtraAreaPrefsKey: '3.5',
+      labelSheetPreferredPrintOrientationPrefsKey: 'vertical',
     });
 
     await tester.pumpWidget(
@@ -749,6 +759,9 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Stored Printer'), findsOneWidget);
+    expect(find.text('120'), findsOneWidget);
+    expect(_editableTextValues(tester), containsAll(['1.5', '2.5', '3.5']));
+    expect(_editableTextValues(tester), contains('1'));
   });
 
   testWidgets('label sheet print dialog waits for lifecycle callback', (
