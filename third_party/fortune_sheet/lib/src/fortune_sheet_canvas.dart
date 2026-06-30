@@ -2142,8 +2142,15 @@ class FortuneSheetController {
   Future<FortuneSheetCapture?> captureRangeAsPng(
     FortuneRange range, {
     double pixelRatio = 1,
+    bool includeGridLines = true,
+    bool includeLabelAreaBoundary = true,
   }) {
-    return _state?._captureRangeAsPng(range, pixelRatio: pixelRatio) ??
+    return _state?._captureRangeAsPng(
+          range,
+          pixelRatio: pixelRatio,
+          includeGridLines: includeGridLines,
+          includeLabelAreaBoundary: includeLabelAreaBoundary,
+        ) ??
         Future<FortuneSheetCapture?>.value();
   }
 
@@ -14247,6 +14254,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     FortuneRange range,
     {
     double? pixelRatio,
+    bool includeGridLines = true,
+    bool includeLabelAreaBoundary = true,
   }
   ) async {
     final sheet = _workbook.activeSheet;
@@ -14349,7 +14358,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
             dataVerification['type'] != 'checkbox') {
           _drawScreenshotDataVerificationMarker(canvas, rect);
         }
-        if (sheet.showGridLines) {
+        if (includeGridLines && sheet.showGridLines) {
           canvas.drawRect(
             rect,
             Paint()
@@ -14469,12 +14478,14 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       originY: originY,
     );
 
-    final borderPaint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2
-      ..color = const Color(0xffdfdfdf);
-    canvas.drawLine(bounds.topLeft, bounds.bottomLeft, borderPaint);
-    canvas.drawLine(bounds.topLeft, bounds.topRight, borderPaint);
+    if (includeLabelAreaBoundary) {
+      final borderPaint = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2
+        ..color = const Color(0xffdfdfdf);
+      canvas.drawLine(bounds.topLeft, bounds.bottomLeft, borderPaint);
+      canvas.drawLine(bounds.topLeft, bounds.topRight, borderPaint);
+    }
 
     final picture = recorder.endRecording();
     final image = await picture.toImage(
@@ -14503,10 +14514,14 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   Future<FortuneSheetCapture?> _captureRangeAsPng(
     FortuneRange range, {
     required double pixelRatio,
+    required bool includeGridLines,
+    required bool includeLabelAreaBoundary,
   }) async {
     final capture = await _generateScreenshotCapture(
       range,
       pixelRatio: math.max(0.01, pixelRatio),
+      includeGridLines: includeGridLines,
+      includeLabelAreaBoundary: includeLabelAreaBoundary,
     );
     if (capture == null) {
       return null;

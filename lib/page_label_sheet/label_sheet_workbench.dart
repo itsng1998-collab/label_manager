@@ -1295,6 +1295,8 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     final capture = await _controller.captureRangeAsPng(
       _labelSheetPrintRange(sheet, physicalSize),
       pixelRatio: dpi / fortuneSheetLogicalPixelsPerInch,
+      includeGridLines: false,
+      includeLabelAreaBoundary: false,
     );
     if (!mounted) {
       return;
