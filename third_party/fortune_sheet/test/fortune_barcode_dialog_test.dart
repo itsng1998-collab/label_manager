@@ -444,6 +444,18 @@ void main() {
     expect(smallMetrics, isNotNull);
     expect(largeMetrics!.bodyRect.height, greaterThan(originalMetrics!.bodyRect.height));
     expect(smallMetrics!.bodyRect.height, lessThan(originalMetrics.bodyRect.height));
+    expect(
+      originalMetrics.fontSize,
+      closeTo(60 * 0.18 * fortuneBarcodeObjectIdLabelScale, 0.001),
+    );
+    expect(
+      originalMetrics.boxRect.width,
+      greaterThanOrEqualTo(120 * 0.18 * fortuneBarcodeObjectIdLabelScale),
+    );
+    expect(
+      originalMetrics.boxRect.height,
+      greaterThanOrEqualTo(60 * 0.12 * fortuneBarcodeObjectIdLabelScale),
+    );
     expect(largeMetrics.boxRect.width, greaterThan(originalMetrics.boxRect.width));
     expect(smallMetrics.boxRect.width, lessThan(originalMetrics.boxRect.width));
     expect(largeMetrics.fontSize, greaterThan(originalMetrics.fontSize));

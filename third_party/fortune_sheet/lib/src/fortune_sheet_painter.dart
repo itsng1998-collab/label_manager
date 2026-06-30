@@ -44175,6 +44175,7 @@ const String fortuneBarcodeBodyHeightExtraKey = 'barcodeBodyHeight';
 const String fortuneBarcodeBodyRatioExtraKey = 'barcodeBodyRatio';
 const String fortuneBarcodeIdLabelPrintExcludedExtraKey =
   'barcodeIdLabelPrintExcluded';
+const double fortuneBarcodeObjectIdLabelScale = 1.5;
 
 class FortuneBarcodeObjectIdLabelMetrics {
   const FortuneBarcodeObjectIdLabelMetrics({
@@ -44216,8 +44217,15 @@ FortuneBarcodeObjectIdLabelMetrics? fortuneBarcodeObjectIdLabelMetrics(
   if (bodyRect.width < 12 || bodyRect.height < 10) {
     return null;
   }
-  final fontSize = math.max(4.0, math.min(18.0, bodyRect.height * 0.18));
-  final textMaxWidth = math.max(8.0, bodyRect.width * 0.7);
+  const labelScale = fortuneBarcodeObjectIdLabelScale;
+  final fontSize = math.max(
+    4.0 * labelScale,
+    math.min(18.0 * labelScale, bodyRect.height * 0.18 * labelScale),
+  );
+  final textMaxWidth = math.min(
+    bodyRect.width,
+    math.max(8.0 * labelScale, bodyRect.width * 0.7 * labelScale),
+  );
   final textPainter = TextPainter(
     text: TextSpan(
       text: objectId,
@@ -44232,22 +44240,34 @@ FortuneBarcodeObjectIdLabelMetrics? fortuneBarcodeObjectIdLabelMetrics(
     ellipsis: '...',
     textDirection: textDirection,
   )..layout(maxWidth: textMaxWidth);
-  final horizontalPadding = math.max(2.0, bodyRect.width * 0.04);
-  final verticalPadding = math.max(1.0, bodyRect.height * 0.04);
+  final horizontalPadding = math.max(
+    2.0 * labelScale,
+    bodyRect.width * 0.04 * labelScale,
+  );
+  final verticalPadding = math.max(
+    1.0 * labelScale,
+    bodyRect.height * 0.04 * labelScale,
+  );
   final minBoxWidth = math.min(
     bodyRect.width,
-    math.max(8.0, bodyRect.width * 0.18),
+    math.max(8.0 * labelScale, bodyRect.width * 0.18 * labelScale),
   );
   final minBoxHeight = math.min(
     bodyRect.height,
-    math.max(5.0, bodyRect.height * 0.12),
+    math.max(5.0 * labelScale, bodyRect.height * 0.12 * labelScale),
   );
   final boxWidth = math.max(
-    math.min(bodyRect.width * 0.46, textPainter.width + horizontalPadding * 2),
+    math.min(
+      bodyRect.width * 0.46 * labelScale,
+      textPainter.width + horizontalPadding * 2,
+    ),
     minBoxWidth,
   );
   final boxHeight = math.max(
-    math.min(bodyRect.height * 0.28, textPainter.height + verticalPadding * 2),
+    math.min(
+      bodyRect.height * 0.28 * labelScale,
+      textPainter.height + verticalPadding * 2,
+    ),
     minBoxHeight,
   );
   final box = Rect.fromCenter(
