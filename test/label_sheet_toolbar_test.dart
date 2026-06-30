@@ -568,11 +568,27 @@ void main() {
       find.byKey(const ValueKey('label-sheet-print-settings-dialog')),
       findsOneWidget,
     );
-    expect(find.text('환경 설정'), findsOneWidget);
+    expect(find.text('프린터 설정'), findsOneWidget);
     expect(find.text('프린터 선택'), findsOneWidget);
     expect(find.text('발행'), findsOneWidget);
     expect(find.text('적용'), findsOneWidget);
     expect(find.text('닫기'), findsOneWidget);
+    expect(find.text('%'), findsWidgets);
+    expect(find.text('간격조정 없음'), findsOneWidget);
+
+    await tester.tap(find.text('간격조정 없음'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('80'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('300'),
+      100,
+      scrollable: find.byType(Scrollable).last,
+    );
+
+    expect(find.text('300'), findsOneWidget);
+  await tester.tap(find.text('300'));
+  await tester.pumpAndSettle();
 
     await tester.tap(find.text('닫기'));
     await tester.pump();

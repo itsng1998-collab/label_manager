@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
@@ -14,7 +15,9 @@ import 'package:label_manager/page_fortune_sheet/label_sheet_ai_import.dart';
 import 'package:label_manager/page_fortune_sheet/label_sheet_import_model.dart';
 import 'package:label_manager/page_fortune_sheet/label_sheet_rtf_import.dart';
 import 'package:label_manager/page_fortune_sheet/label_sheet_save_codec.dart';
+import 'package:label_manager/printing/raw_printer_win32.dart';
 import 'package:label_manager/utils/on_messages.dart';
+import 'package:printing/printing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 bool labelSheetWriteRtfOpenXmlTestFileEnabled = false;
@@ -798,6 +801,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
   bool _printSettingsDialogOpen = false;
   String _printAutoSpacing = 'none';
   String _printOrientation = 'horizontal';
+  String _printSelectedPrinterName = '';
 
   FortuneWorkbook get _baseWorkbook =>
       widget.initialWorkbook ??
@@ -1209,6 +1213,19 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     });
   }
 
+  Future<void> _handleSelectPrinter() async {
+    final printerName = Platform.isWindows
+        ? await RawPrinterWin32.showPrinterSetupDialog()
+        : (await Printing.pickPrinter(context: context, title: '프린터 선택'))
+              ?.name;
+    if (!mounted || printerName == null || printerName.isEmpty) {
+      return;
+    }
+    setState(() {
+      _printSelectedPrinterName = printerName;
+    });
+  }
+
   Future<void> _handleSave() async {
     fortuneSheetDebugLog('label sheet save toolbar click');
     final callback = widget.onSave;
@@ -1454,6 +1471,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
               copiesController: _printCopiesController,
               autoSpacing: _printAutoSpacing,
               orientation: _printOrientation,
+              selectedPrinterName: _printSelectedPrinterName,
               onAutoSpacingChanged: (value) {
                 if (value == null) {
                   return;
@@ -1470,6 +1488,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
                   _printOrientation = value;
                 });
               },
+              onSelectPrinter: _handleSelectPrinter,
               onClose: _closePrintSettingsDialog,
             ),
           ),
@@ -1833,8 +1852,10 @@ class _LabelSheetPrintSettingsDialog extends StatelessWidget {
     required this.copiesController,
     required this.autoSpacing,
     required this.orientation,
+    required this.selectedPrinterName,
     required this.onAutoSpacingChanged,
     required this.onOrientationChanged,
+    required this.onSelectPrinter,
     required this.onClose,
   });
 
@@ -1844,15 +1865,17 @@ class _LabelSheetPrintSettingsDialog extends StatelessWidget {
   final TextEditingController copiesController;
   final String autoSpacing;
   final String orientation;
+  final String selectedPrinterName;
   final ValueChanged<String?> onAutoSpacingChanged;
   final ValueChanged<String?> onOrientationChanged;
+  final VoidCallback onSelectPrinter;
   final VoidCallback onClose;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       key: const ValueKey('label-sheet-print-settings-dialog'),
-      width: 486,
+      width: 506,
       height: 226,
       decoration: BoxDecoration(
         color: const Color(0xfff6f6f6),
@@ -1874,7 +1897,7 @@ class _LabelSheetPrintSettingsDialog extends StatelessWidget {
               left: 12,
               top: 7,
               child: Text(
-                '환경 설정',
+                '프린터 설정',
                 style: TextStyle(fontSize: 13, color: Color(0xff111111)),
               ),
             ),
@@ -1887,7 +1910,7 @@ class _LabelSheetPrintSettingsDialog extends StatelessWidget {
                 child: IconButton(
                   padding: EdgeInsets.zero,
                   splashRadius: 14,
-                  icon: const Icon(Icons.close, size: 16),
+                  icon: const _PrintDialogCloseIcon(),
                   onPressed: onClose,
                 ),
               ),
@@ -1900,19 +1923,20 @@ class _LabelSheetPrintSettingsDialog extends StatelessWidget {
               child: _PrintDialogGroup(
                 title: '여백',
                 child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     const SizedBox(width: 7),
-                    const Text('왼쪽', style: _labelStyle),
+                    const _PrintDialogCenteredLabel('왼쪽'),
                     const SizedBox(width: 8),
                     _PrintDialogInput(controller: leftMarginController),
                     const SizedBox(width: 8),
-                    const Text('mm', style: _labelStyle),
+                    const _PrintDialogCenteredLabel('mm'),
                     const SizedBox(width: 24),
-                    const Text('위쪽', style: _labelStyle),
+                    const _PrintDialogCenteredLabel('위쪽'),
                     const SizedBox(width: 8),
                     _PrintDialogInput(controller: topMarginController),
                     const SizedBox(width: 8),
-                    const Text('mm', style: _labelStyle),
+                    const _PrintDialogCenteredLabel('mm'),
                   ],
                 ),
               ),
@@ -1920,26 +1944,30 @@ class _LabelSheetPrintSettingsDialog extends StatelessWidget {
             Positioned(
               left: 320,
               top: 33,
-              width: 148,
+              width: 168,
               height: 52,
               child: _PrintDialogGroup(
                 title: '자동줄간격',
-                child: Padding(
-                  padding: const EdgeInsets.only(left: 15, right: 8),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      value: autoSpacing,
-                      isExpanded: true,
-                      style: _labelStyle,
-                      items: const [
-                        DropdownMenuItem(
-                          value: 'none',
-                          child: Text('간격조정 없음'),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.only(left: 12),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            value: autoSpacing,
+                            isExpanded: true,
+                            style: _labelStyle,
+                            items: _autoSpacingItems,
+                            onChanged: onAutoSpacingChanged,
+                          ),
                         ),
-                      ],
-                      onChanged: onAutoSpacingChanged,
+                      ),
                     ),
-                  ),
+                    const SizedBox(width: 5),
+                    const _PrintDialogCenteredLabel('%'),
+                    const SizedBox(width: 8),
+                  ],
                 ),
               ),
             ),
@@ -1949,11 +1977,28 @@ class _LabelSheetPrintSettingsDialog extends StatelessWidget {
               child: Text('발행 프린터', style: _sectionStyle),
             ),
             Positioned(
+              left: 93,
+              top: 94,
+              width: 300,
+              height: 20,
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  selectedPrinterName,
+                  overflow: TextOverflow.ellipsis,
+                  style: _labelStyle,
+                ),
+              ),
+            ),
+            Positioned(
               right: 17,
               top: 91,
               width: 94,
               height: 30,
-              child: _PrintDialogButton(label: '프린터 선택', onPressed: () {}),
+              child: _PrintDialogButton(
+                label: '프린터 선택',
+                onPressed: onSelectPrinter,
+              ),
             ),
             Positioned(
               left: 86,
@@ -2044,6 +2089,62 @@ class _LabelSheetPrintSettingsDialog extends StatelessWidget {
     fontSize: 14,
     color: Color(0xff111111),
   );
+
+  static final List<DropdownMenuItem<String>> _autoSpacingItems = [
+    const DropdownMenuItem(value: 'none', child: Text('간격조정 없음')),
+    for (var value = 80; value <= 300; value += 5)
+      DropdownMenuItem(value: '$value', child: Text('$value')),
+  ];
+}
+
+class _PrintDialogCloseIcon extends StatelessWidget {
+  const _PrintDialogCloseIcon();
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      size: const Size(16, 16),
+      painter: _PrintDialogCloseIconPainter(),
+    );
+  }
+}
+
+class _PrintDialogCloseIconPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final glyphRect = ui.Rect.fromCenter(
+      center: ui.Offset(size.width / 2, size.height / 2),
+      width: 11,
+      height: 11,
+    );
+    final paint = Paint()
+      ..color = const Color(0xff9a9a9a)
+      ..strokeWidth = 1.4
+      ..strokeCap = StrokeCap.round;
+    canvas.drawLine(glyphRect.topLeft, glyphRect.bottomRight, paint);
+    canvas.drawLine(glyphRect.topRight, glyphRect.bottomLeft, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _PrintDialogCloseIconPainter oldDelegate) {
+    return false;
+  }
+}
+
+class _PrintDialogCenteredLabel extends StatelessWidget {
+  const _PrintDialogCenteredLabel(this.label);
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 28,
+      child: Center(
+        child: Text(label, style: _LabelSheetPrintSettingsDialog._labelStyle),
+      ),
+    );
+  }
 }
 
 class _PrintDialogGroup extends StatelessWidget {
