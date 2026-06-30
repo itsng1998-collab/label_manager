@@ -55,6 +55,7 @@ class SwipeActionTable<T> extends StatefulWidget {
     this.rowHeight = 28,
     this.autoFitColumns = true,
     this.fillLastColumn = false,
+    this.isRowContentInteractive,
   });
 
   final List<T> rows;
@@ -70,6 +71,7 @@ class SwipeActionTable<T> extends StatefulWidget {
   final double rowHeight;
   final bool autoFitColumns;
   final bool fillLastColumn;
+  final bool Function(T row, int index)? isRowContentInteractive;
 
   @override
   State<SwipeActionTable<T>> createState() => _SwipeActionTableState<T>();
@@ -478,29 +480,41 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
                 final color = callback == null
                     ? action.backgroundColor.withValues(alpha: 0.45)
                     : action.backgroundColor;
+                final backgroundColor = isPressed
+                    ? Color.lerp(color, Colors.black, 0.16) ?? color
+                    : color;
                 return Tooltip(
                   message: action.tooltip,
                   child: SizedBox(
                     width: _actionWidth,
                     height: widget.rowHeight,
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: color,
-                        border: isPressed
-                            ? Border.all(
-                                color: const Color(0xff4b5563),
-                                width: 2,
-                              )
-                            : null,
-                      ),
-                      child: IconButton(
-                        padding: EdgeInsets.zero,
-                        icon: Icon(
-                          action.icon,
-                          size: 18,
-                          color: Colors.white,
+                    child: Material(
+                      color: Colors.transparent,
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 100),
+                        decoration: BoxDecoration(
+                          color: backgroundColor,
+                          border: isPressed
+                              ? const Border(
+                                  top: BorderSide(color: Color(0xff4b5563)),
+                                  left: BorderSide(color: Color(0xff4b5563)),
+                                  right: BorderSide(color: Color(0xffcbd5e1)),
+                                  bottom: BorderSide(color: Color(0xffcbd5e1)),
+                                )
+                              : null,
                         ),
-                        onPressed: callback,
+                        child: Transform.translate(
+                          offset: isPressed ? const Offset(1, 1) : Offset.zero,
+                          child: IconButton(
+                            padding: EdgeInsets.zero,
+                            icon: Icon(
+                              action.icon,
+                              size: 18,
+                              color: Colors.white,
+                            ),
+                            onPressed: callback,
+                          ),
+                        ),
                       ),
                     ),
                   ),
@@ -522,6 +536,8 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
     );
     final actionsWidth = widget.actions.length * _actionWidth;
     final isOpen = widget.rowSwipeEnabled && _openActionIndex == index;
+    final isRowContentInteractive =
+      widget.isRowContentInteractive?.call(row, index) ?? false;
     final rowContent = SizedBox(
       width: contentWidth,
       height: widget.rowHeight,
@@ -548,17 +564,18 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
               bottom: 0,
               child: Container(width: 1, color: _bodySeparatorColor),
             ),
-          Positioned.fill(
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                hoverColor: Colors.transparent,
-                splashColor: Colors.transparent,
-                highlightColor: Colors.transparent,
-                onTap: () => setState(() => _selectedIndex = index),
+          if (!isRowContentInteractive)
+            Positioned.fill(
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  hoverColor: Colors.transparent,
+                  splashColor: Colors.transparent,
+                  highlightColor: Colors.transparent,
+                  onTap: () => setState(() => _selectedIndex = index),
+                ),
               ),
             ),
-          ),
         ],
       ),
     );
@@ -578,19 +595,22 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
       child: ClipRect(
         child: Stack(
           children: [
-            GestureDetector(
-              behavior: HitTestBehavior.translucent,
-              onHorizontalDragUpdate: widget.rowSwipeEnabled
-                  ? (details) {
-                      if (details.delta.dx < -2) {
-                        setState(() => _openActionIndex = index);
-                      } else if (details.delta.dx > 2) {
-                        setState(() => _openActionIndex = null);
+            if (isRowContentInteractive)
+              foreground
+            else
+              GestureDetector(
+                behavior: HitTestBehavior.translucent,
+                onHorizontalDragUpdate: widget.rowSwipeEnabled
+                    ? (details) {
+                        if (details.delta.dx < -2) {
+                          setState(() => _openActionIndex = index);
+                        } else if (details.delta.dx > 2) {
+                          setState(() => _openActionIndex = null);
+                        }
                       }
-                    }
-                  : null,
-              child: foreground,
-            ),
+                    : null,
+                child: foreground,
+              ),
             if (widget.rowSwipeEnabled && widget.actions.isNotEmpty)
               AnimatedPositioned(
                 duration: const Duration(milliseconds: 160),

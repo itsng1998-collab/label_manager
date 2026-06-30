@@ -1495,6 +1495,7 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
                   keepRowContentOnSwipe: true,
                   rowTooltip: '컬럼 왼쪽 스와이프 수정/삽입/삭제',
                   showActionsWhenEmpty: true,
+                  isRowContentInteractive: (_, index) => _editingIndex == index,
                   actions: _brandRowActions(),
                   emptyActions: _brandEmptyActions(),
                   columns: [
