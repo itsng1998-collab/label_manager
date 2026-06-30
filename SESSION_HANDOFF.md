@@ -27,6 +27,8 @@
 
 ## 현재 상태
 
+- 완료: 공용라벨관리 `특별 항목`/`사용 항목` 테이블의 자동 넓이 맞춤에서 여백이 남을 때 하단 가로 스크롤바가 나오지 않도록 보정했다. `lib/page_home/common_label_manage.dart`: `_CommonLabelTable`에서 `fillLastColumn: true`를 켜 자동 계산된 컬럼 폭 합계가 테이블 표시 폭보다 작을 때 마지막 컬럼이 남는 폭을 채우도록 했다. `lib/widgets/swipe_action_table.dart`: 실제 content 폭이 row number를 제외한 horizontal viewport 폭보다 클 때만 하단 horizontal `Scrollbar.thumbVisibility`가 켜지도록 변경했다. 따라서 여백으로 채울 수 있는 경우에는 스크롤바가 숨겨지고, 실제로 폭이 부족한 경우에만 가로 스크롤이 유지된다. 검증 성공: `C:/flutter/bin/flutter.bat analyze --no-fatal-warnings --no-fatal-infos lib/home_page_manager.dart lib/page_home/common_label_manage.dart lib/widgets/swipe_action_table.dart`, `C:/flutter/bin/flutter.bat test test/common_label_manage_test.dart`.
+
 - 완료: 상단 브랜드/라벨 `설정` 버튼의 outline 코너 곡선을 줄였다. `lib/home_page_manager.dart`: 두 `OutlinedButton` style에 `RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))`을 명시해 기본 버튼 radius보다 절반 수준으로 각진 형태가 되도록 했다. 검증 성공: `C:/flutter/bin/flutter.bat analyze --no-fatal-warnings --no-fatal-infos lib/home_page_manager.dart`.
 
 - 완료: 브랜드 설정 다이얼로그 인라인 에디터 outline이 수정 버튼 영역까지 이어지는 문제를 수정했다. `lib/widgets/swipe_action_table.dart`: row content를 고정한 채 action rail을 overlay로 여는 모드에서, 현재 행이 인라인 편집 중이고 액션 레일이 열린 경우 마지막 컬럼 폭에서 action rail 폭을 제외한 `rowWidths`를 셀 빌더에 전달하도록 변경했다. 이로써 `TextField` outline은 수정/삽입/삭제 버튼 앞 컬럼 영역까지만 그려진다. 검증 성공: `C:/flutter/bin/flutter.bat analyze --no-fatal-warnings --no-fatal-infos lib/home_page_manager.dart lib/widgets/swipe_action_table.dart lib/page_home/common_label_manage.dart`, `C:/flutter/bin/flutter.bat test test/common_label_manage_test.dart`.

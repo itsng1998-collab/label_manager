@@ -678,6 +678,10 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
       builder: (context, constraints) {
         final widths = _effectiveWidths(constraints.maxWidth);
         final contentWidth = widths.fold<double>(0, (sum, width) => sum + width);
+        final horizontalViewportWidth = (constraints.maxWidth -
+                widget.rowNumberWidth)
+            .clamp(0, double.infinity);
+        final hasHorizontalOverflow = contentWidth > horizontalViewportWidth + 0.5;
         return Column(
           children: [
             Row(
@@ -716,7 +720,7 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
                           thumbVisibility: true,
                           child: Scrollbar(
                             controller: _hScrollBody,
-                            thumbVisibility: true,
+                            thumbVisibility: hasHorizontalOverflow,
                             notificationPredicate: (notification) =>
                                 notification.metrics.axis == Axis.horizontal,
                             child: SingleChildScrollView(

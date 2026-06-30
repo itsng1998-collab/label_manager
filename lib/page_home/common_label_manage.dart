@@ -337,6 +337,7 @@ class _CommonLabelTable extends StatelessWidget {
           ),
       ],
       autoFitColumns: columnWidths == null,
+      fillLastColumn: true,
     );
   }
 }
