@@ -2144,6 +2144,7 @@ class FortuneSheetController {
     double pixelRatio = 1,
     bool includeGridLines = true,
     bool includeCellBorders = true,
+    bool includeRulerGuides = false,
     bool includeLabelAreaBoundary = true,
   }) {
     return _state?._captureRangeAsPng(
@@ -2151,6 +2152,7 @@ class FortuneSheetController {
           pixelRatio: pixelRatio,
           includeGridLines: includeGridLines,
           includeCellBorders: includeCellBorders,
+          includeRulerGuides: includeRulerGuides,
           includeLabelAreaBoundary: includeLabelAreaBoundary,
         ) ??
         Future<FortuneSheetCapture?>.value();
@@ -14258,6 +14260,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     double? pixelRatio,
     bool includeGridLines = true,
     bool includeCellBorders = true,
+    bool includeRulerGuides = false,
     bool includeLabelAreaBoundary = true,
   }
   ) async {
@@ -14481,6 +14484,10 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       originY: originY,
     );
 
+    if (includeRulerGuides) {
+      _drawScreenshotRulerGuides(canvas, bounds, metrics, originX, originY);
+    }
+
     if (includeLabelAreaBoundary) {
       final borderPaint = Paint()
         ..style = PaintingStyle.stroke
@@ -14519,6 +14526,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     required double pixelRatio,
     required bool includeGridLines,
     required bool includeCellBorders,
+    required bool includeRulerGuides,
     required bool includeLabelAreaBoundary,
   }) async {
     final capture = await _generateScreenshotCapture(
@@ -14526,6 +14534,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       pixelRatio: math.max(0.01, pixelRatio),
       includeGridLines: includeGridLines,
       includeCellBorders: includeCellBorders,
+      includeRulerGuides: includeRulerGuides,
       includeLabelAreaBoundary: includeLabelAreaBoundary,
     );
     if (capture == null) {
@@ -16873,6 +16882,46 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     for (final overlay in overlays) {
       final rect = overlay.rect.translate(-originX, -originY);
       fortuneDrawRawShapeOverlay(canvas, rect, overlay, bounds);
+    }
+    canvas.restore();
+  }
+
+  void _drawScreenshotRulerGuides(
+    Canvas canvas,
+    Rect bounds,
+    FortuneSheetMetrics metrics,
+    double originX,
+    double originY,
+  ) {
+    final guides = _sheetRulerGuides(_workbook.activeSheet);
+    if (guides.isEmpty) {
+      return;
+    }
+    final maxWidthMm = fortuneLogicalPixelsToMillimeters(
+      metrics.columnTotalWidth,
+    );
+    final maxHeightMm = fortuneLogicalPixelsToMillimeters(
+      metrics.rowTotalHeight,
+    );
+    final paint = Paint()
+      ..color = fortuneSheetGuideColor
+      ..strokeWidth = 1.0;
+    canvas.save();
+    canvas.clipRect(bounds, doAntiAlias: false);
+    for (final guide in guides) {
+      if (guide.axis == 'vertical') {
+        final x = fortuneMillimetersToLogicalPixels(
+              guide.positionMm.clamp(0.0, maxWidthMm),
+            ) -
+            originX;
+        canvas.drawLine(Offset(x, bounds.top), Offset(x, bounds.bottom), paint);
+      } else if (guide.axis == 'horizontal') {
+        final y = fortuneMillimetersToLogicalPixels(
+              guide.positionMm.clamp(0.0, maxHeightMm),
+            ) -
+            originY;
+        canvas.drawLine(Offset(bounds.left, y), Offset(bounds.right, y), paint);
+      }
     }
     canvas.restore();
   }

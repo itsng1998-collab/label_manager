@@ -22,7 +22,7 @@ bool _isWhite(ByteData pixels, int width, int x, int y) {
 }
 
 void main() {
-  testWidgets('print capture excludes grid borders and label area boundary', (
+  testWidgets('print capture excludes grid lines ruler guides and boundary', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(240, 180);
@@ -33,6 +33,7 @@ void main() {
     });
 
     final controller = FortuneSheetController();
+    final guidePositionMm = fortuneLogicalPixelsToMillimeters(20);
     final workbook = FortuneWorkbook(
       settings: const FortuneSettings(
         defaultRowHeight: 20,
@@ -61,13 +62,13 @@ void main() {
               ],
             ),
           ],
-          extraFields: const {
+          extraFields: {
             fortuneSheetGridClientWidthMmKey: 20,
             fortuneSheetGridClientHeightMmKey: 20,
             fortuneSheetRulerVisibleKey: true,
             fortuneSheetRulerGuidesKey: [
-              {'id': 1, 'axis': 'vertical', 'positionMm': 10.0},
-              {'id': 2, 'axis': 'horizontal', 'positionMm': 10.0},
+              {'id': 1, 'axis': 'vertical', 'positionMm': guidePositionMm},
+              {'id': 2, 'axis': 'horizontal', 'positionMm': guidePositionMm},
             ],
           },
         ),
@@ -100,6 +101,7 @@ void main() {
         pixelRatio: 1,
         includeGridLines: false,
         includeCellBorders: false,
+        includeRulerGuides: false,
         includeLabelAreaBoundary: false,
       ),
     );

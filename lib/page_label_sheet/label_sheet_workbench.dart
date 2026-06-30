@@ -1297,6 +1297,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       pixelRatio: dpi / fortuneSheetLogicalPixelsPerInch,
       includeGridLines: false,
       includeCellBorders: false,
+      includeRulerGuides: false,
       includeLabelAreaBoundary: false,
     );
     if (!mounted) {
