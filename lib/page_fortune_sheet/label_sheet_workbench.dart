@@ -1918,7 +1918,7 @@ class _LabelSheetPrintSettingsDialog extends StatelessWidget {
             ),
             Positioned(
               left: 20,
-              top: 43,
+              top: 40,
               width: 300,
               height: 58,
               child: _PrintDialogGroup(
@@ -2001,9 +2001,9 @@ class _LabelSheetPrintSettingsDialog extends StatelessWidget {
               child: Text('발행 프린터', style: _sectionStyle),
             ),
             Positioned(
-              left: 105,
+              left: 107,
               top: 106,
-              width: 293,
+              width: 291,
               height: 30,
               child: _PrintDialogInsetValue(value: selectedPrinterName),
             ),
@@ -2056,7 +2056,7 @@ class _LabelSheetPrintSettingsDialog extends StatelessWidget {
             ),
             const Positioned(
               left: 24,
-              top: 179,
+              top: 181,
               child: Text(
                 '매수',
                 style: TextStyle(fontSize: 30, color: Color(0xff000000)),
@@ -2064,7 +2064,7 @@ class _LabelSheetPrintSettingsDialog extends StatelessWidget {
             ),
             Positioned(
               left: 91,
-              top: 181,
+              top: 183,
               width: 84,
               height: 38,
               child: _PrintDialogInput(
