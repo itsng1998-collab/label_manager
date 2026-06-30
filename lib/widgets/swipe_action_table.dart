@@ -21,18 +21,22 @@ class SwipeActionTableColumn<T> {
   final Widget Function(BuildContext context, T row, double width)? cellBuilder;
 }
 
-class SwipeActionTableAction {
+class SwipeActionTableAction<T> {
   const SwipeActionTableAction({
     required this.icon,
     required this.tooltip,
     required this.backgroundColor,
     this.onPressed,
+    this.onRowPressed,
+    this.isPressed,
   });
 
   final IconData icon;
   final String tooltip;
   final Color backgroundColor;
   final VoidCallback? onPressed;
+  final void Function(T row, int index)? onRowPressed;
+  final bool Function(T row, int index)? isPressed;
 }
 
 class SwipeActionTable<T> extends StatefulWidget {
@@ -41,7 +45,7 @@ class SwipeActionTable<T> extends StatefulWidget {
     required this.rows,
     required this.columns,
     this.rowSwipeEnabled = false,
-    this.actions = const <SwipeActionTableAction>[],
+    this.actions = const [],
     this.showActionsWhenEmpty = false,
     this.emptyActions,
     this.rowTooltip,
@@ -56,9 +60,9 @@ class SwipeActionTable<T> extends StatefulWidget {
   final List<T> rows;
   final List<SwipeActionTableColumn<T>> columns;
   final bool rowSwipeEnabled;
-  final List<SwipeActionTableAction> actions;
+  final List<SwipeActionTableAction<T>> actions;
   final bool showActionsWhenEmpty;
-  final List<SwipeActionTableAction>? emptyActions;
+  final List<SwipeActionTableAction<T>>? emptyActions;
   final String? rowTooltip;
   final bool keepRowContentOnSwipe;
   final double rowNumberWidth;
@@ -451,29 +455,57 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
     );
   }
 
-  Widget _buildActionRail(List<SwipeActionTableAction> actions) {
+  Widget _buildActionRail(
+    List<SwipeActionTableAction<T>> actions, {
+    T? row,
+    int? rowIndex,
+  }) {
     return Align(
       alignment: Alignment.centerRight,
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           for (final action in actions)
-            Tooltip(
-              message: action.tooltip,
-              child: SizedBox(
-                width: _actionWidth,
-                height: widget.rowHeight,
-                child: Material(
-                  color: action.onPressed == null
-                      ? action.backgroundColor.withValues(alpha: 0.45)
-                      : action.backgroundColor,
-                  child: IconButton(
-                    padding: EdgeInsets.zero,
-                    icon: Icon(action.icon, size: 18, color: Colors.white),
-                    onPressed: action.onPressed,
+            Builder(
+              builder: (context) {
+                final isRowAction = row != null && rowIndex != null;
+                final callback = isRowAction && action.onRowPressed != null
+                    ? () => action.onRowPressed!(row, rowIndex)
+                    : action.onPressed;
+                final isPressed = isRowAction
+                    ? action.isPressed?.call(row, rowIndex) ?? false
+                    : false;
+                final color = callback == null
+                    ? action.backgroundColor.withValues(alpha: 0.45)
+                    : action.backgroundColor;
+                return Tooltip(
+                  message: action.tooltip,
+                  child: SizedBox(
+                    width: _actionWidth,
+                    height: widget.rowHeight,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: color,
+                        border: isPressed
+                            ? Border.all(
+                                color: const Color(0xff4b5563),
+                                width: 2,
+                              )
+                            : null,
+                      ),
+                      child: IconButton(
+                        padding: EdgeInsets.zero,
+                        icon: Icon(
+                          action.icon,
+                          size: 18,
+                          color: Colors.white,
+                        ),
+                        onPressed: callback,
+                      ),
+                    ),
                   ),
-                ),
-              ),
+                );
+              },
             ),
         ],
       ),
@@ -574,7 +606,11 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
                       setState(() => _openActionIndex = null);
                     }
                   },
-                  child: _buildActionRail(widget.actions),
+                  child: _buildActionRail(
+                    widget.actions,
+                    row: row,
+                    rowIndex: index,
+                  ),
                 ),
               ),
           ],

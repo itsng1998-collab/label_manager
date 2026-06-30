@@ -4,6 +4,7 @@ import 'dart:io' show Platform;
 import 'package:collection/collection.dart';
 import 'package:dropdown_button2/dropdown_button2.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:tabbed_view/tabbed_view.dart';
 
 import 'package:label_manager/core/app.dart';
@@ -1400,13 +1401,46 @@ class _PlaceholderTab extends StatelessWidget {
   }
 }
 
-class _BrandSettingsDialog extends StatelessWidget {
+class _BrandSettingsDialog extends StatefulWidget {
   const _BrandSettingsDialog({required this.brands, required this.onClose});
 
   final List<Brand> brands;
   final VoidCallback onClose;
 
+  @override
+  State<_BrandSettingsDialog> createState() => _BrandSettingsDialogState();
+}
+
+class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
   static const double _dialogWidth = 500;
+
+  late List<Brand> _brands;
+  final TextEditingController _brandNameEditController =
+      TextEditingController();
+  final FocusNode _brandNameEditFocusNode = FocusNode();
+  int? _editingIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    _brands = List<Brand>.from(widget.brands);
+  }
+
+  @override
+  void didUpdateWidget(covariant _BrandSettingsDialog oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.brands, widget.brands)) {
+      _brands = List<Brand>.from(widget.brands);
+      _cancelBrandNameEdit();
+    }
+  }
+
+  @override
+  void dispose() {
+    _brandNameEditController.dispose();
+    _brandNameEditFocusNode.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1445,7 +1479,7 @@ class _BrandSettingsDialog extends StatelessWidget {
                       height: 28,
                     ),
                     icon: const _BrandDialogCloseIcon(),
-                    onPressed: onClose,
+                    onPressed: widget.onClose,
                   ),
                 ],
               ),
@@ -1454,7 +1488,7 @@ class _BrandSettingsDialog extends StatelessWidget {
               child: Padding(
                 padding: const EdgeInsets.only(left: 8, right: 8, bottom: 8),
                 child: SwipeActionTable<Brand>(
-                  rows: brands,
+                  rows: _brands,
                   fillLastColumn: true,
                   autoFitColumns: false,
                   rowSwipeEnabled: true,
@@ -1463,13 +1497,14 @@ class _BrandSettingsDialog extends StatelessWidget {
                   showActionsWhenEmpty: true,
                   actions: _brandRowActions(),
                   emptyActions: _brandEmptyActions(),
-                  columns: const [
+                  columns: [
                     SwipeActionTableColumn<Brand>(
                       header: '브랜드 이름',
                       initialWidth: 220,
                       minWidth: 120,
                       fillRemaining: true,
                       text: _brandNameText,
+                      cellBuilder: _buildBrandNameCell,
                     ),
                   ],
                 ),
@@ -1483,21 +1518,22 @@ class _BrandSettingsDialog extends StatelessWidget {
 
   static String _brandNameText(Brand brand) => brand.brandName;
 
-  static List<SwipeActionTableAction> _brandRowActions() {
-    return const [
-      SwipeActionTableAction(
+  List<SwipeActionTableAction<Brand>> _brandRowActions() {
+    return [
+      SwipeActionTableAction<Brand>(
         icon: Icons.edit,
         tooltip: '수정',
-        backgroundColor: Color(0xff9ca3af),
-        onPressed: _noop,
+        backgroundColor: const Color(0xff9ca3af),
+        onRowPressed: _toggleBrandNameEdit,
+        isPressed: (_, index) => _editingIndex == index,
       ),
-      SwipeActionTableAction(
+      const SwipeActionTableAction<Brand>(
         icon: Icons.add,
         tooltip: '삽입',
         backgroundColor: Color(0xffa7b0bd),
         onPressed: _noop,
       ),
-      SwipeActionTableAction(
+      const SwipeActionTableAction<Brand>(
         icon: Icons.delete,
         tooltip: '삭제',
         backgroundColor: Color(0xffb4bac3),
@@ -1506,25 +1542,165 @@ class _BrandSettingsDialog extends StatelessWidget {
     ];
   }
 
-  static List<SwipeActionTableAction> _brandEmptyActions() {
+  static List<SwipeActionTableAction<Brand>> _brandEmptyActions() {
     return const [
-      SwipeActionTableAction(
+      SwipeActionTableAction<Brand>(
         icon: Icons.edit,
         tooltip: '수정',
         backgroundColor: Color(0xff9ca3af),
       ),
-      SwipeActionTableAction(
+      SwipeActionTableAction<Brand>(
         icon: Icons.add,
         tooltip: '삽입',
         backgroundColor: Color(0xffa7b0bd),
         onPressed: _noop,
       ),
-      SwipeActionTableAction(
+      SwipeActionTableAction<Brand>(
         icon: Icons.delete,
         tooltip: '삭제',
         backgroundColor: Color(0xffb4bac3),
       ),
     ];
+  }
+
+  Widget _buildBrandNameCell(BuildContext context, Brand brand, double width) {
+    if (!_isEditingBrand(brand)) {
+      return SizedBox(
+        width: width,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 6),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              brand.brandName,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ),
+      );
+    }
+    return SizedBox(
+      width: width,
+      child: Focus(
+        onKeyEvent: (node, event) {
+          if (event is! KeyDownEvent) {
+            return KeyEventResult.ignored;
+          }
+          if (event.logicalKey == LogicalKeyboardKey.escape) {
+            _cancelBrandNameEdit();
+            return KeyEventResult.handled;
+          }
+          return KeyEventResult.ignored;
+        },
+        child: TextField(
+          controller: _brandNameEditController,
+          focusNode: _brandNameEditFocusNode,
+          autofocus: true,
+          maxLines: 1,
+          textAlignVertical: TextAlignVertical.center,
+          decoration: const InputDecoration(
+            isDense: true,
+            contentPadding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+            border: OutlineInputBorder(),
+          ),
+          onSubmitted: _submitBrandNameEdit,
+        ),
+      ),
+    );
+  }
+
+  bool _isEditingBrand(Brand brand) {
+    final editingIndex = _editingIndex;
+    return editingIndex != null &&
+        editingIndex >= 0 &&
+        editingIndex < _brands.length &&
+        identical(_brands[editingIndex], brand);
+  }
+
+  void _toggleBrandNameEdit(Brand brand, int index) {
+    if (_editingIndex == index) {
+      _cancelBrandNameEdit();
+      return;
+    }
+    setState(() {
+      _editingIndex = index;
+      _brandNameEditController.text = brand.brandName;
+      _brandNameEditController.selection = TextSelection(
+        baseOffset: 0,
+        extentOffset: brand.brandName.length,
+      );
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _editingIndex != index) {
+        return;
+      }
+      _brandNameEditFocusNode.requestFocus();
+    });
+  }
+
+  void _cancelBrandNameEdit() {
+    if (_editingIndex == null) {
+      return;
+    }
+    setState(() {
+      _editingIndex = null;
+      _brandNameEditController.clear();
+    });
+  }
+
+  Future<void> _submitBrandNameEdit(String value) async {
+    if (_editingIndex == null) {
+      return;
+    }
+    await _updateBrandName(value.trim());
+  }
+
+  Future<void> _updateBrandName(String brandName) async {
+    final editingIndex = _editingIndex;
+    if (editingIndex == null || editingIndex >= _brands.length) {
+      return;
+    }
+    final brand = _brands[editingIndex];
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        content: Text("'$brandName' 명으로 변경하시겠습니까?"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('취소'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('확인'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted) {
+      return;
+    }
+    if (confirmed != true) {
+      _cancelBrandNameEdit();
+      return;
+    }
+
+    // TODO: 실제 CRUD 호출 후 결과에 따라 아래 setState 실행 여부를 결정한다.
+    const updateSucceeded = true;
+    if (!updateSucceeded || _editingIndex != editingIndex) {
+      return;
+    }
+    setState(() {
+      _brands[editingIndex] = Brand(
+        brandId: brand.brandId,
+        customerId: brand.customerId,
+        brandName: brandName,
+      );
+      Brand.setDatas(List<Brand>.from(_brands));
+      _editingIndex = null;
+      _brandNameEditController.clear();
+    });
   }
 
   static void _noop() {}
