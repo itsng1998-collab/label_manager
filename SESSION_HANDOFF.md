@@ -1,6 +1,6 @@
 # 세션 인수인계
 
-마지막 업데이트: 2026-06-29
+마지막 업데이트: 2026-06-30
 
 ## 작업 규칙
 
@@ -26,6 +26,8 @@
 - Godex G500 같은 라벨 프린터에서 정밀한 인쇄가 핵심이면 일반 프린터 경로와 직접 출력 경로를 분리한다. 직접 출력은 처음부터 모든 스타일을 100% EZPL 명령만으로 처리하기보다 `정밀 좌표 엔진 + EZPL 명령 + 셀 bitmap fallback` 구조를 우선한다. 테두리/선/박스와 바코드는 가능한 한 EZPL 명령으로 출력하고, 화면 폰트와 프린터 폰트 차이로 1:1 보장이 어려운 복합 스타일 텍스트/이미지/배경/RTF 계열 셀은 셀 단위 bitmap fallback을 사용해 시각적 일치도를 확보한다.
 
 ## 현재 상태
+
+- 완료: 바코드 이미지 크기조정 핸들로 높이를 변경한 뒤 하단 표시 텍스트도 함께 커지거나 작아지지만, 우클릭 수정 다이얼로그의 폰트 크기가 리사이즈 전 값으로 남던 문제를 수정했다. `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`: `fortuneImageResizeExtraFieldsForMetadata`가 `barcodeHumanReadableFontSize`도 높이 scale 기준으로 갱신하도록 확장했고, 기존 stale `heightMm` metadata가 남은 바코드를 열 때는 `barcodeBarHeight`와 같은 보정 helper로 현재 이미지 높이 대비 폰트 크기를 계산한다. 부동소수 오차가 다이얼로그 라벨에 노출되지 않도록 보정값은 기존 숫자 포맷으로 정규화한다. `third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart`: 리사이즈 metadata 테스트와 수정 다이얼로그 표시 테스트에 폰트 크기 기대값을 추가했다. 검증 성공: `C:/flutter/bin/flutter.bat test third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart --plain-name "barcode image resize scales dialog height metadata"`, `C:/flutter/bin/flutter.bat test third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart --plain-name "barcode edit dialog shows resized image height"`, `C:/flutter/bin/flutter.bat test third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart --name "barcode"` 17개 통과, `C:/flutter/bin/flutter.bat analyze --no-fatal-infos third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart`. 주의: 작업 전부터 `lib/core/app.dart` dirty는 기존 unrelated 변경이라 이번 커밋에서 제외한다.
 
 - 완료: 바코드 이미지 크기조정 핸들로 높이를 변경한 뒤 우클릭 수정 다이얼로그를 열면 `바코드 높이`와 `세로`가 리사이즈 전 값으로 표시되던 문제를 수정했다. 원인은 핸들 리사이즈가 `FortuneImage.width/height`만 바꾸고 `heightMm`, `widthMm`, `barcodeBarHeight`, `barcodeBodyTop`, `barcodeBodyHeight` metadata를 갱신하지 않아 수정 다이얼로그가 stale metadata를 읽는 구조였기 때문이다. `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`: `fortuneImageResizeExtraFieldsForMetadata` helper를 추가하고 `_updateImageResize`에서 새 width/height에 맞춰 mm metadata와 바코드 높이 관련 metadata를 높이 scale 기준으로 갱신한다. 또한 바코드 수정 다이얼로그는 stale `widthMm/heightMm` 대신 실제 이미지 크기를 우선 표시하고, 기존 stale metadata가 남은 바코드는 `image.height / metadataHeight` 비율로 `barcodeBarHeight` 표시값을 보정한다. `third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart`: metadata 스케일링 단위 테스트와 stale metadata를 가진 리사이즈 바코드의 수정 다이얼로그 표시 테스트를 추가했다. 검증 성공: `C:/flutter/bin/flutter.bat test third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart --plain-name "barcode image resize scales dialog height metadata"`, `C:/flutter/bin/flutter.bat test third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart --plain-name "barcode edit dialog shows resized image height"`, `C:/flutter/bin/flutter.bat test third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart --name "barcode"` 17개 통과, `C:/flutter/bin/flutter.bat analyze --no-fatal-infos third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart`. 주의: 작업 전부터 `lib/core/app.dart` dirty는 기존 unrelated 변경이라 이번 커밋에서 제외한다.
 

@@ -510,6 +510,7 @@ void main() {
         'widthMm': 52.9166666667,
         'heightMm': 26.4583333333,
         'barcodeBarHeight': 10,
+        'barcodeHumanReadableFontSize': 14,
         fortuneBarcodeBodyTopExtraKey: 2,
         fortuneBarcodeBodyHeightExtraKey: 60,
         fortuneBarcodeBodyRatioExtraKey: 0.6,
@@ -526,6 +527,7 @@ void main() {
     expect(extraFields['widthMm'], closeTo(79.375, 0.001));
     expect(extraFields['heightMm'], closeTo(39.6875, 0.001));
     expect(extraFields['barcodeBarHeight'], closeTo(15, 0.001));
+    expect(extraFields['barcodeHumanReadableFontSize'], closeTo(21, 0.001));
     expect(extraFields[fortuneBarcodeBodyTopExtraKey], closeTo(3, 0.001));
     expect(extraFields[fortuneBarcodeBodyHeightExtraKey], closeTo(90, 0.001));
   });
@@ -556,6 +558,7 @@ void main() {
         'heightMm': 26.4583333333,
         'barcodeBarHeight': 10,
         'barcodeModuleScale': 3,
+        'barcodeHumanReadableFontSize': 14,
         'barcodeShowText': false,
       },
     );
@@ -635,6 +638,7 @@ void main() {
     expect(painter().barcodeDialogOpen, isTrue);
     expect(editableTextIn('fortune-barcode-height-input').controller.text, '39.69');
     expect(editableTextIn('fortune-barcode-bar-height-input').controller.text, '15');
+    expect(painter().barcodeTextFontSizeLabel, '21');
   });
 
   testWidgets('barcode dialog forwards leading and trailing text values', (

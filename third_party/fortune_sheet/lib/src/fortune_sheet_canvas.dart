@@ -156,6 +156,12 @@ Map<String, Object?> fortuneImageResizeExtraFieldsForMetadata(
       if (barHeight != null) {
         extraFields['barcodeBarHeight'] = barHeight * heightScale;
       }
+      final fontSize = _fortuneExtraDouble(
+        extraFields['barcodeHumanReadableFontSize'],
+      );
+      if (fontSize != null) {
+        extraFields['barcodeHumanReadableFontSize'] = fontSize * heightScale;
+      }
       final bodyTop = _fortuneExtraDouble(
         extraFields[fortuneBarcodeBodyTopExtraKey],
       );
@@ -22314,24 +22320,36 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
 
   double _barcodeEditBarHeightValue(FortuneImage image) {
     final barHeight = _metadataDouble(image.extraFields['barcodeBarHeight'], 10);
+    return _barcodeEditScaledByStaleHeight(image, barHeight);
+  }
+
+  double _barcodeEditTextFontSizeValue(FortuneImage image) {
+    final fontSize = _metadataDouble(
+      image.extraFields['barcodeHumanReadableFontSize'],
+      14,
+    );
+    return _barcodeEditScaledByStaleHeight(image, fontSize);
+  }
+
+  double _barcodeEditScaledByStaleHeight(FortuneImage image, double value) {
     if (!_imageInsertUsesMillimeters || image.height <= 0) {
-      return barHeight;
+      return value;
     }
     final metadataHeight = _metadataDouble(image.extraFields['heightMm'], 0);
     if (metadataHeight <= 0) {
-      return barHeight;
+      return value;
     }
     final metadataLogicalHeight = fortuneMillimetersToLogicalPixels(
       metadataHeight,
     );
     if (metadataLogicalHeight <= 0) {
-      return barHeight;
+      return value;
     }
     final heightScale = image.height / metadataLogicalHeight;
     if (!heightScale.isFinite || heightScale <= 0) {
-      return barHeight;
+      return value;
     }
-    return barHeight * heightScale;
+    return double.parse(_formatImageInsertNumber(value * heightScale));
   }
 
   bool _isBarcodeImage(FortuneImage image) {
@@ -22434,10 +22452,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       _barcodeHumanReadableFontFamily =
           extra['barcodeHumanReadableFontFamily']?.toString() ??
           _selectedBarcodeTextFontFamily;
-      _barcodeHumanReadableFontSize = _metadataDouble(
-        extra['barcodeHumanReadableFontSize'],
-        14,
-      );
+      _barcodeHumanReadableFontSize = _barcodeEditTextFontSizeValue(image);
       _barcodeTextFontMenuOpen = false;
       _barcodeTextFontMenuHoveredIndex = null;
       _barcodeTextFontMenuScrollOffset = 0;
