@@ -777,6 +777,14 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
   late final TextEditingController _zoomController = TextEditingController(
     text: '$labelSheetDefaultZoomPercent',
   );
+    late final TextEditingController _printLeftMarginController =
+      TextEditingController(text: '0.0');
+    late final TextEditingController _printTopMarginController =
+      TextEditingController(text: '0.0');
+    late final TextEditingController _printExtraAreaController =
+      TextEditingController(text: '0.0');
+    late final TextEditingController _printCopiesController =
+      TextEditingController(text: '1');
   late final FocusNode _zoomFocusNode = FocusNode();
   int? _zoomEditOriginalPercent;
   bool _zoomCommitPendingBlur = false;
@@ -787,6 +795,9 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
   bool _rtfSnackBarVisible = false;
   bool _rtfImportMarkedDirty = false;
   bool _initialLoadCompleteNotified = false;
+  bool _printSettingsDialogOpen = false;
+  String _printAutoSpacing = 'none';
+  String _printOrientation = 'horizontal';
 
   FortuneWorkbook get _baseWorkbook =>
       widget.initialWorkbook ??
@@ -904,6 +915,10 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       ScaffoldMessenger.maybeOf(context)?.hideCurrentSnackBar();
     }
     _zoomController.dispose();
+    _printLeftMarginController.dispose();
+    _printTopMarginController.dispose();
+    _printExtraAreaController.dispose();
+    _printCopiesController.dispose();
     _zoomFocusNode.removeListener(_handleZoomFocusChanged);
     _zoomFocusNode.dispose();
     WidgetsBinding.instance.removeObserver(this);
@@ -1180,6 +1195,18 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
 
   void _handlePrint() {
     fortuneSheetDebugLog('label sheet print toolbar click');
+    setState(() {
+      _printSettingsDialogOpen = true;
+    });
+  }
+
+  void _closePrintSettingsDialog() {
+    if (!_printSettingsDialogOpen) {
+      return;
+    }
+    setState(() {
+      _printSettingsDialogOpen = false;
+    });
   }
 
   Future<void> _handleSave() async {
@@ -1394,6 +1421,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
               children: [
                 sheet,
                 _buildZoomToolbarOverlay(),
+                if (_printSettingsDialogOpen) _buildPrintSettingsDialog(),
                 if (convertingRtf)
                   Positioned.fill(
                     child: Listener(
@@ -1408,6 +1436,45 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
           },
         );
       },
+    );
+  }
+
+  Widget _buildPrintSettingsDialog() {
+    return Positioned.fill(
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () {},
+        child: Center(
+          child: GestureDetector(
+            onTap: () {},
+            child: _LabelSheetPrintSettingsDialog(
+              leftMarginController: _printLeftMarginController,
+              topMarginController: _printTopMarginController,
+              extraAreaController: _printExtraAreaController,
+              copiesController: _printCopiesController,
+              autoSpacing: _printAutoSpacing,
+              orientation: _printOrientation,
+              onAutoSpacingChanged: (value) {
+                if (value == null) {
+                  return;
+                }
+                setState(() {
+                  _printAutoSpacing = value;
+                });
+              },
+              onOrientationChanged: (value) {
+                if (value == null) {
+                  return;
+                }
+                setState(() {
+                  _printOrientation = value;
+                });
+              },
+              onClose: _closePrintSettingsDialog,
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -1754,6 +1821,377 @@ class _LabelImageImportDialogState extends State<_LabelImageImportDialog> {
         _errorLog = '$error';
       });
     }
+  }
+
+}
+
+class _LabelSheetPrintSettingsDialog extends StatelessWidget {
+  const _LabelSheetPrintSettingsDialog({
+    required this.leftMarginController,
+    required this.topMarginController,
+    required this.extraAreaController,
+    required this.copiesController,
+    required this.autoSpacing,
+    required this.orientation,
+    required this.onAutoSpacingChanged,
+    required this.onOrientationChanged,
+    required this.onClose,
+  });
+
+  final TextEditingController leftMarginController;
+  final TextEditingController topMarginController;
+  final TextEditingController extraAreaController;
+  final TextEditingController copiesController;
+  final String autoSpacing;
+  final String orientation;
+  final ValueChanged<String?> onAutoSpacingChanged;
+  final ValueChanged<String?> onOrientationChanged;
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: const ValueKey('label-sheet-print-settings-dialog'),
+      width: 486,
+      height: 226,
+      decoration: BoxDecoration(
+        color: const Color(0xfff6f6f6),
+        border: Border.all(color: const Color(0xffc8c8c8)),
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x26000000),
+            blurRadius: 16,
+            offset: Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Material(
+        type: MaterialType.transparency,
+        child: Stack(
+          children: [
+            const Positioned(
+              left: 12,
+              top: 7,
+              child: Text(
+                '환경 설정',
+                style: TextStyle(fontSize: 13, color: Color(0xff111111)),
+              ),
+            ),
+            Positioned(
+              right: 5,
+              top: 4,
+              child: SizedBox(
+                width: 24,
+                height: 24,
+                child: IconButton(
+                  padding: EdgeInsets.zero,
+                  splashRadius: 14,
+                  icon: const Icon(Icons.close, size: 16),
+                  onPressed: onClose,
+                ),
+              ),
+            ),
+            Positioned(
+              left: 14,
+              top: 33,
+              width: 292,
+              height: 52,
+              child: _PrintDialogGroup(
+                title: '여백',
+                child: Row(
+                  children: [
+                    const SizedBox(width: 7),
+                    const Text('왼쪽', style: _labelStyle),
+                    const SizedBox(width: 8),
+                    _PrintDialogInput(controller: leftMarginController),
+                    const SizedBox(width: 8),
+                    const Text('mm', style: _labelStyle),
+                    const SizedBox(width: 24),
+                    const Text('위쪽', style: _labelStyle),
+                    const SizedBox(width: 8),
+                    _PrintDialogInput(controller: topMarginController),
+                    const SizedBox(width: 8),
+                    const Text('mm', style: _labelStyle),
+                  ],
+                ),
+              ),
+            ),
+            Positioned(
+              left: 320,
+              top: 33,
+              width: 148,
+              height: 52,
+              child: _PrintDialogGroup(
+                title: '자동줄간격',
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 15, right: 8),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: autoSpacing,
+                      isExpanded: true,
+                      style: _labelStyle,
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'none',
+                          child: Text('간격조정 없음'),
+                        ),
+                      ],
+                      onChanged: onAutoSpacingChanged,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const Positioned(
+              left: 18,
+              top: 94,
+              child: Text('발행 프린터', style: _sectionStyle),
+            ),
+            Positioned(
+              right: 17,
+              top: 91,
+              width: 94,
+              height: 30,
+              child: _PrintDialogButton(label: '프린터 선택', onPressed: () {}),
+            ),
+            Positioned(
+              left: 86,
+              top: 119,
+              child: Row(
+                children: [
+                  const Text('추가 영역', style: _labelStyle),
+                  const SizedBox(width: 8),
+                  _PrintDialogInput(controller: extraAreaController),
+                  const SizedBox(width: 8),
+                  const Text('mm', style: _labelStyle),
+                ],
+              ),
+            ),
+            Positioned(
+              left: 300,
+              top: 121,
+              child: Row(
+                children: [
+                  _PrintDialogRadio(
+                    label: '가로',
+                    value: 'horizontal',
+                    groupValue: orientation,
+                    onChanged: onOrientationChanged,
+                  ),
+                  const SizedBox(width: 18),
+                  _PrintDialogRadio(
+                    label: '세로',
+                    value: 'vertical',
+                    groupValue: orientation,
+                    onChanged: onOrientationChanged,
+                  ),
+                ],
+              ),
+            ),
+            const Positioned(
+              left: 20,
+              top: 157,
+              child: Text(
+                '매수',
+                style: TextStyle(fontSize: 30, color: Color(0xff000000)),
+              ),
+            ),
+            Positioned(
+              left: 100,
+              top: 149,
+              width: 84,
+              height: 56,
+              child: _PrintDialogInput(
+                controller: copiesController,
+                fontSize: 30,
+                contentPadding: const EdgeInsets.fromLTRB(8, 5, 8, 6),
+              ),
+            ),
+            Positioned(
+              left: 206,
+              bottom: 8,
+              width: 84,
+              height: 30,
+              child: _PrintDialogButton(label: '발행', onPressed: () {}),
+            ),
+            Positioned(
+              left: 295,
+              bottom: 8,
+              width: 84,
+              height: 30,
+              child: _PrintDialogButton(label: '적용', onPressed: () {}),
+            ),
+            Positioned(
+              left: 384,
+              bottom: 8,
+              width: 84,
+              height: 30,
+              child: _PrintDialogButton(label: '닫기', onPressed: onClose),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  static const _labelStyle = TextStyle(
+    fontSize: 13,
+    color: Color(0xff111111),
+  );
+
+  static const _sectionStyle = TextStyle(
+    fontSize: 14,
+    color: Color(0xff111111),
+  );
+}
+
+class _PrintDialogGroup extends StatelessWidget {
+  const _PrintDialogGroup({required this.title, required this.child});
+
+  final String title;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Positioned.fill(
+          top: 6,
+          child: Container(
+            decoration: BoxDecoration(
+              border: Border.all(color: const Color(0xffd8d8d8)),
+            ),
+            alignment: Alignment.centerLeft,
+            child: child,
+          ),
+        ),
+        Positioned(
+          left: 8,
+          top: 0,
+          child: ColoredBox(
+            color: const Color(0xfff6f6f6),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Text(title, style: _LabelSheetPrintSettingsDialog._labelStyle),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _PrintDialogInput extends StatelessWidget {
+  const _PrintDialogInput({
+    required this.controller,
+    this.fontSize = 13,
+    this.contentPadding = const EdgeInsets.fromLTRB(5, 2, 5, 3),
+  });
+
+  final TextEditingController controller;
+  final double fontSize;
+  final EdgeInsets contentPadding;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: fontSize > 20 ? 84 : 56,
+      height: fontSize > 20 ? 56 : 28,
+      child: TextField(
+        controller: controller,
+        style: TextStyle(fontSize: fontSize, color: const Color(0xff111111)),
+        decoration: InputDecoration(
+          isDense: true,
+          filled: true,
+          fillColor: const Color(0xffffffff),
+          contentPadding: contentPadding,
+          enabledBorder: const OutlineInputBorder(
+            borderSide: BorderSide(color: Color(0xffc7c7c7)),
+          ),
+          focusedBorder: const OutlineInputBorder(
+            borderSide: BorderSide(color: Color(0xff0067c0), width: 1.2),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PrintDialogButton extends StatelessWidget {
+  const _PrintDialogButton({required this.label, required this.onPressed});
+
+  final String label;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton(
+      style: OutlinedButton.styleFrom(
+        backgroundColor: const Color(0xffffffff),
+        foregroundColor: const Color(0xff111111),
+        side: const BorderSide(color: Color(0xffc7c7c7)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(2)),
+        padding: EdgeInsets.zero,
+        textStyle: const TextStyle(fontSize: 13),
+      ),
+      onPressed: onPressed,
+      child: Text(label),
+    );
+  }
+}
+
+class _PrintDialogRadio extends StatelessWidget {
+  const _PrintDialogRadio({
+    required this.label,
+    required this.value,
+    required this.groupValue,
+    required this.onChanged,
+  });
+
+  final String label;
+  final String value;
+  final String groupValue;
+  final ValueChanged<String?> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final selected = value == groupValue;
+    return InkWell(
+      onTap: () => onChanged(value),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 18,
+            height: 18,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: selected
+                    ? const Color(0xff0067c0)
+                    : const Color(0xff7a7a7a),
+                width: 1.2,
+              ),
+            ),
+            alignment: Alignment.center,
+            child: selected
+                ? Container(
+                    width: 8,
+                    height: 8,
+                    decoration: const BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Color(0xff0067c0),
+                    ),
+                  )
+                : null,
+          ),
+          const SizedBox(width: 4),
+          Text(label, style: _LabelSheetPrintSettingsDialog._labelStyle),
+        ],
+      ),
+    );
   }
 }
 

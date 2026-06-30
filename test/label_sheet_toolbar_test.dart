@@ -530,6 +530,59 @@ void main() {
     expect(saveItem.disabled, isFalse);
   });
 
+  testWidgets('label sheet print button opens printer settings dialog', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 600,
+            height: 360,
+            child: LabelSheetWorkbench(
+              initialWorkbook: FortuneWorkbook(
+                sheets: [FortuneSheet(id: 's1', name: 'Label')],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    expect(
+      find.byKey(const ValueKey('label-sheet-print-settings-dialog')),
+      findsNothing,
+    );
+
+    final printItem = tester
+        .widget<FortuneSheetApp>(find.byType(FortuneSheetApp))
+        .settings!
+        .customToolbarItems
+        .singleWhere((item) => item.key == labelSheetPrintToolbarCommand);
+    printItem.onClick!(printItem);
+    await tester.pump();
+
+    expect(
+      find.byKey(const ValueKey('label-sheet-print-settings-dialog')),
+      findsOneWidget,
+    );
+    expect(find.text('환경 설정'), findsOneWidget);
+    expect(find.text('프린터 선택'), findsOneWidget);
+    expect(find.text('발행'), findsOneWidget);
+    expect(find.text('적용'), findsOneWidget);
+    expect(find.text('닫기'), findsOneWidget);
+
+    await tester.tap(find.text('닫기'));
+    await tester.pump();
+
+    expect(
+      find.byKey(const ValueKey('label-sheet-print-settings-dialog')),
+      findsNothing,
+    );
+  });
+
   testWidgets('label sheet save button is disabled after clear sheet', (
     tester,
   ) async {
