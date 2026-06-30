@@ -1918,7 +1918,7 @@ class _LabelSheetPrintSettingsDialog extends StatelessWidget {
             ),
             Positioned(
               left: 20,
-              top: 40,
+              top: 43,
               width: 300,
               height: 58,
               child: _PrintDialogGroup(
@@ -1952,44 +1952,41 @@ class _LabelSheetPrintSettingsDialog extends StatelessWidget {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.only(left: 12),
-                        child: SizedBox(
+                    const Spacer(),
+                    SizedBox(
+                      width: _autoSpacingDropdownWidth,
+                      height: _compactDropdownHeight,
+                      child: DropdownButton2<String>(
+                        value: autoSpacing,
+                        isExpanded: true,
+                        underline: const SizedBox.shrink(),
+                        style: _labelStyle,
+                        items: _autoSpacingItems,
+                        onChanged: onAutoSpacingChanged,
+                        buttonStyleData: const ButtonStyleData(
                           height: _compactDropdownHeight,
-                          child: DropdownButton2<String>(
-                            value: autoSpacing,
-                            isExpanded: true,
-                            underline: const SizedBox.shrink(),
-                            style: _labelStyle,
-                            items: _autoSpacingItems,
-                            onChanged: onAutoSpacingChanged,
-                            buttonStyleData: const ButtonStyleData(
-                              height: _compactDropdownHeight,
-                              padding: EdgeInsets.zero,
-                            ),
-                            dropdownStyleData: DropdownStyleData(
-                              maxHeight: 260,
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(2),
-                              ),
-                            ),
-                            menuItemStyleData: const MenuItemStyleData(
-                              height: _compactDropdownMenuItemHeight,
-                              padding: EdgeInsets.symmetric(horizontal: 8),
-                            ),
-                            iconStyleData: const IconStyleData(
-                              iconSize: 18,
-                              iconEnabledColor: Color(0xff6a6a6a),
-                            ),
+                          padding: EdgeInsets.zero,
+                        ),
+                        dropdownStyleData: DropdownStyleData(
+                          maxHeight: 260,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(2),
                           ),
+                        ),
+                        menuItemStyleData: const MenuItemStyleData(
+                          height: _compactDropdownMenuItemHeight,
+                          padding: EdgeInsets.symmetric(horizontal: 8),
+                        ),
+                        iconStyleData: const IconStyleData(
+                          iconSize: 18,
+                          iconEnabledColor: Color(0xff6a6a6a),
                         ),
                       ),
                     ),
                     const SizedBox(width: 5),
                     const _PrintDialogCenteredLabel('%'),
-                    const SizedBox(width: 8),
+                    const Spacer(),
                   ],
                 ),
               ),
@@ -2000,9 +1997,9 @@ class _LabelSheetPrintSettingsDialog extends StatelessWidget {
               child: Text('발행 프린터', style: _sectionStyle),
             ),
             Positioned(
-              left: 101,
+              left: 103,
               top: 106,
-              width: 299,
+              width: 297,
               height: 30,
               child: _PrintDialogInsetValue(value: selectedPrinterName),
             ),
@@ -2017,8 +2014,8 @@ class _LabelSheetPrintSettingsDialog extends StatelessWidget {
               ),
             ),
             Positioned(
-              left: 100,
-              top: 145,
+              left: 102,
+              top: 148,
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
@@ -2061,13 +2058,14 @@ class _LabelSheetPrintSettingsDialog extends StatelessWidget {
             ),
             Positioned(
               left: 86,
-              top: 164,
+              top: 175,
               width: 84,
-              height: 56,
+              height: 38,
               child: _PrintDialogInput(
                 controller: copiesController,
                 fontSize: 30,
-                contentPadding: const EdgeInsets.fromLTRB(8, 5, 8, 6),
+                height: 38,
+                contentPadding: const EdgeInsets.fromLTRB(8, 0, 8, 4),
               ),
             ),
             Positioned(
@@ -2108,6 +2106,7 @@ class _LabelSheetPrintSettingsDialog extends StatelessWidget {
   );
   static const double _compactDropdownHeight = 28;
   static const double _compactDropdownMenuItemHeight = 28;
+  static const double _autoSpacingDropdownWidth = 94;
 
   static final List<DropdownMenuItem<String>> _autoSpacingItems = [
     const DropdownMenuItem(
@@ -2248,7 +2247,7 @@ class _PrintDialogGroup extends StatelessWidget {
         ),
         Positioned(
           left: 8,
-          top: 0,
+          top: -3,
           child: ColoredBox(
             color: const Color(0xfff6f6f6),
             child: Padding(
@@ -2266,18 +2265,20 @@ class _PrintDialogInput extends StatelessWidget {
   const _PrintDialogInput({
     required this.controller,
     this.fontSize = 13,
+    this.height,
     this.contentPadding = const EdgeInsets.fromLTRB(5, 2, 5, 3),
   });
 
   final TextEditingController controller;
   final double fontSize;
+  final double? height;
   final EdgeInsets contentPadding;
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       width: fontSize > 20 ? 84 : 56,
-      height: fontSize > 20 ? 56 : 28,
+      height: height ?? (fontSize > 20 ? 56 : 28),
       child: TextField(
         controller: controller,
         style: TextStyle(fontSize: fontSize, color: const Color(0xff111111)),
