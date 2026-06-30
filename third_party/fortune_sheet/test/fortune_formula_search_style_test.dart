@@ -17,7 +17,7 @@ void main() {
     expect(fortuneFormulaSearchCategoryArrowBottomInset, 14.0);
     expect(fortuneFormulaSearchFieldBorderColor, const Color(0xffd4d4d4));
     expect(fortuneFormulaSearchBackgroundColor, const Color(0xffffffff));
-    expect(fortuneFormulaSearchCloseColor, const Color(0xffb6b6b6));
+    expect(fortuneFormulaSearchCloseColor, const Color(0xff9a9a9a));
     expect(fortuneFormulaSearchArrowColor, const Color(0xff000000));
     expect(fortuneFormulaSearchTextColor, const Color(0xff222222));
     expect(fortuneFormulaSearchPlaceholderColor, const Color(0xff777777));

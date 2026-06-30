@@ -1182,7 +1182,8 @@ void main() {
     expect(fortuneFormulaSearchFunctionNameWidth, 52.0);
     expect(fortuneFormulaSearchListCellPadding, 5.0);
     expect(fortuneFormulaSearchCloseSize, 18.0);
-    expect(fortuneFormulaSearchCloseIconSize, 12.0);
+    expect(fortuneFormulaSearchCloseIconSize, fortuneBarcodeDialogCloseSize);
+    expect(fortuneSheetDialogCloseGlyphSize, fortuneBarcodeDialogCloseSize);
     expect(fortuneFormulaSearchCloseStrokeWidth, 1.4);
     expect(fortuneFormulaSearchCloseTop, 12.0);
     expect(fortuneFormulaSearchCloseRight, 12.0);
@@ -3912,8 +3913,14 @@ void main() {
         fortuneToolbarLinkCommand,
       ]),
     );
-    expect(fortuneContextMenuItems, isNot(contains(fortuneToolbarImageCommand)));
-    expect(fortuneContextMenuItems, isNot(contains(fortuneToolbarBarcodeCommand)));
+    expect(
+      fortuneContextMenuItems,
+      isNot(contains(fortuneToolbarImageCommand)),
+    );
+    expect(
+      fortuneContextMenuItems,
+      isNot(contains(fortuneToolbarBarcodeCommand)),
+    );
     expect(
       fortuneContextMenuItems,
       isNot(contains(fortuneContextChartCommand)),

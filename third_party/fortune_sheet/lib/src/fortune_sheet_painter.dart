@@ -44169,6 +44169,7 @@ const double fortuneBarcodeDialogShowTextLabelGap = 6.0;
 const double fortuneBarcodeDialogShowTextLabelWidth = 210.0;
 const double fortuneBarcodeDialogIconSize = 24.0;
 const double fortuneBarcodeDialogCloseSize = 9.0;
+const double fortuneSheetDialogCloseGlyphSize = fortuneBarcodeDialogCloseSize;
 const double fortuneBarcodeDialogIconGap = 4.0;
 const String fortuneBarcodeObjectIdExtraKey = 'barcodeObjectId';
 const String fortuneBarcodeBodyTopExtraKey = 'barcodeBodyTop';
@@ -59333,7 +59334,8 @@ const double fortuneFormulaSearchListRowHeight = 26.0;
 const double fortuneFormulaSearchFunctionNameWidth = 52.0;
 const double fortuneFormulaSearchListCellPadding = 5.0;
 const double fortuneFormulaSearchCloseSize = 18.0;
-const double fortuneFormulaSearchCloseIconSize = 12.0;
+const double fortuneFormulaSearchCloseIconSize =
+    fortuneSheetDialogCloseGlyphSize;
 const double fortuneFormulaSearchCloseStrokeWidth = 1.4;
 const double fortuneFormulaSearchCloseTop = 12.0;
 const double fortuneFormulaSearchCloseRight = 12.0;
@@ -59352,7 +59354,7 @@ const double fortuneFormulaSearchCategoryArrowTopInset = 9.0;
 const double fortuneFormulaSearchCategoryArrowBottomInset = 14.0;
 const Color fortuneFormulaSearchFieldBorderColor = Color(0xffd4d4d4);
 const Color fortuneFormulaSearchBackgroundColor = Color(0xffffffff);
-const Color fortuneFormulaSearchCloseColor = Color(0xffb6b6b6);
+const Color fortuneFormulaSearchCloseColor = Color(0xff9a9a9a);
 const Color fortuneFormulaSearchArrowColor = Color(0xff000000);
 const Color fortuneFormulaSearchTextColor = Color(0xff222222);
 const Color fortuneFormulaSearchPlaceholderColor = Color(0xff777777);
@@ -67271,13 +67273,7 @@ class FortuneSheetPainter extends CustomPainter {
       Paint()..color = const Color(0x1a000000),
     );
     _drawShadowBox(canvas, rect, radius: 4, border: const Color(0x33000000));
-    final closeRect = fortuneCustomSortCloseButtonRect(rect);
-    final closePaint = Paint()
-      ..color = const Color(0xffb6b6b6)
-      ..strokeWidth = 2
-      ..strokeCap = StrokeCap.square;
-    canvas.drawLine(closeRect.topLeft, closeRect.bottomRight, closePaint);
-    canvas.drawLine(closeRect.topRight, closeRect.bottomLeft, closePaint);
+    _drawCloseGlyph(canvas, fortuneCustomSortCloseButtonRect(rect));
     _drawText(
       canvas,
       _customSortRangeTitle(),
@@ -67382,13 +67378,7 @@ class FortuneSheetPainter extends CustomPainter {
       radius: fortuneFormatSearchDialogBorderRadius,
       border: const Color(0x11000000),
     );
-    final closeRect = fortuneFormatSearchCloseButtonRect(rect);
-    final closePaint = Paint()
-      ..color = const Color(0xffb6b6b6)
-      ..strokeWidth = 2
-      ..strokeCap = StrokeCap.square;
-    canvas.drawLine(closeRect.topLeft, closeRect.bottomRight, closePaint);
-    canvas.drawLine(closeRect.topRight, closeRect.bottomLeft, closePaint);
+    _drawCloseGlyph(canvas, fortuneFormatSearchCloseButtonRect(rect));
     _drawText(
       canvas,
       title,
@@ -67641,26 +67631,7 @@ class FortuneSheetPainter extends CustomPainter {
       radius: fortuneFormulaSearchDialogBorderRadius,
       border: fortuneFormulaSearchDialogBorderColor,
     );
-    final closeRect = fortuneFormulaSearchCloseButtonRect(rect);
-    final closeIconRect = Rect.fromCenter(
-      center: closeRect.center,
-      width: fortuneFormulaSearchCloseIconSize,
-      height: fortuneFormulaSearchCloseIconSize,
-    );
-    final closePaint = Paint()
-      ..color = fortuneFormulaSearchCloseColor
-      ..strokeWidth = fortuneFormulaSearchCloseStrokeWidth
-      ..strokeCap = StrokeCap.square;
-    canvas.drawLine(
-      closeIconRect.topLeft,
-      closeIconRect.bottomRight,
-      closePaint,
-    );
-    canvas.drawLine(
-      closeIconRect.topRight,
-      closeIconRect.bottomLeft,
-      closePaint,
-    );
+    _drawCloseGlyph(canvas, fortuneFormulaSearchCloseButtonRect(rect));
 
     _drawText(
       canvas,
@@ -69214,13 +69185,7 @@ class FortuneSheetPainter extends CustomPainter {
       radius: fortuneDataVerificationDialogBorderRadius,
       border: const Color(0x11000000),
     );
-    final closeRect = fortuneDataVerificationCloseButtonRect(rect);
-    final closePaint = Paint()
-      ..color = const Color(0xffb6b6b6)
-      ..strokeWidth = 2
-      ..strokeCap = StrokeCap.square;
-    canvas.drawLine(closeRect.topLeft, closeRect.bottomRight, closePaint);
-    canvas.drawLine(closeRect.topRight, closeRect.bottomLeft, closePaint);
+    _drawCloseGlyph(canvas, fortuneDataVerificationCloseButtonRect(rect));
 
     _drawText(
       canvas,
@@ -69514,13 +69479,7 @@ class FortuneSheetPainter extends CustomPainter {
       ),
       Paint()..color = const Color(0xffffffff),
     );
-    final closeRect = fortuneSplitTextCloseButtonRect(rect).deflate(4);
-    final closePaint = Paint()
-      ..color = const Color(0xffb7b7b7)
-      ..strokeWidth = 2
-      ..strokeCap = StrokeCap.square;
-    canvas.drawLine(closeRect.topLeft, closeRect.bottomRight, closePaint);
-    canvas.drawLine(closeRect.topRight, closeRect.bottomLeft, closePaint);
+    _drawCloseGlyph(canvas, fortuneSplitTextCloseButtonRect(rect));
     _drawText(
       canvas,
       locale.splitTextTitle,
@@ -69692,13 +69651,7 @@ class FortuneSheetPainter extends CustomPainter {
       ),
       Paint()..color = const Color(0xffffffff),
     );
-    final closeRect = fortuneLocationCloseButtonRect(rect).deflate(4);
-    final closePaint = Paint()
-      ..color = const Color(0xffb7b7b7)
-      ..strokeWidth = 2
-      ..strokeCap = StrokeCap.square;
-    canvas.drawLine(closeRect.topLeft, closeRect.bottomRight, closePaint);
-    canvas.drawLine(closeRect.topRight, closeRect.bottomLeft, closePaint);
+    _drawCloseGlyph(canvas, fortuneLocationCloseButtonRect(rect));
     _drawText(
       canvas,
       locale.location,
@@ -69881,13 +69834,7 @@ class FortuneSheetPainter extends CustomPainter {
       true,
     );
     canvas.drawRRect(rrect, Paint()..color = const Color(0xffffffff));
-    final closeRect = fortuneLocationMessageCloseButtonRect(rect).deflate(8);
-    final closePaint = Paint()
-      ..color = const Color(0xffb7b7b7)
-      ..strokeWidth = 2
-      ..strokeCap = StrokeCap.square;
-    canvas.drawLine(closeRect.topLeft, closeRect.bottomRight, closePaint);
-    canvas.drawLine(closeRect.topRight, closeRect.bottomLeft, closePaint);
+    _drawCloseGlyph(canvas, fortuneLocationMessageCloseButtonRect(rect));
     _drawText(
       canvas,
       message,
@@ -70173,21 +70120,21 @@ class FortuneSheetPainter extends CustomPainter {
   }
 
   void _drawCloseGlyph(Canvas canvas, Rect rect) {
-    final paint = Paint()
-      ..color = const Color(0xffb7b7b7)
-      ..strokeWidth = 2
-      ..strokeCap = StrokeCap.square;
-    canvas.drawLine(rect.topLeft, rect.bottomRight, paint);
-    canvas.drawLine(rect.topRight, rect.bottomLeft, paint);
-  }
-
-  void _drawBarcodeCloseGlyph(Canvas canvas, Rect rect) {
+    final glyphRect = Rect.fromCenter(
+      center: rect.center,
+      width: fortuneSheetDialogCloseGlyphSize,
+      height: fortuneSheetDialogCloseGlyphSize,
+    );
     final paint = Paint()
       ..color = const Color(0xff9a9a9a)
       ..strokeWidth = 1.4
       ..strokeCap = StrokeCap.round;
-    canvas.drawLine(rect.topLeft, rect.bottomRight, paint);
-    canvas.drawLine(rect.topRight, rect.bottomLeft, paint);
+    canvas.drawLine(glyphRect.topLeft, glyphRect.bottomRight, paint);
+    canvas.drawLine(glyphRect.topRight, glyphRect.bottomLeft, paint);
+  }
+
+  void _drawBarcodeCloseGlyph(Canvas canvas, Rect rect) {
+    _drawCloseGlyph(canvas, rect);
   }
 
   void _drawSearchTab(Canvas canvas, Rect rect, String label, bool selected) {
@@ -70421,13 +70368,7 @@ class FortuneSheetPainter extends CustomPainter {
       radius: fortuneConditionRuleDialogBorderRadius,
       border: fortuneConditionRuleDialogBorderColor,
     );
-    final closeRect = fortuneConditionRuleCloseButtonRect(rect);
-    final closePaint = Paint()
-      ..color = const Color(0xffb6b6b6)
-      ..strokeWidth = 2
-      ..strokeCap = StrokeCap.square;
-    canvas.drawLine(closeRect.topLeft, closeRect.bottomRight, closePaint);
-    canvas.drawLine(closeRect.topRight, closeRect.bottomLeft, closePaint);
+    _drawCloseGlyph(canvas, fortuneConditionRuleCloseButtonRect(rect));
     _drawText(
       canvas,
       _conditionRuleTitle(),
@@ -72806,11 +72747,11 @@ class FortuneSheetPainter extends CustomPainter {
     return baseStyle.copyWith(
       color: color,
       backgroundColor: _inlineRunBackgroundColor(run),
-        fontSize: run.fontSize == null
+      fontSize: run.fontSize == null
           ? baseStyle.fontSize
           : run.fontSize! * textScale,
       height: _inlineRunLineHeight(run) ?? baseStyle.height,
-        letterSpacing: _inlineRunLetterSpacing(run, textScale),
+      letterSpacing: _inlineRunLetterSpacing(run, textScale),
       fontFamily: _resolvedRunFontFamily(run.fontFamily, cell),
       fontWeight: (run.bold ?? cell.bold) ? FontWeight.w700 : FontWeight.w400,
       fontStyle: (run.italic ?? cell.italic)
@@ -72958,8 +72899,8 @@ class FortuneSheetPainter extends CustomPainter {
         color: color,
         backgroundColor: _inlineRunBackgroundColor(run),
         fontSize: run.fontSize == null
-          ? fallbackStyle.fontSize
-          : run.fontSize! * textScale,
+            ? fallbackStyle.fontSize
+            : run.fontSize! * textScale,
         fontFamily: _resolvedRunFontFamily(run.fontFamily, cell),
         fontWeight: (run.bold ?? cell.bold) ? FontWeight.w700 : FontWeight.w400,
         fontStyle: (run.italic ?? cell.italic)
