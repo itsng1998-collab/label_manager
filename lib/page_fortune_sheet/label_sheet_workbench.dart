@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:file_selector/file_selector.dart';
+import 'package:dropdown_button2/dropdown_button2.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart' as widgets;
@@ -1956,15 +1957,31 @@ class _LabelSheetPrintSettingsDialog extends StatelessWidget {
                         padding: const EdgeInsets.only(left: 12),
                         child: SizedBox(
                           height: _compactDropdownHeight,
-                          child: DropdownButtonHideUnderline(
-                            child: DropdownButton<String>(
-                              value: autoSpacing,
-                              isDense: true,
-                              isExpanded: true,
-                              menuMaxHeight: 260,
-                              style: _labelStyle,
-                              items: _autoSpacingItems,
-                              onChanged: onAutoSpacingChanged,
+                          child: DropdownButton2<String>(
+                            value: autoSpacing,
+                            isExpanded: true,
+                            underline: const SizedBox.shrink(),
+                            style: _labelStyle,
+                            items: _autoSpacingItems,
+                            onChanged: onAutoSpacingChanged,
+                            buttonStyleData: const ButtonStyleData(
+                              height: _compactDropdownHeight,
+                              padding: EdgeInsets.zero,
+                            ),
+                            dropdownStyleData: DropdownStyleData(
+                              maxHeight: 260,
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(2),
+                              ),
+                            ),
+                            menuItemStyleData: const MenuItemStyleData(
+                              height: _compactDropdownMenuItemHeight,
+                              padding: EdgeInsets.symmetric(horizontal: 8),
+                            ),
+                            iconStyleData: const IconStyleData(
+                              iconSize: 18,
+                              iconEnabledColor: Color(0xff6a6a6a),
                             ),
                           ),
                         ),
@@ -2090,6 +2107,7 @@ class _LabelSheetPrintSettingsDialog extends StatelessWidget {
     color: Color(0xff111111),
   );
   static const double _compactDropdownHeight = 28;
+  static const double _compactDropdownMenuItemHeight = 28;
 
   static final List<DropdownMenuItem<String>> _autoSpacingItems = [
     const DropdownMenuItem(
