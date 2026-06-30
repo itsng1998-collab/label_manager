@@ -2898,8 +2898,6 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   List<({FocusNode focusNode, TextEditingController controller})>
   get _barcodeDialogInputs => [
     (focusNode: _barcodeTextFocusNode, controller: _barcodeTextController),
-    (focusNode: _barcodeWidthFocusNode, controller: _barcodeWidthController),
-    (focusNode: _barcodeHeightFocusNode, controller: _barcodeHeightController),
     (
       focusNode: _barcodeModuleScaleFocusNode,
       controller: _barcodeModuleScaleController,
@@ -2908,6 +2906,12 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       focusNode: _barcodeBarHeightFocusNode,
       controller: _barcodeBarHeightController,
     ),
+    (focusNode: _barcodeWidthFocusNode, controller: _barcodeWidthController),
+    (focusNode: _barcodeHeightFocusNode, controller: _barcodeHeightController),
+    (
+      focusNode: _barcodeRotationFocusNode,
+      controller: _barcodeRotationController,
+    ),
     (
       focusNode: _barcodeLeadingQuietZoneFocusNode,
       controller: _barcodeLeadingQuietZoneController,
@@ -2915,10 +2919,6 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     (
       focusNode: _barcodeTrailingQuietZoneFocusNode,
       controller: _barcodeTrailingQuietZoneController,
-    ),
-    (
-      focusNode: _barcodeRotationFocusNode,
-      controller: _barcodeRotationController,
     ),
   ];
 
@@ -38341,27 +38341,27 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
 
   List<FocusNode> _activeDialogFocusNodes() {
     if (_imageInsertDialogOpen) {
-      return _imageInsertDialogInputs
+      return _sortDialogFocusNodesByVisibleOrder(_imageInsertDialogInputs
           .map((input) => input.focusNode)
-          .toList(growable: false);
+          .toList(growable: false));
     }
     if (_barcodeDialogOpen) {
-      return _barcodeDialogInputs
+      return _sortDialogFocusNodesByVisibleOrder(_barcodeDialogInputs
           .map((input) => input.focusNode)
-          .toList(growable: false);
+          .toList(growable: false));
     }
     if (_axisSizeDialogOpen) {
       return [_axisSizeEditorFocusNode];
     }
     if (_hyperlinkDialogOpen && !_hyperlinkDialogSelectingCellRange) {
-      return [
+      return _sortDialogFocusNodesByVisibleOrder([
         if (_hyperlinkDialogDisplayInputRect() != null)
           _hyperlinkDisplayEditorFocusNode,
         _hyperlinkAddressEditorFocusNode,
-      ];
+      ]);
     }
     if (_dataVerificationDialogOpen && !_dataVerificationDialogSelectingRange) {
-      return [
+      return _sortDialogFocusNodesByVisibleOrder([
         _dataVerificationRangeEditorFocusNode,
         _dataVerificationEditorFocusNode,
         if (_dataVerificationDialogUsesSecondValueInput(
@@ -38370,7 +38370,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         ))
           _dataVerificationSecondEditorFocusNode,
         _dataVerificationHintEditorFocusNode,
-      ];
+      ]);
     }
     if (_splitTextDialogOpen) {
       return [_splitTextOtherFocusNode];
@@ -38383,19 +38383,116 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       return [_formulaSearchEditorFocusNode];
     }
     if (_conditionRuleDialogOpen) {
-      return [
+      return _sortDialogFocusNodesByVisibleOrder([
         _conditionRuleEditorFocusNode,
         if (_conditionRuleSecondInputRect() != null)
           _conditionRuleSecondEditorFocusNode,
-      ];
+      ]);
     }
     if (_searchDialogOpen) {
-      return [
+      return _sortDialogFocusNodesByVisibleOrder([
         _searchEditorFocusNode,
         if (_searchReplaceMode) _replaceEditorFocusNode,
-      ];
+      ]);
     }
     return const <FocusNode>[];
+  }
+
+  List<FocusNode> _sortDialogFocusNodesByVisibleOrder(List<FocusNode> nodes) {
+    final indexed = [
+      for (var index = 0; index < nodes.length; index += 1)
+        (
+          index: index,
+          node: nodes[index],
+          rect: _dialogFocusNodeRect(nodes[index]),
+        ),
+    ];
+    indexed.sort((left, right) {
+      final leftRect = left.rect;
+      final rightRect = right.rect;
+      if (leftRect == null || rightRect == null) {
+        return left.index.compareTo(right.index);
+      }
+      final top = leftRect.top.compareTo(rightRect.top);
+      if (top != 0) {
+        return top;
+      }
+      final horizontal = leftRect.left.compareTo(rightRect.left);
+      if (horizontal != 0) {
+        return horizontal;
+      }
+      return left.index.compareTo(right.index);
+    });
+    return [for (final item in indexed) item.node];
+  }
+
+  Rect? _dialogFocusNodeRect(FocusNode node) {
+    if (identical(node, _imageInsertWidthFocusNode)) {
+      return _imageInsertWidthInputRect();
+    }
+    if (identical(node, _imageInsertHeightFocusNode)) {
+      return _imageInsertHeightInputRect();
+    }
+    if (identical(node, _imageInsertRotationFocusNode)) {
+      return _imageInsertRotationInputRect();
+    }
+    if (identical(node, _barcodeTextFocusNode)) {
+      return _barcodeTextInputRect();
+    }
+    if (identical(node, _barcodeModuleScaleFocusNode)) {
+      return _barcodeModuleScaleInputRect();
+    }
+    if (identical(node, _barcodeBarHeightFocusNode)) {
+      return _barcodeBarHeightInputRect();
+    }
+    if (identical(node, _barcodeWidthFocusNode)) {
+      return _barcodeWidthInputRect();
+    }
+    if (identical(node, _barcodeHeightFocusNode)) {
+      return _barcodeHeightInputRect();
+    }
+    if (identical(node, _barcodeRotationFocusNode)) {
+      return _barcodeRotationInputRect();
+    }
+    if (identical(node, _barcodeLeadingQuietZoneFocusNode)) {
+      return _barcodeLeadingQuietZoneInputRect();
+    }
+    if (identical(node, _barcodeTrailingQuietZoneFocusNode)) {
+      return _barcodeTrailingQuietZoneInputRect();
+    }
+    if (identical(node, _hyperlinkDisplayEditorFocusNode)) {
+      return _hyperlinkDialogDisplayInputRect();
+    }
+    if (identical(node, _hyperlinkAddressEditorFocusNode)) {
+      return _hyperlinkDialogAddressEditorRect();
+    }
+    if (identical(node, _dataVerificationRangeEditorFocusNode)) {
+      final rect = _dataVerificationDialogRect();
+      return rect == null ? null : fortuneDataVerificationRangeInputRect(rect);
+    }
+    if (identical(node, _dataVerificationEditorFocusNode)) {
+      return _dataVerificationDialogInputRect();
+    }
+    if (identical(node, _dataVerificationSecondEditorFocusNode)) {
+      final rect = _dataVerificationDialogRect();
+      return rect == null ? null : fortuneDataVerificationAllowMultiRect(rect);
+    }
+    if (identical(node, _dataVerificationHintEditorFocusNode)) {
+      return _dataVerificationDialogHintInputRect();
+    }
+    if (identical(node, _conditionRuleEditorFocusNode)) {
+      return _conditionRuleInputRect();
+    }
+    if (identical(node, _conditionRuleSecondEditorFocusNode)) {
+      return _conditionRuleSecondInputRect();
+    }
+    if (identical(node, _searchEditorFocusNode)) {
+      return _searchDialogInputRect();
+    }
+    if (identical(node, _replaceEditorFocusNode)) {
+      return _searchDialogReplaceInputRect();
+    }
+    return null;
   }
 
   void _focusDialogControl(FocusNode node) {

@@ -327,6 +327,22 @@ void main() {
     await tester.sendKeyEvent(LogicalKeyboardKey.tab);
     await tester.pump();
 
+    expect(
+      editor('fortune-barcode-module-scale-input').focusNode.hasFocus,
+      isTrue,
+    );
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pump();
+
+    expect(
+      editor('fortune-barcode-bar-height-input').focusNode.hasFocus,
+      isTrue,
+    );
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pump();
+
     expect(editor('fortune-barcode-width-input').focusNode.hasFocus, isTrue);
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
@@ -334,7 +350,10 @@ void main() {
     await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
     await tester.pump();
 
-    expect(editor('fortune-barcode-text-input').focusNode.hasFocus, isTrue);
+    expect(
+      editor('fortune-barcode-bar-height-input').focusNode.hasFocus,
+      isTrue,
+    );
   });
 
   testWidgets('barcode insert stores object ID metadata', (tester) async {
