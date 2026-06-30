@@ -764,6 +764,64 @@ void main() {
     expect(_editableTextValues(tester), contains('1'));
   });
 
+  testWidgets('label sheet print dialog saves settings only on apply', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues(<String, Object>{
+      labelSheetPreferredPrinterNamePrefsKey: 'Stored Printer',
+      labelSheetPreferredPrintAutoSpacingPrefsKey: '120',
+    });
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 600,
+            height: 360,
+            child: LabelSheetWorkbench(
+              initialWorkbook: FortuneWorkbook(
+                sheets: [FortuneSheet(id: 's1', name: 'Label')],
+              ),
+              printerListProvider: () async => const <Printer>[
+                Printer(url: 'stored', name: 'Stored Printer'),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    final printItem = tester
+        .widget<FortuneSheetApp>(find.byType(FortuneSheetApp))
+        .settings!
+        .customToolbarItems
+        .singleWhere((item) => item.key == labelSheetPrintToolbarCommand);
+    printItem.onClick!(printItem);
+    await tester.pump();
+    await tester.pump();
+
+    await tester.tap(find.text('120'));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('300'),
+      100,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await tester.tap(find.text('300'));
+    await tester.pumpAndSettle();
+
+    var prefs = await SharedPreferences.getInstance();
+    expect(prefs.getString(labelSheetPreferredPrintAutoSpacingPrefsKey), '120');
+
+    await tester.tap(find.text('적용'));
+    await tester.pump();
+
+    prefs = await SharedPreferences.getInstance();
+    expect(prefs.getString(labelSheetPreferredPrintAutoSpacingPrefsKey), '300');
+  });
+
   testWidgets('label sheet print dialog waits for lifecycle callback', (
     tester,
   ) async {
