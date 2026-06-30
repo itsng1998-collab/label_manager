@@ -1949,17 +1949,23 @@ class _LabelSheetPrintSettingsDialog extends StatelessWidget {
               child: _PrintDialogGroup(
                 title: '자동줄간격',
                 child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     Expanded(
                       child: Padding(
                         padding: const EdgeInsets.only(left: 12),
-                        child: DropdownButtonHideUnderline(
-                          child: DropdownButton<String>(
-                            value: autoSpacing,
-                            isExpanded: true,
-                            style: _labelStyle,
-                            items: _autoSpacingItems,
-                            onChanged: onAutoSpacingChanged,
+                        child: SizedBox(
+                          height: _compactDropdownHeight,
+                          child: DropdownButtonHideUnderline(
+                            child: DropdownButton<String>(
+                              value: autoSpacing,
+                              isDense: true,
+                              isExpanded: true,
+                              menuMaxHeight: 260,
+                              style: _labelStyle,
+                              items: _autoSpacingItems,
+                              onChanged: onAutoSpacingChanged,
+                            ),
                           ),
                         ),
                       ),
@@ -2089,12 +2095,36 @@ class _LabelSheetPrintSettingsDialog extends StatelessWidget {
     fontSize: 14,
     color: Color(0xff111111),
   );
+  static const double _compactDropdownHeight = 28;
 
   static final List<DropdownMenuItem<String>> _autoSpacingItems = [
-    const DropdownMenuItem(value: 'none', child: Text('간격조정 없음')),
+    const DropdownMenuItem(
+      value: 'none',
+      child: _PrintDialogDropdownItemLabel('간격조정 없음'),
+    ),
     for (var value = 80; value <= 300; value += 5)
-      DropdownMenuItem(value: '$value', child: Text('$value')),
+      DropdownMenuItem(
+        value: '$value',
+        child: _PrintDialogDropdownItemLabel('$value'),
+      ),
   ];
+}
+
+class _PrintDialogDropdownItemLabel extends StatelessWidget {
+  const _PrintDialogDropdownItemLabel(this.label);
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 28,
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Text(label, style: _LabelSheetPrintSettingsDialog._labelStyle),
+      ),
+    );
+  }
 }
 
 class _PrintDialogCloseIcon extends StatelessWidget {
