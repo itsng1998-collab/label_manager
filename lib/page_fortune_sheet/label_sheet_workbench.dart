@@ -2001,9 +2001,9 @@ class _LabelSheetPrintSettingsDialog extends StatelessWidget {
               child: Text('발행 프린터', style: _sectionStyle),
             ),
             Positioned(
-              left: 103,
+              left: 105,
               top: 106,
-              width: 295,
+              width: 293,
               height: 30,
               child: _PrintDialogInsetValue(value: selectedPrinterName),
             ),
@@ -2056,7 +2056,7 @@ class _LabelSheetPrintSettingsDialog extends StatelessWidget {
             ),
             const Positioned(
               left: 24,
-              top: 176,
+              top: 179,
               child: Text(
                 '매수',
                 style: TextStyle(fontSize: 30, color: Color(0xff000000)),
@@ -2064,14 +2064,14 @@ class _LabelSheetPrintSettingsDialog extends StatelessWidget {
             ),
             Positioned(
               left: 91,
-              top: 178,
+              top: 181,
               width: 84,
               height: 38,
               child: _PrintDialogInput(
                 controller: copiesController,
-                fontSize: 26,
+                fontSize: 23,
                 height: 38,
-                contentPadding: const EdgeInsets.fromLTRB(8, 1, 8, 5),
+                contentPadding: const EdgeInsets.fromLTRB(8, 3, 8, 5),
               ),
             ),
             Positioned(
@@ -2112,7 +2112,7 @@ class _LabelSheetPrintSettingsDialog extends StatelessWidget {
   );
   static const double _compactDropdownHeight = 28;
   static const double _compactDropdownMenuItemHeight = 28;
-  static const double _autoSpacingDropdownWidth = 106;
+  static const double _autoSpacingDropdownWidth = 117;
 
   static final List<DropdownMenuItem<String>> _autoSpacingItems = [
     const DropdownMenuItem(
