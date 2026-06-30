@@ -27,6 +27,8 @@
 
 ## 현재 상태
 
+- 완료: 브랜드 설정 다이얼로그의 테이블 공통 툴팁이 3초 후 닫히지 않던 문제를 수정했다. `lib/widgets/swipe_action_table.dart`: 기본 `Tooltip` 대신 `OverlayEntry`와 `Timer` 기반 `_TableBodyTooltip`으로 바꿔 hover 0.5초 후 표시, 표시 3초 후 강제 닫힘, table body 이탈 시 즉시 닫힘으로 동작하게 했다. `lib/home_page_manager.dart`: 스와이프 후 수정/삽입/삭제 아이콘 배경색을 더 밝은 그레이 계열로 변경했다. 검증 성공: `C:/flutter/bin/flutter.bat analyze --no-fatal-warnings --no-fatal-infos lib/home_page_manager.dart lib/widgets/swipe_action_table.dart lib/page_home/common_label_manage.dart`, `C:/flutter/bin/flutter.bat test test/common_label_manage_test.dart`.
+
 - 완료: 브랜드 설정 다이얼로그 크기와 툴팁 동작을 다시 조정했다. `lib/home_page_manager.dart`: 브랜드 설정 다이얼로그 폭을 500으로 변경하고 높이를 런타임 화면 높이의 70%로 계산하도록 변경했다. `lib/widgets/swipe_action_table.dart`: 기존 row/컬럼별로 걸리던 `rowTooltip`을 테이블 body 공통 tooltip으로 옮겨 테이블 영역 기준으로 한 번만 동작하게 했다. 검증 성공: `C:/flutter/bin/flutter.bat analyze --no-fatal-warnings --no-fatal-infos lib/home_page_manager.dart lib/widgets/swipe_action_table.dart lib/page_home/common_label_manage.dart`, `C:/flutter/bin/flutter.bat test test/common_label_manage_test.dart`.
 
 - 완료: 브랜드 설정 다이얼로그 표시를 재조정했다. `lib/home_page_manager.dart`: 다이얼로그 높이를 화면의 1/2로 변경하고 테이블 좌/우/하단 padding을 8px로 변경했다. `lib/widgets/swipe_action_table.dart`: `keepRowContentOnSwipe` 모드에서 row content가 그대로 덮어 액션 버튼이 보이지 않던 문제를 수정했다. 이제 텍스트는 유지하되 액션 레일이 row 위로 슬라이드되어 보이고, 액션 영역에서도 오른쪽 드래그로 닫을 수 있다. 검증 성공: `C:/flutter/bin/flutter.bat analyze --no-fatal-warnings --no-fatal-infos lib/home_page_manager.dart lib/widgets/swipe_action_table.dart lib/page_home/common_label_manage.dart`, `C:/flutter/bin/flutter.bat test test/common_label_manage_test.dart`.

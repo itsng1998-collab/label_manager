@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 class SwipeActionTableColumn<T> {
@@ -670,23 +672,112 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
   }
 }
 
-class _TableBodyTooltip extends StatelessWidget {
+class _TableBodyTooltip extends StatefulWidget {
   const _TableBodyTooltip({required this.message, required this.child});
 
   final String? message;
   final Widget child;
 
   @override
-  Widget build(BuildContext context) {
-    final text = message;
-    if (text == null || text.isEmpty) {
-      return child;
+  State<_TableBodyTooltip> createState() => _TableBodyTooltipState();
+}
+
+class _TableBodyTooltipState extends State<_TableBodyTooltip> {
+  final LayerLink _layerLink = LayerLink();
+  Timer? _showTimer;
+  Timer? _hideTimer;
+  OverlayEntry? _entry;
+
+  @override
+  void didUpdateWidget(covariant _TableBodyTooltip oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.message != widget.message) {
+      _hideTooltip();
     }
-    return Tooltip(
-      message: text,
-      waitDuration: const Duration(milliseconds: 500),
-      showDuration: const Duration(seconds: 3),
-      child: child,
+  }
+
+  @override
+  void dispose() {
+    _showTimer?.cancel();
+    _hideTimer?.cancel();
+    _entry?.remove();
+    super.dispose();
+  }
+
+  void _scheduleTooltip() {
+    final text = widget.message;
+    if (text == null || text.isEmpty || _entry != null) {
+      return;
+    }
+    _showTimer?.cancel();
+    _showTimer = Timer(const Duration(milliseconds: 500), () {
+      if (!mounted || _entry != null) {
+        return;
+      }
+      final overlay = Overlay.maybeOf(context);
+      if (overlay == null) {
+        return;
+      }
+      _entry = OverlayEntry(
+        builder: (context) => Positioned.fill(
+          child: IgnorePointer(
+            child: CompositedTransformFollower(
+              link: _layerLink,
+              showWhenUnlinked: false,
+              offset: const Offset(12, 28),
+              child: Align(
+                alignment: Alignment.topLeft,
+                child: Material(
+                  color: Colors.transparent,
+                  child: Container(
+                    constraints: const BoxConstraints(maxWidth: 260),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 5,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xff303030),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      text,
+                      style: const TextStyle(color: Colors.white, fontSize: 12),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      overlay.insert(_entry!);
+      _hideTimer?.cancel();
+      _hideTimer = Timer(const Duration(seconds: 3), _hideTooltip);
+    });
+  }
+
+  void _hideTooltip() {
+    _showTimer?.cancel();
+    _hideTimer?.cancel();
+    _showTimer = null;
+    _hideTimer = null;
+    _entry?.remove();
+    _entry = null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final text = widget.message;
+    if (text == null || text.isEmpty) {
+      return widget.child;
+    }
+    return CompositedTransformTarget(
+      link: _layerLink,
+      child: MouseRegion(
+        onEnter: (_) => _scheduleTooltip(),
+        onExit: (_) => _hideTooltip(),
+        child: widget.child,
+      ),
     );
   }
 }

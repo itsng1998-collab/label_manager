@@ -1488,19 +1488,19 @@ class _BrandSettingsDialog extends StatelessWidget {
       SwipeActionTableAction(
         icon: Icons.edit,
         tooltip: '수정',
-        backgroundColor: Color(0xff6b7280),
+        backgroundColor: Color(0xff9ca3af),
         onPressed: _noop,
       ),
       SwipeActionTableAction(
         icon: Icons.add,
         tooltip: '삽입',
-        backgroundColor: Color(0xff7b8492),
+        backgroundColor: Color(0xffa7b0bd),
         onPressed: _noop,
       ),
       SwipeActionTableAction(
         icon: Icons.delete,
         tooltip: '삭제',
-        backgroundColor: Color(0xff8b949e),
+        backgroundColor: Color(0xffb4bac3),
         onPressed: _noop,
       ),
     ];
@@ -1511,18 +1511,18 @@ class _BrandSettingsDialog extends StatelessWidget {
       SwipeActionTableAction(
         icon: Icons.edit,
         tooltip: '수정',
-        backgroundColor: Color(0xff6b7280),
+        backgroundColor: Color(0xff9ca3af),
       ),
       SwipeActionTableAction(
         icon: Icons.add,
         tooltip: '삽입',
-        backgroundColor: Color(0xff7b8492),
+        backgroundColor: Color(0xffa7b0bd),
         onPressed: _noop,
       ),
       SwipeActionTableAction(
         icon: Icons.delete,
         tooltip: '삭제',
-        backgroundColor: Color(0xff8b949e),
+        backgroundColor: Color(0xffb4bac3),
       ),
     ];
   }
