@@ -1406,11 +1406,11 @@ class _BrandSettingsDialog extends StatelessWidget {
   final List<Brand> brands;
   final VoidCallback onClose;
 
-  static const double _dialogWidth = 300;
+  static const double _dialogWidth = 400;
 
   @override
   Widget build(BuildContext context) {
-    final dialogHeight = MediaQuery.sizeOf(context).height / 4;
+    final dialogHeight = MediaQuery.sizeOf(context).height / 3;
     return Dialog(
       insetPadding: const EdgeInsets.all(24),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
@@ -1451,24 +1451,28 @@ class _BrandSettingsDialog extends StatelessWidget {
               ),
             ),
             Expanded(
-              child: SwipeActionTable<Brand>(
-                rows: brands,
-                fillLastColumn: true,
-                autoFitColumns: false,
-                rowSwipeEnabled: true,
-                rowTooltip: '컬럼 왼쪽 스와이프 수정/삽입/삭제',
-                showActionsWhenEmpty: true,
-                actions: _brandRowActions(),
-                emptyActions: _brandEmptyActions(),
-                columns: const [
-                  SwipeActionTableColumn<Brand>(
-                    header: '브랜드 이름',
-                    initialWidth: 220,
-                    minWidth: 120,
-                    fillRemaining: true,
-                    text: _brandNameText,
-                  ),
-                ],
+              child: Padding(
+                padding: const EdgeInsets.only(left: 4, right: 4, bottom: 4),
+                child: SwipeActionTable<Brand>(
+                  rows: brands,
+                  fillLastColumn: true,
+                  autoFitColumns: false,
+                  rowSwipeEnabled: true,
+                  keepRowContentOnSwipe: true,
+                  rowTooltip: '컬럼 왼쪽 스와이프 수정/삽입/삭제',
+                  showActionsWhenEmpty: true,
+                  actions: _brandRowActions(),
+                  emptyActions: _brandEmptyActions(),
+                  columns: const [
+                    SwipeActionTableColumn<Brand>(
+                      header: '브랜드 이름',
+                      initialWidth: 220,
+                      minWidth: 120,
+                      fillRemaining: true,
+                      text: _brandNameText,
+                    ),
+                  ],
+                ),
               ),
             ),
           ],
@@ -1484,19 +1488,19 @@ class _BrandSettingsDialog extends StatelessWidget {
       SwipeActionTableAction(
         icon: Icons.edit,
         tooltip: '수정',
-        backgroundColor: Color(0xff4b5563),
+        backgroundColor: Color(0xff6b7280),
         onPressed: _noop,
       ),
       SwipeActionTableAction(
         icon: Icons.add,
         tooltip: '삽입',
-        backgroundColor: Color(0xff2563eb),
+        backgroundColor: Color(0xff7b8492),
         onPressed: _noop,
       ),
       SwipeActionTableAction(
         icon: Icons.delete,
         tooltip: '삭제',
-        backgroundColor: Color(0xffef4444),
+        backgroundColor: Color(0xff8b949e),
         onPressed: _noop,
       ),
     ];
@@ -1507,18 +1511,18 @@ class _BrandSettingsDialog extends StatelessWidget {
       SwipeActionTableAction(
         icon: Icons.edit,
         tooltip: '수정',
-        backgroundColor: Color(0xff4b5563),
+        backgroundColor: Color(0xff6b7280),
       ),
       SwipeActionTableAction(
         icon: Icons.add,
         tooltip: '삽입',
-        backgroundColor: Color(0xff2563eb),
+        backgroundColor: Color(0xff7b8492),
         onPressed: _noop,
       ),
       SwipeActionTableAction(
         icon: Icons.delete,
         tooltip: '삭제',
-        backgroundColor: Color(0xffef4444),
+        backgroundColor: Color(0xff8b949e),
       ),
     ];
   }

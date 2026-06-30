@@ -42,6 +42,7 @@ class SwipeActionTable<T> extends StatefulWidget {
     this.showActionsWhenEmpty = false,
     this.emptyActions,
     this.rowTooltip,
+    this.keepRowContentOnSwipe = false,
     this.rowNumberWidth = 40,
     this.headerHeight = 36,
     this.rowHeight = 28,
@@ -56,6 +57,7 @@ class SwipeActionTable<T> extends StatefulWidget {
   final bool showActionsWhenEmpty;
   final List<SwipeActionTableAction>? emptyActions;
   final String? rowTooltip;
+  final bool keepRowContentOnSwipe;
   final double rowNumberWidth;
   final double headerHeight;
   final double rowHeight;
@@ -515,7 +517,11 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
     Widget foreground = AnimatedContainer(
       duration: const Duration(milliseconds: 160),
       curve: Curves.easeOut,
-      transform: Matrix4.translationValues(isOpen ? -actionsWidth : 0, 0, 0),
+      transform: Matrix4.translationValues(
+        isOpen && !widget.keepRowContentOnSwipe ? -actionsWidth : 0,
+        0,
+        0,
+      ),
       child: rowContent,
     );
     final tooltip = widget.rowTooltip;
@@ -534,7 +540,15 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
         child: Stack(
           children: [
             if (widget.rowSwipeEnabled && widget.actions.isNotEmpty)
-              Positioned.fill(child: _buildActionRail(widget.actions)),
+              AnimatedPositioned(
+                duration: const Duration(milliseconds: 160),
+                curve: Curves.easeOut,
+                top: 0,
+                bottom: 0,
+                right: isOpen ? 0 : -actionsWidth,
+                width: actionsWidth,
+                child: _buildActionRail(widget.actions),
+              ),
             GestureDetector(
               behavior: HitTestBehavior.translucent,
               onHorizontalDragUpdate: widget.rowSwipeEnabled
