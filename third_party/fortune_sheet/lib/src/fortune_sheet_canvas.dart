@@ -2135,6 +2135,10 @@ class FortuneSheetController {
     _state?._setControllerSelection(ranges, id: id, index: index);
   }
 
+  void clearHoverState() {
+    _state?._clearControllerHoverState();
+  }
+
   void _attach(_FortuneSheetCanvasState state) {
     _state = state;
   }
@@ -5763,6 +5767,19 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         _setSelectionToRange(range);
       }
       _writeSelectionRanges(nextRanges, focus, sheetIndex: sheetIndex);
+    });
+  }
+
+  void _clearControllerHoverState() {
+    if (_toolbarHoveredKey == null &&
+        _toolbarHoveredComboArrowKey == null &&
+        _mouseCursor == SystemMouseCursors.basic) {
+      return;
+    }
+    setState(() {
+      _toolbarHoveredKey = null;
+      _toolbarHoveredComboArrowKey = null;
+      _mouseCursor = SystemMouseCursors.basic;
     });
   }
 

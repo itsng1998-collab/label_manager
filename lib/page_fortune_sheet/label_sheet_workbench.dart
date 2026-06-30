@@ -1242,6 +1242,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
   }
 
   Future<void> _notifyBeforeSheetDialog() async {
+    _controller.clearHoverState();
     final callback = widget.onBeforeSheetDialog;
     if (callback != null) {
       await Future<void>.sync(callback);

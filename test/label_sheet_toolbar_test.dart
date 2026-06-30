@@ -66,6 +66,30 @@ bool _primaryFocusIsInside(WidgetTester tester, Finder rootFinder) {
   return inside;
 }
 
+Offset _toolbarItemCenter(
+  String key, {
+  double width = 1200,
+  List<String> items = fortuneToolbarItems,
+}) {
+  for (final entry in fortuneVisibleToolbarItemRects(width, items: items)) {
+    if (entry.key == key) {
+      return entry.value.center;
+    }
+  }
+  fail('toolbar item not found: $key');
+}
+
+FortuneSheetPainter _currentFortunePainter(WidgetTester tester) => tester
+    .widgetList<CustomPaint>(find.byType(CustomPaint))
+    .map((paint) => paint.painter)
+    .whereType<FortuneSheetPainter>()
+    .first;
+
+Finder _printDialogCloseButtonFinder() {
+  final closeFinder = find.text('닫기');
+  return closeFinder.evaluate().isNotEmpty ? closeFinder : find.text('취소');
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -598,7 +622,7 @@ void main() {
     expect(find.text('프린터 선택'), findsOneWidget);
     expect(find.text('발행'), findsOneWidget);
     expect(find.text('적용'), findsOneWidget);
-    expect(find.text('닫기'), findsOneWidget);
+    expect(_printDialogCloseButtonFinder(), findsOneWidget);
     expect(find.text('%'), findsWidgets);
     expect(find.text('간격조정 없음'), findsOneWidget);
 
@@ -616,13 +640,71 @@ void main() {
     await tester.tap(find.text('300'));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('닫기'));
+    await tester.tap(_printDialogCloseButtonFinder());
     await tester.pump();
 
     expect(
       find.byKey(const ValueKey('label-sheet-print-settings-dialog')),
       findsNothing,
     );
+  });
+
+  testWidgets('label sheet print dialog clears toolbar tooltip hover', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 600,
+            height: 360,
+            child: LabelSheetWorkbench(
+              initialWorkbook: FortuneWorkbook(
+                sheets: [FortuneSheet(id: 's1', name: 'Label')],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    final sheetTopLeft = tester.getTopLeft(find.byType(FortuneSheetApp));
+    await tester.sendEventToBinding(
+      PointerHoverEvent(
+        position:
+            sheetTopLeft +
+            _toolbarItemCenter(
+              labelSheetPrintToolbarCommand,
+              width: 600,
+              items: labelSheetToolbarItems,
+            ),
+      ),
+    );
+    await tester.pump();
+
+    expect(
+      _currentFortunePainter(tester).toolbarHoveredKey,
+      labelSheetPrintToolbarCommand,
+    );
+
+    final printItem = tester
+        .widget<FortuneSheetApp>(find.byType(FortuneSheetApp))
+        .settings!
+        .customToolbarItems
+        .singleWhere((item) => item.key == labelSheetPrintToolbarCommand);
+    printItem.onClick!(printItem);
+    await tester.pump();
+    await tester.pump();
+
+    expect(
+      find.byKey(const ValueKey('label-sheet-print-settings-dialog')),
+      findsOneWidget,
+    );
+    expect(_currentFortunePainter(tester).toolbarHoveredKey, isNull);
   });
 
   testWidgets('label sheet print dialog displays saved preferred printer', (
@@ -725,7 +807,7 @@ void main() {
       findsOneWidget,
     );
 
-    await tester.tap(find.text('닫기'));
+    await tester.tap(_printDialogCloseButtonFinder());
     await tester.pump();
 
     expect(events, ['before', 'closed']);
