@@ -1406,11 +1406,11 @@ class _BrandSettingsDialog extends StatelessWidget {
   final List<Brand> brands;
   final VoidCallback onClose;
 
-  static const double _dialogWidth = 400;
+  static const double _dialogWidth = 500;
 
   @override
   Widget build(BuildContext context) {
-    final dialogHeight = MediaQuery.sizeOf(context).height / 2;
+    final dialogHeight = MediaQuery.sizeOf(context).height * 0.7;
     return Dialog(
       insetPadding: const EdgeInsets.all(24),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),

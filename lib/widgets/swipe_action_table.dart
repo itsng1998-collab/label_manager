@@ -514,7 +514,7 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
         ],
       ),
     );
-    Widget foreground = AnimatedContainer(
+    final foreground = AnimatedContainer(
       duration: const Duration(milliseconds: 160),
       curve: Curves.easeOut,
       transform: Matrix4.translationValues(
@@ -524,15 +524,6 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
       ),
       child: rowContent,
     );
-    final tooltip = widget.rowTooltip;
-    if (tooltip != null && tooltip.isNotEmpty) {
-      foreground = Tooltip(
-        message: tooltip,
-        waitDuration: const Duration(milliseconds: 500),
-        showDuration: const Duration(seconds: 3),
-        child: foreground,
-      );
-    }
     return SizedBox(
       width: contentWidth,
       height: widget.rowHeight,
@@ -631,34 +622,37 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
                       cursor: _draggingIndex != null
                           ? SystemMouseCursors.resizeLeftRight
                           : MouseCursor.defer,
-                      child: Scrollbar(
-                        controller: _vScrollBody,
-                        thumbVisibility: true,
+                      child: _TableBodyTooltip(
+                        message: widget.rowTooltip,
                         child: Scrollbar(
-                          controller: _hScrollBody,
+                          controller: _vScrollBody,
                           thumbVisibility: true,
-                          notificationPredicate: (notification) =>
-                              notification.metrics.axis == Axis.horizontal,
-                          child: SingleChildScrollView(
+                          child: Scrollbar(
                             controller: _hScrollBody,
-                            scrollDirection: Axis.horizontal,
-                            child: SizedBox(
-                              width: contentWidth,
-                              child: ListView.builder(
-                                controller: _vScrollBody,
-                                itemCount: widget.rows.isEmpty
-                                    ? 1
-                                    : widget.rows.length,
-                                itemBuilder: (context, index) {
-                                  if (widget.rows.isEmpty) {
-                                    return _buildEmptyBody(widths);
-                                  }
-                                  return _buildDataRow(
-                                    widget.rows[index],
-                                    index,
-                                    widths,
-                                  );
-                                },
+                            thumbVisibility: true,
+                            notificationPredicate: (notification) =>
+                                notification.metrics.axis == Axis.horizontal,
+                            child: SingleChildScrollView(
+                              controller: _hScrollBody,
+                              scrollDirection: Axis.horizontal,
+                              child: SizedBox(
+                                width: contentWidth,
+                                child: ListView.builder(
+                                  controller: _vScrollBody,
+                                  itemCount: widget.rows.isEmpty
+                                      ? 1
+                                      : widget.rows.length,
+                                  itemBuilder: (context, index) {
+                                    if (widget.rows.isEmpty) {
+                                      return _buildEmptyBody(widths);
+                                    }
+                                    return _buildDataRow(
+                                      widget.rows[index],
+                                      index,
+                                      widths,
+                                    );
+                                  },
+                                ),
                               ),
                             ),
                           ),
@@ -672,6 +666,27 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
           ],
         );
       },
+    );
+  }
+}
+
+class _TableBodyTooltip extends StatelessWidget {
+  const _TableBodyTooltip({required this.message, required this.child});
+
+  final String? message;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = message;
+    if (text == null || text.isEmpty) {
+      return child;
+    }
+    return Tooltip(
+      message: text,
+      waitDuration: const Duration(milliseconds: 500),
+      showDuration: const Duration(seconds: 3),
+      child: child,
     );
   }
 }
