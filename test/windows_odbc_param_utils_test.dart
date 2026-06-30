@@ -1,4 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:label_manager/database/windows_odbc/odbc_bindings.dart';
+import 'package:label_manager/database/windows_odbc/odbc_driver.dart';
 import 'package:label_manager/database/windows_odbc/odbc_param_utils.dart';
 
 void main() {
@@ -44,6 +46,17 @@ void main() {
       expect(
         () => prepareStatement('SELECT 1', {'id': 1}),
         throwsArgumentError,
+      );
+    });
+  });
+
+  group('odbcTextParameterTypeForLength', () {
+    test('uses wide long varchar only for text longer than 4000 chars', () {
+      expect(odbcTextParameterTypeForLength(0), OdbcConst.sqlTypeWvarchar);
+      expect(odbcTextParameterTypeForLength(4000), OdbcConst.sqlTypeWvarchar);
+      expect(
+        odbcTextParameterTypeForLength(4001),
+        OdbcConst.sqlTypeWlongvarchar,
       );
     });
   });

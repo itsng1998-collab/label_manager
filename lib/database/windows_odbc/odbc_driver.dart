@@ -644,7 +644,7 @@ class _BoundParameter {
       bufferLength: bytes,
       columnSize: columnSize,
       valueType: OdbcConst.sqlCWChar,
-      parameterType: OdbcConst.sqlTypeWvarchar,
+      parameterType: odbcTextParameterTypeForLength(lengthChars),
     );
   }
 
@@ -676,6 +676,14 @@ class _BoundParameter {
     calloc.free(pointer);
     calloc.free(lengthPtr);
   }
+}
+
+@visibleForTesting
+int odbcTextParameterTypeForLength(int lengthChars) {
+  if (lengthChars > _BoundParameter._defaultColumnSize) {
+    return OdbcConst.sqlTypeWlongvarchar;
+  }
+  return OdbcConst.sqlTypeWvarchar;
 }
 
 
