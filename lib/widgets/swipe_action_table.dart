@@ -29,6 +29,7 @@ class SwipeActionTableAction<T> {
     this.onPressed,
     this.onRowPressed,
     this.isPressed,
+    this.isEnabled,
   });
 
   final IconData icon;
@@ -37,6 +38,7 @@ class SwipeActionTableAction<T> {
   final VoidCallback? onPressed;
   final void Function(T row, int index)? onRowPressed;
   final bool Function(T row, int index)? isPressed;
+  final bool Function(T row, int index)? isEnabled;
 }
 
 class SwipeActionTable<T> extends StatefulWidget {
@@ -56,6 +58,7 @@ class SwipeActionTable<T> extends StatefulWidget {
     this.autoFitColumns = true,
     this.fillLastColumn = false,
     this.isRowContentInteractive,
+    this.canSwipeRow,
   });
 
   final List<T> rows;
@@ -72,6 +75,7 @@ class SwipeActionTable<T> extends StatefulWidget {
   final bool autoFitColumns;
   final bool fillLastColumn;
   final bool Function(T row, int index)? isRowContentInteractive;
+  final bool Function(T row, int index)? canSwipeRow;
 
   @override
   State<SwipeActionTable<T>> createState() => _SwipeActionTableState<T>();
@@ -471,9 +475,13 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
             Builder(
               builder: (context) {
                 final isRowAction = row != null && rowIndex != null;
-                final callback = isRowAction && action.onRowPressed != null
-                    ? () => action.onRowPressed!(row, rowIndex)
-                    : action.onPressed;
+                final isEnabled = isRowAction
+                  ? action.isEnabled?.call(row, rowIndex) ?? true
+                  : true;
+                final rawCallback = isRowAction && action.onRowPressed != null
+                  ? () => action.onRowPressed!(row, rowIndex)
+                  : action.onPressed;
+                final callback = isEnabled ? rawCallback : null;
                 final isPressed = isRowAction
                     ? action.isPressed?.call(row, rowIndex) ?? false
                     : false;
@@ -529,7 +537,8 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
   Widget _buildDataRow(T row, int index, List<double> widths) {
     final contentWidth = widths.fold<double>(0, (sum, width) => sum + width);
     final actionsWidth = widget.actions.length * _actionWidth;
-    final isOpen = widget.rowSwipeEnabled && _openActionIndex == index;
+    final canSwipeRow = widget.canSwipeRow?.call(row, index) ?? true;
+    final isOpen = widget.rowSwipeEnabled && canSwipeRow && _openActionIndex == index;
     final isRowContentInteractive =
         widget.isRowContentInteractive?.call(row, index) ?? false;
     final rowWidths = isRowContentInteractive &&
@@ -606,7 +615,7 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
             else
               GestureDetector(
                 behavior: HitTestBehavior.translucent,
-                onHorizontalDragUpdate: widget.rowSwipeEnabled
+                onHorizontalDragUpdate: widget.rowSwipeEnabled && canSwipeRow
                     ? (details) {
                         if (details.delta.dx < -2) {
                           setState(() => _openActionIndex = index);

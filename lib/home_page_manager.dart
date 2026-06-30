@@ -1502,6 +1502,8 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
                   rowTooltip: '컬럼 왼쪽 스와이프 수정/삽입/삭제',
                   showActionsWhenEmpty: true,
                   isRowContentInteractive: (_, index) => _editingIndex == index,
+                    canSwipeRow: (_, index) =>
+                      _editingIndex == null || _editingIndex == index,
                   actions: _brandRowActions(),
                   emptyActions: _brandEmptyActions(),
                   columns: [
@@ -1534,17 +1536,19 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
         onRowPressed: _toggleBrandNameEdit,
         isPressed: (_, index) => _editingIndex == index,
       ),
-      const SwipeActionTableAction<Brand>(
+      SwipeActionTableAction<Brand>(
         icon: Icons.add,
         tooltip: '삽입',
-        backgroundColor: Color(0xffa7b0bd),
+        backgroundColor: const Color(0xffa7b0bd),
         onPressed: _noop,
+        isEnabled: (_, _) => _editingIndex == null,
       ),
-      const SwipeActionTableAction<Brand>(
+      SwipeActionTableAction<Brand>(
         icon: Icons.delete,
         tooltip: '삭제',
-        backgroundColor: Color(0xffb4bac3),
+        backgroundColor: const Color(0xffb4bac3),
         onPressed: _noop,
+        isEnabled: (_, _) => _editingIndex == null,
       ),
     ];
   }
