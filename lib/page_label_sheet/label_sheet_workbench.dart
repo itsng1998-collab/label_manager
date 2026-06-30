@@ -1338,7 +1338,8 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     if (printed || !mounted) {
       return;
     }
-    await Printing.layoutPdf(
+    await Printing.directPrintPdf(
+      printer: printer,
       name: 'ITSnG_Label_${DateTime.now().millisecondsSinceEpoch}',
       onLayout: (_) async => pdfBytes,
     );
