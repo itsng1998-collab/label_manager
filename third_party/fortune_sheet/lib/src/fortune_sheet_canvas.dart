@@ -48,6 +48,14 @@ class _FortunePasteTextIntent extends Intent {
   const _FortunePasteTextIntent();
 }
 
+class _FortuneNextDialogFocusIntent extends Intent {
+  const _FortuneNextDialogFocusIntent();
+}
+
+class _FortunePreviousDialogFocusIntent extends Intent {
+  const _FortunePreviousDialogFocusIntent();
+}
+
 String _formatToolbarBorderStyleWidth(double width) {
   return width == width.roundToDouble()
       ? width.toInt().toString()
@@ -8769,43 +8777,43 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     }
 
     _sheetCornerTooltipShowTimer ??= Timer(
-        const Duration(milliseconds: 200),
-        () {
-          if (!mounted) {
-            return;
-          }
-          _sheetCornerTooltipShowTimer = null;
-          final position = _sheetCornerTooltipHoverPosition;
-          if (position == null || _sheetCornerTooltipDismissedUntilExit) {
-            return;
-          }
-          setState(() {
-            _sheetRulerHoveredGuideIndex = null;
-            _sheetRulerTooltipText = _sheetCornerTooltipText;
-            _sheetRulerTooltipPosition = position;
-            _sheetRulerHoveringRuler = false;
-            _sheetCornerTooltipActive = true;
-          });
-          _sheetCornerTooltipHideTimer?.cancel();
-          _sheetCornerTooltipHideTimer = Timer(
-            const Duration(seconds: 3),
-            () {
-              if (!mounted) {
-                return;
+      const Duration(milliseconds: 200),
+      () {
+        if (!mounted) {
+          return;
+        }
+        _sheetCornerTooltipShowTimer = null;
+        final position = _sheetCornerTooltipHoverPosition;
+        if (position == null || _sheetCornerTooltipDismissedUntilExit) {
+          return;
+        }
+        setState(() {
+          _sheetRulerHoveredGuideIndex = null;
+          _sheetRulerTooltipText = _sheetCornerTooltipText;
+          _sheetRulerTooltipPosition = position;
+          _sheetRulerHoveringRuler = false;
+          _sheetCornerTooltipActive = true;
+        });
+        _sheetCornerTooltipHideTimer?.cancel();
+        _sheetCornerTooltipHideTimer = Timer(
+          const Duration(seconds: 3),
+          () {
+            if (!mounted) {
+              return;
+            }
+            setState(() {
+              if (_sheetCornerTooltipActive &&
+                  _sheetRulerTooltipText == _sheetCornerTooltipText) {
+                _sheetRulerTooltipText = null;
+                _sheetRulerTooltipPosition = null;
               }
-              setState(() {
-                if (_sheetCornerTooltipActive &&
-                    _sheetRulerTooltipText == _sheetCornerTooltipText) {
-                  _sheetRulerTooltipText = null;
-                  _sheetRulerTooltipPosition = null;
-                }
-                _sheetCornerTooltipActive = false;
-                _sheetCornerTooltipDismissedUntilExit = true;
-              });
-            },
-          );
-        },
-      );
+              _sheetCornerTooltipActive = false;
+              _sheetCornerTooltipDismissedUntilExit = true;
+            });
+          },
+        );
+      },
+    );
     return true;
   }
 
@@ -9164,9 +9172,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     final command = _barcodeDialogCommandAt(local);
     final hoverControl = command == null || command == 'modal' ? null : command;
     final objectIdMenuIndex =
-      hoverControl != null && hoverControl.startsWith('object-id-')
-      ? int.tryParse(hoverControl.substring('object-id-'.length))
-      : null;
+        hoverControl != null && hoverControl.startsWith('object-id-')
+        ? int.tryParse(hoverControl.substring('object-id-'.length))
+        : null;
     final menuIndex = hoverControl != null && hoverControl.startsWith('format-')
         ? int.tryParse(hoverControl.substring('format-'.length))
         : null;
@@ -9224,8 +9232,10 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       return false;
     }
     if (_barcodeObjectIdMenuOpen &&
-        fortuneBarcodeObjectIdMenuRect(rect, _effectiveBarcodeObjectIds.length)
-            .contains(local)) {
+        fortuneBarcodeObjectIdMenuRect(
+          rect,
+          _effectiveBarcodeObjectIds.length,
+        ).contains(local)) {
       return false;
     }
     return fortuneBarcodeTextInputRect(rect).contains(local) ||
@@ -22607,9 +22617,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         : (result.pixelHeight ?? 60).toDouble();
     final renderedBodyTop = (result.bodyTop ?? 0).toDouble();
     final renderedBodyHeight = _barcodeShowHumanReadableText
-      ? (result.bodyHeight?.toDouble() ??
-          math.min(requestedBarHeight, imageHeight))
-      : imageHeight;
+        ? (result.bodyHeight?.toDouble() ??
+            math.min(requestedBarHeight, imageHeight))
+        : imageHeight;
     final src = _bytesDataUri(result.bytes, result.mimeType);
     final extraFields = <String, Object?>{
       'fortuneBarcode': true,
@@ -29932,6 +29942,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       return;
     }
     if (_imageInsertDialogOpen) {
+      if (_handleDialogFocusTraversalKeyEvent(event)) {
+        return;
+      }
       if (event.logicalKey == LogicalKeyboardKey.escape) {
         _cancelImageInsertDialog();
       } else if (event.logicalKey == LogicalKeyboardKey.enter) {
@@ -29940,6 +29953,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       return;
     }
     if (_barcodeDialogOpen) {
+      if (_handleDialogFocusTraversalKeyEvent(event)) {
+        return;
+      }
       if (event.logicalKey == LogicalKeyboardKey.escape) {
         _cancelBarcodeDialog();
       } else if (event.logicalKey == LogicalKeyboardKey.enter) {
@@ -29960,6 +29976,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       return;
     }
     if (_axisSizeDialogOpen) {
+      if (_handleDialogFocusTraversalKeyEvent(event)) {
+        return;
+      }
       if (event.logicalKey == LogicalKeyboardKey.escape) {
         setState(() {
           _axisSizeDialogAxis = null;
@@ -29969,6 +29988,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       return;
     }
     if (_hyperlinkDialogOpen) {
+      if (_handleDialogFocusTraversalKeyEvent(event)) {
+        return;
+      }
       if (event.logicalKey == LogicalKeyboardKey.escape) {
         if (_hyperlinkDialogSelectingCellRange) {
           _closeHyperlinkDialogRangeSelection();
@@ -29990,6 +30012,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       return;
     }
     if (_dataVerificationDialogOpen) {
+      if (_handleDialogFocusTraversalKeyEvent(event)) {
+        return;
+      }
       if (event.logicalKey == LogicalKeyboardKey.escape) {
         setState(() {
           _dataVerificationDialogCoord = null;
@@ -30004,12 +30029,18 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       return;
     }
     if (_customSortDialogOpen) {
+      if (_handleDialogFocusTraversalKeyEvent(event)) {
+        return;
+      }
       if (event.logicalKey == LogicalKeyboardKey.escape) {
         setState(() => _customSortDialogOpen = false);
       }
       return;
     }
     if (_conditionRuleDialogOpen) {
+      if (_handleDialogFocusTraversalKeyEvent(event)) {
+        return;
+      }
       if (event.logicalKey == LogicalKeyboardKey.escape) {
         setState(() => _conditionRuleDialogOpen = false);
       } else if (event.logicalKey == LogicalKeyboardKey.enter) {
@@ -30018,6 +30049,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       return;
     }
     if (_formatSearchDialogOpen) {
+      if (_handleDialogFocusTraversalKeyEvent(event)) {
+        return;
+      }
       if (event.logicalKey == LogicalKeyboardKey.escape) {
         setState(() => _formatSearchDialogOpen = false);
         _focusNode.requestFocus();
@@ -30027,6 +30061,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       return;
     }
     if (_formulaSearchDialogOpen) {
+      if (_handleDialogFocusTraversalKeyEvent(event)) {
+        return;
+      }
       if (event.logicalKey == LogicalKeyboardKey.escape) {
         setState(() {
           _formulaSearchDialogOpen = false;
@@ -30036,6 +30073,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       return;
     }
     if (_splitTextDialogOpen) {
+      if (_handleDialogFocusTraversalKeyEvent(event)) {
+        return;
+      }
       if (event.logicalKey == LogicalKeyboardKey.escape) {
         setState(() => _splitTextDialogOpen = false);
         return;
@@ -30047,6 +30087,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       return;
     }
     if (_locationDialogOpen) {
+      if (_handleDialogFocusTraversalKeyEvent(event)) {
+        return;
+      }
       if (event.logicalKey == LogicalKeyboardKey.escape) {
         setState(() => _locationDialogOpen = false);
         return;
@@ -30058,6 +30101,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       return;
     }
     if (_locationMessageDialogText != null) {
+      if (_handleDialogFocusTraversalKeyEvent(event)) {
+        return;
+      }
       if (event.logicalKey == LogicalKeyboardKey.escape) {
         _activateLocationMessageDialogCommand('cancel');
       } else if (event.logicalKey == LogicalKeyboardKey.enter) {
@@ -30068,6 +30114,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       return;
     }
     if (_screenshotDialogOpen) {
+      if (_handleDialogFocusTraversalKeyEvent(event)) {
+        return;
+      }
       if (event.logicalKey == LogicalKeyboardKey.escape ||
           event.logicalKey == LogicalKeyboardKey.enter) {
         setState(() {
@@ -30078,6 +30127,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       return;
     }
     if (_searchDialogOpen) {
+      if (_handleDialogFocusTraversalKeyEvent(event)) {
+        return;
+      }
       if (event.logicalKey == LogicalKeyboardKey.escape) {
         setState(() => _searchDialogOpen = false);
         return;
@@ -38204,6 +38256,12 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     if (identical(node, _commentEditorFocusNode)) {
       return _commentEditorController;
     }
+    if (identical(node, _conditionRuleEditorFocusNode)) {
+      return _conditionRuleEditorController;
+    }
+    if (identical(node, _conditionRuleSecondEditorFocusNode)) {
+      return _conditionRuleSecondEditorController;
+    }
     if (identical(node, _hyperlinkDisplayEditorFocusNode)) {
       return _hyperlinkDisplayEditorController;
     }
@@ -38228,6 +38286,18 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     if (identical(node, _formulaSearchEditorFocusNode)) {
       return _formulaSearchEditorController;
     }
+    if (identical(node, _formatSearchDecimalFocusNode)) {
+      return _formatSearchDecimalController;
+    }
+    if (identical(node, _searchEditorFocusNode)) {
+      return _searchEditorController;
+    }
+    if (identical(node, _replaceEditorFocusNode)) {
+      return _replaceEditorController;
+    }
+    if (identical(node, _splitTextOtherFocusNode)) {
+      return _splitTextOtherController;
+    }
     for (final input in _imageInsertDialogInputs) {
       if (identical(node, input.focusNode)) {
         return input.controller;
@@ -38239,6 +38309,104 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       }
     }
     return null;
+  }
+
+  bool _handleDialogFocusTraversalKeyEvent(KeyEvent event) {
+    if (event is! KeyDownEvent ||
+        event.logicalKey != LogicalKeyboardKey.tab ||
+        HardwareKeyboard.instance.isAltPressed ||
+        HardwareKeyboard.instance.isControlPressed ||
+        HardwareKeyboard.instance.isMetaPressed) {
+      return false;
+    }
+    return _focusAdjacentDialogControl(
+      previous: HardwareKeyboard.instance.isShiftPressed,
+    );
+  }
+
+  bool _focusAdjacentDialogControl({required bool previous}) {
+    final nodes = _activeDialogFocusNodes();
+    if (nodes.isEmpty) {
+      return false;
+    }
+    final currentIndex = nodes.indexWhere((node) => node.hasFocus);
+    final nextIndex = currentIndex < 0
+        ? (previous ? nodes.length - 1 : 0)
+        : previous
+        ? (currentIndex - 1 + nodes.length) % nodes.length
+        : (currentIndex + 1) % nodes.length;
+    _focusDialogControl(nodes[nextIndex]);
+    return true;
+  }
+
+  List<FocusNode> _activeDialogFocusNodes() {
+    if (_imageInsertDialogOpen) {
+      return _imageInsertDialogInputs
+          .map((input) => input.focusNode)
+          .toList(growable: false);
+    }
+    if (_barcodeDialogOpen) {
+      return _barcodeDialogInputs
+          .map((input) => input.focusNode)
+          .toList(growable: false);
+    }
+    if (_axisSizeDialogOpen) {
+      return [_axisSizeEditorFocusNode];
+    }
+    if (_hyperlinkDialogOpen && !_hyperlinkDialogSelectingCellRange) {
+      return [
+        if (_hyperlinkDialogDisplayInputRect() != null)
+          _hyperlinkDisplayEditorFocusNode,
+        _hyperlinkAddressEditorFocusNode,
+      ];
+    }
+    if (_dataVerificationDialogOpen && !_dataVerificationDialogSelectingRange) {
+      return [
+        _dataVerificationRangeEditorFocusNode,
+        _dataVerificationEditorFocusNode,
+        if (_dataVerificationDialogUsesSecondValueInput(
+          _dataVerificationDialogType,
+          _dataVerificationDialogType2,
+        ))
+          _dataVerificationSecondEditorFocusNode,
+        _dataVerificationHintEditorFocusNode,
+      ];
+    }
+    if (_splitTextDialogOpen) {
+      return [_splitTextOtherFocusNode];
+    }
+    if (_formatSearchDialogOpen &&
+        _formatSearchType != fortuneToolbarFormatMoreDateTimeCommand) {
+      return [_formatSearchDecimalFocusNode];
+    }
+    if (_formulaSearchDialogOpen) {
+      return [_formulaSearchEditorFocusNode];
+    }
+    if (_conditionRuleDialogOpen) {
+      return [
+        _conditionRuleEditorFocusNode,
+        if (_conditionRuleSecondInputRect() != null)
+          _conditionRuleSecondEditorFocusNode,
+      ];
+    }
+    if (_searchDialogOpen) {
+      return [
+        _searchEditorFocusNode,
+        if (_searchReplaceMode) _replaceEditorFocusNode,
+      ];
+    }
+    return const <FocusNode>[];
+  }
+
+  void _focusDialogControl(FocusNode node) {
+    final controller = _controllerForTextInputFocusNode(node);
+    if (controller != null) {
+      controller.selection = TextSelection(
+        baseOffset: 0,
+        extentOffset: controller.text.length,
+      );
+    }
+    node.requestFocus();
   }
 
   KeyEventResult _handleFocusedTextEditingShortcut(
@@ -38397,6 +38565,39 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     );
   }
 
+  Widget _buildDialogTextEditingShortcutActions(
+    TextEditingController controller,
+    Widget child,
+  ) {
+    return Shortcuts(
+      shortcuts: const <ShortcutActivator, Intent>{
+        SingleActivator(LogicalKeyboardKey.tab):
+            _FortuneNextDialogFocusIntent(),
+        SingleActivator(LogicalKeyboardKey.tab, shift: true):
+            _FortunePreviousDialogFocusIntent(),
+      },
+      child: Actions(
+        actions: <Type, Action<Intent>>{
+          _FortuneNextDialogFocusIntent:
+              CallbackAction<_FortuneNextDialogFocusIntent>(
+                onInvoke: (_) {
+                  _focusAdjacentDialogControl(previous: false);
+                  return null;
+                },
+              ),
+          _FortunePreviousDialogFocusIntent:
+              CallbackAction<_FortunePreviousDialogFocusIntent>(
+                onInvoke: (_) {
+                  _focusAdjacentDialogControl(previous: true);
+                  return null;
+                },
+              ),
+        },
+        child: _buildTextEditingShortcutActions(controller, child),
+      ),
+    );
+  }
+
   KeyEventResult _handleCommentEditorKeyEvent(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent) {
       return KeyEventResult.ignored;
@@ -38428,6 +38629,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     if (shortcutResult != KeyEventResult.ignored) {
       return shortcutResult;
     }
+    if (_handleDialogFocusTraversalKeyEvent(event)) {
+      return KeyEventResult.handled;
+    }
     if (event.logicalKey == LogicalKeyboardKey.escape) {
       if (_hyperlinkDialogSelectingCellRange) {
         _closeHyperlinkDialogRangeSelection();
@@ -38457,6 +38661,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     if (shortcutResult != KeyEventResult.ignored) {
       return shortcutResult;
     }
+    if (_handleDialogFocusTraversalKeyEvent(event)) {
+      return KeyEventResult.handled;
+    }
     if (event.logicalKey == LogicalKeyboardKey.escape) {
       setState(() {
         _axisSizeDialogAxis = null;
@@ -38483,6 +38690,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     if (shortcutResult != KeyEventResult.ignored) {
       return shortcutResult;
     }
+    if (_handleDialogFocusTraversalKeyEvent(event)) {
+      return KeyEventResult.handled;
+    }
     if (event.logicalKey == LogicalKeyboardKey.escape) {
       _cancelImageInsertDialog();
       return KeyEventResult.handled;
@@ -38501,6 +38711,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     final shortcutResult = _handleFocusedTextEditingShortcut(node, event);
     if (shortcutResult != KeyEventResult.ignored) {
       return shortcutResult;
+    }
+    if (_handleDialogFocusTraversalKeyEvent(event)) {
+      return KeyEventResult.handled;
     }
     if (event.logicalKey == LogicalKeyboardKey.escape) {
       _cancelBarcodeDialog();
@@ -38972,6 +39185,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     if (shortcutResult != KeyEventResult.ignored) {
       return shortcutResult;
     }
+    if (_handleDialogFocusTraversalKeyEvent(event)) {
+      return KeyEventResult.handled;
+    }
     if (event.logicalKey == LogicalKeyboardKey.escape) {
       setState(() {
         _dataVerificationDialogCoord = null;
@@ -38999,6 +39215,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     if (shortcutResult != KeyEventResult.ignored) {
       return shortcutResult;
     }
+    if (_handleDialogFocusTraversalKeyEvent(event)) {
+      return KeyEventResult.handled;
+    }
     if (event.logicalKey == LogicalKeyboardKey.escape) {
       setState(() {
         _formulaSearchDialogOpen = false;
@@ -39009,6 +39228,23 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     }
     if (event.logicalKey == LogicalKeyboardKey.enter) {
       _confirmFormulaSearchDialog();
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
+  }
+
+  KeyEventResult _handleDialogTextEditorKeyEvent(
+    FocusNode node,
+    KeyEvent event,
+  ) {
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
+      return KeyEventResult.ignored;
+    }
+    final shortcutResult = _handleFocusedTextEditingShortcut(node, event);
+    if (shortcutResult != KeyEventResult.ignored) {
+      return shortcutResult;
+    }
+    if (_handleDialogFocusTraversalKeyEvent(event)) {
       return KeyEventResult.handled;
     }
     return KeyEventResult.ignored;
@@ -39967,7 +40203,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         color: const Color(0xffffffff),
         child: Focus(
           onKeyEvent: _handleHyperlinkDialogEditorKeyEvent,
-          child: _buildTextEditingShortcutActions(
+          child: _buildDialogTextEditingShortcutActions(
             controller,
             EditableText(
               key: key,
@@ -40051,7 +40287,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       height: math.max(1, rect.height - 8 - _dialogInputVerticalOffset),
       child: Focus(
         onKeyEvent: _handleAxisSizeEditorKeyEvent,
-        child: _buildTextEditingShortcutActions(
+        child: _buildDialogTextEditingShortcutActions(
           _axisSizeEditorController,
           EditableText(
             key: const ValueKey('fortune-axis-size-input'),
@@ -40159,7 +40395,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
             _endImageInsertInputSelectionDrag(event.pointer),
         child: Focus(
           onKeyEvent: _handleImageInsertEditorKeyEvent,
-          child: _buildTextEditingShortcutActions(
+          child: _buildDialogTextEditingShortcutActions(
             controller,
             EditableText(
               key: editableKey,
@@ -40372,7 +40608,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
             _endImageInsertInputSelectionDrag(event.pointer),
         child: Focus(
           onKeyEvent: _handleBarcodeEditorKeyEvent,
-          child: _buildTextEditingShortcutActions(
+          child: _buildDialogTextEditingShortcutActions(
             controller,
             EditableText(
               key: editableKey,
@@ -40621,7 +40857,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         height: math.max(1, rect.height - 8 - _dialogInputVerticalOffset),
         child: Focus(
           onKeyEvent: _handleDataVerificationEditorKeyEvent,
-          child: _buildTextEditingShortcutActions(
+          child: _buildDialogTextEditingShortcutActions(
             controller,
             EditableText(
               key: key,
@@ -40702,27 +40938,30 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       top: rect.top + 2 + _dialogInputVerticalOffset,
       width: math.max(20, rect.width - 8),
       height: math.max(1, rect.height - 4 - _dialogInputVerticalOffset),
-      child: _buildTextEditingShortcutActions(
-        _splitTextOtherController,
-        EditableText(
-          key: const ValueKey('fortune-split-text-other-input'),
-          controller: _splitTextOtherController,
-          focusNode: _splitTextOtherFocusNode,
-          style: const TextStyle(
-            color: Color(0xff111111),
-            fontSize: 13,
-            fontFamily: 'Arial',
+      child: Focus(
+        onKeyEvent: _handleDialogTextEditorKeyEvent,
+        child: _buildDialogTextEditingShortcutActions(
+          _splitTextOtherController,
+          EditableText(
+            key: const ValueKey('fortune-split-text-other-input'),
+            controller: _splitTextOtherController,
+            focusNode: _splitTextOtherFocusNode,
+            style: const TextStyle(
+              color: Color(0xff111111),
+              fontSize: 13,
+              fontFamily: 'Arial',
+            ),
+            cursorColor: const Color(0xff0188fb),
+            backgroundCursorColor: const Color(0x330188fb),
+            selectionControls: desktopTextSelectionControls,
+            contextMenuBuilder: _fortuneEditableTextContextMenuBuilder,
+            maxLines: 1,
+            keyboardType: TextInputType.text,
+            textInputAction: TextInputAction.done,
+            onChanged: (_) => setState(() {}),
+            onSubmitted: (_) => _focusNode.requestFocus(),
+            onEditingComplete: _focusNode.requestFocus,
           ),
-          cursorColor: const Color(0xff0188fb),
-          backgroundCursorColor: const Color(0x330188fb),
-          selectionControls: desktopTextSelectionControls,
-          contextMenuBuilder: _fortuneEditableTextContextMenuBuilder,
-          maxLines: 1,
-          keyboardType: TextInputType.text,
-          textInputAction: TextInputAction.done,
-          onChanged: (_) => setState(() {}),
-          onSubmitted: (_) => _focusNode.requestFocus(),
-          onEditingComplete: _focusNode.requestFocus,
         ),
       ),
     );
@@ -40748,26 +40987,29 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         top: rect.top + 3 + _dialogInputVerticalOffset,
         width: math.max(24, rect.width - 16),
         height: math.max(1, rect.height - 6 - _dialogInputVerticalOffset),
-        child: _buildTextEditingShortcutActions(
-          controller,
-          EditableText(
-            key: ValueKey(key),
-            controller: controller,
-            focusNode: focusNode,
-            style: const TextStyle(
-              color: Color(0xff222222),
-              fontSize: 13,
-              fontFamily: 'Arial',
+        child: Focus(
+          onKeyEvent: _handleDialogTextEditorKeyEvent,
+          child: _buildDialogTextEditingShortcutActions(
+            controller,
+            EditableText(
+              key: ValueKey(key),
+              controller: controller,
+              focusNode: focusNode,
+              style: const TextStyle(
+                color: Color(0xff222222),
+                fontSize: 13,
+                fontFamily: 'Arial',
+              ),
+              cursorColor: const Color(0xff8c89fe),
+              backgroundCursorColor: const Color(0x338c89fe),
+              selectionControls: desktopTextSelectionControls,
+              contextMenuBuilder: _fortuneEditableTextContextMenuBuilder,
+              maxLines: 1,
+              keyboardType: TextInputType.text,
+              textInputAction: TextInputAction.search,
+              onChanged: (_) => setState(() {}),
+              onSubmitted: (_) => _searchNextFromDialog(),
             ),
-            cursorColor: const Color(0xff8c89fe),
-            backgroundCursorColor: const Color(0x338c89fe),
-            selectionControls: desktopTextSelectionControls,
-            contextMenuBuilder: _fortuneEditableTextContextMenuBuilder,
-            maxLines: 1,
-            keyboardType: TextInputType.text,
-            textInputAction: TextInputAction.search,
-            onChanged: (_) => setState(() {}),
-            onSubmitted: (_) => _searchNextFromDialog(),
           ),
         ),
       );
@@ -40804,7 +41046,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       height: math.max(1, rect.height - 6 - _dialogInputVerticalOffset),
       child: Focus(
         onKeyEvent: _handleFormulaSearchEditorKeyEvent,
-        child: _buildTextEditingShortcutActions(
+        child: _buildDialogTextEditingShortcutActions(
           _formulaSearchEditorController,
           EditableText(
             key: const ValueKey('fortune-formula-search-input'),
@@ -40846,26 +41088,29 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       top: rect.top + 3 + _dialogInputVerticalOffset,
       width: math.max(20, rect.width - 12),
       height: math.max(1, rect.height - 6 - _dialogInputVerticalOffset),
-      child: _buildTextEditingShortcutActions(
-        _formatSearchDecimalController,
-        EditableText(
-          key: const ValueKey('fortune-format-search-decimal-input'),
-          controller: _formatSearchDecimalController,
-          focusNode: _formatSearchDecimalFocusNode,
-          style: const TextStyle(
-            color: Color(0xff222222),
-            fontSize: 12,
-            fontFamily: 'Arial',
+      child: Focus(
+        onKeyEvent: _handleDialogTextEditorKeyEvent,
+        child: _buildDialogTextEditingShortcutActions(
+          _formatSearchDecimalController,
+          EditableText(
+            key: const ValueKey('fortune-format-search-decimal-input'),
+            controller: _formatSearchDecimalController,
+            focusNode: _formatSearchDecimalFocusNode,
+            style: const TextStyle(
+              color: Color(0xff222222),
+              fontSize: 12,
+              fontFamily: 'Arial',
+            ),
+            cursorColor: const Color(0xff0188fb),
+            backgroundCursorColor: const Color(0x330188fb),
+            selectionControls: desktopTextSelectionControls,
+            contextMenuBuilder: _fortuneEditableTextContextMenuBuilder,
+            maxLines: 1,
+            keyboardType: TextInputType.number,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            textInputAction: TextInputAction.done,
+            onSubmitted: (_) => _confirmFormatSearchDialog(),
           ),
-          cursorColor: const Color(0xff0188fb),
-          backgroundCursorColor: const Color(0x330188fb),
-          selectionControls: desktopTextSelectionControls,
-          contextMenuBuilder: _fortuneEditableTextContextMenuBuilder,
-          maxLines: 1,
-          keyboardType: TextInputType.number,
-          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-          textInputAction: TextInputAction.done,
-          onSubmitted: (_) => _confirmFormatSearchDialog(),
         ),
       ),
     );
@@ -40914,22 +41159,25 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         ),
         child: Padding(
           padding: inputPadding,
-          child: _buildTextEditingShortcutActions(
-            controller,
-            EditableText(
-              key: key,
-              controller: controller,
-              focusNode: focusNode,
-              style: inputStyle,
-              cursorColor: const Color(0xff0188fb),
-              backgroundCursorColor: const Color(0x330188fb),
-              selectionControls: desktopTextSelectionControls,
-              contextMenuBuilder: _fortuneEditableTextContextMenuBuilder,
-              maxLines: 1,
-              keyboardType: _conditionRuleKeyboardType(),
-              textInputAction: TextInputAction.done,
-              onSubmitted: (_) => onDone(),
-              onEditingComplete: onDone,
+          child: Focus(
+            onKeyEvent: _handleDialogTextEditorKeyEvent,
+            child: _buildDialogTextEditingShortcutActions(
+              controller,
+              EditableText(
+                key: key,
+                controller: controller,
+                focusNode: focusNode,
+                style: inputStyle,
+                cursorColor: const Color(0xff0188fb),
+                backgroundCursorColor: const Color(0x330188fb),
+                selectionControls: desktopTextSelectionControls,
+                contextMenuBuilder: _fortuneEditableTextContextMenuBuilder,
+                maxLines: 1,
+                keyboardType: _conditionRuleKeyboardType(),
+                textInputAction: TextInputAction.done,
+                onSubmitted: (_) => onDone(),
+                onEditingComplete: onDone,
+              ),
             ),
           ),
         ),

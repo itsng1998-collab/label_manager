@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/gestures.dart';
+import 'package:flutter/material.dart' show MaterialApp;
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
@@ -1706,9 +1707,8 @@ void main() {
     });
 
     await tester.pumpWidget(
-      Directionality(
-        textDirection: TextDirection.ltr,
-        child: SizedBox(
+      MaterialApp(
+        home: SizedBox(
           width: 1688,
           height: 600,
           child: FortuneSheetCanvas(
@@ -118100,6 +118100,74 @@ void main() {
           .hasFocus,
       isTrue,
     );
+  });
+
+  testWidgets('search replace dialog tab cycles editable inputs', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1688, 600);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SizedBox(
+          width: 1688,
+          height: 600,
+          child: FortuneSheetCanvas(
+            workbook: FortuneWorkbook(
+              sheets: [FortuneSheet(id: 's1', name: 'Sheet1')],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
+    await tester.tapAt(
+      topLeft + toolbarItemCenter(fortuneToolbarSearchCommand, width: 1688),
+    );
+    await tester.pump();
+
+    final dialogRect = fortuneSearchDialogRect(
+      tester.getSize(find.byType(FortuneSheetCanvas)),
+      hasResults: false,
+    );
+    await tester.tapAt(
+      topLeft + fortuneSearchReplaceTabRect(dialogRect).center,
+    );
+    await tester.pump();
+
+    EditableText editor(String key) {
+      final keyed = find.byKey(ValueKey(key));
+      final child = find.descendant(
+        of: keyed,
+        matching: find.byType(EditableText),
+      );
+      return tester.widget<EditableText>(
+        child.evaluate().isEmpty ? keyed : child,
+      );
+    }
+
+    await tester.tap(find.byKey(const ValueKey('fortune-search-input')));
+    await tester.pump();
+
+    expect(editor('fortune-search-input').focusNode.hasFocus, isTrue);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pump();
+
+    expect(editor('fortune-replace-input').focusNode.hasFocus, isTrue);
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.pump();
+
+    expect(editor('fortune-search-input').focusNode.hasFocus, isTrue);
   });
 
   testWidgets('toolbar search dialog can be dragged like upstream', (

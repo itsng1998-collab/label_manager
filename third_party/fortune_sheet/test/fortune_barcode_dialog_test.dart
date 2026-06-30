@@ -273,6 +273,70 @@ void main() {
     expect(painter().barcodeDialogOpen, isFalse);
   });
 
+  testWidgets('barcode insert dialog tab cycles editable inputs', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    final workbook = FortuneWorkbook(
+      settings: const FortuneSettings(
+        toolbarItems: [fortuneToolbarBarcodeCommand],
+      ),
+      sheets: [FortuneSheet(id: 's1', name: 'Sheet1')],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SizedBox(
+          width: 900,
+          height: 700,
+          child: FortuneSheetCanvas(workbook: workbook),
+        ),
+      ),
+    );
+
+    final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
+    await tester.tapAt(
+      topLeft +
+          toolbarItemCenter(
+            fortuneToolbarBarcodeCommand,
+            width: 900,
+            items: workbook.settings.toolbarItems,
+          ),
+    );
+    await tester.pump();
+
+    EditableText editor(String key) {
+      final keyed = find.byKey(ValueKey(key));
+      final child = find.descendant(
+        of: keyed,
+        matching: find.byType(EditableText),
+      );
+      return tester.widget<EditableText>(
+        child.evaluate().isEmpty ? keyed : child,
+      );
+    }
+
+    expect(editor('fortune-barcode-text-input').focusNode.hasFocus, isTrue);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pump();
+
+    expect(editor('fortune-barcode-width-input').focusNode.hasFocus, isTrue);
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.pump();
+
+    expect(editor('fortune-barcode-text-input').focusNode.hasFocus, isTrue);
+  });
+
   testWidgets('barcode insert stores object ID metadata', (tester) async {
     tester.view.physicalSize = const Size(900, 700);
     tester.view.devicePixelRatio = 1;
@@ -442,8 +506,14 @@ void main() {
     expect(originalMetrics, isNotNull);
     expect(largeMetrics, isNotNull);
     expect(smallMetrics, isNotNull);
-    expect(largeMetrics!.bodyRect.height, greaterThan(originalMetrics!.bodyRect.height));
-    expect(smallMetrics!.bodyRect.height, lessThan(originalMetrics.bodyRect.height));
+    expect(
+      largeMetrics!.bodyRect.height,
+      greaterThan(originalMetrics!.bodyRect.height),
+    );
+    expect(
+      smallMetrics!.bodyRect.height,
+      lessThan(originalMetrics.bodyRect.height),
+    );
     expect(
       originalMetrics.fontSize,
       closeTo(60 * 0.18 * fortuneBarcodeObjectIdLabelScale, 0.001),
@@ -456,7 +526,10 @@ void main() {
       originalMetrics.boxRect.height,
       greaterThanOrEqualTo(60 * 0.12 * fortuneBarcodeObjectIdLabelScale),
     );
-    expect(largeMetrics.boxRect.width, greaterThan(originalMetrics.boxRect.width));
+    expect(
+      largeMetrics.boxRect.width,
+      greaterThan(originalMetrics.boxRect.width),
+    );
     expect(smallMetrics.boxRect.width, lessThan(originalMetrics.boxRect.width));
     expect(largeMetrics.fontSize, greaterThan(originalMetrics.fontSize));
     expect(smallMetrics.fontSize, lessThan(originalMetrics.fontSize));
@@ -636,8 +709,14 @@ void main() {
     }
 
     expect(painter().barcodeDialogOpen, isTrue);
-    expect(editableTextIn('fortune-barcode-height-input').controller.text, '39.69');
-    expect(editableTextIn('fortune-barcode-bar-height-input').controller.text, '15');
+    expect(
+      editableTextIn('fortune-barcode-height-input').controller.text,
+      '39.69',
+    );
+    expect(
+      editableTextIn('fortune-barcode-bar-height-input').controller.text,
+      '15',
+    );
     expect(painter().barcodeTextFontSizeLabel, '21');
   });
 
@@ -1129,7 +1208,9 @@ void main() {
     expect(painter().barcodeObjectIdMenuOpen, isTrue);
     final objectIdMenu = fortuneBarcodeObjectIdMenuRect(dialogRect, 2);
     await tester.tapAt(
-      topLeft + objectIdMenu.topLeft + const Offset(10, 1.5 * fortuneContextMenuRowHeight),
+      topLeft +
+          objectIdMenu.topLeft +
+          const Offset(10, 1.5 * fortuneContextMenuRowHeight),
     );
     await tester.pump();
 
@@ -1142,7 +1223,10 @@ void main() {
 
     final updated = painter().workbook.activeSheet.images.single;
     expect(updated.extraFields[fortuneBarcodeObjectIdExtraKey], 'NEW-ID');
-    expect(updated.extraFields[fortuneBarcodeIdLabelPrintExcludedExtraKey], true);
+    expect(
+      updated.extraFields[fortuneBarcodeIdLabelPrintExcludedExtraKey],
+      true,
+    );
   });
 
   testWidgets('barcode edit object ID menu scrolls to restored selection', (
