@@ -497,6 +497,146 @@ void main() {
     );
   });
 
+  test('barcode image resize scales dialog height metadata', () {
+    const image = FortuneImage(
+      id: 'barcode',
+      src: 'missing',
+      left: 20,
+      top: 20,
+      width: 200,
+      height: 100,
+      extraFields: {
+        'fortuneBarcode': true,
+        'widthMm': 52.9166666667,
+        'heightMm': 26.4583333333,
+        'barcodeBarHeight': 10,
+        fortuneBarcodeBodyTopExtraKey: 2,
+        fortuneBarcodeBodyHeightExtraKey: 60,
+        fortuneBarcodeBodyRatioExtraKey: 0.6,
+      },
+    );
+
+    final extraFields = fortuneImageResizeExtraFieldsForMetadata(
+      image,
+      width: 300,
+      height: 150,
+      usesMillimeters: true,
+    );
+
+    expect(extraFields['widthMm'], closeTo(79.375, 0.001));
+    expect(extraFields['heightMm'], closeTo(39.6875, 0.001));
+    expect(extraFields['barcodeBarHeight'], closeTo(15, 0.001));
+    expect(extraFields[fortuneBarcodeBodyTopExtraKey], closeTo(3, 0.001));
+    expect(extraFields[fortuneBarcodeBodyHeightExtraKey], closeTo(90, 0.001));
+  });
+
+  testWidgets('barcode edit dialog shows resized image height', (tester) async {
+    tester.view.physicalSize = const Size(900, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    const barcodeImage = FortuneImage(
+      id: 'barcode-1',
+      src:
+          'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=',
+      left: 20,
+      top: 20,
+      width: 120,
+      height: 150,
+      extraFields: {
+        'fortuneBarcode': true,
+        fortuneBarcodeObjectIdExtraKey: '#BARCODE',
+        'barcodeText': '12345',
+        'barcodeFormatId': 'code128',
+        'barcodeFormatLabel': 'Code128',
+        'widthMm': 31.75,
+        'heightMm': 26.4583333333,
+        'barcodeBarHeight': 10,
+        'barcodeModuleScale': 3,
+        'barcodeShowText': false,
+      },
+    );
+    final workbook = FortuneWorkbook(
+      sheets: [
+        FortuneSheet(
+          id: 's1',
+          name: 'Sheet1',
+          images: const [barcodeImage],
+          extraFields: const {
+            fortuneSheetGridClientWidthMmKey: 100,
+            fortuneSheetGridClientHeightMmKey: 100,
+          },
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SizedBox(
+          width: 900,
+          height: 700,
+          child: FortuneSheetCanvas(
+            workbook: workbook,
+            barcodeFormats: const [
+              FortuneBarcodeFormatOption(id: 'code128', label: 'Code128'),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    FortuneSheetPainter painter() {
+      return tester
+          .widgetList<CustomPaint>(
+            find.descendant(
+              of: find.byType(FortuneSheetCanvas),
+              matching: find.byType(CustomPaint),
+            ),
+          )
+          .map((paint) => paint.painter)
+          .whereType<FortuneSheetPainter>()
+          .single;
+    }
+
+    final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
+    final settings = painter().workbook.settings;
+    final imageCenter =
+        topLeft +
+        Offset(
+          settings.rowHeaderWidth + barcodeImage.left + barcodeImage.width / 2,
+          settings.effectiveToolbarHeight +
+              settings.effectiveFormulaBarHeight +
+              settings.columnHeaderHeight +
+              barcodeImage.top +
+              barcodeImage.height / 2,
+        );
+    await tester.sendEventToBinding(
+      PointerDownEvent(
+        position: imageCenter,
+        buttons: kSecondaryMouseButton,
+        kind: PointerDeviceKind.mouse,
+      ),
+    );
+    await tester.sendEventToBinding(PointerUpEvent(position: imageCenter));
+    await tester.pump();
+
+    EditableText editableTextIn(String key) {
+      return tester.widget<EditableText>(
+        find.descendant(
+          of: find.byKey(ValueKey(key)),
+          matching: find.byType(EditableText),
+        ),
+      );
+    }
+
+    expect(painter().barcodeDialogOpen, isTrue);
+    expect(editableTextIn('fortune-barcode-height-input').controller.text, '39.69');
+    expect(editableTextIn('fortune-barcode-bar-height-input').controller.text, '15');
+  });
+
   testWidgets('barcode dialog forwards leading and trailing text values', (
     tester,
   ) async {

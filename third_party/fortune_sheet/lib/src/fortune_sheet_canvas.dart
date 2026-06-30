@@ -136,6 +136,53 @@ class FortuneBarcodeRenderResult {
   final int? bodyHeight;
 }
 
+Map<String, Object?> fortuneImageResizeExtraFieldsForMetadata(
+  FortuneImage initial, {
+  required double width,
+  required double height,
+  required bool usesMillimeters,
+}) {
+  final extraFields = <String, Object?>{...initial.extraFields};
+  if (usesMillimeters || extraFields.containsKey('widthMm')) {
+    extraFields['widthMm'] = fortuneLogicalPixelsToMillimeters(width);
+  }
+  if (usesMillimeters || extraFields.containsKey('heightMm')) {
+    extraFields['heightMm'] = fortuneLogicalPixelsToMillimeters(height);
+  }
+  if (initial.extraFields['fortuneBarcode'] == true && initial.height > 0) {
+    final heightScale = height / initial.height;
+    if (heightScale.isFinite && heightScale > 0) {
+      final barHeight = _fortuneExtraDouble(extraFields['barcodeBarHeight']);
+      if (barHeight != null) {
+        extraFields['barcodeBarHeight'] = barHeight * heightScale;
+      }
+      final bodyTop = _fortuneExtraDouble(
+        extraFields[fortuneBarcodeBodyTopExtraKey],
+      );
+      if (bodyTop != null) {
+        extraFields[fortuneBarcodeBodyTopExtraKey] = bodyTop * heightScale;
+      }
+      final bodyHeight = _fortuneExtraDouble(
+        extraFields[fortuneBarcodeBodyHeightExtraKey],
+      );
+      if (bodyHeight != null) {
+        extraFields[fortuneBarcodeBodyHeightExtraKey] = bodyHeight * heightScale;
+      }
+    }
+  }
+  return extraFields;
+}
+
+double? _fortuneExtraDouble(Object? value) {
+  if (value is num) {
+    return value.toDouble();
+  }
+  if (value is String) {
+    return double.tryParse(value.trim());
+  }
+  return null;
+}
+
 class _FortuneRichTextEditingController extends TextEditingController {
   _FortuneRichTextEditingController();
 
@@ -22259,6 +22306,34 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     return fallback;
   }
 
+  double _barcodeEditDisplayLogicalSize(double logicalPixels) {
+    return _imageInsertUsesMillimeters
+        ? fortuneLogicalPixelsToMillimeters(logicalPixels)
+        : logicalPixels;
+  }
+
+  double _barcodeEditBarHeightValue(FortuneImage image) {
+    final barHeight = _metadataDouble(image.extraFields['barcodeBarHeight'], 10);
+    if (!_imageInsertUsesMillimeters || image.height <= 0) {
+      return barHeight;
+    }
+    final metadataHeight = _metadataDouble(image.extraFields['heightMm'], 0);
+    if (metadataHeight <= 0) {
+      return barHeight;
+    }
+    final metadataLogicalHeight = fortuneMillimetersToLogicalPixels(
+      metadataHeight,
+    );
+    if (metadataLogicalHeight <= 0) {
+      return barHeight;
+    }
+    final heightScale = image.height / metadataLogicalHeight;
+    if (!heightScale.isFinite || heightScale <= 0) {
+      return barHeight;
+    }
+    return barHeight * heightScale;
+  }
+
   bool _isBarcodeImage(FortuneImage image) {
     return image.extraFields['fortuneBarcode'] == true;
   }
@@ -22334,14 +22409,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       formatLabel,
       fallbackFormatIndex,
     );
-    final widthValue = _imageInsertDisplayLogicalSize(
-      image.width,
-      extra['widthMm'],
-    );
-    final heightValue = _imageInsertDisplayLogicalSize(
-      image.height,
-      extra['heightMm'],
-    );
+    final widthValue = _barcodeEditDisplayLogicalSize(image.width);
+    final heightValue = _barcodeEditDisplayLogicalSize(image.height);
+    final barHeightValue = _barcodeEditBarHeightValue(image);
     final rotation = _imageRotationDegrees(extra['rotation']);
     setState(() {
       _closeTransientMenus();
@@ -22406,9 +22476,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         );
         _setImageInsertControllerText(
           _barcodeBarHeightController,
-          _formatImageInsertNumber(
-            _metadataDouble(extra['barcodeBarHeight'], 10),
-          ),
+          _formatImageInsertNumber(barHeightValue),
         );
         _setImageInsertControllerText(
           _barcodeLeadingQuietZoneController,
@@ -23428,7 +23496,18 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     }
     _replaceImage(
       initial.id,
-      initial.copyWith(left: left, top: top, width: width, height: height),
+      initial.copyWith(
+        left: left,
+        top: top,
+        width: width,
+        height: height,
+        extraFields: fortuneImageResizeExtraFieldsForMetadata(
+          initial,
+          width: width,
+          height: height,
+          usesMillimeters: _imageInsertUsesMillimeters,
+        ),
+      ),
     );
     return true;
   }
