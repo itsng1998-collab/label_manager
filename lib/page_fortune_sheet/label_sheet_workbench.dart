@@ -1875,8 +1875,8 @@ class _LabelSheetPrintSettingsDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       key: const ValueKey('label-sheet-print-settings-dialog'),
-      width: 506,
-      height: 226,
+      width: 526,
+      height: 236,
       decoration: BoxDecoration(
         color: const Color(0xfff6f6f6),
         border: Border.all(color: const Color(0xffc8c8c8)),
@@ -1894,8 +1894,8 @@ class _LabelSheetPrintSettingsDialog extends StatelessWidget {
         child: Stack(
           children: [
             const Positioned(
-              left: 12,
-              top: 7,
+              left: 14,
+              top: 8,
               child: Text(
                 '프린터 설정',
                 style: TextStyle(fontSize: 13, color: Color(0xff111111)),
@@ -1903,7 +1903,7 @@ class _LabelSheetPrintSettingsDialog extends StatelessWidget {
             ),
             Positioned(
               right: 5,
-              top: 4,
+              top: 5,
               child: SizedBox(
                 width: 24,
                 height: 24,
@@ -1916,10 +1916,10 @@ class _LabelSheetPrintSettingsDialog extends StatelessWidget {
               ),
             ),
             Positioned(
-              left: 14,
-              top: 33,
-              width: 292,
-              height: 52,
+              left: 20,
+              top: 40,
+              width: 300,
+              height: 58,
               child: _PrintDialogGroup(
                 title: '여백',
                 child: Row(
@@ -1942,10 +1942,10 @@ class _LabelSheetPrintSettingsDialog extends StatelessWidget {
               ),
             ),
             Positioned(
-              left: 320,
-              top: 33,
+              left: 336,
+              top: 40,
               width: 168,
-              height: 52,
+              height: 58,
               child: _PrintDialogGroup(
                 title: '자동줄간격',
                 child: Row(
@@ -1978,27 +1978,20 @@ class _LabelSheetPrintSettingsDialog extends StatelessWidget {
               ),
             ),
             const Positioned(
-              left: 18,
-              top: 94,
+              left: 24,
+              top: 113,
               child: Text('발행 프린터', style: _sectionStyle),
             ),
             Positioned(
-              left: 93,
-              top: 94,
-              width: 300,
-              height: 20,
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  selectedPrinterName,
-                  overflow: TextOverflow.ellipsis,
-                  style: _labelStyle,
-                ),
-              ),
+              left: 101,
+              top: 106,
+              width: 299,
+              height: 30,
+              child: _PrintDialogInsetValue(value: selectedPrinterName),
             ),
             Positioned(
-              right: 17,
-              top: 91,
+              right: 22,
+              top: 106,
               width: 94,
               height: 30,
               child: _PrintDialogButton(
@@ -2007,21 +2000,22 @@ class _LabelSheetPrintSettingsDialog extends StatelessWidget {
               ),
             ),
             Positioned(
-              left: 86,
-              top: 119,
+              left: 100,
+              top: 145,
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  const Text('추가 영역', style: _labelStyle),
+                  const _PrintDialogCenteredLabel('추가 영역'),
                   const SizedBox(width: 8),
                   _PrintDialogInput(controller: extraAreaController),
                   const SizedBox(width: 8),
-                  const Text('mm', style: _labelStyle),
+                  const _PrintDialogCenteredLabel('mm'),
                 ],
               ),
             ),
             Positioned(
-              left: 300,
-              top: 121,
+              left: 322,
+              top: 150,
               child: Row(
                 children: [
                   _PrintDialogRadio(
@@ -2041,16 +2035,16 @@ class _LabelSheetPrintSettingsDialog extends StatelessWidget {
               ),
             ),
             const Positioned(
-              left: 20,
-              top: 157,
+              left: 24,
+              top: 176,
               child: Text(
                 '매수',
                 style: TextStyle(fontSize: 30, color: Color(0xff000000)),
               ),
             ),
             Positioned(
-              left: 100,
-              top: 149,
+              left: 86,
+              top: 164,
               width: 84,
               height: 56,
               child: _PrintDialogInput(
@@ -2060,22 +2054,22 @@ class _LabelSheetPrintSettingsDialog extends StatelessWidget {
               ),
             ),
             Positioned(
-              left: 206,
-              bottom: 8,
+              left: 245,
+              bottom: 12,
               width: 84,
               height: 30,
               child: _PrintDialogButton(label: '발행', onPressed: () {}),
             ),
             Positioned(
-              left: 295,
-              bottom: 8,
+              left: 334,
+              bottom: 12,
               width: 84,
               height: 30,
               child: _PrintDialogButton(label: '적용', onPressed: () {}),
             ),
             Positioned(
-              left: 384,
-              bottom: 8,
+              left: 423,
+              bottom: 12,
               width: 84,
               height: 30,
               child: _PrintDialogButton(label: '닫기', onPressed: onClose),
@@ -2172,6 +2166,42 @@ class _PrintDialogCenteredLabel extends StatelessWidget {
       height: 28,
       child: Center(
         child: Text(label, style: _LabelSheetPrintSettingsDialog._labelStyle),
+      ),
+    );
+  }
+}
+
+class _PrintDialogInsetValue extends StatelessWidget {
+  const _PrintDialogInsetValue({required this.value});
+
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: const Color(0xffffffff),
+        border: Border.all(color: const Color(0xffd4d4d4)),
+        borderRadius: BorderRadius.circular(2),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x12000000),
+            offset: Offset(0, 1),
+            blurRadius: 0,
+            spreadRadius: 0,
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: Text(
+            value,
+            overflow: TextOverflow.ellipsis,
+            style: _LabelSheetPrintSettingsDialog._labelStyle,
+          ),
+        ),
       ),
     );
   }
