@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -12,6 +13,7 @@ import 'core/ui_scale.dart';
 import 'database/db_reconnect_overlay.dart';
 import 'package:label_manager/utils/debug_logger.dart';
 import 'home_page.dart';
+import 'printing/label_printer_preferences.dart';
 
 typedef DebugPrintCallback = void Function(String? message, {int? wrapWidth});
 DebugPrintCallback gDebugPrint = debugPrint;
@@ -27,6 +29,8 @@ Future<void> main(List<String> args) async {
 
   // 앱 시작 시 라이프사이클 옵저버를 1회 등록
   LifecycleManager.instance.ensureInitialized();
+
+  unawaited(LabelPrinterPreferences.removePreferredPrinterIfMissing());
 
   // 한국어 로케일용 날짜/시간 포맷터 초기화
   await initializeDateFormatting('ko_KR');

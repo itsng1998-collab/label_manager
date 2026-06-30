@@ -22,6 +22,9 @@ import 'package:label_manager/page_fortune_sheet/label_sheet_rtf_import.dart';
 import 'package:label_manager/page_fortune_sheet/label_sheet_rtf_preview.dart';
 import 'package:label_manager/page_fortune_sheet/label_sheet_save_codec.dart';
 import 'package:label_manager/page_fortune_sheet/label_sheet_workbench.dart';
+import 'package:label_manager/printing/label_printer_preferences.dart';
+import 'package:printing/printing.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 String _encodeLabelSheetSaveArchive({
   required Map<String, Object?> manifest,
@@ -553,6 +556,8 @@ void main() {
   testWidgets('label sheet print button opens printer settings dialog', (
     tester,
   ) async {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
@@ -582,6 +587,7 @@ void main() {
         .customToolbarItems
         .singleWhere((item) => item.key == labelSheetPrintToolbarCommand);
     printItem.onClick!(printItem);
+    await tester.pump();
     await tester.pump();
 
     expect(
@@ -619,9 +625,54 @@ void main() {
     );
   });
 
+  testWidgets('label sheet print dialog displays saved preferred printer', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues(<String, Object>{
+      labelSheetPreferredPrinterNamePrefsKey: 'Stored Printer',
+    });
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 600,
+            height: 360,
+            child: LabelSheetWorkbench(
+              initialWorkbook: FortuneWorkbook(
+                sheets: [FortuneSheet(id: 's1', name: 'Label')],
+              ),
+              printerListProvider: () async => const <Printer>[
+                Printer(url: 'stored', name: 'Stored Printer'),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    final printItem = tester
+        .widget<FortuneSheetApp>(find.byType(FortuneSheetApp))
+        .settings!
+        .customToolbarItems
+        .singleWhere((item) => item.key == labelSheetPrintToolbarCommand);
+    printItem.onClick!(printItem);
+    await tester.pump();
+    await tester.pump();
+
+    expect(
+      find.byKey(const ValueKey('label-sheet-print-settings-dialog')),
+      findsOneWidget,
+    );
+    expect(find.text('Stored Printer'), findsOneWidget);
+  });
+
   testWidgets('label sheet print dialog waits for lifecycle callback', (
     tester,
   ) async {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
     final beforeCompleter = Completer<void>();
     final events = <String>[];
 
@@ -667,6 +718,7 @@ void main() {
     beforeCompleter.complete();
     await tester.pump();
     await tester.pump();
+    await tester.pump();
 
     expect(
       find.byKey(const ValueKey('label-sheet-print-settings-dialog')),
@@ -682,6 +734,7 @@ void main() {
   testWidgets('label sheet print dialog traps tab focus inside dialog', (
     tester,
   ) async {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
     final beforeFocusNode = FocusNode();
     final afterFocusNode = FocusNode();
     addTearDown(beforeFocusNode.dispose);
@@ -715,6 +768,7 @@ void main() {
         .customToolbarItems
         .singleWhere((item) => item.key == labelSheetPrintToolbarCommand);
     printItem.onClick!(printItem);
+    await tester.pump();
     await tester.pump();
 
     final dialogFinder = find.byKey(

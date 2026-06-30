@@ -16,6 +16,7 @@ import 'package:label_manager/page_fortune_sheet/label_sheet_ai_import.dart';
 import 'package:label_manager/page_fortune_sheet/label_sheet_import_model.dart';
 import 'package:label_manager/page_fortune_sheet/label_sheet_rtf_import.dart';
 import 'package:label_manager/page_fortune_sheet/label_sheet_save_codec.dart';
+import 'package:label_manager/printing/label_printer_preferences.dart';
 import 'package:label_manager/printing/raw_printer_win32.dart';
 import 'package:label_manager/utils/on_messages.dart';
 import 'package:printing/printing.dart';
@@ -745,6 +746,7 @@ class LabelSheetWorkbench extends StatefulWidget {
     this.onGridRectChanged,
     this.onBeforePrintSettingsDialog,
     this.onPrintSettingsDialogClosed,
+    this.printerListProvider,
     this.onSave,
     super.key,
   });
@@ -757,6 +759,7 @@ class LabelSheetWorkbench extends StatefulWidget {
   final ValueChanged<ui.Rect>? onGridRectChanged;
   final FutureOr<void> Function()? onBeforePrintSettingsDialog;
   final VoidCallback? onPrintSettingsDialogClosed;
+  final LabelPrinterListProvider? printerListProvider;
   final FutureOr<void> Function(
     int widthMm,
     int heightMm,
@@ -1215,7 +1218,15 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     if (!mounted) {
       return;
     }
+    final preferredPrinterName =
+        await LabelPrinterPreferences.loadPreferredPrinterName(
+          listPrinters: widget.printerListProvider,
+        );
+    if (!mounted) {
+      return;
+    }
     setState(() {
+      _printSelectedPrinterName = preferredPrinterName ?? '';
       _printSettingsDialogOpen = true;
     });
   }
@@ -1236,6 +1247,10 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
         : (await Printing.pickPrinter(context: context, title: '프린터 선택'))
               ?.name;
     if (!mounted || printerName == null || printerName.isEmpty) {
+      return;
+    }
+    await LabelPrinterPreferences.savePreferredPrinterName(printerName);
+    if (!mounted) {
       return;
     }
     setState(() {
