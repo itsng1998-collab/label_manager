@@ -34,8 +34,7 @@ const int labelSheetMinZoomPercent = 10;
 const int labelSheetMaxZoomPercent = 400;
 const String _labelSheetCopilotTokenPrefsKey = 'label_sheet_copilot_token';
 const String _labelSheetCopilotModelPrefsKey = 'label_sheet_copilot_model';
-const String _labelSheetExportDirectoryPrefsKey =
-  'label_sheet_export_directory';
+const String _labelFileDirectoryPrefsKey = 'label_file_directory';
 
 const List<String> labelSheetToolbarItems = [
   labelSheetSaveToolbarCommand,
@@ -697,6 +696,7 @@ FortuneSettings labelSheetSettings(
   FortuneSettings base, {
   VoidCallback? onImportLabelImage,
   FutureOr<void> Function()? onSave,
+  FutureOr<void> Function()? onImportLabelFile,
   FutureOr<void> Function()? onExportLabelFile,
   Set<String> Function()? contextMenuDisabledItemsBuilder,
   VoidCallback? onPrint,
@@ -743,6 +743,14 @@ FortuneSettings labelSheetSettings(
     filterContextMenu: labelSheetContextMenuItems(base.filterContextMenu),
     onDialogVisibilityChanged: onDialogVisibilityChanged,
     onContextMenuCommand: (command) {
+      if (command == fortuneContextImportLabelFileCommand) {
+        final callback = onImportLabelFile;
+        if (callback == null) {
+          fortuneSheetDebugLog('label sheet import label file context click');
+          return null;
+        }
+        return callback();
+      }
       if (command != fortuneContextExportLabelFileCommand) {
         return null;
       }
@@ -843,6 +851,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
         workbook.settings,
         onImportLabelImage: _handleImportLabelImage,
         onSave: _handleSave,
+        onImportLabelFile: _handleImportLabelFile,
         onExportLabelFile: _handleExportLabelFile,
         contextMenuDisabledItemsBuilder: _labelFileContextMenuDisabledItems,
         onPrint: _handlePrint,
@@ -1568,7 +1577,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       mimeTypes: <String>['application/octet-stream'],
     );
     final prefs = await SharedPreferences.getInstance();
-    final initialDirectory = prefs.getString(_labelSheetExportDirectoryPrefsKey);
+    final initialDirectory = prefs.getString(_labelFileDirectoryPrefsKey);
     final suggestedName = _suggestedLabelFileName();
     final location = await getSaveLocation(
       acceptedTypeGroups: const <XTypeGroup>[labelFileGroup],
@@ -1585,13 +1594,83 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     await File(path).writeAsString(payload.encodedWorkbook, flush: true);
     final directory = p.dirname(path);
     if (directory.isNotEmpty) {
-      await prefs.setString(_labelSheetExportDirectoryPrefsKey, directory);
+      await prefs.setString(_labelFileDirectoryPrefsKey, directory);
     }
     if (!mounted) {
       return;
     }
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('라벨 파일을 내보냈습니다: ${p.basename(path)}')),
+    );
+  }
+
+  Future<void> _handleImportLabelFile() async {
+    fortuneSheetDebugLog('label sheet import label file context click');
+    const labelFileGroup = XTypeGroup(
+      label: 'Label Manager Sheet',
+      extensions: <String>['lms'],
+      mimeTypes: <String>['application/octet-stream'],
+    );
+    final prefs = await SharedPreferences.getInstance();
+    final initialDirectory = prefs.getString(_labelFileDirectoryPrefsKey);
+    final file = await openFile(
+      acceptedTypeGroups: const <XTypeGroup>[labelFileGroup],
+      initialDirectory: initialDirectory?.isNotEmpty == true
+          ? initialDirectory
+          : null,
+    );
+    if (file == null) {
+      return;
+    }
+    FortuneWorkbook importedWorkbook;
+    try {
+      importedWorkbook = labelSheetDecodeWorkbookSave(await file.readAsString());
+    } catch (e) {
+      fortuneSheetDebugLog('label sheet import label file failed: $e');
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('라벨 파일을 읽을 수 없습니다.')),
+      );
+      return;
+    }
+    if (importedWorkbook.sheets.isEmpty) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('라벨 파일에 시트가 없습니다.')),
+      );
+      return;
+    }
+    final filePath = file.path;
+    if (filePath.isNotEmpty) {
+      final directory = p.dirname(filePath);
+      if (directory.isNotEmpty) {
+        await prefs.setString(_labelFileDirectoryPrefsKey, directory);
+      }
+    }
+    final currentSheet = _currentWorkbookForLabelFile().activeSheet;
+    final importedSheet = importedWorkbook.activeSheet.copyWith(
+      id: currentSheet.id,
+      name: currentSheet.name,
+      order: currentSheet.order,
+    );
+    _controller.clearSheet(
+      id: currentSheet.id,
+      rowCount: importedSheet.rowCount,
+      columnCount: importedSheet.columnCount,
+    );
+    _controller.updateSheet(<FortuneSheet>[importedSheet]);
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _isDirty = true;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('라벨 파일을 가져왔습니다: ${file.name}')),
     );
   }
 

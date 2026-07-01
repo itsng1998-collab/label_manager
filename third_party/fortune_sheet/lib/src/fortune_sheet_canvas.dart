@@ -28908,6 +28908,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         )
         .toList();
     if (adjustedSheet && rowSelected && columnSelected) {
+      filtered.add(fortuneContextImportLabelFileCommand);
       filtered.add(fortuneContextExportLabelFileCommand);
     }
     return List<String>.unmodifiable(filtered);
