@@ -1480,6 +1480,11 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
   Widget build(BuildContext context) {
     final dialogHeight = MediaQuery.sizeOf(context).height * 0.7;
     return Dialog(
+      // 모달리스(OverlayEntry)로 전환되면서 showDialog 의 스크림(Colors.black54)이
+      // 사라져 M3 기본 shadowColor(transparent)만으로는 다이얼로그 경계가 불명확해짐.
+      // elevation + shadowColor 를 명시해 스크림 없이도 모달 아웃라인과 동일하게 보이도록 한다.
+      elevation: 12,
+      shadowColor: Colors.black38,
       insetPadding: const EdgeInsets.all(24),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
       clipBehavior: Clip.antiAlias,
