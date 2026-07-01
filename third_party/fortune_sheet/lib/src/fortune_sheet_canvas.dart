@@ -2570,6 +2570,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   bool _editorCaretRevealScheduled = false;
   int _editorTraceSeq = 0;
   TextEditingValue? _editorTraceLastValue;
+  DateTime? _editorSkipDeletionKeyUntil;
   final TextEditingController _formulaBarEditorController =
       TextEditingController();
   final TextEditingController _sheetTabEditorController =
@@ -3004,12 +3005,22 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     if (_editingCoord == null || !mounted) {
       return;
     }
+    final previousValue = _editorTraceLastValue;
+    final currentValue = _editorController.value;
+    if (previousValue != null &&
+        previousValue.composing.isValid &&
+        previousValue.text != currentValue.text &&
+        currentValue.text.length <= previousValue.text.length) {
+      _editorSkipDeletionKeyUntil = DateTime.now().add(
+        const Duration(milliseconds: 200),
+      );
+    }
     _traceCellEditor(
       'valueChanged',
-      previousValue: _editorTraceLastValue,
-      value: _editorController.value,
+      previousValue: previousValue,
+      value: currentValue,
     );
-    _editorTraceLastValue = _editorController.value;
+    _editorTraceLastValue = currentValue;
     if (_editorInlineHistoryText != _editorController.text) {
       _clearEditorInlineHistory(keepCurrentText: true);
     }
@@ -38565,6 +38576,11 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       _traceCellEditor('keyEvent handled enterCommit', keyEvent: event);
       return KeyEventResult.handled;
     }
+    if (_shouldSkipDeletionKeyAfterImeUpdate(event)) {
+      _editorSkipDeletionKeyUntil = null;
+      _traceCellEditor('keyEvent handled imeDeletion', keyEvent: event);
+      return KeyEventResult.handled;
+    }
     if (_applyTextEditorNavigationKey(
       _editorController,
       event,
@@ -38575,6 +38591,25 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     }
     _traceCellEditor('keyEvent ignored', keyEvent: event);
     return KeyEventResult.ignored;
+  }
+
+  bool _shouldSkipDeletionKeyAfterImeUpdate(KeyEvent event) {
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
+      return false;
+    }
+    if (event.logicalKey != LogicalKeyboardKey.backspace &&
+        event.logicalKey != LogicalKeyboardKey.delete) {
+      return false;
+    }
+    final until = _editorSkipDeletionKeyUntil;
+    if (until == null) {
+      return false;
+    }
+    if (DateTime.now().isAfter(until)) {
+      _editorSkipDeletionKeyUntil = null;
+      return false;
+    }
+    return true;
   }
 
   KeyEventResult _handleFormulaBarEditorKeyEvent(

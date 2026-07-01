@@ -164,6 +164,63 @@ void main() {
     expect(log, contains('editor setValue userUpdate'));
   });
 
+  testWidgets('active editor does not double-delete after IME update', (
+    tester,
+  ) async {
+    captureFortuneDebugLog();
+
+    final workbook = FortuneWorkbook(
+      sheets: [FortuneSheet(id: 's1', name: 'Sheet1')],
+    );
+
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: Overlay(
+          initialEntries: [
+            OverlayEntry(
+              builder: (context) => SizedBox(
+                width: 640,
+                height: 360,
+                child: FortuneSheetCanvas(workbook: workbook),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
+    await tester.tapAt(topLeft + const Offset(83, 100));
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.f2);
+    await tester.pump();
+
+    final editable = tester.widget<EditableText>(find.byType(EditableText));
+    editable.controller.value = const TextEditingValue(
+      text: '간ㄷ',
+      selection: TextSelection.collapsed(offset: 1),
+      composing: TextRange(start: 1, end: 2),
+    );
+    await tester.pump();
+    editable.controller.value = const TextEditingValue(
+      text: '간',
+      selection: TextSelection.collapsed(offset: 1),
+      composing: TextRange(start: 1, end: 1),
+    );
+    await tester.pump();
+    editable.controller.value = const TextEditingValue(
+      text: '간',
+      selection: TextSelection.collapsed(offset: 1),
+    );
+    await tester.pump();
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.backspace);
+    await tester.pump();
+
+    expect(editable.controller.text, '간');
+  });
+
   testWidgets('active editor debug log records popup copy trace', (
     tester,
   ) async {
