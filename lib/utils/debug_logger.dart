@@ -108,8 +108,7 @@ class DebugLogger {
       }
 
       FlutterError.onError = (FlutterErrorDetails d) {
-        debugPrint('FlutterError: ${d.exceptionAsString()}');
-        if (d.stack != null) debugPrint(d.stack.toString());
+        debugPrint('FlutterError: ${d.toString()}');
       };
 
       PlatformDispatcher.instance.onError = (error, stack) {

@@ -22,7 +22,7 @@ IOSink? gSink;
 Future<void> main(List<String> args) async {
   // 로그파일 및 디버그프린트 초기화
   await DebugLogger.ensureInitialized();
-  DebugLogger.setVersion('FSDBG-2026-02-06-10');
+  DebugLogger.setVersion('FSDBG-2026-07-01-cell-edit-log');
 
   // Widgets 초기화는 모든 플랫폼 공통으로 필요하다.
   WidgetsFlutterBinding.ensureInitialized();
