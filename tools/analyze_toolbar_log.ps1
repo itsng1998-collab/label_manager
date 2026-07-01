@@ -3,7 +3,7 @@ param(
   [Parameter(Position = 0)]
   [string]$LogPath,
 
-  # 요구사항: 스크립트가 추가로 출력/생성하는 로그도 항상 `.tmp/test.log`에 남긴다.
+  # 스크립트가 추가로 출력/생성하는 로그도 앱 로그(`.tmp/log/app_*.log`)에 남긴다.
   # 단, 분석 파서가 다시 읽을 때 오염되지 않도록 안전한 접두사/치환을 적용한다.
   [string]$TestLogPath,
 
@@ -24,11 +24,28 @@ if ([string]::IsNullOrWhiteSpace($scriptRoot)) {
   }
 }
 
+$workspaceRoot = Join-Path -Path $scriptRoot -ChildPath '..'
+$appLogDir = Join-Path -Path $workspaceRoot -ChildPath '.tmp\log'
+
+function Get-DefaultAppLogPath {
+  if (Test-Path -LiteralPath $appLogDir) {
+    $latest = Get-ChildItem -LiteralPath $appLogDir -Filter 'app_*.log' -File |
+      Sort-Object -Property LastWriteTime -Descending |
+      Select-Object -First 1
+    if ($null -ne $latest) {
+      return $latest.FullName
+    }
+  }
+
+  $stamp = (Get-Date).ToString('yyyy-MM-dd_HH-mm-ss')
+  return (Join-Path -Path $appLogDir -ChildPath "app_$stamp.log")
+}
+
 if ([string]::IsNullOrWhiteSpace($LogPath)) {
-  $LogPath = (Join-Path -Path (Join-Path -Path $scriptRoot -ChildPath '..') -ChildPath '.tmp\test.log')
+  $LogPath = Get-DefaultAppLogPath
 }
 if ([string]::IsNullOrWhiteSpace($TestLogPath)) {
-  $TestLogPath = (Join-Path -Path (Join-Path -Path $scriptRoot -ChildPath '..') -ChildPath '.tmp\test.log')
+  $TestLogPath = $LogPath
 }
 
 function Write-TestLogLine {
@@ -284,7 +301,7 @@ Write-Report ""
 if ($versions.Count -gt 0) {
   Write-Report "Versions (v):"
   $versions | Sort-Object | ForEach-Object { Write-Host "  - $_" }
-  # 버전 목록은 길어질 수 있어 test.log에는 개별 라인을 남기지 않는다.
+  # 버전 목록은 길어질 수 있어 앱 로그에는 개별 라인을 남기지 않는다.
   Write-Report "" -NoTestLog
 } else {
   Write-Report "Versions (v): (none found)"

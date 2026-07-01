@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:flutter/gestures.dart';
@@ -48,21 +47,24 @@ Offset debugToolbarPopupItemCenterForKey({
   return Offset(popupLeft + 20, top + itemHeight / 2);
 }
 
+StringBuffer captureFortuneDebugLog() {
+  final buffer = StringBuffer();
+  fortuneSheetDebugLogDebugPrintOverride = (String? message, {int? wrapWidth}) {
+    buffer.writeln(message ?? '');
+  };
+  fortuneSheetDebugLogEnabled = true;
+  addTearDown(() {
+    fortuneSheetDebugLogEnabled = false;
+    fortuneSheetDebugLogDebugPrintOverride = null;
+  });
+  return buffer;
+}
+
 void main() {
   testWidgets('font debug log records merge and duplicate details', (
     tester,
   ) async {
-    final logFile = File('.tmp/test.log');
-    logFile.parent.createSync(recursive: true);
-    logFile.writeAsStringSync('stale log\n');
-
-    fortuneSheetDebugLogEnabled = true;
-    addTearDown(() {
-      fortuneSheetDebugLogEnabled = false;
-      if (logFile.existsSync()) {
-        logFile.deleteSync();
-      }
-    });
+    final logBuffer = captureFortuneDebugLog();
 
     final workbook = FortuneWorkbook(
       settings: FortuneSettings(
@@ -88,9 +90,7 @@ void main() {
     );
     await tester.pump();
 
-    expect(logFile.existsSync(), isTrue);
-    final log = logFile.readAsStringSync();
-    expect(log, isNot(contains('stale log')));
+    final log = logBuffer.toString();
     expect(log, contains('font canvas merge'));
     expect(
       log,
@@ -120,17 +120,7 @@ void main() {
   testWidgets('active editor debug log records multiline input trace', (
     tester,
   ) async {
-    final logFile = File('.tmp/test.log');
-    logFile.parent.createSync(recursive: true);
-    logFile.writeAsStringSync('stale log\n');
-
-    fortuneSheetDebugLogEnabled = true;
-    addTearDown(() {
-      fortuneSheetDebugLogEnabled = false;
-      if (logFile.existsSync()) {
-        logFile.deleteSync();
-      }
-    });
+    final logBuffer = captureFortuneDebugLog();
 
     final workbook = FortuneWorkbook(
       sheets: [FortuneSheet(id: 's1', name: 'Sheet1')],
@@ -167,9 +157,7 @@ void main() {
     await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
     await tester.pump();
 
-    expect(logFile.existsSync(), isTrue);
-    final log = logFile.readAsStringSync();
-    expect(log, isNot(contains('stale log')));
+    final log = logBuffer.toString();
     expect(log, contains('editor multilineEnter'));
     expect(log, contains('editor runImmediateMutation before'));
     expect(log, contains(r'editor insertText text=\n'));
@@ -179,9 +167,7 @@ void main() {
   testWidgets('active editor debug log records popup copy trace', (
     tester,
   ) async {
-    final logFile = File('.tmp/test.log');
-    logFile.parent.createSync(recursive: true);
-    logFile.writeAsStringSync('stale log\n');
+    final logBuffer = captureFortuneDebugLog();
 
     var clipboardText = '';
     tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
@@ -198,16 +184,11 @@ void main() {
       },
     );
 
-    fortuneSheetDebugLogEnabled = true;
     addTearDown(() {
-      fortuneSheetDebugLogEnabled = false;
       tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
         SystemChannels.platform,
         null,
       );
-      if (logFile.existsSync()) {
-        logFile.deleteSync();
-      }
     });
 
     final workbook = FortuneWorkbook(
@@ -278,9 +259,7 @@ void main() {
     await tester.pump();
 
     expect(clipboardText, 'cdefgh');
-    expect(logFile.existsSync(), isTrue);
-    final log = logFile.readAsStringSync();
-    expect(log, isNot(contains('stale log')));
+    final log = logBuffer.toString();
     expect(log, contains('editor contextMenu open'));
     expect(log, contains('editor pointerDown'));
     expect(log, contains('editor pointerDown ignored openingPointer'));
@@ -305,18 +284,10 @@ void main() {
   ) async {
     tester.view.physicalSize = const Size(1688, 600);
     tester.view.devicePixelRatio = 1;
-    final logFile = File('.tmp/test.log');
-    logFile.parent.createSync(recursive: true);
-    logFile.writeAsStringSync('stale log\n');
-
-    fortuneSheetDebugLogEnabled = true;
+    final logBuffer = captureFortuneDebugLog();
     addTearDown(() {
       tester.view.resetPhysicalSize();
       tester.view.resetDevicePixelRatio();
-      fortuneSheetDebugLogEnabled = false;
-      if (logFile.existsSync()) {
-        logFile.deleteSync();
-      }
     });
 
     final workbook = FortuneWorkbook(
@@ -375,19 +346,17 @@ void main() {
             ),
             toolbarKey: fortuneToolbarFontSizePopupKey,
             itemIndex: fortuneToolbarFontSizeCommands.indexOf(
-              fortuneToolbarFontSize24Command,
+              fortuneToolbarFontSize11Command,
             ),
           ),
     );
     await tester.pump();
 
-    expect(logFile.existsSync(), isTrue);
-    final log = logFile.readAsStringSync();
-    expect(log, isNot(contains('stale log')));
+    final log = logBuffer.toString();
     expect(log, contains('editor inlineToolbar remember'));
     expect(log, contains('editor inlineToolbar popupCommand'));
     expect(log, contains('editor inlineToolbar apply begin'));
-    expect(log, contains('command=font-size-24 key=fs value=24'));
+    expect(log, contains('command=font-size-11 key=fs value=11'));
     expect(log, contains('editor inlineToolbar apply complete'));
     expect(log, contains('runsAfter='));
   });
@@ -395,17 +364,7 @@ void main() {
   testWidgets(
     'active editor debug log records inline line-height input trace',
     (tester) async {
-      final logFile = File('.tmp/test.log');
-      logFile.parent.createSync(recursive: true);
-      logFile.writeAsStringSync('stale log\n');
-
-      fortuneSheetDebugLogEnabled = true;
-      addTearDown(() {
-        fortuneSheetDebugLogEnabled = false;
-        if (logFile.existsSync()) {
-          logFile.deleteSync();
-        }
-      });
+      final logBuffer = captureFortuneDebugLog();
 
       final workbook = FortuneWorkbook(
         sheets: [
@@ -474,9 +433,7 @@ void main() {
       await tester.pump();
 
       expect(painter().contextMenuAt, isNull);
-      expect(logFile.existsSync(), isTrue);
-      final log = logFile.readAsStringSync();
-      expect(log, isNot(contains('stale log')));
+      final log = logBuffer.toString();
       expect(log, contains('editor contextMenu open'));
       expect(
         log,
