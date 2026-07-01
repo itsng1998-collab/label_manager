@@ -1663,6 +1663,7 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
             return KeyEventResult.ignored;
           }
           if (event.logicalKey == LogicalKeyboardKey.escape) {
+            debugLog('brandNameEdit cancelByEscape index=$_editingIndex');
             _cancelBrandNameEdit();
             return KeyEventResult.handled;
           }
@@ -1672,18 +1673,36 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
           clipBehavior: Clip.hardEdge,
           children: [
             Positioned.fill(
-              child: TextField(
-                controller: _brandNameEditController,
-                focusNode: _brandNameEditFocusNode,
-                autofocus: true,
-                maxLines: 1,
-                textAlignVertical: TextAlignVertical.center,
-                decoration: const InputDecoration(
-                  isDense: true,
-                  contentPadding: EdgeInsets.only(left: 6, right: 30),
-                  border: OutlineInputBorder(),
+              // OutlineInputBorder 는 2px inset 렌더링으로 셀 경계와 갭이 생기므로
+              // DecoratedBox(BoxDecoration) + InputBorder.none 으로 edge-to-edge 처리.
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  border: Border.all(
+                    color: const Color(0xff0175c2),
+                    width: 1.5,
+                  ),
                 ),
-                onSubmitted: _submitBrandNameEdit,
+                child: TextField(
+                  controller: _brandNameEditController,
+                  focusNode: _brandNameEditFocusNode,
+                  autofocus: true,
+                  maxLines: 1,
+                  textAlignVertical: TextAlignVertical.center,
+                  decoration: const InputDecoration(
+                    isDense: true,
+                    contentPadding: EdgeInsets.only(left: 6, right: 30, top: 0, bottom: 0),
+                    border: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                  ),
+                  onSubmitted: (v) {
+                    debugLog('brandNameEdit submitByEnter index=$_editingIndex text=${_brandNameEditController.text} paramValue=$v canSubmit=$_canSubmitBrandNameEdit');
+                    // onSubmitted 의 v 는 IME 조합 중 Enter 시 컨트롤러 값과 다를 수 있으므로
+                    // 컨트롤러 text 를 직접 사용한다.
+                    _submitBrandNameEdit(_brandNameEditController.text);
+                  },
+                ),
               ),
             ),
             Positioned(
@@ -1703,9 +1722,10 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
                 splashColor: const Color(0xffcbd5e1),
                 icon: const Icon(Icons.keyboard_return),
                 onPressed: canSubmit
-                    ? () => _submitBrandNameEdit(
-                        _brandNameEditController.text,
-                      )
+                    ? () {
+                        debugLog('brandNameEdit submitByButton index=$_editingIndex text=${_brandNameEditController.text} canSubmit=$_canSubmitBrandNameEdit');
+                        _submitBrandNameEdit(_brandNameEditController.text);
+                      }
                     : null,
               ),
             ),
@@ -1725,9 +1745,11 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
 
   void _toggleBrandNameEdit(Brand brand, int index) {
     if (_editingIndex == index) {
+      debugLog('brandNameEdit cancelByToggle index=$index');
       _cancelBrandNameEdit();
       return;
     }
+    debugLog('brandNameEdit start index=$index brandId=${brand.brandId} name=${brand.brandName}');
     setState(() {
       _editingIndex = index;
       _brandNameEditController.text = brand.brandName;
@@ -1748,6 +1770,7 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
     if (_editingIndex == null) {
       return;
     }
+    debugLog('brandNameEdit cancelled index=$_editingIndex text=${_brandNameEditController.text}');
     setState(() {
       _editingIndex = null;
       _brandNameEditController.clear();
@@ -1774,7 +1797,9 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
   }
 
   Future<void> _submitBrandNameEdit(String value) async {
+    debugLog('brandNameEdit submit index=$_editingIndex value=$value canSubmit=$_canSubmitBrandNameEdit');
     if (!_canSubmitBrandNameEdit) {
+      debugLog('brandNameEdit submitSkipped canSubmit=false');
       return;
     }
     await _updateBrandName(value.trim());
@@ -1782,10 +1807,13 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
 
   Future<void> _updateBrandName(String brandName) async {
     final editingIndex = _editingIndex;
+    debugLog('updateBrandName start editingIndex=$editingIndex brandName=$brandName');
     if (editingIndex == null || editingIndex >= _brands.length) {
+      debugLog('updateBrandName aborted editingIndex=null or out of range');
       return;
     }
     final brand = _brands[editingIndex];
+    debugLog('updateBrandName confirm dialog brandId=${brand.brandId} old=${brand.brandName} new=$brandName');
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -1803,16 +1831,20 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
       ),
     );
     if (!mounted) {
+      debugLog('updateBrandName aborted unmounted after dialog');
       return;
     }
     if (confirmed != true) {
+      debugLog('updateBrandName cancelledByUser brandId=${brand.brandId}');
       _cancelBrandNameEdit();
       return;
     }
-
+    debugLog('updateBrandName confirmed brandId=${brand.brandId} old=${brand.brandName} new=$brandName');
     // TODO: 실제 CRUD 호출 후 결과에 따라 아래 setState 실행 여부를 결정한다.
     const updateSucceeded = true;
+    debugLog('updateBrandName result succeeded=$updateSucceeded editingIndexNow=$_editingIndex expectedIndex=$editingIndex');
     if (!updateSucceeded || _editingIndex != editingIndex) {
+      debugLog('updateBrandName skippedStateUpdate succeeded=$updateSucceeded');
       return;
     }
     setState(() {
@@ -1825,6 +1857,7 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
       _editingIndex = null;
       _brandNameEditController.clear();
     });
+    debugLog('updateBrandName done brandId=${brand.brandId} newName=$brandName');
   }
 
   static void _noop() {}
