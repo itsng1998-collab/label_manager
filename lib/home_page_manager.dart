@@ -1479,81 +1479,96 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
   @override
   Widget build(BuildContext context) {
     final dialogHeight = MediaQuery.sizeOf(context).height * 0.7;
-    return Dialog(
-      // 모달리스(OverlayEntry)로 전환되면서 showDialog 의 스크림(Colors.black54)이
-      // 사라져 M3 기본 shadowColor(transparent)만으로는 다이얼로그 경계가 불명확해짐.
-      // elevation + shadowColor 를 명시해 스크림 없이도 모달 아웃라인과 동일하게 보이도록 한다.
-      elevation: 12,
-      shadowColor: Colors.black38,
-      insetPadding: const EdgeInsets.all(24),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-      clipBehavior: Clip.antiAlias,
-      child: SizedBox(
-        width: _dialogWidth,
-        height: dialogHeight,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Container(
-              height: 36,
-              padding: const EdgeInsets.only(left: 12, right: 4),
-              color: const Color(0xfff7f7f7),
-              child: Row(
-                children: [
-                  const Expanded(
-                    child: Text(
-                      '브랜드 설정',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
+    // 프린터 설정 다이얼로그(_LabelSheetPrintSettingsDialog)와 동일한 스타일:
+    // BoxDecoration(border, borderRadius:8, boxShadow) + Material(transparency)
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Container(
+          width: _dialogWidth,
+          height: dialogHeight,
+          clipBehavior: Clip.antiAlias,
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            border: Border.fromBorderSide(
+              BorderSide(color: Color(0xffc8c8c8)),
+            ),
+            borderRadius: BorderRadius.all(Radius.circular(8)),
+            boxShadow: [
+              BoxShadow(
+                color: Color(0x26000000),
+                blurRadius: 16,
+                offset: Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Material(
+            type: MaterialType.transparency,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Container(
+                  height: 36,
+                  padding: const EdgeInsets.only(left: 12, right: 4),
+                  color: const Color(0xfff7f7f7),
+                  child: Row(
+                    children: [
+                      const Expanded(
+                        child: Text(
+                          '브랜드 설정',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                      IconButton(
+                        tooltip: '닫기',
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints.tightFor(
+                          width: 28,
+                          height: 28,
+                        ),
+                        icon: const _BrandDialogCloseIcon(),
+                        onPressed: widget.onClose,
+                      ),
+                    ],
                   ),
-                  IconButton(
-                    tooltip: '닫기',
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints.tightFor(
-                      width: 28,
-                      height: 28,
-                    ),
-                    icon: const _BrandDialogCloseIcon(),
-                    onPressed: widget.onClose,
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.only(left: 8, right: 8, bottom: 8),
-                child: SwipeActionTable<Brand>(
-                  rows: _brands,
-                  fillLastColumn: true,
-                  autoFitColumns: false,
-                  rowSwipeEnabled: true,
-                  keepRowContentOnSwipe: true,
-                  rowTooltip: '컬럼 왼쪽 스와이프 수정/삽입/삭제',
-                  showActionsWhenEmpty: true,
-                  isRowContentInteractive: (_, index) => _editingIndex == index,
-                  canSwipeRow: (_, index) =>
-                      _editingIndex == null || _editingIndex == index,
-                  actions: _brandRowActions(),
-                  emptyActions: _brandEmptyActions(),
-                  columns: [
-                    SwipeActionTableColumn<Brand>(
-                      header: '브랜드 이름',
-                      initialWidth: 220,
-                      minWidth: 120,
-                      fillRemaining: true,
-                      text: _brandNameText,
-                      cellBuilder: _buildBrandNameCell,
-                      onDoubleTap: _handleBrandNameDoubleTap,
-                    ),
-                  ],
                 ),
-              ),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 8, right: 8, bottom: 8),
+                    child: SwipeActionTable<Brand>(
+                      rows: _brands,
+                      fillLastColumn: true,
+                      autoFitColumns: false,
+                      rowSwipeEnabled: true,
+                      keepRowContentOnSwipe: true,
+                      rowTooltip: '컬럼 왼쪽 스와이프 수정/삽입/삭제',
+                      showActionsWhenEmpty: true,
+                      isRowContentInteractive: (_, index) => _editingIndex == index,
+                      canSwipeRow: (_, index) =>
+                          _editingIndex == null || _editingIndex == index,
+                      actions: _brandRowActions(),
+                      emptyActions: _brandEmptyActions(),
+                      columns: [
+                        SwipeActionTableColumn<Brand>(
+                          header: '브랜드 이름',
+                          initialWidth: 220,
+                          minWidth: 120,
+                          fillRemaining: true,
+                          text: _brandNameText,
+                          cellBuilder: _buildBrandNameCell,
+                          onDoubleTap: _handleBrandNameDoubleTap,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
