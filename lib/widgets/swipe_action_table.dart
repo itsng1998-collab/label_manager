@@ -601,6 +601,14 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
     // 편집 중(행 콘텐츠 상호작용)인 행은 액션 레일을 닫힌 것으로 간주한다.
     // 이유: 레일이 열려 있으면 에디터 오른쪽을 덮어 제출 버튼(←)이 가려지고
     // 시각적으로 에디터가 컬럼 전체를 채우지 못하는 것처럼 보인다.
+    // 또한 _openActionIndex 를 지워야 편집 완료 후 레일이 재출현하지 않는다.
+    if (isRowContentInteractive && _openActionIndex == index) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _openActionIndex == index) {
+          setState(() => _openActionIndex = null);
+        }
+      });
+    }
     final isOpen = widget.rowSwipeEnabled &&
         canSwipeRow &&
         _openActionIndex == index &&
