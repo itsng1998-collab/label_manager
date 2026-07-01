@@ -2568,6 +2568,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   int _editorTextMutationPendingCount = 0;
   int _editorTextMutationSession = 0;
   bool _editorCaretRevealScheduled = false;
+  int _editorTraceSeq = 0;
+  TextEditingValue? _editorTraceLastValue;
   final TextEditingController _formulaBarEditorController =
       TextEditingController();
   final TextEditingController _sheetTabEditorController =
@@ -3002,6 +3004,12 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     if (_editingCoord == null || !mounted) {
       return;
     }
+    _traceCellEditor(
+      'valueChanged',
+      previousValue: _editorTraceLastValue,
+      value: _editorController.value,
+    );
+    _editorTraceLastValue = _editorController.value;
     if (_editorInlineHistoryText != _editorController.text) {
       _clearEditorInlineHistory(keepCurrentText: true);
     }
@@ -3009,6 +3017,18 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     _rememberInlineToolbarSelectionRange();
     _scheduleEditorCaretReveal();
     setState(() {});
+  }
+
+  void _handleEditorSelectionChanged(
+    TextSelection selection,
+    SelectionChangedCause? cause,
+  ) {
+    _traceCellEditor(
+      'selectionChanged',
+      selection: selection,
+      selectionCause: cause,
+    );
+    _rememberEditorSelection(selection);
   }
 
   void _handleContextMenuInlineInputFocusChanged() {
@@ -37386,6 +37406,18 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     if (!_canEditCell(_workbook.activeSheet, anchor)) {
       return;
     }
+    final initialValue = TextEditingValue(
+      text: cell?.renderedText ?? '',
+      selection: TextSelection.collapsed(
+        offset: (cell?.renderedText ?? '').length,
+      ),
+    );
+    _traceCellEditor(
+      'startEditing request',
+      coord: anchor,
+      value: initialValue,
+      details: 'hasCell=${cell != null}',
+    );
     setState(() {
       selection = FortuneSelection(row: anchor.row, column: anchor.column);
       contextMenuAt = null;
@@ -37400,15 +37432,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         _editorScrollController.jumpTo(0);
       }
       _editingFormulaBar = false;
-      _editorController.setCellValue(
-        cell,
-        TextEditingValue(
-          text: cell?.renderedText ?? '',
-          selection: TextSelection.collapsed(
-            offset: (cell?.renderedText ?? '').length,
-          ),
-        ),
-      );
+      _editorController.setCellValue(cell, initialValue);
+      _editorTraceLastValue = initialValue;
       _resetEditorInlineHistory();
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -37427,6 +37452,15 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       });
       return;
     }
+    final initialValue = TextEditingValue(
+      text: text,
+      selection: TextSelection.collapsed(offset: text.length),
+    );
+    _traceCellEditor(
+      'startEditingWithText request',
+      coord: anchor,
+      value: initialValue,
+    );
     setState(() {
       selection = FortuneSelection(row: anchor.row, column: anchor.column);
       contextMenuAt = null;
@@ -37446,13 +37480,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       }
       _editingCommentCoord = null;
       _editingFormulaBar = false;
-      _editorController.setCellValue(
-        null,
-        TextEditingValue(
-          text: text,
-          selection: TextSelection.collapsed(offset: text.length),
-        ),
-      );
+      _editorController.setCellValue(null, initialValue);
+      _editorTraceLastValue = initialValue;
       _resetEditorInlineHistory();
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -37530,6 +37559,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   }
 
   void _commitEditing() {
+    _traceCellEditor('commitEditing requested');
     _logEditorDebug('commitEditing requested');
     if (_editingCommentCoord != null) {
       _commitCommentEditing();
@@ -37556,6 +37586,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     if (coord == null) {
       return;
     }
+    _traceCellEditor('commitActiveCellEditing start');
     _logEditorDebug('commitActiveCellEditing start');
     final sheet = _workbook.activeSheet;
     final anchor = sheet.mergeAnchorFor(coord);
@@ -37610,6 +37641,11 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
               .copyWith(inlineRuns: _editorController.inlineRuns)
         : previous.withEditedValue(text);
     final changed = _cellWouldChange(sheet, anchor, nextCell);
+    _traceCellEditor(
+      'commitActiveCellEditing result',
+      coord: anchor,
+      details: 'changed=$changed nextCell=${nextCell != null}',
+    );
     if (changed) {
       _recordUndoSnapshot();
     }
@@ -38243,6 +38279,11 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   }
 
   void _setEditorValueFromUserEdit(TextEditingValue value) {
+    _traceCellEditor(
+      'setValueFromUserEdit',
+      previousValue: _editorController.value,
+      value: value,
+    );
     final editableState = _editorEditableKey.currentState;
     if (editableState == null ||
         Overlay.maybeOf(editableState.context) == null) {
@@ -38267,6 +38308,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     if (!_editorFocusNode.hasFocus) {
       return;
     }
+    _traceCellEditor('syncPlatformEditingState', value: value);
     fortuneSheetDebugLog(
       'editor syncPlatformEditingState value=${_debugValue(value)}',
     );
@@ -38303,6 +38345,47 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       'editor $event coord=$_editingCoord pending=$_editorTextMutationPendingCount '
       'session=$_editorTextMutationSession value=${_debugValue(_editorController.value)}',
     );
+  }
+
+  void _traceCellEditor(
+    String event, {
+    FortuneCellCoord? coord,
+    TextEditingValue? previousValue,
+    TextEditingValue? value,
+    TextSelection? selection,
+    SelectionChangedCause? selectionCause,
+    KeyEvent? keyEvent,
+    String? details,
+  }) {
+    final traceSeq = ++_editorTraceSeq;
+    final traceCoord = coord ?? _editingCoord;
+    final traceValue = value ?? _editorController.value;
+    final previous = previousValue;
+    final keyDetails = keyEvent == null
+        ? ''
+        : ' key=${keyEvent.logicalKey.debugName ?? keyEvent.logicalKey.keyLabel}'
+              ' char=${_debugText(keyEvent.character ?? '')}'
+              ' type=${keyEvent.runtimeType}'
+              ' ctrl=${HardwareKeyboard.instance.isControlPressed}'
+              ' shift=${HardwareKeyboard.instance.isShiftPressed}'
+              ' alt=${HardwareKeyboard.instance.isAltPressed}'
+              ' meta=${HardwareKeyboard.instance.isMetaPressed}';
+    final selectionDetails = selection == null
+        ? ''
+        : ' changedSelection=${_debugSelection(selection)}'
+              ' cause=${selectionCause?.name ?? 'null'}';
+    final previousDetails = previous == null
+        ? ''
+        : ' previous=${_debugValue(previous)}'
+              ' deltaText=${traceValue.text.length - previous.text.length}';
+    final extraDetails = details == null ? '' : ' $details';
+    final message = 'cellEditorTrace#$traceSeq event=$event coord=$traceCoord '
+        'pending=$_editorTextMutationPendingCount '
+        'session=$_editorTextMutationSession '
+        'focus=${_editorFocusNode.hasFocus} '
+        'value=${_debugValue(traceValue)}'
+        '$previousDetails$keyDetails$selectionDetails$extraDetails';
+    scheduleMicrotask(() => debugPrint(message));
   }
 
   String _debugRange(TextRange? range) {
@@ -38367,12 +38450,15 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
       return KeyEventResult.ignored;
     }
+    _traceCellEditor('keyEvent', keyEvent: event);
     if (_handleToolbarPopupKeyEvent(event)) {
+      _traceCellEditor('keyEvent handled toolbarPopup', keyEvent: event);
       return KeyEventResult.handled;
     }
     if (event is KeyDownEvent &&
         event.logicalKey == LogicalKeyboardKey.escape) {
       _cancelEditing();
+      _traceCellEditor('keyEvent handled escape', keyEvent: event);
       return KeyEventResult.handled;
     }
     final isShortcutPressed =
@@ -38389,20 +38475,24 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
             ),
           ),
         );
+        _traceCellEditor('keyEvent handled selectAll', keyEvent: event);
         return KeyEventResult.handled;
       }
       if (event.logicalKey == LogicalKeyboardKey.keyC) {
         unawaited(_copyEditorSelectionToClipboard());
+        _traceCellEditor('keyEvent handled copy', keyEvent: event);
         return KeyEventResult.handled;
       }
       if (event.logicalKey == LogicalKeyboardKey.keyX) {
         _queueEditorTextMutation(
           () => _copyEditorSelectionToClipboard(cut: true),
         );
+        _traceCellEditor('keyEvent handled cut', keyEvent: event);
         return KeyEventResult.handled;
       }
       if (event.logicalKey == LogicalKeyboardKey.keyV) {
         _queueEditorTextMutation(_pasteClipboardIntoEditor);
+        _traceCellEditor('keyEvent handled paste', keyEvent: event);
         return KeyEventResult.handled;
       }
       if (event.logicalKey == LogicalKeyboardKey.keyZ) {
@@ -38415,28 +38505,33 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
             _editorUndoController.undo();
           }
         }
+        _traceCellEditor('keyEvent handled undo', keyEvent: event);
         return KeyEventResult.handled;
       }
       if (event.logicalKey == LogicalKeyboardKey.keyY) {
         if (!_redoEditorInlineFormat()) {
           _editorUndoController.redo();
         }
+        _traceCellEditor('keyEvent handled redo', keyEvent: event);
         return KeyEventResult.handled;
       }
       if (event.logicalKey == LogicalKeyboardKey.insert) {
         unawaited(_copyEditorSelectionToClipboard());
+        _traceCellEditor('keyEvent handled ctrlInsert', keyEvent: event);
         return KeyEventResult.handled;
       }
     }
     if (event is KeyDownEvent && isShiftPressed) {
       if (event.logicalKey == LogicalKeyboardKey.insert) {
         _queueEditorTextMutation(_pasteClipboardIntoEditor);
+        _traceCellEditor('keyEvent handled shiftInsert', keyEvent: event);
         return KeyEventResult.handled;
       }
       if (event.logicalKey == LogicalKeyboardKey.delete) {
         _queueEditorTextMutation(
           () => _copyEditorSelectionToClipboard(cut: true),
         );
+        _traceCellEditor('keyEvent handled shiftDelete', keyEvent: event);
         return KeyEventResult.handled;
       }
     }
@@ -38452,6 +38547,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         'meta=${HardwareKeyboard.instance.isMetaPressed}',
       );
       _runOrQueueEditorTextMutation(() => _insertEditorText('\n'));
+      _traceCellEditor('keyEvent handled multilineEnter', keyEvent: event);
       return KeyEventResult.handled;
     }
     if (event is KeyDownEvent &&
@@ -38460,6 +38556,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         !HardwareKeyboard.instance.isAltPressed &&
         !HardwareKeyboard.instance.isMetaPressed) {
       _commitEditing();
+      _traceCellEditor('keyEvent handled enterCommit', keyEvent: event);
       return KeyEventResult.handled;
     }
     if (_applyTextEditorNavigationKey(
@@ -38467,8 +38564,10 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       event,
       multiline: true,
     )) {
+      _traceCellEditor('keyEvent handled navigation', keyEvent: event);
       return KeyEventResult.handled;
     }
+    _traceCellEditor('keyEvent ignored', keyEvent: event);
     return KeyEventResult.ignored;
   }
 
@@ -40371,8 +40470,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
                 selectionHeightStyle: ui.BoxHeightStyle.tight,
                 selectionControls: desktopTextSelectionControls,
                 contextMenuBuilder: _fortuneEditableTextContextMenuBuilder,
-                onSelectionChanged: (selection, cause) =>
-                    _rememberEditorSelection(selection),
+                onSelectionChanged: _handleEditorSelectionChanged,
                 mouseCursor: SystemMouseCursors.text,
                 enableInteractiveSelection: true,
                 rendererIgnoresPointer: true,
@@ -40381,14 +40479,22 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
                 strutStyle: StrutStyle(fontSize: fontSize, height: 1.2),
                 keyboardType: TextInputType.multiline,
                 textInputAction: TextInputAction.newline,
-                onSubmitted: (_) => _commitEditing(),
-                onEditingComplete: _commitEditing,
+                onSubmitted: (_) {
+                  _traceCellEditor('editableText onSubmitted');
+                  _commitEditing();
+                },
+                onEditingComplete: () {
+                  _traceCellEditor('editableText onEditingComplete');
+                  _commitEditing();
+                },
                 onTapOutside: (event) {
                   if (_shouldKeepEditingForEditorTapOutside(event)) {
                     _logEditorDebug('tapOutside keepEditing toolbarInline');
+                    _traceCellEditor('tapOutside keepEditing toolbarInline');
                     return;
                   }
                   _logEditorDebug('tapOutside commitEditing');
+                  _traceCellEditor('tapOutside commitEditing');
                   _commitEditing();
                 },
               ),
