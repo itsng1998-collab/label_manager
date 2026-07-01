@@ -1658,6 +1658,7 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
       );
     }
     final canSubmit = _canSubmitBrandNameEdit;
+    debugLog('brandNameEdit buildCell index=$_editingIndex brandId=${brand.brandId} canSubmit=$canSubmit');
     return SizedBox(
       width: width,
       child: Focus(
@@ -1730,12 +1731,18 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints.expand(),
                 iconSize: 17,
-                color: const Color(0xff334155),
-                disabledColor: const Color(0xffb8bec7),
+                // disabledColor 는 Flutter 테마에 따라 무시될 수 있으므로
+                // Icon.color 로 직접 제어하여 canSubmit 상태를 명확히 표현한다.
                 hoverColor: const Color(0xffe5e7eb),
                 highlightColor: const Color(0xffcbd5e1),
                 splashColor: const Color(0xffcbd5e1),
-                icon: const Icon(Icons.keyboard_return),
+                icon: Icon(
+                  Icons.keyboard_return,
+                  size: 17,
+                  color: canSubmit
+                      ? const Color(0xff334155)
+                      : const Color(0xffb8bec7),
+                ),
                 onPressed: canSubmit
                     ? () {
                         debugLog('brandNameEdit submitByButton index=$_editingIndex text=${_brandNameEditController.text} canSubmit=$_canSubmitBrandNameEdit');
@@ -1788,6 +1795,9 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
       return;
     }
     debugLog('brandNameEdit cancelled index=$_editingIndex text=${_brandNameEditController.text}');
+    // 포커스를 명시적으로 해제하지 않으면 FocusNode 가 트리에서 분리된 후에도
+    // 포커스를 유지해 이후 키보드 입력이 소실될 수 있다.
+    _brandNameEditFocusNode.unfocus();
     setState(() {
       _editingIndex = null;
       _brandNameEditController.clear();

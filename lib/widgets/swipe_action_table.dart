@@ -540,8 +540,16 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
                   ? action.isEnabled?.call(row, rowIndex) ?? true
                   : true;
                 final rawCallback = isRowAction && action.onRowPressed != null
-                  ? () => action.onRowPressed!(row, rowIndex)
-                  : action.onPressed;
+                  ? () {
+                      debugPrint('[SwipeTable] action pressed row=$rowIndex tooltip=${action.tooltip}');
+                      action.onRowPressed!(row, rowIndex);
+                    }
+                  : action.onPressed != null
+                      ? () {
+                          debugPrint('[SwipeTable] action pressed (global) tooltip=${action.tooltip}');
+                          action.onPressed!();
+                        }
+                      : null;
                 final callback = isEnabled ? rawCallback : null;
                 final isPressed = isRowAction
                     ? action.isPressed?.call(row, rowIndex) ?? false
@@ -694,9 +702,15 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
                 onHorizontalDragUpdate: widget.rowSwipeEnabled && canSwipeRow
                     ? (details) {
                         if (details.delta.dx < -2) {
-                          setState(() => _openActionIndex = index);
+                          if (_openActionIndex != index) {
+                            debugPrint('[SwipeTable] swipe open row=$index (prev=$_openActionIndex)');
+                            setState(() => _openActionIndex = index);
+                          }
                         } else if (details.delta.dx > 2) {
-                          setState(() => _openActionIndex = null);
+                          if (_openActionIndex == index) {
+                            debugPrint('[SwipeTable] swipe close row=$index');
+                            setState(() => _openActionIndex = null);
+                          }
                         }
                       }
                     : null,
@@ -714,7 +728,10 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
                   behavior: HitTestBehavior.translucent,
                   onHorizontalDragUpdate: (details) {
                     if (details.delta.dx > 2) {
-                      setState(() => _openActionIndex = null);
+                      if (_openActionIndex == index) {
+                        debugPrint('[SwipeTable] swipe close (rail) row=$index');
+                        setState(() => _openActionIndex = null);
+                      }
                     }
                   },
                   child: _buildActionRail(
