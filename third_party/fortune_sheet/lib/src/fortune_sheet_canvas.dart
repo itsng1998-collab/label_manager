@@ -2573,6 +2573,12 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   DateTime? _editorSkipDeletionKeyUntil;
   TextEditingValue? _editorImeCompositionBaseValue;
   TextEditingValue? _editorImeResidualDeletionValue;
+  // 한글 IME '잔여 고착' 결함(예: 타→탚 확장 후 조합이 교정 없이 붕괴되어
+  // 종성이 커서 오른쪽에 남는 현상)을 커밋 시점에 교정하기 위한 추적 목록.
+  // 각 항목: (텍스트 내 인덱스, 고착된 잔여형 문자, 종성 제거한 원음 문자).
+  // 근거: .tmp/app_2026-07-01_18-02-10.log (#82→#83 등 5회).
+  List<(int, String, String)> _editorImeStuckResiduals =
+      <(int, String, String)>[];
   final TextEditingController _formulaBarEditorController =
       TextEditingController();
   final TextEditingController _sheetTabEditorController =
@@ -3046,6 +3052,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         !currentValue.composing.isValid) {
       _editorImeResidualDeletionValue = currentValue;
     }
+    if (previousValue != null) {
+      _updateImeStuckResidualTracking(previousValue, currentValue);
+    }
     _traceCellEditor(
       'valueChanged',
       previousValue: previousValue,
@@ -3074,6 +3083,126 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     }
     _scheduleEditorCaretReveal();
     setState(() {});
+  }
+
+  bool _isHangulSyllable(int c) => c >= 0xac00 && c <= 0xd7a3;
+
+  int _hangulFinalIndex(int c) => (c - 0xac00) % 28;
+
+  // 기존 추적 잔여형 인덱스를 이번 편집(prevText→curText)에 맞춰 이동시킨다.
+  // 공통 접두부 안이면 그대로, 공통 접미부 안이면 길이차(delta)만큼 이동,
+  // 변경 영역 내부면 null(=잔여형 문자가 수정됨 → 추적 폐기)을 반환한다.
+  int? _shiftImeResidualIndex(int idx, String prevText, String curText) {
+    final prevLen = prevText.length;
+    final curLen = curText.length;
+    final minLen = math.min(prevLen, curLen);
+    var p = 0;
+    while (p < minLen && prevText.codeUnitAt(p) == curText.codeUnitAt(p)) {
+      p++;
+    }
+    var suf = 0;
+    while (suf < (minLen - p) &&
+        prevText.codeUnitAt(prevLen - 1 - suf) ==
+            curText.codeUnitAt(curLen - 1 - suf)) {
+      suf++;
+    }
+    final delta = curLen - prevLen;
+    if (idx < p) {
+      return idx;
+    }
+    if (idx >= prevLen - suf) {
+      return idx + delta;
+    }
+    return null;
+  }
+
+  // 한글 IME '잔여 고착' 결함을 추적한다.
+  // (1) 이미 추적 중인 잔여형은 이번 편집에 맞춰 인덱스를 이동/무효화한다.
+  // (2) 이번 전이가 결함 서명과 일치하면 새 잔여형을 추적 목록에 추가한다.
+  // 결함 서명: 텍스트 불변 + 이전 composing [s,s+1] → 현재 composing [s,s]로
+  //   붕괴(-1이 아닌 collapsed) + 캐럿이 s에 고정 + s 위치 문자가 종성 있는 한글.
+  // 정상 조합 확정은 composing이 -1로 클리어되거나 캐럿이 전진하므로 이 서명과
+  // 겹치지 않는다(오탐 위험 낮음). 실제 교정은 커밋 시점에만 수행한다.
+  void _updateImeStuckResidualTracking(
+    TextEditingValue previousValue,
+    TextEditingValue currentValue,
+  ) {
+    final prevText = previousValue.text;
+    final curText = currentValue.text;
+    if (_editorImeStuckResiduals.isNotEmpty && prevText != curText) {
+      final updated = <(int, String, String)>[];
+      for (final r in _editorImeStuckResiduals) {
+        final shifted = _shiftImeResidualIndex(r.$1, prevText, curText);
+        if (shifted != null &&
+            shifted >= 0 &&
+            shifted < curText.length &&
+            curText[shifted] == r.$2) {
+          updated.add((shifted, r.$2, r.$3));
+        }
+      }
+      _editorImeStuckResiduals = updated;
+    }
+    final prevComp = previousValue.composing;
+    final curComp = currentValue.composing;
+    final sel = currentValue.selection;
+    if (prevText == curText &&
+        prevComp.isValid &&
+        (prevComp.end - prevComp.start) == 1 &&
+        curComp.isValid &&
+        curComp.isCollapsed &&
+        curComp.start == prevComp.start &&
+        previousValue.selection.isCollapsed &&
+        previousValue.selection.start == prevComp.start &&
+        sel.isCollapsed &&
+        sel.start == prevComp.start) {
+      final s = prevComp.start;
+      if (s >= 0 && s < curText.length) {
+        final c = curText.codeUnitAt(s);
+        if (_isHangulSyllable(c) && _hangulFinalIndex(c) != 0) {
+          final residual = curText[s];
+          final base = String.fromCharCode(c - _hangulFinalIndex(c));
+          final already = _editorImeStuckResiduals.any(
+            (r) => r.$1 == s && r.$2 == residual,
+          );
+          if (!already) {
+            _editorImeStuckResiduals = [
+              ..._editorImeStuckResiduals,
+              (s, residual, base),
+            ];
+            _logEditorDebug(
+              'imeStuckResidual detected index=$s residual=$residual base=$base',
+            );
+          }
+        }
+      }
+    }
+  }
+
+  // 커밋 시점에 추적된 잔여 고착을 원음으로 되돌린다(종성 제거, 길이 불변).
+  // 현재 문자가 추적 당시와 다르면(자연 교정/사용자 편집) 건너뛴다.
+  String _applyImeStuckResidualCorrection(String text) {
+    if (_editorImeStuckResiduals.isEmpty) {
+      return text;
+    }
+    var result = text;
+    for (final r in _editorImeStuckResiduals) {
+      final idx = r.$1;
+      if (idx < 0 || idx >= result.length) {
+        continue;
+      }
+      if (result[idx] != r.$2) {
+        continue;
+      }
+      final c = result.codeUnitAt(idx);
+      if (!_isHangulSyllable(c) || _hangulFinalIndex(c) == 0) {
+        continue;
+      }
+      result = result.substring(0, idx) + r.$3 + result.substring(idx + 1);
+      _logEditorDebug(
+        'imeStuckResidual corrected index=$idx ${r.$2}->${r.$3}',
+      );
+    }
+    return result;
   }
 
   void _handleEditorSelectionChanged(
@@ -37491,6 +37620,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       _editingFormulaBar = false;
       _editorController.setCellValue(cell, initialValue);
       _editorTraceLastValue = initialValue;
+      _editorImeStuckResiduals = <(int, String, String)>[];
       _resetEditorInlineHistory();
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -37539,6 +37669,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       _editingFormulaBar = false;
       _editorController.setCellValue(null, initialValue);
       _editorTraceLastValue = initialValue;
+      _editorImeStuckResiduals = <(int, String, String)>[];
       _resetEditorInlineHistory();
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -37649,7 +37780,12 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     final anchor = sheet.mergeAnchorFor(coord);
     final previousCell = sheet.cells[anchor];
     final previous = previousCell ?? const FortuneCell();
-    final text = _editorController.text;
+    final rawText = _editorController.text;
+    // 활성 조합이 끝난 커밋 시점에만 잔여 고착을 원음으로 교정한다(길이 불변이라
+    // 인라인 런/인덱스에 영향 없음). 활성 IME 중 컨트롤러 값 강제가 아니므로
+    // 글자 씹힘 회귀 위험이 없다.
+    final text = _applyImeStuckResidualCorrection(rawText);
+    _editorImeStuckResiduals = <(int, String, String)>[];
     if (!_canEditCell(sheet, anchor)) {
       setState(() {
         _editingCoord = null;
