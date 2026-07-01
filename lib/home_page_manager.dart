@@ -226,6 +226,14 @@ class _HomePageManagerState extends State<HomePageManager> {
     widget.onBrandChanged(brand);
   }
 
+  // 브랜드 설정 다이얼로그에서의 명시적 브랜드 선택(더블클릭)은 사용자의 의도적
+  // 행위이므로 자동로그인 가드(_isAutoLoginMode)와 무관하게 반영한다.
+  // 근거: .tmp/log/app_2026-07-01_17-13-52.log — 더블탭/핸들러는 정상 도달하나
+  // _handleBrandChanged 의 autoLogin=true 가드에서 선택이 무시되어 무반응이었음.
+  void _handleBrandSelectedFromDialog(Brand? brand) {
+    widget.onBrandChanged(brand);
+  }
+
   Future<void> _scheduleLabelSizeLoad(
     Brand? brand, {
     bool selectFirstLabel = false,
@@ -439,7 +447,7 @@ class _HomePageManagerState extends State<HomePageManager> {
     entry = OverlayEntry(
       builder: (_) => _BrandSettingsDialog(
         brands: Brand.datas ?? const <Brand>[],
-        onBrandSelected: _handleBrandChanged,
+        onBrandSelected: _handleBrandSelectedFromDialog,
         onClose: _closeBrandSettingsDialog,
       ),
     );
