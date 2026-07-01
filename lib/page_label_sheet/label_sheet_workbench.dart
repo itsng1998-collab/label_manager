@@ -21,6 +21,7 @@ import 'package:label_manager/printing/label_printer_preferences.dart';
 import 'package:label_manager/printing/printer_profiles.dart';
 import 'package:label_manager/printing/raw_printer_win32.dart';
 import 'package:label_manager/utils/on_messages.dart';
+import 'package:path/path.dart' as p;
 import 'package:printing/printing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -33,6 +34,8 @@ const int labelSheetMinZoomPercent = 10;
 const int labelSheetMaxZoomPercent = 400;
 const String _labelSheetCopilotTokenPrefsKey = 'label_sheet_copilot_token';
 const String _labelSheetCopilotModelPrefsKey = 'label_sheet_copilot_model';
+const String _labelSheetExportDirectoryPrefsKey =
+  'label_sheet_export_directory';
 
 const List<String> labelSheetToolbarItems = [
   labelSheetSaveToolbarCommand,
@@ -694,6 +697,8 @@ FortuneSettings labelSheetSettings(
   FortuneSettings base, {
   VoidCallback? onImportLabelImage,
   FutureOr<void> Function()? onSave,
+  FutureOr<void> Function()? onExportLabelFile,
+  Set<String> Function()? contextMenuDisabledItemsBuilder,
   VoidCallback? onPrint,
   FortuneDialogVisibilityChanged? onDialogVisibilityChanged,
   bool saveEnabled = true,
@@ -737,6 +742,18 @@ FortuneSettings labelSheetSettings(
     sheetTabContextMenu: labelSheetContextMenuItems(base.sheetTabContextMenu),
     filterContextMenu: labelSheetContextMenuItems(base.filterContextMenu),
     onDialogVisibilityChanged: onDialogVisibilityChanged,
+    onContextMenuCommand: (command) {
+      if (command != fortuneContextExportLabelCommand) {
+        return null;
+      }
+      final callback = onExportLabelFile;
+      if (callback == null) {
+        fortuneSheetDebugLog('label sheet export label file context click');
+        return null;
+      }
+      return callback();
+    },
+    contextMenuDisabledItemsBuilder: contextMenuDisabledItemsBuilder,
   );
 }
 
@@ -826,6 +843,8 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
         workbook.settings,
         onImportLabelImage: _handleImportLabelImage,
         onSave: _handleSave,
+        onExportLabelFile: _handleExportLabelFile,
+        contextMenuDisabledItemsBuilder: _labelFileContextMenuDisabledItems,
         onPrint: _handlePrint,
         onDialogVisibilityChanged: _handleFortuneDialogVisibilityChanged,
         saveEnabled: _isDirty,
@@ -1479,23 +1498,13 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     if (callback == null) {
       return;
     }
-    final sheets = _controller.getAllSheets();
-    final workbook = sheets == null
-        ? _latestWorkbook
-        : _latestWorkbook.copyWith(sheets: sheets);
-    final physicalSize =
-        fortuneSheetGridClientPhysicalSize(workbook.activeSheet) ??
-        _gridClientSize ??
-        const FortuneSheetGridClientPhysicalSize(widthMm: 100, heightMm: 100);
-    final encoded = labelSheetEncodeWorkbookSave(
-      labelSheetWorkbookForPrintAreaSave(workbook),
-    );
+    final payload = _encodedWorkbookForCurrentLabelFile();
     try {
       await Future<void>.sync(
         () => callback(
-          physicalSize.widthMm,
-          physicalSize.heightMm,
-          encoded,
+          payload.widthMm,
+          payload.heightMm,
+          payload.encodedWorkbook,
         ),
       );
     } catch (e) {
@@ -1507,6 +1516,94 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
         _isDirty = false;
       });
     }
+  }
+
+  ({int widthMm, int heightMm, String encodedWorkbook})
+  _encodedWorkbookForCurrentLabelFile() {
+    final workbook = _currentWorkbookForLabelFile();
+    final physicalSize =
+        fortuneSheetGridClientPhysicalSize(workbook.activeSheet) ??
+        _gridClientSize ??
+        const FortuneSheetGridClientPhysicalSize(widthMm: 100, heightMm: 100);
+    return (
+      widthMm: physicalSize.widthMm,
+      heightMm: physicalSize.heightMm,
+      encodedWorkbook: labelSheetEncodeWorkbookSave(
+        labelSheetWorkbookForPrintAreaSave(workbook),
+      ),
+    );
+  }
+
+  FortuneWorkbook _currentWorkbookForLabelFile() {
+    final sheets = _controller.getAllSheets();
+    return sheets == null ? _latestWorkbook : _latestWorkbook.copyWith(sheets: sheets);
+  }
+
+  Set<String> _labelFileContextMenuDisabledItems() {
+    return _currentLabelFileHasContent()
+        ? const <String>{}
+        : const <String>{fortuneContextExportLabelCommand};
+  }
+
+  bool _currentLabelFileHasContent() {
+    final workbook = labelSheetWorkbookForPrintAreaSave(
+      _currentWorkbookForLabelFile(),
+    );
+    final sheet = workbook.activeSheet;
+    return sheet.cells.isNotEmpty ||
+        sheet.borderInfo.isNotEmpty ||
+        sheet.images.isNotEmpty ||
+        sheet.dataVerification.isNotEmpty ||
+        sheet.hyperlinks.isNotEmpty;
+  }
+
+  Future<void> _handleExportLabelFile() async {
+    fortuneSheetDebugLog('label sheet export label file context click');
+    if (!_currentLabelFileHasContent()) {
+      return;
+    }
+    const labelFileGroup = XTypeGroup(
+      label: 'Label Manager Sheet',
+      extensions: <String>['lms'],
+      mimeTypes: <String>['application/octet-stream'],
+    );
+    final prefs = await SharedPreferences.getInstance();
+    final initialDirectory = prefs.getString(_labelSheetExportDirectoryPrefsKey);
+    final suggestedName = _suggestedLabelFileName();
+    final location = await getSaveLocation(
+      acceptedTypeGroups: const <XTypeGroup>[labelFileGroup],
+      suggestedName: suggestedName,
+      initialDirectory: initialDirectory?.isNotEmpty == true
+          ? initialDirectory
+          : null,
+    );
+    if (location == null) {
+      return;
+    }
+    final path = _ensureLabelFileExtension(location.path);
+    final payload = _encodedWorkbookForCurrentLabelFile();
+    await File(path).writeAsString(payload.encodedWorkbook, flush: true);
+    final directory = p.dirname(path);
+    if (directory.isNotEmpty) {
+      await prefs.setString(_labelSheetExportDirectoryPrefsKey, directory);
+    }
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('라벨 파일을 내보냈습니다: ${p.basename(path)}')),
+    );
+  }
+
+  String _suggestedLabelFileName() {
+    final name = widget.labelSize?.labelSizeName.trim();
+    return _ensureLabelFileExtension(name?.isNotEmpty == true ? name! : 'label');
+  }
+
+  String _ensureLabelFileExtension(String path) {
+    return p.extension(path).toLowerCase() == '.lms'
+        ? path
+        : p.setExtension(path, '.lms');
   }
 
   Widget _buildZoomToolbarOverlay() {

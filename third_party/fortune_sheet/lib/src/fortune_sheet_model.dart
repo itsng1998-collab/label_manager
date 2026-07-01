@@ -11,6 +11,8 @@ typedef FortuneAfterSelectionChangeHook =
     void Function(String sheetId, FortuneSelection selection);
 typedef FortuneCustomToolbarItemClick =
     void Function(FortuneCustomToolbarItem item);
+typedef FortuneContextMenuCommandHandler = FutureOr<void> Function(String command);
+typedef FortuneContextMenuDisabledItemsBuilder = Set<String> Function();
 typedef FortuneFontProvider = Future<List<String>> Function();
 typedef FortuneDialogVisibilityChanged = FutureOr<void> Function(bool open);
 
@@ -23466,6 +23468,8 @@ class FortuneSettings {
     this.beforeUpdateSheetName,
     this.afterUpdateSheetName,
     this.onDialogVisibilityChanged,
+    this.onContextMenuCommand,
+    this.contextMenuDisabledItemsBuilder,
   });
 
   final int column;
@@ -23526,6 +23530,8 @@ class FortuneSettings {
   final BeforeUpdateSheetNameHook? beforeUpdateSheetName;
   final AfterUpdateSheetNameHook? afterUpdateSheetName;
   final FortuneDialogVisibilityChanged? onDialogVisibilityChanged;
+  final FortuneContextMenuCommandHandler? onContextMenuCommand;
+  final FortuneContextMenuDisabledItemsBuilder? contextMenuDisabledItemsBuilder;
 
   double get effectiveToolbarHeight => showToolbar ? toolbarHeight : 0;
 
@@ -23545,6 +23551,8 @@ class FortuneSettings {
     List<String>? sheetTabContextMenu,
     List<String>? filterContextMenu,
     FortuneDialogVisibilityChanged? onDialogVisibilityChanged,
+    FortuneContextMenuCommandHandler? onContextMenuCommand,
+    FortuneContextMenuDisabledItemsBuilder? contextMenuDisabledItemsBuilder,
   }) {
     return FortuneSettings(
       column: column,
@@ -23606,6 +23614,10 @@ class FortuneSettings {
       afterUpdateSheetName: afterUpdateSheetName,
       onDialogVisibilityChanged:
           onDialogVisibilityChanged ?? this.onDialogVisibilityChanged,
+        onContextMenuCommand:
+          onContextMenuCommand ?? this.onContextMenuCommand,
+        contextMenuDisabledItemsBuilder:
+          contextMenuDisabledItemsBuilder ?? this.contextMenuDisabledItemsBuilder,
     );
   }
 }

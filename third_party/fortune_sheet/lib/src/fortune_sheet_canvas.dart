@@ -28582,6 +28582,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       return <String>{
         if (!_canSplitSelectedCellColumn())
           fortuneContextSplitCellColumnCommand,
+        ...?_workbook.settings.contextMenuDisabledItemsBuilder?.call(),
       };
     }
     return <String>{
@@ -28877,7 +28878,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     final columnSelected = extraFields['column_select'] == true;
     final adjustedSheet =
         fortuneSheetGridClientPhysicalSize(_workbook.activeSheet) != null;
-    return rendered
+    final filtered = rendered
         .where(
           (item) => switch (item) {
             fortuneContextShowGridLinesCommand =>
@@ -28905,7 +28906,11 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
             _ => true,
           },
         )
-        .toList(growable: false);
+        .toList();
+    if (adjustedSheet && rowSelected && columnSelected) {
+      filtered.add(fortuneContextExportLabelCommand);
+    }
+    return List<String>.unmodifiable(filtered);
   }
 
   Offset _contextMenuOrigin(Offset local, List<String> items) {
@@ -29039,6 +29044,12 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       case fortuneContextCellFormatCommand:
         _showFormatSearchDialog(fortuneToolbarFormatMoreNumberCommand);
       default:
+        final handler = _workbook.settings.onContextMenuCommand;
+        if (handler != null) {
+          setState(_closeTransientMenus);
+          unawaited(Future<void>.sync(() => handler(command)));
+          break;
+        }
         setState(() {
           _closeTransientMenus();
         });
