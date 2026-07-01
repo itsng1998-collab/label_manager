@@ -268,6 +268,54 @@ void main() {
     expect(editable.controller.text, '가나');
   });
 
+  testWidgets('active editor leaves composing enter to EditableText', (
+    tester,
+  ) async {
+    captureFortuneDebugLog();
+
+    final workbook = FortuneWorkbook(
+      sheets: [FortuneSheet(id: 's1', name: 'Sheet1')],
+    );
+
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: Overlay(
+          initialEntries: [
+            OverlayEntry(
+              builder: (context) => SizedBox(
+                width: 640,
+                height: 360,
+                child: FortuneSheetCanvas(workbook: workbook),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
+    await tester.tapAt(topLeft + const Offset(83, 100));
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.f2);
+    await tester.pump();
+
+    final editable = tester.widget<EditableText>(find.byType(EditableText));
+    editable.controller.value = const TextEditingValue(
+      text: '챀',
+      selection: TextSelection.collapsed(offset: 0),
+      composing: TextRange(start: 0, end: 1),
+    );
+    await tester.pump();
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pump();
+
+    expect(find.byType(EditableText), findsOneWidget);
+    expect(editable.controller.text, '챀');
+    expect(workbook.activeSheet.cells, isEmpty);
+  });
+
   testWidgets('active editor debug log records popup copy trace', (
     tester,
   ) async {

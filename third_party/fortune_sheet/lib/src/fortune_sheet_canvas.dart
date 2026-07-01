@@ -38572,6 +38572,11 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         !HardwareKeyboard.instance.isShiftPressed &&
         !HardwareKeyboard.instance.isAltPressed &&
         !HardwareKeyboard.instance.isMetaPressed) {
+      if (_editorController.value.composing.isValid &&
+          !_editorController.value.composing.isCollapsed) {
+        _traceCellEditor('keyEvent ignored composingEnter', keyEvent: event);
+        return KeyEventResult.ignored;
+      }
       _commitEditing();
       _traceCellEditor('keyEvent handled enterCommit', keyEvent: event);
       return KeyEventResult.handled;
