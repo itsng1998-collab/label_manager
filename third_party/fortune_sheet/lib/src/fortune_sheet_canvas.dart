@@ -38581,6 +38581,11 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       _traceCellEditor('keyEvent handled imeDeletion', keyEvent: event);
       return KeyEventResult.handled;
     }
+    if (event.logicalKey == LogicalKeyboardKey.backspace ||
+        event.logicalKey == LogicalKeyboardKey.delete) {
+      _traceCellEditor('keyEvent ignored editableTextDeletion', keyEvent: event);
+      return KeyEventResult.ignored;
+    }
     if (_applyTextEditorNavigationKey(
       _editorController,
       event,

@@ -221,6 +221,53 @@ void main() {
     expect(editable.controller.text, '간');
   });
 
+  testWidgets('active editor leaves deletion keys to EditableText', (
+    tester,
+  ) async {
+    captureFortuneDebugLog();
+
+    final workbook = FortuneWorkbook(
+      sheets: [
+        FortuneSheet(
+          id: 's1',
+          name: 'Sheet1',
+          cells: {
+            const FortuneCellCoord(0, 0): const FortuneCell(value: '가나'),
+          },
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: Overlay(
+          initialEntries: [
+            OverlayEntry(
+              builder: (context) => SizedBox(
+                width: 640,
+                height: 360,
+                child: FortuneSheetCanvas(workbook: workbook),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
+    await tester.tapAt(topLeft + const Offset(83, 100));
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.f2);
+    await tester.pump();
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.backspace);
+    await tester.pump();
+
+    final editable = tester.widget<EditableText>(find.byType(EditableText));
+    expect(editable.controller.text, '가나');
+  });
+
   testWidgets('active editor debug log records popup copy trace', (
     tester,
   ) async {
