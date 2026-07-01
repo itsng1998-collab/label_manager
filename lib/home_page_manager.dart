@@ -1500,7 +1500,7 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
           height: dialogHeight,
           clipBehavior: Clip.antiAlias,
           decoration: const BoxDecoration(
-            color: Colors.white,
+            color: Color(0xfff6f6f6),
             border: Border.fromBorderSide(
               BorderSide(color: Color(0xffc8c8c8)),
             ),
