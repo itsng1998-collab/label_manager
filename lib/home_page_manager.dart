@@ -1490,8 +1490,8 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
   @override
   Widget build(BuildContext context) {
     final dialogHeight = MediaQuery.sizeOf(context).height * 0.7;
-    // 프린터 설정 다이얼로그(_LabelSheetPrintSettingsDialog)와 동일한 스타일:
-    // BoxDecoration(border, borderRadius:8, boxShadow) + Material(transparency)
+    // 첨부 이미지 기준: 연한 라벤더-그레이 배경(0xffece6f0), 하드 보더 없이
+    // 부드러운 그림자만, 둥근 모서리(12). 헤더도 본문과 동일 배경(투명 처리).
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -1500,11 +1500,8 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
           height: dialogHeight,
           clipBehavior: Clip.antiAlias,
           decoration: const BoxDecoration(
-            color: Color(0xfff6f6f6),
-            border: Border.fromBorderSide(
-              BorderSide(color: Color(0xffc8c8c8)),
-            ),
-            borderRadius: BorderRadius.all(Radius.circular(8)),
+            color: Color(0xffece6f0),
+            borderRadius: BorderRadius.all(Radius.circular(12)),
             boxShadow: [
               BoxShadow(
                 color: Color(0x26000000),
@@ -1521,7 +1518,6 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
                 Container(
                   height: 36,
                   padding: const EdgeInsets.only(left: 12, right: 4),
-                  color: const Color(0xfff7f7f7),
                   child: Row(
                     children: [
                       const Expanded(
