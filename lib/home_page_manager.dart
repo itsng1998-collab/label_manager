@@ -71,6 +71,8 @@ class _HomePageManagerState extends State<HomePageManager> {
   bool _commonLabelPreviewClosedByUser = false;
   bool _commonLabelPreviewHiddenForSheetDialog = false;
 
+  OverlayEntry? _brandSettingsOverlayEntry;
+
   bool get _isAutoLoginMode => AutoLoginGuard.instance.enabled;
   LabelSize? get _effectiveLabelSize => _currentLabelSize;
   String get _labelContentKey {
@@ -189,6 +191,7 @@ class _HomePageManagerState extends State<HomePageManager> {
             !listEq.equals(prevBrands, brands);
         if (changed) {
           setState(() {});
+          _brandSettingsOverlayEntry?.markNeedsBuild();
         }
 
         final resolved = _resolveSelectedBrand(brands, widget.selectedBrand);
@@ -430,16 +433,23 @@ class _HomePageManagerState extends State<HomePageManager> {
     }
   }
 
-  Future<void> _openBrandSettingsDialog() async {
-    await showDialog<void>(
-      context: context,
-      barrierDismissible: true,
-      builder: (dialogContext) => _BrandSettingsDialog(
+  void _openBrandSettingsDialog() {
+    if (_brandSettingsOverlayEntry != null) return;
+    late final OverlayEntry entry;
+    entry = OverlayEntry(
+      builder: (_) => _BrandSettingsDialog(
         brands: Brand.datas ?? const <Brand>[],
         onBrandSelected: _handleBrandChanged,
-        onClose: () => Navigator.of(dialogContext).pop(),
+        onClose: _closeBrandSettingsDialog,
       ),
     );
+    _brandSettingsOverlayEntry = entry;
+    Overlay.of(context).insert(entry);
+  }
+
+  void _closeBrandSettingsDialog() {
+    _brandSettingsOverlayEntry?.remove();
+    _brandSettingsOverlayEntry = null;
   }
 
   bool _activateCommonLabelTabIfNeeded() {
@@ -881,6 +891,8 @@ class _HomePageManagerState extends State<HomePageManager> {
     _commonLabelPreviewWindow?.dispose();
     _tabController.dispose();
     _tabSearchController.dispose();
+    _brandSettingsOverlayEntry?.remove();
+    _brandSettingsOverlayEntry = null;
     super.dispose();
   }
 
@@ -1541,7 +1553,6 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
       return;
     }
     widget.onBrandSelected(brand);
-    widget.onClose();
   }
 
   List<SwipeActionTableAction<Brand>> _brandRowActions() {
