@@ -497,7 +497,14 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
       _lastTapRowIndex = null;
       _lastTapColumnIndex = null;
       _lastTapAt = null;
-      widget.columns[columnIndex].onDoubleTap?.call(row, rowIndex);
+      final onDoubleTap = widget.columns[columnIndex].onDoubleTap;
+      if (onDoubleTap != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            onDoubleTap(row, rowIndex);
+          }
+        });
+      }
       return;
     }
 

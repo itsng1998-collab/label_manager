@@ -79,6 +79,37 @@ void main() {
     expect(selectedIndex, isNull);
   });
 
+  testWidgets('column double tap runs after row selection frame', (
+    tester,
+  ) async {
+    var called = false;
+
+    await _pumpTable(
+      tester,
+      onNameDoubleTap: (_, _) {
+        called = true;
+      },
+    );
+
+    await tester.tap(find.text('Brand A'));
+    await tester.pump();
+
+    final hasSelectedRow = tester.widgetList<Container>(find.byType(Container)).any(
+      (container) {
+        final decoration = container.decoration;
+        return decoration is BoxDecoration &&
+            decoration.color == const Color(0xFFE3F2FD);
+      },
+    );
+    expect(hasSelectedRow, isTrue);
+
+    await tester.tap(find.text('Brand A'));
+    expect(called, isFalse);
+
+    await tester.pump();
+    expect(called, isTrue);
+  });
+
   testWidgets('column double tap is ignored while row content is interactive', (
     tester,
   ) async {
