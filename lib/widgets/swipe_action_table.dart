@@ -500,12 +500,14 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
     setState(() => _selectedIndex = rowIndex);
 
     if (!isDoubleTap) {
+      debugPrint('[SwipeTable] pointerDown row=$rowIndex col=$columnIndex single lastRow=$_lastPointerDownRowIndex lastCol=$_lastPointerDownColumnIndex');
       _lastPointerDownRowIndex = rowIndex;
       _lastPointerDownColumnIndex = columnIndex;
       _lastPointerDownAt = now;
       return;
     }
 
+    debugPrint('[SwipeTable] pointerDown row=$rowIndex col=$columnIndex DOUBLE_TAP');
     _lastPointerDownRowIndex = null;
     _lastPointerDownColumnIndex = null;
     _lastPointerDownAt = null;
@@ -513,6 +515,7 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
     if (onDoubleTap != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
+          debugPrint('[SwipeTable] onDoubleTap postFrameCallback row=$rowIndex col=$columnIndex');
           onDoubleTap(row, rowIndex);
         }
       });
@@ -605,6 +608,7 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
     if (isRowContentInteractive && _openActionIndex == index) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted && _openActionIndex == index) {
+          debugPrint('[SwipeTable] postFrame clear _openActionIndex=$index (editing row active)');
           setState(() => _openActionIndex = null);
         }
       });

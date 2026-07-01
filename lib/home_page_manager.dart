@@ -1584,9 +1584,12 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
   static String _brandNameText(Brand brand) => brand.brandName;
 
   void _handleBrandNameDoubleTap(Brand brand, int index) {
+    debugLog('brandNameDoubleTap index=$index editingIndex=$_editingIndex busy=${widget.busyNotifier.value} brandId=${brand.brandId} name=${brand.brandName}');
     if (_editingIndex != null || widget.busyNotifier.value) {
+      debugLog('brandNameDoubleTap blocked editingIndex=$_editingIndex busy=${widget.busyNotifier.value}');
       return;
     }
+    debugLog('brandNameDoubleTap selectBrand brandId=${brand.brandId}');
     widget.onBrandSelected(brand);
   }
 
@@ -1760,8 +1763,10 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || _editingIndex != index) {
+        debugLog('brandNameEdit focusRequest skipped mounted=$mounted editingIndex=$_editingIndex expected=$index');
         return;
       }
+      debugLog('brandNameEdit focusRequest index=$index');
       _brandNameEditFocusNode.requestFocus();
     });
   }
