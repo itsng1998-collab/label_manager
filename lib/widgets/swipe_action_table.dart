@@ -99,6 +99,9 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
   int? _draggingIndex;
   int? _selectedIndex;
   int? _openActionIndex;
+  int? _lastTapRowIndex;
+  int? _lastTapColumnIndex;
+  DateTime? _lastTapAt;
   String? _tableSignature;
 
   @override
@@ -463,25 +466,44 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
     );
   }
 
-  void _handleRowDoubleTapDown(
-    T row,
-    int rowIndex,
-    List<double> widths,
-    TapDownDetails details,
-  ) {
-    final x = details.localPosition.dx;
+  int? _columnIndexAt(double x, List<double> widths) {
     if (x < 0) {
-      return;
+      return null;
     }
     var left = 0.0;
     for (var columnIndex = 0; columnIndex < widths.length; columnIndex++) {
       final right = left + widths[columnIndex];
       if (x >= left && x <= right) {
-        widget.columns[columnIndex].onDoubleTap?.call(row, rowIndex);
-        return;
+        return columnIndex;
       }
       left = right;
     }
+    return null;
+  }
+
+  void _handleRowTap(T row, int rowIndex, List<double> widths, Offset local) {
+    final columnIndex = _columnIndexAt(local.dx, widths);
+    final now = DateTime.now();
+    final lastTapAt = _lastTapAt;
+    final isDoubleTap = columnIndex != null &&
+        _lastTapRowIndex == rowIndex &&
+        _lastTapColumnIndex == columnIndex &&
+        lastTapAt != null &&
+        now.difference(lastTapAt) <= const Duration(milliseconds: 500);
+
+    setState(() => _selectedIndex = rowIndex);
+
+    if (isDoubleTap) {
+      _lastTapRowIndex = null;
+      _lastTapColumnIndex = null;
+      _lastTapAt = null;
+      widget.columns[columnIndex].onDoubleTap?.call(row, rowIndex);
+      return;
+    }
+
+    _lastTapRowIndex = rowIndex;
+    _lastTapColumnIndex = columnIndex;
+    _lastTapAt = now;
   }
 
   Widget _buildActionRail(
@@ -606,12 +628,11 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
             Positioned.fill(
               child: GestureDetector(
                 behavior: HitTestBehavior.translucent,
-                onTap: () => setState(() => _selectedIndex = index),
-                onDoubleTapDown: (details) => _handleRowDoubleTapDown(
+                onTapUp: (details) => _handleRowTap(
                   row,
                   index,
                   rowWidths,
-                  details,
+                  details.localPosition,
                 ),
               ),
             ),
