@@ -193,6 +193,7 @@ class _HomePageManagerState extends State<HomePageManager> {
             prevBrands.length != brands!.length ||
             !listEq.equals(prevBrands, brands);
         if (changed) {
+          debugLog('brandsChanged reload prevLen=${prevBrands.length} newLen=${brands.length}');
           setState(() {});
           _brandSettingsOverlayEntry?.markNeedsBuild();
         }
@@ -1474,8 +1475,20 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
   void didUpdateWidget(covariant _BrandSettingsDialog oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (!identical(oldWidget.brands, widget.brands)) {
-      _brands = List<Brand>.from(widget.brands);
-      _cancelBrandNameEdit();
+      final newBrands = List<Brand>.from(widget.brands);
+      final editingIndex = _editingIndex;
+      final outOfRange = editingIndex != null && editingIndex >= newBrands.length;
+      debugLog(
+        'brandSettingsDialog didUpdateWidget brandsChanged'
+        ' editingIndex=$editingIndex prevLen=${_brands.length} newLen=${newBrands.length}'
+        ' outOfRange=$outOfRange',
+      );
+      _brands = newBrands;
+      // 편집 인덱스가 새 목록 범위를 벗어난 경우에만 편집을 취소한다.
+      // 그 외 브랜드 갱신(외부 새로고침)으로는 편집이 취소되지 않도록 한다.
+      if (outOfRange) {
+        _cancelBrandNameEdit();
+      }
     }
   }
 
@@ -1783,10 +1796,14 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
     debugLog('brandNameEdit start index=$index brandId=${brand.brandId} name=${brand.brandName}');
     setState(() {
       _editingIndex = index;
-      _brandNameEditController.text = brand.brandName;
-      _brandNameEditController.selection = TextSelection(
-        baseOffset: 0,
-        extentOffset: brand.brandName.length,
+      // .text 와 .selection 을 따로 할당하면 리스너가 두 번 발생한다.
+      // .value 에 TextEditingValue 를 한 번에 설정해 리스너를 1회만 발생시킨다.
+      _brandNameEditController.value = TextEditingValue(
+        text: brand.brandName,
+        selection: TextSelection(
+          baseOffset: 0,
+          extentOffset: brand.brandName.length,
+        ),
       );
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
