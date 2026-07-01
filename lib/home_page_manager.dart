@@ -72,6 +72,9 @@ class _HomePageManagerState extends State<HomePageManager> {
   bool _commonLabelPreviewHiddenForSheetDialog = false;
 
   OverlayEntry? _brandSettingsOverlayEntry;
+  // 브랜드 설정 다이얼로그에서 브랜드를 선택한 후 라벨 시트 로드가 완료될 때까지
+  // 다이얼로그의 더블클릭을 차단하기 위한 플래그.
+  final ValueNotifier<bool> _brandDialogBusyNotifier = ValueNotifier(false);
 
   bool get _isAutoLoginMode => AutoLoginGuard.instance.enabled;
   LabelSize? get _effectiveLabelSize => _currentLabelSize;
@@ -231,6 +234,7 @@ class _HomePageManagerState extends State<HomePageManager> {
   // 근거: .tmp/log/app_2026-07-01_17-13-52.log — 더블탭/핸들러는 정상 도달하나
   // _handleBrandChanged 의 autoLogin=true 가드에서 선택이 무시되어 무반응이었음.
   void _handleBrandSelectedFromDialog(Brand? brand) {
+    _brandDialogBusyNotifier.value = true;
     widget.onBrandChanged(brand);
   }
 
@@ -308,6 +312,8 @@ class _HomePageManagerState extends State<HomePageManager> {
       _handleLabelSizeChanged(selected);
     } finally {
       debugLog(END);
+      // 다이얼로그 더블클릭 차단 해제: 로드가 완료(또는 중단)될 때 항상 해제한다.
+      _brandDialogBusyNotifier.value = false;
     }
   }
 
@@ -449,6 +455,7 @@ class _HomePageManagerState extends State<HomePageManager> {
         brands: Brand.datas ?? const <Brand>[],
         onBrandSelected: _handleBrandSelectedFromDialog,
         onClose: _closeBrandSettingsDialog,
+        busyNotifier: _brandDialogBusyNotifier,
       ),
     );
     _brandSettingsOverlayEntry = entry;
@@ -901,6 +908,7 @@ class _HomePageManagerState extends State<HomePageManager> {
     _tabSearchController.dispose();
     _brandSettingsOverlayEntry?.remove();
     _brandSettingsOverlayEntry = null;
+    _brandDialogBusyNotifier.dispose();
     super.dispose();
   }
 
@@ -1433,11 +1441,14 @@ class _BrandSettingsDialog extends StatefulWidget {
     required this.brands,
     required this.onBrandSelected,
     required this.onClose,
+    required this.busyNotifier,
   });
 
   final List<Brand> brands;
   final ValueChanged<Brand?> onBrandSelected;
   final VoidCallback onClose;
+  /// 브랜드 선택 후 라벨 시트 로드가 완료될 때까지 true. 더블클릭 차단에 사용.
+  final ValueNotifier<bool> busyNotifier;
 
   @override
   State<_BrandSettingsDialog> createState() => _BrandSettingsDialogState();
@@ -1577,7 +1588,7 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
   static String _brandNameText(Brand brand) => brand.brandName;
 
   void _handleBrandNameDoubleTap(Brand brand, int index) {
-    if (_editingIndex != null) {
+    if (_editingIndex != null || widget.busyNotifier.value) {
       return;
     }
     widget.onBrandSelected(brand);
