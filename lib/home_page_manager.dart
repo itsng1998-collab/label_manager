@@ -1541,6 +1541,7 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
       return;
     }
     widget.onBrandSelected(brand);
+    widget.onClose();
   }
 
   List<SwipeActionTableAction<Brand>> _brandRowActions() {
