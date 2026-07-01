@@ -743,7 +743,7 @@ FortuneSettings labelSheetSettings(
     filterContextMenu: labelSheetContextMenuItems(base.filterContextMenu),
     onDialogVisibilityChanged: onDialogVisibilityChanged,
     onContextMenuCommand: (command) {
-      if (command != fortuneContextExportLabelCommand) {
+      if (command != fortuneContextExportLabelFileCommand) {
         return null;
       }
       final callback = onExportLabelFile;
@@ -1542,7 +1542,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
   Set<String> _labelFileContextMenuDisabledItems() {
     return _currentLabelFileHasContent()
         ? const <String>{}
-        : const <String>{fortuneContextExportLabelCommand};
+        : const <String>{fortuneContextExportLabelFileCommand};
   }
 
   bool _currentLabelFileHasContent() {

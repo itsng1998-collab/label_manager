@@ -1669,7 +1669,7 @@ class FortuneSheetLocale {
       'barcode': '바코드 삽입',
       'insert-auto-ingredient-table': '자동 성분표 삽입',
       'load-common-label': '공용 라벨 불러오기',
-      'export-label': '라벨 파일로 내보내기',
+      'export-label-file': '라벨 파일로 내보내기',
       'link': '링크 삽입',
       'data': '데이터 유효성',
       'cell-format': '셀 서식',
@@ -2401,7 +2401,7 @@ const String fortuneContextShowRulerCommand = 'show-ruler';
 const String fortuneContextInsertAutoIngredientTableCommand =
   'insert-auto-ingredient-table';
 const String fortuneContextLoadCommonLabelCommand = 'load-common-label';
-const String fortuneContextExportLabelCommand = 'export-label';
+const String fortuneContextExportLabelFileCommand = 'export-label-file';
 
 String fortuneContextMenuAxisSizeUnitLabel(
   FortuneSheet sheet,
@@ -42510,7 +42510,7 @@ bool fortuneContextMenuItemIsRenderedByUpstream(String item) {
     fortuneContextShowRulerCommand ||
     fortuneContextInsertAutoIngredientTableCommand ||
     fortuneContextLoadCommonLabelCommand ||
-    fortuneContextExportLabelCommand ||
+    fortuneContextExportLabelFileCommand ||
     fortuneContextClearCommand ||
     fortuneContextClearSheetCommand ||
     fortuneContextSortCommand ||
