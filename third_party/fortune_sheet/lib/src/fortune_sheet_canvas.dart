@@ -2572,8 +2572,6 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   TextEditingValue? _editorTraceLastValue;
   DateTime? _editorSkipDeletionKeyUntil;
   TextEditingValue? _editorImeCompositionBaseValue;
-  TextEditingValue? _editorImeResidualRestoreSourceValue;
-  TextEditingValue? _editorImeResidualRestoreValue;
   TextEditingValue? _editorImeResidualDeletionValue;
   final TextEditingController _formulaBarEditorController =
       TextEditingController();
@@ -3011,17 +3009,12 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     }
     final previousValue = _editorTraceLastValue;
     final currentValue = _editorController.value;
-    if (_restoreImeResidualAfterCaret(previousValue, currentValue)) {
-      return;
-    }
-    // 잔여 복원 후보는 설정 직후의 valueChanged(인접 사이클)에서만 소비된다.
-    // 조합이 자연 해소되어 소비되지 않은 후보는 stale 이므로 즉시 폐기하여
-    // 이후의 false-restore 가능성을 차단한다. (재사용 금지)
-    _editorImeResidualRestoreSourceValue = null;
-    _editorImeResidualRestoreValue = null;
-    if (previousValue != null) {
-      _trackImeResidualRestoreCandidate(previousValue, currentValue);
-    }
+    // [재사용 금지] 한글 IME 잔여 조합(예: 차→챀, 다→달)을 조합 도중
+    // userUpdateTextEditingValue 로 즉시 복원하는 방식(구 _restoreImeResidualAfterCaret
+    // / _trackImeResidualRestoreCandidate)은 Windows 한글 IME 를 desync 시켜
+    // 잔여형을 재주입하고 다음 글자를 삼키는 오동작(글자 씹힘)을 유발한다.
+    // 근거: .tmp/app_2026-07-01_16-32-12.log (#1840~#1853: 가→간 복원 후 '나' 씹힘 등,
+    // 총 8회 복원 모두 위험). 활성 조합 중 controller 값 강제 변경 금지.
     if (previousValue != null &&
         currentValue.composing.isValid &&
         currentValue.composing.isCollapsed &&
@@ -38671,95 +38664,6 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       return false;
     }
     return true;
-  }
-
-  void _trackImeResidualRestoreCandidate(
-    TextEditingValue previousValue,
-    TextEditingValue currentValue,
-  ) {
-    final previousComposing = previousValue.composing;
-    final currentComposing = currentValue.composing;
-    if (!previousComposing.isValid ||
-        previousComposing.isCollapsed ||
-        !currentComposing.isValid ||
-        currentComposing.isCollapsed ||
-        previousComposing.start != currentComposing.start ||
-        previousComposing.end != currentComposing.end ||
-        previousValue.selection != currentValue.selection ||
-        previousValue.text.length != currentValue.text.length) {
-      return;
-    }
-    final start = currentComposing.start;
-    final end = currentComposing.end;
-    if (start < 0 || end > currentValue.text.length || end - start != 1) {
-      return;
-    }
-    if (previousValue.text.substring(0, start) !=
-            currentValue.text.substring(0, start) ||
-        previousValue.text.substring(end) != currentValue.text.substring(end)) {
-      return;
-    }
-    final previousText = previousValue.text.substring(start, end);
-    final currentText = currentValue.text.substring(start, end);
-    if (!_isHangulResidualExpansion(previousText, currentText)) {
-      return;
-    }
-    _editorImeResidualRestoreSourceValue = currentValue;
-    _editorImeResidualRestoreValue = TextEditingValue(
-      text: previousValue.text,
-      selection: TextSelection.collapsed(offset: end),
-    );
-  }
-
-  bool _restoreImeResidualAfterCaret(
-    TextEditingValue? previousValue,
-    TextEditingValue currentValue,
-  ) {
-    final restoreValue = _editorImeResidualRestoreValue;
-    if (previousValue == null ||
-        restoreValue == null ||
-        _editorImeResidualRestoreSourceValue != previousValue ||
-        previousValue.text != currentValue.text ||
-        previousValue.selection != currentValue.selection ||
-        !previousValue.composing.isValid ||
-        previousValue.composing.isCollapsed ||
-        !currentValue.composing.isValid ||
-        !currentValue.composing.isCollapsed ||
-        currentValue.selection.start != currentValue.composing.start) {
-      return false;
-    }
-    _editorImeResidualRestoreSourceValue = null;
-    _editorImeResidualRestoreValue = null;
-    _setEditorValueFromUserEdit(restoreValue);
-    _traceCellEditor(
-      'valueChanged restored imeResidual',
-      previousValue: previousValue,
-      value: restoreValue,
-    );
-    return true;
-  }
-
-  bool _isHangulResidualExpansion(String previousText, String currentText) {
-    if (previousText.length != 1 || currentText.length != 1) {
-      return false;
-    }
-    final previousCode = previousText.codeUnitAt(0);
-    final currentCode = currentText.codeUnitAt(0);
-    const hangulBase = 0xAC00;
-    const hangulEnd = 0xD7A3;
-    if (previousCode < hangulBase ||
-        previousCode > hangulEnd ||
-        currentCode < hangulBase ||
-        currentCode > hangulEnd) {
-      return false;
-    }
-    final previousIndex = previousCode - hangulBase;
-    final currentIndex = currentCode - hangulBase;
-    final previousFinal = previousIndex % 28;
-    final currentFinal = currentIndex % 28;
-    return previousFinal == 0 &&
-        currentFinal != 0 &&
-        previousIndex ~/ 28 == currentIndex ~/ 28;
   }
 
   bool _valueHasImeResidualAfterCaret(
