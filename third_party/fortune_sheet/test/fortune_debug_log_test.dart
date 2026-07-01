@@ -231,9 +231,7 @@ void main() {
         FortuneSheet(
           id: 's1',
           name: 'Sheet1',
-          cells: {
-            const FortuneCellCoord(0, 0): const FortuneCell(value: '가나'),
-          },
+          cells: {const FortuneCellCoord(0, 0): const FortuneCell(value: '가나')},
         ),
       ],
     );
@@ -266,6 +264,156 @@ void main() {
 
     final editable = tester.widget<EditableText>(find.byType(EditableText));
     expect(editable.controller.text, '가나');
+  });
+
+  testWidgets('active editor deletes IME residual after caret', (tester) async {
+    captureFortuneDebugLog();
+
+    final workbook = FortuneWorkbook(
+      sheets: [FortuneSheet(id: 's1', name: 'Sheet1')],
+    );
+
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: Overlay(
+          initialEntries: [
+            OverlayEntry(
+              builder: (context) => SizedBox(
+                width: 640,
+                height: 360,
+                child: FortuneSheetCanvas(workbook: workbook),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
+    await tester.tapAt(topLeft + const Offset(83, 100));
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.f2);
+    await tester.pump();
+
+    final editable = tester.widget<EditableText>(find.byType(EditableText));
+    editable.controller.value = const TextEditingValue(
+      text: '가',
+      selection: TextSelection.collapsed(offset: 1),
+      composing: TextRange(start: 1, end: 1),
+    );
+    await tester.pump();
+    editable.controller.value = const TextEditingValue(
+      text: '가나',
+      selection: TextSelection.collapsed(offset: 1),
+      composing: TextRange(start: 1, end: 2),
+    );
+    await tester.pump();
+    editable.controller.value = const TextEditingValue(
+      text: '가낟',
+      selection: TextSelection.collapsed(offset: 1),
+      composing: TextRange(start: 1, end: 2),
+    );
+    await tester.pump();
+    editable.controller.value = const TextEditingValue(
+      text: '가낟',
+      selection: TextSelection.collapsed(offset: 1),
+      composing: TextRange(start: 1, end: 1),
+    );
+    await tester.pump();
+    editable.controller.value = const TextEditingValue(
+      text: '가라낟',
+      selection: TextSelection.collapsed(offset: 1),
+      composing: TextRange(start: 1, end: 2),
+    );
+    await tester.pump();
+    editable.controller.value = const TextEditingValue(
+      text: '가낟',
+      selection: TextSelection.collapsed(offset: 1),
+      composing: TextRange(start: 1, end: 1),
+    );
+    await tester.pump();
+    editable.controller.value = const TextEditingValue(
+      text: '가낟',
+      selection: TextSelection.collapsed(offset: 1),
+    );
+    await tester.pump();
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.backspace);
+    await tester.pump();
+
+    expect(editable.controller.text, '가');
+    expect(
+      editable.controller.selection,
+      const TextSelection.collapsed(offset: 1),
+    );
+  });
+
+  testWidgets('active editor keeps normal suffix after IME deletion', (
+    tester,
+  ) async {
+    captureFortuneDebugLog();
+
+    final workbook = FortuneWorkbook(
+      sheets: [FortuneSheet(id: 's1', name: 'Sheet1')],
+    );
+
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: Overlay(
+          initialEntries: [
+            OverlayEntry(
+              builder: (context) => SizedBox(
+                width: 640,
+                height: 360,
+                child: FortuneSheetCanvas(workbook: workbook),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
+    await tester.tapAt(topLeft + const Offset(83, 100));
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.f2);
+    await tester.pump();
+
+    final editable = tester.widget<EditableText>(find.byType(EditableText));
+    editable.controller.value = const TextEditingValue(
+      text: '가나',
+      selection: TextSelection.collapsed(offset: 1),
+      composing: TextRange(start: 1, end: 1),
+    );
+    await tester.pump();
+    editable.controller.value = const TextEditingValue(
+      text: '가라나',
+      selection: TextSelection.collapsed(offset: 1),
+      composing: TextRange(start: 1, end: 2),
+    );
+    await tester.pump();
+    editable.controller.value = const TextEditingValue(
+      text: '가나',
+      selection: TextSelection.collapsed(offset: 1),
+      composing: TextRange(start: 1, end: 1),
+    );
+    await tester.pump();
+    editable.controller.value = const TextEditingValue(
+      text: '가나',
+      selection: TextSelection.collapsed(offset: 1),
+    );
+    await tester.pump();
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.backspace);
+    await tester.pump();
+
+    expect(editable.controller.text, '가나');
+    expect(
+      editable.controller.selection,
+      const TextSelection.collapsed(offset: 1),
+    );
   });
 
   testWidgets('active editor leaves composing enter to EditableText', (

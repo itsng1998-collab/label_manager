@@ -2571,6 +2571,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   int _editorTraceSeq = 0;
   TextEditingValue? _editorTraceLastValue;
   DateTime? _editorSkipDeletionKeyUntil;
+  TextEditingValue? _editorImeCompositionBaseValue;
+  TextEditingValue? _editorImeResidualDeletionValue;
   final TextEditingController _formulaBarEditorController =
       TextEditingController();
   final TextEditingController _sheetTabEditorController =
@@ -3008,12 +3010,35 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     final previousValue = _editorTraceLastValue;
     final currentValue = _editorController.value;
     if (previousValue != null &&
+        currentValue.composing.isValid &&
+        currentValue.composing.isCollapsed &&
+        (!previousValue.composing.isValid ||
+            previousValue.composing.start != currentValue.composing.start)) {
+      _editorImeCompositionBaseValue = currentValue;
+    }
+    if (previousValue != null &&
         previousValue.composing.isValid &&
         previousValue.text != currentValue.text &&
         currentValue.text.length <= previousValue.text.length) {
       _editorSkipDeletionKeyUntil = DateTime.now().add(
         const Duration(milliseconds: 200),
       );
+      _editorImeResidualDeletionValue =
+          _valueHasImeResidualAfterCaret(
+            previousValue,
+            currentValue,
+            _editorImeCompositionBaseValue,
+          )
+          ? currentValue
+          : null;
+    } else if (previousValue != null &&
+        _editorImeResidualDeletionValue == previousValue &&
+        previousValue.text == currentValue.text &&
+        previousValue.selection == currentValue.selection &&
+        previousValue.composing.isValid &&
+        previousValue.composing.isCollapsed &&
+        !currentValue.composing.isValid) {
+      _editorImeResidualDeletionValue = currentValue;
     }
     _traceCellEditor(
       'valueChanged',
@@ -9313,7 +9338,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         ? SystemMouseCursors.basic
         : SystemMouseCursors.click;
     if (_barcodeHoveredControl != hoverControl ||
-      _barcodeObjectIdMenuHoveredIndex != objectIdMenuIndex ||
+        _barcodeObjectIdMenuHoveredIndex != objectIdMenuIndex ||
         _barcodeFormatMenuHoveredIndex != menuIndex ||
         _barcodeTextFontMenuHoveredIndex != textFontMenuIndex ||
         _barcodeTextFontSizeMenuHoveredIndex != textFontSizeMenuIndex ||
@@ -14313,8 +14338,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     final devicePixelRatio =
       pixelRatio ??
       (settings.devicePixelRatio > 0
-        ? settings.devicePixelRatio
-        : View.of(context).devicePixelRatio);
+      ? settings.devicePixelRatio
+      : View.of(context).devicePixelRatio);
     final bounds = Rect.fromLTWH(0, 0, captureWidth, captureHeight);
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
@@ -22831,7 +22856,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     final renderedBodyTop = (result.bodyTop ?? 0).toDouble();
     final renderedBodyHeight = _barcodeShowHumanReadableText
         ? (result.bodyHeight?.toDouble() ??
-            math.min(requestedBarHeight, imageHeight))
+        math.min(requestedBarHeight, imageHeight))
         : imageHeight;
     final src = _bytesDataUri(result.bytes, result.mimeType);
     final extraFields = <String, Object?>{
@@ -22855,7 +22880,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       fortuneBarcodeBodyRatioExtraKey: imageHeight <= 0
           ? 1.0
           : (renderedBodyHeight / imageHeight)
-              .clamp(0.0, 1.0),
+            .clamp(0.0, 1.0),
         // The ID label is an editor-only overlay drawn above the barcode body.
         // Print/export paths must exclude it and use this metadata only to
         // identify barcode objects.
@@ -38390,7 +38415,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         : ' previous=${_debugValue(previous)}'
               ' deltaText=${traceValue.text.length - previous.text.length}';
     final extraDetails = details == null ? '' : ' $details';
-    final message = 'cellEditorTrace#$traceSeq event=$event coord=$traceCoord '
+          final message = 'cellEditorTrace#$traceSeq event=$event coord=$traceCoord '
         'pending=$_editorTextMutationPendingCount '
         'session=$_editorTextMutationSession '
         'focus=${_editorFocusNode.hasFocus} '
@@ -38583,12 +38608,24 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     }
     if (_shouldSkipDeletionKeyAfterImeUpdate(event)) {
       _editorSkipDeletionKeyUntil = null;
+      if (_deleteImeResidualAfterCaret(event)) {
+        _editorImeResidualDeletionValue = null;
+        _traceCellEditor(
+          'keyEvent handled imeResidualDeletion',
+          keyEvent: event,
+        );
+        return KeyEventResult.handled;
+      }
+      _editorImeResidualDeletionValue = null;
       _traceCellEditor('keyEvent handled imeDeletion', keyEvent: event);
       return KeyEventResult.handled;
     }
     if (event.logicalKey == LogicalKeyboardKey.backspace ||
         event.logicalKey == LogicalKeyboardKey.delete) {
-      _traceCellEditor('keyEvent ignored editableTextDeletion', keyEvent: event);
+      _traceCellEditor(
+        'keyEvent ignored editableTextDeletion',
+        keyEvent: event,
+      );
       return KeyEventResult.ignored;
     }
     if (_applyTextEditorNavigationKey(
@@ -38617,8 +38654,80 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     }
     if (DateTime.now().isAfter(until)) {
       _editorSkipDeletionKeyUntil = null;
+      _editorImeResidualDeletionValue = null;
       return false;
     }
+    return true;
+  }
+
+  bool _valueHasImeResidualAfterCaret(
+    TextEditingValue previousValue,
+    TextEditingValue currentValue,
+    TextEditingValue? compositionBaseValue,
+  ) {
+    final selection = currentValue.selection;
+    final composing = currentValue.composing;
+    if (!selection.isValid || !selection.isCollapsed) {
+      return false;
+    }
+    if (!composing.isValid || !composing.isCollapsed) {
+      return false;
+    }
+    final offset = selection.start;
+    if (offset != composing.start ||
+        offset < 0 ||
+        offset >= currentValue.text.length) {
+      return false;
+    }
+    if (!previousValue.composing.isValid ||
+        previousValue.composing.isCollapsed ||
+        previousValue.composing.start != offset) {
+      return false;
+    }
+    if (previousValue.text.length - currentValue.text.length != 1) {
+      return false;
+    }
+    if (previousValue.text.substring(0, offset) !=
+        currentValue.text.substring(0, offset)) {
+      return false;
+    }
+    final currentSuffix = currentValue.text.substring(offset);
+    if (!previousValue.text.endsWith(currentSuffix)) {
+      return false;
+    }
+    if (compositionBaseValue == null ||
+        compositionBaseValue.selection.start != offset ||
+        !compositionBaseValue.composing.isValid ||
+        !compositionBaseValue.composing.isCollapsed ||
+        compositionBaseValue.composing.start != offset) {
+      return false;
+    }
+    return compositionBaseValue.text.substring(offset) != currentSuffix;
+  }
+
+  bool _deleteImeResidualAfterCaret(KeyEvent event) {
+    if (event.logicalKey != LogicalKeyboardKey.backspace) {
+      return false;
+    }
+    final value = _editorController.value;
+    if (_editorImeResidualDeletionValue != value) {
+      return false;
+    }
+    final selection = value.selection;
+    if (!selection.isValid || !selection.isCollapsed) {
+      return false;
+    }
+    final offset = selection.start;
+    if (offset < 0 || offset >= value.text.length) {
+      return false;
+    }
+    final nextText = value.text.replaceRange(offset, offset + 1, '');
+    _setEditorValueFromUserEdit(
+      TextEditingValue(
+        text: nextText,
+        selection: TextSelection.collapsed(offset: offset),
+      ),
+    );
     return true;
   }
 
@@ -38860,14 +38969,18 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
 
   List<FocusNode> _activeDialogFocusNodes() {
     if (_imageInsertDialogOpen) {
-      return _sortDialogFocusNodesByVisibleOrder(_imageInsertDialogInputs
-          .map((input) => input.focusNode)
-          .toList(growable: false));
+      return _sortDialogFocusNodesByVisibleOrder(
+        _imageInsertDialogInputs
+            .map((input) => input.focusNode)
+            .toList(growable: false),
+      );
     }
     if (_barcodeDialogOpen) {
-      return _sortDialogFocusNodesByVisibleOrder(_barcodeDialogInputs
-          .map((input) => input.focusNode)
-          .toList(growable: false));
+      return _sortDialogFocusNodesByVisibleOrder(
+        _barcodeDialogInputs
+            .map((input) => input.focusNode)
+            .toList(growable: false),
+      );
     }
     if (_axisSizeDialogOpen) {
       return [_axisSizeEditorFocusNode];
@@ -41068,7 +41181,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     final trailingQuietZoneRect = _barcodeTrailingQuietZoneInputRect(size);
     final rotationRect = _barcodeRotationInputRect(size);
     if (objectIdRect == null ||
-      textRect == null ||
+        textRect == null ||
         moduleScaleRect == null ||
         barHeightRect == null ||
         widthRect == null ||
@@ -42081,10 +42194,10 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
                 barcodeObjectIdOptions: _effectiveBarcodeObjectIds,
                 barcodeObjectIdMenuOpen: _barcodeObjectIdMenuOpen,
                 barcodeObjectIdMenuHoveredIndex:
-                  _barcodeObjectIdMenuHoveredIndex,
+                    _barcodeObjectIdMenuHoveredIndex,
                 barcodeObjectIdMenuSelectedIndex: _barcodeObjectIdIndex,
                 barcodeObjectIdMenuScrollOffset:
-                  _barcodeObjectIdMenuScrollOffset,
+                    _barcodeObjectIdMenuScrollOffset,
                 barcodeFormatLabel: _selectedBarcodeFormat.label,
                 barcodeFormatOptions: [
                   for (final format in _effectiveBarcodeFormats) format.label,
