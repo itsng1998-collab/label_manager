@@ -1490,8 +1490,9 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
   @override
   Widget build(BuildContext context) {
     final dialogHeight = MediaQuery.sizeOf(context).height * 0.7;
-    // 첨부 이미지 기준: 연한 라벤더-그레이 배경(0xffece6f0), 하드 보더 없이
-    // 부드러운 그림자만, 둥근 모서리(12). 헤더도 본문과 동일 배경(투명 처리).
+    // 예상치 못한 리빌드 원인 추적용. buildCell 보다 먼저 출력되면
+    // 다이얼로그 전체가 리빌드된 것임(InheritedWidget 의존성 변화 등).
+    debugLog('brandSettingsDialog build editingIndex=$_editingIndex dialogHeight=$dialogHeight');
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -1658,7 +1659,7 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
       );
     }
     final canSubmit = _canSubmitBrandNameEdit;
-    debugLog('brandNameEdit buildCell index=$_editingIndex brandId=${brand.brandId} canSubmit=$canSubmit');
+    debugLog('brandNameEdit buildCell index=$_editingIndex brandId=${brand.brandId} canSubmit=$canSubmit size=${MediaQuery.sizeOf(context)}');
     return SizedBox(
       width: width,
       child: Focus(
@@ -1726,29 +1727,37 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
               right: 1,
               bottom: 2,
               width: 24,
-              child: IconButton(
-                tooltip: '변경 적용',
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints.expand(),
-                iconSize: 17,
-                // disabledColor 는 Flutter 테마에 따라 무시될 수 있으므로
-                // Icon.color 로 직접 제어하여 canSubmit 상태를 명확히 표현한다.
-                hoverColor: const Color(0xffe5e7eb),
-                highlightColor: const Color(0xffcbd5e1),
-                splashColor: const Color(0xffcbd5e1),
-                icon: Icon(
-                  Icons.keyboard_return,
-                  size: 17,
-                  color: canSubmit
-                      ? const Color(0xff334155)
-                      : const Color(0xffb8bec7),
+              // IconButton 은 disabled 상태에서 Flutter 테마가 Icon.color 를
+              // 덮어써 색상이 의도대로 렌더링되지 않는 경우가 있다.
+              // GestureDetector + AnimatedOpacity 로 완전히 교체해
+              // canSubmit 상태를 시각적으로 명확하게 표현한다.
+              child: Tooltip(
+                message: '변경 적용',
+                child: MouseRegion(
+                  cursor: canSubmit
+                      ? SystemMouseCursors.click
+                      : SystemMouseCursors.basic,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: canSubmit
+                        ? () {
+                            debugLog('brandNameEdit submitByButton index=$_editingIndex text=${_brandNameEditController.text} canSubmit=$_canSubmitBrandNameEdit');
+                            _submitBrandNameEdit(_brandNameEditController.text);
+                          }
+                        : null,
+                    child: AnimatedOpacity(
+                      opacity: canSubmit ? 1.0 : 0.35,
+                      duration: const Duration(milliseconds: 120),
+                      child: const Center(
+                        child: Icon(
+                          Icons.keyboard_return,
+                          size: 17,
+                          color: Color(0xff334155),
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
-                onPressed: canSubmit
-                    ? () {
-                        debugLog('brandNameEdit submitByButton index=$_editingIndex text=${_brandNameEditController.text} canSubmit=$_canSubmitBrandNameEdit');
-                        _submitBrandNameEdit(_brandNameEditController.text);
-                      }
-                    : null,
               ),
             ),
           ],
@@ -1863,8 +1872,10 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
       return;
     }
     if (confirmed != true) {
-      debugLog('updateBrandName cancelledByUser brandId=${brand.brandId}');
-      _cancelBrandNameEdit();
+      // 확인 다이얼로그에서 취소 → 편집 모드를 유지한다.
+      // 사용자가 입력한 내용을 보존해 다시 수정하거나 ESC/Enter 로 직접 닫을 수 있도록 한다.
+      debugLog('updateBrandName cancelledByUser brandId=${brand.brandId} keepEditing');
+      _brandNameEditFocusNode.requestFocus();
       return;
     }
     debugLog('updateBrandName confirmed brandId=${brand.brandId} old=${brand.brandName} new=$brandName');
