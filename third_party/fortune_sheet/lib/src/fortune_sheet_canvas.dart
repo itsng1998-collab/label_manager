@@ -3057,6 +3057,21 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     }
     _logEditorDebug('valueChanged');
     _rememberInlineToolbarSelectionRange();
+    // 활성 조합(composing) 도중에는 캔버스 전체 rebuild(_setState 오버라이드의
+    // 워크북 clone+JSON diff)와 캐럿 reveal 스크롤(bringIntoView)을 건너뛴다.
+    // 조합 중 매 키 입력마다 부모를 rebuild/스크롤하면 Windows 한글 IME 가
+    // desync 되어 잔여 확장형(예: 나→낟)이 조합 붕괴 시 교정되지 못하고 커서
+    // 오른쪽에 고착되는 오동작이 발생한다.
+    // 근거: .tmp/app_2026-07-01_17-43-14.log #22→#23 (가낟 composing 1-2 →
+    // composing 1-1 붕괴 시 텍스트 미교정 → 이후 입력이 낟 앞에 삽입되어 '가라낟').
+    // 에디터 텍스트는 EditableText 가 자체 컨트롤러로 렌더링하므로 부모 rebuild
+    // 를 건너뛰어도 조합 텍스트 표시에는 영향이 없다. 조합이 확정/붕괴(-1 또는
+    // collapsed)되어 실제 커밋될 때만 갱신한다.
+    final composingActive =
+        currentValue.composing.isValid && !currentValue.composing.isCollapsed;
+    if (composingActive) {
+      return;
+    }
     _scheduleEditorCaretReveal();
     setState(() {});
   }
