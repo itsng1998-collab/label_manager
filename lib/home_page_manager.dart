@@ -436,6 +436,7 @@ class _HomePageManagerState extends State<HomePageManager> {
       barrierDismissible: true,
       builder: (dialogContext) => _BrandSettingsDialog(
         brands: Brand.datas ?? const <Brand>[],
+        onBrandSelected: _handleBrandChanged,
         onClose: () => Navigator.of(dialogContext).pop(),
       ),
     );
@@ -1408,9 +1409,14 @@ class _PlaceholderTab extends StatelessWidget {
 }
 
 class _BrandSettingsDialog extends StatefulWidget {
-  const _BrandSettingsDialog({required this.brands, required this.onClose});
+  const _BrandSettingsDialog({
+    required this.brands,
+    required this.onBrandSelected,
+    required this.onClose,
+  });
 
   final List<Brand> brands;
+  final ValueChanged<Brand?> onBrandSelected;
   final VoidCallback onClose;
 
   @override
@@ -1516,6 +1522,7 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
                       fillRemaining: true,
                       text: _brandNameText,
                       cellBuilder: _buildBrandNameCell,
+                      onDoubleTap: _handleBrandNameDoubleTap,
                     ),
                   ],
                 ),
@@ -1528,6 +1535,13 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
   }
 
   static String _brandNameText(Brand brand) => brand.brandName;
+
+  void _handleBrandNameDoubleTap(Brand brand, int index) {
+    if (_editingIndex != null) {
+      return;
+    }
+    widget.onBrandSelected(brand);
+  }
 
   List<SwipeActionTableAction<Brand>> _brandRowActions() {
     return [

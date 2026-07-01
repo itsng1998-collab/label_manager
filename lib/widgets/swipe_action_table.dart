@@ -11,6 +11,7 @@ class SwipeActionTableColumn<T> {
     this.minWidth = 60,
     this.fillRemaining = false,
     this.cellBuilder,
+    this.onDoubleTap,
   });
 
   final String header;
@@ -19,6 +20,7 @@ class SwipeActionTableColumn<T> {
   final double minWidth;
   final bool fillRemaining;
   final Widget Function(BuildContext context, T row, double width)? cellBuilder;
+  final void Function(T row, int index)? onDoubleTap;
 }
 
 class SwipeActionTableAction<T> {
@@ -461,6 +463,27 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
     );
   }
 
+  void _handleRowDoubleTapDown(
+    T row,
+    int rowIndex,
+    List<double> widths,
+    TapDownDetails details,
+  ) {
+    final x = details.localPosition.dx;
+    if (x < 0) {
+      return;
+    }
+    var left = 0.0;
+    for (var columnIndex = 0; columnIndex < widths.length; columnIndex++) {
+      final right = left + widths[columnIndex];
+      if (x >= left && x <= right) {
+        widget.columns[columnIndex].onDoubleTap?.call(row, rowIndex);
+        return;
+      }
+      left = right;
+    }
+  }
+
   Widget _buildActionRail(
     List<SwipeActionTableAction<T>> actions, {
     T? row,
@@ -581,13 +604,14 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
             ),
           if (!isRowContentInteractive)
             Positioned.fill(
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  hoverColor: Colors.transparent,
-                  splashColor: Colors.transparent,
-                  highlightColor: Colors.transparent,
-                  onTap: () => setState(() => _selectedIndex = index),
+              child: GestureDetector(
+                behavior: HitTestBehavior.translucent,
+                onTap: () => setState(() => _selectedIndex = index),
+                onDoubleTapDown: (details) => _handleRowDoubleTapDown(
+                  row,
+                  index,
+                  rowWidths,
+                  details,
                 ),
               ),
             ),
