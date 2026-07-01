@@ -1670,6 +1670,18 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
             _cancelBrandNameEdit();
             return KeyEventResult.handled;
           }
+          // 변경 없는 상태에서 Enter → 취소(닫기).
+          // canSubmit=false 인 채로 Enter를 눌러도 아무 반응이 없으면 사용자가
+          // 편집을 닫을 수 없어 혼란스럽다. Escape 와 동일하게 취소 처리한다.
+          if (event.logicalKey == LogicalKeyboardKey.enter) {
+            if (!_canSubmitBrandNameEdit) {
+              debugLog('brandNameEdit cancelByEnterNoChange index=$_editingIndex text=${_brandNameEditController.text}');
+              _cancelBrandNameEdit();
+              return KeyEventResult.handled;
+            }
+            // canSubmit=true 이면 TextField 의 onSubmitted 에서 처리한다.
+            return KeyEventResult.ignored;
+          }
           return KeyEventResult.ignored;
         },
         child: Stack(
@@ -1786,6 +1798,7 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
     if (_editingIndex == null || !mounted) {
       return;
     }
+    debugLog('brandNameEdit textChanged index=$_editingIndex text=${_brandNameEditController.text} canSubmit=$_canSubmitBrandNameEdit');
     setState(() {});
   }
 
