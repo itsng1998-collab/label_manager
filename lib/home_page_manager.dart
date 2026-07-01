@@ -1607,39 +1607,48 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
           }
           return KeyEventResult.ignored;
         },
-        child: TextField(
-          controller: _brandNameEditController,
-          focusNode: _brandNameEditFocusNode,
-          autofocus: true,
-          maxLines: 1,
-          textAlignVertical: TextAlignVertical.center,
-          decoration: InputDecoration(
-            isDense: true,
-            contentPadding: const EdgeInsets.only(left: 6, right: 2),
-            border: const OutlineInputBorder(),
-            suffixIconConstraints: const BoxConstraints.tightFor(
-              width: 26,
-              height: 24,
+        child: Stack(
+          clipBehavior: Clip.hardEdge,
+          children: [
+            Positioned.fill(
+              child: TextField(
+                controller: _brandNameEditController,
+                focusNode: _brandNameEditFocusNode,
+                autofocus: true,
+                maxLines: 1,
+                textAlignVertical: TextAlignVertical.center,
+                decoration: const InputDecoration(
+                  isDense: true,
+                  contentPadding: EdgeInsets.only(left: 6, right: 30),
+                  border: OutlineInputBorder(),
+                ),
+                onSubmitted: _submitBrandNameEdit,
+              ),
             ),
-            suffixIcon: IconButton(
-              tooltip: '변경 적용',
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints.tightFor(width: 24, height: 24),
-              iconSize: 17,
-              color: const Color(0xff334155),
-              disabledColor: const Color(0xffb8bec7),
-              hoverColor: const Color(0xffe5e7eb),
-              highlightColor: const Color(0xffcbd5e1),
-              splashColor: const Color(0xffcbd5e1),
-              icon: const Icon(Icons.keyboard_return),
-              onPressed: canSubmit
-                  ? () => _submitBrandNameEdit(
-                      _brandNameEditController.text,
-                    )
-                  : null,
+            Positioned(
+              top: 2,
+              right: 1,
+              bottom: 2,
+              width: 24,
+              child: IconButton(
+                tooltip: '변경 적용',
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints.expand(),
+                iconSize: 17,
+                color: const Color(0xff334155),
+                disabledColor: const Color(0xffb8bec7),
+                hoverColor: const Color(0xffe5e7eb),
+                highlightColor: const Color(0xffcbd5e1),
+                splashColor: const Color(0xffcbd5e1),
+                icon: const Icon(Icons.keyboard_return),
+                onPressed: canSubmit
+                    ? () => _submitBrandNameEdit(
+                        _brandNameEditController.text,
+                      )
+                    : null,
+              ),
             ),
-          ),
-          onSubmitted: _submitBrandNameEdit,
+          ],
         ),
       ),
     );
