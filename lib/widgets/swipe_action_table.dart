@@ -85,7 +85,7 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
   static const Color _headerColor = Color(0xFF0E2F66);
   static const Color _headerSeparatorColor = Color(0xFFBDBDBD);
   static const Color _bodySeparatorColor = Color(0xFFE6E8EB);
-  static const double _actionWidth = 38.4;
+  static const double _actionWidth = 34.56;
 
   final ScrollController _hScrollHeader = ScrollController();
   final ScrollController _hScrollBody = ScrollController();

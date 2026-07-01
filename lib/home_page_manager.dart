@@ -1430,6 +1430,7 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
   void initState() {
     super.initState();
     _brands = List<Brand>.from(widget.brands);
+    _brandNameEditController.addListener(_handleBrandNameEditChanged);
   }
 
   @override
@@ -1443,6 +1444,7 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
 
   @override
   void dispose() {
+    _brandNameEditController.removeListener(_handleBrandNameEditChanged);
     _brandNameEditController.dispose();
     _brandNameEditFocusNode.dispose();
     super.dispose();
@@ -1502,7 +1504,7 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
                   rowTooltip: '컬럼 왼쪽 스와이프 수정/삽입/삭제',
                   showActionsWhenEmpty: true,
                   isRowContentInteractive: (_, index) => _editingIndex == index,
-                    canSwipeRow: (_, index) =>
+                  canSwipeRow: (_, index) =>
                       _editingIndex == null || _editingIndex == index,
                   actions: _brandRowActions(),
                   emptyActions: _brandEmptyActions(),
@@ -1591,6 +1593,7 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
         ),
       );
     }
+    final canSubmit = _canSubmitBrandNameEdit;
     return SizedBox(
       width: width,
       child: Focus(
@@ -1610,10 +1613,31 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
           autofocus: true,
           maxLines: 1,
           textAlignVertical: TextAlignVertical.center,
-          decoration: const InputDecoration(
+          decoration: InputDecoration(
             isDense: true,
-            contentPadding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-            border: OutlineInputBorder(),
+            contentPadding: const EdgeInsets.only(left: 6, right: 2),
+            border: const OutlineInputBorder(),
+            suffixIconConstraints: const BoxConstraints.tightFor(
+              width: 26,
+              height: 24,
+            ),
+            suffixIcon: IconButton(
+              tooltip: '변경 적용',
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints.tightFor(width: 24, height: 24),
+              iconSize: 17,
+              color: const Color(0xff334155),
+              disabledColor: const Color(0xffb8bec7),
+              hoverColor: const Color(0xffe5e7eb),
+              highlightColor: const Color(0xffcbd5e1),
+              splashColor: const Color(0xffcbd5e1),
+              icon: const Icon(Icons.keyboard_return),
+              onPressed: canSubmit
+                  ? () => _submitBrandNameEdit(
+                      _brandNameEditController.text,
+                    )
+                  : null,
+            ),
           ),
           onSubmitted: _submitBrandNameEdit,
         ),
@@ -1660,8 +1684,27 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
     });
   }
 
+  void _handleBrandNameEditChanged() {
+    if (_editingIndex == null || !mounted) {
+      return;
+    }
+    setState(() {});
+  }
+
+  bool get _canSubmitBrandNameEdit {
+    final editingIndex = _editingIndex;
+    if (editingIndex == null || editingIndex >= _brands.length) {
+      return false;
+    }
+    final nextName = _brandNameEditController.text.trim();
+    if (nextName.isEmpty) {
+      return false;
+    }
+    return nextName != _brands[editingIndex].brandName.trim();
+  }
+
   Future<void> _submitBrandNameEdit(String value) async {
-    if (_editingIndex == null) {
+    if (!_canSubmitBrandNameEdit) {
       return;
     }
     await _updateBrandName(value.trim());
