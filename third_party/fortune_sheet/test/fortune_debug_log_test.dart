@@ -349,6 +349,71 @@ void main() {
     );
   });
 
+  testWidgets('active editor restores IME residual before next input', (
+    tester,
+  ) async {
+    captureFortuneDebugLog();
+
+    final workbook = FortuneWorkbook(
+      sheets: [FortuneSheet(id: 's1', name: 'Sheet1')],
+    );
+
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: Overlay(
+          initialEntries: [
+            OverlayEntry(
+              builder: (context) => SizedBox(
+                width: 640,
+                height: 360,
+                child: FortuneSheetCanvas(workbook: workbook),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
+    await tester.tapAt(topLeft + const Offset(83, 100));
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.f2);
+    await tester.pump();
+
+    final editable = tester.widget<EditableText>(find.byType(EditableText));
+    editable.controller.value = const TextEditingValue(
+      text: '가나다라마바사아자',
+      selection: TextSelection.collapsed(offset: 9),
+      composing: TextRange(start: 9, end: 9),
+    );
+    await tester.pump();
+    editable.controller.value = const TextEditingValue(
+      text: '가나다라마바사아자차',
+      selection: TextSelection.collapsed(offset: 9),
+      composing: TextRange(start: 9, end: 10),
+    );
+    await tester.pump();
+    editable.controller.value = const TextEditingValue(
+      text: '가나다라마바사아자챀',
+      selection: TextSelection.collapsed(offset: 9),
+      composing: TextRange(start: 9, end: 10),
+    );
+    await tester.pump();
+    editable.controller.value = const TextEditingValue(
+      text: '가나다라마바사아자챀',
+      selection: TextSelection.collapsed(offset: 9),
+      composing: TextRange(start: 9, end: 9),
+    );
+    await tester.pump();
+
+    expect(editable.controller.text, '가나다라마바사아자차');
+    expect(
+      editable.controller.selection,
+      const TextSelection.collapsed(offset: 10),
+    );
+  });
+
   testWidgets('active editor keeps normal suffix after IME deletion', (
     tester,
   ) async {
