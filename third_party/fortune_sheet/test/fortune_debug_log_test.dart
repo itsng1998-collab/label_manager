@@ -414,6 +414,87 @@ void main() {
     );
   });
 
+  testWidgets('active editor does not restore when IME residual self-resolves', (
+    tester,
+  ) async {
+    captureFortuneDebugLog();
+
+    final workbook = FortuneWorkbook(
+      sheets: [FortuneSheet(id: 's1', name: 'Sheet1')],
+    );
+
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: Overlay(
+          initialEntries: [
+            OverlayEntry(
+              builder: (context) => SizedBox(
+                width: 640,
+                height: 360,
+                child: FortuneSheetCanvas(workbook: workbook),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
+    await tester.tapAt(topLeft + const Offset(83, 100));
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.f2);
+    await tester.pump();
+
+    final editable = tester.widget<EditableText>(find.byType(EditableText));
+    // 조합 중 잔여형(챀)이 나타났다가 스스로 정상형(차)으로 원복된 뒤
+    // 정상 커밋되고 다음 글자가 입력되는 흐름. false-restore 가 발생하면 안 된다.
+    editable.controller.value = const TextEditingValue(
+      text: '가나다라마바사아자',
+      selection: TextSelection.collapsed(offset: 9),
+      composing: TextRange(start: 9, end: 9),
+    );
+    await tester.pump();
+    editable.controller.value = const TextEditingValue(
+      text: '가나다라마바사아자차',
+      selection: TextSelection.collapsed(offset: 9),
+      composing: TextRange(start: 9, end: 10),
+    );
+    await tester.pump();
+    editable.controller.value = const TextEditingValue(
+      text: '가나다라마바사아자챀',
+      selection: TextSelection.collapsed(offset: 9),
+      composing: TextRange(start: 9, end: 10),
+    );
+    await tester.pump();
+    // 잔여형이 스스로 정상형으로 원복 (조합 유지)
+    editable.controller.value = const TextEditingValue(
+      text: '가나다라마바사아자차',
+      selection: TextSelection.collapsed(offset: 9),
+      composing: TextRange(start: 9, end: 10),
+    );
+    await tester.pump();
+    // 정상 커밋 (캐럿 전진)
+    editable.controller.value = const TextEditingValue(
+      text: '가나다라마바사아자차',
+      selection: TextSelection.collapsed(offset: 10),
+    );
+    await tester.pump();
+    // 다음 글자 입력
+    editable.controller.value = const TextEditingValue(
+      text: '가나다라마바사아자차카',
+      selection: TextSelection.collapsed(offset: 10),
+      composing: TextRange(start: 10, end: 11),
+    );
+    await tester.pump();
+
+    expect(editable.controller.text, '가나다라마바사아자차카');
+    expect(
+      editable.controller.selection,
+      const TextSelection.collapsed(offset: 10),
+    );
+  });
+
   testWidgets('active editor keeps normal suffix after IME deletion', (
     tester,
   ) async {

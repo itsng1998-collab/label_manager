@@ -3014,6 +3014,11 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     if (_restoreImeResidualAfterCaret(previousValue, currentValue)) {
       return;
     }
+    // 잔여 복원 후보는 설정 직후의 valueChanged(인접 사이클)에서만 소비된다.
+    // 조합이 자연 해소되어 소비되지 않은 후보는 stale 이므로 즉시 폐기하여
+    // 이후의 false-restore 가능성을 차단한다. (재사용 금지)
+    _editorImeResidualRestoreSourceValue = null;
+    _editorImeResidualRestoreValue = null;
     if (previousValue != null) {
       _trackImeResidualRestoreCandidate(previousValue, currentValue);
     }
