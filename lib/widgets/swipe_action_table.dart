@@ -99,9 +99,9 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
   int? _draggingIndex;
   int? _selectedIndex;
   int? _openActionIndex;
-  int? _lastTapRowIndex;
-  int? _lastTapColumnIndex;
-  DateTime? _lastTapAt;
+  int? _lastPointerDownRowIndex;
+  int? _lastPointerDownColumnIndex;
+  DateTime? _lastPointerDownAt;
   String? _tableSignature;
 
   @override
@@ -481,36 +481,42 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
     return null;
   }
 
-  void _handleRowTap(T row, int rowIndex, List<double> widths, Offset local) {
+  void _handleRowPointerDown(
+    T row,
+    int rowIndex,
+    List<double> widths,
+    Offset local,
+  ) {
     final columnIndex = _columnIndexAt(local.dx, widths);
     final now = DateTime.now();
-    final lastTapAt = _lastTapAt;
-    final isDoubleTap = columnIndex != null &&
-        _lastTapRowIndex == rowIndex &&
-        _lastTapColumnIndex == columnIndex &&
-        lastTapAt != null &&
-        now.difference(lastTapAt) <= const Duration(milliseconds: 500);
+    final lastPointerDownAt = _lastPointerDownAt;
+    final isDoubleTap =
+        columnIndex != null &&
+        _lastPointerDownRowIndex == rowIndex &&
+        _lastPointerDownColumnIndex == columnIndex &&
+        lastPointerDownAt != null &&
+        now.difference(lastPointerDownAt) <= const Duration(milliseconds: 500);
 
     setState(() => _selectedIndex = rowIndex);
 
-    if (isDoubleTap) {
-      _lastTapRowIndex = null;
-      _lastTapColumnIndex = null;
-      _lastTapAt = null;
-      final onDoubleTap = widget.columns[columnIndex].onDoubleTap;
-      if (onDoubleTap != null) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) {
-            onDoubleTap(row, rowIndex);
-          }
-        });
-      }
+    if (!isDoubleTap) {
+      _lastPointerDownRowIndex = rowIndex;
+      _lastPointerDownColumnIndex = columnIndex;
+      _lastPointerDownAt = now;
       return;
     }
 
-    _lastTapRowIndex = rowIndex;
-    _lastTapColumnIndex = columnIndex;
-    _lastTapAt = now;
+    _lastPointerDownRowIndex = null;
+    _lastPointerDownColumnIndex = null;
+    _lastPointerDownAt = null;
+    final onDoubleTap = widget.columns[columnIndex].onDoubleTap;
+    if (onDoubleTap != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          onDoubleTap(row, rowIndex);
+        }
+      });
+    }
   }
 
   Widget _buildActionRail(
@@ -633,13 +639,13 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
             ),
           if (!isRowContentInteractive)
             Positioned.fill(
-              child: GestureDetector(
+              child: Listener(
                 behavior: HitTestBehavior.translucent,
-                onTapUp: (details) => _handleRowTap(
+                onPointerDown: (event) => _handleRowPointerDown(
                   row,
                   index,
                   rowWidths,
-                  details.localPosition,
+                  event.localPosition,
                 ),
               ),
             ),

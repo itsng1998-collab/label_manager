@@ -51,6 +51,13 @@ Future<void> _doubleTap(WidgetTester tester, Finder finder) async {
   await tester.pump(const Duration(milliseconds: 350));
 }
 
+Future<void> _doubleTapAt(WidgetTester tester, Offset position) async {
+  await tester.tapAt(position);
+  await tester.pump(const Duration(milliseconds: 50));
+  await tester.tapAt(position);
+  await tester.pump(const Duration(milliseconds: 350));
+}
+
 void main() {
   testWidgets('column double tap invokes only matching column callback', (
     tester,
@@ -83,31 +90,44 @@ void main() {
     tester,
   ) async {
     var called = false;
+    var selectedBeforeCallback = false;
 
     await _pumpTable(
       tester,
       onNameDoubleTap: (_, _) {
         called = true;
+        selectedBeforeCallback = tester
+            .widgetList<Container>(find.byType(Container))
+            .any((container) {
+              final decoration = container.decoration;
+              return decoration is BoxDecoration &&
+                  decoration.color == const Color(0xFFE3F2FD);
+            });
       },
     );
 
-    await tester.tap(find.text('Brand A'));
-    await tester.pump();
-
-    final hasSelectedRow = tester.widgetList<Container>(find.byType(Container)).any(
-      (container) {
-        final decoration = container.decoration;
-        return decoration is BoxDecoration &&
-            decoration.color == const Color(0xFFE3F2FD);
-      },
-    );
-    expect(hasSelectedRow, isTrue);
-
-    await tester.tap(find.text('Brand A'));
-    expect(called, isFalse);
-
-    await tester.pump();
+    await _doubleTap(tester, find.text('Brand A'));
     expect(called, isTrue);
+    expect(selectedBeforeCallback, isTrue);
+  });
+
+  testWidgets('column double tap works on blank cell area', (tester) async {
+    _Row? selectedRow;
+    int? selectedIndex;
+
+    await _pumpTable(
+      tester,
+      onNameDoubleTap: (row, index) {
+        selectedRow = row;
+        selectedIndex = index;
+      },
+    );
+
+    final tableTopLeft = tester.getTopLeft(find.byType(SwipeActionTable<_Row>));
+    await _doubleTapAt(tester, tableTopLeft + const Offset(190, 50));
+
+    expect(selectedRow?.name, 'Brand A');
+    expect(selectedIndex, 0);
   });
 
   testWidgets('column double tap is ignored while row content is interactive', (
