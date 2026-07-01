@@ -38443,7 +38443,13 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   }
 
   String _debugText(String text) {
-    return text.replaceAll('\n', r'\n').replaceAll('\r', r'\r');
+    const maxDebugTextLength = 300;
+    final escaped = text.replaceAll('\n', r'\n').replaceAll('\r', r'\r');
+    if (escaped.length <= maxDebugTextLength) {
+      return escaped;
+    }
+    return '${escaped.substring(0, maxDebugTextLength)}...'
+      '(${escaped.length} chars)';
   }
 
   KeyEventResult _handleEditorKeyEvent(FocusNode node, KeyEvent event) {

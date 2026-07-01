@@ -94,6 +94,7 @@ class _AppWindowListener extends WindowListener {
       windowManager.removeListener(this);
       await windowManager.setPreventClose(false);
       DebugLogger.log('Window close post start');
+      await DebugLogger.close();
       await windowManager.close();
     }
   }

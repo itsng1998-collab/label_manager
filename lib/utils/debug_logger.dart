@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ffi';
 import 'dart:io';
 
@@ -17,6 +18,8 @@ class DebugLogger {
   static bool _initialized = false;
   static _OutputDebugStringDart? _outputDebugString;
   static File? _logFile;
+  static IOSink? _logSink;
+  static Future<void>? _logSinkDone;
   static void Function(String? message, {int? wrapWidth})? _originalDebugPrint;
   static String? _version;
 
@@ -49,7 +52,23 @@ class DebugLogger {
   }
 
   static Future<void> close() async {
+    final sink = _logSink;
+    final done = _logSinkDone;
+    _logSink = null;
+    _logSinkDone = null;
     _logFile = null;
+    if (sink == null) {
+      return;
+    }
+    try {
+      await sink.flush();
+      await sink.close();
+      if (done != null) {
+        await done;
+      }
+    } catch (error) {
+      _originalDebugPrint?.call('DebugLogger: failed to close log -> $error');
+    }
   }
 
   static _OutputDebugStringDart? _loadOutputDebugString() {
@@ -83,13 +102,18 @@ class DebugLogger {
       final logFile = File(logPath);
 
       _logFile = logFile;
+      _logSink = logFile.openWrite(mode: FileMode.append);
+      _logSinkDone = _logSink!.done.catchError((Object error) {
+        _originalDebugPrint?.call('DebugLogger: log sink error -> $error');
+      });
       _originalDebugPrint?.call('LogPath: $logPath');
 
       debugPrint = (String? message, {int? wrapWidth}) {
         final safeMessage = message ?? '';
         final prefixed = '[LM] $safeMessage';
+        final highVolumeLog = _isHighVolumeLog(safeMessage);
 
-        if (Platform.isWindows && _outputDebugString != null) {
+        if (!highVolumeLog && Platform.isWindows && _outputDebugString != null) {
           final nativeStr = prefixed.toNativeUtf16();
           try {
             _outputDebugString!(nativeStr);
@@ -98,7 +122,9 @@ class DebugLogger {
           }
         }
 
-        _originalDebugPrint?.call(prefixed, wrapWidth: wrapWidth);
+        if (!highVolumeLog) {
+          _originalDebugPrint?.call(prefixed, wrapWidth: wrapWidth);
+        }
         _writeLogLine('${DateTime.now().toIso8601String()} $safeMessage');
       };
 
@@ -139,13 +165,13 @@ class DebugLogger {
     );
   }
 
+  static bool _isHighVolumeLog(String message) {
+    return message.startsWith('cellEditorTrace#');
+  }
+
   static void _writeLogLine(String line) {
     try {
-      _logFile?.writeAsStringSync(
-        '$line${Platform.lineTerminator}',
-        mode: FileMode.append,
-        flush: true,
-      );
+      _logSink?.writeln(line);
     } catch (error) {
       _originalDebugPrint?.call('DebugLogger: failed to write log -> $error');
     }
