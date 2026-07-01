@@ -596,9 +596,23 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
     final contentWidth = widths.fold<double>(0, (sum, width) => sum + width);
     final actionsWidth = widget.actions.length * _actionWidth;
     final canSwipeRow = widget.canSwipeRow?.call(row, index) ?? true;
-    final isOpen = widget.rowSwipeEnabled && canSwipeRow && _openActionIndex == index;
     final isRowContentInteractive =
         widget.isRowContentInteractive?.call(row, index) ?? false;
+    // 편집 중(행 콘텐츠 상호작용)인 행은 스와이프 액션 레일을 열린 상태로 두지
+    // 않는다. 레일이 열려 있으면 _withTrailingInset 으로 마지막 컬럼이 레일 폭만큼
+    // 줄어들어 인라인 에디터가 컬럼을 꽉 채우지 못한다(진입 방식/디바이스에 따라
+    // 편차 발생). 편집 진입 시 열려 있던 레일은 다음 프레임에 닫는다.
+    if (isRowContentInteractive && _openActionIndex == index) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _openActionIndex == index) {
+          setState(() => _openActionIndex = null);
+        }
+      });
+    }
+    final isOpen = widget.rowSwipeEnabled &&
+        canSwipeRow &&
+        _openActionIndex == index &&
+        !isRowContentInteractive;
     final rowWidths = isRowContentInteractive &&
             isOpen &&
             widget.keepRowContentOnSwipe &&
