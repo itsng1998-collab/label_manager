@@ -1668,6 +1668,7 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
                       isRowContentInteractive: (_, index) => _editingIndex == index,
                       canSwipeRow: (_, index) =>
                           _editingIndex == null || _editingIndex == index,
+                        rowNumberText: _brandRowNumberText,
                       actions: _brandRowActions(),
                       emptyActions: _brandEmptyActions(),
                       columns: [
@@ -1693,6 +1694,23 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
   }
 
   static String _brandNameText(Brand brand) => brand.brandName;
+
+  String _brandRowNumberText(Brand brand, int index) {
+    if (!_insertingBrand) {
+      return '${index + 1}';
+    }
+    final editingIndex = _editingIndex;
+    if (editingIndex == null) {
+      return '${index + 1}';
+    }
+    if (index == editingIndex) {
+      return '';
+    }
+    if (index > editingIndex) {
+      return '$index';
+    }
+    return '${index + 1}';
+  }
 
   void _handleBrandNameDoubleTap(Brand brand, int index) {
     debugLog('brandNameDoubleTap index=$index editingIndex=$_editingIndex busy=${widget.busyNotifier.value} brandId=${brand.brandId} name=${brand.brandName}');

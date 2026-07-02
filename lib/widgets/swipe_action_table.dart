@@ -61,6 +61,7 @@ class SwipeActionTable<T> extends StatefulWidget {
     this.fillLastColumn = false,
     this.isRowContentInteractive,
     this.canSwipeRow,
+    this.rowNumberText,
   });
 
   final List<T> rows;
@@ -78,6 +79,7 @@ class SwipeActionTable<T> extends StatefulWidget {
   final bool fillLastColumn;
   final bool Function(T row, int index)? isRowContentInteractive;
   final bool Function(T row, int index)? canSwipeRow;
+  final String Function(T row, int index)? rowNumberText;
 
   @override
   State<SwipeActionTable<T>> createState() => _SwipeActionTableState<T>();
@@ -426,6 +428,7 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
   }
 
   Widget _buildRowNumber(int index) {
+    final rowNumberText = widget.rowNumberText?.call(widget.rows[index], index) ?? '${index + 1}';
     return Container(
       height: widget.rowHeight,
       decoration: const BoxDecoration(
@@ -438,7 +441,7 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
       ),
       alignment: Alignment.center,
       child: Text(
-        '${index + 1}',
+        rowNumberText,
         style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
       ),
     );

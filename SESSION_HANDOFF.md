@@ -162,6 +162,12 @@
   - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/home_page_manager.dart` (`lib/core/app.dart`, `doc/BM_RICH_BRAND.sql` 제외).
   - 구현 커밋: `74fa0c3` (`브랜드 설정 변경 헤더 드롭다운 반영`).
 
+- **완료 (2026-07-02)**: 브랜드 삽입 중 테이블 행 헤더 표시 규칙 수정.
+  - `lib/widgets/swipe_action_table.dart`: 행 헤더 텍스트를 커스터마이즈하는 `rowNumberText` hook 추가.
+  - `lib/home_page_manager.dart` `_BrandSettingsDialogState`: 삽입 중 임시 빈 행의 행 헤더는 빈 값, 아래로 밀린 기존 행의 행 헤더 인덱스는 기존 번호처럼 유지. ESC/삽입 취소 시 임시 행 제거로 자동 원복.
+  - 검증 완료: `flutter analyze lib/widgets/swipe_action_table.dart lib/home_page_manager.dart --no-fatal-warnings --no-fatal-infos` 성공.
+  - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/home_page_manager.dart`, `lib/widgets/swipe_action_table.dart` (`lib/core/app.dart`, `doc/BM_RICH_BRAND.sql` 제외).
+
 - **ODBC 효율 개선**: `LabelSizeDAO.SelectSql`이 목록 조회에서도 `RICH_FORM_DATA`를 항상 가져오는 문제. 목록/상세 조회 분리, 목록에서 `FORM_DATA` 제외, 선택/시트 진입 시 상세 조회로 보강.
 
 ## 완료된 기능 요약
