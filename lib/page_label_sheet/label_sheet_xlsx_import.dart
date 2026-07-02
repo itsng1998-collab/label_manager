@@ -17,12 +17,14 @@ FortuneWorkbook labelSheetWorkbookFromXlsxBytes(Uint8List bytes) {
   final sheetRels = _worksheetRelationships(archive, sheetPath);
   final styles = _XlsxStyleTable.fromArchive(archive);
   final sharedStrings = _XlsxSharedStrings.fromArchive(archive);
+  final metadata = _XlsxExtensionMetadata.fromArchive(archive);
   final sheetJson = _sheetJsonFromWorksheet(
     sheetXml,
     sheetName: sheetInfo.name,
     sharedStrings: sharedStrings,
     styles: styles,
     relationships: sheetRels,
+    metadata: metadata,
   );
   return FortuneSheetCodec.workbookFromJson({
     'data': [sheetJson],
@@ -129,6 +131,7 @@ Map<String, Object?> _sheetJsonFromWorksheet(
   required _XlsxSharedStrings sharedStrings,
   required _XlsxStyleTable styles,
   required Map<String, _XlsxRelationship> relationships,
+  required _XlsxExtensionMetadata metadata,
 }) {
   final cells = <Map<String, Object?>>[];
   final cellKeys = <String>{};
@@ -238,13 +241,14 @@ Map<String, Object?> _sheetJsonFromWorksheet(
       final hyperlink = hyperlinks['${coord.row}_${coord.column}'];
       final cellJson = <String, Object?>{
         ...style.cellJson,
+        ...metadata.cellExtra(ref),
         if (cellValue.text != null) 'v': cellValue.text,
         if (cellValue.text != null) 'm': cellValue.text,
         if (cellValue.formula != null) 'f': cellValue.formula,
         if (merge != null) 'mc': merge,
         if (hyperlink != null) 'hl': hyperlink,
       };
-      final inlineRuns = cellValue.inlineRuns;
+      final inlineRuns = metadata.applyRunExtra(ref, cellValue.inlineRuns);
       if (inlineRuns != null && inlineRuns.isNotEmpty) {
         cellJson['ct'] = {
           ...?cellJson['ct'] as Map<String, Object?>?,
@@ -705,6 +709,119 @@ class _XlsxRelationship {
   final String? targetMode;
 }
 
+class _XlsxExtensionMetadata {
+  const _XlsxExtensionMetadata({
+    this.cellExtraByRef = const <String, Map<String, Object?>>{},
+    this.runExtraByRef = const <String, Map<int, Map<String, Object?>>>{},
+  });
+
+  final Map<String, Map<String, Object?>> cellExtraByRef;
+  final Map<String, Map<int, Map<String, Object?>>> runExtraByRef;
+
+  static _XlsxExtensionMetadata fromArchive(Archive archive) {
+    final cellExtra = <String, Map<String, Object?>>{};
+    final runExtra = <String, Map<int, Map<String, Object?>>>{};
+    for (final file in archive.files) {
+      final name = file.name.replaceAll('\\', '/');
+      if (!file.isFile || !name.startsWith('customXml/') || !name.endsWith('.xml')) {
+        continue;
+      }
+      final bytes = file.readBytes();
+      if (bytes == null) {
+        continue;
+      }
+      final xml = utf8.decode(bytes);
+      if (!xml.contains('labelSheetRtfMetadata')) {
+        continue;
+      }
+      _readMetadataXml(xml, cellExtra, runExtra);
+    }
+    return _XlsxExtensionMetadata(
+      cellExtraByRef: cellExtra,
+      runExtraByRef: runExtra,
+    );
+  }
+
+  Map<String, Object?> cellExtra(String? ref) {
+    if (ref == null) {
+      return const <String, Object?>{};
+    }
+    return cellExtraByRef[ref] ?? const <String, Object?>{};
+  }
+
+  List<Map<String, Object?>>? applyRunExtra(
+    String? ref,
+    List<Map<String, Object?>>? runs,
+  ) {
+    if (ref == null || runs == null || runs.isEmpty) {
+      return runs;
+    }
+    final extras = runExtraByRef[ref];
+    if (extras == null || extras.isEmpty) {
+      return runs;
+    }
+    return [
+      for (var index = 0; index < runs.length; index += 1)
+        {
+          ...runs[index],
+          ...?extras[index],
+        },
+    ];
+  }
+
+  static void _readMetadataXml(
+    String xml,
+    Map<String, Map<String, Object?>> cellExtra,
+    Map<String, Map<int, Map<String, Object?>>> runExtra,
+  ) {
+    for (final match in RegExp(
+      r'<cell\b([^>]*)/>|<cell\b([^>]*)>(.*?)</cell>',
+      caseSensitive: false,
+      dotAll: true,
+    ).allMatches(xml)) {
+      final attributes = _xmlAttributes(match.group(1) ?? match.group(2) ?? '');
+      final ref = attributes['ref'];
+      if (ref == null || ref.isEmpty) {
+        continue;
+      }
+      final extra = _metadataExtra(attributes, const {'ref'});
+      final body = match.group(3) ?? '';
+      final controls = _metadataControls(body);
+      if (controls.isNotEmpty) {
+        extra['rtfUnmappedControls'] = controls;
+      }
+      if (extra.isNotEmpty) {
+        cellExtra[ref] = {...?cellExtra[ref], ...extra};
+      }
+      for (final runMatch in RegExp(
+        r'<run\b([^>]*)/>|<run\b([^>]*)>(.*?)</run>',
+        caseSensitive: false,
+        dotAll: true,
+      ).allMatches(body)) {
+        final runAttributes = _xmlAttributes(
+          runMatch.group(1) ?? runMatch.group(2) ?? '',
+        );
+        final index = int.tryParse(runAttributes['index'] ?? '');
+        if (index == null || index < 0) {
+          continue;
+        }
+        final run = _metadataExtra(runAttributes, const {'index', 'text'});
+        final runControls = _metadataControls(runMatch.group(3) ?? '');
+        if (runControls.isNotEmpty) {
+          run['rtfUnmappedControls'] = runControls;
+        }
+        if (run.isEmpty) {
+          continue;
+        }
+        runExtra.putIfAbsent(ref, () => <int, Map<String, Object?>>{})[index] = {
+          ...?runExtra[ref]?[index],
+          ...run,
+        };
+      }
+    }
+  }
+}
+
 List<_XlsxFont> _fonts(String xml) {
   final body = _extractElement(xml, 'fonts') ?? '';
   return [
@@ -949,6 +1066,45 @@ Map<String, String> _xmlAttributes(String raw) {
     ).allMatches(raw))
       match.group(1)!: _xmlDecode(match.group(3) ?? match.group(4) ?? ''),
   };
+}
+
+Map<String, Object?> _metadataExtra(
+  Map<String, String> attributes,
+  Set<String> excludedKeys,
+) {
+  return {
+    for (final entry in attributes.entries)
+      if (!excludedKeys.contains(entry.key)) entry.key: _metadataValue(entry.value),
+  };
+}
+
+Object _metadataValue(String value) {
+  if (value == 'true') {
+    return true;
+  }
+  if (value == 'false') {
+    return false;
+  }
+  final integer = int.tryParse(value);
+  if (integer != null) {
+    return integer;
+  }
+  final number = double.tryParse(value);
+  if (number != null) {
+    return number;
+  }
+  return value;
+}
+
+List<String> _metadataControls(String xml) {
+  return [
+    for (final match in RegExp(
+      r'<control\b([^>]*)/?>',
+      caseSensitive: false,
+    ).allMatches(xml))
+      if (_xmlAttributes(match.group(1) ?? '')['value'] case final value?)
+        if (value.isNotEmpty) value,
+  ];
 }
 
 String? _colorFromElement(String xml, String tag) {

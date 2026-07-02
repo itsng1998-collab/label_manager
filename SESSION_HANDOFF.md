@@ -71,12 +71,13 @@
   - 1차 구현: 파일 선택기 확장자 `lms,xlsx` 추가, 확장자별 `.lms` 기존 decode / `.xlsx` 신규 importer 분기 추가.
   - 사용자 추가 요구: 1차 값 중심 범위를 넘어 XLSX에서 변환 가능한 모든 속성(스타일/병합/행열 크기/숨김/수식/링크/테두리 등)을 가능한 한 FortuneSheet JSON으로 변환.
   - `lib/page_label_sheet/label_sheet_xlsx_import.dart`: XLSX zip에서 workbook/worksheet/sharedStrings/styles/rels를 읽어 활성 시트를 `FortuneWorkbook`으로 변환. 값, cached formula value, `=...` 수식, shared/inline rich text, 글꼴/크기/굵게/기울임/밑줄/취소선/색/배경, 정렬/wrap/회전/number format, 병합, 행/열 크기와 숨김, hyperlink, 테두리 변환 지원.
-  - 포춘 시트 추가 기능: XLSX rich text `vertAlign`을 `script`(`superscript`/`subscript`)로 변환. 앱 확장 키인 `fontScale`/`letterSpacing`/`lineHeight`는 XLSX 표준 SpreadsheetML에 원본 정보가 없으면 생성하지 않고, Fortune inline run extraFields 경로를 유지.
-  - `test/label_sheet_xlsx_import_test.dart`: 메모리 XLSX fixture로 값/스타일/병합/숨김/링크/rich text 첨자/테두리 변환 테스트 추가.
+  - 포춘 시트 추가 기능: XLSX rich text `vertAlign`을 `script`(`superscript`/`subscript`)로 변환. 기존 라벨 시트 XLSX export의 `customXml/labelSheetRtfMetadata`를 읽어 셀/런 extraFields의 `fontScale`(장평), `letterSpacing`(자간), `lineHeight`(줄간격), `script`(첨자)를 복원.
+  - `test/label_sheet_xlsx_import_test.dart`: 메모리 XLSX fixture로 값/스타일/병합/숨김/링크/rich text 첨자/테두리/customXml 자간·장평·줄간격 변환 테스트 추가.
   - 검증 완료: `flutter analyze lib/page_label_sheet/label_sheet_workbench.dart lib/page_label_sheet/label_sheet_xlsx_import.dart test/label_sheet_xlsx_import_test.dart --no-fatal-warnings --no-fatal-infos` 성공.
   - 검증 완료: `test/label_sheet_xlsx_import_test.dart` 1개 성공.
   - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/page_label_sheet/label_sheet_workbench.dart`, `lib/page_label_sheet/label_sheet_xlsx_import.dart`, `test/label_sheet_xlsx_import_test.dart` (`lib/core/app.dart` 기존 dirty 제외).
   - 구현 커밋: `e53bc43` (`라벨 시트 XLSX 가져오기 지원`).
+  - 추가 구현 커밋 예정: customXml 확장 텍스트 메타 복원(`fontScale`/`letterSpacing`/`lineHeight`/`script`).
 
 - **완료 (2026-07-02)**: 여러 번 브랜드 조회 후 `RTF를 변환 중입니다...` 스낵바가 남는 문제 수정.
   - 최신 로그 확인: `.tmp/log/app_2026-07-02_11-18-37.log`에서 RTF 변환 완료/미리보기 캡처 성공 후에도 스낵바 제어가 post-frame 예약에 의존하는 경로 확인.

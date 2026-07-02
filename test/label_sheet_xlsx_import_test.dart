@@ -34,6 +34,9 @@ void main() {
     expect(a1.cellType?.format, '0.00');
     expect(a1.merge?.rowSpan, 2);
     expect(a1.merge?.columnSpan, 2);
+    expect(a1.extraFields['fontScale'], 85);
+    expect(a1.extraFields['letterSpacing'], 1.25);
+    expect(a1.extraFields['lineHeight'], 1.4);
 
     final b1 = sheet.cells[const FortuneCellCoord(0, 1)]!;
     expect(b1.value, '42');
@@ -46,6 +49,9 @@ void main() {
     expect(c1.inlineRuns![0].text, 'H');
     expect(c1.inlineRuns![1].text, '2O');
     expect(c1.inlineRuns![1].extraFields['script'], 'subscript');
+    expect(c1.inlineRuns![1].extraFields['fontScale'], 70);
+    expect(c1.inlineRuns![1].extraFields['letterSpacing'], 0.5);
+    expect(c1.inlineRuns![1].extraFields['lineHeight'], 1.2);
 
     expect(sheet.borderInfo.map((border) => border.borderType), contains('border-left'));
     expect(sheet.borderInfo.map((border) => border.borderType), contains('border-top'));
@@ -127,6 +133,11 @@ Uint8List _xlsxBytes() {
   <mergeCells count="1"><mergeCell ref="A1:B2"/></mergeCells>
   <hyperlinks><hyperlink ref="B1" r:id="rIdHyper"/></hyperlinks>
 </worksheet>''');
+  addXml('customXml/item1.xml', '''<?xml version="1.0" encoding="UTF-8"?>
+<labelSheetRtfMetadata xmlns="urn:label-manager:rtf-metadata">
+  <cell ref="A1" fontScale="85" letterSpacing="1.25" lineHeight="1.4"/>
+  <cell ref="C1"><run index="1" fontScale="70" letterSpacing="0.5" lineHeight="1.2" script="subscript"/></cell>
+</labelSheetRtfMetadata>''');
 
   return Uint8List.fromList(ZipEncoder().encodeBytes(archive));
 }
