@@ -74,6 +74,7 @@
   - 검증 완료: `test/label_sheet_xlsx_import_test.dart` 3개 성공.
   - 검증 완료: `flutter analyze lib/page_label_sheet/label_sheet_xlsx_import.dart test/label_sheet_xlsx_import_test.dart --no-fatal-warnings --no-fatal-infos` 성공.
   - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/page_label_sheet/label_sheet_xlsx_import.dart`, `test/label_sheet_xlsx_import_test.dart` (`lib/core/app.dart` 기존 dirty 제외).
+  - 구현 커밋: `5b2399f` (`XLSX 네임스페이스 태그 가져오기 수정`).
 
 - **완료 (2026-07-02)**: `.xlsx` 선택 후 여전히 `라벨 파일을 읽을 수 없습니다.`가 표시되는 문제 확인 및 촘촘한 디버깅 로그 추가.
   - 확인 결과 최신 로그 `.tmp/log/app_2026-07-02_23-20-26.log` 및 기존 로그 검색에서 import 실패 로그가 없음. 원인: 기존 import 로그가 `fortuneSheetDebugLog`라 플래그 비활성 시 앱 로그에 남지 않음.
