@@ -609,23 +609,15 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
     final canSwipeRow = widget.canSwipeRow?.call(row, index) ?? true;
     final isRowContentInteractive =
         widget.isRowContentInteractive?.call(row, index) ?? false;
-    // 편집 중(행 콘텐츠 상호작용)인 행은 액션 레일을 닫힌 것으로 간주한다.
-    // 이유: 레일이 열려 있으면 에디터 오른쪽을 덮어 제출 버튼(←)이 가려지고
-    // 시각적으로 에디터가 컬럼 전체를 채우지 못하는 것처럼 보인다.
-    // 또한 _openActionIndex 를 지워야 편집 완료 후 레일이 재출현하지 않는다.
-    if (isRowContentInteractive && _openActionIndex == index) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted && _openActionIndex == index) {
-          debugPrint('[SwipeTable] postFrame clear _openActionIndex=$index (editing row active)');
-          setState(() => _openActionIndex = null);
-        }
-      });
-    }
+    // 편집 중인 행도 스와이프 상태이면 액션 레일을 유지한다.
+    // 레일이 열린 채 편집 진입 시 _withTrailingInset 으로 셀 폭을 줄여
+    // 제출 버튼(←)과 액션 레일이 함께 보이도록 한다.
     final isOpen = widget.rowSwipeEnabled &&
         canSwipeRow &&
-        _openActionIndex == index &&
-        !isRowContentInteractive;
-    // isOpen 이 false 인 편집 행은 자연히 widths 전체를 사용한다.
+        _openActionIndex == index;
+    debugPrint('[SwipeTable] buildDataRow row=$index isOpen=$isOpen'
+        ' isInteractive=$isRowContentInteractive openIdx=$_openActionIndex');
+    // isOpen 이고 keepRowContentOnSwipe 이면 마지막 컬럼 폭을 레일 폭만큼 줄인다.
     final rowWidths = isOpen &&
             widget.keepRowContentOnSwipe &&
             widths.isNotEmpty

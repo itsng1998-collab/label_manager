@@ -1672,7 +1672,7 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
       );
     }
     final canSubmit = _canSubmitBrandNameEdit;
-    debugLog('brandNameEdit buildCell index=$_editingIndex brandId=${brand.brandId} canSubmit=$canSubmit size=${MediaQuery.sizeOf(context)}');
+    debugLog('brandNameEdit buildCell index=$_editingIndex brandId=${brand.brandId} canSubmit=$canSubmit width=$width size=${MediaQuery.sizeOf(context)}');
     return SizedBox(
       width: width,
       child: Focus(
