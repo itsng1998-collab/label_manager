@@ -110,4 +110,79 @@ class BrandDAO extends DAO {
       rethrow;
     }
   }
+
+  static Future<Brand> insertByBrandName(
+    int customerId,
+    String brandName,
+    int brandOrder,
+  ) async {
+    debugLog('$START, customerId:$customerId, brandName:$brandName, brandOrder:$brandOrder');
+
+    try {
+      final insertSql = '''
+        SET XACT_ABORT ON;
+        BEGIN TRY
+          CREATE TABLE #InsertedBrand (
+            BRAND_ID INT NOT NULL,
+            CUSTOMER_ID INT NOT NULL,
+            BRAND_NAME VARCHAR(50) NOT NULL
+          );
+
+          BEGIN TRANSACTION;
+
+          UPDATE BM_RICH_BRAND
+             SET RICH_BRAND_ORDER = RICH_BRAND_ORDER + 1
+           WHERE RICH_CUSTOMER_ID=@customerId
+             AND RICH_BRAND_ORDER >= @brandOrder;
+
+          INSERT INTO BM_RICH_BRAND
+            (RICH_CUSTOMER_ID, RICH_BRAND_NAME, RICH_BRAND_ORDER)
+          OUTPUT
+            INSERTED.RICH_BRAND_ID,
+            INSERTED.RICH_CUSTOMER_ID,
+            INSERTED.RICH_BRAND_NAME
+          INTO #InsertedBrand
+          VALUES
+            (@customerId, @brandName, @brandOrder);
+
+          COMMIT TRANSACTION;
+          SET XACT_ABORT OFF;
+
+          SELECT
+            COALESCE(CONVERT(NVARCHAR(20), BRAND_ID), N'') AS BRAND_ID,
+            COALESCE(CONVERT(NVARCHAR(20), CUSTOMER_ID), N'') AS CUSTOMER_ID,
+            COALESCE(CONVERT(NVARCHAR(50), BRAND_NAME COLLATE ${DAO.CP949}), N'') AS BRAND_NAME
+          FROM #InsertedBrand;
+        END TRY
+        BEGIN CATCH
+          IF @@TRANCOUNT > 0
+            ROLLBACK TRANSACTION;
+          SET XACT_ABORT OFF;
+          THROW;
+        END CATCH
+      ''';
+
+      final res = await DbClient.instance.writeDataWithParams(
+        insertSql,
+        {
+          'customerId': customerId,
+          'brandName': brandName,
+          'brandOrder': brandOrder,
+        },
+      );
+
+      final inserted = DAO.mapRow(res, Brand.fromMap);
+      if (inserted == null) {
+        throw Exception('${runtimeLogTag()} Insert failed for brandName:$brandName');
+      }
+
+      final affected = DAO.affectedRows(res);
+      debugLog('$END, BM_RICH_BRAND insert Result: $res, affected:$affected, inserted:$inserted');
+      return inserted;
+    }
+    catch (e) {
+      debugLog('$END, $e');
+      rethrow;
+    }
+  }
 }

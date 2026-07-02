@@ -121,6 +121,16 @@
   - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/home_page_manager.dart` (`lib/core/app.dart` 기존 dirty 제외).
   - 구현 커밋: `5087a70` (`브랜드 이름 수정 실패 경고 다이얼로그 적용`).
 
+- **완료 (2026-07-02)**: 브랜드 설정 다이얼로그 행 삽입 인라인 편집 구현.
+  - `lib/home_page_manager.dart` `_BrandSettingsDialogState`: 삽입 버튼 클릭 시 현재 행 아래 빈 행 추가, 삽입 인라인에디터 표시, 빈 입력 Enter/아이콘 비활성, ESC/눌린 삽입 버튼 재클릭 시 삽입 취소 및 빈 행 제거.
+  - 삽입 편집 중 시작 행의 삽입 버튼 pressed 유지, 수정/삭제 비활성. 삽입 성공 시 새 브랜드 행으로 테이블 목록 재구성 후 인라인에디터 종료.
+  - `lib/models/brand.dart` `BrandDAO.insertByBrandName`: `RICH_BRAND_ORDER` 밀기 + INSERT + 새 identity 행 반환을 하나의 SQL Server 트랜잭션으로 처리.
+  - `lib/database/windows_odbc/odbc_param_utils.dart`: SQL Server 시스템 변수 `@@ROWCOUNT`/`@@TRANCOUNT`를 named parameter로 오인하지 않도록 `@@` 보존.
+  - 테스트 추가: `test/windows_odbc_param_utils_test.dart` double-at 시스템 변수 보존 케이스.
+  - 검증 완료: `flutter analyze lib/models/brand.dart lib/home_page_manager.dart lib/database/windows_odbc/odbc_param_utils.dart test/windows_odbc_param_utils_test.dart --no-fatal-warnings --no-fatal-infos` 성공.
+  - 검증 완료: `test/windows_odbc_param_utils_test.dart` 7개 성공.
+  - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/home_page_manager.dart`, `lib/models/brand.dart`, `lib/database/windows_odbc/odbc_param_utils.dart`, `test/windows_odbc_param_utils_test.dart` (`lib/core/app.dart`, `doc/BM_RICH_BRAND.sql` 제외).
+
 - **ODBC 효율 개선**: `LabelSizeDAO.SelectSql`이 목록 조회에서도 `RICH_FORM_DATA`를 항상 가져오는 문제. 목록/상세 조회 분리, 목록에서 `FORM_DATA` 제외, 선택/시트 진입 시 상세 조회로 보강.
 
 ## 완료된 기능 요약

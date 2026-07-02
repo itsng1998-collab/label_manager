@@ -38,6 +38,19 @@ void main() {
       expect(prepared.entries.single.value, 5);
     });
 
+    test('keeps SQL Server system variables with double at signs', () {
+      final prepared = prepareStatement(
+        'UPDATE T SET A = @value; IF @@ROWCOUNT <= 0 SELECT @@TRANCOUNT',
+        {'value': 7},
+      );
+      expect(
+        prepared.sql,
+        'UPDATE T SET A = ?; IF @@ROWCOUNT <= 0 SELECT @@TRANCOUNT',
+      );
+      expect(prepared.entries.length, 1);
+      expect(prepared.entries.single.value, 7);
+    });
+
     test('throws when placeholder is missing in params', () {
       expect(() => prepareStatement('SELECT @id', {}), throwsArgumentError);
     });

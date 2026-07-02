@@ -1498,6 +1498,8 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
       TextEditingController();
   final FocusNode _brandNameEditFocusNode = FocusNode();
   int? _editingIndex;
+  int? _insertActionIndex;
+  bool _insertingBrand = false;
 
   @override
   void initState() {
@@ -1650,14 +1652,17 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
         // 테이블 헤더 색상과 통일 → 편집 진입/취소 버튼임을 직관적으로 전달
         backgroundColor: const Color(0xFF0E2F66),
         onRowPressed: _toggleBrandNameEdit,
-        isPressed: (_, index) => _editingIndex == index,
+        isPressed: (_, index) => !_insertingBrand && _editingIndex == index,
+        isEnabled: (_, _) => !_insertingBrand,
       ),
       SwipeActionTableAction<Brand>(
         icon: Icons.add,
         tooltip: '삽입',
         backgroundColor: const Color(0xff0277bd),
-        onPressed: _noop,
-        isEnabled: (_, _) => _editingIndex == null,
+        onRowPressed: _toggleBrandInsert,
+        isPressed: (_, index) => _insertingBrand && _insertActionIndex == index,
+        isEnabled: (_, index) =>
+          _editingIndex == null || (_insertingBrand && _insertActionIndex == index),
       ),
       SwipeActionTableAction<Brand>(
         icon: Icons.delete,
@@ -1669,9 +1674,9 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
     ];
   }
 
-  static List<SwipeActionTableAction<Brand>> _brandEmptyActions() {
-    return const [
-      SwipeActionTableAction<Brand>(
+  List<SwipeActionTableAction<Brand>> _brandEmptyActions() {
+    return [
+      const SwipeActionTableAction<Brand>(
         icon: Icons.edit,
         tooltip: '수정',
         backgroundColor: Color(0xff9ca3af),
@@ -1679,10 +1684,10 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
       SwipeActionTableAction<Brand>(
         icon: Icons.add,
         tooltip: '삽입',
-        backgroundColor: Color(0xffa7b0bd),
-        onPressed: _noop,
+        backgroundColor: const Color(0xff0277bd),
+        onPressed: () => _startBrandInsertAt(0, actionIndex: null),
       ),
-      SwipeActionTableAction<Brand>(
+      const SwipeActionTableAction<Brand>(
         icon: Icons.delete,
         tooltip: '삭제',
         backgroundColor: Color(0xffb4bac3),
@@ -1721,13 +1726,9 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
             _cancelBrandNameEdit();
             return KeyEventResult.handled;
           }
-          // 변경 없는 상태에서 Enter → 취소(닫기).
-          // canSubmit=false 인 채로 Enter를 눌러도 아무 반응이 없으면 사용자가
-          // 편집을 닫을 수 없어 혼란스럽다. Escape 와 동일하게 취소 처리한다.
           if (event.logicalKey == LogicalKeyboardKey.enter) {
             if (!_canSubmitBrandNameEdit) {
-              debugLog('brandNameEdit cancelByEnterNoChange index=$_editingIndex text=${_brandNameEditController.text}');
-              _cancelBrandNameEdit();
+              debugLog('brandNameEdit submitBlockedByEnter index=$_editingIndex text=${_brandNameEditController.text} inserting=$_insertingBrand');
               return KeyEventResult.handled;
             }
             // canSubmit=true 이면 TextField 의 onSubmitted 에서 처리한다.
@@ -1829,7 +1830,52 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
         identical(_brands[editingIndex], brand);
   }
 
+  void _toggleBrandInsert(Brand brand, int index) {
+    if (_insertingBrand && _insertActionIndex == index) {
+      debugLog('brandInsert cancelByToggle index=$index');
+      _cancelBrandNameEdit();
+      return;
+    }
+    _startBrandInsertAt(index + 1, actionIndex: index);
+  }
+
+  void _startBrandInsertAt(int index, {required int? actionIndex}) {
+    if (_editingIndex != null) {
+      debugLog('brandInsert blocked editingIndex=$_editingIndex inserting=$_insertingBrand');
+      return;
+    }
+    final insertIndex = index.clamp(0, _brands.length);
+    final customerId = Customer.instance?.customerId;
+    if (customerId == null) {
+      debugLog('brandInsert blocked customerId=null');
+      return;
+    }
+    debugLog('brandInsert start index=$insertIndex customerId=$customerId');
+    setState(() {
+      _insertingBrand = true;
+      _editingIndex = insertIndex;
+      _insertActionIndex = actionIndex;
+      _brands.insert(
+        insertIndex,
+        Brand(brandId: 0, customerId: customerId, brandName: ''),
+      );
+      _brandNameEditController.clear();
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_insertingBrand || _editingIndex != insertIndex) {
+        debugLog('brandInsert focusRequest skipped mounted=$mounted editingIndex=$_editingIndex expected=$insertIndex inserting=$_insertingBrand');
+        return;
+      }
+      debugLog('brandInsert focusRequest index=$insertIndex');
+      _brandNameEditFocusNode.requestFocus();
+    });
+  }
+
   void _toggleBrandNameEdit(Brand brand, int index) {
+    if (_insertingBrand) {
+      debugLog('brandNameEdit blocked inserting=true index=$index');
+      return;
+    }
     if (_editingIndex == index) {
       debugLog('brandNameEdit cancelByToggle index=$index');
       _cancelBrandNameEdit();
@@ -1867,6 +1913,11 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
     // 포커스를 유지해 이후 키보드 입력이 소실될 수 있다.
     _brandNameEditFocusNode.unfocus();
     setState(() {
+      if (_insertingBrand && _editingIndex! < _brands.length) {
+        _brands.removeAt(_editingIndex!);
+      }
+      _insertingBrand = false;
+      _insertActionIndex = null;
       _editingIndex = null;
       _brandNameEditController.clear();
     });
@@ -1889,6 +1940,9 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
     if (nextName.isEmpty) {
       return false;
     }
+    if (_insertingBrand) {
+      return true;
+    }
     return nextName != _brands[editingIndex].brandName.trim();
   }
 
@@ -1903,7 +1957,102 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
       debugLog('brandNameEdit submitSkipped editingIndex=$editingIndex outOfRange');
       return;
     }
+    if (_insertingBrand) {
+      await _insertBrandName(editingIndex, value.trim());
+      return;
+    }
     await _updateBrandName(_brands[editingIndex], value.trim());
+  }
+
+  Future<void> _insertBrandName(int insertIndex, String brandName) async {
+    final customerId = Customer.instance?.customerId;
+    debugLog('insertBrandName start index=$insertIndex customerId=$customerId name=$brandName');
+    if (!_insertingBrand || _editingIndex != insertIndex || customerId == null) {
+      debugLog('insertBrandName aborted inserting=$_insertingBrand editingIndex=$_editingIndex expected=$insertIndex customerId=$customerId');
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        content: Text("'$brandName' 브랜드를 추가하시겠습니까?"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('취소'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('확인'),
+          ),
+        ],
+      ),
+    );
+
+    if (!mounted) {
+      debugLog('insertBrandName aborted unmounted after dialog');
+      return;
+    }
+
+    if (confirmed != true) {
+      debugLog('insertBrandName cancelledByUser index=$insertIndex keepEditing');
+      _brandNameEditFocusNode.requestFocus();
+      return;
+    }
+
+    Brand inserted;
+    try {
+      inserted = await BrandDAO.insertByBrandName(
+        customerId,
+        brandName,
+        insertIndex + 1,
+      );
+    } catch (e) {
+      debugLog('insertBrandName failed index=$insertIndex error=$e');
+      if (mounted) {
+        await showDialog<void>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            title: const Text('브랜드 추가 실패'),
+            content: const Text('브랜드 추가에 실패했습니다.'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('확인'),
+              ),
+            ],
+          ),
+        );
+        if (mounted) {
+          _brandNameEditFocusNode.requestFocus();
+        }
+      }
+      return;
+    }
+
+    if (!mounted) {
+      debugLog('insertBrandName aborted unmounted after insert');
+      return;
+    }
+
+    if (!_insertingBrand || _editingIndex != insertIndex) {
+      debugLog('insertBrandName skippedStateUpdate editingIndexChanged inserting=$_insertingBrand editingIndex=$_editingIndex expected=$insertIndex');
+      return;
+    }
+
+    setState(() {
+      _brands
+        ..removeAt(insertIndex)
+        ..insert(insertIndex, inserted);
+      _brands = List<Brand>.from(_brands);
+      Brand.setDatas(List<Brand>.from(_brands));
+      _insertingBrand = false;
+      _insertActionIndex = null;
+      _editingIndex = null;
+      _brandNameEditController.clear();
+    });
+
+    debugLog('insertBrandName done brandId=${inserted.brandId} index=$insertIndex name=${inserted.brandName}');
   }
 
   Future<void> _updateBrandName(Brand brand, String brandName) async {

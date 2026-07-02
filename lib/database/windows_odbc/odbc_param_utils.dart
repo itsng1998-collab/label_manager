@@ -57,6 +57,11 @@ OdbcPreparedStatement prepareStatement(
         index++;
         continue;
       }
+      if (sql.codeUnitAt(index + 1) == 64) {
+        buffer.write('@@');
+        index += 2;
+        continue;
+      }
       final nextCode = sql.codeUnitAt(index + 1);
       if (!isIdentifierStart(nextCode)) {
         buffer.write(char);
