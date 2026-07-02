@@ -29,4 +29,8 @@
 		"editor.formatOnType": false,
     	"editor.rulers": [130],
 	},
+	// Copilot Chat 에이전트 편집 완료 후 '유지' 버튼을 자동 수락.
+	// 양수(ms) 설정 시 해당 시간 후 pending edits 자동 accept.
+	// 값을 크게 하면 수락 전 검토 시간이 늘어나고, 0이면 즉시 수락.
+	"chat.editing.autoAcceptDelay": 4000,
 }
