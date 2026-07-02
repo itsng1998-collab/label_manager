@@ -210,7 +210,7 @@
   - 확인 결과 기존 `AlertDialog.actions` 기반 경고/확인 다이얼로그는 이미 `취소`/`확인` 순서 유지.
   - 검증 완료: `flutter analyze lib/page_label_sheet/label_sheet_workbench.dart lib/page_login/startup_dialog.dart --no-fatal-warnings --no-fatal-infos` 성공.
   - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/page_label_sheet/label_sheet_workbench.dart`, `lib/page_login/startup_dialog.dart` (`lib/core/app.dart` 제외).
-  - 구현 커밋: 예정.
+  - 구현 커밋: `53d134c` (`다이얼로그 하단 버튼 순서 통일`).
 
 - **ODBC 효율 개선**: `LabelSizeDAO.SelectSql`이 목록 조회에서도 `RICH_FORM_DATA`를 항상 가져오는 문제. 목록/상세 조회 분리, 목록에서 `FORM_DATA` 제외, 선택/시트 진입 시 상세 조회로 보강.
 
