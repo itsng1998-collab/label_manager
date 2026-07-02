@@ -1898,18 +1898,28 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
       debugLog('brandNameEdit submitSkipped canSubmit=false');
       return;
     }
-    await _updateBrandName(value.trim());
+    final editingIndex = _editingIndex;
+    if (editingIndex == null || editingIndex >= _brands.length) {
+      debugLog('brandNameEdit submitSkipped editingIndex=$editingIndex outOfRange');
+      return;
+    }
+    await _updateBrandName(_brands[editingIndex], value.trim());
   }
 
-  Future<void> _updateBrandName(String brandName) async {
+  Future<void> _updateBrandName(Brand brand, String brandName) async {
     final editingIndex = _editingIndex;
-    debugLog('updateBrandName start editingIndex=$editingIndex brandName=$brandName');
+    debugLog(
+      'updateBrandName start editingIndex=$editingIndex '
+      'brandId=${brand.brandId} old=${brand.brandName} new=$brandName',
+    );
+
     if (editingIndex == null || editingIndex >= _brands.length) {
       debugLog('updateBrandName aborted editingIndex=null or out of range');
       return;
     }
-    final brand = _brands[editingIndex];
+
     debugLog('updateBrandName confirm dialog brandId=${brand.brandId} old=${brand.brandName} new=$brandName');
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -1926,10 +1936,12 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
         ],
       ),
     );
+
     if (!mounted) {
       debugLog('updateBrandName aborted unmounted after dialog');
       return;
     }
+
     if (confirmed != true) {
       // 확인 다이얼로그에서 취소 → 편집 모드를 유지한다.
       // 사용자가 입력한 내용을 보존해 다시 수정하거나 ESC/Enter 로 직접 닫을 수 있도록 한다.
@@ -1937,14 +1949,18 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
       _brandNameEditFocusNode.requestFocus();
       return;
     }
+
     debugLog('updateBrandName confirmed brandId=${brand.brandId} old=${brand.brandName} new=$brandName');
     // TODO: 실제 CRUD 호출 후 결과에 따라 아래 setState 실행 여부를 결정한다.
+
     const updateSucceeded = true;
     debugLog('updateBrandName result succeeded=$updateSucceeded editingIndexNow=$_editingIndex expectedIndex=$editingIndex');
+
     if (!updateSucceeded || _editingIndex != editingIndex) {
       debugLog('updateBrandName skippedStateUpdate succeeded=$updateSucceeded');
       return;
     }
+
     setState(() {
       _brands[editingIndex] = Brand(
         brandId: brand.brandId,
@@ -1955,6 +1971,7 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
       _editingIndex = null;
       _brandNameEditController.clear();
     });
+
     debugLog('updateBrandName done brandId=${brand.brandId} newName=$brandName');
   }
 

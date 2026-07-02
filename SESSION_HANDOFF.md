@@ -79,6 +79,12 @@
   - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/page_label_sheet/label_sheet_workbench.dart` (`lib/core/app.dart`, `lib/home_page_manager.dart` 기존 dirty 제외).
   - 구현 커밋: `65cafcc` (`RTF 스낵바 디버깅 로그 추가`).
 
+- **완료 (2026-07-02)**: 브랜드 설정 다이얼로그 인라인 에디터 수정 시 `_updateBrandName`에 원본 `Brand` 객체와 수정 이름을 함께 전달하도록 변경.
+  - `lib/home_page_manager.dart` `_submitBrandNameEdit`: 현재 편집 인덱스의 원본 `Brand`를 캡처해 `_updateBrandName(brand, newName)` 호출.
+  - `lib/home_page_manager.dart` `_updateBrandName`: 시그니처를 `(Brand brand, String brandName)`으로 변경하고 전달받은 원본 객체 기준으로 확인/상태 갱신.
+  - 검증 완료: `flutter analyze lib/home_page_manager.dart --no-fatal-warnings --no-fatal-infos` 성공.
+  - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/home_page_manager.dart`의 해당 hunk만. 기존 dirty 파일(`lib/core/app.dart`, `lib/models/brand.dart`, `lib/models/label_size.dart`) 및 기존 `home_page_manager.dart` dirty hunk는 제외.
+
 - **ODBC 효율 개선**: `LabelSizeDAO.SelectSql`이 목록 조회에서도 `RICH_FORM_DATA`를 항상 가져오는 문제. 목록/상세 조회 분리, 목록에서 `FORM_DATA` 제외, 선택/시트 진입 시 상세 조회로 보강.
 
 ## 완료된 기능 요약
