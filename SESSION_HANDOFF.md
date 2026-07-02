@@ -66,6 +66,17 @@
 
 ### 대기/추후 작업
 
+- **완료 (2026-07-03)**: XLSX 줄바꿈 셀 FortuneSheet wrap 정규값 보정.
+  - 재현 첨부 확인: `제조원` 주소 두 번째 줄과 13행 안내문 두 번째 줄이 변환본에서 보이지 않음.
+  - 최신 로그 `.tmp/log/app_2026-07-03_00-24-50.log`: C8/A13 값의 `\n`과 충분한 rowHeight는 apply 단계까지 보존됨.
+  - 원인 확인: FortuneSheet `FortuneCell.normalizedTextWrap`은 `0/1/2`만 유효하게 보며, 실제 wrap은 `2`. 기존 importer의 `tb=wrap`은 렌더러에서 `0`으로 정규화되어 wrap 미적용.
+  - `lib/page_label_sheet/label_sheet_xlsx_import.dart`: Excel `wrapText` 및 줄바꿈 포함 셀을 `tb=2`로 저장하도록 수정.
+  - `lib/page_label_sheet/label_sheet_xlsx_import.dart`: `worksheet json layout` 로그에 `lineBreakCells`를 별도 추가해 C8/A13 같은 줄바꿈 셀의 `tb`, 줄 수, 병합, rowHeight, fontSize가 앞쪽 빈 wrap 셀에 묻히지 않도록 보강.
+  - `test/label_sheet_xlsx_import_test.dart`: `textWrap`과 `normalizedTextWrap`이 `2`인지 검증하도록 회귀 테스트 갱신.
+  - 검증 완료: `test/label_sheet_xlsx_import_test.dart` 3개 성공.
+  - 검증 완료: `flutter analyze lib/page_label_sheet/label_sheet_xlsx_import.dart test/label_sheet_xlsx_import_test.dart --no-fatal-warnings --no-fatal-infos` 성공.
+  - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/page_label_sheet/label_sheet_xlsx_import.dart`, `test/label_sheet_xlsx_import_test.dart` (`lib/core/app.dart` 기존 dirty 제외).
+
 - **완료 (2026-07-03)**: XLSX 원본 대비 변환본 긴 텍스트 줄바꿈 누락 보정 및 진단 로그 추가.
   - 첨부 비교 확인: `제조원`, 영양성분 안내문처럼 줄바꿈이 필요한 긴 텍스트가 변환본에서 한 줄로 잘리거나 다음 줄이 보이지 않는 차이 확인.
   - 최신 로그 `.tmp/log/app_2026-07-03_00-18-00.log`: A8/A13 값 자체의 `\n`은 apply 단계까지 보존됨. 따라서 값 누락보다 wrap 적용/레이아웃 진단 부족이 원인 후보.

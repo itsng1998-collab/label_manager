@@ -237,6 +237,7 @@ Map<String, Object?> _sheetJsonFromWorksheet(
   final valueSamples = <String>[];
   final styleSamples = <String>[];
   final wrapSamples = <String>[];
+  final lineBreakSamples = <String>[];
   var maxRow = 0;
   var maxColumn = 0;
 
@@ -334,6 +335,7 @@ Map<String, Object?> _sheetJsonFromWorksheet(
       );
       final merge = mergeMap['${coord.row}_${coord.column}'];
       final hyperlink = hyperlinks['${coord.row}_${coord.column}'];
+      final hasLineBreak = cellValue.text?.contains('\n') ?? false;
       final cellJson = <String, Object?>{
         ...style.cellJson,
         ...metadata.cellExtra(ref),
@@ -343,8 +345,8 @@ Map<String, Object?> _sheetJsonFromWorksheet(
         if (merge != null) 'mc': merge,
         if (hyperlink != null) 'hl': hyperlink,
       };
-      if (cellValue.text?.contains('\n') ?? false) {
-        cellJson['tb'] = 'wrap';
+      if (hasLineBreak) {
+        cellJson['tb'] = '2';
       }
       final inlineRuns = metadata.applyRunExtra(ref, cellValue.inlineRuns);
       if (inlineRuns != null && inlineRuns.isNotEmpty) {
@@ -369,11 +371,22 @@ Map<String, Object?> _sheetJsonFromWorksheet(
           '${_coordLabel(coord.row, coord.column)}=${_logText(cellValue.text!)}',
         );
       }
-      if (cellJson['tb'] == 'wrap' && wrapSamples.length < 24) {
+      if (cellJson['tb'] == '2' && wrapSamples.length < 24) {
         wrapSamples.add(
           '${_coordLabel(coord.row, coord.column)} '
           'len=${cellValue.text?.length ?? 0} '
           'lines=${_lineCount(cellValue.text)} '
+          'merge=${merge == null ? '-' : '${merge['rs']}x${merge['cs']}'} '
+          'rowHeight=${rowHeights['${coord.row}']} '
+          'fontSize=${cellJson['fs']}',
+        );
+      }
+      if (hasLineBreak && lineBreakSamples.length < 24) {
+        lineBreakSamples.add(
+          '${_coordLabel(coord.row, coord.column)} '
+          'len=${cellValue.text?.length ?? 0} '
+          'lines=${_lineCount(cellValue.text)} '
+          'tb=${cellJson['tb']} '
           'merge=${merge == null ? '-' : '${merge['rs']}x${merge['cs']}'} '
           'rowHeight=${rowHeights['${coord.row}']} '
           'fontSize=${cellJson['fs']}',
@@ -438,6 +451,7 @@ Map<String, Object?> _sheetJsonFromWorksheet(
   _xlsxImportLog(
     'worksheet json layout rowHeights=${_mapSample(rowHeights)} '
     'columnWidths=${_mapSample(columnWidths)} '
+    'lineBreakCells=${lineBreakSamples.join(' | ')} '
     'wrapCells=${wrapSamples.join(' | ')}',
   );
 
@@ -771,7 +785,7 @@ class _XlsxCellStyle {
       if (horizontalAlign != null) 'ht': horizontalAlign,
       if (verticalAlign != null)
         'vt': verticalAlign == 'center' ? 'middle' : verticalAlign,
-      if (wrapText) 'tb': 'wrap',
+      if (wrapText) 'tb': '2',
       if (textRotation != null) 'rt': textRotation,
       if (quotePrefix) 'qp': true,
       if (script != null) 'script': script,

@@ -30,7 +30,8 @@ void main() {
     expect(a1.background, const Color(0xff00ff00));
     expect(a1.horizontalAlign, 'center');
     expect(a1.verticalAlign, 'middle');
-    expect(a1.textWrap, 'wrap');
+    expect(a1.textWrap, '2');
+    expect(a1.normalizedTextWrap, '2');
     expect(a1.cellType?.format, '0.00');
     expect(a1.merge?.rowSpan, 2);
     expect(a1.merge?.columnSpan, 2);
@@ -52,7 +53,8 @@ void main() {
 
     final a3 = sheet.cells[const FortuneCellCoord(2, 0)]!;
     expect(a3.value, '첫 줄\n둘째 줄');
-    expect(a3.textWrap, 'wrap');
+    expect(a3.textWrap, '2');
+    expect(a3.normalizedTextWrap, '2');
 
     final e1 = sheet.cells[const FortuneCellCoord(0, 4)]!;
     expect(e1.merge?.row, 0);
