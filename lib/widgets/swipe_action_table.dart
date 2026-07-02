@@ -528,21 +528,14 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
     int? rowIndex,
   }) {
     return Container(
-      // 셀 콘텐츠와 액션 레일 사이 구분선
+      // 셀 콘텐츠와 액션 레일 사이 구분선 (border 는 내부 영역에 그려져 폭 불변)
       decoration: const BoxDecoration(
         border: Border(left: BorderSide(color: Color(0xffd1d5db))),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          for (var i = 0; i < actions.length; i++) ...[
-            // 버튼 사이 구분선 (첫 번째 제외)
-            if (i > 0)
-              SizedBox(
-                width: 1,
-                height: widget.rowHeight,
-                child: ColoredBox(color: const Color(0x28000000)),
-              ),
+          for (var i = 0; i < actions.length; i++)
             Builder(
               builder: (context) {
                 final action = actions[i];
@@ -568,6 +561,8 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
                 final backgroundColor = isPressed
                     ? (Color.lerp(action.backgroundColor, Colors.black, 0.22) ?? action.backgroundColor)
                     : action.backgroundColor;
+                // 버튼 사이 구분선: SizedBox 대신 오른쪽 border 사용 → 폭 추가 없음
+                final bool hasSeparator = i < actions.length - 1;
                 // disabled 는 전체 Opacity 로 처리해 색상 정체성 유지
                 return IgnorePointer(
                   ignoring: !isEnabled,
@@ -582,7 +577,14 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
                           color: Colors.transparent,
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 100),
-                            color: backgroundColor,
+                            decoration: BoxDecoration(
+                              color: backgroundColor,
+                              border: hasSeparator
+                                  ? const Border(
+                                      right: BorderSide(color: Color(0x30000000)),
+                                    )
+                                  : null,
+                            ),
                             child: Transform.translate(
                               offset: isPressed ? const Offset(0, 1) : Offset.zero,
                               child: IconButton(
@@ -603,7 +605,6 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
                 );
               },
             ),
-          ],
         ],
       ),
     );
