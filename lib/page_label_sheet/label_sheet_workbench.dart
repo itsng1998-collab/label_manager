@@ -1053,6 +1053,11 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
         return;
       }
       if (visible) {
+        // RTF 변환 시작: '브랜드 데이터를 불러오고 있습니다...' 등
+        // 이전 스낵바를 모두 제거한 뒤 RTF 스낵바를 표시한다.
+        // clearSnackBars() 없이 showSnackBar()만 하면 이전 스낵바가 큐에서
+        // 대기하다가 RTF 스낵바가 닫힌 후 다시 나타나는 문제가 생긴다.
+        messenger.clearSnackBars();
         showSnackBar(
           context,
           'RTF를 변환 중입니다...',

@@ -255,6 +255,11 @@ class _HomePageManagerState extends State<HomePageManager> {
     bool showProgress = false,
   }) async {
     if (showProgress && mounted) {
+      // 이전 스낵바(RTF 변환 중 등)가 큐에 남아 있으면 모두 제거한 뒤 표시한다.
+      // clearSnackBars() 를 먼저 호출하지 않으면 기존 스낵바가 현재 표시 중일 때
+      // 새 스낵바가 큐에 쌓이고, finally 의 hideCurrentSnackBar() 가 기존 것만
+      // 닫아 '브랜드 데이터...' 가 큐에서 다시 나타나 무한 표시되는 버그가 생긴다.
+      ScaffoldMessenger.of(context).clearSnackBars();
       showSnackBar(
         context,
         '브랜드 데이터를 불러오고 있습니다...',
@@ -334,9 +339,9 @@ class _HomePageManagerState extends State<HomePageManager> {
       debugLog(END);
       // 다이얼로그 더블클릭 차단 해제: 로드가 완료(또는 중단)될 때 항상 해제한다.
       _brandDialogBusyNotifier.value = false;
-      if (showProgress && mounted) {
-        ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      }
+      // 스낵바 닫기는 시트가 실제로 준비된 시점(_handleCommonLabelSheetReady)에 수행한다.
+      // 여기서 hideCurrentSnackBar() 를 호출하면 아직 DB 조회/_resetTabs 가 진행 중인
+      // 상태에서 스낵바가 사라지거나, RTF 변환 스낵바로 전환되기 전에 닫혀버린다.
     }
   }
 
@@ -909,6 +914,14 @@ class _HomePageManagerState extends State<HomePageManager> {
       '${labelSize?.labelSizeId ?? 'none'}:${rtf.length}:${rtf.hashCode}';
 
   void _handleCommonLabelSheetReady() {
+    // 브랜드 변경으로 표시된 '브랜드 데이터를 불러오고 있습니다...' 스낵바를
+    // 시트가 실제로 준비된 시점에 닫는다(RTF 여부 무관).
+    // RTF 있을 경우: '브랜드 데이터...' → (RTF 시작 시 clearSnackBars) →
+    //   'RTF를 변환 중입니다...' → 이 시점엔 RTF 스낵바를 닫음.
+    // RTF 없을 경우: '브랜드 데이터...' → 이 시점에 닫음.
+    if (mounted) {
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    }
     if (!_commonLabelTabActivated) {
       return;
     }
