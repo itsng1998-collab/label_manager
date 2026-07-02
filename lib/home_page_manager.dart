@@ -150,7 +150,12 @@ class _HomePageManagerState extends State<HomePageManager> {
     if (oldWidget.selectedBrand?.brandId != widget.selectedBrand?.brandId) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        _scheduleLabelSizeLoad(widget.selectedBrand, selectFirstLabel: true);
+        // showProgress: true → 브랜드 변경 시 스낙바 표시
+        _scheduleLabelSizeLoad(
+          widget.selectedBrand,
+          selectFirstLabel: true,
+          showProgress: true,
+        );
       });
     }
   }
@@ -245,7 +250,18 @@ class _HomePageManagerState extends State<HomePageManager> {
   Future<void> _scheduleLabelSizeLoad(
     Brand? brand, {
     bool selectFirstLabel = false,
+    // true 이면 로드 중 스낙바 '브랜드 데이터를 불러오고 있습니다...' 표시.
+    // _loadBrands()는 이미 자체 스낙바를 관리하므로 false(기본값)를 사용한다.
+    bool showProgress = false,
   }) async {
+    if (showProgress && mounted) {
+      showSnackBar(
+        context,
+        '브랜드 데이터를 불러오고 있습니다...',
+        type: SnackBarType.inProgress,
+        duration: const Duration(days: 1),
+      );
+    }
     try {
       debugLog(START);
 
@@ -318,6 +334,9 @@ class _HomePageManagerState extends State<HomePageManager> {
       debugLog(END);
       // 다이얼로그 더블클릭 차단 해제: 로드가 완료(또는 중단)될 때 항상 해제한다.
       _brandDialogBusyNotifier.value = false;
+      if (showProgress && mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      }
     }
   }
 
