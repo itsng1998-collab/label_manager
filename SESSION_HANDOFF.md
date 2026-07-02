@@ -137,6 +137,7 @@
   - `lib/models/brand.dart` `BrandDAO.deleteByBrandId`: `RICH_BRAND_ID` + `RICH_CUSTOMER_ID` 조건 삭제, 삭제된 `RICH_BRAND_ORDER` 이후 행 order -1 재정렬을 하나의 SQL Server 트랜잭션으로 처리.
   - 검증 완료: `flutter analyze lib/models/brand.dart lib/home_page_manager.dart --no-fatal-warnings --no-fatal-infos` 성공.
   - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/home_page_manager.dart`, `lib/models/brand.dart` (`lib/core/app.dart`, `doc/BM_RICH_BRAND.sql` 제외).
+  - 구현 커밋: `d4a5a89` (`브랜드 행 삭제 처리 구현`).
 
 - **ODBC 효율 개선**: `LabelSizeDAO.SelectSql`이 목록 조회에서도 `RICH_FORM_DATA`를 항상 가져오는 문제. 목록/상세 조회 분리, 목록에서 `FORM_DATA` 제외, 선택/시트 진입 시 상세 조회로 보강.
 
