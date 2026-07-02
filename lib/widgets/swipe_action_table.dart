@@ -477,8 +477,9 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
   }
 
   Widget _buildRowNumber(int index) {
-    final rowNumberText = widget.rowNumberText?.call(widget.rows[index], index) ?? '${index + 1}';
-    return Container(
+    final rowNumberText =
+        widget.rowNumberText?.call(widget.rows[index], index) ?? '${index + 1}';
+    final rowNumber = Container(
       height: widget.rowHeight,
       decoration: const BoxDecoration(
         color: _headerColor,
@@ -494,6 +495,91 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
         style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
       ),
     );
+    final onRowReorder = widget.onRowReorder;
+    if (!widget.rowReorderEnabled || onRowReorder == null) {
+      return rowNumber;
+    }
+    return _buildRowReorderTarget(
+      index: index,
+      width: widget.rowNumberWidth,
+      child: rowNumber,
+      feedback: rowNumber,
+    );
+  }
+
+  Widget _buildRowReorderTarget({
+    required int index,
+    required double width,
+    required Widget child,
+    required Widget feedback,
+  }) {
+    final onRowReorder = widget.onRowReorder;
+    if (!widget.rowReorderEnabled || onRowReorder == null) {
+      return child;
+    }
+    return DragTarget<int>(
+      onWillAcceptWithDetails: (details) => details.data != index,
+      onMove: (_) => _updateRowDropTarget(index),
+      onLeave: (_) => _clearRowDropTarget(index),
+      onAcceptWithDetails: (details) {
+        _acceptRowReorder(details.data, index);
+      },
+      builder: (context, candidateData, rejectedData) {
+        final draggingIndex = _rowDraggingIndex;
+        final isDraggingRow = draggingIndex == index;
+        final visibleChild = Opacity(
+          opacity: isDraggingRow ? 0.35 : 1,
+          child: child,
+        );
+        final showDropGap = draggingIndex != null &&
+            _rowDropTargetIndex == index &&
+            draggingIndex != index;
+        final decorated = Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 140),
+              curve: Curves.easeOutCubic,
+              width: width,
+              height: showDropGap ? widget.rowHeight : 0,
+              decoration: const BoxDecoration(
+                color: Color(0x1A0E2F66),
+                border: Border(
+                  top: BorderSide(color: Color(0xFF0E2F66), width: 2),
+                ),
+              ),
+            ),
+            visibleChild,
+          ],
+        );
+        return Draggable<int>(
+          data: index,
+          axis: Axis.vertical,
+          onDragStarted: () => _startRowDrag(index),
+          onDragEnd: (_) => _endRowDrag(),
+          onDraggableCanceled: (_, _) => _endRowDrag(),
+          feedback: Material(
+            color: Colors.transparent,
+            child: Opacity(opacity: 0.82, child: feedback),
+          ),
+          childWhenDragging: child,
+          child: decorated,
+        );
+      },
+    );
+  }
+
+  void _acceptRowReorder(int fromIndex, int toIndex) {
+    final onRowReorder = widget.onRowReorder;
+    if (onRowReorder == null) {
+      _endRowDrag();
+      return;
+    }
+    final insertIndex = fromIndex < toIndex ? toIndex - 1 : toIndex;
+    if (fromIndex != insertIndex) {
+      onRowReorder(fromIndex, toIndex);
+    }
+    _endRowDrag();
   }
 
   Widget _buildCell(T row, int index, List<double> widths) {
@@ -816,55 +902,11 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
     if (!widget.rowReorderEnabled || onRowReorder == null || isRowContentInteractive) {
       return rowBox;
     }
-    return DragTarget<int>(
-      onWillAcceptWithDetails: (details) => details.data != index,
-      onMove: (_) => _updateRowDropTarget(index),
-      onLeave: (_) => _clearRowDropTarget(index),
-      onAcceptWithDetails: (details) {
-        final fromIndex = details.data;
-        final insertIndex = fromIndex < index ? index - 1 : index;
-        if (fromIndex != insertIndex) {
-          onRowReorder(fromIndex, index);
-        }
-        _endRowDrag();
-      },
-      builder: (context, candidateData, rejectedData) {
-        final draggingIndex = _rowDraggingIndex;
-        final showDropGap = draggingIndex != null &&
-            _rowDropTargetIndex == index &&
-            draggingIndex != index;
-        final decorated = Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 140),
-              curve: Curves.easeOutCubic,
-              width: contentWidth,
-              height: showDropGap ? widget.rowHeight : 0,
-              decoration: const BoxDecoration(
-                color: Color(0x1A0E2F66),
-                border: Border(
-                  top: BorderSide(color: Color(0xFF0E2F66), width: 2),
-                ),
-              ),
-            ),
-            rowBox,
-          ],
-        );
-        return Draggable<int>(
-          data: index,
-          axis: Axis.vertical,
-          onDragStarted: () => _startRowDrag(index),
-          onDragEnd: (_) => _endRowDrag(),
-          onDraggableCanceled: (_, _) => _endRowDrag(),
-          feedback: Material(
-            color: Colors.transparent,
-            child: Opacity(opacity: 0.82, child: rowBox),
-          ),
-          childWhenDragging: Opacity(opacity: 0.35, child: rowBox),
-          child: decorated,
-        );
-      },
+    return _buildRowReorderTarget(
+      index: index,
+      width: contentWidth,
+      child: rowBox,
+      feedback: rowBox,
     );
   }
 

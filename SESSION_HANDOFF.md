@@ -186,6 +186,16 @@
   - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/widgets/swipe_action_table.dart`, `test/swipe_action_table_test.dart` (`lib/core/app.dart` 제외).
   - 구현 커밋: `9f1897f` (`라벨 설정 행 드래그 이동 개선`).
 
+- **완료 (2026-07-02)**: 라벨 설정 테이블 행 헤더 reorder 동기화, 순서 변경 중 스와이프 비활성화, 하단 순서 변경 영역 표시 수정.
+  - `lib/widgets/swipe_action_table.dart`: 행 헤더와 데이터 행이 같은 `_buildRowReorderTarget`을 사용하도록 공용화. 행 헤더도 드래그/드랍 가능하며, 드래그 중 같은 행 index의 헤더와 데이터 행이 함께 흐려지고 드랍 간격 애니메이션 공유.
+  - `lib/home_page_manager.dart` `_LabelSettingsDialogState`: 순서 변경 감지를 `labelSizeId` 단독 비교에서 객체 identity + `labelSizeId` + `labelSizeName` 비교로 강화해 ID가 비어도 하단 `순서 변경` 영역이 표시되도록 수정.
+  - 라벨 순서 변경 상태에서는 `SwipeActionTable.rowSwipeEnabled`를 false로 전달해 모든 컬럼 스와이프 수정/삽입/삭제를 비활성화.
+  - `test/swipe_action_table_test.dart`: 행 헤더 드래그가 데이터 행 reorder와 같은 경로로 동작하는 회귀 테스트 추가.
+  - 검증 완료: `test/swipe_action_table_test.dart` 6개 성공.
+  - 검증 완료: `flutter analyze lib/widgets/swipe_action_table.dart lib/home_page_manager.dart test/swipe_action_table_test.dart --no-fatal-warnings --no-fatal-infos` 성공.
+  - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/home_page_manager.dart`, `lib/widgets/swipe_action_table.dart`, `test/swipe_action_table_test.dart` (`lib/core/app.dart` 제외).
+  - 구현 커밋: 예정.
+
 - **ODBC 효율 개선**: `LabelSizeDAO.SelectSql`이 목록 조회에서도 `RICH_FORM_DATA`를 항상 가져오는 문제. 목록/상세 조회 분리, 목록에서 `FORM_DATA` 제외, 선택/시트 진입 시 상세 조회로 보강.
 
 ## 완료된 기능 요약

@@ -1551,7 +1551,11 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
       return true;
     }
     for (var index = 0; index < _labels.length; index += 1) {
-      if (_labels[index].labelSizeId != _originalLabels[index].labelSizeId) {
+      final label = _labels[index];
+      final originalLabel = _originalLabels[index];
+      if (!identical(label, originalLabel) ||
+          label.labelSizeId != originalLabel.labelSizeId ||
+          label.labelSizeName != originalLabel.labelSizeName) {
         return true;
       }
     }
@@ -1620,9 +1624,11 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
                       rows: _labels,
                       fillLastColumn: true,
                       autoFitColumns: false,
-                      rowSwipeEnabled: true,
+                      rowSwipeEnabled: !_hasOrderChanges,
                       keepRowContentOnSwipe: true,
-                      rowTooltip: '행 드래그로 순서 변경, 컬럼 왼쪽 스와이프 수정/삽입/삭제',
+                      rowTooltip: _hasOrderChanges
+                          ? '순서 변경 중에는 스와이프 수정/삽입/삭제를 사용할 수 없습니다'
+                          : '행 드래그로 순서 변경, 컬럼 왼쪽 스와이프 수정/삽입/삭제',
                       showActionsWhenEmpty: true,
                       actions: _labelRowActions(),
                       emptyActions: _labelEmptyActions(),

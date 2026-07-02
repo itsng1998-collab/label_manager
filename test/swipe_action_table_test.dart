@@ -62,6 +62,7 @@ Future<void> _pumpReorderTable(WidgetTester tester) async {
                 rows: rows,
                 autoFitColumns: false,
                 rowReorderEnabled: true,
+                rowNumberText: (row, _) => 'No ${row.code[0]}',
                 onRowReorder: (fromIndex, toIndex) {
                   setState(() {
                     final insertIndex = fromIndex < toIndex
@@ -214,5 +215,27 @@ void main() {
 
     expect(brandBTop, lessThan(brandATop));
     expect(brandATop, lessThan(brandCTop));
+  });
+
+  testWidgets('row header drag uses shared row reorder behavior', (
+    tester,
+  ) async {
+    await _pumpReorderTable(tester);
+
+    final start = tester.getCenter(find.text('No A'));
+    final target = tester.getCenter(find.text('No C'));
+    final gesture = await tester.startGesture(start);
+    await tester.pump();
+    await gesture.moveTo(target);
+    await tester.pump(const Duration(milliseconds: 180));
+    await gesture.up();
+    await tester.pumpAndSettle();
+
+    final rowBTop = tester.getTopLeft(find.text('No B')).dy;
+    final rowATop = tester.getTopLeft(find.text('No A')).dy;
+    final rowCTop = tester.getTopLeft(find.text('No C')).dy;
+
+    expect(rowBTop, lessThan(rowATop));
+    expect(rowATop, lessThan(rowCTop));
   });
 }
