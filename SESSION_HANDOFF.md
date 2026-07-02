@@ -232,7 +232,7 @@
   - `lib/home_page_manager.dart` `_LabelSettingsFooterButton`: `backgroundColor`를 흰색 `0xffffffff`에서 라이트그레이 `0xFFF1F3F4`로 변경.
   - 검증 완료: `flutter analyze lib/home_page_manager.dart --no-fatal-warnings --no-fatal-infos` 성공.
   - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/home_page_manager.dart` (`lib/core/app.dart` 제외).
-  - 구현 커밋: 예정.
+  - 구현 커밋: `bee4d5c` (`라벨 설정 순서 버튼 배경색 조정`).
 
 - **ODBC 효율 개선**: `LabelSizeDAO.SelectSql`이 목록 조회에서도 `RICH_FORM_DATA`를 항상 가져오는 문제. 목록/상세 조회 분리, 목록에서 `FORM_DATA` 제외, 선택/시트 진입 시 상세 조회로 보강.
 
