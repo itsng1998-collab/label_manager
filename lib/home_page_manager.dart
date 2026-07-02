@@ -72,6 +72,7 @@ class _HomePageManagerState extends State<HomePageManager> {
   bool _commonLabelPreviewHiddenForSheetDialog = false;
 
   OverlayEntry? _brandSettingsOverlayEntry;
+  OverlayEntry? _labelSettingsOverlayEntry;
   // 브랜드 설정 다이얼로그에서 브랜드를 선택한 후 라벨 시트 로드가 완료될 때까지
   // 다이얼로그의 더블클릭을 차단하기 위한 플래그.
   final ValueNotifier<bool> _brandDialogBusyNotifier = ValueNotifier(false);
@@ -506,9 +507,27 @@ class _HomePageManagerState extends State<HomePageManager> {
     Overlay.of(context).insert(entry);
   }
 
+  void _openLabelSettingsDialog() {
+    if (_labelSettingsOverlayEntry != null) return;
+    late final OverlayEntry entry;
+    entry = OverlayEntry(
+      builder: (_) => _LabelSettingsDialog(
+        labels: LabelSize.datas ?? const <LabelSize>[],
+        onClose: _closeLabelSettingsDialog,
+      ),
+    );
+    _labelSettingsOverlayEntry = entry;
+    Overlay.of(context).insert(entry);
+  }
+
   void _closeBrandSettingsDialog() {
     _brandSettingsOverlayEntry?.remove();
     _brandSettingsOverlayEntry = null;
+  }
+
+  void _closeLabelSettingsDialog() {
+    _labelSettingsOverlayEntry?.remove();
+    _labelSettingsOverlayEntry = null;
   }
 
   bool _activateCommonLabelTabIfNeeded() {
@@ -960,6 +979,8 @@ class _HomePageManagerState extends State<HomePageManager> {
     _tabSearchController.dispose();
     _brandSettingsOverlayEntry?.remove();
     _brandSettingsOverlayEntry = null;
+    _labelSettingsOverlayEntry?.remove();
+    _labelSettingsOverlayEntry = null;
     _brandDialogBusyNotifier.dispose();
     super.dispose();
   }
@@ -1114,7 +1135,9 @@ class _HomePageManagerState extends State<HomePageManager> {
                 onBrandSettingsPressed: settingsEnabled
                   ? _openBrandSettingsDialog
                   : null,
-                onLabelSettingsPressed: settingsEnabled ? () {} : null,
+                onLabelSettingsPressed: settingsEnabled
+                  ? _openLabelSettingsDialog
+                  : null,
               brandItems: brandItems,
               resolvedBrand: resolvedBrand,
               labelItems: labelItems,
@@ -1485,6 +1508,235 @@ class _PlaceholderTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(child: Text('$title (준비 중)'));
+  }
+}
+
+class _LabelSettingsDialog extends StatefulWidget {
+  const _LabelSettingsDialog({
+    required this.labels,
+    required this.onClose,
+  });
+
+  final List<LabelSize> labels;
+  final VoidCallback onClose;
+
+  @override
+  State<_LabelSettingsDialog> createState() => _LabelSettingsDialogState();
+}
+
+class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
+  static const double _dialogWidth = 500;
+
+  late List<LabelSize> _labels;
+  late List<LabelSize> _originalLabels;
+
+  @override
+  void initState() {
+    super.initState();
+    _labels = List<LabelSize>.from(widget.labels);
+    _originalLabels = List<LabelSize>.from(widget.labels);
+  }
+
+  @override
+  void didUpdateWidget(covariant _LabelSettingsDialog oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.labels, widget.labels) && !_hasOrderChanges) {
+      _labels = List<LabelSize>.from(widget.labels);
+      _originalLabels = List<LabelSize>.from(widget.labels);
+    }
+  }
+
+  bool get _hasOrderChanges {
+    if (_labels.length != _originalLabels.length) {
+      return true;
+    }
+    for (var index = 0; index < _labels.length; index += 1) {
+      if (_labels[index].labelSizeId != _originalLabels[index].labelSizeId) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final dialogHeight = MediaQuery.sizeOf(context).height * 0.7;
+    debugLog('labelSettingsDialog build labels=${_labels.length} orderChanged=$_hasOrderChanges');
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Container(
+          width: _dialogWidth,
+          height: dialogHeight,
+          clipBehavior: Clip.antiAlias,
+          decoration: const BoxDecoration(
+            color: Color(0xffece6f0),
+            borderRadius: BorderRadius.all(Radius.circular(12)),
+            boxShadow: [
+              BoxShadow(
+                color: Color(0x26000000),
+                blurRadius: 16,
+                offset: Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Material(
+            type: MaterialType.transparency,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Container(
+                  height: 36,
+                  padding: const EdgeInsets.only(left: 12, right: 4),
+                  child: Row(
+                    children: [
+                      const Expanded(
+                        child: Text(
+                          '라벨 설정',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: '닫기',
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints.tightFor(
+                          width: 28,
+                          height: 28,
+                        ),
+                        icon: const _BrandDialogCloseIcon(),
+                        onPressed: widget.onClose,
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 8, right: 8, bottom: 8),
+                    child: SwipeActionTable<LabelSize>(
+                      rows: _labels,
+                      fillLastColumn: true,
+                      autoFitColumns: false,
+                      rowSwipeEnabled: true,
+                      keepRowContentOnSwipe: true,
+                      rowTooltip: '행 드래그로 순서 변경, 컬럼 왼쪽 스와이프 수정/삽입/삭제',
+                      showActionsWhenEmpty: true,
+                      actions: _labelRowActions(),
+                      emptyActions: _labelEmptyActions(),
+                      rowReorderEnabled: true,
+                      onRowReorder: _moveLabelRow,
+                      columns: const [
+                        SwipeActionTableColumn<LabelSize>(
+                          header: '라벨 이름',
+                          initialWidth: 220,
+                          minWidth: 120,
+                          fillRemaining: true,
+                          text: _labelNameText,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                if (_hasOrderChanges)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 8, right: 8, bottom: 8),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        const Text(
+                          '순서 변경',
+                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(width: 8),
+                        TextButton(
+                          onPressed: _cancelOrderChanges,
+                          child: const Text('취소'),
+                        ),
+                        const SizedBox(width: 4),
+                        FilledButton(
+                          onPressed: _applyOrderChanges,
+                          child: const Text('적용'),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  static String _labelNameText(LabelSize label) => label.labelSizeName;
+
+  static List<SwipeActionTableAction<LabelSize>> _labelRowActions() {
+    return const [
+      SwipeActionTableAction<LabelSize>(
+        icon: Icons.edit,
+        tooltip: '수정',
+        backgroundColor: Color(0xFF0E2F66),
+      ),
+      SwipeActionTableAction<LabelSize>(
+        icon: Icons.add,
+        tooltip: '삽입',
+        backgroundColor: Color(0xff0277bd),
+      ),
+      SwipeActionTableAction<LabelSize>(
+        icon: Icons.delete,
+        tooltip: '삭제',
+        backgroundColor: Color(0xffc62828),
+      ),
+    ];
+  }
+
+  static List<SwipeActionTableAction<LabelSize>> _labelEmptyActions() {
+    return const [
+      SwipeActionTableAction<LabelSize>(
+        icon: Icons.edit,
+        tooltip: '수정',
+        backgroundColor: Color(0xff9ca3af),
+      ),
+      SwipeActionTableAction<LabelSize>(
+        icon: Icons.add,
+        tooltip: '삽입',
+        backgroundColor: Color(0xffa7b0bd),
+      ),
+      SwipeActionTableAction<LabelSize>(
+        icon: Icons.delete,
+        tooltip: '삭제',
+        backgroundColor: Color(0xffb4bac3),
+      ),
+    ];
+  }
+
+  void _moveLabelRow(int fromIndex, int toIndex) {
+    if (fromIndex < 0 || fromIndex >= _labels.length || toIndex < 0 || toIndex >= _labels.length) {
+      return;
+    }
+    final insertIndex = fromIndex < toIndex ? toIndex - 1 : toIndex;
+    if (insertIndex == fromIndex) {
+      return;
+    }
+    debugLog('labelSettings reorder from=$fromIndex to=$toIndex insert=$insertIndex');
+    setState(() {
+      final label = _labels.removeAt(fromIndex);
+      _labels.insert(insertIndex, label);
+    });
+  }
+
+  void _cancelOrderChanges() {
+    debugLog('labelSettings reorder cancel');
+    setState(() {
+      _labels = List<LabelSize>.from(_originalLabels);
+    });
+  }
+
+  void _applyOrderChanges() {
+    debugLog('labelSettings reorder apply pending labels=${_labels.length}');
   }
 }
 

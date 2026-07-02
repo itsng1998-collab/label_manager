@@ -59,9 +59,11 @@ class SwipeActionTable<T> extends StatefulWidget {
     this.rowHeight = 28,
     this.autoFitColumns = true,
     this.fillLastColumn = false,
+    this.rowReorderEnabled = false,
     this.isRowContentInteractive,
     this.canSwipeRow,
     this.rowNumberText,
+    this.onRowReorder,
   });
 
   final List<T> rows;
@@ -77,9 +79,11 @@ class SwipeActionTable<T> extends StatefulWidget {
   final double rowHeight;
   final bool autoFitColumns;
   final bool fillLastColumn;
+  final bool rowReorderEnabled;
   final bool Function(T row, int index)? isRowContentInteractive;
   final bool Function(T row, int index)? canSwipeRow;
   final String Function(T row, int index)? rowNumberText;
+  final void Function(int fromIndex, int toIndex)? onRowReorder;
 
   @override
   State<SwipeActionTable<T>> createState() => _SwipeActionTableState<T>();
@@ -706,7 +710,7 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
       ),
       child: rowContent,
     );
-    return SizedBox(
+    final rowBox = SizedBox(
       width: contentWidth,
       height: widget.rowHeight,
       child: ClipRect(
@@ -762,6 +766,41 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
           ],
         ),
       ),
+    );
+    final onRowReorder = widget.onRowReorder;
+    if (!widget.rowReorderEnabled || onRowReorder == null || isRowContentInteractive) {
+      return rowBox;
+    }
+    return DragTarget<int>(
+      onWillAcceptWithDetails: (details) => details.data != index,
+      onAcceptWithDetails: (details) {
+        final fromIndex = details.data;
+        final insertIndex = fromIndex < index ? index - 1 : index;
+        if (fromIndex != insertIndex) {
+          onRowReorder(fromIndex, index);
+        }
+      },
+      builder: (context, candidateData, rejectedData) {
+        final highlighted = candidateData.isNotEmpty;
+        final decorated = highlighted
+            ? DecoratedBox(
+                decoration: const BoxDecoration(
+                  border: Border(top: BorderSide(color: Color(0xFF0E2F66), width: 2)),
+                ),
+                child: rowBox,
+              )
+            : rowBox;
+        return LongPressDraggable<int>(
+          data: index,
+          axis: Axis.vertical,
+          feedback: Material(
+            color: Colors.transparent,
+            child: Opacity(opacity: 0.82, child: rowBox),
+          ),
+          childWhenDragging: Opacity(opacity: 0.35, child: rowBox),
+          child: decorated,
+        );
+      },
     );
   }
 
