@@ -272,6 +272,15 @@
   - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/home_page_manager.dart` (`lib/core/app.dart` 제외).
   - 구현 커밋: `ff9e099` (`RTF 리사이즈 완료 중복 재캡처 방지`).
 
+- **완료 (2026-07-02)**: RTF Viewer resize 완료 시 같은 최종 target으로 child를 한 번 더 교체하는 문제 방지.
+  - 최신 로그 확인: guard 적용 후 `resizeEndPostFrame`은 `recapture=false`로 생략됐지만, resize 중 debounce capture와 resize 완료 `resizeEndRect` 강제 capture가 같은 target/PNG byte로 연속 실행됨.
+  - `lib/home_page_manager.dart`: `_rtfPreviewRefreshedTargetContentSize`를 추가해 실제 child refresh에 사용한 target을 추적. resize 완료 target이 이미 refresh된 target과 같으면 `force=false`로 내려 보내 child 교체/강제 recapture를 생략.
+  - 추가 로그: `rtf preview resize completed target=... refreshed=... force=...`.
+  - 검증 완료: `flutter analyze lib/home_page_manager.dart --no-fatal-warnings --no-fatal-infos` 성공.
+  - 검증 완료: `flutter analyze lib/home_page_manager.dart lib/page_label_sheet/label_sheet_rtf_preview.dart lib/page_home/preview_floating_window.dart --no-fatal-warnings --no-fatal-infos` 성공.
+  - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/home_page_manager.dart` (`lib/core/app.dart` 제외).
+  - 구현 커밋: 예정.
+
 - **ODBC 효율 개선**: `LabelSizeDAO.SelectSql`이 목록 조회에서도 `RICH_FORM_DATA`를 항상 가져오는 문제. 목록/상세 조회 분리, 목록에서 `FORM_DATA` 제외, 선택/시트 진입 시 상세 조회로 보강.
 
 ## 완료된 기능 요약

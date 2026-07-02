@@ -68,6 +68,7 @@ class _HomePageManagerState extends State<HomePageManager> {
   String? _rtfPreviewTargetKey;
   String? _rtfPreviewWindowKey;
   Size? _rtfPreviewTargetContentSize;
+  Size? _rtfPreviewRefreshedTargetContentSize;
   Rect? _commonLabelGridRect;
   bool _autoSelectedCommonLabelOnce = false;
   bool _commonLabelTabActivated = false;
@@ -862,13 +863,36 @@ class _HomePageManagerState extends State<HomePageManager> {
   }
 
   void _handleRtfPreviewWindowResizeCompleted(Rect rect) {
+    final target = _rtfPreviewContentSizeForRect(rect);
+    final refreshedTarget = _rtfPreviewRefreshedTargetContentSize;
+    final alreadyRefreshed = _isSameRoundedSize(refreshedTarget, target);
+    debugLog(
+      'rtf preview resize completed '
+      'target=${target.width.round()}x${target.height.round()} '
+      'refreshed=${refreshedTarget == null ? 'none' : '${refreshedTarget.width.round()}x${refreshedTarget.height.round()}'} '
+      'force=${!alreadyRefreshed}',
+    );
     _updateRtfPreviewTargetFromRect(
       rect,
       isResizing: false,
-      force: true,
+      force: !alreadyRefreshed,
       reason: 'resizeEndRect',
     );
     _scheduleRtfPreviewResizeFinalRecapture(rect);
+  }
+
+  Size _rtfPreviewContentSizeForRect(Rect rect) {
+    const padding = LabelSheetRtfPreview.defaultPadding;
+    return Size(
+      (rect.width - padding.horizontal).clamp(1.0, double.infinity),
+      (rect.height - padding.vertical).clamp(1.0, double.infinity),
+    );
+  }
+
+  bool _isSameRoundedSize(Size? left, Size right) {
+    return left != null &&
+        left.width.round() == right.width.round() &&
+        left.height.round() == right.height.round();
   }
 
   void _updateRtfPreviewTargetFromRect(
@@ -883,16 +907,9 @@ class _HomePageManagerState extends State<HomePageManager> {
         !labelSheetLooksLikeRichEditRtf(rtf)) {
       return;
     }
-    const padding = LabelSheetRtfPreview.defaultPadding;
-    final next = Size(
-      (rect.width - padding.horizontal).clamp(1.0, double.infinity),
-      (rect.height - padding.vertical).clamp(1.0, double.infinity),
-    );
+    final next = _rtfPreviewContentSizeForRect(rect);
     final current = _rtfPreviewTargetContentSize;
-    if (!force &&
-        current != null &&
-        current.width.round() == next.width.round() &&
-        current.height.round() == next.height.round()) {
+    if (!force && _isSameRoundedSize(current, next)) {
       return;
     }
     _rtfPreviewTargetContentSize = next;
@@ -979,6 +996,7 @@ class _HomePageManagerState extends State<HomePageManager> {
     }
     _rtfPreviewCaptureGeneration += 1;
     final target = _rtfPreviewTargetContentSize;
+    _rtfPreviewRefreshedTargetContentSize = target;
     debugLog(
       'rtf preview recapture child refresh reason=$reason '
       'generation=$_rtfPreviewCaptureGeneration '
