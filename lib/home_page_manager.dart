@@ -1787,7 +1787,7 @@ class _LabelSettingsFooterButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return OutlinedButton(
       style: OutlinedButton.styleFrom(
-        backgroundColor: const Color(0xffffffff),
+        backgroundColor: const Color(0xFFF1F3F4),
         foregroundColor: const Color(0xff111111),
         side: const BorderSide(color: Color(0xffc7c7c7)),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(3)),
