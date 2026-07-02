@@ -2882,7 +2882,7 @@ class _PrintDialogButton extends StatelessWidget {
         backgroundColor: const Color(0xffffffff),
         foregroundColor: const Color(0xff111111),
         side: const BorderSide(color: Color(0xffc7c7c7)),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(2)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(3)),
         padding: EdgeInsets.zero,
         textStyle: const TextStyle(fontSize: 13),
       ),
