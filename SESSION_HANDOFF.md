@@ -139,6 +139,13 @@
   - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/home_page_manager.dart`, `lib/models/brand.dart` (`lib/core/app.dart`, `doc/BM_RICH_BRAND.sql` 제외).
   - 구현 커밋: `d4a5a89` (`브랜드 행 삭제 처리 구현`).
 
+- **완료 (2026-07-02)**: 브랜드 설정 다이얼로그 내부 확인 다이얼로그가 보이지 않는 문제 수정.
+  - 최신 로그 `.tmp/log/app_2026-07-02_16-53-07.log`: 삽입 Enter가 `_insertBrandName start`까지 도달했으나 확인/취소 결과 로그 없이 브랜드 설정 overlay만 계속 rebuild됨.
+  - 원인: 브랜드 설정 다이얼로그가 모달리스 `OverlayEntry`라 `showDialog` route가 기존 overlay 뒤에 깔릴 수 있음.
+  - `lib/home_page_manager.dart` `_BrandSettingsDialogState`: `_showBrandOverlayDialog` helper 추가. 삽입/수정/삭제 확인 및 실패 경고를 현재 overlay 위에 직접 삽입하도록 변경.
+  - 검증 완료: `flutter analyze lib/home_page_manager.dart --no-fatal-warnings --no-fatal-infos` 성공.
+  - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/home_page_manager.dart` (`lib/core/app.dart`, `doc/BM_RICH_BRAND.sql` 제외).
+
 - **ODBC 효율 개선**: `LabelSizeDAO.SelectSql`이 목록 조회에서도 `RICH_FORM_DATA`를 항상 가져오는 문제. 목록/상세 조회 분리, 목록에서 `FORM_DATA` 제외, 선택/시트 진입 시 상세 조회로 보강.
 
 ## 완료된 기능 요약

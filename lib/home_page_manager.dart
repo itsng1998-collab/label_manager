@@ -1537,6 +1537,42 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
     super.dispose();
   }
 
+  Future<T?> _showBrandOverlayDialog<T>(
+    Widget Function(BuildContext context, void Function(T? result) close)
+        builder,
+  ) {
+    final overlay = Overlay.of(context);
+    final completer = Completer<T?>();
+    late final OverlayEntry entry;
+
+    void close(T? result) {
+      if (completer.isCompleted) {
+        return;
+      }
+      entry.remove();
+      completer.complete(result);
+    }
+
+    entry = OverlayEntry(
+      builder: (overlayContext) => Stack(
+        children: [
+          const ModalBarrier(
+            dismissible: false,
+            color: Color(0x8A000000),
+          ),
+          Center(
+            child: Material(
+              type: MaterialType.transparency,
+              child: builder(overlayContext, close),
+            ),
+          ),
+        ],
+      ),
+    );
+    overlay.insert(entry);
+    return completer.future;
+  }
+
   @override
   Widget build(BuildContext context) {
     final dialogHeight = MediaQuery.sizeOf(context).height * 0.7;
@@ -1972,22 +2008,23 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
       return;
     }
 
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
+    debugLog('insertBrandName confirmDialog show index=$insertIndex name=$brandName');
+    final confirmed = await _showBrandOverlayDialog<bool>(
+      (dialogContext, close) => AlertDialog(
         content: Text("'$brandName' 브랜드를 추가하시겠습니까?"),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
+            onPressed: () => close(false),
             child: const Text('취소'),
           ),
           TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
+            onPressed: () => close(true),
             child: const Text('확인'),
           ),
         ],
       ),
     );
+    debugLog('insertBrandName confirmDialog result=$confirmed index=$insertIndex');
 
     if (!mounted) {
       debugLog('insertBrandName aborted unmounted after dialog');
@@ -2010,14 +2047,13 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
     } catch (e) {
       debugLog('insertBrandName failed index=$insertIndex error=$e');
       if (mounted) {
-        await showDialog<void>(
-          context: context,
-          builder: (dialogContext) => AlertDialog(
+        await _showBrandOverlayDialog<void>(
+          (dialogContext, close) => AlertDialog(
             title: const Text('브랜드 추가 실패'),
             content: const Text('브랜드 추가에 실패했습니다.'),
             actions: [
               TextButton(
-                onPressed: () => Navigator.of(dialogContext).pop(),
+                onPressed: () => close(null),
                 child: const Text('확인'),
               ),
             ],
@@ -2062,22 +2098,23 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
       return;
     }
 
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
+    debugLog('deleteBrand confirmDialog show brandId=${brand.brandId}');
+    final confirmed = await _showBrandOverlayDialog<bool>(
+      (dialogContext, close) => AlertDialog(
         content: Text("'${brand.brandName}' 브랜드를 삭제하시겠습니까?"),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
+            onPressed: () => close(false),
             child: const Text('취소'),
           ),
           TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
+            onPressed: () => close(true),
             child: const Text('확인'),
           ),
         ],
       ),
     );
+    debugLog('deleteBrand confirmDialog result=$confirmed brandId=${brand.brandId}');
 
     if (!mounted) {
       debugLog('deleteBrand aborted unmounted after dialog');
@@ -2094,14 +2131,13 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
     } catch (e) {
       debugLog('deleteBrand failed brandId=${brand.brandId} error=$e');
       if (mounted) {
-        await showDialog<void>(
-          context: context,
-          builder: (dialogContext) => AlertDialog(
+        await _showBrandOverlayDialog<void>(
+          (dialogContext, close) => AlertDialog(
             title: const Text('브랜드 삭제 실패'),
             content: const Text('브랜드 삭제에 실패했습니다.'),
             actions: [
               TextButton(
-                onPressed: () => Navigator.of(dialogContext).pop(),
+                onPressed: () => close(null),
                 child: const Text('확인'),
               ),
             ],
@@ -2144,17 +2180,16 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
 
     debugLog('updateBrandName confirm dialog brandId=${brand.brandId} old=${brand.brandName} new=$brandName');
 
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
+    final confirmed = await _showBrandOverlayDialog<bool>(
+      (dialogContext, close) => AlertDialog(
         content: Text("'$brandName' 명으로 변경하시겠습니까?"),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
+            onPressed: () => close(false),
             child: const Text('취소'),
           ),
           TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
+            onPressed: () => close(true),
             child: const Text('확인'),
           ),
         ],
@@ -2180,14 +2215,13 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
     } catch (e) {
       debugLog('updateBrandName failed brandId=${brand.brandId} error=$e');
       if (mounted) {
-        await showDialog<void>(
-          context: context,
-          builder: (dialogContext) => AlertDialog(
+        await _showBrandOverlayDialog<void>(
+          (dialogContext, close) => AlertDialog(
             title: const Text('브랜드 이름 변경 실패'),
             content: const Text('브랜드 이름 변경에 실패했습니다.'),
             actions: [
               TextButton(
-                onPressed: () => Navigator.of(dialogContext).pop(),
+                onPressed: () => close(null),
                 child: const Text('확인'),
               ),
             ],
