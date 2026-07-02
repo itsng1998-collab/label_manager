@@ -238,7 +238,7 @@
   - `lib/page_label_sheet/label_sheet_workbench.dart` `_LabelSheetPrintSettingsDialog`: 하단 버튼 좌표를 `취소`/`적용`/`발행` 순서로 재배치.
   - 검증 완료: `flutter analyze lib/page_label_sheet/label_sheet_workbench.dart --no-fatal-warnings --no-fatal-infos` 성공.
   - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/page_label_sheet/label_sheet_workbench.dart` (`lib/core/app.dart` 제외).
-  - 구현 커밋: 예정.
+  - 구현 커밋: `7bec98f` (`프린터 설정 발행 버튼 위치 조정`).
 
 - **ODBC 효율 개선**: `LabelSizeDAO.SelectSql`이 목록 조회에서도 `RICH_FORM_DATA`를 항상 가져오는 문제. 목록/상세 조회 분리, 목록에서 `FORM_DATA` 제외, 선택/시트 진입 시 상세 조회로 보강.
 
