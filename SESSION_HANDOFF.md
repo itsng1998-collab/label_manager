@@ -291,6 +291,15 @@
   - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/home_page_manager.dart`, `lib/page_label_sheet/label_sheet_rtf_preview.dart` (`lib/core/app.dart` 제외).
   - 구현 커밋: `8012eba` (`RTF 축소 리사이즈 중 캡처 중첩 방지`).
 
+- **완료 (2026-07-02)**: RTF Viewer resize 완료 recapture가 작은 높이 canvas로 다시 렌더링해 완료 화면을 망가뜨리는 문제 방지 및 상세 로그 추가.
+  - 최신 로그 확인: 새 코드에서 `resizeDebounce` 중첩은 사라졌으나, 완료 후 `resizeEndSettled` capture가 `logical 637x372 -> canvas 1593x558`처럼 짧은 canvas로 native 렌더링. native 진단에서 bottom edge가 꽉 차는 패턴(`edge=...,1091`)으로 잘림/과노출 화면을 만들 가능성 확인.
+  - `lib/home_page_manager.dart`: 정상 RTF image가 한 번 resolve된 뒤에는 resize 완료 final recapture를 생략하고 기존 이미지를 창 크기에 맞춰 스케일 유지. 이미지 resolve 여부/크기(`imageResolved`, `image=...`)와 recapture skip 로그 추가.
+  - `lib/page_label_sheet/label_sheet_rtf_preview.dart`: capture start/done/empty 로그에 capture id, generation, logical/canvas/px, png/display size, displayScale 추가.
+  - 검증 완료: `flutter analyze lib/home_page_manager.dart lib/page_label_sheet/label_sheet_rtf_preview.dart --no-fatal-warnings --no-fatal-infos` 성공.
+  - 검증 완료: `flutter analyze lib/home_page_manager.dart lib/page_label_sheet/label_sheet_rtf_preview.dart lib/page_home/preview_floating_window.dart --no-fatal-warnings --no-fatal-infos` 성공.
+  - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/home_page_manager.dart`, `lib/page_label_sheet/label_sheet_rtf_preview.dart` (`lib/core/app.dart` 제외).
+  - 구현 커밋: 예정.
+
 - **ODBC 효율 개선**: `LabelSizeDAO.SelectSql`이 목록 조회에서도 `RICH_FORM_DATA`를 항상 가져오는 문제. 목록/상세 조회 분리, 목록에서 `FORM_DATA` 제외, 선택/시트 진입 시 상세 조회로 보강.
 
 ## 완료된 기능 요약

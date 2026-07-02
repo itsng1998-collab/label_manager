@@ -44,6 +44,7 @@ class LabelSheetRtfPreview extends StatefulWidget {
 class _LabelSheetRtfPreviewState extends State<LabelSheetRtfPreview> {
   late Future<LabelSheetNativeRtfPngImage?> _imageFuture;
   Size? _lastNotifiedImageSize;
+  int _captureSerial = 0;
 
   @override
   void initState() {
@@ -69,6 +70,7 @@ class _LabelSheetRtfPreviewState extends State<LabelSheetRtfPreview> {
     if (!labelSheetLooksLikeRichEditRtf(widget.rtf)) {
       return null;
     }
+    final captureId = ++_captureSerial;
     final logicalWidth =
         widget.width ?? LabelSheetRtfPreview.pixelsForMm(widget.widthMm);
     final logicalHeight =
@@ -83,7 +85,9 @@ class _LabelSheetRtfPreviewState extends State<LabelSheetRtfPreview> {
     final captureWidth = (captureLogicalWidth * captureScale).round();
     final captureHeight = (captureLogicalHeight * captureScale).round();
     debugLog(
-      'capture logical=${logicalWidth}x$logicalHeight '
+      'rtf preview capture start id=$captureId '
+      'generation=${widget.captureGeneration} '
+      'logical=${logicalWidth}x$logicalHeight '
       'canvas=${captureLogicalWidth}x$captureLogicalHeight '
       'px=${captureWidth}x$captureHeight scale=${captureScale.toStringAsFixed(2)}',
     );
@@ -101,6 +105,18 @@ class _LabelSheetRtfPreviewState extends State<LabelSheetRtfPreview> {
       imageSize = Size(
         captured.width / displayScale,
         captured.height / displayScale,
+      );
+      debugLog(
+        'rtf preview capture done id=$captureId '
+        'generation=${widget.captureGeneration} '
+        'png=${captured.width}x${captured.height} '
+        'display=${imageSize.width.round()}x${imageSize.height.round()} '
+        'displayScale=${displayScale.toStringAsFixed(2)} mounted=$mounted',
+      );
+    } else {
+      debugLog(
+        'rtf preview capture empty id=$captureId '
+        'generation=${widget.captureGeneration} mounted=$mounted',
       );
     }
     if (mounted && imageSize != null && imageSize != _lastNotifiedImageSize) {

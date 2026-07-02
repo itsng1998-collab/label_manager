@@ -70,7 +70,9 @@ class _HomePageManagerState extends State<HomePageManager> {
   String? _rtfPreviewWindowKey;
   Size? _rtfPreviewTargetContentSize;
   Size? _rtfPreviewRefreshedTargetContentSize;
+  Size? _rtfPreviewLastResolvedImageSize;
   Rect? _commonLabelGridRect;
+  bool _rtfPreviewHasResolvedImage = false;
   bool _autoSelectedCommonLabelOnce = false;
   bool _commonLabelTabActivated = false;
   bool _commonLabelPreviewClosedByUser = false;
@@ -699,6 +701,8 @@ class _HomePageManagerState extends State<HomePageManager> {
       _rtfPreviewTargetKey = readyKey;
       _rtfPreviewTargetContentSize = null;
       _rtfPreviewRefreshedTargetContentSize = null;
+      _rtfPreviewLastResolvedImageSize = null;
+      _rtfPreviewHasResolvedImage = false;
       _rtfPreviewWindowKey = null;
       _commonLabelPreviewWindow?.dispose();
       _commonLabelPreviewWindow = null;
@@ -816,6 +820,13 @@ class _HomePageManagerState extends State<HomePageManager> {
         widthMm: _effectiveLabelSize?.labelSizeCommon?.width ?? 100,
         heightMm: _effectiveLabelSize?.labelSizeCommon?.height ?? 100,
         onImageSizeResolved: (imageSize) {
+          _rtfPreviewHasResolvedImage = true;
+          _rtfPreviewLastResolvedImageSize = imageSize;
+          debugLog(
+            'rtf preview image resolved '
+            'image=${imageSize.width.round()}x${imageSize.height.round()} '
+            'target=${_rtfPreviewTargetContentSize == null ? 'auto' : '${_rtfPreviewTargetContentSize!.width.round()}x${_rtfPreviewTargetContentSize!.height.round()}'}',
+          );
           final window = _commonLabelPreviewWindow;
           if (!mounted ||
               window == null ||
@@ -875,6 +886,8 @@ class _HomePageManagerState extends State<HomePageManager> {
       'rtf preview resize completed '
       'target=${target.width.round()}x${target.height.round()} '
       'refreshed=${refreshedTarget == null ? 'none' : '${refreshedTarget.width.round()}x${refreshedTarget.height.round()}'} '
+      'imageResolved=$_rtfPreviewHasResolvedImage '
+      'image=${_rtfPreviewLastResolvedImageSize == null ? 'none' : '${_rtfPreviewLastResolvedImageSize!.width.round()}x${_rtfPreviewLastResolvedImageSize!.height.round()}'} '
       'force=${!alreadyRefreshed}',
     );
     _scheduleRtfPreviewResizeFinalRecapture(rect);
@@ -964,6 +977,17 @@ class _HomePageManagerState extends State<HomePageManager> {
           ? double.infinity
           : (current.height - next.height).abs();
       final refreshedTarget = _rtfPreviewRefreshedTargetContentSize;
+      if (_rtfPreviewHasResolvedImage) {
+        debugLog(
+          'rtf preview resize final recapture skipped existing image '
+          'rectTarget=${rectTarget.width.round()}x${rectTarget.height.round()} '
+          'measuredTarget=${measuredTarget == null ? 'none' : '${measuredTarget.width.round()}x${measuredTarget.height.round()}'} '
+          'current=${current == null ? 'none' : '${current.width.round()}x${current.height.round()}'} '
+          'refreshed=${refreshedTarget == null ? 'none' : '${refreshedTarget.width.round()}x${refreshedTarget.height.round()}'} '
+          'image=${_rtfPreviewLastResolvedImageSize == null ? 'none' : '${_rtfPreviewLastResolvedImageSize!.width.round()}x${_rtfPreviewLastResolvedImageSize!.height.round()}'}',
+        );
+        return;
+      }
       final shouldUseMeasuredTarget = current == null ||
           currentDeltaWidth > 2.0 ||
           currentDeltaHeight > 2.0;
@@ -1003,6 +1027,8 @@ class _HomePageManagerState extends State<HomePageManager> {
     _rtfPreviewCaptureGeneration += 1;
     final target = _rtfPreviewTargetContentSize;
     _rtfPreviewRefreshedTargetContentSize = target;
+    _rtfPreviewHasResolvedImage = false;
+    _rtfPreviewLastResolvedImageSize = null;
     debugLog(
       'rtf preview recapture child refresh reason=$reason '
       'generation=$_rtfPreviewCaptureGeneration '
