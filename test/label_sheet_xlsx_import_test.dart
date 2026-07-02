@@ -15,7 +15,7 @@ void main() {
     expect(sheet.rowCount, 3);
     expect(sheet.columnCount, 7);
     expect(sheet.rowHeights[0], closeTo(32, 0.01));
-    expect(sheet.columnWidths[0], closeTo(84, 0.01));
+    expect(sheet.columnWidths[0], closeTo(96, 0.01));
     expect(sheet.hiddenRows, contains(1));
     expect(sheet.hiddenColumns, contains(2));
 
@@ -74,6 +74,12 @@ void main() {
           .where((border) => border.borderType == 'border-top')
           .map((border) => border.style),
       contains(8),
+    );
+    expect(
+      sheet.borderInfo
+          .where((border) => border.borderType == 'border-top')
+          .map((border) => border.strokeWidth),
+      contains(1.5),
     );
   });
 

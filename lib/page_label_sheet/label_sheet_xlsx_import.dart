@@ -270,7 +270,7 @@ Map<String, Object?> _sheetJsonFromWorksheet(
     for (var index = column.min; index <= column.max; index += 1) {
       final columnIndex = index - 1;
       if (column.width != null && column.width! > 0) {
-        columnWidths['$columnIndex'] = (column.width! * 7).clamp(1.0, 4096.0);
+        columnWidths['$columnIndex'] = _columnWidthToLogicalPixels(column.width!);
       }
       if (column.hidden) {
         hiddenColumns['$columnIndex'] = 0;
@@ -780,6 +780,7 @@ class _XlsxCellStyle {
           'borderType': side.key,
           'color': side.value.color ?? '#ff000000',
           'style': side.value.style,
+          'strokeWidth': side.value.strokeWidth,
           'range': [
             {
               'row': [row, row],
@@ -846,9 +847,10 @@ class _XlsxBorder {
 }
 
 class _XlsxBorderSide {
-  const _XlsxBorderSide({required this.style, this.color});
+  const _XlsxBorderSide({required this.style, required this.strokeWidth, this.color});
 
   final int style;
+  final double strokeWidth;
   final String? color;
 }
 
@@ -1067,6 +1069,7 @@ _XlsxBorderSide? _borderSide(String xml, String tag) {
   }
   return _XlsxBorderSide(
     style: _borderStyle(styleText),
+    strokeWidth: _borderStrokeWidth(styleText),
     color: content == null ? null : _colorFromElement(content, 'color'),
   );
 }
@@ -1399,6 +1402,19 @@ double? _pointsToLogicalPixels(double? points) {
     return null;
   }
   return points * 4 / 3;
+}
+
+double _columnWidthToLogicalPixels(double width) {
+  return (width * 8).clamp(1.0, 4096.0);
+}
+
+double _borderStrokeWidth(String style) {
+  return switch (style) {
+    'hair' => 0.5,
+    'medium' || 'mediumDashed' || 'mediumDashDot' || 'mediumDashDotDot' => 1.5,
+    'thick' => 2.0,
+    _ => 1.0,
+  };
 }
 
 int _max(int left, int right) => left > right ? left : right;

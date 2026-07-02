@@ -66,6 +66,17 @@
 
 ### 대기/추후 작업
 
+- **완료 (2026-07-03)**: XLSX 원본 대비 변환본 열 폭/테두리 굵기 추가 보정.
+  - 최신 로그 `.tmp/log/app_2026-07-03_00-11-03.log`: 값/병합/font size는 정상 적용. current grid physical size는 80x60mm 유지.
+  - 확인 결과: 실제 XLSX column width 합계 138, 기존 변환식 `width * 7` 합계 966px로 원본 대비 가로 폭이 좁음. 후보 `width * 8` 합계 1104px가 원본 이미지 폭에 더 근접.
+  - 확인 결과: FortuneSheet border compute는 `rawBorderInfo`가 있으면 raw를 우선하며 `strokeWidth`도 읽음. importer가 borderInfo JSON에 strokeWidth를 넣으면 thin/medium 굵기 과장 완화 가능.
+  - `lib/page_label_sheet/label_sheet_xlsx_import.dart`: column width 변환식을 `width * 7`에서 `width * 8`로 조정.
+  - `lib/page_label_sheet/label_sheet_xlsx_import.dart`: borderInfo JSON에 `strokeWidth` 추가. Excel `thin`=1.0, `medium`=1.5, `thick`=2.0, `hair`=0.5.
+  - `test/label_sheet_xlsx_import_test.dart`: column width 기대값 및 medium border strokeWidth 회귀 테스트 갱신.
+  - 검증 완료: `test/label_sheet_xlsx_import_test.dart` 3개 성공.
+  - 검증 완료: `flutter analyze lib/page_label_sheet/label_sheet_xlsx_import.dart test/label_sheet_xlsx_import_test.dart --no-fatal-warnings --no-fatal-infos` 성공.
+  - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/page_label_sheet/label_sheet_xlsx_import.dart`, `test/label_sheet_xlsx_import_test.dart` (`lib/core/app.dart` 기존 dirty 제외).
+
 - **완료 (2026-07-03)**: XLSX 원본 대비 변환본 스케일/테두리 차이 수정.
   - 최신 로그 `.tmp/log/app_2026-07-02_23-57-45.log`: C1/H3/H9/J1 값과 병합은 apply 단계까지 정상.
   - 남은 차이: 글자 크기가 작고, 원본 solid medium 테두리가 변환본에서 점선처럼 표시됨.
