@@ -66,6 +66,15 @@
 
 ### 대기/추후 작업
 
+- **완료 (2026-07-02)**: XLSX/라벨 파일 가져오기 시 현재 설정된 라벨 크기에 맞춰 제한하지 않고, 가져온 시트의 실제 행/열 크기 전체를 작업 영역으로 사용하도록 수정.
+  - `lib/page_label_sheet/label_sheet_workbench.dart`: `_handleImportLabelFile`에서 가져온 시트가 자체 `fortuneSheetGridClientWidthMm/HeightMm`을 갖고 있지 않으면 row/column extent를 mm로 환산해 extraFields에 저장. 설정 라벨 크기보다 커도 가져온 전체 크기를 grid client area로 사용.
+  - 가져오기 적용 로그에 rows/columns/cells/gridWidthMm/gridHeightMm 추가.
+  - 임시 검사 스크립트 `.tmp/inspect_xlsx_import.dart` 삭제.
+  - 검증 완료: `flutter analyze lib/page_label_sheet/label_sheet_workbench.dart --no-fatal-warnings --no-fatal-infos` 성공.
+  - 검증 완료: `test/label_sheet_xlsx_import_test.dart` 3개 성공.
+  - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/page_label_sheet/label_sheet_workbench.dart` (`lib/core/app.dart` 기존 dirty 제외).
+  - 구현 커밋: `c0b8058` (`라벨 파일 가져오기 크기 제한 해제`).
+
 - **완료 (2026-07-02)**: `label_converted.xlsx` 가져오기 실패 원인 수정.
   - 최신 로그 `.tmp/log/app_2026-07-02_23-25-23.log`: `workbook.xml` 로드 성공 후 `_activeSheetInfo: workbook has no sheet tags`, `FormatException: XLSX workbook has no sheets` 발생.
   - 실제 `xl/workbook.xml`: `<x:workbook>`, `<x:sheets>`, `<x:sheet ...>`처럼 SpreadsheetML 태그가 namespace prefix를 사용. 기존 importer 정규식은 `<sheet>`만 매칭해 실패.

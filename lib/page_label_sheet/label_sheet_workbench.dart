@@ -695,6 +695,43 @@ FortuneSheet _labelSheetSizedSheet(
   );
 }
 
+FortuneSheet _labelSheetWithImportedGridClientSize(FortuneSheet sheet) {
+  if (fortuneSheetGridClientPhysicalSize(sheet) != null) {
+    return sheet.copyWith();
+  }
+  final width = _labelSheetLogicalColumnExtent(sheet);
+  final height = _labelSheetLogicalRowExtent(sheet);
+  final widthMm = math.max(1, fortuneLogicalPixelsToMillimeters(width).ceil());
+  final heightMm = math.max(1, fortuneLogicalPixelsToMillimeters(height).ceil());
+  return sheet.copyWith(
+    extraFields: {
+      ...sheet.extraFields,
+      fortuneSheetGridClientWidthMmKey: widthMm,
+      fortuneSheetGridClientHeightMmKey: heightMm,
+    },
+  );
+}
+
+double _labelSheetLogicalColumnExtent(FortuneSheet sheet) {
+  const settings = FortuneSettings();
+  final columnCount = math.max(1, sheet.columnCount ?? 0);
+  var width = 0.0;
+  for (var column = 0; column < columnCount; column += 1) {
+    width += sheet.columnWidths[column] ?? sheet.defaultColWidth ?? settings.defaultColWidth;
+  }
+  return width;
+}
+
+double _labelSheetLogicalRowExtent(FortuneSheet sheet) {
+  const settings = FortuneSettings();
+  final rowCount = math.max(1, sheet.rowCount ?? 0);
+  var height = 0.0;
+  for (var row = 0; row < rowCount; row += 1) {
+    height += sheet.rowHeights[row] ?? sheet.defaultRowHeight ?? settings.defaultRowHeight;
+  }
+  return height;
+}
+
 FortuneSettings labelSheetSettings(
   FortuneSettings base, {
   VoidCallback? onImportLabelImage,
@@ -1719,10 +1756,21 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       }
     }
     final currentSheet = _currentWorkbookForLabelFile().activeSheet;
-    final importedSheet = importedWorkbook.activeSheet.copyWith(
-      id: currentSheet.id,
-      name: currentSheet.name,
-      order: currentSheet.order,
+    final importedSheet = _labelSheetWithImportedGridClientSize(
+      importedWorkbook.activeSheet.copyWith(
+        id: currentSheet.id,
+        name: currentSheet.name,
+        order: currentSheet.order,
+      ),
+    );
+    final importedGridSize = fortuneSheetGridClientPhysicalSize(importedSheet);
+    debugLog(
+      'label sheet import apply sheet '
+      'rows=${importedSheet.rowCount} columns=${importedSheet.columnCount} '
+      'cells=${importedSheet.cells.length} '
+      'gridWidthMm=${importedGridSize?.widthMm} '
+      'gridHeightMm=${importedGridSize?.heightMm}',
+      skipFrames: 1,
     );
     _controller.clearSheet(
       id: currentSheet.id,
