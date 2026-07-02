@@ -77,6 +77,7 @@
   - 검증 완료: `test/label_sheet_xlsx_import_test.dart` 3개 성공.
   - 검증 완료: `flutter analyze lib/page_label_sheet/label_sheet_xlsx_import.dart lib/page_label_sheet/label_sheet_workbench.dart test/label_sheet_xlsx_import_test.dart --no-fatal-warnings --no-fatal-infos` 성공.
   - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/page_label_sheet/label_sheet_xlsx_import.dart`, `lib/page_label_sheet/label_sheet_workbench.dart`, `test/label_sheet_xlsx_import_test.dart` (`lib/core/app.dart` 기존 dirty 제외).
+  - 구현 커밋: `84c792b` (`XLSX 가져오기 셀 파싱과 크기 보존 수정`).
 
 - **완료 (2026-07-02)**: XLSX 원본 대비 변환본 시각 차이 재확인 및 촘촘한 로그 추가.
   - 첨부 비교 기준: 원본에는 C1/J1/H3/H9 등 오른쪽 병합 anchor 텍스트와 검은 배경이 있으나 변환본에서는 일부 오른쪽 병합 영역 텍스트/배경이 누락되어 보임.
