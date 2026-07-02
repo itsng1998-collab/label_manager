@@ -76,6 +76,7 @@
   - 검증 완료: `test/label_sheet_xlsx_import_test.dart` 3개 성공.
   - 검증 완료: `flutter analyze lib/page_label_sheet/label_sheet_xlsx_import.dart test/label_sheet_xlsx_import_test.dart --no-fatal-warnings --no-fatal-infos` 성공.
   - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/page_label_sheet/label_sheet_xlsx_import.dart`, `test/label_sheet_xlsx_import_test.dart` (`lib/core/app.dart` 기존 dirty 제외).
+  - 구현 커밋: `0b19f69` (`XLSX 가져오기 열 폭과 테두리 굵기 보정`).
 
 - **완료 (2026-07-03)**: XLSX 원본 대비 변환본 스케일/테두리 차이 수정.
   - 최신 로그 `.tmp/log/app_2026-07-02_23-57-45.log`: C1/H3/H9/J1 값과 병합은 apply 단계까지 정상.
