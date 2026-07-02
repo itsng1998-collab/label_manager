@@ -77,7 +77,7 @@
   - 검증 완료: `test/label_sheet_xlsx_import_test.dart` 1개 성공.
   - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/page_label_sheet/label_sheet_workbench.dart`, `lib/page_label_sheet/label_sheet_xlsx_import.dart`, `test/label_sheet_xlsx_import_test.dart` (`lib/core/app.dart` 기존 dirty 제외).
   - 구현 커밋: `e53bc43` (`라벨 시트 XLSX 가져오기 지원`).
-  - 추가 구현 커밋 예정: customXml 확장 텍스트 메타 복원(`fontScale`/`letterSpacing`/`lineHeight`/`script`).
+  - 추가 구현 커밋: `43bf166` (`XLSX 확장 텍스트 메타 복원`).
 
 - **완료 (2026-07-02)**: 여러 번 브랜드 조회 후 `RTF를 변환 중입니다...` 스낵바가 남는 문제 수정.
   - 최신 로그 확인: `.tmp/log/app_2026-07-02_11-18-37.log`에서 RTF 변환 완료/미리보기 캡처 성공 후에도 스낵바 제어가 post-frame 예약에 의존하는 경로 확인.
