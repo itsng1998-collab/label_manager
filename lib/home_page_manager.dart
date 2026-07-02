@@ -247,6 +247,20 @@ class _HomePageManagerState extends State<HomePageManager> {
     widget.onBrandChanged(brand);
   }
 
+  void _handleBrandsChangedFromDialog(
+    List<Brand> brands,
+    Brand? selectedBrand, {
+    required bool updateSelection,
+  }) {
+    Brand.setDatas(brands);
+    setState(() {});
+    _brandSettingsOverlayEntry?.markNeedsBuild();
+    if (updateSelection) {
+      _brandDialogBusyNotifier.value = true;
+      widget.onBrandChanged(selectedBrand);
+    }
+  }
+
   Future<void> _scheduleLabelSizeLoad(
     Brand? brand, {
     bool selectFirstLabel = false,
@@ -481,7 +495,9 @@ class _HomePageManagerState extends State<HomePageManager> {
     entry = OverlayEntry(
       builder: (_) => _BrandSettingsDialog(
         brands: Brand.datas ?? const <Brand>[],
+        selectedBrand: widget.selectedBrand,
         onBrandSelected: _handleBrandSelectedFromDialog,
+        onBrandsChanged: _handleBrandsChangedFromDialog,
         onClose: _closeBrandSettingsDialog,
         busyNotifier: _brandDialogBusyNotifier,
       ),
@@ -1475,13 +1491,21 @@ class _PlaceholderTab extends StatelessWidget {
 class _BrandSettingsDialog extends StatefulWidget {
   const _BrandSettingsDialog({
     required this.brands,
+    required this.selectedBrand,
     required this.onBrandSelected,
+    required this.onBrandsChanged,
     required this.onClose,
     required this.busyNotifier,
   });
 
   final List<Brand> brands;
+  final Brand? selectedBrand;
   final ValueChanged<Brand?> onBrandSelected;
+  final void Function(
+    List<Brand> brands,
+    Brand? selectedBrand, {
+    required bool updateSelection,
+  }) onBrandsChanged;
   final VoidCallback onClose;
   /// 브랜드 선택 후 라벨 시트 로드가 완료될 때까지 true. 더블클릭 차단에 사용.
   final ValueNotifier<bool> busyNotifier;
@@ -1982,6 +2006,19 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
     return nextName != _brands[editingIndex].brandName.trim();
   }
 
+  void _publishBrandsChanged({
+    Brand? selectedBrand,
+    required bool updateSelection,
+  }) {
+    final nextBrands = List<Brand>.from(_brands);
+    Brand.setDatas(nextBrands);
+    widget.onBrandsChanged(
+      nextBrands,
+      selectedBrand,
+      updateSelection: updateSelection,
+    );
+  }
+
   Future<void> _submitBrandNameEdit(String value) async {
     debugLog('brandNameEdit submit index=$_editingIndex value=$value canSubmit=$_canSubmitBrandNameEdit');
     if (!_canSubmitBrandNameEdit) {
@@ -2081,12 +2118,12 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
         ..removeAt(insertIndex)
         ..insert(insertIndex, inserted);
       _brands = List<Brand>.from(_brands);
-      Brand.setDatas(List<Brand>.from(_brands));
       _insertingBrand = false;
       _insertActionIndex = null;
       _editingIndex = null;
       _brandNameEditController.clear();
     });
+    _publishBrandsChanged(updateSelection: false);
 
     debugLog('insertBrandName done brandId=${inserted.brandId} index=$insertIndex name=${inserted.brandName}');
   }
@@ -2158,12 +2195,31 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
       return;
     }
 
+    final wasSelected = widget.selectedBrand?.brandId == brand.brandId;
+    final nextSelectedBrand = wasSelected
+        ? _resolveBrandAfterDelete(currentIndex)
+        : widget.selectedBrand;
+
     setState(() {
       _brands = List<Brand>.from(_brands)..removeAt(currentIndex);
-      Brand.setDatas(List<Brand>.from(_brands));
     });
+    _publishBrandsChanged(
+      selectedBrand: nextSelectedBrand,
+      updateSelection: wasSelected,
+    );
 
     debugLog('deleteBrand done brandId=${brand.brandId} index=$currentIndex');
+  }
+
+  Brand? _resolveBrandAfterDelete(int deletedIndex) {
+    final nextBrands = List<Brand>.from(_brands)..removeAt(deletedIndex);
+    if (nextBrands.isEmpty) {
+      return null;
+    }
+    final nextIndex = deletedIndex < nextBrands.length
+        ? deletedIndex
+        : nextBrands.length - 1;
+    return nextBrands[nextIndex];
   }
 
   Future<void> _updateBrandName(Brand brand, String brandName) async {
@@ -2247,10 +2303,14 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
         customerId: brand.customerId,
         brandName: brandName,
       );
-      Brand.setDatas(List<Brand>.from(_brands));
       _editingIndex = null;
       _brandNameEditController.clear();
     });
+    final updatedBrand = _brands[editingIndex];
+    _publishBrandsChanged(
+      selectedBrand: updatedBrand,
+      updateSelection: widget.selectedBrand?.brandId == updatedBrand.brandId,
+    );
 
     debugLog('updateBrandName done brandId=${brand.brandId} newName=$brandName');
   }

@@ -155,6 +155,12 @@
   - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/models/brand.dart` (`lib/core/app.dart`, `doc/BM_RICH_BRAND.sql` 제외).
   - 구현 커밋: `0a1330e` (`브랜드 추가 ODBC 실행 오류 수정`).
 
+- **완료 (2026-07-02)**: 브랜드 설정 성공 변경을 헤더 브랜드 드롭다운에 반영.
+  - `lib/home_page_manager.dart`: `_BrandSettingsDialog`에 `onBrandsChanged` 콜백 추가. 수정/삽입/삭제 성공 시 부모 `HomePageManager`를 rebuild해 헤더 브랜드 드롭다운 목록 갱신.
+  - 현재 선택 브랜드가 수정되면 선택 브랜드 객체도 갱신. 현재 선택 브랜드가 삭제되면 삭제 위치의 다음 브랜드, 없으면 마지막 브랜드, 목록이 비면 `null` 선택으로 전환해 품목관리/공용라벨관리 상태를 초기화.
+  - 검증 완료: `flutter analyze lib/home_page_manager.dart --no-fatal-warnings --no-fatal-infos` 성공.
+  - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/home_page_manager.dart` (`lib/core/app.dart`, `doc/BM_RICH_BRAND.sql` 제외).
+
 - **ODBC 효율 개선**: `LabelSizeDAO.SelectSql`이 목록 조회에서도 `RICH_FORM_DATA`를 항상 가져오는 문제. 목록/상세 조회 분리, 목록에서 `FORM_DATA` 제외, 선택/시트 진입 시 상세 조회로 보강.
 
 ## 완료된 기능 요약
