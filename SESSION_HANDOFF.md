@@ -115,6 +115,11 @@
   - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/home_page_manager.dart` (`lib/core/app.dart` 기존 dirty 제외).
   - 구현 커밋: `54a1445` (`브랜드 이름 수정 실패 처리 반영`).
 
+- **완료 (2026-07-02)**: 브랜드 이름 변경 실패 표시를 스낵바에서 경고 다이얼로그로 변경.
+  - `lib/home_page_manager.dart` `_updateBrandName`: `BrandDAO.updateByBrandId` 예외 발생 시 `AlertDialog`로 `브랜드 이름 변경 실패` 경고 표시 후 편집 포커스 복귀.
+  - 검증 완료: `flutter analyze lib/home_page_manager.dart --no-fatal-warnings --no-fatal-infos` 성공.
+  - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/home_page_manager.dart` (`lib/core/app.dart` 기존 dirty 제외).
+
 - **ODBC 효율 개선**: `LabelSizeDAO.SelectSql`이 목록 조회에서도 `RICH_FORM_DATA`를 항상 가져오는 문제. 목록/상세 조회 분리, 목록에서 `FORM_DATA` 제외, 선택/시트 진입 시 상세 조회로 보강.
 
 ## 완료된 기능 요약

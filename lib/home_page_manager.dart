@@ -1956,12 +1956,22 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
     } catch (e) {
       debugLog('updateBrandName failed brandId=${brand.brandId} error=$e');
       if (mounted) {
-        showSnackBar(
-          context,
-          '브랜드 이름 변경에 실패했습니다.',
-          type: SnackBarType.error,
+        await showDialog<void>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            title: const Text('브랜드 이름 변경 실패'),
+            content: const Text('브랜드 이름 변경에 실패했습니다.'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('확인'),
+              ),
+            ],
+          ),
         );
-        _brandNameEditFocusNode.requestFocus();
+        if (mounted) {
+          _brandNameEditFocusNode.requestFocus();
+        }
       }
       return;
     }
