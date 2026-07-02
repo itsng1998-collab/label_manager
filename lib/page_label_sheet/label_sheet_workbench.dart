@@ -22,6 +22,7 @@ import 'package:label_manager/printing/label_sheet_print_job.dart';
 import 'package:label_manager/printing/label_printer_preferences.dart';
 import 'package:label_manager/printing/printer_profiles.dart';
 import 'package:label_manager/printing/raw_printer_win32.dart';
+import 'package:label_manager/utils/log_context.dart';
 import 'package:label_manager/utils/on_messages.dart';
 import 'package:path/path.dart' as p;
 import 'package:printing/printing.dart';
@@ -1656,6 +1657,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
 
   Future<void> _handleImportLabelFile() async {
     fortuneSheetDebugLog('label sheet import label file context click');
+    debugLog('label sheet import picker open', skipFrames: 1);
     const labelFileGroup = XTypeGroup(
       label: 'Label Manager Sheet / Excel Workbook',
       extensions: <String>['lms', 'xlsx'],
@@ -1670,12 +1672,24 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
           : null,
     );
     if (file == null) {
+      debugLog('label sheet import picker canceled', skipFrames: 1);
       return;
     }
+    debugLog(
+      'label sheet import file selected '
+      'name=${file.name} path=${file.path} '
+      'pathExt=${p.extension(file.path)} nameExt=${p.extension(file.name)}',
+      skipFrames: 1,
+    );
     FortuneWorkbook importedWorkbook;
     try {
       importedWorkbook = await _readImportedLabelWorkbook(file);
     } catch (e, stackTrace) {
+      debugLog(
+        'label sheet import label file failed: '
+        'name=${file.name} path=${file.path} error=$e\n$stackTrace',
+        skipFrames: 1,
+      );
       fortuneSheetDebugLog(
         'label sheet import label file failed: '
         'name=${file.name} path=${file.path} error=$e\n$stackTrace',
@@ -1729,16 +1743,33 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
 
   Future<FortuneWorkbook> _readImportedLabelWorkbook(XFile file) async {
     final extension = _importedLabelFileExtension(file);
+    debugLog(
+      'label sheet import read start '
+      'name=${file.name} path=${file.path} extension=$extension',
+      skipFrames: 1,
+    );
     if (extension == '.xlsx') {
-      return labelSheetWorkbookFromXlsxBytes(await file.readAsBytes());
+      final bytes = await file.readAsBytes();
+      debugLog(
+        'label sheet import read xlsx by extension bytes=${bytes.length}',
+        skipFrames: 1,
+      );
+      return labelSheetWorkbookFromXlsxBytes(bytes);
     }
     if (extension == '.lms') {
+      debugLog('label sheet import read lms by extension', skipFrames: 1);
       return labelSheetDecodeWorkbookSave(await file.readAsString());
     }
     final bytes = await file.readAsBytes();
+    debugLog(
+      'label sheet import read unknown extension bytes=${bytes.length}',
+      skipFrames: 1,
+    );
     if (labelSheetLooksLikeXlsx(bytes)) {
+      debugLog('label sheet import detected xlsx by bytes', skipFrames: 1);
       return labelSheetWorkbookFromXlsxBytes(bytes);
     }
+    debugLog('label sheet import fallback to lms decode by bytes', skipFrames: 1);
     return labelSheetDecodeWorkbookSave(utf8.decode(bytes));
   }
 

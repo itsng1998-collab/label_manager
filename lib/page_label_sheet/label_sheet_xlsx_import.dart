@@ -5,43 +5,93 @@ import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:fortune_sheet/fortune_sheet.dart';
+import 'package:label_manager/utils/log_context.dart';
 import 'package:path/path.dart' as p;
 
+void _xlsxImportLog(String message) {
+  debugLog('xlsx import $message', skipFrames: 1);
+}
+
 bool labelSheetLooksLikeXlsx(Uint8List bytes) {
+  _xlsxImportLog('probe start bytes=${bytes.length}');
   try {
     final archive = ZipDecoder().decodeBytes(bytes);
-    return _tryXlsxText(archive, 'xl/workbook.xml') != null;
-  } catch (_) {
+    final result = _tryXlsxText(archive, 'xl/workbook.xml') != null;
+    _xlsxImportLog(
+      'probe result=$result entries=${archive.files.length} '
+      'sample=${_archiveEntrySample(archive)}',
+    );
+    return result;
+  } catch (error) {
+    _xlsxImportLog('probe failed error=$error');
     return false;
   }
 }
 
 FortuneWorkbook labelSheetWorkbookFromXlsxBytes(Uint8List bytes) {
-  final archive = ZipDecoder().decodeBytes(bytes);
-  final workbookXml = _xlsxText(archive, 'xl/workbook.xml');
-  final workbookRelsXml = _xlsxText(archive, 'xl/_rels/workbook.xml.rels');
-  final sheetInfo = _activeSheetInfo(workbookXml);
-  final sheetPath = _worksheetPath(workbookRelsXml, sheetInfo.relationshipId);
-  final sheetXml = _xlsxText(archive, sheetPath);
-  final sheetRels = _worksheetRelationships(archive, sheetPath);
-  final styles = _XlsxStyleTable.fromArchive(archive);
-  final sharedStrings = _XlsxSharedStrings.fromArchive(archive);
-  final metadata = _XlsxExtensionMetadata.fromArchive(archive);
-  final sheetJson = _sheetJsonFromWorksheet(
-    sheetXml,
-    sheetName: sheetInfo.name,
-    sharedStrings: sharedStrings,
-    styles: styles,
-    relationships: sheetRels,
-    metadata: metadata,
-  );
-  return FortuneSheetCodec.workbookFromJson({
-    'data': [sheetJson],
-  });
+  _xlsxImportLog('decode start bytes=${bytes.length}');
+  try {
+    final archive = ZipDecoder().decodeBytes(bytes);
+    _xlsxImportLog(
+      'zip decoded entries=${archive.files.length} '
+      'sample=${_archiveEntrySample(archive)}',
+    );
+    final workbookXml = _xlsxText(archive, 'xl/workbook.xml');
+    _xlsxImportLog('workbook.xml loaded chars=${workbookXml.length}');
+    final workbookRelsXml = _xlsxText(archive, 'xl/_rels/workbook.xml.rels');
+    _xlsxImportLog('workbook rels loaded chars=${workbookRelsXml.length}');
+    final sheetInfo = _activeSheetInfo(workbookXml);
+    _xlsxImportLog(
+      'active sheet name=${sheetInfo.name} relId=${sheetInfo.relationshipId}',
+    );
+    final sheetPath = _worksheetPath(workbookRelsXml, sheetInfo.relationshipId);
+    _xlsxImportLog('worksheet path resolved path=$sheetPath');
+    final sheetXml = _xlsxText(archive, sheetPath);
+    _xlsxImportLog('worksheet loaded chars=${sheetXml.length}');
+    final sheetRels = _worksheetRelationships(archive, sheetPath);
+    _xlsxImportLog('worksheet relationships count=${sheetRels.length}');
+    final styles = _XlsxStyleTable.fromArchive(archive);
+    final sharedStrings = _XlsxSharedStrings.fromArchive(archive);
+    final metadata = _XlsxExtensionMetadata.fromArchive(archive);
+    _xlsxImportLog(
+      'resources loaded styles=${styles.formats.length} fonts=${styles.fonts.length} '
+      'fills=${styles.fills.length} borders=${styles.borders.length} '
+      'sharedStrings=${sharedStrings.length} metadataCells=${metadata.cellCount} '
+      'metadataRuns=${metadata.runCount}',
+    );
+    final sheetJson = _sheetJsonFromWorksheet(
+      sheetXml,
+      sheetName: sheetInfo.name,
+      sharedStrings: sharedStrings,
+      styles: styles,
+      relationships: sheetRels,
+      metadata: metadata,
+    );
+    final workbook = FortuneSheetCodec.workbookFromJson({
+      'data': [sheetJson],
+    });
+    _xlsxImportLog(
+      'decode success sheets=${workbook.sheets.length} '
+      'activeRows=${workbook.activeSheet.rowCount} '
+      'activeColumns=${workbook.activeSheet.columnCount} '
+      'cells=${workbook.activeSheet.cells.length}',
+    );
+    return workbook;
+  } catch (error, stackTrace) {
+    _xlsxImportLog('decode failed error=$error\n$stackTrace');
+    rethrow;
+  }
+}
+
+String _archiveEntrySample(Archive archive) {
+  return [
+    for (final file in archive.files.take(40)) file.name.replaceAll('\\', '/'),
+  ].join('|');
 }
 
 String _xlsxText(Archive archive, String path) {
   final normalizedPath = path.replaceAll('\\', '/');
+  _xlsxImportLog('entry lookup path=$normalizedPath');
   for (final file in archive.files) {
     if (!file.isFile || file.name.replaceAll('\\', '/') != normalizedPath) {
       continue;
@@ -50,8 +100,10 @@ String _xlsxText(Archive archive, String path) {
     if (bytes == null) {
       break;
     }
+    _xlsxImportLog('entry found path=$normalizedPath bytes=${bytes.length}');
     return utf8.decode(bytes);
   }
+  _xlsxImportLog('entry missing path=$normalizedPath');
   throw FormatException('Missing XLSX entry: $normalizedPath');
 }
 
@@ -72,6 +124,7 @@ String? _tryXlsxText(Archive archive, String path) {
       _xmlAttributes(match.group(1) ?? ''),
   ];
   if (sheets.isEmpty) {
+    _xlsxImportLog('workbook has no sheet tags');
     throw const FormatException('XLSX workbook has no sheets');
   }
   final activeTab = int.tryParse(
@@ -81,6 +134,7 @@ String? _tryXlsxText(Archive archive, String path) {
   final sheet = sheets[index];
   final relationshipId = sheet['r:id'] ?? sheet['id'];
   if (relationshipId == null || relationshipId.isEmpty) {
+    _xlsxImportLog('active sheet relationship missing attributes=$sheet');
     throw const FormatException('XLSX sheet relationship is missing');
   }
   final name = sheet['name']?.trim();
@@ -91,12 +145,22 @@ String? _tryXlsxText(Archive archive, String path) {
 }
 
 String _worksheetPath(String relationshipsXml, String relationshipId) {
+  var relationshipCount = 0;
   for (final relationship in _relationships(relationshipsXml)) {
+    relationshipCount += 1;
+    _xlsxImportLog(
+      'workbook relationship id=${relationship.id} target=${relationship.target} '
+      'type=${relationship.type}',
+    );
     if (relationship.id != relationshipId) {
       continue;
     }
     return _packageTargetPath('xl', relationship.target);
   }
+  _xlsxImportLog(
+    'worksheet relationship not found relId=$relationshipId '
+    'relationshipCount=$relationshipCount',
+  );
   throw FormatException('XLSX worksheet relationship not found: $relationshipId');
 }
 
@@ -117,9 +181,12 @@ Map<String, _XlsxRelationship> _worksheetRelationships(
   final relsPath = p.url.join(dir, '_rels', '$fileName.rels');
   final xml = _tryXlsxText(archive, relsPath);
   if (xml == null) {
+    _xlsxImportLog('worksheet rels missing path=$relsPath');
     return const <String, _XlsxRelationship>{};
   }
-  return {for (final relationship in _relationships(xml)) relationship.id: relationship};
+  final result = {for (final relationship in _relationships(xml)) relationship.id: relationship};
+  _xlsxImportLog('worksheet rels loaded path=$relsPath count=${result.length}');
+  return result;
 }
 
 Iterable<_XlsxRelationship> _relationships(String xml) sync* {
@@ -315,6 +382,15 @@ Map<String, Object?> _sheetJsonFromWorksheet(
     cellKeys.add(entry.key);
   }
 
+  _xlsxImportLog(
+    'worksheet json built name=$sheetName rows=${_max(maxRow, 1)} '
+    'columns=${_max(maxColumn, 1)} cells=${cells.length} '
+    'merges=${mergeMap.length} rowHeights=${rowHeights.length} '
+    'columnWidths=${columnWidths.length} hiddenRows=${hiddenRows.length} '
+    'hiddenColumns=${hiddenColumns.length} hyperlinks=${hyperlinks.length} '
+    'borders=${borderInfo.length}',
+  );
+
   return {
     'name': sheetName,
     'id': 'sheet_01',
@@ -418,12 +494,15 @@ class _XlsxSharedStrings {
 
   final List<_XlsxSharedString> _values;
 
+  int get length => _values.length;
+
   static _XlsxSharedStrings fromArchive(Archive archive) {
     final xml = _tryXlsxText(archive, 'xl/sharedStrings.xml');
     if (xml == null) {
+      _xlsxImportLog('sharedStrings missing');
       return const _XlsxSharedStrings(<_XlsxSharedString>[]);
     }
-    return _XlsxSharedStrings([
+    final result = _XlsxSharedStrings([
       for (final match in RegExp(
         r'<si\b[^>]*>(.*?)</si>',
         caseSensitive: false,
@@ -431,6 +510,8 @@ class _XlsxSharedStrings {
       ).allMatches(xml))
         _XlsxSharedString(match.group(1) ?? ''),
     ]);
+    _xlsxImportLog('sharedStrings loaded count=${result.length}');
+    return result;
   }
 
   _XlsxCellValue? value(int index, _XlsxCellStyle baseStyle) {
@@ -522,6 +603,7 @@ class _XlsxStyleTable {
   static _XlsxStyleTable fromArchive(Archive archive) {
     final xml = _tryXlsxText(archive, 'xl/styles.xml');
     if (xml == null) {
+      _xlsxImportLog('styles missing, using defaults');
       return const _XlsxStyleTable(
         formats: <_XlsxCellFormat>[_XlsxCellFormat()],
         fonts: <_XlsxFont>[_XlsxFont()],
@@ -535,6 +617,10 @@ class _XlsxStyleTable {
     final borders = _borders(xml);
     final numberFormats = _numberFormats(xml);
     final formats = _cellFormats(xml);
+    _xlsxImportLog(
+      'styles parsed formats=${formats.length} fonts=${fonts.length} '
+      'fills=${fills.length} borders=${borders.length} numFmts=${numberFormats.length}',
+    );
     return _XlsxStyleTable(
       formats: formats.isEmpty ? const <_XlsxCellFormat>[_XlsxCellFormat()] : formats,
       fonts: fonts.isEmpty ? const <_XlsxFont>[_XlsxFont()] : fonts,
@@ -735,6 +821,13 @@ class _XlsxExtensionMetadata {
   final Map<String, Map<String, Object?>> cellExtraByRef;
   final Map<String, Map<int, Map<String, Object?>>> runExtraByRef;
 
+  int get cellCount => cellExtraByRef.length;
+
+  int get runCount => runExtraByRef.values.fold<int>(
+    0,
+    (total, runs) => total + runs.length,
+  );
+
   static _XlsxExtensionMetadata fromArchive(Archive archive) {
     final cellExtra = <String, Map<String, Object?>>{};
     final runExtra = <String, Map<int, Map<String, Object?>>>{};
@@ -751,8 +844,13 @@ class _XlsxExtensionMetadata {
       if (!xml.contains('labelSheetRtfMetadata')) {
         continue;
       }
+      _xlsxImportLog('customXml metadata found path=$name chars=${xml.length}');
       _readMetadataXml(xml, cellExtra, runExtra);
     }
+    _xlsxImportLog(
+      'customXml metadata parsed cells=${cellExtra.length} '
+      'runs=${runExtra.values.fold<int>(0, (total, runs) => total + runs.length)}',
+    );
     return _XlsxExtensionMetadata(
       cellExtraByRef: cellExtra,
       runExtraByRef: runExtra,

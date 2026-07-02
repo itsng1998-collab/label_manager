@@ -66,6 +66,14 @@
 
 ### 대기/추후 작업
 
+- **완료 (2026-07-02)**: `.xlsx` 선택 후 여전히 `라벨 파일을 읽을 수 없습니다.`가 표시되는 문제 확인 및 촘촘한 디버깅 로그 추가.
+  - 확인 결과 최신 로그 `.tmp/log/app_2026-07-02_23-20-26.log` 및 기존 로그 검색에서 import 실패 로그가 없음. 원인: 기존 import 로그가 `fortuneSheetDebugLog`라 플래그 비활성 시 앱 로그에 남지 않음.
+  - `lib/page_label_sheet/label_sheet_workbench.dart`: 파일 선택기 open/cancel/selected, file.name/file.path/pathExt/nameExt, 확장자 판정, bytes 길이, xlsx/lms 분기, 실패 stackTrace를 기본 앱 로그(`debugLog`)로 기록.
+  - `lib/page_label_sheet/label_sheet_xlsx_import.dart`: xlsx probe, zip entry sample, entry lookup/found/missing, workbook.xml/rels, active sheet relId, relationship target, worksheet path/load, worksheet rels, styles/sharedStrings/customXml, worksheet JSON rows/columns/cells/merge/hyperlink/border counts, decode success/failure stackTrace를 기본 앱 로그로 기록.
+  - 검증 완료: `test/label_sheet_xlsx_import_test.dart` 2개 성공.
+  - 검증 완료: `flutter analyze lib/page_label_sheet/label_sheet_workbench.dart lib/page_label_sheet/label_sheet_xlsx_import.dart test/label_sheet_xlsx_import_test.dart --no-fatal-warnings --no-fatal-infos` 성공.
+  - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/page_label_sheet/label_sheet_workbench.dart`, `lib/page_label_sheet/label_sheet_xlsx_import.dart` (`lib/core/app.dart` 기존 dirty 제외).
+
 - **완료 (2026-07-02)**: 컨텍스트 메뉴 `라벨 파일에서 가져오기`에서 `.xlsx` 선택 및 Excel 내용을 현재 라벨 시트로 로드.
   - 수정 예정/진행 파일: `lib/page_label_sheet/label_sheet_workbench.dart`, `lib/page_label_sheet/label_sheet_xlsx_import.dart`, 테스트 파일 추가 예정.
   - 1차 구현: 파일 선택기 확장자 `lms,xlsx` 추가, 확장자별 `.lms` 기존 decode / `.xlsx` 신규 importer 분기 추가.
