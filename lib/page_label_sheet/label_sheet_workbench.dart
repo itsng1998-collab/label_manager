@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
@@ -1674,8 +1675,11 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     FortuneWorkbook importedWorkbook;
     try {
       importedWorkbook = await _readImportedLabelWorkbook(file);
-    } catch (e) {
-      fortuneSheetDebugLog('label sheet import label file failed: $e');
+    } catch (e, stackTrace) {
+      fortuneSheetDebugLog(
+        'label sheet import label file failed: '
+        'name=${file.name} path=${file.path} error=$e\n$stackTrace',
+      );
       if (!mounted) {
         return;
       }
@@ -1724,11 +1728,26 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
   }
 
   Future<FortuneWorkbook> _readImportedLabelWorkbook(XFile file) async {
-    final extension = p.extension(file.name).toLowerCase();
+    final extension = _importedLabelFileExtension(file);
     if (extension == '.xlsx') {
       return labelSheetWorkbookFromXlsxBytes(await file.readAsBytes());
     }
-    return labelSheetDecodeWorkbookSave(await file.readAsString());
+    if (extension == '.lms') {
+      return labelSheetDecodeWorkbookSave(await file.readAsString());
+    }
+    final bytes = await file.readAsBytes();
+    if (labelSheetLooksLikeXlsx(bytes)) {
+      return labelSheetWorkbookFromXlsxBytes(bytes);
+    }
+    return labelSheetDecodeWorkbookSave(utf8.decode(bytes));
+  }
+
+  String _importedLabelFileExtension(XFile file) {
+    final pathExtension = p.extension(file.path).toLowerCase();
+    if (pathExtension.isNotEmpty) {
+      return pathExtension;
+    }
+    return p.extension(file.name).toLowerCase();
   }
 
   String _suggestedLabelFileName() {

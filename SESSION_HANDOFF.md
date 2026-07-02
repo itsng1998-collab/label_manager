@@ -79,6 +79,15 @@
   - 구현 커밋: `e53bc43` (`라벨 시트 XLSX 가져오기 지원`).
   - 추가 구현 커밋: `43bf166` (`XLSX 확장 텍스트 메타 복원`).
 
+- **완료 (2026-07-02)**: `.xlsx` 선택 후 `라벨 파일을 읽을 수 없습니다.`가 표시될 수 있는 경로 보강.
+  - 최신 로그 `.tmp/log/app_2026-07-02_23-15-59.log`에는 import 실패 로그가 없어 파일 형식 판정/실패 로그 자체를 보강.
+  - `lib/page_label_sheet/label_sheet_workbench.dart` `_readImportedLabelWorkbook`: 확장자 판정을 `file.path` 우선, `file.name` fallback으로 변경. 확장자가 비어도 파일 bytes의 zip entry `xl/workbook.xml`로 XLSX를 판별해 importer 호출. 실패 로그에 파일명/경로/stackTrace 포함.
+  - `lib/page_label_sheet/label_sheet_xlsx_import.dart`: `labelSheetLooksLikeXlsx` 추가, workbook relationship target이 `/xl/worksheets/sheet1.xml`처럼 절대 경로인 XLSX도 처리.
+  - `test/label_sheet_xlsx_import_test.dart`: bytes 기반 XLSX 판별 및 절대 worksheet target 회귀 테스트 추가.
+  - 검증 완료: `test/label_sheet_xlsx_import_test.dart` 2개 성공.
+  - 검증 완료: `flutter analyze lib/page_label_sheet/label_sheet_workbench.dart lib/page_label_sheet/label_sheet_xlsx_import.dart test/label_sheet_xlsx_import_test.dart --no-fatal-warnings --no-fatal-infos` 성공.
+  - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/page_label_sheet/label_sheet_workbench.dart`, `lib/page_label_sheet/label_sheet_xlsx_import.dart`, `test/label_sheet_xlsx_import_test.dart` (`lib/core/app.dart` 기존 dirty 제외).
+
 - **완료 (2026-07-02)**: 여러 번 브랜드 조회 후 `RTF를 변환 중입니다...` 스낵바가 남는 문제 수정.
   - 최신 로그 확인: `.tmp/log/app_2026-07-02_11-18-37.log`에서 RTF 변환 완료/미리보기 캡처 성공 후에도 스낵바 제어가 post-frame 예약에 의존하는 경로 확인.
   - `lib/page_label_sheet/label_sheet_workbench.dart` `_syncRtfSnackBar`: `_rtfSnackBarGeneration` 토큰 추가로 stale show/hide 예약 무효화.

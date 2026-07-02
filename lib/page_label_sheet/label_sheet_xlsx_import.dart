@@ -7,6 +7,15 @@ import 'package:archive/archive.dart';
 import 'package:fortune_sheet/fortune_sheet.dart';
 import 'package:path/path.dart' as p;
 
+bool labelSheetLooksLikeXlsx(Uint8List bytes) {
+  try {
+    final archive = ZipDecoder().decodeBytes(bytes);
+    return _tryXlsxText(archive, 'xl/workbook.xml') != null;
+  } catch (_) {
+    return false;
+  }
+}
+
 FortuneWorkbook labelSheetWorkbookFromXlsxBytes(Uint8List bytes) {
   final archive = ZipDecoder().decodeBytes(bytes);
   final workbookXml = _xlsxText(archive, 'xl/workbook.xml');
@@ -86,9 +95,17 @@ String _worksheetPath(String relationshipsXml, String relationshipId) {
     if (relationship.id != relationshipId) {
       continue;
     }
-    return p.url.normalize(p.url.join('xl', relationship.target));
+    return _packageTargetPath('xl', relationship.target);
   }
   throw FormatException('XLSX worksheet relationship not found: $relationshipId');
+}
+
+String _packageTargetPath(String baseDirectory, String target) {
+  final normalizedTarget = target.replaceAll('\\', '/');
+  if (normalizedTarget.startsWith('/')) {
+    return p.url.normalize(normalizedTarget.substring(1));
+  }
+  return p.url.normalize(p.url.join(baseDirectory, normalizedTarget));
 }
 
 Map<String, _XlsxRelationship> _worksheetRelationships(

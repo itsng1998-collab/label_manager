@@ -56,9 +56,23 @@ void main() {
     expect(sheet.borderInfo.map((border) => border.borderType), contains('border-left'));
     expect(sheet.borderInfo.map((border) => border.borderType), contains('border-top'));
   });
+
+  test('detects xlsx bytes and supports absolute worksheet targets', () {
+    final bytes = _xlsxBytes(absoluteWorksheetTarget: true);
+
+    expect(labelSheetLooksLikeXlsx(bytes), isTrue);
+    expect(labelSheetLooksLikeXlsx(Uint8List.fromList('not a zip'.codeUnits)), isFalse);
+    expect(
+      labelSheetWorkbookFromXlsxBytes(bytes)
+          .activeSheet
+          .cells[const FortuneCellCoord(0, 0)]
+          ?.value,
+      '라벨',
+    );
+  });
 }
 
-Uint8List _xlsxBytes() {
+Uint8List _xlsxBytes({bool absoluteWorksheetTarget = false}) {
   final archive = Archive();
   void addXml(String name, String content) {
     archive.addFile(ArchiveFile.string(name, content));
@@ -84,7 +98,7 @@ Uint8List _xlsxBytes() {
 </workbook>''');
   addXml('xl/_rels/workbook.xml.rels', '''<?xml version="1.0" encoding="UTF-8"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="${absoluteWorksheetTarget ? '/xl/worksheets/sheet1.xml' : 'worksheets/sheet1.xml'}"/>
 </Relationships>''');
   addXml('xl/worksheets/_rels/sheet1.xml.rels', '''<?xml version="1.0" encoding="UTF-8"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
