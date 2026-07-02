@@ -240,6 +240,14 @@
   - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/page_label_sheet/label_sheet_workbench.dart` (`lib/core/app.dart` 제외).
   - 구현 커밋: `7bec98f` (`프린터 설정 발행 버튼 위치 조정`).
 
+- **완료 (2026-07-02)**: 브랜드/라벨 설정 테이블 툴팁 표시 범위를 실제 보이는 테이블 row 영역으로 제한.
+  - `lib/widgets/swipe_action_table.dart` `_TableBodyTooltip`: `visibleBodyHeight`를 받아 마우스가 실제 보이는 row 영역 밖으로 나가면 예약/표시 중인 툴팁을 숨기도록 변경.
+  - `SwipeActionTable.build`: row 개수와 body viewport 높이 기준으로 `visibleBodyHeight` 계산. row 아래 빈 영역이나 스크롤 영역 밖에서는 `rowTooltip` 미표시.
+  - 검증 완료: `test/swipe_action_table_test.dart` 7개 성공.
+  - 검증 완료: `flutter analyze lib/widgets/swipe_action_table.dart test/swipe_action_table_test.dart --no-fatal-warnings --no-fatal-infos` 성공.
+  - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/widgets/swipe_action_table.dart` (`lib/core/app.dart` 제외).
+  - 구현 커밋: 예정.
+
 - **ODBC 효율 개선**: `LabelSizeDAO.SelectSql`이 목록 조회에서도 `RICH_FORM_DATA`를 항상 가져오는 문제. 목록/상세 조회 분리, 목록에서 `FORM_DATA` 제외, 선택/시트 진입 시 상세 조회로 보강.
 
 ## 완료된 기능 요약

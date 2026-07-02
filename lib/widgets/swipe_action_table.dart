@@ -942,6 +942,16 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
                 widget.rowNumberWidth)
             .clamp(0, double.infinity);
         final hasHorizontalOverflow = contentWidth > horizontalViewportWidth + 0.5;
+        final bodyViewportHeight = (constraints.maxHeight - widget.headerHeight)
+          .clamp(0, double.infinity)
+          .toDouble();
+        final visibleRowCount = widget.rows.isEmpty
+          ? (widget.showActionsWhenEmpty ? 1 : 0)
+          : widget.rows.length;
+        final rowAreaHeight = visibleRowCount * widget.rowHeight;
+        final visibleBodyHeight = rowAreaHeight < bodyViewportHeight
+          ? rowAreaHeight
+          : bodyViewportHeight;
         return Column(
           children: [
             Row(
@@ -975,6 +985,7 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
                           : MouseCursor.defer,
                       child: _TableBodyTooltip(
                         message: widget.rowTooltip,
+                        visibleBodyHeight: visibleBodyHeight,
                         child: Scrollbar(
                           controller: _vScrollBody,
                           thumbVisibility: true,
@@ -1022,9 +1033,14 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
 }
 
 class _TableBodyTooltip extends StatefulWidget {
-  const _TableBodyTooltip({required this.message, required this.child});
+  const _TableBodyTooltip({
+    required this.message,
+    required this.visibleBodyHeight,
+    required this.child,
+  });
 
   final String? message;
+  final double visibleBodyHeight;
   final Widget child;
 
   @override
@@ -1112,8 +1128,18 @@ class _TableBodyTooltipState extends State<_TableBodyTooltip> {
   }
 
   void _updateCursorPosition(PointerHoverEvent event) {
+    if (!_isWithinVisibleBody(event.localPosition)) {
+      _hideTooltip();
+      return;
+    }
     _cursorGlobalPosition = event.position;
     _entry?.markNeedsBuild();
+  }
+
+  bool _isWithinVisibleBody(Offset localPosition) {
+    return widget.visibleBodyHeight > 0 &&
+        localPosition.dy >= 0 &&
+        localPosition.dy <= widget.visibleBodyHeight;
   }
 
   void _hideTooltip() {
@@ -1133,6 +1159,9 @@ class _TableBodyTooltipState extends State<_TableBodyTooltip> {
     }
     return MouseRegion(
       onEnter: (event) {
+        if (!_isWithinVisibleBody(event.localPosition)) {
+          return;
+        }
         _cursorGlobalPosition = event.position;
         _scheduleTooltip();
       },
