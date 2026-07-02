@@ -175,7 +175,7 @@
   - 라벨 행 드래그/드랍 시 드랍 대상 행 바로 위로 로컬 순서 이동. 이동 발생 시 하단 오른쪽 `순서 변경` 영역과 `취소`/`적용` 버튼 표시. `취소`는 원래 순서 복원, `적용`은 추후 DB 처리 자리로 로그만 남김.
   - 검증 완료: `flutter analyze lib/widgets/swipe_action_table.dart lib/home_page_manager.dart --no-fatal-warnings --no-fatal-infos` 성공.
   - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/home_page_manager.dart`, `lib/widgets/swipe_action_table.dart` (`lib/core/app.dart` 제외).
-  - 구현 커밋: 예정.
+  - 구현 커밋: `ab068a0` (`라벨 설정 순서 변경 UI 추가`).
 
 - **ODBC 효율 개선**: `LabelSizeDAO.SelectSql`이 목록 조회에서도 `RICH_FORM_DATA`를 항상 가져오는 문제. 목록/상세 조회 분리, 목록에서 `FORM_DATA` 제외, 선택/시트 진입 시 상세 조회로 보강.
 
