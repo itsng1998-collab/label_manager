@@ -70,12 +70,35 @@ void main() {
       '라벨',
     );
   });
+
+  test('imports xlsx xml with namespace-prefixed spreadsheet tags', () {
+    final workbook = labelSheetWorkbookFromXlsxBytes(_xlsxBytes(prefixTags: true));
+
+    expect(workbook.activeSheet.name, 'Labels');
+    expect(
+      workbook.activeSheet.cells[const FortuneCellCoord(0, 0)]?.value,
+      '라벨',
+    );
+    expect(
+      workbook.activeSheet.cells[const FortuneCellCoord(0, 2)]?.inlineRuns?[1].extraFields['script'],
+      'subscript',
+    );
+  });
 }
 
-Uint8List _xlsxBytes({bool absoluteWorksheetTarget = false}) {
+Uint8List _xlsxBytes({
+  bool absoluteWorksheetTarget = false,
+  bool prefixTags = false,
+}) {
   final archive = Archive();
   void addXml(String name, String content) {
-    archive.addFile(ArchiveFile.string(name, content));
+    final shouldPrefix = prefixTags &&
+        name.startsWith('xl/') &&
+        name.endsWith('.xml') &&
+        !name.contains('/_rels/');
+    archive.addFile(
+      ArchiveFile.string(name, shouldPrefix ? _prefixSpreadsheetTags(content) : content),
+    );
   }
 
   addXml('[Content_Types].xml', '''<?xml version="1.0" encoding="UTF-8"?>
@@ -154,4 +177,71 @@ Uint8List _xlsxBytes({bool absoluteWorksheetTarget = false}) {
 </labelSheetRtfMetadata>''');
 
   return Uint8List.fromList(ZipEncoder().encodeBytes(archive));
+}
+
+String _prefixSpreadsheetTags(String xml) {
+  final withNamespacePrefix = xml.replaceAll(
+    'xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"',
+    'xmlns:x="http://schemas.openxmlformats.org/spreadsheetml/2006/main"',
+  );
+  const tags = <String>{
+    'alignment',
+    'b',
+    'border',
+    'borders',
+    'bookViews',
+    'workbookView',
+    'bottom',
+    'c',
+    'cellStyleXfs',
+    'cellXfs',
+    'col',
+    'color',
+    'cols',
+    'dimension',
+    'f',
+    'fgColor',
+    'fill',
+    'fills',
+    'font',
+    'fonts',
+    'hyperlink',
+    'hyperlinks',
+    'i',
+    'left',
+    'mergeCell',
+    'mergeCells',
+    'name',
+    'numFmt',
+    'numFmts',
+    'patternFill',
+    'r',
+    'right',
+    'rPr',
+    'row',
+    'sheet',
+    'sheetData',
+    'sheets',
+    'si',
+    'sst',
+    'styleSheet',
+    'sz',
+    't',
+    'top',
+    'u',
+    'v',
+    'workbook',
+    'worksheet',
+    'xf',
+  };
+  return withNamespacePrefix.replaceAllMapped(
+    RegExp(r'<(/?)([A-Za-z][A-Za-z0-9]*)\b'),
+    (match) {
+      final tag = match.group(2)!;
+      if (!tags.contains(tag)) {
+        return match.group(0)!;
+      }
+      return '<${match.group(1) ?? ''}x:$tag';
+    },
+  );
 }

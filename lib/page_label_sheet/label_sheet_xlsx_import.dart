@@ -101,10 +101,17 @@ String _xlsxText(Archive archive, String path) {
       break;
     }
     _xlsxImportLog('entry found path=$normalizedPath bytes=${bytes.length}');
-    return utf8.decode(bytes);
+    return _normalizeXmlTagPrefixes(utf8.decode(bytes));
   }
   _xlsxImportLog('entry missing path=$normalizedPath');
   throw FormatException('Missing XLSX entry: $normalizedPath');
+}
+
+String _normalizeXmlTagPrefixes(String xml) {
+  return xml.replaceAllMapped(
+    RegExp(r'<(/?)[A-Za-z_][\w.-]*:'),
+    (match) => '<${match.group(1) ?? ''}',
+  );
 }
 
 String? _tryXlsxText(Archive archive, String path) {

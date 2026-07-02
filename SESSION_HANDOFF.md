@@ -66,6 +66,15 @@
 
 ### 대기/추후 작업
 
+- **완료 (2026-07-02)**: `label_converted.xlsx` 가져오기 실패 원인 수정.
+  - 최신 로그 `.tmp/log/app_2026-07-02_23-25-23.log`: `workbook.xml` 로드 성공 후 `_activeSheetInfo: workbook has no sheet tags`, `FormatException: XLSX workbook has no sheets` 발생.
+  - 실제 `xl/workbook.xml`: `<x:workbook>`, `<x:sheets>`, `<x:sheet ...>`처럼 SpreadsheetML 태그가 namespace prefix를 사용. 기존 importer 정규식은 `<sheet>`만 매칭해 실패.
+  - `lib/page_label_sheet/label_sheet_xlsx_import.dart`: XML entry 로드 시 태그 이름의 namespace prefix만 제거(`x:workbook -> workbook`, `x:sheet -> sheet`)하고 `r:id` 같은 attribute prefix는 유지하도록 `_normalizeXmlTagPrefixes` 추가.
+  - `test/label_sheet_xlsx_import_test.dart`: workbook/worksheet/styles/sharedStrings 태그에 `x:` prefix가 붙은 XLSX fixture 회귀 테스트 추가.
+  - 검증 완료: `test/label_sheet_xlsx_import_test.dart` 3개 성공.
+  - 검증 완료: `flutter analyze lib/page_label_sheet/label_sheet_xlsx_import.dart test/label_sheet_xlsx_import_test.dart --no-fatal-warnings --no-fatal-infos` 성공.
+  - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/page_label_sheet/label_sheet_xlsx_import.dart`, `test/label_sheet_xlsx_import_test.dart` (`lib/core/app.dart` 기존 dirty 제외).
+
 - **완료 (2026-07-02)**: `.xlsx` 선택 후 여전히 `라벨 파일을 읽을 수 없습니다.`가 표시되는 문제 확인 및 촘촘한 디버깅 로그 추가.
   - 확인 결과 최신 로그 `.tmp/log/app_2026-07-02_23-20-26.log` 및 기존 로그 검색에서 import 실패 로그가 없음. 원인: 기존 import 로그가 `fortuneSheetDebugLog`라 플래그 비활성 시 앱 로그에 남지 않음.
   - `lib/page_label_sheet/label_sheet_workbench.dart`: 파일 선택기 open/cancel/selected, file.name/file.path/pathExt/nameExt, 확장자 판정, bytes 길이, xlsx/lms 분기, 실패 stackTrace를 기본 앱 로그(`debugLog`)로 기록.
