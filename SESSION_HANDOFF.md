@@ -248,6 +248,15 @@
   - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/widgets/swipe_action_table.dart` (`lib/core/app.dart` 제외).
   - 구현 커밋: `09f8489` (`테이블 툴팁 표시 범위 제한`).
 
+- **완료 (2026-07-02)**: 라벨 설정 테이블 행 드래그 애니메이션 feedback에 행 헤더 포함.
+  - `lib/widgets/swipe_action_table.dart`: row reorder feedback을 데이터 행 단독에서 `행 헤더 + 데이터 행` 전체 행으로 변경. 데이터 행을 잡아도, 행 헤더를 잡아도 동일한 전체 행 feedback 표시.
+  - `SwipeActionTable` row number list가 effective column widths를 사용하도록 변경해 feedback 데이터 행 폭이 실제 표시 폭과 일치.
+  - `test/swipe_action_table_test.dart`: 드래그 중 feedback overlay에 행 헤더 텍스트가 추가로 표시되는 회귀 테스트 추가.
+  - 검증 완료: `test/swipe_action_table_test.dart` 8개 성공.
+  - 검증 완료: `flutter analyze lib/widgets/swipe_action_table.dart test/swipe_action_table_test.dart --no-fatal-warnings --no-fatal-infos` 성공.
+  - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/widgets/swipe_action_table.dart`, `test/swipe_action_table_test.dart` (`lib/core/app.dart` 제외).
+  - 구현 커밋: 예정.
+
 - **ODBC 효율 개선**: `LabelSizeDAO.SelectSql`이 목록 조회에서도 `RICH_FORM_DATA`를 항상 가져오는 문제. 목록/상세 조회 분리, 목록에서 `FORM_DATA` 제외, 선택/시트 진입 시 상세 조회로 보강.
 
 ## 완료된 기능 요약

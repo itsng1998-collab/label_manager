@@ -243,6 +243,24 @@ void main() {
     expect(brandATop, lessThan(brandCTop));
   });
 
+  testWidgets('row drag feedback includes row header', (tester) async {
+    await _pumpReorderTable(tester);
+
+    expect(find.text('No A'), findsOneWidget);
+
+    final start = tester.getCenter(find.text('Brand A'));
+    final target = tester.getCenter(find.text('Brand B'));
+    final gesture = await tester.startGesture(start);
+    await tester.pump();
+    await gesture.moveTo(target);
+    await tester.pump();
+
+    expect(find.text('No A'), findsNWidgets(2));
+
+    await gesture.up();
+    await tester.pumpAndSettle();
+  });
+
   testWidgets('row header drag uses shared row reorder behavior', (
     tester,
   ) async {

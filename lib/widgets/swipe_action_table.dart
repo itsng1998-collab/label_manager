@@ -461,21 +461,22 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
     );
   }
 
-  Widget _buildRowNumberList() {
+  Widget _buildRowNumberList(List<double> widths) {
     return SizedBox(
       width: widget.rowNumberWidth,
       child: ListView.builder(
         controller: _vScrollIndex,
         itemCount: widget.rows.length,
-        itemBuilder: (context, index) => _buildRowNumber(index),
+        itemBuilder: (context, index) => _buildRowNumber(index, widths),
       ),
     );
   }
 
-  Widget _buildRowNumber(int index) {
+  Widget _buildRowNumberBox(int index) {
     final rowNumberText =
         widget.rowNumberText?.call(widget.rows[index], index) ?? '${index + 1}';
-    final rowNumber = Container(
+    return Container(
+      width: widget.rowNumberWidth,
       height: widget.rowHeight,
       decoration: const BoxDecoration(
         color: _headerColor,
@@ -491,15 +492,52 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
         style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
       ),
     );
+  }
+
+  Widget _buildRowNumber(int index, List<double> widths) {
+    final rowNumber = _buildRowNumberBox(index);
     final onRowReorder = widget.onRowReorder;
     if (!widget.rowReorderEnabled || onRowReorder == null) {
       return rowNumber;
     }
+    final dataFeedback = _buildDataRowFeedback(widget.rows[index], index, widths);
     return _buildRowReorderTarget(
       index: index,
       width: widget.rowNumberWidth,
       child: rowNumber,
-      feedback: rowNumber,
+      feedback: _buildWholeRowFeedback(index, dataFeedback),
+    );
+  }
+
+  Widget _buildWholeRowFeedback(int index, Widget dataRow) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _buildRowNumberBox(index),
+        dataRow,
+      ],
+    );
+  }
+
+  Widget _buildDataRowFeedback(T row, int index, List<double> widths) {
+    final contentWidth = widths.fold<double>(0, (sum, width) => sum + width);
+    return SizedBox(
+      width: contentWidth,
+      height: widget.rowHeight,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: _selectedIndex == index
+              ? const Color(0xFFE3F2FD)
+              : (index.isEven ? Colors.white : const Color(0xFFF2F4F7)),
+          border: const Border(bottom: BorderSide(color: _bodySeparatorColor)),
+        ),
+        child: Row(
+          children: List.generate(
+            widget.columns.length,
+            (cellIndex) => _buildCell(row, cellIndex, widths),
+          ),
+        ),
+      ),
     );
   }
 
@@ -901,7 +939,7 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
       index: index,
       width: contentWidth,
       child: rowBox,
-      feedback: rowBox,
+      feedback: _buildWholeRowFeedback(index, rowBox),
     );
   }
 
@@ -977,7 +1015,7 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
             Expanded(
               child: Row(
                 children: [
-                  _buildRowNumberList(),
+                  _buildRowNumberList(widths),
                   Expanded(
                     child: MouseRegion(
                       cursor: _draggingIndex != null
