@@ -280,13 +280,13 @@ class LabelSizeDAO extends DAO {
         {'width': width, 'height': height, 'formData': formData,
          'userId': User.instance!.userId, 'loginIP': hexLoginIP, 'labelSizeId': labelSizeId},
       );
-      debugLog('$END - BM_RICH_LABELSIZE_FORM_LOG Result: $res');
+      debugLog('$END, BM_RICH_LABELSIZE_FORM_LOG Result: $res');
 
       res = await DbClient.instance.writeDataWithParams(
         '$UpdateFormDataSql $WhereSqlLabelSizeId',
         {'width': width, 'height': height, 'formData': formData, 'labelSizeId': labelSizeId},
       );
-      debugLog('$END - BM_RICH_LABELSIZE_FORM Result: $res');
+      debugLog('$END, BM_RICH_LABELSIZE_FORM Result: $res');
     }
     catch (e) {
       debugLog('$END, $e');

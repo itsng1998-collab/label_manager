@@ -78,7 +78,7 @@ class BrandDAO extends DAO {
     }
   }
 
-  static Future<bool> updateByBrandId(
+  static Future<void> updateByBrandId(
     Brand brand, String newBrandName
   ) async {
     debugLog('$START, brandId:${brand.brandId}, customerId:${brand.customerId}, brandName:${brand.brandName}, newBrandName:$newBrandName');
@@ -95,15 +95,19 @@ class BrandDAO extends DAO {
         updateSql,
         {'customerId': brand.customerId, 'brandName': newBrandName, 'brandId': brand.brandId},
       );
+
       final affected = DAO.affectedRows(res);
       final succeeded = affected > 0;
 
+      if (!succeeded) {
+        throw Exception('${runtimeLogTag()} Update failed for brandId:${brand.brandId}');
+      }
+
       debugLog('$END, BM_RICH_BRAND Result: $res, affected:$affected, succeeded:$succeeded');
-      return succeeded;
     }
     catch (e) {
       debugLog('$END, $e');
-      return false;
+      rethrow;
     }
   }
 }
