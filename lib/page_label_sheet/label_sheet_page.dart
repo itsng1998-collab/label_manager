@@ -72,6 +72,29 @@ class LabelSheetPage extends StatelessWidget {
   ) async {
     debugLog(START);
 
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        content: Text('라벨을 저장하시겠습니까?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('취소'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('확인'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) {
+      debugLog('saveLabelSheet cancelledByUser labelSizeId=${labelSize?.labelSizeId} keepEditing');
+      return;
+    }
+
+    if (!context.mounted) return;
     showSnackBar(
       context,
       '라벨을 저장 중입니다...',
