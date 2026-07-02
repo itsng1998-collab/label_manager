@@ -373,7 +373,7 @@ Map<String, Object?> _sheetJsonFromWorksheet(
         styleSamples.add(
           '${_coordLabel(coord.row, coord.column)} '
           'bg=${cellJson['bg']} fc=${cellJson['fc']} bl=${cellJson['bl']} '
-          'mc=${cellJson['mc']}',
+          'fs=${cellJson['fs']} mc=${cellJson['mc']}',
         );
       }
       for (final border in style.borderInfo(coord.row, coord.column)) {
@@ -464,7 +464,8 @@ void _logDecodedSheetSample(FortuneSheet sheet) {
     final sample = '${_coordLabel(coord.row, coord.column)}->'
         '${_coordLabel(merge.row, merge.column)} '
         'span=${merge.rowSpan}x${merge.columnSpan} '
-        'value=${_logText(value)} bg=${cell.background} fc=${cell.foreground}';
+        'value=${_logText(value)} fs=${cell.fontSize} '
+        'bg=${cell.background} fc=${cell.foreground}';
     if (merge.row == coord.row && merge.column == coord.column) {
       if (anchorSamples.length < 40) {
         anchorSamples.add(sample);
@@ -647,7 +648,7 @@ Map<String, Object?> _runJson(String? properties) {
     if (_hasFlag(properties, 'strike')) 'cl': true,
     if (_hasFlag(properties, 'u')) 'un': true,
     if (color != null) 'fc': color,
-    if (fontSize != null) 'fs': fontSize,
+    if (fontSize != null) 'fs': _pointsToLogicalPixels(fontSize),
     if (fontFamily != null) 'ff': fontFamily,
     if (vertAlign == 'superscript' || vertAlign == 'subscript')
       'script': vertAlign,
@@ -1015,7 +1016,9 @@ List<_XlsxFont> _fonts(String xml) {
         italic: _hasFlag(fontXml, 'i'),
         underline: _hasFlag(fontXml, 'u'),
         strikeThrough: _hasFlag(fontXml, 'strike'),
-        fontSize: double.tryParse(_firstTagAttributes(fontXml, 'sz')?['val'] ?? ''),
+        fontSize: _pointsToLogicalPixels(
+          double.tryParse(_firstTagAttributes(fontXml, 'sz')?['val'] ?? ''),
+        ),
         fontFamily: _firstTagAttributes(fontXml, 'name')?['val'],
         foreground: _colorFromElement(fontXml, 'color'),
         script: _scriptFromVertAlign(_firstTagAttributes(fontXml, 'vertAlign')?['val']),
@@ -1381,12 +1384,21 @@ T? _itemAt<T>(List<T> values, int? index) {
 
 int _borderStyle(String style) {
   return switch (style) {
-    'hair' || 'dotted' => 3,
-    'dashDot' || 'dashDotDot' || 'dashed' => 2,
-    'medium' || 'mediumDashed' || 'mediumDashDot' || 'mediumDashDotDot' => 4,
-    'thick' || 'double' => 5,
+    'hair' || 'dotted' => 10,
+    'dashed' || 'dashDot' || 'dashDotDot' => 9,
+    'mediumDashed' || 'mediumDashDot' || 'mediumDashDotDot' => 4,
+    'medium' => 8,
+    'thick' => 13,
+    'double' => 2,
     _ => 1,
   };
+}
+
+double? _pointsToLogicalPixels(double? points) {
+  if (points == null || !points.isFinite || points <= 0) {
+    return null;
+  }
+  return points * 4 / 3;
 }
 
 int _max(int left, int right) => left > right ? left : right;

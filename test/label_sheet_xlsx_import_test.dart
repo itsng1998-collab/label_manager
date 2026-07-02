@@ -25,7 +25,7 @@ void main() {
     expect(a1.italic, isTrue);
     expect(a1.underline, isTrue);
     expect(a1.fontFamily, '맑은 고딕');
-    expect(a1.fontSize, 14);
+    expect(a1.fontSize, closeTo(18.67, 0.01));
     expect(a1.foreground, const Color(0xffff0000));
     expect(a1.background, const Color(0xff00ff00));
     expect(a1.horizontalAlign, 'center');
@@ -69,6 +69,12 @@ void main() {
 
     expect(sheet.borderInfo.map((border) => border.borderType), contains('border-left'));
     expect(sheet.borderInfo.map((border) => border.borderType), contains('border-top'));
+    expect(
+      sheet.borderInfo
+          .where((border) => border.borderType == 'border-top')
+          .map((border) => border.style),
+      contains(8),
+    );
   });
 
   test('detects xlsx bytes and supports absolute worksheet targets', () {

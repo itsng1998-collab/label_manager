@@ -66,6 +66,18 @@
 
 ### 대기/추후 작업
 
+- **완료 (2026-07-03)**: XLSX 원본 대비 변환본 스케일/테두리 차이 수정.
+  - 최신 로그 `.tmp/log/app_2026-07-02_23-57-45.log`: C1/H3/H9/J1 값과 병합은 apply 단계까지 정상.
+  - 남은 차이: 글자 크기가 작고, 원본 solid medium 테두리가 변환본에서 점선처럼 표시됨.
+  - 확인 결과: XLSX font size는 20~22pt인데 importer가 그대로 `fs`에 넣어 FortuneSheet에서 20~22 logical px로 렌더됨. row height는 이미 pt→px 변환 중이므로 font도 XLSX importer에서 pt→logical px 변환 필요.
+  - 확인 결과: XLSX `medium` border가 solid인데 `_borderStyle`이 FortuneSheet dashed style `4`로 매핑 중. solid medium은 FortuneSheet style `8`로 매핑해야 함.
+  - `lib/page_label_sheet/label_sheet_xlsx_import.dart`: font `<sz val="...">`를 XLSX pt 단위에서 FortuneSheet logical px로 변환(`pt * 4 / 3`). 로그 style/merge sample에 `fs` 포함.
+  - `lib/page_label_sheet/label_sheet_xlsx_import.dart`: `_borderStyle`에서 Excel solid `medium` -> FortuneSheet style `8`, `thick` -> `13`, `double` -> `2`로 매핑. dashed/dotted 계열은 FortuneSheet dash style로 분리.
+  - `test/label_sheet_xlsx_import_test.dart`: font size 변환 기대값 갱신, medium border가 solid style `8`로 들어오는 회귀 테스트 추가.
+  - 검증 완료: `test/label_sheet_xlsx_import_test.dart` 3개 성공.
+  - 검증 완료: `flutter analyze lib/page_label_sheet/label_sheet_xlsx_import.dart test/label_sheet_xlsx_import_test.dart --no-fatal-warnings --no-fatal-infos` 성공.
+  - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/page_label_sheet/label_sheet_xlsx_import.dart`, `test/label_sheet_xlsx_import_test.dart` (`lib/core/app.dart` 기존 dirty 제외).
+
 - **완료 (2026-07-02)**: XLSX 가져오기 크기 해석 정정 및 self-closing 셀 파싱 수정.
   - 사용자 의도: 가져오기 시 설정한 라벨 물리 크기(mm)는 유지하고, 행/열/셀 내용은 인쇄영역을 벗어나도 잘라내지 않고 그대로 가져오기.
   - 이전 구현 문제: `_labelSheetWithImportedGridClientSize`가 XLSX 전체 행/열 크기를 새 `fortuneSheetGridClientWidthMm/HeightMm`으로 저장해 물리 라벨 크기 자체를 바꿈.
