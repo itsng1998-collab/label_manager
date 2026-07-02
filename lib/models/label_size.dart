@@ -275,18 +275,44 @@ class LabelSizeDAO extends DAO {
         FROM BM_RICH_LABELSIZE_FORM
       ''';
 
-      var res = await DbClient.instance.writeDataWithParams(
-        '$insertFormDataSql $WhereSqlLabelSizeId',
+      final updateFormDataTransactionSql = '''
+        SET XACT_ABORT ON;
+        BEGIN TRY
+          BEGIN TRANSACTION;
+
+          $insertFormDataSql $WhereSqlLabelSizeId;
+          IF @@ROWCOUNT <= 0
+            THROW 51000, 'Insert label size form log failed.', 1;
+
+          $UpdateFormDataSql $WhereSqlLabelSizeId;
+          IF @@ROWCOUNT <= 0
+            THROW 51001, 'Update label size form failed.', 1;
+
+          COMMIT TRANSACTION;
+          SET XACT_ABORT OFF;
+        END TRY
+        BEGIN CATCH
+          IF @@TRANCOUNT > 0
+            ROLLBACK TRANSACTION;
+          SET XACT_ABORT OFF;
+          THROW;
+        END CATCH
+      ''';
+
+      final res = await DbClient.instance.writeDataWithParams(
+        updateFormDataTransactionSql,
         {'width': width, 'height': height, 'formData': formData,
          'userId': User.instance!.userId, 'loginIP': hexLoginIP, 'labelSizeId': labelSizeId},
       );
-      debugLog('$END, BM_RICH_LABELSIZE_FORM_LOG Result: $res');
 
-      res = await DbClient.instance.writeDataWithParams(
-        '$UpdateFormDataSql $WhereSqlLabelSizeId',
-        {'width': width, 'height': height, 'formData': formData, 'labelSizeId': labelSizeId},
-      );
-      debugLog('$END, BM_RICH_LABELSIZE_FORM Result: $res');
+      final affected = DAO.affectedRows(res);
+      final succeeded = affected > 0;
+
+      if (!succeeded) {
+        throw Exception('${runtimeLogTag()} Transaction affected no rows for labelSizeId:$labelSizeId');
+      }
+
+      debugLog('$END, BM_RICH_LABELSIZE_FORM transaction Result: $res, affected:$affected, succeeded:$succeeded');
     }
     catch (e) {
       debugLog('$END, $e');

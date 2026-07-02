@@ -101,6 +101,12 @@
   - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/models/dao.dart`, `lib/models/brand.dart` (`lib/core/app.dart`, `lib/models/label_size.dart` 기존 dirty 제외).
   - 구현 커밋: `cf52883` (`DAO 영향 행 수 추출 공용화`).
 
+- **완료 (2026-07-02)**: `LabelSizeDAO.updateByLabelSizeId`의 로그 INSERT와 본문 UPDATE를 단일 DB 트랜잭션으로 변경.
+  - `lib/models/label_size.dart` `updateByLabelSizeId`: `BEGIN TRY/BEGIN TRANSACTION/COMMIT/ROLLBACK/THROW` SQL Server 배치 1회 호출로 로그 INSERT와 본문 UPDATE를 원자화.
+  - 각 작업 직후 `@@ROWCOUNT <= 0`이면 `THROW`로 롤백되도록 처리하고, 정상/오류 경로 모두 `SET XACT_ABORT OFF`로 세션 옵션 복구.
+  - 검증 완료: `flutter analyze lib/models/label_size.dart --no-fatal-warnings --no-fatal-infos` 성공.
+  - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/models/label_size.dart` (`lib/core/app.dart` 기존 dirty 제외).
+
 - **ODBC 효율 개선**: `LabelSizeDAO.SelectSql`이 목록 조회에서도 `RICH_FORM_DATA`를 항상 가져오는 문제. 목록/상세 조회 분리, 목록에서 `FORM_DATA` 제외, 선택/시트 진입 시 상세 조회로 보강.
 
 ## 완료된 기능 요약
