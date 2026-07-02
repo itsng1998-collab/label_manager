@@ -75,6 +75,7 @@
   - 검증 완료: `test/label_sheet_xlsx_import_test.dart` 3개 성공.
   - 검증 완료: `flutter analyze lib/page_label_sheet/label_sheet_xlsx_import.dart lib/page_label_sheet/label_sheet_workbench.dart test/label_sheet_xlsx_import_test.dart --no-fatal-warnings --no-fatal-infos` 성공.
   - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/page_label_sheet/label_sheet_xlsx_import.dart`, `lib/page_label_sheet/label_sheet_workbench.dart`, `test/label_sheet_xlsx_import_test.dart` (`lib/core/app.dart` 기존 dirty 제외).
+  - 구현 커밋: `a975f51` (`XLSX 가져오기 병합 로그 보강`).
 
 - **완료 (2026-07-02)**: XLSX/라벨 파일 가져오기 시 현재 설정된 라벨 크기에 맞춰 제한하지 않고, 가져온 시트의 실제 행/열 크기 전체를 작업 영역으로 사용하도록 수정.
   - `lib/page_label_sheet/label_sheet_workbench.dart`: `_handleImportLabelFile`에서 가져온 시트가 자체 `fortuneSheetGridClientWidthMm/HeightMm`을 갖고 있지 않으면 row/column extent를 mm로 환산해 extraFields에 저장. 설정 라벨 크기보다 커도 가져온 전체 크기를 grid client area로 사용.
