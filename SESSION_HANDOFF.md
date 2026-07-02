@@ -76,6 +76,7 @@
   - 검증 완료: `test/label_sheet_xlsx_import_test.dart` 3개 성공.
   - 검증 완료: `flutter analyze lib/page_label_sheet/label_sheet_xlsx_import.dart test/label_sheet_xlsx_import_test.dart --no-fatal-warnings --no-fatal-infos` 성공.
   - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/page_label_sheet/label_sheet_xlsx_import.dart`, `test/label_sheet_xlsx_import_test.dart` (`lib/core/app.dart` 기존 dirty 제외).
+  - 구현 커밋: `3a28496` (`XLSX 가져오기 줄바꿈 처리와 로그 보강`).
 
 - **완료 (2026-07-03)**: XLSX 원본 대비 변환본 열 폭/테두리 굵기 추가 보정.
   - 최신 로그 `.tmp/log/app_2026-07-03_00-11-03.log`: 값/병합/font size는 정상 적용. current grid physical size는 80x60mm 유지.
