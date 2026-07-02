@@ -62,6 +62,7 @@ class _HomePageManagerState extends State<HomePageManager> {
   PreviewFloatingWindow? _itemPreviewWindow;
   PreviewFloatingWindow? _commonLabelPreviewWindow;
   Timer? _rtfPreviewResizeDebounce;
+  Timer? _rtfPreviewResizeFinalizeTimer;
   List<TabData> _tabs = const <TabData>[];
   LabelSize? _currentLabelSize;
   String? _rtfPreviewReadyKey;
@@ -694,8 +695,10 @@ class _HomePageManagerState extends State<HomePageManager> {
     }
     if (_rtfPreviewTargetKey != readyKey) {
       _rtfPreviewResizeDebounce?.cancel();
+      _rtfPreviewResizeFinalizeTimer?.cancel();
       _rtfPreviewTargetKey = readyKey;
       _rtfPreviewTargetContentSize = null;
+      _rtfPreviewRefreshedTargetContentSize = null;
       _rtfPreviewWindowKey = null;
       _commonLabelPreviewWindow?.dispose();
       _commonLabelPreviewWindow = null;
@@ -804,13 +807,12 @@ class _HomePageManagerState extends State<HomePageManager> {
       key: _rtfPreviewBoxKey,
       child: LabelSheetRtfPreview(
         key: ValueKey(
-          'rtf-preview:${_effectiveLabelSize?.labelSizeId}:${rtf.hashCode}:'
-          '${targetWidth ?? 'auto'}x${targetHeight ?? 'auto'}:'
-          'g$_rtfPreviewCaptureGeneration',
+          'rtf-preview:${_effectiveLabelSize?.labelSizeId}:${rtf.hashCode}',
         ),
         rtf: rtf,
         width: targetWidth,
         height: targetHeight,
+        captureGeneration: _rtfPreviewCaptureGeneration,
         widthMm: _effectiveLabelSize?.labelSizeCommon?.width ?? 100,
         heightMm: _effectiveLabelSize?.labelSizeCommon?.height ?? 100,
         onImageSizeResolved: (imageSize) {
@@ -866,17 +868,14 @@ class _HomePageManagerState extends State<HomePageManager> {
     final target = _rtfPreviewContentSizeForRect(rect);
     final refreshedTarget = _rtfPreviewRefreshedTargetContentSize;
     final alreadyRefreshed = _isSameRoundedSize(refreshedTarget, target);
+    _rtfPreviewResizeDebounce?.cancel();
+    _rtfPreviewResizeDebounce = null;
+    _rtfPreviewTargetContentSize = target;
     debugLog(
       'rtf preview resize completed '
       'target=${target.width.round()}x${target.height.round()} '
       'refreshed=${refreshedTarget == null ? 'none' : '${refreshedTarget.width.round()}x${refreshedTarget.height.round()}'} '
       'force=${!alreadyRefreshed}',
-    );
-    _updateRtfPreviewTargetFromRect(
-      rect,
-      isResizing: false,
-      force: !alreadyRefreshed,
-      reason: 'resizeEndRect',
     );
     _scheduleRtfPreviewResizeFinalRecapture(rect);
   }
@@ -920,10 +919,7 @@ class _HomePageManagerState extends State<HomePageManager> {
     );
     if (isResizing) {
       _rtfPreviewResizeDebounce?.cancel();
-      _rtfPreviewResizeDebounce = Timer(
-        const Duration(milliseconds: 150),
-        () => _refreshRtfPreviewChild(reason: 'resizeDebounce'),
-      );
+      _rtfPreviewResizeDebounce = null;
       return;
     }
     _rtfPreviewResizeDebounce?.cancel();
@@ -933,6 +929,8 @@ class _HomePageManagerState extends State<HomePageManager> {
 
   void _scheduleRtfPreviewResizeFinalRecapture(Rect resizeEndRect) {
     final token = ++_rtfPreviewResizeFinalizeToken;
+    _rtfPreviewResizeFinalizeTimer?.cancel();
+    _rtfPreviewResizeFinalizeTimer = Timer(const Duration(milliseconds: 180), () {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || token != _rtfPreviewResizeFinalizeToken) {
         return;
@@ -965,22 +963,30 @@ class _HomePageManagerState extends State<HomePageManager> {
       final currentDeltaHeight = current == null
           ? double.infinity
           : (current.height - next.height).abs();
-      final shouldRecapture = current == null ||
+      final refreshedTarget = _rtfPreviewRefreshedTargetContentSize;
+      final shouldUseMeasuredTarget = current == null ||
           currentDeltaWidth > 2.0 ||
           currentDeltaHeight > 2.0;
+      final recaptureTarget = shouldUseMeasuredTarget ? next : current;
+      final shouldRecapture = !_isSameRoundedSize(
+        refreshedTarget,
+        recaptureTarget,
+      );
       debugLog(
         'rtf preview resize final recapture '
         'rectTarget=${rectTarget.width.round()}x${rectTarget.height.round()} '
         'measuredTarget=${measuredTarget == null ? 'none' : '${measuredTarget.width.round()}x${measuredTarget.height.round()}'} '
         'current=${current == null ? 'none' : '${current.width.round()}x${current.height.round()}'} '
         'delta=${currentDeltaWidth.toStringAsFixed(1)}x${currentDeltaHeight.toStringAsFixed(1)} '
+        'refreshed=${refreshedTarget == null ? 'none' : '${refreshedTarget.width.round()}x${refreshedTarget.height.round()}'} '
         'recapture=$shouldRecapture',
       );
       if (!shouldRecapture) {
         return;
       }
-      _rtfPreviewTargetContentSize = next;
-      _refreshRtfPreviewChild(reason: 'resizeEndPostFrame');
+      _rtfPreviewTargetContentSize = recaptureTarget;
+      _refreshRtfPreviewChild(reason: 'resizeEndSettled');
+    });
     });
   }
 
@@ -1010,6 +1016,8 @@ class _HomePageManagerState extends State<HomePageManager> {
     _commonLabelPreviewWindow?.hide();
     _rtfPreviewResizeDebounce?.cancel();
     _rtfPreviewResizeDebounce = null;
+    _rtfPreviewResizeFinalizeTimer?.cancel();
+    _rtfPreviewResizeFinalizeTimer = null;
   }
 
   void _handleTopDropdownMenuStateChanged(bool isOpen) {
@@ -1066,6 +1074,7 @@ class _HomePageManagerState extends State<HomePageManager> {
   @override
   void dispose() {
     _rtfPreviewResizeDebounce?.cancel();
+    _rtfPreviewResizeFinalizeTimer?.cancel();
     _itemPreviewWindow?.dispose();
     _commonLabelPreviewWindow?.dispose();
     _tabController.dispose();

@@ -13,6 +13,7 @@ class LabelSheetRtfPreview extends StatefulWidget {
     this.heightMm = 100,
     this.padding = defaultPadding,
     this.onImageSizeResolved,
+    this.captureGeneration = 0,
   });
 
   final String rtf;
@@ -22,6 +23,7 @@ class LabelSheetRtfPreview extends StatefulWidget {
   final int heightMm;
   final EdgeInsets padding;
   final ValueChanged<Size>? onImageSizeResolved;
+  final int captureGeneration;
 
   static const EdgeInsets defaultPadding = EdgeInsets.fromLTRB(4, 17, 4, 4);
   static const double _richEditEffectiveDpi = 144;
@@ -57,7 +59,8 @@ class _LabelSheetRtfPreviewState extends State<LabelSheetRtfPreview> {
         oldWidget.height != widget.height ||
         oldWidget.widthMm != widget.widthMm ||
         oldWidget.heightMm != widget.heightMm ||
-        oldWidget.padding != widget.padding) {
+        oldWidget.padding != widget.padding ||
+        oldWidget.captureGeneration != widget.captureGeneration) {
       _imageFuture = _capture();
     }
   }

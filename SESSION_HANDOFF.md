@@ -281,6 +281,16 @@
   - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/home_page_manager.dart` (`lib/core/app.dart` 제외).
   - 구현 커밋: `af270c6` (`RTF 완료 시 동일 크기 재생성 방지`).
 
+- **완료 (2026-07-02)**: 큰 RTF Viewer를 줄일 때 resize 완료 후 드래그 중 native capture 결과가 남는 문제 방지.
+  - 최신 로그 확인: 큰 크기 축소 중 `resizeDebounce` capture가 1초 이상 걸리며 여러 generation으로 중첩됨. 마우스를 놓은 뒤에도 마지막 드래그 중 capture가 뒤늦게 완료되어 완료 화면을 덮음.
+  - `lib/home_page_manager.dart`: resize 중에는 target size만 갱신하고 native recapture를 만들지 않도록 변경. resize 완료 후 180ms 안정화 뒤 `resizeEndSettled` 한 번만 recapture.
+  - `lib/page_label_sheet/label_sheet_rtf_preview.dart`: widget key에서 size/generation을 제거하고 `captureGeneration` prop으로 Future를 갱신하게 변경. 새 캡처 대기 중에도 기존 `FutureBuilder` snapshot을 유지해 정상 이미지를 계속 표시.
+  - 추가 로그: `resizeEndSettled`, `refreshed=... recapture=...`.
+  - 검증 완료: `flutter analyze lib/home_page_manager.dart lib/page_label_sheet/label_sheet_rtf_preview.dart --no-fatal-warnings --no-fatal-infos` 성공.
+  - 검증 완료: `flutter analyze lib/home_page_manager.dart lib/page_label_sheet/label_sheet_rtf_preview.dart lib/page_home/preview_floating_window.dart --no-fatal-warnings --no-fatal-infos` 성공.
+  - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/home_page_manager.dart`, `lib/page_label_sheet/label_sheet_rtf_preview.dart` (`lib/core/app.dart` 제외).
+  - 구현 커밋: 예정.
+
 - **ODBC 효율 개선**: `LabelSizeDAO.SelectSql`이 목록 조회에서도 `RICH_FORM_DATA`를 항상 가져오는 문제. 목록/상세 조회 분리, 목록에서 `FORM_DATA` 제외, 선택/시트 진입 시 상세 조회로 보강.
 
 ## 완료된 기능 요약
