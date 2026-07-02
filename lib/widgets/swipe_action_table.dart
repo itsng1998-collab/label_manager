@@ -527,14 +527,25 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
     T? row,
     int? rowIndex,
   }) {
-    return Align(
-      alignment: Alignment.centerRight,
+    return Container(
+      // 셀 콘텐츠와 액션 레일 사이 구분선
+      decoration: const BoxDecoration(
+        border: Border(left: BorderSide(color: Color(0xffd1d5db))),
+      ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          for (final action in actions)
+          for (var i = 0; i < actions.length; i++) ...[
+            // 버튼 사이 구분선 (첫 번째 제외)
+            if (i > 0)
+              SizedBox(
+                width: 1,
+                height: widget.rowHeight,
+                child: ColoredBox(color: const Color(0x28000000)),
+              ),
             Builder(
               builder: (context) {
+                final action = actions[i];
                 final isRowAction = row != null && rowIndex != null;
                 final isEnabled = isRowAction
                   ? action.isEnabled?.call(row, rowIndex) ?? true
@@ -554,42 +565,36 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
                 final isPressed = isRowAction
                     ? action.isPressed?.call(row, rowIndex) ?? false
                     : false;
-                final color = callback == null
-                    ? action.backgroundColor.withValues(alpha: 0.45)
-                    : action.backgroundColor;
                 final backgroundColor = isPressed
-                    ? Color.lerp(color, Colors.black, 0.16) ?? color
-                    : color;
-                return Tooltip(
-                  message: action.tooltip,
-                  child: SizedBox(
-                    width: _actionWidth,
-                    height: widget.rowHeight,
-                    child: Material(
-                      color: Colors.transparent,
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 100),
-                        decoration: BoxDecoration(
-                          color: backgroundColor,
-                          border: isPressed
-                              ? const Border(
-                                  top: BorderSide(color: Color(0xff4b5563)),
-                                  left: BorderSide(color: Color(0xff4b5563)),
-                                  right: BorderSide(color: Color(0xffcbd5e1)),
-                                  bottom: BorderSide(color: Color(0xffcbd5e1)),
-                                )
-                              : null,
-                        ),
-                        child: Transform.translate(
-                          offset: isPressed ? const Offset(1, 1) : Offset.zero,
-                          child: IconButton(
-                            padding: EdgeInsets.zero,
-                            icon: Icon(
-                              action.icon,
-                              size: 18,
-                              color: Colors.white,
+                    ? (Color.lerp(action.backgroundColor, Colors.black, 0.22) ?? action.backgroundColor)
+                    : action.backgroundColor;
+                // disabled 는 전체 Opacity 로 처리해 색상 정체성 유지
+                return IgnorePointer(
+                  ignoring: !isEnabled,
+                  child: Opacity(
+                    opacity: isEnabled ? 1.0 : 0.38,
+                    child: Tooltip(
+                      message: action.tooltip,
+                      child: SizedBox(
+                        width: _actionWidth,
+                        height: widget.rowHeight,
+                        child: Material(
+                          color: Colors.transparent,
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 100),
+                            color: backgroundColor,
+                            child: Transform.translate(
+                              offset: isPressed ? const Offset(0, 1) : Offset.zero,
+                              child: IconButton(
+                                padding: EdgeInsets.zero,
+                                icon: Icon(
+                                  action.icon,
+                                  size: 17,
+                                  color: Colors.white,
+                                ),
+                                onPressed: callback,
+                              ),
                             ),
-                            onPressed: callback,
                           ),
                         ),
                       ),
@@ -598,6 +603,7 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
                 );
               },
             ),
+          ],
         ],
       ),
     );

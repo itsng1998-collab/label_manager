@@ -1612,21 +1612,22 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
       SwipeActionTableAction<Brand>(
         icon: Icons.edit,
         tooltip: '수정',
-        backgroundColor: const Color(0xff9ca3af),
+        // 테이블 헤더 색상과 통일 → 편집 진입/취소 버튼임을 직관적으로 전달
+        backgroundColor: const Color(0xFF0E2F66),
         onRowPressed: _toggleBrandNameEdit,
         isPressed: (_, index) => _editingIndex == index,
       ),
       SwipeActionTableAction<Brand>(
         icon: Icons.add,
         tooltip: '삽입',
-        backgroundColor: const Color(0xffa7b0bd),
+        backgroundColor: const Color(0xff0277bd),
         onPressed: _noop,
         isEnabled: (_, _) => _editingIndex == null,
       ),
       SwipeActionTableAction<Brand>(
         icon: Icons.delete,
         tooltip: '삭제',
-        backgroundColor: const Color(0xffb4bac3),
+        backgroundColor: const Color(0xffc62828),
         onPressed: _noop,
         isEnabled: (_, _) => _editingIndex == null,
       ),
@@ -1707,9 +1708,10 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
               // DecoratedBox(BoxDecoration) + InputBorder.none 으로 edge-to-edge 처리.
               child: DecoratedBox(
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  // 테이블 헤더(0xFF0E2F66)와 같은 색으로 통일해 편집 상태를 명확하게 표시
+                  color: const Color(0xfff0f4ff),
                   border: Border.all(
-                    color: const Color(0xff0175c2),
+                    color: const Color(0xFF0E2F66),
                     width: 1.5,
                   ),
                 ),
@@ -1721,7 +1723,7 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
                   textAlignVertical: TextAlignVertical.center,
                   decoration: const InputDecoration(
                     isDense: true,
-                    contentPadding: EdgeInsets.only(left: 6, right: 30, top: 0, bottom: 0),
+                    contentPadding: EdgeInsets.only(left: 6, right: 28, top: 0, bottom: 0),
                     border: InputBorder.none,
                     focusedBorder: InputBorder.none,
                     enabledBorder: InputBorder.none,
@@ -1736,14 +1738,12 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
               ),
             ),
             Positioned(
-              top: 2,
-              right: 1,
-              bottom: 2,
-              width: 24,
-              // IconButton 은 disabled 상태에서 Flutter 테마가 Icon.color 를
-              // 덮어써 색상이 의도대로 렌더링되지 않는 경우가 있다.
-              // GestureDetector + AnimatedOpacity 로 완전히 교체해
-              // canSubmit 상태를 시각적으로 명확하게 표현한다.
+              top: 3,
+              right: 3,
+              bottom: 3,
+              width: 22,
+              // canSubmit=true → 헤더 색상 미니 버튼(흰 아이콘)으로 submit 유도
+              // canSubmit=false → 투명 배경에 회색 아이콘으로 비활성 표시
               child: Tooltip(
                 message: '변경 적용',
                 child: MouseRegion(
@@ -1758,14 +1758,21 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
                             _submitBrandNameEdit(_brandNameEditController.text);
                           }
                         : null,
-                    child: AnimatedOpacity(
-                      opacity: canSubmit ? 1.0 : 0.35,
+                    child: AnimatedContainer(
                       duration: const Duration(milliseconds: 120),
-                      child: const Center(
+                      decoration: BoxDecoration(
+                        color: canSubmit
+                            ? const Color(0xFF0E2F66)
+                            : Colors.transparent,
+                        borderRadius: BorderRadius.circular(3),
+                      ),
+                      child: Center(
                         child: Icon(
                           Icons.keyboard_return,
-                          size: 17,
-                          color: Color(0xff334155),
+                          size: 15,
+                          color: canSubmit
+                              ? Colors.white
+                              : const Color(0xffb0bec5),
                         ),
                       ),
                     ),
