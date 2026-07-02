@@ -204,6 +204,14 @@
   - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/home_page_manager.dart` (`lib/core/app.dart` 제외).
   - 구현 커밋: `78195e4` (`라벨 설정 행 헤더 인덱스 고정`).
 
+- **완료 (2026-07-02)**: 라벨 매니저 커스텀 다이얼로그 하단 버튼 순서를 일반 다이얼로그 기준(`취소` 왼쪽, 확인/적용/진행 오른쪽)으로 통일.
+  - `lib/page_label_sheet/label_sheet_workbench.dart` 프린터 설정 다이얼로그: 하단 `적용`/`취소` 배치를 `취소`/`적용`으로 변경. `발행` 버튼은 별도 실행 버튼으로 왼쪽 위치 유지.
+  - `lib/page_login/startup_dialog.dart` 시작 로그인 다이얼로그: 하단 `로그인`/`취소` 배치를 `취소`/`로그인`으로 변경.
+  - 확인 결과 기존 `AlertDialog.actions` 기반 경고/확인 다이얼로그는 이미 `취소`/`확인` 순서 유지.
+  - 검증 완료: `flutter analyze lib/page_label_sheet/label_sheet_workbench.dart lib/page_login/startup_dialog.dart --no-fatal-warnings --no-fatal-infos` 성공.
+  - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/page_label_sheet/label_sheet_workbench.dart`, `lib/page_login/startup_dialog.dart` (`lib/core/app.dart` 제외).
+  - 구현 커밋: 예정.
+
 - **ODBC 효율 개선**: `LabelSizeDAO.SelectSql`이 목록 조회에서도 `RICH_FORM_DATA`를 항상 가져오는 문제. 목록/상세 조회 분리, 목록에서 `FORM_DATA` 제외, 선택/시트 진입 시 상세 조회로 보강.
 
 ## 완료된 기능 요약

@@ -803,6 +803,23 @@ class _LoginPanelState extends State<_LoginPanel> {
                     children: [
                       const Spacer(),
                       Builder(
+                        builder: (scaffoldContext) => OutlinedButton(
+                          onPressed: () {
+                            showSnackBar(
+                              scaffoldContext,
+                              '취소 처리 중...',
+                              type: SnackBarType.inProgress,
+                              onVisible: () {
+                                ScaffoldMessenger.of(scaffoldContext).hideCurrentSnackBar();
+                                _onCancelButtonPressed();
+                              },
+                            );
+                          },
+                          child: const Text('취소'),
+                        ),
+                      ),
+                      SizedBox(width: lmSize(8)),
+                      Builder(
                         builder: (scaffoldContext) => ElevatedButton(
                           onPressed: canLogin
                               ? () {
@@ -819,23 +836,6 @@ class _LoginPanelState extends State<_LoginPanel> {
                               : null,
                           focusNode: _loginButtonFocus,
                           child: const Text('로그인'),
-                        ),
-                      ),
-                      SizedBox(width: lmSize(8)),
-                      Builder(
-                        builder: (scaffoldContext) => OutlinedButton(
-                          onPressed: () {
-                            showSnackBar(
-                              scaffoldContext,
-                              '취소 처리 중...',
-                              type: SnackBarType.inProgress,
-                              onVisible: () {
-                                ScaffoldMessenger.of(scaffoldContext).hideCurrentSnackBar();
-                                _onCancelButtonPressed();
-                              },
-                            );
-                          },
-                          child: const Text('취소'),
                         ),
                       ),
                     ],
