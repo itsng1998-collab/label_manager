@@ -3,9 +3,12 @@
 
 import 'package:label_manager/core/app.dart';
 import 'package:label_manager/database/db_client.dart';
+import 'package:label_manager/database/db_result_utils.dart';
 import 'package:label_manager/utils/log_context.dart';
+import 'package:r_get_ip/r_get_ip.dart';
 import 'dao.dart';
 import 'date_manager.dart';
+import 'user.dart';
 
 class LabelSizeCommon {
   final int width;
@@ -256,13 +259,36 @@ class LabelSizeDAO extends DAO {
     debugLog('$START, labelSizeId:$labelSizeId, width:$width, height:$height');
 
     try {
-      final res = await DbClient.instance.writeDataWithParams(
+      final localIp = await RGetIp.internalIP;
+      final hexLoginIP = await stringToHexCp949(localIp!);
+
+      final insertFormDataSql = '''
+        INSERT INTO BM_RICH_LABELSIZE_FORM_LOG
+          (RICH_MOD_DATE, RICH_MOD_DATETIME, RICH_LABELSIZE_ID, RICH_LABELSIZE_NAME,
+          RICH_FORM_WIDTH, RICH_FORM_HEIGHT, RICH_FORM_DATA,
+          RICH_ALTER_FORM_WIDTH, RICH_ALTER_FORM_HEIGHT, RICH_ALTER_FORM_DATA,
+          RICH_USER_ID, RICH_BRAND_ID, RICH_INNER_IP, RICH_OUTER_IP)
+        SELECT CONVERT(CHAR(8),GETDATE(),112), GETDATE(), RICH_LABELSIZE_ID,
+          RICH_LABELSIZE_NAME, RICH_FORM_WIDTH, RICH_FORM_HEIGHT, RICH_FORM_DATA,
+          @width, @height, @formData, @userId, RICH_BRAND_ID, @loginIP,
+          CONVERT(char(15), CONNECTIONPROPERTY('client_net_address'))
+        FROM BM_RICH_LABELSIZE_FORM
+      ''';
+
+      var res = await DbClient.instance.writeDataWithParams(
+        '$insertFormDataSql $WhereSqlLabelSizeId',
+        {'width': width, 'height': height, 'formData': formData,
+         'userId': User.instance!.userId, 'loginIP': hexLoginIP, 'labelSizeId': labelSizeId},
+      );
+      debugLog('$END - BM_RICH_LABELSIZE_FORM_LOG Result: $res');
+
+      res = await DbClient.instance.writeDataWithParams(
         '$UpdateFormDataSql $WhereSqlLabelSizeId',
         {'width': width, 'height': height, 'formData': formData, 'labelSizeId': labelSizeId},
       );
-
-      debugLog('$END - Result: $res');
-    } catch (e) {
+      debugLog('$END - BM_RICH_LABELSIZE_FORM Result: $res');
+    }
+    catch (e) {
       debugLog('$END, $e');
       rethrow;
     }

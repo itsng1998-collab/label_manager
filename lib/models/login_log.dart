@@ -30,7 +30,7 @@ class LoginLog {
 	final String customerName;
 	final String loginDate;
 	final String loginDateYYYYMMDD;
-	final String lLoginIP;
+	final String loginIP;
 	final LoginCondition loginCondition;
 
   const LoginLog({
@@ -42,7 +42,7 @@ class LoginLog {
     required this.customerName,
     required this.loginDate,
     required this.loginDateYYYYMMDD,
-    required this.lLoginIP,
+    required this.loginIP,
     required this.loginCondition,
   });
 
@@ -59,7 +59,7 @@ class LoginLog {
       customerName:       s('CUSTOMER_NAME'),
       loginDate:          s('LOGIN_DATE'),
       loginDateYYYYMMDD:  s('LOGIN_DATE_YYYYMMDD'),
-      lLoginIP:           s('LOGIN_IP'),
+      loginIP:            s('LOGIN_IP'),
       loginCondition:     LoginCondition.fromCode(i('LOGIN_CONDITION')),
     );
   }

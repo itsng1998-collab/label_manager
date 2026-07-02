@@ -228,6 +228,3 @@ Future<String> stringToHexCp949(String input,
   final bytes = await _encodeKoreanWansung(input);  // ← 여기서 다중 문자셋 시도
   return _bytesToHex(bytes, with0x: with0x, upper: upper);
 }
-
-
-
