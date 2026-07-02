@@ -13,7 +13,7 @@ void main() {
 
     expect(sheet.name, 'Labels');
     expect(sheet.rowCount, 3);
-    expect(sheet.columnCount, 3);
+    expect(sheet.columnCount, 5);
     expect(sheet.rowHeights[0], closeTo(32, 0.01));
     expect(sheet.columnWidths[0], closeTo(84, 0.01));
     expect(sheet.hiddenRows, contains(1));
@@ -42,6 +42,17 @@ void main() {
     expect(b1.value, '42');
     expect(b1.formula, '=SUM(A1,1)');
     expect(b1.hyperlink?.linkAddress, 'https://example.com');
+    expect(b1.merge?.row, 0);
+    expect(b1.merge?.column, 0);
+
+    final d1 = sheet.cells[const FortuneCellCoord(0, 3)]!;
+    expect(d1.value, '오른쪽 병합');
+    expect(d1.merge?.rowSpan, 1);
+    expect(d1.merge?.columnSpan, 2);
+
+    final e1 = sheet.cells[const FortuneCellCoord(0, 4)]!;
+    expect(e1.merge?.row, 0);
+    expect(e1.merge?.column, 3);
 
     final c1 = sheet.cells[const FortuneCellCoord(0, 2)]!;
     expect(c1.value, 'H2O');
@@ -157,17 +168,19 @@ Uint8List _xlsxBytes({
 </styleSheet>''');
   addXml('xl/worksheets/sheet1.xml', '''<?xml version="1.0" encoding="UTF-8"?>
 <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
-  <dimension ref="A1:C3"/>
-  <cols><col min="1" max="1" width="12" customWidth="1"/><col min="3" max="3" hidden="1" width="10" customWidth="1"/></cols>
+  <dimension ref="A1:E3"/>
+  <cols><col min="1" max="1" width="12" customWidth="1"/><col min="3" max="3" hidden="1" width="10" customWidth="1"/><col min="4" max="5" width="8" customWidth="1"/></cols>
   <sheetData>
     <row r="1" ht="24" customHeight="1">
       <c r="A1" t="s" s="1"><v>0</v></c>
       <c r="B1" s="2"><f>SUM(A1,1)</f><v>42</v></c>
       <c r="C1" t="s" s="2"><v>1</v></c>
+      <c r="D1" t="str" s="1"><v>오른쪽 병합</v></c>
+      <c r="E1" s="1"/>
     </row>
     <row r="2" hidden="1"><c r="A2" s="2"/></row>
   </sheetData>
-  <mergeCells count="1"><mergeCell ref="A1:B2"/></mergeCells>
+  <mergeCells count="2"><mergeCell ref="A1:B2"/><mergeCell ref="D1:E1"/></mergeCells>
   <hyperlinks><hyperlink ref="B1" r:id="rIdHyper"/></hyperlinks>
 </worksheet>''');
   addXml('customXml/item1.xml', '''<?xml version="1.0" encoding="UTF-8"?>

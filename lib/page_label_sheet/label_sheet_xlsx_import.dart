@@ -70,6 +70,7 @@ FortuneWorkbook labelSheetWorkbookFromXlsxBytes(Uint8List bytes) {
     final workbook = FortuneSheetCodec.workbookFromJson({
       'data': [sheetJson],
     });
+    _logDecodedSheetSample(workbook.activeSheet);
     _xlsxImportLog(
       'decode success sheets=${workbook.sheets.length} '
       'activeRows=${workbook.activeSheet.rowCount} '
@@ -233,6 +234,8 @@ Map<String, Object?> _sheetJsonFromWorksheet(
   final borderInfo = <Map<String, Object?>>[];
   final hyperlinks = <String, Object?>{};
   final mergeMap = <String, Map<String, Object?>>{};
+  final valueSamples = <String>[];
+  final styleSamples = <String>[];
   var maxRow = 0;
   var maxColumn = 0;
 
@@ -357,6 +360,22 @@ Map<String, Object?> _sheetJsonFromWorksheet(
       final key = '${coord.row}_${coord.column}';
       cellKeys.add(key);
       cells.add({'r': coord.row, 'c': coord.column, 'v': cellJson});
+      if (cellValue.text != null && valueSamples.length < 40) {
+        valueSamples.add(
+          '${_coordLabel(coord.row, coord.column)}=${_logText(cellValue.text!)}',
+        );
+      }
+      if ((cellJson.containsKey('bg') ||
+              cellJson.containsKey('fc') ||
+              cellJson.containsKey('bl') ||
+              cellJson.containsKey('mc')) &&
+          styleSamples.length < 40) {
+        styleSamples.add(
+          '${_coordLabel(coord.row, coord.column)} '
+          'bg=${cellJson['bg']} fc=${cellJson['fc']} bl=${cellJson['bl']} '
+          'mc=${cellJson['mc']}',
+        );
+      }
       for (final border in style.borderInfo(coord.row, coord.column)) {
         borderInfo.add(border);
       }
@@ -397,6 +416,11 @@ Map<String, Object?> _sheetJsonFromWorksheet(
     'hiddenColumns=${hiddenColumns.length} hyperlinks=${hyperlinks.length} '
     'borders=${borderInfo.length}',
   );
+  _xlsxImportLog(
+    'worksheet json samples values=${valueSamples.join(' | ')} '
+    'styles=${styleSamples.join(' | ')} '
+    'merges=${_mergeSample(mergeMap)}',
+  );
 
   return {
     'name': sheetName,
@@ -416,6 +440,44 @@ Map<String, Object?> _sheetJsonFromWorksheet(
       if (borderInfo.isNotEmpty) 'borderInfo': borderInfo,
     },
   };
+}
+
+void _logDecodedSheetSample(FortuneSheet sheet) {
+  final valueSamples = <String>[];
+  final anchorSamples = <String>[];
+  final coveredSamples = <String>[];
+  for (final entry in sheet.cells.entries.toList()
+    ..sort((left, right) {
+      final rowCompare = left.key.row.compareTo(right.key.row);
+      return rowCompare == 0 ? left.key.column.compareTo(right.key.column) : rowCompare;
+    })) {
+    final coord = entry.key;
+    final cell = entry.value;
+    final value = cell.displayValue ?? cell.value;
+    if (value.isNotEmpty && valueSamples.length < 40) {
+      valueSamples.add('${_coordLabel(coord.row, coord.column)}=${_logText(value)}');
+    }
+    final merge = cell.merge;
+    if (merge == null) {
+      continue;
+    }
+    final sample = '${_coordLabel(coord.row, coord.column)}->'
+        '${_coordLabel(merge.row, merge.column)} '
+        'span=${merge.rowSpan}x${merge.columnSpan} '
+        'value=${_logText(value)} bg=${cell.background} fc=${cell.foreground}';
+    if (merge.row == coord.row && merge.column == coord.column) {
+      if (anchorSamples.length < 40) {
+        anchorSamples.add(sample);
+      }
+    } else if (coveredSamples.length < 40) {
+      coveredSamples.add(sample);
+    }
+  }
+  _xlsxImportLog(
+    'decoded sheet sample values=${valueSamples.join(' | ')} '
+    'mergeAnchors=${anchorSamples.join(' | ')} '
+    'mergeCovered=${coveredSamples.join(' | ')}',
+  );
 }
 
 _XlsxCellValue _cellValue(
@@ -1130,6 +1192,35 @@ Iterable<({int min, int max, double? width, bool hidden})> _columnDefs(
     return null;
   }
   return (row: row, column: column);
+}
+
+String _coordLabel(int row, int column) {
+  var value = column + 1;
+  final letters = StringBuffer();
+  while (value > 0) {
+    value -= 1;
+    letters.writeCharCode(65 + value % 26);
+    value ~/= 26;
+  }
+  return '${letters.toString().split('').reversed.join()}${row + 1}';
+}
+
+String _logText(String value) {
+  final singleLine = value.replaceAll('\r', r'\r').replaceAll('\n', r'\n');
+  return singleLine.length <= 60 ? singleLine : '${singleLine.substring(0, 60)}...';
+}
+
+String _mergeSample(Map<String, Map<String, Object?>> mergeMap) {
+  return mergeMap.entries.take(40).map((entry) {
+    final coord = _keyToCoord(entry.key);
+    final merge = entry.value;
+    final row = merge['r'];
+    final column = merge['c'];
+    final rowSpan = merge['rs'];
+    final columnSpan = merge['cs'];
+    final label = coord == null ? entry.key : _coordLabel(coord.row, coord.column);
+    return '$label r=$row c=$column span=${rowSpan}x$columnSpan';
+  }).join(' | ');
 }
 
 Map<String, String>? _firstTagAttributes(String xml, String tag) {

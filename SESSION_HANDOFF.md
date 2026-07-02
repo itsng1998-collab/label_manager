@@ -66,6 +66,16 @@
 
 ### 대기/추후 작업
 
+- **완료 (2026-07-02)**: XLSX 원본 대비 변환본 시각 차이 재확인 및 촘촘한 로그 추가.
+  - 첨부 비교 기준: 원본에는 C1/J1/H3/H9 등 오른쪽 병합 anchor 텍스트와 검은 배경이 있으나 변환본에서는 일부 오른쪽 병합 영역 텍스트/배경이 누락되어 보임.
+  - `lib/page_label_sheet/label_sheet_xlsx_import.dart`: worksheet JSON 생성 직후 values/styles/merge sample 로그 추가, FortuneSheet decode 직후 values/mergeAnchors/mergeCovered sample 로그 추가.
+  - `lib/page_label_sheet/label_sheet_workbench.dart`: controller 적용 직전 imported sheet의 rows/columns/cells/borders/grid mm/values/mergeAnchors/mergeCovered sample 로그 추가.
+  - `test/label_sheet_xlsx_import_test.dart`: 같은 행에 여러 병합이 있는 fixture(D1:E1)를 추가하고 오른쪽 병합 anchor/covered cell marker 유지 확인.
+  - 확인 결과: 실제 XLSX XML에는 C1/J1/H3/H9 값과 오른쪽 병합 범위가 존재. 다음 재현 로그에서 importer decode 단계와 workbench apply 단계 중 어느 단계에서 누락되는지 판별 가능.
+  - 검증 완료: `test/label_sheet_xlsx_import_test.dart` 3개 성공.
+  - 검증 완료: `flutter analyze lib/page_label_sheet/label_sheet_xlsx_import.dart lib/page_label_sheet/label_sheet_workbench.dart test/label_sheet_xlsx_import_test.dart --no-fatal-warnings --no-fatal-infos` 성공.
+  - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/page_label_sheet/label_sheet_xlsx_import.dart`, `lib/page_label_sheet/label_sheet_workbench.dart`, `test/label_sheet_xlsx_import_test.dart` (`lib/core/app.dart` 기존 dirty 제외).
+
 - **완료 (2026-07-02)**: XLSX/라벨 파일 가져오기 시 현재 설정된 라벨 크기에 맞춰 제한하지 않고, 가져온 시트의 실제 행/열 크기 전체를 작업 영역으로 사용하도록 수정.
   - `lib/page_label_sheet/label_sheet_workbench.dart`: `_handleImportLabelFile`에서 가져온 시트가 자체 `fortuneSheetGridClientWidthMm/HeightMm`을 갖고 있지 않으면 row/column extent를 mm로 환산해 extraFields에 저장. 설정 라벨 크기보다 커도 가져온 전체 크기를 grid client area로 사용.
   - 가져오기 적용 로그에 rows/columns/cells/gridWidthMm/gridHeightMm 추가.

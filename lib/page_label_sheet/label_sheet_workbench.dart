@@ -732,6 +732,71 @@ double _labelSheetLogicalRowExtent(FortuneSheet sheet) {
   return height;
 }
 
+void _logImportedSheetApplySample(FortuneSheet sheet) {
+  final gridSize = fortuneSheetGridClientPhysicalSize(sheet);
+  final valueSamples = <String>[];
+  final anchorSamples = <String>[];
+  final coveredSamples = <String>[];
+  for (final entry in sheet.cells.entries.toList()
+    ..sort((left, right) {
+      final rowCompare = left.key.row.compareTo(right.key.row);
+      return rowCompare == 0
+          ? left.key.column.compareTo(right.key.column)
+          : rowCompare;
+    })) {
+    final coord = entry.key;
+    final cell = entry.value;
+    final value = cell.displayValue ?? cell.value;
+    if (value.isNotEmpty && valueSamples.length < 40) {
+      valueSamples.add(
+        '${_labelSheetCoordLabel(coord.row, coord.column)}=${_labelSheetLogText(value)}',
+      );
+    }
+    final merge = cell.merge;
+    if (merge == null) {
+      continue;
+    }
+    final sample = '${_labelSheetCoordLabel(coord.row, coord.column)}->'
+        '${_labelSheetCoordLabel(merge.row, merge.column)} '
+        'span=${merge.rowSpan}x${merge.columnSpan} '
+        'value=${_labelSheetLogText(value)} '
+        'bg=${cell.background} fc=${cell.foreground}';
+    if (merge.row == coord.row && merge.column == coord.column) {
+      if (anchorSamples.length < 40) {
+        anchorSamples.add(sample);
+      }
+    } else if (coveredSamples.length < 40) {
+      coveredSamples.add(sample);
+    }
+  }
+  debugLog(
+    'label sheet import apply sample '
+    'rows=${sheet.rowCount} columns=${sheet.columnCount} '
+    'cells=${sheet.cells.length} borders=${sheet.borderInfo.length} '
+    'gridWidthMm=${gridSize?.widthMm} gridHeightMm=${gridSize?.heightMm} '
+    'values=${valueSamples.join(' | ')} '
+    'mergeAnchors=${anchorSamples.join(' | ')} '
+    'mergeCovered=${coveredSamples.join(' | ')}',
+    skipFrames: 1,
+  );
+}
+
+String _labelSheetCoordLabel(int row, int column) {
+  var value = column + 1;
+  final letters = StringBuffer();
+  while (value > 0) {
+    value -= 1;
+    letters.writeCharCode(65 + value % 26);
+    value ~/= 26;
+  }
+  return '${letters.toString().split('').reversed.join()}${row + 1}';
+}
+
+String _labelSheetLogText(String value) {
+  final singleLine = value.replaceAll('\r', r'\r').replaceAll('\n', r'\n');
+  return singleLine.length <= 60 ? singleLine : '${singleLine.substring(0, 60)}...';
+}
+
 FortuneSettings labelSheetSettings(
   FortuneSettings base, {
   VoidCallback? onImportLabelImage,
@@ -1772,6 +1837,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       'gridHeightMm=${importedGridSize?.heightMm}',
       skipFrames: 1,
     );
+    _logImportedSheetApplySample(importedSheet);
     _controller.clearSheet(
       id: currentSheet.id,
       rowCount: importedSheet.rowCount,
