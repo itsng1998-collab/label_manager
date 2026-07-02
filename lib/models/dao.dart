@@ -74,4 +74,15 @@ class DAO {
     final rows = (m['rows'] as List?) ?? const [];
     return rows;
   }
+
+  static int affectedRows(Object jsonOrMap) {
+    final m = _resultMap(jsonOrMap);
+    final affected = m['affected'];
+    return switch (affected) {
+      final int value => value,
+      final num value => value.toInt(),
+      final String value => int.tryParse(value) ?? 0,
+      _ => 0,
+    };
+  }
 }
