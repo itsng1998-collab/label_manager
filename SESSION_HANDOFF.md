@@ -145,6 +145,7 @@
   - `lib/home_page_manager.dart` `_BrandSettingsDialogState`: `_showBrandOverlayDialog` helper 추가. 삽입/수정/삭제 확인 및 실패 경고를 현재 overlay 위에 직접 삽입하도록 변경.
   - 검증 완료: `flutter analyze lib/home_page_manager.dart --no-fatal-warnings --no-fatal-infos` 성공.
   - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/home_page_manager.dart` (`lib/core/app.dart`, `doc/BM_RICH_BRAND.sql` 제외).
+  - 구현 커밋: `a29b7cd` (`브랜드 설정 확인 다이얼로그 표시 수정`).
 
 - **ODBC 효율 개선**: `LabelSizeDAO.SelectSql`이 목록 조회에서도 `RICH_FORM_DATA`를 항상 가져오는 문제. 목록/상세 조회 분리, 목록에서 `FORM_DATA` 제외, 선택/시트 진입 시 상세 조회로 보강.
 
