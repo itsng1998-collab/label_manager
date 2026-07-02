@@ -219,6 +219,15 @@
   - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/page_label_sheet/label_sheet_workbench.dart`, `lib/home_page_manager.dart` (`lib/core/app.dart` 제외).
   - 구현 커밋: `4ba6a95` (`다이얼로그 outline 버튼 곡률 조정`).
 
+- **완료 (2026-07-02)**: 라벨 설정 테이블에서 바로 붙은 위/아래 행 드래그/드랍 시 서로 swap되도록 변경.
+  - `lib/widgets/swipe_action_table.dart`: 인접 행 드랍도 no-op으로 막지 않고 `onRowReorder(fromIndex, toIndex)` 콜백 전달.
+  - `lib/home_page_manager.dart` `_LabelSettingsDialogState._moveLabelRow`: `fromIndex`와 `toIndex`가 인접하면 insert 대신 두 라벨 위치를 직접 교환.
+  - `test/swipe_action_table_test.dart`: 인접 행 드래그 시 두 행이 swap되는 회귀 테스트 추가.
+  - 검증 완료: `test/swipe_action_table_test.dart` 7개 성공.
+  - 검증 완료: `flutter analyze lib/widgets/swipe_action_table.dart lib/home_page_manager.dart test/swipe_action_table_test.dart --no-fatal-warnings --no-fatal-infos` 성공.
+  - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/widgets/swipe_action_table.dart`, `lib/home_page_manager.dart`, `test/swipe_action_table_test.dart` (`lib/core/app.dart` 제외).
+  - 구현 커밋: 예정.
+
 - **ODBC 효율 개선**: `LabelSizeDAO.SelectSql`이 목록 조회에서도 `RICH_FORM_DATA`를 항상 가져오는 문제. 목록/상세 조회 분리, 목록에서 `FORM_DATA` 제외, 선택/시트 진입 시 상세 조회로 보강.
 
 ## 완료된 기능 요약

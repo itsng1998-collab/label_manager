@@ -274,10 +274,6 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
     if (draggingIndex == null || draggingIndex == index) {
       return;
     }
-    final insertIndex = draggingIndex < index ? index - 1 : index;
-    if (insertIndex == draggingIndex) {
-      return;
-    }
     if (_rowDropTargetIndex != index) {
       setState(() => _rowDropTargetIndex = index);
     }
@@ -575,8 +571,7 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
       _endRowDrag();
       return;
     }
-    final insertIndex = fromIndex < toIndex ? toIndex - 1 : toIndex;
-    if (fromIndex != insertIndex) {
+    if (fromIndex != toIndex) {
       onRowReorder(fromIndex, toIndex);
     }
     _endRowDrag();

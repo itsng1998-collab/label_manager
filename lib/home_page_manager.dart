@@ -1745,6 +1745,15 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
     if (fromIndex < 0 || fromIndex >= _labels.length || toIndex < 0 || toIndex >= _labels.length) {
       return;
     }
+    if ((fromIndex - toIndex).abs() == 1) {
+      debugLog('labelSettings reorder swap from=$fromIndex to=$toIndex');
+      setState(() {
+        final movingLabel = _labels[fromIndex];
+        _labels[fromIndex] = _labels[toIndex];
+        _labels[toIndex] = movingLabel;
+      });
+      return;
+    }
     final insertIndex = fromIndex < toIndex ? toIndex - 1 : toIndex;
     if (insertIndex == fromIndex) {
       return;

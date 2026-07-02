@@ -65,6 +65,12 @@ Future<void> _pumpReorderTable(WidgetTester tester) async {
                 rowNumberText: (row, _) => 'No ${row.code[0]}',
                 onRowReorder: (fromIndex, toIndex) {
                   setState(() {
+                    if ((fromIndex - toIndex).abs() == 1) {
+                      final movingRow = rows[fromIndex];
+                      rows[fromIndex] = rows[toIndex];
+                      rows[toIndex] = movingRow;
+                      return;
+                    }
                     final insertIndex = fromIndex < toIndex
                         ? toIndex - 1
                         : toIndex;
@@ -202,6 +208,26 @@ void main() {
 
     final start = tester.getCenter(find.text('Brand A'));
     final target = tester.getCenter(find.text('Brand C'));
+    final gesture = await tester.startGesture(start);
+    await tester.pump();
+    await gesture.moveTo(target);
+    await tester.pump(const Duration(milliseconds: 180));
+    await gesture.up();
+    await tester.pumpAndSettle();
+
+    final brandBTop = tester.getTopLeft(find.text('Brand B')).dy;
+    final brandATop = tester.getTopLeft(find.text('Brand A')).dy;
+    final brandCTop = tester.getTopLeft(find.text('Brand C')).dy;
+
+    expect(brandBTop, lessThan(brandATop));
+    expect(brandATop, lessThan(brandCTop));
+  });
+
+  testWidgets('adjacent row reorder swaps rows', (tester) async {
+    await _pumpReorderTable(tester);
+
+    final start = tester.getCenter(find.text('Brand A'));
+    final target = tester.getCenter(find.text('Brand B'));
     final gesture = await tester.startGesture(start);
     await tester.pump();
     await gesture.moveTo(target);
