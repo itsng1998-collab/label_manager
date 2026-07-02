@@ -99,6 +99,7 @@
   - `lib/models/brand.dart` `BrandDAO.updateByBrandId`: private `_affectedRows` 제거 후 `DAO.affectedRows(res)` 사용.
   - 검증 완료: `flutter analyze lib/models/dao.dart lib/models/brand.dart --no-fatal-warnings --no-fatal-infos` 성공.
   - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/models/dao.dart`, `lib/models/brand.dart` (`lib/core/app.dart`, `lib/models/label_size.dart` 기존 dirty 제외).
+  - 구현 커밋: `cf52883` (`DAO 영향 행 수 추출 공용화`).
 
 - **ODBC 효율 개선**: `LabelSizeDAO.SelectSql`이 목록 조회에서도 `RICH_FORM_DATA`를 항상 가져오는 문제. 목록/상세 조회 분리, 목록에서 `FORM_DATA` 제외, 선택/시트 진입 시 상세 조회로 보강.
 
