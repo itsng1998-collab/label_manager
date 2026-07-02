@@ -1668,7 +1668,7 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
         icon: Icons.delete,
         tooltip: '삭제',
         backgroundColor: const Color(0xffc62828),
-        onPressed: _noop,
+        onRowPressed: _deleteBrand,
         isEnabled: (_, _) => _editingIndex == null,
       ),
     ];
@@ -2055,6 +2055,81 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
     debugLog('insertBrandName done brandId=${inserted.brandId} index=$insertIndex name=${inserted.brandName}');
   }
 
+  Future<void> _deleteBrand(Brand brand, int index) async {
+    debugLog('deleteBrand start index=$index brandId=${brand.brandId} name=${brand.brandName} editingIndex=$_editingIndex');
+    if (_editingIndex != null || index < 0 || index >= _brands.length) {
+      debugLog('deleteBrand aborted editingIndex=$_editingIndex index=$index len=${_brands.length}');
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        content: Text("'${brand.brandName}' 브랜드를 삭제하시겠습니까?"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('취소'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('확인'),
+          ),
+        ],
+      ),
+    );
+
+    if (!mounted) {
+      debugLog('deleteBrand aborted unmounted after dialog');
+      return;
+    }
+
+    if (confirmed != true) {
+      debugLog('deleteBrand cancelledByUser brandId=${brand.brandId}');
+      return;
+    }
+
+    try {
+      await BrandDAO.deleteByBrandId(brand);
+    } catch (e) {
+      debugLog('deleteBrand failed brandId=${brand.brandId} error=$e');
+      if (mounted) {
+        await showDialog<void>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            title: const Text('브랜드 삭제 실패'),
+            content: const Text('브랜드 삭제에 실패했습니다.'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('확인'),
+              ),
+            ],
+          ),
+        );
+      }
+      return;
+    }
+
+    if (!mounted) {
+      debugLog('deleteBrand aborted unmounted after delete');
+      return;
+    }
+
+    final currentIndex = _brands.indexWhere((value) => value.brandId == brand.brandId);
+    if (currentIndex < 0) {
+      debugLog('deleteBrand skippedStateUpdate missing brandId=${brand.brandId}');
+      return;
+    }
+
+    setState(() {
+      _brands = List<Brand>.from(_brands)..removeAt(currentIndex);
+      Brand.setDatas(List<Brand>.from(_brands));
+    });
+
+    debugLog('deleteBrand done brandId=${brand.brandId} index=$currentIndex');
+  }
+
   Future<void> _updateBrandName(Brand brand, String brandName) async {
     final editingIndex = _editingIndex;
     debugLog(
@@ -2146,7 +2221,6 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
     debugLog('updateBrandName done brandId=${brand.brandId} newName=$brandName');
   }
 
-  static void _noop() {}
 }
 
 class _BrandDialogCloseIcon extends StatelessWidget {
