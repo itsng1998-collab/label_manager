@@ -177,6 +177,15 @@
   - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/home_page_manager.dart`, `lib/widgets/swipe_action_table.dart` (`lib/core/app.dart` 제외).
   - 구현 커밋: `ab068a0` (`라벨 설정 순서 변경 UI 추가`).
 
+- **완료 (2026-07-02)**: 라벨 설정 테이블 행 드래그/드랍 동작 수정 및 이동 애니메이션 추가.
+  - `lib/widgets/swipe_action_table.dart`: reorder 플래그가 켜진 행을 `LongPressDraggable`에서 즉시 반응하는 `Draggable`로 변경. 행 드래그 상태(`_rowDraggingIndex`, `_rowDropTargetIndex`)를 별도로 관리해 컬럼 resize 상태와 분리.
+  - 드래그 중 드랍 대상 행 위에 `AnimatedContainer` 간격/라인을 열어 행 내용이 아래로 밀리는 이동 위치 애니메이션 적용.
+  - `test/swipe_action_table_test.dart`: `rowReorderEnabled` 테이블에서 실제 drag gesture 후 드랍 대상 행 바로 위로 이동하는 회귀 테스트 추가.
+  - 검증 완료: `test/swipe_action_table_test.dart` 5개 성공.
+  - 검증 완료: `flutter analyze lib/widgets/swipe_action_table.dart lib/home_page_manager.dart test/swipe_action_table_test.dart --no-fatal-warnings --no-fatal-infos` 성공.
+  - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/widgets/swipe_action_table.dart`, `test/swipe_action_table_test.dart` (`lib/core/app.dart` 제외).
+  - 구현 커밋: 예정.
+
 - **ODBC 효율 개선**: `LabelSizeDAO.SelectSql`이 목록 조회에서도 `RICH_FORM_DATA`를 항상 가져오는 문제. 목록/상세 조회 분리, 목록에서 `FORM_DATA` 제외, 선택/시트 진입 시 상세 조회로 보강.
 
 ## 완료된 기능 요약

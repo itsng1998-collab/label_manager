@@ -103,6 +103,8 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
   bool _syncingHorizontal = false;
   late List<double> _widths;
   int? _draggingIndex;
+  int? _rowDraggingIndex;
+  int? _rowDropTargetIndex;
   int? _selectedIndex;
   int? _openActionIndex;
   int? _lastPointerDownRowIndex;
@@ -139,6 +141,12 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
     }
     if ((_openActionIndex ?? -1) >= widget.rows.length) {
       _openActionIndex = null;
+    }
+    if ((_rowDraggingIndex ?? -1) >= widget.rows.length) {
+      _rowDraggingIndex = null;
+    }
+    if ((_rowDropTargetIndex ?? -1) >= widget.rows.length) {
+      _rowDropTargetIndex = null;
     }
     _syncAutoWidthsIfNeeded();
   }
@@ -251,6 +259,43 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
 
   void _endResize() {
     setState(() => _draggingIndex = null);
+  }
+
+  void _startRowDrag(int index) {
+    setState(() {
+      _rowDraggingIndex = index;
+      _rowDropTargetIndex = null;
+      _openActionIndex = null;
+    });
+  }
+
+  void _updateRowDropTarget(int index) {
+    final draggingIndex = _rowDraggingIndex;
+    if (draggingIndex == null || draggingIndex == index) {
+      return;
+    }
+    final insertIndex = draggingIndex < index ? index - 1 : index;
+    if (insertIndex == draggingIndex) {
+      return;
+    }
+    if (_rowDropTargetIndex != index) {
+      setState(() => _rowDropTargetIndex = index);
+    }
+  }
+
+  void _clearRowDropTarget(int index) {
+    if (_rowDropTargetIndex == index) {
+      setState(() => _rowDropTargetIndex = null);
+    }
+  }
+
+  void _endRowDrag() {
+    if (_rowDraggingIndex != null || _rowDropTargetIndex != null) {
+      setState(() {
+        _rowDraggingIndex = null;
+        _rowDropTargetIndex = null;
+      });
+    }
   }
 
   void _autoFitColumn(int index) {
@@ -773,26 +818,45 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
     }
     return DragTarget<int>(
       onWillAcceptWithDetails: (details) => details.data != index,
+      onMove: (_) => _updateRowDropTarget(index),
+      onLeave: (_) => _clearRowDropTarget(index),
       onAcceptWithDetails: (details) {
         final fromIndex = details.data;
         final insertIndex = fromIndex < index ? index - 1 : index;
         if (fromIndex != insertIndex) {
           onRowReorder(fromIndex, index);
         }
+        _endRowDrag();
       },
       builder: (context, candidateData, rejectedData) {
-        final highlighted = candidateData.isNotEmpty;
-        final decorated = highlighted
-            ? DecoratedBox(
-                decoration: const BoxDecoration(
-                  border: Border(top: BorderSide(color: Color(0xFF0E2F66), width: 2)),
+        final draggingIndex = _rowDraggingIndex;
+        final showDropGap = draggingIndex != null &&
+            _rowDropTargetIndex == index &&
+            draggingIndex != index;
+        final decorated = Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 140),
+              curve: Curves.easeOutCubic,
+              width: contentWidth,
+              height: showDropGap ? widget.rowHeight : 0,
+              decoration: const BoxDecoration(
+                color: Color(0x1A0E2F66),
+                border: Border(
+                  top: BorderSide(color: Color(0xFF0E2F66), width: 2),
                 ),
-                child: rowBox,
-              )
-            : rowBox;
-        return LongPressDraggable<int>(
+              ),
+            ),
+            rowBox,
+          ],
+        );
+        return Draggable<int>(
           data: index,
           axis: Axis.vertical,
+          onDragStarted: () => _startRowDrag(index),
+          onDragEnd: (_) => _endRowDrag(),
+          onDraggableCanceled: (_, _) => _endRowDrag(),
           feedback: Material(
             color: Colors.transparent,
             child: Opacity(opacity: 0.82, child: rowBox),

@@ -44,6 +44,54 @@ Future<void> _pumpTable(
   );
 }
 
+Future<void> _pumpReorderTable(WidgetTester tester) async {
+  final rows = <_Row>[
+    const _Row('Brand A', 'A001'),
+    const _Row('Brand B', 'B001'),
+    const _Row('Brand C', 'C001'),
+  ];
+  await tester.pumpWidget(
+    MaterialApp(
+      home: Scaffold(
+        body: SizedBox(
+          width: 360,
+          height: 180,
+          child: StatefulBuilder(
+            builder: (context, setState) {
+              return SwipeActionTable<_Row>(
+                rows: rows,
+                autoFitColumns: false,
+                rowReorderEnabled: true,
+                onRowReorder: (fromIndex, toIndex) {
+                  setState(() {
+                    final insertIndex = fromIndex < toIndex
+                        ? toIndex - 1
+                        : toIndex;
+                    final row = rows.removeAt(fromIndex);
+                    rows.insert(insertIndex, row);
+                  });
+                },
+                columns: [
+                  SwipeActionTableColumn<_Row>(
+                    header: '브랜드 이름',
+                    initialWidth: 160,
+                    text: (row) => row.name,
+                  ),
+                  SwipeActionTableColumn<_Row>(
+                    header: '코드',
+                    initialWidth: 120,
+                    text: (row) => row.code,
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
 Future<void> _doubleTap(WidgetTester tester, Finder finder) async {
   await tester.tap(finder);
   await tester.pump(const Duration(milliseconds: 50));
@@ -146,5 +194,25 @@ void main() {
     await _doubleTap(tester, find.text('Brand A'));
 
     expect(called, isFalse);
+  });
+
+  testWidgets('row reorder drag moves row above drop target', (tester) async {
+    await _pumpReorderTable(tester);
+
+    final start = tester.getCenter(find.text('Brand A'));
+    final target = tester.getCenter(find.text('Brand C'));
+    final gesture = await tester.startGesture(start);
+    await tester.pump();
+    await gesture.moveTo(target);
+    await tester.pump(const Duration(milliseconds: 180));
+    await gesture.up();
+    await tester.pumpAndSettle();
+
+    final brandBTop = tester.getTopLeft(find.text('Brand B')).dy;
+    final brandATop = tester.getTopLeft(find.text('Brand A')).dy;
+    final brandCTop = tester.getTopLeft(find.text('Brand C')).dy;
+
+    expect(brandBTop, lessThan(brandATop));
+    expect(brandATop, lessThan(brandCTop));
   });
 }
