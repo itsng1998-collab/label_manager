@@ -1951,13 +1951,25 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
     }
 
     debugLog('updateBrandName confirmed brandId=${brand.brandId} old=${brand.brandName} new=$brandName');
-    // TODO: 실제 CRUD 호출 후 결과에 따라 아래 setState 실행 여부를 결정한다.
+    try {
+      await BrandDAO.updateByBrandId(brand, brandName);
+    } catch (e) {
+      debugLog('updateBrandName failed brandId=${brand.brandId} error=$e');
+      if (mounted) {
+        showSnackBar(
+          context,
+          '브랜드 이름 변경에 실패했습니다.',
+          type: SnackBarType.error,
+        );
+        _brandNameEditFocusNode.requestFocus();
+      }
+      return;
+    }
 
-    const updateSucceeded = true;
-    debugLog('updateBrandName result succeeded=$updateSucceeded editingIndexNow=$_editingIndex expectedIndex=$editingIndex');
+    debugLog('updateBrandName result succeeded=true editingIndexNow=$_editingIndex expectedIndex=$editingIndex');
 
-    if (!updateSucceeded || _editingIndex != editingIndex) {
-      debugLog('updateBrandName skippedStateUpdate succeeded=$updateSucceeded');
+    if (_editingIndex != editingIndex) {
+      debugLog('updateBrandName skippedStateUpdate editingIndexChanged');
       return;
     }
 

@@ -108,6 +108,12 @@
   - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/models/label_size.dart` (`lib/core/app.dart` 기존 dirty 제외).
   - 구현 커밋: `b3271dc` (`라벨 시트 저장 트랜잭션 적용`).
 
+- **완료 (2026-07-02)**: 브랜드 설정 다이얼로그 `_updateBrandName`이 `BrandDAO.updateByBrandId`의 throw/rethrow 기반 성공/실패를 올바르게 반영하도록 수정.
+  - `lib/home_page_manager.dart` `_updateBrandName`: `await BrandDAO.updateByBrandId(...)`로 DB 처리 완료를 기다리고, 예외 발생 시 오류 스낵바 표시 + 편집 유지 + 상태 갱신 중단.
+  - 성공 시에만 편집 종료/캐시 갱신 수행. 편집 인덱스가 바뀐 경우 상태 갱신 skip.
+  - 검증 완료: `flutter analyze lib/home_page_manager.dart --no-fatal-warnings --no-fatal-infos` 성공.
+  - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/home_page_manager.dart` (`lib/core/app.dart` 기존 dirty 제외).
+
 - **ODBC 효율 개선**: `LabelSizeDAO.SelectSql`이 목록 조회에서도 `RICH_FORM_DATA`를 항상 가져오는 문제. 목록/상세 조회 분리, 목록에서 `FORM_DATA` 제외, 선택/시트 진입 시 상세 조회로 보강.
 
 ## 완료된 기능 요약
