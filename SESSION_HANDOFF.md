@@ -73,6 +73,11 @@
   - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/page_label_sheet/label_sheet_workbench.dart` (`lib/core/app.dart`, `lib/home_page_manager.dart` 기존 dirty 제외).
   - 구현 커밋: `8315e09` (`RTF 변환 스낵바 잔류 방지`).
 
+- **완료 (2026-07-02)**: RTF 스낵바 잔류 재발 디버깅용 로그 추가.
+  - `lib/page_label_sheet/label_sheet_workbench.dart` `_syncRtfSnackBar`: 상태 전환, post-frame stale skip, show/hide 실행, show skip, dispose hide 로그 추가.
+  - 검증 완료: `flutter analyze lib/page_label_sheet/label_sheet_workbench.dart --no-fatal-warnings --no-fatal-infos` 성공.
+  - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/page_label_sheet/label_sheet_workbench.dart` (`lib/core/app.dart`, `lib/home_page_manager.dart` 기존 dirty 제외).
+
 - **ODBC 효율 개선**: `LabelSizeDAO.SelectSql`이 목록 조회에서도 `RICH_FORM_DATA`를 항상 가져오는 문제. 목록/상세 조회 분리, 목록에서 `FORM_DATA` 제외, 선택/시트 진입 시 상세 조회로 보강.
 
 ## 완료된 기능 요약

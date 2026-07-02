@@ -958,6 +958,13 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
   void dispose() {
     if (_rtfSnackBarVisible) {
       _rtfSnackBarVisible = false;
+      final generation = ++_rtfSnackBarGeneration;
+      fortuneSheetDebugLog(
+        'rtf snackbar dispose hide generation=$generation '
+        'labelSizeId=${widget.labelSize?.labelSizeId} '
+        'rtfLen=${widget.labelRtf?.length ?? 0} '
+        'rtfHash=${widget.labelRtf?.hashCode ?? 0}',
+      );
       ScaffoldMessenger.maybeOf(context)?.hideCurrentSnackBar();
     }
     _zoomController.dispose();
@@ -1046,19 +1053,46 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     }
     _rtfSnackBarVisible = visible;
     final generation = ++_rtfSnackBarGeneration;
+    fortuneSheetDebugLog(
+      'rtf snackbar sync visible=$visible generation=$generation '
+      'mounted=$mounted labelSizeId=${widget.labelSize?.labelSizeId} '
+      'rtfLen=${widget.labelRtf?.length ?? 0} '
+      'rtfHash=${widget.labelRtf?.hashCode ?? 0}',
+    );
     // messenger 를 addPostFrameCallback 실행 전에 캡처한다.
     // 콜백 실행 시점에 위젯이 파기(dispose)되어 mounted=false 이더라도
     // hide(visible=false) 는 반드시 수행해야 스낵바가 무한 표시되지 않는다.
     final capturedMessenger = ScaffoldMessenger.maybeOf(context);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (generation != _rtfSnackBarGeneration) {
+        fortuneSheetDebugLog(
+          'rtf snackbar postFrame stale visible=$visible '
+          'generation=$generation current=$_rtfSnackBarGeneration '
+          'mounted=$mounted labelSizeId=${widget.labelSize?.labelSizeId}',
+        );
         return;
       }
       if (visible) {
         // SHOW: 위젯이 살아 있어야 context 로 showSnackBar 를 호출할 수 있다.
-        if (!mounted) return;
+        if (!mounted) {
+          fortuneSheetDebugLog(
+            'rtf snackbar show skipped unmounted generation=$generation '
+            'labelSizeId=${widget.labelSize?.labelSizeId}',
+          );
+          return;
+        }
         final messenger = ScaffoldMessenger.maybeOf(context);
-        if (messenger == null) return;
+        if (messenger == null) {
+          fortuneSheetDebugLog(
+            'rtf snackbar show skipped noMessenger generation=$generation '
+            'labelSizeId=${widget.labelSize?.labelSizeId}',
+          );
+          return;
+        }
+        fortuneSheetDebugLog(
+          'rtf snackbar show generation=$generation '
+          'labelSizeId=${widget.labelSize?.labelSizeId}',
+        );
         messenger.clearSnackBars();
         showSnackBar(
           context,
@@ -1069,6 +1103,11 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       } else {
         // HIDE: 위젯이 파기된 후에도 반드시 스낵바를 닫아야 한다.
         // mounted 체크 없이 캡처된 messenger 로 직접 닫는다.
+        fortuneSheetDebugLog(
+          'rtf snackbar hide generation=$generation '
+          'hasMessenger=${capturedMessenger != null} '
+          'mounted=$mounted labelSizeId=${widget.labelSize?.labelSizeId}',
+        );
         capturedMessenger?.hideCurrentSnackBar();
       }
     });
