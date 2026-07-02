@@ -226,7 +226,7 @@
   - 검증 완료: `test/swipe_action_table_test.dart` 7개 성공.
   - 검증 완료: `flutter analyze lib/widgets/swipe_action_table.dart lib/home_page_manager.dart test/swipe_action_table_test.dart --no-fatal-warnings --no-fatal-infos` 성공.
   - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/widgets/swipe_action_table.dart`, `lib/home_page_manager.dart`, `test/swipe_action_table_test.dart` (`lib/core/app.dart` 제외).
-  - 구현 커밋: 예정.
+  - 구현 커밋: `d006174` (`라벨 설정 인접 행 이동 교환 처리`).
 
 - **ODBC 효율 개선**: `LabelSizeDAO.SelectSql`이 목록 조회에서도 `RICH_FORM_DATA`를 항상 가져오는 문제. 목록/상세 조회 분리, 목록에서 `FORM_DATA` 제외, 선택/시트 진입 시 상세 조회로 보강.
 
