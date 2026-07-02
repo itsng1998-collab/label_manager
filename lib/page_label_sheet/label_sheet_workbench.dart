@@ -1044,19 +1044,16 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       return;
     }
     _rtfSnackBarVisible = visible;
+    // messenger 를 addPostFrameCallback 실행 전에 캡처한다.
+    // 콜백 실행 시점에 위젯이 파기(dispose)되어 mounted=false 이더라도
+    // hide(visible=false) 는 반드시 수행해야 스낵바가 무한 표시되지 않는다.
+    final capturedMessenger = ScaffoldMessenger.maybeOf(context);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) {
-        return;
-      }
-      final messenger = ScaffoldMessenger.maybeOf(context);
-      if (messenger == null) {
-        return;
-      }
       if (visible) {
-        // RTF 변환 시작: '브랜드 데이터를 불러오고 있습니다...' 등
-        // 이전 스낵바를 모두 제거한 뒤 RTF 스낵바를 표시한다.
-        // clearSnackBars() 없이 showSnackBar()만 하면 이전 스낵바가 큐에서
-        // 대기하다가 RTF 스낵바가 닫힌 후 다시 나타나는 문제가 생긴다.
+        // SHOW: 위젯이 살아 있어야 context 로 showSnackBar 를 호출할 수 있다.
+        if (!mounted) return;
+        final messenger = ScaffoldMessenger.maybeOf(context);
+        if (messenger == null) return;
         messenger.clearSnackBars();
         showSnackBar(
           context,
@@ -1065,7 +1062,9 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
           duration: const Duration(days: 1),
         );
       } else {
-        messenger.hideCurrentSnackBar();
+        // HIDE: 위젯이 파기된 후에도 반드시 스낵바를 닫아야 한다.
+        // mounted 체크 없이 캡처된 messenger 로 직접 닫는다.
+        capturedMessenger?.hideCurrentSnackBar();
       }
     });
   }
@@ -1944,7 +1943,11 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     if (callback == null) {
       return;
     }
+    // messenger 를 캡처해 위젯 파기 후에도 스낵바를 닫을 수 있도록 한다.
+    final capturedMessenger = ScaffoldMessenger.maybeOf(context);
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      // 스낵바 닫기는 mounted 무관하게 항상 수행한다.
+      capturedMessenger?.hideCurrentSnackBar();
       if (!mounted) return;
       callback();
     });
