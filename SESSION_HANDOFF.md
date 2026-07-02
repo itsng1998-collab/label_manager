@@ -73,7 +73,7 @@
   - 검증 완료: `flutter analyze lib/page_label_sheet/label_sheet_workbench.dart --no-fatal-warnings --no-fatal-infos` 성공.
   - 검증 완료: `test/label_sheet_xlsx_import_test.dart` 3개 성공.
   - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/page_label_sheet/label_sheet_workbench.dart` (`lib/core/app.dart` 기존 dirty 제외).
-  - 구현 커밋: `c0b8058` (`라벨 파일 가져오기 크기 제한 해제`).
+  - 구현 커밋: `4a95189` (`라벨 파일 가져오기 크기 제한 해제`).
 
 - **완료 (2026-07-02)**: `label_converted.xlsx` 가져오기 실패 원인 수정.
   - 최신 로그 `.tmp/log/app_2026-07-02_23-25-23.log`: `workbook.xml` 로드 성공 후 `_activeSheetInfo: workbook has no sheet tags`, `FormatException: XLSX workbook has no sheets` 발생.
