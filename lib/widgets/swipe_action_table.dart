@@ -527,11 +527,11 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
     T? row,
     int? rowIndex,
   }) {
-    return Container(
-      // 셀 콘텐츠와 액션 레일 사이 구분선 (border 는 내부 영역에 그려져 폭 불변)
-      decoration: const BoxDecoration(
-        border: Border(left: BorderSide(color: Color(0xffd1d5db))),
-      ),
+    // Container 래퍼 제거 → Align 사용. Container(BoxDecoration.border) 가
+    // AnimatedPositioned(width: actionsWidth) 결합 시 1px RenderFlex 오버플로 유발.
+    // 구분선은 버튼 자체의 border 로 처리: 첫 버튼 left, 비마지막 버튼 right.
+    return Align(
+      alignment: Alignment.centerRight,
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -539,6 +539,8 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
             Builder(
               builder: (context) {
                 final action = actions[i];
+                final isFirst = i == 0;
+                final isLast = i == actions.length - 1;
                 final isRowAction = row != null && rowIndex != null;
                 final isEnabled = isRowAction
                   ? action.isEnabled?.call(row, rowIndex) ?? true
@@ -561,8 +563,26 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
                 final backgroundColor = isPressed
                     ? (Color.lerp(action.backgroundColor, Colors.black, 0.22) ?? action.backgroundColor)
                     : action.backgroundColor;
-                // 버튼 사이 구분선: SizedBox 대신 오른쪽 border 사용 → 폭 추가 없음
-                final bool hasSeparator = i < actions.length - 1;
+                // 셀-레일 구분선: 첫 버튼 left border
+                // 버튼 사이 구분선: 비마지막 버튼 right border
+                // border 는 strokeAlignInside 라 레이아웃 폭에 영향 없음
+                final Border? buttonBorder;
+                if (isFirst && !isLast) {
+                  buttonBorder = const Border(
+                    left: BorderSide(color: Color(0xffd1d5db)),
+                    right: BorderSide(color: Color(0x30000000)),
+                  );
+                } else if (isFirst) {
+                  buttonBorder = const Border(
+                    left: BorderSide(color: Color(0xffd1d5db)),
+                  );
+                } else if (!isLast) {
+                  buttonBorder = const Border(
+                    right: BorderSide(color: Color(0x30000000)),
+                  );
+                } else {
+                  buttonBorder = null;
+                }
                 // disabled 는 전체 Opacity 로 처리해 색상 정체성 유지
                 return IgnorePointer(
                   ignoring: !isEnabled,
@@ -579,11 +599,7 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
                             duration: const Duration(milliseconds: 100),
                             decoration: BoxDecoration(
                               color: backgroundColor,
-                              border: hasSeparator
-                                  ? const Border(
-                                      right: BorderSide(color: Color(0x30000000)),
-                                    )
-                                  : null,
+                              border: buttonBorder,
                             ),
                             child: Transform.translate(
                               offset: isPressed ? const Offset(0, 1) : Offset.zero,
