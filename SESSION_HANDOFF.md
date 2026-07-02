@@ -106,6 +106,7 @@
   - 각 작업 직후 `@@ROWCOUNT <= 0`이면 `THROW`로 롤백되도록 처리하고, 정상/오류 경로 모두 `SET XACT_ABORT OFF`로 세션 옵션 복구.
   - 검증 완료: `flutter analyze lib/models/label_size.dart --no-fatal-warnings --no-fatal-infos` 성공.
   - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/models/label_size.dart` (`lib/core/app.dart` 기존 dirty 제외).
+  - 구현 커밋: `b3271dc` (`라벨 시트 저장 트랜잭션 적용`).
 
 - **ODBC 효율 개선**: `LabelSizeDAO.SelectSql`이 목록 조회에서도 `RICH_FORM_DATA`를 항상 가져오는 문제. 목록/상세 조회 분리, 목록에서 `FORM_DATA` 제외, 선택/시트 진입 시 상세 조회로 보강.
 
