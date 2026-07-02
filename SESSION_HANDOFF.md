@@ -75,6 +75,7 @@
   - 검증 완료: `test/label_sheet_xlsx_import_test.dart` 3개 성공.
   - 검증 완료: `flutter analyze lib/page_label_sheet/label_sheet_workbench.dart lib/page_label_sheet/label_sheet_xlsx_import.dart test/label_sheet_xlsx_import_test.dart --no-fatal-warnings --no-fatal-infos` 성공.
   - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/page_label_sheet/label_sheet_workbench.dart` (`lib/core/app.dart` 기존 dirty 제외).
+  - 구현 커밋: `17d1b87` (`XLSX 가져오기 표시 배율 동기화`).
 
 - **완료 (2026-07-03)**: XLSX 줄바꿈 셀 FortuneSheet wrap 정규값 보정.
   - 재현 첨부 확인: `제조원` 주소 두 번째 줄과 13행 안내문 두 번째 줄이 변환본에서 보이지 않음.
