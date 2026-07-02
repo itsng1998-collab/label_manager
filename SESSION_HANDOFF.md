@@ -160,6 +160,7 @@
   - 현재 선택 브랜드가 수정되면 선택 브랜드 객체도 갱신. 현재 선택 브랜드가 삭제되면 삭제 위치의 다음 브랜드, 없으면 마지막 브랜드, 목록이 비면 `null` 선택으로 전환해 품목관리/공용라벨관리 상태를 초기화.
   - 검증 완료: `flutter analyze lib/home_page_manager.dart --no-fatal-warnings --no-fatal-infos` 성공.
   - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/home_page_manager.dart` (`lib/core/app.dart`, `doc/BM_RICH_BRAND.sql` 제외).
+  - 구현 커밋: `74fa0c3` (`브랜드 설정 변경 헤더 드롭다운 반영`).
 
 - **ODBC 효율 개선**: `LabelSizeDAO.SelectSql`이 목록 조회에서도 `RICH_FORM_DATA`를 항상 가져오는 문제. 목록/상세 조회 분리, 목록에서 `FORM_DATA` 제외, 선택/시트 진입 시 상세 조회로 보강.
 
