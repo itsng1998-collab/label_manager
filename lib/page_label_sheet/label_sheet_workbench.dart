@@ -16,6 +16,7 @@ import 'package:label_manager/page_label_sheet/label_sheet_ai_import.dart';
 import 'package:label_manager/page_label_sheet/label_sheet_import_model.dart';
 import 'package:label_manager/page_label_sheet/label_sheet_rtf_import.dart';
 import 'package:label_manager/page_label_sheet/label_sheet_save_codec.dart';
+import 'package:label_manager/page_label_sheet/label_sheet_xlsx_import.dart';
 import 'package:label_manager/printing/label_sheet_print_job.dart';
 import 'package:label_manager/printing/label_printer_preferences.dart';
 import 'package:label_manager/printing/printer_profiles.dart';
@@ -1655,8 +1656,8 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
   Future<void> _handleImportLabelFile() async {
     fortuneSheetDebugLog('label sheet import label file context click');
     const labelFileGroup = XTypeGroup(
-      label: 'Label Manager Sheet',
-      extensions: <String>['lms'],
+      label: 'Label Manager Sheet / Excel Workbook',
+      extensions: <String>['lms', 'xlsx'],
       mimeTypes: <String>['application/octet-stream'],
     );
     final prefs = await SharedPreferences.getInstance();
@@ -1672,7 +1673,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     }
     FortuneWorkbook importedWorkbook;
     try {
-      importedWorkbook = labelSheetDecodeWorkbookSave(await file.readAsString());
+      importedWorkbook = await _readImportedLabelWorkbook(file);
     } catch (e) {
       fortuneSheetDebugLog('label sheet import label file failed: $e');
       if (!mounted) {
@@ -1720,6 +1721,14 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('라벨 파일을 가져왔습니다: ${file.name}')),
     );
+  }
+
+  Future<FortuneWorkbook> _readImportedLabelWorkbook(XFile file) async {
+    final extension = p.extension(file.name).toLowerCase();
+    if (extension == '.xlsx') {
+      return labelSheetWorkbookFromXlsxBytes(await file.readAsBytes());
+    }
+    return labelSheetDecodeWorkbookSave(await file.readAsString());
   }
 
   String _suggestedLabelFileName() {
