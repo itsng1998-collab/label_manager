@@ -265,6 +265,13 @@
   - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/home_page_manager.dart` (`lib/core/app.dart` 제외).
   - 구현 커밋: `139cefb` (`RTF Viewer 리사이즈 완료 재캡처 보장`).
 
+- **완료 (2026-07-02)**: RTF Viewer resize 완료 시 post-frame recapture가 정상 resize-end 캡처를 덮는 문제 방지.
+  - 최신 로그 확인: `resizeEndRect` 직후 정상 target 캡처가 실행된 다음, post-frame measured target이 border/rounding으로 2px 작아져 `resizeEndPostFrame` recapture가 추가 실행됨.
+  - `lib/home_page_manager.dart` `_scheduleRtfPreviewResizeFinalRecapture`: post-frame measured target과 current target 차이가 2px 이하이면 진단 로그만 남기고 recapture 생략. 의미 있는 차이(`> 2px`)에서만 measured target recapture 수행.
+  - 검증 완료: `flutter analyze lib/home_page_manager.dart lib/page_label_sheet/label_sheet_rtf_preview.dart lib/page_home/preview_floating_window.dart --no-fatal-warnings --no-fatal-infos` 성공.
+  - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/home_page_manager.dart` (`lib/core/app.dart` 제외).
+  - 구현 커밋: 예정.
+
 - **ODBC 효율 개선**: `LabelSizeDAO.SelectSql`이 목록 조회에서도 `RICH_FORM_DATA`를 항상 가져오는 문제. 목록/상세 조회 분리, 목록에서 `FORM_DATA` 제외, 선택/시트 진입 시 상세 조회로 보강.
 
 ## 완료된 기능 요약

@@ -940,14 +940,28 @@ class _HomePageManagerState extends State<HomePageManager> {
           (renderObject.size.height - padding.vertical).clamp(1.0, double.infinity),
         );
       }
-      final next = measuredTarget ?? rectTarget;
       final current = _rtfPreviewTargetContentSize;
+      final next = measuredTarget ?? rectTarget;
+      final currentDeltaWidth = current == null
+          ? double.infinity
+          : (current.width - next.width).abs();
+      final currentDeltaHeight = current == null
+          ? double.infinity
+          : (current.height - next.height).abs();
+      final shouldRecapture = current == null ||
+          currentDeltaWidth > 2.0 ||
+          currentDeltaHeight > 2.0;
       debugLog(
         'rtf preview resize final recapture '
         'rectTarget=${rectTarget.width.round()}x${rectTarget.height.round()} '
         'measuredTarget=${measuredTarget == null ? 'none' : '${measuredTarget.width.round()}x${measuredTarget.height.round()}'} '
-        'current=${current == null ? 'none' : '${current.width.round()}x${current.height.round()}'}',
+        'current=${current == null ? 'none' : '${current.width.round()}x${current.height.round()}'} '
+        'delta=${currentDeltaWidth.toStringAsFixed(1)}x${currentDeltaHeight.toStringAsFixed(1)} '
+        'recapture=$shouldRecapture',
       );
+      if (!shouldRecapture) {
+        return;
+      }
       _rtfPreviewTargetContentSize = next;
       _refreshRtfPreviewChild(reason: 'resizeEndPostFrame');
     });
