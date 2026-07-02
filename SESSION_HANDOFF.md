@@ -66,6 +66,16 @@
 
 ### 대기/추후 작업
 
+- **완료 (2026-07-03)**: XLSX 가져오기 후 원본 대비 축소 표시되는 zoom 상태 보정 및 표시폭 로그 추가.
+  - 재현 첨부 확인: 줄바꿈은 살아났지만 전체 시트가 원본보다 약간 축소되어 열/행 폭이 좁게 표시됨.
+  - 최신 로그 `.tmp/log/app_2026-07-03_00-31-05.log`: C8/A13 `lineBreakCells`는 `tb=2`, 줄 수 2, rowHeight 충분. 따라서 남은 차이는 값/rowHeight/wrap이 아니라 표시 스케일 쪽.
+  - 원인 후보 확인: FortuneSheet는 표시 축 계산에 `zoomRatio`를 곱함. 워크벤치 zoom UI 상태와 import된 sheet zoom 상태가 로그에 드러나지 않아 폭 차이 추적이 어려웠음.
+  - `lib/page_label_sheet/label_sheet_workbench.dart`: 라벨 파일/XLSX import 적용 시 sheet `zoomRatio`를 1로 고정하고 워크벤치 zoom UI도 100%로 동기화.
+  - `lib/page_label_sheet/label_sheet_workbench.dart`: import apply 로그에 `zoomRatio`, `columnLogicalWidth`, `columnVisibleWidth`, `rowLogicalHeight`, `rowVisibleHeight` 추가.
+  - 검증 완료: `test/label_sheet_xlsx_import_test.dart` 3개 성공.
+  - 검증 완료: `flutter analyze lib/page_label_sheet/label_sheet_workbench.dart lib/page_label_sheet/label_sheet_xlsx_import.dart test/label_sheet_xlsx_import_test.dart --no-fatal-warnings --no-fatal-infos` 성공.
+  - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/page_label_sheet/label_sheet_workbench.dart` (`lib/core/app.dart` 기존 dirty 제외).
+
 - **완료 (2026-07-03)**: XLSX 줄바꿈 셀 FortuneSheet wrap 정규값 보정.
   - 재현 첨부 확인: `제조원` 주소 두 번째 줄과 13행 안내문 두 번째 줄이 변환본에서 보이지 않음.
   - 최신 로그 `.tmp/log/app_2026-07-03_00-24-50.log`: C8/A13 값의 `\n`과 충분한 rowHeight는 apply 단계까지 보존됨.

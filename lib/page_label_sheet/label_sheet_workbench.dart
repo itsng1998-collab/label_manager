@@ -717,6 +717,9 @@ FortuneSheet _labelSheetWithPreservedGridClientSize(
 
 void _logImportedSheetApplySample(FortuneSheet sheet) {
   final gridSize = fortuneSheetGridClientPhysicalSize(sheet);
+  final columnLogicalWidth = _labelSheetAxisLogicalTotalSize(sheet.columnWidths);
+  final rowLogicalHeight = _labelSheetAxisLogicalTotalSize(sheet.rowHeights);
+  final zoomRatio = sheet.zoomRatio <= 0 ? 1.0 : sheet.zoomRatio;
   final valueSamples = <String>[];
   final anchorSamples = <String>[];
   final coveredSamples = <String>[];
@@ -756,12 +759,24 @@ void _logImportedSheetApplySample(FortuneSheet sheet) {
     'label sheet import apply sample '
     'rows=${sheet.rowCount} columns=${sheet.columnCount} '
     'cells=${sheet.cells.length} borders=${sheet.borderInfo.length} '
+    'zoomRatio=${sheet.zoomRatio} '
+    'columnLogicalWidth=$columnLogicalWidth '
+    'columnVisibleWidth=${columnLogicalWidth * zoomRatio} '
+    'rowLogicalHeight=$rowLogicalHeight '
+    'rowVisibleHeight=${rowLogicalHeight * zoomRatio} '
     'gridWidthMm=${gridSize?.widthMm} gridHeightMm=${gridSize?.heightMm} '
     'values=${valueSamples.join(' | ')} '
     'mergeAnchors=${anchorSamples.join(' | ')} '
     'mergeCovered=${coveredSamples.join(' | ')}',
     skipFrames: 1,
   );
+}
+
+double _labelSheetAxisLogicalTotalSize(Map<int, double> sizes) {
+  if (sizes.isEmpty) {
+    return 0;
+  }
+  return sizes.values.fold<double>(0, (sum, size) => sum + size + 1);
 }
 
 String _labelSheetCoordLabel(int row, int column) {
@@ -1813,6 +1828,9 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
         id: currentSheet.id,
         name: currentSheet.name,
         order: currentSheet.order,
+        zoomRatio: 1,
+        rawZoomRatio: null,
+        hasRawZoomRatio: false,
       ),
       currentSheet,
     );
@@ -1836,6 +1854,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       columnCount: importedSheet.columnCount,
     );
     _controller.updateSheet(<FortuneSheet>[importedSheet]);
+    _setLabelSheetZoomPercent(100);
     if (!mounted) {
       return;
     }
