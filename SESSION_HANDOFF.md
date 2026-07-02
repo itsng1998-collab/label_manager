@@ -77,6 +77,7 @@
   - 검증 완료: `test/label_sheet_xlsx_import_test.dart` 3개 성공.
   - 검증 완료: `flutter analyze lib/page_label_sheet/label_sheet_xlsx_import.dart test/label_sheet_xlsx_import_test.dart --no-fatal-warnings --no-fatal-infos` 성공.
   - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/page_label_sheet/label_sheet_xlsx_import.dart`, `test/label_sheet_xlsx_import_test.dart` (`lib/core/app.dart` 기존 dirty 제외).
+  - 구현 커밋: `736fe26` (`XLSX 가져오기 글꼴 크기와 테두리 보정`).
 
 - **완료 (2026-07-02)**: XLSX 가져오기 크기 해석 정정 및 self-closing 셀 파싱 수정.
   - 사용자 의도: 가져오기 시 설정한 라벨 물리 크기(mm)는 유지하고, 행/열/셀 내용은 인쇄영역을 벗어나도 잘라내지 않고 그대로 가져오기.
