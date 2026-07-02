@@ -1632,6 +1632,7 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
                       showActionsWhenEmpty: true,
                       actions: _labelRowActions(),
                       emptyActions: _labelEmptyActions(),
+                      rowNumberText: _labelRowNumberText,
                       rowReorderEnabled: true,
                       onRowReorder: _moveLabelRow,
                       columns: const [
@@ -1657,14 +1658,22 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
                           style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
                         ),
                         const SizedBox(width: 8),
-                        TextButton(
-                          onPressed: _cancelOrderChanges,
-                          child: const Text('취소'),
+                        SizedBox(
+                          width: 84,
+                          height: 30,
+                          child: _LabelSettingsFooterButton(
+                            label: '취소',
+                            onPressed: _cancelOrderChanges,
+                          ),
                         ),
-                        const SizedBox(width: 4),
-                        FilledButton(
-                          onPressed: _applyOrderChanges,
-                          child: const Text('적용'),
+                        const SizedBox(width: 5),
+                        SizedBox(
+                          width: 84,
+                          height: 30,
+                          child: _LabelSettingsFooterButton(
+                            label: '적용',
+                            onPressed: _applyOrderChanges,
+                          ),
                         ),
                       ],
                     ),
@@ -1678,6 +1687,19 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
   }
 
   static String _labelNameText(LabelSize label) => label.labelSizeName;
+
+  String _labelRowNumberText(LabelSize label, int index) {
+    final originalIndex = _originalLabels.indexWhere((original) => identical(original, label));
+    if (originalIndex >= 0) {
+      return '${originalIndex + 1}';
+    }
+    final fallbackIndex = _originalLabels.indexWhere(
+      (original) =>
+          original.labelSizeId == label.labelSizeId &&
+          original.labelSizeName == label.labelSizeName,
+    );
+    return fallbackIndex >= 0 ? '${fallbackIndex + 1}' : '${index + 1}';
+  }
 
   static List<SwipeActionTableAction<LabelSize>> _labelRowActions() {
     return const [
@@ -1743,6 +1765,29 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
 
   void _applyOrderChanges() {
     debugLog('labelSettings reorder apply pending labels=${_labels.length}');
+  }
+}
+
+class _LabelSettingsFooterButton extends StatelessWidget {
+  const _LabelSettingsFooterButton({required this.label, required this.onPressed});
+
+  final String label;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton(
+      style: OutlinedButton.styleFrom(
+        backgroundColor: const Color(0xffffffff),
+        foregroundColor: const Color(0xff111111),
+        side: const BorderSide(color: Color(0xffc7c7c7)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(2)),
+        padding: EdgeInsets.zero,
+        textStyle: const TextStyle(fontSize: 13),
+      ),
+      onPressed: onPressed,
+      child: Text(label),
+    );
   }
 }
 

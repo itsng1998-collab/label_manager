@@ -196,6 +196,14 @@
   - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/home_page_manager.dart`, `lib/widgets/swipe_action_table.dart`, `test/swipe_action_table_test.dart` (`lib/core/app.dart` 제외).
   - 구현 커밋: `b881b64` (`라벨 설정 행 헤더 이동 동기화`).
 
+- **완료 (2026-07-02)**: 라벨 설정 행 이동 후 행 헤더 인덱스 고정 및 하단 취소/적용 버튼 프린터 설정 스타일 적용.
+  - `lib/home_page_manager.dart` `_LabelSettingsDialogState`: `rowNumberText`를 `_labelRowNumberText`로 전달해 행 이동 후에도 행 헤더가 최초 라벨 목록 기준 인덱스를 유지하도록 변경.
+  - 하단 순서 변경 영역의 `취소`/`적용` 버튼을 프린터 설정 다이얼로그 `_PrintDialogButton`과 같은 84x30 흰색 `OutlinedButton`, 2px radius, `0xffc7c7c7` border 스타일로 변경.
+  - 검증 완료: `test/swipe_action_table_test.dart` 6개 성공.
+  - 검증 완료: `flutter analyze lib/home_page_manager.dart lib/widgets/swipe_action_table.dart test/swipe_action_table_test.dart --no-fatal-warnings --no-fatal-infos` 성공.
+  - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/home_page_manager.dart` (`lib/core/app.dart` 제외).
+  - 구현 커밋: 예정.
+
 - **ODBC 효율 개선**: `LabelSizeDAO.SelectSql`이 목록 조회에서도 `RICH_FORM_DATA`를 항상 가져오는 문제. 목록/상세 조회 분리, 목록에서 `FORM_DATA` 제외, 선택/시트 진입 시 상세 조회로 보강.
 
 ## 완료된 기능 요약
