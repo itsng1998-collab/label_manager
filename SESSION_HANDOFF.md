@@ -147,6 +147,13 @@
   - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/home_page_manager.dart` (`lib/core/app.dart`, `doc/BM_RICH_BRAND.sql` 제외).
   - 구현 커밋: `a29b7cd` (`브랜드 설정 확인 다이얼로그 표시 수정`).
 
+- **완료 (2026-07-02)**: 브랜드 추가 DB 오류 수정.
+  - 최신 로그 `.tmp/log/app_2026-07-02_16-59-47.log`: 확인 다이얼로그 결과 `true` 후 `BrandDAO.insertByBrandName`에서 `OdbcException(message: SQLExecute failed: 100)` 발생.
+  - 원인: 마지막 행 아래 삽입 시 첫 DML인 order 밀기 `UPDATE`가 0건이라 ODBC가 `SQL_NO_DATA(100)`을 반환.
+  - `lib/models/brand.dart` `insertByBrandName`: 트랜잭션에서 INSERT를 먼저 실행하고, 삽입된 행을 제외한 기존 행만 `RICH_BRAND_ORDER + 1` 처리하도록 순서 변경. `SET NOCOUNT ON` 및 `OUTPUT ... INTO #InsertedBrand (columns...)` 적용.
+  - 검증 완료: `flutter analyze lib/models/brand.dart --no-fatal-warnings --no-fatal-infos` 성공.
+  - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/models/brand.dart` (`lib/core/app.dart`, `doc/BM_RICH_BRAND.sql` 제외).
+
 - **ODBC 효율 개선**: `LabelSizeDAO.SelectSql`이 목록 조회에서도 `RICH_FORM_DATA`를 항상 가져오는 문제. 목록/상세 조회 분리, 목록에서 `FORM_DATA` 제외, 선택/시트 진입 시 상세 조회로 보강.
 
 ## 완료된 기능 요약

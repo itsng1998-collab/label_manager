@@ -121,6 +121,7 @@ class BrandDAO extends DAO {
     try {
       final insertSql = '''
         SET XACT_ABORT ON;
+        SET NOCOUNT ON;
         BEGIN TRY
           CREATE TABLE #InsertedBrand (
             BRAND_ID INT NOT NULL,
@@ -130,22 +131,24 @@ class BrandDAO extends DAO {
 
           BEGIN TRANSACTION;
 
-          UPDATE BM_RICH_BRAND
-             SET RICH_BRAND_ORDER = RICH_BRAND_ORDER + 1
-           WHERE RICH_CUSTOMER_ID=@customerId
-             AND RICH_BRAND_ORDER >= @brandOrder;
-
           INSERT INTO BM_RICH_BRAND
             (RICH_CUSTOMER_ID, RICH_BRAND_NAME, RICH_BRAND_ORDER)
           OUTPUT
             INSERTED.RICH_BRAND_ID,
             INSERTED.RICH_CUSTOMER_ID,
             INSERTED.RICH_BRAND_NAME
-          INTO #InsertedBrand
+          INTO #InsertedBrand (BRAND_ID, CUSTOMER_ID, BRAND_NAME)
           VALUES
             (@customerId, @brandName, @brandOrder);
 
+          UPDATE BM_RICH_BRAND
+             SET RICH_BRAND_ORDER = RICH_BRAND_ORDER + 1
+           WHERE RICH_CUSTOMER_ID=@customerId
+             AND RICH_BRAND_ORDER >= @brandOrder
+             AND RICH_BRAND_ID NOT IN (SELECT BRAND_ID FROM #InsertedBrand);
+
           COMMIT TRANSACTION;
+          SET NOCOUNT OFF;
           SET XACT_ABORT OFF;
 
           SELECT
@@ -157,6 +160,7 @@ class BrandDAO extends DAO {
         BEGIN CATCH
           IF @@TRANCOUNT > 0
             ROLLBACK TRANSACTION;
+          SET NOCOUNT OFF;
           SET XACT_ABORT OFF;
           THROW;
         END CATCH
