@@ -5,6 +5,7 @@ import 'package:fortune_sheet/fortune_sheet.dart';
 import 'package:image/image.dart' as image;
 import 'package:label_manager/page_label_sheet/label_sheet_open_xml_export.dart';
 import 'package:label_manager/page_label_sheet/label_sheet_rtf_import.dart';
+import 'package:label_manager/page_label_sheet/label_sheet_rtf_preview_debug.dart';
 import 'package:label_manager/utils/log_context.dart';
 
 const MethodChannel labelSheetNativeOpenXmlChannel = MethodChannel(
@@ -115,7 +116,7 @@ Future<LabelSheetNativeRtfImage?> labelSheetCaptureRtfNativeImage(
     return null;
   }
   try {
-    debugLog(
+    labelSheetRtfPreviewDebugLog(
       'capture request '
       'px=${width}x$height mm=${widthMm}x$heightMm scale=${renderScale.toStringAsFixed(2)} '
       'rtfLen=${rtf.length} hash=${rtf.hashCode}',
@@ -136,7 +137,7 @@ Future<LabelSheetNativeRtfImage?> labelSheetCaptureRtfNativeImage(
       }
       final diagnostics = result?['diagnostics'];
       if (diagnostics is String && diagnostics.isNotEmpty) {
-        debugLog('capture diagnostics $diagnostics');
+        labelSheetRtfPreviewDebugLog('capture diagnostics $diagnostics');
       }
       return null;
     }
@@ -151,18 +152,18 @@ Future<LabelSheetNativeRtfImage?> labelSheetCaptureRtfNativeImage(
     }
     final renderer = result['renderer'];
     if (renderer is String && renderer.isNotEmpty) {
-      debugLog('capture renderer=$renderer');
+      labelSheetRtfPreviewDebugLog('capture renderer=$renderer');
     }
     final diagnostics = result['diagnostics'];
     if (diagnostics is String && diagnostics.isNotEmpty) {
-      debugLog('capture diagnostics $diagnostics');
+      labelSheetRtfPreviewDebugLog('capture diagnostics $diagnostics');
     }
     final captured = LabelSheetNativeRtfImage(
       width: capturedWidth,
       height: capturedHeight,
       rgba: data,
     );
-    debugLog(
+    labelSheetRtfPreviewDebugLog(
       'capture rgba received '
       '${captured.width}x${captured.height} bytes=${captured.rgba.length} '
       'trim=$trimWhitespace',
@@ -217,7 +218,7 @@ LabelSheetNativeRtfImage _trimRtfImageWhitespace(
     }
   }
   if (maxX < minX || maxY < minY) {
-    debugLog(
+    labelSheetRtfPreviewDebugLog(
       'capture trim skipped empty ink '
       '${width}x$height pixels=$inkPixels',
     );
@@ -236,7 +237,7 @@ LabelSheetNativeRtfImage _trimRtfImageWhitespace(
   final croppedWidth = maxX - minX + 1;
   final croppedHeight = maxY - minY + 1;
   if (croppedWidth == width && croppedHeight == height) {
-    debugLog(
+    labelSheetRtfPreviewDebugLog(
       'capture trim skipped full image '
       '${width}x$height rawBounds=$rawMinX,$rawMinY,$rawMaxX,$rawMaxY '
       'ink=$inkPixels edge=$leftEdgeInk,$topEdgeInk,$rightEdgeInk,$bottomEdgeInk '
@@ -256,7 +257,7 @@ LabelSheetNativeRtfImage _trimRtfImageWhitespace(
       sourceOffset,
     );
   }
-  debugLog(
+  labelSheetRtfPreviewDebugLog(
     'capture trim '
     '${width}x$height -> ${croppedWidth}x$croppedHeight '
     'rawBounds=$rawMinX,$rawMinY,$rawMaxX,$rawMaxY '
@@ -299,7 +300,7 @@ Future<LabelSheetNativeRtfPngImage?> labelSheetCaptureRtfNativePngImage(
     order: image.ChannelOrder.rgba,
   );
   final pngBytes = Uint8List.fromList(image.encodePng(bitmap));
-  debugLog(
+  labelSheetRtfPreviewDebugLog(
     'capture png encoded '
     '${captured.width}x${captured.height} bytes=${pngBytes.length} '
     'scale=${renderScale.toStringAsFixed(2)} trim=$trimWhitespace',

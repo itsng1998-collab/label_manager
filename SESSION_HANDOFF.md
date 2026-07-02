@@ -300,6 +300,14 @@
   - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/home_page_manager.dart`, `lib/page_label_sheet/label_sheet_rtf_preview.dart` (`lib/core/app.dart` 제외).
   - 구현 커밋: `d83fbc0` (`RTF 완료 재캡처 생략 및 로그 강화`).
 
+- **완료 (2026-07-02)**: RTF Viewer 상세 디버깅 로그 플래그 처리.
+  - `lib/page_label_sheet/label_sheet_rtf_preview_debug.dart`: `labelSheetRtfPreviewDebugLogEnabled` 추가. 기본값은 `false`, `--dart-define=LABEL_MANAGER_RTF_PREVIEW_DEBUG=true`로 활성화 가능.
+  - `lib/home_page_manager.dart`, `lib/page_label_sheet/label_sheet_rtf_preview.dart`, `lib/page_label_sheet/label_sheet_native_open_xml.dart`: resize/capture 상세 로그를 `labelSheetRtfPreviewDebugLog(...)` 뒤로 이동.
+  - 다음 RTF resize/capture 재디버깅 시 먼저 `LABEL_MANAGER_RTF_PREVIEW_DEBUG=true`로 실행하거나 임시로 `labelSheetRtfPreviewDebugLogEnabled = true` 설정 후 로그 확인.
+  - 검증 완료: `flutter analyze lib/home_page_manager.dart lib/page_label_sheet/label_sheet_rtf_preview.dart lib/page_label_sheet/label_sheet_native_open_xml.dart lib/page_label_sheet/label_sheet_rtf_preview_debug.dart lib/page_home/preview_floating_window.dart --no-fatal-warnings --no-fatal-infos` 성공.
+  - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/home_page_manager.dart`, `lib/page_label_sheet/label_sheet_rtf_preview.dart`, `lib/page_label_sheet/label_sheet_native_open_xml.dart`, `lib/page_label_sheet/label_sheet_rtf_preview_debug.dart` (`lib/core/app.dart` 제외).
+  - 구현 커밋: 예정.
+
 - **ODBC 효율 개선**: `LabelSizeDAO.SelectSql`이 목록 조회에서도 `RICH_FORM_DATA`를 항상 가져오는 문제. 목록/상세 조회 분리, 목록에서 `FORM_DATA` 제외, 선택/시트 진입 시 상세 조회로 보강.
 
 ## 완료된 기능 요약

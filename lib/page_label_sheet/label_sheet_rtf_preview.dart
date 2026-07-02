@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:label_manager/page_label_sheet/label_sheet_native_open_xml.dart';
+import 'package:label_manager/page_label_sheet/label_sheet_rtf_preview_debug.dart';
 import 'package:label_manager/page_label_sheet/label_sheet_rtf_import.dart';
-import 'package:label_manager/utils/log_context.dart';
 
 class LabelSheetRtfPreview extends StatefulWidget {
   const LabelSheetRtfPreview({
@@ -84,7 +84,7 @@ class _LabelSheetRtfPreviewState extends State<LabelSheetRtfPreview> {
             .round();
     final captureWidth = (captureLogicalWidth * captureScale).round();
     final captureHeight = (captureLogicalHeight * captureScale).round();
-    debugLog(
+    labelSheetRtfPreviewDebugLog(
       'rtf preview capture start id=$captureId '
       'generation=${widget.captureGeneration} '
       'logical=${logicalWidth}x$logicalHeight '
@@ -106,7 +106,7 @@ class _LabelSheetRtfPreviewState extends State<LabelSheetRtfPreview> {
         captured.width / displayScale,
         captured.height / displayScale,
       );
-      debugLog(
+      labelSheetRtfPreviewDebugLog(
         'rtf preview capture done id=$captureId '
         'generation=${widget.captureGeneration} '
         'png=${captured.width}x${captured.height} '
@@ -114,7 +114,7 @@ class _LabelSheetRtfPreviewState extends State<LabelSheetRtfPreview> {
         'displayScale=${displayScale.toStringAsFixed(2)} mounted=$mounted',
       );
     } else {
-      debugLog(
+      labelSheetRtfPreviewDebugLog(
         'rtf preview capture empty id=$captureId '
         'generation=${widget.captureGeneration} mounted=$mounted',
       );

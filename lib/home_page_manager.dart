@@ -22,6 +22,7 @@ import 'package:label_manager/models/market.dart';
 import 'package:label_manager/models/user.dart';
 import 'package:label_manager/page_label_sheet/label_sheet_rtf_import.dart';
 import 'package:label_manager/page_label_sheet/label_sheet_rtf_preview.dart';
+import 'package:label_manager/page_label_sheet/label_sheet_rtf_preview_debug.dart';
 import 'package:label_manager/utils/log_context.dart';
 import 'package:label_manager/utils/on_messages.dart';
 import 'package:label_manager/page_home/item_manage.dart';
@@ -822,7 +823,7 @@ class _HomePageManagerState extends State<HomePageManager> {
         onImageSizeResolved: (imageSize) {
           _rtfPreviewHasResolvedImage = true;
           _rtfPreviewLastResolvedImageSize = imageSize;
-          debugLog(
+          labelSheetRtfPreviewDebugLog(
             'rtf preview image resolved '
             'image=${imageSize.width.round()}x${imageSize.height.round()} '
             'target=${_rtfPreviewTargetContentSize == null ? 'auto' : '${_rtfPreviewTargetContentSize!.width.round()}x${_rtfPreviewTargetContentSize!.height.round()}'}',
@@ -882,7 +883,7 @@ class _HomePageManagerState extends State<HomePageManager> {
     _rtfPreviewResizeDebounce?.cancel();
     _rtfPreviewResizeDebounce = null;
     _rtfPreviewTargetContentSize = target;
-    debugLog(
+    labelSheetRtfPreviewDebugLog(
       'rtf preview resize completed '
       'target=${target.width.round()}x${target.height.round()} '
       'refreshed=${refreshedTarget == null ? 'none' : '${refreshedTarget.width.round()}x${refreshedTarget.height.round()}'} '
@@ -925,7 +926,7 @@ class _HomePageManagerState extends State<HomePageManager> {
       return;
     }
     _rtfPreviewTargetContentSize = next;
-    debugLog(
+    labelSheetRtfPreviewDebugLog(
       'rtf preview target logical='
       '${next.width.round()}x${next.height.round()} resizing=$isResizing '
       'force=$force reason=$reason rect=${rect.width.toStringAsFixed(1)}x${rect.height.toStringAsFixed(1)}',
@@ -978,7 +979,7 @@ class _HomePageManagerState extends State<HomePageManager> {
           : (current.height - next.height).abs();
       final refreshedTarget = _rtfPreviewRefreshedTargetContentSize;
       if (_rtfPreviewHasResolvedImage) {
-        debugLog(
+        labelSheetRtfPreviewDebugLog(
           'rtf preview resize final recapture skipped existing image '
           'rectTarget=${rectTarget.width.round()}x${rectTarget.height.round()} '
           'measuredTarget=${measuredTarget == null ? 'none' : '${measuredTarget.width.round()}x${measuredTarget.height.round()}'} '
@@ -996,7 +997,7 @@ class _HomePageManagerState extends State<HomePageManager> {
         refreshedTarget,
         recaptureTarget,
       );
-      debugLog(
+      labelSheetRtfPreviewDebugLog(
         'rtf preview resize final recapture '
         'rectTarget=${rectTarget.width.round()}x${rectTarget.height.round()} '
         'measuredTarget=${measuredTarget == null ? 'none' : '${measuredTarget.width.round()}x${measuredTarget.height.round()}'} '
@@ -1029,7 +1030,7 @@ class _HomePageManagerState extends State<HomePageManager> {
     _rtfPreviewRefreshedTargetContentSize = target;
     _rtfPreviewHasResolvedImage = false;
     _rtfPreviewLastResolvedImageSize = null;
-    debugLog(
+    labelSheetRtfPreviewDebugLog(
       'rtf preview recapture child refresh reason=$reason '
       'generation=$_rtfPreviewCaptureGeneration '
       'target=${target == null ? 'auto' : '${target.width.round()}x${target.height.round()}'}',
