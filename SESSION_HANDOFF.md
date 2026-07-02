@@ -153,6 +153,7 @@
   - `lib/models/brand.dart` `insertByBrandName`: 트랜잭션에서 INSERT를 먼저 실행하고, 삽입된 행을 제외한 기존 행만 `RICH_BRAND_ORDER + 1` 처리하도록 순서 변경. `SET NOCOUNT ON` 및 `OUTPUT ... INTO #InsertedBrand (columns...)` 적용.
   - 검증 완료: `flutter analyze lib/models/brand.dart --no-fatal-warnings --no-fatal-infos` 성공.
   - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/models/brand.dart` (`lib/core/app.dart`, `doc/BM_RICH_BRAND.sql` 제외).
+  - 구현 커밋: `0a1330e` (`브랜드 추가 ODBC 실행 오류 수정`).
 
 - **ODBC 효율 개선**: `LabelSizeDAO.SelectSql`이 목록 조회에서도 `RICH_FORM_DATA`를 항상 가져오는 문제. 목록/상세 조회 분리, 목록에서 `FORM_DATA` 제외, 선택/시트 진입 시 상세 조회로 보강.
 
