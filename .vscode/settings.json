@@ -1,6 +1,6 @@
 {
 	"editor.tabSize": 2,
-	"dart.lineLength": 120,
+	"dart.lineLength": 130,
 	"editor.formatOnType": false,
 	"editor.formatOnPaste": false,
 	"editor.formatOnSave": false,
@@ -27,6 +27,6 @@
 	"powershell.developer.editorServicesLogLevel": "Warning",
 	"[dart]": {
 		"editor.formatOnType": false,
-    	"editor.rulers": [120],
+    	"editor.rulers": [130],
 	},
 }

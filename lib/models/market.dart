@@ -1,7 +1,6 @@
 // UTF-8, 한국어 주석
 // ignore_for_file: constant_identifier_names, non_constant_identifier_names
 
-import 'package:flutter/material.dart';
 import 'package:label_manager/core/app.dart';
 import 'package:label_manager/database/db_client.dart';
 import 'package:label_manager/utils/log_context.dart';
@@ -55,7 +54,7 @@ class MarketDAO extends DAO {
 	  WHERE RICH_MARKET_ID=@marketId
   ''';
 
-  static Future<Market?> getByMarketId(int marketId) async {
+  static Future<Market?> selectByMarketId(int marketId) async {
     debugLog('$START, marketId:$marketId');
 
     try {

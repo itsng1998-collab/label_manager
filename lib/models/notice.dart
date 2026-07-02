@@ -1,14 +1,13 @@
 // UTF-8, 한국어 주석
 // ignore_for_file: constant_identifier_names, non_constant_identifier_names
 
-import 'package:flutter/material.dart';
 import 'package:label_manager/core/app.dart';
 import 'package:label_manager/models/dao.dart';
 import 'package:label_manager/database/db_client.dart';
 import 'package:label_manager/utils/log_context.dart';
 
 class NoticeDAO extends DAO {
-  static const String Sql = '''
+  static const String SelectSql = '''
     SELECT
       COALESCE(CONVERT(NVARCHAR(3000), UN_MSG COLLATE ${DAO.CP949}), N'') AS UN_MSG
     FROM
@@ -18,12 +17,12 @@ class NoticeDAO extends DAO {
       LTRIM(RTRIM(CONVERT(NVARCHAR(30),@userId)));
   ''';
  
-  static Future<String> getByUserId(String userId) async {
+  static Future<String> selectByUserId(String userId) async {
     debugLog('$START, userId:$userId');
 
     try {
 			final res = await DbClient.instance.getDataWithParams(
-        Sql, { 'userId': userId }
+        SelectSql, { 'userId': userId }
 			);
 
       final map = DAO.getRowMapFromResult(res);

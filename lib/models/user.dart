@@ -1,7 +1,6 @@
 // UTF-8, 한국어 주석
 // ignore_for_file: constant_Identifier_names, non_constant_Identifier_names
 
-import 'package:flutter/material.dart';
 import 'package:label_manager/core/app.dart';
 import 'package:label_manager/database/db_client.dart';
 import 'package:label_manager/utils/log_context.dart';
@@ -102,7 +101,7 @@ class UserDAO extends DAO {
           LTRIM(RTRIM(CONVERT(NVARCHAR(30),@userId)))
   ''';
 
-  static Future<User?> getByUserId(String userId) async {
+  static Future<User?> selectByUserId(String userId) async {
     debugLog('$START, userId:$userId');
 
     try {

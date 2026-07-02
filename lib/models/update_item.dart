@@ -97,7 +97,7 @@ class UpdateItemDAO extends DAO {
 	  ORDER BY RICH_UpdateItem_ORDER ASC
   ''';
 
-  static Future<List<UpdateItem>?> getByCustomerIdByUpdateItemOrder(
+  static Future<List<UpdateItem>?> selectByCustomerIdByUpdateItemOrder(
     int customerId,
   ) async {
     debugLog('$START, customerId:$customerId');

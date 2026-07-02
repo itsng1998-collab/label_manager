@@ -29,7 +29,7 @@ class TColumnSpecial {
   static const int labelSizeId = 0;
   static List<TColumnBase>? datas;
 
-  static Future<List<TColumnBase>?> getByLabelSizeId(int labelSizeId) async {
+  static Future<List<TColumnBase>?> selectByLabelSizeId(int labelSizeId) async {
     debugLog('$START, $LABELSIZE_ID:$labelSizeId');
 
     final sql = '''

@@ -227,7 +227,7 @@ class LabelSizeDAO extends DAO {
 	  ORDER BY RICH_LABELSIZE_ORDER ASC
   ''';
 
-  static Future<List<LabelSize>?> getByBrandIdByLabelSizeOrder(int brandId) async {
+  static Future<List<LabelSize>?> selectByBrandIdByLabelSizeOrder(int brandId) async {
     debugLog('$START, brandId:$brandId');
 
     try {
@@ -247,7 +247,7 @@ class LabelSizeDAO extends DAO {
     }
   }
 
-  static Future<void> setByLabelSizeId(
+  static Future<void> updateByLabelSizeId(
     int labelSizeId,
     int width,
     int height,

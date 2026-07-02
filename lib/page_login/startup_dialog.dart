@@ -426,12 +426,12 @@ class _LoginPanelState extends State<_LoginPanel> {
         return;
       }
 
-      final noticeMsg = await NoticeDAO.getByUserId(inputId);
+      final noticeMsg = await NoticeDAO.selectByUserId(inputId);
       if (noticeMsg.isNotEmpty) {
         widget.onUserIdCommit?.call(noticeMsg);
       }
 
-      _userInfo = await UserDAO.getByUserId(inputId);
+      _userInfo = await UserDAO.selectByUserId(inputId);
 
       if (!mounted) return;
 
@@ -554,9 +554,9 @@ class _LoginPanelState extends State<_LoginPanel> {
 
     try {
       // Get Market,Customer,Cooperator info after login...
-      Market.setInstance(await MarketDAO.getByMarketId(_userInfo!.marketId));
-      Customer.setInstance(await CustomerDAO.getByCustomerId(Market.instance!.customerId));
-      Cooperator.setInstance(await CooperatorDAO.getByCooperatorId(Customer.instance!.cooperatorId));
+      Market.setInstance(await MarketDAO.selectByMarketId(_userInfo!.marketId));
+      Customer.setInstance(await CustomerDAO.selectByCustomerId(Market.instance!.customerId));
+      Cooperator.setInstance(await CooperatorDAO.selectByCooperatorId(Customer.instance!.cooperatorId));
       User.setInstance(_userInfo!);
 
       // 로그인 정보를 저장한다.

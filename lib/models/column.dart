@@ -298,7 +298,7 @@ class TColumnDAO extends DAO {
 		ORDER BY RICH_COLUMN_ORDER
 	''';
 
-  static Future<List<TColumn>?> getByLabelSizeId(int labelSizeId) async {
+  static Future<List<TColumn>?> selectByLabelSizeId(int labelSizeId) async {
     debugLog('$START, labelSizeId:$labelSizeId');
 
     try {

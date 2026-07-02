@@ -182,7 +182,7 @@ class _HomePageManagerState extends State<HomePageManager> {
       try {
         debugLog(START);
         await TColumnType.init();
-        final brands = await BrandDAO.getByCustomerIdByBrandOrder(
+        final brands = await BrandDAO.selectByCustomerIdByBrandOrder(
           Customer.instance!.customerId,
         );
         if (!mounted) return;
@@ -287,7 +287,7 @@ class _HomePageManagerState extends State<HomePageManager> {
       LabelSize.setDatas(<LabelSize>[]);
       setState(() {});
 
-      final labelSizes = await LabelSizeDAO.getByBrandIdByLabelSizeOrder(
+      final labelSizes = await LabelSizeDAO.selectByBrandIdByLabelSizeOrder(
         target.brandId,
       );
 
@@ -346,15 +346,15 @@ class _HomePageManagerState extends State<HomePageManager> {
       _commonLabelTabActivated = false;
       _commonLabelPreviewClosedByUser = false;
       widget.onLabelSizeChanged(labelSize);
-      TColumn.datas = await TColumnDAO.getByLabelSizeId(labelSize.labelSizeId);
-      TColumnContent.datas = await TColumnContentDAO.getByLabelSizeId(
+      TColumn.datas = await TColumnDAO.selectByLabelSizeId(labelSize.labelSizeId);
+      TColumnContent.datas = await TColumnContentDAO.selectByLabelSizeId(
         labelSize.labelSizeId,
       );
-      TColumnSpecial.datas = await TColumnSpecial.getByLabelSizeId(
+      TColumnSpecial.datas = await TColumnSpecial.selectByLabelSizeId(
         labelSize.labelSizeId,
       );
       ItemOfMarket.datas =
-          await ItemOfMarketDAO.getByItemOfMarketAndLabelSizeId(
+          await ItemOfMarketDAO.selectByItemOfMarketAndLabelSizeId(
             Market.instance!.marketId,
             labelSize.labelSizeId,
           );

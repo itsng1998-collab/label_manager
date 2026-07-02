@@ -54,7 +54,7 @@ class CustomerDAO extends DAO {
 	  WHERE RICH_CUSTOMER_ID=@customerId
   ''';
 
-  static Future<Customer?> getByCustomerId(int customerId) async {
+  static Future<Customer?> selectByCustomerId(int customerId) async {
     debugLog('$START, customerId:$customerId');
 
     try {

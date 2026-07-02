@@ -187,7 +187,7 @@ String stripLeadingBracketTags(String s) {
   // - 대괄호 태그들: [INFO], [A][B], [msgno=...]
   // - 예외/에러 토큰: Exception, *Exception(FormatException, SocketException 등), SQLException, Error
   // - 각 토큰 뒤의 공백/탭/개행 및 흔한 구분자(:, -, –(2013), —(2014), ·(00B7), |)를 허용하며 연속해서 제거
-  // 예) "Exception: [NoticeDAO.getByUserId] SQLException: [msgno=...] Incorrect syntax near 'xSELECT'."
+  // 예) "Exception: [NoticeDAO.selectByUserId] SQLException: [msgno=...] Incorrect syntax near 'xSELECT'."
   //   → "Incorrect syntax near 'xSELECT'."
   final pattern = RegExp(
     r'^\s*(?:'

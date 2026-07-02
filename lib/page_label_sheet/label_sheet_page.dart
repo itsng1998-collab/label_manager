@@ -87,7 +87,7 @@ class LabelSheetPage extends StatelessWidget {
 
       final id = labelSize!.labelSizeId;
       debugLog('saving workbook for labelSizeId=$id, width=$width, height=$height');
-      await LabelSizeDAO.setByLabelSizeId(id, width, height, encodedWorkbook);
+      await LabelSizeDAO.updateByLabelSizeId(id, width, height, encodedWorkbook);
       LabelSize.replaceCachedFormData(id, width, height, encodedWorkbook);
       debugLog('$END - save completed');
     }

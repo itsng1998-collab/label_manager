@@ -1,7 +1,6 @@
 // UTF-8, 한국어 주석
 // ignore_for_file: constant_identifier_names, non_constant_identifier_names
 
-import 'package:flutter/material.dart';
 import 'package:label_manager/core/app.dart';
 import 'package:label_manager/database/db_client.dart';
 import 'package:label_manager/utils/log_context.dart';
@@ -59,7 +58,7 @@ class BrandDAO extends DAO {
 	  ORDER BY RICH_BRAND_ORDER ASC
   ''';
 
-  static Future<List<Brand>?> getByCustomerIdByBrandOrder(int customerId) async {
+  static Future<List<Brand>?> selectByCustomerIdByBrandOrder(int customerId) async {
     debugLog('$START, customerId:$customerId');
 
     try {

@@ -49,7 +49,6 @@ class TColumnContent {
     if (map == null) return null;
     return map[ColumnItemKey(columnId: columnId, itemId: itemId)];
   }
-
 }
 
 class ColumnItemKey {
@@ -93,7 +92,7 @@ class TColumnContentDAO extends DAO {
 		ORDER BY P2.RICH_ITEM_ORDER,P2.RICH_ITEM_ID, P3.RICH_COLUMN_ORDER, P3.RICH_COLUMN_ID ASC
 	''';
 
-  static Future<Map<ColumnItemKey, TColumnContent>?> getByLabelSizeId(int labelSizeId) async {
+  static Future<Map<ColumnItemKey, TColumnContent>?> selectByLabelSizeId(int labelSizeId) async {
     debugLog('$START, labelSizeId:$labelSizeId');
 
     try {

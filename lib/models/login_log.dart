@@ -89,7 +89,7 @@ class LoginLogDAO extends DAO {
        CONVERT(VARCHAR(15), CONNECTIONPROPERTY('client_net_address')))
   ''';
 
-  static Future<LoginLog?> getByLogId(int logId) async {
+  static Future<LoginLog?> selectByLogId(int logId) async {
     try {
 			final res = await DbClient.instance.getDataWithParams(
 				'$SelectSql $WhereSqlLogId', { 'logId': logId }

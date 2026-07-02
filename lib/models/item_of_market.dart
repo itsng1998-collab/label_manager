@@ -180,7 +180,7 @@ class ItemOfMarketDAO extends DAO {
 		WHERE P1.RICH_MARKET_ID=@marketId AND P2.RICH_LABELSIZE_ID=@labelSizeId
   ''';
 
-  static Future<List<ItemOfMarket>?> getByItemOfMarketAndLabelSizeId(int marketId, int labelSizeId) async {
+  static Future<List<ItemOfMarket>?> selectByItemOfMarketAndLabelSizeId(int marketId, int labelSizeId) async {
     debugLog('$START, ItemOfMarketAndLabelSizeId:$marketId,$labelSizeId');
 
     try {
