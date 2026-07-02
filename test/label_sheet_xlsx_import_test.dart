@@ -50,6 +50,10 @@ void main() {
     expect(d1.merge?.rowSpan, 1);
     expect(d1.merge?.columnSpan, 2);
 
+    final a3 = sheet.cells[const FortuneCellCoord(2, 0)]!;
+    expect(a3.value, '첫 줄\n둘째 줄');
+    expect(a3.textWrap, 'wrap');
+
     final e1 = sheet.cells[const FortuneCellCoord(0, 4)]!;
     expect(e1.merge?.row, 0);
     expect(e1.merge?.column, 3);
@@ -196,6 +200,7 @@ Uint8List _xlsxBytes({
       <c r="G1" t="str" s="2"><v>빈셀 다음 값</v></c>
     </row>
     <row r="2" hidden="1"><c r="A2" s="2"/></row>
+    <row r="3"><c r="A3" t="str" s="2"><v>첫 줄&#10;둘째 줄</v></c></row>
   </sheetData>
   <mergeCells count="2"><mergeCell ref="A1:B2"/><mergeCell ref="D1:E1"/></mergeCells>
   <hyperlinks><hyperlink ref="B1" r:id="rIdHyper"/></hyperlinks>

@@ -66,6 +66,17 @@
 
 ### 대기/추후 작업
 
+- **완료 (2026-07-03)**: XLSX 원본 대비 변환본 긴 텍스트 줄바꿈 누락 보정 및 진단 로그 추가.
+  - 첨부 비교 확인: `제조원`, 영양성분 안내문처럼 줄바꿈이 필요한 긴 텍스트가 변환본에서 한 줄로 잘리거나 다음 줄이 보이지 않는 차이 확인.
+  - 최신 로그 `.tmp/log/app_2026-07-03_00-18-00.log`: A8/A13 값 자체의 `\n`은 apply 단계까지 보존됨. 따라서 값 누락보다 wrap 적용/레이아웃 진단 부족이 원인 후보.
+  - `lib/page_label_sheet/label_sheet_xlsx_import.dart`: 값에 실제 줄바꿈이 있으면 Excel처럼 `tb=wrap`을 강제 적용.
+  - `lib/page_label_sheet/label_sheet_xlsx_import.dart`: XML 숫자 문자 참조 `&#10;`, `&#xA;` 등을 실제 문자로 복원하도록 `_xmlDecode` 보강.
+  - `lib/page_label_sheet/label_sheet_xlsx_import.dart`: `worksheet json layout` 로그 추가. rowHeights/columnWidths 샘플과 wrapCells 좌표, 줄 수, 병합 span, rowHeight, fontSize 기록.
+  - `test/label_sheet_xlsx_import_test.dart`: `&#10;` 줄바꿈 값이 실제 `\n`으로 복원되고 `textWrap=wrap`으로 들어가는 회귀 테스트 추가.
+  - 검증 완료: `test/label_sheet_xlsx_import_test.dart` 3개 성공.
+  - 검증 완료: `flutter analyze lib/page_label_sheet/label_sheet_xlsx_import.dart test/label_sheet_xlsx_import_test.dart --no-fatal-warnings --no-fatal-infos` 성공.
+  - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/page_label_sheet/label_sheet_xlsx_import.dart`, `test/label_sheet_xlsx_import_test.dart` (`lib/core/app.dart` 기존 dirty 제외).
+
 - **완료 (2026-07-03)**: XLSX 원본 대비 변환본 열 폭/테두리 굵기 추가 보정.
   - 최신 로그 `.tmp/log/app_2026-07-03_00-11-03.log`: 값/병합/font size는 정상 적용. current grid physical size는 80x60mm 유지.
   - 확인 결과: 실제 XLSX column width 합계 138, 기존 변환식 `width * 7` 합계 966px로 원본 대비 가로 폭이 좁음. 후보 `width * 8` 합계 1104px가 원본 이미지 폭에 더 근접.

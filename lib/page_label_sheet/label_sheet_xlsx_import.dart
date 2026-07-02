@@ -236,6 +236,7 @@ Map<String, Object?> _sheetJsonFromWorksheet(
   final mergeMap = <String, Map<String, Object?>>{};
   final valueSamples = <String>[];
   final styleSamples = <String>[];
+  final wrapSamples = <String>[];
   var maxRow = 0;
   var maxColumn = 0;
 
@@ -342,6 +343,9 @@ Map<String, Object?> _sheetJsonFromWorksheet(
         if (merge != null) 'mc': merge,
         if (hyperlink != null) 'hl': hyperlink,
       };
+      if (cellValue.text?.contains('\n') ?? false) {
+        cellJson['tb'] = 'wrap';
+      }
       final inlineRuns = metadata.applyRunExtra(ref, cellValue.inlineRuns);
       if (inlineRuns != null && inlineRuns.isNotEmpty) {
         cellJson['ct'] = {
@@ -363,6 +367,16 @@ Map<String, Object?> _sheetJsonFromWorksheet(
       if (cellValue.text != null && valueSamples.length < 40) {
         valueSamples.add(
           '${_coordLabel(coord.row, coord.column)}=${_logText(cellValue.text!)}',
+        );
+      }
+      if (cellJson['tb'] == 'wrap' && wrapSamples.length < 24) {
+        wrapSamples.add(
+          '${_coordLabel(coord.row, coord.column)} '
+          'len=${cellValue.text?.length ?? 0} '
+          'lines=${_lineCount(cellValue.text)} '
+          'merge=${merge == null ? '-' : '${merge['rs']}x${merge['cs']}'} '
+          'rowHeight=${rowHeights['${coord.row}']} '
+          'fontSize=${cellJson['fs']}',
         );
       }
       if ((cellJson.containsKey('bg') ||
@@ -420,6 +434,11 @@ Map<String, Object?> _sheetJsonFromWorksheet(
     'worksheet json samples values=${valueSamples.join(' | ')} '
     'styles=${styleSamples.join(' | ')} '
     'merges=${_mergeSample(mergeMap)}',
+  );
+  _xlsxImportLog(
+    'worksheet json layout rowHeights=${_mapSample(rowHeights)} '
+    'columnWidths=${_mapSample(columnWidths)} '
+    'wrapCells=${wrapSamples.join(' | ')}',
   );
 
   return {
@@ -1229,6 +1248,20 @@ String _mergeSample(Map<String, Map<String, Object?>> mergeMap) {
   }).join(' | ');
 }
 
+String _mapSample(Map<String, Object?> map) {
+  return map.entries
+      .take(30)
+      .map((entry) => '${entry.key}:${entry.value}')
+      .join('|');
+}
+
+int _lineCount(String? value) {
+  if (value == null || value.isEmpty) {
+    return 0;
+  }
+  return '\n'.allMatches(value).length + 1;
+}
+
 Map<String, String>? _firstTagAttributes(String xml, String tag) {
   final match = RegExp(
     '<$tag\\b([^>]*)/?>',
@@ -1370,12 +1403,22 @@ String? _emptyToNull(String? value) {
 }
 
 String _xmlDecode(String value) {
-  return value
+  final decoded = value
       .replaceAll('&lt;', '<')
       .replaceAll('&gt;', '>')
       .replaceAll('&quot;', '"')
       .replaceAll('&apos;', "'")
       .replaceAll('&amp;', '&');
+  return decoded.replaceAllMapped(RegExp(r'&#(x?[0-9A-Fa-f]+);'), (match) {
+    final raw = match.group(1)!;
+    final codePoint = raw.startsWith('x') || raw.startsWith('X')
+        ? int.tryParse(raw.substring(1), radix: 16)
+        : int.tryParse(raw);
+    if (codePoint == null) {
+      return match.group(0)!;
+    }
+    return String.fromCharCode(codePoint);
+  });
 }
 
 T? _itemAt<T>(List<T> values, int? index) {
