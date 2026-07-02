@@ -226,7 +226,10 @@ class _HomePageManagerState extends State<HomePageManager> {
   }
 
   void _handleBrandChanged(Brand? brand) {
-    if (_isAutoLoginMode) return;
+    // 드롭다운에서의 브랜드 선택은 사용자의 의도적 행위이므로
+    // autoLogin 가드(_isAutoLoginMode)와 무관하게 반영한다.
+    // (다이얼로그 더블클릭의 _handleBrandSelectedFromDialog 와 동일한 원칙)
+    debugLog('handleBrandChanged brandId=${brand?.brandId} autoLogin=$_isAutoLoginMode');
     widget.onBrandChanged(brand);
   }
 
