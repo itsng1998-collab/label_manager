@@ -1,6 +1,8 @@
 // UTF-8, 한국어 주석
 // ignore_for_file: constant_identifier_names, non_constant_identifier_names
 
+import 'dart:convert';
+
 import 'package:label_manager/core/app.dart';
 import 'package:label_manager/database/db_client.dart';
 import 'package:label_manager/utils/log_context.dart';
@@ -76,5 +78,49 @@ class BrandDAO extends DAO {
       debugLog('$END, $e');
       throw Exception('${runtimeLogTag()} $e');
     }
+  }
+
+  static Future<bool> updateByBrandId(
+    Brand brand, String newBrandName
+  ) async {
+    debugLog('$START, brandId:${brand.brandId}, customerId:${brand.customerId}, brandName:${brand.brandName}, newBrandName:$newBrandName');
+
+    try {
+      final updateSql = '''
+        UPDATE BM_RICH_BRAND
+          SET RICH_CUSTOMER_ID=@customerId,
+              RICH_BRAND_NAME=@brandName
+        WHERE RICH_BRAND_ID=@brandId
+      ''';
+
+      final res = await DbClient.instance.writeDataWithParams(
+        updateSql,
+        {'customerId': brand.customerId, 'brandName': newBrandName, 'brandId': brand.brandId},
+      );
+      final affected = _affectedRows(res);
+      final succeeded = affected > 0;
+
+      debugLog('$END, BM_RICH_BRAND Result: $res, affected:$affected, succeeded:$succeeded');
+      return succeeded;
+    }
+    catch (e) {
+      debugLog('$END, $e');
+      return false;
+    }
+  }
+
+  static int _affectedRows(Object result) {
+    final map = switch (result) {
+      final String value => jsonDecode(value) as Map<String, dynamic>,
+      final Map value => value,
+      _ => const <String, dynamic>{},
+    };
+    final affected = map['affected'];
+    return switch (affected) {
+      final int value => value,
+      final num value => value.toInt(),
+      final String value => int.tryParse(value) ?? 0,
+      _ => 0,
+    };
   }
 }

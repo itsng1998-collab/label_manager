@@ -86,6 +86,13 @@
   - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/home_page_manager.dart`의 해당 hunk만. 기존 dirty 파일(`lib/core/app.dart`, `lib/models/brand.dart`, `lib/models/label_size.dart`) 및 기존 `home_page_manager.dart` dirty hunk는 제외.
   - 구현 커밋: `b7d60fb` (`브랜드 이름 수정 원본 객체 전달`).
 
+- **완료 (2026-07-02)**: `BrandDAO.updateByBrandId`를 DB UPDATE affected row 기준 성공/실패 반환으로 수정.
+  - 확인 결과: ODBC 드라이버는 `Map`의 `affected`, FreeTDS 경로는 JSON 문자열의 `affected`를 반환.
+  - `lib/models/brand.dart` `_affectedRows`: `Map`/JSON 문자열 결과에서 `affected`를 추출.
+  - `BrandDAO.updateByBrandId`: `affected > 0`일 때만 `true`, 0건 업데이트 또는 예외는 `false` 반환.
+  - 검증 완료: `flutter analyze lib/models/brand.dart --no-fatal-warnings --no-fatal-infos` 성공.
+  - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/models/brand.dart` (`lib/core/app.dart`, `lib/models/label_size.dart` 기존 dirty 제외).
+
 - **ODBC 효율 개선**: `LabelSizeDAO.SelectSql`이 목록 조회에서도 `RICH_FORM_DATA`를 항상 가져오는 문제. 목록/상세 조회 분리, 목록에서 `FORM_DATA` 제외, 선택/시트 진입 시 상세 조회로 보강.
 
 ## 완료된 기능 요약
