@@ -66,6 +66,13 @@
 
 ### 대기/추후 작업
 
+- **완료 (2026-07-02)**: 여러 번 브랜드 조회 후 `RTF를 변환 중입니다...` 스낵바가 남는 문제 수정.
+  - 최신 로그 확인: `.tmp/log/app_2026-07-02_11-18-37.log`에서 RTF 변환 완료/미리보기 캡처 성공 후에도 스낵바 제어가 post-frame 예약에 의존하는 경로 확인.
+  - `lib/page_label_sheet/label_sheet_workbench.dart` `_syncRtfSnackBar`: `_rtfSnackBarGeneration` 토큰 추가로 stale show/hide 예약 무효화.
+  - 검증 완료: `flutter analyze lib/page_label_sheet/label_sheet_workbench.dart lib/home_page_manager.dart --no-fatal-warnings --no-fatal-infos` 성공.
+  - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/page_label_sheet/label_sheet_workbench.dart` (`lib/core/app.dart`, `lib/home_page_manager.dart` 기존 dirty 제외).
+  - 커밋: `9261e28` (`RTF 변환 스낵바 잔류 방지`).
+
 - **ODBC 효율 개선**: `LabelSizeDAO.SelectSql`이 목록 조회에서도 `RICH_FORM_DATA`를 항상 가져오는 문제. 목록/상세 조회 분리, 목록에서 `FORM_DATA` 제외, 선택/시트 진입 시 상세 조회로 보강.
 
 ## 완료된 기능 요약

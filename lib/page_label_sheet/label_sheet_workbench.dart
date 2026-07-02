@@ -833,6 +833,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
   int _zoomPercent = labelSheetDefaultZoomPercent;
   bool _isDirty = false;
   bool _rtfSnackBarVisible = false;
+  int _rtfSnackBarGeneration = 0;
   bool _rtfImportMarkedDirty = false;
   bool _initialLoadCompleteNotified = false;
   bool _printSettingsDialogOpen = false;
@@ -1044,11 +1045,15 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       return;
     }
     _rtfSnackBarVisible = visible;
+    final generation = ++_rtfSnackBarGeneration;
     // messenger 를 addPostFrameCallback 실행 전에 캡처한다.
     // 콜백 실행 시점에 위젯이 파기(dispose)되어 mounted=false 이더라도
     // hide(visible=false) 는 반드시 수행해야 스낵바가 무한 표시되지 않는다.
     final capturedMessenger = ScaffoldMessenger.maybeOf(context);
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (generation != _rtfSnackBarGeneration) {
+        return;
+      }
       if (visible) {
         // SHOW: 위젯이 살아 있어야 context 로 showSnackBar 를 호출할 수 있다.
         if (!mounted) return;
