@@ -13,7 +13,7 @@ void main() {
 
     expect(sheet.name, 'Labels');
     expect(sheet.rowCount, 3);
-    expect(sheet.columnCount, 5);
+    expect(sheet.columnCount, 7);
     expect(sheet.rowHeights[0], closeTo(32, 0.01));
     expect(sheet.columnWidths[0], closeTo(84, 0.01));
     expect(sheet.hiddenRows, contains(1));
@@ -53,6 +53,9 @@ void main() {
     final e1 = sheet.cells[const FortuneCellCoord(0, 4)]!;
     expect(e1.merge?.row, 0);
     expect(e1.merge?.column, 3);
+
+    expect(sheet.cells[const FortuneCellCoord(0, 5)]?.value, isEmpty);
+    expect(sheet.cells[const FortuneCellCoord(0, 6)]?.value, '빈셀 다음 값');
 
     final c1 = sheet.cells[const FortuneCellCoord(0, 2)]!;
     expect(c1.value, 'H2O');
@@ -168,8 +171,8 @@ Uint8List _xlsxBytes({
 </styleSheet>''');
   addXml('xl/worksheets/sheet1.xml', '''<?xml version="1.0" encoding="UTF-8"?>
 <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
-  <dimension ref="A1:E3"/>
-  <cols><col min="1" max="1" width="12" customWidth="1"/><col min="3" max="3" hidden="1" width="10" customWidth="1"/><col min="4" max="5" width="8" customWidth="1"/></cols>
+  <dimension ref="A1:G3"/>
+  <cols><col min="1" max="1" width="12" customWidth="1"/><col min="3" max="3" hidden="1" width="10" customWidth="1"/><col min="4" max="5" width="8" customWidth="1"/><col min="6" max="7" width="8" customWidth="1"/></cols>
   <sheetData>
     <row r="1" ht="24" customHeight="1">
       <c r="A1" t="s" s="1"><v>0</v></c>
@@ -177,6 +180,8 @@ Uint8List _xlsxBytes({
       <c r="C1" t="s" s="2"><v>1</v></c>
       <c r="D1" t="str" s="1"><v>오른쪽 병합</v></c>
       <c r="E1" s="1"/>
+      <c r="F1" s="2"/>
+      <c r="G1" t="str" s="2"><v>빈셀 다음 값</v></c>
     </row>
     <row r="2" hidden="1"><c r="A2" s="2"/></row>
   </sheetData>

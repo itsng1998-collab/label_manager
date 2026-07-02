@@ -695,41 +695,24 @@ FortuneSheet _labelSheetSizedSheet(
   );
 }
 
-FortuneSheet _labelSheetWithImportedGridClientSize(FortuneSheet sheet) {
-  if (fortuneSheetGridClientPhysicalSize(sheet) != null) {
-    return sheet.copyWith();
+FortuneSheet _labelSheetWithPreservedGridClientSize(
+  FortuneSheet importedSheet,
+  FortuneSheet currentSheet,
+) {
+  if (fortuneSheetGridClientPhysicalSize(importedSheet) != null) {
+    return importedSheet.copyWith();
   }
-  final width = _labelSheetLogicalColumnExtent(sheet);
-  final height = _labelSheetLogicalRowExtent(sheet);
-  final widthMm = math.max(1, fortuneLogicalPixelsToMillimeters(width).ceil());
-  final heightMm = math.max(1, fortuneLogicalPixelsToMillimeters(height).ceil());
-  return sheet.copyWith(
+  final currentSize = fortuneSheetGridClientPhysicalSize(currentSheet);
+  if (currentSize == null) {
+    return importedSheet.copyWith();
+  }
+  return importedSheet.copyWith(
     extraFields: {
-      ...sheet.extraFields,
-      fortuneSheetGridClientWidthMmKey: widthMm,
-      fortuneSheetGridClientHeightMmKey: heightMm,
+      ...importedSheet.extraFields,
+      fortuneSheetGridClientWidthMmKey: currentSize.widthMm,
+      fortuneSheetGridClientHeightMmKey: currentSize.heightMm,
     },
   );
-}
-
-double _labelSheetLogicalColumnExtent(FortuneSheet sheet) {
-  const settings = FortuneSettings();
-  final columnCount = math.max(1, sheet.columnCount ?? 0);
-  var width = 0.0;
-  for (var column = 0; column < columnCount; column += 1) {
-    width += sheet.columnWidths[column] ?? sheet.defaultColWidth ?? settings.defaultColWidth;
-  }
-  return width;
-}
-
-double _labelSheetLogicalRowExtent(FortuneSheet sheet) {
-  const settings = FortuneSettings();
-  final rowCount = math.max(1, sheet.rowCount ?? 0);
-  var height = 0.0;
-  for (var row = 0; row < rowCount; row += 1) {
-    height += sheet.rowHeights[row] ?? sheet.defaultRowHeight ?? settings.defaultRowHeight;
-  }
-  return height;
 }
 
 void _logImportedSheetApplySample(FortuneSheet sheet) {
@@ -1821,18 +1804,27 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       }
     }
     final currentSheet = _currentWorkbookForLabelFile().activeSheet;
-    final importedSheet = _labelSheetWithImportedGridClientSize(
+    final rawImportedGridSize = fortuneSheetGridClientPhysicalSize(
+      importedWorkbook.activeSheet,
+    );
+    final currentGridSize = fortuneSheetGridClientPhysicalSize(currentSheet);
+    final importedSheet = _labelSheetWithPreservedGridClientSize(
       importedWorkbook.activeSheet.copyWith(
         id: currentSheet.id,
         name: currentSheet.name,
         order: currentSheet.order,
       ),
+      currentSheet,
     );
     final importedGridSize = fortuneSheetGridClientPhysicalSize(importedSheet);
     debugLog(
       'label sheet import apply sheet '
       'rows=${importedSheet.rowCount} columns=${importedSheet.columnCount} '
       'cells=${importedSheet.cells.length} '
+      'sourceGridWidthMm=${rawImportedGridSize?.widthMm} '
+      'sourceGridHeightMm=${rawImportedGridSize?.heightMm} '
+      'currentGridWidthMm=${currentGridSize?.widthMm} '
+      'currentGridHeightMm=${currentGridSize?.heightMm} '
       'gridWidthMm=${importedGridSize?.widthMm} '
       'gridHeightMm=${importedGridSize?.heightMm}',
       skipFrames: 1,

@@ -66,6 +66,18 @@
 
 ### 대기/추후 작업
 
+- **완료 (2026-07-02)**: XLSX 가져오기 크기 해석 정정 및 self-closing 셀 파싱 수정.
+  - 사용자 의도: 가져오기 시 설정한 라벨 물리 크기(mm)는 유지하고, 행/열/셀 내용은 인쇄영역을 벗어나도 잘라내지 않고 그대로 가져오기.
+  - 이전 구현 문제: `_labelSheetWithImportedGridClientSize`가 XLSX 전체 행/열 크기를 새 `fortuneSheetGridClientWidthMm/HeightMm`으로 저장해 물리 라벨 크기 자체를 바꿈.
+  - `lib/page_label_sheet/label_sheet_workbench.dart`: `_labelSheetWithPreservedGridClientSize`로 교체. XLSX가 자체 grid size 메타가 없으면 현재 시트의 `fortuneSheetGridClientWidthMm/HeightMm`을 보존하고, 행/열/cells는 그대로 가져와 인쇄영역 밖 데이터도 유지.
+  - 최신 로그 `.tmp/log/app_2026-07-02_23-49-41.log`: `worksheet json samples` 단계에서 `C1 #ITEMNAME`이 `B1`, `H3 #ALLERGY`가 `B3`처럼 앞의 빈 self-closing 셀로 붙는 현상 확인.
+  - 원인: `_sheetJsonFromWorksheet`의 row/cell 정규식이 닫힌 태그 대안을 먼저 매칭해 `<c r="B1" /> <c r="C1">...</c>`를 B1 셀 하나로 삼킴.
+  - `lib/page_label_sheet/label_sheet_xlsx_import.dart`: row/cell 정규식을 self-closing 태그 우선으로 변경해 뒤 셀 값을 앞 빈 셀에 붙이지 않도록 수정.
+  - `test/label_sheet_xlsx_import_test.dart`: self-closing 빈 셀 뒤 값 있는 셀(`F1`/`G1`) 회귀 테스트 추가, 다중 병합 fixture column count 갱신.
+  - 검증 완료: `test/label_sheet_xlsx_import_test.dart` 3개 성공.
+  - 검증 완료: `flutter analyze lib/page_label_sheet/label_sheet_xlsx_import.dart lib/page_label_sheet/label_sheet_workbench.dart test/label_sheet_xlsx_import_test.dart --no-fatal-warnings --no-fatal-infos` 성공.
+  - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/page_label_sheet/label_sheet_xlsx_import.dart`, `lib/page_label_sheet/label_sheet_workbench.dart`, `test/label_sheet_xlsx_import_test.dart` (`lib/core/app.dart` 기존 dirty 제외).
+
 - **완료 (2026-07-02)**: XLSX 원본 대비 변환본 시각 차이 재확인 및 촘촘한 로그 추가.
   - 첨부 비교 기준: 원본에는 C1/J1/H3/H9 등 오른쪽 병합 anchor 텍스트와 검은 배경이 있으나 변환본에서는 일부 오른쪽 병합 영역 텍스트/배경이 누락되어 보임.
   - `lib/page_label_sheet/label_sheet_xlsx_import.dart`: worksheet JSON 생성 직후 values/styles/merge sample 로그 추가, FortuneSheet decode 직후 values/mergeAnchors/mergeCovered sample 로그 추가.

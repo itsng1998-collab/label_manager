@@ -291,12 +291,12 @@ Map<String, Object?> _sheetJsonFromWorksheet(
   }
 
   for (final rowMatch in RegExp(
-    r'<row\b([^>]*)>(.*?)</row>|<row\b([^>]*)/>',
+    r'<row\b([^>]*)/>|<row\b([^>]*)>(.*?)</row>',
     caseSensitive: false,
     dotAll: true,
   ).allMatches(xml)) {
     final rowAttributes = _xmlAttributes(
-      rowMatch.group(1) ?? rowMatch.group(3) ?? '',
+      rowMatch.group(1) ?? rowMatch.group(2) ?? '',
     );
     final rowNumber = int.tryParse(rowAttributes['r'] ?? '') ?? 0;
     final rowIndex = rowNumber > 0 ? rowNumber - 1 : maxRow;
@@ -309,14 +309,14 @@ Map<String, Object?> _sheetJsonFromWorksheet(
     }
     maxRow = _max(maxRow, rowIndex + 1);
 
-    final rowBody = rowMatch.group(2) ?? '';
+    final rowBody = rowMatch.group(3) ?? '';
     for (final cellMatch in RegExp(
-      r'<c\b([^>]*)>(.*?)</c>|<c\b([^>]*)/>',
+      r'<c\b([^>]*)/>|<c\b([^>]*)>(.*?)</c>',
       caseSensitive: false,
       dotAll: true,
     ).allMatches(rowBody)) {
       final cellAttributes = _xmlAttributes(
-        cellMatch.group(1) ?? cellMatch.group(3) ?? '',
+        cellMatch.group(1) ?? cellMatch.group(2) ?? '',
       );
       final ref = cellAttributes['r'];
       final coord = ref == null ? null : _cellRefToCoord(ref);
@@ -324,7 +324,7 @@ Map<String, Object?> _sheetJsonFromWorksheet(
         continue;
       }
       final style = styles.cellStyle(int.tryParse(cellAttributes['s'] ?? ''));
-      final cellBody = cellMatch.group(2) ?? '';
+      final cellBody = cellMatch.group(3) ?? '';
       final cellValue = _cellValue(
         cellBody,
         cellAttributes,
