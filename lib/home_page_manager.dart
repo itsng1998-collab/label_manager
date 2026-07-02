@@ -54,8 +54,11 @@ class _HomePageManagerState extends State<HomePageManager> {
   late TabbedViewController _tabController;
   final TextEditingController _tabSearchController = TextEditingController();
   final GlobalKey _commonLabelPreviewButtonKey = GlobalKey();
+  final GlobalKey _rtfPreviewBoxKey = GlobalKey();
   int? _labelSizesBrandId;
   int _labelLoadToken = 0;
+  int _rtfPreviewCaptureGeneration = 0;
+  int _rtfPreviewResizeFinalizeToken = 0;
   PreviewFloatingWindow? _itemPreviewWindow;
   PreviewFloatingWindow? _commonLabelPreviewWindow;
   Timer? _rtfPreviewResizeDebounce;
@@ -796,34 +799,39 @@ class _HomePageManagerState extends State<HomePageManager> {
     final targetSize = _rtfPreviewTargetContentSize;
     final targetWidth = targetSize?.width.round();
     final targetHeight = targetSize?.height.round();
-    return LabelSheetRtfPreview(
-      key: ValueKey(
-        'rtf-preview:${_effectiveLabelSize?.labelSizeId}:${rtf.hashCode}',
+    return SizedBox.expand(
+      key: _rtfPreviewBoxKey,
+      child: LabelSheetRtfPreview(
+        key: ValueKey(
+          'rtf-preview:${_effectiveLabelSize?.labelSizeId}:${rtf.hashCode}:'
+          '${targetWidth ?? 'auto'}x${targetHeight ?? 'auto'}:'
+          'g$_rtfPreviewCaptureGeneration',
+        ),
+        rtf: rtf,
+        width: targetWidth,
+        height: targetHeight,
+        widthMm: _effectiveLabelSize?.labelSizeCommon?.width ?? 100,
+        heightMm: _effectiveLabelSize?.labelSizeCommon?.height ?? 100,
+        onImageSizeResolved: (imageSize) {
+          final window = _commonLabelPreviewWindow;
+          if (!mounted ||
+              window == null ||
+              _rtfPreviewTargetContentSize != null) {
+            return;
+          }
+          const padding = LabelSheetRtfPreview.defaultPadding;
+          window.setSize(
+            context,
+            Size(
+              imageSize.width * _rtfPreviewInitialReadableScale +
+                  padding.horizontal,
+              imageSize.height * _rtfPreviewInitialReadableScale +
+                  padding.vertical,
+            ),
+          );
+          _alignCommonLabelPreviewWindowToGrid();
+        },
       ),
-      rtf: rtf,
-      width: targetWidth,
-      height: targetHeight,
-      widthMm: _effectiveLabelSize?.labelSizeCommon?.width ?? 100,
-      heightMm: _effectiveLabelSize?.labelSizeCommon?.height ?? 100,
-      onImageSizeResolved: (imageSize) {
-        final window = _commonLabelPreviewWindow;
-        if (!mounted ||
-            window == null ||
-            _rtfPreviewTargetContentSize != null) {
-          return;
-        }
-        const padding = LabelSheetRtfPreview.defaultPadding;
-        window.setSize(
-          context,
-          Size(
-            imageSize.width * _rtfPreviewInitialReadableScale +
-                padding.horizontal,
-            imageSize.height * _rtfPreviewInitialReadableScale +
-                padding.vertical,
-          ),
-        );
-        _alignCommonLabelPreviewWindowToGrid();
-      },
     );
   }
 
@@ -854,13 +862,20 @@ class _HomePageManagerState extends State<HomePageManager> {
   }
 
   void _handleRtfPreviewWindowResizeCompleted(Rect rect) {
-    _updateRtfPreviewTargetFromRect(rect, isResizing: false, force: true);
+    _updateRtfPreviewTargetFromRect(
+      rect,
+      isResizing: false,
+      force: true,
+      reason: 'resizeEndRect',
+    );
+    _scheduleRtfPreviewResizeFinalRecapture(rect);
   }
 
   void _updateRtfPreviewTargetFromRect(
     Rect rect, {
     required bool isResizing,
     bool force = false,
+    String reason = 'rect',
   }) {
     final rtf = _effectiveLabelSize?.labelSizeCommon?.rtf;
     if (!mounted ||
@@ -883,22 +898,62 @@ class _HomePageManagerState extends State<HomePageManager> {
     _rtfPreviewTargetContentSize = next;
     debugLog(
       'rtf preview target logical='
-      '${next.width.round()}x${next.height.round()} resizing=$isResizing force=$force',
+      '${next.width.round()}x${next.height.round()} resizing=$isResizing '
+      'force=$force reason=$reason rect=${rect.width.toStringAsFixed(1)}x${rect.height.toStringAsFixed(1)}',
     );
     if (isResizing) {
       _rtfPreviewResizeDebounce?.cancel();
       _rtfPreviewResizeDebounce = Timer(
         const Duration(milliseconds: 150),
-        _refreshRtfPreviewChild,
+        () => _refreshRtfPreviewChild(reason: 'resizeDebounce'),
       );
       return;
     }
     _rtfPreviewResizeDebounce?.cancel();
     _rtfPreviewResizeDebounce = null;
-    _refreshRtfPreviewChild();
+    _refreshRtfPreviewChild(reason: reason);
   }
 
-  void _refreshRtfPreviewChild() {
+  void _scheduleRtfPreviewResizeFinalRecapture(Rect resizeEndRect) {
+    final token = ++_rtfPreviewResizeFinalizeToken;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || token != _rtfPreviewResizeFinalizeToken) {
+        return;
+      }
+      final rtf = _effectiveLabelSize?.labelSizeCommon?.rtf;
+      final window = _commonLabelPreviewWindow;
+      if (window == null ||
+          !window.isVisible ||
+          !labelSheetLooksLikeRichEditRtf(rtf)) {
+        return;
+      }
+      const padding = LabelSheetRtfPreview.defaultPadding;
+      final rectTarget = Size(
+        (resizeEndRect.width - padding.horizontal).clamp(1.0, double.infinity),
+        (resizeEndRect.height - padding.vertical).clamp(1.0, double.infinity),
+      );
+      final renderObject = _rtfPreviewBoxKey.currentContext?.findRenderObject();
+      Size? measuredTarget;
+      if (renderObject is RenderBox && renderObject.hasSize) {
+        measuredTarget = Size(
+          (renderObject.size.width - padding.horizontal).clamp(1.0, double.infinity),
+          (renderObject.size.height - padding.vertical).clamp(1.0, double.infinity),
+        );
+      }
+      final next = measuredTarget ?? rectTarget;
+      final current = _rtfPreviewTargetContentSize;
+      debugLog(
+        'rtf preview resize final recapture '
+        'rectTarget=${rectTarget.width.round()}x${rectTarget.height.round()} '
+        'measuredTarget=${measuredTarget == null ? 'none' : '${measuredTarget.width.round()}x${measuredTarget.height.round()}'} '
+        'current=${current == null ? 'none' : '${current.width.round()}x${current.height.round()}'}',
+      );
+      _rtfPreviewTargetContentSize = next;
+      _refreshRtfPreviewChild(reason: 'resizeEndPostFrame');
+    });
+  }
+
+  void _refreshRtfPreviewChild({required String reason}) {
     _rtfPreviewResizeDebounce = null;
     if (!mounted || _selectedTabValue() != 'common_label') return;
     final rtf = _effectiveLabelSize?.labelSizeCommon?.rtf;
@@ -908,7 +963,13 @@ class _HomePageManagerState extends State<HomePageManager> {
         !labelSheetLooksLikeRichEditRtf(rtf)) {
       return;
     }
-    debugLog('rtf preview recapture child refresh');
+    _rtfPreviewCaptureGeneration += 1;
+    final target = _rtfPreviewTargetContentSize;
+    debugLog(
+      'rtf preview recapture child refresh reason=$reason '
+      'generation=$_rtfPreviewCaptureGeneration '
+      'target=${target == null ? 'auto' : '${target.width.round()}x${target.height.round()}'}',
+    );
     window.setChild(_buildRtfPreview(rtf!));
   }
 
