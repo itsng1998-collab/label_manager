@@ -36,6 +36,7 @@
   - 검증 완료: `C:\Flutter\bin\flutter.bat test test/label_sheet_xlsx_import_test.dart` 3개 성공.
   - 검증 완료: `C:\Flutter\bin\flutter.bat analyze lib/page_label_sheet/label_sheet_workbench.dart lib/page_label_sheet/label_sheet_xlsx_import.dart test/label_sheet_xlsx_import_test.dart --no-fatal-warnings --no-fatal-infos` 성공.
   - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/page_label_sheet/label_sheet_xlsx_import.dart`, `test/label_sheet_xlsx_import_test.dart` (`lib/core/app.dart` 기존 dirty 제외).
+  - 커밋: `53cf571` (`XLSX 빈 셀 테두리 가져오기 조정`).
 
 - **완료**: XLSX 테두리 차이 원인 분리용 computed border 셀 상태 로그 보강.
   - 최신 로그 `.tmp/log/app_2026-07-03_11-31-02.log`: `borderInfo=2365`, `computedBorders=687`. 행별 요약 기준 하단 빈 격자 영역(row32~row36)에도 실제 렌더 대상 border가 다수 남음.
