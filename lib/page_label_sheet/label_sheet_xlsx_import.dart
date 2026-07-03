@@ -407,7 +407,8 @@ Map<String, Object?> _sheetJsonFromWorksheet(
       final cellBorders = style.borderInfo(coord.row, coord.column);
       for (final border in cellBorders) {
         borderInfo.add(border);
-        if (borderSamples.length < 200) {
+        // 진단: 규칙 A 검증용. 엑셀 원본 border(색/스타일)를 셀별로 전량 기록.
+        if (borderSamples.length < 3000) {
           borderSamples.add(
             '${_coordLabel(coord.row, coord.column)} '
             'style=${cellAttributes['s']} '
