@@ -37,6 +37,7 @@
   - 검증 완료: `C:\Flutter\bin\flutter.bat test test/label_sheet_xlsx_import_test.dart` 3개 성공.
   - 검증 완료: `C:\Flutter\bin\flutter.bat analyze lib/page_label_sheet/label_sheet_workbench.dart lib/page_label_sheet/label_sheet_xlsx_import.dart test/label_sheet_xlsx_import_test.dart --no-fatal-warnings --no-fatal-infos` 성공.
   - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/page_label_sheet/label_sheet_xlsx_import.dart` (`lib/core/app.dart` 기존 dirty 제외).
+  - 기능 커밋: `f9ed84d` (`XLSX 영양정보 테두리 추가 보정`).
   - 다음 재가져오기 확인 포인트: 최신 앱 로그의 `xlsx import worksheet adjusted border samples`에서 `C24/D24`류 내부 세로선이 `13 -> 1`로 낮아지고, `J24/J30/A31` 같은 외곽은 `13/2.0`으로 유지되는지 확인.
 
 - **완료**: XLSX 영양정보 표 외곽/내부선 분리 보정.
