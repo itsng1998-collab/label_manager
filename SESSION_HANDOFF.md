@@ -27,7 +27,7 @@
 
 ## 현재 상태
 
-### 진행 중 (2026-07-03): 라벨 설정 다이얼로그 순서 변경 적용 저장
+### 완료 (2026-07-03): 라벨 설정 다이얼로그 순서 변경 적용 저장
 
 목적: 라벨 설정 다이얼로그에서 행 드래그 후 `적용` 클릭 시 `BM_RICH_LABELSIZE_FORM.RICH_LABELSIZE_ORDER`를 DB에 저장하고, 성공 시 다이얼로그 테이블/헤더 라벨 드롭다운을 DB 정렬 기준으로 재렌더링하되 기존 선택 라벨을 유지한다.
 
@@ -38,6 +38,7 @@
 - 구현 완료: `lib/home_page_manager.dart`에 `_handleLabelOrderApplied` 추가 및 `_LabelSettingsDialog` 연결. 적용 확인 다이얼로그/진행 스낵바/실패 다이얼로그를 추가하고, 성공 시 DB 재조회 목록으로 `LabelSize.datas`와 다이얼로그 테이블을 갱신하며 기존 선택 라벨 ID를 유지.
 - 검증 완료: `dart format` 2파일 성공, `C:\Flutter\bin\flutter.bat analyze lib/models/label_size.dart lib/home_page_manager.dart --no-fatal-warnings --no-fatal-infos` No issues, `C:\Flutter\bin\flutter.bat test test/label_size_cache_test.dart` 1개 성공.
 - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/models/label_size.dart`, `lib/home_page_manager.dart`, `doc/BM_RICH_BRAND.sql`, `doc/BM_RICH_LABELSIZE_FORM.sql` 포함(사용자 요청). 기존 dirty `lib/core/app.dart`는 제외.
+- 기능 커밋: `a6f4911` (`라벨 설정 순서 적용 저장 구현`).
 
 ### 진행 중 (2026-07-03): XLSX → 라벨 시트 변환 규칙 재정립 (1차 구현 완료, 재가져오기 검증 대기)
 
