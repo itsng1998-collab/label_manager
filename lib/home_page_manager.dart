@@ -2460,7 +2460,8 @@ class _LabelScaleInlineControl extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const controlSize = 18.0;
-    const checkboxSize = 14.0;
+    const checkboxSlotSize = 14.0;
+    const checkboxScale = 0.78;
     return Tooltip(
       message: '전자저울 사용',
       child: Padding(
@@ -2494,19 +2495,24 @@ class _LabelScaleInlineControl extends StatelessWidget {
                     child: Center(child: _ScaleIcon(size: controlSize)),
                   ),
                 ),
+                const SizedBox(width: 2),
                 SizedBox(
-                  width: checkboxSize,
-                  height: checkboxSize,
-                  child: Checkbox(
-                    value: value,
-                    onChanged: onChanged,
-                    activeColor: const Color(0xFF0E2F66),
-                    checkColor: Colors.white,
-                    side: const BorderSide(color: Color(0xFF0E2F66)),
-                    visualDensity: VisualDensity.compact,
-                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  width: checkboxSlotSize,
+                  height: checkboxSlotSize,
+                  child: Transform.scale(
+                    scale: checkboxScale,
+                    child: Checkbox(
+                      value: value,
+                      onChanged: onChanged,
+                      activeColor: const Color(0xFF0E2F66),
+                      checkColor: Colors.white,
+                      side: const BorderSide(color: Color(0xFF0E2F66)),
+                      visualDensity: VisualDensity.compact,
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
                   ),
                 ),
+                const SizedBox(width: 3),
               ],
             ),
           ),
