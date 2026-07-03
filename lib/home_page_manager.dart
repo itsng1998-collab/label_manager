@@ -2459,12 +2459,12 @@ class _LabelScaleInlineControl extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const controlSize = 20.0;
-    const checkboxSize = controlSize - 2;
+    const controlSize = 18.0;
+    const checkboxSize = 16.0;
     return Tooltip(
       message: '전자저울 사용',
       child: Padding(
-        padding: const EdgeInsets.only(right: 3),
+        padding: const EdgeInsets.only(left: 2, right: 3),
         child: DecoratedBox(
           decoration: BoxDecoration(
             color: const Color(0xFFF2F4F7),
@@ -2483,12 +2483,12 @@ class _LabelScaleInlineControl extends StatelessWidget {
             ],
           ),
           child: SizedBox(
-            height: 22,
+            height: 20,
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 const Padding(
-                  padding: EdgeInsets.only(left: 3),
+                  padding: EdgeInsets.only(left: 2),
                   child: SizedBox.square(
                     dimension: controlSize,
                     child: Center(child: _ScaleIcon(size: controlSize)),

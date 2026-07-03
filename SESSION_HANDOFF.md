@@ -27,6 +27,14 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-03): 전자저울 UI 여백 축소 및 키 입력 재복구
+
+목적: 라벨 설정 인라인 에디터 안에서 엔터 버튼과 전자저울 UI 사이에 1~2px 여백을 두고, 그만큼 전자저울 UI(아이콘+체크박스)를 줄인다. 인라인 에디터의 실제 키 입력 불가 문제를 재복구한다.
+- `lib/home_page_manager.dart`: `_LabelScaleInlineControl` 왼쪽 여백 2px 추가. 아이콘 영역을 `20x20`에서 `18x18`, 체크박스 영역을 `18x18`에서 `16x16`, 전자저울 UI 높이를 `22`에서 `20`으로 축소.
+- `lib/widgets/swipe_action_table.dart`: `_InlineNameEditCell`에서 TextField 바깥 `Shortcuts/Actions` wrapper를 완전히 제거해 TextField가 키 입력을 직접 처리하도록 재복구.
+- 검증 완료: `C:\Flutter\bin\dart.bat format lib\home_page_manager.dart lib\widgets\swipe_action_table.dart` 성공, `flutter test test/swipe_action_table_test.dart` 20개 성공, `C:\Flutter\bin\flutter.bat analyze lib\home_page_manager.dart lib\widgets\swipe_action_table.dart test\swipe_action_table_test.dart --no-fatal-warnings --no-fatal-infos` No issues.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `lib/home_page_manager.dart`, `lib/widgets/swipe_action_table.dart`.
+
 ### 완료 (2026-07-03): 전자저울 UI 추가 미세 조정 및 인라인 키 입력 복구
 
 목적: 라벨 설정 인라인 전자저울 UI 상단 겹침을 1px 더 줄이고 체크박스 크기를 1px 더 줄인다. 인라인 에디터에서 키보드 편집이 되지 않는 문제를 복구한다.
