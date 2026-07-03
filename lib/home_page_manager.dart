@@ -4,7 +4,6 @@ import 'dart:io' show Platform;
 import 'package:collection/collection.dart';
 import 'package:dropdown_button2/dropdown_button2.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:tabbed_view/tabbed_view.dart';
 
 import 'package:label_manager/core/app.dart';
@@ -28,7 +27,7 @@ import 'package:label_manager/utils/on_messages.dart';
 import 'package:label_manager/page_home/item_manage.dart';
 import 'package:label_manager/page_home/common_label_manage.dart';
 import 'package:label_manager/page_home/preview_floating_window.dart';
-import 'package:label_manager/widgets/swipe_action_table.dart';
+import 'package:label_manager/widgets/editable_swipe_name_table.dart';
 
 /// 로그인 이후 메인 UI
 class HomePageManager extends StatefulWidget {
@@ -1702,8 +1701,14 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
 
   late List<LabelSize> _labels;
   late List<LabelSize> _originalLabels;
+  final TextEditingController _labelNameEditController =
+      TextEditingController();
+  final FocusNode _labelNameEditFocusNode = FocusNode();
+  int? _editingIndex;
+  int? _insertActionIndex;
   bool _orderEditMode = false;
   bool _applyingOrderChanges = false;
+  bool _insertingLabel = false;
   int? _selectedLabelSizeId;
 
   @override
@@ -1711,15 +1716,30 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
     super.initState();
     _labels = List<LabelSize>.from(widget.labels);
     _originalLabels = List<LabelSize>.from(widget.labels);
+    _labelNameEditController.addListener(_handleLabelNameEditChanged);
   }
 
   @override
   void didUpdateWidget(covariant _LabelSettingsDialog oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (!identical(oldWidget.labels, widget.labels) && !_hasOrderChanges) {
-      _labels = List<LabelSize>.from(widget.labels);
+      final newLabels = List<LabelSize>.from(widget.labels);
+      final editingIndex = _editingIndex;
+      final outOfRange = editingIndex != null && editingIndex >= newLabels.length;
+      _labels = newLabels;
       _originalLabels = List<LabelSize>.from(widget.labels);
+      if (outOfRange) {
+        _cancelLabelNameEdit();
+      }
     }
+  }
+
+  @override
+  void dispose() {
+    _labelNameEditController.removeListener(_handleLabelNameEditChanged);
+    _labelNameEditController.dispose();
+    _labelNameEditFocusNode.dispose();
+    super.dispose();
   }
 
   bool get _hasOrderChanges {
@@ -1871,8 +1891,22 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
   static String _labelNameText(LabelSize label) => label.labelSizeName;
 
   Widget _buildLabelTable() {
-    return SwipeActionTable<LabelSize>(
+    return EditableSwipeNameTable<LabelSize>(
       rows: _labels,
+      header: '라벨 이름',
+      text: _labelNameText,
+      editController: _labelNameEditController,
+      editFocusNode: _labelNameEditFocusNode,
+      editingIndex: _editingIndex,
+      insertActionIndex: _insertActionIndex,
+      inserting: _insertingLabel,
+      canSubmit: _canSubmitLabelNameEdit,
+      onToggleEdit: _toggleLabelNameEdit,
+      onToggleInsert: _toggleLabelInsert,
+      onEmptyInsert: _orderEditMode ? null : () => _startLabelInsertAt(0, actionIndex: null),
+      onCancelEdit: _cancelLabelNameEdit,
+      onSubmitEdit: _submitLabelNameEdit,
+      enabled: !_orderEditMode,
       fillLastColumn: true,
       autoFitColumns: false,
       rowSwipeEnabled: !_orderEditMode,
@@ -1881,28 +1915,17 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
           ? '순서 변경 중에는 스와이프 수정/삽입/삭제를 사용할 수 없습니다'
           : '행 드래그로 순서 변경, 컬럼 왼쪽 스와이프 수정/삽입/삭제',
       showActionsWhenEmpty: true,
-      actions: _labelRowActions(),
-      emptyActions: _labelEmptyActions(),
       rowNumberText: _labelRowNumberText,
       rowReorderEnabled: _orderEditMode,
       selectedIndex: _selectedLabelIndex,
       onRowSelected: _handleLabelRowSelected,
       onRowReorder: _moveLabelRow,
-      columns: [
-        SwipeActionTableColumn<LabelSize>(
-          header: '라벨 이름',
-          initialWidth: 220,
-          minWidth: 120,
-          fillRemaining: true,
-          text: _labelNameText,
-          headerTrailingBuilder: (context, hasInlineEditor) =>
-              _OrderModeHeaderButton(
-                enabled:
-                    !_orderEditMode && !_applyingOrderChanges && !hasInlineEditor,
-                onPressed: _startOrderEditMode,
-              ),
-        ),
-      ],
+      headerTrailingBuilder: (context, hasInlineEditor) =>
+          _OrderModeHeaderButton(
+            enabled:
+                !_orderEditMode && !_applyingOrderChanges && !hasInlineEditor,
+            onPressed: _startOrderEditMode,
+          ),
     );
   }
 
@@ -1932,6 +1955,10 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
 
   void _startOrderEditMode() {
     debugLog('labelSettings reorder mode start');
+    if (_editingIndex != null) {
+      debugLog('labelSettings reorder mode blocked editingIndex=$_editingIndex');
+      return;
+    }
     setState(() {
       _orderEditMode = true;
       _selectedLabelSizeId ??= _labels.isNotEmpty ? _labels.first.labelSizeId : null;
@@ -1946,6 +1973,23 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
   }
 
   String _labelRowNumberText(LabelSize label, int index) {
+    if (!_insertingLabel) {
+      return _originalLabelRowNumberText(label, index);
+    }
+    final editingIndex = _editingIndex;
+    if (editingIndex == null) {
+      return _originalLabelRowNumberText(label, index);
+    }
+    if (index == editingIndex) {
+      return '';
+    }
+    if (index > editingIndex) {
+      return '$index';
+    }
+    return _originalLabelRowNumberText(label, index);
+  }
+
+  String _originalLabelRowNumberText(LabelSize label, int index) {
     final originalIndex = _originalLabels.indexWhere((original) => identical(original, label));
     if (originalIndex >= 0) {
       return '${originalIndex + 1}';
@@ -1958,44 +2002,120 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
     return fallbackIndex >= 0 ? '${fallbackIndex + 1}' : '${index + 1}';
   }
 
-  static List<SwipeActionTableAction<LabelSize>> _labelRowActions() {
-    return const [
-      SwipeActionTableAction<LabelSize>(
-        icon: Icons.edit,
-        tooltip: '수정',
-        backgroundColor: Color(0xFF0E2F66),
-      ),
-      SwipeActionTableAction<LabelSize>(
-        icon: Icons.add,
-        tooltip: '삽입',
-        backgroundColor: Color(0xff0277bd),
-      ),
-      SwipeActionTableAction<LabelSize>(
-        icon: Icons.delete,
-        tooltip: '삭제',
-        backgroundColor: Color(0xffc62828),
-      ),
-    ];
+  void _toggleLabelInsert(LabelSize label, int index) {
+    if (_insertingLabel && _insertActionIndex == index) {
+      debugLog('labelInsert cancelByToggle index=$index');
+      _cancelLabelNameEdit();
+      return;
+    }
+    _startLabelInsertAt(index + 1, actionIndex: index);
   }
 
-  static List<SwipeActionTableAction<LabelSize>> _labelEmptyActions() {
-    return const [
-      SwipeActionTableAction<LabelSize>(
-        icon: Icons.edit,
-        tooltip: '수정',
-        backgroundColor: Color(0xff9ca3af),
-      ),
-      SwipeActionTableAction<LabelSize>(
-        icon: Icons.add,
-        tooltip: '삽입',
-        backgroundColor: Color(0xffa7b0bd),
-      ),
-      SwipeActionTableAction<LabelSize>(
-        icon: Icons.delete,
-        tooltip: '삭제',
-        backgroundColor: Color(0xffb4bac3),
-      ),
-    ];
+  void _startLabelInsertAt(int index, {required int? actionIndex}) {
+    if (_editingIndex != null || _orderEditMode) {
+      debugLog('labelInsert blocked editingIndex=$_editingIndex orderEditMode=$_orderEditMode inserting=$_insertingLabel');
+      return;
+    }
+    final insertIndex = index.clamp(0, _labels.length);
+    final brandId = _labels.isNotEmpty ? _labels.first.brandId : 0;
+    debugLog('labelInsert start index=$insertIndex brandId=$brandId');
+    setState(() {
+      _insertingLabel = true;
+      _editingIndex = insertIndex;
+      _insertActionIndex = actionIndex;
+      _labels.insert(
+        insertIndex,
+        LabelSize(labelSizeId: 0, brandId: brandId, labelSizeName: ''),
+      );
+      _labelNameEditController.clear();
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_insertingLabel || _editingIndex != insertIndex) {
+        debugLog('labelInsert focusRequest skipped mounted=$mounted editingIndex=$_editingIndex expected=$insertIndex inserting=$_insertingLabel');
+        return;
+      }
+      debugLog('labelInsert focusRequest index=$insertIndex');
+      _labelNameEditFocusNode.requestFocus();
+    });
+  }
+
+  void _toggleLabelNameEdit(LabelSize label, int index) {
+    if (_insertingLabel || _orderEditMode) {
+      debugLog('labelNameEdit blocked inserting=$_insertingLabel orderEditMode=$_orderEditMode index=$index');
+      return;
+    }
+    if (_editingIndex == index) {
+      debugLog('labelNameEdit cancelByToggle index=$index');
+      _cancelLabelNameEdit();
+      return;
+    }
+    debugLog('labelNameEdit start index=$index labelSizeId=${label.labelSizeId} name=${label.labelSizeName}');
+    setState(() {
+      _editingIndex = index;
+      _labelNameEditController.value = TextEditingValue(
+        text: label.labelSizeName,
+        selection: TextSelection(
+          baseOffset: 0,
+          extentOffset: label.labelSizeName.length,
+        ),
+      );
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _editingIndex != index) {
+        debugLog('labelNameEdit focusRequest skipped mounted=$mounted editingIndex=$_editingIndex expected=$index');
+        return;
+      }
+      debugLog('labelNameEdit focusRequest index=$index');
+      _labelNameEditFocusNode.requestFocus();
+    });
+  }
+
+  void _cancelLabelNameEdit() {
+    if (_editingIndex == null) {
+      return;
+    }
+    debugLog('labelNameEdit cancelled index=$_editingIndex text=${_labelNameEditController.text}');
+    _labelNameEditFocusNode.unfocus();
+    setState(() {
+      if (_insertingLabel && _editingIndex! < _labels.length) {
+        _labels.removeAt(_editingIndex!);
+      }
+      _insertingLabel = false;
+      _insertActionIndex = null;
+      _editingIndex = null;
+      _labelNameEditController.clear();
+    });
+  }
+
+  void _handleLabelNameEditChanged() {
+    if (_editingIndex == null || !mounted) {
+      return;
+    }
+    debugLog('labelNameEdit textChanged index=$_editingIndex text=${_labelNameEditController.text} canSubmit=$_canSubmitLabelNameEdit');
+    setState(() {});
+  }
+
+  bool get _canSubmitLabelNameEdit {
+    final editingIndex = _editingIndex;
+    if (editingIndex == null || editingIndex >= _labels.length) {
+      return false;
+    }
+    final nextName = _labelNameEditController.text.trim();
+    if (nextName.isEmpty) {
+      return false;
+    }
+    if (_insertingLabel) {
+      return true;
+    }
+    return nextName != _labels[editingIndex].labelSizeName.trim();
+  }
+
+  void _submitLabelNameEdit(String value) {
+    debugLog('labelNameEdit submit pendingImplementation index=$_editingIndex value=$value canSubmit=$_canSubmitLabelNameEdit inserting=$_insertingLabel');
+    if (!_canSubmitLabelNameEdit) {
+      debugLog('labelNameEdit submitSkipped canSubmit=false');
+      return;
+    }
   }
 
   void _moveLabelRow(int fromIndex, int toIndex) {
@@ -2396,31 +2516,30 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
                 Expanded(
                   child: Padding(
                     padding: const EdgeInsets.only(left: 8, right: 8, bottom: 8),
-                    child: SwipeActionTable<Brand>(
+                    child: EditableSwipeNameTable<Brand>(
                       rows: _brands,
+                      header: '브랜드 이름',
+                      text: _brandNameText,
+                      editController: _brandNameEditController,
+                      editFocusNode: _brandNameEditFocusNode,
+                      editingIndex: _editingIndex,
+                      insertActionIndex: _insertActionIndex,
+                      inserting: _insertingBrand,
+                      canSubmit: _canSubmitBrandNameEdit,
+                      onToggleEdit: _toggleBrandNameEdit,
+                      onToggleInsert: _toggleBrandInsert,
+                      onEmptyInsert: () => _startBrandInsertAt(0, actionIndex: null),
+                      onCancelEdit: _cancelBrandNameEdit,
+                      onSubmitEdit: _submitBrandNameEdit,
+                      onDeleteRow: _deleteBrand,
+                      onNameDoubleTap: _handleBrandNameDoubleTap,
                       fillLastColumn: true,
                       autoFitColumns: false,
                       rowSwipeEnabled: true,
                       keepRowContentOnSwipe: true,
                       rowTooltip: '컬럼 왼쪽 스와이프 수정/삽입/삭제',
                       showActionsWhenEmpty: true,
-                      isRowContentInteractive: (_, index) => _editingIndex == index,
-                      canSwipeRow: (_, index) =>
-                          _editingIndex == null || _editingIndex == index,
                         rowNumberText: _brandRowNumberText,
-                      actions: _brandRowActions(),
-                      emptyActions: _brandEmptyActions(),
-                      columns: [
-                        SwipeActionTableColumn<Brand>(
-                          header: '브랜드 이름',
-                          initialWidth: 220,
-                          minWidth: 120,
-                          fillRemaining: true,
-                          text: _brandNameText,
-                          cellBuilder: _buildBrandNameCell,
-                          onDoubleTap: _handleBrandNameDoubleTap,
-                        ),
-                      ],
                     ),
                   ),
                 ),
@@ -2459,192 +2578,6 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
     }
     debugLog('brandNameDoubleTap selectBrand brandId=${brand.brandId}');
     widget.onBrandSelected(brand);
-  }
-
-  List<SwipeActionTableAction<Brand>> _brandRowActions() {
-    return [
-      SwipeActionTableAction<Brand>(
-        icon: Icons.edit,
-        tooltip: '수정',
-        // 테이블 헤더 색상과 통일 → 편집 진입/취소 버튼임을 직관적으로 전달
-        backgroundColor: const Color(0xFF0E2F66),
-        onRowPressed: _toggleBrandNameEdit,
-        isPressed: (_, index) => !_insertingBrand && _editingIndex == index,
-        isEnabled: (_, _) => !_insertingBrand,
-      ),
-      SwipeActionTableAction<Brand>(
-        icon: Icons.add,
-        tooltip: '삽입',
-        backgroundColor: const Color(0xff0277bd),
-        onRowPressed: _toggleBrandInsert,
-        isPressed: (_, index) => _insertingBrand && _insertActionIndex == index,
-        isEnabled: (_, index) =>
-          _editingIndex == null || (_insertingBrand && _insertActionIndex == index),
-      ),
-      SwipeActionTableAction<Brand>(
-        icon: Icons.delete,
-        tooltip: '삭제',
-        backgroundColor: const Color(0xffc62828),
-        onRowPressed: _deleteBrand,
-        isEnabled: (_, _) => _editingIndex == null,
-      ),
-    ];
-  }
-
-  List<SwipeActionTableAction<Brand>> _brandEmptyActions() {
-    return [
-      const SwipeActionTableAction<Brand>(
-        icon: Icons.edit,
-        tooltip: '수정',
-        backgroundColor: Color(0xff9ca3af),
-      ),
-      SwipeActionTableAction<Brand>(
-        icon: Icons.add,
-        tooltip: '삽입',
-        backgroundColor: const Color(0xff0277bd),
-        onPressed: () => _startBrandInsertAt(0, actionIndex: null),
-      ),
-      const SwipeActionTableAction<Brand>(
-        icon: Icons.delete,
-        tooltip: '삭제',
-        backgroundColor: Color(0xffb4bac3),
-      ),
-    ];
-  }
-
-  Widget _buildBrandNameCell(BuildContext context, Brand brand, double width) {
-    if (!_isEditingBrand(brand)) {
-      return SizedBox(
-        width: width,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 6),
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              brand.brandName,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ),
-      );
-    }
-    final canSubmit = _canSubmitBrandNameEdit;
-    debugLog('brandNameEdit buildCell index=$_editingIndex brandId=${brand.brandId} canSubmit=$canSubmit width=$width size=${MediaQuery.sizeOf(context)}');
-    return SizedBox(
-      width: width,
-      child: Focus(
-        onKeyEvent: (node, event) {
-          if (event is! KeyDownEvent) {
-            return KeyEventResult.ignored;
-          }
-          if (event.logicalKey == LogicalKeyboardKey.escape) {
-            debugLog('brandNameEdit cancelByEscape index=$_editingIndex');
-            _cancelBrandNameEdit();
-            return KeyEventResult.handled;
-          }
-          if (event.logicalKey == LogicalKeyboardKey.enter) {
-            if (!_canSubmitBrandNameEdit) {
-              debugLog('brandNameEdit submitBlockedByEnter index=$_editingIndex text=${_brandNameEditController.text} inserting=$_insertingBrand');
-              return KeyEventResult.handled;
-            }
-            // canSubmit=true 이면 TextField 의 onSubmitted 에서 처리한다.
-            return KeyEventResult.ignored;
-          }
-          return KeyEventResult.ignored;
-        },
-        child: Stack(
-          clipBehavior: Clip.hardEdge,
-          children: [
-            Positioned.fill(
-              // OutlineInputBorder 는 2px inset 렌더링으로 셀 경계와 갭이 생기므로
-              // DecoratedBox(BoxDecoration) + InputBorder.none 으로 edge-to-edge 처리.
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  // 테이블 헤더(0xFF0E2F66)와 같은 색으로 통일해 편집 상태를 명확하게 표시
-                  color: const Color(0xfff0f4ff),
-                  border: Border.all(
-                    color: const Color(0xFF0E2F66),
-                    width: 1.5,
-                  ),
-                ),
-                child: TextField(
-                  controller: _brandNameEditController,
-                  focusNode: _brandNameEditFocusNode,
-                  autofocus: true,
-                  maxLines: 1,
-                  textAlignVertical: TextAlignVertical.center,
-                  decoration: const InputDecoration(
-                    isDense: true,
-                    contentPadding: EdgeInsets.only(left: 6, right: 28, top: 0, bottom: 0),
-                    border: InputBorder.none,
-                    focusedBorder: InputBorder.none,
-                    enabledBorder: InputBorder.none,
-                  ),
-                  onSubmitted: (v) {
-                    debugLog('brandNameEdit submitByEnter index=$_editingIndex text=${_brandNameEditController.text} paramValue=$v canSubmit=$_canSubmitBrandNameEdit');
-                    // onSubmitted 의 v 는 IME 조합 중 Enter 시 컨트롤러 값과 다를 수 있으므로
-                    // 컨트롤러 text 를 직접 사용한다.
-                    _submitBrandNameEdit(_brandNameEditController.text);
-                  },
-                ),
-              ),
-            ),
-            Positioned(
-              top: 3,
-              right: 3,
-              bottom: 3,
-              width: 22,
-              // canSubmit=true → 헤더 색상 미니 버튼(흰 아이콘)으로 submit 유도
-              // canSubmit=false → 투명 배경에 회색 아이콘으로 비활성 표시
-              child: Tooltip(
-                message: '변경 적용',
-                child: MouseRegion(
-                  cursor: canSubmit
-                      ? SystemMouseCursors.click
-                      : SystemMouseCursors.basic,
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: canSubmit
-                        ? () {
-                            debugLog('brandNameEdit submitByButton index=$_editingIndex text=${_brandNameEditController.text} canSubmit=$_canSubmitBrandNameEdit');
-                            _submitBrandNameEdit(_brandNameEditController.text);
-                          }
-                        : null,
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 120),
-                      decoration: BoxDecoration(
-                        color: canSubmit
-                            ? const Color(0xFF0E2F66)
-                            : Colors.transparent,
-                        borderRadius: BorderRadius.circular(3),
-                      ),
-                      child: Center(
-                        child: Icon(
-                          Icons.keyboard_return,
-                          size: 15,
-                          color: canSubmit
-                              ? Colors.white
-                              : const Color(0xffb0bec5),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  bool _isEditingBrand(Brand brand) {
-    final editingIndex = _editingIndex;
-    return editingIndex != null &&
-        editingIndex >= 0 &&
-        editingIndex < _brands.length &&
-        identical(_brands[editingIndex], brand);
   }
 
   void _toggleBrandInsert(Brand brand, int index) {
