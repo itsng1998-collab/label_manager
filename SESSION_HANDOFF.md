@@ -36,6 +36,7 @@
   - `lib/page_label_sheet/label_sheet_workbench.dart`: 적용 후 `sheet.borderInfo`와 `FortuneBorderCompute.compute(sheet)` 결과를 chunk 로그로 기록. 병합 내부선 제거 후 실제 렌더 기준 border 확인 가능.
   - 검증 완료: `C:\Flutter\bin\flutter.bat test test/label_sheet_xlsx_import_test.dart` 3개 성공.
   - 검증 완료: `C:\Flutter\bin\flutter.bat analyze lib/page_label_sheet/label_sheet_workbench.dart lib/page_label_sheet/label_sheet_xlsx_import.dart --no-fatal-warnings --no-fatal-infos` 성공.
+  - 기능 커밋 완료: `979d0de` (`XLSX 테두리 진단 로그 보강`).
   - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/page_label_sheet/label_sheet_xlsx_import.dart`, `lib/page_label_sheet/label_sheet_workbench.dart` (`lib/core/app.dart` 기존 dirty 제외).
 
 - **완료**: 다중 라벨 XLSX 원본/변환본 비교 및 하단 블록까지 진단 가능한 로그 보강.
