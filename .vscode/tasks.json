@@ -4,7 +4,7 @@
     {
       "label": "ADB: Silence MESA log",
       "type": "shell",
-      "command": "powershell",
+      "command": "C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe",
       "args": [
         "-ExecutionPolicy",
         "Bypass",
@@ -20,7 +20,7 @@
     {
       "label": "Windows: Ensure Build Tools",
       "type": "shell",
-      "command": "powershell",
+      "command": "C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe",
       "args": [
         "-NoProfile",
         "-ExecutionPolicy",
@@ -37,7 +37,7 @@
     {
       "label": "WebView2: Clear userDataFolder (label_manager)",
       "type": "shell",
-      "command": "powershell",
+      "command": "C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe",
       "args": [
         "-ExecutionPolicy",
         "Bypass",

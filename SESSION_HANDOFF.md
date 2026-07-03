@@ -27,6 +27,15 @@
 
 ## 현재 상태
 
+### 최근 완료 (2026-07-03)
+
+- **완료**: VS Code 작업이 `pwsh -Command powershell ...` 형태로 실행될 때 `powershell` 명령을 찾지 못하는 문제 수정.
+  - 수정 예정 파일: `.vscode/tasks.json`.
+  - 목적: shell task의 bare `powershell` 명령을 Windows PowerShell 실행 파일 절대 경로로 바꿔 PATH/App Execution Alias 상태와 무관하게 실행되도록 보정.
+  - `.vscode/tasks.json`: `ADB: Silence MESA log`, `Windows: Ensure Build Tools`, `WebView2: Clear userDataFolder (label_manager)`의 `command`를 `C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe`로 변경.
+  - 검증 완료: `ADB: Silence MESA log` 작업 재실행 시 `powershell not recognized` 오류 없이 절대 경로 PowerShell로 실행됨.
+  - stage/commit 대상: `SESSION_HANDOFF.md`, `.vscode/tasks.json` (`.vscode/settings.json`, `lib/core/app.dart` 기존 dirty 제외).
+
 ### 최근 완료 (2026-07-01, 커밋: `647f081`)
 
 - **브랜드 설정 다이얼로그 편집 취소 오동작 + textChanged 이중 발생 수정**
