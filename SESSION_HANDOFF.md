@@ -36,6 +36,7 @@
   - `lib/page_label_sheet/label_sheet_workbench.dart`: apply 단계에서 지정 축 합계와 count/default 포함 합계, count 기반 boundary, 병합 anchor별 logical size, counted logical/mm 로그 추가.
   - 검증 완료: `C:\Flutter\bin\flutter.bat test test/label_sheet_xlsx_import_test.dart` 3개 성공.
   - 검증 완료: `C:\Flutter\bin\flutter.bat analyze lib/page_label_sheet/label_sheet_xlsx_import.dart lib/page_label_sheet/label_sheet_workbench.dart --no-fatal-warnings --no-fatal-infos` 성공.
+  - 기능 커밋 완료: `c0af070` (`XLSX 변환 축 진단 로그 보강`).
   - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/page_label_sheet/label_sheet_xlsx_import.dart`, `lib/page_label_sheet/label_sheet_workbench.dart` (`lib/core/app.dart` 기존 dirty 제외).
 
 - **완료**: 공용라벨관리의 `라벨 파일에서 가져오기` 완료 후 시트에 포커스를 남기지 않아 셀 선택 파란 하이라이트가 보이지 않게 수정.
