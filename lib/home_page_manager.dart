@@ -27,6 +27,7 @@ import 'package:label_manager/utils/on_messages.dart';
 import 'package:label_manager/page_home/item_manage.dart';
 import 'package:label_manager/page_home/common_label_manage.dart';
 import 'package:label_manager/page_home/preview_floating_window.dart';
+import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
 import 'package:label_manager/widgets/swipe_action_table.dart';
 
 /// 로그인 이후 메인 UI
@@ -501,13 +502,15 @@ class _HomePageManagerState extends State<HomePageManager> {
     if (_brandSettingsOverlayEntry != null) return;
     late final OverlayEntry entry;
     entry = OverlayEntry(
-      builder: (_) => _BrandSettingsDialog(
-        brands: Brand.datas ?? const <Brand>[],
-        selectedBrand: widget.selectedBrand,
-        onBrandSelected: _handleBrandSelectedFromDialog,
-        onBrandsChanged: _handleBrandsChangedFromDialog,
-        onClose: _closeBrandSettingsDialog,
-        busyNotifier: _brandDialogBusyNotifier,
+      builder: (_) => BlockingModelessDialog(
+        child: _BrandSettingsDialog(
+          brands: Brand.datas ?? const <Brand>[],
+          selectedBrand: widget.selectedBrand,
+          onBrandSelected: _handleBrandSelectedFromDialog,
+          onBrandsChanged: _handleBrandsChangedFromDialog,
+          onClose: _closeBrandSettingsDialog,
+          busyNotifier: _brandDialogBusyNotifier,
+        ),
       ),
     );
     _brandSettingsOverlayEntry = entry;
@@ -518,10 +521,12 @@ class _HomePageManagerState extends State<HomePageManager> {
     if (_labelSettingsOverlayEntry != null) return;
     late final OverlayEntry entry;
     entry = OverlayEntry(
-      builder: (_) => _LabelSettingsDialog(
-        labels: LabelSize.datas ?? const <LabelSize>[],
-        onOrderSaved: _handleLabelOrderSaved,
-        onClose: _closeLabelSettingsDialog,
+      builder: (_) => BlockingModelessDialog(
+        child: _LabelSettingsDialog(
+          labels: LabelSize.datas ?? const <LabelSize>[],
+          onOrderSaved: _handleLabelOrderSaved,
+          onClose: _closeLabelSettingsDialog,
+        ),
       ),
     );
     _labelSettingsOverlayEntry = entry;
@@ -1781,109 +1786,60 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
   Widget build(BuildContext context) {
     final dialogHeight = MediaQuery.sizeOf(context).height * 0.7;
     debugLog('labelSettingsDialog build labels=${_labels.length} orderChanged=$_hasOrderChanges');
-    return Center(
+    return BlockingModelessDialogFrame(
+      title: '라벨 설정',
+      width: _dialogWidth,
+      height: dialogHeight,
+      closeIcon: const _BrandDialogCloseIcon(),
+      onClose: widget.onClose,
+      footer: _orderEditMode ? _buildOrderEditFooter() : null,
       child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Container(
-          width: _dialogWidth,
-          height: dialogHeight,
-          clipBehavior: Clip.antiAlias,
-          decoration: const BoxDecoration(
-            color: Color(0xffece6f0),
-            borderRadius: BorderRadius.all(Radius.circular(12)),
-            boxShadow: [
-              BoxShadow(
-                color: Color(0x26000000),
-                blurRadius: 16,
-                offset: Offset(0, 6),
-              ),
+        padding: const EdgeInsets.only(left: 8, right: 8, bottom: 8),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(child: _buildLabelTable()),
+            if (_orderEditMode) ...[
+              const SizedBox(width: 6),
+              _buildOrderMoveRail(),
             ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildOrderEditFooter() {
+    return Padding(
+      padding: const EdgeInsets.only(left: 8, right: 8, bottom: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          const Text(
+            '순서 변경',
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
           ),
-          child: Material(
-            type: MaterialType.transparency,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Container(
-                  height: 36,
-                  padding: const EdgeInsets.only(left: 12, right: 4),
-                  child: Row(
-                    children: [
-                      const Expanded(
-                        child: Text(
-                          '라벨 설정',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      IconButton(
-                        tooltip: '닫기',
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints.tightFor(
-                          width: 28,
-                          height: 28,
-                        ),
-                        icon: const _BrandDialogCloseIcon(),
-                        onPressed: widget.onClose,
-                      ),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.only(left: 8, right: 8, bottom: 8),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Expanded(child: _buildLabelTable()),
-                        if (_orderEditMode) ...[
-                          const SizedBox(width: 6),
-                          _buildOrderMoveRail(),
-                        ],
-                      ],
-                    ),
-                  ),
-                ),
-                if (_orderEditMode)
-                  Padding(
-                    padding: const EdgeInsets.only(left: 8, right: 8, bottom: 8),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        const Text(
-                          '순서 변경',
-                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-                        ),
-                        const SizedBox(width: 8),
-                        SizedBox(
-                          width: 84,
-                          height: 30,
-                          child: _LabelSettingsFooterButton(
-                            label: '취소',
-                            onPressed: _cancelOrderChanges,
-                          ),
-                        ),
-                        const SizedBox(width: 5),
-                        SizedBox(
-                          width: 84,
-                          height: 30,
-                          child: _LabelSettingsFooterButton(
-                            label: '적용',
-                            onPressed: _applyingOrderChanges || !_hasOrderChanges
-                                ? null
-                                : _applyOrderChanges,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-              ],
+          const SizedBox(width: 8),
+          SizedBox(
+            width: 84,
+            height: 30,
+            child: _LabelSettingsFooterButton(
+              label: '취소',
+              onPressed: _cancelOrderChanges,
             ),
           ),
-        ),
+          const SizedBox(width: 5),
+          SizedBox(
+            width: 84,
+            height: 30,
+            child: _LabelSettingsFooterButton(
+              label: '적용',
+              onPressed: _applyingOrderChanges || !_hasOrderChanges
+                  ? null
+                  : _applyOrderChanges,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1922,10 +1878,9 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
       onRowReorder: _moveLabelRow,
       headerTrailingBuilder: (context, hasInlineEditor) =>
           _OrderModeHeaderButton(
-            enabled:
-                !_orderEditMode && !_applyingOrderChanges && !hasInlineEditor,
-            onPressed: _startOrderEditMode,
-          ),
+        enabled: !_orderEditMode && !_applyingOrderChanges && !hasInlineEditor,
+        onPressed: _startOrderEditMode,
+      ),
     );
   }
 
@@ -1953,43 +1908,7 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
     );
   }
 
-  void _startOrderEditMode() {
-    debugLog('labelSettings reorder mode start');
-    if (_editingIndex != null) {
-      debugLog('labelSettings reorder mode blocked editingIndex=$_editingIndex');
-      return;
-    }
-    setState(() {
-      _orderEditMode = true;
-      _selectedLabelSizeId ??= _labels.isNotEmpty ? _labels.first.labelSizeId : null;
-    });
-  }
-
-  void _handleLabelRowSelected(LabelSize label, int index) {
-    debugLog('labelSettings row selected index=$index labelSizeId=${label.labelSizeId}');
-    setState(() {
-      _selectedLabelSizeId = label.labelSizeId;
-    });
-  }
-
   String _labelRowNumberText(LabelSize label, int index) {
-    if (!_insertingLabel) {
-      return _originalLabelRowNumberText(label, index);
-    }
-    final editingIndex = _editingIndex;
-    if (editingIndex == null) {
-      return _originalLabelRowNumberText(label, index);
-    }
-    if (index == editingIndex) {
-      return '';
-    }
-    if (index > editingIndex) {
-      return '$index';
-    }
-    return _originalLabelRowNumberText(label, index);
-  }
-
-  String _originalLabelRowNumberText(LabelSize label, int index) {
     final originalIndex = _originalLabels.indexWhere((original) => identical(original, label));
     if (originalIndex >= 0) {
       return '${originalIndex + 1}';
@@ -2116,6 +2035,26 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
       debugLog('labelNameEdit submitSkipped canSubmit=false');
       return;
     }
+  }
+
+  void _handleLabelRowSelected(LabelSize label, int index) {
+    if (_selectedLabelSizeId == label.labelSizeId) {
+      return;
+    }
+    debugLog('labelSettings rowSelected index=$index labelSizeId=${label.labelSizeId}');
+    setState(() => _selectedLabelSizeId = label.labelSizeId);
+  }
+
+  void _startOrderEditMode() {
+    if (_editingIndex != null || _applyingOrderChanges || _orderEditMode) {
+      debugLog('labelSettings reorder startBlocked editingIndex=$_editingIndex applying=$_applyingOrderChanges orderEditMode=$_orderEditMode');
+      return;
+    }
+    debugLog('labelSettings reorder start labels=${_labels.length}');
+    setState(() {
+      _orderEditMode = true;
+      _selectedLabelSizeId = _labels.isNotEmpty ? _labels.first.labelSizeId : null;
+    });
   }
 
   void _moveLabelRow(int fromIndex, int toIndex) {
@@ -2437,19 +2376,13 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
     }
 
     entry = OverlayEntry(
-      builder: (overlayContext) => Stack(
-        children: [
-          const ModalBarrier(
-            dismissible: false,
-            color: Color(0x8A000000),
+      builder: (overlayContext) => BlockingModelessDialog(
+        child: Center(
+          child: Material(
+            type: MaterialType.transparency,
+            child: builder(overlayContext, close),
           ),
-          Center(
-            child: Material(
-              type: MaterialType.transparency,
-              child: builder(overlayContext, close),
-            ),
-          ),
-        ],
+        ),
       ),
     );
     overlay.insert(entry);
@@ -2462,90 +2395,38 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
     // 예상치 못한 리빌드 원인 추적용. buildCell 보다 먼저 출력되면
     // 다이얼로그 전체가 리빌드된 것임(InheritedWidget 의존성 변화 등).
     debugLog('brandSettingsDialog build editingIndex=$_editingIndex dialogHeight=$dialogHeight');
-    return Center(
+    return BlockingModelessDialogFrame(
+      title: '브랜드 설정',
+      width: _dialogWidth,
+      height: dialogHeight,
+      closeIcon: const _BrandDialogCloseIcon(),
+      onClose: widget.onClose,
       child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Container(
-          width: _dialogWidth,
-          height: dialogHeight,
-          clipBehavior: Clip.antiAlias,
-          decoration: const BoxDecoration(
-            color: Color(0xffece6f0),
-            borderRadius: BorderRadius.all(Radius.circular(12)),
-            boxShadow: [
-              BoxShadow(
-                color: Color(0x26000000),
-                blurRadius: 16,
-                offset: Offset(0, 6),
-              ),
-            ],
-          ),
-          child: Material(
-            type: MaterialType.transparency,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Container(
-                  height: 36,
-                  padding: const EdgeInsets.only(left: 12, right: 4),
-                  child: Row(
-                    children: [
-                      const Expanded(
-                        child: Text(
-                          '브랜드 설정',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      IconButton(
-                        tooltip: '닫기',
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints.tightFor(
-                          width: 28,
-                          height: 28,
-                        ),
-                        icon: const _BrandDialogCloseIcon(),
-                        onPressed: widget.onClose,
-                      ),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.only(left: 8, right: 8, bottom: 8),
-                    child: EditableSwipeNameTable<Brand>(
-                      rows: _brands,
-                      header: '브랜드 이름',
-                      text: _brandNameText,
-                      editController: _brandNameEditController,
-                      editFocusNode: _brandNameEditFocusNode,
-                      editingIndex: _editingIndex,
-                      insertActionIndex: _insertActionIndex,
-                      inserting: _insertingBrand,
-                      canSubmit: _canSubmitBrandNameEdit,
-                      onToggleEdit: _toggleBrandNameEdit,
-                      onToggleInsert: _toggleBrandInsert,
-                      onEmptyInsert: () => _startBrandInsertAt(0, actionIndex: null),
-                      onCancelEdit: _cancelBrandNameEdit,
-                      onSubmitEdit: _submitBrandNameEdit,
-                      onDeleteRow: _deleteBrand,
-                      onNameDoubleTap: _handleBrandNameDoubleTap,
-                      fillLastColumn: true,
-                      autoFitColumns: false,
-                      rowSwipeEnabled: true,
-                      keepRowContentOnSwipe: true,
-                      rowTooltip: '컬럼 왼쪽 스와이프 수정/삽입/삭제',
-                      showActionsWhenEmpty: true,
-                        rowNumberText: _brandRowNumberText,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
+        padding: const EdgeInsets.only(left: 8, right: 8, bottom: 8),
+        child: EditableSwipeNameTable<Brand>(
+          rows: _brands,
+          header: '브랜드 이름',
+          text: _brandNameText,
+          editController: _brandNameEditController,
+          editFocusNode: _brandNameEditFocusNode,
+          editingIndex: _editingIndex,
+          insertActionIndex: _insertActionIndex,
+          inserting: _insertingBrand,
+          canSubmit: _canSubmitBrandNameEdit,
+          onToggleEdit: _toggleBrandNameEdit,
+          onToggleInsert: _toggleBrandInsert,
+          onEmptyInsert: () => _startBrandInsertAt(0, actionIndex: null),
+          onCancelEdit: _cancelBrandNameEdit,
+          onSubmitEdit: _submitBrandNameEdit,
+          onDeleteRow: _deleteBrand,
+          onNameDoubleTap: _handleBrandNameDoubleTap,
+          fillLastColumn: true,
+          autoFitColumns: false,
+          rowSwipeEnabled: true,
+          keepRowContentOnSwipe: true,
+          rowTooltip: '컬럼 왼쪽 스와이프 수정/삽입/삭제',
+          showActionsWhenEmpty: true,
+          rowNumberText: _brandRowNumberText,
         ),
       ),
     );
