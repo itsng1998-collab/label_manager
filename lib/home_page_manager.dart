@@ -521,7 +521,7 @@ class _HomePageManagerState extends State<HomePageManager> {
     entry = OverlayEntry(
       builder: (_) => _LabelSettingsDialog(
         labels: LabelSize.datas ?? const <LabelSize>[],
-        onOrderApplied: _handleLabelOrderApplied,
+        onOrderSaved: _handleLabelOrderSaved,
         onClose: _closeLabelSettingsDialog,
       ),
     );
@@ -529,9 +529,7 @@ class _HomePageManagerState extends State<HomePageManager> {
     Overlay.of(context).insert(entry);
   }
 
-  Future<List<LabelSize>> _handleLabelOrderApplied(
-    List<LabelSize> orderedLabels,
-  ) async {
+  Future<List<LabelSize>> _handleLabelOrderSaved() async {
     final brandId =
       widget.selectedBrand?.brandId ??
       _effectiveLabelSize?.brandId ??
@@ -539,21 +537,13 @@ class _HomePageManagerState extends State<HomePageManager> {
     final previousSelectedLabel =
       _effectiveLabelSize ?? widget.selectedLabelSize;
     debugLog(
-      'labelSettings reorder save start brandId=$brandId '
-      'selectedLabelSizeId=${previousSelectedLabel?.labelSizeId} labels=${orderedLabels.length}',
+      'labelSettings reorder reload start brandId=$brandId '
+      'selectedLabelSizeId=${previousSelectedLabel?.labelSizeId}',
     );
 
     if (brandId == null) {
       throw Exception('${runtimeLogTag()} 라벨 순서를 저장할 브랜드를 찾을 수 없습니다.');
     }
-
-    await LabelSizeDAO.updateOrders([
-      for (var index = 0; index < orderedLabels.length; index += 1)
-        LabelSizeOrderUpdate(
-          labelSizeId: orderedLabels[index].labelSizeId,
-          labelSizeOrder: index + 1,
-        ),
-    ]);
 
     final reloadedLabels =
       await LabelSizeDAO.selectByBrandIdByLabelSizeOrder(brandId) ??
@@ -574,7 +564,7 @@ class _HomePageManagerState extends State<HomePageManager> {
     setState(() {});
     _labelSettingsOverlayEntry?.markNeedsBuild();
     debugLog(
-      'labelSettings reorder save completed '
+      'labelSettings reorder reload completed '
       'labels=${reloadedLabels.length} selectedLabelSizeId=${resolvedSelected?.labelSizeId}',
     );
     return reloadedLabels;
@@ -1695,13 +1685,12 @@ class _PlaceholderTab extends StatelessWidget {
 class _LabelSettingsDialog extends StatefulWidget {
   const _LabelSettingsDialog({
     required this.labels,
-    required this.onOrderApplied,
+    required this.onOrderSaved,
     required this.onClose,
   });
 
   final List<LabelSize> labels;
-  final Future<List<LabelSize>> Function(List<LabelSize> orderedLabels)
-      onOrderApplied;
+  final Future<List<LabelSize>> Function() onOrderSaved;
   final VoidCallback onClose;
 
   @override
@@ -1998,9 +1987,15 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
     );
 
     try {
-      final appliedLabels = await widget.onOrderApplied(
-        List<LabelSize>.from(_labels),
-      );
+      final orderedLabels = List<LabelSize>.from(_labels);
+      await LabelSizeDAO.updateOrders([
+        for (var index = 0; index < orderedLabels.length; index += 1)
+          LabelSizeOrderUpdate(
+            labelSizeId: orderedLabels[index].labelSizeId,
+            labelSizeOrder: index + 1,
+          ),
+      ]);
+      final appliedLabels = await widget.onOrderSaved();
       if (!mounted) return;
       setState(() {
         _labels = List<LabelSize>.from(appliedLabels);

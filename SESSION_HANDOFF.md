@@ -36,6 +36,8 @@
 - 순서 기준: 레거시 insert가 `COUNT(*)+1`/`MAX(...)+1`을 사용하므로 적용 순서는 현재 테이블 순서대로 1부터 저장.
 - 구현 완료: `lib/models/label_size.dart`에 `LabelSizeDAO.updateOrder(labelSizeId, labelSizeOrder)` 및 배치용 `LabelSizeDAO.updateOrders` 추가. 적용 버튼 단위로 모든 라벨 순서를 하나의 `SET XACT_ABORT ON` 트랜잭션에서 저장하고 affected row를 검증.
 - 구현 완료: `lib/home_page_manager.dart`에 `_handleLabelOrderApplied` 추가 및 `_LabelSettingsDialog` 연결. 적용 확인 다이얼로그/진행 스낵바/실패 다이얼로그를 추가하고, 성공 시 DB 재조회 목록으로 `LabelSize.datas`와 다이얼로그 테이블을 갱신하며 기존 선택 라벨 ID를 유지.
+- 구조 변경 완료: 사용자 피드백에 따라 `_LabelSettingsDialog._applyOrderChanges`에서 `LabelSizeDAO.updateOrders`를 직접 호출하도록 변경. 부모 콜백은 `_handleLabelOrderSaved`로 이름을 바꾸고 DB 성공 후 재조회/캐시 갱신/드롭다운 선택 유지 전용으로 축소.
+- 구조 변경 검증 완료: `dart format lib/home_page_manager.dart` 성공, `C:\Flutter\bin\flutter.bat analyze lib/home_page_manager.dart lib/models/label_size.dart --no-fatal-warnings --no-fatal-infos` No issues, `C:\Flutter\bin\flutter.bat test test/label_size_cache_test.dart` 1개 성공.
 - 검증 완료: `dart format` 2파일 성공, `C:\Flutter\bin\flutter.bat analyze lib/models/label_size.dart lib/home_page_manager.dart --no-fatal-warnings --no-fatal-infos` No issues, `C:\Flutter\bin\flutter.bat test test/label_size_cache_test.dart` 1개 성공.
 - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/models/label_size.dart`, `lib/home_page_manager.dart`, `doc/BM_RICH_BRAND.sql`, `doc/BM_RICH_LABELSIZE_FORM.sql` 포함(사용자 요청). 기존 dirty `lib/core/app.dart`는 제외.
 - 기능 커밋: `a6f4911` (`라벨 설정 순서 적용 저장 구현`).
