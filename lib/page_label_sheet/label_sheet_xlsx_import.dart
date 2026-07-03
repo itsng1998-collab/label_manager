@@ -252,6 +252,7 @@ Map<String, Object?> _sheetJsonFromWorksheet(
   final wrapSamples = <String>[];
   final lineBreakSamples = <String>[];
   final borderSamples = <String>[];
+  final adjustedBorderSamples = <String>[];
   final skippedBlankBorderSamples = <String>[];
   final skippedValueBorderSamples = <String>[];
   var maxRow = 0;
@@ -461,6 +462,15 @@ Map<String, Object?> _sheetJsonFromWorksheet(
             coord.column,
             nutritionBorderRanges,
           );
+          if (!_isSameXlsxBorderLog(border, adjustedBorder) &&
+              adjustedBorderSamples.length < 120) {
+            adjustedBorderSamples.add(
+              '${_coordLabel(coord.row, coord.column)} '
+              'style=${cellAttributes['s']} '
+              'from=${_borderInfoLogText(border)} '
+              'to=${_borderInfoLogText(adjustedBorder)}',
+            );
+          }
           borderInfo.add(adjustedBorder);
           if (borderSamples.length < 200) {
             borderSamples.add(
@@ -549,6 +559,7 @@ Map<String, Object?> _sheetJsonFromWorksheet(
     'wrapCells=${wrapSamples.join(' | ')}',
   );
   _logXlsxChunks('worksheet border samples', borderSamples);
+  _logXlsxChunks('worksheet adjusted border samples', adjustedBorderSamples);
   _logXlsxChunks(
     'worksheet skipped value border samples',
     skippedValueBorderSamples,
@@ -1418,6 +1429,16 @@ String _borderInfoLogText(Map<String, Object?> border) {
       'row=$row column=$column';
 }
 
+bool _isSameXlsxBorderLog(
+  Map<String, Object?> left,
+  Map<String, Object?> right,
+) {
+  return left['borderType'] == right['borderType'] &&
+      left['style'] == right['style'] &&
+      left['strokeWidth'] == right['strokeWidth'] &&
+      left['color'] == right['color'];
+}
+
 bool _shouldImportXlsxCellBorders(
   int row,
   int column, {
@@ -1468,16 +1489,48 @@ Map<String, Object?> _adjustXlsxImportedBorder(
   List<({int rowStart, int rowEnd, int columnStart, int columnEnd})>
   nutritionRanges,
 ) {
-  if (border['style'] != 13 ||
-      !_isXlsxNutritionInnerBorder(
+  if (_isXlsxNutritionOuterBorder(
+    row,
+    column,
+    border['borderType'],
+    nutritionRanges,
+  )) {
+    return {...border, 'style': 13, 'strokeWidth': 2.0};
+  }
+  if (border['style'] == 13 &&
+      _isXlsxNutritionInnerBorder(
         row,
         column,
         border['borderType'],
         nutritionRanges,
       )) {
-    return border;
+    return {...border, 'style': 1, 'strokeWidth': 1.0};
   }
-  return {...border, 'style': 1, 'strokeWidth': 1.0};
+  return border;
+}
+
+bool _isXlsxNutritionOuterBorder(
+  int row,
+  int column,
+  Object? borderType,
+  List<({int rowStart, int rowEnd, int columnStart, int columnEnd})> ranges,
+) {
+  for (final range in ranges) {
+    if (row < range.rowStart ||
+        row > range.rowEnd ||
+        column < range.columnStart ||
+        column > range.columnEnd) {
+      continue;
+    }
+    return switch (borderType) {
+      'border-top' => row == range.rowStart,
+      'border-bottom' => row == range.rowEnd,
+      'border-left' => column == range.columnStart,
+      'border-right' => column == range.columnEnd,
+      _ => false,
+    };
+  }
+  return false;
 }
 
 bool _isXlsxNutritionInnerBorder(
@@ -1501,9 +1554,9 @@ bool _isXlsxNutritionInnerBorder(
       case 'border-bottom':
         return row != range.rowEnd && row != headerBottom;
       case 'border-left':
-        return column != range.columnStart && column != range.columnStart + 3;
+        return column != range.columnStart;
       case 'border-right':
-        return column != range.columnEnd && column != range.columnStart + 2;
+        return column != range.columnEnd;
     }
   }
   return false;
