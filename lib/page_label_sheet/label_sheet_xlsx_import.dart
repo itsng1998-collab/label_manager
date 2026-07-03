@@ -442,6 +442,20 @@ Map<String, Object?> _sheetJsonFromWorksheet(
             );
           }
         }
+      } else {
+        for (final border in style.borderInfo(coord.row, coord.column)) {
+          if (!_isIntentionalBlankXlsxBorder(border)) {
+            continue;
+          }
+          borderInfo.add(border);
+          if (borderSamples.length < 200) {
+            borderSamples.add(
+              '${_coordLabel(coord.row, coord.column)} '
+              'style=${cellAttributes['s']} blankIntentional '
+              '${_borderInfoLogText(border)}',
+            );
+          }
+        }
       }
       maxRow = _max(maxRow, coord.row + 1);
       maxColumn = _max(maxColumn, coord.column + 1);
@@ -1398,6 +1412,30 @@ bool _isInsideXlsxMergeRange(
     }
   }
   return false;
+}
+
+bool _isIntentionalBlankXlsxBorder(Map<String, Object?> border) {
+  final color = border['color'];
+  if (color is! String || color.isEmpty) {
+    return true;
+  }
+  final normalized = color.startsWith('#') ? color.substring(1) : color;
+  if (normalized.length != 8 && normalized.length != 6) {
+    return true;
+  }
+  final rgb = normalized.length == 8 ? normalized.substring(2) : normalized;
+  final value = int.tryParse(rgb, radix: 16);
+  if (value == null) {
+    return true;
+  }
+  final red = (value >> 16) & 0xff;
+  final green = (value >> 8) & 0xff;
+  final blue = value & 0xff;
+  final neutral =
+      (red - green).abs() <= 8 &&
+      (green - blue).abs() <= 8 &&
+      (red - blue).abs() <= 8;
+  return !neutral || red < 180 || green < 180 || blue < 180;
 }
 
 void _logXlsxChunks(String prefix, List<String> samples) {

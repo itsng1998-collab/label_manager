@@ -29,6 +29,14 @@
 
 ### 최근 완료 (2026-07-03)
 
+- **완료**: XLSX 빈 셀 테두리 정책 보정.
+  - 사용자 첨부 원본/변환본 비교 결과, 원본에도 row14~18 및 row32~36의 빈 격자 표가 검은 테두리로 존재함. 직전 `빈 일반 셀 border 전체 제외` 정책은 의도된 빈 표 테두리까지 제거할 수 있어 보정.
+  - `lib/page_label_sheet/label_sheet_xlsx_import.dart`: 값/수식/하이퍼링크/병합/배경이 없는 빈 일반 셀이라도 검은/색상 명시 border는 `blankIntentional`로 가져오고, `#ffd0d0d0` 같은 밝은 중립 회색 보조선만 제외.
+  - `test/label_sheet_xlsx_import_test.dart`: 빈 일반 셀의 검은 border는 유지, 밝은 회색 border는 제외되는 회귀 테스트 추가.
+  - 검증 완료: `C:\Flutter\bin\flutter.bat test test/label_sheet_xlsx_import_test.dart` 3개 성공.
+  - 검증 완료: `C:\Flutter\bin\flutter.bat analyze lib/page_label_sheet/label_sheet_workbench.dart lib/page_label_sheet/label_sheet_xlsx_import.dart test/label_sheet_xlsx_import_test.dart --no-fatal-warnings --no-fatal-infos` 성공.
+  - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/page_label_sheet/label_sheet_xlsx_import.dart`, `test/label_sheet_xlsx_import_test.dart` (`lib/core/app.dart` 기존 dirty 제외).
+
 - **완료**: XLSX 빈 일반 셀 border 제외로 과한 검은 격자 완화.
   - 최신 로그 `.tmp/log/app_2026-07-03_11-35-09.log`: `label sheet import apply computed border row cells`에서 row32~row36이 모두 `blank:21`로 잡힘. 하단 빈 격자의 검은 테두리는 값/병합이 없는 빈 일반 셀 border가 실제 렌더 대상으로 남은 것이 원인.
   - `lib/page_label_sheet/label_sheet_xlsx_import.dart`: merge range 목록을 보존하고, XLSX border import 조건을 추가. 값/수식/하이퍼링크/병합/병합 내부/배경색이 있는 셀의 border만 가져오고, 값도 병합도 배경도 없는 빈 일반 셀 border는 제외.
