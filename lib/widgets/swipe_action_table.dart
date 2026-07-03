@@ -7,6 +7,20 @@ import 'package:flutter/services.dart';
 
 import 'package:label_manager/core/ui_scale.dart';
 
+class SwipeActionTableCellState {
+  const SwipeActionTableCellState({
+    required this.actionRailOpen,
+    required this.swipeToggleVisible,
+    required this.swipeToggleEnabled,
+    required this.onToggleActionRail,
+  });
+
+  final bool actionRailOpen;
+  final bool swipeToggleVisible;
+  final bool swipeToggleEnabled;
+  final VoidCallback onToggleActionRail;
+}
+
 class SwipeActionTableColumn<T> {
   const SwipeActionTableColumn({
     required this.header,
@@ -17,11 +31,16 @@ class SwipeActionTableColumn<T> {
     this.headerTrailing,
     this.headerTrailingBuilder,
     this.cellBuilder,
+    this.statefulCellBuilder,
     this.onDoubleTap,
   }) : assert(
-         headerTrailing == null || headerTrailingBuilder == null,
-         'headerTrailing and headerTrailingBuilder cannot both be set.',
-       );
+          headerTrailing == null || headerTrailingBuilder == null,
+          'headerTrailing and headerTrailingBuilder cannot both be set.',
+        ),
+        assert(
+          cellBuilder == null || statefulCellBuilder == null,
+          'cellBuilder and statefulCellBuilder cannot both be set.',
+        );
 
   final String header;
   final String Function(T row) text;
@@ -32,6 +51,12 @@ class SwipeActionTableColumn<T> {
   final Widget Function(BuildContext context, bool hasInteractiveRow)?
       headerTrailingBuilder;
   final Widget Function(BuildContext context, T row, double width)? cellBuilder;
+  final Widget Function(
+    BuildContext context,
+    T row,
+    double width,
+    SwipeActionTableCellState state,
+  )? statefulCellBuilder;
   final void Function(T row, int index)? onDoubleTap;
 }
 
@@ -673,8 +698,22 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
     _endRowDrag();
   }
 
-  Widget _buildCell(T row, int index, List<double> widths) {
+  Widget _buildCell(
+    T row,
+    int index,
+    List<double> widths, {
+    SwipeActionTableCellState state = const SwipeActionTableCellState(
+      actionRailOpen: false,
+      swipeToggleVisible: false,
+      swipeToggleEnabled: false,
+      onToggleActionRail: _noop,
+    ),
+  }) {
     final column = widget.columns[index];
+    final statefulCustom = column.statefulCellBuilder;
+    if (statefulCustom != null) {
+      return statefulCustom(context, row, widths[index], state);
+    }
     final custom = column.cellBuilder;
     if (custom != null) {
       return custom(context, row, widths[index]);
@@ -751,6 +790,8 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
       });
     }
   }
+
+  static void _noop() {}
 
   Widget _buildActionRail(
     List<SwipeActionTableAction<T>> actions, {
@@ -882,41 +923,58 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
           .sublist(0, separatorIndex + 1)
           .fold<double>(0, (sum, width) => sum + width),
     );
+    final rowSurface = Container(
+      decoration: BoxDecoration(
+        color: _rowColor(row, index),
+        border: const Border(bottom: BorderSide(color: _bodySeparatorColor)),
+      ),
+      child: Row(
+        children: List.generate(
+          widget.columns.length,
+          (cellIndex) => _buildCell(
+            row,
+            cellIndex,
+            rowWidths,
+            state: SwipeActionTableCellState(
+              actionRailOpen: isOpen,
+              swipeToggleVisible:
+                  widget.rowSwipeEnabled && widget.actions.isNotEmpty,
+              swipeToggleEnabled: canSwipeRow && !isRowContentInteractive,
+              onToggleActionRail: () => setState(() {
+                _lastPointerDownRowIndex = null;
+                _lastPointerDownColumnIndex = null;
+                _lastPointerDownAt = null;
+                _openActionIndex = isOpen ? null : index;
+              }),
+            ),
+          ),
+        ),
+      ),
+    );
     final rowContent = SizedBox(
       width: contentWidth,
       height: widget.rowHeight,
       child: Stack(
         children: [
-          Container(
-            decoration: BoxDecoration(
-              color: _rowColor(row, index),
-              border: const Border(bottom: BorderSide(color: _bodySeparatorColor)),
-            ),
-            child: Row(
-              children: List.generate(
-                widget.columns.length,
-                (cellIndex) => _buildCell(row, cellIndex, rowWidths),
+          if (isRowContentInteractive)
+            rowSurface
+          else
+            Listener(
+              behavior: HitTestBehavior.translucent,
+              onPointerDown: (event) => _handleRowPointerDown(
+                row,
+                index,
+                rowWidths,
+                event.localPosition,
               ),
+              child: rowSurface,
             ),
-          ),
           for (final x in separators)
             Positioned(
               left: x - 1,
               top: 0,
               bottom: 0,
               child: Container(width: 1, color: _bodySeparatorColor),
-            ),
-          if (!isRowContentInteractive)
-            Positioned.fill(
-              child: Listener(
-                behavior: HitTestBehavior.translucent,
-                onPointerDown: (event) => _handleRowPointerDown(
-                  row,
-                  index,
-                  rowWidths,
-                  event.localPosition,
-                ),
-              ),
             ),
         ],
       ),
@@ -1375,7 +1433,7 @@ class EditableSwipeNameTable<T> extends StatelessWidget {
           minWidth: minWidth,
           fillRemaining: true,
           text: text,
-          cellBuilder: _buildNameCell,
+          statefulCellBuilder: _buildNameCell,
           headerTrailingBuilder: headerTrailingBuilder,
           onDoubleTap: onNameDoubleTap,
         ),
@@ -1435,21 +1493,41 @@ class EditableSwipeNameTable<T> extends StatelessWidget {
     ];
   }
 
-  Widget _buildNameCell(BuildContext context, T row, double width) {
+  Widget _buildNameCell(
+    BuildContext context,
+    T row,
+    double width,
+    SwipeActionTableCellState state,
+  ) {
     final rowIndex = rows.indexWhere((candidate) => identical(candidate, row));
     if (rowIndex != editingIndex) {
       return SizedBox(
         width: width,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 6),
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              text(row),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+        child: Row(
+          children: [
+            if (state.swipeToggleVisible)
+              _SwipeActionToggleButton(
+                open: state.actionRailOpen,
+                enabled: enabled && state.swipeToggleEnabled,
+                onPressed: state.onToggleActionRail,
+              ),
+            Expanded(
+              child: Padding(
+                padding: EdgeInsets.only(
+                  left: state.swipeToggleVisible ? 2 : 6,
+                  right: 6,
+                ),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    text(row),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ),
             ),
-          ),
+          ],
         ),
       );
     }
@@ -1460,6 +1538,47 @@ class EditableSwipeNameTable<T> extends StatelessWidget {
       canSubmit: canSubmit,
       onCancel: onCancelEdit,
       onSubmit: onSubmitEdit,
+    );
+  }
+}
+
+class _SwipeActionToggleButton extends StatelessWidget {
+  const _SwipeActionToggleButton({
+    required this.open,
+    required this.enabled,
+    required this.onPressed,
+  });
+
+  final bool open;
+  final bool enabled;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: open ? '수정/삽입/삭제 닫기' : '수정/삽입/삭제 열기',
+      child: SizedBox(
+        width: 24,
+        height: 24,
+        child: IconButton(
+          padding: EdgeInsets.zero,
+          splashRadius: 14,
+          icon: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 120),
+            transitionBuilder: (child, animation) => FadeTransition(
+              opacity: animation,
+              child: child,
+            ),
+            child: Icon(
+              open ? Icons.chevron_right : Icons.chevron_left,
+              key: ValueKey(open),
+              size: 18,
+              color: enabled ? const Color(0xFF0E2F66) : const Color(0xffb0bec5),
+            ),
+          ),
+          onPressed: enabled ? onPressed : null,
+        ),
+      ),
     );
   }
 }

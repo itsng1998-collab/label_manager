@@ -110,6 +110,43 @@ Future<void> _pumpReorderTable(WidgetTester tester) async {
   );
 }
 
+Future<void> _pumpEditableNameTable(
+  WidgetTester tester, {
+  int? editingIndex,
+  bool rowSwipeEnabled = true,
+  void Function(_Row row, int index)? onNameDoubleTap,
+}) async {
+  await tester.pumpWidget(
+    MaterialApp(
+      home: Scaffold(
+        body: SizedBox(
+          width: 360,
+          height: 160,
+          child: EditableSwipeNameTable<_Row>(
+            rows: const [_Row('Brand A', 'A001'), _Row('Brand B', 'B001')],
+            header: '브랜드 이름',
+            text: (row) => row.name,
+            editController: TextEditingController(text: 'Brand A'),
+            editFocusNode: FocusNode(),
+            editingIndex: editingIndex,
+            insertActionIndex: null,
+            inserting: false,
+            canSubmit: false,
+            onToggleEdit: (_, _) {},
+            onToggleInsert: (_, _) {},
+            onCancelEdit: () {},
+            onSubmitEdit: (_) {},
+            onNameDoubleTap: onNameDoubleTap,
+            rowSwipeEnabled: rowSwipeEnabled,
+            keepRowContentOnSwipe: true,
+            showActionsWhenEmpty: true,
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
 Future<void> _doubleTap(WidgetTester tester, Finder finder) async {
   await tester.tap(finder);
   await tester.pump(const Duration(milliseconds: 50));
@@ -339,6 +376,67 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(tester.getSize(cellFinder).width, greaterThan(60));
+  });
+
+  testWidgets('editable name table toggle button opens and closes action rail', (
+    tester,
+  ) async {
+    await _pumpEditableNameTable(tester);
+
+    expect(find.byTooltip('수정/삽입/삭제 열기'), findsNWidgets(2));
+    expect(find.byTooltip('수정/삽입/삭제 닫기'), findsNothing);
+
+    await tester.tap(find.byTooltip('수정/삽입/삭제 열기').first);
+    await tester.pumpAndSettle();
+
+    expect(find.byTooltip('수정/삽입/삭제 닫기'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('수정/삽입/삭제 닫기'));
+    await tester.pumpAndSettle();
+
+    expect(find.byTooltip('수정/삽입/삭제 열기'), findsNWidgets(2));
+    expect(find.byTooltip('수정/삽입/삭제 닫기'), findsNothing);
+  });
+
+  testWidgets('editable name table toggle button does not trigger name double tap', (
+    tester,
+  ) async {
+    var doubleTapCount = 0;
+    await _pumpEditableNameTable(
+      tester,
+      onNameDoubleTap: (_, _) => doubleTapCount += 1,
+    );
+
+    await tester.tap(find.byTooltip('수정/삽입/삭제 열기').first);
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.tap(find.byTooltip('수정/삽입/삭제 닫기'));
+    await tester.pumpAndSettle();
+
+    expect(doubleTapCount, 0);
+  });
+
+  testWidgets('editable name table disables swipe toggle while inline editing', (
+    tester,
+  ) async {
+    await _pumpEditableNameTable(tester, editingIndex: 0);
+
+    final button = tester.widget<IconButton>(
+      find.descendant(
+        of: find.byTooltip('수정/삽입/삭제 열기'),
+        matching: find.byType(IconButton),
+      ),
+    );
+
+    expect(button.onPressed, isNull);
+  });
+
+  testWidgets('editable name table hides swipe toggle when row swipe is disabled', (
+    tester,
+  ) async {
+    await _pumpEditableNameTable(tester, rowSwipeEnabled: false);
+
+    expect(find.byTooltip('수정/삽입/삭제 열기'), findsNothing);
+    expect(find.byTooltip('수정/삽입/삭제 닫기'), findsNothing);
   });
 
   testWidgets('header trailing builder receives interactive row state', (
