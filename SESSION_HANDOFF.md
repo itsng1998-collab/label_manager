@@ -34,6 +34,7 @@
 - `test/swipe_action_table_test.dart`: 밀기 버튼의 오른쪽 끝이 테이블 오른쪽 끝보다 최소 2px 안쪽인지 검증 추가.
 - 검증 완료: `C:\Flutter\bin\dart.bat format lib\widgets\swipe_action_table.dart test\swipe_action_table_test.dart` 성공, `flutter test test/swipe_action_table_test.dart` 20개 성공, `C:\Flutter\bin\flutter.bat analyze lib\widgets\swipe_action_table.dart test\swipe_action_table_test.dart --no-fatal-warnings --no-fatal-infos` No issues.
 - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/widgets/swipe_action_table.dart`, `test/swipe_action_table_test.dart`.
+- 기능 커밋: `4cff685` (`설정 테이블 밀기 아이콘 여백 조정`).
 
 ### 완료 (2026-07-03): 프린터 설정 그룹 라벨 배경색 조정
 
