@@ -29,6 +29,16 @@
 
 ### 최근 완료 (2026-07-03)
 
+- **완료**: 공용라벨관리의 `라벨 파일에서 가져오기` 완료 후 시트에 포커스를 남기지 않아 셀 선택 파란 하이라이트가 보이지 않게 수정.
+  - `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`: `FortuneSheetController.unfocusSheet()` API 추가, 내부 sheet focus node 해제 및 `_sheetFocused=false` 동기화.
+  - `lib/page_label_sheet/label_sheet_workbench.dart`: `_handleImportLabelFile`에서 clear/update/zoom 적용 직후 `_controller.unfocusSheet()` 호출.
+  - `third_party/fortune_sheet/test/fortune_sheet_focus_selection_test.dart`: 컨트롤러로 업데이트 후 `unfocusSheet()` 호출 시 selection blue pixel이 사라지는 회귀 테스트 추가.
+  - 검증 완료: `third_party/fortune_sheet`에서 `flutter test test/fortune_sheet_focus_selection_test.dart` 2개 성공.
+  - 검증 완료: `third_party/fortune_sheet`에서 `flutter analyze lib/src/fortune_sheet_canvas.dart lib/src/fortune_sheet_painter.dart test/fortune_sheet_focus_selection_test.dart --no-fatal-warnings --no-fatal-infos` 성공.
+  - 검증 완료: 루트에서 `flutter analyze lib/page_label_sheet/label_sheet_workbench.dart --no-fatal-warnings --no-fatal-infos` 성공.
+  - 임시 산출물 정리 완료: 검증 중 생성된 `third_party/fortune_sheet/build/` 삭제.
+  - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/page_label_sheet/label_sheet_workbench.dart`, `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`, `third_party/fortune_sheet/test/fortune_sheet_focus_selection_test.dart` (`.vscode/settings.json`, `lib/core/app.dart` 기존 dirty 제외).
+
 - **완료**: 공용라벨 관리 시트가 포커스 받기 전 셀 선택 파란 하이라이트가 보이는 문제 수정.
   - 원인 후보: `FortuneSheetCanvas`의 `_sheetFocused` 기본값이 `true`이고, `FortuneSheetPainter._drawSheet`의 선택 표시 조건이 `sheetFocused`를 보지 않아 초기 렌더링부터 선택 하이라이트가 그려짐.
   - `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`: `_sheetFocused` 기본값을 false로 변경하고, sheet focus node 획득/상실 시 `_sheetFocused`를 동기화.

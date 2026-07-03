@@ -1458,6 +1458,10 @@ class FortuneSheetController {
     _state?._updateControllerSheet(data);
   }
 
+  void unfocusSheet() {
+    _state?._unfocusSheet();
+  }
+
   void setZoomRatio(double zoomRatio, {String? id, int? index}) {
     _state?._setControllerZoomRatio(zoomRatio, id: id, index: index);
   }
@@ -3247,6 +3251,16 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     if (!_focusNode.hasFocus) {
       _clearSheetRulerSelection();
     }
+  }
+
+  void _unfocusSheet() {
+    _focusNode.unfocus();
+    if (!_sheetFocused) {
+      return;
+    }
+    setState(() {
+      _sheetFocused = false;
+    });
   }
 
   void _handleBarcodeTextChanged() {

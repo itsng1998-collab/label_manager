@@ -2107,6 +2107,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     );
     _controller.updateSheet(<FortuneSheet>[importedSheet]);
     _setLabelSheetZoomPercent(100);
+    _controller.unfocusSheet();
     if (!mounted) {
       return;
     }

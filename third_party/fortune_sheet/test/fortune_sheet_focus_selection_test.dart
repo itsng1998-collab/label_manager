@@ -4,6 +4,8 @@ import 'dart:ui' as ui;
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:fortune_sheet/src/fortune_sheet_app.dart';
+import 'package:fortune_sheet/src/fortune_sheet_canvas.dart';
 import 'package:fortune_sheet/src/fortune_sheet_model.dart' hide Image, Rect;
 import 'package:fortune_sheet/src/fortune_sheet_painter.dart';
 
@@ -26,6 +28,70 @@ void main() {
 
     final focusedPixels = await _paintSelection(tester, sheetFocused: true);
     expect(_countSelectionPixels(focusedPixels), greaterThan(0));
+  });
+
+  testWidgets('controller can remove sheet focus after file import applies', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(240, 160);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    final controller = FortuneSheetController();
+    const captureKey = ValueKey('fortune-sheet-app-focus-capture');
+    final workbook = FortuneWorkbook(
+      settings: const FortuneSettings(
+        showToolbar: false,
+        showFormulaBar: false,
+        showSheetTabs: false,
+        statisticBarHeight: 0,
+        rowHeaderWidth: 40,
+        columnHeaderHeight: 20,
+        row: 4,
+        column: 4,
+      ),
+      sheets: [FortuneSheet(id: 's1', name: 'Sheet1')],
+    );
+
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: RepaintBoundary(
+          key: captureKey,
+          child: FortuneSheetApp(
+            workbook: workbook,
+            controller: controller,
+            showFormulaBar: false,
+            showSheetTabs: false,
+          ),
+        ),
+      ),
+    );
+    await tester.tapAt(const Offset(75, 55));
+    await tester.pump();
+
+    final focusedPixels = await _capturePixels(tester, find.byKey(captureKey));
+    expect(_countSelectionPixels(focusedPixels), greaterThan(0));
+
+    controller.updateSheet([
+      FortuneSheet(
+        id: 's1',
+        name: 'Sheet1',
+        rowCount: 4,
+        columnCount: 4,
+      ),
+    ]);
+    controller.unfocusSheet();
+    await tester.pump();
+
+    final unfocusedPixels = await _capturePixels(
+      tester,
+      find.byKey(captureKey),
+    );
+    expect(_countSelectionPixels(unfocusedPixels), 0);
   });
 }
 
