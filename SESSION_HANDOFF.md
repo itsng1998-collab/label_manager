@@ -47,6 +47,7 @@
 - 순서 변경 모드 UI 검증 완료: `dart format` 3파일 성공, `C:\Flutter\bin\flutter.bat analyze lib/home_page_manager.dart lib/widgets/swipe_action_table.dart test/swipe_action_table_test.dart --no-fatal-warnings --no-fatal-infos` No issues, `C:\Flutter\bin\flutter.bat test test/swipe_action_table_test.dart test/label_size_cache_test.dart` 11개 성공.
 - 순서 변경 모드 UI 커밋: `4b17fef` (`라벨 설정 순서 변경 모드 UI 추가`).
 - 순서 변경 모드 툴팁 수정 완료: `_TableBodyTooltip`가 `rowTooltip` 메시지 변경 시 기존 툴팁만 숨기고 재예약하지 않아, 마우스가 본문 위에 남아 있는 상태에서는 `순서 변경 중에는 스와이프 수정/삽입/삭제를 사용할 수 없습니다`가 표시되지 않을 수 있던 경로 수정. `test/swipe_action_table_test.dart`에 메시지 변경 후 툴팁 재표시 테스트 추가. `dart format` 2파일 성공, `C:\Flutter\bin\flutter.bat test test/swipe_action_table_test.dart` 11개 성공, `C:\Flutter\bin\flutter.bat analyze lib/widgets/swipe_action_table.dart test/swipe_action_table_test.dart --no-fatal-warnings --no-fatal-infos` No issues.
+- 순서 변경 모드 툴팁 수정 커밋: `13ae55d` (`순서 변경 모드 툴팁 재표시 수정`).
 - 검증 완료: `dart format` 2파일 성공, `C:\Flutter\bin\flutter.bat analyze lib/models/label_size.dart lib/home_page_manager.dart --no-fatal-warnings --no-fatal-infos` No issues, `C:\Flutter\bin\flutter.bat test test/label_size_cache_test.dart` 1개 성공.
 - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/models/label_size.dart`, `lib/home_page_manager.dart`, `doc/BM_RICH_BRAND.sql`, `doc/BM_RICH_LABELSIZE_FORM.sql` 포함(사용자 요청). 기존 dirty `lib/core/app.dart`는 제외.
 - 기능 커밋: `a6f4911` (`라벨 설정 순서 적용 저장 구현`).
