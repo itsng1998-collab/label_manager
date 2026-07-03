@@ -2462,7 +2462,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   double _sheetListScrollOffset = 0;
   bool _sheetTabColorMenuOpen = false;
   bool _zoomMenuOpen = false;
-  bool _sheetFocused = true;
+  bool _sheetFocused = false;
   final FocusNode _focusNode = FocusNode(debugLabel: 'FortuneSheetCanvas');
   final FocusNode _editorFocusNode = FocusNode(debugLabel: 'FortuneCellEditor');
   final FocusNode _formulaBarEditorFocusNode = FocusNode(
@@ -3235,6 +3235,15 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   }
 
   void _handleSheetFocusChanged() {
+    if (_focusNode.hasFocus) {
+      setState(() {
+        _sheetFocused = true;
+      });
+      return;
+    }
+    setState(() {
+      _sheetFocused = false;
+    });
     if (!_focusNode.hasFocus) {
       _clearSheetRulerSelection();
     }

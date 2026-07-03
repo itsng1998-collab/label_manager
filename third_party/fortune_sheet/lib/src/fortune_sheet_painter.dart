@@ -62440,7 +62440,7 @@ class FortuneSheetPainter extends CustomPainter {
   void _drawSheet(Canvas canvas, Size size) {
     final settings = workbook.settings;
     final metrics = workbook.activeSheet.metrics(settings);
-    final showCellSelection = activeImageId == null;
+    final showCellSelection = activeImageId == null && sheetFocused;
     _drawHeaders(canvas, size, settings, metrics);
     _drawFrozenHeaders(canvas, size, settings, metrics);
     if (showCellSelection) {

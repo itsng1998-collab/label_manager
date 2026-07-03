@@ -29,6 +29,16 @@
 
 ### 최근 완료 (2026-07-03)
 
+- **완료**: 공용라벨 관리 시트가 포커스 받기 전 셀 선택 파란 하이라이트가 보이는 문제 수정.
+  - 원인 후보: `FortuneSheetCanvas`의 `_sheetFocused` 기본값이 `true`이고, `FortuneSheetPainter._drawSheet`의 선택 표시 조건이 `sheetFocused`를 보지 않아 초기 렌더링부터 선택 하이라이트가 그려짐.
+  - `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`: `_sheetFocused` 기본값을 false로 변경하고, sheet focus node 획득/상실 시 `_sheetFocused`를 동기화.
+  - `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`: `sheetFocused`일 때만 셀/헤더 선택 하이라이트를 그림.
+  - `third_party/fortune_sheet/test/fortune_sheet_focus_selection_test.dart`: `sheetFocused=false`일 때 selection blue pixel이 없고, `true`일 때 생기는 회귀 테스트 추가.
+  - 검증 완료: `third_party/fortune_sheet`에서 `flutter test test/fortune_sheet_focus_selection_test.dart` 1개 성공.
+  - 검증 완료: `third_party/fortune_sheet`에서 `flutter analyze lib/src/fortune_sheet_canvas.dart lib/src/fortune_sheet_painter.dart test/fortune_sheet_focus_selection_test.dart --no-fatal-warnings --no-fatal-infos` 성공.
+  - 임시 산출물 정리 완료: 검증 중 생성된 `third_party/fortune_sheet/build/` 삭제.
+  - stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`, `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`, `third_party/fortune_sheet/test/fortune_sheet_focus_selection_test.dart` (`.vscode/settings.json`, `lib/core/app.dart` 기존 dirty 제외).
+
 - **완료**: XLSX 가져오기 최소 가독 기준을 화면 logical px가 아닌 실물 프린트 mm 기준으로 변경.
   - 사용자 정정: 가독 기준은 화면상이 아니라 실물 라벨 프린트 기준.
   - 최신 로그 `.tmp/log/app_2026-07-03_10-33-57.log`: `widthScale=0.32966735136368824`, `readableScale=0.3`, `scale=0.32966735136368824`, `minFontSize=26.666666666666668`, `minReadable=8.0`.
