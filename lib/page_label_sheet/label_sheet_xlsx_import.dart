@@ -249,6 +249,7 @@ Map<String, Object?> _sheetJsonFromWorksheet(
   final lineBreakSamples = <String>[];
   final borderSamples = <String>[];
   final skippedBlankBorderSamples = <String>[];
+  final skippedValueBorderSamples = <String>[];
   var maxRow = 0;
   var maxColumn = 0;
 
@@ -424,15 +425,18 @@ Map<String, Object?> _sheetJsonFromWorksheet(
           'fs=${cellJson['fs']} mc=${cellJson['mc']}',
         );
       }
-      final shouldImportBorders = _shouldImportXlsxCellBorders(
-        coord.row,
-        coord.column,
-        cellValue: cellValue,
-        cellJson: cellJson,
-        merge: merge,
-        hyperlink: hyperlink,
-        mergeRanges: mergeRanges,
-      );
+      final shouldSkipBorders = _shouldSkipXlsxCellBorders(cellValue);
+      final shouldImportBorders =
+          !shouldSkipBorders &&
+          _shouldImportXlsxCellBorders(
+            coord.row,
+            coord.column,
+            cellValue: cellValue,
+            cellJson: cellJson,
+            merge: merge,
+            hyperlink: hyperlink,
+            mergeRanges: mergeRanges,
+          );
       if (shouldImportBorders) {
         for (final border in style.borderInfo(coord.row, coord.column)) {
           borderInfo.add(border);
@@ -441,6 +445,17 @@ Map<String, Object?> _sheetJsonFromWorksheet(
               '${_coordLabel(coord.row, coord.column)} '
               'style=${cellAttributes['s']} ${_borderInfoLogText(border)}',
             );
+          }
+        }
+      } else if (shouldSkipBorders && skippedValueBorderSamples.length < 80) {
+        for (final border in style.borderInfo(coord.row, coord.column)) {
+          skippedValueBorderSamples.add(
+            '${_coordLabel(coord.row, coord.column)} '
+            'value=${_logText(cellValue.text ?? '')} '
+            'style=${cellAttributes['s']} ${_borderInfoLogText(border)}',
+          );
+          if (skippedValueBorderSamples.length >= 80) {
+            break;
           }
         }
       } else if (skippedBlankBorderSamples.length < 200) {
@@ -511,6 +526,10 @@ Map<String, Object?> _sheetJsonFromWorksheet(
     'wrapCells=${wrapSamples.join(' | ')}',
   );
   _logXlsxChunks('worksheet border samples', borderSamples);
+  _logXlsxChunks(
+    'worksheet skipped value border samples',
+    skippedValueBorderSamples,
+  );
   _logXlsxChunks(
     'worksheet skipped blank border samples',
     skippedBlankBorderSamples,
@@ -1397,6 +1416,10 @@ bool _shouldImportXlsxCellBorders(
     return true;
   }
   return false;
+}
+
+bool _shouldSkipXlsxCellBorders(_XlsxCellValue cellValue) {
+  return cellValue.text?.trim().toUpperCase() == '#BARCODE';
 }
 
 bool _isInsideXlsxMergeRange(
