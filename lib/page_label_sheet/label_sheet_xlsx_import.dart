@@ -243,6 +243,8 @@ Map<String, Object?> _sheetJsonFromWorksheet(
   final mergeMap = <String, Map<String, Object?>>{};
   final mergeRanges =
       <({int rowStart, int rowEnd, int columnStart, int columnEnd})>[];
+  final borderlessMergeRanges =
+      <({int rowStart, int rowEnd, int columnStart, int columnEnd})>[];
   final valueSamples = <String>[];
   final styleSamples = <String>[];
   final wrapSamples = <String>[];
@@ -425,7 +427,16 @@ Map<String, Object?> _sheetJsonFromWorksheet(
           'fs=${cellJson['fs']} mc=${cellJson['mc']}',
         );
       }
-      final shouldSkipBorders = _shouldSkipXlsxCellBorders(cellValue);
+      if (_shouldSkipXlsxCellBorders(cellValue) && merge != null) {
+        borderlessMergeRanges.add(_mergeRangeFromJson(merge));
+      }
+      final shouldSkipBorders =
+          _shouldSkipXlsxCellBorders(cellValue) ||
+          _isInsideXlsxMergeRange(
+            coord.row,
+            coord.column,
+            borderlessMergeRanges,
+          );
       final shouldImportBorders =
           !shouldSkipBorders &&
           _shouldImportXlsxCellBorders(
@@ -1419,7 +1430,33 @@ bool _shouldImportXlsxCellBorders(
 }
 
 bool _shouldSkipXlsxCellBorders(_XlsxCellValue cellValue) {
-  return cellValue.text?.trim().toUpperCase() == '#BARCODE';
+  final text = cellValue.text?.trim();
+  if (text == null || text.isEmpty) {
+    return false;
+  }
+  final upperText = text.toUpperCase();
+  if (upperText == '#BARCODE' || upperText == '#VALIDDATE') {
+    return true;
+  }
+  return text.startsWith('*업소명 및 소재지:') ||
+      text.startsWith('*유통기한:') ||
+      text.startsWith('*반품/교환장소:') ||
+      text.startsWith('*본 제품은') ||
+      text.startsWith('*부정불량식품 신고');
+}
+
+({int rowStart, int rowEnd, int columnStart, int columnEnd})
+_mergeRangeFromJson(Map<String, Object?> merge) {
+  final rowStart = (merge['r'] as num).toInt();
+  final columnStart = (merge['c'] as num).toInt();
+  final rowSpan = (merge['rs'] as num).toInt();
+  final columnSpan = (merge['cs'] as num).toInt();
+  return (
+    rowStart: rowStart,
+    rowEnd: rowStart + rowSpan - 1,
+    columnStart: columnStart,
+    columnEnd: columnStart + columnSpan - 1,
+  );
 }
 
 bool _isInsideXlsxMergeRange(

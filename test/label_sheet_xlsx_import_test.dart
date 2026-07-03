@@ -13,7 +13,7 @@ void main() {
 
     expect(sheet.name, 'Labels');
     expect(sheet.rowCount, 3);
-    expect(sheet.columnCount, 7);
+    expect(sheet.columnCount, 8);
     expect(sheet.rowHeights[0], closeTo(32, 0.01));
     expect(sheet.columnWidths[0], closeTo(96, 0.01));
     expect(sheet.hiddenRows, contains(1));
@@ -95,10 +95,13 @@ void main() {
     );
     expect(_hasBorderAt(sheet, const FortuneCellCoord(0, 4)), isTrue);
     expect(_hasBorderAt(sheet, const FortuneCellCoord(0, 5)), isFalse);
+    expect(sheet.cells[const FortuneCellCoord(0, 7)]?.value, '*유통기한:');
+    expect(_hasBorderAt(sheet, const FortuneCellCoord(0, 7)), isFalse);
     expect(_hasBorderAt(sheet, const FortuneCellCoord(2, 1)), isFalse);
     expect(_hasBorderAt(sheet, const FortuneCellCoord(2, 2)), isFalse);
     expect(sheet.cells[const FortuneCellCoord(2, 6)]?.value, '#BARCODE');
     expect(_hasBorderAt(sheet, const FortuneCellCoord(2, 6)), isFalse);
+    expect(_hasBorderAt(sheet, const FortuneCellCoord(2, 7)), isFalse);
   });
 
   test('detects xlsx bytes and supports absolute worksheet targets', () {
@@ -232,8 +235,8 @@ Uint8List _xlsxBytes({
 </styleSheet>''');
   addXml('xl/worksheets/sheet1.xml', '''<?xml version="1.0" encoding="UTF-8"?>
 <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
-  <dimension ref="A1:G3"/>
-  <cols><col min="1" max="1" width="12" customWidth="1"/><col min="3" max="3" hidden="1" width="10" customWidth="1"/><col min="4" max="5" width="8" customWidth="1"/><col min="6" max="7" width="8" customWidth="1"/></cols>
+  <dimension ref="A1:H3"/>
+  <cols><col min="1" max="1" width="12" customWidth="1"/><col min="3" max="3" hidden="1" width="10" customWidth="1"/><col min="4" max="5" width="8" customWidth="1"/><col min="6" max="8" width="8" customWidth="1"/></cols>
   <sheetData>
     <row r="1" ht="24" customHeight="1">
       <c r="A1" t="s" s="1"><v>0</v></c>
@@ -243,11 +246,12 @@ Uint8List _xlsxBytes({
       <c r="E1" s="1"/>
       <c r="F1" s="2"/>
       <c r="G1" t="str" s="2"><v>빈셀 다음 값</v></c>
+      <c r="H1" t="str" s="1"><v>*유통기한:</v></c>
     </row>
     <row r="2" hidden="1"><c r="A2" s="2"/></row>
-    <row r="3"><c r="A3" t="str" s="2"><v>첫 줄&#10;둘째 줄</v></c><c r="B3" s="3"/><c r="C3" s="4"/><c r="G3" t="str" s="1"><v>#BARCODE</v></c></row>
+    <row r="3"><c r="A3" t="str" s="2"><v>첫 줄&#10;둘째 줄</v></c><c r="B3" s="3"/><c r="C3" s="4"/><c r="G3" t="str" s="1"><v>#BARCODE</v></c><c r="H3" s="1"/></row>
   </sheetData>
-  <mergeCells count="2"><mergeCell ref="A1:B2"/><mergeCell ref="D1:E1"/></mergeCells>
+  <mergeCells count="3"><mergeCell ref="A1:B2"/><mergeCell ref="D1:E1"/><mergeCell ref="G3:H3"/></mergeCells>
   <hyperlinks><hyperlink ref="B1" r:id="rIdHyper"/></hyperlinks>
 </worksheet>''');
   addXml('customXml/item1.xml', '''<?xml version="1.0" encoding="UTF-8"?>
