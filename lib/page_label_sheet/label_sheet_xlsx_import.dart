@@ -241,6 +241,8 @@ Map<String, Object?> _sheetJsonFromWorksheet(
   final borderInfo = <Map<String, Object?>>[];
   final hyperlinks = <String, Object?>{};
   final mergeMap = <String, Map<String, Object?>>{};
+  final mergeRanges =
+      <({int rowStart, int rowEnd, int columnStart, int columnEnd})>[];
   final valueSamples = <String>[];
   final styleSamples = <String>[];
   final wrapSamples = <String>[];
@@ -266,6 +268,12 @@ Map<String, Object?> _sheetJsonFromWorksheet(
     if (rowSpan <= 1 && columnSpan <= 1) {
       continue;
     }
+    mergeRanges.add((
+      rowStart: start.row,
+      rowEnd: end.row,
+      columnStart: start.column,
+      columnEnd: end.column,
+    ));
     mergeMap['${start.row}_${start.column}'] = {
       'r': start.row,
       'c': start.column,
@@ -415,13 +423,24 @@ Map<String, Object?> _sheetJsonFromWorksheet(
           'fs=${cellJson['fs']} mc=${cellJson['mc']}',
         );
       }
-      for (final border in style.borderInfo(coord.row, coord.column)) {
-        borderInfo.add(border);
-        if (borderSamples.length < 200) {
-          borderSamples.add(
-            '${_coordLabel(coord.row, coord.column)} '
-            'style=${cellAttributes['s']} ${_borderInfoLogText(border)}',
-          );
+      final shouldImportBorders = _shouldImportXlsxCellBorders(
+        coord.row,
+        coord.column,
+        cellValue: cellValue,
+        cellJson: cellJson,
+        merge: merge,
+        hyperlink: hyperlink,
+        mergeRanges: mergeRanges,
+      );
+      if (shouldImportBorders) {
+        for (final border in style.borderInfo(coord.row, coord.column)) {
+          borderInfo.add(border);
+          if (borderSamples.length < 200) {
+            borderSamples.add(
+              '${_coordLabel(coord.row, coord.column)} '
+              'style=${cellAttributes['s']} ${_borderInfoLogText(border)}',
+            );
+          }
         }
       }
       maxRow = _max(maxRow, coord.row + 1);
@@ -1340,6 +1359,45 @@ String _borderInfoLogText(Map<String, Object?> border) {
   return 'type=${border['borderType']} style=${border['style']} '
       'stroke=${border['strokeWidth']} color=${border['color']} '
       'row=$row column=$column';
+}
+
+bool _shouldImportXlsxCellBorders(
+  int row,
+  int column, {
+  required _XlsxCellValue cellValue,
+  required Map<String, Object?> cellJson,
+  required Map<String, Object?>? merge,
+  required Object? hyperlink,
+  required List<({int rowStart, int rowEnd, int columnStart, int columnEnd})>
+  mergeRanges,
+}) {
+  final text = cellValue.text;
+  if (text != null && text.isNotEmpty) {
+    return true;
+  }
+  if (cellValue.formula != null || hyperlink != null) {
+    return true;
+  }
+  if (merge != null || _isInsideXlsxMergeRange(row, column, mergeRanges)) {
+    return true;
+  }
+  return cellJson.containsKey('bg');
+}
+
+bool _isInsideXlsxMergeRange(
+  int row,
+  int column,
+  List<({int rowStart, int rowEnd, int columnStart, int columnEnd})> ranges,
+) {
+  for (final range in ranges) {
+    if (row >= range.rowStart &&
+        row <= range.rowEnd &&
+        column >= range.columnStart &&
+        column <= range.columnEnd) {
+      return true;
+    }
+  }
+  return false;
 }
 
 void _logXlsxChunks(String prefix, List<String> samples) {

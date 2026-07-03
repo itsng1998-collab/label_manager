@@ -73,8 +73,14 @@ void main() {
     expect(c1.inlineRuns![1].extraFields['letterSpacing'], 0.5);
     expect(c1.inlineRuns![1].extraFields['lineHeight'], 1.2);
 
-    expect(sheet.borderInfo.map((border) => border.borderType), contains('border-left'));
-    expect(sheet.borderInfo.map((border) => border.borderType), contains('border-top'));
+    expect(
+      sheet.borderInfo.map((border) => border.borderType),
+      contains('border-left'),
+    );
+    expect(
+      sheet.borderInfo.map((border) => border.borderType),
+      contains('border-top'),
+    );
     expect(
       sheet.borderInfo
           .where((border) => border.borderType == 'border-top')
@@ -87,24 +93,30 @@ void main() {
           .map((border) => border.strokeWidth),
       contains(1.5),
     );
+    expect(_hasBorderAt(sheet, const FortuneCellCoord(0, 4)), isTrue);
+    expect(_hasBorderAt(sheet, const FortuneCellCoord(0, 5)), isFalse);
   });
 
   test('detects xlsx bytes and supports absolute worksheet targets', () {
     final bytes = _xlsxBytes(absoluteWorksheetTarget: true);
 
     expect(labelSheetLooksLikeXlsx(bytes), isTrue);
-    expect(labelSheetLooksLikeXlsx(Uint8List.fromList('not a zip'.codeUnits)), isFalse);
     expect(
-      labelSheetWorkbookFromXlsxBytes(bytes)
-          .activeSheet
-          .cells[const FortuneCellCoord(0, 0)]
-          ?.value,
+      labelSheetLooksLikeXlsx(Uint8List.fromList('not a zip'.codeUnits)),
+      isFalse,
+    );
+    expect(
+      labelSheetWorkbookFromXlsxBytes(
+        bytes,
+      ).activeSheet.cells[const FortuneCellCoord(0, 0)]?.value,
       '라벨',
     );
   });
 
   test('imports xlsx xml with namespace-prefixed spreadsheet tags', () {
-    final workbook = labelSheetWorkbookFromXlsxBytes(_xlsxBytes(prefixTags: true));
+    final workbook = labelSheetWorkbookFromXlsxBytes(
+      _xlsxBytes(prefixTags: true),
+    );
 
     expect(workbook.activeSheet.name, 'Labels');
     expect(
@@ -112,10 +124,26 @@ void main() {
       '라벨',
     );
     expect(
-      workbook.activeSheet.cells[const FortuneCellCoord(0, 2)]?.inlineRuns?[1].extraFields['script'],
+      workbook
+          .activeSheet
+          .cells[const FortuneCellCoord(0, 2)]
+          ?.inlineRuns?[1]
+          .extraFields['script'],
       'subscript',
     );
   });
+}
+
+bool _hasBorderAt(FortuneSheet sheet, FortuneCellCoord coord) {
+  return sheet.borderInfo.any(
+    (border) => border.ranges.any(
+      (range) =>
+          coord.row >= range.rowStart &&
+          coord.row <= range.rowEnd &&
+          coord.column >= range.columnStart &&
+          coord.column <= range.columnEnd,
+    ),
+  );
 }
 
 Uint8List _xlsxBytes({
@@ -124,12 +152,16 @@ Uint8List _xlsxBytes({
 }) {
   final archive = Archive();
   void addXml(String name, String content) {
-    final shouldPrefix = prefixTags &&
+    final shouldPrefix =
+        prefixTags &&
         name.startsWith('xl/') &&
         name.endsWith('.xml') &&
         !name.contains('/_rels/');
     archive.addFile(
-      ArchiveFile.string(name, shouldPrefix ? _prefixSpreadsheetTags(content) : content),
+      ArchiveFile.string(
+        name,
+        shouldPrefix ? _prefixSpreadsheetTags(content) : content,
+      ),
     );
   }
 
@@ -155,10 +187,13 @@ Uint8List _xlsxBytes({
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
   <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="${absoluteWorksheetTarget ? '/xl/worksheets/sheet1.xml' : 'worksheets/sheet1.xml'}"/>
 </Relationships>''');
-  addXml('xl/worksheets/_rels/sheet1.xml.rels', '''<?xml version="1.0" encoding="UTF-8"?>
+  addXml(
+    'xl/worksheets/_rels/sheet1.xml.rels',
+    '''<?xml version="1.0" encoding="UTF-8"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
   <Relationship Id="rIdHyper" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="https://example.com" TargetMode="External"/>
-</Relationships>''');
+</Relationships>''',
+  );
   addXml('xl/sharedStrings.xml', '''<?xml version="1.0" encoding="UTF-8"?>
 <sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" count="2" uniqueCount="2">
   <si><t>라벨</t></si>
