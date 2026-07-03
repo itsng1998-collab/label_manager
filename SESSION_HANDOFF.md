@@ -45,6 +45,7 @@
 - 순서 변경 모드 UI 구현 완료: `SwipeActionTable`에 `headerTrailing`, 외부 `selectedIndex`, `onRowSelected` API 추가. 라벨 설정 다이얼로그의 `라벨 이름` 헤더 오른쪽에 순서 변경 아이콘 버튼을 추가하고, 클릭 시 순서 변경 모드 진입/헤더 아이콘 비활성/스와이프 비활성/하단 취소·적용 영역 표시/우측 위·아래 이동 버튼 표시를 연결. 위·아래 버튼은 선택 행을 `_moveLabelRow`와 같은 순서 변경 로직으로 이동하며, 적용 버튼은 전체 순서가 원본과 다를 때만 활성화.
 - 순서 변경 모드 UI 테스트 추가 완료: `test/swipe_action_table_test.dart`에 header trailing 렌더링, row selection callback 테스트 추가.
 - 순서 변경 모드 UI 검증 완료: `dart format` 3파일 성공, `C:\Flutter\bin\flutter.bat analyze lib/home_page_manager.dart lib/widgets/swipe_action_table.dart test/swipe_action_table_test.dart --no-fatal-warnings --no-fatal-infos` No issues, `C:\Flutter\bin\flutter.bat test test/swipe_action_table_test.dart test/label_size_cache_test.dart` 11개 성공.
+- 순서 변경 모드 UI 커밋: `4b17fef` (`라벨 설정 순서 변경 모드 UI 추가`).
 - 검증 완료: `dart format` 2파일 성공, `C:\Flutter\bin\flutter.bat analyze lib/models/label_size.dart lib/home_page_manager.dart --no-fatal-warnings --no-fatal-infos` No issues, `C:\Flutter\bin\flutter.bat test test/label_size_cache_test.dart` 1개 성공.
 - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/models/label_size.dart`, `lib/home_page_manager.dart`, `doc/BM_RICH_BRAND.sql`, `doc/BM_RICH_LABELSIZE_FORM.sql` 포함(사용자 요청). 기존 dirty `lib/core/app.dart`는 제외.
 - 기능 커밋: `a6f4911` (`라벨 설정 순서 적용 저장 구현`).
