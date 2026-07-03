@@ -34,6 +34,7 @@
 - `lib/widgets/swipe_action_table.dart`: `_InlineNameEditCell`에서 TextField 바깥 `Shortcuts/Actions` wrapper를 완전히 제거해 TextField가 키 입력을 직접 처리하도록 재복구.
 - 검증 완료: `C:\Flutter\bin\dart.bat format lib\home_page_manager.dart lib\widgets\swipe_action_table.dart` 성공, `flutter test test/swipe_action_table_test.dart` 20개 성공, `C:\Flutter\bin\flutter.bat analyze lib\home_page_manager.dart lib\widgets\swipe_action_table.dart test\swipe_action_table_test.dart --no-fatal-warnings --no-fatal-infos` No issues.
 - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/home_page_manager.dart`, `lib/widgets/swipe_action_table.dart`.
+- 기능 커밋: `e575a65` (`전자저울 UI 여백 조정과 키 입력 재복구`).
 
 ### 완료 (2026-07-03): 전자저울 UI 추가 미세 조정 및 인라인 키 입력 복구
 
