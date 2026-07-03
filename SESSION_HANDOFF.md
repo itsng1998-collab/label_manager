@@ -27,6 +27,19 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-03): 라벨 설정 인라인 라벨 삽입 저장 구현
+
+목적: 라벨 설정 다이얼로그의 삽입 인라인 에디터에서 Enter 키/Enter 아이콘 적용 시 DB에 라벨을 추가하고, 성공 후 `LabelSize.datas`, 헤더 라벨 드롭다운, 라벨 설정 테이블을 갱신한다.
+- 참조 확인: `.tmp/LabelManager/LabelManagerLib/LabelSize.cpp`의 `CLabelSizeDAO::Insert(int nBrandID, const CString& strName, BOOL bUseScale)`는 라벨 폼 insert 후 `BM_RICH_CHECK_COLUMNS` 기본 4개 행(`ITEMNAME`, `ELEMENT`, `SWEIGHT`, `SPRICE`)을 추가한다.
+- 사용자 확인 완료: 새 `RICH_LABELSIZE_ORDER`는 C++의 `RICH_BRAND_ID=12` 고정 조건이 아니라 선택 브랜드 ID 기준으로 `MAX(order)+1` 계산. 삽입 성공 후 헤더 드롭다운 선택은 기존 선택 유지.
+- 구현 예정: `lib/models/label_size.dart`에 `LabelSizeDAO.insert` 추가, `lib/home_page_manager.dart`의 `_LabelSettingsDialog` submit 경로에 확인 다이얼로그/진행 스낵바/실패 다이얼로그 및 DB 성공 후 재조회 갱신 연결.
+- `lib/models/label_size.dart`: `LabelSizeDAO.insert(brandId, labelSizeName, useScale)` 추가. 선택 브랜드 기준 새 순서 계산, `BM_RICH_LABELSIZE_FORM` 삽입, `BM_RICH_CHECK_COLUMNS` 기본 4개 행 삽입, 삽입 라벨 반환을 단일 트랜잭션으로 처리.
+- 1차 검증 완료: `C:\Flutter\bin\flutter.bat analyze lib\models\label_size.dart --no-fatal-warnings --no-fatal-infos` No issues.
+- `lib/home_page_manager.dart`: 라벨 설정 다이얼로그에 현재 `brandId`와 `onLabelsChanged` 재조회 콜백 전달. `_submitLabelNameEdit`에서 삽입 상태일 때 `_insertLabelName` 실행. 확인 다이얼로그/진행 스낵바/실패 다이얼로그 추가. DB 성공 후 부모 재조회 콜백으로 `LabelSize.datas`, 헤더 드롭다운, 다이얼로그 테이블을 갱신하며 헤더 선택 라벨은 기존 선택 유지.
+- 검증 진행: `C:\Flutter\bin\dart.bat format lib\home_page_manager.dart lib\models\label_size.dart` 성공, `C:\Flutter\bin\flutter.bat analyze lib\home_page_manager.dart lib\models\label_size.dart --no-fatal-warnings --no-fatal-infos` No issues.
+- 검증 완료: `flutter test test/swipe_action_table_test.dart test/label_size_cache_test.dart` 21개 성공, `C:\Flutter\bin\flutter.bat analyze lib\home_page_manager.dart lib\models\label_size.dart test\swipe_action_table_test.dart test\label_size_cache_test.dart --no-fatal-warnings --no-fatal-infos` No issues, `git diff --check -- SESSION_HANDOFF.md lib\home_page_manager.dart lib\models\label_size.dart` 통과.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `lib/home_page_manager.dart`, `lib/models/label_size.dart`.
+
 ### 완료 (2026-07-03): 설정 테이블 밀기 아이콘 우측 여백 조정
 
 목적: 브랜드/라벨 설정 다이얼로그 테이블에서 우측 스크롤 표시 시 행 밀기 아이콘이 스크롤바와 겹쳐 사용하기 어려운 문제를 완화한다. 밀기 아이콘을 오른쪽 끝에서 2px 앞쪽으로 당긴다.

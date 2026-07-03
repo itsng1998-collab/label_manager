@@ -34,22 +34,22 @@ class LabelSizeCommon {
 }
 
 class LabelSizeSetup {
-	final bool readOnly;
-	final bool useMakeDate;
-	final bool useMakeTime;
-	final bool useValidDate;
-	final bool useValidTime;
-	final PrintDateFormat makingDateFormat;
-	final PrintTimeFormat makingTimeFormat;
-	final PrintDateFormat validDateFormat;
-	final PrintTimeFormat validTimeFormat;
-	final String strMakeDate;
-	final String strMakeTime;
-	final String strValidDate;
-	final String strValidTime;
+  final bool readOnly;
+  final bool useMakeDate;
+  final bool useMakeTime;
+  final bool useValidDate;
+  final bool useValidTime;
+  final PrintDateFormat makingDateFormat;
+  final PrintTimeFormat makingTimeFormat;
+  final PrintDateFormat validDateFormat;
+  final PrintTimeFormat validTimeFormat;
+  final String strMakeDate;
+  final String strMakeTime;
+  final String strValidDate;
+  final String strValidTime;
 
-	// 저울
-	final bool useScale;
+  // 저울
+  final bool useScale;
 
   const LabelSizeSetup({
     required this.readOnly,
@@ -69,13 +69,14 @@ class LabelSizeSetup {
   });
 
   @override
-  String toString() => 'ReadOnly: $readOnly, '
-    'UseMakeDate: $useMakeDate, UseMakeTime: $useMakeTime, '
-    'UseValidDate: $useValidDate, UseValidTime: $useValidTime, '
-    'MakingDateFormat: $makingDateFormat, MakingTimeFormat: $makingTimeFormat, '
-    'ValidDateFormat: $validDateFormat, ValidTimeFormat: $validTimeFormat, '
-    'StrMakeDate: $strMakeDate, StrMakeTime: $strMakeTime, '
-    'StrValidDate: $strValidDate, StrValidTime: $strValidTime, UseScale: $useScale';
+  String toString() =>
+      'ReadOnly: $readOnly, '
+      'UseMakeDate: $useMakeDate, UseMakeTime: $useMakeTime, '
+      'UseValidDate: $useValidDate, UseValidTime: $useValidTime, '
+      'MakingDateFormat: $makingDateFormat, MakingTimeFormat: $makingTimeFormat, '
+      'ValidDateFormat: $validDateFormat, ValidTimeFormat: $validTimeFormat, '
+      'StrMakeDate: $strMakeDate, StrMakeTime: $strMakeTime, '
+      'StrValidDate: $strValidDate, StrValidTime: $strValidTime, UseScale: $useScale';
 }
 
 class LabelSize {
@@ -154,7 +155,7 @@ class LabelSize {
       width: map['FORM_WIDTH'],
       height: map['FORM_HEIGHT'],
       rtf: s('FORM_DATA'),
-    );  
+    );
 
     final labelSizeSetup = LabelSizeSetup(
       readOnly: map['SETUP_READONLY'] != 0,
@@ -184,7 +185,7 @@ class LabelSize {
 
   @override
   String toString() =>
-    'LabelSizeId: $labelSizeId, BrandId: $brandId, LabelSizeName: $labelSizeName';
+      'LabelSizeId: $labelSizeId, BrandId: $brandId, LabelSizeName: $labelSizeName';
 }
 
 class LabelSizeOrderUpdate {
@@ -198,7 +199,8 @@ class LabelSizeOrderUpdate {
 }
 
 class LabelSizeDAO extends DAO {
-  static const String SelectSql = '''
+  static const String SelectSql =
+      '''
     SELECT
       RICH_LABELSIZE_ID AS LABELSIZE_ID,
       RICH_BRAND_ID AS BRAND_ID,
@@ -240,21 +242,22 @@ class LabelSizeDAO extends DAO {
 	  ORDER BY RICH_LABELSIZE_ORDER ASC
   ''';
 
-  static Future<List<LabelSize>?> selectByBrandIdByLabelSizeOrder(int brandId) async {
+  static Future<List<LabelSize>?> selectByBrandIdByLabelSizeOrder(
+    int brandId,
+  ) async {
     debugLog('$START, brandId:$brandId');
 
     try {
       final res = await DbClient.instance.getDataWithParams(
         '$SelectSql $WhereSqlBrandId $OrderSqlByLabelSize',
-        { 'brandId': brandId }
+        {'brandId': brandId},
       );
 
       final labelSizes = DAO.mapRows(res, LabelSize.fromMap);
 
       debugLog(END);
       return labelSizes;
-    }
-    catch (e) {
+    } catch (e) {
       debugLog('$END, $e');
       throw Exception('${runtimeLogTag()} $e');
     }
@@ -285,7 +288,8 @@ class LabelSizeDAO extends DAO {
         FROM BM_RICH_LABELSIZE_FORM
       ''';
 
-      final updateFormDataTransactionSql = '''
+      final updateFormDataTransactionSql =
+          '''
         SET XACT_ABORT ON;
         BEGIN TRY
           BEGIN TRANSACTION;
@@ -309,32 +313,124 @@ class LabelSizeDAO extends DAO {
         END CATCH
       ''';
 
-      final res = await DbClient.instance.writeDataWithParams(
-        updateFormDataTransactionSql,
-        {'width': width, 'height': height, 'formData': formData,
-         'userId': User.instance!.userId, 'loginIP': hexLoginIP, 'labelSizeId': labelSizeId},
-      );
+      final res = await DbClient.instance
+          .writeDataWithParams(updateFormDataTransactionSql, {
+            'width': width,
+            'height': height,
+            'formData': formData,
+            'userId': User.instance!.userId,
+            'loginIP': hexLoginIP,
+            'labelSizeId': labelSizeId,
+          });
 
       final affected = DAO.affectedRows(res);
       final succeeded = affected > 0;
 
       if (!succeeded) {
-        throw Exception('${runtimeLogTag()} Transaction affected no rows for labelSizeId:$labelSizeId');
+        throw Exception(
+          '${runtimeLogTag()} Transaction affected no rows for labelSizeId:$labelSizeId',
+        );
       }
 
-      debugLog('$END, BM_RICH_LABELSIZE_FORM transaction Result: $res, affected:$affected, succeeded:$succeeded');
-    }
-    catch (e) {
+      debugLog(
+        '$END, BM_RICH_LABELSIZE_FORM transaction Result: $res, affected:$affected, succeeded:$succeeded',
+      );
+    } catch (e) {
       debugLog('$END, $e');
       rethrow;
     }
   }
 
-  static Future<void> updateOrder(
-    int labelSizeId,
-    int labelSizeOrder,
+  static Future<LabelSize> insert(
+    int brandId,
+    String labelSizeName,
+    bool useScale,
   ) async {
-    debugLog('$START, labelSizeId:$labelSizeId, labelSizeOrder:$labelSizeOrder');
+    debugLog(
+      '$START, brandId:$brandId, labelSizeName:$labelSizeName, useScale:$useScale',
+    );
+
+    try {
+      final insertSql =
+          '''
+        SET XACT_ABORT ON;
+        SET NOCOUNT ON;
+        BEGIN TRY
+          CREATE TABLE #InsertedLabelSize (
+            LABELSIZE_ID INT NOT NULL
+          );
+
+          BEGIN TRANSACTION;
+
+          DECLARE @labelSizeOrder INT;
+          SELECT @labelSizeOrder = COALESCE(MAX(RICH_LABELSIZE_ORDER), 0) + 1
+            FROM BM_RICH_LABELSIZE_FORM WITH (UPDLOCK, HOLDLOCK)
+           WHERE RICH_BRAND_ID=@brandId;
+
+          INSERT INTO BM_RICH_LABELSIZE_FORM
+            (RICH_BRAND_ID, RICH_LABELSIZE_NAME, RICH_SETUP_USE_SCALE, RICH_LABELSIZE_ORDER)
+          OUTPUT INSERTED.RICH_LABELSIZE_ID INTO #InsertedLabelSize (LABELSIZE_ID)
+          VALUES
+            (@brandId, @labelSizeName, @useScale, @labelSizeOrder);
+
+          INSERT INTO BM_RICH_CHECK_COLUMNS
+            (RICH_LABELSIZE_ID, RICH_COLUMN_ID, RICH_KEYWORD, RICH_COLUMN_NAME, RICH_CHECK_YN)
+          SELECT LABELSIZE_ID, -1, 'ITEMNAME', '품명', '0'
+            FROM #InsertedLabelSize
+          UNION ALL
+          SELECT LABELSIZE_ID, -2, 'ELEMENT', '주원료', '0'
+            FROM #InsertedLabelSize
+          UNION ALL
+          SELECT LABELSIZE_ID, -3, 'SWEIGHT', '저울중량', '0'
+            FROM #InsertedLabelSize
+          UNION ALL
+          SELECT LABELSIZE_ID, -4, 'SPRICE', '최종가격', '0'
+            FROM #InsertedLabelSize;
+
+          COMMIT TRANSACTION;
+          SET NOCOUNT OFF;
+          SET XACT_ABORT OFF;
+
+          $SelectSql
+          WHERE RICH_LABELSIZE_ID=(SELECT TOP 1 LABELSIZE_ID FROM #InsertedLabelSize);
+        END TRY
+        BEGIN CATCH
+          IF @@TRANCOUNT > 0
+            ROLLBACK TRANSACTION;
+          SET NOCOUNT OFF;
+          SET XACT_ABORT OFF;
+          THROW;
+        END CATCH
+      ''';
+
+      final res = await DbClient.instance.writeDataWithParams(insertSql, {
+        'brandId': brandId,
+        'labelSizeName': labelSizeName,
+        'useScale': useScale ? 1 : 0,
+      });
+
+      final inserted = DAO.mapRow(res, LabelSize.fromMap);
+      if (inserted == null) {
+        throw Exception(
+          '${runtimeLogTag()} Insert failed for labelSizeName:$labelSizeName',
+        );
+      }
+
+      final affected = DAO.affectedRows(res);
+      debugLog(
+        '$END, BM_RICH_LABELSIZE_FORM insert Result: $res, affected:$affected, inserted:$inserted',
+      );
+      return inserted;
+    } catch (e) {
+      debugLog('$END, $e');
+      rethrow;
+    }
+  }
+
+  static Future<void> updateOrder(int labelSizeId, int labelSizeOrder) async {
+    debugLog(
+      '$START, labelSizeId:$labelSizeId, labelSizeOrder:$labelSizeOrder',
+    );
 
     await updateOrders([
       LabelSizeOrderUpdate(
@@ -373,7 +469,8 @@ class LabelSizeDAO extends DAO {
         params[labelSizeOrderParam] = update.labelSizeOrder;
       }
 
-      final updateOrderTransactionSql = '''
+      final updateOrderTransactionSql =
+          '''
         SET XACT_ABORT ON;
         BEGIN TRY
           BEGIN TRANSACTION;
@@ -407,8 +504,7 @@ class LabelSizeDAO extends DAO {
         '$END, BM_RICH_LABELSIZE_FORM order Result: $res, '
         'affected:$affected, succeeded:$succeeded',
       );
-    }
-    catch (e) {
+    } catch (e) {
       debugLog('$END, $e');
       rethrow;
     }

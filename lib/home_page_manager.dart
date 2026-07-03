@@ -541,8 +541,12 @@ class _HomePageManagerState extends State<HomePageManager> {
       // confirmation must be inserted into the root overlay, not showDialog.
       builder: (_) => BlockingModelessDialog(
         child: _LabelSettingsDialog(
+          brandId:
+              widget.selectedBrand?.brandId ??
+              _effectiveLabelSize?.brandId ??
+              _labelSizesBrandId,
           labels: LabelSize.datas ?? const <LabelSize>[],
-          onOrderSaved: _handleLabelOrderSaved,
+          onLabelsChanged: _handleLabelsChangedFromDialog,
           onClose: _closeLabelSettingsDialog,
         ),
       ),
@@ -552,7 +556,7 @@ class _HomePageManagerState extends State<HomePageManager> {
     debugLog('labelSettings overlay inserted mounted=${entry.mounted}');
   }
 
-  Future<List<LabelSize>> _handleLabelOrderSaved() async {
+  Future<List<LabelSize>> _handleLabelsChangedFromDialog() async {
     final brandId =
         widget.selectedBrand?.brandId ??
         _effectiveLabelSize?.brandId ??
@@ -560,12 +564,12 @@ class _HomePageManagerState extends State<HomePageManager> {
     final previousSelectedLabel =
         _effectiveLabelSize ?? widget.selectedLabelSize;
     debugLog(
-      'labelSettings reorder reload start brandId=$brandId '
+      'labelSettings reload start brandId=$brandId '
       'selectedLabelSizeId=${previousSelectedLabel?.labelSizeId}',
     );
 
     if (brandId == null) {
-      throw Exception('${runtimeLogTag()} 라벨 순서를 저장할 브랜드를 찾을 수 없습니다.');
+      throw Exception('${runtimeLogTag()} 라벨을 갱신할 브랜드를 찾을 수 없습니다.');
     }
 
     final reloadedLabels =
@@ -587,7 +591,7 @@ class _HomePageManagerState extends State<HomePageManager> {
     setState(() {});
     _labelSettingsOverlayEntry?.markNeedsBuild();
     debugLog(
-      'labelSettings reorder reload completed '
+      'labelSettings reload completed '
       'labels=${reloadedLabels.length} selectedLabelSizeId=${resolvedSelected?.labelSizeId}',
     );
     return reloadedLabels;
@@ -1724,13 +1728,15 @@ class _PlaceholderTab extends StatelessWidget {
 
 class _LabelSettingsDialog extends StatefulWidget {
   const _LabelSettingsDialog({
+    required this.brandId,
     required this.labels,
-    required this.onOrderSaved,
+    required this.onLabelsChanged,
     required this.onClose,
   });
 
+  final int? brandId;
   final List<LabelSize> labels;
-  final Future<List<LabelSize>> Function() onOrderSaved;
+  final Future<List<LabelSize>> Function() onLabelsChanged;
   final VoidCallback onClose;
 
   @override
@@ -1750,6 +1756,7 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
   bool _orderEditMode = false;
   bool _applyingOrderChanges = false;
   bool _insertingLabel = false;
+  bool _submittingLabelNameEdit = false;
   bool _labelUseScaleEditValue = false;
   int? _selectedLabelSizeId;
 
@@ -1984,7 +1991,12 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
       return;
     }
     final insertIndex = index.clamp(0, _labels.length);
-    final brandId = _labels.isNotEmpty ? _labels.first.brandId : 0;
+    final brandId =
+        widget.brandId ?? (_labels.isNotEmpty ? _labels.first.brandId : 0);
+    if (brandId <= 0) {
+      debugLog('labelInsert blocked brandId=$brandId');
+      return;
+    }
     debugLog('labelInsert start index=$insertIndex brandId=$brandId');
     setState(() {
       _insertingLabel = true;
@@ -2060,6 +2072,7 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
         _labels.removeAt(_editingIndex!);
       }
       _insertingLabel = false;
+      _submittingLabelNameEdit = false;
       _insertActionIndex = null;
       _editingIndex = null;
       _labelUseScaleEditValue = false;
@@ -2107,6 +2120,9 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
     if (nextName.isEmpty) {
       return false;
     }
+    if (_submittingLabelNameEdit) {
+      return false;
+    }
     if (_insertingLabel) {
       return true;
     }
@@ -2115,7 +2131,7 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
         _labelUseScaleEditValue != (label.labelSizeSetup?.useScale ?? false);
   }
 
-  void _submitLabelNameEdit(String value) {
+  Future<void> _submitLabelNameEdit(String value) async {
     debugLog(
       'labelNameEdit submit pendingImplementation index=$_editingIndex '
       'value=$value useScale=$_labelUseScaleEditValue '
@@ -2124,6 +2140,131 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
     if (!_canSubmitLabelNameEdit) {
       debugLog('labelNameEdit submitSkipped canSubmit=false');
       return;
+    }
+    final editingIndex = _editingIndex;
+    if (editingIndex == null || editingIndex >= _labels.length) {
+      debugLog(
+        'labelNameEdit submitSkipped editingIndex=$editingIndex outOfRange',
+      );
+      return;
+    }
+    if (_insertingLabel) {
+      await _insertLabelName(editingIndex, value.trim());
+      return;
+    }
+    debugLog('labelNameEdit update pendingImplementation index=$editingIndex');
+  }
+
+  Future<void> _insertLabelName(int insertIndex, String labelName) async {
+    final brandId = widget.brandId;
+    debugLog(
+      'insertLabelName start index=$insertIndex brandId=$brandId name=$labelName useScale=$_labelUseScaleEditValue',
+    );
+    if (!_insertingLabel ||
+        _editingIndex != insertIndex ||
+        brandId == null ||
+        brandId <= 0) {
+      debugLog(
+        'insertLabelName aborted inserting=$_insertingLabel editingIndex=$_editingIndex expected=$insertIndex brandId=$brandId',
+      );
+      return;
+    }
+
+    setState(() => _submittingLabelNameEdit = true);
+    debugLog(
+      'insertLabelName confirmDialog show index=$insertIndex name=$labelName',
+    );
+    final confirmed = await showBlockingModelessOverlayDialog<bool>(
+      context: context,
+      builder: (dialogContext, close) => AlertDialog(
+        content: Text("'$labelName' 라벨을 추가하시겠습니까?"),
+        actions: [
+          TextButton(onPressed: () => close(false), child: const Text('취소')),
+          TextButton(onPressed: () => close(true), child: const Text('확인')),
+        ],
+      ),
+    );
+    debugLog(
+      'insertLabelName confirmDialog result=$confirmed index=$insertIndex',
+    );
+
+    if (!mounted) {
+      debugLog('insertLabelName aborted unmounted after dialog');
+      return;
+    }
+
+    if (confirmed != true) {
+      debugLog(
+        'insertLabelName cancelledByUser index=$insertIndex keepEditing',
+      );
+      setState(() => _submittingLabelNameEdit = false);
+      _labelNameEditFocusNode.requestFocus();
+      return;
+    }
+
+    showSnackBar(
+      context,
+      '라벨을 추가 중입니다...',
+      type: SnackBarType.inProgress,
+      duration: const Duration(days: 1),
+    );
+
+    try {
+      final inserted = await LabelSizeDAO.insert(
+        brandId,
+        labelName,
+        _labelUseScaleEditValue,
+      );
+      final reloadedLabels = await widget.onLabelsChanged();
+
+      if (!mounted) {
+        debugLog('insertLabelName aborted unmounted after reload');
+        return;
+      }
+
+      if (!_insertingLabel || _editingIndex != insertIndex) {
+        debugLog(
+          'insertLabelName skippedStateUpdate editingIndexChanged inserting=$_insertingLabel editingIndex=$_editingIndex expected=$insertIndex',
+        );
+        return;
+      }
+
+      setState(() {
+        _labels = List<LabelSize>.from(reloadedLabels);
+        _originalLabels = List<LabelSize>.from(reloadedLabels);
+        _insertingLabel = false;
+        _submittingLabelNameEdit = false;
+        _insertActionIndex = null;
+        _editingIndex = null;
+        _labelUseScaleEditValue = false;
+        _labelNameEditController.clear();
+      });
+      debugLog(
+        'insertLabelName done labelSizeId=${inserted.labelSizeId} index=$insertIndex name=${inserted.labelSizeName}',
+      );
+    } catch (e) {
+      debugLog('insertLabelName failed index=$insertIndex error=$e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        await showBlockingModelessOverlayDialog<void>(
+          context: context,
+          builder: (dialogContext, close) => AlertDialog(
+            title: const Text('라벨 추가 실패'),
+            content: const Text('라벨 추가에 실패했습니다.'),
+            actions: [
+              TextButton(onPressed: () => close(null), child: const Text('확인')),
+            ],
+          ),
+        );
+        if (mounted) {
+          setState(() => _submittingLabelNameEdit = false);
+          _labelNameEditFocusNode.requestFocus();
+        }
+      }
+    } finally {
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      }
     }
   }
 
@@ -2291,7 +2432,7 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
           ),
       ]);
       debugLog('labelSettings reorder apply updateOrders done reloadStart');
-      final appliedLabels = await widget.onOrderSaved();
+      final appliedLabels = await widget.onLabelsChanged();
       debugLog(
         'labelSettings reorder apply reload done labels=${appliedLabels.length} '
         'mounted=$mounted',
