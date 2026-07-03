@@ -11,9 +11,13 @@ class SwipeActionTableColumn<T> {
     this.minWidth = 60,
     this.fillRemaining = false,
     this.headerTrailing,
+    this.headerTrailingBuilder,
     this.cellBuilder,
     this.onDoubleTap,
-  });
+  }) : assert(
+         headerTrailing == null || headerTrailingBuilder == null,
+         'headerTrailing and headerTrailingBuilder cannot both be set.',
+       );
 
   final String header;
   final String Function(T row) text;
@@ -21,6 +25,8 @@ class SwipeActionTableColumn<T> {
   final double minWidth;
   final bool fillRemaining;
   final Widget? headerTrailing;
+  final Widget Function(BuildContext context, bool hasInteractiveRow)?
+      headerTrailingBuilder;
   final Widget Function(BuildContext context, T row, double width)? cellBuilder;
   final void Function(T row, int index)? onDoubleTap;
 }
@@ -405,6 +411,7 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
   Widget _buildHeader(List<double> widths) {
     const double handleWidth = 4.0;
     final lastIndex = widths.length - 1;
+    final hasInteractiveRow = _hasInteractiveRow;
     return Container(
       color: _headerColor,
       height: widget.headerHeight,
@@ -414,6 +421,9 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
         children: List.generate(widths.length, (index) {
           final isLast = index == lastIndex;
           final column = widget.columns[index];
+          final headerTrailing =
+              column.headerTrailingBuilder?.call(context, hasInteractiveRow) ??
+              column.headerTrailing;
           final cell = SizedBox(
             width: widths[index],
             child: Stack(
@@ -423,7 +433,7 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
                   child: Padding(
                     padding: EdgeInsets.only(
                       left: 6,
-                      right: column.headerTrailing == null ? 6 : 34,
+                      right: headerTrailing == null ? 6 : 34,
                     ),
                     child: Text(
                       column.header,
@@ -436,12 +446,12 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
                     ),
                   ),
                 ),
-                if (column.headerTrailing != null)
+                if (headerTrailing != null)
                   Positioned(
                     top: 0,
                     right: 5,
                     bottom: 0,
-                    child: Center(child: column.headerTrailing),
+                    child: Center(child: headerTrailing),
                   ),
               ],
             ),
@@ -479,6 +489,19 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
         }),
       ),
     );
+  }
+
+  bool get _hasInteractiveRow {
+    final isRowContentInteractive = widget.isRowContentInteractive;
+    if (isRowContentInteractive == null) {
+      return false;
+    }
+    for (var index = 0; index < widget.rows.length; index += 1) {
+      if (isRowContentInteractive(widget.rows[index], index)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   Widget _buildRowNumberHeader() {

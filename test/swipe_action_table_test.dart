@@ -16,6 +16,8 @@ Future<void> _pumpTable(
   required void Function(_Row row, int index) onNameDoubleTap,
   bool interactive = false,
   Widget? headerTrailing,
+  Widget Function(BuildContext context, bool hasInteractiveRow)?
+      headerTrailingBuilder,
   String? rowTooltip,
   void Function(_Row row, int index)? onRowSelected,
 }) async {
@@ -36,6 +38,7 @@ Future<void> _pumpTable(
                 initialWidth: 160,
                 text: (row) => row.name,
                 headerTrailing: headerTrailing,
+                headerTrailingBuilder: headerTrailingBuilder,
                 onDoubleTap: onNameDoubleTap,
               ),
               SwipeActionTableColumn<_Row>(
@@ -225,6 +228,34 @@ void main() {
 
     expect(selectedRow?.name, 'Brand A');
     expect(selectedIndex, 0);
+  });
+
+  testWidgets('header trailing builder receives interactive row state', (
+    tester,
+  ) async {
+    var pressed = false;
+
+    await _pumpTable(
+      tester,
+      interactive: true,
+      onNameDoubleTap: (_, _) {},
+      headerTrailingBuilder: (context, hasInteractiveRow) => IconButton(
+        key: const ValueKey('order-button'),
+        padding: EdgeInsets.zero,
+        icon: const Icon(Icons.swap_vert),
+        onPressed: hasInteractiveRow ? null : () => pressed = true,
+      ),
+    );
+
+    final button = tester.widget<IconButton>(
+      find.byKey(const ValueKey('order-button')),
+    );
+    expect(button.onPressed, isNull);
+
+    await tester.tap(find.byKey(const ValueKey('order-button')));
+    await tester.pump();
+
+    expect(pressed, isFalse);
   });
 
   testWidgets('row tooltip refreshes when message changes under cursor', (

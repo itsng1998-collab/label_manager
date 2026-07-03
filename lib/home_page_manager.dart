@@ -1895,10 +1895,12 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
           minWidth: 120,
           fillRemaining: true,
           text: _labelNameText,
-          headerTrailing: _OrderModeHeaderButton(
-            enabled: !_orderEditMode && !_applyingOrderChanges,
-            onPressed: _startOrderEditMode,
-          ),
+          headerTrailingBuilder: (context, hasInlineEditor) =>
+              _OrderModeHeaderButton(
+                enabled:
+                    !_orderEditMode && !_applyingOrderChanges && !hasInlineEditor,
+                onPressed: _startOrderEditMode,
+              ),
         ),
       ],
     );
