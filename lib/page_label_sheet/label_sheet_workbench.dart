@@ -1034,8 +1034,16 @@ void _logImportedSheetApplySample(FortuneSheet sheet) {
     _labelSheetBorderInfoSamples(sheet),
   );
   _logLabelSheetChunks(
+    'label sheet import apply border info rows',
+    _labelSheetBorderInfoRowSummarySamples(sheet),
+  );
+  _logLabelSheetChunks(
     'label sheet import apply computed borders',
     _labelSheetComputedBorderSamples(sheet),
+  );
+  _logLabelSheetChunks(
+    'label sheet import apply computed border rows',
+    _labelSheetComputedBorderRowSummarySamples(sheet),
   );
   debugLog(
     'label sheet import apply scale '
@@ -1262,7 +1270,7 @@ List<String> _labelSheetBorderInfoSamples(
 
 List<String> _labelSheetComputedBorderSamples(
   FortuneSheet sheet, {
-  int limit = 200,
+  int limit = 1000,
 }) {
   final computed = FortuneBorderCompute.compute(sheet).entries.toList()
     ..sort((left, right) {
@@ -1282,6 +1290,70 @@ List<String> _labelSheetComputedBorderSamples(
     }
   }
   return samples.isEmpty ? const <String>['-'] : samples;
+}
+
+List<String> _labelSheetBorderInfoRowSummarySamples(FortuneSheet sheet) {
+  final countsByRow = <int, Map<String, int>>{};
+  for (final info in sheet.borderInfo) {
+    for (final range in info.ranges) {
+      for (var row = range.rowStart; row <= range.rowEnd; row += 1) {
+        final counts = countsByRow.putIfAbsent(row, () => <String, int>{});
+        final key =
+            '${info.borderType}/style=${info.style}/stroke=${info.strokeWidth}';
+        counts[key] =
+            (counts[key] ?? 0) + range.columnEnd - range.columnStart + 1;
+      }
+    }
+  }
+  return _labelSheetBorderRowSummaryLogSamples(countsByRow);
+}
+
+List<String> _labelSheetComputedBorderRowSummarySamples(FortuneSheet sheet) {
+  final countsByRow = <int, Map<String, int>>{};
+  final computed = FortuneBorderCompute.compute(sheet);
+  for (final entry in computed.entries) {
+    final counts = countsByRow.putIfAbsent(
+      entry.key.row,
+      () => <String, int>{},
+    );
+    _labelSheetCountComputedBorderSide(counts, 'top', entry.value.top);
+    _labelSheetCountComputedBorderSide(counts, 'right', entry.value.right);
+    _labelSheetCountComputedBorderSide(counts, 'bottom', entry.value.bottom);
+    _labelSheetCountComputedBorderSide(counts, 'left', entry.value.left);
+    _labelSheetCountComputedBorderSide(counts, 'slash', entry.value.slash);
+  }
+  return _labelSheetBorderRowSummaryLogSamples(countsByRow);
+}
+
+void _labelSheetCountComputedBorderSide(
+  Map<String, int> counts,
+  String sideName,
+  FortuneBorderSide? side,
+) {
+  if (side == null) {
+    return;
+  }
+  final key = '$sideName/style=${side.style}/stroke=${side.strokeWidth}';
+  counts[key] = (counts[key] ?? 0) + 1;
+}
+
+List<String> _labelSheetBorderRowSummaryLogSamples(
+  Map<int, Map<String, int>> countsByRow,
+) {
+  if (countsByRow.isEmpty) {
+    return const <String>['-'];
+  }
+  final samples = <String>[];
+  for (final row in countsByRow.keys.toList()..sort()) {
+    final counts = countsByRow[row]!;
+    final summary = counts.entries.toList()
+      ..sort((left, right) => left.key.compareTo(right.key));
+    samples.add(
+      '${_labelSheetCoordLabel(row, 0).replaceFirst('A', 'row')} '
+      '${summary.map((entry) => '${entry.key}:${entry.value}').join(',')}',
+    );
+  }
+  return samples;
 }
 
 String _labelSheetRangeLogText(FortuneRange range) {

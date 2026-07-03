@@ -29,6 +29,14 @@
 
 ### 최근 완료 (2026-07-03)
 
+- **완료**: 다중 라벨 XLSX 테두리 차이 최신 로그 재확인 및 하단 행 border 로그 추가 보강.
+  - 최신 로그 `.tmp/log/app_2026-07-03_11-27-13.log`: `borderInfo=2365`, `hasRawBorderInfo=true`, `computedBorders=687`. XLSX에서 변환된 border는 매우 많고, FortuneSheet 병합 내부선 제거 후 실제 표시 기준 border도 687개 남음.
+  - 판단: 첨부 변환본의 테두리 차이는 실제 렌더 기준 computed border에도 존재함. 특히 기존 `computed borders` 샘플 limit 200은 `A1~L11`까지만 찍혀 중하단 빈 격자/`#BARCODE` 주변 행을 확인할 수 없었음.
+  - `lib/page_label_sheet/label_sheet_workbench.dart`: `computed borders` limit을 1000으로 확대해 687개 전체가 로그에 찍히도록 변경. `label sheet import apply border info rows`, `label sheet import apply computed border rows` 행별 요약 로그 추가.
+  - 검증 완료: `C:\Flutter\bin\flutter.bat test test/label_sheet_xlsx_import_test.dart` 3개 성공.
+  - 검증 완료: `C:\Flutter\bin\flutter.bat analyze lib/page_label_sheet/label_sheet_workbench.dart lib/page_label_sheet/label_sheet_xlsx_import.dart --no-fatal-warnings --no-fatal-infos` 성공.
+  - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/page_label_sheet/label_sheet_workbench.dart` (`lib/core/app.dart` 기존 dirty 제외).
+
 - **완료**: 다중 라벨 XLSX 원본/변환본 테두리 차이 재확인 및 border 진단 로그 보강.
   - 사용자 지적: 스케일 외에도 원본/변환본에서 테두리가 다른 곳이 많음.
   - 판단: 첨부 변환본에서 원본보다 빈 격자 영역과 하단 블록의 검은 테두리가 더 많이/다르게 보임. 기존 로그는 `borders=2365` 개수만 보여 원본 XLSX 변환 단계 문제인지, FortuneSheet 병합 내부선 제거 후 렌더 기준 문제인지 분리 불가.
