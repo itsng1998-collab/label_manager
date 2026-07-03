@@ -35,6 +35,7 @@
 - `test/blocking_modeless_dialog_test.dart`: 모달리스 내부 TextField 키 입력 허용 회귀 테스트 추가. 기존 뒤쪽 포커스 위젯 키 차단 테스트도 함께 유지.
 - 검증 완료: `C:\Flutter\bin\dart.bat format lib\home_page_manager.dart lib\widgets\blocking_modeless_dialog.dart test\blocking_modeless_dialog_test.dart` 성공, `flutter test test/blocking_modeless_dialog_test.dart test/swipe_action_table_test.dart` 29개 성공, `C:\Flutter\bin\flutter.bat analyze lib\home_page_manager.dart lib\widgets\blocking_modeless_dialog.dart lib\widgets\swipe_action_table.dart test\blocking_modeless_dialog_test.dart test\swipe_action_table_test.dart --no-fatal-warnings --no-fatal-infos` No issues.
 - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/home_page_manager.dart`, `lib/widgets/blocking_modeless_dialog.dart`, `test/blocking_modeless_dialog_test.dart`.
+- 기능 커밋: `cd65b1c` (`모달리스 내부 키 입력 허용`).
 
 ### 완료 (2026-07-03): 전자저울 UI 여백 축소 및 키 입력 재복구
 
