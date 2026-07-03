@@ -245,6 +245,8 @@ Map<String, Object?> _sheetJsonFromWorksheet(
       <({int rowStart, int rowEnd, int columnStart, int columnEnd})>[];
   final borderlessMergeRanges =
       <({int rowStart, int rowEnd, int columnStart, int columnEnd})>[];
+  final nutritionBorderRanges =
+      <({int rowStart, int rowEnd, int columnStart, int columnEnd})>[];
   final valueSamples = <String>[];
   final styleSamples = <String>[];
   final wrapSamples = <String>[];
@@ -427,6 +429,9 @@ Map<String, Object?> _sheetJsonFromWorksheet(
           'fs=${cellJson['fs']} mc=${cellJson['mc']}',
         );
       }
+      if (_isXlsxNutritionHeader(cellValue) && merge != null) {
+        nutritionBorderRanges.add(_nutritionRangeFromHeaderMerge(merge));
+      }
       if (_shouldSkipXlsxCellBorders(cellValue) && merge != null) {
         borderlessMergeRanges.add(_mergeRangeFromJson(merge));
       }
@@ -450,11 +455,18 @@ Map<String, Object?> _sheetJsonFromWorksheet(
           );
       if (shouldImportBorders) {
         for (final border in style.borderInfo(coord.row, coord.column)) {
-          borderInfo.add(border);
+          final adjustedBorder = _adjustXlsxImportedBorder(
+            border,
+            coord.row,
+            coord.column,
+            nutritionBorderRanges,
+          );
+          borderInfo.add(adjustedBorder);
           if (borderSamples.length < 200) {
             borderSamples.add(
               '${_coordLabel(coord.row, coord.column)} '
-              'style=${cellAttributes['s']} ${_borderInfoLogText(border)}',
+              'style=${cellAttributes['s']} '
+              '${_borderInfoLogText(adjustedBorder)}',
             );
           }
         }
@@ -1445,6 +1457,69 @@ bool _shouldSkipXlsxCellBorders(_XlsxCellValue cellValue) {
       text.startsWith('*부정불량식품 신고');
 }
 
+bool _isXlsxNutritionHeader(_XlsxCellValue cellValue) {
+  return cellValue.text?.trim() == '영양정보';
+}
+
+Map<String, Object?> _adjustXlsxImportedBorder(
+  Map<String, Object?> border,
+  int row,
+  int column,
+  List<({int rowStart, int rowEnd, int columnStart, int columnEnd})>
+  nutritionRanges,
+) {
+  if (border['style'] != 13 ||
+      !_isXlsxNutritionInnerBorder(
+        row,
+        column,
+        border['borderType'],
+        nutritionRanges,
+      )) {
+    return border;
+  }
+  return {...border, 'style': 1, 'strokeWidth': 1.0};
+}
+
+bool _isXlsxNutritionInnerBorder(
+  int row,
+  int column,
+  Object? borderType,
+  List<({int rowStart, int rowEnd, int columnStart, int columnEnd})> ranges,
+) {
+  for (final range in ranges) {
+    if (row < range.rowStart ||
+        row > range.rowEnd ||
+        column < range.columnStart ||
+        column > range.columnEnd) {
+      continue;
+    }
+    final headerBottom = range.rowStart + 2;
+    final bodyTop = range.rowStart + 3;
+    switch (borderType) {
+      case 'border-top':
+        return row != range.rowStart && row != bodyTop;
+      case 'border-bottom':
+        return row != range.rowEnd && row != headerBottom;
+      case 'border-left':
+        return column != range.columnStart && column != range.columnStart + 3;
+      case 'border-right':
+        return column != range.columnEnd && column != range.columnStart + 2;
+    }
+  }
+  return false;
+}
+
+({int rowStart, int rowEnd, int columnStart, int columnEnd})
+_nutritionRangeFromHeaderMerge(Map<String, Object?> merge) {
+  final headerRange = _mergeRangeFromJson(merge);
+  return (
+    rowStart: headerRange.rowStart,
+    rowEnd: headerRange.rowStart + 7,
+    columnStart: headerRange.columnStart,
+    columnEnd: headerRange.columnStart + 9,
+  );
+}
+
 ({int rowStart, int rowEnd, int columnStart, int columnEnd})
 _mergeRangeFromJson(Map<String, Object?> merge) {
   final rowStart = (merge['r'] as num).toInt();
@@ -1776,7 +1851,7 @@ int _borderStyle(String style) {
     'dashed' || 'dashDot' || 'dashDotDot' => 9,
     'mediumDashed' || 'mediumDashDot' || 'mediumDashDotDot' => 4,
     'medium' => 8,
-    'thick' => 8,
+    'thick' => 13,
     'double' => 2,
     _ => 1,
   };
@@ -1797,7 +1872,7 @@ double _borderStrokeWidth(String style) {
   return switch (style) {
     'hair' => 0.5,
     'medium' || 'mediumDashed' || 'mediumDashDot' || 'mediumDashDotDot' => 1.5,
-    'thick' => 1.5,
+    'thick' => 2.0,
     _ => 1.0,
   };
 }

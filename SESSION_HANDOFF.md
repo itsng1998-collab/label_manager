@@ -29,6 +29,15 @@
 
 ### 최근 완료 (2026-07-03)
 
+- **완료**: XLSX 영양정보 표 외곽/내부선 분리 보정.
+  - 최신 첨부 및 `.tmp/log/app_2026-07-03_12-56-49.log` 확인: 이전 `thick -> style=8/stroke=1.5` 전역 보정은 내부선 과다 두께는 줄였지만, 원본의 영양정보 표 외곽/박스 경계까지 함께 약해짐. 최신 로그에서는 `borders=1014`, `computedBorders=300`, `computed blank borders=-`이며, `row27~row29` 내부선과 외곽선이 모두 `style=8/stroke=1.5`로 동일하게 처리됨.
+  - `lib/page_label_sheet/label_sheet_xlsx_import.dart`: Excel `thick` 기본 매핑은 다시 `style=13/stroke=2.0`으로 복원. `영양정보` 병합 헤더를 기준으로 영양성분 표 범위를 추적해 외곽/헤더 구분선은 굵게 유지하고 내부 grid의 thick border만 `style=1/stroke=1.0`으로 낮춤.
+  - `test/label_sheet_xlsx_import_test.dart`: generic `thick` border는 `style=13`, `strokeWidth=2.0`으로 보존되는 회귀 기대값으로 수정.
+  - 검증 완료: `C:\Flutter\bin\flutter.bat test test/label_sheet_xlsx_import_test.dart` 3개 성공. 테스트 로그에서 `E3 style=5 type=border-top style=13 stroke=2.0` 확인.
+  - 검증 완료: `C:\Flutter\bin\flutter.bat analyze lib/page_label_sheet/label_sheet_workbench.dart lib/page_label_sheet/label_sheet_xlsx_import.dart test/label_sheet_xlsx_import_test.dart --no-fatal-warnings --no-fatal-infos` 성공.
+  - 다음 재가져오기 확인 포인트: `row27~row29` 영양성분 내부선은 `style=1/stroke=1.0`으로 줄고, `A24/J24/A26:J26` 등 외곽/헤더 경계는 `style=13/stroke=2.0`로 유지되어야 함.
+  - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/page_label_sheet/label_sheet_xlsx_import.dart`, `test/label_sheet_xlsx_import_test.dart` (`lib/core/app.dart` 기존 dirty 제외).
+
 - **완료**: XLSX `thick` border 화면 두께 보정.
   - 최신 첨부 및 `.tmp/log/app_2026-07-03_12-06-13.log` 확인: 바코드/오른쪽 안내문 borderless 보정은 반영되어 `borders=1014`, `computedBorders=300`, `computed blank borders=-`로 감소. 남은 차이는 왼쪽 하단 영양성분 표 내부선이 `style=13/stroke=2.0`으로 계산되어 원본보다 과하게 두꺼워 보이는 것.
   - `lib/page_label_sheet/label_sheet_xlsx_import.dart`: Excel `thick` border를 FortuneSheet 최강선 `style=13/stroke=2.0` 대신 medium급 `style=8/stroke=1.5`로 매핑.

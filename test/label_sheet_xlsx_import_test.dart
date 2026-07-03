@@ -104,8 +104,8 @@ void main() {
       const FortuneCellCoord(2, 4),
       'border-top',
     );
-    expect(thickTop?.style, 8);
-    expect(thickTop?.strokeWidth, 1.5);
+    expect(thickTop?.style, 13);
+    expect(thickTop?.strokeWidth, 2.0);
     expect(sheet.cells[const FortuneCellCoord(2, 6)]?.value, '#BARCODE');
     expect(_hasBorderAt(sheet, const FortuneCellCoord(2, 6)), isFalse);
     expect(_hasBorderAt(sheet, const FortuneCellCoord(2, 7)), isFalse);
