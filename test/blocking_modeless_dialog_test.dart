@@ -217,6 +217,66 @@ void main() {
     expect(confirmed, isTrue);
   });
 
+  testWidgets('shows alert above modeless OverlayEntry', (tester) async {
+    var confirmed = false;
+    OverlayEntry? entry;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) => ElevatedButton(
+            onPressed: () {
+              entry = OverlayEntry(
+                builder: (overlayContext) => BlockingModelessDialog(
+                  child: Center(
+                    child: ElevatedButton(
+                      onPressed: () async {
+                        final result = await showBlockingModelessOverlayDialog<bool>(
+                          context: overlayContext,
+                          builder: (dialogContext, close) => AlertDialog(
+                            content: const Text('오버레이 확인'),
+                            actions: [
+                              TextButton(
+                                onPressed: () => close(false),
+                                child: const Text('취소'),
+                              ),
+                              TextButton(
+                                onPressed: () => close(true),
+                                child: const Text('확인'),
+                              ),
+                            ],
+                          ),
+                        );
+                        confirmed = result == true;
+                      },
+                      child: const Text('open overlay alert'),
+                    ),
+                  ),
+                ),
+              );
+              Overlay.of(context).insert(entry!);
+            },
+            child: const Text('open modeless'),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('open modeless'));
+    await tester.pump();
+    await tester.tap(find.text('open overlay alert'));
+    await tester.pump();
+
+    expect(find.text('오버레이 확인'), findsOneWidget);
+
+    await tester.tap(find.text('확인'));
+    await tester.pump();
+
+    expect(confirmed, isTrue);
+
+    entry?.remove();
+  });
+
   testWidgets('blocks key events from focused widget behind overlay', (
     tester,
   ) async {

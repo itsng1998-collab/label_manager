@@ -2363,13 +2363,9 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
     Widget Function(BuildContext context, void Function(T? result) close)
         builder,
   ) {
-    return showDialog<T>(
+    return showBlockingModelessOverlayDialog<T>(
       context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) => builder(
-        dialogContext,
-        (result) => Navigator.of(dialogContext).pop(result),
-      ),
+      builder: builder,
     );
   }
 

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 /// Shared wrapper for every modeless dialog overlay in Label Manager.
@@ -19,6 +21,47 @@ class BlockingModelessDialog extends StatefulWidget {
 
   @override
   State<BlockingModelessDialog> createState() => _BlockingModelessDialogState();
+}
+
+Future<T?> showBlockingModelessOverlayDialog<T>({
+  required BuildContext context,
+  required Widget Function(
+    BuildContext context,
+    void Function(T? result) close,
+  ) builder,
+  Color barrierColor = const Color(0x8A000000),
+}) {
+  final overlay = Overlay.of(context, rootOverlay: true);
+  final completer = Completer<T?>();
+  late final OverlayEntry entry;
+
+  void close(T? result) {
+    if (completer.isCompleted) {
+      return;
+    }
+    entry.remove();
+    completer.complete(result);
+  }
+
+  entry = OverlayEntry(
+    builder: (overlayContext) => Stack(
+      fit: StackFit.expand,
+      children: [
+        ModalBarrier(
+          dismissible: false,
+          color: barrierColor,
+        ),
+        Center(
+          child: Material(
+            type: MaterialType.transparency,
+            child: builder(overlayContext, close),
+          ),
+        ),
+      ],
+    ),
+  );
+  overlay.insert(entry);
+  return completer.future;
 }
 
 class _BlockingModelessDialogState extends State<BlockingModelessDialog> {
