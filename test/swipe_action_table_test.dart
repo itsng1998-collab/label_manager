@@ -396,6 +396,16 @@ void main() {
         tester.getCenter(find.byTooltip('수정/삽입/삭제 열기').first).dx,
         greaterThan(tester.getCenter(find.text('Brand A')).dx),
       );
+      final openButton = find.descendant(
+        of: find.byTooltip('수정/삽입/삭제 열기').first,
+        matching: find.byType(IconButton),
+      );
+      expect(
+        tester.getTopRight(openButton).dx,
+        lessThanOrEqualTo(
+          tester.getTopRight(find.byType(SwipeActionTable<_Row>)).dx - 2,
+        ),
+      );
 
       await tester.tap(find.byTooltip('수정/삽입/삭제 열기').first);
       await tester.pumpAndSettle();

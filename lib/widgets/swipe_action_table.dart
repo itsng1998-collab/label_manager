@@ -1559,10 +1559,13 @@ class EditableSwipeNameTable<T> extends StatelessWidget {
               ),
             ),
             if (state.swipeToggleVisible)
-              _SwipeActionToggleButton(
-                open: state.actionRailOpen,
-                enabled: enabled && state.swipeToggleEnabled,
-                onPressed: state.onToggleActionRail,
+              Padding(
+                padding: const EdgeInsets.only(right: 2),
+                child: _SwipeActionToggleButton(
+                  open: state.actionRailOpen,
+                  enabled: enabled && state.swipeToggleEnabled,
+                  onPressed: state.onToggleActionRail,
+                ),
               ),
           ],
         ),

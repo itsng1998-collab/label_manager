@@ -27,6 +27,14 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-03): 설정 테이블 밀기 아이콘 우측 여백 조정
+
+목적: 브랜드/라벨 설정 다이얼로그 테이블에서 우측 스크롤 표시 시 행 밀기 아이콘이 스크롤바와 겹쳐 사용하기 어려운 문제를 완화한다. 밀기 아이콘을 오른쪽 끝에서 2px 앞쪽으로 당긴다.
+- `lib/widgets/swipe_action_table.dart`: `EditableSwipeNameTable`의 행 밀기 토글 버튼을 `Padding(right: 2)`로 감싸 테이블 오른쪽 끝에서 2px 안쪽에 배치.
+- `test/swipe_action_table_test.dart`: 밀기 버튼의 오른쪽 끝이 테이블 오른쪽 끝보다 최소 2px 안쪽인지 검증 추가.
+- 검증 완료: `C:\Flutter\bin\dart.bat format lib\widgets\swipe_action_table.dart test\swipe_action_table_test.dart` 성공, `flutter test test/swipe_action_table_test.dart` 20개 성공, `C:\Flutter\bin\flutter.bat analyze lib\widgets\swipe_action_table.dart test\swipe_action_table_test.dart --no-fatal-warnings --no-fatal-infos` No issues.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `lib/widgets/swipe_action_table.dart`, `test/swipe_action_table_test.dart`.
+
 ### 완료 (2026-07-03): 프린터 설정 그룹 라벨 배경색 조정
 
 목적: 프린터 설정 다이얼로그의 `여백`/`자동줄간격` 그룹 라벨 배경색을 다이얼로그 배경색과 동일하게 맞춘다.
