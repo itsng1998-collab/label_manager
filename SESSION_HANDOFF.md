@@ -39,6 +39,8 @@
 - 구조 변경 완료: 사용자 피드백에 따라 `_LabelSettingsDialog._applyOrderChanges`에서 `LabelSizeDAO.updateOrders`를 직접 호출하도록 변경. 부모 콜백은 `_handleLabelOrderSaved`로 이름을 바꾸고 DB 성공 후 재조회/캐시 갱신/드롭다운 선택 유지 전용으로 축소.
 - 구조 변경 검증 완료: `dart format lib/home_page_manager.dart` 성공, `C:\Flutter\bin\flutter.bat analyze lib/home_page_manager.dart lib/models/label_size.dart --no-fatal-warnings --no-fatal-infos` No issues, `C:\Flutter\bin\flutter.bat test test/label_size_cache_test.dart` 1개 성공.
 - 구조 변경 커밋: `46bc447` (`라벨 순서 적용 DAO 호출 위치 정리`).
+- UX 변경 완료: `_applyOrderChanges` 확인창에서 `취소`를 누른 경우에도 `_cancelOrderChanges()`를 호출해 다이얼로그 임시 순서 변경을 즉시 원복하도록 변경.
+- UX 변경 검증 완료: `dart format lib/home_page_manager.dart` 성공, `C:\Flutter\bin\flutter.bat analyze lib/home_page_manager.dart lib/models/label_size.dart --no-fatal-warnings --no-fatal-infos` No issues, `C:\Flutter\bin\flutter.bat test test/label_size_cache_test.dart` 1개 성공.
 - 검증 완료: `dart format` 2파일 성공, `C:\Flutter\bin\flutter.bat analyze lib/models/label_size.dart lib/home_page_manager.dart --no-fatal-warnings --no-fatal-infos` No issues, `C:\Flutter\bin\flutter.bat test test/label_size_cache_test.dart` 1개 성공.
 - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/models/label_size.dart`, `lib/home_page_manager.dart`, `doc/BM_RICH_BRAND.sql`, `doc/BM_RICH_LABELSIZE_FORM.sql` 포함(사용자 요청). 기존 dirty `lib/core/app.dart`는 제외.
 - 기능 커밋: `a6f4911` (`라벨 설정 순서 적용 저장 구현`).

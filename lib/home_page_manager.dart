@@ -1972,6 +1972,7 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
 
     if (confirmed != true) {
       debugLog('labelSettings reorder apply cancelledByUser');
+      _cancelOrderChanges();
       return;
     }
 
