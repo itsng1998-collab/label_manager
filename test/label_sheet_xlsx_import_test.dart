@@ -93,12 +93,14 @@ void main() {
           .map((border) => border.strokeWidth),
       contains(1.5),
     );
+    // 규칙 A: 엑셀에 border(borderId)가 정의된 셀은 값/종류와 무관하게 그대로 가져오고,
+    // borderId가 없는(0) 셀은 테두리가 없다. (다운캐스트/합성/skip 없음)
     expect(_hasBorderAt(sheet, const FortuneCellCoord(0, 4)), isTrue);
     expect(_hasBorderAt(sheet, const FortuneCellCoord(0, 5)), isFalse);
     expect(sheet.cells[const FortuneCellCoord(0, 7)]?.value, '*유통기한:');
-    expect(_hasBorderAt(sheet, const FortuneCellCoord(0, 7)), isFalse);
-    expect(_hasBorderAt(sheet, const FortuneCellCoord(2, 1)), isFalse);
-    expect(_hasBorderAt(sheet, const FortuneCellCoord(2, 2)), isFalse);
+    expect(_hasBorderAt(sheet, const FortuneCellCoord(0, 7)), isTrue);
+    expect(_hasBorderAt(sheet, const FortuneCellCoord(2, 1)), isTrue);
+    expect(_hasBorderAt(sheet, const FortuneCellCoord(2, 2)), isTrue);
     final thickTop = _borderAt(
       sheet,
       const FortuneCellCoord(2, 4),
@@ -107,8 +109,8 @@ void main() {
     expect(thickTop?.style, 13);
     expect(thickTop?.strokeWidth, 2.0);
     expect(sheet.cells[const FortuneCellCoord(2, 6)]?.value, '#BARCODE');
-    expect(_hasBorderAt(sheet, const FortuneCellCoord(2, 6)), isFalse);
-    expect(_hasBorderAt(sheet, const FortuneCellCoord(2, 7)), isFalse);
+    expect(_hasBorderAt(sheet, const FortuneCellCoord(2, 6)), isTrue);
+    expect(_hasBorderAt(sheet, const FortuneCellCoord(2, 7)), isTrue);
   });
 
   test('detects xlsx bytes and supports absolute worksheet targets', () {

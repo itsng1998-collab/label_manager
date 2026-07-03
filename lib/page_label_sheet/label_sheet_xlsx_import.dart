@@ -8,6 +8,35 @@ import 'package:fortune_sheet/fortune_sheet.dart';
 import 'package:label_manager/utils/log_context.dart';
 import 'package:path/path.dart' as p;
 
+// =============================================================================
+// XLSX → 라벨 시트 변환 규칙 (사용자 확정 사양 / 수정 시 반드시 준수)
+//
+// 목적: .xlsx 엑셀을 라벨 시트로 가져오기. 원본과 최대한 100% 동일하게 변환한다.
+//
+// A. 테두리
+//   1. 엑셀 셀 테두리 속성(방향/스타일·두께/색)을 그대로 1:1 변환한다.
+//      임의 변형 금지: thick→thin 다운캐스트, 없는 선 합성, 헤더/외곽 특수처리 등 금지.
+//   2. 엑셀에 테두리가 없는 셀은 변환본에도 테두리가 없어야 한다.
+//      (변환본에 없던 선이 생기면 그것은 변환 버그다.)
+//   3. 특정 표(예: 영양정보)에만 테두리가 나타나는 것은 1·2의 결과이지 규칙이 아니다.
+//
+// B. 일반화
+//   4. 특정 파일 전용 하드코딩 금지: 특정 텍스트('영양정보' 등), 고정 크기(rowStart+7 등),
+//      특정 좌표 기반 분기 금지. 모든 라벨 xlsx에 통용되는 순수 매핑만 사용한다.
+//
+// C. 스케일 (label_sheet_workbench.dart 가져오기 경로에서 적용)
+//   5. 물리 라벨 크기에 맞게 스케일 조정. 넓이(폭) 우선, 폭 대비 비율로 높이를 맞춘다.
+//   6. 폭 기준 축소 후 문자가 사람이 못 읽을 정도면 최소 가독 문자 기준으로 다시 키운다.
+//      이때 인쇄 영역을 벗어나도 무방하다.
+//   7. 가독 기준은 화면상이 아니라 실물 라벨 프린트 기준(mm 단위)이다.
+//
+// D. 폰트/텍스트
+//   8. 엑셀 폰트 속성(글꼴/크기/굵게·기울임·밑줄·취소선/글자색)을 그대로 1:1 변환한다.
+//   9. 자간(letter spacing)/장평(font scale·width)/첨자(super·subscript)/줄간격(line height)도
+//      엑셀 속성에 따라 그대로 변환한다. 단 폰트 '크기'만 규칙 5·6에 따라 비례 조정하고,
+//      그 외 속성 자체는 유지한다.
+// =============================================================================
+
 void _xlsxImportLog(String message) {
   debugLog('xlsx import $message', skipFrames: 1);
 }
@@ -241,20 +270,11 @@ Map<String, Object?> _sheetJsonFromWorksheet(
   final borderInfo = <Map<String, Object?>>[];
   final hyperlinks = <String, Object?>{};
   final mergeMap = <String, Map<String, Object?>>{};
-  final mergeRanges =
-      <({int rowStart, int rowEnd, int columnStart, int columnEnd})>[];
-  final borderlessMergeRanges =
-      <({int rowStart, int rowEnd, int columnStart, int columnEnd})>[];
-  final nutritionBorderRanges =
-      <({int rowStart, int rowEnd, int columnStart, int columnEnd})>[];
   final valueSamples = <String>[];
   final styleSamples = <String>[];
   final wrapSamples = <String>[];
   final lineBreakSamples = <String>[];
   final borderSamples = <String>[];
-  final adjustedBorderSamples = <String>[];
-  final skippedBlankBorderSamples = <String>[];
-  final skippedValueBorderSamples = <String>[];
   var maxRow = 0;
   var maxColumn = 0;
 
@@ -275,12 +295,6 @@ Map<String, Object?> _sheetJsonFromWorksheet(
     if (rowSpan <= 1 && columnSpan <= 1) {
       continue;
     }
-    mergeRanges.add((
-      rowStart: start.row,
-      rowEnd: end.row,
-      columnStart: start.column,
-      columnEnd: end.column,
-    ));
     mergeMap['${start.row}_${start.column}'] = {
       'r': start.row,
       'c': start.column,
@@ -387,6 +401,24 @@ Map<String, Object?> _sheetJsonFromWorksheet(
           'fa': style.formatCode,
         };
       }
+      // 규칙 A: 엑셀 셀 테두리 속성을 그대로 1:1 변환한다.
+      // 엑셀에 정의된 border만 emit하며, 임의 보정/합성/skip을 하지 않는다.
+      // 값/채움이 없어 cellJson이 비어도, border가 있으면 그대로 유지한다.
+      final cellBorders = style.borderInfo(coord.row, coord.column);
+      for (final border in cellBorders) {
+        borderInfo.add(border);
+        if (borderSamples.length < 200) {
+          borderSamples.add(
+            '${_coordLabel(coord.row, coord.column)} '
+            'style=${cellAttributes['s']} '
+            '${_borderInfoLogText(border)}',
+          );
+        }
+      }
+      if (cellBorders.isNotEmpty) {
+        maxRow = _max(maxRow, coord.row + 1);
+        maxColumn = _max(maxColumn, coord.column + 1);
+      }
       if (cellJson.isEmpty) {
         continue;
       }
@@ -429,95 +461,6 @@ Map<String, Object?> _sheetJsonFromWorksheet(
           'bg=${cellJson['bg']} fc=${cellJson['fc']} bl=${cellJson['bl']} '
           'fs=${cellJson['fs']} mc=${cellJson['mc']}',
         );
-      }
-      if (_isXlsxNutritionHeader(cellValue) && merge != null) {
-        nutritionBorderRanges.add(_nutritionRangeFromHeaderMerge(merge));
-      }
-      if (_shouldSkipXlsxCellBorders(cellValue) && merge != null) {
-        borderlessMergeRanges.add(_mergeRangeFromJson(merge));
-      }
-      final shouldSkipBorders =
-          _shouldSkipXlsxCellBorders(cellValue) ||
-          _isInsideXlsxMergeRange(
-            coord.row,
-            coord.column,
-            borderlessMergeRanges,
-          );
-      final shouldImportBorders =
-          !shouldSkipBorders &&
-          _shouldImportXlsxCellBorders(
-            coord.row,
-            coord.column,
-            cellValue: cellValue,
-            cellJson: cellJson,
-            merge: merge,
-            hyperlink: hyperlink,
-            mergeRanges: mergeRanges,
-          );
-      if (shouldImportBorders) {
-        final presentBorderTypes = <String>{};
-        for (final border in style.borderInfo(coord.row, coord.column)) {
-          final adjustedBorder = _adjustXlsxImportedBorder(
-            border,
-            coord.row,
-            coord.column,
-            nutritionBorderRanges,
-          );
-          presentBorderTypes.add(adjustedBorder['borderType'] as String);
-          if (!_isSameXlsxBorderLog(border, adjustedBorder) &&
-              adjustedBorderSamples.length < 120) {
-            adjustedBorderSamples.add(
-              '${_coordLabel(coord.row, coord.column)} '
-              'style=${cellAttributes['s']} '
-              'from=${_borderInfoLogText(border)} '
-              'to=${_borderInfoLogText(adjustedBorder)}',
-            );
-          }
-          borderInfo.add(adjustedBorder);
-          if (borderSamples.length < 200) {
-            borderSamples.add(
-              '${_coordLabel(coord.row, coord.column)} '
-              'style=${cellAttributes['s']} '
-              '${_borderInfoLogText(adjustedBorder)}',
-            );
-          }
-        }
-        for (final synthesized in _missingNutritionOuterBorders(
-          coord.row,
-          coord.column,
-          presentBorderTypes,
-          nutritionBorderRanges,
-        )) {
-          if (adjustedBorderSamples.length < 120) {
-            adjustedBorderSamples.add(
-              '${_coordLabel(coord.row, coord.column)} '
-              'style=${cellAttributes['s']} '
-              'synth to=${_borderInfoLogText(synthesized)}',
-            );
-          }
-          borderInfo.add(synthesized);
-        }
-      } else if (shouldSkipBorders && skippedValueBorderSamples.length < 80) {
-        for (final border in style.borderInfo(coord.row, coord.column)) {
-          skippedValueBorderSamples.add(
-            '${_coordLabel(coord.row, coord.column)} '
-            'value=${_logText(cellValue.text ?? '')} '
-            'style=${cellAttributes['s']} ${_borderInfoLogText(border)}',
-          );
-          if (skippedValueBorderSamples.length >= 80) {
-            break;
-          }
-        }
-      } else if (skippedBlankBorderSamples.length < 200) {
-        for (final border in style.borderInfo(coord.row, coord.column)) {
-          skippedBlankBorderSamples.add(
-            '${_coordLabel(coord.row, coord.column)} '
-            'style=${cellAttributes['s']} ${_borderInfoLogText(border)}',
-          );
-          if (skippedBlankBorderSamples.length >= 200) {
-            break;
-          }
-        }
       }
       maxRow = _max(maxRow, coord.row + 1);
       maxColumn = _max(maxColumn, coord.column + 1);
@@ -576,15 +519,6 @@ Map<String, Object?> _sheetJsonFromWorksheet(
     'wrapCells=${wrapSamples.join(' | ')}',
   );
   _logXlsxChunks('worksheet border samples', borderSamples);
-  _logXlsxChunks('worksheet adjusted border samples', adjustedBorderSamples);
-  _logXlsxChunks(
-    'worksheet skipped value border samples',
-    skippedValueBorderSamples,
-  );
-  _logXlsxChunks(
-    'worksheet skipped blank border samples',
-    skippedBlankBorderSamples,
-  );
   _xlsxImportLog(
     'worksheet source axis rowHeightsPt=${_mapSample(sourceRowHeights)} '
     'columnWidthsChars=${_mapSample(sourceColumnWidths)} '
@@ -1444,224 +1378,6 @@ String _borderInfoLogText(Map<String, Object?> border) {
   return 'type=${border['borderType']} style=${border['style']} '
       'stroke=${border['strokeWidth']} color=${border['color']} '
       'row=$row column=$column';
-}
-
-bool _isSameXlsxBorderLog(
-  Map<String, Object?> left,
-  Map<String, Object?> right,
-) {
-  return left['borderType'] == right['borderType'] &&
-      left['style'] == right['style'] &&
-      left['strokeWidth'] == right['strokeWidth'] &&
-      left['color'] == right['color'];
-}
-
-bool _shouldImportXlsxCellBorders(
-  int row,
-  int column, {
-  required _XlsxCellValue cellValue,
-  required Map<String, Object?> cellJson,
-  required Map<String, Object?>? merge,
-  required Object? hyperlink,
-  required List<({int rowStart, int rowEnd, int columnStart, int columnEnd})>
-  mergeRanges,
-}) {
-  final text = cellValue.text;
-  if (text != null && text.isNotEmpty) {
-    return true;
-  }
-  if (cellValue.formula != null || hyperlink != null) {
-    return true;
-  }
-  if (merge != null || _isInsideXlsxMergeRange(row, column, mergeRanges)) {
-    return true;
-  }
-  return false;
-}
-
-bool _shouldSkipXlsxCellBorders(_XlsxCellValue cellValue) {
-  final text = cellValue.text?.trim();
-  if (text == null || text.isEmpty) {
-    return false;
-  }
-  final upperText = text.toUpperCase();
-  if (upperText == '#BARCODE' || upperText == '#VALIDDATE') {
-    return true;
-  }
-  return text.startsWith('*업소명 및 소재지:') ||
-      text.startsWith('*유통기한:') ||
-      text.startsWith('*반품/교환장소:') ||
-      text.startsWith('*본 제품은') ||
-      text.startsWith('*부정불량식품 신고');
-}
-
-bool _isXlsxNutritionHeader(_XlsxCellValue cellValue) {
-  return cellValue.text?.trim() == '영양정보';
-}
-
-Map<String, Object?> _adjustXlsxImportedBorder(
-  Map<String, Object?> border,
-  int row,
-  int column,
-  List<({int rowStart, int rowEnd, int columnStart, int columnEnd})>
-  nutritionRanges,
-) {
-  if (_isXlsxNutritionOuterBorder(
-    row,
-    column,
-    border['borderType'],
-    nutritionRanges,
-  )) {
-    return {...border, 'style': 13, 'strokeWidth': 2.0};
-  }
-  if (border['style'] == 13 &&
-      _isXlsxNutritionInnerBorder(
-        row,
-        column,
-        border['borderType'],
-        nutritionRanges,
-      )) {
-    return {...border, 'style': 1, 'strokeWidth': 1.0};
-  }
-  return border;
-}
-
-bool _isXlsxNutritionOuterBorder(
-  int row,
-  int column,
-  Object? borderType,
-  List<({int rowStart, int rowEnd, int columnStart, int columnEnd})> ranges,
-) {
-  for (final range in ranges) {
-    if (row < range.rowStart ||
-        row > range.rowEnd ||
-        column < range.columnStart ||
-        column > range.columnEnd) {
-      continue;
-    }
-    return switch (borderType) {
-      'border-top' => row == range.rowStart,
-      'border-bottom' => row == range.rowEnd,
-      'border-left' => column == range.columnStart,
-      'border-right' => column == range.columnEnd,
-      _ => false,
-    };
-  }
-  return false;
-}
-
-List<Map<String, Object?>> _missingNutritionOuterBorders(
-  int row,
-  int column,
-  Set<String> presentBorderTypes,
-  List<({int rowStart, int rowEnd, int columnStart, int columnEnd})> ranges,
-) {
-  const outerTypes = [
-    'border-top',
-    'border-bottom',
-    'border-left',
-    'border-right',
-  ];
-  final result = <Map<String, Object?>>[];
-  for (final borderType in outerTypes) {
-    if (presentBorderTypes.contains(borderType)) {
-      continue;
-    }
-    if (_isXlsxNutritionOuterBorder(row, column, borderType, ranges)) {
-      result.add({
-        'rangeType': 'range',
-        'borderType': borderType,
-        'color': '#ff000000',
-        'style': 13,
-        'strokeWidth': 2.0,
-        'range': [
-          {
-            'row': [row, row],
-            'column': [column, column],
-            'row_focus': row,
-            'column_focus': column,
-          },
-        ],
-      });
-    }
-  }
-  return result;
-}
-
-bool _isXlsxNutritionInnerBorder(
-  int row,
-  int column,
-  Object? borderType,
-  List<({int rowStart, int rowEnd, int columnStart, int columnEnd})> ranges,
-) {
-  for (final range in ranges) {
-    if (row < range.rowStart ||
-        row > range.rowEnd ||
-        column < range.columnStart ||
-        column > range.columnEnd) {
-      continue;
-    }
-    final headerBottom = range.rowStart + 2;
-    final bodyTop = range.rowStart + 3;
-    switch (borderType) {
-      case 'border-top':
-        return row != range.rowStart && row != bodyTop;
-      case 'border-bottom':
-        return row != range.rowEnd && row != headerBottom;
-      case 'border-left':
-        if (row <= headerBottom && column == range.columnStart + 3) {
-          return false;
-        }
-        return column != range.columnStart;
-      case 'border-right':
-        if (row <= headerBottom && column == range.columnStart + 2) {
-          return false;
-        }
-        return column != range.columnEnd;
-    }
-  }
-  return false;
-}
-
-({int rowStart, int rowEnd, int columnStart, int columnEnd})
-_nutritionRangeFromHeaderMerge(Map<String, Object?> merge) {
-  final headerRange = _mergeRangeFromJson(merge);
-  return (
-    rowStart: headerRange.rowStart,
-    rowEnd: headerRange.rowStart + 7,
-    columnStart: headerRange.columnStart,
-    columnEnd: headerRange.columnStart + 9,
-  );
-}
-
-({int rowStart, int rowEnd, int columnStart, int columnEnd})
-_mergeRangeFromJson(Map<String, Object?> merge) {
-  final rowStart = (merge['r'] as num).toInt();
-  final columnStart = (merge['c'] as num).toInt();
-  final rowSpan = (merge['rs'] as num).toInt();
-  final columnSpan = (merge['cs'] as num).toInt();
-  return (
-    rowStart: rowStart,
-    rowEnd: rowStart + rowSpan - 1,
-    columnStart: columnStart,
-    columnEnd: columnStart + columnSpan - 1,
-  );
-}
-
-bool _isInsideXlsxMergeRange(
-  int row,
-  int column,
-  List<({int rowStart, int rowEnd, int columnStart, int columnEnd})> ranges,
-) {
-  for (final range in ranges) {
-    if (row >= range.rowStart &&
-        row <= range.rowEnd &&
-        column >= range.columnStart &&
-        column <= range.columnEnd) {
-      return true;
-    }
-  }
-  return false;
 }
 
 void _logXlsxChunks(String prefix, List<String> samples) {

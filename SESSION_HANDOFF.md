@@ -27,31 +27,30 @@
 
 ## 현재 상태
 
-### 진행 중 (2026-07-03): XLSX → 라벨 시트 변환 규칙 재정립 (미착수, 사용자 확정 사양)
+### 진행 중 (2026-07-03): XLSX → 라벨 시트 변환 규칙 재정립 (1차 구현 완료, 재가져오기 검증 대기)
 
 목적: `.xlsx` 엑셀을 라벨 시트로 가져오기. 원본과 최대한 100% 동일하게 변환.
-(세션 메모리 `/memories/session/xlsx-import-rules.md`와 동일 내용. 완료 시까지 유지.)
+규칙 전문은 세션 메모리 `/memories/session/xlsx-import-rules.md` 및 코드 상단 주석(`lib/page_label_sheet/label_sheet_xlsx_import.dart` 파일 헤더)에 명시. 완료 시까지 유지.
 
-- **A. 테두리**
-  1. 엑셀 셀 테두리 속성(방향/스타일·두께/색)을 그대로 1:1 변환. 임의 변형 금지(다운캐스트·없는 선 합성·헤더 경계 특수처리 전부 금지).
-  2. 엑셀에 테두리 없는 셀 → 변환본에도 없음. 생기면 변환 버그.
-  3. 세 영양정보 표에만 테두리 나타나는 건 1·2의 결과(규칙 아님).
-- **B. 일반화**
-  4. 특정 파일 전용 하드코딩 금지: `'영양정보'` 텍스트/고정 크기(`rowStart+7` 등)/특정 좌표 로직 제거. 모든 라벨 xlsx에 통용되는 순수 border 매핑만.
-- **C. 스케일**
-  5. 물리 라벨 크기에 맞게 스케일 조정. 넓이(폭) 우선, 폭 대비 비율로 높이 맞춤.
-  6. 폭 기준 축소 후 문자가 사람이 못 읽을 정도면 최소 가독 문자 기준으로 다시 키움. 인쇄 영역 초과 허용.
-  7. 가독 기준은 화면이 아닌 실물 라벨 프린트 기준(mm 단위).
-- **D. 폰트/텍스트**
-  8. 엑셀 폰트 속성(글꼴/크기/굵게·기울임·밑줄·취소선/글자색)을 그대로 1:1 변환.
-  9. 자간(letter spacing)/장평(font scale·width)/첨자(super·subscript)/줄간격(line height)도 엑셀 속성 그대로 변환. 단 크기만 C5·C6 스케일 규칙에 따라 비례 조정(그 외 속성 자체 유지).
+- **A. 테두리**: 엑셀 셀 테두리 속성(방향/스타일·두께/색)을 그대로 1:1 변환. 임의 변형(다운캐스트·합성·특수처리) 금지. 엑셀에 없으면 변환본에도 없음. 세 표에만 테두리 나타나는 건 결과.
+- **B. 일반화**: 특정 파일 전용 하드코딩 금지(`'영양정보'` 텍스트/고정 크기/특정 좌표). 순수 border 매핑만.
+- **C. 스케일**: 물리 라벨 폭 우선 스케일(폭 대비 높이 비율). 가독 미달 시 최소 가독 문자 기준 재확대(인쇄영역 초과 허용). 가독 기준은 실물 프린트 mm.
+- **D. 폰트/텍스트**: 글꼴/크기/굵게·기울임·밑줄·취소선/글자색 + 자간/장평/첨자/줄간격을 엑셀 그대로. 크기만 C 스케일 비례.
 
-진행 방향 (사용자 최종 확정 시):
-- 현재 영양정보 전용 보정 제거 대상: `_adjustXlsxImportedBorder`(thick→thin 다운캐스트), `_missingNutritionOuterBorders`(외곽선 합성), `#BARCODE`/안내문/빈셀 skip 로직, `_isXlsxNutritionHeader`/`_nutritionRangeFromHeaderMerge` 등 영양정보 하드코딩.
-- 대체: 엑셀 `styles.xml` border 정의 → FortuneSheet border 1:1 매핑. 엑셀에 없는 테두리는 생성하지 않음.
-- 규명 필요: 제품정보 블록(행 1~5, 19~23)에 테두리가 생기는 원인. 소스 컬럼별로 A1 top=gray(#d0d0d0)/bottom=black(style=13) 등 혼재 → 엑셀 실제 border와 대조해 오매핑/빈셀 기본 테두리/gray 처리 중 무엇이 원인인지 확인.
-- 스케일 로직(`_labelSheetScaledToPhysicalWidth` 등)은 규칙 5·6·7 기준으로 검증·정리(이미 일부 구현됨).
-- 상태: 사용자 최종 확인 대기. 확인 전 코드 변경 금지. 규칙 추가/변경 시 이 섹션과 세션 메모리 동시 갱신.
+1차 구현 완료 (미검증, 사용자 재가져오기 후 확인 필요):
+- `lib/page_label_sheet/label_sheet_xlsx_import.dart`:
+  - 파일 헤더에 변환 규칙 A~D 주석 명시(추후 수정 방향 고정).
+  - 영양정보 전용 보정 전부 제거: `_adjustXlsxImportedBorder`(다운캐스트), `_missingNutritionOuterBorders`(합성), `_isXlsxNutritionHeader`/`_isXlsxNutritionOuterBorder`/`_isXlsxNutritionInnerBorder`/`_nutritionRangeFromHeaderMerge`, `#BARCODE`/안내문/빈셀 skip(`_shouldSkipXlsxCellBorders`/`_shouldImportXlsxCellBorders`), `_isInsideXlsxMergeRange`, `_mergeRangeFromJson`, `_isSameXlsxBorderLog`, 관련 sample 로그/변수(`nutritionBorderRanges`·`borderlessMergeRanges`·`mergeRanges`·`adjustedBorderSamples`·`skipped*BorderSamples`).
+  - 테두리 변환은 이제 `style.borderInfo()`(엑셀 styles.xml border 1:1 매핑, `_borderStyle`/`_borderStrokeWidth`)를 셀별로 그대로 emit. 값/채움 없는 border-only 빈 셀도 `cellJson.isEmpty` skip 이전에 border를 유지.
+- `lib/page_label_sheet/label_sheet_workbench.dart`: `_labelSheetScaledToPhysicalWidth`에 규칙 C 참조 주석 추가. 스케일 로직(widthScale 우선 + `max(widthScale, readableScale)` 재확대 + mm 기준 최소 가독)이 규칙 5·6·7과 일치함 확인, 코드 변경 없음.
+- 폰트/자간/장평/첨자/줄간격 import는 `_XlsxFont`+inline runs+customXml metadata에서 이미 충실 파싱됨 확인, 변경 없음.
+- `test/label_sheet_xlsx_import_test.dart`: 충실 변환 기준으로 테두리 기대값 갱신(borderId 있는 셀은 값/종류 무관 테두리 유지, borderId=0은 없음). `*유통기한:`/`#BARCODE`/빈셀도 엑셀 border가 있으면 유지.
+- 검증: `flutter test test/label_sheet_xlsx_import_test.dart` 3개 성공, `flutter analyze`(3파일) No issues.
+
+다음 작업 (재가져오기 후):
+- 사용자가 실제 라벨 xlsx 재가져오기 → 최신 `.tmp/log/app_*.log`의 `worksheet border samples`로 제품정보 블록 셀이 실제로 엑셀에 border가 있는지 재확인.
+- 만약 제품 블록에 여전히 테두리가 보이면: 엑셀 원본에 실제 border가 있는 것이므로 규칙 A2(그대로) 관점에서 정상. 사용자와 원본 대조 재확인. (엑셀엔 없는데 생기면 `_borderSide` 추출/스타일 인덱스 매핑 재점검.)
+- 스케일/폰트 시각 검증도 재가져오기 로그로 확인.
 
 ### 최근 완료 (2026-07-03)
 

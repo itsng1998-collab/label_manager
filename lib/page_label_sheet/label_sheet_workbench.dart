@@ -716,6 +716,10 @@ FortuneSheet _labelSheetWithPreservedGridClientSize(
   );
 }
 
+// 변환 규칙 C(스케일): 물리 라벨 크기에 맞춰 폭 우선으로 스케일하고, 폭 대비 비율로
+// 높이를 맞춘다(규칙 5). 폭 기준 축소로 문자가 실물 프린트 기준 최소 가독 크기(규칙 7)를
+// 밑돌면 인쇄 영역을 벗어나더라도 다시 키운다(규칙 6). 세부 규칙은
+// label_sheet_xlsx_import.dart 상단 규칙 주석 참조.
 FortuneSheet _labelSheetScaledToPhysicalWidth(
   FortuneSheet sheet, {
   required FortuneSheet currentSheet,
