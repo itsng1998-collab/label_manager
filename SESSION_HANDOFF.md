@@ -36,6 +36,7 @@
   - 검증 완료: `C:\Flutter\bin\flutter.bat test test/label_sheet_xlsx_import_test.dart` 3개 성공.
   - 검증 완료: `C:\Flutter\bin\flutter.bat analyze lib/page_label_sheet/label_sheet_workbench.dart lib/page_label_sheet/label_sheet_xlsx_import.dart test/label_sheet_xlsx_import_test.dart --no-fatal-warnings --no-fatal-infos` 성공.
   - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/page_label_sheet/label_sheet_xlsx_import.dart`, `test/label_sheet_xlsx_import_test.dart` (`lib/core/app.dart` 기존 dirty 제외).
+  - 커밋: `597bc27` (`XLSX 빈 격자 테두리 보존`).
 
 - **완료**: XLSX 빈 일반 셀 border 제외로 과한 검은 격자 완화.
   - 최신 로그 `.tmp/log/app_2026-07-03_11-35-09.log`: `label sheet import apply computed border row cells`에서 row32~row36이 모두 `blank:21`로 잡힘. 하단 빈 격자의 검은 테두리는 값/병합이 없는 빈 일반 셀 border가 실제 렌더 대상으로 남은 것이 원인.
