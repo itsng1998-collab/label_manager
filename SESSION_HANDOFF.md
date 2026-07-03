@@ -33,6 +33,7 @@
 - `lib/home_page_manager.dart`: `_ScaleIconPainter`의 반원 계기판 중심과 바늘 endpoint를 1px 아래로 이동. `_LabelScaleInlineControl`의 체크박스 영역만 `20x20`에서 `19x19`로 축소. 전자저울 UI 전체 높이를 `24`에서 `23`으로 줄여 인라인 에디터 상단 아웃라인과 겹치는 부분 완화.
 - 검증 완료: `C:\Flutter\bin\dart.bat format lib\home_page_manager.dart` 성공, `flutter test test/swipe_action_table_test.dart` 19개 성공, `C:\Flutter\bin\flutter.bat analyze lib\home_page_manager.dart test\swipe_action_table_test.dart --no-fatal-warnings --no-fatal-infos` No issues.
 - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/home_page_manager.dart`.
+- 기능 커밋: `fd0aa6f` (`전자저울 인라인 UI 위치 미세 조정`).
 
 ### 완료 (2026-07-03): 라벨 설정 전자저울 UI 시각 조정
 
