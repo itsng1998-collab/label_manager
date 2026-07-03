@@ -95,7 +95,7 @@ void main() {
     );
     expect(_hasBorderAt(sheet, const FortuneCellCoord(0, 4)), isTrue);
     expect(_hasBorderAt(sheet, const FortuneCellCoord(0, 5)), isFalse);
-    expect(_hasBorderAt(sheet, const FortuneCellCoord(2, 1)), isTrue);
+    expect(_hasBorderAt(sheet, const FortuneCellCoord(2, 1)), isFalse);
     expect(_hasBorderAt(sheet, const FortuneCellCoord(2, 2)), isFalse);
   });
 

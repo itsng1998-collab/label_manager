@@ -29,6 +29,14 @@
 
 ### 최근 완료 (2026-07-03)
 
+- **완료**: XLSX 빈 일반 셀 테두리 재보정 및 skipped 로그 추가.
+  - 사용자 첨부 원본/변환본 재비교 결과, 변환본 `row14~18`, `row32~36` 빈 영역에 검은 격자가 생겼고 원본은 일반 회색 그리드임. 직전 `blankIntentional` 보존 정책은 과한 검은 테두리를 되살려 잘못된 방향으로 확인됨.
+  - `lib/page_label_sheet/label_sheet_xlsx_import.dart`: 값/수식/하이퍼링크/병합/병합 내부/배경이 없는 빈 일반 셀 border는 색상이 검은색이어도 import하지 않도록 복원. 대신 제외된 좌표/스타일/색상/방향을 `xlsx import worksheet skipped blank border samples` chunk 로그로 최대 200개 기록.
+  - `test/label_sheet_xlsx_import_test.dart`: 빈 일반 셀의 검은 border와 회색 border가 모두 제외되는 기대값으로 조정.
+  - 검증 완료: `C:\Flutter\bin\flutter.bat test test/label_sheet_xlsx_import_test.dart` 3개 성공. 테스트 로그에서 `borders=6`, `skipped blank border samples`에 B3/C3 샘플 확인.
+  - 검증 완료: `C:\Flutter\bin\flutter.bat analyze lib/page_label_sheet/label_sheet_workbench.dart lib/page_label_sheet/label_sheet_xlsx_import.dart test/label_sheet_xlsx_import_test.dart --no-fatal-warnings --no-fatal-infos` 성공.
+  - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/page_label_sheet/label_sheet_xlsx_import.dart`, `test/label_sheet_xlsx_import_test.dart` (`lib/core/app.dart` 기존 dirty 제외).
+
 - **완료**: XLSX 빈 셀 테두리 정책 보정.
   - 사용자 첨부 원본/변환본 비교 결과, 원본에도 row14~18 및 row32~36의 빈 격자 표가 검은 테두리로 존재함. 직전 `빈 일반 셀 border 전체 제외` 정책은 의도된 빈 표 테두리까지 제거할 수 있어 보정.
   - `lib/page_label_sheet/label_sheet_xlsx_import.dart`: 값/수식/하이퍼링크/병합/배경이 없는 빈 일반 셀이라도 검은/색상 명시 border는 `blankIntentional`로 가져오고, `#ffd0d0d0` 같은 밝은 중립 회색 보조선만 제외.
