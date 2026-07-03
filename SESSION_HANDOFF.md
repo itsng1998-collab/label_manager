@@ -29,6 +29,20 @@
 
 ### 최근 완료 (2026-07-03)
 
+- **완료**: XLSX 원본 대비 변환본 시각 차이 재확인 및 치수 진단 로그 보강.
+  - 첨부 비교 기준: 값/줄바꿈은 살아 있으나 변환본의 하단 영양정보 영역 행 높이/전체 세로 배치가 원본과 다르게 보임.
+  - 최신 로그 `.tmp/log/app_2026-07-03_10-14-35.log`: 값/병합/줄바꿈은 apply 단계까지 유지. `zoomRatio=1.0`, `columnLogicalWidth=1118.0`, `rowLogicalHeight=823.3333333131001`, `gridWidthMm=80`, `gridHeightMm=60`.
+  - 현재 가설: XLSX 원본 행/열 치수와 FortuneSheet logical 치수 변환 또는 적용 후 표시 스케일 중 한 단계에서 세로 비율 차이가 발생.
+  - 수정 예정 파일: `lib/page_label_sheet/label_sheet_xlsx_import.dart`, `lib/page_label_sheet/label_sheet_workbench.dart`, `SESSION_HANDOFF.md`.
+  - 목적: 원본 XLSX row height/column width, 변환 logical 치수, 적용 후 axis/physical scale을 긴 단일 로그가 아닌 분리 로그로 남겨 다음 재현에서 원인 단계 판별.
+  - `lib/page_label_sheet/label_sheet_xlsx_import.dart`: 원본 row height(pt), column width(chars), 변환 logical 치수와 합계 로그 추가.
+  - `lib/page_label_sheet/label_sheet_workbench.dart`: apply 후 행/열 치수, 누적 boundary, physical mm 대비 logical/mm 로그 추가.
+  - 참고: `./flutter.ps1 test ...`는 서브패키지에도 같은 상대 경로를 전달해 wrapper 전체 exit code는 실패했지만 root 대상 테스트는 성공. 이후 root Flutter 직접 실행으로 검증 완료.
+  - 검증 완료: `C:\Flutter\bin\flutter.bat analyze lib/page_label_sheet/label_sheet_xlsx_import.dart lib/page_label_sheet/label_sheet_workbench.dart --no-fatal-warnings --no-fatal-infos` 성공.
+  - 검증 완료: `C:\Flutter\bin\flutter.bat test test/label_sheet_xlsx_import_test.dart` 3개 성공.
+  - 임시 산출물 정리 완료: wrapper 검증 중 생성된 `third_party/fortune_sheet/build/`, `third_party/mssql_connection/build/`, `third_party/r_get_ip/build/` 삭제.
+  - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/page_label_sheet/label_sheet_xlsx_import.dart`, `lib/page_label_sheet/label_sheet_workbench.dart` (`.vscode/settings.json`, `lib/core/app.dart` 기존 dirty 제외).
+
 - **완료**: VS Code 작업이 `pwsh -Command powershell ...` 형태로 실행될 때 `powershell` 명령을 찾지 못하는 문제 수정.
   - 수정 예정 파일: `.vscode/tasks.json`.
   - 목적: shell task의 bare `powershell` 명령을 Windows PowerShell 실행 파일 절대 경로로 바꿔 PATH/App Execution Alias 상태와 무관하게 실행되도록 보정.

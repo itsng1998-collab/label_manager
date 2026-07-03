@@ -770,6 +770,23 @@ void _logImportedSheetApplySample(FortuneSheet sheet) {
     'mergeCovered=${coveredSamples.join(' | ')}',
     skipFrames: 1,
   );
+  debugLog(
+    'label sheet import apply axis '
+    'rowHeights=${_labelSheetAxisSample(sheet.rowHeights)} '
+    'columnWidths=${_labelSheetAxisSample(sheet.columnWidths)} '
+    'rowBoundaries=${_labelSheetAxisBoundarySample(sheet.rowHeights)} '
+    'columnBoundaries=${_labelSheetAxisBoundarySample(sheet.columnWidths)}',
+    skipFrames: 1,
+  );
+  debugLog(
+    'label sheet import apply scale '
+    'logicalSize=${columnLogicalWidth}x$rowLogicalHeight '
+    'visibleSize=${columnLogicalWidth * zoomRatio}x${rowLogicalHeight * zoomRatio} '
+    'physicalSizeMm=${gridSize?.widthMm}x${gridSize?.heightMm} '
+    'logicalPerMm=${_labelSheetLogicalPerMm(columnLogicalWidth, gridSize?.widthMm)}x'
+    '${_labelSheetLogicalPerMm(rowLogicalHeight, gridSize?.heightMm)}',
+    skipFrames: 1,
+  );
 }
 
 double _labelSheetAxisLogicalTotalSize(Map<int, double> sizes) {
@@ -777,6 +794,40 @@ double _labelSheetAxisLogicalTotalSize(Map<int, double> sizes) {
     return 0;
   }
   return sizes.values.fold<double>(0, (sum, size) => sum + size + 1);
+}
+
+String _labelSheetAxisSample(Map<int, double> sizes, {int limit = 24}) {
+  if (sizes.isEmpty) {
+    return '-';
+  }
+  final entries = sizes.entries.toList()
+    ..sort((left, right) => left.key.compareTo(right.key));
+  return entries
+      .take(limit)
+      .map((entry) => '${entry.key}:${entry.value}')
+      .join('|');
+}
+
+String _labelSheetAxisBoundarySample(Map<int, double> sizes, {int limit = 24}) {
+  if (sizes.isEmpty) {
+    return '-';
+  }
+  final entries = sizes.entries.toList()
+    ..sort((left, right) => left.key.compareTo(right.key));
+  var position = 0.0;
+  final samples = <String>[];
+  for (final entry in entries.take(limit)) {
+    position += entry.value + 1;
+    samples.add('${entry.key}:$position');
+  }
+  return samples.join('|');
+}
+
+String _labelSheetLogicalPerMm(double logicalSize, num? mm) {
+  if (mm == null || mm <= 0) {
+    return '-';
+  }
+  return (logicalSize / mm.toDouble()).toStringAsFixed(4);
 }
 
 String _labelSheetCoordLabel(int row, int column) {

@@ -229,6 +229,8 @@ Map<String, Object?> _sheetJsonFromWorksheet(
   final cellKeys = <String>{};
   final rowHeights = <String, Object?>{};
   final columnWidths = <String, Object?>{};
+  final sourceRowHeights = <String, Object?>{};
+  final sourceColumnWidths = <String, Object?>{};
   final hiddenRows = <String, Object?>{};
   final hiddenColumns = <String, Object?>{};
   final borderInfo = <Map<String, Object?>>[];
@@ -272,6 +274,7 @@ Map<String, Object?> _sheetJsonFromWorksheet(
     for (var index = column.min; index <= column.max; index += 1) {
       final columnIndex = index - 1;
       if (column.width != null && column.width! > 0) {
+        sourceColumnWidths['$columnIndex'] = column.width;
         columnWidths['$columnIndex'] = _columnWidthToLogicalPixels(column.width!);
       }
       if (column.hidden) {
@@ -304,6 +307,7 @@ Map<String, Object?> _sheetJsonFromWorksheet(
     final rowIndex = rowNumber > 0 ? rowNumber - 1 : maxRow;
     final rowHeight = double.tryParse(rowAttributes['ht'] ?? '');
     if (rowHeight != null && rowHeight.isFinite && rowHeight > 0) {
+      sourceRowHeights['$rowIndex'] = rowHeight;
       rowHeights['$rowIndex'] = rowHeight * 1.3333333333;
     }
     if (_xmlBool(rowAttributes['hidden'])) {
@@ -453,6 +457,18 @@ Map<String, Object?> _sheetJsonFromWorksheet(
     'columnWidths=${_mapSample(columnWidths)} '
     'lineBreakCells=${lineBreakSamples.join(' | ')} '
     'wrapCells=${wrapSamples.join(' | ')}',
+  );
+  _xlsxImportLog(
+    'worksheet source axis rowHeightsPt=${_mapSample(sourceRowHeights)} '
+    'columnWidthsChars=${_mapSample(sourceColumnWidths)} '
+    'rowHeightPtTotal=${_numericMapTotal(sourceRowHeights)} '
+    'columnWidthCharTotal=${_numericMapTotal(sourceColumnWidths)}',
+  );
+  _xlsxImportLog(
+    'worksheet converted axis rowHeightsLogical=${_mapSample(rowHeights)} '
+    'columnWidthsLogical=${_mapSample(columnWidths)} '
+    'rowLogicalTotal=${_numericMapTotal(rowHeights)} '
+    'columnLogicalTotal=${_numericMapTotal(columnWidths)}',
   );
 
   return {
@@ -1267,6 +1283,16 @@ String _mapSample(Map<String, Object?> map) {
       .take(30)
       .map((entry) => '${entry.key}:${entry.value}')
       .join('|');
+}
+
+double _numericMapTotal(Map<String, Object?> map) {
+  var total = 0.0;
+  for (final value in map.values) {
+    if (value is num) {
+      total += value.toDouble();
+    }
+  }
+  return total;
 }
 
 int _lineCount(String? value) {
