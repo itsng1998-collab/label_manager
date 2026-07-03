@@ -318,9 +318,6 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
   }
 
   void _autoFitColumn(int index) {
-    if (!widget.autoFitColumns) {
-      return;
-    }
     final scaler = MediaQuery.of(context).textScaler;
     const style = TextStyle(fontSize: 14);
     final column = widget.columns[index];

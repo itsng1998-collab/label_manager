@@ -289,6 +289,58 @@ void main() {
     );
   });
 
+  testWidgets('resizable table auto fits column width on separator double tap', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 500,
+            height: 120,
+            child: ResizableTable<_Row>(
+              rows: const [_Row('Very long brand name value', 'A001')],
+              columns: [
+                ResizableTableColumn<_Row>(
+                  id: 'name',
+                  title: 'Name',
+                  width: 60,
+                  minWidth: 40,
+                  textAccessor: (row) => row.name,
+                  cellBuilder: (context, row, index) => SizedBox.expand(
+                    key: const ValueKey('autofit-name-cell'),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(row.name),
+                    ),
+                  ),
+                ),
+                ResizableTableColumn<_Row>(
+                  id: 'code',
+                  title: 'Code',
+                  width: 120,
+                  minWidth: 40,
+                  textAccessor: (row) => row.code,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final cellFinder = find.byKey(const ValueKey('autofit-name-cell'));
+    expect(tester.getSize(cellFinder).width, 60);
+
+    final separatorX = tester.getTopRight(cellFinder).dx;
+    await tester.tapAt(Offset(separatorX, 10));
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.tapAt(Offset(separatorX, 10));
+    await tester.pumpAndSettle();
+
+    expect(tester.getSize(cellFinder).width, greaterThan(60));
+  });
+
   testWidgets('header trailing builder receives interactive row state', (
     tester,
   ) async {
