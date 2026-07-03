@@ -385,6 +385,10 @@ void main() {
 
     expect(find.byTooltip('수정/삽입/삭제 열기'), findsNWidgets(2));
     expect(find.byTooltip('수정/삽입/삭제 닫기'), findsNothing);
+    expect(
+      tester.getCenter(find.byTooltip('수정/삽입/삭제 열기').first).dx,
+      greaterThan(tester.getCenter(find.text('Brand A')).dx),
+    );
 
     await tester.tap(find.byTooltip('수정/삽입/삭제 열기').first);
     await tester.pumpAndSettle();
