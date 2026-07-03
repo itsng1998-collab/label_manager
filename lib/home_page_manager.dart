@@ -2460,7 +2460,7 @@ class _LabelScaleInlineControl extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const controlSize = 20.0;
-    const checkboxSize = controlSize - 1;
+    const checkboxSize = controlSize - 2;
     return Tooltip(
       message: '전자저울 사용',
       child: Padding(
@@ -2483,7 +2483,7 @@ class _LabelScaleInlineControl extends StatelessWidget {
             ],
           ),
           child: SizedBox(
-            height: 23,
+            height: 22,
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [

@@ -27,6 +27,15 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-03): 전자저울 UI 추가 미세 조정 및 인라인 키 입력 복구
+
+목적: 라벨 설정 인라인 전자저울 UI 상단 겹침을 1px 더 줄이고 체크박스 크기를 1px 더 줄인다. 인라인 에디터에서 키보드 편집이 되지 않는 문제를 복구한다.
+- `lib/home_page_manager.dart`: `_LabelScaleInlineControl` 전체 높이를 `23`에서 `22`로 줄이고, 체크박스 영역을 `19x19`에서 `18x18`로 축소.
+- `lib/widgets/swipe_action_table.dart`: `_InlineNameEditCell`의 바깥 `Focus.onKeyEvent` 키 처리 대신 `Shortcuts/Actions`로 ESC 취소만 처리하도록 변경해 TextField가 일반 문자 키 입력을 직접 받도록 복구.
+- `test/swipe_action_table_test.dart`: 인라인 에디터에서 키보드 입력으로 텍스트가 변경되는 회귀 테스트 추가.
+- 검증 완료: `C:\Flutter\bin\dart.bat format lib\home_page_manager.dart lib\widgets\swipe_action_table.dart test\swipe_action_table_test.dart` 성공, `flutter test test/swipe_action_table_test.dart` 20개 성공, `C:\Flutter\bin\flutter.bat analyze lib\home_page_manager.dart lib\widgets\swipe_action_table.dart test\swipe_action_table_test.dart --no-fatal-warnings --no-fatal-infos` No issues.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `lib/home_page_manager.dart`, `lib/widgets/swipe_action_table.dart`, `test/swipe_action_table_test.dart`.
+
 ### 완료 (2026-07-03): 전자저울 인라인 UI 1px 미세 조정
 
 목적: 라벨 설정 인라인 전자저울 UI에서 첨부 기준으로 아이콘 계기판 위치, 체크박스 크기, 상단 겹침을 1px 단위로 보정한다.

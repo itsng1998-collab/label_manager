@@ -1644,93 +1644,96 @@ class _InlineNameEditCell extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       width: width,
-      child: Focus(
-        onKeyEvent: (node, event) {
-          if (event is! KeyDownEvent) {
-            return KeyEventResult.ignored;
-          }
-          if (event.logicalKey == LogicalKeyboardKey.escape) {
-            onCancel();
-            return KeyEventResult.handled;
-          }
-          if (event.logicalKey == LogicalKeyboardKey.enter) {
-            if (!canSubmit) {
-              return KeyEventResult.handled;
-            }
-            return KeyEventResult.ignored;
-          }
-          return KeyEventResult.ignored;
+      child: Shortcuts(
+        shortcuts: const {
+          SingleActivator(LogicalKeyboardKey.escape): _CancelInlineEditIntent(),
         },
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: const Color(0xfff0f4ff),
-            border: Border.all(color: const Color(0xFF0E2F66), width: 1.5),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: controller,
-                  focusNode: focusNode,
-                  autofocus: true,
-                  maxLines: 1,
-                  textAlignVertical: TextAlignVertical.center,
-                  decoration: const InputDecoration(
-                    isDense: true,
-                    contentPadding: EdgeInsets.only(
-                      left: 6,
-                      right: 4,
-                      top: 0,
-                      bottom: 0,
+        child: Actions(
+          actions: {
+            _CancelInlineEditIntent: CallbackAction<_CancelInlineEditIntent>(
+              onInvoke: (_) {
+                onCancel();
+                return null;
+              },
+            ),
+          },
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: const Color(0xfff0f4ff),
+              border: Border.all(color: const Color(0xFF0E2F66), width: 1.5),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: controller,
+                    focusNode: focusNode,
+                    autofocus: true,
+                    maxLines: 1,
+                    textAlignVertical: TextAlignVertical.center,
+                    decoration: const InputDecoration(
+                      isDense: true,
+                      contentPadding: EdgeInsets.only(
+                        left: 6,
+                        right: 4,
+                        top: 0,
+                        bottom: 0,
+                      ),
+                      border: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      enabledBorder: InputBorder.none,
                     ),
-                    border: InputBorder.none,
-                    focusedBorder: InputBorder.none,
-                    enabledBorder: InputBorder.none,
+                    onSubmitted: (_) => onSubmit(controller.text),
                   ),
-                  onSubmitted: (_) => onSubmit(controller.text),
                 ),
-              ),
-              Padding(
-                padding: const EdgeInsets.only(top: 3, right: 3, bottom: 3),
-                child: Tooltip(
-                  message: '변경 적용',
-                  child: MouseRegion(
-                    cursor: canSubmit
-                        ? SystemMouseCursors.click
-                        : SystemMouseCursors.basic,
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: canSubmit ? () => onSubmit(controller.text) : null,
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 120),
-                        width: 22,
-                        decoration: BoxDecoration(
-                          color: canSubmit
-                              ? const Color(0xFF0E2F66)
-                              : Colors.transparent,
-                          borderRadius: BorderRadius.circular(3),
-                        ),
-                        child: Center(
-                          child: Icon(
-                            Icons.keyboard_return,
-                            size: 15,
+                Padding(
+                  padding: const EdgeInsets.only(top: 3, right: 3, bottom: 3),
+                  child: Tooltip(
+                    message: '변경 적용',
+                    child: MouseRegion(
+                      cursor: canSubmit
+                          ? SystemMouseCursors.click
+                          : SystemMouseCursors.basic,
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: canSubmit
+                            ? () => onSubmit(controller.text)
+                            : null,
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 120),
+                          width: 22,
+                          decoration: BoxDecoration(
                             color: canSubmit
-                                ? Colors.white
-                                : const Color(0xffb0bec5),
+                                ? const Color(0xFF0E2F66)
+                                : Colors.transparent,
+                            borderRadius: BorderRadius.circular(3),
+                          ),
+                          child: Center(
+                            child: Icon(
+                              Icons.keyboard_return,
+                              size: 15,
+                              color: canSubmit
+                                  ? Colors.white
+                                  : const Color(0xffb0bec5),
+                            ),
                           ),
                         ),
                       ),
                     ),
                   ),
                 ),
-              ),
-              ?trailing,
-            ],
+                ?trailing,
+              ],
+            ),
           ),
         ),
       ),
     );
   }
+}
+
+class _CancelInlineEditIntent extends Intent {
+  const _CancelInlineEditIntent();
 }
 
 class ResizableTableColumn<T> {

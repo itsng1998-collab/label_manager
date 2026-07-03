@@ -481,6 +481,18 @@ void main() {
     },
   );
 
+  testWidgets('editable name table allows keyboard text editing', (
+    tester,
+  ) async {
+    await _pumpEditableNameTable(tester, editingIndex: 0);
+
+    await tester.tap(find.byType(TextField));
+    await tester.enterText(find.byType(TextField), 'Brand A edited');
+    await tester.pump();
+
+    expect(find.text('Brand A edited'), findsOneWidget);
+  });
+
   testWidgets('header trailing builder receives interactive row state', (
     tester,
   ) async {
