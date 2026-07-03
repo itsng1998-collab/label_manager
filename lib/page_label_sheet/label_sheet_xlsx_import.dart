@@ -408,8 +408,7 @@ Map<String, Object?> _sheetJsonFromWorksheet(
       final cellBorders = style.borderInfo(coord.row, coord.column);
       for (final border in cellBorders) {
         borderInfo.add(border);
-        // 진단: 규칙 A 검증용. 엑셀 원본 border(색/스타일)를 셀별로 전량 기록.
-        if (borderSamples.length < 3000) {
+        if (borderSamples.length < 200) {
           borderSamples.add(
             '${_coordLabel(coord.row, coord.column)} '
             'style=${cellAttributes['s']} '
@@ -813,25 +812,6 @@ class _XlsxStyleTable {
       'styles parsed formats=${formats.length} fonts=${fonts.length} '
       'fills=${fills.length} borders=${borders.length} numFmts=${numberFormats.length}',
     );
-    // 진단: border 정의(index→sides)와 문제 format의 borderId/applyBorder 덤프.
-    final borderDefSamples = <String>[];
-    for (var i = 0; i < borders.length; i += 1) {
-      final sides = borders[i].sides.entries
-          .map((e) => '${e.key}=s${e.value.style}/${e.value.color}')
-          .join(',');
-      borderDefSamples.add('def[$i] ${sides.isEmpty ? '(none)' : sides}');
-    }
-    _logXlsxChunks('styles border defs', borderDefSamples);
-    final formatSamples = <String>[];
-    for (var i = 0; i < formats.length; i += 1) {
-      final f = formats[i];
-      if (f.borderId != null && f.borderId != 0) {
-        formatSamples.add(
-          'fmt[$i] borderId=${f.borderId} applyBorder=${f.applyBorder} xfId=${f.xfId}',
-        );
-      }
-    }
-    _logXlsxChunks('styles formats with border', formatSamples);
     return _XlsxStyleTable(
       formats: formats.isEmpty
           ? const <_XlsxCellFormat>[_XlsxCellFormat()]
@@ -950,7 +930,6 @@ class _XlsxCellFormat {
     this.fillId,
     this.borderId,
     this.applyBorder = true,
-    this.xfId,
     this.horizontalAlign,
     this.verticalAlign,
     this.wrapText = false,
@@ -963,7 +942,6 @@ class _XlsxCellFormat {
   final int? fillId;
   final int? borderId;
   final bool applyBorder;
-  final int? xfId;
   final String? horizontalAlign;
   final String? verticalAlign;
   final bool wrapText;
@@ -1270,7 +1248,6 @@ _XlsxCellFormat _cellFormat(Map<String, String> attributes, String body) {
     applyBorder: attributes.containsKey('applyBorder')
         ? _xmlBool(attributes['applyBorder'])
         : true,
-    xfId: int.tryParse(attributes['xfId'] ?? ''),
     quotePrefix: _xmlBool(attributes['quotePrefix']),
     horizontalAlign: alignment?['horizontal'],
     verticalAlign: alignment?['vertical'],

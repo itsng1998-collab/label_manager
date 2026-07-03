@@ -48,14 +48,13 @@
 - 검증: `flutter test test/label_sheet_xlsx_import_test.dart` 3개 성공, `flutter analyze`(3파일) No issues.
 
 다음 작업 (재가져오기 후):
-- **근본 원인 확정 + 수정 완료(미검증)**: 원본 `.tmp/label_sample2_converted.xlsx` 압축 해제로 styles.xml 직접 확인.
-  - `<x:borders count="62">`인데 맨 앞 self-closing `<x:border /><x:border />` 2개(무테두리)를 파서가 **여는 태그로 오인해 삼켜** 60개만 파싱 → 모든 borderId가 2씩 밀림. 예: A14는 borderId 33(=회색 왼쪽선 하나뿐)이어야 하는데, 밀린 index로 4면 검은 테두리(index 35)를 잘못 참조.
-  - 원인: `_elementBodies` 정규식이 여는 태그 대안을 앞에 둬서 `[^>]*`가 self-closing의 `/`까지 삼킴.
-- 수정: `lib/page_label_sheet/label_sheet_xlsx_import.dart` `_elementBodies` 정규식을 self-closing 대안(`<tag/>`) 먼저 매칭하도록 변경. borders뿐 아니라 fonts/fills 인덱스 정렬도 함께 교정됨.
-- 테스트: `test/label_sheet_xlsx_import_test.dart` 픽스처 border 0을 self-closing `<border/>`로 바꿔 인덱스 정렬 회귀 확보(E3 thick-top borderId 정렬 검증). `flutter test` 4개 성공, `flutter analyze` No issues.
-- 진단 로그(border defs/format borderId, border sample 3000)는 재가져오기 검증용으로 유지. 확인 후 트림 예정.
-- 재가져오기 검증: 빈/안내문/바코드 영역이 엑셀처럼 회색(#d0d0d0) 연한 격자 또는 무테두리로 바뀌고, 세 표·제품블록 실제 테두리는 유지되는지 확인.
-- 스케일/폰트 시각 검증도 재가져오기 로그로 확인.
+- **근본 원인 확정 + 수정 + 검증 완료**: 원본 `.tmp/label_sample2_converted.xlsx` styles.xml 직접 확인.
+  - `<x:borders count="62">`인데 맨 앞 self-closing `<x:border /><x:border />` 2개(무테두리)를 파서가 **여는 태그로 오인해 삼켜** 60개만 파싱 → 모든 borderId 2씩 밀림. 예: A14는 borderId 33(=회색 왼쪽선)이어야 하는데 index 35의 4면 검정 테두리를 잘못 참조.
+  - 수정: `_elementBodies` 정규식을 self-closing(`<tag/>`) 대안 먼저 매칭. borders/fonts/fills 정렬 교정.
+  - 검증: 재가져오기 로그 `app_2026-07-03_15-03-43.log`에서 border수 **2365→792**, A14=회색 왼쪽선만, L19/N20/L30 무테두리/회색만, 표(A5/A7/A9)는 굵은 외곽선 유지 확인. 변환본이 엑셀과 시각적으로 일치.
+- 진단 로그(border defs/format 덤프, sample 3000) 제거, sample 한도 200 복원, xfId 진단 필드 제거. applyBorder 처리는 유지.
+- 검증: `flutter test` 4개 성공, `flutter analyze` No issues.
+- 남은 확인(선택): 스케일/폰트 시각 세부는 추가 재가져오기 로그로 점검 가능.
 
 ### 최근 완료 (2026-07-03)
 
