@@ -36,6 +36,7 @@
   - 검증 완료: `C:\Flutter\bin\flutter.bat test test/label_sheet_xlsx_import_test.dart` 3개 성공. 테스트 로그에서 `E3 style=5 type=border-top style=8 stroke=1.5` 확인.
   - 검증 완료: `C:\Flutter\bin\flutter.bat analyze lib/page_label_sheet/label_sheet_workbench.dart lib/page_label_sheet/label_sheet_xlsx_import.dart test/label_sheet_xlsx_import_test.dart --no-fatal-warnings --no-fatal-infos` 성공.
   - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/page_label_sheet/label_sheet_xlsx_import.dart`, `test/label_sheet_xlsx_import_test.dart` (`lib/core/app.dart` 기존 dirty 제외).
+  - 커밋: `fcbeb5b` (`XLSX 굵은 테두리 두께 보정`).
 
 - **완료**: XLSX 바코드/오른쪽 안내문 영역 border 제외 보강.
   - 최신 첨부 비교 및 `.tmp/log/app_2026-07-03_12-00-47.log` 확인: `L29` 앵커는 `skipped value border samples`로 빠졌지만, 병합 내부 `M29~U29 top`, `L31~U31 bottom`이 `mergeCoveredBlank`로 남아 바코드 영역 상/하단 선이 표시됨. 또한 오른쪽 안내문 `L19:U24`가 `bottom/top` computed border로 변환본에서 원본보다 검은 가로선이 강하게 표시됨.
