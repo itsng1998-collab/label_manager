@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io' show Platform;
+import 'dart:math' show pi;
 
 import 'package:collection/collection.dart';
 import 'package:dropdown_button2/dropdown_button2.dart';
@@ -207,7 +208,9 @@ class _HomePageManagerState extends State<HomePageManager> {
             prevBrands.length != brands!.length ||
             !listEq.equals(prevBrands, brands);
         if (changed) {
-          debugLog('brandsChanged reload prevLen=${prevBrands.length} newLen=${brands.length}');
+          debugLog(
+            'brandsChanged reload prevLen=${prevBrands.length} newLen=${brands.length}',
+          );
           setState(() {});
           _brandSettingsOverlayEntry?.markNeedsBuild();
         }
@@ -243,7 +246,9 @@ class _HomePageManagerState extends State<HomePageManager> {
     // 드롭다운에서의 브랜드 선택은 사용자의 의도적 행위이므로
     // autoLogin 가드(_isAutoLoginMode)와 무관하게 반영한다.
     // (다이얼로그 더블클릭의 _handleBrandSelectedFromDialog 와 동일한 원칙)
-    debugLog('handleBrandChanged brandId=${brand?.brandId} autoLogin=$_isAutoLoginMode');
+    debugLog(
+      'handleBrandChanged brandId=${brand?.brandId} autoLogin=$_isAutoLoginMode',
+    );
     widget.onBrandChanged(brand);
   }
 
@@ -396,7 +401,9 @@ class _HomePageManagerState extends State<HomePageManager> {
       _commonLabelTabActivated = false;
       _commonLabelPreviewClosedByUser = false;
       widget.onLabelSizeChanged(labelSize);
-      TColumn.datas = await TColumnDAO.selectByLabelSizeId(labelSize.labelSizeId);
+      TColumn.datas = await TColumnDAO.selectByLabelSizeId(
+        labelSize.labelSizeId,
+      );
       TColumnContent.datas = await TColumnContentDAO.selectByLabelSizeId(
         labelSize.labelSizeId,
       );
@@ -499,7 +506,9 @@ class _HomePageManagerState extends State<HomePageManager> {
   }
 
   void _openBrandSettingsDialog() {
-    debugLog('brandSettings overlay open requested exists=${_brandSettingsOverlayEntry != null}');
+    debugLog(
+      'brandSettings overlay open requested exists=${_brandSettingsOverlayEntry != null}',
+    );
     if (_brandSettingsOverlayEntry != null) return;
     late final OverlayEntry entry;
     entry = OverlayEntry(
@@ -522,7 +531,9 @@ class _HomePageManagerState extends State<HomePageManager> {
   }
 
   void _openLabelSettingsDialog() {
-    debugLog('labelSettings overlay open requested exists=${_labelSettingsOverlayEntry != null}');
+    debugLog(
+      'labelSettings overlay open requested exists=${_labelSettingsOverlayEntry != null}',
+    );
     if (_labelSettingsOverlayEntry != null) return;
     late final OverlayEntry entry;
     entry = OverlayEntry(
@@ -543,11 +554,11 @@ class _HomePageManagerState extends State<HomePageManager> {
 
   Future<List<LabelSize>> _handleLabelOrderSaved() async {
     final brandId =
-      widget.selectedBrand?.brandId ??
-      _effectiveLabelSize?.brandId ??
-      _labelSizesBrandId;
+        widget.selectedBrand?.brandId ??
+        _effectiveLabelSize?.brandId ??
+        _labelSizesBrandId;
     final previousSelectedLabel =
-      _effectiveLabelSize ?? widget.selectedLabelSize;
+        _effectiveLabelSize ?? widget.selectedLabelSize;
     debugLog(
       'labelSettings reorder reload start brandId=$brandId '
       'selectedLabelSizeId=${previousSelectedLabel?.labelSizeId}',
@@ -558,8 +569,8 @@ class _HomePageManagerState extends State<HomePageManager> {
     }
 
     final reloadedLabels =
-      await LabelSizeDAO.selectByBrandIdByLabelSizeOrder(brandId) ??
-      <LabelSize>[];
+        await LabelSizeDAO.selectByBrandIdByLabelSizeOrder(brandId) ??
+        <LabelSize>[];
     if (!mounted) {
       return reloadedLabels;
     }
@@ -583,14 +594,18 @@ class _HomePageManagerState extends State<HomePageManager> {
   }
 
   void _closeBrandSettingsDialog() {
-    debugLog('brandSettings overlay close requested exists=${_brandSettingsOverlayEntry != null}');
+    debugLog(
+      'brandSettings overlay close requested exists=${_brandSettingsOverlayEntry != null}',
+    );
     _brandSettingsOverlayEntry?.remove();
     _brandSettingsOverlayEntry = null;
     debugLog('brandSettings overlay closed');
   }
 
   void _closeLabelSettingsDialog() {
-    debugLog('labelSettings overlay close requested exists=${_labelSettingsOverlayEntry != null}');
+    debugLog(
+      'labelSettings overlay close requested exists=${_labelSettingsOverlayEntry != null}',
+    );
     _labelSettingsOverlayEntry?.remove();
     _labelSettingsOverlayEntry = null;
     debugLog('labelSettings overlay closed');
@@ -784,7 +799,9 @@ class _HomePageManagerState extends State<HomePageManager> {
         return;
       }
       final shouldRebuildPreview = _rtfPreviewWindowKey != readyKey;
-      final preview = shouldRebuildPreview ? _buildRtfPreview(currentRtf) : null;
+      final preview = shouldRebuildPreview
+          ? _buildRtfPreview(currentRtf)
+          : null;
       _commonLabelPreviewWindow ??= PreviewFloatingWindow(
         initialSize: Size(
           LabelSheetRtfPreview.pixelsForMm(
@@ -816,7 +833,8 @@ class _HomePageManagerState extends State<HomePageManager> {
   Future<void> _handleCommonLabelPreviewCloseRequested() async {
     final window = _commonLabelPreviewWindow;
     if (window == null || !window.isVisible) return;
-    final target = _commonLabelPreviewButtonRect() ?? window.rect.center & Size.zero;
+    final target =
+        _commonLabelPreviewButtonRect() ?? window.rect.center & Size.zero;
     await window.hideToRect(target.inflate(1));
     if (!mounted) return;
     _commonLabelPreviewClosedByUser = true;
@@ -1003,73 +1021,84 @@ class _HomePageManagerState extends State<HomePageManager> {
     final token = ++_rtfPreviewResizeFinalizeToken;
     _rtfPreviewResizeFinalizeTimer?.cancel();
     _rtfPreviewResizeFinalizeTimer = Timer(const Duration(milliseconds: 180), () {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || token != _rtfPreviewResizeFinalizeToken) {
-        return;
-      }
-      final rtf = _effectiveLabelSize?.labelSizeCommon?.rtf;
-      final window = _commonLabelPreviewWindow;
-      if (window == null ||
-          !window.isVisible ||
-          !labelSheetLooksLikeRichEditRtf(rtf)) {
-        return;
-      }
-      const padding = LabelSheetRtfPreview.defaultPadding;
-      final rectTarget = Size(
-        (resizeEndRect.width - padding.horizontal).clamp(1.0, double.infinity),
-        (resizeEndRect.height - padding.vertical).clamp(1.0, double.infinity),
-      );
-      final renderObject = _rtfPreviewBoxKey.currentContext?.findRenderObject();
-      Size? measuredTarget;
-      if (renderObject is RenderBox && renderObject.hasSize) {
-        measuredTarget = Size(
-          (renderObject.size.width - padding.horizontal).clamp(1.0, double.infinity),
-          (renderObject.size.height - padding.vertical).clamp(1.0, double.infinity),
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || token != _rtfPreviewResizeFinalizeToken) {
+          return;
+        }
+        final rtf = _effectiveLabelSize?.labelSizeCommon?.rtf;
+        final window = _commonLabelPreviewWindow;
+        if (window == null ||
+            !window.isVisible ||
+            !labelSheetLooksLikeRichEditRtf(rtf)) {
+          return;
+        }
+        const padding = LabelSheetRtfPreview.defaultPadding;
+        final rectTarget = Size(
+          (resizeEndRect.width - padding.horizontal).clamp(
+            1.0,
+            double.infinity,
+          ),
+          (resizeEndRect.height - padding.vertical).clamp(1.0, double.infinity),
         );
-      }
-      final current = _rtfPreviewTargetContentSize;
-      final next = measuredTarget ?? rectTarget;
-      final currentDeltaWidth = current == null
-          ? double.infinity
-          : (current.width - next.width).abs();
-      final currentDeltaHeight = current == null
-          ? double.infinity
-          : (current.height - next.height).abs();
-      final refreshedTarget = _rtfPreviewRefreshedTargetContentSize;
-      if (_rtfPreviewHasResolvedImage) {
+        final renderObject = _rtfPreviewBoxKey.currentContext
+            ?.findRenderObject();
+        Size? measuredTarget;
+        if (renderObject is RenderBox && renderObject.hasSize) {
+          measuredTarget = Size(
+            (renderObject.size.width - padding.horizontal).clamp(
+              1.0,
+              double.infinity,
+            ),
+            (renderObject.size.height - padding.vertical).clamp(
+              1.0,
+              double.infinity,
+            ),
+          );
+        }
+        final current = _rtfPreviewTargetContentSize;
+        final next = measuredTarget ?? rectTarget;
+        final currentDeltaWidth = current == null
+            ? double.infinity
+            : (current.width - next.width).abs();
+        final currentDeltaHeight = current == null
+            ? double.infinity
+            : (current.height - next.height).abs();
+        final refreshedTarget = _rtfPreviewRefreshedTargetContentSize;
+        if (_rtfPreviewHasResolvedImage) {
+          labelSheetRtfPreviewDebugLog(
+            'rtf preview resize final recapture skipped existing image '
+            'rectTarget=${rectTarget.width.round()}x${rectTarget.height.round()} '
+            'measuredTarget=${measuredTarget == null ? 'none' : '${measuredTarget.width.round()}x${measuredTarget.height.round()}'} '
+            'current=${current == null ? 'none' : '${current.width.round()}x${current.height.round()}'} '
+            'refreshed=${refreshedTarget == null ? 'none' : '${refreshedTarget.width.round()}x${refreshedTarget.height.round()}'} '
+            'image=${_rtfPreviewLastResolvedImageSize == null ? 'none' : '${_rtfPreviewLastResolvedImageSize!.width.round()}x${_rtfPreviewLastResolvedImageSize!.height.round()}'}',
+          );
+          return;
+        }
+        final shouldUseMeasuredTarget =
+            current == null ||
+            currentDeltaWidth > 2.0 ||
+            currentDeltaHeight > 2.0;
+        final recaptureTarget = shouldUseMeasuredTarget ? next : current;
+        final shouldRecapture = !_isSameRoundedSize(
+          refreshedTarget,
+          recaptureTarget,
+        );
         labelSheetRtfPreviewDebugLog(
-          'rtf preview resize final recapture skipped existing image '
+          'rtf preview resize final recapture '
           'rectTarget=${rectTarget.width.round()}x${rectTarget.height.round()} '
           'measuredTarget=${measuredTarget == null ? 'none' : '${measuredTarget.width.round()}x${measuredTarget.height.round()}'} '
           'current=${current == null ? 'none' : '${current.width.round()}x${current.height.round()}'} '
+          'delta=${currentDeltaWidth.toStringAsFixed(1)}x${currentDeltaHeight.toStringAsFixed(1)} '
           'refreshed=${refreshedTarget == null ? 'none' : '${refreshedTarget.width.round()}x${refreshedTarget.height.round()}'} '
-          'image=${_rtfPreviewLastResolvedImageSize == null ? 'none' : '${_rtfPreviewLastResolvedImageSize!.width.round()}x${_rtfPreviewLastResolvedImageSize!.height.round()}'}',
+          'recapture=$shouldRecapture',
         );
-        return;
-      }
-      final shouldUseMeasuredTarget = current == null ||
-          currentDeltaWidth > 2.0 ||
-          currentDeltaHeight > 2.0;
-      final recaptureTarget = shouldUseMeasuredTarget ? next : current;
-      final shouldRecapture = !_isSameRoundedSize(
-        refreshedTarget,
-        recaptureTarget,
-      );
-      labelSheetRtfPreviewDebugLog(
-        'rtf preview resize final recapture '
-        'rectTarget=${rectTarget.width.round()}x${rectTarget.height.round()} '
-        'measuredTarget=${measuredTarget == null ? 'none' : '${measuredTarget.width.round()}x${measuredTarget.height.round()}'} '
-        'current=${current == null ? 'none' : '${current.width.round()}x${current.height.round()}'} '
-        'delta=${currentDeltaWidth.toStringAsFixed(1)}x${currentDeltaHeight.toStringAsFixed(1)} '
-        'refreshed=${refreshedTarget == null ? 'none' : '${refreshedTarget.width.round()}x${refreshedTarget.height.round()}'} '
-        'recapture=$shouldRecapture',
-      );
-      if (!shouldRecapture) {
-        return;
-      }
-      _rtfPreviewTargetContentSize = recaptureTarget;
-      _refreshRtfPreviewChild(reason: 'resizeEndSettled');
-    });
+        if (!shouldRecapture) {
+          return;
+        }
+        _rtfPreviewTargetContentSize = recaptureTarget;
+        _refreshRtfPreviewChild(reason: 'resizeEndSettled');
+      });
     });
   }
 
@@ -1232,7 +1261,11 @@ class _HomePageManagerState extends State<HomePageManager> {
               height: fieldHeight - lmSize(10),
               child: FilledButton.icon(
                 onPressed: _onTabSearch,
-                icon: Icon(Icons.search, size: lmSize(14), color: onButtonColor),
+                icon: Icon(
+                  Icons.search,
+                  size: lmSize(14),
+                  color: onButtonColor,
+                ),
                 label: Text(
                   '검색',
                   style: TextStyle(
@@ -1262,7 +1295,8 @@ class _HomePageManagerState extends State<HomePageManager> {
   Widget _buildCommonLabelPreviewButton(BuildContext context) {
     final selected = _selectedTabValue() == 'common_label';
     final window = _commonLabelPreviewWindow;
-    final shouldShow = selected &&
+    final shouldShow =
+        selected &&
         _commonLabelPreviewClosedByUser &&
         window != null &&
         !window.isVisible;
@@ -1277,7 +1311,10 @@ class _HomePageManagerState extends State<HomePageManager> {
     }
     return Row(
       mainAxisSize: MainAxisSize.min,
-      children: [button, SizedBox(width: lmSize(8))],
+      children: [
+        button,
+        SizedBox(width: lmSize(8)),
+      ],
     );
   }
 
@@ -1318,11 +1355,11 @@ class _HomePageManagerState extends State<HomePageManager> {
               onBrandChanged: _handleBrandChanged,
               onLabelSizeChanged: _handleLabelSizeChanged,
               onDropdownMenuStateChanged: _handleTopDropdownMenuStateChanged,
-                settingsEnabled: settingsEnabled,
-                onBrandSettingsPressed: settingsEnabled
+              settingsEnabled: settingsEnabled,
+              onBrandSettingsPressed: settingsEnabled
                   ? _openBrandSettingsDialog
                   : null,
-                onLabelSettingsPressed: settingsEnabled
+              onLabelSettingsPressed: settingsEnabled
                   ? _openLabelSettingsDialog
                   : null,
               brandItems: brandItems,
@@ -1478,10 +1515,7 @@ class _TopControlArea extends StatelessWidget {
                     SizedBox(
                       width: lmSize(isDesktop ? 250 : 200),
                       child: Container(
-                        padding: lmInsetsSymmetric(
-                          horizontal: 10,
-                          vertical: 8,
-                        ),
+                        padding: lmInsetsSymmetric(horizontal: 10, vertical: 8),
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(4),
@@ -1514,9 +1548,7 @@ class _TopControlArea extends StatelessWidget {
                             onPressed: onBrandSettingsPressed,
                             style: OutlinedButton.styleFrom(
                               minimumSize: lmSize2(60, 36),
-                              padding: lmInsetsSymmetric(
-                                horizontal: 8,
-                              ),
+                              padding: lmInsetsSymmetric(horizontal: 8),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(10),
                               ),
@@ -1546,9 +1578,7 @@ class _TopControlArea extends StatelessWidget {
                             onPressed: onLabelSettingsPressed,
                             style: OutlinedButton.styleFrom(
                               minimumSize: lmSize2(60, 36),
-                              padding: lmInsetsSymmetric(
-                                horizontal: 8,
-                              ),
+                              padding: lmInsetsSymmetric(horizontal: 8),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(10),
                               ),
@@ -1569,10 +1599,7 @@ class _TopControlArea extends StatelessWidget {
                       child: Container(
                         width: lmSize(isDesktop ? 430 : 350),
                         height: lmSize(36),
-                        padding: lmInsetsSymmetric(
-                          horizontal: 12,
-                          vertical: 5,
-                        ),
+                        padding: lmInsetsSymmetric(horizontal: 12, vertical: 5),
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(6),
                           color: Theme.of(context).cardColor,
@@ -1665,10 +1692,7 @@ class _DropdownField<T> extends StatelessWidget {
             menuItemStyleData: MenuItemStyleData(height: lmSize(28)),
             decoration: InputDecoration(
               isDense: true,
-              contentPadding: lmInsetsSymmetric(
-                horizontal: 4,
-                vertical: 10,
-              ),
+              contentPadding: lmInsetsSymmetric(horizontal: 4, vertical: 10),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(4),
                 borderSide: const BorderSide(color: Color(0xFFCED4DA)),
@@ -1726,6 +1750,7 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
   bool _orderEditMode = false;
   bool _applyingOrderChanges = false;
   bool _insertingLabel = false;
+  bool _labelUseScaleEditValue = false;
   int? _selectedLabelSizeId;
 
   @override
@@ -1742,7 +1767,8 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
     if (!identical(oldWidget.labels, widget.labels) && !_hasOrderChanges) {
       final newLabels = List<LabelSize>.from(widget.labels);
       final editingIndex = _editingIndex;
-      final outOfRange = editingIndex != null && editingIndex >= newLabels.length;
+      final outOfRange =
+          editingIndex != null && editingIndex >= newLabels.length;
       _labels = newLabels;
       _originalLabels = List<LabelSize>.from(widget.labels);
       if (outOfRange) {
@@ -1797,7 +1823,9 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
   @override
   Widget build(BuildContext context) {
     final dialogHeight = MediaQuery.sizeOf(context).height * 0.7;
-    debugLog('labelSettingsDialog build labels=${_labels.length} orderChanged=$_hasOrderChanges');
+    debugLog(
+      'labelSettingsDialog build labels=${_labels.length} orderChanged=$_hasOrderChanges',
+    );
     return BlockingModelessDialogFrame(
       title: '라벨 설정',
       width: _dialogWidth,
@@ -1871,9 +1899,12 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
       canSubmit: _canSubmitLabelNameEdit,
       onToggleEdit: _toggleLabelNameEdit,
       onToggleInsert: _toggleLabelInsert,
-      onEmptyInsert: _orderEditMode ? null : () => _startLabelInsertAt(0, actionIndex: null),
+      onEmptyInsert: _orderEditMode
+          ? null
+          : () => _startLabelInsertAt(0, actionIndex: null),
       onCancelEdit: _cancelLabelNameEdit,
       onSubmitEdit: _submitLabelNameEdit,
+      inlineTrailingBuilder: _buildLabelInlineTrailing,
       enabled: !_orderEditMode,
       fillLastColumn: true,
       autoFitColumns: false,
@@ -1890,9 +1921,10 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
       onRowReorder: _moveLabelRow,
       headerTrailingBuilder: (context, hasInlineEditor) =>
           _OrderModeHeaderButton(
-        enabled: !_orderEditMode && !_applyingOrderChanges && !hasInlineEditor,
-        onPressed: _startOrderEditMode,
-      ),
+            enabled:
+                !_orderEditMode && !_applyingOrderChanges && !hasInlineEditor,
+            onPressed: _startOrderEditMode,
+          ),
     );
   }
 
@@ -1921,7 +1953,9 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
   }
 
   String _labelRowNumberText(LabelSize label, int index) {
-    final originalIndex = _originalLabels.indexWhere((original) => identical(original, label));
+    final originalIndex = _originalLabels.indexWhere(
+      (original) => identical(original, label),
+    );
     if (originalIndex >= 0) {
       return '${originalIndex + 1}';
     }
@@ -1944,7 +1978,9 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
 
   void _startLabelInsertAt(int index, {required int? actionIndex}) {
     if (_editingIndex != null || _orderEditMode) {
-      debugLog('labelInsert blocked editingIndex=$_editingIndex orderEditMode=$_orderEditMode inserting=$_insertingLabel');
+      debugLog(
+        'labelInsert blocked editingIndex=$_editingIndex orderEditMode=$_orderEditMode inserting=$_insertingLabel',
+      );
       return;
     }
     final insertIndex = index.clamp(0, _labels.length);
@@ -1954,6 +1990,7 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
       _insertingLabel = true;
       _editingIndex = insertIndex;
       _insertActionIndex = actionIndex;
+      _labelUseScaleEditValue = false;
       _labels.insert(
         insertIndex,
         LabelSize(labelSizeId: 0, brandId: brandId, labelSizeName: ''),
@@ -1962,7 +1999,9 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || !_insertingLabel || _editingIndex != insertIndex) {
-        debugLog('labelInsert focusRequest skipped mounted=$mounted editingIndex=$_editingIndex expected=$insertIndex inserting=$_insertingLabel');
+        debugLog(
+          'labelInsert focusRequest skipped mounted=$mounted editingIndex=$_editingIndex expected=$insertIndex inserting=$_insertingLabel',
+        );
         return;
       }
       debugLog('labelInsert focusRequest index=$insertIndex');
@@ -1972,7 +2011,9 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
 
   void _toggleLabelNameEdit(LabelSize label, int index) {
     if (_insertingLabel || _orderEditMode) {
-      debugLog('labelNameEdit blocked inserting=$_insertingLabel orderEditMode=$_orderEditMode index=$index');
+      debugLog(
+        'labelNameEdit blocked inserting=$_insertingLabel orderEditMode=$_orderEditMode index=$index',
+      );
       return;
     }
     if (_editingIndex == index) {
@@ -1980,9 +2021,12 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
       _cancelLabelNameEdit();
       return;
     }
-    debugLog('labelNameEdit start index=$index labelSizeId=${label.labelSizeId} name=${label.labelSizeName}');
+    debugLog(
+      'labelNameEdit start index=$index labelSizeId=${label.labelSizeId} name=${label.labelSizeName}',
+    );
     setState(() {
       _editingIndex = index;
+      _labelUseScaleEditValue = label.labelSizeSetup?.useScale ?? false;
       _labelNameEditController.value = TextEditingValue(
         text: label.labelSizeName,
         selection: TextSelection(
@@ -1993,7 +2037,9 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || _editingIndex != index) {
-        debugLog('labelNameEdit focusRequest skipped mounted=$mounted editingIndex=$_editingIndex expected=$index');
+        debugLog(
+          'labelNameEdit focusRequest skipped mounted=$mounted editingIndex=$_editingIndex expected=$index',
+        );
         return;
       }
       debugLog('labelNameEdit focusRequest index=$index');
@@ -2005,7 +2051,9 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
     if (_editingIndex == null) {
       return;
     }
-    debugLog('labelNameEdit cancelled index=$_editingIndex text=${_labelNameEditController.text}');
+    debugLog(
+      'labelNameEdit cancelled index=$_editingIndex text=${_labelNameEditController.text}',
+    );
     _labelNameEditFocusNode.unfocus();
     setState(() {
       if (_insertingLabel && _editingIndex! < _labels.length) {
@@ -2014,15 +2062,39 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
       _insertingLabel = false;
       _insertActionIndex = null;
       _editingIndex = null;
+      _labelUseScaleEditValue = false;
       _labelNameEditController.clear();
     });
+  }
+
+  Widget _buildLabelInlineTrailing(
+    BuildContext context,
+    LabelSize label,
+    int index,
+  ) {
+    return _LabelScaleInlineControl(
+      value: _labelUseScaleEditValue,
+      onChanged: (value) => _handleLabelUseScaleEditChanged(value ?? false),
+    );
+  }
+
+  void _handleLabelUseScaleEditChanged(bool value) {
+    if (_editingIndex == null || !mounted) {
+      return;
+    }
+    debugLog(
+      'labelNameEdit useScaleChanged index=$_editingIndex value=$value canSubmit=$_canSubmitLabelNameEdit',
+    );
+    setState(() => _labelUseScaleEditValue = value);
   }
 
   void _handleLabelNameEditChanged() {
     if (_editingIndex == null || !mounted) {
       return;
     }
-    debugLog('labelNameEdit textChanged index=$_editingIndex text=${_labelNameEditController.text} canSubmit=$_canSubmitLabelNameEdit');
+    debugLog(
+      'labelNameEdit textChanged index=$_editingIndex text=${_labelNameEditController.text} canSubmit=$_canSubmitLabelNameEdit',
+    );
     setState(() {});
   }
 
@@ -2038,11 +2110,17 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
     if (_insertingLabel) {
       return true;
     }
-    return nextName != _labels[editingIndex].labelSizeName.trim();
+    final label = _labels[editingIndex];
+    return nextName != label.labelSizeName.trim() ||
+        _labelUseScaleEditValue != (label.labelSizeSetup?.useScale ?? false);
   }
 
   void _submitLabelNameEdit(String value) {
-    debugLog('labelNameEdit submit pendingImplementation index=$_editingIndex value=$value canSubmit=$_canSubmitLabelNameEdit inserting=$_insertingLabel');
+    debugLog(
+      'labelNameEdit submit pendingImplementation index=$_editingIndex '
+      'value=$value useScale=$_labelUseScaleEditValue '
+      'canSubmit=$_canSubmitLabelNameEdit inserting=$_insertingLabel',
+    );
     if (!_canSubmitLabelNameEdit) {
       debugLog('labelNameEdit submitSkipped canSubmit=false');
       return;
@@ -2053,24 +2131,33 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
     if (_selectedLabelSizeId == label.labelSizeId) {
       return;
     }
-    debugLog('labelSettings rowSelected index=$index labelSizeId=${label.labelSizeId}');
+    debugLog(
+      'labelSettings rowSelected index=$index labelSizeId=${label.labelSizeId}',
+    );
     setState(() => _selectedLabelSizeId = label.labelSizeId);
   }
 
   void _startOrderEditMode() {
     if (_editingIndex != null || _applyingOrderChanges || _orderEditMode) {
-      debugLog('labelSettings reorder startBlocked editingIndex=$_editingIndex applying=$_applyingOrderChanges orderEditMode=$_orderEditMode');
+      debugLog(
+        'labelSettings reorder startBlocked editingIndex=$_editingIndex applying=$_applyingOrderChanges orderEditMode=$_orderEditMode',
+      );
       return;
     }
     debugLog('labelSettings reorder start labels=${_labels.length}');
     setState(() {
       _orderEditMode = true;
-      _selectedLabelSizeId = _labels.isNotEmpty ? _labels.first.labelSizeId : null;
+      _selectedLabelSizeId = _labels.isNotEmpty
+          ? _labels.first.labelSizeId
+          : null;
     });
   }
 
   void _moveLabelRow(int fromIndex, int toIndex) {
-    if (fromIndex < 0 || fromIndex >= _labels.length || toIndex < 0 || toIndex >= _labels.length) {
+    if (fromIndex < 0 ||
+        fromIndex >= _labels.length ||
+        toIndex < 0 ||
+        toIndex >= _labels.length) {
       return;
     }
     if ((fromIndex - toIndex).abs() == 1) {
@@ -2087,7 +2174,9 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
     if (insertIndex == fromIndex) {
       return;
     }
-    debugLog('labelSettings reorder from=$fromIndex to=$toIndex insert=$insertIndex');
+    debugLog(
+      'labelSettings reorder from=$fromIndex to=$toIndex insert=$insertIndex',
+    );
     setState(() {
       final label = _labels.removeAt(fromIndex);
       _labels.insert(insertIndex, label);
@@ -2132,8 +2221,8 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
     }
 
     debugLog('labelSettings reorder apply confirmDialog show rootOverlay');
-  // This dialog is opened from a modeless OverlayEntry. Keep it on the root
-  // overlay so the user can see and click it above the label settings dialog.
+    // This dialog is opened from a modeless OverlayEntry. Keep it on the root
+    // overlay so the user can see and click it above the label settings dialog.
     final confirmed = await showBlockingModelessOverlayDialog<bool>(
       context: context,
       builder: (dialogContext, close) => AlertDialog(
@@ -2141,7 +2230,9 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
         actions: [
           TextButton(
             onPressed: () {
-              debugLog('labelSettings reorder apply confirmDialog cancelPressed');
+              debugLog(
+                'labelSettings reorder apply confirmDialog cancelPressed',
+              );
               close(false);
             },
             child: const Text('취소'),
@@ -2156,10 +2247,14 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
         ],
       ),
     );
-    debugLog('labelSettings reorder apply confirmDialog result=$confirmed mounted=$mounted');
+    debugLog(
+      'labelSettings reorder apply confirmDialog result=$confirmed mounted=$mounted',
+    );
 
     if (!mounted) {
-      debugLog('labelSettings reorder apply aborted unmounted after confirmDialog');
+      debugLog(
+        'labelSettings reorder apply aborted unmounted after confirmDialog',
+      );
       return;
     }
 
@@ -2169,7 +2264,9 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
       return;
     }
 
-    debugLog('labelSettings reorder apply confirmed startSave labels=${_labels.length}');
+    debugLog(
+      'labelSettings reorder apply confirmed startSave labels=${_labels.length}',
+    );
     setState(() {
       _applyingOrderChanges = true;
     });
@@ -2225,7 +2322,9 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
             actions: [
               TextButton(
                 onPressed: () {
-                  debugLog('labelSettings reorder apply failureDialog okPressed');
+                  debugLog(
+                    'labelSettings reorder apply failureDialog okPressed',
+                  );
                   close(null);
                 },
                 child: const Text('확인'),
@@ -2250,7 +2349,10 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
 }
 
 class _LabelSettingsFooterButton extends StatelessWidget {
-  const _LabelSettingsFooterButton({required this.label, required this.onPressed});
+  const _LabelSettingsFooterButton({
+    required this.label,
+    required this.onPressed,
+  });
 
   final String label;
   final VoidCallback? onPressed;
@@ -2331,15 +2433,135 @@ class _OrderMoveButton extends StatelessWidget {
             foregroundColor: const Color(0xFF0E2F66),
             disabledForegroundColor: const Color(0xFF9CA3AF),
             side: BorderSide(
-              color: enabled ? const Color(0xFF0E2F66) : const Color(0xFFC7C7C7),
+              color: enabled
+                  ? const Color(0xFF0E2F66)
+                  : const Color(0xFFC7C7C7),
             ),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(6),
+            ),
           ),
           child: Icon(icon, size: 22),
         ),
       ),
     );
   }
+}
+
+class _LabelScaleInlineControl extends StatelessWidget {
+  const _LabelScaleInlineControl({
+    required this.value,
+    required this.onChanged,
+  });
+
+  final bool value;
+  final ValueChanged<bool?> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: '전자저울 사용',
+      child: Padding(
+        padding: const EdgeInsets.only(right: 3),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(3),
+            border: Border.all(color: const Color(0xFF0E2F66)),
+          ),
+          child: SizedBox(
+            height: 22,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.only(left: 4),
+                  child: _ScaleIcon(size: 16),
+                ),
+                SizedBox(
+                  width: 22,
+                  height: 22,
+                  child: Checkbox(
+                    value: value,
+                    onChanged: onChanged,
+                    activeColor: const Color(0xFF0E2F66),
+                    checkColor: Colors.white,
+                    side: const BorderSide(color: Color(0xFF0E2F66)),
+                    visualDensity: VisualDensity.compact,
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ScaleIcon extends StatelessWidget {
+  const _ScaleIcon({required this.size});
+
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(size: Size.square(size), painter: _ScaleIconPainter());
+  }
+}
+
+class _ScaleIconPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = const Color(0xFF0E2F66)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+    final fill = Paint()
+      ..color = const Color(0x1A0E2F66)
+      ..style = PaintingStyle.fill;
+
+    final baseRect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(
+        size.width * 0.12,
+        size.height * 0.28,
+        size.width * 0.76,
+        size.height * 0.52,
+      ),
+      Radius.circular(size.width * 0.12),
+    );
+    canvas.drawRRect(baseRect, fill);
+    canvas.drawRRect(baseRect, paint);
+
+    final dialCenter = Offset(size.width * 0.5, size.height * 0.47);
+    canvas.drawArc(
+      Rect.fromCenter(
+        center: dialCenter,
+        width: size.width * 0.38,
+        height: size.height * 0.28,
+      ),
+      pi,
+      pi,
+      false,
+      paint,
+    );
+    canvas.drawLine(
+      dialCenter,
+      Offset(size.width * 0.6, size.height * 0.38),
+      paint,
+    );
+    canvas.drawLine(
+      Offset(size.width * 0.25, size.height * 0.8),
+      Offset(size.width * 0.75, size.height * 0.8),
+      paint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _ScaleIconPainter oldDelegate) => false;
 }
 
 class _BrandSettingsDialog extends StatefulWidget {
@@ -2359,8 +2581,10 @@ class _BrandSettingsDialog extends StatefulWidget {
     List<Brand> brands,
     Brand? selectedBrand, {
     required bool updateSelection,
-  }) onBrandsChanged;
+  })
+  onBrandsChanged;
   final VoidCallback onClose;
+
   /// 브랜드 선택 후 라벨 시트 로드가 완료될 때까지 true. 더블클릭 차단에 사용.
   final ValueNotifier<bool> busyNotifier;
 
@@ -2392,7 +2616,8 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
     if (!identical(oldWidget.brands, widget.brands)) {
       final newBrands = List<Brand>.from(widget.brands);
       final editingIndex = _editingIndex;
-      final outOfRange = editingIndex != null && editingIndex >= newBrands.length;
+      final outOfRange =
+          editingIndex != null && editingIndex >= newBrands.length;
       debugLog(
         'brandSettingsDialog didUpdateWidget brandsChanged'
         ' editingIndex=$editingIndex prevLen=${_brands.length} newLen=${newBrands.length}'
@@ -2417,7 +2642,7 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
 
   Future<T?> _showBrandOverlayDialog<T>(
     Widget Function(BuildContext context, void Function(T? result) close)
-        builder,
+    builder,
   ) async {
     debugLog(
       'brandSettings overlayDialog show type=$T mounted=$mounted '
@@ -2427,7 +2652,9 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
       context: context,
       builder: builder,
     );
-    debugLog('brandSettings overlayDialog result type=$T result=$result mounted=$mounted');
+    debugLog(
+      'brandSettings overlayDialog result type=$T result=$result mounted=$mounted',
+    );
     return result;
   }
 
@@ -2436,7 +2663,9 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
     final dialogHeight = MediaQuery.sizeOf(context).height * 0.7;
     // 예상치 못한 리빌드 원인 추적용. buildCell 보다 먼저 출력되면
     // 다이얼로그 전체가 리빌드된 것임(InheritedWidget 의존성 변화 등).
-    debugLog('brandSettingsDialog build editingIndex=$_editingIndex dialogHeight=$dialogHeight');
+    debugLog(
+      'brandSettingsDialog build editingIndex=$_editingIndex dialogHeight=$dialogHeight',
+    );
     return BlockingModelessDialogFrame(
       title: '브랜드 설정',
       width: _dialogWidth,
@@ -2494,9 +2723,13 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
   }
 
   void _handleBrandNameDoubleTap(Brand brand, int index) {
-    debugLog('brandNameDoubleTap index=$index editingIndex=$_editingIndex busy=${widget.busyNotifier.value} brandId=${brand.brandId} name=${brand.brandName}');
+    debugLog(
+      'brandNameDoubleTap index=$index editingIndex=$_editingIndex busy=${widget.busyNotifier.value} brandId=${brand.brandId} name=${brand.brandName}',
+    );
     if (_editingIndex != null || widget.busyNotifier.value) {
-      debugLog('brandNameDoubleTap blocked editingIndex=$_editingIndex busy=${widget.busyNotifier.value}');
+      debugLog(
+        'brandNameDoubleTap blocked editingIndex=$_editingIndex busy=${widget.busyNotifier.value}',
+      );
       return;
     }
     debugLog('brandNameDoubleTap selectBrand brandId=${brand.brandId}');
@@ -2514,7 +2747,9 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
 
   void _startBrandInsertAt(int index, {required int? actionIndex}) {
     if (_editingIndex != null) {
-      debugLog('brandInsert blocked editingIndex=$_editingIndex inserting=$_insertingBrand');
+      debugLog(
+        'brandInsert blocked editingIndex=$_editingIndex inserting=$_insertingBrand',
+      );
       return;
     }
     final insertIndex = index.clamp(0, _brands.length);
@@ -2536,7 +2771,9 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || !_insertingBrand || _editingIndex != insertIndex) {
-        debugLog('brandInsert focusRequest skipped mounted=$mounted editingIndex=$_editingIndex expected=$insertIndex inserting=$_insertingBrand');
+        debugLog(
+          'brandInsert focusRequest skipped mounted=$mounted editingIndex=$_editingIndex expected=$insertIndex inserting=$_insertingBrand',
+        );
         return;
       }
       debugLog('brandInsert focusRequest index=$insertIndex');
@@ -2554,7 +2791,9 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
       _cancelBrandNameEdit();
       return;
     }
-    debugLog('brandNameEdit start index=$index brandId=${brand.brandId} name=${brand.brandName}');
+    debugLog(
+      'brandNameEdit start index=$index brandId=${brand.brandId} name=${brand.brandName}',
+    );
     setState(() {
       _editingIndex = index;
       // .text 와 .selection 을 따로 할당하면 리스너가 두 번 발생한다.
@@ -2569,7 +2808,9 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || _editingIndex != index) {
-        debugLog('brandNameEdit focusRequest skipped mounted=$mounted editingIndex=$_editingIndex expected=$index');
+        debugLog(
+          'brandNameEdit focusRequest skipped mounted=$mounted editingIndex=$_editingIndex expected=$index',
+        );
         return;
       }
       debugLog('brandNameEdit focusRequest index=$index');
@@ -2581,7 +2822,9 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
     if (_editingIndex == null) {
       return;
     }
-    debugLog('brandNameEdit cancelled index=$_editingIndex text=${_brandNameEditController.text}');
+    debugLog(
+      'brandNameEdit cancelled index=$_editingIndex text=${_brandNameEditController.text}',
+    );
     // 포커스를 명시적으로 해제하지 않으면 FocusNode 가 트리에서 분리된 후에도
     // 포커스를 유지해 이후 키보드 입력이 소실될 수 있다.
     _brandNameEditFocusNode.unfocus();
@@ -2600,7 +2843,9 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
     if (_editingIndex == null || !mounted) {
       return;
     }
-    debugLog('brandNameEdit textChanged index=$_editingIndex text=${_brandNameEditController.text} canSubmit=$_canSubmitBrandNameEdit');
+    debugLog(
+      'brandNameEdit textChanged index=$_editingIndex text=${_brandNameEditController.text} canSubmit=$_canSubmitBrandNameEdit',
+    );
     setState(() {});
   }
 
@@ -2633,14 +2878,18 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
   }
 
   Future<void> _submitBrandNameEdit(String value) async {
-    debugLog('brandNameEdit submit index=$_editingIndex value=$value canSubmit=$_canSubmitBrandNameEdit');
+    debugLog(
+      'brandNameEdit submit index=$_editingIndex value=$value canSubmit=$_canSubmitBrandNameEdit',
+    );
     if (!_canSubmitBrandNameEdit) {
       debugLog('brandNameEdit submitSkipped canSubmit=false');
       return;
     }
     final editingIndex = _editingIndex;
     if (editingIndex == null || editingIndex >= _brands.length) {
-      debugLog('brandNameEdit submitSkipped editingIndex=$editingIndex outOfRange');
+      debugLog(
+        'brandNameEdit submitSkipped editingIndex=$editingIndex outOfRange',
+      );
       return;
     }
     if (_insertingBrand) {
@@ -2652,29 +2901,33 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
 
   Future<void> _insertBrandName(int insertIndex, String brandName) async {
     final customerId = Customer.instance?.customerId;
-    debugLog('insertBrandName start index=$insertIndex customerId=$customerId name=$brandName');
-    if (!_insertingBrand || _editingIndex != insertIndex || customerId == null) {
-      debugLog('insertBrandName aborted inserting=$_insertingBrand editingIndex=$_editingIndex expected=$insertIndex customerId=$customerId');
+    debugLog(
+      'insertBrandName start index=$insertIndex customerId=$customerId name=$brandName',
+    );
+    if (!_insertingBrand ||
+        _editingIndex != insertIndex ||
+        customerId == null) {
+      debugLog(
+        'insertBrandName aborted inserting=$_insertingBrand editingIndex=$_editingIndex expected=$insertIndex customerId=$customerId',
+      );
       return;
     }
 
-    debugLog('insertBrandName confirmDialog show index=$insertIndex name=$brandName');
+    debugLog(
+      'insertBrandName confirmDialog show index=$insertIndex name=$brandName',
+    );
     final confirmed = await _showBrandOverlayDialog<bool>(
       (dialogContext, close) => AlertDialog(
         content: Text("'$brandName' 브랜드를 추가하시겠습니까?"),
         actions: [
-          TextButton(
-            onPressed: () => close(false),
-            child: const Text('취소'),
-          ),
-          TextButton(
-            onPressed: () => close(true),
-            child: const Text('확인'),
-          ),
+          TextButton(onPressed: () => close(false), child: const Text('취소')),
+          TextButton(onPressed: () => close(true), child: const Text('확인')),
         ],
       ),
     );
-    debugLog('insertBrandName confirmDialog result=$confirmed index=$insertIndex');
+    debugLog(
+      'insertBrandName confirmDialog result=$confirmed index=$insertIndex',
+    );
 
     if (!mounted) {
       debugLog('insertBrandName aborted unmounted after dialog');
@@ -2682,7 +2935,9 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
     }
 
     if (confirmed != true) {
-      debugLog('insertBrandName cancelledByUser index=$insertIndex keepEditing');
+      debugLog(
+        'insertBrandName cancelledByUser index=$insertIndex keepEditing',
+      );
       _brandNameEditFocusNode.requestFocus();
       return;
     }
@@ -2702,10 +2957,7 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
             title: const Text('브랜드 추가 실패'),
             content: const Text('브랜드 추가에 실패했습니다.'),
             actions: [
-              TextButton(
-                onPressed: () => close(null),
-                child: const Text('확인'),
-              ),
+              TextButton(onPressed: () => close(null), child: const Text('확인')),
             ],
           ),
         );
@@ -2722,7 +2974,9 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
     }
 
     if (!_insertingBrand || _editingIndex != insertIndex) {
-      debugLog('insertBrandName skippedStateUpdate editingIndexChanged inserting=$_insertingBrand editingIndex=$_editingIndex expected=$insertIndex');
+      debugLog(
+        'insertBrandName skippedStateUpdate editingIndexChanged inserting=$_insertingBrand editingIndex=$_editingIndex expected=$insertIndex',
+      );
       return;
     }
 
@@ -2738,13 +2992,19 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
     });
     _publishBrandsChanged(updateSelection: false);
 
-    debugLog('insertBrandName done brandId=${inserted.brandId} index=$insertIndex name=${inserted.brandName}');
+    debugLog(
+      'insertBrandName done brandId=${inserted.brandId} index=$insertIndex name=${inserted.brandName}',
+    );
   }
 
   Future<void> _deleteBrand(Brand brand, int index) async {
-    debugLog('deleteBrand start index=$index brandId=${brand.brandId} name=${brand.brandName} editingIndex=$_editingIndex');
+    debugLog(
+      'deleteBrand start index=$index brandId=${brand.brandId} name=${brand.brandName} editingIndex=$_editingIndex',
+    );
     if (_editingIndex != null || index < 0 || index >= _brands.length) {
-      debugLog('deleteBrand aborted editingIndex=$_editingIndex index=$index len=${_brands.length}');
+      debugLog(
+        'deleteBrand aborted editingIndex=$_editingIndex index=$index len=${_brands.length}',
+      );
       return;
     }
 
@@ -2753,18 +3013,14 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
       (dialogContext, close) => AlertDialog(
         content: Text("'${brand.brandName}' 브랜드를 삭제하시겠습니까?"),
         actions: [
-          TextButton(
-            onPressed: () => close(false),
-            child: const Text('취소'),
-          ),
-          TextButton(
-            onPressed: () => close(true),
-            child: const Text('확인'),
-          ),
+          TextButton(onPressed: () => close(false), child: const Text('취소')),
+          TextButton(onPressed: () => close(true), child: const Text('확인')),
         ],
       ),
     );
-    debugLog('deleteBrand confirmDialog result=$confirmed brandId=${brand.brandId}');
+    debugLog(
+      'deleteBrand confirmDialog result=$confirmed brandId=${brand.brandId}',
+    );
 
     if (!mounted) {
       debugLog('deleteBrand aborted unmounted after dialog');
@@ -2786,10 +3042,7 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
             title: const Text('브랜드 삭제 실패'),
             content: const Text('브랜드 삭제에 실패했습니다.'),
             actions: [
-              TextButton(
-                onPressed: () => close(null),
-                child: const Text('확인'),
-              ),
+              TextButton(onPressed: () => close(null), child: const Text('확인')),
             ],
           ),
         );
@@ -2802,9 +3055,13 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
       return;
     }
 
-    final currentIndex = _brands.indexWhere((value) => value.brandId == brand.brandId);
+    final currentIndex = _brands.indexWhere(
+      (value) => value.brandId == brand.brandId,
+    );
     if (currentIndex < 0) {
-      debugLog('deleteBrand skippedStateUpdate missing brandId=${brand.brandId}');
+      debugLog(
+        'deleteBrand skippedStateUpdate missing brandId=${brand.brandId}',
+      );
       return;
     }
 
@@ -2847,20 +3104,16 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
       return;
     }
 
-    debugLog('updateBrandName confirm dialog brandId=${brand.brandId} old=${brand.brandName} new=$brandName');
+    debugLog(
+      'updateBrandName confirm dialog brandId=${brand.brandId} old=${brand.brandName} new=$brandName',
+    );
 
     final confirmed = await _showBrandOverlayDialog<bool>(
       (dialogContext, close) => AlertDialog(
         content: Text("'$brandName' 명으로 변경하시겠습니까?"),
         actions: [
-          TextButton(
-            onPressed: () => close(false),
-            child: const Text('취소'),
-          ),
-          TextButton(
-            onPressed: () => close(true),
-            child: const Text('확인'),
-          ),
+          TextButton(onPressed: () => close(false), child: const Text('취소')),
+          TextButton(onPressed: () => close(true), child: const Text('확인')),
         ],
       ),
     );
@@ -2873,12 +3126,16 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
     if (confirmed != true) {
       // 확인 다이얼로그에서 취소 → 편집 모드를 유지한다.
       // 사용자가 입력한 내용을 보존해 다시 수정하거나 ESC/Enter 로 직접 닫을 수 있도록 한다.
-      debugLog('updateBrandName cancelledByUser brandId=${brand.brandId} keepEditing');
+      debugLog(
+        'updateBrandName cancelledByUser brandId=${brand.brandId} keepEditing',
+      );
       _brandNameEditFocusNode.requestFocus();
       return;
     }
 
-    debugLog('updateBrandName confirmed brandId=${brand.brandId} old=${brand.brandName} new=$brandName');
+    debugLog(
+      'updateBrandName confirmed brandId=${brand.brandId} old=${brand.brandName} new=$brandName',
+    );
     try {
       await BrandDAO.updateByBrandId(brand, brandName);
     } catch (e) {
@@ -2889,10 +3146,7 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
             title: const Text('브랜드 이름 변경 실패'),
             content: const Text('브랜드 이름 변경에 실패했습니다.'),
             actions: [
-              TextButton(
-                onPressed: () => close(null),
-                child: const Text('확인'),
-              ),
+              TextButton(onPressed: () => close(null), child: const Text('확인')),
             ],
           ),
         );
@@ -2903,7 +3157,9 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
       return;
     }
 
-    debugLog('updateBrandName result succeeded=true editingIndexNow=$_editingIndex expectedIndex=$editingIndex');
+    debugLog(
+      'updateBrandName result succeeded=true editingIndexNow=$_editingIndex expectedIndex=$editingIndex',
+    );
 
     if (_editingIndex != editingIndex) {
       debugLog('updateBrandName skippedStateUpdate editingIndexChanged');
@@ -2925,9 +3181,10 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
       updateSelection: widget.selectedBrand?.brandId == updatedBrand.brandId,
     );
 
-    debugLog('updateBrandName done brandId=${brand.brandId} newName=$brandName');
+    debugLog(
+      'updateBrandName done brandId=${brand.brandId} newName=$brandName',
+    );
   }
-
 }
 
 class _BrandDialogCloseIcon extends StatelessWidget {

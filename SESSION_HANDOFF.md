@@ -27,6 +27,16 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-03): 라벨 설정 인라인 전자저울 UI 추가
+
+목적: 라벨 설정 다이얼로그에서만 인라인 이름 편집 셀의 엔터 아이콘 버튼 바로 뒤에 전자저울 아이콘+체크박스 UI를 삽입한다. 체크박스 초기값은 `labelSize.labelSizeSetup.useScale`을 따른다. 사용자 확인 완료: 체크 변경 가능, 아이콘은 파일 생성 없이 코드 생성 위젯으로 구현하고 기존 수정/삽입/삭제 버튼 색감과 어울리게 배치.
+- `lib/widgets/swipe_action_table.dart`: `EditableSwipeNameTable<T>.inlineTrailingBuilder` 추가. 인라인 편집 셀을 Row 구조로 정리해 TextField 편집 영역이 엔터 버튼과 trailing 위젯 앞에서 끝나도록 변경.
+- `lib/home_page_manager.dart`: 라벨 설정에서만 `_LabelScaleInlineControl`을 인라인 trailing으로 전달. 전자저울 아이콘은 `CustomPainter` 코드 생성 위젯으로 구현. 편집 시작 시 `label.labelSizeSetup?.useScale`로 체크 초기화, 삽입은 기본 false. 이름 변경 또는 useScale 변경 시 적용 버튼 활성화. 기존 라벨 이름 submit DB 반영은 아직 기존처럼 `pendingImplementation` 경로 유지.
+- `test/swipe_action_table_test.dart`: 인라인 trailing이 TextField/엔터 버튼 뒤에 배치되는 회귀 테스트 추가.
+- 검증 완료: `C:\Flutter\bin\dart.bat format lib\home_page_manager.dart lib\widgets\swipe_action_table.dart test\swipe_action_table_test.dart` 성공, `flutter test test/swipe_action_table_test.dart` 19개 성공, `C:\Flutter\bin\flutter.bat analyze lib\home_page_manager.dart lib\widgets\swipe_action_table.dart test\swipe_action_table_test.dart --no-fatal-warnings --no-fatal-infos` No issues.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `lib/home_page_manager.dart`, `lib/widgets/swipe_action_table.dart`, `test/swipe_action_table_test.dart`.
+- 기능 커밋: `e0adcea` (`라벨 설정 전자저울 인라인 UI 추가`).
+
 ### 완료 (2026-07-03): 라벨 설정 다이얼로그 순서 변경 적용 저장
 
 목적: 라벨 설정 다이얼로그에서 행 드래그 후 `적용` 클릭 시 `BM_RICH_LABELSIZE_FORM.RICH_LABELSIZE_ORDER`를 DB에 저장하고, 성공 시 다이얼로그 테이블/헤더 라벨 드롭다운을 DB 정렬 기준으로 재렌더링하되 기존 선택 라벨을 유지한다.

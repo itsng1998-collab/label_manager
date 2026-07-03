@@ -34,13 +34,13 @@ class SwipeActionTableColumn<T> {
     this.statefulCellBuilder,
     this.onDoubleTap,
   }) : assert(
-          headerTrailing == null || headerTrailingBuilder == null,
-          'headerTrailing and headerTrailingBuilder cannot both be set.',
-        ),
-        assert(
-          cellBuilder == null || statefulCellBuilder == null,
-          'cellBuilder and statefulCellBuilder cannot both be set.',
-        );
+         headerTrailing == null || headerTrailingBuilder == null,
+         'headerTrailing and headerTrailingBuilder cannot both be set.',
+       ),
+       assert(
+         cellBuilder == null || statefulCellBuilder == null,
+         'cellBuilder and statefulCellBuilder cannot both be set.',
+       );
 
   final String header;
   final String Function(T row) text;
@@ -49,14 +49,15 @@ class SwipeActionTableColumn<T> {
   final bool fillRemaining;
   final Widget? headerTrailing;
   final Widget Function(BuildContext context, bool hasInteractiveRow)?
-      headerTrailingBuilder;
+  headerTrailingBuilder;
   final Widget Function(BuildContext context, T row, double width)? cellBuilder;
   final Widget Function(
     BuildContext context,
     T row,
     double width,
     SwipeActionTableCellState state,
-  )? statefulCellBuilder;
+  )?
+  statefulCellBuilder;
   final void Function(T row, int index)? onDoubleTap;
 }
 
@@ -424,7 +425,8 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
     if (targetIndex < 0) {
       return widths;
     }
-    final reserved = widget.rowNumberWidth +
+    final reserved =
+        widget.rowNumberWidth +
         widths.asMap().entries.fold<double>(
           0,
           (sum, entry) => entry.key == targetIndex ? sum : sum + entry.value,
@@ -506,7 +508,9 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
                       child: Container(
                         width: 1,
                         height: double.infinity,
-                        color: isLast ? Colors.transparent : _headerSeparatorColor,
+                        color: isLast
+                            ? Colors.transparent
+                            : _headerSeparatorColor,
                       ),
                     ),
                   ),
@@ -572,7 +576,10 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
       alignment: Alignment.center,
       child: Text(
         rowNumberText,
-        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.bold,
+        ),
       ),
     );
   }
@@ -583,7 +590,11 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
     if (!widget.rowReorderEnabled || onRowReorder == null) {
       return rowNumber;
     }
-    final dataFeedback = _buildDataRowFeedback(widget.rows[index], index, widths);
+    final dataFeedback = _buildDataRowFeedback(
+      widget.rows[index],
+      index,
+      widths,
+    );
     return _buildRowReorderTarget(
       index: index,
       width: widget.rowNumberWidth,
@@ -595,10 +606,7 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
   Widget _buildWholeRowFeedback(int index, Widget dataRow) {
     return Row(
       mainAxisSize: MainAxisSize.min,
-      children: [
-        _buildRowNumberBox(index),
-        dataRow,
-      ],
+      children: [_buildRowNumberBox(index), dataRow],
     );
   }
 
@@ -648,7 +656,8 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
           opacity: isDraggingRow ? 0.35 : 1,
           child: child,
         );
-        final showDropGap = draggingIndex != null &&
+        final showDropGap =
+            draggingIndex != null &&
             _rowDropTargetIndex == index &&
             draggingIndex != index;
         final decorated = Column(
@@ -769,14 +778,18 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
     widget.onRowSelected?.call(row, rowIndex);
 
     if (!isDoubleTap) {
-      debugPrint('[SwipeTable] pointerDown row=$rowIndex col=$columnIndex single lastRow=$_lastPointerDownRowIndex lastCol=$_lastPointerDownColumnIndex');
+      debugPrint(
+        '[SwipeTable] pointerDown row=$rowIndex col=$columnIndex single lastRow=$_lastPointerDownRowIndex lastCol=$_lastPointerDownColumnIndex',
+      );
       _lastPointerDownRowIndex = rowIndex;
       _lastPointerDownColumnIndex = columnIndex;
       _lastPointerDownAt = now;
       return;
     }
 
-    debugPrint('[SwipeTable] pointerDown row=$rowIndex col=$columnIndex DOUBLE_TAP');
+    debugPrint(
+      '[SwipeTable] pointerDown row=$rowIndex col=$columnIndex DOUBLE_TAP',
+    );
     _lastPointerDownRowIndex = null;
     _lastPointerDownColumnIndex = null;
     _lastPointerDownAt = null;
@@ -784,7 +797,9 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
     if (onDoubleTap != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
-          debugPrint('[SwipeTable] onDoubleTap postFrameCallback row=$rowIndex col=$columnIndex');
+          debugPrint(
+            '[SwipeTable] onDoubleTap postFrameCallback row=$rowIndex col=$columnIndex',
+          );
           onDoubleTap(row, rowIndex);
         }
       });
@@ -814,25 +829,30 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
                 final isLast = i == actions.length - 1;
                 final isRowAction = row != null && rowIndex != null;
                 final isEnabled = isRowAction
-                  ? action.isEnabled?.call(row, rowIndex) ?? true
-                  : true;
+                    ? action.isEnabled?.call(row, rowIndex) ?? true
+                    : true;
                 final rawCallback = isRowAction && action.onRowPressed != null
-                  ? () {
-                      debugPrint('[SwipeTable] action pressed row=$rowIndex tooltip=${action.tooltip}');
-                      action.onRowPressed!(row, rowIndex);
-                    }
-                  : action.onPressed != null
-                      ? () {
-                          debugPrint('[SwipeTable] action pressed (global) tooltip=${action.tooltip}');
-                          action.onPressed!();
-                        }
-                      : null;
+                    ? () {
+                        debugPrint(
+                          '[SwipeTable] action pressed row=$rowIndex tooltip=${action.tooltip}',
+                        );
+                        action.onRowPressed!(row, rowIndex);
+                      }
+                    : action.onPressed != null
+                    ? () {
+                        debugPrint(
+                          '[SwipeTable] action pressed (global) tooltip=${action.tooltip}',
+                        );
+                        action.onPressed!();
+                      }
+                    : null;
                 final callback = isEnabled ? rawCallback : null;
                 final isPressed = isRowAction
                     ? action.isPressed?.call(row, rowIndex) ?? false
                     : false;
                 final backgroundColor = isPressed
-                    ? (Color.lerp(action.backgroundColor, Colors.black, 0.22) ?? action.backgroundColor)
+                    ? (Color.lerp(action.backgroundColor, Colors.black, 0.22) ??
+                          action.backgroundColor)
                     : action.backgroundColor;
                 // 셀-레일 구분선: 첫 버튼 left border
                 // 버튼 사이 구분선: 비마지막 버튼 right border
@@ -873,7 +893,9 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
                               border: buttonBorder,
                             ),
                             child: Transform.translate(
-                              offset: isPressed ? const Offset(0, 1) : Offset.zero,
+                              offset: isPressed
+                                  ? const Offset(0, 1)
+                                  : Offset.zero,
                               child: IconButton(
                                 padding: EdgeInsets.zero,
                                 icon: Icon(
@@ -906,15 +928,15 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
     // 편집 중인 행도 스와이프 상태이면 액션 레일을 유지한다.
     // 레일이 열린 채 편집 진입 시 _withTrailingInset 으로 셀 폭을 줄여
     // 제출 버튼(←)과 액션 레일이 함께 보이도록 한다.
-    final isOpen = widget.rowSwipeEnabled &&
-        canSwipeRow &&
-        _openActionIndex == index;
-    debugPrint('[SwipeTable] buildDataRow row=$index isOpen=$isOpen'
-        ' isInteractive=$isRowContentInteractive openIdx=$_openActionIndex');
+    final isOpen =
+        widget.rowSwipeEnabled && canSwipeRow && _openActionIndex == index;
+    debugPrint(
+      '[SwipeTable] buildDataRow row=$index isOpen=$isOpen'
+      ' isInteractive=$isRowContentInteractive openIdx=$_openActionIndex',
+    );
     // isOpen 이고 keepRowContentOnSwipe 이면 마지막 컬럼 폭을 레일 폭만큼 줄인다.
-    final rowWidths = isOpen &&
-            widget.keepRowContentOnSwipe &&
-            widths.isNotEmpty
+    final rowWidths =
+        isOpen && widget.keepRowContentOnSwipe && widths.isNotEmpty
         ? _withTrailingInset(widths, actionsWidth)
         : widths;
     final separators = List<double>.generate(
@@ -1004,7 +1026,9 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
                     ? (details) {
                         if (details.delta.dx < -2) {
                           if (_openActionIndex != index) {
-                            debugPrint('[SwipeTable] swipe open row=$index (prev=$_openActionIndex)');
+                            debugPrint(
+                              '[SwipeTable] swipe open row=$index (prev=$_openActionIndex)',
+                            );
                             setState(() => _openActionIndex = index);
                           }
                         } else if (details.delta.dx > 2) {
@@ -1030,7 +1054,9 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
                   onHorizontalDragUpdate: (details) {
                     if (details.delta.dx > 2) {
                       if (_openActionIndex == index) {
-                        debugPrint('[SwipeTable] swipe close (rail) row=$index');
+                        debugPrint(
+                          '[SwipeTable] swipe close (rail) row=$index',
+                        );
                         setState(() => _openActionIndex = null);
                       }
                     }
@@ -1047,7 +1073,9 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
       ),
     );
     final onRowReorder = widget.onRowReorder;
-    if (!widget.rowReorderEnabled || onRowReorder == null || isRowContentInteractive) {
+    if (!widget.rowReorderEnabled ||
+        onRowReorder == null ||
+        isRowContentInteractive) {
       return rowBox;
     }
     return _buildRowReorderTarget(
@@ -1101,21 +1129,27 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final widths = _effectiveWidths(constraints.maxWidth);
-        final contentWidth = widths.fold<double>(0, (sum, width) => sum + width);
-        final horizontalViewportWidth = (constraints.maxWidth -
-                widget.rowNumberWidth)
-            .clamp(0, double.infinity);
-        final hasHorizontalOverflow = contentWidth > horizontalViewportWidth + 0.5;
+        final contentWidth = widths.fold<double>(
+          0,
+          (sum, width) => sum + width,
+        );
+        final horizontalViewportWidth =
+            (constraints.maxWidth - widget.rowNumberWidth).clamp(
+              0,
+              double.infinity,
+            );
+        final hasHorizontalOverflow =
+            contentWidth > horizontalViewportWidth + 0.5;
         final bodyViewportHeight = (constraints.maxHeight - widget.headerHeight)
-          .clamp(0, double.infinity)
-          .toDouble();
+            .clamp(0, double.infinity)
+            .toDouble();
         final visibleRowCount = widget.rows.isEmpty
-          ? (widget.showActionsWhenEmpty ? 1 : 0)
-          : widget.rows.length;
+            ? (widget.showActionsWhenEmpty ? 1 : 0)
+            : widget.rows.length;
         final rowAreaHeight = visibleRowCount * widget.rowHeight;
         final visibleBodyHeight = rowAreaHeight < bodyViewportHeight
-          ? rowAreaHeight
-          : bodyViewportHeight;
+            ? rowAreaHeight
+            : bodyViewportHeight;
         return Column(
           children: [
             Row(
@@ -1357,6 +1391,7 @@ class EditableSwipeNameTable<T> extends StatelessWidget {
     this.onEmptyInsert,
     this.onDeleteRow,
     this.onNameDoubleTap,
+    this.inlineTrailingBuilder,
     this.enabled = true,
     this.fillLastColumn = true,
     this.autoFitColumns = false,
@@ -1390,6 +1425,8 @@ class EditableSwipeNameTable<T> extends StatelessWidget {
   final VoidCallback? onEmptyInsert;
   final void Function(T row, int index)? onDeleteRow;
   final void Function(T row, int index)? onNameDoubleTap;
+  final Widget Function(BuildContext context, T row, int index)?
+  inlineTrailingBuilder;
   final bool enabled;
   final bool fillLastColumn;
   final bool autoFitColumns;
@@ -1403,7 +1440,7 @@ class EditableSwipeNameTable<T> extends StatelessWidget {
   final void Function(T row, int index)? onRowSelected;
   final void Function(int fromIndex, int toIndex)? onRowReorder;
   final Widget Function(BuildContext context, bool hasInlineEditor)?
-      headerTrailingBuilder;
+  headerTrailingBuilder;
   final double initialWidth;
   final double minWidth;
 
@@ -1459,15 +1496,15 @@ class EditableSwipeNameTable<T> extends StatelessWidget {
         isPressed: (_, index) => inserting && insertActionIndex == index,
         isEnabled: (_, index) =>
             enabled &&
-            (editingIndex == null ||
-                (inserting && insertActionIndex == index)),
+            (editingIndex == null || (inserting && insertActionIndex == index)),
       ),
       SwipeActionTableAction<T>(
         icon: Icons.delete,
         tooltip: '삭제',
         backgroundColor: const Color(0xffc62828),
         onRowPressed: onDeleteRow,
-        isEnabled: (_, _) => enabled && editingIndex == null && onDeleteRow != null,
+        isEnabled: (_, _) =>
+            enabled && editingIndex == null && onDeleteRow != null,
       ),
     ];
   }
@@ -1538,6 +1575,7 @@ class EditableSwipeNameTable<T> extends StatelessWidget {
       canSubmit: canSubmit,
       onCancel: onCancelEdit,
       onSubmit: onSubmitEdit,
+      trailing: inlineTrailingBuilder?.call(context, row, rowIndex),
     );
   }
 }
@@ -1565,15 +1603,15 @@ class _SwipeActionToggleButton extends StatelessWidget {
           splashRadius: 14,
           icon: AnimatedSwitcher(
             duration: const Duration(milliseconds: 120),
-            transitionBuilder: (child, animation) => FadeTransition(
-              opacity: animation,
-              child: child,
-            ),
+            transitionBuilder: (child, animation) =>
+                FadeTransition(opacity: animation, child: child),
             child: Icon(
               open ? Icons.chevron_right : Icons.chevron_left,
               key: ValueKey(open),
               size: 18,
-              color: enabled ? const Color(0xFF0E2F66) : const Color(0xffb0bec5),
+              color: enabled
+                  ? const Color(0xFF0E2F66)
+                  : const Color(0xffb0bec5),
             ),
           ),
           onPressed: enabled ? onPressed : null,
@@ -1591,6 +1629,7 @@ class _InlineNameEditCell extends StatelessWidget {
     required this.canSubmit,
     required this.onCancel,
     required this.onSubmit,
+    this.trailing,
   });
 
   final double width;
@@ -1599,6 +1638,7 @@ class _InlineNameEditCell extends StatelessWidget {
   final bool canSubmit;
   final VoidCallback onCancel;
   final ValueChanged<String> onSubmit;
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
@@ -1621,18 +1661,14 @@ class _InlineNameEditCell extends StatelessWidget {
           }
           return KeyEventResult.ignored;
         },
-        child: Stack(
-          clipBehavior: Clip.hardEdge,
-          children: [
-            Positioned.fill(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: const Color(0xfff0f4ff),
-                  border: Border.all(
-                    color: const Color(0xFF0E2F66),
-                    width: 1.5,
-                  ),
-                ),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: const Color(0xfff0f4ff),
+            border: Border.all(color: const Color(0xFF0E2F66), width: 1.5),
+          ),
+          child: Row(
+            children: [
+              Expanded(
                 child: TextField(
                   controller: controller,
                   focusNode: focusNode,
@@ -1643,7 +1679,7 @@ class _InlineNameEditCell extends StatelessWidget {
                     isDense: true,
                     contentPadding: EdgeInsets.only(
                       left: 6,
-                      right: 28,
+                      right: 4,
                       top: 0,
                       bottom: 0,
                     ),
@@ -1654,44 +1690,43 @@ class _InlineNameEditCell extends StatelessWidget {
                   onSubmitted: (_) => onSubmit(controller.text),
                 ),
               ),
-            ),
-            Positioned(
-              top: 3,
-              right: 3,
-              bottom: 3,
-              width: 22,
-              child: Tooltip(
-                message: '변경 적용',
-                child: MouseRegion(
-                  cursor: canSubmit
-                      ? SystemMouseCursors.click
-                      : SystemMouseCursors.basic,
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: canSubmit ? () => onSubmit(controller.text) : null,
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 120),
-                      decoration: BoxDecoration(
-                        color: canSubmit
-                            ? const Color(0xFF0E2F66)
-                            : Colors.transparent,
-                        borderRadius: BorderRadius.circular(3),
-                      ),
-                      child: Center(
-                        child: Icon(
-                          Icons.keyboard_return,
-                          size: 15,
+              Padding(
+                padding: const EdgeInsets.only(top: 3, right: 3, bottom: 3),
+                child: Tooltip(
+                  message: '변경 적용',
+                  child: MouseRegion(
+                    cursor: canSubmit
+                        ? SystemMouseCursors.click
+                        : SystemMouseCursors.basic,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: canSubmit ? () => onSubmit(controller.text) : null,
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 120),
+                        width: 22,
+                        decoration: BoxDecoration(
                           color: canSubmit
-                              ? Colors.white
-                              : const Color(0xffb0bec5),
+                              ? const Color(0xFF0E2F66)
+                              : Colors.transparent,
+                          borderRadius: BorderRadius.circular(3),
+                        ),
+                        child: Center(
+                          child: Icon(
+                            Icons.keyboard_return,
+                            size: 15,
+                            color: canSubmit
+                                ? Colors.white
+                                : const Color(0xffb0bec5),
+                          ),
                         ),
                       ),
                     ),
                   ),
                 ),
               ),
-            ),
-          ],
+              ?trailing,
+            ],
+          ),
         ),
       ),
     );
@@ -1787,7 +1822,9 @@ class _ResizableTableState<T> extends State<ResizableTable<T>> {
       text: (row) => column.textAccessor?.call(row) ?? '',
       cellBuilder: (context, row, width) {
         if (widget.checkboxColumnIndex == columnIndex) {
-          final rowIndex = widget.rows.indexWhere((value) => identical(value, row));
+          final rowIndex = widget.rows.indexWhere(
+            (value) => identical(value, row),
+          );
           final safeIndex = rowIndex < 0 ? 0 : rowIndex;
           return SizedBox(
             width: width,
@@ -1808,7 +1845,9 @@ class _ResizableTableState<T> extends State<ResizableTable<T>> {
         }
         final custom = column.cellBuilder;
         if (custom != null) {
-          final rowIndex = widget.rows.indexWhere((value) => identical(value, row));
+          final rowIndex = widget.rows.indexWhere(
+            (value) => identical(value, row),
+          );
           return SizedBox(width: width, child: custom(context, row, rowIndex));
         }
         return SizedBox(

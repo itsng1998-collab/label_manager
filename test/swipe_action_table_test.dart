@@ -17,7 +17,7 @@ Future<void> _pumpTable(
   bool interactive = false,
   Widget? headerTrailing,
   Widget Function(BuildContext context, bool hasInteractiveRow)?
-      headerTrailingBuilder,
+  headerTrailingBuilder,
   String? rowTooltip,
   void Function(_Row row, int index)? onRowSelected,
 }) async {
@@ -115,6 +115,8 @@ Future<void> _pumpEditableNameTable(
   int? editingIndex,
   bool rowSwipeEnabled = true,
   void Function(_Row row, int index)? onNameDoubleTap,
+  Widget Function(BuildContext context, _Row row, int index)?
+  inlineTrailingBuilder,
 }) async {
   await tester.pumpWidget(
     MaterialApp(
@@ -137,6 +139,7 @@ Future<void> _pumpEditableNameTable(
             onCancelEdit: () {},
             onSubmitEdit: (_) {},
             onNameDoubleTap: onNameDoubleTap,
+            inlineTrailingBuilder: inlineTrailingBuilder,
             rowSwipeEnabled: rowSwipeEnabled,
             keepRowContentOnSwipe: true,
             showActionsWhenEmpty: true,
@@ -315,7 +318,10 @@ void main() {
     );
 
     expect(tester.getSize(find.byKey(const ValueKey('name-cell-0'))).width, 80);
-    expect(tester.getSize(find.byKey(const ValueKey('code-cell-0'))).width, 120);
+    expect(
+      tester.getSize(find.byKey(const ValueKey('code-cell-0'))).width,
+      120,
+    );
     expect(
       tester.widgetList<Container>(find.byType(Container)).any((container) {
         final decoration = container.decoration;
@@ -326,122 +332,154 @@ void main() {
     );
   });
 
-  testWidgets('resizable table auto fits column width on separator double tap', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: SizedBox(
-            width: 500,
-            height: 120,
-            child: ResizableTable<_Row>(
-              rows: const [_Row('Very long brand name value', 'A001')],
-              columns: [
-                ResizableTableColumn<_Row>(
-                  id: 'name',
-                  title: 'Name',
-                  width: 60,
-                  minWidth: 40,
-                  textAccessor: (row) => row.name,
-                  cellBuilder: (context, row, index) => SizedBox.expand(
-                    key: const ValueKey('autofit-name-cell'),
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(row.name),
+  testWidgets(
+    'resizable table auto fits column width on separator double tap',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              width: 500,
+              height: 120,
+              child: ResizableTable<_Row>(
+                rows: const [_Row('Very long brand name value', 'A001')],
+                columns: [
+                  ResizableTableColumn<_Row>(
+                    id: 'name',
+                    title: 'Name',
+                    width: 60,
+                    minWidth: 40,
+                    textAccessor: (row) => row.name,
+                    cellBuilder: (context, row, index) => SizedBox.expand(
+                      key: const ValueKey('autofit-name-cell'),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(row.name),
+                      ),
                     ),
                   ),
-                ),
-                ResizableTableColumn<_Row>(
-                  id: 'code',
-                  title: 'Code',
-                  width: 120,
-                  minWidth: 40,
-                  textAccessor: (row) => row.code,
-                ),
-              ],
+                  ResizableTableColumn<_Row>(
+                    id: 'code',
+                    title: 'Code',
+                    width: 120,
+                    minWidth: 40,
+                    textAccessor: (row) => row.code,
+                  ),
+                ],
+              ),
             ),
           ),
         ),
-      ),
-    );
+      );
 
-    final cellFinder = find.byKey(const ValueKey('autofit-name-cell'));
-    expect(tester.getSize(cellFinder).width, 60);
+      final cellFinder = find.byKey(const ValueKey('autofit-name-cell'));
+      expect(tester.getSize(cellFinder).width, 60);
 
-    final separatorX = tester.getTopRight(cellFinder).dx;
-    await tester.tapAt(Offset(separatorX, 10));
-    await tester.pump(const Duration(milliseconds: 50));
-    await tester.tapAt(Offset(separatorX, 10));
-    await tester.pumpAndSettle();
+      final separatorX = tester.getTopRight(cellFinder).dx;
+      await tester.tapAt(Offset(separatorX, 10));
+      await tester.pump(const Duration(milliseconds: 50));
+      await tester.tapAt(Offset(separatorX, 10));
+      await tester.pumpAndSettle();
 
-    expect(tester.getSize(cellFinder).width, greaterThan(60));
-  });
+      expect(tester.getSize(cellFinder).width, greaterThan(60));
+    },
+  );
 
-  testWidgets('editable name table toggle button opens and closes action rail', (
-    tester,
-  ) async {
-    await _pumpEditableNameTable(tester);
+  testWidgets(
+    'editable name table toggle button opens and closes action rail',
+    (tester) async {
+      await _pumpEditableNameTable(tester);
 
-    expect(find.byTooltip('수정/삽입/삭제 열기'), findsNWidgets(2));
-    expect(find.byTooltip('수정/삽입/삭제 닫기'), findsNothing);
-    expect(
-      tester.getCenter(find.byTooltip('수정/삽입/삭제 열기').first).dx,
-      greaterThan(tester.getCenter(find.text('Brand A')).dx),
-    );
+      expect(find.byTooltip('수정/삽입/삭제 열기'), findsNWidgets(2));
+      expect(find.byTooltip('수정/삽입/삭제 닫기'), findsNothing);
+      expect(
+        tester.getCenter(find.byTooltip('수정/삽입/삭제 열기').first).dx,
+        greaterThan(tester.getCenter(find.text('Brand A')).dx),
+      );
 
-    await tester.tap(find.byTooltip('수정/삽입/삭제 열기').first);
-    await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('수정/삽입/삭제 열기').first);
+      await tester.pumpAndSettle();
 
-    expect(find.byTooltip('수정/삽입/삭제 닫기'), findsOneWidget);
+      expect(find.byTooltip('수정/삽입/삭제 닫기'), findsOneWidget);
 
-    await tester.tap(find.byTooltip('수정/삽입/삭제 닫기'));
-    await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('수정/삽입/삭제 닫기'));
+      await tester.pumpAndSettle();
 
-    expect(find.byTooltip('수정/삽입/삭제 열기'), findsNWidgets(2));
-    expect(find.byTooltip('수정/삽입/삭제 닫기'), findsNothing);
-  });
+      expect(find.byTooltip('수정/삽입/삭제 열기'), findsNWidgets(2));
+      expect(find.byTooltip('수정/삽입/삭제 닫기'), findsNothing);
+    },
+  );
 
-  testWidgets('editable name table toggle button does not trigger name double tap', (
-    tester,
-  ) async {
-    var doubleTapCount = 0;
-    await _pumpEditableNameTable(
-      tester,
-      onNameDoubleTap: (_, _) => doubleTapCount += 1,
-    );
+  testWidgets(
+    'editable name table toggle button does not trigger name double tap',
+    (tester) async {
+      var doubleTapCount = 0;
+      await _pumpEditableNameTable(
+        tester,
+        onNameDoubleTap: (_, _) => doubleTapCount += 1,
+      );
 
-    await tester.tap(find.byTooltip('수정/삽입/삭제 열기').first);
-    await tester.pump(const Duration(milliseconds: 50));
-    await tester.tap(find.byTooltip('수정/삽입/삭제 닫기'));
-    await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('수정/삽입/삭제 열기').first);
+      await tester.pump(const Duration(milliseconds: 50));
+      await tester.tap(find.byTooltip('수정/삽입/삭제 닫기'));
+      await tester.pumpAndSettle();
 
-    expect(doubleTapCount, 0);
-  });
+      expect(doubleTapCount, 0);
+    },
+  );
 
-  testWidgets('editable name table disables swipe toggle while inline editing', (
-    tester,
-  ) async {
-    await _pumpEditableNameTable(tester, editingIndex: 0);
+  testWidgets(
+    'editable name table disables swipe toggle while inline editing',
+    (tester) async {
+      await _pumpEditableNameTable(tester, editingIndex: 0);
 
-    final button = tester.widget<IconButton>(
-      find.descendant(
-        of: find.byTooltip('수정/삽입/삭제 열기'),
-        matching: find.byType(IconButton),
-      ),
-    );
+      final button = tester.widget<IconButton>(
+        find.descendant(
+          of: find.byTooltip('수정/삽입/삭제 열기'),
+          matching: find.byType(IconButton),
+        ),
+      );
 
-    expect(button.onPressed, isNull);
-  });
+      expect(button.onPressed, isNull);
+    },
+  );
 
-  testWidgets('editable name table hides swipe toggle when row swipe is disabled', (
-    tester,
-  ) async {
-    await _pumpEditableNameTable(tester, rowSwipeEnabled: false);
+  testWidgets(
+    'editable name table hides swipe toggle when row swipe is disabled',
+    (tester) async {
+      await _pumpEditableNameTable(tester, rowSwipeEnabled: false);
 
-    expect(find.byTooltip('수정/삽입/삭제 열기'), findsNothing);
-    expect(find.byTooltip('수정/삽입/삭제 닫기'), findsNothing);
-  });
+      expect(find.byTooltip('수정/삽입/삭제 열기'), findsNothing);
+      expect(find.byTooltip('수정/삽입/삭제 닫기'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'editable name table places inline trailing after submit button',
+    (tester) async {
+      await _pumpEditableNameTable(
+        tester,
+        editingIndex: 0,
+        inlineTrailingBuilder: (_, _, _) => const SizedBox(
+          key: ValueKey('inline-trailing'),
+          width: 44,
+          height: 22,
+        ),
+      );
+
+      expect(find.byKey(const ValueKey('inline-trailing')), findsOneWidget);
+      expect(
+        tester.getTopRight(find.byType(TextField)).dx,
+        lessThanOrEqualTo(tester.getTopLeft(find.byTooltip('변경 적용')).dx),
+      );
+      expect(
+        tester.getCenter(find.byTooltip('변경 적용')).dx,
+        lessThan(
+          tester.getCenter(find.byKey(const ValueKey('inline-trailing'))).dx,
+        ),
+      );
+    },
+  );
 
   testWidgets('header trailing builder receives interactive row state', (
     tester,
