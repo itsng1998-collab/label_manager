@@ -2152,7 +2152,111 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
       await _insertLabelName(editingIndex, value.trim());
       return;
     }
-    debugLog('labelNameEdit update pendingImplementation index=$editingIndex');
+    await _updateLabelNameAndScale(_labels[editingIndex], value.trim());
+  }
+
+  Future<void> _updateLabelNameAndScale(
+    LabelSize label,
+    String labelName,
+  ) async {
+    final editingIndex = _editingIndex;
+    debugLog(
+      'updateLabelNameAndScale start editingIndex=$editingIndex '
+      'labelSizeId=${label.labelSizeId} old=${label.labelSizeName} '
+      'new=$labelName useScale=$_labelUseScaleEditValue',
+    );
+
+    if (editingIndex == null || editingIndex >= _labels.length) {
+      debugLog(
+        'updateLabelNameAndScale aborted editingIndex=null or out of range',
+      );
+      return;
+    }
+
+    debugLog(
+      'updateLabelNameAndScale confirm dialog labelSizeId=${label.labelSizeId} '
+      'old=${label.labelSizeName} new=$labelName useScale=$_labelUseScaleEditValue',
+    );
+    final confirmed = await showBlockingModelessOverlayDialog<bool>(
+      context: context,
+      builder: (dialogContext, close) => AlertDialog(
+        content: Text("'$labelName' 명으로 변경하시겠습니까?"),
+        actions: [
+          TextButton(onPressed: () => close(false), child: const Text('취소')),
+          TextButton(onPressed: () => close(true), child: const Text('확인')),
+        ],
+      ),
+    );
+
+    if (!mounted) {
+      debugLog('updateLabelNameAndScale aborted unmounted after dialog');
+      return;
+    }
+
+    if (confirmed != true) {
+      debugLog(
+        'updateLabelNameAndScale cancelledByUser labelSizeId=${label.labelSizeId} keepEditing',
+      );
+      _labelNameEditFocusNode.requestFocus();
+      return;
+    }
+
+    final useScale = _labelUseScaleEditValue;
+    setState(() => _submittingLabelNameEdit = true);
+
+    try {
+      await LabelSizeDAO.updateNameAndScale(
+        label.labelSizeId,
+        labelName,
+        useScale,
+      );
+      final reloadedLabels = await widget.onLabelsChanged();
+
+      if (!mounted) {
+        debugLog('updateLabelNameAndScale aborted unmounted after reload');
+        return;
+      }
+
+      if (_editingIndex != editingIndex) {
+        debugLog(
+          'updateLabelNameAndScale skippedStateUpdate editingIndexChanged editingIndex=$_editingIndex expected=$editingIndex',
+        );
+        return;
+      }
+
+      setState(() {
+        _labels = List<LabelSize>.from(reloadedLabels);
+        _originalLabels = List<LabelSize>.from(reloadedLabels);
+        _submittingLabelNameEdit = false;
+        _editingIndex = null;
+        _labelUseScaleEditValue = false;
+        _labelNameEditController.clear();
+      });
+
+      debugLog(
+        'updateLabelNameAndScale done labelSizeId=${label.labelSizeId} name=$labelName useScale=$useScale',
+      );
+    } catch (e) {
+      debugLog(
+        'updateLabelNameAndScale failed labelSizeId=${label.labelSizeId} error=$e',
+      );
+      if (mounted) {
+        await showBlockingModelessOverlayDialog<void>(
+          context: context,
+          builder: (dialogContext, close) => AlertDialog(
+            title: const Text('라벨 수정 실패'),
+            content: const Text('라벨 수정에 실패했습니다.'),
+            actions: [
+              TextButton(onPressed: () => close(null), child: const Text('확인')),
+            ],
+          ),
+        );
+        if (mounted) {
+          setState(() => _submittingLabelNameEdit = false);
+          _labelNameEditFocusNode.requestFocus();
+        }
+      }
+    }
   }
 
   Future<void> _insertLabelName(int insertIndex, String labelName) async {

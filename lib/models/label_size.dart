@@ -427,6 +427,47 @@ class LabelSizeDAO extends DAO {
     }
   }
 
+  static Future<void> updateNameAndScale(
+    int labelSizeId,
+    String labelSizeName,
+    bool useScale,
+  ) async {
+    debugLog(
+      '$START, labelSizeId:$labelSizeId, labelSizeName:$labelSizeName, useScale:$useScale',
+    );
+
+    try {
+      final updateSql = '''
+        UPDATE BM_RICH_LABELSIZE_FORM
+           SET RICH_LABELSIZE_NAME=@labelSizeName,
+               RICH_SETUP_USE_SCALE=@useScale
+         WHERE RICH_LABELSIZE_ID=@labelSizeId
+      ''';
+
+      final res = await DbClient.instance.writeDataWithParams(updateSql, {
+        'labelSizeId': labelSizeId,
+        'labelSizeName': labelSizeName,
+        'useScale': useScale ? 1 : 0,
+      });
+
+      final affected = DAO.affectedRows(res);
+      final succeeded = affected > 0;
+
+      if (!succeeded) {
+        throw Exception(
+          '${runtimeLogTag()} Update name/scale affected no rows for labelSizeId:$labelSizeId',
+        );
+      }
+
+      debugLog(
+        '$END, BM_RICH_LABELSIZE_FORM updateNameAndScale Result: $res, affected:$affected, succeeded:$succeeded',
+      );
+    } catch (e) {
+      debugLog('$END, $e');
+      rethrow;
+    }
+  }
+
   static Future<void> updateOrder(int labelSizeId, int labelSizeOrder) async {
     debugLog(
       '$START, labelSizeId:$labelSizeId, labelSizeOrder:$labelSizeOrder',
