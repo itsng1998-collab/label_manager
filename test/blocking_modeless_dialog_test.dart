@@ -167,6 +167,56 @@ void main() {
     notifier.dispose();
   });
 
+  testWidgets('allows modal alert dialogs above modeless dialog', (
+    tester,
+  ) async {
+    var confirmed = false;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: BlockingModelessDialog(
+          child: Builder(
+            builder: (context) => Center(
+              child: ElevatedButton(
+                onPressed: () async {
+                  final result = await showDialog<bool>(
+                    context: context,
+                    barrierDismissible: false,
+                    builder: (dialogContext) => AlertDialog(
+                      content: const Text('확인하시겠습니까?'),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.of(dialogContext).pop(false),
+                          child: const Text('취소'),
+                        ),
+                        TextButton(
+                          onPressed: () => Navigator.of(dialogContext).pop(true),
+                          child: const Text('확인'),
+                        ),
+                      ],
+                    ),
+                  );
+                  confirmed = result == true;
+                },
+                child: const Text('open alert'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('open alert'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('확인하시겠습니까?'), findsOneWidget);
+
+    await tester.tap(find.text('확인'));
+    await tester.pumpAndSettle();
+
+    expect(confirmed, isTrue);
+  });
+
   testWidgets('blocks key events from focused widget behind overlay', (
     tester,
   ) async {

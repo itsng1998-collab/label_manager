@@ -2363,30 +2363,14 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
     Widget Function(BuildContext context, void Function(T? result) close)
         builder,
   ) {
-    final overlay = Overlay.of(context);
-    final completer = Completer<T?>();
-    late final OverlayEntry entry;
-
-    void close(T? result) {
-      if (completer.isCompleted) {
-        return;
-      }
-      entry.remove();
-      completer.complete(result);
-    }
-
-    entry = OverlayEntry(
-      builder: (overlayContext) => BlockingModelessDialog(
-        child: Center(
-          child: Material(
-            type: MaterialType.transparency,
-            child: builder(overlayContext, close),
-          ),
-        ),
+    return showDialog<T>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => builder(
+        dialogContext,
+        (result) => Navigator.of(dialogContext).pop(result),
       ),
     );
-    overlay.insert(entry);
-    return completer.future;
   }
 
   @override
