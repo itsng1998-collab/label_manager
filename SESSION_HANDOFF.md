@@ -27,6 +27,13 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-03): 프린터 설정 그룹 라벨 배경색 조정
+
+목적: 프린터 설정 다이얼로그의 `여백`/`자동줄간격` 그룹 라벨 배경색을 다이얼로그 배경색과 동일하게 맞춘다.
+- `lib/page_label_sheet/label_sheet_workbench.dart`: `_PrintDialogGroup` title `ColoredBox` 배경색을 `0xfff6f6f6`에서 다이얼로그 프레임 배경색과 같은 `0xffece6f0`으로 변경.
+- 검증 완료: `C:\Flutter\bin\dart.bat format lib\page_label_sheet\label_sheet_workbench.dart` 성공, `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --name "label sheet print"` 7개 성공, `C:\Flutter\bin\flutter.bat analyze lib\page_label_sheet\label_sheet_workbench.dart test\label_sheet_toolbar_test.dart --no-fatal-warnings --no-fatal-infos` No issues.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `lib/page_label_sheet/label_sheet_workbench.dart`.
+
 ### 완료 (2026-07-03): 전자저울 체크박스 여백 및 크기 재조정
 
 목적: 첨부 이미지 기준 라벨 설정 인라인 전자저울 UI에서 아이콘과 체크박스 사이, 체크박스 오른쪽 끝에 내부 여백을 추가하고 체크박스 자체 크기만 더 줄인다. 전자저울 아이콘/컨테이너 높이 등 다른 크기는 유지한다.

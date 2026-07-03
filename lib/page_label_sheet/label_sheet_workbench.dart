@@ -3426,188 +3426,188 @@ class _LabelSheetPrintSettingsDialog extends StatelessWidget {
       height: 200,
       child: Stack(
         children: [
-            Positioned(
-              left: 20,
-              top: 8,
-              width: 300,
-              height: 58,
-              child: _PrintDialogGroup(
-                title: '여백',
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    const SizedBox(width: 7),
-                    const _PrintDialogCenteredLabel('왼쪽'),
-                    const SizedBox(width: 8),
-                    _PrintDialogShiftedDown(
-                      child: _PrintDialogInput(
-                        controller: leftMarginController,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    const _PrintDialogCenteredLabel('mm'),
-                    const SizedBox(width: 24),
-                    const _PrintDialogCenteredLabel('위쪽'),
-                    const SizedBox(width: 8),
-                    _PrintDialogShiftedDown(
-                      child: _PrintDialogInput(controller: topMarginController),
-                    ),
-                    const SizedBox(width: 8),
-                    const _PrintDialogCenteredLabel('mm'),
-                  ],
-                ),
-              ),
-            ),
-            Positioned(
-              left: 336,
-              top: 8,
-              width: 168,
-              height: 58,
-              child: _PrintDialogGroup(
-                title: '자동줄간격',
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    const Spacer(),
-                    SizedBox(
-                      width: _autoSpacingDropdownWidth,
-                      height: _compactDropdownHeight,
-                      child: DropdownButton2<String>(
-                        value: autoSpacing,
-                        isExpanded: true,
-                        underline: const SizedBox.shrink(),
-                        style: _labelStyle,
-                        items: _autoSpacingItems,
-                        onChanged: onAutoSpacingChanged,
-                        buttonStyleData: const ButtonStyleData(
-                          height: _compactDropdownHeight,
-                          padding: EdgeInsets.zero,
-                        ),
-                        dropdownStyleData: DropdownStyleData(
-                          maxHeight: 260,
-                          useRootNavigator: true,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(2),
-                          ),
-                        ),
-                        menuItemStyleData: const MenuItemStyleData(
-                          height: _compactDropdownMenuItemHeight,
-                          padding: EdgeInsets.symmetric(horizontal: 8),
-                        ),
-                        iconStyleData: const IconStyleData(
-                          iconSize: 18,
-                          iconEnabledColor: Color(0xff6a6a6a),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 5),
-                    const _PrintDialogCenteredLabel('%'),
-                    const Spacer(),
-                  ],
-                ),
-              ),
-            ),
-            const Positioned(
-              left: 24,
-              top: 81,
-              child: Text('발행 프린터', style: _sectionStyle),
-            ),
-            Positioned(
-              left: 107,
-              top: 74,
-              width: 291,
-              height: 30,
-              child: _PrintDialogInsetValue(value: selectedPrinterName),
-            ),
-            Positioned(
-              right: 22,
-              top: 74,
-              width: 94,
-              height: 30,
-              child: _PrintDialogButton(
-                label: '프린터 선택',
-                onPressed: onSelectPrinter,
-              ),
-            ),
-            Positioned(
-              left: 104,
-              top: 116,
+          Positioned(
+            left: 20,
+            top: 8,
+            width: 300,
+            height: 58,
+            child: _PrintDialogGroup(
+              title: '여백',
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  const _PrintDialogCenteredLabel('추가 영역'),
+                  const SizedBox(width: 7),
+                  const _PrintDialogCenteredLabel('왼쪽'),
                   const SizedBox(width: 8),
                   _PrintDialogShiftedDown(
-                    child: _PrintDialogInput(controller: extraAreaController),
+                      child: _PrintDialogInput(
+                        controller: leftMarginController,
+                      ),
+                  ),
+                  const SizedBox(width: 8),
+                  const _PrintDialogCenteredLabel('mm'),
+                  const SizedBox(width: 24),
+                  const _PrintDialogCenteredLabel('위쪽'),
+                  const SizedBox(width: 8),
+                  _PrintDialogShiftedDown(
+                    child: _PrintDialogInput(controller: topMarginController),
                   ),
                   const SizedBox(width: 8),
                   const _PrintDialogCenteredLabel('mm'),
                 ],
               ),
             ),
-            Positioned(
-              left: 322,
-              top: 118,
+          ),
+          Positioned(
+            left: 336,
+            top: 8,
+            width: 168,
+            height: 58,
+            child: _PrintDialogGroup(
+              title: '자동줄간격',
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  _PrintDialogRadio(
-                    label: '가로',
-                    value: 'horizontal',
-                    groupValue: orientation,
-                    onChanged: onOrientationChanged,
+                  const Spacer(),
+                  SizedBox(
+                    width: _autoSpacingDropdownWidth,
+                    height: _compactDropdownHeight,
+                    child: DropdownButton2<String>(
+                      value: autoSpacing,
+                      isExpanded: true,
+                      underline: const SizedBox.shrink(),
+                      style: _labelStyle,
+                      items: _autoSpacingItems,
+                      onChanged: onAutoSpacingChanged,
+                      buttonStyleData: const ButtonStyleData(
+                        height: _compactDropdownHeight,
+                        padding: EdgeInsets.zero,
+                      ),
+                      dropdownStyleData: DropdownStyleData(
+                        maxHeight: 260,
+                        useRootNavigator: true,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                      menuItemStyleData: const MenuItemStyleData(
+                        height: _compactDropdownMenuItemHeight,
+                        padding: EdgeInsets.symmetric(horizontal: 8),
+                      ),
+                      iconStyleData: const IconStyleData(
+                        iconSize: 18,
+                        iconEnabledColor: Color(0xff6a6a6a),
+                      ),
+                    ),
                   ),
-                  const SizedBox(width: 18),
-                  _PrintDialogRadio(
-                    label: '세로',
-                    value: 'vertical',
-                    groupValue: orientation,
-                    onChanged: onOrientationChanged,
-                  ),
+                  const SizedBox(width: 5),
+                  const _PrintDialogCenteredLabel('%'),
+                  const Spacer(),
                 ],
               ),
             ),
-            const Positioned(
-              left: 24,
-              top: 149,
-              child: Text(
-                '매수',
-                style: TextStyle(fontSize: 30, color: Color(0xff000000)),
-              ),
+          ),
+          const Positioned(
+            left: 24,
+            top: 81,
+            child: Text('발행 프린터', style: _sectionStyle),
+          ),
+          Positioned(
+            left: 107,
+            top: 74,
+            width: 291,
+            height: 30,
+            child: _PrintDialogInsetValue(value: selectedPrinterName),
+          ),
+          Positioned(
+            right: 22,
+            top: 74,
+            width: 94,
+            height: 30,
+            child: _PrintDialogButton(
+              label: '프린터 선택',
+              onPressed: onSelectPrinter,
             ),
-            Positioned(
-              left: 91,
-              top: 151,
-              width: 84,
+          ),
+          Positioned(
+            left: 104,
+            top: 116,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                const _PrintDialogCenteredLabel('추가 영역'),
+                const SizedBox(width: 8),
+                _PrintDialogShiftedDown(
+                  child: _PrintDialogInput(controller: extraAreaController),
+                ),
+                const SizedBox(width: 8),
+                const _PrintDialogCenteredLabel('mm'),
+              ],
+            ),
+          ),
+          Positioned(
+            left: 322,
+            top: 118,
+            child: Row(
+              children: [
+                _PrintDialogRadio(
+                  label: '가로',
+                  value: 'horizontal',
+                  groupValue: orientation,
+                  onChanged: onOrientationChanged,
+                ),
+                const SizedBox(width: 18),
+                _PrintDialogRadio(
+                  label: '세로',
+                  value: 'vertical',
+                  groupValue: orientation,
+                  onChanged: onOrientationChanged,
+                ),
+              ],
+            ),
+          ),
+          const Positioned(
+            left: 24,
+            top: 149,
+            child: Text(
+              '매수',
+              style: TextStyle(fontSize: 30, color: Color(0xff000000)),
+            ),
+          ),
+          Positioned(
+            left: 91,
+            top: 151,
+            width: 84,
+            height: 38,
+            child: _PrintDialogInput(
+              controller: copiesController,
+              fontSize: 23,
               height: 38,
-              child: _PrintDialogInput(
-                controller: copiesController,
-                fontSize: 23,
-                height: 38,
-                contentPadding: const EdgeInsets.fromLTRB(8, 3, 8, 5),
-              ),
+              contentPadding: const EdgeInsets.fromLTRB(8, 3, 8, 5),
             ),
-            Positioned(
-              left: 245,
-              bottom: 12,
-              width: 84,
-              height: 30,
-              child: _PrintDialogButton(label: '취소', onPressed: onClose),
-            ),
-            Positioned(
-              left: 334,
-              bottom: 12,
-              width: 84,
-              height: 30,
-              child: _PrintDialogButton(label: '적용', onPressed: onApply),
-            ),
-            Positioned(
-              left: 423,
-              bottom: 12,
-              width: 84,
-              height: 30,
-              child: _PrintDialogButton(label: '발행', onPressed: onIssue),
-            ),
+          ),
+          Positioned(
+            left: 245,
+            bottom: 12,
+            width: 84,
+            height: 30,
+            child: _PrintDialogButton(label: '취소', onPressed: onClose),
+          ),
+          Positioned(
+            left: 334,
+            bottom: 12,
+            width: 84,
+            height: 30,
+            child: _PrintDialogButton(label: '적용', onPressed: onApply),
+          ),
+          Positioned(
+            left: 423,
+            bottom: 12,
+            width: 84,
+            height: 30,
+            child: _PrintDialogButton(label: '발행', onPressed: onIssue),
+          ),
         ],
       ),
     );
@@ -3775,7 +3775,7 @@ class _PrintDialogGroup extends StatelessWidget {
           left: 8,
           top: -3,
           child: ColoredBox(
-            color: const Color(0xfff6f6f6),
+            color: const Color(0xffece6f0),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 4),
               child: Text(
