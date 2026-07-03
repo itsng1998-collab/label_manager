@@ -29,6 +29,15 @@
 
 ### 최근 완료 (2026-07-03)
 
+- **완료**: XLSX 영양정보 어두운 헤더 내부 경계선 재보정.
+  - 사용자 재첨부 원본/변환본 및 최신 로그 `.tmp/log/app_2026-07-03_13-19-30.log` 확인: 새 코드가 로드되어 `C24/D24`, `C25/D25`, `C26/D26` 헤더 내부 경계가 `style=1/stroke=1.0`으로 낮아짐. 원본은 어두운 `영양정보 | 총내용량` 두 병합 블록 사이 경계가 굵게 남아야 하므로 이 부분이 남은 차이로 판단.
+  - `lib/page_label_sheet/label_sheet_xlsx_import.dart`: 영양정보 범위 안에서도 헤더 3행(`rowStart..rowStart+2`)의 큰 병합 블록 경계(`columnStart+2` 오른쪽 / `columnStart+3` 왼쪽)는 내부선 downcast 대상에서 제외해 `style=13/stroke=2.0`을 유지. 본문 영양성분 grid 내부 세로선은 계속 `style=1/stroke=1.0`로 유지.
+  - 검증 완료: `C:\Flutter\bin\dart.bat format lib/page_label_sheet/label_sheet_xlsx_import.dart` 성공.
+  - 검증 완료: `C:\Flutter\bin\flutter.bat test test/label_sheet_xlsx_import_test.dart` 3개 성공.
+  - 검증 완료: `C:\Flutter\bin\flutter.bat analyze lib/page_label_sheet/label_sheet_workbench.dart lib/page_label_sheet/label_sheet_xlsx_import.dart test/label_sheet_xlsx_import_test.dart --no-fatal-warnings --no-fatal-infos` 성공.
+  - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/page_label_sheet/label_sheet_xlsx_import.dart` (`lib/core/app.dart` 기존 dirty 제외).
+  - 다음 재가져오기 확인 포인트: 최신 앱 로그에서 `C24 right`, `D24 left`, `C26 right`, `D26 left`는 `style=13/stroke=2.0`, `C28/D28` 같은 본문 내부 세로선은 `style=1/stroke=1.0`이어야 함.
+
 - **완료**: XLSX 영양정보 표 남은 테두리 차이 보정 및 조정 로그 추가.
   - 최신 로그 `.tmp/log/app_2026-07-03_13-03-15.log` 재확인: `computed blank borders=-`로 빈 셀/바코드/오른쪽 안내문 보정은 반영됨. 남은 차이는 영양정보 표의 어두운 헤더 내부 세로 구분선이 `style=13/stroke=2.0`로 과하게 강하고, 일부 외곽선은 원본 대비 얇게 남을 수 있는 판정 문제로 판단.
   - `lib/page_label_sheet/label_sheet_xlsx_import.dart`: 영양정보 표 외곽(`top/bottom/left/right`)은 `style=13/stroke=2.0`로 강제 유지하고, 표 내부 세로선은 헤더 구분선을 포함해 내부선으로 분류해 `style=1/stroke=1.0`로 낮추도록 보정.

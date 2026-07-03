@@ -1554,8 +1554,14 @@ bool _isXlsxNutritionInnerBorder(
       case 'border-bottom':
         return row != range.rowEnd && row != headerBottom;
       case 'border-left':
+        if (row <= headerBottom && column == range.columnStart + 3) {
+          return false;
+        }
         return column != range.columnStart;
       case 'border-right':
+        if (row <= headerBottom && column == range.columnStart + 2) {
+          return false;
+        }
         return column != range.columnEnd;
     }
   }
