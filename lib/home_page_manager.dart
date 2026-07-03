@@ -499,9 +499,12 @@ class _HomePageManagerState extends State<HomePageManager> {
   }
 
   void _openBrandSettingsDialog() {
+    debugLog('brandSettings overlay open requested exists=${_brandSettingsOverlayEntry != null}');
     if (_brandSettingsOverlayEntry != null) return;
     late final OverlayEntry entry;
     entry = OverlayEntry(
+      // Brand settings are modeless OverlayEntry dialogs. Confirm/warning
+      // dialogs launched inside must use showBlockingModelessOverlayDialog.
       builder: (_) => BlockingModelessDialog(
         child: _BrandSettingsDialog(
           brands: Brand.datas ?? const <Brand>[],
@@ -515,12 +518,16 @@ class _HomePageManagerState extends State<HomePageManager> {
     );
     _brandSettingsOverlayEntry = entry;
     Overlay.of(context).insert(entry);
+    debugLog('brandSettings overlay inserted mounted=${entry.mounted}');
   }
 
   void _openLabelSettingsDialog() {
+    debugLog('labelSettings overlay open requested exists=${_labelSettingsOverlayEntry != null}');
     if (_labelSettingsOverlayEntry != null) return;
     late final OverlayEntry entry;
     entry = OverlayEntry(
+      // Label settings are modeless OverlayEntry dialogs. The order-apply
+      // confirmation must be inserted into the root overlay, not showDialog.
       builder: (_) => BlockingModelessDialog(
         child: _LabelSettingsDialog(
           labels: LabelSize.datas ?? const <LabelSize>[],
@@ -531,6 +538,7 @@ class _HomePageManagerState extends State<HomePageManager> {
     );
     _labelSettingsOverlayEntry = entry;
     Overlay.of(context).insert(entry);
+    debugLog('labelSettings overlay inserted mounted=${entry.mounted}');
   }
 
   Future<List<LabelSize>> _handleLabelOrderSaved() async {
@@ -575,13 +583,17 @@ class _HomePageManagerState extends State<HomePageManager> {
   }
 
   void _closeBrandSettingsDialog() {
+    debugLog('brandSettings overlay close requested exists=${_brandSettingsOverlayEntry != null}');
     _brandSettingsOverlayEntry?.remove();
     _brandSettingsOverlayEntry = null;
+    debugLog('brandSettings overlay closed');
   }
 
   void _closeLabelSettingsDialog() {
+    debugLog('labelSettings overlay close requested exists=${_labelSettingsOverlayEntry != null}');
     _labelSettingsOverlayEntry?.remove();
     _labelSettingsOverlayEntry = null;
+    debugLog('labelSettings overlay closed');
   }
 
   bool _activateCommonLabelTabIfNeeded() {
@@ -2106,25 +2118,50 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
   }
 
   Future<void> _applyOrderChanges() async {
-    debugLog('labelSettings reorder apply pending labels=${_labels.length}');
-    if (_applyingOrderChanges || !_hasOrderChanges) return;
+    debugLog(
+      'labelSettings reorder apply pending labels=${_labels.length} '
+      'original=${_originalLabels.length} applying=$_applyingOrderChanges '
+      'hasChanges=$_hasOrderChanges mounted=$mounted selected=$_selectedLabelSizeId',
+    );
+    if (_applyingOrderChanges || !_hasOrderChanges) {
+      debugLog(
+        'labelSettings reorder apply skipped applying=$_applyingOrderChanges '
+        'hasChanges=$_hasOrderChanges',
+      );
+      return;
+    }
 
-    final confirmed = await showDialog<bool>(
+    debugLog('labelSettings reorder apply confirmDialog show rootOverlay');
+  // This dialog is opened from a modeless OverlayEntry. Keep it on the root
+  // overlay so the user can see and click it above the label settings dialog.
+    final confirmed = await showBlockingModelessOverlayDialog<bool>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
+      builder: (dialogContext, close) => AlertDialog(
         content: const Text('라벨 순서 변경을 적용하시겠습니까?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
+            onPressed: () {
+              debugLog('labelSettings reorder apply confirmDialog cancelPressed');
+              close(false);
+            },
             child: const Text('취소'),
           ),
           TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
+            onPressed: () {
+              debugLog('labelSettings reorder apply confirmDialog okPressed');
+              close(true);
+            },
             child: const Text('확인'),
           ),
         ],
       ),
     );
+    debugLog('labelSettings reorder apply confirmDialog result=$confirmed mounted=$mounted');
+
+    if (!mounted) {
+      debugLog('labelSettings reorder apply aborted unmounted after confirmDialog');
+      return;
+    }
 
     if (confirmed != true) {
       debugLog('labelSettings reorder apply cancelledByUser');
@@ -2132,7 +2169,7 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
       return;
     }
 
-    if (!mounted) return;
+    debugLog('labelSettings reorder apply confirmed startSave labels=${_labels.length}');
     setState(() {
       _applyingOrderChanges = true;
     });
@@ -2145,6 +2182,10 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
 
     try {
       final orderedLabels = List<LabelSize>.from(_labels);
+      debugLog(
+        'labelSettings reorder apply updateOrders start '
+        'ids=${orderedLabels.map((label) => label.labelSizeId).join(',')}',
+      );
       await LabelSizeDAO.updateOrders([
         for (var index = 0; index < orderedLabels.length; index += 1)
           LabelSizeOrderUpdate(
@@ -2152,8 +2193,16 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
             labelSizeOrder: index + 1,
           ),
       ]);
+      debugLog('labelSettings reorder apply updateOrders done reloadStart');
       final appliedLabels = await widget.onOrderSaved();
-      if (!mounted) return;
+      debugLog(
+        'labelSettings reorder apply reload done labels=${appliedLabels.length} '
+        'mounted=$mounted',
+      );
+      if (!mounted) {
+        debugLog('labelSettings reorder apply aborted unmounted after reload');
+        return;
+      }
       setState(() {
         _labels = List<LabelSize>.from(appliedLabels);
         _originalLabels = List<LabelSize>.from(appliedLabels);
@@ -2167,27 +2216,34 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
       debugLog('labelSettings reorder apply failed error=$e');
       if (mounted) {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
-        await showDialog<void>(
+        debugLog('labelSettings reorder apply failureDialog show rootOverlay');
+        await showBlockingModelessOverlayDialog<void>(
           context: context,
-          traversalEdgeBehavior: TraversalEdgeBehavior.closedLoop,
-          builder: (dialogContext) => AlertDialog(
+          builder: (dialogContext, close) => AlertDialog(
             title: const Text('라벨 순서 저장 실패'),
             content: Text(e.toString()),
             actions: [
               TextButton(
-                onPressed: () => Navigator.of(dialogContext).pop(),
+                onPressed: () {
+                  debugLog('labelSettings reorder apply failureDialog okPressed');
+                  close(null);
+                },
                 child: const Text('확인'),
               ),
             ],
           ),
         );
+        debugLog('labelSettings reorder apply failureDialog closed');
       }
     } finally {
       if (mounted) {
+        debugLog('labelSettings reorder apply cleanup mounted=true');
         setState(() {
           _applyingOrderChanges = false;
         });
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      } else {
+        debugLog('labelSettings reorder apply cleanup skipped mounted=false');
       }
     }
   }
@@ -2362,11 +2418,17 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
   Future<T?> _showBrandOverlayDialog<T>(
     Widget Function(BuildContext context, void Function(T? result) close)
         builder,
-  ) {
-    return showBlockingModelessOverlayDialog<T>(
+  ) async {
+    debugLog(
+      'brandSettings overlayDialog show type=$T mounted=$mounted '
+      'editingIndex=$_editingIndex inserting=$_insertingBrand len=${_brands.length}',
+    );
+    final result = await showBlockingModelessOverlayDialog<T>(
       context: context,
       builder: builder,
     );
+    debugLog('brandSettings overlayDialog result type=$T result=$result mounted=$mounted');
+    return result;
   }
 
   @override

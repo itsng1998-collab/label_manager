@@ -1,6 +1,9 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:label_manager/utils/log_context.dart';
+
+int _blockingModelessOverlayDialogSequence = 0;
 
 /// Shared wrapper for every modeless dialog overlay in Label Manager.
 ///
@@ -23,6 +26,11 @@ class BlockingModelessDialog extends StatefulWidget {
   State<BlockingModelessDialog> createState() => _BlockingModelessDialogState();
 }
 
+/// Shows a confirmation/warning dialog above modeless settings overlays.
+///
+/// Brand/label settings are inserted as `OverlayEntry`s. A normal `showDialog`
+/// can be placed below an already inserted modeless entry, so confirmations
+/// launched from those settings must use this helper instead.
 Future<T?> showBlockingModelessOverlayDialog<T>({
   required BuildContext context,
   required Widget Function(
@@ -31,36 +39,60 @@ Future<T?> showBlockingModelessOverlayDialog<T>({
   ) builder,
   Color barrierColor = const Color(0x8A000000),
 }) {
+  final dialogId = ++_blockingModelessOverlayDialogSequence;
   final overlay = Overlay.of(context, rootOverlay: true);
   final completer = Completer<T?>();
   late final OverlayEntry entry;
 
+  debugLog(
+    'blockingOverlayDialog#$dialogId create overlay=${identityHashCode(overlay)} '
+    'context=${context.runtimeType} barrierColor=$barrierColor',
+  );
+
   void close(T? result) {
+    debugLog(
+      'blockingOverlayDialog#$dialogId close requested '
+      'completed=${completer.isCompleted} mounted=${entry.mounted} result=$result',
+    );
     if (completer.isCompleted) {
       return;
     }
-    entry.remove();
+    if (entry.mounted) {
+      entry.remove();
+      debugLog('blockingOverlayDialog#$dialogId entry removed');
+    } else {
+      debugLog('blockingOverlayDialog#$dialogId entry remove skipped mounted=false');
+    }
     completer.complete(result);
+    debugLog('blockingOverlayDialog#$dialogId completed result=$result');
   }
 
   entry = OverlayEntry(
-    builder: (overlayContext) => Stack(
-      fit: StackFit.expand,
-      children: [
-        ModalBarrier(
-          dismissible: false,
-          color: barrierColor,
-        ),
-        Center(
-          child: Material(
-            type: MaterialType.transparency,
-            child: builder(overlayContext, close),
+    builder: (overlayContext) {
+      debugLog(
+        'blockingOverlayDialog#$dialogId build '
+        'overlayContext=${overlayContext.runtimeType}',
+      );
+      return Stack(
+        fit: StackFit.expand,
+        children: [
+          ModalBarrier(
+            dismissible: false,
+            color: barrierColor,
           ),
-        ),
-      ],
-    ),
+          Center(
+            child: Material(
+              type: MaterialType.transparency,
+              child: builder(overlayContext, close),
+            ),
+          ),
+        ],
+      );
+    },
   );
+  debugLog('blockingOverlayDialog#$dialogId insert start');
   overlay.insert(entry);
+  debugLog('blockingOverlayDialog#$dialogId insert done mounted=${entry.mounted}');
   return completer.future;
 }
 
