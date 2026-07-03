@@ -38,6 +38,7 @@
 - 검증 진행: `C:\Flutter\bin\dart.bat format lib\home_page_manager.dart lib\models\label_size.dart` 성공, `flutter test test/swipe_action_table_test.dart test/label_size_cache_test.dart` 21개 성공, `C:\Flutter\bin\flutter.bat analyze lib\home_page_manager.dart lib\models\label_size.dart --no-fatal-warnings --no-fatal-infos` No issues.
 - 검증 완료: `C:\Flutter\bin\flutter.bat analyze lib\home_page_manager.dart lib\models\label_size.dart test\swipe_action_table_test.dart test\label_size_cache_test.dart --no-fatal-warnings --no-fatal-infos` No issues, `git diff --check -- SESSION_HANDOFF.md lib\home_page_manager.dart lib\models\label_size.dart` 통과.
 - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/home_page_manager.dart`, `lib/models/label_size.dart`.
+- 기능 커밋: `880c109` (`라벨 설정 스와이프 삭제 저장 구현`).
 
 ### 완료 (2026-07-03): 라벨 설정 인라인 라벨 이름/전자저울 수정 저장 구현
 
