@@ -36,6 +36,7 @@
   - 검증 완료: `C:\Flutter\bin\flutter.bat test test/label_sheet_xlsx_import_test.dart` 3개 성공. 테스트 로그에서 `H1 value=*유통기한:`, `G3 value=#BARCODE`, `H3 value=`가 `skipped value border samples`에 기록됨.
   - 검증 완료: `C:\Flutter\bin\flutter.bat analyze lib/page_label_sheet/label_sheet_workbench.dart lib/page_label_sheet/label_sheet_xlsx_import.dart test/label_sheet_xlsx_import_test.dart --no-fatal-warnings --no-fatal-infos` 성공.
   - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/page_label_sheet/label_sheet_xlsx_import.dart`, `test/label_sheet_xlsx_import_test.dart` (`lib/core/app.dart` 기존 dirty 제외).
+  - 커밋: `26f7eff` (`XLSX 안내문과 바코드 테두리 보정`).
 
 - **완료**: XLSX `#BARCODE` 자리표시자 border 제외.
   - 최신 로그 `.tmp/log/app_2026-07-03_11-56-16.log`: 빈 셀 border 제거 후 `borders=1345`, `computedBorders=382`, `computed blank borders=-`. 남은 차이는 `L29 span=3x10 value=#BARCODE` 주변에 `L29 top`, `row31 bottom` 등의 border가 남아 원본보다 바코드 영역 선이 표시되는 것.
