@@ -93,6 +93,61 @@ void main() {
     );
     expect(_countSelectionPixels(unfocusedPixels), 0);
   });
+
+  testWidgets('controller keeps selection hidden after the next frame', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(240, 160);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    final controller = FortuneSheetController();
+    const captureKey = ValueKey('fortune-sheet-app-post-frame-focus-capture');
+    final workbook = FortuneWorkbook(
+      settings: const FortuneSettings(
+        showToolbar: false,
+        showFormulaBar: false,
+        showSheetTabs: false,
+        statisticBarHeight: 0,
+        rowHeaderWidth: 40,
+        columnHeaderHeight: 20,
+        row: 4,
+        column: 4,
+      ),
+      sheets: [FortuneSheet(id: 's1', name: 'Sheet1')],
+    );
+
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: RepaintBoundary(
+          key: captureKey,
+          child: FortuneSheetApp(
+            workbook: workbook,
+            controller: controller,
+            showFormulaBar: false,
+            showSheetTabs: false,
+          ),
+        ),
+      ),
+    );
+    await tester.tapAt(const Offset(75, 55));
+    await tester.pump();
+    expect(
+      _countSelectionPixels(await _capturePixels(tester, find.byKey(captureKey))),
+      greaterThan(0),
+    );
+
+    controller.unfocusSheet();
+    await tester.pump();
+    await tester.pump();
+
+    final pixels = await _capturePixels(tester, find.byKey(captureKey));
+    expect(_countSelectionPixels(pixels), 0);
+  });
 }
 
 Future<({ByteData data, int width})> _paintSelection(

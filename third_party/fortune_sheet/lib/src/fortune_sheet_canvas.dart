@@ -3255,11 +3255,22 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
 
   void _unfocusSheet() {
     _focusNode.unfocus();
-    if (!_sheetFocused) {
-      return;
+    if (_sheetFocused) {
+      setState(() {
+        _sheetFocused = false;
+      });
     }
-    setState(() {
-      _sheetFocused = false;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      _focusNode.unfocus();
+      if (!_sheetFocused) {
+        return;
+      }
+      setState(() {
+        _sheetFocused = false;
+      });
     });
   }
 

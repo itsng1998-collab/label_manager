@@ -29,6 +29,17 @@
 
 ### 최근 완료 (2026-07-03)
 
+- **완료**: 공용라벨관리 `라벨 파일에서 가져오기` 완료 후에도 셀 선택 하이라이트가 남는 문제 재수정.
+  - 원인 후보: 컨텍스트 메뉴 클릭 시 FortuneSheet 내부 `_sheetFocused=true`가 된 뒤, custom context menu handler가 import Future를 기다리지 않아 완료 후 한 번의 `unfocusSheet()`만으로는 다음 프레임 상태까지 보장되지 않음.
+  - `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`: `FortuneSheetController.unfocusSheet()`가 즉시 `_focusNode.unfocus()`/`_sheetFocused=false` 처리 후 다음 프레임에도 재확인해 다시 해제하도록 보강.
+  - `lib/page_label_sheet/label_sheet_workbench.dart`: `_handleImportLabelFile` 완료 시 즉시 `unfocusSheet()` 호출 후 post-frame에서도 한 번 더 호출.
+  - `third_party/fortune_sheet/test/fortune_sheet_focus_selection_test.dart`: 다음 프레임 이후에도 selection blue pixel이 다시 나타나지 않는 회귀 테스트 추가.
+  - 검증 완료: `third_party/fortune_sheet`에서 `flutter test test/fortune_sheet_focus_selection_test.dart` 3개 성공.
+  - 검증 완료: `third_party/fortune_sheet`에서 `flutter analyze lib/src/fortune_sheet_canvas.dart test/fortune_sheet_focus_selection_test.dart --no-fatal-warnings --no-fatal-infos` 성공.
+  - 검증 완료: 루트에서 `flutter analyze lib/page_label_sheet/label_sheet_workbench.dart --no-fatal-warnings --no-fatal-infos` 성공.
+  - 임시 산출물 정리 완료: 검증 중 생성된 `third_party/fortune_sheet/build/` 삭제.
+  - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/page_label_sheet/label_sheet_workbench.dart`, `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`, `third_party/fortune_sheet/test/fortune_sheet_focus_selection_test.dart` (`lib/core/app.dart` 기존 dirty 제외).
+
 - **완료**: XLSX 원본/변환본 재비교용 축·병합 치수 진단 로그 보강.
   - 첨부 비교 기준: 변환본은 값/병합/검은 헤더 위치는 대체로 유지되지만, 원본보다 콘텐츠 영역이 우측으로 덜 차고 N열 이후 빈 격자/우측 폭이 두드러짐. 일부 텍스트 크기와 줄맞춤도 압축되어 보임.
   - 현재 가설: 변환 자체의 값/병합 누락보다는 XLSX column width/row height 변환, 물리 폭 스케일 적용, 또는 FortuneSheet 적용 후 count/default 축 처리 중 한 단계에서 실제 경계 폭이 줄어듦.

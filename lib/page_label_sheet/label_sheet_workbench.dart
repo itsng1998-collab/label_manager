@@ -2209,6 +2209,9 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     _controller.updateSheet(<FortuneSheet>[importedSheet]);
     _setLabelSheetZoomPercent(100);
     _controller.unfocusSheet();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _controller.unfocusSheet();
+    });
     if (!mounted) {
       return;
     }
