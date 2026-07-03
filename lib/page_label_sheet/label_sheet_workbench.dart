@@ -1042,8 +1042,16 @@ void _logImportedSheetApplySample(FortuneSheet sheet) {
     _labelSheetComputedBorderSamples(sheet),
   );
   _logLabelSheetChunks(
+    'label sheet import apply computed blank borders',
+    _labelSheetComputedBlankBorderSamples(sheet),
+  );
+  _logLabelSheetChunks(
     'label sheet import apply computed border rows',
     _labelSheetComputedBorderRowSummarySamples(sheet),
+  );
+  _logLabelSheetChunks(
+    'label sheet import apply computed border row cells',
+    _labelSheetComputedBorderRowCellSummarySamples(sheet),
   );
   debugLog(
     'label sheet import apply scale '
@@ -1292,6 +1300,40 @@ List<String> _labelSheetComputedBorderSamples(
   return samples.isEmpty ? const <String>['-'] : samples;
 }
 
+List<String> _labelSheetComputedBlankBorderSamples(
+  FortuneSheet sheet, {
+  int limit = 400,
+}) {
+  final computed = FortuneBorderCompute.compute(sheet).entries.toList()
+    ..sort((left, right) {
+      final rowCompare = left.key.row.compareTo(right.key.row);
+      return rowCompare == 0
+          ? left.key.column.compareTo(right.key.column)
+          : rowCompare;
+    });
+  final samples = <String>[];
+  for (final entry in computed) {
+    final cell = sheet.cells[entry.key];
+    final value = cell?.displayValue ?? cell?.value ?? '';
+    final merge = cell?.merge;
+    final isMergeCovered =
+        merge != null &&
+        (merge.row != entry.key.row || merge.column != entry.key.column);
+    if (value.isNotEmpty || isMergeCovered) {
+      continue;
+    }
+    samples.add(
+      '${_labelSheetCoordLabel(entry.key.row, entry.key.column)} '
+      'state=${_labelSheetComputedBorderCellState(sheet, entry.key)} '
+      '${_labelSheetCellBordersLogText(entry.value)}',
+    );
+    if (samples.length >= limit) {
+      break;
+    }
+  }
+  return samples.isEmpty ? const <String>['-'] : samples;
+}
+
 List<String> _labelSheetBorderInfoRowSummarySamples(FortuneSheet sheet) {
   final countsByRow = <int, Map<String, int>>{};
   for (final info in sheet.borderInfo) {
@@ -1323,6 +1365,39 @@ List<String> _labelSheetComputedBorderRowSummarySamples(FortuneSheet sheet) {
     _labelSheetCountComputedBorderSide(counts, 'slash', entry.value.slash);
   }
   return _labelSheetBorderRowSummaryLogSamples(countsByRow);
+}
+
+List<String> _labelSheetComputedBorderRowCellSummarySamples(
+  FortuneSheet sheet,
+) {
+  final countsByRow = <int, Map<String, int>>{};
+  final computed = FortuneBorderCompute.compute(sheet);
+  for (final coord in computed.keys) {
+    final counts = countsByRow.putIfAbsent(coord.row, () => <String, int>{});
+    final state = _labelSheetComputedBorderCellState(sheet, coord);
+    counts[state] = (counts[state] ?? 0) + 1;
+  }
+  return _labelSheetBorderRowSummaryLogSamples(countsByRow);
+}
+
+String _labelSheetComputedBorderCellState(
+  FortuneSheet sheet,
+  FortuneCellCoord coord,
+) {
+  final cell = sheet.cells[coord];
+  if (cell == null) {
+    return 'noCell';
+  }
+  final value = cell.displayValue ?? cell.value;
+  final merge = cell.merge;
+  if (merge != null &&
+      (merge.row != coord.row || merge.column != coord.column)) {
+    return value.isEmpty ? 'mergeCoveredBlank' : 'mergeCoveredValue';
+  }
+  if (merge != null) {
+    return value.isEmpty ? 'mergeAnchorBlank' : 'mergeAnchorValue';
+  }
+  return value.isEmpty ? 'blank' : 'value';
 }
 
 void _labelSheetCountComputedBorderSide(
