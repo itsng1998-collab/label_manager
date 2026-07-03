@@ -765,6 +765,10 @@ FortuneSheet _labelSheetScaledToPhysicalWidth(
     scaledSheet.defaultRowHeight,
   );
   final scaledMinFontSize = _labelSheetMinimumFontSize(scaledSheet);
+  final overflowLogical = scaledWidth - targetWidth;
+  final overflowMm = overflowLogical <= 0
+      ? 0.0
+      : overflowLogical / fortuneMillimetersToLogicalPixels(1);
   debugLog(
     'label sheet import physical scale '
     'sourceLogical=${sourceWidth}x$sourceHeight '
@@ -773,7 +777,8 @@ FortuneSheet _labelSheetScaledToPhysicalWidth(
     'minFontSize=$minFontSize scaledMinFontSize=$scaledMinFontSize '
     'minReadableMm=$_labelSheetImportMinReadableFontHeightMm '
     'minReadableLogical=$minReadableFontSize '
-    'scaledLogical=${scaledWidth}x$scaledHeight overflowWidth=${scaledWidth > targetWidth}',
+    'scaledLogical=${scaledWidth}x$scaledHeight overflowWidth=${scaledWidth > targetWidth} '
+    'overflowLogical=$overflowLogical overflowMm=$overflowMm',
     skipFrames: 1,
   );
   return scaledSheet;
@@ -987,6 +992,11 @@ void _logImportedSheetApplySample(FortuneSheet sheet) {
     skipFrames: 1,
   );
   debugLog(
+    'label sheet import apply text layout '
+    '${_labelSheetTextLayoutSample(sheet)}',
+    skipFrames: 1,
+  );
+  debugLog(
     'label sheet import apply scale '
     'logicalSize=${columnLogicalWidth}x$rowLogicalHeight '
     'countedLogicalSize=${countedColumnLogicalWidth}x$countedRowLogicalHeight '
@@ -1099,6 +1109,59 @@ String _labelSheetMergeSizeSample(FortuneSheet sheet, {int limit = 40}) {
   return samples.isEmpty ? '-' : samples.join(' | ');
 }
 
+String _labelSheetTextLayoutSample(FortuneSheet sheet, {int limit = 40}) {
+  final samples = <String>[];
+  final entries = sheet.cells.entries.toList()
+    ..sort((left, right) {
+      final rowCompare = left.key.row.compareTo(right.key.row);
+      return rowCompare == 0
+          ? left.key.column.compareTo(right.key.column)
+          : rowCompare;
+    });
+  for (final entry in entries) {
+    final cell = entry.value;
+    final value = cell.displayValue ?? cell.value;
+    if (value.isEmpty) {
+      continue;
+    }
+    final merge = cell.merge;
+    final isCovered =
+        merge != null &&
+        (merge.row != entry.key.row || merge.column != entry.key.column);
+    if (isCovered) {
+      continue;
+    }
+    final row = merge?.row ?? entry.key.row;
+    final column = merge?.column ?? entry.key.column;
+    final rowSpan = merge?.rowSpan ?? 1;
+    final columnSpan = merge?.columnSpan ?? 1;
+    final width = _labelSheetAxisRangeLogicalSize(
+      sheet.columnWidths,
+      column,
+      columnSpan,
+      sheet.defaultColWidth,
+    );
+    final height = _labelSheetAxisRangeLogicalSize(
+      sheet.rowHeights,
+      row,
+      rowSpan,
+      sheet.defaultRowHeight,
+    );
+    samples.add(
+      '${_labelSheetCoordLabel(entry.key.row, entry.key.column)} '
+      'len=${value.length} lines=${_labelSheetLineCount(value)} '
+      'span=${rowSpan}x$columnSpan logical=${width}x$height '
+      'fs=${cell.fontSize} bold=${cell.bold} wrap=${cell.textWrap} '
+      'ha=${cell.horizontalAlign} va=${cell.verticalAlign} '
+      'value=${_labelSheetLogText(value)}',
+    );
+    if (samples.length >= limit) {
+      break;
+    }
+  }
+  return samples.isEmpty ? '-' : samples.join(' | ');
+}
+
 double _labelSheetAxisRangeLogicalSize(
   Map<int, double> sizes,
   int start,
@@ -1134,6 +1197,13 @@ String _labelSheetCoordLabel(int row, int column) {
 String _labelSheetLogText(String value) {
   final singleLine = value.replaceAll('\r', r'\r').replaceAll('\n', r'\n');
   return singleLine.length <= 60 ? singleLine : '${singleLine.substring(0, 60)}...';
+}
+
+int _labelSheetLineCount(String value) {
+  if (value.isEmpty) {
+    return 0;
+  }
+  return '\n'.allMatches(value).length + 1;
 }
 
 FortuneSettings labelSheetSettings(
