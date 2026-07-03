@@ -37,6 +37,7 @@
   - 검증 완료: `C:\Flutter\bin\flutter.bat analyze lib/page_label_sheet/label_sheet_workbench.dart lib/page_label_sheet/label_sheet_xlsx_import.dart test/label_sheet_xlsx_import_test.dart --no-fatal-warnings --no-fatal-infos` 성공.
   - 다음 재가져오기 확인 포인트: `row27~row29` 영양성분 내부선은 `style=1/stroke=1.0`으로 줄고, `A24/J24/A26:J26` 등 외곽/헤더 경계는 `style=13/stroke=2.0`로 유지되어야 함.
   - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/page_label_sheet/label_sheet_xlsx_import.dart`, `test/label_sheet_xlsx_import_test.dart` (`lib/core/app.dart` 기존 dirty 제외).
+  - 커밋: `e88f9cd` (`XLSX 영양정보 테두리 내부선 보정`).
 
 - **완료**: XLSX `thick` border 화면 두께 보정.
   - 최신 첨부 및 `.tmp/log/app_2026-07-03_12-06-13.log` 확인: 바코드/오른쪽 안내문 borderless 보정은 반영되어 `borders=1014`, `computedBorders=300`, `computed blank borders=-`로 감소. 남은 차이는 왼쪽 하단 영양성분 표 내부선이 `style=13/stroke=2.0`으로 계산되어 원본보다 과하게 두꺼워 보이는 것.
