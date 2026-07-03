@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 ///
 /// Use this as the root widget of `OverlayEntry.builder` for modeless dialogs.
 /// It keeps the dialog modeless in structure, but blocks pointer/touch input and
-/// unhandled key events from reaching widgets behind the overlay.
+/// unhandled key events from reaching widgets behind the overlay. Programmatic
+/// callbacks, notifiers, and parent-state updates triggered from inside the
+/// dialog are not blocked.
 class BlockingModelessDialog extends StatefulWidget {
   const BlockingModelessDialog({
     super.key,

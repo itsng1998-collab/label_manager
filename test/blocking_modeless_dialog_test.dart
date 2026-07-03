@@ -68,6 +68,105 @@ void main() {
     expect(insideTapCount, 1);
   });
 
+  testWidgets('allows listener callbacks inside dialog content', (tester) async {
+    var insidePointerDownCount = 0;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: BlockingModelessDialog(
+          child: Center(
+            child: Listener(
+              onPointerDown: (_) => insidePointerDownCount += 1,
+              child: const SizedBox(
+                width: 120,
+                height: 80,
+                child: ColoredBox(
+                  key: ValueKey('inside-listener-target'),
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tapAt(
+      tester.getCenter(find.byKey(const ValueKey('inside-listener-target'))),
+    );
+
+    expect(insidePointerDownCount, 1);
+  });
+
+  testWidgets('does not block non input listeners behind overlay', (
+    tester,
+  ) async {
+    final notifier = ValueNotifier<int>(0);
+    var listenerCount = 0;
+    notifier.addListener(() => listenerCount += 1);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Stack(
+          children: [
+            ValueListenableBuilder<int>(
+              valueListenable: notifier,
+              builder: (context, value, _) => Text('outside $value'),
+            ),
+            const BlockingModelessDialog(
+              child: Center(child: Text('dialog')),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    notifier.value = 1;
+    await tester.pump();
+
+    expect(listenerCount, 1);
+    expect(find.text('outside 1'), findsOneWidget);
+
+    notifier.dispose();
+  });
+
+  testWidgets('allows dialog callbacks to update outside listeners', (
+    tester,
+  ) async {
+    final notifier = ValueNotifier<int>(0);
+    var listenerCount = 0;
+    notifier.addListener(() => listenerCount += 1);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Stack(
+          children: [
+            ValueListenableBuilder<int>(
+              valueListenable: notifier,
+              builder: (context, value, _) => Text('outside $value'),
+            ),
+            BlockingModelessDialog(
+              child: Center(
+                child: ElevatedButton(
+                  onPressed: () => notifier.value += 1,
+                  child: const Text('dialog update'),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('dialog update'));
+    await tester.pump();
+
+    expect(listenerCount, 1);
+    expect(find.text('outside 1'), findsOneWidget);
+
+    notifier.dispose();
+  });
+
   testWidgets('blocks key events from focused widget behind overlay', (
     tester,
   ) async {
