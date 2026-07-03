@@ -830,7 +830,11 @@ class _XlsxStyleTable {
         : formats[index];
     final font = _itemAt(fonts, format.fontId) ?? const _XlsxFont();
     final fill = _itemAt(fills, format.fillId);
-    final border = _itemAt(borders, format.borderId) ?? const _XlsxBorder();
+    // 규칙 A: 엑셀이 실제 렌더하는 테두리만 가져온다. cellXf에 applyBorder="0"이
+    // 명시된 경우 엑셀은 borderId가 있어도 테두리를 그리지 않으므로 제외한다.
+    final border = format.applyBorder
+        ? (_itemAt(borders, format.borderId) ?? const _XlsxBorder())
+        : const _XlsxBorder();
     return _XlsxCellStyle(
       formatCode:
           numberFormats[format.numFmtId] ??
@@ -926,6 +930,7 @@ class _XlsxCellFormat {
     this.fontId,
     this.fillId,
     this.borderId,
+    this.applyBorder = true,
     this.horizontalAlign,
     this.verticalAlign,
     this.wrapText = false,
@@ -937,6 +942,7 @@ class _XlsxCellFormat {
   final int? fontId;
   final int? fillId;
   final int? borderId;
+  final bool applyBorder;
   final String? horizontalAlign;
   final String? verticalAlign;
   final bool wrapText;
@@ -1239,6 +1245,10 @@ _XlsxCellFormat _cellFormat(Map<String, String> attributes, String body) {
     fontId: int.tryParse(attributes['fontId'] ?? ''),
     fillId: int.tryParse(attributes['fillId'] ?? ''),
     borderId: int.tryParse(attributes['borderId'] ?? ''),
+    // applyBorder 미지정이면 기본 적용(true). 명시적 "0"/"false"만 미적용.
+    applyBorder: attributes.containsKey('applyBorder')
+        ? _xmlBool(attributes['applyBorder'])
+        : true,
     quotePrefix: _xmlBool(attributes['quotePrefix']),
     horizontalAlign: alignment?['horizontal'],
     verticalAlign: alignment?['vertical'],

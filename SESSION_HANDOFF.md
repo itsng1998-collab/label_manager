@@ -48,8 +48,14 @@
 - 검증: `flutter test test/label_sheet_xlsx_import_test.dart` 3개 성공, `flutter analyze`(3파일) No issues.
 
 다음 작업 (재가져오기 후):
-- 확인됨(로그 `app_2026-07-03_14-17-59.log`): 엑셀 원본이 빈영역(14~18행)·안내문(L19 등)·바코드 영역에도 테두리(검정 style=13/1 + 회색 #d0d0d0)를 정의함. `FortuneBorderCompute._applyRangeBorder`는 인접 전파 안 함 → computed 테두리는 엑셀 실제 정의값.
-- 규칙 A(그대로) 기준 현재 변환본은 정상 방향. 남은 시각 차이는 회색 #d0d0d0 격자가 원본(스프레드시트)보다 진하게 보이는 렌더링 문제일 수 있음. 진단 로그 한도 전량(3000)으로 확대(커밋 `370183f`)하여 재가져오기 시 빈/안내문/바코드 영역 raw 색상(회색 vs 검정)을 셀 단위로 확정 가능.
+- **원인 규명 완료 + 1차 수정(미검증)**: 사용자가 실제 엑셀을 직접 열어 대조 → 빈영역(14~18행)·오른쪽 안내문·바코드 영역은 엑셀에서 **테두리 없음**. 그러나 변환본에는 격자 테두리 생김. 로그 `app_2026-07-03_14-30-56.log` 분석: 해당 빈 셀들(style index 114/116/168/169/174 등)이 borderId를 참조해 검정/회색 테두리를 산출. `_XlsxStyleTable`는 `formats=211, borders=60`.
+- 원인: `cellXfs`의 `applyBorder` 속성을 무시하고 borderId를 무조건 적용하고 있었음. 엑셀은 `applyBorder="0"`이면 borderId가 있어도 테두리를 렌더하지 않음.
+- 수정: `lib/page_label_sheet/label_sheet_xlsx_import.dart`
+  - `_XlsxCellFormat`에 `applyBorder`(기본 true) 추가, `_cellFormat`에서 파싱(미지정=true, 명시적 "0"/"false"=false).
+  - `_XlsxStyleTable.cellStyle`에서 `applyBorder==false`면 border를 빈 `_XlsxBorder()`로 대체(테두리 제외). 표/제품블록 등 applyBorder 미지정 셀은 그대로 유지되어 영향 없음.
+  - 진단 로그 한도는 전량(3000) 유지(커밋 `370183f`).
+- 테스트: `test/label_sheet_xlsx_import_test.dart`에 `applyBorder="0"` 셀(D3, borderId=2)은 테두리 제외 회귀 추가. `flutter test` 4개 성공, `flutter analyze` No issues. (커밋 예정)
+- 재가져오기 검증 필요: 빈/안내문/바코드 영역 테두리가 사라지고, 세 표·제품블록의 실제 테두리는 유지되는지 확인. 남으면 `applyBorder` 외 `xfId` 상속 경로 추가 점검.
 - 스케일/폰트 시각 검증도 재가져오기 로그로 확인.
 
 ### 최근 완료 (2026-07-03)

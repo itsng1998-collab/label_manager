@@ -111,6 +111,9 @@ void main() {
     expect(sheet.cells[const FortuneCellCoord(2, 6)]?.value, '#BARCODE');
     expect(_hasBorderAt(sheet, const FortuneCellCoord(2, 6)), isTrue);
     expect(_hasBorderAt(sheet, const FortuneCellCoord(2, 7)), isTrue);
+    // 규칙 A: applyBorder="0"이면 borderId가 있어도 엑셀이 렌더하지 않으므로 제외한다.
+    expect(sheet.cells[const FortuneCellCoord(2, 3)]?.value, '무테두리');
+    expect(_hasBorderAt(sheet, const FortuneCellCoord(2, 3)), isFalse);
   });
 
   test('detects xlsx bytes and supports absolute worksheet targets', () {
@@ -256,13 +259,14 @@ Uint8List _xlsxBytes({
     <border><top style="thick"><color rgb="FF000000"/></top></border>
   </borders>
   <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
-  <cellXfs count="6">
+  <cellXfs count="7">
     <xf numFmtId="0" fontId="0" fillId="0" borderId="0"/>
     <xf numFmtId="164" fontId="1" fillId="2" borderId="1" quotePrefix="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>
     <xf numFmtId="0" fontId="0" fillId="0" borderId="0"/>
     <xf numFmtId="0" fontId="0" fillId="2" borderId="2"/>
     <xf numFmtId="0" fontId="0" fillId="0" borderId="3"/>
     <xf numFmtId="0" fontId="0" fillId="0" borderId="4"/>
+    <xf numFmtId="0" fontId="0" fillId="0" borderId="2" applyBorder="0"/>
   </cellXfs>
 </styleSheet>''');
   addXml('xl/worksheets/sheet1.xml', '''<?xml version="1.0" encoding="UTF-8"?>
@@ -281,7 +285,7 @@ Uint8List _xlsxBytes({
       <c r="H1" t="str" s="1"><v>*유통기한:</v></c>
     </row>
     <row r="2" hidden="1"><c r="A2" s="2"/></row>
-    <row r="3"><c r="A3" t="str" s="2"><v>첫 줄&#10;둘째 줄</v></c><c r="B3" s="3"/><c r="C3" s="4"/><c r="E3" t="str" s="5"><v>굵은선</v></c><c r="G3" t="str" s="1"><v>#BARCODE</v></c><c r="H3" s="1"/></row>
+    <row r="3"><c r="A3" t="str" s="2"><v>첫 줄&#10;둘째 줄</v></c><c r="B3" s="3"/><c r="C3" s="4"/><c r="D3" t="str" s="6"><v>무테두리</v></c><c r="E3" t="str" s="5"><v>굵은선</v></c><c r="G3" t="str" s="1"><v>#BARCODE</v></c><c r="H3" s="1"/></row>
   </sheetData>
   <mergeCells count="3"><mergeCell ref="A1:B2"/><mergeCell ref="D1:E1"/><mergeCell ref="G3:H3"/></mergeCells>
   <hyperlinks><hyperlink ref="B1" r:id="rIdHyper"/></hyperlinks>
