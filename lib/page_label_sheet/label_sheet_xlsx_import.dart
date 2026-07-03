@@ -1776,7 +1776,7 @@ int _borderStyle(String style) {
     'dashed' || 'dashDot' || 'dashDotDot' => 9,
     'mediumDashed' || 'mediumDashDot' || 'mediumDashDotDot' => 4,
     'medium' => 8,
-    'thick' => 13,
+    'thick' => 8,
     'double' => 2,
     _ => 1,
   };
@@ -1797,7 +1797,7 @@ double _borderStrokeWidth(String style) {
   return switch (style) {
     'hair' => 0.5,
     'medium' || 'mediumDashed' || 'mediumDashDot' || 'mediumDashDotDot' => 1.5,
-    'thick' => 2.0,
+    'thick' => 1.5,
     _ => 1.0,
   };
 }
