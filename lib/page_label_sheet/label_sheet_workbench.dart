@@ -911,7 +911,9 @@ int _labelSheetAxisCount(Map<int, double> sizes) {
 
 void _logImportedSheetApplySample(FortuneSheet sheet) {
   final gridSize = fortuneSheetGridClientPhysicalSize(sheet);
-  final columnLogicalWidth = _labelSheetAxisLogicalTotalSize(sheet.columnWidths);
+  final columnLogicalWidth = _labelSheetAxisLogicalTotalSize(
+    sheet.columnWidths,
+  );
   final rowLogicalHeight = _labelSheetAxisLogicalTotalSize(sheet.rowHeights);
   final countedColumnLogicalWidth = _labelSheetAxisLogicalTotalSizeForCount(
     sheet.columnWidths,
@@ -927,13 +929,13 @@ void _logImportedSheetApplySample(FortuneSheet sheet) {
   final valueSamples = <String>[];
   final anchorSamples = <String>[];
   final coveredSamples = <String>[];
-  for (final entry in sheet.cells.entries.toList()
-    ..sort((left, right) {
-      final rowCompare = left.key.row.compareTo(right.key.row);
-      return rowCompare == 0
-          ? left.key.column.compareTo(right.key.column)
-          : rowCompare;
-    })) {
+  for (final entry
+      in sheet.cells.entries.toList()..sort((left, right) {
+        final rowCompare = left.key.row.compareTo(right.key.row);
+        return rowCompare == 0
+            ? left.key.column.compareTo(right.key.column)
+            : rowCompare;
+      })) {
     final coord = entry.key;
     final cell = entry.value;
     final value = cell.displayValue ?? cell.value;
@@ -946,7 +948,8 @@ void _logImportedSheetApplySample(FortuneSheet sheet) {
     if (merge == null) {
       continue;
     }
-    final sample = '${_labelSheetCoordLabel(coord.row, coord.column)}->'
+    final sample =
+        '${_labelSheetCoordLabel(coord.row, coord.column)}->'
         '${_labelSheetCoordLabel(merge.row, merge.column)} '
         'span=${merge.rowSpan}x${merge.columnSpan} '
         'value=${_labelSheetLogText(value)} '
@@ -1017,6 +1020,22 @@ void _logImportedSheetApplySample(FortuneSheet sheet) {
   _logLabelSheetChunks(
     'label sheet import apply text layout',
     _labelSheetTextLayoutSamples(sheet),
+  );
+  debugLog(
+    'label sheet import apply border summary '
+    'borderInfo=${sheet.borderInfo.length} '
+    'hasRawBorderInfo=${sheet.hasRawBorderInfo} '
+    'rawBorderInfoType=${sheet.rawBorderInfo.runtimeType} '
+    'computedBorders=${FortuneBorderCompute.compute(sheet).length}',
+    skipFrames: 1,
+  );
+  _logLabelSheetChunks(
+    'label sheet import apply border info',
+    _labelSheetBorderInfoSamples(sheet),
+  );
+  _logLabelSheetChunks(
+    'label sheet import apply computed borders',
+    _labelSheetComputedBorderSamples(sheet),
   );
   debugLog(
     'label sheet import apply scale '
@@ -1121,7 +1140,10 @@ List<String> _labelSheetAxisBoundarySamplesForCount(
   return samples;
 }
 
-List<String> _labelSheetMergeSizeSamples(FortuneSheet sheet, {int limit = 200}) {
+List<String> _labelSheetMergeSizeSamples(
+  FortuneSheet sheet, {
+  int limit = 200,
+}) {
   final samples = <String>[];
   final entries = sheet.cells.entries.toList()
     ..sort((left, right) {
@@ -1132,7 +1154,9 @@ List<String> _labelSheetMergeSizeSamples(FortuneSheet sheet, {int limit = 200}) 
     });
   for (final entry in entries) {
     final merge = entry.value.merge;
-    if (merge == null || merge.row != entry.key.row || merge.column != entry.key.column) {
+    if (merge == null ||
+        merge.row != entry.key.row ||
+        merge.column != entry.key.column) {
       continue;
     }
     final width = _labelSheetAxisRangeLogicalSize(
@@ -1160,7 +1184,10 @@ List<String> _labelSheetMergeSizeSamples(FortuneSheet sheet, {int limit = 200}) 
   return samples.isEmpty ? const <String>['-'] : samples;
 }
 
-List<String> _labelSheetTextLayoutSamples(FortuneSheet sheet, {int limit = 200}) {
+List<String> _labelSheetTextLayoutSamples(
+  FortuneSheet sheet, {
+  int limit = 200,
+}) {
   final samples = <String>[];
   final entries = sheet.cells.entries.toList()
     ..sort((left, right) {
@@ -1211,6 +1238,80 @@ List<String> _labelSheetTextLayoutSamples(FortuneSheet sheet, {int limit = 200})
     }
   }
   return samples.isEmpty ? const <String>['-'] : samples;
+}
+
+List<String> _labelSheetBorderInfoSamples(
+  FortuneSheet sheet, {
+  int limit = 200,
+}) {
+  final samples = <String>[];
+  for (final info in sheet.borderInfo) {
+    for (final range in info.ranges) {
+      samples.add(
+        '${info.borderType} range=${_labelSheetRangeLogText(range)} '
+        'style=${info.style} stroke=${info.strokeWidth} '
+        'color=${info.color}',
+      );
+      if (samples.length >= limit) {
+        return samples;
+      }
+    }
+  }
+  return samples.isEmpty ? const <String>['-'] : samples;
+}
+
+List<String> _labelSheetComputedBorderSamples(
+  FortuneSheet sheet, {
+  int limit = 200,
+}) {
+  final computed = FortuneBorderCompute.compute(sheet).entries.toList()
+    ..sort((left, right) {
+      final rowCompare = left.key.row.compareTo(right.key.row);
+      return rowCompare == 0
+          ? left.key.column.compareTo(right.key.column)
+          : rowCompare;
+    });
+  final samples = <String>[];
+  for (final entry in computed) {
+    samples.add(
+      '${_labelSheetCoordLabel(entry.key.row, entry.key.column)} '
+      '${_labelSheetCellBordersLogText(entry.value)}',
+    );
+    if (samples.length >= limit) {
+      break;
+    }
+  }
+  return samples.isEmpty ? const <String>['-'] : samples;
+}
+
+String _labelSheetRangeLogText(FortuneRange range) {
+  return '${_labelSheetCoordLabel(range.rowStart, range.columnStart)}:'
+      '${_labelSheetCoordLabel(range.rowEnd, range.columnEnd)} '
+      'focus=${range.rowFocus},${range.columnFocus}';
+}
+
+String _labelSheetCellBordersLogText(FortuneCellBorders borders) {
+  final sides = <String>[];
+  if (borders.top != null) {
+    sides.add('top=${_labelSheetBorderSideLogText(borders.top!)}');
+  }
+  if (borders.right != null) {
+    sides.add('right=${_labelSheetBorderSideLogText(borders.right!)}');
+  }
+  if (borders.bottom != null) {
+    sides.add('bottom=${_labelSheetBorderSideLogText(borders.bottom!)}');
+  }
+  if (borders.left != null) {
+    sides.add('left=${_labelSheetBorderSideLogText(borders.left!)}');
+  }
+  if (borders.slash != null) {
+    sides.add('slash=${_labelSheetBorderSideLogText(borders.slash!)}');
+  }
+  return sides.isEmpty ? '-' : sides.join(',');
+}
+
+String _labelSheetBorderSideLogText(FortuneBorderSide side) {
+  return 'style=${side.style}/stroke=${side.strokeWidth}/color=${side.color}';
 }
 
 void _logLabelSheetChunks(String prefix, List<String> samples) {
@@ -1280,7 +1381,9 @@ String _labelSheetCoordLabel(int row, int column) {
 
 String _labelSheetLogText(String value) {
   final singleLine = value.replaceAll('\r', r'\r').replaceAll('\n', r'\n');
-  return singleLine.length <= 60 ? singleLine : '${singleLine.substring(0, 60)}...';
+  return singleLine.length <= 60
+      ? singleLine
+      : '${singleLine.substring(0, 60)}...';
 }
 
 int _labelSheetLineCount(String value) {
@@ -1415,13 +1518,13 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
   late final TextEditingController _zoomController = TextEditingController(
     text: '$labelSheetDefaultZoomPercent',
   );
-    late final TextEditingController _printLeftMarginController =
+  late final TextEditingController _printLeftMarginController =
       TextEditingController(text: '0.0');
-    late final TextEditingController _printTopMarginController =
+  late final TextEditingController _printTopMarginController =
       TextEditingController(text: '0.0');
-    late final TextEditingController _printExtraAreaController =
+  late final TextEditingController _printExtraAreaController =
       TextEditingController(text: '0.0');
-    late final TextEditingController _printCopiesController =
+  late final TextEditingController _printCopiesController =
       TextEditingController(text: '1');
   late final FocusNode _zoomFocusNode = FocusNode();
   int? _zoomEditOriginalPercent;
@@ -1948,9 +2051,9 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       return;
     }
     if (printer == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('발행할 프린터를 선택하세요.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('발행할 프린터를 선택하세요.')));
       return;
     }
     final sheet = _controller.getSheet();
@@ -1958,9 +2061,9 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
         ? null
         : fortuneSheetGridClientPhysicalSize(sheet);
     if (sheet == null || physicalSize == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('라벨 출력 영역을 찾을 수 없습니다.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('라벨 출력 영역을 찾을 수 없습니다.')));
       return;
     }
 
@@ -1978,9 +2081,9 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       return;
     }
     if (capture == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('라벨 이미지를 생성할 수 없습니다.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('라벨 이미지를 생성할 수 없습니다.')));
       return;
     }
 
@@ -2030,7 +2133,8 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     if (selectedName.isEmpty) {
       return null;
     }
-    final printers = await (widget.printerListProvider ?? Printing.listPrinters)();
+    final printers =
+        await (widget.printerListProvider ?? Printing.listPrinters)();
     final normalizedSelected = selectedName.toLowerCase();
     for (final printer in printers) {
       if (printer.name.trim().toLowerCase() == normalizedSelected) {
@@ -2052,7 +2156,10 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
 
   LabelSheetPrintOptions _currentPrintOptions() {
     return LabelSheetPrintOptions(
-      copies: math.max(1, int.tryParse(_printCopiesController.text.trim()) ?? 1),
+      copies: math.max(
+        1,
+        int.tryParse(_printCopiesController.text.trim()) ?? 1,
+      ),
       leftMarginMm: _doubleFromPrintInput(_printLeftMarginController.text),
       topMarginMm: _doubleFromPrintInput(_printTopMarginController.text),
       extraAreaMm: _doubleFromPrintInput(_printExtraAreaController.text),
@@ -2078,7 +2185,8 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       rowStart: 0,
       rowEnd: _lastPrintIndexForExtent(
         logicalSize.height,
-        lengthForIndex: (row) => sheet.rowHeights[row] ?? sheet.defaultRowHeight ?? 19,
+        lengthForIndex: (row) =>
+            sheet.rowHeights[row] ?? sheet.defaultRowHeight ?? 19,
       ),
       columnStart: 0,
       columnEnd: _lastPrintIndexForExtent(
@@ -2137,8 +2245,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
   Future<void> _handleSelectPrinter() async {
     final printerName = Platform.isWindows
         ? await RawPrinterWin32.showPrinterSetupDialog()
-        : (await Printing.pickPrinter(context: context, title: '프린터 선택'))
-              ?.name;
+        : (await Printing.pickPrinter(context: context, title: '프린터 선택'))?.name;
     if (!mounted || printerName == null || printerName.isEmpty) {
       return;
     }
@@ -2191,7 +2298,9 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
 
   FortuneWorkbook _currentWorkbookForLabelFile() {
     final sheets = _controller.getAllSheets();
-    return sheets == null ? _latestWorkbook : _latestWorkbook.copyWith(sheets: sheets);
+    return sheets == null
+        ? _latestWorkbook
+        : _latestWorkbook.copyWith(sheets: sheets);
   }
 
   Set<String> _labelFileContextMenuDisabledItems() {
@@ -2292,18 +2401,18 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('라벨 파일을 읽을 수 없습니다.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('라벨 파일을 읽을 수 없습니다.')));
       return;
     }
     if (importedWorkbook.sheets.isEmpty) {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('라벨 파일에 시트가 없습니다.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('라벨 파일에 시트가 없습니다.')));
       return;
     }
     final filePath = file.path;
@@ -2313,10 +2422,11 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
         await prefs.setString(_labelFileDirectoryPrefsKey, directory);
       }
     }
-    final importExtension = (p.extension(file.path).isNotEmpty
-            ? p.extension(file.path)
-            : p.extension(file.name))
-        .toLowerCase();
+    final importExtension =
+        (p.extension(file.path).isNotEmpty
+                ? p.extension(file.path)
+                : p.extension(file.name))
+            .toLowerCase();
     final scaleToPhysicalWidth = importExtension == '.xlsx';
     final currentSheet = _currentWorkbookForLabelFile().activeSheet;
     final rawImportedGridSize = fortuneSheetGridClientPhysicalSize(
@@ -2372,9 +2482,9 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     setState(() {
       _isDirty = true;
     });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('라벨 파일을 가져왔습니다: ${file.name}')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('라벨 파일을 가져왔습니다: ${file.name}')));
   }
 
   Future<FortuneWorkbook> _readImportedLabelWorkbook(XFile file) async {
@@ -2405,7 +2515,10 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       debugLog('label sheet import detected xlsx by bytes', skipFrames: 1);
       return labelSheetWorkbookFromXlsxBytes(bytes);
     }
-    debugLog('label sheet import fallback to lms decode by bytes', skipFrames: 1);
+    debugLog(
+      'label sheet import fallback to lms decode by bytes',
+      skipFrames: 1,
+    );
     return labelSheetDecodeWorkbookSave(utf8.decode(bytes));
   }
 
@@ -2419,7 +2532,9 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
 
   String _suggestedLabelFileName() {
     final name = widget.labelSize?.labelSizeName.trim();
-    return _ensureLabelFileExtension(name?.isNotEmpty == true ? name! : 'label');
+    return _ensureLabelFileExtension(
+      name?.isNotEmpty == true ? name! : 'label',
+    );
   }
 
   String _ensureLabelFileExtension(String path) {
@@ -2707,10 +2822,8 @@ class _ClosedLoopDialogFocus extends StatelessWidget {
           return Shortcuts(
             shortcuts: const <ShortcutActivator, Intent>{
               SingleActivator(LogicalKeyboardKey.tab): NextFocusIntent(),
-              SingleActivator(
-                LogicalKeyboardKey.tab,
-                shift: true,
-              ): PreviousFocusIntent(),
+              SingleActivator(LogicalKeyboardKey.tab, shift: true):
+                  PreviousFocusIntent(),
             },
             child: Actions(
               actions: <Type, Action<Intent>>{
@@ -2727,7 +2840,7 @@ class _ClosedLoopDialogFocus extends StatelessWidget {
                   },
                 ),
               },
-            child: FocusTraversalGroup(child: child),
+              child: FocusTraversalGroup(child: child),
             ),
           );
         },
@@ -3086,7 +3199,6 @@ class _LabelImageImportDialogState extends State<_LabelImageImportDialog> {
       });
     }
   }
-
 }
 
 class _LabelSheetPrintSettingsDialog extends StatelessWidget {
@@ -3178,7 +3290,9 @@ class _LabelSheetPrintSettingsDialog extends StatelessWidget {
                     const _PrintDialogCenteredLabel('왼쪽'),
                     const SizedBox(width: 8),
                     _PrintDialogShiftedDown(
-                      child: _PrintDialogInput(controller: leftMarginController),
+                      child: _PrintDialogInput(
+                        controller: leftMarginController,
+                      ),
                     ),
                     const SizedBox(width: 8),
                     const _PrintDialogCenteredLabel('mm'),
@@ -3349,10 +3463,7 @@ class _LabelSheetPrintSettingsDialog extends StatelessWidget {
     );
   }
 
-  static const _labelStyle = TextStyle(
-    fontSize: 13,
-    color: Color(0xff111111),
-  );
+  static const _labelStyle = TextStyle(fontSize: 13, color: Color(0xff111111));
 
   static const _sectionStyle = TextStyle(
     fontSize: 14,
@@ -3517,7 +3628,10 @@ class _PrintDialogGroup extends StatelessWidget {
             color: const Color(0xfff6f6f6),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 4),
-              child: Text(title, style: _LabelSheetPrintSettingsDialog._labelStyle),
+              child: Text(
+                title,
+                style: _LabelSheetPrintSettingsDialog._labelStyle,
+              ),
             ),
           ),
         ),

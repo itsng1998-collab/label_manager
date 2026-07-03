@@ -169,7 +169,9 @@ String _worksheetPath(String relationshipsXml, String relationshipId) {
     'worksheet relationship not found relId=$relationshipId '
     'relationshipCount=$relationshipCount',
   );
-  throw FormatException('XLSX worksheet relationship not found: $relationshipId');
+  throw FormatException(
+    'XLSX worksheet relationship not found: $relationshipId',
+  );
 }
 
 String _packageTargetPath(String baseDirectory, String target) {
@@ -192,7 +194,10 @@ Map<String, _XlsxRelationship> _worksheetRelationships(
     _xlsxImportLog('worksheet rels missing path=$relsPath');
     return const <String, _XlsxRelationship>{};
   }
-  final result = {for (final relationship in _relationships(xml)) relationship.id: relationship};
+  final result = {
+    for (final relationship in _relationships(xml))
+      relationship.id: relationship,
+  };
   _xlsxImportLog('worksheet rels loaded path=$relsPath count=${result.length}');
   return result;
 }
@@ -240,6 +245,7 @@ Map<String, Object?> _sheetJsonFromWorksheet(
   final styleSamples = <String>[];
   final wrapSamples = <String>[];
   final lineBreakSamples = <String>[];
+  final borderSamples = <String>[];
   var maxRow = 0;
   var maxColumn = 0;
 
@@ -275,7 +281,9 @@ Map<String, Object?> _sheetJsonFromWorksheet(
       final columnIndex = index - 1;
       if (column.width != null && column.width! > 0) {
         sourceColumnWidths['$columnIndex'] = column.width;
-        columnWidths['$columnIndex'] = _columnWidthToLogicalPixels(column.width!);
+        columnWidths['$columnIndex'] = _columnWidthToLogicalPixels(
+          column.width!,
+        );
       }
       if (column.hidden) {
         hiddenColumns['$columnIndex'] = 0;
@@ -409,6 +417,12 @@ Map<String, Object?> _sheetJsonFromWorksheet(
       }
       for (final border in style.borderInfo(coord.row, coord.column)) {
         borderInfo.add(border);
+        if (borderSamples.length < 200) {
+          borderSamples.add(
+            '${_coordLabel(coord.row, coord.column)} '
+            'style=${cellAttributes['s']} ${_borderInfoLogText(border)}',
+          );
+        }
       }
       maxRow = _max(maxRow, coord.row + 1);
       maxColumn = _max(maxColumn, coord.column + 1);
@@ -423,7 +437,11 @@ Map<String, Object?> _sheetJsonFromWorksheet(
     if (coord == null) {
       continue;
     }
-    cells.add({'r': coord.row, 'c': coord.column, 'v': {'mc': entry.value}});
+    cells.add({
+      'r': coord.row,
+      'c': coord.column,
+      'v': {'mc': entry.value},
+    });
     cellKeys.add(entry.key);
   }
 
@@ -435,7 +453,11 @@ Map<String, Object?> _sheetJsonFromWorksheet(
     if (coord == null) {
       continue;
     }
-    cells.add({'r': coord.row, 'c': coord.column, 'v': {'hl': entry.value}});
+    cells.add({
+      'r': coord.row,
+      'c': coord.column,
+      'v': {'hl': entry.value},
+    });
     cellKeys.add(entry.key);
   }
 
@@ -458,6 +480,7 @@ Map<String, Object?> _sheetJsonFromWorksheet(
     'lineBreakCells=${lineBreakSamples.join(' | ')} '
     'wrapCells=${wrapSamples.join(' | ')}',
   );
+  _logXlsxChunks('worksheet border samples', borderSamples);
   _xlsxImportLog(
     'worksheet source axis rowHeightsPt=${_mapSample(sourceRowHeights)} '
     'columnWidthsChars=${_mapSample(sourceColumnWidths)} '
@@ -503,22 +526,27 @@ void _logDecodedSheetSample(FortuneSheet sheet) {
   final valueSamples = <String>[];
   final anchorSamples = <String>[];
   final coveredSamples = <String>[];
-  for (final entry in sheet.cells.entries.toList()
-    ..sort((left, right) {
-      final rowCompare = left.key.row.compareTo(right.key.row);
-      return rowCompare == 0 ? left.key.column.compareTo(right.key.column) : rowCompare;
-    })) {
+  for (final entry
+      in sheet.cells.entries.toList()..sort((left, right) {
+        final rowCompare = left.key.row.compareTo(right.key.row);
+        return rowCompare == 0
+            ? left.key.column.compareTo(right.key.column)
+            : rowCompare;
+      })) {
     final coord = entry.key;
     final cell = entry.value;
     final value = cell.displayValue ?? cell.value;
     if (value.isNotEmpty && valueSamples.length < 40) {
-      valueSamples.add('${_coordLabel(coord.row, coord.column)}=${_logText(value)}');
+      valueSamples.add(
+        '${_coordLabel(coord.row, coord.column)}=${_logText(value)}',
+      );
     }
     final merge = cell.merge;
     if (merge == null) {
       continue;
     }
-    final sample = '${_coordLabel(coord.row, coord.column)}->'
+    final sample =
+        '${_coordLabel(coord.row, coord.column)}->'
         '${_coordLabel(merge.row, merge.column)} '
         'span=${merge.rowSpan}x${merge.columnSpan} '
         'value=${_logText(value)} fs=${cell.fontSize} '
@@ -654,7 +682,8 @@ class _XlsxSharedString {
 
   final String xml;
 
-  _XlsxCellValue value(_XlsxCellStyle baseStyle) => _richTextValue(xml, baseStyle);
+  _XlsxCellValue value(_XlsxCellStyle baseStyle) =>
+      _richTextValue(xml, baseStyle);
 }
 
 _XlsxCellValue _richTextValue(String xml, _XlsxCellStyle baseStyle) {
@@ -677,11 +706,7 @@ _XlsxCellValue _richTextValue(String xml, _XlsxCellStyle baseStyle) {
     }
     buffer.write(text);
     final properties = _extractElement(runXml, 'rPr');
-    runs.add({
-      'v': text,
-      ...baseStyle.runJson,
-      ..._runJson(properties),
-    });
+    runs.add({'v': text, ...baseStyle.runJson, ..._runJson(properties)});
   }
   return _XlsxCellValue(
     text: _emptyToNull(buffer.toString()),
@@ -749,7 +774,9 @@ class _XlsxStyleTable {
       'fills=${fills.length} borders=${borders.length} numFmts=${numberFormats.length}',
     );
     return _XlsxStyleTable(
-      formats: formats.isEmpty ? const <_XlsxCellFormat>[_XlsxCellFormat()] : formats,
+      formats: formats.isEmpty
+          ? const <_XlsxCellFormat>[_XlsxCellFormat()]
+          : formats,
       fonts: fonts.isEmpty ? const <_XlsxFont>[_XlsxFont()] : fonts,
       fills: fills.isEmpty ? const <String?>[null, null] : fills,
       borders: borders.isEmpty ? const <_XlsxBorder>[_XlsxBorder()] : borders,
@@ -765,7 +792,9 @@ class _XlsxStyleTable {
     final fill = _itemAt(fills, format.fillId);
     final border = _itemAt(borders, format.borderId) ?? const _XlsxBorder();
     return _XlsxCellStyle(
-      formatCode: numberFormats[format.numFmtId] ?? _builtinNumberFormats[format.numFmtId],
+      formatCode:
+          numberFormats[format.numFmtId] ??
+          _builtinNumberFormats[format.numFmtId],
       font: font,
       background: fill,
       border: border,
@@ -904,7 +933,11 @@ class _XlsxBorder {
 }
 
 class _XlsxBorderSide {
-  const _XlsxBorderSide({required this.style, required this.strokeWidth, this.color});
+  const _XlsxBorderSide({
+    required this.style,
+    required this.strokeWidth,
+    this.color,
+  });
 
   final int style;
   final double strokeWidth;
@@ -952,17 +985,17 @@ class _XlsxExtensionMetadata {
 
   int get cellCount => cellExtraByRef.length;
 
-  int get runCount => runExtraByRef.values.fold<int>(
-    0,
-    (total, runs) => total + runs.length,
-  );
+  int get runCount =>
+      runExtraByRef.values.fold<int>(0, (total, runs) => total + runs.length);
 
   static _XlsxExtensionMetadata fromArchive(Archive archive) {
     final cellExtra = <String, Map<String, Object?>>{};
     final runExtra = <String, Map<int, Map<String, Object?>>>{};
     for (final file in archive.files) {
       final name = file.name.replaceAll('\\', '/');
-      if (!file.isFile || !name.startsWith('customXml/') || !name.endsWith('.xml')) {
+      if (!file.isFile ||
+          !name.startsWith('customXml/') ||
+          !name.endsWith('.xml')) {
         continue;
       }
       final bytes = file.readBytes();
@@ -1006,10 +1039,7 @@ class _XlsxExtensionMetadata {
     }
     return [
       for (var index = 0; index < runs.length; index += 1)
-        {
-          ...runs[index],
-          ...?extras[index],
-        },
+        {...runs[index], ...?extras[index]},
     ];
   }
 
@@ -1057,10 +1087,8 @@ class _XlsxExtensionMetadata {
         if (run.isEmpty) {
           continue;
         }
-        runExtra.putIfAbsent(ref, () => <int, Map<String, Object?>>{})[index] = {
-          ...?runExtra[ref]?[index],
-          ...run,
-        };
+        runExtra.putIfAbsent(ref, () => <int, Map<String, Object?>>{})[index] =
+            {...?runExtra[ref]?[index], ...run};
       }
     }
   }
@@ -1080,7 +1108,9 @@ List<_XlsxFont> _fonts(String xml) {
         ),
         fontFamily: _firstTagAttributes(fontXml, 'name')?['val'],
         foreground: _colorFromElement(fontXml, 'color'),
-        script: _scriptFromVertAlign(_firstTagAttributes(fontXml, 'vertAlign')?['val']),
+        script: _scriptFromVertAlign(
+          _firstTagAttributes(fontXml, 'vertAlign')?['val'],
+        ),
       ),
   ];
 }
@@ -1089,7 +1119,8 @@ List<String?> _fills(String xml) {
   final body = _extractElement(xml, 'fills') ?? '';
   return [
     for (final fillXml in _elementBodies(body, 'fill'))
-      _colorFromElement(fillXml, 'fgColor') ?? _colorFromElement(fillXml, 'bgColor'),
+      _colorFromElement(fillXml, 'fgColor') ??
+          _colorFromElement(fillXml, 'bgColor'),
   ];
 }
 
@@ -1157,10 +1188,7 @@ List<_XlsxCellFormat> _cellFormats(String xml) {
   ).allMatches(body);
   return [
     for (final match in matches)
-      _cellFormat(
-        _xmlAttributes(match.group(1) ?? ''),
-        match.group(2) ?? '',
-      ),
+      _cellFormat(_xmlAttributes(match.group(1) ?? ''), match.group(2) ?? ''),
   ];
 }
 
@@ -1270,20 +1298,27 @@ String _coordLabel(int row, int column) {
 
 String _logText(String value) {
   final singleLine = value.replaceAll('\r', r'\r').replaceAll('\n', r'\n');
-  return singleLine.length <= 60 ? singleLine : '${singleLine.substring(0, 60)}...';
+  return singleLine.length <= 60
+      ? singleLine
+      : '${singleLine.substring(0, 60)}...';
 }
 
 String _mergeSample(Map<String, Map<String, Object?>> mergeMap) {
-  return mergeMap.entries.take(40).map((entry) {
-    final coord = _keyToCoord(entry.key);
-    final merge = entry.value;
-    final row = merge['r'];
-    final column = merge['c'];
-    final rowSpan = merge['rs'];
-    final columnSpan = merge['cs'];
-    final label = coord == null ? entry.key : _coordLabel(coord.row, coord.column);
-    return '$label r=$row c=$column span=${rowSpan}x$columnSpan';
-  }).join(' | ');
+  return mergeMap.entries
+      .take(40)
+      .map((entry) {
+        final coord = _keyToCoord(entry.key);
+        final merge = entry.value;
+        final row = merge['r'];
+        final column = merge['c'];
+        final rowSpan = merge['rs'];
+        final columnSpan = merge['cs'];
+        final label = coord == null
+            ? entry.key
+            : _coordLabel(coord.row, coord.column);
+        return '$label r=$row c=$column span=${rowSpan}x$columnSpan';
+      })
+      .join(' | ');
 }
 
 String _mapSample(Map<String, Object?> map) {
@@ -1291,6 +1326,54 @@ String _mapSample(Map<String, Object?> map) {
       .take(30)
       .map((entry) => '${entry.key}:${entry.value}')
       .join('|');
+}
+
+String _borderInfoLogText(Map<String, Object?> border) {
+  final range = border['range'];
+  var row = '?';
+  var column = '?';
+  if (range is List && range.isNotEmpty && range.first is Map) {
+    final rangeMap = range.first as Map;
+    row = '${rangeMap['row']}';
+    column = '${rangeMap['column']}';
+  }
+  return 'type=${border['borderType']} style=${border['style']} '
+      'stroke=${border['strokeWidth']} color=${border['color']} '
+      'row=$row column=$column';
+}
+
+void _logXlsxChunks(String prefix, List<String> samples) {
+  if (samples.isEmpty) {
+    _xlsxImportLog('$prefix=-');
+    return;
+  }
+  const maxChunkLength = 1200;
+  var chunk = StringBuffer();
+  var chunkIndex = 1;
+  var sampleStart = 0;
+  void flush() {
+    if (chunk.isEmpty) {
+      return;
+    }
+    _xlsxImportLog('$prefix chunk=$chunkIndex sampleStart=$sampleStart $chunk');
+    chunk = StringBuffer();
+    chunkIndex += 1;
+  }
+
+  for (var index = 0; index < samples.length; index += 1) {
+    final sample = samples[index];
+    final next = chunk.isEmpty ? sample : ' | $sample';
+    if (chunk.isNotEmpty && chunk.length + next.length > maxChunkLength) {
+      flush();
+      sampleStart = index;
+    }
+    if (chunk.isEmpty) {
+      chunk.write(sample);
+    } else {
+      chunk.write(next);
+    }
+  }
+  flush();
 }
 
 double _numericMapTotal(Map<String, Object?> map) {
@@ -1335,18 +1418,23 @@ String _mergeLogicalSizeSample(
   if (mergeMap.isEmpty) {
     return '-';
   }
-  return mergeMap.entries.take(limit).map((entry) {
-    final coord = _keyToCoord(entry.key);
-    final merge = entry.value;
-    final row = _intValue(merge['r']) ?? coord?.row ?? 0;
-    final column = _intValue(merge['c']) ?? coord?.column ?? 0;
-    final rowSpan = _intValue(merge['rs']) ?? 1;
-    final columnSpan = _intValue(merge['cs']) ?? 1;
-    final width = _axisRangeSize(columnWidths, column, columnSpan);
-    final height = _axisRangeSize(rowHeights, row, rowSpan);
-    final label = coord == null ? entry.key : _coordLabel(coord.row, coord.column);
-    return '$label span=${rowSpan}x$columnSpan logical=${width}x$height';
-  }).join(' | ');
+  return mergeMap.entries
+      .take(limit)
+      .map((entry) {
+        final coord = _keyToCoord(entry.key);
+        final merge = entry.value;
+        final row = _intValue(merge['r']) ?? coord?.row ?? 0;
+        final column = _intValue(merge['c']) ?? coord?.column ?? 0;
+        final rowSpan = _intValue(merge['rs']) ?? 1;
+        final columnSpan = _intValue(merge['cs']) ?? 1;
+        final width = _axisRangeSize(columnWidths, column, columnSpan);
+        final height = _axisRangeSize(rowHeights, row, rowSpan);
+        final label = coord == null
+            ? entry.key
+            : _coordLabel(coord.row, coord.column);
+        return '$label span=${rowSpan}x$columnSpan logical=${width}x$height';
+      })
+      .join(' | ');
 }
 
 double _axisRangeSize(Map<String, Object?> sizes, int start, int span) {
@@ -1446,7 +1534,8 @@ Map<String, Object?> _metadataExtra(
 ) {
   return {
     for (final entry in attributes.entries)
-      if (!excludedKeys.contains(entry.key)) entry.key: _metadataValue(entry.value),
+      if (!excludedKeys.contains(entry.key))
+        entry.key: _metadataValue(entry.value),
   };
 }
 

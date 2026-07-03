@@ -29,6 +29,15 @@
 
 ### 최근 완료 (2026-07-03)
 
+- **완료**: 다중 라벨 XLSX 원본/변환본 테두리 차이 재확인 및 border 진단 로그 보강.
+  - 사용자 지적: 스케일 외에도 원본/변환본에서 테두리가 다른 곳이 많음.
+  - 판단: 첨부 변환본에서 원본보다 빈 격자 영역과 하단 블록의 검은 테두리가 더 많이/다르게 보임. 기존 로그는 `borders=2365` 개수만 보여 원본 XLSX 변환 단계 문제인지, FortuneSheet 병합 내부선 제거 후 렌더 기준 문제인지 분리 불가.
+  - `lib/page_label_sheet/label_sheet_xlsx_import.dart`: XLSX 변환 직후 셀별 `borderInfo` 샘플 로그 추가. 좌표, style id, borderType, style, strokeWidth, color, range를 chunk로 기록.
+  - `lib/page_label_sheet/label_sheet_workbench.dart`: 적용 후 `sheet.borderInfo`와 `FortuneBorderCompute.compute(sheet)` 결과를 chunk 로그로 기록. 병합 내부선 제거 후 실제 렌더 기준 border 확인 가능.
+  - 검증 완료: `C:\Flutter\bin\flutter.bat test test/label_sheet_xlsx_import_test.dart` 3개 성공.
+  - 검증 완료: `C:\Flutter\bin\flutter.bat analyze lib/page_label_sheet/label_sheet_workbench.dart lib/page_label_sheet/label_sheet_xlsx_import.dart --no-fatal-warnings --no-fatal-infos` 성공.
+  - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/page_label_sheet/label_sheet_xlsx_import.dart`, `lib/page_label_sheet/label_sheet_workbench.dart` (`lib/core/app.dart` 기존 dirty 제외).
+
 - **완료**: 다중 라벨 XLSX 원본/변환본 비교 및 하단 블록까지 진단 가능한 로그 보강.
   - 최신 로그 `.tmp/log/app_2026-07-03_11-14-25.log`: 새 파일은 `Label_Template`, `rows=36`, `columns=21`, `cells=756`, `merges=88`, `borders=2365`. 원본 축 `1561.0x1212.9999999705747 logical`, 100mm 목표 폭 `377.9527559055118`, widthScale `0.23178750383474794`, readableScale `0.644237652111668`, 최종 적용 `1013.1259842519684x794.2677165164764 logical`.
   - 판단: 값/병합/블록 구조는 유지되지만 변환본은 100mm 폭을 `635.1732283464565 logical` / `168.05624999999995mm` 초과. 원인은 최소 가독 2.5mm 기준이 폭 맞춤보다 크게 작동한 것. 원본 캡처처럼 여러 라벨 블록과 하단 `#BARCODE`까지 포함된 시트에서는 “물리 라벨 1장 폭 맞춤” 정책과 “전체 워크시트 원본 비율 유지” 정책이 충돌함.
