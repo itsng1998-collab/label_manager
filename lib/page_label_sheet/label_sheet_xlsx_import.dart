@@ -455,6 +455,7 @@ Map<String, Object?> _sheetJsonFromWorksheet(
             mergeRanges: mergeRanges,
           );
       if (shouldImportBorders) {
+        final presentBorderTypes = <String>{};
         for (final border in style.borderInfo(coord.row, coord.column)) {
           final adjustedBorder = _adjustXlsxImportedBorder(
             border,
@@ -462,6 +463,7 @@ Map<String, Object?> _sheetJsonFromWorksheet(
             coord.column,
             nutritionBorderRanges,
           );
+          presentBorderTypes.add(adjustedBorder['borderType'] as String);
           if (!_isSameXlsxBorderLog(border, adjustedBorder) &&
               adjustedBorderSamples.length < 120) {
             adjustedBorderSamples.add(
@@ -479,6 +481,21 @@ Map<String, Object?> _sheetJsonFromWorksheet(
               '${_borderInfoLogText(adjustedBorder)}',
             );
           }
+        }
+        for (final synthesized in _missingNutritionOuterBorders(
+          coord.row,
+          coord.column,
+          presentBorderTypes,
+          nutritionBorderRanges,
+        )) {
+          if (adjustedBorderSamples.length < 120) {
+            adjustedBorderSamples.add(
+              '${_coordLabel(coord.row, coord.column)} '
+              'style=${cellAttributes['s']} '
+              'synth to=${_borderInfoLogText(synthesized)}',
+            );
+          }
+          borderInfo.add(synthesized);
         }
       } else if (shouldSkipBorders && skippedValueBorderSamples.length < 80) {
         for (final border in style.borderInfo(coord.row, coord.column)) {
@@ -1531,6 +1548,44 @@ bool _isXlsxNutritionOuterBorder(
     };
   }
   return false;
+}
+
+List<Map<String, Object?>> _missingNutritionOuterBorders(
+  int row,
+  int column,
+  Set<String> presentBorderTypes,
+  List<({int rowStart, int rowEnd, int columnStart, int columnEnd})> ranges,
+) {
+  const outerTypes = [
+    'border-top',
+    'border-bottom',
+    'border-left',
+    'border-right',
+  ];
+  final result = <Map<String, Object?>>[];
+  for (final borderType in outerTypes) {
+    if (presentBorderTypes.contains(borderType)) {
+      continue;
+    }
+    if (_isXlsxNutritionOuterBorder(row, column, borderType, ranges)) {
+      result.add({
+        'rangeType': 'range',
+        'borderType': borderType,
+        'color': '#ff000000',
+        'style': 13,
+        'strokeWidth': 2.0,
+        'range': [
+          {
+            'row': [row, row],
+            'column': [column, column],
+            'row_focus': row,
+            'column_focus': column,
+          },
+        ],
+      });
+    }
+  }
+  return result;
 }
 
 bool _isXlsxNutritionInnerBorder(

@@ -29,6 +29,15 @@
 
 ### 최근 완료 (2026-07-03)
 
+- **완료**: XLSX 영양정보 표 하단 병합 박스 좌측 외곽선 누락 보정.
+  - 최신 로그 `.tmp/log/app_2026-07-03_13-23-40.log` 정밀 비교: 헤더 경계 보정은 반영됐으나(`C24 right=13`, `D24 left=13`), 영양정보 표 하단 `1일 영양성분...` 병합 박스(`A12:J13`, `A30:J31`)의 좌측 외곽선이 computed 결과에서 완전히 누락됨. `A9~A11`은 `left/style=13`이 있으나 `A12/A13/A30/A31`에는 left가 없어 표 좌측 변이 아래쪽에서 끊김. 원본 XLSX가 해당 병합 셀에 좌측 테두리를 정의하지 않은 것이 원인.
+  - `lib/page_label_sheet/label_sheet_xlsx_import.dart`: import 루프에 `_missingNutritionOuterBorders` 추가. 영양정보 범위 perimeter 셀에서 존재하지 않는 외곽 방향(top/bottom/left/right)을 `style=13/stroke=2.0`으로 합성해 표가 닫힌 굵은 박스가 되도록 보강. 합성분은 `xlsx import worksheet adjusted border samples`에 `synth to=` 로 기록.
+  - 검증 완료: `C:\Flutter\bin\dart.bat format lib/page_label_sheet/label_sheet_xlsx_import.dart` 성공.
+  - 검증 완료: `C:\Flutter\bin\flutter.bat test test/label_sheet_xlsx_import_test.dart` 3개 성공.
+  - 검증 완료: `C:\Flutter\bin\flutter.bat analyze lib/page_label_sheet/label_sheet_xlsx_import.dart test/label_sheet_xlsx_import_test.dart --no-fatal-warnings --no-fatal-infos` 성공.
+  - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/page_label_sheet/label_sheet_xlsx_import.dart` (`lib/core/app.dart` 기존 dirty 제외).
+  - 다음 재가져오기 확인 포인트: 최신 앱 로그 computed에서 `A12 left`, `A13 left`, `A30 left`, `A31 left`가 `style=13/stroke=2.0`로 나타나고 표 좌측 변이 상단부터 하단까지 연속되어야 함.
+
 - **완료**: XLSX 영양정보 어두운 헤더 내부 경계선 재보정.
   - 사용자 재첨부 원본/변환본 및 최신 로그 `.tmp/log/app_2026-07-03_13-19-30.log` 확인: 새 코드가 로드되어 `C24/D24`, `C25/D25`, `C26/D26` 헤더 내부 경계가 `style=1/stroke=1.0`으로 낮아짐. 원본은 어두운 `영양정보 | 총내용량` 두 병합 블록 사이 경계가 굵게 남아야 하므로 이 부분이 남은 차이로 판단.
   - `lib/page_label_sheet/label_sheet_xlsx_import.dart`: 영양정보 범위 안에서도 헤더 3행(`rowStart..rowStart+2`)의 큰 병합 블록 경계(`columnStart+2` 오른쪽 / `columnStart+3` 왼쪽)는 내부선 downcast 대상에서 제외해 `style=13/stroke=2.0`을 유지. 본문 영양성분 grid 내부 세로선은 계속 `style=1/stroke=1.0`로 유지.
