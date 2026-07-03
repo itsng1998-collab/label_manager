@@ -27,7 +27,7 @@ import 'package:label_manager/utils/on_messages.dart';
 import 'package:label_manager/page_home/item_manage.dart';
 import 'package:label_manager/page_home/common_label_manage.dart';
 import 'package:label_manager/page_home/preview_floating_window.dart';
-import 'package:label_manager/widgets/editable_swipe_name_table.dart';
+import 'package:label_manager/widgets/swipe_action_table.dart';
 
 /// 로그인 이후 메인 UI
 class HomePageManager extends StatefulWidget {

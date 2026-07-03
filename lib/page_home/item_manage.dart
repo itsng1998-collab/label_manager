@@ -4,7 +4,7 @@ import 'package:label_manager/models/column.dart';
 import 'package:label_manager/models/column_content.dart';
 import 'package:label_manager/models/item_of_market.dart';
 import 'package:label_manager/utils/log_context.dart';
-import 'package:label_manager/widgets/resizable_table.dart';
+import 'package:label_manager/widgets/swipe_action_table.dart';
 
 class ItemManage extends StatelessWidget {
   final List<ItemOfMarket> items;
