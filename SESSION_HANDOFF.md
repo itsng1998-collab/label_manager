@@ -35,6 +35,7 @@
   - `lib/page_label_sheet/label_sheet_workbench.dart`: `label sheet import physical scale`에 `overflowLogical`, `overflowMm` 추가. `label sheet import apply text layout` 로그를 추가해 셀별 value length, line count, span, logical cell size, fontSize, bold, wrap, horizontal/vertical align을 기록.
   - 검증 완료: `C:\Flutter\bin\flutter.bat test test/label_sheet_xlsx_import_test.dart` 3개 성공.
   - 검증 완료: `C:\Flutter\bin\flutter.bat analyze lib/page_label_sheet/label_sheet_workbench.dart lib/page_label_sheet/label_sheet_xlsx_import.dart --no-fatal-warnings --no-fatal-infos` 성공.
+  - 기능 커밋 완료: `c5b60a3` (`XLSX 텍스트 레이아웃 진단 로그 보강`).
   - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/page_label_sheet/label_sheet_workbench.dart` (`lib/core/app.dart` 기존 dirty 제외).
 
 - **완료**: 공용라벨관리 `라벨 파일에서 가져오기` 완료 후에도 셀 선택 하이라이트가 남는 문제 재수정.
