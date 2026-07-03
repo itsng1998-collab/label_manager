@@ -35,6 +35,7 @@
 - `test/swipe_action_table_test.dart`: 인라인 에디터에서 키보드 입력으로 텍스트가 변경되는 회귀 테스트 추가.
 - 검증 완료: `C:\Flutter\bin\dart.bat format lib\home_page_manager.dart lib\widgets\swipe_action_table.dart test\swipe_action_table_test.dart` 성공, `flutter test test/swipe_action_table_test.dart` 20개 성공, `C:\Flutter\bin\flutter.bat analyze lib\home_page_manager.dart lib\widgets\swipe_action_table.dart test\swipe_action_table_test.dart --no-fatal-warnings --no-fatal-infos` No issues.
 - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/home_page_manager.dart`, `lib/widgets/swipe_action_table.dart`, `test/swipe_action_table_test.dart`.
+- 기능 커밋: `2ee1297` (`인라인 편집 키 입력 복구`).
 
 ### 완료 (2026-07-03): 전자저울 인라인 UI 1px 미세 조정
 
