@@ -545,6 +545,7 @@ class _HomePageManagerState extends State<HomePageManager> {
               widget.selectedBrand?.brandId ??
               _effectiveLabelSize?.brandId ??
               _labelSizesBrandId,
+          currentLabelSizeId: () => _effectiveLabelSize?.labelSizeId,
           labels: LabelSize.datas ?? const <LabelSize>[],
           onLabelsChanged: _handleLabelsChangedFromDialog,
           onClose: _closeLabelSettingsDialog,
@@ -556,16 +557,22 @@ class _HomePageManagerState extends State<HomePageManager> {
     debugLog('labelSettings overlay inserted mounted=${entry.mounted}');
   }
 
-  Future<List<LabelSize>> _handleLabelsChangedFromDialog() async {
+  Future<List<LabelSize>> _handleLabelsChangedFromDialog({
+    LabelSize? preferredSelectedLabel,
+    bool updateSelection = false,
+  }) async {
     final brandId =
         widget.selectedBrand?.brandId ??
         _effectiveLabelSize?.brandId ??
         _labelSizesBrandId;
     final previousSelectedLabel =
-        _effectiveLabelSize ?? widget.selectedLabelSize;
+        preferredSelectedLabel ??
+        _effectiveLabelSize ??
+        widget.selectedLabelSize;
     debugLog(
       'labelSettings reload start brandId=$brandId '
-      'selectedLabelSizeId=${previousSelectedLabel?.labelSizeId}',
+      'selectedLabelSizeId=${previousSelectedLabel?.labelSizeId} '
+      'updateSelection=$updateSelection',
     );
 
     if (brandId == null) {
@@ -585,8 +592,12 @@ class _HomePageManagerState extends State<HomePageManager> {
       reloadedLabels,
       previousSelectedLabel,
     );
-    if (resolvedSelected != null) {
+    if (updateSelection) {
+      await _handleLabelSizeChanged(resolvedSelected);
+    } else if (resolvedSelected != null) {
       _currentLabelSize = resolvedSelected;
+    } else if (reloadedLabels.isEmpty) {
+      _currentLabelSize = null;
     }
     setState(() {});
     _labelSettingsOverlayEntry?.markNeedsBuild();
@@ -1729,14 +1740,20 @@ class _PlaceholderTab extends StatelessWidget {
 class _LabelSettingsDialog extends StatefulWidget {
   const _LabelSettingsDialog({
     required this.brandId,
+    required this.currentLabelSizeId,
     required this.labels,
     required this.onLabelsChanged,
     required this.onClose,
   });
 
   final int? brandId;
+  final int? Function() currentLabelSizeId;
   final List<LabelSize> labels;
-  final Future<List<LabelSize>> Function() onLabelsChanged;
+  final Future<List<LabelSize>> Function({
+    LabelSize? preferredSelectedLabel,
+    bool updateSelection,
+  })
+  onLabelsChanged;
   final VoidCallback onClose;
 
   @override
@@ -1911,6 +1928,7 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
           : () => _startLabelInsertAt(0, actionIndex: null),
       onCancelEdit: _cancelLabelNameEdit,
       onSubmitEdit: _submitLabelNameEdit,
+      onDeleteRow: _deleteLabel,
       inlineTrailingBuilder: _buildLabelInlineTrailing,
       enabled: !_orderEditMode,
       fillLastColumn: true,
@@ -2370,6 +2388,99 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
       }
     }
+  }
+
+  Future<void> _deleteLabel(LabelSize label, int index) async {
+    debugLog(
+      'deleteLabel start index=$index labelSizeId=${label.labelSizeId} name=${label.labelSizeName} editingIndex=$_editingIndex orderEditMode=$_orderEditMode',
+    );
+    if (_editingIndex != null ||
+        _orderEditMode ||
+        index < 0 ||
+        index >= _labels.length) {
+      debugLog(
+        'deleteLabel aborted editingIndex=$_editingIndex orderEditMode=$_orderEditMode index=$index len=${_labels.length}',
+      );
+      return;
+    }
+
+    debugLog('deleteLabel confirmDialog show labelSizeId=${label.labelSizeId}');
+    final confirmed = await showBlockingModelessOverlayDialog<bool>(
+      context: context,
+      builder: (dialogContext, close) => AlertDialog(
+        content: Text("'${label.labelSizeName}' 라벨을 삭제하시겠습니까?"),
+        actions: [
+          TextButton(onPressed: () => close(false), child: const Text('취소')),
+          TextButton(onPressed: () => close(true), child: const Text('확인')),
+        ],
+      ),
+    );
+    debugLog(
+      'deleteLabel confirmDialog result=$confirmed labelSizeId=${label.labelSizeId}',
+    );
+
+    if (!mounted) {
+      debugLog('deleteLabel aborted unmounted after dialog');
+      return;
+    }
+
+    if (confirmed != true) {
+      debugLog('deleteLabel cancelledByUser labelSizeId=${label.labelSizeId}');
+      return;
+    }
+
+    final wasSelected = widget.currentLabelSizeId() == label.labelSizeId;
+    final nextSelectedLabel = wasSelected
+        ? _resolveLabelAfterDelete(index)
+        : null;
+
+    try {
+      await LabelSizeDAO.deleteByLabelSizeId(label.labelSizeId);
+      final reloadedLabels = await widget.onLabelsChanged(
+        preferredSelectedLabel: nextSelectedLabel,
+        updateSelection: wasSelected,
+      );
+
+      if (!mounted) {
+        debugLog('deleteLabel aborted unmounted after reload');
+        return;
+      }
+
+      setState(() {
+        _labels = List<LabelSize>.from(reloadedLabels);
+        _originalLabels = List<LabelSize>.from(reloadedLabels);
+        _selectedLabelSizeId = null;
+      });
+
+      debugLog(
+        'deleteLabel done labelSizeId=${label.labelSizeId} index=$index wasSelected=$wasSelected nextSelectedLabelSizeId=${nextSelectedLabel?.labelSizeId}',
+      );
+    } catch (e) {
+      debugLog('deleteLabel failed labelSizeId=${label.labelSizeId} error=$e');
+      if (mounted) {
+        await showBlockingModelessOverlayDialog<void>(
+          context: context,
+          builder: (dialogContext, close) => AlertDialog(
+            title: const Text('라벨 삭제 실패'),
+            content: const Text('라벨 삭제에 실패했습니다.'),
+            actions: [
+              TextButton(onPressed: () => close(null), child: const Text('확인')),
+            ],
+          ),
+        );
+      }
+    }
+  }
+
+  LabelSize? _resolveLabelAfterDelete(int deletedIndex) {
+    final nextLabels = List<LabelSize>.from(_labels)..removeAt(deletedIndex);
+    if (nextLabels.isEmpty) {
+      return null;
+    }
+    final nextIndex = deletedIndex < nextLabels.length
+        ? deletedIndex
+        : nextLabels.length - 1;
+    return nextLabels[nextIndex];
   }
 
   void _handleLabelRowSelected(LabelSize label, int index) {

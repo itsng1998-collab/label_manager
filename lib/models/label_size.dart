@@ -468,6 +468,37 @@ class LabelSizeDAO extends DAO {
     }
   }
 
+  static Future<void> deleteByLabelSizeId(int labelSizeId) async {
+    debugLog('$START, labelSizeId:$labelSizeId');
+
+    try {
+      final deleteSql = '''
+        DELETE FROM BM_RICH_LABELSIZE_FORM
+         WHERE RICH_LABELSIZE_ID=@labelSizeId
+      ''';
+
+      final res = await DbClient.instance.writeDataWithParams(deleteSql, {
+        'labelSizeId': labelSizeId,
+      });
+
+      final affected = DAO.affectedRows(res);
+      final succeeded = affected > 0;
+
+      if (!succeeded) {
+        throw Exception(
+          '${runtimeLogTag()} Delete affected no rows for labelSizeId:$labelSizeId',
+        );
+      }
+
+      debugLog(
+        '$END, BM_RICH_LABELSIZE_FORM delete Result: $res, affected:$affected, succeeded:$succeeded',
+      );
+    } catch (e) {
+      debugLog('$END, $e');
+      rethrow;
+    }
+  }
+
   static Future<void> updateOrder(int labelSizeId, int labelSizeOrder) async {
     debugLog(
       '$START, labelSizeId:$labelSizeId, labelSizeOrder:$labelSizeOrder',

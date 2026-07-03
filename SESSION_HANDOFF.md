@@ -27,6 +27,18 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-04): 라벨 설정 스와이프 라벨 삭제 저장 구현
+
+목적: 라벨 설정 다이얼로그의 스와이프 삭제 버튼 클릭 시 DB에서 라벨을 삭제하고, 성공 후 `LabelSize.datas`, 헤더 라벨 드롭다운, 라벨 설정 테이블을 갱신한다.
+- 참조 확인: `.tmp/LabelManager/LabelManagerLib/LabelSize.cpp`의 `CLabelSizeDAO::Delete(int nLabelSizeID)`는 `BM_RICH_LABELSIZE_FORM`에서 `RICH_LABELSIZE_ID` 기준으로 삭제한다.
+- 사용자 확인 완료: 삭제한 라벨이 현재 선택 라벨이면 삭제 위치 기준 다음 라벨, 없으면 이전 라벨을 선택한다. 목록이 비면 선택 해제.
+- 구현 예정: `lib/models/label_size.dart`에 `LabelSizeDAO.deleteByLabelSizeId` 추가, `lib/home_page_manager.dart`의 라벨 테이블 `onDeleteRow`를 확인 다이얼로그/DAO/실패 다이얼로그/재조회 갱신으로 연결.
+- `lib/models/label_size.dart`: `LabelSizeDAO.deleteByLabelSizeId(labelSizeId)` 추가. `BM_RICH_LABELSIZE_FORM`에서 `RICH_LABELSIZE_ID` 기준으로 삭제하고 affected row를 검증.
+- `lib/home_page_manager.dart`: 라벨 설정 테이블 `onDeleteRow`를 `_deleteLabel`에 연결. `_deleteBrand`와 같은 확인 다이얼로그/DAO 호출/실패 다이얼로그 구조로 처리하고, 성공 후 `widget.onLabelsChanged()` 재조회 결과로 `LabelSize.datas`, 헤더 드롭다운 리스트, 라벨 설정 테이블을 갱신한다. 선택 라벨 삭제 시 최신 부모 선택 ID 기준으로 다음/이전 라벨을 선택한다.
+- 검증 진행: `C:\Flutter\bin\dart.bat format lib\home_page_manager.dart lib\models\label_size.dart` 성공, `flutter test test/swipe_action_table_test.dart test/label_size_cache_test.dart` 21개 성공, `C:\Flutter\bin\flutter.bat analyze lib\home_page_manager.dart lib\models\label_size.dart --no-fatal-warnings --no-fatal-infos` No issues.
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze lib\home_page_manager.dart lib\models\label_size.dart test\swipe_action_table_test.dart test\label_size_cache_test.dart --no-fatal-warnings --no-fatal-infos` No issues, `git diff --check -- SESSION_HANDOFF.md lib\home_page_manager.dart lib\models\label_size.dart` 통과.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `lib/home_page_manager.dart`, `lib/models/label_size.dart`.
+
 ### 완료 (2026-07-03): 라벨 설정 인라인 라벨 이름/전자저울 수정 저장 구현
 
 목적: 라벨 설정 다이얼로그의 수정 인라인 에디터에서 Enter 키/Enter 아이콘 적용 시 라벨 이름과 전자저울 사용 여부를 DB에 저장하고, 성공 후 `LabelSize.datas`, 헤더 라벨 드롭다운, 라벨 설정 테이블을 리스트/테이블 재설정으로 갱신한다.
