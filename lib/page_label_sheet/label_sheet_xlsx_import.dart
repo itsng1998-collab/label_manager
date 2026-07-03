@@ -1396,7 +1396,7 @@ bool _shouldImportXlsxCellBorders(
   if (merge != null || _isInsideXlsxMergeRange(row, column, mergeRanges)) {
     return true;
   }
-  return cellJson.containsKey('bg');
+  return false;
 }
 
 bool _isInsideXlsxMergeRange(

@@ -224,7 +224,7 @@ Uint8List _xlsxBytes({
     <xf numFmtId="0" fontId="0" fillId="0" borderId="0"/>
     <xf numFmtId="164" fontId="1" fillId="2" borderId="1" quotePrefix="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>
     <xf numFmtId="0" fontId="0" fillId="0" borderId="0"/>
-    <xf numFmtId="0" fontId="0" fillId="0" borderId="2"/>
+    <xf numFmtId="0" fontId="0" fillId="2" borderId="2"/>
     <xf numFmtId="0" fontId="0" fillId="0" borderId="3"/>
   </cellXfs>
 </styleSheet>''');

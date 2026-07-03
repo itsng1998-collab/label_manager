@@ -29,6 +29,14 @@
 
 ### 최근 완료 (2026-07-03)
 
+- **완료**: XLSX 배경 있는 빈 셀 border 제외 보정.
+  - 최신 로그 `.tmp/log/app_2026-07-03_11-52-20.log`: 새 코드가 로드됐지만 `borders=2365`, `skipped blank border samples=-`로 확인됨. 원인은 빈 셀에도 `bg=#ffffffff`가 있어 `_shouldImportXlsxCellBorders`의 `cellJson.containsKey('bg')` 조건 때문에 border import 대상으로 남은 것.
+  - `lib/page_label_sheet/label_sheet_xlsx_import.dart`: 값/수식/하이퍼링크/병합/병합 내부가 없는 빈 셀은 배경색이 있어도 border를 import하지 않도록 변경. 배경 스타일 자체는 cellJson에 남기고, border만 skipped 로그로 분리.
+  - `test/label_sheet_xlsx_import_test.dart`: 배경이 있는 빈 셀의 검은 border도 제외되는 fixture로 보강.
+  - 검증 완료: `C:\Flutter\bin\flutter.bat test test/label_sheet_xlsx_import_test.dart` 3개 성공. 테스트 로그에서 `B3 bg=#ff00ff00`이면서 B3 border가 `skipped blank border samples`에 기록되는 것 확인.
+  - 검증 완료: `C:\Flutter\bin\flutter.bat analyze lib/page_label_sheet/label_sheet_workbench.dart lib/page_label_sheet/label_sheet_xlsx_import.dart test/label_sheet_xlsx_import_test.dart --no-fatal-warnings --no-fatal-infos` 성공.
+  - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/page_label_sheet/label_sheet_xlsx_import.dart`, `test/label_sheet_xlsx_import_test.dart` (`lib/core/app.dart` 기존 dirty 제외).
+
 - **완료**: XLSX 빈 일반 셀 테두리 재보정 및 skipped 로그 추가.
   - 사용자 첨부 원본/변환본 재비교 결과, 변환본 `row14~18`, `row32~36` 빈 영역에 검은 격자가 생겼고 원본은 일반 회색 그리드임. 직전 `blankIntentional` 보존 정책은 과한 검은 테두리를 되살려 잘못된 방향으로 확인됨.
   - `lib/page_label_sheet/label_sheet_xlsx_import.dart`: 값/수식/하이퍼링크/병합/병합 내부/배경이 없는 빈 일반 셀 border는 색상이 검은색이어도 import하지 않도록 복원. 대신 제외된 좌표/스타일/색상/방향을 `xlsx import worksheet skipped blank border samples` chunk 로그로 최대 200개 기록.
