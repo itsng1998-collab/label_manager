@@ -35,6 +35,7 @@
   - `lib/page_label_sheet/label_sheet_workbench.dart`: `label sheet import apply computed blank borders` 로그 추가. `blank`, `value`, `mergeAnchorValue`, `mergeCoveredBlank` 등 셀 상태별 computed border 행 요약 `label sheet import apply computed border row cells` 추가.
   - 검증 완료: `C:\Flutter\bin\flutter.bat test test/label_sheet_xlsx_import_test.dart` 3개 성공.
   - 검증 완료: `C:\Flutter\bin\flutter.bat analyze lib/page_label_sheet/label_sheet_workbench.dart lib/page_label_sheet/label_sheet_xlsx_import.dart --no-fatal-warnings --no-fatal-infos` 성공.
+  - 기능 커밋 완료: `8e119dd` (`XLSX 테두리 빈 셀 진단 로그 보강`).
   - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/page_label_sheet/label_sheet_workbench.dart` (`lib/core/app.dart` 기존 dirty 제외).
 
 - **완료**: 다중 라벨 XLSX 테두리 차이 최신 로그 재확인 및 하단 행 border 로그 추가 보강.
