@@ -1702,7 +1702,9 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
 
   late List<LabelSize> _labels;
   late List<LabelSize> _originalLabels;
+  bool _orderEditMode = false;
   bool _applyingOrderChanges = false;
+  int? _selectedLabelSizeId;
 
   @override
   void initState() {
@@ -1734,6 +1736,25 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
       }
     }
     return false;
+  }
+
+  int? get _selectedLabelIndex {
+    final selectedLabelSizeId = _selectedLabelSizeId;
+    if (selectedLabelSizeId == null) return null;
+    final index = _labels.indexWhere(
+      (label) => label.labelSizeId == selectedLabelSizeId,
+    );
+    return index >= 0 ? index : null;
+  }
+
+  bool get _canMoveSelectedLabelUp {
+    final index = _selectedLabelIndex;
+    return _orderEditMode && index != null && index > 0;
+  }
+
+  bool get _canMoveSelectedLabelDown {
+    final index = _selectedLabelIndex;
+    return _orderEditMode && index != null && index < _labels.length - 1;
   }
 
   @override
@@ -1794,34 +1815,19 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
                 Expanded(
                   child: Padding(
                     padding: const EdgeInsets.only(left: 8, right: 8, bottom: 8),
-                    child: SwipeActionTable<LabelSize>(
-                      rows: _labels,
-                      fillLastColumn: true,
-                      autoFitColumns: false,
-                      rowSwipeEnabled: !_hasOrderChanges,
-                      keepRowContentOnSwipe: true,
-                      rowTooltip: _hasOrderChanges
-                          ? '순서 변경 중에는 스와이프 수정/삽입/삭제를 사용할 수 없습니다'
-                          : '행 드래그로 순서 변경, 컬럼 왼쪽 스와이프 수정/삽입/삭제',
-                      showActionsWhenEmpty: true,
-                      actions: _labelRowActions(),
-                      emptyActions: _labelEmptyActions(),
-                      rowNumberText: _labelRowNumberText,
-                      rowReorderEnabled: true,
-                      onRowReorder: _moveLabelRow,
-                      columns: const [
-                        SwipeActionTableColumn<LabelSize>(
-                          header: '라벨 이름',
-                          initialWidth: 220,
-                          minWidth: 120,
-                          fillRemaining: true,
-                          text: _labelNameText,
-                        ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Expanded(child: _buildLabelTable()),
+                        if (_orderEditMode) ...[
+                          const SizedBox(width: 6),
+                          _buildOrderMoveRail(),
+                        ],
                       ],
                     ),
                   ),
                 ),
-                if (_hasOrderChanges)
+                if (_orderEditMode)
                   Padding(
                     padding: const EdgeInsets.only(left: 8, right: 8, bottom: 8),
                     child: Row(
@@ -1846,7 +1852,7 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
                           height: 30,
                           child: _LabelSettingsFooterButton(
                             label: '적용',
-                            onPressed: _applyingOrderChanges
+                            onPressed: _applyingOrderChanges || !_hasOrderChanges
                                 ? null
                                 : _applyOrderChanges,
                           ),
@@ -1863,6 +1869,79 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
   }
 
   static String _labelNameText(LabelSize label) => label.labelSizeName;
+
+  Widget _buildLabelTable() {
+    return SwipeActionTable<LabelSize>(
+      rows: _labels,
+      fillLastColumn: true,
+      autoFitColumns: false,
+      rowSwipeEnabled: !_orderEditMode,
+      keepRowContentOnSwipe: true,
+      rowTooltip: _orderEditMode
+          ? '순서 변경 중에는 스와이프 수정/삽입/삭제를 사용할 수 없습니다'
+          : '행 드래그로 순서 변경, 컬럼 왼쪽 스와이프 수정/삽입/삭제',
+      showActionsWhenEmpty: true,
+      actions: _labelRowActions(),
+      emptyActions: _labelEmptyActions(),
+      rowNumberText: _labelRowNumberText,
+      rowReorderEnabled: _orderEditMode,
+      selectedIndex: _selectedLabelIndex,
+      onRowSelected: _handleLabelRowSelected,
+      onRowReorder: _moveLabelRow,
+      columns: [
+        SwipeActionTableColumn<LabelSize>(
+          header: '라벨 이름',
+          initialWidth: 220,
+          minWidth: 120,
+          fillRemaining: true,
+          text: _labelNameText,
+          headerTrailing: _OrderModeHeaderButton(
+            enabled: !_orderEditMode && !_applyingOrderChanges,
+            onPressed: _startOrderEditMode,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildOrderMoveRail() {
+    return SizedBox(
+      width: 38,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          _OrderMoveButton(
+            icon: Icons.keyboard_arrow_up,
+            tooltip: '선택 행 위로 이동',
+            enabled: _canMoveSelectedLabelUp && !_applyingOrderChanges,
+            onPressed: _moveSelectedLabelUp,
+          ),
+          const SizedBox(height: 8),
+          _OrderMoveButton(
+            icon: Icons.keyboard_arrow_down,
+            tooltip: '선택 행 아래로 이동',
+            enabled: _canMoveSelectedLabelDown && !_applyingOrderChanges,
+            onPressed: _moveSelectedLabelDown,
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _startOrderEditMode() {
+    debugLog('labelSettings reorder mode start');
+    setState(() {
+      _orderEditMode = true;
+      _selectedLabelSizeId ??= _labels.isNotEmpty ? _labels.first.labelSizeId : null;
+    });
+  }
+
+  void _handleLabelRowSelected(LabelSize label, int index) {
+    debugLog('labelSettings row selected index=$index labelSizeId=${label.labelSizeId}');
+    setState(() {
+      _selectedLabelSizeId = label.labelSizeId;
+    });
+  }
 
   String _labelRowNumberText(LabelSize label, int index) {
     final originalIndex = _originalLabels.indexWhere((original) => identical(original, label));
@@ -1927,6 +2006,7 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
         final movingLabel = _labels[fromIndex];
         _labels[fromIndex] = _labels[toIndex];
         _labels[toIndex] = movingLabel;
+        _selectedLabelSizeId = movingLabel.labelSizeId;
       });
       return;
     }
@@ -1938,7 +2018,20 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
     setState(() {
       final label = _labels.removeAt(fromIndex);
       _labels.insert(insertIndex, label);
+      _selectedLabelSizeId = label.labelSizeId;
     });
+  }
+
+  void _moveSelectedLabelUp() {
+    final index = _selectedLabelIndex;
+    if (index == null || index <= 0) return;
+    _moveLabelRow(index, index - 1);
+  }
+
+  void _moveSelectedLabelDown() {
+    final index = _selectedLabelIndex;
+    if (index == null || index >= _labels.length - 1) return;
+    _moveLabelRow(index, index + 1);
   }
 
   void _cancelOrderChanges() {
@@ -1946,6 +2039,8 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
     if (_applyingOrderChanges) return;
     setState(() {
       _labels = List<LabelSize>.from(_originalLabels);
+      _orderEditMode = false;
+      _selectedLabelSizeId = null;
     });
   }
 
@@ -2001,6 +2096,8 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
       setState(() {
         _labels = List<LabelSize>.from(appliedLabels);
         _originalLabels = List<LabelSize>.from(appliedLabels);
+        _orderEditMode = false;
+        _selectedLabelSizeId = null;
       });
       debugLog(
         'labelSettings reorder apply completed labels=${appliedLabels.length}',
@@ -2054,6 +2151,76 @@ class _LabelSettingsFooterButton extends StatelessWidget {
       ),
       onPressed: onPressed,
       child: Text(label),
+    );
+  }
+}
+
+class _OrderModeHeaderButton extends StatelessWidget {
+  const _OrderModeHeaderButton({
+    required this.enabled,
+    required this.onPressed,
+  });
+
+  final bool enabled;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: '순서 변경',
+      child: SizedBox(
+        width: 24,
+        height: 24,
+        child: IconButton(
+          padding: EdgeInsets.zero,
+          splashRadius: 14,
+          icon: Icon(
+            Icons.swap_vert,
+            size: 18,
+            color: enabled ? Colors.white : const Color(0x80FFFFFF),
+          ),
+          onPressed: enabled ? onPressed : null,
+        ),
+      ),
+    );
+  }
+}
+
+class _OrderMoveButton extends StatelessWidget {
+  const _OrderMoveButton({
+    required this.icon,
+    required this.tooltip,
+    required this.enabled,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final bool enabled;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: SizedBox(
+        width: 34,
+        height: 34,
+        child: OutlinedButton(
+          onPressed: enabled ? onPressed : null,
+          style: OutlinedButton.styleFrom(
+            padding: EdgeInsets.zero,
+            backgroundColor: enabled ? Colors.white : const Color(0xFFF1F3F4),
+            foregroundColor: const Color(0xFF0E2F66),
+            disabledForegroundColor: const Color(0xFF9CA3AF),
+            side: BorderSide(
+              color: enabled ? const Color(0xFF0E2F66) : const Color(0xFFC7C7C7),
+            ),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+          ),
+          child: Icon(icon, size: 22),
+        ),
+      ),
     );
   }
 }

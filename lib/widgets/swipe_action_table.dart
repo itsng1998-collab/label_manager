@@ -10,6 +10,7 @@ class SwipeActionTableColumn<T> {
     this.initialWidth = 120,
     this.minWidth = 60,
     this.fillRemaining = false,
+    this.headerTrailing,
     this.cellBuilder,
     this.onDoubleTap,
   });
@@ -19,6 +20,7 @@ class SwipeActionTableColumn<T> {
   final double initialWidth;
   final double minWidth;
   final bool fillRemaining;
+  final Widget? headerTrailing;
   final Widget Function(BuildContext context, T row, double width)? cellBuilder;
   final void Function(T row, int index)? onDoubleTap;
 }
@@ -63,6 +65,8 @@ class SwipeActionTable<T> extends StatefulWidget {
     this.isRowContentInteractive,
     this.canSwipeRow,
     this.rowNumberText,
+    this.selectedIndex,
+    this.onRowSelected,
     this.onRowReorder,
   });
 
@@ -83,6 +87,8 @@ class SwipeActionTable<T> extends StatefulWidget {
   final bool Function(T row, int index)? isRowContentInteractive;
   final bool Function(T row, int index)? canSwipeRow;
   final String Function(T row, int index)? rowNumberText;
+  final int? selectedIndex;
+  final void Function(T row, int index)? onRowSelected;
   final void Function(int fromIndex, int toIndex)? onRowReorder;
 
   @override
@@ -116,6 +122,7 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
   void initState() {
     super.initState();
     _widths = _initialWidths();
+    _selectedIndex = widget.selectedIndex;
     _hScrollBody.addListener(_syncHorizontalFromBody);
     _hScrollHeader.addListener(_syncHorizontalFromHeader);
     _vScrollBody.addListener(_syncVerticalScrollFromBody);
@@ -138,6 +145,10 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
     }
     if ((_selectedIndex ?? -1) >= widget.rows.length) {
       _selectedIndex = null;
+    }
+    if (oldWidget.selectedIndex != widget.selectedIndex &&
+        widget.selectedIndex != _selectedIndex) {
+      _selectedIndex = widget.selectedIndex;
     }
     if ((_openActionIndex ?? -1) >= widget.rows.length) {
       _openActionIndex = null;
@@ -402,16 +413,37 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: List.generate(widths.length, (index) {
           final isLast = index == lastIndex;
+          final column = widget.columns[index];
           final cell = SizedBox(
             width: widths[index],
-            child: Center(
-              child: Text(
-                widget.columns[index].header,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                Center(
+                  child: Padding(
+                    padding: EdgeInsets.only(
+                      left: 6,
+                      right: column.headerTrailing == null ? 6 : 34,
+                    ),
+                    child: Text(
+                      column.header,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
                 ),
-              ),
+                if (column.headerTrailing != null)
+                  Positioned(
+                    top: 0,
+                    right: 5,
+                    bottom: 0,
+                    child: Center(child: column.headerTrailing),
+                  ),
+              ],
             ),
           );
           return Stack(
@@ -669,6 +701,7 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
         now.difference(lastPointerDownAt) <= const Duration(milliseconds: 500);
 
     setState(() => _selectedIndex = rowIndex);
+    widget.onRowSelected?.call(row, rowIndex);
 
     if (!isDoubleTap) {
       debugPrint('[SwipeTable] pointerDown row=$rowIndex col=$columnIndex single lastRow=$_lastPointerDownRowIndex lastCol=$_lastPointerDownColumnIndex');

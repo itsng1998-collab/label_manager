@@ -13,6 +13,8 @@ Future<void> _pumpTable(
   WidgetTester tester, {
   required void Function(_Row row, int index) onNameDoubleTap,
   bool interactive = false,
+  Widget? headerTrailing,
+  void Function(_Row row, int index)? onRowSelected,
 }) async {
   await tester.pumpWidget(
     MaterialApp(
@@ -29,6 +31,7 @@ Future<void> _pumpTable(
                 header: '브랜드 이름',
                 initialWidth: 160,
                 text: (row) => row.name,
+                headerTrailing: headerTrailing,
                 onDoubleTap: onNameDoubleTap,
               ),
               SwipeActionTableColumn<_Row>(
@@ -37,6 +40,7 @@ Future<void> _pumpTable(
                 text: (row) => row.code,
               ),
             ],
+            onRowSelected: onRowSelected,
           ),
         ),
       ),
@@ -180,6 +184,40 @@ void main() {
 
     final tableTopLeft = tester.getTopLeft(find.byType(SwipeActionTable<_Row>));
     await _doubleTapAt(tester, tableTopLeft + const Offset(190, 50));
+
+    expect(selectedRow?.name, 'Brand A');
+    expect(selectedIndex, 0);
+  });
+
+  testWidgets('header trailing widget is rendered inside column header', (
+    tester,
+  ) async {
+    await _pumpTable(
+      tester,
+      headerTrailing: const Icon(Icons.swap_vert, key: ValueKey('order-icon')),
+      onNameDoubleTap: (_, _) {},
+    );
+
+    expect(find.byKey(const ValueKey('order-icon')), findsOneWidget);
+  });
+
+  testWidgets('row selection callback exposes selected row and index', (
+    tester,
+  ) async {
+    _Row? selectedRow;
+    int? selectedIndex;
+
+    await _pumpTable(
+      tester,
+      onNameDoubleTap: (_, _) {},
+      onRowSelected: (row, index) {
+        selectedRow = row;
+        selectedIndex = index;
+      },
+    );
+
+    await tester.tap(find.text('Brand A'));
+    await tester.pump();
 
     expect(selectedRow?.name, 'Brand A');
     expect(selectedIndex, 0);
