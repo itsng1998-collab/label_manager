@@ -470,6 +470,14 @@ Map<String, Object?> _sheetJsonFromWorksheet(
     'rowLogicalTotal=${_numericMapTotal(rowHeights)} '
     'columnLogicalTotal=${_numericMapTotal(columnWidths)}',
   );
+  _xlsxImportLog(
+    'worksheet axis boundaries rows=$maxRow columns=$maxColumn '
+    'sourceRowBoundariesPt=${_axisBoundarySample(sourceRowHeights, maxRow)} '
+    'sourceColumnBoundariesChars=${_axisBoundarySample(sourceColumnWidths, maxColumn)} '
+    'convertedRowBoundariesLogical=${_axisBoundarySample(rowHeights, maxRow, includeGrid: true)} '
+    'convertedColumnBoundariesLogical=${_axisBoundarySample(columnWidths, maxColumn, includeGrid: true)} '
+    'mergeLogicalSizes=${_mergeLogicalSizeSample(mergeMap, rowHeights, columnWidths)}',
+  );
 
   return {
     'name': sheetName,
@@ -1293,6 +1301,78 @@ double _numericMapTotal(Map<String, Object?> map) {
     }
   }
   return total;
+}
+
+String _axisBoundarySample(
+  Map<String, Object?> sizes,
+  int count, {
+  bool includeGrid = false,
+  int limit = 30,
+}) {
+  if (count <= 0) {
+    return '-';
+  }
+  var position = 0.0;
+  final samples = <String>[];
+  final sampleCount = count < limit ? count : limit;
+  for (var index = 0; index < sampleCount; index += 1) {
+    final size = _numericMapValue(sizes, index) ?? 0;
+    position += size + (includeGrid ? 1 : 0);
+    samples.add('$index:$position($size)');
+  }
+  if (count > limit) {
+    samples.add('...count=$count');
+  }
+  return samples.join('|');
+}
+
+String _mergeLogicalSizeSample(
+  Map<String, Map<String, Object?>> mergeMap,
+  Map<String, Object?> rowHeights,
+  Map<String, Object?> columnWidths, {
+  int limit = 40,
+}) {
+  if (mergeMap.isEmpty) {
+    return '-';
+  }
+  return mergeMap.entries.take(limit).map((entry) {
+    final coord = _keyToCoord(entry.key);
+    final merge = entry.value;
+    final row = _intValue(merge['r']) ?? coord?.row ?? 0;
+    final column = _intValue(merge['c']) ?? coord?.column ?? 0;
+    final rowSpan = _intValue(merge['rs']) ?? 1;
+    final columnSpan = _intValue(merge['cs']) ?? 1;
+    final width = _axisRangeSize(columnWidths, column, columnSpan);
+    final height = _axisRangeSize(rowHeights, row, rowSpan);
+    final label = coord == null ? entry.key : _coordLabel(coord.row, coord.column);
+    return '$label span=${rowSpan}x$columnSpan logical=${width}x$height';
+  }).join(' | ');
+}
+
+double _axisRangeSize(Map<String, Object?> sizes, int start, int span) {
+  var total = 0.0;
+  for (var index = start; index < start + span; index += 1) {
+    total += (_numericMapValue(sizes, index) ?? 0) + 1;
+  }
+  return total;
+}
+
+double? _numericMapValue(Map<String, Object?> sizes, int index) {
+  final value = sizes['$index'];
+  if (value is num) {
+    return value.toDouble();
+  }
+  return double.tryParse('$value');
+}
+
+int? _intValue(Object? value) {
+  if (value is int) {
+    return value;
+  }
+  if (value is num) {
+    return value.toInt();
+  }
+  return int.tryParse('$value');
 }
 
 int _lineCount(String? value) {

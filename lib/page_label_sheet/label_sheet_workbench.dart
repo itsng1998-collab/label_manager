@@ -908,6 +908,16 @@ void _logImportedSheetApplySample(FortuneSheet sheet) {
   final gridSize = fortuneSheetGridClientPhysicalSize(sheet);
   final columnLogicalWidth = _labelSheetAxisLogicalTotalSize(sheet.columnWidths);
   final rowLogicalHeight = _labelSheetAxisLogicalTotalSize(sheet.rowHeights);
+  final countedColumnLogicalWidth = _labelSheetAxisLogicalTotalSizeForCount(
+    sheet.columnWidths,
+    sheet.columnCount,
+    sheet.defaultColWidth,
+  );
+  final countedRowLogicalHeight = _labelSheetAxisLogicalTotalSizeForCount(
+    sheet.rowHeights,
+    sheet.rowCount,
+    sheet.defaultRowHeight,
+  );
   final zoomRatio = sheet.zoomRatio <= 0 ? 1.0 : sheet.zoomRatio;
   final valueSamples = <String>[];
   final anchorSamples = <String>[];
@@ -950,8 +960,10 @@ void _logImportedSheetApplySample(FortuneSheet sheet) {
     'cells=${sheet.cells.length} borders=${sheet.borderInfo.length} '
     'zoomRatio=${sheet.zoomRatio} '
     'columnLogicalWidth=$columnLogicalWidth '
+    'countedColumnLogicalWidth=$countedColumnLogicalWidth '
     'columnVisibleWidth=${columnLogicalWidth * zoomRatio} '
     'rowLogicalHeight=$rowLogicalHeight '
+    'countedRowLogicalHeight=$countedRowLogicalHeight '
     'rowVisibleHeight=${rowLogicalHeight * zoomRatio} '
     'gridWidthMm=${gridSize?.widthMm} gridHeightMm=${gridSize?.heightMm} '
     'values=${valueSamples.join(' | ')} '
@@ -964,16 +976,27 @@ void _logImportedSheetApplySample(FortuneSheet sheet) {
     'rowHeights=${_labelSheetAxisSample(sheet.rowHeights)} '
     'columnWidths=${_labelSheetAxisSample(sheet.columnWidths)} '
     'rowBoundaries=${_labelSheetAxisBoundarySample(sheet.rowHeights)} '
-    'columnBoundaries=${_labelSheetAxisBoundarySample(sheet.columnWidths)}',
+    'columnBoundaries=${_labelSheetAxisBoundarySample(sheet.columnWidths)} '
+    'rowBoundariesCounted=${_labelSheetAxisBoundarySampleForCount(sheet.rowHeights, sheet.rowCount, sheet.defaultRowHeight)} '
+    'columnBoundariesCounted=${_labelSheetAxisBoundarySampleForCount(sheet.columnWidths, sheet.columnCount, sheet.defaultColWidth)}',
+    skipFrames: 1,
+  );
+  debugLog(
+    'label sheet import apply merge sizes '
+    '${_labelSheetMergeSizeSample(sheet)}',
     skipFrames: 1,
   );
   debugLog(
     'label sheet import apply scale '
     'logicalSize=${columnLogicalWidth}x$rowLogicalHeight '
+    'countedLogicalSize=${countedColumnLogicalWidth}x$countedRowLogicalHeight '
     'visibleSize=${columnLogicalWidth * zoomRatio}x${rowLogicalHeight * zoomRatio} '
+    'countedVisibleSize=${countedColumnLogicalWidth * zoomRatio}x${countedRowLogicalHeight * zoomRatio} '
     'physicalSizeMm=${gridSize?.widthMm}x${gridSize?.heightMm} '
     'logicalPerMm=${_labelSheetLogicalPerMm(columnLogicalWidth, gridSize?.widthMm)}x'
-    '${_labelSheetLogicalPerMm(rowLogicalHeight, gridSize?.heightMm)}',
+    '${_labelSheetLogicalPerMm(rowLogicalHeight, gridSize?.heightMm)} '
+    'countedLogicalPerMm=${_labelSheetLogicalPerMm(countedColumnLogicalWidth, gridSize?.widthMm)}x'
+    '${_labelSheetLogicalPerMm(countedRowLogicalHeight, gridSize?.heightMm)}',
     skipFrames: 1,
   );
 }
@@ -1010,6 +1033,84 @@ String _labelSheetAxisBoundarySample(Map<int, double> sizes, {int limit = 24}) {
     samples.add('${entry.key}:$position');
   }
   return samples.join('|');
+}
+
+String _labelSheetAxisBoundarySampleForCount(
+  Map<int, double> sizes,
+  int? count,
+  double? defaultSize, {
+  int limit = 30,
+}) {
+  final resolvedCount = count ?? _labelSheetAxisCount(sizes);
+  if (resolvedCount <= 0) {
+    return '-';
+  }
+  var position = 0.0;
+  final fallback = defaultSize ?? 0;
+  final samples = <String>[];
+  final sampleCount = math.min(resolvedCount, limit);
+  for (var index = 0; index < sampleCount; index += 1) {
+    final size = sizes[index] ?? fallback;
+    position += size + 1;
+    samples.add('$index:$position($size)');
+  }
+  if (resolvedCount > limit) {
+    samples.add('...count=$resolvedCount');
+  }
+  return samples.join('|');
+}
+
+String _labelSheetMergeSizeSample(FortuneSheet sheet, {int limit = 40}) {
+  final samples = <String>[];
+  final entries = sheet.cells.entries.toList()
+    ..sort((left, right) {
+      final rowCompare = left.key.row.compareTo(right.key.row);
+      return rowCompare == 0
+          ? left.key.column.compareTo(right.key.column)
+          : rowCompare;
+    });
+  for (final entry in entries) {
+    final merge = entry.value.merge;
+    if (merge == null || merge.row != entry.key.row || merge.column != entry.key.column) {
+      continue;
+    }
+    final width = _labelSheetAxisRangeLogicalSize(
+      sheet.columnWidths,
+      merge.column,
+      merge.columnSpan,
+      sheet.defaultColWidth,
+    );
+    final height = _labelSheetAxisRangeLogicalSize(
+      sheet.rowHeights,
+      merge.row,
+      merge.rowSpan,
+      sheet.defaultRowHeight,
+    );
+    final value = entry.value.displayValue ?? entry.value.value;
+    samples.add(
+      '${_labelSheetCoordLabel(entry.key.row, entry.key.column)} '
+      'span=${merge.rowSpan}x${merge.columnSpan} logical=${width}x$height '
+      'value=${_labelSheetLogText(value)}',
+    );
+    if (samples.length >= limit) {
+      break;
+    }
+  }
+  return samples.isEmpty ? '-' : samples.join(' | ');
+}
+
+double _labelSheetAxisRangeLogicalSize(
+  Map<int, double> sizes,
+  int start,
+  int span,
+  double? defaultSize,
+) {
+  var total = 0.0;
+  final fallback = defaultSize ?? 0;
+  for (var index = start; index < start + span; index += 1) {
+    total += (sizes[index] ?? fallback) + 1;
+  }
+  return total;
 }
 
 String _labelSheetLogicalPerMm(double logicalSize, num? mm) {

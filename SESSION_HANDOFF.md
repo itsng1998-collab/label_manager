@@ -29,6 +29,15 @@
 
 ### 최근 완료 (2026-07-03)
 
+- **완료**: XLSX 원본/변환본 재비교용 축·병합 치수 진단 로그 보강.
+  - 첨부 비교 기준: 변환본은 값/병합/검은 헤더 위치는 대체로 유지되지만, 원본보다 콘텐츠 영역이 우측으로 덜 차고 N열 이후 빈 격자/우측 폭이 두드러짐. 일부 텍스트 크기와 줄맞춤도 압축되어 보임.
+  - 현재 가설: 변환 자체의 값/병합 누락보다는 XLSX column width/row height 변환, 물리 폭 스케일 적용, 또는 FortuneSheet 적용 후 count/default 축 처리 중 한 단계에서 실제 경계 폭이 줄어듦.
+  - `lib/page_label_sheet/label_sheet_xlsx_import.dart`: 원본/변환 row·column count 기반 boundary 로그와 병합 영역 logical size 로그 추가.
+  - `lib/page_label_sheet/label_sheet_workbench.dart`: apply 단계에서 지정 축 합계와 count/default 포함 합계, count 기반 boundary, 병합 anchor별 logical size, counted logical/mm 로그 추가.
+  - 검증 완료: `C:\Flutter\bin\flutter.bat test test/label_sheet_xlsx_import_test.dart` 3개 성공.
+  - 검증 완료: `C:\Flutter\bin\flutter.bat analyze lib/page_label_sheet/label_sheet_xlsx_import.dart lib/page_label_sheet/label_sheet_workbench.dart --no-fatal-warnings --no-fatal-infos` 성공.
+  - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/page_label_sheet/label_sheet_xlsx_import.dart`, `lib/page_label_sheet/label_sheet_workbench.dart` (`lib/core/app.dart` 기존 dirty 제외).
+
 - **완료**: 공용라벨관리의 `라벨 파일에서 가져오기` 완료 후 시트에 포커스를 남기지 않아 셀 선택 파란 하이라이트가 보이지 않게 수정.
   - `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`: `FortuneSheetController.unfocusSheet()` API 추가, 내부 sheet focus node 해제 및 `_sheetFocused=false` 동기화.
   - `lib/page_label_sheet/label_sheet_workbench.dart`: `_handleImportLabelFile`에서 clear/update/zoom 적용 직후 `_controller.unfocusSheet()` 호출.
