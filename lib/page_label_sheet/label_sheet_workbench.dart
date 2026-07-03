@@ -38,7 +38,7 @@ const int labelSheetMaxZoomPercent = 400;
 const String _labelSheetCopilotTokenPrefsKey = 'label_sheet_copilot_token';
 const String _labelSheetCopilotModelPrefsKey = 'label_sheet_copilot_model';
 const String _labelFileDirectoryPrefsKey = 'label_file_directory';
-const double _labelSheetImportMinReadableFontSize = 8.0;
+const double _labelSheetImportMinReadableFontHeightMm = 2.5;
 
 const List<String> labelSheetToolbarItems = [
   labelSheetSaveToolbarCommand,
@@ -746,9 +746,12 @@ FortuneSheet _labelSheetScaledToPhysicalWidth(
     sheet.columnCount,
   );
   final minFontSize = _labelSheetMinimumFontSize(sheet);
+  final minReadableFontSize = fortuneMillimetersToLogicalPixels(
+    _labelSheetImportMinReadableFontHeightMm,
+  );
   final readableScale = minFontSize == null || minFontSize <= 0
       ? widthScale
-      : _labelSheetImportMinReadableFontSize / minFontSize;
+      : minReadableFontSize / minFontSize;
   final scale = math.max(widthScale, readableScale);
   final scaledSheet = _labelSheetScaleSheet(sheet, scale);
   final scaledWidth = _labelSheetAxisLogicalTotalSizeForCount(
@@ -761,12 +764,15 @@ FortuneSheet _labelSheetScaledToPhysicalWidth(
     scaledSheet.rowCount,
     scaledSheet.defaultRowHeight,
   );
+  final scaledMinFontSize = _labelSheetMinimumFontSize(scaledSheet);
   debugLog(
     'label sheet import physical scale '
     'sourceLogical=${sourceWidth}x$sourceHeight '
     'targetWidth=$targetWidth physicalSizeMm=${physicalSize.widthMm}x${physicalSize.heightMm} '
     'widthScale=$widthScale readableScale=$readableScale scale=$scale '
-    'minFontSize=$minFontSize minReadable=$_labelSheetImportMinReadableFontSize '
+    'minFontSize=$minFontSize scaledMinFontSize=$scaledMinFontSize '
+    'minReadableMm=$_labelSheetImportMinReadableFontHeightMm '
+    'minReadableLogical=$minReadableFontSize '
     'scaledLogical=${scaledWidth}x$scaledHeight overflowWidth=${scaledWidth > targetWidth}',
     skipFrames: 1,
   );
