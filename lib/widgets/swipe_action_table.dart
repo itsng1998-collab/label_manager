@@ -75,6 +75,7 @@ class SwipeActionTable<T> extends StatefulWidget {
     this.isRowContentInteractive,
     this.canSwipeRow,
     this.rowNumberText,
+    this.rowColorBuilder,
     this.selectedIndex,
     this.onRowSelected,
     this.onRowReorder,
@@ -97,6 +98,7 @@ class SwipeActionTable<T> extends StatefulWidget {
   final bool Function(T row, int index)? isRowContentInteractive;
   final bool Function(T row, int index)? canSwipeRow;
   final String Function(T row, int index)? rowNumberText;
+  final Color Function(T row, int index, bool selected)? rowColorBuilder;
   final int? selectedIndex;
   final void Function(T row, int index)? onRowSelected;
   final void Function(int fromIndex, int toIndex)? onRowReorder;
@@ -890,9 +892,7 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
         children: [
           Container(
             decoration: BoxDecoration(
-              color: _selectedIndex == index
-                  ? const Color(0xFFE3F2FD)
-                  : (index.isEven ? Colors.white : const Color(0xFFF2F4F7)),
+              color: _rowColor(row, index),
               border: const Border(bottom: BorderSide(color: _bodySeparatorColor)),
             ),
             child: Row(
@@ -1001,6 +1001,17 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
       child: rowBox,
       feedback: _buildWholeRowFeedback(index, rowBox),
     );
+  }
+
+  Color _rowColor(T row, int index) {
+    final selected = _selectedIndex == index;
+    final custom = widget.rowColorBuilder?.call(row, index, selected);
+    if (custom != null) {
+      return custom;
+    }
+    return selected
+        ? const Color(0xFFE3F2FD)
+        : (index.isEven ? Colors.white : const Color(0xFFF2F4F7));
   }
 
   List<double> _withTrailingInset(List<double> widths, double inset) {
@@ -1633,9 +1644,13 @@ class _ResizableTableState<T> extends State<ResizableTable<T>> {
   Widget build(BuildContext context) {
     return SwipeActionTable<T>(
       rows: widget.rows,
+      autoFitColumns: false,
       rowNumberWidth: widget.rowNumberWidth,
       headerHeight: widget.headerHeight,
       rowHeight: widget.rowHeight,
+      rowColorBuilder: (_, index, selected) => selected
+          ? const Color(0xFFE3F2FD)
+          : (index.isEven ? Colors.white : const Color(0xFFF2F4F7)),
       selectedIndex: _selectedIndex,
       onRowSelected: (_, index) => setState(() => _selectedIndex = index),
       columns: [

@@ -230,6 +230,65 @@ void main() {
     expect(selectedIndex, 0);
   });
 
+  testWidgets('resizable table preserves configured widths and zebra rows', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 400,
+            height: 140,
+            child: ResizableTable<_Row>(
+              rows: const [_Row('Brand A', 'A001'), _Row('Brand B', 'B001')],
+              columns: [
+                ResizableTableColumn<_Row>(
+                  id: 'long-name',
+                  title: '매우긴브랜드이름컬럼',
+                  width: 80,
+                  minWidth: 40,
+                  textAccessor: (row) => row.name,
+                  cellBuilder: (context, row, index) => SizedBox.expand(
+                    key: ValueKey('name-cell-$index'),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(row.name),
+                    ),
+                  ),
+                ),
+                ResizableTableColumn<_Row>(
+                  id: 'code',
+                  title: '코드',
+                  width: 120,
+                  minWidth: 40,
+                  textAccessor: (row) => row.code,
+                  cellBuilder: (context, row, index) => SizedBox.expand(
+                    key: ValueKey('code-cell-$index'),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(row.code),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(tester.getSize(find.byKey(const ValueKey('name-cell-0'))).width, 80);
+    expect(tester.getSize(find.byKey(const ValueKey('code-cell-0'))).width, 120);
+    expect(
+      tester.widgetList<Container>(find.byType(Container)).any((container) {
+        final decoration = container.decoration;
+        return decoration is BoxDecoration &&
+            decoration.color == const Color(0xFFF2F4F7);
+      }),
+      isTrue,
+    );
+  });
+
   testWidgets('header trailing builder receives interactive row state', (
     tester,
   ) async {
