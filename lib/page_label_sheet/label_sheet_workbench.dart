@@ -987,6 +987,30 @@ void _logImportedSheetApplySample(FortuneSheet sheet) {
     skipFrames: 1,
   );
   _logLabelSheetChunks(
+    'label sheet import apply row heights',
+    _labelSheetAxisSamples(sheet.rowHeights),
+  );
+  _logLabelSheetChunks(
+    'label sheet import apply column widths',
+    _labelSheetAxisSamples(sheet.columnWidths),
+  );
+  _logLabelSheetChunks(
+    'label sheet import apply row boundaries counted',
+    _labelSheetAxisBoundarySamplesForCount(
+      sheet.rowHeights,
+      sheet.rowCount,
+      sheet.defaultRowHeight,
+    ),
+  );
+  _logLabelSheetChunks(
+    'label sheet import apply column boundaries counted',
+    _labelSheetAxisBoundarySamplesForCount(
+      sheet.columnWidths,
+      sheet.columnCount,
+      sheet.defaultColWidth,
+    ),
+  );
+  _logLabelSheetChunks(
     'label sheet import apply merge sizes',
     _labelSheetMergeSizeSamples(sheet),
   );
@@ -1026,6 +1050,15 @@ String _labelSheetAxisSample(Map<int, double> sizes, {int limit = 24}) {
       .take(limit)
       .map((entry) => '${entry.key}:${entry.value}')
       .join('|');
+}
+
+List<String> _labelSheetAxisSamples(Map<int, double> sizes) {
+  if (sizes.isEmpty) {
+    return const <String>['-'];
+  }
+  final entries = sizes.entries.toList()
+    ..sort((left, right) => left.key.compareTo(right.key));
+  return [for (final entry in entries) '${entry.key}:${entry.value}'];
 }
 
 String _labelSheetAxisBoundarySample(Map<int, double> sizes, {int limit = 24}) {
@@ -1068,7 +1101,27 @@ String _labelSheetAxisBoundarySampleForCount(
   return samples.join('|');
 }
 
-List<String> _labelSheetMergeSizeSamples(FortuneSheet sheet, {int limit = 40}) {
+List<String> _labelSheetAxisBoundarySamplesForCount(
+  Map<int, double> sizes,
+  int? count,
+  double? defaultSize,
+) {
+  final resolvedCount = count ?? _labelSheetAxisCount(sizes);
+  if (resolvedCount <= 0) {
+    return const <String>['-'];
+  }
+  var position = 0.0;
+  final fallback = defaultSize ?? 0;
+  final samples = <String>[];
+  for (var index = 0; index < resolvedCount; index += 1) {
+    final size = sizes[index] ?? fallback;
+    position += size + 1;
+    samples.add('$index:$position($size)');
+  }
+  return samples;
+}
+
+List<String> _labelSheetMergeSizeSamples(FortuneSheet sheet, {int limit = 200}) {
   final samples = <String>[];
   final entries = sheet.cells.entries.toList()
     ..sort((left, right) {
@@ -1107,7 +1160,7 @@ List<String> _labelSheetMergeSizeSamples(FortuneSheet sheet, {int limit = 40}) {
   return samples.isEmpty ? const <String>['-'] : samples;
 }
 
-List<String> _labelSheetTextLayoutSamples(FortuneSheet sheet, {int limit = 40}) {
+List<String> _labelSheetTextLayoutSamples(FortuneSheet sheet, {int limit = 200}) {
   final samples = <String>[];
   final entries = sheet.cells.entries.toList()
     ..sort((left, right) {

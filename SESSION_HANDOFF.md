@@ -29,6 +29,15 @@
 
 ### 최근 완료 (2026-07-03)
 
+- **완료**: 다중 라벨 XLSX 원본/변환본 비교 및 하단 블록까지 진단 가능한 로그 보강.
+  - 최신 로그 `.tmp/log/app_2026-07-03_11-14-25.log`: 새 파일은 `Label_Template`, `rows=36`, `columns=21`, `cells=756`, `merges=88`, `borders=2365`. 원본 축 `1561.0x1212.9999999705747 logical`, 100mm 목표 폭 `377.9527559055118`, widthScale `0.23178750383474794`, readableScale `0.644237652111668`, 최종 적용 `1013.1259842519684x794.2677165164764 logical`.
+  - 판단: 값/병합/블록 구조는 유지되지만 변환본은 100mm 폭을 `635.1732283464565 logical` / `168.05624999999995mm` 초과. 원인은 최소 가독 2.5mm 기준이 폭 맞춤보다 크게 작동한 것. 원본 캡처처럼 여러 라벨 블록과 하단 `#BARCODE`까지 포함된 시트에서는 “물리 라벨 1장 폭 맞춤” 정책과 “전체 워크시트 원본 비율 유지” 정책이 충돌함.
+  - 기존 chunk 로그의 `merge sizes`/`text layout` 기본 limit 40으로는 하단 라벨 블록, `#BARCODE`, 빈 격자 영역까지 충분히 보이지 않음.
+  - `lib/page_label_sheet/label_sheet_workbench.dart`: `merge sizes`/`text layout` 샘플 limit을 200으로 확대. `row heights`, `column widths`, `row boundaries counted`, `column boundaries counted`를 chunk 로그로 추가해 36행/21열 전체 축을 확인 가능하게 함.
+  - 검증 완료: `C:\Flutter\bin\flutter.bat test test/label_sheet_xlsx_import_test.dart` 3개 성공.
+  - 검증 완료: `C:\Flutter\bin\flutter.bat analyze lib/page_label_sheet/label_sheet_workbench.dart lib/page_label_sheet/label_sheet_xlsx_import.dart --no-fatal-warnings --no-fatal-infos` 성공.
+  - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/page_label_sheet/label_sheet_workbench.dart` (`lib/core/app.dart` 기존 dirty 제외).
+
 - **완료**: XLSX 원본/변환본 최신 재비교 및 긴 진단 로그 chunk 분할 보강.
   - 최신 로그 `.tmp/log/app_2026-07-03_11-07-22.log`: 원본 XLSX 축은 `1118.0x823.3333333131001 logical`, 적용 후 `405.1811023622046x300.7716535361378 logical`, 100mm 기준 폭 초과 `27.228346456692805 logical` / `7.204166666666637mm`. 최종 스케일은 `readableScale=0.35433070866141736`로 최소 가독 기준이 폭 맞춤보다 우선 적용됨.
   - 최신 `label sheet import apply text layout`: 적용 후 주요 셀 fontSize가 `10.393700787401576`, 예: `A1` logical `53.0236220472441x17.062992125582678`, `C1` logical `152.40157480314963x17.062992125582678`, `A3/H3` black header 영역 logical 약 `205.425/199.756 x 20.843`.
