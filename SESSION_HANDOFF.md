@@ -35,7 +35,7 @@
 - `test/swipe_action_table_test.dart`: 인라인 trailing이 TextField/엔터 버튼 뒤에 배치되는 회귀 테스트 추가.
 - 검증 완료: `C:\Flutter\bin\dart.bat format lib\home_page_manager.dart lib\widgets\swipe_action_table.dart test\swipe_action_table_test.dart` 성공, `flutter test test/swipe_action_table_test.dart` 19개 성공, `C:\Flutter\bin\flutter.bat analyze lib\home_page_manager.dart lib\widgets\swipe_action_table.dart test\swipe_action_table_test.dart --no-fatal-warnings --no-fatal-infos` No issues.
 - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/home_page_manager.dart`, `lib/widgets/swipe_action_table.dart`, `test/swipe_action_table_test.dart`.
-- 기능 커밋: `e0adcea` (`라벨 설정 전자저울 인라인 UI 추가`).
+- 기능 커밋: `c93c4a1` (`라벨 설정 전자저울 인라인 UI 추가`).
 
 ### 완료 (2026-07-03): 라벨 설정 다이얼로그 순서 변경 적용 저장
 
