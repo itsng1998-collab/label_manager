@@ -36,6 +36,7 @@
   - `lib/page_label_sheet/label_sheet_workbench.dart`: `merge sizes`/`text layout` 샘플 limit을 200으로 확대. `row heights`, `column widths`, `row boundaries counted`, `column boundaries counted`를 chunk 로그로 추가해 36행/21열 전체 축을 확인 가능하게 함.
   - 검증 완료: `C:\Flutter\bin\flutter.bat test test/label_sheet_xlsx_import_test.dart` 3개 성공.
   - 검증 완료: `C:\Flutter\bin\flutter.bat analyze lib/page_label_sheet/label_sheet_workbench.dart lib/page_label_sheet/label_sheet_xlsx_import.dart --no-fatal-warnings --no-fatal-infos` 성공.
+  - 기능 커밋 완료: `9533195` (`다중 라벨 XLSX 진단 로그 보강`).
   - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/page_label_sheet/label_sheet_workbench.dart` (`lib/core/app.dart` 기존 dirty 제외).
 
 - **완료**: XLSX 원본/변환본 최신 재비교 및 긴 진단 로그 chunk 분할 보강.
