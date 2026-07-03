@@ -187,6 +187,16 @@ class LabelSize {
     'LabelSizeId: $labelSizeId, BrandId: $brandId, LabelSizeName: $labelSizeName';
 }
 
+class LabelSizeOrderUpdate {
+  const LabelSizeOrderUpdate({
+    required this.labelSizeId,
+    required this.labelSizeOrder,
+  });
+
+  final int labelSizeId;
+  final int labelSizeOrder;
+}
+
 class LabelSizeDAO extends DAO {
   static const String SelectSql = '''
     SELECT
@@ -313,6 +323,90 @@ class LabelSizeDAO extends DAO {
       }
 
       debugLog('$END, BM_RICH_LABELSIZE_FORM transaction Result: $res, affected:$affected, succeeded:$succeeded');
+    }
+    catch (e) {
+      debugLog('$END, $e');
+      rethrow;
+    }
+  }
+
+  static Future<void> updateOrder(
+    int labelSizeId,
+    int labelSizeOrder,
+  ) async {
+    debugLog('$START, labelSizeId:$labelSizeId, labelSizeOrder:$labelSizeOrder');
+
+    await updateOrders([
+      LabelSizeOrderUpdate(
+        labelSizeId: labelSizeId,
+        labelSizeOrder: labelSizeOrder,
+      ),
+    ]);
+    debugLog('$END, labelSizeId:$labelSizeId, labelSizeOrder:$labelSizeOrder');
+  }
+
+  static Future<void> updateOrders(
+    List<LabelSizeOrderUpdate> orderUpdates,
+  ) async {
+    debugLog('$START, labelSizeOrderUpdates:${orderUpdates.length}');
+
+    if (orderUpdates.isEmpty) {
+      debugLog('$END, empty labelSizeOrderUpdates');
+      return;
+    }
+
+    try {
+      final updateStatements = StringBuffer();
+      final params = <String, Object?>{};
+      for (var index = 0; index < orderUpdates.length; index += 1) {
+        final update = orderUpdates[index];
+        final labelSizeIdParam = 'labelSizeId$index';
+        final labelSizeOrderParam = 'labelSizeOrder$index';
+        updateStatements.writeln('''
+          UPDATE BM_RICH_LABELSIZE_FORM
+             SET RICH_LABELSIZE_ORDER=@$labelSizeOrderParam
+           WHERE RICH_LABELSIZE_ID=@$labelSizeIdParam;
+          IF @@ROWCOUNT <= 0
+            THROW 51020, 'Update label size order failed.', 1;
+        ''');
+        params[labelSizeIdParam] = update.labelSizeId;
+        params[labelSizeOrderParam] = update.labelSizeOrder;
+      }
+
+      final updateOrderTransactionSql = '''
+        SET XACT_ABORT ON;
+        BEGIN TRY
+          BEGIN TRANSACTION;
+
+          $updateStatements
+
+          COMMIT TRANSACTION;
+          SET XACT_ABORT OFF;
+        END TRY
+        BEGIN CATCH
+          IF @@TRANCOUNT > 0
+            ROLLBACK TRANSACTION;
+          SET XACT_ABORT OFF;
+          THROW;
+        END CATCH
+      ''';
+
+      final res = await DbClient.instance.writeDataWithParams(
+        updateOrderTransactionSql,
+        params,
+      );
+
+      final affected = DAO.affectedRows(res);
+      final succeeded = affected > 0;
+
+      if (!succeeded) {
+        throw Exception('${runtimeLogTag()} Update order affected no rows');
+      }
+
+      debugLog(
+        '$END, BM_RICH_LABELSIZE_FORM order Result: $res, '
+        'affected:$affected, succeeded:$succeeded',
+      );
     }
     catch (e) {
       debugLog('$END, $e');

@@ -521,11 +521,63 @@ class _HomePageManagerState extends State<HomePageManager> {
     entry = OverlayEntry(
       builder: (_) => _LabelSettingsDialog(
         labels: LabelSize.datas ?? const <LabelSize>[],
+        onOrderApplied: _handleLabelOrderApplied,
         onClose: _closeLabelSettingsDialog,
       ),
     );
     _labelSettingsOverlayEntry = entry;
     Overlay.of(context).insert(entry);
+  }
+
+  Future<List<LabelSize>> _handleLabelOrderApplied(
+    List<LabelSize> orderedLabels,
+  ) async {
+    final brandId =
+      widget.selectedBrand?.brandId ??
+      _effectiveLabelSize?.brandId ??
+      _labelSizesBrandId;
+    final previousSelectedLabel =
+      _effectiveLabelSize ?? widget.selectedLabelSize;
+    debugLog(
+      'labelSettings reorder save start brandId=$brandId '
+      'selectedLabelSizeId=${previousSelectedLabel?.labelSizeId} labels=${orderedLabels.length}',
+    );
+
+    if (brandId == null) {
+      throw Exception('${runtimeLogTag()} 라벨 순서를 저장할 브랜드를 찾을 수 없습니다.');
+    }
+
+    await LabelSizeDAO.updateOrders([
+      for (var index = 0; index < orderedLabels.length; index += 1)
+        LabelSizeOrderUpdate(
+          labelSizeId: orderedLabels[index].labelSizeId,
+          labelSizeOrder: index + 1,
+        ),
+    ]);
+
+    final reloadedLabels =
+      await LabelSizeDAO.selectByBrandIdByLabelSizeOrder(brandId) ??
+      <LabelSize>[];
+    if (!mounted) {
+      return reloadedLabels;
+    }
+
+    LabelSize.setDatas(reloadedLabels);
+    _labelSizesBrandId = brandId;
+    final resolvedSelected = _resolveSelectedLabelSize(
+      reloadedLabels,
+      previousSelectedLabel,
+    );
+    if (resolvedSelected != null) {
+      _currentLabelSize = resolvedSelected;
+    }
+    setState(() {});
+    _labelSettingsOverlayEntry?.markNeedsBuild();
+    debugLog(
+      'labelSettings reorder save completed '
+      'labels=${reloadedLabels.length} selectedLabelSizeId=${resolvedSelected?.labelSizeId}',
+    );
+    return reloadedLabels;
   }
 
   void _closeBrandSettingsDialog() {
@@ -1643,10 +1695,13 @@ class _PlaceholderTab extends StatelessWidget {
 class _LabelSettingsDialog extends StatefulWidget {
   const _LabelSettingsDialog({
     required this.labels,
+    required this.onOrderApplied,
     required this.onClose,
   });
 
   final List<LabelSize> labels;
+  final Future<List<LabelSize>> Function(List<LabelSize> orderedLabels)
+      onOrderApplied;
   final VoidCallback onClose;
 
   @override
@@ -1658,6 +1713,7 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
 
   late List<LabelSize> _labels;
   late List<LabelSize> _originalLabels;
+  bool _applyingOrderChanges = false;
 
   @override
   void initState() {
@@ -1801,7 +1857,9 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
                           height: 30,
                           child: _LabelSettingsFooterButton(
                             label: '적용',
-                            onPressed: _applyOrderChanges,
+                            onPressed: _applyingOrderChanges
+                                ? null
+                                : _applyOrderChanges,
                           ),
                         ),
                       ],
@@ -1896,13 +1954,88 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
 
   void _cancelOrderChanges() {
     debugLog('labelSettings reorder cancel');
+    if (_applyingOrderChanges) return;
     setState(() {
       _labels = List<LabelSize>.from(_originalLabels);
     });
   }
 
-  void _applyOrderChanges() {
+  Future<void> _applyOrderChanges() async {
     debugLog('labelSettings reorder apply pending labels=${_labels.length}');
+    if (_applyingOrderChanges || !_hasOrderChanges) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        content: const Text('라벨 순서 변경을 적용하시겠습니까?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('취소'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('확인'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) {
+      debugLog('labelSettings reorder apply cancelledByUser');
+      return;
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _applyingOrderChanges = true;
+    });
+    showSnackBar(
+      context,
+      '라벨 순서를 저장 중입니다...',
+      type: SnackBarType.inProgress,
+      duration: const Duration(days: 1),
+    );
+
+    try {
+      final appliedLabels = await widget.onOrderApplied(
+        List<LabelSize>.from(_labels),
+      );
+      if (!mounted) return;
+      setState(() {
+        _labels = List<LabelSize>.from(appliedLabels);
+        _originalLabels = List<LabelSize>.from(appliedLabels);
+      });
+      debugLog(
+        'labelSettings reorder apply completed labels=${appliedLabels.length}',
+      );
+    } catch (e) {
+      debugLog('labelSettings reorder apply failed error=$e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        await showDialog<void>(
+          context: context,
+          traversalEdgeBehavior: TraversalEdgeBehavior.closedLoop,
+          builder: (dialogContext) => AlertDialog(
+            title: const Text('라벨 순서 저장 실패'),
+            content: Text(e.toString()),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('확인'),
+              ),
+            ],
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _applyingOrderChanges = false;
+        });
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      }
+    }
   }
 }
 
@@ -1910,7 +2043,7 @@ class _LabelSettingsFooterButton extends StatelessWidget {
   const _LabelSettingsFooterButton({required this.label, required this.onPressed});
 
   final String label;
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed;
 
   @override
   Widget build(BuildContext context) {
