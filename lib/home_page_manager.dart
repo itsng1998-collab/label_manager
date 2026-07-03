@@ -2460,6 +2460,7 @@ class _LabelScaleInlineControl extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const controlSize = 20.0;
+    const checkboxSize = controlSize - 1;
     return Tooltip(
       message: '전자저울 사용',
       child: Padding(
@@ -2482,7 +2483,7 @@ class _LabelScaleInlineControl extends StatelessWidget {
             ],
           ),
           child: SizedBox(
-            height: 24,
+            height: 23,
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -2494,8 +2495,8 @@ class _LabelScaleInlineControl extends StatelessWidget {
                   ),
                 ),
                 SizedBox(
-                  width: controlSize,
-                  height: controlSize,
+                  width: checkboxSize,
+                  height: checkboxSize,
                   child: Checkbox(
                     value: value,
                     onChanged: onChanged,
@@ -2568,7 +2569,7 @@ class _ScaleIconPainter extends CustomPainter {
     canvas.drawRRect(baseRect, fill);
     canvas.drawRRect(baseRect, paint);
 
-    final dialCenter = Offset(size.width * 0.5, size.height * 0.53);
+    final dialCenter = Offset(size.width * 0.5, size.height * 0.58);
     canvas.drawArc(
       Rect.fromCenter(
         center: dialCenter,
@@ -2582,7 +2583,7 @@ class _ScaleIconPainter extends CustomPainter {
     );
     canvas.drawLine(
       dialCenter,
-      Offset(size.width * 0.61, size.height * 0.43),
+      Offset(size.width * 0.61, size.height * 0.48),
       detailPaint,
     );
     canvas.drawCircle(
