@@ -35,6 +35,7 @@
   - `lib/page_label_sheet/label_sheet_workbench.dart`: `computed borders` limit을 1000으로 확대해 687개 전체가 로그에 찍히도록 변경. `label sheet import apply border info rows`, `label sheet import apply computed border rows` 행별 요약 로그 추가.
   - 검증 완료: `C:\Flutter\bin\flutter.bat test test/label_sheet_xlsx_import_test.dart` 3개 성공.
   - 검증 완료: `C:\Flutter\bin\flutter.bat analyze lib/page_label_sheet/label_sheet_workbench.dart lib/page_label_sheet/label_sheet_xlsx_import.dart --no-fatal-warnings --no-fatal-infos` 성공.
+  - 기능 커밋 완료: `0c92c78` (`XLSX 테두리 행별 진단 로그 보강`).
   - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/page_label_sheet/label_sheet_workbench.dart` (`lib/core/app.dart` 기존 dirty 제외).
 
 - **완료**: 다중 라벨 XLSX 원본/변환본 테두리 차이 재확인 및 border 진단 로그 보강.
