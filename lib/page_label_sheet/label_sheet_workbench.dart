@@ -1690,6 +1690,8 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
   bool _rtfImportMarkedDirty = false;
   bool _initialLoadCompleteNotified = false;
   bool _printSettingsDialogOpen = false;
+  BuildContext? _printSettingsDialogContext;
+  VoidCallback? _rebuildPrintSettingsDialog;
   String _printAutoSpacing = 'none';
   String _printOrientation = 'horizontal';
   String _printSelectedPrinterName = '';
@@ -2145,6 +2147,9 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
 
   Future<void> _openPrintSettingsDialog() async {
     fortuneSheetDebugLog('label sheet print toolbar click');
+    if (_printSettingsDialogOpen) {
+      return;
+    }
     await _notifyBeforeSheetDialog();
     if (!mounted) {
       return;
@@ -2160,6 +2165,30 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     setState(() {
       _printSettingsDialogOpen = true;
     });
+    fortuneSheetDebugLog('label sheet print dialog route show');
+    await showGeneralDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      barrierColor: Colors.transparent,
+      transitionDuration: Duration.zero,
+      pageBuilder: (dialogContext, animation, secondaryAnimation) {
+        return StatefulBuilder(
+          builder: (dialogContext, setDialogState) {
+            _printSettingsDialogContext = dialogContext;
+            _rebuildPrintSettingsDialog = () => setDialogState(() {});
+            return _buildPrintSettingsDialog();
+          },
+        );
+      },
+    );
+    _printSettingsDialogContext = null;
+    _rebuildPrintSettingsDialog = null;
+    if (mounted && _printSettingsDialogOpen) {
+      setState(() {
+        _printSettingsDialogOpen = false;
+      });
+      widget.onSheetDialogClosed?.call();
+    }
   }
 
   void _applyPrintSettingsPreference(
@@ -2372,9 +2401,14 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     if (!_printSettingsDialogOpen) {
       return;
     }
+    fortuneSheetDebugLog('label sheet print dialog close');
     setState(() {
       _printSettingsDialogOpen = false;
     });
+    final dialogContext = _printSettingsDialogContext;
+    if (dialogContext != null) {
+      Navigator.of(dialogContext, rootNavigator: true).pop();
+    }
     widget.onSheetDialogClosed?.call();
   }
 
@@ -2404,6 +2438,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     setState(() {
       _printSelectedPrinterName = printerName;
     });
+    _rebuildPrintSettingsDialog?.call();
   }
 
   Future<void> _handleSave() async {
@@ -2877,7 +2912,6 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
               children: [
                 sheet,
                 _buildZoomToolbarOverlay(),
-                if (_printSettingsDialogOpen) _buildPrintSettingsDialog(),
                 if (convertingRtf)
                   Positioned.fill(
                     child: Listener(
@@ -2896,44 +2930,44 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
   }
 
   Widget _buildPrintSettingsDialog() {
-    return Positioned.fill(
-      child: BlockingModelessDialog(
-        child: BlockingModelessDialogFrame(
-          title: '프린터 설정',
-          width: 526,
-          height: 236,
-          closeIcon: const _PrintDialogCloseIcon(),
-          onClose: _closePrintSettingsDialog,
-          child: _ClosedLoopDialogFocus(
-            child: _LabelSheetPrintSettingsDialog(
-              leftMarginController: _printLeftMarginController,
-              topMarginController: _printTopMarginController,
-              extraAreaController: _printExtraAreaController,
-              copiesController: _printCopiesController,
-              autoSpacing: _printAutoSpacing,
-              orientation: _printOrientation,
-              selectedPrinterName: _printSelectedPrinterName,
-              onAutoSpacingChanged: (value) {
-                if (value == null) {
-                  return;
-                }
-                setState(() {
-                  _printAutoSpacing = value;
-                });
-              },
-              onOrientationChanged: (value) {
-                if (value == null) {
-                  return;
-                }
-                setState(() {
-                  _printOrientation = value;
-                });
-              },
-              onSelectPrinter: _handleSelectPrinter,
-              onIssue: () => unawaited(_handleIssuePrintSettings()),
-              onApply: () => unawaited(_handleApplyPrintSettings()),
-              onClose: _closePrintSettingsDialog,
-            ),
+    return BlockingModelessDialog(
+      child: BlockingModelessDialogFrame(
+        title: '프린터 설정',
+        width: 526,
+        height: 236,
+        closeIcon: const _PrintDialogCloseIcon(),
+        onClose: _closePrintSettingsDialog,
+        child: _ClosedLoopDialogFocus(
+          child: _LabelSheetPrintSettingsDialog(
+            leftMarginController: _printLeftMarginController,
+            topMarginController: _printTopMarginController,
+            extraAreaController: _printExtraAreaController,
+            copiesController: _printCopiesController,
+            autoSpacing: _printAutoSpacing,
+            orientation: _printOrientation,
+            selectedPrinterName: _printSelectedPrinterName,
+            onAutoSpacingChanged: (value) {
+              if (value == null) {
+                return;
+              }
+              setState(() {
+                _printAutoSpacing = value;
+              });
+              _rebuildPrintSettingsDialog?.call();
+            },
+            onOrientationChanged: (value) {
+              if (value == null) {
+                return;
+              }
+              setState(() {
+                _printOrientation = value;
+              });
+              _rebuildPrintSettingsDialog?.call();
+            },
+            onSelectPrinter: _handleSelectPrinter,
+            onIssue: () => unawaited(_handleIssuePrintSettings()),
+            onApply: () => unawaited(_handleApplyPrintSettings()),
+            onClose: _closePrintSettingsDialog,
           ),
         ),
       ),
@@ -3451,6 +3485,7 @@ class _LabelSheetPrintSettingsDialog extends StatelessWidget {
                         ),
                         dropdownStyleData: DropdownStyleData(
                           maxHeight: 260,
+                          useRootNavigator: true,
                           decoration: BoxDecoration(
                             color: Colors.white,
                             borderRadius: BorderRadius.circular(2),

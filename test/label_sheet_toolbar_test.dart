@@ -954,6 +954,60 @@ void main() {
     await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
   });
 
+  testWidgets('label sheet print dialog blocks taps outside workbench', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    var outsideTapCount = 0;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Column(
+            children: [
+              SizedBox(
+                height: 72,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => outsideTapCount += 1,
+                  child: const Center(child: Text('outside workbench')),
+                ),
+              ),
+              Expanded(
+                child: LabelSheetWorkbench(
+                  initialWorkbook: FortuneWorkbook(
+                    sheets: [FortuneSheet(id: 's1', name: 'Label')],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    final printItem = tester
+        .widget<FortuneSheetApp>(find.byType(FortuneSheetApp))
+        .settings!
+        .customToolbarItems
+        .singleWhere((item) => item.key == labelSheetPrintToolbarCommand);
+    printItem.onClick!(printItem);
+    await tester.pump();
+    await tester.pump();
+
+    expect(
+      find.byKey(const ValueKey('label-sheet-print-settings-dialog')),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.text('outside workbench'), warnIfMissed: false);
+    await tester.pump();
+
+    expect(outsideTapCount, 0);
+  });
+
   testWidgets('label sheet save button is disabled after clear sheet', (
     tester,
   ) async {
