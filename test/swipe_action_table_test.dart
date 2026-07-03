@@ -1,3 +1,5 @@
+import 'dart:ui' show PointerDeviceKind;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:label_manager/widgets/swipe_action_table.dart';
@@ -14,6 +16,7 @@ Future<void> _pumpTable(
   required void Function(_Row row, int index) onNameDoubleTap,
   bool interactive = false,
   Widget? headerTrailing,
+  String? rowTooltip,
   void Function(_Row row, int index)? onRowSelected,
 }) async {
   await tester.pumpWidget(
@@ -26,6 +29,7 @@ Future<void> _pumpTable(
             rows: const [_Row('Brand A', 'A001')],
             autoFitColumns: false,
             isRowContentInteractive: (_, _) => interactive,
+            rowTooltip: rowTooltip,
             columns: [
               SwipeActionTableColumn<_Row>(
                 header: '브랜드 이름',
@@ -221,6 +225,59 @@ void main() {
 
     expect(selectedRow?.name, 'Brand A');
     expect(selectedIndex, 0);
+  });
+
+  testWidgets('row tooltip refreshes when message changes under cursor', (
+    tester,
+  ) async {
+    var tooltip = '행 드래그로 순서 변경, 컬럼 왼쪽 스와이프 수정/삽입/삭제';
+    late StateSetter updateState;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: StatefulBuilder(
+            builder: (context, setState) {
+              updateState = setState;
+              return SizedBox(
+                width: 360,
+                height: 160,
+                child: SwipeActionTable<_Row>(
+                  rows: const [_Row('Brand A', 'A001')],
+                  autoFitColumns: false,
+                  rowTooltip: tooltip,
+                  columns: [
+                    SwipeActionTableColumn<_Row>(
+                      header: '브랜드 이름',
+                      initialWidth: 160,
+                      text: (row) => row.name,
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+
+    final bodyPosition = tester.getCenter(find.text('Brand A'));
+    final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await gesture.addPointer(location: bodyPosition);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(find.text(tooltip), findsOneWidget);
+
+    updateState(() {
+      tooltip = '순서 변경 중에는 스와이프 수정/삽입/삭제를 사용할 수 없습니다';
+    });
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(find.text('순서 변경 중에는 스와이프 수정/삽입/삭제를 사용할 수 없습니다'), findsOneWidget);
+
+    await gesture.removePointer();
   });
 
   testWidgets('column double tap is ignored while row content is interactive', (

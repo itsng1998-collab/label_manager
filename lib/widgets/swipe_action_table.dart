@@ -1129,6 +1129,7 @@ class _TableBodyTooltipState extends State<_TableBodyTooltip> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.message != widget.message) {
       _hideTooltip();
+      _scheduleTooltip();
     }
   }
 
@@ -1205,6 +1206,7 @@ class _TableBodyTooltipState extends State<_TableBodyTooltip> {
     }
     _cursorGlobalPosition = event.position;
     _entry?.markNeedsBuild();
+    _scheduleTooltip();
   }
 
   bool _isWithinVisibleBody(Offset localPosition) {
