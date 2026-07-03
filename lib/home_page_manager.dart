@@ -2459,28 +2459,43 @@ class _LabelScaleInlineControl extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    const controlSize = 20.0;
     return Tooltip(
       message: '전자저울 사용',
       child: Padding(
         padding: const EdgeInsets.only(right: 3),
         child: DecoratedBox(
           decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(3),
-            border: Border.all(color: const Color(0xFF0E2F66)),
+            color: const Color(0xFFF2F4F7),
+            borderRadius: BorderRadius.circular(4),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x22000000),
+                blurRadius: 3,
+                offset: Offset(0, 1),
+              ),
+              BoxShadow(
+                color: Color(0xCCFFFFFF),
+                blurRadius: 1,
+                offset: Offset(0, -1),
+              ),
+            ],
           ),
           child: SizedBox(
-            height: 22,
+            height: 24,
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 const Padding(
-                  padding: EdgeInsets.only(left: 4),
-                  child: _ScaleIcon(size: 16),
+                  padding: EdgeInsets.only(left: 3),
+                  child: SizedBox.square(
+                    dimension: controlSize,
+                    child: Center(child: _ScaleIcon(size: controlSize)),
+                  ),
                 ),
                 SizedBox(
-                  width: 22,
-                  height: 22,
+                  width: controlSize,
+                  height: controlSize,
                   child: Checkbox(
                     value: value,
                     onChanged: onChanged,
@@ -2517,46 +2532,73 @@ class _ScaleIconPainter extends CustomPainter {
     final paint = Paint()
       ..color = const Color(0xFF0E2F66)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.5
+      ..strokeWidth = 1.8
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+    final detailPaint = Paint()
+      ..color = const Color(0xFF0E2F66)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.3
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round;
     final fill = Paint()
-      ..color = const Color(0x1A0E2F66)
+      ..color = const Color(0x220E2F66)
       ..style = PaintingStyle.fill;
 
+    final platform = RRect.fromRectAndRadius(
+      Rect.fromLTWH(
+        size.width * 0.24,
+        size.height * 0.16,
+        size.width * 0.52,
+        size.height * 0.16,
+      ),
+      Radius.circular(size.width * 0.04),
+    );
     final baseRect = RRect.fromRectAndRadius(
       Rect.fromLTWH(
-        size.width * 0.12,
-        size.height * 0.28,
-        size.width * 0.76,
-        size.height * 0.52,
+        size.width * 0.13,
+        size.height * 0.32,
+        size.width * 0.74,
+        size.height * 0.46,
       ),
-      Radius.circular(size.width * 0.12),
+      Radius.circular(size.width * 0.1),
     );
+    canvas.drawRRect(platform, fill);
+    canvas.drawRRect(platform, paint);
     canvas.drawRRect(baseRect, fill);
     canvas.drawRRect(baseRect, paint);
 
-    final dialCenter = Offset(size.width * 0.5, size.height * 0.47);
+    final dialCenter = Offset(size.width * 0.5, size.height * 0.53);
     canvas.drawArc(
       Rect.fromCenter(
         center: dialCenter,
-        width: size.width * 0.38,
-        height: size.height * 0.28,
+        width: size.width * 0.42,
+        height: size.height * 0.3,
       ),
       pi,
       pi,
       false,
-      paint,
+      detailPaint,
     );
     canvas.drawLine(
       dialCenter,
-      Offset(size.width * 0.6, size.height * 0.38),
+      Offset(size.width * 0.61, size.height * 0.43),
+      detailPaint,
+    );
+    canvas.drawCircle(
+      dialCenter,
+      1.1,
+      Paint()..color = const Color(0xFF0E2F66),
+    );
+    canvas.drawLine(
+      Offset(size.width * 0.28, size.height * 0.82),
+      Offset(size.width * 0.72, size.height * 0.82),
       paint,
     );
     canvas.drawLine(
-      Offset(size.width * 0.25, size.height * 0.8),
-      Offset(size.width * 0.75, size.height * 0.8),
-      paint,
+      Offset(size.width * 0.28, size.height * 0.88),
+      Offset(size.width * 0.72, size.height * 0.88),
+      detailPaint,
     );
   }
 

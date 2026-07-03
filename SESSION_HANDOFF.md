@@ -27,6 +27,13 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-03): 라벨 설정 전자저울 UI 시각 조정
+
+목적: 라벨 설정 인라인 전자저울 UI의 아이콘 가독성을 높이고, 전체 아웃라인을 제거한 회색 기반의 약한 돌출/그림자 형태로 변경한다. 전자저울 아이콘 이미지 영역과 체크박스 영역 크기를 같게 맞춘다.
+- `lib/home_page_manager.dart`: `_LabelScaleInlineControl`의 남색 외곽선을 제거하고 `0xFFF2F4F7` 회색 배경 + 약한 그림자/상단 하이라이트로 돌출감을 부여. 아이콘 슬롯과 체크박스 슬롯을 모두 `20x20`으로 맞춤. `_ScaleIconPainter`는 플랫폼/본체/계기판/바닥선을 더 굵고 명확하게 다시 그려 20px에서도 식별되도록 조정.
+- 검증 완료: `C:\Flutter\bin\dart.bat format lib\home_page_manager.dart` 성공, `flutter test test/swipe_action_table_test.dart` 19개 성공, `C:\Flutter\bin\flutter.bat analyze lib\home_page_manager.dart test\swipe_action_table_test.dart --no-fatal-warnings --no-fatal-infos` No issues.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `lib/home_page_manager.dart`.
+
 ### 완료 (2026-07-03): 라벨 설정 인라인 전자저울 UI 추가
 
 목적: 라벨 설정 다이얼로그에서만 인라인 이름 편집 셀의 엔터 아이콘 버튼 바로 뒤에 전자저울 아이콘+체크박스 UI를 삽입한다. 체크박스 초기값은 `labelSize.labelSizeSetup.useScale`을 따른다. 사용자 확인 완료: 체크 변경 가능, 아이콘은 파일 생성 없이 코드 생성 위젯으로 구현하고 기존 수정/삽입/삭제 버튼 색감과 어울리게 배치.
