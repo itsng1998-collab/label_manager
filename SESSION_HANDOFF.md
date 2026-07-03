@@ -36,6 +36,7 @@
   - 검증 완료: `C:\Flutter\bin\flutter.bat test test/label_sheet_xlsx_import_test.dart` 3개 성공. 테스트 로그에서 `G3=#BARCODE` 및 `skipped value border samples` 확인.
   - 검증 완료: `C:\Flutter\bin\flutter.bat analyze lib/page_label_sheet/label_sheet_workbench.dart lib/page_label_sheet/label_sheet_xlsx_import.dart test/label_sheet_xlsx_import_test.dart --no-fatal-warnings --no-fatal-infos` 성공.
   - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/page_label_sheet/label_sheet_xlsx_import.dart`, `test/label_sheet_xlsx_import_test.dart` (`lib/core/app.dart` 기존 dirty 제외).
+  - 커밋: `4d6e7a4` (`XLSX 바코드 자리표시자 테두리 제외`).
 
 - **완료**: XLSX 배경 있는 빈 셀 border 제외 보정.
   - 최신 로그 `.tmp/log/app_2026-07-03_11-52-20.log`: 새 코드가 로드됐지만 `borders=2365`, `skipped blank border samples=-`로 확인됨. 원인은 빈 셀에도 `bg=#ffffffff`가 있어 `_shouldImportXlsxCellBorders`의 `cellJson.containsKey('bg')` 조건 때문에 border import 대상으로 남은 것.
