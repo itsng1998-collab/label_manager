@@ -986,15 +986,13 @@ void _logImportedSheetApplySample(FortuneSheet sheet) {
     'columnBoundariesCounted=${_labelSheetAxisBoundarySampleForCount(sheet.columnWidths, sheet.columnCount, sheet.defaultColWidth)}',
     skipFrames: 1,
   );
-  debugLog(
-    'label sheet import apply merge sizes '
-    '${_labelSheetMergeSizeSample(sheet)}',
-    skipFrames: 1,
+  _logLabelSheetChunks(
+    'label sheet import apply merge sizes',
+    _labelSheetMergeSizeSamples(sheet),
   );
-  debugLog(
-    'label sheet import apply text layout '
-    '${_labelSheetTextLayoutSample(sheet)}',
-    skipFrames: 1,
+  _logLabelSheetChunks(
+    'label sheet import apply text layout',
+    _labelSheetTextLayoutSamples(sheet),
   );
   debugLog(
     'label sheet import apply scale '
@@ -1070,7 +1068,7 @@ String _labelSheetAxisBoundarySampleForCount(
   return samples.join('|');
 }
 
-String _labelSheetMergeSizeSample(FortuneSheet sheet, {int limit = 40}) {
+List<String> _labelSheetMergeSizeSamples(FortuneSheet sheet, {int limit = 40}) {
   final samples = <String>[];
   final entries = sheet.cells.entries.toList()
     ..sort((left, right) {
@@ -1106,10 +1104,10 @@ String _labelSheetMergeSizeSample(FortuneSheet sheet, {int limit = 40}) {
       break;
     }
   }
-  return samples.isEmpty ? '-' : samples.join(' | ');
+  return samples.isEmpty ? const <String>['-'] : samples;
 }
 
-String _labelSheetTextLayoutSample(FortuneSheet sheet, {int limit = 40}) {
+List<String> _labelSheetTextLayoutSamples(FortuneSheet sheet, {int limit = 40}) {
   final samples = <String>[];
   final entries = sheet.cells.entries.toList()
     ..sort((left, right) {
@@ -1159,7 +1157,40 @@ String _labelSheetTextLayoutSample(FortuneSheet sheet, {int limit = 40}) {
       break;
     }
   }
-  return samples.isEmpty ? '-' : samples.join(' | ');
+  return samples.isEmpty ? const <String>['-'] : samples;
+}
+
+void _logLabelSheetChunks(String prefix, List<String> samples) {
+  const maxChunkLength = 1200;
+  var chunk = StringBuffer();
+  var chunkIndex = 1;
+  var sampleIndex = 0;
+  void flush() {
+    if (chunk.isEmpty) {
+      return;
+    }
+    debugLog(
+      '$prefix chunk=$chunkIndex sampleStart=$sampleIndex ${chunk.toString()}',
+      skipFrames: 1,
+    );
+    chunk = StringBuffer();
+    chunkIndex += 1;
+  }
+
+  for (var index = 0; index < samples.length; index += 1) {
+    final sample = samples[index];
+    final next = chunk.isEmpty ? sample : ' | $sample';
+    if (chunk.isNotEmpty && chunk.length + next.length > maxChunkLength) {
+      flush();
+      sampleIndex = index;
+    }
+    if (chunk.isEmpty) {
+      chunk.write(sample);
+    } else {
+      chunk.write(next);
+    }
+  }
+  flush();
 }
 
 double _labelSheetAxisRangeLogicalSize(

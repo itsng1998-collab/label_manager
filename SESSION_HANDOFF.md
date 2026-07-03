@@ -29,6 +29,15 @@
 
 ### 최근 완료 (2026-07-03)
 
+- **완료**: XLSX 원본/변환본 최신 재비교 및 긴 진단 로그 chunk 분할 보강.
+  - 최신 로그 `.tmp/log/app_2026-07-03_11-07-22.log`: 원본 XLSX 축은 `1118.0x823.3333333131001 logical`, 적용 후 `405.1811023622046x300.7716535361378 logical`, 100mm 기준 폭 초과 `27.228346456692805 logical` / `7.204166666666637mm`. 최종 스케일은 `readableScale=0.35433070866141736`로 최소 가독 기준이 폭 맞춤보다 우선 적용됨.
+  - 최신 `label sheet import apply text layout`: 적용 후 주요 셀 fontSize가 `10.393700787401576`, 예: `A1` logical `53.0236220472441x17.062992125582678`, `C1` logical `152.40157480314963x17.062992125582678`, `A3/H3` black header 영역 logical 약 `205.425/199.756 x 20.843`.
+  - 첨부 비교 판단: 값/병합/축 구조는 유지되지만, 원본 50% 캡처와 변환본 100x100mm 화면 사이에 글자 크기·행 높이·폭 기준이 다르게 보임. 현재 변환본은 최소 가독 정책 때문에 실제 100mm 폭을 약 7.2mm 초과하는 상태.
+  - `lib/page_label_sheet/label_sheet_workbench.dart`: `merge sizes`, `text layout` 진단 로그가 한 줄에서 잘리지 않도록 `_logLabelSheetChunks`로 chunk 단위 분할 기록하도록 변경.
+  - 검증 완료: `C:\Flutter\bin\flutter.bat test test/label_sheet_xlsx_import_test.dart` 3개 성공.
+  - 검증 완료: `C:\Flutter\bin\flutter.bat analyze lib/page_label_sheet/label_sheet_workbench.dart lib/page_label_sheet/label_sheet_xlsx_import.dart --no-fatal-warnings --no-fatal-infos` 성공.
+  - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/page_label_sheet/label_sheet_workbench.dart` (`lib/core/app.dart` 기존 dirty 제외).
+
 - **완료**: XLSX 원본/변환본 재비교 결과 분석 및 텍스트 레이아웃 진단 로그 보강.
   - 최신 로그 `.tmp/log/app_2026-07-03_11-01-47.log`: 원본 XLSX 전체 폭 `1118.0 logical`, 100mm 라벨 폭 목표 `377.9527559055118`, widthScale `0.32966735136368824`, readabilityScale `0.35433070866141736`, 최종 폭 `405.1811023622046 logical`로 100mm를 약 7.2mm 초과. 이는 최소 가독 2.5mm 정책 때문에 폭 맞춤보다 글자 가독 기준이 우선 적용된 결과.
   - 첨부 비교 판단: 값/병합/행열 구조는 유지되지만, 변환본은 원본 대비 실제 표시 폭/텍스트 크기/줄맞춤이 다르게 보임. 화면 캡처 배율도 원본 50%, 변환본 100x100 라벨 화면이라 픽셀 직접 비교는 불가.
