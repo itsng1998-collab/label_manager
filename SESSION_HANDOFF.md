@@ -36,6 +36,7 @@
   - 검증 완료: `C:\Flutter\bin\flutter.bat test test/label_sheet_xlsx_import_test.dart` 3개 성공.
   - 검증 완료: `C:\Flutter\bin\flutter.bat analyze lib/page_label_sheet/label_sheet_workbench.dart lib/page_label_sheet/label_sheet_xlsx_import.dart test/label_sheet_xlsx_import_test.dart --no-fatal-warnings --no-fatal-infos` 성공.
   - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/page_label_sheet/label_sheet_xlsx_import.dart` (`lib/core/app.dart` 기존 dirty 제외).
+  - 기능 커밋: `c724acb` (`XLSX 영양정보 헤더 경계선 보정`).
   - 다음 재가져오기 확인 포인트: 최신 앱 로그에서 `C24 right`, `D24 left`, `C26 right`, `D26 left`는 `style=13/stroke=2.0`, `C28/D28` 같은 본문 내부 세로선은 `style=1/stroke=1.0`이어야 함.
 
 - **완료**: XLSX 영양정보 표 남은 테두리 차이 보정 및 조정 로그 추가.
