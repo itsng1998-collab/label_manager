@@ -29,6 +29,18 @@
 
 ### 최근 완료 (2026-07-03)
 
+- **완료**: XLSX 가져오기 시 물리 라벨 폭 기준 스케일 적용 및 최소 가독 문자 크기 보정.
+  - 사용자 요구: 변환 시 현재 물리 라벨 크기에 맞게 스케일 조정. 폭 우선이며, 높이는 폭 대비 비율로 따라감. 폭 기준 축소 후 문자가 읽기 어려울 정도로 작아지면 최소 가독 문자 크기를 기준으로 다시 키우고, 이때 인쇄 영역 초과 허용.
+  - 최신 로그 `.tmp/log/app_2026-07-03_10-22-42.log`: `currentGridWidthMm=100 currentGridHeightMm=100`, 변환 전 `logicalSize=1118.0x823.3333333131001`, 물리 `100x100mm` 기준 `logicalPerMm=11.1800x8.2333`.
+  - 수정 예정 파일: `lib/page_label_sheet/label_sheet_workbench.dart`, `SESSION_HANDOFF.md`.
+  - 구현 방향: import apply 전 현재 물리 라벨의 logical width에 맞춰 행/열/폰트 크기를 동일 배율로 조정. 최종 폰트가 최소 가독 크기보다 작으면 최소 폰트 기준 배율로 완화.
+  - `lib/page_label_sheet/label_sheet_workbench.dart`: XLSX import 적용 전 `_labelSheetScaledToPhysicalWidth` 경로 추가. `.lms` 가져오기는 기존 보존 동작 유지.
+  - 스케일 정책: 현재 물리 라벨의 logical width를 기준으로 widthScale 산출, 행/열/셀 fontSize/inline run fontSize/letterSpacing을 동일 배율 적용. 최소 폰트가 8 logical px 미만이 될 경우 readableScale로 배율을 키워 인쇄 영역 초과를 허용.
+  - 로그 추가: `label sheet import physical scale`에 source/target logical size, widthScale, readableScale, final scale, minFontSize, scaledLogical, overflowWidth 기록. apply 로그에 `scaleToPhysicalWidth` 기록.
+  - 검증 완료: `C:\Flutter\bin\flutter.bat analyze lib/page_label_sheet/label_sheet_workbench.dart lib/page_label_sheet/label_sheet_xlsx_import.dart --no-fatal-warnings --no-fatal-infos` 성공.
+  - 검증 완료: `C:\Flutter\bin\flutter.bat test test/label_sheet_xlsx_import_test.dart` 3개 성공.
+  - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/page_label_sheet/label_sheet_workbench.dart` (`.vscode/settings.json`, `lib/core/app.dart` 기존 dirty 제외).
+
 - **완료**: XLSX 원본 대비 변환본 시각 차이 재확인 및 치수 진단 로그 보강.
   - 첨부 비교 기준: 값/줄바꿈은 살아 있으나 변환본의 하단 영양정보 영역 행 높이/전체 세로 배치가 원본과 다르게 보임.
   - 최신 로그 `.tmp/log/app_2026-07-03_10-14-35.log`: 값/병합/줄바꿈은 apply 단계까지 유지. `zoomRatio=1.0`, `columnLogicalWidth=1118.0`, `rowLogicalHeight=823.3333333131001`, `gridWidthMm=80`, `gridHeightMm=60`.

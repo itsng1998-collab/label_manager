@@ -38,6 +38,7 @@ const int labelSheetMaxZoomPercent = 400;
 const String _labelSheetCopilotTokenPrefsKey = 'label_sheet_copilot_token';
 const String _labelSheetCopilotModelPrefsKey = 'label_sheet_copilot_model';
 const String _labelFileDirectoryPrefsKey = 'label_file_directory';
+const double _labelSheetImportMinReadableFontSize = 8.0;
 
 const List<String> labelSheetToolbarItems = [
   labelSheetSaveToolbarCommand,
@@ -713,6 +714,188 @@ FortuneSheet _labelSheetWithPreservedGridClientSize(
       fortuneSheetGridClientHeightMmKey: currentSize.heightMm,
     },
   );
+}
+
+FortuneSheet _labelSheetScaledToPhysicalWidth(
+  FortuneSheet sheet, {
+  required FortuneSheet currentSheet,
+}) {
+  final physicalSize =
+      fortuneSheetGridClientPhysicalSize(sheet) ??
+      fortuneSheetGridClientPhysicalSize(currentSheet);
+  if (physicalSize == null) {
+    return sheet.copyWith();
+  }
+  final sourceWidth = _labelSheetAxisLogicalTotalSizeForCount(
+    sheet.columnWidths,
+    sheet.columnCount,
+    sheet.defaultColWidth,
+  );
+  final sourceHeight = _labelSheetAxisLogicalTotalSizeForCount(
+    sheet.rowHeights,
+    sheet.rowCount,
+    sheet.defaultRowHeight,
+  );
+  if (sourceWidth <= 0 || sourceHeight <= 0) {
+    return sheet.copyWith();
+  }
+  final targetWidth = physicalSize.logicalSize.width;
+  final widthScale = _labelSheetAxisScaleForTarget(
+    sourceWidth,
+    targetWidth,
+    sheet.columnCount,
+  );
+  final minFontSize = _labelSheetMinimumFontSize(sheet);
+  final readableScale = minFontSize == null || minFontSize <= 0
+      ? widthScale
+      : _labelSheetImportMinReadableFontSize / minFontSize;
+  final scale = math.max(widthScale, readableScale);
+  final scaledSheet = _labelSheetScaleSheet(sheet, scale);
+  final scaledWidth = _labelSheetAxisLogicalTotalSizeForCount(
+    scaledSheet.columnWidths,
+    scaledSheet.columnCount,
+    scaledSheet.defaultColWidth,
+  );
+  final scaledHeight = _labelSheetAxisLogicalTotalSizeForCount(
+    scaledSheet.rowHeights,
+    scaledSheet.rowCount,
+    scaledSheet.defaultRowHeight,
+  );
+  debugLog(
+    'label sheet import physical scale '
+    'sourceLogical=${sourceWidth}x$sourceHeight '
+    'targetWidth=$targetWidth physicalSizeMm=${physicalSize.widthMm}x${physicalSize.heightMm} '
+    'widthScale=$widthScale readableScale=$readableScale scale=$scale '
+    'minFontSize=$minFontSize minReadable=$_labelSheetImportMinReadableFontSize '
+    'scaledLogical=${scaledWidth}x$scaledHeight overflowWidth=${scaledWidth > targetWidth}',
+    skipFrames: 1,
+  );
+  return scaledSheet;
+}
+
+FortuneSheet _labelSheetScaleSheet(FortuneSheet sheet, double scale) {
+  if (!scale.isFinite || scale <= 0) {
+    return sheet.copyWith();
+  }
+  return sheet.copyWith(
+    rowHeights: _labelSheetScaleAxis(sheet.rowHeights, scale),
+    columnWidths: _labelSheetScaleAxis(sheet.columnWidths, scale),
+    defaultRowHeight: _labelSheetScaleNullable(sheet.defaultRowHeight, scale),
+    defaultColWidth: _labelSheetScaleNullable(sheet.defaultColWidth, scale),
+    cells: {
+      for (final entry in sheet.cells.entries)
+        entry.key: _labelSheetScaleCell(entry.value, scale),
+    },
+  );
+}
+
+Map<int, double> _labelSheetScaleAxis(Map<int, double> values, double scale) {
+  return {
+    for (final entry in values.entries)
+      entry.key: math.max(1.0, entry.value * scale),
+  };
+}
+
+double? _labelSheetScaleNullable(double? value, double scale) {
+  if (value == null) {
+    return null;
+  }
+  return math.max(1.0, value * scale);
+}
+
+FortuneCell _labelSheetScaleCell(FortuneCell cell, double scale) {
+  return cell.copyWith(
+    fontSize: _labelSheetScaleNullable(cell.fontSize, scale),
+    inlineRuns: cell.inlineRuns
+        ?.map((run) => _labelSheetScaleInlineRun(run, scale))
+        .toList(),
+    extraFields: _labelSheetScaleTextExtraFields(cell.extraFields, scale),
+  );
+}
+
+FortuneInlineTextRun _labelSheetScaleInlineRun(
+  FortuneInlineTextRun run,
+  double scale,
+) {
+  return run.copyWith(
+    fontSize: _labelSheetScaleNullable(run.fontSize, scale),
+    extraFields: _labelSheetScaleTextExtraFields(run.extraFields, scale),
+  );
+}
+
+Map<String, Object?> _labelSheetScaleTextExtraFields(
+  Map<String, Object?> values,
+  double scale,
+) {
+  final scaled = <String, Object?>{...values};
+  final letterSpacing = _labelSheetNumber(values['letterSpacing']);
+  if (letterSpacing != null) {
+    scaled['letterSpacing'] = letterSpacing * scale;
+  }
+  return scaled;
+}
+
+double? _labelSheetNumber(Object? value) {
+  if (value is num) {
+    return value.toDouble();
+  }
+  return double.tryParse('$value');
+}
+
+double? _labelSheetMinimumFontSize(FortuneSheet sheet) {
+  double? minFontSize;
+  void add(double? value) {
+    if (value == null || !value.isFinite || value <= 0) {
+      return;
+    }
+    minFontSize = minFontSize == null ? value : math.min(minFontSize!, value);
+  }
+
+  for (final cell in sheet.cells.values) {
+    add(cell.fontSize);
+    for (final run in cell.inlineRuns ?? const <FortuneInlineTextRun>[]) {
+      add(run.fontSize);
+    }
+  }
+  return minFontSize;
+}
+
+double _labelSheetAxisLogicalTotalSizeForCount(
+  Map<int, double> sizes,
+  int? count,
+  double? defaultSize,
+) {
+  final resolvedCount = count ?? _labelSheetAxisCount(sizes);
+  if (resolvedCount <= 0) {
+    return _labelSheetAxisLogicalTotalSize(sizes);
+  }
+  final fallback = defaultSize ?? 0;
+  var total = 0.0;
+  for (var index = 0; index < resolvedCount; index += 1) {
+    total += (sizes[index] ?? fallback) + 1;
+  }
+  return total;
+}
+
+double _labelSheetAxisScaleForTarget(
+  double sourceTotal,
+  double targetTotal,
+  int? count,
+) {
+  if (sourceTotal <= 0 || targetTotal <= 0) {
+    return 1;
+  }
+  final gridLineCount = math.max(0, count ?? 0);
+  final sourceContent = math.max(1.0, sourceTotal - gridLineCount);
+  final targetContent = math.max(1.0, targetTotal - gridLineCount);
+  return targetContent / sourceContent;
+}
+
+int _labelSheetAxisCount(Map<int, double> sizes) {
+  if (sizes.isEmpty) {
+    return 0;
+  }
+  return sizes.keys.reduce(math.max) + 1;
 }
 
 void _logImportedSheetApplySample(FortuneSheet sheet) {
@@ -1869,12 +2052,17 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
         await prefs.setString(_labelFileDirectoryPrefsKey, directory);
       }
     }
+    final importExtension = (p.extension(file.path).isNotEmpty
+            ? p.extension(file.path)
+            : p.extension(file.name))
+        .toLowerCase();
+    final scaleToPhysicalWidth = importExtension == '.xlsx';
     final currentSheet = _currentWorkbookForLabelFile().activeSheet;
     final rawImportedGridSize = fortuneSheetGridClientPhysicalSize(
       importedWorkbook.activeSheet,
     );
     final currentGridSize = fortuneSheetGridClientPhysicalSize(currentSheet);
-    final importedSheet = _labelSheetWithPreservedGridClientSize(
+    final sizedImportedSheet = _labelSheetWithPreservedGridClientSize(
       importedWorkbook.activeSheet.copyWith(
         id: currentSheet.id,
         name: currentSheet.name,
@@ -1885,11 +2073,18 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       ),
       currentSheet,
     );
+    final importedSheet = scaleToPhysicalWidth
+        ? _labelSheetScaledToPhysicalWidth(
+            sizedImportedSheet,
+            currentSheet: currentSheet,
+          )
+        : sizedImportedSheet;
     final importedGridSize = fortuneSheetGridClientPhysicalSize(importedSheet);
     debugLog(
       'label sheet import apply sheet '
       'rows=${importedSheet.rowCount} columns=${importedSheet.columnCount} '
       'cells=${importedSheet.cells.length} '
+      'scaleToPhysicalWidth=$scaleToPhysicalWidth '
       'sourceGridWidthMm=${rawImportedGridSize?.widthMm} '
       'sourceGridHeightMm=${rawImportedGridSize?.heightMm} '
       'currentGridWidthMm=${currentGridSize?.widthMm} '
