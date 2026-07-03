@@ -37,6 +37,7 @@
   - 검증 완료: `C:\Flutter\bin\flutter.bat analyze lib/page_label_sheet/label_sheet_xlsx_import.dart test/label_sheet_xlsx_import_test.dart --no-fatal-warnings --no-fatal-infos` 성공.
   - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/page_label_sheet/label_sheet_xlsx_import.dart` (`lib/core/app.dart` 기존 dirty 제외).
   - 다음 재가져오기 확인 포인트: 최신 앱 로그 computed에서 `A12 left`, `A13 left`, `A30 left`, `A31 left`가 `style=13/stroke=2.0`로 나타나고 표 좌측 변이 상단부터 하단까지 연속되어야 함.
+  - 재검증 완료: `.tmp/log/app_2026-07-03_13-34-03.log`에서 `A12/A13/A30/A31 left=13`, `row6 top/style=13:20`(이전 `:2`), `row24 top/style=13:10`, `D6/O6/D24 top=13` 확인. 위/아래 영양정보 표가 상·하·좌·우 모두 닫힌 굵은 박스로 렌더됨. 커밋 `303bb04`.
 
 - **완료**: XLSX 영양정보 어두운 헤더 내부 경계선 재보정.
   - 사용자 재첨부 원본/변환본 및 최신 로그 `.tmp/log/app_2026-07-03_13-19-30.log` 확인: 새 코드가 로드되어 `C24/D24`, `C25/D25`, `C26/D26` 헤더 내부 경계가 `style=1/stroke=1.0`으로 낮아짐. 원본은 어두운 `영양정보 | 총내용량` 두 병합 블록 사이 경계가 굵게 남아야 하므로 이 부분이 남은 차이로 판단.
