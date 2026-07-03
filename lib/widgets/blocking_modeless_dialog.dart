@@ -33,10 +33,8 @@ class BlockingModelessDialog extends StatefulWidget {
 /// launched from those settings must use this helper instead.
 Future<T?> showBlockingModelessOverlayDialog<T>({
   required BuildContext context,
-  required Widget Function(
-    BuildContext context,
-    void Function(T? result) close,
-  ) builder,
+  required Widget Function(BuildContext context, void Function(T? result) close)
+  builder,
   Color barrierColor = const Color(0x8A000000),
 }) {
   final dialogId = ++_blockingModelessOverlayDialogSequence;
@@ -61,7 +59,9 @@ Future<T?> showBlockingModelessOverlayDialog<T>({
       entry.remove();
       debugLog('blockingOverlayDialog#$dialogId entry removed');
     } else {
-      debugLog('blockingOverlayDialog#$dialogId entry remove skipped mounted=false');
+      debugLog(
+        'blockingOverlayDialog#$dialogId entry remove skipped mounted=false',
+      );
     }
     completer.complete(result);
     debugLog('blockingOverlayDialog#$dialogId completed result=$result');
@@ -76,10 +76,7 @@ Future<T?> showBlockingModelessOverlayDialog<T>({
       return Stack(
         fit: StackFit.expand,
         children: [
-          ModalBarrier(
-            dismissible: false,
-            color: barrierColor,
-          ),
+          ModalBarrier(dismissible: false, color: barrierColor),
           Center(
             child: Material(
               type: MaterialType.transparency,
@@ -92,7 +89,9 @@ Future<T?> showBlockingModelessOverlayDialog<T>({
   );
   debugLog('blockingOverlayDialog#$dialogId insert start');
   overlay.insert(entry);
-  debugLog('blockingOverlayDialog#$dialogId insert done mounted=${entry.mounted}');
+  debugLog(
+    'blockingOverlayDialog#$dialogId insert done mounted=${entry.mounted}',
+  );
   return completer.future;
 }
 
@@ -100,9 +99,7 @@ class _BlockingModelessDialogState extends State<BlockingModelessDialog> {
   final FocusScopeNode _scopeNode = FocusScopeNode(
     debugLabel: 'BlockingModelessDialogScope',
   );
-  final FocusNode _focusNode = FocusNode(
-    debugLabel: 'BlockingModelessDialog',
-  );
+  final FocusNode _focusNode = FocusNode(debugLabel: 'BlockingModelessDialog');
 
   @override
   void initState() {
@@ -131,10 +128,7 @@ class _BlockingModelessDialogState extends State<BlockingModelessDialog> {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            ModalBarrier(
-              dismissible: false,
-              color: widget.barrierColor,
-            ),
+            ModalBarrier(dismissible: false, color: widget.barrierColor),
             widget.child,
           ],
         ),
@@ -143,6 +137,9 @@ class _BlockingModelessDialogState extends State<BlockingModelessDialog> {
   }
 
   KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
+    if (!node.hasPrimaryFocus) {
+      return KeyEventResult.ignored;
+    }
     return KeyEventResult.handled;
   }
 }
@@ -229,20 +226,14 @@ class _BlockingModelessDialogTitleBar extends StatelessWidget {
           Expanded(
             child: Text(
               title,
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-              ),
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
               overflow: TextOverflow.ellipsis,
             ),
           ),
           IconButton(
             tooltip: '닫기',
             padding: EdgeInsets.zero,
-            constraints: const BoxConstraints.tightFor(
-              width: 28,
-              height: 28,
-            ),
+            constraints: const BoxConstraints.tightFor(width: 28, height: 28),
             icon: closeIcon,
             onPressed: onClose,
           ),

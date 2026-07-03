@@ -68,7 +68,9 @@ void main() {
     expect(insideTapCount, 1);
   });
 
-  testWidgets('allows listener callbacks inside dialog content', (tester) async {
+  testWidgets('allows listener callbacks inside dialog content', (
+    tester,
+  ) async {
     var insidePointerDownCount = 0;
 
     await tester.pumpWidget(
@@ -113,9 +115,7 @@ void main() {
               valueListenable: notifier,
               builder: (context, value, _) => Text('outside $value'),
             ),
-            const BlockingModelessDialog(
-              child: Center(child: Text('dialog')),
-            ),
+            const BlockingModelessDialog(child: Center(child: Text('dialog'))),
           ],
         ),
       ),
@@ -186,11 +186,13 @@ void main() {
                       content: const Text('확인하시겠습니까?'),
                       actions: [
                         TextButton(
-                          onPressed: () => Navigator.of(dialogContext).pop(false),
+                          onPressed: () =>
+                              Navigator.of(dialogContext).pop(false),
                           child: const Text('취소'),
                         ),
                         TextButton(
-                          onPressed: () => Navigator.of(dialogContext).pop(true),
+                          onPressed: () =>
+                              Navigator.of(dialogContext).pop(true),
                           child: const Text('확인'),
                         ),
                       ],
@@ -231,22 +233,23 @@ void main() {
                   child: Center(
                     child: ElevatedButton(
                       onPressed: () async {
-                        final result = await showBlockingModelessOverlayDialog<bool>(
-                          context: overlayContext,
-                          builder: (dialogContext, close) => AlertDialog(
-                            content: const Text('오버레이 확인'),
-                            actions: [
-                              TextButton(
-                                onPressed: () => close(false),
-                                child: const Text('취소'),
+                        final result =
+                            await showBlockingModelessOverlayDialog<bool>(
+                              context: overlayContext,
+                              builder: (dialogContext, close) => AlertDialog(
+                                content: const Text('오버레이 확인'),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => close(false),
+                                    child: const Text('취소'),
+                                  ),
+                                  TextButton(
+                                    onPressed: () => close(true),
+                                    child: const Text('확인'),
+                                  ),
+                                ],
                               ),
-                              TextButton(
-                                onPressed: () => close(true),
-                                child: const Text('확인'),
-                              ),
-                            ],
-                          ),
-                        );
+                            );
                         confirmed = result == true;
                       },
                       child: const Text('open overlay alert'),
@@ -298,9 +301,7 @@ void main() {
               },
               child: const SizedBox.expand(),
             ),
-            const BlockingModelessDialog(
-              child: Center(child: Text('dialog')),
-            ),
+            const BlockingModelessDialog(child: Center(child: Text('dialog'))),
           ],
         ),
       ),
@@ -313,5 +314,35 @@ void main() {
     expect(outsideKeyCount, 0);
 
     outsideFocus.dispose();
+  });
+
+  testWidgets('allows keyboard text editing inside dialog content', (
+    tester,
+  ) async {
+    final controller = TextEditingController();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: BlockingModelessDialog(
+          child: Center(
+            child: Material(
+              child: SizedBox(
+                width: 220,
+                child: TextField(controller: controller, autofocus: true),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(find.byType(TextField));
+    await tester.enterText(find.byType(TextField), 'typing works');
+    await tester.pump();
+
+    expect(controller.text, 'typing works');
+
+    controller.dispose();
   });
 }

@@ -27,6 +27,15 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-03): 전자저울 체크박스 축소 및 모달리스 내부 키 입력 허용
+
+목적: 라벨 설정 전자저울 UI에서 체크박스 크기만 2px 줄인다. 인라인 에디터 키 입력 불가 원인으로 확인된 `BlockingModelessDialog`의 바깥 Focus 키 이벤트 소비를 수정해 다이얼로그 내부 TextField 입력을 허용한다.
+- `lib/home_page_manager.dart`: `_LabelScaleInlineControl` 체크박스 영역만 `16x16`에서 `14x14`로 축소. 아이콘/컨테이너/여백 크기는 유지.
+- `lib/widgets/blocking_modeless_dialog.dart`: wrapper Focus가 직접 primary focus를 가진 경우에만 키 이벤트를 소비하고, 내부 TextField 같은 자식 포커스가 있을 때는 `ignored`를 반환하도록 수정.
+- `test/blocking_modeless_dialog_test.dart`: 모달리스 내부 TextField 키 입력 허용 회귀 테스트 추가. 기존 뒤쪽 포커스 위젯 키 차단 테스트도 함께 유지.
+- 검증 완료: `C:\Flutter\bin\dart.bat format lib\home_page_manager.dart lib\widgets\blocking_modeless_dialog.dart test\blocking_modeless_dialog_test.dart` 성공, `flutter test test/blocking_modeless_dialog_test.dart test/swipe_action_table_test.dart` 29개 성공, `C:\Flutter\bin\flutter.bat analyze lib\home_page_manager.dart lib\widgets\blocking_modeless_dialog.dart lib\widgets\swipe_action_table.dart test\blocking_modeless_dialog_test.dart test\swipe_action_table_test.dart --no-fatal-warnings --no-fatal-infos` No issues.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `lib/home_page_manager.dart`, `lib/widgets/blocking_modeless_dialog.dart`, `test/blocking_modeless_dialog_test.dart`.
+
 ### 완료 (2026-07-03): 전자저울 UI 여백 축소 및 키 입력 재복구
 
 목적: 라벨 설정 인라인 에디터 안에서 엔터 버튼과 전자저울 UI 사이에 1~2px 여백을 두고, 그만큼 전자저울 UI(아이콘+체크박스)를 줄인다. 인라인 에디터의 실제 키 입력 불가 문제를 재복구한다.

@@ -2460,7 +2460,7 @@ class _LabelScaleInlineControl extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const controlSize = 18.0;
-    const checkboxSize = 16.0;
+    const checkboxSize = 14.0;
     return Tooltip(
       message: '전자저울 사용',
       child: Padding(
