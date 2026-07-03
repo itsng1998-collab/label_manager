@@ -252,7 +252,7 @@ Uint8List _xlsxBytes({
     <fill><patternFill patternType="solid"><fgColor rgb="FF00FF00"/></patternFill></fill>
   </fills>
   <borders count="5">
-    <border><left/><right/><top/><bottom/></border>
+    <border/>
     <border><left style="thin"><color rgb="FF0000FF"/></left><top style="medium"><color rgb="FFFF0000"/></top></border>
     <border><left style="thin"><color rgb="FF000000"/></left><top style="thin"><color rgb="FF000000"/></top></border>
     <border><left style="thin"><color rgb="FFD0D0D0"/></left><top style="thin"><color rgb="FFD0D0D0"/></top></border>

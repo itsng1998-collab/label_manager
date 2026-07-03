@@ -1560,8 +1560,11 @@ String? _extractElement(String xml, String tag) {
 }
 
 Iterable<String> _elementBodies(String xml, String tag) sync* {
+  // self-closing(<tag/>)을 여는 태그보다 먼저 매칭해야 한다. 여는 태그 대안을
+  // 앞에 두면 `[^>]*`가 self-closing의 `/`까지 삼켜 `<tag/>`를 여는 태그로 오인,
+  // 빈 요소(예: <border/>)를 건너뛰어 인덱스(borderId 등)가 밀린다.
   final pattern = RegExp(
-    '<$tag\\b[^>]*>(.*?)</$tag>|<$tag\\b[^>]*/>',
+    '<$tag\\b[^>]*/>|<$tag\\b[^>]*>(.*?)</$tag>',
     caseSensitive: false,
     dotAll: true,
   );
