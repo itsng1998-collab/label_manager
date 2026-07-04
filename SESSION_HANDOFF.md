@@ -27,6 +27,15 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-04): 브랜드 삭제 경로 레거시 구조 복원
+
+목적: `lib/home_page_manager.dart`의 브랜드 삭제가 레거시 `CBrandManagerDlg::OnBtnDeleteBrand()`와 같은 순서(`CLastConnectDAO::DeleteByBrandID` 후 `CBrandDAO::Delete`)로 동작하도록 수정한다.
+- `lib/home_page_manager.dart`: `last_connect.dart` import 추가. `_deleteBrand`에서 `LastConnectDAO.deleteByBrandId(brand.brandId)`를 `BrandDAO.deleteByBrandId(brand)`보다 먼저 호출하도록 변경.
+- `lib/models/brand.dart`: `BrandDAO.deleteByBrandId`를 레거시 `CBrandDAO::Delete`처럼 `BM_RICH_BRAND`에서 `RICH_BRAND_ID` 기준 단순 삭제하도록 변경. 기존 `RICH_BRAND_ORDER` 재정렬 트랜잭션 제거.
+- `lib/models/last_connect.dart`: `delete`/`deleteByBrandId`/`deleteByLabelSizeId`가 대상 행 없음(`affected=0`)을 실패로 보지 않도록 변경. 레거시 C++ `Execute(DELETE...)` 동작과 맞춤.
+- 검증 완료: `dart format` 3파일 성공, `C:\Flutter\bin\flutter.bat analyze lib\home_page_manager.dart lib\models\brand.dart lib\models\last_connect.dart --no-fatal-warnings --no-fatal-infos` No issues, `C:\Flutter\bin\flutter.bat test test\swipe_action_table_test.dart test\label_size_cache_test.dart` 21개 성공, `git diff --check -- SESSION_HANDOFF.md lib\home_page_manager.dart lib\models\brand.dart lib\models\last_connect.dart` 통과.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `lib/home_page_manager.dart`, `lib/models/brand.dart`, `lib/models/last_connect.dart`. 기존 dirty `lib/core/app.dart`는 제외.
+
 ### 완료 (2026-07-04): LastConnect 모델/DAO 구성
 
 목적: 레거시 `.tmp/LabelManager/LabelManagerLib/LastConnect.cpp/.h`의 `CLastConnect`/`CLastConnectDAO`를 Flutter 모델 계층에 추가한다.

@@ -194,44 +194,15 @@ class BrandDAO extends DAO {
     debugLog('$START, brandId:${brand.brandId}, customerId:${brand.customerId}, brandName:${brand.brandName}');
 
     try {
-      final deleteSql = '''
-        SET XACT_ABORT ON;
-        BEGIN TRY
-          CREATE TABLE #DeletedOrder (
-            BRAND_ORDER INT NOT NULL
-          );
-
-          BEGIN TRANSACTION;
-
-          DELETE FROM BM_RICH_BRAND
-          OUTPUT DELETED.RICH_BRAND_ORDER INTO #DeletedOrder
-           WHERE RICH_BRAND_ID=@brandId
-             AND RICH_CUSTOMER_ID=@customerId;
-
-          IF NOT EXISTS (SELECT 1 FROM #DeletedOrder)
-            THROW 51010, 'Delete brand failed.', 1;
-
-          UPDATE BM_RICH_BRAND
-             SET RICH_BRAND_ORDER = RICH_BRAND_ORDER - 1
-           WHERE RICH_CUSTOMER_ID=@customerId
-             AND RICH_BRAND_ORDER > (SELECT TOP 1 BRAND_ORDER FROM #DeletedOrder);
-
-          COMMIT TRANSACTION;
-          SET XACT_ABORT OFF;
-        END TRY
-        BEGIN CATCH
-          IF @@TRANCOUNT > 0
-            ROLLBACK TRANSACTION;
-          SET XACT_ABORT OFF;
-          THROW;
-        END CATCH
+      const deleteSql = '''
+        DELETE FROM BM_RICH_BRAND
+         WHERE RICH_BRAND_ID=@brandId
       ''';
 
       final res = await DbClient.instance.writeDataWithParams(
         deleteSql,
         {
           'brandId': brand.brandId,
-          'customerId': brand.customerId,
         },
       );
 

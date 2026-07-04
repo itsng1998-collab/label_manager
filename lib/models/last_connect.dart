@@ -157,7 +157,6 @@ class LastConnectDAO extends DAO {
       await _deleteByWhere(
         WhereSqlUserId,
         {'userId': userId},
-        'Delete failed for userId:$userId',
       );
       debugLog(END);
     } catch (e) {
@@ -173,7 +172,6 @@ class LastConnectDAO extends DAO {
       await _deleteByWhere(
         WhereSqlBrandId,
         {'brandId': brandId},
-        'Delete failed for brandId:$brandId',
       );
       debugLog(END);
     } catch (e) {
@@ -189,7 +187,6 @@ class LastConnectDAO extends DAO {
       await _deleteByWhere(
         WhereSqlLabelSizeId,
         {'labelSizeId': labelSizeId},
-        'Delete failed for labelSizeId:$labelSizeId',
       );
       debugLog(END);
     } catch (e) {
@@ -219,7 +216,6 @@ class LastConnectDAO extends DAO {
   static Future<void> _deleteByWhere(
     String whereSql,
     Map<String, Object?> params,
-    String failureMessage,
   ) async {
     final res = await DbClient.instance.writeDataWithParams(
       'DELETE FROM BM_RICH_LAST_ID $whereSql',
@@ -227,13 +223,9 @@ class LastConnectDAO extends DAO {
     );
 
     final affected = DAO.affectedRows(res);
-    final succeeded = affected > 0;
-    if (!succeeded) {
-      throw Exception('${runtimeLogTag()} $failureMessage');
-    }
 
     debugLog(
-      'BM_RICH_LAST_ID delete Result: $res, affected:$affected, succeeded:$succeeded',
+      'BM_RICH_LAST_ID delete Result: $res, affected:$affected',
     );
   }
 }
