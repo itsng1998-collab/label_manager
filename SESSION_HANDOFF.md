@@ -32,6 +32,7 @@
 목적: 최근 이미지/바코드 컨텍스트 메뉴, 레이어 패널, 단축키 semantics 변경 흐름이 FortuneSheet 테스트 기준으로 유지되는지 확인한다.
 - 검증 완료: `flutter test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart third_party\fortune_sheet\test\fortune_toolbar_icons_test.dart` 이미지/바코드 및 툴바 아이콘 묶음 통과(51개).
 - 검증 완료: `flutter test third_party\fortune_sheet\test\fortune_sheet_canvas_test.dart --plain-name "context menu rows expose upstream focusable semantics"` 통과.
+- 임시 산출물 정리: 테스트 실행으로 생긴 `third_party/fortune_sheet/build/` untracked 폴더 삭제 완료.
 - stage/commit 대상: `SESSION_HANDOFF.md`. 기존 unrelated dirty `lib/core/app.dart` 제외.
 
 ### 완료 (2026-07-04): 메인 앱 테스트 묶음 검증 확대
