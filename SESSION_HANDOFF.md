@@ -27,6 +27,14 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-04): 라벨 설정 브랜드 드롭다운 Overlay 직접 표시
+
+목적: `DropdownButton2`의 Navigator route 방식이 라벨 설정 OverlayEntry 다이얼로그와 충돌해 브랜드 메뉴가 여전히 정상 표시되지 않는 문제를 수정한다.
+- 변경: 라벨 설정 다이얼로그 브랜드 선택부를 `_ModelessDropdownField`로 교체했다. 클릭 시 root overlay에 메뉴 `OverlayEntry`를 직접 삽입해 현재 다이얼로그보다 앞에 표시한다.
+- 변경: 메뉴 열림/차단/선택/닫힘 디버깅 로그를 추가했다. 메뉴 위치는 버튼 rect와 화면 크기 기준으로 아래 또는 위에 배치한다.
+- 검증: `dart format lib/home_page_manager.dart`, `C:\Flutter\bin\flutter.bat analyze lib\home_page_manager.dart --no-fatal-warnings --no-fatal-infos` 통과, `C:\Flutter\bin\flutter.bat test test\swipe_action_table_test.dart test\label_size_cache_test.dart` 21개 통과, `git diff --check -- SESSION_HANDOFF.md lib\home_page_manager.dart` 통과.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `lib/home_page_manager.dart`. 기존 사용자 변경 `lib/core/app.dart`는 제외.
+
 ### 완료 (2026-07-04): 라벨 설정 브랜드 드롭다운 메뉴 표시 보정
 
 목적: 라벨 설정 다이얼로그의 브랜드 드롭다운을 클릭해도 헤더 브랜드 드롭다운과 같은 목록 메뉴가 정상 표시되지 않는 문제를 수정한다.

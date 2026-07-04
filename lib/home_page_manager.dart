@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:io' show Platform;
-import 'dart:math' show pi;
+import 'dart:math' show max, min, pi;
 
 import 'package:collection/collection.dart';
 import 'package:dropdown_button2/dropdown_button2.dart';
@@ -1798,6 +1798,261 @@ class _DropdownField<T> extends StatelessWidget {
   }
 }
 
+class _ModelessDropdownField<T> extends StatefulWidget {
+  const _ModelessDropdownField({
+    required this.label,
+    required this.value,
+    required this.items,
+    required this.debugLabel,
+    this.onChanged,
+    this.width = 170,
+    this.labelWidth = 80,
+  });
+
+  final String label;
+  final T? value;
+  final List<DropdownMenuItem<T>> items;
+  final ValueChanged<T?>? onChanged;
+  final String debugLabel;
+  final double width;
+  final double labelWidth;
+
+  @override
+  State<_ModelessDropdownField<T>> createState() =>
+      _ModelessDropdownFieldState<T>();
+}
+
+class _ModelessDropdownFieldState<T> extends State<_ModelessDropdownField<T>> {
+  final GlobalKey _buttonKey = GlobalKey();
+  OverlayEntry? _menuEntry;
+
+  bool get _enabled => widget.onChanged != null && widget.items.isNotEmpty;
+
+  DropdownMenuItem<T>? get _selectedItem {
+    for (final item in widget.items) {
+      if (item.value == widget.value) {
+        return item;
+      }
+    }
+    return null;
+  }
+
+  @override
+  void didUpdateWidget(covariant _ModelessDropdownField<T> oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!_enabled) {
+      _removeMenu('disabledByUpdate');
+    }
+  }
+
+  @override
+  void dispose() {
+    _removeMenu('dispose', rebuild: false);
+    super.dispose();
+  }
+
+  void _toggleMenu() {
+    if (!_enabled) {
+      debugLog(
+        '${widget.debugLabel} open blocked enabled=$_enabled items=${widget.items.length}',
+      );
+      return;
+    }
+    if (_menuEntry != null) {
+      _removeMenu('toggleClose');
+      return;
+    }
+    _showMenu();
+  }
+
+  void _showMenu() {
+    final buttonContext = _buttonKey.currentContext;
+    if (buttonContext == null) {
+      debugLog('${widget.debugLabel} open blocked missingButtonContext');
+      return;
+    }
+    final renderObject = buttonContext.findRenderObject();
+    if (renderObject is! RenderBox) {
+      debugLog(
+        '${widget.debugLabel} open blocked renderObject=${renderObject.runtimeType}',
+      );
+      return;
+    }
+
+    final overlay = Overlay.of(context, rootOverlay: true);
+    final buttonTopLeft = renderObject.localToGlobal(Offset.zero);
+    final buttonRect = buttonTopLeft & renderObject.size;
+    final screenSize = MediaQuery.sizeOf(context);
+    final itemHeight = lmSize(28);
+    final maxMenuHeight = min(itemHeight * widget.items.length, lmSize(220));
+    final belowTop = buttonRect.bottom + lmSize(2);
+    final aboveTop = buttonRect.top - maxMenuHeight - lmSize(2);
+    final menuTop = belowTop + maxMenuHeight <= screenSize.height
+        ? belowTop
+        : max(0.0, aboveTop);
+    final maxMenuLeft = max(0.0, screenSize.width - buttonRect.width);
+    final menuLeft = min(max(buttonRect.left, 0.0), maxMenuLeft);
+
+    debugLog(
+      '${widget.debugLabel} open items=${widget.items.length} '
+      'value=${widget.value} rect=$buttonRect top=$menuTop left=$menuLeft',
+    );
+
+    late final OverlayEntry entry;
+    entry = OverlayEntry(
+      builder: (overlayContext) => Stack(
+        fit: StackFit.expand,
+        children: [
+          Positioned.fill(
+            child: GestureDetector(
+              behavior: HitTestBehavior.translucent,
+              onTap: () => _removeMenu('outsideTap'),
+            ),
+          ),
+          Positioned(
+            left: menuLeft,
+            top: menuTop,
+            width: buttonRect.width,
+            child: Material(
+              color: Colors.white,
+              elevation: 8,
+              borderRadius: BorderRadius.circular(4),
+              clipBehavior: Clip.antiAlias,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxHeight: maxMenuHeight),
+                child: ListView.builder(
+                  padding: EdgeInsets.zero,
+                  shrinkWrap: true,
+                  itemCount: widget.items.length,
+                  itemBuilder: (context, index) {
+                    final item = widget.items[index];
+                    final selected = item.value == widget.value;
+                    return InkWell(
+                      onTap: item.enabled
+                          ? () {
+                              debugLog(
+                                '${widget.debugLabel} select index=$index value=${item.value}',
+                              );
+                              _removeMenu('select');
+                              widget.onChanged?.call(item.value);
+                            }
+                          : null,
+                      child: Container(
+                        height: itemHeight,
+                        color: selected
+                            ? const Color(0xFFE8F0FE)
+                            : Colors.transparent,
+                        padding: lmInsetsSymmetric(horizontal: 10),
+                        alignment: Alignment.centerLeft,
+                        child: DefaultTextStyle(
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: Colors.black,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                          child: item.child,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+    _menuEntry = entry;
+    overlay.insert(entry);
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  void _removeMenu(String reason, {bool rebuild = true}) {
+    final entry = _menuEntry;
+    if (entry == null) return;
+    debugLog('${widget.debugLabel} close reason=$reason mounted=${entry.mounted}');
+    _menuEntry = null;
+    if (entry.mounted) {
+      entry.remove();
+    }
+    if (mounted && rebuild) {
+      setState(() {});
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final selectedItem = _selectedItem;
+    final borderColor = _menuEntry != null
+        ? const Color(0xFF3B82F6)
+        : const Color(0xFFCED4DA);
+    final textOpacity = _enabled ? 1.0 : 0.55;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          width: lmSize(widget.labelWidth),
+          child: Text(
+            '${widget.label}:',
+            textAlign: TextAlign.right,
+            style: const TextStyle(fontSize: 13),
+          ),
+        ),
+        SizedBox(width: lmSize(6)),
+        SizedBox(
+          width: lmSize(widget.width),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              key: _buttonKey,
+              onTap: _enabled ? _toggleMenu : null,
+              borderRadius: BorderRadius.circular(4),
+              child: Container(
+                height: lmSize(28),
+                padding: lmInsetsSymmetric(horizontal: 8),
+                decoration: BoxDecoration(
+                  color: _enabled
+                      ? Colors.white
+                      : const Color(0xFFE9ECEF),
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(color: borderColor),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Opacity(
+                        opacity: textOpacity,
+                        child: DefaultTextStyle(
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: Colors.black,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                          child: selectedItem?.child ?? const SizedBox.shrink(),
+                        ),
+                      ),
+                    ),
+                    Icon(
+                      _menuEntry != null
+                          ? Icons.arrow_drop_up
+                          : Icons.arrow_drop_down,
+                      color: _enabled
+                          ? const Color(0xFF5F6368)
+                          : const Color(0xFF9AA0A6),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _PlaceholderTab extends StatelessWidget {
   final String title;
   const _PlaceholderTab({required this.title});
@@ -2001,12 +2256,12 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
     final enabled = _brandItems.isNotEmpty && !_hasLabelActionInProgress;
     return Row(
       children: [
-        _DropdownField<Brand>(
+        _ModelessDropdownField<Brand>(
           label: '브랜드',
           value: _selectedBrand,
           items: _brandItems,
           onChanged: enabled ? _handleBrandDropdownChanged : null,
-          useRootNavigator: false,
+          debugLabel: 'labelSettings.brandDropdown',
           width: 260,
           labelWidth: 54,
         ),
