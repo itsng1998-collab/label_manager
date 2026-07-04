@@ -24143,10 +24143,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         settings.effectiveFormulaBarHeight +
         settings.columnHeaderHeight +
         fortuneImageLayerPanelMargin;
-    for (final command in const <String>[
-      fortuneContextBringForwardCommand,
-      fortuneContextSendBackwardCommand,
-    ]) {
+    for (final command in fortuneImageLayerPanelActionCommands) {
       final rect = fortuneImageLayerPanelActionRect(
         size,
         items.length,
