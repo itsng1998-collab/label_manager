@@ -34,6 +34,7 @@
 - 변경: 메뉴 열림/차단/선택/닫힘 디버깅 로그를 추가했다. 메뉴 위치는 버튼 rect와 화면 크기 기준으로 아래 또는 위에 배치한다.
 - 검증: `dart format lib/home_page_manager.dart`, `C:\Flutter\bin\flutter.bat analyze lib\home_page_manager.dart --no-fatal-warnings --no-fatal-infos` 통과, `C:\Flutter\bin\flutter.bat test test\swipe_action_table_test.dart test\label_size_cache_test.dart` 21개 통과, `git diff --check -- SESSION_HANDOFF.md lib\home_page_manager.dart` 통과.
 - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/home_page_manager.dart`. 기존 사용자 변경 `lib/core/app.dart`는 제외.
+- 커밋: `14820aa` (`라벨 설정 브랜드 메뉴를 오버레이로 표시`).
 
 ### 완료 (2026-07-04): 라벨 설정 브랜드 드롭다운 메뉴 표시 보정
 
