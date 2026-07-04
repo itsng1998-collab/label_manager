@@ -27,6 +27,14 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-04): 라벨 설정 브랜드 드롭다운 메뉴 표시 보정
+
+목적: 라벨 설정 다이얼로그의 브랜드 드롭다운을 클릭해도 헤더 브랜드 드롭다운과 같은 목록 메뉴가 정상 표시되지 않는 문제를 수정한다.
+- 변경: `_DropdownField`에 `useRootNavigator` 옵션을 추가하고, 라벨 설정 다이얼로그의 브랜드 드롭다운은 `useRootNavigator: false`로 열리게 했다.
+- 변경: 라벨 설정 다이얼로그는 브랜드 목록을 내부 복사본으로 보관하지 않고 부모가 넘긴 헤더 브랜드 목록 `widget.brands`를 직접 사용한다.
+- 검증: `dart format lib/home_page_manager.dart`, `C:\Flutter\bin\flutter.bat analyze lib\home_page_manager.dart --no-fatal-warnings --no-fatal-infos` 통과, `C:\Flutter\bin\flutter.bat test test\swipe_action_table_test.dart test\label_size_cache_test.dart` 21개 통과, `git diff --check -- SESSION_HANDOFF.md lib\home_page_manager.dart` 통과.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `lib/home_page_manager.dart`. 기존 사용자 변경 `lib/core/app.dart`는 제외.
+
 ### 완료 (2026-07-04): 라벨 설정 브랜드 드롭다운 전체 목록 보정
 
 목적: 라벨 설정 다이얼로그의 브랜드 드롭다운이 헤더에서 선택된 브랜드 한 개만 보이는 문제를 수정하고, 헤더 브랜드 드롭다운과 같은 전체 브랜드 목록을 사용하게 한다.

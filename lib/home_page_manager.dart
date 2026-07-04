@@ -1716,6 +1716,7 @@ class _DropdownField<T> extends StatelessWidget {
   final List<DropdownMenuItem<T>> items;
   final ValueChanged<T?>? onChanged;
   final ValueChanged<bool>? onMenuStateChange;
+  final bool useRootNavigator;
   final double width;
   final double labelWidth;
 
@@ -1725,6 +1726,7 @@ class _DropdownField<T> extends StatelessWidget {
     required this.items,
     this.onChanged,
     this.onMenuStateChange,
+    this.useRootNavigator = true,
     this.width = 170,
     this.labelWidth = 80,
   });
@@ -1759,7 +1761,7 @@ class _DropdownField<T> extends StatelessWidget {
               padding: lmInsetsSymmetric(horizontal: 2),
             ),
             dropdownStyleData: DropdownStyleData(
-              useRootNavigator: true,
+              useRootNavigator: useRootNavigator,
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(4),
@@ -1839,7 +1841,6 @@ class _LabelSettingsDialog extends StatefulWidget {
 class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
   static const double _dialogWidth = 500;
 
-  late List<Brand> _brands;
   late List<LabelSize> _labels;
   late List<LabelSize> _originalLabels;
   final TextEditingController _labelNameEditController =
@@ -1860,7 +1861,6 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
   @override
   void initState() {
     super.initState();
-    _brands = List<Brand>.from(widget.brands);
     _labels = List<LabelSize>.from(widget.labels);
     _originalLabels = List<LabelSize>.from(widget.labels);
     _selectedBrandId = widget.selectedBrand?.brandId ?? widget.brandId;
@@ -1870,9 +1870,6 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
   @override
   void didUpdateWidget(covariant _LabelSettingsDialog oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!identical(oldWidget.brands, widget.brands)) {
-      _brands = List<Brand>.from(widget.brands);
-    }
     if (oldWidget.selectedBrand?.brandId != widget.selectedBrand?.brandId ||
         oldWidget.brandId != widget.brandId) {
       _selectedBrandId = widget.selectedBrand?.brandId ?? widget.brandId;
@@ -1926,7 +1923,7 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
   Brand? get _selectedBrand {
     final selectedBrandId = _selectedBrandId;
     if (selectedBrandId == null) return null;
-    for (final brand in _brands) {
+    for (final brand in widget.brands) {
       if (brand.brandId == selectedBrandId) {
         return brand;
       }
@@ -1934,7 +1931,7 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
     return null;
   }
 
-  List<DropdownMenuItem<Brand>> get _brandItems => _brands
+  List<DropdownMenuItem<Brand>> get _brandItems => widget.brands
       .map(
         (brand) => DropdownMenuItem<Brand>(
           value: brand,
@@ -2009,6 +2006,7 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
           value: _selectedBrand,
           items: _brandItems,
           onChanged: enabled ? _handleBrandDropdownChanged : null,
+          useRootNavigator: false,
           width: 260,
           labelWidth: 54,
         ),
