@@ -27,6 +27,23 @@
 
 ## 현재 상태
 
+### 진행 중 (2026-07-04): 이미지/바코드 선택 툴바 액션 상태와 tooltip 추가
+
+목적: 선택 이미지/바코드 floating toolbar도 레이어 패널과 동일하게 이동 경계에서 불가능한 명령을 비활성 표시/클릭 무시하고, hover 시 액션명과 단축키 힌트를 표시한다.
+- 변경 예정: `fortune_sheet_painter.dart`에 선택 툴바 액션 enabled/tooltip helper와 hover tooltip 렌더링을 추가한다.
+- 변경 예정: `fortune_sheet_canvas.dart`에 선택 툴바 hover command/tooltip position 상태와 disabled click 차단을 추가한다.
+- 변경: `fortune_sheet_painter.dart`에 `fortuneActiveImageToolbarItemEnabled`, 선택 툴바 hover tooltip field/렌더링/repaint 조건을 추가하고 비활성 액션 텍스트 색상을 흐리게 표시.
+- 변경: `fortune_sheet_canvas.dart`에 `_activeImageToolbarHoveredCommand`/`_activeImageToolbarTooltipPosition` 및 `_updateActiveImageToolbarHover`를 추가하고, 선택 툴바 disabled command 클릭을 무시하도록 연결.
+- 검증: `C:\Flutter\bin\flutter.bat analyze third_party\fortune_sheet\lib\src\fortune_sheet_canvas.dart third_party\fortune_sheet\lib\src\fortune_sheet_painter.dart --no-fatal-warnings --no-fatal-infos` 통과.
+- 테스트 추가: `fortune_barcode_dialog_test.dart`에 선택 툴바 enabled helper 보강과 선택 툴바 hover/disabled click widget test 추가.
+- 검증: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --plain-name "image layer panel action helpers expose shortcuts and boundaries"` 통과.
+- 검증: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --plain-name "image floating toolbar disabled action and hover tooltip"` 통과.
+- 검증: `C:\Flutter\bin\flutter.bat analyze third_party\fortune_sheet\lib\src\fortune_sheet_canvas.dart third_party\fortune_sheet\lib\src\fortune_sheet_painter.dart third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --no-fatal-warnings --no-fatal-infos` 통과.
+- 검증: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart` 통과(49 tests).
+- 검증: `git diff --check` 통과, VS Code 진단 `fortune_sheet_canvas.dart`/`fortune_sheet_painter.dart`/`fortune_barcode_dialog_test.dart` 오류 없음.
+- stage 예정: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`, `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`, `third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
+- 미검증: 커밋 필요.
+
 ### 완료 (2026-07-04): 이미지/바코드 레이어 패널 액션 hover tooltip 추가
 
 목적: 레이어 패널 header 액션 버튼 위에 마우스를 올리면 액션명과 단축키 힌트를 바로 볼 수 있게 한다.

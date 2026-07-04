@@ -2759,6 +2759,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   String? _imageLayerPanelRowDragImageId;
   int? _imageLayerPanelRowDragTargetIndex;
   double _imageLayerPanelRowDragStartY = 0;
+  String? _activeImageToolbarHoveredCommand;
+  Offset? _activeImageToolbarTooltipPosition;
   String? _imageLayerPanelHoveredActionCommand;
   Offset? _imageLayerPanelTooltipPosition;
   String? _lastImageLayerPanelRowDownId;
@@ -6817,6 +6819,17 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     if (activeImageToolbarCommand != null) {
       _commitEditing();
       _commitSheetRename();
+      if (!fortuneActiveImageToolbarItemEnabled(
+        _workbook.activeSheet.images,
+        _activeImageId,
+        activeImageToolbarCommand,
+      )) {
+        setState(() {
+          contextMenuAt = null;
+          _contextMenuImageId = null;
+        });
+        return;
+      }
       _activateContextMenuCommand(activeImageToolbarCommand);
       return;
     }
@@ -9553,6 +9566,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     if (_updateContextMenuHover(event.localPosition)) {
       return;
     }
+    if (_updateActiveImageToolbarHover(event.localPosition)) {
+      return;
+    }
     if (_updateImageLayerPanelActionHover(event.localPosition)) {
       return;
     }
@@ -9797,6 +9813,30 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       setState(() {
         _imageLayerPanelHoveredActionCommand = command;
         _imageLayerPanelTooltipPosition = local;
+        _mouseCursor = SystemMouseCursors.click;
+      });
+    }
+    return true;
+  }
+
+  bool _updateActiveImageToolbarHover(Offset local) {
+    final command = _activeImageToolbarCommandAt(local, _workbook.settings);
+    if (command == null) {
+      if (_activeImageToolbarHoveredCommand != null ||
+          _activeImageToolbarTooltipPosition != null) {
+        setState(() {
+          _activeImageToolbarHoveredCommand = null;
+          _activeImageToolbarTooltipPosition = null;
+        });
+      }
+      return false;
+    }
+    if (_activeImageToolbarHoveredCommand != command ||
+        _activeImageToolbarTooltipPosition != local ||
+        _mouseCursor != SystemMouseCursors.click) {
+      setState(() {
+        _activeImageToolbarHoveredCommand = command;
+        _activeImageToolbarTooltipPosition = local;
         _mouseCursor = SystemMouseCursors.click;
       });
     }
@@ -43886,6 +43926,10 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
                 hoveredColumnHeaderIndex: _hoveredColumnHeaderIndex,
                 hoveredRowHeaderIndex: _hoveredRowHeaderIndex,
                 activeImageId: _activeImageId,
+                activeImageToolbarHoveredCommand:
+                  _activeImageToolbarHoveredCommand,
+                activeImageToolbarTooltipPosition:
+                  _activeImageToolbarTooltipPosition,
                 imageLayerPanelOpen: _imageLayerPanelOpen,
                 imageLayerPanelScrollOffset: _imageLayerPanelScrollOffset,
                 imageLayerPanelDraggingImageId: _imageLayerPanelRowDragging

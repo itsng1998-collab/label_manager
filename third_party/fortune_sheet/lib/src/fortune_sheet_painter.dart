@@ -44306,6 +44306,19 @@ List<String> fortuneActiveImageToolbarItems(FortuneImage image) {
   ];
 }
 
+bool fortuneActiveImageToolbarItemEnabled(
+  List<FortuneImage> images,
+  String? activeImageId,
+  String command,
+) {
+  return switch (command) {
+    fortuneContextEditImageCommand ||
+    fortuneContextEditBarcodeCommand ||
+    fortuneContextToggleLayerPanelCommand => activeImageId != null,
+    _ => fortuneImageLayerPanelActionEnabled(images, activeImageId, command),
+  };
+}
+
 List<FortuneImage> fortuneImageLayerPanelItems(List<FortuneImage> images) {
   return fortuneImagesInPaintOrder(images).reversed.toList(growable: false);
 }
@@ -61676,6 +61689,8 @@ class FortuneSheetPainter extends CustomPainter {
     this.hoveredColumnHeaderIndex,
     this.hoveredRowHeaderIndex,
     this.activeImageId,
+    this.activeImageToolbarHoveredCommand,
+    this.activeImageToolbarTooltipPosition,
     this.imageLayerPanelOpen = false,
     this.imageLayerPanelScrollOffset = 0,
     this.imageLayerPanelDraggingImageId,
@@ -61887,6 +61902,8 @@ class FortuneSheetPainter extends CustomPainter {
   final int? hoveredColumnHeaderIndex;
   final int? hoveredRowHeaderIndex;
   final String? activeImageId;
+  final String? activeImageToolbarHoveredCommand;
+  final Offset? activeImageToolbarTooltipPosition;
   final bool imageLayerPanelOpen;
   final double imageLayerPanelScrollOffset;
   final String? imageLayerPanelDraggingImageId;
@@ -61969,6 +61986,7 @@ class FortuneSheetPainter extends CustomPainter {
     _drawFormulaSearchDialog(canvas, size);
     _drawFormulaSearchHint(canvas, size);
     _drawFormatSearchDialog(canvas, size);
+    _drawActiveImageToolbarTooltip(canvas, size);
     _drawImageLayerPanelActionTooltip(canvas, size);
   }
 
@@ -75992,6 +76010,11 @@ class FortuneSheetPainter extends CustomPainter {
     final itemWidth = toolbar.width / items.length;
     for (var index = 0; index < items.length; index += 1) {
       final item = items[index];
+      final enabled = fortuneActiveImageToolbarItemEnabled(
+        sheet.images,
+        activeImageId,
+        item,
+      );
       final rect = Rect.fromLTWH(
         toolbar.left + itemWidth * index,
         toolbar.top,
@@ -76009,10 +76032,70 @@ class FortuneSheetPainter extends CustomPainter {
         _contextMenuLabel(item),
         rect.deflate(4),
         fontSize: 10,
-        color: const Color(0xff202124),
+        color: enabled ? const Color(0xff202124) : const Color(0xff9aa0a6),
         align: TextAlign.center,
       );
     }
+  }
+
+  String _activeImageToolbarTooltipLabel(String command) {
+    if (fortuneImageLayerPanelActionCommands.contains(command)) {
+      return fortuneImageLayerPanelActionTooltip(command);
+    }
+    return _contextMenuLabel(command);
+  }
+
+  void _drawActiveImageToolbarTooltip(Canvas canvas, Size size) {
+    final command = activeImageToolbarHoveredCommand;
+    final position = activeImageToolbarTooltipPosition;
+    if (activeImageId == null || command == null || position == null) {
+      return;
+    }
+    final text = _activeImageToolbarTooltipLabel(command);
+    if (text.isEmpty) {
+      return;
+    }
+    final textPainter = TextPainter(
+      text: TextSpan(
+        text: text,
+        style: const TextStyle(
+          color: fortuneToolbarTooltipTextColor,
+          fontSize: fortuneToolbarTooltipFontSize,
+          fontFamily: 'Arial',
+        ),
+      ),
+      textDirection: textDirection,
+      maxLines: 1,
+    )..layout(maxWidth: fortuneToolbarTooltipMaxWidth);
+    final width = math.min(
+      fortuneToolbarTooltipMaxWidth,
+      textPainter.width + fortuneToolbarTooltipPaddingHorizontal * 2,
+    );
+    final height =
+        textPainter.height + fortuneToolbarTooltipPaddingVertical * 2;
+    final left = math.min(
+      math.max(2.0, position.dx + 10),
+      math.max(2.0, size.width - width - 2),
+    );
+    final top = math.min(
+      math.max(2.0, position.dy + 12),
+      math.max(2.0, size.height - height - 2),
+    );
+    final rect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(left, top, width, height),
+      const Radius.circular(3),
+    );
+    canvas.drawRRect(
+      rect,
+      Paint()..color = fortuneToolbarTooltipBackgroundColor,
+    );
+    textPainter.paint(
+      canvas,
+      Offset(
+        left + fortuneToolbarTooltipPaddingHorizontal,
+        top + fortuneToolbarTooltipPaddingVertical,
+      ),
+    );
   }
 
   void _drawImageLayerPanel(Canvas canvas, Size size, FortuneSettings settings) {
@@ -76910,6 +76993,10 @@ class FortuneSheetPainter extends CustomPainter {
         oldDelegate.hoveredColumnHeaderIndex != hoveredColumnHeaderIndex ||
         oldDelegate.hoveredRowHeaderIndex != hoveredRowHeaderIndex ||
         oldDelegate.activeImageId != activeImageId ||
+        oldDelegate.activeImageToolbarHoveredCommand !=
+          activeImageToolbarHoveredCommand ||
+        oldDelegate.activeImageToolbarTooltipPosition !=
+          activeImageToolbarTooltipPosition ||
         oldDelegate.imageLayerPanelOpen != imageLayerPanelOpen ||
         oldDelegate.imageLayerPanelScrollOffset != imageLayerPanelScrollOffset ||
         oldDelegate.imageLayerPanelDraggingImageId !=

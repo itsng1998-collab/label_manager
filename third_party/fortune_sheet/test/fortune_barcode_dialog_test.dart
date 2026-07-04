@@ -192,6 +192,22 @@ void main() {
       ),
       isTrue,
     );
+    expect(
+      fortuneActiveImageToolbarItemEnabled(
+        images,
+        'front',
+        fortuneContextBringToFrontCommand,
+      ),
+      isFalse,
+    );
+    expect(
+      fortuneActiveImageToolbarItemEnabled(
+        images,
+        'front',
+        fortuneContextToggleLayerPanelCommand,
+      ),
+      isTrue,
+    );
   });
 
   test('barcode show-text option is centered between quiet-zone inputs', () {
@@ -825,6 +841,137 @@ void main() {
     expect(
       imagesById['back']!.extraFields[fortuneSheetObjectZOrderExtraKey],
       2.0,
+    );
+  });
+
+  testWidgets('image floating toolbar disabled action and hover tooltip', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    const settings = FortuneSettings();
+    final workbook = FortuneWorkbook(
+      settings: settings,
+      sheets: [
+        FortuneSheet(
+          id: 's1',
+          name: 'Sheet1',
+          images: [
+            FortuneImage(
+              id: 'front',
+              src: 'data:image/png;base64,${base64Encode(_transparentPng)}',
+              left: 0,
+              top: 0,
+              width: 50,
+              height: 50,
+              extraFields: const {fortuneSheetObjectZOrderExtraKey: 2},
+            ),
+            FortuneImage(
+              id: 'back',
+              src: 'data:image/png;base64,${base64Encode(_transparentPng)}',
+              left: 0,
+              top: 0,
+              width: 50,
+              height: 50,
+              extraFields: const {fortuneSheetObjectZOrderExtraKey: 1},
+            ),
+          ],
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SizedBox(
+          width: 900,
+          height: 700,
+          child: FortuneSheetCanvas(workbook: workbook),
+        ),
+      ),
+    );
+
+    FortuneSheetPainter painter() {
+      return tester
+          .widgetList<CustomPaint>(
+            find.descendant(
+              of: find.byType(FortuneSheetCanvas),
+              matching: find.byType(CustomPaint),
+            ),
+          )
+          .map((paint) => paint.painter)
+          .whereType<FortuneSheetPainter>()
+          .single;
+    }
+
+    final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
+    final imageRect = Rect.fromLTWH(
+      settings.rowHeaderWidth,
+      settings.effectiveToolbarHeight +
+          settings.effectiveFormulaBarHeight +
+          settings.columnHeaderHeight,
+      50,
+      50,
+    );
+    await tester.tapAt(topLeft + imageRect.center);
+    await tester.pump();
+    expect(painter().activeImageId, 'front');
+
+    final frontImage = painter().workbook.activeSheet.images.firstWhere(
+      (image) => image.id == 'front',
+    );
+    final toolbarItems = fortuneActiveImageToolbarItems(frontImage);
+    final duplicateRect = fortuneActiveImageToolbarItemRect(
+      imageRect,
+      const Size(900, 700),
+      fortuneContextDuplicateImageCommand,
+      toolbarItems,
+    );
+    expect(duplicateRect, isNotNull);
+
+    final duplicateCenter = topLeft + duplicateRect!.center;
+    await tester.sendEventToBinding(PointerHoverEvent(position: duplicateCenter));
+    await tester.pump();
+
+    expect(
+      painter().activeImageToolbarHoveredCommand,
+      fortuneContextDuplicateImageCommand,
+    );
+    expect(painter().activeImageToolbarTooltipPosition, duplicateCenter - topLeft);
+
+    await tester.sendEventToBinding(
+      PointerHoverEvent(position: topLeft + const Offset(20, 20)),
+    );
+    await tester.pump();
+    expect(painter().activeImageToolbarHoveredCommand, isNull);
+    expect(painter().activeImageToolbarTooltipPosition, isNull);
+
+    final bringToFrontRect = fortuneActiveImageToolbarItemRect(
+      imageRect,
+      const Size(900, 700),
+      fortuneContextBringToFrontCommand,
+      toolbarItems,
+    );
+    expect(bringToFrontRect, isNotNull);
+
+    await tester.tapAt(topLeft + bringToFrontRect!.center);
+    await tester.pump();
+
+    final imagesById = {
+      for (final image in painter().workbook.activeSheet.images) image.id: image,
+    };
+    expect(painter().activeImageId, 'front');
+    expect(
+      imagesById['front']!.extraFields[fortuneSheetObjectZOrderExtraKey],
+      2,
+    );
+    expect(
+      imagesById['back']!.extraFields[fortuneSheetObjectZOrderExtraKey],
+      1,
     );
   });
 
