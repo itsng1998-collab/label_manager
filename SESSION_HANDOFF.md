@@ -27,6 +27,14 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-04): 인라인 에디터 중 테이블 툴팁 비활성화
+
+목적: 브랜드/라벨 설정 다이얼로그 테이블에서 인라인 에디터 위로 테이블 툴팁이 뜨지 않게 하고, 인라인 편집 진입 시 이미 떠 있던 테이블 툴팁을 닫는다.
+- 변경: `SwipeActionTable`의 자체 `_TableBodyTooltip`에 `enabled` 상태를 추가하고, 인라인 편집 행이 있으면 표시 중인 툴팁을 숨긴 뒤 재예약하지 않도록 변경.
+- 테스트: `test/swipe_action_table_test.dart`에 인라인 상태 전환 시 row tooltip이 숨겨지고, 편집 중에는 다시 나타나지 않으며, 편집 종료 후 다시 나타나는 케이스 추가.
+- 검증: `dart format lib/widgets/swipe_action_table.dart test/swipe_action_table_test.dart`, `C:\Flutter\bin\flutter.bat analyze lib\widgets\swipe_action_table.dart test\swipe_action_table_test.dart --no-fatal-warnings --no-fatal-infos` 통과, `C:\Flutter\bin\flutter.bat test test\swipe_action_table_test.dart test\label_size_cache_test.dart` 22개 통과, `git diff --check -- SESSION_HANDOFF.md lib\widgets\swipe_action_table.dart test\swipe_action_table_test.dart` 통과.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `lib/widgets/swipe_action_table.dart`, `test/swipe_action_table_test.dart`. 기존 사용자 변경 `lib/core/app.dart`는 제외.
+
 ### 완료 (2026-07-04): 브랜드/라벨 설정 테이블 액션 진입 시 툴팁 닫기
 
 목적: 브랜드/라벨 설정 다이얼로그 테이블의 툴팁이 떠 있는 상태에서 수정/삽입/순서변경 액션으로 진입하면 즉시 닫히도록 한다.

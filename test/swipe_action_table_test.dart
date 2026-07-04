@@ -584,6 +584,74 @@ void main() {
     await gesture.removePointer();
   });
 
+  testWidgets('row tooltip hides and stays disabled while row is interactive', (
+    tester,
+  ) async {
+    const tooltip = '행 드래그로 순서 변경, 컬럼 왼쪽 스와이프 수정/삽입/삭제';
+    var interactive = false;
+    late StateSetter updateState;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: StatefulBuilder(
+            builder: (context, setState) {
+              updateState = setState;
+              return SizedBox(
+                width: 360,
+                height: 160,
+                child: SwipeActionTable<_Row>(
+                  rows: const [_Row('Brand A', 'A001')],
+                  autoFitColumns: false,
+                  rowTooltip: tooltip,
+                  isRowContentInteractive: (_, _) => interactive,
+                  columns: [
+                    SwipeActionTableColumn<_Row>(
+                      header: '브랜드 이름',
+                      initialWidth: 160,
+                      text: (row) => row.name,
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+
+    final bodyPosition = tester.getCenter(find.text('Brand A'));
+    final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await gesture.addPointer(location: bodyPosition);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(find.text(tooltip), findsOneWidget);
+
+    updateState(() {
+      interactive = true;
+    });
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(find.text(tooltip), findsNothing);
+
+    await gesture.moveTo(bodyPosition + const Offset(1, 0));
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(find.text(tooltip), findsNothing);
+
+    updateState(() {
+      interactive = false;
+    });
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(find.text(tooltip), findsOneWidget);
+
+    await gesture.removePointer();
+  });
+
   testWidgets('column double tap is ignored while row content is interactive', (
     tester,
   ) async {

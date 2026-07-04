@@ -1185,6 +1185,7 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
                           : MouseCursor.defer,
                       child: _TableBodyTooltip(
                         message: widget.rowTooltip,
+                        enabled: !_hasInteractiveRow,
                         visibleBodyHeight: visibleBodyHeight,
                         child: Scrollbar(
                           controller: _vScrollBody,
@@ -1235,11 +1236,13 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
 class _TableBodyTooltip extends StatefulWidget {
   const _TableBodyTooltip({
     required this.message,
+    required this.enabled,
     required this.visibleBodyHeight,
     required this.child,
   });
 
   final String? message;
+  final bool enabled;
   final double visibleBodyHeight;
   final Widget child;
 
@@ -1256,9 +1259,12 @@ class _TableBodyTooltipState extends State<_TableBodyTooltip> {
   @override
   void didUpdateWidget(covariant _TableBodyTooltip oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.message != widget.message) {
+    if (oldWidget.message != widget.message ||
+        oldWidget.enabled != widget.enabled) {
       _hideTooltip();
-      _scheduleTooltip();
+      if (widget.enabled) {
+        _scheduleTooltip();
+      }
     }
   }
 
@@ -1275,6 +1281,7 @@ class _TableBodyTooltipState extends State<_TableBodyTooltip> {
     final cursorGlobalPosition = _cursorGlobalPosition;
     if (text == null ||
         text.isEmpty ||
+      !widget.enabled ||
         cursorGlobalPosition == null ||
         _entry != null) {
       return;
@@ -1356,7 +1363,7 @@ class _TableBodyTooltipState extends State<_TableBodyTooltip> {
   @override
   Widget build(BuildContext context) {
     final text = widget.message;
-    if (text == null || text.isEmpty) {
+    if (text == null || text.isEmpty || !widget.enabled) {
       return widget.child;
     }
     return MouseRegion(
