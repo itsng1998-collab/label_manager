@@ -346,9 +346,10 @@ class LabelSizeDAO extends DAO {
     int brandId,
     String labelSizeName,
     bool useScale,
+    int labelSizeOrder,
   ) async {
     debugLog(
-      '$START, brandId:$brandId, labelSizeName:$labelSizeName, useScale:$useScale',
+      '$START, brandId:$brandId, labelSizeName:$labelSizeName, useScale:$useScale, labelSizeOrder:$labelSizeOrder',
     );
 
     try {
@@ -363,16 +364,17 @@ class LabelSizeDAO extends DAO {
 
           BEGIN TRANSACTION;
 
-          DECLARE @labelSizeOrder INT;
-          SELECT @labelSizeOrder = COALESCE(MAX(RICH_LABELSIZE_ORDER), 0) + 1
-            FROM BM_RICH_LABELSIZE_FORM WITH (UPDLOCK, HOLDLOCK)
-           WHERE RICH_BRAND_ID=@brandId;
-
           INSERT INTO BM_RICH_LABELSIZE_FORM
             (RICH_BRAND_ID, RICH_LABELSIZE_NAME, RICH_SETUP_USE_SCALE, RICH_LABELSIZE_ORDER)
           OUTPUT INSERTED.RICH_LABELSIZE_ID INTO #InsertedLabelSize (LABELSIZE_ID)
           VALUES
             (@brandId, @labelSizeName, @useScale, @labelSizeOrder);
+
+          UPDATE BM_RICH_LABELSIZE_FORM
+             SET RICH_LABELSIZE_ORDER = RICH_LABELSIZE_ORDER + 1
+           WHERE RICH_BRAND_ID=@brandId
+             AND RICH_LABELSIZE_ORDER >= @labelSizeOrder
+             AND RICH_LABELSIZE_ID NOT IN (SELECT LABELSIZE_ID FROM #InsertedLabelSize);
 
           INSERT INTO BM_RICH_CHECK_COLUMNS
             (RICH_LABELSIZE_ID, RICH_COLUMN_ID, RICH_KEYWORD, RICH_COLUMN_NAME, RICH_CHECK_YN)
@@ -408,6 +410,7 @@ class LabelSizeDAO extends DAO {
         'brandId': brandId,
         'labelSizeName': labelSizeName,
         'useScale': useScale ? 1 : 0,
+        'labelSizeOrder': labelSizeOrder,
       });
 
       final inserted = DAO.mapRow(res, LabelSize.fromMap);

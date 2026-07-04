@@ -27,6 +27,15 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-04): 브랜드/라벨 관리 UI-DB 흐름 정리
+
+목적: 브랜드/라벨 관리에서 UI 조작과 DB 반영 위치/재조회 흐름이 어긋나는 부분을 정리한다.
+- 라벨 추가: 현재 행 아래 삽입 UI를 유지하므로 `LabelSizeDAO.insert`가 삽입 순번을 받아 기존 뒤 순번을 밀도록 변경.
+- 라벨 순서 적용: 확인창 취소 시 `_cancelOrderChanges()`로 변경 내용을 폐기하지 않고 편집 상태를 유지하도록 변경.
+- 브랜드 저장: 추가/수정/삭제 후 로컬 목록만 publish하지 않고 부모에서 DB 재조회한 목록으로 다이얼로그 상태를 동기화하도록 변경.
+- 검증: `dart format lib/home_page_manager.dart lib/models/label_size.dart`, `C:\Flutter\bin\flutter.bat analyze lib\home_page_manager.dart lib\models\label_size.dart --no-fatal-warnings --no-fatal-infos` 통과, `C:\Flutter\bin\flutter.bat test test\swipe_action_table_test.dart test\label_size_cache_test.dart` 21개 통과, `git diff --check -- SESSION_HANDOFF.md lib\home_page_manager.dart lib\models\label_size.dart` 통과.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `lib/home_page_manager.dart`, `lib/models/label_size.dart`. 기존 사용자 변경 `lib/core/app.dart`는 제외.
+
 ### 완료 (2026-07-04): UpdateItem SQL COLLATE 문법 수정
 
 목적: `lib/models/update_item.dart`의 `CONVERT(..., COLLATE ...)` 오용을 다른 모델들의 SQL 패턴처럼 `CONVERT(NVARCHAR(...), 컬럼 COLLATE ${DAO.CP949})` 형태로 수정한다.

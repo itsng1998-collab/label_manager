@@ -261,18 +261,45 @@ class _HomePageManagerState extends State<HomePageManager> {
     widget.onBrandChanged(brand);
   }
 
-  void _handleBrandsChangedFromDialog(
-    List<Brand> brands,
-    Brand? selectedBrand, {
-    required bool updateSelection,
-  }) {
-    Brand.setDatas(brands);
+  Future<List<Brand>> _handleBrandsChangedFromDialog({
+    Brand? preferredSelectedBrand,
+    bool updateSelection = false,
+  }) async {
+    final customerId = Customer.instance?.customerId;
+    if (customerId == null) {
+      throw Exception('${runtimeLogTag()} 브랜드를 갱신할 고객을 찾을 수 없습니다.');
+    }
+
+    final previousSelectedBrand =
+        preferredSelectedBrand ?? widget.selectedBrand;
+    debugLog(
+      'brandSettings reload start customerId=$customerId '
+      'selectedBrandId=${previousSelectedBrand?.brandId} '
+      'updateSelection=$updateSelection',
+    );
+
+    final reloadedBrands =
+        await BrandDAO.selectByCustomerIdByBrandOrder(customerId) ?? <Brand>[];
+    if (!mounted) {
+      return reloadedBrands;
+    }
+
+    Brand.setDatas(reloadedBrands);
+    final resolvedSelected = _resolveSelectedBrand(
+      reloadedBrands,
+      previousSelectedBrand,
+    );
     setState(() {});
     _brandSettingsOverlayEntry?.markNeedsBuild();
     if (updateSelection) {
       _brandDialogBusyNotifier.value = true;
-      widget.onBrandChanged(selectedBrand);
+      widget.onBrandChanged(resolvedSelected);
     }
+    debugLog(
+      'brandSettings reload completed brands=${reloadedBrands.length} '
+      'selectedBrandId=${resolvedSelected?.brandId}',
+    );
+    return reloadedBrands;
   }
 
   Future<void> _scheduleLabelSizeLoad(
@@ -2336,6 +2363,7 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
         brandId,
         labelName,
         _labelUseScaleEditValue,
+        insertIndex + 1,
       );
       final reloadedLabels = await widget.onLabelsChanged();
 
@@ -2615,8 +2643,7 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
     }
 
     if (confirmed != true) {
-      debugLog('labelSettings reorder apply cancelledByUser');
-      _cancelOrderChanges();
+      debugLog('labelSettings reorder apply cancelledByUser keepEditing');
       return;
     }
 
@@ -2982,10 +3009,9 @@ class _BrandSettingsDialog extends StatefulWidget {
   final List<Brand> brands;
   final Brand? selectedBrand;
   final ValueChanged<Brand?> onBrandSelected;
-  final void Function(
-    List<Brand> brands,
-    Brand? selectedBrand, {
-    required bool updateSelection,
+  final Future<List<Brand>> Function({
+    Brand? preferredSelectedBrand,
+    bool updateSelection,
   })
   onBrandsChanged;
   final VoidCallback onClose;
@@ -3269,15 +3295,12 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
     return nextName != _brands[editingIndex].brandName.trim();
   }
 
-  void _publishBrandsChanged({
+  Future<List<Brand>> _reloadBrandsChanged({
     Brand? selectedBrand,
     required bool updateSelection,
   }) {
-    final nextBrands = List<Brand>.from(_brands);
-    Brand.setDatas(nextBrands);
-    widget.onBrandsChanged(
-      nextBrands,
-      selectedBrand,
+    return widget.onBrandsChanged(
+      preferredSelectedBrand: selectedBrand,
       updateSelection: updateSelection,
     );
   }
@@ -3354,6 +3377,30 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
         brandName,
         insertIndex + 1,
       );
+      final reloadedBrands = await _reloadBrandsChanged(
+        selectedBrand: inserted,
+        updateSelection: false,
+      );
+
+      if (!mounted) {
+        debugLog('insertBrandName aborted unmounted after reload');
+        return;
+      }
+
+      if (!_insertingBrand || _editingIndex != insertIndex) {
+        debugLog(
+          'insertBrandName skippedStateUpdate editingIndexChanged inserting=$_insertingBrand editingIndex=$_editingIndex expected=$insertIndex',
+        );
+        return;
+      }
+
+      setState(() {
+        _brands = List<Brand>.from(reloadedBrands);
+        _insertingBrand = false;
+        _insertActionIndex = null;
+        _editingIndex = null;
+        _brandNameEditController.clear();
+      });
     } catch (e) {
       debugLog('insertBrandName failed index=$insertIndex error=$e');
       if (mounted) {
@@ -3372,30 +3419,6 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
       }
       return;
     }
-
-    if (!mounted) {
-      debugLog('insertBrandName aborted unmounted after insert');
-      return;
-    }
-
-    if (!_insertingBrand || _editingIndex != insertIndex) {
-      debugLog(
-        'insertBrandName skippedStateUpdate editingIndexChanged inserting=$_insertingBrand editingIndex=$_editingIndex expected=$insertIndex',
-      );
-      return;
-    }
-
-    setState(() {
-      _brands
-        ..removeAt(insertIndex)
-        ..insert(insertIndex, inserted);
-      _brands = List<Brand>.from(_brands);
-      _insertingBrand = false;
-      _insertActionIndex = null;
-      _editingIndex = null;
-      _brandNameEditController.clear();
-    });
-    _publishBrandsChanged(updateSelection: false);
 
     debugLog(
       'insertBrandName done brandId=${inserted.brandId} index=$insertIndex name=${inserted.brandName}',
@@ -3448,6 +3471,31 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
     );
     try {
       await BrandDAO.updateByBrandId(brand, brandName);
+      final updatedBrand = Brand(
+        brandId: brand.brandId,
+        customerId: brand.customerId,
+        brandName: brandName,
+      );
+      final reloadedBrands = await _reloadBrandsChanged(
+        selectedBrand: updatedBrand,
+        updateSelection: widget.selectedBrand?.brandId == updatedBrand.brandId,
+      );
+
+      if (!mounted) {
+        debugLog('updateBrandName aborted unmounted after reload');
+        return;
+      }
+
+      if (_editingIndex != editingIndex) {
+        debugLog('updateBrandName skippedStateUpdate editingIndexChanged');
+        return;
+      }
+
+      setState(() {
+        _brands = List<Brand>.from(reloadedBrands);
+        _editingIndex = null;
+        _brandNameEditController.clear();
+      });
     } catch (e) {
       debugLog('updateBrandName failed brandId=${brand.brandId} error=$e');
       if (mounted) {
@@ -3466,30 +3514,6 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
       }
       return;
     }
-
-    debugLog(
-      'updateBrandName result succeeded=true editingIndexNow=$_editingIndex expectedIndex=$editingIndex',
-    );
-
-    if (_editingIndex != editingIndex) {
-      debugLog('updateBrandName skippedStateUpdate editingIndexChanged');
-      return;
-    }
-
-    setState(() {
-      _brands[editingIndex] = Brand(
-        brandId: brand.brandId,
-        customerId: brand.customerId,
-        brandName: brandName,
-      );
-      _editingIndex = null;
-      _brandNameEditController.clear();
-    });
-    final updatedBrand = _brands[editingIndex];
-    _publishBrandsChanged(
-      selectedBrand: updatedBrand,
-      updateSelection: widget.selectedBrand?.brandId == updatedBrand.brandId,
-    );
 
     debugLog(
       'updateBrandName done brandId=${brand.brandId} newName=$brandName',
@@ -3569,13 +3593,35 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
         ? _resolveBrandAfterDelete(currentIndex)
         : widget.selectedBrand;
 
-    setState(() {
-      _brands = List<Brand>.from(_brands)..removeAt(currentIndex);
-    });
-    _publishBrandsChanged(
-      selectedBrand: nextSelectedBrand,
-      updateSelection: wasSelected,
-    );
+    try {
+      final reloadedBrands = await _reloadBrandsChanged(
+        selectedBrand: nextSelectedBrand,
+        updateSelection: wasSelected,
+      );
+
+      if (!mounted) {
+        debugLog('deleteBrand aborted unmounted after reload');
+        return;
+      }
+
+      setState(() {
+        _brands = List<Brand>.from(reloadedBrands);
+      });
+    } catch (e) {
+      debugLog('deleteBrand reload failed brandId=${brand.brandId} error=$e');
+      if (mounted) {
+        await _showBrandOverlayDialog<void>(
+          (dialogContext, close) => AlertDialog(
+            title: const Text('브랜드 목록 갱신 실패'),
+            content: const Text('브랜드 목록 갱신에 실패했습니다.'),
+            actions: [
+              TextButton(onPressed: () => close(null), child: const Text('확인')),
+            ],
+          ),
+        );
+      }
+      return;
+    }
 
     debugLog('deleteBrand done brandId=${brand.brandId} index=$currentIndex');
   }
