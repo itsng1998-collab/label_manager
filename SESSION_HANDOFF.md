@@ -36,6 +36,7 @@
 - 테스트: `test/label_sheet_toolbar_test.dart`에 외부 import workbook 정규화 후 현재 `images` 키로 재저장되는 케이스 추가.
 - 검증: `dart format lib/page_label_sheet/label_sheet_save_codec.dart lib/page_label_sheet/label_sheet_workbench.dart test/label_sheet_toolbar_test.dart`, `C:\Flutter\bin\flutter.bat analyze lib\page_label_sheet\label_sheet_save_codec.dart lib\page_label_sheet\label_sheet_workbench.dart test\label_sheet_toolbar_test.dart --no-fatal-warnings --no-fatal-infos` 통과, `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "label sheet save codec"` 4개 통과.
 - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/page_label_sheet/label_sheet_save_codec.dart`, `lib/page_label_sheet/label_sheet_workbench.dart`, `test/label_sheet_toolbar_test.dart`. 기존 사용자 변경 `lib/core/app.dart`는 제외.
+- 커밋: `3287039` (`엑셀 import 저장 포맷 정규화 연결`).
 
 ### 완료 (2026-07-04): 라벨 시트 저장 포맷 로드 마이그레이션
 
