@@ -1185,7 +1185,7 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
                           : MouseCursor.defer,
                       child: _TableBodyTooltip(
                         message: widget.rowTooltip,
-                        enabled: !_hasInteractiveRow,
+                        enabled: !_hasInteractiveRow && _openActionIndex == null,
                         visibleBodyHeight: visibleBodyHeight,
                         child: Scrollbar(
                           controller: _vScrollBody,

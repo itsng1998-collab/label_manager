@@ -652,6 +652,86 @@ void main() {
     await gesture.removePointer();
   });
 
+  testWidgets('row tooltip hides and stays disabled while action rail is open', (
+    tester,
+  ) async {
+    const tooltip = '행 드래그로 순서 변경, 컬럼 왼쪽 스와이프 수정/삽입/삭제';
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 360,
+            height: 160,
+            child: SwipeActionTable<_Row>(
+              rows: const [_Row('Brand A', 'A001')],
+              autoFitColumns: false,
+              rowSwipeEnabled: true,
+              rowTooltip: tooltip,
+              actions: const [
+                SwipeActionTableAction<_Row>(
+                  icon: Icons.edit,
+                  tooltip: '수정',
+                  backgroundColor: Colors.blue,
+                ),
+              ],
+              columns: [
+                SwipeActionTableColumn<_Row>(
+                  header: '브랜드 이름',
+                  initialWidth: 160,
+                  text: (row) => row.name,
+                  statefulCellBuilder: (context, row, width, state) {
+                    return SizedBox(
+                      width: width,
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: IconButton(
+                          tooltip: state.actionRailOpen
+                              ? '수정/삽입/삭제 닫기'
+                              : '수정/삽입/삭제 열기',
+                          onPressed: state.onToggleActionRail,
+                          icon: const Icon(Icons.chevron_left),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final bodyPosition = tester.getCenter(find.byTooltip('수정/삽입/삭제 열기'));
+    final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await gesture.addPointer(location: bodyPosition);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(find.text(tooltip), findsOneWidget);
+
+    await tester.tap(find.byTooltip('수정/삽입/삭제 열기'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(find.text(tooltip), findsNothing);
+
+    await gesture.moveTo(bodyPosition + const Offset(1, 0));
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(find.text(tooltip), findsNothing);
+
+    await tester.dragFrom(bodyPosition, const Offset(30, 0));
+    await tester.pump();
+    await gesture.moveTo(bodyPosition + const Offset(2, 0));
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(find.text(tooltip), findsOneWidget);
+
+    await gesture.removePointer();
+  });
+
   testWidgets('column double tap is ignored while row content is interactive', (
     tester,
   ) async {
