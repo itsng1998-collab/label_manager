@@ -122,7 +122,7 @@
 - stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`, `third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart`. 기존 사용자 변경 `lib/core/app.dart`는 제외.
 - 커밋: `ec66b88` (`겹친 이미지 바코드 Tab 선택 순환 추가`).
 
-### 진행 중 (2026-07-04): 이미지/바코드 레이어 패널 첫 조각 추가
+### 완료 (2026-07-04): 이미지/바코드 레이어 패널 첫 조각 추가
 
 목적: 장기 구현 순서 6의 레이어 패널 첫 조각으로, 선택 플로팅 툴바에서 현재 시트의 이미지/바코드 레이어 목록을 열고 항목 클릭으로 선택할 수 있게 한다.
 - 수정 예정: `fortune_sheet_painter.dart`에 `레이어` 플로팅 툴바 명령, 레이어 패널 rect/item helper, 이미지/바코드 목록 렌더링을 추가한다.
@@ -136,7 +136,7 @@
 - 검증: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart` 27개 통과.
 - 검증: `git diff --check -- SESSION_HANDOFF.md third_party\fortune_sheet\lib\src\fortune_sheet_canvas.dart third_party\fortune_sheet\lib\src\fortune_sheet_painter.dart third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart` 통과.
 - stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`, `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`, `third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart`. 기존 사용자 변경 `lib/core/app.dart`는 제외.
-- 미검증: 커밋 필요.
+- 커밋: `f435877` (`이미지 바코드 레이어 패널 선택 추가`).
 
 ### 완료 (2026-07-04): SwipeActionTable 마우스/터치 드래그 스크롤 허용
 
