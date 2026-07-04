@@ -1426,6 +1426,10 @@ void main() {
     final gesture = await tester.startGesture(topLeft + sourceRow!.center);
     await gesture.moveTo(topLeft + targetRow!.center);
     await tester.pump();
+
+    expect(painter().imageLayerPanelDraggingImageId, 'image10');
+    expect(painter().imageLayerPanelDragTargetIndex, 2);
+
     await gesture.up();
     await tester.pump();
 
@@ -1437,6 +1441,8 @@ void main() {
     );
     expect(painter().activeImageId, 'image10');
     expect(painter().imageLayerPanelOpen, isTrue);
+    expect(painter().imageLayerPanelDraggingImageId, isNull);
+    expect(painter().imageLayerPanelDragTargetIndex, isNull);
     expect(panelItems.take(3).map((image) => image.id), [
       'image9',
       'image8',

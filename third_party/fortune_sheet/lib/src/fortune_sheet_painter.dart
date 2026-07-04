@@ -61595,6 +61595,8 @@ class FortuneSheetPainter extends CustomPainter {
     this.activeImageId,
     this.imageLayerPanelOpen = false,
     this.imageLayerPanelScrollOffset = 0,
+    this.imageLayerPanelDraggingImageId,
+    this.imageLayerPanelDragTargetIndex,
     this.decodedImages = const <String, ui.Image>{},
     this.zoomMenuOpen = false,
     this.sheetFocused = true,
@@ -61802,6 +61804,8 @@ class FortuneSheetPainter extends CustomPainter {
   final String? activeImageId;
   final bool imageLayerPanelOpen;
   final double imageLayerPanelScrollOffset;
+  final String? imageLayerPanelDraggingImageId;
+  final int? imageLayerPanelDragTargetIndex;
   final Map<String, ui.Image> decodedImages;
   final TextDirection textDirection;
   final bool zoomMenuOpen;
@@ -75928,7 +75932,10 @@ class FortuneSheetPainter extends CustomPainter {
       if (row == null) {
         continue;
       }
-      if (item.id == activeImageId) {
+      final isDragging = item.id == imageLayerPanelDraggingImageId;
+      if (isDragging) {
+        canvas.drawRect(row, Paint()..color = const Color(0xffd2e3fc));
+      } else if (item.id == activeImageId) {
         canvas.drawRect(row, Paint()..color = const Color(0xffe8f0fe));
       }
       canvas.drawRect(
@@ -75942,8 +75949,46 @@ class FortuneSheetPainter extends CustomPainter {
         fontSize: 11,
         color: const Color(0xff202124),
       );
+      if (isDragging) {
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(row.deflate(1), const Radius.circular(3)),
+          Paint()
+            ..color = const Color(0xff1a73e8)
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1.5,
+        );
+      }
     }
+    _drawImageLayerPanelDragTarget(canvas, size, items.length, scrollOffset, top);
     _drawImageLayerPanelScrollbar(canvas, size, items.length, scrollOffset, top);
+  }
+
+  void _drawImageLayerPanelDragTarget(
+    Canvas canvas,
+    Size size,
+    int itemCount,
+    double scrollOffset,
+    double top,
+  ) {
+    final targetIndex = imageLayerPanelDragTargetIndex;
+    if (imageLayerPanelDraggingImageId == null || targetIndex == null) {
+      return;
+    }
+    final row = fortuneImageLayerPanelItemRect(
+      size,
+      itemCount,
+      targetIndex,
+      top: top,
+      scrollOffset: scrollOffset,
+    );
+    if (row == null) {
+      return;
+    }
+    final line = Rect.fromLTWH(row.left + 12, row.top, row.width - 24, 2);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(line, const Radius.circular(1)),
+      Paint()..color = const Color(0xff1a73e8),
+    );
   }
 
   void _drawImageLayerPanelScrollbar(
@@ -76699,6 +76744,10 @@ class FortuneSheetPainter extends CustomPainter {
         oldDelegate.activeImageId != activeImageId ||
         oldDelegate.imageLayerPanelOpen != imageLayerPanelOpen ||
         oldDelegate.imageLayerPanelScrollOffset != imageLayerPanelScrollOffset ||
+        oldDelegate.imageLayerPanelDraggingImageId !=
+          imageLayerPanelDraggingImageId ||
+        oldDelegate.imageLayerPanelDragTargetIndex !=
+          imageLayerPanelDragTargetIndex ||
         oldDelegate.decodedImages != decodedImages ||
         oldDelegate.zoomMenuOpen != zoomMenuOpen ||
         oldDelegate.sheetFocused != sheetFocused ||

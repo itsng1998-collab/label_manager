@@ -251,6 +251,20 @@
 - stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`, `third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart`. 기존 사용자 변경 `lib/core/app.dart`는 제외.
 - 커밋: `d659307` (`이미지 바코드 레이어 패널 행 드래그 자동 스크롤 추가`).
 
+### 완료 (2026-07-04): 이미지/바코드 레이어 패널 row 드래그 피드백 추가
+
+목적: 레이어 패널 row를 드래그하는 동안 현재 이동 중인 row와 target 위치를 시각적으로 표시해 재정렬 동작을 예측 가능하게 한다.
+- 변경: `fortune_sheet_canvas.dart`에 row drag target index 상태를 추가하고 `FortuneSheetPainter` 생성 시 dragging image id/target index를 전달.
+- 변경: `fortune_sheet_painter.dart`에 dragging row 배경/테두리와 target indicator 렌더링을 추가하고 repaint 조건에 반영.
+- 검증: `dart_format` 적용, `C:\Flutter\bin\flutter.bat analyze third_party\fortune_sheet\lib\src\fortune_sheet_canvas.dart third_party\fortune_sheet\lib\src\fortune_sheet_painter.dart --no-fatal-warnings --no-fatal-infos` 통과.
+- 테스트 보강: `fortune_barcode_dialog_test.dart`의 row drag 재정렬 테스트에 dragging image id/target index 전달 및 pointer up 후 초기화 검증 추가.
+- 수정: row drag commit 시 `setState(_cancelImageLayerPanelRowDrag)`로 painter 피드백 상태가 즉시 초기화되도록 보정.
+- 검증: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --plain-name "image layer panel row drag reorders layers"` 통과.
+- 검증: `C:\Flutter\bin\flutter.bat analyze third_party\fortune_sheet\lib\src\fortune_sheet_canvas.dart third_party\fortune_sheet\lib\src\fortune_sheet_painter.dart third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --no-fatal-warnings --no-fatal-infos` 통과.
+- 검증: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart` 통과(34 tests).
+- 검증: `git diff --check` 통과.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`, `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`, `third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart`. 기존 사용자 변경 `lib/core/app.dart`는 제외.
+
 ### 완료 (2026-07-04): SwipeActionTable 마우스/터치 드래그 스크롤 허용
 
 목적: `lib/widgets/swipe_action_table.dart`를 공통으로 사용하는 테이블에서 별도 플래그로 막지 않는 한 마우스/터치 상하 드래그로 기본 세로 스크롤이 되도록 한다.

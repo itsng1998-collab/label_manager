@@ -2757,6 +2757,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   bool _imageLayerPanelRowDragging = false;
   bool _imageLayerPanelRowDragUndoRecorded = false;
   String? _imageLayerPanelRowDragImageId;
+  int? _imageLayerPanelRowDragTargetIndex;
   double _imageLayerPanelRowDragStartY = 0;
   String? _imageResizeSide;
   Offset? _imageResizeStart;
@@ -24294,6 +24295,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     _imageLayerPanelRowDragging = true;
     _imageLayerPanelRowDragUndoRecorded = false;
     _imageLayerPanelRowDragImageId = imageId;
+    _imageLayerPanelRowDragTargetIndex = _imageLayerPanelRowIndexOf(imageId);
     _imageLayerPanelRowDragStartY = local.dy;
   }
 
@@ -24318,6 +24320,11 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     if (targetIndex == null) {
       return true;
     }
+    if (targetIndex != _imageLayerPanelRowDragTargetIndex) {
+      setState(() {
+        _imageLayerPanelRowDragTargetIndex = targetIndex;
+      });
+    }
     return _moveImageLayerPanelRow(imageId, targetIndex);
   }
 
@@ -24325,7 +24332,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     if (!_imageLayerPanelRowDragging) {
       return false;
     }
-    _cancelImageLayerPanelRowDrag();
+    setState(_cancelImageLayerPanelRowDrag);
     return true;
   }
 
@@ -24333,7 +24340,14 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     _imageLayerPanelRowDragging = false;
     _imageLayerPanelRowDragUndoRecorded = false;
     _imageLayerPanelRowDragImageId = null;
+    _imageLayerPanelRowDragTargetIndex = null;
     _imageLayerPanelRowDragStartY = 0;
+  }
+
+  int? _imageLayerPanelRowIndexOf(String imageId) {
+    final items = fortuneImageLayerPanelItems(_workbook.activeSheet.images);
+    final index = items.indexWhere((image) => image.id == imageId);
+    return index < 0 ? null : index;
   }
 
   int? _imageLayerPanelRowTargetIndexAt(
@@ -24406,6 +24420,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     setState(() {
       _replaceActiveSheet(sheet.copyWith(images: nextImages));
       _activeImageId = imageId;
+      _imageLayerPanelRowDragTargetIndex = clampedTargetIndex;
       contextMenuAt = null;
       _contextMenuImageId = null;
       _imageLayerPanelOpen = true;
@@ -43512,6 +43527,12 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
                 activeImageId: _activeImageId,
                 imageLayerPanelOpen: _imageLayerPanelOpen,
                 imageLayerPanelScrollOffset: _imageLayerPanelScrollOffset,
+                imageLayerPanelDraggingImageId: _imageLayerPanelRowDragging
+                  ? _imageLayerPanelRowDragImageId
+                  : null,
+                imageLayerPanelDragTargetIndex: _imageLayerPanelRowDragging
+                  ? _imageLayerPanelRowDragTargetIndex
+                  : null,
                 decodedImages: Map<String, ui.Image>.unmodifiable(
                   _decodedImages,
                 ),
