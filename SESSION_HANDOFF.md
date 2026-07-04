@@ -27,6 +27,14 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-04): UpdateItem SQL COLLATE 문법 수정
+
+목적: `lib/models/update_item.dart`의 `CONVERT(..., COLLATE ...)` 오용을 다른 모델들의 SQL 패턴처럼 `CONVERT(NVARCHAR(...), 컬럼 COLLATE ${DAO.CP949})` 형태로 수정한다.
+- 확인: `lib/models/item_of_market.dart`, `lib/models/column.dart` 등은 문자열 컬럼에 `컬럼 COLLATE ${DAO.CP949}`를 적용한 뒤 `CONVERT`한다.
+- 변경: `P2.RICH_ITEM_NAME`, `P1.RICH_ELEMENT`, `P1.RICH_ELEMENT_RTF` 3곳의 `COLLATE` 위치를 수정.
+- 검증: `dart format lib/models/update_item.dart`, `C:\Flutter\bin\flutter.bat analyze lib\models\update_item.dart --no-fatal-warnings --no-fatal-infos` 통과, `git diff --check -- SESSION_HANDOFF.md lib\models\update_item.dart` 통과.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `lib/models/update_item.dart`. 기존 사용자 변경 `lib/core/app.dart`는 제외.
+
 ### 완료 (2026-07-04): 브랜드/라벨 설정 CRUD 함수 배치 정리
 
 목적: `lib/home_page_manager.dart`의 브랜드/라벨 추가/수정/삭제 함수가 각 다이얼로그 안에서 한 부분에 모이도록 정리한다. 동작 변경 없이 함수 순서만 조정한다.
