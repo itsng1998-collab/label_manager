@@ -27,7 +27,7 @@
 
 ## 현재 상태
 
-### 진행 중 (2026-07-04): RTF/floating preview 테스트 실패 정리
+### 완료 (2026-07-04): RTF/floating preview 테스트 실패 정리
 
 목적: `label_sheet_toolbar_test.dart` 전체 실행에서 남은 RTF preview resolved size 및 floating preview move handle 중앙 정렬 실패를 실제 계산 기준에 맞게 보정한다.
 - 변경 완료: `label_sheet_rtf_preview.dart`에서 `onImageSizeResolved` 통지는 화면 DPR 보정 표시 크기 대신 capture scale 기준 content size를 사용하도록 분리했다.
@@ -38,7 +38,7 @@
 - 검증 완료: `flutter test test\label_sheet_toolbar_test.dart` 67개 통과.
 - 검증 완료: `git diff --check -- SESSION_HANDOFF.md lib\page_label_sheet\label_sheet_rtf_preview.dart lib\page_home\preview_floating_window.dart` 통과, VS Code 진단 오류 없음.
 - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/page_label_sheet/label_sheet_rtf_preview.dart`, `lib/page_home/preview_floating_window.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
-- 진행 중: 커밋 필요.
+- 커밋 완료: `ebed800` (`RTF 플로팅 미리보기 테스트 실패 정리`).
 
 ### 완료 (2026-07-04): 라벨 시트 저장 버튼 초기 dirty 상태 보정
 
