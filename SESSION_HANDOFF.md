@@ -27,6 +27,14 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-04): 메인 앱 테스트 묶음 검증 확대
+
+목적: 라벨시트 toolbar/print/xlsx import 테스트 묶음 통과 이후, `test/` 전체 기준으로 남은 실패가 있는지 확인하고 다음 수정 단위를 식별한다.
+- 검증 완료: `flutter test test\label_sheet_toolbar_test.dart test\label_sheet_print_job_test.dart test\label_sheet_xlsx_import_test.dart` 라벨시트 관련 3개 파일 묶음 통과(67개).
+- 참고: `runTests` 폴더 입력(`test`)은 테스트를 찾지 못해 터미널 명령으로 전체 검증을 진행했다.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test` 전체 128개 통과.
+- stage/commit 대상: `SESSION_HANDOFF.md`. 기존 unrelated dirty `lib/core/app.dart` 제외.
+
 ### 완료 (2026-07-04): RTF/floating preview 테스트 실패 정리
 
 목적: `label_sheet_toolbar_test.dart` 전체 실행에서 남은 RTF preview resolved size 및 floating preview move handle 중앙 정렬 실패를 실제 계산 기준에 맞게 보정한다.
