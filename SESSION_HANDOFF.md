@@ -154,7 +154,7 @@
 - stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`, `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`, `third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart`. 기존 사용자 변경 `lib/core/app.dart`는 제외.
 - 커밋: `de92f84` (`이미지 바코드 레이어 패널 이동 버튼 추가`).
 
-### 진행 중 (2026-07-04): 이미지/바코드 레이어 패널 최상하 이동 버튼 추가
+### 완료 (2026-07-04): 이미지/바코드 레이어 패널 최상하 이동 버튼 추가
 
 목적: 레이어 패널 header의 이동 버튼을 기존 레이어 명령 범위와 맞춰 `맨앞`/`앞`/`뒤`/`맨뒤`를 모두 실행할 수 있게 한다.
 - 수정 예정: `fortune_sheet_painter.dart`의 레이어 패널 action helper/rendering을 4개 명령으로 확장한다.
@@ -168,7 +168,7 @@
 - 검증: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart` 29개 통과.
 - 검증: `git diff --check -- SESSION_HANDOFF.md third_party\fortune_sheet\lib\src\fortune_sheet_canvas.dart third_party\fortune_sheet\lib\src\fortune_sheet_painter.dart third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart` 통과.
 - stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`, `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`, `third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart`. 기존 사용자 변경 `lib/core/app.dart`는 제외.
-- 미검증: 커밋 필요.
+- 커밋: `464b069` (`이미지 바코드 레이어 패널 최상하 이동 추가`).
 
 ### 완료 (2026-07-04): SwipeActionTable 마우스/터치 드래그 스크롤 허용
 
