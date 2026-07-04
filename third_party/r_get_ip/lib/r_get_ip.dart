@@ -6,7 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'external_ip_io.dart' if (dart.library.html) 'external_ip_web.dart';
 
 class RGetIp {
-  static const MethodChannel _channel = const MethodChannel('r_get_ip');
+  static const MethodChannel _channel = MethodChannel('r_get_ip');
 
   static Future<String?> get networkType async {
     final String? type = await _channel.invokeMethod('getNetworkType');

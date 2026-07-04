@@ -27,6 +27,16 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-04): third_party analyzer 잔여 이슈 정리
+
+목적: 전체 Flutter analyze에서 앱 소유 `lib/` issue 제거 후 남은 vendored `third_party/mssql_connection`, `third_party/r_get_ip` analyzer issue를 최소 수정으로 정리한다.
+- 변경 완료: `mssql_connection` unused import/local identifier lint/tool print lint, `r_get_ip` unnecessary const/deprecated web import lint를 정리했다.
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze third_party\mssql_connection\lib\src\mssql_client.dart third_party\mssql_connection\lib\src\mssql_connection.dart third_party\mssql_connection\tool\integration_db_lifecycle.dart third_party\r_get_ip\lib\r_get_ip.dart third_party\r_get_ip\lib\r_get_ip_web.dart --no-fatal-warnings --no-fatal-infos` 통과.
+- 검증 완료: `dart_format` 적용(`mssql_client.dart`, `mssql_connection.dart`, `integration_db_lifecycle.dart`, `r_get_ip.dart`, `r_get_ip_web.dart`).
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze --no-fatal-warnings --no-fatal-infos` 전체 프로젝트 통과.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/mssql_connection`, `third_party/r_get_ip` 수정 파일. 기존 unrelated dirty `lib/core/app.dart` 제외.
+- 진행 중: `git diff --check`, VS Code 진단 확인, 커밋 필요.
+
 ### 완료 (2026-07-04): 전체 Flutter analyze 검증 확대
 
 목적: 메인 앱 `test/` 전체와 FortuneSheet 이미지/바코드 테스트 묶음 통과 이후, 프로젝트 전체 정적 분석 기준으로 남은 오류가 있는지 확인한다.
