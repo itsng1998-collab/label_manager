@@ -38,7 +38,7 @@
 - 검증 완료: `dart_format` 적용(`fortune_toolbar_icons_test.dart`).
 - 검증 완료: `C:\Flutter\bin\flutter.bat analyze third_party\fortune_sheet\test\fortune_toolbar_icons_test.dart --no-fatal-warnings --no-fatal-infos` 통과, `git diff --check -- SESSION_HANDOFF.md third_party\fortune_sheet\test\fortune_toolbar_icons_test.dart` 통과, VS Code 진단 오류 없음.
 - stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/test/fortune_toolbar_icons_test.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
-- 진행 중: 커밋 필요.
+- 커밋 완료: `dbbf476` (`FortuneSheet locale 테스트 기대값 갱신`).
 
 ### 완료 (2026-07-04): third_party analyzer 잔여 이슈 정리
 
