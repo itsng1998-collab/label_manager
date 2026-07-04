@@ -1456,6 +1456,140 @@ void main() {
     );
   });
 
+  testWidgets('image layer panel row drag auto scrolls to lower rows', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    const settings = FortuneSettings();
+    final workbook = FortuneWorkbook(
+      settings: settings,
+      sheets: [
+        FortuneSheet(
+          id: 's1',
+          name: 'Sheet1',
+          images: [
+            for (var index = 1; index <= 10; index += 1)
+              FortuneImage(
+                id: 'image$index',
+                src: 'data:image/png;base64,${base64Encode(_transparentPng)}',
+                left: index.toDouble(),
+                top: index.toDouble(),
+                width: 50,
+                height: 50,
+                extraFields: {fortuneSheetObjectZOrderExtraKey: index},
+              ),
+          ],
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SizedBox(
+          width: 900,
+          height: 700,
+          child: FortuneSheetCanvas(workbook: workbook),
+        ),
+      ),
+    );
+
+    FortuneSheetPainter painter() {
+      return tester
+          .widgetList<CustomPaint>(
+            find.descendant(
+              of: find.byType(FortuneSheetCanvas),
+              matching: find.byType(CustomPaint),
+            ),
+          )
+          .map((paint) => paint.painter)
+          .whereType<FortuneSheetPainter>()
+          .single;
+    }
+
+    final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
+    final imageRect = Rect.fromLTWH(
+      settings.rowHeaderWidth + 10,
+      settings.effectiveToolbarHeight +
+          settings.effectiveFormulaBarHeight +
+          settings.columnHeaderHeight +
+          10,
+      50,
+      50,
+    );
+    await tester.tapAt(topLeft + imageRect.center);
+    await tester.pump();
+    expect(painter().activeImageId, 'image10');
+
+    final image = painter().workbook.activeSheet.images.firstWhere(
+      (image) => image.id == 'image10',
+    );
+    final toolbarItems = fortuneActiveImageToolbarItems(image);
+    final layerButtonRect = fortuneActiveImageToolbarItemRect(
+      imageRect,
+      const Size(900, 700),
+      fortuneContextToggleLayerPanelCommand,
+      toolbarItems,
+    );
+    expect(layerButtonRect, isNotNull);
+
+    await tester.tapAt(topLeft + layerButtonRect!.center);
+    await tester.pump();
+
+    final layerPanelTop = settings.effectiveToolbarHeight +
+        settings.effectiveFormulaBarHeight +
+        settings.columnHeaderHeight +
+        fortuneImageLayerPanelMargin;
+    final panel = fortuneImageLayerPanelRect(
+      const Size(900, 700),
+      10,
+      top: layerPanelTop,
+    );
+    final sourceRow = fortuneImageLayerPanelItemRect(
+      const Size(900, 700),
+      10,
+      0,
+      top: layerPanelTop,
+    );
+    expect(sourceRow, isNotNull);
+
+    final bottomEdge = Offset(panel.center.dx, panel.bottom - 2);
+    final gesture = await tester.startGesture(topLeft + sourceRow!.center);
+    await gesture.moveTo(topLeft + bottomEdge);
+    await tester.pump();
+    await gesture.moveTo(topLeft + bottomEdge.translate(0, -1));
+    await tester.pump();
+    await gesture.up();
+    await tester.pump();
+
+    final imagesById = {
+      for (final image in painter().workbook.activeSheet.images) image.id: image,
+    };
+    final panelItems = fortuneImageLayerPanelItems(
+      painter().workbook.activeSheet.images,
+    );
+    expect(painter().activeImageId, 'image10');
+    expect(painter().imageLayerPanelOpen, isTrue);
+    expect(
+      painter().imageLayerPanelScrollOffset,
+      fortuneImageLayerPanelMaxScrollOffset(10),
+    );
+    expect(panelItems.last.id, 'image10');
+    expect(
+      imagesById['image10']!.extraFields[fortuneSheetObjectZOrderExtraKey],
+      1.0,
+    );
+    expect(
+      imagesById['image9']!.extraFields[fortuneSheetObjectZOrderExtraKey],
+      10.0,
+    );
+  });
+
   testWidgets('image layer panel opens scrolled to active lower item', (
     tester,
   ) async {

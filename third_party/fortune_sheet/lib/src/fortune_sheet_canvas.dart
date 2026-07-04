@@ -24309,9 +24309,11 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     if ((local.dy - _imageLayerPanelRowDragStartY).abs() < 4) {
       return true;
     }
+    final settings = _workbook.settings;
+    _scrollImageLayerPanelDuringRowDrag(local, settings);
     final targetIndex = _imageLayerPanelRowTargetIndexAt(
       local,
-      _workbook.settings,
+      settings,
     );
     if (targetIndex == null) {
       return true;
@@ -24411,6 +24413,53 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         nextImages.length,
         _imageLayerPanelScrollOffset,
       );
+    });
+    return true;
+  }
+
+  bool _scrollImageLayerPanelDuringRowDrag(
+    Offset local,
+    FortuneSettings settings,
+  ) {
+    if (!_imageLayerPanelOpen) {
+      return false;
+    }
+    final size = context.size;
+    if (size == null) {
+      return false;
+    }
+    final items = fortuneImageLayerPanelItems(_workbook.activeSheet.images);
+    if (items.isEmpty) {
+      return false;
+    }
+    final panel = fortuneImageLayerPanelRect(
+      size,
+      items.length,
+      top: _imageLayerPanelTop(settings),
+    );
+    if (local.dx < panel.left || local.dx > panel.right) {
+      return false;
+    }
+    final listTop = panel.top + fortuneImageLayerPanelHeaderHeight;
+    final listBottom = panel.bottom;
+    final edgeSize = fortuneImageLayerPanelRowHeight;
+    final delta = local.dy < listTop + edgeSize
+        ? -fortuneImageLayerPanelRowHeight
+        : local.dy > listBottom - edgeSize
+        ? fortuneImageLayerPanelRowHeight
+        : 0.0;
+    if (delta == 0) {
+      return false;
+    }
+    final nextOffset = fortuneImageLayerPanelClampScrollOffset(
+      items.length,
+      _imageLayerPanelScrollOffset + delta,
+    );
+    if (nextOffset == _imageLayerPanelScrollOffset) {
+      return false;
+    }
+    setState(() {
+      _imageLayerPanelScrollOffset = nextOffset;
     });
     return true;
   }

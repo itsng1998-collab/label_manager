@@ -238,6 +238,18 @@
 - stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`, `third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart`. 기존 사용자 변경 `lib/core/app.dart`는 제외.
 - 커밋: `cc8e1f5` (`이미지 바코드 레이어 패널 행 드래그 재정렬 추가`).
 
+### 완료 (2026-07-04): 이미지/바코드 레이어 패널 row 드래그 자동 스크롤 추가
+
+목적: 긴 레이어 목록에서 row를 드래그할 때 패널 위/아래 가장자리로 이동하면 자동 스크롤되어 보이지 않는 항목 위치까지 재정렬할 수 있게 한다.
+- 변경: `fortune_sheet_canvas.dart`에 row drag 중 edge auto-scroll helper를 추가하고 target row 계산 전에 scrollOffset을 보정.
+- 테스트 추가: `fortune_barcode_dialog_test.dart`에 10개 이미지 목록에서 맨 위 row를 패널 하단 가장자리로 반복 드래그하면 scrollOffset이 증가하고 마지막 row 위치까지 zOrder가 재정렬되는지 검증하는 케이스 추가.
+- 검증: `dart_format` 적용, `C:\Flutter\bin\flutter.bat analyze third_party\fortune_sheet\lib\src\fortune_sheet_canvas.dart --no-fatal-warnings --no-fatal-infos` 통과.
+- 검증: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --plain-name "image layer panel row drag auto scrolls to lower rows"` 통과.
+- 검증: `C:\Flutter\bin\flutter.bat analyze third_party\fortune_sheet\lib\src\fortune_sheet_canvas.dart third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --no-fatal-warnings --no-fatal-infos` 통과.
+- 검증: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart` 통과(34 tests).
+- 검증: `git diff --check` 통과.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`, `third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart`. 기존 사용자 변경 `lib/core/app.dart`는 제외.
+
 ### 완료 (2026-07-04): SwipeActionTable 마우스/터치 드래그 스크롤 허용
 
 목적: `lib/widgets/swipe_action_table.dart`를 공통으로 사용하는 테이블에서 별도 플래그로 막지 않는 한 마우스/터치 상하 드래그로 기본 세로 스크롤이 되도록 한다.
