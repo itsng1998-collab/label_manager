@@ -103,6 +103,10 @@ class _LabelSheetRtfPreviewState extends State<LabelSheetRtfPreview> {
     if (captured != null) {
       final displayScale = _displayScaleFor(captured);
       imageSize = Size(
+        captured.width / captured.scale,
+        captured.height / captured.scale,
+      );
+      final displaySize = Size(
         captured.width / displayScale,
         captured.height / displayScale,
       );
@@ -110,7 +114,8 @@ class _LabelSheetRtfPreviewState extends State<LabelSheetRtfPreview> {
         'rtf preview capture done id=$captureId '
         'generation=${widget.captureGeneration} '
         'png=${captured.width}x${captured.height} '
-        'display=${imageSize.width.round()}x${imageSize.height.round()} '
+        'content=${imageSize.width.round()}x${imageSize.height.round()} '
+        'display=${displaySize.width.round()}x${displaySize.height.round()} '
         'displayScale=${displayScale.toStringAsFixed(2)} mounted=$mounted',
       );
     } else {

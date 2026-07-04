@@ -397,6 +397,7 @@ class _FloatingCard extends StatelessWidget {
   final VoidCallback onClose;
 
   static const double _handleSize = 16;
+  static const double _moveHandleWidth = 54;
   static const double _cornerHandleSize = 44;
   static const double _edgeThickness = 10;
 
@@ -448,7 +449,7 @@ class _FloatingCard extends StatelessWidget {
                   if (isResizing) return const SizedBox.shrink();
                   return Positioned(
                     top: -1,
-                    left: (rect.width - 70) / 2,
+                    left: (rect.width - _moveHandleWidth) / 2,
                     child: _MoveHandle(
                       key: const ValueKey('floating-move-handle'),
                       isResizingListenable: isResizingListenable,
@@ -939,7 +940,7 @@ class _MoveHandleBodyState extends State<_MoveHandleBody> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 54,
+      width: _FloatingCard._moveHandleWidth,
       height: 14,
       padding: const EdgeInsets.only(left: 10, right: 2),
       decoration: BoxDecoration(
