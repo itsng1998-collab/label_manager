@@ -27,7 +27,7 @@
 
 ## 현재 상태
 
-### 진행 중 (2026-07-04): 이미지/바코드 객체 메타데이터 저장 포맷 명시화
+### 완료 (2026-07-04): 이미지/바코드 객체 메타데이터 저장 포맷 명시화
 
 목적: 이미지/바코드 객체 ID, zOrder, 크기/회전/바코드 렌더 메타데이터가 라벨 시트 저장/로드 경로에서 명시적으로 보존되고, 알 수 없는 이미지 JSON 필드는 sanitizer에서 제거되도록 고정한다.
 - 변경 완료: `label_sheet_save_codec.dart`에 `sheet.images.objectMetadata` feature key와 이미지/이미지 crop JSON allow-list/sanitizer를 추가했다.
@@ -40,7 +40,7 @@
 - 검증 실패: `flutter test test\label_sheet_toolbar_test.dart --plain-name "label sheet save"`는 9 passed / 1 failed. 실패는 `label sheet save button emits encoded workbook payload`의 초기 save button disabled 기대값 불일치이며, 이번 저장 codec/image metadata sanitizer 변경과 직접 관련 없는 UI 상태 테스트다.
 - 검증 완료: `git diff --check -- SESSION_HANDOFF.md lib\page_label_sheet\label_sheet_save_codec.dart test\label_sheet_toolbar_test.dart` 통과, VS Code 진단 오류 없음.
 - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/page_label_sheet/label_sheet_save_codec.dart`, `test/label_sheet_toolbar_test.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
-- 진행 중: 커밋 필요.
+- 커밋 완료: `4f44f59` (`이미지 바코드 객체 메타데이터 저장 포맷 명시`).
 
 ### 완료 (2026-07-04): 이미지/바코드 컨텍스트 메뉴 단축키 semantics 회귀 테스트 추가
 
