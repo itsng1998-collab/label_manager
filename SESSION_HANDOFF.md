@@ -34,6 +34,7 @@
 - 변경: `P2.RICH_ITEM_NAME`, `P1.RICH_ELEMENT`, `P1.RICH_ELEMENT_RTF` 3곳의 `COLLATE` 위치를 수정.
 - 검증: `dart format lib/models/update_item.dart`, `C:\Flutter\bin\flutter.bat analyze lib\models\update_item.dart --no-fatal-warnings --no-fatal-infos` 통과, `git diff --check -- SESSION_HANDOFF.md lib\models\update_item.dart` 통과.
 - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/models/update_item.dart`. 기존 사용자 변경 `lib/core/app.dart`는 제외.
+- 커밋: `2d9e5a9` (`UpdateItem SQL COLLATE 문법 수정`).
 
 ### 완료 (2026-07-04): 브랜드/라벨 설정 CRUD 함수 배치 정리
 
