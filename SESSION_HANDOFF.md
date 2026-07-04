@@ -35,6 +35,7 @@
 - 브랜드 저장: 추가/수정/삭제 후 로컬 목록만 publish하지 않고 부모에서 DB 재조회한 목록으로 다이얼로그 상태를 동기화하도록 변경.
 - 검증: `dart format lib/home_page_manager.dart lib/models/label_size.dart`, `C:\Flutter\bin\flutter.bat analyze lib\home_page_manager.dart lib\models\label_size.dart --no-fatal-warnings --no-fatal-infos` 통과, `C:\Flutter\bin\flutter.bat test test\swipe_action_table_test.dart test\label_size_cache_test.dart` 21개 통과, `git diff --check -- SESSION_HANDOFF.md lib\home_page_manager.dart lib\models\label_size.dart` 통과.
 - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/home_page_manager.dart`, `lib/models/label_size.dart`. 기존 사용자 변경 `lib/core/app.dart`는 제외.
+- 커밋: `90fc4da` (`브랜드 라벨 관리 UI DB 흐름 정리`).
 
 ### 완료 (2026-07-04): UpdateItem SQL COLLATE 문법 수정
 
