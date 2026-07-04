@@ -80,6 +80,21 @@
 - stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`, `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`, `third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart`. 기존 사용자 변경 `lib/core/app.dart`는 제외.
 - 커밋: `a07af49` (`이미지 바코드 zOrder 정렬 기반 추가`).
 
+### 완료 (2026-07-04): 이미지/바코드 레이어 이동 컨텍스트 명령 추가
+
+목적: 장기 구현 순서 4의 첫 조각으로, 이미지/바코드 우클릭 메뉴에 `앞으로`/`뒤로`/`맨앞`/`맨뒤` 명령을 추가하고 선택 오브젝트의 `zOrder` metadata를 조정한다.
+- 변경: `fortune_sheet_painter.dart`에 레이어 이동 context command 상수(`bring-forward`, `send-backward`, `bring-to-front`, `send-to-back`)와 한/영 라벨, 렌더 허용 목록을 추가.
+- 변경: `fortune_sheet_canvas.dart`에서 이미지/바코드 context menu를 편집 + 레이어 이동 명령으로 확장하고, 명령 실행 시 현재 paint-order를 재배치해 각 이미지의 `fortuneSheetObjectZOrderExtraKey`를 1부터 재부여한다. 저장 배열 순서는 유지한다.
+- 테스트: `third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart`의 context menu helper를 특정 command 행 클릭 방식으로 변경하고, 겹친 이미지에서 `맨뒤` 명령 후 `zOrder`와 우클릭 hit-test 대상이 바뀌는지 검증을 추가.
+- 검증: `dart format third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart` 통과.
+- 검증: `C:\Flutter\bin\flutter.bat analyze third_party\fortune_sheet\lib\src\fortune_sheet_painter.dart --no-fatal-warnings --no-fatal-infos` 통과, `C:\Flutter\bin\flutter.bat analyze third_party\fortune_sheet\lib\src\fortune_sheet_canvas.dart --no-fatal-warnings --no-fatal-infos` 통과.
+- 검증: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --plain-name "zOrder"` 2개 통과.
+- 검증: `C:\Flutter\bin\flutter.bat analyze third_party\fortune_sheet\lib\src\fortune_sheet_canvas.dart third_party\fortune_sheet\lib\src\fortune_sheet_painter.dart third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --no-fatal-warnings --no-fatal-infos` 통과.
+- 검증: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart` 24개 통과.
+- 검증: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_toolbar_icons_test.dart --plain-name "default locale covers sheet and context menu item labels"` 통과.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`, `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`, `third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart`. 기존 사용자 변경 `lib/core/app.dart`는 제외.
+- 커밋 예정: `이미지 바코드 레이어 이동 메뉴 추가`.
+
 ### 완료 (2026-07-04): SwipeActionTable 마우스/터치 드래그 스크롤 허용
 
 목적: `lib/widgets/swipe_action_table.dart`를 공통으로 사용하는 테이블에서 별도 플래그로 막지 않는 한 마우스/터치 상하 드래그로 기본 세로 스크롤이 되도록 한다.

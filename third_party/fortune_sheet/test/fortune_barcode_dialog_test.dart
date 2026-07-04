@@ -18,6 +18,24 @@ final Uint8List _transparentPng = base64Decode(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=',
 );
 
+const List<String> _imageObjectContextMenuItems = [
+  fortuneContextEditImageCommand,
+  '|',
+  fortuneContextBringForwardCommand,
+  fortuneContextSendBackwardCommand,
+  fortuneContextBringToFrontCommand,
+  fortuneContextSendToBackCommand,
+];
+
+const List<String> _barcodeObjectContextMenuItems = [
+  fortuneContextEditBarcodeCommand,
+  '|',
+  fortuneContextBringForwardCommand,
+  fortuneContextSendBackwardCommand,
+  fortuneContextBringToFrontCommand,
+  fortuneContextSendToBackCommand,
+];
+
 Offset toolbarItemCenter(
   String key, {
   double width = 1200,
@@ -34,15 +52,20 @@ Offset toolbarItemCenter(
 Future<void> activateOpenContextMenuItem(
   WidgetTester tester,
   Offset canvasTopLeft,
-  FortuneSheetPainter painter,
-) async {
+  FortuneSheetPainter painter, {
+  String? command,
+}) async {
   expect(painter.contextMenuAt, isNotNull);
+  final targetCommand = command ??
+      painter.contextMenuItems.firstWhere((item) => item != '|');
+  final itemRect = fortuneContextMenuItemRect(
+    painter.contextMenuAt!,
+    targetCommand,
+    painter.contextMenuItems,
+  );
+  expect(itemRect, isNotNull);
   await tester.tapAt(
-    canvasTopLeft +
-        fortuneContextMenuRect(
-          painter.contextMenuAt!,
-          painter.contextMenuItems,
-        ).center,
+    canvasTopLeft + itemRect!.center,
   );
   await tester.pump();
 }
@@ -423,15 +446,14 @@ void main() {
 
     expect(painter().imageInsertDialogOpen, isFalse);
     expect(painter().contextMenuAt, isNotNull);
-    expect(painter().contextMenuItems, [fortuneContextEditImageCommand]);
+    expect(painter().contextMenuItems, _imageObjectContextMenuItems);
 
-    final menuCenter = topLeft +
-        fortuneContextMenuRect(
-          painter().contextMenuAt!,
-          painter().contextMenuItems,
-        ).center;
-    await tester.tapAt(menuCenter);
-    await tester.pump();
+    await activateOpenContextMenuItem(
+      tester,
+      topLeft,
+      painter(),
+      command: fortuneContextEditImageCommand,
+    );
 
     expect(painter().imageInsertDialogOpen, isTrue);
     expect(painter().imageInsertEditing, isTrue);
@@ -518,9 +540,65 @@ void main() {
       ),
     );
     await tester.pump();
+    await tester.sendEventToBinding(
+      PointerUpEvent(position: imageCenter, kind: PointerDeviceKind.mouse),
+    );
+    await tester.pump();
 
     expect(painter().activeImageId, 'front');
-    expect(painter().contextMenuItems, [fortuneContextEditImageCommand]);
+    expect(painter().contextMenuItems, _imageObjectContextMenuItems);
+
+    await activateOpenContextMenuItem(
+      tester,
+      topLeft,
+      painter(),
+      command: fortuneContextSendToBackCommand,
+    );
+
+    var imagesById = {
+      for (final image in painter().workbook.activeSheet.images) image.id: image,
+    };
+    expect(
+      imagesById['front']!.extraFields[fortuneSheetObjectZOrderExtraKey],
+      1.0,
+    );
+    expect(
+      imagesById['back']!.extraFields[fortuneSheetObjectZOrderExtraKey],
+      2.0,
+    );
+
+    await tester.sendEventToBinding(
+      PointerDownEvent(
+        position: imageCenter,
+        buttons: kSecondaryMouseButton,
+        kind: PointerDeviceKind.mouse,
+      ),
+    );
+    await tester.pump();
+    await tester.sendEventToBinding(
+      PointerUpEvent(position: imageCenter, kind: PointerDeviceKind.mouse),
+    );
+    await tester.pump();
+
+    expect(painter().activeImageId, 'back');
+    await activateOpenContextMenuItem(
+      tester,
+      topLeft,
+      painter(),
+      command: fortuneContextBringToFrontCommand,
+    );
+
+    imagesById = {
+      for (final image in painter().workbook.activeSheet.images) image.id: image,
+    };
+    expect(
+      imagesById['front']!.extraFields[fortuneSheetObjectZOrderExtraKey],
+      1.0,
+    );
+    expect(
+      imagesById['back']!.extraFields[fortuneSheetObjectZOrderExtraKey],
+      2.0,
+    );
   });
 
   testWidgets('barcode close button owns hover and pressed feedback', (
@@ -1246,7 +1324,7 @@ void main() {
     await tester.pump();
 
     expect(painter().barcodeDialogOpen, isFalse);
-    expect(painter().contextMenuItems, [fortuneContextEditBarcodeCommand]);
+    expect(painter().contextMenuItems, _barcodeObjectContextMenuItems);
     await activateOpenContextMenuItem(tester, topLeft, painter());
 
     EditableText editableTextIn(String key) {
@@ -1624,7 +1702,7 @@ void main() {
     await tester.pump();
 
     expect(painter().barcodeDialogOpen, isFalse);
-    expect(painter().contextMenuItems, [fortuneContextEditBarcodeCommand]);
+    expect(painter().contextMenuItems, _barcodeObjectContextMenuItems);
     await activateOpenContextMenuItem(tester, topLeft, painter());
 
     expect(painter().barcodeDialogOpen, isTrue);
@@ -1747,7 +1825,7 @@ void main() {
     await tester.pump();
 
     expect(painter().barcodeDialogOpen, isFalse);
-    expect(painter().contextMenuItems, [fortuneContextEditBarcodeCommand]);
+    expect(painter().contextMenuItems, _barcodeObjectContextMenuItems);
     await activateOpenContextMenuItem(tester, topLeft, painter());
 
     expect(painter().barcodeDialogOpen, isTrue);
@@ -1890,7 +1968,7 @@ void main() {
     await tester.pump();
 
     expect(painter().barcodeDialogOpen, isFalse);
-    expect(painter().contextMenuItems, [fortuneContextEditBarcodeCommand]);
+    expect(painter().contextMenuItems, _barcodeObjectContextMenuItems);
     await activateOpenContextMenuItem(tester, topLeft, painter());
 
     expect(painter().barcodeDialogOpen, isTrue);
@@ -2025,7 +2103,7 @@ void main() {
     await tester.pump();
 
     expect(painter().barcodeDialogOpen, isFalse);
-    expect(painter().contextMenuItems, [fortuneContextEditBarcodeCommand]);
+    expect(painter().contextMenuItems, _barcodeObjectContextMenuItems);
     await activateOpenContextMenuItem(tester, topLeft, painter());
 
     expect(painter().barcodeDialogOpen, isTrue);
@@ -2160,7 +2238,7 @@ void main() {
     await tester.pump();
 
     expect(painter().barcodeDialogOpen, isFalse);
-    expect(painter().contextMenuItems, [fortuneContextEditBarcodeCommand]);
+    expect(painter().contextMenuItems, _barcodeObjectContextMenuItems);
     await activateOpenContextMenuItem(tester, topLeft, painter());
 
     expect(painter().barcodeDialogOpen, isTrue);

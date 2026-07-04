@@ -29198,9 +29198,16 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   }
 
   List<String> _contextMenuItemsForImage(FortuneImage image) {
-    return _isBarcodeImage(image)
-        ? const <String>[fortuneContextEditBarcodeCommand]
-        : const <String>[fortuneContextEditImageCommand];
+    return <String>[
+      _isBarcodeImage(image)
+          ? fortuneContextEditBarcodeCommand
+          : fortuneContextEditImageCommand,
+      '|',
+      fortuneContextBringForwardCommand,
+      fortuneContextSendBackwardCommand,
+      fortuneContextBringToFrontCommand,
+      fortuneContextSendToBackCommand,
+    ];
   }
 
   List<String> get _sheetTabMenuItems => fortuneSheetTabRenderableMenuItems(
@@ -29549,6 +29556,14 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         _showContextImageEditDialog();
       case fortuneContextEditBarcodeCommand:
         _showContextBarcodeEditDialog();
+      case fortuneContextBringForwardCommand:
+        _moveContextImageLayer(command);
+      case fortuneContextSendBackwardCommand:
+        _moveContextImageLayer(command);
+      case fortuneContextBringToFrontCommand:
+        _moveContextImageLayer(command);
+      case fortuneContextSendToBackCommand:
+        _moveContextImageLayer(command);
       case fortuneToolbarLinkCommand:
         _toggleSelectedCellHyperlinkMetadata();
       case fortuneContextDataCommand:
@@ -29586,6 +29601,57 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       return;
     }
     _showBarcodeEditDialog(image);
+  }
+
+  void _moveContextImageLayer(String command) {
+    final imageId = _contextMenuImageId ?? _activeImageId;
+    final sheet = _workbook.activeSheet;
+    final ordered = fortuneImagesInPaintOrder(sheet.images);
+    final currentIndex = imageId == null
+        ? -1
+        : ordered.indexWhere((image) => image.id == imageId);
+    if (currentIndex < 0) {
+      setState(_closeTransientMenus);
+      return;
+    }
+    final targetIndex = switch (command) {
+      fortuneContextBringForwardCommand => math.min(
+        ordered.length - 1,
+        currentIndex + 1,
+      ),
+      fortuneContextSendBackwardCommand => math.max(0, currentIndex - 1),
+      fortuneContextBringToFrontCommand => ordered.length - 1,
+      fortuneContextSendToBackCommand => 0,
+      _ => currentIndex,
+    };
+    if (targetIndex == currentIndex) {
+      setState(_closeTransientMenus);
+      return;
+    }
+    final moving = ordered.removeAt(currentIndex);
+    ordered.insert(targetIndex, moving);
+    final nextZOrders = <String, double>{
+      for (var index = 0; index < ordered.length; index += 1)
+        ordered[index].id: index + 1.0,
+    };
+    final nextImages = [
+      for (final image in sheet.images)
+        if (nextZOrders.containsKey(image.id))
+          image.copyWith(
+            extraFields: <String, Object?>{
+              ...image.extraFields,
+              fortuneSheetObjectZOrderExtraKey: nextZOrders[image.id],
+            },
+          )
+        else
+          image,
+    ];
+    _recordUndoSnapshot();
+    setState(() {
+      _replaceActiveSheet(sheet.copyWith(images: nextImages));
+      _activeImageId = imageId;
+      _closeTransientMenus();
+    });
   }
 
   void _toggleSheetRulerVisible() {

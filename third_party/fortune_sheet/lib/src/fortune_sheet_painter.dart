@@ -906,6 +906,10 @@ class FortuneSheetLocale {
       'barcode': 'Insert barcode',
       'edit-image': 'Edit image',
       'edit-barcode': 'Edit barcode',
+      'bring-forward': 'Bring forward',
+      'send-backward': 'Send backward',
+      'bring-to-front': 'Bring to front',
+      'send-to-back': 'Send to back',
       'insert-auto-ingredient-table': 'Insert auto ingredient table',
       'load-common-label': 'Load common label',
       'link': 'Insert link',
@@ -1671,6 +1675,10 @@ class FortuneSheetLocale {
       'barcode': '바코드 삽입',
       'edit-image': '이미지 수정',
       'edit-barcode': '바코드 수정',
+      'bring-forward': '앞으로',
+      'send-backward': '뒤로',
+      'bring-to-front': '맨앞',
+      'send-to-back': '맨뒤',
       'insert-auto-ingredient-table': '자동 성분표 삽입',
       'load-common-label': '공용 라벨 불러오기',
       'import-label-file': '라벨 파일에서 가져오기',
@@ -2261,6 +2269,10 @@ const String fortuneToolbarImageCommand = 'image';
 const String fortuneToolbarBarcodeCommand = 'barcode';
 const String fortuneContextEditImageCommand = 'edit-image';
 const String fortuneContextEditBarcodeCommand = 'edit-barcode';
+const String fortuneContextBringForwardCommand = 'bring-forward';
+const String fortuneContextSendBackwardCommand = 'send-backward';
+const String fortuneContextBringToFrontCommand = 'bring-to-front';
+const String fortuneContextSendToBackCommand = 'send-to-back';
 const String fortuneToolbarSplitColumnCommand = 'splitColumn';
 const String fortuneToolbarLocationConditionCommand = 'locationCondition';
 const String fortuneToolbarLocationCommand = 'location';
@@ -42536,6 +42548,10 @@ bool fortuneContextMenuItemIsRenderedByUpstream(String item) {
     fortuneToolbarBarcodeCommand ||
     fortuneContextEditImageCommand ||
     fortuneContextEditBarcodeCommand ||
+    fortuneContextBringForwardCommand ||
+    fortuneContextSendBackwardCommand ||
+    fortuneContextBringToFrontCommand ||
+    fortuneContextSendToBackCommand ||
     fortuneToolbarLinkCommand ||
     '|' => true,
     _ => false,
