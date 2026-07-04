@@ -43062,6 +43062,8 @@ const double fortuneContextMenuDividerTopInset = 4.0;
 const double fortuneContextMenuDividerStrokeHeight = 1.0;
 const double fortuneContextMenuTextLeft = 30.0;
 const double fortuneContextMenuTextWidth = 166.0;
+const double fortuneContextMenuShortcutWidth = 78.0;
+const double fortuneContextMenuShortcutRight = 16.0;
 const double fortuneContextMenuBorderRadius = 4.0;
 const double fortuneContextMenuTestTapX = 40.0;
 
@@ -43141,6 +43143,40 @@ Rect? fortuneContextMenuItemRect(
     y += fortuneContextMenuRowHeight;
   }
   return null;
+}
+
+Rect fortuneContextMenuShortcutRect(Rect row) {
+  return Rect.fromLTWH(
+    math.max(
+      row.left + fortuneContextMenuTextLeft,
+      row.right - fortuneContextMenuShortcutRight - fortuneContextMenuShortcutWidth,
+    ),
+    row.top,
+    fortuneContextMenuShortcutWidth,
+    row.height,
+  );
+}
+
+Rect fortuneContextMenuLabelRect(Rect row) {
+  final shortcut = fortuneContextMenuShortcutRect(row);
+  return Rect.fromLTWH(
+    row.left + fortuneContextMenuTextLeft,
+    row.top,
+    math.max(0, shortcut.left - row.left - fortuneContextMenuTextLeft - 8),
+    row.height,
+  );
+}
+
+String fortuneContextMenuShortcutLabel(String command) {
+  return switch (command) {
+    fortuneContextDeleteImageCommand => 'Del',
+    fortuneContextDuplicateImageCommand => 'Ctrl+D',
+    fortuneContextBringToFrontCommand => 'Ctrl+Home',
+    fortuneContextBringForwardCommand => 'Ctrl+↑',
+    fortuneContextSendBackwardCommand => 'Ctrl+↓',
+    fortuneContextSendToBackCommand => 'Ctrl+End',
+    _ => '',
+  };
 }
 
 Rect? fortuneContextMenuInlineInputRect(
@@ -67551,15 +67587,22 @@ class FortuneSheetPainter extends CustomPainter {
           _drawText(
             canvas,
             _contextMenuLabel(item),
-            Rect.fromLTWH(
-              rect.left + fortuneContextMenuTextLeft,
-              y,
-              fortuneContextMenuTextWidth,
-              fortuneContextMenuRowHeight,
-            ),
+            fortuneContextMenuLabelRect(row),
             fontSize: 13,
             color: enabled ? const Color(0xff202124) : const Color(0xff9aa0a6),
           );
+          final shortcut = fortuneContextMenuShortcutLabel(item);
+          if (shortcut.isNotEmpty) {
+            _drawText(
+              canvas,
+              shortcut,
+              fortuneContextMenuShortcutRect(row),
+              fontSize: 12,
+              color:
+                  enabled ? const Color(0xff5f6368) : const Color(0xff9aa0a6),
+              align: TextAlign.right,
+            );
+          }
         }
         y += fortuneContextMenuRowHeight;
       }
@@ -78640,6 +78683,10 @@ class FortuneSheetPainter extends CustomPainter {
         continue;
       }
       final enabled = !contextMenuDisabledItems.contains(item);
+      final shortcut = fortuneContextMenuShortcutLabel(item);
+      final label = shortcut.isEmpty
+          ? _contextMenuLabel(item)
+          : '${_contextMenuLabel(item)}, $shortcut';
       nodes.add(
         CustomPainterSemantics(
           rect: Rect.fromLTWH(
@@ -78649,7 +78696,7 @@ class FortuneSheetPainter extends CustomPainter {
             fortuneContextMenuRowHeight,
           ),
           properties: SemanticsProperties(
-            label: _contextMenuLabel(item),
+            label: label,
             button: true,
             enabled: enabled,
             textDirection: textDirection,

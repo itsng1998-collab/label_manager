@@ -210,6 +210,43 @@ void main() {
     );
   });
 
+  test('image context menu shortcut labels fit beside item labels', () {
+    const expectedShortcuts = {
+      fortuneContextDuplicateImageCommand: 'Ctrl+D',
+      fortuneContextDeleteImageCommand: 'Del',
+      fortuneContextBringForwardCommand: 'Ctrl+↑',
+      fortuneContextSendBackwardCommand: 'Ctrl+↓',
+      fortuneContextBringToFrontCommand: 'Ctrl+Home',
+      fortuneContextSendToBackCommand: 'Ctrl+End',
+    };
+
+    for (final entry in expectedShortcuts.entries) {
+      expect(fortuneContextMenuShortcutLabel(entry.key), entry.value);
+    }
+    expect(fortuneContextMenuShortcutLabel(fortuneContextEditImageCommand), isEmpty);
+    expect(
+      fortuneContextMenuShortcutLabel(fortuneContextEditBarcodeCommand),
+      isEmpty,
+    );
+
+    final row = fortuneContextMenuItemRect(
+      const Offset(40, 80),
+      fortuneContextDuplicateImageCommand,
+      _imageObjectContextMenuItems,
+    );
+    expect(row, isNotNull);
+    final label = fortuneContextMenuLabelRect(row!);
+    final shortcut = fortuneContextMenuShortcutRect(row);
+
+    expect(label.left, greaterThanOrEqualTo(row.left));
+    expect(label.right, lessThanOrEqualTo(shortcut.left));
+    expect(shortcut.right, lessThanOrEqualTo(row.right));
+    expect(label.top, row.top);
+    expect(shortcut.top, row.top);
+    expect(label.height, row.height);
+    expect(shortcut.height, row.height);
+  });
+
   test('barcode show-text option is centered between quiet-zone inputs', () {
     final dialogRect = fortuneBarcodeDialogRect(
       const Size(900, 700),
