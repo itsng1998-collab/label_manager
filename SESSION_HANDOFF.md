@@ -27,6 +27,14 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-04): 브랜드/라벨 설정 테이블 액션 진입 시 툴팁 닫기
+
+목적: 브랜드/라벨 설정 다이얼로그 테이블의 툴팁이 떠 있는 상태에서 수정/삽입/순서변경 액션으로 진입하면 즉시 닫히도록 한다.
+- 변경: 공용 `SwipeActionTable` 액션 버튼 클릭 시 `Tooltip.dismissAllToolTips()`를 호출해 브랜드/라벨 수정·삽입 액션 진입 전에 표시 중인 툴팁을 닫는다.
+- 변경: 라벨 설정 순서변경 모드 진입 핸들러에서도 `Tooltip.dismissAllToolTips()`를 호출한다.
+- 검증: `dart format lib/home_page_manager.dart lib/widgets/swipe_action_table.dart`, `C:\Flutter\bin\flutter.bat analyze lib\home_page_manager.dart lib\widgets\swipe_action_table.dart --no-fatal-warnings --no-fatal-infos` 통과, `C:\Flutter\bin\flutter.bat test test\swipe_action_table_test.dart test\label_size_cache_test.dart` 21개 통과, `git diff --check -- SESSION_HANDOFF.md lib\home_page_manager.dart lib\widgets\swipe_action_table.dart` 통과.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `lib/home_page_manager.dart`, `lib/widgets/swipe_action_table.dart`. 기존 사용자 변경 `lib/core/app.dart`는 제외.
+
 ### 완료 (2026-07-04): 라벨 설정 브랜드 메뉴 높이 보정
 
 목적: 라벨 설정 다이얼로그의 브랜드 드롭다운 메뉴가 다이얼로그 하단 빈 영역까지 사용하지 못하고 불필요하게 스크롤되는 문제를 수정한다.

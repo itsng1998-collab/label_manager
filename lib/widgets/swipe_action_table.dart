@@ -836,6 +836,7 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
                         debugPrint(
                           '[SwipeTable] action pressed row=$rowIndex tooltip=${action.tooltip}',
                         );
+                        Tooltip.dismissAllToolTips();
                         action.onRowPressed!(row, rowIndex);
                       }
                     : action.onPressed != null
@@ -843,6 +844,7 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
                         debugPrint(
                           '[SwipeTable] action pressed (global) tooltip=${action.tooltip}',
                         );
+                        Tooltip.dismissAllToolTips();
                         action.onPressed!();
                       }
                     : null;

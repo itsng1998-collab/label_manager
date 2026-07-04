@@ -2997,6 +2997,7 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
       return;
     }
     debugLog('labelSettings reorder start labels=${_labels.length}');
+    Tooltip.dismissAllToolTips();
     setState(() {
       _orderEditMode = true;
       _selectedLabelSizeId = _labels.isNotEmpty
