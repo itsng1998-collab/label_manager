@@ -3402,6 +3402,100 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
     );
   }
 
+  Future<void> _updateBrandName(Brand brand, String brandName) async {
+    final editingIndex = _editingIndex;
+    debugLog(
+      'updateBrandName start editingIndex=$editingIndex '
+      'brandId=${brand.brandId} old=${brand.brandName} new=$brandName',
+    );
+
+    if (editingIndex == null || editingIndex >= _brands.length) {
+      debugLog('updateBrandName aborted editingIndex=null or out of range');
+      return;
+    }
+
+    debugLog(
+      'updateBrandName confirm dialog brandId=${brand.brandId} old=${brand.brandName} new=$brandName',
+    );
+
+    final confirmed = await _showBrandOverlayDialog<bool>(
+      (dialogContext, close) => AlertDialog(
+        content: Text("'$brandName' 명으로 변경하시겠습니까?"),
+        actions: [
+          TextButton(onPressed: () => close(false), child: const Text('취소')),
+          TextButton(onPressed: () => close(true), child: const Text('확인')),
+        ],
+      ),
+    );
+
+    if (!mounted) {
+      debugLog('updateBrandName aborted unmounted after dialog');
+      return;
+    }
+
+    if (confirmed != true) {
+      // 확인 다이얼로그에서 취소 → 편집 모드를 유지한다.
+      // 사용자가 입력한 내용을 보존해 다시 수정하거나 ESC/Enter 로 직접 닫을 수 있도록 한다.
+      debugLog(
+        'updateBrandName cancelledByUser brandId=${brand.brandId} keepEditing',
+      );
+      _brandNameEditFocusNode.requestFocus();
+      return;
+    }
+
+    debugLog(
+      'updateBrandName confirmed brandId=${brand.brandId} old=${brand.brandName} new=$brandName',
+    );
+    try {
+      await BrandDAO.updateByBrandId(brand, brandName);
+    } catch (e) {
+      debugLog('updateBrandName failed brandId=${brand.brandId} error=$e');
+      if (mounted) {
+        await _showBrandOverlayDialog<void>(
+          (dialogContext, close) => AlertDialog(
+            title: const Text('브랜드 이름 변경 실패'),
+            content: const Text('브랜드 이름 변경에 실패했습니다.'),
+            actions: [
+              TextButton(onPressed: () => close(null), child: const Text('확인')),
+            ],
+          ),
+        );
+        if (mounted) {
+          _brandNameEditFocusNode.requestFocus();
+        }
+      }
+      return;
+    }
+
+    debugLog(
+      'updateBrandName result succeeded=true editingIndexNow=$_editingIndex expectedIndex=$editingIndex',
+    );
+
+    if (_editingIndex != editingIndex) {
+      debugLog('updateBrandName skippedStateUpdate editingIndexChanged');
+      return;
+    }
+
+    setState(() {
+      _brands[editingIndex] = Brand(
+        brandId: brand.brandId,
+        customerId: brand.customerId,
+        brandName: brandName,
+      );
+      _editingIndex = null;
+      _brandNameEditController.clear();
+    });
+    final updatedBrand = _brands[editingIndex];
+    _publishBrandsChanged(
+      selectedBrand: updatedBrand,
+      updateSelection: widget.selectedBrand?.brandId == updatedBrand.brandId,
+    );
+
+    debugLog(
+      'updateBrandName done brandId=${brand.brandId} newName=$brandName',
+    );
+  }
+
   Future<void> _deleteBrand(Brand brand, int index) async {
     debugLog(
       'deleteBrand start index=$index brandId=${brand.brandId} name=${brand.brandName} editingIndex=$_editingIndex',
@@ -3495,100 +3589,6 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
         ? deletedIndex
         : nextBrands.length - 1;
     return nextBrands[nextIndex];
-  }
-
-  Future<void> _updateBrandName(Brand brand, String brandName) async {
-    final editingIndex = _editingIndex;
-    debugLog(
-      'updateBrandName start editingIndex=$editingIndex '
-      'brandId=${brand.brandId} old=${brand.brandName} new=$brandName',
-    );
-
-    if (editingIndex == null || editingIndex >= _brands.length) {
-      debugLog('updateBrandName aborted editingIndex=null or out of range');
-      return;
-    }
-
-    debugLog(
-      'updateBrandName confirm dialog brandId=${brand.brandId} old=${brand.brandName} new=$brandName',
-    );
-
-    final confirmed = await _showBrandOverlayDialog<bool>(
-      (dialogContext, close) => AlertDialog(
-        content: Text("'$brandName' 명으로 변경하시겠습니까?"),
-        actions: [
-          TextButton(onPressed: () => close(false), child: const Text('취소')),
-          TextButton(onPressed: () => close(true), child: const Text('확인')),
-        ],
-      ),
-    );
-
-    if (!mounted) {
-      debugLog('updateBrandName aborted unmounted after dialog');
-      return;
-    }
-
-    if (confirmed != true) {
-      // 확인 다이얼로그에서 취소 → 편집 모드를 유지한다.
-      // 사용자가 입력한 내용을 보존해 다시 수정하거나 ESC/Enter 로 직접 닫을 수 있도록 한다.
-      debugLog(
-        'updateBrandName cancelledByUser brandId=${brand.brandId} keepEditing',
-      );
-      _brandNameEditFocusNode.requestFocus();
-      return;
-    }
-
-    debugLog(
-      'updateBrandName confirmed brandId=${brand.brandId} old=${brand.brandName} new=$brandName',
-    );
-    try {
-      await BrandDAO.updateByBrandId(brand, brandName);
-    } catch (e) {
-      debugLog('updateBrandName failed brandId=${brand.brandId} error=$e');
-      if (mounted) {
-        await _showBrandOverlayDialog<void>(
-          (dialogContext, close) => AlertDialog(
-            title: const Text('브랜드 이름 변경 실패'),
-            content: const Text('브랜드 이름 변경에 실패했습니다.'),
-            actions: [
-              TextButton(onPressed: () => close(null), child: const Text('확인')),
-            ],
-          ),
-        );
-        if (mounted) {
-          _brandNameEditFocusNode.requestFocus();
-        }
-      }
-      return;
-    }
-
-    debugLog(
-      'updateBrandName result succeeded=true editingIndexNow=$_editingIndex expectedIndex=$editingIndex',
-    );
-
-    if (_editingIndex != editingIndex) {
-      debugLog('updateBrandName skippedStateUpdate editingIndexChanged');
-      return;
-    }
-
-    setState(() {
-      _brands[editingIndex] = Brand(
-        brandId: brand.brandId,
-        customerId: brand.customerId,
-        brandName: brandName,
-      );
-      _editingIndex = null;
-      _brandNameEditController.clear();
-    });
-    final updatedBrand = _brands[editingIndex];
-    _publishBrandsChanged(
-      selectedBrand: updatedBrand,
-      updateSelection: widget.selectedBrand?.brandId == updatedBrand.brandId,
-    );
-
-    debugLog(
-      'updateBrandName done brandId=${brand.brandId} newName=$brandName',
-    );
   }
 }
 
