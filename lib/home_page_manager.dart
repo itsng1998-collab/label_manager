@@ -1804,6 +1804,7 @@ class _ModelessDropdownField<T> extends StatefulWidget {
     required this.value,
     required this.items,
     required this.debugLabel,
+    this.menuBoundaryKey,
     this.onChanged,
     this.width = 170,
     this.labelWidth = 80,
@@ -1814,6 +1815,7 @@ class _ModelessDropdownField<T> extends StatefulWidget {
   final List<DropdownMenuItem<T>> items;
   final ValueChanged<T?>? onChanged;
   final String debugLabel;
+  final GlobalKey? menuBoundaryKey;
   final double width;
   final double labelWidth;
 
@@ -1884,18 +1886,26 @@ class _ModelessDropdownFieldState<T> extends State<_ModelessDropdownField<T>> {
     final buttonRect = buttonTopLeft & renderObject.size;
     final screenSize = MediaQuery.sizeOf(context);
     final itemHeight = lmSize(28);
-    final maxMenuHeight = min(itemHeight * widget.items.length, lmSize(220));
+    final desiredMenuHeight = itemHeight * widget.items.length;
     final belowTop = buttonRect.bottom + lmSize(2);
-    final aboveTop = buttonRect.top - maxMenuHeight - lmSize(2);
-    final menuTop = belowTop + maxMenuHeight <= screenSize.height
+    final boundaryRect = _resolveMenuBoundaryRect(screenSize);
+    final availableBelow = max(0.0, boundaryRect.bottom - belowTop);
+    final availableAbove = max(0.0, buttonRect.top - boundaryRect.top - lmSize(2));
+    final useBelow = availableBelow >= desiredMenuHeight ||
+        availableBelow >= availableAbove;
+    final availableHeight = useBelow ? availableBelow : availableAbove;
+    final menuHeight = max(itemHeight, min(desiredMenuHeight, availableHeight));
+    final menuTop = useBelow
         ? belowTop
-        : max(0.0, aboveTop);
+        : max(boundaryRect.top, buttonRect.top - menuHeight - lmSize(2));
     final maxMenuLeft = max(0.0, screenSize.width - buttonRect.width);
     final menuLeft = min(max(buttonRect.left, 0.0), maxMenuLeft);
 
     debugLog(
       '${widget.debugLabel} open items=${widget.items.length} '
-      'value=${widget.value} rect=$buttonRect top=$menuTop left=$menuLeft',
+      'value=${widget.value} rect=$buttonRect boundary=$boundaryRect '
+      'desiredHeight=$desiredMenuHeight menuHeight=$menuHeight '
+      'below=$availableBelow above=$availableAbove top=$menuTop left=$menuLeft',
     );
 
     late final OverlayEntry entry;
@@ -1919,7 +1929,7 @@ class _ModelessDropdownFieldState<T> extends State<_ModelessDropdownField<T>> {
               borderRadius: BorderRadius.circular(4),
               clipBehavior: Clip.antiAlias,
               child: ConstrainedBox(
-                constraints: BoxConstraints(maxHeight: maxMenuHeight),
+                constraints: BoxConstraints(maxHeight: menuHeight),
                 child: ListView.builder(
                   padding: EdgeInsets.zero,
                   shrinkWrap: true,
@@ -1967,6 +1977,16 @@ class _ModelessDropdownFieldState<T> extends State<_ModelessDropdownField<T>> {
     if (mounted) {
       setState(() {});
     }
+  }
+
+  Rect _resolveMenuBoundaryRect(Size screenSize) {
+    final boundaryContext = widget.menuBoundaryKey?.currentContext;
+    final renderObject = boundaryContext?.findRenderObject();
+    if (renderObject is RenderBox && renderObject.hasSize) {
+      final topLeft = renderObject.localToGlobal(Offset.zero);
+      return topLeft & renderObject.size;
+    }
+    return Offset.zero & screenSize;
   }
 
   void _removeMenu(String reason, {bool rebuild = true}) {
@@ -2098,6 +2118,7 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
 
   late List<LabelSize> _labels;
   late List<LabelSize> _originalLabels;
+  final GlobalKey _dialogContentKey = GlobalKey();
   final TextEditingController _labelNameEditController =
       TextEditingController();
   final FocusNode _labelNameEditFocusNode = FocusNode();
@@ -2227,26 +2248,29 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
       closeIcon: const _BrandDialogCloseIcon(),
       onClose: widget.onClose,
       footer: _orderEditMode ? _buildOrderEditFooter() : null,
-      child: Padding(
-        padding: const EdgeInsets.only(left: 8, right: 8, bottom: 8),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _buildBrandSelector(),
-            const SizedBox(height: 6),
-            Expanded(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Expanded(child: _buildLabelTable()),
-                  if (_orderEditMode) ...[
-                    const SizedBox(width: 6),
-                    _buildOrderMoveRail(),
+      child: KeyedSubtree(
+        key: _dialogContentKey,
+        child: Padding(
+          padding: const EdgeInsets.only(left: 8, right: 8, bottom: 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _buildBrandSelector(),
+              const SizedBox(height: 6),
+              Expanded(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(child: _buildLabelTable()),
+                    if (_orderEditMode) ...[
+                      const SizedBox(width: 6),
+                      _buildOrderMoveRail(),
+                    ],
                   ],
-                ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -2262,6 +2286,7 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
           items: _brandItems,
           onChanged: enabled ? _handleBrandDropdownChanged : null,
           debugLabel: 'labelSettings.brandDropdown',
+          menuBoundaryKey: _dialogContentKey,
           width: 260,
           labelWidth: 54,
         ),

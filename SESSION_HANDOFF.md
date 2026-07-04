@@ -27,6 +27,14 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-04): 라벨 설정 브랜드 메뉴 높이 보정
+
+목적: 라벨 설정 다이얼로그의 브랜드 드롭다운 메뉴가 다이얼로그 하단 빈 영역까지 사용하지 못하고 불필요하게 스크롤되는 문제를 수정한다.
+- 변경: `_ModelessDropdownField`가 `menuBoundaryKey`를 받아 다이얼로그 콘텐츠 하단까지 사용 가능한 높이를 계산하도록 변경했다.
+- 변경: 라벨 설정 다이얼로그 콘텐츠 영역을 `KeyedSubtree`로 감싸 브랜드 메뉴 경계로 전달했다. 항목 전체 높이가 들어가면 스크롤 없이 끝나고, 경계 내 높이가 부족할 때만 스크롤된다.
+- 검증: `dart format lib/home_page_manager.dart`, `C:\Flutter\bin\flutter.bat analyze lib\home_page_manager.dart --no-fatal-warnings --no-fatal-infos` 통과, `C:\Flutter\bin\flutter.bat test test\swipe_action_table_test.dart test\label_size_cache_test.dart` 21개 통과, `git diff --check -- SESSION_HANDOFF.md lib\home_page_manager.dart` 통과.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `lib/home_page_manager.dart`. 기존 사용자 변경 `lib/core/app.dart`는 제외.
+
 ### 완료 (2026-07-04): 라벨 설정 브랜드 드롭다운 Overlay 직접 표시
 
 목적: `DropdownButton2`의 Navigator route 방식이 라벨 설정 OverlayEntry 다이얼로그와 충돌해 브랜드 메뉴가 여전히 정상 표시되지 않는 문제를 수정한다.
