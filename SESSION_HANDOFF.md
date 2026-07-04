@@ -27,6 +27,14 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-04): 라벨 관리 더블클릭 선택/조회 추가
+
+목적: 브랜드 관리처럼 라벨 관리에서도 라벨 이름 컬럼 더블클릭 시 해당 라벨을 선택하고 조회/로드 처리로 연결한다.
+- 확인: 브랜드는 `onNameDoubleTap: _handleBrandNameDoubleTap` → `widget.onBrandSelected` → `_handleBrandSelectedFromDialog` 흐름이 있으나, 라벨은 `onRowSelected`가 순서 변경용 내부 선택에만 사용되고 더블클릭 조회 콜백이 없다.
+- 변경: `_LabelSettingsDialog`에 `onLabelSelected` 콜백 추가, 라벨 테이블 `onNameDoubleTap` 연결, 편집/삽입/순서 변경 중 더블클릭 조회 차단.
+- 검증: `dart format lib/home_page_manager.dart`, `C:\Flutter\bin\flutter.bat analyze lib\home_page_manager.dart --no-fatal-warnings --no-fatal-infos` 통과, `C:\Flutter\bin\flutter.bat test test\swipe_action_table_test.dart test\label_size_cache_test.dart` 21개 통과, `git diff --check -- SESSION_HANDOFF.md lib\home_page_manager.dart` 통과.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `lib/home_page_manager.dart`. 기존 사용자 변경 `lib/core/app.dart`는 제외.
+
 ### 완료 (2026-07-04): 브랜드/라벨 관리 UI-DB 흐름 정리
 
 목적: 브랜드/라벨 관리에서 UI 조작과 DB 반영 위치/재조회 흐름이 어긋나는 부분을 정리한다.

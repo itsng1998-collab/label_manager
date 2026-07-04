@@ -574,6 +574,7 @@ class _HomePageManagerState extends State<HomePageManager> {
               _labelSizesBrandId,
           currentLabelSizeId: () => _effectiveLabelSize?.labelSizeId,
           labels: LabelSize.datas ?? const <LabelSize>[],
+          onLabelSelected: _handleLabelSizeChanged,
           onLabelsChanged: _handleLabelsChangedFromDialog,
           onClose: _closeLabelSettingsDialog,
         ),
@@ -1769,6 +1770,7 @@ class _LabelSettingsDialog extends StatefulWidget {
     required this.brandId,
     required this.currentLabelSizeId,
     required this.labels,
+    required this.onLabelSelected,
     required this.onLabelsChanged,
     required this.onClose,
   });
@@ -1776,6 +1778,7 @@ class _LabelSettingsDialog extends StatefulWidget {
   final int? brandId;
   final int? Function() currentLabelSizeId;
   final List<LabelSize> labels;
+  final ValueChanged<LabelSize?> onLabelSelected;
   final Future<List<LabelSize>> Function({
     LabelSize? preferredSelectedLabel,
     bool updateSelection,
@@ -1956,6 +1959,7 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
       onCancelEdit: _cancelLabelNameEdit,
       onSubmitEdit: _submitLabelNameEdit,
       onDeleteRow: _deleteLabel,
+      onNameDoubleTap: _handleLabelNameDoubleTap,
       inlineTrailingBuilder: _buildLabelInlineTrailing,
       enabled: !_orderEditMode,
       fillLastColumn: true,
@@ -2519,6 +2523,20 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
       'labelSettings rowSelected index=$index labelSizeId=${label.labelSizeId}',
     );
     setState(() => _selectedLabelSizeId = label.labelSizeId);
+  }
+
+  void _handleLabelNameDoubleTap(LabelSize label, int index) {
+    debugLog(
+      'labelNameDoubleTap index=$index editingIndex=$_editingIndex orderEditMode=$_orderEditMode labelSizeId=${label.labelSizeId} name=${label.labelSizeName}',
+    );
+    if (_editingIndex != null || _orderEditMode) {
+      debugLog(
+        'labelNameDoubleTap blocked editingIndex=$_editingIndex orderEditMode=$_orderEditMode',
+      );
+      return;
+    }
+    debugLog('labelNameDoubleTap selectLabel labelSizeId=${label.labelSizeId}');
+    widget.onLabelSelected(label);
   }
 
   void _startOrderEditMode() {
