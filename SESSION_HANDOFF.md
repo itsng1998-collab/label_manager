@@ -34,6 +34,7 @@
 - 변경: 라벨 설정 순서변경 모드 진입 핸들러에서도 `Tooltip.dismissAllToolTips()`를 호출한다.
 - 검증: `dart format lib/home_page_manager.dart lib/widgets/swipe_action_table.dart`, `C:\Flutter\bin\flutter.bat analyze lib\home_page_manager.dart lib\widgets\swipe_action_table.dart --no-fatal-warnings --no-fatal-infos` 통과, `C:\Flutter\bin\flutter.bat test test\swipe_action_table_test.dart test\label_size_cache_test.dart` 21개 통과, `git diff --check -- SESSION_HANDOFF.md lib\home_page_manager.dart lib\widgets\swipe_action_table.dart` 통과.
 - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/home_page_manager.dart`, `lib/widgets/swipe_action_table.dart`. 기존 사용자 변경 `lib/core/app.dart`는 제외.
+- 커밋: `589e522` (`설정 테이블 액션 진입 시 툴팁 닫기`).
 
 ### 완료 (2026-07-04): 라벨 설정 브랜드 메뉴 높이 보정
 
