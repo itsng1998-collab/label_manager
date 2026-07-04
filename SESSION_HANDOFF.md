@@ -27,14 +27,14 @@
 
 ## 현재 상태
 
-### 진행 중 (2026-07-04): 이미지/바코드 컨텍스트 메뉴 단축키 힌트 표시 추가
+### 완료 (2026-07-04): 이미지/바코드 컨텍스트 메뉴 단축키 힌트 표시 추가
 
 목적: 이미지/바코드 우클릭 컨텍스트 메뉴의 복제/삭제/레이어 이동 항목에도 선택 툴바와 레이어 패널에서 쓰는 단축키 힌트를 오른쪽에 표시한다.
 - 변경 완료: `fortune_sheet_painter.dart`에 `fortuneContextMenuShortcutLabel`, `fortuneContextMenuLabelRect`, `fortuneContextMenuShortcutRect`를 추가하고 컨텍스트 메뉴 draw/semantics에 연결했다.
 - 테스트 추가: `fortune_barcode_dialog_test.dart`에 이미지 컨텍스트 메뉴 단축키 helper와 label/shortcut rect 비겹침 검증을 추가했다.
 - 검증 완료: `flutter analyze third_party\fortune_sheet\lib\src\fortune_sheet_painter.dart --no-fatal-warnings --no-fatal-infos` 통과, `flutter test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --plain-name "image context menu shortcut"` 통과.
 - 검증 완료: `flutter analyze third_party\fortune_sheet\lib\src\fortune_sheet_painter.dart third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --no-fatal-warnings --no-fatal-infos` 통과, `flutter test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart` 통과(51개), 편집기 오류 없음, `git diff --check` 통과.
-- stage/commit 예정: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`, `third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart`. 제외: 기존 unrelated `lib/core/app.dart`.
+- 커밋 완료: `2d554f9` 이미지 바코드 컨텍스트 메뉴 단축키 힌트 추가. 제외: 기존 unrelated `lib/core/app.dart`.
 
 ### 완료 (2026-07-04): 이미지/바코드 컨텍스트 메뉴 액션 비활성 상태 추가
 
