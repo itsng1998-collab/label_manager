@@ -2759,6 +2759,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   String? _imageLayerPanelRowDragImageId;
   int? _imageLayerPanelRowDragTargetIndex;
   double _imageLayerPanelRowDragStartY = 0;
+  String? _imageLayerPanelHoveredActionCommand;
+  Offset? _imageLayerPanelTooltipPosition;
   String? _lastImageLayerPanelRowDownId;
   Duration? _lastImageLayerPanelRowDownTime;
   String? _imageResizeSide;
@@ -9551,6 +9553,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     if (_updateContextMenuHover(event.localPosition)) {
       return;
     }
+    if (_updateImageLayerPanelActionHover(event.localPosition)) {
+      return;
+    }
     _updateImageResizeCursor(event.localPosition);
     _updateRawChartHover(event);
     _updateSheetTabOptionsHover(event.localPosition);
@@ -9761,6 +9766,40 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
           ? SystemMouseCursors.basic
           : SystemMouseCursors.click,
     );
+    return true;
+  }
+
+  bool _updateImageLayerPanelActionHover(Offset local) {
+    if (!_imageLayerPanelOpen) {
+      if (_imageLayerPanelHoveredActionCommand != null ||
+          _imageLayerPanelTooltipPosition != null) {
+        setState(() {
+          _imageLayerPanelHoveredActionCommand = null;
+          _imageLayerPanelTooltipPosition = null;
+        });
+      }
+      return false;
+    }
+    final command = _imageLayerPanelCommandAt(local, _workbook.settings);
+    if (command == null) {
+      if (_imageLayerPanelHoveredActionCommand != null ||
+          _imageLayerPanelTooltipPosition != null) {
+        setState(() {
+          _imageLayerPanelHoveredActionCommand = null;
+          _imageLayerPanelTooltipPosition = null;
+        });
+      }
+      return false;
+    }
+    if (_imageLayerPanelHoveredActionCommand != command ||
+        _imageLayerPanelTooltipPosition != local ||
+        _mouseCursor != SystemMouseCursors.click) {
+      setState(() {
+        _imageLayerPanelHoveredActionCommand = command;
+        _imageLayerPanelTooltipPosition = local;
+        _mouseCursor = SystemMouseCursors.click;
+      });
+    }
     return true;
   }
 
@@ -43855,6 +43894,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
                 imageLayerPanelDragTargetIndex: _imageLayerPanelRowDragging
                   ? _imageLayerPanelRowDragTargetIndex
                   : null,
+                imageLayerPanelHoveredActionCommand:
+                    _imageLayerPanelHoveredActionCommand,
+                imageLayerPanelTooltipPosition: _imageLayerPanelTooltipPosition,
                 decodedImages: Map<String, ui.Image>.unmodifiable(
                   _decodedImages,
                 ),

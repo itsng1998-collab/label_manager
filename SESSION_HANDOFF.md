@@ -27,6 +27,22 @@
 
 ## 현재 상태
 
+### 진행 중 (2026-07-04): 이미지/바코드 레이어 패널 액션 hover tooltip 추가
+
+목적: 레이어 패널 header 액션 버튼 위에 마우스를 올리면 액션명과 단축키 힌트를 바로 볼 수 있게 한다.
+- 변경 예정: `fortune_sheet_canvas.dart`에 레이어 패널 액션 hover command/tooltip position 상태와 hover 갱신 로직을 추가한다.
+- 변경 예정: `fortune_sheet_painter.dart`에 hover action tooltip field와 렌더링을 추가하고, 기존 `fortuneImageLayerPanelActionTooltip` helper를 실제 표시 텍스트로 사용한다.
+- 변경: `fortune_sheet_canvas.dart`에 `_imageLayerPanelHoveredActionCommand`/`_imageLayerPanelTooltipPosition` 및 `_updateImageLayerPanelActionHover`를 추가해 패널 액션 hover를 추적.
+- 변경: `fortune_sheet_painter.dart`에 `imageLayerPanelHoveredActionCommand`/`imageLayerPanelTooltipPosition` field와 `_drawImageLayerPanelActionTooltip`을 추가해 `fortuneImageLayerPanelActionTooltip` 텍스트를 렌더링하고 repaint 조건에 반영.
+- 검증: `C:\Flutter\bin\flutter.bat analyze third_party\fortune_sheet\lib\src\fortune_sheet_canvas.dart third_party\fortune_sheet\lib\src\fortune_sheet_painter.dart --no-fatal-warnings --no-fatal-infos` 통과.
+- 테스트 추가: `fortune_barcode_dialog_test.dart`에 레이어 패널 액션 hover 시 painter 상태가 tooltip command/position을 노출하고 패널 밖 hover에서 해제되는지 검증하는 케이스 추가.
+- 검증: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --plain-name "image layer panel action hover exposes tooltip state"` 통과.
+- 검증: `C:\Flutter\bin\flutter.bat analyze third_party\fortune_sheet\lib\src\fortune_sheet_canvas.dart third_party\fortune_sheet\lib\src\fortune_sheet_painter.dart third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --no-fatal-warnings --no-fatal-infos` 통과.
+- 검증: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart` 통과(48 tests).
+- 검증: `git diff --check` 통과, VS Code 진단 `fortune_sheet_canvas.dart`/`fortune_sheet_painter.dart`/`fortune_barcode_dialog_test.dart` 오류 없음.
+- stage 예정: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`, `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`, `third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
+- 미검증: 커밋 필요.
+
 ### 완료 (2026-07-04): 이미지/바코드 레이어 패널 액션 비활성 상태와 단축키 힌트 추가
 
 목적: 레이어 패널에서 맨 앞/맨 뒤 경계에 있는 선택 객체의 불가능한 이동 명령을 비활성 표시/클릭 무시하고, 액션별 단축키 힌트를 공용 helper로 노출한다.

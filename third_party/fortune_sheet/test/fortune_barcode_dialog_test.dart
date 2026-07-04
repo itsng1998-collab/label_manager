@@ -1323,6 +1323,119 @@ void main() {
     );
   });
 
+  testWidgets('image layer panel action hover exposes tooltip state', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    const settings = FortuneSettings();
+    final workbook = FortuneWorkbook(
+      settings: settings,
+      sheets: [
+        FortuneSheet(
+          id: 's1',
+          name: 'Sheet1',
+          images: [
+            FortuneImage(
+              id: 'image1',
+              src: 'data:image/png;base64,${base64Encode(_transparentPng)}',
+              left: 0,
+              top: 0,
+              width: 50,
+              height: 50,
+              extraFields: const {fortuneSheetObjectZOrderExtraKey: 1},
+            ),
+          ],
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SizedBox(
+          width: 900,
+          height: 700,
+          child: FortuneSheetCanvas(workbook: workbook),
+        ),
+      ),
+    );
+
+    FortuneSheetPainter painter() {
+      return tester
+          .widgetList<CustomPaint>(
+            find.descendant(
+              of: find.byType(FortuneSheetCanvas),
+              matching: find.byType(CustomPaint),
+            ),
+          )
+          .map((paint) => paint.painter)
+          .whereType<FortuneSheetPainter>()
+          .single;
+    }
+
+    final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
+    final imageRect = Rect.fromLTWH(
+      settings.rowHeaderWidth,
+      settings.effectiveToolbarHeight +
+          settings.effectiveFormulaBarHeight +
+          settings.columnHeaderHeight,
+      50,
+      50,
+    );
+    await tester.tapAt(topLeft + imageRect.center);
+    await tester.pump();
+
+    final image = painter().workbook.activeSheet.images.single;
+    final layerButtonRect = fortuneActiveImageToolbarItemRect(
+      imageRect,
+      const Size(900, 700),
+      fortuneContextToggleLayerPanelCommand,
+      fortuneActiveImageToolbarItems(image),
+    );
+    expect(layerButtonRect, isNotNull);
+
+    await tester.tapAt(topLeft + layerButtonRect!.center);
+    await tester.pump();
+    expect(painter().imageLayerPanelOpen, isTrue);
+
+    final layerPanelTop = settings.effectiveToolbarHeight +
+        settings.effectiveFormulaBarHeight +
+        settings.columnHeaderHeight +
+        fortuneImageLayerPanelMargin;
+    final duplicateRect = fortuneImageLayerPanelActionRect(
+      const Size(900, 700),
+      1,
+      fortuneContextDuplicateImageCommand,
+      top: layerPanelTop,
+    );
+    expect(duplicateRect, isNotNull);
+
+    final duplicateCenter = topLeft + duplicateRect!.center;
+    await tester.sendEventToBinding(
+      PointerHoverEvent(position: duplicateCenter),
+    );
+    await tester.pump();
+
+    expect(
+      painter().imageLayerPanelHoveredActionCommand,
+      fortuneContextDuplicateImageCommand,
+    );
+    expect(painter().imageLayerPanelTooltipPosition, duplicateCenter - topLeft);
+
+    await tester.sendEventToBinding(
+      PointerHoverEvent(position: topLeft + const Offset(20, 20)),
+    );
+    await tester.pump();
+
+    expect(painter().imageLayerPanelHoveredActionCommand, isNull);
+    expect(painter().imageLayerPanelTooltipPosition, isNull);
+  });
+
   testWidgets('image layer panel scroll selects lower item', (tester) async {
     tester.view.physicalSize = const Size(900, 700);
     tester.view.devicePixelRatio = 1;
