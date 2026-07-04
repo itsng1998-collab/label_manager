@@ -22409,6 +22409,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       'originWidth': _imageInsertOriginalWidthPx,
       'originHeight': _imageInsertOriginalHeightPx,
       fortuneImageObjectIdExtraKey: objectId,
+      fortuneSheetObjectZOrderExtraKey: _nextImageZOrder(activeSheet),
       'rotation': rotation,
     };
     if (usesMillimeters) {
@@ -23252,9 +23253,15 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         math.min(requestedBarHeight, imageHeight))
         : imageHeight;
     final src = _bytesDataUri(result.bytes, result.mimeType);
+    final activeSheet = _workbook.activeSheet;
+    final editingImageId = _barcodeEditingImageId;
+    final editingImage = editingImageId == null ? null : _imageById(editingImageId);
     final extraFields = <String, Object?>{
       'fortuneBarcode': true,
       fortuneBarcodeObjectIdExtraKey: objectId,
+      fortuneSheetObjectZOrderExtraKey: _barcodeEditingImageId == null
+          ? _nextImageZOrder(activeSheet)
+          : (editingImage?.extraFields[fortuneSheetObjectZOrderExtraKey] ?? 0),
       'barcodeText': text,
       'barcodeFormatId': format.id,
       'barcodeFormatLabel': format.label,
@@ -23287,11 +23294,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
           ? heightValue
           : fortuneLogicalPixelsToMillimeters(imageHeight);
     }
-    final activeSheet = _workbook.activeSheet;
-    final editingImageId = _barcodeEditingImageId;
     _recordUndoSnapshot();
     if (editingImageId != null) {
-      final current = _imageById(editingImageId);
+      final current = editingImage;
       if (current == null) {
         return;
       }
@@ -23994,7 +23999,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   }
 
   String? _imageIdAt(Offset local, FortuneSettings settings) {
-    final images = _workbook.activeSheet.images;
+    final images = fortuneImagesInPaintOrder(_workbook.activeSheet.images);
     for (var index = images.length - 1; index >= 0; index -= 1) {
       final image = images[index];
       if (_imageRect(image, settings).contains(local)) {
@@ -24002,6 +24007,14 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       }
     }
     return null;
+  }
+
+  double _nextImageZOrder(FortuneSheet sheet) {
+    var maxOrder = 0.0;
+    for (final image in sheet.images) {
+      maxOrder = math.max(maxOrder, fortuneImageZOrder(image));
+    }
+    return maxOrder + 1;
   }
 
   String? _imageResizeSideAt(Offset local, FortuneSettings settings) {

@@ -50,7 +50,7 @@
 - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/page_label_sheet/label_sheet_save_codec.dart`, `lib/page_label_sheet/label_sheet_workbench.dart`, `test/label_sheet_toolbar_test.dart`. 기존 사용자 변경 `lib/core/app.dart`는 제외.
 - 커밋: `f520075` (`라벨 시트 저장 포맷 로드 마이그레이션 추가`).
 
-### 진행 중 (2026-07-04): 이미지/바코드 우클릭 수정 메뉴 전환
+### 완료 (2026-07-04): 이미지/바코드 우클릭 수정 메뉴 전환
 
 목적: 라벨 시트에서 이미지/바코드 오브젝트 우클릭 시 속성 다이얼로그로 바로 진입하지 않고 `이미지 수정`/`바코드 수정` 컨텍스트 메뉴를 먼저 표시한다.
 - 장기 구현 순서: 1) 이미지/바코드 우클릭 메뉴화, 2) 공통 `SheetObject`/레이어 모델 설계(`image`, `barcode`, `textBox`, `shape.line/rectangle/ellipse`), 3) 공통 `zOrder` 렌더/저장 적용, 4) 우클릭 메뉴에 앞으로/뒤로/맨앞/맨뒤 명령 추가, 5) 선택 플로팅 툴바 추가, 6) 접이식 레이어 패널과 겹친 오브젝트 선택(`Tab` 순환/겹친 항목 선택) 추가.
@@ -66,6 +66,19 @@
 - 검증: `git diff --check -- SESSION_HANDOFF.md third_party\fortune_sheet\lib\src\fortune_sheet_canvas.dart third_party\fortune_sheet\lib\src\fortune_sheet_painter.dart third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart` 통과.
 - stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`, `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`, `third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart`. 기존 사용자 변경 `lib/core/app.dart`는 제외.
 - 커밋: `088b10e` (`이미지 바코드 우클릭 수정 메뉴 추가`).
+
+### 완료 (2026-07-04): 이미지/바코드 zOrder 공통 정렬 기반 추가
+
+목적: 장기 구현 순서 2~3의 첫 조각으로, 현재 이미지/바코드 오브젝트가 공통 `zOrder` metadata를 갖고 렌더링/히트테스트 순서가 이 값을 기준으로 안정화되도록 한다.
+- 변경: `fortune_sheet_painter.dart`에 `fortuneSheetObjectZOrderExtraKey`, `fortuneImageZOrder`, `fortuneImagesInPaintOrder`를 추가하고 이미지 렌더링 순서를 공통 helper 기준으로 변경.
+- 변경: `fortune_sheet_canvas.dart`에서 이미지/바코드 hit-test가 동일한 paint-order helper를 역순 탐색하도록 변경하고, 이미지/바코드 삽입 시 기존 최대 `zOrder` + 1을 metadata에 저장. 바코드 수정 시 기존 `zOrder`는 유지한다.
+- 테스트: `third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart`에 이미지 삽입 `zOrder` metadata 저장, 겹친 이미지 우클릭 hit-test의 높은 `zOrder` 우선 선택 검증을 추가하고 바코드 삽입 metadata 검증을 보강.
+- 검증: `dart format third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart` 통과.
+- 검증: `C:\Flutter\bin\flutter.bat analyze third_party\fortune_sheet\lib\src\fortune_sheet_canvas.dart third_party\fortune_sheet\lib\src\fortune_sheet_painter.dart third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --no-fatal-warnings --no-fatal-infos` 통과.
+- 검증: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --plain-name "zOrder"` 2개 통과, `--plain-name "barcode insert stores object ID metadata"` 1개 통과.
+- 검증: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart` 24개 통과.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`, `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`, `third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart`. 기존 사용자 변경 `lib/core/app.dart`는 제외.
+- 커밋 예정: `이미지 바코드 zOrder 정렬 기반 추가`.
 
 ### 완료 (2026-07-04): SwipeActionTable 마우스/터치 드래그 스크롤 허용
 

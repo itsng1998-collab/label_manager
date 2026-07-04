@@ -44185,6 +44185,7 @@ const double fortuneBarcodeDialogIconSize = 24.0;
 const double fortuneBarcodeDialogCloseSize = 9.0;
 const double fortuneSheetDialogCloseGlyphSize = fortuneBarcodeDialogCloseSize;
 const double fortuneBarcodeDialogIconGap = 4.0;
+const String fortuneSheetObjectZOrderExtraKey = 'zOrder';
 const String fortuneImageObjectIdExtraKey = 'imageObjectId';
 const String fortuneBarcodeObjectIdExtraKey = 'barcodeObjectId';
 const String fortuneBarcodeBodyTopExtraKey = 'barcodeBodyTop';
@@ -44208,6 +44209,34 @@ class FortuneBarcodeObjectIdLabelMetrics {
   final double fontSize;
   final double textMaxWidth;
   final double strokeWidth;
+}
+
+double fortuneImageZOrder(FortuneImage image) {
+  final raw = image.extraFields[fortuneSheetObjectZOrderExtraKey];
+  if (raw is num) {
+    return raw.toDouble();
+  }
+  if (raw is String) {
+    return double.tryParse(raw.trim()) ?? 0;
+  }
+  return 0;
+}
+
+List<FortuneImage> fortuneImagesInPaintOrder(List<FortuneImage> images) {
+  if (images.length <= 1) {
+    return images;
+  }
+  final indexed = <({int index, FortuneImage image})>[
+    for (var index = 0; index < images.length; index += 1)
+      (index: index, image: images[index]),
+  ];
+  indexed.sort((a, b) {
+    final order = fortuneImageZOrder(a.image).compareTo(
+      fortuneImageZOrder(b.image),
+    );
+    return order != 0 ? order : a.index.compareTo(b.index);
+  });
+  return [for (final entry in indexed) entry.image];
 }
 
 FortuneBarcodeObjectIdLabelMetrics? fortuneBarcodeObjectIdLabelMetrics(
@@ -75399,7 +75428,7 @@ class FortuneSheetPainter extends CustomPainter {
     canvas.save();
     canvas.clipRect(clip);
     final zoomRatio = sheet.zoomRatio <= 0 ? 1.0 : sheet.zoomRatio;
-    for (final image in sheet.images) {
+    for (final image in fortuneImagesInPaintOrder(sheet.images)) {
       final rect = Rect.fromLTWH(
         _sheetDataLeft(settings) + image.left * zoomRatio - scrollOffset.dx,
         _sheetDataTop(settings) + image.top * zoomRatio - scrollOffset.dy,

@@ -263,6 +263,92 @@ void main() {
     expect(painter().imageObjectIdMenuOpen, isTrue);
   });
 
+  testWidgets('image insert stores next zOrder metadata', (tester) async {
+    tester.view.physicalSize = const Size(900, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    final workbook = FortuneWorkbook(
+      settings: const FortuneSettings(toolbarItems: [fortuneToolbarImageCommand]),
+      sheets: [
+        FortuneSheet(
+          id: 's1',
+          name: 'Sheet1',
+          images: [
+            FortuneImage(
+              id: 'img1',
+              src: 'data:image/png;base64,${base64Encode(_transparentPng)}',
+              left: 0,
+              top: 0,
+              width: 10,
+              height: 10,
+              extraFields: const {fortuneSheetObjectZOrderExtraKey: 4},
+            ),
+          ],
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SizedBox(
+          width: 900,
+          height: 700,
+          child: FortuneSheetCanvas(
+            workbook: workbook,
+            imagePicker: () async => FortuneImagePickResult(
+              bytes: _transparentPng,
+              fileName: 'picked.png',
+              mimeType: 'image/png',
+              width: 20,
+              height: 20,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    FortuneSheetPainter painter() {
+      return tester
+          .widgetList<CustomPaint>(
+            find.descendant(
+              of: find.byType(FortuneSheetCanvas),
+              matching: find.byType(CustomPaint),
+            ),
+          )
+          .map((paint) => paint.painter)
+          .whereType<FortuneSheetPainter>()
+          .single;
+    }
+
+    final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
+    await tester.tapAt(
+      topLeft +
+          toolbarItemCenter(
+            fortuneToolbarImageCommand,
+            width: 900,
+            items: workbook.settings.toolbarItems,
+          ),
+    );
+    await tester.pump();
+
+    final dialogRect = fortuneImageInsertDialogRect(
+      const Size(900, 700),
+      editing: false,
+    );
+    await tester.tapAt(topLeft + fortuneImageInsertFileButtonRect(dialogRect).center);
+    await tester.pump();
+    await tester.tapAt(topLeft + fortuneImageInsertConfirmButtonRect(dialogRect).center);
+    await tester.pump();
+
+    final images = painter().workbook.activeSheet.images;
+    expect(images, hasLength(2));
+    expect(images.last.extraFields[fortuneSheetObjectZOrderExtraKey], 5);
+  });
+
   testWidgets('image right click opens edit context menu before dialog', (
     tester,
   ) async {
@@ -349,6 +435,92 @@ void main() {
 
     expect(painter().imageInsertDialogOpen, isTrue);
     expect(painter().imageInsertEditing, isTrue);
+  });
+
+  testWidgets('image right click uses zOrder before list order', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    const settings = FortuneSettings();
+    final workbook = FortuneWorkbook(
+      settings: settings,
+      sheets: [
+        FortuneSheet(
+          id: 's1',
+          name: 'Sheet1',
+          images: [
+            FortuneImage(
+              id: 'front',
+              src: 'data:image/png;base64,${base64Encode(_transparentPng)}',
+              left: 0,
+              top: 0,
+              width: 50,
+              height: 50,
+              extraFields: const {fortuneSheetObjectZOrderExtraKey: 10},
+            ),
+            FortuneImage(
+              id: 'back',
+              src: 'data:image/png;base64,${base64Encode(_transparentPng)}',
+              left: 0,
+              top: 0,
+              width: 50,
+              height: 50,
+              extraFields: const {fortuneSheetObjectZOrderExtraKey: 1},
+            ),
+          ],
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SizedBox(
+          width: 900,
+          height: 700,
+          child: FortuneSheetCanvas(workbook: workbook),
+        ),
+      ),
+    );
+
+    FortuneSheetPainter painter() {
+      return tester
+          .widgetList<CustomPaint>(
+            find.descendant(
+              of: find.byType(FortuneSheetCanvas),
+              matching: find.byType(CustomPaint),
+            ),
+          )
+          .map((paint) => paint.painter)
+          .whereType<FortuneSheetPainter>()
+          .single;
+    }
+
+    final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
+    final imageCenter = topLeft +
+        Offset(
+          settings.rowHeaderWidth + 25,
+          settings.effectiveToolbarHeight +
+              settings.effectiveFormulaBarHeight +
+              settings.columnHeaderHeight +
+              25,
+        );
+    await tester.sendEventToBinding(
+      PointerDownEvent(
+        position: imageCenter,
+        buttons: kSecondaryMouseButton,
+        kind: PointerDeviceKind.mouse,
+      ),
+    );
+    await tester.pump();
+
+    expect(painter().activeImageId, 'front');
+    expect(painter().contextMenuItems, [fortuneContextEditImageCommand]);
   });
 
   testWidgets('barcode close button owns hover and pressed feedback', (
@@ -823,6 +995,7 @@ void main() {
 
     final image = painter().workbook.activeSheet.images.single;
     expect(image.extraFields[fortuneBarcodeObjectIdExtraKey], '#QRCODE');
+    expect(image.extraFields[fortuneSheetObjectZOrderExtraKey], 1);
     expect(image.extraFields[fortuneBarcodeBodyHeightExtraKey], greaterThan(0));
     expect(image.extraFields[fortuneBarcodeIdLabelPrintExcludedExtraKey], true);
   });
