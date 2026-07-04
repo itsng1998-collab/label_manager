@@ -1778,7 +1778,7 @@ class _LabelSettingsDialog extends StatefulWidget {
   final int? brandId;
   final int? Function() currentLabelSizeId;
   final List<LabelSize> labels;
-  final ValueChanged<LabelSize?> onLabelSelected;
+  final Future<void> Function(LabelSize?) onLabelSelected;
   final Future<List<LabelSize>> Function({
     LabelSize? preferredSelectedLabel,
     bool updateSelection,
@@ -1803,6 +1803,7 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
   bool _orderEditMode = false;
   bool _applyingOrderChanges = false;
   bool _insertingLabel = false;
+  bool _selectingLabel = false;
   bool _submittingLabelNameEdit = false;
   bool _labelUseScaleEditValue = false;
   int? _selectedLabelSizeId;
@@ -2525,18 +2526,25 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
     setState(() => _selectedLabelSizeId = label.labelSizeId);
   }
 
-  void _handleLabelNameDoubleTap(LabelSize label, int index) {
+  Future<void> _handleLabelNameDoubleTap(LabelSize label, int index) async {
     debugLog(
-      'labelNameDoubleTap index=$index editingIndex=$_editingIndex orderEditMode=$_orderEditMode labelSizeId=${label.labelSizeId} name=${label.labelSizeName}',
+      'labelNameDoubleTap index=$index editingIndex=$_editingIndex orderEditMode=$_orderEditMode selecting=$_selectingLabel labelSizeId=${label.labelSizeId} name=${label.labelSizeName}',
     );
-    if (_editingIndex != null || _orderEditMode) {
+    if (_editingIndex != null || _orderEditMode || _selectingLabel) {
       debugLog(
-        'labelNameDoubleTap blocked editingIndex=$_editingIndex orderEditMode=$_orderEditMode',
+        'labelNameDoubleTap blocked editingIndex=$_editingIndex orderEditMode=$_orderEditMode selecting=$_selectingLabel',
       );
       return;
     }
     debugLog('labelNameDoubleTap selectLabel labelSizeId=${label.labelSizeId}');
-    widget.onLabelSelected(label);
+    setState(() => _selectingLabel = true);
+    try {
+      await widget.onLabelSelected(label);
+    } finally {
+      if (mounted) {
+        setState(() => _selectingLabel = false);
+      }
+    }
   }
 
   void _startOrderEditMode() {

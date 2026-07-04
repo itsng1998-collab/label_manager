@@ -27,6 +27,13 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-04): 라벨 더블클릭 조회 중복 차단
+
+목적: 라벨 관리에서 라벨 이름 더블클릭으로 조회/로드를 시작한 뒤, 해당 조회가 완료되기 전까지 추가 더블클릭 조회를 막는다.
+- 변경: `_LabelSettingsDialog.onLabelSelected`를 `Future<void>` 콜백으로 변경하고, `_selectingLabel` 상태로 `_handleLabelNameDoubleTap` 재진입을 차단.
+- 검증: `dart format lib/home_page_manager.dart`, `C:\Flutter\bin\flutter.bat analyze lib\home_page_manager.dart --no-fatal-warnings --no-fatal-infos` 통과, `C:\Flutter\bin\flutter.bat test test\swipe_action_table_test.dart test\label_size_cache_test.dart` 21개 통과, `git diff --check -- SESSION_HANDOFF.md lib\home_page_manager.dart` 통과.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `lib/home_page_manager.dart`. 기존 사용자 변경 `lib/core/app.dart`는 제외.
+
 ### 완료 (2026-07-04): 라벨 관리 더블클릭 선택/조회 추가
 
 목적: 브랜드 관리처럼 라벨 관리에서도 라벨 이름 컬럼 더블클릭 시 해당 라벨을 선택하고 조회/로드 처리로 연결한다.
