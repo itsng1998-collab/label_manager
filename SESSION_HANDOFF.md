@@ -35,6 +35,7 @@
 - `lib/models/brand.dart`: `last_connect.dart` import 추가. `BrandDAO.deleteByBrandId`에서 `SET XACT_ABORT ON` 트랜잭션 안에 `LastConnectDAO.DeleteSqlByBrandId`와 `BM_RICH_BRAND` 삭제를 함께 실행. 첫 LastConnect 삭제가 0건이어도 실패하지 않도록 `SET NOCOUNT ON`을 사용하고, 브랜드 삭제 rowcount는 `SELECT @brandAffected AS AFFECTED`로 반환해 검증.
 - 검증 완료: `dart format` 3파일 성공, `C:\Flutter\bin\flutter.bat analyze lib\home_page_manager.dart lib\models\brand.dart lib\models\last_connect.dart --no-fatal-warnings --no-fatal-infos` No issues, `C:\Flutter\bin\flutter.bat test test\swipe_action_table_test.dart test\label_size_cache_test.dart` 21개 성공, `git diff --check -- SESSION_HANDOFF.md lib\home_page_manager.dart lib\models\brand.dart lib\models\last_connect.dart` 통과.
 - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/home_page_manager.dart`, `lib/models/brand.dart`, `lib/models/last_connect.dart`. 기존 dirty `lib/core/app.dart`는 제외.
+- 기능 커밋: `8bb2683` (`브랜드 삭제 트랜잭션 통합`).
 
 ### 완료 (2026-07-04): 브랜드 삭제 경로 레거시 구조 복원
 
