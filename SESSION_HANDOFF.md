@@ -27,7 +27,7 @@
 
 ## 현재 상태
 
-### 진행 중 (2026-07-04): 전체 Flutter analyze 검증 확대
+### 완료 (2026-07-04): 전체 Flutter analyze 검증 확대
 
 목적: 메인 앱 `test/` 전체와 FortuneSheet 이미지/바코드 테스트 묶음 통과 이후, 프로젝트 전체 정적 분석 기준으로 남은 오류가 있는지 확인한다.
 - 검증 실패: `C:\Flutter\bin\flutter.bat analyze --no-fatal-warnings --no-fatal-infos`는 41 issues. 앱 소유 `lib/` issue는 `db_connection_status_icon.dart`, `barcode.dart`, `models/*` unused import, `label_sheet_import_model.dart`, `login_history_page.dart`에서 발생했고, 나머지는 vendored `third_party` issue.
@@ -37,7 +37,7 @@
 - 검증 완료: `flutter test test\column_mapping_test.dart test\common_label_manage_test.dart test\label_sheet_toolbar_test.dart test\label_sheet_xlsx_import_test.dart` 관련 테스트 67개 통과.
 - 검증 완료: `git diff --check -- SESSION_HANDOFF.md lib\database\db_connection_status_icon.dart lib\models\barcode.dart lib\page_label_sheet\label_sheet_import_model.dart lib\page_login\login_history_page.dart lib\models\column.dart lib\models\column_content.dart lib\models\column_special.dart lib\models\column_type.dart lib\models\customer.dart` 통과, VS Code 진단 오류 없음.
 - stage/commit 대상: `SESSION_HANDOFF.md`, 앱 소유 analyzer 정리 파일 9개. 기존 unrelated dirty `lib/core/app.dart` 제외.
-- 진행 중: 커밋 필요.
+- 커밋 완료: `ad68a98` (`앱 소유 analyzer 이슈 정리`).
 
 ### 완료 (2026-07-04): FortuneSheet 이미지/바코드 테스트 묶음 검증 확대
 
