@@ -31,6 +31,22 @@ Offset toolbarItemCenter(
   fail('toolbar item not found: $key');
 }
 
+Future<void> activateOpenContextMenuItem(
+  WidgetTester tester,
+  Offset canvasTopLeft,
+  FortuneSheetPainter painter,
+) async {
+  expect(painter.contextMenuAt, isNotNull);
+  await tester.tapAt(
+    canvasTopLeft +
+        fortuneContextMenuRect(
+          painter.contextMenuAt!,
+          painter.contextMenuItems,
+        ).center,
+  );
+  await tester.pump();
+}
+
 void main() {
   test('barcode show-text option is centered between quiet-zone inputs', () {
     final dialogRect = fortuneBarcodeDialogRect(
@@ -164,6 +180,175 @@ void main() {
     expect(painter().barcodeFormatMenuOpen, isTrue);
     expect(painter().barcodeFormatMenuSelectedIndex, 10);
     expect(painter().barcodeFormatMenuScrollOffset, greaterThan(0));
+  });
+
+  testWidgets('image insert dialog defaults object id from last image index', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    final workbook = FortuneWorkbook(
+      settings: const FortuneSettings(toolbarItems: [fortuneToolbarImageCommand]),
+      sheets: [
+        FortuneSheet(
+          id: 's1',
+          name: 'Sheet1',
+          images: [
+            FortuneImage(
+              id: 'img1',
+              src: 'data:image/png;base64,${base64Encode(_transparentPng)}',
+              left: 0,
+              top: 0,
+              width: 10,
+              height: 10,
+              extraFields: const {fortuneImageObjectIdExtraKey: '#IMAGE3'},
+            ),
+          ],
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SizedBox(
+          width: 900,
+          height: 700,
+          child: FortuneSheetCanvas(workbook: workbook),
+        ),
+      ),
+    );
+
+    FortuneSheetPainter painter() {
+      return tester
+          .widgetList<CustomPaint>(
+            find.descendant(
+              of: find.byType(FortuneSheetCanvas),
+              matching: find.byType(CustomPaint),
+            ),
+          )
+          .map((paint) => paint.painter)
+          .whereType<FortuneSheetPainter>()
+          .single;
+    }
+
+    final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
+    await tester.tapAt(
+      topLeft +
+          toolbarItemCenter(
+            fortuneToolbarImageCommand,
+            width: 900,
+            items: workbook.settings.toolbarItems,
+          ),
+    );
+    await tester.pump();
+
+    expect(painter().imageInsertDialogOpen, isTrue);
+    expect(painter().imageObjectId, '#IMAGE4');
+    expect(painter().imageObjectIdOptions, containsAll(['#IMAGE3', '#IMAGE4']));
+
+    final dialogRect = fortuneImageInsertDialogRect(
+      const Size(900, 700),
+      editing: false,
+    );
+    await tester.tapAt(
+      topLeft + fortuneImageObjectIdInputRect(dialogRect).centerRight - const Offset(12, 0),
+    );
+    await tester.pump();
+
+    expect(painter().imageObjectIdMenuOpen, isTrue);
+  });
+
+  testWidgets('image right click opens edit context menu before dialog', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    const settings = FortuneSettings();
+    final workbook = FortuneWorkbook(
+      settings: settings,
+      sheets: [
+        FortuneSheet(
+          id: 's1',
+          name: 'Sheet1',
+          images: [
+            FortuneImage(
+              id: 'img1',
+              src: 'data:image/png;base64,${base64Encode(_transparentPng)}',
+              left: 0,
+              top: 0,
+              width: 50,
+              height: 50,
+            ),
+          ],
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SizedBox(
+          width: 900,
+          height: 700,
+          child: FortuneSheetCanvas(workbook: workbook),
+        ),
+      ),
+    );
+
+    FortuneSheetPainter painter() {
+      return tester
+          .widgetList<CustomPaint>(
+            find.descendant(
+              of: find.byType(FortuneSheetCanvas),
+              matching: find.byType(CustomPaint),
+            ),
+          )
+          .map((paint) => paint.painter)
+          .whereType<FortuneSheetPainter>()
+          .single;
+    }
+
+    final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
+    final imageCenter = topLeft +
+        Offset(
+          settings.rowHeaderWidth + 25,
+          settings.effectiveToolbarHeight +
+              settings.effectiveFormulaBarHeight +
+              settings.columnHeaderHeight +
+              25,
+        );
+    await tester.sendEventToBinding(
+      PointerDownEvent(
+        position: imageCenter,
+        buttons: kSecondaryMouseButton,
+        kind: PointerDeviceKind.mouse,
+      ),
+    );
+    await tester.pump();
+
+    expect(painter().imageInsertDialogOpen, isFalse);
+    expect(painter().contextMenuAt, isNotNull);
+    expect(painter().contextMenuItems, [fortuneContextEditImageCommand]);
+
+    final menuCenter = topLeft +
+        fortuneContextMenuRect(
+          painter().contextMenuAt!,
+          painter().contextMenuItems,
+        ).center;
+    await tester.tapAt(menuCenter);
+    await tester.pump();
+
+    expect(painter().imageInsertDialogOpen, isTrue);
+    expect(painter().imageInsertEditing, isTrue);
   });
 
   testWidgets('barcode close button owns hover and pressed feedback', (
@@ -887,6 +1072,10 @@ void main() {
     await tester.sendEventToBinding(PointerUpEvent(position: imageCenter));
     await tester.pump();
 
+    expect(painter().barcodeDialogOpen, isFalse);
+    expect(painter().contextMenuItems, [fortuneContextEditBarcodeCommand]);
+    await activateOpenContextMenuItem(tester, topLeft, painter());
+
     EditableText editableTextIn(String key) {
       return tester.widget<EditableText>(
         find.descendant(
@@ -1261,6 +1450,10 @@ void main() {
     await tester.sendEventToBinding(PointerUpEvent(position: imageCenter));
     await tester.pump();
 
+    expect(painter().barcodeDialogOpen, isFalse);
+    expect(painter().contextMenuItems, [fortuneContextEditBarcodeCommand]);
+    await activateOpenContextMenuItem(tester, topLeft, painter());
+
     expect(painter().barcodeDialogOpen, isTrue);
     expect(painter().barcodeFormatLabel, 'Code128');
 
@@ -1379,6 +1572,10 @@ void main() {
     );
     await tester.sendEventToBinding(PointerUpEvent(position: imageCenter));
     await tester.pump();
+
+    expect(painter().barcodeDialogOpen, isFalse);
+    expect(painter().contextMenuItems, [fortuneContextEditBarcodeCommand]);
+    await activateOpenContextMenuItem(tester, topLeft, painter());
 
     expect(painter().barcodeDialogOpen, isTrue);
     expect(painter().barcodeObjectId, 'OLD-ID');
@@ -1519,6 +1716,10 @@ void main() {
     await tester.sendEventToBinding(PointerUpEvent(position: imageCenter));
     await tester.pump();
 
+    expect(painter().barcodeDialogOpen, isFalse);
+    expect(painter().contextMenuItems, [fortuneContextEditBarcodeCommand]);
+    await activateOpenContextMenuItem(tester, topLeft, painter());
+
     expect(painter().barcodeDialogOpen, isTrue);
     expect(painter().barcodeObjectId, '#QRCODE-10');
     expect(painter().barcodeObjectIdMenuSelectedIndex, 10);
@@ -1650,6 +1851,10 @@ void main() {
     await tester.sendEventToBinding(PointerUpEvent(position: imageCenter));
     await tester.pump();
 
+    expect(painter().barcodeDialogOpen, isFalse);
+    expect(painter().contextMenuItems, [fortuneContextEditBarcodeCommand]);
+    await activateOpenContextMenuItem(tester, topLeft, painter());
+
     expect(painter().barcodeDialogOpen, isTrue);
     expect(editableText('fortune-barcode-width-input').controller.text, '300');
     expect(editableText('fortune-barcode-height-input').controller.text, '52');
@@ -1780,6 +1985,10 @@ void main() {
     );
     await tester.sendEventToBinding(PointerUpEvent(position: imageCenter));
     await tester.pump();
+
+    expect(painter().barcodeDialogOpen, isFalse);
+    expect(painter().contextMenuItems, [fortuneContextEditBarcodeCommand]);
+    await activateOpenContextMenuItem(tester, topLeft, painter());
 
     expect(painter().barcodeDialogOpen, isTrue);
     expect(painter().barcodeFormatLabel, 'Code128');

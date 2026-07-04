@@ -50,12 +50,22 @@
 - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/page_label_sheet/label_sheet_save_codec.dart`, `lib/page_label_sheet/label_sheet_workbench.dart`, `test/label_sheet_toolbar_test.dart`. 기존 사용자 변경 `lib/core/app.dart`는 제외.
 - 커밋: `f520075` (`라벨 시트 저장 포맷 로드 마이그레이션 추가`).
 
-### 보류 (2026-07-04): 이미지/바코드 우클릭 수정 메뉴 전환
+### 진행 중 (2026-07-04): 이미지/바코드 우클릭 수정 메뉴 전환
 
 목적: 라벨 시트에서 이미지/바코드 오브젝트 우클릭 시 속성 다이얼로그로 바로 진입하지 않고 `이미지 수정`/`바코드 수정` 컨텍스트 메뉴를 먼저 표시한다.
 - 장기 구현 순서: 1) 이미지/바코드 우클릭 메뉴화, 2) 공통 `SheetObject`/레이어 모델 설계(`image`, `barcode`, `textBox`, `shape.line/rectangle/ellipse`), 3) 공통 `zOrder` 렌더/저장 적용, 4) 우클릭 메뉴에 앞으로/뒤로/맨앞/맨뒤 명령 추가, 5) 선택 플로팅 툴바 추가, 6) 접이식 레이어 패널과 겹친 오브젝트 선택(`Tab` 순환/겹친 항목 선택) 추가.
 - 수정 예정: `fortune_sheet`의 이미지 히트테스트 우클릭 경로를 메뉴 표시로 바꾸고, 메뉴 명령 선택 시 기존 이미지/바코드 수정 다이얼로그를 호출한다.
-- 보류 사유: 사용자 요청이 저장 포맷 마이그레이션으로 전환되어 코드 변경 전 중단. 재개 시 위 수정 예정 범위부터 진행.
+- 진행: `fortune_sheet`의 이미지 히트테스트 우클릭 경로를 메뉴 표시로 바꾸고, 메뉴 명령 선택 시 기존 이미지/바코드 수정 다이얼로그를 호출하도록 구현 중.
+- 진행 추가: 이미지 삽입/수정 다이얼로그도 바코드처럼 ID 라벨 + 드롭다운/사용자 입력 가능 필드로 확장한다. 기본 이미지 ID는 `#IMAGE1`부터 시작하고, 기존 이미지 ID 중 `#IMAGE숫자`의 마지막 인덱스 + 1을 사용한다. 내부 `FortuneImage.id`는 유지하고 사용자 ID는 이미지 metadata에 저장한다.
+- 변경: `fortune_sheet_painter.dart`에 이미지 ID 입력/메뉴 rect, `fortuneImageObjectIdExtraKey`, 이미지 ID painter 상태, `이미지 수정`/`바코드 수정` 컨텍스트 명령 라벨/렌더링 지원을 추가.
+- 변경: `fortune_sheet_canvas.dart`에 이미지 ID controller/focus/menu 상태, 기본 `#IMAGE{n}` 생성, metadata 저장/수정 반영, 이미지/바코드 우클릭 수정 메뉴 표시/명령 실행을 연결.
+- 테스트: `third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart`에 이미지 ID 기본값/드롭다운, 이미지 우클릭 수정 메뉴 테스트를 추가. 기존 바코드 편집 테스트는 새 우클릭 메뉴 선택 흐름으로 갱신.
+- 검증: `C:\Flutter\bin\flutter.bat analyze third_party\fortune_sheet\lib\src\fortune_sheet_canvas.dart third_party\fortune_sheet\lib\src\fortune_sheet_painter.dart third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --no-fatal-warnings --no-fatal-infos` 통과.
+- 검증: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart` 22개 통과.
+- 검증: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_toolbar_icons_test.dart --plain-name "default locale covers sheet and context menu item labels"` 통과.
+- 검증: `git diff --check -- SESSION_HANDOFF.md third_party\fortune_sheet\lib\src\fortune_sheet_canvas.dart third_party\fortune_sheet\lib\src\fortune_sheet_painter.dart third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart` 통과.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`, `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`, `third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart`. 기존 사용자 변경 `lib/core/app.dart`는 제외.
+- 미검증: 커밋 필요.
 
 ### 완료 (2026-07-04): SwipeActionTable 마우스/터치 드래그 스크롤 허용
 

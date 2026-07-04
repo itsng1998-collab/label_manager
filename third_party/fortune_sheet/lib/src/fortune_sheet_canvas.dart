@@ -2428,6 +2428,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   bool _contextMenuIsHeader = false;
   bool _contextMenuIsEditor = false;
   TextRange? _editorContextMenuSelectionRange;
+  String? _contextMenuImageId;
   bool _editorClipboardHasPasteText = false;
   int? _contextMenuHoveredIndex;
   Offset? sheetTabMenuAt;
@@ -2492,6 +2493,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   );
   final FocusNode _axisSizeEditorFocusNode = FocusNode(
     debugLabel: 'FortuneAxisSizeEditor',
+  );
+  final FocusNode _imageObjectIdFocusNode = FocusNode(
+    debugLabel: 'FortuneImageObjectIdEditor',
   );
   final FocusNode _imageInsertWidthFocusNode = FocusNode(
     debugLabel: 'FortuneImageInsertWidthEditor',
@@ -2599,6 +2603,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       TextEditingController();
   final TextEditingController _axisSizeEditorController =
       TextEditingController();
+    final TextEditingController _imageObjectIdController =
+      TextEditingController();
   final TextEditingController _imageInsertWidthController =
       TextEditingController();
   final TextEditingController _imageInsertHeightController =
@@ -2651,6 +2657,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       };
   final Map<String, String> _contextMenuInlineInputInitialTexts = {};
   final GlobalKey<EditableTextState> _editorEditableKey =
+      GlobalKey<EditableTextState>();
+    final GlobalKey<EditableTextState> _imageObjectIdEditableKey =
       GlobalKey<EditableTextState>();
   final GlobalKey<EditableTextState> _imageInsertWidthEditableKey =
       GlobalKey<EditableTextState>();
@@ -2824,6 +2832,10 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   String _imageInsertFileName = '선택된 파일 없음';
   double? _imageInsertOriginalWidthPx;
   double? _imageInsertOriginalHeightPx;
+  int _imageObjectIdIndex = 0;
+  bool _imageObjectIdMenuOpen = false;
+  int? _imageObjectIdMenuHoveredIndex;
+  double _imageObjectIdMenuScrollOffset = 0;
   bool _imageInsertAspectLocked = true;
   bool _imageInsertUpdatingPair = false;
   String? _imageInsertHoveredControl;
@@ -2943,6 +2955,10 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
 
   List<({FocusNode focusNode, TextEditingController controller})>
   get _imageInsertDialogInputs => [
+    (
+      focusNode: _imageObjectIdFocusNode,
+      controller: _imageObjectIdController,
+    ),
     (
       focusNode: _imageInsertWidthFocusNode,
       controller: _imageInsertWidthController,
@@ -6084,6 +6100,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     _conditionRuleEditorFocusNode.dispose();
     _conditionRuleSecondEditorFocusNode.dispose();
     _axisSizeEditorFocusNode.dispose();
+    _imageObjectIdFocusNode.dispose();
     _imageInsertWidthFocusNode.dispose();
     _imageInsertHeightFocusNode.dispose();
     _imageInsertRotationFocusNode.dispose();
@@ -6144,6 +6161,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     _conditionRuleEditorController.dispose();
     _conditionRuleSecondEditorController.dispose();
     _axisSizeEditorController.dispose();
+    _imageObjectIdController.dispose();
     _imageInsertWidthController.dispose();
     _imageInsertHeightController.dispose();
     _imageInsertRotationController.dispose();
@@ -6333,9 +6351,19 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       _commitEditing();
       _commitSheetRename();
       final command = _imageInsertDialogCommandAt(local);
+      if (_imageObjectIdMenuOpen &&
+          (command == null ||
+              (command != 'object-id' && !command.startsWith('object-id-')))) {
+        setState(() {
+          _imageObjectIdMenuOpen = false;
+          _imageObjectIdMenuHoveredIndex = null;
+          _imageObjectIdMenuScrollOffset = 0;
+        });
+      }
       if (command == null ||
           (command != 'width' &&
               command != 'height' &&
+              command != 'object-id' &&
               command != 'rotation')) {
         _clearImageInsertInputSelections();
       }
@@ -6827,12 +6855,21 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       if (imageId != null) {
         final image = _imageById(imageId);
         if (image != null) {
-          setState(() => _activeImageId = imageId);
-          if (_isBarcodeImage(image)) {
-            _showBarcodeEditDialog(image);
-          } else {
-            _showImageEditDialog(image);
-          }
+          final menuItems = _contextMenuItemsForImage(image);
+          setState(() {
+            _activeImageId = imageId;
+            _contextMenuImageId = imageId;
+            contextMenuAt = _contextMenuOrigin(local, menuItems);
+            _contextMenuHoveredIndex = null;
+            _contextMenuIsHeader = false;
+            _contextMenuIsEditor = false;
+            sheetTabMenuAt = null;
+            hiddenSheetListAt = null;
+            dataVerificationDropdownCoord = null;
+            filterDropdownColumn = null;
+            _sheetTabMenuSheetIndex = null;
+            toolbarPopupKey = null;
+          });
         }
         return;
       }
@@ -6880,6 +6917,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         _contextMenuHoveredIndex = null;
         _contextMenuIsHeader = headerSelection != null;
         _contextMenuIsEditor = false;
+        _contextMenuImageId = null;
         sheetTabMenuAt = null;
         hiddenSheetListAt = null;
         dataVerificationDropdownCoord = null;
@@ -6963,17 +7001,27 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       _commitSheetRename();
       final image = _imageById(imageId);
       if ((event.buttons & kSecondaryMouseButton) != 0 && image != null) {
-        setState(() => _activeImageId = imageId);
-        if (_isBarcodeImage(image)) {
-          _showBarcodeEditDialog(image);
-        } else {
-          _showImageEditDialog(image);
-        }
+        final menuItems = _contextMenuItemsForImage(image);
+        setState(() {
+          _activeImageId = imageId;
+          _contextMenuImageId = imageId;
+          contextMenuAt = _contextMenuOrigin(local, menuItems);
+          _contextMenuHoveredIndex = null;
+          _contextMenuIsHeader = false;
+          _contextMenuIsEditor = false;
+          sheetTabMenuAt = null;
+          hiddenSheetListAt = null;
+          dataVerificationDropdownCoord = null;
+          filterDropdownColumn = null;
+          _sheetTabMenuSheetIndex = null;
+          toolbarPopupKey = null;
+        });
         return;
       }
       _startImageMove(imageId, local);
       setState(() {
         _activeImageId = imageId;
+          _contextMenuImageId = null;
         contextMenuAt = null;
         sheetTabMenuAt = null;
         hiddenSheetListAt = null;
@@ -7492,6 +7540,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
           ? null
           : _contextMenuOrigin(local, contextItems);
       _contextMenuIsHeader = true;
+        _contextMenuIsEditor = false;
+        _contextMenuImageId = null;
       sheetTabMenuAt = null;
       hiddenSheetListAt = null;
       dataVerificationDropdownCoord = null;
@@ -7520,6 +7570,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   ) {
     final deltaY = scrollDelta.dy;
     if (_imageInsertDialogOpen) {
+      _scrollImageObjectIdMenu(localPosition, deltaY);
       return;
     }
     if (_barcodeDialogOpen) {
@@ -8595,6 +8646,20 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     );
   }
 
+  bool _scrollImageObjectIdMenu(Offset local, double deltaY) {
+    return _scrollBarcodeTextMenu(
+      local,
+      deltaY,
+      open: _imageObjectIdMenuOpen,
+      itemCount: _effectiveImageObjectIds.length,
+      scrollOffset: _imageObjectIdMenuScrollOffset,
+      menuRect: fortuneImageObjectIdMenuRect,
+      setScrollOffset: (value) => _imageObjectIdMenuScrollOffset = value,
+      setHoveredIndex: (value) => _imageObjectIdMenuHoveredIndex = value,
+      indexAt: _imageObjectIdMenuIndexAt,
+    );
+  }
+
   bool _scrollBarcodeTextMenu(
     Offset local,
     double deltaY, {
@@ -9453,7 +9518,12 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     }
     final command = _imageInsertDialogCommandAt(local);
     final hoverControl = command == null || command == 'modal' ? null : command;
+    final objectIdMenuIndex =
+      hoverControl != null && hoverControl.startsWith('object-id-')
+      ? int.tryParse(hoverControl.substring('object-id-'.length))
+      : null;
     final cursor =
+      hoverControl == 'object-id' ||
         hoverControl == 'width' ||
             hoverControl == 'height' ||
             hoverControl == 'rotation'
@@ -9461,9 +9531,12 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         : hoverControl == null
         ? SystemMouseCursors.basic
         : SystemMouseCursors.click;
-    if (_imageInsertHoveredControl != hoverControl || _mouseCursor != cursor) {
+    if (_imageInsertHoveredControl != hoverControl ||
+      _imageObjectIdMenuHoveredIndex != objectIdMenuIndex ||
+      _mouseCursor != cursor) {
       setState(() {
         _imageInsertHoveredControl = hoverControl;
+      _imageObjectIdMenuHoveredIndex = objectIdMenuIndex;
         _mouseCursor = cursor;
       });
     }
@@ -9475,7 +9548,15 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     if (rect == null) {
       return false;
     }
-    return fortuneImageInsertWidthInputRect(rect).contains(local) ||
+    if (_imageObjectIdMenuOpen &&
+        fortuneImageObjectIdMenuRect(
+          rect,
+          _effectiveImageObjectIds.length,
+        ).contains(local)) {
+      return false;
+    }
+    return fortuneImageObjectIdInputRect(rect).contains(local) ||
+        fortuneImageInsertWidthInputRect(rect).contains(local) ||
         fortuneImageInsertHeightInputRect(rect).contains(local) ||
         fortuneImageInsertRotationInputRect(rect).contains(local);
   }
@@ -22164,6 +22245,10 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       _imageInsertFileName = '선택된 파일 없음';
       _imageInsertOriginalWidthPx = null;
       _imageInsertOriginalHeightPx = null;
+      _setImageObjectIdSelection(_nextImageObjectId());
+      _imageObjectIdMenuOpen = false;
+      _imageObjectIdMenuHoveredIndex = null;
+      _imageObjectIdMenuScrollOffset = 0;
       _imageInsertAspectLocked = true;
       _imageInsertHoveredControl = null;
       _imageInsertPressedControl = null;
@@ -22198,6 +22283,13 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       _imageInsertFileName = '';
       _imageInsertOriginalWidthPx = widthValue;
       _imageInsertOriginalHeightPx = heightValue;
+      _setImageObjectIdSelection(
+        image.extraFields[fortuneImageObjectIdExtraKey]?.toString() ??
+        image.id,
+      );
+      _imageObjectIdMenuOpen = false;
+      _imageObjectIdMenuHoveredIndex = null;
+      _imageObjectIdMenuScrollOffset = 0;
       _imageInsertAspectLocked = true;
       _imageInsertHoveredControl = null;
       _imageInsertPressedControl = null;
@@ -22275,6 +22367,11 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     if (!_imageInsertDialogOpen || picked == null) {
       return;
     }
+    final objectId = _imageObjectIdController.text.trim();
+    if (objectId.isEmpty) {
+      _imageObjectIdFocusNode.requestFocus();
+      return;
+    }
     final widthValue = double.tryParse(_imageInsertWidthController.text.trim());
     final heightValue = double.tryParse(
       _imageInsertHeightController.text.trim(),
@@ -22311,6 +22408,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     final extraFields = <String, Object?>{
       'originWidth': _imageInsertOriginalWidthPx,
       'originHeight': _imageInsertOriginalHeightPx,
+      fortuneImageObjectIdExtraKey: objectId,
       'rotation': rotation,
     };
     if (usesMillimeters) {
@@ -22345,6 +22443,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       _imageInsertDialogOpen = false;
       _imageInsertEditingImageId = null;
       _imageInsertPickResult = null;
+      _imageObjectIdMenuOpen = false;
+      _imageObjectIdMenuHoveredIndex = null;
+      _imageObjectIdMenuScrollOffset = 0;
       _imageInsertHoveredControl = null;
       _imageInsertPressedControl = null;
     });
@@ -22357,6 +22458,11 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     final imageId = _imageInsertEditingImageId;
     final current = imageId == null ? null : _imageById(imageId);
     if (!_imageInsertDialogOpen || current == null) {
+      return;
+    }
+    final objectId = _imageObjectIdController.text.trim();
+    if (objectId.isEmpty) {
+      _imageObjectIdFocusNode.requestFocus();
       return;
     }
     final widthValue = double.tryParse(_imageInsertWidthController.text.trim());
@@ -22381,6 +22487,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         : heightValue;
     final extraFields = <String, Object?>{
       ...current.extraFields,
+      fortuneImageObjectIdExtraKey: objectId,
       'rotation': rotation,
     };
     if (usesMillimeters) {
@@ -22404,6 +22511,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       _imageInsertDialogOpen = false;
       _imageInsertEditingImageId = null;
       _imageInsertPickResult = null;
+      _imageObjectIdMenuOpen = false;
+      _imageObjectIdMenuHoveredIndex = null;
+      _imageObjectIdMenuScrollOffset = 0;
       _imageInsertHoveredControl = null;
       _imageInsertPressedControl = null;
     });
@@ -22421,12 +22531,111 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       _imageInsertDialogOpen = false;
       _imageInsertEditingImageId = null;
       _imageInsertPickResult = null;
+      _imageObjectIdMenuOpen = false;
+      _imageObjectIdMenuHoveredIndex = null;
+      _imageObjectIdMenuScrollOffset = 0;
       _imageInsertHoveredControl = null;
       _imageInsertPressedControl = null;
     });
     _clearImageInsertInputSelections();
     _endImageInsertInputSelectionDrag(_imageInsertDragSelectionPointer ?? -1);
     _focusNode.requestFocus();
+  }
+
+  List<String> get _effectiveImageObjectIds {
+    final result = <String>[];
+    final seen = <String>{};
+    for (final image in _workbook.activeSheet.images) {
+      final raw = image.extraFields[fortuneImageObjectIdExtraKey] ?? image.id;
+      final value = raw.toString().trim();
+      if (value.isEmpty) {
+        continue;
+      }
+      if (seen.add(value.toLowerCase())) {
+        result.add(value);
+      }
+    }
+    final current = _imageObjectIdController.text.trim();
+    if (_imageInsertDialogOpen &&
+        current.isNotEmpty &&
+        seen.add(current.toLowerCase())) {
+      result.add(current);
+    }
+    if (result.isEmpty) {
+      result.add(_nextImageObjectId());
+    }
+    return result;
+  }
+
+  String _nextImageObjectId() {
+    var maxIndex = 0;
+    final pattern = RegExp(r'^#IMAGE(\d+)$', caseSensitive: false);
+    for (final image in _workbook.activeSheet.images) {
+      final raw = image.extraFields[fortuneImageObjectIdExtraKey] ?? image.id;
+      final match = pattern.firstMatch(raw.toString().trim());
+      if (match == null) {
+        continue;
+      }
+      final index = int.tryParse(match.group(1) ?? '');
+      if (index != null) {
+        maxIndex = math.max(maxIndex, index);
+      }
+    }
+    return '#IMAGE${maxIndex + 1}';
+  }
+
+  int _imageObjectIdIndexForValue(String value) {
+    final normalized = value.trim().toLowerCase();
+    final options = _effectiveImageObjectIds;
+    final index = options.indexWhere(
+      (option) => option.toLowerCase() == normalized,
+    );
+    return index < 0 ? 0 : index;
+  }
+
+  String get _selectedImageObjectId {
+    final options = _effectiveImageObjectIds;
+    final index = _imageObjectIdIndex.clamp(0, options.length - 1);
+    return options[index];
+  }
+
+  void _setImageObjectIdSelection(String value) {
+    _setImageInsertControllerText(_imageObjectIdController, value);
+    _imageObjectIdIndex = _imageObjectIdIndexForValue(value);
+  }
+
+  double _initialImageObjectIdMenuScrollOffset() {
+    final options = _effectiveImageObjectIds;
+    final maxScrollOffset = fortuneImageObjectIdMenuMaxScrollOffset(
+      options.length,
+    );
+    if (maxScrollOffset <= 0 || options.isEmpty) {
+      return 0;
+    }
+    final index = _imageObjectIdIndex.clamp(0, options.length - 1);
+    const visibleHeight = 8 * fortuneContextMenuRowHeight;
+    final selectedCenter =
+        index * fortuneContextMenuRowHeight + fortuneContextMenuRowHeight / 2;
+    return (selectedCenter - visibleHeight / 2)
+        .clamp(0.0, maxScrollOffset)
+        .toDouble();
+  }
+
+  int? _imageObjectIdMenuIndexAt(Offset local) {
+    final rect = _imageInsertDialogRect();
+    if (rect == null || !_imageObjectIdMenuOpen) {
+      return null;
+    }
+    final options = _effectiveImageObjectIds;
+    final menu = fortuneImageObjectIdMenuRect(rect, options.length);
+    if (!menu.contains(local)) {
+      return null;
+    }
+    final index =
+        ((local.dy - menu.top + _imageObjectIdMenuScrollOffset) /
+                fortuneContextMenuRowHeight)
+            .floor();
+    return index >= 0 && index < options.length ? index : null;
   }
 
   List<FortuneBarcodeFormatOption> get _effectiveBarcodeFormats {
@@ -23463,6 +23672,20 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     });
   }
 
+  void _toggleImageObjectIdMenu() {
+    if (!_imageInsertDialogOpen) {
+      return;
+    }
+    setState(() {
+      final nextOpen = !_imageObjectIdMenuOpen;
+      _imageObjectIdMenuOpen = nextOpen;
+      _imageObjectIdMenuHoveredIndex = null;
+      _imageObjectIdMenuScrollOffset = nextOpen
+          ? _initialImageObjectIdMenuScrollOffset()
+          : 0;
+    });
+  }
+
   void _toggleBarcodeObjectIdMenu() {
     if (!_barcodeDialogOpen) {
       return;
@@ -23538,6 +23761,23 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       _barcodeObjectIdMenuHoveredIndex = null;
       _barcodeObjectIdMenuScrollOffset = 0;
       _barcodeErrorText = null;
+    });
+  }
+
+  void _selectImageObjectId(int index) {
+    final options = _effectiveImageObjectIds;
+    if (!_imageInsertDialogOpen || options.isEmpty) {
+      return;
+    }
+    setState(() {
+      _imageObjectIdIndex = index.clamp(0, options.length - 1);
+      _setImageInsertControllerText(
+        _imageObjectIdController,
+        options[_imageObjectIdIndex],
+      );
+      _imageObjectIdMenuOpen = false;
+      _imageObjectIdMenuHoveredIndex = null;
+      _imageObjectIdMenuScrollOffset = 0;
     });
   }
 
@@ -28928,13 +29168,27 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     return null;
   }
 
-  List<String> get _activeContextMenuItems => _contextMenuItemsForSelection(
-    _contextMenuIsEditor
-        ? _editorContextMenuItems
-        : _contextMenuIsHeader
-        ? _workbook.settings.headerContextMenu
-        : _workbook.settings.cellContextMenu,
-  );
+  List<String> get _activeContextMenuItems {
+    final image = _contextMenuImageId == null
+        ? null
+        : _imageById(_contextMenuImageId!);
+    if (image != null) {
+      return _contextMenuItemsForImage(image);
+    }
+    return _contextMenuItemsForSelection(
+      _contextMenuIsEditor
+          ? _editorContextMenuItems
+          : _contextMenuIsHeader
+          ? _workbook.settings.headerContextMenu
+          : _workbook.settings.cellContextMenu,
+    );
+  }
+
+  List<String> _contextMenuItemsForImage(FortuneImage image) {
+    return _isBarcodeImage(image)
+        ? const <String>[fortuneContextEditBarcodeCommand]
+        : const <String>[fortuneContextEditImageCommand];
+  }
 
   List<String> get _sheetTabMenuItems => fortuneSheetTabRenderableMenuItems(
     _workbook.settings.sheetTabContextMenu,
@@ -29278,6 +29532,10 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         _showImageInsertDialog();
       case fortuneToolbarBarcodeCommand:
         _showBarcodeInsertDialog();
+      case fortuneContextEditImageCommand:
+        _showContextImageEditDialog();
+      case fortuneContextEditBarcodeCommand:
+        _showContextBarcodeEditDialog();
       case fortuneToolbarLinkCommand:
         _toggleSelectedCellHyperlinkMetadata();
       case fortuneContextDataCommand:
@@ -29295,6 +29553,26 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
           _closeTransientMenus();
         });
     }
+  }
+
+  void _showContextImageEditDialog() {
+    final imageId = _contextMenuImageId ?? _activeImageId;
+    final image = imageId == null ? null : _imageById(imageId);
+    if (image == null) {
+      setState(_closeTransientMenus);
+      return;
+    }
+    _showImageEditDialog(image);
+  }
+
+  void _showContextBarcodeEditDialog() {
+    final imageId = _contextMenuImageId ?? _activeImageId;
+    final image = imageId == null ? null : _imageById(imageId);
+    if (image == null) {
+      setState(_closeTransientMenus);
+      return;
+    }
+    _showBarcodeEditDialog(image);
   }
 
   void _toggleSheetRulerVisible() {
@@ -34490,6 +34768,11 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     return rect == null ? null : fortuneImageInsertWidthInputRect(rect);
   }
 
+  Rect? _imageObjectIdInputRect([Size? overrideSize]) {
+    final rect = _imageInsertDialogRect(overrideSize);
+    return rect == null ? null : fortuneImageObjectIdInputRect(rect);
+  }
+
   Rect? _imageInsertHeightInputRect([Size? overrideSize]) {
     final rect = _imageInsertDialogRect(overrideSize);
     return rect == null ? null : fortuneImageInsertHeightInputRect(rect);
@@ -34559,7 +34842,22 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   String? _imageInsertDialogCommandAt(Offset local) {
     final rect = _imageInsertDialogRect();
     if (rect == null || !rect.contains(local)) {
+      if (_imageObjectIdMenuOpen && rect != null) {
+        final index = _imageObjectIdMenuIndexAt(local);
+        if (index != null) {
+          return 'object-id-$index';
+        }
+      }
       return null;
+    }
+    if (_imageObjectIdMenuOpen) {
+      final index = _imageObjectIdMenuIndexAt(local);
+      if (index != null) {
+        return 'object-id-$index';
+      }
+    }
+    if (fortuneImageObjectIdInputRect(rect).contains(local)) {
+      return 'object-id';
     }
     if (!_imageInsertIsEditing &&
         fortuneImageInsertFileButtonRect(rect).contains(local)) {
@@ -34835,8 +35133,19 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       _imageInsertHeightFocusNode.requestFocus();
       return;
     }
+    if (command == 'object-id') {
+      _toggleImageObjectIdMenu();
+      return;
+    }
     if (command == 'rotation') {
       _imageInsertRotationFocusNode.requestFocus();
+      return;
+    }
+    if (command.startsWith('object-id-')) {
+      final index = int.tryParse(command.substring('object-id-'.length));
+      if (index != null) {
+        _selectImageObjectId(index);
+      }
       return;
     }
     if (command == 'file') {
@@ -36219,6 +36528,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     _contextMenuIsHeader = false;
     _contextMenuIsEditor = false;
     _editorContextMenuSelectionRange = null;
+    _contextMenuImageId = null;
     _editorContextMenuOpeningPointer = null;
     _contextMenuPreviousSelectionSave = null;
     _contextMenuPreviousSelectionRange = null;
@@ -40332,6 +40642,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     );
     setState(() {
       _editorContextMenuOpeningPointer = openingPointer;
+      _contextMenuImageId = null;
       if (!keepSelection && !keepCollapsedCaret) {
         _editorController.selection = TextSelection.collapsed(offset: offset);
       }
@@ -41244,40 +41555,67 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     if (!_imageInsertDialogOpen) {
       return const SizedBox.shrink();
     }
+    final objectIdRect = _imageObjectIdInputRect(size);
     final widthRect = _imageInsertWidthInputRect(size);
     final heightRect = _imageInsertHeightInputRect(size);
     final rotationRect = _imageInsertRotationInputRect(size);
-    if (widthRect == null || heightRect == null || rotationRect == null) {
+    if (objectIdRect == null ||
+        widthRect == null ||
+        heightRect == null ||
+        rotationRect == null) {
       return const SizedBox.shrink();
     }
     return Positioned.fill(
       child: Stack(
         children: [
           _buildImageInsertDialogInput(
-            key: const ValueKey('fortune-image-insert-width-input'),
-            editableKey: _imageInsertWidthEditableKey,
-            rect: widthRect,
-            controller: _imageInsertWidthController,
-            focusNode: _imageInsertWidthFocusNode,
+            key: const ValueKey('fortune-image-object-id-input'),
+            editableKey: _imageObjectIdEditableKey,
+            rect: objectIdRect,
+            controller: _imageObjectIdController,
+            focusNode: _imageObjectIdFocusNode,
+            keyboardType: TextInputType.text,
+            rightInset: 24,
           ),
-          _buildImageInsertDialogInput(
-            key: const ValueKey('fortune-image-insert-height-input'),
-            editableKey: _imageInsertHeightEditableKey,
-            rect: heightRect,
-            controller: _imageInsertHeightController,
-            focusNode: _imageInsertHeightFocusNode,
-          ),
-          _buildImageInsertDialogInput(
-            key: const ValueKey('fortune-image-insert-rotation-input'),
-            editableKey: _imageInsertRotationEditableKey,
-            rect: rotationRect,
-            controller: _imageInsertRotationController,
-            focusNode: _imageInsertRotationFocusNode,
-            signed: true,
-          ),
+          if (!_imageObjectIdMenuIntersects(size, widthRect))
+            _buildImageInsertDialogInput(
+              key: const ValueKey('fortune-image-insert-width-input'),
+              editableKey: _imageInsertWidthEditableKey,
+              rect: widthRect,
+              controller: _imageInsertWidthController,
+              focusNode: _imageInsertWidthFocusNode,
+            ),
+          if (!_imageObjectIdMenuIntersects(size, heightRect))
+            _buildImageInsertDialogInput(
+              key: const ValueKey('fortune-image-insert-height-input'),
+              editableKey: _imageInsertHeightEditableKey,
+              rect: heightRect,
+              controller: _imageInsertHeightController,
+              focusNode: _imageInsertHeightFocusNode,
+            ),
+          if (!_imageObjectIdMenuIntersects(size, rotationRect))
+            _buildImageInsertDialogInput(
+              key: const ValueKey('fortune-image-insert-rotation-input'),
+              editableKey: _imageInsertRotationEditableKey,
+              rect: rotationRect,
+              controller: _imageInsertRotationController,
+              focusNode: _imageInsertRotationFocusNode,
+              signed: true,
+            ),
         ],
       ),
     );
+  }
+
+  bool _imageObjectIdMenuIntersects(Size size, Rect rect) {
+    final dialogRect = _imageInsertDialogRect(size);
+    if (dialogRect == null || !_imageObjectIdMenuOpen) {
+      return false;
+    }
+    return fortuneImageObjectIdMenuRect(
+      dialogRect,
+      _effectiveImageObjectIds.length,
+    ).overlaps(rect);
   }
 
   Widget _buildImageInsertDialogInput({
@@ -41286,13 +41624,15 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     required Rect rect,
     required TextEditingController controller,
     required FocusNode focusNode,
+    TextInputType? keyboardType,
     bool signed = false,
+    double rightInset = 0,
   }) {
     return Positioned(
       key: key,
       left: rect.left + 7,
       top: rect.top + 4 + _dialogInputVerticalOffset,
-      width: math.max(24, rect.width - 14),
+      width: math.max(24, rect.width - 14 - rightInset),
       height: math.max(1, rect.height - 8 - _dialogInputVerticalOffset),
       child: Listener(
         behavior: HitTestBehavior.opaque,
@@ -41344,10 +41684,12 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
               enableInteractiveSelection: true,
               rendererIgnoresPointer: true,
               maxLines: 1,
-              keyboardType: TextInputType.numberWithOptions(
-                decimal: true,
-                signed: signed,
-              ),
+              keyboardType:
+                  keyboardType ??
+                  TextInputType.numberWithOptions(
+                    decimal: true,
+                    signed: signed,
+                  ),
               textInputAction: TextInputAction.done,
               onSubmitted: (_) => _commitImageInsertDialog(),
               onEditingComplete: () {},
@@ -42374,6 +42716,12 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
                 imageInsertEditing: _imageInsertIsEditing,
                 imageInsertFileName: _imageInsertFileName,
                 imageInsertHasFile: _imageInsertPickResult != null,
+                imageObjectId: _selectedImageObjectId,
+                imageObjectIdOptions: _effectiveImageObjectIds,
+                imageObjectIdMenuOpen: _imageObjectIdMenuOpen,
+                imageObjectIdMenuHoveredIndex: _imageObjectIdMenuHoveredIndex,
+                imageObjectIdMenuSelectedIndex: _imageObjectIdIndex,
+                imageObjectIdMenuScrollOffset: _imageObjectIdMenuScrollOffset,
                 imageInsertAspectLocked: _imageInsertAspectLocked,
                 imageInsertUnitLabel: _imageInsertUnitLabel,
                 imageInsertHoveredControl: _imageInsertHoveredControl,

@@ -904,6 +904,8 @@ class FortuneSheetLocale {
       'chart': 'Create chart',
       'image': 'Insert image',
       'barcode': 'Insert barcode',
+      'edit-image': 'Edit image',
+      'edit-barcode': 'Edit barcode',
       'insert-auto-ingredient-table': 'Insert auto ingredient table',
       'load-common-label': 'Load common label',
       'link': 'Insert link',
@@ -1667,6 +1669,8 @@ class FortuneSheetLocale {
       'chart': '차트 만들기',
       'image': '이미지 삽입',
       'barcode': '바코드 삽입',
+      'edit-image': '이미지 수정',
+      'edit-barcode': '바코드 수정',
       'insert-auto-ingredient-table': '자동 성분표 삽입',
       'load-common-label': '공용 라벨 불러오기',
       'import-label-file': '라벨 파일에서 가져오기',
@@ -2255,6 +2259,8 @@ const String fortuneToolbarClearFilterCommand = 'filter-clear';
 const String fortuneToolbarDataVerificationCommand = 'dataVerification';
 const String fortuneToolbarImageCommand = 'image';
 const String fortuneToolbarBarcodeCommand = 'barcode';
+const String fortuneContextEditImageCommand = 'edit-image';
+const String fortuneContextEditBarcodeCommand = 'edit-barcode';
 const String fortuneToolbarSplitColumnCommand = 'splitColumn';
 const String fortuneToolbarLocationConditionCommand = 'locationCondition';
 const String fortuneToolbarLocationCommand = 'location';
@@ -42528,6 +42534,8 @@ bool fortuneContextMenuItemIsRenderedByUpstream(String item) {
     fortuneToolbarFilterCommand ||
     fortuneToolbarImageCommand ||
     fortuneToolbarBarcodeCommand ||
+    fortuneContextEditImageCommand ||
+    fortuneContextEditBarcodeCommand ||
     fortuneToolbarLinkCommand ||
     '|' => true,
     _ => false,
@@ -44144,8 +44152,8 @@ const double fortuneAxisSizeDialogButtonWidth = 68.0;
 const double fortuneAxisSizeDialogButtonHeight = 28.0;
 
 const double fortuneImageInsertDialogWidth = 424.0;
-const double fortuneImageInsertDialogHeight = 296.0;
-const double fortuneImageEditDialogHeight = 242.0;
+const double fortuneImageInsertDialogHeight = 330.0;
+const double fortuneImageEditDialogHeight = 276.0;
 const double fortuneImageInsertDialogMinTop = 36.0;
 const double fortuneImageInsertDialogHorizontalMargin = 32.0;
 const double fortuneImageInsertDialogPaddingLeft = 24.0;
@@ -44177,6 +44185,7 @@ const double fortuneBarcodeDialogIconSize = 24.0;
 const double fortuneBarcodeDialogCloseSize = 9.0;
 const double fortuneSheetDialogCloseGlyphSize = fortuneBarcodeDialogCloseSize;
 const double fortuneBarcodeDialogIconGap = 4.0;
+const String fortuneImageObjectIdExtraKey = 'imageObjectId';
 const String fortuneBarcodeObjectIdExtraKey = 'barcodeObjectId';
 const String fortuneBarcodeBodyTopExtraKey = 'barcodeBodyTop';
 const String fortuneBarcodeBodyHeightExtraKey = 'barcodeBodyHeight';
@@ -59799,6 +59808,32 @@ double _fortuneImageInsertEditOffset(Rect dialogRect) {
   return _fortuneImageInsertEditingRect(dialogRect) ? -54.0 : 0.0;
 }
 
+Rect fortuneImageObjectIdInputRect(Rect dialogRect) {
+  return Rect.fromLTWH(
+    dialogRect.left +
+        fortuneImageInsertDialogPaddingLeft +
+        fortuneImageInsertDialogLabelWidth,
+    dialogRect.top + 54 + _fortuneImageInsertEditOffset(dialogRect),
+    fortuneBarcodeDialogFullInputWidth,
+    fortuneImageInsertDialogInputHeight,
+  );
+}
+
+Rect fortuneImageObjectIdMenuRect(Rect dialogRect, int itemCount) {
+  final combo = fortuneImageObjectIdInputRect(dialogRect);
+  final visibleCount = math.min(8, itemCount);
+  return Rect.fromLTWH(
+    combo.left,
+    combo.bottom + 2,
+    combo.width,
+    visibleCount * fortuneContextMenuRowHeight,
+  );
+}
+
+double fortuneImageObjectIdMenuMaxScrollOffset(int itemCount) {
+  return math.max(0, itemCount - 8) * fortuneContextMenuRowHeight;
+}
+
 Rect fortuneImageInsertCloseButtonRect(Rect dialogRect) {
   return Rect.fromLTWH(
     dialogRect.right - 20 - fortuneImageInsertDialogCloseSize,
@@ -59838,7 +59873,7 @@ Rect fortuneImageInsertFileButtonRect(Rect dialogRect) {
     dialogRect.left +
         fortuneImageInsertDialogPaddingLeft +
         fortuneImageInsertDialogLabelWidth,
-    dialogRect.top + 58,
+    dialogRect.top + 92,
     fortuneImageInsertDialogFileButtonWidth,
     fortuneImageInsertDialogButtonHeight,
   );
@@ -59859,7 +59894,7 @@ Rect fortuneImageInsertWidthInputRect(Rect dialogRect) {
     dialogRect.left +
         fortuneImageInsertDialogPaddingLeft +
         fortuneImageInsertDialogLabelWidth,
-    dialogRect.top + 112 + _fortuneImageInsertEditOffset(dialogRect),
+    dialogRect.top + 146 + _fortuneImageInsertEditOffset(dialogRect),
     fortuneImageInsertDialogInputWidth,
     fortuneImageInsertDialogInputHeight,
   );
@@ -59869,7 +59904,7 @@ Rect fortuneImageInsertHeightInputRect(Rect dialogRect) {
   final widthInput = fortuneImageInsertWidthInputRect(dialogRect);
   return Rect.fromLTWH(
     widthInput.left,
-    dialogRect.top + 154 + _fortuneImageInsertEditOffset(dialogRect),
+    dialogRect.top + 188 + _fortuneImageInsertEditOffset(dialogRect),
     widthInput.width,
     widthInput.height,
   );
@@ -59895,7 +59930,7 @@ Rect fortuneImageInsertRotationInputRect(Rect dialogRect) {
     dialogRect.left +
         fortuneImageInsertDialogPaddingLeft +
         fortuneImageInsertDialogLabelWidth,
-    dialogRect.top + 198 + _fortuneImageInsertEditOffset(dialogRect),
+    dialogRect.top + 232 + _fortuneImageInsertEditOffset(dialogRect),
     fortuneImageInsertDialogInputWidth,
     fortuneImageInsertDialogInputHeight,
   );
@@ -61165,6 +61200,12 @@ class FortuneSheetPainter extends CustomPainter {
     this.imageInsertEditing = false,
     this.imageInsertFileName = '선택된 파일 없음',
     this.imageInsertHasFile = false,
+    this.imageObjectId = '',
+    this.imageObjectIdOptions = const <String>[],
+    this.imageObjectIdMenuOpen = false,
+    this.imageObjectIdMenuHoveredIndex,
+    this.imageObjectIdMenuSelectedIndex,
+    this.imageObjectIdMenuScrollOffset = 0,
     this.imageInsertAspectLocked = true,
     this.imageInsertUnitLabel = 'mm',
     this.imageInsertHoveredControl,
@@ -61362,6 +61403,12 @@ class FortuneSheetPainter extends CustomPainter {
   final bool imageInsertEditing;
   final String imageInsertFileName;
   final bool imageInsertHasFile;
+  final String imageObjectId;
+  final List<String> imageObjectIdOptions;
+  final bool imageObjectIdMenuOpen;
+  final int? imageObjectIdMenuHoveredIndex;
+  final int? imageObjectIdMenuSelectedIndex;
+  final double imageObjectIdMenuScrollOffset;
   final bool imageInsertAspectLocked;
   final String imageInsertUnitLabel;
   final String? imageInsertHoveredControl;
@@ -68008,6 +68055,18 @@ class FortuneSheetPainter extends CustomPainter {
       );
     }
 
+    final objectIdInput = fortuneImageObjectIdInputRect(rect);
+    drawLabel('ID', objectIdInput.top + 4);
+    _drawInputShell(canvas, objectIdInput);
+    _drawText(
+      canvas,
+      imageObjectId,
+      objectIdInput.deflate(8),
+      fontSize: 12,
+      color: const Color(0xff222222),
+    );
+    _drawComboArrow(canvas, objectIdInput.right - 18, objectIdInput.center.dy);
+
     if (!imageInsertEditing) {
       final fileButton = fortuneImageInsertFileButtonRect(rect);
       drawLabel('파일', fileButton.top + 4);
@@ -68077,6 +68136,16 @@ class FortuneSheetPainter extends CustomPainter {
       '취소',
       'cancel',
     );
+    if (imageObjectIdMenuOpen) {
+      _drawBarcodeTextMenu(
+        canvas,
+        fortuneImageObjectIdMenuRect(rect, imageObjectIdOptions.length),
+        imageObjectIdOptions,
+        imageObjectIdMenuHoveredIndex,
+        imageObjectIdMenuSelectedIndex,
+        imageObjectIdMenuScrollOffset,
+      );
+    }
   }
 
   void _drawBarcodeDialog(Canvas canvas, Size size) {
@@ -75998,6 +76067,15 @@ class FortuneSheetPainter extends CustomPainter {
         oldDelegate.imageInsertEditing != imageInsertEditing ||
         oldDelegate.imageInsertFileName != imageInsertFileName ||
         oldDelegate.imageInsertHasFile != imageInsertHasFile ||
+        oldDelegate.imageObjectId != imageObjectId ||
+        !_listEquals(oldDelegate.imageObjectIdOptions, imageObjectIdOptions) ||
+        oldDelegate.imageObjectIdMenuOpen != imageObjectIdMenuOpen ||
+        oldDelegate.imageObjectIdMenuHoveredIndex !=
+          imageObjectIdMenuHoveredIndex ||
+        oldDelegate.imageObjectIdMenuSelectedIndex !=
+          imageObjectIdMenuSelectedIndex ||
+        oldDelegate.imageObjectIdMenuScrollOffset !=
+          imageObjectIdMenuScrollOffset ||
         oldDelegate.imageInsertAspectLocked != imageInsertAspectLocked ||
         oldDelegate.imageInsertUnitLabel != imageInsertUnitLabel ||
         oldDelegate.imageInsertHoveredControl != imageInsertHoveredControl ||
