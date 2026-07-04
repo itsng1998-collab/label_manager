@@ -55,6 +55,11 @@ class LastConnectDAO extends DAO {
     WHERE RICH_LAST_SIZE_ID=@labelSizeId
   ''';
 
+  static const String DeleteSqlByBrandId = '''
+    DELETE FROM BM_RICH_LAST_ID
+     WHERE RICH_LAST_BRAND_ID=@brandId
+  ''';
+
   static Future<LastConnect?> selectByUserId(String userId) async {
     debugLog('$START, userId:$userId');
 
@@ -169,8 +174,8 @@ class LastConnectDAO extends DAO {
     debugLog('$START, brandId:$brandId');
 
     try {
-      await _deleteByWhere(
-        WhereSqlBrandId,
+      await _deleteBySql(
+        DeleteSqlByBrandId,
         {'brandId': brandId},
       );
       debugLog(END);
@@ -217,8 +222,15 @@ class LastConnectDAO extends DAO {
     String whereSql,
     Map<String, Object?> params,
   ) async {
+    await _deleteBySql('DELETE FROM BM_RICH_LAST_ID $whereSql', params);
+  }
+
+  static Future<void> _deleteBySql(
+    String sql,
+    Map<String, Object?> params,
+  ) async {
     final res = await DbClient.instance.writeDataWithParams(
-      'DELETE FROM BM_RICH_LAST_ID $whereSql',
+      sql,
       params,
     );
 

@@ -17,7 +17,6 @@ import 'package:label_manager/models/column_special.dart';
 import 'package:label_manager/models/column.dart';
 import 'package:label_manager/models/customer.dart';
 import 'package:label_manager/models/item_of_market.dart';
-import 'package:label_manager/models/last_connect.dart';
 import 'package:label_manager/models/label_size.dart';
 import 'package:label_manager/models/market.dart';
 import 'package:label_manager/models/user.dart';
@@ -3439,7 +3438,6 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
     }
 
     try {
-      await LastConnectDAO.deleteByBrandId(brand.brandId);
       await BrandDAO.deleteByBrandId(brand);
     } catch (e) {
       debugLog('deleteBrand failed brandId=${brand.brandId} error=$e');

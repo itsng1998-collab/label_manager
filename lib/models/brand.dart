@@ -5,6 +5,7 @@ import 'package:label_manager/core/app.dart';
 import 'package:label_manager/database/db_client.dart';
 import 'package:label_manager/utils/log_context.dart';
 import 'dao.dart';
+import 'last_connect.dart';
 
 class Brand {
   static List<Brand>? datas;
@@ -194,9 +195,36 @@ class BrandDAO extends DAO {
     debugLog('$START, brandId:${brand.brandId}, customerId:${brand.customerId}, brandName:${brand.brandName}');
 
     try {
-      const deleteSql = '''
-        DELETE FROM BM_RICH_BRAND
-         WHERE RICH_BRAND_ID=@brandId
+      final deleteSql = '''
+        SET XACT_ABORT ON;
+        SET NOCOUNT ON;
+        BEGIN TRY
+          DECLARE @brandAffected INT = 0;
+
+          BEGIN TRANSACTION;
+
+          ${LastConnectDAO.DeleteSqlByBrandId};
+
+          DELETE FROM BM_RICH_BRAND
+           WHERE RICH_BRAND_ID=@brandId;
+          SET @brandAffected = @@ROWCOUNT;
+
+          IF @brandAffected <= 0
+            THROW 51010, 'Delete brand failed.', 1;
+
+          COMMIT TRANSACTION;
+          SET NOCOUNT OFF;
+          SET XACT_ABORT OFF;
+
+          SELECT @brandAffected AS AFFECTED;
+        END TRY
+        BEGIN CATCH
+          IF @@TRANCOUNT > 0
+            ROLLBACK TRANSACTION;
+          SET NOCOUNT OFF;
+          SET XACT_ABORT OFF;
+          THROW;
+        END CATCH
       ''';
 
       final res = await DbClient.instance.writeDataWithParams(
@@ -206,7 +234,8 @@ class BrandDAO extends DAO {
         },
       );
 
-      final affected = DAO.affectedRows(res);
+      final row = DAO.getRowMapFromResult(res);
+      final affected = int.tryParse((row?['AFFECTED'] ?? '0').toString()) ?? 0;
       final succeeded = affected > 0;
 
       if (!succeeded) {
