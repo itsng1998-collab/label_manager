@@ -225,6 +225,18 @@
 - stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`, `third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart`. 기존 사용자 변경 `lib/core/app.dart`는 제외.
 - 커밋: `d6fa59b` (`이미지 바코드 레이어 패널 스크롤바 드래그 추가`).
 
+### 완료 (2026-07-04): 이미지/바코드 레이어 패널 row 드래그 재정렬 추가
+
+목적: 레이어 패널에서 이미지/바코드 row를 직접 드래그해 앞/뒤 레이어 순서를 바꿀 수 있게 한다.
+- 변경: `fortune_sheet_canvas.dart`에 레이어 패널 row drag 상태와 front-first row index 기반 zOrder 재정렬 helper를 추가하고 pointer down/move/up/cancel 흐름에 연결.
+- 테스트 추가: `fortune_barcode_dialog_test.dart`에 긴 목록 레이어 패널에서 row를 다른 row 위치로 드래그하면 active image와 zOrder/패널 표시 순서가 함께 갱신되는지 검증하는 케이스 추가.
+- 검증: `dart_format` 적용, `C:\Flutter\bin\flutter.bat analyze third_party\fortune_sheet\lib\src\fortune_sheet_canvas.dart --no-fatal-warnings --no-fatal-infos` 통과.
+- 검증: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --plain-name "image layer panel row drag reorders layers"` 통과.
+- 검증: `C:\Flutter\bin\flutter.bat analyze third_party\fortune_sheet\lib\src\fortune_sheet_canvas.dart third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --no-fatal-warnings --no-fatal-infos` 통과.
+- 검증: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart` 통과(33 tests).
+- 검증: `git diff --check` 통과.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`, `third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart`. 기존 사용자 변경 `lib/core/app.dart`는 제외.
+
 ### 완료 (2026-07-04): SwipeActionTable 마우스/터치 드래그 스크롤 허용
 
 목적: `lib/widgets/swipe_action_table.dart`를 공통으로 사용하는 테이블에서 별도 플래그로 막지 않는 한 마우스/터치 상하 드래그로 기본 세로 스크롤이 되도록 한다.

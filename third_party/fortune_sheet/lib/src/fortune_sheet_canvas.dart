@@ -2754,6 +2754,10 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   bool _imageLayerPanelScrollbarDragging = false;
   double _imageLayerPanelScrollbarDragStartY = 0;
   double _imageLayerPanelScrollbarDragStartOffset = 0;
+  bool _imageLayerPanelRowDragging = false;
+  bool _imageLayerPanelRowDragUndoRecorded = false;
+  String? _imageLayerPanelRowDragImageId;
+  double _imageLayerPanelRowDragStartY = 0;
   String? _imageResizeSide;
   Offset? _imageResizeStart;
   FortuneImage? _imageResizeInitial;
@@ -6834,6 +6838,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         _activeImageId = layerPanelImageId;
         contextMenuAt = null;
       });
+      _startImageLayerPanelRowDrag(layerPanelImageId, local);
       return;
     }
     if (_imageLayerPanelOpen && !_imageLayerPanelContains(local, settings)) {
@@ -9454,6 +9459,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     if (_updateImageLayerPanelScrollbarDrag(event.localPosition)) {
       return;
     }
+    if (_updateImageLayerPanelRowDrag(event.localPosition)) {
+      return;
+    }
     if (_updateSheetScrollbarDrag(event.localPosition)) {
       return;
     }
@@ -10362,6 +10370,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     if (_commitImageLayerPanelScrollbarDrag()) {
       return;
     }
+    if (_commitImageLayerPanelRowDrag()) {
+      return;
+    }
     if (_commitSheetScrollbarDrag()) {
       return;
     }
@@ -10414,6 +10425,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     _cancelSheetRulerGuideDrag();
     _cancelFilterDropdownScrollbarDrag();
     _cancelImageLayerPanelScrollbarDrag();
+    _cancelImageLayerPanelRowDrag();
     _cancelSheetScrollbarDrag();
     _cancelSelectionDrag();
     _cancelFormatPainterDrag(clearPainter: true);
@@ -24278,6 +24290,131 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     _imageLayerPanelScrollbarDragStartOffset = 0;
   }
 
+  void _startImageLayerPanelRowDrag(String imageId, Offset local) {
+    _imageLayerPanelRowDragging = true;
+    _imageLayerPanelRowDragUndoRecorded = false;
+    _imageLayerPanelRowDragImageId = imageId;
+    _imageLayerPanelRowDragStartY = local.dy;
+  }
+
+  bool _updateImageLayerPanelRowDrag(Offset local) {
+    if (!_imageLayerPanelRowDragging) {
+      return false;
+    }
+    final imageId = _imageLayerPanelRowDragImageId;
+    if (imageId == null) {
+      _cancelImageLayerPanelRowDrag();
+      return false;
+    }
+    if ((local.dy - _imageLayerPanelRowDragStartY).abs() < 4) {
+      return true;
+    }
+    final targetIndex = _imageLayerPanelRowTargetIndexAt(
+      local,
+      _workbook.settings,
+    );
+    if (targetIndex == null) {
+      return true;
+    }
+    return _moveImageLayerPanelRow(imageId, targetIndex);
+  }
+
+  bool _commitImageLayerPanelRowDrag() {
+    if (!_imageLayerPanelRowDragging) {
+      return false;
+    }
+    _cancelImageLayerPanelRowDrag();
+    return true;
+  }
+
+  void _cancelImageLayerPanelRowDrag() {
+    _imageLayerPanelRowDragging = false;
+    _imageLayerPanelRowDragUndoRecorded = false;
+    _imageLayerPanelRowDragImageId = null;
+    _imageLayerPanelRowDragStartY = 0;
+  }
+
+  int? _imageLayerPanelRowTargetIndexAt(
+    Offset local,
+    FortuneSettings settings,
+  ) {
+    if (!_imageLayerPanelOpen) {
+      return null;
+    }
+    final size = context.size;
+    if (size == null) {
+      return null;
+    }
+    final items = fortuneImageLayerPanelItems(_workbook.activeSheet.images);
+    if (items.isEmpty) {
+      return null;
+    }
+    final panel = fortuneImageLayerPanelRect(
+      size,
+      items.length,
+      top: _imageLayerPanelTop(settings),
+    );
+    if (local.dx < panel.left || local.dx > panel.right) {
+      return null;
+    }
+    final listTop = panel.top + fortuneImageLayerPanelHeaderHeight;
+    final listBottom = panel.bottom;
+    final listY = local.dy.clamp(listTop, listBottom - 1).toDouble();
+    final contentY = listY - listTop + _imageLayerPanelScrollOffset;
+    return (contentY / fortuneImageLayerPanelRowHeight)
+        .floor()
+        .clamp(0, items.length - 1);
+  }
+
+  bool _moveImageLayerPanelRow(String imageId, int targetIndex) {
+    final sheet = _workbook.activeSheet;
+    final frontToBack = fortuneImageLayerPanelItems(sheet.images).toList();
+    final currentIndex = frontToBack.indexWhere((image) => image.id == imageId);
+    if (currentIndex < 0) {
+      _cancelImageLayerPanelRowDrag();
+      return false;
+    }
+    final clampedTargetIndex = targetIndex.clamp(0, frontToBack.length - 1);
+    if (clampedTargetIndex == currentIndex) {
+      return true;
+    }
+    if (!_imageLayerPanelRowDragUndoRecorded) {
+      _recordUndoSnapshot();
+      _imageLayerPanelRowDragUndoRecorded = true;
+    }
+    final moving = frontToBack.removeAt(currentIndex);
+    frontToBack.insert(clampedTargetIndex, moving);
+    final backToFront = frontToBack.reversed.toList(growable: false);
+    final nextZOrders = <String, double>{
+      for (var index = 0; index < backToFront.length; index += 1)
+        backToFront[index].id: index + 1.0,
+    };
+    final nextImages = [
+      for (final image in sheet.images)
+        if (nextZOrders.containsKey(image.id))
+          image.copyWith(
+            extraFields: <String, Object?>{
+              ...image.extraFields,
+              fortuneSheetObjectZOrderExtraKey: nextZOrders[image.id],
+            },
+          )
+        else
+          image,
+    ];
+    setState(() {
+      _replaceActiveSheet(sheet.copyWith(images: nextImages));
+      _activeImageId = imageId;
+      contextMenuAt = null;
+      _contextMenuImageId = null;
+      _imageLayerPanelOpen = true;
+      _imageLayerPanelScrollOffset = fortuneImageLayerPanelClampScrollOffset(
+        nextImages.length,
+        _imageLayerPanelScrollOffset,
+      );
+    });
+    return true;
+  }
+
   Rect? _imageLayerPanelScrollbarThumbRect(FortuneSettings settings) {
     final size = context.size;
     if (size == null) {
@@ -36998,6 +37135,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     _imageLayerPanelOpen = false;
     _imageLayerPanelScrollOffset = 0;
     _cancelImageLayerPanelScrollbarDrag();
+    _cancelImageLayerPanelRowDrag();
     sheetTabMenuAt = null;
     sheetListAt = null;
     hiddenSheetListAt = null;
