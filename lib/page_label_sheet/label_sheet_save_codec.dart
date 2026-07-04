@@ -26,6 +26,7 @@ const List<String> _labelSheetSaveFeatureKeys = [
   'cell.inlineRuns',
   'cell.linksAndNotes',
   'sheet.images',
+  'sheet.images.objectMetadata',
   'sheet.validationFilter',
   'sheet.formulaMetadata',
   'sheet.frozen',
@@ -176,6 +177,46 @@ const Set<String> _supportedInlineRunKeys = {
   'rtfAllCaps',
   'rtfUnderlineStyle',
   'rtfShadow',
+};
+
+const Set<String> _supportedImageKeys = {
+  'id',
+  'src',
+  'left',
+  'top',
+  'width',
+  'height',
+  'originWidth',
+  'originHeight',
+  'rotation',
+  'widthMm',
+  'heightMm',
+  'crop',
+  'fortuneBarcode',
+  'barcodeText',
+  'barcodeFormatId',
+  'barcodeFormatLabel',
+  'barcodeModuleScale',
+  'barcodeBarHeight',
+  'barcodeLeadingText',
+  'barcodeTrailingText',
+  'barcodeShowText',
+  'barcodeHumanReadableFontFamily',
+  'barcodeHumanReadableFontSize',
+  fortuneImageObjectIdExtraKey,
+  fortuneBarcodeObjectIdExtraKey,
+  fortuneSheetObjectZOrderExtraKey,
+  fortuneBarcodeBodyTopExtraKey,
+  fortuneBarcodeBodyHeightExtraKey,
+  fortuneBarcodeBodyRatioExtraKey,
+  fortuneBarcodeIdLabelPrintExcludedExtraKey,
+};
+
+const Set<String> _supportedImageCropKeys = {
+  'width',
+  'height',
+  'offsetLeft',
+  'offsetTop',
 };
 
 String labelSheetEncodeWorkbookSave(FortuneWorkbook workbook) {
@@ -719,8 +760,28 @@ Map<String, Object?> _sanitizeSheetJson(Map<String, Object?> json) {
         _sanitizeSheetConfigJson(Map<String, Object?>.from(value)),
       'celldata' when value is List => _sanitizeCelldata(value),
       'data' when value is List => _sanitizeMatrixData(value),
+      'images' || 'image' when value is List => _sanitizeImages(value),
       _ => _cloneSupportedSaveValue(value),
     };
+  });
+}
+
+List<Object?> _sanitizeImages(List<Object?> raw) {
+  return [
+    for (final item in raw)
+      if (item is Map) _sanitizeImageJson(Map<String, Object?>.from(item)),
+  ];
+}
+
+Map<String, Object?> _sanitizeImageJson(Map<String, Object?> json) {
+  return _sanitizeMap(json, _supportedImageKeys, valueSanitizer: (key, value) {
+    if (key == 'crop' && value is Map) {
+      return _sanitizeMap(
+        Map<String, Object?>.from(value),
+        _supportedImageCropKeys,
+      );
+    }
+    return _cloneSupportedSaveValue(value);
   });
 }
 

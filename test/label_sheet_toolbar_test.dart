@@ -190,6 +190,118 @@ void main() {
     expect(cell.inlineRuns![1].extraFields['lineHeight'], 1.5);
   });
 
+  test('label sheet save preserves supported image object metadata', () {
+    final workbook = FortuneWorkbook(
+      sheets: [
+        FortuneSheet(
+          id: 's1',
+          name: 'Label',
+          images: const [
+            FortuneImage(
+              id: 'barcode-image',
+              src: 'data:image/png;base64,AAA=',
+              left: 10,
+              top: 20,
+              width: 120,
+              height: 60,
+              extraFields: {
+                'fortuneBarcode': true,
+                'barcodeText': '1234567890',
+                'barcodeFormatId': 'code128',
+                'barcodeFormatLabel': 'Code 128',
+                'originWidth': 240,
+                'originHeight': 120,
+                'rotation': 90,
+                'widthMm': 42,
+                'heightMm': 18,
+                'barcodeModuleScale': 2,
+                'barcodeBarHeight': 14,
+                'barcodeLeadingText': '',
+                'barcodeTrailingText': '',
+                'barcodeShowText': true,
+                'barcodeHumanReadableFontFamily': 'Arial',
+                'barcodeHumanReadableFontSize': 12,
+                'crop': {
+                  'width': 80,
+                  'height': 40,
+                  'offsetLeft': 4,
+                  'offsetTop': 5,
+                  'unsupportedCropField': 'drop',
+                },
+                fortuneBarcodeObjectIdExtraKey: '#BARCODE9',
+                fortuneSheetObjectZOrderExtraKey: 7,
+                fortuneBarcodeBodyTopExtraKey: 6,
+                fortuneBarcodeBodyHeightExtraKey: 44,
+                fortuneBarcodeBodyRatioExtraKey: 0.73,
+                fortuneBarcodeIdLabelPrintExcludedExtraKey: true,
+                'unsupportedImageField': 'drop',
+              },
+            ),
+            FortuneImage(
+              id: 'plain-image',
+              src: 'data:image/png;base64,BBB=',
+              left: 30,
+              top: 40,
+              width: 80,
+              height: 50,
+              extraFields: {
+                fortuneImageObjectIdExtraKey: '#IMAGE4',
+                fortuneSheetObjectZOrderExtraKey: 3,
+              },
+            ),
+          ],
+        ),
+      ],
+    );
+
+    final encoded = labelSheetEncodeWorkbookSave(workbook);
+    final savedJson = _decodeLabelSheetSaveWorkbookJson(encoded);
+    final savedSheetJson = (savedJson['data'] as List).single as Map;
+    final savedBarcodeJson = (savedSheetJson['images'] as List).first as Map;
+    final savedCropJson = savedBarcodeJson['crop'] as Map;
+
+    expect(
+      labelSheetSaveFeatureVersions,
+      contains('sheet.images.objectMetadata'),
+    );
+    expect(savedBarcodeJson['unsupportedImageField'], isNull);
+    expect(savedCropJson['unsupportedCropField'], isNull);
+    expect(savedBarcodeJson[fortuneBarcodeObjectIdExtraKey], '#BARCODE9');
+    expect(savedBarcodeJson[fortuneSheetObjectZOrderExtraKey], 7);
+    expect(savedBarcodeJson[fortuneBarcodeBodyRatioExtraKey], 0.73);
+    expect(savedCropJson['offsetLeft'], 4);
+
+    final decoded = labelSheetDecodeWorkbookSave(encoded);
+    final decodedImages = decoded.activeSheet.images;
+    final decodedBarcode = decodedImages.singleWhere(
+      (image) => image.id == 'barcode-image',
+    );
+    final decodedImage = decodedImages.singleWhere(
+      (image) => image.id == 'plain-image',
+    );
+
+    expect(decodedBarcode.extraFields['fortuneBarcode'], isTrue);
+    expect(
+      decodedBarcode.extraFields[fortuneBarcodeObjectIdExtraKey],
+      '#BARCODE9',
+    );
+    expect(decodedBarcode.extraFields[fortuneSheetObjectZOrderExtraKey], 7);
+    expect(decodedBarcode.extraFields[fortuneBarcodeBodyTopExtraKey], 6);
+    expect(decodedBarcode.extraFields[fortuneBarcodeBodyHeightExtraKey], 44);
+    expect(decodedBarcode.extraFields[fortuneBarcodeBodyRatioExtraKey], 0.73);
+    expect(
+      decodedBarcode.extraFields[fortuneBarcodeIdLabelPrintExcludedExtraKey],
+      isTrue,
+    );
+    expect(decodedBarcode.extraFields['unsupportedImageField'], isNull);
+    expect(
+      (decodedBarcode.extraFields['crop'] as Map)['unsupportedCropField'],
+      isNull,
+    );
+    expect(decodedImage.extraFields[fortuneImageObjectIdExtraKey], '#IMAGE4');
+    expect(decodedImage.extraFields[fortuneSheetObjectZOrderExtraKey], 3);
+  });
+
   test('label sheet save crops to print area and overflowing content', () {
     final workbook = FortuneWorkbook(
       sheets: [
