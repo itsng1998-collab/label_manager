@@ -75,6 +75,60 @@ Future<void> activateOpenContextMenuItem(
 }
 
 void main() {
+  test('image layer panel type labels distinguish images and barcodes', () {
+    const image = FortuneImage(
+      id: 'image-id',
+      src: 'data:image/png;base64,empty',
+      left: 0,
+      top: 0,
+      width: 10,
+      height: 10,
+      extraFields: {fortuneImageObjectIdExtraKey: '#IMAGE7'},
+    );
+    const barcode = FortuneImage(
+      id: 'barcode-id',
+      src: 'data:image/png;base64,empty',
+      left: 0,
+      top: 0,
+      width: 10,
+      height: 10,
+      extraFields: {
+        'fortuneBarcode': true,
+        fortuneBarcodeObjectIdExtraKey: '#BARCODE2',
+      },
+    );
+    const fallback = FortuneImage(
+      id: 'fallback-id',
+      src: 'data:image/png;base64,empty',
+      left: 0,
+      top: 0,
+      width: 10,
+      height: 10,
+    );
+
+    expect(fortuneImageLayerPanelTypeLabel(image), 'IMG');
+    expect(fortuneImageLayerPanelTypeLabel(barcode), 'BAR');
+    expect(fortuneImageLayerPanelLabel(image), '#IMAGE7');
+    expect(fortuneImageLayerPanelLabel(barcode), '#BARCODE2');
+    expect(fortuneImageLayerPanelLabel(fallback), 'fallback-id');
+  });
+
+  test('image layer panel type and label rects do not overlap', () {
+    const row = Rect.fromLTWH(100, 200, 220, fortuneImageLayerPanelRowHeight);
+    final type = fortuneImageLayerPanelTypeRect(row);
+    final label = fortuneImageLayerPanelLabelRect(row);
+
+    expect(type.left, greaterThanOrEqualTo(row.left));
+    expect(type.right, lessThanOrEqualTo(row.right));
+    expect(type.top, greaterThanOrEqualTo(row.top));
+    expect(type.bottom, lessThanOrEqualTo(row.bottom));
+    expect(label.left, greaterThanOrEqualTo(row.left));
+    expect(label.right, lessThanOrEqualTo(row.right));
+    expect(label.top, greaterThanOrEqualTo(row.top));
+    expect(label.bottom, lessThanOrEqualTo(row.bottom));
+    expect(type.right + fortuneImageLayerPanelTypeGap, label.left);
+  });
+
   test('barcode show-text option is centered between quiet-zone inputs', () {
     final dialogRect = fortuneBarcodeDialogRect(
       const Size(900, 700),

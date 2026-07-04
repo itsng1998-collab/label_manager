@@ -27,6 +27,19 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-04): 이미지/바코드 레이어 패널 타입 표시 추가
+
+목적: 레이어 패널에서 이미지와 바코드가 섞여 있을 때 ID만 보고 구분하지 않아도 되도록 row에 객체 타입 표시를 추가한다.
+- 변경 예정: `fortune_sheet_painter.dart`에 레이어 패널 row 타입 label/helper와 chip 렌더링을 추가하고, ID label 영역을 타입 표시와 겹치지 않게 조정한다.
+- 변경: `fortune_sheet_painter.dart`에 `fortuneImageLayerPanelTypeLabel`, `fortuneImageLayerPanelTypeRect`, `fortuneImageLayerPanelLabelRect`를 추가하고 row에 IMG/BAR chip을 렌더링.
+- 검증: `C:\Flutter\bin\flutter.bat analyze third_party\fortune_sheet\lib\src\fortune_sheet_painter.dart --no-fatal-warnings --no-fatal-infos` 통과.
+- 테스트 추가: `fortune_barcode_dialog_test.dart`에 이미지/바코드 row type helper, 기존 ID label fallback, type/label rect 분리 검증 추가.
+- 검증: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --plain-name "image layer panel type"` 통과(2 tests).
+- 검증: `C:\Flutter\bin\flutter.bat analyze third_party\fortune_sheet\lib\src\fortune_sheet_painter.dart third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --no-fatal-warnings --no-fatal-infos` 통과.
+- 검증: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart` 통과(44 tests).
+- 검증: `git diff --check` 통과.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`, `third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart`. 기존 사용자 변경 `lib/core/app.dart`는 제외.
+
 ### 완료 (2026-07-04): 이미지/바코드 선택 객체 복제 조작 추가
 
 목적: 선택한 이미지/바코드를 컨텍스트 메뉴, 선택 툴바, 레이어 패널에서 바로 복제해 반복 객체 배치를 빠르게 이어갈 수 있게 한다.

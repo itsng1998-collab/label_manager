@@ -44232,6 +44232,8 @@ const double fortuneImageLayerPanelMargin = 8.0;
 const double fortuneImageLayerPanelActionSize = 22.0;
 const double fortuneImageLayerPanelScrollbarWidth = 4.0;
 const double fortuneImageLayerPanelScrollbarMargin = 4.0;
+const double fortuneImageLayerPanelTypeWidth = 34.0;
+const double fortuneImageLayerPanelTypeGap = 6.0;
 const int fortuneImageLayerPanelMaxVisibleRows = 8;
 const List<String> fortuneImageLayerPanelActionCommands = <String>[
   fortuneContextDeleteImageCommand,
@@ -44407,6 +44409,29 @@ String fortuneImageLayerPanelLabel(FortuneImage image) {
       : fortuneImageObjectIdExtraKey;
   final label = image.extraFields[key]?.toString().trim();
   return label == null || label.isEmpty ? image.id : label;
+}
+
+String fortuneImageLayerPanelTypeLabel(FortuneImage image) {
+  return image.extraFields['fortuneBarcode'] == true ? 'BAR' : 'IMG';
+}
+
+Rect fortuneImageLayerPanelTypeRect(Rect row) {
+  return Rect.fromLTWH(
+    row.left + 18,
+    row.top + (row.height - 16) / 2,
+    fortuneImageLayerPanelTypeWidth,
+    16,
+  );
+}
+
+Rect fortuneImageLayerPanelLabelRect(Rect row) {
+  final type = fortuneImageLayerPanelTypeRect(row);
+  return Rect.fromLTWH(
+    type.right + fortuneImageLayerPanelTypeGap,
+    row.top,
+    math.max(0, row.right - type.right - fortuneImageLayerPanelTypeGap - 18),
+    row.height,
+  );
 }
 
 Rect fortuneActiveImageToolbarRect(Rect imageRect, Size viewportSize) {
@@ -75959,10 +75984,32 @@ class FortuneSheetPainter extends CustomPainter {
         Rect.fromLTWH(row.left + 10, row.top, 1, row.height),
         Paint()..color = const Color(0xffe8eaed),
       );
+      final typeRect = fortuneImageLayerPanelTypeRect(row);
+      final isBarcode = item.extraFields['fortuneBarcode'] == true;
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(typeRect, const Radius.circular(3)),
+        Paint()..color = isBarcode ? const Color(0xffe6f4ea) : const Color(0xffe8f0fe),
+      );
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(typeRect, const Radius.circular(3)),
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1
+          ..color = isBarcode ? const Color(0xff34a853) : const Color(0xff1a73e8),
+      );
+      _drawText(
+        canvas,
+        fortuneImageLayerPanelTypeLabel(item),
+        typeRect,
+        fontSize: 9,
+        fontWeight: FontWeight.w700,
+        color: isBarcode ? const Color(0xff137333) : const Color(0xff174ea6),
+        align: TextAlign.center,
+      );
       _drawText(
         canvas,
         fortuneImageLayerPanelLabel(item),
-        Rect.fromLTWH(row.left + 18, row.top, row.width - 36, row.height),
+        fortuneImageLayerPanelLabelRect(row),
         fontSize: 11,
         color: const Color(0xff202124),
       );
