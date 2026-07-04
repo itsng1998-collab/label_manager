@@ -44222,6 +44222,8 @@ const double fortuneImageLayerPanelHeaderHeight = 30.0;
 const double fortuneImageLayerPanelRowHeight = 28.0;
 const double fortuneImageLayerPanelMargin = 8.0;
 const double fortuneImageLayerPanelActionSize = 22.0;
+const double fortuneImageLayerPanelScrollbarWidth = 4.0;
+const double fortuneImageLayerPanelScrollbarMargin = 4.0;
 const int fortuneImageLayerPanelMaxVisibleRows = 8;
 const List<String> fortuneImageLayerPanelActionCommands = <String>[
   fortuneContextBringToFrontCommand,
@@ -44312,6 +44314,49 @@ double fortuneImageLayerPanelClampScrollOffset(
   return scrollOffset.clamp(
     0.0,
     fortuneImageLayerPanelMaxScrollOffset(itemCount),
+  );
+}
+
+Rect? fortuneImageLayerPanelScrollbarThumbRect(
+  Size viewportSize,
+  int itemCount,
+  double scrollOffset, {
+  double top = fortuneImageLayerPanelMargin,
+}) {
+  final visibleRows = math.min(itemCount, fortuneImageLayerPanelMaxVisibleRows);
+  if (itemCount <= visibleRows) {
+    return null;
+  }
+  final panel = fortuneImageLayerPanelRect(viewportSize, itemCount, top: top);
+  final trackTop = panel.top +
+      fortuneImageLayerPanelHeaderHeight +
+      fortuneImageLayerPanelScrollbarMargin;
+  final trackHeight = panel.height -
+      fortuneImageLayerPanelHeaderHeight -
+      fortuneImageLayerPanelScrollbarMargin * 2;
+  if (trackHeight <= 0) {
+    return null;
+  }
+  final contentHeight = itemCount * fortuneImageLayerPanelRowHeight;
+  final viewportHeight = visibleRows * fortuneImageLayerPanelRowHeight;
+  final thumbHeight = math.max(
+    24.0,
+    trackHeight * viewportHeight / contentHeight,
+  );
+  final maxScrollOffset = fortuneImageLayerPanelMaxScrollOffset(itemCount);
+  final clampedOffset = fortuneImageLayerPanelClampScrollOffset(
+    itemCount,
+    scrollOffset,
+  );
+  final thumbTravel = math.max(0.0, trackHeight - thumbHeight);
+  final thumbTop = trackTop +
+      (maxScrollOffset <= 0 ? 0 : thumbTravel * clampedOffset / maxScrollOffset);
+  return Rect.fromLTWH(
+    panel.right - fortuneImageLayerPanelScrollbarMargin -
+        fortuneImageLayerPanelScrollbarWidth,
+    thumbTop,
+    fortuneImageLayerPanelScrollbarWidth,
+    thumbHeight,
   );
 }
 
@@ -75893,11 +75938,34 @@ class FortuneSheetPainter extends CustomPainter {
       _drawText(
         canvas,
         fortuneImageLayerPanelLabel(item),
-        Rect.fromLTWH(row.left + 18, row.top, row.width - 28, row.height),
+        Rect.fromLTWH(row.left + 18, row.top, row.width - 36, row.height),
         fontSize: 11,
         color: const Color(0xff202124),
       );
     }
+    _drawImageLayerPanelScrollbar(canvas, size, items.length, scrollOffset, top);
+  }
+
+  void _drawImageLayerPanelScrollbar(
+    Canvas canvas,
+    Size size,
+    int itemCount,
+    double scrollOffset,
+    double top,
+  ) {
+    final thumb = fortuneImageLayerPanelScrollbarThumbRect(
+      size,
+      itemCount,
+      scrollOffset,
+      top: top,
+    );
+    if (thumb == null) {
+      return;
+    }
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(thumb, const Radius.circular(2)),
+      Paint()..color = const Color(0xff9aa0a6),
+    );
   }
 
   void _drawImageLayerPanelAction(

@@ -199,6 +199,19 @@
 - stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`, `third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart`. 기존 사용자 변경 `lib/core/app.dart`는 제외.
 - 커밋: `80f1bde` (`이미지 바코드 레이어 패널 선택 항목 자동 스크롤 추가`).
 
+### 진행 중 (2026-07-04): 이미지/바코드 레이어 패널 스크롤바 표시
+
+목적: 레이어 패널이 스크롤 가능한 긴 목록일 때 사용자가 현재 위치와 추가 항목 존재를 알 수 있도록 패널 우측에 스크롤바 thumb을 표시한다.
+- 변경: `fortune_sheet_painter.dart`에 레이어 패널 scrollbar thumb rect helper와 렌더링을 추가하고, row label 영역이 scrollbar와 겹치지 않도록 폭을 조정.
+- 변경: `fortune_barcode_dialog_test.dart`의 레이어 패널 스크롤 테스트에 scrollOffset에 따른 scrollbar thumb rect 생성 및 위치 이동 검증을 추가.
+- 검증: `dart_format` 적용, `C:\Flutter\bin\flutter.bat analyze third_party\fortune_sheet\lib\src\fortune_sheet_painter.dart --no-fatal-warnings --no-fatal-infos` 통과.
+- 검증: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --plain-name "image layer panel scroll selects lower item"` 통과.
+- 검증: `C:\Flutter\bin\flutter.bat analyze third_party\fortune_sheet\lib\src\fortune_sheet_canvas.dart third_party\fortune_sheet\lib\src\fortune_sheet_painter.dart third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --no-fatal-warnings --no-fatal-infos` 통과.
+- 검증: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart` 31개 통과.
+- 검증: `git diff --check -- SESSION_HANDOFF.md third_party\fortune_sheet\lib\src\fortune_sheet_painter.dart third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart` 통과.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`, `third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart`. 기존 사용자 변경 `lib/core/app.dart`는 제외.
+- 미검증: 커밋 필요.
+
 ### 완료 (2026-07-04): SwipeActionTable 마우스/터치 드래그 스크롤 허용
 
 목적: `lib/widgets/swipe_action_table.dart`를 공통으로 사용하는 테이블에서 별도 플래그로 막지 않는 한 마우스/터치 상하 드래그로 기본 세로 스크롤이 되도록 한다.

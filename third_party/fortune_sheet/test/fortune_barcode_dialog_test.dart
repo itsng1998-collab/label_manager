@@ -1171,6 +1171,13 @@ void main() {
       10,
       top: layerPanelTop,
     );
+    final initialThumb = fortuneImageLayerPanelScrollbarThumbRect(
+      const Size(900, 700),
+      10,
+      0,
+      top: layerPanelTop,
+    );
+    expect(initialThumb, isNotNull);
 
     await tester.sendEventToBinding(
       PointerScrollEvent(
@@ -1184,6 +1191,14 @@ void main() {
       painter().imageLayerPanelScrollOffset,
       fortuneImageLayerPanelRowHeight * 2,
     );
+    final scrolledThumb = fortuneImageLayerPanelScrollbarThumbRect(
+      const Size(900, 700),
+      10,
+      fortuneImageLayerPanelRowHeight * 2,
+      top: layerPanelTop,
+    );
+    expect(scrolledThumb, isNotNull);
+    expect(scrolledThumb!.top, greaterThan(initialThumb!.top));
 
     final image1RowRect = fortuneImageLayerPanelItemRect(
       const Size(900, 700),
