@@ -55,6 +55,58 @@ Future<void> _pumpTable(
   );
 }
 
+Future<void> _pumpScrollableTable(
+  WidgetTester tester, {
+  bool dragScrollEnabled = true,
+}) async {
+  final rows = List<_Row>.generate(
+    20,
+    (index) => _Row('Brand ${index + 1}', 'B${index + 1}'),
+  );
+  await tester.pumpWidget(
+    MaterialApp(
+      home: Scaffold(
+        body: SizedBox(
+          width: 360,
+          height: 150,
+          child: SwipeActionTable<_Row>(
+            rows: rows,
+            autoFitColumns: false,
+            dragScrollEnabled: dragScrollEnabled,
+            columns: [
+              SwipeActionTableColumn<_Row>(
+                header: '브랜드 이름',
+                initialWidth: 160,
+                text: (row) => row.name,
+              ),
+              SwipeActionTableColumn<_Row>(
+                header: '코드',
+                initialWidth: 120,
+                text: (row) => row.code,
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+Future<void> _mouseDrag(
+  WidgetTester tester,
+  Offset start,
+  Offset delta,
+) async {
+  final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+  await gesture.addPointer(location: start);
+  await tester.pump();
+  await gesture.down(start);
+  await gesture.moveBy(delta);
+  await tester.pump();
+  await gesture.up();
+  await tester.pumpAndSettle();
+}
+
 Future<void> _pumpReorderTable(WidgetTester tester) async {
   final rows = <_Row>[
     const _Row('Brand A', 'A001'),
@@ -165,6 +217,40 @@ Future<void> _doubleTapAt(WidgetTester tester, Offset position) async {
 }
 
 void main() {
+  testWidgets('mouse vertical drag scrolls rows by default', (tester) async {
+    await _pumpScrollableTable(tester);
+
+    expect(find.text('Brand 1'), findsOneWidget);
+    expect(find.text('Brand 8'), findsNothing);
+
+    await _mouseDrag(
+      tester,
+      tester.getCenter(find.text('Brand 1')),
+      const Offset(0, -180),
+    );
+
+    expect(find.text('Brand 1'), findsNothing);
+    expect(find.text('Brand 8'), findsOneWidget);
+  });
+
+  testWidgets('mouse vertical drag can use default scroll behavior when disabled', (
+    tester,
+  ) async {
+    await _pumpScrollableTable(tester, dragScrollEnabled: false);
+
+    expect(find.text('Brand 1'), findsOneWidget);
+    expect(find.text('Brand 8'), findsNothing);
+
+    await _mouseDrag(
+      tester,
+      tester.getCenter(find.text('Brand 1')),
+      const Offset(0, -180),
+    );
+
+    expect(find.text('Brand 1'), findsOneWidget);
+    expect(find.text('Brand 8'), findsNothing);
+  });
+
   testWidgets('column double tap invokes only matching column callback', (
     tester,
   ) async {

@@ -98,6 +98,7 @@ class SwipeActionTable<T> extends StatefulWidget {
     this.autoFitColumns = true,
     this.fillLastColumn = false,
     this.rowReorderEnabled = false,
+    this.dragScrollEnabled = true,
     this.isRowContentInteractive,
     this.canSwipeRow,
     this.rowNumberText,
@@ -121,6 +122,7 @@ class SwipeActionTable<T> extends StatefulWidget {
   final bool autoFitColumns;
   final bool fillLastColumn;
   final bool rowReorderEnabled;
+  final bool dragScrollEnabled;
   final bool Function(T row, int index)? isRowContentInteractive;
   final bool Function(T row, int index)? canSwipeRow;
   final String Function(T row, int index)? rowNumberText;
@@ -131,6 +133,24 @@ class SwipeActionTable<T> extends StatefulWidget {
 
   @override
   State<SwipeActionTable<T>> createState() => _SwipeActionTableState<T>();
+}
+
+class _SwipeActionTableScrollBehavior extends MaterialScrollBehavior {
+  const _SwipeActionTableScrollBehavior({required this.dragScrollEnabled});
+
+  final bool dragScrollEnabled;
+
+  @override
+  Set<PointerDeviceKind> get dragDevices {
+    if (!dragScrollEnabled) {
+      return super.dragDevices;
+    }
+    return {
+      ...super.dragDevices,
+      PointerDeviceKind.mouse,
+      PointerDeviceKind.touch,
+    };
+  }
 }
 
 class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
@@ -1152,69 +1172,75 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
         final visibleBodyHeight = rowAreaHeight < bodyViewportHeight
             ? rowAreaHeight
             : bodyViewportHeight;
-        return Column(
-          children: [
-            Row(
-              children: [
-                _buildRowNumberHeader(),
-                Expanded(
-                  child: MouseRegion(
-                    cursor: _draggingIndex != null
-                        ? SystemMouseCursors.resizeLeftRight
-                        : MouseCursor.defer,
-                    child: SingleChildScrollView(
-                      controller: _hScrollHeader,
-                      scrollDirection: Axis.horizontal,
-                      child: SizedBox(
-                        width: contentWidth,
-                        child: _buildHeader(widths),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            Expanded(
-              child: Row(
+        return ScrollConfiguration(
+          behavior: _SwipeActionTableScrollBehavior(
+            dragScrollEnabled: widget.dragScrollEnabled,
+          ),
+          child: Column(
+            children: [
+              Row(
                 children: [
-                  _buildRowNumberList(widths),
+                  _buildRowNumberHeader(),
                   Expanded(
                     child: MouseRegion(
                       cursor: _draggingIndex != null
                           ? SystemMouseCursors.resizeLeftRight
                           : MouseCursor.defer,
-                      child: _TableBodyTooltip(
-                        message: widget.rowTooltip,
-                        enabled: !_hasInteractiveRow && _openActionIndex == null,
-                        visibleBodyHeight: visibleBodyHeight,
-                        child: Scrollbar(
-                          controller: _vScrollBody,
-                          thumbVisibility: true,
+                      child: SingleChildScrollView(
+                        controller: _hScrollHeader,
+                        scrollDirection: Axis.horizontal,
+                        child: SizedBox(
+                          width: contentWidth,
+                          child: _buildHeader(widths),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              Expanded(
+                child: Row(
+                  children: [
+                    _buildRowNumberList(widths),
+                    Expanded(
+                      child: MouseRegion(
+                        cursor: _draggingIndex != null
+                            ? SystemMouseCursors.resizeLeftRight
+                            : MouseCursor.defer,
+                        child: _TableBodyTooltip(
+                          message: widget.rowTooltip,
+                          enabled:
+                              !_hasInteractiveRow && _openActionIndex == null,
+                          visibleBodyHeight: visibleBodyHeight,
                           child: Scrollbar(
-                            controller: _hScrollBody,
-                            thumbVisibility: hasHorizontalOverflow,
-                            notificationPredicate: (notification) =>
-                                notification.metrics.axis == Axis.horizontal,
-                            child: SingleChildScrollView(
+                            controller: _vScrollBody,
+                            thumbVisibility: true,
+                            child: Scrollbar(
                               controller: _hScrollBody,
-                              scrollDirection: Axis.horizontal,
-                              child: SizedBox(
-                                width: contentWidth,
-                                child: ListView.builder(
-                                  controller: _vScrollBody,
-                                  itemCount: widget.rows.isEmpty
-                                      ? 1
-                                      : widget.rows.length,
-                                  itemBuilder: (context, index) {
-                                    if (widget.rows.isEmpty) {
-                                      return _buildEmptyBody(widths);
-                                    }
-                                    return _buildDataRow(
-                                      widget.rows[index],
-                                      index,
-                                      widths,
-                                    );
-                                  },
+                              thumbVisibility: hasHorizontalOverflow,
+                              notificationPredicate: (notification) =>
+                                  notification.metrics.axis == Axis.horizontal,
+                              child: SingleChildScrollView(
+                                controller: _hScrollBody,
+                                scrollDirection: Axis.horizontal,
+                                child: SizedBox(
+                                  width: contentWidth,
+                                  child: ListView.builder(
+                                    controller: _vScrollBody,
+                                    itemCount: widget.rows.isEmpty
+                                        ? 1
+                                        : widget.rows.length,
+                                    itemBuilder: (context, index) {
+                                      if (widget.rows.isEmpty) {
+                                        return _buildEmptyBody(widths);
+                                      }
+                                      return _buildDataRow(
+                                        widget.rows[index],
+                                        index,
+                                        widths,
+                                      );
+                                    },
+                                  ),
                                 ),
                               ),
                             ),
@@ -1222,11 +1248,11 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
                         ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         );
       },
     );
@@ -1410,6 +1436,7 @@ class EditableSwipeNameTable<T> extends StatelessWidget {
     this.rowTooltip,
     this.rowNumberText,
     this.rowReorderEnabled = false,
+    this.dragScrollEnabled = true,
     this.selectedIndex,
     this.onRowSelected,
     this.onRowReorder,
@@ -1445,6 +1472,7 @@ class EditableSwipeNameTable<T> extends StatelessWidget {
   final String? rowTooltip;
   final String Function(T row, int index)? rowNumberText;
   final bool rowReorderEnabled;
+  final bool dragScrollEnabled;
   final int? selectedIndex;
   final void Function(T row, int index)? onRowSelected;
   final void Function(int fromIndex, int toIndex)? onRowReorder;
@@ -1469,6 +1497,7 @@ class EditableSwipeNameTable<T> extends StatelessWidget {
       emptyActions: _emptyActions(),
       rowNumberText: rowNumberText,
       rowReorderEnabled: rowReorderEnabled,
+      dragScrollEnabled: dragScrollEnabled,
       selectedIndex: selectedIndex,
       onRowSelected: onRowSelected,
       onRowReorder: onRowReorder,
@@ -1754,6 +1783,7 @@ class ResizableTable<T> extends StatefulWidget {
     this.rowNumberWidth = 40 * labelManagerUiScale,
     this.headerHeight = 36 * labelManagerUiScale,
     this.rowHeight = 28 * labelManagerUiScale,
+    this.dragScrollEnabled = true,
   });
 
   final List<T> rows;
@@ -1762,6 +1792,7 @@ class ResizableTable<T> extends StatefulWidget {
   final double rowNumberWidth;
   final double headerHeight;
   final double rowHeight;
+  final bool dragScrollEnabled;
 
   @override
   State<ResizableTable<T>> createState() => _ResizableTableState<T>();
@@ -1793,6 +1824,7 @@ class _ResizableTableState<T> extends State<ResizableTable<T>> {
       rowNumberWidth: widget.rowNumberWidth,
       headerHeight: widget.headerHeight,
       rowHeight: widget.rowHeight,
+      dragScrollEnabled: widget.dragScrollEnabled,
       rowColorBuilder: (_, index, selected) => selected
           ? const Color(0xFFE3F2FD)
           : (index.isEven ? Colors.white : const Color(0xFFF2F4F7)),

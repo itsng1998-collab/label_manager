@@ -27,6 +27,15 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-04): SwipeActionTable 마우스/터치 드래그 스크롤 허용
+
+목적: `lib/widgets/swipe_action_table.dart`를 공통으로 사용하는 테이블에서 별도 플래그로 막지 않는 한 마우스/터치 상하 드래그로 기본 세로 스크롤이 되도록 한다.
+- 변경: `SwipeActionTable`에 기본값 true인 `dragScrollEnabled` 플래그를 추가하고, 내부 `Scrollable`에만 적용되는 `_SwipeActionTableScrollBehavior`로 `PointerDeviceKind.mouse/touch` drag device를 허용.
+- 변경: `EditableSwipeNameTable`, `ResizableTable`도 `dragScrollEnabled` 옵션을 받아 `SwipeActionTable`로 전달 가능하게 구성.
+- 테스트: `test/swipe_action_table_test.dart`에 mouse 상하 드래그 기본 스크롤 및 `dragScrollEnabled: false` 비활성 동작 검증 추가.
+- 검증: `dart format lib/widgets/swipe_action_table.dart test/swipe_action_table_test.dart`, `C:\Flutter\bin\flutter.bat analyze lib\widgets\swipe_action_table.dart test\swipe_action_table_test.dart --no-fatal-warnings --no-fatal-infos` 통과, `C:\Flutter\bin\flutter.bat test test\swipe_action_table_test.dart` 24개 통과, `git diff --check -- SESSION_HANDOFF.md lib\widgets\swipe_action_table.dart test\swipe_action_table_test.dart` 통과.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `lib/widgets/swipe_action_table.dart`, `test/swipe_action_table_test.dart`. 기존 사용자 변경 `lib/core/app.dart`는 제외.
+
 ### 완료 (2026-07-04): 헤더 드롭다운 선택 가능 배경색 보정
 
 목적: 헤더의 브랜드/라벨 드롭다운이 선택 가능할 때 라벨 설정 다이얼로그 드롭다운과 같은 흰 배경으로 보이도록 맞춘다.
