@@ -59,6 +59,8 @@ class _HomePageManagerState extends State<HomePageManager> {
   final GlobalKey _rtfPreviewBoxKey = GlobalKey();
   int? _labelSizesBrandId;
   int _labelLoadToken = 0;
+  int? _labelDialogBrandChangeInFlightId;
+  bool _labelDialogBrandChangeInFlight = false;
   int _rtfPreviewCaptureGeneration = 0;
   int _rtfPreviewResizeFinalizeToken = 0;
   PreviewFloatingWindow? _itemPreviewWindow;
@@ -158,6 +160,13 @@ class _HomePageManagerState extends State<HomePageManager> {
       _currentLabelSize = widget.selectedLabelSize;
     }
     if (oldWidget.selectedBrand?.brandId != widget.selectedBrand?.brandId) {
+      if (_labelDialogBrandChangeInFlight &&
+          _labelDialogBrandChangeInFlightId == widget.selectedBrand?.brandId) {
+        debugLog(
+          'skip duplicate label load for labelSettings brand change brandId=${widget.selectedBrand?.brandId}',
+        );
+        return;
+      }
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         // showProgress: true → 브랜드 변경 시 스낙바 표시
@@ -261,6 +270,28 @@ class _HomePageManagerState extends State<HomePageManager> {
     widget.onBrandChanged(brand);
   }
 
+  Future<void> _handleBrandChangedFromLabelDialog(Brand? brand) async {
+    debugLog(
+      'labelSettings brandChanged brandId=${brand?.brandId} name=${brand?.brandName}',
+    );
+    _labelDialogBrandChangeInFlight = true;
+    _labelDialogBrandChangeInFlightId = brand?.brandId;
+    try {
+      widget.onBrandChanged(brand);
+      await _scheduleLabelSizeLoad(
+        brand,
+        selectFirstLabel: true,
+        showProgress: true,
+      );
+      _labelSettingsOverlayEntry?.markNeedsBuild();
+    } finally {
+      if (_labelDialogBrandChangeInFlightId == brand?.brandId) {
+        _labelDialogBrandChangeInFlight = false;
+        _labelDialogBrandChangeInFlightId = null;
+      }
+    }
+  }
+
   Future<List<Brand>> _handleBrandsChangedFromDialog({
     Brand? preferredSelectedBrand,
     bool updateSelection = false,
@@ -334,7 +365,8 @@ class _HomePageManagerState extends State<HomePageManager> {
         _labelSizesBrandId = null;
         LabelSize.setDatas(<LabelSize>[]);
         setState(() {});
-        _handleLabelSizeChanged(null);
+        _labelSettingsOverlayEntry?.markNeedsBuild();
+        await _handleLabelSizeChanged(null);
         return;
       }
 
@@ -342,9 +374,9 @@ class _HomePageManagerState extends State<HomePageManager> {
         final current = LabelSize.datas ?? const <LabelSize>[];
 
         if (current.isEmpty) {
-          _handleLabelSizeChanged(null);
+          await _handleLabelSizeChanged(null);
         } else if (selectFirstLabel) {
-          _handleLabelSizeChanged(current.first);
+          await _handleLabelSizeChanged(current.first);
         } else {
           final resolved = _resolveSelectedLabelSize(
             current,
@@ -354,7 +386,7 @@ class _HomePageManagerState extends State<HomePageManager> {
           final fallback = current.isNotEmpty ? current.first : null;
 
           if (resolved == null && fallback != null) {
-            _handleLabelSizeChanged(fallback);
+            await _handleLabelSizeChanged(fallback);
           }
         }
 
@@ -365,6 +397,7 @@ class _HomePageManagerState extends State<HomePageManager> {
       _labelSizesBrandId = null;
       LabelSize.setDatas(<LabelSize>[]);
       setState(() {});
+      _labelSettingsOverlayEntry?.markNeedsBuild();
 
       final labelSizes = await LabelSizeDAO.selectByBrandIdByLabelSizeOrder(
         target.brandId,
@@ -374,9 +407,10 @@ class _HomePageManagerState extends State<HomePageManager> {
       LabelSize.setDatas(labelSizes);
       _labelSizesBrandId = target.brandId;
       setState(() {});
+      _labelSettingsOverlayEntry?.markNeedsBuild();
 
       if (labelSizes!.isEmpty) {
-        _handleLabelSizeChanged(null);
+        await _handleLabelSizeChanged(null);
         return;
       }
 
@@ -389,7 +423,7 @@ class _HomePageManagerState extends State<HomePageManager> {
       final selected = selectFirstLabel
           ? fallback
           : resolved ?? fallback ?? widget.selectedLabelSize;
-      _handleLabelSizeChanged(selected);
+      await _handleLabelSizeChanged(selected);
     } finally {
       debugLog(END);
       // 다이얼로그 더블클릭 차단 해제: 로드가 완료(또는 중단)될 때 항상 해제한다.
@@ -568,12 +602,15 @@ class _HomePageManagerState extends State<HomePageManager> {
       // confirmation must be inserted into the root overlay, not showDialog.
       builder: (_) => BlockingModelessDialog(
         child: _LabelSettingsDialog(
+          brands: Brand.datas ?? const <Brand>[],
+          selectedBrand: widget.selectedBrand,
           brandId:
               widget.selectedBrand?.brandId ??
               _effectiveLabelSize?.brandId ??
               _labelSizesBrandId,
           currentLabelSizeId: () => _effectiveLabelSize?.labelSizeId,
           labels: LabelSize.datas ?? const <LabelSize>[],
+          onBrandChanged: _handleBrandChangedFromLabelDialog,
           onLabelSelected: _handleLabelSizeChanged,
           onLabelsChanged: _handleLabelsChangedFromDialog,
           onClose: _closeLabelSettingsDialog,
@@ -1767,17 +1804,23 @@ class _PlaceholderTab extends StatelessWidget {
 
 class _LabelSettingsDialog extends StatefulWidget {
   const _LabelSettingsDialog({
+    required this.brands,
+    required this.selectedBrand,
     required this.brandId,
     required this.currentLabelSizeId,
     required this.labels,
+    required this.onBrandChanged,
     required this.onLabelSelected,
     required this.onLabelsChanged,
     required this.onClose,
   });
 
+  final List<Brand> brands;
+  final Brand? selectedBrand;
   final int? brandId;
   final int? Function() currentLabelSizeId;
   final List<LabelSize> labels;
+  final Future<void> Function(Brand?) onBrandChanged;
   final Future<void> Function(LabelSize?) onLabelSelected;
   final Future<List<LabelSize>> Function({
     LabelSize? preferredSelectedLabel,
@@ -1793,6 +1836,7 @@ class _LabelSettingsDialog extends StatefulWidget {
 class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
   static const double _dialogWidth = 500;
 
+  late List<Brand> _brands;
   late List<LabelSize> _labels;
   late List<LabelSize> _originalLabels;
   final TextEditingController _labelNameEditController =
@@ -1804,21 +1848,32 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
   bool _applyingOrderChanges = false;
   bool _insertingLabel = false;
   bool _selectingLabel = false;
+  bool _changingBrand = false;
   bool _submittingLabelNameEdit = false;
   bool _labelUseScaleEditValue = false;
+  int? _selectedBrandId;
   int? _selectedLabelSizeId;
 
   @override
   void initState() {
     super.initState();
+    _brands = List<Brand>.from(widget.brands);
     _labels = List<LabelSize>.from(widget.labels);
     _originalLabels = List<LabelSize>.from(widget.labels);
+    _selectedBrandId = widget.selectedBrand?.brandId ?? widget.brandId;
     _labelNameEditController.addListener(_handleLabelNameEditChanged);
   }
 
   @override
   void didUpdateWidget(covariant _LabelSettingsDialog oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.brands, widget.brands)) {
+      _brands = List<Brand>.from(widget.brands);
+    }
+    if (oldWidget.selectedBrand?.brandId != widget.selectedBrand?.brandId ||
+        oldWidget.brandId != widget.brandId) {
+      _selectedBrandId = widget.selectedBrand?.brandId ?? widget.brandId;
+    }
     if (!identical(oldWidget.labels, widget.labels) && !_hasOrderChanges) {
       final newLabels = List<LabelSize>.from(widget.labels);
       final editingIndex = _editingIndex;
@@ -1856,6 +1911,35 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
     return false;
   }
 
+  bool get _hasLabelActionInProgress =>
+      _editingIndex != null ||
+      _orderEditMode ||
+      _applyingOrderChanges ||
+      _insertingLabel ||
+      _selectingLabel ||
+      _changingBrand ||
+      _submittingLabelNameEdit;
+
+  Brand? get _selectedBrand {
+    final selectedBrandId = _selectedBrandId;
+    if (selectedBrandId == null) return null;
+    for (final brand in _brands) {
+      if (brand.brandId == selectedBrandId) {
+        return brand;
+      }
+    }
+    return null;
+  }
+
+  List<DropdownMenuItem<Brand>> get _brandItems => _brands
+      .map(
+        (brand) => DropdownMenuItem<Brand>(
+          value: brand,
+          child: Text(brand.brandName, overflow: TextOverflow.ellipsis),
+        ),
+      )
+      .toList();
+
   int? get _selectedLabelIndex {
     final selectedLabelSizeId = _selectedLabelSizeId;
     if (selectedLabelSizeId == null) return null;
@@ -1890,18 +1974,95 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
       footer: _orderEditMode ? _buildOrderEditFooter() : null,
       child: Padding(
         padding: const EdgeInsets.only(left: 8, right: 8, bottom: 8),
-        child: Row(
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Expanded(child: _buildLabelTable()),
-            if (_orderEditMode) ...[
-              const SizedBox(width: 6),
-              _buildOrderMoveRail(),
-            ],
+            _buildBrandSelector(),
+            const SizedBox(height: 6),
+            Expanded(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(child: _buildLabelTable()),
+                  if (_orderEditMode) ...[
+                    const SizedBox(width: 6),
+                    _buildOrderMoveRail(),
+                  ],
+                ],
+              ),
+            ),
           ],
         ),
       ),
     );
+  }
+
+  Widget _buildBrandSelector() {
+    final enabled = _brandItems.isNotEmpty && !_hasLabelActionInProgress;
+    return Row(
+      children: [
+        _DropdownField<Brand>(
+          label: '브랜드',
+          value: _selectedBrand,
+          items: _brandItems,
+          onChanged: enabled ? _handleBrandDropdownChanged : null,
+          width: 260,
+          labelWidth: 54,
+        ),
+        if (_changingBrand) ...[
+          const SizedBox(width: 8),
+          const SizedBox(
+            width: 16,
+            height: 16,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Future<void> _handleBrandDropdownChanged(Brand? brand) async {
+    debugLog(
+      'labelSettings brandDropdown changed brandId=${brand?.brandId} '
+      'editingIndex=$_editingIndex orderEditMode=$_orderEditMode changing=$_changingBrand',
+    );
+    if (brand == null || _hasLabelActionInProgress) {
+      debugLog(
+        'labelSettings brandDropdown blocked brandId=${brand?.brandId} '
+        'editingIndex=$_editingIndex orderEditMode=$_orderEditMode changing=$_changingBrand',
+      );
+      return;
+    }
+    if (brand.brandId == _selectedBrandId) {
+      return;
+    }
+
+    final previousBrandId = _selectedBrandId;
+    setState(() {
+      _changingBrand = true;
+      _selectedBrandId = brand.brandId;
+    });
+    try {
+      await widget.onBrandChanged(brand);
+    } catch (e) {
+      debugLog('labelSettings brandDropdown failed error=$e');
+      if (!mounted) return;
+      setState(() => _selectedBrandId = previousBrandId);
+      await showBlockingModelessOverlayDialog<void>(
+        context: context,
+        builder: (dialogContext, close) => AlertDialog(
+          title: const Text('브랜드 변경 실패'),
+          content: const Text('브랜드 변경 중 오류가 발생했습니다.'),
+          actions: [
+            TextButton(onPressed: () => close(null), child: const Text('확인')),
+          ],
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _changingBrand = false);
+      }
+    }
   }
 
   Widget _buildOrderEditFooter() {

@@ -27,6 +27,14 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-04): 라벨 설정 다이얼로그 브랜드 드롭다운 추가
+
+목적: 라벨 설정 다이얼로그의 라벨 테이블 바로 위에 브랜드 드롭다운을 추가하고, 브랜드 변경 시 상단 라벨 매니저와 현재 다이얼로그의 라벨 목록/선택을 같은 조회 흐름으로 동기화한다.
+- 변경: `_LabelSettingsDialog`에 브랜드 목록/선택/변경 콜백을 전달하고, 테이블 위 브랜드 드롭다운을 추가했다. 편집/삽입/순서변경/조회/브랜드 변경 중에는 드롭다운을 비활성화한다.
+- 변경: 다이얼로그 브랜드 변경은 부모 `onBrandChanged`와 `_scheduleLabelSizeLoad(selectFirstLabel: true)`를 await해 상단 선택, 라벨 목록, 현재 다이얼로그를 같은 조회 결과로 동기화한다. `didUpdateWidget` 중복 조회는 플래그로 건너뛴다.
+- 검증: `dart format lib/home_page_manager.dart`, `C:\Flutter\bin\flutter.bat analyze lib\home_page_manager.dart --no-fatal-warnings --no-fatal-infos` 통과, `C:\Flutter\bin\flutter.bat test test\swipe_action_table_test.dart test\label_size_cache_test.dart` 21개 통과, `git diff --check -- SESSION_HANDOFF.md lib\home_page_manager.dart` 통과.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `lib/home_page_manager.dart`. 기존 사용자 변경 `lib/core/app.dart`는 제외.
+
 ### 완료 (2026-07-04): 라벨 더블클릭 조회 중복 차단
 
 목적: 라벨 관리에서 라벨 이름 더블클릭으로 조회/로드를 시작한 뒤, 해당 조회가 완료되기 전까지 추가 더블클릭 조회를 막는다.
