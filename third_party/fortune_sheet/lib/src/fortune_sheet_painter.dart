@@ -44244,6 +44244,53 @@ const List<String> fortuneImageLayerPanelActionCommands = <String>[
   fortuneContextSendToBackCommand,
 ];
 
+String fortuneImageLayerPanelActionGlyph(String command) {
+  return switch (command) {
+    fortuneContextDeleteImageCommand => '×',
+    fortuneContextDuplicateImageCommand => '⧉',
+    fortuneContextBringToFrontCommand => '⇈',
+    fortuneContextBringForwardCommand => '↑',
+    fortuneContextSendBackwardCommand => '↓',
+    fortuneContextSendToBackCommand => '⇊',
+    _ => '',
+  };
+}
+
+String fortuneImageLayerPanelActionTooltip(String command) {
+  return switch (command) {
+    fortuneContextDeleteImageCommand => '삭제 (Del)',
+    fortuneContextDuplicateImageCommand => '복제 (Ctrl+D)',
+    fortuneContextBringToFrontCommand => '맨 앞으로 (Ctrl+Home)',
+    fortuneContextBringForwardCommand => '앞으로 (Ctrl+↑)',
+    fortuneContextSendBackwardCommand => '뒤로 (Ctrl+↓)',
+    fortuneContextSendToBackCommand => '맨 뒤로 (Ctrl+End)',
+    _ => command,
+  };
+}
+
+bool fortuneImageLayerPanelActionEnabled(
+  List<FortuneImage> images,
+  String? activeImageId,
+  String command,
+) {
+  if (activeImageId == null || images.isEmpty) {
+    return false;
+  }
+  final ordered = fortuneImagesInPaintOrder(images);
+  final currentIndex = ordered.indexWhere((image) => image.id == activeImageId);
+  if (currentIndex < 0) {
+    return false;
+  }
+  return switch (command) {
+    fortuneContextDeleteImageCommand || fortuneContextDuplicateImageCommand => true,
+    fortuneContextBringForwardCommand || fortuneContextBringToFrontCommand =>
+      currentIndex < ordered.length - 1,
+    fortuneContextSendBackwardCommand || fortuneContextSendToBackCommand =>
+      currentIndex > 0,
+    _ => false,
+  };
+}
+
 List<String> fortuneActiveImageToolbarItems(FortuneImage image) {
   return <String>[
     image.extraFields['fortuneBarcode'] == true
@@ -44251,7 +44298,7 @@ List<String> fortuneActiveImageToolbarItems(FortuneImage image) {
         : fortuneContextEditImageCommand,
     fortuneContextToggleLayerPanelCommand,
     fortuneContextDeleteImageCommand,
-      fortuneContextDuplicateImageCommand,
+    fortuneContextDuplicateImageCommand,
     fortuneContextBringForwardCommand,
     fortuneContextSendBackwardCommand,
     fortuneContextBringToFrontCommand,
@@ -44295,8 +44342,7 @@ Rect? fortuneImageLayerPanelItemRect(
   int index, {
   double top = fortuneImageLayerPanelMargin,
   double scrollOffset = 0,
-}
-) {
+}) {
   if (index < 0 || index >= itemCount || scrollOffset < 0) {
     return null;
   }
@@ -75941,21 +75987,19 @@ class FortuneSheetPainter extends CustomPainter {
       fontWeight: FontWeight.w700,
       color: const Color(0xff202124),
     );
-    for (final entry in const <String, String>{
-      fortuneContextDeleteImageCommand: '×',
-      fortuneContextDuplicateImageCommand: '⧉',
-      fortuneContextBringToFrontCommand: '⇈',
-      fortuneContextBringForwardCommand: '↑',
-      fortuneContextSendBackwardCommand: '↓',
-      fortuneContextSendToBackCommand: '⇊',
-    }.entries) {
+    for (final command in fortuneImageLayerPanelActionCommands) {
       _drawImageLayerPanelAction(
         canvas,
         size,
         items.length,
-        entry.key,
-        entry.value,
+        command,
+        fortuneImageLayerPanelActionGlyph(command),
         top,
+        enabled: fortuneImageLayerPanelActionEnabled(
+          workbook.activeSheet.images,
+          activeImageId,
+          command,
+        ),
       );
     }
     final scrollOffset = fortuneImageLayerPanelClampScrollOffset(
@@ -76083,8 +76127,9 @@ class FortuneSheetPainter extends CustomPainter {
     int itemCount,
     String command,
     String label,
-    double top,
-  ) {
+    double top, {
+    required bool enabled,
+  }) {
     final rect = fortuneImageLayerPanelActionRect(
       size,
       itemCount,
@@ -76094,7 +76139,8 @@ class FortuneSheetPainter extends CustomPainter {
     if (rect == null) {
       return;
     }
-    final paint = Paint()..color = const Color(0xfff8f9fa);
+    final paint = Paint()
+      ..color = enabled ? const Color(0xfff8f9fa) : const Color(0xfff1f3f4);
     canvas.drawRRect(
       RRect.fromRectAndRadius(rect, const Radius.circular(4)),
       paint,
@@ -76104,7 +76150,7 @@ class FortuneSheetPainter extends CustomPainter {
       Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1
-        ..color = const Color(0xffdadce0),
+        ..color = enabled ? const Color(0xffdadce0) : const Color(0xffe8eaed),
     );
     _drawText(
       canvas,
@@ -76112,7 +76158,7 @@ class FortuneSheetPainter extends CustomPainter {
       rect,
       fontSize: 13,
       fontWeight: FontWeight.w700,
-      color: const Color(0xff202124),
+      color: enabled ? const Color(0xff202124) : const Color(0xff9aa0a6),
       align: TextAlign.center,
     );
   }

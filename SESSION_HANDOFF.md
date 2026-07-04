@@ -27,7 +27,24 @@
 
 ## 현재 상태
 
-### 진행 중 (2026-07-04): 이미지/바코드 레이어 패널 키보드 명령 추가
+### 진행 중 (2026-07-04): 이미지/바코드 레이어 패널 액션 비활성 상태와 단축키 힌트 추가
+
+목적: 레이어 패널에서 맨 앞/맨 뒤 경계에 있는 선택 객체의 불가능한 이동 명령을 비활성 표시/클릭 무시하고, 액션별 단축키 힌트를 공용 helper로 노출한다.
+- 변경 예정: `fortune_sheet_painter.dart`에 레이어 패널 액션 glyph/tooltip/enabled helper를 추가하고 비활성 버튼 렌더링을 연결한다.
+- 변경 예정: `fortune_sheet_canvas.dart`에서 비활성 레이어 패널 액션 클릭을 무시하되 패널을 유지하고, 기존 `_moveContextImageLayer` 경계 no-op에서도 `keepLayerPanelOpen`을 존중하도록 보정한다.
+- 변경: `fortune_sheet_painter.dart`에 `fortuneImageLayerPanelActionGlyph`/`fortuneImageLayerPanelActionTooltip`/`fortuneImageLayerPanelActionEnabled` 추가, 패널 header 액션 버튼이 enabled 여부에 따라 색상을 달리 렌더링하도록 연결.
+- 변경: `fortune_sheet_canvas.dart`에서 레이어 패널 액션 클릭 시 `fortuneImageLayerPanelActionEnabled`가 false면 zOrder 변경 없이 패널을 유지하도록 처리, `_moveContextImageLayer` 경계 no-op도 `keepLayerPanelOpen`을 존중하도록 보정.
+- 검증: `C:\Flutter\bin\flutter.bat analyze third_party\fortune_sheet\lib\src\fortune_sheet_painter.dart third_party\fortune_sheet\lib\src\fortune_sheet_canvas.dart --no-fatal-warnings --no-fatal-infos` 통과.
+- 테스트 추가: `fortune_barcode_dialog_test.dart`에 helper 경계/단축키 힌트 테스트와 비활성 이동 버튼 클릭 시 zOrder/패널 상태 유지 widget test 추가.
+- 검증: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --plain-name "image layer panel action helpers expose shortcuts and boundaries"` 통과.
+- 검증: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --plain-name "image layer panel disabled movement action keeps order"` 통과.
+- 검증: `C:\Flutter\bin\flutter.bat analyze third_party\fortune_sheet\lib\src\fortune_sheet_painter.dart third_party\fortune_sheet\lib\src\fortune_sheet_canvas.dart third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --no-fatal-warnings --no-fatal-infos` 통과.
+- 검증: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart` 통과(47 tests).
+- 검증: `git diff --check` 통과, VS Code 진단 `fortune_sheet_painter.dart`/`fortune_sheet_canvas.dart`/`fortune_barcode_dialog_test.dart` 오류 없음.
+- stage 예정: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`, `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`, `third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
+- 미검증: 커밋 필요.
+
+### 완료 (2026-07-04): 이미지/바코드 레이어 패널 키보드 명령 추가
 
 목적: 레이어 패널에서 버튼 클릭 없이 키보드만으로 선택 객체 복제와 앞/뒤/맨앞/맨뒤 이동을 실행할 수 있게 한다.
 - 변경 예정: `fortune_sheet_canvas.dart`의 레이어 패널 key handler에 Ctrl/Meta+D 복제, Ctrl/Meta+ArrowUp/ArrowDown/Home/End 레이어 이동 명령을 추가하고 일반 sheet 단축키보다 우선 처리한다.

@@ -6829,6 +6829,18 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     if (layerPanelCommand != null) {
       _commitEditing();
       _commitSheetRename();
+      if (!fortuneImageLayerPanelActionEnabled(
+        _workbook.activeSheet.images,
+        _activeImageId,
+        layerPanelCommand,
+      )) {
+        setState(() {
+          contextMenuAt = null;
+          _contextMenuImageId = null;
+          _imageLayerPanelOpen = true;
+        });
+        return;
+      }
       if (layerPanelCommand == fortuneContextDeleteImageCommand) {
         _deleteActiveImageFromLayerPanel();
         return;
@@ -30448,7 +30460,15 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       _ => currentIndex,
     };
     if (targetIndex == currentIndex) {
-      setState(_closeTransientMenus);
+      setState(() {
+        if (keepLayerPanelOpen) {
+          contextMenuAt = null;
+          _contextMenuImageId = null;
+          _imageLayerPanelOpen = true;
+        } else {
+          _closeTransientMenus();
+        }
+      });
       return;
     }
     final moving = ordered.removeAt(currentIndex);
