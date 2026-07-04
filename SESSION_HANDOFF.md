@@ -27,6 +27,19 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-04): analyze clean 이후 회귀 묶음 재검증
+
+목적: 앱 소유 및 vendored `third_party` analyzer issue 정리 후, 현재 기준선에서 메인 앱 테스트와 최근 FortuneSheet 이미지/바코드 테스트 묶음이 계속 통과하는지 확인한다.
+- 검증 예정: `C:\Flutter\bin\flutter.bat test test`, `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart third_party\fortune_sheet\test\fortune_toolbar_icons_test.dart`, `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_sheet_canvas_test.dart --plain-name "context menu rows expose upstream focusable semantics"`.
+- 검증 실패: `C:\Flutter\bin\flutter.bat test test`는 128개 통과. 이어서 실행한 `fortune_barcode_dialog_test.dart` + `fortune_toolbar_icons_test.dart` 묶음은 `fortune_toolbar_icons_test.dart`의 locale expected/known command 목록 누락 2건으로 실패했다(`split-cell-column`, 이미지/바코드 레이어 context command keys).
+- 변경 완료: `third_party/fortune_sheet/test/fortune_toolbar_icons_test.dart`의 default locale expected map과 known context command set을 현재 구현된 command key 목록에 맞췄다.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_toolbar_icons_test.dart` 55개 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart third_party\fortune_sheet\test\fortune_toolbar_icons_test.dart`, `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_sheet_canvas_test.dart --plain-name "context menu rows expose upstream focusable semantics"` 통과(106개 + focused 1개).
+- 검증 완료: `dart_format` 적용(`fortune_toolbar_icons_test.dart`).
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze third_party\fortune_sheet\test\fortune_toolbar_icons_test.dart --no-fatal-warnings --no-fatal-infos` 통과, `git diff --check -- SESSION_HANDOFF.md third_party\fortune_sheet\test\fortune_toolbar_icons_test.dart` 통과, VS Code 진단 오류 없음.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/test/fortune_toolbar_icons_test.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
+- 진행 중: 커밋 필요.
+
 ### 완료 (2026-07-04): third_party analyzer 잔여 이슈 정리
 
 목적: 전체 Flutter analyze에서 앱 소유 `lib/` issue 제거 후 남은 vendored `third_party/mssql_connection`, `third_party/r_get_ip` analyzer issue를 최소 수정으로 정리한다.
