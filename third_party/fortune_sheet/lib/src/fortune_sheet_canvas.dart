@@ -2759,6 +2759,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   String? _imageLayerPanelRowDragImageId;
   int? _imageLayerPanelRowDragTargetIndex;
   double _imageLayerPanelRowDragStartY = 0;
+  String? _lastImageLayerPanelRowDownId;
+  Duration? _lastImageLayerPanelRowDownTime;
   String? _imageResizeSide;
   Offset? _imageResizeStart;
   FortuneImage? _imageResizeInitial;
@@ -6835,6 +6837,10 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     if (layerPanelImageId != null) {
       _commitEditing();
       _commitSheetRename();
+      if (_isImageLayerPanelRowDoubleClick(layerPanelImageId, event.timeStamp)) {
+        _openImageLayerPanelRowEditDialog(layerPanelImageId);
+        return;
+      }
       setState(() {
         _activeImageId = layerPanelImageId;
         contextMenuAt = null;
@@ -24342,6 +24348,34 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     _imageLayerPanelRowDragImageId = null;
     _imageLayerPanelRowDragTargetIndex = null;
     _imageLayerPanelRowDragStartY = 0;
+  }
+
+  bool _isImageLayerPanelRowDoubleClick(String imageId, Duration timeStamp) {
+    final lastTime = _lastImageLayerPanelRowDownTime;
+    final isDoubleClick = _lastImageLayerPanelRowDownId == imageId &&
+        lastTime != null &&
+        timeStamp - lastTime < const Duration(milliseconds: 450);
+    _lastImageLayerPanelRowDownId = imageId;
+    _lastImageLayerPanelRowDownTime = timeStamp;
+    if (isDoubleClick) {
+      _lastImageLayerPanelRowDownId = null;
+      _lastImageLayerPanelRowDownTime = null;
+    }
+    return isDoubleClick;
+  }
+
+  void _openImageLayerPanelRowEditDialog(String imageId) {
+    final image = _imageById(imageId);
+    if (image == null) {
+      setState(_closeTransientMenus);
+      return;
+    }
+    _activeImageId = imageId;
+    if (_isBarcodeImage(image)) {
+      _showBarcodeEditDialog(image);
+    } else {
+      _showImageEditDialog(image);
+    }
   }
 
   int? _imageLayerPanelRowIndexOf(String imageId) {

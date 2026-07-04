@@ -266,6 +266,19 @@
 - stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`, `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`, `third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart`. 기존 사용자 변경 `lib/core/app.dart`는 제외.
 - 커밋: `cb59528` (`이미지 바코드 레이어 패널 행 드래그 피드백 추가`).
 
+### 완료 (2026-07-04): 이미지/바코드 레이어 패널 row 더블클릭 편집 추가
+
+목적: 레이어 패널에서 이미지/바코드 row를 더블클릭하면 해당 객체의 편집 다이얼로그를 바로 열어, 레이어 관리와 속성 편집을 같은 패널에서 이어갈 수 있게 한다.
+- 변경: `fortune_sheet_canvas.dart`에 layer row 더블클릭 판정 상태와 row edit helper를 추가하고 이미지/바코드 타입에 맞춰 기존 edit dialog를 호출.
+- 검증: `dart_format` 적용, `C:\Flutter\bin\flutter.bat analyze third_party\fortune_sheet\lib\src\fortune_sheet_canvas.dart --no-fatal-warnings --no-fatal-infos` 통과.
+- 테스트 추가: `fortune_barcode_dialog_test.dart`에 이미지 row 더블클릭 시 이미지 편집 다이얼로그, 바코드 row 더블클릭 시 바코드 편집 다이얼로그가 열리는지 검증하는 케이스 2개 추가.
+- 검증: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --plain-name "image layer panel row double click opens image edit dialog"` 통과.
+- 검증: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --plain-name "image layer panel row double click opens barcode edit dialog"` 통과.
+- 검증: `C:\Flutter\bin\flutter.bat analyze third_party\fortune_sheet\lib\src\fortune_sheet_canvas.dart third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --no-fatal-warnings --no-fatal-infos` 통과.
+- 검증: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart` 통과(36 tests).
+- 검증: `git diff --check` 통과.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`, `third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart`. 기존 사용자 변경 `lib/core/app.dart`는 제외.
+
 ### 완료 (2026-07-04): SwipeActionTable 마우스/터치 드래그 스크롤 허용
 
 목적: `lib/widgets/swipe_action_table.dart`를 공통으로 사용하는 테이블에서 별도 플래그로 막지 않는 한 마우스/터치 상하 드래그로 기본 세로 스크롤이 되도록 한다.

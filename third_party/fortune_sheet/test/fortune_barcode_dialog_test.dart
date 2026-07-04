@@ -1596,6 +1596,222 @@ void main() {
     );
   });
 
+  testWidgets('image layer panel row double click opens image edit dialog', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    const settings = FortuneSettings();
+    final workbook = FortuneWorkbook(
+      settings: settings,
+      sheets: [
+        FortuneSheet(
+          id: 's1',
+          name: 'Sheet1',
+          images: [
+            FortuneImage(
+              id: 'image1',
+              src: 'data:image/png;base64,${base64Encode(_transparentPng)}',
+              left: 0,
+              top: 0,
+              width: 50,
+              height: 50,
+              extraFields: const {
+                fortuneImageObjectIdExtraKey: '#IMAGE1',
+                fortuneSheetObjectZOrderExtraKey: 1,
+              },
+            ),
+          ],
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SizedBox(
+          width: 900,
+          height: 700,
+          child: FortuneSheetCanvas(workbook: workbook),
+        ),
+      ),
+    );
+
+    FortuneSheetPainter painter() {
+      return tester
+          .widgetList<CustomPaint>(
+            find.descendant(
+              of: find.byType(FortuneSheetCanvas),
+              matching: find.byType(CustomPaint),
+            ),
+          )
+          .map((paint) => paint.painter)
+          .whereType<FortuneSheetPainter>()
+          .single;
+    }
+
+    final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
+    final imageRect = Rect.fromLTWH(
+      settings.rowHeaderWidth,
+      settings.effectiveToolbarHeight +
+          settings.effectiveFormulaBarHeight +
+          settings.columnHeaderHeight,
+      50,
+      50,
+    );
+    await tester.tapAt(topLeft + imageRect.center);
+    await tester.pump();
+
+    final toolbarItems = fortuneActiveImageToolbarItems(
+      painter().workbook.activeSheet.images.single,
+    );
+    final layerButtonRect = fortuneActiveImageToolbarItemRect(
+      imageRect,
+      const Size(900, 700),
+      fortuneContextToggleLayerPanelCommand,
+      toolbarItems,
+    );
+    expect(layerButtonRect, isNotNull);
+
+    await tester.tapAt(topLeft + layerButtonRect!.center);
+    await tester.pump();
+
+    final layerPanelTop = settings.effectiveToolbarHeight +
+        settings.effectiveFormulaBarHeight +
+        settings.columnHeaderHeight +
+        fortuneImageLayerPanelMargin;
+    final row = fortuneImageLayerPanelItemRect(
+      const Size(900, 700),
+      1,
+      0,
+      top: layerPanelTop,
+    );
+    expect(row, isNotNull);
+
+    await tester.tapAt(topLeft + row!.center);
+    await tester.pump();
+    await tester.tapAt(topLeft + row.center);
+    await tester.pump();
+
+    expect(painter().imageInsertDialogOpen, isTrue);
+    expect(painter().imageInsertEditing, isTrue);
+    expect(painter().imageObjectId, '#IMAGE1');
+    expect(painter().imageLayerPanelOpen, isFalse);
+  });
+
+  testWidgets('image layer panel row double click opens barcode edit dialog', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    const settings = FortuneSettings();
+    final workbook = FortuneWorkbook(
+      settings: settings,
+      sheets: [
+        FortuneSheet(
+          id: 's1',
+          name: 'Sheet1',
+          images: [
+            FortuneImage(
+              id: 'barcode1',
+              src: 'data:image/png;base64,${base64Encode(_transparentPng)}',
+              left: 0,
+              top: 0,
+              width: 50,
+              height: 50,
+              extraFields: const {
+                'fortuneBarcode': true,
+                'barcodeText': '123456',
+                fortuneBarcodeObjectIdExtraKey: '#BARCODE1',
+                fortuneSheetObjectZOrderExtraKey: 1,
+              },
+            ),
+          ],
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SizedBox(
+          width: 900,
+          height: 700,
+          child: FortuneSheetCanvas(workbook: workbook),
+        ),
+      ),
+    );
+
+    FortuneSheetPainter painter() {
+      return tester
+          .widgetList<CustomPaint>(
+            find.descendant(
+              of: find.byType(FortuneSheetCanvas),
+              matching: find.byType(CustomPaint),
+            ),
+          )
+          .map((paint) => paint.painter)
+          .whereType<FortuneSheetPainter>()
+          .single;
+    }
+
+    final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
+    final imageRect = Rect.fromLTWH(
+      settings.rowHeaderWidth,
+      settings.effectiveToolbarHeight +
+          settings.effectiveFormulaBarHeight +
+          settings.columnHeaderHeight,
+      50,
+      50,
+    );
+    await tester.tapAt(topLeft + imageRect.center);
+    await tester.pump();
+
+    final toolbarItems = fortuneActiveImageToolbarItems(
+      painter().workbook.activeSheet.images.single,
+    );
+    final layerButtonRect = fortuneActiveImageToolbarItemRect(
+      imageRect,
+      const Size(900, 700),
+      fortuneContextToggleLayerPanelCommand,
+      toolbarItems,
+    );
+    expect(layerButtonRect, isNotNull);
+
+    await tester.tapAt(topLeft + layerButtonRect!.center);
+    await tester.pump();
+
+    final layerPanelTop = settings.effectiveToolbarHeight +
+        settings.effectiveFormulaBarHeight +
+        settings.columnHeaderHeight +
+        fortuneImageLayerPanelMargin;
+    final row = fortuneImageLayerPanelItemRect(
+      const Size(900, 700),
+      1,
+      0,
+      top: layerPanelTop,
+    );
+    expect(row, isNotNull);
+
+    await tester.tapAt(topLeft + row!.center);
+    await tester.pump();
+    await tester.tapAt(topLeft + row.center);
+    await tester.pump();
+
+    expect(painter().barcodeDialogOpen, isTrue);
+    expect(painter().barcodeEditing, isTrue);
+    expect(painter().barcodeObjectId, '#BARCODE1');
+    expect(painter().imageLayerPanelOpen, isFalse);
+  });
+
   testWidgets('image layer panel opens scrolled to active lower item', (
     tester,
   ) async {
