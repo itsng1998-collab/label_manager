@@ -11409,6 +11409,38 @@ void main() {
       hasButton(painterWith(fortuneHeaderContextMenuItems), 'Row height'),
       isTrue,
     );
+    expect(
+      hasButton(
+        painterWith(const [
+          fortuneContextEditImageCommand,
+          fortuneContextDuplicateImageCommand,
+          fortuneContextDeleteImageCommand,
+          '|',
+          fortuneContextBringForwardCommand,
+          fortuneContextSendBackwardCommand,
+          fortuneContextBringToFrontCommand,
+          fortuneContextSendToBackCommand,
+        ]),
+        'Duplicate, Ctrl+D',
+      ),
+      isTrue,
+    );
+    expect(
+      hasButton(
+        painterWith(const [
+          fortuneContextEditBarcodeCommand,
+          fortuneContextDuplicateImageCommand,
+          fortuneContextDeleteImageCommand,
+          '|',
+          fortuneContextBringForwardCommand,
+          fortuneContextSendBackwardCommand,
+          fortuneContextBringToFrontCommand,
+          fortuneContextSendToBackCommand,
+        ]),
+        'Send to back, Ctrl+End',
+      ),
+      isTrue,
+    );
   });
 
   testWidgets('sheet tab menu rows expose upstream focusable semantics', (

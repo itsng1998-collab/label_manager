@@ -27,6 +27,18 @@
 
 ## 현재 상태
 
+### 진행 중 (2026-07-04): 이미지/바코드 컨텍스트 메뉴 단축키 semantics 회귀 테스트 추가
+
+목적: 이미지/바코드 컨텍스트 메뉴 단축키 힌트가 화면 렌더링뿐 아니라 `CustomPainterSemantics` label에도 유지되는지 회귀 테스트로 고정한다.
+- 변경 완료: `fortune_sheet_canvas_test.dart`의 context menu semantics 테스트에 이미지/바코드 액션 단축키 label 검증을 추가했다.
+- 검증 완료: `flutter test third_party\fortune_sheet\test\fortune_sheet_canvas_test.dart --plain-name "context menu rows expose upstream focusable semantics"` 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze third_party\fortune_sheet\test\fortune_sheet_canvas_test.dart --no-fatal-warnings --no-fatal-infos` 통과.
+- 검증 실패: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_sheet_canvas_test.dart`는 1086 passed / 333 failed. 첫 실패는 `toolbar popup closes on outside sheet click like upstream`의 `Bad state: Too many elements`, 이어서 기존 메뉴/레이아웃 기대값 불일치가 다수 발생했다. 이번 변경은 context menu semantics label 기대값 추가이며 focused test/analyze는 통과.
+- 검증 완료: `git diff --check -- SESSION_HANDOFF.md third_party\fortune_sheet\test\fortune_sheet_canvas_test.dart` 통과, VS Code 진단 오류 없음.
+- 임시 산출물 정리: 테스트 실행으로 생긴 `third_party/fortune_sheet/build/` untracked 폴더 삭제 완료.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/test/fortune_sheet_canvas_test.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
+- 진행 중: 커밋 필요.
+
 ### 완료 (2026-07-04): 이미지/바코드 컨텍스트 메뉴 단축키 힌트 표시 추가
 
 목적: 이미지/바코드 우클릭 컨텍스트 메뉴의 복제/삭제/레이어 이동 항목에도 선택 툴바와 레이어 패널에서 쓰는 단축키 힌트를 오른쪽에 표시한다.
