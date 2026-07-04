@@ -6807,6 +6807,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       _activateContextMenuCommand(contextMenuCommand);
       return;
     }
+    if (_contextMenuContains(local)) {
+      return;
+    }
 
     if (_handleToolbarPointerDown(event, local, settings)) {
       return;
@@ -29927,6 +29930,19 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   }
 
   Set<String> get _activeContextMenuDisabledItems {
+    final imageId = _contextMenuImageId;
+    if (!_contextMenuIsEditor && imageId != null) {
+      return <String>{
+        for (final command in fortuneImageLayerPanelActionCommands)
+          if (!fortuneImageLayerPanelActionEnabled(
+            _workbook.activeSheet.images,
+            imageId,
+            command,
+          ))
+            command,
+        ...?_workbook.settings.contextMenuDisabledItemsBuilder?.call(),
+      };
+    }
     if (!_contextMenuIsEditor) {
       return <String>{
         if (!_canSplitSelectedCellColumn())
@@ -30035,6 +30051,14 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       y += fortuneContextMenuRowHeight;
     }
     return null;
+  }
+
+  bool _contextMenuContains(Offset local) {
+    final at = contextMenuAt;
+    if (at == null) {
+      return false;
+    }
+    return fortuneContextMenuRect(at, _activeContextMenuItems).contains(local);
   }
 
   List<String> get _activeContextMenuItems {

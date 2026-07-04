@@ -740,6 +740,125 @@ void main() {
     );
   });
 
+  testWidgets('image context menu disables boundary movement commands', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    const settings = FortuneSettings();
+    final workbook = FortuneWorkbook(
+      settings: settings,
+      sheets: [
+        FortuneSheet(
+          id: 's1',
+          name: 'Sheet1',
+          images: [
+            FortuneImage(
+              id: 'front',
+              src: 'data:image/png;base64,${base64Encode(_transparentPng)}',
+              left: 0,
+              top: 0,
+              width: 50,
+              height: 50,
+              extraFields: const {fortuneSheetObjectZOrderExtraKey: 2},
+            ),
+            FortuneImage(
+              id: 'back',
+              src: 'data:image/png;base64,${base64Encode(_transparentPng)}',
+              left: 0,
+              top: 0,
+              width: 50,
+              height: 50,
+              extraFields: const {fortuneSheetObjectZOrderExtraKey: 1},
+            ),
+          ],
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SizedBox(
+          width: 900,
+          height: 700,
+          child: FortuneSheetCanvas(workbook: workbook),
+        ),
+      ),
+    );
+
+    FortuneSheetPainter painter() {
+      return tester
+          .widgetList<CustomPaint>(
+            find.descendant(
+              of: find.byType(FortuneSheetCanvas),
+              matching: find.byType(CustomPaint),
+            ),
+          )
+          .map((paint) => paint.painter)
+          .whereType<FortuneSheetPainter>()
+          .single;
+    }
+
+    final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
+    final imageCenter = topLeft +
+        Offset(
+          settings.rowHeaderWidth + 25,
+          settings.effectiveToolbarHeight +
+              settings.effectiveFormulaBarHeight +
+              settings.columnHeaderHeight +
+              25,
+        );
+    await tester.sendEventToBinding(
+      PointerDownEvent(
+        position: imageCenter,
+        buttons: kSecondaryMouseButton,
+        kind: PointerDeviceKind.mouse,
+      ),
+    );
+    await tester.pump();
+
+    expect(painter().contextMenuAt, isNotNull);
+    expect(
+      painter().contextMenuDisabledItems,
+      containsAll(<String>[
+        fortuneContextBringForwardCommand,
+        fortuneContextBringToFrontCommand,
+      ]),
+    );
+    expect(
+      painter().contextMenuDisabledItems,
+      isNot(contains(fortuneContextSendToBackCommand)),
+    );
+
+    final disabledRect = fortuneContextMenuItemRect(
+      painter().contextMenuAt!,
+      fortuneContextBringToFrontCommand,
+      painter().contextMenuItems,
+    );
+    expect(disabledRect, isNotNull);
+
+    await tester.tapAt(topLeft + disabledRect!.center);
+    await tester.pump();
+
+    final imagesById = {
+      for (final image in painter().workbook.activeSheet.images) image.id: image,
+    };
+    expect(painter().contextMenuAt, isNotNull);
+    expect(
+      imagesById['front']!.extraFields[fortuneSheetObjectZOrderExtraKey],
+      2,
+    );
+    expect(
+      imagesById['back']!.extraFields[fortuneSheetObjectZOrderExtraKey],
+      1,
+    );
+  });
+
   testWidgets('image floating toolbar changes zOrder', (tester) async {
     tester.view.physicalSize = const Size(900, 700);
     tester.view.devicePixelRatio = 1;
