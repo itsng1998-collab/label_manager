@@ -35,7 +35,8 @@
 - 검증 완료: `dart_format` 적용(`mssql_client.dart`, `mssql_connection.dart`, `integration_db_lifecycle.dart`, `r_get_ip.dart`, `r_get_ip_web.dart`).
 - 검증 완료: `C:\Flutter\bin\flutter.bat analyze --no-fatal-warnings --no-fatal-infos` 전체 프로젝트 통과.
 - stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/mssql_connection`, `third_party/r_get_ip` 수정 파일. 기존 unrelated dirty `lib/core/app.dart` 제외.
-- 진행 중: `git diff --check`, VS Code 진단 확인, 커밋 필요.
+- 검증 완료: `git diff --check -- SESSION_HANDOFF.md third_party\mssql_connection\lib\src\mssql_client.dart third_party\mssql_connection\lib\src\mssql_connection.dart third_party\mssql_connection\tool\integration_db_lifecycle.dart third_party\r_get_ip\lib\r_get_ip.dart third_party\r_get_ip\lib\r_get_ip_web.dart` 통과, VS Code 진단 오류 없음.
+- 커밋 완료: `dd7776f` (`third_party analyzer 잔여 이슈 정리`).
 
 ### 완료 (2026-07-04): 전체 Flutter analyze 검증 확대
 
