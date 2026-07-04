@@ -34,6 +34,7 @@
 - `lib/models/last_connect.dart`: `LastConnect` 모델과 `LastConnectDAO` 추가. 기존 모델 패턴대로 `fromMap`, `toString`, 파라미터 SQL, `DAO.mapRow`, `DAO.affectedRows` 검증, `debugLog`/`runtimeLogTag` 오류 처리를 사용한다.
 - 검증 완료: `C:\Flutter\bin\flutter.bat analyze lib\models\last_connect.dart --no-fatal-warnings --no-fatal-infos` No issues, `git diff --check -- SESSION_HANDOFF.md lib\models\last_connect.dart` 통과.
 - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/models/last_connect.dart`. 기존 dirty `lib/core/app.dart`는 제외.
+- 기능 커밋: `bcf2ec2` (`LastConnect 모델 DAO 추가`).
 
 ### 완료 (2026-07-04): 라벨 설정 스와이프 라벨 삭제 저장 구현
 
