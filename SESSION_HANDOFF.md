@@ -27,7 +27,7 @@
 
 ## 현재 상태
 
-### 진행 중 (2026-07-04): 라벨 시트 저장 버튼 초기 dirty 상태 보정
+### 완료 (2026-07-04): 라벨 시트 저장 버튼 초기 dirty 상태 보정
 
 목적: `LabelSheetWorkbench` 초기 렌더/초기 workbook settling 중 발생하는 내부 `onOp`가 저장 버튼을 dirty 상태로 켜지 않도록 하고, 실제 사용자 편집 op 이후에만 저장 버튼이 활성화되도록 보정한다.
 - 변경 완료: `label_sheet_workbench.dart`에 `_initialWorkbookOpsSettled`를 추가해 초기 workbook 완료 프레임 전 내부 `onOp` dirty 전환을 무시하고, post-frame settling 갱신은 `mounted` 상태에서만 수행하도록 했다.
@@ -38,7 +38,7 @@
 - 검증 실패: `flutter test test\label_sheet_toolbar_test.dart`는 64 passed / 3 failed. 실패는 `RichEdit RTF preview resolves trimmed content size`, `floating preview move handle returns to center after resize`, `floating preview expands visual card for intrinsic child`로 RTF/floating preview 영역이며, 이번 저장 버튼 dirty 초기화 변경 범위 밖이다.
 - 검증 완료: `git diff --check -- SESSION_HANDOFF.md lib\page_label_sheet\label_sheet_workbench.dart test\label_sheet_toolbar_test.dart` 통과, VS Code 진단 오류 없음.
 - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/page_label_sheet/label_sheet_workbench.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
-- 진행 중: 커밋 필요.
+- 커밋 완료: `10e6e5c` (`라벨 시트 저장 버튼 초기 dirty 상태 보정`).
 
 ### 완료 (2026-07-04): 이미지/바코드 객체 메타데이터 저장 포맷 명시화
 
