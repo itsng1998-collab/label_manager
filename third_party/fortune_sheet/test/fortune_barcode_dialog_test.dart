@@ -1200,6 +1200,109 @@ void main() {
     expect(painter().activeImageId, 'image1');
   });
 
+  testWidgets('image layer panel opens scrolled to active lower item', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    const settings = FortuneSettings();
+    final workbook = FortuneWorkbook(
+      settings: settings,
+      sheets: [
+        FortuneSheet(
+          id: 's1',
+          name: 'Sheet1',
+          images: [
+            for (var index = 1; index <= 10; index += 1)
+              FortuneImage(
+                id: 'image$index',
+                src: 'data:image/png;base64,${base64Encode(_transparentPng)}',
+                left: index == 1 ? 0 : 120 + index * 55.0,
+                top: index == 1 ? 0 : 60,
+                width: 40,
+                height: 40,
+                extraFields: {fortuneSheetObjectZOrderExtraKey: index},
+              ),
+          ],
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SizedBox(
+          width: 900,
+          height: 700,
+          child: FortuneSheetCanvas(workbook: workbook),
+        ),
+      ),
+    );
+
+    FortuneSheetPainter painter() {
+      return tester
+          .widgetList<CustomPaint>(
+            find.descendant(
+              of: find.byType(FortuneSheetCanvas),
+              matching: find.byType(CustomPaint),
+            ),
+          )
+          .map((paint) => paint.painter)
+          .whereType<FortuneSheetPainter>()
+          .single;
+    }
+
+    final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
+    final image1Rect = Rect.fromLTWH(
+      settings.rowHeaderWidth,
+      settings.effectiveToolbarHeight +
+          settings.effectiveFormulaBarHeight +
+          settings.columnHeaderHeight,
+      40,
+      40,
+    );
+    await tester.tapAt(topLeft + image1Rect.center);
+    await tester.pump();
+
+    expect(painter().activeImageId, 'image1');
+
+    final image = painter().workbook.activeSheet.images.firstWhere(
+      (image) => image.id == 'image1',
+    );
+    final toolbarItems = fortuneActiveImageToolbarItems(image);
+    final layerButtonRect = fortuneActiveImageToolbarItemRect(
+      image1Rect,
+      const Size(900, 700),
+      fortuneContextToggleLayerPanelCommand,
+      toolbarItems,
+    );
+    expect(layerButtonRect, isNotNull);
+
+    await tester.tapAt(topLeft + layerButtonRect!.center);
+    await tester.pump();
+
+    final expectedOffset = fortuneImageLayerPanelRowHeight * 2;
+    expect(painter().imageLayerPanelScrollOffset, expectedOffset);
+
+    final layerPanelTop = settings.effectiveToolbarHeight +
+        settings.effectiveFormulaBarHeight +
+        settings.columnHeaderHeight +
+        fortuneImageLayerPanelMargin;
+    final image1RowRect = fortuneImageLayerPanelItemRect(
+      const Size(900, 700),
+      10,
+      9,
+      top: layerPanelTop,
+      scrollOffset: expectedOffset,
+    );
+    expect(image1RowRect, isNotNull);
+    expect(image1RowRect!.contains(image1RowRect.center), isTrue);
+  });
+
   testWidgets('tab cycles overlapping image selection', (tester) async {
     tester.view.physicalSize = const Size(900, 700);
     tester.view.devicePixelRatio = 1;

@@ -186,6 +186,19 @@
 - stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`, `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`, `third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart`. 기존 사용자 변경 `lib/core/app.dart`는 제외.
 - 커밋: `c123fdb` (`이미지 바코드 레이어 패널 스크롤 추가`).
 
+### 진행 중 (2026-07-04): 이미지/바코드 레이어 패널 선택 항목 자동 스크롤
+
+목적: 레이어 패널을 열 때 현재 선택된 이미지/바코드 row가 보이는 범위 밖이면 자동으로 스크롤해 선택 항목을 바로 확인할 수 있게 한다.
+- 변경: `fortune_sheet_canvas.dart`에 `_imageLayerPanelScrollOffsetToRevealActive`를 추가하고, 레이어 패널 open 시 active image row가 visible range에 들어오도록 scrollOffset을 보정.
+- 변경: `fortune_barcode_dialog_test.dart`에 10개 이미지 중 마지막 표시 범위 밖의 낮은 zOrder 이미지를 선택한 뒤 레이어 패널을 열면 해당 row가 보이도록 scrollOffset이 설정되는 테스트 추가.
+- 검증: `dart_format` 적용, `C:\Flutter\bin\flutter.bat analyze third_party\fortune_sheet\lib\src\fortune_sheet_canvas.dart --no-fatal-warnings --no-fatal-infos` 통과.
+- 검증: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --plain-name "image layer panel opens scrolled to active lower item"` 통과.
+- 검증: `C:\Flutter\bin\flutter.bat analyze third_party\fortune_sheet\lib\src\fortune_sheet_canvas.dart third_party\fortune_sheet\lib\src\fortune_sheet_painter.dart third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --no-fatal-warnings --no-fatal-infos` 통과.
+- 검증: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart` 31개 통과.
+- 검증: `git diff --check -- SESSION_HANDOFF.md third_party\fortune_sheet\lib\src\fortune_sheet_canvas.dart third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart` 통과.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`, `third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart`. 기존 사용자 변경 `lib/core/app.dart`는 제외.
+- 미검증: 커밋 필요.
+
 ### 완료 (2026-07-04): SwipeActionTable 마우스/터치 드래그 스크롤 허용
 
 목적: `lib/widgets/swipe_action_table.dart`를 공통으로 사용하는 테이블에서 별도 플래그로 막지 않는 한 마우스/터치 상하 드래그로 기본 세로 스크롤이 되도록 한다.

@@ -29811,14 +29811,47 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     setState(() {
       _imageLayerPanelOpen = !_imageLayerPanelOpen;
       _imageLayerPanelScrollOffset = _imageLayerPanelOpen
-          ? fortuneImageLayerPanelClampScrollOffset(
-              _workbook.activeSheet.images.length,
-              _imageLayerPanelScrollOffset,
-            )
+          ? _imageLayerPanelScrollOffsetToRevealActive()
           : 0;
       contextMenuAt = null;
       _contextMenuImageId = null;
     });
+  }
+
+  double _imageLayerPanelScrollOffsetToRevealActive() {
+    final items = fortuneImageLayerPanelItems(_workbook.activeSheet.images);
+    final activeIndex = items.indexWhere((image) => image.id == _activeImageId);
+    if (activeIndex < 0) {
+      return fortuneImageLayerPanelClampScrollOffset(
+        items.length,
+        _imageLayerPanelScrollOffset,
+      );
+    }
+    final visibleRows = math.min(
+      items.length,
+      fortuneImageLayerPanelMaxVisibleRows,
+    );
+    final firstVisibleIndex = math.max(
+      0,
+      (_imageLayerPanelScrollOffset / fortuneImageLayerPanelRowHeight).floor(),
+    );
+    final lastVisibleIndex = firstVisibleIndex + visibleRows - 1;
+    if (activeIndex < firstVisibleIndex) {
+      return fortuneImageLayerPanelClampScrollOffset(
+        items.length,
+        activeIndex * fortuneImageLayerPanelRowHeight,
+      );
+    }
+    if (activeIndex > lastVisibleIndex) {
+      return fortuneImageLayerPanelClampScrollOffset(
+        items.length,
+        (activeIndex - visibleRows + 1) * fortuneImageLayerPanelRowHeight,
+      );
+    }
+    return fortuneImageLayerPanelClampScrollOffset(
+      items.length,
+      _imageLayerPanelScrollOffset,
+    );
   }
 
   void _moveContextImageLayer(
