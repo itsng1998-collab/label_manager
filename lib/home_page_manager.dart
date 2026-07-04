@@ -1733,6 +1733,7 @@ class _DropdownField<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final enabled = onChanged != null && items.isNotEmpty;
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -1750,9 +1751,7 @@ class _DropdownField<T> extends StatelessWidget {
           child: DropdownButtonFormField2<T>(
             value: value,
             items: items,
-            onChanged: (onChanged != null && items.isNotEmpty)
-                ? onChanged
-                : null,
+            onChanged: enabled ? onChanged : null,
             onMenuStateChange: onMenuStateChange,
             style: const TextStyle(fontSize: 14, color: Colors.black),
             isExpanded: true,
@@ -1777,6 +1776,8 @@ class _DropdownField<T> extends StatelessWidget {
             menuItemStyleData: MenuItemStyleData(height: lmSize(28)),
             decoration: InputDecoration(
               isDense: true,
+              filled: true,
+              fillColor: enabled ? Colors.white : const Color(0xFFE9ECEF),
               contentPadding: lmInsetsSymmetric(horizontal: 4, vertical: 10),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(4),

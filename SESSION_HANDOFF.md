@@ -27,6 +27,13 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-04): 헤더 드롭다운 선택 가능 배경색 보정
+
+목적: 헤더의 브랜드/라벨 드롭다운이 선택 가능할 때 라벨 설정 다이얼로그 드롭다운과 같은 흰 배경으로 보이도록 맞춘다.
+- 변경: `lib/home_page_manager.dart`의 `_DropdownField`에서 enabled 상태를 공통 계산하고, `InputDecoration.filled/fillColor`를 `Colors.white`/`Color(0xFFE9ECEF)`로 명시해 `_ModelessDropdownField`와 배경색을 맞춤.
+- 검증: `dart format lib/home_page_manager.dart`, `C:\Flutter\bin\flutter.bat analyze lib\home_page_manager.dart --no-fatal-warnings --no-fatal-infos` 통과, `C:\Flutter\bin\flutter.bat test test\widget_test.dart` 통과, `git diff --check -- SESSION_HANDOFF.md lib\home_page_manager.dart` 통과.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `lib/home_page_manager.dart`. 기존 사용자 변경 `lib/core/app.dart`는 제외.
+
 ### 완료 (2026-07-04): 액션 레일 열린 동안 테이블 툴팁 비활성화
 
 목적: 브랜드/라벨 설정 다이얼로그 테이블의 수정/삽입/삭제 액션영역이 열리면 표시 중인 테이블 툴팁을 닫고, 액션영역이 닫힐 때까지 다시 뜨지 않게 한다.
