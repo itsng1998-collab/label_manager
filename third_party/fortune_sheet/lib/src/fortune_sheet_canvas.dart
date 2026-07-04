@@ -24020,6 +24020,35 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     return null;
   }
 
+  bool _cycleActiveImageSelection({required bool reverse}) {
+    final imageId = _activeImageId;
+    final current = imageId == null ? null : _imageById(imageId);
+    if (current == null) {
+      return false;
+    }
+    final settings = _workbook.settings;
+    final center = _imageRect(current, settings).center;
+    final candidates = [
+      for (final image in fortuneImagesInPaintOrder(_workbook.activeSheet.images))
+        if (_imageRect(image, settings).contains(center)) image,
+    ];
+    if (candidates.length < 2) {
+      return false;
+    }
+    final currentIndex = candidates.indexWhere((image) => image.id == imageId);
+    if (currentIndex < 0) {
+      return false;
+    }
+    final nextIndex = reverse
+        ? (currentIndex + 1) % candidates.length
+        : (currentIndex - 1 + candidates.length) % candidates.length;
+    setState(() {
+      _activeImageId = candidates[nextIndex].id;
+      _closeTransientMenus();
+    });
+    return true;
+  }
+
   String? _activeImageToolbarCommandAt(
     Offset local,
     FortuneSettings settings,
@@ -31066,6 +31095,12 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     }
     if (isShortcutPressed &&
         _moveSelectionWithArrow(event.logicalKey, jumpToEdge: true)) {
+      return;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.tab &&
+        _cycleActiveImageSelection(
+          reverse: HardwareKeyboard.instance.isShiftPressed,
+        )) {
       return;
     }
     if (event.logicalKey == LogicalKeyboardKey.tab) {

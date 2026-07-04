@@ -705,6 +705,93 @@ void main() {
     );
   });
 
+  testWidgets('tab cycles overlapping image selection', (tester) async {
+    tester.view.physicalSize = const Size(900, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    const settings = FortuneSettings();
+    final workbook = FortuneWorkbook(
+      settings: settings,
+      sheets: [
+        FortuneSheet(
+          id: 's1',
+          name: 'Sheet1',
+          images: [
+            FortuneImage(
+              id: 'front',
+              src: 'data:image/png;base64,${base64Encode(_transparentPng)}',
+              left: 0,
+              top: 0,
+              width: 50,
+              height: 50,
+              extraFields: const {fortuneSheetObjectZOrderExtraKey: 10},
+            ),
+            FortuneImage(
+              id: 'back',
+              src: 'data:image/png;base64,${base64Encode(_transparentPng)}',
+              left: 0,
+              top: 0,
+              width: 50,
+              height: 50,
+              extraFields: const {fortuneSheetObjectZOrderExtraKey: 1},
+            ),
+          ],
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SizedBox(
+          width: 900,
+          height: 700,
+          child: FortuneSheetCanvas(workbook: workbook),
+        ),
+      ),
+    );
+
+    FortuneSheetPainter painter() {
+      return tester
+          .widgetList<CustomPaint>(
+            find.descendant(
+              of: find.byType(FortuneSheetCanvas),
+              matching: find.byType(CustomPaint),
+            ),
+          )
+          .map((paint) => paint.painter)
+          .whereType<FortuneSheetPainter>()
+          .single;
+    }
+
+    final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
+    final imageCenter = topLeft +
+        Offset(
+          settings.rowHeaderWidth + 25,
+          settings.effectiveToolbarHeight +
+              settings.effectiveFormulaBarHeight +
+              settings.columnHeaderHeight +
+              25,
+        );
+    await tester.tapAt(imageCenter);
+    await tester.pump();
+
+    expect(painter().activeImageId, 'front');
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pump();
+    expect(painter().activeImageId, 'back');
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.pump();
+    expect(painter().activeImageId, 'front');
+  });
+
   testWidgets('barcode close button owns hover and pressed feedback', (
     tester,
   ) async {
