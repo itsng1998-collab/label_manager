@@ -1688,6 +1688,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
   int _rtfSnackBarGeneration = 0;
   bool _rtfImportMarkedDirty = false;
   bool _initialLoadCompleteNotified = false;
+  bool _initialWorkbookOpsSettled = false;
   bool _printSettingsDialogOpen = false;
   BuildContext? _printSettingsDialogContext;
   VoidCallback? _rebuildPrintSettingsDialog;
@@ -2866,6 +2867,13 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
             if (!convertingRtf &&
                 snapshot.connectionState == ConnectionState.done) {
               _markRtfImportDirtyIfNeeded(workbook);
+              if (!_initialWorkbookOpsSettled) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted) {
+                    _initialWorkbookOpsSettled = true;
+                  }
+                });
+              }
               if (!labelSheetLooksLikeRichEditRtf(widget.labelRtf) ||
                   _workbookHasRtfImportSource(workbook)) {
                 _notifyInitialLoadComplete();
@@ -2880,6 +2888,9 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
               },
               onOp: (ops) {
                 if (ops.isEmpty || !mounted) {
+                  return;
+                }
+                if (!_initialWorkbookOpsSettled) {
                   return;
                 }
                 if (_opsClearSheet(ops)) {
