@@ -27,6 +27,14 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-04): LastConnect 모델/DAO 구성
+
+목적: 레거시 `.tmp/LabelManager/LabelManagerLib/LastConnect.cpp/.h`의 `CLastConnect`/`CLastConnectDAO`를 Flutter 모델 계층에 추가한다.
+- 참조 확인: C++ DAO는 `BM_RICH_LAST_ID`의 `RICH_USER_ID`, `RICH_LAST_BRAND_ID`, `RICH_LAST_SIZE_ID`를 대상으로 `SelectByUserID`, `Insert`, `Update`, `Delete`, `DeleteByBrandID`, `DeleteByLabelSizeID`, `IsExistByUserID`를 제공한다.
+- `lib/models/last_connect.dart`: `LastConnect` 모델과 `LastConnectDAO` 추가. 기존 모델 패턴대로 `fromMap`, `toString`, 파라미터 SQL, `DAO.mapRow`, `DAO.affectedRows` 검증, `debugLog`/`runtimeLogTag` 오류 처리를 사용한다.
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze lib\models\last_connect.dart --no-fatal-warnings --no-fatal-infos` No issues, `git diff --check -- SESSION_HANDOFF.md lib\models\last_connect.dart` 통과.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `lib/models/last_connect.dart`. 기존 dirty `lib/core/app.dart`는 제외.
+
 ### 완료 (2026-07-04): 라벨 설정 스와이프 라벨 삭제 저장 구현
 
 목적: 라벨 설정 다이얼로그의 스와이프 삭제 버튼 클릭 시 DB에서 라벨을 삭제하고, 성공 후 `LabelSize.datas`, 헤더 라벨 드롭다운, 라벨 설정 테이블을 갱신한다.
