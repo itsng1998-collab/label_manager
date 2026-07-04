@@ -27,7 +27,7 @@
 
 ## 현재 상태
 
-### 진행 중 (2026-07-04): 이미지/바코드 컨텍스트 메뉴 단축키 semantics 회귀 테스트 추가
+### 완료 (2026-07-04): 이미지/바코드 컨텍스트 메뉴 단축키 semantics 회귀 테스트 추가
 
 목적: 이미지/바코드 컨텍스트 메뉴 단축키 힌트가 화면 렌더링뿐 아니라 `CustomPainterSemantics` label에도 유지되는지 회귀 테스트로 고정한다.
 - 변경 완료: `fortune_sheet_canvas_test.dart`의 context menu semantics 테스트에 이미지/바코드 액션 단축키 label 검증을 추가했다.
@@ -37,7 +37,7 @@
 - 검증 완료: `git diff --check -- SESSION_HANDOFF.md third_party\fortune_sheet\test\fortune_sheet_canvas_test.dart` 통과, VS Code 진단 오류 없음.
 - 임시 산출물 정리: 테스트 실행으로 생긴 `third_party/fortune_sheet/build/` untracked 폴더 삭제 완료.
 - stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/test/fortune_sheet_canvas_test.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
-- 진행 중: 커밋 필요.
+- 커밋 완료: `8ff0be3` (`이미지 바코드 컨텍스트 메뉴 semantics 테스트 추가`).
 
 ### 완료 (2026-07-04): 이미지/바코드 컨텍스트 메뉴 단축키 힌트 표시 추가
 
