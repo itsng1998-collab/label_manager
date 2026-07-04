@@ -35,6 +35,7 @@
 - `lib/models/last_connect.dart`: `delete`/`deleteByBrandId`/`deleteByLabelSizeId`가 대상 행 없음(`affected=0`)을 실패로 보지 않도록 변경. 레거시 C++ `Execute(DELETE...)` 동작과 맞춤.
 - 검증 완료: `dart format` 3파일 성공, `C:\Flutter\bin\flutter.bat analyze lib\home_page_manager.dart lib\models\brand.dart lib\models\last_connect.dart --no-fatal-warnings --no-fatal-infos` No issues, `C:\Flutter\bin\flutter.bat test test\swipe_action_table_test.dart test\label_size_cache_test.dart` 21개 성공, `git diff --check -- SESSION_HANDOFF.md lib\home_page_manager.dart lib\models\brand.dart lib\models\last_connect.dart` 통과.
 - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/home_page_manager.dart`, `lib/models/brand.dart`, `lib/models/last_connect.dart`. 기존 dirty `lib/core/app.dart`는 제외.
+- 기능 커밋: `f3d9782` (`브랜드 삭제 경로 레거시 구조 복원`).
 
 ### 완료 (2026-07-04): LastConnect 모델/DAO 구성
 
