@@ -34,6 +34,7 @@
 - 변경: 라벨 설정 다이얼로그는 브랜드 목록을 내부 복사본으로 보관하지 않고 부모가 넘긴 헤더 브랜드 목록 `widget.brands`를 직접 사용한다.
 - 검증: `dart format lib/home_page_manager.dart`, `C:\Flutter\bin\flutter.bat analyze lib\home_page_manager.dart --no-fatal-warnings --no-fatal-infos` 통과, `C:\Flutter\bin\flutter.bat test test\swipe_action_table_test.dart test\label_size_cache_test.dart` 21개 통과, `git diff --check -- SESSION_HANDOFF.md lib\home_page_manager.dart` 통과.
 - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/home_page_manager.dart`. 기존 사용자 변경 `lib/core/app.dart`는 제외.
+- 커밋: `15ebbaf` (`라벨 설정 브랜드 드롭다운 메뉴 표시 보정`).
 
 ### 완료 (2026-07-04): 라벨 설정 브랜드 드롭다운 전체 목록 보정
 
