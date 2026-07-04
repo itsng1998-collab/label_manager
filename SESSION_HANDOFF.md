@@ -35,6 +35,7 @@
 - 테스트: `test/swipe_action_table_test.dart`에 mouse 상하 드래그 기본 스크롤 및 `dragScrollEnabled: false` 비활성 동작 검증 추가.
 - 검증: `dart format lib/widgets/swipe_action_table.dart test/swipe_action_table_test.dart`, `C:\Flutter\bin\flutter.bat analyze lib\widgets\swipe_action_table.dart test\swipe_action_table_test.dart --no-fatal-warnings --no-fatal-infos` 통과, `C:\Flutter\bin\flutter.bat test test\swipe_action_table_test.dart` 24개 통과, `git diff --check -- SESSION_HANDOFF.md lib\widgets\swipe_action_table.dart test\swipe_action_table_test.dart` 통과.
 - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/widgets/swipe_action_table.dart`, `test/swipe_action_table_test.dart`. 기존 사용자 변경 `lib/core/app.dart`는 제외.
+- 커밋: `0249928` (`공통 테이블 마우스 드래그 스크롤 허용`).
 
 ### 완료 (2026-07-04): 헤더 드롭다운 선택 가능 배경색 보정
 
