@@ -280,6 +280,19 @@
 - stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`, `third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart`. 기존 사용자 변경 `lib/core/app.dart`는 제외.
 - 커밋: `3362e75` (`이미지 바코드 레이어 패널 행 더블클릭 편집 추가`).
 
+### 완료 (2026-07-04): 이미지/바코드 레이어 패널 키보드 조작 추가
+
+목적: 레이어 패널이 열린 상태에서 키보드로 row 선택과 편집 진입을 할 수 있게 해, 마우스 없이도 레이어 탐색/속성 편집을 이어갈 수 있게 한다.
+- 변경: `fortune_sheet_canvas.dart`에 레이어 패널 전용 key handler를 추가해 ArrowUp/ArrowDown/Home/End 선택 이동, Enter 편집, Escape 닫기를 처리.
+- 검증: `dart_format` 적용, `C:\Flutter\bin\flutter.bat analyze third_party\fortune_sheet\lib\src\fortune_sheet_canvas.dart --no-fatal-warnings --no-fatal-infos` 통과.
+- 테스트 추가: `fortune_barcode_dialog_test.dart`에 레이어 패널 키보드 선택 이동/자동 스크롤/Enter 편집 진입과 Escape 닫기 검증 케이스 추가.
+- 검증: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --plain-name "image layer panel keyboard selects and edits rows"` 통과.
+- 검증: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --plain-name "image layer panel escape closes panel"` 통과.
+- 검증: `C:\Flutter\bin\flutter.bat analyze third_party\fortune_sheet\lib\src\fortune_sheet_canvas.dart third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --no-fatal-warnings --no-fatal-infos` 통과.
+- 검증: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart` 통과(38 tests).
+- 검증: `git diff --check` 통과.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`, `third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart`. 기존 사용자 변경 `lib/core/app.dart`는 제외.
+
 ### 완료 (2026-07-04): SwipeActionTable 마우스/터치 드래그 스크롤 허용
 
 목적: `lib/widgets/swipe_action_table.dart`를 공통으로 사용하는 테이블에서 별도 플래그로 막지 않는 한 마우스/터치 상하 드래그로 기본 세로 스크롤이 되도록 한다.

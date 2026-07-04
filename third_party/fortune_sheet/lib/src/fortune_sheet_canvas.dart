@@ -24466,6 +24466,66 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     return true;
   }
 
+  bool _isImageLayerPanelKey(LogicalKeyboardKey key) {
+    if (!_imageLayerPanelOpen) {
+      return false;
+    }
+    return key == LogicalKeyboardKey.arrowUp ||
+        key == LogicalKeyboardKey.arrowDown ||
+        key == LogicalKeyboardKey.home ||
+        key == LogicalKeyboardKey.end ||
+        key == LogicalKeyboardKey.enter ||
+        key == LogicalKeyboardKey.escape;
+  }
+
+  bool _handleImageLayerPanelKeyEvent(KeyEvent event) {
+    if (!_imageLayerPanelOpen || !_isImageLayerPanelKey(event.logicalKey)) {
+      return false;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.escape) {
+      setState(() {
+        _imageLayerPanelOpen = false;
+        _imageLayerPanelScrollOffset = 0;
+        _cancelImageLayerPanelScrollbarDrag();
+        _cancelImageLayerPanelRowDrag();
+      });
+      return true;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.enter) {
+      final imageId = _activeImageId;
+      if (imageId != null) {
+        _openImageLayerPanelRowEditDialog(imageId);
+      }
+      return true;
+    }
+    final items = fortuneImageLayerPanelItems(_workbook.activeSheet.images);
+    if (items.isEmpty) {
+      return true;
+    }
+    final currentIndex = _activeImageId == null
+        ? 0
+        : items.indexWhere((image) => image.id == _activeImageId);
+    final baseIndex = currentIndex < 0 ? 0 : currentIndex;
+    final nextIndex = switch (event.logicalKey) {
+      LogicalKeyboardKey.arrowUp => math.max(0, baseIndex - 1),
+      LogicalKeyboardKey.arrowDown => math.min(items.length - 1, baseIndex + 1),
+      LogicalKeyboardKey.home => 0,
+      LogicalKeyboardKey.end => items.length - 1,
+      _ => baseIndex,
+    };
+    final nextId = items[nextIndex].id;
+    if (nextId == _activeImageId) {
+      return true;
+    }
+    setState(() {
+      _activeImageId = nextId;
+      _imageLayerPanelScrollOffset = _imageLayerPanelScrollOffsetToRevealActive();
+      contextMenuAt = null;
+      _contextMenuImageId = null;
+    });
+    return true;
+  }
+
   bool _scrollImageLayerPanelDuringRowDrag(
     Offset local,
     FortuneSettings settings,
@@ -31331,7 +31391,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     final isShortcutPressed =
         HardwareKeyboard.instance.isControlPressed ||
         HardwareKeyboard.instance.isMetaPressed;
-    return event.logicalKey == LogicalKeyboardKey.tab ||
+    return _isImageLayerPanelKey(event.logicalKey) ||
+      event.logicalKey == LogicalKeyboardKey.tab ||
         _isSelectionNavigationKey(event.logicalKey) ||
         (isShortcutPressed && _isSelectionNavigationKey(event.logicalKey));
   }
@@ -31545,6 +31606,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       return;
     }
     if (_activeDialogOpen) {
+      return;
+    }
+    if (_handleImageLayerPanelKeyEvent(event)) {
       return;
     }
     if (event.logicalKey == LogicalKeyboardKey.escape &&
