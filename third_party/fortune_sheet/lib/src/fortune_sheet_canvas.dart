@@ -6833,6 +6833,10 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         _deleteActiveImageFromLayerPanel();
         return;
       }
+      if (layerPanelCommand == fortuneContextDuplicateImageCommand) {
+        _duplicateContextImage(keepLayerPanelOpen: true);
+        return;
+      }
       _moveContextImageLayer(layerPanelCommand, keepLayerPanelOpen: true);
       return;
     }
@@ -22664,6 +22668,33 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     return '#IMAGE${maxIndex + 1}';
   }
 
+  String _nextBarcodeObjectId() {
+    var maxIndex = 0;
+    final pattern = RegExp(r'^#BARCODE(\d*)$', caseSensitive: false);
+    void visit(Object? raw) {
+      final match = pattern.firstMatch(raw?.toString().trim() ?? '');
+      if (match == null) {
+        return;
+      }
+      final rawIndex = match.group(1) ?? '';
+      final index = rawIndex.isEmpty ? 0 : int.tryParse(rawIndex);
+      if (index != null) {
+        maxIndex = math.max(maxIndex, index);
+      }
+    }
+
+    for (final objectId in widget.barcodeObjectIds) {
+      visit(objectId);
+    }
+    for (final image in _workbook.activeSheet.images) {
+      if (!_isBarcodeImage(image)) {
+        continue;
+      }
+      visit(image.extraFields[fortuneBarcodeObjectIdExtraKey]);
+    }
+    return '#BARCODE${maxIndex + 1}';
+  }
+
   int _imageObjectIdIndexForValue(String value) {
     final normalized = value.trim().toLowerCase();
     final options = _effectiveImageObjectIds;
@@ -29876,6 +29907,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       _isBarcodeImage(image)
           ? fortuneContextEditBarcodeCommand
           : fortuneContextEditImageCommand,
+      fortuneContextDuplicateImageCommand,
+      fortuneContextDeleteImageCommand,
       '|',
       fortuneContextBringForwardCommand,
       fortuneContextSendBackwardCommand,
@@ -30230,6 +30263,10 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         _showContextImageEditDialog();
       case fortuneContextEditBarcodeCommand:
         _showContextBarcodeEditDialog();
+      case fortuneContextDuplicateImageCommand:
+        _duplicateContextImage();
+      case fortuneContextDeleteImageCommand:
+        _deleteActiveImage();
       case fortuneContextToggleLayerPanelCommand:
         _toggleImageLayerPanel();
       case fortuneContextBringForwardCommand:
@@ -30388,6 +30425,49 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         _closeTransientMenus();
       }
     });
+  }
+
+  void _duplicateContextImage({bool keepLayerPanelOpen = false}) {
+    final sourceId = _contextMenuImageId ?? _activeImageId;
+    final sheet = _workbook.activeSheet;
+    final source = sourceId == null ? null : _imageById(sourceId);
+    if (source == null) {
+      setState(_closeTransientMenus);
+      return;
+    }
+    if (!_canEditRange(sheet, _currentSelectionRange(sheet))) {
+      setState(_closeTransientMenus);
+      return;
+    }
+    final duplicateId = _newImageId();
+    final extraFields = <String, Object?>{
+      ...source.extraFields,
+      fortuneSheetObjectZOrderExtraKey: _nextImageZOrder(sheet),
+    };
+    if (_isBarcodeImage(source)) {
+      extraFields[fortuneBarcodeObjectIdExtraKey] = _nextBarcodeObjectId();
+    } else {
+      extraFields[fortuneImageObjectIdExtraKey] = _nextImageObjectId();
+    }
+    final duplicate = source.copyWith(
+      id: duplicateId,
+      left: source.left + 12,
+      top: math.max(0.0, source.top + 12),
+      extraFields: extraFields,
+    );
+    _recordUndoSnapshot();
+    final nextImages = List<FortuneImage>.from(sheet.images)..add(duplicate);
+    setState(() {
+      _replaceActiveSheet(sheet.copyWith(images: nextImages));
+      _activeImageId = duplicateId;
+      contextMenuAt = null;
+      _contextMenuImageId = null;
+      _imageLayerPanelOpen = keepLayerPanelOpen || _imageLayerPanelOpen;
+      _imageLayerPanelScrollOffset = _imageLayerPanelOpen
+          ? _imageLayerPanelScrollOffsetToRevealActive()
+          : 0;
+    });
+    _decodeImageIfNeeded(source.src);
   }
 
   void _toggleSheetRulerVisible() {

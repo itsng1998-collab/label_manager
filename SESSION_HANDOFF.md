@@ -27,6 +27,22 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-04): 이미지/바코드 선택 객체 복제 조작 추가
+
+목적: 선택한 이미지/바코드를 컨텍스트 메뉴, 선택 툴바, 레이어 패널에서 바로 복제해 반복 객체 배치를 빠르게 이어갈 수 있게 한다.
+- 변경 예정: 이미지/바코드 복제 command와 공통 helper를 추가하고, 새 내부 id/zOrder/표시 object id를 부여한다.
+- 변경: `fortune_sheet_painter.dart`에 복제 command/한영 라벨/렌더 허용 목록/선택 툴바 및 레이어 패널 action을 추가하고, 패널 header 제목 폭을 action 개수 기반으로 계산하도록 변경.
+- 변경: `fortune_sheet_canvas.dart`에 `_duplicateContextImage`와 `_nextBarcodeObjectId`를 추가하고 컨텍스트 메뉴/선택 툴바/레이어 패널 복제 command를 연결. 복제본은 새 내부 id, 다음 zOrder, 다음 표시 object id, 12px 오프셋을 받는다.
+- 검증: `C:\Flutter\bin\flutter.bat analyze third_party\fortune_sheet\lib\src\fortune_sheet_canvas.dart third_party\fortune_sheet\lib\src\fortune_sheet_painter.dart --no-fatal-warnings --no-fatal-infos` 통과.
+- 테스트 추가: `fortune_barcode_dialog_test.dart`에 레이어 패널 복제 버튼과 바코드 컨텍스트 메뉴 복제 명령이 새 객체를 추가하고 선택/표시 순서를 갱신하는지 검증하는 케이스 추가.
+- 검증: `C:\Flutter\bin\flutter.bat analyze third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --no-fatal-warnings --no-fatal-infos` 통과.
+- 검증: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --plain-name "image layer panel duplicate action copies selected row"` 통과.
+- 검증: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --plain-name "barcode context menu duplicate copies barcode metadata"` 통과.
+- 검증: `C:\Flutter\bin\flutter.bat analyze third_party\fortune_sheet\lib\src\fortune_sheet_canvas.dart third_party\fortune_sheet\lib\src\fortune_sheet_painter.dart third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --no-fatal-warnings --no-fatal-infos` 통과.
+- 검증: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart` 통과(42 tests).
+- 검증: `git diff --check` 통과.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`, `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`, `third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart`. 기존 사용자 변경 `lib/core/app.dart`는 제외.
+
 ### 완료 (2026-07-04): 이미지/바코드 레이어 패널 삭제 조작 추가
 
 목적: 레이어 패널에서 선택된 이미지/바코드를 패널을 닫지 않고 삭제하고, 남은 다음 row 선택으로 이어갈 수 있게 한다.

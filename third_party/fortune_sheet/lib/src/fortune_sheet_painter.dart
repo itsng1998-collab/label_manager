@@ -908,6 +908,7 @@ class FortuneSheetLocale {
       'edit-barcode': 'Edit barcode',
       'toggle-layer-panel': 'Layers',
       'delete-image': 'Delete',
+      'duplicate-image': 'Duplicate',
       'bring-forward': 'Bring forward',
       'send-backward': 'Send backward',
       'bring-to-front': 'Bring to front',
@@ -1679,6 +1680,7 @@ class FortuneSheetLocale {
       'edit-barcode': '바코드 수정',
       'toggle-layer-panel': '레이어',
       'delete-image': '삭제',
+      'duplicate-image': '복제',
       'bring-forward': '앞으로',
       'send-backward': '뒤로',
       'bring-to-front': '맨앞',
@@ -2275,6 +2277,7 @@ const String fortuneContextEditImageCommand = 'edit-image';
 const String fortuneContextEditBarcodeCommand = 'edit-barcode';
 const String fortuneContextToggleLayerPanelCommand = 'toggle-layer-panel';
 const String fortuneContextDeleteImageCommand = 'delete-image';
+const String fortuneContextDuplicateImageCommand = 'duplicate-image';
 const String fortuneContextBringForwardCommand = 'bring-forward';
 const String fortuneContextSendBackwardCommand = 'send-backward';
 const String fortuneContextBringToFrontCommand = 'bring-to-front';
@@ -42555,6 +42558,7 @@ bool fortuneContextMenuItemIsRenderedByUpstream(String item) {
     fortuneContextEditImageCommand ||
     fortuneContextEditBarcodeCommand ||
     fortuneContextDeleteImageCommand ||
+    fortuneContextDuplicateImageCommand ||
     fortuneContextBringForwardCommand ||
     fortuneContextSendBackwardCommand ||
     fortuneContextBringToFrontCommand ||
@@ -44231,6 +44235,7 @@ const double fortuneImageLayerPanelScrollbarMargin = 4.0;
 const int fortuneImageLayerPanelMaxVisibleRows = 8;
 const List<String> fortuneImageLayerPanelActionCommands = <String>[
   fortuneContextDeleteImageCommand,
+  fortuneContextDuplicateImageCommand,
   fortuneContextBringToFrontCommand,
   fortuneContextBringForwardCommand,
   fortuneContextSendBackwardCommand,
@@ -44244,6 +44249,7 @@ List<String> fortuneActiveImageToolbarItems(FortuneImage image) {
         : fortuneContextEditImageCommand,
     fortuneContextToggleLayerPanelCommand,
     fortuneContextDeleteImageCommand,
+      fortuneContextDuplicateImageCommand,
     fortuneContextBringForwardCommand,
     fortuneContextSendBackwardCommand,
     fortuneContextBringToFrontCommand,
@@ -75894,13 +75900,16 @@ class FortuneSheetPainter extends CustomPainter {
       fortuneImageLayerPanelMargin;
     final panel = fortuneImageLayerPanelRect(size, items.length, top: top);
     _drawShadowBox(canvas, panel, radius: 4, border: const Color(0xffd4d4d4));
+    final actionWidth = fortuneImageLayerPanelActionCommands.length *
+            fortuneImageLayerPanelActionSize +
+        math.max(0, fortuneImageLayerPanelActionCommands.length - 1) * 4;
     _drawText(
       canvas,
       _contextMenuLabel(fortuneContextToggleLayerPanelCommand),
       Rect.fromLTWH(
         panel.left + 10,
         panel.top,
-        panel.width - 126,
+        math.max(0, panel.width - actionWidth - 28),
         fortuneImageLayerPanelHeaderHeight,
       ),
       fontSize: 12,
@@ -75909,6 +75918,7 @@ class FortuneSheetPainter extends CustomPainter {
     );
     for (final entry in const <String, String>{
       fortuneContextDeleteImageCommand: '×',
+      fortuneContextDuplicateImageCommand: '⧉',
       fortuneContextBringToFrontCommand: '⇈',
       fortuneContextBringForwardCommand: '↑',
       fortuneContextSendBackwardCommand: '↓',
