@@ -2750,6 +2750,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   bool _sheetCornerTooltipDismissedUntilExit = false;
   String? _activeImageId;
   bool _imageLayerPanelOpen = false;
+  double _imageLayerPanelScrollOffset = 0;
   String? _imageResizeSide;
   Offset? _imageResizeStart;
   FortuneImage? _imageResizeInitial;
@@ -7617,6 +7618,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       return;
     }
     if (_scrollFormatSearchDialog(localPosition, deltaY)) {
+      return;
+    }
+    if (_scrollImageLayerPanel(localPosition, deltaY)) {
       return;
     }
     if (_shouldBlockDialogWheel(localPosition)) {
@@ -24111,17 +24115,19 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     if (size == null) {
       return null;
     }
-    final top = settings.effectiveToolbarHeight +
-        settings.effectiveFormulaBarHeight +
-        settings.columnHeaderHeight +
-        fortuneImageLayerPanelMargin;
+    final top = _imageLayerPanelTop(settings);
     final items = fortuneImageLayerPanelItems(_workbook.activeSheet.images);
+    final scrollOffset = fortuneImageLayerPanelClampScrollOffset(
+      items.length,
+      _imageLayerPanelScrollOffset,
+    );
     for (var index = 0; index < items.length; index += 1) {
       final rect = fortuneImageLayerPanelItemRect(
         size,
         items.length,
         index,
         top: top,
+        scrollOffset: scrollOffset,
       );
       if (rect != null && rect.contains(local)) {
         return items[index].id;
@@ -24139,10 +24145,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       return null;
     }
     final items = fortuneImageLayerPanelItems(_workbook.activeSheet.images);
-    final top = settings.effectiveToolbarHeight +
-        settings.effectiveFormulaBarHeight +
-        settings.columnHeaderHeight +
-        fortuneImageLayerPanelMargin;
+    final top = _imageLayerPanelTop(settings);
     for (final command in fortuneImageLayerPanelActionCommands) {
       final rect = fortuneImageLayerPanelActionRect(
         size,
@@ -24165,14 +24168,47 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     if (size == null) {
       return false;
     }
-    final top = settings.effectiveToolbarHeight +
-        settings.effectiveFormulaBarHeight +
-        settings.columnHeaderHeight +
-        fortuneImageLayerPanelMargin;
+    final top = _imageLayerPanelTop(settings);
     final items = fortuneImageLayerPanelItems(_workbook.activeSheet.images);
     return fortuneImageLayerPanelRect(size, items.length, top: top).contains(
       local,
     );
+  }
+
+  bool _scrollImageLayerPanel(Offset local, double deltaY) {
+    if (!_imageLayerPanelOpen) {
+      return false;
+    }
+    final size = context.size;
+    if (size == null) {
+      return false;
+    }
+    final items = fortuneImageLayerPanelItems(_workbook.activeSheet.images);
+    final panel = fortuneImageLayerPanelRect(
+      size,
+      items.length,
+      top: _imageLayerPanelTop(_workbook.settings),
+    );
+    if (!panel.contains(local)) {
+      return false;
+    }
+    final nextOffset = fortuneImageLayerPanelClampScrollOffset(
+      items.length,
+      _imageLayerPanelScrollOffset + deltaY,
+    );
+    if (nextOffset != _imageLayerPanelScrollOffset) {
+      setState(() {
+        _imageLayerPanelScrollOffset = nextOffset;
+      });
+    }
+    return true;
+  }
+
+  double _imageLayerPanelTop(FortuneSettings settings) {
+    return settings.effectiveToolbarHeight +
+        settings.effectiveFormulaBarHeight +
+        settings.columnHeaderHeight +
+        fortuneImageLayerPanelMargin;
   }
 
   double _nextImageZOrder(FortuneSheet sheet) {
@@ -29774,6 +29810,12 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   void _toggleImageLayerPanel() {
     setState(() {
       _imageLayerPanelOpen = !_imageLayerPanelOpen;
+      _imageLayerPanelScrollOffset = _imageLayerPanelOpen
+          ? fortuneImageLayerPanelClampScrollOffset(
+              _workbook.activeSheet.images.length,
+              _imageLayerPanelScrollOffset,
+            )
+          : 0;
       contextMenuAt = null;
       _contextMenuImageId = null;
     });
@@ -29833,6 +29875,10 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         contextMenuAt = null;
         _contextMenuImageId = null;
         _imageLayerPanelOpen = true;
+        _imageLayerPanelScrollOffset = fortuneImageLayerPanelClampScrollOffset(
+          nextImages.length,
+          _imageLayerPanelScrollOffset,
+        );
       } else {
         _closeTransientMenus();
       }
@@ -36803,6 +36849,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     _contextMenuPreviousSelectionSave = null;
     _contextMenuPreviousSelectionRange = null;
     _imageLayerPanelOpen = false;
+    _imageLayerPanelScrollOffset = 0;
     sheetTabMenuAt = null;
     sheetListAt = null;
     hiddenSheetListAt = null;
@@ -43129,6 +43176,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
                 hoveredRowHeaderIndex: _hoveredRowHeaderIndex,
                 activeImageId: _activeImageId,
                 imageLayerPanelOpen: _imageLayerPanelOpen,
+                imageLayerPanelScrollOffset: _imageLayerPanelScrollOffset,
                 decodedImages: Map<String, ui.Image>.unmodifiable(
                   _decodedImages,
                 ),

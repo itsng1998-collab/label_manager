@@ -44278,19 +44278,40 @@ Rect? fortuneImageLayerPanelItemRect(
   int itemCount,
   int index, {
   double top = fortuneImageLayerPanelMargin,
+  double scrollOffset = 0,
 }
 ) {
-  if (index < 0 || index >= itemCount ||
-      index >= fortuneImageLayerPanelMaxVisibleRows) {
+  if (index < 0 || index >= itemCount || scrollOffset < 0) {
     return null;
   }
   final panel = fortuneImageLayerPanelRect(viewportSize, itemCount, top: top);
-  return Rect.fromLTWH(
+  final listTop = panel.top + fortuneImageLayerPanelHeaderHeight;
+  final listBottom = panel.bottom;
+  final rowTop = listTop + index * fortuneImageLayerPanelRowHeight - scrollOffset;
+  final row = Rect.fromLTWH(
     panel.left,
-    panel.top + fortuneImageLayerPanelHeaderHeight +
-        index * fortuneImageLayerPanelRowHeight,
+    rowTop,
     panel.width,
     fortuneImageLayerPanelRowHeight,
+  );
+  if (row.bottom <= listTop || row.top >= listBottom) {
+    return null;
+  }
+  return row;
+}
+
+double fortuneImageLayerPanelMaxScrollOffset(int itemCount) {
+  final visibleRows = math.min(itemCount, fortuneImageLayerPanelMaxVisibleRows);
+  return math.max(0, itemCount - visibleRows) * fortuneImageLayerPanelRowHeight;
+}
+
+double fortuneImageLayerPanelClampScrollOffset(
+  int itemCount,
+  double scrollOffset,
+) {
+  return scrollOffset.clamp(
+    0.0,
+    fortuneImageLayerPanelMaxScrollOffset(itemCount),
   );
 }
 
@@ -61528,6 +61549,7 @@ class FortuneSheetPainter extends CustomPainter {
     this.hoveredRowHeaderIndex,
     this.activeImageId,
     this.imageLayerPanelOpen = false,
+    this.imageLayerPanelScrollOffset = 0,
     this.decodedImages = const <String, ui.Image>{},
     this.zoomMenuOpen = false,
     this.sheetFocused = true,
@@ -61734,6 +61756,7 @@ class FortuneSheetPainter extends CustomPainter {
   final int? hoveredRowHeaderIndex;
   final String? activeImageId;
   final bool imageLayerPanelOpen;
+  final double imageLayerPanelScrollOffset;
   final Map<String, ui.Image> decodedImages;
   final TextDirection textDirection;
   final bool zoomMenuOpen;
@@ -75844,14 +75867,18 @@ class FortuneSheetPainter extends CustomPainter {
         top,
       );
     }
-    final maxRows = math.min(items.length, fortuneImageLayerPanelMaxVisibleRows);
-    for (var index = 0; index < maxRows; index += 1) {
+    final scrollOffset = fortuneImageLayerPanelClampScrollOffset(
+      items.length,
+      imageLayerPanelScrollOffset,
+    );
+    for (var index = 0; index < items.length; index += 1) {
       final item = items[index];
       final row = fortuneImageLayerPanelItemRect(
         size,
         items.length,
         index,
         top: top,
+        scrollOffset: scrollOffset,
       );
       if (row == null) {
         continue;
@@ -76603,6 +76630,7 @@ class FortuneSheetPainter extends CustomPainter {
         oldDelegate.hoveredRowHeaderIndex != hoveredRowHeaderIndex ||
         oldDelegate.activeImageId != activeImageId ||
         oldDelegate.imageLayerPanelOpen != imageLayerPanelOpen ||
+        oldDelegate.imageLayerPanelScrollOffset != imageLayerPanelScrollOffset ||
         oldDelegate.decodedImages != decodedImages ||
         oldDelegate.zoomMenuOpen != zoomMenuOpen ||
         oldDelegate.sheetFocused != sheetFocused ||

@@ -170,6 +170,22 @@
 - stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`, `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`, `third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart`. 기존 사용자 변경 `lib/core/app.dart`는 제외.
 - 커밋: `464b069` (`이미지 바코드 레이어 패널 최상하 이동 추가`).
 
+### 진행 중 (2026-07-04): 이미지/바코드 레이어 패널 스크롤 추가
+
+목적: 이미지/바코드가 8개를 초과해도 레이어 패널에서 아래 항목까지 스크롤해 선택할 수 있게 한다.
+- 수정 예정: `fortune_sheet_painter.dart`에 레이어 패널 scrollOffset 상태와 scroll-aware row rect/rendering을 추가한다.
+- 수정 예정: `fortune_sheet_canvas.dart`에 `_imageLayerPanelScrollOffset` 상태와 wheel/pan scroll 처리, scroll-aware row hit-test를 추가한다.
+- 변경: `fortune_sheet_painter.dart`에 `imageLayerPanelScrollOffset`, scroll-aware `fortuneImageLayerPanelItemRect`, max/clamp helper를 추가하고 painter row 렌더링이 scrollOffset을 반영하도록 변경.
+- 변경: `fortune_sheet_canvas.dart`에 `_imageLayerPanelScrollOffset`, 레이어 패널 wheel scroll 처리, scroll-aware row hit-test, painter 전달을 추가.
+- 변경: `fortune_barcode_dialog_test.dart`에 10개 이미지 레이어 패널에서 wheel scroll 후 9번째 항목을 클릭해 active image가 바뀌는 테스트 추가.
+- 검증: `dart_format` 적용, `C:\Flutter\bin\flutter.bat analyze third_party\fortune_sheet\lib\src\fortune_sheet_canvas.dart third_party\fortune_sheet\lib\src\fortune_sheet_painter.dart --no-fatal-warnings --no-fatal-infos` 통과.
+- 검증: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --plain-name "image layer panel scroll selects lower item"` 통과.
+- 검증: `C:\Flutter\bin\flutter.bat analyze third_party\fortune_sheet\lib\src\fortune_sheet_canvas.dart third_party\fortune_sheet\lib\src\fortune_sheet_painter.dart third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --no-fatal-warnings --no-fatal-infos` 통과.
+- 검증: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart` 30개 통과.
+- 검증: `git diff --check -- SESSION_HANDOFF.md third_party\fortune_sheet\lib\src\fortune_sheet_canvas.dart third_party\fortune_sheet\lib\src\fortune_sheet_painter.dart third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart` 통과.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`, `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`, `third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart`. 기존 사용자 변경 `lib/core/app.dart`는 제외.
+- 미검증: 커밋 필요.
+
 ### 완료 (2026-07-04): SwipeActionTable 마우스/터치 드래그 스크롤 허용
 
 목적: `lib/widgets/swipe_action_table.dart`를 공통으로 사용하는 테이블에서 별도 플래그로 막지 않는 한 마우스/터치 상하 드래그로 기본 세로 스크롤이 되도록 한다.
