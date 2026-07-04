@@ -1962,6 +1962,19 @@ void main() {
     await tester.pump();
     expect(painter().activeImageId, 'image9');
 
+    await tester.sendKeyEvent(LogicalKeyboardKey.pageDown);
+    await tester.pump();
+    expect(painter().activeImageId, 'image1');
+    expect(
+      painter().imageLayerPanelScrollOffset,
+      fortuneImageLayerPanelMaxScrollOffset(10),
+    );
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.pageUp);
+    await tester.pump();
+    expect(painter().activeImageId, 'image9');
+    expect(painter().imageLayerPanelScrollOffset, fortuneImageLayerPanelRowHeight);
+
     await tester.sendKeyEvent(LogicalKeyboardKey.end);
     await tester.pump();
     expect(painter().activeImageId, 'image1');

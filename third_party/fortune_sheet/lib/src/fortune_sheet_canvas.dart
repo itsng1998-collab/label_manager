@@ -24507,11 +24507,13 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     }
     return key == LogicalKeyboardKey.arrowUp ||
         key == LogicalKeyboardKey.arrowDown ||
+        key == LogicalKeyboardKey.pageUp ||
+        key == LogicalKeyboardKey.pageDown ||
         key == LogicalKeyboardKey.home ||
         key == LogicalKeyboardKey.end ||
         key == LogicalKeyboardKey.enter ||
-      key == LogicalKeyboardKey.delete ||
-      key == LogicalKeyboardKey.backspace ||
+        key == LogicalKeyboardKey.delete ||
+        key == LogicalKeyboardKey.backspace ||
         key == LogicalKeyboardKey.escape;
   }
 
@@ -24548,9 +24550,12 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         ? 0
         : items.indexWhere((image) => image.id == _activeImageId);
     final baseIndex = currentIndex < 0 ? 0 : currentIndex;
+    final pageStep = math.min(items.length, fortuneImageLayerPanelMaxVisibleRows);
     final nextIndex = switch (event.logicalKey) {
       LogicalKeyboardKey.arrowUp => math.max(0, baseIndex - 1),
       LogicalKeyboardKey.arrowDown => math.min(items.length - 1, baseIndex + 1),
+      LogicalKeyboardKey.pageUp => math.max(0, baseIndex - pageStep),
+      LogicalKeyboardKey.pageDown => math.min(items.length - 1, baseIndex + pageStep),
       LogicalKeyboardKey.home => 0,
       LogicalKeyboardKey.end => items.length - 1,
       _ => baseIndex,

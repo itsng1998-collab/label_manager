@@ -27,6 +27,19 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-04): 이미지/바코드 레이어 패널 PageUp/PageDown 키 탐색 추가
+
+목적: 이미지/바코드가 많은 레이어 패널에서 키보드로 한 화면 단위 이동을 지원해 긴 목록 탐색 속도를 높인다.
+- 변경 예정: `fortune_sheet_canvas.dart`의 레이어 패널 key handler에 PageUp/PageDown을 추가하고 현재 visible row 수 기준으로 선택/스크롤을 이동한다.
+- 변경: `fortune_sheet_canvas.dart`의 `_isImageLayerPanelKey`와 `_handleImageLayerPanelKeyEvent`에 PageUp/PageDown을 추가. 이동 단위는 `fortuneImageLayerPanelMaxVisibleRows` 기준으로 계산한다.
+- 검증: `C:\Flutter\bin\flutter.bat analyze third_party\fortune_sheet\lib\src\fortune_sheet_canvas.dart --no-fatal-warnings --no-fatal-infos` 통과.
+- 테스트 변경: `fortune_barcode_dialog_test.dart`의 레이어 패널 키보드 테스트에 PageDown/PageUp 선택 이동과 scrollOffset 보정 검증 추가.
+- 검증: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --plain-name "image layer panel keyboard selects and edits rows"` 통과.
+- 검증: `C:\Flutter\bin\flutter.bat analyze third_party\fortune_sheet\lib\src\fortune_sheet_canvas.dart third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --no-fatal-warnings --no-fatal-infos` 통과.
+- 검증: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart` 통과(44 tests).
+- 검증: `git diff --check` 통과.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`, `third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart`. 기존 사용자 변경 `lib/core/app.dart`는 제외.
+
 ### 완료 (2026-07-04): 이미지/바코드 레이어 패널 타입 표시 추가
 
 목적: 레이어 패널에서 이미지와 바코드가 섞여 있을 때 ID만 보고 구분하지 않아도 되도록 row에 객체 타입 표시를 추가한다.
