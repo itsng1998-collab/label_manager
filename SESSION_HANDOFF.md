@@ -186,7 +186,7 @@
 - stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`, `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`, `third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart`. 기존 사용자 변경 `lib/core/app.dart`는 제외.
 - 커밋: `c123fdb` (`이미지 바코드 레이어 패널 스크롤 추가`).
 
-### 진행 중 (2026-07-04): 이미지/바코드 레이어 패널 선택 항목 자동 스크롤
+### 완료 (2026-07-04): 이미지/바코드 레이어 패널 선택 항목 자동 스크롤
 
 목적: 레이어 패널을 열 때 현재 선택된 이미지/바코드 row가 보이는 범위 밖이면 자동으로 스크롤해 선택 항목을 바로 확인할 수 있게 한다.
 - 변경: `fortune_sheet_canvas.dart`에 `_imageLayerPanelScrollOffsetToRevealActive`를 추가하고, 레이어 패널 open 시 active image row가 visible range에 들어오도록 scrollOffset을 보정.
@@ -197,7 +197,7 @@
 - 검증: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart` 31개 통과.
 - 검증: `git diff --check -- SESSION_HANDOFF.md third_party\fortune_sheet\lib\src\fortune_sheet_canvas.dart third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart` 통과.
 - stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`, `third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart`. 기존 사용자 변경 `lib/core/app.dart`는 제외.
-- 미검증: 커밋 필요.
+- 커밋: `80f1bde` (`이미지 바코드 레이어 패널 선택 항목 자동 스크롤 추가`).
 
 ### 완료 (2026-07-04): SwipeActionTable 마우스/터치 드래그 스크롤 허용
 
