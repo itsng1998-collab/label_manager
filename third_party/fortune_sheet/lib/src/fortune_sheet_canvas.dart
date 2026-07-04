@@ -6796,6 +6796,17 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       return;
     }
 
+    final activeImageToolbarCommand = _activeImageToolbarCommandAt(
+      local,
+      settings,
+    );
+    if (activeImageToolbarCommand != null) {
+      _commitEditing();
+      _commitSheetRename();
+      _activateContextMenuCommand(activeImageToolbarCommand);
+      return;
+    }
+
     if (_isOutsideActiveSheetEventArea(local, settings)) {
       if (_hasOpenTransientMenu()) {
         setState(_closeTransientMenus);
@@ -24004,6 +24015,35 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       final image = images[index];
       if (_imageRect(image, settings).contains(local)) {
         return image.id;
+      }
+    }
+    return null;
+  }
+
+  String? _activeImageToolbarCommandAt(
+    Offset local,
+    FortuneSettings settings,
+  ) {
+    if (contextMenuAt != null) {
+      return null;
+    }
+    final imageId = _activeImageId;
+    final image = imageId == null ? null : _imageById(imageId);
+    final size = context.size;
+    if (image == null || size == null) {
+      return null;
+    }
+    final items = fortuneActiveImageToolbarItems(image);
+    final imageRect = _imageRect(image, settings);
+    for (final item in items) {
+      final rect = fortuneActiveImageToolbarItemRect(
+        imageRect,
+        size,
+        item,
+        items,
+      );
+      if (rect != null && rect.contains(local)) {
+        return item;
       }
     }
     return null;

@@ -95,6 +95,20 @@
 - stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`, `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`, `third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart`. 기존 사용자 변경 `lib/core/app.dart`는 제외.
 - 커밋: `93cc8ba` (`이미지 바코드 레이어 이동 메뉴 추가`).
 
+### 완료 (2026-07-04): 이미지/바코드 선택 플로팅 툴바 추가
+
+목적: 장기 구현 순서 5의 첫 조각으로, 이미지/바코드 선택 후 우클릭 메뉴를 열지 않아도 수정/레이어 이동 명령을 바로 실행할 수 있는 캔버스 플로팅 툴바를 추가한다.
+- 변경: `fortune_sheet_painter.dart`에 선택 이미지/바코드 기준 floating toolbar item/rect helper와 렌더링을 추가. 항목은 수정 + `앞으로`/`뒤로`/`맨앞`/`맨뒤`이며 기존 context menu label을 재사용한다.
+- 변경: `fortune_sheet_canvas.dart`에서 pointer down이 floating toolbar button을 hit-test하고 기존 이미지/바코드 수정 및 레이어 이동 명령 실행 경로로 연결한다.
+- 테스트: `third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart`에 이미지 선택 후 floating toolbar의 `맨뒤` 버튼 클릭이 `zOrder`를 바꾸는지 검증 추가.
+- 검증: `dart format third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart` 통과.
+- 검증: `C:\Flutter\bin\flutter.bat analyze third_party\fortune_sheet\lib\src\fortune_sheet_painter.dart --no-fatal-warnings --no-fatal-infos` 통과, `C:\Flutter\bin\flutter.bat analyze third_party\fortune_sheet\lib\src\fortune_sheet_canvas.dart --no-fatal-warnings --no-fatal-infos` 통과.
+- 검증: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --plain-name "image floating toolbar changes zOrder"` 통과.
+- 검증: `C:\Flutter\bin\flutter.bat analyze third_party\fortune_sheet\lib\src\fortune_sheet_canvas.dart third_party\fortune_sheet\lib\src\fortune_sheet_painter.dart third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --no-fatal-warnings --no-fatal-infos` 통과.
+- 검증: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart` 25개 통과.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`, `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`, `third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart`. 기존 사용자 변경 `lib/core/app.dart`는 제외.
+- 커밋 예정: `이미지 바코드 선택 플로팅 툴바 추가`.
+
 ### 완료 (2026-07-04): SwipeActionTable 마우스/터치 드래그 스크롤 허용
 
 목적: `lib/widgets/swipe_action_table.dart`를 공통으로 사용하는 테이블에서 별도 플래그로 막지 않는 한 마우스/터치 상하 드래그로 기본 세로 스크롤이 되도록 한다.

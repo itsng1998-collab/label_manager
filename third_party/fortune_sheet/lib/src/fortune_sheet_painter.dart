@@ -44210,6 +44210,66 @@ const String fortuneBarcodeBodyRatioExtraKey = 'barcodeBodyRatio';
 const String fortuneBarcodeIdLabelPrintExcludedExtraKey =
   'barcodeIdLabelPrintExcluded';
 const double fortuneBarcodeObjectIdLabelScale = 1.5;
+const double fortuneActiveImageToolbarWidth = 300.0;
+const double fortuneActiveImageToolbarHeight = 30.0;
+const double fortuneActiveImageToolbarGap = 8.0;
+const double fortuneActiveImageToolbarMargin = 4.0;
+
+List<String> fortuneActiveImageToolbarItems(FortuneImage image) {
+  return <String>[
+    image.extraFields['fortuneBarcode'] == true
+        ? fortuneContextEditBarcodeCommand
+        : fortuneContextEditImageCommand,
+    fortuneContextBringForwardCommand,
+    fortuneContextSendBackwardCommand,
+    fortuneContextBringToFrontCommand,
+    fortuneContextSendToBackCommand,
+  ];
+}
+
+Rect fortuneActiveImageToolbarRect(Rect imageRect, Size viewportSize) {
+  final width = math.min(
+    fortuneActiveImageToolbarWidth,
+    math.max(0.0, viewportSize.width - fortuneActiveImageToolbarMargin * 2),
+  );
+  final rawLeft = imageRect.center.dx - width / 2;
+  final left = rawLeft.clamp(
+    fortuneActiveImageToolbarMargin,
+    math.max(fortuneActiveImageToolbarMargin, viewportSize.width - width - fortuneActiveImageToolbarMargin),
+  ).toDouble();
+  var top = imageRect.top - fortuneActiveImageToolbarGap - fortuneActiveImageToolbarHeight;
+  if (top < fortuneActiveImageToolbarMargin) {
+    top = imageRect.bottom + fortuneActiveImageToolbarGap;
+  }
+  top = top.clamp(
+    fortuneActiveImageToolbarMargin,
+    math.max(
+      fortuneActiveImageToolbarMargin,
+      viewportSize.height - fortuneActiveImageToolbarHeight - fortuneActiveImageToolbarMargin,
+    ),
+  ).toDouble();
+  return Rect.fromLTWH(left, top, width, fortuneActiveImageToolbarHeight);
+}
+
+Rect? fortuneActiveImageToolbarItemRect(
+  Rect imageRect,
+  Size viewportSize,
+  String command,
+  List<String> items,
+) {
+  final index = items.indexOf(command);
+  if (index < 0 || items.isEmpty) {
+    return null;
+  }
+  final toolbar = fortuneActiveImageToolbarRect(imageRect, viewportSize);
+  final itemWidth = toolbar.width / items.length;
+  return Rect.fromLTWH(
+    toolbar.left + itemWidth * index,
+    toolbar.top,
+    itemWidth,
+    toolbar.height,
+  );
+}
 
 class FortuneBarcodeObjectIdLabelMetrics {
   const FortuneBarcodeObjectIdLabelMetrics({
@@ -62549,6 +62609,7 @@ class FortuneSheetPainter extends CustomPainter {
     _drawFrozenCells(canvas, size, settings, metrics);
     _drawSheetScrollbars(canvas, size, settings, metrics);
     _drawImages(canvas, size, settings);
+    _drawActiveImageToolbar(canvas, size, settings);
     _drawRawShapeOverlays(canvas, size, settings);
     _drawVisibleComments(canvas, size, settings, metrics);
     if (showCellSelection) {
@@ -75569,6 +75630,68 @@ class FortuneSheetPainter extends CustomPainter {
     for (final center in centers) {
       canvas.drawCircle(center, handleRadius, handlePaint);
       canvas.drawCircle(center, handleRadius - borderWidth / 2, handleBorder);
+    }
+  }
+
+  void _drawActiveImageToolbar(
+    Canvas canvas,
+    Size size,
+    FortuneSettings settings,
+  ) {
+    final imageId = activeImageId;
+    if (imageId == null || contextMenuAt != null) {
+      return;
+    }
+    final sheet = workbook.activeSheet;
+    final image = sheet.images.cast<FortuneImage?>().firstWhere(
+      (image) => image?.id == imageId,
+      orElse: () => null,
+    );
+    if (image == null) {
+      return;
+    }
+    final zoomRatio = sheet.zoomRatio <= 0 ? 1.0 : sheet.zoomRatio;
+    final imageRect = Rect.fromLTWH(
+      _sheetDataLeft(settings) + image.left * zoomRatio - scrollOffset.dx,
+      _sheetDataTop(settings) + image.top * zoomRatio - scrollOffset.dy,
+      image.width * zoomRatio,
+      image.height * zoomRatio,
+    );
+    final clip = Rect.fromLTWH(
+      _sheetDataLeft(settings),
+      _sheetDataTop(settings),
+      math.max(0, size.width - _sheetDataLeft(settings)),
+      math.max(0, size.height - _sheetDataTop(settings)),
+    );
+    if (!imageRect.overlaps(clip)) {
+      return;
+    }
+    final items = fortuneActiveImageToolbarItems(image);
+    final toolbar = fortuneActiveImageToolbarRect(imageRect, size);
+    _drawShadowBox(canvas, toolbar, radius: 4, border: const Color(0xffd4d4d4));
+    final itemWidth = toolbar.width / items.length;
+    for (var index = 0; index < items.length; index += 1) {
+      final item = items[index];
+      final rect = Rect.fromLTWH(
+        toolbar.left + itemWidth * index,
+        toolbar.top,
+        itemWidth,
+        toolbar.height,
+      );
+      if (index > 0) {
+        canvas.drawRect(
+          Rect.fromLTWH(rect.left, rect.top + 6, 1, rect.height - 12),
+          Paint()..color = const Color(0xffe5e5e5),
+        );
+      }
+      _drawText(
+        canvas,
+        _contextMenuLabel(item),
+        rect.deflate(4),
+        fontSize: 10,
+        color: const Color(0xff202124),
+        align: TextAlign.center,
+      );
     }
   }
 
