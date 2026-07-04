@@ -27,6 +27,13 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-04): 라벨 설정 브랜드 드롭다운 전체 목록 보정
+
+목적: 라벨 설정 다이얼로그의 브랜드 드롭다운이 헤더에서 선택된 브랜드 한 개만 보이는 문제를 수정하고, 헤더 브랜드 드롭다운과 같은 전체 브랜드 목록을 사용하게 한다.
+- 변경: `HomePageManager` 상태에 헤더용 브랜드 목록 `_brands`를 보존하고, 헤더/브랜드 설정/라벨 설정 다이얼로그 모두 이 목록을 우선 사용하도록 변경.
+- 검증: `dart format lib/home_page_manager.dart`, `C:\Flutter\bin\flutter.bat analyze lib\home_page_manager.dart --no-fatal-warnings --no-fatal-infos` 통과, `C:\Flutter\bin\flutter.bat test test\swipe_action_table_test.dart test\label_size_cache_test.dart` 21개 통과, `git diff --check -- SESSION_HANDOFF.md lib\home_page_manager.dart` 통과.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `lib/home_page_manager.dart`. 기존 사용자 변경 `lib/core/app.dart`는 제외.
+
 ### 완료 (2026-07-04): 라벨 설정 다이얼로그 브랜드 드롭다운 추가
 
 목적: 라벨 설정 다이얼로그의 라벨 테이블 바로 위에 브랜드 드롭다운을 추가하고, 브랜드 변경 시 상단 라벨 매니저와 현재 다이얼로그의 라벨 목록/선택을 같은 조회 흐름으로 동기화한다.

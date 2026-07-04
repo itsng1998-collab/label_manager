@@ -67,6 +67,7 @@ class _HomePageManagerState extends State<HomePageManager> {
   PreviewFloatingWindow? _commonLabelPreviewWindow;
   Timer? _rtfPreviewResizeDebounce;
   Timer? _rtfPreviewResizeFinalizeTimer;
+  List<Brand> _brands = const <Brand>[];
   List<TabData> _tabs = const <TabData>[];
   LabelSize? _currentLabelSize;
   String? _rtfPreviewReadyKey;
@@ -181,7 +182,7 @@ class _HomePageManagerState extends State<HomePageManager> {
 
   Brand? _findBrandByName(String? brandName) {
     if (brandName == null) return null;
-    final brands = Brand.datas ?? const <Brand>[];
+    final brands = _brands.isNotEmpty ? _brands : Brand.datas ?? const <Brand>[];
     for (final brand in brands) {
       if (brand.brandName == brandName) {
         return brand;
@@ -192,7 +193,7 @@ class _HomePageManagerState extends State<HomePageManager> {
 
   Brand? _findBrandById(int? brandId) {
     if (brandId == null) return null;
-    final brands = Brand.datas ?? const <Brand>[];
+    final brands = _brands.isNotEmpty ? _brands : Brand.datas ?? const <Brand>[];
     for (final brand in brands) {
       if (brand.brandId == brandId) {
         return brand;
@@ -216,6 +217,7 @@ class _HomePageManagerState extends State<HomePageManager> {
         final changed =
             prevBrands.length != brands!.length ||
             !listEq.equals(prevBrands, brands);
+        _brands = List<Brand>.from(brands);
         if (changed) {
           debugLog(
             'brandsChanged reload prevLen=${prevBrands.length} newLen=${brands.length}',
@@ -316,6 +318,7 @@ class _HomePageManagerState extends State<HomePageManager> {
     }
 
     Brand.setDatas(reloadedBrands);
+    _brands = List<Brand>.from(reloadedBrands);
     final resolvedSelected = _resolveSelectedBrand(
       reloadedBrands,
       previousSelectedBrand,
@@ -577,7 +580,7 @@ class _HomePageManagerState extends State<HomePageManager> {
       // dialogs launched inside must use showBlockingModelessOverlayDialog.
       builder: (_) => BlockingModelessDialog(
         child: _BrandSettingsDialog(
-          brands: Brand.datas ?? const <Brand>[],
+          brands: _brands.isNotEmpty ? _brands : Brand.datas ?? const <Brand>[],
           selectedBrand: widget.selectedBrand,
           onBrandSelected: _handleBrandSelectedFromDialog,
           onBrandsChanged: _handleBrandsChangedFromDialog,
@@ -602,7 +605,7 @@ class _HomePageManagerState extends State<HomePageManager> {
       // confirmation must be inserted into the root overlay, not showDialog.
       builder: (_) => BlockingModelessDialog(
         child: _LabelSettingsDialog(
-          brands: Brand.datas ?? const <Brand>[],
+          brands: _brands.isNotEmpty ? _brands : Brand.datas ?? const <Brand>[],
           selectedBrand: widget.selectedBrand,
           brandId:
               widget.selectedBrand?.brandId ??
@@ -1400,7 +1403,7 @@ class _HomePageManagerState extends State<HomePageManager> {
 
   @override
   Widget build(BuildContext context) {
-    final brands = Brand.datas ?? const <Brand>[];
+    final brands = _brands.isNotEmpty ? _brands : Brand.datas ?? const <Brand>[];
     final brandItems = _brandDropdownItems(brands);
     final resolvedBrand = _resolveSelectedBrand(brands, widget.selectedBrand);
     final labelSizes = LabelSize.datas ?? const <LabelSize>[];
