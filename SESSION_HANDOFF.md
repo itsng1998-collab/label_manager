@@ -199,7 +199,7 @@
 - stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`, `third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart`. 기존 사용자 변경 `lib/core/app.dart`는 제외.
 - 커밋: `80f1bde` (`이미지 바코드 레이어 패널 선택 항목 자동 스크롤 추가`).
 
-### 진행 중 (2026-07-04): 이미지/바코드 레이어 패널 스크롤바 표시
+### 완료 (2026-07-04): 이미지/바코드 레이어 패널 스크롤바 표시
 
 목적: 레이어 패널이 스크롤 가능한 긴 목록일 때 사용자가 현재 위치와 추가 항목 존재를 알 수 있도록 패널 우측에 스크롤바 thumb을 표시한다.
 - 변경: `fortune_sheet_painter.dart`에 레이어 패널 scrollbar thumb rect helper와 렌더링을 추가하고, row label 영역이 scrollbar와 겹치지 않도록 폭을 조정.
@@ -210,7 +210,7 @@
 - 검증: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart` 31개 통과.
 - 검증: `git diff --check -- SESSION_HANDOFF.md third_party\fortune_sheet\lib\src\fortune_sheet_painter.dart third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart` 통과.
 - stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`, `third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart`. 기존 사용자 변경 `lib/core/app.dart`는 제외.
-- 미검증: 커밋 필요.
+- 커밋: `77f5b45` (`이미지 바코드 레이어 패널 스크롤바 표시`).
 
 ### 완료 (2026-07-04): SwipeActionTable 마우스/터치 드래그 스크롤 허용
 
