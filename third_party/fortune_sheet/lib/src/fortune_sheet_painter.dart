@@ -906,6 +906,7 @@ class FortuneSheetLocale {
       'barcode': 'Insert barcode',
       'edit-image': 'Edit image',
       'edit-barcode': 'Edit barcode',
+      'toggle-layer-panel': 'Layers',
       'bring-forward': 'Bring forward',
       'send-backward': 'Send backward',
       'bring-to-front': 'Bring to front',
@@ -1675,6 +1676,7 @@ class FortuneSheetLocale {
       'barcode': '바코드 삽입',
       'edit-image': '이미지 수정',
       'edit-barcode': '바코드 수정',
+      'toggle-layer-panel': '레이어',
       'bring-forward': '앞으로',
       'send-backward': '뒤로',
       'bring-to-front': '맨앞',
@@ -2269,6 +2271,7 @@ const String fortuneToolbarImageCommand = 'image';
 const String fortuneToolbarBarcodeCommand = 'barcode';
 const String fortuneContextEditImageCommand = 'edit-image';
 const String fortuneContextEditBarcodeCommand = 'edit-barcode';
+const String fortuneContextToggleLayerPanelCommand = 'toggle-layer-panel';
 const String fortuneContextBringForwardCommand = 'bring-forward';
 const String fortuneContextSendBackwardCommand = 'send-backward';
 const String fortuneContextBringToFrontCommand = 'bring-to-front';
@@ -44210,21 +44213,85 @@ const String fortuneBarcodeBodyRatioExtraKey = 'barcodeBodyRatio';
 const String fortuneBarcodeIdLabelPrintExcludedExtraKey =
   'barcodeIdLabelPrintExcluded';
 const double fortuneBarcodeObjectIdLabelScale = 1.5;
-const double fortuneActiveImageToolbarWidth = 300.0;
+const double fortuneActiveImageToolbarWidth = 360.0;
 const double fortuneActiveImageToolbarHeight = 30.0;
 const double fortuneActiveImageToolbarGap = 8.0;
 const double fortuneActiveImageToolbarMargin = 4.0;
+const double fortuneImageLayerPanelWidth = 220.0;
+const double fortuneImageLayerPanelHeaderHeight = 30.0;
+const double fortuneImageLayerPanelRowHeight = 28.0;
+const double fortuneImageLayerPanelMargin = 8.0;
+const int fortuneImageLayerPanelMaxVisibleRows = 8;
 
 List<String> fortuneActiveImageToolbarItems(FortuneImage image) {
   return <String>[
     image.extraFields['fortuneBarcode'] == true
         ? fortuneContextEditBarcodeCommand
         : fortuneContextEditImageCommand,
+    fortuneContextToggleLayerPanelCommand,
     fortuneContextBringForwardCommand,
     fortuneContextSendBackwardCommand,
     fortuneContextBringToFrontCommand,
     fortuneContextSendToBackCommand,
   ];
+}
+
+List<FortuneImage> fortuneImageLayerPanelItems(List<FortuneImage> images) {
+  return fortuneImagesInPaintOrder(images).reversed.toList(growable: false);
+}
+
+Rect fortuneImageLayerPanelRect(
+  Size viewportSize,
+  int itemCount, {
+  double top = fortuneImageLayerPanelMargin,
+}) {
+  final visibleRows = math.min(itemCount, fortuneImageLayerPanelMaxVisibleRows);
+  final height = fortuneImageLayerPanelHeaderHeight +
+      visibleRows * fortuneImageLayerPanelRowHeight;
+  final width = math.min(
+    fortuneImageLayerPanelWidth,
+    math.max(0.0, viewportSize.width - fortuneImageLayerPanelMargin * 2),
+  );
+  return Rect.fromLTWH(
+    math.max(
+      fortuneImageLayerPanelMargin,
+      viewportSize.width - width - fortuneImageLayerPanelMargin,
+    ),
+    top,
+    width,
+    math.min(
+      height,
+      math.max(0.0, viewportSize.height - fortuneImageLayerPanelMargin * 2),
+    ),
+  );
+}
+
+Rect? fortuneImageLayerPanelItemRect(
+  Size viewportSize,
+  int itemCount,
+  int index,
+  {double top = fortuneImageLayerPanelMargin}
+) {
+  if (index < 0 || index >= itemCount ||
+      index >= fortuneImageLayerPanelMaxVisibleRows) {
+    return null;
+  }
+  final panel = fortuneImageLayerPanelRect(viewportSize, itemCount, top: top);
+  return Rect.fromLTWH(
+    panel.left,
+    panel.top + fortuneImageLayerPanelHeaderHeight +
+        index * fortuneImageLayerPanelRowHeight,
+    panel.width,
+    fortuneImageLayerPanelRowHeight,
+  );
+}
+
+String fortuneImageLayerPanelLabel(FortuneImage image) {
+  final key = image.extraFields['fortuneBarcode'] == true
+      ? fortuneBarcodeObjectIdExtraKey
+      : fortuneImageObjectIdExtraKey;
+  final label = image.extraFields[key]?.toString().trim();
+  return label == null || label.isEmpty ? image.id : label;
 }
 
 Rect fortuneActiveImageToolbarRect(Rect imageRect, Size viewportSize) {
@@ -61423,6 +61490,7 @@ class FortuneSheetPainter extends CustomPainter {
     this.hoveredColumnHeaderIndex,
     this.hoveredRowHeaderIndex,
     this.activeImageId,
+    this.imageLayerPanelOpen = false,
     this.decodedImages = const <String, ui.Image>{},
     this.zoomMenuOpen = false,
     this.sheetFocused = true,
@@ -61628,6 +61696,7 @@ class FortuneSheetPainter extends CustomPainter {
   final int? hoveredColumnHeaderIndex;
   final int? hoveredRowHeaderIndex;
   final String? activeImageId;
+  final bool imageLayerPanelOpen;
   final Map<String, ui.Image> decodedImages;
   final TextDirection textDirection;
   final bool zoomMenuOpen;
@@ -62610,6 +62679,7 @@ class FortuneSheetPainter extends CustomPainter {
     _drawSheetScrollbars(canvas, size, settings, metrics);
     _drawImages(canvas, size, settings);
     _drawActiveImageToolbar(canvas, size, settings);
+    _drawImageLayerPanel(canvas, size, settings);
     _drawRawShapeOverlays(canvas, size, settings);
     _drawVisibleComments(canvas, size, settings, metrics);
     if (showCellSelection) {
@@ -75695,6 +75765,57 @@ class FortuneSheetPainter extends CustomPainter {
     }
   }
 
+  void _drawImageLayerPanel(Canvas canvas, Size size, FortuneSettings settings) {
+    if (!imageLayerPanelOpen) {
+      return;
+    }
+    final items = fortuneImageLayerPanelItems(workbook.activeSheet.images);
+    if (items.isEmpty) {
+      return;
+    }
+    final top = settings.effectiveToolbarHeight +
+      settings.effectiveFormulaBarHeight +
+      settings.columnHeaderHeight +
+      fortuneImageLayerPanelMargin;
+    final panel = fortuneImageLayerPanelRect(size, items.length, top: top);
+    _drawShadowBox(canvas, panel, radius: 4, border: const Color(0xffd4d4d4));
+    _drawText(
+      canvas,
+      _contextMenuLabel(fortuneContextToggleLayerPanelCommand),
+      Rect.fromLTWH(panel.left + 10, panel.top, panel.width - 20, fortuneImageLayerPanelHeaderHeight),
+      fontSize: 12,
+      fontWeight: FontWeight.w700,
+      color: const Color(0xff202124),
+    );
+    final maxRows = math.min(items.length, fortuneImageLayerPanelMaxVisibleRows);
+    for (var index = 0; index < maxRows; index += 1) {
+      final item = items[index];
+      final row = fortuneImageLayerPanelItemRect(
+        size,
+        items.length,
+        index,
+        top: top,
+      );
+      if (row == null) {
+        continue;
+      }
+      if (item.id == activeImageId) {
+        canvas.drawRect(row, Paint()..color = const Color(0xffe8f0fe));
+      }
+      canvas.drawRect(
+        Rect.fromLTWH(row.left + 10, row.top, 1, row.height),
+        Paint()..color = const Color(0xffe8eaed),
+      );
+      _drawText(
+        canvas,
+        fortuneImageLayerPanelLabel(item),
+        Rect.fromLTWH(row.left + 18, row.top, row.width - 28, row.height),
+        fontSize: 11,
+        color: const Color(0xff202124),
+      );
+    }
+  }
+
   void _drawImageBitmap(
     Canvas canvas,
     Rect rect,
@@ -76384,6 +76505,7 @@ class FortuneSheetPainter extends CustomPainter {
         oldDelegate.hoveredColumnHeaderIndex != hoveredColumnHeaderIndex ||
         oldDelegate.hoveredRowHeaderIndex != hoveredRowHeaderIndex ||
         oldDelegate.activeImageId != activeImageId ||
+        oldDelegate.imageLayerPanelOpen != imageLayerPanelOpen ||
         oldDelegate.decodedImages != decodedImages ||
         oldDelegate.zoomMenuOpen != zoomMenuOpen ||
         oldDelegate.sheetFocused != sheetFocused ||

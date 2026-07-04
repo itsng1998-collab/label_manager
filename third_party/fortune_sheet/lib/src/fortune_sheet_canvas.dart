@@ -2749,6 +2749,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   bool _sheetCornerTooltipActive = false;
   bool _sheetCornerTooltipDismissedUntilExit = false;
   String? _activeImageId;
+  bool _imageLayerPanelOpen = false;
   String? _imageResizeSide;
   Offset? _imageResizeStart;
   FortuneImage? _imageResizeInitial;
@@ -6805,6 +6806,22 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       _commitSheetRename();
       _activateContextMenuCommand(activeImageToolbarCommand);
       return;
+    }
+
+    final layerPanelImageId = _imageLayerPanelImageIdAt(local, settings);
+    if (layerPanelImageId != null) {
+      _commitEditing();
+      _commitSheetRename();
+      setState(() {
+        _activeImageId = layerPanelImageId;
+        contextMenuAt = null;
+      });
+      return;
+    }
+    if (_imageLayerPanelOpen && !_imageLayerPanelContains(local, settings)) {
+      setState(() {
+        _imageLayerPanelOpen = false;
+      });
     }
 
     if (_isOutsideActiveSheetEventArea(local, settings)) {
@@ -24078,6 +24095,51 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     return null;
   }
 
+  String? _imageLayerPanelImageIdAt(Offset local, FortuneSettings settings) {
+    if (!_imageLayerPanelOpen) {
+      return null;
+    }
+    final size = context.size;
+    if (size == null) {
+      return null;
+    }
+    final top = settings.effectiveToolbarHeight +
+        settings.effectiveFormulaBarHeight +
+        settings.columnHeaderHeight +
+        fortuneImageLayerPanelMargin;
+    final items = fortuneImageLayerPanelItems(_workbook.activeSheet.images);
+    for (var index = 0; index < items.length; index += 1) {
+      final rect = fortuneImageLayerPanelItemRect(
+        size,
+        items.length,
+        index,
+        top: top,
+      );
+      if (rect != null && rect.contains(local)) {
+        return items[index].id;
+      }
+    }
+    return null;
+  }
+
+  bool _imageLayerPanelContains(Offset local, FortuneSettings settings) {
+    if (!_imageLayerPanelOpen) {
+      return false;
+    }
+    final size = context.size;
+    if (size == null) {
+      return false;
+    }
+    final top = settings.effectiveToolbarHeight +
+        settings.effectiveFormulaBarHeight +
+        settings.columnHeaderHeight +
+        fortuneImageLayerPanelMargin;
+    final items = fortuneImageLayerPanelItems(_workbook.activeSheet.images);
+    return fortuneImageLayerPanelRect(size, items.length, top: top).contains(
+      local,
+    );
+  }
+
   double _nextImageZOrder(FortuneSheet sheet) {
     var maxOrder = 0.0;
     for (final image in sheet.images) {
@@ -29625,6 +29687,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         _showContextImageEditDialog();
       case fortuneContextEditBarcodeCommand:
         _showContextBarcodeEditDialog();
+      case fortuneContextToggleLayerPanelCommand:
+        _toggleImageLayerPanel();
       case fortuneContextBringForwardCommand:
         _moveContextImageLayer(command);
       case fortuneContextSendBackwardCommand:
@@ -29670,6 +29734,14 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       return;
     }
     _showBarcodeEditDialog(image);
+  }
+
+  void _toggleImageLayerPanel() {
+    setState(() {
+      _imageLayerPanelOpen = !_imageLayerPanelOpen;
+      contextMenuAt = null;
+      _contextMenuImageId = null;
+    });
   }
 
   void _moveContextImageLayer(String command) {
@@ -36686,6 +36758,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     _editorContextMenuOpeningPointer = null;
     _contextMenuPreviousSelectionSave = null;
     _contextMenuPreviousSelectionRange = null;
+    _imageLayerPanelOpen = false;
     sheetTabMenuAt = null;
     sheetListAt = null;
     hiddenSheetListAt = null;
@@ -36734,6 +36807,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         hiddenSheetListAt != null ||
         dataVerificationDropdownCoord != null ||
         filterDropdownColumn != null ||
+        _imageLayerPanelOpen ||
         toolbarPopupKey != null ||
         _zoomMenuOpen ||
         _sheetTabColorMenuOpen;
@@ -43010,6 +43084,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
                 hoveredColumnHeaderIndex: _hoveredColumnHeaderIndex,
                 hoveredRowHeaderIndex: _hoveredRowHeaderIndex,
                 activeImageId: _activeImageId,
+                imageLayerPanelOpen: _imageLayerPanelOpen,
                 decodedImages: Map<String, ui.Image>.unmodifiable(
                   _decodedImages,
                 ),
