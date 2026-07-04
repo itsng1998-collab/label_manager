@@ -907,6 +907,7 @@ class FortuneSheetLocale {
       'edit-image': 'Edit image',
       'edit-barcode': 'Edit barcode',
       'toggle-layer-panel': 'Layers',
+      'delete-image': 'Delete',
       'bring-forward': 'Bring forward',
       'send-backward': 'Send backward',
       'bring-to-front': 'Bring to front',
@@ -1677,6 +1678,7 @@ class FortuneSheetLocale {
       'edit-image': '이미지 수정',
       'edit-barcode': '바코드 수정',
       'toggle-layer-panel': '레이어',
+      'delete-image': '삭제',
       'bring-forward': '앞으로',
       'send-backward': '뒤로',
       'bring-to-front': '맨앞',
@@ -2272,6 +2274,7 @@ const String fortuneToolbarBarcodeCommand = 'barcode';
 const String fortuneContextEditImageCommand = 'edit-image';
 const String fortuneContextEditBarcodeCommand = 'edit-barcode';
 const String fortuneContextToggleLayerPanelCommand = 'toggle-layer-panel';
+const String fortuneContextDeleteImageCommand = 'delete-image';
 const String fortuneContextBringForwardCommand = 'bring-forward';
 const String fortuneContextSendBackwardCommand = 'send-backward';
 const String fortuneContextBringToFrontCommand = 'bring-to-front';
@@ -42551,6 +42554,7 @@ bool fortuneContextMenuItemIsRenderedByUpstream(String item) {
     fortuneToolbarBarcodeCommand ||
     fortuneContextEditImageCommand ||
     fortuneContextEditBarcodeCommand ||
+    fortuneContextDeleteImageCommand ||
     fortuneContextBringForwardCommand ||
     fortuneContextSendBackwardCommand ||
     fortuneContextBringToFrontCommand ||
@@ -44226,6 +44230,7 @@ const double fortuneImageLayerPanelScrollbarWidth = 4.0;
 const double fortuneImageLayerPanelScrollbarMargin = 4.0;
 const int fortuneImageLayerPanelMaxVisibleRows = 8;
 const List<String> fortuneImageLayerPanelActionCommands = <String>[
+  fortuneContextDeleteImageCommand,
   fortuneContextBringToFrontCommand,
   fortuneContextBringForwardCommand,
   fortuneContextSendBackwardCommand,
@@ -44238,6 +44243,7 @@ List<String> fortuneActiveImageToolbarItems(FortuneImage image) {
         ? fortuneContextEditBarcodeCommand
         : fortuneContextEditImageCommand,
     fortuneContextToggleLayerPanelCommand,
+    fortuneContextDeleteImageCommand,
     fortuneContextBringForwardCommand,
     fortuneContextSendBackwardCommand,
     fortuneContextBringToFrontCommand,
@@ -75902,6 +75908,7 @@ class FortuneSheetPainter extends CustomPainter {
       color: const Color(0xff202124),
     );
     for (final entry in const <String, String>{
+      fortuneContextDeleteImageCommand: '×',
       fortuneContextBringToFrontCommand: '⇈',
       fortuneContextBringForwardCommand: '↑',
       fortuneContextSendBackwardCommand: '↓',

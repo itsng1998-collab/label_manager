@@ -6829,6 +6829,10 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     if (layerPanelCommand != null) {
       _commitEditing();
       _commitSheetRename();
+      if (layerPanelCommand == fortuneContextDeleteImageCommand) {
+        _deleteActiveImageFromLayerPanel();
+        return;
+      }
       _moveContextImageLayer(layerPanelCommand, keepLayerPanelOpen: true);
       return;
     }
@@ -24475,6 +24479,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         key == LogicalKeyboardKey.home ||
         key == LogicalKeyboardKey.end ||
         key == LogicalKeyboardKey.enter ||
+      key == LogicalKeyboardKey.delete ||
+      key == LogicalKeyboardKey.backspace ||
         key == LogicalKeyboardKey.escape;
   }
 
@@ -24496,6 +24502,11 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       if (imageId != null) {
         _openImageLayerPanelRowEditDialog(imageId);
       }
+      return true;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.delete ||
+        event.logicalKey == LogicalKeyboardKey.backspace) {
+      _deleteActiveImageFromLayerPanel();
       return true;
     }
     final items = fortuneImageLayerPanelItems(_workbook.activeSheet.images);
@@ -24988,6 +24999,58 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       filterDropdownColumn = null;
       _sheetTabMenuSheetIndex = null;
       toolbarPopupKey = null;
+    });
+    return true;
+  }
+
+  bool _deleteActiveImageFromLayerPanel() {
+    if (!_imageLayerPanelOpen) {
+      return false;
+    }
+    final activeImageId = _activeImageId;
+    if (activeImageId == null) {
+      return false;
+    }
+    final sheet = _workbook.activeSheet;
+    if (!_canEditRange(sheet, _currentSelectionRange(sheet))) {
+      setState(_closeTransientMenus);
+      return true;
+    }
+    final items = fortuneImageLayerPanelItems(sheet.images);
+    final currentIndex = items.indexWhere((image) => image.id == activeImageId);
+    final images = [
+      for (final image in sheet.images)
+        if (image.id != activeImageId) image,
+    ];
+    if (images.length == sheet.images.length) {
+      return true;
+    }
+    final nextItems = fortuneImageLayerPanelItems(images);
+    final nextActiveImageId = nextItems.isEmpty
+        ? null
+        : nextItems[math.min(math.max(0, currentIndex), nextItems.length - 1)]
+            .id;
+    _recordUndoSnapshot();
+    final sheets = [..._workbook.sheets];
+    sheets[_workbook.activeSheetIndex] = sheet.copyWith(images: images);
+    setState(() {
+      _workbook = _workbook.copyWith(sheets: sheets);
+      _activeImageId = nextActiveImageId;
+      _cancelImageResize();
+      _cancelImageMove();
+      _cancelImageLayerPanelScrollbarDrag();
+      _cancelImageLayerPanelRowDrag();
+      contextMenuAt = null;
+      _contextMenuImageId = null;
+      sheetTabMenuAt = null;
+      hiddenSheetListAt = null;
+      filterDropdownColumn = null;
+      _sheetTabMenuSheetIndex = null;
+      toolbarPopupKey = null;
+      _imageLayerPanelOpen = images.isNotEmpty;
+      _imageLayerPanelScrollOffset = nextActiveImageId == null
+          ? 0
+          : _imageLayerPanelScrollOffsetToRevealActive();
     });
     return true;
   }

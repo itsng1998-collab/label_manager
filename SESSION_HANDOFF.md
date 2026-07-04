@@ -27,6 +27,21 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-04): 이미지/바코드 레이어 패널 삭제 조작 추가
+
+목적: 레이어 패널에서 선택된 이미지/바코드를 패널을 닫지 않고 삭제하고, 남은 다음 row 선택으로 이어갈 수 있게 한다.
+- 변경 예정: 기존 이미지 삭제 경로를 재사용하되 삭제 후 레이어 패널 선택/스크롤 상태를 유지하는 helper를 추가한다.
+- 변경: `fortune_sheet_painter.dart`에 이미지 삭제 command/라벨과 레이어 패널 header 삭제 버튼, 선택 이미지 툴바 삭제 항목을 추가.
+- 변경: `fortune_sheet_canvas.dart`에 `_deleteActiveImageFromLayerPanel`을 추가하고 레이어 패널 삭제 버튼 및 Delete/Backspace 키를 연결. 삭제 후 다음 row를 선택하고 목록이 비면 패널을 닫는다.
+- 검증: `C:\Flutter\bin\flutter.bat analyze third_party\fortune_sheet\lib\src\fortune_sheet_canvas.dart third_party\fortune_sheet\lib\src\fortune_sheet_painter.dart --no-fatal-warnings --no-fatal-infos` 통과.
+- 테스트 추가: `fortune_barcode_dialog_test.dart`에 레이어 패널 삭제 버튼과 Delete 키로 선택 객체가 삭제되고 다음 row가 선택되는지 검증하는 케이스 추가.
+- 검증: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --plain-name "image layer panel delete action removes selected row"` 통과.
+- 검증: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --plain-name "image layer panel delete key removes selected row"` 통과.
+- 검증: `C:\Flutter\bin\flutter.bat analyze third_party\fortune_sheet\lib\src\fortune_sheet_canvas.dart third_party\fortune_sheet\lib\src\fortune_sheet_painter.dart third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --no-fatal-warnings --no-fatal-infos` 통과.
+- 검증: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart` 통과(40 tests).
+- 검증: `git diff --check` 통과.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`, `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`, `third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart`. 기존 사용자 변경 `lib/core/app.dart`는 제외.
+
 ### 완료 (2026-07-04): 엑셀 import 저장 포맷 정규화 연결
 
 목적: 라벨 시트 저장 포맷 변경 시 `.lms`뿐 아니라 라벨 파일에서 가져오기의 엑셀 변환 결과도 현재 포맷으로 문제 없이 처리되도록 한다.
