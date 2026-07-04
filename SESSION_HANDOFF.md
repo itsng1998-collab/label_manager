@@ -34,6 +34,7 @@
 - 테스트: `test/swipe_action_table_test.dart`에 액션 레일 open 동안 row tooltip이 숨겨지고, close 후 다시 나타나는 케이스 추가.
 - 검증: `dart format lib/widgets/swipe_action_table.dart test/swipe_action_table_test.dart`, `C:\Flutter\bin\flutter.bat analyze lib\widgets\swipe_action_table.dart test\swipe_action_table_test.dart --no-fatal-warnings --no-fatal-infos` 통과, `C:\Flutter\bin\flutter.bat test test\swipe_action_table_test.dart test\label_size_cache_test.dart` 23개 통과, `git diff --check -- SESSION_HANDOFF.md lib\widgets\swipe_action_table.dart test\swipe_action_table_test.dart` 통과.
 - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/widgets/swipe_action_table.dart`, `test/swipe_action_table_test.dart`. 기존 사용자 변경 `lib/core/app.dart`는 제외.
+- 커밋: `bfece4a` (`액션 레일 중 테이블 툴팁 비활성화`).
 
 ### 완료 (2026-07-04): 인라인 에디터 중 테이블 툴팁 비활성화
 
