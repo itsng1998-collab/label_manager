@@ -37,6 +37,7 @@
 - 검증: `dart format lib/page_label_sheet/label_sheet_save_codec.dart lib/page_label_sheet/label_sheet_workbench.dart test/label_sheet_toolbar_test.dart`, `C:\Flutter\bin\flutter.bat analyze lib\page_label_sheet\label_sheet_save_codec.dart lib\page_label_sheet\label_sheet_workbench.dart test\label_sheet_toolbar_test.dart --no-fatal-warnings --no-fatal-infos` 통과, `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "label sheet save codec"` 3개 통과, `git diff --check -- SESSION_HANDOFF.md lib\page_label_sheet\label_sheet_save_codec.dart lib\page_label_sheet\label_sheet_workbench.dart test\label_sheet_toolbar_test.dart` 통과.
 - 단계 3: 이후 `SheetObject/zOrder/textBox/shape` 저장 포맷 추가 시 같은 마이그레이션 레이어에 feature key 기준 변환을 누적한다.
 - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/page_label_sheet/label_sheet_save_codec.dart`, `lib/page_label_sheet/label_sheet_workbench.dart`, `test/label_sheet_toolbar_test.dart`. 기존 사용자 변경 `lib/core/app.dart`는 제외.
+- 커밋: `f520075` (`라벨 시트 저장 포맷 로드 마이그레이션 추가`).
 
 ### 보류 (2026-07-04): 이미지/바코드 우클릭 수정 메뉴 전환
 
