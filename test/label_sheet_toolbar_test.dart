@@ -479,6 +479,39 @@ void main() {
     expect(decoded.sheets.single.images.single.id, 'img_bytes');
   });
 
+  test('label sheet save codec normalization keeps external imports current', () {
+    final workbook = FortuneWorkbook(
+      sheets: [
+        FortuneSheet(
+          id: 's1',
+          name: 'ExternalImport',
+          rowCount: 1,
+          columnCount: 1,
+          images: const [
+            FortuneImage(
+              id: 'img_imported',
+              src: 'data:image/png;base64,abc',
+              left: 1,
+              top: 2,
+              width: 30,
+              height: 40,
+            ),
+          ],
+        ),
+      ],
+    );
+
+    final normalized = labelSheetNormalizeWorkbookForCurrentSaveFormat(workbook);
+    final resavedJson = _decodeLabelSheetSaveWorkbookJson(
+      labelSheetEncodeWorkbookSave(normalized),
+    );
+    final resavedSheet = (resavedJson['data'] as List).single as Map;
+
+    expect(normalized.sheets.single.images.single.id, 'img_imported');
+    expect(resavedSheet.containsKey('image'), isFalse);
+    expect(resavedSheet['images'], isA<List>());
+  });
+
   test('label image import clears sheet before applying draft', () {
     final sheet = FortuneSheet(
       id: 's1',

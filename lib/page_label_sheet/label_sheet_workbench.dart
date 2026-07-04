@@ -2686,7 +2686,9 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
         'label sheet import read xlsx by extension bytes=${bytes.length}',
         skipFrames: 1,
       );
-      return labelSheetWorkbookFromXlsxBytes(bytes);
+      return labelSheetNormalizeWorkbookForCurrentSaveFormat(
+        labelSheetWorkbookFromXlsxBytes(bytes),
+      );
     }
     if (extension == '.lms') {
       debugLog('label sheet import read lms by extension', skipFrames: 1);
@@ -2699,7 +2701,9 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     );
     if (labelSheetLooksLikeXlsx(bytes)) {
       debugLog('label sheet import detected xlsx by bytes', skipFrames: 1);
-      return labelSheetWorkbookFromXlsxBytes(bytes);
+      return labelSheetNormalizeWorkbookForCurrentSaveFormat(
+        labelSheetWorkbookFromXlsxBytes(bytes),
+      );
     }
     debugLog(
       'label sheet import fallback to lms decode by bytes',

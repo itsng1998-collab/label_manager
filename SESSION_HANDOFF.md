@@ -22,10 +22,20 @@
 - 기존 unrelated dirty 파일은 staging/commit에서 제외한다.
 - 배포파일 작성(`flutter build windows --release`, `inno_setup_installer.ps1`, installer EXE/ZIP 생성 등)은 사용자가 명시적으로 요청할 때만 실행한다. 일반 작업 완료 검증에서는 자동으로 배포 패키징까지 진행하지 않는다.
 - 솔루션 루트 구조나 로컬 패키지 경로를 바꾸면 이 파일에 변경 경로와 검증 명령을 기록한다. Git 상태와 커밋 정보도 함께 갱신한다.
-- 라벨 시트 저장 포맷을 수정할 때는 `lib/page_label_sheet/label_sheet_save_codec.dart`의 `_labelSheetSaveFeatureKeys`에 항목별 feature key를 추가/정렬해 `labelSheetSaveFormatVersion`과 `labelSheetSaveFeatureVersions`가 자동 산출되도록 유지한다. 새로 지원하는 workbook/sheet/config/cell/cellType/inlineRun JSON 필드는 같은 파일의 allow-list 및 `labelSheetSanitizeWorkbookSaveJson` 경로에 반드시 반영하고, 상위 버전 payload가 지원 필드만 best-effort 로드하고 unknown 필드는 재저장 시 버려지는 테스트를 갱신한다.
+- 라벨 시트 저장 포맷을 수정할 때는 `lib/page_label_sheet/label_sheet_save_codec.dart`의 `_labelSheetSaveFeatureKeys`에 항목별 feature key를 추가/정렬해 `labelSheetSaveFormatVersion`과 `labelSheetSaveFeatureVersions`가 자동 산출되도록 유지한다. 새로 지원하는 workbook/sheet/config/cell/cellType/inlineRun JSON 필드는 같은 파일의 allow-list 및 `labelSheetSanitizeWorkbookSaveJson` 경로에 반드시 반영한다. 구/외부 포맷 호환은 `labelSheetMigrateWorkbookSaveJson`과 `labelSheetNormalizeWorkbookForCurrentSaveFormat`에 함께 반영하고, `.lms` 초기 로드/라벨 파일에서 불러오기/`.xlsx` import가 모두 현재 포맷으로 처리되는 테스트를 갱신한다.
 - Godex G500 같은 라벨 프린터에서 정밀한 인쇄가 핵심이면 일반 프린터 경로와 직접 출력 경로를 분리한다. 직접 출력은 처음부터 모든 스타일을 100% EZPL 명령만으로 처리하기보다 `정밀 좌표 엔진 + EZPL 명령 + 셀 bitmap fallback` 구조를 우선한다. 테두리/선/박스와 바코드는 가능한 한 EZPL 명령으로 출력하고, 화면 폰트와 프린터 폰트 차이로 1:1 보장이 어려운 복합 스타일 텍스트/이미지/배경/RTF 계열 셀은 셀 단위 bitmap fallback을 사용해 시각적 일치도를 확보한다.
 
 ## 현재 상태
+
+### 완료 (2026-07-04): 엑셀 import 저장 포맷 정규화 연결
+
+목적: 라벨 시트 저장 포맷 변경 시 `.lms`뿐 아니라 라벨 파일에서 가져오기의 엑셀 변환 결과도 현재 포맷으로 문제 없이 처리되도록 한다.
+- 변경: `labelSheetNormalizeWorkbookForCurrentSaveFormat`를 추가해 외부 포맷에서 직접 생성한 `FortuneWorkbook`도 현재 저장 포맷 마이그레이션/sanitize 경로를 통과하게 함.
+- 변경: 라벨 파일에서 가져오기에서 `.xlsx` 확장자 및 xlsx byte 감지 경로가 `labelSheetWorkbookFromXlsxBytes` 결과를 `labelSheetNormalizeWorkbookForCurrentSaveFormat`로 정규화하도록 연결.
+- 코드 명시: `labelSheetNormalizeWorkbookForCurrentSaveFormat` 주석에 저장 포맷 변경 시 feature key, sanitizer allow-list, migration, `.lms`/`.xlsx` 테스트를 함께 갱신해야 함을 기록.
+- 테스트: `test/label_sheet_toolbar_test.dart`에 외부 import workbook 정규화 후 현재 `images` 키로 재저장되는 케이스 추가.
+- 검증: `dart format lib/page_label_sheet/label_sheet_save_codec.dart lib/page_label_sheet/label_sheet_workbench.dart test/label_sheet_toolbar_test.dart`, `C:\Flutter\bin\flutter.bat analyze lib\page_label_sheet\label_sheet_save_codec.dart lib\page_label_sheet\label_sheet_workbench.dart test\label_sheet_toolbar_test.dart --no-fatal-warnings --no-fatal-infos` 통과, `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "label sheet save codec"` 4개 통과.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `lib/page_label_sheet/label_sheet_save_codec.dart`, `lib/page_label_sheet/label_sheet_workbench.dart`, `test/label_sheet_toolbar_test.dart`. 기존 사용자 변경 `lib/core/app.dart`는 제외.
 
 ### 완료 (2026-07-04): 라벨 시트 저장 포맷 로드 마이그레이션
 

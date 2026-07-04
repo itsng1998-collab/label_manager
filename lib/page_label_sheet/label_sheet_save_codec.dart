@@ -587,6 +587,31 @@ FortuneWorkbook? labelSheetTryDecodeWorkbookSave(String? encoded) {
   }
 }
 
+/// Normalizes imported workbooks to the current label-sheet save shape.
+///
+/// Every non-`.lms` import path that creates a [FortuneWorkbook] directly
+/// (xlsx, future external formats, generated drafts) must pass through this
+/// before it is applied to the workbench. When the save format changes, add the
+/// feature key, sanitizer allow-list entries, migration step, and tests here so
+/// all import paths stay current together.
+FortuneWorkbook labelSheetNormalizeWorkbookForCurrentSaveFormat(
+  FortuneWorkbook workbook,
+) {
+  final workbookJson = FortuneSheetCodec.workbookToJson(workbook);
+  final migratedJson = labelSheetMigrateWorkbookSaveJson(
+    Map<String, Object?>.from(workbookJson),
+    manifest: {
+      'format': labelSheetSaveFormat,
+      'version': labelSheetSaveFormatVersion,
+      'features': labelSheetSaveFeatureVersions,
+      'codec': 'fortune-sheet-json',
+    },
+  );
+  return FortuneSheetCodec.workbookFromJson(
+    labelSheetSanitizeWorkbookSaveJson(migratedJson),
+  );
+}
+
 ArchiveFile? _archiveFile(Archive archive, String name) {
   for (final file in archive.files) {
     if (file.name == name && file.isFile) {
