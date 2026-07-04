@@ -541,6 +541,11 @@ class _LabelSheetSaveBounds {
 }
 
 FortuneWorkbook labelSheetDecodeWorkbookSave(String encoded) {
+  return labelSheetDecodeWorkbookSaveBytes(utf8.encode(encoded.trim()));
+}
+
+FortuneWorkbook labelSheetDecodeWorkbookSaveBytes(List<int> encodedBytes) {
+  final encoded = utf8.decode(encodedBytes).trim();
   final archive = ZipDecoder().decodeBytes(base64Decode(encoded.trim()));
   final manifestFile = _archiveFile(archive, 'manifest.json');
   final workbookFile = _archiveFile(archive, 'workbook.json');
@@ -562,8 +567,12 @@ FortuneWorkbook labelSheetDecodeWorkbookSave(String encoded) {
   if (workbookJson is! Map) {
     throw const FormatException('Invalid label sheet workbook payload');
   }
+  final migratedJson = labelSheetMigrateWorkbookSaveJson(
+    Map<String, Object?>.from(workbookJson),
+    manifest: Map<String, Object?>.from(manifest),
+  );
   return FortuneSheetCodec.workbookFromJson(
-    labelSheetSanitizeWorkbookSaveJson(Map<String, Object?>.from(workbookJson)),
+    labelSheetSanitizeWorkbookSaveJson(migratedJson),
   );
 }
 
@@ -603,6 +612,79 @@ Map<String, Object?> labelSheetSanitizeWorkbookSaveJson(
     }
     return _cloneSupportedSaveValue(value);
   });
+}
+
+Map<String, Object?> labelSheetMigrateWorkbookSaveJson(
+  Map<String, Object?> json, {
+  Map<String, Object?> manifest = const <String, Object?>{},
+}) {
+  final sourceVersion = _intLike(manifest['version']) ?? 0;
+  final sourceFeatures = _featureVersions(manifest['features']);
+  final migrated = _cloneStringObjectMap(json);
+  _migrateLegacySheetImageKey(
+    migrated,
+    sourceVersion: sourceVersion,
+    sourceFeatures: sourceFeatures,
+  );
+  return migrated;
+}
+
+void _migrateLegacySheetImageKey(
+  Map<String, Object?> workbookJson, {
+  required int sourceVersion,
+  required Map<String, int> sourceFeatures,
+}) {
+  final sheetImagesFeatureVersion =
+      labelSheetSaveFeatureVersions['sheet.images'] ?? labelSheetSaveFormatVersion;
+  final currentImagesFeatureKnown =
+      sourceVersion >= sheetImagesFeatureVersion &&
+      sourceFeatures.containsKey('sheet.images');
+  final sheets = workbookJson['data'];
+  if (sheets is! List) {
+    return;
+  }
+  for (final sheet in sheets) {
+    if (sheet is! Map) {
+      continue;
+    }
+    final sheetJson = Map<String, Object?>.from(sheet);
+    if (!sheetJson.containsKey('images') && sheetJson.containsKey('image')) {
+      sheet['images'] = _cloneSupportedSaveValue(sheetJson['image']);
+    }
+    if (!currentImagesFeatureKnown || sheetJson.containsKey('image')) {
+      sheet.remove('image');
+    }
+  }
+}
+
+int? _intLike(Object? value) {
+  if (value is int) {
+    return value;
+  }
+  if (value is num) {
+    return value.toInt();
+  }
+  if (value is String) {
+    return int.tryParse(value);
+  }
+  return null;
+}
+
+Map<String, int> _featureVersions(Object? value) {
+  if (value is! Map) {
+    return const <String, int>{};
+  }
+  return {
+    for (final entry in value.entries)
+      if (_intLike(entry.value) != null) '${entry.key}': _intLike(entry.value)!,
+  };
+}
+
+Map<String, Object?> _cloneStringObjectMap(Map<String, Object?> value) {
+  return {
+    for (final entry in value.entries)
+      entry.key: _cloneSupportedSaveValue(entry.value),
+  };
 }
 
 Map<String, Object?> _sanitizeSheetJson(Map<String, Object?> json) {

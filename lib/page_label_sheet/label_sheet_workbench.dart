@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
@@ -2691,7 +2690,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     }
     if (extension == '.lms') {
       debugLog('label sheet import read lms by extension', skipFrames: 1);
-      return labelSheetDecodeWorkbookSave(await file.readAsString());
+      return labelSheetDecodeWorkbookSaveBytes(await file.readAsBytes());
     }
     final bytes = await file.readAsBytes();
     debugLog(
@@ -2706,7 +2705,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       'label sheet import fallback to lms decode by bytes',
       skipFrames: 1,
     );
-    return labelSheetDecodeWorkbookSave(utf8.decode(bytes));
+    return labelSheetDecodeWorkbookSaveBytes(bytes);
   }
 
   String _importedLabelFileExtension(XFile file) {

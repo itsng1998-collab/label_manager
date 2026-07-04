@@ -391,6 +391,94 @@ void main() {
     expect(resavedRun.containsKey('futureInlineRunField'), isFalse);
   });
 
+  test('label sheet save codec migrates legacy image key to images', () {
+    final workbookJson = FortuneSheetCodec.workbookToJson(
+      FortuneWorkbook(
+        sheets: [
+          FortuneSheet(
+            id: 's1',
+            name: 'LegacyImage',
+            rowCount: 2,
+            columnCount: 2,
+          ),
+        ],
+      ),
+    );
+    final sheetJson = (workbookJson['data'] as List).single as Map;
+    sheetJson.remove('images');
+    sheetJson['image'] = [
+      {
+        'id': 'img_legacy',
+        'src': 'data:image/png;base64,abc',
+        'left': 1,
+        'top': 2,
+        'width': 30,
+        'height': 40,
+      },
+    ];
+
+    final encoded = _encodeLabelSheetSaveArchive(
+      manifest: {
+        'format': labelSheetSaveFormat,
+        'version': 1,
+        'features': const <String, Object?>{},
+        'encoding': 'base64',
+        'compression': 'zip-deflate',
+        'codec': 'fortune-sheet-json',
+      },
+      workbookJson: Map<String, Object?>.from(workbookJson),
+    );
+
+    final decoded = labelSheetDecodeWorkbookSave(encoded);
+
+    expect(decoded.sheets.single.images.single.id, 'img_legacy');
+
+    final resavedJson = _decodeLabelSheetSaveWorkbookJson(
+      labelSheetEncodeWorkbookSave(decoded),
+    );
+    final resavedSheet = (resavedJson['data'] as List).single as Map;
+    expect(resavedSheet.containsKey('image'), isFalse);
+    expect(resavedSheet['images'], isA<List>());
+    expect(((resavedSheet['images'] as List).single as Map)['id'], 'img_legacy');
+  });
+
+  test('label sheet save codec migrates legacy image key through bytes decoder', () {
+    final encoded = _encodeLabelSheetSaveArchive(
+      manifest: {
+        'format': labelSheetSaveFormat,
+        'version': 1,
+        'features': const <String, Object?>{},
+        'encoding': 'base64',
+        'compression': 'zip-deflate',
+        'codec': 'fortune-sheet-json',
+      },
+      workbookJson: {
+        'data': [
+          {
+            'id': 's1',
+            'name': 'BytesImport',
+            'row': 1,
+            'column': 1,
+            'image': [
+              {
+                'id': 'img_bytes',
+                'src': 'data:image/png;base64,abc',
+                'left': 1,
+                'top': 2,
+                'width': 30,
+                'height': 40,
+              },
+            ],
+          },
+        ],
+      },
+    );
+
+    final decoded = labelSheetDecodeWorkbookSaveBytes(utf8.encode(encoded));
+
+    expect(decoded.sheets.single.images.single.id, 'img_bytes');
+  });
+
   test('label image import clears sheet before applying draft', () {
     final sheet = FortuneSheet(
       id: 's1',

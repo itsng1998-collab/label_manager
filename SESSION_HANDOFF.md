@@ -27,6 +27,24 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-04): 라벨 시트 저장 포맷 로드 마이그레이션
+
+목적: 라벨 시트 저장 포맷이 변경될 때 구버전 `.lms`를 불러오면 현재 진행 중인 포맷으로 변환한 뒤 내부 처리/재저장되도록 한다.
+- 변경: 디코드 시 manifest `version/features`와 workbook JSON을 함께 받아 `labelSheetMigrateWorkbookSaveJson`을 통과한 뒤 sanitize/`FortuneSheetCodec.workbookFromJson`을 수행하도록 변경.
+- 변경: 기존 호환 키 `image`를 현재 키 `images`로 승격하고 `image`를 제거해 구버전 이미지 저장 포맷이 현재 포맷으로 재저장되도록 구성.
+- 변경: `labelSheetDecodeWorkbookSaveBytes`를 추가하고 라벨 파일에서 불러오기(`.lms` 확장자 및 unknown fallback)도 bytes 기반 중앙 decoder를 호출하게 해 동일 마이그레이션을 적용.
+- 테스트: `test/label_sheet_toolbar_test.dart`에 구형 `image` 키 저장 파일을 문자열/bytes decoder로 로드하고 현재 `images` 키로 처리되는 케이스 추가.
+- 검증: `dart format lib/page_label_sheet/label_sheet_save_codec.dart lib/page_label_sheet/label_sheet_workbench.dart test/label_sheet_toolbar_test.dart`, `C:\Flutter\bin\flutter.bat analyze lib\page_label_sheet\label_sheet_save_codec.dart lib\page_label_sheet\label_sheet_workbench.dart test\label_sheet_toolbar_test.dart --no-fatal-warnings --no-fatal-infos` 통과, `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "label sheet save codec"` 3개 통과, `git diff --check -- SESSION_HANDOFF.md lib\page_label_sheet\label_sheet_save_codec.dart lib\page_label_sheet\label_sheet_workbench.dart test\label_sheet_toolbar_test.dart` 통과.
+- 단계 3: 이후 `SheetObject/zOrder/textBox/shape` 저장 포맷 추가 시 같은 마이그레이션 레이어에 feature key 기준 변환을 누적한다.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `lib/page_label_sheet/label_sheet_save_codec.dart`, `lib/page_label_sheet/label_sheet_workbench.dart`, `test/label_sheet_toolbar_test.dart`. 기존 사용자 변경 `lib/core/app.dart`는 제외.
+
+### 보류 (2026-07-04): 이미지/바코드 우클릭 수정 메뉴 전환
+
+목적: 라벨 시트에서 이미지/바코드 오브젝트 우클릭 시 속성 다이얼로그로 바로 진입하지 않고 `이미지 수정`/`바코드 수정` 컨텍스트 메뉴를 먼저 표시한다.
+- 장기 구현 순서: 1) 이미지/바코드 우클릭 메뉴화, 2) 공통 `SheetObject`/레이어 모델 설계(`image`, `barcode`, `textBox`, `shape.line/rectangle/ellipse`), 3) 공통 `zOrder` 렌더/저장 적용, 4) 우클릭 메뉴에 앞으로/뒤로/맨앞/맨뒤 명령 추가, 5) 선택 플로팅 툴바 추가, 6) 접이식 레이어 패널과 겹친 오브젝트 선택(`Tab` 순환/겹친 항목 선택) 추가.
+- 수정 예정: `fortune_sheet`의 이미지 히트테스트 우클릭 경로를 메뉴 표시로 바꾸고, 메뉴 명령 선택 시 기존 이미지/바코드 수정 다이얼로그를 호출한다.
+- 보류 사유: 사용자 요청이 저장 포맷 마이그레이션으로 전환되어 코드 변경 전 중단. 재개 시 위 수정 예정 범위부터 진행.
+
 ### 완료 (2026-07-04): SwipeActionTable 마우스/터치 드래그 스크롤 허용
 
 목적: `lib/widgets/swipe_action_table.dart`를 공통으로 사용하는 테이블에서 별도 플래그로 막지 않는 한 마우스/터치 상하 드래그로 기본 세로 스크롤이 되도록 한다.
