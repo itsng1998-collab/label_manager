@@ -34,6 +34,7 @@
 - 변경: 라벨 설정 다이얼로그 콘텐츠 영역을 `KeyedSubtree`로 감싸 브랜드 메뉴 경계로 전달했다. 항목 전체 높이가 들어가면 스크롤 없이 끝나고, 경계 내 높이가 부족할 때만 스크롤된다.
 - 검증: `dart format lib/home_page_manager.dart`, `C:\Flutter\bin\flutter.bat analyze lib\home_page_manager.dart --no-fatal-warnings --no-fatal-infos` 통과, `C:\Flutter\bin\flutter.bat test test\swipe_action_table_test.dart test\label_size_cache_test.dart` 21개 통과, `git diff --check -- SESSION_HANDOFF.md lib\home_page_manager.dart` 통과.
 - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/home_page_manager.dart`. 기존 사용자 변경 `lib/core/app.dart`는 제외.
+- 커밋: `d771348` (`라벨 설정 브랜드 메뉴 높이 보정`).
 
 ### 완료 (2026-07-04): 라벨 설정 브랜드 드롭다운 Overlay 직접 표시
 
