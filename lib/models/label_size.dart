@@ -8,6 +8,7 @@ import 'package:label_manager/utils/log_context.dart';
 import 'package:r_get_ip/r_get_ip.dart';
 import 'dao.dart';
 import 'date_manager.dart';
+import 'last_connect.dart';
 import 'user.dart';
 
 class LabelSizeCommon {
@@ -473,15 +474,43 @@ class LabelSizeDAO extends DAO {
 
     try {
       final deleteSql = '''
-        DELETE FROM BM_RICH_LABELSIZE_FORM
-         WHERE RICH_LABELSIZE_ID=@labelSizeId
+        SET XACT_ABORT ON;
+        SET NOCOUNT ON;
+        BEGIN TRY
+          DECLARE @labelSizeAffected INT = 0;
+
+          BEGIN TRANSACTION;
+
+          ${LastConnectDAO.DeleteSqlByLabelSizeId};
+
+          DELETE FROM BM_RICH_LABELSIZE_FORM
+           WHERE RICH_LABELSIZE_ID=@labelSizeId;
+          SET @labelSizeAffected = @@ROWCOUNT;
+
+          IF @labelSizeAffected <= 0
+            THROW 51020, 'Delete label size failed.', 1;
+
+          COMMIT TRANSACTION;
+          SET NOCOUNT OFF;
+          SET XACT_ABORT OFF;
+
+          SELECT @labelSizeAffected AS AFFECTED;
+        END TRY
+        BEGIN CATCH
+          IF @@TRANCOUNT > 0
+            ROLLBACK TRANSACTION;
+          SET NOCOUNT OFF;
+          SET XACT_ABORT OFF;
+          THROW;
+        END CATCH
       ''';
 
       final res = await DbClient.instance.writeDataWithParams(deleteSql, {
         'labelSizeId': labelSizeId,
       });
 
-      final affected = DAO.affectedRows(res);
+      final row = DAO.getRowMapFromResult(res);
+      final affected = int.tryParse((row?['AFFECTED'] ?? '0').toString()) ?? 0;
       final succeeded = affected > 0;
 
       if (!succeeded) {

@@ -27,6 +27,15 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-04): 라벨 삭제 LastConnect/LabelSize 단일 트랜잭션 통합
+
+목적: `lib/home_page_manager.dart`의 라벨 삭제가 레거시 `CLabelSizeManagerDlg::OnBnClickedBtnDeleteLabelSize()`와 같은 순서(`CLastConnectDAO::DeleteByLabelSizeID` 후 `CLabelSizeDAO::Delete`)로 동작하되, Dart에서는 `LabelSizeDAO.deleteByLabelSizeId` 안에서 `BM_RICH_LAST_ID` 삭제와 `BM_RICH_LABELSIZE_FORM` 삭제를 하나의 DB 트랜잭션으로 처리하도록 수정한다.
+- `lib/models/last_connect.dart`: `LastConnectDAO.DeleteSqlByLabelSizeId` SQL 상수 추가. public `deleteByLabelSizeId`도 같은 SQL을 사용하도록 변경.
+- `lib/models/label_size.dart`: `last_connect.dart` import 추가. `LabelSizeDAO.deleteByLabelSizeId`에서 `SET XACT_ABORT ON` 트랜잭션 안에 `LastConnectDAO.DeleteSqlByLabelSizeId`와 `BM_RICH_LABELSIZE_FORM` 삭제를 함께 실행. 첫 LastConnect 삭제가 0건이어도 실패하지 않도록 `SET NOCOUNT ON`을 사용하고, 라벨 삭제 rowcount는 `SELECT @labelSizeAffected AS AFFECTED`로 반환해 검증.
+- `lib/home_page_manager.dart`: 라벨 삭제 호출은 이미 `LabelSizeDAO.deleteByLabelSizeId(label.labelSizeId)` 단일 호출이라 코드 변경 없음.
+- 검증 완료: `dart format` 3파일 성공, `C:\Flutter\bin\flutter.bat analyze lib\home_page_manager.dart lib\models\label_size.dart lib\models\last_connect.dart --no-fatal-warnings --no-fatal-infos` No issues, `C:\Flutter\bin\flutter.bat test test\swipe_action_table_test.dart test\label_size_cache_test.dart` 21개 성공, `git diff --check -- SESSION_HANDOFF.md lib\home_page_manager.dart lib\models\label_size.dart lib\models\last_connect.dart` 통과.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `lib/models/label_size.dart`, `lib/models/last_connect.dart`. 기존 dirty `lib/core/app.dart`는 제외.
+
 ### 완료 (2026-07-04): 브랜드 삭제 LastConnect/Brand 단일 트랜잭션 통합
 
 목적: `lib/home_page_manager.dart`에서 `LastConnectDAO.deleteByBrandId`와 `BrandDAO.deleteByBrandId`를 분리 호출하던 구조를 없애고, `BrandDAO.deleteByBrandId` 안에서 `BM_RICH_LAST_ID` 삭제와 `BM_RICH_BRAND` 삭제가 하나의 DB 트랜잭션으로 처리되도록 수정한다.

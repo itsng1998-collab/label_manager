@@ -60,6 +60,11 @@ class LastConnectDAO extends DAO {
      WHERE RICH_LAST_BRAND_ID=@brandId
   ''';
 
+  static const String DeleteSqlByLabelSizeId = '''
+    DELETE FROM BM_RICH_LAST_ID
+     WHERE RICH_LAST_SIZE_ID=@labelSizeId
+  ''';
+
   static Future<LastConnect?> selectByUserId(String userId) async {
     debugLog('$START, userId:$userId');
 
@@ -189,8 +194,8 @@ class LastConnectDAO extends DAO {
     debugLog('$START, labelSizeId:$labelSizeId');
 
     try {
-      await _deleteByWhere(
-        WhereSqlLabelSizeId,
+      await _deleteBySql(
+        DeleteSqlByLabelSizeId,
         {'labelSizeId': labelSizeId},
       );
       debugLog(END);
