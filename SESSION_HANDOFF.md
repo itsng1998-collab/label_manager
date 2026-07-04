@@ -33,6 +33,7 @@
 - 변경: `lib/home_page_manager.dart`의 `_DropdownField`에서 enabled 상태를 공통 계산하고, `InputDecoration.filled/fillColor`를 `Colors.white`/`Color(0xFFE9ECEF)`로 명시해 `_ModelessDropdownField`와 배경색을 맞춤.
 - 검증: `dart format lib/home_page_manager.dart`, `C:\Flutter\bin\flutter.bat analyze lib\home_page_manager.dart --no-fatal-warnings --no-fatal-infos` 통과, `C:\Flutter\bin\flutter.bat test test\widget_test.dart` 통과, `git diff --check -- SESSION_HANDOFF.md lib\home_page_manager.dart` 통과.
 - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/home_page_manager.dart`. 기존 사용자 변경 `lib/core/app.dart`는 제외.
+- 커밋: `751759e` (`헤더 드롭다운 배경색 통일`).
 
 ### 완료 (2026-07-04): 액션 레일 열린 동안 테이블 툴팁 비활성화
 
