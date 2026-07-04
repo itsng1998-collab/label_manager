@@ -168,7 +168,7 @@ class _LoginHistoryPageState extends State<LoginHistoryPage> {
           label: '거래처 이름',
           value: _selectedCompany,
           items: {
-            if (_selectedCompany != null) _selectedCompany!,
+            ?_selectedCompany,
             '한길만푸드 250731',
             '미소식품 251012',
             '그린유통 250991',
@@ -181,7 +181,7 @@ class _LoginHistoryPageState extends State<LoginHistoryPage> {
           label: '협력 업체',
           value: _selectedPartner,
           items: {
-            if (_selectedPartner != null) _selectedPartner!,
+            ?_selectedPartner,
             '하이웨이엔지',
             '지노모터리스',
             '푸른빛테크',

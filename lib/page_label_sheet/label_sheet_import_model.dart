@@ -34,13 +34,13 @@ FortuneSheet labelSheetApplyImageImportDraft(
 }) {
   final rowCount = [
     draft.rowHeights.length,
-    if (sheet.rowCount != null) sheet.rowCount!,
-    if (minRowCount != null) minRowCount,
+    ?sheet.rowCount,
+    ?minRowCount,
   ].reduce((value, element) => value > element ? value : element);
   final columnCount = [
     draft.columnWidths.length,
-    if (sheet.columnCount != null) sheet.columnCount!,
-    if (minColumnCount != null) minColumnCount,
+    ?sheet.columnCount,
+    ?minColumnCount,
   ].reduce((value, element) => value > element ? value : element);
   return sheet.copyWith(
     rowCount: rowCount,

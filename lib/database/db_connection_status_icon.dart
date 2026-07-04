@@ -17,7 +17,7 @@ class DbConnectionStatusIcon extends StatelessWidget {
         builder: (context, up, _) {
           return ValueListenableBuilder<bool>(
             valueListenable: hub.reconnecting,
-            builder: (context, reconnecting, __) {
+            builder: (context, reconnecting, child) {
               Color color;
               IconData icon;
               String tip;

@@ -135,7 +135,11 @@ class BarcodeDataHelper {
     int sumOdd = 0, sumEven = 0;
     for (int i = 0; i < base12.length; i++) {
       final d = base12.codeUnitAt(i) - 48;
-      if ((i % 2) == 0) sumOdd += d; else sumEven += d; // i=0 => pos1 (odd)
+      if ((i % 2) == 0) {
+        sumOdd += d;
+      } else {
+        sumEven += d;
+      } // i=0 => pos1 (odd)
     }
     final total = sumOdd + 3 * sumEven;
     return (10 - (total % 10)) % 10;
@@ -146,7 +150,11 @@ class BarcodeDataHelper {
     int sumOdd = 0, sumEven = 0;
     for (int i = 0; i < base11.length; i++) {
       final d = base11.codeUnitAt(i) - 48;
-      if ((i % 2) == 0) sumOdd += d; else sumEven += d; // i=0 => pos1 (odd)
+      if ((i % 2) == 0) {
+        sumOdd += d;
+      } else {
+        sumEven += d;
+      } // i=0 => pos1 (odd)
     }
     final total = 3 * sumOdd + sumEven;
     return (10 - (total % 10)) % 10;
@@ -157,7 +165,11 @@ class BarcodeDataHelper {
     int sumOdd = 0, sumEven = 0;
     for (int i = 0; i < base7.length; i++) {
       final d = base7.codeUnitAt(i) - 48;
-      if ((i % 2) == 0) sumOdd += d; else sumEven += d;
+      if ((i % 2) == 0) {
+        sumOdd += d;
+      } else {
+        sumEven += d;
+      }
     }
     final total = 3 * sumOdd + sumEven;
     return (10 - (total % 10)) % 10;
