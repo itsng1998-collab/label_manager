@@ -2391,6 +2391,122 @@ void main() {
     expect(duplicate.extraFields[fortuneSheetObjectZOrderExtraKey], 3.0);
   });
 
+  testWidgets('image layer panel keyboard commands duplicate and move row', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    const settings = FortuneSettings();
+    final workbook = FortuneWorkbook(
+      settings: settings,
+      sheets: [
+        FortuneSheet(
+          id: 's1',
+          name: 'Sheet1',
+          images: [
+            for (var index = 1; index <= 2; index += 1)
+              FortuneImage(
+                id: 'image$index',
+                src: 'data:image/png;base64,${base64Encode(_transparentPng)}',
+                left: 0,
+                top: 0,
+                width: 50,
+                height: 50,
+                extraFields: {
+                  fortuneImageObjectIdExtraKey: '#IMAGE$index',
+                  fortuneSheetObjectZOrderExtraKey: index,
+                },
+              ),
+          ],
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SizedBox(
+          width: 900,
+          height: 700,
+          child: FortuneSheetCanvas(workbook: workbook),
+        ),
+      ),
+    );
+
+    FortuneSheetPainter painter() {
+      return tester
+          .widgetList<CustomPaint>(
+            find.descendant(
+              of: find.byType(FortuneSheetCanvas),
+              matching: find.byType(CustomPaint),
+            ),
+          )
+          .map((paint) => paint.painter)
+          .whereType<FortuneSheetPainter>()
+          .single;
+    }
+
+    final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
+    final imageRect = Rect.fromLTWH(
+      settings.rowHeaderWidth,
+      settings.effectiveToolbarHeight +
+          settings.effectiveFormulaBarHeight +
+          settings.columnHeaderHeight,
+      50,
+      50,
+    );
+    await tester.tapAt(topLeft + imageRect.center);
+    await tester.pump();
+
+    final layerButtonRect = fortuneActiveImageToolbarItemRect(
+      imageRect,
+      const Size(900, 700),
+      fortuneContextToggleLayerPanelCommand,
+      fortuneActiveImageToolbarItems(painter().workbook.activeSheet.images.last),
+    );
+    expect(layerButtonRect, isNotNull);
+
+    await tester.tapAt(topLeft + layerButtonRect!.center);
+    await tester.pump();
+    expect(painter().imageLayerPanelOpen, isTrue);
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyD);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pump();
+
+    var images = painter().workbook.activeSheet.images;
+    expect(images, hasLength(3));
+    final duplicateId = painter().activeImageId;
+    expect(duplicateId, isNotNull);
+    final duplicate = images.firstWhere((image) => image.id == duplicateId);
+    expect(duplicate.extraFields[fortuneImageObjectIdExtraKey], '#IMAGE3');
+    expect(duplicate.extraFields[fortuneSheetObjectZOrderExtraKey], 3.0);
+    expect(painter().imageLayerPanelOpen, isTrue);
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pump();
+
+    images = painter().workbook.activeSheet.images;
+    final imagesById = {for (final image in images) image.id: image};
+    expect(painter().activeImageId, duplicateId);
+    expect(
+      imagesById[duplicateId]!.extraFields[fortuneSheetObjectZOrderExtraKey],
+      2.0,
+    );
+    expect(
+      imagesById['image2']!.extraFields[fortuneSheetObjectZOrderExtraKey],
+      3.0,
+    );
+    expect(painter().imageLayerPanelOpen, isTrue);
+  });
+
   testWidgets('barcode context menu duplicate copies barcode metadata', (
     tester,
   ) async {

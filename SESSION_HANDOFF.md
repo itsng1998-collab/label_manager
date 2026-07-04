@@ -27,6 +27,21 @@
 
 ## 현재 상태
 
+### 진행 중 (2026-07-04): 이미지/바코드 레이어 패널 키보드 명령 추가
+
+목적: 레이어 패널에서 버튼 클릭 없이 키보드만으로 선택 객체 복제와 앞/뒤/맨앞/맨뒤 이동을 실행할 수 있게 한다.
+- 변경 예정: `fortune_sheet_canvas.dart`의 레이어 패널 key handler에 Ctrl/Meta+D 복제, Ctrl/Meta+ArrowUp/ArrowDown/Home/End 레이어 이동 명령을 추가하고 일반 sheet 단축키보다 우선 처리한다.
+- 변경: `fortune_sheet_canvas.dart`에 `_isImageLayerPanelCommandKeyEvent`/`_handleImageLayerPanelCommandKeyEvent`를 추가해 Ctrl/Meta+D 복제, Ctrl/Meta+ArrowUp/ArrowDown/Home/End 레이어 이동을 패널 open 상태에서 우선 처리.
+- 변경: 레이어 이동이 경계라 실제 zOrder가 바뀌지 않아도 `keepLayerPanelOpen`이면 패널을 닫지 않도록 `_moveContextImageLayer` 경계 처리를 보정.
+- 검증: `C:\Flutter\bin\flutter.bat analyze third_party\fortune_sheet\lib\src\fortune_sheet_canvas.dart --no-fatal-warnings --no-fatal-infos` 통과.
+- 테스트 추가: `fortune_barcode_dialog_test.dart`에 레이어 패널 open 상태에서 Ctrl+D가 복제하고 Ctrl+ArrowDown이 선택 객체를 뒤로 이동시키는지 검증하는 케이스 추가.
+- 검증: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --plain-name "image layer panel keyboard commands duplicate and move row"` 통과.
+- 검증: `C:\Flutter\bin\flutter.bat analyze third_party\fortune_sheet\lib\src\fortune_sheet_canvas.dart third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --no-fatal-warnings --no-fatal-infos` 통과.
+- 검증: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart` 통과(45 tests).
+- 검증: `git diff --check` 통과, VS Code 진단 `fortune_sheet_canvas.dart`/`fortune_barcode_dialog_test.dart` 오류 없음.
+- stage 예정: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`, `third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
+- 미검증: 커밋 필요.
+
 ### 완료 (2026-07-04): 이미지/바코드 레이어 패널 PageUp/PageDown 키 탐색 추가
 
 목적: 이미지/바코드가 많은 레이어 패널에서 키보드로 한 화면 단위 이동을 지원해 긴 목록 탐색 속도를 높인다.

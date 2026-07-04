@@ -24517,8 +24517,30 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         key == LogicalKeyboardKey.escape;
   }
 
+  bool _isImageLayerPanelCommandKeyEvent(KeyEvent event) {
+    if (!_imageLayerPanelOpen) {
+      return false;
+    }
+    final isShortcutPressed = HardwareKeyboard.instance.isControlPressed ||
+        HardwareKeyboard.instance.isMetaPressed;
+    if (!isShortcutPressed) {
+      return false;
+    }
+    return event.logicalKey == LogicalKeyboardKey.keyD ||
+        event.logicalKey == LogicalKeyboardKey.arrowUp ||
+        event.logicalKey == LogicalKeyboardKey.arrowDown ||
+        event.logicalKey == LogicalKeyboardKey.home ||
+        event.logicalKey == LogicalKeyboardKey.end;
+  }
+
   bool _handleImageLayerPanelKeyEvent(KeyEvent event) {
-    if (!_imageLayerPanelOpen || !_isImageLayerPanelKey(event.logicalKey)) {
+    if (!_imageLayerPanelOpen) {
+      return false;
+    }
+    if (_handleImageLayerPanelCommandKeyEvent(event)) {
+      return true;
+    }
+    if (!_isImageLayerPanelKey(event.logicalKey)) {
       return false;
     }
     if (event.logicalKey == LogicalKeyboardKey.escape) {
@@ -24570,6 +24592,39 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       contextMenuAt = null;
       _contextMenuImageId = null;
     });
+    return true;
+  }
+
+  bool _handleImageLayerPanelCommandKeyEvent(KeyEvent event) {
+    if (!_isImageLayerPanelCommandKeyEvent(event)) {
+      return false;
+    }
+    switch (event.logicalKey) {
+      case LogicalKeyboardKey.keyD:
+        _duplicateContextImage(keepLayerPanelOpen: true);
+      case LogicalKeyboardKey.arrowUp:
+        _moveContextImageLayer(
+          fortuneContextBringForwardCommand,
+          keepLayerPanelOpen: true,
+        );
+      case LogicalKeyboardKey.arrowDown:
+        _moveContextImageLayer(
+          fortuneContextSendBackwardCommand,
+          keepLayerPanelOpen: true,
+        );
+      case LogicalKeyboardKey.home:
+        _moveContextImageLayer(
+          fortuneContextBringToFrontCommand,
+          keepLayerPanelOpen: true,
+        );
+      case LogicalKeyboardKey.end:
+        _moveContextImageLayer(
+          fortuneContextSendToBackCommand,
+          keepLayerPanelOpen: true,
+        );
+      default:
+        return false;
+    }
     return true;
   }
 
@@ -31540,7 +31595,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         HardwareKeyboard.instance.isControlPressed ||
         HardwareKeyboard.instance.isMetaPressed;
     return _isImageLayerPanelKey(event.logicalKey) ||
-      event.logicalKey == LogicalKeyboardKey.tab ||
+        _isImageLayerPanelCommandKeyEvent(event) ||
+        event.logicalKey == LogicalKeyboardKey.tab ||
         _isSelectionNavigationKey(event.logicalKey) ||
         (isShortcutPressed && _isSelectionNavigationKey(event.logicalKey));
   }
