@@ -2751,6 +2751,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   String? _activeImageId;
   bool _imageLayerPanelOpen = false;
   double _imageLayerPanelScrollOffset = 0;
+  bool _imageLayerPanelScrollbarDragging = false;
+  double _imageLayerPanelScrollbarDragStartY = 0;
+  double _imageLayerPanelScrollbarDragStartOffset = 0;
   String? _imageResizeSide;
   Offset? _imageResizeStart;
   FortuneImage? _imageResizeInitial;
@@ -6809,6 +6812,12 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       return;
     }
 
+    if (_startImageLayerPanelScrollbarDrag(local, settings)) {
+      _commitEditing();
+      _commitSheetRename();
+      return;
+    }
+
     final layerPanelCommand = _imageLayerPanelCommandAt(local, settings);
     if (layerPanelCommand != null) {
       _commitEditing();
@@ -9442,6 +9451,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     if (_updateFilterDropdownScrollbarDrag(event.localPosition)) {
       return;
     }
+    if (_updateImageLayerPanelScrollbarDrag(event.localPosition)) {
+      return;
+    }
     if (_updateSheetScrollbarDrag(event.localPosition)) {
       return;
     }
@@ -10347,6 +10359,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     if (_commitFilterDropdownScrollbarDrag()) {
       return;
     }
+    if (_commitImageLayerPanelScrollbarDrag()) {
+      return;
+    }
     if (_commitSheetScrollbarDrag()) {
       return;
     }
@@ -10398,6 +10413,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     _cancelResizeDrag();
     _cancelSheetRulerGuideDrag();
     _cancelFilterDropdownScrollbarDrag();
+    _cancelImageLayerPanelScrollbarDrag();
     _cancelSheetScrollbarDrag();
     _cancelSelectionDrag();
     _cancelFormatPainterDrag(clearPainter: true);
@@ -24204,6 +24220,104 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     return true;
   }
 
+  bool _startImageLayerPanelScrollbarDrag(
+    Offset local,
+    FortuneSettings settings,
+  ) {
+    if (!_imageLayerPanelOpen) {
+      return false;
+    }
+    final thumb = _imageLayerPanelScrollbarThumbRect(settings);
+    if (thumb == null || !thumb.inflate(4).contains(local)) {
+      return false;
+    }
+    setState(() {
+      _imageLayerPanelScrollbarDragging = true;
+      _imageLayerPanelScrollbarDragStartY = local.dy;
+      _imageLayerPanelScrollbarDragStartOffset = _imageLayerPanelScrollOffset;
+    });
+    return true;
+  }
+
+  bool _updateImageLayerPanelScrollbarDrag(Offset local) {
+    if (!_imageLayerPanelScrollbarDragging) {
+      return false;
+    }
+    final items = fortuneImageLayerPanelItems(_workbook.activeSheet.images);
+    final trackTravel = _imageLayerPanelScrollbarTrackTravel(_workbook.settings);
+    final maxScrollOffset = fortuneImageLayerPanelMaxScrollOffset(items.length);
+    if (trackTravel <= 0 || maxScrollOffset <= 0) {
+      return true;
+    }
+    final delta = local.dy - _imageLayerPanelScrollbarDragStartY;
+    final nextOffset = fortuneImageLayerPanelClampScrollOffset(
+      items.length,
+      _imageLayerPanelScrollbarDragStartOffset +
+          delta / trackTravel * maxScrollOffset,
+    );
+    if (nextOffset == _imageLayerPanelScrollOffset) {
+      return true;
+    }
+    setState(() {
+      _imageLayerPanelScrollOffset = nextOffset;
+    });
+    return true;
+  }
+
+  bool _commitImageLayerPanelScrollbarDrag() {
+    if (!_imageLayerPanelScrollbarDragging) {
+      return false;
+    }
+    _cancelImageLayerPanelScrollbarDrag();
+    return true;
+  }
+
+  void _cancelImageLayerPanelScrollbarDrag() {
+    _imageLayerPanelScrollbarDragging = false;
+    _imageLayerPanelScrollbarDragStartY = 0;
+    _imageLayerPanelScrollbarDragStartOffset = 0;
+  }
+
+  Rect? _imageLayerPanelScrollbarThumbRect(FortuneSettings settings) {
+    final size = context.size;
+    if (size == null) {
+      return null;
+    }
+    final items = fortuneImageLayerPanelItems(_workbook.activeSheet.images);
+    return fortuneImageLayerPanelScrollbarThumbRect(
+      size,
+      items.length,
+      _imageLayerPanelScrollOffset,
+      top: _imageLayerPanelTop(settings),
+    );
+  }
+
+  double _imageLayerPanelScrollbarTrackTravel(FortuneSettings settings) {
+    final size = context.size;
+    if (size == null) {
+      return 0;
+    }
+    final items = fortuneImageLayerPanelItems(_workbook.activeSheet.images);
+    final thumb = fortuneImageLayerPanelScrollbarThumbRect(
+      size,
+      items.length,
+      _imageLayerPanelScrollOffset,
+      top: _imageLayerPanelTop(settings),
+    );
+    if (thumb == null) {
+      return 0;
+    }
+    final panel = fortuneImageLayerPanelRect(
+      size,
+      items.length,
+      top: _imageLayerPanelTop(settings),
+    );
+    final trackHeight = panel.height -
+        fortuneImageLayerPanelHeaderHeight -
+        fortuneImageLayerPanelScrollbarMargin * 2;
+    return math.max(0.0, trackHeight - thumb.height);
+  }
+
   double _imageLayerPanelTop(FortuneSettings settings) {
     return settings.effectiveToolbarHeight +
         settings.effectiveFormulaBarHeight +
@@ -36883,6 +36997,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     _contextMenuPreviousSelectionRange = null;
     _imageLayerPanelOpen = false;
     _imageLayerPanelScrollOffset = 0;
+    _cancelImageLayerPanelScrollbarDrag();
     sheetTabMenuAt = null;
     sheetListAt = null;
     hiddenSheetListAt = null;
