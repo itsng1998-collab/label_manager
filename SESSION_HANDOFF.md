@@ -42,7 +42,7 @@
 - 검증: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart` 통과(47 tests).
 - 검증: `git diff --check` 통과, VS Code 진단 `fortune_sheet_painter.dart`/`fortune_sheet_canvas.dart`/`fortune_barcode_dialog_test.dart` 오류 없음.
 - stage 예정: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`, `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`, `third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
-- 미검증: 커밋 필요.
+- 완료: 커밋 `a2abe95` (`이미지 바코드 레이어 패널 액션 상태 개선`).
 
 ### 완료 (2026-07-04): 이미지/바코드 레이어 패널 키보드 명령 추가
 
