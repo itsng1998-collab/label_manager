@@ -44221,6 +44221,7 @@ const double fortuneImageLayerPanelWidth = 220.0;
 const double fortuneImageLayerPanelHeaderHeight = 30.0;
 const double fortuneImageLayerPanelRowHeight = 28.0;
 const double fortuneImageLayerPanelMargin = 8.0;
+const double fortuneImageLayerPanelActionSize = 22.0;
 const int fortuneImageLayerPanelMaxVisibleRows = 8;
 
 List<String> fortuneActiveImageToolbarItems(FortuneImage image) {
@@ -44269,8 +44270,9 @@ Rect fortuneImageLayerPanelRect(
 Rect? fortuneImageLayerPanelItemRect(
   Size viewportSize,
   int itemCount,
-  int index,
-  {double top = fortuneImageLayerPanelMargin}
+  int index, {
+  double top = fortuneImageLayerPanelMargin,
+}
 ) {
   if (index < 0 || index >= itemCount ||
       index >= fortuneImageLayerPanelMaxVisibleRows) {
@@ -44284,6 +44286,37 @@ Rect? fortuneImageLayerPanelItemRect(
     panel.width,
     fortuneImageLayerPanelRowHeight,
   );
+}
+
+Rect? fortuneImageLayerPanelActionRect(
+  Size viewportSize,
+  int itemCount,
+  String command, {
+  double top = fortuneImageLayerPanelMargin,
+}) {
+  if (itemCount <= 0) {
+    return null;
+  }
+  final panel = fortuneImageLayerPanelRect(viewportSize, itemCount, top: top);
+  final actionTop = panel.top +
+      (fortuneImageLayerPanelHeaderHeight - fortuneImageLayerPanelActionSize) /
+          2;
+  final actionRight = panel.right - 8;
+  return switch (command) {
+    fortuneContextBringForwardCommand => Rect.fromLTWH(
+        actionRight - fortuneImageLayerPanelActionSize * 2 - 4,
+        actionTop,
+        fortuneImageLayerPanelActionSize,
+        fortuneImageLayerPanelActionSize,
+      ),
+    fortuneContextSendBackwardCommand => Rect.fromLTWH(
+        actionRight - fortuneImageLayerPanelActionSize,
+        actionTop,
+        fortuneImageLayerPanelActionSize,
+        fortuneImageLayerPanelActionSize,
+      ),
+    _ => null,
+  };
 }
 
 String fortuneImageLayerPanelLabel(FortuneImage image) {
@@ -75782,10 +75815,31 @@ class FortuneSheetPainter extends CustomPainter {
     _drawText(
       canvas,
       _contextMenuLabel(fortuneContextToggleLayerPanelCommand),
-      Rect.fromLTWH(panel.left + 10, panel.top, panel.width - 20, fortuneImageLayerPanelHeaderHeight),
+      Rect.fromLTWH(
+        panel.left + 10,
+        panel.top,
+        panel.width - 74,
+        fortuneImageLayerPanelHeaderHeight,
+      ),
       fontSize: 12,
       fontWeight: FontWeight.w700,
       color: const Color(0xff202124),
+    );
+    _drawImageLayerPanelAction(
+      canvas,
+      size,
+      items.length,
+      fortuneContextBringForwardCommand,
+      '↑',
+      top,
+    );
+    _drawImageLayerPanelAction(
+      canvas,
+      size,
+      items.length,
+      fortuneContextSendBackwardCommand,
+      '↓',
+      top,
     );
     final maxRows = math.min(items.length, fortuneImageLayerPanelMaxVisibleRows);
     for (var index = 0; index < maxRows; index += 1) {
@@ -75814,6 +75868,46 @@ class FortuneSheetPainter extends CustomPainter {
         color: const Color(0xff202124),
       );
     }
+  }
+
+  void _drawImageLayerPanelAction(
+    Canvas canvas,
+    Size size,
+    int itemCount,
+    String command,
+    String label,
+    double top,
+  ) {
+    final rect = fortuneImageLayerPanelActionRect(
+      size,
+      itemCount,
+      command,
+      top: top,
+    );
+    if (rect == null) {
+      return;
+    }
+    final paint = Paint()..color = const Color(0xfff8f9fa);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(rect, const Radius.circular(4)),
+      paint,
+    );
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(rect, const Radius.circular(4)),
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1
+        ..color = const Color(0xffdadce0),
+    );
+    _drawText(
+      canvas,
+      label,
+      rect,
+      fontSize: 13,
+      fontWeight: FontWeight.w700,
+      color: const Color(0xff202124),
+      align: TextAlign.center,
+    );
   }
 
   void _drawImageBitmap(

@@ -6808,6 +6808,14 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       return;
     }
 
+    final layerPanelCommand = _imageLayerPanelCommandAt(local, settings);
+    if (layerPanelCommand != null) {
+      _commitEditing();
+      _commitSheetRename();
+      _moveContextImageLayer(layerPanelCommand, keepLayerPanelOpen: true);
+      return;
+    }
+
     final layerPanelImageId = _imageLayerPanelImageIdAt(local, settings);
     if (layerPanelImageId != null) {
       _commitEditing();
@@ -24122,6 +24130,36 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     return null;
   }
 
+  String? _imageLayerPanelCommandAt(Offset local, FortuneSettings settings) {
+    if (!_imageLayerPanelOpen) {
+      return null;
+    }
+    final size = context.size;
+    if (size == null) {
+      return null;
+    }
+    final items = fortuneImageLayerPanelItems(_workbook.activeSheet.images);
+    final top = settings.effectiveToolbarHeight +
+        settings.effectiveFormulaBarHeight +
+        settings.columnHeaderHeight +
+        fortuneImageLayerPanelMargin;
+    for (final command in const <String>[
+      fortuneContextBringForwardCommand,
+      fortuneContextSendBackwardCommand,
+    ]) {
+      final rect = fortuneImageLayerPanelActionRect(
+        size,
+        items.length,
+        command,
+        top: top,
+      );
+      if (rect != null && rect.contains(local)) {
+        return command;
+      }
+    }
+    return null;
+  }
+
   bool _imageLayerPanelContains(Offset local, FortuneSettings settings) {
     if (!_imageLayerPanelOpen) {
       return false;
@@ -29744,7 +29782,10 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     });
   }
 
-  void _moveContextImageLayer(String command) {
+  void _moveContextImageLayer(
+    String command, {
+    bool keepLayerPanelOpen = false,
+  }) {
     final imageId = _contextMenuImageId ?? _activeImageId;
     final sheet = _workbook.activeSheet;
     final ordered = fortuneImagesInPaintOrder(sheet.images);
@@ -29791,7 +29832,13 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     setState(() {
       _replaceActiveSheet(sheet.copyWith(images: nextImages));
       _activeImageId = imageId;
-      _closeTransientMenus();
+      if (keepLayerPanelOpen) {
+        contextMenuAt = null;
+        _contextMenuImageId = null;
+        _imageLayerPanelOpen = true;
+      } else {
+        _closeTransientMenus();
+      }
     });
   }
 
