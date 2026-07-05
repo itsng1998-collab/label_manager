@@ -239,6 +239,7 @@
 - 검증 완료(2026-07-05): analyzer `No issues found`, `git diff --check` 공백 오류 없음(LF->CRLF 경고만), VS Code diagnostics 오류 없음.
 - 전체 테스트 완료(2026-07-05): `.tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_all_overlay_hosts.log` 결과 `exitCode=0`, deactivated metrics 0회. `fortune_sheet_canvas_test.dart` 전체 통과.
 - stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/test/fortune_sheet_canvas_test.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
+- 커밋 완료: `54aea49` (`FortuneSheet canvas Overlay host 정리`).
 - 검증 예정(2026-07-05): analyzer, `git diff --check`, VS Code diagnostics, 전체 canvas 재실행.
 - 검증 완료(2026-07-05): analyzer No issues, `git diff --check` 출력 없음, VS Code diagnostics 오류 없음.
 - 전체 테스트 실행 예정(2026-07-05): `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_sheet_canvas_test.dart *> .tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_format_search_host.log`; 실행 후 `exit` 금지, `$LASTEXITCODE` 요약만 출력.
