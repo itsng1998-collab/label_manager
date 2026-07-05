@@ -27777,11 +27777,12 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       final formula =
           '=$functionName(${_cellRef(range.rowStart, range.columnStart)}:${_cellRef(range.rowEnd, range.columnEnd)})';
       final previous = sheet.cells[target] ?? const FortuneCell();
+      if (previous.formula == formula) {
+        continue;
+      }
       final nextCell = previous.withFormulaBarInput(
         formula,
-        formulaDisplayValue: previous.formula == formula
-            ? previous.displayValue
-            : null,
+        formulaDisplayValue: null,
       );
       if (_cellWouldChange(sheet, target, nextCell)) {
         updates.add((target, nextCell));

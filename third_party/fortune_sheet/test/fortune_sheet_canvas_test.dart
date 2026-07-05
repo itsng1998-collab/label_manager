@@ -71137,8 +71137,25 @@ void main() {
       Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
-      await tester.tapAt(topLeft + toolbarCenter(fortuneToolbarImageCommand));
-      await tester.pumpAndSettle();
+      Future<void> insertImageFromDialog() async {
+        await tester.tapAt(topLeft + toolbarCenter(fortuneToolbarImageCommand));
+        await tester.pumpAndSettle();
+        expect(painter().imageInsertDialogOpen, isTrue);
+
+        final dialogRect = fortuneImageInsertDialogRect(const Size(1688, 600));
+        await tester.tapAt(
+          topLeft + fortuneImageInsertFileButtonRect(dialogRect).center,
+        );
+        await tester.pumpAndSettle();
+        expect(painter().imageInsertHasFile, isTrue);
+
+        await tester.tapAt(
+          topLeft + fortuneImageInsertConfirmButtonRect(dialogRect).center,
+        );
+        await tester.pumpAndSettle();
+      }
+
+      await insertImageFromDialog();
 
       var images = painter().workbook.activeSheet.images;
       expect(images, hasLength(1));
@@ -71152,8 +71169,7 @@ void main() {
       expect(images.single.extraFields['originHeight'], 1);
       expect(painter().toolbarPopupKey, isNull);
 
-      await tester.tapAt(topLeft + toolbarCenter(fortuneToolbarImageCommand));
-      await tester.pumpAndSettle();
+      await insertImageFromDialog();
 
       images = painter().workbook.activeSheet.images;
       expect(images, hasLength(2));
@@ -115149,7 +115165,7 @@ void main() {
     expect(painter().activeImageId, 'img2');
   });
 
-  testWidgets('active image selection does not render control buttons', (
+  testWidgets('active image selection renders toolbar controls', (
     tester,
   ) async {
     await prepareFortuneSheetView(tester, const Size(900, 600), devicePixelRatio: 1);
@@ -115212,10 +115228,13 @@ void main() {
     );
     expect(pixels, isNotNull);
 
-    final controlTop = imageTop - 34;
-    var controlGrayPixels = 0;
-    for (var y = controlTop.round(); y < controlTop + 28; y += 1) {
-      for (var x = imageLeft.round(); x < imageLeft + 80; x += 1) {
+    final toolbarRect = fortuneActiveImageToolbarRect(
+      Rect.fromLTWH(imageLeft, imageTop, 80, 50),
+      const Size(900, 360),
+    );
+    var toolbarGrayPixels = 0;
+    for (var y = toolbarRect.top.round(); y < toolbarRect.bottom.round(); y += 1) {
+      for (var x = toolbarRect.left.round(); x < toolbarRect.right.round(); x += 1) {
         final offset = (y * image.width + x) * 4;
         final red = pixels!.getUint8(offset);
         final green = pixels.getUint8(offset + 1);
@@ -115225,11 +115244,11 @@ void main() {
         if (maxChannel >= 70 &&
             maxChannel <= 170 &&
             maxChannel - minChannel <= 24) {
-          controlGrayPixels += 1;
+          toolbarGrayPixels += 1;
         }
       }
     }
-    expect(controlGrayPixels, lessThan(10));
+    expect(toolbarGrayPixels, greaterThan(10));
   });
 
   testWidgets('active image does not expose control button aria labels', (
@@ -116948,7 +116967,7 @@ void main() {
     await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     await tester.pumpWidget(
-      Directionality(
+      fortuneSheetTestHost(
         textDirection: TextDirection.ltr,
         child: SizedBox(
           width: 1688,
@@ -117843,7 +117862,7 @@ void main() {
 
       expect(sheet.cells[const FortuneCellCoord(2, 0)]?.formula, '=SUM(A1:A2)');
       expect(sheet.cells[const FortuneCellCoord(2, 0)]?.renderedText, '30');
-      expect(cellJson['v'], '=SUM(A1:A2)');
+      expect(cellJson['v'], '30');
       expect(cellJson['f'], '=SUM(A1:A2)');
       expect(cellJson['m'], '30');
       expect(cellJson['rawOnly'], isTrue);
@@ -117941,7 +117960,7 @@ void main() {
         '=AVERAGE(A1:B1)',
       );
       expect(sheet.cells[const FortuneCellCoord(0, 2)]?.renderedText, '15');
-      expect(cellJson['v'], '=AVERAGE(A1:B1)');
+      expect(cellJson['v'], '15');
       expect(cellJson['f'], '=AVERAGE(A1:B1)');
       expect(cellJson['m'], '15');
       expect(cellJson['rawOnly'], isTrue);
