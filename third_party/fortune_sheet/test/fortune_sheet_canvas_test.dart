@@ -26799,7 +26799,7 @@ void main() {
           name: 'Sheet1',
           cells: {
             const FortuneCellCoord(0, 0): const FortuneCell(value: 'A'),
-            const FortuneCellCoord(0, 1): const FortuneCell(value: ''),
+            const FortuneCellCoord(0, 1): const FortuneCell(value: 'B'),
             const FortuneCellCoord(0, 3): const FortuneCell(value: 'Hidden'),
           },
           hiddenColumns: {3},
@@ -26933,7 +26933,7 @@ void main() {
           name: 'Sheet1',
           cells: {
             const FortuneCellCoord(0, 0): const FortuneCell(value: 'A'),
-            const FortuneCellCoord(0, 1): const FortuneCell(value: ''),
+            const FortuneCellCoord(0, 1): const FortuneCell(value: 'B'),
             const FortuneCellCoord(0, 3): const FortuneCell(value: 'Hidden'),
           },
           hiddenColumns: {3},
