@@ -27,6 +27,17 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-05): 이미지/바코드 레이어 패널 Ctrl+A 전체 선택 복제 검증
+
+- 목적: Ctrl/Meta+A로 만든 전체 선택 집합이 기존 Ctrl+D 다중 복제 경로에 그대로 적용되는지 보장한다. 전체 선택 후 복제된 row들이 새 internal id, object id, zOrder를 연속으로 받고 새 복제 그룹으로 선택되는 동작을 테스트로 고정한다.
+- 테스트 추가: `fortune_barcode_dialog_test.dart`에 `image layer panel keyboard select all duplicates rows` 추가.
+- 검증 완료: focused `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --name "image layer panel keyboard select all deletes rows|image layer panel keyboard select all duplicates rows"` 결과 2개 통과.
+- 검증 완료: 관련 묶음 `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --name "image layer panel keyboard select all deletes rows|image layer panel keyboard select all duplicates rows|image layer panel duplicate action copies selected rows|image layer panel keyboard commands duplicate and move row"` 결과 4개 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --no-fatal-warnings --no-fatal-infos` 결과 `No issues found`.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart` 결과 59개 통과.
+- 검증 완료: `git diff --check` 결과 출력 없음. VS Code diagnostics 결과 `SESSION_HANDOFF.md`, `fortune_barcode_dialog_test.dart` 오류 없음.
+- stage/commit 예정: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
+
 ### 완료 (2026-07-05): 이미지/바코드 레이어 패널 Ctrl+A 전체 선택
 
 - 목적: 레이어 패널 키보드 조작에서 Ctrl/Meta+A로 모든 이미지/바코드 row를 선택한다. 이후 기존 다중 삭제/복제/오더/drag action이 전체 선택 집합에 그대로 적용되도록 한다.
