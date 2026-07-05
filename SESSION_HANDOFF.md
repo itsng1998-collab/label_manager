@@ -216,6 +216,14 @@
 - 전체 테스트 완료(2026-07-05): `.tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_number_format_host.log` 결과 `exitCode=1`. number format dialog 두 실패는 제거되고 다음 첫 실패는 `toolbar format search dialog closes from header icon`.
 - stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/test/fortune_sheet_canvas_test.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
 - 커밋 완료: `aa2ec99` (`FortuneSheet number format dialog 테스트 host 보정`).
+- 진행 중(2026-07-05): 다음 첫 실패 `toolbar format search dialog closes from header icon` 분석. 실패는 format search dialog 내부 decimal `EditableText`가 Overlay ancestor 없이 focus/selection overlay를 만들며 `No Overlay widget found`가 발생하는 테스트 host 문제.
+- 완료(2026-07-05): format search dialog 두 테스트(`toolbar format search dialog closes from header icon`, `toolbar format search dialog consumes sheet editing keys`)를 `fortuneSheetTestHost`로 감싸 Overlay 제공. focused regex 두 테스트 통과.
+- 검증 예정(2026-07-05): analyzer, `git diff --check`, VS Code diagnostics, 전체 canvas 재실행.
+- 검증 완료(2026-07-05): analyzer No issues, `git diff --check` 출력 없음, VS Code diagnostics 오류 없음.
+- 전체 테스트 실행 예정(2026-07-05): `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_sheet_canvas_test.dart *> .tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_format_search_host.log`; 실행 후 `exit` 금지, `$LASTEXITCODE` 요약만 출력.
+- 전체 테스트 완료(2026-07-05): `.tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_format_search_host.log` 결과 `exitCode=1`. format search header/key 실패는 제거되고 다음 첫 실패는 `toolbar more number format text cell keeps undo stack`.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/test/fortune_sheet_canvas_test.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
+- 커밋 예정: format search dialog 테스트 host 보정.
 
 ### 완료 (2026-07-04): analyze clean 이후 회귀 묶음 재검증
 
