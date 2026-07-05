@@ -81,6 +81,7 @@
 - 검증 완료: active metadata 보정 후 전체 `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_sheet_canvas_test.dart` 리다이렉트 재실행(`.tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_active_metadata.log`) 결과 1270개 중 151개 실패. 다음 첫 실패는 `control i toggles selected cell italic`의 `Expected: true / Actual: false`.
 - 검증 완료: 최종 focused `active cell editing clears formula group metadata` 통과. 최종 analyzer 재통과. VS Code 진단 오류 없음.
 - stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/test/fortune_sheet_canvas_test.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
+- 커밋 완료: `6010101` (`FortuneSheet active editor 테스트 host 보정`).
 - 다음 작업: `control i toggles selected cell italic` focused 재현부터 계속 정리.
 - 미검증/진행 중: 전체 canvas clean까지 추가 정리 필요. 기존 unrelated dirty `lib/core/app.dart` 제외.
 
