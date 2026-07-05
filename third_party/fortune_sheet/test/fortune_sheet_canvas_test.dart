@@ -23398,6 +23398,8 @@ void main() {
   testWidgets(
     'selection and fill handle drags auto scroll near viewport edge',
     (tester) async {
+      await prepareFortuneSheetView(tester, const Size(360, 180));
+
       final workbook = FortuneWorkbook(
         sheets: [
           FortuneSheet(

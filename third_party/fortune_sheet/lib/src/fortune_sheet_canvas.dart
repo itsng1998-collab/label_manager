@@ -3740,6 +3740,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     _hyperlinkDialogRangeSelectionAnchor = null;
     _editingFormulaBar = false;
     _renamingSheetIndex = null;
+    _lastPrimaryDownTime = null;
+    _lastPrimaryDownCoord = null;
     _cancelSheetTabLongPress();
     _cancelSheetTabDrag();
     _cancelFreezeDrag();
@@ -7364,6 +7366,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     FortuneSettings settings,
     FortuneSheetMetrics metrics, {
     Offset? scrollOverride,
+    bool clampToViewport = false,
   }) {
     final sheetTop =
         settings.effectiveToolbarHeight + settings.effectiveFormulaBarHeight;
@@ -7384,10 +7387,20 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         settings,
         _workbook.activeSheet,
       );
-      if (viewport != null &&
-          (local.dx >= dataLeft + viewport.width ||
-              local.dy >= sheetTop + dataTop + viewport.height)) {
-        return null;
+      if (viewport != null) {
+        final dataRight = dataLeft + viewport.width;
+        final dataBottom = sheetTop + dataTop + viewport.height;
+        if (local.dx >= dataRight || local.dy >= dataBottom) {
+          if (!clampToViewport) {
+            return null;
+          }
+          local = Offset(
+            local.dx.clamp(dataLeft, math.max(dataLeft, dataRight - 0.5)).toDouble(),
+            local.dy
+                .clamp(sheetTop + dataTop, math.max(sheetTop + dataTop, dataBottom - 0.5))
+                .toDouble(),
+          );
+        }
       }
     }
     final sheetY = local.dy - sheetTop;
@@ -10617,6 +10630,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       settings,
       metrics,
       scrollOverride: nextScrollOffset,
+      clampToViewport: nextScrollOffset != scrollOffset,
     );
     if (coord == null) {
       return false;
@@ -10689,6 +10703,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       settings,
       metrics,
       scrollOverride: nextScrollOffset,
+      clampToViewport: nextScrollOffset != scrollOffset,
     );
     if (coord == null) {
       return true;
