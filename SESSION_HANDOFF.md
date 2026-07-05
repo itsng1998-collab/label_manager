@@ -165,6 +165,15 @@
 - stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/test/fortune_sheet_canvas_test.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
 - 커밋 완료: `ce075fe` (`FortuneSheet wrapped editing 테스트 host 보정`).
 - 진행 중: 다음 첫 실패 `toolbar dropdown scrolls when viewport height is constrained` 분석 예정.
+- 진행 중(2026-07-05): `toolbar dropdown scrolls when viewport height is constrained` focused 재현. 실패는 popup 바깥 wheel 기대 좌표가 160px viewport의 하단 sheet/stat bar 영역(`y=145`)에 있어 sheet scroll area 밖이고, `format` popup event hit 영역이 실제 popup scroll과 무관하게 wheel을 선점하는 경로가 겹친 문제로 확인.
+- 완료(2026-07-05): toolbar popup wheel 처리에서 실제 popup scroll이 발생한 경우만 소비하도록 불필요한 `_toolbarPopupEventContains` 선점 분기 제거. 테스트의 outside sheet wheel 좌표를 실제 sheet scroll area인 `y=100`으로 보정.
+- 검증 완료(2026-07-05): focused `toolbar dropdown scrolls when viewport height is constrained` 통과. 인접 regex `toolbar popup scroll indicator gutter does not hover rows|toolbar dropdown scrolls when viewport height is constrained|toolbar dropdown scroll buttons move by one row per click` 통과.
+- 검증 예정(2026-07-05): `C:\Flutter\bin\flutter.bat analyze third_party\fortune_sheet\lib\src\fortune_sheet_canvas.dart third_party\fortune_sheet\test\fortune_sheet_canvas_test.dart --no-fatal-warnings --no-fatal-infos`, `git diff --check`, VS Code diagnostics.
+- 검증 완료(2026-07-05): analyzer No issues, `git diff --check` 출력 없음, VS Code diagnostics 오류 없음.
+- 전체 테스트 실행 예정(2026-07-05): `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_sheet_canvas_test.dart *> .tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_toolbar_dropdown_scroll.log`; 실행 후 `exit` 금지, `$LASTEXITCODE` 요약만 출력.
+- 전체 테스트 완료(2026-07-05): `.tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_toolbar_dropdown_scroll.log` 결과 `exitCode=1`. `toolbar dropdown scrolls when viewport height is constrained` 실패는 제거되고 다음 첫 실패는 `toolbar border popup styling mirrors upstream CSS`.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`, `third_party/fortune_sheet/test/fortune_sheet_canvas_test.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
+- 커밋 예정: toolbar dropdown wheel scroll 보정.
 
 ### 완료 (2026-07-04): analyze clean 이후 회귀 묶음 재검증
 

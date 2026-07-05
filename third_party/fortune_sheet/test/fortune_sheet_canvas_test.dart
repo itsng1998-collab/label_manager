@@ -38703,7 +38703,7 @@ void main() {
 
     await tester.sendEventToBinding(
       PointerScrollEvent(
-        position: topLeft + const Offset(1000, 145),
+        position: topLeft + const Offset(1000, 100),
         scrollDelta: const Offset(0, 90),
       ),
     );

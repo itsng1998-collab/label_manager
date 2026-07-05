@@ -7748,10 +7748,6 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     if (_shouldBlockDialogWheel(localPosition)) {
       return;
     }
-    if (_toolbarPopupEventContains(localPosition)) {
-      _scrollToolbarPopup(localPosition, deltaY);
-      return;
-    }
     if (_scrollToolbarPopup(localPosition, deltaY)) {
       return;
     }
