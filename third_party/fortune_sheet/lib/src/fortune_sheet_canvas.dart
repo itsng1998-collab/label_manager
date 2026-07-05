@@ -2797,6 +2797,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   bool _sheetCornerTooltipActive = false;
   bool _sheetCornerTooltipDismissedUntilExit = false;
   String? _activeImageId;
+  Set<String> _selectedImageIds = <String>{};
   bool _imageLayerPanelOpen = false;
   double _imageLayerPanelScrollOffset = 0;
   bool _imageLayerPanelScrollbarDragging = false;
@@ -3724,6 +3725,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     _hoveredColumnHeaderIndex = null;
     _hoveredRowHeaderIndex = null;
     _activeImageId = null;
+    _selectedImageIds = <String>{};
     _cancelImageResize();
     _cancelImageMove();
     _cancelFormatPainterDrag();
@@ -6940,7 +6942,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         return;
       }
       setState(() {
-        _activeImageId = layerPanelImageId;
+        _selectImageLayerPanelRow(layerPanelImageId);
         contextMenuAt = null;
       });
       _startImageLayerPanelRowDrag(layerPanelImageId, local);
@@ -7014,6 +7016,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
           final menuItems = _contextMenuItemsForImage(image);
           setState(() {
             _activeImageId = imageId;
+            _selectedImageIds = <String>{imageId};
             _contextMenuImageId = imageId;
             contextMenuAt = _contextMenuOrigin(local, menuItems);
             _contextMenuHoveredIndex = null;
@@ -7081,6 +7084,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         _sheetTabMenuSheetIndex = null;
         toolbarPopupKey = null;
         _activeImageId = null;
+        _selectedImageIds = <String>{};
       });
       return;
     }
@@ -7127,6 +7131,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         _sheetTabMenuSheetIndex = null;
         toolbarPopupKey = null;
         _activeImageId = null;
+        _selectedImageIds = <String>{};
       });
       return;
     }
@@ -7160,6 +7165,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         final menuItems = _contextMenuItemsForImage(image);
         setState(() {
           _activeImageId = imageId;
+          _selectedImageIds = <String>{imageId};
           _contextMenuImageId = imageId;
           contextMenuAt = _contextMenuOrigin(local, menuItems);
           _contextMenuHoveredIndex = null;
@@ -7177,7 +7183,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       _startImageMove(imageId, local);
       setState(() {
         _activeImageId = imageId;
-          _contextMenuImageId = null;
+        _selectedImageIds = <String>{imageId};
+        _contextMenuImageId = null;
         contextMenuAt = null;
         sheetTabMenuAt = null;
         hiddenSheetListAt = null;
@@ -24580,11 +24587,46 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       return;
     }
     _activeImageId = imageId;
+    _selectedImageIds = <String>{imageId};
     if (_isBarcodeImage(image)) {
       _showBarcodeEditDialog(image);
     } else {
       _showImageEditDialog(image);
     }
+  }
+
+  void _selectImageLayerPanelRow(String imageId) {
+    final items = fortuneImageLayerPanelItems(_workbook.activeSheet.images);
+    final clickedIndex = items.indexWhere((image) => image.id == imageId);
+    if (clickedIndex < 0) {
+      return;
+    }
+    final keyboard = HardwareKeyboard.instance;
+    final extendSelection = keyboard.isShiftPressed;
+    final toggleSelection = keyboard.isControlPressed || keyboard.isMetaPressed;
+    if (extendSelection && _activeImageId != null) {
+      final anchorIndex = items.indexWhere((image) => image.id == _activeImageId);
+      if (anchorIndex >= 0) {
+        final start = math.min(anchorIndex, clickedIndex);
+        final end = math.max(anchorIndex, clickedIndex);
+        _activeImageId = imageId;
+        _selectedImageIds = <String>{
+          for (var index = start; index <= end; index += 1) items[index].id,
+        };
+        return;
+      }
+    }
+    if (toggleSelection) {
+      final next = <String>{..._selectedImageIds};
+      if (!next.remove(imageId)) {
+        next.add(imageId);
+      }
+      _activeImageId = imageId;
+      _selectedImageIds = next.isEmpty ? <String>{imageId} : next;
+      return;
+    }
+    _activeImageId = imageId;
+    _selectedImageIds = <String>{imageId};
   }
 
   int? _imageLayerPanelRowIndexOf(String imageId) {
@@ -25245,6 +25287,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     if (images.length == sheet.images.length) {
       setState(() {
         _activeImageId = null;
+        _selectedImageIds = <String>{};
         _cancelImageResize();
         _cancelImageMove();
       });
@@ -25256,6 +25299,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     setState(() {
       _workbook = _workbook.copyWith(sheets: sheets);
       _activeImageId = null;
+      _selectedImageIds = <String>{};
       _cancelImageResize();
       _cancelImageMove();
       contextMenuAt = null;
@@ -25301,6 +25345,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     setState(() {
       _workbook = _workbook.copyWith(sheets: sheets);
       _activeImageId = nextActiveImageId;
+        _selectedImageIds = nextActiveImageId == null
+          ? <String>{}
+          : <String>{nextActiveImageId};
       _cancelImageResize();
       _cancelImageMove();
       _cancelImageLayerPanelScrollbarDrag();
@@ -30637,24 +30684,26 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     final imageId = _contextMenuImageId ?? _activeImageId;
     final sheet = _workbook.activeSheet;
     final ordered = fortuneImagesInPaintOrder(sheet.images);
+    final selectedIds = keepLayerPanelOpen &&
+            imageId != null &&
+            _selectedImageIds.contains(imageId)
+        ? _selectedImageIds
+        : imageId == null
+        ? const <String>{}
+        : <String>{imageId};
     final currentIndex = imageId == null
         ? -1
         : ordered.indexWhere((image) => image.id == imageId);
-    if (currentIndex < 0) {
+    if (currentIndex < 0 || selectedIds.isEmpty) {
       setState(_closeTransientMenus);
       return;
     }
-    final targetIndex = switch (command) {
-      fortuneContextBringForwardCommand => math.min(
-        ordered.length - 1,
-        currentIndex + 1,
-      ),
-      fortuneContextSendBackwardCommand => math.max(0, currentIndex - 1),
-      fortuneContextBringToFrontCommand => ordered.length - 1,
-      fortuneContextSendToBackCommand => 0,
-      _ => currentIndex,
-    };
-    if (targetIndex == currentIndex) {
+    final nextOrder = _reorderImagesForLayerCommand(
+      ordered,
+      selectedIds,
+      command,
+    );
+    if (_sameImageOrder(ordered, nextOrder)) {
       setState(() {
         if (keepLayerPanelOpen) {
           contextMenuAt = null;
@@ -30666,11 +30715,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       });
       return;
     }
-    final moving = ordered.removeAt(currentIndex);
-    ordered.insert(targetIndex, moving);
     final nextZOrders = <String, double>{
-      for (var index = 0; index < ordered.length; index += 1)
-        ordered[index].id: index + 1.0,
+      for (var index = 0; index < nextOrder.length; index += 1)
+        nextOrder[index].id: index + 1.0,
     };
     final nextImages = [
       for (final image in sheet.images)
@@ -30688,6 +30735,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     setState(() {
       _replaceActiveSheet(sheet.copyWith(images: nextImages));
       _activeImageId = imageId;
+      _selectedImageIds = selectedIds;
       if (keepLayerPanelOpen) {
         contextMenuAt = null;
         _contextMenuImageId = null;
@@ -30700,6 +30748,58 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         _closeTransientMenus();
       }
     });
+  }
+
+  List<FortuneImage> _reorderImagesForLayerCommand(
+    List<FortuneImage> ordered,
+    Set<String> selectedIds,
+    String command,
+  ) {
+    final result = ordered.toList();
+    bool isSelectedAt(int index) => selectedIds.contains(result[index].id);
+    switch (command) {
+      case fortuneContextBringToFrontCommand:
+        final selected = [
+          for (final image in result)
+            if (selectedIds.contains(image.id)) image,
+        ];
+        result.removeWhere((image) => selectedIds.contains(image.id));
+        result.addAll(selected);
+      case fortuneContextSendToBackCommand:
+        final selected = [
+          for (final image in result)
+            if (selectedIds.contains(image.id)) image,
+        ];
+        result.removeWhere((image) => selectedIds.contains(image.id));
+        result.insertAll(0, selected);
+      case fortuneContextBringForwardCommand:
+        for (var index = result.length - 2; index >= 0; index -= 1) {
+          if (isSelectedAt(index) && !isSelectedAt(index + 1)) {
+            final moving = result.removeAt(index);
+            result.insert(index + 1, moving);
+          }
+        }
+      case fortuneContextSendBackwardCommand:
+        for (var index = 1; index < result.length; index += 1) {
+          if (isSelectedAt(index) && !isSelectedAt(index - 1)) {
+            final moving = result.removeAt(index);
+            result.insert(index - 1, moving);
+          }
+        }
+    }
+    return result;
+  }
+
+  bool _sameImageOrder(List<FortuneImage> left, List<FortuneImage> right) {
+    if (left.length != right.length) {
+      return false;
+    }
+    for (var index = 0; index < left.length; index += 1) {
+      if (left[index].id != right[index].id) {
+        return false;
+      }
+    }
+    return true;
   }
 
   void _duplicateContextImage({bool keepLayerPanelOpen = false}) {
@@ -30735,6 +30835,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     setState(() {
       _replaceActiveSheet(sheet.copyWith(images: nextImages));
       _activeImageId = duplicateId;
+      _selectedImageIds = <String>{duplicateId};
       contextMenuAt = null;
       _contextMenuImageId = null;
       _imageLayerPanelOpen = keepLayerPanelOpen || _imageLayerPanelOpen;
@@ -44109,6 +44210,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
                 hoveredColumnHeaderIndex: _hoveredColumnHeaderIndex,
                 hoveredRowHeaderIndex: _hoveredRowHeaderIndex,
                 activeImageId: _activeImageId,
+                selectedImageIds: _selectedImageIds,
                 activeImageToolbarHoveredCommand:
                   _activeImageToolbarHoveredCommand,
                 activeImageToolbarTooltipPosition:

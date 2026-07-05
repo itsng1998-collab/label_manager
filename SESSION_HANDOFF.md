@@ -27,7 +27,18 @@
 
 ## 현재 상태
 
-### 현재 활성 작업 없음 (2026-07-05)
+### 완료 (2026-07-05): 이미지/바코드 레이어 패널 다중 오더
+
+- 목적: 기존 단일 이미지/바코드 오더 기능을 확장해 레이어 패널에서 Shift/Ctrl 선택한 여러 오브젝트를 그룹으로 앞으로/뒤로/맨앞/맨뒤 이동할 수 있게 한다.
+- 변경 완료: `fortune_sheet_canvas.dart`에 `_selectedImageIds`를 추가하고 레이어 패널 row Shift/Ctrl 선택, 선택 그룹 유지, 그룹 오더 재계산(`_reorderImagesForLayerCommand`)을 연결했다. 우클릭/플로팅 툴바 단일 선택 동작은 기존대로 유지한다.
+- 변경 완료: `fortune_sheet_painter.dart`가 `selectedImageIds`를 받아 레이어 패널에서 다중 선택 row를 강조 표시한다.
+- 테스트 추가: `fortune_barcode_dialog_test.dart`에 `image layer panel action moves selected rows as a group` 추가.
+- 검증 완료: 새 focused 테스트 통과. 레이어 패널 오더 묶음 `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --name "image layer panel action moves selected item forward|image layer panel action moves selected rows as a group|image layer panel action sends selected item to back|image layer panel row drag reorders layers|image layer panel keyboard commands duplicate and move row"` 결과 5개 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze third_party\fortune_sheet\lib\src\fortune_sheet_canvas.dart third_party\fortune_sheet\lib\src\fortune_sheet_painter.dart third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --no-fatal-warnings --no-fatal-infos` 결과 `No issues found`.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart` 결과 52개 통과. `git diff --check` 출력 없음, VS Code diagnostics 오류 없음.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`, `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`, `third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
+
+### 기준선 검증 완료 (2026-07-05)
 
 - FortuneSheet canvas 전체, FortuneSheet 패키지 전체, workspace 전체 테스트가 모두 통과한 상태다.
 - 전체 analyzer 재검증도 `C:\Flutter\bin\flutter.bat analyze --no-fatal-warnings --no-fatal-infos *> .tmp/copilot/flutter_analyze_full_2026-07-05_after_full_test_clean.log` 결과 `exitCode=0`, `No issues found`.

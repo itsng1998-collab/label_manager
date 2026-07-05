@@ -61725,6 +61725,7 @@ class FortuneSheetPainter extends CustomPainter {
     this.hoveredColumnHeaderIndex,
     this.hoveredRowHeaderIndex,
     this.activeImageId,
+    this.selectedImageIds = const <String>{},
     this.activeImageToolbarHoveredCommand,
     this.activeImageToolbarTooltipPosition,
     this.imageLayerPanelOpen = false,
@@ -61938,6 +61939,7 @@ class FortuneSheetPainter extends CustomPainter {
   final int? hoveredColumnHeaderIndex;
   final int? hoveredRowHeaderIndex;
   final String? activeImageId;
+  final Set<String> selectedImageIds;
   final String? activeImageToolbarHoveredCommand;
   final Offset? activeImageToolbarTooltipPosition;
   final bool imageLayerPanelOpen;
@@ -76205,7 +76207,7 @@ class FortuneSheetPainter extends CustomPainter {
       final isDragging = item.id == imageLayerPanelDraggingImageId;
       if (isDragging) {
         canvas.drawRect(row, Paint()..color = const Color(0xffd2e3fc));
-      } else if (item.id == activeImageId) {
+      } else if (item.id == activeImageId || selectedImageIds.contains(item.id)) {
         canvas.drawRect(row, Paint()..color = const Color(0xffe8f0fe));
       }
       canvas.drawRect(

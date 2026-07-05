@@ -1382,6 +1382,141 @@ void main() {
     );
   });
 
+  testWidgets('image layer panel action moves selected rows as a group', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    const settings = FortuneSettings();
+    final workbook = FortuneWorkbook(
+      settings: settings,
+      sheets: [
+        FortuneSheet(
+          id: 's1',
+          name: 'Sheet1',
+          images: [
+            for (var index = 1; index <= 4; index += 1)
+              FortuneImage(
+                id: 'image$index',
+                src: 'data:image/png;base64,${base64Encode(_transparentPng)}',
+                left: 0,
+                top: 0,
+                width: 50,
+                height: 50,
+                extraFields: {fortuneSheetObjectZOrderExtraKey: index},
+              ),
+          ],
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SizedBox(
+          width: 900,
+          height: 700,
+          child: FortuneSheetCanvas(workbook: workbook),
+        ),
+      ),
+    );
+
+    FortuneSheetPainter painter() {
+      return tester
+          .widgetList<CustomPaint>(
+            find.descendant(
+              of: find.byType(FortuneSheetCanvas),
+              matching: find.byType(CustomPaint),
+            ),
+          )
+          .map((paint) => paint.painter)
+          .whereType<FortuneSheetPainter>()
+          .single;
+    }
+
+    final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
+    final imageRect = Rect.fromLTWH(
+      settings.rowHeaderWidth,
+      settings.effectiveToolbarHeight +
+          settings.effectiveFormulaBarHeight +
+          settings.columnHeaderHeight,
+      50,
+      50,
+    );
+    await tester.tapAt(topLeft + imageRect.center);
+    await tester.pump();
+    expect(painter().activeImageId, 'image4');
+
+    final activeImage = painter().workbook.activeSheet.images.firstWhere(
+      (image) => image.id == 'image4',
+    );
+    final layerButtonRect = fortuneActiveImageToolbarItemRect(
+      imageRect,
+      const Size(900, 700),
+      fortuneContextToggleLayerPanelCommand,
+      fortuneActiveImageToolbarItems(activeImage),
+    );
+    expect(layerButtonRect, isNotNull);
+
+    await tester.tapAt(topLeft + layerButtonRect!.center);
+    await tester.pump();
+
+    final layerPanelTop = settings.effectiveToolbarHeight +
+        settings.effectiveFormulaBarHeight +
+        settings.columnHeaderHeight +
+        fortuneImageLayerPanelMargin;
+    final row1 = fortuneImageLayerPanelItemRect(
+      const Size(900, 700),
+      4,
+      1,
+      top: layerPanelTop,
+    );
+    final row2 = fortuneImageLayerPanelItemRect(
+      const Size(900, 700),
+      4,
+      2,
+      top: layerPanelTop,
+    );
+    expect(row1, isNotNull);
+    expect(row2, isNotNull);
+
+    await tester.tapAt(topLeft + row1!.center);
+    await tester.pump();
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.tapAt(topLeft + row2!.center);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.pump();
+
+    expect(painter().activeImageId, 'image2');
+    expect(painter().selectedImageIds, {'image3', 'image2'});
+
+    final moveForwardRect = fortuneImageLayerPanelActionRect(
+      const Size(900, 700),
+      4,
+      fortuneContextBringForwardCommand,
+      top: layerPanelTop,
+    );
+    expect(moveForwardRect, isNotNull);
+
+    await tester.tapAt(topLeft + moveForwardRect!.center);
+    await tester.pump();
+
+    final panelItems = fortuneImageLayerPanelItems(
+      painter().workbook.activeSheet.images,
+    );
+    expect(panelItems.map((image) => image.id), [
+      'image3',
+      'image2',
+      'image4',
+      'image1',
+    ]);
+    expect(painter().selectedImageIds, {'image3', 'image2'});
+  });
+
   testWidgets('image layer panel action sends selected item to back', (
     tester,
   ) async {
