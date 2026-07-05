@@ -232,6 +232,7 @@
 - 전체 테스트 완료(2026-07-05): `.tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_data_verification_host.log` 결과 `exitCode=1`, `1395개 중 26개 실패`, deactivated metrics 0회. 이번 배치 시작 시 `1376개 중 45개 실패`/deactivated 2회에서 search/filter/data verification host 묶음 보정 후 실패 19개 감소.
 - 다음 작업: 다음 첫 실패는 `toolbar data verification toggles selected cell metadata`의 `No Overlay widget found`. 이어서 data verification dialog host 묶음과 condition format dialog Overlay 묶음을 계속 정리. 기존 unrelated dirty `lib/core/app.dart` 제외.
 - stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/test/fortune_sheet_canvas_test.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
+- 커밋 완료: `5942192` (`FortuneSheet 검색 다이얼로그 테스트 host 보정`).
 - 검증 예정(2026-07-05): analyzer, `git diff --check`, VS Code diagnostics, 전체 canvas 재실행.
 - 검증 완료(2026-07-05): analyzer No issues, `git diff --check` 출력 없음, VS Code diagnostics 오류 없음.
 - 전체 테스트 실행 예정(2026-07-05): `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_sheet_canvas_test.dart *> .tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_format_search_host.log`; 실행 후 `exit` 금지, `$LASTEXITCODE` 요약만 출력.
