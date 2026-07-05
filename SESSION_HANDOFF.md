@@ -373,6 +373,7 @@
 - 전체 테스트 실행 예정(2026-07-05): `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_sheet_canvas_test.dart *> .tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_formula_search_host.log`; 실행 후 `exit` 금지, `$LASTEXITCODE` 요약만 출력.
 - 전체 테스트 완료(2026-07-05): `.tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_formula_search_host.log` 결과 `exitCode=1`, 1309개 중 112개 실패. formula search host 실패 제거. 다음 first failure는 `toolbar font popups update selected cell font metadata`, 기대 font size `18` 대비 실제 `28.0`.
 - stage/commit 대상(2026-07-05): `SESSION_HANDOFF.md`, `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`, `third_party/fortune_sheet/test/fortune_sheet_canvas_test.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
+- 커밋 완료(2026-07-05): `424f07c` `FortuneSheet 이미지와 quick formula 회귀 보정`.
 
 ### 완료 (2026-07-04): analyze clean 이후 회귀 묶음 재검증
 
