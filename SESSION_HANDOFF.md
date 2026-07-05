@@ -191,6 +191,14 @@
 - 전체 테스트 완료(2026-07-05): `.tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_sheet_after_hook_microtask.log` 결과 `exitCode=1`. add/delete controller pending timer 실패 묶음은 제거되고 다음 첫 실패는 `controller reads active sheet ranges`.
 - stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/lib/src/fortune_sheet_model.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
 - 커밋 완료: `0e66287` (`FortuneSheet 시트 after hook 타이머 제거`).
+- 진행 중(2026-07-05): 다음 첫 실패 `controller reads active sheet ranges` focused 분석. 실패는 A1:B2 flatten 기대 `['A','B','C',null]` 대비 B1 fixture가 빈 문자열인 테스트 fixture 모순.
+- 완료(2026-07-05): `controller reads active sheet ranges` fixture의 B1 값을 `B`로 보정. focused 통과.
+- 검증 예정(2026-07-05): analyzer, `git diff --check`, VS Code diagnostics, 전체 canvas 재실행.
+- 검증 완료(2026-07-05): analyzer No issues, `git diff --check` 출력 없음, VS Code diagnostics 오류 없음.
+- 전체 테스트 실행 예정(2026-07-05): `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_sheet_canvas_test.dart *> .tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_active_ranges_fixture.log`; 실행 후 `exit` 금지, `$LASTEXITCODE` 요약만 출력.
+- 전체 테스트 완료(2026-07-05): `.tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_active_ranges_fixture.log` 결과 `exitCode=1`. `controller reads active sheet ranges` 실패는 제거되고 다음 첫 실패는 `toolbar font size popup over editor keeps selected text range`.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/test/fortune_sheet_canvas_test.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
+- 커밋 예정: active ranges fixture 보정.
 
 ### 완료 (2026-07-04): analyze clean 이후 회귀 묶음 재검증
 

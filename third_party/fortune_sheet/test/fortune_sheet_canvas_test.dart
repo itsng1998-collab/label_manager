@@ -45537,7 +45537,7 @@ void main() {
           name: 'Sheet1',
           cells: {
             const FortuneCellCoord(0, 0): const FortuneCell(value: 'A'),
-            const FortuneCellCoord(0, 1): const FortuneCell(value: ''),
+            const FortuneCellCoord(0, 1): const FortuneCell(value: 'B'),
             const FortuneCellCoord(1, 0): const FortuneCell(value: 'C'),
             const FortuneCellCoord(2, 2): const FortuneCell(value: 'C3'),
             const FortuneCellCoord(2, 3): const FortuneCell(value: 'D3'),
