@@ -27,6 +27,20 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-05): 이미지/바코드 레이어 패널 다중 삭제/복제
+
+- 목적: 레이어 패널에서 Ctrl/Shift로 선택한 여러 이미지/바코드 row에 대해 삭제와 복제를 그룹 단위로 수행한다. 우클릭/플로팅 툴바는 기존 단일 오브젝트 동작을 유지한다.
+- 변경 완료: `fortune_sheet_canvas.dart`의 `_deleteActiveImageFromLayerPanel`이 레이어 패널 선택 집합 전체를 삭제하도록 확장했고, 삭제 후 남은 row/선택 상태를 정리한다.
+- 변경 완료: `fortune_sheet_canvas.dart`의 `_duplicateContextImage`가 `keepLayerPanelOpen` 레이어 패널 action에서는 `_imageLayerPanelActionImageIds` 기준으로 선택 그룹을 복제하도록 확장했다. 복제된 이미지/바코드는 새 internal id, zOrder, object id를 부여하고 새 복제 그룹을 선택 상태로 유지한다.
+- 변경 완료: `_nextImageObjectId`/`_nextBarcodeObjectId`에 reserved set을 추가해 다중 복제 중 같은 표시 object id가 재사용되지 않도록 했다.
+- 테스트 추가: `fortune_barcode_dialog_test.dart`에 `image layer panel delete action removes selected rows`, `image layer panel duplicate action copies selected rows` 추가.
+- 검증 완료: focused `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --name "image layer panel delete action removes selected rows|image layer panel duplicate action copies selected rows"` 결과 2개 통과.
+- 검증 완료: 관련 묶음 `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --name "image layer panel delete action removes selected row|image layer panel delete action removes selected rows|image layer panel delete key removes selected row|image layer panel duplicate action copies selected row|image layer panel duplicate action copies selected rows|image layer panel keyboard commands duplicate and move row"` 결과 6개 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze third_party\fortune_sheet\lib\src\fortune_sheet_canvas.dart third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --no-fatal-warnings --no-fatal-infos` 결과 `No issues found`.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart` 결과 54개 통과.
+- 검증 완료: `git diff --check -- SESSION_HANDOFF.md third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart` 출력 없음. VS Code diagnostics 오류 없음.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`, `third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
+
 ### 완료 (2026-07-05): 이미지/바코드 레이어 패널 다중 오더
 
 - 목적: 기존 단일 이미지/바코드 오더 기능을 확장해 레이어 패널에서 Shift/Ctrl 선택한 여러 오브젝트를 그룹으로 앞으로/뒤로/맨앞/맨뒤 이동할 수 있게 한다.

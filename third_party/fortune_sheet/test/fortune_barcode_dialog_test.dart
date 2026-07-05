@@ -60,17 +60,15 @@ Future<void> activateOpenContextMenuItem(
   String? command,
 }) async {
   expect(painter.contextMenuAt, isNotNull);
-  final targetCommand = command ??
-      painter.contextMenuItems.firstWhere((item) => item != '|');
+  final targetCommand =
+      command ?? painter.contextMenuItems.firstWhere((item) => item != '|');
   final itemRect = fortuneContextMenuItemRect(
     painter.contextMenuAt!,
     targetCommand,
     painter.contextMenuItems,
   );
   expect(itemRect, isNotNull);
-  await tester.tapAt(
-    canvasTopLeft + itemRect!.center,
-  );
+  await tester.tapAt(canvasTopLeft + itemRect!.center);
   await tester.pump();
 }
 
@@ -151,7 +149,10 @@ void main() {
       ),
     ];
 
-    expect(fortuneImageLayerPanelActionGlyph(fortuneContextDuplicateImageCommand), '⧉');
+    expect(
+      fortuneImageLayerPanelActionGlyph(fortuneContextDuplicateImageCommand),
+      '⧉',
+    );
     expect(
       fortuneImageLayerPanelActionTooltip(fortuneContextDuplicateImageCommand),
       contains('Ctrl+D'),
@@ -223,7 +224,10 @@ void main() {
     for (final entry in expectedShortcuts.entries) {
       expect(fortuneContextMenuShortcutLabel(entry.key), entry.value);
     }
-    expect(fortuneContextMenuShortcutLabel(fortuneContextEditImageCommand), isEmpty);
+    expect(
+      fortuneContextMenuShortcutLabel(fortuneContextEditImageCommand),
+      isEmpty,
+    );
     expect(
       fortuneContextMenuShortcutLabel(fortuneContextEditBarcodeCommand),
       isEmpty,
@@ -392,7 +396,9 @@ void main() {
     });
 
     final workbook = FortuneWorkbook(
-      settings: const FortuneSettings(toolbarItems: [fortuneToolbarImageCommand]),
+      settings: const FortuneSettings(
+        toolbarItems: [fortuneToolbarImageCommand],
+      ),
       sheets: [
         FortuneSheet(
           id: 's1',
@@ -455,7 +461,9 @@ void main() {
       editing: false,
     );
     await tester.tapAt(
-      topLeft + fortuneImageObjectIdInputRect(dialogRect).centerRight - const Offset(12, 0),
+      topLeft +
+          fortuneImageObjectIdInputRect(dialogRect).centerRight -
+          const Offset(12, 0),
     );
     await tester.pump();
 
@@ -471,7 +479,9 @@ void main() {
     });
 
     final workbook = FortuneWorkbook(
-      settings: const FortuneSettings(toolbarItems: [fortuneToolbarImageCommand]),
+      settings: const FortuneSettings(
+        toolbarItems: [fortuneToolbarImageCommand],
+      ),
       sheets: [
         FortuneSheet(
           id: 's1',
@@ -538,9 +548,13 @@ void main() {
       const Size(900, 700),
       editing: false,
     );
-    await tester.tapAt(topLeft + fortuneImageInsertFileButtonRect(dialogRect).center);
+    await tester.tapAt(
+      topLeft + fortuneImageInsertFileButtonRect(dialogRect).center,
+    );
     await tester.pump();
-    await tester.tapAt(topLeft + fortuneImageInsertConfirmButtonRect(dialogRect).center);
+    await tester.tapAt(
+      topLeft + fortuneImageInsertConfirmButtonRect(dialogRect).center,
+    );
     await tester.pump();
 
     final images = painter().workbook.activeSheet.images;
@@ -603,7 +617,8 @@ void main() {
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
-    final imageCenter = topLeft +
+    final imageCenter =
+        topLeft +
         Offset(
           settings.rowHeaderWidth + 25,
           settings.effectiveToolbarHeight +
@@ -700,7 +715,8 @@ void main() {
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
-    final imageCenter = topLeft +
+    final imageCenter =
+        topLeft +
         Offset(
           settings.rowHeaderWidth + 25,
           settings.effectiveToolbarHeight +
@@ -732,7 +748,8 @@ void main() {
     );
 
     var imagesById = {
-      for (final image in painter().workbook.activeSheet.images) image.id: image,
+      for (final image in painter().workbook.activeSheet.images)
+        image.id: image,
     };
     expect(
       imagesById['front']!.extraFields[fortuneSheetObjectZOrderExtraKey],
@@ -765,7 +782,8 @@ void main() {
     );
 
     imagesById = {
-      for (final image in painter().workbook.activeSheet.images) image.id: image,
+      for (final image in painter().workbook.activeSheet.images)
+        image.id: image,
     };
     expect(
       imagesById['front']!.extraFields[fortuneSheetObjectZOrderExtraKey],
@@ -842,7 +860,8 @@ void main() {
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
-    final imageCenter = topLeft +
+    final imageCenter =
+        topLeft +
         Offset(
           settings.rowHeaderWidth + 25,
           settings.effectiveToolbarHeight +
@@ -883,7 +902,8 @@ void main() {
     await tester.pump();
 
     final imagesById = {
-      for (final image in painter().workbook.activeSheet.images) image.id: image,
+      for (final image in painter().workbook.activeSheet.images)
+        image.id: image,
     };
     expect(painter().contextMenuAt, isNotNull);
     expect(
@@ -988,7 +1008,8 @@ void main() {
     await tester.pump();
 
     final imagesById = {
-      for (final image in painter().workbook.activeSheet.images) image.id: image,
+      for (final image in painter().workbook.activeSheet.images)
+        image.id: image,
     };
     expect(
       imagesById['front']!.extraFields[fortuneSheetObjectZOrderExtraKey],
@@ -1090,14 +1111,19 @@ void main() {
     expect(duplicateRect, isNotNull);
 
     final duplicateCenter = topLeft + duplicateRect!.center;
-    await tester.sendEventToBinding(PointerHoverEvent(position: duplicateCenter));
+    await tester.sendEventToBinding(
+      PointerHoverEvent(position: duplicateCenter),
+    );
     await tester.pump();
 
     expect(
       painter().activeImageToolbarHoveredCommand,
       fortuneContextDuplicateImageCommand,
     );
-    expect(painter().activeImageToolbarTooltipPosition, duplicateCenter - topLeft);
+    expect(
+      painter().activeImageToolbarTooltipPosition,
+      duplicateCenter - topLeft,
+    );
 
     await tester.sendEventToBinding(
       PointerHoverEvent(position: topLeft + const Offset(20, 20)),
@@ -1118,7 +1144,8 @@ void main() {
     await tester.pump();
 
     final imagesById = {
-      for (final image in painter().workbook.activeSheet.images) image.id: image,
+      for (final image in painter().workbook.activeSheet.images)
+        image.id: image,
     };
     expect(painter().activeImageId, 'front');
     expect(
@@ -1236,7 +1263,8 @@ void main() {
       const Size(900, 700),
       2,
       1,
-      top: settings.effectiveToolbarHeight +
+      top:
+          settings.effectiveToolbarHeight +
           settings.effectiveFormulaBarHeight +
           settings.columnHeaderHeight +
           fortuneImageLayerPanelMargin,
@@ -1340,7 +1368,8 @@ void main() {
     await tester.tapAt(topLeft + layerButtonRect!.center);
     await tester.pump();
 
-    final layerPanelTop = settings.effectiveToolbarHeight +
+    final layerPanelTop =
+        settings.effectiveToolbarHeight +
         settings.effectiveFormulaBarHeight +
         settings.columnHeaderHeight +
         fortuneImageLayerPanelMargin;
@@ -1368,7 +1397,8 @@ void main() {
     await tester.pump();
 
     final imagesById = {
-      for (final image in painter().workbook.activeSheet.images) image.id: image,
+      for (final image in painter().workbook.activeSheet.images)
+        image.id: image,
     };
     expect(painter().activeImageId, 'back');
     expect(painter().imageLayerPanelOpen, isTrue);
@@ -1465,7 +1495,8 @@ void main() {
     await tester.tapAt(topLeft + layerButtonRect!.center);
     await tester.pump();
 
-    final layerPanelTop = settings.effectiveToolbarHeight +
+    final layerPanelTop =
+        settings.effectiveToolbarHeight +
         settings.effectiveFormulaBarHeight +
         settings.columnHeaderHeight +
         fortuneImageLayerPanelMargin;
@@ -1486,9 +1517,9 @@ void main() {
 
     await tester.tapAt(topLeft + row1!.center);
     await tester.pump();
-    await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
     await tester.tapAt(topLeft + row2!.center);
-    await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
     await tester.pump();
 
     expect(painter().activeImageId, 'image2');
@@ -1609,7 +1640,8 @@ void main() {
     await tester.tapAt(topLeft + layerButtonRect!.center);
     await tester.pump();
 
-    final layerPanelTop = settings.effectiveToolbarHeight +
+    final layerPanelTop =
+        settings.effectiveToolbarHeight +
         settings.effectiveFormulaBarHeight +
         settings.columnHeaderHeight +
         fortuneImageLayerPanelMargin;
@@ -1625,7 +1657,8 @@ void main() {
     await tester.pump();
 
     final imagesById = {
-      for (final image in painter().workbook.activeSheet.images) image.id: image,
+      for (final image in painter().workbook.activeSheet.images)
+        image.id: image,
     };
     expect(painter().activeImageId, 'front');
     expect(painter().imageLayerPanelOpen, isTrue);
@@ -1731,7 +1764,8 @@ void main() {
     await tester.pump();
     expect(painter().imageLayerPanelOpen, isTrue);
 
-    final layerPanelTop = settings.effectiveToolbarHeight +
+    final layerPanelTop =
+        settings.effectiveToolbarHeight +
         settings.effectiveFormulaBarHeight +
         settings.columnHeaderHeight +
         fortuneImageLayerPanelMargin;
@@ -1747,7 +1781,8 @@ void main() {
     await tester.pump();
 
     final imagesById = {
-      for (final image in painter().workbook.activeSheet.images) image.id: image,
+      for (final image in painter().workbook.activeSheet.images)
+        image.id: image,
     };
     expect(painter().activeImageId, 'front');
     expect(painter().imageLayerPanelOpen, isTrue);
@@ -1841,7 +1876,8 @@ void main() {
     await tester.pump();
     expect(painter().imageLayerPanelOpen, isTrue);
 
-    final layerPanelTop = settings.effectiveToolbarHeight +
+    final layerPanelTop =
+        settings.effectiveToolbarHeight +
         settings.effectiveFormulaBarHeight +
         settings.columnHeaderHeight +
         fortuneImageLayerPanelMargin;
@@ -1894,8 +1930,8 @@ void main() {
               FortuneImage(
                 id: 'image$index',
                 src: 'data:image/png;base64,${base64Encode(_transparentPng)}',
-                left: index.toDouble(),
-                top: index.toDouble(),
+                left: 0,
+                top: 0,
                 width: 50,
                 height: 50,
                 extraFields: {fortuneSheetObjectZOrderExtraKey: index},
@@ -1958,7 +1994,8 @@ void main() {
     await tester.tapAt(topLeft + layerButtonRect!.center);
     await tester.pump();
 
-    final layerPanelTop = settings.effectiveToolbarHeight +
+    final layerPanelTop =
+        settings.effectiveToolbarHeight +
         settings.effectiveFormulaBarHeight +
         settings.columnHeaderHeight +
         fortuneImageLayerPanelMargin;
@@ -2095,7 +2132,8 @@ void main() {
     await tester.tapAt(topLeft + layerButtonRect!.center);
     await tester.pump();
 
-    final layerPanelTop = settings.effectiveToolbarHeight +
+    final layerPanelTop =
+        settings.effectiveToolbarHeight +
         settings.effectiveFormulaBarHeight +
         settings.columnHeaderHeight +
         fortuneImageLayerPanelMargin;
@@ -2200,7 +2238,8 @@ void main() {
     await tester.tapAt(topLeft + layerButtonRect!.center);
     await tester.pump();
 
-    final layerPanelTop = settings.effectiveToolbarHeight +
+    final layerPanelTop =
+        settings.effectiveToolbarHeight +
         settings.effectiveFormulaBarHeight +
         settings.columnHeaderHeight +
         fortuneImageLayerPanelMargin;
@@ -2230,7 +2269,8 @@ void main() {
     await tester.pump();
 
     final imagesById = {
-      for (final image in painter().workbook.activeSheet.images) image.id: image,
+      for (final image in painter().workbook.activeSheet.images)
+        image.id: image,
     };
     final panelItems = fortuneImageLayerPanelItems(
       painter().workbook.activeSheet.images,
@@ -2343,7 +2383,8 @@ void main() {
     await tester.tapAt(topLeft + layerButtonRect!.center);
     await tester.pump();
 
-    final layerPanelTop = settings.effectiveToolbarHeight +
+    final layerPanelTop =
+        settings.effectiveToolbarHeight +
         settings.effectiveFormulaBarHeight +
         settings.columnHeaderHeight +
         fortuneImageLayerPanelMargin;
@@ -2370,7 +2411,8 @@ void main() {
     await tester.pump();
 
     final imagesById = {
-      for (final image in painter().workbook.activeSheet.images) image.id: image,
+      for (final image in painter().workbook.activeSheet.images)
+        image.id: image,
     };
     final panelItems = fortuneImageLayerPanelItems(
       painter().workbook.activeSheet.images,
@@ -2476,7 +2518,8 @@ void main() {
     await tester.tapAt(topLeft + layerButtonRect!.center);
     await tester.pump();
 
-    final layerPanelTop = settings.effectiveToolbarHeight +
+    final layerPanelTop =
+        settings.effectiveToolbarHeight +
         settings.effectiveFormulaBarHeight +
         settings.columnHeaderHeight +
         fortuneImageLayerPanelMargin;
@@ -2585,7 +2628,8 @@ void main() {
     await tester.tapAt(topLeft + layerButtonRect!.center);
     await tester.pump();
 
-    final layerPanelTop = settings.effectiveToolbarHeight +
+    final layerPanelTop =
+        settings.effectiveToolbarHeight +
         settings.effectiveFormulaBarHeight +
         settings.columnHeaderHeight +
         fortuneImageLayerPanelMargin;
@@ -2711,7 +2755,10 @@ void main() {
     await tester.sendKeyEvent(LogicalKeyboardKey.pageUp);
     await tester.pump();
     expect(painter().activeImageId, 'image9');
-    expect(painter().imageLayerPanelScrollOffset, fortuneImageLayerPanelRowHeight);
+    expect(
+      painter().imageLayerPanelScrollOffset,
+      fortuneImageLayerPanelRowHeight,
+    );
 
     await tester.sendKeyEvent(LogicalKeyboardKey.end);
     await tester.pump();
@@ -2802,7 +2849,9 @@ void main() {
       imageRect,
       const Size(900, 700),
       fortuneContextToggleLayerPanelCommand,
-      fortuneActiveImageToolbarItems(painter().workbook.activeSheet.images.single),
+      fortuneActiveImageToolbarItems(
+        painter().workbook.activeSheet.images.single,
+      ),
     );
     expect(layerButtonRect, isNotNull);
 
@@ -2891,7 +2940,9 @@ void main() {
       imageRect,
       const Size(900, 700),
       fortuneContextToggleLayerPanelCommand,
-      fortuneActiveImageToolbarItems(painter().workbook.activeSheet.images.last),
+      fortuneActiveImageToolbarItems(
+        painter().workbook.activeSheet.images.last,
+      ),
     );
     expect(layerButtonRect, isNotNull);
 
@@ -2903,7 +2954,8 @@ void main() {
       const Size(900, 700),
       3,
       fortuneContextDeleteImageCommand,
-      top: settings.effectiveToolbarHeight +
+      top:
+          settings.effectiveToolbarHeight +
           settings.effectiveFormulaBarHeight +
           settings.columnHeaderHeight +
           fortuneImageLayerPanelMargin,
@@ -2915,10 +2967,142 @@ void main() {
 
     expect(painter().imageLayerPanelOpen, isTrue);
     expect(painter().activeImageId, 'image2');
-    expect(
-      painter().workbook.activeSheet.images.map((image) => image.id),
-      ['image1', 'image2'],
+    expect(painter().workbook.activeSheet.images.map((image) => image.id), [
+      'image1',
+      'image2',
+    ]);
+  });
+
+  testWidgets('image layer panel delete action removes selected rows', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    const settings = FortuneSettings();
+    final workbook = FortuneWorkbook(
+      settings: settings,
+      sheets: [
+        FortuneSheet(
+          id: 's1',
+          name: 'Sheet1',
+          images: [
+            for (var index = 1; index <= 4; index += 1)
+              FortuneImage(
+                id: 'image$index',
+                src: 'data:image/png;base64,${base64Encode(_transparentPng)}',
+                left: 0,
+                top: 0,
+                width: 50,
+                height: 50,
+                extraFields: {
+                  fortuneImageObjectIdExtraKey: '#IMAGE$index',
+                  fortuneSheetObjectZOrderExtraKey: index,
+                },
+              ),
+          ],
+        ),
+      ],
     );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SizedBox(
+          width: 900,
+          height: 700,
+          child: FortuneSheetCanvas(workbook: workbook),
+        ),
+      ),
+    );
+
+    FortuneSheetPainter painter() {
+      return tester
+          .widgetList<CustomPaint>(
+            find.descendant(
+              of: find.byType(FortuneSheetCanvas),
+              matching: find.byType(CustomPaint),
+            ),
+          )
+          .map((paint) => paint.painter)
+          .whereType<FortuneSheetPainter>()
+          .single;
+    }
+
+    final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
+    final imageRect = Rect.fromLTWH(
+      settings.rowHeaderWidth,
+      settings.effectiveToolbarHeight +
+          settings.effectiveFormulaBarHeight +
+          settings.columnHeaderHeight,
+      50,
+      50,
+    );
+    await tester.tapAt(topLeft + imageRect.center);
+    await tester.pump();
+
+    final layerButtonRect = fortuneActiveImageToolbarItemRect(
+      imageRect,
+      const Size(900, 700),
+      fortuneContextToggleLayerPanelCommand,
+      fortuneActiveImageToolbarItems(
+        painter().workbook.activeSheet.images.last,
+      ),
+    );
+    expect(layerButtonRect, isNotNull);
+
+    await tester.tapAt(topLeft + layerButtonRect!.center);
+    await tester.pump();
+
+    final layerPanelTop =
+        settings.effectiveToolbarHeight +
+        settings.effectiveFormulaBarHeight +
+        settings.columnHeaderHeight +
+        fortuneImageLayerPanelMargin;
+    final row1 = fortuneImageLayerPanelItemRect(
+      const Size(900, 700),
+      4,
+      1,
+      top: layerPanelTop,
+    );
+    final row2 = fortuneImageLayerPanelItemRect(
+      const Size(900, 700),
+      4,
+      2,
+      top: layerPanelTop,
+    );
+    expect(row1, isNotNull);
+    expect(row2, isNotNull);
+
+    await tester.tapAt(topLeft + row1!.center);
+    await tester.pump();
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.tapAt(topLeft + row2!.center);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pump();
+    expect(painter().selectedImageIds, {'image3', 'image2'});
+
+    final deleteRect = fortuneImageLayerPanelActionRect(
+      const Size(900, 700),
+      4,
+      fortuneContextDeleteImageCommand,
+      top: layerPanelTop,
+    );
+    expect(deleteRect, isNotNull);
+
+    await tester.tapAt(topLeft + deleteRect!.center);
+    await tester.pump();
+
+    expect(painter().imageLayerPanelOpen, isTrue);
+    expect(painter().activeImageId, 'image1');
+    expect(painter().selectedImageIds, {'image1'});
+    expect(painter().workbook.activeSheet.images.map((image) => image.id), [
+      'image1',
+      'image4',
+    ]);
   });
 
   testWidgets('image layer panel delete key removes selected row', (
@@ -2996,7 +3180,9 @@ void main() {
       imageRect,
       const Size(900, 700),
       fortuneContextToggleLayerPanelCommand,
-      fortuneActiveImageToolbarItems(painter().workbook.activeSheet.images.last),
+      fortuneActiveImageToolbarItems(
+        painter().workbook.activeSheet.images.last,
+      ),
     );
     expect(layerButtonRect, isNotNull);
 
@@ -3013,10 +3199,10 @@ void main() {
 
     expect(painter().imageLayerPanelOpen, isTrue);
     expect(painter().activeImageId, 'image1');
-    expect(
-      painter().workbook.activeSheet.images.map((image) => image.id),
-      ['image1', 'image3'],
-    );
+    expect(painter().workbook.activeSheet.images.map((image) => image.id), [
+      'image1',
+      'image3',
+    ]);
   });
 
   testWidgets('image layer panel duplicate action copies selected row', (
@@ -3095,7 +3281,9 @@ void main() {
       imageRect,
       const Size(900, 700),
       fortuneContextToggleLayerPanelCommand,
-      fortuneActiveImageToolbarItems(painter().workbook.activeSheet.images.last),
+      fortuneActiveImageToolbarItems(
+        painter().workbook.activeSheet.images.last,
+      ),
     );
     expect(layerButtonRect, isNotNull);
 
@@ -3107,7 +3295,8 @@ void main() {
       const Size(900, 700),
       2,
       fortuneContextDuplicateImageCommand,
-      top: settings.effectiveToolbarHeight +
+      top:
+          settings.effectiveToolbarHeight +
           settings.effectiveFormulaBarHeight +
           settings.columnHeaderHeight +
           fortuneImageLayerPanelMargin,
@@ -3127,6 +3316,152 @@ void main() {
     expect(duplicate.top, 12);
     expect(duplicate.extraFields[fortuneImageObjectIdExtraKey], '#IMAGE3');
     expect(duplicate.extraFields[fortuneSheetObjectZOrderExtraKey], 3.0);
+  });
+
+  testWidgets('image layer panel duplicate action copies selected rows', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    const settings = FortuneSettings();
+    final workbook = FortuneWorkbook(
+      settings: settings,
+      sheets: [
+        FortuneSheet(
+          id: 's1',
+          name: 'Sheet1',
+          images: [
+            for (var index = 1; index <= 4; index += 1)
+              FortuneImage(
+                id: 'image$index',
+                src: 'data:image/png;base64,${base64Encode(_transparentPng)}',
+                left: 0,
+                top: 0,
+                width: 50,
+                height: 50,
+                extraFields: {
+                  fortuneImageObjectIdExtraKey: '#IMAGE$index',
+                  fortuneSheetObjectZOrderExtraKey: index,
+                },
+              ),
+          ],
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SizedBox(
+          width: 900,
+          height: 700,
+          child: FortuneSheetCanvas(workbook: workbook),
+        ),
+      ),
+    );
+
+    FortuneSheetPainter painter() {
+      return tester
+          .widgetList<CustomPaint>(
+            find.descendant(
+              of: find.byType(FortuneSheetCanvas),
+              matching: find.byType(CustomPaint),
+            ),
+          )
+          .map((paint) => paint.painter)
+          .whereType<FortuneSheetPainter>()
+          .single;
+    }
+
+    final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
+    final imageRect = Rect.fromLTWH(
+      settings.rowHeaderWidth,
+      settings.effectiveToolbarHeight +
+          settings.effectiveFormulaBarHeight +
+          settings.columnHeaderHeight,
+      50,
+      50,
+    );
+    await tester.tapAt(topLeft + imageRect.center);
+    await tester.pump();
+
+    final layerButtonRect = fortuneActiveImageToolbarItemRect(
+      imageRect,
+      const Size(900, 700),
+      fortuneContextToggleLayerPanelCommand,
+      fortuneActiveImageToolbarItems(
+        painter().workbook.activeSheet.images.last,
+      ),
+    );
+    expect(layerButtonRect, isNotNull);
+
+    await tester.tapAt(topLeft + layerButtonRect!.center);
+    await tester.pump();
+
+    final layerPanelTop =
+        settings.effectiveToolbarHeight +
+        settings.effectiveFormulaBarHeight +
+        settings.columnHeaderHeight +
+        fortuneImageLayerPanelMargin;
+    final row1 = fortuneImageLayerPanelItemRect(
+      const Size(900, 700),
+      4,
+      1,
+      top: layerPanelTop,
+    );
+    final row2 = fortuneImageLayerPanelItemRect(
+      const Size(900, 700),
+      4,
+      2,
+      top: layerPanelTop,
+    );
+    expect(row1, isNotNull);
+    expect(row2, isNotNull);
+
+    await tester.tapAt(topLeft + row1!.center);
+    await tester.pump();
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.tapAt(topLeft + row2!.center);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pump();
+    expect(painter().selectedImageIds, {'image3', 'image2'});
+
+    final duplicateRect = fortuneImageLayerPanelActionRect(
+      const Size(900, 700),
+      4,
+      fortuneContextDuplicateImageCommand,
+      top: layerPanelTop,
+    );
+    expect(duplicateRect, isNotNull);
+
+    await tester.tapAt(topLeft + duplicateRect!.center);
+    await tester.pump();
+
+    final images = painter().workbook.activeSheet.images;
+    expect(images, hasLength(6));
+    final duplicates = images.skip(4).toList();
+    expect(painter().activeImageId, duplicates.last.id);
+    expect(painter().selectedImageIds, {
+      for (final duplicate in duplicates) duplicate.id,
+    });
+    expect(duplicates.map((image) => image.left), [12.0, 12.0]);
+    expect(duplicates.map((image) => image.top), [12.0, 12.0]);
+    expect(
+      duplicates.map(
+        (image) => image.extraFields[fortuneImageObjectIdExtraKey],
+      ),
+      ['#IMAGE5', '#IMAGE6'],
+    );
+    expect(
+      duplicates.map(
+        (image) => image.extraFields[fortuneSheetObjectZOrderExtraKey],
+      ),
+      [5.0, 6.0],
+    );
   });
 
   testWidgets('image layer panel keyboard commands duplicate and move row', (
@@ -3204,7 +3539,9 @@ void main() {
       imageRect,
       const Size(900, 700),
       fortuneContextToggleLayerPanelCommand,
-      fortuneActiveImageToolbarItems(painter().workbook.activeSheet.images.last),
+      fortuneActiveImageToolbarItems(
+        painter().workbook.activeSheet.images.last,
+      ),
     );
     expect(layerButtonRect, isNotNull);
 
@@ -3307,7 +3644,8 @@ void main() {
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
-    final barcodeCenter = topLeft +
+    final barcodeCenter =
+        topLeft +
         Offset(
           settings.rowHeaderWidth + 25,
           settings.effectiveToolbarHeight +
@@ -3439,7 +3777,8 @@ void main() {
     final expectedOffset = fortuneImageLayerPanelRowHeight * 2;
     expect(painter().imageLayerPanelScrollOffset, expectedOffset);
 
-    final layerPanelTop = settings.effectiveToolbarHeight +
+    final layerPanelTop =
+        settings.effectiveToolbarHeight +
         settings.effectiveFormulaBarHeight +
         settings.columnHeaderHeight +
         fortuneImageLayerPanelMargin;
@@ -3517,7 +3856,8 @@ void main() {
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
-    final imageCenter = topLeft +
+    final imageCenter =
+        topLeft +
         Offset(
           settings.rowHeaderWidth + 25,
           settings.effectiveToolbarHeight +
@@ -3603,7 +3943,8 @@ void main() {
       const Size(900, 700),
       editing: false,
     );
-    final closeCenter = topLeft + fortuneBarcodeCloseButtonRect(dialogRect).center;
+    final closeCenter =
+        topLeft + fortuneBarcodeCloseButtonRect(dialogRect).center;
 
     await tester.sendEventToBinding(PointerHoverEvent(position: closeCenter));
     await tester.pump();

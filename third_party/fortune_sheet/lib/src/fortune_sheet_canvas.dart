@@ -22832,24 +22832,30 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     return result;
   }
 
-  String _nextImageObjectId() {
+  String _nextImageObjectId({Set<String> reserved = const <String>{}}) {
     var maxIndex = 0;
     final pattern = RegExp(r'^#IMAGE(\d+)$', caseSensitive: false);
-    for (final image in _workbook.activeSheet.images) {
-      final raw = image.extraFields[fortuneImageObjectIdExtraKey] ?? image.id;
+    void visit(Object? raw) {
       final match = pattern.firstMatch(raw.toString().trim());
       if (match == null) {
-        continue;
+        return;
       }
       final index = int.tryParse(match.group(1) ?? '');
       if (index != null) {
         maxIndex = math.max(maxIndex, index);
       }
     }
+
+    for (final image in _workbook.activeSheet.images) {
+      visit(image.extraFields[fortuneImageObjectIdExtraKey] ?? image.id);
+    }
+    for (final value in reserved) {
+      visit(value);
+    }
     return '#IMAGE${maxIndex + 1}';
   }
 
-  String _nextBarcodeObjectId() {
+  String _nextBarcodeObjectId({Set<String> reserved = const <String>{}}) {
     var maxIndex = 0;
     final pattern = RegExp(r'^#BARCODE(\d*)$', caseSensitive: false);
     void visit(Object? raw) {
@@ -22872,6 +22878,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         continue;
       }
       visit(image.extraFields[fortuneBarcodeObjectIdExtraKey]);
+    }
+    for (final value in reserved) {
+      visit(value);
     }
     return '#BARCODE${maxIndex + 1}';
   }
@@ -25327,9 +25336,10 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     }
     final items = fortuneImageLayerPanelItems(sheet.images);
     final currentIndex = items.indexWhere((image) => image.id == activeImageId);
+    final selectedIds = _imageLayerPanelActionImageIds();
     final images = [
       for (final image in sheet.images)
-        if (image.id != activeImageId) image,
+        if (!selectedIds.contains(image.id)) image,
     ];
     if (images.length == sheet.images.length) {
       return true;
@@ -25365,6 +25375,25 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
           : _imageLayerPanelScrollOffsetToRevealActive();
     });
     return true;
+  }
+
+  Set<String> _imageLayerPanelActionImageIds() {
+    final activeImageId = _activeImageId;
+    if (activeImageId == null) {
+      return const <String>{};
+    }
+    final existingIds = {
+      for (final image in _workbook.activeSheet.images) image.id,
+    };
+    if (_imageLayerPanelOpen && _selectedImageIds.contains(activeImageId)) {
+      final selectedIds = _selectedImageIds.intersection(existingIds);
+      if (selectedIds.isNotEmpty) {
+        return selectedIds;
+      }
+    }
+    return existingIds.contains(activeImageId)
+        ? <String>{activeImageId}
+        : const <String>{};
   }
 
   bool _commitImageResize() {
@@ -30805,8 +30834,16 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   void _duplicateContextImage({bool keepLayerPanelOpen = false}) {
     final sourceId = _contextMenuImageId ?? _activeImageId;
     final sheet = _workbook.activeSheet;
-    final source = sourceId == null ? null : _imageById(sourceId);
-    if (source == null) {
+    final selectedIds = keepLayerPanelOpen
+        ? _imageLayerPanelActionImageIds()
+        : sourceId == null
+        ? const <String>{}
+        : <String>{sourceId};
+    final sources = [
+      for (final image in fortuneImagesInPaintOrder(sheet.images))
+        if (selectedIds.contains(image.id)) image,
+    ];
+    if (sources.isEmpty) {
       setState(_closeTransientMenus);
       return;
     }
@@ -30814,28 +30851,44 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       setState(_closeTransientMenus);
       return;
     }
-    final duplicateId = _newImageId();
-    final extraFields = <String, Object?>{
-      ...source.extraFields,
-      fortuneSheetObjectZOrderExtraKey: _nextImageZOrder(sheet),
-    };
-    if (_isBarcodeImage(source)) {
-      extraFields[fortuneBarcodeObjectIdExtraKey] = _nextBarcodeObjectId();
-    } else {
-      extraFields[fortuneImageObjectIdExtraKey] = _nextImageObjectId();
+    var nextZOrder = _nextImageZOrder(sheet);
+    final reservedImageObjectIds = <String>{};
+    final reservedBarcodeObjectIds = <String>{};
+    final duplicates = <FortuneImage>[];
+    for (final source in sources) {
+      final duplicateId = _newImageId();
+      final extraFields = <String, Object?>{
+        ...source.extraFields,
+        fortuneSheetObjectZOrderExtraKey: nextZOrder,
+      };
+      nextZOrder += 1;
+      if (_isBarcodeImage(source)) {
+        final objectId = _nextBarcodeObjectId(
+          reserved: reservedBarcodeObjectIds,
+        );
+        reservedBarcodeObjectIds.add(objectId);
+        extraFields[fortuneBarcodeObjectIdExtraKey] = objectId;
+      } else {
+        final objectId = _nextImageObjectId(reserved: reservedImageObjectIds);
+        reservedImageObjectIds.add(objectId);
+        extraFields[fortuneImageObjectIdExtraKey] = objectId;
+      }
+      duplicates.add(
+        source.copyWith(
+          id: duplicateId,
+          left: source.left + 12,
+          top: math.max(0.0, source.top + 12),
+          extraFields: extraFields,
+        ),
+      );
     }
-    final duplicate = source.copyWith(
-      id: duplicateId,
-      left: source.left + 12,
-      top: math.max(0.0, source.top + 12),
-      extraFields: extraFields,
-    );
     _recordUndoSnapshot();
-    final nextImages = List<FortuneImage>.from(sheet.images)..add(duplicate);
+    final nextImages = List<FortuneImage>.from(sheet.images)..addAll(duplicates);
+    final duplicateIds = {for (final duplicate in duplicates) duplicate.id};
     setState(() {
       _replaceActiveSheet(sheet.copyWith(images: nextImages));
-      _activeImageId = duplicateId;
-      _selectedImageIds = <String>{duplicateId};
+      _activeImageId = duplicates.last.id;
+      _selectedImageIds = duplicateIds;
       contextMenuAt = null;
       _contextMenuImageId = null;
       _imageLayerPanelOpen = keepLayerPanelOpen || _imageLayerPanelOpen;
@@ -30843,7 +30896,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
           ? _imageLayerPanelScrollOffsetToRevealActive()
           : 0;
     });
-    _decodeImageIfNeeded(source.src);
+    for (final source in sources) {
+      _decodeImageIfNeeded(source.src);
+    }
   }
 
   void _toggleSheetRulerVisible() {
