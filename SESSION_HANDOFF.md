@@ -339,7 +339,7 @@
 - 전체 테스트 실행 예정(2026-07-05): `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_sheet_canvas_test.dart *> .tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_filter_search_shortcut_host.log`; 실행 후 `exit` 금지, `$LASTEXITCODE` 요약만 출력.
 - 전체 테스트 완료(2026-07-05): `.tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_filter_search_shortcut_host.log` 결과 `exitCode=1`, 1288개 중 133개 실패. search shortcut 두 실패 제거. 다음 첫 실패는 `filter dropdown value checkbox toggles grouped rows and blanks`의 `sheet.filter['0']` null cast. 이후 `filter dropdown bulk controls ignore search narrowing`에도 search `EditableText` Overlay host 누락이 보임.
 - stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/test/fortune_sheet_canvas_test.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
-- 커밋 완료: `96ab764` (`FortuneSheet 필터 검색 테스트 host 보정`).
+- 커밋 완료: `b67e712` (`FortuneSheet 필터 검색 테스트 host 보정`).
 
 ### 완료 (2026-07-04): analyze clean 이후 회귀 묶음 재검증
 
