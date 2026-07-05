@@ -6909,6 +6909,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         _workbook.activeSheet.images,
         _activeImageId,
         layerPanelCommand,
+        selectedImageIds: _selectedImageIds,
       )) {
         setState(() {
           contextMenuAt = null;

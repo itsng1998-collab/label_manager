@@ -194,6 +194,54 @@ void main() {
       isTrue,
     );
     expect(
+      fortuneImageLayerPanelActionEnabled(
+        images,
+        'front',
+        fortuneContextBringToFrontCommand,
+        selectedImageIds: {'front', 'back'},
+      ),
+      isFalse,
+    );
+    expect(
+      fortuneImageLayerPanelActionEnabled(
+        images,
+        'front',
+        fortuneContextSendToBackCommand,
+        selectedImageIds: {'front', 'back'},
+      ),
+      isFalse,
+    );
+    final fourImages = [
+      for (var index = 1; index <= 4; index += 1)
+        FortuneImage(
+          id: 'image$index',
+          src: 'data:image/png;base64,empty',
+          left: 0,
+          top: 0,
+          width: 10,
+          height: 10,
+          extraFields: {fortuneSheetObjectZOrderExtraKey: index},
+        ),
+    ];
+    expect(
+      fortuneImageLayerPanelActionEnabled(
+        fourImages,
+        'image4',
+        fortuneContextBringToFrontCommand,
+        selectedImageIds: {'image4', 'image2'},
+      ),
+      isTrue,
+    );
+    expect(
+      fortuneImageLayerPanelActionEnabled(
+        fourImages,
+        'image3',
+        fortuneContextBringToFrontCommand,
+        selectedImageIds: {'image4', 'image3'},
+      ),
+      isFalse,
+    );
+    expect(
       fortuneActiveImageToolbarItemEnabled(
         images,
         'front',
@@ -1546,6 +1594,143 @@ void main() {
       'image1',
     ]);
     expect(painter().selectedImageIds, {'image3', 'image2'});
+  });
+
+  testWidgets('image layer panel enables movement for selected group', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    const settings = FortuneSettings();
+    final workbook = FortuneWorkbook(
+      settings: settings,
+      sheets: [
+        FortuneSheet(
+          id: 's1',
+          name: 'Sheet1',
+          images: [
+            for (var index = 1; index <= 4; index += 1)
+              FortuneImage(
+                id: 'image$index',
+                src: 'data:image/png;base64,${base64Encode(_transparentPng)}',
+                left: 0,
+                top: 0,
+                width: 50,
+                height: 50,
+                extraFields: {fortuneSheetObjectZOrderExtraKey: index},
+              ),
+          ],
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SizedBox(
+          width: 900,
+          height: 700,
+          child: FortuneSheetCanvas(workbook: workbook),
+        ),
+      ),
+    );
+
+    FortuneSheetPainter painter() {
+      return tester
+          .widgetList<CustomPaint>(
+            find.descendant(
+              of: find.byType(FortuneSheetCanvas),
+              matching: find.byType(CustomPaint),
+            ),
+          )
+          .map((paint) => paint.painter)
+          .whereType<FortuneSheetPainter>()
+          .single;
+    }
+
+    final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
+    final imageRect = Rect.fromLTWH(
+      settings.rowHeaderWidth,
+      settings.effectiveToolbarHeight +
+          settings.effectiveFormulaBarHeight +
+          settings.columnHeaderHeight,
+      50,
+      50,
+    );
+    await tester.tapAt(topLeft + imageRect.center);
+    await tester.pump();
+    expect(painter().activeImageId, 'image4');
+
+    final layerButtonRect = fortuneActiveImageToolbarItemRect(
+      imageRect,
+      const Size(900, 700),
+      fortuneContextToggleLayerPanelCommand,
+      fortuneActiveImageToolbarItems(
+        painter().workbook.activeSheet.images.last,
+      ),
+    );
+    expect(layerButtonRect, isNotNull);
+
+    await tester.tapAt(topLeft + layerButtonRect!.center);
+    await tester.pump();
+
+    final layerPanelTop =
+        settings.effectiveToolbarHeight +
+        settings.effectiveFormulaBarHeight +
+        settings.columnHeaderHeight +
+        fortuneImageLayerPanelMargin;
+    final image2Row = fortuneImageLayerPanelItemRect(
+      const Size(900, 700),
+      4,
+      2,
+      top: layerPanelTop,
+    );
+    expect(image2Row, isNotNull);
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.tapAt(topLeft + image2Row!.center);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pump();
+    expect(painter().selectedImageIds, {'image4', 'image2'});
+
+    final bringToFrontRect = fortuneImageLayerPanelActionRect(
+      const Size(900, 700),
+      4,
+      fortuneContextBringToFrontCommand,
+      top: layerPanelTop,
+    );
+    expect(bringToFrontRect, isNotNull);
+
+    await tester.tapAt(topLeft + bringToFrontRect!.center);
+    await tester.pump();
+
+    final imagesById = {
+      for (final image in painter().workbook.activeSheet.images)
+        image.id: image,
+    };
+    final panelItems = fortuneImageLayerPanelItems(
+      painter().workbook.activeSheet.images,
+    );
+    expect(painter().activeImageId, 'image2');
+    expect(painter().selectedImageIds, {'image4', 'image2'});
+    expect(panelItems.take(4).map((image) => image.id), [
+      'image4',
+      'image2',
+      'image3',
+      'image1',
+    ]);
+    expect(
+      imagesById['image2']!.extraFields[fortuneSheetObjectZOrderExtraKey],
+      3.0,
+    );
+    expect(
+      imagesById['image3']!.extraFields[fortuneSheetObjectZOrderExtraKey],
+      2.0,
+    );
   });
 
   testWidgets('image layer panel action sends selected item to back', (

@@ -27,6 +27,19 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-05): 이미지/바코드 레이어 패널 다중 선택 action enable 판정
+
+- 목적: 레이어 패널 action 버튼의 활성/비활성 판정을 다중 선택 그룹 기준으로 맞춘다. active row 하나만 보면 active가 맨 앞/맨 뒤인 경우 선택 그룹 전체는 이동 가능해도 action이 비활성화될 수 있다.
+- 변경 완료: `fortuneImageLayerPanelActionEnabled`가 선택 집합을 선택적으로 받아, 레이어 패널에서는 `_selectedImageIds` 기준으로 그룹 이동 가능 여부를 판정하고 active image toolbar/context menu는 기존 단일 판정을 유지한다.
+- 변경 완료: `fortune_sheet_canvas.dart`의 레이어 패널 action hit-test와 `fortune_sheet_painter.dart`의 action draw가 selected id 집합을 helper에 전달하도록 연결했다.
+- 테스트 추가: helper 단위에서 비연속 선택 그룹의 이동 가능 여부를 검증하고, widget 테스트 `image layer panel enables movement for selected group`으로 선택 그룹이 action 버튼을 통해 이동되는지 확인했다.
+- 검증 완료: focused `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --name "image layer panel action helpers expose shortcuts and boundaries|image layer panel action moves selected rows as a group|image layer panel enables movement for selected group"` 결과 3개 통과.
+- 검증 완료: 관련 묶음 `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --name "image layer panel action helpers expose shortcuts and boundaries|image layer panel action moves selected item forward|image layer panel action moves selected rows as a group|image layer panel enables movement for selected group|image layer panel action sends selected item to back|image layer panel disabled movement action keeps order|image layer panel keyboard commands duplicate and move row"` 결과 7개 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze third_party\fortune_sheet\lib\src\fortune_sheet_canvas.dart third_party\fortune_sheet\lib\src\fortune_sheet_painter.dart third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --no-fatal-warnings --no-fatal-infos` 결과 `No issues found`.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart` 결과 57개 통과.
+- 검증 완료: `git diff --check -- SESSION_HANDOFF.md third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart` 출력 없음. VS Code diagnostics 오류 없음.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`, `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`, `third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
+
 ### 완료 (2026-07-05): 이미지/바코드 레이어 패널 키보드 다중 선택
 
 - 목적: 레이어 패널 키보드 탐색에서 마우스와 같은 다중 선택 모델을 제공한다. 일반 Arrow/Page/Home/End 이동은 단일 선택으로 접고, Shift 이동은 범위 선택을 확장/축소하며, Ctrl/Meta 이동은 선택 집합을 유지한 채 active row만 이동한다.

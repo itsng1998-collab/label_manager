@@ -2427,7 +2427,7 @@ const String fortuneContextSetLabelHeightCommand = 'set-label-height';
 const String fortuneContextShowGridLinesCommand = 'show-grid-lines';
 const String fortuneContextShowRulerCommand = 'show-ruler';
 const String fortuneContextInsertAutoIngredientTableCommand =
-  'insert-auto-ingredient-table';
+    'insert-auto-ingredient-table';
 const String fortuneContextLoadCommonLabelCommand = 'load-common-label';
 const String fortuneContextImportLabelFileCommand = 'import-label-file';
 const String fortuneContextExportLabelFileCommand = 'export-label-file';
@@ -43149,7 +43149,9 @@ Rect fortuneContextMenuShortcutRect(Rect row) {
   return Rect.fromLTWH(
     math.max(
       row.left + fortuneContextMenuTextLeft,
-      row.right - fortuneContextMenuShortcutRight - fortuneContextMenuShortcutWidth,
+      row.right -
+          fortuneContextMenuShortcutRight -
+          fortuneContextMenuShortcutWidth,
     ),
     row.top,
     fortuneContextMenuShortcutWidth,
@@ -44255,7 +44257,7 @@ const String fortuneBarcodeBodyTopExtraKey = 'barcodeBodyTop';
 const String fortuneBarcodeBodyHeightExtraKey = 'barcodeBodyHeight';
 const String fortuneBarcodeBodyRatioExtraKey = 'barcodeBodyRatio';
 const String fortuneBarcodeIdLabelPrintExcludedExtraKey =
-  'barcodeIdLabelPrintExcluded';
+    'barcodeIdLabelPrintExcluded';
 const double fortuneBarcodeObjectIdLabelScale = 1.5;
 const double fortuneActiveImageToolbarWidth = 360.0;
 const double fortuneActiveImageToolbarHeight = 30.0;
@@ -44307,8 +44309,9 @@ String fortuneImageLayerPanelActionTooltip(String command) {
 bool fortuneImageLayerPanelActionEnabled(
   List<FortuneImage> images,
   String? activeImageId,
-  String command,
-) {
+  String command, {
+  Set<String> selectedImageIds = const <String>{},
+}) {
   if (activeImageId == null || images.isEmpty) {
     return false;
   }
@@ -44317,12 +44320,25 @@ bool fortuneImageLayerPanelActionEnabled(
   if (currentIndex < 0) {
     return false;
   }
+  final existingIds = {for (final image in ordered) image.id};
+  final actionIds = selectedImageIds.contains(activeImageId)
+      ? selectedImageIds.intersection(existingIds)
+      : <String>{activeImageId};
+  if (actionIds.isEmpty) {
+    return false;
+  }
+  final selectedIndexes = <int>[
+    for (var index = 0; index < ordered.length; index += 1)
+      if (actionIds.contains(ordered[index].id)) index,
+  ];
+  final selectedCount = selectedIndexes.length;
   return switch (command) {
-    fortuneContextDeleteImageCommand || fortuneContextDuplicateImageCommand => true,
+    fortuneContextDeleteImageCommand ||
+    fortuneContextDuplicateImageCommand => true,
     fortuneContextBringForwardCommand || fortuneContextBringToFrontCommand =>
-      currentIndex < ordered.length - 1,
+      selectedIndexes.any((index) => index < ordered.length - selectedCount),
     fortuneContextSendBackwardCommand || fortuneContextSendToBackCommand =>
-      currentIndex > 0,
+      selectedIndexes.any((index) => index >= selectedCount),
     _ => false,
   };
 }
@@ -44365,7 +44381,8 @@ Rect fortuneImageLayerPanelRect(
   double top = fortuneImageLayerPanelMargin,
 }) {
   final visibleRows = math.min(itemCount, fortuneImageLayerPanelMaxVisibleRows);
-  final height = fortuneImageLayerPanelHeaderHeight +
+  final height =
+      fortuneImageLayerPanelHeaderHeight +
       visibleRows * fortuneImageLayerPanelRowHeight;
   final width = math.min(
     fortuneImageLayerPanelWidth,
@@ -44398,7 +44415,8 @@ Rect? fortuneImageLayerPanelItemRect(
   final panel = fortuneImageLayerPanelRect(viewportSize, itemCount, top: top);
   final listTop = panel.top + fortuneImageLayerPanelHeaderHeight;
   final listBottom = panel.bottom;
-  final rowTop = listTop + index * fortuneImageLayerPanelRowHeight - scrollOffset;
+  final rowTop =
+      listTop + index * fortuneImageLayerPanelRowHeight - scrollOffset;
   final row = Rect.fromLTWH(
     panel.left,
     rowTop,
@@ -44437,10 +44455,12 @@ Rect? fortuneImageLayerPanelScrollbarThumbRect(
     return null;
   }
   final panel = fortuneImageLayerPanelRect(viewportSize, itemCount, top: top);
-  final trackTop = panel.top +
+  final trackTop =
+      panel.top +
       fortuneImageLayerPanelHeaderHeight +
       fortuneImageLayerPanelScrollbarMargin;
-  final trackHeight = panel.height -
+  final trackHeight =
+      panel.height -
       fortuneImageLayerPanelHeaderHeight -
       fortuneImageLayerPanelScrollbarMargin * 2;
   if (trackHeight <= 0) {
@@ -44458,10 +44478,14 @@ Rect? fortuneImageLayerPanelScrollbarThumbRect(
     scrollOffset,
   );
   final thumbTravel = math.max(0.0, trackHeight - thumbHeight);
-  final thumbTop = trackTop +
-      (maxScrollOffset <= 0 ? 0 : thumbTravel * clampedOffset / maxScrollOffset);
+  final thumbTop =
+      trackTop +
+      (maxScrollOffset <= 0
+          ? 0
+          : thumbTravel * clampedOffset / maxScrollOffset);
   return Rect.fromLTWH(
-    panel.right - fortuneImageLayerPanelScrollbarMargin -
+    panel.right -
+        fortuneImageLayerPanelScrollbarMargin -
         fortuneImageLayerPanelScrollbarWidth,
     thumbTop,
     fortuneImageLayerPanelScrollbarWidth,
@@ -44483,7 +44507,8 @@ Rect? fortuneImageLayerPanelActionRect(
   if (index < 0) {
     return null;
   }
-  final actionTop = panel.top +
+  final actionTop =
+      panel.top +
       (fortuneImageLayerPanelHeaderHeight - fortuneImageLayerPanelActionSize) /
           2;
   final actionRight = panel.right - 8;
@@ -44535,21 +44560,33 @@ Rect fortuneActiveImageToolbarRect(Rect imageRect, Size viewportSize) {
     math.max(0.0, viewportSize.width - fortuneActiveImageToolbarMargin * 2),
   );
   final rawLeft = imageRect.center.dx - width / 2;
-  final left = rawLeft.clamp(
-    fortuneActiveImageToolbarMargin,
-    math.max(fortuneActiveImageToolbarMargin, viewportSize.width - width - fortuneActiveImageToolbarMargin),
-  ).toDouble();
-  var top = imageRect.top - fortuneActiveImageToolbarGap - fortuneActiveImageToolbarHeight;
+  final left = rawLeft
+      .clamp(
+        fortuneActiveImageToolbarMargin,
+        math.max(
+          fortuneActiveImageToolbarMargin,
+          viewportSize.width - width - fortuneActiveImageToolbarMargin,
+        ),
+      )
+      .toDouble();
+  var top =
+      imageRect.top -
+      fortuneActiveImageToolbarGap -
+      fortuneActiveImageToolbarHeight;
   if (top < fortuneActiveImageToolbarMargin) {
     top = imageRect.bottom + fortuneActiveImageToolbarGap;
   }
-  top = top.clamp(
-    fortuneActiveImageToolbarMargin,
-    math.max(
-      fortuneActiveImageToolbarMargin,
-      viewportSize.height - fortuneActiveImageToolbarHeight - fortuneActiveImageToolbarMargin,
-    ),
-  ).toDouble();
+  top = top
+      .clamp(
+        fortuneActiveImageToolbarMargin,
+        math.max(
+          fortuneActiveImageToolbarMargin,
+          viewportSize.height -
+              fortuneActiveImageToolbarHeight -
+              fortuneActiveImageToolbarMargin,
+        ),
+      )
+      .toDouble();
   return Rect.fromLTWH(left, top, width, fortuneActiveImageToolbarHeight);
 }
 
@@ -44609,9 +44646,9 @@ List<FortuneImage> fortuneImagesInPaintOrder(List<FortuneImage> images) {
       (index: index, image: images[index]),
   ];
   indexed.sort((a, b) {
-    final order = fortuneImageZOrder(a.image).compareTo(
-      fortuneImageZOrder(b.image),
-    );
+    final order = fortuneImageZOrder(
+      a.image,
+    ).compareTo(fortuneImageZOrder(b.image));
     return order != 0 ? order : a.index.compareTo(b.index);
   });
   return [for (final entry in indexed) entry.image];
@@ -44638,12 +44675,7 @@ FortuneBarcodeObjectIdLabelMetrics? fortuneBarcodeObjectIdLabelMetrics(
     math.max(1.0, rect.height * bodyRatio),
     math.max(1.0, rect.bottom - bodyTop),
   );
-  final bodyRect = Rect.fromLTWH(
-    rect.left,
-    bodyTop,
-    rect.width,
-    bodyHeight,
-  );
+  final bodyRect = Rect.fromLTWH(rect.left, bodyTop, rect.width, bodyHeight);
   if (bodyRect.width < 12 || bodyRect.height < 10) {
     return null;
   }
@@ -62152,7 +62184,10 @@ class FortuneSheetPainter extends CustomPainter {
   ) {
     final opacity = item.disabled ? 0.38 : 1.0;
     if (item.disabled) {
-      canvas.saveLayer(rect, Paint()..color = Color.fromRGBO(255, 255, 255, opacity));
+      canvas.saveLayer(
+        rect,
+        Paint()..color = Color.fromRGBO(255, 255, 255, opacity),
+      );
     }
     final iconName = item.iconName;
     if (iconName != null && iconName.isNotEmpty) {
@@ -63463,9 +63498,8 @@ class FortuneSheetPainter extends CustomPainter {
   }
 
   double _sheetRulerMillimetersToLogicalPixels(num millimeters) {
-    return fortuneMillimetersToLogicalPixels(
-      millimeters,
-    ) * workbook.activeSheet.zoomRatio;
+    return fortuneMillimetersToLogicalPixels(millimeters) *
+        workbook.activeSheet.zoomRatio;
   }
 
   double _sheetRulerLogicalPixelsToMillimeters(num logicalPixels) {
@@ -64551,23 +64585,31 @@ class FortuneSheetPainter extends CustomPainter {
         continue;
       }
       if (vertical) {
-        final insideColumn = index >= merge.column &&
+        final insideColumn =
+            index >= merge.column &&
             index < merge.column + merge.columnSpan - 1;
         if (!insideColumn) {
           continue;
         }
         final top = _visualCellTop(merge.row, settings, metrics);
-        final bottom = _visualCellTop(merge.row + merge.rowSpan - 1, settings, metrics) +
+        final bottom =
+            _visualCellTop(merge.row + merge.rowSpan - 1, settings, metrics) +
             metrics.rowEnd(merge.row + merge.rowSpan - 1) -
             metrics.rowStart(merge.row + merge.rowSpan - 1);
         spans.add((math.max(top, clip.top), math.min(bottom, clip.bottom)));
       } else {
-        final insideRow = index >= merge.row && index < merge.row + merge.rowSpan - 1;
+        final insideRow =
+            index >= merge.row && index < merge.row + merge.rowSpan - 1;
         if (!insideRow) {
           continue;
         }
         final left = _visualCellLeft(merge.column, settings, metrics);
-        final right = _visualCellLeft(merge.column + merge.columnSpan - 1, settings, metrics) +
+        final right =
+            _visualCellLeft(
+              merge.column + merge.columnSpan - 1,
+              settings,
+              metrics,
+            ) +
             metrics.columnEnd(merge.column + merge.columnSpan - 1) -
             metrics.columnStart(merge.column + merge.columnSpan - 1);
         spans.add((math.max(left, clip.left), math.min(right, clip.right)));
@@ -67600,8 +67642,9 @@ class FortuneSheetPainter extends CustomPainter {
               shortcut,
               fortuneContextMenuShortcutRect(row),
               fontSize: 12,
-              color:
-                  enabled ? const Color(0xff5f6368) : const Color(0xff9aa0a6),
+              color: enabled
+                  ? const Color(0xff5f6368)
+                  : const Color(0xff9aa0a6),
               align: TextAlign.right,
             );
           }
@@ -70745,7 +70788,8 @@ class FortuneSheetPainter extends CustomPainter {
     if (hovered) {
       canvas.drawRRect(
         RRect.fromRectAndRadius(rect, const Radius.circular(4)),
-        Paint()..color = pressed ? const Color(0xffdadce0) : const Color(0xfff1f3f4),
+        Paint()
+          ..color = pressed ? const Color(0xffdadce0) : const Color(0xfff1f3f4),
       );
     }
     _drawCloseGlyph(
@@ -70755,7 +70799,11 @@ class FortuneSheetPainter extends CustomPainter {
     );
   }
 
-  void _drawCloseGlyph(Canvas canvas, Rect rect, {Color color = const Color(0xff9a9a9a)}) {
+  void _drawCloseGlyph(
+    Canvas canvas,
+    Rect rect, {
+    Color color = const Color(0xff9a9a9a),
+  }) {
     final glyphRect = Rect.fromCenter(
       center: rect.center,
       width: fortuneSheetDialogCloseGlyphSize,
@@ -76143,7 +76191,11 @@ class FortuneSheetPainter extends CustomPainter {
     );
   }
 
-  void _drawImageLayerPanel(Canvas canvas, Size size, FortuneSettings settings) {
+  void _drawImageLayerPanel(
+    Canvas canvas,
+    Size size,
+    FortuneSettings settings,
+  ) {
     if (!imageLayerPanelOpen) {
       return;
     }
@@ -76151,13 +76203,15 @@ class FortuneSheetPainter extends CustomPainter {
     if (items.isEmpty) {
       return;
     }
-    final top = settings.effectiveToolbarHeight +
-      settings.effectiveFormulaBarHeight +
-      settings.columnHeaderHeight +
-      fortuneImageLayerPanelMargin;
+    final top =
+        settings.effectiveToolbarHeight +
+        settings.effectiveFormulaBarHeight +
+        settings.columnHeaderHeight +
+        fortuneImageLayerPanelMargin;
     final panel = fortuneImageLayerPanelRect(size, items.length, top: top);
     _drawShadowBox(canvas, panel, radius: 4, border: const Color(0xffd4d4d4));
-    final actionWidth = fortuneImageLayerPanelActionCommands.length *
+    final actionWidth =
+        fortuneImageLayerPanelActionCommands.length *
             fortuneImageLayerPanelActionSize +
         math.max(0, fortuneImageLayerPanelActionCommands.length - 1) * 4;
     _drawText(
@@ -76185,6 +76239,7 @@ class FortuneSheetPainter extends CustomPainter {
           workbook.activeSheet.images,
           activeImageId,
           command,
+          selectedImageIds: selectedImageIds,
         ),
       );
     }
@@ -76207,7 +76262,8 @@ class FortuneSheetPainter extends CustomPainter {
       final isDragging = item.id == imageLayerPanelDraggingImageId;
       if (isDragging) {
         canvas.drawRect(row, Paint()..color = const Color(0xffd2e3fc));
-      } else if (item.id == activeImageId || selectedImageIds.contains(item.id)) {
+      } else if (item.id == activeImageId ||
+          selectedImageIds.contains(item.id)) {
         canvas.drawRect(row, Paint()..color = const Color(0xffe8f0fe));
       }
       canvas.drawRect(
@@ -76218,14 +76274,19 @@ class FortuneSheetPainter extends CustomPainter {
       final isBarcode = item.extraFields['fortuneBarcode'] == true;
       canvas.drawRRect(
         RRect.fromRectAndRadius(typeRect, const Radius.circular(3)),
-        Paint()..color = isBarcode ? const Color(0xffe6f4ea) : const Color(0xffe8f0fe),
+        Paint()
+          ..color = isBarcode
+              ? const Color(0xffe6f4ea)
+              : const Color(0xffe8f0fe),
       );
       canvas.drawRRect(
         RRect.fromRectAndRadius(typeRect, const Radius.circular(3)),
         Paint()
           ..style = PaintingStyle.stroke
           ..strokeWidth = 1
-          ..color = isBarcode ? const Color(0xff34a853) : const Color(0xff1a73e8),
+          ..color = isBarcode
+              ? const Color(0xff34a853)
+              : const Color(0xff1a73e8),
       );
       _drawText(
         canvas,
@@ -76253,8 +76314,20 @@ class FortuneSheetPainter extends CustomPainter {
         );
       }
     }
-    _drawImageLayerPanelDragTarget(canvas, size, items.length, scrollOffset, top);
-    _drawImageLayerPanelScrollbar(canvas, size, items.length, scrollOffset, top);
+    _drawImageLayerPanelDragTarget(
+      canvas,
+      size,
+      items.length,
+      scrollOffset,
+      top,
+    );
+    _drawImageLayerPanelScrollbar(
+      canvas,
+      size,
+      items.length,
+      scrollOffset,
+      top,
+    );
   }
 
   void _drawImageLayerPanelDragTarget(
@@ -76893,11 +76966,11 @@ class FortuneSheetPainter extends CustomPainter {
         !_listEquals(oldDelegate.imageObjectIdOptions, imageObjectIdOptions) ||
         oldDelegate.imageObjectIdMenuOpen != imageObjectIdMenuOpen ||
         oldDelegate.imageObjectIdMenuHoveredIndex !=
-          imageObjectIdMenuHoveredIndex ||
+            imageObjectIdMenuHoveredIndex ||
         oldDelegate.imageObjectIdMenuSelectedIndex !=
-          imageObjectIdMenuSelectedIndex ||
+            imageObjectIdMenuSelectedIndex ||
         oldDelegate.imageObjectIdMenuScrollOffset !=
-          imageObjectIdMenuScrollOffset ||
+            imageObjectIdMenuScrollOffset ||
         oldDelegate.imageInsertAspectLocked != imageInsertAspectLocked ||
         oldDelegate.imageInsertUnitLabel != imageInsertUnitLabel ||
         oldDelegate.imageInsertHoveredControl != imageInsertHoveredControl ||
@@ -77039,15 +77112,16 @@ class FortuneSheetPainter extends CustomPainter {
         oldDelegate.hoveredRowHeaderIndex != hoveredRowHeaderIndex ||
         oldDelegate.activeImageId != activeImageId ||
         oldDelegate.activeImageToolbarHoveredCommand !=
-          activeImageToolbarHoveredCommand ||
+            activeImageToolbarHoveredCommand ||
         oldDelegate.activeImageToolbarTooltipPosition !=
-          activeImageToolbarTooltipPosition ||
+            activeImageToolbarTooltipPosition ||
         oldDelegate.imageLayerPanelOpen != imageLayerPanelOpen ||
-        oldDelegate.imageLayerPanelScrollOffset != imageLayerPanelScrollOffset ||
+        oldDelegate.imageLayerPanelScrollOffset !=
+            imageLayerPanelScrollOffset ||
         oldDelegate.imageLayerPanelDraggingImageId !=
-          imageLayerPanelDraggingImageId ||
+            imageLayerPanelDraggingImageId ||
         oldDelegate.imageLayerPanelDragTargetIndex !=
-          imageLayerPanelDragTargetIndex ||
+            imageLayerPanelDragTargetIndex ||
         oldDelegate.imageLayerPanelHoveredActionCommand !=
             imageLayerPanelHoveredActionCommand ||
         oldDelegate.imageLayerPanelTooltipPosition !=
