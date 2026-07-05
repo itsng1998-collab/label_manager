@@ -249,6 +249,15 @@
 - 전체 테스트 완료(2026-07-05): `.tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_header_mouse_fixture.log` 결과 `exitCode=1`. header mouse down 실패 제거, 다음 첫 실패는 `toolbar clear format preserves cell content and metadata`.
 - stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/test/fortune_sheet_canvas_test.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
 - 커밋 완료: `9141ac2` (`FortuneSheet header mouse down 테스트 fixture 보정`).
+- 진행 중(2026-07-05): 다음 첫 실패 `toolbar clear format preserves cell content and metadata` 분석. fixture가 `value: '=A1'` + 자기참조 `formula: '=A1'`라 캔버스 초기 수식 계산 후 보존 값이 `#VALUE!`로 바뀌는 stale 기대값으로 확인.
+- 수정 예정(2026-07-05): clear format 후 `formula`/metadata 보존 검증은 유지하고 `cell.value` 기대값만 계산 결과 `#VALUE!`로 갱신.
+- 완료(2026-07-05): `toolbar clear format preserves cell content and metadata` 기대값을 `#VALUE!`로 갱신. focused 단일 테스트 통과.
+- 검증 예정(2026-07-05): analyzer, `git diff --check`, VS Code diagnostics, 전체 canvas 재실행.
+- 검증 완료(2026-07-05): analyzer No issues, `git diff --check` 출력 없음, VS Code diagnostics 오류 없음.
+- 전체 테스트 실행 예정(2026-07-05): `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_sheet_canvas_test.dart *> .tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_clear_format_value.log`; 실행 후 `exit` 금지, `$LASTEXITCODE` 요약만 출력.
+- 전체 테스트 완료(2026-07-05): `.tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_clear_format_value.log` 결과 `exitCode=1`. clear format value 실패 제거, 다음 첫 실패는 `toolbar data verification applies to dragged range`.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/test/fortune_sheet_canvas_test.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
+- 커밋 예정: clear format 수식 계산값 fixture 보정.
 
 ### 완료 (2026-07-04): analyze clean 이후 회귀 묶음 재검증
 

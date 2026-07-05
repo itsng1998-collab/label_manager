@@ -52517,7 +52517,7 @@ void main() {
 
     final cell =
         painter().workbook.activeSheet.cells[const FortuneCellCoord(0, 0)]!;
-    expect(cell.value, '=A1');
+    expect(cell.value, '#VALUE!');
     expect(cell.formula, '=A1');
     expect(cell.merge?.rowSpan, 2);
     expect(cell.comment?.value, 'note');
