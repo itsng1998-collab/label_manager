@@ -72,7 +72,16 @@
 - 검증 완료: focused `editor inline formatting preserves script scale and metadata`, `editor toolbar formats remembered selected text range`, `editor toolbar font size formats subset of spaced text` 각각 통과. `dart_format` 적용 완료(`fortune_sheet_canvas_test.dart`). 포맷 후 focused 3개 순차 재실행 모두 통과.
 - 검증 완료: `C:\Flutter\bin\flutter.bat analyze third_party\fortune_sheet\lib\src\fortune_sheet_canvas.dart third_party\fortune_sheet\test\fortune_sheet_canvas_test.dart --no-fatal-warnings --no-fatal-infos` 통과. `git diff --check -- SESSION_HANDOFF.md third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart third_party/fortune_sheet/test/fortune_sheet_canvas_test.dart` 통과. VS Code 진단 오류 없음.
 - stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/test/fortune_sheet_canvas_test.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
-- 검증 예정: 커밋 후 전체 `fortune_sheet_canvas_test.dart` 리다이렉트 재실행으로 다음 첫 실패 확인.
+- 커밋 완료: `fa0bc6a` (`FortuneSheet editor toolbar 테스트 좌표 보정`).
+- 검증 진행: 전체 `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_sheet_canvas_test.dart` 리다이렉트 실행(`.tmp/copilot/fortune_sheet_canvas_full_2026-07-05.log`) 결과 1269개 중 152개 실패. 다음 실제 첫 실패는 `active cell editing clears formula group metadata`이며, 실행 전 services/widget tree exception도 stale editor 계열로 함께 확인 필요.
+- 다음 작업: focused `active cell editing clears formula group metadata`부터 재현해 원인 정리. 기존 unrelated dirty `lib/core/app.dart` 제외.
+- 변경 완료(2026-07-05): `active cell editing clears formula group metadata`가 active editor를 쓰면서 `fortuneSheetTestHost` 없이 `Directionality`만 사용해 `No Overlay widget found`와 후속 `unfinished batch edits`가 발생하던 문제를, 해당 테스트 wrapper를 `fortuneSheetTestHost`로 교체해 정리했다.
+- 검증 완료: focused `active cell editing clears formula group metadata` 통과. 포맷 후 focused `active cell editing clears formula group metadata`, `editor inline formatting preserves script scale and metadata`, `editor toolbar formats remembered selected text range`, `editor toolbar font size formats subset of spaced text` 4개 순차 재실행 모두 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze third_party\fortune_sheet\lib\src\fortune_sheet_canvas.dart third_party\fortune_sheet\test\fortune_sheet_canvas_test.dart --no-fatal-warnings --no-fatal-infos` 통과. `git diff --check -- SESSION_HANDOFF.md third_party/fortune_sheet/test/fortune_sheet_canvas_test.dart` 통과. VS Code 진단 오류 없음.
+- 검증 완료: active metadata 보정 후 전체 `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_sheet_canvas_test.dart` 리다이렉트 재실행(`.tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_active_metadata.log`) 결과 1270개 중 151개 실패. 다음 첫 실패는 `control i toggles selected cell italic`의 `Expected: true / Actual: false`.
+- 검증 완료: 최종 focused `active cell editing clears formula group metadata` 통과. 최종 analyzer 재통과. VS Code 진단 오류 없음.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/test/fortune_sheet_canvas_test.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
+- 다음 작업: `control i toggles selected cell italic` focused 재현부터 계속 정리.
 - 미검증/진행 중: 전체 canvas clean까지 추가 정리 필요. 기존 unrelated dirty `lib/core/app.dart` 제외.
 
 ### 완료 (2026-07-04): analyze clean 이후 회귀 묶음 재검증
