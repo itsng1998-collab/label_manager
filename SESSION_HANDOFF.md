@@ -31,7 +31,7 @@
 
 - FortuneSheet canvas 전체, FortuneSheet 패키지 전체, workspace 전체 테스트가 모두 통과한 상태다.
 - 전체 analyzer 재검증도 `C:\Flutter\bin\flutter.bat analyze --no-fatal-warnings --no-fatal-infos *> .tmp/copilot/flutter_analyze_full_2026-07-05_after_full_test_clean.log` 결과 `exitCode=0`, `No issues found`.
-- 관련 커밋 완료: `5bf6c94` (`FortuneSheet 전체 테스트 잔여 실패 정리`), `6dfee26` (`인수인계 커밋 해시 갱신`), `d31abe7` (`전체 프로젝트 테스트 통과 기록`).
+- 관련 커밋 완료: `5bf6c94` (`FortuneSheet 전체 테스트 잔여 실패 정리`), `6dfee26` (`인수인계 커밋 해시 갱신`), `d31abe7` (`전체 프로젝트 테스트 통과 기록`), `3cce76c` (`전체 검증 완료 상태 인수인계 정리`).
 - 현재 남은 Git 변경은 기존 unrelated dirty `lib/core/app.dart`뿐이며, 이번 FortuneSheet/검증 작업과 무관하므로 stage/commit에서 제외한다.
 
 ### 완료 (2026-07-05): FortuneSheet 전체 테스트 확대 잔여 실패 정리
