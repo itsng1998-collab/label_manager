@@ -16801,18 +16801,28 @@ void main() {
           toolbarItemArrowCenter(fortuneToolbarFontSizePopupKey, width: 1688),
     );
     await tester.pump();
+    final fontSizePopupLeft = toolbarPopupLeftForKey(
+      fortuneToolbarFontSizePopupKey,
+      width: 1688,
+    );
+    await tester.sendEventToBinding(
+      PointerScrollEvent(
+        position:
+            topLeft + Offset(fontSizePopupLeft + 20, fortuneToolbarPopupTop + 40),
+        scrollDelta: const Offset(0, 500),
+      ),
+    );
+    await tester.pump();
     await tester.tapAt(
       topLeft +
           toolbarPopupItemCenterForKey(
-            popupLeft: toolbarPopupLeftForKey(
-              fortuneToolbarFontSizePopupKey,
-              width: 1688,
-            ),
+            popupLeft: fontSizePopupLeft,
             toolbarKey: fortuneToolbarFontSizePopupKey,
             itemIndex: fortuneToolbarFontSizeCommands.indexOf(
               fortuneToolbarFontSize24Command,
             ),
-          ),
+          ) -
+          Offset(0, painter().toolbarPopupScrollOffset),
     );
     await tester.pump();
 
@@ -16942,18 +16952,28 @@ void main() {
           toolbarItemArrowCenter(fortuneToolbarFontSizePopupKey, width: 1688),
     );
     await tester.pump();
+    final fontSizePopupLeft = toolbarPopupLeftForKey(
+      fortuneToolbarFontSizePopupKey,
+      width: 1688,
+    );
+    await tester.sendEventToBinding(
+      PointerScrollEvent(
+        position:
+            topLeft + Offset(fontSizePopupLeft + 20, fortuneToolbarPopupTop + 40),
+        scrollDelta: const Offset(0, 500),
+      ),
+    );
+    await tester.pump();
     await tester.tapAt(
       topLeft +
           toolbarPopupItemCenterForKey(
-            popupLeft: toolbarPopupLeftForKey(
-              fortuneToolbarFontSizePopupKey,
-              width: 1688,
-            ),
+            popupLeft: fontSizePopupLeft,
             toolbarKey: fortuneToolbarFontSizePopupKey,
             itemIndex: fortuneToolbarFontSizeCommands.indexOf(
               fortuneToolbarFontSize24Command,
             ),
-          ),
+          ) -
+          Offset(0, painter().toolbarPopupScrollOffset),
     );
     await tester.pump();
 
@@ -17055,18 +17075,28 @@ void main() {
           toolbarItemArrowCenter(fortuneToolbarFontSizePopupKey, width: 1688),
     );
     await tester.pump();
+    final fontSizePopupLeft = toolbarPopupLeftForKey(
+      fortuneToolbarFontSizePopupKey,
+      width: 1688,
+    );
+    await tester.sendEventToBinding(
+      PointerScrollEvent(
+        position:
+            topLeft + Offset(fontSizePopupLeft + 20, fortuneToolbarPopupTop + 40),
+        scrollDelta: const Offset(0, 500),
+      ),
+    );
+    await tester.pump();
     await tester.tapAt(
       topLeft +
           toolbarPopupItemCenterForKey(
-            popupLeft: toolbarPopupLeftForKey(
-              fortuneToolbarFontSizePopupKey,
-              width: 1688,
-            ),
+            popupLeft: fontSizePopupLeft,
             toolbarKey: fortuneToolbarFontSizePopupKey,
             itemIndex: fortuneToolbarFontSizeCommands.indexOf(
               fortuneToolbarFontSize24Command,
             ),
-          ),
+          ) -
+          Offset(0, painter().toolbarPopupScrollOffset),
     );
     await tester.pump();
 

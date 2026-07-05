@@ -68,7 +68,11 @@
 - 검증 완료: focused `bare active editor syncs text input after select all delete|typing after select all delete replaces active editor text|arrow and backspace edit active cell text|shift arrows select existing active cell text` 4개 통과. `dart_format` 후 동일 focused 묶음 재통과.
 - 검증 완료: `C:\Flutter\bin\flutter.bat analyze third_party\fortune_sheet\lib\src\fortune_sheet_canvas.dart third_party\fortune_sheet\test\fortune_sheet_canvas_test.dart --no-fatal-warnings --no-fatal-infos` 통과.
 - 검증 진행: 리다이렉트 방식 전체 `fortune_sheet_canvas_test.dart` 재실행 결과 실패가 160개에서 155개로 감소. 현재 첫 실패는 `editor inline formatting preserves script scale and metadata`.
-- 검증 예정: diff check 및 커밋 후, inline formatting/editor toolbar 계열부터 계속 정리.
+- 변경 완료(2026-07-05): `editor inline formatting preserves script scale and metadata`, `editor toolbar formats remembered selected text range`, `editor toolbar font size formats subset of spaced text`의 font-size `24` popup 선택 좌표가 작은 canvas 높이에서 visible viewport 밖으로 나가 셀 클릭으로 처리되던 문제를, popup scroll 후 `toolbarPopupScrollOffset` 보정 좌표를 탭하도록 테스트를 갱신해 정리했다. 진단용 trace probe는 제거 완료.
+- 검증 완료: focused `editor inline formatting preserves script scale and metadata`, `editor toolbar formats remembered selected text range`, `editor toolbar font size formats subset of spaced text` 각각 통과. `dart_format` 적용 완료(`fortune_sheet_canvas_test.dart`). 포맷 후 focused 3개 순차 재실행 모두 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze third_party\fortune_sheet\lib\src\fortune_sheet_canvas.dart third_party\fortune_sheet\test\fortune_sheet_canvas_test.dart --no-fatal-warnings --no-fatal-infos` 통과. `git diff --check -- SESSION_HANDOFF.md third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart third_party/fortune_sheet/test/fortune_sheet_canvas_test.dart` 통과. VS Code 진단 오류 없음.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/test/fortune_sheet_canvas_test.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
+- 검증 예정: 커밋 후 전체 `fortune_sheet_canvas_test.dart` 리다이렉트 재실행으로 다음 첫 실패 확인.
 - 미검증/진행 중: 전체 canvas clean까지 추가 정리 필요. 기존 unrelated dirty `lib/core/app.dart` 제외.
 
 ### 완료 (2026-07-04): analyze clean 이후 회귀 묶음 재검증
