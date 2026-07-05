@@ -52067,21 +52067,31 @@ void main() {
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
-    await tester.tapAt(topLeft + const Offset(23, 176));
+    final rowHeaderGesture = await tester.startGesture(
+      topLeft + const Offset(23, 198),
+      kind: PointerDeviceKind.mouse,
+    );
     await tester.pump();
 
-    expect(painter().selection.row, 4);
+    expect(painter().selection.row, 5);
     expect(painter().selection.column, 0);
-    expect(painter().selection.normalizedRowEnd, 4);
+    expect(painter().selection.normalizedRowEnd, 5);
     expect(painter().selection.normalizedColumnEnd, 5);
+    await rowHeaderGesture.up();
+    await tester.pump();
 
-    await tester.tapAt(topLeft + const Offset(369, 80));
+    final columnHeaderGesture = await tester.startGesture(
+      topLeft + const Offset(369, 80),
+      kind: PointerDeviceKind.mouse,
+    );
     await tester.pump();
 
     expect(painter().selection.row, 0);
     expect(painter().selection.column, 4);
     expect(painter().selection.normalizedRowEnd, 5);
     expect(painter().selection.normalizedColumnEnd, 4);
+    await columnHeaderGesture.up();
+    await tester.pump();
   });
 
   testWidgets('sheet protection selection authority blocks disallowed cells', (
