@@ -31672,6 +31672,8 @@ void main() {
         await tester.sendKeyEvent(LogicalKeyboardKey.keyV);
         await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
         await tester.pump();
+        await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+        await tester.pump();
       }
 
       await pasteAt(const Offset(83, 100));
@@ -61896,7 +61898,7 @@ void main() {
       Offset checkboxForRow(double rowIndex) {
         return topLeft +
             Offset(
-              13,
+              20,
               sheetTop +
                   workbook.settings.columnHeaderHeight +
                   1 +
@@ -61904,7 +61906,7 @@ void main() {
             );
       }
 
-      await tester.tapAt(checkboxForRow(3.5));
+      await tester.tapAt(checkboxForRow(3.0));
       await tester.pump();
 
       var sheet = painter().workbook.activeSheet;
@@ -61914,7 +61916,7 @@ void main() {
       expect(sheet.hiddenRows, {1, 2});
       expect(painter().filterDropdownColumn, 0);
 
-      await tester.tapAt(checkboxForRow(5.5));
+      await tester.tapAt(checkboxForRow(5.0));
       await tester.pump();
 
       sheet = painter().workbook.activeSheet;
@@ -61922,7 +61924,7 @@ void main() {
       expect(filter['rowhidden'], {'1': 0, '2': 0, '4': 0});
       expect(sheet.hiddenRows, {1, 2, 4});
 
-      await tester.tapAt(checkboxForRow(3.5));
+      await tester.tapAt(checkboxForRow(3.0));
       await tester.pump();
 
       sheet = painter().workbook.activeSheet;
@@ -61930,7 +61932,7 @@ void main() {
       expect(filter['rowhidden'], {'4': 0});
       expect(sheet.hiddenRows, {4});
 
-      await tester.tapAt(checkboxForRow(5.5));
+      await tester.tapAt(checkboxForRow(5.0));
       await tester.pump();
 
       sheet = painter().workbook.activeSheet;
@@ -63148,7 +63150,7 @@ void main() {
     );
 
     await tester.pumpWidget(
-      Directionality(
+      fortuneSheetTestHost(
         textDirection: TextDirection.ltr,
         child: SizedBox(
           width: 420,
@@ -66314,7 +66316,7 @@ void main() {
     );
 
     await tester.pumpWidget(
-      Directionality(
+      fortuneSheetTestHost(
         textDirection: TextDirection.ltr,
         child: SizedBox(
           width: 1688,
@@ -66444,7 +66446,7 @@ void main() {
     );
 
     await tester.pumpWidget(
-      Directionality(
+      fortuneSheetTestHost(
         textDirection: TextDirection.ltr,
         child: SizedBox(
           width: 1688,
@@ -68687,7 +68689,7 @@ void main() {
     );
 
     await tester.pumpWidget(
-      Directionality(
+      fortuneSheetTestHost(
         textDirection: TextDirection.ltr,
         child: SizedBox(
           width: 900,
@@ -68707,8 +68709,14 @@ void main() {
       await tester.tapAt(topLeft + Offset(58 + column * 73, 100));
       await tester.pump();
       await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyA);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await tester.pump();
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
       await tester.sendKeyEvent(LogicalKeyboardKey.keyV);
       await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await tester.pump();
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
       await tester.pump();
     }
 
@@ -68730,6 +68738,7 @@ void main() {
           ?.renderedText,
       ' Green ',
     );
+    await dismissFortuneLocationMessageDialog(tester);
 
     await pasteAt(1, ' Red , Blue ');
     expect(
@@ -68793,7 +68802,7 @@ void main() {
       );
 
       await tester.pumpWidget(
-        Directionality(
+        fortuneSheetTestHost(
           textDirection: TextDirection.ltr,
           child: SizedBox(
             width: 900,
@@ -68900,7 +68909,7 @@ void main() {
       );
 
       await tester.pumpWidget(
-        Directionality(
+        fortuneSheetTestHost(
           textDirection: TextDirection.ltr,
           child: SizedBox(
             width: 900,
@@ -69395,7 +69404,7 @@ void main() {
     );
 
     await tester.pumpWidget(
-      Directionality(
+      fortuneSheetTestHost(
         textDirection: TextDirection.ltr,
         child: SizedBox(
           width: 900,
@@ -69510,7 +69519,7 @@ void main() {
       );
 
       await tester.pumpWidget(
-        Directionality(
+        fortuneSheetTestHost(
           textDirection: TextDirection.ltr,
           child: SizedBox(
             width: 900,
@@ -69530,8 +69539,14 @@ void main() {
         await tester.tapAt(topLeft + Offset(58 + column * 73, 100));
         await tester.pump();
         await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+        await tester.sendKeyEvent(LogicalKeyboardKey.keyA);
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+        await tester.pump();
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
         await tester.sendKeyEvent(LogicalKeyboardKey.keyV);
         await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+        await tester.pump();
+        await tester.sendKeyEvent(LogicalKeyboardKey.enter);
         await tester.pump();
       }
 
@@ -69557,6 +69572,8 @@ void main() {
           painter().workbook.activeSheet.cells[coord]?.renderedText,
           item.allowed,
         );
+
+        await dismissFortuneLocationMessageDialog(tester);
       }
     },
   );
@@ -69600,7 +69617,7 @@ void main() {
       );
 
       await tester.pumpWidget(
-        Directionality(
+        fortuneSheetTestHost(
           textDirection: TextDirection.ltr,
           child: SizedBox(
             width: 900,
@@ -69699,7 +69716,7 @@ void main() {
       );
 
       await tester.pumpWidget(
-        Directionality(
+        fortuneSheetTestHost(
           textDirection: TextDirection.ltr,
           child: SizedBox(
             width: 900,
@@ -69804,7 +69821,7 @@ void main() {
       );
 
       await tester.pumpWidget(
-        Directionality(
+        fortuneSheetTestHost(
           textDirection: TextDirection.ltr,
           child: SizedBox(
             width: 900,
@@ -69822,6 +69839,10 @@ void main() {
       Future<void> pasteAt(int column, String text) async {
         clipboardText = text;
         await tester.tapAt(topLeft + Offset(58 + column * 73, 100));
+        await tester.pump();
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+        await tester.sendKeyEvent(LogicalKeyboardKey.keyA);
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
         await tester.pump();
         await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
         await tester.sendKeyEvent(LogicalKeyboardKey.keyV);
@@ -69847,6 +69868,7 @@ void main() {
             ?.renderedText,
         'Approved later',
       );
+      await dismissFortuneLocationMessageDialog(tester);
 
       await pasteAt(1, 'Rejected');
       expect(
@@ -69908,7 +69930,7 @@ void main() {
       );
 
       await tester.pumpWidget(
-        Directionality(
+        fortuneSheetTestHost(
           textDirection: TextDirection.ltr,
           child: SizedBox(
             width: 900,
@@ -70024,7 +70046,7 @@ void main() {
       );
 
       await tester.pumpWidget(
-        Directionality(
+        fortuneSheetTestHost(
           textDirection: TextDirection.ltr,
           child: SizedBox(
             width: 900,
@@ -70044,8 +70066,14 @@ void main() {
         await tester.tapAt(topLeft + Offset(58 + column * 73, 100));
         await tester.pump();
         await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+        await tester.sendKeyEvent(LogicalKeyboardKey.keyA);
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+        await tester.pump();
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
         await tester.sendKeyEvent(LogicalKeyboardKey.keyV);
         await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+        await tester.pump();
+        await tester.sendKeyEvent(LogicalKeyboardKey.enter);
         await tester.pump();
       }
 
@@ -70071,6 +70099,8 @@ void main() {
           painter().workbook.activeSheet.cells[coord]?.renderedText,
           item.allowed,
         );
+
+        await dismissFortuneLocationMessageDialog(tester);
       }
     },
   );
@@ -70114,7 +70144,7 @@ void main() {
     );
 
     await tester.pumpWidget(
-      Directionality(
+      fortuneSheetTestHost(
         textDirection: TextDirection.ltr,
         child: SizedBox(
           width: 900,
@@ -70278,7 +70308,7 @@ void main() {
       );
 
       await tester.pumpWidget(
-        Directionality(
+        fortuneSheetTestHost(
           textDirection: TextDirection.ltr,
           child: SizedBox(
             width: 900,
@@ -70300,6 +70330,8 @@ void main() {
         await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
         await tester.sendKeyEvent(LogicalKeyboardKey.keyV);
         await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+        await tester.pump();
+        await tester.sendKeyEvent(LogicalKeyboardKey.enter);
         await tester.pump();
       }
 
@@ -70325,6 +70357,8 @@ void main() {
           painter().workbook.activeSheet.cells[coord]?.renderedText,
           item.allowed,
         );
+
+        await dismissFortuneLocationMessageDialog(tester);
       }
     },
   );
@@ -70362,7 +70396,7 @@ void main() {
     );
 
     await tester.pumpWidget(
-      Directionality(
+      fortuneSheetTestHost(
         textDirection: TextDirection.ltr,
         child: SizedBox(
           width: 900,
@@ -70444,7 +70478,7 @@ void main() {
     );
 
     await tester.pumpWidget(
-      Directionality(
+      fortuneSheetTestHost(
         textDirection: TextDirection.ltr,
         child: SizedBox(
           width: 900,

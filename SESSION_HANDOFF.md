@@ -1,6 +1,6 @@
 # 세션 인수인계
 
-마지막 업데이트: 2026-07-04
+마지막 업데이트: 2026-07-05
 
 ## 작업 규칙
 
@@ -340,6 +340,17 @@
 - 전체 테스트 완료(2026-07-05): `.tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_filter_search_shortcut_host.log` 결과 `exitCode=1`, 1288개 중 133개 실패. search shortcut 두 실패 제거. 다음 첫 실패는 `filter dropdown value checkbox toggles grouped rows and blanks`의 `sheet.filter['0']` null cast. 이후 `filter dropdown bulk controls ignore search narrowing`에도 search `EditableText` Overlay host 누락이 보임.
 - stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/test/fortune_sheet_canvas_test.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
 - 커밋 완료: `b67e712` (`FortuneSheet 필터 검색 테스트 host 보정`).
+- 진행 중(2026-07-05): 큰 단위 이어서 진행. `filter dropdown value checkbox toggles grouped rows and blanks`는 option row는 정상 동작하나 checkbox x/y 좌표가 stale이라 null cast 발생. probe 후 현재 checkbox hit는 `x=20`, row 중심은 `3.0/5.0`으로 확인해 테스트 좌표 보정. `filter dropdown bulk controls ignore search narrowing`은 search `EditableText` Overlay host 누락으로 `fortuneSheetTestHost` 적용.
+- 검증 완료(2026-07-05): focused regex `filter dropdown date checkbox toggles grouped rows|filter dropdown value checkbox toggles grouped rows and blanks|filter dropdown search narrows value choices|filter dropdown search keeps popup width stable|filter dropdown search no matches does not apply filter|filter dropdown search shortcuts do not undo sheet state|filter dropdown search keeps editor shortcuts local|filter dropdown bulk controls ignore search narrowing` 8개 통과. analyzer No issues, `git diff --check` whitespace 오류 없음(LF/CRLF 경고만 출력), VS Code diagnostics 오류 없음. 임시 probe 잔여 없음.
+- 전체 테스트 완료(2026-07-05): `.tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_filter_value_bulk.log` 결과 `exitCode=1`, 1290개 중 131개 실패. 이전 first failure 두 개(`filter dropdown value checkbox...`, `filter dropdown bulk controls...`) 제거. 다음 first failure는 `toolbar data verification checkbox saves selected values`의 `No Overlay widget found` 후 cell rawValue가 `Open`으로 남는 문제.
+- 진행 중(2026-07-05): `toolbar data verification checkbox saves selected values`, `toolbar data verification number saves between values`에 `fortuneSheetTestHost` 적용. focused regex `filter dropdown value checkbox toggles grouped rows and blanks|filter dropdown bulk controls ignore search narrowing|toolbar data verification checkbox saves selected values|toolbar data verification number saves between values` 4개 통과.
+- 전체 테스트 실행 예정(2026-07-05): `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_sheet_canvas_test.dart *> .tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_data_verification_host.log`; 실행 후 `exit` 금지, `$LASTEXITCODE` 요약만 출력.
+- 전체 테스트 완료(2026-07-05): `.tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_data_verification_host.log` 결과 `exitCode=1`, 1292개 중 129개 실패. filter value/bulk 및 data verification checkbox/number failure 제거. 다음 first failure는 `data verification dropdown input trims pasted option values`, 이후 data verification prohibit/input 비교 연산 테스트군에서 host 및 active editor paste fixture 문제가 이어짐.
+- 진행 중(2026-07-05): data verification 입력/붙여넣기 테스트군에 `fortuneSheetTestHost` 적용. 반복 paste helper는 active editor append 대신 replace 경로를 검증하도록 `Ctrl+A` 후 paste, Enter commit으로 보정. 금지 입력 후 다음 케이스가 메시지 다이얼로그에 막히는 곳은 `dismissFortuneLocationMessageDialog` 추가.
+- 검증 완료(2026-07-05): data verification 입력군 focused regex `data verification dropdown input trims pasted option values|data verification dropdown input uses cell range source options|data verification dropdown input uses cross-sheet range source options|data verification prohibit input blocks invalid number rules|data verification prohibit input honors numeric comparison operators|data verification prohibit input blocks integer values for decimal rules|data verification prohibit input blocks invalid text content rules|data verification prohibit input honors text content include exclude rules|data verification prohibit input blocks invalid text length rules|data verification prohibit input honors text length comparison operators|data verification prohibit input blocks invalid date rules|data verification prohibit input honors date comparison operators|data verification date input rejects years before 1900|data verification prohibit input blocks invalid phone rules` 14개 통과.
+- 검증 완료(2026-07-05): analyzer No issues, `git diff --check` whitespace 오류 없음(LF/CRLF 경고만 출력), VS Code diagnostics 오류 없음.
+- 전체 테스트 완료(2026-07-05): `.tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_data_verification_input_group.log` 결과 `exitCode=1`, 1303개 중 118개 실패. data verification 입력군 실패 제거. 다음 first failure는 `toolbar image opens picker and inserts selected image metadata`의 images length 기대값 불일치(`[]`).
+- stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/test/fortune_sheet_canvas_test.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
 
 ### 완료 (2026-07-04): analyze clean 이후 회귀 묶음 재검증
 
