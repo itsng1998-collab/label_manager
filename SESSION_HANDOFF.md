@@ -580,7 +580,7 @@
 - 검증 완료(2026-07-05): 전체 workspace 테스트 `C:\Flutter\bin\flutter.bat test *> .tmp/copilot/flutter_test_full_2026-07-05_after_fortune_canvas_followup.log` 결과 `exitCode=0`, 128개 통과.
 - 검증 완료(2026-07-05): 전체 analyzer `C:\Flutter\bin\flutter.bat analyze --no-fatal-warnings --no-fatal-infos *> .tmp/copilot/flutter_analyze_full_2026-07-05_after_fortune_canvas_followup.log` 결과 `exitCode=0`, `No issues found`.
 - 검증 완료(2026-07-05): `git diff --check -- SESSION_HANDOFF.md` 출력 없음. VS Code diagnostics 결과 `SESSION_HANDOFF.md` 오류 없음.
-- stage/commit 진행(2026-07-05): `SESSION_HANDOFF.md`만 대상. 기존 unrelated dirty `lib/core/app.dart` 제외.
+- 커밋 완료(2026-07-05): `9a9c17b` (`FortuneSheet 전체 검증 통과 기록`). 기존 unrelated dirty `lib/core/app.dart` 제외.
 
 ### 완료 (2026-07-04): analyze clean 이후 회귀 묶음 재검증
 
