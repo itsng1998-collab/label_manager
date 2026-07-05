@@ -198,7 +198,7 @@
 - 전체 테스트 실행 예정(2026-07-05): `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_sheet_canvas_test.dart *> .tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_active_ranges_fixture.log`; 실행 후 `exit` 금지, `$LASTEXITCODE` 요약만 출력.
 - 전체 테스트 완료(2026-07-05): `.tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_active_ranges_fixture.log` 결과 `exitCode=1`. `controller reads active sheet ranges` 실패는 제거되고 다음 첫 실패는 `toolbar font size popup over editor keeps selected text range`.
 - stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/test/fortune_sheet_canvas_test.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
-- 커밋 예정: active ranges fixture 보정.
+- 커밋 완료: `cf9db2f` (`FortuneSheet controller range 테스트 fixture 보정`).
 
 ### 완료 (2026-07-04): analyze clean 이후 회귀 묶음 재검증
 
