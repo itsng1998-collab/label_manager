@@ -40026,6 +40026,30 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     _replaceEditorRange(range, text);
   }
 
+  bool _deleteEditorText(LogicalKeyboardKey key) {
+    final value = _editorController.value;
+    final text = value.text;
+    final selection = value.selection;
+    if (!selection.isValid) {
+      return false;
+    }
+    final start = math.min(selection.start, selection.end);
+    final end = math.max(selection.start, selection.end);
+    if (start != end) {
+      _replaceEditorRange(TextRange(start: start, end: end), '');
+      return true;
+    }
+    if (key == LogicalKeyboardKey.backspace && start > 0) {
+      _replaceEditorRange(TextRange(start: start - 1, end: start), '');
+      return true;
+    }
+    if (key == LogicalKeyboardKey.delete && end < text.length) {
+      _replaceEditorRange(TextRange(start: end, end: end + 1), '');
+      return true;
+    }
+    return false;
+  }
+
   void _logEditorDebug(String event) {
     if (!fortuneSheetDebugLogEnabled) {
       return;
@@ -40275,6 +40299,10 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     }
     if (event.logicalKey == LogicalKeyboardKey.backspace ||
         event.logicalKey == LogicalKeyboardKey.delete) {
+      if (_deleteEditorText(event.logicalKey)) {
+        _traceCellEditor('keyEvent handled editableTextDeletion', keyEvent: event);
+        return KeyEventResult.handled;
+      }
       _traceCellEditor(
         'keyEvent ignored editableTextDeletion',
         keyEvent: event,
