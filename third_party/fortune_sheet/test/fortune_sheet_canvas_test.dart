@@ -53653,7 +53653,7 @@ void main() {
 
     expect(sheet.cells[const FortuneCellCoord(0, 0)]?.formula, '=SUM(1,2)');
     expect(sheet.cells[const FortuneCellCoord(0, 0)]?.renderedText, '3');
-    expect(cellJson['v'], '=SUM(1,2)');
+    expect(cellJson['v'], '3');
     expect(cellJson['f'], '=SUM(1,2)');
     expect(cellJson['m'], '3');
     expect(cellJson['rawOnly'], isTrue);

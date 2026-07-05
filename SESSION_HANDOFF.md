@@ -267,6 +267,15 @@
 - 전체 테스트 완료(2026-07-05): `.tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_data_verification_host.log` 결과 `exitCode=1`. data verification host 실패 제거, 다음 첫 실패는 `toolbar clear format export removes raw style metadata only`.
 - stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/test/fortune_sheet_canvas_test.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
 - 커밋 완료: `a0ed36c` (`FortuneSheet data verification 테스트 host 보정`).
+- 진행 중(2026-07-05): 다음 첫 실패 `toolbar clear format export removes raw style metadata only` focused 재현. JSON `v` 기대값 `=SUM(1,2)` 대비 실제 계산값 `3`; `f`/`m` 보존 검증은 유지 가능.
+- 수정 예정(2026-07-05): clear format export 테스트의 `cellJson['v']` 기대값만 계산 결과 `3`으로 갱신.
+- 완료(2026-07-05): `cellJson['v']` 기대값을 `3`으로 갱신. focused 단일 테스트 통과.
+- 검증 예정(2026-07-05): analyzer, `git diff --check`, VS Code diagnostics, 전체 canvas 재실행.
+- 검증 완료(2026-07-05): analyzer No issues, `git diff --check` 출력 없음, VS Code diagnostics 오류 없음.
+- 전체 테스트 실행 예정(2026-07-05): `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_sheet_canvas_test.dart *> .tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_clear_format_export_value.log`; 실행 후 `exit` 금지, `$LASTEXITCODE` 요약만 출력.
+- 전체 테스트 완료(2026-07-05): `.tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_clear_format_export_value.log` 결과 `exitCode=1`. clear format export value 실패 제거, 다음 첫 실패는 `toolbar comment opens editor and commits comment text`.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/test/fortune_sheet_canvas_test.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
+- 커밋 예정: clear format export 테스트 기대값 보정.
 
 ### 완료 (2026-07-04): analyze clean 이후 회귀 묶음 재검증
 
