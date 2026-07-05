@@ -39,6 +39,7 @@
 - 검증 완료: `C:\Flutter\bin\flutter.bat analyze third_party\fortune_sheet\lib\src\fortune_sheet_canvas.dart third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --no-fatal-warnings --no-fatal-infos` 결과 `No issues found`.
 - 검증 완료: `git diff --check -- SESSION_HANDOFF.md third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart` 출력 없음. VS Code diagnostics 오류 없음.
 - stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`, `third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
+- 커밋 완료: `53e26bc` (`이미지 바코드 레이어 패널 전체 선택 단축키 추가`).
 
 ### 완료 (2026-07-05): 이미지/바코드 레이어 패널 다중 선택 action enable 판정
 
