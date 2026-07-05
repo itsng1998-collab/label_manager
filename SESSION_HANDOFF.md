@@ -233,6 +233,12 @@
 - 다음 작업: 다음 첫 실패는 `toolbar data verification toggles selected cell metadata`의 `No Overlay widget found`. 이어서 data verification dialog host 묶음과 condition format dialog Overlay 묶음을 계속 정리. 기존 unrelated dirty `lib/core/app.dart` 제외.
 - stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/test/fortune_sheet_canvas_test.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
 - 커밋 완료: `5942192` (`FortuneSheet 검색 다이얼로그 테스트 host 보정`).
+- 진행 중(2026-07-05): `5942192` 이후 남은 full 실패 26개를 큰 묶음으로 계속 정리. data verification dialog 8개, condition format dialog 16개, split text/search shortcut/onOp editor 3개가 모두 `No Overlay widget found` 계열로 확인됨.
+- 변경 완료(2026-07-05): `fortune_sheet_canvas_test.dart`의 data verification dialog, condition format dialog, split text other delimiter, Ctrl+F/H search dialog, onOp cell editor 테스트를 `fortuneSheetTestHost`로 감싸 Overlay ancestor를 제공.
+- 검증 완료(2026-07-05): focused data verification 10개 통과, focused `toolbar condition format` 30개 통과, focused `toolbar split text supports other consecutive delimiter|control f and h open search and replace dialog modes|canvas onOp emits cell replace ops` 3개 통과.
+- 검증 완료(2026-07-05): analyzer `No issues found`, `git diff --check` 공백 오류 없음(LF->CRLF 경고만), VS Code diagnostics 오류 없음.
+- 전체 테스트 완료(2026-07-05): `.tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_all_overlay_hosts.log` 결과 `exitCode=0`, deactivated metrics 0회. `fortune_sheet_canvas_test.dart` 전체 통과.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/test/fortune_sheet_canvas_test.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
 - 검증 예정(2026-07-05): analyzer, `git diff --check`, VS Code diagnostics, 전체 canvas 재실행.
 - 검증 완료(2026-07-05): analyzer No issues, `git diff --check` 출력 없음, VS Code diagnostics 오류 없음.
 - 전체 테스트 실행 예정(2026-07-05): `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_sheet_canvas_test.dart *> .tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_format_search_host.log`; 실행 후 `exit` 금지, `$LASTEXITCODE` 요약만 출력.

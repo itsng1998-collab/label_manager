@@ -65996,7 +65996,7 @@ void main() {
     );
 
     await tester.pumpWidget(
-      Directionality(
+      fortuneSheetTestHost(
         textDirection: TextDirection.ltr,
         child: SizedBox(
           width: 1688,
@@ -66069,7 +66069,7 @@ void main() {
     );
 
     await tester.pumpWidget(
-      Directionality(
+      fortuneSheetTestHost(
         textDirection: TextDirection.ltr,
         child: SizedBox(
           width: 1688,
@@ -66146,7 +66146,7 @@ void main() {
     );
 
     await tester.pumpWidget(
-      Directionality(
+      fortuneSheetTestHost(
         textDirection: TextDirection.ltr,
         child: SizedBox(
           width: 1688,
@@ -66789,7 +66789,7 @@ void main() {
     );
 
     await tester.pumpWidget(
-      Directionality(
+      fortuneSheetTestHost(
         textDirection: TextDirection.ltr,
         child: SizedBox(
           width: 1688,
@@ -68207,7 +68207,7 @@ void main() {
     );
 
     await tester.pumpWidget(
-      Directionality(
+      fortuneSheetTestHost(
         textDirection: TextDirection.ltr,
         child: SizedBox(
           width: 900,
@@ -68404,7 +68404,7 @@ void main() {
       );
 
       await tester.pumpWidget(
-        Directionality(
+        fortuneSheetTestHost(
           textDirection: TextDirection.ltr,
           child: SizedBox(
             width: 900,
@@ -69300,7 +69300,7 @@ void main() {
     );
 
     await tester.pumpWidget(
-      Directionality(
+      fortuneSheetTestHost(
         textDirection: TextDirection.ltr,
         child: SizedBox(
           width: 900,
@@ -69348,7 +69348,7 @@ void main() {
     );
 
     await tester.pumpWidget(
-      Directionality(
+      fortuneSheetTestHost(
         textDirection: TextDirection.ltr,
         child: SizedBox(
           width: 1688,
@@ -71881,7 +71881,7 @@ void main() {
     );
 
     await tester.pumpWidget(
-      Directionality(
+      fortuneSheetTestHost(
         textDirection: TextDirection.ltr,
         child: SizedBox(
           width: 1688,
@@ -113256,7 +113256,7 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(
-      Directionality(
+      fortuneSheetTestHost(
         textDirection: TextDirection.ltr,
         child: SizedBox(
           width: 640,
@@ -118801,7 +118801,7 @@ void main() {
     });
 
     await tester.pumpWidget(
-      Directionality(
+      fortuneSheetTestHost(
         textDirection: TextDirection.ltr,
         child: SizedBox(
           width: conditionFormatToolbarTestWidth,
@@ -118913,7 +118913,7 @@ void main() {
     });
 
     await tester.pumpWidget(
-      Directionality(
+      fortuneSheetTestHost(
         textDirection: TextDirection.ltr,
         child: SizedBox(
           width: conditionFormatToolbarTestWidth,
@@ -119165,7 +119165,7 @@ void main() {
       });
 
       await tester.pumpWidget(
-        Directionality(
+        fortuneSheetTestHost(
           textDirection: TextDirection.ltr,
           child: SizedBox(
             width: conditionFormatToolbarTestWidth,
@@ -119629,7 +119629,7 @@ void main() {
     });
 
     await tester.pumpWidget(
-      Directionality(
+      fortuneSheetTestHost(
         textDirection: TextDirection.ltr,
         child: SizedBox(
           width: conditionFormatToolbarTestWidth,
@@ -119736,7 +119736,7 @@ void main() {
       });
 
       await tester.pumpWidget(
-        Directionality(
+        fortuneSheetTestHost(
           textDirection: TextDirection.ltr,
           child: SizedBox(
             width: conditionFormatToolbarTestWidth,
@@ -119842,7 +119842,7 @@ void main() {
     });
 
     await tester.pumpWidget(
-      Directionality(
+      fortuneSheetTestHost(
         textDirection: TextDirection.ltr,
         child: SizedBox(
           width: conditionFormatToolbarTestWidth,
@@ -119966,7 +119966,7 @@ void main() {
     });
 
     await tester.pumpWidget(
-      Directionality(
+      fortuneSheetTestHost(
         textDirection: TextDirection.ltr,
         child: SizedBox(
           width: conditionFormatToolbarTestWidth,
@@ -120089,7 +120089,7 @@ void main() {
     });
 
     await tester.pumpWidget(
-      Directionality(
+      fortuneSheetTestHost(
         textDirection: TextDirection.ltr,
         child: SizedBox(
           width: conditionFormatToolbarTestWidth,
@@ -120223,7 +120223,7 @@ void main() {
     });
 
     await tester.pumpWidget(
-      Directionality(
+      fortuneSheetTestHost(
         textDirection: TextDirection.ltr,
         child: SizedBox(
           width: conditionFormatToolbarTestWidth,
@@ -120356,7 +120356,7 @@ void main() {
     });
 
     await tester.pumpWidget(
-      Directionality(
+      fortuneSheetTestHost(
         textDirection: TextDirection.ltr,
         child: SizedBox(
           width: conditionFormatToolbarTestWidth,
@@ -120457,7 +120457,7 @@ void main() {
     });
 
     await tester.pumpWidget(
-      Directionality(
+      fortuneSheetTestHost(
         textDirection: TextDirection.ltr,
         child: SizedBox(
           width: conditionFormatToolbarTestWidth,
@@ -120724,7 +120724,7 @@ void main() {
     });
 
     await tester.pumpWidget(
-      Directionality(
+      fortuneSheetTestHost(
         textDirection: TextDirection.ltr,
         child: SizedBox(
           width: conditionFormatToolbarTestWidth,
@@ -120832,7 +120832,7 @@ void main() {
       });
 
       await tester.pumpWidget(
-        Directionality(
+        fortuneSheetTestHost(
           textDirection: TextDirection.ltr,
           child: SizedBox(
             width: conditionFormatToolbarTestWidth,
@@ -120926,7 +120926,7 @@ void main() {
     });
 
     await tester.pumpWidget(
-      Directionality(
+      fortuneSheetTestHost(
         textDirection: TextDirection.ltr,
         child: SizedBox(
           width: conditionFormatToolbarTestWidth,
@@ -121010,7 +121010,7 @@ void main() {
     });
 
     await tester.pumpWidget(
-      Directionality(
+      fortuneSheetTestHost(
         textDirection: TextDirection.ltr,
         child: SizedBox(
           width: conditionFormatToolbarTestWidth,
@@ -121626,7 +121626,7 @@ void main() {
       });
 
       await tester.pumpWidget(
-        Directionality(
+        fortuneSheetTestHost(
           textDirection: TextDirection.ltr,
           child: SizedBox(
             width: conditionFormatToolbarTestWidth,
@@ -126892,7 +126892,7 @@ void main() {
     final ops = <List<FortuneOp>>[];
 
     await tester.pumpWidget(
-      Directionality(
+      fortuneSheetTestHost(
         textDirection: TextDirection.ltr,
         child: SizedBox(
           width: 640,
