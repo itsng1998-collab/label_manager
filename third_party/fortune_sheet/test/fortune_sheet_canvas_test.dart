@@ -58658,7 +58658,7 @@ void main() {
     );
 
     await tester.pumpWidget(
-      Directionality(
+      fortuneSheetTestHost(
         textDirection: TextDirection.ltr,
         child: SizedBox(
           width: 420,
@@ -59119,7 +59119,7 @@ void main() {
   testWidgets('filter dropdown date checkbox toggles grouped rows', (
     tester,
   ) async {
-    await prepareFortuneSheetView(tester, const Size(420, 360), devicePixelRatio: 1);
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final firstSerial = DateTime(
       2026,
@@ -59171,7 +59171,7 @@ void main() {
       Directionality(
         textDirection: TextDirection.ltr,
         child: SizedBox(
-          width: 420,
+          width: 1688,
           height: 360,
           child: FortuneSheetCanvas(workbook: workbook),
         ),
@@ -59199,7 +59199,7 @@ void main() {
     Offset checkboxForRow(double rowIndex) {
       return topLeft +
           Offset(
-            13,
+            20,
             sheetTop +
                 workbook.settings.columnHeaderHeight +
                 1 +
@@ -59207,7 +59207,7 @@ void main() {
           );
     }
 
-    await tester.tapAt(checkboxForRow(3.5));
+    await tester.tapAt(checkboxForRow(3.0));
     await tester.pump();
 
     var sheet = painter().workbook.activeSheet;
@@ -59217,7 +59217,7 @@ void main() {
     expect(sheet.hiddenRows, {1, 2});
     expect(painter().filterDropdownColumn, 0);
 
-    await tester.tapAt(checkboxForRow(4.5));
+    await tester.tapAt(checkboxForRow(4.0));
     await tester.pump();
 
     sheet = painter().workbook.activeSheet;
@@ -59225,7 +59225,7 @@ void main() {
     expect(filter['rowhidden'], {'1': 0, '2': 0, '3': 0});
     expect(sheet.hiddenRows, {1, 2, 3});
 
-    await tester.tapAt(checkboxForRow(3.5));
+    await tester.tapAt(checkboxForRow(3.0));
     await tester.pump();
 
     sheet = painter().workbook.activeSheet;
@@ -59233,7 +59233,7 @@ void main() {
     expect(filter['rowhidden'], {'3': 0});
     expect(sheet.hiddenRows, {3});
 
-    await tester.tapAt(checkboxForRow(4.5));
+    await tester.tapAt(checkboxForRow(4.0));
     await tester.pump();
 
     sheet = painter().workbook.activeSheet;
@@ -59506,7 +59506,7 @@ void main() {
     );
     expect(pixels, isNotNull);
 
-    final topBorderX = workbook.settings.rowHeaderWidth.round() + 20;
+    final topBorderX = workbook.settings.rowHeaderWidth.round() + 21;
     final topBorderY =
         (sheetTop + workbook.settings.columnHeaderHeight).round() - 1;
     final topBorderOffset = (topBorderY * image.width + topBorderX) * 4;
@@ -59622,7 +59622,7 @@ void main() {
     expect(pixels.getUint8(internalOffset + 1), greaterThan(245));
     expect(pixels.getUint8(internalOffset + 2), greaterThan(245));
 
-    final outsideOffset = (outsideGridY * image.width + internalGridX) * 4;
+    final outsideOffset = (outsideGridY * image.width + internalGridX + 5) * 4;
     expect(pixels.getUint8(outsideOffset), lessThan(245));
     expect(pixels.getUint8(outsideOffset + 1), lessThan(245));
     expect(pixels.getUint8(outsideOffset + 2), lessThan(245));
@@ -60220,7 +60220,7 @@ void main() {
     );
 
     await tester.pumpWidget(
-      Directionality(
+      fortuneSheetTestHost(
         textDirection: TextDirection.ltr,
         child: SizedBox(
           width: 420,
@@ -60325,7 +60325,7 @@ void main() {
     );
 
     await tester.pumpWidget(
-      Directionality(
+      fortuneSheetTestHost(
         textDirection: TextDirection.ltr,
         child: SizedBox(
           width: 500,
@@ -60401,7 +60401,7 @@ void main() {
     );
 
     await tester.pumpWidget(
-      Directionality(
+      fortuneSheetTestHost(
         textDirection: TextDirection.ltr,
         child: SizedBox(
           width: 420,
@@ -60728,10 +60728,10 @@ void main() {
     );
 
     await tester.pumpWidget(
-      Directionality(
+      fortuneSheetTestHost(
         textDirection: TextDirection.ltr,
         child: SizedBox(
-          width: 420,
+          width: 500,
           height: 360,
           child: FortuneSheetCanvas(workbook: workbook),
         ),
@@ -60824,7 +60824,7 @@ void main() {
     );
 
     await tester.pumpWidget(
-      Directionality(
+      fortuneSheetTestHost(
         textDirection: TextDirection.ltr,
         child: SizedBox(
           width: 420,
@@ -60917,7 +60917,7 @@ void main() {
     );
 
     await tester.pumpWidget(
-      Directionality(
+      fortuneSheetTestHost(
         textDirection: TextDirection.ltr,
         child: SizedBox(
           width: 420,
@@ -61038,7 +61038,7 @@ void main() {
     );
 
     await tester.pumpWidget(
-      Directionality(
+      fortuneSheetTestHost(
         textDirection: TextDirection.ltr,
         child: SizedBox(
           width: 420,

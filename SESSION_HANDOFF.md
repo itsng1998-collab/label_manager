@@ -312,6 +312,34 @@
 - 전체 테스트 완료(2026-07-05): `.tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_hyperlink_host.log` 결과 `exitCode=1`. hyperlink editor host 실패 묶음 제거, 다음 첫 실패는 `filter dropdown date checkbox toggles grouped rows`.
 - stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/test/fortune_sheet_canvas_test.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
 - 커밋 완료: `fc7588c` (`FortuneSheet hyperlink editor 테스트 host 보정`).
+- 진행 중(2026-07-05): 다음 첫 실패 `filter dropdown date checkbox toggles grouped rows` focused 재현. 테스트가 `sheet.filter['0']`를 캐스팅하지만 구현/주변 테스트는 `column_0` 키를 사용해 null cast 발생.
+- 수정 예정(2026-07-05): 해당 테스트의 filter key 기대값을 `column_0`로 갱신.
+- 진행 중(2026-07-05): 이전 세션에서 `fortune_sheet_canvas_test.dart` 후반부가 대량 삭제된 미커밋 diff(약 5.5만 줄 삭제)로 남아 있음을 확인. HEAD 기준 파일로 복원 후 필요한 filter 테스트 수정만 재적용 예정.
+- 완료(2026-07-05): 대량 삭제 diff와 PowerShell 문자열 복원 중 발생한 비ASCII 손상을 Git blob 직접 리다이렉트로 복구. `filter dropdown date checkbox toggles grouped rows`는 `filterSelect` 기반 legacy key `0`이 맞고, 실제 원인은 작은 viewport/날짜 checkbox 좌표 stale fixture로 확인. 테스트 viewport를 `1688x600`, canvas width를 `1688`, checkbox x를 `20`, 날짜 그룹 row 좌표를 `3.0/4.0`으로 보정. focused 테스트 통과.
+- 검증 예정(2026-07-05): analyzer, `git diff --check`, VS Code diagnostics, 전체 canvas 재실행.
+- 검증 완료(2026-07-05): focused `filter dropdown date checkbox toggles grouped rows` 통과. analyzer No issues, `git diff --check` whitespace 오류 없음(LF/CRLF 경고만 출력), VS Code diagnostics 오류 없음.
+- 전체 테스트 실행 예정(2026-07-05): `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_sheet_canvas_test.dart *> .tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_date_filter_checkbox.log`; 실행 후 `exit` 금지, `$LASTEXITCODE` 요약만 출력.
+- 전체 테스트 완료(2026-07-05): `.tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_date_filter_checkbox.log` 결과 `exitCode=1`, 1279개 중 142개 실패. date checkbox 실패는 제거되고 다음 첫 실패는 `A1 border paints over header divider corner`의 pixel 기대값 불일치.
+- 진행 중(2026-07-05): 다음 첫 실패 `A1 border paints over header divider corner` focused 재현 예정.
+- 완료(2026-07-05): `A1 border paints over header divider corner`는 border 렌더 회귀가 아니라 dashed/thick border의 빈 픽셀을 샘플링하던 stale 좌표로 확인. red pixel probe 제거 후 top border 샘플 x를 한 픽셀 이동(`rowHeaderWidth + 21`)해 focused 통과.
+- 진행 중(2026-07-05): 다음 실패 `adjusted sheet merged cells hide inner viewport grid lines` focused 재현 예정.
+- 완료(2026-07-05): `adjusted sheet merged cells hide inner viewport grid lines`는 내부 merged grid 숨김은 통과하고 바깥 grid 샘플 x만 현재 렌더 위치에서 빗나간 stale 좌표로 확인. probe 제거 후 outside grid 샘플을 `internalGridX + 5`로 보정해 focused 통과.
+- 검증 예정(2026-07-05): date filter/A1 border/merged grid focused 묶음, analyzer, `git diff --check`, VS Code diagnostics, 전체 canvas 재실행.
+- 검증 완료(2026-07-05): focused regex `filter dropdown date checkbox toggles grouped rows|A1 border paints over header divider corner|adjusted sheet merged cells hide inner viewport grid lines` 3개 통과. analyzer No issues, `git diff --check` whitespace 오류 없음(LF/CRLF 경고만 출력), VS Code diagnostics 오류 없음.
+- 전체 테스트 실행 예정(2026-07-05): `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_sheet_canvas_test.dart *> .tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_grid_pixel_fixtures.log`; 실행 후 `exit` 금지, `$LASTEXITCODE` 요약만 출력.
+- 전체 테스트 완료(2026-07-05): `.tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_grid_pixel_fixtures.log` 결과 `exitCode=1`, 1281개 중 140개 실패. grid pixel 두 실패는 제거되고 다음 첫 실패는 `filter dropdown search narrows value choices`의 search `EditableText` Overlay host 누락.
+- 완료(2026-07-05): filter dropdown search 입력 세 테스트(`filter dropdown search narrows value choices`, `filter dropdown search keeps popup width stable`, `filter dropdown search no matches does not apply filter`)를 `fortuneSheetTestHost`로 감싸 Overlay 제공. focused regex 세 테스트 통과.
+- 검증 예정(2026-07-05): 이번 수정 focused 묶음, analyzer, `git diff --check`, VS Code diagnostics, 전체 canvas 재실행.
+- 검증 완료(2026-07-05): focused regex `filter dropdown date checkbox toggles grouped rows|A1 border paints over header divider corner|adjusted sheet merged cells hide inner viewport grid lines|filter dropdown search narrows value choices|filter dropdown search keeps popup width stable|filter dropdown search no matches does not apply filter` 6개 통과. analyzer No issues, `git diff --check` whitespace 오류 없음(LF/CRLF 경고만 출력), VS Code diagnostics 오류 없음.
+- 전체 테스트 실행 예정(2026-07-05): `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_sheet_canvas_test.dart *> .tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_filter_search_host.log`; 실행 후 `exit` 금지, `$LASTEXITCODE` 요약만 출력.
+- 전체 테스트 완료(2026-07-05): `.tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_filter_search_host.log` 결과 `exitCode=1`, 1286개 중 135개 실패. filter search host 세 실패는 제거되고 다음 첫 실패는 `filter dropdown search shortcuts do not undo sheet state`의 search `EditableText` Overlay host 누락.
+- 완료(2026-07-05): filter dropdown search shortcut 두 테스트(`filter dropdown search shortcuts do not undo sheet state`, `filter dropdown search keeps editor shortcuts local`)를 `fortuneSheetTestHost`로 감싸 Overlay 제공. focused regex 두 테스트 통과.
+- 미해결 확인(2026-07-05): 다음 후보 `filter dropdown value checkbox toggles grouped rows and blanks`는 focused 재현 및 probe 후 아직 좌표 원인 미확정. 미검증 변경은 원복했고 다음 세션에서 이어서 분석 필요.
+- 검증 완료(2026-07-05): focused regex `filter dropdown date checkbox toggles grouped rows|A1 border paints over header divider corner|adjusted sheet merged cells hide inner viewport grid lines|filter dropdown search narrows value choices|filter dropdown search keeps popup width stable|filter dropdown search no matches does not apply filter|filter dropdown search shortcuts do not undo sheet state|filter dropdown search keeps editor shortcuts local` 8개 통과. analyzer No issues, `git diff --check` whitespace 오류 없음(LF/CRLF 경고만 출력), VS Code diagnostics 오류 없음.
+- 전체 테스트 실행 예정(2026-07-05): `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_sheet_canvas_test.dart *> .tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_filter_search_shortcut_host.log`; 실행 후 `exit` 금지, `$LASTEXITCODE` 요약만 출력.
+- 전체 테스트 완료(2026-07-05): `.tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_filter_search_shortcut_host.log` 결과 `exitCode=1`, 1288개 중 133개 실패. search shortcut 두 실패 제거. 다음 첫 실패는 `filter dropdown value checkbox toggles grouped rows and blanks`의 `sheet.filter['0']` null cast. 이후 `filter dropdown bulk controls ignore search narrowing`에도 search `EditableText` Overlay host 누락이 보임.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/test/fortune_sheet_canvas_test.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
+- 커밋 완료: `96ab764` (`FortuneSheet 필터 검색 테스트 host 보정`).
 
 ### 완료 (2026-07-04): analyze clean 이후 회귀 묶음 재검증
 
