@@ -46,6 +46,7 @@
 - 검증 완료: `fortune_sheet_public_api_test.dart` 전체 136개 통과. `fortune_sheet_render_smoke_test.dart` 전체 26개 통과. 전체 `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test *> .tmp/copilot/fortune_sheet_full_test_2026-07-05_after_public_api.log` 결과 `exitCode=0`, `+2990`, 전체 FortuneSheet 테스트 통과.
 - 검증 완료: analyzer `No issues found`, `git diff --check` 출력 없음, VS Code diagnostics 오류 없음.
 - stage/commit 예정: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`, `third_party/fortune_sheet/test/fortune_debug_log_test.dart`, `third_party/fortune_sheet/test/fortune_inline_menu_input_test.dart`, `third_party/fortune_sheet/test/fortune_sheet_painter_test.dart`, `third_party/fortune_sheet/test/fortune_sheet_render_harness.dart`, `third_party/fortune_sheet/test/fortune_sheet_public_api_test.dart`, `third_party/fortune_sheet/test/goldens/*.png`. 기존 unrelated dirty `lib/core/app.dart` 제외.
+- 커밋 완료: `5bf6c94` (`FortuneSheet 전체 테스트 잔여 실패 정리`).
 
 ### 진행 중 (2026-07-04): FortuneSheet canvas 전체 테스트 실패 묶음 정리
 
