@@ -36,7 +36,7 @@
 - 검증 완료: `C:\Flutter\bin\flutter.bat analyze third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --no-fatal-warnings --no-fatal-infos` 결과 `No issues found`.
 - 검증 완료: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart` 결과 59개 통과.
 - 검증 완료: `git diff --check` 결과 출력 없음. VS Code diagnostics 결과 `SESSION_HANDOFF.md`, `fortune_barcode_dialog_test.dart` 오류 없음.
-- stage/commit 예정: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
+- 커밋 완료: `feae17d` (`test: Ctrl+A 전체 선택 복제 검증 추가`). 기존 unrelated dirty `lib/core/app.dart` 제외.
 
 ### 완료 (2026-07-05): 이미지/바코드 레이어 패널 Ctrl+A 전체 선택
 
