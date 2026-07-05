@@ -27,6 +27,18 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-05): 이미지/바코드 레이어 패널 Ctrl+A 전체 선택 이동 no-op 검증
+
+- 목적: Ctrl/Meta+A로 모든 row를 선택한 상태에서 레이어 이동 shortcut/action 경계가 일관적으로 no-op 처리되는지 보장한다. action helper는 전체 선택 이동을 비활성으로 판단하고, keyboard command 경로는 enabled helper를 우회하더라도 zOrder/선택/패널 상태를 변경하지 않아야 한다.
+- 테스트 추가: `fortune_barcode_dialog_test.dart`의 `image layer panel action helpers expose shortcuts and boundaries`에 전체 선택 이동 action 비활성 기대값 추가, `image layer panel keyboard select all movement keeps order` widget 테스트 추가.
+- 검증 완료: focused `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --name "image layer panel action helpers expose shortcuts and boundaries|image layer panel keyboard select all movement keeps order"` 결과 2개 통과.
+- 검증 완료: 관련 레이어 이동 묶음 `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --name "image layer panel action helpers expose shortcuts and boundaries|image layer panel action moves selected item forward|image layer panel action moves selected rows as a group|image layer panel enables movement for selected group|image layer panel action sends selected item to back|image layer panel disabled movement action keeps order|image layer panel keyboard commands duplicate and move row|image layer panel keyboard select all movement keeps order"` 결과 8개 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --no-fatal-warnings --no-fatal-infos` 결과 `No issues found`.
+- 검증 완료: 전체 `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart` 결과 60개 통과.
+- 검증 완료: `git diff --check -- SESSION_HANDOFF.md third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart` 출력 없음.
+- 검증 완료: VS Code diagnostics 결과 `SESSION_HANDOFF.md`, `fortune_barcode_dialog_test.dart` 오류 없음.
+- stage/commit 진행: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
+
 ### 완료 (2026-07-05): 이미지/바코드 레이어 패널 Ctrl+A 전체 선택 복제 검증
 
 - 목적: Ctrl/Meta+A로 만든 전체 선택 집합이 기존 Ctrl+D 다중 복제 경로에 그대로 적용되는지 보장한다. 전체 선택 후 복제된 row들이 새 internal id, object id, zOrder를 연속으로 받고 새 복제 그룹으로 선택되는 동작을 테스트로 고정한다.

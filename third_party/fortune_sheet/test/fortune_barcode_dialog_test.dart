@@ -232,6 +232,22 @@ void main() {
       ),
       isTrue,
     );
+    for (final command in [
+      fortuneContextBringToFrontCommand,
+      fortuneContextBringForwardCommand,
+      fortuneContextSendBackwardCommand,
+      fortuneContextSendToBackCommand,
+    ]) {
+      expect(
+        fortuneImageLayerPanelActionEnabled(
+          fourImages,
+          'image4',
+          command,
+          selectedImageIds: {'image4', 'image3', 'image2', 'image1'},
+        ),
+        isFalse,
+      );
+    }
     expect(
       fortuneImageLayerPanelActionEnabled(
         fourImages,
@@ -3875,6 +3891,120 @@ void main() {
       [4.0, 5.0, 6.0],
     );
     expect(painter().imageLayerPanelOpen, isTrue);
+  });
+
+  testWidgets('image layer panel keyboard select all movement keeps order', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    const settings = FortuneSettings();
+    final workbook = FortuneWorkbook(
+      settings: settings,
+      sheets: [
+        FortuneSheet(
+          id: 's1',
+          name: 'Sheet1',
+          images: [
+            for (var index = 1; index <= 4; index += 1)
+              FortuneImage(
+                id: 'image$index',
+                src: 'data:image/png;base64,${base64Encode(_transparentPng)}',
+                left: 0,
+                top: 0,
+                width: 50,
+                height: 50,
+                extraFields: {
+                  fortuneImageObjectIdExtraKey: '#IMAGE$index',
+                  fortuneSheetObjectZOrderExtraKey: index,
+                },
+              ),
+          ],
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SizedBox(
+          width: 900,
+          height: 700,
+          child: FortuneSheetCanvas(workbook: workbook),
+        ),
+      ),
+    );
+
+    FortuneSheetPainter painter() {
+      return tester
+          .widgetList<CustomPaint>(
+            find.descendant(
+              of: find.byType(FortuneSheetCanvas),
+              matching: find.byType(CustomPaint),
+            ),
+          )
+          .map((paint) => paint.painter)
+          .whereType<FortuneSheetPainter>()
+          .single;
+    }
+
+    final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
+    final imageRect = Rect.fromLTWH(
+      settings.rowHeaderWidth,
+      settings.effectiveToolbarHeight +
+          settings.effectiveFormulaBarHeight +
+          settings.columnHeaderHeight,
+      50,
+      50,
+    );
+    await tester.tapAt(topLeft + imageRect.center);
+    await tester.pump();
+
+    final layerButtonRect = fortuneActiveImageToolbarItemRect(
+      imageRect,
+      const Size(900, 700),
+      fortuneContextToggleLayerPanelCommand,
+      fortuneActiveImageToolbarItems(
+        painter().workbook.activeSheet.images.last,
+      ),
+    );
+    expect(layerButtonRect, isNotNull);
+
+    await tester.tapAt(topLeft + layerButtonRect!.center);
+    await tester.pump();
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyA);
+    await tester.pump();
+
+    final initialZOrders = {
+      for (final image in painter().workbook.activeSheet.images)
+        image.id: image.extraFields[fortuneSheetObjectZOrderExtraKey],
+    };
+    final selectedIds = Set<String>.of(painter().selectedImageIds);
+
+    for (final key in [
+      LogicalKeyboardKey.home,
+      LogicalKeyboardKey.arrowUp,
+      LogicalKeyboardKey.arrowDown,
+      LogicalKeyboardKey.end,
+    ]) {
+      await tester.sendKeyEvent(key);
+      await tester.pump();
+      expect(painter().imageLayerPanelOpen, isTrue);
+      expect(painter().activeImageId, 'image4');
+      expect(painter().selectedImageIds, selectedIds);
+      expect({
+        for (final image in painter().workbook.activeSheet.images)
+          image.id: image.extraFields[fortuneSheetObjectZOrderExtraKey],
+      }, initialZOrders);
+    }
+
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
   });
 
   testWidgets('image layer panel duplicate action copies selected row', (
