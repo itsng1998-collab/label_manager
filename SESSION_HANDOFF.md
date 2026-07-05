@@ -27,6 +27,18 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-05): 이미지/바코드 레이어 패널 오브젝트 Ctrl+C/X/V 정책 추가
+
+- 목적: 기존 시트 셀 복사/컷/붙여넣기 정책과 분리해, 레이어 패널이 열려 있고 이미지/바코드 row가 선택된 상태에서는 `Ctrl+C`, `Ctrl+X`, `Ctrl+V`가 선택 오브젝트 집합에 적용되도록 한다.
+- 변경 완료: `fortune_sheet_canvas.dart`에 레이어 패널 오브젝트 전용 클립보드 상태(`_copiedImageLayerPanelImages`, `_copiedImageLayerPanelImagesAreCut`, `_copiedImageLayerPanelClipboardText`)와 `Ctrl+C/X/V` key handling을 추가. 오브젝트 copy/cut은 셀 클립보드 상태를 비우고, 셀 copy는 오브젝트 클립보드 상태를 비워 두 정책이 섞이지 않도록 했다.
+- 변경 완료: 오브젝트 paste는 내부 clipboard marker가 현재 시스템 클립보드 텍스트와 일치할 때만 동작한다. copy paste는 새 internal id/object id/zOrder를 부여하고, cut paste는 원래 id/object id를 유지하되 위치를 12px offset해 되붙인다. cut/paste 모두 `_recordUndoSnapshot()` 경로를 탄다.
+- 테스트 추가: `fortune_barcode_dialog_test.dart`에 `image layer panel keyboard copies pastes and undoes rows`, `image layer panel keyboard cuts and pastes rows` 추가.
+- 검증 완료: 새 focused 2개 통과. formatter 실행 완료. 수정 파일 analyzer `No issues found`. 포맷 후 focused 2개 재통과. 관련 레이어 패널 묶음 8개(`copy/paste/cut/paste`, 전체 선택 삭제/복제/이동, 다중 delete/duplicate, keyboard duplicate/move) 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart *> .tmp\copilot\fortune_barcode_dialog_test_2026-07-05_object_clipboard.log` 결과 `exitCode=0`, 62개 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test *> .tmp\copilot\fortune_sheet_full_test_2026-07-05_object_clipboard.log` 결과 `exitCode=0`, 3001개 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze --no-fatal-warnings --no-fatal-infos *> .tmp\copilot\flutter_analyze_full_2026-07-05_object_clipboard.log` 결과 `exitCode=0`, `No issues found`.
+- 검증 완료: 전체 workspace `C:\Flutter\bin\flutter.bat test *> .tmp\copilot\flutter_test_full_2026-07-05_object_clipboard.log` 결과 `exitCode=0`, 128개 통과. 기존 unrelated dirty `lib/core/app.dart` 제외.
+
 ### 완료 (2026-07-05): 이미지/바코드 레이어 패널 Ctrl+A 전체 선택 이동 no-op 검증
 
 - 목적: Ctrl/Meta+A로 모든 row를 선택한 상태에서 레이어 이동 shortcut/action 경계가 일관적으로 no-op 처리되는지 보장한다. action helper는 전체 선택 이동을 비활성으로 판단하고, keyboard command 경로는 enabled helper를 우회하더라도 zOrder/선택/패널 상태를 변경하지 않아야 한다.

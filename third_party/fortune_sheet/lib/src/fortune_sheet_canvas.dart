@@ -2885,6 +2885,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   Object? _copiedFilterSelect;
   List<FortuneImage>? _copiedImages;
   bool _copiedCellsAreCut = false;
+  List<FortuneImage>? _copiedImageLayerPanelImages;
+  bool _copiedImageLayerPanelImagesAreCut = false;
+  String? _copiedImageLayerPanelClipboardText;
   bool _customSortDialogOpen = false;
   bool _customSortHasHeader = false;
   bool _customSortAscending = true;
@@ -24780,7 +24783,10 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       return false;
     }
     return event.logicalKey == LogicalKeyboardKey.keyA ||
+        event.logicalKey == LogicalKeyboardKey.keyC ||
         event.logicalKey == LogicalKeyboardKey.keyD ||
+        event.logicalKey == LogicalKeyboardKey.keyX ||
+        event.logicalKey == LogicalKeyboardKey.keyV ||
         event.logicalKey == LogicalKeyboardKey.arrowUp ||
         event.logicalKey == LogicalKeyboardKey.arrowDown ||
         event.logicalKey == LogicalKeyboardKey.home ||
@@ -24909,8 +24915,17 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     switch (event.logicalKey) {
       case LogicalKeyboardKey.keyA:
         _selectAllImageLayerPanelRows();
+      case LogicalKeyboardKey.keyC:
+        _copyImageLayerPanelRowsToClipboard();
       case LogicalKeyboardKey.keyD:
         _duplicateContextImage(keepLayerPanelOpen: true);
+      case LogicalKeyboardKey.keyX:
+        _copyImageLayerPanelRowsToClipboard(cut: true);
+      case LogicalKeyboardKey.keyV:
+        if (_copiedImageLayerPanelImages == null) {
+          return false;
+        }
+        unawaited(_pasteImageLayerPanelRowsFromClipboard());
       case LogicalKeyboardKey.arrowUp:
         _moveContextImageLayer(
           fortuneContextBringForwardCommand,
@@ -24935,6 +24950,181 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         return false;
     }
     return true;
+  }
+
+  String _imageLayerPanelClipboardText(
+    List<FortuneImage> images, {
+    required bool cut,
+  }) {
+    final mode = cut ? 'cut' : 'copy';
+    final ids = images.map((image) => image.id).join('\n');
+    return 'fortune-sheet:image-layer-panel:$mode\n$ids';
+  }
+
+  void _clearCopiedCellClipboardState() {
+    _copiedCellCoord = null;
+    _copiedCellRange = null;
+    _copiedCells = null;
+    _copiedBorders = null;
+    _copiedDataVerification = null;
+    _copiedRawDataVerification = null;
+    _copiedRawHyperlinks = null;
+    _copiedFilter = null;
+    _copiedRawFilter = null;
+    _copiedHasRawFilter = false;
+    _copiedFilterSelect = null;
+    _copiedImages = null;
+    _copiedClipboardText = null;
+    _copiedCellsAreCut = false;
+  }
+
+  void _clearCopiedImageLayerPanelClipboardState() {
+    _copiedImageLayerPanelImages = null;
+    _copiedImageLayerPanelImagesAreCut = false;
+    _copiedImageLayerPanelClipboardText = null;
+  }
+
+  void _copyImageLayerPanelRowsToClipboard({bool cut = false}) {
+    if (!_imageLayerPanelOpen) {
+      return;
+    }
+    final sheet = _workbook.activeSheet;
+    if (cut && !_canEditRange(sheet, _currentSelectionRange(sheet))) {
+      setState(_closeTransientMenus);
+      return;
+    }
+    final selectedIds = _imageLayerPanelActionImageIds();
+    final sources = [
+      for (final image in fortuneImagesInPaintOrder(sheet.images))
+        if (selectedIds.contains(image.id)) image,
+    ];
+    if (sources.isEmpty) {
+      return;
+    }
+    final clipboardText = _imageLayerPanelClipboardText(sources, cut: cut);
+    Clipboard.setData(ClipboardData(text: clipboardText));
+    final sourceIds = {for (final source in sources) source.id};
+    final nextImages = cut
+        ? [
+            for (final image in sheet.images)
+              if (!sourceIds.contains(image.id)) image,
+          ]
+        : sheet.images;
+    final nextItems = fortuneImageLayerPanelItems(nextImages);
+    final nextActiveImageId = cut
+        ? nextItems.isEmpty
+              ? null
+              : nextItems.first.id
+        : _activeImageId;
+    if (cut) {
+      _recordUndoSnapshot();
+    }
+    setState(() {
+      _clearCopiedCellClipboardState();
+      _clearSelectionRangeMetadata();
+      _copiedImageLayerPanelImages = [
+        for (final source in sources) source.copyWith(),
+      ];
+      _copiedImageLayerPanelImagesAreCut = cut;
+      _copiedImageLayerPanelClipboardText = clipboardText;
+      if (cut) {
+        _replaceActiveSheet(sheet.copyWith(images: nextImages));
+        _activeImageId = nextActiveImageId;
+        _selectedImageIds = nextActiveImageId == null
+            ? <String>{}
+            : <String>{nextActiveImageId};
+        _imageLayerPanelOpen = true;
+        _imageLayerPanelScrollOffset = nextActiveImageId == null
+            ? 0
+            : _imageLayerPanelScrollOffsetToRevealActive();
+        _cancelImageResize();
+        _cancelImageMove();
+        _cancelImageLayerPanelScrollbarDrag();
+        _cancelImageLayerPanelRowDrag();
+      }
+      contextMenuAt = null;
+      _contextMenuImageId = null;
+    });
+  }
+
+  Future<void> _pasteImageLayerPanelRowsFromClipboard() async {
+    final copiedImages = _copiedImageLayerPanelImages;
+    final copiedClipboardText = _copiedImageLayerPanelClipboardText;
+    if (copiedImages == null ||
+        copiedImages.isEmpty ||
+        copiedClipboardText == null) {
+      return;
+    }
+    final data = await Clipboard.getData(Clipboard.kTextPlain);
+    if (!mounted || data?.text != copiedClipboardText) {
+      return;
+    }
+    final sheet = _workbook.activeSheet;
+    if (!_canEditRange(sheet, _currentSelectionRange(sheet))) {
+      setState(_closeTransientMenus);
+      return;
+    }
+    final isCut = _copiedImageLayerPanelImagesAreCut;
+    final copiedIds = {for (final image in copiedImages) image.id};
+    final baseImages = isCut
+        ? [
+            for (final image in sheet.images)
+              if (!copiedIds.contains(image.id)) image,
+          ]
+        : sheet.images;
+    var nextZOrder = _nextImageZOrder(sheet.copyWith(images: baseImages));
+    final reservedImageObjectIds = <String>{};
+    final reservedBarcodeObjectIds = <String>{};
+    final pastedImages = <FortuneImage>[];
+    for (final source in copiedImages) {
+      final extraFields = <String, Object?>{
+        ...source.extraFields,
+        fortuneSheetObjectZOrderExtraKey: nextZOrder,
+      };
+      nextZOrder += 1;
+      final id = isCut ? source.id : _newImageId();
+      if (!isCut) {
+        if (_isBarcodeImage(source)) {
+          final objectId = _nextBarcodeObjectId(
+            reserved: reservedBarcodeObjectIds,
+          );
+          reservedBarcodeObjectIds.add(objectId);
+          extraFields[fortuneBarcodeObjectIdExtraKey] = objectId;
+        } else {
+          final objectId = _nextImageObjectId(reserved: reservedImageObjectIds);
+          reservedImageObjectIds.add(objectId);
+          extraFields[fortuneImageObjectIdExtraKey] = objectId;
+        }
+      }
+      pastedImages.add(
+        source.copyWith(
+          id: id,
+          left: source.left + 12,
+          top: math.max(0.0, source.top + 12),
+          extraFields: extraFields,
+        ),
+      );
+    }
+    _recordUndoSnapshot();
+    final pastedIds = {for (final image in pastedImages) image.id};
+    setState(() {
+      _replaceActiveSheet(
+        sheet.copyWith(images: [...baseImages, ...pastedImages]),
+      );
+      _activeImageId = pastedImages.last.id;
+      _selectedImageIds = pastedIds;
+      _imageLayerPanelOpen = true;
+      _imageLayerPanelScrollOffset =
+          _imageLayerPanelScrollOffsetToRevealActive();
+      contextMenuAt = null;
+      _contextMenuImageId = null;
+      if (isCut) {
+        _clearCopiedImageLayerPanelClipboardState();
+      }
+    });
+    for (final image in pastedImages) {
+      _decodeImageIfNeeded(image.src);
+    }
   }
 
   void _selectAllImageLayerPanelRows() {
@@ -32778,20 +32968,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   }
 
   void _clearCopiedSelectionState() {
-    _copiedCellCoord = null;
-    _copiedCellRange = null;
-    _copiedCells = null;
-    _copiedBorders = null;
-    _copiedDataVerification = null;
-    _copiedRawDataVerification = null;
-    _copiedRawHyperlinks = null;
-    _copiedFilter = null;
-    _copiedRawFilter = null;
-    _copiedHasRawFilter = false;
-    _copiedFilterSelect = null;
-    _copiedImages = null;
-    _copiedClipboardText = null;
-    _copiedCellsAreCut = false;
+    _clearCopiedCellClipboardState();
+    _clearCopiedImageLayerPanelClipboardState();
     _closeTransientMenus();
   }
 
@@ -33158,6 +33336,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     Clipboard.setData(ClipboardData(text: text));
     setState(() {
       _cancelFormatPainterDrag(clearPainter: true);
+      _clearCopiedImageLayerPanelClipboardState();
       _copiedCellCoord = copyRanges.length == 1 ? singleCoord : null;
       _copiedClipboardText = text;
       _copiedCellRange = copyRanges.length == 1 ? range : null;
