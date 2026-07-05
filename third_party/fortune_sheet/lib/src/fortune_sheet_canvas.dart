@@ -228,7 +228,8 @@ Map<String, Object?> fortuneImageResizeExtraFieldsForMetadata(
         extraFields[fortuneBarcodeBodyHeightExtraKey],
       );
       if (bodyHeight != null) {
-        extraFields[fortuneBarcodeBodyHeightExtraKey] = bodyHeight * heightScale;
+        extraFields[fortuneBarcodeBodyHeightExtraKey] =
+            bodyHeight * heightScale;
       }
     }
   }
@@ -2651,7 +2652,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       TextEditingController();
   final TextEditingController _axisSizeEditorController =
       TextEditingController();
-    final TextEditingController _imageObjectIdController =
+  final TextEditingController _imageObjectIdController =
       TextEditingController();
   final TextEditingController _imageInsertWidthController =
       TextEditingController();
@@ -2706,7 +2707,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   final Map<String, String> _contextMenuInlineInputInitialTexts = {};
   final GlobalKey<EditableTextState> _editorEditableKey =
       GlobalKey<EditableTextState>();
-    final GlobalKey<EditableTextState> _imageObjectIdEditableKey =
+  final GlobalKey<EditableTextState> _imageObjectIdEditableKey =
       GlobalKey<EditableTextState>();
   final GlobalKey<EditableTextState> _imageInsertWidthEditableKey =
       GlobalKey<EditableTextState>();
@@ -3020,10 +3021,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
 
   List<({FocusNode focusNode, TextEditingController controller})>
   get _imageInsertDialogInputs => [
-    (
-      focusNode: _imageObjectIdFocusNode,
-      controller: _imageObjectIdController,
-    ),
+    (focusNode: _imageObjectIdFocusNode, controller: _imageObjectIdController),
     (
       focusNode: _imageInsertWidthFocusNode,
       controller: _imageInsertWidthController,
@@ -3283,9 +3281,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         continue;
       }
       result = result.substring(0, idx) + r.$3 + result.substring(idx + 1);
-      _logEditorDebug(
-        'imeStuckResidual corrected index=$idx ${r.$2}->${r.$3}',
-      );
+      _logEditorDebug('imeStuckResidual corrected index=$idx ${r.$2}->${r.$3}');
     }
     return result;
   }
@@ -6937,7 +6933,10 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     if (layerPanelImageId != null) {
       _commitEditing();
       _commitSheetRename();
-      if (_isImageLayerPanelRowDoubleClick(layerPanelImageId, event.timeStamp)) {
+      if (_isImageLayerPanelRowDoubleClick(
+        layerPanelImageId,
+        event.timeStamp,
+      )) {
         _openImageLayerPanelRowEditDialog(layerPanelImageId);
         return;
       }
@@ -7410,9 +7409,14 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
             return null;
           }
           local = Offset(
-            local.dx.clamp(dataLeft, math.max(dataLeft, dataRight - 0.5)).toDouble(),
+            local.dx
+                .clamp(dataLeft, math.max(dataLeft, dataRight - 0.5))
+                .toDouble(),
             local.dy
-                .clamp(sheetTop + dataTop, math.max(sheetTop + dataTop, dataBottom - 0.5))
+                .clamp(
+                  sheetTop + dataTop,
+                  math.max(sheetTop + dataTop, dataBottom - 0.5),
+                )
                 .toDouble(),
           );
         }
@@ -7714,8 +7718,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
           ? null
           : _contextMenuOrigin(local, contextItems);
       _contextMenuIsHeader = true;
-        _contextMenuIsEditor = false;
-        _contextMenuImageId = null;
+      _contextMenuIsEditor = false;
+      _contextMenuImageId = null;
       sheetTabMenuAt = null;
       hiddenSheetListAt = null;
       dataVerificationDropdownCoord = null;
@@ -8173,13 +8177,13 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       axis == 'vertical' ? metrics.columnTotalWidth : metrics.rowTotalHeight,
     );
     final maxMm = physicalSize == null
-      ? metricMaxMm
-      : math.min(
-        metricMaxMm,
-        axis == 'vertical'
-          ? physicalSize.widthMm.toDouble()
-          : physicalSize.heightMm.toDouble(),
-        );
+        ? metricMaxMm
+        : math.min(
+            metricMaxMm,
+            axis == 'vertical'
+                ? physicalSize.widthMm.toDouble()
+                : physicalSize.heightMm.toDouble(),
+          );
     final snapped = mm.clamp(0.0, maxMm).roundToDouble();
     return snapped > maxMm ? maxMm.floorToDouble() : snapped;
   }
@@ -9358,23 +9362,20 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
           _sheetCornerTooltipActive = true;
         });
         _sheetCornerTooltipHideTimer?.cancel();
-        _sheetCornerTooltipHideTimer = Timer(
-          const Duration(seconds: 3),
-          () {
-            if (!mounted) {
-              return;
+        _sheetCornerTooltipHideTimer = Timer(const Duration(seconds: 3), () {
+          if (!mounted) {
+            return;
+          }
+          setState(() {
+            if (_sheetCornerTooltipActive &&
+                _sheetRulerTooltipText == _sheetCornerTooltipText) {
+              _sheetRulerTooltipText = null;
+              _sheetRulerTooltipPosition = null;
             }
-            setState(() {
-              if (_sheetCornerTooltipActive &&
-                  _sheetRulerTooltipText == _sheetCornerTooltipText) {
-                _sheetRulerTooltipText = null;
-                _sheetRulerTooltipPosition = null;
-              }
-              _sheetCornerTooltipActive = false;
-              _sheetCornerTooltipDismissedUntilExit = true;
-            });
-          },
-        );
+            _sheetCornerTooltipActive = false;
+            _sheetCornerTooltipDismissedUntilExit = true;
+          });
+        });
       },
     );
     return true;
@@ -9715,12 +9716,12 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     final command = _imageInsertDialogCommandAt(local);
     final hoverControl = command == null || command == 'modal' ? null : command;
     final objectIdMenuIndex =
-      hoverControl != null && hoverControl.startsWith('object-id-')
-      ? int.tryParse(hoverControl.substring('object-id-'.length))
-      : null;
+        hoverControl != null && hoverControl.startsWith('object-id-')
+        ? int.tryParse(hoverControl.substring('object-id-'.length))
+        : null;
     final cursor =
-      hoverControl == 'object-id' ||
-        hoverControl == 'width' ||
+        hoverControl == 'object-id' ||
+            hoverControl == 'width' ||
             hoverControl == 'height' ||
             hoverControl == 'rotation'
         ? SystemMouseCursors.text
@@ -9728,11 +9729,11 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         ? SystemMouseCursors.basic
         : SystemMouseCursors.click;
     if (_imageInsertHoveredControl != hoverControl ||
-      _imageObjectIdMenuHoveredIndex != objectIdMenuIndex ||
-      _mouseCursor != cursor) {
+        _imageObjectIdMenuHoveredIndex != objectIdMenuIndex ||
+        _mouseCursor != cursor) {
       setState(() {
         _imageInsertHoveredControl = hoverControl;
-      _imageObjectIdMenuHoveredIndex = objectIdMenuIndex;
+        _imageObjectIdMenuHoveredIndex = objectIdMenuIndex;
         _mouseCursor = cursor;
       });
     }
@@ -14840,15 +14841,13 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   }
 
   Future<_FortuneScreenshotCapture?> _generateScreenshotCapture(
-    FortuneRange range,
-    {
+    FortuneRange range, {
     double? pixelRatio,
     bool includeGridLines = true,
     bool includeCellBorders = true,
     bool includeRulerGuides = false,
     bool includeLabelAreaBoundary = true,
-  }
-  ) async {
+  }) async {
     final sheet = _workbook.activeSheet;
     final settings = _workbook.settings;
     final metrics = sheet.metrics(settings);
@@ -14865,10 +14864,10 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     final captureWidth = math.max(1.0, columnRight(range.columnEnd) - originX);
     final captureHeight = math.max(1.0, rowBottom(range.rowEnd) - originY);
     final devicePixelRatio =
-      pixelRatio ??
-      (settings.devicePixelRatio > 0
-      ? settings.devicePixelRatio
-      : View.of(context).devicePixelRatio);
+        pixelRatio ??
+        (settings.devicePixelRatio > 0
+            ? settings.devicePixelRatio
+            : View.of(context).devicePixelRatio);
     final bounds = Rect.fromLTWH(0, 0, captureWidth, captureHeight);
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
@@ -17495,13 +17494,15 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     canvas.clipRect(bounds, doAntiAlias: false);
     for (final guide in guides) {
       if (guide.axis == 'vertical') {
-        final x = fortuneMillimetersToLogicalPixels(
+        final x =
+            fortuneMillimetersToLogicalPixels(
               guide.positionMm.clamp(0.0, maxWidthMm),
             ) -
             originX;
         canvas.drawLine(Offset(x, bounds.top), Offset(x, bounds.bottom), paint);
       } else if (guide.axis == 'horizontal') {
-        final y = fortuneMillimetersToLogicalPixels(
+        final y =
+            fortuneMillimetersToLogicalPixels(
               guide.positionMm.clamp(0.0, maxHeightMm),
             ) -
             originY;
@@ -22548,8 +22549,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       _imageInsertOriginalWidthPx = widthValue;
       _imageInsertOriginalHeightPx = heightValue;
       _setImageObjectIdSelection(
-        image.extraFields[fortuneImageObjectIdExtraKey]?.toString() ??
-        image.id,
+        image.extraFields[fortuneImageObjectIdExtraKey]?.toString() ?? image.id,
       );
       _imageObjectIdMenuOpen = false;
       _imageObjectIdMenuHoveredIndex = null;
@@ -23261,7 +23261,10 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   }
 
   double _barcodeEditBarHeightValue(FortuneImage image) {
-    final barHeight = _metadataDouble(image.extraFields['barcodeBarHeight'], 10);
+    final barHeight = _metadataDouble(
+      image.extraFields['barcodeBarHeight'],
+      10,
+    );
     return _barcodeEditScaledByStaleHeight(image, barHeight);
   }
 
@@ -23550,12 +23553,14 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     final renderedBodyTop = (result.bodyTop ?? 0).toDouble();
     final renderedBodyHeight = _barcodeShowHumanReadableText
         ? (result.bodyHeight?.toDouble() ??
-        math.min(requestedBarHeight, imageHeight))
+              math.min(requestedBarHeight, imageHeight))
         : imageHeight;
     final src = _bytesDataUri(result.bytes, result.mimeType);
     final activeSheet = _workbook.activeSheet;
     final editingImageId = _barcodeEditingImageId;
-    final editingImage = editingImageId == null ? null : _imageById(editingImageId);
+    final editingImage = editingImageId == null
+        ? null
+        : _imageById(editingImageId);
     final extraFields = <String, Object?>{
       'fortuneBarcode': true,
       fortuneBarcodeObjectIdExtraKey: objectId,
@@ -23579,12 +23584,11 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       fortuneBarcodeBodyHeightExtraKey: renderedBodyHeight,
       fortuneBarcodeBodyRatioExtraKey: imageHeight <= 0
           ? 1.0
-          : (renderedBodyHeight / imageHeight)
-            .clamp(0.0, 1.0),
-        // The ID label is an editor-only overlay drawn above the barcode body.
-        // Print/export paths must exclude it and use this metadata only to
-        // identify barcode objects.
-        fortuneBarcodeIdLabelPrintExcludedExtraKey: true,
+          : (renderedBodyHeight / imageHeight).clamp(0.0, 1.0),
+      // The ID label is an editor-only overlay drawn above the barcode body.
+      // Print/export paths must exclude it and use this metadata only to
+      // identify barcode objects.
+      fortuneBarcodeIdLabelPrintExcludedExtraKey: true,
     };
     if (usesMillimeters) {
       extraFields['widthMm'] = widthValue > 0
@@ -24318,7 +24322,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     final settings = _workbook.settings;
     final center = _imageRect(current, settings).center;
     final candidates = [
-      for (final image in fortuneImagesInPaintOrder(_workbook.activeSheet.images))
+      for (final image in fortuneImagesInPaintOrder(
+        _workbook.activeSheet.images,
+      ))
         if (_imageRect(image, settings).contains(center)) image,
     ];
     if (candidates.length < 2) {
@@ -24338,10 +24344,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     return true;
   }
 
-  String? _activeImageToolbarCommandAt(
-    Offset local,
-    FortuneSettings settings,
-  ) {
+  String? _activeImageToolbarCommandAt(Offset local, FortuneSettings settings) {
     if (contextMenuAt != null) {
       return null;
     }
@@ -24430,9 +24433,11 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     }
     final top = _imageLayerPanelTop(settings);
     final items = fortuneImageLayerPanelItems(_workbook.activeSheet.images);
-    return fortuneImageLayerPanelRect(size, items.length, top: top).contains(
-      local,
-    );
+    return fortuneImageLayerPanelRect(
+      size,
+      items.length,
+      top: top,
+    ).contains(local);
   }
 
   bool _scrollImageLayerPanel(Offset local, double deltaY) {
@@ -24488,7 +24493,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       return false;
     }
     final items = fortuneImageLayerPanelItems(_workbook.activeSheet.images);
-    final trackTravel = _imageLayerPanelScrollbarTrackTravel(_workbook.settings);
+    final trackTravel = _imageLayerPanelScrollbarTrackTravel(
+      _workbook.settings,
+    );
     final maxScrollOffset = fortuneImageLayerPanelMaxScrollOffset(items.length);
     if (trackTravel <= 0 || maxScrollOffset <= 0) {
       return true;
@@ -24544,10 +24551,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     }
     final settings = _workbook.settings;
     _scrollImageLayerPanelDuringRowDrag(local, settings);
-    final targetIndex = _imageLayerPanelRowTargetIndexAt(
-      local,
-      settings,
-    );
+    final targetIndex = _imageLayerPanelRowTargetIndexAt(local, settings);
     if (targetIndex == null) {
       return true;
     }
@@ -24577,7 +24581,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
 
   bool _isImageLayerPanelRowDoubleClick(String imageId, Duration timeStamp) {
     final lastTime = _lastImageLayerPanelRowDownTime;
-    final isDoubleClick = _lastImageLayerPanelRowDownId == imageId &&
+    final isDoubleClick =
+        _lastImageLayerPanelRowDownId == imageId &&
         lastTime != null &&
         timeStamp - lastTime < const Duration(milliseconds: 450);
     _lastImageLayerPanelRowDownId = imageId;
@@ -24614,7 +24619,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     final extendSelection = keyboard.isShiftPressed;
     final toggleSelection = keyboard.isControlPressed || keyboard.isMetaPressed;
     if (extendSelection && _activeImageId != null) {
-      final anchorIndex = items.indexWhere((image) => image.id == _activeImageId);
+      final anchorIndex = items.indexWhere(
+        (image) => image.id == _activeImageId,
+      );
       if (anchorIndex >= 0) {
         final start = math.min(anchorIndex, clickedIndex);
         final end = math.max(anchorIndex, clickedIndex);
@@ -24632,6 +24639,10 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       }
       _activeImageId = imageId;
       _selectedImageIds = next.isEmpty ? <String>{imageId} : next;
+      return;
+    }
+    if (_selectedImageIds.length > 1 && _selectedImageIds.contains(imageId)) {
+      _activeImageId = imageId;
       return;
     }
     _activeImageId = imageId;
@@ -24671,9 +24682,10 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     final listBottom = panel.bottom;
     final listY = local.dy.clamp(listTop, listBottom - 1).toDouble();
     final contentY = listY - listTop + _imageLayerPanelScrollOffset;
-    return (contentY / fortuneImageLayerPanelRowHeight)
-        .floor()
-        .clamp(0, items.length - 1);
+    return (contentY / fortuneImageLayerPanelRowHeight).floor().clamp(
+      0,
+      items.length - 1,
+    );
   }
 
   bool _moveImageLayerPanelRow(String imageId, int targetIndex) {
@@ -24685,15 +24697,28 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       return false;
     }
     final clampedTargetIndex = targetIndex.clamp(0, frontToBack.length - 1);
-    if (clampedTargetIndex == currentIndex) {
+    final selectedIds = _selectedImageIds.contains(imageId)
+        ? _selectedImageIds.intersection({
+            for (final image in frontToBack) image.id,
+          })
+        : <String>{imageId};
+    if (selectedIds.isEmpty ||
+        selectedIds.contains(frontToBack[clampedTargetIndex].id)) {
       return true;
     }
     if (!_imageLayerPanelRowDragUndoRecorded) {
       _recordUndoSnapshot();
       _imageLayerPanelRowDragUndoRecorded = true;
     }
-    final moving = frontToBack.removeAt(currentIndex);
-    frontToBack.insert(clampedTargetIndex, moving);
+    final moving = [
+      for (final image in frontToBack)
+        if (selectedIds.contains(image.id)) image,
+    ];
+    frontToBack.removeWhere((image) => selectedIds.contains(image.id));
+    frontToBack.insertAll(
+      clampedTargetIndex.clamp(0, frontToBack.length),
+      moving,
+    );
     final backToFront = frontToBack.reversed.toList(growable: false);
     final nextZOrders = <String, double>{
       for (var index = 0; index < backToFront.length; index += 1)
@@ -24714,6 +24739,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     setState(() {
       _replaceActiveSheet(sheet.copyWith(images: nextImages));
       _activeImageId = imageId;
+      _selectedImageIds = selectedIds;
       _imageLayerPanelRowDragTargetIndex = clampedTargetIndex;
       contextMenuAt = null;
       _contextMenuImageId = null;
@@ -24746,7 +24772,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     if (!_imageLayerPanelOpen) {
       return false;
     }
-    final isShortcutPressed = HardwareKeyboard.instance.isControlPressed ||
+    final isShortcutPressed =
+        HardwareKeyboard.instance.isControlPressed ||
         HardwareKeyboard.instance.isMetaPressed;
     if (!isShortcutPressed) {
       return false;
@@ -24797,12 +24824,18 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         ? 0
         : items.indexWhere((image) => image.id == _activeImageId);
     final baseIndex = currentIndex < 0 ? 0 : currentIndex;
-    final pageStep = math.min(items.length, fortuneImageLayerPanelMaxVisibleRows);
+    final pageStep = math.min(
+      items.length,
+      fortuneImageLayerPanelMaxVisibleRows,
+    );
     final nextIndex = switch (event.logicalKey) {
       LogicalKeyboardKey.arrowUp => math.max(0, baseIndex - 1),
       LogicalKeyboardKey.arrowDown => math.min(items.length - 1, baseIndex + 1),
       LogicalKeyboardKey.pageUp => math.max(0, baseIndex - pageStep),
-      LogicalKeyboardKey.pageDown => math.min(items.length - 1, baseIndex + pageStep),
+      LogicalKeyboardKey.pageDown => math.min(
+        items.length - 1,
+        baseIndex + pageStep,
+      ),
       LogicalKeyboardKey.home => 0,
       LogicalKeyboardKey.end => items.length - 1,
       _ => baseIndex,
@@ -24813,7 +24846,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     }
     setState(() {
       _activeImageId = nextId;
-      _imageLayerPanelScrollOffset = _imageLayerPanelScrollOffsetToRevealActive();
+      _imageLayerPanelScrollOffset =
+          _imageLayerPanelScrollOffsetToRevealActive();
       contextMenuAt = null;
       _contextMenuImageId = null;
     });
@@ -24934,7 +24968,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       items.length,
       top: _imageLayerPanelTop(settings),
     );
-    final trackHeight = panel.height -
+    final trackHeight =
+        panel.height -
         fortuneImageLayerPanelHeaderHeight -
         fortuneImageLayerPanelScrollbarMargin * 2;
     return math.max(0.0, trackHeight - thumb.height);
@@ -25348,14 +25383,14 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     final nextActiveImageId = nextItems.isEmpty
         ? null
         : nextItems[math.min(math.max(0, currentIndex), nextItems.length - 1)]
-            .id;
+              .id;
     _recordUndoSnapshot();
     final sheets = [..._workbook.sheets];
     sheets[_workbook.activeSheetIndex] = sheet.copyWith(images: images);
     setState(() {
       _workbook = _workbook.copyWith(sheets: sheets);
       _activeImageId = nextActiveImageId;
-        _selectedImageIds = nextActiveImageId == null
+      _selectedImageIds = nextActiveImageId == null
           ? <String>{}
           : <String>{nextActiveImageId};
       _cancelImageResize();
@@ -30713,7 +30748,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     final imageId = _contextMenuImageId ?? _activeImageId;
     final sheet = _workbook.activeSheet;
     final ordered = fortuneImagesInPaintOrder(sheet.images);
-    final selectedIds = keepLayerPanelOpen &&
+    final selectedIds =
+        keepLayerPanelOpen &&
             imageId != null &&
             _selectedImageIds.contains(imageId)
         ? _selectedImageIds
@@ -30883,7 +30919,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       );
     }
     _recordUndoSnapshot();
-    final nextImages = List<FortuneImage>.from(sheet.images)..addAll(duplicates);
+    final nextImages = List<FortuneImage>.from(sheet.images)
+      ..addAll(duplicates);
     final duplicateIds = {for (final duplicate in duplicates) duplicate.id};
     setState(() {
       _replaceActiveSheet(sheet.copyWith(images: nextImages));
@@ -33800,14 +33837,10 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
           }
           _replaceActiveSheet(nextSheet);
           _recalculateWorkbookFormulas();
-          _restoreExternalFormulaPasteRawResults(
-            externalFormulaRawResults,
-          );
+          _restoreExternalFormulaPasteRawResults(externalFormulaRawResults);
         } else {
           _recalculateWorkbookFormulas();
-          _restoreExternalFormulaPasteRawResults(
-            externalFormulaRawResults,
-          );
+          _restoreExternalFormulaPasteRawResults(externalFormulaRawResults);
         }
       }
       if (completedInternalCutPaste) {
@@ -36435,12 +36468,16 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     }
     final formulaSearchRect = _formulaSearchDialogRect();
     if (formulaSearchRect != null &&
-        fortuneFormulaSearchCloseButtonRect(formulaSearchRect).contains(local)) {
+        fortuneFormulaSearchCloseButtonRect(
+          formulaSearchRect,
+        ).contains(local)) {
       return 'formula-search';
     }
     final conditionRuleRect = _conditionRuleDialogRect();
     if (conditionRuleRect != null &&
-        fortuneConditionRuleCloseButtonRect(conditionRuleRect).contains(local)) {
+        fortuneConditionRuleCloseButtonRect(
+          conditionRuleRect,
+        ).contains(local)) {
       return 'condition-rule';
     }
     return null;
@@ -40321,7 +40358,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         : ' previous=${_debugValue(previous)}'
               ' deltaText=${traceValue.text.length - previous.text.length}';
     final extraDetails = details == null ? '' : ' $details';
-          final message = 'cellEditorTrace#$traceSeq event=$event coord=$traceCoord '
+    final message =
+        'cellEditorTrace#$traceSeq event=$event coord=$traceCoord '
         'pending=$_editorTextMutationPendingCount '
         'session=$_editorTextMutationSession '
         'focus=${_editorFocusNode.hasFocus} '
@@ -40391,7 +40429,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       return escaped;
     }
     return '${escaped.substring(0, maxDebugTextLength)}...'
-      '(${escaped.length} chars)';
+        '(${escaped.length} chars)';
   }
 
   KeyEventResult _handleEditorKeyEvent(FocusNode node, KeyEvent event) {
@@ -40529,7 +40567,10 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     if (event.logicalKey == LogicalKeyboardKey.backspace ||
         event.logicalKey == LogicalKeyboardKey.delete) {
       if (_deleteEditorText(event.logicalKey)) {
-        _traceCellEditor('keyEvent handled editableTextDeletion', keyEvent: event);
+        _traceCellEditor(
+          'keyEvent handled editableTextDeletion',
+          keyEvent: event,
+        );
         return KeyEventResult.handled;
       }
       _traceCellEditor(
@@ -44267,17 +44308,17 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
                 activeImageId: _activeImageId,
                 selectedImageIds: _selectedImageIds,
                 activeImageToolbarHoveredCommand:
-                  _activeImageToolbarHoveredCommand,
+                    _activeImageToolbarHoveredCommand,
                 activeImageToolbarTooltipPosition:
-                  _activeImageToolbarTooltipPosition,
+                    _activeImageToolbarTooltipPosition,
                 imageLayerPanelOpen: _imageLayerPanelOpen,
                 imageLayerPanelScrollOffset: _imageLayerPanelScrollOffset,
                 imageLayerPanelDraggingImageId: _imageLayerPanelRowDragging
-                  ? _imageLayerPanelRowDragImageId
-                  : null,
+                    ? _imageLayerPanelRowDragImageId
+                    : null,
                 imageLayerPanelDragTargetIndex: _imageLayerPanelRowDragging
-                  ? _imageLayerPanelRowDragTargetIndex
-                  : null,
+                    ? _imageLayerPanelRowDragTargetIndex
+                    : null,
                 imageLayerPanelHoveredActionCommand:
                     _imageLayerPanelHoveredActionCommand,
                 imageLayerPanelTooltipPosition: _imageLayerPanelTooltipPosition,

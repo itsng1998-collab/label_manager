@@ -27,6 +27,19 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-05): 이미지/바코드 레이어 패널 다중 row drag 재정렬
+
+- 목적: 레이어 패널에서 Ctrl/Shift로 선택한 여러 이미지/바코드 row를 drag할 때 선택 그룹을 하나의 블록으로 재정렬한다. 선택되지 않은 row drag는 기존 단일 row 재정렬 동작을 유지한다.
+- 변경 완료: `fortune_sheet_canvas.dart`의 `_selectImageLayerPanelRow`가 이미 다중 선택된 row를 누른 경우 선택 집합을 유지해 drag 시작 시 다중 선택이 단일 선택으로 접히지 않도록 했다.
+- 변경 완료: `_moveImageLayerPanelRow`가 dragged row가 선택 집합에 포함된 경우 `_selectedImageIds` 전체를 front-to-back 순서로 묶어 target index에 삽입하도록 확장했다.
+- 테스트 추가: `fortune_barcode_dialog_test.dart`에 `image layer panel row drag reorders selected rows as a group` 추가.
+- 검증 완료: focused `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --name "image layer panel row drag reorders layers|image layer panel row drag reorders selected rows as a group"` 결과 2개 통과.
+- 검증 완료: 관련 묶음 `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --name "image layer panel action moves selected item forward|image layer panel action moves selected rows as a group|image layer panel action sends selected item to back|image layer panel row drag reorders layers|image layer panel row drag reorders selected rows as a group|image layer panel row drag auto scrolls to lower rows|image layer panel keyboard commands duplicate and move row"` 결과 7개 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze third_party\fortune_sheet\lib\src\fortune_sheet_canvas.dart third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --no-fatal-warnings --no-fatal-infos` 결과 `No issues found`.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart` 결과 55개 통과.
+- 검증 완료: `git diff --check -- SESSION_HANDOFF.md third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart` 출력 없음. VS Code diagnostics 오류 없음.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`, `third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
+
 ### 완료 (2026-07-05): 이미지/바코드 레이어 패널 다중 삭제/복제
 
 - 목적: 레이어 패널에서 Ctrl/Shift로 선택한 여러 이미지/바코드 row에 대해 삭제와 복제를 그룹 단위로 수행한다. 우클릭/플로팅 툴바는 기존 단일 오브젝트 동작을 유지한다.
