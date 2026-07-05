@@ -302,7 +302,7 @@
 - 전체 테스트 실행 예정(2026-07-05): `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_sheet_canvas_test.dart *> .tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_comment_export_host.log`; 실행 후 `exit` 금지, `$LASTEXITCODE` 요약만 출력.
 - 전체 테스트 완료(2026-07-05): `.tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_comment_export_host.log` 결과 `exitCode=1`. comment export host 실패 제거, 다음 첫 실패는 `toolbar link opens dialog and commits hyperlink address`.
 - stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/test/fortune_sheet_canvas_test.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
-- 커밋 예정: comment export 테스트 host 보정.
+- 커밋 완료: `df6b8c1` (`FortuneSheet comment export 테스트 host 보정`).
 
 ### 완료 (2026-07-04): analyze clean 이후 회귀 묶음 재검증
 
