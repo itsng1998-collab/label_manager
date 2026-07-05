@@ -38,6 +38,7 @@
 - 검증 완료: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test *> .tmp\copilot\fortune_sheet_full_test_2026-07-05_object_clipboard.log` 결과 `exitCode=0`, 3001개 통과.
 - 검증 완료: `C:\Flutter\bin\flutter.bat analyze --no-fatal-warnings --no-fatal-infos *> .tmp\copilot\flutter_analyze_full_2026-07-05_object_clipboard.log` 결과 `exitCode=0`, `No issues found`.
 - 검증 완료: 전체 workspace `C:\Flutter\bin\flutter.bat test *> .tmp\copilot\flutter_test_full_2026-07-05_object_clipboard.log` 결과 `exitCode=0`, 128개 통과. 기존 unrelated dirty `lib/core/app.dart` 제외.
+- 커밋 완료: `4769823` (`이미지 바코드 레이어 패널 클립보드 단축키 추가`). 기존 unrelated dirty `lib/core/app.dart` 제외.
 
 ### 완료 (2026-07-05): 이미지/바코드 레이어 패널 Ctrl+A 전체 선택 이동 no-op 검증
 
