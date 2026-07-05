@@ -136,6 +136,14 @@
 - 전체 테스트 예정(2026-07-05): `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_sheet_canvas_test.dart` 출력을 `.tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_hidden_column_fixture.log`로 리다이렉트해 다음 첫 실패 확인.
 - 전체 테스트 완료(2026-07-05): `.tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_hidden_column_fixture.log` 결과 `exitCode=1`, `[E]` 기준 187개 실패. `copy paste skips hidden target column metadata`와 `cut paste preserves hidden target column metadata sources` 실패는 제거되고 다음 첫 실패는 `copy paste preserves filter metadata across hidden target column`.
 - stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/test/fortune_sheet_canvas_test.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
+- 커밋 완료: `cb97676` (`FortuneSheet 숨김 열 메타데이터 테스트 보정`).
+- 진행 중(2026-07-05): 다음 실패 `copy paste preserves filter metadata across hidden target column` focused 단독 재현. 실패는 filter metadata 적용 전 copy 직후 clipboard 기대 `A\tB` 대비 actual `A\t`. 대응 hidden target row 테스트는 source 두 번째 값이 `B`인데 hidden target column copy/cut filter 테스트 fixture만 `(0,1)` 값이 빈 문자열이라 동일한 fixture 대칭 오류로 확인. filter metadata hidden column copy/cut fixture 보정 중.
+- 완료(2026-07-05): hidden target column filter metadata copy/cut fixture의 `(0,1)` 값을 `B`로 보정. 포맷 후 focused regex `copy paste skips hidden target column metadata|cut paste preserves hidden target column metadata sources|copy paste preserves filter metadata across hidden target column|cut paste preserves filter metadata across hidden target column` 통과.
+- 검증 예정(2026-07-05): `C:\Flutter\bin\flutter.bat analyze third_party\fortune_sheet\test\fortune_sheet_canvas_test.dart --no-fatal-warnings --no-fatal-infos`, `git diff --check`, VS Code diagnostics.
+- 검증 완료(2026-07-05): analyzer `No issues found`, `git diff --check` 출력 없음, VS Code diagnostics 오류 없음.
+- 전체 테스트 예정(2026-07-05): `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_sheet_canvas_test.dart` 출력을 `.tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_hidden_column_filter_fixture.log`로 리다이렉트해 다음 첫 실패 확인.
+- 전체 테스트 완료(2026-07-05): `.tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_hidden_column_filter_fixture.log` 결과 `exitCode=1`, `[E]` 기준 185개 실패. hidden target column filter metadata copy/cut 실패는 제거되고 다음 첫 실패는 `copy paste skips hidden target column images`.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/test/fortune_sheet_canvas_test.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
 - 미검증/진행 중: 전체 canvas clean까지 추가 정리 필요. 기존 unrelated dirty `lib/core/app.dart` 제외.
 
 ### 완료 (2026-07-04): analyze clean 이후 회귀 묶음 재검증
