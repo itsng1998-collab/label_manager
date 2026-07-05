@@ -80,6 +80,54 @@ bool _stringListsEqual(List<String> left, List<String> right) {
   return true;
 }
 
+bool _objectTreesEqual(Object? left, Object? right) {
+  if (identical(left, right)) {
+    return true;
+  }
+  if (left is Map && right is Map) {
+    if (left.length != right.length) {
+      return false;
+    }
+    final matchedRightKeys = <Object?>{};
+    for (final leftEntry in left.entries) {
+      var matched = false;
+      for (final rightEntry in right.entries) {
+        if (matchedRightKeys.contains(rightEntry.key)) {
+          continue;
+        }
+        if (_objectTreesEqual(leftEntry.key, rightEntry.key) &&
+            _objectTreesEqual(leftEntry.value, rightEntry.value)) {
+          matchedRightKeys.add(rightEntry.key);
+          matched = true;
+          break;
+        }
+      }
+      if (!matched) {
+        return false;
+      }
+    }
+    return true;
+  }
+  if (left is Iterable && right is Iterable) {
+    final leftIterator = left.iterator;
+    final rightIterator = right.iterator;
+    while (true) {
+      final hasLeft = leftIterator.moveNext();
+      final hasRight = rightIterator.moveNext();
+      if (hasLeft != hasRight) {
+        return false;
+      }
+      if (!hasLeft) {
+        return true;
+      }
+      if (!_objectTreesEqual(leftIterator.current, rightIterator.current)) {
+        return false;
+      }
+    }
+  }
+  return left == right;
+}
+
 typedef FortuneImagePicker = Future<FortuneImagePickResult?> Function();
 typedef FortuneBarcodeRenderer =
     Future<FortuneBarcodeRenderResult?> Function(FortuneBarcodeRequest request);
@@ -3542,8 +3590,10 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     FortuneWorkbook previousWorkbook,
     FortuneWorkbook workbook,
   ) {
-    return jsonEncode(FortuneSheetCodec.workbookToJson(previousWorkbook)) !=
-        jsonEncode(FortuneSheetCodec.workbookToJson(workbook));
+    return !_objectTreesEqual(
+      FortuneSheetCodec.workbookToJson(previousWorkbook),
+      FortuneSheetCodec.workbookToJson(workbook),
+    );
   }
 
   @override
@@ -4039,7 +4089,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       previousWorkbook,
     )['data'];
     final data = FortuneSheetCodec.workbookToJson(workbook)['data'];
-    if (jsonEncode(previousData) == jsonEncode(data)) {
+    if (_objectTreesEqual(previousData, data)) {
       return pendingOps;
     }
     return [
@@ -4338,7 +4388,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       for (final coord in coords) {
         final previousValue = _cellOpValue(previousSheet, coord);
         final value = _cellOpValue(sheet, coord);
-        if (jsonEncode(previousValue) == jsonEncode(value)) {
+        if (_objectTreesEqual(previousValue, value)) {
           continue;
         }
         ops.add({
@@ -4454,7 +4504,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     if (!previousSheet.containsKey(key) && !sheet.containsKey(key)) {
       return false;
     }
-    return jsonEncode(previousSheet[key]) != jsonEncode(sheet[key]);
+    return !_objectTreesEqual(previousSheet[key], sheet[key]);
   }
 
   int? _singleInsertedSheetIndex(
@@ -26229,6 +26279,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         }
         _closeTransientMenus();
       });
+      _focusNode.requestFocus();
       return;
     }
     if (_isToolbarSortFilterCommand(command)) {
@@ -29440,7 +29491,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     if (left == null || right == null) {
       return left == right;
     }
-    return left.type == right.type &&
+    return _frozenPaneTypesEqual(left.type, right.type) &&
         left.rowFocus == right.rowFocus &&
         left.rawRowFocus == right.rawRowFocus &&
         left.hasRawRowFocus == right.hasRawRowFocus &&
@@ -29449,6 +29500,14 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         left.hasRawColumnFocus == right.hasRawColumnFocus &&
         _objectMapEquals(left.extraFields, right.extraFields) &&
         _objectMapEquals(left.rangeExtraFields, right.rangeExtraFields);
+  }
+
+  bool _frozenPaneTypesEqual(String? left, String? right) {
+    if (left == right) {
+      return true;
+    }
+    return (left == 'rangeBoth' && right == 'both') ||
+        (left == 'both' && right == 'rangeBoth');
   }
 
   bool _objectMapEquals(Map<String, Object?> left, Map<String, Object?> right) {
@@ -30384,8 +30443,10 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         _showCustomSortDialog();
       case fortuneContextOrderAzCommand:
         _sortSelectedRange(isAscending: true);
+        setState(_closeTransientMenus);
       case fortuneContextOrderZaCommand:
         _sortSelectedRange(isAscending: false);
+        setState(_closeTransientMenus);
       case fortuneContextInsertRowCommand:
         _insertRowAtSelection(count: _contextMenuInsertCount(command));
       case fortuneContextInsertRowBelowCommand:
@@ -39423,12 +39484,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     }
     final nextCell = text.isEmpty && previous.merge == null
         ? null
-        : previous.withFormulaBarInput(
-            text,
-            formulaDisplayValue: previous.formula == text
-                ? previous.displayValue
-                : null,
-          );
+        : previous.formula == text
+        ? previous
+        : previous.withFormulaBarInput(text);
     final changed = _cellWouldChange(sheet, coord, nextCell);
     if (changed) {
       _recordUndoSnapshot();

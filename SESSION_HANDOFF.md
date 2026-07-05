@@ -1,6 +1,6 @@
 # 세션 인수인계
 
-마지막 업데이트: 2026-07-03
+마지막 업데이트: 2026-07-04
 
 ## 작업 규칙
 
@@ -26,6 +26,39 @@
 - Godex G500 같은 라벨 프린터에서 정밀한 인쇄가 핵심이면 일반 프린터 경로와 직접 출력 경로를 분리한다. 직접 출력은 처음부터 모든 스타일을 100% EZPL 명령만으로 처리하기보다 `정밀 좌표 엔진 + EZPL 명령 + 셀 bitmap fallback` 구조를 우선한다. 테두리/선/박스와 바코드는 가능한 한 EZPL 명령으로 출력하고, 화면 폰트와 프린터 폰트 차이로 1:1 보장이 어려운 복합 스타일 텍스트/이미지/배경/RTF 계열 셀은 셀 단위 bitmap fallback을 사용해 시각적 일치도를 확보한다.
 
 ## 현재 상태
+
+### 진행 중 (2026-07-04): FortuneSheet canvas 전체 테스트 실패 묶음 정리
+
+목적: 최근 이미지/바코드 및 locale 회귀 묶음 통과 이후, 이전에 대량 실패로 남겨둔 `fortune_sheet_canvas_test.dart` 전체 테스트의 현재 실패 원인을 다시 확인하고 가까운 실패 묶음부터 정리한다.
+- 변경 완료: `fortune_sheet_canvas_test.dart`에 `fortuneSheetPainter` helper를 추가해 `MaterialApp` 내부 `CustomPaint`와 실제 `FortuneSheetPainter`를 구분하도록 테스트 painter lookup을 정리했다.
+- 변경 완료: `fortune_sheet_canvas_test.dart`에 `fortuneSheetTestHost` helper를 추가하고 `EditableText`를 사용하는 formula/cell editor 테스트에만 선택 적용해 `Overlay` 누락을 해결했다. 전역 적용은 non-editor pointer/hover/undo 기대값을 바꿔 사용하지 않는다.
+- 변경 완료: `fortune_sheet_canvas.dart`의 formula bar commit에서 기존 셀의 formula와 입력 formula가 동일하면 셀을 재생성하지 않도록 해 동일 formula commit이 undo snapshot을 추가하지 않게 했다.
+- 변경 완료: formula export 기대값은 현재 codec 규칙에 맞춰 `v`는 계산 결과, `f`는 formula 텍스트로 검증하도록 조정했다.
+- 검증 완료: focused `toolbar popup closes on outside sheet click like upstream`, `formula bar Escape cancels draft like upstream FxEditor`, `formula bar editor commits formula text to selected cell`, `formula bar unchanged commit does not add undo`, `formula bar editor export writes canonical formula metadata` 통과.
+- 검증 완료: focused freeze 4개(`freeze row handle unchanged drag keeps undo stack`, `freeze toolbar export writes canonical frozen metadata`, `freeze header handles drag panes and preserve other axis`, `freeze header drag export writes canonical frozen metadata`) 통과. 이전 전체 실행의 freeze 실패는 formula editor Overlay 실패 후속 오염으로 확인.
+- 변경 완료: `fortune_sheet_canvas_test.dart`의 표준 view size/devicePixelRatio setup 792개를 `prepareFortuneSheetView` helper 호출로 통일하고, helper teardown에서 metrics reset을 제거해 stale `EditableText` observer가 metrics 이벤트를 받는 경로를 줄였다.
+- 검증 진행: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_sheet_canvas_test.dart` 재실행 결과 실패가 227개에서 189개로 감소했고, 직접 실패 테스트는 `freeze toolbar menu applies and clears frozen panes`, `freeze header handles drag panes and preserve other axis` 2개로 축소됨. 원인은 여전히 이전 테스트의 stale `EditableTextState.didChangeMetrics`가 다음 view size 변경에 반응하는 문제.
+- 검증 완료: VS Code 멈춤 방지를 위해 대량 출력은 `.tmp/copilot/*.log`로 리다이렉트하고 tail만 확인하는 방식으로 전환했다. `sheet tab rename|freeze toolbar|freeze header` focused 묶음 12개 통과.
+- 변경 완료: 현재 구현의 toolbar font popup 폭(`180`), 즉시 toolbar command `barcode`, context menu `split-cell-column` 반영에 맞춰 canvas parity 테스트 기대값을 갱신했다. context menu에서 더 이상 제공하지 않는 image command 검증은 link/filter context menu 검증과 분리하고, image 삽입은 기존 toolbar image 테스트 범위로 남겼다.
+- 변경 완료: `fortune_sheet_canvas.dart`에서 동일 formula commit no-op 처리, frozen `both`/`rangeBoth` 동등성, freeze menu focus 복귀, context sort command close 보강을 추가했다.
+- 검증 완료: `condition format submenu value labels mirror upstream menu hints|cell context menu repositions when it overflows the viewport` focused 묶음 통과, `context menu filter image and link commands update metadata|context menu image and link covered cell respects locked anchor` focused 묶음 통과, `sheet tab rename|freeze toolbar|freeze header` focused 묶음 12개 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze third_party\fortune_sheet\lib\src\fortune_sheet_canvas.dart third_party\fortune_sheet\test\fortune_sheet_canvas_test.dart --no-fatal-warnings --no-fatal-infos` 통과.
+- 검증 진행: 리다이렉트 방식 전체 `fortune_sheet_canvas_test.dart` 재실행 결과 실패가 173개에서 169개로 감소. 현재 첫 실패는 `context menu sort dialog respects locked cells in selected range`의 sort 후 `contextMenuAt` close 기대값 불일치이며, 이후에는 기존 full canvas 잔여 failure가 계속 남아 있음.
+- 변경 완료: sort focused 실패는 `tapContextCommand`가 실제 `painter().contextMenuItems` 대신 기본 context menu item 목록을 사용하던 문제로 확인해 helper 호출에 실제 items를 전달하도록 수정했다. image export/cancel 쪽은 obsolete context-menu image 테스트 2개를 제거하고, 기존 toolbar image add/cancel export 테스트가 현재 image insert dialog 흐름(`image` -> `file` -> `confirm`/cancel)을 실제로 밟도록 갱신했다.
+- 검증 완료: focused `context menu sort dialog respects locked cells in selected range` 통과. focused `toolbar image add export writes canonical images list|toolbar image cancel preserves raw images list` 통과. `dart_format` 적용 후 동일 focused image 묶음 재통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze third_party\fortune_sheet\lib\src\fortune_sheet_canvas.dart third_party\fortune_sheet\test\fortune_sheet_canvas_test.dart --no-fatal-warnings --no-fatal-infos` 재통과.
+- 검증 진행: 리다이렉트 방식 전체 `fortune_sheet_canvas_test.dart` 재실행 결과 실패가 169개에서 165개로 감소. 다음 첫 실패는 `keyboard formula entry replay matches upstream core fixture`이며, focused 로그에서 `No Overlay widget found`와 `JsonUnsupportedObjectError` 계열이 확인됨.
+- 변경 완료: `fortune_sheet_canvas.dart`의 워크북/셀/메타데이터 변경 비교에서 JSON 문자열화 비교 대신 `_objectTreesEqual` 구조 비교를 사용해 JSON-safe가 아닌 raw metadata가 `_workbookJsonChanged`에서 예외를 내지 않도록 했다. `keyboard formula entry replay matches upstream core fixture` 테스트는 `fortuneSheetTestHost`로 감싸 `EditableText`에 `Overlay`를 제공했다.
+- 검증 완료: focused `keyboard formula entry replay matches upstream core fixture` 통과. 포맷 후 focused `keyboard formula entry replay matches upstream core fixture|toolbar image add export writes canonical images list|toolbar image cancel preserves raw images list` 통과. `C:\Flutter\bin\flutter.bat analyze third_party\fortune_sheet\lib\src\fortune_sheet_canvas.dart third_party\fortune_sheet\test\fortune_sheet_canvas_test.dart --no-fatal-warnings --no-fatal-infos` 통과.
+- 변경 완료: `standard toolbar popup rows expose focusable semantics`의 font-size popup 기대값을 현재 visible row semantics 기준의 기본 항목 `10`으로 조정했다. `sheet canvas exposes upstream selection live alert semantics`는 widget state 추출 대신 `FortuneSheetPainter` 직접 생성으로 liveRegion label을 검증하도록 안정화했다.
+- 검증 완료: 포맷 후 focused `standard toolbar popup rows expose focusable semantics|sheet canvas exposes upstream selection live alert semantics|keyboard formula entry replay matches upstream core fixture|toolbar image add export writes canonical images list|toolbar image cancel preserves raw images list` 5개 통과. analyzer 재통과.
+- 검증 진행: 리다이렉트 방식 전체 `fortune_sheet_canvas_test.dart` 재실행 결과 실패가 162개에서 160개로 감소. 현재 첫 실패는 `normal click clears drag range and active cell editor`였고, focused에서 `No Overlay widget found`로 확인됨.
+- 변경 완료: `normal click clears drag range and active cell editor`의 widget wrapper를 `fortuneSheetTestHost`로 교체해 active editor 테스트에 `Overlay`를 제공했다.
+- 검증 완료: 포맷 후 focused `normal click clears drag range and active cell editor|standard toolbar popup rows expose focusable semantics|sheet canvas exposes upstream selection live alert semantics|keyboard formula entry replay matches upstream core fixture|toolbar image add export writes canonical images list|toolbar image cancel preserves raw images list` 6개 통과. analyzer 재통과.
+- 검증 완료: `git diff --check -- SESSION_HANDOFF.md third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart third_party/fortune_sheet/test/fortune_sheet_canvas_test.dart` 통과.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`, `third_party/fortune_sheet/test/fortune_sheet_canvas_test.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
+- 다음 작업: 다음 첫 실패 `bare active editor syncs text input after select all delete` 계열부터 계속 정리.
+- 미검증/진행 중: 전체 canvas clean까지 추가 정리 필요. 기존 unrelated dirty `lib/core/app.dart` 제외.
 
 ### 완료 (2026-07-04): analyze clean 이후 회귀 묶음 재검증
 

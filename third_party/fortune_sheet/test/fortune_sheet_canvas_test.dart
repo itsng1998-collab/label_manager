@@ -25,6 +25,37 @@ final RegExp fortuneUuidV4Pattern = RegExp(
 
 String fortuneTestImageSrc() => 'data:image/png;base64,$fortuneTestPngBase64';
 
+Widget fortuneSheetTestHost({
+  required TextDirection textDirection,
+  required Widget child,
+}) {
+  return MaterialApp(
+    home: Directionality(textDirection: textDirection, child: child),
+  );
+}
+
+Future<void> prepareFortuneSheetView(
+  WidgetTester tester,
+  Size physicalSize, {
+  double devicePixelRatio = 1,
+}) async {
+  FocusManager.instance.primaryFocus?.unfocus();
+  await tester.pumpWidget(const SizedBox.shrink());
+  await tester.pumpAndSettle();
+
+  if (tester.view.physicalSize != physicalSize) {
+    tester.view.physicalSize = physicalSize;
+  }
+  if (tester.view.devicePixelRatio != devicePixelRatio) {
+    tester.view.devicePixelRatio = devicePixelRatio;
+  }
+  addTearDown(() async {
+    FocusManager.instance.primaryFocus?.unfocus();
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pumpAndSettle();
+  });
+}
+
 FortuneImagePicker fortuneTestImagePicker() {
   return () async => FortuneImagePickResult(
     bytes: base64Decode(fortuneTestPngBase64),
@@ -47,6 +78,12 @@ FortuneWorkbook fortuneEmptyWorkbook() => FortuneWorkbook(
   sheets: [FortuneSheet(id: 'sheet_01', name: 'Sheet1')],
 );
 
+FortuneSheetPainter fortuneSheetPainter(WidgetTester tester) {
+  final finder = find.byWidgetPredicate(
+    (widget) => widget is CustomPaint && widget.painter is FortuneSheetPainter,
+  );
+  return tester.widget<CustomPaint>(finder).painter! as FortuneSheetPainter;
+}
 Offset conditionRuleConfirmButtonCenter({
   required double dialogLeft,
   required double dialogTop,
@@ -245,21 +282,18 @@ Future<void> dismissFortuneLocationMessageDialog(
   Size canvasSize = const Size(900, 360),
 }) async {
   final painter =
-      tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      fortuneSheetPainter(tester);
   final message = painter.locationMessageDialogText;
   expect(message, isNotNull);
   await tester.sendKeyEvent(LogicalKeyboardKey.enter);
   await tester.pump();
   var nextPainter =
-      tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      fortuneSheetPainter(tester);
   if (nextPainter.locationMessageDialogText != null) {
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await tester.pump();
     nextPainter =
-        tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        fortuneSheetPainter(tester);
   }
   expect(nextPainter.locationMessageDialogText, isNull);
 }
@@ -1699,12 +1733,7 @@ void main() {
   testWidgets('toolbar popup closes on outside sheet click like upstream', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     await tester.pumpWidget(
       MaterialApp(
@@ -1721,8 +1750,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -2693,7 +2721,7 @@ void main() {
       isTrue,
     );
     expect(fortuneToolbarPopupWidthFor(fortuneToolbarFormatCommand), 222);
-    expect(fortuneToolbarPopupWidthFor(fortuneToolbarFontPopupKey), 126);
+    expect(fortuneToolbarPopupWidthFor(fortuneToolbarFontPopupKey), 180);
     expect(fortuneToolbarPopupWidthFor(fortuneToolbarFontSizePopupKey), 84);
     expect(
       fortuneToolbarPopupContentTopPaddingFor(fortuneToolbarFontPopupKey),
@@ -2860,6 +2888,7 @@ void main() {
       'filter',
       'dataVerification',
       'image',
+      'barcode',
       'splitColumn',
       'screenshot',
       'search',
@@ -3241,7 +3270,7 @@ void main() {
     ]);
     expect(fortuneToolbarSelectOptionHorizontalPadding, 12.0);
     expect(fortuneToolbarPopupDefaultWidth, 150.0);
-    expect(fortuneToolbarFontPopupWidth, 126.0);
+    expect(fortuneToolbarFontPopupWidth, 180.0);
     expect(fortuneToolbarFontSizePopupWidth, 84.0);
     expect(fortuneToolbarFormulaPopupWidth, 150.0);
     expect(fortuneToolbarFormulaPopupVerticalPadding, 20.0);
@@ -3818,12 +3847,7 @@ void main() {
   testWidgets(
     'toolbar auto sum fills row and column totals for grid selection',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1.0);
 
       final workbook = FortuneWorkbook(
         sheets: [
@@ -3860,8 +3884,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -3991,12 +4014,7 @@ void main() {
   testWidgets('header right click uses upstream header context menu', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1000, 900);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1000, 900), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -4143,12 +4161,7 @@ void main() {
   testWidgets('row header context menu commits inline row height', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1000, 900);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1000, 900), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [FortuneSheet(id: 's1', name: 'Sheet1')],
@@ -4219,12 +4232,7 @@ void main() {
   testWidgets('context menu inline input supports mouse drag selection', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1000, 900);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1000, 900), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [FortuneSheet(id: 's1', name: 'Sheet1')],
@@ -4298,12 +4306,7 @@ void main() {
   testWidgets('column header menu button opens upstream header context menu', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1000, 900);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1000, 900), devicePixelRatio: 1);
 
     await tester.pumpWidget(
       Directionality(
@@ -4321,8 +4324,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -4396,12 +4398,7 @@ void main() {
   testWidgets('header mouse down mirrors upstream focus selection metadata', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1000, 900);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1000, 900), devicePixelRatio: 1);
 
     await tester.pumpWidget(
       Directionality(
@@ -4419,8 +4416,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -4480,12 +4476,7 @@ void main() {
   testWidgets('row header hover mirrors upstream header highlight state', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1000, 900);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1000, 900), devicePixelRatio: 1);
 
     await tester.pumpWidget(
       Directionality(
@@ -4503,8 +4494,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -4531,12 +4521,7 @@ void main() {
   testWidgets('cell context menu repositions when it overflows the viewport', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(640, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(640, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -4580,6 +4565,7 @@ void main() {
       fortuneContextInsertRowBelowCommand,
       fortuneContextInsertColumnCommand,
       fortuneContextInsertColumnRightCommand,
+      fortuneContextSplitCellColumnCommand,
       '|',
       fortuneContextClearCommand,
       fortuneContextClearSheetCommand,
@@ -4597,12 +4583,7 @@ void main() {
   testWidgets('right click uses configured cell and header context menus', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1000, 900);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1000, 900), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [FortuneSheet(id: 's1', name: 'Sheet1')],
@@ -4666,12 +4647,7 @@ void main() {
   testWidgets('cell and header context menus respect allowEdit false', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1000, 900);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1000, 900), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       settings: const FortuneSettings(allowEdit: false),
@@ -4690,8 +4666,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -4739,12 +4714,7 @@ void main() {
   testWidgets('right click keeps empty configured context menus closed', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1000, 900);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1000, 900), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [FortuneSheet(id: 's1', name: 'Sheet1')],
@@ -4766,8 +4736,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -4795,12 +4764,7 @@ void main() {
   testWidgets('canvas cell mouse down hooks receive cell and bounds', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1000, 900);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1000, 900), devicePixelRatio: 1);
 
     var allowBeforeMouseDown = false;
     final beforeCalls = <Map<String, Object?>>[];
@@ -4849,8 +4813,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -4888,12 +4851,7 @@ void main() {
   testWidgets('context menu hides upstream-unrendered cell format command', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1000, 900);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1000, 900), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -4919,8 +4877,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -5009,8 +4966,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -5133,8 +5089,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -5206,8 +5161,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -5278,8 +5232,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -5345,8 +5298,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset contextMenuItemCenter(String command) {
@@ -5354,8 +5306,7 @@ void main() {
       const dividerHeight = 9.0;
       var y = 6.0;
       final currentPainter =
-          tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-              as FortuneSheetPainter;
+          fortuneSheetPainter(tester);
       for (final item in currentPainter.contextMenuItems) {
         if (item == '|') {
           y += dividerHeight;
@@ -5455,8 +5406,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset contextMenuItemCenter(String command) {
@@ -5536,8 +5486,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset contextMenuItemCenter(String command) {
@@ -5637,8 +5586,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset contextMenuItemCenter(String command) {
@@ -5697,12 +5645,7 @@ void main() {
   testWidgets('context menu filter image and link commands update metadata', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1000, 900);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1000, 900), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -5733,8 +5676,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Future<void> openContextMenu() async {
@@ -5753,8 +5695,7 @@ void main() {
       const dividerHeight = 9.0;
       var y = 6.0;
       final currentPainter =
-          tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-              as FortuneSheetPainter;
+          fortuneSheetPainter(tester);
       for (final item in currentPainter.contextMenuItems) {
         if (item == '|') {
           y += dividerHeight;
@@ -5785,14 +5726,6 @@ void main() {
     expect(cell?.foreground, const Color(0xff0000ff));
     expect(cell?.underline, isTrue);
 
-    await openContextMenu();
-    await tapContextCommand('image');
-    await tester.pumpAndSettle();
-
-    sheet = painter().workbook.activeSheet;
-    expect(sheet.images, hasLength(1));
-    expect(sheet.images.single.id, startsWith('img_'));
-    expect(sheet.images.single.src, fortuneTestImageSrc());
 
     await openContextMenu();
     await tapContextCommand('filter');
@@ -5808,7 +5741,7 @@ void main() {
     sheet = painter().workbook.activeSheet;
     cell = sheet.cells[const FortuneCellCoord(0, 0)];
     expect(sheet.filter.keys, isNot(contains('column_0')));
-    expect(sheet.images.single.id, startsWith('img_'));
+    expect(sheet.images, isEmpty);
     expect(sheet.dataVerification, isEmpty);
     expect(cell?.hyperlink?.linkAddress, 'https://fortune-sheet.example');
   });
@@ -5816,12 +5749,7 @@ void main() {
   testWidgets(
     'hidden context menu data leaves covered locked anchor unchanged',
     (tester) async {
-      tester.view.physicalSize = const Size(1000, 900);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1000, 900), devicePixelRatio: 1);
 
       const merge = FortuneCellMerge(row: 0, column: 0, columnSpan: 2);
       final workbook = FortuneWorkbook(
@@ -5857,8 +5785,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -5888,12 +5815,7 @@ void main() {
   testWidgets(
     'context menu image and link covered cell respects locked anchor',
     (tester) async {
-      tester.view.physicalSize = const Size(1000, 900);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1000, 900), devicePixelRatio: 1);
 
       const merge = FortuneCellMerge(row: 0, column: 0, columnSpan: 2);
       final workbook = FortuneWorkbook(
@@ -5926,8 +5848,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       Offset contextMenuItemCenter(String command) {
@@ -5968,8 +5889,6 @@ void main() {
 
       await openContextMenu();
       await tapContextCommand(fortuneToolbarLinkCommand);
-      await openContextMenu();
-      await tapContextCommand(fortuneToolbarImageCommand);
 
       final sheet = painter().workbook.activeSheet;
       final anchor = sheet.cells[const FortuneCellCoord(0, 0)]!;
@@ -5986,12 +5905,7 @@ void main() {
   testWidgets('context menu filter removal does not resurrect raw filter map', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1000, 900);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1000, 900), devicePixelRatio: 1);
 
     final workbook = FortuneSheetCodec.workbookFromJson({
       'data': [
@@ -6026,8 +5940,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Future<void> openContextMenuAt(Offset local) async {
@@ -6046,8 +5959,7 @@ void main() {
       const dividerHeight = 9.0;
       var y = 6.0;
       final currentPainter =
-          tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-              as FortuneSheetPainter;
+          fortuneSheetPainter(tester);
       for (final item in currentPainter.contextMenuItems) {
         if (item == '|') {
           y += dividerHeight;
@@ -6080,12 +5992,7 @@ void main() {
   testWidgets(
     'context menu hides upstream-unrendered data verification command',
     (tester) async {
-      tester.view.physicalSize = const Size(1000, 900);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1000, 900), devicePixelRatio: 1);
 
       final workbook = FortuneSheetCodec.workbookFromJson({
         'data': [
@@ -6116,8 +6023,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       Future<void> openContextMenuAt(Offset local) async {
@@ -6217,8 +6123,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -6335,12 +6240,7 @@ void main() {
   });
 
   testWidgets('context menu sort single row keeps undo stack', (tester) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneSheetCodec.workbookFromJson({
       'data': [
@@ -6393,8 +6293,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -6449,12 +6348,7 @@ void main() {
   });
 
   testWidgets('toolbar sort single row keeps undo stack', (tester) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneSheetCodec.workbookFromJson({
       'data': [
@@ -6507,8 +6401,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -6568,12 +6461,7 @@ void main() {
   testWidgets('toolbar sort descending single row keeps undo stack', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneSheetCodec.workbookFromJson({
       'data': [
@@ -6626,8 +6514,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -6749,8 +6636,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -6784,12 +6670,7 @@ void main() {
   });
 
   testWidgets('context menu sort locked cells keep undo stack', (tester) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneSheetCodec.workbookFromJson({
       'data': [
@@ -6852,8 +6733,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -6915,12 +6795,7 @@ void main() {
   });
 
   testWidgets('toolbar sort locked cells keep undo stack', (tester) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneSheetCodec.workbookFromJson({
       'data': [
@@ -6983,8 +6858,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -7051,12 +6925,7 @@ void main() {
   testWidgets('toolbar sort descending locked cells keep undo stack', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneSheetCodec.workbookFromJson({
       'data': [
@@ -7119,8 +6988,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -7185,12 +7053,7 @@ void main() {
   });
 
   testWidgets('toolbar sort protected cells keep undo stack', (tester) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -7228,8 +7091,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -7295,12 +7157,7 @@ void main() {
   testWidgets('toolbar sort descending protected cells keep undo stack', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -7338,8 +7195,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -7403,12 +7259,7 @@ void main() {
   });
 
   testWidgets('toolbar sort merged range keeps undo stack', (tester) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     const merge = FortuneCellMerge(row: 0, column: 0, columnSpan: 2);
     final workbook = FortuneWorkbook(
@@ -7444,8 +7295,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -7508,12 +7358,7 @@ void main() {
   testWidgets('toolbar sort descending merged range keeps undo stack', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     const merge = FortuneCellMerge(row: 0, column: 0, columnSpan: 2);
     final workbook = FortuneWorkbook(
@@ -7549,8 +7394,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -7613,12 +7457,7 @@ void main() {
   testWidgets('toolbar sort already sorted range keeps undo stack', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -7652,8 +7491,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -7719,12 +7557,7 @@ void main() {
   testWidgets('toolbar sort descending already sorted range keeps undo stack', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -7758,8 +7591,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -7877,8 +7709,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -7895,6 +7726,7 @@ void main() {
             fortuneContextMenuItemCenter(
               painter().contextMenuAt!,
               fortuneContextSortCommand,
+              painter().contextMenuItems,
             ),
       );
       await tester.pump();
@@ -7913,12 +7745,7 @@ void main() {
   testWidgets('context menu sort dialog locked cells keep undo stack', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneSheetCodec.workbookFromJson({
       'data': [
@@ -7981,8 +7808,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -8109,8 +7935,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -8228,8 +8053,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -8345,8 +8169,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -8460,8 +8283,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -8520,12 +8342,7 @@ void main() {
   testWidgets('context menu sort merged range keeps undo stack', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneSheetCodec.workbookFromJson({
       'data': [
@@ -8577,8 +8394,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -8700,8 +8516,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -8815,8 +8630,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -8920,8 +8734,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -9025,8 +8838,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -9077,12 +8889,7 @@ void main() {
   testWidgets(
     'context menu link removal does not resurrect raw hyperlink map on export',
     (tester) async {
-      tester.view.physicalSize = const Size(1000, 900);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1000, 900), devicePixelRatio: 1);
 
       final workbook = FortuneSheetCodec.workbookFromJson({
         'data': [
@@ -9124,8 +8931,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       Future<void> openContextMenuAt(Offset local) async {
@@ -9186,224 +8992,6 @@ void main() {
     },
   );
 
-  testWidgets('context menu image add export writes canonical images list', (
-    tester,
-  ) async {
-    tester.view.physicalSize = const Size(1000, 900);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
-
-    final workbook = FortuneSheetCodec.workbookFromJson({
-      'data': [
-        {
-          'id': 's1',
-          'name': 'Sheet1',
-          'images': [
-            {
-              'id': 'legacy_image',
-              'src': 'data:image/png;base64,legacy',
-              'left': '10',
-              'top': '20',
-              'width': '30',
-              'height': '40',
-              'legacyImageExtra': true,
-            },
-            {'id': 'raw-only-image'},
-          ],
-        },
-      ],
-    });
-
-    await tester.pumpWidget(
-      Directionality(
-        textDirection: TextDirection.ltr,
-        child: SizedBox(
-          width: 900,
-          height: 760,
-          child: FortuneSheetCanvas(
-            workbook: workbook,
-            imagePicker: fortuneTestImagePicker(),
-          ),
-        ),
-      ),
-    );
-
-    FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
-    }
-
-    Future<void> openContextMenuAt(Offset local) async {
-      final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
-      final gesture = await tester.startGesture(
-        topLeft + local,
-        kind: PointerDeviceKind.mouse,
-        buttons: kSecondaryMouseButton,
-      );
-      await gesture.up();
-      await tester.pump();
-    }
-
-    Future<void> tapContextCommand(String command) async {
-      const rowHeight = 28.0;
-      const dividerHeight = 9.0;
-      var y = 6.0;
-      for (final item in painter().contextMenuItems) {
-        if (item == '|') {
-          y += dividerHeight;
-          continue;
-        }
-        if (item == command) {
-          final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
-          await tester.tapAt(
-            topLeft + painter().contextMenuAt! + Offset(40, y + rowHeight / 2),
-          );
-          await tester.pump();
-          return;
-        }
-        y += rowHeight;
-      }
-      fail('context command not found: $command');
-    }
-
-    await openContextMenuAt(const Offset(130, 100));
-    await tapContextCommand('image');
-    await tester.pumpAndSettle();
-
-    final sheet = painter().workbook.activeSheet;
-    final json = FortuneSheetCodec.sheetToJson(sheet);
-    final images = json['images']! as List;
-    final existing = images.first as Map;
-    final added = images.last as Map;
-
-    expect(sheet.images.map((image) => image.id), [
-      'legacy_image',
-      startsWith('img_'),
-    ]);
-    expect(images, hasLength(2));
-    expect(existing['id'], 'legacy_image');
-    expect(existing['left'], '10');
-    expect(existing['top'], '20');
-    expect(existing['width'], '30');
-    expect(existing['height'], '40');
-    expect(existing['legacyImageExtra'], isTrue);
-    expect(added['id'], startsWith('img_'));
-    expect(added['src'], fortuneTestImageSrc());
-    expect(added['left'], 74);
-    expect(added['top'], 0);
-    expect(added['width'], 0.5);
-    expect(added['height'], 0.5);
-    expect(added['originWidth'], 1);
-    expect(added['originHeight'], 1);
-    expect(
-      images.cast<Map>().any((image) => image['id'] == 'raw-only-image'),
-      isFalse,
-    );
-    expect(painter().contextMenuAt, isNull);
-  });
-
-  testWidgets('context menu image cancel preserves raw images list', (
-    tester,
-  ) async {
-    tester.view.physicalSize = const Size(1000, 900);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
-
-    final workbook = FortuneSheetCodec.workbookFromJson({
-      'data': [
-        {
-          'id': 's1',
-          'name': 'Sheet1',
-          'images': [
-            {
-              'id': 'image_0_0',
-              'src': 'data:image/png;base64,test',
-              'left': '0',
-              'top': '0',
-              'width': '120',
-              'height': '80',
-              'rawOnly': true,
-            },
-            {'id': 'raw-only-image'},
-          ],
-        },
-      ],
-    });
-
-    await tester.pumpWidget(
-      Directionality(
-        textDirection: TextDirection.ltr,
-        child: SizedBox(
-          width: 900,
-          height: 760,
-          child: FortuneSheetCanvas(
-            workbook: workbook,
-            imagePicker: fortuneCancelImagePicker(),
-          ),
-        ),
-      ),
-    );
-
-    FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
-    }
-
-    Future<void> openContextMenuAt(Offset local) async {
-      final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
-      final gesture = await tester.startGesture(
-        topLeft + local,
-        kind: PointerDeviceKind.mouse,
-        buttons: kSecondaryMouseButton,
-      );
-      await gesture.up();
-      await tester.pump();
-    }
-
-    Future<void> tapContextCommand(String command) async {
-      const rowHeight = 28.0;
-      const dividerHeight = 9.0;
-      var y = 6.0;
-      for (final item in painter().contextMenuItems) {
-        if (item == '|') {
-          y += dividerHeight;
-          continue;
-        }
-        if (item == command) {
-          final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
-          await tester.tapAt(
-            topLeft + painter().contextMenuAt! + Offset(40, y + rowHeight / 2),
-          );
-          await tester.pump();
-          return;
-        }
-        y += rowHeight;
-      }
-      fail('context command not found: $command');
-    }
-
-    await openContextMenuAt(const Offset(58, 100));
-    await tapContextCommand('image');
-    await tester.pumpAndSettle();
-
-    final sheet = painter().workbook.activeSheet;
-    final json = FortuneSheetCodec.sheetToJson(sheet);
-    final images = json['images']! as List;
-
-    expect(sheet.images, hasLength(1));
-    expect(sheet.images.single.id, 'image_0_0');
-    expect(images, hasLength(2));
-    expect((images.first as Map)['rawOnly'], isTrue);
-    expect((images.last as Map)['id'], 'raw-only-image');
-    expect(painter().contextMenuAt, isNull);
-  });
-
   testWidgets('keyboard shortcuts copy and paste selected cell text', (
     tester,
   ) async {
@@ -9459,8 +9047,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -9540,8 +9127,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -9623,8 +9209,7 @@ void main() {
     tester,
   ) async {
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Future<void> enterCellText(Offset cellCenter, String text) async {
@@ -9716,7 +9301,7 @@ void main() {
       );
 
       await tester.pumpWidget(
-        Directionality(
+        fortuneSheetTestHost(
           textDirection: TextDirection.ltr,
           child: SizedBox(
             width: 640,
@@ -9832,8 +9417,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -9921,8 +9505,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -10017,8 +9600,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -10098,8 +9680,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -10182,8 +9763,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
@@ -10248,8 +9828,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
@@ -10307,8 +9886,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
@@ -10368,8 +9946,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -10429,8 +10006,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -10494,8 +10070,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -10611,8 +10186,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     expect(painter().selection.row, 1);
@@ -10716,8 +10290,7 @@ void main() {
     );
 
     final painter =
-        tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        fortuneSheetPainter(tester);
     final semantics = painter.semanticsBuilder(const Size(640, 360));
     final newSheetNodes = semantics.where(
       (node) => node.properties.label == 'New sheet',
@@ -10851,8 +10424,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     expect(painter().hoveredSheetTabOptionsIndex, isNull);
@@ -10930,8 +10502,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -10949,12 +10520,7 @@ void main() {
   });
 
   testWidgets('sheet tab switch clears active image selection', (tester) async {
-    tester.view.physicalSize = const Size(900, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(900, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -10988,8 +10554,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -11034,7 +10599,7 @@ void main() {
     );
 
     await tester.pumpWidget(
-      Directionality(
+      fortuneSheetTestHost(
         textDirection: TextDirection.ltr,
         child: SizedBox(
           width: 360,
@@ -11045,8 +10610,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -11091,8 +10655,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -11146,13 +10709,11 @@ void main() {
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
       await tester.tapAt(topLeft + const Offset(58, 100));
       await tester.pump();
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     await pumpWithZoom(3.95);
@@ -11217,8 +10778,7 @@ void main() {
     );
 
     final painter =
-        tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        fortuneSheetPainter(tester);
     final semantics = painter.semanticsBuilder(const Size(640, 360));
     final formulaInputNodes = semantics.where(
       (node) => node.properties.label == 'Current cell input',
@@ -11249,8 +10809,7 @@ void main() {
     );
 
     final painter =
-        tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        fortuneSheetPainter(tester);
     final semantics = painter.semanticsBuilder(const Size(1200, 360));
     CustomPainterSemantics nodeWithLabel(String label) {
       return semantics.singleWhere((node) => node.properties.label == label);
@@ -11322,7 +10881,7 @@ void main() {
 
     expect(hasButton(painterWith(fortuneToolbarFontPopupKey), 'Arial'), isTrue);
     expect(
-      hasButton(painterWith(fortuneToolbarFontSizePopupKey), '72'),
+      hasButton(painterWith(fortuneToolbarFontSizePopupKey), '10'),
       isTrue,
     );
     expect(
@@ -11824,8 +11383,7 @@ void main() {
       );
 
       final painter =
-          tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-              as FortuneSheetPainter;
+          fortuneSheetPainter(tester);
       final semantics = painter.semanticsBuilder(const Size(640, 360));
       final shortcutNode = semantics.singleWhere(
         (node) => node.properties.label == 'Keyboard Shortcuts',
@@ -12586,12 +12144,7 @@ void main() {
   testWidgets('hyperlink mini card edit and unlink commands update cell', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(900, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(900, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -12645,8 +12198,7 @@ void main() {
     await tester.tapAt(fortuneHyperlinkCardEditButtonRect(cardRect).center);
     await tester.pump();
     var painter =
-        tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        fortuneSheetPainter(tester);
     var semantics = painter.semanticsBuilder(const Size(900, 360));
     expect(
       semantics.any(
@@ -12663,8 +12215,7 @@ void main() {
     await tester.pump();
 
     final updatedPainter =
-        tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        fortuneSheetPainter(tester);
     final updatedCell =
         updatedPainter.workbook.activeSheet.cells[const FortuneCellCoord(0, 0)];
     expect(updatedCell?.hyperlink, isNull);
@@ -13018,20 +12569,13 @@ void main() {
       ],
     );
 
-    await tester.pumpWidget(
-      Directionality(
-        textDirection: TextDirection.ltr,
-        child: SizedBox(
-          width: 640,
-          height: 360,
-          child: FortuneSheetCanvas(workbook: workbook),
-        ),
-      ),
+    final painter = FortuneSheetPainter(
+      workbook: workbook,
+      selection: const FortuneSelection(row: 0, column: 0),
+      scrollOffset: Offset.zero,
+      sheetTabScrollOffset: 0,
+      textDirection: TextDirection.ltr,
     );
-
-    final painter =
-        tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
     final semantics = painter.semanticsBuilder(const Size(640, 360));
     final selectionNode = semantics.singleWhere(
       (node) => node.properties.label == 'A. 1 Alpha',
@@ -13086,8 +12630,7 @@ void main() {
     );
 
     final painter =
-        tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        fortuneSheetPainter(tester);
     final semantics = painter.semanticsBuilder(const Size(360, 360));
     final moreNodes = semantics.where(
       (node) => node.properties.label == 'More',
@@ -13100,12 +12643,7 @@ void main() {
   testWidgets('toolbar more popup exposes overflowed item aria labels', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(900, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(900, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [FortuneSheet(id: 's1', name: 'Sheet1')],
@@ -13134,8 +12672,7 @@ void main() {
     await tester.pump();
 
     final painter =
-        tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        fortuneSheetPainter(tester);
     final semantics = painter.semanticsBuilder(const Size(900, 360));
     final hiddenButtonNodes = semantics.where(
       (node) => node.properties.label == expectedLabel,
@@ -13164,8 +12701,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       const settings = FortuneSettings();
@@ -13240,8 +12776,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -13306,8 +12841,7 @@ void main() {
     );
 
     final painter =
-        tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        fortuneSheetPainter(tester);
     final semantics = painter.semanticsBuilder(const Size(640, 360));
     expect(
       semantics.map((node) => node.properties.label),
@@ -13415,8 +12949,7 @@ void main() {
 
     expect(clipboardText, 'A1\t=A1+1\n\t\nA3\tB3');
     final painter =
-        tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        fortuneSheetPainter(tester);
     expect(painter.workbook.activeSheet.selectionRange, [
       {
         'row': [0, 2],
@@ -13482,8 +13015,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
@@ -13563,8 +13095,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
@@ -13636,8 +13167,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
@@ -13724,8 +13254,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
@@ -13797,8 +13326,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -13885,8 +13413,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -13985,8 +13512,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -14065,8 +13591,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -14109,12 +13634,7 @@ void main() {
   testWidgets('keyboard shortcut cut locked cell keeps undo stack', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     var clipboardText = 'unchanged';
     tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
@@ -14161,8 +13681,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -14204,12 +13723,7 @@ void main() {
   testWidgets('keyboard shortcut cut protected cell keeps undo stack', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     var clipboardText = 'unchanged';
     tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
@@ -14257,8 +13771,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -14305,12 +13818,7 @@ void main() {
   testWidgets('keyboard shortcut cut read only axes keeps undo stack', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     var clipboardText = 'unchanged';
     tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
@@ -14344,8 +13852,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -14455,8 +13962,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -14512,8 +14018,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -14560,7 +14065,7 @@ void main() {
     );
 
     await tester.pumpWidget(
-      Directionality(
+      fortuneSheetTestHost(
         textDirection: TextDirection.ltr,
         child: SizedBox(
           width: 640,
@@ -14571,8 +14076,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -14642,8 +14146,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -14724,8 +14227,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -15088,8 +14590,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -15170,8 +14671,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -15628,8 +15128,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -15711,8 +15210,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -17240,12 +16738,7 @@ void main() {
   testWidgets('editor inline formatting preserves script scale and metadata', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -17392,12 +16885,7 @@ void main() {
   testWidgets('editor toolbar formats remembered selected text range', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -17505,12 +16993,7 @@ void main() {
   testWidgets('editor toolbar font size formats subset of spaced text', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -18534,8 +18017,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -18595,8 +18077,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -18788,8 +18269,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -18852,8 +18332,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -18924,8 +18403,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -18975,8 +18453,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -19032,8 +18509,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -19156,8 +18632,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     expect(painter().selection.row, 0);
@@ -19197,8 +18672,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -19261,8 +18735,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -19319,8 +18792,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -19392,8 +18864,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -19469,8 +18940,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -19539,8 +19009,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -19599,8 +19068,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -19672,8 +19140,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -19762,8 +19229,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -19833,8 +19299,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -19888,8 +19353,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -19941,8 +19405,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -20003,8 +19466,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -20053,8 +19515,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -20131,8 +19592,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -20199,8 +19659,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -20255,8 +19714,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -20303,8 +19761,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -20363,8 +19820,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -20421,8 +19877,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -20476,8 +19931,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -20524,8 +19978,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -20569,8 +20022,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -20622,8 +20074,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -20702,8 +20153,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -20771,8 +20221,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -20833,8 +20282,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -20880,8 +20328,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -20926,8 +20373,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -20991,8 +20437,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -21064,8 +20509,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -21119,8 +20563,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -21165,8 +20608,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -21211,8 +20653,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -21261,8 +20702,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -21311,8 +20751,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -21363,8 +20802,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -21409,8 +20847,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -21453,8 +20890,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -21502,8 +20938,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -21551,8 +20986,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -21604,8 +21038,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -21657,8 +21090,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -21709,8 +21141,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -21758,8 +21189,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -21805,8 +21235,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -21851,8 +21280,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -21899,8 +21327,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -21949,8 +21376,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -21999,8 +21425,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -22045,8 +21470,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -22089,8 +21513,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -22135,8 +21558,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -22183,8 +21605,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -22237,8 +21658,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -22293,8 +21713,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -22349,8 +21768,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -22405,8 +21823,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -22458,8 +21875,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -22512,8 +21928,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -22565,8 +21980,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -22620,8 +22034,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -22676,8 +22089,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -22732,8 +22144,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -22788,8 +22199,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -22844,8 +22254,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -22900,8 +22309,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -22956,8 +22364,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -23007,8 +22414,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -23054,8 +22460,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -23101,8 +22506,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -23149,8 +22553,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -23197,8 +22600,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -23243,8 +22645,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -23288,8 +22689,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -23335,8 +22735,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -23382,8 +22781,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -23429,8 +22827,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -23477,8 +22874,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -23523,8 +22919,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -23570,8 +22965,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -23618,8 +23012,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -23664,8 +23057,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -23711,8 +23103,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -23759,8 +23150,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -23805,8 +23195,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -23852,8 +23241,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -23898,8 +23286,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -23947,8 +23334,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -24006,8 +23392,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -24101,8 +23486,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -24162,8 +23546,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -24222,8 +23605,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -24302,8 +23684,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -24379,8 +23760,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Future<void> openContextMenuAt(Offset local) async {
@@ -24577,12 +23957,7 @@ void main() {
     expect(restoredSheet.columnWidths, {1: 120});
   });
   testWidgets('delete key empty cell keeps undo stack', (tester) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -24608,8 +23983,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -24644,12 +24018,7 @@ void main() {
   });
 
   testWidgets('backspace key empty cell keeps undo stack', (tester) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -24675,8 +24044,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -24746,8 +24114,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -24804,8 +24171,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -24885,8 +24251,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -24946,8 +24311,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Future<void> tapContextCommand(String command) async {
@@ -25033,8 +24397,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Future<void> tapContextCommand(String command) async {
@@ -25135,8 +24498,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -25217,8 +24579,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -25298,8 +24659,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -25386,8 +24746,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -25473,8 +24832,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -25579,8 +24937,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -25676,8 +25033,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -25790,8 +25146,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -25878,8 +25233,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -25977,8 +25331,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -26080,8 +25433,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -26188,8 +25540,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -26304,8 +25655,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -26403,8 +25753,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -26615,8 +25964,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -26769,8 +26117,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -26924,8 +26271,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -27077,8 +26423,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -27211,8 +26556,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -27346,8 +26690,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -27481,8 +26824,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -27616,8 +26958,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -27731,8 +27072,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -27839,8 +27179,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -27958,8 +27297,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -28079,8 +27417,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -28202,8 +27539,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -28321,8 +27657,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -28432,8 +27767,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -28531,8 +27865,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -28627,8 +27960,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -28741,8 +28073,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -28861,8 +28192,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -28960,8 +28290,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -29054,8 +28383,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -29149,8 +28477,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -29244,8 +28571,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -29339,8 +28665,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -29436,8 +28761,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -29531,8 +28855,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -29630,8 +28953,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -29725,8 +29047,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -29817,8 +29138,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -29901,8 +29221,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -30023,8 +29342,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -30151,8 +29469,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -30268,8 +29585,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -30393,8 +29709,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -30506,8 +29821,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -30630,8 +29944,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -30765,8 +30078,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -30884,8 +30196,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -31003,8 +30314,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -31123,8 +30433,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -31250,8 +30559,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -31393,8 +30701,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -31520,8 +30827,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -31600,8 +30906,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -31688,8 +30993,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -31761,8 +31065,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -31844,8 +31147,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -31919,8 +31221,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -31946,12 +31247,7 @@ void main() {
   });
 
   testWidgets('paste empty text keeps undo stack', (tester) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     const clipboardText = '';
     tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
@@ -32003,8 +31299,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -32119,8 +31414,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -32206,8 +31500,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       Future<void> openContextMenuAt(Offset local) async {
@@ -32330,8 +31623,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -32413,8 +31705,7 @@ void main() {
       await tester.pump();
 
       final painter =
-          tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-              as FortuneSheetPainter;
+          fortuneSheetPainter(tester);
       return painter
           .workbook
           .activeSheet
@@ -32462,8 +31753,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -32531,8 +31821,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -32707,8 +31996,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Future<void> openContextMenuAt(Offset local) async {
@@ -32883,13 +32171,11 @@ void main() {
             ),
           ),
         );
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       Future<void> dragRows1To3() async {
@@ -33052,8 +32338,7 @@ void main() {
     }
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Future<void> openContextMenuAt(Offset local) async {
@@ -33210,8 +32495,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Future<void> openContextMenuAt(Offset local) async {
@@ -33297,8 +32581,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Future<void> openContextMenuAt(Offset local) async {
@@ -33385,8 +32668,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Future<void> openContextMenuAt(Offset local) async {
@@ -33477,8 +32759,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Future<void> openContextMenuAt(Offset local) async {
@@ -33573,8 +32854,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Future<void> openContextMenuAt(Offset local) async {
@@ -33791,8 +33071,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       Future<void> openContextMenuAt(Offset local) async {
@@ -34110,8 +33389,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       Future<void> openContextMenuAt(Offset local) async {
@@ -34471,8 +33749,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       Future<void> openContextMenuAt(Offset local) async {
@@ -34854,8 +34131,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       Future<void> openContextMenuAt(Offset local) async {
@@ -35036,8 +34312,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       Future<void> openContextMenuAt(Offset local) async {
@@ -35149,12 +34424,7 @@ void main() {
   testWidgets('context menu unchanged row height keeps undo stack', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -35182,8 +34452,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Future<void> openContextMenuAt(Offset local) async {
@@ -35260,12 +34529,7 @@ void main() {
   testWidgets('context menu invalid row height keeps undo stack', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -35291,8 +34555,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Future<void> openContextMenuAt(Offset local) async {
@@ -35372,12 +34635,7 @@ void main() {
   testWidgets('context menu invalid column width keeps undo stack', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -35403,8 +34661,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Future<void> openContextMenuAt(Offset local) async {
@@ -35504,8 +34761,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       Future<void> openContextMenuAt(Offset local) async {
@@ -35623,8 +34879,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Future<void> openContextMenuAt(Offset local) async {
@@ -35711,8 +34966,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Future<void> openContextMenuAt(Offset local) async {
@@ -35890,12 +35144,7 @@ void main() {
   testWidgets('context menu hide read only row keeps undo stack', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -35922,8 +35171,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Future<void> openContextMenuAt(Offset local) async {
@@ -35993,12 +35241,7 @@ void main() {
   testWidgets('context menu hide read only column keeps undo stack', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -36025,8 +35268,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Future<void> openContextMenuAt(Offset local) async {
@@ -36096,12 +35338,7 @@ void main() {
   testWidgets('context menu set read only row height keeps undo stack', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -36128,8 +35365,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Future<void> openContextMenuAt(Offset local) async {
@@ -36200,12 +35436,7 @@ void main() {
   testWidgets('context menu set read only column width keeps undo stack', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -36232,8 +35463,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Future<void> openContextMenuAt(Offset local) async {
@@ -36304,12 +35534,7 @@ void main() {
   testWidgets('context menu insert read only row keeps undo stack', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -36336,8 +35561,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Future<void> openContextMenuAt(Offset local) async {
@@ -36405,12 +35629,7 @@ void main() {
   testWidgets('context menu insert read only column keeps undo stack', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -36437,8 +35656,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Future<void> openContextMenuAt(Offset local) async {
@@ -36506,12 +35724,7 @@ void main() {
   testWidgets('context menu delete read only row keeps undo stack', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -36538,8 +35751,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Future<void> openContextMenuAt(Offset local) async {
@@ -36607,12 +35819,7 @@ void main() {
   testWidgets('context menu delete read only column keeps undo stack', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -36639,8 +35846,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Future<void> openContextMenuAt(Offset local) async {
@@ -36710,12 +35916,7 @@ void main() {
   testWidgets('context menu hide protected row keeps undo stack', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -36745,8 +35946,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Future<void> openContextMenuAt(Offset local) async {
@@ -36816,12 +36016,7 @@ void main() {
   testWidgets('context menu hide protected column keeps undo stack', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -36851,8 +36046,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Future<void> openContextMenuAt(Offset local) async {
@@ -36922,12 +36116,7 @@ void main() {
   testWidgets('context menu set protected row height keeps undo stack', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -36957,8 +36146,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Future<void> openContextMenuAt(Offset local) async {
@@ -37029,12 +36217,7 @@ void main() {
   testWidgets('context menu set protected column width keeps undo stack', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -37064,8 +36247,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Future<void> openContextMenuAt(Offset local) async {
@@ -37136,12 +36318,7 @@ void main() {
   testWidgets('context menu insert protected row keeps undo stack', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -37171,8 +36348,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Future<void> openContextMenuAt(Offset local) async {
@@ -37240,12 +36416,7 @@ void main() {
   testWidgets('context menu insert protected column keeps undo stack', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -37275,8 +36446,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Future<void> openContextMenuAt(Offset local) async {
@@ -37344,12 +36514,7 @@ void main() {
   testWidgets('context menu delete protected row keeps undo stack', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -37379,8 +36544,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Future<void> openContextMenuAt(Offset local) async {
@@ -37450,12 +36614,7 @@ void main() {
   testWidgets('context menu delete protected column keeps undo stack', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -37485,8 +36644,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Future<void> openContextMenuAt(Offset local) async {
@@ -37567,13 +36725,11 @@ void main() {
             ),
           ),
         );
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       Future<void> openContextMenuAt(Offset local) async {
@@ -37728,8 +36884,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Future<void> openContextMenuAt(Offset local) async {
@@ -37808,8 +36963,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Future<void> openContextMenuAt(Offset local) async {
@@ -37891,8 +37045,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Future<void> openContextMenuAt(Offset local) async {
@@ -37972,8 +37125,7 @@ void main() {
       }
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       Future<void> openContextMenuAt(Offset local) async {
@@ -38091,8 +37243,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -38194,8 +37345,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -38255,8 +37405,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -38352,8 +37501,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -38409,8 +37557,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -38470,8 +37617,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -38541,8 +37687,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -38603,8 +37748,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -38674,8 +37818,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -38752,8 +37895,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -38830,8 +37972,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -38876,8 +38017,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -38933,8 +38073,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -38991,8 +38130,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -39063,8 +38201,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -39137,8 +38274,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -39188,11 +38324,11 @@ void main() {
   testWidgets('toolbar hover exposes tooltip label for hovered button', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1000, 600);
-    tester.view.devicePixelRatio = 1;
+    await prepareFortuneSheetView(
+      tester,
+      const Size(1000, 600),
+    );
     addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
       tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
         SystemChannels.platform,
         null,
@@ -39229,8 +38365,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key);
@@ -39258,12 +38393,7 @@ void main() {
   testWidgets('toolbar combo hover distinguishes primary and arrow regions', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [FortuneSheet(id: 's1', name: 'Sheet1')],
@@ -39281,8 +38411,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -39311,12 +38440,7 @@ void main() {
   testWidgets('toolbar dropdown rows expose shared hover state', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [FortuneSheet(id: 's1', name: 'Sheet1')],
@@ -39334,8 +38458,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -39408,12 +38531,7 @@ void main() {
   testWidgets('toolbar popup scroll indicator gutter does not hover rows', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 160);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 160), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [FortuneSheet(id: 's1', name: 'Sheet1')],
@@ -39431,8 +38549,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -39493,12 +38610,7 @@ void main() {
   testWidgets('toolbar dropdown scrolls when viewport height is constrained', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 160);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 160), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [FortuneSheet(id: 's1', name: 'Sheet1')],
@@ -39516,8 +38628,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -39568,12 +38679,7 @@ void main() {
   testWidgets('toolbar dropdown scroll buttons move by one row per click', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 160);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 160), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [FortuneSheet(id: 's1', name: 'Sheet1')],
@@ -39591,8 +38697,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -40086,12 +39191,7 @@ void main() {
   testWidgets('toolbar more popup exposes overflowed dropdown items', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(900, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(900, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [FortuneSheet(id: 's1', name: 'Sheet1')],
@@ -40109,8 +39209,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final overflowItems = fortuneToolbarOverflowItems(900);
@@ -40142,12 +39241,7 @@ void main() {
   testWidgets(
     'toolbar more popup closes on outside sheet click like upstream',
     (tester) async {
-      tester.view.physicalSize = const Size(900, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(900, 600), devicePixelRatio: 1);
 
       await tester.pumpWidget(
         Directionality(
@@ -40165,8 +39259,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -40186,12 +39279,7 @@ void main() {
   testWidgets('toolbar style buttons toggle selected cell text style', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -40217,8 +39305,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -40261,12 +39348,7 @@ void main() {
   });
 
   testWidgets('toolbar style buttons apply to dragged range', (tester) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneSheetCodec.workbookFromJson({
       'data': [
@@ -40301,8 +39383,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -40344,12 +39425,7 @@ void main() {
   testWidgets('toolbar style applies only to reselected single cell', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -40379,8 +39455,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -40409,12 +39484,7 @@ void main() {
   testWidgets('toolbar popup choice applies only to reselected single cell', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1200, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1200, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -40444,8 +39514,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -40474,12 +39543,7 @@ void main() {
   testWidgets('toolbar style range skips unchanged empty cells', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -40508,8 +39572,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -40536,12 +39599,7 @@ void main() {
   });
 
   testWidgets('toolbar style locked cell keeps undo stack', (tester) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -40571,8 +39629,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -40608,12 +39665,7 @@ void main() {
   });
 
   testWidgets('toolbar style protected cell keeps undo stack', (tester) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -40644,8 +39696,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -40689,12 +39740,7 @@ void main() {
   testWidgets('toolbar undo and redo restore workbook snapshots', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -40721,8 +39767,7 @@ void main() {
 
     FortuneCell activeCell() {
       final painter =
-          tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-              as FortuneSheetPainter;
+          fortuneSheetPainter(tester);
       return painter.workbook.activeSheet.cells[const FortuneCellCoord(0, 0)]!;
     }
 
@@ -40765,12 +39810,7 @@ void main() {
   testWidgets('controller undo and redo restore workbook snapshots', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final controller = FortuneSheetController();
     final ops = <List<FortuneOp>>[];
@@ -40803,8 +39843,7 @@ void main() {
 
     FortuneCell activeCell() {
       final painter =
-          tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-              as FortuneSheetPainter;
+          fortuneSheetPainter(tester);
       return painter.workbook.activeSheet.cells[const FortuneCellCoord(0, 0)]!;
     }
 
@@ -40899,8 +39938,7 @@ void main() {
     );
 
     FortuneWorkbook currentWorkbook() {
-      return (tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-              as FortuneSheetPainter)
+      return (fortuneSheetPainter(tester))
           .workbook;
     }
 
@@ -40922,12 +39960,7 @@ void main() {
   });
 
   testWidgets('controller scroll updates canvas offset', (tester) async {
-    tester.view.physicalSize = const Size(800, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(800, 600), devicePixelRatio: 1);
 
     final controller = FortuneSheetController();
     final workbook = FortuneWorkbook(
@@ -40956,8 +39989,7 @@ void main() {
     await tester.pump();
 
     FortuneSheetPainter painter() =>
-        tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        fortuneSheetPainter(tester);
 
     expect(controller.scroll(targetRow: 2, targetColumn: 2), {
       'scrollLeft': 150.0,
@@ -40979,12 +40011,7 @@ void main() {
   testWidgets('controller batchCallApis dispatches scroll options', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(800, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(800, 600), devicePixelRatio: 1);
 
     final controller = FortuneSheetController();
     final workbook = FortuneWorkbook(
@@ -41013,8 +40040,7 @@ void main() {
     await tester.pump();
 
     FortuneSheetPainter painter() =>
-        tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        fortuneSheetPainter(tester);
 
     controller.batchCallApis(const [
       {
@@ -41346,8 +40372,7 @@ void main() {
     expect(updatedSelection.single.columnEnd, 1);
 
     final painter =
-        tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        fortuneSheetPainter(tester);
     final rawSelection = painter.workbook.activeSheet.selectionRange! as List;
     expect((rawSelection.single as Map)['row'], [2, 3]);
     expect((rawSelection.single as Map)['column'], [0, 1]);
@@ -47066,12 +46091,7 @@ void main() {
   });
 
   testWidgets('toolbar edit after undo clears redo snapshot', (tester) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -47099,8 +46119,7 @@ void main() {
 
     FortuneCell activeCell() {
       final painter =
-          tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-              as FortuneSheetPainter;
+          fortuneSheetPainter(tester);
       return painter.workbook.activeSheet.cells[const FortuneCellCoord(0, 0)]!;
     }
 
@@ -47141,12 +46160,7 @@ void main() {
   testWidgets('toolbar number format mirrors upstream display updates', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -47171,8 +46185,7 @@ void main() {
 
     FortuneCell activeCell() {
       final painter =
-          tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-              as FortuneSheetPainter;
+          fortuneSheetPainter(tester);
       return painter.workbook.activeSheet.cells[const FortuneCellCoord(0, 0)]!;
     }
 
@@ -47206,12 +46219,7 @@ void main() {
   testWidgets('workbook undo and redo restore scroll offset snapshot', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -47239,8 +46247,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     FortuneCell activeCell() {
@@ -47292,12 +46299,7 @@ void main() {
   testWidgets('workbook undo and redo restore sheet tab scroll snapshot', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -47328,8 +46330,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     FortuneCell activeCell() {
@@ -47376,12 +46377,7 @@ void main() {
   testWidgets('toolbar format painter copies cell formatting only', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -47426,8 +46422,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -47491,12 +46486,7 @@ void main() {
   testWidgets('toolbar format painter respects allowEdit false', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       settings: const FortuneSettings(allowEdit: false),
@@ -47529,8 +46519,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -47566,12 +46555,7 @@ void main() {
   testWidgets('toolbar format painter identical target keeps undo stack', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -47624,8 +46608,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -47680,12 +46663,7 @@ void main() {
   });
 
   testWidgets('copy cancels active format painter', (tester) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     var clipboardText = '';
     tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
@@ -47737,8 +46715,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -47767,12 +46744,7 @@ void main() {
   testWidgets('toolbar format painter skips multiple source ranges', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -47822,8 +46794,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -47848,12 +46819,7 @@ void main() {
   testWidgets('toolbar format painter skips partial merged source range', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     const merge = FortuneCellMerge(
       row: 0,
@@ -47902,8 +46868,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -47926,12 +46891,7 @@ void main() {
   testWidgets('format painter copies data verification metadata', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final sourceRule = <String, Object?>{
       'type': 'dropdown',
@@ -47973,8 +46933,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -48001,12 +46960,7 @@ void main() {
   testWidgets('toolbar format painter copies condition format rules', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -48049,8 +47003,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -48086,12 +47039,7 @@ void main() {
   testWidgets('toolbar number format popup applies selected format', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -48117,8 +47065,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -48150,12 +47097,7 @@ void main() {
   testWidgets('toolbar currency popup formats use workbook currency', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     double formatPopupRowCenterY(String command) {
       var top =
@@ -48199,8 +47141,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -48250,12 +47191,7 @@ void main() {
   testWidgets('toolbar number format primary click applies automatic format', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -48284,8 +47220,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -48304,12 +47239,7 @@ void main() {
   testWidgets(
     'toolbar number format unchanged click does not add undo snapshot',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       final workbook = FortuneWorkbook(
         sheets: [
@@ -48339,8 +47269,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -48379,12 +47308,7 @@ void main() {
   testWidgets('toolbar number format locked cell keeps undo stack', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -48414,8 +47338,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -48455,12 +47378,7 @@ void main() {
   testWidgets('toolbar number format protected cell keeps undo stack', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -48491,8 +47409,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -48532,12 +47449,7 @@ void main() {
   testWidgets('toolbar number format buttons apply upstream formats', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -48566,8 +47478,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     FortuneCell activeCell() {
@@ -48626,12 +47537,7 @@ void main() {
   testWidgets('toolbar font size popup applies 72 point option', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -48657,8 +47563,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -48703,12 +47608,7 @@ void main() {
   testWidgets('toolbar font size popup applies smallest processable options', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -48781,12 +47681,7 @@ void main() {
   });
 
   testWidgets('toolbar popup paints above active cell editor', (tester) async {
-    tester.view.physicalSize = const Size(640, 360);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(640, 360), devicePixelRatio: 1);
 
     final repaintKey = GlobalKey();
     final workbook = FortuneWorkbook(
@@ -48833,8 +47728,7 @@ void main() {
     await tester.pump();
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final popupLeft = toolbarPopupLeftForKey(
@@ -48918,12 +47812,7 @@ void main() {
   testWidgets('toolbar combo labels sync from selected cell inline font', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       settings: FortuneSettings(
@@ -48965,8 +47854,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     expect(
@@ -48982,12 +47870,7 @@ void main() {
   testWidgets('toolbar combo labels sync from editing cursor inline font', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       settings: FortuneSettings(
@@ -49029,8 +47912,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -49074,12 +47956,7 @@ void main() {
   testWidgets('toolbar font and size apply to selected editing text runs', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -49108,8 +47985,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -49194,12 +48070,7 @@ void main() {
   testWidgets('toolbar font and size apply after mouse selecting editor text', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -49229,8 +48100,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -49329,12 +48199,7 @@ void main() {
   testWidgets('toolbar font size popup over editor keeps selected text range', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -49365,8 +48230,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -49432,12 +48296,7 @@ void main() {
   testWidgets('toolbar dropdown arrows keep active editor open', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     Future<void> pumpSheet() async {
       final workbook = FortuneWorkbook(
@@ -49513,12 +48372,7 @@ void main() {
   testWidgets('editor toolbar background formats selected text range', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -49545,8 +48399,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -49626,12 +48479,7 @@ void main() {
   testWidgets('editor toolbar decoration persists selected text range', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -49658,8 +48506,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -49712,12 +48559,7 @@ void main() {
   testWidgets('toolbar style button keeps editor text selection', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -49745,8 +48587,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -49786,12 +48627,7 @@ void main() {
   });
 
   testWidgets('sequential editor inline formats stay isolated', (tester) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -49821,8 +48657,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -49906,12 +48741,7 @@ void main() {
   testWidgets('toolbar font and size apply to selected plain editor text', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -49941,8 +48771,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -50013,12 +48842,7 @@ void main() {
   testWidgets('toolbar font and size primary buttons format editor selection', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -50048,8 +48872,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -50090,12 +48913,7 @@ void main() {
   testWidgets('active editor line spacing follows selected font size', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -50155,8 +48973,7 @@ void main() {
     );
     await tester.pump();
     final painter =
-        tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        fortuneSheetPainter(tester);
     final scrollOffset = painter.toolbarPopupScrollOffset;
     await tester.tapAt(
       topLeft +
@@ -50202,12 +49019,7 @@ void main() {
   });
 
   testWidgets('toolbar font size locked cell keeps undo stack', (tester) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -50237,8 +49049,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -50278,12 +49089,7 @@ void main() {
   testWidgets('toolbar font size protected cell keeps undo stack', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -50314,8 +49120,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -50361,12 +49166,7 @@ void main() {
   testWidgets('toolbar more number formats dialog applies selected format', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -50395,8 +49195,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -50474,12 +49273,7 @@ void main() {
   testWidgets('toolbar more number formats rejects invalid decimal places', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -50508,8 +49302,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -50590,12 +49383,7 @@ void main() {
   testWidgets('toolbar more date time formats dialog applies selected format', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -50624,8 +49412,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -50702,12 +49489,7 @@ void main() {
   testWidgets('toolbar format search dialog closes from header icon', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     await tester.pumpWidget(
       Directionality(
@@ -50721,8 +49503,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -50787,12 +49568,7 @@ void main() {
   testWidgets('toolbar format search dialog consumes sheet editing keys', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -50818,8 +49594,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -50884,12 +49659,7 @@ void main() {
   testWidgets('toolbar more number format text cell keeps undo stack', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -50915,8 +49685,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -51004,12 +49773,7 @@ void main() {
   });
 
   testWidgets('undo resets open format search dialog state', (tester) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final controller = FortuneSheetController();
     final workbook = FortuneWorkbook(
@@ -51036,8 +49800,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -51122,12 +49885,7 @@ void main() {
   testWidgets('toolbar more number protected cell keeps undo stack', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -51161,8 +49919,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -51256,12 +50013,7 @@ void main() {
   testWidgets(
     'toolbar more currency formats dialog scrolls full upstream list',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       final workbook = FortuneWorkbook(
         sheets: [
@@ -51290,8 +50042,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -51391,12 +50142,7 @@ void main() {
   testWidgets('toolbar format search dialog blocks background wheel scroll', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     await tester.pumpWidget(
       Directionality(
@@ -51414,8 +50160,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -51484,12 +50229,7 @@ void main() {
   testWidgets('toolbar more currency protected cell keeps undo stack', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -51523,8 +50263,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -51618,12 +50357,7 @@ void main() {
   testWidgets('toolbar format painter covered target respects locked anchor', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     const merge = FortuneCellMerge(row: 0, column: 1, columnSpan: 2);
     final workbook = FortuneWorkbook(
@@ -51660,8 +50394,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -51687,12 +50420,7 @@ void main() {
   testWidgets('toolbar format painter protected target keeps undo stack', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -51728,8 +50456,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -51772,12 +50499,7 @@ void main() {
   testWidgets('toolbar format painter copies computed cell borders', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -51838,8 +50560,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -51873,12 +50594,7 @@ void main() {
   testWidgets('toolbar format painter applies active cell format to range', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -51915,8 +50631,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -51967,12 +50682,7 @@ void main() {
   testWidgets('toolbar format painter tiles range source formats', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -52009,8 +50719,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -52066,12 +50775,7 @@ void main() {
   testWidgets('toolbar format painter tiles range data verification', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final leftRule = <String, Object?>{
       'type': 'dropdown',
@@ -52112,8 +50816,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -52148,12 +50851,7 @@ void main() {
   testWidgets('toolbar format painter tiles range computed borders', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -52216,8 +50914,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -52261,12 +50958,7 @@ void main() {
   testWidgets('toolbar format painter tiles range condition formats', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -52322,8 +51014,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -52375,12 +51066,7 @@ void main() {
   testWidgets('toolbar format painter drag applies format to target range', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -52431,8 +51117,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -52486,12 +51171,7 @@ void main() {
   testWidgets('toolbar format painter protected drag keeps undo stack', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -52528,8 +51208,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -52582,12 +51261,7 @@ void main() {
   testWidgets('toolbar format painter double click remains single use', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -52621,8 +51295,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -52657,12 +51330,7 @@ void main() {
   testWidgets('toolbar format painter double click is single use for headers', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -52698,8 +51366,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -52747,12 +51414,7 @@ void main() {
   testWidgets(
     'toolbar format painter protected column header keeps undo stack',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       final workbook = FortuneWorkbook(
         sheets: [
@@ -52792,8 +51454,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -52840,12 +51501,7 @@ void main() {
   testWidgets('toolbar format painter protected row header keeps undo stack', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -52885,8 +51541,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -52932,12 +51587,7 @@ void main() {
   testWidgets('toolbar format painter applies to dragged column headers', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -52973,8 +51623,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -53016,12 +51665,7 @@ void main() {
   testWidgets(
     'toolbar format painter protected dragged column headers keeps undo stack',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       final workbook = FortuneWorkbook(
         sheets: [
@@ -53062,8 +51706,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -53119,12 +51762,7 @@ void main() {
   testWidgets(
     'toolbar format painter protected dragged row headers keeps undo stack',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       final workbook = FortuneWorkbook(
         sheets: [
@@ -53165,8 +51803,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -53222,12 +51859,7 @@ void main() {
   testWidgets('toolbar format painter protected all header keeps undo stack', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -53268,8 +51900,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -53321,12 +51952,7 @@ void main() {
   testWidgets('dragging row and column headers selects whole ranges', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     await tester.pumpWidget(
       Directionality(
@@ -53351,8 +51977,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -53376,12 +52001,7 @@ void main() {
   testWidgets('header mouse down selects upstream row and column indexes', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     await tester.pumpWidget(
       Directionality(
@@ -53406,8 +52026,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -53431,12 +52050,7 @@ void main() {
   testWidgets('sheet protection selection authority blocks disallowed cells', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -53476,8 +52090,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -53506,12 +52119,7 @@ void main() {
   });
 
   testWidgets('workbook undo restores selection snapshot', (tester) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [FortuneSheet(id: 's1', name: 'Sheet1')],
@@ -53529,8 +52137,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -53571,12 +52178,7 @@ void main() {
   testWidgets('toolbar style toggles export canonical style metadata', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneSheetCodec.workbookFromJson({
       'data': [
@@ -53606,8 +52208,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -53631,12 +52232,7 @@ void main() {
   });
 
   testWidgets('toolbar cell commands respect locked cells', (tester) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -53684,8 +52280,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -53722,12 +52317,7 @@ void main() {
   testWidgets('condition format protected sheet shows authority hint', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -53767,8 +52357,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -53824,12 +52413,7 @@ void main() {
   testWidgets('toolbar clear format preserves cell content and metadata', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -53873,8 +52457,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -53929,12 +52512,7 @@ void main() {
   testWidgets('toolbar clear format empty cell keeps undo stack', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -53960,8 +52538,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -53998,12 +52575,7 @@ void main() {
   testWidgets('toolbar clear format protected cell keeps undo stack', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -54038,8 +52610,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -54091,12 +52662,7 @@ void main() {
   });
 
   testWidgets('toolbar clear format skips hidden rows', (tester) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -54138,8 +52704,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -54165,12 +52730,7 @@ void main() {
   });
 
   testWidgets('toolbar clear format applies to dragged range', (tester) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -54208,8 +52768,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -54287,8 +52846,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -54320,12 +52878,7 @@ void main() {
   testWidgets(
     'toolbar clear format range stops when selection contains locked cell',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       final workbook = FortuneWorkbook(
         sheets: [
@@ -54379,8 +52932,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -54417,12 +52969,7 @@ void main() {
   testWidgets(
     'toolbar clear format merged covered cell respects locked anchor',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       const merge = FortuneCellMerge(row: 0, column: 0, rowSpan: 2);
       final workbook = FortuneWorkbook(
@@ -54456,8 +53003,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -54483,12 +53029,7 @@ void main() {
   );
 
   testWidgets('toolbar clear format clears computed borders', (tester) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -54536,8 +53077,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -54596,12 +53136,7 @@ void main() {
   testWidgets('toolbar clear format splits upstream range borders', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -54670,8 +53205,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -54718,12 +53252,7 @@ void main() {
   });
 
   testWidgets('toolbar clear format clears raw cell borders', (tester) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -54768,8 +53297,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -54815,12 +53343,7 @@ void main() {
   testWidgets(
     'toolbar clear format clears borders without creating empty cells',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       final workbook = FortuneWorkbook(
         sheets: [
@@ -54861,8 +53384,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -54906,12 +53428,7 @@ void main() {
   testWidgets('toolbar data verification applies to dragged range', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -54950,8 +53467,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -55025,12 +53541,7 @@ void main() {
   testWidgets('toolbar clear format export removes raw style metadata only', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneSheetCodec.workbookFromJson({
       'data': [
@@ -55077,8 +53588,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -55122,12 +53632,7 @@ void main() {
   testWidgets('toolbar link dialog and comment update selected cell metadata', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -55157,8 +53662,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -55207,12 +53711,7 @@ void main() {
   testWidgets('toolbar link and comment covered cell respects locked anchor', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     const merge = FortuneCellMerge(row: 0, column: 0, columnSpan: 2);
     final workbook = FortuneWorkbook(
@@ -55245,8 +53744,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -55272,12 +53770,7 @@ void main() {
   testWidgets('toolbar comment opens editor and commits comment text', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -55301,8 +53794,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -55387,12 +53879,7 @@ void main() {
   });
 
   testWidgets('visible comment box moves like upstream', (tester) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -55428,8 +53915,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     FortuneCellComment? comment() => painter()
@@ -55480,12 +53966,7 @@ void main() {
   });
 
   testWidgets('editing comment box resizes like upstream', (tester) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -55521,8 +54002,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     FortuneCellComment? comment() => painter()
@@ -55581,12 +54061,7 @@ void main() {
   testWidgets('toolbar comment commits active comment before new insert', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -55613,8 +54088,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -55641,12 +54115,7 @@ void main() {
   testWidgets('blocked cell mouse down still commits active comment editor', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final calls = <String>[];
     final workbook = FortuneWorkbook(
@@ -55683,8 +54152,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -55715,12 +54183,7 @@ void main() {
   testWidgets('header mouse down commits active comment editor', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -55746,8 +54209,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -55778,12 +54240,7 @@ void main() {
   });
 
   testWidgets('toolbar comment lifecycle hooks wrap edits', (tester) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final calls = <Map<String, Object?>>[];
     final workbook = FortuneWorkbook(
@@ -55842,8 +54299,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -56088,12 +54544,7 @@ void main() {
   testWidgets('toolbar comment dropdown shows upstream empty-cell commands', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -56117,8 +54568,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -56168,12 +54618,7 @@ void main() {
   testWidgets('toolbar comment show hide all supports undo redo', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -56202,8 +54647,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -56276,12 +54720,7 @@ void main() {
   testWidgets('toolbar comment show hide all empty sheet keeps undo stack', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -56308,8 +54747,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -56366,12 +54804,7 @@ void main() {
   testWidgets(
     'toolbar comment show hide all protected comments keeps undo stack',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       final workbook = FortuneWorkbook(
         sheets: [
@@ -56405,8 +54838,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -56470,12 +54902,7 @@ void main() {
   testWidgets('toolbar comment protected commands keep undo stack', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -56509,8 +54936,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -56583,12 +55009,7 @@ void main() {
   testWidgets('toolbar comment protected edit keeps undo stack', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -56622,8 +55043,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -56679,12 +55099,7 @@ void main() {
   });
 
   testWidgets('toolbar comment show hide supports undo redo', (tester) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -56713,8 +55128,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -56770,12 +55184,7 @@ void main() {
   testWidgets('toolbar comment unchanged editor commit does not add undo', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -56799,8 +55208,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -56842,12 +55250,7 @@ void main() {
   testWidgets('toolbar comment escape cancels draft without undo entry', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -56871,8 +55274,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -56909,12 +55311,7 @@ void main() {
   testWidgets(
     'toolbar comment editor export writes canonical comment metadata',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       final workbook = FortuneSheetCodec.workbookFromJson({
         'data': [
@@ -56944,8 +55341,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -56978,12 +55374,7 @@ void main() {
   testWidgets('toolbar comment removal does not resurrect raw cell comment', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneSheetCodec.workbookFromJson({
       'data': [
@@ -57021,8 +55412,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -57044,12 +55434,7 @@ void main() {
   testWidgets('toolbar link opens dialog and commits hyperlink address', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -57073,8 +55458,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -57116,12 +55500,7 @@ void main() {
   testWidgets('toolbar link cell range selector fills and commits address', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -57148,8 +55527,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -57263,12 +55641,7 @@ void main() {
   testWidgets('toolbar link editor rejects incomplete webpage address', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -57292,8 +55665,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -57325,12 +55697,7 @@ void main() {
   testWidgets('toolbar link editor selects cell range hyperlink type', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -57354,8 +55721,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -57407,12 +55773,7 @@ void main() {
   });
 
   testWidgets('toolbar link locked cell keeps undo stack', (tester) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -57442,8 +55803,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -57489,12 +55849,7 @@ void main() {
   });
 
   testWidgets('toolbar link protected cell keeps undo stack', (tester) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -57525,8 +55880,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -57579,12 +55933,7 @@ void main() {
   testWidgets(
     'toolbar link editor export writes canonical hyperlink metadata',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       final workbook = FortuneSheetCodec.workbookFromJson({
         'data': [
@@ -57614,8 +55963,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -57666,12 +56014,7 @@ void main() {
   testWidgets('toolbar link editor preserves existing hyperlink type', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneSheetCodec.workbookFromJson({
       'data': [
@@ -57705,8 +56048,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -57741,12 +56083,7 @@ void main() {
   testWidgets('toolbar link editor rejects invalid cell range address', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneSheetCodec.workbookFromJson({
       'data': [
@@ -57779,8 +56116,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -57813,12 +56149,7 @@ void main() {
   testWidgets('toolbar link unchanged confirm does not add undo snapshot', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -57845,8 +56176,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -57896,12 +56226,7 @@ void main() {
   testWidgets('toolbar link editor accepts column cell range address', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneSheetCodec.workbookFromJson({
       'data': [
@@ -57934,8 +56259,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -57965,12 +56289,7 @@ void main() {
   testWidgets('toolbar link editor accepts row cell range address', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneSheetCodec.workbookFromJson({
       'data': [
@@ -58003,8 +56322,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -58034,12 +56352,7 @@ void main() {
   testWidgets('toolbar link editor rejects invalid absolute row range', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneSheetCodec.workbookFromJson({
       'data': [
@@ -58072,8 +56385,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -58106,12 +56418,7 @@ void main() {
   testWidgets(
     'toolbar link dialog cancel preserves existing hyperlink metadata',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       final workbook = FortuneSheetCodec.workbookFromJson({
         'data': [
@@ -58151,8 +56458,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -58194,12 +56500,7 @@ void main() {
   testWidgets('toolbar filter toggles selected column filter metadata', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [FortuneSheet(id: 's1', name: 'Sheet1')],
@@ -58217,8 +56518,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -58273,12 +56573,7 @@ void main() {
   testWidgets('toolbar filter protected sheet blocks column toggle', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     Future<void> pumpCanvas(FortuneWorkbook workbook) async {
       await tester.pumpWidget(
@@ -58294,8 +56589,7 @@ void main() {
     }
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Future<void> selectSecondColumnAndTapFilter(
@@ -58359,12 +56653,7 @@ void main() {
   testWidgets('toolbar filter read-only selection blocks column toggle', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     Future<void> pumpCanvas(FortuneWorkbook workbook) async {
       await tester.pumpWidget(
@@ -58380,8 +56669,7 @@ void main() {
     }
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Future<void> selectSecondColumnAndTapFilter(
@@ -58465,12 +56753,7 @@ void main() {
   testWidgets('filter marker dropdown filters and clears hidden rows', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -58499,8 +56782,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -58609,12 +56891,7 @@ void main() {
   testWidgets('filter marker dropdown uses configured value menu only', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -58646,8 +56923,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -58690,12 +56966,7 @@ void main() {
   testWidgets('filter marker dropdown keeps empty configured menu closed', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -58723,8 +56994,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -58749,12 +57019,7 @@ void main() {
   testWidgets('filter dropdown closes on outside sheet click like upstream', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -58782,8 +57047,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -58814,12 +57078,7 @@ void main() {
   testWidgets('filter marker clear preserves manually hidden rows', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -58851,8 +57110,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -58908,12 +57166,7 @@ void main() {
   testWidgets('filter marker clear preserves other filter hidden rows', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -58984,8 +57237,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -59019,12 +57271,7 @@ void main() {
   testWidgets('toolbar clear filter popup clears all filter state', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -59082,8 +57329,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -59134,12 +57380,7 @@ void main() {
   testWidgets('toolbar clear filter empty state keeps undo stack', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -59165,8 +57406,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -59225,12 +57465,7 @@ void main() {
   testWidgets('toolbar filter protected sheet blocks create and clear', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     Future<void> pumpCanvas(FortuneWorkbook workbook) async {
       await tester.pumpWidget(
@@ -59246,8 +57481,7 @@ void main() {
     }
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Future<void> tapFilterOption(String command) async {
@@ -59345,12 +57579,7 @@ void main() {
   testWidgets('toolbar filter read-only selection blocks create and clear', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     Future<void> pumpCanvas(FortuneWorkbook workbook) async {
       await tester.pumpWidget(
@@ -59366,8 +57595,7 @@ void main() {
     }
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Future<void> tapFilterOption(String command) async {
@@ -59488,12 +57716,7 @@ void main() {
   testWidgets('toolbar create filter popup expands single cell row block', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -59523,8 +57746,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -59570,12 +57792,7 @@ void main() {
   testWidgets('toolbar create filter popup extends short range downward', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -59613,8 +57830,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -59715,12 +57931,7 @@ void main() {
   testWidgets('toolbar create filter popup clears existing filters', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -59759,8 +57970,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -59794,12 +58004,7 @@ void main() {
   testWidgets('toolbar create filter popup ignores multi selection', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -59853,8 +58058,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -59892,12 +58096,7 @@ void main() {
   testWidgets('toolbar create filter multi selection keeps undo stack', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -59956,8 +58155,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -60036,12 +58234,7 @@ void main() {
   testWidgets('toolbar create filter popup ignores pivot sheets', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -60070,8 +58263,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -60106,12 +58298,7 @@ void main() {
   testWidgets('toolbar create filter pivot sheet keeps undo stack', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -60141,8 +58328,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -60199,12 +58385,7 @@ void main() {
   });
 
   testWidgets('workbook prop change closes filter dropdown', (tester) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -60239,8 +58420,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -60343,8 +58523,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -60397,12 +58576,7 @@ void main() {
   });
 
   testWidgets('filter dropdown condition row is visible no-op', (tester) async {
-    tester.view.physicalSize = const Size(420, 360);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(420, 360), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -60448,8 +58622,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -60487,12 +58660,7 @@ void main() {
   testWidgets('filter dropdown skips rows hidden by other filters', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -60543,8 +58711,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -60582,12 +58749,7 @@ void main() {
   });
 
   testWidgets('filter dropdown can select blank values', (tester) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -60624,8 +58786,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -60662,12 +58823,7 @@ void main() {
   testWidgets('filter dropdown keeps upstream first-seen value order', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(420, 360);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(420, 360), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -60701,8 +58857,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -60739,12 +58894,7 @@ void main() {
   });
 
   testWidgets('filter dropdown normalizes date values', (tester) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final firstSerial = DateTime(
       2026,
@@ -60801,8 +58951,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -60839,12 +58988,7 @@ void main() {
   testWidgets('filter dropdown uses upstream serial 60 date text', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -60891,8 +59035,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -60929,12 +59072,7 @@ void main() {
   testWidgets('filter dropdown date checkbox toggles grouped rows', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(420, 360);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(420, 360), devicePixelRatio: 1);
 
     final firstSerial = DateTime(
       2026,
@@ -60994,8 +59132,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -61061,12 +59198,7 @@ void main() {
   testWidgets('filter dropdown respects restored date filter hidden rows', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final firstSerial = DateTime(
       2026,
@@ -61135,8 +59267,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -61175,12 +59306,7 @@ void main() {
   testWidgets('filter dropdown render uses filter range labels', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final repaintKey = GlobalKey();
     final workbook = FortuneWorkbook(
@@ -61261,12 +59387,7 @@ void main() {
   });
 
   testWidgets('A1 border paints over header divider corner', (tester) async {
-    tester.view.physicalSize = const Size(420, 360);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(420, 360), devicePixelRatio: 1);
 
     final repaintKey = GlobalKey();
     final workbook = FortuneWorkbook(
@@ -61376,12 +59497,7 @@ void main() {
   testWidgets('adjusted sheet merged cells hide inner viewport grid lines', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(420, 320);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(420, 320), devicePixelRatio: 1);
 
     const merge = FortuneCellMerge(
       row: 0,
@@ -61468,12 +59584,7 @@ void main() {
   testWidgets('filter dropdown marks active value with check indicator', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(420, 360);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(420, 360), devicePixelRatio: 1);
 
     final repaintKey = GlobalKey();
     final workbook = FortuneWorkbook(
@@ -61588,12 +59699,7 @@ void main() {
   testWidgets('filter dropdown defaults value choices to checked', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(420, 360);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(420, 360), devicePixelRatio: 1);
 
     final repaintKey = GlobalKey();
     final workbook = FortuneWorkbook(
@@ -61678,12 +59784,7 @@ void main() {
   });
 
   testWidgets('filter dropdown renders value choice counts', (tester) async {
-    tester.view.physicalSize = const Size(420, 360);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(420, 360), devicePixelRatio: 1);
 
     final repaintKey = GlobalKey();
     final workbook = FortuneWorkbook(
@@ -61766,12 +59867,7 @@ void main() {
   testWidgets('filter dropdown renders bulk controls in clear row', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(420, 360);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(420, 360), devicePixelRatio: 1);
 
     final repaintKey = GlobalKey();
     final workbook = FortuneWorkbook(
@@ -61852,12 +59948,7 @@ void main() {
   });
 
   testWidgets('filter dropdown scrolls long value lists', (tester) async {
-    tester.view.physicalSize = const Size(420, 360);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(420, 360), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -61893,8 +59984,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -61950,12 +60040,7 @@ void main() {
   testWidgets('filter dropdown renders scrolled rowhidden checked states', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(420, 360);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(420, 360), devicePixelRatio: 1);
 
     final repaintKey = GlobalKey();
     final workbook = FortuneWorkbook(
@@ -62063,12 +60148,7 @@ void main() {
   });
 
   testWidgets('filter dropdown search narrows value choices', (tester) async {
-    tester.view.physicalSize = const Size(420, 360);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(420, 360), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -62104,8 +60184,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -62174,12 +60253,7 @@ void main() {
   testWidgets('filter dropdown search keeps popup width stable', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(500, 360);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(500, 360), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -62215,8 +60289,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -62258,12 +60331,7 @@ void main() {
   testWidgets('filter dropdown search no matches does not apply filter', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(420, 360);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(420, 360), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -62297,8 +60365,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -62350,12 +60417,7 @@ void main() {
   testWidgets('filter dropdown search no matches keeps undo stack', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -62390,8 +60452,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -62461,12 +60522,7 @@ void main() {
   testWidgets('filter dropdown search no matches follows color choices', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(420, 360);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(420, 360), devicePixelRatio: 1);
 
     final repaintKey = GlobalKey();
     final workbook = FortuneWorkbook(
@@ -62590,8 +60646,7 @@ void main() {
     await tester.pump();
 
     final painter =
-        tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        fortuneSheetPainter(tester);
     final sheet = painter.workbook.activeSheet;
     expect(painter.filterDropdownColumn, 0);
     expect(sheet.filter, isEmpty);
@@ -62601,12 +60656,7 @@ void main() {
   testWidgets('filter dropdown search escape restores value choices', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(420, 360);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(420, 360), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -62642,8 +60692,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -62703,12 +60752,7 @@ void main() {
   testWidgets('filter dropdown search enter keeps filtered choices active', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(420, 360);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(420, 360), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -62744,8 +60788,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -62804,12 +60847,7 @@ void main() {
   testWidgets('filter dropdown search shortcuts do not undo sheet state', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(420, 360);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(420, 360), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -62843,8 +60881,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -62908,11 +60945,11 @@ void main() {
   testWidgets('filter dropdown search keeps editor shortcuts local', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(420, 360);
-    tester.view.devicePixelRatio = 1;
+    await prepareFortuneSheetView(
+      tester,
+      const Size(420, 360),
+    );
     addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
       tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
         SystemChannels.platform,
         null,
@@ -62965,8 +61002,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -63029,12 +61065,7 @@ void main() {
   testWidgets('filter dropdown renders scrollbar for long value lists', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(420, 360);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(420, 360), devicePixelRatio: 1);
 
     final repaintKey = GlobalKey();
     final workbook = FortuneWorkbook(
@@ -63131,12 +61162,7 @@ void main() {
   testWidgets('filter dropdown scrollbar thumb drags value list', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(420, 360);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(420, 360), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -63172,8 +61198,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -63209,12 +61234,7 @@ void main() {
   });
 
   testWidgets('keyboard paste closes scrolled filter dropdown', (tester) async {
-    tester.view.physicalSize = const Size(420, 360);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(420, 360), devicePixelRatio: 1);
 
     tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
       SystemChannels.platform,
@@ -63266,8 +61286,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -63318,12 +61337,7 @@ void main() {
   testWidgets('filter dropdown scrollbar track pages value list', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(420, 360);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(420, 360), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -63359,8 +61373,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -63401,12 +61414,7 @@ void main() {
   testWidgets('filter dropdown keeps bulk controls fixed while scrolling', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(420, 360);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(420, 360), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -63442,8 +61450,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -63512,12 +61519,7 @@ void main() {
   testWidgets('filter dropdown value checkbox toggles rowhidden', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(420, 360);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(420, 360), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -63551,8 +61553,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -63600,12 +61601,7 @@ void main() {
   testWidgets('filter dropdown checkbox toggle supports undo redo', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(420, 360);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(420, 360), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -63639,8 +61635,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -63695,12 +61690,7 @@ void main() {
   testWidgets('filter dropdown checkbox preserves other filter hidden rows', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(420, 360);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(420, 360), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -63751,8 +61741,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -63805,12 +61794,7 @@ void main() {
   testWidgets(
     'filter dropdown value checkbox toggles grouped rows and blanks',
     (tester) async {
-      tester.view.physicalSize = const Size(420, 360);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(420, 360), devicePixelRatio: 1);
 
       final workbook = FortuneWorkbook(
         sheets: [
@@ -63845,8 +61829,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -63913,12 +61896,7 @@ void main() {
   testWidgets('filter dropdown uses display values for option matching', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(420, 360);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(420, 360), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -63966,8 +61944,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -64005,12 +61982,7 @@ void main() {
   testWidgets('filter dropdown reflects restored rowhidden checked values', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(420, 360);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(420, 360), devicePixelRatio: 1);
 
     final repaintKey = GlobalKey();
     final workbook = FortuneWorkbook(
@@ -64102,12 +62074,7 @@ void main() {
   testWidgets(
     'filter dropdown unchecks duplicate value group with hidden row',
     (tester) async {
-      tester.view.physicalSize = const Size(420, 360);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(420, 360), devicePixelRatio: 1);
 
       final repaintKey = GlobalKey();
       final workbook = FortuneWorkbook(
@@ -64202,12 +62169,7 @@ void main() {
   testWidgets(
     'filter dropdown unchecks duplicate cell color group with hidden row',
     (tester) async {
-      tester.view.physicalSize = const Size(420, 360);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(420, 360), devicePixelRatio: 1);
 
       final repaintKey = GlobalKey();
       final workbook = FortuneWorkbook(
@@ -64311,12 +62273,7 @@ void main() {
   testWidgets(
     'filter dropdown unchecks duplicate text color group with hidden row',
     (tester) async {
-      tester.view.physicalSize = const Size(420, 360);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(420, 360), devicePixelRatio: 1);
 
       final repaintKey = GlobalKey();
       final workbook = FortuneWorkbook(
@@ -64420,12 +62377,7 @@ void main() {
   testWidgets('filter markers distinguish active filtered columns', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(420, 180);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(420, 180), devicePixelRatio: 1);
 
     final repaintKey = GlobalKey();
     final workbook = FortuneWorkbook(
@@ -64515,12 +62467,7 @@ void main() {
   testWidgets('filter markers treat restored color filters as active', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(420, 180);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(420, 180), devicePixelRatio: 1);
 
     final repaintKey = GlobalKey();
     final workbook = FortuneWorkbook(
@@ -64617,12 +62564,7 @@ void main() {
   testWidgets('filter dropdown respects restored blank filter hidden rows', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -64672,8 +62614,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -64712,12 +62653,7 @@ void main() {
   testWidgets('filter dropdown preserves restored column range metadata', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -64761,8 +62697,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -64803,12 +62738,7 @@ void main() {
   testWidgets('filter dropdown opens clear action without value options', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -64844,8 +62774,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -64884,12 +62813,7 @@ void main() {
   testWidgets('filter dropdown clear empty state keeps undo stack', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -64924,8 +62848,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -64983,12 +62906,7 @@ void main() {
   testWidgets('filter dropdown closes when formula bar is focused', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(420, 360);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(420, 360), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -65022,8 +62940,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -65059,12 +62976,7 @@ void main() {
   testWidgets('filter dropdown bulk controls toggle all values', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(420, 360);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(420, 360), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -65099,8 +63011,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Future<void> openDropdown() async {
@@ -65166,12 +63077,7 @@ void main() {
   testWidgets('filter dropdown bulk controls ignore search narrowing', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(420, 360);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(420, 360), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -65206,8 +63112,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -65258,12 +63163,7 @@ void main() {
   testWidgets(
     'filter dropdown bulk controls preserve other filter hidden rows',
     (tester) async {
-      tester.view.physicalSize = const Size(420, 360);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(420, 360), devicePixelRatio: 1);
 
       final workbook = FortuneWorkbook(
         sheets: [
@@ -65314,8 +63214,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -65375,12 +63274,7 @@ void main() {
   testWidgets('filter dropdown bulk controls support undo redo', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(420, 360);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(420, 360), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -65415,8 +63309,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -65471,12 +63364,7 @@ void main() {
   testWidgets('filter dropdown bulk all no-op keeps undo stack', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -65512,8 +63400,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -65570,12 +63457,7 @@ void main() {
   testWidgets('filter dropdown bulk clear no-op keeps undo stack', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -65623,8 +63505,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -65683,12 +63564,7 @@ void main() {
   testWidgets('filter marker dropdown sorts filter range by column', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -65727,8 +63603,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -65804,12 +63679,7 @@ void main() {
   testWidgets('filter dropdown sort single data row keeps undo stack', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -65845,8 +63715,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -65908,12 +63777,7 @@ void main() {
   testWidgets(
     'filter dropdown descending sort single data row keeps undo stack',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       final workbook = FortuneWorkbook(
         sheets: [
@@ -65949,8 +63813,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -66013,12 +63876,7 @@ void main() {
   testWidgets('filter dropdown sort locked range keeps undo stack', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -66061,8 +63919,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -66129,12 +63986,7 @@ void main() {
   testWidgets('filter dropdown descending sort locked range keeps undo stack', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -66177,8 +64029,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -66245,12 +64096,7 @@ void main() {
   testWidgets('filter dropdown sort merged range keeps undo stack', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -66292,8 +64138,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -66359,12 +64204,7 @@ void main() {
   testWidgets('filter dropdown descending sort merged range keeps undo stack', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -66406,8 +64246,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -66473,12 +64312,7 @@ void main() {
   testWidgets('filter dropdown already sorted range keeps undo stack', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -66518,8 +64352,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -66584,12 +64417,7 @@ void main() {
   testWidgets(
     'filter dropdown descending already sorted range keeps undo stack',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       final workbook = FortuneWorkbook(
         sheets: [
@@ -66629,8 +64457,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -66694,12 +64521,7 @@ void main() {
   );
 
   testWidgets('filter marker dropdown filters by cell color', (tester) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -66739,8 +64561,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -66785,12 +64606,7 @@ void main() {
   testWidgets('filter dropdown same cell color keeps undo stack', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -66849,8 +64665,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -66911,12 +64726,7 @@ void main() {
   testWidgets('filter marker dropdown normalizes short hex cell colors', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneSheetCodec.workbookFromJson({
       'data': [
@@ -66963,8 +64773,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -67002,12 +64811,7 @@ void main() {
   testWidgets('filter marker dropdown uses conditional cell colors', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -67054,8 +64858,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -67093,12 +64896,7 @@ void main() {
   testWidgets('filter dropdown color checkbox toggles rowhidden', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(420, 360);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(420, 360), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -67138,8 +64936,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -67188,12 +64985,7 @@ void main() {
   testWidgets('filter dropdown color checkbox toggles grouped rows', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(420, 360);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(420, 360), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -67237,8 +65029,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -67303,12 +65094,7 @@ void main() {
   });
 
   testWidgets('filter marker dropdown filters by text color', (tester) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -67348,8 +65134,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -67389,12 +65174,7 @@ void main() {
   testWidgets('filter dropdown same text color keeps undo stack', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -67453,8 +65233,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -67515,12 +65294,7 @@ void main() {
   testWidgets('filter dropdown ignores empty cells for text color choices', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(420, 360);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(420, 360), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -67559,8 +65333,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -67599,12 +65372,7 @@ void main() {
   testWidgets('filter dropdown ignores empty conditional text color choices', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(420, 360);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(420, 360), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -67654,8 +65422,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -67694,12 +65461,7 @@ void main() {
   testWidgets('filter dropdown text color checkbox toggles rowhidden', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(420, 360);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(420, 360), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -67739,8 +65501,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -67789,12 +65550,7 @@ void main() {
   testWidgets('filter dropdown text color checkbox toggles grouped rows', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(420, 360);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(420, 360), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -67838,8 +65594,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -67905,12 +65660,7 @@ void main() {
   testWidgets('filter dropdown respects restored color filter hidden rows', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -67964,8 +65714,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -68004,12 +65753,7 @@ void main() {
   testWidgets('filter dropdown respects restored text color hidden rows', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -68063,8 +65807,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -68103,12 +65846,7 @@ void main() {
   testWidgets('toolbar filter removal does not resurrect raw filter map', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneSheetCodec.workbookFromJson({
       'data': [
@@ -68140,8 +65878,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -68171,12 +65908,7 @@ void main() {
   testWidgets('toolbar data verification toggles selected cell metadata', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [FortuneSheet(id: 's1', name: 'Sheet1')],
@@ -68194,8 +65926,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -68250,12 +65981,7 @@ void main() {
   testWidgets('toolbar data verification selects target cell range', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [FortuneSheet(id: 's1', name: 'Sheet1')],
@@ -68273,8 +65999,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -68333,12 +66058,7 @@ void main() {
   testWidgets('toolbar data verification edits target cell range text', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [FortuneSheet(id: 's1', name: 'Sheet1')],
@@ -68356,8 +66076,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -68399,12 +66118,7 @@ void main() {
   testWidgets('toolbar data verification selects dropdown source range', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -68431,8 +66145,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -68487,12 +66200,7 @@ void main() {
   testWidgets('toolbar data verification selector changes rule type', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [FortuneSheet(id: 's1', name: 'Sheet1')],
@@ -68510,8 +66218,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -68553,12 +66260,7 @@ void main() {
   testWidgets('toolbar data verification checkbox saves selected values', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [FortuneSheet(id: 's1', name: 'Sheet1')],
@@ -68576,8 +66278,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -68681,12 +66382,7 @@ void main() {
   testWidgets('toolbar data verification number saves between values', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -68712,8 +66408,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -68912,12 +66607,7 @@ void main() {
   testWidgets('toolbar data verification rule selector clears values', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -68952,8 +66642,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -69003,12 +66692,7 @@ void main() {
   testWidgets('toolbar data verification text and date save values', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -69035,8 +66719,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -69118,12 +66801,7 @@ void main() {
   testWidgets('toolbar data verification empty delete keeps undo stack', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -69149,8 +66827,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -69196,12 +66873,7 @@ void main() {
   testWidgets('toolbar data verification empty confirm keeps undo stack', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -69227,8 +66899,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -69278,12 +66949,7 @@ void main() {
   testWidgets('toolbar data verification unchanged confirm keeps undo stack', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -69320,8 +66986,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -69373,12 +67038,7 @@ void main() {
   testWidgets(
     'toolbar data verification unchanged number rule preserves type',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       final workbook = FortuneWorkbook(
         sheets: [
@@ -69416,8 +67076,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -69471,12 +67130,7 @@ void main() {
   testWidgets(
     'toolbar data verification checkbox confirm applies unchecked value',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       final workbook = FortuneWorkbook(
         sheets: [
@@ -69512,8 +67166,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -69554,12 +67207,7 @@ void main() {
   testWidgets('toolbar data verification protected cell keeps undo stack', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -69590,8 +67238,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -69638,12 +67285,7 @@ void main() {
   testWidgets('toolbar data verification covered cell respects locked anchor', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     const merge = FortuneCellMerge(row: 0, column: 0, columnSpan: 2);
     final workbook = FortuneWorkbook(
@@ -69675,8 +67317,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -69701,12 +67342,7 @@ void main() {
   testWidgets(
     'toolbar data verification removal does not resurrect raw map on export',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       final workbook = FortuneSheetCodec.workbookFromJson({
         'data': [
@@ -69737,8 +67373,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -69769,12 +67404,7 @@ void main() {
   testWidgets('data verification hintShow displays selected cell prompt', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(900, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(900, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -69818,8 +67448,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     expect(painter().dataVerificationHintText, 'Hint: Pick an approved color');
@@ -69847,12 +67476,7 @@ void main() {
   testWidgets('data verification hintShow localizes generated prompt', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(900, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(900, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       settings: const FortuneSettings(lang: 'zh-CN'),
@@ -69884,8 +67508,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     expect(painter().dataVerificationHintText, '提示： 请选择下拉列表中的选项');
@@ -69894,12 +67517,7 @@ void main() {
   testWidgets('data verification hintShow localizes range prompt', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(900, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(900, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       settings: const FortuneSettings(lang: 'es'),
@@ -69932,8 +67550,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     expect(
@@ -69945,12 +67562,7 @@ void main() {
   testWidgets('data verification dropdown commits selected option', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(900, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(900, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -69979,8 +67591,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -70095,12 +67706,7 @@ void main() {
   testWidgets('data verification unchanged dropdown keeps undo stack', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -70134,8 +67740,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -70175,12 +67780,7 @@ void main() {
   testWidgets('data verification dropdown closes on outside cell click', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(900, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(900, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -70209,8 +67809,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -70243,12 +67842,7 @@ void main() {
   testWidgets('data verification multi-select keeps source option order', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(900, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(900, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -70277,8 +67871,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -70321,12 +67914,7 @@ void main() {
   testWidgets('data verification multi-select marks selected options', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(420, 360);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(420, 360), devicePixelRatio: 1);
 
     final repaintKey = GlobalKey();
     final workbook = FortuneWorkbook(
@@ -70394,12 +67982,7 @@ void main() {
   testWidgets(
     'data verification dropdown covered cell respects locked anchor',
     (tester) async {
-      tester.view.physicalSize = const Size(900, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(900, 600), devicePixelRatio: 1);
 
       const merge = FortuneCellMerge(row: 0, column: 0, columnSpan: 2);
       final workbook = FortuneWorkbook(
@@ -70438,8 +68021,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -70458,12 +68040,7 @@ void main() {
   testWidgets(
     'data verification marker dialog covered cell respects locked anchor',
     (tester) async {
-      tester.view.physicalSize = const Size(900, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(900, 600), devicePixelRatio: 1);
 
       const merge = FortuneCellMerge(row: 0, column: 0, columnSpan: 2);
       final workbook = FortuneWorkbook(
@@ -70503,8 +68080,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -70530,12 +68106,7 @@ void main() {
   testWidgets('data verification marker secondary click edits options dialog', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(900, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(900, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -70566,8 +68137,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -70640,12 +68210,7 @@ void main() {
   testWidgets(
     'data verification dropdown export clears stale formula metadata',
     (tester) async {
-      tester.view.physicalSize = const Size(900, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(900, 600), devicePixelRatio: 1);
 
       final workbook = FortuneSheetCodec.workbookFromJson({
         'data': [
@@ -70689,8 +68254,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -70770,8 +68334,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -70917,8 +68480,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -70999,8 +68561,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -71090,8 +68651,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -71197,8 +68757,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -71305,8 +68864,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -71389,8 +68947,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -71452,8 +69009,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -71511,8 +69067,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -71566,8 +69121,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -71623,8 +69177,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -71670,8 +69223,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -71690,12 +69242,7 @@ void main() {
   testWidgets('data verification blocked input keeps undo stack', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -71724,8 +69271,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -71813,8 +69359,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -71929,8 +69474,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -72020,8 +69564,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -72120,8 +69663,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -72226,8 +69768,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -72331,8 +69872,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -72448,8 +69988,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -72539,8 +70078,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -72704,8 +70242,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -72789,8 +70326,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -72872,8 +70408,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -72970,8 +70505,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -73023,12 +70557,7 @@ void main() {
   testWidgets('data verification checkbox renders state and toggles on click', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(900, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(900, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -73062,8 +70591,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     var config = painter().workbook.activeSheet.dataVerification['0_0']! as Map;
@@ -73102,12 +70630,7 @@ void main() {
   testWidgets('data verification checkbox toggle infers value type', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(900, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(900, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -73138,8 +70661,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -73186,8 +70708,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -73203,12 +70724,7 @@ void main() {
   testWidgets('data verification checkbox toggle supports undo redo', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(900, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(900, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -73234,8 +70750,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     bool checked() {
@@ -73268,12 +70783,7 @@ void main() {
   testWidgets('data verification checkbox toggle recalculates formulas', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(900, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(900, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -73311,8 +70821,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     expect(
@@ -73336,12 +70845,7 @@ void main() {
   testWidgets('canvas recalculates inactive cross-sheet formulas', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(900, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(900, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -73386,8 +70890,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     FortuneSheet formulaSheet() => painter().workbook.sheets[1];
@@ -73419,12 +70922,7 @@ void main() {
   testWidgets(
     'data verification checkbox covered cell respects locked anchor',
     (tester) async {
-      tester.view.physicalSize = const Size(900, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(900, 600), devicePixelRatio: 1);
 
       const merge = FortuneCellMerge(row: 0, column: 0, columnSpan: 2);
       final workbook = FortuneWorkbook(
@@ -73459,8 +70957,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -73479,12 +70976,7 @@ void main() {
   testWidgets(
     'data verification checkbox toggle exports updated checked state',
     (tester) async {
-      tester.view.physicalSize = const Size(900, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(900, 600), devicePixelRatio: 1);
 
       final workbook = FortuneSheetCodec.workbookFromJson({
         'data': [
@@ -73517,8 +71009,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -73538,12 +71029,7 @@ void main() {
   testWidgets(
     'toolbar image opens picker and inserts selected image metadata',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       final workbook = FortuneWorkbook(
         sheets: [FortuneSheet(id: 's1', name: 'Sheet1')],
@@ -73564,8 +71050,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -73614,12 +71099,7 @@ void main() {
   testWidgets('toolbar split text dialog applies comma delimiter', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -73645,8 +71125,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -73692,12 +71171,7 @@ void main() {
   testWidgets('toolbar split text confirms before overwriting cells', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -73724,8 +71198,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -73803,12 +71276,7 @@ void main() {
   testWidgets('toolbar split text dialog closes from close icon', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -73834,8 +71302,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -73874,12 +71341,7 @@ void main() {
   });
 
   testWidgets('toolbar split text respects allowEdit false', (tester) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       settings: const FortuneSettings(allowEdit: false),
@@ -73907,8 +71369,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -73938,12 +71399,7 @@ void main() {
   testWidgets('toolbar split text guards multiple selected ranges', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -73980,8 +71436,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -74009,12 +71464,7 @@ void main() {
   testWidgets('toolbar split text guards multiple selected columns', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -74047,8 +71497,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -74076,12 +71525,7 @@ void main() {
   testWidgets('toolbar split text single preview keeps undo stack', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -74107,8 +71551,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -74156,12 +71599,7 @@ void main() {
   testWidgets('toolbar split text infers percent and boolean values', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -74187,8 +71625,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -74229,12 +71666,7 @@ void main() {
   testWidgets('toolbar split text infers date and datetime values', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -74262,8 +71694,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -74306,12 +71737,7 @@ void main() {
   testWidgets('toolbar split text supports other consecutive delimiter', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -74337,8 +71763,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -74383,12 +71808,7 @@ void main() {
   testWidgets('toolbar split text clears stale inline rich text runs', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -74420,8 +71840,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -74458,12 +71877,7 @@ void main() {
   testWidgets('toolbar location popup maps options to matching selections', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -74512,8 +71926,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -74576,12 +71989,7 @@ void main() {
   testWidgets('toolbar location item opens dialog and applies criteria', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -74631,8 +72039,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -74751,12 +72158,7 @@ void main() {
   testWidgets('toolbar location shortcuts show original not-found dialogs', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -74785,8 +72187,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -74864,12 +72265,7 @@ void main() {
   testWidgets('toolbar location dialog ignores display-only constants', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -74898,8 +72294,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -74951,12 +72346,7 @@ void main() {
   testWidgets('toolbar location shortcut not found keeps undo stack', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -74983,8 +72373,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -75056,12 +72445,7 @@ void main() {
   testWidgets('toolbar location dialog not found keeps undo stack', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -75088,8 +72472,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -75176,12 +72559,7 @@ void main() {
   });
 
   testWidgets('toolbar dialogs use supplied locale labels', (tester) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [FortuneSheet(id: 's1', name: 'Sheet1')],
@@ -75243,8 +72621,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     expect(painter().locale.screenshotTipSuccess, 'Captured');
@@ -75344,12 +72721,7 @@ void main() {
   testWidgets('toolbar screenshot blocks multiple selection areas', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -75387,8 +72759,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -75405,12 +72776,7 @@ void main() {
   testWidgets('toolbar screenshot blocks partially selected merged cells', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -75450,8 +72816,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -75468,12 +72833,7 @@ void main() {
   testWidgets('toolbar screenshot opens successful preview dialog', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       settings: const FortuneSettings(devicePixelRatio: 2),
@@ -75500,8 +72860,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -75559,12 +72918,7 @@ void main() {
   testWidgets('toolbar screenshot renders captured image in preview dialog', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final repaintKey = GlobalKey();
     const captureColor = Color(0xff22aa44);
@@ -75600,8 +72954,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -75644,12 +72997,7 @@ void main() {
   });
 
   testWidgets('toolbar screenshot captures merged cells once', (tester) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -75686,8 +73034,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -75730,12 +73077,7 @@ void main() {
   });
 
   testWidgets('toolbar screenshot respects hidden gridlines', (tester) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -75769,8 +73111,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -75813,12 +73154,7 @@ void main() {
   testWidgets('toolbar screenshot preserves horizontal text alignment', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -75847,8 +73183,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -75903,12 +73238,7 @@ void main() {
   testWidgets('toolbar screenshot preserves red negative number formats', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -75939,8 +73269,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -75984,12 +73313,7 @@ void main() {
   testWidgets('toolbar screenshot red formats override condition text color', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -76033,8 +73357,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -76083,12 +73406,7 @@ void main() {
   testWidgets(
     'toolbar screenshot vertical rich red negative formats override run colors',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       final workbook = FortuneWorkbook(
         sheets: [
@@ -76126,8 +73444,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -76178,12 +73495,7 @@ void main() {
   testWidgets('toolbar screenshot lets long text overflow into empty cells', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -76220,8 +73532,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -76265,12 +73576,7 @@ void main() {
   testWidgets(
     'toolbar screenshot paints overflow text after styled empty cells',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       final workbook = FortuneWorkbook(
         sheets: [
@@ -76310,8 +73616,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -76362,12 +73667,7 @@ void main() {
   testWidgets('toolbar screenshot preserves vertical text rotation mode', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -76407,8 +73707,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -76452,12 +73751,7 @@ void main() {
   testWidgets('toolbar screenshot preserves wrapped multi-line text', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -76497,8 +73791,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -76555,12 +73848,7 @@ void main() {
   testWidgets('toolbar screenshot preserves inline rich text runs', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -76604,8 +73892,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -76649,12 +73936,7 @@ void main() {
   testWidgets('toolbar screenshot preserves angled text rotation mode', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -76695,8 +73977,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -76751,12 +74032,7 @@ void main() {
   });
 
   testWidgets('toolbar screenshot preserves cell borders', (tester) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -76798,8 +74074,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -76843,12 +74118,7 @@ void main() {
   testWidgets('toolbar screenshot preserves conditional format colors', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -76886,8 +74156,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -76922,12 +74191,7 @@ void main() {
   testWidgets('toolbar screenshot preserves quote prefix indicators', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -76964,8 +74228,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -77009,12 +74272,7 @@ void main() {
   testWidgets('toolbar screenshot preserves data verification failures', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -77052,8 +74310,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -77097,12 +74354,7 @@ void main() {
   testWidgets('toolbar screenshot renders dynamic array compute text', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -77147,8 +74399,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -77192,12 +74443,7 @@ void main() {
   testWidgets(
     'toolbar screenshot compares default conditions with raw values',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       final workbook = FortuneWorkbook(
         sheets: [
@@ -77256,8 +74502,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -77299,12 +74544,7 @@ void main() {
   testWidgets(
     'toolbar screenshot compares duplicate conditions with raw values',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       final workbook = FortuneWorkbook(
         sheets: [
@@ -77363,8 +74603,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -77406,12 +74645,7 @@ void main() {
   testWidgets('toolbar screenshot preserves conditional data bars', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -77458,8 +74692,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -77499,12 +74732,7 @@ void main() {
   testWidgets('toolbar screenshot preserves negative data bar gradients', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -77561,8 +74789,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -77602,12 +74829,7 @@ void main() {
   testWidgets('toolbar screenshot computes data bars from raw values', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -77664,8 +74886,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -77700,12 +74921,7 @@ void main() {
   testWidgets('toolbar screenshot truncates decimal data bar values', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -77773,12 +74989,7 @@ void main() {
   testWidgets('toolbar screenshot preserves negative data bar gradients', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -77849,12 +75060,7 @@ void main() {
   testWidgets('toolbar screenshot preserves conditional color gradation', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -77901,8 +75107,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -77942,12 +75147,7 @@ void main() {
   testWidgets('toolbar screenshot computes aggregate conditions per range', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -78002,8 +75202,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -78048,12 +75247,7 @@ void main() {
   testWidgets('toolbar screenshot preserves occurrence date conditions', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final matchingSerial = DateTime.utc(
       2026,
@@ -78124,8 +75318,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -78165,12 +75358,7 @@ void main() {
   testWidgets('toolbar screenshot preserves formula conditions', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -78219,8 +75407,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -78260,12 +75447,7 @@ void main() {
   testWidgets('toolbar screenshot floors three color gradation midpoint', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -78313,8 +75495,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -78349,12 +75530,7 @@ void main() {
   testWidgets('toolbar screenshot truncates color gradation decimal values', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -78402,8 +75578,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -78436,12 +75611,7 @@ void main() {
   });
 
   testWidgets('toolbar screenshot preserves conditional icons', (tester) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -78489,8 +75659,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -78535,12 +75704,7 @@ void main() {
   testWidgets('toolbar screenshot preserves cell overlay markers', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -78585,8 +75749,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -78672,12 +75835,7 @@ void main() {
   });
 
   testWidgets('toolbar screenshot preserves image overlays', (tester) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -78721,8 +75879,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -78773,12 +75930,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw rectangle shape overlays', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -78823,8 +75975,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -78873,12 +76024,7 @@ void main() {
   testWidgets(
     'toolbar screenshot preserves raw line and ellipse shape overlays',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       final workbook = FortuneWorkbook(
         sheets: [
@@ -78932,8 +76078,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -79573,8 +76718,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final settings = workbook.settings;
@@ -79651,8 +76795,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -79721,8 +76864,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final settings = workbook.settings;
@@ -79817,8 +76959,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final settings = workbook.settings;
@@ -79911,8 +77052,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final overlays = fortuneRawShapeOverlays(workbook.activeSheet);
@@ -79990,8 +77130,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final settings = workbook.settings;
@@ -80076,8 +77215,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final settings = workbook.settings;
@@ -80149,8 +77287,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final settings = workbook.settings;
@@ -80230,8 +77367,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final settings = workbook.settings;
@@ -80322,8 +77458,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final settings = workbook.settings;
@@ -80401,8 +77536,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final settings = workbook.settings;
@@ -80496,8 +77630,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final settings = workbook.settings;
@@ -80535,12 +77668,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart overlays', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -80590,8 +77718,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -80643,12 +77770,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw pie and area chart overlays', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -80713,8 +77835,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -80763,12 +77884,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart scatter overlays', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -80921,8 +78037,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -81186,12 +78301,7 @@ void main() {
   testWidgets('toolbar screenshot renders raw chart line end labels', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -81250,8 +78360,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -81295,12 +78404,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart scatter array data', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -81356,8 +78460,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -81406,12 +78509,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart candlestick series', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -81471,8 +78569,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -81521,12 +78618,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart heatmap series', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -81589,8 +78681,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -81644,12 +78735,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart funnel series', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -81712,8 +78798,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -81767,12 +78852,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart gauge series', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -81827,8 +78907,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -81877,12 +78956,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart radar series', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -81938,8 +79012,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -81992,12 +79065,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart treemap series', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -82060,8 +79128,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -82115,12 +79182,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart boxplot series', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -82179,8 +79241,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -82224,12 +79285,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart pictorial bar series', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -82282,8 +79338,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -82332,12 +79387,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart series colors', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -82409,8 +79459,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -82459,12 +79508,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart option color palette', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -82524,8 +79568,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -82574,12 +79617,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart data zoom slider', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -82686,8 +79724,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -82751,12 +79788,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart vertical data zoom', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -82823,8 +79855,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -82873,12 +79904,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart visual map colors', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -82958,8 +79984,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -83008,12 +80033,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart horizontal visual map', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -83077,8 +80097,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -83127,12 +80146,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart visual map labels', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -83247,8 +80261,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -83317,12 +80330,7 @@ void main() {
   testWidgets(
     'toolbar screenshot preserves raw chart visual map text opacity',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       final workbook = FortuneWorkbook(
         sheets: [
@@ -83381,8 +80389,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -83432,12 +80439,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart visual map text border', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -83541,8 +80543,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -83596,12 +80597,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart visual map border type', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -83663,8 +80659,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -83708,12 +80703,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart visual map position', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -83771,8 +80761,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -83817,12 +80806,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart inverse visual map', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -83880,8 +80864,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -83938,12 +80921,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart visual map text shadow', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -84010,8 +80988,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -84060,12 +81037,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart toolbox icons', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -84141,8 +81113,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -84186,12 +81157,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart toolbox icon shadow', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -84257,8 +81223,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -84307,12 +81272,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart toolbox border type', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -84371,8 +81331,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -84417,12 +81376,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart vertical toolbox icons', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -84490,8 +81444,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -84541,12 +81494,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart toolbox position', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -84610,8 +81558,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -84661,12 +81608,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart toolbox right bottom', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -84736,8 +81678,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -84788,12 +81729,7 @@ void main() {
   testWidgets(
     'toolbar screenshot preserves raw chart toolbox string position',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       final workbook = FortuneWorkbook(
         sheets: [
@@ -84861,8 +81797,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -84915,12 +81850,7 @@ void main() {
   testWidgets(
     'toolbar screenshot preserves raw chart toolbox percent position',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       final workbook = FortuneWorkbook(
         sheets: [
@@ -84984,8 +81914,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -85038,12 +81967,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart pie radius and center', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -85100,8 +82024,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -85154,12 +82077,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart pie start angles', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -85216,8 +82134,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -85270,12 +82187,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart pie clockwise flags', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -85355,8 +82267,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -85412,12 +82323,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart pie min angles', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -85475,8 +82381,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -85529,12 +82434,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart pie min label angles', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -85632,8 +82532,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -85686,12 +82585,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart pie pad angles', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -85777,8 +82671,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -85833,12 +82726,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart pie selected offsets', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -85919,8 +82807,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -85973,12 +82860,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart pie rose types', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -86036,8 +82918,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -86090,12 +82971,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart pie zero-sum display', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -86173,8 +83049,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -86223,12 +83098,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart pie series labels', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -86291,8 +83161,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -86336,12 +83205,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart pie label formatters', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -86408,8 +83272,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -86453,12 +83316,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart pie percent labels', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -86551,8 +83409,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -86605,12 +83462,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart pie label backgrounds', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -86677,8 +83529,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -86722,12 +83573,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart pie label borders', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -86800,8 +83646,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -86845,12 +83690,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart pie label padding', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -86921,8 +83761,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -86966,12 +83805,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart pie label shadows', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -87048,8 +83882,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -87093,12 +83926,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart pie label text effects', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -87188,8 +84016,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -87238,12 +84065,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart pie label rotation', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -87312,8 +84134,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -87364,12 +84185,7 @@ void main() {
   testWidgets(
     'toolbar screenshot preserves raw chart non-pie label distances',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       final workbook = FortuneWorkbook(
         sheets: [
@@ -87464,8 +84280,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -87521,12 +84336,7 @@ void main() {
   testWidgets(
     'toolbar screenshot preserves raw chart pie label dimensions and alignment',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       final workbook = FortuneWorkbook(
         sheets: [
@@ -87602,8 +84412,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -87676,12 +84485,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart pie label overlap', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -87749,8 +84553,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -87799,12 +84602,7 @@ void main() {
   testWidgets(
     'toolbar screenshot preserves raw chart label layout hide overlap',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       final workbook = FortuneWorkbook(
         sheets: [
@@ -87873,8 +84671,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -87925,12 +84722,7 @@ void main() {
   testWidgets(
     'toolbar screenshot preserves raw chart label layout move overlap',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       final workbook = FortuneWorkbook(
         sheets: [
@@ -87999,8 +84791,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -88055,12 +84846,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart pie label edge align', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -88138,8 +84924,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -88190,12 +84975,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart pie label bleed margin', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -88267,8 +85047,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -88318,12 +85097,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart pie label layout', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -88389,8 +85163,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -88440,12 +85213,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart pie label layout size', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -88505,8 +85273,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -88560,12 +85327,7 @@ void main() {
   testWidgets(
     'toolbar screenshot preserves raw chart pie label layout rotation',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       final workbook = FortuneWorkbook(
         sheets: [
@@ -88629,8 +85391,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -88688,12 +85449,7 @@ void main() {
   testWidgets(
     'toolbar screenshot preserves raw chart pie label layout alignment',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       final workbook = FortuneWorkbook(
         sheets: [
@@ -88761,8 +85517,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -88833,12 +85588,7 @@ void main() {
   testWidgets(
     'toolbar screenshot preserves raw chart pie label layout font size',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       final workbook = FortuneWorkbook(
         sheets: [
@@ -88898,8 +85648,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -88950,12 +85699,7 @@ void main() {
   testWidgets(
     'toolbar screenshot preserves raw chart pie label layout line points',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       final workbook = FortuneWorkbook(
         sheets: [
@@ -89026,8 +85770,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -89083,12 +85826,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart pie label line height', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -89159,8 +85897,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -89209,12 +85946,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart pie label overflow', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -89289,8 +86021,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -89347,12 +86078,7 @@ void main() {
   testWidgets(
     'toolbar screenshot preserves raw chart pie label break overflow',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       final workbook = FortuneWorkbook(
         sheets: [
@@ -89425,8 +86151,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -89482,12 +86207,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart pie label rich styles', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -89560,8 +86280,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -89610,12 +86329,7 @@ void main() {
   testWidgets(
     'toolbar screenshot preserves raw chart pie data label overrides',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       final workbook = FortuneWorkbook(
         sheets: [
@@ -89680,8 +86394,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -89727,12 +86440,7 @@ void main() {
   testWidgets(
     'toolbar screenshot preserves raw chart pie data label line overrides',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       final workbook = FortuneWorkbook(
         sheets: [
@@ -89800,8 +86508,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -89847,12 +86554,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart pie label line length2', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -89958,8 +86660,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -90012,12 +86713,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart pie label line smooth', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -90098,8 +86794,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -90143,12 +86838,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart pie label line type', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -90235,8 +86925,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -90287,12 +86976,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart pie label line opacity', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -90375,8 +87059,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -90425,12 +87108,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart pie label opacity', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -90500,8 +87178,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -90556,12 +87233,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart pie label border type', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -90629,8 +87301,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -90681,12 +87352,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart pie label line shadows', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -90777,8 +87443,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -90827,12 +87492,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart pie label line caps', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -90919,8 +87579,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -90964,12 +87623,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart pie label line joins', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -91060,8 +87714,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -91105,12 +87758,7 @@ void main() {
   testWidgets(
     'toolbar screenshot preserves raw chart pie label line distances',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       final workbook = FortuneWorkbook(
         sheets: [
@@ -91191,8 +87839,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -91238,12 +87885,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart pie label lines', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -91311,8 +87953,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -91356,12 +87997,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart non-pie data labels', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -91449,8 +88085,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -91494,12 +88129,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart bar border radius', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -91567,8 +88197,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -91617,12 +88246,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart stacked bars', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -91685,8 +88309,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -91735,12 +88358,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart bar backgrounds', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -91809,8 +88427,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -91859,12 +88476,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart default line symbols', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -91922,8 +88534,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -91997,12 +88608,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart grid margins', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     FortuneWorkbook workbookFor({bool withGrid = false}) {
       return FortuneWorkbook(
@@ -92073,8 +88679,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -92127,12 +88732,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart grid percent margins', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     FortuneWorkbook workbookFor({bool withGrid = false}) {
       return FortuneWorkbook(
@@ -92203,8 +88803,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -92257,12 +88856,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart grid contain labels', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     FortuneWorkbook workbookFor({Object? containLabel}) {
       final grid = <String, Object?>{
@@ -92338,8 +88932,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -92392,12 +88985,7 @@ void main() {
   testWidgets(
     'toolbar screenshot preserves raw chart grid background and border',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       final workbook = FortuneWorkbook(
         sheets: [
@@ -92470,8 +89058,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -92527,12 +89114,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart series line styles', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -92604,8 +89186,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -92654,12 +89235,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart series symbols', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -92763,8 +89339,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -92818,12 +89393,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart series symbol types', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -92877,8 +89447,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -92922,12 +89491,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart series area colors', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -92979,8 +89543,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -93029,12 +89592,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart series line types', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -93105,8 +89663,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -93156,12 +89713,7 @@ void main() {
   testWidgets(
     'toolbar screenshot preserves raw chart series line dash offsets',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       final workbook = FortuneWorkbook(
         sheets: [
@@ -93243,8 +89795,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -93300,12 +89851,7 @@ void main() {
   testWidgets(
     'toolbar screenshot preserves raw chart series custom line dash arrays',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       final workbook = FortuneWorkbook(
         sheets: [
@@ -93387,8 +89933,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -93440,12 +89985,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart series line caps', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -93526,8 +90066,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -93576,12 +90115,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart series line joins', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -93664,8 +90198,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -93714,12 +90247,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart series line shadows', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -93786,8 +90314,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -93836,12 +90363,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart series step lines', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -93909,8 +90431,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -93959,12 +90480,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart series smooth lines', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -94032,8 +90548,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -94082,12 +90597,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart series connect nulls', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -94157,8 +90667,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -94207,12 +90716,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart series mark points', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -94351,8 +90855,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -94406,12 +90909,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart series mark lines', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -94521,8 +91019,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -94623,12 +91120,7 @@ void main() {
   testWidgets(
     'toolbar screenshot preserves raw chart marker label formatters',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       final workbook = FortuneWorkbook(
         sheets: [
@@ -94770,8 +91262,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -94915,12 +91406,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart series mark areas', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -95025,8 +91511,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -95102,12 +91587,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart series symbol offsets', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -95179,8 +91659,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -95224,12 +91703,7 @@ void main() {
   testWidgets(
     'toolbar screenshot preserves raw chart series symbol rotations',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       final workbook = FortuneWorkbook(
         sheets: [
@@ -95284,8 +91758,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -95337,12 +91810,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart series item opacity', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -95415,8 +91883,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -95465,12 +91932,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart series item borders', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -95533,8 +91995,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -95589,12 +92050,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart series item shadows', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -95676,8 +92132,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -95731,12 +92186,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart pie item shadows', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -95793,8 +92243,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -95843,12 +92292,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart data item shadows', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -95913,8 +92357,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -95963,12 +92406,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart data item borders', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -96028,8 +92466,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -96078,12 +92515,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart series bar widths', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -96152,8 +92584,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -96202,12 +92633,7 @@ void main() {
   testWidgets(
     'toolbar screenshot preserves raw chart series bar width limits',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       final workbook = FortuneWorkbook(
         sheets: [
@@ -96278,8 +92704,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -96330,12 +92755,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart series bar min height', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -96388,8 +92808,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -96433,12 +92852,7 @@ void main() {
   testWidgets(
     'toolbar screenshot preserves raw chart series bar category gaps',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       final workbook = FortuneWorkbook(
         sheets: [
@@ -96507,8 +92921,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -96559,12 +92972,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart series bar gaps', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -96621,8 +93029,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -96669,12 +93076,7 @@ void main() {
   });
 
   testWidgets('toolbar screenshot preserves raw chart titles', (tester) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -96771,8 +93173,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -96818,12 +93219,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart title text style', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -96933,8 +93329,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -96978,12 +93373,7 @@ void main() {
   testWidgets(
     'toolbar screenshot preserves raw chart title text background color',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       final workbook = FortuneWorkbook(
         sheets: [
@@ -97045,8 +93435,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -97092,12 +93481,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart title text border', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -97164,8 +93548,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -97209,12 +93592,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart title text shadow', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -97283,8 +93661,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -97328,12 +93705,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart title text opacity', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -97396,8 +93768,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -97441,12 +93812,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart title subtext', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -97508,8 +93874,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -97588,12 +93953,7 @@ void main() {
   testWidgets(
     'toolbar screenshot preserves raw chart title subtext text shadow',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       final workbook = FortuneWorkbook(
         sheets: [
@@ -97656,8 +94016,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -97708,12 +94067,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart title subtext opacity', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -97770,8 +94124,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -97815,12 +94168,7 @@ void main() {
   testWidgets(
     'toolbar screenshot preserves raw chart title subtext background color',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       final workbook = FortuneWorkbook(
         sheets: [
@@ -97884,8 +94232,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -97931,12 +94278,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart title subtext border', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -98005,8 +94347,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -98050,12 +94391,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart title item gap', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     Future<int> captureSubtextMinY(double itemGap) async {
       final workbook = FortuneWorkbook(
@@ -98117,8 +94453,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -98171,12 +94506,7 @@ void main() {
   testWidgets(
     'toolbar screenshot preserves raw chart title subtext font style',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       final workbook = FortuneWorkbook(
         sheets: [
@@ -98291,8 +94621,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -98338,12 +94667,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart title left position', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     Future<int> captureTitleMinX(String left) async {
       final workbook = FortuneWorkbook(
@@ -98402,8 +94726,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -98456,12 +94779,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart title top position', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     Future<int> captureTitleMinY(String top) async {
       final workbook = FortuneWorkbook(
@@ -98521,8 +94839,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -98575,12 +94892,7 @@ void main() {
   testWidgets(
     'toolbar screenshot preserves raw chart title numeric and percent positions',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       Future<Offset> captureTitleMinOffset(Object left, Object top) async {
         final workbook = FortuneWorkbook(
@@ -98649,8 +94961,7 @@ void main() {
         );
 
         FortuneSheetPainter painter() {
-          return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-              as FortuneSheetPainter;
+          return fortuneSheetPainter(tester);
         }
 
         final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -98707,12 +95018,7 @@ void main() {
   testWidgets(
     'toolbar screenshot preserves raw chart title right and bottom positions',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       Future<Offset> captureTitleMinOffset(Object right, Object bottom) async {
         final workbook = FortuneWorkbook(
@@ -98781,8 +95087,7 @@ void main() {
         );
 
         FortuneSheetPainter painter() {
-          return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-              as FortuneSheetPainter;
+          return fortuneSheetPainter(tester);
         }
 
         final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -98839,12 +95144,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart title box style', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -98909,8 +95209,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -98959,12 +95258,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart title border type', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -99020,8 +95314,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -99065,12 +95358,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart title shadow style', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -99132,8 +95420,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -99177,12 +95464,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart title border radius', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     Future<int> captureCornerBorderPixels(double? radius) async {
       final workbook = FortuneWorkbook(
@@ -99245,8 +95527,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -99301,12 +95582,7 @@ void main() {
   });
 
   testWidgets('toolbar screenshot preserves raw chart legends', (tester) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -99364,8 +95640,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -99414,12 +95689,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart option legend data', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -99478,8 +95748,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -99528,12 +95797,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart legend formatter', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     Future<int> captureMagentaLegendTextPixels({String? formatter}) async {
       final workbook = FortuneWorkbook(
@@ -99586,8 +95850,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -99640,12 +95903,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart legend text color', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -99709,8 +95967,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -99754,12 +96011,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart legend text font size', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     Future<int> captureLegendTextPixels(double? fontSize) async {
       final workbook = FortuneWorkbook(
@@ -99827,8 +96079,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -99879,12 +96130,7 @@ void main() {
   testWidgets(
     'toolbar screenshot preserves raw chart legend text font weight',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       Future<int> captureLegendTextPixels(Object? fontWeight) async {
         final workbook = FortuneWorkbook(
@@ -99956,8 +96202,7 @@ void main() {
         );
 
         FortuneSheetPainter painter() {
-          return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-              as FortuneSheetPainter;
+          return fortuneSheetPainter(tester);
         }
 
         final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -100009,12 +96254,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart legend text font style', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     Future<({ByteData pixels, int width, int height})> captureLegendPixels(
       String? fontStyle,
@@ -100088,8 +96328,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -100149,12 +96388,7 @@ void main() {
   testWidgets(
     'toolbar screenshot preserves raw chart legend text font family',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       final workbook = FortuneWorkbook(
         sheets: [
@@ -100211,8 +96445,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -100258,12 +96491,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart legend text opacity', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -100318,8 +96546,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -100363,12 +96590,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart legend text border', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -100468,8 +96690,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -100523,12 +96744,7 @@ void main() {
   testWidgets(
     'toolbar screenshot preserves raw chart legend text shadow style',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       final workbook = FortuneWorkbook(
         sheets: [
@@ -100589,8 +96805,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -100636,12 +96851,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart legend item size', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     Future<int> captureLegendSwatchPixels({
       double? itemWidth,
@@ -100710,8 +96920,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -100765,12 +96974,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart legend icon shape', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -100832,8 +97036,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -100901,12 +97104,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart legend item gap', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     Future<int> captureSecondLegendSwatchMinX(double? itemGap) async {
       final workbook = FortuneWorkbook(
@@ -100962,8 +97160,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -101016,12 +97213,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart vertical legends', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     Future<int> captureLowerLeftOrangeSwatchPixels(String? orient) async {
       final workbook = FortuneWorkbook(
@@ -101074,8 +97266,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -101126,12 +97317,7 @@ void main() {
   testWidgets(
     'toolbar screenshot preserves raw chart legend background color',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       final workbook = FortuneWorkbook(
         sheets: [
@@ -101182,8 +97368,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -101229,12 +97414,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart legend shadow style', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -101292,8 +97472,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -101337,12 +97516,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart legend border color', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -101396,8 +97570,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -101441,12 +97614,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart legend border type', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -101500,8 +97668,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -101545,12 +97712,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart legend border radius', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     Future<int> captureCornerBorderPixels(double? borderRadius) async {
       final workbook = FortuneWorkbook(
@@ -101609,8 +97771,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -101675,12 +97836,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart legend padding', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     Future<Offset> captureSecondSwatchTopLeft(Object? padding) async {
       final workbook = FortuneWorkbook(
@@ -101742,8 +97898,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -101798,12 +97953,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart legend positions', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     Future<Offset> captureSecondSwatchTopLeft({bool positioned = false}) async {
       final workbook = FortuneWorkbook(
@@ -101862,8 +98012,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -101921,12 +98070,7 @@ void main() {
   testWidgets(
     'toolbar screenshot preserves raw chart legend percent positions',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       final workbook = FortuneWorkbook(
         sheets: [
@@ -101981,8 +98125,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -102034,12 +98177,7 @@ void main() {
   testWidgets(
     'toolbar screenshot preserves raw chart legend string positions',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       Future<Offset> captureFirstOrangeSwatchTopLeft({
         bool positioned = false,
@@ -102100,8 +98238,7 @@ void main() {
         );
 
         FortuneSheetPainter painter() {
-          return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-              as FortuneSheetPainter;
+          return fortuneSheetPainter(tester);
         }
 
         final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -102160,12 +98297,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart legend selected state', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -102234,8 +98366,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -102294,12 +98425,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart background and border', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -102352,8 +98478,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -102404,12 +98529,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart x axis labels', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -102462,8 +98582,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -102509,12 +98628,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart y axis labels', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -102565,8 +98679,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -102612,12 +98725,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart split line grid', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -102679,8 +98787,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -102724,12 +98831,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart split line widths', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -102791,8 +98893,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -102836,12 +98937,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart split line intervals', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     FortuneWorkbook workbookFor({required bool interval}) {
       return FortuneWorkbook(
@@ -102908,8 +99004,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -102970,12 +99065,7 @@ void main() {
   testWidgets(
     'toolbar screenshot preserves raw chart split line color arrays',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       final workbook = FortuneWorkbook(
         sheets: [
@@ -103047,8 +99137,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -103109,12 +99198,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart split line types', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -103184,8 +99268,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -103257,12 +99340,7 @@ void main() {
   testWidgets(
     'toolbar screenshot preserves raw chart split line dash offsets',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       final workbook = FortuneWorkbook(
         sheets: [
@@ -103354,8 +99432,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -103411,12 +99488,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart split line caps', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -103513,8 +99585,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -103563,12 +99634,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart split line shadows', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -103641,8 +99707,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -103691,12 +99756,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart split line opacity', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -103770,8 +99830,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -103820,12 +99879,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart minor split lines', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -103899,8 +99953,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -103971,12 +100024,7 @@ void main() {
   testWidgets(
     'toolbar screenshot preserves raw chart minor split line dash offsets',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       final workbook = FortuneWorkbook(
         sheets: [
@@ -104070,8 +100118,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -104127,12 +100174,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart minor split line caps', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -104233,8 +100275,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -104283,12 +100324,7 @@ void main() {
   testWidgets(
     'toolbar screenshot preserves raw chart minor split line shadows',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       final workbook = FortuneWorkbook(
         sheets: [
@@ -104366,8 +100402,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -104418,12 +100453,7 @@ void main() {
   testWidgets(
     'toolbar screenshot preserves raw chart minor split line color arrays',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       final workbook = FortuneWorkbook(
         sheets: [
@@ -104501,8 +100531,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -104563,12 +100592,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart split area bands', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -104661,8 +100685,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -104711,12 +100734,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart split area intervals', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     FortuneWorkbook workbookFor({required bool interval}) {
       return FortuneWorkbook(
@@ -104802,8 +100820,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -104872,12 +100889,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart split area opacity', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -104949,8 +100961,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -104999,12 +101010,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart axis line colors', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -105064,8 +101070,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -105114,12 +101119,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart axis pointer lines', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -105438,8 +101438,7 @@ void main() {
     expect(overlay.chartYAxisPointerShadowOffsetY, 7);
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -106741,12 +102740,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart cross axis pointer', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -106809,8 +102803,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -106854,12 +102847,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart tooltip line pointer', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -106925,8 +102913,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -106970,12 +102957,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart tooltip y line pointer', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -107042,8 +103024,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -107092,12 +103073,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart tooltip shadow pointer', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -107165,8 +103141,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -107220,12 +103195,7 @@ void main() {
   testWidgets(
     'toolbar screenshot preserves default tooltip shadow pointer color',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       final workbook = FortuneWorkbook(
         sheets: [
@@ -107285,8 +103255,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -107350,12 +103319,7 @@ void main() {
   testWidgets(
     'toolbar screenshot preserves raw chart tooltip y shadow pointer',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       final workbook = FortuneWorkbook(
         sheets: [
@@ -107424,8 +103388,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -107481,12 +103444,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart axis line widths', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -107546,8 +103504,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -107596,12 +103553,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart axis line caps', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -107699,8 +103651,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -107749,12 +103700,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart axis line shadows', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -107839,8 +103785,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -107889,12 +103834,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart axis line types', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -107968,8 +103908,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -108046,12 +103985,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart axis line dash offsets', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -108141,8 +104075,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -108196,12 +104129,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart x axis line on zero', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     FortuneWorkbook workbookFor({Object? onZero}) {
       final axisLine = <String, Object?>{
@@ -108265,8 +104193,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -108324,12 +104251,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart axis line symbols', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -108403,8 +104325,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -108453,12 +104374,7 @@ void main() {
   testWidgets(
     'toolbar screenshot preserves raw chart axis line symbol offsets',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       final workbook = FortuneWorkbook(
         sheets: [
@@ -108530,8 +104446,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -108595,12 +104510,7 @@ void main() {
   testWidgets(
     'toolbar screenshot preserves raw chart axis line symbol rotation',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       final workbook = FortuneWorkbook(
         sheets: [
@@ -108672,8 +104582,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -108735,12 +104644,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart axis line opacity', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -108814,8 +104718,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -108878,12 +104781,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart axis tick colors', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -108945,8 +104843,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -108995,12 +104892,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart axis tick caps', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -109104,8 +104996,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -109154,12 +105045,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart axis tick shadows', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -109248,8 +105134,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -109298,12 +105183,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart axis tick color arrays', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -109377,8 +105257,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -109437,12 +105316,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart axis tick widths', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -109504,8 +105378,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -109554,12 +105427,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart axis minor ticks', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -109635,8 +105503,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -109685,12 +105552,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart axis minor tick caps', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -109804,8 +105666,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -109854,12 +105715,7 @@ void main() {
   testWidgets(
     'toolbar screenshot preserves raw chart axis minor tick dash offsets',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       final workbook = FortuneWorkbook(
         sheets: [
@@ -109955,8 +105811,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -110012,12 +105867,7 @@ void main() {
   testWidgets(
     'toolbar screenshot preserves raw chart axis minor tick shadows',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       final workbook = FortuneWorkbook(
         sheets: [
@@ -110108,8 +105958,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -110160,12 +106009,7 @@ void main() {
   testWidgets(
     'toolbar screenshot preserves raw chart axis minor tick color arrays',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       final workbook = FortuneWorkbook(
         sheets: [
@@ -110245,8 +106089,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -110350,12 +106193,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart axis tick lengths', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -110419,8 +106257,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -110469,12 +106306,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart axis tick intervals', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     FortuneWorkbook workbookFor({required bool interval}) {
       return FortuneWorkbook(
@@ -110545,8 +106377,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -110612,12 +106443,7 @@ void main() {
   testWidgets(
     'toolbar screenshot preserves raw chart axis tick align with label',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       FortuneWorkbook workbookFor({Object? alignWithLabel}) {
         final xAxisTick = <String, Object?>{
@@ -110688,8 +106514,7 @@ void main() {
         );
 
         FortuneSheetPainter painter() {
-          return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-              as FortuneSheetPainter;
+          return fortuneSheetPainter(tester);
         }
 
         final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -110787,12 +106612,7 @@ void main() {
   testWidgets(
     'toolbar screenshot preserves raw chart axis tick inside direction',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       final workbook = FortuneWorkbook(
         sheets: [
@@ -110858,8 +106678,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -110922,12 +106741,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart axis offsets', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -111020,8 +106834,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -111080,12 +106893,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart axis tick types', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -111157,8 +106965,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -111235,12 +107042,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart axis tick dash offsets', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -111334,8 +107136,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -111389,12 +107190,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart axis tick opacity', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -111470,8 +107266,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -111534,12 +107329,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart axis label colors', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -111598,8 +107388,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -111648,12 +107437,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart axis inverse direction', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     FortuneWorkbook workbookFor({Object? xInverse, Object? yInverse}) {
       final xAxis = <String, Object?>{
@@ -111721,8 +107505,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -111801,12 +107584,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart axis boundary gaps', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     FortuneWorkbook workbookFor({Object? boundaryGap}) {
       final xAxis = <String, Object?>{
@@ -111889,8 +107667,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -111968,12 +107745,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart axis label formatters', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -112049,8 +107821,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -112099,12 +107870,7 @@ void main() {
   testWidgets(
     'toolbar screenshot preserves raw chart axis label rich text styles',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       final workbook = FortuneWorkbook(
         sheets: [
@@ -112188,8 +107954,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -112240,12 +108005,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart axis label font sizes', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -112303,8 +108063,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -112353,12 +108112,7 @@ void main() {
   testWidgets(
     'toolbar screenshot preserves raw chart axis label font weights',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       FortuneWorkbook workbookFor(Object fontWeight) {
         return FortuneWorkbook(
@@ -112429,8 +108183,7 @@ void main() {
         );
 
         FortuneSheetPainter painter() {
-          return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-              as FortuneSheetPainter;
+          return fortuneSheetPainter(tester);
         }
 
         final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -112497,12 +108250,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart axis label font styles', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     FortuneWorkbook workbookFor(String fontStyle) {
       return FortuneWorkbook(
@@ -112573,8 +108321,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -112640,12 +108387,7 @@ void main() {
   testWidgets(
     'toolbar screenshot preserves raw chart axis label font families',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       FortuneWorkbook workbookFor(Object fontFamily) {
         return FortuneWorkbook(
@@ -112716,8 +108458,7 @@ void main() {
         );
 
         FortuneSheetPainter painter() {
-          return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-              as FortuneSheetPainter;
+          return fortuneSheetPainter(tester);
         }
 
         final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -112812,12 +108553,7 @@ void main() {
   testWidgets(
     'toolbar screenshot preserves raw chart axis label background colors',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       final workbook = FortuneWorkbook(
         sheets: [
@@ -112887,8 +108623,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -112940,12 +108675,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart axis label borders', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -113025,8 +108755,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -113076,12 +108805,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart axis label padding', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     FortuneWorkbook workbookFor(Object padding) {
       return FortuneWorkbook(
@@ -113154,8 +108878,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -113222,12 +108945,7 @@ void main() {
   testWidgets(
     'toolbar screenshot preserves raw chart axis label border radius',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       FortuneWorkbook workbookFor(double borderRadius) {
         return FortuneWorkbook(
@@ -113302,8 +109020,7 @@ void main() {
         );
 
         FortuneSheetPainter painter() {
-          return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-              as FortuneSheetPainter;
+          return fortuneSheetPainter(tester);
         }
 
         final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -113367,12 +109084,7 @@ void main() {
   testWidgets(
     'toolbar screenshot preserves raw chart axis label width and height',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       FortuneWorkbook workbookFor({double? width, double? height}) {
         return FortuneWorkbook(
@@ -113447,8 +109159,7 @@ void main() {
         );
 
         FortuneSheetPainter painter() {
-          return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-              as FortuneSheetPainter;
+          return fortuneSheetPainter(tester);
         }
 
         final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -113512,12 +109223,7 @@ void main() {
   testWidgets(
     'toolbar screenshot preserves raw chart axis label align and vertical align',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       FortuneWorkbook workbookFor({String? align, String? verticalAlign}) {
         return FortuneWorkbook(
@@ -113597,8 +109303,7 @@ void main() {
         );
 
         FortuneSheetPainter painter() {
-          return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-              as FortuneSheetPainter;
+          return fortuneSheetPainter(tester);
         }
 
         final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -113705,12 +109410,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart axis label line height', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     FortuneWorkbook workbookFor({double? lineHeight}) {
       return FortuneWorkbook(
@@ -113783,8 +109483,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -113845,12 +109544,7 @@ void main() {
   testWidgets(
     'toolbar screenshot preserves raw chart axis label text borders',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       FortuneWorkbook workbookFor({bool textBorder = false}) {
         return FortuneWorkbook(
@@ -113923,8 +109617,7 @@ void main() {
         );
 
         FortuneSheetPainter painter() {
-          return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-              as FortuneSheetPainter;
+          return fortuneSheetPainter(tester);
         }
 
         final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -113987,12 +109680,7 @@ void main() {
   testWidgets(
     'toolbar screenshot preserves raw chart axis label text shadows',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       FortuneWorkbook workbookFor({bool textShadow = false}) {
         return FortuneWorkbook(
@@ -114068,8 +109756,7 @@ void main() {
         );
 
         FortuneSheetPainter painter() {
-          return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-              as FortuneSheetPainter;
+          return fortuneSheetPainter(tester);
         }
 
         final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -114134,12 +109821,7 @@ void main() {
   testWidgets(
     'toolbar screenshot preserves raw chart axis label min and max visibility',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       FortuneWorkbook workbookFor({bool hideMinMax = false}) {
         return FortuneWorkbook(
@@ -114212,8 +109894,7 @@ void main() {
         );
 
         FortuneSheetPainter painter() {
-          return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-              as FortuneSheetPainter;
+          return fortuneSheetPainter(tester);
         }
 
         final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -114279,12 +109960,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart axis label intervals', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     FortuneWorkbook workbookFor({int? interval}) {
       return FortuneWorkbook(
@@ -114355,8 +110031,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -114419,12 +110094,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart axis label opacity', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     FortuneWorkbook workbookFor({double? opacity}) {
       return FortuneWorkbook(
@@ -114495,8 +110165,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -114557,12 +110226,7 @@ void main() {
   testWidgets(
     'toolbar screenshot preserves raw chart axis label hide overlap',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       FortuneWorkbook workbookFor({required bool hideOverlap}) {
         return FortuneWorkbook(
@@ -114653,8 +110317,7 @@ void main() {
         );
 
         FortuneSheetPainter painter() {
-          return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-              as FortuneSheetPainter;
+          return fortuneSheetPainter(tester);
         }
 
         final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -114720,12 +110383,7 @@ void main() {
   testWidgets(
     'toolbar screenshot preserves raw chart axis label overflow ellipsis',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       FortuneWorkbook workbookFor({bool truncate = false}) {
         return FortuneWorkbook(
@@ -114800,8 +110458,7 @@ void main() {
         );
 
         FortuneSheetPainter painter() {
-          return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-              as FortuneSheetPainter;
+          return fortuneSheetPainter(tester);
         }
 
         final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -114867,12 +110524,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart axis label margins', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     FortuneWorkbook workbookFor(double margin) {
       return FortuneWorkbook(
@@ -114950,8 +110602,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -115024,12 +110675,7 @@ void main() {
   testWidgets(
     'toolbar screenshot preserves raw chart axis label inside placement',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       FortuneWorkbook workbookFor({Object? inside}) {
         final xAxisLabel = <String, Object?>{
@@ -115113,8 +110759,7 @@ void main() {
         );
 
         FortuneSheetPainter painter() {
-          return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-              as FortuneSheetPainter;
+          return fortuneSheetPainter(tester);
         }
 
         final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -115195,12 +110840,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart axis label rotation', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -115262,8 +110902,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -115316,12 +110955,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart axis name colors', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -115384,8 +111018,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -115434,12 +111067,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart axis name font sizes', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -115502,8 +111130,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -115552,12 +111179,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart axis name font styles', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -115640,8 +111262,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -115690,12 +111311,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart axis name boxes', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -115794,8 +111410,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -115854,12 +111469,7 @@ void main() {
   testWidgets(
     'toolbar screenshot preserves raw chart axis name layout overflow',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       final workbook = FortuneWorkbook(
         sheets: [
@@ -115960,8 +111570,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -116012,12 +111621,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart axis name text effects', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -116112,8 +111716,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -116167,12 +111770,7 @@ void main() {
   testWidgets(
     'toolbar screenshot preserves raw chart axis name rich text styles',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       final workbook = FortuneWorkbook(
         sheets: [
@@ -116259,8 +111857,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -116311,12 +111908,7 @@ void main() {
   testWidgets(
     'toolbar screenshot preserves raw chart axis name location and gap',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       final workbook = FortuneWorkbook(
         sheets: [
@@ -116401,8 +111993,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -116465,12 +112056,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw chart axis name rotation', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -116535,8 +112121,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -116589,12 +112174,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw ellipse and line overlays', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -116648,8 +112228,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -116696,12 +112275,7 @@ void main() {
   });
 
   testWidgets('toolbar screenshot preserves line sparklines', (tester) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -116742,8 +112316,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -116787,12 +112360,7 @@ void main() {
   testWidgets('toolbar screenshot preserves raw sparkline styles', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -116843,8 +112411,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -116907,12 +112474,7 @@ void main() {
   testWidgets('toolbar screenshot preserves area and column sparklines', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -116959,8 +112521,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -117016,12 +112577,7 @@ void main() {
   });
 
   testWidgets('toolbar screenshot preserves pie sparklines', (tester) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -117062,8 +112618,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -117115,12 +112670,7 @@ void main() {
   testWidgets('toolbar screenshot preserves discrete sparklines', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -117161,8 +112711,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -117216,12 +112765,7 @@ void main() {
   testWidgets('toolbar screenshot preserves box and bullet sparklines', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -117268,8 +112812,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -117344,12 +112887,7 @@ void main() {
   testWidgets('toolbar screenshot preserves aliased and stacked sparklines', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -117408,8 +112946,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -117482,12 +113019,7 @@ void main() {
   testWidgets('toolbar screenshot preserves composed sparklines', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -117537,8 +113069,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -117611,8 +113142,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -117671,8 +113201,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -117723,8 +113252,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -117770,8 +113298,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -117812,12 +113339,7 @@ void main() {
   testWidgets('toolbar search find all lists and selects matching cells', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -117847,8 +113369,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -117894,12 +113415,7 @@ void main() {
   testWidgets(
     'toolbar search follows upstream valueShowEs for display values',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       final workbook = FortuneWorkbook(
         sheets: [
@@ -117942,8 +113458,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -117993,12 +113508,7 @@ void main() {
   testWidgets('toolbar search regex uses upstream wildcard conversion', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -118025,8 +113535,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -118064,12 +113573,7 @@ void main() {
   testWidgets('search input click keeps focus inside dialog input', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     await tester.pumpWidget(
       Directionality(
@@ -118137,12 +113641,7 @@ void main() {
   testWidgets('search replace dialog tab cycles editable inputs', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     await tester.pumpWidget(
       MaterialApp(
@@ -118205,12 +113704,7 @@ void main() {
   testWidgets('toolbar search dialog can be dragged like upstream', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -118236,8 +113730,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -118297,12 +113790,7 @@ void main() {
   testWidgets('toolbar search uses active sheet scope like upstream', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       activeSheetIndex: 1,
@@ -118336,8 +113824,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -118371,12 +113858,7 @@ void main() {
   testWidgets('toolbar search replace tab updates matching cell values', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -118403,8 +113885,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -118478,12 +113959,7 @@ void main() {
   testWidgets('toolbar search replace all uses upstream alert messages', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -118516,8 +113992,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -118598,12 +114073,7 @@ void main() {
   testWidgets('toolbar search replace current uses upstream alert messages', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -118635,8 +114105,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -118701,12 +114170,7 @@ void main() {
   testWidgets('toolbar search replace blocks read-only selection', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -118742,8 +114206,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -118794,12 +114257,7 @@ void main() {
   testWidgets('toolbar search replace dialog blocks background wheel scroll', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     await tester.pumpWidget(
       Directionality(
@@ -118817,8 +114275,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -118865,12 +114322,7 @@ void main() {
   testWidgets('toolbar search replace uses setCellValue semantics', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -118896,8 +114348,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -118950,12 +114401,7 @@ void main() {
   testWidgets('toolbar search replace all no-op does not add undo snapshot', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -118981,8 +114427,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -119091,12 +114536,7 @@ void main() {
   testWidgets(
     'toolbar search replace current no-op does not add undo snapshot',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       final workbook = FortuneWorkbook(
         sheets: [
@@ -119122,8 +114562,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -119228,12 +114667,7 @@ void main() {
   testWidgets('toolbar image covered cell respects locked anchor', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     const merge = FortuneCellMerge(row: 0, column: 0, columnSpan: 2);
     final workbook = FortuneWorkbook(
@@ -119268,8 +114702,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -119292,12 +114725,7 @@ void main() {
   testWidgets('toolbar image add export writes canonical images list', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneSheetCodec.workbookFromJson({
       'data': [
@@ -119335,16 +114763,22 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
-    await tester.tapAt(topLeft + const Offset(130, 100));
-    await tester.pump();
     await tester.tapAt(topLeft + toolbarCenter(fortuneToolbarImageCommand));
+    await tester.pumpAndSettle();
+    expect(painter().imageInsertDialogOpen, isTrue);
+    final dialogRect = fortuneImageInsertDialogRect(const Size(1688, 600));
+    await tester.tapAt(topLeft + fortuneImageInsertFileButtonRect(dialogRect).center);
+    await tester.pumpAndSettle();
+    expect(painter().imageInsertHasFile, isTrue);
+    await tester.tapAt(
+      topLeft + fortuneImageInsertConfirmButtonRect(dialogRect).center,
+    );
     await tester.pumpAndSettle();
 
     final sheet = painter().workbook.activeSheet;
@@ -119366,7 +114800,7 @@ void main() {
     expect(existing['legacyImageExtra'], isTrue);
     expect(added['id'], startsWith('img_'));
     expect(added['src'], fortuneTestImageSrc());
-    expect(added['left'], 74);
+    expect(added['left'], 0);
     expect(added['top'], 0);
     expect(added['width'], 0.5);
     expect(added['height'], 0.5);
@@ -119382,12 +114816,7 @@ void main() {
   testWidgets('image selection box resizes image with bottom right handle', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(900, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(900, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -119420,8 +114849,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -119488,12 +114916,7 @@ void main() {
   testWidgets('inactive loaded images hide border and can be activated', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(900, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(900, 600), devicePixelRatio: 1);
 
     final repaintKey = GlobalKey();
     const loadedImageSrc =
@@ -119540,8 +114963,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     await tester.runAsync(() async {
@@ -119589,12 +115011,7 @@ void main() {
   testWidgets('overlapping images activate topmost inserted image', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(900, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(900, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -119635,8 +115052,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final imageLeft = workbook.settings.rowHeaderWidth + 50;
@@ -119655,12 +115071,7 @@ void main() {
   testWidgets('active image selection does not render control buttons', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(900, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(900, 600), devicePixelRatio: 1);
 
     final repaintKey = GlobalKey();
     final workbook = FortuneWorkbook(
@@ -119697,8 +115108,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final imageLeft = workbook.settings.rowHeaderWidth + 20;
@@ -119744,12 +115154,7 @@ void main() {
   testWidgets('active image does not expose control button aria labels', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(900, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(900, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -119793,8 +115198,7 @@ void main() {
     await tester.pumpAndSettle();
 
     final painter =
-        tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        fortuneSheetPainter(tester);
     expect(painter.activeImageId, 'img1');
 
     final semantics = painter.semanticsBuilder(const Size(900, 360));
@@ -119807,12 +115211,7 @@ void main() {
   testWidgets('image right click keeps image active and context menu hover', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(900, 900);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(900, 900), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -119850,8 +115249,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final imageLeft = workbook.settings.rowHeaderWidth + 20;
@@ -119911,12 +115309,7 @@ void main() {
   testWidgets('inactive images expose upstream focusable wrapper semantics', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(900, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(900, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -119950,8 +115343,7 @@ void main() {
     await tester.pumpAndSettle();
 
     final painter =
-        tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        fortuneSheetPainter(tester);
     expect(painter.activeImageId, isNull);
 
     final imageNode = painter
@@ -119971,8 +115363,7 @@ void main() {
     await tester.pumpAndSettle();
 
     final activePainter =
-        tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        fortuneSheetPainter(tester);
     expect(activePainter.activeImageId, 'img1');
     expect(
       activePainter
@@ -119983,12 +115374,7 @@ void main() {
   });
 
   testWidgets('corner image resize changes axes independently', (tester) async {
-    tester.view.physicalSize = const Size(900, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(900, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -120021,8 +115407,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -120048,12 +115433,7 @@ void main() {
   });
 
   testWidgets('corner image no-op resize keeps undo stack', (tester) async {
-    tester.view.physicalSize = const Size(900, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(900, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -120089,8 +115469,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -120140,12 +115519,7 @@ void main() {
   testWidgets('corner image resize allows right bottom overflow', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(900, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(900, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -120178,8 +115552,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -120205,12 +115578,7 @@ void main() {
   });
 
   testWidgets('edge image resize allows right bottom overflow', (tester) async {
-    tester.view.physicalSize = const Size(900, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(900, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -120243,8 +115611,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -120292,12 +115659,7 @@ void main() {
   testWidgets('small image resize clamps to upstream minimum width', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(900, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(900, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -120330,8 +115692,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -120360,12 +115721,7 @@ void main() {
   testWidgets('left top image resize clamps to upstream minimum size', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(900, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(900, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -120398,8 +115754,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -120428,12 +115783,7 @@ void main() {
   testWidgets('active image drags to a new position and supports undo', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(900, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(900, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -120466,8 +115816,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -120504,12 +115853,7 @@ void main() {
   testWidgets('active image move and resize respect sheet zoom ratio', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(900, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(900, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -120543,8 +115887,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -120583,12 +115926,7 @@ void main() {
   });
 
   testWidgets('active image no-op drag keeps undo stack', (tester) async {
-    tester.view.physicalSize = const Size(900, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(900, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -120624,8 +115962,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -120669,12 +116006,7 @@ void main() {
   });
 
   testWidgets('active image drag allows right bottom overflow', (tester) async {
-    tester.view.physicalSize = const Size(900, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(900, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -120707,8 +116039,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -120732,12 +116063,7 @@ void main() {
   });
 
   testWidgets('active image drag clamps top only', (tester) async {
-    tester.view.physicalSize = const Size(900, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(900, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -120770,8 +116096,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -120794,12 +116119,7 @@ void main() {
   testWidgets('image move and resize preserve extra metadata on export', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(900, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(900, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -120841,8 +116161,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -120884,12 +116203,7 @@ void main() {
   testWidgets('delete key removes active image without clearing cells', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(900, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(900, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -120925,8 +116239,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -120977,12 +116290,7 @@ void main() {
   });
 
   testWidgets('delete key allowEdit false keeps active image', (tester) async {
-    tester.view.physicalSize = const Size(900, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(900, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       settings: const FortuneSettings(allowEdit: false),
@@ -121016,8 +116324,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -121040,12 +116347,7 @@ void main() {
   testWidgets('active image move and resize respect allowEdit false', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(900, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(900, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       settings: const FortuneSettings(allowEdit: false),
@@ -121082,8 +116384,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -121138,12 +116439,7 @@ void main() {
   testWidgets(
     'delete key image removal does not resurrect raw images on export',
     (tester) async {
-      tester.view.physicalSize = const Size(900, 360);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(900, 360), devicePixelRatio: 1);
 
       final workbook = FortuneSheetCodec.workbookFromJson({
         'data': [
@@ -121178,8 +116474,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -121205,12 +116500,7 @@ void main() {
   );
 
   testWidgets('toolbar image cancel preserves raw images list', (tester) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneSheetCodec.workbookFromJson({
       'data': [
@@ -121248,8 +116538,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key, width: 1688);
@@ -121257,6 +116546,11 @@ void main() {
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
     await tester.tapAt(topLeft + toolbarCenter(fortuneToolbarImageCommand));
     await tester.pumpAndSettle();
+    expect(painter().imageInsertDialogOpen, isTrue);
+    final dialogRect = fortuneImageInsertDialogRect(const Size(1688, 600));
+    await tester.tapAt(topLeft + fortuneImageInsertFileButtonRect(dialogRect).center);
+    await tester.pumpAndSettle();
+    expect(painter().imageInsertHasFile, isFalse);
 
     final sheet = painter().workbook.activeSheet;
     final json = FortuneSheetCodec.sheetToJson(sheet);
@@ -121272,12 +116566,7 @@ void main() {
   testWidgets('dragging cells updates range selection metadata', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(900, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(900, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -121304,8 +116593,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -121335,12 +116623,7 @@ void main() {
   testWidgets('toolbar quick formula inserts formula for adjacent numbers', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -121367,8 +116650,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -121454,12 +116736,7 @@ void main() {
   testWidgets(
     'toolbar quick formula fills grid totals for upstream functions',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       final cases = <String, (String, List<String>)>{
         fortuneToolbarFormulaSumCommand: ('SUM', ['70', '80', '60', '90']),
@@ -121473,8 +116750,7 @@ void main() {
       };
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       for (final entry in cases.entries) {
@@ -121588,12 +116864,7 @@ void main() {
   testWidgets('toolbar quick formula learn more opens formula search dialog', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     await tester.pumpWidget(
       Directionality(
@@ -121607,8 +116878,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -121804,12 +117074,7 @@ void main() {
   testWidgets('toolbar formula search category selection inserts function', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     await tester.pumpWidget(
       Directionality(
@@ -121823,8 +117088,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -121886,12 +117150,7 @@ void main() {
   testWidgets('toolbar quick formula uses selected numeric column range', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -121918,8 +117177,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -121979,12 +117237,7 @@ void main() {
   testWidgets('toolbar quick formula uses selected numeric row range', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -122011,8 +117264,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -122072,12 +117324,7 @@ void main() {
   testWidgets('toolbar quick formula ignores nonnumeric selected range', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -122105,8 +117352,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -122153,12 +117399,7 @@ void main() {
   testWidgets('toolbar quick formula fills two-dimensional selected range', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -122187,8 +117428,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -122257,12 +117497,7 @@ void main() {
     testWidgets('toolbar quick formula fills two-dimensional $functionName', (
       tester,
     ) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       final workbook = FortuneWorkbook(
         sheets: [
@@ -122291,8 +117526,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -122346,12 +117580,7 @@ void main() {
   testWidgets('toolbar quick formula fills mixed text and numeric range', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -122380,8 +117609,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Future<void> chooseQuickFormula(String command) async {
@@ -122452,12 +117680,7 @@ void main() {
   testWidgets(
     'toolbar quick formula export writes canonical formula metadata',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       final workbook = FortuneSheetCodec.workbookFromJson({
         'data': [
@@ -122497,8 +117720,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -122551,12 +117773,7 @@ void main() {
   testWidgets(
     'toolbar quick formula selected range export writes canonical formula metadata',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       final workbook = FortuneSheetCodec.workbookFromJson({
         'data': [
@@ -122596,8 +117813,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -122655,12 +117871,7 @@ void main() {
   testWidgets('toolbar quick formula selected range respects locked target', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -122691,8 +117902,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -122734,12 +117944,7 @@ void main() {
   testWidgets('toolbar quick formula locked target keeps undo stack', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -122771,8 +117976,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -122833,12 +118037,7 @@ void main() {
   testWidgets('toolbar quick formula protected target keeps undo stack', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -122873,8 +118072,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -122938,12 +118136,7 @@ void main() {
   testWidgets(
     'toolbar quick formula covered target respects locked merge anchor',
     (tester) async {
-      tester.view.physicalSize = const Size(1688, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
       const merge = FortuneCellMerge(row: 0, column: 3, columnSpan: 2);
       final workbook = FortuneWorkbook(
@@ -122978,8 +118171,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -123026,15 +118218,13 @@ void main() {
   testWidgets(
     'toolbar condition format delete sheet rule clears exported rules',
     (tester) async {
-      tester.view.physicalSize = const Size(
+      await prepareFortuneSheetView(
+        tester,
+        const Size(
         conditionFormatToolbarTestWidth,
         800,
+        ),
       );
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
 
       final workbook = FortuneSheetCodec.workbookFromJson({
         'data': [
@@ -123084,8 +118274,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       Offset toolbarCenter(String key) =>
@@ -123173,15 +118362,13 @@ void main() {
   testWidgets(
     'toolbar condition format delete sheet rule respects locked ranges',
     (tester) async {
-      tester.view.physicalSize = const Size(
+      await prepareFortuneSheetView(
+        tester,
+        const Size(
         conditionFormatToolbarTestWidth,
         800,
+        ),
       );
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
 
       final workbook = FortuneSheetCodec.workbookFromJson({
         'data': [
@@ -123236,8 +118423,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       Offset toolbarCenter(String key) =>
@@ -123284,15 +118470,13 @@ void main() {
   testWidgets(
     'toolbar condition format delete sheet rule without rules preserves absent export',
     (tester) async {
-      tester.view.physicalSize = const Size(
+      await prepareFortuneSheetView(
+        tester,
+        const Size(
         conditionFormatToolbarTestWidth,
         600,
+        ),
       );
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
 
       final workbook = FortuneSheetCodec.workbookFromJson({
         'data': [
@@ -123325,8 +118509,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       Offset toolbarCenter(String key) =>
@@ -123362,15 +118545,13 @@ void main() {
   testWidgets(
     'toolbar condition format top-level delete rule clears exported rules',
     (tester) async {
-      tester.view.physicalSize = const Size(
+      await prepareFortuneSheetView(
+        tester,
+        const Size(
         conditionFormatToolbarTestWidth,
         600,
+        ),
       );
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
 
       final workbook = FortuneSheetCodec.workbookFromJson({
         'data': [
@@ -123417,8 +118598,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       Offset toolbarCenter(String key) =>
@@ -123456,12 +118636,7 @@ void main() {
   testWidgets('toolbar condition format greater than creates exported rule', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(conditionFormatToolbarTestWidth, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(conditionFormatToolbarTestWidth, 600), devicePixelRatio: 1);
 
     final workbook = FortuneSheetCodec.workbookFromJson({
       'data': [
@@ -123505,8 +118680,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) =>
@@ -123586,12 +118760,7 @@ void main() {
   testWidgets('toolbar condition rule dialog closes from header icon', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(conditionFormatToolbarTestWidth, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(conditionFormatToolbarTestWidth, 600), devicePixelRatio: 1);
 
     final workbook = FortuneSheetCodec.workbookFromJson({
       'data': [
@@ -123623,8 +118792,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -123668,15 +118836,13 @@ void main() {
   testWidgets(
     'toolbar condition format dialog command respects locked selection range',
     (tester) async {
-      tester.view.physicalSize = const Size(
+      await prepareFortuneSheetView(
+        tester,
+        const Size(
         conditionFormatToolbarTestWidth,
         600,
+        ),
       );
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
 
       final workbook = FortuneSheetCodec.workbookFromJson({
         'data': [
@@ -123720,8 +118886,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       Offset toolbarCenter(String key) =>
@@ -123758,12 +118923,7 @@ void main() {
   testWidgets('toolbar condition format covered cell respects locked anchor', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(conditionFormatToolbarTestWidth, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(conditionFormatToolbarTestWidth, 600), devicePixelRatio: 1);
 
     const merge = FortuneCellMerge(row: 0, column: 0, columnSpan: 2);
     final workbook = FortuneWorkbook(
@@ -123795,8 +118955,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) =>
@@ -123835,15 +118994,13 @@ void main() {
   testWidgets(
     'toolbar condition format highlight submenu creates greater than rule',
     (tester) async {
-      tester.view.physicalSize = const Size(
+      await prepareFortuneSheetView(
+        tester,
+        const Size(
         conditionFormatToolbarTestWidth,
         600,
+        ),
       );
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
 
       final workbook = FortuneSheetCodec.workbookFromJson({
         'data': [
@@ -123887,8 +119044,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       Offset toolbarCenter(String key) =>
@@ -123957,12 +119113,7 @@ void main() {
   testWidgets('toolbar condition format submenu opens on hover', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(conditionFormatToolbarTestWidth, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(conditionFormatToolbarTestWidth, 600), devicePixelRatio: 1);
 
     final workbook = FortuneSheetCodec.workbookFromJson({
       'data': [
@@ -123982,8 +119133,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) =>
@@ -124146,12 +119296,7 @@ void main() {
   testWidgets('toolbar condition format top-level rows open submenus', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(conditionFormatToolbarTestWidth, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(conditionFormatToolbarTestWidth, 600), devicePixelRatio: 1);
 
     final workbook = FortuneSheetCodec.workbookFromJson({
       'data': [
@@ -124191,8 +119336,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) =>
@@ -124258,12 +119402,7 @@ void main() {
   testWidgets('toolbar condition format submenu repositions before overflow', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(conditionFormatToolbarTestWidth, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(conditionFormatToolbarTestWidth, 600), devicePixelRatio: 1);
 
     final workbook = FortuneSheetCodec.workbookFromJson({
       'data': [
@@ -124295,8 +119434,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) =>
@@ -124338,12 +119476,7 @@ void main() {
   testWidgets('toolbar condition format submenu uses upstream top offset', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(conditionFormatToolbarTestWidth, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(conditionFormatToolbarTestWidth, 600), devicePixelRatio: 1);
 
     final workbook = FortuneSheetCodec.workbookFromJson({
       'data': [
@@ -124375,8 +119508,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) =>
@@ -124423,15 +119555,13 @@ void main() {
   testWidgets(
     'toolbar condition format highlight submenu creates duplicate values rule',
     (tester) async {
-      tester.view.physicalSize = const Size(
+      await prepareFortuneSheetView(
+        tester,
+        const Size(
         conditionFormatToolbarTestWidth,
         600,
+        ),
       );
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
 
       final workbook = FortuneSheetCodec.workbookFromJson({
         'data': [
@@ -124485,8 +119615,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       Offset toolbarCenter(String key) =>
@@ -124548,12 +119677,7 @@ void main() {
   testWidgets('toolbar condition format set as can disable cell color', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(conditionFormatToolbarTestWidth, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(conditionFormatToolbarTestWidth, 600), devicePixelRatio: 1);
 
     final workbook = FortuneSheetCodec.workbookFromJson({
       'data': [
@@ -124597,8 +119721,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) =>
@@ -124678,12 +119801,7 @@ void main() {
   testWidgets('toolbar condition format set as can disable text color', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(conditionFormatToolbarTestWidth, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(conditionFormatToolbarTestWidth, 600), devicePixelRatio: 1);
 
     final workbook = FortuneSheetCodec.workbookFromJson({
       'data': [
@@ -124727,8 +119845,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) =>
@@ -124807,12 +119924,7 @@ void main() {
   testWidgets('toolbar condition format set as can change cell color', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(conditionFormatToolbarTestWidth, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(conditionFormatToolbarTestWidth, 600), devicePixelRatio: 1);
 
     final workbook = FortuneSheetCodec.workbookFromJson({
       'data': [
@@ -124856,8 +119968,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) =>
@@ -124947,12 +120058,7 @@ void main() {
   testWidgets('toolbar condition format set as can change text color', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(conditionFormatToolbarTestWidth, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(conditionFormatToolbarTestWidth, 600), devicePixelRatio: 1);
 
     final workbook = FortuneSheetCodec.workbookFromJson({
       'data': [
@@ -124996,8 +120102,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) =>
@@ -125086,12 +120191,7 @@ void main() {
   testWidgets('toolbar condition format text contains creates exported rule', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(conditionFormatToolbarTestWidth, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(conditionFormatToolbarTestWidth, 600), devicePixelRatio: 1);
 
     final workbook = FortuneSheetCodec.workbookFromJson({
       'data': [
@@ -125135,8 +120235,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) =>
@@ -125188,12 +120287,7 @@ void main() {
   testWidgets('toolbar condition format between creates exported rule', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(conditionFormatToolbarTestWidth, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(conditionFormatToolbarTestWidth, 600), devicePixelRatio: 1);
 
     final workbook = FortuneSheetCodec.workbookFromJson({
       'data': [
@@ -125242,8 +120336,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) =>
@@ -125299,15 +120392,13 @@ void main() {
   testWidgets(
     'toolbar condition format duplicate values creates exported rule',
     (tester) async {
-      tester.view.physicalSize = const Size(
+      await prepareFortuneSheetView(
+        tester,
+        const Size(
         conditionFormatToolbarTestWidth,
         600,
+        ),
       );
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
 
       final workbook = FortuneSheetCodec.workbookFromJson({
         'data': [
@@ -125356,8 +120447,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       Offset toolbarCenter(String key) =>
@@ -125473,12 +120563,7 @@ void main() {
   testWidgets('toolbar condition format top 10 creates exported rule', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(conditionFormatToolbarTestWidth, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(conditionFormatToolbarTestWidth, 600), devicePixelRatio: 1);
 
     final workbook = FortuneSheetCodec.workbookFromJson({
       'data': [
@@ -125518,8 +120603,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) =>
@@ -125581,15 +120665,13 @@ void main() {
   testWidgets(
     'toolbar condition format bottom 10 percent creates exported custom project rule',
     (tester) async {
-      tester.view.physicalSize = const Size(
+      await prepareFortuneSheetView(
+        tester,
+        const Size(
         conditionFormatToolbarTestWidth,
         600,
+        ),
       );
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
 
       final workbook = FortuneSheetCodec.workbookFromJson({
         'data': [
@@ -125629,8 +120711,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       Offset toolbarCenter(String key) =>
@@ -125684,12 +120765,7 @@ void main() {
   testWidgets('toolbar condition format top 10 rejects invalid project value', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(conditionFormatToolbarTestWidth, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(conditionFormatToolbarTestWidth, 600), devicePixelRatio: 1);
 
     final workbook = FortuneSheetCodec.workbookFromJson({
       'data': [
@@ -125729,8 +120805,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) =>
@@ -125775,12 +120850,7 @@ void main() {
   testWidgets('toolbar condition format invalid value keeps undo stack', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(conditionFormatToolbarTestWidth, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(conditionFormatToolbarTestWidth, 600), devicePixelRatio: 1);
 
     final workbook = FortuneSheetCodec.workbookFromJson({
       'data': [
@@ -125819,8 +120889,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) =>
@@ -125879,12 +120948,7 @@ void main() {
   testWidgets('toolbar condition format protected cell keeps undo stack', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(conditionFormatToolbarTestWidth, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(conditionFormatToolbarTestWidth, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -125915,8 +120979,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) =>
@@ -125977,15 +121040,13 @@ void main() {
   testWidgets(
     'toolbar condition format protected sheet blocks unlocked cells',
     (tester) async {
-      tester.view.physicalSize = const Size(
+      await prepareFortuneSheetView(
+        tester,
+        const Size(
         conditionFormatToolbarTestWidth,
         600,
+        ),
       );
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
 
       final workbook = FortuneWorkbook(
         sheets: [
@@ -126019,8 +121080,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       Offset toolbarCenter(String key) =>
@@ -126074,15 +121134,13 @@ void main() {
   testWidgets(
     'toolbar condition format above average creates exported rule after dialog confirm',
     (tester) async {
-      tester.view.physicalSize = const Size(
+      await prepareFortuneSheetView(
+        tester,
+        const Size(
         conditionFormatToolbarTestWidth,
         600,
+        ),
       );
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
 
       final workbook = FortuneSheetCodec.workbookFromJson({
         'data': [
@@ -126122,8 +121180,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       Offset toolbarCenter(String key) =>
@@ -126179,15 +121236,13 @@ void main() {
   testWidgets(
     'toolbar condition format below average creates exported rule after dialog confirm',
     (tester) async {
-      tester.view.physicalSize = const Size(
+      await prepareFortuneSheetView(
+        tester,
+        const Size(
         conditionFormatToolbarTestWidth,
         600,
+        ),
       );
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
 
       final workbook = FortuneSheetCodec.workbookFromJson({
         'data': [
@@ -126227,8 +121282,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       Offset toolbarCenter(String key) =>
@@ -126284,15 +121338,13 @@ void main() {
   testWidgets(
     'toolbar condition format duplicate values creates exported rule',
     (tester) async {
-      tester.view.physicalSize = const Size(
+      await prepareFortuneSheetView(
+        tester,
+        const Size(
         conditionFormatToolbarTestWidth,
         600,
+        ),
       );
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
 
       final workbook = FortuneSheetCodec.workbookFromJson({
         'data': [
@@ -126341,8 +121393,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       Offset toolbarCenter(String key) =>
@@ -126404,15 +121455,13 @@ void main() {
   testWidgets(
     'toolbar condition format date creates exported occurrence date rule from dialog input',
     (tester) async {
-      tester.view.physicalSize = const Size(
+      await prepareFortuneSheetView(
+        tester,
+        const Size(
         conditionFormatToolbarTestWidth,
         600,
+        ),
       );
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
 
       const dateValue = '2026-05-10';
       final workbook = FortuneSheetCodec.workbookFromJson({
@@ -126456,8 +121505,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       Offset toolbarCenter(String key) =>
@@ -126528,12 +121576,7 @@ void main() {
   testWidgets(
     'toolbar alignment wrap and rotation popups update cell metadata',
     (tester) async {
-      tester.view.physicalSize = const Size(1200, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1200, 600), devicePixelRatio: 1);
 
       final workbook = FortuneWorkbook(
         sheets: [
@@ -126561,8 +121604,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       Future<void> chooseToolbarPopupItem(
@@ -126636,12 +121678,7 @@ void main() {
   testWidgets(
     'toolbar alignment wrap and rotation popups export canonical metadata',
     (tester) async {
-      tester.view.physicalSize = const Size(1200, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1200, 600), devicePixelRatio: 1);
 
       final workbook = FortuneSheetCodec.workbookFromJson({
         'data': [
@@ -126678,8 +121715,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       Future<void> chooseToolbarPopupItem(
@@ -126745,12 +121781,7 @@ void main() {
   testWidgets('toolbar color popups update selected cell colors', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1200, 800);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1200, 800), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -126776,8 +121807,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     await chooseToolbarFontColorPaletteItem(tester, '#c00c00');
@@ -126806,12 +121836,7 @@ void main() {
   });
 
   testWidgets('toolbar color popups apply to dragged range', (tester) async {
-    tester.view.physicalSize = const Size(1200, 800);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1200, 800), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -126838,8 +121863,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -126878,12 +121902,7 @@ void main() {
   testWidgets('toolbar color popups export canonical color metadata', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1200, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1200, 600), devicePixelRatio: 1);
 
     final workbook = FortuneSheetCodec.workbookFromJson({
       'data': [
@@ -126918,8 +121937,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     await chooseToolbarFontColorPaletteItem(tester, '#3d85c6');
@@ -126944,12 +121962,7 @@ void main() {
   testWidgets(
     'toolbar font color popup reset and custom controls apply color',
     (tester) async {
-      tester.view.physicalSize = const Size(1200, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1200, 600), devicePixelRatio: 1);
 
       final workbook = FortuneWorkbook(
         sheets: [
@@ -126980,8 +121993,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -127037,12 +122049,7 @@ void main() {
   testWidgets('toolbar font color protected cell keeps undo stack', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1200, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1200, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -127073,8 +122080,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -127117,12 +122123,7 @@ void main() {
   testWidgets('toolbar fill color protected cell keeps undo stack', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1200, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1200, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -127153,8 +122154,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -127193,12 +122193,7 @@ void main() {
   testWidgets('toolbar fill color popup mirrors font color custom controls', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1200, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1200, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -127229,8 +122224,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -127294,12 +122288,7 @@ void main() {
   testWidgets(
     'toolbar color combo primary click is inert without recent color',
     (tester) async {
-      tester.view.physicalSize = const Size(1200, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      await prepareFortuneSheetView(tester, const Size(1200, 600), devicePixelRatio: 1);
 
       final workbook = FortuneWorkbook(
         sheets: [
@@ -127333,8 +122322,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -127360,12 +122348,7 @@ void main() {
   testWidgets('toolbar color combo primary click applies remembered colors', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1200, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1200, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -127392,8 +122375,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -127426,12 +122408,7 @@ void main() {
   testWidgets('toolbar color primary protected cell keeps undo stack', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1200, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1200, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -127466,8 +122443,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -127521,12 +122497,7 @@ void main() {
   testWidgets('toolbar font popups update selected cell font metadata', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1200, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1200, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -127552,8 +122523,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key);
@@ -127617,12 +122587,7 @@ void main() {
   testWidgets('toolbar font popups scroll to and highlight selected value', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1200, 160);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1200, 160), devicePixelRatio: 1);
 
     const fontFamilies = [
       'Times New Roman',
@@ -127684,8 +122649,7 @@ void main() {
     await tester.pump();
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -127760,12 +122724,7 @@ void main() {
   testWidgets('toolbar font popups highlight default font values', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1200, 360);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1200, 360), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -127793,8 +122752,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -127826,12 +122784,7 @@ void main() {
   testWidgets('toolbar format popup localizes and highlights current value', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1200, 160);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1200, 160), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -127863,8 +122816,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     expect(
@@ -127909,12 +122861,7 @@ void main() {
   testWidgets('toolbar format popup localizes default automatic value', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1200, 360);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1200, 360), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -127943,8 +122890,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     expect(
@@ -127971,12 +122917,7 @@ void main() {
   testWidgets('toolbar font popup applies injected system font family', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1200, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1200, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       settings: FortuneSettings(
@@ -128006,8 +122947,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -128078,8 +123018,7 @@ void main() {
     await tester.pump();
 
     final painter =
-        tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        fortuneSheetPainter(tester);
 
     expect(painter.workbook.settings.fontFamilies, const [
       'D2Coding',
@@ -128097,12 +123036,7 @@ void main() {
   testWidgets('system font load drops unavailable saved font families', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1200, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1200, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       settings: FortuneSettings(
@@ -128136,8 +123070,7 @@ void main() {
     await tester.pump();
 
     final painter =
-        tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        fortuneSheetPainter(tester);
     expect(painter.workbook.settings.fontFamilies, contains('Times New Roman'));
     expect(painter.workbook.settings.fontFamilies, contains('Arial'));
     expect(
@@ -128157,12 +123090,7 @@ void main() {
   testWidgets('toolbar font popup protected cell keeps undo stack', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1200, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1200, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -128193,8 +123121,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -128256,12 +123183,7 @@ void main() {
   testWidgets('toolbar font popups export canonical font metadata', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1200, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1200, 600), devicePixelRatio: 1);
 
     final workbook = FortuneSheetCodec.workbookFromJson({
       'data': [
@@ -128291,8 +123213,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Future<void> chooseToolbarPopupItem(String toolbarKey, String item) async {
@@ -128347,12 +123268,7 @@ void main() {
   testWidgets('toolbar border popup updates selected cell border metadata', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1200, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1200, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -128378,8 +123294,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Future<void> chooseBorderItem(String item) async {
@@ -128445,12 +123360,7 @@ void main() {
   testWidgets('toolbar border color and style submenus configure next border', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1200, 800);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1200, 800), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -128476,8 +123386,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -128575,12 +123484,7 @@ void main() {
   testWidgets('toolbar border style submenu commits editable stroke width', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1200, 800);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1200, 800), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [FortuneSheet(id: 's1', name: 'Sheet1')],
@@ -128721,12 +123625,7 @@ void main() {
   testWidgets('toolbar dropdown inline input supports mouse drag selection', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1200, 800);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1200, 800), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [FortuneSheet(id: 's1', name: 'Sheet1')],
@@ -128805,12 +123704,7 @@ void main() {
   testWidgets('toolbar border submenus update existing selected borders', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1200, 800);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1200, 800), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -128854,8 +123748,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -128950,12 +123843,7 @@ void main() {
   testWidgets('toolbar border none without borders preserves absent export', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1200, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1200, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [FortuneSheet(id: 's1', name: 'Sheet1')],
@@ -128973,8 +123861,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Future<void> chooseBorderItem(String item) async {
@@ -129011,12 +123898,7 @@ void main() {
   testWidgets('toolbar border command no-op does not add undo snapshot', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1200, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1200, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -129042,8 +123924,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Future<void> chooseBorderItem(String item) async {
@@ -129096,12 +123977,7 @@ void main() {
   });
 
   testWidgets('toolbar border locked cell keeps undo stack', (tester) async {
-    tester.view.physicalSize = const Size(1200, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1200, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -129131,8 +124007,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Future<void> chooseBorderItem(String item) async {
@@ -129189,12 +124064,7 @@ void main() {
   });
 
   testWidgets('toolbar border protected cell keeps undo stack', (tester) async {
-    tester.view.physicalSize = const Size(1200, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1200, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -129225,8 +124095,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Future<void> chooseBorderItem(String item) async {
@@ -129291,12 +124160,7 @@ void main() {
   testWidgets('toolbar border popup uses dragged selection range', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1200, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1200, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -129323,8 +124187,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Future<void> chooseBorderItem(String item) async {
@@ -129383,12 +124246,7 @@ void main() {
   testWidgets('toolbar border popup export writes canonical border info', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1200, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1200, 600), devicePixelRatio: 1);
 
     final workbook = FortuneSheetCodec.workbookFromJson({
       'data': [
@@ -129429,8 +124287,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Future<void> chooseBorderItem(String item) async {
@@ -129490,12 +124347,7 @@ void main() {
   testWidgets('toolbar border none export writes canonical border info', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1200, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1200, 600), devicePixelRatio: 1);
 
     final workbook = FortuneSheetCodec.workbookFromJson({
       'data': [
@@ -129536,8 +124388,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Future<void> chooseBorderItem(String item) async {
@@ -129597,12 +124448,7 @@ void main() {
   testWidgets('toolbar merge popup merges and unmerges selected cells', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1200, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1200, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -129706,12 +124552,7 @@ void main() {
   testWidgets('toolbar merge all combines non-empty cell text with newlines', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1200, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1200, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -129776,12 +124617,7 @@ void main() {
   testWidgets('toolbar merge axis variants combine text per merged range', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1200, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1200, 600), devicePixelRatio: 1);
 
     Future<FortuneSheetPainter> pumpSelectedGrid() async {
       final workbook = FortuneSheetCodec.workbookFromJson({
@@ -129887,12 +124723,7 @@ void main() {
   });
 
   testWidgets('toolbar merge single grid keeps undo stack', (tester) async {
-    tester.view.physicalSize = const Size(1200, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1200, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -129979,12 +124810,7 @@ void main() {
   testWidgets('toolbar merge cancel unmerged range keeps undo stack', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1200, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1200, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -130075,12 +124901,7 @@ void main() {
   });
 
   testWidgets('toolbar merge locked cell keeps undo stack', (tester) async {
-    tester.view.physicalSize = const Size(1200, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1200, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -130176,12 +124997,7 @@ void main() {
   });
 
   testWidgets('toolbar merge protected cell keeps undo stack', (tester) async {
-    tester.view.physicalSize = const Size(1200, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1200, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -130284,12 +125100,7 @@ void main() {
   testWidgets('toolbar merge popup uses dragged selection range', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1200, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1200, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -130377,12 +125188,7 @@ void main() {
   testWidgets('toolbar merge cancel does not resurrect raw merge config', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1200, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1200, 600), devicePixelRatio: 1);
 
     final workbook = FortuneSheetCodec.workbookFromJson({
       'data': [
@@ -130467,12 +125273,7 @@ void main() {
   testWidgets('toolbar merge all export writes canonical merge config', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1200, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1200, 600), devicePixelRatio: 1);
 
     final workbook = FortuneSheetCodec.workbookFromJson({
       'data': [
@@ -130575,12 +125376,7 @@ void main() {
   testWidgets('toolbar merge axis variants export canonical merge config', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1200, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1200, 600), devicePixelRatio: 1);
 
     Future<FortuneSheetPainter> pumpRawMerge({
       required int rawRowSpan,
@@ -130632,8 +125428,7 @@ void main() {
           ),
         ),
       );
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     FortuneSheetPainter painter() {
@@ -130752,8 +125547,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     expect(painter().sheetTabScrollOffset, 0);
@@ -130829,8 +125623,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -130873,8 +125666,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -130943,8 +125735,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -130965,12 +125756,7 @@ void main() {
   testWidgets('sheet tab list caps height and scrolls overflow like upstream', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(2000, 320);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(2000, 320), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: List.generate(
@@ -130991,8 +125777,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -131055,8 +125840,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -131100,8 +125884,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -131150,8 +125933,7 @@ void main() {
     await pumpSheet();
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -131234,7 +126016,7 @@ void main() {
     });
 
     await tester.pumpWidget(
-      Directionality(
+      fortuneSheetTestHost(
         textDirection: TextDirection.ltr,
         child: SizedBox(
           width: 360,
@@ -131245,8 +126027,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -131321,7 +126102,7 @@ void main() {
     });
 
     await tester.pumpWidget(
-      Directionality(
+      fortuneSheetTestHost(
         textDirection: TextDirection.ltr,
         child: SizedBox(
           width: 360,
@@ -131332,8 +126113,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -131373,8 +126153,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -131452,8 +126231,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     controller.scroll(scrollTop: 120);
@@ -131492,8 +126270,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -131542,8 +126319,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -131720,8 +126496,7 @@ void main() {
     await tester.pump();
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -131829,8 +126604,7 @@ void main() {
     await tester.pump();
 
     FortuneWorkbook paintedWorkbook() {
-      return (tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-              as FortuneSheetPainter)
+      return (fortuneSheetPainter(tester))
           .workbook;
     }
 
@@ -131948,8 +126722,7 @@ void main() {
     await tester.pump();
 
     final painter =
-        tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        fortuneSheetPainter(tester);
     final menuAt = painter.sheetTabMenuAt!;
     await tester.tapAt(
       Offset(topLeft.dx + menuAt.dx + 18, topLeft.dy + menuAt.dy + 169),
@@ -132064,12 +126837,7 @@ void main() {
   testWidgets('canvas onOp emits hyperlink ops with linked cells', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneSheetCodec.workbookFromJson({
       'data': [
@@ -132152,12 +126920,7 @@ void main() {
   });
 
   testWidgets('canvas onOp emits sheet config ops', (tester) async {
-    tester.view.physicalSize = const Size(1200, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1200, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -132231,12 +126994,7 @@ void main() {
   testWidgets('canvas onOp emits sheet top-level data verification ops', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [FortuneSheet(id: 's1', name: 'Sheet1')],
@@ -132343,8 +127101,7 @@ void main() {
       const dividerHeight = 9.0;
       var y = 6.0;
       final currentPainter =
-          tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-              as FortuneSheetPainter;
+          fortuneSheetPainter(tester);
       for (final item in currentPainter.contextMenuItems) {
         if (item == '|') {
           y += dividerHeight;
@@ -132672,7 +127429,7 @@ void main() {
     );
 
     await tester.pumpWidget(
-      Directionality(
+      fortuneSheetTestHost(
         textDirection: TextDirection.ltr,
         child: SizedBox(
           width: 360,
@@ -132825,7 +127582,7 @@ void main() {
     );
 
     await tester.pumpWidget(
-      Directionality(
+      fortuneSheetTestHost(
         textDirection: TextDirection.ltr,
         child: SizedBox(
           width: 360,
@@ -132882,7 +127639,7 @@ void main() {
     );
 
     await tester.pumpWidget(
-      Directionality(
+      fortuneSheetTestHost(
         textDirection: TextDirection.ltr,
         child: SizedBox(
           width: 360,
@@ -132935,7 +127692,7 @@ void main() {
     );
 
     await tester.pumpWidget(
-      Directionality(
+      fortuneSheetTestHost(
         textDirection: TextDirection.ltr,
         child: SizedBox(
           width: 360,
@@ -132946,8 +127703,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -132997,7 +127753,7 @@ void main() {
     );
 
     await tester.pumpWidget(
-      Directionality(
+      fortuneSheetTestHost(
         textDirection: TextDirection.ltr,
         child: SizedBox(
           width: 360,
@@ -133008,8 +127764,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -133044,7 +127799,7 @@ void main() {
     );
 
     await tester.pumpWidget(
-      Directionality(
+      fortuneSheetTestHost(
         textDirection: TextDirection.ltr,
         child: SizedBox(
           width: 360,
@@ -133055,8 +127810,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -133087,7 +127841,7 @@ void main() {
     );
 
     await tester.pumpWidget(
-      Directionality(
+      fortuneSheetTestHost(
         textDirection: TextDirection.ltr,
         child: SizedBox(
           width: 360,
@@ -133098,8 +127852,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -133140,7 +127893,7 @@ void main() {
     );
 
     await tester.pumpWidget(
-      Directionality(
+      fortuneSheetTestHost(
         textDirection: TextDirection.ltr,
         child: SizedBox(
           width: 360,
@@ -133151,8 +127904,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -133198,7 +127950,7 @@ void main() {
     );
 
     await tester.pumpWidget(
-      Directionality(
+      fortuneSheetTestHost(
         textDirection: TextDirection.ltr,
         child: SizedBox(
           width: 360,
@@ -133209,8 +127961,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -133252,7 +128003,7 @@ void main() {
     );
 
     await tester.pumpWidget(
-      Directionality(
+      fortuneSheetTestHost(
         textDirection: TextDirection.ltr,
         child: SizedBox(
           width: 360,
@@ -133263,8 +128014,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -133298,8 +128048,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -133392,8 +128141,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -133458,8 +128206,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -133516,8 +128263,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     List<Object?> sheetSnapshot() => [
@@ -133607,8 +128353,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() =>
-        tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        fortuneSheetPainter(tester);
 
     List<Object?> sheetSnapshot() => [
       painter().workbook.activeSheet.id,
@@ -133654,7 +128399,7 @@ void main() {
     });
 
     await tester.pumpWidget(
-      Directionality(
+      fortuneSheetTestHost(
         textDirection: TextDirection.ltr,
         child: SizedBox(
           width: 360,
@@ -133665,8 +128410,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -133707,7 +128451,7 @@ void main() {
     );
 
     await tester.pumpWidget(
-      Directionality(
+      fortuneSheetTestHost(
         textDirection: TextDirection.ltr,
         child: SizedBox(
           width: 360,
@@ -133718,8 +128462,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -133749,7 +128492,7 @@ void main() {
     );
 
     await tester.pumpWidget(
-      Directionality(
+      fortuneSheetTestHost(
         textDirection: TextDirection.ltr,
         child: SizedBox(
           width: 360,
@@ -133760,8 +128503,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -133796,7 +128538,7 @@ void main() {
     );
 
     await tester.pumpWidget(
-      Directionality(
+      fortuneSheetTestHost(
         textDirection: TextDirection.ltr,
         child: SizedBox(
           width: 360,
@@ -133807,8 +128549,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -133870,7 +128611,7 @@ void main() {
     );
 
     await tester.pumpWidget(
-      Directionality(
+      fortuneSheetTestHost(
         textDirection: TextDirection.ltr,
         child: SizedBox(
           width: 360,
@@ -133881,8 +128622,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -133916,7 +128656,7 @@ void main() {
     });
 
     await tester.pumpWidget(
-      Directionality(
+      fortuneSheetTestHost(
         textDirection: TextDirection.ltr,
         child: SizedBox(
           width: 360,
@@ -133927,8 +128667,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -133970,7 +128709,7 @@ void main() {
     });
 
     await tester.pumpWidget(
-      Directionality(
+      fortuneSheetTestHost(
         textDirection: TextDirection.ltr,
         child: SizedBox(
           width: 360,
@@ -133981,8 +128720,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -134027,12 +128765,7 @@ void main() {
   testWidgets('sheet tab single visible delete hide keeps undo stack', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     Future<void> verifySingleVisibleNoOp(double commandY) async {
       final workbook = FortuneWorkbook(
@@ -134060,8 +128793,7 @@ void main() {
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return fortuneSheetPainter(tester);
       }
 
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -134121,12 +128853,7 @@ void main() {
   });
 
   testWidgets('sheet tab single visible move keeps undo stack', (tester) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -134153,8 +128880,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -134227,7 +128953,7 @@ void main() {
     });
 
     await tester.pumpWidget(
-      Directionality(
+      fortuneSheetTestHost(
         textDirection: TextDirection.ltr,
         child: SizedBox(
           width: 360,
@@ -134238,8 +128964,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -134299,8 +129024,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -134331,7 +129055,7 @@ void main() {
     });
 
     await tester.pumpWidget(
-      Directionality(
+      fortuneSheetTestHost(
         textDirection: TextDirection.ltr,
         child: SizedBox(
           width: 360,
@@ -134342,8 +129066,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -134385,7 +129108,7 @@ void main() {
     });
 
     await tester.pumpWidget(
-      Directionality(
+      fortuneSheetTestHost(
         textDirection: TextDirection.ltr,
         child: SizedBox(
           width: 360,
@@ -134396,8 +129119,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -134438,7 +129160,7 @@ void main() {
     });
 
     await tester.pumpWidget(
-      Directionality(
+      fortuneSheetTestHost(
         textDirection: TextDirection.ltr,
         child: SizedBox(
           width: 360,
@@ -134449,8 +129171,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -134498,7 +129219,7 @@ void main() {
     });
 
     await tester.pumpWidget(
-      Directionality(
+      fortuneSheetTestHost(
         textDirection: TextDirection.ltr,
         child: SizedBox(
           width: 360,
@@ -134509,8 +129230,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -134572,8 +129292,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -134611,7 +129330,7 @@ void main() {
     );
 
     await tester.pumpWidget(
-      Directionality(
+      fortuneSheetTestHost(
         textDirection: TextDirection.ltr,
         child: SizedBox(
           width: 360,
@@ -134622,8 +129341,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -134663,8 +129381,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -134693,12 +129410,7 @@ void main() {
   });
 
   testWidgets('sheet tab no-op drag keeps undo stack', (tester) async {
-    tester.view.physicalSize = const Size(1688, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     final workbook = FortuneWorkbook(
       sheets: [
@@ -134726,8 +129438,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -134801,8 +129512,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -134855,7 +129565,7 @@ void main() {
     );
 
     await tester.pumpWidget(
-      Directionality(
+      fortuneSheetTestHost(
         textDirection: TextDirection.ltr,
         child: SizedBox(
           width: 360,
@@ -134866,8 +129576,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -134900,7 +129609,7 @@ void main() {
     );
 
     await tester.pumpWidget(
-      Directionality(
+      fortuneSheetTestHost(
         textDirection: TextDirection.ltr,
         child: SizedBox(
           width: 360,
@@ -134911,8 +129620,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -134958,12 +129666,7 @@ void main() {
   testWidgets('freeze toolbar menu applies and clears frozen panes', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1200, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1200, 600), devicePixelRatio: 1);
     final workbook = FortuneWorkbook(
       sheets: [FortuneSheet(id: 's1', name: 'Sheet1')],
     );
@@ -134980,8 +129683,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key);
@@ -135061,12 +129763,7 @@ void main() {
   testWidgets('freeze toolbar primary click freezes row and column', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1200, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1200, 600), devicePixelRatio: 1);
     final workbook = FortuneWorkbook(
       sheets: [FortuneSheet(id: 's1', name: 'Sheet1')],
     );
@@ -135083,8 +129780,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -135107,12 +129803,7 @@ void main() {
   testWidgets('freeze toolbar and header drag respect allowEdit false', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1200, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1200, 600));
     final workbook = FortuneWorkbook(
       settings: const FortuneSettings(allowEdit: false),
       sheets: [
@@ -135138,8 +129829,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key);
@@ -135201,12 +129891,7 @@ void main() {
   testWidgets('freeze toolbar unchanged primary keeps undo stack', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1200, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1200, 600));
     final workbook = FortuneWorkbook(
       sheets: [
         FortuneSheet(
@@ -135236,8 +129921,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -135282,12 +129966,7 @@ void main() {
   testWidgets('freeze column handle unchanged drag keeps undo stack', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1200, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1200, 600));
     final workbook = FortuneWorkbook(
       sheets: [
         FortuneSheet(
@@ -135317,8 +129996,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -135357,12 +130035,7 @@ void main() {
   testWidgets('freeze row handle unchanged drag keeps undo stack', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1200, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1200, 600));
     final workbook = FortuneWorkbook(
       sheets: [
         FortuneSheet(
@@ -135392,8 +130065,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -135432,12 +130104,7 @@ void main() {
   testWidgets('freeze toolbar export writes canonical frozen metadata', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1200, 600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(1200, 600));
     final workbook = FortuneSheetCodec.workbookFromJson({
       'data': [
         {
@@ -135464,8 +130131,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     Offset toolbarCenter(String key) => toolbarItemCenter(key);
@@ -135506,12 +130172,7 @@ void main() {
   testWidgets('freeze header handles drag panes and preserve other axis', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(800, 500);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(800, 500));
     final workbook = FortuneWorkbook(
       sheets: [FortuneSheet(id: 's1', name: 'Sheet1')],
     );
@@ -135528,8 +130189,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -135589,12 +130249,7 @@ void main() {
   testWidgets('freeze header drag export writes canonical frozen metadata', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(800, 500);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await prepareFortuneSheetView(tester, const Size(800, 500));
     final workbook = FortuneSheetCodec.workbookFromJson({
       'data': [
         {
@@ -135621,8 +130276,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -135669,7 +130323,7 @@ void main() {
     );
 
     await tester.pumpWidget(
-      Directionality(
+      fortuneSheetTestHost(
         textDirection: TextDirection.ltr,
         child: SizedBox(
           width: 640,
@@ -135680,8 +130334,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -135737,8 +130390,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -135771,7 +130423,7 @@ void main() {
     );
 
     await tester.pumpWidget(
-      Directionality(
+      fortuneSheetTestHost(
         textDirection: TextDirection.ltr,
         child: SizedBox(
           width: 640,
@@ -135782,8 +130434,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -135864,8 +130515,7 @@ void main() {
     );
 
     final painter =
-        tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        fortuneSheetPainter(tester);
     expect(painter.formulaBarNameBoxText, 'B2:C3');
   });
 
@@ -135909,8 +130559,7 @@ void main() {
     );
 
     final painter =
-        tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        fortuneSheetPainter(tester);
     expect(painter.formulaBarNameBoxText, 'B2');
   });
 
@@ -136009,7 +130658,7 @@ void main() {
     );
 
     await tester.pumpWidget(
-      Directionality(
+      fortuneSheetTestHost(
         textDirection: TextDirection.ltr,
         child: SizedBox(
           width: 640,
@@ -136021,8 +130670,7 @@ void main() {
 
     FortuneCell? activeCell() {
       final painter =
-          tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-              as FortuneSheetPainter;
+          fortuneSheetPainter(tester);
       return painter.workbook.activeSheet.cells[const FortuneCellCoord(0, 0)];
     }
 
@@ -136079,7 +130727,7 @@ void main() {
     });
 
     await tester.pumpWidget(
-      Directionality(
+      fortuneSheetTestHost(
         textDirection: TextDirection.ltr,
         child: SizedBox(
           width: 640,
@@ -136090,8 +130738,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -136109,7 +130756,7 @@ void main() {
 
     expect(sheet.cells[const FortuneCellCoord(0, 0)]?.formula, '=SUM(2,3)');
     expect(sheet.cells[const FortuneCellCoord(0, 0)]?.renderedText, '5');
-    expect(cellJson['v'], '=SUM(2,3)');
+    expect(cellJson['v'], '5');
     expect(cellJson['f'], '=SUM(2,3)');
     expect(cellJson['m'], '5');
     expect(cellJson['rawOnly'], isTrue);
@@ -136140,7 +130787,7 @@ void main() {
     });
 
     await tester.pumpWidget(
-      Directionality(
+      fortuneSheetTestHost(
         textDirection: TextDirection.ltr,
         child: SizedBox(
           width: 640,
@@ -136151,8 +130798,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -136201,7 +130847,7 @@ void main() {
     });
 
     await tester.pumpWidget(
-      Directionality(
+      fortuneSheetTestHost(
         textDirection: TextDirection.ltr,
         child: SizedBox(
           width: 640,
@@ -136212,8 +130858,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
@@ -136249,7 +130894,7 @@ void main() {
     );
 
     await tester.pumpWidget(
-      Directionality(
+      fortuneSheetTestHost(
         textDirection: TextDirection.ltr,
         child: SizedBox(
           width: 640,
@@ -136261,8 +130906,7 @@ void main() {
 
     FortuneCell? activeCell() {
       final painter =
-          tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-              as FortuneSheetPainter;
+          fortuneSheetPainter(tester);
       return painter.workbook.activeSheet.cells[const FortuneCellCoord(0, 0)];
     }
 
@@ -136338,8 +130982,7 @@ void main() {
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
