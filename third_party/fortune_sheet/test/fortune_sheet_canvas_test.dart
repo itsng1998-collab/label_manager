@@ -50068,7 +50068,7 @@ void main() {
       );
 
       await tester.pumpWidget(
-        Directionality(
+        fortuneSheetTestHost(
           textDirection: TextDirection.ltr,
           child: SizedBox(
             width: 1688,
@@ -50182,7 +50182,7 @@ void main() {
     await prepareFortuneSheetView(tester, const Size(1688, 600), devicePixelRatio: 1);
 
     await tester.pumpWidget(
-      Directionality(
+      fortuneSheetTestHost(
         textDirection: TextDirection.ltr,
         child: SizedBox(
           width: 1688,
@@ -50289,7 +50289,7 @@ void main() {
     );
 
     await tester.pumpWidget(
-      Directionality(
+      fortuneSheetTestHost(
         textDirection: TextDirection.ltr,
         child: SizedBox(
           width: 1688,

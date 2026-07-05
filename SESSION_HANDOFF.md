@@ -232,6 +232,14 @@
 - 전체 테스트 완료(2026-07-05): `.tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_number_undo_host.log` 결과 `exitCode=1`. number format undo/protected 세 실패는 제거되고 다음 첫 실패는 `toolbar more currency formats dialog scrolls full upstream list`.
 - stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/test/fortune_sheet_canvas_test.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
 - 커밋 완료: `e7f3626` (`FortuneSheet number format undo 테스트 host 보정`).
+- 진행 중(2026-07-05): 다음 첫 실패 `toolbar more currency formats dialog scrolls full upstream list` 분석. 동일한 format search dialog decimal `EditableText` Overlay host 문제로 확인.
+- 완료(2026-07-05): currency/search wheel/protected 세 테스트(`toolbar more currency formats dialog scrolls full upstream list`, `toolbar format search dialog blocks background wheel scroll`, `toolbar more currency protected cell keeps undo stack`)를 `fortuneSheetTestHost`로 감싸 Overlay 제공. focused regex 세 테스트 통과.
+- 검증 예정(2026-07-05): analyzer, `git diff --check`, VS Code diagnostics, 전체 canvas 재실행.
+- 검증 완료(2026-07-05): analyzer No issues, `git diff --check` 출력 없음, VS Code diagnostics 오류 없음.
+- 전체 테스트 실행 예정(2026-07-05): `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_sheet_canvas_test.dart *> .tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_currency_format_host.log`; 실행 후 `exit` 금지, `$LASTEXITCODE` 요약만 출력.
+- 전체 테스트 완료(2026-07-05): `.tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_currency_format_host.log` 결과 `exitCode=1`. currency/search format dialog 세 실패는 제거되고 다음 첫 실패는 `header mouse down selects upstream row and column indexes`.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/test/fortune_sheet_canvas_test.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
+- 커밋 예정: currency/search format dialog 테스트 host 보정.
 
 ### 완료 (2026-07-04): analyze clean 이후 회귀 묶음 재검증
 
