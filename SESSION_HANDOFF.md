@@ -1480,7 +1480,7 @@
 - 검증: `flutter test` 4개 성공, `flutter analyze` No issues.
 - 스케일 확인 완료(로그 `app_2026-07-03_15-11-05.log`): 규칙 C대로 `widthScale=0.232` vs `readableScale=0.644` 중 readable 채택, overflow 168mm. 사용자 결정 = **이대로 유지**(규칙 C6: 가독 우선, 인쇄영역 초과 허용). 코드 변경 없음.
 - 결론: XLSX→라벨시트 변환(테두리 1:1, 폰트/자간/장평/첨자/줄간격 그대로, 스케일 C) 규칙대로 구현·검증 완료.
-- 추가 검증(2026-07-05): 최신 `.tmp/log` 10개에는 실제 `xlsx import` 라인이 없어 사용자 재가져오기 로그 검증은 계속 대기. 현재 코드 기준 `C:\Flutter\bin\flutter.bat test test\label_sheet_xlsx_import_test.dart` 3개 통과, `C:\Flutter\bin\flutter.bat analyze lib\page_label_sheet\label_sheet_xlsx_import.dart lib\page_label_sheet\label_sheet_workbench.dart test\label_sheet_xlsx_import_test.dart --no-fatal-warnings --no-fatal-infos` 결과 `No issues found`, 라벨 시트 묶음 `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart test\label_sheet_print_job_test.dart test\label_sheet_xlsx_import_test.dart` 73개 통과. 기존 unrelated dirty `lib/core/app.dart` 제외.
+- 추가 검증(2026-07-05): 최신 `.tmp/log` 10개에는 실제 `xlsx import` 라인이 없어 사용자 재가져오기 로그 검증은 계속 대기. 현재 코드 기준 `C:\Flutter\bin\flutter.bat test test\label_sheet_xlsx_import_test.dart` 3개 통과, `C:\Flutter\bin\flutter.bat analyze lib\page_label_sheet\label_sheet_xlsx_import.dart lib\page_label_sheet\label_sheet_workbench.dart test\label_sheet_xlsx_import_test.dart --no-fatal-warnings --no-fatal-infos` 결과 `No issues found`, 라벨 시트 묶음 `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart test\label_sheet_print_job_test.dart test\label_sheet_xlsx_import_test.dart` 73개 통과. 커밋 `9a155da` (`XLSX 가져오기 검증 상태 갱신`). 기존 unrelated dirty `lib/core/app.dart` 제외.
 
 ### 최근 완료 (2026-07-03)
 
