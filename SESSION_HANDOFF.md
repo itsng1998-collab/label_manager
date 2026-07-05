@@ -162,6 +162,7 @@
 - 검증 완료(2026-07-05): wrapped editing 세 테스트 focused regex 통과, analyzer No issues, `git diff --check` 출력 없음, VS Code diagnostics 오류 없음.
 - 전체 테스트 완료(2026-07-05): `.tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_wrapped_text_custom_host.log` 결과 `exitCode=1`. wrapped editing 실패는 제거되고 다음 첫 실패는 `toolbar dropdown scrolls when viewport height is constrained`.
 - 오류 방지(2026-07-05): `.tmp/error1.png`, `.tmp/error2.png` 확인. VS Code 멈춤 원인 후보였던 5천 줄 규모 포맷 diff를 제거하고 테스트 파일 변경을 3줄 diff로 축소. 이후 큰 `fortune_sheet_canvas_test.dart` 전체 포맷 금지. PowerShell persistent terminal에서 리다이렉트 테스트 뒤 `exit $LASTEXITCODE` 사용 금지(세션 종료/VS Code 무응답 팝업 유발 가능). 실패 코드는 로그/요약으로 확인.
+- 작업 규칙(2026-07-05): `.tmp/error1.png`/`.tmp/error2.png` 재발 방지. `fortune_sheet_canvas_test.dart`는 전체 파일 포맷, 대형 regex/read, 대량 full test output 표시 금지. 테스트 출력은 `.tmp/copilot/*.log`에 저장하고 `Select-String`/tail 요약만 확인한다. persistent PowerShell에서는 `exit`, `exit $LASTEXITCODE`, `exit $code` 금지. 전체 테스트 후에는 `$code = $LASTEXITCODE; Write-Output "exitCode=$code"` 방식으로 요약만 남긴다. 불필요한 수천 줄 포맷 diff는 즉시 제거한다.
 - stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/test/fortune_sheet_canvas_test.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
 - 커밋 완료: `ce075fe` (`FortuneSheet wrapped editing 테스트 host 보정`).
 - 진행 중: 다음 첫 실패 `toolbar dropdown scrolls when viewport height is constrained` 분석 예정.
