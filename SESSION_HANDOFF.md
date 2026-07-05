@@ -152,7 +152,19 @@
 - 전체 테스트 예정(2026-07-05): `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_sheet_canvas_test.dart` 출력을 `.tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_hidden_column_image_fixture.log`로 리다이렉트해 다음 첫 실패 확인.
 - 전체 테스트 완료(2026-07-05): `.tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_hidden_column_image_fixture.log` 결과 `exitCode=1`, `[E]` 기준 183개 실패. hidden target column image copy/cut 실패는 제거되고 다음 첫 실패는 `editing wrapped text grows non custom row height`의 `No Overlay widget found`.
 - stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/test/fortune_sheet_canvas_test.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
-- 미검증/진행 중: 전체 canvas clean까지 추가 정리 필요. 기존 unrelated dirty `lib/core/app.dart` 제외.
+- 커밋 완료: `01e9bfb` (`FortuneSheet 숨김 열 이미지 테스트 보정`).
+- 진행 중(2026-07-05): 다음 실패 `editing wrapped text grows non custom row height` focused 단독 재현. `EditableText` selection overlay 생성 중 `No Overlay widget found` 발생. 테스트가 `Directionality`만 host로 사용해 Overlay ancestor가 없으므로 기존 `fortuneSheetTestHost`로 wrapped editing 테스트 host 보정 중.
+- 완료(2026-07-05): wrapped editing 세 테스트(`editing wrapped text grows non custom row height`, `editing long wrapped text grows row height by column width`, `editing wrapped text preserves custom row height`)를 `fortuneSheetTestHost`로 감싸 Overlay ancestor 제공. focused regex 세 테스트 통과. 최초 patch가 반복 블록에 잘못 적용되어 9천 줄대 unrelated host 변경은 원복 후 대상 테스트 이름 문맥으로 재적용.
+- 검증 예정(2026-07-05): `C:\Flutter\bin\flutter.bat analyze third_party\fortune_sheet\test\fortune_sheet_canvas_test.dart --no-fatal-warnings --no-fatal-infos`, `git diff --check`, VS Code diagnostics.
+- 검증 완료(2026-07-05): analyzer No issues, `git diff --check` 출력 없음, VS Code diagnostics 오류 없음.
+- 전체 테스트 실행 예정(2026-07-05): `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_sheet_canvas_test.dart *> .tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_wrapped_text_host.log`.
+- 전체 테스트 결과(2026-07-05): `after_wrapped_text_host.log` 기준 첫 실패가 `editing wrapped text preserves custom row height`로 이동. 같은 Overlay host 누락 원인이라 해당 테스트도 `fortuneSheetTestHost`로 보정.
+- 검증 완료(2026-07-05): wrapped editing 세 테스트 focused regex 통과, analyzer No issues, `git diff --check` 출력 없음, VS Code diagnostics 오류 없음.
+- 전체 테스트 완료(2026-07-05): `.tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_wrapped_text_custom_host.log` 결과 `exitCode=1`. wrapped editing 실패는 제거되고 다음 첫 실패는 `toolbar dropdown scrolls when viewport height is constrained`.
+- 오류 방지(2026-07-05): `.tmp/error1.png`, `.tmp/error2.png` 확인. VS Code 멈춤 원인 후보였던 5천 줄 규모 포맷 diff를 제거하고 테스트 파일 변경을 3줄 diff로 축소. 이후 큰 `fortune_sheet_canvas_test.dart` 전체 포맷 금지. PowerShell persistent terminal에서 리다이렉트 테스트 뒤 `exit $LASTEXITCODE` 사용 금지(세션 종료/VS Code 무응답 팝업 유발 가능). 실패 코드는 로그/요약으로 확인.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/test/fortune_sheet_canvas_test.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
+- 커밋 예정: wrapped editing host 보정.
+- 진행 중: 다음 첫 실패 `toolbar dropdown scrolls when viewport height is constrained` 분석 예정.
 
 ### 완료 (2026-07-04): analyze clean 이후 회귀 묶음 재검증
 
