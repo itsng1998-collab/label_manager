@@ -24779,7 +24779,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     if (!isShortcutPressed) {
       return false;
     }
-    return event.logicalKey == LogicalKeyboardKey.keyD ||
+    return event.logicalKey == LogicalKeyboardKey.keyA ||
+        event.logicalKey == LogicalKeyboardKey.keyD ||
         event.logicalKey == LogicalKeyboardKey.arrowUp ||
         event.logicalKey == LogicalKeyboardKey.arrowDown ||
         event.logicalKey == LogicalKeyboardKey.home ||
@@ -24906,6 +24907,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       return false;
     }
     switch (event.logicalKey) {
+      case LogicalKeyboardKey.keyA:
+        _selectAllImageLayerPanelRows();
       case LogicalKeyboardKey.keyD:
         _duplicateContextImage(keepLayerPanelOpen: true);
       case LogicalKeyboardKey.arrowUp:
@@ -24932,6 +24935,21 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         return false;
     }
     return true;
+  }
+
+  void _selectAllImageLayerPanelRows() {
+    final items = fortuneImageLayerPanelItems(_workbook.activeSheet.images);
+    if (items.isEmpty) {
+      return;
+    }
+    setState(() {
+      _activeImageId = items.first.id;
+      _selectedImageIds = {for (final image in items) image.id};
+      _imageLayerPanelScrollOffset =
+          _imageLayerPanelScrollOffsetToRevealActive();
+      contextMenuAt = null;
+      _contextMenuImageId = null;
+    });
   }
 
   bool _scrollImageLayerPanelDuringRowDrag(

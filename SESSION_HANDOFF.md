@@ -27,6 +27,19 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-05): 이미지/바코드 레이어 패널 Ctrl+A 전체 선택
+
+- 목적: 레이어 패널 키보드 조작에서 Ctrl/Meta+A로 모든 이미지/바코드 row를 선택한다. 이후 기존 다중 삭제/복제/오더/drag action이 전체 선택 집합에 그대로 적용되도록 한다.
+- 변경 완료: `fortune_sheet_canvas.dart`의 레이어 패널 command key 처리에 `LogicalKeyboardKey.keyA`를 추가하고, 현재 panel item 전체 id를 `_selectedImageIds`에 반영하도록 했다.
+- 테스트 추가: `fortune_barcode_dialog_test.dart`에 `image layer panel keyboard select all deletes rows` 추가.
+- 검증 완료: focused `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --name "image layer panel keyboard shift selects rows for delete|image layer panel keyboard select all deletes rows"` 결과 2개 통과.
+- 검증 완료: 관련 묶음 `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --name "image layer panel keyboard selects and edits rows|image layer panel keyboard commands duplicate and move row|image layer panel delete key removes selected row|image layer panel keyboard shift selects rows for delete|image layer panel keyboard select all deletes rows|image layer panel delete action removes selected rows"` 결과 6개 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze third_party\fortune_sheet\lib\src\fortune_sheet_canvas.dart third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --no-fatal-warnings --no-fatal-infos` 결과 `No issues found`.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart` 최초 전체 실행에서 기존 `image floating toolbar opens layer panel and selects item` 기대값 오수정이 발견되어 복구했고, 재실행 결과 58개 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze third_party\fortune_sheet\lib\src\fortune_sheet_canvas.dart third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --no-fatal-warnings --no-fatal-infos` 결과 `No issues found`.
+- 검증 완료: `git diff --check -- SESSION_HANDOFF.md third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart` 출력 없음. VS Code diagnostics 오류 없음.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`, `third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
+
 ### 완료 (2026-07-05): 이미지/바코드 레이어 패널 다중 선택 action enable 판정
 
 - 목적: 레이어 패널 action 버튼의 활성/비활성 판정을 다중 선택 그룹 기준으로 맞춘다. active row 하나만 보면 active가 맨 앞/맨 뒤인 경우 선택 그룹 전체는 이동 가능해도 action이 비활성화될 수 있다.
