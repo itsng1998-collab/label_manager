@@ -32039,6 +32039,10 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       _toggleSelectedCellStyle(fortuneToolbarBoldCommand);
       return;
     }
+    if (isShortcutPressed && event.logicalKey == LogicalKeyboardKey.keyI) {
+      _toggleSelectedCellStyle(fortuneToolbarItalicCommand);
+      return;
+    }
     if (isShortcutPressed && event.logicalKey == LogicalKeyboardKey.keyA) {
       _selectAllActiveSheet();
       return;

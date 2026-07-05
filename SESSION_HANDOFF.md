@@ -83,6 +83,12 @@
 - stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/test/fortune_sheet_canvas_test.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
 - 커밋 완료: `6010101` (`FortuneSheet active editor 테스트 host 보정`).
 - 다음 작업: `control i toggles selected cell italic` focused 재현부터 계속 정리.
+- 진행 중(2026-07-05): focused `control i toggles selected cell italic` 단독 재현 결과 selected cell `italic`이 `false`로 남음. 원인은 sheet key handler에 Ctrl+B 스타일 토글 매핑만 있고 Ctrl+I가 누락된 것으로 확인해 동일 `_toggleSelectedCellStyle` 경로에 Ctrl+I를 연결 중.
+- 변경 완료: `fortune_sheet_canvas.dart`의 sheet key handler에 Ctrl+I -> `fortuneToolbarItalicCommand` 매핑을 추가해 선택 셀 italic 토글이 기존 toolbar/undo 경로를 사용하도록 했다.
+- 검증 완료: focused `control b toggles selected cell bold`, `control i toggles selected cell italic` 통과. `dart_format` 적용 완료(`fortune_sheet_canvas.dart`). `C:\Flutter\bin\flutter.bat analyze third_party\fortune_sheet\lib\src\fortune_sheet_canvas.dart third_party\fortune_sheet\test\fortune_sheet_canvas_test.dart --no-fatal-warnings --no-fatal-infos` 통과. `git diff --check -- SESSION_HANDOFF.md third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart third_party/fortune_sheet/test/fortune_sheet_canvas_test.dart` 통과. VS Code 진단 오류 없음.
+- 검증 완료: 전체 `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_sheet_canvas_test.dart` 리다이렉트 재실행(`.tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_ctrl_i.log`) 결과 1271개 중 150개 실패. 다음 첫 실패는 `selection and fill handle drags auto scroll near viewport edge`의 `Expected: a value greater than <0> / Actual: <0>`.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
+- 다음 작업: `selection and fill handle drags auto scroll near viewport edge` focused 재현부터 계속 정리.
 - 미검증/진행 중: 전체 canvas clean까지 추가 정리 필요. 기존 unrelated dirty `lib/core/app.dart` 제외.
 
 ### 완료 (2026-07-04): analyze clean 이후 회귀 묶음 재검증
