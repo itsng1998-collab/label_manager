@@ -163,7 +163,7 @@
 - 전체 테스트 완료(2026-07-05): `.tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_wrapped_text_custom_host.log` 결과 `exitCode=1`. wrapped editing 실패는 제거되고 다음 첫 실패는 `toolbar dropdown scrolls when viewport height is constrained`.
 - 오류 방지(2026-07-05): `.tmp/error1.png`, `.tmp/error2.png` 확인. VS Code 멈춤 원인 후보였던 5천 줄 규모 포맷 diff를 제거하고 테스트 파일 변경을 3줄 diff로 축소. 이후 큰 `fortune_sheet_canvas_test.dart` 전체 포맷 금지. PowerShell persistent terminal에서 리다이렉트 테스트 뒤 `exit $LASTEXITCODE` 사용 금지(세션 종료/VS Code 무응답 팝업 유발 가능). 실패 코드는 로그/요약으로 확인.
 - stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/test/fortune_sheet_canvas_test.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
-- 커밋 예정: wrapped editing host 보정.
+- 커밋 완료: `ce075fe` (`FortuneSheet wrapped editing 테스트 host 보정`).
 - 진행 중: 다음 첫 실패 `toolbar dropdown scrolls when viewport height is constrained` 분석 예정.
 
 ### 완료 (2026-07-04): analyze clean 이후 회귀 묶음 재검증
