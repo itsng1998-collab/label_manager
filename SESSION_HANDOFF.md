@@ -276,6 +276,15 @@
 - 전체 테스트 완료(2026-07-05): `.tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_clear_format_export_value.log` 결과 `exitCode=1`. clear format export value 실패 제거, 다음 첫 실패는 `toolbar comment opens editor and commits comment text`.
 - stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/test/fortune_sheet_canvas_test.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
 - 커밋 완료: `361c1bd` (`FortuneSheet clear format export 테스트 기대값 보정`).
+- 진행 중(2026-07-05): 다음 첫 실패 `toolbar comment opens editor and commits comment text` 분석. comment editor `EditableText`에서 `No Overlay widget found` 및 unfinished batch edit 확인.
+- 수정 예정(2026-07-05): comment editor를 여는 다섯 테스트(`toolbar comment opens editor and commits comment text`, `toolbar comment commits active comment before new insert`, `blocked cell mouse down still commits active comment editor`, `header mouse down commits active comment editor`, `toolbar comment lifecycle hooks wrap edits`)를 `fortuneSheetTestHost`로 감싸 Overlay 제공.
+- 완료(2026-07-05): comment editor 관련 다섯 테스트를 `fortuneSheetTestHost`로 감싸 Overlay 제공. focused regex 다섯 테스트 통과.
+- 검증 예정(2026-07-05): analyzer, `git diff --check`, VS Code diagnostics, 전체 canvas 재실행.
+- 검증 완료(2026-07-05): analyzer No issues, `git diff --check` 출력 없음, VS Code diagnostics 오류 없음.
+- 전체 테스트 실행 예정(2026-07-05): `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_sheet_canvas_test.dart *> .tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_comment_editor_host.log`; 실행 후 `exit` 금지, `$LASTEXITCODE` 요약만 출력.
+- 전체 테스트 완료(2026-07-05): `.tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_comment_editor_host.log` 결과 `exitCode=1`. comment editor 관련 다섯 실패 제거, 다음 첫 실패는 `painter header render hooks wrap visible headers`.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/test/fortune_sheet_canvas_test.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
+- 커밋 예정: comment editor 테스트 host 보정.
 
 ### 완료 (2026-07-04): analyze clean 이후 회귀 묶음 재검증
 
