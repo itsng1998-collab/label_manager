@@ -54499,7 +54499,7 @@ void main() {
       textDirection: TextDirection.ltr,
     );
 
-    painter.paint(canvas, const Size(160, 120));
+    painter.paint(canvas, const Size(160, 240));
     final picture = recorder.endRecording();
     picture.dispose();
 
@@ -54566,7 +54566,7 @@ void main() {
       textDirection: TextDirection.ltr,
     );
 
-    painter.paint(canvas, const Size(240, 120));
+    painter.paint(canvas, const Size(240, 240));
     final picture = recorder.endRecording();
     picture.dispose();
 
