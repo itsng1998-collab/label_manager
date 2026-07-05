@@ -414,6 +414,7 @@
 - 전체 테스트 완료(2026-07-05): `.tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_search_replace_host_relaxed.log` 결과 `exitCode=1`, 1376개 중 45개 실패, deactivated ancestor 2회. `after_merge_popup_dragged.log`의 1309개 중 112개 실패/deactivated 218회 대비 크게 개선.
 - 다음 first failure(2026-07-05): `toolbar search replace blocks read-only selection`, `fortune-search-input`/`FortuneSearchEditor` Overlay 없음. 다음 작업은 같은 search replace dialog 테스트에 `fortuneSheetTestHost` 적용 범위 확대.
 - stage/commit 대상(2026-07-05): `SESSION_HANDOFF.md`, `third_party/fortune_sheet/test/fortune_sheet_canvas_test.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
+- 커밋 완료(2026-07-05): `b1fd591` `FortuneSheet canvas 테스트 host 안정화`.
 
 ### 완료 (2026-07-04): analyze clean 이후 회귀 묶음 재검증
 
