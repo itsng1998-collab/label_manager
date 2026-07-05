@@ -48250,7 +48250,7 @@ void main() {
             const FortuneCellCoord(0, 1): const FortuneCell(value: 'next'),
           },
           columnWidths: const {0: 700},
-          rowHeights: const {0: 320},
+          rowHeights: const {0: 420},
         ),
       ],
     );
@@ -48298,7 +48298,7 @@ void main() {
           ),
           toolbarKey: fortuneToolbarFontSizePopupKey,
           itemIndex: fortuneToolbarFontSizeCommands.indexOf(
-            fortuneToolbarFontSize24Command,
+            fortuneToolbarFontSize18Command,
           ),
         );
     final editableRect = tester.getRect(find.byType(EditableText));
@@ -48327,7 +48327,7 @@ void main() {
         .cells[const FortuneCellCoord(0, 0)]!
         .inlineRuns!;
     expect(runs.map((run) => run.text), ['ab', 'cdefg', 'hijk']);
-    expect(runs.map((run) => run.fontSize), [null, 24, null]);
+    expect(runs.map((run) => run.fontSize), [null, 18, null]);
   });
 
   testWidgets('toolbar dropdown arrows keep active editor open', (

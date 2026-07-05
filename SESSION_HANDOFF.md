@@ -199,6 +199,14 @@
 - 전체 테스트 완료(2026-07-05): `.tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_active_ranges_fixture.log` 결과 `exitCode=1`. `controller reads active sheet ranges` 실패는 제거되고 다음 첫 실패는 `toolbar font size popup over editor keeps selected text range`.
 - stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/test/fortune_sheet_canvas_test.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
 - 커밋 완료: `cf9db2f` (`FortuneSheet controller range 테스트 fixture 보정`).
+- 진행 중(2026-07-05): 다음 첫 실패 `toolbar font size popup over editor keeps selected text range` focused 분석. 최초 fixture row height 320에서는 popup item center가 editor 밖이라 전제 실패. row height 420으로 겹침 전제 복원 후, 선택한 `24` 항목 center가 popup visible rect 밖이라 아래 editor tap으로 처리되어 selection이 11-11로 이동하는 문제 확인.
+- 완료(2026-07-05): 테스트가 실제 visible popup 항목을 누르도록 `18` 항목으로 보정하고 기대 font size도 18로 갱신. focused 통과.
+- 검증 예정(2026-07-05): analyzer, `git diff --check`, VS Code diagnostics, 전체 canvas 재실행.
+- 검증 완료(2026-07-05): analyzer No issues, `git diff --check` 출력 없음, VS Code diagnostics 오류 없음.
+- 전체 테스트 실행 예정(2026-07-05): `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_sheet_canvas_test.dart *> .tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_font_size_popup_fixture.log`; 실행 후 `exit` 금지, `$LASTEXITCODE` 요약만 출력.
+- 전체 테스트 완료(2026-07-05): `.tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_font_size_popup_fixture.log` 결과 `exitCode=1`. `toolbar font size popup over editor keeps selected text range` 실패는 제거되고 다음 첫 실패는 `toolbar more number formats dialog applies selected format`.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/test/fortune_sheet_canvas_test.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
+- 커밋 예정: font size popup over editor fixture 보정.
 
 ### 완료 (2026-07-04): analyze clean 이후 회귀 묶음 재검증
 
