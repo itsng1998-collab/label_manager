@@ -53,6 +53,8 @@ Future<void> prepareFortuneSheetView(
     FocusManager.instance.primaryFocus?.unfocus();
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pumpAndSettle();
+    tester.view.resetPhysicalSize();
+    tester.view.resetDevicePixelRatio();
   });
 }
 
