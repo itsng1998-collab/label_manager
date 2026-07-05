@@ -24131,6 +24131,9 @@ void main() {
               background: Color(0xfffff2cc),
             ),
             const FortuneCellCoord(0, 1): const FortuneCell(merge: merge),
+            const FortuneCellCoord(1, 0): const FortuneCell(
+              value: 'locked merged',
+            ),
           },
         ),
       ],

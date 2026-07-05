@@ -121,6 +121,13 @@
 - 전체 테스트 완료(2026-07-05): `.tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_view_reset.log` 결과 `exitCode=1`, `[E]` 기준 190개 실패. `copy paste does not partially repeat into uneven range` full-only 실패는 제거되고 다음 첫 실패는 focused 단독 재현되는 `delete key on merged covered cell respects locked anchor` (`Expected: 'locked merged' / Actual: '0'`). 실패 수는 view size 누수 제거 후 cascade 양상이 바뀌어 단순 전후 비교보다 첫 실패 기준으로 추적.
 - stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/test/fortune_sheet_canvas_test.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
 - 커밋 완료: `eaf76e6` (`FortuneSheet 테스트 뷰 크기 원복`).
+- 진행 중(2026-07-05): 다음 실패 `delete key on merged covered cell respects locked anchor` focused 단독 재현. 실패는 초기 pump/recalc에서 `=A2`가 빈 A2를 참조해 anchor value가 Delete 전부터 `0`으로 바뀌는 fixture 문제로 확인. Delete 보호 검증력을 유지하도록 A2에 `'locked merged'` 값을 추가(잘못 지우면 다시 `0`으로 변해 실패). `apply_patch`가 큰 테스트 파일에서 stack overflow를 내 UTF-8(BOM 없음) 보존 PowerShell 단일 치환으로 수정.
+- 완료(2026-07-05): 포맷 후 focused `delete key on merged covered cell respects locked anchor` 통과.
+- 검증 예정(2026-07-05): `C:\Flutter\bin\flutter.bat analyze third_party\fortune_sheet\test\fortune_sheet_canvas_test.dart --no-fatal-warnings --no-fatal-infos`, `git diff --check`, VS Code diagnostics.
+- 검증 완료(2026-07-05): analyzer `No issues found`, `git diff --check` 출력 없음, VS Code diagnostics 오류 없음.
+- 전체 테스트 예정(2026-07-05): `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_sheet_canvas_test.dart` 출력을 `.tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_delete_locked_fixture.log`로 리다이렉트해 다음 첫 실패 확인.
+- 전체 테스트 완료(2026-07-05): `.tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_delete_locked_fixture.log` 결과 `exitCode=1`, `[E]` 기준 189개 실패. `delete key on merged covered cell respects locked anchor` 실패는 제거되고 다음 첫 실패는 `copy paste skips hidden target column metadata`.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/test/fortune_sheet_canvas_test.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
 - 미검증/진행 중: 전체 canvas clean까지 추가 정리 필요. 기존 unrelated dirty `lib/core/app.dart` 제외.
 
 ### 완료 (2026-07-04): analyze clean 이후 회귀 묶음 재검증
