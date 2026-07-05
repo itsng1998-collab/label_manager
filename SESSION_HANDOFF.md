@@ -37,7 +37,7 @@
 - 검증 완료: 전체 `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart` 결과 60개 통과.
 - 검증 완료: `git diff --check -- SESSION_HANDOFF.md third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart` 출력 없음.
 - 검증 완료: VS Code diagnostics 결과 `SESSION_HANDOFF.md`, `fortune_barcode_dialog_test.dart` 오류 없음.
-- stage/commit 진행: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
+- 커밋 완료: `b810d45` (`이미지 바코드 레이어 패널 전체 선택 이동 검증`). 기존 unrelated dirty `lib/core/app.dart` 제외.
 
 ### 완료 (2026-07-05): 이미지/바코드 레이어 패널 Ctrl+A 전체 선택 복제 검증
 
