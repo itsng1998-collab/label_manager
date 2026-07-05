@@ -1451,7 +1451,7 @@
 - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/models/label_size.dart`, `lib/home_page_manager.dart`, `doc/BM_RICH_BRAND.sql`, `doc/BM_RICH_LABELSIZE_FORM.sql` 포함(사용자 요청). 기존 dirty `lib/core/app.dart`는 제외.
 - 기능 커밋: `a6f4911` (`라벨 설정 순서 적용 저장 구현`).
 
-### 진행 중 (2026-07-03): XLSX → 라벨 시트 변환 규칙 재정립 (1차 구현 완료, 재가져오기 검증 대기)
+### 완료/대기 (2026-07-05): XLSX → 라벨 시트 변환 규칙 재정립 (구현·샘플 검증 완료, 사용자 재가져오기 로그 대기)
 
 목적: `.xlsx` 엑셀을 라벨 시트로 가져오기. 원본과 최대한 100% 동일하게 변환.
 규칙 전문은 세션 메모리 `/memories/session/xlsx-import-rules.md` 및 코드 상단 주석(`lib/page_label_sheet/label_sheet_xlsx_import.dart` 파일 헤더)에 명시. 완료 시까지 유지.
@@ -1461,7 +1461,7 @@
 - **C. 스케일**: 물리 라벨 폭 우선 스케일(폭 대비 높이 비율). 가독 미달 시 최소 가독 문자 기준 재확대(인쇄영역 초과 허용). 가독 기준은 실물 프린트 mm.
 - **D. 폰트/텍스트**: 글꼴/크기/굵게·기울임·밑줄·취소선/글자색 + 자간/장평/첨자/줄간격을 엑셀 그대로. 크기만 C 스케일 비례.
 
-1차 구현 완료 (미검증, 사용자 재가져오기 후 확인 필요):
+구현 완료:
 - `lib/page_label_sheet/label_sheet_xlsx_import.dart`:
   - 파일 헤더에 변환 규칙 A~D 주석 명시(추후 수정 방향 고정).
   - 영양정보 전용 보정 전부 제거: `_adjustXlsxImportedBorder`(다운캐스트), `_missingNutritionOuterBorders`(합성), `_isXlsxNutritionHeader`/`_isXlsxNutritionOuterBorder`/`_isXlsxNutritionInnerBorder`/`_nutritionRangeFromHeaderMerge`, `#BARCODE`/안내문/빈셀 skip(`_shouldSkipXlsxCellBorders`/`_shouldImportXlsxCellBorders`), `_isInsideXlsxMergeRange`, `_mergeRangeFromJson`, `_isSameXlsxBorderLog`, 관련 sample 로그/변수(`nutritionBorderRanges`·`borderlessMergeRanges`·`mergeRanges`·`adjustedBorderSamples`·`skipped*BorderSamples`).
@@ -1471,7 +1471,7 @@
 - `test/label_sheet_xlsx_import_test.dart`: 충실 변환 기준으로 테두리 기대값 갱신(borderId 있는 셀은 값/종류 무관 테두리 유지, borderId=0은 없음). `*유통기한:`/`#BARCODE`/빈셀도 엑셀 border가 있으면 유지.
 - 검증: `flutter test test/label_sheet_xlsx_import_test.dart` 3개 성공, `flutter analyze`(3파일) No issues.
 
-다음 작업 (재가져오기 후):
+검증/후속 상태:
 - **근본 원인 확정 + 수정 + 검증 완료**: 원본 `.tmp/label_sample2_converted.xlsx` styles.xml 직접 확인.
   - `<x:borders count="62">`인데 맨 앞 self-closing `<x:border /><x:border />` 2개(무테두리)를 파서가 **여는 태그로 오인해 삼켜** 60개만 파싱 → 모든 borderId 2씩 밀림. 예: A14는 borderId 33(=회색 왼쪽선)이어야 하는데 index 35의 4면 검정 테두리를 잘못 참조.
   - 수정: `_elementBodies` 정규식을 self-closing(`<tag/>`) 대안 먼저 매칭. borders/fonts/fills 정렬 교정.
@@ -1482,6 +1482,9 @@
 - 결론: XLSX→라벨시트 변환(테두리 1:1, 폰트/자간/장평/첨자/줄간격 그대로, 스케일 C) 규칙대로 구현·검증 완료.
 - 추가 검증(2026-07-05): 최신 `.tmp/log` 10개에는 실제 `xlsx import` 라인이 없어 사용자 재가져오기 로그 검증은 계속 대기. 현재 코드 기준 `C:\Flutter\bin\flutter.bat test test\label_sheet_xlsx_import_test.dart` 3개 통과, `C:\Flutter\bin\flutter.bat analyze lib\page_label_sheet\label_sheet_xlsx_import.dart lib\page_label_sheet\label_sheet_workbench.dart test\label_sheet_xlsx_import_test.dart --no-fatal-warnings --no-fatal-infos` 결과 `No issues found`, 라벨 시트 묶음 `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart test\label_sheet_print_job_test.dart test\label_sheet_xlsx_import_test.dart` 73개 통과. 커밋 `9a155da` (`XLSX 가져오기 검증 상태 갱신`). 기존 unrelated dirty `lib/core/app.dart` 제외.
 - 샘플 직접 검증(2026-07-05): `.tmp/label_sample2_converted.xlsx`를 현재 importer로 읽는 임시 Flutter test를 실행한 결과 `exitCode=0`. styles 파싱 `borders=62`, worksheet `borders=792`, sheet `Label_Template rows=36 columns=21 cells=756 borders=792`. 검증 포인트: A14=회색 왼쪽선만, N20=무테두리, L19/L30=회색선만, A5/A7/A9=굵은 외곽선 유지. 임시 검사 파일/로그는 삭제 완료. 커밋 `4232e09` (`XLSX 샘플 직접 검증 기록`). 기존 unrelated dirty `lib/core/app.dart` 제외.
+- 상태 정리(2026-07-05): 구현·코드 기준 테스트/analyze·샘플 직접 검증은 완료. 남은 것은 사용자가 앱에서 새로 XLSX 재가져오기를 실행한 뒤 생성되는 최신 `.tmp/log`의 실제 `xlsx import` 라인 재확인뿐이다.
+- 재검증 예정(2026-07-05): 최신 `.tmp/log` 10개 `xlsx import` 재검색, `C:\Flutter\bin\flutter.bat test test\label_sheet_xlsx_import_test.dart`, `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart test\label_sheet_print_job_test.dart test\label_sheet_xlsx_import_test.dart`, 전체 `C:\Flutter\bin\flutter.bat test`, 전체 `C:\Flutter\bin\flutter.bat analyze --no-fatal-warnings --no-fatal-infos` 실행 후 결과 기록. 기존 unrelated dirty `lib/core/app.dart` 제외.
+- 재검증 완료(2026-07-05): 최신 `.tmp/log` 10개(`app_2026-07-04_15-45-31.log` 등)에는 여전히 `xlsx import` 라인 없음. `C:\Flutter\bin\flutter.bat test test\label_sheet_xlsx_import_test.dart *> .tmp\copilot\label_sheet_xlsx_import_test_2026-07-05_rebaseline.log` 결과 `exitCode=0`, 3개 통과. 라벨시트 묶음 `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart test\label_sheet_print_job_test.dart test\label_sheet_xlsx_import_test.dart *> .tmp\copilot\label_sheet_bundle_test_2026-07-05_rebaseline.log` 결과 `exitCode=0`, 73개 통과. 전체 `C:\Flutter\bin\flutter.bat test *> .tmp\copilot\flutter_test_full_2026-07-05_rebaseline_after_xlsx_sample.log` 결과 `exitCode=0`, 128개 통과. 전체 analyzer `C:\Flutter\bin\flutter.bat analyze --no-fatal-warnings --no-fatal-infos *> .tmp\copilot\flutter_analyze_full_2026-07-05_rebaseline_after_xlsx_sample.log` 결과 `exitCode=0`, `No issues found`. 기존 unrelated dirty `lib/core/app.dart` 제외.
 
 ### 최근 완료 (2026-07-03)
 
