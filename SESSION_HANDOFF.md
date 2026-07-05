@@ -182,6 +182,15 @@
 - 전체 테스트 완료(2026-07-05): `.tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_border_popup_width.log` 결과 `exitCode=1`. `toolbar border popup styling mirrors upstream CSS` 실패는 제거되고 다음 첫 실패는 `controller adds sheets through workbook API policy`.
 - stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/test/fortune_sheet_canvas_test.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
 - 커밋 완료: `e595e76` (`FortuneSheet 툴바 border popup 테스트 기대값 갱신`).
+- 진행 중(2026-07-05): 다음 첫 실패 `controller adds sheets through workbook API policy` focused 단독 재현. 실패는 `addSheet`/`deleteSheet` after hook deferral이 `Future.delayed(Duration.zero, ...)`로 zero Timer를 만들고 widget test 종료 시 pending timer invariant를 깨는 문제.
+- 완료(2026-07-05): `_deferSheetAfterHook`를 `scheduleMicrotask`로 전환해 동기 mutation 뒤로 미루는 의미는 유지하면서 fake_async pending timer를 만들지 않도록 보정.
+- 검증 완료(2026-07-05): focused `controller adds sheets through workbook API policy` 통과. 인접 regex `controller adds sheets through workbook API policy|controller batchCallApis dispatches addSheet options|controller batchCallApis coerces sheet maps|controller deletes sheets with canvas-safe policy` 통과.
+- 검증 예정(2026-07-05): analyzer, `git diff --check`, VS Code diagnostics, 전체 canvas 재실행.
+- 검증 완료(2026-07-05): analyzer No issues, `git diff --check` 출력 없음, VS Code diagnostics 오류 없음.
+- 전체 테스트 실행 예정(2026-07-05): `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_sheet_canvas_test.dart *> .tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_sheet_after_hook_microtask.log`; 실행 후 `exit` 금지, `$LASTEXITCODE` 요약만 출력.
+- 전체 테스트 완료(2026-07-05): `.tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_sheet_after_hook_microtask.log` 결과 `exitCode=1`. add/delete controller pending timer 실패 묶음은 제거되고 다음 첫 실패는 `controller reads active sheet ranges`.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/lib/src/fortune_sheet_model.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
+- 커밋 예정: sheet after hook microtask 전환.
 
 ### 완료 (2026-07-04): analyze clean 이후 회귀 묶음 재검증
 

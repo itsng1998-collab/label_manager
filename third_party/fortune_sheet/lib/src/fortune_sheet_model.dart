@@ -24473,7 +24473,7 @@ FortuneSheet _clearedSheetFrom(
 }
 
 void _deferSheetAfterHook(void Function() callback) {
-  Future<void>.delayed(Duration.zero, callback);
+  scheduleMicrotask(callback);
 }
 
 FortuneWorkbook copySheet(
