@@ -27,7 +27,14 @@
 
 ## 현재 상태
 
-### 진행 중 (2026-07-05): FortuneSheet 전체 테스트 확대 잔여 실패 정리
+### 현재 활성 작업 없음 (2026-07-05)
+
+- FortuneSheet canvas 전체, FortuneSheet 패키지 전체, workspace 전체 테스트가 모두 통과한 상태다.
+- 전체 analyzer 재검증도 `C:\Flutter\bin\flutter.bat analyze --no-fatal-warnings --no-fatal-infos *> .tmp/copilot/flutter_analyze_full_2026-07-05_after_full_test_clean.log` 결과 `exitCode=0`, `No issues found`.
+- 관련 커밋 완료: `5bf6c94` (`FortuneSheet 전체 테스트 잔여 실패 정리`), `6dfee26` (`인수인계 커밋 해시 갱신`), `d31abe7` (`전체 프로젝트 테스트 통과 기록`).
+- 현재 남은 Git 변경은 기존 unrelated dirty `lib/core/app.dart`뿐이며, 이번 FortuneSheet/검증 작업과 무관하므로 stage/commit에서 제외한다.
+
+### 완료 (2026-07-05): FortuneSheet 전체 테스트 확대 잔여 실패 정리
 
 목적: `fortune_sheet_canvas_test.dart` 전체 통과 이후 검증 범위를 `third_party/fortune_sheet/test` 전체로 넓혀 남은 실패 묶음을 큰 단위로 줄인다.
 - 기준 전체 테스트 완료: `.tmp/copilot/fortune_sheet_full_test_2026-07-05_after_canvas_clean.log` 결과 `exitCode=1`, `+2947 -43`, `No Overlay widget found` 4회, deactivated metrics 0회.
@@ -46,8 +53,10 @@
 - 검증 완료: `fortune_sheet_public_api_test.dart` 전체 136개 통과. `fortune_sheet_render_smoke_test.dart` 전체 26개 통과. 전체 `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test *> .tmp/copilot/fortune_sheet_full_test_2026-07-05_after_public_api.log` 결과 `exitCode=0`, `+2990`, 전체 FortuneSheet 테스트 통과.
 - 검증 완료: analyzer `No issues found`, `git diff --check` 출력 없음, VS Code diagnostics 오류 없음.
 - 추가 검증 완료: 전체 프로젝트 `C:\Flutter\bin\flutter.bat test *> .tmp/copilot/flutter_test_full_2026-07-05_after_fortune_sheet_clean.log` 결과 `exitCode=0`, `+128`, 전체 workspace 테스트 통과.
+- 추가 검증 완료: 전체 프로젝트 analyzer `C:\Flutter\bin\flutter.bat analyze --no-fatal-warnings --no-fatal-infos *> .tmp/copilot/flutter_analyze_full_2026-07-05_after_full_test_clean.log` 결과 `exitCode=0`, `No issues found`.
 - stage/commit 예정: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`, `third_party/fortune_sheet/test/fortune_debug_log_test.dart`, `third_party/fortune_sheet/test/fortune_inline_menu_input_test.dart`, `third_party/fortune_sheet/test/fortune_sheet_painter_test.dart`, `third_party/fortune_sheet/test/fortune_sheet_render_harness.dart`, `third_party/fortune_sheet/test/fortune_sheet_public_api_test.dart`, `third_party/fortune_sheet/test/goldens/*.png`. 기존 unrelated dirty `lib/core/app.dart` 제외.
 - 커밋 완료: `5bf6c94` (`FortuneSheet 전체 테스트 잔여 실패 정리`).
+- 후속 인수인계 커밋 완료: `6dfee26` (`인수인계 커밋 해시 갱신`), `d31abe7` (`전체 프로젝트 테스트 통과 기록`).
 
 ### 진행 중 (2026-07-04): FortuneSheet canvas 전체 테스트 실패 묶음 정리
 
