@@ -38991,7 +38991,7 @@ void main() {
     expect(fortuneToolbarBorderPopupVerticalPadding, 20);
     expect(fortuneToolbarBorderPopupContentTopPadding, 10);
     expect(fortuneToolbarBorderPopupRowHeight, 40);
-    expect(fortuneToolbarBorderStyleSubmenuWidth, 110);
+    expect(fortuneToolbarBorderStyleSubmenuWidth, 132);
     expect(fortuneToolbarBorderStyleSubmenuResetHeight, 34);
     expect(fortuneToolbarBorderStyleSubmenuRowHeight, 24);
     expect(fortuneToolbarBorderSubmenuArrowWidth, 14);

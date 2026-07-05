@@ -174,6 +174,14 @@
 - 전체 테스트 완료(2026-07-05): `.tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_toolbar_dropdown_scroll.log` 결과 `exitCode=1`. `toolbar dropdown scrolls when viewport height is constrained` 실패는 제거되고 다음 첫 실패는 `toolbar border popup styling mirrors upstream CSS`.
 - stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`, `third_party/fortune_sheet/test/fortune_sheet_canvas_test.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
 - 커밋 완료: `41684af` (`FortuneSheet 툴바 드롭다운 wheel 스크롤 보정`).
+- 진행 중(2026-07-05): 다음 첫 실패 `toolbar border popup styling mirrors upstream CSS` focused 재현. 실패는 `fortuneToolbarBorderStyleSubmenuWidth` 구현 상수 `132.0` 대비 테스트 기대값 `110`인 stale constant 문제.
+- 완료(2026-07-05): border popup styling 테스트 기대값을 현재 구현 상수 `132`로 갱신. focused `toolbar border popup styling mirrors upstream CSS` 통과.
+- 검증 예정(2026-07-05): analyzer, `git diff --check`, VS Code diagnostics, 전체 canvas 재실행.
+- 검증 완료(2026-07-05): analyzer No issues, `git diff --check` 출력 없음, VS Code diagnostics 오류 없음.
+- 전체 테스트 실행 예정(2026-07-05): `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_sheet_canvas_test.dart *> .tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_border_popup_width.log`; 실행 후 `exit` 금지, `$LASTEXITCODE` 요약만 출력.
+- 전체 테스트 완료(2026-07-05): `.tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_border_popup_width.log` 결과 `exitCode=1`. `toolbar border popup styling mirrors upstream CSS` 실패는 제거되고 다음 첫 실패는 `controller adds sheets through workbook API policy`.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/test/fortune_sheet_canvas_test.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
+- 커밋 예정: toolbar border popup styling 기대값 갱신.
 
 ### 완료 (2026-07-04): analyze clean 이후 회귀 묶음 재검증
 
