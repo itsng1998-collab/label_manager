@@ -27,6 +27,18 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-05): 이미지/바코드 레이어 패널 키보드 다중 선택
+
+- 목적: 레이어 패널 키보드 탐색에서 마우스와 같은 다중 선택 모델을 제공한다. 일반 Arrow/Page/Home/End 이동은 단일 선택으로 접고, Shift 이동은 범위 선택을 확장/축소하며, Ctrl/Meta 이동은 선택 집합을 유지한 채 active row만 이동한다.
+- 변경 완료: `fortune_sheet_canvas.dart`의 `_handleImageLayerPanelKeyEvent`에서 navigation key 처리 시 modifier 상태에 따라 `_selectedImageIds`를 갱신하도록 했다. Shift는 기존 선택 anchor와 새 active 사이 범위를 선택하고, 일반 이동은 단일 선택으로 접으며, Ctrl/Meta 이동은 기존 선택 집합을 유지한다.
+- 테스트 추가: `fortune_barcode_dialog_test.dart`에 `image layer panel keyboard shift selects rows for delete` 추가.
+- 검증 완료: focused `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --name "image layer panel delete key removes selected row|image layer panel keyboard shift selects rows for delete"` 결과 2개 통과.
+- 검증 완료: 관련 묶음 `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --name "image layer panel keyboard selects and edits rows|image layer panel keyboard commands duplicate and move row|image layer panel delete key removes selected row|image layer panel keyboard shift selects rows for delete|image layer panel delete action removes selected rows|image layer panel action moves selected rows as a group"` 결과 6개 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze third_party\fortune_sheet\lib\src\fortune_sheet_canvas.dart third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --no-fatal-warnings --no-fatal-infos` 결과 `No issues found`.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart` 결과 56개 통과.
+- 검증 완료: `git diff --check -- SESSION_HANDOFF.md third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart` 출력 없음. VS Code diagnostics 오류 없음.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`, `third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
+
 ### 완료 (2026-07-05): 이미지/바코드 레이어 패널 다중 row drag 재정렬
 
 - 목적: 레이어 패널에서 Ctrl/Shift로 선택한 여러 이미지/바코드 row를 drag할 때 선택 그룹을 하나의 블록으로 재정렬한다. 선택되지 않은 row drag는 기존 단일 row 재정렬 동작을 유지한다.

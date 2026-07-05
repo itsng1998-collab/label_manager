@@ -24844,14 +24844,60 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     if (nextId == _activeImageId) {
       return true;
     }
+    final keyboard = HardwareKeyboard.instance;
+    final selectedIds = _imageLayerPanelSelectedIdsForKeyboardNavigation(
+      items,
+      baseIndex,
+      nextIndex,
+      extendSelection: keyboard.isShiftPressed,
+      preserveSelection: keyboard.isControlPressed || keyboard.isMetaPressed,
+    );
     setState(() {
       _activeImageId = nextId;
+      _selectedImageIds = selectedIds;
       _imageLayerPanelScrollOffset =
           _imageLayerPanelScrollOffsetToRevealActive();
       contextMenuAt = null;
       _contextMenuImageId = null;
     });
     return true;
+  }
+
+  Set<String> _imageLayerPanelSelectedIdsForKeyboardNavigation(
+    List<FortuneImage> items,
+    int baseIndex,
+    int nextIndex, {
+    required bool extendSelection,
+    required bool preserveSelection,
+  }) {
+    if (preserveSelection) {
+      final existingIds = {for (final image in items) image.id};
+      final selectedIds = _selectedImageIds.intersection(existingIds);
+      return selectedIds.isEmpty ? <String>{items[nextIndex].id} : selectedIds;
+    }
+    if (!extendSelection) {
+      return <String>{items[nextIndex].id};
+    }
+    final selectedIndexes = <int>[
+      for (var index = 0; index < items.length; index += 1)
+        if (_selectedImageIds.contains(items[index].id)) index,
+    ];
+    var anchorIndex = baseIndex;
+    if (selectedIndexes.isNotEmpty) {
+      final minSelectedIndex = selectedIndexes.reduce(math.min);
+      final maxSelectedIndex = selectedIndexes.reduce(math.max);
+      if (baseIndex == minSelectedIndex && maxSelectedIndex != baseIndex) {
+        anchorIndex = maxSelectedIndex;
+      } else if (baseIndex == maxSelectedIndex &&
+          minSelectedIndex != baseIndex) {
+        anchorIndex = minSelectedIndex;
+      }
+    }
+    final start = math.min(anchorIndex, nextIndex);
+    final end = math.max(anchorIndex, nextIndex);
+    return <String>{
+      for (var index = start; index <= end; index += 1) items[index].id,
+    };
   }
 
   bool _handleImageLayerPanelCommandKeyEvent(KeyEvent event) {
