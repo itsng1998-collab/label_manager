@@ -122650,7 +122650,8 @@ void main() {
               popupLeft: popupLeft,
               toolbarKey: toolbarKey,
               itemIndex: index,
-            ),
+            ) -
+            Offset(0, painter().toolbarPopupScrollOffset),
       );
       await tester.pump();
     }

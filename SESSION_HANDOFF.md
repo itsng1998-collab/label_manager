@@ -374,6 +374,14 @@
 - 전체 테스트 완료(2026-07-05): `.tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_formula_search_host.log` 결과 `exitCode=1`, 1309개 중 112개 실패. formula search host 실패 제거. 다음 first failure는 `toolbar font popups update selected cell font metadata`, 기대 font size `18` 대비 실제 `28.0`.
 - stage/commit 대상(2026-07-05): `SESSION_HANDOFF.md`, `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`, `third_party/fortune_sheet/test/fortune_sheet_canvas_test.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
 - 커밋 완료(2026-07-05): `424f07c` `FortuneSheet 이미지와 quick formula 회귀 보정`.
+- 커밋 완료(2026-07-05): `7b06bda` `인수인계 커밋 해시 갱신`.
+- 진행 중(2026-07-05): 다음 first failure `toolbar font popups update selected cell font metadata` 조사. 두 번째 font size popup은 현재 값 18을 보이도록 `toolbarPopupScrollOffset`이 적용되는데 테스트 헬퍼가 스크롤 전 좌표를 탭해 실제 28이 선택되는 것으로 확인. `third_party/fortune_sheet/test/fortune_sheet_canvas_test.dart`의 해당 테스트 local helper만 scroll offset 보정 예정.
+- 완료(2026-07-05): `toolbar font popups update selected cell font metadata` local `chooseToolbarPopupItem`가 `painter().toolbarPopupScrollOffset`을 빼고 탭하도록 보정.
+- 검증 완료(2026-07-05): focused 단일 `toolbar font popups update selected cell font metadata` 통과. focused regex `toolbar font popups update selected cell font metadata|toolbar font popups scroll to and highlight selected value|toolbar font popups keep selected item visible after reopen` 실행 결과 매칭된 2개 테스트 통과.
+- 검증 완료(2026-07-05): analyzer No issues, `git diff --check` whitespace 오류 없음(LF/CRLF 경고만 출력), VS Code diagnostics 오류 없음.
+- 전체 테스트 실행 예정(2026-07-05): `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_sheet_canvas_test.dart *> .tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_font_popup_scroll.log`; 실행 후 `exit` 금지, `$LASTEXITCODE` 요약만 출력.
+- 전체 테스트 완료(2026-07-05): `.tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_font_popup_scroll.log` 결과 `exitCode=1`, 1309개 중 112개 실패. font popup metadata first failure 제거. 다음 first failure는 `toolbar merge popup uses dragged selection range`, 기대 `'merged'` 대비 실제 `'merged\ntail'`.
+- stage/commit 대상(2026-07-05): `SESSION_HANDOFF.md`, `third_party/fortune_sheet/test/fortune_sheet_canvas_test.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
 
 ### 완료 (2026-07-04): analyze clean 이후 회귀 묶음 재검증
 
