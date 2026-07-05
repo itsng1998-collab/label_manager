@@ -100,6 +100,18 @@
 - 전체 테스트 완료(2026-07-05): `.tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_auto_scroll.log` 결과 `exitCode=1`, `[E]` 기준 152개 실패. auto-scroll 실패는 제거되고 다음 첫 실패는 `external formula paste only writes top left cell`.
 - stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`, `third_party/fortune_sheet/test/fortune_sheet_canvas_test.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
 - 커밋 완료: `5fede4d` (`FortuneSheet 드래그 자동 스크롤 보정`).
+- 진행 중(2026-07-05): 다음 full 첫 실패 `external formula paste only writes top left cell` focused 단독 재현. 실패는 `rawValue` 기대 int `3` 대비 actual 문자열 `'3'`. 원인 후보 확인 결과 외부 formula paste helper는 int result를 rawValue로 넣지만, 이후 `_recalculateWorkbookFormulas()`의 `FortuneFormulaEngine` recalc가 `withFormulaResult(..., formulaValue: formulaDisplayValue)`로 display 문자열을 rawValue에 저장하는 경로 확인. recalc raw result 보존 수정 중.
+- 완료(2026-07-05): `fortune_formula.dart`의 두 formula recalc 경로에서 `withFormulaResult`에 display 문자열 대신 raw 계산 결과 `value`를 `formulaValue`로 전달하고, materialized-result 판정도 `cell.rawValue == value`로 보정. 포맷 후 focused `external formula paste only writes top left cell` 통과.
+- 검증 예정(2026-07-05): `C:\Flutter\bin\flutter.bat analyze third_party\fortune_sheet\lib\src\fortune_formula.dart third_party\fortune_sheet\lib\src\fortune_sheet_canvas.dart third_party\fortune_sheet\test\fortune_sheet_canvas_test.dart --no-fatal-warnings --no-fatal-infos`, `git diff --check`, VS Code diagnostics.
+- 검증 완료(2026-07-05): analyzer `No issues found`, `git diff --check` 출력 없음, VS Code diagnostics 오류 없음.
+- 전체 테스트 예정(2026-07-05): `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_sheet_canvas_test.dart` 출력을 `.tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_formula_raw_value.log`로 리다이렉트해 다음 첫 실패 확인.
+- 조정 중(2026-07-05): 전체 재검증에서 첫 실패가 `context menu sort translates moved row formulas`로 앞당겨짐. focused 단독 실패는 sort 후 formula export `v` 기대 문자열 `'1'` 대비 actual double `1.0`. 기존 formula recalc/export 계약은 display 문자열 rawValue를 기대하므로, 광범위한 `fortune_formula.dart` raw 보존 변경은 되돌리고 외부 단일 formula paste 경로에서만 recalc 직후 rawValue를 평가 결과로 복원하는 좁은 수정으로 전환.
+- 완료(2026-07-05): `fortune_formula.dart` 광범위 rawValue 보존 변경은 원복. `fortune_sheet_canvas.dart`의 외부 단일 formula paste 경로에서 `_cellForExternalFormulaPaste`가 만든 rawValue를 저장하고 `_recalculateWorkbookFormulas()` 직후 `_restoreExternalFormulaPasteRawResults`로 해당 셀 rawValue만 복원하도록 보정. 포맷 후 focused `external formula paste only writes top left cell`, `context menu sort translates moved row formulas` 통과.
+- 검증 예정(2026-07-05): `C:\Flutter\bin\flutter.bat analyze third_party\fortune_sheet\lib\src\fortune_formula.dart third_party\fortune_sheet\lib\src\fortune_sheet_canvas.dart third_party\fortune_sheet\test\fortune_sheet_canvas_test.dart --no-fatal-warnings --no-fatal-infos`, `git diff --check`, VS Code diagnostics.
+- 검증 완료(2026-07-05): analyzer `No issues found`, `git diff --check` 출력 없음, VS Code diagnostics 오류 없음.
+- 전체 테스트 예정(2026-07-05): `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_sheet_canvas_test.dart` 출력을 `.tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_external_formula_paste.log`로 리다이렉트해 다음 첫 실패 확인.
+- 전체 테스트 완료(2026-07-05): `.tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_external_formula_paste.log` 결과 `exitCode=1`, `[E]` 기준 150개 실패. `external formula paste only writes top left cell` 실패는 제거되고 다음 첫 실패는 `copy paste does not partially repeat into uneven range`.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
 - 미검증/진행 중: 전체 canvas clean까지 추가 정리 필요. 기존 unrelated dirty `lib/core/app.dart` 제외.
 
 ### 완료 (2026-07-04): analyze clean 이후 회귀 묶음 재검증

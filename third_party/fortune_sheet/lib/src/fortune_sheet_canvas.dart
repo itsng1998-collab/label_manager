@@ -33153,6 +33153,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         ? rangeColumnCount
         : sourceColumnCount;
     final updates = <FortuneCellCoord, FortuneCell?>{};
+    final externalFormulaRawResults = <FortuneCellCoord, Object?>{};
     final borderUpdates = <FortuneBorderInfo>[];
     final rawBorderInfoUpdates = <Object?>[];
     final dataVerificationUpdates = <FortuneCellCoord, Object?>{};
@@ -33277,6 +33278,14 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
                 sheet: sheet,
                 translatedFormula: translatedFormula,
               );
+        if (isExternalPlainFormulaPaste) {
+          final pastedCell = updates[coord];
+          if (pastedCell != null && pastedCell.hasRawValue) {
+            externalFormulaRawResults[coord] = cloneFortuneMetadata(
+              pastedCell.rawValue,
+            );
+          }
+        }
       }
     }
     final targetPasteRange = FortuneRange(
@@ -33619,8 +33628,14 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
           }
           _replaceActiveSheet(nextSheet);
           _recalculateWorkbookFormulas();
+          _restoreExternalFormulaPasteRawResults(
+            externalFormulaRawResults,
+          );
         } else {
           _recalculateWorkbookFormulas();
+          _restoreExternalFormulaPasteRawResults(
+            externalFormulaRawResults,
+          );
         }
       }
       if (completedInternalCutPaste) {
@@ -33658,6 +33673,29 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         _locationMessageDialogConfirm = false;
       }
     });
+  }
+
+  void _restoreExternalFormulaPasteRawResults(
+    Map<FortuneCellCoord, Object?> rawResults,
+  ) {
+    if (rawResults.isEmpty) {
+      return;
+    }
+    final sheet = _workbook.activeSheet;
+    for (final entry in rawResults.entries) {
+      final cell = sheet.cells[entry.key];
+      if (cell == null || cell.formula == null) {
+        continue;
+      }
+      _setSheetCell(
+        sheet,
+        entry.key,
+        cell.copyWith(
+          rawValue: cloneFortuneMetadata(entry.value),
+          hasRawValue: true,
+        ),
+      );
+    }
   }
 
   bool _pasteUpdateClearsFormulaGroup(
