@@ -574,6 +574,13 @@
 - 다음 first failure(2026-07-05): `toolbar search replace blocks read-only selection`, `fortune-search-input`/`FortuneSearchEditor` Overlay 없음. 다음 작업은 같은 search replace dialog 테스트에 `fortuneSheetTestHost` 적용 범위 확대.
 - stage/commit 대상(2026-07-05): `SESSION_HANDOFF.md`, `third_party/fortune_sheet/test/fortune_sheet_canvas_test.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
 - 커밋 완료(2026-07-05): `b1fd591` `FortuneSheet canvas 테스트 host 안정화`.
+- 검증 완료(2026-07-05): 최신 HEAD에서 focused `toolbar search replace blocks read-only selection` 단독 통과, focused regex `toolbar search replace|search replace dialog` 9개 통과.
+- 검증 완료(2026-07-05): 전체 canvas `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_sheet_canvas_test.dart *> .tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_search_replace_followup.log` 결과 `exitCode=0`, 1421개 통과.
+- 검증 완료(2026-07-05): FortuneSheet 패키지 전체 `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test *> .tmp/copilot/fortune_sheet_full_test_2026-07-05_after_canvas_followup.log` 결과 `exitCode=0`, 2999개 통과.
+- 검증 완료(2026-07-05): 전체 workspace 테스트 `C:\Flutter\bin\flutter.bat test *> .tmp/copilot/flutter_test_full_2026-07-05_after_fortune_canvas_followup.log` 결과 `exitCode=0`, 128개 통과.
+- 검증 완료(2026-07-05): 전체 analyzer `C:\Flutter\bin\flutter.bat analyze --no-fatal-warnings --no-fatal-infos *> .tmp/copilot/flutter_analyze_full_2026-07-05_after_fortune_canvas_followup.log` 결과 `exitCode=0`, `No issues found`.
+- 검증 완료(2026-07-05): `git diff --check -- SESSION_HANDOFF.md` 출력 없음. VS Code diagnostics 결과 `SESSION_HANDOFF.md` 오류 없음.
+- stage/commit 진행(2026-07-05): `SESSION_HANDOFF.md`만 대상. 기존 unrelated dirty `lib/core/app.dart` 제외.
 
 ### 완료 (2026-07-04): analyze clean 이후 회귀 묶음 재검증
 
