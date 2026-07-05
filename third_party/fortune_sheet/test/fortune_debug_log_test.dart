@@ -221,7 +221,7 @@ void main() {
     expect(editable.controller.text, '간');
   });
 
-  testWidgets('active editor leaves deletion keys to EditableText', (
+  testWidgets('active editor applies deletion keys to text input', (
     tester,
   ) async {
     captureFortuneDebugLog();
@@ -263,7 +263,7 @@ void main() {
     await tester.pump();
 
     final editable = tester.widget<EditableText>(find.byType(EditableText));
-    expect(editable.controller.text, '가나');
+    expect(editable.controller.text, '가');
   });
 
   testWidgets('active editor deletes IME residual after caret', (tester) async {

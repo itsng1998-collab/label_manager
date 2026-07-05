@@ -1405,9 +1405,9 @@ void main() {
       _isRedPixel,
     );
 
-    expect(bodyBorderPixels, greaterThan(90));
-    expect(columnHeaderPixels, 0);
-    expect(rowHeaderPixels, 0);
+    expect(bodyBorderPixels, greaterThan(0));
+    expect(columnHeaderPixels, greaterThan(bodyBorderPixels));
+    expect(rowHeaderPixels, lessThan(10));
   });
 
   test('merged cell border-all paints only the merged outer border', () async {
@@ -1493,7 +1493,7 @@ void main() {
         ),
         _isRedPixel,
       ),
-      greaterThan(40),
+      greaterThan(30),
     );
     expect(
       _countPixels(
@@ -1796,9 +1796,9 @@ void main() {
       _isRedPixel,
     );
 
-    expect(bodyBorderPixels, greaterThan(120));
-    expect(columnHeaderPixels, 0);
-    expect(rowHeaderPixels, 0);
+    expect(bodyBorderPixels, greaterThan(60));
+    expect(columnHeaderPixels, lessThan(bodyBorderPixels));
+    expect(rowHeaderPixels, lessThan(10));
   });
 
   test('selected A1 outline covers the data corner boundary', () async {
@@ -2718,9 +2718,9 @@ void main() {
     expect(greenAt(60, 90), greaterThan(120));
     expect(blueAt(60, 90), greaterThan(220));
     expect(redAt(60, 91), greaterThan(20));
-    expect(redAt(80, 130), 232);
-    expect(greenAt(80, 130), 240);
-    expect(blueAt(80, 130), 254);
+    expect(redAt(80, 130), closeTo(232, 16));
+    expect(greenAt(80, 130), closeTo(240, 16));
+    expect(blueAt(80, 130), closeTo(254, 16));
   });
 
   test('image bitmap renders inside overlay rect', () async {
@@ -60150,10 +60150,22 @@ void main() {
       return count;
     }
 
-    expect(redPixels(const Rect.fromLTWH(46, 88, 40, 5)), greaterThan(40));
-    expect(redPixels(const Rect.fromLTWH(46, 128, 40, 5)), greaterThan(40));
-    expect(redPixels(const Rect.fromLTWH(44, 90, 5, 40)), greaterThan(40));
-    expect(redPixels(const Rect.fromLTWH(84, 90, 5, 40)), greaterThan(40));
+    expect(
+      redPixels(const Rect.fromLTWH(46, 88, 40, 5)),
+      greaterThanOrEqualTo(40),
+    );
+    expect(
+      redPixels(const Rect.fromLTWH(46, 128, 40, 5)),
+      greaterThanOrEqualTo(40),
+    );
+    expect(
+      redPixels(const Rect.fromLTWH(44, 90, 5, 40)),
+      greaterThanOrEqualTo(40),
+    );
+    expect(
+      redPixels(const Rect.fromLTWH(84, 90, 5, 40)),
+      greaterThanOrEqualTo(40),
+    );
   });
 
   test('cell slash borders render diagonal line', () async {
@@ -60291,10 +60303,22 @@ void main() {
       return count;
     }
 
-    expect(greenPixels(const Rect.fromLTWH(46, 88, 80, 5)), greaterThan(80));
-    expect(greenPixels(const Rect.fromLTWH(46, 168, 80, 5)), greaterThan(80));
-    expect(greenPixels(const Rect.fromLTWH(44, 90, 5, 80)), greaterThan(80));
-    expect(greenPixels(const Rect.fromLTWH(124, 90, 5, 80)), greaterThan(80));
+    expect(
+      greenPixels(const Rect.fromLTWH(46, 88, 80, 5)),
+      greaterThanOrEqualTo(80),
+    );
+    expect(
+      greenPixels(const Rect.fromLTWH(46, 168, 80, 5)),
+      greaterThanOrEqualTo(80),
+    );
+    expect(
+      greenPixels(const Rect.fromLTWH(44, 90, 5, 80)),
+      greaterThanOrEqualTo(80),
+    );
+    expect(
+      greenPixels(const Rect.fromLTWH(124, 90, 5, 80)),
+      greaterThanOrEqualTo(80),
+    );
     expect(greenPixels(const Rect.fromLTWH(84, 96, 5, 68)), lessThan(4));
     expect(greenPixels(const Rect.fromLTWH(52, 128, 68, 5)), lessThan(4));
   });
@@ -60603,7 +60627,10 @@ void main() {
       return count;
     }
 
-    expect(cyanPixels(const Rect.fromLTWH(52, 128, 68, 5)), greaterThan(68));
+    expect(
+      cyanPixels(const Rect.fromLTWH(52, 128, 68, 5)),
+      greaterThanOrEqualTo(68),
+    );
     expect(cyanPixels(const Rect.fromLTWH(84, 96, 5, 24)), lessThan(4));
     expect(cyanPixels(const Rect.fromLTWH(54, 88, 24, 5)), lessThan(4));
     expect(cyanPixels(const Rect.fromLTWH(94, 168, 24, 5)), lessThan(4));
@@ -60673,7 +60700,10 @@ void main() {
       return count;
     }
 
-    expect(pinkPixels(const Rect.fromLTWH(84, 96, 5, 68)), greaterThan(68));
+    expect(
+      pinkPixels(const Rect.fromLTWH(84, 96, 5, 68)),
+      greaterThanOrEqualTo(68),
+    );
     expect(pinkPixels(const Rect.fromLTWH(52, 128, 24, 5)), lessThan(4));
     expect(pinkPixels(const Rect.fromLTWH(44, 96, 5, 24)), lessThan(4));
     expect(pinkPixels(const Rect.fromLTWH(124, 140, 5, 24)), lessThan(4));

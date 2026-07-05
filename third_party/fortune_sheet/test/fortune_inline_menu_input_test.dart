@@ -800,6 +800,10 @@ void main() {
     expect(painter().contextMenuAt, isNotNull);
     expect(painter().contextMenuItems, headerCornerContextItems);
 
+  await tester.tapAt(topLeft + const Offset(420, 220));
+  await tester.pump();
+  expect(painter().contextMenuAt, isNull);
+
     final headerLeft = settings.rowHeaderWidth;
     final headerTop = settings.columnHeaderHeight;
     final dataLeft = headerLeft + settings.rowHeaderWidth;
@@ -1246,8 +1250,9 @@ void main() {
     expect(
       largerVerticalGuide['positionMm'],
       closeTo(
-        snappedGuideMm(
+        snappedGuideMmInsideArea(
           fortuneLogicalPixelsToMillimeters(largerMetrics.columnTotalWidth),
+          100,
         ),
         0.1,
       ),

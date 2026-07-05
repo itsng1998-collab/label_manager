@@ -9,6 +9,14 @@ String fortuneSheetGoldenPath(String name) {
   return 'goldens/$name.png';
 }
 
+File _fortuneSheetGoldenFile(String goldenPath) {
+  final packageRelativeFile = File('test/$goldenPath');
+  if (packageRelativeFile.existsSync()) {
+    return packageRelativeFile;
+  }
+  return File('third_party/fortune_sheet/test/$goldenPath');
+}
+
 Future<void> expectFortuneSheetGolden(
   WidgetTester tester,
   Finder finder,
@@ -32,7 +40,7 @@ Future<void> expectFortuneSheetGolden(
     fail('Failed to read actual golden capture pixels.');
   }
 
-  final goldenFile = File('test/$goldenPath');
+  final goldenFile = _fortuneSheetGoldenFile(goldenPath);
   if (Platform.environment['FORTUNE_UPDATE_GOLDENS'] == '1') {
     final pngData = await tester.runAsync(
       () => actualImage.toByteData(format: ui.ImageByteFormat.png),

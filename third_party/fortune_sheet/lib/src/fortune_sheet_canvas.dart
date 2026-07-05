@@ -6867,6 +6867,14 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       return;
     }
 
+    final activeImageHandle = _imageResizeSideAt(local, settings);
+    if (activeImageHandle != null) {
+      _commitEditing();
+      _commitSheetRename();
+      _startImageResize(activeImageHandle, local);
+      return;
+    }
+
     final activeImageToolbarCommand = _activeImageToolbarCommandAt(
       local,
       settings,
@@ -8137,6 +8145,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     Rect dataRect,
     FortuneSheetMetrics metrics,
   ) {
+    final physicalSize = fortuneSheetGridClientPhysicalSize(
+      _workbook.activeSheet,
+    );
     final clampedLocal = Offset(
       local.dx.clamp(dataRect.left, dataRect.right).toDouble(),
       local.dy.clamp(dataRect.top, dataRect.bottom).toDouble(),
@@ -8151,9 +8162,17 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
             metrics.rowTotalHeight,
           );
     final mm = fortuneLogicalPixelsToMillimeters(logical);
-    final maxMm = fortuneLogicalPixelsToMillimeters(
+    final metricMaxMm = fortuneLogicalPixelsToMillimeters(
       axis == 'vertical' ? metrics.columnTotalWidth : metrics.rowTotalHeight,
     );
+    final maxMm = physicalSize == null
+      ? metricMaxMm
+      : math.min(
+        metricMaxMm,
+        axis == 'vertical'
+          ? physicalSize.widthMm.toDouble()
+          : physicalSize.heightMm.toDouble(),
+        );
     final snapped = mm.clamp(0.0, maxMm).roundToDouble();
     return snapped > maxMm ? maxMm.floorToDouble() : snapped;
   }

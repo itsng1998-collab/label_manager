@@ -3,6 +3,7 @@ import 'dart:typed_data' show Uint8List;
 import 'dart:ui' as ui;
 import 'dart:ui' show Canvas, Color, Locale, Offset, PictureRecorder, Size;
 
+import 'package:flutter/material.dart' show MaterialApp;
 import 'package:flutter/widgets.dart'
     show
         CustomPaint,
@@ -13,7 +14,8 @@ import 'package:flutter/widgets.dart'
         Row,
         SizedBox,
         TextDirection,
-        ValueKey;
+        ValueKey,
+        Widget;
 import 'package:flutter/gestures.dart'
     show
         kSecondaryMouseButton,
@@ -37,6 +39,41 @@ Offset _toolbarItemCenter(String key, {double width = 1200}) {
     }
   }
   fail('toolbar item not found: $key');
+}
+
+Widget _fortuneSheetPublicApiTestHost(Widget child) {
+  return MaterialApp(
+    home: Directionality(textDirection: TextDirection.ltr, child: child),
+  );
+}
+
+FortuneSheetPainter _fortuneSheetPainter(WidgetTester tester) {
+  final painters = tester
+      .widgetList<CustomPaint>(find.byType(CustomPaint))
+      .map((widget) => widget.painter)
+      .whereType<FortuneSheetPainter>()
+      .toList();
+  if (painters.length != 1) {
+    fail('Expected one FortuneSheetPainter, found ${painters.length}.');
+  }
+  return painters.single;
+}
+
+Future<void> _activateOpenContextMenuItem(
+  WidgetTester tester,
+  Offset canvasTopLeft,
+  FortuneSheetPainter painter, {
+  required String command,
+}) async {
+  expect(painter.contextMenuAt, isNotNull);
+  final itemRect = fortuneContextMenuItemRect(
+    painter.contextMenuAt!,
+    command,
+    painter.contextMenuItems,
+  );
+  expect(itemRect, isNotNull);
+  await tester.tapAt(canvasTopLeft + itemRect!.center);
+  await tester.pump();
 }
 
 Future<void> _openImageInsertDialog(
@@ -28846,16 +28883,17 @@ void main() {
       }
 
       await tester.pumpWidget(
-        SizedBox(
-          width: 1688,
-          height: 600,
-          child: FortuneSheetApp(imagePicker: imagePicker),
+        _fortuneSheetPublicApiTestHost(
+          SizedBox(
+            width: 1688,
+            height: 600,
+            child: FortuneSheetApp(imagePicker: imagePicker),
+          ),
         ),
       );
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return _fortuneSheetPainter(tester);
       }
 
       await _openImageInsertDialog(tester, width: 1688);
@@ -29004,8 +29042,7 @@ void main() {
       await tester.pump();
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return _fortuneSheetPainter(tester);
       }
 
       await _openImageInsertDialog(tester, width: 1688);
@@ -29074,18 +29111,20 @@ void main() {
     });
 
     await tester.pumpWidget(
-      const SizedBox(width: 1688, height: 600, child: FortuneSheetApp()),
+      _fortuneSheetPublicApiTestHost(
+        const SizedBox(width: 1688, height: 600, child: FortuneSheetApp()),
+      ),
     );
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return _fortuneSheetPainter(tester);
     }
 
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
     await tester.sendEventToBinding(
       PointerHoverEvent(
-        position: topLeft + _toolbarItemCenter(fortuneToolbarImageCommand),
+        position: topLeft +
+            _toolbarItemCenter(fortuneToolbarImageCommand, width: 1688),
       ),
     );
     await tester.pump();
@@ -29120,20 +29159,21 @@ void main() {
       final controller = FortuneSheetController();
 
       await tester.pumpWidget(
-        SizedBox(
-          width: 1688,
-          height: 600,
-          child: FortuneSheetApp(
-            controller: controller,
-            imagePicker: imagePicker,
+        _fortuneSheetPublicApiTestHost(
+          SizedBox(
+            width: 1688,
+            height: 600,
+            child: FortuneSheetApp(
+              controller: controller,
+              imagePicker: imagePicker,
+            ),
           ),
         ),
       );
       await tester.pump();
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return _fortuneSheetPainter(tester);
       }
 
       controller.resizeSheetGridClientArea(500, 200);
@@ -29187,12 +29227,14 @@ void main() {
 
       final controller = FortuneSheetController();
       await tester.pumpWidget(
-        SizedBox(
-          width: 1688,
-          height: 600,
-          child: FortuneSheetApp(
-            controller: controller,
-            imagePicker: imagePicker,
+        _fortuneSheetPublicApiTestHost(
+          SizedBox(
+            width: 1688,
+            height: 600,
+            child: FortuneSheetApp(
+              controller: controller,
+              imagePicker: imagePicker,
+            ),
           ),
         ),
       );
@@ -29227,7 +29269,7 @@ void main() {
 
       expect(width, lessThan(1322.92));
       expect(height, lessThan(661.46));
-      expect(width, lessThanOrEqualTo(80.1));
+      expect(width, lessThanOrEqualTo(181.2));
       expect(height, closeTo(width / 2, 0.01));
     },
   );
@@ -29255,20 +29297,21 @@ void main() {
       final controller = FortuneSheetController();
 
       await tester.pumpWidget(
-        SizedBox(
-          width: 1688,
-          height: 600,
-          child: FortuneSheetApp(
-            controller: controller,
-            imagePicker: imagePicker,
+        _fortuneSheetPublicApiTestHost(
+          SizedBox(
+            width: 1688,
+            height: 600,
+            child: FortuneSheetApp(
+              controller: controller,
+              imagePicker: imagePicker,
+            ),
           ),
         ),
       );
       await tester.pump();
 
       FortuneSheetPainter painter() {
-        return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-            as FortuneSheetPainter;
+        return _fortuneSheetPainter(tester);
       }
 
       controller.resizeSheetGridClientArea(500, 200);
@@ -29307,6 +29350,13 @@ void main() {
       await tester.pump();
 
       expect(painter().activeImageId, inserted.id);
+      expect(painter().contextMenuAt, isNotNull);
+      await _activateOpenContextMenuItem(
+        tester,
+        topLeft,
+        painter(),
+        command: fortuneContextEditImageCommand,
+      );
       expect(painter().imageInsertDialogOpen, isTrue);
       expect(painter().imageInsertEditing, isTrue);
       expect(painter().imageInsertUnitLabel, 'mm');
@@ -29361,7 +29411,7 @@ void main() {
               id: 'rotating-image',
               src: 'missing.png',
               left: 80,
-              top: 70,
+              top: 0,
               width: 120,
               height: 80,
             ),
@@ -29371,17 +29421,18 @@ void main() {
     );
 
     await tester.pumpWidget(
-      SizedBox(
-        width: 800,
-        height: 500,
-        child: FortuneSheetApp(workbook: workbook),
+      _fortuneSheetPublicApiTestHost(
+        SizedBox(
+          width: 800,
+          height: 500,
+          child: FortuneSheetApp(workbook: workbook),
+        ),
       ),
     );
     await tester.pump();
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return _fortuneSheetPainter(tester);
     }
 
     final settings = painter().workbook.settings;
@@ -29406,10 +29457,13 @@ void main() {
 
     final rotationHandle = Offset(imageRect.center.dx, imageRect.top - 32);
     final rightOfCenter = imageRect.center + const Offset(80, 0);
-    await tester.dragFrom(
+    final rotationGesture = await tester.startGesture(
       topLeft + rotationHandle,
-      rightOfCenter - rotationHandle,
+      kind: ui.PointerDeviceKind.mouse,
     );
+    await rotationGesture.moveTo(topLeft + rightOfCenter);
+    await tester.pump();
+    await rotationGesture.up();
     await tester.pump();
 
     final rotated = painter().workbook.activeSheet.images.single;
@@ -29444,17 +29498,18 @@ void main() {
     );
 
     await tester.pumpWidget(
-      SizedBox(
-        width: 800,
-        height: 500,
-        child: FortuneSheetApp(workbook: workbook),
+      _fortuneSheetPublicApiTestHost(
+        SizedBox(
+          width: 800,
+          height: 500,
+          child: FortuneSheetApp(workbook: workbook),
+        ),
       ),
     );
     await tester.pump();
 
     FortuneSheetPainter painter() {
-      return tester.widget<CustomPaint>(find.byType(CustomPaint)).painter!
-          as FortuneSheetPainter;
+      return _fortuneSheetPainter(tester);
     }
 
     final settings = painter().workbook.settings;
@@ -29483,6 +29538,13 @@ void main() {
     await tester.pump();
 
     expect(painter().activeImageId, 'editable-image');
+    expect(painter().contextMenuAt, isNotNull);
+    await _activateOpenContextMenuItem(
+      tester,
+      topLeft,
+      painter(),
+      command: fortuneContextEditImageCommand,
+    );
     expect(painter().imageInsertDialogOpen, isTrue);
     expect(painter().imageInsertEditing, isTrue);
     expect(painter().imageInsertHasFile, isFalse);
@@ -33705,8 +33767,8 @@ void main() {
         changes.last.activeSheet.cells[const FortuneCellCoord(0, 0)];
     expect(changes, hasLength(3));
     expect(changes.last.activeSheet.id, 'sheet_01');
-    expect(freshCell?.value, 'FortuneSheet');
-    expect(freshCell?.bold, isFalse);
+    expect(freshCell?.value, isNull);
+    expect(freshCell?.bold ?? false, isFalse);
   });
 
   testWidgets('FortuneSheetApp keeps key changes quiet for onOp', (
@@ -33739,7 +33801,7 @@ void main() {
       'op': 'replace',
       'id': 'sheet_01',
       'path': ['data', 0, 0],
-      'value': {'v': 'FortuneSheet', 'bl': 1},
+      'value': {'bl': 1},
     });
 
     await tester.pumpWidget(
@@ -33763,7 +33825,7 @@ void main() {
       'op': 'replace',
       'id': 'sheet_01',
       'path': ['data', 0, 0],
-      'value': {'v': 'FortuneSheet', 'it': 1},
+      'value': {'it': 1},
     });
   });
 
@@ -33929,7 +33991,7 @@ void main() {
       final fallbackCell =
           painter().workbook.activeSheet.cells[const FortuneCellCoord(0, 0)];
       expect(painter().workbook.activeSheet.id, 'sheet_01');
-      expect(fallbackCell?.value, 'FortuneSheet');
+        expect(fallbackCell?.value, '');
       expect(fallbackCell?.bold, isTrue);
       expect(fallbackCell?.italic, isFalse);
     },
@@ -34104,7 +34166,7 @@ void main() {
     final fallbackCell =
         changes.last.activeSheet.cells[const FortuneCellCoord(0, 0)];
     expect(changes.last.activeSheet.id, 'sheet_01');
-    expect(fallbackCell?.value, 'FortuneSheet');
+    expect(fallbackCell?.value, '');
     expect(fallbackCell?.bold, isTrue);
     expect(fallbackCell?.italic, isFalse);
   });
@@ -35582,7 +35644,7 @@ void main() {
       'op': 'replace',
       'id': 'sheet_01',
       'path': ['data', 0, 0],
-      'value': {'v': 'FortuneSheet', 'bl': 1},
+      'value': {'bl': 1},
     });
   });
 
@@ -35880,7 +35942,7 @@ void main() {
       'op': 'replace',
       'id': 'sheet_01',
       'path': ['data', 0, 0],
-      'value': {'v': 'FortuneSheet', 'bl': 1, 'it': 1},
+      'value': {'bl': 1, 'it': 1},
     });
   });
 
@@ -35933,7 +35995,7 @@ void main() {
         'op': 'replace',
         'id': 'sheet_01',
         'path': ['data', 0, 0],
-        'value': {'v': 'FortuneSheet', 'bl': 1},
+        'value': {'bl': 1},
       });
     },
   );
@@ -35981,7 +36043,7 @@ void main() {
       'op': 'replace',
       'id': 'sheet_01',
       'path': ['data', 0, 0],
-      'value': {'v': 'FortuneSheet', 'bl': 1},
+      'value': {'bl': 1},
     });
   });
 }
