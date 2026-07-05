@@ -120,6 +120,7 @@
 - 전체 테스트 예정(2026-07-05): `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_sheet_canvas_test.dart` 출력을 `.tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_view_reset.log`로 리다이렉트해 다음 첫 실패 확인.
 - 전체 테스트 완료(2026-07-05): `.tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_view_reset.log` 결과 `exitCode=1`, `[E]` 기준 190개 실패. `copy paste does not partially repeat into uneven range` full-only 실패는 제거되고 다음 첫 실패는 focused 단독 재현되는 `delete key on merged covered cell respects locked anchor` (`Expected: 'locked merged' / Actual: '0'`). 실패 수는 view size 누수 제거 후 cascade 양상이 바뀌어 단순 전후 비교보다 첫 실패 기준으로 추적.
 - stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/test/fortune_sheet_canvas_test.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
+- 커밋 완료: `eaf76e6` (`FortuneSheet 테스트 뷰 크기 원복`).
 - 미검증/진행 중: 전체 canvas clean까지 추가 정리 필요. 기존 unrelated dirty `lib/core/app.dart` 제외.
 
 ### 완료 (2026-07-04): analyze clean 이후 회귀 묶음 재검증
