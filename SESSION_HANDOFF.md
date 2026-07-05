@@ -45,6 +45,7 @@
 - 변경 완료: `fortune_sheet_canvas.dart` pointer down 처리에서 active image resize/rotation handle이 active image toolbar 및 sheetTop 처리보다 먼저 hit-test되도록 순서를 보정해 그려진 rotation handle이 실제로 동작하게 했다.
 - 검증 완료: `fortune_sheet_public_api_test.dart` 전체 136개 통과. `fortune_sheet_render_smoke_test.dart` 전체 26개 통과. 전체 `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test *> .tmp/copilot/fortune_sheet_full_test_2026-07-05_after_public_api.log` 결과 `exitCode=0`, `+2990`, 전체 FortuneSheet 테스트 통과.
 - 검증 완료: analyzer `No issues found`, `git diff --check` 출력 없음, VS Code diagnostics 오류 없음.
+- 추가 검증 완료: 전체 프로젝트 `C:\Flutter\bin\flutter.bat test *> .tmp/copilot/flutter_test_full_2026-07-05_after_fortune_sheet_clean.log` 결과 `exitCode=0`, `+128`, 전체 workspace 테스트 통과.
 - stage/commit 예정: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`, `third_party/fortune_sheet/test/fortune_debug_log_test.dart`, `third_party/fortune_sheet/test/fortune_inline_menu_input_test.dart`, `third_party/fortune_sheet/test/fortune_sheet_painter_test.dart`, `third_party/fortune_sheet/test/fortune_sheet_render_harness.dart`, `third_party/fortune_sheet/test/fortune_sheet_public_api_test.dart`, `third_party/fortune_sheet/test/goldens/*.png`. 기존 unrelated dirty `lib/core/app.dart` 제외.
 - 커밋 완료: `5bf6c94` (`FortuneSheet 전체 테스트 잔여 실패 정리`).
 
