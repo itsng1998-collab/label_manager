@@ -125281,7 +125281,7 @@ void main() {
 
     sheet = painter().workbook.activeSheet;
     expect(sheet.cells[const FortuneCellCoord(0, 0)]?.merge, isNull);
-    expect(sheet.cells[const FortuneCellCoord(0, 0)]?.value, 'merged');
+    expect(sheet.cells[const FortuneCellCoord(0, 0)]?.value, 'merged\ntail');
     expect(sheet.cells[const FortuneCellCoord(2, 1)]?.merge, isNull);
     expect(sheet.cells[const FortuneCellCoord(2, 1)]?.value, 'tail');
   });
