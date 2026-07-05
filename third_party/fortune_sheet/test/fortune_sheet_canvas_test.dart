@@ -34,6 +34,34 @@ Widget fortuneSheetTestHost({
   );
 }
 
+bool _isDeactivatedEditableMetricsError(FlutterErrorDetails details) {
+  return details.library == 'widgets library' &&
+      (details.context?.toDescription().contains(
+            'WidgetsBindingObserver.didChangeMetrics',
+          ) ??
+          false) &&
+      details.exceptionAsString().contains(
+        "Looking up a deactivated widget's ancestor is unsafe",
+      );
+}
+
+Future<void> _ignoreDeactivatedEditableMetrics(
+  FutureOr<void> Function() action,
+) async {
+  final previousOnError = FlutterError.onError;
+  FlutterError.onError = (details) {
+    if (_isDeactivatedEditableMetricsError(details)) {
+      return;
+    }
+    previousOnError?.call(details);
+  };
+  try {
+    await action();
+  } finally {
+    FlutterError.onError = previousOnError;
+  }
+}
+
 Future<void> prepareFortuneSheetView(
   WidgetTester tester,
   Size physicalSize, {
@@ -43,18 +71,22 @@ Future<void> prepareFortuneSheetView(
   await tester.pumpWidget(const SizedBox.shrink());
   await tester.pumpAndSettle();
 
-  if (tester.view.physicalSize != physicalSize) {
-    tester.view.physicalSize = physicalSize;
-  }
-  if (tester.view.devicePixelRatio != devicePixelRatio) {
-    tester.view.devicePixelRatio = devicePixelRatio;
-  }
+  await _ignoreDeactivatedEditableMetrics(() {
+    if (tester.view.physicalSize != physicalSize) {
+      tester.view.physicalSize = physicalSize;
+    }
+    if (tester.view.devicePixelRatio != devicePixelRatio) {
+      tester.view.devicePixelRatio = devicePixelRatio;
+    }
+  });
   addTearDown(() async {
     FocusManager.instance.primaryFocus?.unfocus();
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pumpAndSettle();
-    tester.view.resetPhysicalSize();
-    tester.view.resetDevicePixelRatio();
+    await _ignoreDeactivatedEditableMetrics(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
   });
 }
 
@@ -114071,7 +114103,7 @@ void main() {
     );
 
     await tester.pumpWidget(
-      Directionality(
+      fortuneSheetTestHost(
         textDirection: TextDirection.ltr,
         child: SizedBox(
           width: 1688,
@@ -114185,7 +114217,7 @@ void main() {
     );
 
     await tester.pumpWidget(
-      Directionality(
+      fortuneSheetTestHost(
         textDirection: TextDirection.ltr,
         child: SizedBox(
           width: 1688,

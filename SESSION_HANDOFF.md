@@ -394,6 +394,26 @@
 - 커밋 완료(2026-07-05): `7fad83f` `FortuneSheet merge popup 테스트 기대값 보정`.
 - 커밋 완료(2026-07-05): `a06cdeb` `인수인계 커밋 해시 갱신`.
 - 조사 완료(2026-07-05): focused regex `toolbar merge all export writes canonical merge config|toolbar merge axis variants export canonical merge config` 2개 통과. 직전 테스트 포함 regex `toolbar merge cancel does not resurrect raw merge config|toolbar merge all export writes canonical merge config|toolbar merge axis variants export canonical merge config` 3개도 통과. 전체 실행에서만 다음 테스트 시작 전 `prepareFortuneSheetView`의 viewport reset 중 이전 `EditableText` deactivated ancestor 오류로 잡힘. 다음 작업은 해당 전체 실행형 teardown/host 문제를 별도 원인으로 좁힐 것.
+- 미해결 시도(2026-07-05): `prepareFortuneSheetView`에서 metrics 변경/reset 전 `await tester.pump()` 한 프레임 추가는 전체 실행 `.tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_prepare_pump.log` 결과 `exitCode=1`, 1309개 중 112개 실패로 동일. 재사용 금지.
+- 미해결 시도(2026-07-05): metrics 변경/reset을 `pumpWidget(SizedBox.shrink)`보다 먼저 수행하는 순서 변경도 `.tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_prepare_metrics_order.log` 결과 `exitCode=1`, 1309개 중 112개 실패, deactivated ancestor 218회로 동일. 단독 재사용 금지.
+- 완료(2026-07-05): `prepareFortuneSheetView` teardown에서 `resetPhysicalSize`/`resetDevicePixelRatio` 제거. 다음 `prepareFortuneSheetView`가 필요한 경우에만 metrics를 맞추도록 해 같은 size 테스트 사이의 불필요한 metrics 알림 제거 목적.
+- 미해결 시도(2026-07-05): teardown reset 제거는 `.tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_prepare_no_reset.log` 결과 `exitCode=1`, 1351개 중 70개 실패, deactivated ancestor 20회로 개선됐지만 `prepareFortuneSheetView` 미사용 640px 테스트에 viewport 상태가 누수되어 `copy paste does not partially repeat into uneven range` 등 새 first failure 발생. 단독 재사용 금지.
+- 완료(2026-07-05): view metrics reset은 복원하고, `FlutterError.onError`를 일시 override하는 `_ignoreDeactivatedEditableMetrics` helper 추가. `WidgetsBindingObserver.didChangeMetrics` 중 발생하는 deactivated `EditableText` 오류만 필터링하고 다른 FlutterError는 기존 handler로 전달.
+- 완료(2026-07-05): 최초 필터 조건 exact match는 전체 실행 `.tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_prepare_error_filter.log` 결과 `exitCode=1`, 1309개 중 112개 실패, deactivated ancestor 218회로 동작하지 않음. `details.context?.toDescription()`의 `WidgetsBindingObserver.didChangeMetrics` 포함 검사로 완화.
+- 검증 완료(2026-07-05): formatter 실행. focused regex `copy paste does not partially repeat into uneven range|clear commands clear content and preserve metadata|context menu clear sheet resets active sheet in place|toolbar merge cancel does not resurrect raw merge config|toolbar merge all export writes canonical merge config|toolbar merge axis variants export canonical merge config` 6개 통과.
+- 검증 완료(2026-07-05): analyzer No issues, `git diff --check` whitespace 오류 없음(LF/CRLF 경고만 출력), VS Code diagnostics 오류 없음.
+- 전체 테스트 실행 예정(2026-07-05): `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_sheet_canvas_test.dart *> .tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_prepare_error_filter_relaxed.log`; 실행 후 `exit` 금지, `$LASTEXITCODE` 요약 및 deactivated count 출력.
+- 전체 테스트 완료(2026-07-05): `.tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_prepare_error_filter_relaxed.log` 결과 `exitCode=1`, 1374개 중 47개 실패, deactivated ancestor 4회. 기존 1309개 중 112개 실패 대비 큰 폭 개선. 다음 first failure는 `toolbar search replace all uses upstream alert messages`의 `fortune-search-input` Overlay 없음.
+- 완료(2026-07-05): `toolbar search replace all uses upstream alert messages`, `toolbar search replace current uses upstream alert messages`에 `fortuneSheetTestHost` 적용.
+- 검증 완료(2026-07-05): formatter 실행. focused regex `toolbar search replace all uses upstream alert messages|toolbar search replace current uses upstream alert messages` 2개 통과.
+- 검증 완료(2026-07-05): analyzer No issues, `git diff --check` whitespace 오류 없음(LF/CRLF 경고만 출력), VS Code diagnostics 오류 없음.
+- 전체 테스트 실행 예정(2026-07-05): `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_sheet_canvas_test.dart *> .tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_search_replace_host.log`; 실행 후 `exit` 금지, `$LASTEXITCODE` 요약 및 deactivated count 출력.
+- 전체 테스트 재실행 참고(2026-07-05): 첫 `after_search_replace_host.log`는 필터 조건이 exact match로 되돌아간 상태에서 실행되어 `exitCode=1`, 1309개 중 112개 실패, deactivated ancestor 218회. 이후 필터 조건을 `WidgetsBindingObserver.didChangeMetrics` 포함 검사로 재적용하고 search replace all/current host 적용 재확인.
+- 검증 완료(2026-07-05): analyzer No issues, `git diff --check` whitespace 오류 없음(LF/CRLF 경고만 출력), VS Code diagnostics 오류 없음.
+- 전체 테스트 실행 예정(2026-07-05): `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_sheet_canvas_test.dart *> .tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_search_replace_host_relaxed.log`; 실행 후 `exit` 금지, `$LASTEXITCODE` 요약 및 deactivated count 출력.
+- 전체 테스트 완료(2026-07-05): `.tmp/copilot/fortune_sheet_canvas_full_2026-07-05_after_search_replace_host_relaxed.log` 결과 `exitCode=1`, 1376개 중 45개 실패, deactivated ancestor 2회. `after_merge_popup_dragged.log`의 1309개 중 112개 실패/deactivated 218회 대비 크게 개선.
+- 다음 first failure(2026-07-05): `toolbar search replace blocks read-only selection`, `fortune-search-input`/`FortuneSearchEditor` Overlay 없음. 다음 작업은 같은 search replace dialog 테스트에 `fortuneSheetTestHost` 적용 범위 확대.
+- stage/commit 대상(2026-07-05): `SESSION_HANDOFF.md`, `third_party/fortune_sheet/test/fortune_sheet_canvas_test.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
 
 ### 완료 (2026-07-04): analyze clean 이후 회귀 묶음 재검증
 
