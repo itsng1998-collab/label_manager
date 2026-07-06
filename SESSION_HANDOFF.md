@@ -28,6 +28,19 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-06): 공용라벨관리 Micro QR Code 바코드 형식 추가
+
+- 목적: 공용라벨관리 시트의 바코드 삽입 다이얼로그 형식 목록에 `Micro QR Code`를 추가한다.
+- 확인: `flutter_zxing` 패키지의 `Format.microQRCode`, 표시명 `Micro QR Code`, 비율 `1.0`이 정의되어 있고 `EncodeParams.format`이 네이티브 바인딩으로 그대로 전달된다. 단, 패키지의 `CodeFormat.supportedEncodeFormats` 목록에서는 주석 처리되어 있어 실제 네이티브 인코딩 실패 가능성은 렌더러의 기존 `result.isValid` 검사로 처리된다.
+- 변경 완료: `label_sheet_workbench.dart`의 `_labelSheetBarcodeFormatValues`에 `microQRCode: zxing.Format.microQRCode`를 추가했다.
+- 테스트 변경: `label_sheet_toolbar_test.dart`에 `labelSheetBarcodeFormats`가 `microQRCode` / `Micro QR Code` / 정사각 비율을 포함하는지 확인하는 회귀 테스트를 추가했다.
+- 참고: `labelSheetBarcodeRenderer`의 실제 네이티브 인코딩 검증은 테스트 VM에서 `flutter_zxing.dll`을 찾지 못해 수행할 수 없다. 앱 런타임에서는 기존 렌더러가 네이티브 `result.isValid`와 `data == null`을 검사해 실패 시 삽입을 중단한다.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --name "label sheet barcode formats include Micro QR Code"` 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze lib\page_label_sheet\label_sheet_workbench.dart test\label_sheet_toolbar_test.dart --no-fatal-warnings --no-fatal-infos` 통과.
+- 검증 완료: `git diff --check -- SESSION_HANDOFF.md lib/page_label_sheet/label_sheet_workbench.dart test/label_sheet_toolbar_test.dart` 출력 없음.
+- 진단 완료: 수정 파일 VS Code diagnostics 오류 없음.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `lib/page_label_sheet/label_sheet_workbench.dart`, `test/label_sheet_toolbar_test.dart`. 기존 unrelated dirty `lib/core/app.dart`는 제외.
+
 ### 완료 (2026-07-06): 라벨 이미지 가져오기 좌상단 교차 메뉴 한정
 
 - 목적: 공용라벨관리의 `라벨 이미지 가져오기` 메뉴를 일반 셀/행/열 헤더 우클릭이 아니라 시트 좌상단 헤더 행/열 교차 영역 우클릭 메뉴에서만 표시한다.

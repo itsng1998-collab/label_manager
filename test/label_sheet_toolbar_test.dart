@@ -183,6 +183,20 @@ void main() {
     expect(importClicked, isTrue);
   });
 
+  test('label sheet barcode formats include Micro QR Code', () {
+    expect(
+      labelSheetBarcodeFormats.map((format) => format.id),
+      contains('microQRCode'),
+    );
+
+    final format = labelSheetBarcodeFormats.singleWhere(
+      (format) => format.id == 'microQRCode',
+    );
+
+    expect(format.label, 'Micro QR Code');
+    expect(format.ratio, 1.0);
+  });
+
   testWidgets('label image import context menu only appears on sheet corner', (
     tester,
   ) async {

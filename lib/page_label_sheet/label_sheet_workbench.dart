@@ -74,6 +74,7 @@ const List<String> labelSheetToolbarItems = [
 
 const Map<String, int> _labelSheetBarcodeFormatValues = {
   'qrCode': zxing.Format.qrCode,
+  'microQRCode': zxing.Format.microQRCode,
   'dataMatrix': zxing.Format.dataMatrix,
   'aztec': zxing.Format.aztec,
   'codabar': zxing.Format.codabar,
