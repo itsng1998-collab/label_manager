@@ -2373,31 +2373,120 @@ fs.FortuneWorkbook? _itemOutputPreviewWorkbook({
           TColumnContent.get(column.columnId, item.item.itemId)?.dataString ??
           '',
   };
-  return _replaceItemPreviewKeywords(workbook, replacements);
+  final imageKeywords = <String>{
+    for (final column in TColumn.datas ?? const <TColumn>[])
+      if (column.columnType.code == TColumnType.TYPE_IMAGE)
+        '#${column.keyword}'.toLowerCase(),
+  };
+  return _replaceItemPreviewKeywords(
+    workbook,
+    replacements,
+    imageKeywords: imageKeywords,
+  );
 }
 
 fs.FortuneWorkbook _replaceItemPreviewKeywords(
   fs.FortuneWorkbook workbook,
-  Map<String, String> replacements,
+  Map<String, String> replacements, {
+  required Set<String> imageKeywords,
+}
 ) {
   final nextSheets = [
-    for (final sheet in workbook.sheets) _replaceSheetKeywords(sheet, replacements),
+    for (final sheet in workbook.sheets)
+      _replaceSheetKeywords(
+        sheet,
+        replacements,
+        imageKeywords: imageKeywords,
+      ),
   ];
   return workbook.copyWith(sheets: nextSheets);
 }
 
 fs.FortuneSheet _replaceSheetKeywords(
   fs.FortuneSheet sheet,
-  Map<String, String> replacements,
+  Map<String, String> replacements, {
+  required Set<String> imageKeywords,
+}
 ) {
   final nextCells = <fs.FortuneCellCoord, fs.FortuneCell>{};
+  final insertedImages = <fs.FortuneImage>[];
   for (final entry in sheet.cells.entries) {
+    final imageReplacement = _itemImageReplacementForCell(
+      sheet,
+      entry.key,
+      entry.value,
+      replacements,
+      imageKeywords,
+    );
+    if (imageReplacement != null) {
+      final image = imageReplacement.image;
+      if (image != null) {
+        insertedImages.add(image);
+      }
+      nextCells[entry.key] = imageReplacement.cell;
+      continue;
+    }
     nextCells[entry.key] = _replaceCellKeywords(entry.value, replacements);
   }
   final nextImages = [
     for (final image in sheet.images) _replaceImageKeywords(image, replacements),
+    ...insertedImages,
   ];
   return sheet.copyWith(cells: nextCells, images: nextImages);
+}
+
+({fs.FortuneCell cell, fs.FortuneImage? image})? _itemImageReplacementForCell(
+  fs.FortuneSheet sheet,
+  fs.FortuneCellCoord coord,
+  fs.FortuneCell cell,
+  Map<String, String> replacements,
+  Set<String> imageKeywords,
+) {
+  final text = cell.renderedText;
+  for (final entry in replacements.entries) {
+    if (!imageKeywords.contains(entry.key.toLowerCase()) ||
+        !text.contains(entry.key)) {
+      continue;
+    }
+    final src = _itemImageDataUri(entry.value);
+    if (src == null) {
+      return (cell: _itemTextCell(text.replaceAll(entry.key, ''), base: cell), image: null);
+    }
+    final rect = _itemCellRect(sheet, coord);
+    final image = fs.FortuneImage(
+      id: 'item-image-${sheet.id}-${coord.row}-${coord.column}-${entry.key.replaceAll('#', '')}',
+      src: src,
+      left: rect.left,
+      top: rect.top,
+      width: rect.width,
+      height: rect.height,
+      extraFields: {
+        fs.fortuneImageObjectIdExtraKey: entry.key,
+        'fileName': entry.value,
+      },
+    );
+    return (cell: _itemTextCell(text.replaceAll(entry.key, ''), base: cell), image: image);
+  }
+  return null;
+}
+
+Rect _itemCellRect(fs.FortuneSheet sheet, fs.FortuneCellCoord coord) {
+  double offsetFor(int count, double Function(int index) sizeFor) {
+    var offset = 0.0;
+    for (var index = 0; index < count; index += 1) {
+      offset += sizeFor(index);
+    }
+    return offset;
+  }
+
+  final width = sheet.columnWidths[coord.column] ?? sheet.defaultColWidth ?? 73;
+  final height = sheet.rowHeights[coord.row] ?? sheet.defaultRowHeight ?? 19;
+  return Rect.fromLTWH(
+    offsetFor(coord.column, (index) => sheet.columnWidths[index] ?? sheet.defaultColWidth ?? 73),
+    offsetFor(coord.row, (index) => sheet.rowHeights[index] ?? sheet.defaultRowHeight ?? 19),
+    width,
+    height,
+  );
 }
 
 fs.FortuneImage _replaceImageKeywords(

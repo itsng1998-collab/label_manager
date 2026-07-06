@@ -40,8 +40,15 @@
 - 구현 범위: 출력 미리보기는 현재 `label-manager.sheet` workbook을 decode한 복사본에 `#ITEMNAME`, `#ELEMENT`, `# + TColumn.keyword` 텍스트 키워드를 치환한다. 기존 바코드 이미지 객체는 objectId가 키워드와 일치하면 `barcodeText` payload를 갱신하고, 기존 이미지 객체는 objectId가 키워드와 일치하면 `C:\ITS\LabelManager\bmp files\{파일명}.bmp`를 data URI로 반영한다.
 - 검증 완료: 변경 Dart 파일 `get_errors` 오류 없음, `git diff --check -- lib/home_page_manager.dart lib/page_label_sheet/label_sheet_workbench.dart lib/page_home/item_manage.dart lib/widgets/swipe_action_table.dart SESSION_HANDOFF.md` 통과.
 - 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 통과(No issues found).
-- 검증 완료: `test\swipe_action_table_test.dart`, `test\common_label_manage_test.dart`, `test\label_sheet_toolbar_test.dart` 총 82개 테스트 통과.
 - 커밋 완료: `cf3f299` 품목관리 전용 라벨시트 미리보기 추가.
+
+
+### 진행 중 (2026-07-06): 품목관리 이미지 키워드 객체 치환 보강
+
+- 편집 완료: `lib/home_page_manager.dart`에서 이미지 컬럼 키워드가 셀 텍스트로 존재하면 해당 셀 위치/크기에 `FortuneImage` 객체를 생성하고, 셀의 키워드 텍스트는 빈 값으로 치환하도록 보강했다.
+- 편집 완료: 기존 이미지 객체의 `fortuneImageObjectIdExtraKey`가 키워드와 일치하는 경우에도 레거시 `C:\ITS\LabelManager\bmp files\{파일명}.bmp`를 data URI로 반영한다.
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 통과(No issues found).
+- 검증 완료: `test\swipe_action_table_test.dart`, `test\common_label_manage_test.dart`, `test\label_sheet_toolbar_test.dart` 총 82개 테스트 통과.
 
 ### 완료 (2026-07-06): 품목관리 지시서 RTF 변환 방향 제거
 
