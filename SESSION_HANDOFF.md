@@ -41,6 +41,7 @@
 - 검증 완료: 변경 Dart 파일 `get_errors` 오류 없음, `git diff --check -- lib/home_page_manager.dart lib/page_label_sheet/label_sheet_workbench.dart lib/page_home/item_manage.dart lib/widgets/swipe_action_table.dart SESSION_HANDOFF.md` 통과.
 - 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 통과(No issues found).
 - 검증 완료: `test\swipe_action_table_test.dart`, `test\common_label_manage_test.dart`, `test\label_sheet_toolbar_test.dart` 총 82개 테스트 통과.
+- 커밋 완료: `cf3f299` 품목관리 전용 라벨시트 미리보기 추가.
 
 ### 완료 (2026-07-06): 품목관리 지시서 RTF 변환 방향 제거
 
