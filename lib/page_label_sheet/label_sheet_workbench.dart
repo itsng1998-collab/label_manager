@@ -14,6 +14,7 @@ import 'package:image/image.dart' as imglib;
 import 'package:label_manager/models/label_size.dart';
 import 'package:label_manager/page_label_sheet/label_sheet_ai_import.dart';
 import 'package:label_manager/page_label_sheet/label_sheet_import_model.dart';
+import 'package:label_manager/page_label_sheet/label_sheet_open_xml_export.dart';
 import 'package:label_manager/page_label_sheet/label_sheet_rtf_import.dart';
 import 'package:label_manager/page_label_sheet/label_sheet_save_codec.dart';
 import 'package:label_manager/page_label_sheet/label_sheet_xlsx_import.dart';
@@ -2170,20 +2171,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       await prefs.setString(_labelSheetGeminiApiKeyPrefsKey, action.apiKey);
       await prefs.setString(_labelSheetGeminiModelPrefsKey, action.model);
     }
-    LabelSheetImageImportDraft? draft;
-    if (action.useAi) {
-      draft = action.draft;
-      if (draft == null) {
-        return;
-      }
-    } else {
-      draft = labelSheetAnalyzeImageImport(
-        bytes,
-        sheet: sheet,
-        mimeType: mimeType,
-        fileName: file.name,
-      );
-    }
+    final draft = action.draft;
     if (draft == null) {
       if (mounted) {
         ScaffoldMessenger.of(
@@ -2192,31 +2180,52 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       }
       return;
     }
-    const settings = FortuneSettings();
-    final clearedSheet = labelSheetClearBeforeImageImport(
-      sheet,
-      rowCount: settings.row,
-      columnCount: settings.column,
-    );
-    _controller.updateSheet([
-      labelSheetApplyImageImportDraft(
-        clearedSheet,
-        draft,
-        minRowCount: settings.row,
-        minColumnCount: settings.column,
-      ),
-    ]);
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            '${action.useAi ? 'AI' : '기본'} 라벨 이미지 분석 완료: '
-            '${draft.rowHeights.length}행 x '
-            '${draft.columnWidths.length}열',
-          ),
+    try {
+      final xlsxFile = await _writeLabelImageImportXlsxFile(draft, file.name);
+      final xlsxName = p.basename(xlsxFile.path);
+      final importedWorkbook = await _readImportedLabelWorkbook(
+        XFile(
+          xlsxFile.path,
+          name: xlsxName,
+          mimeType:
+              'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         ),
       );
+      await _applyImportedLabelWorkbook(
+        importedWorkbook,
+        fileName: xlsxName,
+        filePath: xlsxFile.path,
+        updateImportDirectory: false,
+        successMessage: 'AI 분석 결과를 엑셀로 가져왔습니다: $xlsxName',
+      );
+    } catch (e, stackTrace) {
+      debugLog(
+        'label image import xlsx auto import failed: '
+        'name=${file.name} error=$e\n$stackTrace',
+        skipFrames: 1,
+      );
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('AI 분석 결과를 엑셀로 가져올 수 없습니다.')),
+      );
     }
+  }
+
+  Future<File> _writeLabelImageImportXlsxFile(
+    LabelSheetImageImportDraft draft,
+    String sourceFileName,
+  ) {
+    final baseName = p.basenameWithoutExtension(sourceFileName).trim();
+    final safeBaseName = baseName.isEmpty
+        ? 'label_image'
+        : baseName.replaceAll(RegExp(r'[^0-9A-Za-z가-힣._-]+'), '_');
+    final path = p.join(
+      Directory.systemTemp.path,
+      'label_manager_ai_import_${DateTime.now().microsecondsSinceEpoch}_$safeBaseName.xlsx',
+    );
+    return labelSheetWriteDraftOpenXmlTestFile(draft, path: path);
   }
 
   void _handlePrint() {
@@ -2680,17 +2689,42 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       ).showSnackBar(const SnackBar(content: Text('라벨 파일에 시트가 없습니다.')));
       return;
     }
-    final filePath = file.path;
-    if (filePath.isNotEmpty) {
+    await _applyImportedLabelWorkbook(
+      importedWorkbook,
+      fileName: file.name,
+      filePath: file.path,
+      prefs: prefs,
+    );
+  }
+
+  Future<void> _applyImportedLabelWorkbook(
+    FortuneWorkbook importedWorkbook, {
+    required String fileName,
+    required String filePath,
+    SharedPreferences? prefs,
+    bool updateImportDirectory = true,
+    String? successMessage,
+  }) async {
+    if (importedWorkbook.sheets.isEmpty) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('라벨 파일에 시트가 없습니다.')));
+      return;
+    }
+    if (updateImportDirectory && filePath.isNotEmpty) {
       final directory = p.dirname(filePath);
       if (directory.isNotEmpty) {
-        await prefs.setString(_labelFileDirectoryPrefsKey, directory);
+        final targetPrefs = prefs ?? await SharedPreferences.getInstance();
+        await targetPrefs.setString(_labelFileDirectoryPrefsKey, directory);
       }
     }
     final importExtension =
-        (p.extension(file.path).isNotEmpty
-                ? p.extension(file.path)
-                : p.extension(file.name))
+        (p.extension(filePath).isNotEmpty
+                ? p.extension(filePath)
+                : p.extension(fileName))
             .toLowerCase();
     final scaleToPhysicalWidth = importExtension == '.xlsx';
     final currentSheet = _currentWorkbookForLabelFile().activeSheet;
@@ -2749,7 +2783,9 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     });
     ScaffoldMessenger.of(
       context,
-    ).showSnackBar(SnackBar(content: Text('라벨 파일을 가져왔습니다: ${file.name}')));
+    ).showSnackBar(
+      SnackBar(content: Text(successMessage ?? '라벨 파일을 가져왔습니다: $fileName')),
+    );
   }
 
   Future<FortuneWorkbook> _readImportedLabelWorkbook(XFile file) async {
@@ -3242,12 +3278,7 @@ class _LabelImageImportDialogState extends State<_LabelImageImportDialog> {
     text: widget.initialModel,
   );
   late final TextEditingController _promptController = TextEditingController(
-    text:
-        '현재 조정 시트 ${widget.physicalSize.widthMm}x'
-        '${widget.physicalSize.heightMm}mm 크기 안에 들어오도록 라벨 이미지를 '
-        '편집 가능한 시트로 변환해줘. 모든 치수는 mm 기준으로 유지하고, '
-        '사용자가 나중에 수정할 수 있게 텍스트와 병합 셀을 가능한 한 분리하고, '
-        '표는 셀의 테두리로 해줘.',
+    text: '',
   );
   bool _saveCredentials = false;
   bool _analyzing = false;
@@ -3264,52 +3295,21 @@ class _LabelImageImportDialogState extends State<_LabelImageImportDialog> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Dialog(
-      insetPadding: const EdgeInsets.all(24),
-      elevation: 8,
-      backgroundColor: Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
-        side: const BorderSide(color: Color(0x22000000)),
-      ),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.easeInOut,
-        width: 640,
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height * 0.9,
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
+    final dialogHeight = MediaQuery.sizeOf(context).height * 0.78;
+    return BlockingModelessDialogFrame(
+      title: '라벨 이미지 가져오기',
+      width: 640,
+      height: dialogHeight,
+      closeIcon: const _LabelImageImportCloseIcon(),
+      onClose: _analyzing ? () {} : () => Navigator.of(context).pop(),
+      footer: _buildFooter(),
+      child: Padding(
+        padding: const EdgeInsets.only(left: 8, right: 8, bottom: 8),
+        child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      '라벨 이미지 가져오기',
-                      style: theme.textTheme.titleMedium,
-                    ),
-                  ),
-                  IconButton(
-                    tooltip: '닫기',
-                    visualDensity: VisualDensity.compact,
-                    onPressed: _analyzing
-                        ? null
-                        : () => Navigator.of(context).pop(),
-                    icon: const Icon(Icons.close, size: 18),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Flexible(
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
                       Text(
                         '${widget.fileName} · 현재 시트 '
                         '${widget.physicalSize.widthMm} x '
@@ -3392,30 +3392,37 @@ class _LabelImageImportDialogState extends State<_LabelImageImportDialog> {
                           ),
                         ],
                       ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  OutlinedButton(
-                    onPressed: _analyzing
-                        ? null
-                        : () => Navigator.of(context).pop(),
-                    child: const Text('취소'),
-                  ),
-                  const SizedBox(width: 8),
-                  ElevatedButton(
-                    onPressed: _analyzing ? null : _applyGeminiAnalysis,
-                    child: Text(_analyzing ? 'AI 분석 중...' : 'AI 분석 적용'),
-                  ),
-                ],
-              ),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildFooter() {
+    return Padding(
+      padding: const EdgeInsets.only(left: 8, right: 8, bottom: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          SizedBox(
+            width: 84,
+            height: 30,
+            child: _LabelImageImportFooterButton(
+              label: '취소',
+              onPressed: _analyzing ? null : () => Navigator.of(context).pop(),
+            ),
+          ),
+          const SizedBox(width: 5),
+          SizedBox(
+            width: 112,
+            height: 30,
+            child: _LabelImageImportFooterButton(
+              label: _analyzing ? '분석 중...' : 'AI 분석 적용',
+              onPressed: _analyzing ? null : _applyGeminiAnalysis,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -3462,10 +3469,8 @@ class _LabelImageImportDialogState extends State<_LabelImageImportDialog> {
       }
       Navigator.of(context).pop(
         _LabelImageImportAction(
-          useAi: true,
           apiKey: _apiKeyController.text.trim(),
           model: _modelController.text.trim(),
-          prompt: _promptController.text,
           saveCredentials: _saveCredentials,
           draft: draft,
         ),
@@ -3479,6 +3484,66 @@ class _LabelImageImportDialogState extends State<_LabelImageImportDialog> {
         _errorLog = '$error';
       });
     }
+  }
+}
+
+class _LabelImageImportFooterButton extends StatelessWidget {
+  const _LabelImageImportFooterButton({
+    required this.label,
+    required this.onPressed,
+  });
+
+  final String label;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton(
+      style: OutlinedButton.styleFrom(
+        backgroundColor: const Color(0xFFF1F3F4),
+        foregroundColor: const Color(0xff111111),
+        side: const BorderSide(color: Color(0xffc7c7c7)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(3)),
+        padding: EdgeInsets.zero,
+        textStyle: const TextStyle(fontSize: 13),
+      ),
+      onPressed: onPressed,
+      child: Text(label),
+    );
+  }
+}
+
+class _LabelImageImportCloseIcon extends StatelessWidget {
+  const _LabelImageImportCloseIcon();
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      size: const Size(16, 16),
+      painter: _LabelImageImportCloseIconPainter(),
+    );
+  }
+}
+
+class _LabelImageImportCloseIconPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final glyphRect = ui.Rect.fromCenter(
+      center: ui.Offset(size.width / 2, size.height / 2),
+      width: 11,
+      height: 11,
+    );
+    final paint = Paint()
+      ..color = const Color(0xff9a9a9a)
+      ..strokeWidth = 1.4
+      ..strokeCap = StrokeCap.round;
+    canvas.drawLine(glyphRect.topLeft, glyphRect.bottomRight, paint);
+    canvas.drawLine(glyphRect.topRight, glyphRect.bottomLeft, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _LabelImageImportCloseIconPainter oldDelegate) {
+    return false;
   }
 }
 
@@ -4063,18 +4128,14 @@ String? _labelSheetSelectedGeminiModelValue(
 
 class _LabelImageImportAction {
   const _LabelImageImportAction({
-    required this.useAi,
     required this.apiKey,
     required this.model,
-    required this.prompt,
     required this.saveCredentials,
     this.draft,
   });
 
-  final bool useAi;
   final String apiKey;
   final String model;
-  final String prompt;
   final bool saveCredentials;
   final LabelSheetImageImportDraft? draft;
 }

@@ -28,6 +28,23 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-06): 라벨 이미지 가져오기 Gemini XLSX 자동 가져오기
+
+- 목적: `라벨 이미지 가져오기`의 AI 분석 적용 경로를 Gemini 결과 직접 시트 적용이 아니라 OS 임시 폴더 XLSX 생성 후 기존 `라벨 파일 가져오기` XLSX 로드 경로 자동 적용으로 변경한다.
+- 수정 예정: `lib/page_label_sheet/label_sheet_workbench.dart`에서 기존 XLSX import 적용 로직을 재사용 함수로 분리하고, AI 이미지 분석 완료 시 임시 XLSX를 생성해 해당 경로로 로드한다.
+- 수정 예정: `lib/page_label_sheet/label_sheet_ai_import.dart`에서 변환 프롬프트 입력 기본값을 빈 값으로 둘 수 있도록 프롬프트 구성만 담당하게 유지한다.
+- 수정 예정: `SESSION_HANDOFF.md`에 진행/검증/커밋 정보를 단계별로 기록한다.
+- 변경 완료: `label_sheet_workbench.dart`에서 Gemini 이미지 분석 결과를 직접 시트 적용하지 않고 `labelSheetWriteDraftOpenXmlTestFile`로 OS 임시 폴더 XLSX를 만든 뒤 `_readImportedLabelWorkbook` + `_applyImportedLabelWorkbook` 공용 XLSX import 경로로 자동 로드하도록 변경했다.
+- 변경 완료: `label_sheet_workbench.dart`에서 기존 `라벨 파일 가져오기` 적용 로직을 `_applyImportedLabelWorkbook`로 분리해 picker import와 AI 임시 XLSX import가 같은 변환/스케일 적용 경로를 사용하도록 했다.
+- 변경 완료: `label_sheet_workbench.dart`의 `라벨 이미지 가져오기` 다이얼로그를 `BlockingModelessDialogFrame` 기반 브랜드/라벨 설정 프레임 톤으로 변경하고, 하단 버튼을 브랜드/라벨 설정 footer 버튼 스타일로 맞췄다. 변환 프롬프트 기본값은 빈 문자열로 변경했다.
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze lib\page_label_sheet\label_sheet_workbench.dart --no-fatal-warnings --no-fatal-infos` 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --name "Gemini JSON response is converted to a sheet draft"` 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_xlsx_import_test.dart` 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze lib\page_label_sheet\label_sheet_workbench.dart lib\page_label_sheet\label_sheet_ai_import.dart test\label_sheet_toolbar_test.dart --no-fatal-warnings --no-fatal-infos` 통과.
+- 검증 완료: `git diff --check -- SESSION_HANDOFF.md lib/page_label_sheet/label_sheet_workbench.dart` 출력 없음.
+- 진단 완료: 수정 파일 VS Code diagnostics 오류 없음.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `lib/page_label_sheet/label_sheet_workbench.dart`. 기존 unrelated dirty `lib/core/app.dart`는 제외.
+
 ### 완료 (2026-07-06): 라벨 이미지 가져오기 Gemini 전환
 
 - 목적: 라벨 이미지 가져오기 다이얼로그의 AI 분석 연동을 GitHub Models/Copilot에서 Gemini API로 변경한다.
