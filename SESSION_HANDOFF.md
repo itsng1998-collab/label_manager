@@ -39,6 +39,7 @@
 - 검증 완료: `git diff --check -- lib/home_page_manager.dart SESSION_HANDOFF.md` 통과.
 - 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`).
 - 검증 완료: `test\swipe_action_table_test.dart`, `test\common_label_manage_test.dart`, `test\label_sheet_toolbar_test.dart` 총 82개 통과.
+- 커밋 완료: `c61bf66` 품목관리 미리보기 창 닫기 UX 보정.
 
 ### 진행 중 (2026-07-06): 품목관리 미리보기/편집 지시서 구현
 
