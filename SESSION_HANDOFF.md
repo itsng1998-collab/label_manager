@@ -44,6 +44,7 @@
 - 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "single cell viewport fit keeps visible size across zoom"` 통과.
 - 검증 완료: `test\common_label_manage_test.dart`, `test\swipe_action_table_test.dart` 총 4개 통과.
 - 검증 완료: `git diff --check -- lib/home_page_manager.dart lib/page_label_sheet/label_sheet_workbench.dart third_party/fortune_sheet/lib/src/fortune_sheet_model.dart third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart test/label_sheet_toolbar_test.dart SESSION_HANDOFF.md` 통과.
+- 커밋 완료: `fbcffd4` 품목관리 주원료 눈금자와 인쇄영역 복원.
 
 ### 진행 중 (2026-07-06): 품목관리 주원료 탭 단일 셀 편집 UX 보강
 
