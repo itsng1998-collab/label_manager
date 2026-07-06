@@ -1588,9 +1588,10 @@ FortuneSettings labelSheetSettings(
   String importImageTooltip = 'Import label image',
   String saveTooltip = 'Save',
   String printTooltip = 'Print',
+  List<String>? toolbarItems,
 }) {
   return base.copyWith(
-    toolbarItems: labelSheetToolbarItems,
+    toolbarItems: toolbarItems ?? labelSheetToolbarItems,
     customToolbarItems: [
       FortuneCustomToolbarItem(
         key: labelSheetSaveToolbarCommand,
@@ -1669,11 +1670,13 @@ class LabelSheetWorkbench extends StatefulWidget {
     this.labelRtf,
     this.imageObjectIds = const <String>[],
     this.barcodeObjectIds = const <String>[],
+    this.toolbarItems,
     this.onInitialLoadComplete,
     this.onGridRectChanged,
     this.onBeforeSheetDialog,
     this.onSheetDialogClosed,
     this.printerListProvider,
+    this.onWorkbookChanged,
     this.onSave,
     super.key,
   });
@@ -1683,11 +1686,13 @@ class LabelSheetWorkbench extends StatefulWidget {
   final String? labelRtf;
   final List<String> imageObjectIds;
   final List<String> barcodeObjectIds;
+  final List<String>? toolbarItems;
   final VoidCallback? onInitialLoadComplete;
   final ValueChanged<ui.Rect>? onGridRectChanged;
   final FutureOr<void> Function()? onBeforeSheetDialog;
   final VoidCallback? onSheetDialogClosed;
   final LabelPrinterListProvider? printerListProvider;
+  final ValueChanged<FortuneWorkbook>? onWorkbookChanged;
   final FutureOr<void> Function(
     int widthMm,
     int heightMm,
@@ -1763,6 +1768,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
         importImageTooltip: _labelSheetImportImageTooltip(),
         saveTooltip: _labelSheetSaveTooltip(),
         printTooltip: _labelSheetPrintTooltip(),
+        toolbarItems: widget.toolbarItems,
       );
 
   FortuneSheetGridClientPhysicalSize? get _gridClientSize {
@@ -3016,6 +3022,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
               onChange: (workbook) {
                 _latestWorkbook = workbook;
                 _syncLabelSheetZoomPercent(workbook);
+                widget.onWorkbookChanged?.call(workbook);
               },
               onOp: (ops) {
                 if (ops.isEmpty || !mounted) {

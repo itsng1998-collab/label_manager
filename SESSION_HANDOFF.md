@@ -28,6 +28,20 @@
 
 ## 현재 상태
 
+### 진행 중 (2026-07-06): 품목관리 미리보기/편집 지시서 구현
+
+- 수정 예정: `.tmp\item_manager.txt` 기준으로 `lib/page_home/item_manage.dart`, `lib/widgets/swipe_action_table.dart`, `lib/home_page_manager.dart`에 품목관리 선택 행/전용 플로팅 창/현재 LabelSheet workbook 기반 미리보기 연결을 단계적으로 구현한다.
+- 목적: 동작 규칙은 레거시 품목관리 흐름을 따르되 구현은 현재 LabelSheet/FortuneSheet workbook 객체 기반으로 진행한다.
+- 주의: unrelated 변경 `lib/core/app.dart`는 제외한다.
+- 편집 완료: `lib/widgets/swipe_action_table.dart`에 `ResizableTable.selectedIndex/onRowSelected`를 추가해 품목관리 선택 행을 부모로 전달한다.
+- 편집 완료: `lib/page_home/item_manage.dart`가 선택 행 index/callback을 받아 `HomePageManager`로 전달한다.
+- 편집 완료: `lib/home_page_manager.dart`에 품목관리 첫 행 자동 선택, 전용 `PreviewFloatingWindow`, `LabelSheetWorkbench` 기반 `주원료 및 함량`/`출력내용 미리보기` 탭을 추가했다.
+- 편집 완료: `lib/page_label_sheet/label_sheet_workbench.dart`에 workbook 변경 콜백과 toolbar override를 추가해 품목관리 주원료 탭의 최소 편집 툴바를 지원한다.
+- 구현 범위: 출력 미리보기는 현재 `label-manager.sheet` workbook을 decode한 복사본에 `#ITEMNAME`, `#ELEMENT`, `# + TColumn.keyword` 텍스트 키워드를 치환한다. 기존 바코드 이미지 객체는 objectId가 키워드와 일치하면 `barcodeText` payload를 갱신하고, 기존 이미지 객체는 objectId가 키워드와 일치하면 `C:\ITS\LabelManager\bmp files\{파일명}.bmp`를 data URI로 반영한다.
+- 검증 완료: 변경 Dart 파일 `get_errors` 오류 없음, `git diff --check -- lib/home_page_manager.dart lib/page_label_sheet/label_sheet_workbench.dart lib/page_home/item_manage.dart lib/widgets/swipe_action_table.dart SESSION_HANDOFF.md` 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 통과(No issues found).
+- 검증 완료: `test\swipe_action_table_test.dart`, `test\common_label_manage_test.dart`, `test\label_sheet_toolbar_test.dart` 총 82개 테스트 통과.
+
 ### 완료 (2026-07-06): 품목관리 지시서 RTF 변환 방향 제거
 
 - 목적: `.tmp\item_manager.txt`에 현재 프로젝트의 LabelSheet가 RTF 포맷을 사용한다는 오해가 없도록 수정한다.

@@ -1,9 +1,11 @@
 import 'dart:async';
-import 'dart:io' show Platform;
+import 'dart:convert';
+import 'dart:io' show File, Platform;
 import 'dart:math' show max, min, pi;
 
 import 'package:collection/collection.dart';
 import 'package:dropdown_button2/dropdown_button2.dart';
+import 'package:fortune_sheet/fortune_sheet.dart' as fs;
 import 'package:flutter/material.dart';
 import 'package:tabbed_view/tabbed_view.dart';
 
@@ -11,6 +13,7 @@ import 'package:label_manager/core/app.dart';
 import 'package:label_manager/core/auto_login_guard.dart';
 import 'package:label_manager/core/ui_scale.dart';
 import 'package:label_manager/models/brand.dart';
+import 'package:label_manager/models/column_base.dart';
 import 'package:label_manager/models/column_content.dart';
 import 'package:label_manager/models/column_type.dart';
 import 'package:label_manager/models/column_special.dart';
@@ -20,6 +23,8 @@ import 'package:label_manager/models/item_of_market.dart';
 import 'package:label_manager/models/label_size.dart';
 import 'package:label_manager/models/market.dart';
 import 'package:label_manager/models/user.dart';
+import 'package:label_manager/page_label_sheet/label_sheet_save_codec.dart';
+import 'package:label_manager/page_label_sheet/label_sheet_workbench.dart';
 import 'package:label_manager/page_label_sheet/label_sheet_rtf_import.dart';
 import 'package:label_manager/page_label_sheet/label_sheet_rtf_preview.dart';
 import 'package:label_manager/page_label_sheet/label_sheet_rtf_preview_debug.dart';
@@ -77,6 +82,8 @@ class _HomePageManagerState extends State<HomePageManager> {
   Size? _rtfPreviewRefreshedTargetContentSize;
   Size? _rtfPreviewLastResolvedImageSize;
   Rect? _commonLabelGridRect;
+  ItemOfMarket? _selectedItemOfMarket;
+  int? _selectedItemIndex;
   bool _rtfPreviewHasResolvedImage = false;
   bool _autoSelectedCommonLabelOnce = false;
   bool _commonLabelTabActivated = false;
@@ -456,6 +463,8 @@ class _HomePageManagerState extends State<HomePageManager> {
         _commonLabelPreviewClosedByUser = false;
         widget.onLabelSizeChanged(null);
         ItemOfMarket.datas = <ItemOfMarket>[];
+        _selectedItemOfMarket = null;
+        _selectedItemIndex = null;
         _resetTabs();
         return;
       }
@@ -479,6 +488,7 @@ class _HomePageManagerState extends State<HomePageManager> {
             Market.instance!.marketId,
             labelSize.labelSizeId,
           );
+      _selectInitialItemOfMarket();
       debugLog(
         'loaded labelSizeId=${labelSize.labelSizeId}, '
         'columns=${TColumn.datas?.length ?? 0}, '
@@ -739,6 +749,8 @@ class _HomePageManagerState extends State<HomePageManager> {
         content: ItemManage(
           key: ValueKey('items:$_labelContentKey'),
           items: ItemOfMarket.datas ?? const <ItemOfMarket>[],
+          selectedIndex: _selectedItemIndex,
+          onRowSelected: _handleItemRowSelected,
         ),
         closable: false,
         keepAlive: true,
@@ -832,8 +844,50 @@ class _HomePageManagerState extends State<HomePageManager> {
       if (!mounted) return;
       if (_selectedTabValue() != 'items') return;
       _commonLabelPreviewWindow?.hide();
-      _itemPreviewWindow?.hide();
+      final selected = _selectedItemOfMarket;
+      if (selected == null) {
+        _itemPreviewWindow?.hide();
+        return;
+      }
+      final key = '${_effectiveLabelSize?.labelSizeId ?? 'none'}:'
+          '${selected.item.itemId}:${_selectedItemIndex ?? -1}';
+      final child = _ItemPreviewPanel(
+        key: ValueKey('item-preview:$key'),
+        item: selected,
+        labelSize: _effectiveLabelSize,
+      );
+      _itemPreviewWindow ??= PreviewFloatingWindow(
+        initialSize: const Size(720, 520),
+        minSize: const Size(420, 280),
+        tooltip: '품목관리 미리보기',
+      );
+      _itemPreviewWindow!
+        ..setTooltip('품목관리 미리보기')
+        ..setChild(child)
+        ..show(context);
     });
+  }
+
+  void _selectInitialItemOfMarket() {
+    final items = ItemOfMarket.datas ?? const <ItemOfMarket>[];
+    if (items.isEmpty) {
+      _selectedItemOfMarket = null;
+      _selectedItemIndex = null;
+      return;
+    }
+    _selectedItemIndex = 0;
+    _selectedItemOfMarket = items.first;
+  }
+
+  void _handleItemRowSelected(ItemOfMarket row, int index) {
+    _selectedItemOfMarket = row;
+    _selectedItemIndex = index;
+    if (mounted) {
+      setState(() {});
+    }
+    if (_selectedTabValue() == 'items') {
+      _showItemPreviewWindow();
+    }
   }
 
   void _showRtfPreviewWindow() {
@@ -2081,6 +2135,366 @@ class _PlaceholderTab extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(child: Text('$title (준비 중)'));
   }
+}
+
+class _ItemPreviewPanel extends StatefulWidget {
+  const _ItemPreviewPanel({super.key, required this.item, this.labelSize});
+
+  final ItemOfMarket item;
+  final LabelSize? labelSize;
+
+  @override
+  State<_ItemPreviewPanel> createState() => _ItemPreviewPanelState();
+}
+
+class _ItemPreviewPanelState extends State<_ItemPreviewPanel> {
+  late String _elementText = widget.item.item.element;
+
+  void _handleElementWorkbookChanged(fs.FortuneWorkbook workbook) {
+    final next = _itemElementTextFromWorkbook(workbook);
+    if (next == _elementText) return;
+    setState(() {
+      _elementText = next;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final columns = TColumn.datas ?? const <TColumn>[];
+    final specialColumns = TColumnSpecial.datas ?? const <TColumnBase>[];
+    final imageObjectIds = _itemPreviewImageObjectIdsFor([
+      ...specialColumns,
+      ...columns,
+    ]);
+    final barcodeObjectIds = _itemPreviewBarcodeObjectIdsFor([
+      ...specialColumns,
+      ...columns,
+    ]);
+    return Material(
+      color: Colors.white,
+      child: DefaultTabController(
+        length: 2,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
+              color: const Color(0xFFF7F8FA),
+              child: const TabBar(
+                labelColor: Color(0xFF1F2429),
+                unselectedLabelColor: Color(0xFF6B7280),
+                indicatorColor: Color(0xFF0E2F66),
+                tabs: [
+                  Tab(text: '주원료 및 함량'),
+                  Tab(text: '출력내용 미리보기'),
+                ],
+              ),
+            ),
+            Expanded(
+              child: TabBarView(
+                children: [
+                  _ItemElementPreviewTab(
+                    item: widget.item,
+                    onWorkbookChanged: _handleElementWorkbookChanged,
+                  ),
+                  _ItemOutputPreviewTab(
+                    key: ValueKey(
+                      'item-output-tab:${widget.item.item.itemId}:${_elementText.hashCode}',
+                    ),
+                    item: widget.item,
+                    labelSize: widget.labelSize,
+                    elementText: _elementText,
+                    imageObjectIds: imageObjectIds,
+                    barcodeObjectIds: barcodeObjectIds,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ItemElementPreviewTab extends StatelessWidget {
+  const _ItemElementPreviewTab({
+    required this.item,
+    required this.onWorkbookChanged,
+  });
+
+  final ItemOfMarket item;
+  final ValueChanged<fs.FortuneWorkbook> onWorkbookChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return LabelSheetWorkbench(
+      key: ValueKey('item-element:${item.item.itemId}:${item.item.element}'),
+      initialWorkbook: _itemElementWorkbook(item.item.element),
+      labelSize: null,
+      toolbarItems: _itemElementToolbarItems,
+      onWorkbookChanged: onWorkbookChanged,
+    );
+  }
+}
+
+const List<String> _itemElementToolbarItems = [
+  fs.fortuneToolbarFontPopupKey,
+  fs.fortuneToolbarFontSizePopupKey,
+  fs.fortuneToolbarBoldCommand,
+  fs.fortuneToolbarItalicCommand,
+  fs.fortuneToolbarStrikeThroughCommand,
+  fs.fortuneToolbarUnderlineCommand,
+  fs.fortuneToolbarFontColorPopupKey,
+  fs.fortuneToolbarBackgroundPopupKey,
+  fs.fortuneToolbarHorizontalAlignPopupKey,
+  fs.fortuneToolbarVerticalAlignPopupKey,
+  fs.fortuneToolbarTextWrapPopupKey,
+  fs.fortuneToolbarTextRotationPopupKey,
+];
+
+List<String> _itemPreviewImageObjectIdsFor(Iterable<TColumnBase> columns) {
+  final result = <String>[];
+  final seen = <String>{};
+  for (final column in columns) {
+    final keyword = column.keyword.trim();
+    if (keyword.isEmpty) continue;
+    final objectId = keyword.startsWith('#') ? keyword : '#$keyword';
+    if (seen.add(objectId.toLowerCase())) {
+      result.add(objectId);
+    }
+  }
+  return result;
+}
+
+List<String> _itemPreviewBarcodeObjectIdsFor(Iterable<TColumnBase> columns) {
+  final result = <String>[];
+  final seen = <String>{};
+  for (final column in columns) {
+    final keyword = column.keyword.trim();
+    final lower = keyword.toLowerCase();
+    if (keyword.isEmpty ||
+        (!lower.contains('barcode') && !lower.contains('qrcode'))) {
+      continue;
+    }
+    final objectId = keyword.startsWith('#') ? keyword : '#$keyword';
+    if (seen.add(objectId.toLowerCase())) {
+      result.add(objectId);
+    }
+  }
+  return result.isEmpty ? const ['#BARCODE'] : result;
+}
+
+class _ItemOutputPreviewTab extends StatelessWidget {
+  const _ItemOutputPreviewTab({
+    super.key,
+    required this.item,
+    required this.elementText,
+    required this.imageObjectIds,
+    required this.barcodeObjectIds,
+    this.labelSize,
+  });
+
+  final ItemOfMarket item;
+  final String elementText;
+  final LabelSize? labelSize;
+  final List<String> imageObjectIds;
+  final List<String> barcodeObjectIds;
+
+  @override
+  Widget build(BuildContext context) {
+    final workbook = _itemOutputPreviewWorkbook(
+      labelSize: labelSize,
+      item: item,
+      elementText: elementText,
+    );
+    if (workbook == null) {
+      return const Center(child: Text('현재 공용라벨 시트가 없습니다.'));
+    }
+    return LabelSheetWorkbench(
+      key: ValueKey(
+        'item-output:${labelSize?.labelSizeId ?? 'none'}:${item.item.itemId}',
+      ),
+      initialWorkbook: workbook,
+      labelSize: labelSize,
+      imageObjectIds: imageObjectIds,
+      barcodeObjectIds: barcodeObjectIds,
+    );
+  }
+}
+
+String _itemElementTextFromWorkbook(fs.FortuneWorkbook workbook) {
+  if (workbook.sheets.isEmpty) return '';
+  final cell = workbook.sheets.first.cells[const fs.FortuneCellCoord(0, 0)];
+  return cell?.renderedText ?? '';
+}
+
+fs.FortuneWorkbook _itemElementWorkbook(String elementText) {
+  return fs.FortuneWorkbook(
+    sheets: [
+      fs.FortuneSheet(
+        id: 'item_element',
+        name: '주원료 및 함량',
+        rowCount: 1,
+        columnCount: 1,
+        rowHeights: const {0: 360},
+        columnWidths: const {0: 640},
+        customHeight: const {0: 1},
+        customWidth: const {0: 1},
+        cells: {
+          const fs.FortuneCellCoord(0, 0): _itemTextCell(elementText).copyWith(
+            textWrap: '2',
+            verticalAlign: '1',
+          ),
+        },
+        showGridLines: false,
+      ),
+    ],
+  );
+}
+
+fs.FortuneWorkbook? _itemOutputPreviewWorkbook({
+  required LabelSize? labelSize,
+  required ItemOfMarket item,
+  required String elementText,
+}) {
+  final encodedWorkbook = labelSize?.labelSizeCommon?.rtf;
+  if (labelSheetLooksLikeRichEditRtf(encodedWorkbook)) {
+    return null;
+  }
+  final workbook = labelSheetTryDecodeWorkbookSave(encodedWorkbook);
+  if (workbook == null || workbook.sheets.isEmpty) {
+    return null;
+  }
+  final replacements = <String, String>{
+    '#ITEMNAME': item.item.itemName,
+    '#ELEMENT': elementText,
+    for (final column in TColumn.datas ?? const <TColumn>[])
+      '#${column.keyword}':
+          TColumnContent.get(column.columnId, item.item.itemId)?.dataString ??
+          '',
+  };
+  return _replaceItemPreviewKeywords(workbook, replacements);
+}
+
+fs.FortuneWorkbook _replaceItemPreviewKeywords(
+  fs.FortuneWorkbook workbook,
+  Map<String, String> replacements,
+) {
+  final nextSheets = [
+    for (final sheet in workbook.sheets) _replaceSheetKeywords(sheet, replacements),
+  ];
+  return workbook.copyWith(sheets: nextSheets);
+}
+
+fs.FortuneSheet _replaceSheetKeywords(
+  fs.FortuneSheet sheet,
+  Map<String, String> replacements,
+) {
+  final nextCells = <fs.FortuneCellCoord, fs.FortuneCell>{};
+  for (final entry in sheet.cells.entries) {
+    nextCells[entry.key] = _replaceCellKeywords(entry.value, replacements);
+  }
+  final nextImages = [
+    for (final image in sheet.images) _replaceImageKeywords(image, replacements),
+  ];
+  return sheet.copyWith(cells: nextCells, images: nextImages);
+}
+
+fs.FortuneImage _replaceImageKeywords(
+  fs.FortuneImage image,
+  Map<String, String> replacements,
+) {
+  final extraFields = Map<String, Object?>.from(image.extraFields);
+  if (extraFields['fortuneBarcode'] == true) {
+    final objectId = '${extraFields[fs.fortuneBarcodeObjectIdExtraKey] ?? ''}'
+        .trim()
+        .toLowerCase();
+    for (final entry in replacements.entries) {
+      if (entry.key.toLowerCase() != objectId) continue;
+      extraFields['barcodeText'] = entry.value;
+      return image.copyWith(extraFields: extraFields);
+    }
+  }
+  final objectId = '${extraFields[fs.fortuneImageObjectIdExtraKey] ?? ''}'
+      .trim()
+      .toLowerCase();
+  if (objectId.isNotEmpty) {
+    for (final entry in replacements.entries) {
+      if (entry.key.toLowerCase() != objectId) continue;
+      final src = _itemImageDataUri(entry.value);
+      if (src == null) break;
+      return image.copyWith(src: src, extraFields: extraFields);
+    }
+  }
+  return image.copyWith();
+}
+
+String? _itemImageDataUri(String fileNameWithoutExtension) {
+  final value = fileNameWithoutExtension.trim();
+  if (value.isEmpty) return null;
+  final file = File('C:\\ITS\\LabelManager\\bmp files\\$value.bmp');
+  if (!file.existsSync()) return null;
+  final bytes = file.readAsBytesSync();
+  return 'data:image/bmp;base64,${base64Encode(bytes)}';
+}
+
+fs.FortuneCell _replaceCellKeywords(
+  fs.FortuneCell cell,
+  Map<String, String> replacements,
+) {
+  final runs = cell.inlineRuns;
+  if (runs != null && runs.isNotEmpty) {
+    var changed = false;
+    final nextRuns = [
+      for (final run in runs)
+        run.copyWith(
+          text: _replaceKeywordText(
+            run.text,
+            replacements,
+            onChanged: () => changed = true,
+          ),
+        ),
+    ];
+    return changed ? cell.copyWith(inlineRuns: nextRuns) : cell.copyWith();
+  }
+  var changed = false;
+  final text = _replaceKeywordText(
+    cell.renderedText,
+    replacements,
+    onChanged: () => changed = true,
+  );
+  if (!changed) {
+    return cell.copyWith();
+  }
+  return _itemTextCell(text, base: cell);
+}
+
+String _replaceKeywordText(
+  String value,
+  Map<String, String> replacements, {
+  required VoidCallback onChanged,
+}) {
+  var next = value;
+  for (final entry in replacements.entries) {
+    if (!next.contains(entry.key)) continue;
+    next = next.replaceAll(entry.key, entry.value);
+    onChanged();
+  }
+  return next;
+}
+
+fs.FortuneCell _itemTextCell(String text, {fs.FortuneCell? base}) {
+  final source = base ?? const fs.FortuneCell();
+  return source.copyWith(
+    value: text,
+    displayValue: text,
+    rawDisplayValue: text,
+    hasRawDisplayValue: text.isNotEmpty,
+    formula: null,
+    rawFormula: null,
+    hasRawFormula: false,
+    inlineRuns: null,
+  );
 }
 
 class _LabelSettingsDialog extends StatefulWidget {

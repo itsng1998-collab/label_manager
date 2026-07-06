@@ -8,7 +8,15 @@ import 'package:label_manager/widgets/swipe_action_table.dart';
 
 class ItemManage extends StatelessWidget {
   final List<ItemOfMarket> items;
-  const ItemManage({super.key, required this.items});
+  final int? selectedIndex;
+  final void Function(ItemOfMarket row, int index)? onRowSelected;
+
+  const ItemManage({
+    super.key,
+    required this.items,
+    this.selectedIndex,
+    this.onRowSelected,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -21,6 +29,8 @@ class ItemManage extends StatelessWidget {
       rows: items,
       columns: columns,
       checkboxColumnIndex: 0,
+      selectedIndex: selectedIndex,
+      onRowSelected: onRowSelected,
     );
   }
 

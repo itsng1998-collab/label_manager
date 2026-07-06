@@ -1780,6 +1780,8 @@ class ResizableTable<T> extends StatefulWidget {
     required this.rows,
     required this.columns,
     this.checkboxColumnIndex,
+    this.selectedIndex,
+    this.onRowSelected,
     this.rowNumberWidth = 40 * labelManagerUiScale,
     this.headerHeight = 36 * labelManagerUiScale,
     this.rowHeight = 28 * labelManagerUiScale,
@@ -1789,6 +1791,8 @@ class ResizableTable<T> extends StatefulWidget {
   final List<T> rows;
   final List<ResizableTableColumn<T>> columns;
   final int? checkboxColumnIndex;
+  final int? selectedIndex;
+  final void Function(T row, int index)? onRowSelected;
   final double rowNumberWidth;
   final double headerHeight;
   final double rowHeight;
@@ -1806,6 +1810,7 @@ class _ResizableTableState<T> extends State<ResizableTable<T>> {
   void initState() {
     super.initState();
     _checked = List<bool>.filled(widget.rows.length, false);
+    _selectedIndex = widget.selectedIndex;
   }
 
   @override
@@ -1813,6 +1818,13 @@ class _ResizableTableState<T> extends State<ResizableTable<T>> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.rows.length != widget.rows.length) {
       _checked = List<bool>.filled(widget.rows.length, false);
+    }
+    if (oldWidget.selectedIndex != widget.selectedIndex &&
+        widget.selectedIndex != _selectedIndex) {
+      _selectedIndex = widget.selectedIndex;
+    }
+    if ((_selectedIndex ?? -1) >= widget.rows.length) {
+      _selectedIndex = null;
     }
   }
 
@@ -1829,7 +1841,10 @@ class _ResizableTableState<T> extends State<ResizableTable<T>> {
           ? const Color(0xFFE3F2FD)
           : (index.isEven ? Colors.white : const Color(0xFFF2F4F7)),
       selectedIndex: _selectedIndex,
-      onRowSelected: (_, index) => setState(() => _selectedIndex = index),
+      onRowSelected: (row, index) {
+        setState(() => _selectedIndex = index);
+        widget.onRowSelected?.call(row, index);
+      },
       columns: [
         for (var index = 0; index < widget.columns.length; index += 1)
           _toSwipeColumn(widget.columns[index], index),
