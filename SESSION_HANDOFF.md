@@ -36,6 +36,7 @@
 - 검증 완료: `C:\Flutter\bin\flutter.bat analyze lib\page_label_sheet\label_sheet_workbench.dart --no-fatal-warnings --no-fatal-infos` 통과.
 - 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --name "Gemini model menu includes supported model choices"` 통과.
 - 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --name "Gemini JSON response is converted to a sheet draft"` 통과.
+- 커밋 완료: `94e4946` (`라벨 이미지 API Key 입력 보호`).
 
 ### 완료 (2026-07-06): 라벨 이미지 임시 XLSX 파일 가져오기 경로 단순화
 
