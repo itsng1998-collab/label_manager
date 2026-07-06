@@ -63071,7 +63071,7 @@ class FortuneSheetPainter extends CustomPainter {
       _sheetRulerLogicalPixelsToMillimeters(dataRect.height + scrollOffset.dy),
       scrollOffset.dy,
     );
-    _drawSheetGuides(canvas, dataRect, metrics);
+    _drawSheetGuides(canvas, settings, dataRect, metrics);
   }
 
   String? get sheetRulerCornerSizeLabel {
@@ -63267,9 +63267,13 @@ class FortuneSheetPainter extends CustomPainter {
 
   void _drawSheetGuides(
     Canvas canvas,
+    FortuneSettings settings,
     Rect dataRect,
     FortuneSheetMetrics metrics,
   ) {
+    if (settings.disableSheetRulerGuideInteraction) {
+      return;
+    }
     final guides = <FortuneSheetGuide>[];
     for (final guide in sheetRulerGuides) {
       if (sheetRulerDraggingGuide?.index == guide.index) {

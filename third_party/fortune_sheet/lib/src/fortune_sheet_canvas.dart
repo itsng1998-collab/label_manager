@@ -9221,6 +9221,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
 
   bool _startSheetRulerGuideDrag(Offset local) {
     final settings = _workbook.settings;
+    if (settings.disableSheetRulerGuideInteraction) {
+      return false;
+    }
     final dataRect = _sheetRulerDataRect(settings);
     final physicalSize = fortuneSheetGridClientPhysicalSize(
       _workbook.activeSheet,
@@ -9275,6 +9278,10 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   }
 
   bool _updateSheetRulerGuideDrag(Offset local) {
+    if (_workbook.settings.disableSheetRulerGuideInteraction) {
+      _cancelSheetRulerGuideDrag();
+      return false;
+    }
     final axis = _sheetRulerDragAxis;
     final guide = _sheetRulerDraggingGuide;
     if (axis == null || guide == null) {
@@ -9586,7 +9593,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
 
   bool _deleteSelectedSheetRulerGuide() {
     final selected = _sheetRulerSelectedGuideIndex;
-    if (selected == null || !_activeSheetRulerVisible()) {
+    if (selected == null ||
+        !_activeSheetRulerVisible() ||
+        _workbook.settings.disableSheetRulerGuideInteraction) {
       return false;
     }
     final guides = _activeSheetRulerGuides();
@@ -9609,7 +9618,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   }
 
   bool _updateSheetRulerHover(Offset local) {
-    if (!_activeSheetRulerVisible()) {
+    if (!_activeSheetRulerVisible() ||
+        _workbook.settings.disableSheetRulerGuideInteraction) {
       if (_sheetRulerHoveredGuideIndex != null ||
           _sheetRulerTooltipText != null ||
           _sheetRulerHoveringRuler) {

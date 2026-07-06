@@ -873,11 +873,10 @@ class _HomePageManagerState extends State<HomePageManager> {
       _itemPreviewWindow ??= PreviewFloatingWindow(
         initialSize: const Size(720, 520),
         minSize: const Size(420, 280),
-        tooltip: '품목관리 미리보기',
         onCloseRequested: _handleItemPreviewCloseRequested,
       );
       _itemPreviewWindow!
-        ..setTooltip('품목관리 미리보기')
+        ..setTooltip(null)
         ..setChild(child)
         ..show(context);
       setState(() {});
@@ -2347,6 +2346,8 @@ class _ItemElementPreviewTab extends StatelessWidget {
       hideSelectionHighlight: true,
       singleClickCellEdit: true,
       rulerCornerSizeLabelUsesAsterisk: true,
+      disableSheetRulerGuideInteraction: true,
+      hideStatisticBar: true,
       onWorkbookChanged: onWorkbookChanged,
     );
   }

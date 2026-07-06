@@ -1,6 +1,6 @@
 # 세션 인수인계
 
-마지막 업데이트: 2026-07-06
+마지막 업데이트: 2026-07-07
 
 ## 작업 규칙
 
@@ -27,6 +27,27 @@
 - Godex G500 같은 라벨 프린터에서 정밀한 인쇄가 핵심이면 일반 프린터 경로와 직접 출력 경로를 분리한다. 직접 출력은 처음부터 모든 스타일을 100% EZPL 명령만으로 처리하기보다 `정밀 좌표 엔진 + EZPL 명령 + 셀 bitmap fallback` 구조를 우선한다. 테두리/선/박스와 바코드는 가능한 한 EZPL 명령으로 출력하고, 화면 폰트와 프린터 폰트 차이로 1:1 보장이 어려운 복합 스타일 텍스트/이미지/배경/RTF 계열 셀은 셀 단위 bitmap fallback을 사용해 시각적 일치도를 확보한다.
 
 ## 현재 상태
+
+### 진행 중 (2026-07-07): 품목관리 주원료 탭 눈금자 안내선/툴팁 차단
+
+- 수정 예정: 품목관리 플로팅 창 `주원료 및 함량` 탭에만 눈금자 guide 드래그/hover/툴팁/렌더링을 막고, 공용라벨관리 시트에는 영향을 주지 않는다.
+- 수정 예정: 수직 눈금자가 창 하단까지 그려지도록 주원료 탭에서 하단 통계 footer 예약 공간을 제거한다.
+- 수정 예정: 품목관리 플로팅 창에서 `품목관리 미리보기` 툴팁을 제거한다.
+- 편집 완료: `FortuneSettings`/`LabelSheetWorkbench`에 `disableSheetRulerGuideInteraction`, `hideStatisticBar` 옵션을 추가하고 기본값은 기존 동작 유지로 두었다.
+- 편집 완료: `_ItemElementPreviewTab`에서 두 옵션을 켜 주원료 탭에만 적용했다.
+- 편집 완료: `fortune_sheet_canvas.dart`에서 guide 드래그 시작/갱신/삭제/hover 툴팁을 플래그로 차단했다.
+- 편집 완료: `fortune_sheet_painter.dart`에서 플래그가 켜진 경우 기존 guide 렌더링도 건너뛰도록 했다.
+- 편집 완료: `home_page_manager.dart`에서 품목관리 미리보기 floating window tooltip을 `null`로 갱신했다.
+- 테스트 갱신: `test/label_sheet_toolbar_test.dart`의 주원료 설정 격리 테스트에 새 플래그와 통계 footer 제거 검증을 추가했다.
+- 검증 예정: `dart format`, `C:\Flutter\bin\flutter.bat analyze`, 주원료 설정/viewport 관련 집중 테스트, 관련 공용/테이블 테스트, `git diff --check`.
+- 검증 완료: `dart format` 실행.
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`).
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "label sheet settings can isolate item element editing mode"` 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "single cell viewport fit keeps visible size across zoom"` 통과.
+- 검증 완료: `test\common_label_manage_test.dart`, `test\swipe_action_table_test.dart` 총 4개 통과.
+- 검증 완료: `git diff --check -- lib/home_page_manager.dart lib/page_label_sheet/label_sheet_workbench.dart third_party/fortune_sheet/lib/src/fortune_sheet_model.dart third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart test/label_sheet_toolbar_test.dart SESSION_HANDOFF.md` 통과.
+- 검증 완료: `rg "품목관리 미리보기" lib` 결과 없음.
+- 주의: unrelated 변경 `lib/core/app.dart`는 제외한다.
 
 ### 진행 중 (2026-07-07): 품목관리 주원료 탭 헤더 영역 제거/눈금자 확장
 

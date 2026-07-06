@@ -23433,6 +23433,7 @@ class FortuneSettings {
     this.hidePrintAreaBoundary = false,
     this.fitSingleCellToViewport = false,
     this.rulerCornerSizeLabelUsesAsterisk = false,
+    this.disableSheetRulerGuideInteraction = false,
     this.sheetBarHeight = 31,
     this.statisticBarHeight = 23,
     this.defaultColWidth = 73,
@@ -23501,6 +23502,7 @@ class FortuneSettings {
   final bool hidePrintAreaBoundary;
   final bool fitSingleCellToViewport;
   final bool rulerCornerSizeLabelUsesAsterisk;
+  final bool disableSheetRulerGuideInteraction;
   final double sheetBarHeight;
   final double statisticBarHeight;
   final double defaultColWidth;
@@ -23563,6 +23565,8 @@ class FortuneSettings {
     bool? hidePrintAreaBoundary,
     bool? fitSingleCellToViewport,
     bool? rulerCornerSizeLabelUsesAsterisk,
+    bool? disableSheetRulerGuideInteraction,
+    double? statisticBarHeight,
     List<String>? fontFamilies,
     FortuneFontProvider? fontProvider,
     List<String>? toolbarItems,
@@ -23604,8 +23608,11 @@ class FortuneSettings {
       rulerCornerSizeLabelUsesAsterisk:
           rulerCornerSizeLabelUsesAsterisk ??
           this.rulerCornerSizeLabelUsesAsterisk,
+      disableSheetRulerGuideInteraction:
+          disableSheetRulerGuideInteraction ??
+          this.disableSheetRulerGuideInteraction,
       sheetBarHeight: sheetBarHeight,
-      statisticBarHeight: statisticBarHeight,
+      statisticBarHeight: statisticBarHeight ?? this.statisticBarHeight,
       defaultColWidth: defaultColWidth,
       defaultRowHeight: defaultRowHeight,
       defaultFontSize: defaultFontSize,

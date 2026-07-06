@@ -1594,6 +1594,8 @@ FortuneSettings labelSheetSettings(
   bool hidePrintAreaBoundary = false,
   bool fitSingleCellToViewport = false,
   bool rulerCornerSizeLabelUsesAsterisk = false,
+  bool disableSheetRulerGuideInteraction = false,
+  bool hideStatisticBar = false,
 }) {
   final resolvedToolbarItems = toolbarItems ?? labelSheetToolbarItems;
   return base.copyWith(
@@ -1606,6 +1608,8 @@ FortuneSettings labelSheetSettings(
     hidePrintAreaBoundary: hidePrintAreaBoundary,
     fitSingleCellToViewport: fitSingleCellToViewport,
     rulerCornerSizeLabelUsesAsterisk: rulerCornerSizeLabelUsesAsterisk,
+    disableSheetRulerGuideInteraction: disableSheetRulerGuideInteraction,
+    statisticBarHeight: hideStatisticBar ? 0 : null,
     customToolbarItems: [
       if (resolvedToolbarItems.contains(labelSheetSaveToolbarCommand))
         FortuneCustomToolbarItem(
@@ -1692,6 +1696,8 @@ class LabelSheetWorkbench extends StatefulWidget {
     this.hidePrintAreaBoundary = false,
     this.fitSingleCellToViewport = false,
     this.rulerCornerSizeLabelUsesAsterisk = false,
+    this.disableSheetRulerGuideInteraction = false,
+    this.hideStatisticBar = false,
     this.onInitialLoadComplete,
     this.onGridRectChanged,
     this.onBeforeSheetDialog,
@@ -1715,6 +1721,8 @@ class LabelSheetWorkbench extends StatefulWidget {
   final bool hidePrintAreaBoundary;
   final bool fitSingleCellToViewport;
   final bool rulerCornerSizeLabelUsesAsterisk;
+  final bool disableSheetRulerGuideInteraction;
+  final bool hideStatisticBar;
   final VoidCallback? onInitialLoadComplete;
   final ValueChanged<ui.Rect>? onGridRectChanged;
   final FutureOr<void> Function()? onBeforeSheetDialog;
@@ -1782,30 +1790,32 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
         sheets: [FortuneSheet(id: 'label_sheet_01', name: 'Labels')],
       );
 
-  FortuneSettings _sheetSettings(FortuneWorkbook workbook) =>
-      labelSheetSettings(
-        workbook.settings,
-        onImportLabelImage: _handleImportLabelImage,
-        onSave: _handleSave,
-        onImportLabelFile: _handleImportLabelFile,
-        onExportLabelFile: _handleExportLabelFile,
-        contextMenuDisabledItemsBuilder: _labelFileContextMenuDisabledItems,
-        onPrint: _handlePrint,
-        onDialogVisibilityChanged: _handleFortuneDialogVisibilityChanged,
-        saveEnabled: _isDirty,
-        importImageTooltip: _labelSheetImportImageTooltip(),
-        saveTooltip: _labelSheetSaveTooltip(),
-        printTooltip: _labelSheetPrintTooltip(),
-        toolbarItems: widget.toolbarItems,
-        hideRowColumnHeaders: widget.hideRowColumnHeaders,
-        hideRowColumnHeaderLabels: widget.hideRowColumnHeaderLabels,
-        hideSelectionHighlight: widget.hideSelectionHighlight,
-        singleClickCellEdit: widget.singleClickCellEdit,
-        hidePrintAreaBoundary: widget.hidePrintAreaBoundary,
-        fitSingleCellToViewport: widget.fitSingleCellToViewport,
-        rulerCornerSizeLabelUsesAsterisk:
-            widget.rulerCornerSizeLabelUsesAsterisk,
-      );
+  FortuneSettings _sheetSettings(
+    FortuneWorkbook workbook,
+  ) => labelSheetSettings(
+    workbook.settings,
+    onImportLabelImage: _handleImportLabelImage,
+    onSave: _handleSave,
+    onImportLabelFile: _handleImportLabelFile,
+    onExportLabelFile: _handleExportLabelFile,
+    contextMenuDisabledItemsBuilder: _labelFileContextMenuDisabledItems,
+    onPrint: _handlePrint,
+    onDialogVisibilityChanged: _handleFortuneDialogVisibilityChanged,
+    saveEnabled: _isDirty,
+    importImageTooltip: _labelSheetImportImageTooltip(),
+    saveTooltip: _labelSheetSaveTooltip(),
+    printTooltip: _labelSheetPrintTooltip(),
+    toolbarItems: widget.toolbarItems,
+    hideRowColumnHeaders: widget.hideRowColumnHeaders,
+    hideRowColumnHeaderLabels: widget.hideRowColumnHeaderLabels,
+    hideSelectionHighlight: widget.hideSelectionHighlight,
+    singleClickCellEdit: widget.singleClickCellEdit,
+    hidePrintAreaBoundary: widget.hidePrintAreaBoundary,
+    fitSingleCellToViewport: widget.fitSingleCellToViewport,
+    rulerCornerSizeLabelUsesAsterisk: widget.rulerCornerSizeLabelUsesAsterisk,
+    disableSheetRulerGuideInteraction: widget.disableSheetRulerGuideInteraction,
+    hideStatisticBar: widget.hideStatisticBar,
+  );
 
   FortuneSheetGridClientPhysicalSize? get _gridClientSize {
     final common = widget.labelSize?.labelSizeCommon;

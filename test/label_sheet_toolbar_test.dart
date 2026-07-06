@@ -170,6 +170,8 @@ void main() {
       hideSelectionHighlight: true,
       singleClickCellEdit: true,
       rulerCornerSizeLabelUsesAsterisk: true,
+      disableSheetRulerGuideInteraction: true,
+      hideStatisticBar: true,
     );
     final toolbarItems = fortuneToolbarItemsWithCustom(
       settings.toolbarItems,
@@ -187,6 +189,8 @@ void main() {
     expect(settings.hidePrintAreaBoundary, isFalse);
     expect(settings.fitSingleCellToViewport, isFalse);
     expect(settings.rulerCornerSizeLabelUsesAsterisk, isTrue);
+    expect(settings.disableSheetRulerGuideInteraction, isTrue);
+    expect(settings.statisticBarHeight, 0);
 
     final defaultSettings = labelSheetSettings(const FortuneSettings());
     expect(
@@ -201,6 +205,8 @@ void main() {
     expect(defaultSettings.hidePrintAreaBoundary, isFalse);
     expect(defaultSettings.fitSingleCellToViewport, isFalse);
     expect(defaultSettings.rulerCornerSizeLabelUsesAsterisk, isFalse);
+    expect(defaultSettings.disableSheetRulerGuideInteraction, isFalse);
+    expect(defaultSettings.statisticBarHeight, 23);
   });
 
   testWidgets('single cell viewport fit keeps visible size across zoom', (
