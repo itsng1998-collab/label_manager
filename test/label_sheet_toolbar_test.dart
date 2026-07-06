@@ -2673,6 +2673,55 @@ void main() {
     expect(crossedSize.height, returnedSize.height);
   });
 
+  testWidgets('floating preview top corner stays above zoom overlay', (
+    tester,
+  ) async {
+    final window = PreviewFloatingWindow(
+      initialSize: const Size(420, 260),
+      child: LabelSheetWorkbench(
+        initialWorkbook: FortuneWorkbook(
+          sheets: [FortuneSheet(id: 's1', name: 'Label')],
+        ),
+        zoomToolbarPlacement: LabelSheetZoomToolbarPlacement.previewTabAreaEnd,
+      ),
+    );
+    addTearDown(window.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Builder(
+            builder: (context) {
+              return TextButton(
+                onPressed: () => window.show(context),
+                child: const Text('show'),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('show'));
+    await tester.pump();
+    await tester.pump();
+
+    expect(
+      find.byKey(const ValueKey('label-sheet-zoom-input')),
+      findsOneWidget,
+    );
+    final beforeRect = window.rect;
+
+    await tester.drag(
+      find.byKey(const ValueKey('floating-resize-top-right')),
+      const Offset(20, -20),
+    );
+    await tester.pump();
+
+    expect(window.rect.width, greaterThan(beforeRect.width));
+    expect(window.rect.height, greaterThan(beforeRect.height));
+  });
+
   testWidgets('floating preview hides move and grip handles during resize', (
     tester,
   ) async {

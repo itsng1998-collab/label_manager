@@ -3020,7 +3020,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       _removeZoomToolbarFloatingOverlay();
       return;
     }
-    final overlay = Overlay.maybeOf(context, rootOverlay: true);
+    final overlay = Overlay.maybeOf(context);
     if (overlay == null) {
       return;
     }
@@ -3036,7 +3036,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
             link: _zoomToolbarLayerLink,
             targetAnchor: Alignment.topRight,
             followerAnchor: Alignment.topRight,
-            offset: const Offset(-14, -34),
+            offset: const Offset(-12, -34),
             showWhenUnlinked: false,
             child: Align(
               alignment: Alignment.topRight,

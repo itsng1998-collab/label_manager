@@ -30,8 +30,8 @@ class PreviewFloatingWindow {
        ),
        _child = ValueNotifier<Widget?>(child),
        _tooltip = ValueNotifier<String?>(tooltip),
-      _isResizing = ValueNotifier<bool>(false),
-      _controlsVisible = ValueNotifier<bool>(true);
+       _isResizing = ValueNotifier<bool>(false),
+       _controlsVisible = ValueNotifier<bool>(true);
 
   final Offset initialPosition;
   final Size initialSize;
@@ -144,18 +144,19 @@ class PreviewFloatingWindow {
       'tooltip=${_tooltip.value != null}',
     );
     _controlsVisible.value = true;
-    final route = _PreviewFloatingRoute(
-      createEntry: _createEntry,
-      onLog: _log,
-    );
+    final route = _PreviewFloatingRoute(createEntry: _createEntry, onLog: _log);
     _route = route;
     _log('push routeId=${route.debugId} rootNavigator=1');
-    unawaited(route.popped.then((_) {
-      _log('popped routeId=${route.debugId} stillCurrent=${identical(_route, route)}');
-      if (identical(_route, route)) {
-        _route = null;
-      }
-    }));
+    unawaited(
+      route.popped.then((_) {
+        _log(
+          'popped routeId=${route.debugId} stillCurrent=${identical(_route, route)}',
+        );
+        if (identical(_route, route)) {
+          _route = null;
+        }
+      }),
+    );
     Navigator.of(context, rootNavigator: true).push(route);
   }
 
@@ -243,7 +244,9 @@ class PreviewFloatingWindow {
 
   void setChild(Widget? child) {
     _child.value = child;
-    _log('setChild routeId=${_route?.debugId ?? 'none'} hasChild=${child != null}');
+    _log(
+      'setChild routeId=${_route?.debugId ?? 'none'} hasChild=${child != null}',
+    );
     _route?.markNeedsBuild();
   }
 
@@ -426,14 +429,21 @@ class _FloatingCard extends StatelessWidget {
                 ],
                 border: Border.all(color: Colors.grey),
               ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: ValueListenableBuilder<Widget?>(
-                  valueListenable: childListenable,
-                  builder: (context, child, _) {
-                    return child ?? const SizedBox.expand();
-                  },
-                ),
+              child: Overlay(
+                clipBehavior: Clip.none,
+                initialEntries: [
+                  OverlayEntry(
+                    builder: (context) => ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: ValueListenableBuilder<Widget?>(
+                        valueListenable: childListenable,
+                        builder: (context, child, _) {
+                          return child ?? const SizedBox.expand();
+                        },
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),

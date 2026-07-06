@@ -28,6 +28,20 @@
 
 ## 현재 상태
 
+### 진행 중 (2026-07-07): 품목관리 주원료 zoom overlay/resize handle z-order 보정
+
+- 수정 예정: 탭 메뉴 영역 오른쪽 끝의 축소/확대 영역 x 위치를 2px 다시 주고, 코너 리사이징 바가 축소/확대 영역 위에 나타나도록 한다.
+- 편집 완료: `LabelSheetWorkbench`의 `previewTabAreaEnd` follower offset을 `Offset(-14, -34)`에서 `Offset(-12, -34)`로 조정했다.
+- 편집 완료: `PreviewFloatingWindow`의 child 영역에 `Overlay(clipBehavior: Clip.none)` 로컬 overlay를 추가하고, zoom overlay는 root overlay가 아닌 가장 가까운 overlay에 삽입되도록 바꿨다. floating window corner resize handle은 이 로컬 overlay보다 뒤에 그려져 위에 나타난다.
+- 테스트 추가: `floating preview top corner stays above zoom overlay`로 zoom overlay가 보이는 상태에서도 top-right resize handle drag가 창 크기를 변경하는지 검증했다.
+- 검증 완료: `dart format` 실행.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "floating preview top corner stays above zoom overlay"` 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "label sheet zoom toolbar placement can move or hide controls"` 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`).
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "label sheet settings can isolate item element editing mode"` 통과.
+- 검증 완료: `test\common_label_manage_test.dart`, `test\swipe_action_table_test.dart` 총 4개 통과.
+- 주의: unrelated 변경 `lib/core/app.dart`는 제외한다.
+
 ### 진행 중 (2026-07-07): 품목관리 주원료 zoom overlay 위치 미세 보정
 
 - 수정 예정: 탭 메뉴 영역 오른쪽 끝의 축소/확대 영역이 코너 리사이징 바와 겹치지 않도록 x를 2px 줄이고 y를 2px 더 준다.
