@@ -40,6 +40,7 @@
 - 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --name "Gemini JSON response is converted to a sheet draft"` 통과.
 - 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --name "Gemini HTTP errors include response diagnostics"` 통과.
 - 검증 완료: `C:\Flutter\bin\flutter.bat analyze lib\page_label_sheet\label_sheet_ai_import.dart test\label_sheet_toolbar_test.dart --no-fatal-warnings --no-fatal-infos` 통과.
+- 커밋 완료: `7d90219` (`Gemini 이미지 분석 타임아웃 완화`).
 
 ### 완료 (2026-07-06): 라벨 이미지 가져오기 API Key 입력 제한
 
