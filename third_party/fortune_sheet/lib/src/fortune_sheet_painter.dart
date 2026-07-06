@@ -68590,18 +68590,6 @@ class FortuneSheetPainter extends CustomPainter {
     final objectIdInput = fortuneImageObjectIdInputRect(rect);
     drawLabel('ID', objectIdInput.top + 4);
     _drawInputShell(canvas, objectIdInput);
-    _drawText(
-      canvas,
-      imageObjectId,
-      Rect.fromLTWH(
-        objectIdInput.left + 7,
-        objectIdInput.top + 6,
-        math.max(0, objectIdInput.width - 38),
-        math.max(0, objectIdInput.height - 10),
-      ),
-      fontSize: 12,
-      color: const Color(0xff222222),
-    );
     _drawComboArrow(canvas, objectIdInput.right - 18, objectIdInput.center.dy);
 
     if (!imageInsertEditing) {

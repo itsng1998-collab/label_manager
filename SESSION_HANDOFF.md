@@ -27,6 +27,17 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-06): 이미지 삽입 다이얼로그 ID 중복 페인트 제거
+
+- 목적: 이미지 삽입/수정 다이얼로그의 ID 드롭다운 필드에서 painter 텍스트와 `EditableText`가 동시에 같은 값을 그려 텍스트가 이중으로 보이는 현상을 제거한다.
+- 수정 예정: `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`의 이미지 ID 필드 배경 텍스트 draw를 제거하고 실제 editor overlay만 ID 값을 표시하게 한다. 검증 예정: focused 이미지 다이얼로그 테스트 및 analyzer.
+- 변경 완료: `FortuneSheetPainter._drawImageInsertDialog`에서 이미지 ID 값 `_drawText`를 제거했다. ID 값은 `_buildImageInsertDialogEditors`의 `EditableText` overlay가 단독으로 표시한다.
+- 검증 실행 예정: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --name "image insert|image edit|toolbar image"`, `C:\Flutter\bin\flutter.bat analyze third_party\fortune_sheet\lib\src\fortune_sheet_painter.dart --no-fatal-warnings --no-fatal-infos`.
+- 검증 완료: focused `fortune_barcode_dialog_test.dart --name "image insert|image edit|toolbar image"` 결과 `exitCode=0`, 3개 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze third_party\fortune_sheet\lib\src\fortune_sheet_painter.dart --no-fatal-warnings --no-fatal-infos` 결과 `exitCode=0`, `No issues found`.
+- 검증 완료: `git diff --check -- SESSION_HANDOFF.md third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart` 출력 없음. VS Code diagnostics 결과 `SESSION_HANDOFF.md`, `fortune_sheet_painter.dart` 오류 없음.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
+
 ### 완료 (2026-07-06): 이미지 삽입 다이얼로그 ID 텍스트 이중 표시 보정
 
 - 목적: 이미지 삽입/수정 다이얼로그의 ID 드롭다운 필드에서 canvas 표시 텍스트와 실제 `EditableText` overlay가 어긋나 텍스트가 이중으로 보이는 현상을 없앤다.
