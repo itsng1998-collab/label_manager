@@ -44,6 +44,7 @@
 - 검증 완료: `git diff --check -- SESSION_HANDOFF.md lib/page_label_sheet/label_sheet_workbench.dart` 출력 없음.
 - 진단 완료: 수정 파일 VS Code diagnostics 오류 없음.
 - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/page_label_sheet/label_sheet_workbench.dart`. 기존 unrelated dirty `lib/core/app.dart`는 제외.
+- 커밋 완료: `4919927` (`라벨 이미지 Gemini 결과 XLSX 자동 가져오기`).
 
 ### 완료 (2026-07-06): 라벨 이미지 가져오기 Gemini 전환
 
