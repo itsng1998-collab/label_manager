@@ -93,6 +93,21 @@ Finder _printDialogCloseButtonFinder() {
   return closeFinder.evaluate().isNotEmpty ? closeFinder : find.text('취소');
 }
 
+const List<String> _itemElementToolbarItemsForTest = [
+  fortuneToolbarFontPopupKey,
+  fortuneToolbarFontSizePopupKey,
+  fortuneToolbarBoldCommand,
+  fortuneToolbarItalicCommand,
+  fortuneToolbarStrikeThroughCommand,
+  fortuneToolbarUnderlineCommand,
+  fortuneToolbarFontColorPopupKey,
+  fortuneToolbarBackgroundPopupKey,
+  fortuneToolbarHorizontalAlignPopupKey,
+  fortuneToolbarVerticalAlignPopupKey,
+  fortuneToolbarTextWrapPopupKey,
+  fortuneToolbarTextRotationPopupKey,
+];
+
 List<String> _editableTextValues(WidgetTester tester) => tester
     .widgetList<EditableText>(find.byType(EditableText))
     .map((editableText) => editableText.controller.text)
@@ -145,6 +160,36 @@ void main() {
     );
   });
 
+  test('label sheet settings can isolate item element editing mode', () {
+    final settings = labelSheetSettings(
+      const FortuneSettings(),
+      toolbarItems: _itemElementToolbarItemsForTest,
+      hideRowColumnHeaders: true,
+      hideSelectionHighlight: true,
+      singleClickCellEdit: true,
+    );
+    final toolbarItems = fortuneToolbarItemsWithCustom(
+      settings.toolbarItems,
+      settings.customToolbarItems,
+    );
+
+    expect(toolbarItems, isNot(contains(labelSheetPrintToolbarCommand)));
+    expect(settings.rowHeaderWidth, 0);
+    expect(settings.columnHeaderHeight, 0);
+    expect(settings.hideSelectionHighlight, isTrue);
+    expect(settings.singleClickCellEdit, isTrue);
+
+    final defaultSettings = labelSheetSettings(const FortuneSettings());
+    expect(
+      defaultSettings.toolbarItems,
+      contains(labelSheetPrintToolbarCommand),
+    );
+    expect(defaultSettings.rowHeaderWidth, 46);
+    expect(defaultSettings.columnHeaderHeight, 20);
+    expect(defaultSettings.hideSelectionHighlight, isFalse);
+    expect(defaultSettings.singleClickCellEdit, isFalse);
+  });
+
   test('label sheet context menu exposes AI image import', () {
     var importClicked = false;
     final settings = labelSheetSettings(
@@ -175,7 +220,8 @@ void main() {
       isNot(contains(fortuneContextImportLabelImageCommand)),
     );
     expect(
-      FortuneSheetLocale.korean
+      FortuneSheetLocale
+          .korean
           .contextMenuLabels[fortuneContextImportLabelImageCommand],
       '라벨 이미지 가져오기',
     );
@@ -462,10 +508,7 @@ void main() {
     expect(saved.cells, contains(const FortuneCellCoord(0, 1)));
     expect(saved.cells, isNot(contains(const FortuneCellCoord(0, 4))));
     expect(saved.rowHeights.keys, everyElement(lessThan(saved.rowCount!)));
-    expect(
-      saved.columnWidths.keys,
-      everyElement(lessThan(saved.columnCount!)),
-    );
+    expect(saved.columnWidths.keys, everyElement(lessThan(saved.columnCount!)));
   });
 
   test('label sheet save keeps overflow border and image ranges', () {
@@ -679,78 +722,89 @@ void main() {
     final resavedSheet = (resavedJson['data'] as List).single as Map;
     expect(resavedSheet.containsKey('image'), isFalse);
     expect(resavedSheet['images'], isA<List>());
-    expect(((resavedSheet['images'] as List).single as Map)['id'], 'img_legacy');
-  });
-
-  test('label sheet save codec migrates legacy image key through bytes decoder', () {
-    final encoded = _encodeLabelSheetSaveArchive(
-      manifest: {
-        'format': labelSheetSaveFormat,
-        'version': 1,
-        'features': const <String, Object?>{},
-        'encoding': 'base64',
-        'compression': 'zip-deflate',
-        'codec': 'fortune-sheet-json',
-      },
-      workbookJson: {
-        'data': [
-          {
-            'id': 's1',
-            'name': 'BytesImport',
-            'row': 1,
-            'column': 1,
-            'image': [
-              {
-                'id': 'img_bytes',
-                'src': 'data:image/png;base64,abc',
-                'left': 1,
-                'top': 2,
-                'width': 30,
-                'height': 40,
-              },
-            ],
-          },
-        ],
-      },
+    expect(
+      ((resavedSheet['images'] as List).single as Map)['id'],
+      'img_legacy',
     );
-
-    final decoded = labelSheetDecodeWorkbookSaveBytes(utf8.encode(encoded));
-
-    expect(decoded.sheets.single.images.single.id, 'img_bytes');
   });
 
-  test('label sheet save codec normalization keeps external imports current', () {
-    final workbook = FortuneWorkbook(
-      sheets: [
-        FortuneSheet(
-          id: 's1',
-          name: 'ExternalImport',
-          rowCount: 1,
-          columnCount: 1,
-          images: const [
-            FortuneImage(
-              id: 'img_imported',
-              src: 'data:image/png;base64,abc',
-              left: 1,
-              top: 2,
-              width: 30,
-              height: 40,
-            ),
+  test(
+    'label sheet save codec migrates legacy image key through bytes decoder',
+    () {
+      final encoded = _encodeLabelSheetSaveArchive(
+        manifest: {
+          'format': labelSheetSaveFormat,
+          'version': 1,
+          'features': const <String, Object?>{},
+          'encoding': 'base64',
+          'compression': 'zip-deflate',
+          'codec': 'fortune-sheet-json',
+        },
+        workbookJson: {
+          'data': [
+            {
+              'id': 's1',
+              'name': 'BytesImport',
+              'row': 1,
+              'column': 1,
+              'image': [
+                {
+                  'id': 'img_bytes',
+                  'src': 'data:image/png;base64,abc',
+                  'left': 1,
+                  'top': 2,
+                  'width': 30,
+                  'height': 40,
+                },
+              ],
+            },
           ],
-        ),
-      ],
-    );
+        },
+      );
 
-    final normalized = labelSheetNormalizeWorkbookForCurrentSaveFormat(workbook);
-    final resavedJson = _decodeLabelSheetSaveWorkbookJson(
-      labelSheetEncodeWorkbookSave(normalized),
-    );
-    final resavedSheet = (resavedJson['data'] as List).single as Map;
+      final decoded = labelSheetDecodeWorkbookSaveBytes(utf8.encode(encoded));
 
-    expect(normalized.sheets.single.images.single.id, 'img_imported');
-    expect(resavedSheet.containsKey('image'), isFalse);
-    expect(resavedSheet['images'], isA<List>());
-  });
+      expect(decoded.sheets.single.images.single.id, 'img_bytes');
+    },
+  );
+
+  test(
+    'label sheet save codec normalization keeps external imports current',
+    () {
+      final workbook = FortuneWorkbook(
+        sheets: [
+          FortuneSheet(
+            id: 's1',
+            name: 'ExternalImport',
+            rowCount: 1,
+            columnCount: 1,
+            images: const [
+              FortuneImage(
+                id: 'img_imported',
+                src: 'data:image/png;base64,abc',
+                left: 1,
+                top: 2,
+                width: 30,
+                height: 40,
+              ),
+            ],
+          ),
+        ],
+      );
+
+      final normalized = labelSheetNormalizeWorkbookForCurrentSaveFormat(
+        workbook,
+      );
+      final resavedJson = _decodeLabelSheetSaveWorkbookJson(
+        labelSheetEncodeWorkbookSave(normalized),
+      );
+      final resavedSheet = (resavedJson['data'] as List).single as Map;
+
+      expect(normalized.sheets.single.images.single.id, 'img_imported');
+      expect(resavedSheet.containsKey('image'), isFalse);
+      expect(resavedSheet['images'], isA<List>());
+    },
+  );
 
   test('label image import clears sheet before applying draft', () {
     final sheet = FortuneSheet(
@@ -882,8 +936,8 @@ void main() {
     await tester.pump();
 
     expect(savedPayload, isNotNull);
-  expect(savedWidth, 100);
-  expect(savedHeight, 100);
+    expect(savedWidth, 100);
+    expect(savedHeight, 100);
     final decoded = labelSheetDecodeWorkbookSave(savedPayload!);
     expect(
       decoded.sheets.single.cells[const FortuneCellCoord(0, 0)]!.value,
@@ -1517,9 +1571,7 @@ void main() {
             height: 320,
             child: LabelSheetWorkbench(
               initialWorkbook: FortuneWorkbook(
-                sheets: [
-                  FortuneSheet(id: 's1', name: 'Label', zoomRatio: 1.5),
-                ],
+                sheets: [FortuneSheet(id: 's1', name: 'Label', zoomRatio: 1.5)],
               ),
             ),
           ),
@@ -1584,35 +1636,36 @@ void main() {
     );
   });
 
-  testWidgets('fortune sheet page ignores zero label size during initial load', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      Directionality(
-        textDirection: TextDirection.ltr,
-        child: SizedBox(
-          width: 400,
-          height: 300,
-          child: LabelSheetPage(
-            labelSize: const LabelSize(
-              labelSizeId: 1,
-              brandId: 1,
-              labelSizeName: 'Zero',
-              labelSizeCommon: LabelSizeCommon(width: 0, height: 0, rtf: ''),
+  testWidgets(
+    'fortune sheet page ignores zero label size during initial load',
+    (tester) async {
+      await tester.pumpWidget(
+        Directionality(
+          textDirection: TextDirection.ltr,
+          child: SizedBox(
+            width: 400,
+            height: 300,
+            child: LabelSheetPage(
+              labelSize: const LabelSize(
+                labelSizeId: 1,
+                brandId: 1,
+                labelSizeName: 'Zero',
+                labelSizeCommon: LabelSizeCommon(width: 0, height: 0, rtf: ''),
+              ),
             ),
           ),
         ),
-      ),
-    );
-    await tester.pump();
+      );
+      await tester.pump();
 
-    expect(tester.takeException(), isNull);
-    final sheetApp = tester.widget<FortuneSheetApp>(
-      find.byType(FortuneSheetApp),
-    );
-    expect(sheetApp.gridClientSize?.widthMm, 100);
-    expect(sheetApp.gridClientSize?.heightMm, 100);
-  });
+      expect(tester.takeException(), isNull);
+      final sheetApp = tester.widget<FortuneSheetApp>(
+        find.byType(FortuneSheetApp),
+      );
+      expect(sheetApp.gridClientSize?.widthMm, 100);
+      expect(sheetApp.gridClientSize?.heightMm, 100);
+    },
+  );
 
   test('label sheet required keywords search cells images and barcodes', () {
     final workbook = FortuneWorkbook(
@@ -3645,75 +3698,78 @@ ${backslash}trowd${backslash}cellx2000${backslash}pard${backslash}intbl{${backsl
     expect(restoredPainter.sheetRulerCornerSubtitleLabel, '(RTF 변환 적용)');
   });
 
-  test(
-    'Gemini JSON response is converted to a sheet draft',
-    () async {
-      final sheet = FortuneSheet(
-        id: 's1',
-        name: 'Label',
-        extraFields: const {
-          fortuneSheetGridClientWidthMmKey: 100,
-          fortuneSheetGridClientHeightMmKey: 60,
-        },
+  test('Gemini JSON response is converted to a sheet draft', () async {
+    final sheet = FortuneSheet(
+      id: 's1',
+      name: 'Label',
+      extraFields: const {
+        fortuneSheetGridClientWidthMmKey: 100,
+        fortuneSheetGridClientHeightMmKey: 60,
+      },
+    );
+    final client = MockClient((request) async {
+      final body = jsonDecode(request.body) as Map;
+      expect(request.url.host, 'generativelanguage.googleapis.com');
+      expect(
+        request.url.path,
+        '/v1beta/models/gemini-2.5-flash:generateContent',
       );
-      final client = MockClient((request) async {
-        final body = jsonDecode(request.body) as Map;
-        expect(request.url.host, 'generativelanguage.googleapis.com');
-        expect(request.url.path, '/v1beta/models/gemini-2.5-flash:generateContent');
-        expect(request.url.queryParameters['key'], 'test-api-key-1234');
-        expect(body['contents'], isA<List>());
-        expect(body['generationConfig'], containsPair('responseMimeType', 'application/json'));
-        return http.Response(
-          jsonEncode({
-            'candidates': [
-              {
-                'content': {
-                  'parts': [
-                    {
-                      'text': jsonEncode({
-                        'columnsMm': [40, 60],
-                        'rowsMm': [20, 40],
-                        'cells': [
-                          {'row': 0, 'column': 0, 'text': 'GEMINI'},
-                        ],
-                        'sourceImage': {
-                          'keep': true,
-                          'xMm': 0,
-                          'yMm': 0,
-                          'widthMm': 100,
-                          'heightMm': 60,
-                        },
-                      }),
-                    },
-                  ],
-                },
+      expect(request.url.queryParameters['key'], 'test-api-key-1234');
+      expect(body['contents'], isA<List>());
+      expect(
+        body['generationConfig'],
+        containsPair('responseMimeType', 'application/json'),
+      );
+      return http.Response(
+        jsonEncode({
+          'candidates': [
+            {
+              'content': {
+                'parts': [
+                  {
+                    'text': jsonEncode({
+                      'columnsMm': [40, 60],
+                      'rowsMm': [20, 40],
+                      'cells': [
+                        {'row': 0, 'column': 0, 'text': 'GEMINI'},
+                      ],
+                      'sourceImage': {
+                        'keep': true,
+                        'xMm': 0,
+                        'yMm': 0,
+                        'widthMm': 100,
+                        'heightMm': 60,
+                      },
+                    }),
+                  },
+                ],
               },
-            ],
-          }),
-          200,
-          headers: const {'content-type': 'application/json'},
-        );
-      });
-
-      final draft = await labelSheetAnalyzeImageWithGemini(
-        LabelSheetGeminiImportRequest(
-          apiKey: 'test-api-key-1234',
-          model: 'gemini-2.5-flash',
-          prompt: 'convert',
-          imageBytes: Uint8List.fromList([1, 2, 3]),
-          mimeType: 'image/png',
-          fileName: 'label.png',
-          sheet: sheet,
-          client: client,
-        ),
+            },
+          ],
+        }),
+        200,
+        headers: const {'content-type': 'application/json'},
       );
+    });
 
-      expect(draft.columnWidths, hasLength(2));
-      expect(draft.rowHeights, hasLength(2));
-      expect(draft.cells[const FortuneCellCoord(0, 0)]?.value, 'GEMINI');
-      expect(draft.images, isEmpty);
-    },
-  );
+    final draft = await labelSheetAnalyzeImageWithGemini(
+      LabelSheetGeminiImportRequest(
+        apiKey: 'test-api-key-1234',
+        model: 'gemini-2.5-flash',
+        prompt: 'convert',
+        imageBytes: Uint8List.fromList([1, 2, 3]),
+        mimeType: 'image/png',
+        fileName: 'label.png',
+        sheet: sheet,
+        client: client,
+      ),
+    );
+
+    expect(draft.columnWidths, hasLength(2));
+    expect(draft.rowHeights, hasLength(2));
+    expect(draft.cells[const FortuneCellCoord(0, 0)]?.value, 'GEMINI');
+    expect(draft.images, isEmpty);
+  });
 
   test('AI import temp directory uses .tmp in debug mode', () {
     final directory = labelSheetAiImportTempDirectory(
@@ -3751,12 +3807,12 @@ ${backslash}trowd${backslash}cellx2000${backslash}pard${backslash}intbl{${backsl
       final tempDirectory = labelSheetAiImportReleaseTempDirectory(
         environment: environment,
       );
-      await File(p.join(tempDirectory.path, 'old.xlsx')).create(
-        recursive: true,
-      );
-      await File(p.join(tempDirectory.path, 'nested', 'old.txt')).create(
-        recursive: true,
-      );
+      await File(
+        p.join(tempDirectory.path, 'old.xlsx'),
+      ).create(recursive: true);
+      await File(
+        p.join(tempDirectory.path, 'nested', 'old.txt'),
+      ).create(recursive: true);
 
       await clearLabelSheetAiImportStartupTempDirectory(
         environment: environment,
@@ -3771,69 +3827,72 @@ ${backslash}trowd${backslash}cellx2000${backslash}pard${backslash}intbl{${backsl
     }
   });
 
-  test('Gemini request keeps OCR-sized source images without upload compression', () async {
-    final sheet = FortuneSheet(
-      id: 's1',
-      name: 'Label',
-      extraFields: const {
-        fortuneSheetGridClientWidthMmKey: 100,
-        fortuneSheetGridClientHeightMmKey: 60,
-      },
-    );
-    final sourceImage = imglib.Image(width: 2400, height: 1200)
-      ..clear(imglib.ColorRgb8(255, 255, 255));
-    final sourceBytes = Uint8List.fromList(imglib.encodePng(sourceImage));
-    final client = MockClient((request) async {
-      final body = jsonDecode(request.body) as Map;
-      final contents = body['contents'] as List;
-      final parts = (contents.single as Map)['parts'] as List;
-      final inlineData = (parts.last as Map)['inlineData'] as Map;
-      expect(inlineData['mimeType'], 'image/png');
-      final uploadedBytes = base64Decode(inlineData['data'] as String);
-      expect(uploadedBytes, sourceBytes);
-      final uploadedImage = imglib.decodeImage(uploadedBytes)!;
-      expect(uploadedImage.width, 2400);
-      expect(uploadedImage.height, 1200);
-      return http.Response(
-        jsonEncode({
-          'candidates': [
-            {
-              'content': {
-                'parts': [
-                  {
-                    'text': jsonEncode({
-                      'columnsMm': [100],
-                      'rowsMm': [60],
-                      'cells': [
-                        {'row': 0, 'column': 0, 'text': 'KEPT'},
-                      ],
-                      'sourceImage': {'keep': false},
-                    }),
-                  },
-                ],
-              },
-            },
-          ],
-        }),
-        200,
+  test(
+    'Gemini request keeps OCR-sized source images without upload compression',
+    () async {
+      final sheet = FortuneSheet(
+        id: 's1',
+        name: 'Label',
+        extraFields: const {
+          fortuneSheetGridClientWidthMmKey: 100,
+          fortuneSheetGridClientHeightMmKey: 60,
+        },
       );
-    });
+      final sourceImage = imglib.Image(width: 2400, height: 1200)
+        ..clear(imglib.ColorRgb8(255, 255, 255));
+      final sourceBytes = Uint8List.fromList(imglib.encodePng(sourceImage));
+      final client = MockClient((request) async {
+        final body = jsonDecode(request.body) as Map;
+        final contents = body['contents'] as List;
+        final parts = (contents.single as Map)['parts'] as List;
+        final inlineData = (parts.last as Map)['inlineData'] as Map;
+        expect(inlineData['mimeType'], 'image/png');
+        final uploadedBytes = base64Decode(inlineData['data'] as String);
+        expect(uploadedBytes, sourceBytes);
+        final uploadedImage = imglib.decodeImage(uploadedBytes)!;
+        expect(uploadedImage.width, 2400);
+        expect(uploadedImage.height, 1200);
+        return http.Response(
+          jsonEncode({
+            'candidates': [
+              {
+                'content': {
+                  'parts': [
+                    {
+                      'text': jsonEncode({
+                        'columnsMm': [100],
+                        'rowsMm': [60],
+                        'cells': [
+                          {'row': 0, 'column': 0, 'text': 'KEPT'},
+                        ],
+                        'sourceImage': {'keep': false},
+                      }),
+                    },
+                  ],
+                },
+              },
+            ],
+          }),
+          200,
+        );
+      });
 
-    final draft = await labelSheetAnalyzeImageWithGemini(
-      LabelSheetGeminiImportRequest(
-        apiKey: 'test-api-key-1234',
-        model: 'gemini-2.5-flash',
-        prompt: '',
-        imageBytes: sourceBytes,
-        mimeType: 'image/png',
-        fileName: 'large-label.png',
-        sheet: sheet,
-        client: client,
-      ),
-    );
+      final draft = await labelSheetAnalyzeImageWithGemini(
+        LabelSheetGeminiImportRequest(
+          apiKey: 'test-api-key-1234',
+          model: 'gemini-2.5-flash',
+          prompt: '',
+          imageBytes: sourceBytes,
+          mimeType: 'image/png',
+          fileName: 'large-label.png',
+          sheet: sheet,
+          client: client,
+        ),
+      );
 
-    expect(draft.cells[const FortuneCellCoord(0, 0)]?.value, 'KEPT');
-  });
+      expect(draft.cells[const FortuneCellCoord(0, 0)]?.value, 'KEPT');
+    },
+  );
 
   test('Gemini request downsizes oversized source images for upload', () async {
     final sheet = FortuneSheet(
@@ -3961,63 +4020,63 @@ ${backslash}trowd${backslash}cellx2000${backslash}pard${backslash}intbl{${backsl
     );
   });
 
-  test(
-    'Gemini HTTP errors include response diagnostics',
-    () async {
-      final sheet = FortuneSheet(
-        id: 's1',
-        name: 'Label',
-        extraFields: const {
-          fortuneSheetGridClientWidthMmKey: 100,
-          fortuneSheetGridClientHeightMmKey: 60,
-        },
+  test('Gemini HTTP errors include response diagnostics', () async {
+    final sheet = FortuneSheet(
+      id: 's1',
+      name: 'Label',
+      extraFields: const {
+        fortuneSheetGridClientWidthMmKey: 100,
+        fortuneSheetGridClientHeightMmKey: 60,
+      },
+    );
+    final client = MockClient((request) async {
+      expect(request.url.host, 'generativelanguage.googleapis.com');
+      expect(
+        request.url.path,
+        '/v1beta/models/gemini-2.5-flash:generateContent',
       );
-      final client = MockClient((request) async {
-        expect(request.url.host, 'generativelanguage.googleapis.com');
-        expect(request.url.path, '/v1beta/models/gemini-2.5-flash:generateContent');
-        expect(request.url.queryParameters['key'], 'test-api-key-1234');
-        expect(request.headers, isNot(contains('Authorization')));
-        return http.Response(
-          jsonEncode({
-            'error': {
-              'code': 429,
-              'status': 'RESOURCE_EXHAUSTED',
-              'message': 'Quota exceeded for Gemini API.',
-            },
-          }),
-          429,
-          headers: const {'content-type': 'application/json'},
-        );
-      });
+      expect(request.url.queryParameters['key'], 'test-api-key-1234');
+      expect(request.headers, isNot(contains('Authorization')));
+      return http.Response(
+        jsonEncode({
+          'error': {
+            'code': 429,
+            'status': 'RESOURCE_EXHAUSTED',
+            'message': 'Quota exceeded for Gemini API.',
+          },
+        }),
+        429,
+        headers: const {'content-type': 'application/json'},
+      );
+    });
 
-      await expectLater(
-        labelSheetAnalyzeImageWithGemini(
-          LabelSheetGeminiImportRequest(
-            apiKey: 'test-api-key-1234',
-            model: 'gemini-2.5-flash',
-            prompt: 'convert',
-            imageBytes: Uint8List.fromList([1, 2, 3]),
-            mimeType: 'image/png',
-            fileName: 'label.png',
-            sheet: sheet,
-            client: client,
-          ),
+    await expectLater(
+      labelSheetAnalyzeImageWithGemini(
+        LabelSheetGeminiImportRequest(
+          apiKey: 'test-api-key-1234',
+          model: 'gemini-2.5-flash',
+          prompt: 'convert',
+          imageBytes: Uint8List.fromList([1, 2, 3]),
+          mimeType: 'image/png',
+          fileName: 'label.png',
+          sheet: sheet,
+          client: client,
         ),
-        throwsA(
-          isA<LabelSheetGeminiImportException>()
-              .having((error) => error.message, 'message', contains('HTTP 429'))
-              .having(
-                (error) => error.message,
-                'message',
-                contains('RESOURCE_EXHAUSTED'),
-              )
-              .having(
-                (error) => error.message,
-                'message',
-                contains('Quota exceeded for Gemini API.'),
-              ),
-        ),
-      );
-    },
-  );
+      ),
+      throwsA(
+        isA<LabelSheetGeminiImportException>()
+            .having((error) => error.message, 'message', contains('HTTP 429'))
+            .having(
+              (error) => error.message,
+              'message',
+              contains('RESOURCE_EXHAUSTED'),
+            )
+            .having(
+              (error) => error.message,
+              'message',
+              contains('Quota exceeded for Gemini API.'),
+            ),
+      ),
+    );
+  });
 }

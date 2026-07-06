@@ -726,8 +726,8 @@ class _FortuneRichTextEditingController extends TextEditingController {
     final lineHeight = _inlineRunDoubleExtra(run, 'lineHeight');
     final smallCaps = run.extraFields['rtfSmallCaps'] == true;
     final fontSize = run.fontSize == null
-      ? baseStyle.fontSize
-      : run.fontSize! * textScale;
+        ? baseStyle.fontSize
+        : run.fontSize! * textScale;
     final letterSpacing = _inlineRunDoubleExtra(run, 'letterSpacing');
     return baseStyle.copyWith(
       color: run.foreground ?? baseStyle.color,
@@ -7410,7 +7410,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       _openDataVerificationDropdown(anchor);
       return;
     }
-    if (isDoubleTap) {
+    if (isDoubleTap || _workbook.settings.singleClickCellEdit) {
       _startEditing(anchor);
     }
   }
@@ -17703,7 +17703,12 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         if (borders == null) {
           continue;
         }
-        _addScreenshotCellBorderSegments(segments, slashSegments, rect, borders);
+        _addScreenshotCellBorderSegments(
+          segments,
+          slashSegments,
+          rect,
+          borders,
+        );
       }
     }
     final mergedSegments = _mergeScreenshotBorderSegments(segments);
@@ -17858,9 +17863,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     }
     final sorted = [...segments]
       ..sort((a, b) {
-        final keyCompare = _screenshotBorderSegmentKey(a).compareTo(
-          _screenshotBorderSegmentKey(b),
-        );
+        final keyCompare = _screenshotBorderSegmentKey(
+          a,
+        ).compareTo(_screenshotBorderSegmentKey(b));
         if (keyCompare != 0) {
           return keyCompare;
         }
@@ -18001,7 +18006,10 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
 
   double _screenshotBorderWidthForSide(FortuneBorderSide side) {
     return side.strokeWidth ??
-        fortuneToolbarBorderStrokeWidth(side.style, _toolbarBorderStyleStrokeWidths);
+        fortuneToolbarBorderStrokeWidth(
+          side.style,
+          _toolbarBorderStyleStrokeWidths,
+        );
   }
 
   List<double>? _screenshotBorderDash(int style) {
@@ -23478,7 +23486,10 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       return 0;
     }
     final index = _barcodeFormatIndex.clamp(0, formats.length - 1);
-    final visibleHeight = fortuneBarcodeFormatMenuRect(rect, formats.length).height;
+    final visibleHeight = fortuneBarcodeFormatMenuRect(
+      rect,
+      formats.length,
+    ).height;
     final selectedCenter =
         index * fortuneContextMenuRowHeight + fortuneContextMenuRowHeight / 2;
     return (selectedCenter - visibleHeight / 2)

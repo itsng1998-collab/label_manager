@@ -191,7 +191,9 @@ class _HomePageManagerState extends State<HomePageManager> {
 
   Brand? _findBrandByName(String? brandName) {
     if (brandName == null) return null;
-    final brands = _brands.isNotEmpty ? _brands : Brand.datas ?? const <Brand>[];
+    final brands = _brands.isNotEmpty
+        ? _brands
+        : Brand.datas ?? const <Brand>[];
     for (final brand in brands) {
       if (brand.brandName == brandName) {
         return brand;
@@ -202,7 +204,9 @@ class _HomePageManagerState extends State<HomePageManager> {
 
   Brand? _findBrandById(int? brandId) {
     if (brandId == null) return null;
-    final brands = _brands.isNotEmpty ? _brands : Brand.datas ?? const <Brand>[];
+    final brands = _brands.isNotEmpty
+        ? _brands
+        : Brand.datas ?? const <Brand>[];
     for (final brand in brands) {
       if (brand.brandId == brandId) {
         return brand;
@@ -858,7 +862,8 @@ class _HomePageManagerState extends State<HomePageManager> {
         setState(() {});
         return;
       }
-      final key = '${_effectiveLabelSize?.labelSizeId ?? 'none'}:'
+      final key =
+          '${_effectiveLabelSize?.labelSizeId ?? 'none'}:'
           '${selected.item.itemId}:${_selectedItemIndex ?? -1}';
       final child = _ItemPreviewPanel(
         key: ValueKey('item-preview:$key'),
@@ -1496,10 +1501,11 @@ class _HomePageManagerState extends State<HomePageManager> {
   Widget _buildItemPreviewButton(BuildContext context) {
     final selected = _selectedTabValue() == 'items';
     final window = _itemPreviewWindow;
-    final shouldShow = selected &&
-      _itemPreviewClosedByUser &&
-      window != null &&
-      !window.isVisible;
+    final shouldShow =
+        selected &&
+        _itemPreviewClosedByUser &&
+        window != null &&
+        !window.isVisible;
     final shouldKeepSlot = selected && window != null;
     final button = _PreviewRestoreButton(
       key: _itemPreviewButtonKey,
@@ -1520,7 +1526,9 @@ class _HomePageManagerState extends State<HomePageManager> {
 
   @override
   Widget build(BuildContext context) {
-    final brands = _brands.isNotEmpty ? _brands : Brand.datas ?? const <Brand>[];
+    final brands = _brands.isNotEmpty
+        ? _brands
+        : Brand.datas ?? const <Brand>[];
     final brandItems = _brandDropdownItems(brands);
     final resolvedBrand = _resolveSelectedBrand(brands, widget.selectedBrand);
     final labelSizes = LabelSize.datas ?? const <LabelSize>[];
@@ -2008,9 +2016,12 @@ class _ModelessDropdownFieldState<T> extends State<_ModelessDropdownField<T>> {
     final belowTop = buttonRect.bottom + lmSize(2);
     final boundaryRect = _resolveMenuBoundaryRect(screenSize);
     final availableBelow = max(0.0, boundaryRect.bottom - belowTop);
-    final availableAbove = max(0.0, buttonRect.top - boundaryRect.top - lmSize(2));
-    final useBelow = availableBelow >= desiredMenuHeight ||
-        availableBelow >= availableAbove;
+    final availableAbove = max(
+      0.0,
+      buttonRect.top - boundaryRect.top - lmSize(2),
+    );
+    final useBelow =
+        availableBelow >= desiredMenuHeight || availableBelow >= availableAbove;
     final availableHeight = useBelow ? availableBelow : availableAbove;
     final menuHeight = max(itemHeight, min(desiredMenuHeight, availableHeight));
     final menuTop = useBelow
@@ -2110,7 +2121,9 @@ class _ModelessDropdownFieldState<T> extends State<_ModelessDropdownField<T>> {
   void _removeMenu(String reason, {bool rebuild = true}) {
     final entry = _menuEntry;
     if (entry == null) return;
-    debugLog('${widget.debugLabel} close reason=$reason mounted=${entry.mounted}');
+    debugLog(
+      '${widget.debugLabel} close reason=$reason mounted=${entry.mounted}',
+    );
     _menuEntry = null;
     if (entry.mounted) {
       entry.remove();
@@ -2151,9 +2164,7 @@ class _ModelessDropdownFieldState<T> extends State<_ModelessDropdownField<T>> {
                 height: lmSize(28),
                 padding: lmInsetsSymmetric(horizontal: 8),
                 decoration: BoxDecoration(
-                  color: _enabled
-                      ? Colors.white
-                      : const Color(0xFFE9ECEF),
+                  color: _enabled ? Colors.white : const Color(0xFFE9ECEF),
                   borderRadius: BorderRadius.circular(4),
                   border: Border.all(color: borderColor),
                 ),
@@ -2265,10 +2276,7 @@ class _ItemPreviewPanelState extends State<_ItemPreviewPanel> {
       color: Colors.white,
       child: TabbedViewTheme(
         data: _itemPreviewTabbedTheme(),
-        child: TabbedView(
-          controller: controller,
-          tabReorderEnabled: false,
-        ),
+        child: TabbedView(controller: controller, tabReorderEnabled: false),
       ),
     );
   }
@@ -2332,6 +2340,9 @@ class _ItemElementPreviewTab extends StatelessWidget {
       initialWorkbook: _itemElementWorkbook(item.item.element),
       labelSize: null,
       toolbarItems: _itemElementToolbarItems,
+      hideRowColumnHeaders: true,
+      hideSelectionHighlight: true,
+      singleClickCellEdit: true,
       onWorkbookChanged: onWorkbookChanged,
     );
   }
@@ -2441,10 +2452,9 @@ fs.FortuneWorkbook _itemElementWorkbook(String elementText) {
         customHeight: const {0: 1},
         customWidth: const {0: 1},
         cells: {
-          const fs.FortuneCellCoord(0, 0): _itemTextCell(elementText).copyWith(
-            textWrap: '2',
-            verticalAlign: '1',
-          ),
+          const fs.FortuneCellCoord(0, 0): _itemTextCell(
+            elementText,
+          ).copyWith(textWrap: '2', verticalAlign: '1'),
         },
         showGridLines: false,
       ),
@@ -2489,15 +2499,10 @@ fs.FortuneWorkbook _replaceItemPreviewKeywords(
   fs.FortuneWorkbook workbook,
   Map<String, String> replacements, {
   required Set<String> imageKeywords,
-}
-) {
+}) {
   final nextSheets = [
     for (final sheet in workbook.sheets)
-      _replaceSheetKeywords(
-        sheet,
-        replacements,
-        imageKeywords: imageKeywords,
-      ),
+      _replaceSheetKeywords(sheet, replacements, imageKeywords: imageKeywords),
   ];
   return workbook.copyWith(sheets: nextSheets);
 }
@@ -2506,8 +2511,7 @@ fs.FortuneSheet _replaceSheetKeywords(
   fs.FortuneSheet sheet,
   Map<String, String> replacements, {
   required Set<String> imageKeywords,
-}
-) {
+}) {
   final nextCells = <fs.FortuneCellCoord, fs.FortuneCell>{};
   final insertedImages = <fs.FortuneImage>[];
   for (final entry in sheet.cells.entries) {
@@ -2529,7 +2533,8 @@ fs.FortuneSheet _replaceSheetKeywords(
     nextCells[entry.key] = _replaceCellKeywords(entry.value, replacements);
   }
   final nextImages = [
-    for (final image in sheet.images) _replaceImageKeywords(image, replacements),
+    for (final image in sheet.images)
+      _replaceImageKeywords(image, replacements),
     ...insertedImages,
   ];
   return sheet.copyWith(cells: nextCells, images: nextImages);
@@ -2550,7 +2555,10 @@ fs.FortuneSheet _replaceSheetKeywords(
     }
     final src = _itemImageDataUri(entry.value);
     if (src == null) {
-      return (cell: _itemTextCell(text.replaceAll(entry.key, ''), base: cell), image: null);
+      return (
+        cell: _itemTextCell(text.replaceAll(entry.key, ''), base: cell),
+        image: null,
+      );
     }
     final rect = _itemCellRect(sheet, coord);
     final image = fs.FortuneImage(
@@ -2565,7 +2573,10 @@ fs.FortuneSheet _replaceSheetKeywords(
         'fileName': entry.value,
       },
     );
-    return (cell: _itemTextCell(text.replaceAll(entry.key, ''), base: cell), image: image);
+    return (
+      cell: _itemTextCell(text.replaceAll(entry.key, ''), base: cell),
+      image: image,
+    );
   }
   return null;
 }
@@ -2582,8 +2593,14 @@ Rect _itemCellRect(fs.FortuneSheet sheet, fs.FortuneCellCoord coord) {
   final width = sheet.columnWidths[coord.column] ?? sheet.defaultColWidth ?? 73;
   final height = sheet.rowHeights[coord.row] ?? sheet.defaultRowHeight ?? 19;
   return Rect.fromLTWH(
-    offsetFor(coord.column, (index) => sheet.columnWidths[index] ?? sheet.defaultColWidth ?? 73),
-    offsetFor(coord.row, (index) => sheet.rowHeights[index] ?? sheet.defaultRowHeight ?? 19),
+    offsetFor(
+      coord.column,
+      (index) => sheet.columnWidths[index] ?? sheet.defaultColWidth ?? 73,
+    ),
+    offsetFor(
+      coord.row,
+      (index) => sheet.rowHeights[index] ?? sheet.defaultRowHeight ?? 19,
+    ),
     width,
     height,
   );

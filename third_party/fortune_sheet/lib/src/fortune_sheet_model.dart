@@ -11,7 +11,8 @@ typedef FortuneAfterSelectionChangeHook =
     void Function(String sheetId, FortuneSelection selection);
 typedef FortuneCustomToolbarItemClick =
     void Function(FortuneCustomToolbarItem item);
-typedef FortuneContextMenuCommandHandler = FutureOr<void> Function(String command);
+typedef FortuneContextMenuCommandHandler =
+    FutureOr<void> Function(String command);
 typedef FortuneContextMenuDisabledItemsBuilder = Set<String> Function();
 typedef FortuneFontProvider = Future<List<String>> Function();
 typedef FortuneDialogVisibilityChanged = FutureOr<void> Function(bool open);
@@ -23426,6 +23427,8 @@ class FortuneSettings {
     this.formulaBarHeight = 29,
     this.rowHeaderWidth = 46,
     this.columnHeaderHeight = 20,
+    this.hideSelectionHighlight = false,
+    this.singleClickCellEdit = false,
     this.sheetBarHeight = 31,
     this.statisticBarHeight = 23,
     this.defaultColWidth = 73,
@@ -23488,6 +23491,8 @@ class FortuneSettings {
   final double formulaBarHeight;
   final double rowHeaderWidth;
   final double columnHeaderHeight;
+  final bool hideSelectionHighlight;
+  final bool singleClickCellEdit;
   final double sheetBarHeight;
   final double statisticBarHeight;
   final double defaultColWidth;
@@ -23542,6 +23547,10 @@ class FortuneSettings {
   FortuneSettings copyWith({
     bool? showFormulaBar,
     bool? showSheetTabs,
+    double? rowHeaderWidth,
+    double? columnHeaderHeight,
+    bool? hideSelectionHighlight,
+    bool? singleClickCellEdit,
     List<String>? fontFamilies,
     FortuneFontProvider? fontProvider,
     List<String>? toolbarItems,
@@ -23569,8 +23578,11 @@ class FortuneSettings {
       forceCalculation: forceCalculation,
       toolbarHeight: toolbarHeight,
       formulaBarHeight: formulaBarHeight,
-      rowHeaderWidth: rowHeaderWidth,
-      columnHeaderHeight: columnHeaderHeight,
+      rowHeaderWidth: rowHeaderWidth ?? this.rowHeaderWidth,
+      columnHeaderHeight: columnHeaderHeight ?? this.columnHeaderHeight,
+      hideSelectionHighlight:
+          hideSelectionHighlight ?? this.hideSelectionHighlight,
+      singleClickCellEdit: singleClickCellEdit ?? this.singleClickCellEdit,
       sheetBarHeight: sheetBarHeight,
       statisticBarHeight: statisticBarHeight,
       defaultColWidth: defaultColWidth,
@@ -23614,10 +23626,10 @@ class FortuneSettings {
       afterUpdateSheetName: afterUpdateSheetName,
       onDialogVisibilityChanged:
           onDialogVisibilityChanged ?? this.onDialogVisibilityChanged,
-        onContextMenuCommand:
-          onContextMenuCommand ?? this.onContextMenuCommand,
-        contextMenuDisabledItemsBuilder:
-          contextMenuDisabledItemsBuilder ?? this.contextMenuDisabledItemsBuilder,
+      onContextMenuCommand: onContextMenuCommand ?? this.onContextMenuCommand,
+      contextMenuDisabledItemsBuilder:
+          contextMenuDisabledItemsBuilder ??
+          this.contextMenuDisabledItemsBuilder,
     );
   }
 }

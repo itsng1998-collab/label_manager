@@ -28,6 +28,22 @@
 
 ## 현재 상태
 
+### 진행 중 (2026-07-06): 품목관리 주원료 시트 전용 편집 모드
+
+- 수정 예정: `lib/page_label_sheet/label_sheet_workbench.dart`에 품목관리 주원료 탭 전용 옵션을 추가해 공용라벨관리 시트와 설정을 분리한다.
+- 수정 예정: `third_party/fortune_sheet` 원본에 선택 하이라이트 숨김/단일 클릭 즉시 편집 플래그를 추가하되 기본값은 기존 동작 유지로 둔다.
+- 수정 예정: `lib/home_page_manager.dart`의 `_ItemElementPreviewTab`에서 툴바 인쇄/좌상단 헤더/행열 헤더/선택 하이라이트/클릭 즉시 편집 옵션을 주원료 탭에만 적용한다.
+- 주의: unrelated 변경 `lib/core/app.dart`는 제외한다.
+- 편집 완료: `FortuneSettings`에 `hideSelectionHighlight`, `singleClickCellEdit` 플래그와 `rowHeaderWidth`/`columnHeaderHeight` copyWith 옵션을 추가했다.
+- 편집 완료: `fortune_sheet_canvas.dart`는 `singleClickCellEdit`가 켜진 경우 단일 클릭 후 바로 `_startEditing`으로 진입하도록 변경했고, `fortune_sheet_painter.dart`는 `hideSelectionHighlight`가 켜지면 셀/헤더 선택 하이라이트를 그리지 않도록 변경했다.
+- 편집 완료: `labelSheetSettings`가 주어진 `toolbarItems`에 없는 저장/인쇄 custom toolbar 항목을 재삽입하지 않도록 필터링하고, `LabelSheetWorkbench`에 헤더 숨김/선택 숨김/단일 클릭 편집 옵션을 추가했다.
+- 편집 완료: `_ItemElementPreviewTab`에서 `hideRowColumnHeaders`, `hideSelectionHighlight`, `singleClickCellEdit`를 주원료 탭에만 켰다.
+- 테스트 추가: `test/label_sheet_toolbar_test.dart`에 품목관리 주원료 전용 설정이 인쇄 버튼을 제거하고, 행/열 헤더 및 선택/편집 플래그를 기본 공용 설정과 분리하는지 검증하는 테스트를 추가했다.
+- 검증 완료: `dart format` 실행.
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`).
+- 검증 완료: `test\label_sheet_toolbar_test.dart`, `test\common_label_manage_test.dart`, `test\swipe_action_table_test.dart` 총 83개 통과.
+- 검증 완료: `git diff --check -- lib/home_page_manager.dart lib/page_label_sheet/label_sheet_workbench.dart third_party/fortune_sheet/lib/src/fortune_sheet_model.dart third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart test/label_sheet_toolbar_test.dart SESSION_HANDOFF.md` 통과.
+
 ### 진행 중 (2026-07-06): 품목관리 플로팅 창 닫기/탭 스타일 보정
 
 - 수정 예정: `lib/home_page_manager.dart`에서 품목관리 전용 플로팅 창 닫기 시 공용라벨관리처럼 탭영역 미리보기 버튼 표시, `hideToRect` 닫힘 애니메이션, 버튼 복귀 동작을 추가한다.

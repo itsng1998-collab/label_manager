@@ -42,6 +42,7 @@ const int _labelSheetDefaultPhysicalHeightMm = 100;
 int _labelSheetPositivePhysicalSizeOrDefault(int? value, int fallback) {
   return value != null && value > 0 ? value : fallback;
 }
+
 const String _labelSheetGeminiApiKeyPrefsKey = 'label_sheet_gemini_api_key';
 const String _labelSheetGeminiModelPrefsKey = 'label_sheet_gemini_model';
 const String _labelFileDirectoryPrefsKey = 'label_file_directory';
@@ -132,10 +133,7 @@ List<String> labelSheetContextMenuItems(
   List<String> base, {
   bool includeImportLabelImage = false,
 }) {
-  var visible = fortuneMenuItemsWithout(
-    base,
-    labelSheetHiddenContextMenuItems,
-  );
+  var visible = fortuneMenuItemsWithout(base, labelSheetHiddenContextMenuItems);
   if (includeImportLabelImage &&
       !visible.contains(fortuneContextImportLabelImageCommand)) {
     final loadCommonLabelIndex = visible.indexOf(
@@ -1589,41 +1587,49 @@ FortuneSettings labelSheetSettings(
   String saveTooltip = 'Save',
   String printTooltip = 'Print',
   List<String>? toolbarItems,
+  bool hideRowColumnHeaders = false,
+  bool hideSelectionHighlight = false,
+  bool singleClickCellEdit = false,
 }) {
+  final resolvedToolbarItems = toolbarItems ?? labelSheetToolbarItems;
   return base.copyWith(
-    toolbarItems: toolbarItems ?? labelSheetToolbarItems,
+    toolbarItems: resolvedToolbarItems,
+    rowHeaderWidth: hideRowColumnHeaders ? 0 : null,
+    columnHeaderHeight: hideRowColumnHeaders ? 0 : null,
+    hideSelectionHighlight: hideSelectionHighlight,
+    singleClickCellEdit: singleClickCellEdit,
     customToolbarItems: [
-      FortuneCustomToolbarItem(
-        key: labelSheetSaveToolbarCommand,
-        tooltip: saveTooltip,
-        iconName: 'save',
-        disabled: !saveEnabled,
-        onClick: (_) {
-          final callback = onSave;
-          if (callback == null) {
-            fortuneSheetDebugLog('label sheet save toolbar click');
-            return;
-          }
-          unawaited(Future<void>.sync(callback));
-        },
-      ),
-      FortuneCustomToolbarItem(
-        key: labelSheetPrintToolbarCommand,
-        tooltip: printTooltip,
-        iconName: 'print',
-        onClick: (_) {
-          final callback = onPrint;
-          if (callback == null) {
-            fortuneSheetDebugLog('label sheet print toolbar click');
-            return;
-          }
-          callback();
-        },
-      ),
+      if (resolvedToolbarItems.contains(labelSheetSaveToolbarCommand))
+        FortuneCustomToolbarItem(
+          key: labelSheetSaveToolbarCommand,
+          tooltip: saveTooltip,
+          iconName: 'save',
+          disabled: !saveEnabled,
+          onClick: (_) {
+            final callback = onSave;
+            if (callback == null) {
+              fortuneSheetDebugLog('label sheet save toolbar click');
+              return;
+            }
+            unawaited(Future<void>.sync(callback));
+          },
+        ),
+      if (resolvedToolbarItems.contains(labelSheetPrintToolbarCommand))
+        FortuneCustomToolbarItem(
+          key: labelSheetPrintToolbarCommand,
+          tooltip: printTooltip,
+          iconName: 'print',
+          onClick: (_) {
+            final callback = onPrint;
+            if (callback == null) {
+              fortuneSheetDebugLog('label sheet print toolbar click');
+              return;
+            }
+            callback();
+          },
+        ),
     ],
-    cellContextMenu: labelSheetContextMenuItems(
-      base.cellContextMenu,
-    ),
+    cellContextMenu: labelSheetContextMenuItems(base.cellContextMenu),
     headerContextMenu: labelSheetContextMenuItems(
       base.headerContextMenu,
       includeImportLabelImage: true,
@@ -1671,6 +1677,9 @@ class LabelSheetWorkbench extends StatefulWidget {
     this.imageObjectIds = const <String>[],
     this.barcodeObjectIds = const <String>[],
     this.toolbarItems,
+    this.hideRowColumnHeaders = false,
+    this.hideSelectionHighlight = false,
+    this.singleClickCellEdit = false,
     this.onInitialLoadComplete,
     this.onGridRectChanged,
     this.onBeforeSheetDialog,
@@ -1687,6 +1696,9 @@ class LabelSheetWorkbench extends StatefulWidget {
   final List<String> imageObjectIds;
   final List<String> barcodeObjectIds;
   final List<String>? toolbarItems;
+  final bool hideRowColumnHeaders;
+  final bool hideSelectionHighlight;
+  final bool singleClickCellEdit;
   final VoidCallback? onInitialLoadComplete;
   final ValueChanged<ui.Rect>? onGridRectChanged;
   final FutureOr<void> Function()? onBeforeSheetDialog;
@@ -1769,6 +1781,9 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
         saveTooltip: _labelSheetSaveTooltip(),
         printTooltip: _labelSheetPrintTooltip(),
         toolbarItems: widget.toolbarItems,
+        hideRowColumnHeaders: widget.hideRowColumnHeaders,
+        hideSelectionHighlight: widget.hideSelectionHighlight,
+        singleClickCellEdit: widget.singleClickCellEdit,
       );
 
   FortuneSheetGridClientPhysicalSize? get _gridClientSize {
@@ -2802,9 +2817,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     setState(() {
       _isDirty = true;
     });
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(
+    ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(successMessage ?? '라벨 파일을 가져왔습니다: $fileName')),
     );
   }
@@ -3332,90 +3345,89 @@ class _LabelImageImportDialogState extends State<_LabelImageImportDialog> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-                      Text(
-                        '${widget.fileName} · 현재 시트 '
-                        '${widget.physicalSize.widthMm} x '
-                        '${widget.physicalSize.heightMm} mm',
-                        style: theme.textTheme.bodySmall,
-                      ),
-                      const SizedBox(height: 8),
-                      SizedBox(
-                        height: 180,
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            color: theme.colorScheme.surfaceContainerHighest
-                                .withValues(alpha: 0.45),
-                            border: Border.all(color: theme.dividerColor),
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.all(12),
-                            child: widgets.Image.memory(
-                              widget.bytes,
-                              fit: BoxFit.contain,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      _ApiKeyPasteOnlyTextField(
-                        controller: _apiKeyController,
-                        enabled: !_analyzing,
-                      ),
-                      const SizedBox(height: 12),
-                      DropdownButtonFormField<String>(
-                        initialValue: _labelSheetSelectedGeminiModelValue(
-                          _modelController.text,
-                          labelSheetGeminiModels,
-                        ),
-                        isExpanded: true,
-                        decoration: _compactInputDecoration(
-                          'Gemini Model',
-                        ),
-                        items: [
-                          for (final model in labelSheetGeminiModels)
-                            DropdownMenuItem(
-                              value: model.modelId,
-                              child: Text(model.menuLabel),
-                            ),
-                        ],
-                        onChanged: _analyzing
-                            ? null
-                            : (value) {
-                                if (value == null) {
-                                  return;
-                                }
-                                _modelController.text = value;
-                              },
-                      ),
-                      const SizedBox(height: 12),
-                      _compactTextField(
-                        controller: _promptController,
-                        labelText: '변환 프롬프트(mm 기준)',
-                        enabled: !_analyzing,
-                        minLines: 4,
-                        maxLines: 6,
-                        alignLabelWithHint: true,
-                      ),
-                      _ErrorLogPanel(message: _errorLog),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Checkbox(
-                            value: _saveCredentials,
-                            visualDensity: VisualDensity.compact,
-                            onChanged: _analyzing
-                                ? null
-                                : (value) {
-                                    setState(() {
-                                      _saveCredentials = value ?? false;
-                                    });
-                                  },
-                          ),
-                          const Expanded(
-                            child: Text('Gemini API Key와 model을 이 PC에 저장'),
-                          ),
-                        ],
-                      ),
+              Text(
+                '${widget.fileName} · 현재 시트 '
+                '${widget.physicalSize.widthMm} x '
+                '${widget.physicalSize.heightMm} mm',
+                style: theme.textTheme.bodySmall,
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                height: 180,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surfaceContainerHighest.withValues(
+                      alpha: 0.45,
+                    ),
+                    border: Border.all(color: theme.dividerColor),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: widgets.Image.memory(
+                      widget.bytes,
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              _ApiKeyPasteOnlyTextField(
+                controller: _apiKeyController,
+                enabled: !_analyzing,
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                initialValue: _labelSheetSelectedGeminiModelValue(
+                  _modelController.text,
+                  labelSheetGeminiModels,
+                ),
+                isExpanded: true,
+                decoration: _compactInputDecoration('Gemini Model'),
+                items: [
+                  for (final model in labelSheetGeminiModels)
+                    DropdownMenuItem(
+                      value: model.modelId,
+                      child: Text(model.menuLabel),
+                    ),
+                ],
+                onChanged: _analyzing
+                    ? null
+                    : (value) {
+                        if (value == null) {
+                          return;
+                        }
+                        _modelController.text = value;
+                      },
+              ),
+              const SizedBox(height: 12),
+              _compactTextField(
+                controller: _promptController,
+                labelText: '변환 프롬프트(mm 기준)',
+                enabled: !_analyzing,
+                minLines: 4,
+                maxLines: 6,
+                alignLabelWithHint: true,
+              ),
+              _ErrorLogPanel(message: _errorLog),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Checkbox(
+                    value: _saveCredentials,
+                    visualDensity: VisualDensity.compact,
+                    onChanged: _analyzing
+                        ? null
+                        : (value) {
+                            setState(() {
+                              _saveCredentials = value ?? false;
+                            });
+                          },
+                  ),
+                  const Expanded(
+                    child: Text('Gemini API Key와 model을 이 PC에 저장'),
+                  ),
+                ],
+              ),
             ],
           ),
         ),
@@ -3689,9 +3701,7 @@ class _LabelSheetPrintSettingsDialog extends StatelessWidget {
                   const _PrintDialogCenteredLabel('왼쪽'),
                   const SizedBox(width: 8),
                   _PrintDialogShiftedDown(
-                      child: _PrintDialogInput(
-                        controller: leftMarginController,
-                      ),
+                    child: _PrintDialogInput(controller: leftMarginController),
                   ),
                   const SizedBox(width: 8),
                   const _PrintDialogCenteredLabel('mm'),

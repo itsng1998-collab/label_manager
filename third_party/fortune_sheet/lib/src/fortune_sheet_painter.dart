@@ -60551,7 +60551,10 @@ Rect fortuneBarcodeFormatMenuItemRectAtScroll(
 
 double fortuneBarcodeFormatMenuMaxScrollOffset(Rect dialogRect, int itemCount) {
   final naturalHeight = math.max(0, itemCount) * fortuneContextMenuRowHeight;
-  final visibleHeight = fortuneBarcodeFormatMenuRect(dialogRect, itemCount).height;
+  final visibleHeight = fortuneBarcodeFormatMenuRect(
+    dialogRect,
+    itemCount,
+  ).height;
   return math.max(0.0, naturalHeight - visibleHeight);
 }
 
@@ -62960,7 +62963,10 @@ class FortuneSheetPainter extends CustomPainter {
   void _drawSheet(Canvas canvas, Size size) {
     final settings = workbook.settings;
     final metrics = workbook.activeSheet.metrics(settings);
-    final showCellSelection = activeImageId == null && sheetFocused;
+    final showCellSelection =
+        activeImageId == null &&
+        sheetFocused &&
+        !settings.hideSelectionHighlight;
     _drawHeaders(canvas, size, settings, metrics);
     _drawFrozenHeaders(canvas, size, settings, metrics);
     if (showCellSelection) {
