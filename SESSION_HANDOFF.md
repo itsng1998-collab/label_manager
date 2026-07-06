@@ -49,6 +49,7 @@
 - 편집 완료: 기존 이미지 객체의 `fortuneImageObjectIdExtraKey`가 키워드와 일치하는 경우에도 레거시 `C:\ITS\LabelManager\bmp files\{파일명}.bmp`를 data URI로 반영한다.
 - 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 통과(No issues found).
 - 검증 완료: `test\swipe_action_table_test.dart`, `test\common_label_manage_test.dart`, `test\label_sheet_toolbar_test.dart` 총 82개 테스트 통과.
+- 커밋 완료: `013b4dd` 품목관리 이미지 키워드 객체 치환 보강.
 
 ### 완료 (2026-07-06): 품목관리 지시서 RTF 변환 방향 제거
 
