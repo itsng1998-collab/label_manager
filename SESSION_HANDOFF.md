@@ -27,6 +27,18 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-06): 이미지 삽입 ID 드롭다운 순서 보정
+
+- 목적: 이미지 삽입 시 ID 드롭다운을 자동 정렬하지 않고 `#IMAGE1` 같은 현재/기본 이미지 ID를 맨 위에 둔 뒤, 공용라벨관리 특별 항목 순서, 사용 항목 순서 그대로 표시한다.
+- 수정 예정: `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`의 `_effectiveImageObjectIds` 병합 순서를 현재 입력값 우선으로 바꾸고, `fortune_barcode_dialog_test.dart`에 순서 검증을 추가한다. 검증 예정: focused image dialog test 및 analyzer.
+- 변경 완료: `_effectiveImageObjectIds`가 이미지 삽입/수정 다이얼로그의 현재 ID를 먼저 추가하고, 이후 `widget.imageObjectIds`를 전달 순서 그대로, 마지막으로 기존 시트 이미지 ID를 추가하도록 변경했다.
+- 테스트 변경: `fortune_barcode_dialog_test.dart`의 이미지 ID 메뉴 테스트에 `#IMAGE1` 선두, 이후 제공된 키워드 순서 유지 기대값을 추가했다.
+- 검증 실행 예정: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --name "image insert object ID menu includes provided IDs and fills dialog"`, `C:\Flutter\bin\flutter.bat analyze third_party\fortune_sheet\lib\src\fortune_sheet_canvas.dart third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --no-fatal-warnings --no-fatal-infos`.
+- 검증 완료: focused `fortune_barcode_dialog_test.dart --name "image insert object ID menu includes provided IDs and fills dialog"` 결과 `exitCode=0`, 1개 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze third_party\fortune_sheet\lib\src\fortune_sheet_canvas.dart third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --no-fatal-warnings --no-fatal-infos` 결과 `exitCode=0`, `No issues found`.
+- 검증 완료: `git diff --check -- SESSION_HANDOFF.md third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart` 출력 없음. VS Code diagnostics 결과 수정 파일 오류 없음.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`, `third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
+
 ### 완료 (2026-07-06): 이미지 삽입 ID 드롭다운 공용라벨 키워드 확장
 
 - 목적: 이미지 삽입/수정 다이얼로그의 ID 드롭다운에 공용라벨관리의 특별 항목/사용 항목 키워드를 포함하고, 펼친 리스트 높이를 다이얼로그 하단까지 확장하되 항목이 적으면 항목 수만큼 끝나게 한다.

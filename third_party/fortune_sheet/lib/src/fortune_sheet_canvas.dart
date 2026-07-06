@@ -22824,6 +22824,12 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   List<String> get _effectiveImageObjectIds {
     final result = <String>[];
     final seen = <String>{};
+    final current = _imageObjectIdController.text.trim();
+    if (_imageInsertDialogOpen && current.isNotEmpty) {
+      if (seen.add(current.toLowerCase())) {
+        result.add(current);
+      }
+    }
     for (final raw in widget.imageObjectIds) {
       final value = raw.trim();
       if (value.isEmpty) {
@@ -22842,12 +22848,6 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       if (seen.add(value.toLowerCase())) {
         result.add(value);
       }
-    }
-    final current = _imageObjectIdController.text.trim();
-    if (_imageInsertDialogOpen &&
-        current.isNotEmpty &&
-        seen.add(current.toLowerCase())) {
-      result.add(current);
     }
     if (result.isEmpty) {
       result.add(_nextImageObjectId());

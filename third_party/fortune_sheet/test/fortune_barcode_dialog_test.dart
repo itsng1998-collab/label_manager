@@ -599,8 +599,22 @@ void main() {
     );
     await tester.pump();
 
-    expect(painter().imageObjectIdOptions, contains('#ITEMNAME'));
-    expect(painter().imageObjectIdOptions, contains('#QRCODE_ID'));
+    expect(
+      painter().imageObjectIdOptions.take(11),
+      [
+        '#IMAGE1',
+        '#ITEMNAME',
+        '#ELEMENT',
+        '#SWEIGHT',
+        '#SPRICE',
+        '#ORIGIN',
+        '#PRICE',
+        '#BARCODE_ID',
+        '#QRCODE_ID',
+        '#MEMO',
+        '#ETC',
+      ],
+    );
 
     final dialogRect = fortuneImageInsertDialogRect(
       const Size(900, 700),
