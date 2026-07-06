@@ -28,6 +28,15 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-06): 라벨 이미지 가져오기 API Key 입력 제한
+
+- 목적: `라벨 이미지 가져오기` 다이얼로그의 Gemini API Key 입력 위젯에서 복사/잘라내기는 막고 붙여넣기·전체 선택·삭제·수정은 가능하게 하며, AI 분석 중에는 다이얼로그의 선택/입력 위젯을 비활성화한다.
+- 변경 완료: `label_sheet_workbench.dart`에 `_ApiKeyPasteOnlyTextField`를 추가해 API Key 필드의 컨텍스트 메뉴에서 `copy`/`cut` 항목을 제거하고 `Ctrl/Cmd+C`, `Ctrl/Cmd+X` 단축키를 무시하도록 했다. 필드는 일반 편집 가능 상태를 유지하므로 붙여넣기, 전체 선택, 삭제, 직접 수정은 가능하다.
+- 변경 완료: `label_sheet_workbench.dart`에서 `_analyzing` 중 API Key 입력, 모델 선택, 변환 프롬프트 입력, 저장 체크박스가 모두 비활성화되도록 조정했다.
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze lib\page_label_sheet\label_sheet_workbench.dart --no-fatal-warnings --no-fatal-infos` 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --name "Gemini model menu includes supported model choices"` 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --name "Gemini JSON response is converted to a sheet draft"` 통과.
+
 ### 완료 (2026-07-06): 라벨 이미지 임시 XLSX 파일 가져오기 경로 단순화
 
 - 목적: `라벨 이미지 가져오기` AI 자동 적용 경로를 실제 OS 임시 폴더 `.xlsx` 파일 생성 후 수동 `라벨 파일 가져오기`와 같은 파일 가져오기 helper를 호출하는 구조로 단순화한다.

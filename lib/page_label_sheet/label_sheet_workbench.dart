@@ -3346,10 +3346,9 @@ class _LabelImageImportDialogState extends State<_LabelImageImportDialog> {
                         ),
                       ),
                       const SizedBox(height: 14),
-                      _compactTextField(
+                      _ApiKeyPasteOnlyTextField(
                         controller: _apiKeyController,
-                        labelText: 'Gemini API Key',
-                        obscureText: true,
+                        enabled: !_analyzing,
                       ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<String>(
@@ -3381,6 +3380,7 @@ class _LabelImageImportDialogState extends State<_LabelImageImportDialog> {
                       _compactTextField(
                         controller: _promptController,
                         labelText: '변환 프롬프트(mm 기준)',
+                        enabled: !_analyzing,
                         minLines: 4,
                         maxLines: 6,
                         alignLabelWithHint: true,
@@ -3392,11 +3392,13 @@ class _LabelImageImportDialogState extends State<_LabelImageImportDialog> {
                           Checkbox(
                             value: _saveCredentials,
                             visualDensity: VisualDensity.compact,
-                            onChanged: (value) {
-                              setState(() {
-                                _saveCredentials = value ?? false;
-                              });
-                            },
+                            onChanged: _analyzing
+                                ? null
+                                : (value) {
+                                    setState(() {
+                                      _saveCredentials = value ?? false;
+                                    });
+                                  },
                           ),
                           const Expanded(
                             child: Text('Gemini API Key와 model을 이 PC에 저장'),
@@ -3441,6 +3443,7 @@ class _LabelImageImportDialogState extends State<_LabelImageImportDialog> {
   Widget _compactTextField({
     required TextEditingController controller,
     required String labelText,
+    bool enabled = true,
     bool obscureText = false,
     bool alignLabelWithHint = false,
     int? minLines,
@@ -3448,6 +3451,7 @@ class _LabelImageImportDialogState extends State<_LabelImageImportDialog> {
   }) {
     return TextField(
       controller: controller,
+      enabled: enabled,
       obscureText: obscureText,
       minLines: minLines,
       maxLines: obscureText ? 1 : maxLines,
@@ -3496,6 +3500,69 @@ class _LabelImageImportDialogState extends State<_LabelImageImportDialog> {
       });
     }
   }
+}
+
+class _BlockedApiKeyClipboardIntent extends Intent {
+  const _BlockedApiKeyClipboardIntent();
+}
+
+class _ApiKeyPasteOnlyTextField extends StatelessWidget {
+  const _ApiKeyPasteOnlyTextField({
+    required this.controller,
+    required this.enabled,
+  });
+
+  final TextEditingController controller;
+  final bool enabled;
+
+  @override
+  Widget build(BuildContext context) {
+    return Shortcuts(
+      shortcuts: <ShortcutActivator, Intent>{
+        const SingleActivator(LogicalKeyboardKey.keyC, control: true):
+            const _BlockedApiKeyClipboardIntent(),
+        const SingleActivator(LogicalKeyboardKey.keyX, control: true):
+            const _BlockedApiKeyClipboardIntent(),
+        const SingleActivator(LogicalKeyboardKey.keyC, meta: true):
+            const _BlockedApiKeyClipboardIntent(),
+        const SingleActivator(LogicalKeyboardKey.keyX, meta: true):
+            const _BlockedApiKeyClipboardIntent(),
+      },
+      child: Actions(
+        actions: <Type, Action<Intent>>{
+          _BlockedApiKeyClipboardIntent:
+              CallbackAction<_BlockedApiKeyClipboardIntent>(
+                onInvoke: (_) => null,
+              ),
+        },
+        child: TextField(
+          controller: controller,
+          enabled: enabled,
+          obscureText: true,
+          enableInteractiveSelection: true,
+          contextMenuBuilder: _apiKeyPasteOnlyContextMenuBuilder,
+          decoration: _compactInputDecoration('Gemini API Key'),
+        ),
+      ),
+    );
+  }
+}
+
+Widget _apiKeyPasteOnlyContextMenuBuilder(
+  BuildContext context,
+  EditableTextState editableTextState,
+) {
+  final buttonItems = editableTextState.contextMenuButtonItems
+      .where(
+        (item) =>
+            item.type != ContextMenuButtonType.copy &&
+            item.type != ContextMenuButtonType.cut,
+      )
+      .toList(growable: false);
+  return AdaptiveTextSelectionToolbar.buttonItems(
+    anchors: editableTextState.contextMenuAnchors,
+    buttonItems: buttonItems,
+  );
 }
 
 class _LabelImageImportFooterButton extends StatelessWidget {
