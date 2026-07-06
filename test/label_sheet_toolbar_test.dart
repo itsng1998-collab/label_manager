@@ -1378,6 +1378,34 @@ void main() {
     expect(decoded.sheets.single.zoomRatio, 1.5);
   });
 
+  testWidgets('label sheet zoom toolbar reflects loaded workbook zoom', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 520,
+            height: 320,
+            child: LabelSheetWorkbench(
+              initialWorkbook: FortuneWorkbook(
+                sheets: [
+                  FortuneSheet(id: 's1', name: 'Label', zoomRatio: 1.5),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    final zoomInput = find.byKey(const ValueKey('label-sheet-zoom-input'));
+    expect(zoomInput, findsOneWidget);
+    expect(tester.widget<EditableText>(zoomInput).controller.text, '150');
+  });
+
   testWidgets('fortune sheet page loads base64 save payload from label RTF', (
     tester,
   ) async {

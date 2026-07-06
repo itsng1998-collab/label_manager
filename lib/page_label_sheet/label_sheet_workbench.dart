@@ -1873,6 +1873,33 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     _controller.setZoomRatio(clamped / 100);
   }
 
+  void _syncLabelSheetZoomPercent(FortuneWorkbook workbook) {
+    if (_zoomFocusNode.hasFocus) {
+      return;
+    }
+    final percent = _labelSheetZoomPercentForWorkbook(workbook);
+    if (_zoomPercent == percent && _zoomController.text == '$percent') {
+      return;
+    }
+    _zoomPercent = percent;
+    if (_zoomController.text != '$percent') {
+      _zoomController.text = '$percent';
+      _zoomController.selection = TextSelection.collapsed(
+        offset: _zoomController.text.length,
+      );
+    }
+  }
+
+  int _labelSheetZoomPercentForWorkbook(FortuneWorkbook workbook) {
+    final zoomRatio = workbook.activeSheet.zoomRatio <= 0
+        ? 1.0
+        : workbook.activeSheet.zoomRatio;
+    return (zoomRatio * 100).round().clamp(
+      labelSheetMinZoomPercent,
+      labelSheetMaxZoomPercent,
+    );
+  }
+
   void _stepLabelSheetZoom(int deltaPercent) {
     final current = int.tryParse(_zoomController.text) ?? _zoomPercent;
     _setLabelSheetZoomPercent(current + deltaPercent);
@@ -2880,6 +2907,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
             if (!_isDirty) {
               _latestWorkbook = workbook.copyWith(settings: sheetSettings);
             }
+            _syncLabelSheetZoomPercent(workbook);
             final convertingRtf =
                 labelSheetLooksLikeRichEditRtf(widget.labelRtf) &&
                 snapshot.connectionState != ConnectionState.done;
@@ -2905,6 +2933,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
               controller: _controller,
               onChange: (workbook) {
                 _latestWorkbook = workbook;
+                _syncLabelSheetZoomPercent(workbook);
               },
               onOp: (ops) {
                 if (ops.isEmpty || !mounted) {

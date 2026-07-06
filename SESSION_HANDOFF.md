@@ -28,6 +28,15 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-06): 공용라벨 조정 시트 로드 확대율 표시 동기화
+
+- 목적: 공용라벨관리 조정 시트가 DB 저장 workbook의 `zoomRatio`로 실제 시트를 확대/축소해 렌더링하지만, 우상단 확대/축소 입력이 기본값 `100%`로 남는 문제를 수정한다.
+- 변경 완료: `label_sheet_workbench.dart`에서 로드된 workbook/`onChange` workbook의 활성 시트 `zoomRatio`를 `_zoomPercent`와 `_zoomController`에 동기화하도록 했다. 사용자가 확대/축소 입력을 편집 중인 경우에는 동기화로 입력값을 덮어쓰지 않는다.
+- 테스트 추가: `label_sheet_toolbar_test.dart`에 `zoomRatio: 1.5`로 로드된 workbook이 우상단 확대/축소 입력에 `150`으로 표시되는 회귀 테스트를 추가했다.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --name "label sheet zoom toolbar"` 결과 2개 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze lib\page_label_sheet\label_sheet_workbench.dart test\label_sheet_toolbar_test.dart --no-fatal-warnings --no-fatal-infos` 결과 `No issues found`.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `lib/page_label_sheet/label_sheet_workbench.dart`, `test/label_sheet_toolbar_test.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
+
 ### 완료 (2026-07-06): PDF/캡처 출력 테두리 렌더링 일반화
 
 - 목적: 공용라벨관리 원본 화면과 PDF 출력이 셀 테두리/병합 셀 외곽선/선 연결부에서 달라지는 문제를 특정 옵션 보정이 아니라 캡처 렌더링 공용 처리로 줄인다.
