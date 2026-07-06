@@ -35,6 +35,7 @@
 - 검증 완료: `dart format` 실행.
 - 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "label sheet zoom toolbar placement can move or hide controls"` 통과.
 - 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`).
+- 커밋 완료: `87c3e46` 품목관리 주원료 확대 영역 위치 미세 조정.
 - 주의: unrelated 변경 `lib/core/app.dart`는 제외한다.
 
 ### 진행 중 (2026-07-07): 품목관리 주원료 탭 zoom overlay 표시 보정
