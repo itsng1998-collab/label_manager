@@ -32,6 +32,7 @@
 
 - 목적: `.tmp\item_manager.txt`에 현재 프로젝트의 LabelSheet가 RTF 포맷을 사용한다는 오해가 없도록 수정한다.
 - 추가 확인/수정 완료: 지시서 1~2장에 "동작 기준은 레거시, 구현 기준은 현재 LabelSheet/FortuneSheet workbook" 원칙을 명시했다.
+- 추가 확인/수정 완료: `rtf`, `rtfText`, `elementRTF`, `LabelSizeCommon.rtf`는 레거시 DB/모델 필드명이며 이번 품목관리 기능에서 RTF 문자열 파싱/치환/생성을 추가하지 않는다고 명시했다.
 - 변경 완료: 이미지 컬럼 치환은 RTF 조각이 아니라 `FortuneImage`를 시트 `images` 목록에 추가/갱신하는 LabelSheet 이미지 객체 방식임을 명시했다.
 - 변경 완료: 주원료/미리보기 구현에서 RTF 변환을 수행하지 않고, 현재 LabelSheet 셀 값과 객체 상태 기준으로 처리하도록 문구를 수정했다.
 - 검증 완료: `.tmp\item_manager.txt`에서 RTF 언급은 DB/키워드명 또는 "사용하지 않는다"는 금지 문구만 남는 것을 확인했다.
