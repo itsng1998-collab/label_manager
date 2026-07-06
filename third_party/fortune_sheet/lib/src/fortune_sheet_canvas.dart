@@ -8808,6 +8808,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       return false;
     }
     final maxScrollOffset = fortuneBarcodeFormatMenuMaxScrollOffset(
+      rect,
       _effectiveBarcodeFormats.length,
     );
     if (maxScrollOffset <= 0) {
@@ -23465,14 +23466,19 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
 
   double _initialBarcodeFormatMenuScrollOffset() {
     final formats = _effectiveBarcodeFormats;
+    final rect = _barcodeDialogRect();
+    if (rect == null) {
+      return 0;
+    }
     final maxScrollOffset = fortuneBarcodeFormatMenuMaxScrollOffset(
+      rect,
       formats.length,
     );
     if (maxScrollOffset <= 0 || formats.isEmpty) {
       return 0;
     }
     final index = _barcodeFormatIndex.clamp(0, formats.length - 1);
-    const visibleHeight = 8 * fortuneContextMenuRowHeight;
+    final visibleHeight = fortuneBarcodeFormatMenuRect(rect, formats.length).height;
     final selectedCenter =
         index * fortuneContextMenuRowHeight + fortuneContextMenuRowHeight / 2;
     return (selectedCenter - visibleHeight / 2)

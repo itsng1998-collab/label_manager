@@ -28,6 +28,18 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-06): 바코드 형식 드롭다운 높이 동적 확장
+
+- 목적: 바코드 삽입 다이얼로그에서 형식 드롭다운을 펼칠 때 다이얼로그 하단까지 가능한 높이를 사용하고, 항목이 넘칠 때만 스크롤되도록 한다.
+- 변경 완료: `fortune_sheet_painter.dart`의 `fortuneBarcodeFormatMenuRect`가 고정 8행 높이 대신 형식 콤보 아래부터 다이얼로그 하단까지 남은 높이와 자연 높이 중 작은 값을 사용하도록 변경했다. `fortuneBarcodeFormatMenuMaxScrollOffset`도 실제 메뉴 높이를 기준으로 계산하도록 맞췄다.
+- 변경 완료: `fortune_sheet_canvas.dart`의 스크롤 처리와 초기 선택 항목 스크롤 보정이 변경된 메뉴 높이 기준을 사용하도록 조정했다.
+- 테스트 변경: `fortune_barcode_dialog_test.dart`에 형식 메뉴가 항목이 많으면 다이얼로그 하단까지 확장되고, 항목이 적으면 자연 높이만 사용하는 회귀 테스트를 추가했다.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --name "barcode format menu uses remaining dialog height"` 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze third_party\fortune_sheet\lib\src\fortune_sheet_painter.dart third_party\fortune_sheet\lib\src\fortune_sheet_canvas.dart third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --no-fatal-warnings --no-fatal-infos` 통과.
+- 검증 완료: `git diff --check -- SESSION_HANDOFF.md third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart` 출력 없음.
+- 진단 완료: 수정 파일 VS Code diagnostics 오류 없음.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`, `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`, `third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart`. 기존 unrelated dirty `lib/core/app.dart`는 제외.
+
 ### 완료 (2026-07-06): 공용라벨관리 Micro QR Code 바코드 형식 추가
 
 - 목적: 공용라벨관리 시트의 바코드 삽입 다이얼로그 형식 목록에 `Micro QR Code`를 추가한다.

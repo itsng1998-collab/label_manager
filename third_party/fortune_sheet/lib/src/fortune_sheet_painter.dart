@@ -60507,13 +60507,17 @@ Rect fortuneBarcodeBarHeightInputRect(Rect dialogRect) {
 
 Rect fortuneBarcodeFormatMenuRect(Rect dialogRect, int itemCount) {
   final combo = fortuneBarcodeFormatComboRect(dialogRect);
-  const maxVisibleItems = 8;
+  const menuGap = 2.0;
+  final naturalHeight = math.max(0, itemCount) * fortuneContextMenuRowHeight;
+  final availableHeight = math.max(
+    0.0,
+    dialogRect.bottom - combo.bottom - menuGap,
+  );
   return Rect.fromLTWH(
     combo.left,
-    combo.bottom + 2,
+    combo.bottom + menuGap,
     combo.width,
-    math.min(math.max(0, itemCount), maxVisibleItems) *
-        fortuneContextMenuRowHeight,
+    math.min(naturalHeight, availableHeight),
   );
 }
 
@@ -60545,9 +60549,9 @@ Rect fortuneBarcodeFormatMenuItemRectAtScroll(
   );
 }
 
-double fortuneBarcodeFormatMenuMaxScrollOffset(int itemCount) {
+double fortuneBarcodeFormatMenuMaxScrollOffset(Rect dialogRect, int itemCount) {
   final naturalHeight = math.max(0, itemCount) * fortuneContextMenuRowHeight;
-  const visibleHeight = 8 * fortuneContextMenuRowHeight;
+  final visibleHeight = fortuneBarcodeFormatMenuRect(dialogRect, itemCount).height;
   return math.max(0.0, naturalHeight - visibleHeight);
 }
 
@@ -68980,6 +68984,7 @@ class FortuneSheetPainter extends CustomPainter {
       return;
     }
     final maxScrollOffset = fortuneBarcodeFormatMenuMaxScrollOffset(
+      dialogRect,
       barcodeFormatOptions.length,
     );
     final scrollOffset = barcodeFormatMenuScrollOffset

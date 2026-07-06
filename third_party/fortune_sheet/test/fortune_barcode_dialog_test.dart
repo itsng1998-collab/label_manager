@@ -371,6 +371,26 @@ void main() {
     expect(menu.width, greaterThan(fortuneBarcodeDialogTextFontWidth));
   });
 
+  test('barcode format menu uses remaining dialog height', () {
+    final dialogRect = fortuneBarcodeDialogRect(
+      const Size(900, 700),
+      editing: false,
+    );
+    final combo = fortuneBarcodeFormatComboRect(dialogRect);
+    final menu = fortuneBarcodeFormatMenuRect(dialogRect, 20);
+
+    expect(menu.top, combo.bottom + 2);
+    expect(menu.bottom, dialogRect.bottom);
+    expect(
+      fortuneBarcodeFormatMenuMaxScrollOffset(dialogRect, 20),
+      20 * fortuneContextMenuRowHeight - menu.height,
+    );
+
+    final shortMenu = fortuneBarcodeFormatMenuRect(dialogRect, 2);
+    expect(shortMenu.height, 2 * fortuneContextMenuRowHeight);
+    expect(fortuneBarcodeFormatMenuMaxScrollOffset(dialogRect, 2), 0);
+  });
+
   testWidgets('barcode insert dialog defaults format menu to Code128', (
     tester,
   ) async {
