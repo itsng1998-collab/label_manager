@@ -17,6 +17,7 @@ class FortuneSheetApp extends StatefulWidget {
     this.imagePicker,
     this.barcodeRenderer,
     this.barcodeFormats = const <FortuneBarcodeFormatOption>[],
+    this.imageObjectIds = const <String>[],
     this.barcodeObjectIds = const <String>[],
     this.onChange,
     this.onOp,
@@ -33,6 +34,7 @@ class FortuneSheetApp extends StatefulWidget {
   final FortuneImagePicker? imagePicker;
   final FortuneBarcodeRenderer? barcodeRenderer;
   final List<FortuneBarcodeFormatOption> barcodeFormats;
+  final List<String> imageObjectIds;
   final List<String> barcodeObjectIds;
   final ValueChanged<FortuneWorkbook>? onChange;
   final FortuneOpCallback? onOp;
@@ -148,6 +150,7 @@ class _FortuneSheetAppState extends State<FortuneSheetApp> {
         imagePicker: widget.imagePicker,
         barcodeRenderer: widget.barcodeRenderer,
         barcodeFormats: widget.barcodeFormats,
+        imageObjectIds: widget.imageObjectIds,
         barcodeObjectIds: widget.barcodeObjectIds,
         onChange: widget.workbook == null
             ? _handleWorkbookChanged

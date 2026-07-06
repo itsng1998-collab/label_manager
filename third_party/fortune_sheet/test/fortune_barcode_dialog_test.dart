@@ -534,6 +534,96 @@ void main() {
     expect(painter().imageObjectIdMenuOpen, isTrue);
   });
 
+  testWidgets('image insert object ID menu includes provided IDs and fills dialog', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    final workbook = FortuneWorkbook(
+      settings: const FortuneSettings(
+        toolbarItems: [fortuneToolbarImageCommand],
+      ),
+      sheets: [FortuneSheet(id: 's1', name: 'Sheet1')],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SizedBox(
+          width: 900,
+          height: 700,
+          child: FortuneSheetCanvas(
+            workbook: workbook,
+            imageObjectIds: const [
+              '#ITEMNAME',
+              '#ELEMENT',
+              '#SWEIGHT',
+              '#SPRICE',
+              '#ORIGIN',
+              '#PRICE',
+              '#BARCODE_ID',
+              '#QRCODE_ID',
+              '#MEMO',
+              '#ETC',
+            ],
+          ),
+        ),
+      ),
+    );
+
+    FortuneSheetPainter painter() {
+      return tester
+          .widgetList<CustomPaint>(
+            find.descendant(
+              of: find.byType(FortuneSheetCanvas),
+              matching: find.byType(CustomPaint),
+            ),
+          )
+          .map((paint) => paint.painter)
+          .whereType<FortuneSheetPainter>()
+          .single;
+    }
+
+    final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
+    await tester.tapAt(
+      topLeft +
+          toolbarItemCenter(
+            fortuneToolbarImageCommand,
+            width: 900,
+            items: workbook.settings.toolbarItems,
+          ),
+    );
+    await tester.pump();
+
+    expect(painter().imageObjectIdOptions, contains('#ITEMNAME'));
+    expect(painter().imageObjectIdOptions, contains('#QRCODE_ID'));
+
+    final dialogRect = fortuneImageInsertDialogRect(
+      const Size(900, 700),
+      editing: false,
+    );
+    await tester.tapAt(
+      topLeft +
+          fortuneImageObjectIdInputRect(dialogRect).centerRight -
+          const Offset(12, 0),
+    );
+    await tester.pump();
+
+    final menuRect = fortuneImageObjectIdMenuRect(
+      dialogRect,
+      painter().imageObjectIdOptions.length,
+    );
+    expect(painter().imageObjectIdMenuOpen, isTrue);
+    expect(menuRect.bottom, dialogRect.bottom);
+    expect(menuRect.height, lessThan(
+      painter().imageObjectIdOptions.length * fortuneContextMenuRowHeight,
+    ));
+  });
+
   testWidgets('image insert stores next zOrder metadata', (tester) async {
     tester.view.physicalSize = const Size(900, 700);
     tester.view.devicePixelRatio = 1;

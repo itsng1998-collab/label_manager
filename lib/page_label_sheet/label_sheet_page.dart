@@ -15,6 +15,7 @@ class LabelSheetPage extends StatelessWidget {
   const LabelSheetPage({
     super.key,
     this.labelSize,
+    this.imageObjectIds = const <String>[],
     this.barcodeObjectIds = const <String>[],
     this.onSheetReady,
     this.onGridRectChanged,
@@ -23,6 +24,7 @@ class LabelSheetPage extends StatelessWidget {
   });
 
   final LabelSize? labelSize;
+  final List<String> imageObjectIds;
   final List<String> barcodeObjectIds;
   final VoidCallback? onSheetReady;
   final ValueChanged<Rect>? onGridRectChanged;
@@ -53,6 +55,7 @@ class LabelSheetPage extends StatelessWidget {
         initialWorkbook: savedWorkbook,
         labelSize: labelSize,
         labelRtf: rtf,
+        imageObjectIds: imageObjectIds,
         barcodeObjectIds: barcodeObjectIds,
         onInitialLoadComplete: onSheetReady,
         onGridRectChanged: onGridRectChanged,

@@ -1622,6 +1622,7 @@ class LabelSheetWorkbench extends StatefulWidget {
     this.initialWorkbook,
     this.labelSize,
     this.labelRtf,
+    this.imageObjectIds = const <String>[],
     this.barcodeObjectIds = const <String>[],
     this.onInitialLoadComplete,
     this.onGridRectChanged,
@@ -1635,6 +1636,7 @@ class LabelSheetWorkbench extends StatefulWidget {
   final FortuneWorkbook? initialWorkbook;
   final LabelSize? labelSize;
   final String? labelRtf;
+  final List<String> imageObjectIds;
   final List<String> barcodeObjectIds;
   final VoidCallback? onInitialLoadComplete;
   final ValueChanged<ui.Rect>? onGridRectChanged;
@@ -2911,6 +2913,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
               locale: _locale,
               barcodeRenderer: labelSheetBarcodeRenderer,
               barcodeFormats: labelSheetBarcodeFormats,
+              imageObjectIds: widget.imageObjectIds,
               barcodeObjectIds: widget.barcodeObjectIds,
               gridClientSize: _gridClientSize,
               showFormulaBar: false,

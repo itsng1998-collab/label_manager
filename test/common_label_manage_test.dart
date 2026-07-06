@@ -38,4 +38,21 @@ void main() {
 
     expect(objectIds, ['#BARCODE']);
   });
+
+  test('image object ids include every special and used keyword', () {
+    final objectIds = commonLabelImageObjectIdsFromColumns(
+      [_column('ITEMNAME'), _column('  #ELEMENT  ')],
+    );
+
+    final combined = commonLabelImageObjectIdsFromColumns([
+      _column('ITEMNAME'),
+      _column('  #ELEMENT  '),
+      _column('BARCODE_ID'),
+      _column('itemname'),
+      _column('PRICE'),
+    ]);
+
+    expect(objectIds, ['#ITEMNAME', '#ELEMENT']);
+    expect(combined, ['#ITEMNAME', '#ELEMENT', '#BARCODE_ID', '#PRICE']);
+  });
 }

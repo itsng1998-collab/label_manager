@@ -2307,6 +2307,7 @@ class FortuneSheetCanvas extends StatefulWidget {
     this.imagePicker,
     this.barcodeRenderer,
     this.barcodeFormats = const <FortuneBarcodeFormatOption>[],
+    this.imageObjectIds = const <String>[],
     this.barcodeObjectIds = const <String>[],
     this.onChange,
     this.onOp,
@@ -2322,6 +2323,7 @@ class FortuneSheetCanvas extends StatefulWidget {
   final FortuneImagePicker? imagePicker;
   final FortuneBarcodeRenderer? barcodeRenderer;
   final List<FortuneBarcodeFormatOption> barcodeFormats;
+  final List<String> imageObjectIds;
   final List<String> barcodeObjectIds;
   final ValueChanged<FortuneWorkbook>? onChange;
   final FortuneOpCallback? onOp;
@@ -8796,6 +8798,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       local,
       deltaY,
       open: _barcodeObjectIdMenuOpen,
+      dialogRect: _barcodeDialogRect,
       itemCount: _effectiveBarcodeObjectIds.length,
       scrollOffset: _barcodeObjectIdMenuScrollOffset,
       menuRect: fortuneBarcodeObjectIdMenuRect,
@@ -8812,6 +8815,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       local,
       deltaY,
       open: _barcodeTextFontMenuOpen,
+      dialogRect: _barcodeDialogRect,
       itemCount: _barcodeTextFontOptions.length,
       scrollOffset: _barcodeTextFontMenuScrollOffset,
       menuRect: (dialogRect, itemCount) => fortuneBarcodeTextFontMenuRect(
@@ -8829,6 +8833,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       local,
       deltaY,
       open: _barcodeTextFontSizeMenuOpen,
+      dialogRect: _barcodeDialogRect,
       itemCount: _barcodeTextFontSizeOptions.length,
       scrollOffset: _barcodeTextFontSizeMenuScrollOffset,
       menuRect: fortuneBarcodeTextFontSizeMenuRect,
@@ -8843,6 +8848,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       local,
       deltaY,
       open: _imageObjectIdMenuOpen,
+      dialogRect: _imageInsertDialogRect,
       itemCount: _effectiveImageObjectIds.length,
       scrollOffset: _imageObjectIdMenuScrollOffset,
       menuRect: fortuneImageObjectIdMenuRect,
@@ -8856,6 +8862,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     Offset local,
     double deltaY, {
     required bool open,
+    required Rect? Function() dialogRect,
     required int itemCount,
     required double scrollOffset,
     required Rect Function(Rect dialogRect, int itemCount) menuRect,
@@ -8863,10 +8870,10 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     required ValueChanged<int?> setHoveredIndex,
     required int? Function(Offset local) indexAt,
   }) {
-    if (!_barcodeDialogOpen || !open) {
+    if (!open) {
       return false;
     }
-    final rect = _barcodeDialogRect();
+    final rect = dialogRect();
     if (rect == null) {
       return false;
     }
@@ -8874,7 +8881,10 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     if (!menu.contains(local)) {
       return false;
     }
-    final maxScrollOffset = fortuneBarcodeTextMenuMaxScrollOffset(itemCount);
+    final maxScrollOffset = math.max(
+      0.0,
+      itemCount * fortuneContextMenuRowHeight - menu.height,
+    );
     if (maxScrollOffset <= 0) {
       return true;
     }
@@ -22814,6 +22824,15 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   List<String> get _effectiveImageObjectIds {
     final result = <String>[];
     final seen = <String>{};
+    for (final raw in widget.imageObjectIds) {
+      final value = raw.trim();
+      if (value.isEmpty) {
+        continue;
+      }
+      if (seen.add(value.toLowerCase())) {
+        result.add(value);
+      }
+    }
     for (final image in _workbook.activeSheet.images) {
       final raw = image.extraFields[fortuneImageObjectIdExtraKey] ?? image.id;
       final value = raw.toString().trim();
@@ -22911,14 +22930,17 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
 
   double _initialImageObjectIdMenuScrollOffset() {
     final options = _effectiveImageObjectIds;
-    final maxScrollOffset = fortuneImageObjectIdMenuMaxScrollOffset(
-      options.length,
-    );
+    final rect = _imageInsertDialogRect();
+    final maxScrollOffset = rect == null
+        ? 0.0
+        : fortuneImageObjectIdMenuMaxScrollOffset(rect, options.length);
     if (maxScrollOffset <= 0 || options.isEmpty) {
       return 0;
     }
     final index = _imageObjectIdIndex.clamp(0, options.length - 1);
-    const visibleHeight = 8 * fortuneContextMenuRowHeight;
+    final visibleHeight = rect == null
+        ? 0.0
+        : fortuneImageObjectIdMenuRect(rect, options.length).height;
     final selectedCenter =
         index * fortuneContextMenuRowHeight + fortuneContextMenuRowHeight / 2;
     return (selectedCenter - visibleHeight / 2)

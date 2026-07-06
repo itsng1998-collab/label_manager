@@ -14,9 +14,16 @@ List<String> commonLabelBarcodeObjectIdsFor(
   List<TColumnBase> specialColumns,
   List<TColumn> columns,
 ) {
+  return commonLabelBarcodeObjectIdsFromColumns([...specialColumns, ...columns]);
+}
+
+@visibleForTesting
+List<String> commonLabelBarcodeObjectIdsFromColumns(
+  Iterable<TColumnBase> columns,
+) {
   final result = <String>[];
   final seen = <String>{};
-  for (final column in [...specialColumns, ...columns]) {
+  for (final column in columns) {
     final keyword = column.keyword.trim();
     final lower = keyword.toLowerCase();
     if (keyword.isEmpty ||
@@ -29,6 +36,33 @@ List<String> commonLabelBarcodeObjectIdsFor(
     }
   }
   return result.isEmpty ? const ['#BARCODE'] : result;
+}
+
+@visibleForTesting
+List<String> commonLabelImageObjectIdsFor(
+  List<TColumnBase> specialColumns,
+  List<TColumn> columns,
+) {
+  return commonLabelImageObjectIdsFromColumns([...specialColumns, ...columns]);
+}
+
+@visibleForTesting
+List<String> commonLabelImageObjectIdsFromColumns(
+  Iterable<TColumnBase> columns,
+) {
+  final result = <String>[];
+  final seen = <String>{};
+  for (final column in columns) {
+    final keyword = column.keyword.trim();
+    if (keyword.isEmpty) {
+      continue;
+    }
+    final objectId = keyword.startsWith('#') ? keyword : '#$keyword';
+    if (seen.add(objectId.toLowerCase())) {
+      result.add(objectId);
+    }
+  }
+  return result;
 }
 
 class CommonLabelManage extends StatefulWidget {
@@ -78,6 +112,10 @@ class _CommonLabelManageState extends State<CommonLabelManage> {
           specialColumns,
           columns,
         );
+        final imageObjectIds = commonLabelImageObjectIdsFor(
+          specialColumns,
+          columns,
+        );
         final fitRightWidth = [
           _CommonLabelTable.tableWidthFor(context, [
             ...specialColumns,
@@ -109,6 +147,7 @@ class _CommonLabelManageState extends State<CommonLabelManage> {
                 child: ClipRect(
                   child: LabelSheetPage(
                     labelSize: widget.labelSize,
+                    imageObjectIds: imageObjectIds,
                     barcodeObjectIds: barcodeObjectIds,
                     onSheetReady: widget.onSheetReady,
                     onGridRectChanged: widget.onGridRectChanged,

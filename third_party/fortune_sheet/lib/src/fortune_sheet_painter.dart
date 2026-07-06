@@ -60260,17 +60260,20 @@ Rect fortuneImageObjectIdInputRect(Rect dialogRect) {
 
 Rect fortuneImageObjectIdMenuRect(Rect dialogRect, int itemCount) {
   final combo = fortuneImageObjectIdInputRect(dialogRect);
-  final visibleCount = math.min(8, itemCount);
+  final top = combo.bottom + 2;
+  final maxHeight = math.max(0.0, dialogRect.bottom - top);
+  final contentHeight = itemCount * fortuneContextMenuRowHeight;
   return Rect.fromLTWH(
     combo.left,
-    combo.bottom + 2,
+    top,
     combo.width,
-    visibleCount * fortuneContextMenuRowHeight,
+    math.min(contentHeight, maxHeight),
   );
 }
 
-double fortuneImageObjectIdMenuMaxScrollOffset(int itemCount) {
-  return math.max(0, itemCount - 8) * fortuneContextMenuRowHeight;
+double fortuneImageObjectIdMenuMaxScrollOffset(Rect dialogRect, int itemCount) {
+  final menu = fortuneImageObjectIdMenuRect(dialogRect, itemCount);
+  return math.max(0.0, itemCount * fortuneContextMenuRowHeight - menu.height);
 }
 
 Rect fortuneImageInsertCloseButtonRect(Rect dialogRect) {

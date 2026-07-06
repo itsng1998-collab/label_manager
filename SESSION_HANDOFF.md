@@ -27,6 +27,21 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-06): 이미지 삽입 ID 드롭다운 공용라벨 키워드 확장
+
+- 목적: 이미지 삽입/수정 다이얼로그의 ID 드롭다운에 공용라벨관리의 특별 항목/사용 항목 키워드를 포함하고, 펼친 리스트 높이를 다이얼로그 하단까지 확장하되 항목이 적으면 항목 수만큼 끝나게 한다.
+- 수정 예정: `common_label_manage.dart`에서 이미지 ID 키워드 목록 생성, `LabelSheetPage`/`LabelSheetWorkbench`/`FortuneSheetApp`/`FortuneSheetCanvas`로 `imageObjectIds` 전달, `fortune_sheet_painter.dart` 이미지 ID 메뉴 rect/max scroll 동적화, `fortune_sheet_canvas.dart` 이미지 ID 메뉴 스크롤 조건 보정. 검증 예정: common label helper test, focused image dialog test, analyzer.
+- 변경 완료: `common_label_manage.dart`에 `commonLabelImageObjectIdsFor`를 추가해 특별 항목/사용 항목 전체 키워드를 `#` prefix, 중복 제거 후 이미지 ID 목록으로 생성하고 `LabelSheetPage`에 전달했다.
+- 변경 완료: `label_sheet_page.dart`, `label_sheet_workbench.dart`, `fortune_sheet_app.dart`, `fortune_sheet_canvas.dart`에 `imageObjectIds` 전달 경로를 추가하고 이미지 ID 드롭다운 옵션에 반영했다.
+- 변경 완료: `fortune_sheet_painter.dart`의 `fortuneImageObjectIdMenuRect`/max scroll 계산을 다이얼로그 하단 기준 동적 높이로 바꿨고, `fortune_sheet_canvas.dart`의 이미지 ID 메뉴 스크롤이 이미지 다이얼로그 rect를 사용하도록 보정했다.
+- 테스트 추가: `common_label_manage_test.dart`에 이미지 ID 키워드 생성 테스트, `fortune_barcode_dialog_test.dart`에 이미지 ID 메뉴 옵션/하단 확장 테스트 추가.
+- 검증 실행 예정: `C:\Flutter\bin\flutter.bat test test\common_label_manage_test.dart`, `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --name "image insert dialog defaults object id from last image index|image insert object ID menu includes provided IDs and fills dialog|image insert stores next zOrder metadata"`.
+- 검증 완료: `test/common_label_manage_test.dart` 최초 실행은 테스트 fixture 타입 오류(`TColumnBase`를 `TColumn` 목록에 전달)로 실패. `commonLabelImageObjectIdsFromColumns`/`commonLabelBarcodeObjectIdsFromColumns` helper를 분리해 테스트를 가볍게 고쳤고, 재실행 결과 `exitCode=0`, 3개 통과.
+- 검증 완료: focused `fortune_barcode_dialog_test.dart --name "image insert dialog defaults object id from last image index|image insert object ID menu includes provided IDs and fills dialog|image insert stores next zOrder metadata"` 결과 `exitCode=0`, 3개 통과.
+- 검증 완료: 변경 파일 묶음 analyzer `C:\Flutter\bin\flutter.bat analyze lib\page_home\common_label_manage.dart lib\page_label_sheet\label_sheet_page.dart lib\page_label_sheet\label_sheet_workbench.dart third_party\fortune_sheet\lib\src\fortune_sheet_app.dart third_party\fortune_sheet\lib\src\fortune_sheet_canvas.dart third_party\fortune_sheet\lib\src\fortune_sheet_painter.dart test\common_label_manage_test.dart third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --no-fatal-warnings --no-fatal-infos` 결과 `exitCode=0`, `No issues found`.
+- 검증 완료: `git diff --check -- SESSION_HANDOFF.md lib/page_home/common_label_manage.dart lib/page_label_sheet/label_sheet_page.dart lib/page_label_sheet/label_sheet_workbench.dart third_party/fortune_sheet/lib/src/fortune_sheet_app.dart third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart test/common_label_manage_test.dart third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart` 출력 없음. VS Code diagnostics 결과 수정 파일 오류 없음.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `lib/page_home/common_label_manage.dart`, `lib/page_label_sheet/label_sheet_page.dart`, `lib/page_label_sheet/label_sheet_workbench.dart`, `third_party/fortune_sheet/lib/src/fortune_sheet_app.dart`, `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`, `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`, `test/common_label_manage_test.dart`, `third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
+
 ### 완료 (2026-07-06): 이미지 삽입 다이얼로그 ID 중복 페인트 제거
 
 - 목적: 이미지 삽입/수정 다이얼로그의 ID 드롭다운 필드에서 painter 텍스트와 `EditableText`가 동시에 같은 값을 그려 텍스트가 이중으로 보이는 현상을 제거한다.
