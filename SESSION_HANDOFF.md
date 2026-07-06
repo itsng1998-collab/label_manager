@@ -41,6 +41,7 @@
 - 검증 완료: `git diff --check -- SESSION_HANDOFF.md lib\page_label_sheet\label_sheet_workbench.dart test\label_sheet_toolbar_test.dart third_party\fortune_sheet\lib\src\fortune_sheet_painter.dart third_party\fortune_sheet\test\fortune_toolbar_icons_test.dart` 출력 없음.
 - 진단 완료: 수정 Dart 파일 4개 VS Code diagnostics 오류 없음.
 - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/page_label_sheet/label_sheet_workbench.dart`, `test/label_sheet_toolbar_test.dart`, `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`, `third_party/fortune_sheet/test/fortune_toolbar_icons_test.dart`. 기존 unrelated dirty `lib/core/app.dart`는 제외.
+- 커밋 완료: `72866b9` (`공용라벨 라벨 이미지 가져오기 메뉴 복구`).
 
 ### 완료 (2026-07-06): 확대 상태 셀 편집기 스케일 적용
 
