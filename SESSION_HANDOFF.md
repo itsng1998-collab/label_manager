@@ -28,6 +28,16 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-06): 품목관리 작업 지시서 레거시 기준 재정리
+
+- 목적: `.tmp\item_manager.txt`의 의도를 레거시 품목관리/라벨출력 흐름과 비교해 구현 방향이 흔들리지 않도록 정리한다.
+- 변경 완료: 품목관리 테이블 동적 컬럼은 `TColumn.datas`/`TColumnContent.datas` 기준이며, 치환 키워드는 파일명이나 표시명이 아니라 `# + RICH_KEYWORD`임을 명시했다.
+- 변경 완료: 이미지 컬럼은 DB BLOB/HTTP 다운로드가 아니라 파일명 참조 저장이며, `bmp files\{파일명}.bmp`를 읽어 `#keyword` 위치에 이미지로 대체하는 레거시 기준을 반영했다.
+- 변경 완료: 플로팅 창 UX, `주원료 및 함량` A1 단일 셀 편집, 출력내용 미리보기 치환 순서, 구현 우선순위와 주의사항을 정리했다.
+- 검증 완료: `.tmp\item_manager.txt` 내용 재확인 완료.
+- 검증 완료: `git diff --check -- .tmp/item_manager.txt SESSION_HANDOFF.md` 통과.
+- 참고: `.tmp\item_manager.txt`는 `.gitignore`의 `.tmp/` 규칙에 걸리므로 커밋 시 `git add -f` 대상이다.
+
 ### 완료 (2026-07-06): Gemini 변환 XLSX 보관 temp 경로 및 시작 정리 변경
 
 - 목적: AI 이미지 변환 XLSX를 `Directory.systemTemp`가 아니라 디버그 모드에서는 `.tmp`, 릴리즈에서는 `%APPDATA%\com.itsng\Label Manager\temp`에 생성하고, 변환 후 삭제하지 않고 유지한다.
