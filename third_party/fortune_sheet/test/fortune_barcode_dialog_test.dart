@@ -636,6 +636,26 @@ void main() {
     expect(menuRect.height, lessThan(
       painter().imageObjectIdOptions.length * fortuneContextMenuRowHeight,
     ));
+
+    await tester.tapAt(
+      topLeft +
+          menuRect.topLeft +
+          const Offset(10, 1.5 * fortuneContextMenuRowHeight),
+    );
+    await tester.pump();
+
+    expect(painter().imageObjectId, '#ITEMNAME');
+    expect(painter().imageObjectIdMenuOpen, isFalse);
+
+    await tester.tapAt(
+      topLeft +
+          fortuneImageObjectIdInputRect(dialogRect).centerRight -
+          const Offset(12, 0),
+    );
+    await tester.pump();
+
+    expect(painter().imageObjectIdOptions.first, '#IMAGE1');
+    expect(painter().imageObjectIdOptions[1], '#ITEMNAME');
   });
 
   testWidgets('image insert stores next zOrder metadata', (tester) async {

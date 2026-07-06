@@ -27,6 +27,18 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-06): 이미지 삽입 ID 드롭다운 기본값 유지
+
+- 목적: 이미지 삽입 다이얼로그에서 ID 드롭다운을 처음 열 때 보이는 `#IMAGE1` 같은 기본 이미지 ID가 다른 항목 선택 후 다시 열어도 목록 맨 위에 계속 남도록 한다.
+- 수정 예정: `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`에서 이미지 삽입/수정 다이얼로그 기본 ID를 별도 상태로 보존하고 `_effectiveImageObjectIds`가 이 값을 항상 먼저 포함하도록 한다. `fortune_barcode_dialog_test.dart`에 선택 후 재오픈 순서 유지 테스트를 추가한다. 검증 예정: focused image dialog test 및 analyzer.
+- 변경 완료: `_imageInsertDefaultObjectId` 상태를 추가해 이미지 삽입 다이얼로그를 열 때 `_nextImageObjectId()` 값을 저장하고, `_effectiveImageObjectIds`가 저장된 기본 ID를 항상 첫 항목으로 포함하도록 했다. 이미지 수정/삽입 완료/취소 시에는 기본 ID 상태를 비운다.
+- 테스트 변경: `fortune_barcode_dialog_test.dart`의 이미지 ID 메뉴 테스트에 `#ITEMNAME` 선택 후 다시 드롭다운을 열어도 `#IMAGE1`이 첫 항목으로 유지되는 기대값을 추가했다.
+- 검증 실행 예정: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --name "image insert object ID menu includes provided IDs and fills dialog"`, `C:\Flutter\bin\flutter.bat analyze third_party\fortune_sheet\lib\src\fortune_sheet_canvas.dart third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --no-fatal-warnings --no-fatal-infos`.
+- 검증 완료: focused `fortune_barcode_dialog_test.dart --name "image insert object ID menu includes provided IDs and fills dialog"` 결과 `exitCode=0`, 1개 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze third_party\fortune_sheet\lib\src\fortune_sheet_canvas.dart third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --no-fatal-warnings --no-fatal-infos` 결과 `exitCode=0`, `No issues found`.
+- 검증 완료: `git diff --check -- SESSION_HANDOFF.md third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart` 출력 없음. VS Code diagnostics 결과 수정 파일 오류 없음.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`, `third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
+
 ### 완료 (2026-07-06): 이미지 삽입 ID 드롭다운 순서 보정
 
 - 목적: 이미지 삽입 시 ID 드롭다운을 자동 정렬하지 않고 `#IMAGE1` 같은 현재/기본 이미지 ID를 맨 위에 둔 뒤, 공용라벨관리 특별 항목 순서, 사용 항목 순서 그대로 표시한다.

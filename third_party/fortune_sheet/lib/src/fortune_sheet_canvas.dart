@@ -2903,6 +2903,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   String _imageInsertFileName = '선택된 파일 없음';
   double? _imageInsertOriginalWidthPx;
   double? _imageInsertOriginalHeightPx;
+  String? _imageInsertDefaultObjectId;
   int _imageObjectIdIndex = 0;
   bool _imageObjectIdMenuOpen = false;
   int? _imageObjectIdMenuHoveredIndex;
@@ -22516,15 +22517,17 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       return;
     }
     _disposeImageInsertDecodedImage();
+    final defaultObjectId = _nextImageObjectId();
     setState(() {
       _closeTransientMenus();
       _imageInsertDialogOpen = true;
       _imageInsertEditingImageId = null;
       _imageInsertPickResult = null;
+      _imageInsertDefaultObjectId = defaultObjectId;
       _imageInsertFileName = '선택된 파일 없음';
       _imageInsertOriginalWidthPx = null;
       _imageInsertOriginalHeightPx = null;
-      _setImageObjectIdSelection(_nextImageObjectId());
+      _setImageObjectIdSelection(defaultObjectId);
       _imageObjectIdMenuOpen = false;
       _imageObjectIdMenuHoveredIndex = null;
       _imageObjectIdMenuScrollOffset = 0;
@@ -22559,6 +22562,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       _imageInsertDialogOpen = true;
       _imageInsertEditingImageId = image.id;
       _imageInsertPickResult = null;
+      _imageInsertDefaultObjectId = null;
       _imageInsertFileName = '';
       _imageInsertOriginalWidthPx = widthValue;
       _imageInsertOriginalHeightPx = heightValue;
@@ -22722,6 +22726,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       _imageInsertDialogOpen = false;
       _imageInsertEditingImageId = null;
       _imageInsertPickResult = null;
+      _imageInsertDefaultObjectId = null;
       _imageObjectIdMenuOpen = false;
       _imageObjectIdMenuHoveredIndex = null;
       _imageObjectIdMenuScrollOffset = 0;
@@ -22790,6 +22795,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       _imageInsertDialogOpen = false;
       _imageInsertEditingImageId = null;
       _imageInsertPickResult = null;
+      _imageInsertDefaultObjectId = null;
       _imageObjectIdMenuOpen = false;
       _imageObjectIdMenuHoveredIndex = null;
       _imageObjectIdMenuScrollOffset = 0;
@@ -22810,6 +22816,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       _imageInsertDialogOpen = false;
       _imageInsertEditingImageId = null;
       _imageInsertPickResult = null;
+      _imageInsertDefaultObjectId = null;
       _imageObjectIdMenuOpen = false;
       _imageObjectIdMenuHoveredIndex = null;
       _imageObjectIdMenuScrollOffset = 0;
@@ -22824,10 +22831,10 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   List<String> get _effectiveImageObjectIds {
     final result = <String>[];
     final seen = <String>{};
-    final current = _imageObjectIdController.text.trim();
-    if (_imageInsertDialogOpen && current.isNotEmpty) {
-      if (seen.add(current.toLowerCase())) {
-        result.add(current);
+    final defaultObjectId = _imageInsertDefaultObjectId?.trim() ?? '';
+    if (_imageInsertDialogOpen && defaultObjectId.isNotEmpty) {
+      if (seen.add(defaultObjectId.toLowerCase())) {
+        result.add(defaultObjectId);
       }
     }
     for (final raw in widget.imageObjectIds) {
@@ -22837,6 +22844,12 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       }
       if (seen.add(value.toLowerCase())) {
         result.add(value);
+      }
+    }
+    final current = _imageObjectIdController.text.trim();
+    if (_imageInsertDialogOpen && current.isNotEmpty) {
+      if (seen.add(current.toLowerCase())) {
+        result.add(current);
       }
     }
     for (final image in _workbook.activeSheet.images) {
