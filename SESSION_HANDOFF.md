@@ -28,6 +28,19 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-06): Gemini 이미지 분석 타임아웃 완화
+
+- 목적: 복잡한 라벨 이미지에서 Gemini 요청이 90초 안에 끝나지 않는 문제를 완화하기 위해 전송용 이미지 축소/압축, 업로드 크기 로그, 요청 타임아웃 증가를 적용한다.
+- 수정 예정: `label_sheet_ai_import.dart`에서 Gemini 전송용 이미지 payload를 생성하고 원본/업로드 byte 및 base64 길이를 로그에 남긴다.
+- 변경 완료: `label_sheet_ai_import.dart`에서 Gemini 전송 전 이미지가 1600px 초과 또는 2MB 초과이면 전송용 JPEG payload를 생성하도록 했다. 고해상도 이미지는 원본 파일 byte가 더 작더라도 픽셀 수를 줄인 업로드 이미지를 사용한다.
+- 변경 완료: Gemini 요청 로그에 `sourceBytes`, `uploadBytes`, `uploadBase64Chars`, 원본/업로드 픽셀 크기, resize 여부, timeout seconds를 남기도록 했다.
+- 변경 완료: Gemini `generateContent` 요청 타임아웃을 90초에서 180초로 늘리고, 타임아웃 오류 메시지에 이미지 복잡도/네트워크 지연 가능성을 포함했다.
+- 테스트 변경: `label_sheet_toolbar_test.dart`에 큰 원본 이미지가 Gemini 요청 전 JPEG 1600px payload로 축소되는 회귀 테스트를 추가했다.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --name "Gemini request downsizes large source images before upload"` 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --name "Gemini JSON response is converted to a sheet draft"` 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --name "Gemini HTTP errors include response diagnostics"` 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze lib\page_label_sheet\label_sheet_ai_import.dart test\label_sheet_toolbar_test.dart --no-fatal-warnings --no-fatal-infos` 통과.
+
 ### 완료 (2026-07-06): 라벨 이미지 가져오기 API Key 입력 제한
 
 - 목적: `라벨 이미지 가져오기` 다이얼로그의 Gemini API Key 입력 위젯에서 복사/잘라내기는 막고 붙여넣기·전체 선택·삭제·수정은 가능하게 하며, AI 분석 중에는 다이얼로그의 선택/입력 위젯을 비활성화한다.

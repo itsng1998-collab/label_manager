@@ -10,6 +10,10 @@ import 'package:image/image.dart' as imglib;
 import 'package:label_manager/page_label_sheet/label_sheet_import_model.dart';
 
 const String labelSheetDefaultGeminiModel = 'gemini-2.5-flash';
+const Duration _labelSheetGeminiRequestTimeout = Duration(seconds: 180);
+const int _labelSheetGeminiMaxUploadImageBytes = 2 * 1024 * 1024;
+const int _labelSheetGeminiMaxUploadImageDimension = 1600;
+const int _labelSheetGeminiUploadJpegQuality = 88;
 
 class LabelSheetGeminiImportRequest {
   const LabelSheetGeminiImportRequest({
@@ -94,6 +98,11 @@ Future<LabelSheetImageImportDraft> labelSheetAnalyzeImageWithGemini(
     fileName: request.fileName,
     userPrompt: request.prompt,
   );
+  final uploadImage = _geminiUploadImagePayload(
+    request.imageBytes,
+    mimeType: request.mimeType,
+  );
+  final uploadImageBase64 = base64Encode(uploadImage.bytes);
   final uri = Uri.https(
     'generativelanguage.googleapis.com',
     '/v1beta/models/$model:generateContent',
@@ -106,8 +115,14 @@ Future<LabelSheetImageImportDraft> labelSheetAnalyzeImageWithGemini(
   debugPrint(
     '[LabelSheetGemini] requestId=$requestId generateContent start '
     'model=$model apiKey=${_maskedGeminiApiKey(apiKey)} '
-    'mime=${request.mimeType} imageBytes=${request.imageBytes.lengthInBytes} '
-    'promptChars=${prompt.length} fileName=${request.fileName}',
+    'sourceMime=${request.mimeType} sourceBytes=${request.imageBytes.lengthInBytes} '
+    'uploadMime=${uploadImage.mimeType} uploadBytes=${uploadImage.bytes.lengthInBytes} '
+    'uploadBase64Chars=${uploadImageBase64.length} '
+    'resized=${uploadImage.resized} '
+    'sourcePixels=${uploadImage.sourceWidth}x${uploadImage.sourceHeight} '
+    'uploadPixels=${uploadImage.uploadWidth}x${uploadImage.uploadHeight} '
+    'promptChars=${prompt.length} timeoutSec=${_labelSheetGeminiRequestTimeout.inSeconds} '
+    'fileName=${request.fileName}',
   );
   try {
     final response = await client
@@ -124,8 +139,8 @@ Future<LabelSheetImageImportDraft> labelSheetAnalyzeImageWithGemini(
                   {'text': prompt},
                   {
                     'inlineData': {
-                      'mimeType': request.mimeType,
-                      'data': base64Encode(request.imageBytes),
+                      'mimeType': uploadImage.mimeType,
+                      'data': uploadImageBase64,
                     },
                   },
                 ],
@@ -137,7 +152,7 @@ Future<LabelSheetImageImportDraft> labelSheetAnalyzeImageWithGemini(
             },
           }),
         )
-        .timeout(const Duration(seconds: 90));
+        .timeout(_labelSheetGeminiRequestTimeout);
     stopwatch.stop();
     debugPrint(
       '[LabelSheetGemini] requestId=$requestId generateContent response '
@@ -192,7 +207,7 @@ Future<LabelSheetImageImportDraft> labelSheetAnalyzeImageWithGemini(
       'elapsedMs=${stopwatch.elapsedMilliseconds}',
     );
     throw const LabelSheetGeminiImportException(
-      'Gemini 요청 시간이 초과되었습니다.',
+      'Gemini 요청 시간이 초과되었습니다. 이미지가 복잡하거나 네트워크 응답이 지연되었습니다.',
     );
   } finally {
     if (closeClient) {
@@ -351,6 +366,101 @@ String _geminiRequestId() {
       .toRadixString(16)
       .padLeft(4, '0');
   return '${now.toRadixString(16)}-$random';
+}
+
+_LabelSheetGeminiUploadImage _geminiUploadImagePayload(
+  Uint8List imageBytes, {
+  required String mimeType,
+}) {
+  final decoded = _decodeSourceImageGeometry(imageBytes);
+  if (decoded == null || decoded.width <= 0 || decoded.height <= 0) {
+    return _LabelSheetGeminiUploadImage(
+      bytes: imageBytes,
+      mimeType: mimeType,
+      resized: false,
+      sourceWidth: null,
+      sourceHeight: null,
+      uploadWidth: null,
+      uploadHeight: null,
+    );
+  }
+
+  final longestSide = math.max(decoded.width, decoded.height);
+  final shouldResize = longestSide > _labelSheetGeminiMaxUploadImageDimension;
+    final shouldReencode =
+      shouldResize ||
+      imageBytes.lengthInBytes > _labelSheetGeminiMaxUploadImageBytes;
+  if (!shouldReencode) {
+    return _LabelSheetGeminiUploadImage(
+      bytes: imageBytes,
+      mimeType: mimeType,
+      resized: false,
+      sourceWidth: decoded.width,
+      sourceHeight: decoded.height,
+      uploadWidth: decoded.width,
+      uploadHeight: decoded.height,
+    );
+  }
+
+  final scale = shouldResize
+      ? _labelSheetGeminiMaxUploadImageDimension / longestSide
+      : 1.0;
+  final uploadWidth = math.max(1, (decoded.width * scale).round());
+  final uploadHeight = math.max(1, (decoded.height * scale).round());
+  final uploadImage = shouldResize
+      ? imglib.copyResize(
+          decoded,
+          width: uploadWidth,
+          height: uploadHeight,
+          interpolation: imglib.Interpolation.average,
+        )
+      : decoded;
+  final encoded = Uint8List.fromList(
+    imglib.encodeJpg(
+      uploadImage,
+      quality: _labelSheetGeminiUploadJpegQuality,
+    ),
+  );
+  if (!shouldResize && encoded.lengthInBytes >= imageBytes.lengthInBytes) {
+    return _LabelSheetGeminiUploadImage(
+      bytes: imageBytes,
+      mimeType: mimeType,
+      resized: false,
+      sourceWidth: decoded.width,
+      sourceHeight: decoded.height,
+      uploadWidth: decoded.width,
+      uploadHeight: decoded.height,
+    );
+  }
+  return _LabelSheetGeminiUploadImage(
+    bytes: encoded,
+    mimeType: 'image/jpeg',
+    resized: true,
+    sourceWidth: decoded.width,
+    sourceHeight: decoded.height,
+    uploadWidth: uploadImage.width,
+    uploadHeight: uploadImage.height,
+  );
+}
+
+class _LabelSheetGeminiUploadImage {
+  const _LabelSheetGeminiUploadImage({
+    required this.bytes,
+    required this.mimeType,
+    required this.resized,
+    required this.sourceWidth,
+    required this.sourceHeight,
+    required this.uploadWidth,
+    required this.uploadHeight,
+  });
+
+  final Uint8List bytes;
+  final String mimeType;
+  final bool resized;
+  final int? sourceWidth;
+  final int? sourceHeight;
+  final int? uploadWidth;
+  final int? uploadHeight;
 }
 
 double _sumDraftSize(Map<int, double> sizes) {

@@ -3713,6 +3713,69 @@ ${backslash}trowd${backslash}cellx2000${backslash}pard${backslash}intbl{${backsl
     },
   );
 
+  test('Gemini request downsizes large source images before upload', () async {
+    final sheet = FortuneSheet(
+      id: 's1',
+      name: 'Label',
+      extraFields: const {
+        fortuneSheetGridClientWidthMmKey: 100,
+        fortuneSheetGridClientHeightMmKey: 60,
+      },
+    );
+    final sourceImage = imglib.Image(width: 2400, height: 1200)
+      ..clear(imglib.ColorRgb8(255, 255, 255));
+    final sourceBytes = Uint8List.fromList(imglib.encodePng(sourceImage));
+    final client = MockClient((request) async {
+      final body = jsonDecode(request.body) as Map;
+      final contents = body['contents'] as List;
+      final parts = (contents.single as Map)['parts'] as List;
+      final inlineData = (parts.last as Map)['inlineData'] as Map;
+      expect(inlineData['mimeType'], 'image/jpeg');
+      final uploadedBytes = base64Decode(inlineData['data'] as String);
+      final uploadedImage = imglib.decodeImage(uploadedBytes)!;
+      expect(uploadedImage.width, 1600);
+      expect(uploadedImage.height, 800);
+      return http.Response(
+        jsonEncode({
+          'candidates': [
+            {
+              'content': {
+                'parts': [
+                  {
+                    'text': jsonEncode({
+                      'columnsMm': [100],
+                      'rowsMm': [60],
+                      'cells': [
+                        {'row': 0, 'column': 0, 'text': 'RESIZED'},
+                      ],
+                      'sourceImage': {'keep': false},
+                    }),
+                  },
+                ],
+              },
+            },
+          ],
+        }),
+        200,
+      );
+    });
+
+    final draft = await labelSheetAnalyzeImageWithGemini(
+      LabelSheetGeminiImportRequest(
+        apiKey: 'test-api-key-1234',
+        model: 'gemini-2.5-flash',
+        prompt: '',
+        imageBytes: sourceBytes,
+        mimeType: 'image/png',
+        fileName: 'large-label.png',
+        sheet: sheet,
+        client: client,
+      ),
+    );
+
+    expect(draft.cells[const FortuneCellCoord(0, 0)]?.value, 'RESIZED');
+  });
+
   test('Gemini image-only response is rejected', () async {
     final sheet = FortuneSheet(
       id: 's1',
