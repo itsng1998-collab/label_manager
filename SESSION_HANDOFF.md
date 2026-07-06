@@ -38,6 +38,7 @@
 - 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --name "Gemini request downsizes oversized source images for upload"` 통과.
 - 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --name "Gemini JSON response is converted to a sheet draft"` 통과.
 - 검증 완료: `C:\Flutter\bin\flutter.bat analyze lib\page_label_sheet\label_sheet_ai_import.dart test\label_sheet_toolbar_test.dart --no-fatal-warnings --no-fatal-infos` 통과.
+- 커밋 완료: `934bb8d` Gemini 이미지 업로드 OCR 보존 압축 적용.
 
 ### 완료 (2026-07-06): Gemini 이미지 분석 타임아웃 완화
 
