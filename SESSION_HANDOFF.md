@@ -43,6 +43,7 @@
 - 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "label sheet settings can isolate item element editing mode"` 통과.
 - 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "single cell viewport fit keeps visible size across zoom"` 통과.
 - 검증 완료: `test\common_label_manage_test.dart`, `test\swipe_action_table_test.dart` 총 4개 통과.
+- 커밋 완료: `0be9741` 품목관리 주원료 확대 영역 위치 조정.
 - 주의: unrelated 변경 `lib/core/app.dart`는 제외한다.
 
 ### 진행 중 (2026-07-07): 품목관리 주원료 탭 눈금자 안내선/툴팁 차단
