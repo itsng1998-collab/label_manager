@@ -42,6 +42,7 @@
 - 검증 완료: `C:\Flutter\bin\flutter.bat analyze lib\page_label_sheet\label_sheet_ai_import.dart lib\page_label_sheet\label_sheet_workbench.dart test\label_sheet_toolbar_test.dart --no-fatal-warnings --no-fatal-infos` 통과.
 - 확인 완료: `lib/page_label_sheet`와 `test`의 GitHub/Copilot/GitHub Models 관련 참조 제거.
 - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/page_label_sheet/label_sheet_ai_import.dart`, `lib/page_label_sheet/label_sheet_workbench.dart`, `test/label_sheet_toolbar_test.dart`. 기존 unrelated dirty `lib/core/app.dart`는 제외.
+- 커밋 완료: `a3bbfc9` (`라벨 이미지 가져오기 Gemini 전환`).
 
 ### 완료 (2026-07-06): 바코드 형식 드롭다운 높이 동적 확장
 
