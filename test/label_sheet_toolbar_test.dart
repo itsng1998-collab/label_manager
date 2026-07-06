@@ -1429,6 +1429,36 @@ void main() {
     );
   });
 
+  testWidgets('fortune sheet page ignores zero label size during initial load', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: SizedBox(
+          width: 400,
+          height: 300,
+          child: LabelSheetPage(
+            labelSize: const LabelSize(
+              labelSizeId: 1,
+              brandId: 1,
+              labelSizeName: 'Zero',
+              labelSizeCommon: LabelSizeCommon(width: 0, height: 0, rtf: ''),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(tester.takeException(), isNull);
+    final sheetApp = tester.widget<FortuneSheetApp>(
+      find.byType(FortuneSheetApp),
+    );
+    expect(sheetApp.gridClientSize?.widthMm, 100);
+    expect(sheetApp.gridClientSize?.heightMm, 100);
+  });
+
   test('GitHub Copilot Chat model menu includes additional model choices', () {
     final modelIds = labelSheetCopilotModels
         .map((model) => model.modelId)

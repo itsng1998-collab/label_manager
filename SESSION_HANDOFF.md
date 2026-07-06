@@ -27,6 +27,20 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-06): 앱 최초 실행 라벨 크기 0 렌더링 오류 방지
+
+- 목적: 앱 최초 실행 직후 `LabelSheetPage.build: native FortuneSheet width=0, height=0` 상태에서 `resizeSheetGridClientArea`가 `FortuneApiError invalid params`를 던져 빨간 렌더링 오류가 순간 표시되는 문제를 제거한다.
+- 수정 예정: `lib/page_label_sheet/label_sheet_workbench.dart`에서 라벨 물리 크기를 양수일 때만 사용하고 0/음수는 100mm fallback으로 정규화한다. `test/label_sheet_toolbar_test.dart`에 0 크기 라벨 페이지가 예외 없이 렌더되는 테스트를 추가한다. 검증 예정: focused widget test 및 analyzer.
+- 변경 완료: `label_sheet_workbench.dart`에 `_labelSheetPositivePhysicalSizeOrDefault`와 기본 물리 크기 상수를 추가하고, `labelSheetWorkbook` 및 `_gridClientSize`가 0/음수 라벨 크기를 100mm fallback으로 정규화하도록 했다.
+- 테스트 추가: `label_sheet_toolbar_test.dart`에 0x0 라벨 크기 `LabelSheetPage`가 예외 없이 렌더되고 `FortuneSheetApp.gridClientSize`가 100x100으로 전달되는 테스트를 추가했다.
+- 검증 실행 예정: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --name "fortune sheet page ignores zero label size during initial load|fortune sheet page loads base64 save payload from label RTF"`.
+- 검증 완료: focused `label_sheet_toolbar_test.dart --name "fortune sheet page ignores zero label size during initial load|fortune sheet page loads base64 save payload from label RTF"` 결과 `exitCode=0`, 2개 통과.
+- 검증 완료: `dart_format` 후 동일 focused 테스트 재실행 결과 `exitCode=0`, 2개 통과.
+- 검증 실행 예정: `C:\Flutter\bin\flutter.bat analyze lib\page_label_sheet\label_sheet_workbench.dart test\label_sheet_toolbar_test.dart --no-fatal-warnings --no-fatal-infos`.
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze lib\page_label_sheet\label_sheet_workbench.dart test\label_sheet_toolbar_test.dart --no-fatal-warnings --no-fatal-infos` 결과 `exitCode=0`, `No issues found`.
+- 검증 완료: `git diff --check -- SESSION_HANDOFF.md lib/page_label_sheet/label_sheet_workbench.dart test/label_sheet_toolbar_test.dart` 출력 없음. VS Code diagnostics 결과 수정 파일 오류 없음.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `lib/page_label_sheet/label_sheet_workbench.dart`, `test/label_sheet_toolbar_test.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
+
 ### 완료 (2026-07-06): 이미지 삽입 ID 드롭다운 기본값 유지
 
 - 목적: 이미지 삽입 다이얼로그에서 ID 드롭다운을 처음 열 때 보이는 `#IMAGE1` 같은 기본 이미지 ID가 다른 항목 선택 후 다시 열어도 목록 맨 위에 계속 남도록 한다.

@@ -35,6 +35,12 @@ const String labelSheetPrintToolbarCommand = 'label-sheet-print';
 const int labelSheetDefaultZoomPercent = 100;
 const int labelSheetMinZoomPercent = 10;
 const int labelSheetMaxZoomPercent = 400;
+const int _labelSheetDefaultPhysicalWidthMm = 100;
+const int _labelSheetDefaultPhysicalHeightMm = 100;
+
+int _labelSheetPositivePhysicalSizeOrDefault(int? value, int fallback) {
+  return value != null && value > 0 ? value : fallback;
+}
 const String _labelSheetCopilotTokenPrefsKey = 'label_sheet_copilot_token';
 const String _labelSheetCopilotModelPrefsKey = 'label_sheet_copilot_model';
 const String _labelFileDirectoryPrefsKey = 'label_file_directory';
@@ -595,8 +601,14 @@ FortuneWorkbook labelSheetWorkbook(
     return base;
   }
   final common = labelSize?.labelSizeCommon;
-  final widthMm = common?.width ?? 100;
-  final heightMm = common?.height ?? 100;
+  final widthMm = _labelSheetPositivePhysicalSizeOrDefault(
+    common?.width,
+    _labelSheetDefaultPhysicalWidthMm,
+  );
+  final heightMm = _labelSheetPositivePhysicalSizeOrDefault(
+    common?.height,
+    _labelSheetDefaultPhysicalHeightMm,
+  );
   final activeIndex = base.activeSheetIndex.clamp(0, base.sheets.length - 1);
   final sheets = [
     for (var index = 0; index < base.sheets.length; index += 1)
@@ -1724,13 +1736,19 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     final common = widget.labelSize?.labelSizeCommon;
     if (common == null) {
       return const FortuneSheetGridClientPhysicalSize(
-        widthMm: 100,
-        heightMm: 100,
+        widthMm: _labelSheetDefaultPhysicalWidthMm,
+        heightMm: _labelSheetDefaultPhysicalHeightMm,
       );
     }
     return FortuneSheetGridClientPhysicalSize(
-      widthMm: common.width,
-      heightMm: common.height,
+      widthMm: _labelSheetPositivePhysicalSizeOrDefault(
+        common.width,
+        _labelSheetDefaultPhysicalWidthMm,
+      ),
+      heightMm: _labelSheetPositivePhysicalSizeOrDefault(
+        common.height,
+        _labelSheetDefaultPhysicalHeightMm,
+      ),
     );
   }
 
