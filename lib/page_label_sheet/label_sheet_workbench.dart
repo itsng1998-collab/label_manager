@@ -1775,6 +1775,8 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
   late final TextEditingController _printCopiesController =
       TextEditingController(text: '1');
   late final FocusNode _zoomFocusNode = FocusNode();
+  final LayerLink _zoomToolbarLayerLink = LayerLink();
+  OverlayEntry? _zoomToolbarOverlayEntry;
   int? _zoomEditOriginalPercent;
   bool _zoomCommitPendingBlur = false;
   late FortuneSheetLocale _locale = _localeForPlatform();
@@ -1925,6 +1927,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
 
   @override
   void dispose() {
+    _removeZoomToolbarFloatingOverlay();
     if (_rtfSnackBarVisible) {
       _rtfSnackBarVisible = false;
       final generation = ++_rtfSnackBarGeneration;
@@ -1945,6 +1948,16 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     _zoomFocusNode.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(covariant LabelSheetWorkbench oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.zoomToolbarPlacement != widget.zoomToolbarPlacement &&
+        widget.zoomToolbarPlacement !=
+            LabelSheetZoomToolbarPlacement.previewTabAreaEnd) {
+      _removeZoomToolbarFloatingOverlay();
+    }
   }
 
   void _setLabelSheetZoomPercent(int percent) {
@@ -2929,72 +2942,121 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     final inPreviewTabArea =
         widget.zoomToolbarPlacement ==
         LabelSheetZoomToolbarPlacement.previewTabAreaEnd;
+    if (inPreviewTabArea) {
+      return const SizedBox.shrink();
+    }
     return Positioned(
-      top: inPreviewTabArea ? -36 : 6,
+      top: 6,
       right: 12,
       height: 29,
-      child: ColoredBox(
-        color: inPreviewTabArea
-            ? const Color(0xFFF7F8FA)
-            : const Color(0xfffafafc),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _LabelSheetZoomButton(
-              label: '-',
-              onPressed: () => _stepLabelSheetZoom(-10),
-            ),
-            const SizedBox(width: 4),
-            SizedBox(
-              width: 42,
-              height: 25,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: const Color(0xffffffff),
-                  border: Border.all(color: const Color(0xffd4d4d4)),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 5,
-                    vertical: 5,
+      child: _buildZoomToolbarControls(inPreviewTabArea: false),
+    );
+  }
+
+  Widget _buildZoomToolbarControls({required bool inPreviewTabArea}) {
+    return ColoredBox(
+      color: inPreviewTabArea
+          ? const Color(0xFFF7F8FA)
+          : const Color(0xfffafafc),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _LabelSheetZoomButton(
+            label: '-',
+            onPressed: () => _stepLabelSheetZoom(-10),
+          ),
+          const SizedBox(width: 4),
+          SizedBox(
+            width: 42,
+            height: 25,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: const Color(0xffffffff),
+                border: Border.all(color: const Color(0xffd4d4d4)),
+                borderRadius: BorderRadius.circular(2),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 5),
+                child: EditableText(
+                  key: const ValueKey('label-sheet-zoom-input'),
+                  controller: _zoomController,
+                  focusNode: _zoomFocusNode,
+                  textAlign: TextAlign.right,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  style: const TextStyle(
+                    fontSize: 13,
+                    height: 1,
+                    color: Color(0xff222222),
                   ),
-                  child: EditableText(
-                    key: const ValueKey('label-sheet-zoom-input'),
-                    controller: _zoomController,
-                    focusNode: _zoomFocusNode,
-                    textAlign: TextAlign.right,
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    style: const TextStyle(
-                      fontSize: 13,
-                      height: 1,
-                      color: Color(0xff222222),
-                    ),
-                    cursorColor: const Color(0xff0188fb),
-                    cursorOffset: Offset.zero,
-                    backgroundCursorColor: const Color(0x330188fb),
-                    maxLines: 1,
-                    onSubmitted: (_) => _commitLabelSheetZoomInput(),
-                    onEditingComplete: _commitLabelSheetZoomInput,
-                  ),
+                  cursorColor: const Color(0xff0188fb),
+                  cursorOffset: Offset.zero,
+                  backgroundCursorColor: const Color(0x330188fb),
+                  maxLines: 1,
+                  onSubmitted: (_) => _commitLabelSheetZoomInput(),
+                  onEditingComplete: _commitLabelSheetZoomInput,
                 ),
               ),
             ),
-            const SizedBox(width: 2),
-            const Text(
-              '%',
-              style: TextStyle(fontSize: 13, color: Color(0xff222222)),
-            ),
-            const SizedBox(width: 4),
-            _LabelSheetZoomButton(
-              label: '+',
-              onPressed: () => _stepLabelSheetZoom(10),
-            ),
-          ],
-        ),
+          ),
+          const SizedBox(width: 2),
+          const Text(
+            '%',
+            style: TextStyle(fontSize: 13, color: Color(0xff222222)),
+          ),
+          const SizedBox(width: 4),
+          _LabelSheetZoomButton(
+            label: '+',
+            onPressed: () => _stepLabelSheetZoom(10),
+          ),
+        ],
       ),
     );
+  }
+
+  void _syncZoomToolbarFloatingOverlay() {
+    if (widget.zoomToolbarPlacement !=
+        LabelSheetZoomToolbarPlacement.previewTabAreaEnd) {
+      _removeZoomToolbarFloatingOverlay();
+      return;
+    }
+    final overlay = Overlay.maybeOf(context, rootOverlay: true);
+    if (overlay == null) {
+      return;
+    }
+    final entry = _zoomToolbarOverlayEntry;
+    if (entry != null) {
+      entry.markNeedsBuild();
+      return;
+    }
+    _zoomToolbarOverlayEntry = OverlayEntry(
+      builder: (context) {
+        return Positioned.fill(
+          child: CompositedTransformFollower(
+            link: _zoomToolbarLayerLink,
+            targetAnchor: Alignment.topRight,
+            followerAnchor: Alignment.topRight,
+            offset: const Offset(-12, -36),
+            showWhenUnlinked: false,
+            child: Align(
+              alignment: Alignment.topRight,
+              widthFactor: 1,
+              heightFactor: 1,
+              child: SizedBox(
+                height: 29,
+                child: _buildZoomToolbarControls(inPreviewTabArea: true),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+    overlay.insert(_zoomToolbarOverlayEntry!);
+  }
+
+  void _removeZoomToolbarFloatingOverlay() {
+    _zoomToolbarOverlayEntry?.remove();
+    _zoomToolbarOverlayEntry = null;
   }
 
   Future<_LabelImageImportAction?> _showLabelImageImportDialog({
@@ -3121,26 +3183,29 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
               workbook,
               sheetSettings,
             );
-            return Stack(
-              fit: StackFit.expand,
-              clipBehavior:
-                  widget.zoomToolbarPlacement ==
-                      LabelSheetZoomToolbarPlacement.previewTabAreaEnd
-                  ? Clip.none
-                  : Clip.hardEdge,
-              children: [
-                sheet,
-                _buildZoomToolbarOverlay(),
-                if (convertingRtf)
-                  Positioned.fill(
-                    child: Listener(
-                      behavior: HitTestBehavior.opaque,
-                      child: AbsorbPointer(
-                        child: Container(color: Colors.transparent),
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) {
+                _syncZoomToolbarFloatingOverlay();
+              }
+            });
+            return CompositedTransformTarget(
+              link: _zoomToolbarLayerLink,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  sheet,
+                  _buildZoomToolbarOverlay(),
+                  if (convertingRtf)
+                    Positioned.fill(
+                      child: Listener(
+                        behavior: HitTestBehavior.opaque,
+                        child: AbsorbPointer(
+                          child: Container(color: Colors.transparent),
+                        ),
                       ),
                     ),
-                  ),
-              ],
+                ],
+              ),
             );
           },
         );

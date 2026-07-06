@@ -1037,19 +1037,20 @@ void main() {
     const hostKey = ValueKey('zoom-placement-host');
 
     Widget buildWorkbench(LabelSheetZoomToolbarPlacement placement) {
-      return Directionality(
-        textDirection: TextDirection.ltr,
-        child: Padding(
-          padding: const EdgeInsets.only(top: 50),
-          child: SizedBox(
-            key: hostKey,
-            width: 420,
-            height: 260,
-            child: LabelSheetWorkbench(
-              initialWorkbook: FortuneWorkbook(
-                sheets: [FortuneSheet(id: 's1', name: 'Label')],
+      return MaterialApp(
+        home: Scaffold(
+          body: Padding(
+            padding: const EdgeInsets.only(top: 50),
+            child: SizedBox(
+              key: hostKey,
+              width: 420,
+              height: 260,
+              child: LabelSheetWorkbench(
+                initialWorkbook: FortuneWorkbook(
+                  sheets: [FortuneSheet(id: 's1', name: 'Label')],
+                ),
+                zoomToolbarPlacement: placement,
               ),
-              zoomToolbarPlacement: placement,
             ),
           ),
         ),
