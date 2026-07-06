@@ -36,6 +36,7 @@
 - 검증 완료: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_active_editor_cursor_test.dart` 결과 2개 통과.
 - 검증 완료: `C:\Flutter\bin\flutter.bat analyze third_party\fortune_sheet\lib\src\fortune_sheet_canvas.dart third_party\fortune_sheet\test\fortune_active_editor_cursor_test.dart --no-fatal-warnings --no-fatal-infos` 결과 `No issues found`.
 - stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`, `third_party/fortune_sheet/test/fortune_active_editor_cursor_test.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
+- 커밋 완료: `40b058f` (`확대 상태 셀 편집기 배율 적용`).
 
 ### 완료 (2026-07-06): 공용라벨 조정 시트 로드 확대율 표시 동기화
 
