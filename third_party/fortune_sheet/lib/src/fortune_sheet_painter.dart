@@ -68593,7 +68593,12 @@ class FortuneSheetPainter extends CustomPainter {
     _drawText(
       canvas,
       imageObjectId,
-      objectIdInput.deflate(8),
+      Rect.fromLTWH(
+        objectIdInput.left + 7,
+        objectIdInput.top + 6,
+        math.max(0, objectIdInput.width - 38),
+        math.max(0, objectIdInput.height - 10),
+      ),
       fontSize: 12,
       color: const Color(0xff222222),
     );

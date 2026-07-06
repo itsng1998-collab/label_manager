@@ -27,6 +27,17 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-06): 이미지 삽입 다이얼로그 ID 텍스트 이중 표시 보정
+
+- 목적: 이미지 삽입/수정 다이얼로그의 ID 드롭다운 필드에서 canvas 표시 텍스트와 실제 `EditableText` overlay가 어긋나 텍스트가 이중으로 보이는 현상을 없앤다.
+- 수정 예정: `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`에서 이미지 ID combo 표시 텍스트 영역을 editor overlay의 `rightInset: 24` 기준과 일치시킨다. 검증 예정: focused 이미지/바코드 다이얼로그 테스트 및 analyzer.
+- 변경 완료: `FortuneSheetPainter._drawImageInsertDialog`의 ID 표시 텍스트 rect를 실제 이미지 ID `EditableText` overlay 배치(`left + 7`, `top + 6`, `width - 38`, `height - 10`)와 동일하게 맞췄다.
+- 검증 실행 예정: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_barcode_dialog_test.dart --name "image insert|image edit|toolbar image"`, `C:\Flutter\bin\flutter.bat analyze third_party\fortune_sheet\lib\src\fortune_sheet_painter.dart --no-fatal-warnings --no-fatal-infos`.
+- 검증 완료: focused `fortune_barcode_dialog_test.dart --name "image insert|image edit|toolbar image"` 결과 `exitCode=0`, 3개 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze third_party\fortune_sheet\lib\src\fortune_sheet_painter.dart --no-fatal-warnings --no-fatal-infos` 결과 `exitCode=0`, `No issues found`.
+- 검증 완료: `git diff --check -- SESSION_HANDOFF.md third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart` 출력 없음. VS Code diagnostics 결과 `SESSION_HANDOFF.md`, `fortune_sheet_painter.dart` 오류 없음.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
+
 ### 완료 (2026-07-05): 이미지/바코드 레이어 패널 오브젝트 Ctrl+C/X/V 정책 추가
 
 - 목적: 기존 시트 셀 복사/컷/붙여넣기 정책과 분리해, 레이어 패널이 열려 있고 이미지/바코드 row가 선택된 상태에서는 `Ctrl+C`, `Ctrl+X`, `Ctrl+V`가 선택 오브젝트 집합에 적용되도록 한다.
