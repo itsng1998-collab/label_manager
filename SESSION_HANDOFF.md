@@ -47,6 +47,7 @@
 - 검증 완료: `test\common_label_manage_test.dart`, `test\swipe_action_table_test.dart` 총 4개 통과.
 - 검증 완료: `git diff --check -- lib/home_page_manager.dart lib/page_label_sheet/label_sheet_workbench.dart third_party/fortune_sheet/lib/src/fortune_sheet_model.dart third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart test/label_sheet_toolbar_test.dart SESSION_HANDOFF.md` 통과.
 - 검증 완료: `rg "품목관리 미리보기" lib` 결과 없음.
+- 커밋 완료: `ee469a5` 품목관리 주원료 눈금자 안내선 비활성화.
 - 주의: unrelated 변경 `lib/core/app.dart`는 제외한다.
 
 ### 진행 중 (2026-07-07): 품목관리 주원료 탭 헤더 영역 제거/눈금자 확장
