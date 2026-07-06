@@ -44,6 +44,7 @@
 - 참고: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart` 전체 실행은 기존 Gemini quota 응답(`RESOURCE_EXHAUSTED`) 경로에서 실패해, 이번 변경 범위 테스트는 `--plain-name`으로 분리 검증했다.
 - 검증 완료: `git diff --check -- lib/home_page_manager.dart lib/page_label_sheet/label_sheet_workbench.dart third_party/fortune_sheet/lib/src/fortune_sheet_model.dart third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart test/label_sheet_toolbar_test.dart` 통과.
 - 주의: unrelated 변경 `lib/core/app.dart`는 제외한다.
+- 커밋 완료: `0127d6c` 품목관리 주원료 셀 편집 영역 보정.
 
 ### 진행 중 (2026-07-06): 품목관리 주원료 시트 전용 편집 모드
 
