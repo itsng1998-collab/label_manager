@@ -1590,6 +1590,8 @@ FortuneSettings labelSheetSettings(
   bool hideRowColumnHeaders = false,
   bool hideSelectionHighlight = false,
   bool singleClickCellEdit = false,
+  bool hidePrintAreaBoundary = false,
+  bool fitSingleCellToViewport = false,
 }) {
   final resolvedToolbarItems = toolbarItems ?? labelSheetToolbarItems;
   return base.copyWith(
@@ -1598,6 +1600,8 @@ FortuneSettings labelSheetSettings(
     columnHeaderHeight: hideRowColumnHeaders ? 0 : null,
     hideSelectionHighlight: hideSelectionHighlight,
     singleClickCellEdit: singleClickCellEdit,
+    hidePrintAreaBoundary: hidePrintAreaBoundary,
+    fitSingleCellToViewport: fitSingleCellToViewport,
     customToolbarItems: [
       if (resolvedToolbarItems.contains(labelSheetSaveToolbarCommand))
         FortuneCustomToolbarItem(
@@ -1680,6 +1684,8 @@ class LabelSheetWorkbench extends StatefulWidget {
     this.hideRowColumnHeaders = false,
     this.hideSelectionHighlight = false,
     this.singleClickCellEdit = false,
+    this.hidePrintAreaBoundary = false,
+    this.fitSingleCellToViewport = false,
     this.onInitialLoadComplete,
     this.onGridRectChanged,
     this.onBeforeSheetDialog,
@@ -1699,6 +1705,8 @@ class LabelSheetWorkbench extends StatefulWidget {
   final bool hideRowColumnHeaders;
   final bool hideSelectionHighlight;
   final bool singleClickCellEdit;
+  final bool hidePrintAreaBoundary;
+  final bool fitSingleCellToViewport;
   final VoidCallback? onInitialLoadComplete;
   final ValueChanged<ui.Rect>? onGridRectChanged;
   final FutureOr<void> Function()? onBeforeSheetDialog;
@@ -1784,6 +1792,8 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
         hideRowColumnHeaders: widget.hideRowColumnHeaders,
         hideSelectionHighlight: widget.hideSelectionHighlight,
         singleClickCellEdit: widget.singleClickCellEdit,
+        hidePrintAreaBoundary: widget.hidePrintAreaBoundary,
+        fitSingleCellToViewport: widget.fitSingleCellToViewport,
       );
 
   FortuneSheetGridClientPhysicalSize? get _gridClientSize {

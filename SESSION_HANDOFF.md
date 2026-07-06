@@ -28,6 +28,23 @@
 
 ## 현재 상태
 
+### 진행 중 (2026-07-06): 품목관리 주원료 탭 단일 셀 편집 UX 보강
+
+- 수정 예정: 품목관리 플로팅 창 `주원료 및 함량` 탭에만 저장 아이콘을 표시하고, 공용라벨관리 시트와 분리된 플래그로 인쇄 영역 숨김/단일 셀 viewport 맞춤/100% 초기 zoom을 적용한다.
+- 편집 완료: `lib/home_page_manager.dart`의 `_itemElementToolbarItems`에 `labelSheetSaveToolbarCommand`를 추가하고, `_ItemElementPreviewTab`에 `hidePrintAreaBoundary`, `fitSingleCellToViewport` 옵션을 켰으며 `_itemElementWorkbook` 초기 `zoomRatio`를 1로 명시했다.
+- 편집 완료: `lib/page_label_sheet/label_sheet_workbench.dart`와 `third_party/fortune_sheet`에 `hidePrintAreaBoundary`, `fitSingleCellToViewport` 플래그를 추가했다.
+- 편집 완료: `fortune_sheet_canvas.dart`에서 단일 1x1 시트의 셀 폭/높이를 viewport와 zoomRatio 기준으로 보정해, 툴바 확대/축소가 표시/편집 확대에는 적용되지만 셀 외곽 크기는 클라이언트 영역과 같게 유지되도록 했다.
+- 편집 완료: `fortune_sheet_painter.dart`에서 전용 플래그가 켜지면 인쇄 영역 경계선을 그리지 않게 했다.
+- 테스트 추가: `test/label_sheet_toolbar_test.dart`에 저장 버튼 유지/인쇄 버튼 제거/전용 플래그 분리 테스트와 zoom 전후 단일 셀 visible size 유지 테스트를 추가했다.
+- 검증 완료: `dart format` 실행.
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`).
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "label sheet settings can isolate item element editing mode"` 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "single cell viewport fit keeps visible size across zoom"` 통과.
+- 검증 완료: `test\common_label_manage_test.dart`, `test\swipe_action_table_test.dart` 총 4개 통과.
+- 참고: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart` 전체 실행은 기존 Gemini quota 응답(`RESOURCE_EXHAUSTED`) 경로에서 실패해, 이번 변경 범위 테스트는 `--plain-name`으로 분리 검증했다.
+- 검증 완료: `git diff --check -- lib/home_page_manager.dart lib/page_label_sheet/label_sheet_workbench.dart third_party/fortune_sheet/lib/src/fortune_sheet_model.dart third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart test/label_sheet_toolbar_test.dart` 통과.
+- 주의: unrelated 변경 `lib/core/app.dart`는 제외한다.
+
 ### 진행 중 (2026-07-06): 품목관리 주원료 시트 전용 편집 모드
 
 - 수정 예정: `lib/page_label_sheet/label_sheet_workbench.dart`에 품목관리 주원료 탭 전용 옵션을 추가해 공용라벨관리 시트와 설정을 분리한다.

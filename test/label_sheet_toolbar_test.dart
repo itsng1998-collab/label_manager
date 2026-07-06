@@ -94,6 +94,8 @@ Finder _printDialogCloseButtonFinder() {
 }
 
 const List<String> _itemElementToolbarItemsForTest = [
+  labelSheetSaveToolbarCommand,
+  '|',
   fortuneToolbarFontPopupKey,
   fortuneToolbarFontSizePopupKey,
   fortuneToolbarBoldCommand,
@@ -167,17 +169,23 @@ void main() {
       hideRowColumnHeaders: true,
       hideSelectionHighlight: true,
       singleClickCellEdit: true,
+      hidePrintAreaBoundary: true,
+      fitSingleCellToViewport: true,
     );
     final toolbarItems = fortuneToolbarItemsWithCustom(
       settings.toolbarItems,
       settings.customToolbarItems,
     );
 
+    expect(toolbarItems.first, labelSheetSaveToolbarCommand);
+    expect(toolbarItems, contains(labelSheetSaveToolbarCommand));
     expect(toolbarItems, isNot(contains(labelSheetPrintToolbarCommand)));
     expect(settings.rowHeaderWidth, 0);
     expect(settings.columnHeaderHeight, 0);
     expect(settings.hideSelectionHighlight, isTrue);
     expect(settings.singleClickCellEdit, isTrue);
+    expect(settings.hidePrintAreaBoundary, isTrue);
+    expect(settings.fitSingleCellToViewport, isTrue);
 
     final defaultSettings = labelSheetSettings(const FortuneSettings());
     expect(
@@ -188,6 +196,70 @@ void main() {
     expect(defaultSettings.columnHeaderHeight, 20);
     expect(defaultSettings.hideSelectionHighlight, isFalse);
     expect(defaultSettings.singleClickCellEdit, isFalse);
+    expect(defaultSettings.hidePrintAreaBoundary, isFalse);
+    expect(defaultSettings.fitSingleCellToViewport, isFalse);
+  });
+
+  testWidgets('single cell viewport fit keeps visible size across zoom', (
+    tester,
+  ) async {
+    final controller = FortuneSheetController();
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: SizedBox(
+          width: 300,
+          height: 200,
+          child: FortuneSheetCanvas(
+            workbook: FortuneWorkbook(
+              sheets: [
+                FortuneSheet(
+                  id: 's1',
+                  name: 'Sheet1',
+                  rowCount: 1,
+                  columnCount: 1,
+                  cells: {
+                    const FortuneCellCoord(0, 0): const FortuneCell(value: 'A'),
+                  },
+                ),
+              ],
+            ),
+            settings: const FortuneSettings(
+              toolbarItems: [],
+              rowHeaderWidth: 0,
+              columnHeaderHeight: 0,
+              fitSingleCellToViewport: true,
+            ),
+            showFormulaBar: false,
+            showSheetTabs: false,
+            controller: controller,
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    var sheet = controller.getSheet()!;
+    final initialVisibleWidth = ((sheet.columnWidths[0]! + 1) * sheet.zoomRatio)
+        .round();
+    final initialVisibleHeight = ((sheet.rowHeights[0]! + 1) * sheet.zoomRatio)
+        .round();
+    expect(initialVisibleWidth, greaterThan(0));
+    expect(initialVisibleHeight, greaterThan(0));
+
+    controller.setZoomRatio(2);
+    await tester.pump();
+
+    sheet = controller.getSheet()!;
+    expect(sheet.zoomRatio, 2);
+    expect(
+      ((sheet.columnWidths[0]! + 1) * sheet.zoomRatio).round(),
+      initialVisibleWidth,
+    );
+    expect(
+      ((sheet.rowHeights[0]! + 1) * sheet.zoomRatio).round(),
+      initialVisibleHeight,
+    );
   });
 
   test('label sheet context menu exposes AI image import', () {

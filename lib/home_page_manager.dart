@@ -2343,12 +2343,16 @@ class _ItemElementPreviewTab extends StatelessWidget {
       hideRowColumnHeaders: true,
       hideSelectionHighlight: true,
       singleClickCellEdit: true,
+      hidePrintAreaBoundary: true,
+      fitSingleCellToViewport: true,
       onWorkbookChanged: onWorkbookChanged,
     );
   }
 }
 
 const List<String> _itemElementToolbarItems = [
+  labelSheetSaveToolbarCommand,
+  '|',
   fs.fortuneToolbarFontPopupKey,
   fs.fortuneToolbarFontSizePopupKey,
   fs.fortuneToolbarBoldCommand,
@@ -2451,6 +2455,7 @@ fs.FortuneWorkbook _itemElementWorkbook(String elementText) {
         columnWidths: const {0: 640},
         customHeight: const {0: 1},
         customWidth: const {0: 1},
+        zoomRatio: 1,
         cells: {
           const fs.FortuneCellCoord(0, 0): _itemTextCell(
             elementText,

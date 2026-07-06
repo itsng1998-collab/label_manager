@@ -63026,6 +63026,9 @@ class FortuneSheetPainter extends CustomPainter {
     FortuneSettings settings,
     FortuneSheetMetrics metrics,
   ) {
+    if (settings.hidePrintAreaBoundary) {
+      return;
+    }
     final physicalSize = fortuneSheetGridClientPhysicalSize(
       workbook.activeSheet,
     );

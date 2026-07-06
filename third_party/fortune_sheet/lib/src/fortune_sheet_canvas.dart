@@ -5960,8 +5960,83 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       _suppressNextOnOp = true;
       _rememberActiveSheetScrollOffset();
       final sheets = [..._workbook.sheets];
-      sheets[targetSheetIndex] = sheet.copyWith(zoomRatio: roundedZoom);
+      sheets[targetSheetIndex] = _fitSingleCellToViewport(
+        sheet.copyWith(zoomRatio: roundedZoom),
+      );
       _workbook = _workbook.copyWith(sheets: sheets);
+    });
+  }
+
+  FortuneSheet _fitSingleCellToViewport(
+    FortuneSheet sheet, {
+    Size? size,
+    FortuneSettings? settings,
+  }) {
+    final resolvedSettings = settings ?? _workbook.settings;
+    if (!_workbook.settings.fitSingleCellToViewport ||
+        (sheet.rowCount ?? 0) != 1 ||
+        (sheet.columnCount ?? 0) != 1) {
+      return sheet;
+    }
+    final resolvedSize = size ?? context.size;
+    if (resolvedSize == null) {
+      return sheet;
+    }
+    final sheetTop =
+        resolvedSettings.effectiveToolbarHeight +
+        resolvedSettings.effectiveFormulaBarHeight;
+    final footerHeight =
+        resolvedSettings.effectiveSheetBarHeight +
+        resolvedSettings.statisticBarHeight;
+    final dataWidth = math.max(
+      0.0,
+      resolvedSize.width - _sheetDataLeft(resolvedSettings),
+    );
+    final dataHeight = math.max(
+      0.0,
+      resolvedSize.height -
+          sheetTop -
+          footerHeight -
+          _sheetDataTop(resolvedSettings),
+    );
+    final zoom = sheet.zoomRatio <= 0 ? 1.0 : sheet.zoomRatio;
+    final columnWidth = math.max(1.0, dataWidth / zoom - 1.0);
+    final rowHeight = math.max(1.0, dataHeight / zoom - 1.0);
+    return sheet.copyWith(
+      defaultColWidth: columnWidth,
+      defaultRowHeight: rowHeight,
+      columnWidths: {0: columnWidth},
+      rowHeights: {0: rowHeight},
+      customWidth: const {0: 1},
+      customHeight: const {0: 1},
+    );
+  }
+
+  void _scheduleFitSingleCellToViewport(Size size) {
+    if (!_workbook.settings.fitSingleCellToViewport) {
+      return;
+    }
+    final current = _workbook.activeSheet;
+    final fitted = _fitSingleCellToViewport(current, size: size);
+    if (fitted.rowHeights[0] == current.rowHeights[0] &&
+        fitted.columnWidths[0] == current.columnWidths[0]) {
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_workbook.settings.fitSingleCellToViewport) {
+        return;
+      }
+      final next = _fitSingleCellToViewport(_workbook.activeSheet, size: size);
+      if (next.rowHeights[0] == _workbook.activeSheet.rowHeights[0] &&
+          next.columnWidths[0] == _workbook.activeSheet.columnWidths[0]) {
+        return;
+      }
+      setState(() {
+        final sheets = [..._workbook.sheets];
+        sheets[_workbook.activeSheetIndex] = next;
+        _workbook = _workbook.copyWith(sheets: sheets);
+        scrollOffset = Offset.zero;
+      });
     });
   }
 
@@ -9237,6 +9312,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   Offset? _sheetPrintAreaBoundaryTooltipPosition(Offset local) {
     final size = _lastCanvasSize ?? context.size;
     final settings = _workbook.settings;
+    if (settings.hidePrintAreaBoundary) {
+      return null;
+    }
     final sheet = _workbook.activeSheet;
     final physicalSize = fortuneSheetGridClientPhysicalSize(sheet);
     if (size == null || physicalSize == null) {
@@ -44741,6 +44819,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
             builder: (context, constraints) {
               final size = Size(constraints.maxWidth, constraints.maxHeight);
               _lastCanvasSize = size;
+              _scheduleFitSingleCellToViewport(size);
               final sheetPaintSize = _sheetPaintSize(
                 size,
                 _workbook.settings,

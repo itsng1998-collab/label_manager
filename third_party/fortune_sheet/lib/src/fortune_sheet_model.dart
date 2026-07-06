@@ -23429,6 +23429,8 @@ class FortuneSettings {
     this.columnHeaderHeight = 20,
     this.hideSelectionHighlight = false,
     this.singleClickCellEdit = false,
+    this.hidePrintAreaBoundary = false,
+    this.fitSingleCellToViewport = false,
     this.sheetBarHeight = 31,
     this.statisticBarHeight = 23,
     this.defaultColWidth = 73,
@@ -23493,6 +23495,8 @@ class FortuneSettings {
   final double columnHeaderHeight;
   final bool hideSelectionHighlight;
   final bool singleClickCellEdit;
+  final bool hidePrintAreaBoundary;
+  final bool fitSingleCellToViewport;
   final double sheetBarHeight;
   final double statisticBarHeight;
   final double defaultColWidth;
@@ -23551,6 +23555,8 @@ class FortuneSettings {
     double? columnHeaderHeight,
     bool? hideSelectionHighlight,
     bool? singleClickCellEdit,
+    bool? hidePrintAreaBoundary,
+    bool? fitSingleCellToViewport,
     List<String>? fontFamilies,
     FortuneFontProvider? fontProvider,
     List<String>? toolbarItems,
@@ -23583,6 +23589,10 @@ class FortuneSettings {
       hideSelectionHighlight:
           hideSelectionHighlight ?? this.hideSelectionHighlight,
       singleClickCellEdit: singleClickCellEdit ?? this.singleClickCellEdit,
+      hidePrintAreaBoundary:
+          hidePrintAreaBoundary ?? this.hidePrintAreaBoundary,
+      fitSingleCellToViewport:
+          fitSingleCellToViewport ?? this.fitSingleCellToViewport,
       sheetBarHeight: sheetBarHeight,
       statisticBarHeight: statisticBarHeight,
       defaultColWidth: defaultColWidth,
