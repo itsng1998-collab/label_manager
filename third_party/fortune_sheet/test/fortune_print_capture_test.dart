@@ -238,4 +238,96 @@ void main() {
       isTrue,
     );
   });
+
+  testWidgets('print capture preserves merged cell outer borders', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(240, 180);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    final controller = FortuneSheetController();
+    final workbook = FortuneWorkbook(
+      settings: const FortuneSettings(
+        defaultRowHeight: 20,
+        defaultColWidth: 20,
+      ),
+      sheets: [
+        FortuneSheet(
+          id: 's1',
+          name: 'Sheet1',
+          rowCount: 2,
+          columnCount: 2,
+          cells: {
+            const FortuneCellCoord(0, 0): const FortuneCell(
+              merge: FortuneCellMerge(
+                row: 0,
+                column: 0,
+                rowSpan: 2,
+                columnSpan: 2,
+              ),
+            ),
+          },
+          borderInfo: [
+            FortuneBorderInfo(
+              rangeType: 'range',
+              borderType: 'border-all',
+              color: ui.Color(0xff000000),
+              style: 1,
+              ranges: [
+                FortuneRange(
+                  rowStart: 0,
+                  rowEnd: 1,
+                  columnStart: 0,
+                  columnEnd: 1,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: SizedBox(
+          width: 240,
+          height: 180,
+          child: FortuneSheetCanvas(
+            workbook: workbook,
+            controller: controller,
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final capture = await tester.runAsync(
+      () => controller.captureRangeAsPng(
+        const FortuneRange(
+          rowStart: 0,
+          rowEnd: 1,
+          columnStart: 0,
+          columnEnd: 1,
+        ),
+        pixelRatio: 1,
+        includeGridLines: false,
+        includeCellBorders: true,
+        includeRulerGuides: false,
+        includeLabelAreaBoundary: false,
+      ),
+    );
+
+    expect(capture, isNotNull);
+    final pixels = await tester.runAsync(() => _decodeRawRgba(capture!.pngBytes));
+    final width = capture!.pixelSize.width.toInt();
+    final height = capture.pixelSize.height.toInt();
+
+    expect(_hasDarkPixelNear(pixels!, width, height, width - 1, height ~/ 2), isTrue);
+    expect(_hasDarkPixelNear(pixels, width, height, width ~/ 2, height - 1), isTrue);
+  });
 }

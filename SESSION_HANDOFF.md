@@ -28,6 +28,16 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-06): PDF/캡처 출력 테두리 렌더링 일반화
+
+- 목적: 공용라벨관리 원본 화면과 PDF 출력이 셀 테두리/병합 셀 외곽선/선 연결부에서 달라지는 문제를 특정 옵션 보정이 아니라 캡처 렌더링 공용 처리로 줄인다.
+- 변경 완료: `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`의 `captureRangeAsPng` 경로에서 셀별 즉시 테두리 그리기를 제거하고, 화면 렌더러처럼 테두리 선분을 수집한 뒤 병합 셀 외곽선 계산, 같은 스타일 선분 병합, solid border join 채움을 거쳐 출력하도록 일반화했다.
+- 테스트 추가: `third_party/fortune_sheet/test/fortune_print_capture_test.dart`에 병합 셀 외곽선이 캡처 PNG의 오른쪽/아래쪽 테두리까지 보존되는 회귀 테스트를 추가했다.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_print_capture_test.dart` 결과 3개 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze third_party\fortune_sheet\lib\src\fortune_sheet_canvas.dart third_party\fortune_sheet\test\fortune_print_capture_test.dart --no-fatal-warnings --no-fatal-infos` 결과 `No issues found`.
+- 검증 완료: `git diff --check -- SESSION_HANDOFF.md third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart third_party/fortune_sheet/test/fortune_print_capture_test.dart` 출력 없음. VS Code diagnostics 결과 수정 파일 오류 없음.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`, `third_party/fortune_sheet/test/fortune_print_capture_test.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
+
 ### 완료 (2026-07-06): PDF 출력 셀 테두리 누락 수정
 
 - 목적: 공용라벨관리 PDF 출력 결과에서 셀 테두리가 누락되는 원인을 확인하고 수정한다.

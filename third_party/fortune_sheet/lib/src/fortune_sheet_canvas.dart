@@ -2297,6 +2297,35 @@ class _FortuneScreenshotIcon {
   final _FortuneScreenshotIconKind kind;
 }
 
+class _ScreenshotBorderLineSegment {
+  const _ScreenshotBorderLineSegment({
+    required this.side,
+    required this.start,
+    required this.end,
+    required this.horizontal,
+  });
+
+  final FortuneBorderSide side;
+  final Offset start;
+  final Offset end;
+  final bool horizontal;
+
+  double get crossAxis => horizontal ? start.dy : start.dx;
+  double get mainStart =>
+      horizontal ? math.min(start.dx, end.dx) : math.min(start.dy, end.dy);
+  double get mainEnd =>
+      horizontal ? math.max(start.dx, end.dx) : math.max(start.dy, end.dy);
+
+  _ScreenshotBorderLineSegment copyWithMainEnd(double value) {
+    return _ScreenshotBorderLineSegment(
+      side: side,
+      start: start,
+      end: horizontal ? Offset(value, end.dy) : Offset(end.dx, value),
+      horizontal: horizontal,
+    );
+  }
+}
+
 class FortuneSheetCanvas extends StatefulWidget {
   const FortuneSheetCanvas({
     required this.workbook,
@@ -14972,11 +15001,20 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
               ..color = const Color(0xffdfdfdf),
           );
         }
-        final borders = borderCompute[anchor];
-        if (includeCellBorders && borders != null) {
-          _drawScreenshotCellBorders(canvas, rect, borders);
-        }
       }
+    }
+
+    if (includeCellBorders) {
+      _drawScreenshotRangeCellBorders(
+        canvas,
+        sheet,
+        metrics,
+        range,
+        originX: originX,
+        originY: originY,
+        borderCompute: borderCompute,
+        clipBounds: bounds,
+      );
     }
 
     for (var row = range.rowStart; row <= range.rowEnd; row += 1) {
@@ -17594,56 +17632,324 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     }
   }
 
-  void _drawScreenshotCellBorders(
+  void _drawScreenshotRangeCellBorders(
     Canvas canvas,
+    FortuneSheet sheet,
+    FortuneSheetMetrics metrics,
+    FortuneRange range, {
+    required double originX,
+    required double originY,
+    required Map<FortuneCellCoord, FortuneCellBorders> borderCompute,
+    required Rect clipBounds,
+  }) {
+    final drawnMergedBorders = <FortuneCellCoord>{};
+    final segments = <_ScreenshotBorderLineSegment>[];
+    final slashSegments = <_ScreenshotBorderLineSegment>[];
+    for (var row = range.rowStart; row <= range.rowEnd; row += 1) {
+      if (sheet.hiddenRows.contains(row)) {
+        continue;
+      }
+      final top = metrics.rowStart(row) - originY;
+      final bottom = metrics.rowEnd(row) - originY;
+      if (bottom <= top) {
+        continue;
+      }
+      for (
+        var column = range.columnStart;
+        column <= range.columnEnd;
+        column += 1
+      ) {
+        if (sheet.hiddenColumns.contains(column)) {
+          continue;
+        }
+        final coord = FortuneCellCoord(row, column);
+        final anchor = sheet.mergeAnchorFor(coord);
+        if (anchor != coord) {
+          continue;
+        }
+        if (!drawnMergedBorders.add(anchor)) {
+          continue;
+        }
+        final cell = sheet.cells[anchor];
+        final merge = cell?.merge;
+        final rectRowEnd = merge == null
+            ? row
+            : math.min(range.rowEnd, merge.row + merge.rowSpan - 1);
+        final rectColumnEnd = merge == null
+            ? column
+            : math.min(range.columnEnd, merge.column + merge.columnSpan - 1);
+        final left = metrics.columnStart(column) - originX;
+        final right = metrics.columnEnd(rectColumnEnd) - originX;
+        final rect = Rect.fromLTRB(
+          left,
+          top,
+          right,
+          metrics.rowEnd(rectRowEnd) - originY,
+        );
+        if (rect.width <= 0 || rect.height <= 0) {
+          continue;
+        }
+        final borders = _screenshotRenderedCellBorders(
+          sheet: sheet,
+          coord: anchor,
+          merge: merge,
+          borderCompute: borderCompute,
+        );
+        if (borders == null) {
+          continue;
+        }
+        _addScreenshotCellBorderSegments(segments, slashSegments, rect, borders);
+      }
+    }
+    final mergedSegments = _mergeScreenshotBorderSegments(segments);
+    for (final segment in mergedSegments.where(
+      (segment) => segment.horizontal,
+    )) {
+      _drawScreenshotBorderLine(
+        canvas,
+        segment.side,
+        segment.start,
+        segment.end,
+        horizontal: true,
+        clipBounds: clipBounds,
+      );
+    }
+    for (final segment in mergedSegments.where(
+      (segment) => !segment.horizontal,
+    )) {
+      _drawScreenshotBorderLine(
+        canvas,
+        segment.side,
+        segment.start,
+        segment.end,
+        horizontal: false,
+        clipBounds: clipBounds,
+      );
+    }
+    _drawScreenshotSolidBorderJoins(
+      canvas,
+      mergedSegments,
+      clipBounds: clipBounds,
+    );
+    for (final segment in slashSegments) {
+      _drawScreenshotBorderLine(
+        canvas,
+        segment.side,
+        segment.start,
+        segment.end,
+        horizontal: false,
+        clipBounds: clipBounds,
+      );
+    }
+  }
+
+  FortuneCellBorders? _screenshotRenderedCellBorders({
+    required FortuneSheet sheet,
+    required FortuneCellCoord coord,
+    required FortuneCellMerge? merge,
+    required Map<FortuneCellCoord, FortuneCellBorders> borderCompute,
+  }) {
+    if (merge == null || (merge.rowSpan <= 1 && merge.columnSpan <= 1)) {
+      return borderCompute[coord];
+    }
+    final rowStart = merge.row;
+    final columnStart = merge.column;
+    final rowSpan = merge.rowSpan < 1 ? 1 : merge.rowSpan;
+    final columnSpan = merge.columnSpan < 1 ? 1 : merge.columnSpan;
+    final mergeRowEnd = merge.row + rowSpan - 1;
+    final mergeColumnEnd = merge.column + columnSpan - 1;
+    final rowLimit = sheet.rowCount ?? _workbook.settings.row;
+    final columnLimit = sheet.columnCount ?? _workbook.settings.column;
+    final rowEnd = mergeRowEnd < rowLimit ? mergeRowEnd : rowLimit - 1;
+    final columnEnd = mergeColumnEnd < columnLimit
+        ? mergeColumnEnd
+        : columnLimit - 1;
+    FortuneBorderSide? top;
+    FortuneBorderSide? right;
+    FortuneBorderSide? bottom;
+    FortuneBorderSide? left;
+    for (var column = columnStart; column <= columnEnd; column += 1) {
+      top ??= borderCompute[FortuneCellCoord(rowStart, column)]?.top;
+      bottom ??= borderCompute[FortuneCellCoord(rowEnd, column)]?.bottom;
+    }
+    for (var row = rowStart; row <= rowEnd; row += 1) {
+      left ??= borderCompute[FortuneCellCoord(row, columnStart)]?.left;
+      right ??= borderCompute[FortuneCellCoord(row, columnEnd)]?.right;
+    }
+    final slash = borderCompute[coord]?.slash;
+    final borders = FortuneCellBorders(
+      top: top,
+      right: right,
+      bottom: bottom,
+      left: left,
+      slash: slash,
+    );
+    return borders.isEmpty ? null : borders;
+  }
+
+  void _addScreenshotCellBorderSegments(
+    List<_ScreenshotBorderLineSegment> segments,
+    List<_ScreenshotBorderLineSegment> slashSegments,
     Rect rect,
     FortuneCellBorders borders,
   ) {
     if (borders.top case final side?) {
-      _drawScreenshotBorderLine(
-        canvas,
-        side,
-        rect.topLeft,
-        rect.topRight,
-        horizontal: true,
+      segments.add(
+        _ScreenshotBorderLineSegment(
+          side: side,
+          start: rect.topLeft,
+          end: rect.topRight,
+          horizontal: true,
+        ),
       );
     }
     if (borders.right case final side?) {
-      _drawScreenshotBorderLine(
-        canvas,
-        side,
-        rect.topRight,
-        rect.bottomRight,
-        horizontal: false,
+      segments.add(
+        _ScreenshotBorderLineSegment(
+          side: side,
+          start: rect.topRight,
+          end: rect.bottomRight,
+          horizontal: false,
+        ),
       );
     }
     if (borders.bottom case final side?) {
-      _drawScreenshotBorderLine(
-        canvas,
-        side,
-        rect.bottomLeft,
-        rect.bottomRight,
-        horizontal: true,
+      segments.add(
+        _ScreenshotBorderLineSegment(
+          side: side,
+          start: rect.bottomLeft,
+          end: rect.bottomRight,
+          horizontal: true,
+        ),
       );
     }
     if (borders.left case final side?) {
-      _drawScreenshotBorderLine(
-        canvas,
-        side,
-        rect.topLeft,
-        rect.bottomLeft,
-        horizontal: false,
+      segments.add(
+        _ScreenshotBorderLineSegment(
+          side: side,
+          start: rect.topLeft,
+          end: rect.bottomLeft,
+          horizontal: false,
+        ),
       );
     }
     if (borders.slash case final side?) {
-      _drawScreenshotBorderLine(
-        canvas,
-        side,
-        rect.bottomLeft,
-        rect.topRight,
-        horizontal: false,
+      slashSegments.add(
+        _ScreenshotBorderLineSegment(
+          side: side,
+          start: rect.bottomLeft,
+          end: rect.topRight,
+          horizontal: false,
+        ),
       );
     }
+  }
+
+  List<_ScreenshotBorderLineSegment> _mergeScreenshotBorderSegments(
+    List<_ScreenshotBorderLineSegment> segments,
+  ) {
+    if (segments.length < 2) {
+      return segments;
+    }
+    final sorted = [...segments]
+      ..sort((a, b) {
+        final keyCompare = _screenshotBorderSegmentKey(a).compareTo(
+          _screenshotBorderSegmentKey(b),
+        );
+        if (keyCompare != 0) {
+          return keyCompare;
+        }
+        return a.mainStart.compareTo(b.mainStart);
+      });
+    final merged = <_ScreenshotBorderLineSegment>[];
+    for (final segment in sorted) {
+      if (merged.isEmpty) {
+        merged.add(segment);
+        continue;
+      }
+      final previous = merged.last;
+      if (_screenshotBorderSegmentKey(previous) !=
+              _screenshotBorderSegmentKey(segment) ||
+          segment.mainStart > previous.mainEnd + 0.001) {
+        merged.add(segment);
+        continue;
+      }
+      if (segment.mainEnd > previous.mainEnd) {
+        merged[merged.length - 1] = previous.copyWithMainEnd(segment.mainEnd);
+      }
+    }
+    return merged;
+  }
+
+  String _screenshotBorderSegmentKey(_ScreenshotBorderLineSegment segment) {
+    return '${segment.horizontal ? 'h' : 'v'}:'
+        '${(segment.crossAxis * 1000).round()}:'
+        '${segment.side.color.toARGB32()}:'
+        '${segment.side.style}:'
+        '${(_screenshotBorderWidthForSide(segment.side) * 1000).round()}';
+  }
+
+  void _drawScreenshotSolidBorderJoins(
+    Canvas canvas,
+    List<_ScreenshotBorderLineSegment> segments, {
+    required Rect clipBounds,
+  }) {
+    final horizontalSegments = segments.where((segment) => segment.horizontal);
+    final verticalSegments = segments.where((segment) => !segment.horizontal);
+    for (final horizontal in horizontalSegments) {
+      if (_screenshotBorderDash(horizontal.side.style) != null) {
+        continue;
+      }
+      for (final vertical in verticalSegments) {
+        if (_screenshotBorderDash(vertical.side.style) != null ||
+            horizontal.side.color != vertical.side.color ||
+            horizontal.side.style != vertical.side.style ||
+            _screenshotBorderWidthForSide(horizontal.side) !=
+                _screenshotBorderWidthForSide(vertical.side)) {
+          continue;
+        }
+        final x = vertical.crossAxis;
+        final y = horizontal.crossAxis;
+        if (x < horizontal.mainStart - 0.001 ||
+            x > horizontal.mainEnd + 0.001 ||
+            y < vertical.mainStart - 0.001 ||
+            y > vertical.mainEnd + 0.001) {
+          continue;
+        }
+        _drawScreenshotSolidBorderJoinSquare(
+          canvas,
+          horizontal.side,
+          Offset(x, y),
+          clipBounds: clipBounds,
+        );
+      }
+    }
+  }
+
+  void _drawScreenshotSolidBorderJoinSquare(
+    Canvas canvas,
+    FortuneBorderSide side,
+    Offset point, {
+    required Rect clipBounds,
+  }) {
+    final strokeWidth = _screenshotBorderWidthForSide(side);
+    canvas.save();
+    canvas.clipRect(
+      _screenshotBorderSegmentClip(clipBounds, strokeWidth, point, point),
+      doAntiAlias: false,
+    );
+    canvas.drawRect(
+      Rect.fromCenter(
+        center: Offset(point.dx - 0.5, point.dy - 0.5),
+        width: strokeWidth,
+        height: strokeWidth,
+      ),
+      Paint()
+        ..color = side.color
+        ..style = PaintingStyle.fill
+        ..isAntiAlias = false,
+    );
+    canvas.restore();
   }
 
   void _drawScreenshotBorderLine(
@@ -17652,27 +17958,75 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     Offset start,
     Offset end, {
     required bool horizontal,
+    Rect? clipBounds,
   }) {
+    final strokeWidth = _screenshotBorderWidthForSide(side);
     final paint = Paint()
       ..color = side.color
-      ..strokeWidth = fortuneToolbarBorderStrokeWidth(
-        side.style,
-        _toolbarBorderStyleStrokeWidths,
-      )
+      ..strokeWidth = strokeWidth
       ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.square;
-    final adjustedStart = horizontal
+      ..strokeCap = StrokeCap.butt
+      ..isAntiAlias = false;
+    var adjustedStart = horizontal
         ? Offset(start.dx, start.dy - 0.5)
         : Offset(start.dx - 0.5, start.dy);
-    final adjustedEnd = horizontal
-        ? Offset(end.dx, end.dy - 0.5)
+    var adjustedEnd = horizontal
+        ? Offset(end.dx - 0.5, end.dy - 0.5)
         : Offset(end.dx - 0.5, end.dy);
-    final dash = fortuneToolbarBorderStyleDashPatterns[side.style];
-    if (dash == null || dash.length < 2 || dash[1] == 0) {
+    final dash = _screenshotBorderDash(side.style);
+    if (clipBounds != null) {
+      canvas.save();
+      canvas.clipRect(
+        _screenshotBorderSegmentClip(clipBounds, strokeWidth, start, end),
+        doAntiAlias: false,
+      );
+    }
+    if (dash == null) {
       canvas.drawLine(adjustedStart, adjustedEnd, paint);
+      if (clipBounds != null) {
+        canvas.restore();
+      }
       return;
     }
     _drawScreenshotDashedLine(canvas, adjustedStart, adjustedEnd, paint, dash);
+    if (clipBounds != null) {
+      canvas.restore();
+    }
+  }
+
+  double _screenshotBorderWidthForSide(FortuneBorderSide side) {
+    return side.strokeWidth ??
+        fortuneToolbarBorderStrokeWidth(side.style, _toolbarBorderStyleStrokeWidths);
+  }
+
+  List<double>? _screenshotBorderDash(int style) {
+    final pattern = fortuneToolbarBorderStyleDashPatterns[style];
+    if (pattern == null || pattern.length < 2 || pattern[1] == 0) {
+      return null;
+    }
+    return pattern;
+  }
+
+  Rect _screenshotBorderSegmentClip(
+    Rect clip,
+    double strokeWidth,
+    Offset start,
+    Offset end,
+  ) {
+    final minX = math.min(start.dx, end.dx);
+    final maxX = math.max(start.dx, end.dx);
+    final minY = math.min(start.dy, end.dy);
+    final maxY = math.max(start.dy, end.dy);
+    final leftOut = math.max(0, clip.left - minX);
+    final rightOut = math.max(0, maxX - clip.right);
+    final topOut = math.max(0, clip.top - minY);
+    final bottomOut = math.max(0, maxY - clip.bottom);
+    return Rect.fromLTRB(
+      clip.left - math.max(0, strokeWidth - leftOut),
+      clip.top - math.max(0, strokeWidth - topOut),
+      clip.right + math.max(0, strokeWidth - rightOut),
+      clip.bottom + math.max(0, strokeWidth - bottomOut),
+    );
   }
 
   void _drawScreenshotDashedLine(
