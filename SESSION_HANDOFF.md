@@ -28,6 +28,17 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-06): Gemini 업로드 이미지 OCR 보존 압축 기준 조정
+
+- 목적: Gemini 전송용 이미지 압축이 문자 판독 정확도를 해치지 않도록, 무조건적인 강한 축소가 아니라 OCR에 필요한 해상도를 보존하는 기준으로 조정한다.
+- 변경 완료: `label_sheet_ai_import.dart`에서 Gemini 업로드 기준을 1600px/2MB/JPEG 88에서 2400px/4MB/JPEG 94로 완화했다. 2400px 이하 이미지는 원본을 그대로 보내고, 2400px 초과 이미지만 2400px까지 축소한다.
+- 변경 완료: 업로드 로그에서 `reencoded`와 `resized`를 분리해 재인코딩 여부와 실제 픽셀 축소 여부를 구분하도록 했다.
+- 테스트 변경: `label_sheet_toolbar_test.dart`에 2400px OCR 기준 이미지는 원본 PNG로 유지되는 테스트와, 3200px 초과 이미지만 2400px JPEG로 축소되는 테스트를 추가했다.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --name "Gemini request keeps OCR-sized source images without upload compression"` 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --name "Gemini request downsizes oversized source images for upload"` 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --name "Gemini JSON response is converted to a sheet draft"` 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze lib\page_label_sheet\label_sheet_ai_import.dart test\label_sheet_toolbar_test.dart --no-fatal-warnings --no-fatal-infos` 통과.
+
 ### 완료 (2026-07-06): Gemini 이미지 분석 타임아웃 완화
 
 - 목적: 복잡한 라벨 이미지에서 Gemini 요청이 90초 안에 끝나지 않는 문제를 완화하기 위해 전송용 이미지 축소/압축, 업로드 크기 로그, 요청 타임아웃 증가를 적용한다.

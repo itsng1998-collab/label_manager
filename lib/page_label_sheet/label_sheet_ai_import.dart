@@ -11,9 +11,9 @@ import 'package:label_manager/page_label_sheet/label_sheet_import_model.dart';
 
 const String labelSheetDefaultGeminiModel = 'gemini-2.5-flash';
 const Duration _labelSheetGeminiRequestTimeout = Duration(seconds: 180);
-const int _labelSheetGeminiMaxUploadImageBytes = 2 * 1024 * 1024;
-const int _labelSheetGeminiMaxUploadImageDimension = 1600;
-const int _labelSheetGeminiUploadJpegQuality = 88;
+const int _labelSheetGeminiMaxUploadImageBytes = 4 * 1024 * 1024;
+const int _labelSheetGeminiMaxUploadImageDimension = 2400;
+const int _labelSheetGeminiUploadJpegQuality = 94;
 
 class LabelSheetGeminiImportRequest {
   const LabelSheetGeminiImportRequest({
@@ -118,7 +118,7 @@ Future<LabelSheetImageImportDraft> labelSheetAnalyzeImageWithGemini(
     'sourceMime=${request.mimeType} sourceBytes=${request.imageBytes.lengthInBytes} '
     'uploadMime=${uploadImage.mimeType} uploadBytes=${uploadImage.bytes.lengthInBytes} '
     'uploadBase64Chars=${uploadImageBase64.length} '
-    'resized=${uploadImage.resized} '
+    'reencoded=${uploadImage.reencoded} resized=${uploadImage.resized} '
     'sourcePixels=${uploadImage.sourceWidth}x${uploadImage.sourceHeight} '
     'uploadPixels=${uploadImage.uploadWidth}x${uploadImage.uploadHeight} '
     'promptChars=${prompt.length} timeoutSec=${_labelSheetGeminiRequestTimeout.inSeconds} '
@@ -377,6 +377,7 @@ _LabelSheetGeminiUploadImage _geminiUploadImagePayload(
     return _LabelSheetGeminiUploadImage(
       bytes: imageBytes,
       mimeType: mimeType,
+      reencoded: false,
       resized: false,
       sourceWidth: null,
       sourceHeight: null,
@@ -387,13 +388,14 @@ _LabelSheetGeminiUploadImage _geminiUploadImagePayload(
 
   final longestSide = math.max(decoded.width, decoded.height);
   final shouldResize = longestSide > _labelSheetGeminiMaxUploadImageDimension;
-    final shouldReencode =
+  final shouldReencode =
       shouldResize ||
       imageBytes.lengthInBytes > _labelSheetGeminiMaxUploadImageBytes;
   if (!shouldReencode) {
     return _LabelSheetGeminiUploadImage(
       bytes: imageBytes,
       mimeType: mimeType,
+      reencoded: false,
       resized: false,
       sourceWidth: decoded.width,
       sourceHeight: decoded.height,
@@ -425,6 +427,7 @@ _LabelSheetGeminiUploadImage _geminiUploadImagePayload(
     return _LabelSheetGeminiUploadImage(
       bytes: imageBytes,
       mimeType: mimeType,
+      reencoded: false,
       resized: false,
       sourceWidth: decoded.width,
       sourceHeight: decoded.height,
@@ -435,7 +438,8 @@ _LabelSheetGeminiUploadImage _geminiUploadImagePayload(
   return _LabelSheetGeminiUploadImage(
     bytes: encoded,
     mimeType: 'image/jpeg',
-    resized: true,
+    reencoded: true,
+    resized: shouldResize,
     sourceWidth: decoded.width,
     sourceHeight: decoded.height,
     uploadWidth: uploadImage.width,
@@ -447,6 +451,7 @@ class _LabelSheetGeminiUploadImage {
   const _LabelSheetGeminiUploadImage({
     required this.bytes,
     required this.mimeType,
+    required this.reencoded,
     required this.resized,
     required this.sourceWidth,
     required this.sourceHeight,
@@ -456,6 +461,7 @@ class _LabelSheetGeminiUploadImage {
 
   final Uint8List bytes;
   final String mimeType;
+  final bool reencoded;
   final bool resized;
   final int? sourceWidth;
   final int? sourceHeight;

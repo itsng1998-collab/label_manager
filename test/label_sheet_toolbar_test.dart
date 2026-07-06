@@ -3713,7 +3713,7 @@ ${backslash}trowd${backslash}cellx2000${backslash}pard${backslash}intbl{${backsl
     },
   );
 
-  test('Gemini request downsizes large source images before upload', () async {
+  test('Gemini request keeps OCR-sized source images without upload compression', () async {
     final sheet = FortuneSheet(
       id: 's1',
       name: 'Label',
@@ -3730,11 +3730,12 @@ ${backslash}trowd${backslash}cellx2000${backslash}pard${backslash}intbl{${backsl
       final contents = body['contents'] as List;
       final parts = (contents.single as Map)['parts'] as List;
       final inlineData = (parts.last as Map)['inlineData'] as Map;
-      expect(inlineData['mimeType'], 'image/jpeg');
+      expect(inlineData['mimeType'], 'image/png');
       final uploadedBytes = base64Decode(inlineData['data'] as String);
+      expect(uploadedBytes, sourceBytes);
       final uploadedImage = imglib.decodeImage(uploadedBytes)!;
-      expect(uploadedImage.width, 1600);
-      expect(uploadedImage.height, 800);
+      expect(uploadedImage.width, 2400);
+      expect(uploadedImage.height, 1200);
       return http.Response(
         jsonEncode({
           'candidates': [
@@ -3746,7 +3747,7 @@ ${backslash}trowd${backslash}cellx2000${backslash}pard${backslash}intbl{${backsl
                       'columnsMm': [100],
                       'rowsMm': [60],
                       'cells': [
-                        {'row': 0, 'column': 0, 'text': 'RESIZED'},
+                        {'row': 0, 'column': 0, 'text': 'KEPT'},
                       ],
                       'sourceImage': {'keep': false},
                     }),
@@ -3773,7 +3774,70 @@ ${backslash}trowd${backslash}cellx2000${backslash}pard${backslash}intbl{${backsl
       ),
     );
 
-    expect(draft.cells[const FortuneCellCoord(0, 0)]?.value, 'RESIZED');
+    expect(draft.cells[const FortuneCellCoord(0, 0)]?.value, 'KEPT');
+  });
+
+  test('Gemini request downsizes oversized source images for upload', () async {
+    final sheet = FortuneSheet(
+      id: 's1',
+      name: 'Label',
+      extraFields: const {
+        fortuneSheetGridClientWidthMmKey: 100,
+        fortuneSheetGridClientHeightMmKey: 60,
+      },
+    );
+    final sourceImage = imglib.Image(width: 3200, height: 1600)
+      ..clear(imglib.ColorRgb8(255, 255, 255));
+    final sourceBytes = Uint8List.fromList(imglib.encodePng(sourceImage));
+    final client = MockClient((request) async {
+      final body = jsonDecode(request.body) as Map;
+      final contents = body['contents'] as List;
+      final parts = (contents.single as Map)['parts'] as List;
+      final inlineData = (parts.last as Map)['inlineData'] as Map;
+      expect(inlineData['mimeType'], 'image/jpeg');
+      final uploadedBytes = base64Decode(inlineData['data'] as String);
+      final uploadedImage = imglib.decodeImage(uploadedBytes)!;
+      expect(uploadedImage.width, 2400);
+      expect(uploadedImage.height, 1200);
+      return http.Response(
+        jsonEncode({
+          'candidates': [
+            {
+              'content': {
+                'parts': [
+                  {
+                    'text': jsonEncode({
+                      'columnsMm': [100],
+                      'rowsMm': [60],
+                      'cells': [
+                        {'row': 0, 'column': 0, 'text': 'DOWNSIZED'},
+                      ],
+                      'sourceImage': {'keep': false},
+                    }),
+                  },
+                ],
+              },
+            },
+          ],
+        }),
+        200,
+      );
+    });
+
+    final draft = await labelSheetAnalyzeImageWithGemini(
+      LabelSheetGeminiImportRequest(
+        apiKey: 'test-api-key-1234',
+        model: 'gemini-2.5-flash',
+        prompt: '',
+        imageBytes: sourceBytes,
+        mimeType: 'image/png',
+        fileName: 'large-label.png',
+        sheet: sheet,
+        client: client,
+      ),
+    );
+
+    expect(draft.cells[const FortuneCellCoord(0, 0)]?.value, 'DOWNSIZED');
   });
 
   test('Gemini image-only response is rejected', () async {
