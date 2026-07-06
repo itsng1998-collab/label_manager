@@ -252,6 +252,7 @@ class _FortuneRichTextEditingController extends TextEditingController {
   List<FortuneInlineTextRun> _runs = const <FortuneInlineTextRun>[];
   bool _hasInlineRuns = false;
   bool _replacingValue = false;
+  double textScale = 1.0;
   String Function(String? raw, TextStyle baseStyle)? fontFamilyResolver;
 
   bool get hasInlineRuns => _hasInlineRuns && _runs.isNotEmpty;
@@ -687,7 +688,7 @@ class _FortuneRichTextEditingController extends TextEditingController {
   ) {
     final explicitShift = _inlineRunDoubleExtra(run, 'rtfBaselineShiftPt');
     if (explicitShift != null && explicitShift.isFinite && explicitShift != 0) {
-      return -explicitShift;
+      return -explicitShift * textScale;
     }
     return _scriptBaselineShift(baseStyle, run, script);
   }
@@ -708,7 +709,7 @@ class _FortuneRichTextEditingController extends TextEditingController {
     final scaledFontSize = run.fontSize;
     final baseFontSize = scaledFontSize == null
         ? baseStyle.fontSize ?? 10
-        : scaledFontSize / fortuneInlineScriptFontSizeScale;
+        : scaledFontSize * textScale / fortuneInlineScriptFontSizeScale;
     return switch (script) {
       'superscript' =>
         baseFontSize * fortuneInlineSuperscriptBaselineShiftScale,
@@ -724,7 +725,10 @@ class _FortuneRichTextEditingController extends TextEditingController {
   }) {
     final lineHeight = _inlineRunDoubleExtra(run, 'lineHeight');
     final smallCaps = run.extraFields['rtfSmallCaps'] == true;
-    final fontSize = run.fontSize ?? baseStyle.fontSize;
+    final fontSize = run.fontSize == null
+      ? baseStyle.fontSize
+      : run.fontSize! * textScale;
+    final letterSpacing = _inlineRunDoubleExtra(run, 'letterSpacing');
     return baseStyle.copyWith(
       color: run.foreground ?? baseStyle.color,
       backgroundColor:
@@ -735,7 +739,7 @@ class _FortuneRichTextEditingController extends TextEditingController {
           : run.fontSize == null
           ? baseStyle.height
           : 1.2,
-      letterSpacing: _inlineRunDoubleExtra(run, 'letterSpacing'),
+      letterSpacing: letterSpacing == null ? null : letterSpacing * textScale,
       fontFamily: _normalizedRunFontFamily(run.fontFamily, baseStyle),
       fontWeight: run.bold == null
           ? baseStyle.fontWeight
@@ -43164,8 +43168,12 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       return const SizedBox.shrink();
     }
     final settings = _workbook.settings;
-    final cell = _workbook.activeSheet.cells[coord];
+    final sheet = _workbook.activeSheet;
+    final cell = sheet.cells[coord];
     final fontSize = cell?.fontSize ?? settings.defaultFontSize;
+    final zoomRatio = sheet.zoomRatio <= 0 ? 1.0 : sheet.zoomRatio;
+    final scaledFontSize = fontSize * zoomRatio;
+    _editorController.textScale = zoomRatio;
     _editorController.fontFamilyResolver = (raw, baseStyle) {
       return fortuneResolveFontFamily(
         raw,
@@ -43201,7 +43209,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
                 undoController: _editorUndoController,
                 style: TextStyle(
                   color: cell?.foreground ?? const Color(0xff000000),
-                  fontSize: fontSize,
+                  fontSize: scaledFontSize,
                   fontFamily: cell == null
                       ? 'Arial'
                       : _resolvedCellFontFamily(cell),
@@ -43225,7 +43233,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
                 rendererIgnoresPointer: true,
                 maxLines: null,
                 scrollController: _editorScrollController,
-                strutStyle: StrutStyle(fontSize: fontSize, height: 1.2),
+                strutStyle: StrutStyle(fontSize: scaledFontSize, height: 1.2),
                 keyboardType: TextInputType.multiline,
                 textInputAction: TextInputAction.newline,
                 onSubmitted: (_) {

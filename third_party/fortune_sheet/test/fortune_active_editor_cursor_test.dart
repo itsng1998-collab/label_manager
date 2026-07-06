@@ -36,4 +36,43 @@ void main() {
     final editable = tester.widget<EditableText>(find.byType(EditableText));
     expect(editable.cursorColor, const Color(0xff000000));
   });
+
+  testWidgets('active cell editor font follows sheet zoom', (tester) async {
+    final workbook = FortuneWorkbook(
+      sheets: [
+        FortuneSheet(
+          id: 's1',
+          name: 'Sheet1',
+          zoomRatio: 2,
+          cells: {
+            const FortuneCellCoord(0, 0): const FortuneCell(
+              value: 'A1',
+              fontSize: 8,
+            ),
+          },
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: SizedBox(
+          width: 640,
+          height: 360,
+          child: FortuneSheetCanvas(workbook: workbook),
+        ),
+      ),
+    );
+
+    final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
+    await tester.tapAt(topLeft + const Offset(83, 100));
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.f2);
+    await tester.pump();
+
+    final editable = tester.widget<EditableText>(find.byType(EditableText));
+    expect(editable.style.fontSize, 16);
+    expect(editable.strutStyle.fontSize, 16);
+  });
 }

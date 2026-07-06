@@ -28,6 +28,15 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-06): 확대 상태 셀 편집기 스케일 적용
+
+- 목적: 공용라벨관리 조정 시트에서 200% 등 확대 상태로 셀 편집에 진입하면 완료된 셀 텍스트와 동일하게 편집 중 텍스트도 확대 배율이 적용되도록 한다.
+- 변경 완료: `fortune_sheet_canvas.dart`의 셀 편집 `EditableText`가 활성 시트 `zoomRatio`를 일반 fontSize/strutStyle에 반영하고, inlineRuns 페인트 시 run별 fontSize/letterSpacing/baseline shift에도 같은 배율을 적용하도록 했다.
+- 테스트 추가: `fortune_active_editor_cursor_test.dart`에 `zoomRatio: 2`, `fontSize: 8` 셀이 편집 상태에서 `EditableText`/`StrutStyle` fontSize 16으로 표시되는 회귀 테스트를 추가했다.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_active_editor_cursor_test.dart` 결과 2개 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze third_party\fortune_sheet\lib\src\fortune_sheet_canvas.dart third_party\fortune_sheet\test\fortune_active_editor_cursor_test.dart --no-fatal-warnings --no-fatal-infos` 결과 `No issues found`.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`, `third_party/fortune_sheet/test/fortune_active_editor_cursor_test.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
+
 ### 완료 (2026-07-06): 공용라벨 조정 시트 로드 확대율 표시 동기화
 
 - 목적: 공용라벨관리 조정 시트가 DB 저장 workbook의 `zoomRatio`로 실제 시트를 확대/축소해 렌더링하지만, 우상단 확대/축소 입력이 기본값 `100%`로 남는 문제를 수정한다.
