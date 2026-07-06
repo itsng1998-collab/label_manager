@@ -28,6 +28,15 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-06): 라벨 이미지 임시 XLSX 파일 가져오기 경로 단순화
+
+- 목적: `라벨 이미지 가져오기` AI 자동 적용 경로를 실제 OS 임시 폴더 `.xlsx` 파일 생성 후 수동 `라벨 파일 가져오기`와 같은 파일 가져오기 helper를 호출하는 구조로 단순화한다.
+- 수정 예정: `label_sheet_workbench.dart`에서 picker 수동 가져오기와 AI 임시 XLSX 가져오기가 `_importLabelFileFromXFile` 단일 경로를 사용하도록 정리한다.
+- 변경 완료: `label_sheet_workbench.dart`에서 수동 `라벨 파일 가져오기`와 AI 임시 XLSX 자동 가져오기가 모두 `_importLabelFileFromXFile(XFile)`을 호출하도록 정리했다. AI 경로는 OS 임시 폴더에 `.xlsx` 파일을 만든 뒤 해당 파일 경로의 `XFile`을 같은 helper에 전달한다.
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze lib\page_label_sheet\label_sheet_workbench.dart --no-fatal-warnings --no-fatal-infos` 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_xlsx_import_test.dart` 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --name "Gemini JSON response is converted to a sheet draft"` 통과.
+
 ### 완료 (2026-07-06): 라벨 이미지 가져오기 Gemini XLSX 자동 가져오기
 
 - 목적: `라벨 이미지 가져오기`의 AI 분석 적용 경로를 Gemini 결과 직접 시트 적용이 아니라 OS 임시 폴더 XLSX 생성 후 기존 `라벨 파일 가져오기` XLSX 로드 경로 자동 적용으로 변경한다.

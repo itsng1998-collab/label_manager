@@ -3,8 +3,8 @@ import 'dart:io';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
-import 'package:file_selector/file_selector.dart';
 import 'package:dropdown_button2/dropdown_button2.dart';
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart' as widgets;
@@ -2659,6 +2659,15 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       'pathExt=${p.extension(file.path)} nameExt=${p.extension(file.name)}',
       skipFrames: 1,
     );
+    await _importLabelFileFromXFile(file, prefs: prefs);
+  }
+
+  Future<void> _importLabelFileFromXFile(
+    XFile file, {
+    SharedPreferences? prefs,
+    bool updateImportDirectory = true,
+    String? successMessage,
+  }) async {
     FortuneWorkbook importedWorkbook;
     try {
       importedWorkbook = await _readImportedLabelWorkbook(file);
@@ -2694,6 +2703,8 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       fileName: file.name,
       filePath: file.path,
       prefs: prefs,
+      updateImportDirectory: updateImportDirectory,
+      successMessage: successMessage,
     );
   }
 
