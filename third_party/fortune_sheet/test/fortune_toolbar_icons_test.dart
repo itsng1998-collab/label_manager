@@ -638,6 +638,7 @@ void main() {
       fortuneContextCellFormatCommand,
       fortuneToolbarImageCommand,
       fortuneToolbarBarcodeCommand,
+      fortuneContextImportLabelImageCommand,
       fortuneContextEditImageCommand,
       fortuneContextEditBarcodeCommand,
       fortuneContextToggleLayerPanelCommand,

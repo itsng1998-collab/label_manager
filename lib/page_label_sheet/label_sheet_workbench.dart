@@ -29,7 +29,6 @@ import 'package:printing/printing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 bool labelSheetWriteRtfOpenXmlTestFileEnabled = false;
-const String labelSheetImportImageToolbarCommand = 'label-sheet-import-image';
 const String labelSheetSaveToolbarCommand = 'label-sheet-save';
 const String labelSheetPrintToolbarCommand = 'label-sheet-print';
 const int labelSheetDefaultZoomPercent = 100;
@@ -126,11 +125,28 @@ const Set<String> labelSheetHiddenContextMenuItems = {
   fortuneFilterSortDescCommand,
 };
 
-List<String> labelSheetContextMenuItems(List<String> base) {
-  final visible = fortuneMenuItemsWithout(
+List<String> labelSheetContextMenuItems(
+  List<String> base, {
+  bool includeImportLabelImage = false,
+}) {
+  var visible = fortuneMenuItemsWithout(
     base,
     labelSheetHiddenContextMenuItems,
   );
+  if (includeImportLabelImage &&
+      !visible.contains(fortuneContextImportLabelImageCommand)) {
+    final loadCommonLabelIndex = visible.indexOf(
+      fortuneContextLoadCommonLabelCommand,
+    );
+    final insertIndex = loadCommonLabelIndex < 0
+        ? visible.length
+        : loadCommonLabelIndex + 1;
+    visible = [
+      ...visible.take(insertIndex),
+      fortuneContextImportLabelImageCommand,
+      ...visible.skip(insertIndex),
+    ];
+  }
   if (visible.contains(fortuneToolbarBarcodeCommand)) {
     return visible;
   }
@@ -1601,12 +1617,27 @@ FortuneSettings labelSheetSettings(
         },
       ),
     ],
-    cellContextMenu: labelSheetContextMenuItems(base.cellContextMenu),
-    headerContextMenu: labelSheetContextMenuItems(base.headerContextMenu),
+    cellContextMenu: labelSheetContextMenuItems(
+      base.cellContextMenu,
+      includeImportLabelImage: true,
+    ),
+    headerContextMenu: labelSheetContextMenuItems(
+      base.headerContextMenu,
+      includeImportLabelImage: true,
+    ),
     sheetTabContextMenu: labelSheetContextMenuItems(base.sheetTabContextMenu),
     filterContextMenu: labelSheetContextMenuItems(base.filterContextMenu),
     onDialogVisibilityChanged: onDialogVisibilityChanged,
     onContextMenuCommand: (command) {
+      if (command == fortuneContextImportLabelImageCommand) {
+        final callback = onImportLabelImage;
+        if (callback == null) {
+          fortuneSheetDebugLog('label sheet import image context click');
+          return null;
+        }
+        callback();
+        return null;
+      }
       if (command == fortuneContextImportLabelFileCommand) {
         final callback = onImportLabelFile;
         if (callback == null) {

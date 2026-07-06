@@ -904,6 +904,7 @@ class FortuneSheetLocale {
       'chart': 'Create chart',
       'image': 'Insert image',
       'barcode': 'Insert barcode',
+      'label-sheet-import-image': 'Import label image',
       'edit-image': 'Edit image',
       'edit-barcode': 'Edit barcode',
       'toggle-layer-panel': 'Layers',
@@ -1676,6 +1677,7 @@ class FortuneSheetLocale {
       'chart': '차트 만들기',
       'image': '이미지 삽입',
       'barcode': '바코드 삽입',
+      'label-sheet-import-image': '라벨 이미지 가져오기',
       'edit-image': '이미지 수정',
       'edit-barcode': '바코드 수정',
       'toggle-layer-panel': '레이어',
@@ -2429,6 +2431,7 @@ const String fortuneContextShowRulerCommand = 'show-ruler';
 const String fortuneContextInsertAutoIngredientTableCommand =
     'insert-auto-ingredient-table';
 const String fortuneContextLoadCommonLabelCommand = 'load-common-label';
+const String fortuneContextImportLabelImageCommand = 'label-sheet-import-image';
 const String fortuneContextImportLabelFileCommand = 'import-label-file';
 const String fortuneContextExportLabelFileCommand = 'export-label-file';
 
@@ -42555,6 +42558,7 @@ bool fortuneContextMenuItemIsRenderedByUpstream(String item) {
     fortuneToolbarFilterCommand ||
     fortuneToolbarImageCommand ||
     fortuneToolbarBarcodeCommand ||
+    fortuneContextImportLabelImageCommand ||
     fortuneContextEditImageCommand ||
     fortuneContextEditBarcodeCommand ||
     fortuneContextDeleteImageCommand ||

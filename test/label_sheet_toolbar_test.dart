@@ -112,7 +112,7 @@ void main() {
     expect(settings.toolbarItems, isNot(contains(fortuneToolbarRedoCommand)));
     expect(
       settings.toolbarItems,
-      isNot(contains(labelSheetImportImageToolbarCommand)),
+      isNot(contains(fortuneContextImportLabelImageCommand)),
     );
     expect(settings.customToolbarItems, hasLength(2));
     expect(settings.customToolbarItems[0].children, isNull);
@@ -133,13 +133,53 @@ void main() {
       hasLength(1),
     );
     expect(
-      items.where((item) => item == labelSheetImportImageToolbarCommand),
+      items.where((item) => item == fortuneContextImportLabelImageCommand),
       isEmpty,
     );
     expect(
       items.where((item) => item == labelSheetSaveToolbarCommand),
       hasLength(1),
     );
+  });
+
+  test('label sheet context menu exposes AI image import', () {
+    var importClicked = false;
+    final settings = labelSheetSettings(
+      const FortuneSettings(),
+      onImportLabelImage: () {
+        importClicked = true;
+      },
+    );
+
+    expect(
+      settings.cellContextMenu,
+      contains(fortuneContextImportLabelImageCommand),
+    );
+    expect(
+      settings.headerContextMenu,
+      contains(fortuneContextImportLabelImageCommand),
+    );
+    expect(
+      settings.sheetTabContextMenu,
+      isNot(contains(fortuneContextImportLabelImageCommand)),
+    );
+    expect(
+      settings.filterContextMenu,
+      isNot(contains(fortuneContextImportLabelImageCommand)),
+    );
+    expect(
+      fortuneContextRenderableMenuItems(settings.cellContextMenu),
+      contains(fortuneContextImportLabelImageCommand),
+    );
+    expect(
+      FortuneSheetLocale.korean
+          .contextMenuLabels[fortuneContextImportLabelImageCommand],
+      '라벨 이미지 가져오기',
+    );
+
+    settings.onContextMenuCommand!(fortuneContextImportLabelImageCommand);
+
+    expect(importClicked, isTrue);
   });
 
   test('label sheet workbook save payload round trips through base64 zip', () {
