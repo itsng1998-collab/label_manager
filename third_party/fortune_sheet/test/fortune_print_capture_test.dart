@@ -21,6 +21,32 @@ bool _isWhite(ByteData pixels, int width, int x, int y) {
       pixels.getUint8(offset + 2) > 245;
 }
 
+bool _isBlack(ByteData pixels, int width, int x, int y) {
+  final offset = (y * width + x) * 4;
+  return pixels.getUint8(offset) < 32 &&
+      pixels.getUint8(offset + 1) < 32 &&
+      pixels.getUint8(offset + 2) < 32;
+}
+
+bool _hasDarkPixelNear(ByteData pixels, int width, int height, int x, int y) {
+  for (var dy = -2; dy <= 2; dy += 1) {
+    final py = y + dy;
+    if (py < 0 || py >= height) {
+      continue;
+    }
+    for (var dx = -2; dx <= 2; dx += 1) {
+      final px = x + dx;
+      if (px < 0 || px >= width) {
+        continue;
+      }
+      if (_isBlack(pixels, width, px, py)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 void main() {
   testWidgets('print capture excludes grid lines ruler guides and boundary', (
     tester,
@@ -122,5 +148,94 @@ void main() {
     expect(_isWhite(pixels, width, width ~/ 4, centerY), isTrue);
     expect(_isWhite(pixels, width, 0, centerY), isTrue);
     expect(_isWhite(pixels, width, centerX, 0), isTrue);
+  });
+
+  testWidgets('print capture includes cell borders when requested', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(240, 180);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    final controller = FortuneSheetController();
+    final workbook = FortuneWorkbook(
+      settings: const FortuneSettings(
+        defaultRowHeight: 20,
+        defaultColWidth: 20,
+      ),
+      sheets: [
+        FortuneSheet(
+          id: 's1',
+          name: 'Sheet1',
+          rowCount: 2,
+          columnCount: 2,
+          showGridLines: true,
+          borderInfo: [
+            FortuneBorderInfo(
+              rangeType: 'range',
+              borderType: 'border-all',
+              color: ui.Color(0xff000000),
+              style: 1,
+              ranges: [
+                FortuneRange(
+                  rowStart: 0,
+                  rowEnd: 1,
+                  columnStart: 0,
+                  columnEnd: 1,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: SizedBox(
+          width: 240,
+          height: 180,
+          child: FortuneSheetCanvas(
+            workbook: workbook,
+            controller: controller,
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final capture = await tester.runAsync(
+      () => controller.captureRangeAsPng(
+        const FortuneRange(
+          rowStart: 0,
+          rowEnd: 1,
+          columnStart: 0,
+          columnEnd: 1,
+        ),
+        pixelRatio: 1,
+        includeGridLines: false,
+        includeCellBorders: true,
+        includeRulerGuides: false,
+        includeLabelAreaBoundary: false,
+      ),
+    );
+
+    expect(capture, isNotNull);
+    final pixels = await tester.runAsync(() => _decodeRawRgba(capture!.pngBytes));
+    final width = capture!.pixelSize.width.toInt();
+    final height = capture.pixelSize.height.toInt();
+
+    expect(
+      _hasDarkPixelNear(pixels!, width, height, width ~/ 2, height ~/ 4),
+      isTrue,
+    );
+    expect(
+      _hasDarkPixelNear(pixels, width, height, width ~/ 4, height ~/ 2),
+      isTrue,
+    );
   });
 }

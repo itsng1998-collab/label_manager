@@ -2274,7 +2274,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       _labelSheetPrintRange(sheet, physicalSize),
       pixelRatio: dpi / fortuneSheetLogicalPixelsPerInch,
       includeGridLines: false,
-      includeCellBorders: false,
+      includeCellBorders: true,
       includeRulerGuides: false,
       includeLabelAreaBoundary: false,
     );

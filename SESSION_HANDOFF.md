@@ -28,6 +28,17 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-06): PDF 출력 셀 테두리 누락 수정
+
+- 목적: 공용라벨관리 PDF 출력 결과에서 셀 테두리가 누락되는 원인을 확인하고 수정한다.
+- 원인: `LabelSheetWorkbench._handleIssuePrintSettings`가 PDF/EZPL fallback용 PNG를 생성할 때 `captureRangeAsPng(... includeCellBorders: false ...)`로 호출해 셀 테두리를 캡처 이미지에서 제외했다.
+- 변경 완료: `label_sheet_workbench.dart`의 인쇄 캡처 옵션을 `includeCellBorders: true`로 변경해 PDF/일반 출력용 PNG에 셀 테두리가 포함되도록 했다.
+- 테스트 추가: `third_party/fortune_sheet/test/fortune_print_capture_test.dart`에 `includeCellBorders: true`일 때 캡처 PNG에 셀 테두리 픽셀이 포함되는 회귀 테스트를 추가했다.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_print_capture_test.dart` 결과 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze lib\page_label_sheet\label_sheet_workbench.dart third_party\fortune_sheet\test\fortune_print_capture_test.dart --no-fatal-warnings --no-fatal-infos` 결과 `No issues found`.
+- 검증 완료: `git diff --check -- SESSION_HANDOFF.md lib/page_label_sheet/label_sheet_workbench.dart third_party/fortune_sheet/test/fortune_print_capture_test.dart` 출력 없음. VS Code diagnostics 결과 수정 파일 오류 없음.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `lib/page_label_sheet/label_sheet_workbench.dart`, `third_party/fortune_sheet/test/fortune_print_capture_test.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
+
 ### 완료 (2026-07-06): 공용라벨 저장 전 필수 항목 누락 검증
 
 - 목적: 공용라벨관리 저장 확인 후 DB 저장 전에 특별/사용 항목 중 필수 등록 체크된 키워드가 시트 셀 내용, 이미지 ID, 바코드 ID 어디에도 없으면 누락 항목명 알림을 띄우고 저장을 중단한다.
