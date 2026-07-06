@@ -43,6 +43,7 @@
 - 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`).
 - 검증 완료: `test\label_sheet_toolbar_test.dart`, `test\common_label_manage_test.dart`, `test\swipe_action_table_test.dart` 총 83개 통과.
 - 검증 완료: `git diff --check -- lib/home_page_manager.dart lib/page_label_sheet/label_sheet_workbench.dart third_party/fortune_sheet/lib/src/fortune_sheet_model.dart third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart test/label_sheet_toolbar_test.dart SESSION_HANDOFF.md` 통과.
+- 커밋 완료: `28233c6` 품목관리 주원료 시트 편집 모드 분리.
 
 ### 진행 중 (2026-07-06): 품목관리 플로팅 창 닫기/탭 스타일 보정
 
