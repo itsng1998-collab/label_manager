@@ -8058,10 +8058,16 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   }
 
   double _sheetDataTop(FortuneSettings settings) {
+    if (settings.hideRowColumnHeaderLabels) {
+      return _sheetRulerTopInset(settings);
+    }
     return _sheetHeaderTop(settings) + settings.columnHeaderHeight;
   }
 
   double _sheetDataLeft(FortuneSettings settings) {
+    if (settings.hideRowColumnHeaderLabels) {
+      return _sheetRulerLeftInset(settings);
+    }
     return _sheetHeaderLeft(settings) + settings.rowHeaderWidth;
   }
 

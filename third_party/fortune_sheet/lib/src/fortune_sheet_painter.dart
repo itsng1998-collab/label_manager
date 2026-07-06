@@ -63062,13 +63062,13 @@ class FortuneSheetPainter extends CustomPainter {
     _drawHorizontalSheetRuler(
       canvas,
       topRuler,
-      _sheetRulerLogicalPixelsToMillimeters(metrics.columnTotalWidth),
+      _sheetRulerLogicalPixelsToMillimeters(dataRect.width + scrollOffset.dx),
       scrollOffset.dx,
     );
     _drawVerticalSheetRuler(
       canvas,
       leftRuler,
-      _sheetRulerLogicalPixelsToMillimeters(metrics.rowTotalHeight),
+      _sheetRulerLogicalPixelsToMillimeters(dataRect.height + scrollOffset.dy),
       scrollOffset.dy,
     );
     _drawSheetGuides(canvas, dataRect, metrics);
@@ -63545,10 +63545,16 @@ class FortuneSheetPainter extends CustomPainter {
   }
 
   double _sheetDataTop(FortuneSettings settings) {
+    if (settings.hideRowColumnHeaderLabels) {
+      return _sheetRulerTopInset(settings);
+    }
     return _sheetHeaderTop(settings) + settings.columnHeaderHeight;
   }
 
   double _sheetDataLeft(FortuneSettings settings) {
+    if (settings.hideRowColumnHeaderLabels) {
+      return _sheetRulerLeftInset(settings);
+    }
     return _sheetHeaderLeft(settings) + settings.rowHeaderWidth;
   }
 
@@ -63694,6 +63700,9 @@ class FortuneSheetPainter extends CustomPainter {
     FortuneSettings settings,
     FortuneSheetMetrics metrics,
   ) {
+    if (settings.hideRowColumnHeaderLabels) {
+      return;
+    }
     final headerPaint = Paint()..color = fortuneSheetHeaderBackgroundColor;
     final filterColumns = _filterColumns(workbook.activeSheet);
     final activeFilterColumns = _activeFilterColumns(workbook.activeSheet);

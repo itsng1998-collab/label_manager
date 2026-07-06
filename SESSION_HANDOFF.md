@@ -28,6 +28,19 @@
 
 ## 현재 상태
 
+### 진행 중 (2026-07-07): 품목관리 주원료 탭 헤더 영역 제거/눈금자 확장
+
+- 수정 예정: 품목관리 `주원료 및 함량` 탭에서 눈금자는 유지하되 숨긴 행/열 헤더의 빈 영역을 제거하고, 눈금자 tick을 클라이언트 데이터 영역 끝까지 그린다.
+- 편집 완료: `fortune_sheet_painter.dart`/`fortune_sheet_canvas.dart`에서 `hideRowColumnHeaderLabels`가 켜진 경우 `_sheetDataTop/_sheetDataLeft`가 헤더 크기를 더하지 않도록 변경했다.
+- 편집 완료: `fortune_sheet_painter.dart`에서 `hideRowColumnHeaderLabels`가 켜지면 `_drawHeaders`를 건너뛰고, 눈금자 tick 최대 범위를 셀 총 크기가 아닌 현재 data viewport 끝까지 확장했다.
+- 검증 예정: `dart format`, `C:\Flutter\bin\flutter.bat analyze`, 주원료 설정/viewport 관련 집중 테스트, 관련 공용/테이블 테스트, `git diff --check`.
+- 검증 완료: `dart format` 실행.
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`).
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "label sheet settings can isolate item element editing mode"` 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "single cell viewport fit keeps visible size across zoom"` 통과.
+- 검증 완료: `test\common_label_manage_test.dart`, `test\swipe_action_table_test.dart` 총 4개 통과.
+- 주의: unrelated 변경 `lib/core/app.dart`는 제외한다.
+
 ### 진행 중 (2026-07-07): 품목관리 주원료 탭 눈금자/인쇄영역 복원
 
 - 수정 예정: 품목관리 플로팅 창 `주원료 및 함량` 탭에만 행/열 눈금자와 교차 영역 `w*h` 라벨을 표시하고, 행/열 헤더 라벨은 숨긴다.
