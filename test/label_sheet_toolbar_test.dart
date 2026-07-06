@@ -1658,18 +1658,14 @@ void main() {
     expect(missing, ['가격']);
   });
 
-  test('GitHub Copilot Chat model menu includes additional model choices', () {
-    final modelIds = labelSheetCopilotModels
+  test('Gemini model menu includes supported model choices', () {
+    final modelIds = labelSheetGeminiModels
         .map((model) => model.modelId)
         .toSet();
 
-    expect(modelIds, contains('openai/gpt-4.1'));
-    expect(modelIds, contains('openai/gpt-4.1-mini'));
-    expect(modelIds, contains('openai/gpt-4.1-nano'));
-    expect(modelIds, contains('openai/gpt-4o'));
-    expect(modelIds, contains('openai/gpt-4o-mini'));
-    expect(modelIds, contains('openai/o4-mini'));
-    expect(modelIds, contains('openai/o3'));
+    expect(modelIds, contains('gemini-2.5-flash'));
+    expect(modelIds, contains('gemini-2.5-pro'));
+    expect(modelIds, contains('gemini-2.0-flash'));
   });
 
   test('label sheet image import analysis creates an adjusted draft', () {
@@ -2861,7 +2857,7 @@ void main() {
     expect(imported.images.single.extraFields['labelAiImport'], isTrue);
   });
 
-  test('GitHub Copilot Chat prompt includes source aspect fit guidance', () {
+  test('Gemini prompt includes source aspect fit guidance', () {
     final image = imglib.Image(width: 200, height: 100);
     imglib.fill(image, color: imglib.ColorRgb8(255, 255, 255));
     final sheet = FortuneSheet(
@@ -2873,7 +2869,7 @@ void main() {
       },
     );
 
-    final prompt = labelSheetCopilotPrompt(
+    final prompt = labelSheetGeminiPrompt(
       sheet: sheet,
       imageBytes: Uint8List.fromList(imglib.encodePng(image)),
       fileName: 'wide-label.png',
@@ -3648,7 +3644,7 @@ ${backslash}trowd${backslash}cellx2000${backslash}pard${backslash}intbl{${backsl
   });
 
   test(
-    'GitHub Copilot Chat JSON response is converted to a sheet draft',
+    'Gemini JSON response is converted to a sheet draft',
     () async {
       final sheet = FortuneSheet(
         id: 's1',
@@ -3660,27 +3656,34 @@ ${backslash}trowd${backslash}cellx2000${backslash}pard${backslash}intbl{${backsl
       );
       final client = MockClient((request) async {
         final body = jsonDecode(request.body) as Map;
-        expect(body['model'], 'openai/gpt-4.1');
-        expect(body['messages'], isA<List>());
+        expect(request.url.host, 'generativelanguage.googleapis.com');
+        expect(request.url.path, '/v1beta/models/gemini-2.5-flash:generateContent');
+        expect(request.url.queryParameters['key'], 'test-api-key-1234');
+        expect(body['contents'], isA<List>());
+        expect(body['generationConfig'], containsPair('responseMimeType', 'application/json'));
         return http.Response(
           jsonEncode({
-            'choices': [
+            'candidates': [
               {
-                'message': {
-                  'content': jsonEncode({
-                    'columnsMm': [40, 60],
-                    'rowsMm': [20, 40],
-                    'cells': [
-                      {'row': 0, 'column': 0, 'text': 'COPILOT'},
-                    ],
-                    'sourceImage': {
-                      'keep': true,
-                      'xMm': 0,
-                      'yMm': 0,
-                      'widthMm': 100,
-                      'heightMm': 60,
+                'content': {
+                  'parts': [
+                    {
+                      'text': jsonEncode({
+                        'columnsMm': [40, 60],
+                        'rowsMm': [20, 40],
+                        'cells': [
+                          {'row': 0, 'column': 0, 'text': 'GEMINI'},
+                        ],
+                        'sourceImage': {
+                          'keep': true,
+                          'xMm': 0,
+                          'yMm': 0,
+                          'widthMm': 100,
+                          'heightMm': 60,
+                        },
+                      }),
                     },
-                  }),
+                  ],
                 },
               },
             ],
@@ -3690,10 +3693,10 @@ ${backslash}trowd${backslash}cellx2000${backslash}pard${backslash}intbl{${backsl
         );
       });
 
-      final draft = await labelSheetAnalyzeImageWithCopilot(
-        LabelSheetCopilotImportRequest(
-          token: 'test-token-1234',
-          model: 'openai/gpt-4.1',
+      final draft = await labelSheetAnalyzeImageWithGemini(
+        LabelSheetGeminiImportRequest(
+          apiKey: 'test-api-key-1234',
+          model: 'gemini-2.5-flash',
           prompt: 'convert',
           imageBytes: Uint8List.fromList([1, 2, 3]),
           mimeType: 'image/png',
@@ -3705,12 +3708,12 @@ ${backslash}trowd${backslash}cellx2000${backslash}pard${backslash}intbl{${backsl
 
       expect(draft.columnWidths, hasLength(2));
       expect(draft.rowHeights, hasLength(2));
-      expect(draft.cells[const FortuneCellCoord(0, 0)]?.value, 'COPILOT');
+      expect(draft.cells[const FortuneCellCoord(0, 0)]?.value, 'GEMINI');
       expect(draft.images, isEmpty);
     },
   );
 
-  test('GitHub Copilot Chat image-only response is rejected', () async {
+  test('Gemini image-only response is rejected', () async {
     final sheet = FortuneSheet(
       id: 's1',
       name: 'Label',
@@ -3722,21 +3725,25 @@ ${backslash}trowd${backslash}cellx2000${backslash}pard${backslash}intbl{${backsl
     final client = MockClient((request) async {
       return http.Response(
         jsonEncode({
-          'choices': [
+          'candidates': [
             {
-              'message': {
-                'content': jsonEncode({
-                  'columnsMm': [100],
-                  'rowsMm': [60],
-                  'cells': [],
-                  'sourceImage': {
-                    'keep': true,
-                    'xMm': 0,
-                    'yMm': 0,
-                    'widthMm': 100,
-                    'heightMm': 60,
+              'content': {
+                'parts': [
+                  {
+                    'text': jsonEncode({
+                      'columnsMm': [100],
+                      'rowsMm': [60],
+                      'cells': [],
+                      'sourceImage': {
+                        'keep': true,
+                        'xMm': 0,
+                        'yMm': 0,
+                        'widthMm': 100,
+                        'heightMm': 60,
+                      },
+                    }),
                   },
-                }),
+                ],
               },
             },
           ],
@@ -3747,10 +3754,10 @@ ${backslash}trowd${backslash}cellx2000${backslash}pard${backslash}intbl{${backsl
     });
 
     await expectLater(
-      labelSheetAnalyzeImageWithCopilot(
-        LabelSheetCopilotImportRequest(
-          token: 'test-token-1234',
-          model: 'openai/gpt-4.1',
+      labelSheetAnalyzeImageWithGemini(
+        LabelSheetGeminiImportRequest(
+          apiKey: 'test-api-key-1234',
+          model: 'gemini-2.5-flash',
           prompt: 'convert',
           imageBytes: Uint8List.fromList([1, 2, 3]),
           mimeType: 'image/png',
@@ -3760,7 +3767,7 @@ ${backslash}trowd${backslash}cellx2000${backslash}pard${backslash}intbl{${backsl
         ),
       ),
       throwsA(
-        isA<LabelSheetCopilotImportException>().having(
+        isA<LabelSheetGeminiImportException>().having(
           (error) => error.message,
           'message',
           contains('편집 가능한 셀이 없습니다'),
@@ -3770,7 +3777,7 @@ ${backslash}trowd${backslash}cellx2000${backslash}pard${backslash}intbl{${backsl
   });
 
   test(
-    'GitHub Copilot Chat HTTP errors include response diagnostics',
+    'Gemini HTTP errors include response diagnostics',
     () async {
       final sheet = FortuneSheet(
         id: 's1',
@@ -3781,15 +3788,16 @@ ${backslash}trowd${backslash}cellx2000${backslash}pard${backslash}intbl{${backsl
         },
       );
       final client = MockClient((request) async {
-        expect(request.url.host, 'models.github.ai');
-        expect(request.url.path, '/inference/chat/completions');
-        expect(request.headers['Authorization'], 'Bearer test-token-1234');
+        expect(request.url.host, 'generativelanguage.googleapis.com');
+        expect(request.url.path, '/v1beta/models/gemini-2.5-flash:generateContent');
+        expect(request.url.queryParameters['key'], 'test-api-key-1234');
+        expect(request.headers, isNot(contains('Authorization')));
         return http.Response(
           jsonEncode({
             'error': {
               'code': 429,
-              'type': 'rate_limit_exceeded',
-              'message': 'Rate limit exceeded for GitHub Models inference.',
+              'status': 'RESOURCE_EXHAUSTED',
+              'message': 'Quota exceeded for Gemini API.',
             },
           }),
           429,
@@ -3798,10 +3806,10 @@ ${backslash}trowd${backslash}cellx2000${backslash}pard${backslash}intbl{${backsl
       });
 
       await expectLater(
-        labelSheetAnalyzeImageWithCopilot(
-          LabelSheetCopilotImportRequest(
-            token: 'test-token-1234',
-            model: 'openai/gpt-4.1',
+        labelSheetAnalyzeImageWithGemini(
+          LabelSheetGeminiImportRequest(
+            apiKey: 'test-api-key-1234',
+            model: 'gemini-2.5-flash',
             prompt: 'convert',
             imageBytes: Uint8List.fromList([1, 2, 3]),
             mimeType: 'image/png',
@@ -3811,17 +3819,17 @@ ${backslash}trowd${backslash}cellx2000${backslash}pard${backslash}intbl{${backsl
           ),
         ),
         throwsA(
-          isA<LabelSheetCopilotImportException>()
+          isA<LabelSheetGeminiImportException>()
               .having((error) => error.message, 'message', contains('HTTP 429'))
               .having(
                 (error) => error.message,
                 'message',
-                contains('rate_limit_exceeded'),
+                contains('RESOURCE_EXHAUSTED'),
               )
               .having(
                 (error) => error.message,
                 'message',
-                contains('Rate limit exceeded for GitHub Models inference.'),
+                contains('Quota exceeded for Gemini API.'),
               ),
         ),
       );

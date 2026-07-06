@@ -40,8 +40,8 @@ const int _labelSheetDefaultPhysicalHeightMm = 100;
 int _labelSheetPositivePhysicalSizeOrDefault(int? value, int fallback) {
   return value != null && value > 0 ? value : fallback;
 }
-const String _labelSheetCopilotTokenPrefsKey = 'label_sheet_copilot_token';
-const String _labelSheetCopilotModelPrefsKey = 'label_sheet_copilot_model';
+const String _labelSheetGeminiApiKeyPrefsKey = 'label_sheet_gemini_api_key';
+const String _labelSheetGeminiModelPrefsKey = 'label_sheet_gemini_model';
 const String _labelFileDirectoryPrefsKey = 'label_file_directory';
 const double _labelSheetImportMinReadableFontHeightMm = 2.5;
 
@@ -2165,13 +2165,13 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     if (!mounted || action == null) {
       return;
     }
-    if (action.saveToken) {
+    if (action.saveCredentials) {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_labelSheetCopilotTokenPrefsKey, action.token);
-      await prefs.setString(_labelSheetCopilotModelPrefsKey, action.model);
+      await prefs.setString(_labelSheetGeminiApiKeyPrefsKey, action.apiKey);
+      await prefs.setString(_labelSheetGeminiModelPrefsKey, action.model);
     }
     LabelSheetImageImportDraft? draft;
-    if (action.useCopilot) {
+    if (action.useAi) {
       draft = action.draft;
       if (draft == null) {
         return;
@@ -2210,7 +2210,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            '${action.useCopilot ? 'AI' : '기본'} 라벨 이미지 분석 완료: '
+            '${action.useAi ? 'AI' : '기본'} 라벨 이미지 분석 완료: '
             '${draft.rowHeights.length}행 x '
             '${draft.columnWidths.length}열',
           ),
@@ -2904,10 +2904,10 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
           fileName: fileName,
           sheet: sheet,
           physicalSize: physicalSize,
-          initialToken: prefs.getString(_labelSheetCopilotTokenPrefsKey) ?? '',
+          initialApiKey: prefs.getString(_labelSheetGeminiApiKeyPrefsKey) ?? '',
           initialModel:
-              prefs.getString(_labelSheetCopilotModelPrefsKey) ??
-              labelSheetDefaultCopilotModel,
+              prefs.getString(_labelSheetGeminiModelPrefsKey) ??
+              labelSheetDefaultGeminiModel,
         ),
       );
     } finally {
@@ -3217,7 +3217,7 @@ class _LabelImageImportDialog extends StatefulWidget {
     required this.fileName,
     required this.sheet,
     required this.physicalSize,
-    required this.initialToken,
+    required this.initialApiKey,
     required this.initialModel,
   });
 
@@ -3226,7 +3226,7 @@ class _LabelImageImportDialog extends StatefulWidget {
   final String fileName;
   final FortuneSheet sheet;
   final FortuneSheetGridClientPhysicalSize physicalSize;
-  final String initialToken;
+  final String initialApiKey;
   final String initialModel;
 
   @override
@@ -3235,8 +3235,8 @@ class _LabelImageImportDialog extends StatefulWidget {
 }
 
 class _LabelImageImportDialogState extends State<_LabelImageImportDialog> {
-  late final TextEditingController _tokenController = TextEditingController(
-    text: widget.initialToken,
+  late final TextEditingController _apiKeyController = TextEditingController(
+    text: widget.initialApiKey,
   );
   late final TextEditingController _modelController = TextEditingController(
     text: widget.initialModel,
@@ -3249,13 +3249,13 @@ class _LabelImageImportDialogState extends State<_LabelImageImportDialog> {
         '사용자가 나중에 수정할 수 있게 텍스트와 병합 셀을 가능한 한 분리하고, '
         '표는 셀의 테두리로 해줘.',
   );
-  bool _saveToken = false;
+  bool _saveCredentials = false;
   bool _analyzing = false;
   String? _errorLog;
 
   @override
   void dispose() {
-    _tokenController.dispose();
+    _apiKeyController.dispose();
     _modelController.dispose();
     _promptController.dispose();
     super.dispose();
@@ -3336,22 +3336,22 @@ class _LabelImageImportDialogState extends State<_LabelImageImportDialog> {
                       ),
                       const SizedBox(height: 14),
                       _compactTextField(
-                        controller: _tokenController,
-                        labelText: 'GitHub Token',
+                        controller: _apiKeyController,
+                        labelText: 'Gemini API Key',
                         obscureText: true,
                       ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<String>(
-                        initialValue: _labelSheetSelectedCopilotModelValue(
+                        initialValue: _labelSheetSelectedGeminiModelValue(
                           _modelController.text,
-                          labelSheetCopilotModels,
+                          labelSheetGeminiModels,
                         ),
                         isExpanded: true,
                         decoration: _compactInputDecoration(
-                          'GitHub Copilot Model',
+                          'Gemini Model',
                         ),
                         items: [
-                          for (final model in labelSheetCopilotModels)
+                          for (final model in labelSheetGeminiModels)
                             DropdownMenuItem(
                               value: model.modelId,
                               child: Text(model.menuLabel),
@@ -3379,16 +3379,16 @@ class _LabelImageImportDialogState extends State<_LabelImageImportDialog> {
                       Row(
                         children: [
                           Checkbox(
-                            value: _saveToken,
+                            value: _saveCredentials,
                             visualDensity: VisualDensity.compact,
                             onChanged: (value) {
                               setState(() {
-                                _saveToken = value ?? false;
+                                _saveCredentials = value ?? false;
                               });
                             },
                           ),
                           const Expanded(
-                            child: Text('GitHub token과 model을 이 PC에 저장'),
+                            child: Text('Gemini API Key와 model을 이 PC에 저장'),
                           ),
                         ],
                       ),
@@ -3408,7 +3408,7 @@ class _LabelImageImportDialogState extends State<_LabelImageImportDialog> {
                   ),
                   const SizedBox(width: 8),
                   ElevatedButton(
-                    onPressed: _analyzing ? null : _applyCopilotAnalysis,
+                    onPressed: _analyzing ? null : _applyGeminiAnalysis,
                     child: Text(_analyzing ? 'AI 분석 중...' : 'AI 분석 적용'),
                   ),
                 ],
@@ -3440,15 +3440,15 @@ class _LabelImageImportDialogState extends State<_LabelImageImportDialog> {
     );
   }
 
-  Future<void> _applyCopilotAnalysis() async {
+  Future<void> _applyGeminiAnalysis() async {
     setState(() {
       _analyzing = true;
       _errorLog = null;
     });
     try {
-      final draft = await labelSheetAnalyzeImageWithCopilot(
-        LabelSheetCopilotImportRequest(
-          token: _tokenController.text.trim(),
+      final draft = await labelSheetAnalyzeImageWithGemini(
+        LabelSheetGeminiImportRequest(
+          apiKey: _apiKeyController.text.trim(),
           model: _modelController.text.trim(),
           prompt: _promptController.text,
           imageBytes: widget.bytes,
@@ -3462,11 +3462,11 @@ class _LabelImageImportDialogState extends State<_LabelImageImportDialog> {
       }
       Navigator.of(context).pop(
         _LabelImageImportAction(
-          useCopilot: true,
-          token: _tokenController.text.trim(),
+          useAi: true,
+          apiKey: _apiKeyController.text.trim(),
           model: _modelController.text.trim(),
           prompt: _promptController.text,
-          saveToken: _saveToken,
+          saveCredentials: _saveCredentials,
           draft: draft,
         ),
       );
@@ -4049,9 +4049,9 @@ class _ErrorLogPanel extends StatelessWidget {
   }
 }
 
-String? _labelSheetSelectedCopilotModelValue(
+String? _labelSheetSelectedGeminiModelValue(
   String current,
-  List<LabelSheetCopilotModelInfo> models,
+  List<LabelSheetGeminiModelInfo> models,
 ) {
   for (final model in models) {
     if (model.modelId == current) {
@@ -4063,18 +4063,18 @@ String? _labelSheetSelectedCopilotModelValue(
 
 class _LabelImageImportAction {
   const _LabelImageImportAction({
-    required this.useCopilot,
-    required this.token,
+    required this.useAi,
+    required this.apiKey,
     required this.model,
     required this.prompt,
-    required this.saveToken,
+    required this.saveCredentials,
     this.draft,
   });
 
-  final bool useCopilot;
-  final String token;
+  final bool useAi;
+  final String apiKey;
   final String model;
   final String prompt;
-  final bool saveToken;
+  final bool saveCredentials;
   final LabelSheetImageImportDraft? draft;
 }

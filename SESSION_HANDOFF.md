@@ -28,6 +28,21 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-06): 라벨 이미지 가져오기 Gemini 전환
+
+- 목적: 라벨 이미지 가져오기 다이얼로그의 AI 분석 연동을 GitHub Models/Copilot에서 Gemini API로 변경한다.
+- 변경 완료: `label_sheet_ai_import.dart`의 공개 API를 `LabelSheetGeminiImportRequest`, `labelSheetAnalyzeImageWithGemini`, `labelSheetGeminiModels`, `labelSheetGeminiPrompt`로 전환하고 Gemini `generateContent` 엔드포인트(`generativelanguage.googleapis.com`)와 `inlineData` 이미지 요청 구조를 사용하도록 변경했다.
+- 변경 완료: `label_sheet_workbench.dart`의 입력 라벨을 `Gemini API Key`, 모델 라벨을 `Gemini Model`로 바꾸고 Gemini 전용 prefs key를 사용하도록 변경했다.
+- 테스트 변경: `label_sheet_toolbar_test.dart`의 모델 목록/프롬프트/HTTP 응답/오류 테스트를 Gemini 요청·응답 구조로 갱신했다.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --name "Gemini model menu includes supported model choices"` 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --name "Gemini prompt includes source aspect fit guidance"` 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --name "Gemini JSON response is converted to a sheet draft"` 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --name "Gemini image-only response is rejected"` 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --name "Gemini HTTP errors include response diagnostics"` 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze lib\page_label_sheet\label_sheet_ai_import.dart lib\page_label_sheet\label_sheet_workbench.dart test\label_sheet_toolbar_test.dart --no-fatal-warnings --no-fatal-infos` 통과.
+- 확인 완료: `lib/page_label_sheet`와 `test`의 GitHub/Copilot/GitHub Models 관련 참조 제거.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `lib/page_label_sheet/label_sheet_ai_import.dart`, `lib/page_label_sheet/label_sheet_workbench.dart`, `test/label_sheet_toolbar_test.dart`. 기존 unrelated dirty `lib/core/app.dart`는 제외.
+
 ### 완료 (2026-07-06): 바코드 형식 드롭다운 높이 동적 확장
 
 - 목적: 바코드 삽입 다이얼로그에서 형식 드롭다운을 펼칠 때 다이얼로그 하단까지 가능한 높이를 사용하고, 항목이 넘칠 때만 스크롤되도록 한다.

@@ -9,11 +9,11 @@ import 'package:http/http.dart' as http;
 import 'package:image/image.dart' as imglib;
 import 'package:label_manager/page_label_sheet/label_sheet_import_model.dart';
 
-const String labelSheetDefaultCopilotModel = 'openai/gpt-4.1';
+const String labelSheetDefaultGeminiModel = 'gemini-2.5-flash';
 
-class LabelSheetCopilotImportRequest {
-  const LabelSheetCopilotImportRequest({
-    required this.token,
+class LabelSheetGeminiImportRequest {
+  const LabelSheetGeminiImportRequest({
+    required this.apiKey,
     required this.model,
     required this.prompt,
     required this.imageBytes,
@@ -23,7 +23,7 @@ class LabelSheetCopilotImportRequest {
     this.client,
   });
 
-  final String token;
+  final String apiKey;
   final String model;
   final String prompt;
   final Uint8List imageBytes;
@@ -33,8 +33,8 @@ class LabelSheetCopilotImportRequest {
   final http.Client? client;
 }
 
-class LabelSheetCopilotImportException implements Exception {
-  const LabelSheetCopilotImportException(this.message);
+class LabelSheetGeminiImportException implements Exception {
+  const LabelSheetGeminiImportException(this.message);
 
   final String message;
 
@@ -42,8 +42,8 @@ class LabelSheetCopilotImportException implements Exception {
   String toString() => message;
 }
 
-class LabelSheetCopilotModelInfo {
-  const LabelSheetCopilotModelInfo({
+class LabelSheetGeminiModelInfo {
+  const LabelSheetGeminiModelInfo({
     required this.modelId,
     required this.displayName,
     this.description,
@@ -60,68 +60,52 @@ class LabelSheetCopilotModelInfo {
   }
 }
 
-const List<LabelSheetCopilotModelInfo> labelSheetCopilotModels = [
-  LabelSheetCopilotModelInfo(
-    modelId: 'openai/gpt-4.1',
-    displayName: 'GPT-4.1',
-    description: 'GitHub Models',
+const List<LabelSheetGeminiModelInfo> labelSheetGeminiModels = [
+  LabelSheetGeminiModelInfo(
+    modelId: 'gemini-2.5-flash',
+    displayName: 'Gemini 2.5 Flash',
+    description: 'Google AI',
   ),
-  LabelSheetCopilotModelInfo(
-    modelId: 'openai/gpt-4.1-mini',
-    displayName: 'GPT-4.1 mini',
-    description: 'GitHub Models',
+  LabelSheetGeminiModelInfo(
+    modelId: 'gemini-2.5-pro',
+    displayName: 'Gemini 2.5 Pro',
+    description: 'Google AI',
   ),
-  LabelSheetCopilotModelInfo(
-    modelId: 'openai/gpt-4.1-nano',
-    displayName: 'GPT-4.1 nano',
-    description: 'GitHub Models',
-  ),
-  LabelSheetCopilotModelInfo(
-    modelId: 'openai/gpt-4o',
-    displayName: 'GPT-4o',
-    description: 'GitHub Models',
-  ),
-  LabelSheetCopilotModelInfo(
-    modelId: 'openai/gpt-4o-mini',
-    displayName: 'GPT-4o mini',
-    description: 'GitHub Models',
-  ),
-  LabelSheetCopilotModelInfo(
-    modelId: 'openai/o4-mini',
-    displayName: 'o4-mini',
-    description: 'GitHub Models',
-  ),
-  LabelSheetCopilotModelInfo(
-    modelId: 'openai/o3',
-    displayName: 'o3',
-    description: 'GitHub Models',
+  LabelSheetGeminiModelInfo(
+    modelId: 'gemini-2.0-flash',
+    displayName: 'Gemini 2.0 Flash',
+    description: 'Google AI',
   ),
 ];
 
-Future<LabelSheetImageImportDraft> labelSheetAnalyzeImageWithCopilot(
-  LabelSheetCopilotImportRequest request,
+Future<LabelSheetImageImportDraft> labelSheetAnalyzeImageWithGemini(
+  LabelSheetGeminiImportRequest request,
 ) async {
-  final token = request.token.trim();
-  if (token.isEmpty) {
-    throw const LabelSheetCopilotImportException('GitHub token을 입력하세요.');
+  final apiKey = request.apiKey.trim();
+  if (apiKey.isEmpty) {
+    throw const LabelSheetGeminiImportException('Gemini API Key를 입력하세요.');
   }
   final model = request.model.trim().isEmpty
-      ? labelSheetDefaultCopilotModel
+      ? labelSheetDefaultGeminiModel
       : request.model.trim();
-  final prompt = labelSheetCopilotPrompt(
+  final prompt = labelSheetGeminiPrompt(
     sheet: request.sheet,
     imageBytes: request.imageBytes,
     fileName: request.fileName,
     userPrompt: request.prompt,
   );
-  final uri = Uri.https('models.github.ai', '/inference/chat/completions');
+  final uri = Uri.https(
+    'generativelanguage.googleapis.com',
+    '/v1beta/models/$model:generateContent',
+    {'key': apiKey},
+  );
   final client = request.client ?? http.Client();
   final closeClient = request.client == null;
-  final requestId = _copilotRequestId();
+  final requestId = _geminiRequestId();
   final stopwatch = Stopwatch()..start();
   debugPrint(
-    '[LabelSheetCopilot] requestId=$requestId chatCompletions start '
-    'model=$model token=${_maskedCopilotToken(token)} '
+    '[LabelSheetGemini] requestId=$requestId generateContent start '
+    'model=$model apiKey=${_maskedGeminiApiKey(apiKey)} '
     'mime=${request.mimeType} imageBytes=${request.imageBytes.lengthInBytes} '
     'promptChars=${prompt.length} fileName=${request.fileName}',
   );
@@ -130,61 +114,55 @@ Future<LabelSheetImageImportDraft> labelSheetAnalyzeImageWithCopilot(
         .post(
           uri,
           headers: {
-            'Authorization': 'Bearer $token',
             'Content-Type': 'application/json',
           },
           body: jsonEncode({
-            'model': model,
-            'messages': [
-              {
-                'role': 'system',
-                'content':
-                    'Return only valid JSON for the requested label layout.',
-              },
+            'contents': [
               {
                 'role': 'user',
-                'content': [
-                  {'type': 'text', 'text': prompt},
+                'parts': [
+                  {'text': prompt},
                   {
-                    'type': 'image_url',
-                    'image_url': {
-                      'url':
-                          'data:${request.mimeType};base64,${base64Encode(request.imageBytes)}',
+                    'inlineData': {
+                      'mimeType': request.mimeType,
+                      'data': base64Encode(request.imageBytes),
                     },
                   },
                 ],
               },
             ],
-            'temperature': 0.1,
-            'response_format': {'type': 'json_object'},
+            'generationConfig': {
+              'temperature': 0.1,
+              'responseMimeType': 'application/json',
+            },
           }),
         )
         .timeout(const Duration(seconds: 90));
     stopwatch.stop();
     debugPrint(
-      '[LabelSheetCopilot] requestId=$requestId chatCompletions response '
+      '[LabelSheetGemini] requestId=$requestId generateContent response '
       'status=${response.statusCode} elapsedMs=${stopwatch.elapsedMilliseconds} '
       'bodyChars=${response.body.length}',
     );
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      _logCopilotHttpFailure(
+      _logGeminiHttpFailure(
         requestId: requestId,
-        operation: 'chatCompletions',
+        operation: 'generateContent',
         response: response,
       );
-      throw LabelSheetCopilotImportException(
-        _copilotHttpFailureMessage(
+      throw LabelSheetGeminiImportException(
+        _geminiHttpFailureMessage(
           response,
-          operationLabel: 'GitHub Copilot Chat 요청',
+          operationLabel: 'Gemini 요청',
         ),
       );
     }
-    final text = _copilotResponseText(response.body);
+    final text = _geminiResponseText(response.body);
     debugPrint(
-      '[LabelSheetCopilot] requestId=$requestId responseText '
-      'chars=${text.length} text=${_compactCopilotText(text, limit: 6000)}',
+      '[LabelSheetGemini] requestId=$requestId responseText '
+      'chars=${text.length} text=${_compactGeminiText(text, limit: 6000)}',
     );
-    final json = _decodeCopilotJson(text);
+    final json = _decodeGeminiJson(text);
     final draft = labelSheetDraftFromAiJson(
       json,
       sheet: request.sheet,
@@ -194,13 +172,13 @@ Future<LabelSheetImageImportDraft> labelSheetAnalyzeImageWithCopilot(
       allowSourceImage: false,
     );
     if (draft.cells.isEmpty) {
-      throw const LabelSheetCopilotImportException(
-        'GitHub Copilot Chat 응답에 편집 가능한 셀이 없습니다. '
+      throw const LabelSheetGeminiImportException(
+        'Gemini 응답에 편집 가능한 셀이 없습니다. '
         '원본 이미지를 통째로 넣는 응답은 적용하지 않았습니다.',
       );
     }
     debugPrint(
-      '[LabelSheetCopilot] requestId=$requestId draft '
+      '[LabelSheetGemini] requestId=$requestId draft '
       'rows=${draft.rowHeights.length} columns=${draft.columnWidths.length} '
       'cells=${draft.cells.length} images=${draft.images.length} '
       'widthPx=${_sumDraftSize(draft.columnWidths).toStringAsFixed(2)} '
@@ -210,11 +188,11 @@ Future<LabelSheetImageImportDraft> labelSheetAnalyzeImageWithCopilot(
   } on TimeoutException {
     stopwatch.stop();
     debugPrint(
-      '[LabelSheetCopilot] requestId=$requestId chatCompletions timeout '
+      '[LabelSheetGemini] requestId=$requestId generateContent timeout '
       'elapsedMs=${stopwatch.elapsedMilliseconds}',
     );
-    throw const LabelSheetCopilotImportException(
-      'GitHub Copilot Chat 요청 시간이 초과되었습니다.',
+    throw const LabelSheetGeminiImportException(
+      'Gemini 요청 시간이 초과되었습니다.',
     );
   } finally {
     if (closeClient) {
@@ -223,16 +201,16 @@ Future<LabelSheetImageImportDraft> labelSheetAnalyzeImageWithCopilot(
   }
 }
 
-String _copilotHttpFailureMessage(
+String _geminiHttpFailureMessage(
   http.Response response, {
   required String operationLabel,
 }) {
   final lines = <String>['$operationLabel 실패: HTTP ${response.statusCode}'];
-  final parsed = _copilotErrorSummary(response.body);
+  final parsed = _geminiErrorSummary(response.body);
   if (parsed.isNotEmpty) {
     lines.addAll(parsed);
   } else {
-    final body = _compactCopilotText(response.body);
+    final body = _compactGeminiText(response.body);
     if (body.isNotEmpty) {
       lines.add('responseBody: $body');
     }
@@ -240,7 +218,7 @@ String _copilotHttpFailureMessage(
   return lines.join('\n');
 }
 
-List<String> _copilotErrorSummary(String body) {
+List<String> _geminiErrorSummary(String body) {
   try {
     final decoded = jsonDecode(body);
     if (decoded is! Map) {
@@ -270,10 +248,10 @@ List<String> _copilotErrorSummary(String body) {
     final details = error['details'];
     if (details is List) {
       for (final detail in details.whereType<Map>()) {
-        lines.addAll(_copilotErrorDetailSummary(detail));
+        lines.addAll(_geminiErrorDetailSummary(detail));
       }
     } else if (details is Map) {
-      lines.addAll(_copilotErrorDetailSummary(details));
+      lines.addAll(_geminiErrorDetailSummary(details));
     }
     return lines;
   } catch (_) {
@@ -281,7 +259,7 @@ List<String> _copilotErrorSummary(String body) {
   }
 }
 
-List<String> _copilotErrorDetailSummary(Map detail) {
+List<String> _geminiErrorDetailSummary(Map detail) {
   final lines = <String>[];
   final type = '${detail['@type'] ?? ''}'.trim();
   final reason = '${detail['reason'] ?? ''}'.trim();
@@ -320,22 +298,22 @@ List<String> _copilotErrorDetailSummary(Map detail) {
   return lines;
 }
 
-void _logCopilotHttpFailure({
+void _logGeminiHttpFailure({
   required String requestId,
   required String operation,
   required http.Response response,
 }) {
   debugPrint(
-    '[LabelSheetCopilot] requestId=$requestId $operation failure '
-    'status=${response.statusCode} headers=${_copilotSafeHeaders(response.headers)}',
+    '[LabelSheetGemini] requestId=$requestId $operation failure '
+    'status=${response.statusCode} headers=${_geminiSafeHeaders(response.headers)}',
   );
   debugPrint(
-    '[LabelSheetCopilot] requestId=$requestId $operation failureBody '
-    '${_compactCopilotText(response.body, limit: 6000)}',
+    '[LabelSheetGemini] requestId=$requestId $operation failureBody '
+    '${_compactGeminiText(response.body, limit: 6000)}',
   );
 }
 
-Map<String, String> _copilotSafeHeaders(Map<String, String> headers) {
+Map<String, String> _geminiSafeHeaders(Map<String, String> headers) {
   return {
     for (final entry in headers.entries)
       if (!_sensitiveHeaderNames.contains(entry.key.toLowerCase()))
@@ -348,10 +326,9 @@ const Set<String> _sensitiveHeaderNames = {
   'cookie',
   'set-cookie',
   'x-goog-api-key',
-  'x-github-token',
 };
 
-String _compactCopilotText(String value, {int limit = 2000}) {
+String _compactGeminiText(String value, {int limit = 2000}) {
   final compact = value.replaceAll(RegExp(r'\s+'), ' ').trim();
   if (compact.length <= limit) {
     return compact;
@@ -359,15 +336,15 @@ String _compactCopilotText(String value, {int limit = 2000}) {
   return '${compact.substring(0, limit)}... (truncated ${compact.length - limit} chars)';
 }
 
-String _maskedCopilotToken(String token) {
-  if (token.isEmpty) {
+String _maskedGeminiApiKey(String apiKey) {
+  if (apiKey.isEmpty) {
     return '(empty)';
   }
-  final suffixLength = math.min(4, token.length);
-  return '***${token.substring(token.length - suffixLength)} len=${token.length}';
+  final suffixLength = math.min(4, apiKey.length);
+  return '***${apiKey.substring(apiKey.length - suffixLength)} len=${apiKey.length}';
 }
 
-String _copilotRequestId() {
+String _geminiRequestId() {
   final now = DateTime.now().microsecondsSinceEpoch;
   final random = math.Random()
       .nextInt(0x10000)
@@ -434,7 +411,7 @@ class _LabelSheetSourceImageGeometry {
   final String promptLines;
 }
 
-String labelSheetCopilotPrompt({
+String labelSheetGeminiPrompt({
   required FortuneSheet sheet,
   required Uint8List imageBytes,
   required String fileName,
@@ -527,8 +504,8 @@ LabelSheetImageImportDraft labelSheetDraftFromAiJson(
     json['rowsMm'],
   ).map((value) => value.clamp(1, physicalSize.heightMm).toDouble()).toList();
   if (columnsMm.isEmpty || rowsMm.isEmpty) {
-    throw const LabelSheetCopilotImportException(
-      'GitHub Copilot Chat 응답에 columnsMm/rowsMm가 없습니다.',
+    throw const LabelSheetGeminiImportException(
+      'Gemini 응답에 columnsMm/rowsMm가 없습니다.',
     );
   }
   _clampSum(columnsMm, physicalSize.widthMm.toDouble());
@@ -615,25 +592,24 @@ LabelSheetImageImportDraft labelSheetDraftFromAiJson(
   );
 }
 
-String _copilotResponseText(String body) {
+String _geminiResponseText(String body) {
   final decoded = jsonDecode(body);
   if (decoded is! Map) {
-    throw const LabelSheetCopilotImportException(
-      'GitHub Copilot Chat 응답 형식이 올바르지 않습니다.',
+    throw const LabelSheetGeminiImportException(
+      'Gemini 응답 형식이 올바르지 않습니다.',
     );
   }
-  final choices = decoded['choices'];
-  if (choices is! List || choices.isEmpty) {
-    throw const LabelSheetCopilotImportException(
-      'GitHub Copilot Chat 응답 후보가 없습니다.',
+  final candidates = decoded['candidates'];
+  if (candidates is! List || candidates.isEmpty) {
+    throw const LabelSheetGeminiImportException(
+      'Gemini 응답 후보가 없습니다.',
     );
   }
-  final message = choices.first is Map
-      ? (choices.first as Map)['message']
+  final content = candidates.first is Map
+      ? (candidates.first as Map)['content']
       : null;
-  final content = message is Map ? message['content'] : null;
-  final text = switch (content) {
-    String value => value.trim(),
+  final parts = content is Map ? content['parts'] : null;
+  final text = switch (parts) {
     List parts =>
       parts
           .whereType<Map>()
@@ -643,14 +619,14 @@ String _copilotResponseText(String body) {
     _ => '',
   };
   if (text.isEmpty) {
-    throw const LabelSheetCopilotImportException(
-      'GitHub Copilot Chat 응답 텍스트가 비어 있습니다.',
+    throw const LabelSheetGeminiImportException(
+      'Gemini 응답 텍스트가 비어 있습니다.',
     );
   }
   return text;
 }
 
-Map<String, Object?> _decodeCopilotJson(String text) {
+Map<String, Object?> _decodeGeminiJson(String text) {
   var normalized = text.trim();
   if (normalized.startsWith('```')) {
     normalized = normalized
@@ -660,8 +636,8 @@ Map<String, Object?> _decodeCopilotJson(String text) {
   }
   final decoded = jsonDecode(normalized);
   if (decoded is! Map) {
-    throw const LabelSheetCopilotImportException(
-      'GitHub Copilot Chat JSON 응답이 객체가 아닙니다.',
+    throw const LabelSheetGeminiImportException(
+      'Gemini JSON 응답이 객체가 아닙니다.',
     );
   }
   return Map<String, Object?>.from(decoded);
