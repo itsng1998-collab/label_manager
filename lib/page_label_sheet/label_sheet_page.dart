@@ -1,6 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:fortune_sheet/fortune_sheet.dart'
+  show
+    FortuneWorkbook,
+    fortuneBarcodeObjectIdExtraKey,
+    fortuneImageObjectIdExtraKey;
 
 import 'package:label_manager/core/app.dart';
 import 'package:label_manager/core/ui_scale.dart';
@@ -11,12 +16,111 @@ import 'package:label_manager/page_label_sheet/label_sheet_workbench.dart';
 import 'package:label_manager/utils/log_context.dart';
 import 'package:label_manager/utils/on_messages.dart';
 
+class LabelSheetRequiredKeyword {
+  const LabelSheetRequiredKeyword({
+    required this.keyword,
+    required this.itemName,
+  });
+
+  final String keyword;
+  final String itemName;
+
+  String get normalizedKeyword {
+    final value = keyword.trim();
+    return value.startsWith('#') ? value : '#$value';
+  }
+}
+
+@visibleForTesting
+List<String> labelSheetMissingRequiredKeywordNames(
+  String encodedWorkbook,
+  List<LabelSheetRequiredKeyword> requiredKeywords,
+) {
+  final workbook = labelSheetTryDecodeWorkbookSave(encodedWorkbook);
+  if (workbook == null) {
+    return [for (final item in requiredKeywords) item.itemName];
+  }
+  return labelSheetMissingRequiredKeywordNamesInWorkbook(
+    workbook,
+    requiredKeywords,
+  );
+}
+
+@visibleForTesting
+List<String> labelSheetMissingRequiredKeywordNamesInWorkbook(
+  FortuneWorkbook workbook,
+  List<LabelSheetRequiredKeyword> requiredKeywords,
+) {
+  if (requiredKeywords.isEmpty) {
+    return const <String>[];
+  }
+
+  final textBuffer = StringBuffer();
+  final objectIds = <String>{};
+  for (final sheet in workbook.sheets) {
+    for (final cell in sheet.cells.values) {
+      textBuffer
+        ..write(cell.renderedText)
+        ..write('\n');
+      final formula = cell.formula;
+      if (formula != null && formula.isNotEmpty) {
+        textBuffer
+          ..write(formula)
+          ..write('\n');
+      }
+    }
+    for (final image in sheet.images) {
+      _addLabelSheetRequiredKeywordObjectId(objectIds, image.id);
+      _addLabelSheetRequiredKeywordObjectId(
+        objectIds,
+        image.extraFields[fortuneImageObjectIdExtraKey],
+      );
+      _addLabelSheetRequiredKeywordObjectId(
+        objectIds,
+        image.extraFields[fortuneBarcodeObjectIdExtraKey],
+      );
+    }
+  }
+
+  final text = textBuffer.toString().toLowerCase();
+  final missing = <String>[];
+  final seenMissing = <String>{};
+  for (final item in requiredKeywords) {
+    final required = item.normalizedKeyword.trim();
+    if (required.isEmpty || required == '#') {
+      continue;
+    }
+    final key = required.toLowerCase();
+    if (text.contains(key) || objectIds.contains(key)) {
+      continue;
+    }
+    final itemName = item.itemName.trim().isEmpty ? item.keyword : item.itemName;
+    if (seenMissing.add(itemName.toLowerCase())) {
+      missing.add(itemName);
+    }
+  }
+  return missing;
+}
+
+void _addLabelSheetRequiredKeywordObjectId(Set<String> objectIds, Object? value) {
+  if (value == null) {
+    return;
+  }
+  final text = value.toString().trim();
+  if (text.isEmpty) {
+    return;
+  }
+  objectIds.add(text.toLowerCase());
+  objectIds.add((text.startsWith('#') ? text : '#$text').toLowerCase());
+}
+
 class LabelSheetPage extends StatelessWidget {
   const LabelSheetPage({
     super.key,
     this.labelSize,
     this.imageObjectIds = const <String>[],
     this.barcodeObjectIds = const <String>[],
+    this.requiredKeywords = const <LabelSheetRequiredKeyword>[],
     this.onSheetReady,
     this.onGridRectChanged,
     this.onBeforeSheetDialog,
@@ -26,6 +130,7 @@ class LabelSheetPage extends StatelessWidget {
   final LabelSize? labelSize;
   final List<String> imageObjectIds;
   final List<String> barcodeObjectIds;
+  final List<LabelSheetRequiredKeyword> requiredKeywords;
   final VoidCallback? onSheetReady;
   final ValueChanged<Rect>? onGridRectChanged;
   final FutureOr<void> Function()? onBeforeSheetDialog;
@@ -94,6 +199,32 @@ class LabelSheetPage extends StatelessWidget {
 
     if (confirmed != true) {
       debugLog('saveLabelSheet cancelledByUser labelSizeId=${labelSize?.labelSizeId} keepEditing');
+      return;
+    }
+
+    final missingRequiredNames = labelSheetMissingRequiredKeywordNames(
+      encodedWorkbook,
+      requiredKeywords,
+    );
+    if (missingRequiredNames.isNotEmpty) {
+      debugLog(
+        'saveLabelSheet missingRequiredKeywords=${missingRequiredNames.join(',')}',
+      );
+      if (context.mounted) {
+        await showDialog<void>(
+          context: context,
+          traversalEdgeBehavior: TraversalEdgeBehavior.closedLoop,
+          builder: (dialogContext) => AlertDialog(
+            content: Text("'${missingRequiredNames.join(',')}'이 누락되었습니다!"),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('확인'),
+              ),
+            ],
+          ),
+        );
+      }
       return;
     }
 

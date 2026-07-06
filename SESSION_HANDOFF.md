@@ -28,6 +28,18 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-06): 공용라벨 저장 전 필수 항목 누락 검증
+
+- 목적: 공용라벨관리 저장 확인 후 DB 저장 전에 특별/사용 항목 중 필수 등록 체크된 키워드가 시트 셀 내용, 이미지 ID, 바코드 ID 어디에도 없으면 누락 항목명 알림을 띄우고 저장을 중단한다.
+- 변경 완료: `common_label_manage.dart`에서 `useMissingKeywordCheck`가 켜진 특별/사용 항목을 `LabelSheetRequiredKeyword` 목록으로 만들어 `LabelSheetPage`에 전달하도록 했다.
+- 변경 완료: `label_sheet_page.dart`에서 저장 확인 후 `encodedWorkbook`을 decode해 모든 시트의 셀 `renderedText`/formula, 이미지 `imageObjectId`, 바코드 `barcodeObjectId`를 검사하고 누락 항목명이 있으면 `'{항목이름},...'이 누락되었습니다!` 알림 후 저장을 중단하도록 했다.
+- 테스트 추가: `common_label_manage_test.dart`에 필수 항목 추출 테스트, `label_sheet_toolbar_test.dart`에 셀/이미지/바코드 ID 기반 누락 판정 테스트를 추가했다.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\common_label_manage_test.dart --name "required keywords include only missing-keyword checked columns|image object ids include every special and used keyword"` 결과 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --name "label sheet required keywords search cells images and barcodes|fortune sheet page ignores zero label size during initial load"` 결과 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze lib\page_home\common_label_manage.dart lib\page_label_sheet\label_sheet_page.dart test\common_label_manage_test.dart test\label_sheet_toolbar_test.dart --no-fatal-warnings --no-fatal-infos` 결과 `No issues found`.
+- 검증 완료: `git diff --check -- SESSION_HANDOFF.md lib/page_home/common_label_manage.dart lib/page_label_sheet/label_sheet_page.dart test/common_label_manage_test.dart test/label_sheet_toolbar_test.dart` 출력 없음. VS Code diagnostics 결과 수정 파일 오류 없음.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `lib/page_home/common_label_manage.dart`, `lib/page_label_sheet/label_sheet_page.dart`, `test/common_label_manage_test.dart`, `test/label_sheet_toolbar_test.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
+
 ### 완료 (2026-07-06): 앱 최초 실행 라벨 크기 0 렌더링 오류 방지
 
 - 목적: 앱 최초 실행 직후 `LabelSheetPage.build: native FortuneSheet width=0, height=0` 상태에서 `resizeSheetGridClientArea`가 `FortuneApiError invalid params`를 던져 빨간 렌더링 오류가 순간 표시되는 문제를 제거한다.

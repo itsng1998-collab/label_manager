@@ -1396,9 +1396,8 @@ void main() {
     );
 
     await tester.pumpWidget(
-      Directionality(
-        textDirection: TextDirection.ltr,
-        child: SizedBox(
+      MaterialApp(
+        home: SizedBox(
           width: 400,
           height: 300,
           child: LabelSheetPage(
@@ -1457,6 +1456,52 @@ void main() {
     );
     expect(sheetApp.gridClientSize?.widthMm, 100);
     expect(sheetApp.gridClientSize?.heightMm, 100);
+  });
+
+  test('label sheet required keywords search cells images and barcodes', () {
+    final workbook = FortuneWorkbook(
+      sheets: [
+        FortuneSheet(
+          id: 's1',
+          name: 'Required',
+          cells: {
+            const FortuneCellCoord(0, 0): const FortuneCell(value: '#ITEMNAME'),
+          },
+          images: const [
+            FortuneImage(
+              id: 'img1',
+              src: 'data:image/png;base64,AA==',
+              left: 0,
+              top: 0,
+              width: 10,
+              height: 10,
+              extraFields: {fortuneImageObjectIdExtraKey: '#IMAGEKEY'},
+            ),
+            FortuneImage(
+              id: 'barcode1',
+              src: 'data:image/png;base64,AA==',
+              left: 0,
+              top: 0,
+              width: 10,
+              height: 10,
+              extraFields: {
+                'fortuneBarcode': true,
+                fortuneBarcodeObjectIdExtraKey: '#BARCODEKEY',
+              },
+            ),
+          ],
+        ),
+      ],
+    );
+
+    final missing = labelSheetMissingRequiredKeywordNamesInWorkbook(workbook, [
+      const LabelSheetRequiredKeyword(keyword: 'ITEMNAME', itemName: '품명'),
+      const LabelSheetRequiredKeyword(keyword: 'IMAGEKEY', itemName: '이미지'),
+      const LabelSheetRequiredKeyword(keyword: 'BARCODEKEY', itemName: '바코드'),
+      const LabelSheetRequiredKeyword(keyword: 'PRICE', itemName: '가격'),
+    ]);
+
+    expect(missing, ['가격']);
   });
 
   test('GitHub Copilot Chat model menu includes additional model choices', () {

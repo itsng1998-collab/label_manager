@@ -65,6 +65,45 @@ List<String> commonLabelImageObjectIdsFromColumns(
   return result;
 }
 
+@visibleForTesting
+List<LabelSheetRequiredKeyword> commonLabelRequiredKeywordsFor(
+  List<TColumnBase> specialColumns,
+  List<TColumn> columns,
+) {
+  return commonLabelRequiredKeywordsFromColumns([
+    ...specialColumns,
+    ...columns,
+  ]);
+}
+
+@visibleForTesting
+List<LabelSheetRequiredKeyword> commonLabelRequiredKeywordsFromColumns(
+  Iterable<TColumnBase> columns,
+) {
+  final result = <LabelSheetRequiredKeyword>[];
+  final seen = <String>{};
+  for (final column in columns) {
+    if (!column.useMissingKeywordCheck) {
+      continue;
+    }
+    final keyword = column.keyword.trim();
+    if (keyword.isEmpty) {
+      continue;
+    }
+    if (seen.add(keyword.toLowerCase())) {
+      result.add(
+        LabelSheetRequiredKeyword(
+          keyword: keyword,
+          itemName: column.columnName.trim().isEmpty
+              ? keyword
+              : column.columnName.trim(),
+        ),
+      );
+    }
+  }
+  return result;
+}
+
 class CommonLabelManage extends StatefulWidget {
   final String title;
   final LabelSize? labelSize;
@@ -116,6 +155,10 @@ class _CommonLabelManageState extends State<CommonLabelManage> {
           specialColumns,
           columns,
         );
+        final requiredKeywords = commonLabelRequiredKeywordsFor(
+          specialColumns,
+          columns,
+        );
         final fitRightWidth = [
           _CommonLabelTable.tableWidthFor(context, [
             ...specialColumns,
@@ -149,6 +192,7 @@ class _CommonLabelManageState extends State<CommonLabelManage> {
                     labelSize: widget.labelSize,
                     imageObjectIds: imageObjectIds,
                     barcodeObjectIds: barcodeObjectIds,
+                    requiredKeywords: requiredKeywords,
                     onSheetReady: widget.onSheetReady,
                     onGridRectChanged: widget.onGridRectChanged,
                     onBeforeSheetDialog: widget.onBeforeSheetDialog,
