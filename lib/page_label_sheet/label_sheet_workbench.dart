@@ -3036,7 +3036,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
             link: _zoomToolbarLayerLink,
             targetAnchor: Alignment.topRight,
             followerAnchor: Alignment.topRight,
-            offset: const Offset(-12, -36),
+            offset: const Offset(-14, -34),
             showWhenUnlinked: false,
             child: Align(
               alignment: Alignment.topRight,

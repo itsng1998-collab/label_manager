@@ -28,6 +28,15 @@
 
 ## 현재 상태
 
+### 진행 중 (2026-07-07): 품목관리 주원료 zoom overlay 위치 미세 보정
+
+- 수정 예정: 탭 메뉴 영역 오른쪽 끝의 축소/확대 영역이 코너 리사이징 바와 겹치지 않도록 x를 2px 줄이고 y를 2px 더 준다.
+- 편집 완료: `LabelSheetWorkbench`의 `previewTabAreaEnd` follower offset을 `Offset(-12, -36)`에서 `Offset(-14, -34)`로 조정했다.
+- 검증 완료: `dart format` 실행.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "label sheet zoom toolbar placement can move or hide controls"` 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`).
+- 주의: unrelated 변경 `lib/core/app.dart`는 제외한다.
+
 ### 진행 중 (2026-07-07): 품목관리 주원료 탭 zoom overlay 표시 보정
 
 - 수정 예정: `주원료 및 함량` 탭의 축소/확대 영역이 `TabbedView` content clipping에 막혀 보이지 않는 문제를 수정한다.
