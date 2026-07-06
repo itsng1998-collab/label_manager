@@ -3,9 +3,10 @@
 1. 목적
 * 품목관리에서 선택된 품목 1건의 데이터를 기준으로, 레거시 라벨 출력과 같은 규칙으로 공용라벨 시트를 치환한 미리보기를 제공한다.
 * 품목관리의 행 선택, 주원료 및 함량 편집, 출력내용 미리보기는 공용라벨관리의 시트/플로팅 창 UX를 재사용하되 인스턴스와 상태는 품목관리 전용으로 분리한다.
-* 구현 기준은 레거시 프로젝트 `.tmp\LabelManager`의 품목관리/라벨출력 흐름이다. 참고 화면은 `.tmp\레거시-품목관리.png`이다.
+* 동작 기준은 레거시 프로젝트 `.tmp\LabelManager`의 품목관리/라벨출력 흐름이다. 참고 화면은 `.tmp\레거시-품목관리.png`이다.
+* 구현 기준은 현재 프로젝트의 LabelSheet/FortuneSheet workbook 구조다. 레거시의 데이터 선택, 키워드 매핑, fallback 규칙은 따르되 RTF/리치에디트 출력 엔진은 따르지 않는다.
 
-2. 레거시 기준 정리
+2. 레거시 기준과 현재 구현 원칙
 * 품목관리 테이블의 동적 컬럼은 현재 라벨사이즈의 `BM_RICH_COLUMN` 목록이다. 현재 프로젝트에서는 `TColumn.datas`와 `TColumnContent.datas`가 이 역할을 한다.
 * 컬럼 헤더의 표시명은 `RICH_COLUMN_NAME`, 치환 키워드는 `RICH_KEYWORD`이다. 라벨 원본에서는 `#`를 붙인 `#RICH_KEYWORD` 형태를 찾아 대체한다.
 * 기본 항목은 별도 특별 키워드로 처리한다.
@@ -18,7 +19,7 @@
   - 레거시 파일 위치: `C:\ITS\LabelManager\bmp files\비닐류PP.bmp`
   - 치환 키워드: 이미지 파일명이 아니라 이미지 타입 컬럼의 `#RICH_KEYWORD`이다. 예를 들어 컬럼 키워드가 `IMAGE`이면 `#IMAGE`를 이미지로 대체한다.
   - 현재 구현에서도 이미지 컬럼은 `TColumn.keyword`로 라벨 시트의 `#keyword` 위치를 찾고, 셀 값은 이미지 파일명 참조로만 사용한다.
-* 레거시는 `CTableRowRTFMaker::ReplaceColumnInfoToCellValue`에서 `# + column.GetKeyword()`를 만들고, 컬럼 타입에 따라 텍스트/바코드/이미지를 출력 데이터로 대체한다. 현재 프로젝트는 레거시 출력 포맷을 재현하지 않고, 같은 키워드 매핑 규칙만 가져와 LabelSheet workbook의 셀/바코드 객체/이미지 객체를 직접 조작한다.
+* 레거시는 `CTableRowRTFMaker::ReplaceColumnInfoToCellValue`에서 `# + column.GetKeyword()`를 만들고, 컬럼 타입에 따라 텍스트/바코드/이미지를 출력 데이터로 대체한다. 현재 프로젝트는 이 흐름의 판단 기준만 따른다. 실제 구현은 LabelSheet workbook 복사본에서 셀 값/스타일, 바코드 객체 payload, `FortuneImage` 이미지 객체를 갱신한다.
 
 3. 품목관리 테이블 동작
 * 테이블 로딩 완료 후 첫 번째 데이터 행을 자동 선택한다.
