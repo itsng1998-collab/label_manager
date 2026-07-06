@@ -37,6 +37,7 @@
 - 검증 완료: `.tmp\item_manager.txt` 내용 재확인 완료.
 - 검증 완료: `git diff --check -- .tmp/item_manager.txt SESSION_HANDOFF.md` 통과.
 - 참고: `.tmp\item_manager.txt`는 `.gitignore`의 `.tmp/` 규칙에 걸리므로 커밋 시 `git add -f` 대상이다.
+- 커밋 완료: `1f7c458` 품목관리 작업 지시서 레거시 기준 정리.
 
 ### 완료 (2026-07-06): Gemini 변환 XLSX 보관 temp 경로 및 시작 정리 변경
 
