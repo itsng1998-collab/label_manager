@@ -39,6 +39,7 @@
 - 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --name "AI import startup cleanup clears release temp contents"` 통과.
 - 검증 완료: `C:\Flutter\bin\flutter.bat analyze lib\main.dart lib\page_label_sheet\label_sheet_ai_import_temp.dart lib\page_label_sheet\label_sheet_workbench.dart test\label_sheet_toolbar_test.dart --no-fatal-warnings --no-fatal-infos` 통과.
 - 검증 완료: `git diff --check -- SESSION_HANDOFF.md lib/main.dart lib/page_label_sheet/label_sheet_ai_import_temp.dart lib/page_label_sheet/label_sheet_workbench.dart test/label_sheet_toolbar_test.dart` 통과.
+- 커밋 완료: `af0dc08` AI 변환 XLSX temp 보관 경로 변경.
 
 ### 완료 (2026-07-06): Gemini 업로드 이미지 OCR 보존 압축 기준 조정
 
