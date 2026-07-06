@@ -10,7 +10,7 @@ import 'package:image/image.dart' as imglib;
 import 'package:label_manager/page_label_sheet/label_sheet_import_model.dart';
 
 const String labelSheetDefaultGeminiModel = 'gemini-2.5-flash';
-const Duration _labelSheetGeminiRequestTimeout = Duration(seconds: 180);
+const Duration _labelSheetGeminiRequestTimeout = Duration(seconds: 300);
 const int _labelSheetGeminiMaxUploadImageBytes = 4 * 1024 * 1024;
 const int _labelSheetGeminiMaxUploadImageDimension = 2400;
 const int _labelSheetGeminiUploadJpegQuality = 94;
