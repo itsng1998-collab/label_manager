@@ -1619,7 +1619,6 @@ FortuneSettings labelSheetSettings(
     ],
     cellContextMenu: labelSheetContextMenuItems(
       base.cellContextMenu,
-      includeImportLabelImage: true,
     ),
     headerContextMenu: labelSheetContextMenuItems(
       base.headerContextMenu,

@@ -28,6 +28,19 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-06): 라벨 이미지 가져오기 좌상단 교차 메뉴 한정
+
+- 목적: 공용라벨관리의 `라벨 이미지 가져오기` 메뉴를 일반 셀/행/열 헤더 우클릭이 아니라 시트 좌상단 헤더 행/열 교차 영역 우클릭 메뉴에서만 표시한다.
+- 변경 완료: `label_sheet_workbench.dart`에서 import 이미지 커맨드를 셀 컨텍스트 메뉴에는 넣지 않고 헤더 컨텍스트 메뉴에만 보관하도록 조정했다.
+- 변경 완료: `fortune_sheet_canvas.dart`의 컨텍스트 메뉴 필터에서 `fortuneContextImportLabelImageCommand`를 `row_select && column_select` 선택 범위, 즉 좌상단 교차 영역 메뉴에서만 통과시키도록 했다.
+- 테스트 변경: `label_sheet_toolbar_test.dart`의 메뉴 설정 테스트가 셀 메뉴에는 항목이 없고 헤더 메뉴에는 후보로 보관됨을 확인하도록 조정했다. 같은 파일에 열 헤더/행 헤더에는 표시되지 않고 좌상단 교차 영역 우클릭 메뉴에만 표시되는 위젯 테스트를 추가했다.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --name "label sheet context menu exposes AI image import"` 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --name "label image import context menu only appears on sheet corner"` 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze lib\page_label_sheet\label_sheet_workbench.dart test\label_sheet_toolbar_test.dart third_party\fortune_sheet\lib\src\fortune_sheet_canvas.dart --no-fatal-warnings --no-fatal-infos` 통과.
+- 검증 완료: `git diff --check -- SESSION_HANDOFF.md lib/page_label_sheet/label_sheet_workbench.dart test/label_sheet_toolbar_test.dart third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart` 출력 없음.
+- 진단 완료: 수정 파일 VS Code diagnostics 오류 없음.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `lib/page_label_sheet/label_sheet_workbench.dart`, `test/label_sheet_toolbar_test.dart`, `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`. 기존 unrelated dirty `lib/core/app.dart`는 제외.
+
 ### 완료 (2026-07-06): 공용라벨관리 라벨 이미지 가져오기 컨텍스트 메뉴 재활성화
 
 - 목적: 공용라벨관리 조정 시트에서 막아둔 우클릭 컨텍스트 메뉴의 `라벨 이미지 가져오기` 기능을 다시 사용할 수 있게 한다.

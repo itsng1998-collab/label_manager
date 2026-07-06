@@ -4,6 +4,7 @@ import 'dart:io';
 import 'dart:ui' as ui show PointerDeviceKind, Rect;
 
 import 'package:archive/archive.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -153,7 +154,7 @@ void main() {
 
     expect(
       settings.cellContextMenu,
-      contains(fortuneContextImportLabelImageCommand),
+      isNot(contains(fortuneContextImportLabelImageCommand)),
     );
     expect(
       settings.headerContextMenu,
@@ -169,7 +170,7 @@ void main() {
     );
     expect(
       fortuneContextRenderableMenuItems(settings.cellContextMenu),
-      contains(fortuneContextImportLabelImageCommand),
+      isNot(contains(fortuneContextImportLabelImageCommand)),
     );
     expect(
       FortuneSheetLocale.korean
@@ -180,6 +181,77 @@ void main() {
     settings.onContextMenuCommand!(fortuneContextImportLabelImageCommand);
 
     expect(importClicked, isTrue);
+  });
+
+  testWidgets('label image import context menu only appears on sheet corner', (
+    tester,
+  ) async {
+    final workbook = FortuneWorkbook(
+      sheets: [FortuneSheet(id: 's1', name: 'Sheet1')],
+      settings: labelSheetSettings(
+        const FortuneSettings(),
+        onImportLabelImage: () {},
+      ),
+    );
+
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: SizedBox(
+          width: 640,
+          height: 760,
+          child: FortuneSheetCanvas(workbook: workbook),
+        ),
+      ),
+    );
+
+    FortuneSheetPainter painter() {
+      final finder = find.byWidgetPredicate(
+        (widget) =>
+            widget is CustomPaint && widget.painter is FortuneSheetPainter,
+      );
+      return tester.widget<CustomPaint>(finder).painter! as FortuneSheetPainter;
+    }
+
+    final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
+    final columnHeaderGesture = await tester.startGesture(
+      topLeft + const Offset(83, 80),
+      kind: ui.PointerDeviceKind.mouse,
+      buttons: kSecondaryMouseButton,
+    );
+    await columnHeaderGesture.up();
+    await tester.pump();
+
+    expect(
+      painter().contextMenuItems,
+      isNot(contains(fortuneContextImportLabelImageCommand)),
+    );
+
+    final rowHeaderGesture = await tester.startGesture(
+      topLeft + const Offset(20, 100),
+      kind: ui.PointerDeviceKind.mouse,
+      buttons: kSecondaryMouseButton,
+    );
+    await rowHeaderGesture.up();
+    await tester.pump();
+
+    expect(
+      painter().contextMenuItems,
+      isNot(contains(fortuneContextImportLabelImageCommand)),
+    );
+
+    final cornerGesture = await tester.startGesture(
+      topLeft + const Offset(20, 80),
+      kind: ui.PointerDeviceKind.mouse,
+      buttons: kSecondaryMouseButton,
+    );
+    await cornerGesture.up();
+    await tester.pump();
+
+    expect(
+      painter().contextMenuItems,
+      contains(fortuneContextImportLabelImageCommand),
+    );
   });
 
   test('label sheet workbook save payload round trips through base64 zip', () {

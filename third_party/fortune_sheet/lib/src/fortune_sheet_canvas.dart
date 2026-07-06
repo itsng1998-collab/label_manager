@@ -31148,6 +31148,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
             fortuneContextSetLabelWidthCommand ||
             fortuneContextSetLabelHeightCommand =>
               adjustedSheet && rowSelected && columnSelected,
+            fortuneContextImportLabelImageCommand =>
+              rowSelected && columnSelected,
             _ => true,
           },
         )
