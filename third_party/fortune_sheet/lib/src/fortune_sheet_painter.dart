@@ -63026,9 +63026,6 @@ class FortuneSheetPainter extends CustomPainter {
     FortuneSettings settings,
     FortuneSheetMetrics metrics,
   ) {
-    if (settings.hidePrintAreaBoundary) {
-      return;
-    }
     final physicalSize = fortuneSheetGridClientPhysicalSize(
       workbook.activeSheet,
     );
@@ -63087,7 +63084,10 @@ class FortuneSheetPainter extends CustomPainter {
     if (physicalSize == null) {
       return null;
     }
-    return '${_formatSheetRulerSizeValue(physicalSize.widthMm)} x '
+    final separator = workbook.settings.rulerCornerSizeLabelUsesAsterisk
+        ? '*'
+        : ' x ';
+    return '${_formatSheetRulerSizeValue(physicalSize.widthMm)}$separator'
         '${_formatSheetRulerSizeValue(physicalSize.heightMm)}';
   }
 
@@ -63792,14 +63792,16 @@ class FortuneSheetPainter extends CustomPainter {
           fortuneSheetGridLineColor,
         );
       }
-      _drawText(
-        canvas,
-        columnChar,
-        rect,
-        fontSize: 12,
-        color: fortuneSheetHeaderTextColor,
-        align: TextAlign.center,
-      );
+      if (!settings.hideRowColumnHeaderLabels) {
+        _drawText(
+          canvas,
+          columnChar,
+          rect,
+          fontSize: 12,
+          color: fortuneSheetHeaderTextColor,
+          align: TextAlign.center,
+        );
+      }
       if (filterColumns.contains(c)) {
         _drawFilterMarker(
           canvas,
@@ -63807,7 +63809,9 @@ class FortuneSheetPainter extends CustomPainter {
           active: activeFilterColumns.contains(c),
         );
       }
-      if (hoveredColumnHeaderIndex == c && workbook.settings.allowEdit) {
+      if (!settings.hideRowColumnHeaderLabels &&
+          hoveredColumnHeaderIndex == c &&
+          workbook.settings.allowEdit) {
         _drawColumnHeaderMenuButton(
           canvas,
           fortuneColumnHeaderMenuButtonRect(rect),
@@ -63877,14 +63881,16 @@ class FortuneSheetPainter extends CustomPainter {
           fortuneSheetGridLineColor,
         );
       }
-      _drawText(
-        canvas,
-        rowNumber,
-        Rect.fromLTWH(headerLeft, y, settings.rowHeaderWidth - 2, h),
-        fontSize: 12,
-        color: fortuneSheetHeaderTextColor,
-        align: TextAlign.center,
-      );
+      if (!settings.hideRowColumnHeaderLabels) {
+        _drawText(
+          canvas,
+          rowNumber,
+          Rect.fromLTWH(headerLeft, y, settings.rowHeaderWidth - 2, h),
+          fontSize: 12,
+          color: fortuneSheetHeaderTextColor,
+          align: TextAlign.center,
+        );
+      }
       canvas.restore();
       settings.afterRenderRowHeaderCell?.call(
         rowNumber,
@@ -63956,14 +63962,16 @@ class FortuneSheetPainter extends CustomPainter {
           Offset(x + w - 0.5, dataTop),
           fortuneSheetGridLineColor,
         );
-        _drawText(
-          canvas,
-          _columnName(c),
-          Rect.fromLTWH(x, headerTop, w, settings.columnHeaderHeight),
-          fontSize: 12,
-          color: fortuneSheetHeaderTextColor,
-          align: TextAlign.center,
-        );
+        if (!settings.hideRowColumnHeaderLabels) {
+          _drawText(
+            canvas,
+            _columnName(c),
+            Rect.fromLTWH(x, headerTop, w, settings.columnHeaderHeight),
+            fontSize: 12,
+            color: fortuneSheetHeaderTextColor,
+            align: TextAlign.center,
+          );
+        }
         if (filterColumns.contains(c)) {
           _drawFilterMarker(
             canvas,
@@ -63971,7 +63979,9 @@ class FortuneSheetPainter extends CustomPainter {
             active: activeFilterColumns.contains(c),
           );
         }
-        if (hoveredColumnHeaderIndex == c && workbook.settings.allowEdit) {
+        if (!settings.hideRowColumnHeaderLabels &&
+            hoveredColumnHeaderIndex == c &&
+            workbook.settings.allowEdit) {
           _drawColumnHeaderMenuButton(
             canvas,
             fortuneColumnHeaderMenuButtonRect(
@@ -64025,14 +64035,16 @@ class FortuneSheetPainter extends CustomPainter {
           Offset(dataLeft, y + h - 0.5),
           fortuneSheetGridLineColor,
         );
-        _drawText(
-          canvas,
-          '${r + 1}',
-          Rect.fromLTWH(headerLeft, y, settings.rowHeaderWidth - 2, h),
-          fontSize: 12,
-          color: fortuneSheetHeaderTextColor,
-          align: TextAlign.center,
-        );
+        if (!settings.hideRowColumnHeaderLabels) {
+          _drawText(
+            canvas,
+            '${r + 1}',
+            Rect.fromLTWH(headerLeft, y, settings.rowHeaderWidth - 2, h),
+            fontSize: 12,
+            color: fortuneSheetHeaderTextColor,
+            align: TextAlign.center,
+          );
+        }
       }
       canvas.restore();
     }

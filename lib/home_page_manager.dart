@@ -2250,6 +2250,7 @@ class _ItemPreviewPanelState extends State<_ItemPreviewPanel> {
         text: '주원료 및 함량',
         content: _ItemElementPreviewTab(
           item: widget.item,
+          labelSize: widget.labelSize,
           onWorkbookChanged: _handleElementWorkbookChanged,
         ),
         closable: false,
@@ -2327,24 +2328,25 @@ TabbedViewThemeData _itemPreviewTabbedTheme() {
 class _ItemElementPreviewTab extends StatelessWidget {
   const _ItemElementPreviewTab({
     required this.item,
+    required this.labelSize,
     required this.onWorkbookChanged,
   });
 
   final ItemOfMarket item;
+  final LabelSize? labelSize;
   final ValueChanged<fs.FortuneWorkbook> onWorkbookChanged;
 
   @override
   Widget build(BuildContext context) {
     return LabelSheetWorkbench(
       key: ValueKey('item-element:${item.item.itemId}:${item.item.element}'),
-      initialWorkbook: _itemElementWorkbook(item.item.element),
-      labelSize: null,
+      initialWorkbook: _itemElementWorkbook(item.item.element, labelSize),
+      labelSize: labelSize,
       toolbarItems: _itemElementToolbarItems,
-      hideRowColumnHeaders: true,
+      hideRowColumnHeaderLabels: true,
       hideSelectionHighlight: true,
       singleClickCellEdit: true,
-      hidePrintAreaBoundary: true,
-      fitSingleCellToViewport: true,
+      rulerCornerSizeLabelUsesAsterisk: true,
       onWorkbookChanged: onWorkbookChanged,
     );
   }
@@ -2443,7 +2445,13 @@ String _itemElementTextFromWorkbook(fs.FortuneWorkbook workbook) {
   return cell?.renderedText ?? '';
 }
 
-fs.FortuneWorkbook _itemElementWorkbook(String elementText) {
+fs.FortuneWorkbook _itemElementWorkbook(
+  String elementText,
+  LabelSize? labelSize,
+) {
+  final printAreaSize = _itemElementPrintAreaSize(labelSize);
+  final columnWidth = max(1.0, printAreaSize.width - 1.0);
+  final rowHeight = max(1.0, printAreaSize.height - 1.0);
   return fs.FortuneWorkbook(
     sheets: [
       fs.FortuneSheet(
@@ -2451,8 +2459,8 @@ fs.FortuneWorkbook _itemElementWorkbook(String elementText) {
         name: '주원료 및 함량',
         rowCount: 1,
         columnCount: 1,
-        rowHeights: const {0: 360},
-        columnWidths: const {0: 640},
+        rowHeights: {0: rowHeight},
+        columnWidths: {0: columnWidth},
         customHeight: const {0: 1},
         customWidth: const {0: 1},
         zoomRatio: 1,
@@ -2464,6 +2472,20 @@ fs.FortuneWorkbook _itemElementWorkbook(String elementText) {
         showGridLines: false,
       ),
     ],
+  );
+}
+
+Size _itemElementPrintAreaSize(LabelSize? labelSize) {
+  final common = labelSize?.labelSizeCommon;
+  final widthMm = common?.width != null && common!.width > 0
+      ? common.width
+      : 100;
+  final heightMm = common?.height != null && common!.height > 0
+      ? common.height
+      : 100;
+  return Size(
+    fs.fortuneMillimetersToLogicalPixels(widthMm),
+    fs.fortuneMillimetersToLogicalPixels(heightMm),
   );
 }
 

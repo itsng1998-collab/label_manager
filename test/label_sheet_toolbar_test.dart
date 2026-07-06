@@ -166,11 +166,10 @@ void main() {
     final settings = labelSheetSettings(
       const FortuneSettings(),
       toolbarItems: _itemElementToolbarItemsForTest,
-      hideRowColumnHeaders: true,
+      hideRowColumnHeaderLabels: true,
       hideSelectionHighlight: true,
       singleClickCellEdit: true,
-      hidePrintAreaBoundary: true,
-      fitSingleCellToViewport: true,
+      rulerCornerSizeLabelUsesAsterisk: true,
     );
     final toolbarItems = fortuneToolbarItemsWithCustom(
       settings.toolbarItems,
@@ -180,12 +179,14 @@ void main() {
     expect(toolbarItems.first, labelSheetSaveToolbarCommand);
     expect(toolbarItems, contains(labelSheetSaveToolbarCommand));
     expect(toolbarItems, isNot(contains(labelSheetPrintToolbarCommand)));
-    expect(settings.rowHeaderWidth, 0);
-    expect(settings.columnHeaderHeight, 0);
+    expect(settings.rowHeaderWidth, 46);
+    expect(settings.columnHeaderHeight, 20);
+    expect(settings.hideRowColumnHeaderLabels, isTrue);
     expect(settings.hideSelectionHighlight, isTrue);
     expect(settings.singleClickCellEdit, isTrue);
-    expect(settings.hidePrintAreaBoundary, isTrue);
-    expect(settings.fitSingleCellToViewport, isTrue);
+    expect(settings.hidePrintAreaBoundary, isFalse);
+    expect(settings.fitSingleCellToViewport, isFalse);
+    expect(settings.rulerCornerSizeLabelUsesAsterisk, isTrue);
 
     final defaultSettings = labelSheetSettings(const FortuneSettings());
     expect(
@@ -194,10 +195,12 @@ void main() {
     );
     expect(defaultSettings.rowHeaderWidth, 46);
     expect(defaultSettings.columnHeaderHeight, 20);
+    expect(defaultSettings.hideRowColumnHeaderLabels, isFalse);
     expect(defaultSettings.hideSelectionHighlight, isFalse);
     expect(defaultSettings.singleClickCellEdit, isFalse);
     expect(defaultSettings.hidePrintAreaBoundary, isFalse);
     expect(defaultSettings.fitSingleCellToViewport, isFalse);
+    expect(defaultSettings.rulerCornerSizeLabelUsesAsterisk, isFalse);
   });
 
   testWidgets('single cell viewport fit keeps visible size across zoom', (

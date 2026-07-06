@@ -1588,20 +1588,24 @@ FortuneSettings labelSheetSettings(
   String printTooltip = 'Print',
   List<String>? toolbarItems,
   bool hideRowColumnHeaders = false,
+  bool hideRowColumnHeaderLabels = false,
   bool hideSelectionHighlight = false,
   bool singleClickCellEdit = false,
   bool hidePrintAreaBoundary = false,
   bool fitSingleCellToViewport = false,
+  bool rulerCornerSizeLabelUsesAsterisk = false,
 }) {
   final resolvedToolbarItems = toolbarItems ?? labelSheetToolbarItems;
   return base.copyWith(
     toolbarItems: resolvedToolbarItems,
     rowHeaderWidth: hideRowColumnHeaders ? 0 : null,
     columnHeaderHeight: hideRowColumnHeaders ? 0 : null,
+    hideRowColumnHeaderLabels: hideRowColumnHeaderLabels,
     hideSelectionHighlight: hideSelectionHighlight,
     singleClickCellEdit: singleClickCellEdit,
     hidePrintAreaBoundary: hidePrintAreaBoundary,
     fitSingleCellToViewport: fitSingleCellToViewport,
+    rulerCornerSizeLabelUsesAsterisk: rulerCornerSizeLabelUsesAsterisk,
     customToolbarItems: [
       if (resolvedToolbarItems.contains(labelSheetSaveToolbarCommand))
         FortuneCustomToolbarItem(
@@ -1682,10 +1686,12 @@ class LabelSheetWorkbench extends StatefulWidget {
     this.barcodeObjectIds = const <String>[],
     this.toolbarItems,
     this.hideRowColumnHeaders = false,
+    this.hideRowColumnHeaderLabels = false,
     this.hideSelectionHighlight = false,
     this.singleClickCellEdit = false,
     this.hidePrintAreaBoundary = false,
     this.fitSingleCellToViewport = false,
+    this.rulerCornerSizeLabelUsesAsterisk = false,
     this.onInitialLoadComplete,
     this.onGridRectChanged,
     this.onBeforeSheetDialog,
@@ -1703,10 +1709,12 @@ class LabelSheetWorkbench extends StatefulWidget {
   final List<String> barcodeObjectIds;
   final List<String>? toolbarItems;
   final bool hideRowColumnHeaders;
+  final bool hideRowColumnHeaderLabels;
   final bool hideSelectionHighlight;
   final bool singleClickCellEdit;
   final bool hidePrintAreaBoundary;
   final bool fitSingleCellToViewport;
+  final bool rulerCornerSizeLabelUsesAsterisk;
   final VoidCallback? onInitialLoadComplete;
   final ValueChanged<ui.Rect>? onGridRectChanged;
   final FutureOr<void> Function()? onBeforeSheetDialog;
@@ -1790,10 +1798,13 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
         printTooltip: _labelSheetPrintTooltip(),
         toolbarItems: widget.toolbarItems,
         hideRowColumnHeaders: widget.hideRowColumnHeaders,
+        hideRowColumnHeaderLabels: widget.hideRowColumnHeaderLabels,
         hideSelectionHighlight: widget.hideSelectionHighlight,
         singleClickCellEdit: widget.singleClickCellEdit,
         hidePrintAreaBoundary: widget.hidePrintAreaBoundary,
         fitSingleCellToViewport: widget.fitSingleCellToViewport,
+        rulerCornerSizeLabelUsesAsterisk:
+            widget.rulerCornerSizeLabelUsesAsterisk,
       );
 
   FortuneSheetGridClientPhysicalSize? get _gridClientSize {

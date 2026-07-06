@@ -23427,10 +23427,12 @@ class FortuneSettings {
     this.formulaBarHeight = 29,
     this.rowHeaderWidth = 46,
     this.columnHeaderHeight = 20,
+    this.hideRowColumnHeaderLabels = false,
     this.hideSelectionHighlight = false,
     this.singleClickCellEdit = false,
     this.hidePrintAreaBoundary = false,
     this.fitSingleCellToViewport = false,
+    this.rulerCornerSizeLabelUsesAsterisk = false,
     this.sheetBarHeight = 31,
     this.statisticBarHeight = 23,
     this.defaultColWidth = 73,
@@ -23493,10 +23495,12 @@ class FortuneSettings {
   final double formulaBarHeight;
   final double rowHeaderWidth;
   final double columnHeaderHeight;
+  final bool hideRowColumnHeaderLabels;
   final bool hideSelectionHighlight;
   final bool singleClickCellEdit;
   final bool hidePrintAreaBoundary;
   final bool fitSingleCellToViewport;
+  final bool rulerCornerSizeLabelUsesAsterisk;
   final double sheetBarHeight;
   final double statisticBarHeight;
   final double defaultColWidth;
@@ -23553,10 +23557,12 @@ class FortuneSettings {
     bool? showSheetTabs,
     double? rowHeaderWidth,
     double? columnHeaderHeight,
+    bool? hideRowColumnHeaderLabels,
     bool? hideSelectionHighlight,
     bool? singleClickCellEdit,
     bool? hidePrintAreaBoundary,
     bool? fitSingleCellToViewport,
+    bool? rulerCornerSizeLabelUsesAsterisk,
     List<String>? fontFamilies,
     FortuneFontProvider? fontProvider,
     List<String>? toolbarItems,
@@ -23586,6 +23592,8 @@ class FortuneSettings {
       formulaBarHeight: formulaBarHeight,
       rowHeaderWidth: rowHeaderWidth ?? this.rowHeaderWidth,
       columnHeaderHeight: columnHeaderHeight ?? this.columnHeaderHeight,
+      hideRowColumnHeaderLabels:
+          hideRowColumnHeaderLabels ?? this.hideRowColumnHeaderLabels,
       hideSelectionHighlight:
           hideSelectionHighlight ?? this.hideSelectionHighlight,
       singleClickCellEdit: singleClickCellEdit ?? this.singleClickCellEdit,
@@ -23593,6 +23601,9 @@ class FortuneSettings {
           hidePrintAreaBoundary ?? this.hidePrintAreaBoundary,
       fitSingleCellToViewport:
           fitSingleCellToViewport ?? this.fitSingleCellToViewport,
+      rulerCornerSizeLabelUsesAsterisk:
+          rulerCornerSizeLabelUsesAsterisk ??
+          this.rulerCornerSizeLabelUsesAsterisk,
       sheetBarHeight: sheetBarHeight,
       statisticBarHeight: statisticBarHeight,
       defaultColWidth: defaultColWidth,

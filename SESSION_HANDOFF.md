@@ -28,6 +28,23 @@
 
 ## 현재 상태
 
+### 진행 중 (2026-07-07): 품목관리 주원료 탭 눈금자/인쇄영역 복원
+
+- 수정 예정: 품목관리 플로팅 창 `주원료 및 함량` 탭에만 행/열 눈금자와 교차 영역 `w*h` 라벨을 표시하고, 행/열 헤더 라벨은 숨긴다.
+- 수정 예정: 현재 라벨 크기 기준 인쇄영역을 다시 표시하고, 1개 셀의 논리 크기를 해당 인쇄영역 크기에 맞춘다.
+- 수정 예정: 툴바 확대/축소는 공용라벨관리 시트와 같은 일반 zoom 동작으로 되돌리고, 기존 unrelated 변경 `lib/core/app.dart`는 제외한다.
+- 편집 완료: `FortuneSettings`에 `hideRowColumnHeaderLabels`, `rulerCornerSizeLabelUsesAsterisk` 플래그를 추가하고, `fortune_sheet_painter.dart`에서 헤더 영역 크기는 유지하되 행/열 헤더 라벨과 메뉴 버튼만 숨기도록 처리했다.
+- 편집 완료: 눈금자 렌더링을 `hidePrintAreaBoundary`와 분리하고, 코너 크기 라벨은 주원료 탭 플래그에서 `w*h` 형식으로 표시하도록 변경했다.
+- 편집 완료: `_ItemElementPreviewTab`에서 현재 `labelSize`를 `LabelSheetWorkbench`에 전달하고, `_itemElementWorkbook`의 1개 셀 크기를 현재 라벨 인쇄영역 logical size와 맞췄다.
+- 편집 완료: 주원료 탭에서 `fitSingleCellToViewport`와 `hidePrintAreaBoundary`를 끄고 일반 공용라벨 zoom 동작을 사용하도록 되돌렸다.
+- 테스트 갱신: `test/label_sheet_toolbar_test.dart`의 주원료 전용 설정 테스트를 눈금자 공간 유지/인쇄영역 표시/별표 코너 라벨 플래그 기준으로 변경했다.
+- 검증 완료: `dart format` 실행.
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`).
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "label sheet settings can isolate item element editing mode"` 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "single cell viewport fit keeps visible size across zoom"` 통과.
+- 검증 완료: `test\common_label_manage_test.dart`, `test\swipe_action_table_test.dart` 총 4개 통과.
+- 검증 완료: `git diff --check -- lib/home_page_manager.dart lib/page_label_sheet/label_sheet_workbench.dart third_party/fortune_sheet/lib/src/fortune_sheet_model.dart third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart test/label_sheet_toolbar_test.dart SESSION_HANDOFF.md` 통과.
+
 ### 진행 중 (2026-07-06): 품목관리 주원료 탭 단일 셀 편집 UX 보강
 
 - 수정 예정: 품목관리 플로팅 창 `주원료 및 함량` 탭에만 저장 아이콘을 표시하고, 공용라벨관리 시트와 분리된 플래그로 인쇄 영역 숨김/단일 셀 viewport 맞춤/100% 초기 zoom을 적용한다.
