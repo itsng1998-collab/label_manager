@@ -37,6 +37,7 @@
 - 검증 완료: `C:\Flutter\bin\flutter.bat analyze third_party\fortune_sheet\lib\src\fortune_sheet_painter.dart --no-fatal-warnings --no-fatal-infos` 결과 `exitCode=0`, `No issues found`.
 - 검증 완료: `git diff --check -- SESSION_HANDOFF.md third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart` 출력 없음. VS Code diagnostics 결과 `SESSION_HANDOFF.md`, `fortune_sheet_painter.dart` 오류 없음.
 - stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
+- 커밋 완료: `cf7b4a6` (`이미지 삽입 다이얼로그 ID 표시 위치 보정`).
 
 ### 완료 (2026-07-05): 이미지/바코드 레이어 패널 오브젝트 Ctrl+C/X/V 정책 추가
 
