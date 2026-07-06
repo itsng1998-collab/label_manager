@@ -28,6 +28,18 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-06): Gemini 변환 XLSX 보관 temp 경로 및 시작 정리 변경
+
+- 목적: AI 이미지 변환 XLSX를 `Directory.systemTemp`가 아니라 디버그 모드에서는 `.tmp`, 릴리즈에서는 `%APPDATA%\com.itsng\Label Manager\temp`에 생성하고, 변환 후 삭제하지 않고 유지한다.
+- 변경 완료: `label_sheet_ai_import_temp.dart`를 추가해 디버그/릴리즈 temp 경로와 시작 정리 함수를 공용화했다.
+- 변경 완료: `label_sheet_workbench.dart`의 AI 변환 XLSX 생성 경로를 공용 temp 경로로 변경했다. 생성된 XLSX는 가져오기 후 삭제하지 않고 유지한다.
+- 변경 완료: `main.dart` 앱 시작 시 `%APPDATA%\com.itsng\Label Manager\temp` 내부 내용을 삭제하고, 폴더는 다시 사용할 수 있게 유지한다.
+- 테스트 추가: `label_sheet_toolbar_test.dart`에서 디버그 `.tmp` 경로, 릴리즈 `%APPDATA%\com.itsng\Label Manager\temp` 경로, 시작 시 릴리즈 temp 내부 삭제를 검증한다.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --name "AI import temp directory"` 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --name "AI import startup cleanup clears release temp contents"` 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze lib\main.dart lib\page_label_sheet\label_sheet_ai_import_temp.dart lib\page_label_sheet\label_sheet_workbench.dart test\label_sheet_toolbar_test.dart --no-fatal-warnings --no-fatal-infos` 통과.
+- 검증 완료: `git diff --check -- SESSION_HANDOFF.md lib/main.dart lib/page_label_sheet/label_sheet_ai_import_temp.dart lib/page_label_sheet/label_sheet_workbench.dart test/label_sheet_toolbar_test.dart` 통과.
+
 ### 완료 (2026-07-06): Gemini 업로드 이미지 OCR 보존 압축 기준 조정
 
 - 목적: Gemini 전송용 이미지 압축이 문자 판독 정확도를 해치지 않도록, 무조건적인 강한 축소가 아니라 OCR에 필요한 해상도를 보존하는 기준으로 조정한다.

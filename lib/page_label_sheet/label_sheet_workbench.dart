@@ -13,6 +13,7 @@ import 'package:fortune_sheet/fortune_sheet.dart';
 import 'package:image/image.dart' as imglib;
 import 'package:label_manager/models/label_size.dart';
 import 'package:label_manager/page_label_sheet/label_sheet_ai_import.dart';
+import 'package:label_manager/page_label_sheet/label_sheet_ai_import_temp.dart';
 import 'package:label_manager/page_label_sheet/label_sheet_import_model.dart';
 import 'package:label_manager/page_label_sheet/label_sheet_open_xml_export.dart';
 import 'package:label_manager/page_label_sheet/label_sheet_rtf_import.dart';
@@ -2216,13 +2217,16 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
   Future<File> _writeLabelImageImportXlsxFile(
     LabelSheetImageImportDraft draft,
     String sourceFileName,
-  ) {
+  ) async {
     final baseName = p.basenameWithoutExtension(sourceFileName).trim();
     final safeBaseName = baseName.isEmpty
         ? 'label_image'
         : baseName.replaceAll(RegExp(r'[^0-9A-Za-z가-힣._-]+'), '_');
+    final directory = await labelSheetAiImportTempDirectory().create(
+      recursive: true,
+    );
     final path = p.join(
-      Directory.systemTemp.path,
+      directory.path,
       'label_manager_ai_import_${DateTime.now().microsecondsSinceEpoch}_$safeBaseName.xlsx',
     );
     return labelSheetWriteDraftOpenXmlTestFile(draft, path: path);

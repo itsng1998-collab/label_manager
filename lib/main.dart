@@ -13,6 +13,7 @@ import 'core/ui_scale.dart';
 import 'database/db_reconnect_overlay.dart';
 import 'package:label_manager/utils/debug_logger.dart';
 import 'home_page.dart';
+import 'page_label_sheet/label_sheet_ai_import_temp.dart';
 import 'printing/label_printer_preferences.dart';
 
 typedef DebugPrintCallback = void Function(String? message, {int? wrapWidth});
@@ -23,6 +24,12 @@ Future<void> main(List<String> args) async {
   // 로그파일 및 디버그프린트 초기화
   await DebugLogger.ensureInitialized();
   DebugLogger.setVersion('FSDBG-2026-07-01-cell-edit-log');
+
+  try {
+    await clearLabelSheetAiImportStartupTempDirectory();
+  } catch (e, stackTrace) {
+    DebugLogger.log('AI import temp cleanup failed: $e\n$stackTrace');
+  }
 
   // Widgets 초기화는 모든 플랫폼 공통으로 필요하다.
   WidgetsFlutterBinding.ensureInitialized();
