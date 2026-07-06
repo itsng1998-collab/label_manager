@@ -28,6 +28,18 @@
 
 ## 현재 상태
 
+### 진행 중 (2026-07-06): 품목관리 플로팅 창 닫기/탭 스타일 보정
+
+- 수정 예정: `lib/home_page_manager.dart`에서 품목관리 전용 플로팅 창 닫기 시 공용라벨관리처럼 탭영역 미리보기 버튼 표시, `hideToRect` 닫힘 애니메이션, 버튼 복귀 동작을 추가한다.
+- 수정 예정: 품목관리 플로팅 창 내부 탭 메뉴를 메인관리와 같은 `TabbedViewTheme`/`TabbedView` 스타일로 변경한다.
+- 주의: unrelated 변경 `lib/core/app.dart`는 제외한다.
+- 편집 완료: `lib/home_page_manager.dart`에 `_itemPreviewButtonKey`, `_itemPreviewClosedByUser`, `_handleItemPreviewCloseRequested`, `_restoreItemPreviewWindow`, `_buildItemPreviewButton`을 추가해 품목관리 플로팅 창 닫힘 애니메이션/복귀 버튼을 공용라벨관리 흐름과 맞췄다.
+- 편집 완료: `_ItemPreviewPanel` 내부 탭을 `DefaultTabController`/`TabBar`에서 `TabbedViewTheme`/`TabbedView`로 변경하고 메인관리 탭과 동일 계열의 색상/간격/폰트 스타일을 적용했다.
+- 검증 완료: `dart_format`(`lib/home_page_manager.dart`) 실행.
+- 검증 완료: `git diff --check -- lib/home_page_manager.dart SESSION_HANDOFF.md` 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`).
+- 검증 완료: `test\swipe_action_table_test.dart`, `test\common_label_manage_test.dart`, `test\label_sheet_toolbar_test.dart` 총 82개 통과.
+
 ### 진행 중 (2026-07-06): 품목관리 미리보기/편집 지시서 구현
 
 - 수정 예정: `.tmp\item_manager.txt` 기준으로 `lib/page_home/item_manage.dart`, `lib/widgets/swipe_action_table.dart`, `lib/home_page_manager.dart`에 품목관리 선택 행/전용 플로팅 창/현재 LabelSheet workbook 기반 미리보기 연결을 단계적으로 구현한다.

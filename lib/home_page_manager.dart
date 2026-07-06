@@ -60,6 +60,7 @@ class _HomePageManagerState extends State<HomePageManager> {
 
   late TabbedViewController _tabController;
   final TextEditingController _tabSearchController = TextEditingController();
+  final GlobalKey _itemPreviewButtonKey = GlobalKey();
   final GlobalKey _commonLabelPreviewButtonKey = GlobalKey();
   final GlobalKey _rtfPreviewBoxKey = GlobalKey();
   int? _labelSizesBrandId;
@@ -87,6 +88,7 @@ class _HomePageManagerState extends State<HomePageManager> {
   bool _rtfPreviewHasResolvedImage = false;
   bool _autoSelectedCommonLabelOnce = false;
   bool _commonLabelTabActivated = false;
+  bool _itemPreviewClosedByUser = false;
   bool _commonLabelPreviewClosedByUser = false;
   bool _commonLabelPreviewHiddenForSheetDialog = false;
 
@@ -465,6 +467,7 @@ class _HomePageManagerState extends State<HomePageManager> {
         ItemOfMarket.datas = <ItemOfMarket>[];
         _selectedItemOfMarket = null;
         _selectedItemIndex = null;
+        _itemPreviewClosedByUser = false;
         _resetTabs();
         return;
       }
@@ -472,6 +475,7 @@ class _HomePageManagerState extends State<HomePageManager> {
       _currentLabelSize = labelSize;
       _rtfPreviewReadyKey = null;
       _commonLabelTabActivated = false;
+      _itemPreviewClosedByUser = false;
       _commonLabelPreviewClosedByUser = false;
       widget.onLabelSizeChanged(labelSize);
       TColumn.datas = await TColumnDAO.selectByLabelSizeId(
@@ -849,6 +853,11 @@ class _HomePageManagerState extends State<HomePageManager> {
         _itemPreviewWindow?.hide();
         return;
       }
+      if (_itemPreviewClosedByUser) {
+        _itemPreviewWindow?.hide();
+        setState(() {});
+        return;
+      }
       final key = '${_effectiveLabelSize?.labelSizeId ?? 'none'}:'
           '${selected.item.itemId}:${_selectedItemIndex ?? -1}';
       final child = _ItemPreviewPanel(
@@ -860,11 +869,13 @@ class _HomePageManagerState extends State<HomePageManager> {
         initialSize: const Size(720, 520),
         minSize: const Size(420, 280),
         tooltip: '품목관리 미리보기',
+        onCloseRequested: _handleItemPreviewCloseRequested,
       );
       _itemPreviewWindow!
         ..setTooltip('품목관리 미리보기')
         ..setChild(child)
         ..show(context);
+      setState(() {});
     });
   }
 
@@ -888,6 +899,32 @@ class _HomePageManagerState extends State<HomePageManager> {
     if (_selectedTabValue() == 'items') {
       _showItemPreviewWindow();
     }
+  }
+
+  Future<void> _handleItemPreviewCloseRequested() async {
+    final window = _itemPreviewWindow;
+    if (window == null || !window.isVisible) return;
+    final target = _itemPreviewButtonRect() ?? window.rect.center & Size.zero;
+    await window.hideToRect(target.inflate(1));
+    if (!mounted) return;
+    _itemPreviewClosedByUser = true;
+    setState(() {});
+  }
+
+  Rect? _itemPreviewButtonRect() {
+    final context = _itemPreviewButtonKey.currentContext;
+    if (context == null) return null;
+    final renderObject = context.findRenderObject();
+    if (renderObject is! RenderBox || !renderObject.hasSize) return null;
+    final topLeft = renderObject.localToGlobal(Offset.zero);
+    return topLeft & renderObject.size;
+  }
+
+  void _restoreItemPreviewWindow() {
+    if (_selectedTabValue() != 'items') return;
+    _itemPreviewClosedByUser = false;
+    setState(() {});
+    _showItemPreviewWindow();
   }
 
   void _showRtfPreviewWindow() {
@@ -1357,6 +1394,7 @@ class _HomePageManagerState extends State<HomePageManager> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
+          _buildItemPreviewButton(context),
           _buildCommonLabelPreviewButton(context),
           Transform.translate(
             offset: const Offset(0, -1),
@@ -1445,6 +1483,31 @@ class _HomePageManagerState extends State<HomePageManager> {
     );
     if (!shouldKeepSlot) {
       return SizedBox(key: _commonLabelPreviewButtonKey, width: 0, height: 0);
+    }
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        button,
+        SizedBox(width: lmSize(8)),
+      ],
+    );
+  }
+
+  Widget _buildItemPreviewButton(BuildContext context) {
+    final selected = _selectedTabValue() == 'items';
+    final window = _itemPreviewWindow;
+    final shouldShow = selected &&
+      _itemPreviewClosedByUser &&
+      window != null &&
+      !window.isVisible;
+    final shouldKeepSlot = selected && window != null;
+    final button = _PreviewRestoreButton(
+      key: _itemPreviewButtonKey,
+      visible: shouldShow,
+      onPressed: _restoreItemPreviewWindow,
+    );
+    if (!shouldKeepSlot) {
+      return SizedBox(key: _itemPreviewButtonKey, width: 0, height: 0);
     }
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -2170,50 +2233,87 @@ class _ItemPreviewPanelState extends State<_ItemPreviewPanel> {
       ...specialColumns,
       ...columns,
     ]);
+    final controller = TabbedViewController([
+      TabData(
+        value: 'item_element',
+        text: '주원료 및 함량',
+        content: _ItemElementPreviewTab(
+          item: widget.item,
+          onWorkbookChanged: _handleElementWorkbookChanged,
+        ),
+        closable: false,
+        keepAlive: true,
+      ),
+      TabData(
+        value: 'item_output_preview',
+        text: '출력내용 미리보기',
+        content: _ItemOutputPreviewTab(
+          key: ValueKey(
+            'item-output-tab:${widget.item.item.itemId}:${_elementText.hashCode}',
+          ),
+          item: widget.item,
+          labelSize: widget.labelSize,
+          elementText: _elementText,
+          imageObjectIds: imageObjectIds,
+          barcodeObjectIds: barcodeObjectIds,
+        ),
+        closable: false,
+        keepAlive: true,
+      ),
+    ]);
     return Material(
       color: Colors.white,
-      child: DefaultTabController(
-        length: 2,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Container(
-              color: const Color(0xFFF7F8FA),
-              child: const TabBar(
-                labelColor: Color(0xFF1F2429),
-                unselectedLabelColor: Color(0xFF6B7280),
-                indicatorColor: Color(0xFF0E2F66),
-                tabs: [
-                  Tab(text: '주원료 및 함량'),
-                  Tab(text: '출력내용 미리보기'),
-                ],
-              ),
-            ),
-            Expanded(
-              child: TabBarView(
-                children: [
-                  _ItemElementPreviewTab(
-                    item: widget.item,
-                    onWorkbookChanged: _handleElementWorkbookChanged,
-                  ),
-                  _ItemOutputPreviewTab(
-                    key: ValueKey(
-                      'item-output-tab:${widget.item.item.itemId}:${_elementText.hashCode}',
-                    ),
-                    item: widget.item,
-                    labelSize: widget.labelSize,
-                    elementText: _elementText,
-                    imageObjectIds: imageObjectIds,
-                    barcodeObjectIds: barcodeObjectIds,
-                  ),
-                ],
-              ),
-            ),
-          ],
+      child: TabbedViewTheme(
+        data: _itemPreviewTabbedTheme(),
+        child: TabbedView(
+          controller: controller,
+          tabReorderEnabled: false,
         ),
       ),
     );
   }
+}
+
+TabbedViewThemeData _itemPreviewTabbedTheme() {
+  final theme = TabbedViewThemeData.minimalist(
+    brightness: Brightness.light,
+    colorSet: Colors.grey,
+    fontSize: 14,
+    tabRadius: 3,
+  );
+
+  theme.tabsArea
+    ..color = const Color(0xFFF7F8FA)
+    ..border = const BorderSide(color: Color(0xFFE6E6E6))
+    ..initialGap = 0
+    ..middleGap = 4
+    ..buttonsGap = 0
+    ..buttonColor = Colors.transparent
+    ..hoveredButtonColor = Colors.transparent
+    ..disabledButtonColor = Colors.transparent;
+
+  theme.tab
+    ..padding = const EdgeInsets.fromLTRB(18, 9.5, 18, 9.5)
+    ..paddingWithoutButton = const EdgeInsets.fromLTRB(18, 9.5, 18, 9.5)
+    ..textStyle = const TextStyle(
+      fontSize: 14,
+      fontWeight: FontWeight.w400,
+      color: Color(0xFF1F2429),
+    )
+    ..buttonsGap = 0
+    ..buttonColor = Colors.transparent
+    ..hoveredButtonColor = Colors.transparent
+    ..disabledButtonColor = Colors.transparent
+    ..buttonPadding = EdgeInsets.zero;
+
+  theme.contentArea
+    ..color = Colors.white
+    ..padding = EdgeInsets.zero;
+
+  theme.divider = const BorderSide(color: Color(0xFFE6E6E6));
+  theme.isDividerWithinTabArea = true;
+
+  return theme;
 }
 
 class _ItemElementPreviewTab extends StatelessWidget {
