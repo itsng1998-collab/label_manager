@@ -28,6 +28,23 @@
 
 ## 현재 상태
 
+### 진행 중 (2026-07-07): 품목관리 주원료 탭 zoom 위치/출력 미리보기 숨김
+
+- 수정 예정: 품목관리 플로팅 창 `주원료 및 함량` 탭의 축소/확대 영역을 시트 툴바와 겹치지 않게 바로 위 탭 메뉴 영역 오른쪽 끝으로 올리고, `출력내용 미리보기` 탭에서는 숨긴다.
+- 수정 예정: 공용라벨관리 시트에는 영향이 없도록 `LabelSheetWorkbench` 옵션 기본값은 기존 시트 툴바 오른쪽 배치로 유지한다.
+- 편집 완료: `LabelSheetZoomToolbarPlacement` enum을 추가하고 `LabelSheetWorkbench.zoomToolbarPlacement` 기본값을 `sheetToolbarEnd`로 두었다.
+- 편집 완료: `previewTabAreaEnd`에서는 zoom overlay를 content 영역 위쪽으로 올리고 Stack clip을 해제했으며, `hidden`에서는 zoom overlay를 만들지 않도록 했다.
+- 편집 완료: `_ItemElementPreviewTab`은 `previewTabAreaEnd`, `_ItemOutputPreviewTab`은 `hidden`을 사용하도록 분리했다.
+- 테스트 추가: `test/label_sheet_toolbar_test.dart`에 zoom toolbar가 preview tab 영역으로 올라가거나 hidden일 때 입력 컨트롤이 사라지는 widget 테스트를 추가했다.
+- 검증 예정: `dart format`, `C:\Flutter\bin\flutter.bat analyze`, zoom placement widget 테스트, 주원료 설정/viewport 집중 테스트, `git diff --check`.
+- 검증 완료: `dart format` 실행.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "label sheet zoom toolbar placement can move or hide controls"` 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`).
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "label sheet settings can isolate item element editing mode"` 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "single cell viewport fit keeps visible size across zoom"` 통과.
+- 검증 완료: `test\common_label_manage_test.dart`, `test\swipe_action_table_test.dart` 총 4개 통과.
+- 주의: unrelated 변경 `lib/core/app.dart`는 제외한다.
+
 ### 진행 중 (2026-07-07): 품목관리 주원료 탭 눈금자 안내선/툴팁 차단
 
 - 수정 예정: 품목관리 플로팅 창 `주원료 및 함량` 탭에만 눈금자 guide 드래그/hover/툴팁/렌더링을 막고, 공용라벨관리 시트에는 영향을 주지 않는다.

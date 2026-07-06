@@ -2348,6 +2348,7 @@ class _ItemElementPreviewTab extends StatelessWidget {
       rulerCornerSizeLabelUsesAsterisk: true,
       disableSheetRulerGuideInteraction: true,
       hideStatisticBar: true,
+      zoomToolbarPlacement: LabelSheetZoomToolbarPlacement.previewTabAreaEnd,
       onWorkbookChanged: onWorkbookChanged,
     );
   }
@@ -2436,6 +2437,7 @@ class _ItemOutputPreviewTab extends StatelessWidget {
       labelSize: labelSize,
       imageObjectIds: imageObjectIds,
       barcodeObjectIds: barcodeObjectIds,
+      zoomToolbarPlacement: LabelSheetZoomToolbarPlacement.hidden,
     );
   }
 }

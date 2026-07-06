@@ -1031,6 +1031,51 @@ void main() {
     expect(saveItem.disabled, isTrue);
   });
 
+  testWidgets('label sheet zoom toolbar placement can move or hide controls', (
+    tester,
+  ) async {
+    const hostKey = ValueKey('zoom-placement-host');
+
+    Widget buildWorkbench(LabelSheetZoomToolbarPlacement placement) {
+      return Directionality(
+        textDirection: TextDirection.ltr,
+        child: Padding(
+          padding: const EdgeInsets.only(top: 50),
+          child: SizedBox(
+            key: hostKey,
+            width: 420,
+            height: 260,
+            child: LabelSheetWorkbench(
+              initialWorkbook: FortuneWorkbook(
+                sheets: [FortuneSheet(id: 's1', name: 'Label')],
+              ),
+              zoomToolbarPlacement: placement,
+            ),
+          ),
+        ),
+      );
+    }
+
+    await tester.pumpWidget(
+      buildWorkbench(LabelSheetZoomToolbarPlacement.previewTabAreaEnd),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    final hostTop = tester.getTopLeft(find.byKey(hostKey)).dy;
+    final zoomTop = tester
+        .getTopLeft(find.byKey(const ValueKey('label-sheet-zoom-input')))
+        .dy;
+    expect(zoomTop, lessThan(hostTop));
+
+    await tester.pumpWidget(
+      buildWorkbench(LabelSheetZoomToolbarPlacement.hidden),
+    );
+    await tester.pump();
+
+    expect(find.byKey(const ValueKey('label-sheet-zoom-input')), findsNothing);
+  });
+
   testWidgets('label sheet save button stays enabled when save fails', (
     tester,
   ) async {

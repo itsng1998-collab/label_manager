@@ -36,6 +36,13 @@ const String labelSheetPrintToolbarCommand = 'label-sheet-print';
 const int labelSheetDefaultZoomPercent = 100;
 const int labelSheetMinZoomPercent = 10;
 const int labelSheetMaxZoomPercent = 400;
+
+enum LabelSheetZoomToolbarPlacement {
+  sheetToolbarEnd,
+  previewTabAreaEnd,
+  hidden,
+}
+
 const int _labelSheetDefaultPhysicalWidthMm = 100;
 const int _labelSheetDefaultPhysicalHeightMm = 100;
 
@@ -1698,6 +1705,7 @@ class LabelSheetWorkbench extends StatefulWidget {
     this.rulerCornerSizeLabelUsesAsterisk = false,
     this.disableSheetRulerGuideInteraction = false,
     this.hideStatisticBar = false,
+    this.zoomToolbarPlacement = LabelSheetZoomToolbarPlacement.sheetToolbarEnd,
     this.onInitialLoadComplete,
     this.onGridRectChanged,
     this.onBeforeSheetDialog,
@@ -1723,6 +1731,7 @@ class LabelSheetWorkbench extends StatefulWidget {
   final bool rulerCornerSizeLabelUsesAsterisk;
   final bool disableSheetRulerGuideInteraction;
   final bool hideStatisticBar;
+  final LabelSheetZoomToolbarPlacement zoomToolbarPlacement;
   final VoidCallback? onInitialLoadComplete;
   final ValueChanged<ui.Rect>? onGridRectChanged;
   final FutureOr<void> Function()? onBeforeSheetDialog;
@@ -2914,12 +2923,20 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
   }
 
   Widget _buildZoomToolbarOverlay() {
+    if (widget.zoomToolbarPlacement == LabelSheetZoomToolbarPlacement.hidden) {
+      return const SizedBox.shrink();
+    }
+    final inPreviewTabArea =
+        widget.zoomToolbarPlacement ==
+        LabelSheetZoomToolbarPlacement.previewTabAreaEnd;
     return Positioned(
-      top: 6,
+      top: inPreviewTabArea ? -36 : 6,
       right: 12,
       height: 29,
       child: ColoredBox(
-        color: const Color(0xfffafafc),
+        color: inPreviewTabArea
+            ? const Color(0xFFF7F8FA)
+            : const Color(0xfffafafc),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -3106,6 +3123,11 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
             );
             return Stack(
               fit: StackFit.expand,
+              clipBehavior:
+                  widget.zoomToolbarPlacement ==
+                      LabelSheetZoomToolbarPlacement.previewTabAreaEnd
+                  ? Clip.none
+                  : Clip.hardEdge,
               children: [
                 sheet,
                 _buildZoomToolbarOverlay(),
