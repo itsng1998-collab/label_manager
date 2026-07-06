@@ -10,7 +10,7 @@
 * 컬럼 헤더의 표시명은 `RICH_COLUMN_NAME`, 치환 키워드는 `RICH_KEYWORD`이다. 라벨 원본에서는 `#`를 붙인 `#RICH_KEYWORD` 형태를 찾아 대체한다.
 * 기본 항목은 별도 특별 키워드로 처리한다.
   - 품명: `#ITEMNAME` -> 선택 행의 `ItemOfMarket.item.itemName`
-  - 주원료: `#ELEMENT` -> 선택 행의 주원료 RTF/텍스트. 품목관리 플로팅 창에서 편집 중이면 편집 중인 값을 우선 사용한다.
+  - 주원료: `#ELEMENT` -> 선택 행의 주원료 텍스트/시트 편집값. 품목관리 플로팅 창에서 편집 중이면 편집 중인 값을 우선 사용한다.
 * 일반 동적 컬럼은 `BM_RICH_COL_CONTENT.RICH_COL_CONTENT_DATA` 값으로 대체한다. 현재 프로젝트에서는 `TColumnContent.get(columnId, itemId)?.dataString`이 해당 값이다.
 * 바코드 컬럼은 저장된 문자열을 그대로 텍스트로 넣는 것이 아니라, 컬럼 타입/바코드 설정에 따라 바코드 객체의 payload로 적용한다. 레거시 기준은 `TYPE_BARCODE`, `TYPE_QR_CODE`, `TYPE_GS1_BARCODE` 계열 분기이다.
 * 이미지 컬럼은 DB에 이미지 바이너리를 저장하지 않는다. 셀에는 확장자를 제외한 파일명 문자열만 저장된다.
@@ -18,7 +18,7 @@
   - 레거시 파일 위치: `C:\ITS\LabelManager\bmp files\비닐류PP.bmp`
   - 치환 키워드: 이미지 파일명이 아니라 이미지 타입 컬럼의 `#RICH_KEYWORD`이다. 예를 들어 컬럼 키워드가 `IMAGE`이면 `#IMAGE`를 이미지로 대체한다.
   - 현재 구현에서도 이미지 컬럼은 `TColumn.keyword`로 라벨 시트의 `#keyword` 위치를 찾고, 셀 값은 이미지 파일명 참조로만 사용한다.
-* 레거시는 `CTableRowRTFMaker::ReplaceColumnInfoToCellValue`에서 `# + column.GetKeyword()`를 만들고, 컬럼 타입에 따라 텍스트/바코드/이미지 RTF로 대체한다. 현재 프로젝트의 구현도 이 구조를 LabelSheet workbook 조작 방식으로 옮기는 방향이 맞다.
+* 레거시는 `CTableRowRTFMaker::ReplaceColumnInfoToCellValue`에서 `# + column.GetKeyword()`를 만들고, 컬럼 타입에 따라 텍스트/바코드/이미지를 출력 데이터로 대체한다. 현재 프로젝트는 레거시 출력 포맷을 재현하지 않고, 같은 키워드 매핑 규칙만 가져와 LabelSheet workbook의 셀/바코드 객체/이미지 객체를 직접 조작한다.
 
 3. 품목관리 테이블 동작
 * 테이블 로딩 완료 후 첫 번째 데이터 행을 자동 선택한다.
@@ -50,9 +50,9 @@
 * 셀 선택의 파란색 하이라이트는 표시하지 않는다.
 * A1 셀 클릭 시 선택 상태를 거치지 않고 바로 편집 상태로 진입한다.
 * A1 값은 선택 행의 주원료 데이터에서 온다.
-  - 기본값: `ItemOfMarket.item.element` / `ItemOfMarket.item.elementRTF`
-  - 거래처/매장별 사용자 지정 주원료가 켜져 있으면 `ItemOfMarket.rtfText`를 우선 검토한다.
-* 저장 포맷이 레거시 RTF이면 공용라벨관리에서 만든 RTF -> LabelSheet 변환 기능을 사용해 현재 LabelSheet 편집 데이터로 변환한다.
+  - 기본값: `ItemOfMarket.item.element`
+  - 거래처/매장별 사용자 지정 주원료가 켜져 있으면 현재 프로젝트에서 사용하는 주원료 저장값을 우선 검토한다.
+* 현재 프로젝트의 품목관리 플로팅 창과 미리보기 구현은 RTF 포맷 변환을 수행하지 않는다. 과거 DB 필드에 RTF 문자열이 남아 있더라도 이번 작업의 출력 미리보기는 LabelSheet 셀 값과 객체 상태를 기준으로 한다.
 * 사용자가 A1 내용을 수정하면 품목관리 선택 행의 저장 관리 개체에 반영한다. 실제 DB 저장은 기존 품목관리 저장 흐름과 연결하되, 미리보기에는 저장 전 편집 중 값이 즉시 반영되어야 한다.
 
 6. `출력내용 미리보기` 탭
@@ -60,11 +60,11 @@
 * 원본 labelsize workbook은 직접 수정하지 않는다. 선택 행이 바뀔 때마다 원본을 복제한 뒤 치환 결과를 적용한다.
 * 치환 기준은 레거시 `CTableRowRTFMaker`와 동일하다.
   - `#ITEMNAME`: 선택 행 품명
-  - `#ELEMENT`: `주원료 및 함량` 탭의 현재 편집값. RTF/리치 텍스트 서식이 있으면 가능한 한 유지한다.
+  - `#ELEMENT`: `주원료 및 함량` 탭의 현재 LabelSheet 셀 편집값.
   - `# + TColumn.keyword`: 해당 컬럼과 선택 품목의 `TColumnContent.dataString`
 * 일반 텍스트/날짜 컬럼은 셀 텍스트로 대체한다.
 * 바코드/QR/GS1 컬럼은 라벨 시트의 해당 키워드 위치 또는 해당 바코드 객체의 payload를 갱신한다. 단순 텍스트 치환으로 끝내지 않는다.
-* 이미지 컬럼은 라벨 시트의 해당 키워드 위치를 이미지로 대체한다.
+* 이미지 컬럼은 라벨 시트의 해당 키워드 위치를 FortuneSheet/LabelSheet 이미지 객체로 대체한다. 현재 프로젝트에서 이미지는 RTF 조각이 아니라 `FortuneImage`를 시트의 `images` 목록에 추가/갱신하는 방식으로 다룬다.
   - 키워드: `# + TColumn.keyword`
   - 파일명 값: `TColumnContent.dataString`
   - 레거시 호환 기본 검색 위치: `C:\ITS\LabelManager\bmp files\{파일명}.bmp`
@@ -83,6 +83,7 @@
 8. 주의사항
 * 품목관리 이미지 값은 이미지 데이터가 아니라 파일명 참조다. DB BLOB나 HTTP 다운로드로 해석하지 않는다.
 * 이미지 치환 키워드는 파일명이 아니라 컬럼 키워드다.
+* 현재 프로젝트의 공용라벨 시트는 RTF 포맷을 사용하지 않는다. 구현은 LabelSheet 셀/바코드 객체/이미지 객체 조작으로 한다.
 * 공용라벨관리의 원본 LabelSheet workbook을 직접 변경하지 말고 미리보기용 복사본에만 치환을 적용한다.
 * 공용라벨관리 플로팅 창과 품목관리 플로팅 창 상태를 공유하지 않는다.
 * 레거시와 비교할 때 기준 파일은 `.tmp\LabelManager\LabelManagerLib\TableRowRTFMaker.cpp`, `.tmp\LabelManager\LabelManagerLib\RichEditImageMaker.cpp`, `.tmp\LabelManager\LabelManager\LabelEditDlg.cpp`이다.
