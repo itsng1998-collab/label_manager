@@ -40,6 +40,7 @@
 - 검증 완료: `C:\Flutter\bin\flutter.bat analyze lib\page_label_sheet\label_sheet_workbench.dart test\label_sheet_toolbar_test.dart --no-fatal-warnings --no-fatal-infos` 결과 `exitCode=0`, `No issues found`.
 - 검증 완료: `git diff --check -- SESSION_HANDOFF.md lib/page_label_sheet/label_sheet_workbench.dart test/label_sheet_toolbar_test.dart` 출력 없음. VS Code diagnostics 결과 수정 파일 오류 없음.
 - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/page_label_sheet/label_sheet_workbench.dart`, `test/label_sheet_toolbar_test.dart`. 기존 unrelated dirty `lib/core/app.dart` 제외.
+- 커밋 완료: `3f95cca` (`앱 초기 라벨 크기 0 렌더링 오류 방지`).
 
 ### 완료 (2026-07-06): 이미지 삽입 ID 드롭다운 기본값 유지
 
