@@ -28,6 +28,20 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-07): 행/열 헤더 좌상단 구분선 연결 보정
+
+- 수정 완료: sheet ruler가 표시되는 시트 좌상단 행/열 헤더 영역에서 구분선이 두껍거나 일부 끊기는 문제를 보정했다.
+- 원인: `_drawHeaders`와 `_drawSheetRulersAndGuides`가 같은 경계를 서로 다른 좌표/색/그리기 API로 나눠 그리고, 데이터 영역 경계선 일부가 cell clip/background 단계에서 덮였다.
+- 수정 완료: ruler/header 경계선을 일반 행/열 헤더 구분선과 같은 `_line(..., fortuneSheetGridLineColor)` 좌표로 통일했다.
+- 수정 완료: 데이터 영역까지 이어지는 좌/상단 경계선은 cell clip 복구 후, cell border 렌더링 전에 다시 그려 사용자 셀 테두리를 덮지 않게 했다.
+- 테스트 추가: `adjusted sheet header corner separators stay connected` 픽셀 테스트로 교차 영역과 데이터 영역 경계선 연결을 검증한다.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_sheet_painter_test.dart --plain-name "adjusted sheet header corner separators stay connected"` 통과.
+- 검증 완료: 이전 실패 border 회귀 테스트 4건 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_sheet_painter_test.dart` 통과(`+751`).
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`).
+- 검증 완료: `git diff --check -- third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart third_party/fortune_sheet/test/fortune_sheet_painter_test.dart SESSION_HANDOFF.md` 통과.
+- stage/commit 예정: `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`, `third_party/fortune_sheet/test/fortune_sheet_painter_test.dart`, `SESSION_HANDOFF.md`. unrelated 변경 `lib/core/app.dart` 및 lock 파일은 제외한다.
+
 ### 진행 중 (2026-07-07): 품목관리 출력 미리보기 grid line 숨김과 헤더 교차선 보정
 
 - 수정 완료: 품목관리 플로팅 창 `출력내용 미리보기` 전용 preview sheet는 저장 시트 내용은 유지하되 `showGridLines: false`로 셀 grid line을 숨긴다.

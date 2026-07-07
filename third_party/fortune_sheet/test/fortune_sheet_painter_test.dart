@@ -355,6 +355,85 @@ void main() {
     },
   );
 
+  test('adjusted sheet header corner separators stay connected', () async {
+    const size = Size(420, 320);
+    final workbook = FortuneWorkbook(
+      sheets: [
+        FortuneSheet(
+          id: 's1',
+          name: 'Sheet1',
+          rowCount: 30,
+          columnCount: 20,
+          extraFields: const {
+            fortuneSheetGridClientWidthMmKey: 40,
+            fortuneSheetGridClientHeightMmKey: 30,
+          },
+        ),
+      ],
+    );
+    final painter = FortuneSheetPainter(
+      workbook: workbook,
+      selection: const FortuneSelection(row: 0, column: 0),
+      scrollOffset: Offset.zero,
+      sheetTabScrollOffset: 0,
+      textDirection: TextDirection.ltr,
+      sheetRulerVisible: true,
+    );
+
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+    painter.paint(canvas, size);
+    final image = await recorder.endRecording().toImage(
+      size.width.toInt(),
+      size.height.toInt(),
+    );
+    final bytes = (await image.toByteData(
+      format: ui.ImageByteFormat.rawRgba,
+    ))!;
+    final settings = workbook.settings;
+    final sheetTop =
+        settings.effectiveToolbarHeight + settings.effectiveFormulaBarHeight;
+    final dataLeft = settings.rowHeaderWidth * 2;
+    final dataTop = sheetTop + settings.columnHeaderHeight * 2;
+
+    expect(
+      _countPixels(
+        bytes,
+        image.width,
+        Rect.fromLTWH(dataLeft - 1, sheetTop + 2, 1, dataTop - sheetTop - 4),
+        _isGridLinePixel,
+      ),
+      greaterThan((dataTop - sheetTop - 8).round()),
+    );
+    expect(
+      _countPixels(
+        bytes,
+        image.width,
+        Rect.fromLTWH(dataLeft - 1, dataTop + 2, 1, 60),
+        _isGridLinePixel,
+      ),
+      greaterThan(55),
+    );
+    expect(
+      _countPixels(
+        bytes,
+        image.width,
+        Rect.fromLTWH(2, dataTop - 1, dataLeft - 4, 1),
+        _isGridLinePixel,
+      ),
+      greaterThan((dataLeft - 8).round()),
+    );
+    expect(
+      _countPixels(
+        bytes,
+        image.width,
+        Rect.fromLTWH(dataLeft + 2, dataTop - 1, 60, 1),
+        _isGridLinePixel,
+      ),
+      greaterThan(55),
+    );
+  });
+
   test(
     'cell borders paint above overlapping adjusted print area boundary',
     () async {

@@ -63033,9 +63033,6 @@ class FortuneSheetPainter extends CustomPainter {
     if (physicalSize == null || dataRect == null) {
       return;
     }
-    final borderPaint = Paint()
-      ..color = fortuneSheetRulerBorderColor
-      ..strokeWidth = 1;
     final topRuler = Rect.fromLTWH(
       dataRect.left,
       0,
@@ -63054,10 +63051,30 @@ class FortuneSheetPainter extends CustomPainter {
       _sheetDataLeft(settings),
       _sheetDataTop(settings),
     );
-    canvas.drawLine(topRuler.bottomLeft, topRuler.bottomRight, borderPaint);
-    canvas.drawLine(leftRuler.topRight, leftRuler.bottomRight, borderPaint);
-    canvas.drawLine(corner.bottomLeft, corner.bottomRight, borderPaint);
-    canvas.drawLine(corner.topRight, corner.bottomRight, borderPaint);
+    _line(
+      canvas,
+      Offset(topRuler.left, topRuler.bottom - 0.5),
+      Offset(topRuler.right, topRuler.bottom - 0.5),
+      fortuneSheetGridLineColor,
+    );
+    _line(
+      canvas,
+      Offset(leftRuler.right - 0.5, leftRuler.top),
+      Offset(leftRuler.right - 0.5, leftRuler.bottom),
+      fortuneSheetGridLineColor,
+    );
+    _line(
+      canvas,
+      Offset(corner.left, corner.bottom - 0.5),
+      Offset(corner.right, corner.bottom - 0.5),
+      fortuneSheetGridLineColor,
+    );
+    _line(
+      canvas,
+      Offset(corner.right - 0.5, corner.top),
+      Offset(corner.right - 0.5, corner.bottom),
+      fortuneSheetGridLineColor,
+    );
     _drawSheetRulerCornerSizeLabel(canvas, corner);
     _drawHorizontalSheetRuler(
       canvas,
@@ -63072,6 +63089,30 @@ class FortuneSheetPainter extends CustomPainter {
       scrollOffset.dy,
     );
     _drawSheetGuides(canvas, settings, dataRect, metrics);
+  }
+
+  void _drawSheetHeaderBoundary(
+    Canvas canvas,
+    Size size,
+    FortuneSettings settings,
+  ) {
+    if (settings.hideRowColumnHeaderLabels) {
+      return;
+    }
+    final dataLeft = _sheetDataLeft(settings);
+    final dataTop = _sheetDataTop(settings);
+    _line(
+      canvas,
+      Offset(dataLeft - 0.5, _sheetHeaderTop(settings)),
+      Offset(dataLeft - 0.5, size.height),
+      fortuneSheetGridLineColor,
+    );
+    _line(
+      canvas,
+      Offset(_sheetHeaderLeft(settings), dataTop - 0.5),
+      Offset(size.width, dataTop - 0.5),
+      fortuneSheetGridLineColor,
+    );
   }
 
   String? get sheetRulerCornerSizeLabel {
@@ -63735,13 +63776,13 @@ class FortuneSheetPainter extends CustomPainter {
     _line(
       canvas,
       Offset(dataLeft - 0.5, headerTop),
-      Offset(dataLeft - 0.5, dataTop),
+      Offset(dataLeft - 0.5, size.height),
       fortuneSheetGridLineColor,
     );
     _line(
       canvas,
       Offset(headerLeft, dataTop - 0.5),
-      Offset(dataLeft, dataTop - 0.5),
+      Offset(size.width, dataTop - 0.5),
       fortuneSheetGridLineColor,
     );
 
@@ -64537,6 +64578,8 @@ class FortuneSheetPainter extends CustomPainter {
       }
     }
     canvas.restore();
+
+    _drawSheetHeaderBoundary(canvas, size, settings);
 
     canvas.save();
     canvas.clipRect(_borderClip(cellClip), doAntiAlias: false);
