@@ -40,7 +40,8 @@
 - 검증 완료: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_sheet_painter_test.dart` 통과(`+751`).
 - 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`).
 - 검증 완료: `git diff --check -- third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart third_party/fortune_sheet/test/fortune_sheet_painter_test.dart SESSION_HANDOFF.md` 통과.
-- stage/commit 예정: `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`, `third_party/fortune_sheet/test/fortune_sheet_painter_test.dart`, `SESSION_HANDOFF.md`. unrelated 변경 `lib/core/app.dart` 및 lock 파일은 제외한다.
+- 커밋 완료: `b119e90` 행열 헤더 교차선 연결 보정.
+- stage/commit 제외: unrelated 변경 `lib/core/app.dart` 및 lock 파일.
 
 ### 진행 중 (2026-07-07): 품목관리 출력 미리보기 grid line 숨김과 헤더 교차선 보정
 
