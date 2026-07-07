@@ -28,6 +28,20 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-07): ruler 경계선 반픽셀 정렬 및 앱 로그 진단
+
+- 로그 확인: 최신 `.tmp/log/app_2026-07-07_22-29-21.log`에는 `FSRULER` 마커가 없었고, 앱 버전도 `FSDBG-2026-07-01-cell-edit-log`로 남아 있어 직전 `--dart-define` 기반 진단 로그가 앱 로그에서 확인되지 않았다.
+- 오수정 원복: `LABEL_MANAGER_SHEET_RULER_DEBUG` dart-define로만 켜지는 독립 로그 조건을 제거하고, `debugPrint`를 통해 앱의 기존 `DebugLogger` 파일 로그에 직접 남도록 바꿨다.
+- 수정 완료: `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`의 ruler/corner border를 정수 좌표 `canvas.drawLine` 방식에서 원본 `_line` helper의 `-0.5` 반픽셀 정렬 방식으로 되돌려 1px 선이 양쪽 픽셀로 번져 두껍게 보이는 후보를 제거했다.
+- 수정 완료: `lib/main.dart`의 DebugLogger 버전을 `FSDBG-2026-07-07-ruler-crisp-border-v3`로 갱신해 사용자가 보낸 최신 로그가 이번 빌드인지 바로 판별할 수 있게 했다.
+- 디버그 추가: 별도 실행 플래그 없이 `FSRULER-2026-07-07-crisp-border-v3` 로그가 sheet별 1회성 key로 출력된다. 로그에는 `hideHeaders`, `topRuler`, `leftRuler`, `corner`, `cornerBottomRight`, `cornerRightBottom`, `dataLeft/dataTop`, major/0 tick draw 여부가 포함된다.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_sheet_painter_test.dart --plain-name "adjusted sheet hidden headers keep ruler separators one pixel"` 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_sheet_painter_test.dart --plain-name "adjusted sheet header corner separators stay connected"` 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_sheet_painter_test.dart` 통과(`+752`).
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`).
+- 검증 완료: `git diff --check -- lib/main.dart third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart SESSION_HANDOFF.md` 통과.
+- 커밋 예정: `lib/main.dart`, `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`, `SESSION_HANDOFF.md`. unrelated 변경 `lib/core/app.dart` 및 lock 파일은 제외한다.
+
 ### 완료 (2026-07-07): ruler tick 끝점 겹침 원복 후 재수정
 
 - 이미지 분석: 공용라벨관리 시트는 visible header 상태에서 ruler corner 외곽선과 header data 경계선이 헤더 교차 영역에서 겹쳐 보였고, 품목관리 두 preview 시트는 hidden header 상태에서 ruler tick 끝점이 숨겨진 header 자리의 ruler border에 닿아 진한 선처럼 누적되어 보였다.

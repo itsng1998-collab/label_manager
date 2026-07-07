@@ -12,18 +12,13 @@ import 'fortune_sheet_codec.dart';
 import 'fortune_sheet_model.dart' hide Image, Rect;
 import 'fortune_toolbar_icons.dart';
 
-const bool _fortuneSheetRulerDebugLogEnabled = bool.fromEnvironment(
-  'LABEL_MANAGER_SHEET_RULER_DEBUG',
-);
-
 final Set<String> _fortuneSheetRulerDebugLogKeys = <String>{};
 
 void _fortuneSheetRulerDebugLog(String key, String message) {
-  if (!_fortuneSheetRulerDebugLogEnabled ||
-      !_fortuneSheetRulerDebugLogKeys.add(key)) {
+  if (!_fortuneSheetRulerDebugLogKeys.add(key)) {
     return;
   }
-  debugPrint('FSRULER-2026-07-07-tick-gap-v2 $message');
+  debugPrint('FSRULER-2026-07-07-crisp-border-v3 $message');
 }
 
 bool _intDoubleMapEquals(Map<int, double> left, Map<int, double> right) {
@@ -63047,9 +63042,6 @@ class FortuneSheetPainter extends CustomPainter {
     if (physicalSize == null || dataRect == null) {
       return;
     }
-    final borderPaint = Paint()
-      ..color = fortuneSheetRulerBorderColor
-      ..strokeWidth = 1;
     final topRuler = Rect.fromLTWH(
       dataRect.left,
       0,
@@ -63083,17 +63075,29 @@ class FortuneSheetPainter extends CustomPainter {
       ' cornerRightBottom=$cornerRightBottom'
       ' dataLeft=${_sheetDataLeft(settings)} dataTop=${_sheetDataTop(settings)}',
     );
-    canvas.drawLine(topRuler.bottomLeft, topRuler.bottomRight, borderPaint);
-    canvas.drawLine(leftRuler.topRight, leftRuler.bottomRight, borderPaint);
-    canvas.drawLine(
-      corner.bottomLeft,
-      Offset(cornerBottomRight, corner.bottom),
-      borderPaint,
+    _line(
+      canvas,
+      Offset(topRuler.left, topRuler.bottom - 0.5),
+      Offset(topRuler.right, topRuler.bottom - 0.5),
+      fortuneSheetRulerBorderColor,
     );
-    canvas.drawLine(
-      corner.topRight,
-      Offset(corner.right, cornerRightBottom),
-      borderPaint,
+    _line(
+      canvas,
+      Offset(leftRuler.right - 0.5, leftRuler.top),
+      Offset(leftRuler.right - 0.5, leftRuler.bottom),
+      fortuneSheetRulerBorderColor,
+    );
+    _line(
+      canvas,
+      Offset(corner.left, corner.bottom - 0.5),
+      Offset(cornerBottomRight, corner.bottom - 0.5),
+      fortuneSheetRulerBorderColor,
+    );
+    _line(
+      canvas,
+      Offset(corner.right - 0.5, corner.top),
+      Offset(corner.right - 0.5, cornerRightBottom),
+      fortuneSheetRulerBorderColor,
     );
     _drawSheetRulerCornerSizeLabel(canvas, corner);
     _drawHorizontalSheetRuler(

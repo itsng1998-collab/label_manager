@@ -23,7 +23,7 @@ IOSink? gSink;
 Future<void> main(List<String> args) async {
   // 로그파일 및 디버그프린트 초기화
   await DebugLogger.ensureInitialized();
-  DebugLogger.setVersion('FSDBG-2026-07-01-cell-edit-log');
+  DebugLogger.setVersion('FSDBG-2026-07-07-ruler-crisp-border-v3');
 
   try {
     await clearLabelSheetAiImportStartupTempDirectory();
