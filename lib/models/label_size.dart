@@ -240,8 +240,9 @@ class LabelSizeDAO extends DAO {
         SELECT CONVERT(CHAR(8),GETDATE(),112), GETDATE(), RICH_LABELSIZE_ID,
           RICH_LABELSIZE_NAME, RICH_FORM_WIDTH, RICH_FORM_HEIGHT, RICH_FORM_DATA,
           RICH_FORM_SHEET, @width, @height, RICH_FORM_DATA, @formData,
-          @userId, RICH_BRAND_ID, @loginIP,
-          CONVERT(char(15), CONNECTIONPROPERTY('client_net_address'))
+          @userId, RICH_BRAND_ID,
+          CONVERT(NVARCHAR(100), CONVERT(VARCHAR(100), CONVERT(VARBINARY(100), @loginIP, 1)) COLLATE ${DAO.CP949}),
+          CONVERT(VARCHAR(48), CONNECTIONPROPERTY('client_net_address'))
         FROM BM_RICH_LABELSIZE_FORM
       ''';
 

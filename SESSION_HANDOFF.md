@@ -28,6 +28,18 @@
 
 ## 현재 상태
 
+### 진행 중 (2026-07-07): 라벨 저장 로그 IP 문자열 길이 초과 수정
+
+- 원인 확인: 라벨 저장 로그 SQL이 `RICH_INNER_IP`에 `stringToHexCp949(localIp)` 결과인 `0x3137...` hex 문자열을 그대로 넣어 IP 컬럼 길이를 초과했고, SQL Server 8152(`문자열이나 이진 데이터는 잘립니다`)로 저장이 rollback되었다.
+- 수정 완료: `LabelSizeDAO.UpdateFormDataLogSql`에서 `@loginIP`를 `CONVERT(VARBINARY(100), @loginIP, 1)` 경유로 실제 IP 문자열로 복원해 저장하도록 했다.
+- 데이터 손실 방지: IP 표현식 단계에서 `char(15)`, `varchar(32)`처럼 값을 자를 수 있는 변환을 사용하지 않고 `VARCHAR/NVARCHAR(100)` 및 outer IP `VARCHAR(48)`로 변환한다. DB 컬럼이 실제 값을 담을 수 없으면 잘라 저장하지 않고 SQL 오류가 나도록 둔다.
+- 다른 구문 점검/수정 완료: `LoginLogDAO.InsertSql`도 내부 IP `VARCHAR/NVARCHAR(100)`, outer IP `VARCHAR(48)` 변환으로 맞췄다. `lib/**/*.dart`에서 `@loginIP`/`client_net_address` 관련 짧은 변환식 잔존 여부를 검색했고 남은 항목 없음.
+- 테스트 추가: `dao_result_helper_test.dart`에 라벨 저장 로그 IP 복원과 로그인 로그 IP 표현식 비절단 회귀 테스트를 추가했다.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\dao_result_helper_test.dart` 통과(`+12`).
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\windows_odbc_param_utils_test.dart` 통과(`+10`).
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`).
+- stage/commit 예정: `lib/models/label_size.dart`, `lib/models/login_log.dart`, `test/dao_result_helper_test.dart`, `SESSION_HANDOFF.md`. unrelated 변경 `lib/core/app.dart` 및 lock 파일은 제외한다.
+
 ### 진행 중 (2026-07-07): ODBC SQL 지역 변수 파라미터 오인 수정
 
 - 원인 확인: `prepareStatement()`가 SQL Server 지역 변수(`DECLARE @logAffected`, `@updateAffected`, `@brandAffected`, `@labelSizeAffected`, `@affected0` 등)를 앱 바인딩 파라미터로 오인해, 라벨 저장 시 `Parameter @logAffected was not provided` 예외가 발생했다.

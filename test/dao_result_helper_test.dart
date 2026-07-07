@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:label_manager/models/dao.dart';
 import 'package:label_manager/models/label_size.dart';
 import 'package:label_manager/models/last_connect.dart';
+import 'package:label_manager/models/login_log.dart';
 
 void main() {
   group('DAO result helpers', () {
@@ -113,6 +114,26 @@ void main() {
       );
     });
 
+    test('decodes hex local IP before writing the save log', () {
+      expect(
+        LabelSizeDAO.UpdateFormDataLogSql,
+        contains('CONVERT(VARBINARY(100), @loginIP, 1)'),
+      );
+      expect(
+        LabelSizeDAO.UpdateFormDataLogSql,
+        isNot(contains('RICH_BRAND_ID, @loginIP')),
+      );
+      expect(
+        LabelSizeDAO.UpdateFormDataLogSql,
+        contains('CONVERT(VARCHAR(100), CONVERT(VARBINARY(100), @loginIP, 1))'),
+      );
+      expect(
+        LabelSizeDAO.UpdateFormDataLogSql,
+        contains("CONVERT(VARCHAR(48), CONNECTIONPROPERTY('client_net_address'))"),
+      );
+      expect(LabelSizeDAO.UpdateFormDataLogSql, isNot(contains('char(15)')));
+    });
+
     test('returns explicit affected rows from save transaction for ODBC', () {
       expect(LabelSizeDAO.UpdateFormDataTransactionSql, contains('SET NOCOUNT ON'));
       expect(
@@ -127,6 +148,21 @@ void main() {
         LabelSizeDAO.UpdateFormDataTransactionSql,
         contains('SET @updateAffected = @@ROWCOUNT'),
       );
+    });
+  });
+
+  group('LoginLogDAO SQL', () {
+    test('does not truncate IP expressions before insert', () {
+      expect(
+        LoginLogDAO.InsertSql,
+        contains('CONVERT(VARCHAR(100), CONVERT(VARBINARY(100), @loginIP, 1))'),
+      );
+      expect(
+        LoginLogDAO.InsertSql,
+        contains("CONVERT(VARCHAR(48), CONNECTIONPROPERTY('client_net_address'))"),
+      );
+      expect(LoginLogDAO.InsertSql, isNot(contains('CONVERT(VARCHAR(32)')));
+      expect(LoginLogDAO.InsertSql, isNot(contains('CONVERT(VARCHAR(15)')));
     });
   });
 

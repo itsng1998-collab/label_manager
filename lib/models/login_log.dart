@@ -84,9 +84,9 @@ class LoginLogDAO extends DAO {
        CONVERT(NVARCHAR(50), CONVERT(VARCHAR(50), CONVERT(VARBINARY(150), @customerName, 1)) COLLATE ${DAO.CP949}),
        @loginDate,
        CONVERT(NVARCHAR(8), CONVERT(VARCHAR(8), CONVERT(VARBINARY(30), @loginDateYYYYMMDD, 1)) COLLATE ${DAO.CP949}),
-       CONVERT(NVARCHAR(32), CONVERT(VARCHAR(32), CONVERT(VARBINARY(100), @loginIP, 1)) COLLATE ${DAO.CP949}),
+        CONVERT(NVARCHAR(100), CONVERT(VARCHAR(100), CONVERT(VARBINARY(100), @loginIP, 1)) COLLATE ${DAO.CP949}),
        @loginCondition,
-       CONVERT(VARCHAR(15), CONNECTIONPROPERTY('client_net_address')))
+        CONVERT(VARCHAR(48), CONNECTIONPROPERTY('client_net_address')))
   ''';
 
   static Future<LoginLog?> selectByLogId(int logId) async {
