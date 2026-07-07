@@ -39,7 +39,8 @@
 - 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "label image import context menu only appears on sheet corner"` 통과(`+1`).
 - 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`).
 - 검증 완료: `git diff --check -- lib/home_page_manager.dart third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart test/label_sheet_toolbar_test.dart SESSION_HANDOFF.md` 통과.
-- stage/commit 예정: `lib/home_page_manager.dart`, `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`, `test/label_sheet_toolbar_test.dart`, `SESSION_HANDOFF.md`. unrelated 변경 `lib/core/app.dart` 및 lock 파일은 제외한다.
+- 커밋 완료: `363c0bb` 출력 미리보기 그리드라인 숨김과 헤더 교차선 보정.
+- stage/commit 제외: unrelated 변경 `lib/core/app.dart` 및 lock 파일.
 
 ### 진행 중 (2026-07-07): 품목관리 출력내용 미리보기 전용 시트 모드 보정
 
