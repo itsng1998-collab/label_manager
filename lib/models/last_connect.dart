@@ -160,6 +160,24 @@ class LastConnectDAO extends DAO {
     }
   }
 
+  static Future<void> upsert(LastConnect lastConnect) async {
+    debugLog(
+      '$START, userId:${lastConnect.userId}, brandId:${lastConnect.brandId}, labelSizeId:${lastConnect.labelSizeId}',
+    );
+
+    try {
+      if (await isExistByUserId(lastConnect.userId)) {
+        await update(lastConnect);
+      } else {
+        await insert(lastConnect);
+      }
+      debugLog(END);
+    } catch (e) {
+      debugLog('$END, $e');
+      rethrow;
+    }
+  }
+
   static Future<void> delete(String userId) async {
     debugLog('$START, userId:$userId');
 

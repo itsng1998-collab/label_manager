@@ -18,6 +18,7 @@ import 'package:label_manager/models/market.dart';
 import 'package:label_manager/models/customer.dart';
 import 'package:label_manager/models/cooperator.dart';
 import 'package:label_manager/models/label_size.dart';
+import 'package:label_manager/models/last_connect.dart';
 import 'database/db_connection_status_icon.dart';
 import 'home_page_manager.dart';
 import 'page_login/startup_dialog.dart';
@@ -147,7 +148,28 @@ class _HomePageState extends State<HomePage> {
     debugLog(
       '$START, labelSizeId: ${labelSize?.labelSizeId}, labelSizeName: ${labelSize?.labelSizeName}',
     );
-    debugLog(END);
+    try {
+      final user = User.instance;
+      if (user == null) return;
+
+      final brand = _selectedBrand;
+      if (brand == null || labelSize == null) {
+        await LastConnectDAO.delete(user.userId);
+        return;
+      }
+
+      await LastConnectDAO.upsert(
+        LastConnect(
+          userId: user.userId,
+          brandId: brand.brandId,
+          labelSizeId: labelSize.labelSizeId,
+        ),
+      );
+    } catch (e) {
+      debugLog('$END, $e');
+    } finally {
+      debugLog(END);
+    }
   }
 
   @override

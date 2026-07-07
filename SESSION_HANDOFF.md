@@ -28,6 +28,17 @@
 
 ## 현재 상태
 
+### 진행 중 (2026-07-07): 레거시 마지막 브랜드/라벨 선택 복원 적용
+
+- 수정 완료: `LastConnectDAO.upsert()`를 추가해 `BM_RICH_LAST_ID`의 사용자별 마지막 브랜드/라벨 선택을 insert/update 분기 없이 저장할 수 있게 했다.
+- 수정 완료: 로그인 후 `HomePageManager._loadBrands()`에서 `LastConnectDAO.selectByUserId(User.instance!.userId)`를 조회하고, 저장된 브랜드가 현재 브랜드 목록에 있으면 해당 브랜드를 우선 선택하도록 했다. 저장된 브랜드가 없거나 삭제된 경우 기존 첫 브랜드 fallback을 유지한다.
+- 수정 완료: `HomePageManager._scheduleLabelSizeLoad()`에 `preferredLabelSizeId`를 추가해 저장된 라벨이 현재 브랜드의 라벨 목록에 있으면 우선 선택하고, 없으면 기존 현재 선택/첫 라벨 fallback을 유지한다.
+- 수정 완료: 복원 중 부모 `onBrandChanged`로 인한 `didUpdateWidget` 중복 라벨 로드를 1회 억제해 마지막 라벨 선택이 첫 라벨 선택으로 덮이지 않게 했다.
+- 수정 완료: `HomePage._onLabelSizeChanged()`에서 브랜드와 라벨이 모두 있으면 `LastConnectDAO.upsert()`로 저장하고, 둘 중 하나가 없으면 현재 사용자 last-connect를 삭제한다.
+- 테스트 추가: `dao_result_helper_test.dart`에 `LastConnect.fromMap` 매핑과 `LastConnectDAO` 파라미터 SQL 구조 검증을 추가했다.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\dao_result_helper_test.dart` 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`).
+
 ### 진행 중 (2026-07-07): 품목 플로팅 위치/코너 리사이즈/조회 스낵바 보정
 
 - 수정 완료: 품목관리 플로팅 창 초기 크기를 `620x420`에서 `670x470`으로 다시 50씩 키웠다.

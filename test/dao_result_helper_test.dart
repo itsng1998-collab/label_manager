@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:label_manager/models/dao.dart';
 import 'package:label_manager/models/label_size.dart';
+import 'package:label_manager/models/last_connect.dart';
 
 void main() {
   group('DAO result helpers', () {
@@ -103,6 +104,29 @@ void main() {
       expect(
         LabelSizeDAO.UpdateFormDataLogSql,
         contains('RICH_FORM_DATA, @formData'),
+      );
+    });
+  });
+
+  group('LastConnectDAO SQL and mapping', () {
+    test('maps DB row values to last selected brand and label size', () {
+      final lastConnect = LastConnect.fromMap({
+        'USER_ID': 'user01',
+        'BRAND_ID': '12',
+        'LABELSIZE_ID': '34',
+      });
+
+      expect(lastConnect.userId, 'user01');
+      expect(lastConnect.brandId, 12);
+      expect(lastConnect.labelSizeId, 34);
+    });
+
+    test('uses parameterized user, brand, and label size SQL', () {
+      expect(LastConnectDAO.WhereSqlUserId, contains('@userId'));
+      expect(LastConnectDAO.DeleteSqlByBrandId, contains('@brandId'));
+      expect(
+        LastConnectDAO.DeleteSqlByLabelSizeId,
+        contains('@labelSizeId'),
       );
     });
   });

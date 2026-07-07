@@ -22,6 +22,7 @@ import 'package:label_manager/models/column.dart';
 import 'package:label_manager/models/customer.dart';
 import 'package:label_manager/models/item_of_market.dart';
 import 'package:label_manager/models/label_size.dart';
+import 'package:label_manager/models/last_connect.dart';
 import 'package:label_manager/models/market.dart';
 import 'package:label_manager/models/user.dart';
 import 'package:label_manager/page_label_sheet/label_sheet_save_codec.dart';
@@ -102,6 +103,7 @@ class _HomePageManagerState extends State<HomePageManager> {
   bool _itemPreviewClosedByUser = false;
   bool _commonLabelPreviewClosedByUser = false;
   bool _commonLabelPreviewHiddenForSheetDialog = false;
+  bool _suppressNextBrandDidUpdateLabelLoad = false;
 
   OverlayEntry? _brandSettingsOverlayEntry;
   OverlayEntry? _labelSettingsOverlayEntry;
@@ -181,6 +183,15 @@ class _HomePageManagerState extends State<HomePageManager> {
       _currentLabelSize = widget.selectedLabelSize;
     }
     if (oldWidget.selectedBrand?.brandId != widget.selectedBrand?.brandId) {
+      if (_suppressNextBrandDidUpdateLabelLoad &&
+          oldWidget.selectedBrand == null &&
+          widget.selectedBrand != null) {
+        _suppressNextBrandDidUpdateLabelLoad = false;
+        debugLog(
+          'skip label load for restored initial brandId=${widget.selectedBrand?.brandId}',
+        );
+        return;
+      }
       if (_labelDialogBrandChangeInFlight &&
           _labelDialogBrandChangeInFlightId == widget.selectedBrand?.brandId) {
         debugLog(
@@ -251,16 +262,25 @@ class _HomePageManagerState extends State<HomePageManager> {
         }
 
         final resolved = _resolveSelectedBrand(brands, widget.selectedBrand);
+        final lastConnect = User.instance == null
+            ? null
+            : await LastConnectDAO.selectByUserId(User.instance!.userId);
+        final restored = _findBrandIn(brands, lastConnect?.brandId);
         final fallback = brands.isNotEmpty ? brands.first : null;
+        final targetBrand = resolved ?? restored ?? fallback ?? widget.selectedBrand;
 
-        if (resolved == null && fallback != null) {
+        if (resolved == null && targetBrand != null) {
+          _suppressNextBrandDidUpdateLabelLoad = true;
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            widget.onBrandChanged(fallback);
+            if (!mounted) return;
+            widget.onBrandChanged(targetBrand);
           });
         }
 
-        final targetBrand = resolved ?? fallback ?? widget.selectedBrand;
-        await _scheduleLabelSizeLoad(targetBrand);
+        await _scheduleLabelSizeLoad(
+          targetBrand,
+          preferredLabelSizeId: restored == null ? null : lastConnect?.labelSizeId,
+        );
       } finally {
         if (mounted) {
           ScaffoldMessenger.of(context).hideCurrentSnackBar();
@@ -275,6 +295,26 @@ class _HomePageManagerState extends State<HomePageManager> {
       type: SnackBarType.inProgress,
       onVisible: afterSnackBarVisible,
     );
+  }
+
+  Brand? _findBrandIn(List<Brand> brands, int? brandId) {
+    if (brandId == null) return null;
+    for (final brand in brands) {
+      if (brand.brandId == brandId) {
+        return brand;
+      }
+    }
+    return null;
+  }
+
+  LabelSize? _findLabelSizeIn(List<LabelSize> labelSizes, int? labelSizeId) {
+    if (labelSizeId == null) return null;
+    for (final labelSize in labelSizes) {
+      if (labelSize.labelSizeId == labelSizeId) {
+        return labelSize;
+      }
+    }
+    return null;
   }
 
   void _handleBrandChanged(Brand? brand) {
@@ -363,6 +403,7 @@ class _HomePageManagerState extends State<HomePageManager> {
   Future<void> _scheduleLabelSizeLoad(
     Brand? brand, {
     bool selectFirstLabel = false,
+    int? preferredLabelSizeId,
     // true 이면 로드 중 스낙바 '브랜드 데이터를 불러오고 있습니다...' 표시.
     // _loadBrands()는 이미 자체 스낙바를 관리하므로 false(기본값)를 사용한다.
     bool showProgress = false,
@@ -405,6 +446,7 @@ class _HomePageManagerState extends State<HomePageManager> {
         } else if (selectFirstLabel) {
           await _handleLabelSizeChanged(current.first);
         } else {
+          final preferred = _findLabelSizeIn(current, preferredLabelSizeId);
           final resolved = _resolveSelectedLabelSize(
             current,
             widget.selectedLabelSize,
@@ -412,8 +454,10 @@ class _HomePageManagerState extends State<HomePageManager> {
 
           final fallback = current.isNotEmpty ? current.first : null;
 
-          if (resolved == null && fallback != null) {
-            await _handleLabelSizeChanged(fallback);
+          final selected = preferred ?? resolved ?? fallback;
+
+          if (selected != null) {
+            await _handleLabelSizeChanged(selected);
           }
         }
 
@@ -441,6 +485,7 @@ class _HomePageManagerState extends State<HomePageManager> {
         return;
       }
 
+      final preferred = _findLabelSizeIn(labelSizes, preferredLabelSizeId);
       final resolved = _resolveSelectedLabelSize(
         labelSizes,
         widget.selectedLabelSize,
@@ -449,7 +494,7 @@ class _HomePageManagerState extends State<HomePageManager> {
       final fallback = labelSizes.isNotEmpty ? labelSizes.first : null;
       final selected = selectFirstLabel
           ? fallback
-          : resolved ?? fallback ?? widget.selectedLabelSize;
+          : preferred ?? resolved ?? fallback ?? widget.selectedLabelSize;
       await _handleLabelSizeChanged(selected);
     } finally {
       debugLog(END);
