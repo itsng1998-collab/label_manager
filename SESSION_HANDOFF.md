@@ -45,6 +45,7 @@
 - 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "label image import preview scales to readable text size"` 통과.
 - 검증 완료: `git diff --check -- lib/home_page_manager.dart lib/page_home/preview_floating_window.dart lib/page_home/common_label_manage.dart lib/page_label_sheet/label_sheet_page.dart lib/page_label_sheet/label_sheet_workbench.dart SESSION_HANDOFF.md` 통과.
 - stage/commit 예정: `lib/home_page_manager.dart`, `lib/page_home/preview_floating_window.dart`, `lib/page_home/common_label_manage.dart`, `lib/page_label_sheet/label_sheet_page.dart`, `lib/page_label_sheet/label_sheet_workbench.dart`, `SESSION_HANDOFF.md`. unrelated 변경 `lib/core/app.dart` 및 lock 파일은 제외한다.
+- 커밋 완료: `40ef6ea` 공용라벨 RTF 미리보기 AI 변환 연결.
 
 ### 진행 중 (2026-07-07): 라벨 이미지 파일명 라벨에 현재 시트 정보 병합
 
