@@ -409,10 +409,28 @@ void main() {
       _countPixels(
         bytes,
         image.width,
+        Rect.fromLTWH(dataLeft - 2, sheetTop + 2, 1, dataTop - sheetTop - 4),
+        _isGridLinePixel,
+      ),
+      lessThan(5),
+    );
+    expect(
+      _countPixels(
+        bytes,
+        image.width,
         Rect.fromLTWH(dataLeft - 1, dataTop + 2, 1, 60),
         _isGridLinePixel,
       ),
       greaterThan(55),
+    );
+    expect(
+      _countPixels(
+        bytes,
+        image.width,
+        Rect.fromLTWH(dataLeft - 2, dataTop + 2, 1, 60),
+        _isGridLinePixel,
+      ),
+      lessThan(5),
     );
     expect(
       _countPixels(
@@ -427,10 +445,99 @@ void main() {
       _countPixels(
         bytes,
         image.width,
+        Rect.fromLTWH(2, dataTop - 2, dataLeft - 4, 1),
+        _isGridLinePixel,
+      ),
+      lessThan(5),
+    );
+    expect(
+      _countPixels(
+        bytes,
+        image.width,
         Rect.fromLTWH(dataLeft + 2, dataTop - 1, 60, 1),
         _isGridLinePixel,
       ),
       greaterThan(55),
+    );
+  });
+
+  test('adjusted sheet hidden headers keep ruler separators one pixel', () async {
+    const size = Size(420, 320);
+    final workbook = FortuneWorkbook(
+      settings: const FortuneSettings(hideRowColumnHeaderLabels: true),
+      sheets: [
+        FortuneSheet(
+          id: 's1',
+          name: 'Sheet1',
+          rowCount: 30,
+          columnCount: 20,
+          extraFields: const {
+            fortuneSheetGridClientWidthMmKey: 40,
+            fortuneSheetGridClientHeightMmKey: 30,
+          },
+        ),
+      ],
+    );
+    final painter = FortuneSheetPainter(
+      workbook: workbook,
+      selection: const FortuneSelection(row: 0, column: 0),
+      scrollOffset: Offset.zero,
+      sheetTabScrollOffset: 0,
+      textDirection: TextDirection.ltr,
+      sheetRulerVisible: true,
+    );
+
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+    painter.paint(canvas, size);
+    final image = await recorder.endRecording().toImage(
+      size.width.toInt(),
+      size.height.toInt(),
+    );
+    final bytes = (await image.toByteData(
+      format: ui.ImageByteFormat.rawRgba,
+    ))!;
+    final settings = workbook.settings;
+    final sheetTop =
+        settings.effectiveToolbarHeight + settings.effectiveFormulaBarHeight;
+    final dataLeft = settings.rowHeaderWidth;
+    final dataTop = sheetTop + settings.columnHeaderHeight;
+
+    expect(
+      _countPixels(
+        bytes,
+        image.width,
+        Rect.fromLTWH(dataLeft - 1, sheetTop + 2, 1, 80),
+        _isGridLinePixel,
+      ),
+      greaterThan(75),
+    );
+    expect(
+      _countPixels(
+        bytes,
+        image.width,
+        Rect.fromLTWH(dataLeft - 2, sheetTop + 2, 1, 80),
+        _isGridLinePixel,
+      ),
+      lessThan(5),
+    );
+    expect(
+      _countPixels(
+        bytes,
+        image.width,
+        Rect.fromLTWH(2, dataTop - 1, dataLeft + 60, 1),
+        _isGridLinePixel,
+      ),
+      greaterThan((dataLeft + 55).round()),
+    );
+    expect(
+      _countPixels(
+        bytes,
+        image.width,
+        Rect.fromLTWH(2, dataTop - 2, dataLeft + 60, 1),
+        _isGridLinePixel,
+      ),
+      lessThan(5),
     );
   });
 

@@ -28,6 +28,22 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-07): 행/열 헤더 교차 경계선 중복 제거
+
+- 수정 완료: sheet 좌상단 행/열 헤더 영역 경계선이 여전히 두껍게 보이는 문제를 재보정했다.
+- 원인: `_drawHeaders`, `_drawSheetRulersAndGuides`, `_drawSheetHeaderBoundary`가 같은 data 경계선을 중복으로 그려 1px보다 두껍게 보였다.
+- 수정 완료: data 경계선은 `_drawSheetHeaderBoundary` 한 곳에서만 그리고, `_drawHeaders`와 `_drawSheetRulersAndGuides`의 중복 data 경계선은 제거했다.
+- 수정 완료: `hideRowColumnHeaderLabels` 상태에서도 ruler/data 경계가 일반 행/열 구분선과 같은 1px로 연결되도록 `_drawSheetHeaderBoundary`가 동작한다.
+- 테스트 보강: `adjusted sheet header corner separators stay connected`에서 인접 픽셀 번짐이 없는지 검증한다.
+- 테스트 추가: `adjusted sheet hidden headers keep ruler separators one pixel`로 행/열 헤더 숨김 상태의 ruler/data 경계선을 검증한다.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_sheet_painter_test.dart --plain-name "adjusted sheet header corner separators stay connected"` 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_sheet_painter_test.dart --plain-name "adjusted sheet hidden headers keep ruler separators one pixel"` 통과.
+- 검증 완료: 주요 cell border/ruler 회귀 테스트 3건 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_sheet_painter_test.dart` 통과(`+752`).
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`).
+- 검증 완료: `git diff --check -- third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart third_party/fortune_sheet/test/fortune_sheet_painter_test.dart SESSION_HANDOFF.md` 통과.
+- stage/commit 예정: `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`, `third_party/fortune_sheet/test/fortune_sheet_painter_test.dart`, `SESSION_HANDOFF.md`. unrelated 변경 `lib/core/app.dart` 및 lock 파일은 제외한다.
+
 ### 완료 (2026-07-07): 행/열 헤더 좌상단 구분선 연결 보정
 
 - 수정 완료: sheet ruler가 표시되는 시트 좌상단 행/열 헤더 영역에서 구분선이 두껍거나 일부 끊기는 문제를 보정했다.

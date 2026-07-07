@@ -63051,30 +63051,20 @@ class FortuneSheetPainter extends CustomPainter {
       _sheetDataLeft(settings),
       _sheetDataTop(settings),
     );
-    _line(
-      canvas,
-      Offset(topRuler.left, topRuler.bottom - 0.5),
-      Offset(topRuler.right, topRuler.bottom - 0.5),
-      fortuneSheetGridLineColor,
-    );
-    _line(
-      canvas,
-      Offset(leftRuler.right - 0.5, leftRuler.top),
-      Offset(leftRuler.right - 0.5, leftRuler.bottom),
-      fortuneSheetGridLineColor,
-    );
-    _line(
-      canvas,
-      Offset(corner.left, corner.bottom - 0.5),
-      Offset(corner.right, corner.bottom - 0.5),
-      fortuneSheetGridLineColor,
-    );
-    _line(
-      canvas,
-      Offset(corner.right - 0.5, corner.top),
-      Offset(corner.right - 0.5, corner.bottom),
-      fortuneSheetGridLineColor,
-    );
+    if (!settings.hideRowColumnHeaderLabels) {
+      _line(
+        canvas,
+        Offset(topRuler.left, topRuler.bottom - 0.5),
+        Offset(topRuler.right, topRuler.bottom - 0.5),
+        fortuneSheetGridLineColor,
+      );
+      _line(
+        canvas,
+        Offset(leftRuler.right - 0.5, leftRuler.top),
+        Offset(leftRuler.right - 0.5, leftRuler.bottom),
+        fortuneSheetGridLineColor,
+      );
+    }
     _drawSheetRulerCornerSizeLabel(canvas, corner);
     _drawHorizontalSheetRuler(
       canvas,
@@ -63096,20 +63086,20 @@ class FortuneSheetPainter extends CustomPainter {
     Size size,
     FortuneSettings settings,
   ) {
-    if (settings.hideRowColumnHeaderLabels) {
-      return;
-    }
     final dataLeft = _sheetDataLeft(settings);
     final dataTop = _sheetDataTop(settings);
+    if (dataLeft <= 0 && dataTop <= 0) {
+      return;
+    }
     _line(
       canvas,
-      Offset(dataLeft - 0.5, _sheetHeaderTop(settings)),
+      Offset(dataLeft - 0.5, 0),
       Offset(dataLeft - 0.5, size.height),
       fortuneSheetGridLineColor,
     );
     _line(
       canvas,
-      Offset(_sheetHeaderLeft(settings), dataTop - 0.5),
+      Offset(0, dataTop - 0.5),
       Offset(size.width, dataTop - 0.5),
       fortuneSheetGridLineColor,
     );
@@ -63772,18 +63762,6 @@ class FortuneSheetPainter extends CustomPainter {
         math.max(0.0, size.height - headerTop),
       ),
       headerPaint,
-    );
-    _line(
-      canvas,
-      Offset(dataLeft - 0.5, headerTop),
-      Offset(dataLeft - 0.5, size.height),
-      fortuneSheetGridLineColor,
-    );
-    _line(
-      canvas,
-      Offset(headerLeft, dataTop - 0.5),
-      Offset(size.width, dataTop - 0.5),
-      fortuneSheetGridLineColor,
     );
 
     final viewport = _sheetViewportGeometry(size, settings, metrics);
