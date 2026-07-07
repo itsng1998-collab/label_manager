@@ -30869,6 +30869,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   }
 
   List<String> get _editorContextMenuItems {
+    if (_workbook.settings.copyOnlyContextMenu) {
+      return const <String>[fortuneContextCopyCommand];
+    }
     final range = _editorContextMenuSelectionRange;
     final containsScript =
         range != null && _editorController.rangeContainsScript(range);

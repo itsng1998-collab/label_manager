@@ -2677,7 +2677,14 @@ class _ItemOutputPreviewTab extends StatelessWidget {
       labelSize: labelSize,
       imageObjectIds: imageObjectIds,
       barcodeObjectIds: barcodeObjectIds,
-      zoomToolbarPlacement: LabelSheetZoomToolbarPlacement.hidden,
+      hideToolbar: true,
+      hideRowColumnHeaderLabels: true,
+      hideSelectionHighlight: true,
+      rulerCornerSizeLabelUsesAsterisk: true,
+      disableSheetRulerGuideInteraction: true,
+      hideStatisticBar: true,
+      copyOnlyContextMenu: true,
+      zoomToolbarPlacement: LabelSheetZoomToolbarPlacement.previewTabAreaEnd,
     );
   }
 }
@@ -2730,7 +2737,7 @@ debugItemOutputPreviewForTesting({
     }
     return (
       workbook: _replaceItemPreviewKeywords(
-        _itemOutputPreviewWorkbookWithFallbackSheet(workbook, labelSize),
+        _itemOutputPreviewPrivateWorkbook(workbook, labelSize),
         _itemOutputPreviewReplacements(item: item, elementText: elementText),
         imageKeywords: _itemOutputPreviewImageKeywords(),
       ),
@@ -2790,19 +2797,28 @@ Size _itemElementPrintAreaSize(LabelSize? labelSize) {
   );
 }
 
-fs.FortuneWorkbook _itemOutputPreviewWorkbookWithFallbackSheet(
+fs.FortuneWorkbook _itemOutputPreviewPrivateWorkbook(
   fs.FortuneWorkbook workbook,
   LabelSize? labelSize,
 ) {
-  if (workbook.sheets.isNotEmpty) {
-    return workbook;
-  }
-  final sheetName = labelSize?.labelSizeName.trim();
+  final source = workbook.sheets.isEmpty
+      ? fs.FortuneSheet(id: 'item_output_preview_source', name: 'Labels')
+      : workbook.sheets[workbook.activeSheetIndex.clamp(0, workbook.sheets.length - 1)];
+  final labelName = labelSize?.labelSizeName.trim();
+  final sourceName = source.name.trim();
+  final name = labelName?.isNotEmpty == true
+      ? labelName!
+      : sourceName.isEmpty
+      ? 'Labels'
+      : sourceName;
   return workbook.copyWith(
     sheets: [
-      fs.FortuneSheet(
+      source.copyWith(
         id: 'item_output_preview_sheet_01',
-        name: sheetName == null || sheetName.isEmpty ? 'Labels' : sheetName,
+        name: name,
+        order: 0,
+        hide: null,
+        status: 1,
       ),
     ],
     activeSheetIndex: 0,

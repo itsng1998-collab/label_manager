@@ -232,7 +232,60 @@ void main() {
     expect(preview.hintText, isNull);
     expect(preview.workbook, isNotNull);
     expect(preview.workbook!.sheets, hasLength(1));
-    expect(preview.workbook!.sheets.single.name, 'Sheet1');
+    expect(preview.workbook!.sheets.single.id, 'item_output_preview_sheet_01');
+    expect(preview.workbook!.sheets.single.name, '테스트 라벨');
+  });
+
+  test('item output preview uses private active saved sheet only', () {
+    final encoded = labelSheetEncodeWorkbookSave(
+      FortuneWorkbook(
+        activeSheetIndex: 1,
+        sheets: [
+          FortuneSheet(
+            id: 'common_01',
+            name: '다른 시트',
+            cells: {
+              const FortuneCellCoord(0, 0): const FortuneCell(
+                value: '사용하지 않음',
+              ),
+            },
+          ),
+          FortuneSheet(
+            id: 'common_02',
+            name: '출력 시트',
+            cells: {
+              const FortuneCellCoord(0, 0): const FortuneCell(
+                value: '#ITEMNAME',
+              ),
+              const FortuneCellCoord(0, 1): const FortuneCell(
+                value: '#ELEMENT',
+              ),
+            },
+          ),
+        ],
+      ),
+    );
+
+    final preview = debugItemOutputPreviewForTesting(
+      labelSize: _testLabelSizeWithFormData(encoded),
+      item: _testItemOfMarket(itemName: '딸기잼'),
+      elementText: '딸기, 설탕',
+    );
+
+    expect(preview.hintText, isNull);
+    expect(preview.workbook, isNotNull);
+    expect(preview.workbook!.sheets, hasLength(1));
+    final sheet = preview.workbook!.sheets.single;
+    expect(sheet.id, 'item_output_preview_sheet_01');
+    expect(sheet.name, '테스트 라벨');
+    expect(
+      sheet.cells[const FortuneCellCoord(0, 0)]?.renderedText,
+      '딸기잼',
+    );
+    expect(
+      sheet.cells[const FortuneCellCoord(0, 1)]?.renderedText,
+      '딸기, 설탕',
+    );
   });
 
   test('label sheet toolbar starts with save and print actions', () {
@@ -324,6 +377,28 @@ void main() {
     expect(defaultSettings.rulerCornerSizeLabelUsesAsterisk, isFalse);
     expect(defaultSettings.disableSheetRulerGuideInteraction, isFalse);
     expect(defaultSettings.statisticBarHeight, 23);
+  });
+
+  test('label sheet settings can hide toolbar and keep copy-only menus', () {
+    final settings = labelSheetSettings(
+      const FortuneSettings(),
+      hideToolbar: true,
+      copyOnlyContextMenu: true,
+      toolbarItems: const <String>[],
+    );
+
+    expect(settings.showToolbar, isFalse);
+    expect(settings.effectiveToolbarHeight, 0);
+    expect(settings.toolbarItems, isEmpty);
+    expect(settings.customToolbarItems, isEmpty);
+    expect(settings.copyOnlyContextMenu, isTrue);
+    expect(settings.cellContextMenu, const [fortuneContextCopyCommand]);
+    expect(settings.headerContextMenu, const [fortuneContextCopyCommand]);
+
+    final defaultSettings = labelSheetSettings(const FortuneSettings());
+    expect(defaultSettings.showToolbar, isTrue);
+    expect(defaultSettings.copyOnlyContextMenu, isFalse);
+    expect(defaultSettings.cellContextMenu, contains(fortuneContextPasteCommand));
   });
 
   testWidgets('single cell viewport fit keeps visible size across zoom', (

@@ -28,6 +28,24 @@
 
 ## 현재 상태
 
+### 진행 중 (2026-07-07): 품목관리 출력내용 미리보기 전용 시트 모드 보정
+
+- 수정 예정: 품목관리 플로팅 창 `출력내용 미리보기`를 공용라벨관리 workbook/sheet와 분리된 전용 preview sheet로 구성한다. 저장된 active sheet 내용은 유지하되 workbench에는 단일 preview sheet만 전달한다.
+- 수정 예정: 출력 미리보기 시트에 `주원료 및 함량` 탭과 같은 헤더/선택/눈금자/통계/zoom 배치 설정을 적용하고, 실제 툴바는 새 플래그로 완전히 숨긴다.
+- 수정 예정: 출력 미리보기 컨텍스트 메뉴는 새 플래그로 셀 선택/편집 상태에서 `복사하기`만 보이도록 제한한다.
+- 검증 예정: `dart format`, 관련 label sheet toolbar 집중 테스트, `C:\Flutter\bin\flutter.bat analyze`, `git diff --check`.
+- 편집 완료: `home_page_manager.dart`에서 출력 미리보기 workbook을 저장본 active sheet 기반 단일 `item_output_preview_sheet_01`로 재구성하고, `LabelSheetWorkbench` 옵션을 주원료 탭과 같은 모양/zoom 배치 + 툴바 숨김 + copy-only 메뉴로 설정했다.
+- 편집 완료: `label_sheet_workbench.dart`에 `hideToolbar`, `copyOnlyContextMenu` 플래그를 추가해 fortune settings로 전달한다.
+- 편집 완료: `fortune_sheet_model.dart`에 `showToolbar` copyWith와 `copyOnlyContextMenu` 설정을 추가하고, `fortune_sheet_canvas.dart`에서 셀 편집 컨텍스트 메뉴도 copy-only일 때 `copy`만 반환하도록 했다.
+- 테스트 추가: `label_sheet_toolbar_test.dart`에 출력 미리보기 전용 active sheet 복사/키워드 치환, toolbar 숨김/copy-only settings 회귀 테스트를 추가했다.
+- 검증 완료: `dart format` 실행.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "item output preview"` 통과(`+3`).
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "label sheet settings can"` 통과(`+2`).
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "label sheet zoom toolbar placement can move or hide controls"` 통과(`+1`).
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`).
+- 검증 완료: `git diff --check -- lib/home_page_manager.dart lib/page_label_sheet/label_sheet_workbench.dart third_party/fortune_sheet/lib/src/fortune_sheet_model.dart third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart test/label_sheet_toolbar_test.dart SESSION_HANDOFF.md` 통과.
+- stage/commit 예정: `lib/home_page_manager.dart`, `lib/page_label_sheet/label_sheet_workbench.dart`, `third_party/fortune_sheet/lib/src/fortune_sheet_model.dart`, `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`, `test/label_sheet_toolbar_test.dart`, `SESSION_HANDOFF.md`. unrelated 변경 `lib/core/app.dart` 및 lock 파일은 제외한다.
+
 ### 진행 중 (2026-07-07): 품목관리 출력내용 미리보기 빈 상태 보정
 
 - 수정 완료: 품목관리 플로팅 창 `출력내용 미리보기`에서 현재 라벨 저장값이 레거시 RichEdit RTF이면 중앙 기울임 힌트 `* 라벨을 편집 저장 후 가능합니다.`를 표시한다.

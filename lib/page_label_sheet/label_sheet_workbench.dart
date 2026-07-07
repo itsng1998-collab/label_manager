@@ -1597,6 +1597,7 @@ FortuneSettings labelSheetSettings(
   String saveTooltip = 'Save',
   String printTooltip = 'Print',
   List<String>? toolbarItems,
+  bool hideToolbar = false,
   bool hideRowColumnHeaders = false,
   bool hideRowColumnHeaderLabels = false,
   bool hideSelectionHighlight = false,
@@ -1606,9 +1607,12 @@ FortuneSettings labelSheetSettings(
   bool rulerCornerSizeLabelUsesAsterisk = false,
   bool disableSheetRulerGuideInteraction = false,
   bool hideStatisticBar = false,
+  bool copyOnlyContextMenu = false,
 }) {
   final resolvedToolbarItems = toolbarItems ?? labelSheetToolbarItems;
   return base.copyWith(
+    showToolbar: !hideToolbar,
+    copyOnlyContextMenu: copyOnlyContextMenu,
     toolbarItems: resolvedToolbarItems,
     rowHeaderWidth: hideRowColumnHeaders ? 0 : null,
     columnHeaderHeight: hideRowColumnHeaders ? 0 : null,
@@ -1651,11 +1655,15 @@ FortuneSettings labelSheetSettings(
           },
         ),
     ],
-    cellContextMenu: labelSheetContextMenuItems(base.cellContextMenu),
-    headerContextMenu: labelSheetContextMenuItems(
-      base.headerContextMenu,
-      includeImportLabelImage: true,
-    ),
+    cellContextMenu: copyOnlyContextMenu
+        ? const [fortuneContextCopyCommand]
+        : labelSheetContextMenuItems(base.cellContextMenu),
+    headerContextMenu: copyOnlyContextMenu
+        ? const [fortuneContextCopyCommand]
+        : labelSheetContextMenuItems(
+            base.headerContextMenu,
+            includeImportLabelImage: true,
+          ),
     sheetTabContextMenu: labelSheetContextMenuItems(base.sheetTabContextMenu),
     filterContextMenu: labelSheetContextMenuItems(base.filterContextMenu),
     onDialogVisibilityChanged: onDialogVisibilityChanged,
@@ -1699,6 +1707,7 @@ class LabelSheetWorkbench extends StatefulWidget {
     this.imageObjectIds = const <String>[],
     this.barcodeObjectIds = const <String>[],
     this.toolbarItems,
+    this.hideToolbar = false,
     this.hideRowColumnHeaders = false,
     this.hideRowColumnHeaderLabels = false,
     this.hideSelectionHighlight = false,
@@ -1708,6 +1717,7 @@ class LabelSheetWorkbench extends StatefulWidget {
     this.rulerCornerSizeLabelUsesAsterisk = false,
     this.disableSheetRulerGuideInteraction = false,
     this.hideStatisticBar = false,
+    this.copyOnlyContextMenu = false,
     this.zoomToolbarPlacement = LabelSheetZoomToolbarPlacement.sheetToolbarEnd,
     this.onInitialLoadComplete,
     this.onGridRectChanged,
@@ -1726,6 +1736,7 @@ class LabelSheetWorkbench extends StatefulWidget {
   final List<String> imageObjectIds;
   final List<String> barcodeObjectIds;
   final List<String>? toolbarItems;
+  final bool hideToolbar;
   final bool hideRowColumnHeaders;
   final bool hideRowColumnHeaderLabels;
   final bool hideSelectionHighlight;
@@ -1735,6 +1746,7 @@ class LabelSheetWorkbench extends StatefulWidget {
   final bool rulerCornerSizeLabelUsesAsterisk;
   final bool disableSheetRulerGuideInteraction;
   final bool hideStatisticBar;
+  final bool copyOnlyContextMenu;
   final LabelSheetZoomToolbarPlacement zoomToolbarPlacement;
   final VoidCallback? onInitialLoadComplete;
   final ValueChanged<ui.Rect>? onGridRectChanged;
@@ -1851,6 +1863,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     onDialogVisibilityChanged: _handleFortuneDialogVisibilityChanged,
     saveEnabled: _isDirty,
     importImageTooltip: _labelSheetImportImageTooltip(),
+    hideToolbar: widget.hideToolbar,
     saveTooltip: _labelSheetSaveTooltip(),
     printTooltip: _labelSheetPrintTooltip(),
     toolbarItems: widget.toolbarItems,
@@ -1863,6 +1876,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     rulerCornerSizeLabelUsesAsterisk: widget.rulerCornerSizeLabelUsesAsterisk,
     disableSheetRulerGuideInteraction: widget.disableSheetRulerGuideInteraction,
     hideStatisticBar: widget.hideStatisticBar,
+    copyOnlyContextMenu: widget.copyOnlyContextMenu,
   );
 
   FortuneSheetGridClientPhysicalSize? get _gridClientSize {

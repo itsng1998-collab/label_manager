@@ -23420,6 +23420,7 @@ class FortuneSettings {
     this.config = const <String, Object?>{},
     this.devicePixelRatio = 0,
     this.allowEdit = true,
+    this.copyOnlyContextMenu = false,
     this.lang,
     this.currency = '¥',
     this.forceCalculation = false,
@@ -23489,6 +23490,7 @@ class FortuneSettings {
   final Object? config;
   final double devicePixelRatio;
   final bool allowEdit;
+  final bool copyOnlyContextMenu;
   final String? lang;
   final String currency;
   final bool forceCalculation;
@@ -23555,8 +23557,10 @@ class FortuneSettings {
   double get effectiveSheetBarHeight => showSheetTabs ? sheetBarHeight : 0;
 
   FortuneSettings copyWith({
+    bool? showToolbar,
     bool? showFormulaBar,
     bool? showSheetTabs,
+    bool? copyOnlyContextMenu,
     double? rowHeaderWidth,
     double? columnHeaderHeight,
     bool? hideRowColumnHeaderLabels,
@@ -23583,12 +23587,13 @@ class FortuneSettings {
       column: column,
       row: row,
       addRows: addRows,
-      showToolbar: showToolbar,
+      showToolbar: showToolbar ?? this.showToolbar,
       showFormulaBar: showFormulaBar ?? this.showFormulaBar,
       showSheetTabs: showSheetTabs ?? this.showSheetTabs,
       config: config,
       devicePixelRatio: devicePixelRatio,
       allowEdit: allowEdit,
+      copyOnlyContextMenu: copyOnlyContextMenu ?? this.copyOnlyContextMenu,
       lang: lang,
       currency: currency,
       forceCalculation: forceCalculation,
