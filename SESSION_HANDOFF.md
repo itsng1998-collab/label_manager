@@ -32,6 +32,9 @@
 
 - 원인 확인: 라벨 저장 트랜잭션(`LabelSizeDAO.updateByLabelSizeId`)이 `INSERT LOG` + `UPDATE FORM` DML 배치만 실행하고 최종 결과셋을 반환하지 않아, ODBC 드라이버에서 `SQLExecute failed: 100`(`SQL_NO_DATA`)로 표면화될 수 있었다.
 - 수정 완료: 저장 트랜잭션 SQL을 `UpdateFormDataTransactionSql` 상수로 분리하고 `SET NOCOUNT ON`, `@logAffected`/`@updateAffected` rowcount 보관, `SELECT @updateAffected AS AFFECTED`를 추가했다. 기존 실패 검증(`THROW 51000/51001`)과 rollback 흐름은 유지한다.
+- 추가 점검 완료: `writeDataWithParams`/트랜잭션 배치 SQL을 확인한 결과 같은 위험 구조로 남아 있던 `LabelSizeDAO.updateOrders()`를 발견했다. 여러 `UPDATE`를 트랜잭션으로 실행하면서 최종 결과셋이 없어 ODBC 100이 반복될 수 있었다.
+- 추가 수정 완료: `LabelSizeDAO.updateOrders()`에 `SET NOCOUNT ON`, 각 update별 affected 변수 저장, 실패 시 기존 `THROW 51020`, 성공 시 `SELECT @affected0 + ... AS AFFECTED` 반환을 추가했다.
+- 분류 완료: 브랜드/라벨 insert/delete 트랜잭션은 이미 `SET NOCOUNT ON`과 최종 `SELECT` 결과셋을 반환한다. 단일 insert/update/delete SQL은 트랜잭션 배치형 SQL_NO_DATA 문제와 별도 범주로 보고 이번 수정 대상에서 제외했다.
 - 테스트 추가: `dao_result_helper_test.dart`에 라벨 저장 트랜잭션이 ODBC용 명시 affected row 결과를 반환하는지 검증을 추가했다.
 - 검증 완료: `C:\Flutter\bin\flutter.bat test test\dao_result_helper_test.dart` 통과.
 - 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`).

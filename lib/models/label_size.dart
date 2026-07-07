@@ -569,35 +569,46 @@ class LabelSizeDAO extends DAO {
     try {
       final updateStatements = StringBuffer();
       final params = <String, Object?>{};
+      final affectedVariables = <String>[];
       for (var index = 0; index < orderUpdates.length; index += 1) {
         final update = orderUpdates[index];
         final labelSizeIdParam = 'labelSizeId$index';
         final labelSizeOrderParam = 'labelSizeOrder$index';
+        final affectedVariable = '@affected$index';
+        affectedVariables.add(affectedVariable);
         updateStatements.writeln('''
+          DECLARE $affectedVariable INT = 0;
           UPDATE BM_RICH_LABELSIZE_FORM
              SET RICH_LABELSIZE_ORDER=@$labelSizeOrderParam
            WHERE RICH_LABELSIZE_ID=@$labelSizeIdParam;
-          IF @@ROWCOUNT <= 0
+          SET $affectedVariable = @@ROWCOUNT;
+          IF $affectedVariable <= 0
             THROW 51020, 'Update label size order failed.', 1;
         ''');
         params[labelSizeIdParam] = update.labelSizeId;
         params[labelSizeOrderParam] = update.labelSizeOrder;
       }
+      final affectedExpression = affectedVariables.join(' + ');
 
       final updateOrderTransactionSql =
           '''
         SET XACT_ABORT ON;
+        SET NOCOUNT ON;
         BEGIN TRY
           BEGIN TRANSACTION;
 
           $updateStatements
 
           COMMIT TRANSACTION;
+          SET NOCOUNT OFF;
           SET XACT_ABORT OFF;
+
+          SELECT $affectedExpression AS AFFECTED;
         END TRY
         BEGIN CATCH
           IF @@TRANCOUNT > 0
             ROLLBACK TRANSACTION;
+          SET NOCOUNT OFF;
           SET XACT_ABORT OFF;
           THROW;
         END CATCH
