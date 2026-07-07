@@ -28,6 +28,22 @@
 
 ## 현재 상태
 
+### 진행 중 (2026-07-07): 라벨 이미지 가져오기 미리보기 확대/스크롤
+
+- 수정 예정: 라벨 이미지 가져오기 다이얼로그 크기는 유지하고, 이미지 미리보기 영역 높이만 180px에서 270px로 50% 확대한다.
+- 수정 예정: 원본 이미지가 contain 스케일로도 9pt 문자 가독성 근사치에 충분하면 정가운데 표시하고, 부족하면 물리 라벨 크기(mm)와 원본 픽셀 기준으로 9pt 문자 근사 스케일까지 확대해 넘치는 방향은 수직/수평 스크롤한다.
+- 검증 예정: `dart format`, 미리보기 스케일 계산 테스트, `C:\Flutter\bin\flutter.bat analyze`, `git diff --check`.
+- 편집 완료: `labelSheetImageImportPreviewHeight`를 270으로 두고 `_LabelImageImportPreview` 위젯으로 기존 180px `Image.memory(fit: contain)` 미리보기를 교체했다.
+- 편집 완료: `labelSheetImageImportPreviewLayout` 계산 함수를 추가해 contain 스케일이 9pt 문자 가독성 근사치에 충분하면 중앙 배치, 부족하면 readable scale로 확대하도록 했다. 확대 결과가 viewport를 넘으면 수직/수평 `SingleChildScrollView`로 스크롤된다.
+- 테스트 추가: `label image import preview scales to readable text size`에서 가독성 확대/overflow 조건과 충분한 contain 중앙 배치 조건을 검증한다.
+- 검증 완료: `dart format` 실행.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "label image import preview scales to readable text size"` 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "Gemini model list is fetched from Google AI models API"` 통과.
+- 검증 완료: 변경 파일 `get_errors` 오류 없음.
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`).
+- 검증 완료: `git diff --check -- lib/page_label_sheet/label_sheet_workbench.dart test/label_sheet_toolbar_test.dart SESSION_HANDOFF.md` 통과.
+- stage/commit 예정: `lib/page_label_sheet/label_sheet_workbench.dart`, `test/label_sheet_toolbar_test.dart`, `SESSION_HANDOFF.md`. unrelated 변경 `lib/core/app.dart`는 제외한다.
+
 ### 진행 중 (2026-07-07): AI 선택 모델 기본값 저장
 
 - 수정 예정: 라벨 이미지 AI 모델 드롭다운에서 선택한 모델은 즉시 로컬 저장소에 기억해 다음 다이얼로그 진입 시 기본 선택으로 사용한다.

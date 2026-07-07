@@ -1929,6 +1929,39 @@ void main() {
     expect(models.first.menuLabel, 'Gemini 3.5 Pro · Google AI');
   });
 
+  test('label image import preview scales to readable text size', () {
+    final viewportHeight =
+        labelSheetImageImportPreviewHeight -
+        (labelSheetImageImportPreviewPadding * 2);
+    final smallReadableLayout = labelSheetImageImportPreviewLayout(
+      imageWidth: 200,
+      imageHeight: 200,
+      viewportWidth: 616,
+      viewportHeight: viewportHeight,
+      physicalSize: const FortuneSheetGridClientPhysicalSize(
+        widthMm: 100,
+        heightMm: 100,
+      ),
+    );
+
+    expect(smallReadableLayout.usesReadableScale, isTrue);
+  expect(smallReadableLayout.height, greaterThan(viewportHeight));
+
+    final sufficientlyReadableLayout = labelSheetImageImportPreviewLayout(
+      imageWidth: 1200,
+      imageHeight: 600,
+      viewportWidth: 616,
+      viewportHeight: viewportHeight,
+      physicalSize: const FortuneSheetGridClientPhysicalSize(
+        widthMm: 100,
+        heightMm: 50,
+      ),
+    );
+
+    expect(sufficientlyReadableLayout.usesReadableScale, isFalse);
+    expect(sufficientlyReadableLayout.width, lessThanOrEqualTo(616));
+  });
+
   test('label sheet image import analysis creates an adjusted draft', () {
     final image = imglib.Image(width: 100, height: 60);
     imglib.fill(image, color: imglib.ColorRgb8(255, 255, 255));

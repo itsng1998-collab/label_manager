@@ -3399,6 +3399,157 @@ class _LabelSheetZoomButtonState extends State<_LabelSheetZoomButton> {
   }
 }
 
+const double labelSheetImageImportPreviewHeight = 270;
+const double labelSheetImageImportPreviewPadding = 12;
+const double _labelSheetReadableTextPointSize = 9;
+const double _labelSheetReadableTextPixels = _labelSheetReadableTextPointSize *
+    (96 / 72);
+
+class LabelSheetImageImportPreviewLayout {
+  const LabelSheetImageImportPreviewLayout({
+    required this.scale,
+    required this.width,
+    required this.height,
+    required this.usesReadableScale,
+  });
+
+  final double scale;
+  final double width;
+  final double height;
+  final bool usesReadableScale;
+}
+
+LabelSheetImageImportPreviewLayout labelSheetImageImportPreviewLayout({
+  required int imageWidth,
+  required int imageHeight,
+  required double viewportWidth,
+  required double viewportHeight,
+  required FortuneSheetGridClientPhysicalSize physicalSize,
+}) {
+  final safeImageWidth = math.max(1, imageWidth).toDouble();
+  final safeImageHeight = math.max(1, imageHeight).toDouble();
+  final safeViewportWidth = math.max(1, viewportWidth);
+  final safeViewportHeight = math.max(1, viewportHeight);
+  final containScale = math.min(
+    safeViewportWidth / safeImageWidth,
+    safeViewportHeight / safeImageHeight,
+  );
+  final readableScale = _labelSheetImageImportReadableScale(
+    imageWidth: safeImageWidth,
+    imageHeight: safeImageHeight,
+    physicalSize: physicalSize,
+  );
+  final usesReadableScale = containScale < readableScale;
+  final scale = usesReadableScale ? readableScale : containScale;
+  return LabelSheetImageImportPreviewLayout(
+    scale: scale,
+    width: safeImageWidth * scale,
+    height: safeImageHeight * scale,
+    usesReadableScale: usesReadableScale,
+  );
+}
+
+double _labelSheetImageImportReadableScale({
+  required double imageWidth,
+  required double imageHeight,
+  required FortuneSheetGridClientPhysicalSize physicalSize,
+}) {
+  final widthMm = math.max(1, physicalSize.widthMm).toDouble();
+  final heightMm = math.max(1, physicalSize.heightMm).toDouble();
+  final sourcePixelsPerMm = math.min(
+    imageWidth / widthMm,
+    imageHeight / heightMm,
+  );
+  final readablePixelsPerMm = _labelSheetReadableTextPixels /
+      ((_labelSheetReadableTextPointSize / 72) * 25.4);
+  return readablePixelsPerMm / math.max(0.01, sourcePixelsPerMm);
+}
+
+class _LabelImageImportPreview extends StatefulWidget {
+  const _LabelImageImportPreview({
+    required this.bytes,
+    required this.physicalSize,
+  });
+
+  final Uint8List bytes;
+  final FortuneSheetGridClientPhysicalSize physicalSize;
+
+  @override
+  State<_LabelImageImportPreview> createState() =>
+      _LabelImageImportPreviewState();
+}
+
+class _LabelImageImportPreviewState extends State<_LabelImageImportPreview> {
+  late imglib.Image? _decodedImage = imglib.decodeImage(widget.bytes);
+
+  @override
+  void didUpdateWidget(covariant _LabelImageImportPreview oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.bytes, widget.bytes)) {
+      _decodedImage = imglib.decodeImage(widget.bytes);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return SizedBox(
+      height: labelSheetImageImportPreviewHeight,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerHighest.withValues(
+            alpha: 0.45,
+          ),
+          border: Border.all(color: theme.dividerColor),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(labelSheetImageImportPreviewPadding),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final decodedImage = _decodedImage;
+              if (decodedImage == null) {
+                return Center(
+                  child: widgets.Image.memory(widget.bytes, fit: BoxFit.contain),
+                );
+              }
+              final layout = labelSheetImageImportPreviewLayout(
+                imageWidth: decodedImage.width,
+                imageHeight: decodedImage.height,
+                viewportWidth: constraints.maxWidth,
+                viewportHeight: constraints.maxHeight,
+                physicalSize: widget.physicalSize,
+              );
+              return ClipRect(
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: SingleChildScrollView(
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        minWidth: constraints.maxWidth,
+                        minHeight: constraints.maxHeight,
+                      ),
+                      child: Center(
+                        child: SizedBox(
+                          width: layout.width,
+                          height: layout.height,
+                          child: widgets.Image.memory(
+                            widget.bytes,
+                            fit: BoxFit.fill,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _LabelImageImportDialog extends StatefulWidget {
   const _LabelImageImportDialog({
     required this.bytes,
@@ -3479,23 +3630,9 @@ class _LabelImageImportDialogState extends State<_LabelImageImportDialog> {
                 style: theme.textTheme.bodySmall,
               ),
               const SizedBox(height: 8),
-              SizedBox(
-                height: 180,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.surfaceContainerHighest.withValues(
-                      alpha: 0.45,
-                    ),
-                    border: Border.all(color: theme.dividerColor),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: widgets.Image.memory(
-                      widget.bytes,
-                      fit: BoxFit.contain,
-                    ),
-                  ),
-                ),
+              _LabelImageImportPreview(
+                bytes: widget.bytes,
+                physicalSize: widget.physicalSize,
               ),
               const SizedBox(height: 14),
               _ApiKeyPasteOnlyTextField(
