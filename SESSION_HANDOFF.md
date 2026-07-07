@@ -28,6 +28,21 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-07): 품목관리 preview ruler separator 스타일 보정(v9)
+
+- 로그 확인: 최신 `.tmp/log/app_2026-07-07_23-15-52.log`에서 `FSDBG-2026-07-07-ruler-border-align-v8`와 `FSRULER-2026-07-07-border-align-v8`가 확인됐다. v8은 실제 실행됐지만 사용자 스크린샷상 변화가 없어 효과 없는 시각 변경으로 판단했다.
+- v8 대체/원복: 일반 ruler/corner border는 v8의 전역 반픽셀 정렬을 제거하고 기존 `rulerBorder` drawing으로 되돌렸다. 다른 FortuneSheet 화면이 틀어지지 않도록 preview 조건 외에는 기존 동작을 유지한다.
+- 수정 완료: `hideRowColumnHeaderLabels=true`이고 `showGridLines=false`인 품목관리 preview 조건에서만 ruler/data separator를 행/열 헤더 구분선과 같은 `fortuneSheetGridLineColor` + `_line` 스타일로 그린다. 로그에는 `boundaryStyle=headerGridLine`으로 표시된다.
+- 디버그 갱신: trace marker를 `FSRULER-2026-07-07-preview-separator-v9`로 변경했다.
+- 수정 완료: `lib/main.dart`의 DebugLogger 버전을 `FSDBG-2026-07-07-preview-ruler-separator-v9`로 갱신했다.
+- 테스트 보강: hidden header 테스트를 실제 품목 preview 조건(`showGridLines=false`)으로 맞추고, separator가 grid-line 색으로 존재하며 ruler-border 색이 겹치지 않는지 검증한다. visible header 테스트는 기존 행/열 헤더 구분선 보완이 유지되는지 계속 검증한다.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_sheet_painter_test.dart --plain-name "adjusted sheet header corner separators stay connected"` 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_sheet_painter_test.dart --plain-name "adjusted sheet hidden headers keep ruler separators one pixel"` 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "item output preview"` 통과(`+3`).
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`).
+- 검증 완료: `git diff --check -- lib/main.dart third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart third_party/fortune_sheet/test/fortune_sheet_painter_test.dart SESSION_HANDOFF.md` 통과.
+- 커밋 예정: `lib/main.dart`, `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`, `third_party/fortune_sheet/test/fortune_sheet_painter_test.dart`, `SESSION_HANDOFF.md`. unrelated 변경 `lib/core/app.dart` 및 lock 파일은 제외한다.
+
 ### 완료 (2026-07-07): 품목관리 preview ruler border 반픽셀 정렬(v8)
 
 - 로그 확인: 최신 `.tmp/log/app_2026-07-07_23-06-19.log`에서 `FSDBG-2026-07-07-ruler-border-trace-v7`와 품목관리 preview의 `FSRULER-2026-07-07-border-trace-v7`가 확인됐다. ruler 영역은 원복됐고, `item_element`/`item_output_preview_sheet_01`은 `hideHeaders=true`, `showGridLines=false`, `dataLeft=46.0`, `dataTop=20.0` 상태였다.
