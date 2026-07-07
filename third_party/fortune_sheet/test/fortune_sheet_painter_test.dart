@@ -40,6 +40,12 @@ bool _isGridLinePixel(int red, int green, int blue) {
       (blue - 0xdf).abs() <= 3;
 }
 
+bool _isRulerBorderPixel(int red, int green, int blue) {
+  return (red - 0xd9).abs() <= 3 &&
+      (green - 0xdc).abs() <= 3 &&
+      (blue - 0xe1).abs() <= 3;
+}
+
 bool _isNonWhiteUiPixel(int red, int green, int blue) {
   return red < 248 || green < 248 || blue < 248;
 }
@@ -505,8 +511,26 @@ void main() {
       _countPixels(
         bytes,
         image.width,
+        Rect.fromLTWH(dataLeft - 1, sheetTop + 2, 2, 80),
+        _isRulerBorderPixel,
+      ),
+      0,
+    );
+    expect(
+      _countPixels(
+        bytes,
+        image.width,
         Rect.fromLTWH(2, dataTop - 1, dataLeft + 60, 2),
         _isRulerTickPixel,
+      ),
+      0,
+    );
+    expect(
+      _countPixels(
+        bytes,
+        image.width,
+        Rect.fromLTWH(2, dataTop - 1, dataLeft + 60, 2),
+        _isRulerBorderPixel,
       ),
       0,
     );

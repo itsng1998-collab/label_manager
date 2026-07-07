@@ -28,6 +28,21 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-07): hidden header ruler 경계선 제거
+
+- 로그 확인: 최신 `.tmp/log/app_2026-07-07_22-46-46.log`에서 `FSDBG-2026-07-07-ruler-hairline-border-v4`와 `FSRULER-2026-07-07-hairline-border-v4`가 확인되어 v4 hairline 수정이 실제 앱에서 실행됐지만 사용자 화면 변화가 없었다.
+- 오수정 원복: v4의 `strokeWidth = 0` hairline ruler/corner border 보정과 `_hairline` helper를 제거했다.
+- 수정 완료: hidden header 상태(`hideRowColumnHeaderLabels=true`)에서는 숨겨진 행/열 헤더 자리에 남던 ruler/header 경계선을 그리지 않게 했다. 로그 정책은 `borderPolicy=skipHiddenHeaderRulerBoundary`로 표시된다.
+- 수정 완료: visible header 상태에서는 corner 보조선을 제거하고, 실제 header boundary와 top/left ruler boundary만 유지한다. 로그 정책은 `borderPolicy=headerBoundaryOnly`로 표시된다.
+- 수정 완료: `lib/main.dart`의 DebugLogger 버전을 `FSDBG-2026-07-07-ruler-hide-header-border-v5`로 갱신했다.
+- 테스트 보강: hidden header 테스트에 `fortuneSheetRulerBorderColor` 픽셀 검출을 추가해 숨겨진 헤더 자리의 ruler border가 남지 않는지 검증한다.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_sheet_painter_test.dart --plain-name "adjusted sheet hidden headers keep ruler separators one pixel"` 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_sheet_painter_test.dart --plain-name "adjusted sheet header corner separators stay connected"` 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_sheet_painter_test.dart` 통과(`+752`).
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`).
+- 검증 완료: `git diff --check -- lib/main.dart third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart third_party/fortune_sheet/test/fortune_sheet_painter_test.dart SESSION_HANDOFF.md` 통과.
+- 커밋 예정: `lib/main.dart`, `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`, `third_party/fortune_sheet/test/fortune_sheet_painter_test.dart`, `SESSION_HANDOFF.md`. unrelated 변경 `lib/core/app.dart` 및 lock 파일은 제외한다.
+
 ### 완료 (2026-07-07): ruler 경계선 hairline 적용
 
 - 로그 확인: 최신 `.tmp/log/app_2026-07-07_22-41-10.log`에서 `FSDBG-2026-07-07-ruler-crisp-border-v3`와 `FSRULER-2026-07-07-crisp-border-v3`가 확인되어, 수정된 `fortune_sheet` painter가 실제 앱에서 실행 중임을 확인했다.

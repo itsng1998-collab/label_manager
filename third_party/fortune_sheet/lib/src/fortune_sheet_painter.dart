@@ -18,7 +18,7 @@ void _fortuneSheetRulerDebugLog(String key, String message) {
   if (!_fortuneSheetRulerDebugLogKeys.add(key)) {
     return;
   }
-  debugPrint('FSRULER-2026-07-07-hairline-border-v4 $message');
+  debugPrint('FSRULER-2026-07-07-hide-header-border-v5 $message');
 }
 
 bool _intDoubleMapEquals(Map<int, double> left, Map<int, double> right) {
@@ -63070,36 +63070,26 @@ class FortuneSheetPainter extends CustomPainter {
       '${workbook.activeSheet.id}:ruler:${settings.hideRowColumnHeaderLabels}:$topRuler:$leftRuler',
       'sheet=${workbook.activeSheet.id}'
       ' hideHeaders=${settings.hideRowColumnHeaderLabels}'
-      ' borderPolicy=hairline'
+      ' borderPolicy=${settings.hideRowColumnHeaderLabels ? 'skipHiddenHeaderRulerBoundary' : 'headerBoundaryOnly'}'
       ' topRuler=$topRuler leftRuler=$leftRuler corner=$corner'
       ' cornerBottomRight=$cornerBottomRight'
       ' cornerRightBottom=$cornerRightBottom'
       ' dataLeft=${_sheetDataLeft(settings)} dataTop=${_sheetDataTop(settings)}',
     );
-    _hairline(
-      canvas,
-      topRuler.bottomLeft,
-      topRuler.bottomRight,
-      fortuneSheetRulerBorderColor,
-    );
-    _hairline(
-      canvas,
-      leftRuler.topRight,
-      leftRuler.bottomRight,
-      fortuneSheetRulerBorderColor,
-    );
-    _hairline(
-      canvas,
-      corner.bottomLeft,
-      Offset(cornerBottomRight, corner.bottom),
-      fortuneSheetRulerBorderColor,
-    );
-    _hairline(
-      canvas,
-      corner.topRight,
-      Offset(corner.right, cornerRightBottom),
-      fortuneSheetRulerBorderColor,
-    );
+    if (!settings.hideRowColumnHeaderLabels) {
+      _line(
+        canvas,
+        Offset(topRuler.left, topRuler.bottom - 0.5),
+        Offset(topRuler.right, topRuler.bottom - 0.5),
+        fortuneSheetRulerBorderColor,
+      );
+      _line(
+        canvas,
+        Offset(leftRuler.right - 0.5, leftRuler.top),
+        Offset(leftRuler.right - 0.5, leftRuler.bottom),
+        fortuneSheetRulerBorderColor,
+      );
+    }
     _drawSheetRulerCornerSizeLabel(canvas, corner);
     _drawHorizontalSheetRuler(
       canvas,
@@ -76886,17 +76876,6 @@ class FortuneSheetPainter extends CustomPainter {
       Paint()
         ..color = color
         ..strokeWidth = 1,
-    );
-  }
-
-  void _hairline(Canvas canvas, Offset a, Offset b, Color color) {
-    canvas.drawLine(
-      a,
-      b,
-      Paint()
-        ..color = color
-        ..isAntiAlias = false
-        ..strokeWidth = 0,
     );
   }
 
