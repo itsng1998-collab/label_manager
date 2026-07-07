@@ -7,6 +7,7 @@ import 'package:collection/collection.dart';
 import 'package:dropdown_button2/dropdown_button2.dart';
 import 'package:fortune_sheet/fortune_sheet.dart' as fs;
 import 'package:flutter/material.dart';
+import 'package:path/path.dart' as p;
 import 'package:tabbed_view/tabbed_view.dart';
 
 import 'package:label_manager/core/app.dart';
@@ -24,6 +25,8 @@ import 'package:label_manager/models/label_size.dart';
 import 'package:label_manager/models/market.dart';
 import 'package:label_manager/models/user.dart';
 import 'package:label_manager/page_label_sheet/label_sheet_save_codec.dart';
+import 'package:label_manager/page_label_sheet/label_sheet_ai_import_temp.dart';
+import 'package:label_manager/page_label_sheet/label_sheet_native_open_xml.dart';
 import 'package:label_manager/page_label_sheet/label_sheet_workbench.dart';
 import 'package:label_manager/page_label_sheet/label_sheet_rtf_import.dart';
 import 'package:label_manager/page_label_sheet/label_sheet_rtf_preview.dart';
@@ -71,6 +74,8 @@ class _HomePageManagerState extends State<HomePageManager> {
   int _rtfPreviewResizeFinalizeToken = 0;
   PreviewFloatingWindow? _itemPreviewWindow;
   PreviewFloatingWindow? _commonLabelPreviewWindow;
+  final LabelSheetImageImportController _commonLabelImageImportController =
+      LabelSheetImageImportController();
   Timer? _rtfPreviewResizeDebounce;
   Timer? _rtfPreviewResizeFinalizeTimer;
   List<Brand> _brands = const <Brand>[];
@@ -775,6 +780,7 @@ class _HomePageManagerState extends State<HomePageManager> {
                 onGridRectChanged: _handleCommonLabelGridRectChanged,
                 onBeforeSheetDialog: _handleCommonLabelSheetDialogOpening,
                 onSheetDialogClosed: _handleCommonLabelSheetDialogClosed,
+                imageImportController: _commonLabelImageImportController,
               )
             : const SizedBox.shrink(),
         closable: false,
@@ -995,6 +1001,9 @@ class _HomePageManagerState extends State<HomePageManager> {
         onRectChanged: _handleRtfPreviewWindowRectChanged,
         onResizeCompleted: _handleRtfPreviewWindowResizeCompleted,
         onCloseRequested: _handleCommonLabelPreviewCloseRequested,
+        headerAction: _RtfPreviewAiConvertButton(
+          onPressed: () => unawaited(_handleRtfPreviewAiConvert()),
+        ),
       );
       if (shouldRebuildPreview) {
         _rtfPreviewWindowKey = readyKey;
@@ -1033,6 +1042,56 @@ class _HomePageManagerState extends State<HomePageManager> {
     _commonLabelPreviewClosedByUser = false;
     setState(() {});
     _showRtfPreviewWindow();
+  }
+
+  Future<void> _handleRtfPreviewAiConvert() async {
+    final rtf = _effectiveLabelSize?.labelSizeCommon?.rtf;
+    if (!mounted || !labelSheetLooksLikeRichEditRtf(rtf)) {
+      return;
+    }
+    final labelCommon = _effectiveLabelSize?.labelSizeCommon;
+    final widthMm = labelCommon?.width ?? 100;
+    final heightMm = labelCommon?.height ?? 100;
+    final target = _rtfPreviewTargetContentSize;
+    final logicalWidth = (target?.width ?? LabelSheetRtfPreview.pixelsForMm(widthMm))
+        .round()
+        .clamp(1, 4096);
+    final logicalHeight = (target?.height ?? LabelSheetRtfPreview.pixelsForMm(heightMm))
+        .round()
+        .clamp(1, 4096);
+    final capture = await labelSheetCaptureRtfNativePngImage(
+      rtf!,
+      width: logicalWidth * 2,
+      height: logicalHeight * 2,
+      widthMm: widthMm,
+      heightMm: heightMm,
+      renderScale: 2,
+    );
+    if (!mounted) {
+      return;
+    }
+    if (capture == null || capture.bytes.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('RTF 미리보기 이미지를 만들 수 없습니다.')));
+      return;
+    }
+    final directory = await labelSheetAiImportTempDirectory().create(
+      recursive: true,
+    );
+    final fileName =
+        'label_manager_rtf_ai_${DateTime.now().microsecondsSinceEpoch}.png';
+    final file = File(p.join(directory.path, fileName));
+    await file.writeAsBytes(capture.bytes, flush: true);
+    if (!mounted) {
+      return;
+    }
+    await _commonLabelImageImportController.openWithImageFile(
+      bytes: capture.bytes,
+      fileName: fileName,
+      filePath: file.path,
+      mimeType: 'image/png',
+    );
   }
 
   Future<void> _handleCommonLabelSheetDialogOpening() async {
@@ -2207,6 +2266,47 @@ class _PlaceholderTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(child: Text('$title (준비 중)'));
+  }
+}
+
+class _RtfPreviewAiConvertButton extends StatefulWidget {
+  const _RtfPreviewAiConvertButton({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  State<_RtfPreviewAiConvertButton> createState() =>
+      _RtfPreviewAiConvertButtonState();
+}
+
+class _RtfPreviewAiConvertButtonState extends State<_RtfPreviewAiConvertButton> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: widget.onPressed,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 1, vertical: 1),
+          child: Text(
+            'AI 변환',
+            style: TextStyle(
+              fontSize: 9,
+              height: 1,
+              fontWeight: FontWeight.w600,
+              color: _hovered
+                  ? const Color(0xff111111)
+                  : const Color(0xff555555),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 

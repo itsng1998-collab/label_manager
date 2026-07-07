@@ -1714,6 +1714,7 @@ class LabelSheetWorkbench extends StatefulWidget {
     this.onBeforeSheetDialog,
     this.onSheetDialogClosed,
     this.printerListProvider,
+    this.imageImportController,
     this.onWorkbookChanged,
     this.onSave,
     super.key,
@@ -1740,6 +1741,7 @@ class LabelSheetWorkbench extends StatefulWidget {
   final FutureOr<void> Function()? onBeforeSheetDialog;
   final VoidCallback? onSheetDialogClosed;
   final LabelPrinterListProvider? printerListProvider;
+  final LabelSheetImageImportController? imageImportController;
   final ValueChanged<FortuneWorkbook>? onWorkbookChanged;
   final FutureOr<void> Function(
     int widthMm,
@@ -1750,6 +1752,38 @@ class LabelSheetWorkbench extends StatefulWidget {
 
   @override
   State<LabelSheetWorkbench> createState() => _LabelSheetWorkbenchState();
+}
+
+class LabelSheetImageImportController {
+  _LabelSheetWorkbenchState? _state;
+
+  bool get isAttached => _state != null;
+
+  Future<void> openWithImageFile({
+    required Uint8List bytes,
+    required String fileName,
+    required String filePath,
+    required String mimeType,
+  }) async {
+    await _state?._openLabelImageImportWithInitialImage(
+      _LabelImageImportSelection(
+        bytes: bytes,
+        mimeType: mimeType,
+        fileName: fileName,
+        filePath: filePath,
+      ),
+    );
+  }
+
+  void _attach(_LabelSheetWorkbenchState state) {
+    _state = state;
+  }
+
+  void _detach(_LabelSheetWorkbenchState state) {
+    if (_state == state) {
+      _state = null;
+    }
+  }
 }
 
 class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
@@ -1922,6 +1956,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
   @override
   void initState() {
     super.initState();
+    widget.imageImportController?._attach(this);
     _zoomFocusNode
       ..addListener(_handleZoomFocusChanged)
       ..onKeyEvent = _handleZoomInputKeyEvent;
@@ -1930,6 +1965,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
 
   @override
   void dispose() {
+    widget.imageImportController?._detach(this);
     _removeZoomToolbarFloatingOverlay();
     if (_rtfSnackBarVisible) {
       _rtfSnackBarVisible = false;
@@ -1956,6 +1992,10 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
   @override
   void didUpdateWidget(covariant LabelSheetWorkbench oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.imageImportController != widget.imageImportController) {
+      oldWidget.imageImportController?._detach(this);
+      widget.imageImportController?._attach(this);
+    }
     if (oldWidget.zoomToolbarPlacement != widget.zoomToolbarPlacement &&
         widget.zoomToolbarPlacement !=
             LabelSheetZoomToolbarPlacement.previewTabAreaEnd) {
@@ -2210,6 +2250,12 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
   }
 
   Future<void> _handleImportLabelImage() async {
+    await _openLabelImageImportWithInitialImage(null);
+  }
+
+  Future<void> _openLabelImageImportWithInitialImage(
+    _LabelImageImportSelection? initialImage,
+  ) async {
     final sheet = _controller.getSheet();
     if (sheet == null) {
       if (mounted) {
@@ -2219,10 +2265,19 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       }
       return;
     }
-    final action = await _showLabelImageImportDialog(sheet: sheet);
+    final action = await _showLabelImageImportDialog(
+      sheet: sheet,
+      initialImage: initialImage,
+    );
     if (!mounted || action == null) {
       return;
     }
+    await _handleLabelImageImportAction(action);
+  }
+
+  Future<void> _handleLabelImageImportAction(
+    _LabelImageImportAction action,
+  ) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_labelSheetGeminiApiKeyPrefsKey, action.apiKey);
     await prefs.setString(_labelSheetGeminiModelPrefsKey, action.model);
@@ -3046,6 +3101,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
 
   Future<_LabelImageImportAction?> _showLabelImageImportDialog({
     required FortuneSheet sheet,
+    _LabelImageImportSelection? initialImage,
   }) async {
     final prefs = await SharedPreferences.getInstance();
     await _notifyBeforeSheetDialog();
@@ -3063,9 +3119,11 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
         builder: (_) => _LabelImageImportDialog(
           sheet: sheet,
           physicalSize: physicalSize,
-          initialImage: _tryLoadLabelImageImportSelection(
-            prefs.getString(_labelSheetImageImportFilePathPrefsKey),
-          ),
+          initialImage:
+              initialImage ??
+              _tryLoadLabelImageImportSelection(
+                prefs.getString(_labelSheetImageImportFilePathPrefsKey),
+              ),
           initialApiKey: prefs.getString(_labelSheetGeminiApiKeyPrefsKey) ?? '',
           initialModel:
               prefs.getString(_labelSheetGeminiModelPrefsKey) ??

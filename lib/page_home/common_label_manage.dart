@@ -6,6 +6,7 @@ import 'package:label_manager/models/column_special.dart';
 import 'package:label_manager/models/column.dart';
 import 'package:label_manager/models/label_size.dart';
 import 'package:label_manager/page_label_sheet/label_sheet_page.dart';
+import 'package:label_manager/page_label_sheet/label_sheet_workbench.dart';
 import 'package:label_manager/utils/log_context.dart';
 import 'package:label_manager/widgets/swipe_action_table.dart';
 
@@ -111,6 +112,7 @@ class CommonLabelManage extends StatefulWidget {
   final ValueChanged<Rect>? onGridRectChanged;
   final FutureOr<void> Function()? onBeforeSheetDialog;
   final VoidCallback? onSheetDialogClosed;
+  final LabelSheetImageImportController? imageImportController;
   const CommonLabelManage({
     super.key,
     required this.title,
@@ -119,6 +121,7 @@ class CommonLabelManage extends StatefulWidget {
     this.onGridRectChanged,
     this.onBeforeSheetDialog,
     this.onSheetDialogClosed,
+    this.imageImportController,
   });
 
   @override
@@ -197,6 +200,7 @@ class _CommonLabelManageState extends State<CommonLabelManage> {
                     onGridRectChanged: widget.onGridRectChanged,
                     onBeforeSheetDialog: widget.onBeforeSheetDialog,
                     onSheetDialogClosed: widget.onSheetDialogClosed,
+                    imageImportController: widget.imageImportController,
                   ),
                 ),
               ),

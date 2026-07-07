@@ -20,6 +20,7 @@ class PreviewFloatingWindow {
     this.onRectChanged,
     this.onResizeCompleted,
     this.onCloseRequested,
+    this.headerAction,
   }) : _rect = ValueNotifier<Rect>(
          Rect.fromLTWH(
            initialPosition.dx,
@@ -39,6 +40,7 @@ class PreviewFloatingWindow {
   final PreviewFloatingRectChanged? onRectChanged;
   final ValueChanged<Rect>? onResizeCompleted;
   final VoidCallback? onCloseRequested;
+  final Widget? headerAction;
 
   final ValueNotifier<Rect> _rect;
   final ValueNotifier<Widget?> _child;
@@ -101,6 +103,7 @@ class PreviewFloatingWindow {
                         onResizeStart: _handleResizeStart,
                         onResizeEnd: _handleResizeEnd,
                         onClose: _handleCloseRequested,
+                        headerAction: headerAction,
                       ),
                     ),
                   ),
@@ -385,6 +388,7 @@ class _FloatingCard extends StatelessWidget {
     required this.onResizeStart,
     required this.onResizeEnd,
     required this.onClose,
+    required this.headerAction,
   });
 
   final Rect rect;
@@ -398,9 +402,11 @@ class _FloatingCard extends StatelessWidget {
   final void Function(String handleName, int pointer) onResizeStart;
   final void Function(String handleName, int pointer) onResizeEnd;
   final VoidCallback onClose;
+  final Widget? headerAction;
 
   static const double _handleSize = 16;
   static const double _moveHandleWidth = 54;
+  static const double _moveHandleActionWidth = 112;
   static const double _cornerHandleSize = 44;
   static const double _edgeThickness = 10;
 
@@ -457,14 +463,19 @@ class _FloatingCard extends StatelessWidget {
                 valueListenable: isResizingListenable,
                 builder: (context, isResizing, _) {
                   if (isResizing) return const SizedBox.shrink();
+                  final moveHandleWidth = headerAction == null
+                      ? _moveHandleWidth
+                      : _moveHandleActionWidth;
                   return Positioned(
                     top: -1,
-                    left: (rect.width - _moveHandleWidth) / 2,
+                    left: (rect.width - moveHandleWidth) / 2,
                     child: _MoveHandle(
                       key: const ValueKey('floating-move-handle'),
                       isResizingListenable: isResizingListenable,
                       onMove: onMove,
                       onClose: onClose,
+                      width: moveHandleWidth,
+                      headerAction: headerAction,
                     ),
                   );
                 },
@@ -912,10 +923,14 @@ class _MoveHandle extends StatelessWidget {
     required this.isResizingListenable,
     required this.onMove,
     required this.onClose,
+    required this.width,
+    required this.headerAction,
   });
   final ValueListenable<bool> isResizingListenable;
   final ValueChanged<Offset> onMove;
   final VoidCallback onClose;
+  final double width;
+  final Widget? headerAction;
 
   @override
   Widget build(BuildContext context) {
@@ -923,6 +938,8 @@ class _MoveHandle extends StatelessWidget {
       isResizingListenable: isResizingListenable,
       onMove: onMove,
       onClose: onClose,
+      width: width,
+      headerAction: headerAction,
     );
   }
 }
@@ -932,11 +949,15 @@ class _MoveHandleBody extends StatefulWidget {
     required this.isResizingListenable,
     required this.onMove,
     required this.onClose,
+    required this.width,
+    required this.headerAction,
   });
 
   final ValueListenable<bool> isResizingListenable;
   final ValueChanged<Offset> onMove;
   final VoidCallback onClose;
+  final double width;
+  final Widget? headerAction;
 
   @override
   State<_MoveHandleBody> createState() => _MoveHandleBodyState();
@@ -950,7 +971,7 @@ class _MoveHandleBodyState extends State<_MoveHandleBody> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: _FloatingCard._moveHandleWidth,
+      width: widget.width,
       height: 14,
       padding: const EdgeInsets.only(left: 10, right: 2),
       decoration: BoxDecoration(
@@ -1036,6 +1057,11 @@ class _MoveHandleBodyState extends State<_MoveHandleBody> {
               ),
             ),
           ),
+          if (widget.headerAction != null) ...[
+            const SizedBox(width: 4),
+            widget.headerAction!,
+            const SizedBox(width: 4),
+          ],
           _FloatingCloseButton(
             onPressed: widget.onClose,
             onHoverChanged: (hovered) {

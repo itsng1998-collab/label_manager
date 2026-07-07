@@ -125,6 +125,7 @@ class LabelSheetPage extends StatelessWidget {
     this.onGridRectChanged,
     this.onBeforeSheetDialog,
     this.onSheetDialogClosed,
+    this.imageImportController,
   });
 
   final LabelSize? labelSize;
@@ -135,6 +136,7 @@ class LabelSheetPage extends StatelessWidget {
   final ValueChanged<Rect>? onGridRectChanged;
   final FutureOr<void> Function()? onBeforeSheetDialog;
   final VoidCallback? onSheetDialogClosed;
+  final LabelSheetImageImportController? imageImportController;
 
   @override
   Widget build(BuildContext context) {
@@ -166,6 +168,7 @@ class LabelSheetPage extends StatelessWidget {
         onGridRectChanged: onGridRectChanged,
         onBeforeSheetDialog: onBeforeSheetDialog,
         onSheetDialogClosed: onSheetDialogClosed,
+        imageImportController: imageImportController,
         onSave: (width, height, encodedWorkbook) =>
           _handleSaveLabelSheet(context, width, height, encodedWorkbook),
       ),

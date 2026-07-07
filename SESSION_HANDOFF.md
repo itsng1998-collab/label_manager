@@ -28,6 +28,24 @@
 
 ## 현재 상태
 
+### 진행 중 (2026-07-07): 공용라벨 RTF Viewer AI 변환 연결
+
+- 수정 예정: 공용라벨관리 RTF Viewer 플로팅 창 헤더 드래그바의 닫기 버튼 앞에 외곽선 없는 `AI 변환` 버튼을 추가한다.
+- 수정 예정: `AI 변환` 클릭 시 RTF Viewer 이미지를 앱 임시 폴더에 PNG로 저장하고, 저장된 파일을 선택한 상태로 `라벨 이미지 가져오기` 다이얼로그를 자동으로 띄운다.
+- 수정 예정: 이후 AI 변환/시트 로드는 기존 라벨 이미지 가져오기 처리 경로를 그대로 사용한다.
+- 편집 완료: `PreviewFloatingWindow`에 선택적 `headerAction` 슬롯을 추가하고, action이 있을 때만 드래그바 폭을 넓혀 닫기 버튼 앞에 위젯을 배치하도록 했다.
+- 편집 완료: `HomePageManager`의 공용라벨 RTF Preview window에 9px `AI 변환` 버튼을 추가했다.
+- 편집 완료: `AI 변환` 클릭 시 `labelSheetCaptureRtfNativePngImage`로 현재 RTF를 PNG 캡처하고 `labelSheetAiImportTempDirectory()` 아래 `label_manager_rtf_ai_*.png`로 저장한다.
+- 편집 완료: `LabelSheetImageImportController`를 추가하고 `CommonLabelManage`/`LabelSheetPage`를 통해 공용라벨관리 `LabelSheetWorkbench`까지 전달해, 저장된 PNG 파일을 초기 선택 상태로 `라벨 이미지 가져오기` 다이얼로그를 열도록 연결했다.
+- 검증 완료: `dart format` 실행.
+- 검증 완료: 변경 파일 `get_errors` 오류 없음.
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`).
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "floating preview shows configured tooltip after hover delay"` 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "RichEdit RTF preview PNG capture preserves render scale"` 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "label image import preview scales to readable text size"` 통과.
+- 검증 완료: `git diff --check -- lib/home_page_manager.dart lib/page_home/preview_floating_window.dart lib/page_home/common_label_manage.dart lib/page_label_sheet/label_sheet_page.dart lib/page_label_sheet/label_sheet_workbench.dart SESSION_HANDOFF.md` 통과.
+- stage/commit 예정: `lib/home_page_manager.dart`, `lib/page_home/preview_floating_window.dart`, `lib/page_home/common_label_manage.dart`, `lib/page_label_sheet/label_sheet_page.dart`, `lib/page_label_sheet/label_sheet_workbench.dart`, `SESSION_HANDOFF.md`. unrelated 변경 `lib/core/app.dart` 및 lock 파일은 제외한다.
+
 ### 진행 중 (2026-07-07): 라벨 이미지 파일명 라벨에 현재 시트 정보 병합
 
 - 수정 예정: 라벨 이미지 가져오기 다이얼로그의 파일명 라벨 뒤에 ` · 현재 시트 w x h mm`를 붙이고, 별도 현재 시트 라벨 줄은 제거한다.
