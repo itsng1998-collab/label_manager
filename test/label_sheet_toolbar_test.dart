@@ -1884,6 +1884,16 @@ void main() {
         jsonEncode({
           'models': [
             {
+              'name': 'models/gemini-2.5-flash',
+              'displayName': 'Gemini 2.5 Flash',
+              'supportedGenerationMethods': ['generateContent'],
+            },
+            {
+              'name': 'models/gemma-3-27b-it',
+              'displayName': 'Gemma 3 27B',
+              'supportedGenerationMethods': ['generateContent'],
+            },
+            {
               'name': 'models/gemini-3.5-pro',
               'displayName': 'Gemini 3.5 Pro',
               'supportedGenerationMethods': ['generateContent'],
@@ -1894,8 +1904,8 @@ void main() {
               'supportedGenerationMethods': ['embedContent'],
             },
             {
-              'name': 'models/gemini-2.5-flash',
-              'displayName': 'Gemini 2.5 Flash',
+              'name': 'models/gemma-2-9b-it',
+              'displayName': 'Gemma 2 9B',
               'supportedGenerationMethods': ['generateContent'],
             },
           ],
@@ -1913,6 +1923,8 @@ void main() {
     expect(models.map((model) => model.modelId), [
       'gemini-3.5-pro',
       'gemini-2.5-flash',
+      'gemma-3-27b-it',
+      'gemma-2-9b-it',
     ]);
     expect(models.first.menuLabel, 'Gemini 3.5 Pro · Google AI');
   });

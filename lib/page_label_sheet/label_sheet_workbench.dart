@@ -3529,6 +3529,7 @@ class _LabelImageImportDialogState extends State<_LabelImageImportDialog> {
                           return;
                         }
                         _modelController.text = value;
+                        unawaited(_rememberSelectedGeminiModel(value));
                       },
               ),
               const SizedBox(height: 12),
@@ -3600,6 +3601,15 @@ class _LabelImageImportDialogState extends State<_LabelImageImportDialog> {
     }
   }
 
+  Future<void> _rememberSelectedGeminiModel(String model) async {
+    final trimmed = model.trim();
+    if (trimmed.isEmpty) {
+      return;
+    }
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_labelSheetGeminiModelPrefsKey, trimmed);
+  }
+
   void _selectFallbackGeminiModelIfNeeded({
     List<LabelSheetGeminiModelInfo>? models,
   }) {
@@ -3631,7 +3641,7 @@ class _LabelImageImportDialogState extends State<_LabelImageImportDialog> {
         merged.add(model);
       }
     }
-    return merged;
+    return labelSheetSortedGeminiModels(merged);
   }
 
   Widget _buildFooter() {

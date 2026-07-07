@@ -168,7 +168,7 @@ List<LabelSheetGeminiModelInfo> _geminiModelsFromListResponse(Map response) {
     final modelId = rawName.startsWith('models/')
         ? rawName.substring('models/'.length)
         : rawName;
-    if (!modelId.startsWith('gemini-') || !seen.add(modelId)) {
+    if (!seen.add(modelId)) {
       continue;
     }
     models.add(
@@ -184,7 +184,35 @@ List<LabelSheetGeminiModelInfo> _geminiModelsFromListResponse(Map response) {
       'generateContent를 지원하는 Gemini 모델이 없습니다.',
     );
   }
-  return models;
+  return labelSheetSortedGeminiModels(models);
+}
+
+List<LabelSheetGeminiModelInfo> labelSheetSortedGeminiModels(
+  Iterable<LabelSheetGeminiModelInfo> models,
+) {
+  final sorted = models.toList(growable: false);
+  sorted.sort(_compareGeminiModelMenuOrder);
+  return sorted;
+}
+
+int _compareGeminiModelMenuOrder(
+  LabelSheetGeminiModelInfo left,
+  LabelSheetGeminiModelInfo right,
+) {
+  final leftIsGemini = left.modelId.startsWith('gemini-');
+  final rightIsGemini = right.modelId.startsWith('gemini-');
+  if (leftIsGemini != rightIsGemini) {
+    return leftIsGemini ? -1 : 1;
+  }
+  final modelCompare = right.modelId.toLowerCase().compareTo(
+    left.modelId.toLowerCase(),
+  );
+  if (modelCompare != 0) {
+    return modelCompare;
+  }
+  return right.displayName.toLowerCase().compareTo(
+    left.displayName.toLowerCase(),
+  );
 }
 
 String? _geminiStringField(Object? value) {

@@ -28,6 +28,36 @@
 
 ## 현재 상태
 
+### 진행 중 (2026-07-07): AI 선택 모델 기본값 저장
+
+- 수정 예정: 라벨 이미지 AI 모델 드롭다운에서 선택한 모델은 즉시 로컬 저장소에 기억해 다음 다이얼로그 진입 시 기본 선택으로 사용한다.
+- 수정 예정: API Key 저장은 기존처럼 `Gemini API Key와 model을 이 PC에 저장` 체크 및 분석 적용 흐름을 유지하고, 모델 선택 기억만 별도로 수행한다.
+- 검증 예정: `dart format`, 관련 Gemini 모델 테스트, `C:\Flutter\bin\flutter.bat analyze`, `git diff --check`.
+- 편집 완료: `_LabelImageImportDialog` 모델 드롭다운 `onChanged`에서 선택 모델을 즉시 `_labelSheetGeminiModelPrefsKey`에 저장하도록 했다.
+- 동작: 다음 다이얼로그 진입 시 기존 `initialModel` 로드 경로가 이 저장값을 기본 선택으로 사용한다. API Key 저장은 기존 체크박스/분석 적용 조건을 유지한다.
+- 검증 완료: `dart format` 실행.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "Gemini model list is fetched from Google AI models API"` 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "Gemini model menu includes supported model choices"` 통과.
+- 검증 완료: 변경 파일 `get_errors` 오류 없음.
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`).
+- 검증 완료: `git diff --check -- lib/page_label_sheet/label_sheet_ai_import.dart lib/page_label_sheet/label_sheet_workbench.dart test/label_sheet_toolbar_test.dart SESSION_HANDOFF.md` 통과.
+
+### 진행 중 (2026-07-07): AI 모델 드롭다운 정렬 보정
+
+- 수정 예정: 라벨 이미지 AI 모델 드롭다운에서 Gemini 모델 그룹을 먼저 배치하고, 각 그룹 내부는 model id 역순으로 정렬한다.
+- 수정 예정: `/v1beta/models` 응답 중 `generateContent` 지원 모델은 Gemini 외 그룹도 보존해 그룹 정렬이 의미 있게 동작하도록 한다.
+- 검증 예정: `dart format`, Gemini 모델 목록 조회/정렬 테스트, `C:\Flutter\bin\flutter.bat analyze`, `git diff --check`.
+- 편집 완료: `labelSheetSortedGeminiModels`를 추가해 Gemini 그룹을 먼저 두고, 그룹 내부는 model id 역순으로 정렬한다.
+- 편집 완료: `/v1beta/models` 응답 파싱에서 Gemini 외 `generateContent` 지원 모델도 보존하고, 다이얼로그의 fetched/fallback 병합 결과에도 같은 정렬을 적용했다.
+- 테스트 갱신: `Gemini model list is fetched from Google AI models API`에서 `gemini-3.5-pro`, `gemini-2.5-flash`, `gemma-3-27b-it`, `gemma-2-9b-it` 순서를 검증한다.
+- 검증 완료: `dart format` 실행.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "Gemini model list is fetched from Google AI models API"` 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "Gemini model menu includes supported model choices"` 통과.
+- 검증 완료: 변경 파일 `get_errors` 오류 없음.
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`).
+- 검증 완료: `git diff --check -- lib/page_label_sheet/label_sheet_ai_import.dart lib/page_label_sheet/label_sheet_workbench.dart test/label_sheet_toolbar_test.dart SESSION_HANDOFF.md` 통과.
+- stage/commit 예정: `lib/page_label_sheet/label_sheet_ai_import.dart`, `lib/page_label_sheet/label_sheet_workbench.dart`, `test/label_sheet_toolbar_test.dart`, `SESSION_HANDOFF.md`. unrelated 변경 `lib/core/app.dart`는 제외한다.
+
 ### 진행 중 (2026-07-07): 라벨 이미지 AI 모델 목록 동적 조회
 
 - 확인 완료: `라벨 이미지 가져오기` 다이얼로그는 진입 시 Gemini 모델 API를 조회하지 않고 `labelSheetGeminiModels` 정적 목록(`gemini-2.5-flash`, `gemini-2.5-pro`, `gemini-2.0-flash`)만 표시한다.
