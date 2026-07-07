@@ -30,6 +30,12 @@
 
 ### 진행 중 (2026-07-07): 공용라벨 RTF Viewer AI 변환 연결
 
+- 추가 수정 완료: 품목관리/공용라벨관리 공통 플로팅 창 `hideToRect` 닫힘 애니메이션에서 실제 창 rect를 버튼 크기까지 줄이지 않고, 원래 레이아웃 크기를 유지한 채 `Transform.translate`/`Transform.scale`/`Opacity`로만 축소·이동·페이드되도록 변경했다. 내부 `Overlay`/이미지/미리보기 위젯이 극소 제약으로 재레이아웃되어 렌더링 오류가 나는 문제를 방지한다.
+- 테스트 추가: `floating preview hide animation keeps child layout stable`로 닫힘 애니메이션 중 자식 레이아웃 제약이 안정적으로 유지되는지 검증한다.
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`).
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "floating preview hide animation keeps child layout stable"` 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "floating preview shows configured tooltip after hover delay"` 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "floating preview aligns bottom-right to target point"` 통과.
 - 추가 수정 완료: `AI 변환`에서 플로팅 창 표시 크기 기준으로 RTF를 다시 캡처하지 않고, `LabelSheetRtfPreview`가 네이티브에서 받은 PNG 원본을 캐시해 그대로 `라벨 이미지 가져오기` 다이얼로그 초기 파일로 전달하도록 변경했다.
 - 추가 수정 완료: 원본 PNG가 아직 준비되지 않은 경우에도 플로팅 창 rect가 아니라 RTF Preview의 네이티브 원본 캡처 규칙(`captureNativeOriginal`)으로 fallback 캡처한다.
 - 테스트 추가: `RichEdit RTF preview resolves trimmed content size`에서 네이티브 PNG 원본 콜백(`onNativeImageResolved`)이 실제 PNG 바이트/크기/스케일을 전달하는지 검증한다.

@@ -32,7 +32,8 @@ class PreviewFloatingWindow {
        _child = ValueNotifier<Widget?>(child),
        _tooltip = ValueNotifier<String?>(tooltip),
        _isResizing = ValueNotifier<bool>(false),
-       _controlsVisible = ValueNotifier<bool>(true);
+      _controlsVisible = ValueNotifier<bool>(true),
+      _hideProgress = ValueNotifier<double>(0);
 
   final Offset initialPosition;
   final Size initialSize;
@@ -48,6 +49,8 @@ class PreviewFloatingWindow {
   final ValueNotifier<bool> _isResizing;
   final ValueNotifier<bool> _controlsVisible;
   final ValueNotifier<bool> _visible = ValueNotifier<bool>(true);
+  final ValueNotifier<double> _hideProgress;
+  Rect? _hideTargetRect;
   _PreviewFloatingRoute? _route;
   bool _positionInitialized = false;
   bool get isVisible => _route != null && _visible.value;
@@ -82,31 +85,46 @@ class PreviewFloatingWindow {
             return ValueListenableBuilder<Rect>(
               valueListenable: _rect,
               builder: (context, rect, _) {
-                return Positioned(
-                  left: rect.left,
-                  top: rect.top,
-                  width: rect.width,
-                  height: rect.height,
-                  child: Offstage(
-                    offstage: !visible,
-                    child: IgnorePointer(
-                      ignoring: !visible,
-                      child: _FloatingCard(
-                        rect: rect,
-                        minSize: minSize,
-                        childListenable: _child,
-                        tooltipListenable: _tooltip,
-                        isResizingListenable: _isResizing,
-                        controlsVisibleListenable: _controlsVisible,
-                        onMove: _updatePosition,
-                        onResize: _updateRect,
-                        onResizeStart: _handleResizeStart,
-                        onResizeEnd: _handleResizeEnd,
-                        onClose: _handleCloseRequested,
-                        headerAction: headerAction,
+                return ValueListenableBuilder<double>(
+                  valueListenable: _hideProgress,
+                  builder: (context, hideProgress, _) {
+                    final hideTarget = _hideTargetRect;
+                    Widget card = _FloatingCard(
+                      rect: rect,
+                      minSize: minSize,
+                      childListenable: _child,
+                      tooltipListenable: _tooltip,
+                      isResizingListenable: _isResizing,
+                      controlsVisibleListenable: _controlsVisible,
+                      onMove: _updatePosition,
+                      onResize: _updateRect,
+                      onResizeStart: _handleResizeStart,
+                      onResizeEnd: _handleResizeEnd,
+                      onClose: _handleCloseRequested,
+                      headerAction: headerAction,
+                    );
+                    if (hideTarget != null && hideProgress > 0) {
+                      card = _buildHideTransition(
+                        source: rect,
+                        target: hideTarget,
+                        progress: hideProgress,
+                        child: card,
+                      );
+                    }
+                    return Positioned(
+                      left: rect.left,
+                      top: rect.top,
+                      width: rect.width,
+                      height: rect.height,
+                      child: Offstage(
+                        offstage: !visible,
+                        child: IgnorePointer(
+                          ignoring: !visible || hideProgress > 0,
+                          child: card,
+                        ),
                       ),
-                    ),
-                  ),
+                    );
+                  },
                 );
               },
             );
@@ -122,6 +140,8 @@ class PreviewFloatingWindow {
     }
     if (_route != null) {
       if (!_visible.value) {
+        _hideTargetRect = null;
+        _hideProgress.value = 0;
         _controlsVisible.value = true;
         _visible.value = true;
         _route?.markNeedsBuild();
@@ -177,6 +197,8 @@ class PreviewFloatingWindow {
       return;
     }
     _log('hide routeId=${route.debugId} rect=${_formatRect(_rect.value)}');
+    _hideTargetRect = null;
+    _hideProgress.value = 0;
     _visible.value = false;
     route.markNeedsBuild();
   }
@@ -193,6 +215,8 @@ class PreviewFloatingWindow {
       'from=${_formatRect(original)} to=${_formatRect(targetRect)}',
     );
     _controlsVisible.value = false;
+    _hideTargetRect = targetRect;
+    _hideProgress.value = 0;
     route.markNeedsBuild();
     const steps = 12;
     const duration = Duration(milliseconds: 180);
@@ -202,14 +226,37 @@ class PreviewFloatingWindow {
     for (var i = 1; i <= steps; i++) {
       if (!_visible.value) break;
       final t = Curves.easeInOutCubic.transform(i / steps);
-      _rect.value = Rect.lerp(original, targetRect, t)!;
-      route.markNeedsBuild();
+      _hideProgress.value = t;
       await Future<void>.delayed(stepDuration);
     }
     _visible.value = false;
-    _rect.value = original;
+    _hideProgress.value = 0;
+    _hideTargetRect = null;
     _controlsVisible.value = true;
     route.markNeedsBuild();
+  }
+
+  Widget _buildHideTransition({
+    required Rect source,
+    required Rect target,
+    required double progress,
+    required Widget child,
+  }) {
+    final t = progress.clamp(0.0, 1.0);
+    final targetScale = min(
+      target.width.abs() / max(source.width.abs(), 1.0),
+      target.height.abs() / max(source.height.abs(), 1.0),
+    ).clamp(0.08, 1.0);
+    final scale = 1.0 + (targetScale - 1.0) * t;
+    final offset = Offset.lerp(Offset.zero, target.center - source.center, t)!;
+    final opacity = (1.0 - t).clamp(0.0, 1.0);
+    return Transform.translate(
+      offset: offset,
+      child: Transform.scale(
+        scale: scale,
+        child: Opacity(opacity: opacity, child: child),
+      ),
+    );
   }
 
   void _handleCloseRequested() {
@@ -243,6 +290,7 @@ class PreviewFloatingWindow {
     _isResizing.dispose();
     _controlsVisible.dispose();
     _visible.dispose();
+    _hideProgress.dispose();
   }
 
   void setChild(Widget? child) {

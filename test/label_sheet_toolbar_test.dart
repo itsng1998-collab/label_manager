@@ -2537,6 +2537,61 @@ void main() {
     expect(find.text('floating tooltip'), findsNothing);
   });
 
+  testWidgets('floating preview hide animation keeps child layout stable', (
+    tester,
+  ) async {
+    final layoutSizes = <Size>[];
+    final window = PreviewFloatingWindow(
+      initialSize: const Size(120, 90),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          layoutSizes.add(
+            Size(constraints.maxWidth, constraints.maxHeight),
+          );
+          return const SizedBox.expand(key: ValueKey('floating-child'));
+        },
+      ),
+    );
+    addTearDown(window.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Builder(
+            builder: (context) {
+              return TextButton(
+                onPressed: () => window.show(context),
+                child: const Text('show'),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('show'));
+    await tester.pump();
+    layoutSizes.clear();
+
+    final hideFuture = window.hideToRect(const ui.Rect.fromLTWH(20, 20, 2, 2));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 90));
+
+    expect(layoutSizes, isNotEmpty);
+    expect(
+      layoutSizes.every(
+        (size) => size.width >= 80 && size.height >= 60,
+      ),
+      isTrue,
+      reason: 'layoutSizes=$layoutSizes',
+    );
+
+    await tester.pump(const Duration(milliseconds: 200));
+    await hideFuture;
+    await tester.pump();
+    expect(find.byKey(const ValueKey('floating-child')), findsNothing);
+  });
+
   testWidgets('floating preview aligns bottom-right to target point', (
     tester,
   ) async {
