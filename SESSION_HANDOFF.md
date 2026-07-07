@@ -39,7 +39,7 @@
 - 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`).
 - 검증 완료: `git diff --check -- lib/home_page_manager.dart test/label_sheet_toolbar_test.dart SESSION_HANDOFF.md` 통과.
 - stage/commit 예정: `lib/home_page_manager.dart`, `test/label_sheet_toolbar_test.dart`, `SESSION_HANDOFF.md`. unrelated 변경 `lib/core/app.dart` 및 lock 파일은 제외한다.
-- 커밋 완료: `3d01c10` 품목관리 출력 미리보기 빈 상태 보정.
+- 커밋 완료: `4fc0122` 품목관리 출력 미리보기 빈 상태 보정.
 
 ### 진행 중 (2026-07-07): 라벨 저장 로그 IP 문자열 길이 초과 수정
 
