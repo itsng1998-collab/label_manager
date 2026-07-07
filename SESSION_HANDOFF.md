@@ -43,6 +43,7 @@
 - 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`).
 - 검증 완료: `git diff --check -- lib/page_label_sheet/label_sheet_workbench.dart test/label_sheet_toolbar_test.dart SESSION_HANDOFF.md` 통과.
 - stage/commit 예정: `lib/page_label_sheet/label_sheet_workbench.dart`, `test/label_sheet_toolbar_test.dart`, `SESSION_HANDOFF.md`. unrelated 변경 `lib/core/app.dart`는 제외한다.
+- 커밋 완료: `f381341` 라벨 이미지 미리보기 가독성 확대.
 
 ### 진행 중 (2026-07-07): AI 선택 모델 기본값 저장
 
