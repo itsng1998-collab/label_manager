@@ -18,7 +18,7 @@ void _fortuneSheetRulerTrace(String key, String message) {
   if (!_fortuneSheetRulerTraceKeys.add(key)) {
     return;
   }
-  debugPrint('FSRULER-2026-07-07-border-trace-v7 $message');
+  debugPrint('FSRULER-2026-07-07-border-align-v8 $message');
 }
 
 bool _intDoubleMapEquals(Map<int, double> left, Map<int, double> right) {
@@ -63042,9 +63042,6 @@ class FortuneSheetPainter extends CustomPainter {
     if (physicalSize == null || dataRect == null) {
       return;
     }
-    final borderPaint = Paint()
-      ..color = fortuneSheetRulerBorderColor
-      ..strokeWidth = 1;
     final topRuler = Rect.fromLTWH(
       dataRect.left,
       0,
@@ -63069,6 +63066,10 @@ class FortuneSheetPainter extends CustomPainter {
     final cornerRightBottom = settings.hideRowColumnHeaderLabels
         ? corner.bottom
         : _sheetHeaderTop(settings);
+    final topBorderY = topRuler.bottom - 0.5;
+    final leftBorderX = leftRuler.right - 0.5;
+    final cornerBottomY = corner.bottom - 0.5;
+    final cornerRightX = corner.right - 0.5;
     _fortuneSheetRulerTrace(
       '${workbook.activeSheet.id}:ruler-borders:${settings.hideRowColumnHeaderLabels}:$topRuler:$leftRuler',
       'sheet=${workbook.activeSheet.id}'
@@ -63079,19 +63080,33 @@ class FortuneSheetPainter extends CustomPainter {
       ' cornerBottomRight=$cornerBottomRight'
       ' cornerRightBottom=$cornerRightBottom'
       ' dataLeft=${_sheetDataLeft(settings)} dataTop=${_sheetDataTop(settings)}'
+      ' topBorderY=$topBorderY leftBorderX=$leftBorderX'
+      ' cornerBottomY=$cornerBottomY cornerRightX=$cornerRightX'
       ' drawTopBottom=true drawLeftRight=true drawCornerBottom=true drawCornerRight=true',
     );
-    canvas.drawLine(topRuler.bottomLeft, topRuler.bottomRight, borderPaint);
-    canvas.drawLine(leftRuler.topRight, leftRuler.bottomRight, borderPaint);
-    canvas.drawLine(
-      corner.bottomLeft,
-      Offset(cornerBottomRight, corner.bottom),
-      borderPaint,
+    _line(
+      canvas,
+      Offset(topRuler.left, topBorderY),
+      Offset(topRuler.right, topBorderY),
+      fortuneSheetRulerBorderColor,
     );
-    canvas.drawLine(
-      corner.topRight,
-      Offset(corner.right, cornerRightBottom),
-      borderPaint,
+    _line(
+      canvas,
+      Offset(leftBorderX, leftRuler.top),
+      Offset(leftBorderX, leftRuler.bottom),
+      fortuneSheetRulerBorderColor,
+    );
+    _line(
+      canvas,
+      Offset(corner.left, cornerBottomY),
+      Offset(cornerBottomRight, cornerBottomY),
+      fortuneSheetRulerBorderColor,
+    );
+    _line(
+      canvas,
+      Offset(cornerRightX, corner.top),
+      Offset(cornerRightX, cornerRightBottom),
+      fortuneSheetRulerBorderColor,
     );
     _drawSheetRulerCornerSizeLabel(canvas, corner);
     _drawHorizontalSheetRuler(

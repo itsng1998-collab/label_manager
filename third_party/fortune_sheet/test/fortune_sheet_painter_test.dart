@@ -40,6 +40,12 @@ bool _isGridLinePixel(int red, int green, int blue) {
       (blue - 0xdf).abs() <= 3;
 }
 
+bool _isRulerBorderPixel(int red, int green, int blue) {
+  return (red - 0xd9).abs() <= 3 &&
+      (green - 0xdc).abs() <= 3 &&
+      (blue - 0xe1).abs() <= 3;
+}
+
 bool _isNonWhiteUiPixel(int red, int green, int blue) {
   return red < 248 || green < 248 || blue < 248;
 }
@@ -397,20 +403,36 @@ void main() {
     final headerTop = sheetTop + settings.columnHeaderHeight;
     final dataLeft = settings.rowHeaderWidth * 2;
     final dataTop = sheetTop + settings.columnHeaderHeight * 2;
+    final headerVerticalSeparatorRect = Rect.fromLTWH(
+      dataLeft - 1,
+      headerTop + 2,
+      2,
+      settings.columnHeaderHeight - 4,
+    );
+    final headerHorizontalSeparatorRect = Rect.fromLTWH(
+      headerLeft + 2,
+      dataTop - 1,
+      dataLeft - headerLeft - 4,
+      2,
+    );
 
     expect(
       _countPixels(
         bytes,
         image.width,
-        Rect.fromLTWH(
-          dataLeft - 1,
-          headerTop + 2,
-          1,
-          settings.columnHeaderHeight - 4,
-        ),
+          headerVerticalSeparatorRect,
         _isGridLinePixel,
       ),
       greaterThan((settings.columnHeaderHeight - 8).round()),
+    );
+    expect(
+      _countPixels(
+        bytes,
+        image.width,
+        headerVerticalSeparatorRect,
+        _isRulerBorderPixel,
+      ),
+      0,
     );
     expect(
       _countPixels(
@@ -434,10 +456,19 @@ void main() {
       _countPixels(
         bytes,
         image.width,
-        Rect.fromLTWH(headerLeft + 2, dataTop - 1, dataLeft - headerLeft - 4, 1),
+        headerHorizontalSeparatorRect,
         _isGridLinePixel,
       ),
       greaterThan((dataLeft - headerLeft - 8).round()),
+    );
+    expect(
+      _countPixels(
+        bytes,
+        image.width,
+        headerHorizontalSeparatorRect,
+        _isRulerBorderPixel,
+      ),
+      0,
     );
     expect(
       _countPixels(
@@ -491,6 +522,18 @@ void main() {
         settings.effectiveToolbarHeight + settings.effectiveFormulaBarHeight;
     final dataLeft = settings.rowHeaderWidth;
     final dataTop = sheetTop + settings.columnHeaderHeight;
+    final rulerVerticalSeparatorBounds = _pixelBounds(
+      bytes,
+      image.width,
+      Rect.fromLTWH(dataLeft - 1, dataTop + 2, 2, 60),
+      _isRulerBorderPixel,
+    );
+    final rulerHorizontalSeparatorBounds = _pixelBounds(
+      bytes,
+      image.width,
+      Rect.fromLTWH(2, dataTop - 1, dataLeft + 60, 2),
+      _isRulerBorderPixel,
+    );
 
     expect(
       _countPixels(
@@ -501,6 +544,7 @@ void main() {
       ),
       0,
     );
+    expect(rulerVerticalSeparatorBounds?.width, 1);
     expect(
       _countPixels(
         bytes,
@@ -510,6 +554,7 @@ void main() {
       ),
       0,
     );
+    expect(rulerHorizontalSeparatorBounds?.height, 1);
   });
 
   test(

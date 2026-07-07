@@ -28,6 +28,21 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-07): 품목관리 preview ruler border 반픽셀 정렬(v8)
+
+- 로그 확인: 최신 `.tmp/log/app_2026-07-07_23-06-19.log`에서 `FSDBG-2026-07-07-ruler-border-trace-v7`와 품목관리 preview의 `FSRULER-2026-07-07-border-trace-v7`가 확인됐다. ruler 영역은 원복됐고, `item_element`/`item_output_preview_sheet_01`은 `hideHeaders=true`, `showGridLines=false`, `dataLeft=46.0`, `dataTop=20.0` 상태였다.
+- 원인 판단: 공용라벨관리 header 구분선은 `dataLeft - 0.5`, `dataTop - 0.5`로 반픽셀 정렬되어 그려지지만, ruler/corner border는 정수 좌표의 `canvas.drawLine`으로 그려져 hidden header preview에서 같은 1px 선이 더 두껍게 보일 수 있었다.
+- 수정 완료: `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`의 ruler/corner border를 `_line` 기반 반픽셀 좌표(`topBorderY`, `leftBorderX`, `cornerBottomY`, `cornerRightX`)로 정렬했다. 기존 `_drawHeaders` 행/열 헤더 구분선 로직은 변경하지 않았다.
+- 디버그 추가: trace marker를 `FSRULER-2026-07-07-border-align-v8`로 갱신하고 실제 반픽셀 정렬 좌표를 로그에 포함했다.
+- 수정 완료: `lib/main.dart`의 DebugLogger 버전을 `FSDBG-2026-07-07-ruler-border-align-v8`로 갱신했다.
+- 테스트 보강: `third_party/fortune_sheet/test/fortune_sheet_painter_test.dart`에 ruler border 픽셀 검출을 추가했다. visible header는 기존 행/열 헤더 구분선에 ruler border가 겹치지 않는지 확인하고, hidden header는 ruler separator bounds가 1픽셀 폭/높이를 유지하는지 확인한다.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_sheet_painter_test.dart --plain-name "adjusted sheet header corner separators stay connected"` 통과. 기존 행/열 헤더 구분선 겹침 보완이 틀어지지 않았음을 확인했다.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_sheet_painter_test.dart --plain-name "adjusted sheet hidden headers keep ruler separators one pixel"` 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "item output preview"` 통과(`+3`).
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`).
+- 검증 완료: `git diff --check -- lib/main.dart third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart third_party/fortune_sheet/test/fortune_sheet_painter_test.dart SESSION_HANDOFF.md` 통과.
+- 커밋 예정: `lib/main.dart`, `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`, `third_party/fortune_sheet/test/fortune_sheet_painter_test.dart`, `SESSION_HANDOFF.md`. unrelated 변경 `lib/core/app.dart` 및 lock 파일은 제외한다.
+
 ### 완료 (2026-07-07): 품목관리 preview ruler off 원복 및 border trace 추가
 
 - 로그 확인: 최신 `.tmp/log/app_2026-07-07_22-59-50.log`에서 `FSDBG-2026-07-07-item-preview-ruler-off-v6`만 확인되고 품목관리 preview의 `FSRULER`가 사라졌다. 사용자 스크린샷/피드백대로 v6에서 ruler 영역 자체가 꺼진 것이 오수정이었다.
