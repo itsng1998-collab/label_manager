@@ -40,7 +40,7 @@
 - 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`).
 - 검증 완료: `git diff --check -- lib/main.dart lib/home_page_manager.dart test/label_sheet_toolbar_test.dart third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart third_party/fortune_sheet/test/fortune_sheet_painter_test.dart SESSION_HANDOFF.md` 통과.
 - 다음 확인: 새 실행 로그에서 `FSRULER-2026-07-07-border-trace-v7`의 `headerBoundaries`/`rulerBorders` 좌표와 사용자가 제공한 스크린샷의 두꺼운 픽셀 위치를 대조해야 한다. 로그만으로 픽셀 위치가 특정되지 않으면 좌상단 corner, 첫 행/열 header, 첫 셀 일부가 함께 보이는 새 스크린샷이 필요하다.
-- 커밋 예정: `lib/main.dart`, `lib/home_page_manager.dart`, `test/label_sheet_toolbar_test.dart`, `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`, `SESSION_HANDOFF.md`. unrelated 변경 `lib/core/app.dart` 및 lock 파일은 제외한다.
+- 커밋 완료: `3bb8a4b` 품목관리 preview ruler 복구 및 경계 로그 추가. unrelated 변경 `lib/core/app.dart` 및 lock 파일은 제외했다.
 
 ### 완료 (2026-07-07): 품목관리 preview ruler 비활성화
 
