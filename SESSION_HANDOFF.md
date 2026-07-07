@@ -38,7 +38,7 @@
 - 검증 완료: `C:\Flutter\bin\flutter.bat test test\dao_result_helper_test.dart` 통과(`+12`).
 - 검증 완료: `C:\Flutter\bin\flutter.bat test test\windows_odbc_param_utils_test.dart` 통과(`+10`).
 - 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`).
-- stage/commit 예정: `lib/models/label_size.dart`, `lib/models/login_log.dart`, `test/dao_result_helper_test.dart`, `SESSION_HANDOFF.md`. unrelated 변경 `lib/core/app.dart` 및 lock 파일은 제외한다.
+- 커밋 완료: `1111a46` 라벨 저장 로그 IP 변환 보정.
 
 ### 진행 중 (2026-07-07): ODBC SQL 지역 변수 파라미터 오인 수정
 
