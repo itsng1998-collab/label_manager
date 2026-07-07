@@ -28,6 +28,19 @@
 
 ## 현재 상태
 
+### 진행 중 (2026-07-07): 품목관리 출력 미리보기 grid line 숨김과 헤더 교차선 보정
+
+- 수정 완료: 품목관리 플로팅 창 `출력내용 미리보기` 전용 preview sheet는 저장 시트 내용은 유지하되 `showGridLines: false`로 셀 grid line을 숨긴다.
+- 수정 완료: FortuneSheet 공통 행/열 헤더 좌상단 교차 영역의 구분선이 다른 헤더 구분선보다 두껍게 보이지 않도록, 교차 영역 경계선을 헤더 영역 안에서만 1px로 그리도록 정리했다.
+- 테스트 갱신: `item output preview uses private active saved sheet only`에서 출력 미리보기 전용 sheet의 `showGridLines == false`를 검증한다.
+- 검증 완료: `dart format` 실행.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "item output preview"` 통과(`+3`).
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "label sheet zoom toolbar placement can move or hide controls"` 통과(`+1`).
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "label image import context menu only appears on sheet corner"` 통과(`+1`).
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`).
+- 검증 완료: `git diff --check -- lib/home_page_manager.dart third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart test/label_sheet_toolbar_test.dart SESSION_HANDOFF.md` 통과.
+- stage/commit 예정: `lib/home_page_manager.dart`, `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`, `test/label_sheet_toolbar_test.dart`, `SESSION_HANDOFF.md`. unrelated 변경 `lib/core/app.dart` 및 lock 파일은 제외한다.
+
 ### 진행 중 (2026-07-07): 품목관리 출력내용 미리보기 전용 시트 모드 보정
 
 - 수정 예정: 품목관리 플로팅 창 `출력내용 미리보기`를 공용라벨관리 workbook/sheet와 분리된 전용 preview sheet로 구성한다. 저장된 active sheet 내용은 유지하되 workbench에는 단일 preview sheet만 전달한다.

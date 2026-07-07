@@ -2819,6 +2819,7 @@ fs.FortuneWorkbook _itemOutputPreviewPrivateWorkbook(
         order: 0,
         hide: null,
         status: 1,
+        showGridLines: false,
       ),
     ],
     activeSheetIndex: 0,

@@ -278,6 +278,7 @@ void main() {
     final sheet = preview.workbook!.sheets.single;
     expect(sheet.id, 'item_output_preview_sheet_01');
     expect(sheet.name, '테스트 라벨');
+    expect(sheet.showGridLines, isFalse);
     expect(
       sheet.cells[const FortuneCellCoord(0, 0)]?.renderedText,
       '딸기잼',

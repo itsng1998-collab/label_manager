@@ -63735,13 +63735,13 @@ class FortuneSheetPainter extends CustomPainter {
     _line(
       canvas,
       Offset(dataLeft - 0.5, headerTop),
-      Offset(dataLeft - 0.5, size.height),
+      Offset(dataLeft - 0.5, dataTop),
       fortuneSheetGridLineColor,
     );
     _line(
       canvas,
       Offset(headerLeft, dataTop - 0.5),
-      Offset(size.width, dataTop - 0.5),
+      Offset(dataLeft, dataTop - 0.5),
       fortuneSheetGridLineColor,
     );
 
