@@ -18,7 +18,7 @@ void _fortuneSheetRulerTrace(String key, String message) {
   if (!_fortuneSheetRulerTraceKeys.add(key)) {
     return;
   }
-  debugPrint('FSRULER-2026-07-07-boundary-layer-v10 $message');
+  debugPrint('FSRULER-2026-07-07-preview-tick-gap-v11 $message');
 }
 
 bool _intDoubleMapEquals(Map<int, double> left, Map<int, double> right) {
@@ -63066,6 +63066,10 @@ class FortuneSheetPainter extends CustomPainter {
     final cornerRightBottom = settings.hideRowColumnHeaderLabels
         ? corner.bottom
         : _sheetHeaderTop(settings);
+    final previewHiddenHeaderRuler =
+      settings.hideRowColumnHeaderLabels &&
+      !workbook.activeSheet.showGridLines;
+    final verticalTickEndGap = previewHiddenHeaderRuler ? 8.0 : 2.0;
     final borderPaint = Paint()
       ..color = fortuneSheetRulerBorderColor
       ..strokeWidth = 1;
@@ -63080,6 +63084,7 @@ class FortuneSheetPainter extends CustomPainter {
       ' cornerRightBottom=$cornerRightBottom'
       ' dataLeft=${_sheetDataLeft(settings)} dataTop=${_sheetDataTop(settings)}'
       ' boundaryStyle=rulerBorder'
+      ' verticalTickEndGap=$verticalTickEndGap'
       ' drawTopBottom=true drawLeftRight=true drawCornerBottom=true drawCornerRight=true',
     );
     canvas.drawLine(topRuler.bottomLeft, topRuler.bottomRight, borderPaint);
@@ -63106,6 +63111,7 @@ class FortuneSheetPainter extends CustomPainter {
       leftRuler,
       _sheetRulerLogicalPixelsToMillimeters(dataRect.height + scrollOffset.dy),
       scrollOffset.dy,
+      tickEndGap: verticalTickEndGap,
     );
     _drawSheetGuides(canvas, settings, dataRect, metrics);
   }
@@ -63261,7 +63267,9 @@ class FortuneSheetPainter extends CustomPainter {
     Canvas canvas,
     Rect rect,
     double heightMm,
-    double scrollY,
+    double scrollY, {
+    double tickEndGap = 2.0,
+  }
   ) {
     final tickPaint = Paint()
       ..color = fortuneSheetRulerTickColor
@@ -63285,7 +63293,7 @@ class FortuneSheetPainter extends CustomPainter {
       final tickWidth = major
           ? math.min(16.0, rect.width)
           : math.min(8.0, rect.width);
-      final tickRight = rect.right - 2;
+      final tickRight = rect.right - tickEndGap;
       if (y > rect.top + 0.5 && tickRight > rect.right - tickWidth) {
         canvas.drawLine(
           Offset(rect.right - tickWidth, y),
@@ -65144,7 +65152,6 @@ class FortuneSheetPainter extends CustomPainter {
       }
     }
     final mergedSegments = _mergeBorderSegments(segments);
-    _traceBoundaryCellBorderSegments(sheet, mergedSegments, clipBounds);
     for (final segment in mergedSegments.where(
       (segment) => segment.horizontal,
     )) {
@@ -65180,46 +65187,6 @@ class FortuneSheetPainter extends CustomPainter {
         clipBounds: clipBounds,
       );
     }
-  }
-
-  void _traceBoundaryCellBorderSegments(
-    FortuneSheet sheet,
-    List<_BorderLineSegment> segments,
-    Rect clipBounds,
-  ) {
-    final leftSegments = segments.where((segment) {
-      return !segment.horizontal &&
-          (segment.crossAxis - clipBounds.left).abs() < 0.001;
-    }).toList();
-    final topSegments = segments.where((segment) {
-      return segment.horizontal &&
-          (segment.crossAxis - clipBounds.top).abs() < 0.001;
-    }).toList();
-    if (leftSegments.isEmpty && topSegments.isEmpty) {
-      return;
-    }
-    _fortuneSheetRulerTrace(
-      '${sheet.id}:cell-border-boundary:$clipBounds:${leftSegments.length}:${topSegments.length}',
-      'sheet=${sheet.id}'
-      ' stage=cellBorderBoundary'
-      ' clip=$clipBounds'
-      ' showGridLines=${sheet.showGridLines}'
-      ' leftCount=${leftSegments.length}'
-      ' topCount=${topSegments.length}'
-      ' left=${leftSegments.take(4).map(_borderSegmentTrace).join('|')}'
-      ' top=${topSegments.take(4).map(_borderSegmentTrace).join('|')}',
-    );
-  }
-
-  String _borderSegmentTrace(_BorderLineSegment segment) {
-    final color = segment.side.color.toARGB32().toRadixString(16).padLeft(8, '0');
-    final width = _borderWidthForSide(segment.side).toStringAsFixed(2);
-    return '${segment.horizontal ? 'h' : 'v'}:'
-        'style=${segment.side.style}'
-        ',width=$width'
-        ',color=0x$color'
-        ',start=${segment.start}'
-        ',end=${segment.end}';
   }
 
   void _drawSolidBorderJoins(
