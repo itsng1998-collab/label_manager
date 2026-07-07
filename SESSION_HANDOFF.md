@@ -36,6 +36,7 @@
 - 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`).
 - 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "RichEdit RTF preview resolves trimmed content size"` 통과.
 - 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "RichEdit RTF preview recaptures when target size changes"` 통과.
+- 커밋 완료: `db4283b` RTF AI 변환 네이티브 원본 이미지 사용.
 - 추가 수정 완료: RTF Viewer 플로팅 창 드래그바 안의 `AI 변환` 버튼 마우스 오버/클릭 효과를 닫기 버튼과 같은 hover/pressed 배경색, 글자색, 90ms 애니메이션 규칙으로 맞췄다.
 - 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`).
 - 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "floating preview shows configured tooltip after hover delay"` 통과.
