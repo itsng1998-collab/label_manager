@@ -28,6 +28,16 @@
 
 ## 현재 상태
 
+### 진행 중 (2026-07-07): 라벨 이미지 파일명 라벨에 현재 시트 정보 병합
+
+- 수정 예정: 라벨 이미지 가져오기 다이얼로그의 파일명 라벨 뒤에 ` · 현재 시트 w x h mm`를 붙이고, 별도 현재 시트 라벨 줄은 제거한다.
+- 검증 예정: `dart format`, 변경 파일 오류 확인, `git diff --check`.
+- 편집 완료: `_LabelImageImportDialog` 상단 파일명 라벨을 `파일명 · 현재 시트 w x h mm` 형식으로 변경하고, 별도 현재 시트 줄을 제거했다.
+- 검증 완료: `dart format` 실행.
+- 검증 완료: 변경 파일 `get_errors` 오류 없음.
+- 검증 완료: `git diff --check -- lib/page_label_sheet/label_sheet_workbench.dart SESSION_HANDOFF.md` 통과.
+- stage/commit 예정: `lib/page_label_sheet/label_sheet_workbench.dart`, `SESSION_HANDOFF.md`. unrelated 변경 `lib/core/app.dart` 및 lock 파일은 제외한다.
+
 ### 진행 중 (2026-07-07): 라벨 이미지 가져오기 파일 선택 흐름 변경
 
 - 수정 예정: 라벨 이미지 가져오기 명령은 파일 선택 다이얼로그를 먼저 띄우지 않고, 라벨 이미지 가져오기 다이얼로그를 먼저 띄운다.

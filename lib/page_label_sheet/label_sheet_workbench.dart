@@ -3685,21 +3685,15 @@ class _LabelImageImportDialogState extends State<_LabelImageImportDialog> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      _selectedImage?.fileName ?? '선택된 파일 없음',
+                      '${_selectedImage?.fileName ?? '선택된 파일 없음'} · '
+                      '현재 시트 ${widget.physicalSize.widthMm} x '
+                      '${widget.physicalSize.heightMm} mm',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.bodySmall,
                     ),
                   ),
                 ],
-              ),
-              const SizedBox(height: 4),
-              Text(
-                '현재 시트 ${widget.physicalSize.widthMm} x '
-                '${widget.physicalSize.heightMm} mm',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.hintColor,
-                ),
               ),
               const SizedBox(height: 8),
               _LabelImageImportPreview(
