@@ -38,6 +38,7 @@
 - 테스트 추가: `dao_result_helper_test.dart`에 `LastConnect.fromMap` 매핑과 `LastConnectDAO` 파라미터 SQL 구조 검증을 추가했다.
 - 검증 완료: `C:\Flutter\bin\flutter.bat test test\dao_result_helper_test.dart` 통과.
 - 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`).
+- 커밋 완료: `f037ea4` 이전 브랜드 라벨 선택 복원 적용.
 
 ### 진행 중 (2026-07-07): 품목 플로팅 위치/코너 리사이즈/조회 스낵바 보정
 
