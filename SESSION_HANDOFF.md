@@ -28,6 +28,20 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-07): 품목관리 preview ruler off 원복 및 border trace 추가
+
+- 로그 확인: 최신 `.tmp/log/app_2026-07-07_22-59-50.log`에서 `FSDBG-2026-07-07-item-preview-ruler-off-v6`만 확인되고 품목관리 preview의 `FSRULER`가 사라졌다. 사용자 스크린샷/피드백대로 v6에서 ruler 영역 자체가 꺼진 것이 오수정이었다.
+- 오수정 원복: `_itemElementWorkbook`와 `_itemOutputPreviewPrivateWorkbook`에 넣었던 `fortuneSheetRulerVisibleKey: false` 및 관련 테스트/디버그 helper를 제거했다. 품목관리 preview의 ruler 영역은 다시 유지된다.
+- 디버그 추가: `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`에 `FSRULER-2026-07-07-border-trace-v7` 추적 로그를 추가했다. 실제 화면 변경 없이 `headerBoundaries`와 `rulerBorders`가 그려지는 좌표, `hideHeaders`, `showGridLines`, `dataLeft/dataTop`, corner/ruler rect를 1회성으로 기록한다.
+- 수정 완료: `lib/main.dart`의 DebugLogger 버전을 `FSDBG-2026-07-07-ruler-border-trace-v7`로 갱신했다.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_sheet_painter_test.dart --plain-name "adjusted sheet header corner separators stay connected"` 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_sheet_painter_test.dart --plain-name "adjusted sheet hidden headers keep ruler separators one pixel"` 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "item output preview"` 통과(`+3`).
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`).
+- 검증 완료: `git diff --check -- lib/main.dart lib/home_page_manager.dart test/label_sheet_toolbar_test.dart third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart third_party/fortune_sheet/test/fortune_sheet_painter_test.dart SESSION_HANDOFF.md` 통과.
+- 다음 확인: 새 실행 로그에서 `FSRULER-2026-07-07-border-trace-v7`의 `headerBoundaries`/`rulerBorders` 좌표와 사용자가 제공한 스크린샷의 두꺼운 픽셀 위치를 대조해야 한다. 로그만으로 픽셀 위치가 특정되지 않으면 좌상단 corner, 첫 행/열 header, 첫 셀 일부가 함께 보이는 새 스크린샷이 필요하다.
+- 커밋 예정: `lib/main.dart`, `lib/home_page_manager.dart`, `test/label_sheet_toolbar_test.dart`, `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`, `SESSION_HANDOFF.md`. unrelated 변경 `lib/core/app.dart` 및 lock 파일은 제외한다.
+
 ### 완료 (2026-07-07): 품목관리 preview ruler 비활성화
 
 - 로그 확인: 최신 `.tmp/log/app_2026-07-07_22-52-16.log`에서 `FSDBG-2026-07-07-ruler-hide-header-border-v5`와 `FSRULER-2026-07-07-hide-header-border-v5`가 확인되어 v5 painter 보정이 실제 앱에서 실행됐지만 사용자 화면 변화가 없었다.

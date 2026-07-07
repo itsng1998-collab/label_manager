@@ -12,6 +12,15 @@ import 'fortune_sheet_codec.dart';
 import 'fortune_sheet_model.dart' hide Image, Rect;
 import 'fortune_toolbar_icons.dart';
 
+final Set<String> _fortuneSheetRulerTraceKeys = <String>{};
+
+void _fortuneSheetRulerTrace(String key, String message) {
+  if (!_fortuneSheetRulerTraceKeys.add(key)) {
+    return;
+  }
+  debugPrint('FSRULER-2026-07-07-border-trace-v7 $message');
+}
+
 bool _intDoubleMapEquals(Map<int, double> left, Map<int, double> right) {
   if (identical(left, right)) {
     return true;
@@ -63060,6 +63069,18 @@ class FortuneSheetPainter extends CustomPainter {
     final cornerRightBottom = settings.hideRowColumnHeaderLabels
         ? corner.bottom
         : _sheetHeaderTop(settings);
+    _fortuneSheetRulerTrace(
+      '${workbook.activeSheet.id}:ruler-borders:${settings.hideRowColumnHeaderLabels}:$topRuler:$leftRuler',
+      'sheet=${workbook.activeSheet.id}'
+      ' stage=rulerBorders'
+      ' hideHeaders=${settings.hideRowColumnHeaderLabels}'
+      ' showGridLines=${workbook.activeSheet.showGridLines}'
+      ' topRuler=$topRuler leftRuler=$leftRuler corner=$corner'
+      ' cornerBottomRight=$cornerBottomRight'
+      ' cornerRightBottom=$cornerRightBottom'
+      ' dataLeft=${_sheetDataLeft(settings)} dataTop=${_sheetDataTop(settings)}'
+      ' drawTopBottom=true drawLeftRight=true drawCornerBottom=true drawCornerRight=true',
+    );
     canvas.drawLine(topRuler.bottomLeft, topRuler.bottomRight, borderPaint);
     canvas.drawLine(leftRuler.topRight, leftRuler.bottomRight, borderPaint);
     canvas.drawLine(
@@ -63734,6 +63755,19 @@ class FortuneSheetPainter extends CustomPainter {
     final headerTop = _sheetHeaderTop(settings);
     final dataLeft = _sheetDataLeft(settings);
     final dataTop = _sheetDataTop(settings);
+    _fortuneSheetRulerTrace(
+      '${workbook.activeSheet.id}:header-boundaries:$headerLeft:$headerTop:$dataLeft:$dataTop',
+      'sheet=${workbook.activeSheet.id}'
+      ' stage=headerBoundaries'
+      ' hideHeaders=${settings.hideRowColumnHeaderLabels}'
+      ' showGridLines=${workbook.activeSheet.showGridLines}'
+      ' headerLeft=$headerLeft headerTop=$headerTop'
+      ' dataLeft=$dataLeft dataTop=$dataTop'
+      ' verticalLineX=${dataLeft - 0.5}'
+      ' verticalLineY=$headerTop..${size.height}'
+      ' horizontalLineY=${dataTop - 0.5}'
+      ' horizontalLineX=$headerLeft..${size.width}',
+    );
     canvas.drawRect(
       Rect.fromLTWH(
         headerLeft,

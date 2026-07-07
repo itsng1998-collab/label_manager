@@ -2721,12 +2721,6 @@ debugItemOutputPreviewForTesting({
   elementText: elementText,
 );
 
-@visibleForTesting
-fs.FortuneWorkbook debugItemElementWorkbookForTesting({
-  required String elementText,
-  required LabelSize? labelSize,
-}) => _itemElementWorkbook(elementText, labelSize);
-
 ({fs.FortuneWorkbook? workbook, String? hintText}) _itemOutputPreview({
   required LabelSize? labelSize,
   required ItemOfMarket item,
@@ -2778,7 +2772,6 @@ fs.FortuneWorkbook _itemElementWorkbook(
         customHeight: const {0: 1},
         customWidth: const {0: 1},
         zoomRatio: 1,
-        extraFields: const {fs.fortuneSheetRulerVisibleKey: false},
         cells: {
           const fs.FortuneCellCoord(0, 0): _itemTextCell(
             elementText,
@@ -2827,10 +2820,6 @@ fs.FortuneWorkbook _itemOutputPreviewPrivateWorkbook(
         hide: null,
         status: 1,
         showGridLines: false,
-        extraFields: {
-          ...source.extraFields,
-          fs.fortuneSheetRulerVisibleKey: false,
-        },
       ),
     ],
     activeSheetIndex: 0,
