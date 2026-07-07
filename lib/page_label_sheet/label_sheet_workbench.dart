@@ -52,6 +52,7 @@ int _labelSheetPositivePhysicalSizeOrDefault(int? value, int fallback) {
 
 const String _labelSheetGeminiApiKeyPrefsKey = 'label_sheet_gemini_api_key';
 const String _labelSheetGeminiModelPrefsKey = 'label_sheet_gemini_model';
+const String _labelSheetGeminiPromptPrefsKey = 'label_sheet_gemini_prompt';
 const String _labelFileDirectoryPrefsKey = 'label_file_directory';
 const double _labelSheetImportMinReadableFontHeightMm = 2.5;
 
@@ -2241,11 +2242,10 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     if (!mounted || action == null) {
       return;
     }
-    if (action.saveCredentials) {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_labelSheetGeminiApiKeyPrefsKey, action.apiKey);
-      await prefs.setString(_labelSheetGeminiModelPrefsKey, action.model);
-    }
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_labelSheetGeminiApiKeyPrefsKey, action.apiKey);
+    await prefs.setString(_labelSheetGeminiModelPrefsKey, action.model);
+    await prefs.setString(_labelSheetGeminiPromptPrefsKey, action.prompt);
     final draft = action.draft;
     if (draft == null) {
       if (mounted) {
@@ -3088,6 +3088,8 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
           initialModel:
               prefs.getString(_labelSheetGeminiModelPrefsKey) ??
               labelSheetDefaultGeminiModel,
+            initialPrompt:
+              prefs.getString(_labelSheetGeminiPromptPrefsKey) ?? '',
         ),
       );
     } finally {
@@ -3559,6 +3561,7 @@ class _LabelImageImportDialog extends StatefulWidget {
     required this.physicalSize,
     required this.initialApiKey,
     required this.initialModel,
+    required this.initialPrompt,
   });
 
   final Uint8List bytes;
@@ -3568,6 +3571,7 @@ class _LabelImageImportDialog extends StatefulWidget {
   final FortuneSheetGridClientPhysicalSize physicalSize;
   final String initialApiKey;
   final String initialModel;
+  final String initialPrompt;
 
   @override
   State<_LabelImageImportDialog> createState() =>
@@ -3582,10 +3586,9 @@ class _LabelImageImportDialogState extends State<_LabelImageImportDialog> {
     text: widget.initialModel,
   );
   late final TextEditingController _promptController = TextEditingController(
-    text: '',
+    text: widget.initialPrompt,
   );
   List<LabelSheetGeminiModelInfo> _geminiModels = labelSheetGeminiModels;
-  bool _saveCredentials = false;
   bool _analyzing = false;
   bool _loadingGeminiModels = false;
   int _modelLoadGeneration = 0;
@@ -3680,23 +3683,11 @@ class _LabelImageImportDialogState extends State<_LabelImageImportDialog> {
               ),
               _ErrorLogPanel(message: _errorLog),
               const SizedBox(height: 8),
-              Row(
-                children: [
-                  Checkbox(
-                    value: _saveCredentials,
-                    visualDensity: VisualDensity.compact,
-                    onChanged: _analyzing
-                        ? null
-                        : (value) {
-                            setState(() {
-                              _saveCredentials = value ?? false;
-                            });
-                          },
-                  ),
-                  const Expanded(
-                    child: Text('Gemini API Key와 model을 이 PC에 저장'),
-                  ),
-                ],
+              Text(
+                '* Gemini API Key와 model을 이 PC에 저장합니다.',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.hintColor,
+                ),
               ),
             ],
           ),
@@ -3855,7 +3846,7 @@ class _LabelImageImportDialogState extends State<_LabelImageImportDialog> {
         _LabelImageImportAction(
           apiKey: _apiKeyController.text.trim(),
           model: _modelController.text.trim(),
-          saveCredentials: _saveCredentials,
+          prompt: _promptController.text,
           draft: draft,
         ),
       );
@@ -4575,12 +4566,12 @@ class _LabelImageImportAction {
   const _LabelImageImportAction({
     required this.apiKey,
     required this.model,
-    required this.saveCredentials,
+    required this.prompt,
     this.draft,
   });
 
   final String apiKey;
   final String model;
-  final bool saveCredentials;
+  final String prompt;
   final LabelSheetImageImportDraft? draft;
 }

@@ -28,6 +28,22 @@
 
 ## 현재 상태
 
+### 진행 중 (2026-07-07): 라벨 이미지 AI 설정 무조건 저장
+
+- 수정 예정: 라벨 이미지 가져오기 다이얼로그 하단 체크박스를 제거하고 `* Gemini API Key와 model을 이 PC에 저장합니다.` 힌트 라벨로 바꾼다.
+- 수정 예정: AI 분석 적용 시 Gemini API Key/model/prompt를 로컬 저장소에 무조건 저장하고, 다음 다이얼로그 진입 시 prompt도 기본값으로 복원한다.
+- 검증 예정: `dart format`, 변경 파일 오류 확인, 관련 Gemini/미리보기 집중 테스트, `C:\Flutter\bin\flutter.bat analyze`, `git diff --check`.
+- 편집 완료: `_LabelImageImportDialog` 하단 Checkbox/저장 선택 문구를 제거하고 `* Gemini API Key와 model을 이 PC에 저장합니다.` 힌트 라벨로 교체했다.
+- 편집 완료: `_labelSheetGeminiPromptPrefsKey`를 추가하고, 다이얼로그 초기화 시 저장된 prompt를 `initialPrompt`로 복원하도록 했다.
+- 편집 완료: AI 분석 적용 성공 후 Gemini API Key/model/prompt를 항상 `SharedPreferences`에 저장하도록 변경하고 `_LabelImageImportAction.saveCredentials`를 제거했다.
+- 검증 완료: `dart format` 실행.
+- 검증 완료: 변경 파일 `get_errors` 오류 없음.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "label image import preview scales to readable text size"` 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "Gemini model list is fetched from Google AI models API"` 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`).
+- 검증 완료: `git diff --check -- lib/page_label_sheet/label_sheet_workbench.dart SESSION_HANDOFF.md` 통과.
+- stage/commit 예정: `lib/page_label_sheet/label_sheet_workbench.dart`, `SESSION_HANDOFF.md`. unrelated 변경 `lib/core/app.dart` 및 검증 중 변경된 lock 파일은 제외한다.
+
 ### 진행 중 (2026-07-07): 라벨 이미지 가져오기 미리보기 확대/스크롤
 
 - 수정 예정: 라벨 이미지 가져오기 다이얼로그 크기는 유지하고, 이미지 미리보기 영역 높이만 180px에서 270px로 50% 확대한다.
