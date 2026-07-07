@@ -2382,6 +2382,7 @@ void main() {
     });
 
     final resolvedSizes = <Size>[];
+  final nativeImages = <LabelSheetNativeRtfPngImage>[];
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(labelSheetNativeOpenXmlChannel, (call) async {
           final arguments = Map<Object?, Object?>.from(call.arguments as Map);
@@ -2418,12 +2419,18 @@ void main() {
           width: 100,
           height: 50,
           onImageSizeResolved: resolvedSizes.add,
+          onNativeImageResolved: nativeImages.add,
         ),
       ),
     );
     await tester.pumpAndSettle();
 
     expect(resolvedSizes, contains(const Size(6, 6)));
+    expect(nativeImages, hasLength(1));
+    expect(nativeImages.single.width, 12);
+    expect(nativeImages.single.height, 12);
+    expect(nativeImages.single.scale, 2);
+    expect(nativeImages.single.bytes, isNotEmpty);
   });
 
   test('RichEdit RTF preview derives 100 percent pixels from millimeters', () {

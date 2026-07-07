@@ -13,6 +13,7 @@ class LabelSheetRtfPreview extends StatefulWidget {
     this.heightMm = 100,
     this.padding = defaultPadding,
     this.onImageSizeResolved,
+    this.onNativeImageResolved,
     this.captureGeneration = 0,
   });
 
@@ -23,6 +24,7 @@ class LabelSheetRtfPreview extends StatefulWidget {
   final int heightMm;
   final EdgeInsets padding;
   final ValueChanged<Size>? onImageSizeResolved;
+  final ValueChanged<LabelSheetNativeRtfPngImage>? onNativeImageResolved;
   final int captureGeneration;
 
   static const EdgeInsets defaultPadding = EdgeInsets.fromLTRB(4, 17, 4, 4);
@@ -35,6 +37,57 @@ class LabelSheetRtfPreview extends StatefulWidget {
 
   static int pixelsForMm(int mm) {
     return (mm / 25.4 * _richEditEffectiveDpi).round().clamp(1, 4096);
+  }
+
+  static Future<LabelSheetNativeRtfPngImage?> captureNativeOriginal(
+    String rtf, {
+    int? width,
+    int? height,
+    int widthMm = 100,
+    int heightMm = 100,
+  }) async {
+    if (!labelSheetLooksLikeRichEditRtf(rtf)) {
+      return null;
+    }
+    final logicalWidth = width ?? pixelsForMm(widthMm);
+    final logicalHeight = height ?? pixelsForMm(heightMm);
+    final captureScale = _captureScaleForSize(
+      logicalWidth,
+      logicalHeight,
+      widthMm: widthMm,
+      heightMm: heightMm,
+    );
+    final captureLogicalWidth = (logicalWidth * _captureOverflowWidthFactor)
+        .round();
+    final captureLogicalHeight = (logicalHeight * _captureOverflowHeightFactor)
+        .round();
+    return labelSheetCaptureRtfNativePngImage(
+      rtf,
+      width: (captureLogicalWidth * captureScale).round(),
+      height: (captureLogicalHeight * captureScale).round(),
+      widthMm: widthMm,
+      heightMm: heightMm,
+      renderScale: captureScale,
+    );
+  }
+
+  static double _captureScaleForSize(
+    int logicalWidth,
+    int logicalHeight, {
+    required int widthMm,
+    required int heightMm,
+  }) {
+    final baseWidth = pixelsForMm(widthMm);
+    final baseHeight = pixelsForMm(heightMm);
+    final resizeScale = [
+      logicalWidth / baseWidth,
+      logicalHeight / baseHeight,
+      1.0,
+    ].reduce((a, b) => a > b ? a : b);
+    return (resizeScale * _minPreviewCaptureScale).clamp(
+      _minPreviewCaptureScale,
+      _maxPreviewCaptureScale,
+    );
   }
 
   @override
@@ -133,6 +186,14 @@ class _LabelSheetRtfPreviewState extends State<LabelSheetRtfPreview> {
         }
       });
     }
+    if (mounted && captured != null && captured.bytes.isNotEmpty) {
+      final nativeImage = captured;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          widget.onNativeImageResolved?.call(nativeImage);
+        }
+      });
+    }
     return captured;
   }
 
@@ -152,16 +213,11 @@ class _LabelSheetRtfPreviewState extends State<LabelSheetRtfPreview> {
   }
 
   double _captureScaleFor(int logicalWidth, int logicalHeight) {
-    final baseWidth = LabelSheetRtfPreview.pixelsForMm(widget.widthMm);
-    final baseHeight = LabelSheetRtfPreview.pixelsForMm(widget.heightMm);
-    final resizeScale = [
-      logicalWidth / baseWidth,
-      logicalHeight / baseHeight,
-      1.0,
-    ].reduce((a, b) => a > b ? a : b);
-    return (resizeScale * LabelSheetRtfPreview._minPreviewCaptureScale).clamp(
-      LabelSheetRtfPreview._minPreviewCaptureScale,
-      LabelSheetRtfPreview._maxPreviewCaptureScale,
+    return LabelSheetRtfPreview._captureScaleForSize(
+      logicalWidth,
+      logicalHeight,
+      widthMm: widget.widthMm,
+      heightMm: widget.heightMm,
     );
   }
 

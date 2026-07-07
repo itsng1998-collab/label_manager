@@ -87,6 +87,8 @@ class _HomePageManagerState extends State<HomePageManager> {
   Size? _rtfPreviewTargetContentSize;
   Size? _rtfPreviewRefreshedTargetContentSize;
   Size? _rtfPreviewLastResolvedImageSize;
+  LabelSheetNativeRtfPngImage? _rtfPreviewLastNativeImage;
+  String? _rtfPreviewLastNativeImageKey;
   Rect? _commonLabelGridRect;
   ItemOfMarket? _selectedItemOfMarket;
   int? _selectedItemIndex;
@@ -960,6 +962,8 @@ class _HomePageManagerState extends State<HomePageManager> {
       _rtfPreviewTargetContentSize = null;
       _rtfPreviewRefreshedTargetContentSize = null;
       _rtfPreviewLastResolvedImageSize = null;
+      _rtfPreviewLastNativeImage = null;
+      _rtfPreviewLastNativeImageKey = null;
       _rtfPreviewHasResolvedImage = false;
       _rtfPreviewWindowKey = null;
       _commonLabelPreviewWindow?.dispose();
@@ -1049,23 +1053,18 @@ class _HomePageManagerState extends State<HomePageManager> {
     if (!mounted || !labelSheetLooksLikeRichEditRtf(rtf)) {
       return;
     }
+    final rtfText = rtf!;
     final labelCommon = _effectiveLabelSize?.labelSizeCommon;
     final widthMm = labelCommon?.width ?? 100;
     final heightMm = labelCommon?.height ?? 100;
-    final target = _rtfPreviewTargetContentSize;
-    final logicalWidth = (target?.width ?? LabelSheetRtfPreview.pixelsForMm(widthMm))
-        .round()
-        .clamp(1, 4096);
-    final logicalHeight = (target?.height ?? LabelSheetRtfPreview.pixelsForMm(heightMm))
-        .round()
-        .clamp(1, 4096);
-    final capture = await labelSheetCaptureRtfNativePngImage(
-      rtf!,
-      width: logicalWidth * 2,
-      height: logicalHeight * 2,
+    final previewKey = _rtfPreviewKey(_effectiveLabelSize, rtfText);
+    var capture = _rtfPreviewLastNativeImageKey == previewKey
+        ? _rtfPreviewLastNativeImage
+        : null;
+    capture ??= await LabelSheetRtfPreview.captureNativeOriginal(
+      rtfText,
       widthMm: widthMm,
       heightMm: heightMm,
-      renderScale: 2,
     );
     if (!mounted) {
       return;
@@ -1133,6 +1132,13 @@ class _HomePageManagerState extends State<HomePageManager> {
         captureGeneration: _rtfPreviewCaptureGeneration,
         widthMm: _effectiveLabelSize?.labelSizeCommon?.width ?? 100,
         heightMm: _effectiveLabelSize?.labelSizeCommon?.height ?? 100,
+        onNativeImageResolved: (nativeImage) {
+          _rtfPreviewLastNativeImage = nativeImage;
+          _rtfPreviewLastNativeImageKey = _rtfPreviewKey(
+            _effectiveLabelSize,
+            rtf,
+          );
+        },
         onImageSizeResolved: (imageSize) {
           _rtfPreviewHasResolvedImage = true;
           _rtfPreviewLastResolvedImageSize = imageSize;
@@ -1354,6 +1360,8 @@ class _HomePageManagerState extends State<HomePageManager> {
     _rtfPreviewRefreshedTargetContentSize = target;
     _rtfPreviewHasResolvedImage = false;
     _rtfPreviewLastResolvedImageSize = null;
+    _rtfPreviewLastNativeImage = null;
+    _rtfPreviewLastNativeImageKey = null;
     labelSheetRtfPreviewDebugLog(
       'rtf preview recapture child refresh reason=$reason '
       'generation=$_rtfPreviewCaptureGeneration '
