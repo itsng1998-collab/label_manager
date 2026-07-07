@@ -28,6 +28,17 @@
 
 ## 현재 상태
 
+### 진행 중 (2026-07-07): 품목관리 플로팅 창 초기 크기/위치 조정
+
+- 수정 완료: 품목관리 플로팅 창 초기 크기를 `720x520`에서 `620x420`으로 줄였다.
+- 수정 완료: `ResizableTable`에 선택적 `onRectChanged` 콜백을 추가하고 `ItemManage.onTableRectChanged`를 통해 품목관리 테이블의 전역 Rect를 `HomePageManager`로 전달하도록 했다.
+- 수정 완료: 품목관리 플로팅 창 최초 표시 시 우하단 모서리를 품목관리 테이블 우하단에서 스크롤바 두께만큼 안쪽으로 뺀 위치에 맞추도록 했다. 스크롤바 두께는 `ScrollbarTheme` 값 우선, 없으면 `8.0` fallback을 사용한다.
+- 수정 완료: 사용자가 플로팅 창을 옮긴 뒤 행 선택/갱신 때마다 다시 정렬되지 않도록 테이블 기준 정렬은 창 생성 후 최초 1회만 수행한다.
+- 테스트 추가: `test/swipe_action_table_test.dart`에 `resizable table reports its global rect`를 추가해 테이블 전역 Rect 전달을 검증한다.
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`).
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\swipe_action_table_test.dart --plain-name "resizable table reports its global rect"` 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "floating preview aligns bottom-right to target point"` 통과.
+
 ### 진행 중 (2026-07-07): 라벨 시트 저장본 RICH_FORM_SHEET 분리 저장
 
 - DB 전제: 사용자가 `BM_RICH_LABELSIZE_FORM.RICH_FORM_SHEET varchar(max) NULL`, `BM_RICH_LABELSIZE_FORM_LOG.RICH_FORM_SHEET varchar(max) NULL`, `BM_RICH_LABELSIZE_FORM_LOG.RICH_ALTER_FORM_SHEET varchar(max) NULL`을 수동 추가 완료했다.

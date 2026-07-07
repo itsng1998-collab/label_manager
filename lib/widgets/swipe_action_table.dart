@@ -1786,6 +1786,7 @@ class ResizableTable<T> extends StatefulWidget {
     this.headerHeight = 36 * labelManagerUiScale,
     this.rowHeight = 28 * labelManagerUiScale,
     this.dragScrollEnabled = true,
+    this.onRectChanged,
   });
 
   final List<T> rows;
@@ -1797,6 +1798,7 @@ class ResizableTable<T> extends StatefulWidget {
   final double headerHeight;
   final double rowHeight;
   final bool dragScrollEnabled;
+  final ValueChanged<Rect>? onRectChanged;
 
   @override
   State<ResizableTable<T>> createState() => _ResizableTableState<T>();
@@ -1805,6 +1807,7 @@ class ResizableTable<T> extends StatefulWidget {
 class _ResizableTableState<T> extends State<ResizableTable<T>> {
   late List<bool> _checked;
   int? _selectedIndex;
+  Rect? _lastReportedRect;
 
   @override
   void initState() {
@@ -1830,6 +1833,7 @@ class _ResizableTableState<T> extends State<ResizableTable<T>> {
 
   @override
   Widget build(BuildContext context) {
+    _scheduleRectReport();
     return SwipeActionTable<T>(
       rows: widget.rows,
       autoFitColumns: false,
@@ -1850,6 +1854,36 @@ class _ResizableTableState<T> extends State<ResizableTable<T>> {
           _toSwipeColumn(widget.columns[index], index),
       ],
     );
+  }
+
+  void _scheduleRectReport() {
+    if (widget.onRectChanged == null) {
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || widget.onRectChanged == null) {
+        return;
+      }
+      final renderObject = context.findRenderObject();
+      if (renderObject is! RenderBox || !renderObject.hasSize) {
+        return;
+      }
+      final topLeft = renderObject.localToGlobal(Offset.zero);
+      final rect = topLeft & renderObject.size;
+      final last = _lastReportedRect;
+      if (last != null && _sameRect(last, rect)) {
+        return;
+      }
+      _lastReportedRect = rect;
+      widget.onRectChanged?.call(rect);
+    });
+  }
+
+  bool _sameRect(Rect left, Rect right) {
+    return (left.left - right.left).abs() < 0.5 &&
+        (left.top - right.top).abs() < 0.5 &&
+        (left.width - right.width).abs() < 0.5 &&
+        (left.height - right.height).abs() < 0.5;
   }
 
   SwipeActionTableColumn<T> _toSwipeColumn(

@@ -10,12 +10,14 @@ class ItemManage extends StatelessWidget {
   final List<ItemOfMarket> items;
   final int? selectedIndex;
   final void Function(ItemOfMarket row, int index)? onRowSelected;
+  final ValueChanged<Rect>? onTableRectChanged;
 
   const ItemManage({
     super.key,
     required this.items,
     this.selectedIndex,
     this.onRowSelected,
+    this.onTableRectChanged,
   });
 
   @override
@@ -31,6 +33,7 @@ class ItemManage extends StatelessWidget {
       checkboxColumnIndex: 0,
       selectedIndex: selectedIndex,
       onRowSelected: onRowSelected,
+      onRectChanged: onTableRectChanged,
     );
   }
 

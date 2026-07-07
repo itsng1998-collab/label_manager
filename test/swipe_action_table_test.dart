@@ -217,6 +217,47 @@ Future<void> _doubleTapAt(WidgetTester tester, Offset position) async {
 }
 
 void main() {
+  testWidgets('resizable table reports its global rect', (tester) async {
+    final rects = <Rect>[];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Align(
+            alignment: Alignment.topLeft,
+            child: SizedBox(
+              width: 360,
+              height: 160,
+              child: ResizableTable<_Row>(
+                rows: const [_Row('Brand A', 'A001')],
+                columns: [
+                  ResizableTableColumn<_Row>(
+                    id: 'name',
+                    title: '브랜드 이름',
+                    width: 160,
+                    textAccessor: (row) => row.name,
+                  ),
+                  ResizableTableColumn<_Row>(
+                    id: 'code',
+                    title: '코드',
+                    width: 120,
+                    textAccessor: (row) => row.code,
+                  ),
+                ],
+                onRectChanged: rects.add,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(rects, hasLength(1));
+    expect(rects.single.topLeft, Offset.zero);
+    expect(rects.single.size, const Size(360, 160));
+  });
+
   testWidgets('mouse vertical drag scrolls rows by default', (tester) async {
     await _pumpScrollableTable(tester);
 

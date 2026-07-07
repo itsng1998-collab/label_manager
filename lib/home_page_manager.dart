@@ -60,6 +60,7 @@ class HomePageManager extends StatefulWidget {
 
 class _HomePageManagerState extends State<HomePageManager> {
   static const double _rtfPreviewInitialReadableScale = 1.0;
+  static const double _itemPreviewScrollbarThicknessFallback = 8.0;
 
   late TabbedViewController _tabController;
   final TextEditingController _tabSearchController = TextEditingController();
@@ -89,12 +90,14 @@ class _HomePageManagerState extends State<HomePageManager> {
   Size? _rtfPreviewLastResolvedImageSize;
   LabelSheetNativeRtfPngImage? _rtfPreviewLastNativeImage;
   String? _rtfPreviewLastNativeImageKey;
+  Rect? _itemTableRect;
   Rect? _commonLabelGridRect;
   ItemOfMarket? _selectedItemOfMarket;
   int? _selectedItemIndex;
   bool _rtfPreviewHasResolvedImage = false;
   bool _autoSelectedCommonLabelOnce = false;
   bool _commonLabelTabActivated = false;
+  bool _itemPreviewAlignedToTable = false;
   bool _itemPreviewClosedByUser = false;
   bool _commonLabelPreviewClosedByUser = false;
   bool _commonLabelPreviewHiddenForSheetDialog = false;
@@ -766,6 +769,7 @@ class _HomePageManagerState extends State<HomePageManager> {
           items: ItemOfMarket.datas ?? const <ItemOfMarket>[],
           selectedIndex: _selectedItemIndex,
           onRowSelected: _handleItemRowSelected,
+          onTableRectChanged: _handleItemTableRectChanged,
         ),
         closable: false,
         keepAlive: true,
@@ -878,17 +882,46 @@ class _HomePageManagerState extends State<HomePageManager> {
         item: selected,
         labelSize: _effectiveLabelSize,
       );
-      _itemPreviewWindow ??= PreviewFloatingWindow(
-        initialSize: const Size(720, 520),
-        minSize: const Size(420, 280),
-        onCloseRequested: _handleItemPreviewCloseRequested,
-      );
+      if (_itemPreviewWindow == null) {
+        _itemPreviewAlignedToTable = false;
+        _itemPreviewWindow = PreviewFloatingWindow(
+          initialSize: const Size(620, 420),
+          minSize: const Size(420, 280),
+          onCloseRequested: _handleItemPreviewCloseRequested,
+        );
+      }
       _itemPreviewWindow!
         ..setTooltip(null)
         ..setChild(child)
         ..show(context);
+      _alignItemPreviewWindowToTableIfNeeded();
       setState(() {});
     });
+  }
+
+  void _handleItemTableRectChanged(Rect rect) {
+    _itemTableRect = rect;
+    _alignItemPreviewWindowToTableIfNeeded();
+  }
+
+  void _alignItemPreviewWindowToTableIfNeeded() {
+    final window = _itemPreviewWindow;
+    final tableRect = _itemTableRect;
+    if (!mounted ||
+        _itemPreviewAlignedToTable ||
+        window == null ||
+        !window.isVisible ||
+        tableRect == null) {
+      return;
+    }
+    final scrollbarThickness =
+        ScrollbarTheme.of(context).thickness?.resolve(const <WidgetState>{}) ??
+        _itemPreviewScrollbarThicknessFallback;
+    window.alignBottomRightTo(
+      context,
+      tableRect.bottomRight - Offset(scrollbarThickness, scrollbarThickness),
+    );
+    _itemPreviewAlignedToTable = true;
   }
 
   void _selectInitialItemOfMarket() {
