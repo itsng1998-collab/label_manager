@@ -12,6 +12,10 @@ import 'package:fortune_sheet/fortune_sheet.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:image/image.dart' as imglib;
+import 'package:label_manager/home_page_manager.dart';
+import 'package:label_manager/models/additional_item.dart';
+import 'package:label_manager/models/item.dart';
+import 'package:label_manager/models/item_of_market.dart';
 import 'package:label_manager/models/label_size.dart';
 import 'package:label_manager/page_home/preview_floating_window.dart';
 import 'package:label_manager/page_label_sheet/label_sheet_ai_import.dart';
@@ -67,6 +71,61 @@ bool _primaryFocusIsInside(WidgetTester tester, Finder rootFinder) {
     return true;
   });
   return inside;
+}
+
+ItemOfMarket _testItemOfMarket({String itemName = '테스트 품목'}) {
+  final now = DateTime(2026, 7, 7);
+  return ItemOfMarket(
+    marketId: 1,
+    item: Item(
+      itemId: 10,
+      labelSizeId: 20,
+      itemName: itemName,
+      labelSizeName: '테스트 라벨',
+      element: '원재료',
+      elementRTF: '',
+      price: 0,
+      order: 0,
+    ),
+    additionalItem: const AdditionalItem(
+      AdditionalItemId: 0,
+      itemId: 10,
+      element: '',
+      elementRTF: '',
+      price: 0,
+    ),
+    gdsNo: 0,
+    dateSaleStart: now,
+    dateSaleEnd: now,
+    discountPercent: 0,
+    discountAmount: 0,
+    dateStartDiscount: now,
+    dateEndDiscount: now,
+    useDefineElement: false,
+    rtfText: '',
+    useLinefeed: false,
+    linefeed: 0,
+    useScaleBarcode: false,
+    printCount: 1,
+    useLabelSize: false,
+    labelSizeWidth: 0,
+    labelSizeHeight: 0,
+    useMargin: false,
+    leftMargin: 0,
+    rightMargin: 0,
+    topMargin: 0,
+    leftPush: 0,
+    topPush: 0,
+  );
+}
+
+LabelSize _testLabelSizeWithFormData(String formData) {
+  return LabelSize(
+    labelSizeId: 20,
+    brandId: 1,
+    labelSizeName: '테스트 라벨',
+    labelSizeCommon: LabelSizeCommon(width: 100, height: 80, rtf: formData),
+  );
 }
 
 Offset _toolbarItemCenter(
@@ -128,6 +187,53 @@ Offset _floatingResizeGripPoint(WidgetTester tester, String key) {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  test('item output preview reports RTF and invalid sheet states', () {
+    final item = _testItemOfMarket();
+    final rtfPreview = debugItemOutputPreviewForTesting(
+      labelSize: _testLabelSizeWithFormData(r'{\rtf1\ansi legacy}'),
+      item: item,
+      elementText: '원재료 편집',
+    );
+
+    expect(rtfPreview.workbook, isNull);
+    expect(rtfPreview.hintText, '* 라벨을 편집 저장 후 가능합니다.');
+
+    final invalidPreview = debugItemOutputPreviewForTesting(
+      labelSize: _testLabelSizeWithFormData('not a label sheet save'),
+      item: item,
+      elementText: '원재료 편집',
+    );
+
+    expect(invalidPreview.workbook, isNull);
+    expect(invalidPreview.hintText, '* 저장된 라벨에 문제가 있습니다.');
+  });
+
+  test('item output preview creates fallback sheet for empty saved workbook', () {
+    final encoded = _encodeLabelSheetSaveArchive(
+      manifest: {
+        'format': labelSheetSaveFormat,
+        'version': labelSheetSaveFormatVersion,
+        'features': labelSheetSaveFeatureVersions,
+        'codec': 'fortune-sheet-json',
+      },
+      workbookJson: {
+        'name': 'empty workbook',
+        'data': <Object?>[],
+      },
+    );
+
+    final preview = debugItemOutputPreviewForTesting(
+      labelSize: _testLabelSizeWithFormData(encoded),
+      item: _testItemOfMarket(),
+      elementText: '원재료 편집',
+    );
+
+    expect(preview.hintText, isNull);
+    expect(preview.workbook, isNotNull);
+    expect(preview.workbook!.sheets, hasLength(1));
+    expect(preview.workbook!.sheets.single.name, 'Sheet1');
+  });
 
   test('label sheet toolbar starts with save and print actions', () {
     final settings = labelSheetSettings(

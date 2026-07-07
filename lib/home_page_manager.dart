@@ -2657,13 +2657,17 @@ class _ItemOutputPreviewTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final workbook = _itemOutputPreviewWorkbook(
+    final preview = _itemOutputPreview(
       labelSize: labelSize,
       item: item,
       elementText: elementText,
     );
+    if (preview.hintText != null) {
+      return _ItemOutputPreviewHint(preview.hintText!);
+    }
+    final workbook = preview.workbook;
     if (workbook == null) {
-      return const Center(child: Text('현재 공용라벨 시트가 없습니다.'));
+      return const _ItemOutputPreviewHint('현재 공용라벨 시트가 없습니다.');
     }
     return LabelSheetWorkbench(
       key: ValueKey(
@@ -2676,6 +2680,64 @@ class _ItemOutputPreviewTab extends StatelessWidget {
       zoomToolbarPlacement: LabelSheetZoomToolbarPlacement.hidden,
     );
   }
+}
+
+class _ItemOutputPreviewHint extends StatelessWidget {
+  const _ItemOutputPreviewHint(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Text(
+        text,
+        textAlign: TextAlign.center,
+        style: const TextStyle(
+          fontStyle: FontStyle.italic,
+          color: Color(0xFF5F6368),
+        ),
+      ),
+    );
+  }
+}
+
+@visibleForTesting
+({fs.FortuneWorkbook? workbook, String? hintText})
+debugItemOutputPreviewForTesting({
+  required LabelSize? labelSize,
+  required ItemOfMarket item,
+  required String elementText,
+}) => _itemOutputPreview(
+  labelSize: labelSize,
+  item: item,
+  elementText: elementText,
+);
+
+({fs.FortuneWorkbook? workbook, String? hintText}) _itemOutputPreview({
+  required LabelSize? labelSize,
+  required ItemOfMarket item,
+  required String elementText,
+}) {
+  final encodedWorkbook = labelSize?.labelSizeCommon?.rtf;
+  if (labelSheetLooksLikeRichEditRtf(encodedWorkbook)) {
+    return (workbook: null, hintText: '* 라벨을 편집 저장 후 가능합니다.');
+  }
+  if (encodedWorkbook != null && encodedWorkbook.trim().isNotEmpty) {
+    final workbook = labelSheetTryDecodeWorkbookSave(encodedWorkbook);
+    if (workbook == null) {
+      return (workbook: null, hintText: '* 저장된 라벨에 문제가 있습니다.');
+    }
+    return (
+      workbook: _replaceItemPreviewKeywords(
+        _itemOutputPreviewWorkbookWithFallbackSheet(workbook, labelSize),
+        _itemOutputPreviewReplacements(item: item, elementText: elementText),
+        imageKeywords: _itemOutputPreviewImageKeywords(),
+      ),
+      hintText: null,
+    );
+  }
+  return (workbook: null, hintText: null);
 }
 
 String _itemElementTextFromWorkbook(fs.FortuneWorkbook workbook) {
@@ -2728,20 +2790,30 @@ Size _itemElementPrintAreaSize(LabelSize? labelSize) {
   );
 }
 
-fs.FortuneWorkbook? _itemOutputPreviewWorkbook({
-  required LabelSize? labelSize,
+fs.FortuneWorkbook _itemOutputPreviewWorkbookWithFallbackSheet(
+  fs.FortuneWorkbook workbook,
+  LabelSize? labelSize,
+) {
+  if (workbook.sheets.isNotEmpty) {
+    return workbook;
+  }
+  final sheetName = labelSize?.labelSizeName.trim();
+  return workbook.copyWith(
+    sheets: [
+      fs.FortuneSheet(
+        id: 'item_output_preview_sheet_01',
+        name: sheetName == null || sheetName.isEmpty ? 'Labels' : sheetName,
+      ),
+    ],
+    activeSheetIndex: 0,
+  );
+}
+
+Map<String, String> _itemOutputPreviewReplacements({
   required ItemOfMarket item,
   required String elementText,
 }) {
-  final encodedWorkbook = labelSize?.labelSizeCommon?.rtf;
-  if (labelSheetLooksLikeRichEditRtf(encodedWorkbook)) {
-    return null;
-  }
-  final workbook = labelSheetTryDecodeWorkbookSave(encodedWorkbook);
-  if (workbook == null || workbook.sheets.isEmpty) {
-    return null;
-  }
-  final replacements = <String, String>{
+  return <String, String>{
     '#ITEMNAME': item.item.itemName,
     '#ELEMENT': elementText,
     for (final column in TColumn.datas ?? const <TColumn>[])
@@ -2749,16 +2821,14 @@ fs.FortuneWorkbook? _itemOutputPreviewWorkbook({
           TColumnContent.get(column.columnId, item.item.itemId)?.dataString ??
           '',
   };
-  final imageKeywords = <String>{
+}
+
+Set<String> _itemOutputPreviewImageKeywords() {
+  return <String>{
     for (final column in TColumn.datas ?? const <TColumn>[])
       if (column.columnType.code == TColumnType.TYPE_IMAGE)
         '#${column.keyword}'.toLowerCase(),
   };
-  return _replaceItemPreviewKeywords(
-    workbook,
-    replacements,
-    imageKeywords: imageKeywords,
-  );
 }
 
 fs.FortuneWorkbook _replaceItemPreviewKeywords(

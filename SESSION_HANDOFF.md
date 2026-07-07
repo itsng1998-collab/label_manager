@@ -28,6 +28,19 @@
 
 ## 현재 상태
 
+### 진행 중 (2026-07-07): 품목관리 출력내용 미리보기 빈 상태 보정
+
+- 수정 완료: 품목관리 플로팅 창 `출력내용 미리보기`에서 현재 라벨 저장값이 레거시 RichEdit RTF이면 중앙 기울임 힌트 `* 라벨을 편집 저장 후 가능합니다.`를 표시한다.
+- 수정 완료: 저장된 LabelSheet 데이터가 손상/해석 불가하면 중앙 기울임 힌트 `* 저장된 라벨에 문제가 있습니다.`를 표시한다.
+- 수정 완료: 저장된 LabelSheet workbook이 decode되지만 sheet가 비어 있으면 품목관리 미리보기 내부에서 기본 fallback 시트를 보강해 `LabelSheetWorkbench`가 사용할 수 있게 한다.
+- 테스트 추가: `label_sheet_toolbar_test.dart`에 RTF/손상 저장 데이터 힌트와 빈 저장 workbook fallback 회귀 테스트를 추가했다.
+- 검증 완료: `dart format` 실행.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "item output preview"` 통과(`+2`).
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`).
+- 검증 완료: `git diff --check -- lib/home_page_manager.dart test/label_sheet_toolbar_test.dart SESSION_HANDOFF.md` 통과.
+- stage/commit 예정: `lib/home_page_manager.dart`, `test/label_sheet_toolbar_test.dart`, `SESSION_HANDOFF.md`. unrelated 변경 `lib/core/app.dart` 및 lock 파일은 제외한다.
+- 커밋 완료: `3d01c10` 품목관리 출력 미리보기 빈 상태 보정.
+
 ### 진행 중 (2026-07-07): 라벨 저장 로그 IP 문자열 길이 초과 수정
 
 - 원인 확인: 라벨 저장 로그 SQL이 `RICH_INNER_IP`에 `stringToHexCp949(localIp)` 결과인 `0x3137...` hex 문자열을 그대로 넣어 IP 컬럼 길이를 초과했고, SQL Server 8152(`문자열이나 이진 데이터는 잘립니다`)로 저장이 rollback되었다.
