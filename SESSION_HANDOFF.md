@@ -41,6 +41,7 @@
 - 검증 완료: 변경 파일 `get_errors` 오류 없음.
 - 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`).
 - 검증 완료: `git diff --check -- lib/page_label_sheet/label_sheet_ai_import.dart lib/page_label_sheet/label_sheet_workbench.dart test/label_sheet_toolbar_test.dart SESSION_HANDOFF.md` 통과.
+- 커밋 완료: `4403898` 라벨 이미지 AI 모델 정렬과 기본값 저장.
 
 ### 진행 중 (2026-07-07): AI 모델 드롭다운 정렬 보정
 
@@ -57,6 +58,7 @@
 - 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`).
 - 검증 완료: `git diff --check -- lib/page_label_sheet/label_sheet_ai_import.dart lib/page_label_sheet/label_sheet_workbench.dart test/label_sheet_toolbar_test.dart SESSION_HANDOFF.md` 통과.
 - stage/commit 예정: `lib/page_label_sheet/label_sheet_ai_import.dart`, `lib/page_label_sheet/label_sheet_workbench.dart`, `test/label_sheet_toolbar_test.dart`, `SESSION_HANDOFF.md`. unrelated 변경 `lib/core/app.dart`는 제외한다.
+- 커밋 완료: `4403898` 라벨 이미지 AI 모델 정렬과 기본값 저장.
 
 ### 진행 중 (2026-07-07): 라벨 이미지 AI 모델 목록 동적 조회
 
