@@ -28,6 +28,23 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-07): 품목관리 preview ruler 비활성화
+
+- 로그 확인: 최신 `.tmp/log/app_2026-07-07_22-52-16.log`에서 `FSDBG-2026-07-07-ruler-hide-header-border-v5`와 `FSRULER-2026-07-07-hide-header-border-v5`가 확인되어 v5 painter 보정이 실제 앱에서 실행됐지만 사용자 화면 변화가 없었다.
+- 원인 재판단: hidden header 상태에서도 `topRuler=0..20`, `leftRuler=0..46`, `dataLeft=46`, `dataTop=20`으로 ruler 영역 자체가 계속 예약되어 있었다. 따라서 품목관리 두 preview 시트의 남은 두꺼운 선 후보는 border 한 줄이 아니라 ruler 영역 자체로 판단했다.
+- 오수정 원복: v5의 painter border skip 보정, `FSRULER` painter 로그, hidden header ruler border 테스트 보강을 제거했다. `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`와 관련 painter 테스트는 `5dfe974` 기준 상태로 돌아왔다.
+- 수정 완료: `_itemElementWorkbook`와 `_itemOutputPreviewPrivateWorkbook`이 생성하는 품목관리 preview 시트에 `fortuneSheetRulerVisibleKey: false`를 설정해 ruler 영역이 예약되지 않게 했다.
+- 수정 완료: `lib/main.dart`의 DebugLogger 버전을 `FSDBG-2026-07-07-item-preview-ruler-off-v6`으로 갱신했다.
+- 테스트 보강: `debugItemElementWorkbookForTesting`을 추가하고, element/output preview 워크북의 `rulerVisible=false`를 검증한다.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "item element preview hides sheet ruler"` 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "item output preview"` 통과(`+3`).
+- 검증 완료: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_sheet_painter_test.dart --plain-name "adjusted sheet hidden headers keep ruler separators one pixel"` 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_sheet_painter_test.dart --plain-name "adjusted sheet header corner separators stay connected"` 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`).
+- 검증 완료: `git diff --check -- lib/main.dart lib/home_page_manager.dart test/label_sheet_toolbar_test.dart third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart third_party/fortune_sheet/test/fortune_sheet_painter_test.dart SESSION_HANDOFF.md` 통과.
+- 스크린샷 필요 조건: 이 수정 후에도 공용라벨관리 `label_sheet_01`의 visible header 좌상단 선이 그대로라면, 로그 좌표만으로는 실제 두꺼운 픽셀 레이어를 더 구분할 수 없어 새 스크린샷이 필요하다. 특히 좌상단 corner와 첫 행/열 header가 함께 보이도록 찍어야 한다.
+- 커밋 예정: `lib/main.dart`, `lib/home_page_manager.dart`, `test/label_sheet_toolbar_test.dart`, `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`, `third_party/fortune_sheet/test/fortune_sheet_painter_test.dart`, `SESSION_HANDOFF.md`. unrelated 변경 `lib/core/app.dart` 및 lock 파일은 제외한다.
+
 ### 완료 (2026-07-07): hidden header ruler 경계선 제거
 
 - 로그 확인: 최신 `.tmp/log/app_2026-07-07_22-46-46.log`에서 `FSDBG-2026-07-07-ruler-hairline-border-v4`와 `FSRULER-2026-07-07-hairline-border-v4`가 확인되어 v4 hairline 수정이 실제 앱에서 실행됐지만 사용자 화면 변화가 없었다.

@@ -188,6 +188,19 @@ Offset _floatingResizeGripPoint(WidgetTester tester, String key) {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  test('item element preview hides sheet ruler', () {
+    final workbook = debugItemElementWorkbookForTesting(
+      elementText: '원재료 편집',
+      labelSize: _testLabelSizeWithFormData(''),
+    );
+
+    expect(workbook.sheets, hasLength(1));
+    expect(
+      workbook.sheets.single.extraFields[fortuneSheetRulerVisibleKey],
+      isFalse,
+    );
+  });
+
   test('item output preview reports RTF and invalid sheet states', () {
     final item = _testItemOfMarket();
     final rtfPreview = debugItemOutputPreviewForTesting(
@@ -234,6 +247,10 @@ void main() {
     expect(preview.workbook!.sheets, hasLength(1));
     expect(preview.workbook!.sheets.single.id, 'item_output_preview_sheet_01');
     expect(preview.workbook!.sheets.single.name, '테스트 라벨');
+    expect(
+      preview.workbook!.sheets.single.extraFields[fortuneSheetRulerVisibleKey],
+      isFalse,
+    );
   });
 
   test('item output preview uses private active saved sheet only', () {
@@ -279,6 +296,7 @@ void main() {
     expect(sheet.id, 'item_output_preview_sheet_01');
     expect(sheet.name, '테스트 라벨');
     expect(sheet.showGridLines, isFalse);
+    expect(sheet.extraFields[fortuneSheetRulerVisibleKey], isFalse);
     expect(
       sheet.cells[const FortuneCellCoord(0, 0)]?.renderedText,
       '딸기잼',
