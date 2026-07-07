@@ -61,6 +61,7 @@ class HomePageManager extends StatefulWidget {
 class _HomePageManagerState extends State<HomePageManager> {
   static const double _rtfPreviewInitialReadableScale = 1.0;
   static const double _itemPreviewScrollbarThicknessFallback = 8.0;
+  static const double _itemPreviewTableInset = 10.0;
 
   late TabbedViewController _tabController;
   final TextEditingController _tabSearchController = TextEditingController();
@@ -483,6 +484,9 @@ class _HomePageManagerState extends State<HomePageManager> {
         _selectedItemIndex = null;
         _itemPreviewClosedByUser = false;
         _resetTabs();
+        if (mounted) {
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        }
         return;
       }
 
@@ -515,6 +519,9 @@ class _HomePageManagerState extends State<HomePageManager> {
         'items=${ItemOfMarket.datas?.length ?? 0}',
       );
       _resetTabs();
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      }
     } catch (e) {
       debugLog('$e');
     } finally {
@@ -885,7 +892,7 @@ class _HomePageManagerState extends State<HomePageManager> {
       if (_itemPreviewWindow == null) {
         _itemPreviewAlignedToTable = false;
         _itemPreviewWindow = PreviewFloatingWindow(
-          initialSize: const Size(620, 420),
+          initialSize: const Size(670, 470),
           minSize: const Size(420, 280),
           onCloseRequested: _handleItemPreviewCloseRequested,
         );
@@ -919,7 +926,11 @@ class _HomePageManagerState extends State<HomePageManager> {
         _itemPreviewScrollbarThicknessFallback;
     window.alignBottomRightTo(
       context,
-      tableRect.bottomRight - Offset(scrollbarThickness, scrollbarThickness),
+      tableRect.bottomRight -
+          Offset(
+            scrollbarThickness + _itemPreviewTableInset,
+            scrollbarThickness + _itemPreviewTableInset,
+          ),
     );
     _itemPreviewAlignedToTable = true;
   }

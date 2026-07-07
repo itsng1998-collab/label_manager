@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -1208,93 +1209,97 @@ class _ResizeHandleState extends State<_ResizeHandle> {
 
   @override
   Widget build(BuildContext context) {
+    final handle = MouseRegion(
+      cursor: widget.cursor,
+      onEnter: (event) {
+        setState(() => _hovered = true);
+        PreviewFloatingWindow._log(
+          'resize hover enter handle=${widget.name} '
+          'global=${PreviewFloatingWindow._formatOffset(event.position)} '
+          'local=${PreviewFloatingWindow._formatOffset(event.localPosition)} '
+          '${_renderGeometry(context)}',
+        );
+      },
+      onExit: (event) {
+        setState(() => _hovered = false);
+        PreviewFloatingWindow._log(
+          'resize hover exit handle=${widget.name} '
+          'global=${PreviewFloatingWindow._formatOffset(event.position)} '
+          'local=${PreviewFloatingWindow._formatOffset(event.localPosition)}',
+        );
+      },
+      child: Listener(
+        behavior: HitTestBehavior.opaque,
+        onPointerDown: (event) {
+          setState(() {
+            _startRect = widget.rect;
+            _startGlobalPosition = event.position;
+            _accDelta = Offset.zero;
+            _moveCount = 0;
+          });
+          PreviewFloatingWindow._log(
+            'resize start handle=${widget.name} pointer=${event.pointer} '
+            'global=${PreviewFloatingWindow._formatOffset(event.position)} '
+            'local=${PreviewFloatingWindow._formatOffset(event.localPosition)} '
+            '${_renderGeometry(context)} '
+            'anchors=${_anchorDescription()} size=${widget.size?.toStringAsFixed(1) ?? 'default'} '
+            'rect=${PreviewFloatingWindow._formatRect(widget.rect)}',
+          );
+          widget.onResizeStart(widget.name, event.pointer);
+        },
+        onPointerMove: (event) {
+          if (_startRect == null || _startGlobalPosition == null) return;
+          _accDelta = event.position - _startGlobalPosition!;
+          _moveCount += 1;
+          final computed = widget.computeRect(_startRect!, _accDelta);
+          PreviewFloatingWindow._log(
+            'resize move handle=${widget.name} pointer=${event.pointer} '
+            'count=$_moveCount global=${PreviewFloatingWindow._formatOffset(event.position)} '
+            'local=${PreviewFloatingWindow._formatOffset(event.localPosition)} '
+            'delta=${PreviewFloatingWindow._formatOffset(_accDelta)} '
+            'start=${PreviewFloatingWindow._formatRect(_startRect!)} '
+            'next=${PreviewFloatingWindow._formatRect(computed)}',
+          );
+          widget.onResize(computed);
+        },
+        onPointerUp: (event) {
+          PreviewFloatingWindow._log(
+            'resize end handle=${widget.name} pointer=${event.pointer} '
+            'moves=$_moveCount delta=${PreviewFloatingWindow._formatOffset(_accDelta)}',
+          );
+          setState(() {
+            _startRect = null;
+            _startGlobalPosition = null;
+          });
+          widget.onResizeEnd(widget.name, event.pointer);
+        },
+        onPointerCancel: (event) {
+          PreviewFloatingWindow._log(
+            'resize cancel handle=${widget.name} pointer=${event.pointer} '
+            'moves=$_moveCount delta=${PreviewFloatingWindow._formatOffset(_accDelta)}',
+          );
+          setState(() {
+            _startRect = null;
+            _startGlobalPosition = null;
+          });
+          widget.onResizeEnd(widget.name, event.pointer);
+        },
+        child: SizedBox(
+          width: widget.size ?? _FloatingCard._handleSize,
+          height: widget.size ?? _FloatingCard._handleSize,
+          child: widget.showHoverIndicator ? _buildHoverIndicator() : null,
+        ),
+      ),
+    );
+    final hitRegion = widget.showHoverIndicator
+        ? _ResizeCornerGripHitRegion(name: widget.name, child: handle)
+        : handle;
     return Positioned(
       left: widget.left,
       top: widget.top,
       right: widget.right,
       bottom: widget.bottom,
-      child: MouseRegion(
-        cursor: widget.cursor,
-        onEnter: (event) {
-          setState(() => _hovered = true);
-          PreviewFloatingWindow._log(
-            'resize hover enter handle=${widget.name} '
-            'global=${PreviewFloatingWindow._formatOffset(event.position)} '
-            'local=${PreviewFloatingWindow._formatOffset(event.localPosition)} '
-            '${_renderGeometry(context)}',
-          );
-        },
-        onExit: (event) {
-          setState(() => _hovered = false);
-          PreviewFloatingWindow._log(
-            'resize hover exit handle=${widget.name} '
-            'global=${PreviewFloatingWindow._formatOffset(event.position)} '
-            'local=${PreviewFloatingWindow._formatOffset(event.localPosition)}',
-          );
-        },
-        child: Listener(
-          behavior: HitTestBehavior.opaque,
-          onPointerDown: (event) {
-            setState(() {
-              _startRect = widget.rect;
-              _startGlobalPosition = event.position;
-              _accDelta = Offset.zero;
-              _moveCount = 0;
-            });
-            PreviewFloatingWindow._log(
-              'resize start handle=${widget.name} pointer=${event.pointer} '
-              'global=${PreviewFloatingWindow._formatOffset(event.position)} '
-              'local=${PreviewFloatingWindow._formatOffset(event.localPosition)} '
-              '${_renderGeometry(context)} '
-              'anchors=${_anchorDescription()} size=${widget.size?.toStringAsFixed(1) ?? 'default'} '
-              'rect=${PreviewFloatingWindow._formatRect(widget.rect)}',
-            );
-            widget.onResizeStart(widget.name, event.pointer);
-          },
-          onPointerMove: (event) {
-            if (_startRect == null || _startGlobalPosition == null) return;
-            _accDelta = event.position - _startGlobalPosition!;
-            _moveCount += 1;
-            final computed = widget.computeRect(_startRect!, _accDelta);
-            PreviewFloatingWindow._log(
-              'resize move handle=${widget.name} pointer=${event.pointer} '
-              'count=$_moveCount global=${PreviewFloatingWindow._formatOffset(event.position)} '
-              'local=${PreviewFloatingWindow._formatOffset(event.localPosition)} '
-              'delta=${PreviewFloatingWindow._formatOffset(_accDelta)} '
-              'start=${PreviewFloatingWindow._formatRect(_startRect!)} '
-              'next=${PreviewFloatingWindow._formatRect(computed)}',
-            );
-            widget.onResize(computed);
-          },
-          onPointerUp: (event) {
-            PreviewFloatingWindow._log(
-              'resize end handle=${widget.name} pointer=${event.pointer} '
-              'moves=$_moveCount delta=${PreviewFloatingWindow._formatOffset(_accDelta)}',
-            );
-            setState(() {
-              _startRect = null;
-              _startGlobalPosition = null;
-            });
-            widget.onResizeEnd(widget.name, event.pointer);
-          },
-          onPointerCancel: (event) {
-            PreviewFloatingWindow._log(
-              'resize cancel handle=${widget.name} pointer=${event.pointer} '
-              'moves=$_moveCount delta=${PreviewFloatingWindow._formatOffset(_accDelta)}',
-            );
-            setState(() {
-              _startRect = null;
-              _startGlobalPosition = null;
-            });
-            widget.onResizeEnd(widget.name, event.pointer);
-          },
-          child: SizedBox(
-            width: widget.size ?? _FloatingCard._handleSize,
-            height: widget.size ?? _FloatingCard._handleSize,
-            child: widget.showHoverIndicator ? _buildHoverIndicator() : null,
-          ),
-        ),
-      ),
+      child: hitRegion,
     );
   }
 
@@ -1344,71 +1349,138 @@ class _ResizeHandleState extends State<_ResizeHandle> {
   }
 }
 
+class _ResizeCornerGripHitRegion extends SingleChildRenderObjectWidget {
+  const _ResizeCornerGripHitRegion({required this.name, required super.child});
+
+  final String name;
+
+  @override
+  RenderObject createRenderObject(BuildContext context) {
+    return _RenderResizeCornerGripHitRegion(name);
+  }
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    covariant _RenderResizeCornerGripHitRegion renderObject,
+  ) {
+    renderObject.name = name;
+  }
+}
+
+class _RenderResizeCornerGripHitRegion extends RenderProxyBox {
+  _RenderResizeCornerGripHitRegion(this._name);
+
+  String _name;
+
+  set name(String value) {
+    if (_name == value) {
+      return;
+    }
+    _name = value;
+    markNeedsPaint();
+  }
+
+  @override
+  bool hitTest(BoxHitTestResult result, {required Offset position}) {
+    if (!_isGripHit(position, size, _name)) {
+      return false;
+    }
+    return super.hitTest(result, position: position);
+  }
+
+  bool _isGripHit(Offset position, Size size, String name) {
+    final grip = _ResizeCornerGripPainter.gripSegments(name, size);
+    if (grip.isEmpty) {
+      return true;
+    }
+    const tolerance = _ResizeCornerGripPainter.strokeWidth / 2 + 1;
+    return grip.any(
+      (segment) => _distanceToSegment(position, segment.$1, segment.$2) <= tolerance,
+    );
+  }
+
+  double _distanceToSegment(Offset point, Offset start, Offset end) {
+    final segment = end - start;
+    final lengthSquared = segment.dx * segment.dx + segment.dy * segment.dy;
+    if (lengthSquared == 0) {
+      return (point - start).distance;
+    }
+    final t = (((point.dx - start.dx) * segment.dx) +
+            ((point.dy - start.dy) * segment.dy)) /
+        lengthSquared;
+    final clamped = t.clamp(0.0, 1.0);
+    final projection = Offset(
+      start.dx + segment.dx * clamped,
+      start.dy + segment.dy * clamped,
+    );
+    return (point - projection).distance;
+  }
+}
+
 class _ResizeCornerGripPainter extends CustomPainter {
   const _ResizeCornerGripPainter({required this.name, required this.color});
 
   final String name;
   final Color color;
 
+  static const double padding = 8.0;
+  static const double length = 18.0;
+  static const double strokeWidth = 2.4;
+
+  static List<(Offset, Offset)> gripSegments(String name, Size size) {
+    switch (name) {
+      case 'top-left':
+        return const [
+          (Offset(padding, padding), Offset(padding + length, padding)),
+          (Offset(padding, padding), Offset(padding, padding + length)),
+        ];
+      case 'top-right':
+        return [
+          (
+            Offset(size.width - padding - length, padding),
+            Offset(size.width - padding, padding),
+          ),
+          (
+            Offset(size.width - padding, padding),
+            Offset(size.width - padding, padding + length),
+          ),
+        ];
+      case 'bottom-left':
+        return [
+          (
+            Offset(padding, size.height - padding),
+            Offset(padding + length, size.height - padding),
+          ),
+          (
+            Offset(padding, size.height - padding - length),
+            Offset(padding, size.height - padding),
+          ),
+        ];
+      case 'bottom-right':
+        return [
+          (
+            Offset(size.width - padding - length, size.height - padding),
+            Offset(size.width - padding, size.height - padding),
+          ),
+          (
+            Offset(size.width - padding, size.height - padding - length),
+            Offset(size.width - padding, size.height - padding),
+          ),
+        ];
+    }
+    return const [];
+  }
+
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
       ..color = color
-      ..strokeWidth = 2.4
+      ..strokeWidth = strokeWidth
       ..strokeCap = StrokeCap.round
       ..style = PaintingStyle.stroke;
-    const padding = 8.0;
-    const length = 18.0;
-
-    switch (name) {
-      case 'top-left':
-        canvas.drawLine(
-          const Offset(padding, padding),
-          const Offset(padding + length, padding),
-          paint,
-        );
-        canvas.drawLine(
-          const Offset(padding, padding),
-          const Offset(padding, padding + length),
-          paint,
-        );
-        break;
-      case 'top-right':
-        canvas.drawLine(
-          Offset(size.width - padding - length, padding),
-          Offset(size.width - padding, padding),
-          paint,
-        );
-        canvas.drawLine(
-          Offset(size.width - padding, padding),
-          Offset(size.width - padding, padding + length),
-          paint,
-        );
-        break;
-      case 'bottom-left':
-        canvas.drawLine(
-          Offset(padding, size.height - padding),
-          Offset(padding + length, size.height - padding),
-          paint,
-        );
-        canvas.drawLine(
-          Offset(padding, size.height - padding - length),
-          Offset(padding, size.height - padding),
-          paint,
-        );
-        break;
-      case 'bottom-right':
-        canvas.drawLine(
-          Offset(size.width - padding - length, size.height - padding),
-          Offset(size.width - padding, size.height - padding),
-          paint,
-        );
-        canvas.drawLine(
-          Offset(size.width - padding, size.height - padding - length),
-          Offset(size.width - padding, size.height - padding),
-          paint,
-        );
-        break;
+    for (final segment in gripSegments(name, size)) {
+      canvas.drawLine(segment.$1, segment.$2, paint);
     }
   }
 

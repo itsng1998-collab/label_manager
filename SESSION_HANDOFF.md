@@ -28,6 +28,20 @@
 
 ## 현재 상태
 
+### 진행 중 (2026-07-07): 품목 플로팅 위치/코너 리사이즈/조회 스낵바 보정
+
+- 수정 완료: 품목관리 플로팅 창 초기 크기를 `620x420`에서 `670x470`으로 다시 50씩 키웠다.
+- 수정 완료: 품목관리 플로팅 창 최초 우하단 정렬 기준을 품목관리 테이블 우하단에서 `스크롤바 두께 + 10`만큼 안쪽으로 뺀 위치로 변경했다.
+- 수정 완료: 품목관리 기본 선택 상태(`isAutoLogin=false` 포함)에서 라벨/품목 테이블 로드와 `_resetTabs()` 완료 후 `ScaffoldMessenger.hideCurrentSnackBar()`를 호출해 조회 처리 스낵바가 남지 않도록 했다.
+- 수정 완료: 모든 플로팅 창 코너 리사이즈 핸들의 hover/drag hit-test를 전체 44px 사각 영역이 아니라 눈에 보이는 grip 선분의 stroke 앞/뒤/위/아래 +1px 범위로 제한했다. edge resize 핸들은 기존 strip 동작을 유지한다.
+- 테스트 수정/추가: 코너 리사이즈 테스트들의 시작점을 보이는 grip 교차점으로 변경하고, `floating preview corner resize ignores empty handle box area`로 빈 사각 영역에서는 resize가 시작되지 않음을 검증했다.
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`).
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "floating preview corner resize ignores empty handle box area"` 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "floating preview move handle returns to center after resize"` 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "floating preview top corner can expand and shrink"` 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "floating preview shows corner resize grips on hover"` 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\swipe_action_table_test.dart --plain-name "resizable table reports its global rect"` 통과.
+
 ### 진행 중 (2026-07-07): 품목관리 플로팅 창 초기 크기/위치 조정
 
 - 수정 완료: 품목관리 플로팅 창 초기 크기를 `720x520`에서 `620x420`으로 줄였다.

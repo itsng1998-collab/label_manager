@@ -115,6 +115,17 @@ List<String> _editableTextValues(WidgetTester tester) => tester
     .map((editableText) => editableText.controller.text)
     .toList();
 
+Offset _floatingResizeGripPoint(WidgetTester tester, String key) {
+  final topLeft = tester.getTopLeft(find.byKey(ValueKey(key)));
+  final local = switch (key) {
+    'floating-resize-top-right' => const Offset(36, 8),
+    'floating-resize-bottom-right' => const Offset(36, 36),
+    'floating-resize-bottom-left' => const Offset(8, 36),
+    _ => const Offset(8, 8),
+  };
+  return topLeft + local;
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -2669,8 +2680,10 @@ void main() {
     );
     await tester.pump(const Duration(milliseconds: 500));
     expect(find.text('floating tooltip'), findsOneWidget);
-    final handle = find.byKey(const ValueKey('floating-resize-bottom-right'));
-    await tester.drag(handle, const Offset(30, 20));
+    await tester.dragFrom(
+      _floatingResizeGripPoint(tester, 'floating-resize-bottom-right'),
+      const Offset(30, 20),
+    );
     await tester.pump();
 
     expect(find.text('floating tooltip'), findsNothing);
@@ -2718,8 +2731,10 @@ void main() {
       find.byKey(const ValueKey('floating-child')),
     );
 
-    final handle = find.byKey(const ValueKey('floating-resize-bottom-right'));
-    await tester.drag(handle, const Offset(0, 40));
+    await tester.dragFrom(
+      _floatingResizeGripPoint(tester, 'floating-resize-bottom-right'),
+      const Offset(0, 40),
+    );
     await tester.pump();
 
     expect(
@@ -2766,8 +2781,10 @@ void main() {
       find.byKey(const ValueKey('floating-child')),
     );
 
-    final handle = find.byKey(const ValueKey('floating-resize-top-right'));
-    await tester.drag(handle, const Offset(20, -40));
+    await tester.dragFrom(
+      _floatingResizeGripPoint(tester, 'floating-resize-top-right'),
+      const Offset(20, -40),
+    );
     await tester.pump();
 
     expect(
@@ -2814,8 +2831,9 @@ void main() {
       find.byKey(const ValueKey('floating-child')),
     );
 
-    final handle = find.byKey(const ValueKey('floating-resize-top-right'));
-    final gesture = await tester.startGesture(tester.getCenter(handle));
+    final gesture = await tester.startGesture(
+      _floatingResizeGripPoint(tester, 'floating-resize-top-right'),
+    );
     await gesture.moveBy(const Offset(25, -56));
     await tester.pump();
     final expandedSize = tester.getSize(
@@ -2886,8 +2904,8 @@ void main() {
     );
     final beforeRect = window.rect;
 
-    await tester.drag(
-      find.byKey(const ValueKey('floating-resize-top-right')),
+    await tester.dragFrom(
+      _floatingResizeGripPoint(tester, 'floating-resize-top-right'),
       const Offset(20, -20),
     );
     await tester.pump();
@@ -2929,8 +2947,9 @@ void main() {
     );
     expect(cornerGripPainters, findsOneWidget);
 
-    final handle = find.byKey(const ValueKey('floating-resize-top-right'));
-    final gesture = await tester.startGesture(tester.getCenter(handle));
+    final gesture = await tester.startGesture(
+      _floatingResizeGripPoint(tester, 'floating-resize-top-right'),
+    );
     await tester.pump();
     expect(find.byKey(const ValueKey('floating-move-handle')), findsNothing);
     expect(cornerGripPainters, findsNothing);
@@ -2968,8 +2987,10 @@ void main() {
     await tester.tap(find.text('show'));
     await tester.pump();
 
-    final handle = find.byKey(const ValueKey('floating-resize-bottom-right'));
-    await tester.drag(handle, const Offset(120, 80));
+    await tester.dragFrom(
+      _floatingResizeGripPoint(tester, 'floating-resize-bottom-right'),
+      const Offset(120, 80),
+    );
     await tester.pump();
 
     final childCenter = tester.getCenter(
@@ -3017,8 +3038,9 @@ void main() {
 
     await tester.tap(find.text('show'));
     await tester.pump();
-    final handle = find.byKey(const ValueKey('floating-resize-bottom-right'));
-    final gesture = await tester.startGesture(tester.getCenter(handle));
+    final gesture = await tester.startGesture(
+      _floatingResizeGripPoint(tester, 'floating-resize-bottom-right'),
+    );
     await gesture.moveBy(const Offset(30, 20));
     await tester.pump();
     await gesture.up();
@@ -3066,8 +3088,10 @@ void main() {
     await tester.pump();
 
     final beforeMaterialSize = tester.getSize(find.byType(Material).last);
-    final handle = find.byKey(const ValueKey('floating-resize-bottom-right'));
-    await tester.drag(handle, const Offset(120, 80));
+    await tester.dragFrom(
+      _floatingResizeGripPoint(tester, 'floating-resize-bottom-right'),
+      const Offset(120, 80),
+    );
     await tester.pump();
 
     final afterMaterialSize = tester.getSize(find.byType(Material).last);
@@ -3168,9 +3192,7 @@ void main() {
     await gesture.addPointer(location: Offset.zero);
     await tester.pump();
     await gesture.moveTo(
-      tester.getCenter(
-        find.byKey(const ValueKey('floating-resize-bottom-right')),
-      ),
+      _floatingResizeGripPoint(tester, 'floating-resize-bottom-right'),
     );
     await tester.pump();
 
@@ -3181,6 +3203,52 @@ void main() {
       ),
     );
     expect(hoveredOpacity.opacity, 1);
+  });
+
+  testWidgets('floating preview corner resize ignores empty handle box area', (
+    tester,
+  ) async {
+    final window = PreviewFloatingWindow(
+      initialSize: const Size(120, 90),
+      child: const SizedBox.expand(key: ValueKey('floating-child')),
+    );
+    addTearDown(window.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Builder(
+            builder: (context) {
+              return TextButton(
+                onPressed: () => window.show(context),
+                child: const Text('show'),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('show'));
+    await tester.pump();
+
+    final beforeSize = window.rect.size;
+    final handleCenter = tester.getCenter(
+      find.byKey(const ValueKey('floating-resize-bottom-right')),
+    );
+    await tester.dragFrom(handleCenter, const Offset(80, 60));
+    await tester.pump();
+
+    expect(window.rect.size, beforeSize);
+
+    await tester.dragFrom(
+      _floatingResizeGripPoint(tester, 'floating-resize-bottom-right'),
+      const Offset(80, 60),
+    );
+    await tester.pump();
+
+    expect(window.rect.width, greaterThan(beforeSize.width));
+    expect(window.rect.height, greaterThan(beforeSize.height));
   });
 
   test('RTF preview does not capture saved sheet payloads', () async {
