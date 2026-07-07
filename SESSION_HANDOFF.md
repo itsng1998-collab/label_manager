@@ -28,6 +28,19 @@
 
 ## 현재 상태
 
+### 진행 중 (2026-07-07): 공용라벨 플로팅 이동 고정 및 병합셀 테두리 보정
+
+- 수정 완료: `PreviewFloatingWindow`에 사용자 이동 전용 `onMoved` 콜백을 추가했다. resize/align/setSize와 구분해 실제 move handle 드래그에서만 호출된다.
+- 수정 완료: 공용라벨 RTF 플로팅 창은 사용자가 한 번 이동하면 `_commonLabelPreviewMovedByUser`를 세우고, 이후 시트 확대/축소나 grid rect 변경에서 `_alignCommonLabelPreviewWindowToGrid()`가 재정렬하지 않도록 했다. RTF target이 바뀌어 새 창을 만들 때는 플래그를 초기화한다.
+- 수정 완료: 테두리는 앱 보정이 아니라 공용 원본 `third_party/fortune_sheet/lib/src/fortune_border_compute.dart`에서 수정했다. 병합 anchor 셀에 적용된 `border-all`/외곽 메타의 top/right/bottom/left를 병합 범위의 실제 시각 외곽 셀로 보존한 뒤 내부선만 제거한다.
+- 테스트 추가: `fortune_border_compute_test.dart`에 병합 anchor 단일 range에 `border-all`이 들어와도 병합 셀 하단 외곽선이 유지되는 회귀 테스트를 추가했다.
+- 테스트 추가: `label_sheet_toolbar_test.dart`에 플로팅 창 사용자 이동 시 `onMoved`가 별도로 호출되는 테스트를 추가했다.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_border_compute_test.dart` 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_border_compute_test.dart --plain-name "all borders on merged cell anchor preserve visual bottom edge"` 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "floating preview reports user move separately"` 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "floating preview reports rect changes and resize completion"` 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`).
+
 ### 진행 중 (2026-07-07): 레거시 마지막 브랜드/라벨 선택 복원 적용
 
 - 수정 완료: `LastConnectDAO.upsert()`를 추가해 `BM_RICH_LAST_ID`의 사용자별 마지막 브랜드/라벨 선택을 insert/update 분기 없이 저장할 수 있게 했다.

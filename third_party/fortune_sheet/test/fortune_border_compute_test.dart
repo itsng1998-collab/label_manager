@@ -222,6 +222,45 @@ void main() {
     expect(borders[const FortuneCellCoord(0, 0)]?.left, isNull);
   });
 
+  test('all borders on merged cell anchor preserve visual bottom edge', () {
+    final sheet = FortuneSheet(
+      id: 's1',
+      name: 'Sheet1',
+      cells: {
+        const FortuneCellCoord(4, 0): const FortuneCell(
+          merge: FortuneCellMerge(row: 4, column: 0, rowSpan: 3),
+        ),
+        const FortuneCellCoord(5, 0): const FortuneCell(
+          merge: FortuneCellMerge(row: 4, column: 0, rowSpan: 3),
+        ),
+        const FortuneCellCoord(6, 0): const FortuneCell(
+          merge: FortuneCellMerge(row: 4, column: 0, rowSpan: 3),
+        ),
+      },
+      borderInfo: const [
+        FortuneBorderInfo(
+          rangeType: 'range',
+          borderType: 'border-all',
+          color: Color(0xff000000),
+          style: 1,
+          ranges: [
+            FortuneRange(rowStart: 4, rowEnd: 4, columnStart: 0, columnEnd: 0),
+          ],
+        ),
+      ],
+    );
+
+    final borders = FortuneBorderCompute.compute(sheet);
+
+    expect(borders[const FortuneCellCoord(4, 0)]?.top, isNotNull);
+    expect(borders[const FortuneCellCoord(4, 0)]?.bottom, isNull);
+    expect(borders[const FortuneCellCoord(5, 0)]?.left, isNotNull);
+    expect(borders[const FortuneCellCoord(5, 0)]?.right, isNotNull);
+    expect(borders[const FortuneCellCoord(5, 0)]?.top, isNull);
+    expect(borders[const FortuneCellCoord(5, 0)]?.bottom, isNull);
+    expect(borders[const FortuneCellCoord(6, 0)]?.bottom, isNotNull);
+  });
+
   test('horizontal and vertical borders apply only shared range edges', () {
     final horizontalSheet = FortuneSheet(
       id: 's1',

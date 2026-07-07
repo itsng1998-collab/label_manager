@@ -103,6 +103,7 @@ class _HomePageManagerState extends State<HomePageManager> {
   bool _itemPreviewClosedByUser = false;
   bool _commonLabelPreviewClosedByUser = false;
   bool _commonLabelPreviewHiddenForSheetDialog = false;
+  bool _commonLabelPreviewMovedByUser = false;
   bool _suppressNextBrandDidUpdateLabelLoad = false;
 
   OverlayEntry? _brandSettingsOverlayEntry;
@@ -1055,6 +1056,7 @@ class _HomePageManagerState extends State<HomePageManager> {
       _rtfPreviewLastNativeImageKey = null;
       _rtfPreviewHasResolvedImage = false;
       _rtfPreviewWindowKey = null;
+      _commonLabelPreviewMovedByUser = false;
       _commonLabelPreviewWindow?.dispose();
       _commonLabelPreviewWindow = null;
     }
@@ -1092,6 +1094,7 @@ class _HomePageManagerState extends State<HomePageManager> {
         ),
         tooltip: 'RTF 미리보기: 저장 포맷이 RTF이면 보이고 수정 후 저장하면 보이지 않음',
         onRectChanged: _handleRtfPreviewWindowRectChanged,
+        onMoved: _handleCommonLabelPreviewMoved,
         onResizeCompleted: _handleRtfPreviewWindowResizeCompleted,
         onCloseRequested: _handleCommonLabelPreviewCloseRequested,
         headerAction: _RtfPreviewAiConvertButton(
@@ -1260,7 +1263,8 @@ class _HomePageManagerState extends State<HomePageManager> {
 
   void _handleCommonLabelGridRectChanged(Rect rect) {
     _commonLabelGridRect = rect;
-    if (_selectedTabValue() == 'common_label') {
+    if (_selectedTabValue() == 'common_label' &&
+        !_commonLabelPreviewMovedByUser) {
       _alignCommonLabelPreviewWindowToGrid();
     }
   }
@@ -1268,10 +1272,20 @@ class _HomePageManagerState extends State<HomePageManager> {
   void _alignCommonLabelPreviewWindowToGrid() {
     final window = _commonLabelPreviewWindow;
     final gridRect = _commonLabelGridRect;
-    if (!mounted || window == null || !window.isVisible || gridRect == null) {
+    if (!mounted ||
+        _commonLabelPreviewMovedByUser ||
+        window == null ||
+        !window.isVisible ||
+        gridRect == null) {
       return;
     }
     window.alignBottomRightTo(context, gridRect.bottomRight);
+  }
+
+  void _handleCommonLabelPreviewMoved(Rect rect) {
+    if (_commonLabelPreviewMovedByUser) return;
+    _commonLabelPreviewMovedByUser = true;
+    debugLog('common label preview moved by user rect=$rect');
   }
 
   void _handleRtfPreviewWindowRectChanged(

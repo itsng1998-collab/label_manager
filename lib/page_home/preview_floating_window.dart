@@ -8,6 +8,7 @@ import 'package:label_manager/utils/log_context.dart';
 
 typedef PreviewFloatingRectChanged =
     void Function(Rect rect, {required bool isResizing});
+typedef PreviewFloatingMoved = void Function(Rect rect);
 
 /// Floating preview window.
 /// Show/hide via [show] and [hide]. Call [dispose] from the owner.
@@ -19,6 +20,7 @@ class PreviewFloatingWindow {
     String? tooltip,
     Widget? child,
     this.onRectChanged,
+    this.onMoved,
     this.onResizeCompleted,
     this.onCloseRequested,
     this.headerAction,
@@ -40,6 +42,7 @@ class PreviewFloatingWindow {
   final Size initialSize;
   final Size minSize;
   final PreviewFloatingRectChanged? onRectChanged;
+  final PreviewFloatingMoved? onMoved;
   final ValueChanged<Rect>? onResizeCompleted;
   final VoidCallback? onCloseRequested;
   final Widget? headerAction;
@@ -363,6 +366,7 @@ class PreviewFloatingWindow {
     }
     _rect.value = _rect.value.shift(delta);
     _notifyRectChanged(isResizing: false);
+    onMoved?.call(_rect.value);
   }
 
   void _handleResizeStart(String handleName, int pointer) {

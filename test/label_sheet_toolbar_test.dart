@@ -3054,6 +3054,46 @@ void main() {
     expect(completedRect!.height, window.rect.height);
   });
 
+  testWidgets('floating preview reports user move separately', (tester) async {
+    ui.Rect? movedRect;
+    final window = PreviewFloatingWindow(
+      initialSize: const Size(120, 90),
+      child: const SizedBox.expand(key: ValueKey('floating-child')),
+      onMoved: (rect) {
+        movedRect = rect;
+      },
+    );
+    addTearDown(window.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Builder(
+            builder: (context) {
+              return TextButton(
+                onPressed: () => window.show(context),
+                child: const Text('show'),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('show'));
+    await tester.pump();
+
+    await tester.drag(
+      find.byKey(const ValueKey('floating-move-handle')),
+      const Offset(24, 16),
+    );
+    await tester.pump();
+
+    expect(movedRect, isNotNull);
+    expect(movedRect!.left, window.rect.left);
+    expect(movedRect!.top, window.rect.top);
+  });
+
   testWidgets('floating preview expands visual card for intrinsic child', (
     tester,
   ) async {

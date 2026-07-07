@@ -197,20 +197,31 @@ class FortuneBorderCompute {
       }
       final rowEnd = merge.row + merge.rowSpan - 1;
       final columnEnd = merge.column + merge.columnSpan - 1;
+      final anchorBorders = result[FortuneCellCoord(merge.row, merge.column)];
       for (var row = merge.row; row <= rowEnd; row += 1) {
         for (var column = merge.column; column <= columnEnd; column += 1) {
           final coord = FortuneCellCoord(row, column);
-          final borders = result[coord];
-          if (borders == null) {
+          final borders = result[coord] ?? const FortuneCellBorders();
+          final next = FortuneCellBorders(
+            top: row == merge.row ? borders.top ?? anchorBorders?.top : null,
+            right: column == columnEnd
+                ? borders.right ?? anchorBorders?.right
+                : null,
+            bottom: row == rowEnd
+                ? borders.bottom ?? anchorBorders?.bottom
+                : null,
+            left: column == merge.column
+                ? borders.left ?? anchorBorders?.left
+                : null,
+            slash: row == merge.row && column == merge.column
+                ? borders.slash
+                : null,
+          );
+          if (next.isEmpty) {
+            result.remove(coord);
             continue;
           }
-          result[coord] = FortuneCellBorders(
-            top: row > merge.row ? null : borders.top,
-            right: column < columnEnd ? null : borders.right,
-            bottom: row < rowEnd ? null : borders.bottom,
-            left: column > merge.column ? null : borders.left,
-            slash: borders.slash,
-          );
+          result[coord] = next;
         }
       }
     }
