@@ -87,8 +87,14 @@ void main() {
     });
 
     test('saves edited label sheets to the sheet column', () {
-      expect(LabelSizeDAO.UpdateFormDataSql, contains('RICH_FORM_SHEET=@formData'));
-      expect(LabelSizeDAO.UpdateFormDataSql, isNot(contains('RICH_FORM_DATA=@formData')));
+      expect(
+        LabelSizeDAO.UpdateFormDataSql,
+        contains('RICH_FORM_SHEET=@formData'),
+      );
+      expect(
+        LabelSizeDAO.UpdateFormDataSql,
+        isNot(contains('RICH_FORM_DATA=@formData')),
+      );
     });
 
     test('logs previous and altered sheet data', () {
@@ -104,6 +110,22 @@ void main() {
       expect(
         LabelSizeDAO.UpdateFormDataLogSql,
         contains('RICH_FORM_DATA, @formData'),
+      );
+    });
+
+    test('returns explicit affected rows from save transaction for ODBC', () {
+      expect(LabelSizeDAO.UpdateFormDataTransactionSql, contains('SET NOCOUNT ON'));
+      expect(
+        LabelSizeDAO.UpdateFormDataTransactionSql,
+        contains('SELECT @updateAffected AS AFFECTED'),
+      );
+      expect(
+        LabelSizeDAO.UpdateFormDataTransactionSql,
+        contains('SET @logAffected = @@ROWCOUNT'),
+      );
+      expect(
+        LabelSizeDAO.UpdateFormDataTransactionSql,
+        contains('SET @updateAffected = @@ROWCOUNT'),
       );
     });
   });

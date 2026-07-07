@@ -28,6 +28,14 @@
 
 ## 현재 상태
 
+### 진행 중 (2026-07-07): 라벨 저장 ODBC SQL_NO_DATA(100) 실패 수정
+
+- 원인 확인: 라벨 저장 트랜잭션(`LabelSizeDAO.updateByLabelSizeId`)이 `INSERT LOG` + `UPDATE FORM` DML 배치만 실행하고 최종 결과셋을 반환하지 않아, ODBC 드라이버에서 `SQLExecute failed: 100`(`SQL_NO_DATA`)로 표면화될 수 있었다.
+- 수정 완료: 저장 트랜잭션 SQL을 `UpdateFormDataTransactionSql` 상수로 분리하고 `SET NOCOUNT ON`, `@logAffected`/`@updateAffected` rowcount 보관, `SELECT @updateAffected AS AFFECTED`를 추가했다. 기존 실패 검증(`THROW 51000/51001`)과 rollback 흐름은 유지한다.
+- 테스트 추가: `dao_result_helper_test.dart`에 라벨 저장 트랜잭션이 ODBC용 명시 affected row 결과를 반환하는지 검증을 추가했다.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\dao_result_helper_test.dart` 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`).
+
 ### 진행 중 (2026-07-07): 공용라벨 플로팅 이동 고정 및 병합셀 테두리 보정
 
 - 수정 완료: `PreviewFloatingWindow`에 사용자 이동 전용 `onMoved` 콜백을 추가했다. resize/align/setSize와 구분해 실제 move handle 드래그에서만 호출된다.

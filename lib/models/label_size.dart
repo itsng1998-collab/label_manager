@@ -245,6 +245,40 @@ class LabelSizeDAO extends DAO {
         FROM BM_RICH_LABELSIZE_FORM
       ''';
 
+  static const String UpdateFormDataTransactionSql = '''
+        SET XACT_ABORT ON;
+        SET NOCOUNT ON;
+        BEGIN TRY
+          DECLARE @logAffected INT = 0;
+          DECLARE @updateAffected INT = 0;
+
+          BEGIN TRANSACTION;
+
+          $UpdateFormDataLogSql $WhereSqlLabelSizeId;
+          SET @logAffected = @@ROWCOUNT;
+          IF @logAffected <= 0
+            THROW 51000, 'Insert label size form log failed.', 1;
+
+          $UpdateFormDataSql $WhereSqlLabelSizeId;
+          SET @updateAffected = @@ROWCOUNT;
+          IF @updateAffected <= 0
+            THROW 51001, 'Update label size form failed.', 1;
+
+          COMMIT TRANSACTION;
+          SET NOCOUNT OFF;
+          SET XACT_ABORT OFF;
+
+          SELECT @updateAffected AS AFFECTED;
+        END TRY
+        BEGIN CATCH
+          IF @@TRANCOUNT > 0
+            ROLLBACK TRANSACTION;
+          SET NOCOUNT OFF;
+          SET XACT_ABORT OFF;
+          THROW;
+        END CATCH
+      ''';
+
   // WHERE 절: Brand ID로 조회 (Integer)
   static const String WhereSqlBrandId = '''
 	  WHERE RICH_BRAND_ID=@brandId
@@ -291,33 +325,8 @@ class LabelSizeDAO extends DAO {
       final localIp = await RGetIp.internalIP;
       final hexLoginIP = await stringToHexCp949(localIp!);
 
-      final updateFormDataTransactionSql =
-          '''
-        SET XACT_ABORT ON;
-        BEGIN TRY
-          BEGIN TRANSACTION;
-
-          $UpdateFormDataLogSql $WhereSqlLabelSizeId;
-          IF @@ROWCOUNT <= 0
-            THROW 51000, 'Insert label size form log failed.', 1;
-
-          $UpdateFormDataSql $WhereSqlLabelSizeId;
-          IF @@ROWCOUNT <= 0
-            THROW 51001, 'Update label size form failed.', 1;
-
-          COMMIT TRANSACTION;
-          SET XACT_ABORT OFF;
-        END TRY
-        BEGIN CATCH
-          IF @@TRANCOUNT > 0
-            ROLLBACK TRANSACTION;
-          SET XACT_ABORT OFF;
-          THROW;
-        END CATCH
-      ''';
-
       final res = await DbClient.instance
-          .writeDataWithParams(updateFormDataTransactionSql, {
+          .writeDataWithParams(UpdateFormDataTransactionSql, {
             'width': width,
             'height': height,
             'formData': formData,
