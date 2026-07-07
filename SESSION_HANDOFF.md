@@ -37,6 +37,7 @@
 - 검증 완료: 변경 파일 `get_errors` 오류 없음.
 - 검증 완료: `git diff --check -- lib/page_label_sheet/label_sheet_workbench.dart SESSION_HANDOFF.md` 통과.
 - stage/commit 예정: `lib/page_label_sheet/label_sheet_workbench.dart`, `SESSION_HANDOFF.md`. unrelated 변경 `lib/core/app.dart` 및 lock 파일은 제외한다.
+- 커밋 완료: `d51b560` 라벨 이미지 파일명에 시트 정보 표시.
 
 ### 진행 중 (2026-07-07): 라벨 이미지 가져오기 파일 선택 흐름 변경
 
