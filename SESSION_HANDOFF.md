@@ -30,6 +30,9 @@
 
 ### 진행 중 (2026-07-07): 공용라벨 RTF Viewer AI 변환 연결
 
+- 추가 수정 완료: RTF Viewer 플로팅 창 드래그바 안의 `AI 변환` 버튼 마우스 오버/클릭 효과를 닫기 버튼과 같은 hover/pressed 배경색, 글자색, 90ms 애니메이션 규칙으로 맞췄다.
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`).
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "floating preview shows configured tooltip after hover delay"` 통과.
 - 수정 예정: 공용라벨관리 RTF Viewer 플로팅 창 헤더 드래그바의 닫기 버튼 앞에 외곽선 없는 `AI 변환` 버튼을 추가한다.
 - 수정 예정: `AI 변환` 클릭 시 RTF Viewer 이미지를 앱 임시 폴더에 PNG로 저장하고, 저장된 파일을 선택한 상태로 `라벨 이미지 가져오기` 다이얼로그를 자동으로 띄운다.
 - 수정 예정: 이후 AI 변환/시트 로드는 기존 라벨 이미지 가져오기 처리 경로를 그대로 사용한다.
