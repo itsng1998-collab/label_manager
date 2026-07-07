@@ -3738,6 +3738,19 @@ class _LabelImageImportDialogState extends State<_LabelImageImportDialog> {
     await prefs.setString(_labelSheetGeminiModelPrefsKey, trimmed);
   }
 
+  Future<void> _rememberGeminiImportSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      _labelSheetGeminiApiKeyPrefsKey,
+      _apiKeyController.text.trim(),
+    );
+    await prefs.setString(
+      _labelSheetGeminiModelPrefsKey,
+      _modelController.text.trim(),
+    );
+    await prefs.setString(_labelSheetGeminiPromptPrefsKey, _promptController.text);
+  }
+
   void _selectFallbackGeminiModelIfNeeded({
     List<LabelSheetGeminiModelInfo>? models,
   }) {
@@ -3828,6 +3841,7 @@ class _LabelImageImportDialogState extends State<_LabelImageImportDialog> {
       _errorLog = null;
     });
     try {
+      await _rememberGeminiImportSettings();
       final draft = await labelSheetAnalyzeImageWithGemini(
         LabelSheetGeminiImportRequest(
           apiKey: _apiKeyController.text.trim(),

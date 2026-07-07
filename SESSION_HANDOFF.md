@@ -35,7 +35,7 @@
 - 검증 예정: `dart format`, 변경 파일 오류 확인, 관련 Gemini/미리보기 집중 테스트, `C:\Flutter\bin\flutter.bat analyze`, `git diff --check`.
 - 편집 완료: `_LabelImageImportDialog` 하단 Checkbox/저장 선택 문구를 제거하고 `* Gemini API Key와 model을 이 PC에 저장합니다.` 힌트 라벨로 교체했다.
 - 편집 완료: `_labelSheetGeminiPromptPrefsKey`를 추가하고, 다이얼로그 초기화 시 저장된 prompt를 `initialPrompt`로 복원하도록 했다.
-- 편집 완료: AI 분석 적용 성공 후 Gemini API Key/model/prompt를 항상 `SharedPreferences`에 저장하도록 변경하고 `_LabelImageImportAction.saveCredentials`를 제거했다.
+- 편집 완료: AI 분석 적용 버튼을 누르면 요청 실행 전에 Gemini API Key/model/prompt를 항상 `SharedPreferences`에 저장하도록 변경하고 `_LabelImageImportAction.saveCredentials`를 제거했다.
 - 검증 완료: `dart format` 실행.
 - 검증 완료: 변경 파일 `get_errors` 오류 없음.
 - 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "label image import preview scales to readable text size"` 통과.
