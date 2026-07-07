@@ -28,6 +28,21 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-07): ruler tick 끝점 겹침 원복 후 재수정
+
+- 이미지 분석: 공용라벨관리 시트는 visible header 상태에서 ruler corner 외곽선과 header data 경계선이 헤더 교차 영역에서 겹쳐 보였고, 품목관리 두 preview 시트는 hidden header 상태에서 ruler tick 끝점이 숨겨진 header 자리의 ruler border에 닿아 진한 선처럼 누적되어 보였다.
+- 오수정 원복: `b119e90`, `323237f`, `820e5a4`에서 추가한 `_drawSheetHeaderBoundary` 후처리, 원본 header data 경계선 제거, 0 tick만 skip하는 변경을 되돌렸다.
+- 수정 완료: 원본 `fortune_sheet` painter 구조를 유지하면서 visible header 상태의 `corner.bottom/right`는 header data 경계선과 겹치지 않게 header 시작점까지만 그리고, hidden header 상태는 원래처럼 전체 ruler corner border를 유지한다.
+- 수정 완료: horizontal/vertical ruler tick은 `0mm` tick을 경계선 위에 그리지 않고, 나머지 tick도 border에서 2px 전에 끝나게 해 경계선에 진한 tick 색이 누적되지 않게 했다.
+- 테스트 정리: 이전 gridline 오수정 기준 테스트를 제거하고, visible/hidden header 경계 band에 `fortuneSheetRulerTickColor`가 남지 않는지 검증한다.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_sheet_painter_test.dart --plain-name "adjusted sheet header corner separators stay connected"` 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_sheet_painter_test.dart --plain-name "adjusted sheet hidden headers keep ruler separators one pixel"` 통과.
+- 검증 완료: ruler tick/adjusted sheet/cell border 회귀 테스트 3건 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_sheet_painter_test.dart` 통과(`+752`).
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`).
+- 검증 완료: `git diff --check -- third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart third_party/fortune_sheet/test/fortune_sheet_painter_test.dart SESSION_HANDOFF.md` 통과.
+- stage/commit 예정: `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`, `third_party/fortune_sheet/test/fortune_sheet_painter_test.dart`, `SESSION_HANDOFF.md`. unrelated 변경 `lib/core/app.dart` 및 lock 파일은 제외한다.
+
 ### 완료 (2026-07-07): ruler 0 눈금 경계선 겹침 제거
 
 - 수정 완료: 이전 보정이 실제로 두껍게 보이는 진한 선을 없애지 못한 원인을 재수정했다.

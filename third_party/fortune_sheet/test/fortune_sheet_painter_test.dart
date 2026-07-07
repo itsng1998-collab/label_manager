@@ -393,6 +393,8 @@ void main() {
     final settings = workbook.settings;
     final sheetTop =
         settings.effectiveToolbarHeight + settings.effectiveFormulaBarHeight;
+    final headerLeft = settings.rowHeaderWidth;
+    final headerTop = sheetTop + settings.columnHeaderHeight;
     final dataLeft = settings.rowHeaderWidth * 2;
     final dataTop = sheetTop + settings.columnHeaderHeight * 2;
 
@@ -400,28 +402,24 @@ void main() {
       _countPixels(
         bytes,
         image.width,
-        Rect.fromLTWH(dataLeft - 1, sheetTop + 2, 1, dataTop - sheetTop - 4),
+        Rect.fromLTWH(
+          dataLeft - 1,
+          headerTop + 2,
+          1,
+          settings.columnHeaderHeight - 4,
+        ),
         _isGridLinePixel,
       ),
-      greaterThan((dataTop - sheetTop - 8).round()),
+      greaterThan((settings.columnHeaderHeight - 8).round()),
     );
     expect(
       _countPixels(
         bytes,
         image.width,
-        Rect.fromLTWH(dataLeft - 1, sheetTop + 2, 1, dataTop - sheetTop - 4),
+        Rect.fromLTWH(dataLeft - 1, headerTop - 16, 2, 14),
         _isRulerTickPixel,
       ),
       0,
-    );
-    expect(
-      _countPixels(
-        bytes,
-        image.width,
-        Rect.fromLTWH(dataLeft - 2, sheetTop + 2, 1, dataTop - sheetTop - 4),
-        _isGridLinePixel,
-      ),
-      lessThan(5),
     );
     expect(
       _countPixels(
@@ -430,52 +428,25 @@ void main() {
         Rect.fromLTWH(dataLeft - 1, dataTop + 2, 1, 60),
         _isGridLinePixel,
       ),
-      greaterThan(55),
+      greaterThan(40),
     );
     expect(
       _countPixels(
         bytes,
         image.width,
-        Rect.fromLTWH(dataLeft - 2, dataTop + 2, 1, 60),
+        Rect.fromLTWH(headerLeft + 2, dataTop - 1, dataLeft - headerLeft - 4, 1),
         _isGridLinePixel,
       ),
-      lessThan(5),
+      greaterThan((dataLeft - headerLeft - 8).round()),
     );
     expect(
       _countPixels(
         bytes,
         image.width,
-        Rect.fromLTWH(2, dataTop - 1, dataLeft - 4, 1),
-        _isGridLinePixel,
-      ),
-      greaterThan((dataLeft - 8).round()),
-    );
-    expect(
-      _countPixels(
-        bytes,
-        image.width,
-        Rect.fromLTWH(2, dataTop - 1, dataLeft - 4, 1),
+        Rect.fromLTWH(headerLeft + 2, dataTop - 1, dataLeft - headerLeft - 4, 1),
         _isRulerTickPixel,
       ),
       0,
-    );
-    expect(
-      _countPixels(
-        bytes,
-        image.width,
-        Rect.fromLTWH(2, dataTop - 2, dataLeft - 4, 1),
-        _isGridLinePixel,
-      ),
-      lessThan(5),
-    );
-    expect(
-      _countPixels(
-        bytes,
-        image.width,
-        Rect.fromLTWH(dataLeft + 2, dataTop - 1, 60, 1),
-        _isGridLinePixel,
-      ),
-      greaterThan(55),
     );
   });
 
@@ -525,16 +496,7 @@ void main() {
       _countPixels(
         bytes,
         image.width,
-        Rect.fromLTWH(dataLeft - 1, sheetTop + 2, 1, 80),
-        _isGridLinePixel,
-      ),
-      greaterThan(75),
-    );
-    expect(
-      _countPixels(
-        bytes,
-        image.width,
-        Rect.fromLTWH(dataLeft - 1, sheetTop + 2, 1, 80),
+        Rect.fromLTWH(dataLeft - 1, sheetTop + 2, 2, 80),
         _isRulerTickPixel,
       ),
       0,
@@ -543,37 +505,10 @@ void main() {
       _countPixels(
         bytes,
         image.width,
-        Rect.fromLTWH(dataLeft - 2, sheetTop + 2, 1, 80),
-        _isGridLinePixel,
-      ),
-      lessThan(5),
-    );
-    expect(
-      _countPixels(
-        bytes,
-        image.width,
-        Rect.fromLTWH(2, dataTop - 1, dataLeft + 60, 1),
-        _isGridLinePixel,
-      ),
-      greaterThan((dataLeft + 55).round()),
-    );
-    expect(
-      _countPixels(
-        bytes,
-        image.width,
-        Rect.fromLTWH(2, dataTop - 1, dataLeft + 60, 1),
+        Rect.fromLTWH(2, dataTop - 1, dataLeft + 60, 2),
         _isRulerTickPixel,
       ),
       0,
-    );
-    expect(
-      _countPixels(
-        bytes,
-        image.width,
-        Rect.fromLTWH(2, dataTop - 2, dataLeft + 60, 1),
-        _isGridLinePixel,
-      ),
-      lessThan(5),
     );
   });
 

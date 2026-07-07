@@ -63033,6 +63033,9 @@ class FortuneSheetPainter extends CustomPainter {
     if (physicalSize == null || dataRect == null) {
       return;
     }
+    final borderPaint = Paint()
+      ..color = fortuneSheetRulerBorderColor
+      ..strokeWidth = 1;
     final topRuler = Rect.fromLTWH(
       dataRect.left,
       0,
@@ -63051,20 +63054,24 @@ class FortuneSheetPainter extends CustomPainter {
       _sheetDataLeft(settings),
       _sheetDataTop(settings),
     );
-    if (!settings.hideRowColumnHeaderLabels) {
-      _line(
-        canvas,
-        Offset(topRuler.left, topRuler.bottom - 0.5),
-        Offset(topRuler.right, topRuler.bottom - 0.5),
-        fortuneSheetGridLineColor,
-      );
-      _line(
-        canvas,
-        Offset(leftRuler.right - 0.5, leftRuler.top),
-        Offset(leftRuler.right - 0.5, leftRuler.bottom),
-        fortuneSheetGridLineColor,
-      );
-    }
+    final cornerBottomRight = settings.hideRowColumnHeaderLabels
+        ? corner.right
+        : _sheetHeaderLeft(settings);
+    final cornerRightBottom = settings.hideRowColumnHeaderLabels
+        ? corner.bottom
+        : _sheetHeaderTop(settings);
+    canvas.drawLine(topRuler.bottomLeft, topRuler.bottomRight, borderPaint);
+    canvas.drawLine(leftRuler.topRight, leftRuler.bottomRight, borderPaint);
+    canvas.drawLine(
+      corner.bottomLeft,
+      Offset(cornerBottomRight, corner.bottom),
+      borderPaint,
+    );
+    canvas.drawLine(
+      corner.topRight,
+      Offset(corner.right, cornerRightBottom),
+      borderPaint,
+    );
     _drawSheetRulerCornerSizeLabel(canvas, corner);
     _drawHorizontalSheetRuler(
       canvas,
@@ -63079,30 +63086,6 @@ class FortuneSheetPainter extends CustomPainter {
       scrollOffset.dy,
     );
     _drawSheetGuides(canvas, settings, dataRect, metrics);
-  }
-
-  void _drawSheetHeaderBoundary(
-    Canvas canvas,
-    Size size,
-    FortuneSettings settings,
-  ) {
-    final dataLeft = _sheetDataLeft(settings);
-    final dataTop = _sheetDataTop(settings);
-    if (dataLeft <= 0 && dataTop <= 0) {
-      return;
-    }
-    _line(
-      canvas,
-      Offset(dataLeft - 0.5, 0),
-      Offset(dataLeft - 0.5, size.height),
-      fortuneSheetGridLineColor,
-    );
-    _line(
-      canvas,
-      Offset(0, dataTop - 0.5),
-      Offset(size.width, dataTop - 0.5),
-      fortuneSheetGridLineColor,
-    );
   }
 
   String? get sheetRulerCornerSizeLabel {
@@ -63231,10 +63214,11 @@ class FortuneSheetPainter extends CustomPainter {
       final tickHeight = major
           ? math.min(15.0, rect.height)
           : math.min(7.0, rect.height);
-      if (x > rect.left + 0.5) {
+      final tickBottom = rect.bottom - 2;
+      if (x > rect.left + 0.5 && tickBottom > rect.bottom - tickHeight) {
         canvas.drawLine(
           Offset(x, rect.bottom - tickHeight),
-          Offset(x, rect.bottom),
+          Offset(x, tickBottom),
           tickPaint,
         );
       }
@@ -63279,10 +63263,11 @@ class FortuneSheetPainter extends CustomPainter {
       final tickWidth = major
           ? math.min(16.0, rect.width)
           : math.min(8.0, rect.width);
-      if (y > rect.top + 0.5) {
+      final tickRight = rect.right - 2;
+      if (y > rect.top + 0.5 && tickRight > rect.right - tickWidth) {
         canvas.drawLine(
           Offset(rect.right - tickWidth, y),
-          Offset(rect.right, y),
+          Offset(tickRight, y),
           tickPaint,
         );
       }
@@ -63766,6 +63751,18 @@ class FortuneSheetPainter extends CustomPainter {
         math.max(0.0, size.height - headerTop),
       ),
       headerPaint,
+    );
+    _line(
+      canvas,
+      Offset(dataLeft - 0.5, headerTop),
+      Offset(dataLeft - 0.5, size.height),
+      fortuneSheetGridLineColor,
+    );
+    _line(
+      canvas,
+      Offset(headerLeft, dataTop - 0.5),
+      Offset(size.width, dataTop - 0.5),
+      fortuneSheetGridLineColor,
     );
 
     final viewport = _sheetViewportGeometry(size, settings, metrics);
@@ -64560,8 +64557,6 @@ class FortuneSheetPainter extends CustomPainter {
       }
     }
     canvas.restore();
-
-    _drawSheetHeaderBoundary(canvas, size, settings);
 
     canvas.save();
     canvas.clipRect(_borderClip(cellClip), doAntiAlias: false);
