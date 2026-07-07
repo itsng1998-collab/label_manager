@@ -28,6 +28,21 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-07): 품목관리 preview boundary layer 추적(v10)
+
+- 로그 확인: 최신 `.tmp/log/app_2026-07-07_23-26-11.log`에서 `FSDBG-2026-07-07-preview-ruler-separator-v9`와 `FSRULER-2026-07-07-preview-separator-v9`가 확인됐다. v9의 `boundaryStyle=headerGridLine` 분기는 실제 품목 preview에서 실행됐지만 사용자 스크린샷상 변화가 없어 효과 없는 시각 변경으로 판단했다.
+- 오수정 원복: v9의 preview 전용 `fortuneSheetGridLineColor` separator 분기와 해당 테스트 기대값을 제거했다. 일반 ruler/corner border drawing은 다시 `fortuneSheetRulerBorderColor` 기준의 기존 drawing으로 유지한다.
+- 디버그 추가: `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`에 `stage=cellBorderBoundary` 추적을 추가했다. `clipBounds.left/top`과 정확히 맞닿는 셀 테두리 segment 수, 색상, 스타일, stroke width, start/end 좌표를 기록한다.
+- 디버그 갱신: trace marker를 `FSRULER-2026-07-07-boundary-layer-v10`로 변경했다.
+- 수정 완료: `lib/main.dart`의 DebugLogger 버전을 `FSDBG-2026-07-07-boundary-layer-trace-v10`로 갱신했다.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_sheet_painter_test.dart --plain-name "adjusted sheet header corner separators stay connected"` 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_sheet_painter_test.dart --plain-name "adjusted sheet hidden headers keep ruler separators one pixel"` 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "item output preview"` 통과(`+3`).
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`).
+- 검증 완료: `git diff --check -- lib/main.dart third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart third_party/fortune_sheet/test/fortune_sheet_painter_test.dart SESSION_HANDOFF.md` 통과.
+- 다음 확인: 새 실행 로그에서 `stage=cellBorderBoundary`가 품목 preview sheet(`item_element`, `item_output_preview_sheet_01`)에 찍히는지 확인한다. 찍히면 화면의 두꺼운 선은 셀 테두리 레이어 가능성이 높고, 안 찍히면 ruler/tick/canvas 외곽선 외부 레이어를 추가 추적해야 한다.
+- 커밋 예정: `lib/main.dart`, `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`, `third_party/fortune_sheet/test/fortune_sheet_painter_test.dart`, `SESSION_HANDOFF.md`. unrelated 변경 `lib/core/app.dart` 및 lock 파일은 제외한다.
+
 ### 완료 (2026-07-07): 품목관리 preview ruler separator 스타일 보정(v9)
 
 - 로그 확인: 최신 `.tmp/log/app_2026-07-07_23-15-52.log`에서 `FSDBG-2026-07-07-ruler-border-align-v8`와 `FSRULER-2026-07-07-border-align-v8`가 확인됐다. v8은 실제 실행됐지만 사용자 스크린샷상 변화가 없어 효과 없는 시각 변경으로 판단했다.

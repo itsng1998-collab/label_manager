@@ -491,7 +491,6 @@ void main() {
           name: 'Sheet1',
           rowCount: 30,
           columnCount: 20,
-          showGridLines: false,
           extraFields: const {
             fortuneSheetGridClientWidthMmKey: 40,
             fortuneSheetGridClientHeightMmKey: 30,
@@ -523,30 +522,6 @@ void main() {
         settings.effectiveToolbarHeight + settings.effectiveFormulaBarHeight;
     final dataLeft = settings.rowHeaderWidth;
     final dataTop = sheetTop + settings.columnHeaderHeight;
-    final rulerVerticalSeparatorRect = Rect.fromLTWH(
-      dataLeft - 1,
-      dataTop + 2,
-      2,
-      60,
-    );
-    final rulerHorizontalSeparatorRect = Rect.fromLTWH(
-      2,
-      dataTop - 1,
-      dataLeft + 60,
-      2,
-    );
-    final rulerVerticalSeparatorBounds = _pixelBounds(
-      bytes,
-      image.width,
-      rulerVerticalSeparatorRect,
-      _isGridLinePixel,
-    );
-    final rulerHorizontalSeparatorBounds = _pixelBounds(
-      bytes,
-      image.width,
-      rulerHorizontalSeparatorRect,
-      _isGridLinePixel,
-    );
 
     expect(
       _countPixels(
@@ -557,32 +532,12 @@ void main() {
       ),
       0,
     );
-    expect(rulerVerticalSeparatorBounds, isNotNull);
-    expect(
-      _countPixels(
-        bytes,
-        image.width,
-        rulerVerticalSeparatorRect,
-        _isRulerBorderPixel,
-      ),
-      0,
-    );
     expect(
       _countPixels(
         bytes,
         image.width,
         Rect.fromLTWH(2, dataTop - 1, dataLeft + 60, 2),
         _isRulerTickPixel,
-      ),
-      0,
-    );
-    expect(rulerHorizontalSeparatorBounds, isNotNull);
-    expect(
-      _countPixels(
-        bytes,
-        image.width,
-        rulerHorizontalSeparatorRect,
-        _isRulerBorderPixel,
       ),
       0,
     );
