@@ -28,6 +28,16 @@
 
 ## 현재 상태
 
+### 진행 중 (2026-07-07): 라벨 시트 저장본 RICH_FORM_SHEET 분리 저장
+
+- DB 전제: 사용자가 `BM_RICH_LABELSIZE_FORM.RICH_FORM_SHEET varchar(max) NULL`, `BM_RICH_LABELSIZE_FORM_LOG.RICH_FORM_SHEET varchar(max) NULL`, `BM_RICH_LABELSIZE_FORM_LOG.RICH_ALTER_FORM_SHEET varchar(max) NULL`을 수동 추가 완료했다.
+- 수정 완료: `LabelSizeDAO.SelectSql`의 `FORM_DATA` alias를 `COALESCE(NULLIF(RICH_FORM_SHEET, ''), RICH_FORM_DATA)`로 변경해 sheet 저장본이 있으면 우선 로드하고 없으면 기존 RTF 데이터를 로드하도록 했다.
+- 수정 완료: `LabelSizeDAO.UpdateFormDataSql`을 `RICH_FORM_DATA=@formData`에서 `RICH_FORM_SHEET=@formData`로 변경해 라벨 시트 저장 시 기존 RTF 원본을 보존하고 sheet 컬럼에 저장하도록 했다.
+- 수정 완료: 저장 로그 insert SQL을 `UpdateFormDataLogSql` 상수로 분리하고 `RICH_FORM_SHEET`/`RICH_ALTER_FORM_SHEET`를 기존 전/후 패턴에 맞춰 기록하도록 했다.
+- 테스트 추가: `test/dao_result_helper_test.dart`에 `LabelSizeDAO sheet storage SQL` 그룹을 추가해 sheet 우선 로드, sheet 컬럼 저장, sheet 전/후 로그 SQL을 검증한다.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\dao_result_helper_test.dart` 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`).
+
 ### 진행 중 (2026-07-07): 공용라벨 RTF Viewer AI 변환 연결
 
 - 추가 수정 완료: 품목관리/공용라벨관리 공통 플로팅 창 `hideToRect` 닫힘 애니메이션에서 실제 창 rect를 버튼 크기까지 줄이지 않고, 원래 레이아웃 크기를 유지한 채 `Transform.translate`/`Transform.scale`/`Opacity`로만 축소·이동·페이드되도록 변경했다. 내부 `Overlay`/이미지/미리보기 위젯이 극소 제약으로 재레이아웃되어 렌더링 오류가 나는 문제를 방지한다.

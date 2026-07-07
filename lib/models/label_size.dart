@@ -208,7 +208,7 @@ class LabelSizeDAO extends DAO {
       COALESCE(CONVERT(NVARCHAR(50), RICH_LABELSIZE_NAME COLLATE ${DAO.CP949}), N'') AS LABELSIZE_NAME,
       RICH_FORM_WIDTH AS FORM_WIDTH,
       RICH_FORM_HEIGHT AS FORM_HEIGHT,
-      RICH_FORM_DATA AS FORM_DATA,
+      COALESCE(NULLIF(RICH_FORM_SHEET, ''), RICH_FORM_DATA) AS FORM_DATA,
       RICH_SETUP_READONLY AS SETUP_READONLY,
       RICH_SETUP_USE_MAKEDATE AS SETUP_USE_MAKEDATE,
       RICH_SETUP_USE_MAKETIME AS SETUP_USE_MAKETIME,
@@ -227,8 +227,23 @@ class LabelSizeDAO extends DAO {
   ''';
 
   static const String UpdateFormDataSql = '''
-    UPDATE BM_RICH_LABELSIZE_FORM SET RICH_FORM_WIDTH=@width,RICH_FORM_HEIGHT=@height,RICH_FORM_DATA=@formData
+    UPDATE BM_RICH_LABELSIZE_FORM SET RICH_FORM_WIDTH=@width,RICH_FORM_HEIGHT=@height,RICH_FORM_SHEET=@formData
   ''';
+
+  static const String UpdateFormDataLogSql = '''
+        INSERT INTO BM_RICH_LABELSIZE_FORM_LOG
+          (RICH_MOD_DATE, RICH_MOD_DATETIME, RICH_LABELSIZE_ID, RICH_LABELSIZE_NAME,
+          RICH_FORM_WIDTH, RICH_FORM_HEIGHT, RICH_FORM_DATA, RICH_FORM_SHEET,
+          RICH_ALTER_FORM_WIDTH, RICH_ALTER_FORM_HEIGHT, RICH_ALTER_FORM_DATA,
+          RICH_ALTER_FORM_SHEET,
+          RICH_USER_ID, RICH_BRAND_ID, RICH_INNER_IP, RICH_OUTER_IP)
+        SELECT CONVERT(CHAR(8),GETDATE(),112), GETDATE(), RICH_LABELSIZE_ID,
+          RICH_LABELSIZE_NAME, RICH_FORM_WIDTH, RICH_FORM_HEIGHT, RICH_FORM_DATA,
+          RICH_FORM_SHEET, @width, @height, RICH_FORM_DATA, @formData,
+          @userId, RICH_BRAND_ID, @loginIP,
+          CONVERT(char(15), CONNECTIONPROPERTY('client_net_address'))
+        FROM BM_RICH_LABELSIZE_FORM
+      ''';
 
   // WHERE 절: Brand ID로 조회 (Integer)
   static const String WhereSqlBrandId = '''
@@ -276,26 +291,13 @@ class LabelSizeDAO extends DAO {
       final localIp = await RGetIp.internalIP;
       final hexLoginIP = await stringToHexCp949(localIp!);
 
-      final insertFormDataSql = '''
-        INSERT INTO BM_RICH_LABELSIZE_FORM_LOG
-          (RICH_MOD_DATE, RICH_MOD_DATETIME, RICH_LABELSIZE_ID, RICH_LABELSIZE_NAME,
-          RICH_FORM_WIDTH, RICH_FORM_HEIGHT, RICH_FORM_DATA,
-          RICH_ALTER_FORM_WIDTH, RICH_ALTER_FORM_HEIGHT, RICH_ALTER_FORM_DATA,
-          RICH_USER_ID, RICH_BRAND_ID, RICH_INNER_IP, RICH_OUTER_IP)
-        SELECT CONVERT(CHAR(8),GETDATE(),112), GETDATE(), RICH_LABELSIZE_ID,
-          RICH_LABELSIZE_NAME, RICH_FORM_WIDTH, RICH_FORM_HEIGHT, RICH_FORM_DATA,
-          @width, @height, @formData, @userId, RICH_BRAND_ID, @loginIP,
-          CONVERT(char(15), CONNECTIONPROPERTY('client_net_address'))
-        FROM BM_RICH_LABELSIZE_FORM
-      ''';
-
       final updateFormDataTransactionSql =
           '''
         SET XACT_ABORT ON;
         BEGIN TRY
           BEGIN TRANSACTION;
 
-          $insertFormDataSql $WhereSqlLabelSizeId;
+          $UpdateFormDataLogSql $WhereSqlLabelSizeId;
           IF @@ROWCOUNT <= 0
             THROW 51000, 'Insert label size form log failed.', 1;
 

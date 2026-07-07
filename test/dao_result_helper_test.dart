@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:label_manager/models/dao.dart';
+import 'package:label_manager/models/label_size.dart';
 
 void main() {
   group('DAO result helpers', () {
@@ -70,6 +71,38 @@ void main() {
       expect(
         DAO.getRowMapFromResult(emptyResult, throwIfNoRows: false),
         isNull,
+      );
+    });
+  });
+
+  group('LabelSizeDAO sheet storage SQL', () {
+    test('loads sheet data before falling back to RTF data', () {
+      expect(
+        LabelSizeDAO.SelectSql,
+        contains(
+          "COALESCE(NULLIF(RICH_FORM_SHEET, ''), RICH_FORM_DATA) AS FORM_DATA",
+        ),
+      );
+    });
+
+    test('saves edited label sheets to the sheet column', () {
+      expect(LabelSizeDAO.UpdateFormDataSql, contains('RICH_FORM_SHEET=@formData'));
+      expect(LabelSizeDAO.UpdateFormDataSql, isNot(contains('RICH_FORM_DATA=@formData')));
+    });
+
+    test('logs previous and altered sheet data', () {
+      expect(LabelSizeDAO.UpdateFormDataLogSql, contains('RICH_FORM_SHEET'));
+      expect(
+        LabelSizeDAO.UpdateFormDataLogSql,
+        contains('RICH_ALTER_FORM_SHEET'),
+      );
+      expect(
+        LabelSizeDAO.UpdateFormDataLogSql,
+        contains('RICH_FORM_SHEET, @width'),
+      );
+      expect(
+        LabelSizeDAO.UpdateFormDataLogSql,
+        contains('RICH_FORM_DATA, @formData'),
       );
     });
   });
