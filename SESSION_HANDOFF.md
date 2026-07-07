@@ -36,7 +36,7 @@
 - 다른 구문 점검 완료: `lib/models/brand.dart`, `lib/models/label_size.dart`의 `DECLARE @...` 기반 트랜잭션 SQL은 이번 치환기 보정으로 함께 처리된다.
 - 검증 완료: `C:\Flutter\bin\flutter.bat test test\windows_odbc_param_utils_test.dart` 통과(`+10`).
 - 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`).
-- stage/commit 예정: `lib/database/windows_odbc/odbc_param_utils.dart`, `test/windows_odbc_param_utils_test.dart`, `SESSION_HANDOFF.md`. unrelated 변경 `lib/core/app.dart` 및 lock 파일은 제외한다.
+- 커밋 완료: `31b8d34` ODBC SQL 지역 변수 파라미터 오인 수정.
 
 ### 진행 중 (2026-07-07): 라벨 저장 ODBC SQL_NO_DATA(100) 실패 수정
 
