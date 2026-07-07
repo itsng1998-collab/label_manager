@@ -28,6 +28,23 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-07): 품목관리 preview print area boundary 숨김(v12)
+
+- 로그 확인: 최신 `.tmp/log/app_2026-07-07_23-40-22.log`에서 `FSDBG-2026-07-07-preview-ruler-tick-gap-v11`와 `FSRULER-2026-07-07-preview-tick-gap-v11`가 확인됐다. `item_element`, `item_output_preview_sheet_01` 모두 `verticalTickEndGap=8.0`이 적용됐지만 사용자가 동일 화면을 재첨부했으므로 v11 tick-gap 가설은 틀린 것으로 판단했다.
+- 오수정 원복: v11의 `verticalTickEndGap` 조건, `_drawVerticalSheetRuler(... tickEndGap:)`, 관련 로그 필드를 제거하고 기존 vertical ruler tick 끝 위치(`rect.right - 2`)로 되돌렸다.
+- 원인 재판단: `LabelSheetWorkbench`에는 `hidePrintAreaBoundary` 플래그가 이미 있었지만, painter의 `_drawSheetPrintAreaBoundary`가 해당 플래그를 확인하지 않아 adjusted print area boundary가 계속 그려질 수 있었다. grid line은 꺼져 있어도 이 boundary는 별도 레이어라 화면의 굵은 세로선처럼 남는다.
+- 수정 완료: `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`에서 `settings.hidePrintAreaBoundary`가 true면 print area boundary를 그리지 않도록 early return을 추가했다. 디버그 로그는 `FSRULER-2026-07-07-preview-hide-print-boundary-v12` marker로 `stage=printAreaBoundary hidden=true/false`를 남긴다.
+- 수정 완료: `lib/home_page_manager.dart`의 `_ItemElementPreviewTab`, `_ItemOutputPreviewTab`에서 `hidePrintAreaBoundary: true`를 전달한다. 공용라벨관리/일반 시트는 기본값 false라 기존 boundary 표시를 유지한다.
+- 수정 완료: `lib/main.dart`의 DebugLogger 버전을 `FSDBG-2026-07-07-preview-hide-print-boundary-v12`로 갱신했다.
+- 테스트 갱신: v11 tick-gap 테스트를 `hide print area boundary suppresses adjusted boundary`로 교체해, flag가 true일 때 adjusted boundary 픽셀이 남지 않는지 검증한다.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_sheet_painter_test.dart --plain-name "hide print area boundary suppresses adjusted boundary"` 통과. 로그에서 `stage=printAreaBoundary hidden=true` 확인.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_sheet_painter_test.dart --plain-name "adjusted sheet header corner separators stay connected"` 통과. 로그에서 일반 시트는 `hidden=false` 확인.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_sheet_painter_test.dart --plain-name "adjusted sheet hidden headers keep ruler separators one pixel"` 통과. 로그에서 일반 hidden-header는 `hidden=false` 확인.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "item output preview"` 통과(`+3`).
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`).
+- 검증 완료: `git diff --check -- lib/main.dart lib/home_page_manager.dart third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart third_party/fortune_sheet/test/fortune_sheet_painter_test.dart SESSION_HANDOFF.md` 통과.
+- 커밋 예정: `lib/main.dart`, `lib/home_page_manager.dart`, `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`, `third_party/fortune_sheet/test/fortune_sheet_painter_test.dart`, `SESSION_HANDOFF.md`. unrelated 변경 `lib/core/app.dart` 및 lock 파일은 제외한다.
+
 ### 완료 (2026-07-07): 품목관리 preview vertical ruler tick gap 보정(v11)
 
 - 로그 확인: 최신 `.tmp/log/app_2026-07-07_23-33-58.log`에서 `FSDBG-2026-07-07-boundary-layer-trace-v10`와 `FSRULER-2026-07-07-boundary-layer-v10`가 확인됐다. `stage=cellBorderBoundary`는 품목 preview sheet에 찍히지 않아 화면의 두꺼운 세로 느낌은 셀 테두리 레이어가 아닌 것으로 판단했다.

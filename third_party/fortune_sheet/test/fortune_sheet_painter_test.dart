@@ -543,10 +543,13 @@ void main() {
     );
   });
 
-  test('item preview hidden headers keep vertical ruler ticks off data edge', () async {
+  test('hide print area boundary suppresses adjusted boundary', () async {
     const size = Size(420, 320);
     final workbook = FortuneWorkbook(
-      settings: const FortuneSettings(hideRowColumnHeaderLabels: true),
+      settings: const FortuneSettings(
+        hideRowColumnHeaderLabels: true,
+        hidePrintAreaBoundary: true,
+      ),
       sheets: [
         FortuneSheet(
           id: 's1',
@@ -585,13 +588,15 @@ void main() {
         settings.effectiveToolbarHeight + settings.effectiveFormulaBarHeight;
     final dataLeft = settings.rowHeaderWidth;
     final dataTop = sheetTop + settings.columnHeaderHeight;
+    final boundaryX = dataLeft + fortuneMillimetersToLogicalPixels(40);
+    final boundaryY = dataTop + fortuneMillimetersToLogicalPixels(30);
 
     expect(
       _countPixels(
         bytes,
         image.width,
-        Rect.fromLTWH(dataLeft - 7, dataTop + 2, 6, 80),
-        _isRulerTickPixel,
+        Rect.fromLTWH(boundaryX - 2, dataTop, 4, boundaryY - dataTop),
+        _isPrintAreaBoundaryPixel,
       ),
       0,
     );
@@ -599,10 +604,10 @@ void main() {
       _countPixels(
         bytes,
         image.width,
-        Rect.fromLTWH(dataLeft - 17, dataTop + 2, 10, 80),
-        _isRulerTickPixel,
+        Rect.fromLTWH(dataLeft, boundaryY - 2, boundaryX - dataLeft, 4),
+        _isPrintAreaBoundaryPixel,
       ),
-      greaterThan(0),
+      0,
     );
   });
 

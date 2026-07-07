@@ -18,7 +18,7 @@ void _fortuneSheetRulerTrace(String key, String message) {
   if (!_fortuneSheetRulerTraceKeys.add(key)) {
     return;
   }
-  debugPrint('FSRULER-2026-07-07-preview-tick-gap-v11 $message');
+  debugPrint('FSRULER-2026-07-07-preview-hide-print-boundary-v12 $message');
 }
 
 bool _intDoubleMapEquals(Map<int, double> left, Map<int, double> right) {
@@ -63066,10 +63066,6 @@ class FortuneSheetPainter extends CustomPainter {
     final cornerRightBottom = settings.hideRowColumnHeaderLabels
         ? corner.bottom
         : _sheetHeaderTop(settings);
-    final previewHiddenHeaderRuler =
-      settings.hideRowColumnHeaderLabels &&
-      !workbook.activeSheet.showGridLines;
-    final verticalTickEndGap = previewHiddenHeaderRuler ? 8.0 : 2.0;
     final borderPaint = Paint()
       ..color = fortuneSheetRulerBorderColor
       ..strokeWidth = 1;
@@ -63084,7 +63080,6 @@ class FortuneSheetPainter extends CustomPainter {
       ' cornerRightBottom=$cornerRightBottom'
       ' dataLeft=${_sheetDataLeft(settings)} dataTop=${_sheetDataTop(settings)}'
       ' boundaryStyle=rulerBorder'
-      ' verticalTickEndGap=$verticalTickEndGap'
       ' drawTopBottom=true drawLeftRight=true drawCornerBottom=true drawCornerRight=true',
     );
     canvas.drawLine(topRuler.bottomLeft, topRuler.bottomRight, borderPaint);
@@ -63111,7 +63106,6 @@ class FortuneSheetPainter extends CustomPainter {
       leftRuler,
       _sheetRulerLogicalPixelsToMillimeters(dataRect.height + scrollOffset.dy),
       scrollOffset.dy,
-      tickEndGap: verticalTickEndGap,
     );
     _drawSheetGuides(canvas, settings, dataRect, metrics);
   }
@@ -63267,9 +63261,7 @@ class FortuneSheetPainter extends CustomPainter {
     Canvas canvas,
     Rect rect,
     double heightMm,
-    double scrollY, {
-    double tickEndGap = 2.0,
-  }
+    double scrollY,
   ) {
     final tickPaint = Paint()
       ..color = fortuneSheetRulerTickColor
@@ -63293,7 +63285,7 @@ class FortuneSheetPainter extends CustomPainter {
       final tickWidth = major
           ? math.min(16.0, rect.width)
           : math.min(8.0, rect.width);
-      final tickRight = rect.right - tickEndGap;
+      final tickRight = rect.right - 2;
       if (y > rect.top + 0.5 && tickRight > rect.right - tickWidth) {
         canvas.drawLine(
           Offset(rect.right - tickWidth, y),
@@ -63526,6 +63518,17 @@ class FortuneSheetPainter extends CustomPainter {
     FortuneSettings settings,
     FortuneSheetMetrics metrics,
   ) {
+    if (settings.hidePrintAreaBoundary) {
+      _fortuneSheetRulerTrace(
+        '${workbook.activeSheet.id}:print-area-boundary:hidden',
+        'sheet=${workbook.activeSheet.id}'
+        ' stage=printAreaBoundary'
+        ' hidden=true'
+        ' hideHeaders=${settings.hideRowColumnHeaderLabels}'
+        ' showGridLines=${workbook.activeSheet.showGridLines}',
+      );
+      return;
+    }
     final physicalSize = fortuneSheetGridClientPhysicalSize(
       workbook.activeSheet,
     );
@@ -63557,6 +63560,17 @@ class FortuneSheetPainter extends CustomPainter {
         scrollOffset.dy;
     final endX = x.clamp(dataRect.left, dataRect.right).toDouble();
     final endY = y.clamp(dataRect.top, dataRect.bottom).toDouble();
+    _fortuneSheetRulerTrace(
+      '${workbook.activeSheet.id}:print-area-boundary:visible:$dataRect:$x:$y',
+      'sheet=${workbook.activeSheet.id}'
+      ' stage=printAreaBoundary'
+      ' hidden=false'
+      ' hideHeaders=${settings.hideRowColumnHeaderLabels}'
+      ' showGridLines=${workbook.activeSheet.showGridLines}'
+      ' dataRect=$dataRect'
+      ' physicalSize=${physicalSize.widthMm}x${physicalSize.heightMm}'
+      ' x=$x y=$y endX=$endX endY=$endY',
+    );
     if (x >= dataRect.left - 0.5 && x <= dataRect.right + 0.5) {
       canvas.drawLine(Offset(x, dataRect.top), Offset(x, endY), paint);
     }
