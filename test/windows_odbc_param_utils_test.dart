@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:label_manager/database/windows_odbc/odbc_bindings.dart';
 import 'package:label_manager/database/windows_odbc/odbc_driver.dart';
 import 'package:label_manager/database/windows_odbc/odbc_param_utils.dart';
+import 'package:label_manager/models/label_size.dart';
 
 void main() {
   group('prepareStatement', () {
@@ -49,6 +50,75 @@ void main() {
       );
       expect(prepared.entries.length, 1);
       expect(prepared.entries.single.value, 7);
+    });
+
+    test('keeps declared SQL Server local variables', () {
+      final prepared = prepareStatement(
+        '''
+        DECLARE @logAffected INT = 0;
+        UPDATE T SET A = @value;
+        SET @logAffected = @@ROWCOUNT;
+        IF @logAffected <= 0 THROW 51000, 'failed', 1;
+        SELECT @logAffected AS AFFECTED;
+        ''',
+        {'value': 7},
+      );
+
+      expect(prepared.sql, contains('DECLARE @logAffected INT = 0'));
+      expect(prepared.sql, contains('SET @logAffected = @@ROWCOUNT'));
+      expect(prepared.sql, contains('IF @logAffected <= 0'));
+      expect(prepared.sql, contains('SELECT @logAffected AS AFFECTED'));
+      expect(prepared.sql, contains('UPDATE T SET A = ?'));
+      expect(prepared.entries.length, 1);
+      expect(prepared.entries.single.name, '@value');
+    });
+
+    test('keeps multiple declared SQL variables in one statement', () {
+      final prepared = prepareStatement(
+        'DECLARE @a INT = 0, @b INT = 0; SET @a = @value; SELECT @a + @b AS AFFECTED;',
+        {'value': 3},
+      );
+
+      expect(
+        prepared.sql,
+        'DECLARE @a INT = 0, @b INT = 0; SET @a = ?; SELECT @a + @b AS AFFECTED;',
+      );
+      expect(prepared.entries.length, 1);
+      expect(prepared.entries.single.value, 3);
+    });
+
+    test('prepares label save transaction without binding SQL variables', () {
+      final prepared = prepareStatement(LabelSizeDAO.UpdateFormDataTransactionSql, {
+        'width': 80,
+        'height': 60,
+        'formData': 'sheet-json',
+        'userId': 'user01',
+        'loginIP': '3132372e302e302e31',
+        'labelSizeId': 10,
+      });
+
+      expect(prepared.sql, contains('DECLARE @logAffected INT = 0'));
+      expect(prepared.sql, contains('SET @logAffected = @@ROWCOUNT'));
+      expect(prepared.sql, contains('SELECT @updateAffected AS AFFECTED'));
+      expect(
+        prepared.entries.map((entry) => entry.name),
+        isNot(contains('@logAffected')),
+      );
+      expect(
+        prepared.entries.map((entry) => entry.name),
+        isNot(contains('@updateAffected')),
+      );
+      expect(
+        prepared.entries.map((entry) => entry.name).toSet(),
+        containsAll(<String>{
+          '@width',
+          '@height',
+          '@formData',
+          '@userId',
+          '@loginIP',
+          '@labelSizeId',
+        }),
+      );
     });
 
     test('throws when placeholder is missing in params', () {

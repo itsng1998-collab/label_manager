@@ -21,6 +21,7 @@ OdbcPreparedStatement prepareStatement(
     final normalizedKey = key.startsWith('@') ? key.substring(1) : key;
     normalized[normalizedKey.toLowerCase()] = value;
   });
+  final sqlVariables = _declaredSqlVariables(sql);
 
   final entries = <OdbcParamEntry>[];
   final buffer = StringBuffer();
@@ -75,6 +76,11 @@ OdbcPreparedStatement prepareStatement(
       final name = sql.substring(index + 1, end);
       final lookupKey = name.toLowerCase();
       if (!normalized.containsKey(lookupKey)) {
+        if (sqlVariables.contains(lookupKey)) {
+          buffer.write(sql.substring(index, end));
+          index = end;
+          continue;
+        }
         throw ArgumentError('Parameter @$name was not provided.');
       }
       buffer.write('?');
@@ -94,4 +100,25 @@ OdbcPreparedStatement prepareStatement(
   }
 
   return OdbcPreparedStatement(sql: buffer.toString(), entries: entries);
+}
+
+Set<String> _declaredSqlVariables(String sql) {
+  final variables = <String>{};
+  final declarePattern = RegExp(
+    r'\bDECLARE\b([^;]*)',
+    caseSensitive: false,
+    multiLine: true,
+  );
+  final variablePattern = RegExp(r'@([A-Za-z_][A-Za-z0-9_]*)');
+  for (final declare in declarePattern.allMatches(sql)) {
+    final body = declare.group(1);
+    if (body == null) continue;
+    for (final variable in variablePattern.allMatches(body)) {
+      final name = variable.group(1);
+      if (name != null) {
+        variables.add(name.toLowerCase());
+      }
+    }
+  }
+  return variables;
 }

@@ -28,6 +28,16 @@
 
 ## 현재 상태
 
+### 진행 중 (2026-07-07): ODBC SQL 지역 변수 파라미터 오인 수정
+
+- 원인 확인: `prepareStatement()`가 SQL Server 지역 변수(`DECLARE @logAffected`, `@updateAffected`, `@brandAffected`, `@labelSizeAffected`, `@affected0` 등)를 앱 바인딩 파라미터로 오인해, 라벨 저장 시 `Parameter @logAffected was not provided` 예외가 발생했다.
+- 수정 완료: `lib/database/windows_odbc/odbc_param_utils.dart`에서 SQL 내 `DECLARE @...` 지역 변수를 수집하고, 앱 파라미터에 없는 선언 변수는 `?`로 치환하지 않고 SQL 원문에 그대로 남기도록 했다. 기존 `@@ROWCOUNT`/`@@TRANCOUNT` 보존 동작은 유지한다.
+- 테스트 추가: `test/windows_odbc_param_utils_test.dart`에 선언된 SQL Server 지역 변수 보존, 한 DECLARE의 복수 변수 보존, 실제 `LabelSizeDAO.UpdateFormDataTransactionSql` 준비 시 `@logAffected`/`@updateAffected`를 바인딩하지 않는 회귀 테스트를 추가했다.
+- 다른 구문 점검 완료: `lib/models/brand.dart`, `lib/models/label_size.dart`의 `DECLARE @...` 기반 트랜잭션 SQL은 이번 치환기 보정으로 함께 처리된다.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\windows_odbc_param_utils_test.dart` 통과(`+10`).
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`).
+- stage/commit 예정: `lib/database/windows_odbc/odbc_param_utils.dart`, `test/windows_odbc_param_utils_test.dart`, `SESSION_HANDOFF.md`. unrelated 변경 `lib/core/app.dart` 및 lock 파일은 제외한다.
+
 ### 진행 중 (2026-07-07): 라벨 저장 ODBC SQL_NO_DATA(100) 실패 수정
 
 - 원인 확인: 라벨 저장 트랜잭션(`LabelSizeDAO.updateByLabelSizeId`)이 `INSERT LOG` + `UPDATE FORM` DML 배치만 실행하고 최종 결과셋을 반환하지 않아, ODBC 드라이버에서 `SQLExecute failed: 100`(`SQL_NO_DATA`)로 표면화될 수 있었다.
