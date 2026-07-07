@@ -28,6 +28,19 @@
 
 ## 현재 상태
 
+### 진행 중 (2026-07-07): 라벨시트 zoom 입력 텍스트/커서 y 위치 동시 보정
+
+- 확인 완료: Flutter `RenderEditable.cursorOffset`은 커서 페인팅 위치에만 더해지는 값이라 텍스트 레이아웃 위치는 같이 이동하지 않는다.
+- 수정 예정: 품목관리 플로팅창과 공용라벨관리 시트가 함께 쓰는 zoom 입력 위젯에서 `cursorOffset` 보정 대신 내부 padding을 위 6px/아래 4px로 조정해 텍스트와 커서가 함께 1px 아래 표시되게 한다.
+- 검증 예정: `dart format`, `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "label sheet zoom toolbar placement can move or hide controls"`, `C:\Flutter\bin\flutter.bat analyze`, `git diff --check`.
+- 편집 완료: `LabelSheetWorkbench`의 zoom 입력 padding을 `EdgeInsets.fromLTRB(5, 6, 5, 4)`로 조정하고 `EditableText.cursorOffset`은 `Offset.zero`로 되돌렸다.
+- 테스트 갱신: `label sheet zoom toolbar placement can move or hide controls`에서 품목관리 플로팅창 배치와 공용라벨관리 시트 배치 모두 cursor offset이 0이고 입력 padding이 위 6px/아래 4px인지 검증한다.
+- 검증 완료: `dart format` 실행.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "label sheet zoom toolbar placement can move or hide controls"` 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`).
+- 검증 완료: `git diff --check -- lib/page_label_sheet/label_sheet_workbench.dart test/label_sheet_toolbar_test.dart SESSION_HANDOFF.md` 통과.
+- stage/commit 예정: `lib/page_label_sheet/label_sheet_workbench.dart`, `test/label_sheet_toolbar_test.dart`, `SESSION_HANDOFF.md`. unrelated 변경 `lib/core/app.dart`는 제외한다.
+
 ### 진행 중 (2026-07-07): 라벨시트 zoom 입력 커서 y 위치 보정
 
 - 수정 예정: 품목관리 플로팅창과 공용라벨관리 시트가 함께 사용하는 축소/확대 입력 위젯의 커서 y 위치를 1px 아래로 조정한다.

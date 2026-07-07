@@ -1035,6 +1035,22 @@ void main() {
     tester,
   ) async {
     const hostKey = ValueKey('zoom-placement-host');
+    const zoomInputKey = ValueKey('label-sheet-zoom-input');
+
+    void expectZoomInputContentOffset() {
+      final zoomInputFinder = find.byKey(zoomInputKey);
+      final zoomInput = tester.widget<EditableText>(zoomInputFinder);
+      expect(zoomInput.cursorOffset, Offset.zero);
+      final ancestorPadding = tester
+          .widgetList<Padding>(
+            find.ancestor(of: zoomInputFinder, matching: find.byType(Padding)),
+          )
+          .map((padding) => padding.padding);
+      expect(
+        ancestorPadding,
+        contains(const EdgeInsets.fromLTRB(5, 6, 5, 4)),
+      );
+    }
 
     Widget buildWorkbench(LabelSheetZoomToolbarPlacement placement) {
       return MaterialApp(
@@ -1065,23 +1081,17 @@ void main() {
 
     final hostTop = tester.getTopLeft(find.byKey(hostKey)).dy;
     final zoomTop = tester
-        .getTopLeft(find.byKey(const ValueKey('label-sheet-zoom-input')))
+        .getTopLeft(find.byKey(zoomInputKey))
         .dy;
     expect(zoomTop, lessThan(hostTop));
-    var zoomInput = tester.widget<EditableText>(
-      find.byKey(const ValueKey('label-sheet-zoom-input')),
-    );
-    expect(zoomInput.cursorOffset, const Offset(0, 1));
+    expectZoomInputContentOffset();
 
     await tester.pumpWidget(
       buildWorkbench(LabelSheetZoomToolbarPlacement.sheetToolbarEnd),
     );
     await tester.pump();
 
-    zoomInput = tester.widget<EditableText>(
-      find.byKey(const ValueKey('label-sheet-zoom-input')),
-    );
-    expect(zoomInput.cursorOffset, const Offset(0, 1));
+    expectZoomInputContentOffset();
 
     await tester.pumpWidget(
       buildWorkbench(LabelSheetZoomToolbarPlacement.hidden),

@@ -2976,7 +2976,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
                 borderRadius: BorderRadius.circular(2),
               ),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 5),
+                padding: const EdgeInsets.fromLTRB(5, 6, 5, 4),
                 child: EditableText(
                   key: const ValueKey('label-sheet-zoom-input'),
                   controller: _zoomController,
@@ -2990,7 +2990,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
                     color: Color(0xff222222),
                   ),
                   cursorColor: const Color(0xff0188fb),
-                  cursorOffset: const Offset(0, 1),
+                  cursorOffset: Offset.zero,
                   backgroundCursorColor: const Color(0x330188fb),
                   maxLines: 1,
                   onSubmitted: (_) => _commitLabelSheetZoomInput(),
