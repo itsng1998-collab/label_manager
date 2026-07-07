@@ -38,6 +38,7 @@
 - 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`).
 - 검증 완료: `C:\Flutter\bin\flutter.bat test test\swipe_action_table_test.dart --plain-name "resizable table reports its global rect"` 통과.
 - 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "floating preview aligns bottom-right to target point"` 통과.
+- 커밋 완료: `e6a57e1` 품목관리 플로팅 창 초기 위치 조정.
 
 ### 진행 중 (2026-07-07): 라벨 시트 저장본 RICH_FORM_SHEET 분리 저장
 
