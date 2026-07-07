@@ -1,6 +1,6 @@
 # 세션 인수인계
 
-마지막 업데이트: 2026-07-07
+마지막 업데이트: 2026-07-08
 
 ## 작업 규칙
 
@@ -27,6 +27,16 @@
 - Godex G500 같은 라벨 프린터에서 정밀한 인쇄가 핵심이면 일반 프린터 경로와 직접 출력 경로를 분리한다. 직접 출력은 처음부터 모든 스타일을 100% EZPL 명령만으로 처리하기보다 `정밀 좌표 엔진 + EZPL 명령 + 셀 bitmap fallback` 구조를 우선한다. 테두리/선/박스와 바코드는 가능한 한 EZPL 명령으로 출력하고, 화면 폰트와 프린터 폰트 차이로 1:1 보장이 어려운 복합 스타일 텍스트/이미지/배경/RTF 계열 셀은 셀 단위 bitmap fallback을 사용해 시각적 일치도를 확보한다.
 
 ## 현재 상태
+
+### 다음 세션 시작 지점 (2026-07-08)
+
+- 현재 HEAD: `4f4ba4d` 품목관리 preview 경계선 인수인계 갱신. 직전 기능 커밋은 `26d0eb8` 품목관리 preview 출력 영역 경계선 숨김.
+- 남은 확인: 사용자가 앱을 다시 실행한 뒤 최신 `.tmp/log/app_YYYY-MM-DD_HH-mm-ss.log`에서 `FSDBG-2026-07-07-preview-hide-print-boundary-v12`와 `FSRULER-2026-07-07-preview-hide-print-boundary-v12`를 확인한다.
+- 기대 로그: 품목관리 preview sheet(`item_element`, `item_output_preview_sheet_01`)는 `stage=printAreaBoundary hidden=true`가 찍혀야 한다. 공용라벨관리/일반 시트는 `hidden=false`가 정상이다.
+- 기대 화면: 품목관리 preview의 grid line은 숨김 유지, ruler 영역은 유지, adjusted print area boundary만 숨겨져야 한다. 공용라벨관리의 출력 영역 경계선/헤더 구분선은 기존처럼 유지되어야 한다.
+- 사용자가 “마찬가지”라고 하면 먼저 최신 로그에서 v12 marker와 `hidden=true` 적용 여부를 확인한다. 적용됐는데도 같으면 print area boundary 가설도 틀린 것이므로, `beforeRenderCellArea`, raw shape/image overlay, scroll/canvas container border 순서로 추가 trace를 넣어 레이어를 좁힌다.
+- 현재 unrelated dirty 파일은 `lib/core/app.dart`, `pubspec.lock`, `third_party/fortune_sheet/pubspec.lock`, `third_party/mssql_connection/pubspec.lock`이며 이번 preview 작업 커밋에는 포함하지 않았다.
+- 최근 검증 완료: v12 painter focused test 3개, `test/label_sheet_toolbar_test.dart --plain-name "item output preview"`, `C:\Flutter\bin\flutter.bat analyze`, `git diff --check` 모두 통과.
 
 ### 완료 (2026-07-07): 품목관리 preview print area boundary 숨김(v12)
 
