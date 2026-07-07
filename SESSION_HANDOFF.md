@@ -43,7 +43,7 @@
 - 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "item output preview"` 통과(`+3`).
 - 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`).
 - 검증 완료: `git diff --check -- lib/main.dart lib/home_page_manager.dart third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart third_party/fortune_sheet/test/fortune_sheet_painter_test.dart SESSION_HANDOFF.md` 통과.
-- 커밋 예정: `lib/main.dart`, `lib/home_page_manager.dart`, `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`, `third_party/fortune_sheet/test/fortune_sheet_painter_test.dart`, `SESSION_HANDOFF.md`. unrelated 변경 `lib/core/app.dart` 및 lock 파일은 제외한다.
+- 커밋 완료: `26d0eb8` 품목관리 preview 출력 영역 경계선 숨김. unrelated 변경 `lib/core/app.dart` 및 lock 파일은 제외했다.
 
 ### 완료 (2026-07-07): 품목관리 preview vertical ruler tick gap 보정(v11)
 
