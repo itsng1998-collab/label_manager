@@ -12,6 +12,20 @@ import 'fortune_sheet_codec.dart';
 import 'fortune_sheet_model.dart' hide Image, Rect;
 import 'fortune_toolbar_icons.dart';
 
+const bool _fortuneSheetRulerDebugLogEnabled = bool.fromEnvironment(
+  'LABEL_MANAGER_SHEET_RULER_DEBUG',
+);
+
+final Set<String> _fortuneSheetRulerDebugLogKeys = <String>{};
+
+void _fortuneSheetRulerDebugLog(String key, String message) {
+  if (!_fortuneSheetRulerDebugLogEnabled ||
+      !_fortuneSheetRulerDebugLogKeys.add(key)) {
+    return;
+  }
+  debugPrint('FSRULER-2026-07-07-tick-gap-v2 $message');
+}
+
 bool _intDoubleMapEquals(Map<int, double> left, Map<int, double> right) {
   if (identical(left, right)) {
     return true;
@@ -63060,6 +63074,15 @@ class FortuneSheetPainter extends CustomPainter {
     final cornerRightBottom = settings.hideRowColumnHeaderLabels
         ? corner.bottom
         : _sheetHeaderTop(settings);
+    _fortuneSheetRulerDebugLog(
+      '${workbook.activeSheet.id}:ruler:${settings.hideRowColumnHeaderLabels}:$topRuler:$leftRuler',
+      'sheet=${workbook.activeSheet.id}'
+      ' hideHeaders=${settings.hideRowColumnHeaderLabels}'
+      ' topRuler=$topRuler leftRuler=$leftRuler corner=$corner'
+      ' cornerBottomRight=$cornerBottomRight'
+      ' cornerRightBottom=$cornerRightBottom'
+      ' dataLeft=${_sheetDataLeft(settings)} dataTop=${_sheetDataTop(settings)}',
+    );
     canvas.drawLine(topRuler.bottomLeft, topRuler.bottomRight, borderPaint);
     canvas.drawLine(leftRuler.topRight, leftRuler.bottomRight, borderPaint);
     canvas.drawLine(
@@ -63215,6 +63238,15 @@ class FortuneSheetPainter extends CustomPainter {
           ? math.min(15.0, rect.height)
           : math.min(7.0, rect.height);
       final tickBottom = rect.bottom - 2;
+      if (mm == 0.0 || major) {
+        _fortuneSheetRulerDebugLog(
+          'h:${workbook.activeSheet.id}:$mm:$rect:$scrollX',
+          'horizontalTick sheet=${workbook.activeSheet.id}'
+          ' mm=$mm x=$x rect=$rect scrollX=$scrollX'
+          ' tickTop=${rect.bottom - tickHeight}'
+          ' tickBottom=$tickBottom draw=${x > rect.left + 0.5 && tickBottom > rect.bottom - tickHeight}',
+        );
+      }
       if (x > rect.left + 0.5 && tickBottom > rect.bottom - tickHeight) {
         canvas.drawLine(
           Offset(x, rect.bottom - tickHeight),
@@ -63264,6 +63296,15 @@ class FortuneSheetPainter extends CustomPainter {
           ? math.min(16.0, rect.width)
           : math.min(8.0, rect.width);
       final tickRight = rect.right - 2;
+      if (mm == 0.0 || major) {
+        _fortuneSheetRulerDebugLog(
+          'v:${workbook.activeSheet.id}:$mm:$rect:$scrollY',
+          'verticalTick sheet=${workbook.activeSheet.id}'
+          ' mm=$mm y=$y rect=$rect scrollY=$scrollY'
+          ' tickLeft=${rect.right - tickWidth}'
+          ' tickRight=$tickRight draw=${y > rect.top + 0.5 && tickRight > rect.right - tickWidth}',
+        );
+      }
       if (y > rect.top + 0.5 && tickRight > rect.right - tickWidth) {
         canvas.drawLine(
           Offset(rect.right - tickWidth, y),
