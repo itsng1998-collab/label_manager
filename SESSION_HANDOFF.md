@@ -35,6 +35,7 @@
 - 테스트 추가: `dao_result_helper_test.dart`에 라벨 저장 트랜잭션이 ODBC용 명시 affected row 결과를 반환하는지 검증을 추가했다.
 - 검증 완료: `C:\Flutter\bin\flutter.bat test test\dao_result_helper_test.dart` 통과.
 - 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`).
+- 커밋 완료: `20458e5` 라벨 저장 ODBC 결과 반환 보정.
 
 ### 진행 중 (2026-07-07): 공용라벨 플로팅 이동 고정 및 병합셀 테두리 보정
 
