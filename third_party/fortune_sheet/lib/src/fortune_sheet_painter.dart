@@ -18,7 +18,7 @@ void _fortuneSheetRulerDebugLog(String key, String message) {
   if (!_fortuneSheetRulerDebugLogKeys.add(key)) {
     return;
   }
-  debugPrint('FSRULER-2026-07-07-crisp-border-v3 $message');
+  debugPrint('FSRULER-2026-07-07-hairline-border-v4 $message');
 }
 
 bool _intDoubleMapEquals(Map<int, double> left, Map<int, double> right) {
@@ -63070,33 +63070,34 @@ class FortuneSheetPainter extends CustomPainter {
       '${workbook.activeSheet.id}:ruler:${settings.hideRowColumnHeaderLabels}:$topRuler:$leftRuler',
       'sheet=${workbook.activeSheet.id}'
       ' hideHeaders=${settings.hideRowColumnHeaderLabels}'
+      ' borderPolicy=hairline'
       ' topRuler=$topRuler leftRuler=$leftRuler corner=$corner'
       ' cornerBottomRight=$cornerBottomRight'
       ' cornerRightBottom=$cornerRightBottom'
       ' dataLeft=${_sheetDataLeft(settings)} dataTop=${_sheetDataTop(settings)}',
     );
-    _line(
+    _hairline(
       canvas,
-      Offset(topRuler.left, topRuler.bottom - 0.5),
-      Offset(topRuler.right, topRuler.bottom - 0.5),
+      topRuler.bottomLeft,
+      topRuler.bottomRight,
       fortuneSheetRulerBorderColor,
     );
-    _line(
+    _hairline(
       canvas,
-      Offset(leftRuler.right - 0.5, leftRuler.top),
-      Offset(leftRuler.right - 0.5, leftRuler.bottom),
+      leftRuler.topRight,
+      leftRuler.bottomRight,
       fortuneSheetRulerBorderColor,
     );
-    _line(
+    _hairline(
       canvas,
-      Offset(corner.left, corner.bottom - 0.5),
-      Offset(cornerBottomRight, corner.bottom - 0.5),
+      corner.bottomLeft,
+      Offset(cornerBottomRight, corner.bottom),
       fortuneSheetRulerBorderColor,
     );
-    _line(
+    _hairline(
       canvas,
-      Offset(corner.right - 0.5, corner.top),
-      Offset(corner.right - 0.5, cornerRightBottom),
+      corner.topRight,
+      Offset(corner.right, cornerRightBottom),
       fortuneSheetRulerBorderColor,
     );
     _drawSheetRulerCornerSizeLabel(canvas, corner);
@@ -76885,6 +76886,17 @@ class FortuneSheetPainter extends CustomPainter {
       Paint()
         ..color = color
         ..strokeWidth = 1,
+    );
+  }
+
+  void _hairline(Canvas canvas, Offset a, Offset b, Color color) {
+    canvas.drawLine(
+      a,
+      b,
+      Paint()
+        ..color = color
+        ..isAntiAlias = false
+        ..strokeWidth = 0,
     );
   }
 

@@ -28,6 +28,21 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-07): ruler 경계선 hairline 적용
+
+- 로그 확인: 최신 `.tmp/log/app_2026-07-07_22-41-10.log`에서 `FSDBG-2026-07-07-ruler-crisp-border-v3`와 `FSRULER-2026-07-07-crisp-border-v3`가 확인되어, 수정된 `fortune_sheet` painter가 실제 앱에서 실행 중임을 확인했다.
+- 로그 확인: 문제 화면별 좌표는 `item_element`, `item_output_preview_sheet_01` 모두 `hideHeaders=true`, `dataLeft=46.0`, `dataTop=20.0`이며, 공용라벨관리 `label_sheet_01`은 `hideHeaders=false`, `dataLeft=92.0`, `dataTop=40.0`으로 찍혔다.
+- 오수정 원복: v3의 `-0.5` 반픽셀 ruler/corner border 보정은 사용자 화면에서 변화가 없어 제거하고, border 좌표를 원래 rect 경계 좌표 기준으로 되돌렸다.
+- 수정 완료: Windows 배율에서 1 logical px stroke가 두껍게 래스터링되는 후보를 줄이기 위해 ruler/corner border만 `strokeWidth = 0` hairline stroke로 그리게 했다. Tick 끝점 조정과 `0mm` tick skip은 유지한다.
+- 수정 완료: `lib/main.dart`의 DebugLogger 버전을 `FSDBG-2026-07-07-ruler-hairline-border-v4`로 갱신했다.
+- 디버그 추가: `FSRULER-2026-07-07-hairline-border-v4` 로그에 `borderPolicy=hairline`을 포함해 실행 로그에서 v4 적용 여부를 확인할 수 있게 했다.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_sheet_painter_test.dart --plain-name "adjusted sheet hidden headers keep ruler separators one pixel"` 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_sheet_painter_test.dart --plain-name "adjusted sheet header corner separators stay connected"` 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_sheet_painter_test.dart` 통과(`+752`).
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`).
+- 검증 완료: `git diff --check -- lib/main.dart third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart SESSION_HANDOFF.md` 통과.
+- 커밋 예정: `lib/main.dart`, `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`, `SESSION_HANDOFF.md`. unrelated 변경 `lib/core/app.dart` 및 lock 파일은 제외한다.
+
 ### 완료 (2026-07-07): ruler 경계선 반픽셀 정렬 및 앱 로그 진단
 
 - 로그 확인: 최신 `.tmp/log/app_2026-07-07_22-29-21.log`에는 `FSRULER` 마커가 없었고, 앱 버전도 `FSDBG-2026-07-01-cell-edit-log`로 남아 있어 직전 `--dart-define` 기반 진단 로그가 앱 로그에서 확인되지 않았다.
