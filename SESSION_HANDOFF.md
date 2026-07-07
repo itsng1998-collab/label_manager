@@ -40,6 +40,7 @@
 - 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "floating preview reports user move separately"` 통과.
 - 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "floating preview reports rect changes and resize completion"` 통과.
 - 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`).
+- 커밋 완료: `e3cd316` 공용 플로팅 이동 고정과 병합셀 테두리 보정.
 
 ### 진행 중 (2026-07-07): 레거시 마지막 브랜드/라벨 선택 복원 적용
 
