@@ -28,6 +28,24 @@
 
 ## 현재 상태
 
+### 진행 중 (2026-07-07): 라벨 이미지 가져오기 파일 선택 흐름 변경
+
+- 수정 예정: 라벨 이미지 가져오기 명령은 파일 선택 다이얼로그를 먼저 띄우지 않고, 라벨 이미지 가져오기 다이얼로그를 먼저 띄운다.
+- 수정 예정: 다이얼로그 좌상단에 `파일 선택` 버튼과 선택 파일명 라벨을 배치하고, 버튼으로 이미지를 변경한다.
+- 수정 예정: 이전 선택 파일 경로를 로컬 저장소에 저장해 다음 진입 시 자동 로드하고 미리보기까지 표시한다.
+- 검증 예정: `dart format`, 변경 파일 오류 확인, 관련 미리보기/Gemini 집중 테스트, `C:\Flutter\bin\flutter.bat analyze`, `git diff --check`.
+- 편집 완료: `_handleImportLabelImage`에서 선행 `openFile()` 호출을 제거하고, 활성 시트 확인 후 바로 `_LabelImageImportDialog`를 띄우도록 변경했다.
+- 편집 완료: `_LabelImageImportDialog` 상단에 `파일 선택` 버튼과 선택 파일명 라벨을 추가하고, 버튼으로 이미지 파일을 선택/변경하도록 했다.
+- 편집 완료: `_labelSheetImageImportFilePathPrefsKey`를 추가해 선택 파일 경로를 저장하고, 다음 진입 시 파일이 존재하면 자동 로드해 미리보기를 표시한다.
+- 편집 완료: `_LabelImageImportPreview`가 파일 미선택 상태를 안내 문구로 표시하고, 선택된 이미지 상태를 기준으로 기존 확대/스크롤 미리보기를 유지하도록 변경했다.
+- 검증 완료: `dart format` 실행.
+- 검증 완료: 변경 파일 `get_errors` 오류 없음.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "label image import preview scales to readable text size"` 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "Gemini model list is fetched from Google AI models API"` 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`).
+- 검증 완료: `git diff --check -- lib/page_label_sheet/label_sheet_workbench.dart SESSION_HANDOFF.md` 통과.
+- stage/commit 예정: `lib/page_label_sheet/label_sheet_workbench.dart`, `SESSION_HANDOFF.md`. unrelated 변경 `lib/core/app.dart` 및 lock 파일은 제외한다.
+
 ### 진행 중 (2026-07-07): 라벨 이미지 AI 설정 무조건 저장
 
 - 수정 예정: 라벨 이미지 가져오기 다이얼로그 하단 체크박스를 제거하고 `* Gemini API Key와 model을 이 PC에 저장합니다.` 힌트 라벨로 바꾼다.

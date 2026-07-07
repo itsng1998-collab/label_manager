@@ -53,6 +53,8 @@ int _labelSheetPositivePhysicalSizeOrDefault(int? value, int fallback) {
 const String _labelSheetGeminiApiKeyPrefsKey = 'label_sheet_gemini_api_key';
 const String _labelSheetGeminiModelPrefsKey = 'label_sheet_gemini_model';
 const String _labelSheetGeminiPromptPrefsKey = 'label_sheet_gemini_prompt';
+const String _labelSheetImageImportFilePathPrefsKey =
+  'label_sheet_image_import_file_path';
 const String _labelFileDirectoryPrefsKey = 'label_file_directory';
 const double _labelSheetImportMinReadableFontHeightMm = 2.5;
 
@@ -2208,21 +2210,6 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
   }
 
   Future<void> _handleImportLabelImage() async {
-    const imageGroup = XTypeGroup(
-      label: 'Label image',
-      extensions: <String>['png', 'jpg', 'jpeg', 'bmp', 'webp'],
-      mimeTypes: <String>['image/*'],
-    );
-    final file = await openFile(
-      acceptedTypeGroups: const <XTypeGroup>[imageGroup],
-    );
-    if (file == null) {
-      return;
-    }
-    final bytes = await file.readAsBytes();
-    if (bytes.isEmpty || !mounted) {
-      return;
-    }
     final sheet = _controller.getSheet();
     if (sheet == null) {
       if (mounted) {
@@ -2232,13 +2219,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       }
       return;
     }
-    final mimeType = _labelSheetMimeTypeForName(file.name);
-    final action = await _showLabelImageImportDialog(
-      bytes: bytes,
-      mimeType: mimeType,
-      fileName: file.name,
-      sheet: sheet,
-    );
+    final action = await _showLabelImageImportDialog(sheet: sheet);
     if (!mounted || action == null) {
       return;
     }
@@ -2246,6 +2227,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     await prefs.setString(_labelSheetGeminiApiKeyPrefsKey, action.apiKey);
     await prefs.setString(_labelSheetGeminiModelPrefsKey, action.model);
     await prefs.setString(_labelSheetGeminiPromptPrefsKey, action.prompt);
+    await prefs.setString(_labelSheetImageImportFilePathPrefsKey, action.filePath);
     final draft = action.draft;
     if (draft == null) {
       if (mounted) {
@@ -2256,7 +2238,10 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       return;
     }
     try {
-      final xlsxFile = await _writeLabelImageImportXlsxFile(draft, file.name);
+      final xlsxFile = await _writeLabelImageImportXlsxFile(
+        draft,
+        action.fileName,
+      );
       final xlsxName = p.basename(xlsxFile.path);
       final importedWorkbook = await _readImportedLabelWorkbook(
         XFile(
@@ -2276,7 +2261,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     } catch (e, stackTrace) {
       debugLog(
         'label image import xlsx auto import failed: '
-        'name=${file.name} error=$e\n$stackTrace',
+        'name=${action.fileName} error=$e\n$stackTrace',
         skipFrames: 1,
       );
       if (!mounted) {
@@ -3060,9 +3045,6 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
   }
 
   Future<_LabelImageImportAction?> _showLabelImageImportDialog({
-    required Uint8List bytes,
-    required String mimeType,
-    required String fileName,
     required FortuneSheet sheet,
   }) async {
     final prefs = await SharedPreferences.getInstance();
@@ -3079,11 +3061,11 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
         barrierDismissible: false,
         traversalEdgeBehavior: TraversalEdgeBehavior.closedLoop,
         builder: (_) => _LabelImageImportDialog(
-          bytes: bytes,
-          mimeType: mimeType,
-          fileName: fileName,
           sheet: sheet,
           physicalSize: physicalSize,
+          initialImage: _tryLoadLabelImageImportSelection(
+            prefs.getString(_labelSheetImageImportFilePathPrefsKey),
+          ),
           initialApiKey: prefs.getString(_labelSheetGeminiApiKeyPrefsKey) ?? '',
           initialModel:
               prefs.getString(_labelSheetGeminiModelPrefsKey) ??
@@ -3094,6 +3076,37 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       );
     } finally {
       widget.onSheetDialogClosed?.call();
+    }
+  }
+
+  _LabelImageImportSelection? _tryLoadLabelImageImportSelection(String? path) {
+    final normalizedPath = path?.trim();
+    if (normalizedPath == null || normalizedPath.isEmpty) {
+      return null;
+    }
+    try {
+      final file = File(normalizedPath);
+      if (!file.existsSync()) {
+        return null;
+      }
+      final bytes = file.readAsBytesSync();
+      if (bytes.isEmpty) {
+        return null;
+      }
+      final fileName = p.basename(normalizedPath);
+      return _LabelImageImportSelection(
+        bytes: bytes,
+        mimeType: _labelSheetMimeTypeForName(fileName),
+        fileName: fileName,
+        filePath: normalizedPath,
+      );
+    } catch (error, stackTrace) {
+      debugLog(
+        'label image import previous file load failed: '
+        'path=$normalizedPath error=$error\n$stackTrace',
+        skipFrames: 1,
+      );
+      return null;
     }
   }
 
@@ -3469,11 +3482,11 @@ double _labelSheetImageImportReadableScale({
 
 class _LabelImageImportPreview extends StatefulWidget {
   const _LabelImageImportPreview({
-    required this.bytes,
+    required this.image,
     required this.physicalSize,
   });
 
-  final Uint8List bytes;
+  final _LabelImageImportSelection? image;
   final FortuneSheetGridClientPhysicalSize physicalSize;
 
   @override
@@ -3482,14 +3495,19 @@ class _LabelImageImportPreview extends StatefulWidget {
 }
 
 class _LabelImageImportPreviewState extends State<_LabelImageImportPreview> {
-  late imglib.Image? _decodedImage = imglib.decodeImage(widget.bytes);
+  late imglib.Image? _decodedImage = _decodeImage(widget.image);
 
   @override
   void didUpdateWidget(covariant _LabelImageImportPreview oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!identical(oldWidget.bytes, widget.bytes)) {
-      _decodedImage = imglib.decodeImage(widget.bytes);
+    if (!identical(oldWidget.image?.bytes, widget.image?.bytes)) {
+      _decodedImage = _decodeImage(widget.image);
     }
+  }
+
+  static imglib.Image? _decodeImage(_LabelImageImportSelection? image) {
+    final bytes = image?.bytes;
+    return bytes == null ? null : imglib.decodeImage(bytes);
   }
 
   @override
@@ -3508,10 +3526,21 @@ class _LabelImageImportPreviewState extends State<_LabelImageImportPreview> {
           padding: const EdgeInsets.all(labelSheetImageImportPreviewPadding),
           child: LayoutBuilder(
             builder: (context, constraints) {
+              final image = widget.image;
+              if (image == null) {
+                return Center(
+                  child: Text(
+                    '이미지 파일을 선택하세요.',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.hintColor,
+                    ),
+                  ),
+                );
+              }
               final decodedImage = _decodedImage;
               if (decodedImage == null) {
                 return Center(
-                  child: widgets.Image.memory(widget.bytes, fit: BoxFit.contain),
+                  child: widgets.Image.memory(image.bytes, fit: BoxFit.contain),
                 );
               }
               final layout = labelSheetImageImportPreviewLayout(
@@ -3535,7 +3564,7 @@ class _LabelImageImportPreviewState extends State<_LabelImageImportPreview> {
                           width: layout.width,
                           height: layout.height,
                           child: widgets.Image.memory(
-                            widget.bytes,
+                            image.bytes,
                             fit: BoxFit.fill,
                           ),
                         ),
@@ -3552,23 +3581,39 @@ class _LabelImageImportPreviewState extends State<_LabelImageImportPreview> {
   }
 }
 
-class _LabelImageImportDialog extends StatefulWidget {
-  const _LabelImageImportDialog({
+const XTypeGroup _labelSheetImageImportFileGroup = XTypeGroup(
+  label: 'Label image',
+  extensions: <String>['png', 'jpg', 'jpeg', 'bmp', 'webp'],
+  mimeTypes: <String>['image/*'],
+);
+
+class _LabelImageImportSelection {
+  const _LabelImageImportSelection({
     required this.bytes,
     required this.mimeType,
     required this.fileName,
-    required this.sheet,
-    required this.physicalSize,
-    required this.initialApiKey,
-    required this.initialModel,
-    required this.initialPrompt,
+    required this.filePath,
   });
 
   final Uint8List bytes;
   final String mimeType;
   final String fileName;
+  final String filePath;
+}
+
+class _LabelImageImportDialog extends StatefulWidget {
+  const _LabelImageImportDialog({
+    required this.sheet,
+    required this.physicalSize,
+    required this.initialImage,
+    required this.initialApiKey,
+    required this.initialModel,
+    required this.initialPrompt,
+  });
+
   final FortuneSheet sheet;
   final FortuneSheetGridClientPhysicalSize physicalSize;
+  final _LabelImageImportSelection? initialImage;
   final String initialApiKey;
   final String initialModel;
   final String initialPrompt;
@@ -3579,6 +3624,7 @@ class _LabelImageImportDialog extends StatefulWidget {
 }
 
 class _LabelImageImportDialogState extends State<_LabelImageImportDialog> {
+  late _LabelImageImportSelection? _selectedImage = widget.initialImage;
   late final TextEditingController _apiKeyController = TextEditingController(
     text: widget.initialApiKey,
   );
@@ -3626,15 +3672,38 @@ class _LabelImageImportDialogState extends State<_LabelImageImportDialog> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              Row(
+                children: [
+                  SizedBox(
+                    width: 84,
+                    height: 30,
+                    child: _LabelImageImportFooterButton(
+                      label: '파일 선택',
+                      onPressed: _analyzing ? null : _selectImageFile,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _selectedImage?.fileName ?? '선택된 파일 없음',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodySmall,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
               Text(
-                '${widget.fileName} · 현재 시트 '
-                '${widget.physicalSize.widthMm} x '
+                '현재 시트 ${widget.physicalSize.widthMm} x '
                 '${widget.physicalSize.heightMm} mm',
-                style: theme.textTheme.bodySmall,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.hintColor,
+                ),
               ),
               const SizedBox(height: 8),
               _LabelImageImportPreview(
-                bytes: widget.bytes,
+                image: _selectedImage,
                 physicalSize: widget.physicalSize,
               ),
               const SizedBox(height: 14),
@@ -3751,6 +3820,34 @@ class _LabelImageImportDialogState extends State<_LabelImageImportDialog> {
     await prefs.setString(_labelSheetGeminiPromptPrefsKey, _promptController.text);
   }
 
+  Future<void> _selectImageFile() async {
+    final file = await openFile(
+      acceptedTypeGroups: const <XTypeGroup>[_labelSheetImageImportFileGroup],
+    );
+    if (file == null) {
+      return;
+    }
+    final bytes = await file.readAsBytes();
+    if (!mounted || bytes.isEmpty) {
+      return;
+    }
+    final selection = _LabelImageImportSelection(
+      bytes: bytes,
+      mimeType: _LabelSheetWorkbenchState._labelSheetMimeTypeForName(file.name),
+      fileName: file.name,
+      filePath: file.path,
+    );
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_labelSheetImageImportFilePathPrefsKey, selection.filePath);
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _selectedImage = selection;
+      _errorLog = null;
+    });
+  }
+
   void _selectFallbackGeminiModelIfNeeded({
     List<LabelSheetGeminiModelInfo>? models,
   }) {
@@ -3842,14 +3939,18 @@ class _LabelImageImportDialogState extends State<_LabelImageImportDialog> {
     });
     try {
       await _rememberGeminiImportSettings();
+      final selectedImage = _selectedImage;
+      if (selectedImage == null) {
+        throw const LabelSheetGeminiImportException('분석할 이미지 파일을 선택하세요.');
+      }
       final draft = await labelSheetAnalyzeImageWithGemini(
         LabelSheetGeminiImportRequest(
           apiKey: _apiKeyController.text.trim(),
           model: _modelController.text.trim(),
           prompt: _promptController.text,
-          imageBytes: widget.bytes,
-          mimeType: widget.mimeType,
-          fileName: widget.fileName,
+          imageBytes: selectedImage.bytes,
+          mimeType: selectedImage.mimeType,
+          fileName: selectedImage.fileName,
           sheet: widget.sheet,
         ),
       );
@@ -3861,6 +3962,8 @@ class _LabelImageImportDialogState extends State<_LabelImageImportDialog> {
           apiKey: _apiKeyController.text.trim(),
           model: _modelController.text.trim(),
           prompt: _promptController.text,
+          fileName: selectedImage.fileName,
+          filePath: selectedImage.filePath,
           draft: draft,
         ),
       );
@@ -4581,11 +4684,15 @@ class _LabelImageImportAction {
     required this.apiKey,
     required this.model,
     required this.prompt,
+    required this.fileName,
+    required this.filePath,
     this.draft,
   });
 
   final String apiKey;
   final String model;
   final String prompt;
+  final String fileName;
+  final String filePath;
   final LabelSheetImageImportDraft? draft;
 }
