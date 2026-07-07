@@ -2990,7 +2990,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
                     color: Color(0xff222222),
                   ),
                   cursorColor: const Color(0xff0188fb),
-                  cursorOffset: Offset.zero,
+                  cursorOffset: const Offset(0, 1),
                   backgroundCursorColor: const Color(0x330188fb),
                   maxLines: 1,
                   onSubmitted: (_) => _commitLabelSheetZoomInput(),

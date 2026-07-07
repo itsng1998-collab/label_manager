@@ -1068,6 +1068,20 @@ void main() {
         .getTopLeft(find.byKey(const ValueKey('label-sheet-zoom-input')))
         .dy;
     expect(zoomTop, lessThan(hostTop));
+    var zoomInput = tester.widget<EditableText>(
+      find.byKey(const ValueKey('label-sheet-zoom-input')),
+    );
+    expect(zoomInput.cursorOffset, const Offset(0, 1));
+
+    await tester.pumpWidget(
+      buildWorkbench(LabelSheetZoomToolbarPlacement.sheetToolbarEnd),
+    );
+    await tester.pump();
+
+    zoomInput = tester.widget<EditableText>(
+      find.byKey(const ValueKey('label-sheet-zoom-input')),
+    );
+    expect(zoomInput.cursorOffset, const Offset(0, 1));
 
     await tester.pumpWidget(
       buildWorkbench(LabelSheetZoomToolbarPlacement.hidden),

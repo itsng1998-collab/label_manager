@@ -28,6 +28,18 @@
 
 ## 현재 상태
 
+### 진행 중 (2026-07-07): 라벨시트 zoom 입력 커서 y 위치 보정
+
+- 수정 예정: 품목관리 플로팅창과 공용라벨관리 시트가 함께 사용하는 축소/확대 입력 위젯의 커서 y 위치를 1px 아래로 조정한다.
+- 검증 예정: `dart format`, `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "label sheet zoom toolbar placement can move or hide controls"`, `C:\Flutter\bin\flutter.bat analyze`, `git diff --check`.
+- 편집 완료: `LabelSheetWorkbench`의 zoom 입력 `EditableText.cursorOffset`을 `Offset(0, 1)`로 조정했다.
+- 테스트 갱신: `label sheet zoom toolbar placement can move or hide controls`에서 품목관리 플로팅창 배치(`previewTabAreaEnd`)와 공용라벨관리 시트 배치(`sheetToolbarEnd`)의 cursor offset을 함께 검증한다.
+- 검증 완료: `dart format` 실행.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "label sheet zoom toolbar placement can move or hide controls"` 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`).
+- 검증 완료: `git diff --check -- lib/page_label_sheet/label_sheet_workbench.dart test/label_sheet_toolbar_test.dart SESSION_HANDOFF.md` 통과.
+- stage/commit 예정: `lib/page_label_sheet/label_sheet_workbench.dart`, `test/label_sheet_toolbar_test.dart`, `SESSION_HANDOFF.md`. unrelated 변경 `lib/core/app.dart`는 제외한다.
+
 ### 진행 중 (2026-07-07): 품목관리 주원료 zoom overlay/resize handle z-order 보정
 
 - 수정 예정: 탭 메뉴 영역 오른쪽 끝의 축소/확대 영역 x 위치를 2px 다시 주고, 코너 리사이징 바가 축소/확대 영역 위에 나타나도록 한다.
