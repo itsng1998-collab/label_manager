@@ -3433,9 +3433,18 @@ class _LabelImageImportDialogState extends State<_LabelImageImportDialog> {
   late final TextEditingController _promptController = TextEditingController(
     text: '',
   );
+  List<LabelSheetGeminiModelInfo> _geminiModels = labelSheetGeminiModels;
   bool _saveCredentials = false;
   bool _analyzing = false;
+  bool _loadingGeminiModels = false;
+  int _modelLoadGeneration = 0;
   String? _errorLog;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_refreshGeminiModels());
+  }
 
   @override
   void dispose() {
@@ -3495,14 +3504,19 @@ class _LabelImageImportDialogState extends State<_LabelImageImportDialog> {
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
+                key: ValueKey(
+                  'label-image-import-model-${_geminiModels.map((model) => model.modelId).join('|')}',
+                ),
                 initialValue: _labelSheetSelectedGeminiModelValue(
                   _modelController.text,
-                  labelSheetGeminiModels,
+                  _geminiModels,
                 ),
                 isExpanded: true,
-                decoration: _compactInputDecoration('Gemini Model'),
+                decoration: _compactInputDecoration(
+                  _loadingGeminiModels ? 'Gemini Model 조회 중...' : 'Gemini Model',
+                ),
                 items: [
-                  for (final model in labelSheetGeminiModels)
+                  for (final model in _geminiModels)
                     DropdownMenuItem(
                       value: model.modelId,
                       child: Text(model.menuLabel),
@@ -3551,6 +3565,73 @@ class _LabelImageImportDialogState extends State<_LabelImageImportDialog> {
         ),
       ),
     );
+  }
+
+  Future<void> _refreshGeminiModels() async {
+    final apiKey = _apiKeyController.text.trim();
+    if (apiKey.isEmpty) {
+      _selectFallbackGeminiModelIfNeeded();
+      return;
+    }
+    final generation = ++_modelLoadGeneration;
+    setState(() {
+      _loadingGeminiModels = true;
+    });
+    try {
+      final fetchedModels = await labelSheetFetchGeminiModels(apiKey: apiKey);
+      if (!mounted || generation != _modelLoadGeneration) {
+        return;
+      }
+      final models = _mergedGeminiModels(fetchedModels, labelSheetGeminiModels);
+      _selectFallbackGeminiModelIfNeeded(models: models);
+      setState(() {
+        _geminiModels = models;
+        _loadingGeminiModels = false;
+      });
+    } on Object catch (error) {
+      if (!mounted || generation != _modelLoadGeneration) {
+        return;
+      }
+      _selectFallbackGeminiModelIfNeeded();
+      setState(() {
+        _loadingGeminiModels = false;
+        _errorLog = 'Gemini 모델 목록 조회 실패: $error';
+      });
+    }
+  }
+
+  void _selectFallbackGeminiModelIfNeeded({
+    List<LabelSheetGeminiModelInfo>? models,
+  }) {
+    final effectiveModels = models ?? _geminiModels;
+    if (effectiveModels.isEmpty ||
+        _labelSheetSelectedGeminiModelValue(
+              _modelController.text,
+              effectiveModels,
+            ) !=
+            null) {
+      return;
+    }
+    _modelController.text =
+        _labelSheetSelectedGeminiModelValue(
+          labelSheetDefaultGeminiModel,
+          effectiveModels,
+        ) ??
+        effectiveModels.first.modelId;
+  }
+
+  List<LabelSheetGeminiModelInfo> _mergedGeminiModels(
+    List<LabelSheetGeminiModelInfo> fetchedModels,
+    List<LabelSheetGeminiModelInfo> fallbackModels,
+  ) {
+    final merged = <LabelSheetGeminiModelInfo>[];
+    final seen = <String>{};
+    for (final model in [...fetchedModels, ...fallbackModels]) {
+      if (seen.add(model.modelId)) {
+        merged.add(model);
+      }
+    }
+    return merged;
   }
 
   Widget _buildFooter() {

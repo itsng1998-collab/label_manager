@@ -1874,6 +1874,49 @@ void main() {
     expect(modelIds, contains('gemini-2.0-flash'));
   });
 
+  test('Gemini model list is fetched from Google AI models API', () async {
+    final client = MockClient((request) async {
+      expect(request.method, 'GET');
+      expect(request.url.host, 'generativelanguage.googleapis.com');
+      expect(request.url.path, '/v1beta/models');
+      expect(request.url.queryParameters['key'], 'test-api-key-1234');
+      return http.Response(
+        jsonEncode({
+          'models': [
+            {
+              'name': 'models/gemini-3.5-pro',
+              'displayName': 'Gemini 3.5 Pro',
+              'supportedGenerationMethods': ['generateContent'],
+            },
+            {
+              'name': 'models/gemini-embed-text',
+              'displayName': 'Gemini Embedding',
+              'supportedGenerationMethods': ['embedContent'],
+            },
+            {
+              'name': 'models/gemini-2.5-flash',
+              'displayName': 'Gemini 2.5 Flash',
+              'supportedGenerationMethods': ['generateContent'],
+            },
+          ],
+        }),
+        200,
+        headers: const {'content-type': 'application/json'},
+      );
+    });
+
+    final models = await labelSheetFetchGeminiModels(
+      apiKey: 'test-api-key-1234',
+      client: client,
+    );
+
+    expect(models.map((model) => model.modelId), [
+      'gemini-3.5-pro',
+      'gemini-2.5-flash',
+    ]);
+    expect(models.first.menuLabel, 'Gemini 3.5 Pro · Google AI');
+  });
+
   test('label sheet image import analysis creates an adjusted draft', () {
     final image = imglib.Image(width: 100, height: 60);
     imglib.fill(image, color: imglib.ColorRgb8(255, 255, 255));

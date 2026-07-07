@@ -28,6 +28,22 @@
 
 ## 현재 상태
 
+### 진행 중 (2026-07-07): 라벨 이미지 AI 모델 목록 동적 조회
+
+- 확인 완료: `라벨 이미지 가져오기` 다이얼로그는 진입 시 Gemini 모델 API를 조회하지 않고 `labelSheetGeminiModels` 정적 목록(`gemini-2.5-flash`, `gemini-2.5-pro`, `gemini-2.0-flash`)만 표시한다.
+- 수정 예정: 다이얼로그 진입 시 저장된 Gemini API Key가 있으면 `/v1beta/models`를 다시 조회해 `generateContent` 지원 Gemini 모델을 드롭다운에 반영한다. 조회 실패/키 없음은 기존 정적 목록 fallback을 유지한다.
+- 검증 예정: `dart format`, Gemini 모델 목록 조회 unit test, 관련 label sheet toolbar 집중 테스트, `C:\Flutter\bin\flutter.bat analyze`, `git diff --check`.
+- 편집 완료: `labelSheetFetchGeminiModels`를 추가해 Google AI `/v1beta/models`에서 `generateContent`를 지원하는 `gemini-*` 모델을 조회/필터링한다.
+- 편집 완료: `_LabelImageImportDialog`가 열릴 때 저장된 API Key가 있으면 모델 목록을 다시 조회하고, 조회 실패/키 없음이면 기존 정적 목록을 fallback으로 유지한다.
+- 테스트 추가: `Gemini model list is fetched from Google AI models API`에서 `gemini-3.5-pro` 같은 서버 응답 모델이 메뉴 목록 후보로 파싱되는지 검증한다.
+- 검증 완료: `dart format` 실행.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "Gemini model list is fetched from Google AI models API"` 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "Gemini model menu includes supported model choices"` 통과.
+- 검증 완료: 변경 파일 `get_errors` 오류 없음.
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`).
+- 검증 완료: `git diff --check -- lib/page_label_sheet/label_sheet_ai_import.dart lib/page_label_sheet/label_sheet_workbench.dart test/label_sheet_toolbar_test.dart SESSION_HANDOFF.md` 통과.
+- stage/commit 예정: `lib/page_label_sheet/label_sheet_ai_import.dart`, `lib/page_label_sheet/label_sheet_workbench.dart`, `test/label_sheet_toolbar_test.dart`, `SESSION_HANDOFF.md`. unrelated 변경 `lib/core/app.dart`는 제외한다.
+
 ### 진행 중 (2026-07-07): 라벨시트 zoom 입력 텍스트/커서 y 위치 동시 보정
 
 - 확인 완료: Flutter `RenderEditable.cursorOffset`은 커서 페인팅 위치에만 더해지는 값이라 텍스트 레이아웃 위치는 같이 이동하지 않는다.

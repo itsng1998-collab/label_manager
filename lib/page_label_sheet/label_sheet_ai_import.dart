@@ -11,6 +11,7 @@ import 'package:label_manager/page_label_sheet/label_sheet_import_model.dart';
 
 const String labelSheetDefaultGeminiModel = 'gemini-2.5-flash';
 const Duration _labelSheetGeminiRequestTimeout = Duration(seconds: 300);
+const Duration _labelSheetGeminiModelListTimeout = Duration(seconds: 30);
 const int _labelSheetGeminiMaxUploadImageBytes = 4 * 1024 * 1024;
 const int _labelSheetGeminiMaxUploadImageDimension = 2400;
 const int _labelSheetGeminiUploadJpegQuality = 94;
@@ -81,6 +82,118 @@ const List<LabelSheetGeminiModelInfo> labelSheetGeminiModels = [
     description: 'Google AI',
   ),
 ];
+
+Future<List<LabelSheetGeminiModelInfo>> labelSheetFetchGeminiModels({
+  required String apiKey,
+  http.Client? client,
+}) async {
+  final trimmedApiKey = apiKey.trim();
+  if (trimmedApiKey.isEmpty) {
+    throw const LabelSheetGeminiImportException('Gemini API Key를 입력하세요.');
+  }
+  final uri = Uri.https('generativelanguage.googleapis.com', '/v1beta/models', {
+    'key': trimmedApiKey,
+  });
+  final requestId = _geminiRequestId();
+  final httpClient = client ?? http.Client();
+  final closeClient = client == null;
+  debugPrint(
+    '[LabelSheetGemini] requestId=$requestId modelList start '
+    'apiKey=${_maskedGeminiApiKey(trimmedApiKey)}',
+  );
+  try {
+    final response = await httpClient
+        .get(uri, headers: const {'Accept': 'application/json'})
+        .timeout(_labelSheetGeminiModelListTimeout);
+    debugPrint(
+      '[LabelSheetGemini] requestId=$requestId modelList response '
+      'status=${response.statusCode} bytes=${response.bodyBytes.length}',
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      _logGeminiHttpFailure(
+        requestId: requestId,
+        operation: 'modelList',
+        response: response,
+      );
+      throw LabelSheetGeminiImportException(
+        _geminiHttpFailureMessage(response, operationLabel: 'Gemini 모델 조회'),
+      );
+    }
+    final parsed = jsonDecode(response.body);
+    if (parsed is! Map) {
+      throw const LabelSheetGeminiImportException(
+        'Gemini 모델 조회 응답 형식이 올바르지 않습니다.',
+      );
+    }
+    final models = _geminiModelsFromListResponse(parsed);
+    debugPrint(
+      '[LabelSheetGemini] requestId=$requestId modelList parsed '
+      'models=${models.map((model) => model.modelId).join(',')}',
+    );
+    return models;
+  } on TimeoutException {
+    debugPrint(
+      '[LabelSheetGemini] requestId=$requestId modelList timeout '
+      'timeoutSec=${_labelSheetGeminiModelListTimeout.inSeconds}',
+    );
+    throw const LabelSheetGeminiImportException('Gemini 모델 목록 조회 시간이 초과되었습니다.');
+  } finally {
+    if (closeClient) {
+      httpClient.close();
+    }
+  }
+}
+
+List<LabelSheetGeminiModelInfo> _geminiModelsFromListResponse(Map response) {
+  final rawModels = response['models'];
+  if (rawModels is! List) {
+    throw const LabelSheetGeminiImportException(
+      'Gemini 모델 조회 응답에 models 목록이 없습니다.',
+    );
+  }
+  final models = <LabelSheetGeminiModelInfo>[];
+  final seen = <String>{};
+  for (final rawModel in rawModels) {
+    if (rawModel is! Map) {
+      continue;
+    }
+    final methods = rawModel['supportedGenerationMethods'];
+    if (methods is List && !methods.contains('generateContent')) {
+      continue;
+    }
+    final rawName = _geminiStringField(rawModel['name']);
+    if (rawName == null || rawName.isEmpty) {
+      continue;
+    }
+    final modelId = rawName.startsWith('models/')
+        ? rawName.substring('models/'.length)
+        : rawName;
+    if (!modelId.startsWith('gemini-') || !seen.add(modelId)) {
+      continue;
+    }
+    models.add(
+      LabelSheetGeminiModelInfo(
+        modelId: modelId,
+        displayName: _geminiStringField(rawModel['displayName']) ?? modelId,
+        description: 'Google AI',
+      ),
+    );
+  }
+  if (models.isEmpty) {
+    throw const LabelSheetGeminiImportException(
+      'generateContent를 지원하는 Gemini 모델이 없습니다.',
+    );
+  }
+  return models;
+}
+
+String? _geminiStringField(Object? value) {
+  if (value is! String) {
+    return null;
+  }
+  final trimmed = value.trim();
+  return trimmed.isEmpty ? null : trimmed;
+}
 
 Future<LabelSheetImageImportDraft> labelSheetAnalyzeImageWithGemini(
   LabelSheetGeminiImportRequest request,
