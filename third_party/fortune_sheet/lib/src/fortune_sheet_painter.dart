@@ -63231,11 +63231,13 @@ class FortuneSheetPainter extends CustomPainter {
       final tickHeight = major
           ? math.min(15.0, rect.height)
           : math.min(7.0, rect.height);
-      canvas.drawLine(
-        Offset(x, rect.bottom - tickHeight),
-        Offset(x, rect.bottom),
-        tickPaint,
-      );
+      if (x > rect.left + 0.5) {
+        canvas.drawLine(
+          Offset(x, rect.bottom - tickHeight),
+          Offset(x, rect.bottom),
+          tickPaint,
+        );
+      }
       if (major) {
         _drawText(
           canvas,
@@ -63277,11 +63279,13 @@ class FortuneSheetPainter extends CustomPainter {
       final tickWidth = major
           ? math.min(16.0, rect.width)
           : math.min(8.0, rect.width);
-      canvas.drawLine(
-        Offset(rect.right - tickWidth, y),
-        Offset(rect.right, y),
-        tickPaint,
-      );
+      if (y > rect.top + 0.5) {
+        canvas.drawLine(
+          Offset(rect.right - tickWidth, y),
+          Offset(rect.right, y),
+          tickPaint,
+        );
+      }
       if (major) {
         _drawText(
           canvas,

@@ -409,6 +409,15 @@ void main() {
       _countPixels(
         bytes,
         image.width,
+        Rect.fromLTWH(dataLeft - 1, sheetTop + 2, 1, dataTop - sheetTop - 4),
+        _isRulerTickPixel,
+      ),
+      0,
+    );
+    expect(
+      _countPixels(
+        bytes,
+        image.width,
         Rect.fromLTWH(dataLeft - 2, sheetTop + 2, 1, dataTop - sheetTop - 4),
         _isGridLinePixel,
       ),
@@ -440,6 +449,15 @@ void main() {
         _isGridLinePixel,
       ),
       greaterThan((dataLeft - 8).round()),
+    );
+    expect(
+      _countPixels(
+        bytes,
+        image.width,
+        Rect.fromLTWH(2, dataTop - 1, dataLeft - 4, 1),
+        _isRulerTickPixel,
+      ),
+      0,
     );
     expect(
       _countPixels(
@@ -516,6 +534,15 @@ void main() {
       _countPixels(
         bytes,
         image.width,
+        Rect.fromLTWH(dataLeft - 1, sheetTop + 2, 1, 80),
+        _isRulerTickPixel,
+      ),
+      0,
+    );
+    expect(
+      _countPixels(
+        bytes,
+        image.width,
         Rect.fromLTWH(dataLeft - 2, sheetTop + 2, 1, 80),
         _isGridLinePixel,
       ),
@@ -529,6 +556,15 @@ void main() {
         _isGridLinePixel,
       ),
       greaterThan((dataLeft + 55).round()),
+    );
+    expect(
+      _countPixels(
+        bytes,
+        image.width,
+        Rect.fromLTWH(2, dataTop - 1, dataLeft + 60, 1),
+        _isRulerTickPixel,
+      ),
+      0,
     );
     expect(
       _countPixels(

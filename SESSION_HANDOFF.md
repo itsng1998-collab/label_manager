@@ -28,6 +28,20 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-07): ruler 0 눈금 경계선 겹침 제거
+
+- 수정 완료: 이전 보정이 실제로 두껍게 보이는 진한 선을 없애지 못한 원인을 재수정했다.
+- 원인: 시트 좌상단 경계선 위에 horizontal/vertical ruler의 `0mm` tick이 진한 `fortuneSheetRulerTickColor`로 겹쳐 그려져, 일반 행/열 구분선보다 두껍고 진하게 보였다.
+- 수정 완료: 원본 `fortune_sheet` painter에서 경계선 위 `0mm` tick 선만 그리지 않게 하고, `0` label은 유지했다.
+- 테스트 보강: 일반/헤더 숨김 상태 경계선 테스트가 `fortuneSheetGridLineColor` 유지와 `fortuneSheetRulerTickColor` 미검출을 함께 검증한다.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_sheet_painter_test.dart --plain-name "adjusted sheet header corner separators stay connected"` 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_sheet_painter_test.dart --plain-name "adjusted sheet hidden headers keep ruler separators one pixel"` 통과.
+- 검증 완료: ruler tick/adjusted sheet/cell border 회귀 테스트 3건 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_sheet_painter_test.dart` 통과(`+752`).
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`).
+- 검증 완료: `git diff --check -- third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart third_party/fortune_sheet/test/fortune_sheet_painter_test.dart SESSION_HANDOFF.md` 통과.
+- stage/commit 예정: `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`, `third_party/fortune_sheet/test/fortune_sheet_painter_test.dart`, `SESSION_HANDOFF.md`. unrelated 변경 `lib/core/app.dart` 및 lock 파일은 제외한다.
+
 ### 완료 (2026-07-07): 행/열 헤더 교차 경계선 중복 제거
 
 - 수정 완료: sheet 좌상단 행/열 헤더 영역 경계선이 여전히 두껍게 보이는 문제를 재보정했다.
