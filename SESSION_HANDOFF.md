@@ -41,6 +41,7 @@
 - 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "floating preview top corner can expand and shrink"` 통과.
 - 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "floating preview shows corner resize grips on hover"` 통과.
 - 검증 완료: `C:\Flutter\bin\flutter.bat test test\swipe_action_table_test.dart --plain-name "resizable table reports its global rect"` 통과.
+- 커밋 완료: `e59d727` 품목 플로팅 위치와 리사이즈 판정 조정.
 
 ### 진행 중 (2026-07-07): 품목관리 플로팅 창 초기 크기/위치 조정
 
