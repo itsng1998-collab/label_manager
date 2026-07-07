@@ -43,7 +43,7 @@
 - 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`).
 - 검증 완료: `git diff --check -- lib/main.dart lib/home_page_manager.dart test/label_sheet_toolbar_test.dart third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart third_party/fortune_sheet/test/fortune_sheet_painter_test.dart SESSION_HANDOFF.md` 통과.
 - 스크린샷 필요 조건: 이 수정 후에도 공용라벨관리 `label_sheet_01`의 visible header 좌상단 선이 그대로라면, 로그 좌표만으로는 실제 두꺼운 픽셀 레이어를 더 구분할 수 없어 새 스크린샷이 필요하다. 특히 좌상단 corner와 첫 행/열 header가 함께 보이도록 찍어야 한다.
-- 커밋 예정: `lib/main.dart`, `lib/home_page_manager.dart`, `test/label_sheet_toolbar_test.dart`, `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`, `third_party/fortune_sheet/test/fortune_sheet_painter_test.dart`, `SESSION_HANDOFF.md`. unrelated 변경 `lib/core/app.dart` 및 lock 파일은 제외한다.
+- 커밋 완료: `690cd88` 품목관리 preview ruler 비활성화. unrelated 변경 `lib/core/app.dart` 및 lock 파일은 제외했다.
 
 ### 완료 (2026-07-07): hidden header ruler 경계선 제거
 
