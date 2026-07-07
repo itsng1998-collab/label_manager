@@ -37,6 +37,7 @@
 - 테스트 추가: `test/dao_result_helper_test.dart`에 `LabelSizeDAO sheet storage SQL` 그룹을 추가해 sheet 우선 로드, sheet 컬럼 저장, sheet 전/후 로그 SQL을 검증한다.
 - 검증 완료: `C:\Flutter\bin\flutter.bat test test\dao_result_helper_test.dart` 통과.
 - 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`).
+- 커밋 완료: `6633e40` 라벨 시트 저장본 컬럼 분리.
 
 ### 진행 중 (2026-07-07): 공용라벨 RTF Viewer AI 변환 연결
 
