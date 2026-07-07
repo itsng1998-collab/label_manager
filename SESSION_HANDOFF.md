@@ -41,7 +41,7 @@
 - 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`).
 - 검증 완료: `git diff --check -- lib/main.dart third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart third_party/fortune_sheet/test/fortune_sheet_painter_test.dart SESSION_HANDOFF.md` 통과.
 - 다음 확인: 새 실행 로그에서 `stage=cellBorderBoundary`가 품목 preview sheet(`item_element`, `item_output_preview_sheet_01`)에 찍히는지 확인한다. 찍히면 화면의 두꺼운 선은 셀 테두리 레이어 가능성이 높고, 안 찍히면 ruler/tick/canvas 외곽선 외부 레이어를 추가 추적해야 한다.
-- 커밋 예정: `lib/main.dart`, `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`, `third_party/fortune_sheet/test/fortune_sheet_painter_test.dart`, `SESSION_HANDOFF.md`. unrelated 변경 `lib/core/app.dart` 및 lock 파일은 제외한다.
+- 커밋 완료: `67c5a86` 품목관리 preview boundary layer 추적 추가. unrelated 변경 `lib/core/app.dart` 및 lock 파일은 제외했다.
 
 ### 완료 (2026-07-07): 품목관리 preview ruler separator 스타일 보정(v9)
 
