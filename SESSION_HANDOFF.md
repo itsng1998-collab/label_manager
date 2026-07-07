@@ -44,6 +44,7 @@
 - 검증 완료: `git diff --check -- lib/page_label_sheet/label_sheet_workbench.dart SESSION_HANDOFF.md` 통과.
 - stage/commit 예정: `lib/page_label_sheet/label_sheet_workbench.dart`, `SESSION_HANDOFF.md`. unrelated 변경 `lib/core/app.dart` 및 검증 중 변경된 lock 파일은 제외한다.
 - 커밋 완료: `ff3a43d` 라벨 이미지 AI 설정 항상 저장.
+- 커밋 완료: `63b8b69` 라벨 이미지 AI 설정 저장 시점 보강.
 
 ### 진행 중 (2026-07-07): 라벨 이미지 가져오기 미리보기 확대/스크롤
 
