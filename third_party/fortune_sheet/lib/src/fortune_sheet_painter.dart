@@ -18,7 +18,7 @@ void _fortuneSheetRulerTrace(String key, String message) {
   if (!_fortuneSheetRulerTraceKeys.add(key)) {
     return;
   }
-  debugPrint('FSRULER-2026-07-08-preview-ruler-boundary-v23 $message');
+  debugPrint('FSRULER-2026-07-08-preview-ruler-boundary-v24 $message');
 }
 
 bool _intDoubleMapEquals(Map<int, double> left, Map<int, double> right) {
@@ -63081,11 +63081,14 @@ class FortuneSheetPainter extends CustomPainter {
       ' cornerBottomRight=$cornerBottomRight'
       ' cornerRightBottom=$cornerRightBottom'
       ' dataLeft=${_sheetDataLeft(settings)} dataTop=${_sheetDataTop(settings)}'
-      ' boundaryStyle=${normalizePreviewRulerBoundary ? 'continuousGridLine' : 'rulerBorder'}'
+      ' boundaryStyle=${normalizePreviewRulerBoundary ? 'gridLine' : 'rulerBorder'}'
       ' drawTopBottom=true drawLeftRight=true'
       ' drawCornerBottom=true drawCornerRight=true'
       ' normalizePreviewRulerBoundary=$normalizePreviewRulerBoundary',
     );
+    if (normalizePreviewRulerBoundary) {
+      _tracePreviewBoundarySummary(settings);
+    }
     if (normalizePreviewRulerBoundary) {
       _drawPreviewRulerBoundaryLines(
         canvas,
@@ -63146,7 +63149,7 @@ class FortuneSheetPainter extends CustomPainter {
       ..strokeCap = StrokeCap.butt
       ..isAntiAlias = false;
     canvas.drawLine(
-      Offset(corner.left, topRuler.bottom - 0.5),
+      Offset(topRuler.left, topRuler.bottom - 0.5),
       Offset(topRuler.right, topRuler.bottom - 0.5),
       paint,
     );
@@ -63156,10 +63159,53 @@ class FortuneSheetPainter extends CustomPainter {
       paint,
     );
     canvas.drawLine(
-      Offset(corner.right - 0.5, corner.top),
-      Offset(corner.right - 0.5, leftRuler.top),
+      Offset(corner.left, corner.bottom - 0.5),
+      Offset(cornerBottomRight, corner.bottom - 0.5),
       paint,
     );
+    canvas.drawLine(
+      Offset(corner.right - 0.5, corner.top),
+      Offset(corner.right - 0.5, cornerRightBottom),
+      paint,
+    );
+  }
+
+  void _tracePreviewBoundarySummary(FortuneSettings settings) {
+    final sheet = workbook.activeSheet;
+    final overlays = fortuneRawShapeOverlays(sheet);
+    _fortuneSheetRulerTrace(
+      '${sheet.id}:preview-boundary-summary',
+      'sheet=${sheet.id}'
+      ' stage=previewBoundarySummary'
+      ' cells=${sheet.cells.length}'
+      ' borderInfo=${sheet.borderInfo.length}'
+      ' hasRawBorderInfo=${sheet.hasRawBorderInfo}'
+      ' rawBorderInfoType=${sheet.rawBorderInfo.runtimeType}'
+      ' images=${sheet.images.length}'
+      ' hasRawImages=${sheet.hasRawImages}'
+      ' rawImagesType=${sheet.rawImages.runtimeType}'
+      ' rawShapeOverlays=${overlays.length}'
+      ' beforeRenderCellArea=${settings.beforeRenderCellArea != null}'
+      ' beforeRenderCell=${settings.beforeRenderCell != null}'
+      ' afterRenderCell=${settings.afterRenderCell != null}'
+      ' activeImageId=$activeImageId'
+      ' selection=${selection.rowStart}:${selection.columnStart}'
+      ' hideSelectionHighlight=${settings.hideSelectionHighlight}',
+    );
+  }
+
+  bool _rectTouchesPreviewBoundary(Rect rect, FortuneSettings settings) {
+    if (!_shouldNormalizePreviewRulerBoundary(settings)) {
+      return false;
+    }
+    const tolerance = 2.0;
+    final dataLeft = _sheetDataLeft(settings);
+    final dataTop = _sheetDataTop(settings);
+    final touchesLeft = rect.left <= dataLeft + tolerance &&
+        rect.right >= dataLeft - tolerance;
+    final touchesTop = rect.top <= dataTop + tolerance &&
+        rect.bottom >= dataTop - tolerance;
+    return touchesLeft || touchesTop;
   }
 
   String? get sheetRulerCornerSizeLabel {
@@ -64510,6 +64556,18 @@ class FortuneSheetPainter extends CustomPainter {
             : singleRect;
         if (rect == null) {
           continue;
+        }
+        if (_rectTouchesPreviewBoundary(rect, settings)) {
+          _fortuneSheetRulerTrace(
+            '${sheet.id}:preview-cell-edge:${drawCoord.row}:${drawCoord.column}:${rect.left}:${rect.top}',
+            'sheet=${sheet.id}'
+            ' stage=previewCellEdge'
+            ' coord=${drawCoord.row}:${drawCoord.column}'
+            ' rect=$rect'
+            ' textLength=${cell?.renderedText.length ?? 0}'
+            ' background=${cell?.background}'
+            ' merge=${cell?.merge}',
+          );
         }
         if (!_beforeRenderCell(settings, canvas, cell, drawCoord, rect)) {
           skippedRenderCells.add(drawCoord);
@@ -76111,6 +76169,17 @@ class FortuneSheetPainter extends CustomPainter {
         image.width * zoomRatio,
         image.height * zoomRatio,
       );
+      if (_rectTouchesPreviewBoundary(rect, settings)) {
+        _fortuneSheetRulerTrace(
+          '${sheet.id}:preview-image-edge:${image.id}:${rect.left}:${rect.top}',
+          'sheet=${sheet.id}'
+          ' stage=previewImageEdge'
+          ' id=${image.id}'
+          ' rect=$rect'
+          ' raw=${image.left},${image.top},${image.width},${image.height}'
+          ' extraKeys=${image.extraFields.keys.join(',')}',
+        );
+      }
       if (!rect.overlaps(clip)) {
         continue;
       }
@@ -76158,6 +76227,21 @@ class FortuneSheetPainter extends CustomPainter {
         scrollOffset,
         sheet.zoomRatio,
       );
+      if (_rectTouchesPreviewBoundary(rect, settings)) {
+        _fortuneSheetRulerTrace(
+          '${sheet.id}:preview-raw-shape-edge:${overlay.hitKey}:${rect.left}:${rect.top}',
+          'sheet=${sheet.id}'
+          ' stage=previewRawShapeEdge'
+          ' hitKey=${overlay.hitKey}'
+          ' kind=${overlay.kind}'
+          ' rect=$rect'
+          ' rawRect=${overlay.rect}'
+          ' strokeColor=${overlay.strokeColor}'
+          ' strokeWidth=${overlay.strokeWidth}'
+          ' fillColor=${overlay.fillColor}'
+          ' zIndex=${overlay.zIndex}',
+        );
+      }
       _drawRawShapeOverlay(canvas, rect, overlay, clip);
     }
     canvas.restore();
