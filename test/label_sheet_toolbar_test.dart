@@ -366,6 +366,39 @@ void main() {
     expect(runs.any((run) => run.text == '설탕' && run.italic == true), isTrue);
   });
 
+  test('item element RTF conversion decodes Korean ANSI hex', () async {
+    const channel = MethodChannel('charset_converter');
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, (call) async {
+          final arguments = Map<Object?, Object?>.from(call.arguments as Map);
+          final data = List<int>.from(arguments['data'] as List);
+          final hex = data
+              .map((value) => value.toRadixString(16).padLeft(2, '0'))
+              .join();
+          return switch (hex) {
+            'c1a6c7b0b8ed' => '제품명',
+            'b5fab1e2' => '딸기',
+            _ => String.fromCharCodes(data),
+          };
+        });
+    addTearDown(() {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, null);
+    });
+
+    final workbook = await debugItemElementWorkbookFromRichEditRtfForTesting(
+      r"""{\rtf1\ansi\ansicpg949\deff0{\fonttbl{\f0\fnil\fcharset129 \'b1\'bc\'b8\'b2;}}
+    \viewkind4\uc1\pard\f0\fs18 \'c1\'a6\'c7\'b0\'b8\'ed: \'b5\'fa\'b1\'e2\par} """,
+      _testLabelSizeWithFormData(''),
+    );
+
+    expect(workbook, isNotNull);
+    expect(
+      workbook!.sheets.single.cells[const FortuneCellCoord(0, 0)]?.renderedText,
+      contains('제품명: 딸기'),
+    );
+  });
+
   test('item element DAO keeps legacy RTF while saving sheet data', () {
     expect(ItemOfMarketDAO.SelectSql, contains('P2.RICH_ELEMENT_SHEET'));
     expect(ItemOfMarketDAO.SelectSql, contains('P2.RICH_ELEMENT_RTF'));

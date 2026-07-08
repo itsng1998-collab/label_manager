@@ -2460,9 +2460,16 @@ class _ItemPreviewPanelState extends State<_ItemPreviewPanel> {
     widget.labelSize,
   );
   late String _elementText = _elementForm.text;
+  int _elementRtfConversionGeneration = 0;
   late final TabbedViewController _controller = TabbedViewController(
     _buildTabs(),
   );
+
+  @override
+  void initState() {
+    super.initState();
+    _startElementRtfConversionIfNeeded();
+  }
 
   @override
   void didUpdateWidget(covariant _ItemPreviewPanel oldWidget) {
@@ -2475,10 +2482,50 @@ class _ItemPreviewPanelState extends State<_ItemPreviewPanel> {
       _elementText = _elementForm.text;
     }
     _replaceTabsPreservingSelection();
+    if (itemChanged || labelSizeChanged) {
+      _startElementRtfConversionIfNeeded();
+    }
+  }
+
+  void _startElementRtfConversionIfNeeded() {
+    final payload = widget.item.item.elementRTF.trim();
+    final generation = ++_elementRtfConversionGeneration;
+    if (!labelSheetLooksLikeRichEditRtf(payload)) {
+      return;
+    }
+    if (labelSheetTryDecodeWorkbookSave(payload) != null) {
+      return;
+    }
+    unawaited(
+      _itemElementWorkbookFromRichEditRtfAsync(payload, widget.labelSize)
+          .then((workbook) {
+            if (!mounted || generation != _elementRtfConversionGeneration) {
+              return;
+            }
+            if (workbook == null) {
+              return;
+            }
+            setState(() {
+              _elementForm = _itemElementFormStateFromWorkbook(
+                workbook,
+                sourceHash: payload.hashCode,
+                convertedFromRtf: true,
+              );
+              _elementText = _elementForm.text;
+            });
+            _replaceTabsPreservingSelection();
+          })
+          .catchError((Object error, StackTrace stackTrace) {
+            debugLog(
+              'item element RTF async conversion failed itemId=${widget.item.item.itemId}, error=$error\n$stackTrace',
+            );
+          }),
+    );
   }
 
   @override
   void dispose() {
+    _elementRtfConversionGeneration += 1;
     _controller.dispose();
     super.dispose();
   }
@@ -2964,19 +3011,9 @@ _ItemElementFormState _itemElementFormStateFor(
       convertedFromRtf: false,
     );
   }
-  if (labelSheetLooksLikeRichEditRtf(payload)) {
-    final converted = _itemElementWorkbookFromRichEditRtf(payload, labelSize);
-    if (converted != null) {
-      return _itemElementFormStateFromWorkbook(
-        converted,
-        sourceHash: payload.hashCode,
-        convertedFromRtf: true,
-      );
-    }
-  }
   return _itemElementFormStateFromWorkbook(
     _itemElementWorkbook(item.item.element, labelSize),
-    sourceHash: item.item.element.hashCode,
+    sourceHash: payload.isNotEmpty ? payload.hashCode : item.item.element.hashCode,
     convertedFromRtf: false,
   );
 }
@@ -3024,13 +3061,22 @@ fs.FortuneCell? _itemElementCellFromWorkbook(fs.FortuneWorkbook workbook) {
   return workbook.sheets.first.cells[const fs.FortuneCellCoord(0, 0)];
 }
 
-fs.FortuneWorkbook? _itemElementWorkbookFromRichEditRtf(
+@visibleForTesting
+Future<fs.FortuneWorkbook?> debugItemElementWorkbookFromRichEditRtfForTesting(
   String rtf,
   LabelSize? labelSize,
-) {
+) => _itemElementWorkbookFromRichEditRtfAsync(rtf, labelSize);
+
+Future<fs.FortuneWorkbook?> _itemElementWorkbookFromRichEditRtfAsync(
+  String rtf,
+  LabelSize? labelSize,
+) async {
   final base = _itemElementWorkbook('', labelSize);
   if (base.sheets.isEmpty) return null;
-  final draft = labelSheetDraftFromRichEditRtf(rtf, sheet: base.sheets.first);
+  final draft = await labelSheetDraftFromRichEditRtfAsync(
+    rtf,
+    sheet: base.sheets.first,
+  );
   if (draft == null || draft.cells.isEmpty) return null;
   final cell = _itemElementSingleCellFromDraftCells(draft.cells);
   if (cell == null || cell.renderedText.trim().isEmpty) return null;
