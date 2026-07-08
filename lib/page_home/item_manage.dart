@@ -37,6 +37,7 @@ class _ItemManageState extends State<ItemManage> {
     return FortuneTable<ItemOfMarket>(
       rows: widget.items,
       columns: columns,
+      autoFitColumns: false,
       selectedIndex: widget.selectedIndex,
       onRowSelected: widget.onRowSelected,
       onRectChanged: widget.onTableRectChanged,

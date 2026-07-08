@@ -184,7 +184,7 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
                           itemCount: widget.rows.length,
                           itemBuilder: (context, index) => _rowHeaderCell(
                             '${index + 1}',
-                            _rowColor(index, _selectedIndex == index),
+                            _headerColor,
                             widget.rowHeight,
                           ),
                         ),
@@ -404,7 +404,7 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
         text,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
-        style: const TextStyle(fontSize: 12, color: Color(0xFF5F6368)),
+        style: const TextStyle(fontSize: 12, color: Colors.white),
       ),
     );
   }

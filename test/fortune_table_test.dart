@@ -97,6 +97,17 @@ void main() {
     expect(find.byType(FortuneTable<ItemOfMarket>), findsOneWidget);
     expect(find.text('테스트 품목'), findsOneWidget);
 
+    final table = tester.widget<FortuneTable<ItemOfMarket>>(
+      find.byType(FortuneTable<ItemOfMarket>),
+    );
+    expect(table.autoFitColumns, isFalse);
+    expect(table.columns.map((column) => column.initialWidth), [
+      40,
+      100,
+      280,
+      180,
+    ]);
+
     await tester.tap(find.text('테스트 품목'));
     await tester.pump();
 
