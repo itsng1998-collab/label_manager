@@ -37,6 +37,7 @@
 - 검증 완료(2026-07-08): `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "item output preview"` 통과(`+3`).
 - 검증 완료(2026-07-08): `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`).
 - 검증 완료(2026-07-08): `git diff --check -- lib/main.dart third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart third_party/fortune_sheet/test/fortune_sheet_painter_test.dart SESSION_HANDOFF.md` 통과(출력 없음).
+- 커밋 완료(2026-07-08): `2580c30 품목관리 preview 외곽 셀 테두리 정규화`.
 - 완료(2026-07-08): 사용자가 v19 후에도 “마찬가지”라고 재보고했고, “무작정 수정이 아닌 원본 시트의 행/열 헤더와 교차 부분 소스를 더 자세히 분석 후 시도”를 요청. 최신 `.tmp/log/app_2026-07-08_10-47-41.log`에서 v19가 실제 로드됐고 품목 preview에 `stage=postCellBoundaryNormalize ... finalOverlay=true`가 적용됨을 확인. 원본 `_drawHeaders`를 재분석한 결과 일반 공용라벨관리의 기준은 ruler 전체가 아니라 `dataLeft - 0.5`, `dataTop - 0.5`에 그리는 `headerBoundaries` 데이터 경계선이다. v21은 preview 조건에서만 셀 렌더 이후 원본 `_drawHeaders`와 같은 데이터 경계선만 다시 그리고, 교차점 2px cap만 `fortuneSheetGridLineColor`로 맞춘다. ruler/corner 전체 재덮기는 하지 않는다. 일반 공용라벨관리/일반 hidden-header는 기존 경로 유지.
 - 수정 완료(2026-07-08): 로그 marker는 `FSRULER-2026-07-08-preview-ruler-boundary-v21`, 앱 DebugLogger 버전은 `FSDBG-2026-07-08-preview-ruler-boundary-v21`. 품목 preview 기대 로그는 `stage=postCellBoundaryNormalize ... source=headerBoundaries intersectionCap=true`.
 - 테스트 갱신(2026-07-08): A1 `border-all` 재현 케이스에서 교차점 2x2 영역에 dark join square가 남지 않고 grid-line 픽셀이 남는지 확인한다.
