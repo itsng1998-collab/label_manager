@@ -18,7 +18,7 @@ void _fortuneSheetRulerTrace(String key, String message) {
   if (!_fortuneSheetRulerTraceKeys.add(key)) {
     return;
   }
-  debugPrint('FSRULER-2026-07-08-preview-ruler-boundary-v16 $message');
+  debugPrint('FSRULER-2026-07-08-preview-ruler-boundary-v17 $message');
 }
 
 bool _intDoubleMapEquals(Map<int, double> left, Map<int, double> right) {
@@ -63066,7 +63066,7 @@ class FortuneSheetPainter extends CustomPainter {
     final cornerRightBottom = settings.hideRowColumnHeaderLabels
         ? corner.bottom
         : _sheetHeaderTop(settings);
-    final hidePreviewRulerBoundary =
+    final normalizePreviewRulerBoundary =
       settings.hideRowColumnHeaderLabels &&
       settings.hidePrintAreaBoundary &&
       !workbook.activeSheet.showGridLines;
@@ -63083,14 +63083,37 @@ class FortuneSheetPainter extends CustomPainter {
       ' cornerBottomRight=$cornerBottomRight'
       ' cornerRightBottom=$cornerRightBottom'
       ' dataLeft=${_sheetDataLeft(settings)} dataTop=${_sheetDataTop(settings)}'
-      ' boundaryStyle=rulerBorder'
-      ' drawTopBottom=${!hidePreviewRulerBoundary}'
-      ' drawLeftRight=${!hidePreviewRulerBoundary}'
-      ' drawCornerBottom=${!hidePreviewRulerBoundary}'
-      ' drawCornerRight=${!hidePreviewRulerBoundary}'
-      ' hidePreviewRulerBoundary=$hidePreviewRulerBoundary',
+      ' boundaryStyle=${normalizePreviewRulerBoundary ? 'gridLine' : 'rulerBorder'}'
+      ' drawTopBottom=true drawLeftRight=true'
+      ' drawCornerBottom=true drawCornerRight=true'
+      ' normalizePreviewRulerBoundary=$normalizePreviewRulerBoundary',
     );
-    if (!hidePreviewRulerBoundary) {
+    if (normalizePreviewRulerBoundary) {
+      _line(
+        canvas,
+        Offset(topRuler.left, topRuler.bottom - 0.5),
+        Offset(topRuler.right, topRuler.bottom - 0.5),
+        fortuneSheetGridLineColor,
+      );
+      _line(
+        canvas,
+        Offset(leftRuler.right - 0.5, leftRuler.top),
+        Offset(leftRuler.right - 0.5, leftRuler.bottom),
+        fortuneSheetGridLineColor,
+      );
+      _line(
+        canvas,
+        Offset(corner.left, corner.bottom - 0.5),
+        Offset(cornerBottomRight, corner.bottom - 0.5),
+        fortuneSheetGridLineColor,
+      );
+      _line(
+        canvas,
+        Offset(corner.right - 0.5, corner.top),
+        Offset(corner.right - 0.5, cornerRightBottom),
+        fortuneSheetGridLineColor,
+      );
+    } else {
       canvas.drawLine(topRuler.bottomLeft, topRuler.bottomRight, borderPaint);
       canvas.drawLine(leftRuler.topRight, leftRuler.bottomRight, borderPaint);
       canvas.drawLine(

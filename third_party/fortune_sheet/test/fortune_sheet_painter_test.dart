@@ -543,7 +543,7 @@ void main() {
     );
   });
 
-  test('preview hidden headers omit ruler boundary lines', () async {
+  test('preview hidden headers normalize ruler boundary lines', () async {
     const size = Size(420, 320);
     final workbook = FortuneWorkbook(
       settings: const FortuneSettings(
@@ -602,10 +602,28 @@ void main() {
       _countPixels(
         bytes,
         image.width,
+        Rect.fromLTWH(2, dataTop - 1, dataLeft - 4, 2),
+        _isGridLinePixel,
+      ),
+      greaterThan(20),
+    );
+    expect(
+      _countPixels(
+        bytes,
+        image.width,
         Rect.fromLTWH(dataLeft - 1, 2, 2, dataTop - 4),
         _isRulerBorderPixel,
       ),
       0,
+    );
+    expect(
+      _countPixels(
+        bytes,
+        image.width,
+        Rect.fromLTWH(dataLeft - 1, 2, 2, dataTop - 4),
+        _isGridLinePixel,
+      ),
+      greaterThan(8),
     );
     expect(
       _countPixels(
@@ -620,10 +638,28 @@ void main() {
       _countPixels(
         bytes,
         image.width,
+        Rect.fromLTWH(dataLeft - 1, dataTop + 2, 2, 80),
+        _isGridLinePixel,
+      ),
+      greaterThan(40),
+    );
+    expect(
+      _countPixels(
+        bytes,
+        image.width,
         Rect.fromLTWH(dataLeft + 2, dataTop - 1, 80, 2),
         _isRulerBorderPixel,
       ),
       0,
+    );
+    expect(
+      _countPixels(
+        bytes,
+        image.width,
+        Rect.fromLTWH(dataLeft + 2, dataTop - 1, 80, 2),
+        _isGridLinePixel,
+      ),
+      greaterThan(40),
     );
     expect(
       _countPixels(
