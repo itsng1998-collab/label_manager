@@ -18,7 +18,7 @@ void _fortuneSheetRulerTrace(String key, String message) {
   if (!_fortuneSheetRulerTraceKeys.add(key)) {
     return;
   }
-  debugPrint('FSRULER-2026-07-08-preview-ruler-boundary-v18 $message');
+  debugPrint('FSRULER-2026-07-08-preview-ruler-boundary-v19 $message');
 }
 
 bool _intDoubleMapEquals(Map<int, double> left, Map<int, double> right) {
@@ -63176,14 +63176,13 @@ class FortuneSheetPainter extends CustomPainter {
       corner: corner,
       cornerBottomRight: cornerBottomRight,
       cornerRightBottom: cornerRightBottom,
-      eraseOverdraw: true,
     );
     _fortuneSheetRulerTrace(
       '${workbook.activeSheet.id}:post-cell-ruler-boundary:$topRuler:$leftRuler',
       'sheet=${workbook.activeSheet.id}'
       ' stage=postCellBoundaryNormalize'
       ' topRuler=$topRuler leftRuler=$leftRuler corner=$corner'
-      ' boundaryStyle=gridLine eraseOverdraw=true',
+      ' boundaryStyle=gridLine finalOverlay=true',
     );
   }
 
@@ -63194,40 +63193,7 @@ class FortuneSheetPainter extends CustomPainter {
     required Rect corner,
     required double cornerBottomRight,
     required double cornerRightBottom,
-    bool eraseOverdraw = false,
   }) {
-    if (eraseOverdraw) {
-      final erasePaint = Paint()
-        ..color = const Color(0xffffffff)
-        ..style = PaintingStyle.fill
-        ..isAntiAlias = false;
-      canvas.drawRect(
-        Rect.fromLTWH(topRuler.left, topRuler.bottom - 1, topRuler.width, 2),
-        erasePaint,
-      );
-      canvas.drawRect(
-        Rect.fromLTWH(leftRuler.right - 1, leftRuler.top, 2, leftRuler.height),
-        erasePaint,
-      );
-      canvas.drawRect(
-        Rect.fromLTRB(
-          corner.left,
-          corner.bottom - 1,
-          cornerBottomRight,
-          corner.bottom + 1,
-        ),
-        erasePaint,
-      );
-      canvas.drawRect(
-        Rect.fromLTRB(
-          corner.right - 1,
-          corner.top,
-          corner.right + 1,
-          cornerRightBottom,
-        ),
-        erasePaint,
-      );
-    }
     final paint = Paint()
       ..color = fortuneSheetGridLineColor
       ..strokeWidth = 1
