@@ -18,7 +18,7 @@ void _fortuneSheetRulerTrace(String key, String message) {
   if (!_fortuneSheetRulerTraceKeys.add(key)) {
     return;
   }
-  debugPrint('FSRULER-2026-07-08-preview-data-edge-ruler-v13 $message');
+  debugPrint('FSRULER-2026-07-08-preview-corner-joint-v14 $message');
 }
 
 bool _intDoubleMapEquals(Map<int, double> left, Map<int, double> right) {
@@ -63066,10 +63066,22 @@ class FortuneSheetPainter extends CustomPainter {
     final cornerRightBottom = settings.hideRowColumnHeaderLabels
         ? corner.bottom
         : _sheetHeaderTop(settings);
-    final hideDataEdgeRulerBorder =
+    final separateCornerJoint =
       settings.hideRowColumnHeaderLabels &&
       settings.hidePrintAreaBoundary &&
       !workbook.activeSheet.showGridLines;
+    final cornerBottomEnd = separateCornerJoint
+      ? math.max(corner.left, cornerBottomRight - 1.0)
+      : cornerBottomRight;
+    final cornerRightEnd = separateCornerJoint
+      ? math.max(corner.top, cornerRightBottom - 1.0)
+      : cornerRightBottom;
+    final topRulerBottomStart = separateCornerJoint
+      ? Offset(topRuler.left + 1.0, topRuler.bottom)
+      : topRuler.bottomLeft;
+    final leftRulerRightStart = separateCornerJoint
+      ? Offset(leftRuler.right, leftRuler.top + 1.0)
+      : leftRuler.topRight;
     final borderPaint = Paint()
       ..color = fortuneSheetRulerBorderColor
       ..strokeWidth = 1;
@@ -63084,22 +63096,23 @@ class FortuneSheetPainter extends CustomPainter {
       ' cornerRightBottom=$cornerRightBottom'
       ' dataLeft=${_sheetDataLeft(settings)} dataTop=${_sheetDataTop(settings)}'
       ' boundaryStyle=rulerBorder'
-      ' drawTopBottom=${!hideDataEdgeRulerBorder}'
-      ' drawLeftRight=${!hideDataEdgeRulerBorder}'
-      ' drawCornerBottom=true drawCornerRight=true',
+      ' drawTopBottom=true drawLeftRight=true'
+      ' drawCornerBottom=true drawCornerRight=true'
+      ' separateCornerJoint=$separateCornerJoint'
+      ' cornerBottomEnd=$cornerBottomEnd cornerRightEnd=$cornerRightEnd'
+      ' topRulerBottomStart=$topRulerBottomStart'
+      ' leftRulerRightStart=$leftRulerRightStart',
     );
-    if (!hideDataEdgeRulerBorder) {
-      canvas.drawLine(topRuler.bottomLeft, topRuler.bottomRight, borderPaint);
-      canvas.drawLine(leftRuler.topRight, leftRuler.bottomRight, borderPaint);
-    }
+    canvas.drawLine(topRulerBottomStart, topRuler.bottomRight, borderPaint);
+    canvas.drawLine(leftRulerRightStart, leftRuler.bottomRight, borderPaint);
     canvas.drawLine(
       corner.bottomLeft,
-      Offset(cornerBottomRight, corner.bottom),
+      Offset(cornerBottomEnd, corner.bottom),
       borderPaint,
     );
     canvas.drawLine(
       corner.topRight,
-      Offset(corner.right, cornerRightBottom),
+      Offset(corner.right, cornerRightEnd),
       borderPaint,
     );
     _drawSheetRulerCornerSizeLabel(canvas, corner);

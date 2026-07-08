@@ -543,7 +543,7 @@ void main() {
     );
   });
 
-  test('preview hidden headers omit data edge ruler border', () async {
+  test('preview hidden headers separate ruler corner joint', () async {
     const size = Size(420, 320);
     final workbook = FortuneWorkbook(
       settings: const FortuneSettings(
@@ -594,15 +594,24 @@ void main() {
         bytes,
         image.width,
         Rect.fromLTWH(dataLeft - 1, dataTop + 2, 2, 80),
-        _isRulerBorderPixel,
+        _isNonWhiteUiPixel,
       ),
-      0,
+      greaterThan(40),
     );
     expect(
       _countPixels(
         bytes,
         image.width,
         Rect.fromLTWH(dataLeft + 2, dataTop - 1, 80, 2),
+        _isNonWhiteUiPixel,
+      ),
+      greaterThan(40),
+    );
+    expect(
+      _countPixels(
+        bytes,
+        image.width,
+        Rect.fromLTWH(dataLeft - 1, dataTop - 1, 2, 2),
         _isRulerBorderPixel,
       ),
       0,
