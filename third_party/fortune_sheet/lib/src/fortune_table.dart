@@ -145,8 +145,10 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
   @override
   Widget build(BuildContext context) {
     _scheduleRectReport();
-    return LayoutBuilder(
-      builder: (context, constraints) {
+    return NotificationListener<ScrollNotification>(
+      onNotification: (_) => true,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
         final widths = _effectiveWidths(constraints.maxWidth);
         final bodyWidth = widths.fold<double>(0, (sum, width) => sum + width);
         final horizontalViewportWidth = (constraints.maxWidth -
@@ -170,19 +172,15 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
               children: [
                 Row(
                   children: [
-                    _scrollSignalBoundary(
-                      _rowHeaderCell('', _headerColor, widget.headerHeight),
-                    ),
+                    _rowHeaderCell('', _headerColor, widget.headerHeight),
                     Expanded(
-                      child: _scrollSignalBoundary(
-                        SingleChildScrollView(
-                          controller: _hScrollHeader,
-                          scrollDirection: Axis.horizontal,
-                          child: SizedBox(
-                            width: bodyWidth,
-                            height: widget.headerHeight,
-                            child: _buildHeader(widths),
-                          ),
+                      child: SingleChildScrollView(
+                        controller: _hScrollHeader,
+                        scrollDirection: Axis.horizontal,
+                        child: SizedBox(
+                          width: bodyWidth,
+                          height: widget.headerHeight,
+                          child: _buildHeader(widths),
                         ),
                       ),
                     ),
@@ -197,18 +195,16 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
                           behavior: const _FortuneTableScrollBehavior(
                             dragScrollEnabled: false,
                           ),
-                          child: _scrollSignalBoundary(
-                            ListView.builder(
-                              controller: _vScrollIndex,
-                              itemExtent: widget.rowHeight,
-                              itemCount: widget.rows.length,
-                              itemBuilder: (context, index) =>
-                                  _scrollSignalBoundary(
-                                _rowHeaderCell(
-                                  '${index + 1}',
-                                  _headerColor,
-                                  widget.rowHeight,
-                                ),
+                          child: ListView.builder(
+                            controller: _vScrollIndex,
+                            itemExtent: widget.rowHeight,
+                            itemCount: widget.rows.length,
+                            itemBuilder: (context, index) =>
+                                _scrollSignalBoundary(
+                              _rowHeaderCell(
+                                '${index + 1}',
+                                _headerColor,
+                                widget.rowHeight,
                               ),
                             ),
                           ),
@@ -233,25 +229,21 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
                               radius: Radius.zero,
                               notificationPredicate: (notification) =>
                                   notification.metrics.axis == Axis.horizontal,
-                              child: _scrollSignalBoundary(
-                                SingleChildScrollView(
-                                  controller: _hScrollBody,
-                                  scrollDirection: Axis.horizontal,
-                                  child: SizedBox(
-                                    width: bodyWidth,
-                                    child: _scrollSignalBoundary(
-                                      ListView.builder(
-                                        controller: _vScrollBody,
-                                        itemExtent: widget.rowHeight,
-                                        itemCount: widget.rows.length,
-                                        itemBuilder: (context, rowIndex) =>
-                                            _scrollSignalBoundary(
-                                          _buildRow(
-                                            widget.rows[rowIndex],
-                                            rowIndex,
-                                            widths,
-                                          ),
-                                        ),
+                              child: SingleChildScrollView(
+                                controller: _hScrollBody,
+                                scrollDirection: Axis.horizontal,
+                                child: SizedBox(
+                                  width: bodyWidth,
+                                  child: ListView.builder(
+                                    controller: _vScrollBody,
+                                    itemExtent: widget.rowHeight,
+                                    itemCount: widget.rows.length,
+                                    itemBuilder: (context, rowIndex) =>
+                                        _scrollSignalBoundary(
+                                      _buildRow(
+                                        widget.rows[rowIndex],
+                                        rowIndex,
+                                        widths,
                                       ),
                                     ),
                                   ),
@@ -268,7 +260,8 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
             ),
           ),
         );
-      },
+        },
+      ),
     );
   }
 

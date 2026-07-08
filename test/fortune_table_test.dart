@@ -187,6 +187,56 @@ void main() {
     expect(bodyVerticalController.offset, greaterThan(0));
   });
 
+  testWidgets('FortuneTable does not leak scroll notifications to ancestors', (
+    tester,
+  ) async {
+    var leakedNotifications = 0;
+    final rows = List<String>.generate(40, (index) => '행 $index');
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          appBar: AppBar(title: const Text('헤더')),
+          body: NotificationListener<ScrollNotification>(
+            onNotification: (_) {
+              leakedNotifications += 1;
+              return false;
+            },
+            child: SizedBox(
+              width: 360,
+              height: 180,
+              child: FortuneTable<String>(
+                rows: rows,
+                autoFitColumns: false,
+                columns: [
+                  FortuneTableColumn<String>(
+                    id: 'name',
+                    header: '이름',
+                    initialWidth: 240,
+                    text: (row) => row,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final tableTopLeft = tester.getTopLeft(find.byType(FortuneTable<String>));
+    final bodyVerticalController = _bodyVerticalController(tester);
+    tester.binding.handlePointerEvent(
+      PointerScrollEvent(
+        position: tableTopLeft + const Offset(120, 36 + 14),
+        scrollDelta: const Offset(0, 100),
+      ),
+    );
+    await tester.pump();
+
+    expect(bodyVerticalController.offset, greaterThan(0));
+    expect(leakedNotifications, 0);
+  });
+
   testWidgets('FortuneTable consumes trackpad pan inside a parent scroll view', (
     tester,
   ) async {
