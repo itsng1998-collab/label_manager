@@ -18,7 +18,7 @@ void _fortuneSheetRulerTrace(String key, String message) {
   if (!_fortuneSheetRulerTraceKeys.add(key)) {
     return;
   }
-  debugPrint('FSRULER-2026-07-08-preview-ruler-boundary-v29 $message');
+  debugPrint('FSRULER-2026-07-08-preview-ruler-boundary-v30 $message');
 }
 
 bool _intDoubleMapEquals(Map<int, double> left, Map<int, double> right) {
@@ -63220,58 +63220,44 @@ class FortuneSheetPainter extends CustomPainter {
     }
     final dataLeft = _sheetDataLeft(settings);
     final dataTop = _sheetDataTop(settings);
-    final paint = Paint()
+    final linePaint = Paint()
       ..color = fortuneSheetGridLineColor
-      ..strokeWidth = 1
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.butt
+      ..style = PaintingStyle.fill
       ..isAntiAlias = false;
     if (dataLeft > 0 && dataTop > 0) {
       final cleanupPaint = Paint()
         ..color = fortuneSheetHeaderBackgroundColor
         ..style = PaintingStyle.fill
         ..isAntiAlias = false;
-      canvas.drawRect(Rect.fromLTWH(dataLeft, 0, 1, dataTop), cleanupPaint);
-      canvas.drawRect(Rect.fromLTWH(0, dataTop, dataLeft, 1), cleanupPaint);
       canvas.drawRect(
-        Rect.fromLTWH(dataLeft, dataTop, 1, size.height - dataTop),
+        Rect.fromLTWH(dataLeft - 1, 0, 2, size.height),
         cleanupPaint,
       );
       canvas.drawRect(
-        Rect.fromLTWH(dataLeft, dataTop, size.width - dataLeft, 1),
+        Rect.fromLTWH(0, dataTop - 1, size.width, 2),
         cleanupPaint,
       );
       _fortuneSheetRulerTrace(
         '${workbook.activeSheet.id}:preview-boundary-corner-cleanup',
         'sheet=${workbook.activeSheet.id}'
             ' stage=previewBoundaryCornerCleanup'
-            ' verticalCleanup=Rect.fromLTWH($dataLeft, 0.0, 1.0, $dataTop)'
-            ' horizontalCleanup=Rect.fromLTWH(0.0, $dataTop, $dataLeft, 1.0)'
-            ' dataVerticalCleanup=Rect.fromLTWH($dataLeft, $dataTop, 1.0, ${size.height - dataTop})'
-            ' dataHorizontalCleanup=Rect.fromLTWH($dataLeft, $dataTop, ${size.width - dataLeft}, 1.0)'
-            ' scope=cornerAndDataEdge',
+            ' verticalCleanup=Rect.fromLTWH(${dataLeft - 1}, 0.0, 2.0, ${size.height})'
+            ' horizontalCleanup=Rect.fromLTWH(0.0, ${dataTop - 1}, ${size.width}, 2.0)'
+            ' scope=boundaryBand',
       );
     }
     _fortuneSheetRulerTrace(
       '${workbook.activeSheet.id}:preview-boundary-final-overlay',
       'sheet=${workbook.activeSheet.id}'
           ' stage=previewBoundaryFinalOverlay'
-          ' verticalLineX=${dataLeft - 0.5}'
+          ' verticalLineX=$dataLeft'
           ' verticalLineY=0.0..${size.height}'
-          ' horizontalLineY=${dataTop - 0.5}'
+          ' horizontalLineY=$dataTop'
           ' horizontalLineX=0.0..${size.width}'
           ' boundaryStyle=gridLine',
     );
-    canvas.drawLine(
-      Offset(dataLeft - 0.5, 0),
-      Offset(dataLeft - 0.5, size.height),
-      paint,
-    );
-    canvas.drawLine(
-      Offset(0, dataTop - 0.5),
-      Offset(size.width, dataTop - 0.5),
-      paint,
-    );
+    canvas.drawRect(Rect.fromLTWH(dataLeft, 0, 1, size.height), linePaint);
+    canvas.drawRect(Rect.fromLTWH(0, dataTop, size.width, 1), linePaint);
   }
 
   String? get sheetRulerCornerSizeLabel {

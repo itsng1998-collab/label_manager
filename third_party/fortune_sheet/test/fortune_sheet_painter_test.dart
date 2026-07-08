@@ -670,7 +670,7 @@ void main() {
       _countPixels(
         bytes,
         image.width,
-        Rect.fromLTWH(dataLeft - 1, dataTop + 2, 2, 80),
+        Rect.fromLTWH(dataLeft - 1, dataTop + 2, 1, 80),
         _isRulerBorderPixel,
       ),
       0,
@@ -679,7 +679,7 @@ void main() {
       _countPixels(
         bytes,
         image.width,
-        Rect.fromLTWH(dataLeft - 1, dataTop + 2, 2, 80),
+        Rect.fromLTWH(dataLeft, dataTop + 2, 1, 80),
         _isGridLinePixel,
       ),
       greaterThan(40),
@@ -688,7 +688,7 @@ void main() {
       _countPixels(
         bytes,
         image.width,
-        Rect.fromLTWH(dataLeft - 1, dataTop + 2, 1, 20),
+        Rect.fromLTWH(dataLeft + 1, dataTop + 1, 1, 1),
         _isDarkTextPixel,
       ),
       0,
@@ -697,25 +697,16 @@ void main() {
       _countPixels(
         bytes,
         image.width,
-        Rect.fromLTWH(dataLeft - 1, dataTop - 1, 2, 2),
-        _isDarkTextPixel,
-      ),
-      0,
-    );
-    expect(
-      _countPixels(
-        bytes,
-        image.width,
-        Rect.fromLTWH(dataLeft - 1, dataTop - 1, 2, 2),
+        Rect.fromLTWH(dataLeft, dataTop, 1, 1),
         _isGridLinePixel,
       ),
-      greaterThanOrEqualTo(3),
+      1,
     );
     expect(
       _countPixels(
         bytes,
         image.width,
-        Rect.fromLTWH(dataLeft + 2, dataTop - 1, 80, 2),
+        Rect.fromLTWH(dataLeft + 2, dataTop - 1, 80, 1),
         _isRulerBorderPixel,
       ),
       0,
@@ -724,7 +715,7 @@ void main() {
       _countPixels(
         bytes,
         image.width,
-        Rect.fromLTWH(dataLeft + 2, dataTop - 1, 80, 2),
+        Rect.fromLTWH(dataLeft + 2, dataTop, 80, 1),
         _isGridLinePixel,
       ),
       greaterThan(40),
@@ -733,7 +724,7 @@ void main() {
       _countPixels(
         bytes,
         image.width,
-        Rect.fromLTWH(dataLeft + 2, dataTop - 1, 60, 1),
+        Rect.fromLTWH(dataLeft + 2, dataTop + 1, 60, 1),
         _isDarkTextPixel,
       ),
       0,
@@ -805,25 +796,25 @@ void main() {
         _countPixels(
           bytes,
           image.width,
+          Rect.fromLTWH(dataLeft + 1, dataTop + 2, 1, 40),
+          _isDarkTextPixel,
+        ),
+        0,
+      );
+      expect(
+        _countPixels(
+          bytes,
+          image.width,
+          Rect.fromLTWH(dataLeft + 2, dataTop + 1, 80, 1),
+          _isDarkTextPixel,
+        ),
+        0,
+      );
+      expect(
+        _countPixels(
+          bytes,
+          image.width,
           Rect.fromLTWH(dataLeft, dataTop + 2, 1, 40),
-          _isDarkTextPixel,
-        ),
-        0,
-      );
-      expect(
-        _countPixels(
-          bytes,
-          image.width,
-          Rect.fromLTWH(dataLeft + 2, dataTop, 80, 1),
-          _isDarkTextPixel,
-        ),
-        0,
-      );
-      expect(
-        _countPixels(
-          bytes,
-          image.width,
-          Rect.fromLTWH(dataLeft - 1, dataTop + 2, 1, 40),
           _isGridLinePixel,
         ),
         greaterThan(20),
@@ -832,7 +823,7 @@ void main() {
         _countPixels(
           bytes,
           image.width,
-          Rect.fromLTWH(dataLeft + 2, dataTop - 1, 80, 1),
+          Rect.fromLTWH(dataLeft + 2, dataTop, 80, 1),
           _isGridLinePixel,
         ),
         greaterThan(40),
