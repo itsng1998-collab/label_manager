@@ -209,7 +209,7 @@ class _DialogBodyState extends State<_DialogBody> {
     marketName = TextEditingController();
     userName = TextEditingController();
     password = TextEditingController();
-    password.text = isAutoLogin ? '1234' : '';
+    password.text = isAutoLogin || !isShowLogo ? '1234' : '';
   }
 
   @override
