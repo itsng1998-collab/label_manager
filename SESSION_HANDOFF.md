@@ -38,6 +38,7 @@
 - 검증 완료(2026-07-08): `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "item output preview"` 통과(`+3`).
 - 검증 완료(2026-07-08): `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`).
 - 검증 완료(2026-07-08): `git diff --check -- lib/main.dart third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart third_party/fortune_sheet/test/fortune_sheet_painter_test.dart SESSION_HANDOFF.md` 통과(출력 없음).
+- 커밋 완료(2026-07-08): `350f60c 품목관리 preview 구분선 겹침 정규화`.
 - 완료(2026-07-08): 사용자가 v16 후에도 “마찬가지”라고 재보고하며, 구분선을 지우면 안 되고 두껍게 된 구분선만 일반 구분선과 같게 해야 한다고 명확히 지시. 최신 `.tmp/log/app_2026-07-08_10-10-45.log`에서 품목 preview `drawTopBottom=false drawLeftRight=false drawCornerBottom=false drawCornerRight=false hidePreviewRulerBoundary=true`가 실제 적용됐음을 확인. v16 통합 숨김은 오수정으로 원복했다.
 - 수정 완료(2026-07-08): `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`에서 `hideRowColumnHeaderLabels && hidePrintAreaBoundary && !showGridLines` preview 조건일 때만 ruler/corner boundary 네 선을 삭제하지 않고 `fortuneSheetGridLineColor` + 반픽셀 정렬로 그리도록 변경했다. 이로써 두꺼운 ruler border 색/정수 좌표 선을 일반 구분선과 같은 1px grid line으로 맞춘다. 일반 공용라벨관리/일반 hidden-header는 기존 `fortuneSheetRulerBorderColor` 경로를 유지한다.
 - 수정 완료(2026-07-08): 로그 marker는 `FSRULER-2026-07-08-preview-ruler-boundary-v17`, 앱 DebugLogger 버전은 `FSDBG-2026-07-08-preview-ruler-boundary-v17`. 기대 로그는 품목 preview에서 `boundaryStyle=gridLine drawTopBottom=true drawLeftRight=true drawCornerBottom=true drawCornerRight=true normalizePreviewRulerBoundary=true`. 공용라벨관리/일반 시트는 `boundaryStyle=rulerBorder normalizePreviewRulerBoundary=false`.
