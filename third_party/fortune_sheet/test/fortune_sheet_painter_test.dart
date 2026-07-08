@@ -672,6 +672,24 @@ void main() {
       _countPixels(
         bytes,
         image.width,
+        Rect.fromLTWH(dataLeft - 1, dataTop - 1, 2, 2),
+        _isDarkTextPixel,
+      ),
+      0,
+    );
+    expect(
+      _countPixels(
+        bytes,
+        image.width,
+        Rect.fromLTWH(dataLeft - 1, dataTop - 1, 2, 2),
+        _isGridLinePixel,
+      ),
+      greaterThanOrEqualTo(3),
+    );
+    expect(
+      _countPixels(
+        bytes,
+        image.width,
         Rect.fromLTWH(dataLeft + 2, dataTop - 1, 80, 2),
         _isRulerBorderPixel,
       ),

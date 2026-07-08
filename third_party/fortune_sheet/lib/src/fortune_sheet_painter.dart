@@ -18,7 +18,7 @@ void _fortuneSheetRulerTrace(String key, String message) {
   if (!_fortuneSheetRulerTraceKeys.add(key)) {
     return;
   }
-  debugPrint('FSRULER-2026-07-08-preview-ruler-boundary-v19 $message');
+  debugPrint('FSRULER-2026-07-08-preview-ruler-boundary-v21 $message');
 }
 
 bool _intDoubleMapEquals(Map<int, double> left, Map<int, double> right) {
@@ -63141,48 +63141,59 @@ class FortuneSheetPainter extends CustomPainter {
     if (!_shouldNormalizePreviewRulerBoundary(settings)) {
       return;
     }
-    final dataRect = _sheetRulerDataRect(size, settings, metrics);
-    if (dataRect == null) {
-      return;
-    }
-    final topRuler = Rect.fromLTWH(
-      dataRect.left,
-      0,
-      dataRect.width,
-      _sheetRulerTopInset(settings),
-    );
-    final leftRuler = Rect.fromLTWH(
-      0,
-      dataRect.top,
-      _sheetRulerLeftInset(settings),
-      dataRect.height,
-    );
-    final corner = Rect.fromLTWH(
-      0.0,
-      0.0,
-      _sheetDataLeft(settings),
-      _sheetDataTop(settings),
-    );
-    final cornerBottomRight = settings.hideRowColumnHeaderLabels
-        ? corner.right
-        : _sheetHeaderLeft(settings);
-    final cornerRightBottom = settings.hideRowColumnHeaderLabels
-        ? corner.bottom
-        : _sheetHeaderTop(settings);
-    _drawPreviewRulerBoundaryLines(
+    final headerLeft = _sheetHeaderLeft(settings);
+    final headerTop = _sheetHeaderTop(settings);
+    final dataLeft = _sheetDataLeft(settings);
+    final dataTop = _sheetDataTop(settings);
+    _drawPreviewHeaderDataBoundaryLines(
       canvas,
-      topRuler: topRuler,
-      leftRuler: leftRuler,
-      corner: corner,
-      cornerBottomRight: cornerBottomRight,
-      cornerRightBottom: cornerRightBottom,
+      size: size,
+      headerLeft: headerLeft,
+      headerTop: headerTop,
+      dataLeft: dataLeft,
+      dataTop: dataTop,
     );
     _fortuneSheetRulerTrace(
-      '${workbook.activeSheet.id}:post-cell-ruler-boundary:$topRuler:$leftRuler',
+      '${workbook.activeSheet.id}:post-cell-ruler-boundary:$headerLeft:$headerTop:$dataLeft:$dataTop',
       'sheet=${workbook.activeSheet.id}'
       ' stage=postCellBoundaryNormalize'
-      ' topRuler=$topRuler leftRuler=$leftRuler corner=$corner'
-      ' boundaryStyle=gridLine finalOverlay=true',
+      ' headerLeft=$headerLeft headerTop=$headerTop'
+      ' dataLeft=$dataLeft dataTop=$dataTop'
+      ' boundaryStyle=gridLine source=headerBoundaries intersectionCap=true',
+    );
+  }
+
+  void _drawPreviewHeaderDataBoundaryLines(
+    Canvas canvas, {
+    required Size size,
+    required double headerLeft,
+    required double headerTop,
+    required double dataLeft,
+    required double dataTop,
+  }) {
+    final fillPaint = Paint()
+      ..color = fortuneSheetGridLineColor
+      ..style = PaintingStyle.fill
+      ..isAntiAlias = false;
+    final linePaint = Paint()
+      ..color = fortuneSheetGridLineColor
+      ..strokeWidth = 1
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.butt
+      ..isAntiAlias = false;
+    canvas.drawRect(
+      Rect.fromLTWH(dataLeft - 1, dataTop - 1, 2, 2),
+      fillPaint,
+    );
+    canvas.drawLine(
+      Offset(dataLeft - 0.5, headerTop),
+      Offset(dataLeft - 0.5, size.height),
+      linePaint,
+    );
+    canvas.drawLine(
+      Offset(headerLeft, dataTop - 0.5),
+      Offset(size.width, dataTop - 0.5),
+      linePaint,
     );
   }
 
