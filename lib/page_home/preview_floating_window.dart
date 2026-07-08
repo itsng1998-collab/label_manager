@@ -462,6 +462,7 @@ class _FloatingCard extends StatelessWidget {
   static const double _moveHandleActionWidth = 112;
   static const double _cornerHandleSize = 44;
   static const double _edgeThickness = 10;
+  static const double _internalScrollbarHitThickness = 8;
 
   @override
   Widget build(BuildContext context) {
@@ -1297,7 +1298,11 @@ class _ResizeHandleState extends State<_ResizeHandle> {
     );
     final hitRegion = widget.showHoverIndicator
         ? _ResizeCornerGripHitRegion(name: widget.name, child: handle)
-        : handle;
+        : _ResizeEdgeHitRegion(
+            name: widget.name,
+            scrollbarHitThickness: _FloatingCard._internalScrollbarHitThickness,
+            child: handle,
+          );
     return Positioned(
       left: widget.left,
       top: widget.top,
@@ -1350,6 +1355,77 @@ class _ResizeHandleState extends State<_ResizeHandle> {
     }
     return 'boxTopLeft=${PreviewFloatingWindow._formatOffset(renderObject.localToGlobal(Offset.zero))} '
         'boxSize=${PreviewFloatingWindow._formatSize(renderObject.size)}';
+  }
+}
+
+class _ResizeEdgeHitRegion extends SingleChildRenderObjectWidget {
+  const _ResizeEdgeHitRegion({
+    required this.name,
+    required this.scrollbarHitThickness,
+    required super.child,
+  });
+
+  final String name;
+  final double scrollbarHitThickness;
+
+  @override
+  RenderObject createRenderObject(BuildContext context) {
+    return _RenderResizeEdgeHitRegion(name, scrollbarHitThickness);
+  }
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    covariant _RenderResizeEdgeHitRegion renderObject,
+  ) {
+    renderObject
+      ..name = name
+      ..scrollbarHitThickness = scrollbarHitThickness;
+  }
+}
+
+class _RenderResizeEdgeHitRegion extends RenderProxyBox {
+  _RenderResizeEdgeHitRegion(this._name, this._scrollbarHitThickness);
+
+  String _name;
+  double _scrollbarHitThickness;
+
+  set name(String value) {
+    if (_name == value) {
+      return;
+    }
+    _name = value;
+    markNeedsPaint();
+  }
+
+  set scrollbarHitThickness(double value) {
+    if (_scrollbarHitThickness == value) {
+      return;
+    }
+    _scrollbarHitThickness = value;
+    markNeedsPaint();
+  }
+
+  @override
+  bool hitTest(BoxHitTestResult result, {required Offset position}) {
+    if (_isInternalScrollbarHit(position, size, _name)) {
+      return false;
+    }
+    return super.hitTest(result, position: position);
+  }
+
+  bool _isInternalScrollbarHit(Offset position, Size size, String name) {
+    final thickness = _scrollbarHitThickness.clamp(0.0, double.infinity);
+    if (thickness <= 0) {
+      return false;
+    }
+    if (name == 'right-edge') {
+      return position.dx >= size.width - thickness;
+    }
+    if (name == 'bottom-edge') {
+      return position.dy >= size.height - thickness;
+    }
+    return false;
   }
 }
 

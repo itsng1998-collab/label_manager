@@ -3473,6 +3473,85 @@ void main() {
     expect(window.rect.height, greaterThan(beforeSize.height));
   });
 
+  testWidgets('floating preview lets child scrollbars win over edge resize', (
+    tester,
+  ) async {
+    var rightScrollbarDowns = 0;
+    var bottomScrollbarDowns = 0;
+    final window = PreviewFloatingWindow(
+      initialSize: const Size(160, 120),
+      child: Stack(
+        key: const ValueKey('floating-scrollbar-child'),
+        children: [
+          Positioned(
+            top: 20,
+            right: 0,
+            bottom: 20,
+            width: 8,
+            child: Listener(
+              behavior: HitTestBehavior.opaque,
+              onPointerDown: (_) => rightScrollbarDowns += 1,
+            ),
+          ),
+          Positioned(
+            left: 20,
+            right: 20,
+            bottom: 0,
+            height: 8,
+            child: Listener(
+              behavior: HitTestBehavior.opaque,
+              onPointerDown: (_) => bottomScrollbarDowns += 1,
+            ),
+          ),
+        ],
+      ),
+    );
+    addTearDown(window.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Builder(
+            builder: (context) {
+              return TextButton(
+                onPressed: () => window.show(context),
+                child: const Text('show'),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('show'));
+    await tester.pump();
+    final beforeSize = window.rect.size;
+    final childTopLeft = tester.getTopLeft(
+      find.byKey(const ValueKey('floating-scrollbar-child')),
+    );
+    final childSize = tester.getSize(
+      find.byKey(const ValueKey('floating-scrollbar-child')),
+    );
+
+    await tester.dragFrom(
+      childTopLeft + Offset(childSize.width - 4, childSize.height / 2),
+      const Offset(24, 0),
+    );
+    await tester.pump();
+
+    expect(rightScrollbarDowns, 1);
+    expect(window.rect.size, beforeSize);
+
+    await tester.dragFrom(
+      childTopLeft + Offset(childSize.width / 2, childSize.height - 4),
+      const Offset(0, 24),
+    );
+    await tester.pump();
+
+    expect(bottomScrollbarDowns, 1);
+    expect(window.rect.size, beforeSize);
+  });
+
   test('RTF preview does not capture saved sheet payloads', () async {
     addTearDown(() {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
