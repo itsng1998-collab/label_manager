@@ -38,6 +38,7 @@
 - 검증 완료(2026-07-08): `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "item output preview"` 통과(`+3`).
 - 검증 완료(2026-07-08): `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`).
 - 검증 완료(2026-07-08): `git diff --check -- lib/main.dart third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart third_party/fortune_sheet/test/fortune_sheet_painter_test.dart SESSION_HANDOFF.md` 통과(출력 없음).
+- stage/commit 완료(2026-07-08): `lib/main.dart`, `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`, `third_party/fortune_sheet/test/fortune_sheet_painter_test.dart`, `SESSION_HANDOFF.md` 포함해 기능 커밋 `7655a78` 품목관리 preview 눈금자 corner 겹침 보정. unrelated dirty `lib/core/app.dart`, `pubspec.lock`, `third_party/fortune_sheet/pubspec.lock`, `third_party/mssql_connection/pubspec.lock` 제외.
 - 남은 확인: 사용자가 앱을 다시 실행한 뒤 최신 `.tmp/log/app_YYYY-MM-DD_HH-mm-ss.log`에서 `FSDBG-2026-07-08-preview-corner-joint-v14`와 `FSRULER-2026-07-08-preview-corner-joint-v14`를 확인한다. 적용됐는데도 같으면 corner joint 가설도 틀린 것이므로 `beforeRenderCellArea`, raw shape/image overlay, scroll/canvas container border 순서로 추가 trace를 넣어 레이어를 좁힌다.
 - 현재 unrelated dirty 파일은 `lib/core/app.dart`, `pubspec.lock`, `third_party/fortune_sheet/pubspec.lock`, `third_party/mssql_connection/pubspec.lock`이며 이번 preview 작업 커밋에는 포함하지 않았다.
 - 최근 검증 완료: v12 painter focused test 3개, `test/label_sheet_toolbar_test.dart --plain-name "item output preview"`, `C:\Flutter\bin\flutter.bat analyze`, `git diff --check` 모두 통과.
