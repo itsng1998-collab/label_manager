@@ -18,7 +18,7 @@ void _fortuneSheetRulerTrace(String key, String message) {
   if (!_fortuneSheetRulerTraceKeys.add(key)) {
     return;
   }
-  debugPrint('FSRULER-2026-07-08-preview-ruler-boundary-v17 $message');
+  debugPrint('FSRULER-2026-07-08-preview-ruler-boundary-v18 $message');
 }
 
 bool _intDoubleMapEquals(Map<int, double> left, Map<int, double> right) {
@@ -62990,6 +62990,7 @@ class FortuneSheetPainter extends CustomPainter {
     _drawSheetPrintAreaBoundary(canvas, size, settings, metrics);
     _drawCells(canvas, size, settings, metrics);
     _drawFrozenCells(canvas, size, settings, metrics);
+    _drawPreviewRulerBoundaryOverlay(canvas, size, settings, metrics);
     _drawSheetScrollbars(canvas, size, settings, metrics);
     _drawImages(canvas, size, settings);
     _drawActiveImageToolbar(canvas, size, settings);
@@ -63067,9 +63068,7 @@ class FortuneSheetPainter extends CustomPainter {
         ? corner.bottom
         : _sheetHeaderTop(settings);
     final normalizePreviewRulerBoundary =
-      settings.hideRowColumnHeaderLabels &&
-      settings.hidePrintAreaBoundary &&
-      !workbook.activeSheet.showGridLines;
+      _shouldNormalizePreviewRulerBoundary(settings);
     final borderPaint = Paint()
       ..color = fortuneSheetRulerBorderColor
       ..strokeWidth = 1;
@@ -63089,29 +63088,13 @@ class FortuneSheetPainter extends CustomPainter {
       ' normalizePreviewRulerBoundary=$normalizePreviewRulerBoundary',
     );
     if (normalizePreviewRulerBoundary) {
-      _line(
+      _drawPreviewRulerBoundaryLines(
         canvas,
-        Offset(topRuler.left, topRuler.bottom - 0.5),
-        Offset(topRuler.right, topRuler.bottom - 0.5),
-        fortuneSheetGridLineColor,
-      );
-      _line(
-        canvas,
-        Offset(leftRuler.right - 0.5, leftRuler.top),
-        Offset(leftRuler.right - 0.5, leftRuler.bottom),
-        fortuneSheetGridLineColor,
-      );
-      _line(
-        canvas,
-        Offset(corner.left, corner.bottom - 0.5),
-        Offset(cornerBottomRight, corner.bottom - 0.5),
-        fortuneSheetGridLineColor,
-      );
-      _line(
-        canvas,
-        Offset(corner.right - 0.5, corner.top),
-        Offset(corner.right - 0.5, cornerRightBottom),
-        fortuneSheetGridLineColor,
+        topRuler: topRuler,
+        leftRuler: leftRuler,
+        corner: corner,
+        cornerBottomRight: cornerBottomRight,
+        cornerRightBottom: cornerRightBottom,
       );
     } else {
       canvas.drawLine(topRuler.bottomLeft, topRuler.bottomRight, borderPaint);
@@ -63141,6 +63124,136 @@ class FortuneSheetPainter extends CustomPainter {
       scrollOffset.dy,
     );
     _drawSheetGuides(canvas, settings, dataRect, metrics);
+  }
+
+  bool _shouldNormalizePreviewRulerBoundary(FortuneSettings settings) {
+    return settings.hideRowColumnHeaderLabels &&
+        settings.hidePrintAreaBoundary &&
+        !workbook.activeSheet.showGridLines;
+  }
+
+  void _drawPreviewRulerBoundaryOverlay(
+    Canvas canvas,
+    Size size,
+    FortuneSettings settings,
+    FortuneSheetMetrics metrics,
+  ) {
+    if (!_shouldNormalizePreviewRulerBoundary(settings)) {
+      return;
+    }
+    final dataRect = _sheetRulerDataRect(size, settings, metrics);
+    if (dataRect == null) {
+      return;
+    }
+    final topRuler = Rect.fromLTWH(
+      dataRect.left,
+      0,
+      dataRect.width,
+      _sheetRulerTopInset(settings),
+    );
+    final leftRuler = Rect.fromLTWH(
+      0,
+      dataRect.top,
+      _sheetRulerLeftInset(settings),
+      dataRect.height,
+    );
+    final corner = Rect.fromLTWH(
+      0.0,
+      0.0,
+      _sheetDataLeft(settings),
+      _sheetDataTop(settings),
+    );
+    final cornerBottomRight = settings.hideRowColumnHeaderLabels
+        ? corner.right
+        : _sheetHeaderLeft(settings);
+    final cornerRightBottom = settings.hideRowColumnHeaderLabels
+        ? corner.bottom
+        : _sheetHeaderTop(settings);
+    _drawPreviewRulerBoundaryLines(
+      canvas,
+      topRuler: topRuler,
+      leftRuler: leftRuler,
+      corner: corner,
+      cornerBottomRight: cornerBottomRight,
+      cornerRightBottom: cornerRightBottom,
+      eraseOverdraw: true,
+    );
+    _fortuneSheetRulerTrace(
+      '${workbook.activeSheet.id}:post-cell-ruler-boundary:$topRuler:$leftRuler',
+      'sheet=${workbook.activeSheet.id}'
+      ' stage=postCellBoundaryNormalize'
+      ' topRuler=$topRuler leftRuler=$leftRuler corner=$corner'
+      ' boundaryStyle=gridLine eraseOverdraw=true',
+    );
+  }
+
+  void _drawPreviewRulerBoundaryLines(
+    Canvas canvas, {
+    required Rect topRuler,
+    required Rect leftRuler,
+    required Rect corner,
+    required double cornerBottomRight,
+    required double cornerRightBottom,
+    bool eraseOverdraw = false,
+  }) {
+    if (eraseOverdraw) {
+      final erasePaint = Paint()
+        ..color = const Color(0xffffffff)
+        ..style = PaintingStyle.fill
+        ..isAntiAlias = false;
+      canvas.drawRect(
+        Rect.fromLTWH(topRuler.left, topRuler.bottom - 1, topRuler.width, 2),
+        erasePaint,
+      );
+      canvas.drawRect(
+        Rect.fromLTWH(leftRuler.right - 1, leftRuler.top, 2, leftRuler.height),
+        erasePaint,
+      );
+      canvas.drawRect(
+        Rect.fromLTRB(
+          corner.left,
+          corner.bottom - 1,
+          cornerBottomRight,
+          corner.bottom + 1,
+        ),
+        erasePaint,
+      );
+      canvas.drawRect(
+        Rect.fromLTRB(
+          corner.right - 1,
+          corner.top,
+          corner.right + 1,
+          cornerRightBottom,
+        ),
+        erasePaint,
+      );
+    }
+    final paint = Paint()
+      ..color = fortuneSheetGridLineColor
+      ..strokeWidth = 1
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.butt
+      ..isAntiAlias = false;
+    canvas.drawLine(
+      Offset(topRuler.left, topRuler.bottom - 0.5),
+      Offset(topRuler.right, topRuler.bottom - 0.5),
+      paint,
+    );
+    canvas.drawLine(
+      Offset(leftRuler.right - 0.5, leftRuler.top),
+      Offset(leftRuler.right - 0.5, leftRuler.bottom),
+      paint,
+    );
+    canvas.drawLine(
+      Offset(corner.left, corner.bottom - 0.5),
+      Offset(cornerBottomRight, corner.bottom - 0.5),
+      paint,
+    );
+    canvas.drawLine(
+      Offset(corner.right - 0.5, corner.top),
+      Offset(corner.right - 0.5, cornerRightBottom),
+      paint,
+    );
   }
 
   String? get sheetRulerCornerSizeLabel {

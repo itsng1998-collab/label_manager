@@ -374,6 +374,22 @@ void main() {
             fortuneSheetGridClientWidthMmKey: 40,
             fortuneSheetGridClientHeightMmKey: 30,
           },
+          borderInfo: const [
+            FortuneBorderInfo(
+              rangeType: 'range',
+              borderType: 'border-all',
+              color: Color(0xff000000),
+              style: 1,
+              ranges: [
+                FortuneRange(
+                  rowStart: 0,
+                  rowEnd: 0,
+                  columnStart: 0,
+                  columnEnd: 0,
+                ),
+              ],
+            ),
+          ],
         ),
       ],
     );
@@ -647,6 +663,15 @@ void main() {
       _countPixels(
         bytes,
         image.width,
+        Rect.fromLTWH(dataLeft - 1, dataTop + 2, 2, 20),
+        _isDarkTextPixel,
+      ),
+      0,
+    );
+    expect(
+      _countPixels(
+        bytes,
+        image.width,
         Rect.fromLTWH(dataLeft + 2, dataTop - 1, 80, 2),
         _isRulerBorderPixel,
       ),
@@ -660,6 +685,15 @@ void main() {
         _isGridLinePixel,
       ),
       greaterThan(40),
+    );
+    expect(
+      _countPixels(
+        bytes,
+        image.width,
+        Rect.fromLTWH(dataLeft + 2, dataTop - 1, 60, 2),
+        _isDarkTextPixel,
+      ),
+      0,
     );
     expect(
       _countPixels(
