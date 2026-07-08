@@ -18,7 +18,7 @@ void _fortuneSheetRulerTrace(String key, String message) {
   if (!_fortuneSheetRulerTraceKeys.add(key)) {
     return;
   }
-  debugPrint('FSRULER-2026-07-08-preview-ruler-boundary-v25 $message');
+  debugPrint('FSRULER-2026-07-08-preview-ruler-boundary-v26 $message');
 }
 
 bool _intDoubleMapEquals(Map<int, double> left, Map<int, double> right) {
@@ -62995,7 +62995,6 @@ class FortuneSheetPainter extends CustomPainter {
     _drawActiveImageToolbar(canvas, size, settings);
     _drawImageLayerPanel(canvas, size, settings);
     _drawRawShapeOverlays(canvas, size, settings);
-    _drawPreviewBoundaryFinalOverlay(canvas, size, settings);
     _drawVisibleComments(canvas, size, settings, metrics);
     if (showCellSelection) {
       _drawSelection(canvas, size, settings, metrics);
@@ -63005,6 +63004,7 @@ class FortuneSheetPainter extends CustomPainter {
     _drawSheetRulerTooltip(canvas, size);
     _drawFreezeDragLine(canvas, size);
     _drawResizeDragLine(canvas, size);
+    _drawPreviewBoundaryFinalOverlay(canvas, size, settings);
   }
 
   Rect? _sheetRulerDataRect(
