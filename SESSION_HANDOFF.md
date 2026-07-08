@@ -38,6 +38,7 @@
 - 검증 완료(2026-07-08): `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "item output preview"` 통과(`+3`).
 - 검증 완료(2026-07-08): `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`).
 - 검증 완료(2026-07-08): `git diff --check -- lib/main.dart third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart third_party/fortune_sheet/test/fortune_sheet_painter_test.dart SESSION_HANDOFF.md` 통과(출력 없음).
+- 커밋 완료(2026-07-08): `f1ffca6 품목관리 preview 구분선 이격 보정`.
 - 완료(2026-07-08): 사용자가 v17 적용 후에도 “마찬가지”라고 재보고. 첨부 화면 기준 행/열 눈금자 교차영역 우하단의 두꺼운 선이 여전히 보임. 최신 `.tmp/log/app_2026-07-08_10-16-51.log`에서 v17이 실제 로드됐고 품목 preview가 `boundaryStyle=gridLine normalizePreviewRulerBoundary=true`로 찍힘을 확인했다. 따라서 v17의 ruler 선 자체 정규화는 적용됐지만, 이후 `_drawCells`/`_drawFrozenCells`의 A1 top/left 셀 border가 같은 좌표를 다시 덮어 두껍게 보이는 경로로 판단했다.
 - 수정 완료(2026-07-08): `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`에 v18 적용. preview 조건(`hideRowColumnHeaderLabels && hidePrintAreaBoundary && !showGridLines`)에서만 셀 border 렌더 이후 `_drawPreviewRulerBoundaryOverlay`를 실행해 data edge/ruler edge 주변 2px overdraw만 흰 배경으로 지운 뒤 `fortuneSheetGridLineColor` 1px 선을 다시 그린다. 다른 구분선을 숨기지 않고, 교차영역 우하단에 겹쳐 두껍게 보이던 최종 픽셀만 일반 구분선으로 맞춘다. 일반 공용라벨관리/일반 hidden-header는 `normalizePreviewRulerBoundary=false`로 기존 `rulerBorder` 경로 유지.
 - 수정 완료(2026-07-08): 로그 marker는 `FSRULER-2026-07-08-preview-ruler-boundary-v18`, 앱 DebugLogger 버전은 `FSDBG-2026-07-08-preview-ruler-boundary-v18`. 품목 preview 기대 로그는 `stage=postCellBoundaryNormalize ... boundaryStyle=gridLine eraseOverdraw=true`.
