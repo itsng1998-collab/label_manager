@@ -73,16 +73,20 @@ bool _primaryFocusIsInside(WidgetTester tester, Finder rootFinder) {
   return inside;
 }
 
-ItemOfMarket _testItemOfMarket({String itemName = '테스트 품목'}) {
+ItemOfMarket _testItemOfMarket({
+  int itemId = 10,
+  String itemName = '테스트 품목',
+  String element = '원재료',
+}) {
   final now = DateTime(2026, 7, 7);
   return ItemOfMarket(
     marketId: 1,
     item: Item(
-      itemId: 10,
+      itemId: itemId,
       labelSizeId: 20,
       itemName: itemName,
       labelSizeName: '테스트 라벨',
-      element: '원재료',
+      element: element,
       elementRTF: '',
       price: 0,
       order: 0,
@@ -287,6 +291,41 @@ void main() {
       sheet.cells[const FortuneCellCoord(0, 1)]?.renderedText,
       '딸기, 설탕',
     );
+  });
+
+  testWidgets('item preview keeps selected tab when selected row changes', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: debugItemPreviewPanelForTesting(
+            item: _testItemOfMarket(itemId: 10, itemName: '첫 품목'),
+            labelSize: _testLabelSizeWithFormData(r'{\rtf1\ansi legacy}'),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(find.text('출력내용 미리보기').last);
+    await tester.pumpAndSettle();
+
+    expect(find.text('* 라벨을 편집 저장 후 가능합니다.'), findsOneWidget);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: debugItemPreviewPanelForTesting(
+            item: _testItemOfMarket(itemId: 11, itemName: '둘째 품목'),
+            labelSize: _testLabelSizeWithFormData(r'{\rtf1\ansi legacy}'),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('* 라벨을 편집 저장 후 가능합니다.'), findsOneWidget);
   });
 
   test('label sheet toolbar starts with save and print actions', () {

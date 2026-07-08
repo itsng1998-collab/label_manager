@@ -927,11 +927,8 @@ class _HomePageManagerState extends State<HomePageManager> {
         setState(() {});
         return;
       }
-      final key =
-          '${_effectiveLabelSize?.labelSizeId ?? 'none'}:'
-          '${selected.item.itemId}:${_selectedItemIndex ?? -1}';
       final child = _ItemPreviewPanel(
-        key: ValueKey('item-preview:$key'),
+        key: const ValueKey('item-preview'),
         item: selected,
         labelSize: _effectiveLabelSize,
       );
@@ -2458,6 +2455,25 @@ class _ItemPreviewPanel extends StatefulWidget {
 
 class _ItemPreviewPanelState extends State<_ItemPreviewPanel> {
   late String _elementText = widget.item.item.element;
+  late final TabbedViewController _controller = TabbedViewController(
+    _buildTabs(),
+  );
+
+  @override
+  void didUpdateWidget(covariant _ItemPreviewPanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final itemChanged = oldWidget.item.item.itemId != widget.item.item.itemId;
+    if (itemChanged) {
+      _elementText = widget.item.item.element;
+    }
+    _replaceTabsPreservingSelection();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   void _handleElementWorkbookChanged(fs.FortuneWorkbook workbook) {
     final next = _itemElementTextFromWorkbook(workbook);
@@ -2465,10 +2481,18 @@ class _ItemPreviewPanelState extends State<_ItemPreviewPanel> {
     setState(() {
       _elementText = next;
     });
+    _replaceTabsPreservingSelection();
   }
 
-  @override
-  Widget build(BuildContext context) {
+  void _replaceTabsPreservingSelection() {
+    final selectedValue = _controller.selectedTab?.value;
+    _controller.setTabs(_buildTabs());
+    if (selectedValue != null) {
+      _controller.selectTabByValue(selectedValue);
+    }
+  }
+
+  List<TabData> _buildTabs() {
     final columns = TColumn.datas ?? const <TColumn>[];
     final specialColumns = TColumnSpecial.datas ?? const <TColumnBase>[];
     final imageObjectIds = _itemPreviewImageObjectIdsFor([
@@ -2479,7 +2503,7 @@ class _ItemPreviewPanelState extends State<_ItemPreviewPanel> {
       ...specialColumns,
       ...columns,
     ]);
-    final controller = TabbedViewController([
+    return [
       TabData(
         value: 'item_element',
         text: '주원료 및 함량',
@@ -2507,12 +2531,16 @@ class _ItemPreviewPanelState extends State<_ItemPreviewPanel> {
         closable: false,
         keepAlive: true,
       ),
-    ]);
+    ];
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Material(
       color: Colors.white,
       child: TabbedViewTheme(
         data: _itemPreviewTabbedTheme(),
-        child: TabbedView(controller: controller, tabReorderEnabled: false),
+        child: TabbedView(controller: _controller, tabReorderEnabled: false),
       ),
     );
   }
@@ -2574,7 +2602,9 @@ class _ItemElementPreviewTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return LabelSheetWorkbench(
-      key: ValueKey('item-element:${item.item.itemId}:${item.item.element}'),
+      key: ValueKey(
+        'item-element:${labelSize?.labelSizeId ?? 'none'}:${item.item.itemId}:${item.item.element}',
+      ),
       initialWorkbook: _itemElementWorkbook(item.item.element, labelSize),
       labelSize: labelSize,
       toolbarItems: _itemElementToolbarItems,
@@ -2710,6 +2740,12 @@ class _ItemOutputPreviewHint extends StatelessWidget {
     );
   }
 }
+
+@visibleForTesting
+Widget debugItemPreviewPanelForTesting({
+  required ItemOfMarket item,
+  LabelSize? labelSize,
+}) => _ItemPreviewPanel(item: item, labelSize: labelSize);
 
 @visibleForTesting
 ({fs.FortuneWorkbook? workbook, String? hintText})
