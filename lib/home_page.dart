@@ -199,6 +199,7 @@ class _HomePageState extends State<HomePage> {
       },
       child: Scaffold(
         appBar: AppBar(
+          notificationPredicate: (_) => false,
           title: Text('$APP_TITLE v$appVersion'),
           centerTitle: false,
           actions: [

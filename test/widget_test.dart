@@ -15,4 +15,26 @@ void main() {
     await tester.pumpWidget(const MaterialApp(home: HomePage()));
     expect(find.byType(HomePage), findsOneWidget);
   });
+
+  testWidgets('HomePage AppBar ignores nested table scroll notifications', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const MaterialApp(home: HomePage()));
+
+    final appBar = tester.widget<AppBar>(find.byType(AppBar));
+    final notification = ScrollUpdateNotification(
+      metrics: FixedScrollMetrics(
+        minScrollExtent: 0,
+        maxScrollExtent: 100,
+        pixels: 40,
+        viewportDimension: 50,
+        axisDirection: AxisDirection.down,
+        devicePixelRatio: 1,
+      ),
+      context: tester.element(find.byType(HomePage)),
+      scrollDelta: 40,
+    );
+
+    expect(appBar.notificationPredicate(notification), isFalse);
+  });
 }

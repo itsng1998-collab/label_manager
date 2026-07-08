@@ -145,10 +145,8 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
   @override
   Widget build(BuildContext context) {
     _scheduleRectReport();
-    return NotificationListener<ScrollNotification>(
-      onNotification: (_) => true,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
         final widths = _effectiveWidths(constraints.maxWidth);
         final bodyWidth = widths.fold<double>(0, (sum, width) => sum + width);
         final horizontalViewportWidth = (constraints.maxWidth -
@@ -260,8 +258,7 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
             ),
           ),
         );
-        },
-      ),
+      },
     );
   }
 
