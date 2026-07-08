@@ -1713,6 +1713,7 @@ class LabelSheetWorkbench extends StatefulWidget {
     this.hideSelectionHighlight = false,
     this.singleClickCellEdit = false,
     this.hidePrintAreaBoundary = false,
+    this.initialDirty = false,
     this.fitSingleCellToViewport = false,
     this.rulerCornerSizeLabelUsesAsterisk = false,
     this.disableSheetRulerGuideInteraction = false,
@@ -1742,6 +1743,7 @@ class LabelSheetWorkbench extends StatefulWidget {
   final bool hideSelectionHighlight;
   final bool singleClickCellEdit;
   final bool hidePrintAreaBoundary;
+  final bool initialDirty;
   final bool fitSingleCellToViewport;
   final bool rulerCornerSizeLabelUsesAsterisk;
   final bool disableSheetRulerGuideInteraction;
@@ -1970,6 +1972,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
   @override
   void initState() {
     super.initState();
+    _isDirty = widget.initialDirty;
     widget.imageImportController?._attach(this);
     _zoomFocusNode
       ..addListener(_handleZoomFocusChanged)

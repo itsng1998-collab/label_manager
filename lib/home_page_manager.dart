@@ -20,6 +20,7 @@ import 'package:label_manager/models/column_type.dart';
 import 'package:label_manager/models/column_special.dart';
 import 'package:label_manager/models/column.dart';
 import 'package:label_manager/models/customer.dart';
+import 'package:label_manager/models/item.dart';
 import 'package:label_manager/models/item_of_market.dart';
 import 'package:label_manager/models/label_size.dart';
 import 'package:label_manager/models/last_connect.dart';
@@ -2454,7 +2455,11 @@ class _ItemPreviewPanel extends StatefulWidget {
 }
 
 class _ItemPreviewPanelState extends State<_ItemPreviewPanel> {
-  late String _elementText = widget.item.item.element;
+  late _ItemElementFormState _elementForm = _itemElementFormStateFor(
+    widget.item,
+    widget.labelSize,
+  );
+  late String _elementText = _elementForm.text;
   late final TabbedViewController _controller = TabbedViewController(
     _buildTabs(),
   );
@@ -2463,8 +2468,11 @@ class _ItemPreviewPanelState extends State<_ItemPreviewPanel> {
   void didUpdateWidget(covariant _ItemPreviewPanel oldWidget) {
     super.didUpdateWidget(oldWidget);
     final itemChanged = oldWidget.item.item.itemId != widget.item.item.itemId;
-    if (itemChanged) {
-      _elementText = widget.item.item.element;
+    final labelSizeChanged =
+        oldWidget.labelSize?.labelSizeId != widget.labelSize?.labelSizeId;
+    if (itemChanged || labelSizeChanged) {
+      _elementForm = _itemElementFormStateFor(widget.item, widget.labelSize);
+      _elementText = _elementForm.text;
     }
     _replaceTabsPreservingSelection();
   }
@@ -2477,11 +2485,109 @@ class _ItemPreviewPanelState extends State<_ItemPreviewPanel> {
 
   void _handleElementWorkbookChanged(fs.FortuneWorkbook workbook) {
     final next = _itemElementTextFromWorkbook(workbook);
-    if (next == _elementText) return;
+    final encodedWorkbook = labelSheetEncodeWorkbookSave(workbook);
+    if (next == _elementText && encodedWorkbook == _elementForm.encodedWorkbook) {
+      return;
+    }
     setState(() {
       _elementText = next;
+      _elementForm = _elementForm.copyWith(
+        workbook: workbook,
+        encodedWorkbook: encodedWorkbook,
+        text: next,
+        convertedFromRtf: false,
+      );
     });
     _replaceTabsPreservingSelection();
+  }
+
+  Future<void> _handleElementSheetSave(
+    BuildContext context,
+    int width,
+    int height,
+    String encodedWorkbook,
+  ) async {
+    debugLog(START);
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        content: const Text('주원료 및 함량을 저장하시겠습니까?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('취소'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('확인'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) {
+      debugLog('saveItemElementSheet cancelledByUser itemId=${widget.item.item.itemId} keepEditing');
+      return;
+    }
+
+    final workbook = labelSheetTryDecodeWorkbookSave(encodedWorkbook);
+    final elementText = workbook == null ? _elementText : _itemElementTextFromWorkbook(workbook);
+
+    if (!context.mounted) return;
+    showSnackBar(
+      context,
+      '주원료 및 함량을 저장 중입니다...',
+      type: SnackBarType.inProgress,
+      duration: const Duration(days: 1),
+    );
+
+    try {
+      final itemId = widget.item.item.itemId;
+      await ItemDAO.updateElementSheetByItemId(
+        itemId,
+        elementText,
+        encodedWorkbook,
+      );
+      _replaceCachedItemElementSheet(itemId, elementText, encodedWorkbook);
+      if (mounted && workbook != null) {
+        setState(() {
+          _elementText = elementText;
+          _elementForm = _elementForm.copyWith(
+            workbook: workbook,
+            encodedWorkbook: encodedWorkbook,
+            text: elementText,
+            convertedFromRtf: false,
+          );
+        });
+        _replaceTabsPreservingSelection();
+      }
+      debugLog('$END - item element sheet save completed itemId=$itemId');
+    } catch (e) {
+      debugLog('$END - item element sheet save failed, error=$e');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        await showDialog<void>(
+          context: context,
+          traversalEdgeBehavior: TraversalEdgeBehavior.closedLoop,
+          builder: (dialogContext) => AlertDialog(
+            title: const Text('주원료 및 함량 저장 실패'),
+            content: Text(e.toString()),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('확인'),
+              ),
+            ],
+          ),
+        );
+      }
+      rethrow;
+    } finally {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      }
+    }
   }
 
   void _replaceTabsPreservingSelection() {
@@ -2510,7 +2616,9 @@ class _ItemPreviewPanelState extends State<_ItemPreviewPanel> {
         content: _ItemElementPreviewTab(
           item: widget.item,
           labelSize: widget.labelSize,
+          elementForm: _elementForm,
           onWorkbookChanged: _handleElementWorkbookChanged,
+          onSave: _handleElementSheetSave,
         ),
         closable: false,
         keepAlive: true,
@@ -2520,11 +2628,12 @@ class _ItemPreviewPanelState extends State<_ItemPreviewPanel> {
         text: '출력내용 미리보기',
         content: _ItemOutputPreviewTab(
           key: ValueKey(
-            'item-output-tab:${widget.item.item.itemId}:${_elementText.hashCode}',
+            'item-output-tab:${widget.item.item.itemId}:${_elementForm.encodedWorkbook.hashCode}',
           ),
           item: widget.item,
           labelSize: widget.labelSize,
           elementText: _elementText,
+          elementWorkbook: _elementForm.workbook,
           imageObjectIds: imageObjectIds,
           barcodeObjectIds: barcodeObjectIds,
         ),
@@ -2592,21 +2701,31 @@ class _ItemElementPreviewTab extends StatelessWidget {
   const _ItemElementPreviewTab({
     required this.item,
     required this.labelSize,
+    required this.elementForm,
     required this.onWorkbookChanged,
+    required this.onSave,
   });
 
   final ItemOfMarket item;
   final LabelSize? labelSize;
+  final _ItemElementFormState elementForm;
   final ValueChanged<fs.FortuneWorkbook> onWorkbookChanged;
+  final Future<void> Function(
+    BuildContext context,
+    int width,
+    int height,
+    String encodedWorkbook,
+  ) onSave;
 
   @override
   Widget build(BuildContext context) {
     return LabelSheetWorkbench(
       key: ValueKey(
-        'item-element:${labelSize?.labelSizeId ?? 'none'}:${item.item.itemId}:${item.item.element}',
+        'item-element:${labelSize?.labelSizeId ?? 'none'}:${item.item.itemId}:${elementForm.sourceHash}',
       ),
-      initialWorkbook: _itemElementWorkbook(item.item.element, labelSize),
+      initialWorkbook: elementForm.workbook,
       labelSize: labelSize,
+      initialDirty: elementForm.convertedFromRtf,
       toolbarItems: _itemElementToolbarItems,
       hideRowColumnHeaderLabels: true,
       hideSelectionHighlight: true,
@@ -2617,6 +2736,12 @@ class _ItemElementPreviewTab extends StatelessWidget {
       hideStatisticBar: true,
       zoomToolbarPlacement: LabelSheetZoomToolbarPlacement.previewTabAreaEnd,
       onWorkbookChanged: onWorkbookChanged,
+      onSave: (width, height, encodedWorkbook) => onSave(
+        context,
+        width,
+        height,
+        encodedWorkbook,
+      ),
     );
   }
 }
@@ -2675,6 +2800,7 @@ class _ItemOutputPreviewTab extends StatelessWidget {
     super.key,
     required this.item,
     required this.elementText,
+    required this.elementWorkbook,
     required this.imageObjectIds,
     required this.barcodeObjectIds,
     this.labelSize,
@@ -2682,6 +2808,7 @@ class _ItemOutputPreviewTab extends StatelessWidget {
 
   final ItemOfMarket item;
   final String elementText;
+  final fs.FortuneWorkbook elementWorkbook;
   final LabelSize? labelSize;
   final List<String> imageObjectIds;
   final List<String> barcodeObjectIds;
@@ -2692,6 +2819,7 @@ class _ItemOutputPreviewTab extends StatelessWidget {
       labelSize: labelSize,
       item: item,
       elementText: elementText,
+      elementWorkbook: elementWorkbook,
     );
     if (preview.hintText != null) {
       return _ItemOutputPreviewHint(preview.hintText!);
@@ -2753,16 +2881,19 @@ debugItemOutputPreviewForTesting({
   required LabelSize? labelSize,
   required ItemOfMarket item,
   required String elementText,
+  fs.FortuneWorkbook? elementWorkbook,
 }) => _itemOutputPreview(
   labelSize: labelSize,
   item: item,
   elementText: elementText,
+  elementWorkbook: elementWorkbook,
 );
 
 ({fs.FortuneWorkbook? workbook, String? hintText}) _itemOutputPreview({
   required LabelSize? labelSize,
   required ItemOfMarket item,
   required String elementText,
+  fs.FortuneWorkbook? elementWorkbook,
 }) {
   final encodedWorkbook = labelSize?.labelSizeCommon?.rtf;
   if (labelSheetLooksLikeRichEditRtf(encodedWorkbook)) {
@@ -2777,6 +2908,9 @@ debugItemOutputPreviewForTesting({
       workbook: _replaceItemPreviewKeywords(
         _itemOutputPreviewPrivateWorkbook(workbook, labelSize),
         _itemOutputPreviewReplacements(item: item, elementText: elementText),
+        elementCell: _itemElementCellFromWorkbook(
+          elementWorkbook ?? _itemElementWorkbook(elementText, labelSize),
+        ),
         imageKeywords: _itemOutputPreviewImageKeywords(),
       ),
       hintText: null,
@@ -2785,10 +2919,183 @@ debugItemOutputPreviewForTesting({
   return (workbook: null, hintText: null);
 }
 
+class _ItemElementFormState {
+  const _ItemElementFormState({
+    required this.workbook,
+    required this.encodedWorkbook,
+    required this.text,
+    required this.sourceHash,
+    required this.convertedFromRtf,
+  });
+
+  final fs.FortuneWorkbook workbook;
+  final String encodedWorkbook;
+  final String text;
+  final int sourceHash;
+  final bool convertedFromRtf;
+
+  _ItemElementFormState copyWith({
+    fs.FortuneWorkbook? workbook,
+    String? encodedWorkbook,
+    String? text,
+    int? sourceHash,
+    bool? convertedFromRtf,
+  }) {
+    return _ItemElementFormState(
+      workbook: workbook ?? this.workbook,
+      encodedWorkbook: encodedWorkbook ?? this.encodedWorkbook,
+      text: text ?? this.text,
+      sourceHash: sourceHash ?? this.sourceHash,
+      convertedFromRtf: convertedFromRtf ?? this.convertedFromRtf,
+    );
+  }
+}
+
+_ItemElementFormState _itemElementFormStateFor(
+  ItemOfMarket item,
+  LabelSize? labelSize,
+) {
+  final payload = item.item.elementRTF.trim();
+  final savedWorkbook = labelSheetTryDecodeWorkbookSave(payload);
+  if (savedWorkbook != null) {
+    return _itemElementFormStateFromWorkbook(
+      labelSheetWorkbook(savedWorkbook, labelSize: labelSize),
+      sourceHash: payload.hashCode,
+      convertedFromRtf: false,
+    );
+  }
+  if (labelSheetLooksLikeRichEditRtf(payload)) {
+    final converted = _itemElementWorkbookFromRichEditRtf(payload, labelSize);
+    if (converted != null) {
+      return _itemElementFormStateFromWorkbook(
+        converted,
+        sourceHash: payload.hashCode,
+        convertedFromRtf: true,
+      );
+    }
+  }
+  return _itemElementFormStateFromWorkbook(
+    _itemElementWorkbook(item.item.element, labelSize),
+    sourceHash: item.item.element.hashCode,
+    convertedFromRtf: false,
+  );
+}
+
+_ItemElementFormState _itemElementFormStateFromWorkbook(
+  fs.FortuneWorkbook workbook, {
+  required int sourceHash,
+  required bool convertedFromRtf,
+}) {
+  return _ItemElementFormState(
+    workbook: workbook,
+    encodedWorkbook: labelSheetEncodeWorkbookSave(workbook),
+    text: _itemElementTextFromWorkbook(workbook),
+    sourceHash: sourceHash,
+    convertedFromRtf: convertedFromRtf,
+  );
+}
+
+void _replaceCachedItemElementSheet(
+  int itemId,
+  String elementText,
+  String encodedWorkbook,
+) {
+  final current = ItemOfMarket.datas;
+  if (current == null) return;
+  ItemOfMarket.datas = [
+    for (final row in current)
+      row.item.itemId == itemId
+          ? row.copyWith(
+              item: row.item.copyWith(
+                element: elementText,
+                elementRTF: encodedWorkbook,
+              ),
+            )
+          : row,
+  ];
+}
+
 String _itemElementTextFromWorkbook(fs.FortuneWorkbook workbook) {
-  if (workbook.sheets.isEmpty) return '';
-  final cell = workbook.sheets.first.cells[const fs.FortuneCellCoord(0, 0)];
-  return cell?.renderedText ?? '';
+  return _itemElementCellFromWorkbook(workbook)?.renderedText ?? '';
+}
+
+fs.FortuneCell? _itemElementCellFromWorkbook(fs.FortuneWorkbook workbook) {
+  if (workbook.sheets.isEmpty) return null;
+  return workbook.sheets.first.cells[const fs.FortuneCellCoord(0, 0)];
+}
+
+fs.FortuneWorkbook? _itemElementWorkbookFromRichEditRtf(
+  String rtf,
+  LabelSize? labelSize,
+) {
+  final base = _itemElementWorkbook('', labelSize);
+  if (base.sheets.isEmpty) return null;
+  final draft = labelSheetDraftFromRichEditRtf(rtf, sheet: base.sheets.first);
+  if (draft == null || draft.cells.isEmpty) return null;
+  final cell = _itemElementSingleCellFromDraftCells(draft.cells);
+  if (cell == null || cell.renderedText.trim().isEmpty) return null;
+  return _itemElementWorkbookFromCell(cell, labelSize);
+}
+
+fs.FortuneWorkbook _itemElementWorkbookFromCell(
+  fs.FortuneCell cell,
+  LabelSize? labelSize,
+) {
+  final base = _itemElementWorkbook('', labelSize);
+  final sheet = base.sheets.first;
+  return base.copyWith(
+    sheets: [
+      sheet.copyWith(
+        cells: {
+          const fs.FortuneCellCoord(0, 0): cell.copyWith(
+            textWrap: '2',
+            rawTextWrap: '2',
+            hasRawTextWrap: true,
+            verticalAlign: '1',
+            rawVerticalAlign: '1',
+            hasRawVerticalAlign: true,
+          ),
+        },
+      ),
+    ],
+  );
+}
+
+fs.FortuneCell? _itemElementSingleCellFromDraftCells(
+  Map<fs.FortuneCellCoord, fs.FortuneCell> cells,
+) {
+  final entries = cells.entries
+      .where((entry) => entry.value.renderedText.trim().isNotEmpty)
+      .toList()
+    ..sort((a, b) {
+      final row = a.key.row.compareTo(b.key.row);
+      return row != 0 ? row : a.key.column.compareTo(b.key.column);
+    });
+  if (entries.isEmpty) return null;
+
+  final runs = <fs.FortuneInlineTextRun>[];
+  fs.FortuneCell? baseCell;
+  int? currentRow;
+  var firstInRow = true;
+  for (final entry in entries) {
+    baseCell ??= entry.value;
+    if (currentRow != entry.key.row) {
+      if (currentRow != null) {
+        runs.add(const fs.FortuneInlineTextRun(text: '\n'));
+      }
+      currentRow = entry.key.row;
+      firstInRow = true;
+    } else if (!firstInRow) {
+      runs.add(const fs.FortuneInlineTextRun(text: '\t'));
+    }
+    runs.addAll(_itemInlineRunsFromCell(entry.value));
+    firstInRow = false;
+  }
+  return _itemRichTextCell(
+    runs,
+    base: baseCell,
+    extraFields: baseCell?.extraFields,
+  );
 }
 
 fs.FortuneWorkbook _itemElementWorkbook(
@@ -2889,11 +3196,17 @@ Set<String> _itemOutputPreviewImageKeywords() {
 fs.FortuneWorkbook _replaceItemPreviewKeywords(
   fs.FortuneWorkbook workbook,
   Map<String, String> replacements, {
+  fs.FortuneCell? elementCell,
   required Set<String> imageKeywords,
 }) {
   final nextSheets = [
     for (final sheet in workbook.sheets)
-      _replaceSheetKeywords(sheet, replacements, imageKeywords: imageKeywords),
+      _replaceSheetKeywords(
+        sheet,
+        replacements,
+        elementCell: elementCell,
+        imageKeywords: imageKeywords,
+      ),
   ];
   return workbook.copyWith(sheets: nextSheets);
 }
@@ -2901,6 +3214,7 @@ fs.FortuneWorkbook _replaceItemPreviewKeywords(
 fs.FortuneSheet _replaceSheetKeywords(
   fs.FortuneSheet sheet,
   Map<String, String> replacements, {
+  fs.FortuneCell? elementCell,
   required Set<String> imageKeywords,
 }) {
   final nextCells = <fs.FortuneCellCoord, fs.FortuneCell>{};
@@ -2921,7 +3235,11 @@ fs.FortuneSheet _replaceSheetKeywords(
       nextCells[entry.key] = imageReplacement.cell;
       continue;
     }
-    nextCells[entry.key] = _replaceCellKeywords(entry.value, replacements);
+    nextCells[entry.key] = _replaceCellKeywords(
+      entry.value,
+      replacements,
+      elementCell: elementCell,
+    );
   }
   final nextImages = [
     for (final image in sheet.images)
@@ -3037,13 +3355,18 @@ String? _itemImageDataUri(String fileNameWithoutExtension) {
 
 fs.FortuneCell _replaceCellKeywords(
   fs.FortuneCell cell,
-  Map<String, String> replacements,
-) {
-  final runs = cell.inlineRuns;
-  if (runs != null && runs.isNotEmpty) {
+  Map<String, String> replacements, {
+  fs.FortuneCell? elementCell,
+}) {
+  final afterElement = elementCell == null
+      ? cell
+      : _replaceElementKeywordInCell(cell, elementCell);
+  final target = afterElement;
+  final targetRuns = target.inlineRuns;
+  if (targetRuns != null && targetRuns.isNotEmpty) {
     var changed = false;
     final nextRuns = [
-      for (final run in runs)
+      for (final run in targetRuns)
         run.copyWith(
           text: _replaceKeywordText(
             run.text,
@@ -3052,18 +3375,117 @@ fs.FortuneCell _replaceCellKeywords(
           ),
         ),
     ];
-    return changed ? cell.copyWith(inlineRuns: nextRuns) : cell.copyWith();
+    return changed ? target.copyWith(inlineRuns: nextRuns) : target.copyWith();
   }
   var changed = false;
   final text = _replaceKeywordText(
-    cell.renderedText,
+    target.renderedText,
     replacements,
     onChanged: () => changed = true,
   );
   if (!changed) {
+    return target.copyWith();
+  }
+  return _itemTextCell(text, base: target);
+}
+
+fs.FortuneCell _replaceElementKeywordInCell(
+  fs.FortuneCell cell,
+  fs.FortuneCell elementCell,
+) {
+  const keyword = '#ELEMENT';
+  if (!cell.renderedText.contains(keyword)) {
     return cell.copyWith();
   }
-  return _itemTextCell(text, base: cell);
+  final elementRuns = _itemInlineRunsFromCell(elementCell);
+  if (elementRuns.isEmpty) {
+    return _itemTextCell(cell.renderedText.replaceAll(keyword, ''), base: cell);
+  }
+  final nextRuns = <fs.FortuneInlineTextRun>[];
+  var changed = false;
+  for (final run in _itemInlineRunsFromCell(cell)) {
+    var rest = run.text;
+    while (true) {
+      final index = rest.indexOf(keyword);
+      if (index < 0) {
+        if (rest.isNotEmpty) {
+          nextRuns.add(run.copyWith(text: rest));
+        }
+        break;
+      }
+      final prefix = rest.substring(0, index);
+      if (prefix.isNotEmpty) {
+        nextRuns.add(run.copyWith(text: prefix));
+      }
+      nextRuns.addAll(elementRuns.map((source) => source.copyWith()));
+      rest = rest.substring(index + keyword.length);
+      changed = true;
+    }
+  }
+  if (!changed) {
+    return cell.copyWith();
+  }
+  return _itemRichTextCell(
+    nextRuns,
+    base: cell,
+    extraFields: {...cell.extraFields, ...elementCell.extraFields},
+  );
+}
+
+List<fs.FortuneInlineTextRun> _itemInlineRunsFromCell(fs.FortuneCell cell) {
+  final runs = cell.inlineRuns;
+  if (runs != null && runs.isNotEmpty) {
+    return [for (final run in runs) run.copyWith()];
+  }
+  final text = cell.renderedText;
+  if (text.isEmpty) return const <fs.FortuneInlineTextRun>[];
+  return [
+    fs.FortuneInlineTextRun(
+      text: text,
+      foreground: cell.foreground,
+      rawForeground: cell.rawForeground,
+      hasRawForeground: cell.hasRawForeground,
+      bold: cell.bold,
+      rawBold: cell.rawBold,
+      hasRawBold: cell.hasRawBold,
+      italic: cell.italic,
+      rawItalic: cell.rawItalic,
+      hasRawItalic: cell.hasRawItalic,
+      strikeThrough: cell.strikeThrough,
+      rawStrikeThrough: cell.rawStrikeThrough,
+      hasRawStrikeThrough: cell.hasRawStrikeThrough,
+      underline: cell.underline,
+      rawUnderline: cell.rawUnderline,
+      hasRawUnderline: cell.hasRawUnderline,
+      fontSize: cell.fontSize,
+      rawFontSize: cell.rawFontSize,
+      hasRawFontSize: cell.hasRawFontSize,
+      fontFamily: cell.fontFamily,
+      rawFontFamily: cell.rawFontFamily,
+      hasRawFontFamily: cell.hasRawFontFamily,
+      extraFields: cell.extraFields,
+    ),
+  ];
+}
+
+fs.FortuneCell _itemRichTextCell(
+  List<fs.FortuneInlineTextRun> runs, {
+  fs.FortuneCell? base,
+  Map<String, Object?>? extraFields,
+}) {
+  final text = runs.map((run) => run.text).join();
+  final source = base ?? const fs.FortuneCell();
+  return source.copyWith(
+    value: text,
+    displayValue: text,
+    rawDisplayValue: text,
+    hasRawDisplayValue: text.isNotEmpty,
+    formula: null,
+    rawFormula: null,
+    hasRawFormula: false,
+    inlineRuns: [for (final run in runs) run.copyWith()],
+    extraFields: extraFields ?? source.extraFields,
+  );
 }
 
 String _replaceKeywordText(

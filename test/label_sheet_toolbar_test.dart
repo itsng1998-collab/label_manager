@@ -293,6 +293,94 @@ void main() {
     );
   });
 
+  test('item output preview preserves rich element replacement runs', () {
+    final encoded = labelSheetEncodeWorkbookSave(
+      FortuneWorkbook(
+        sheets: [
+          FortuneSheet(
+            id: 'common_01',
+            name: '출력 시트',
+            cells: {
+              const FortuneCellCoord(0, 0): const FortuneCell(
+                value: '원재료: #ELEMENT / 보관',
+              ),
+            },
+          ),
+        ],
+      ),
+    );
+    final elementWorkbook = FortuneWorkbook(
+      sheets: [
+        FortuneSheet(
+          id: 'item_element',
+          name: '주원료 및 함량',
+          cells: {
+            const FortuneCellCoord(0, 0): const FortuneCell(
+              value: '딸기\n설탕',
+              inlineRuns: [
+                FortuneInlineTextRun(
+                  text: '딸기',
+                  bold: true,
+                  hasRawBold: true,
+                  fontFamily: 'Batang',
+                  hasRawFontFamily: true,
+                  fontSize: 14,
+                  hasRawFontSize: true,
+                ),
+                FortuneInlineTextRun(text: '\n'),
+                FortuneInlineTextRun(
+                  text: '설탕',
+                  italic: true,
+                  hasRawItalic: true,
+                  fontSize: 12,
+                  hasRawFontSize: true,
+                ),
+              ],
+            ),
+          },
+        ),
+      ],
+    );
+
+    final preview = debugItemOutputPreviewForTesting(
+      labelSize: _testLabelSizeWithFormData(encoded),
+      item: _testItemOfMarket(itemName: '딸기잼'),
+      elementText: 'plain fallback',
+      elementWorkbook: elementWorkbook,
+    );
+
+    final cell = preview.workbook!.sheets.single.cells[const FortuneCellCoord(0, 0)]!;
+    expect(cell.renderedText, '원재료: 딸기\n설탕 / 보관');
+    final runs = cell.inlineRuns!;
+    expect(runs.map((run) => run.text).join(), cell.renderedText);
+    expect(runs.any((run) => run.text == '딸기' && run.bold == true), isTrue);
+    expect(
+      runs.any(
+        (run) =>
+            run.text == '딸기' &&
+            run.fontFamily == 'Batang' &&
+            run.fontSize == 14,
+      ),
+      isTrue,
+    );
+    expect(runs.any((run) => run.text == '설탕' && run.italic == true), isTrue);
+  });
+
+  test('item element DAO keeps legacy RTF while saving sheet data', () {
+    expect(ItemOfMarketDAO.SelectSql, contains('P2.RICH_ELEMENT_SHEET'));
+    expect(ItemOfMarketDAO.SelectSql, contains('P2.RICH_ELEMENT_RTF'));
+    expect(
+      ItemOfMarketDAO.SelectSql,
+      contains('NULLIF(P2.RICH_ELEMENT_SHEET, \'\')'),
+    );
+    expect(ItemDAO.UpdateElementSheetSql, contains('RICH_ELEMENT=@element'));
+    expect(
+      ItemDAO.UpdateElementSheetSql,
+      contains('RICH_ELEMENT_SHEET=@elementSheet'),
+    );
+    expect(ItemDAO.UpdateElementSheetSql, isNot(contains('RICH_ELEMENT_RTF')));
+  });
+
   testWidgets('item preview keeps selected tab when selected row changes', (
     tester,
   ) async {

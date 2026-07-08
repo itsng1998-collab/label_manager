@@ -69,6 +69,36 @@ class ItemOfMarket {
     datas = values;
   }
 
+  ItemOfMarket copyWith({Item? item}) {
+    return ItemOfMarket(
+      marketId: marketId,
+      item: item ?? this.item,
+      additionalItem: additionalItem,
+      gdsNo: gdsNo,
+      dateSaleStart: dateSaleStart,
+      dateSaleEnd: dateSaleEnd,
+      discountPercent: discountPercent,
+      discountAmount: discountAmount,
+      dateStartDiscount: dateStartDiscount,
+      dateEndDiscount: dateEndDiscount,
+      useDefineElement: useDefineElement,
+      rtfText: rtfText,
+      useLinefeed: useLinefeed,
+      linefeed: linefeed,
+      useScaleBarcode: useScaleBarcode,
+      printCount: printCount,
+      useLabelSize: useLabelSize,
+      labelSizeWidth: labelSizeWidth,
+      labelSizeHeight: labelSizeHeight,
+      useMargin: useMargin,
+      leftMargin: leftMargin,
+      rightMargin: rightMargin,
+      topMargin: topMargin,
+      leftPush: leftPush,
+      topPush: topPush,
+    );
+  }
+
   factory ItemOfMarket.fromMap(Map<String, dynamic> map) {
     String s(String key) => (map[key] ?? '').toString();
     int i(String key) => int.tryParse(s(key)) ?? 0;
@@ -136,7 +166,7 @@ class ItemOfMarketDAO extends DAO {
       COALESCE(CONVERT(NVARCHAR(100), P2.RICH_ITEM_NAME COLLATE ${DAO.CP949}), N'') AS P2_ITEM_NAME,
       COALESCE(CONVERT(NVARCHAR(50), P4.RICH_LABELSIZE_NAME COLLATE ${DAO.CP949}), N'') AS P4_LABELSIZE_NAME,
       COALESCE(CONVERT(NVARCHAR(MAX), P2.RICH_ELEMENT COLLATE ${DAO.CP949}), N'') AS P2_ELEMENT,
-      COALESCE(CONVERT(NVARCHAR(MAX), P2.RICH_ELEMENT_RTF COLLATE ${DAO.CP949}), N'') AS P2_ELEMENT_RTF,
+      COALESCE(CONVERT(NVARCHAR(MAX), NULLIF(P2.RICH_ELEMENT_SHEET, '') COLLATE ${DAO.CP949}), CONVERT(NVARCHAR(MAX), P2.RICH_ELEMENT_RTF COLLATE ${DAO.CP949}), N'') AS P2_ELEMENT_RTF,
       COALESCE(CONVERT(NVARCHAR(20), P2.RICH_PRICE), N'') AS P2_PRICE,
       COALESCE(CONVERT(NVARCHAR(20), P2.RICH_ITEM_ORDER), N'') AS P2_PRICE_ORDER,
       COALESCE(CONVERT(NVARCHAR(20), P3.RICH_ADDITIONAL_ITEM_ID), N'') AS P3_ADDITIONAL_ITEM_ID,
