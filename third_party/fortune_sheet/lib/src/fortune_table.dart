@@ -149,78 +149,134 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
       builder: (context, constraints) {
         final widths = _effectiveWidths(constraints.maxWidth);
         final bodyWidth = widths.fold<double>(0, (sum, width) => sum + width);
-        return Container(
-          color: Colors.white,
-          child: Column(
-            children: [
-              Row(
-                children: [
-                  _rowHeaderCell('', _headerColor, widget.headerHeight),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      controller: _hScrollHeader,
-                      scrollDirection: Axis.horizontal,
-                      child: SizedBox(
-                        width: bodyWidth,
-                        height: widget.headerHeight,
-                        child: _buildHeader(widths),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              Expanded(
-                child: Row(
+        final horizontalViewportWidth = (constraints.maxWidth -
+            widget.rowNumberWidth)
+          .clamp(0, double.infinity)
+          .toDouble();
+        final bodyViewportHeight = (constraints.maxHeight - widget.headerHeight)
+          .clamp(0, double.infinity)
+          .toDouble();
+        final hasHorizontalOverflow =
+          bodyWidth > horizontalViewportWidth + 0.5;
+        final hasVerticalOverflow =
+          widget.rows.length * widget.rowHeight > bodyViewportHeight + 0.5;
+        return Listener(
+          behavior: HitTestBehavior.opaque,
+          onPointerSignal: _handlePointerSignal,
+          child: Container(
+            color: Colors.white,
+            child: Column(
+              children: [
+                Row(
                   children: [
-                    SizedBox(
-                      width: widget.rowNumberWidth,
-                      child: ScrollConfiguration(
-                        behavior: const _FortuneTableScrollBehavior(
-                          dragScrollEnabled: false,
-                        ),
-                        child: ListView.builder(
-                          controller: _vScrollIndex,
-                          itemExtent: widget.rowHeight,
-                          itemCount: widget.rows.length,
-                          itemBuilder: (context, index) => _rowHeaderCell(
-                            '${index + 1}',
-                            _headerColor,
-                            widget.rowHeight,
-                          ),
-                        ),
-                      ),
-                    ),
+                    _rowHeaderCell('', _headerColor, widget.headerHeight),
                     Expanded(
-                      child: ScrollConfiguration(
-                        behavior: _FortuneTableScrollBehavior(
-                          dragScrollEnabled: widget.dragScrollEnabled,
-                        ),
-                        child: SingleChildScrollView(
-                          controller: _hScrollBody,
-                          scrollDirection: Axis.horizontal,
-                          child: SizedBox(
-                            width: bodyWidth,
-                            child: ListView.builder(
-                              controller: _vScrollBody,
-                              itemExtent: widget.rowHeight,
-                              itemCount: widget.rows.length,
-                              itemBuilder: (context, rowIndex) => _buildRow(
-                                widget.rows[rowIndex],
-                                rowIndex,
-                                widths,
-                              ),
-                            ),
-                          ),
+                      child: SingleChildScrollView(
+                        controller: _hScrollHeader,
+                        scrollDirection: Axis.horizontal,
+                        child: SizedBox(
+                          width: bodyWidth,
+                          height: widget.headerHeight,
+                          child: _buildHeader(widths),
                         ),
                       ),
                     ),
                   ],
                 ),
-              ),
-            ],
+                Expanded(
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: widget.rowNumberWidth,
+                        child: ScrollConfiguration(
+                          behavior: const _FortuneTableScrollBehavior(
+                            dragScrollEnabled: false,
+                          ),
+                          child: ListView.builder(
+                            controller: _vScrollIndex,
+                            itemExtent: widget.rowHeight,
+                            itemCount: widget.rows.length,
+                            itemBuilder: (context, index) => _rowHeaderCell(
+                              '${index + 1}',
+                              _headerColor,
+                              widget.rowHeight,
+                            ),
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: ScrollConfiguration(
+                          behavior: _FortuneTableScrollBehavior(
+                            dragScrollEnabled: widget.dragScrollEnabled,
+                          ),
+                          child: Scrollbar(
+                            controller: _vScrollBody,
+                            thumbVisibility: hasVerticalOverflow,
+                            child: Scrollbar(
+                              controller: _hScrollBody,
+                              thumbVisibility: hasHorizontalOverflow,
+                              notificationPredicate: (notification) =>
+                                  notification.metrics.axis == Axis.horizontal,
+                              child: SingleChildScrollView(
+                                controller: _hScrollBody,
+                                scrollDirection: Axis.horizontal,
+                                child: SizedBox(
+                                  width: bodyWidth,
+                                  child: ListView.builder(
+                                    controller: _vScrollBody,
+                                    itemExtent: widget.rowHeight,
+                                    itemCount: widget.rows.length,
+                                    itemBuilder: (context, rowIndex) => _buildRow(
+                                      widget.rows[rowIndex],
+                                      rowIndex,
+                                      widths,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         );
       },
+    );
+  }
+
+  void _handlePointerSignal(PointerSignalEvent event) {
+    if (event is! PointerScrollEvent) return;
+    GestureBinding.instance.pointerSignalResolver.register(
+      event,
+      (event) {
+        if (event is PointerScrollEvent) {
+          _handlePointerScroll(event.scrollDelta);
+        }
+      },
+    );
+  }
+
+  void _handlePointerScroll(Offset delta) {
+    if (delta.dx.abs() > delta.dy.abs()) {
+      _jumpBy(_hScrollBody, delta.dx);
+      return;
+    }
+    _jumpBy(_vScrollBody, delta.dy);
+  }
+
+  void _jumpBy(ScrollController controller, double delta) {
+    if (!controller.hasClients || delta == 0) return;
+    final position = controller.position;
+    controller.jumpTo(
+      (position.pixels + delta).clamp(
+        position.minScrollExtent,
+        position.maxScrollExtent,
+      ),
     );
   }
 

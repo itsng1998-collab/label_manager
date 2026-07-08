@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fortune_sheet/fortune_sheet.dart' hide Rect;
@@ -113,6 +114,124 @@ void main() {
 
     expect(selected?.item.itemName, '테스트 품목');
     expect(selectedIndex, 0);
+  });
+
+  testWidgets('FortuneTable consumes wheel signals inside a parent scroll view', (
+    tester,
+  ) async {
+    final parentController = ScrollController();
+    addTearDown(parentController.dispose);
+    final rows = List<String>.generate(40, (index) => '행 $index');
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 360,
+            height: 220,
+            child: SingleChildScrollView(
+              controller: parentController,
+              child: Column(
+                children: [
+                  SizedBox(
+                    width: 360,
+                    height: 180,
+                    child: FortuneTable<String>(
+                      rows: rows,
+                      autoFitColumns: false,
+                      columns: [
+                        FortuneTableColumn<String>(
+                          id: 'name',
+                          header: '이름',
+                          initialWidth: 240,
+                          text: (row) => row,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 600),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final tableCenter = tester.getCenter(find.byType(FortuneTable<String>));
+    for (var index = 0; index < 20; index += 1) {
+      tester.binding.handlePointerEvent(
+        PointerScrollEvent(
+          position: tableCenter,
+          scrollDelta: const Offset(0, 100),
+        ),
+      );
+      await tester.pump();
+    }
+
+    expect(parentController.offset, 0);
+  });
+
+  testWidgets('FortuneTable shows scrollbars only when content overflows', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 220,
+            height: 140,
+            child: FortuneTable<String>(
+              rows: List<String>.generate(20, (index) => '행 $index'),
+              autoFitColumns: false,
+              columns: [
+                FortuneTableColumn<String>(
+                  id: 'wide',
+                  header: '넓은 컬럼',
+                  initialWidth: 320,
+                  text: (row) => row,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    var scrollbars = tester.widgetList<Scrollbar>(find.byType(Scrollbar));
+    expect(scrollbars.map((scrollbar) => scrollbar.thumbVisibility), [
+      true,
+      true,
+    ]);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 420,
+            height: 180,
+            child: FortuneTable<String>(
+              rows: const ['행 1'],
+              autoFitColumns: false,
+              columns: [
+                FortuneTableColumn<String>(
+                  id: 'narrow',
+                  header: '좁은 컬럼',
+                  initialWidth: 120,
+                  text: (row) => row,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    scrollbars = tester.widgetList<Scrollbar>(find.byType(Scrollbar));
+    expect(scrollbars.map((scrollbar) => scrollbar.thumbVisibility), [
+      false,
+      false,
+    ]);
   });
 }
 
