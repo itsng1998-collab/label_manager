@@ -18,7 +18,7 @@ void _fortuneSheetRulerTrace(String key, String message) {
   if (!_fortuneSheetRulerTraceKeys.add(key)) {
     return;
   }
-  debugPrint('FSRULER-2026-07-08-preview-ruler-boundary-v24 $message');
+  debugPrint('FSRULER-2026-07-08-preview-ruler-boundary-v25 $message');
 }
 
 bool _intDoubleMapEquals(Map<int, double> left, Map<int, double> right) {
@@ -62995,6 +62995,7 @@ class FortuneSheetPainter extends CustomPainter {
     _drawActiveImageToolbar(canvas, size, settings);
     _drawImageLayerPanel(canvas, size, settings);
     _drawRawShapeOverlays(canvas, size, settings);
+    _drawPreviewBoundaryFinalOverlay(canvas, size, settings);
     _drawVisibleComments(canvas, size, settings, metrics);
     if (showCellSelection) {
       _drawSelection(canvas, size, settings, metrics);
@@ -63206,6 +63207,44 @@ class FortuneSheetPainter extends CustomPainter {
     final touchesTop = rect.top <= dataTop + tolerance &&
         rect.bottom >= dataTop - tolerance;
     return touchesLeft || touchesTop;
+  }
+
+  void _drawPreviewBoundaryFinalOverlay(
+    Canvas canvas,
+    Size size,
+    FortuneSettings settings,
+  ) {
+    if (!_shouldNormalizePreviewRulerBoundary(settings)) {
+      return;
+    }
+    final dataLeft = _sheetDataLeft(settings);
+    final dataTop = _sheetDataTop(settings);
+    final paint = Paint()
+      ..color = fortuneSheetGridLineColor
+      ..strokeWidth = 1
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.butt
+      ..isAntiAlias = false;
+    _fortuneSheetRulerTrace(
+      '${workbook.activeSheet.id}:preview-boundary-final-overlay',
+      'sheet=${workbook.activeSheet.id}'
+      ' stage=previewBoundaryFinalOverlay'
+      ' verticalLineX=${dataLeft - 0.5}'
+      ' verticalLineY=0.0..${size.height}'
+      ' horizontalLineY=${dataTop - 0.5}'
+      ' horizontalLineX=0.0..${size.width}'
+      ' boundaryStyle=gridLine',
+    );
+    canvas.drawLine(
+      Offset(dataLeft - 0.5, 0),
+      Offset(dataLeft - 0.5, size.height),
+      paint,
+    );
+    canvas.drawLine(
+      Offset(0, dataTop - 0.5),
+      Offset(size.width, dataTop - 0.5),
+      paint,
+    );
   }
 
   String? get sheetRulerCornerSizeLabel {
@@ -65271,7 +65310,17 @@ class FortuneSheetPainter extends CustomPainter {
           borderCompute: borderCompute,
         );
         if (borders != null) {
-          _addCellBorderSegments(segments, slashSegments, rect, borders);
+          final effectiveBorders = _previewEdgeNormalizedBorders(
+            rect,
+            borders,
+            clipBounds,
+          );
+          _addCellBorderSegments(
+            segments,
+            slashSegments,
+            rect,
+            effectiveBorders,
+          );
         }
       }
     }
@@ -65311,6 +65360,42 @@ class FortuneSheetPainter extends CustomPainter {
         clipBounds: clipBounds,
       );
     }
+  }
+
+  FortuneCellBorders _previewEdgeNormalizedBorders(
+    Rect rect,
+    FortuneCellBorders borders,
+    Rect clipBounds,
+  ) {
+    if (!_shouldNormalizePreviewRulerBoundary(workbook.settings)) {
+      return borders;
+    }
+    const edgeTolerance = 0.001;
+    const normalSide = FortuneBorderSide(
+      color: fortuneSheetGridLineColor,
+      style: 1,
+      strokeWidth: 1,
+    );
+    final touchesTopEdge = (rect.top - clipBounds.top).abs() <= edgeTolerance;
+    final touchesLeftEdge = (rect.left - clipBounds.left).abs() <= edgeTolerance;
+    if (!touchesTopEdge && !touchesLeftEdge) {
+      return borders;
+    }
+    _fortuneSheetRulerTrace(
+      '${workbook.activeSheet.id}:preview-edge-border-normalize:$touchesTopEdge:$touchesLeftEdge:${rect.left}:${rect.top}',
+      'sheet=${workbook.activeSheet.id}'
+      ' stage=previewEdgeBorderNormalize'
+      ' rect=$rect clipBounds=$clipBounds'
+      ' touchesTopEdge=$touchesTopEdge touchesLeftEdge=$touchesLeftEdge'
+      ' boundaryStyle=gridLine',
+    );
+    return FortuneCellBorders(
+      top: touchesTopEdge && borders.top != null ? normalSide : borders.top,
+      right: borders.right,
+      bottom: borders.bottom,
+      left: touchesLeftEdge && borders.left != null ? normalSide : borders.left,
+      slash: borders.slash,
+    );
   }
 
   void _drawSolidBorderJoins(
