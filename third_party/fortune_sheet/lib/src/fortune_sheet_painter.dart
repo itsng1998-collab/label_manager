@@ -18,7 +18,7 @@ void _fortuneSheetRulerTrace(String key, String message) {
   if (!_fortuneSheetRulerTraceKeys.add(key)) {
     return;
   }
-  debugPrint('FSRULER-2026-07-08-preview-ruler-boundary-v27 $message');
+  debugPrint('FSRULER-2026-07-08-preview-ruler-boundary-v28 $message');
 }
 
 bool _intDoubleMapEquals(Map<int, double> left, Map<int, double> right) {
@@ -63132,8 +63132,6 @@ class FortuneSheetPainter extends CustomPainter {
   bool _shouldNormalizePreviewRulerBoundary(FortuneSettings settings) {
     return settings.hideRowColumnHeaderLabels &&
         settings.hidePrintAreaBoundary &&
-        settings.rowHeaderWidth > 0 &&
-        settings.columnHeaderHeight > 0 &&
         !workbook.activeSheet.showGridLines;
   }
 
@@ -63227,6 +63225,22 @@ class FortuneSheetPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.butt
       ..isAntiAlias = false;
+    if (dataLeft > 0 && dataTop > 0) {
+      final cleanupPaint = Paint()
+        ..color = fortuneSheetHeaderBackgroundColor
+        ..style = PaintingStyle.fill
+        ..isAntiAlias = false;
+      canvas.drawRect(Rect.fromLTWH(dataLeft, 0, 1, dataTop), cleanupPaint);
+      canvas.drawRect(Rect.fromLTWH(0, dataTop, dataLeft, 1), cleanupPaint);
+      _fortuneSheetRulerTrace(
+        '${workbook.activeSheet.id}:preview-boundary-corner-cleanup',
+        'sheet=${workbook.activeSheet.id}'
+        ' stage=previewBoundaryCornerCleanup'
+        ' verticalCleanup=Rect.fromLTWH($dataLeft, 0.0, 1.0, $dataTop)'
+        ' horizontalCleanup=Rect.fromLTWH(0.0, $dataTop, $dataLeft, 1.0)'
+        ' scope=cornerRulerOnly',
+      );
+    }
     _fortuneSheetRulerTrace(
       '${workbook.activeSheet.id}:preview-boundary-final-overlay',
       'sheet=${workbook.activeSheet.id}'
