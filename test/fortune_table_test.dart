@@ -159,6 +159,19 @@ void main() {
     );
 
     final tableTopLeft = tester.getTopLeft(find.byType(FortuneTable<String>));
+    final bodyVerticalController = _bodyVerticalController(tester);
+    final headerCenter = tableTopLeft + const Offset(120, 18);
+    tester.binding.handlePointerEvent(
+      PointerScrollEvent(
+        position: headerCenter,
+        scrollDelta: const Offset(0, 100),
+      ),
+    );
+    await tester.pump();
+
+    expect(parentController.offset, 0);
+    expect(bodyVerticalController.offset, greaterThan(0));
+
     final firstRowCenter = tableTopLeft + const Offset(120, 36 + 14);
     for (var index = 0; index < 20; index += 1) {
       tester.binding.handlePointerEvent(
@@ -171,6 +184,7 @@ void main() {
     }
 
     expect(parentController.offset, 0);
+    expect(bodyVerticalController.offset, greaterThan(0));
   });
 
   testWidgets('FortuneTable consumes trackpad pan inside a parent scroll view', (
@@ -216,7 +230,12 @@ void main() {
     );
 
     final tableTopLeft = tester.getTopLeft(find.byType(FortuneTable<String>));
+    final bodyVerticalController = _bodyVerticalController(tester);
     final firstRowCenter = tableTopLeft + const Offset(120, 36 + 14);
+    tester.binding.handlePointerEvent(
+      PointerPanZoomStartEvent(position: firstRowCenter),
+    );
+    await tester.pump();
     for (var index = 0; index < 20; index += 1) {
       tester.binding.handlePointerEvent(
         PointerPanZoomUpdateEvent(
@@ -226,8 +245,13 @@ void main() {
       );
       await tester.pump();
     }
+    tester.binding.handlePointerEvent(
+      PointerPanZoomEndEvent(position: firstRowCenter),
+    );
+    await tester.pump();
 
     expect(parentController.offset, 0);
+    expect(bodyVerticalController.offset, greaterThan(0));
   });
 
   testWidgets('FortuneTable shows scrollbars only when content overflows', (
@@ -309,6 +333,11 @@ void main() {
       false,
     ]);
   });
+}
+
+ScrollController _bodyVerticalController(WidgetTester tester) {
+  final listViews = tester.widgetList<ListView>(find.byType(ListView));
+  return listViews.last.controller!;
 }
 
 ItemOfMarket _testItemOfMarket({String itemName = '테스트 품목'}) {
