@@ -155,6 +155,27 @@ Rect? _pixelBounds(
       : null;
 }
 
+void _drawPreviewEdgeOverdraw(
+  FortuneCell? cell,
+  FortuneRenderCellHookInfo cellInfo,
+  Canvas canvas,
+) {
+  if (cellInfo['row'] != 0 || cellInfo['column'] != 0) {
+    return;
+  }
+  final startX = cellInfo['startX']!.toDouble();
+  final startY = cellInfo['startY']!.toDouble();
+  final endX = cellInfo['endX']!.toDouble();
+  final endY = cellInfo['endY']!.toDouble();
+  final paint = Paint()
+    ..color = const Color(0xff000000)
+    ..strokeWidth = 1
+    ..strokeCap = StrokeCap.butt
+    ..isAntiAlias = false;
+  canvas.drawLine(Offset(startX, startY), Offset(startX, endY), paint);
+  canvas.drawLine(Offset(startX, startY), Offset(endX, startY), paint);
+}
+
 void main() {
   test('formula search parameter public helper exposes display labels', () {
     const requiredParameter = FortuneFormulaSearchParameter(
@@ -393,9 +414,7 @@ void main() {
       size.width.toInt(),
       size.height.toInt(),
     );
-    final bytes = (await image.toByteData(
-      format: ui.ImageByteFormat.rawRgba,
-    ))!;
+    final bytes = (await image.toByteData(format: ui.ImageByteFormat.rawRgba))!;
     final settings = workbook.settings;
     final sheetTop =
         settings.effectiveToolbarHeight + settings.effectiveFormulaBarHeight;
@@ -420,7 +439,7 @@ void main() {
       _countPixels(
         bytes,
         image.width,
-          headerVerticalSeparatorRect,
+        headerVerticalSeparatorRect,
         _isGridLinePixel,
       ),
       greaterThan((settings.columnHeaderHeight - 8).round()),
@@ -474,74 +493,82 @@ void main() {
       _countPixels(
         bytes,
         image.width,
-        Rect.fromLTWH(headerLeft + 2, dataTop - 1, dataLeft - headerLeft - 4, 1),
-        _isRulerTickPixel,
-      ),
-      0,
-    );
-  });
-
-  test('adjusted sheet hidden headers keep ruler separators one pixel', () async {
-    const size = Size(420, 320);
-    final workbook = FortuneWorkbook(
-      settings: const FortuneSettings(hideRowColumnHeaderLabels: true),
-      sheets: [
-        FortuneSheet(
-          id: 's1',
-          name: 'Sheet1',
-          rowCount: 30,
-          columnCount: 20,
-          extraFields: const {
-            fortuneSheetGridClientWidthMmKey: 40,
-            fortuneSheetGridClientHeightMmKey: 30,
-          },
+        Rect.fromLTWH(
+          headerLeft + 2,
+          dataTop - 1,
+          dataLeft - headerLeft - 4,
+          1,
         ),
-      ],
-    );
-    final painter = FortuneSheetPainter(
-      workbook: workbook,
-      selection: const FortuneSelection(row: 0, column: 0),
-      scrollOffset: Offset.zero,
-      sheetTabScrollOffset: 0,
-      textDirection: TextDirection.ltr,
-      sheetRulerVisible: true,
-    );
-
-    final recorder = ui.PictureRecorder();
-    final canvas = Canvas(recorder);
-    painter.paint(canvas, size);
-    final image = await recorder.endRecording().toImage(
-      size.width.toInt(),
-      size.height.toInt(),
-    );
-    final bytes = (await image.toByteData(
-      format: ui.ImageByteFormat.rawRgba,
-    ))!;
-    final settings = workbook.settings;
-    final sheetTop =
-        settings.effectiveToolbarHeight + settings.effectiveFormulaBarHeight;
-    final dataLeft = settings.rowHeaderWidth;
-    final dataTop = sheetTop + settings.columnHeaderHeight;
-
-    expect(
-      _countPixels(
-        bytes,
-        image.width,
-        Rect.fromLTWH(dataLeft - 1, sheetTop + 2, 2, 80),
-        _isRulerTickPixel,
-      ),
-      0,
-    );
-    expect(
-      _countPixels(
-        bytes,
-        image.width,
-        Rect.fromLTWH(2, dataTop - 1, dataLeft + 60, 2),
         _isRulerTickPixel,
       ),
       0,
     );
   });
+
+  test(
+    'adjusted sheet hidden headers keep ruler separators one pixel',
+    () async {
+      const size = Size(420, 320);
+      final workbook = FortuneWorkbook(
+        settings: const FortuneSettings(hideRowColumnHeaderLabels: true),
+        sheets: [
+          FortuneSheet(
+            id: 's1',
+            name: 'Sheet1',
+            rowCount: 30,
+            columnCount: 20,
+            extraFields: const {
+              fortuneSheetGridClientWidthMmKey: 40,
+              fortuneSheetGridClientHeightMmKey: 30,
+            },
+          ),
+        ],
+      );
+      final painter = FortuneSheetPainter(
+        workbook: workbook,
+        selection: const FortuneSelection(row: 0, column: 0),
+        scrollOffset: Offset.zero,
+        sheetTabScrollOffset: 0,
+        textDirection: TextDirection.ltr,
+        sheetRulerVisible: true,
+      );
+
+      final recorder = ui.PictureRecorder();
+      final canvas = Canvas(recorder);
+      painter.paint(canvas, size);
+      final image = await recorder.endRecording().toImage(
+        size.width.toInt(),
+        size.height.toInt(),
+      );
+      final bytes = (await image.toByteData(
+        format: ui.ImageByteFormat.rawRgba,
+      ))!;
+      final settings = workbook.settings;
+      final sheetTop =
+          settings.effectiveToolbarHeight + settings.effectiveFormulaBarHeight;
+      final dataLeft = settings.rowHeaderWidth;
+      final dataTop = sheetTop + settings.columnHeaderHeight;
+
+      expect(
+        _countPixels(
+          bytes,
+          image.width,
+          Rect.fromLTWH(dataLeft - 1, sheetTop + 2, 2, 80),
+          _isRulerTickPixel,
+        ),
+        0,
+      );
+      expect(
+        _countPixels(
+          bytes,
+          image.width,
+          Rect.fromLTWH(2, dataTop - 1, dataLeft + 60, 2),
+          _isRulerTickPixel,
+        ),
+        0,
+      );
+    },
+  );
 
   test('preview hidden headers normalize ruler boundary lines', () async {
     const size = Size(420, 320);
@@ -596,9 +623,7 @@ void main() {
       size.width.toInt(),
       size.height.toInt(),
     );
-    final bytes = (await image.toByteData(
-      format: ui.ImageByteFormat.rawRgba,
-    ))!;
+    final bytes = (await image.toByteData(format: ui.ImageByteFormat.rawRgba))!;
     final settings = workbook.settings;
     final sheetTop =
         settings.effectiveToolbarHeight + settings.effectiveFormulaBarHeight;
@@ -724,6 +749,97 @@ void main() {
     );
   });
 
+  test(
+    'preview boundary cleanup removes adjacent data edge overdraw',
+    () async {
+      const size = Size(420, 320);
+      const settings = FortuneSettings(
+        hideRowColumnHeaderLabels: true,
+        hidePrintAreaBoundary: true,
+        afterRenderCell: _drawPreviewEdgeOverdraw,
+      );
+      final workbook = FortuneWorkbook(
+        settings: settings,
+        sheets: [
+          FortuneSheet(
+            id: 's1',
+            name: 'Sheet1',
+            rowCount: 30,
+            columnCount: 20,
+            showGridLines: false,
+            extraFields: const {
+              fortuneSheetGridClientWidthMmKey: 40,
+              fortuneSheetGridClientHeightMmKey: 30,
+            },
+            cells: {
+              const FortuneCellCoord(0, 0): const FortuneCell(value: 'edge'),
+            },
+          ),
+        ],
+      );
+      final painter = FortuneSheetPainter(
+        workbook: workbook,
+        selection: const FortuneSelection(row: 0, column: 0),
+        scrollOffset: Offset.zero,
+        sheetTabScrollOffset: 0,
+        textDirection: TextDirection.ltr,
+        sheetRulerVisible: true,
+      );
+
+      final recorder = ui.PictureRecorder();
+      final canvas = Canvas(recorder);
+      painter.paint(canvas, size);
+      final image = await recorder.endRecording().toImage(
+        size.width.toInt(),
+        size.height.toInt(),
+      );
+      final bytes = (await image.toByteData(
+        format: ui.ImageByteFormat.rawRgba,
+      ))!;
+      final sheetTop =
+          settings.effectiveToolbarHeight + settings.effectiveFormulaBarHeight;
+      final dataLeft = settings.rowHeaderWidth;
+      final dataTop = sheetTop + settings.columnHeaderHeight;
+
+      expect(
+        _countPixels(
+          bytes,
+          image.width,
+          Rect.fromLTWH(dataLeft, dataTop + 2, 1, 40),
+          _isDarkTextPixel,
+        ),
+        0,
+      );
+      expect(
+        _countPixels(
+          bytes,
+          image.width,
+          Rect.fromLTWH(dataLeft + 2, dataTop, 80, 1),
+          _isDarkTextPixel,
+        ),
+        0,
+      );
+      expect(
+        _countPixels(
+          bytes,
+          image.width,
+          Rect.fromLTWH(dataLeft - 1, dataTop + 2, 1, 40),
+          _isGridLinePixel,
+        ),
+        greaterThan(20),
+      );
+      expect(
+        _countPixels(
+          bytes,
+          image.width,
+          Rect.fromLTWH(dataLeft + 2, dataTop - 1, 80, 1),
+          _isGridLinePixel,
+        ),
+        greaterThan(40),
+      );
+    },
+  );
+
   test('hide print area boundary suppresses adjusted boundary', () async {
     const size = Size(420, 320);
     final workbook = FortuneWorkbook(
@@ -761,9 +877,7 @@ void main() {
       size.width.toInt(),
       size.height.toInt(),
     );
-    final bytes = (await image.toByteData(
-      format: ui.ImageByteFormat.rawRgba,
-    ))!;
+    final bytes = (await image.toByteData(format: ui.ImageByteFormat.rawRgba))!;
     final settings = workbook.settings;
     final sheetTop =
         settings.effectiveToolbarHeight + settings.effectiveFormulaBarHeight;
@@ -908,9 +1022,7 @@ void main() {
       size.width.toInt(),
       size.height.toInt(),
     );
-    final bytes = (await image.toByteData(
-      format: ui.ImageByteFormat.rawRgba,
-    ))!;
+    final bytes = (await image.toByteData(format: ui.ImageByteFormat.rawRgba))!;
     final settings = workbook.settings;
     final sheetTop =
         settings.effectiveToolbarHeight + settings.effectiveFormulaBarHeight;
@@ -1102,114 +1214,129 @@ void main() {
     expect(tallerLineBounds!.height, greaterThan(normalLineBounds!.height + 8));
   });
 
-  test('zoom scales inline typography extras in completed cell painting', () async {
-    const fontSize = 28.0;
-    const rowHeight = 120.0;
+  test(
+    'zoom scales inline typography extras in completed cell painting',
+    () async {
+      const fontSize = 28.0;
+      const rowHeight = 120.0;
 
-    Future<({Rect widthBounds, Rect lineBounds})> paintAtZoom(
-      double zoomRatio,
-    ) async {
-      final workbook = FortuneWorkbook(
-        sheets: [
-          FortuneSheet(
-            id: 's1',
-            name: 'Sheet1',
-            showGridLines: false,
-            zoomRatio: zoomRatio,
-            defaultRowHeight: rowHeight,
-            defaultColWidth: 420,
-            cells: {
-              const FortuneCellCoord(0, 0): const FortuneCell(
-                value: 'WIDE2',
-                fontSize: fontSize,
-                inlineRuns: [
-                  FortuneInlineTextRun(
-                    text: 'WIDE',
-                    foreground: Color(0xffff0000),
-                    fontSize: fontSize,
-                    extraFields: {'letterSpacing': 2.0, 'fontScale': 150.0},
-                  ),
-                  FortuneInlineTextRun(
-                    text: '2',
-                    foreground: Color(0xffff0000),
-                    fontSize: fontSize * fortuneInlineScriptFontSizeScale,
-                    extraFields: {'script': 'superscript'},
-                  ),
-                ],
-              ),
-              const FortuneCellCoord(1, 0): const FortuneCell(
-                value: 'A\nA',
-                fontSize: fontSize,
-                textWrap: '2',
-                inlineRuns: [
-                  FortuneInlineTextRun(
-                    text: 'A\nA',
-                    foreground: Color(0xffff0000),
-                    fontSize: fontSize,
-                    extraFields: {'lineHeight': 2.0},
-                  ),
-                ],
-              ),
-            },
-          ),
-        ],
+      Future<({Rect widthBounds, Rect lineBounds})> paintAtZoom(
+        double zoomRatio,
+      ) async {
+        final workbook = FortuneWorkbook(
+          sheets: [
+            FortuneSheet(
+              id: 's1',
+              name: 'Sheet1',
+              showGridLines: false,
+              zoomRatio: zoomRatio,
+              defaultRowHeight: rowHeight,
+              defaultColWidth: 420,
+              cells: {
+                const FortuneCellCoord(0, 0): const FortuneCell(
+                  value: 'WIDE2',
+                  fontSize: fontSize,
+                  inlineRuns: [
+                    FortuneInlineTextRun(
+                      text: 'WIDE',
+                      foreground: Color(0xffff0000),
+                      fontSize: fontSize,
+                      extraFields: {'letterSpacing': 2.0, 'fontScale': 150.0},
+                    ),
+                    FortuneInlineTextRun(
+                      text: '2',
+                      foreground: Color(0xffff0000),
+                      fontSize: fontSize * fortuneInlineScriptFontSizeScale,
+                      extraFields: {'script': 'superscript'},
+                    ),
+                  ],
+                ),
+                const FortuneCellCoord(1, 0): const FortuneCell(
+                  value: 'A\nA',
+                  fontSize: fontSize,
+                  textWrap: '2',
+                  inlineRuns: [
+                    FortuneInlineTextRun(
+                      text: 'A\nA',
+                      foreground: Color(0xffff0000),
+                      fontSize: fontSize,
+                      extraFields: {'lineHeight': 2.0},
+                    ),
+                  ],
+                ),
+              },
+            ),
+          ],
+        );
+
+        const size = Size(760, 520);
+        final recorder = ui.PictureRecorder();
+        final canvas = Canvas(recorder);
+        FortuneSheetPainter(
+          workbook: workbook,
+          selection: const FortuneSelection(row: 10, column: 10),
+          scrollOffset: Offset.zero,
+          sheetTabScrollOffset: 0,
+          textDirection: TextDirection.ltr,
+        ).paint(canvas, size);
+        final image = await recorder.endRecording().toImage(
+          size.width.toInt(),
+          size.height.toInt(),
+        );
+        final bytes = (await image.toByteData(
+          format: ui.ImageByteFormat.rawRgba,
+        ))!;
+        final settings = workbook.settings;
+        final metrics = workbook.activeSheet.metrics(settings);
+        final sheetTop =
+            settings.effectiveToolbarHeight +
+            settings.effectiveFormulaBarHeight;
+        final bodyTop = sheetTop + settings.columnHeaderHeight;
+        final rowLeft = settings.rowHeaderWidth;
+
+        Rect rowRect(int row) => Rect.fromLTWH(
+          rowLeft,
+          bodyTop + metrics.rowStart(row),
+          metrics.columnEnd(0) - metrics.columnStart(0),
+          metrics.rowEnd(row) - metrics.rowStart(row),
+        );
+
+        final widthBounds = _pixelBounds(
+          bytes,
+          image.width,
+          rowRect(0),
+          _isRedTextPixel,
+        );
+        final lineBounds = _pixelBounds(
+          bytes,
+          image.width,
+          rowRect(1),
+          _isRedTextPixel,
+        );
+        image.dispose();
+
+        expect(widthBounds, isNotNull);
+        expect(lineBounds, isNotNull);
+        return (widthBounds: widthBounds!, lineBounds: lineBounds!);
+      }
+
+      final normal = await paintAtZoom(1);
+      final zoomed = await paintAtZoom(1.5);
+
+      expect(
+        zoomed.widthBounds.width,
+        greaterThan(normal.widthBounds.width * 1.3),
       );
-
-      const size = Size(760, 520);
-      final recorder = ui.PictureRecorder();
-      final canvas = Canvas(recorder);
-      FortuneSheetPainter(
-        workbook: workbook,
-        selection: const FortuneSelection(row: 10, column: 10),
-        scrollOffset: Offset.zero,
-        sheetTabScrollOffset: 0,
-        textDirection: TextDirection.ltr,
-      ).paint(canvas, size);
-      final image = await recorder.endRecording().toImage(
-        size.width.toInt(),
-        size.height.toInt(),
+      expect(
+        zoomed.widthBounds.height,
+        greaterThan(normal.widthBounds.height * 1.3),
       );
-      final bytes = (await image.toByteData(format: ui.ImageByteFormat.rawRgba))!;
-      final settings = workbook.settings;
-      final metrics = workbook.activeSheet.metrics(settings);
-      final sheetTop =
-          settings.effectiveToolbarHeight + settings.effectiveFormulaBarHeight;
-      final bodyTop = sheetTop + settings.columnHeaderHeight;
-      final rowLeft = settings.rowHeaderWidth;
-
-      Rect rowRect(int row) => Rect.fromLTWH(
-        rowLeft,
-        bodyTop + metrics.rowStart(row),
-        metrics.columnEnd(0) - metrics.columnStart(0),
-        metrics.rowEnd(row) - metrics.rowStart(row),
+      expect(
+        zoomed.lineBounds.height,
+        greaterThan(normal.lineBounds.height * 1.3),
       );
-
-      final widthBounds = _pixelBounds(
-        bytes,
-        image.width,
-        rowRect(0),
-        _isRedTextPixel,
-      );
-      final lineBounds = _pixelBounds(
-        bytes,
-        image.width,
-        rowRect(1),
-        _isRedTextPixel,
-      );
-      image.dispose();
-
-      expect(widthBounds, isNotNull);
-      expect(lineBounds, isNotNull);
-      return (widthBounds: widthBounds!, lineBounds: lineBounds!);
-    }
-
-    final normal = await paintAtZoom(1);
-    final zoomed = await paintAtZoom(1.5);
-
-    expect(zoomed.widthBounds.width, greaterThan(normal.widthBounds.width * 1.3));
-    expect(zoomed.widthBounds.height, greaterThan(normal.widthBounds.height * 1.3));
-    expect(zoomed.lineBounds.height, greaterThan(normal.lineBounds.height * 1.3));
-  });
+    },
+  );
 
   test('cell render hooks receive cell and bounds', () {
     final beforeCalls = <Map<String, Object?>>[];
@@ -2765,7 +2892,6 @@ void main() {
       0,
     );
   });
-
   test('header render hooks receive labels and bounds', () {
     final calls = <Map<String, Object?>>[];
     Canvas? activeCanvas;
