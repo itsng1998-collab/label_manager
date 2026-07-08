@@ -18,7 +18,7 @@ void _fortuneSheetRulerTrace(String key, String message) {
   if (!_fortuneSheetRulerTraceKeys.add(key)) {
     return;
   }
-  debugPrint('FSRULER-2026-07-08-preview-ruler-boundary-v26 $message');
+  debugPrint('FSRULER-2026-07-08-preview-ruler-boundary-v27 $message');
 }
 
 bool _intDoubleMapEquals(Map<int, double> left, Map<int, double> right) {
@@ -63132,6 +63132,8 @@ class FortuneSheetPainter extends CustomPainter {
   bool _shouldNormalizePreviewRulerBoundary(FortuneSettings settings) {
     return settings.hideRowColumnHeaderLabels &&
         settings.hidePrintAreaBoundary &&
+        settings.rowHeaderWidth > 0 &&
+        settings.columnHeaderHeight > 0 &&
         !workbook.activeSheet.showGridLines;
   }
 

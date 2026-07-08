@@ -352,8 +352,8 @@ void main() {
     expect(toolbarItems.first, labelSheetSaveToolbarCommand);
     expect(toolbarItems, contains(labelSheetSaveToolbarCommand));
     expect(toolbarItems, isNot(contains(labelSheetPrintToolbarCommand)));
-    expect(settings.rowHeaderWidth, 46);
-    expect(settings.columnHeaderHeight, 20);
+    expect(settings.rowHeaderWidth, 0);
+    expect(settings.columnHeaderHeight, 0);
     expect(settings.hideRowColumnHeaderLabels, isTrue);
     expect(settings.hideSelectionHighlight, isTrue);
     expect(settings.singleClickCellEdit, isTrue);

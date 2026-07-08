@@ -1610,12 +1610,13 @@ FortuneSettings labelSheetSettings(
   bool copyOnlyContextMenu = false,
 }) {
   final resolvedToolbarItems = toolbarItems ?? labelSheetToolbarItems;
+  final hideHeaderGutters = hideRowColumnHeaders || hideRowColumnHeaderLabels;
   return base.copyWith(
     showToolbar: !hideToolbar,
     copyOnlyContextMenu: copyOnlyContextMenu,
     toolbarItems: resolvedToolbarItems,
-    rowHeaderWidth: hideRowColumnHeaders ? 0 : null,
-    columnHeaderHeight: hideRowColumnHeaders ? 0 : null,
+    rowHeaderWidth: hideHeaderGutters ? 0 : null,
+    columnHeaderHeight: hideHeaderGutters ? 0 : null,
     hideRowColumnHeaderLabels: hideRowColumnHeaderLabels,
     hideSelectionHighlight: hideSelectionHighlight,
     singleClickCellEdit: singleClickCellEdit,
