@@ -30,11 +30,22 @@
 
 ### 다음 세션 시작 지점 (2026-07-08)
 
+- 진행 중(2026-07-08): 사용자가 v12 후에도 “마찬가지”라고 보고. 최신 `.tmp/log/app_2026-07-08_09-32-59.log`에서 `FSDBG-2026-07-07-preview-hide-print-boundary-v12` 및 품목 preview `stage=printAreaBoundary hidden=true` 확인 완료. print area boundary 가설은 틀린 것으로 확정하고, 이전 v5 오수정은 그대로 되살리지 않으며 `hideHeaders=true + showGridLines=false + hidePrintAreaBoundary=true` preview 조건에서만 data edge ruler border를 생략하는 좁은 보정을 진행 중. 수정 예정 파일: `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`, `third_party/fortune_sheet/test/fortune_sheet_painter_test.dart`, `lib/main.dart`, `SESSION_HANDOFF.md`.
+- 편집 완료(2026-07-08): `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`에서 `hideRowColumnHeaderLabels && hidePrintAreaBoundary && !showGridLines`일 때만 top/left ruler의 data edge border를 그리지 않도록 변경. corner/ruler 영역과 일반 시트 `rulerBorders`는 유지. 로그 marker는 `FSRULER-2026-07-08-preview-data-edge-ruler-v13`, 로그 필드는 `drawTopBottom`/`drawLeftRight`로 적용 여부 확인.
+- 편집 완료(2026-07-08): `third_party/fortune_sheet/test/fortune_sheet_painter_test.dart`에 `preview hidden headers omit data edge ruler border` 추가. preview 조건에서 data edge ruler border 픽셀이 사라지고 ruler tick은 유지되는지 검증.
+- 편집 완료(2026-07-08): `lib/main.dart` DebugLogger 버전을 `FSDBG-2026-07-08-preview-data-edge-ruler-v13`로 갱신.
+- 검증 완료(2026-07-08): `C:\Flutter\bin\flutter.bat test third_party\fortune_sheet\test\fortune_sheet_painter_test.dart --plain-name "preview hidden headers omit data edge ruler border"` 통과. 로그에서 `drawTopBottom=false drawLeftRight=false` 확인.
+- 검증 완료(2026-07-08): painter 인접 테스트 `adjusted sheet hidden headers keep ruler separators one pixel`, `adjusted sheet header corner separators stay connected`, `hide print area boundary suppresses adjusted boundary` 통과. 일반 hidden/visible 시트는 `drawTopBottom=true drawLeftRight=true`, preview 조건은 false 확인.
+- 검증 완료(2026-07-08): formatter 적용 후 focused painter 테스트 4개(`preview hidden headers omit data edge ruler border`, `adjusted sheet hidden headers keep ruler separators one pixel`, `adjusted sheet header corner separators stay connected`, `hide print area boundary suppresses adjusted boundary`) 재통과.
+- 검증 완료(2026-07-08): `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "item output preview"` 통과(`+3`).
+- 검증 완료(2026-07-08): `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`).
+- 검증 완료(2026-07-08): `git diff --check -- lib/main.dart third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart third_party/fortune_sheet/test/fortune_sheet_painter_test.dart SESSION_HANDOFF.md` 통과(출력 없음).
+- stage 예정(2026-07-08): `lib/main.dart`, `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`, `third_party/fortune_sheet/test/fortune_sheet_painter_test.dart`, `SESSION_HANDOFF.md`. unrelated dirty `lib/core/app.dart`, `pubspec.lock`, `third_party/fortune_sheet/pubspec.lock`, `third_party/mssql_connection/pubspec.lock` 제외.
 - 현재 HEAD: `4f4ba4d` 품목관리 preview 경계선 인수인계 갱신. 직전 기능 커밋은 `26d0eb8` 품목관리 preview 출력 영역 경계선 숨김.
-- 남은 확인: 사용자가 앱을 다시 실행한 뒤 최신 `.tmp/log/app_YYYY-MM-DD_HH-mm-ss.log`에서 `FSDBG-2026-07-07-preview-hide-print-boundary-v12`와 `FSRULER-2026-07-07-preview-hide-print-boundary-v12`를 확인한다.
-- 기대 로그: 품목관리 preview sheet(`item_element`, `item_output_preview_sheet_01`)는 `stage=printAreaBoundary hidden=true`가 찍혀야 한다. 공용라벨관리/일반 시트는 `hidden=false`가 정상이다.
-- 기대 화면: 품목관리 preview의 grid line은 숨김 유지, ruler 영역은 유지, adjusted print area boundary만 숨겨져야 한다. 공용라벨관리의 출력 영역 경계선/헤더 구분선은 기존처럼 유지되어야 한다.
-- 사용자가 “마찬가지”라고 하면 먼저 최신 로그에서 v12 marker와 `hidden=true` 적용 여부를 확인한다. 적용됐는데도 같으면 print area boundary 가설도 틀린 것이므로, `beforeRenderCellArea`, raw shape/image overlay, scroll/canvas container border 순서로 추가 trace를 넣어 레이어를 좁힌다.
+- 남은 확인: 사용자가 앱을 다시 실행한 뒤 최신 `.tmp/log/app_YYYY-MM-DD_HH-mm-ss.log`에서 `FSDBG-2026-07-08-preview-data-edge-ruler-v13`와 `FSRULER-2026-07-08-preview-data-edge-ruler-v13`를 확인한다.
+- 기대 로그: 품목관리 preview sheet(`item_element`, `item_output_preview_sheet_01`)는 `stage=rulerBorders ... drawTopBottom=false drawLeftRight=false` 및 `stage=printAreaBoundary hidden=true`가 찍혀야 한다. 공용라벨관리/일반 시트는 `drawTopBottom=true drawLeftRight=true`, `hidden=false`가 정상이다.
+- 기대 화면: 품목관리 preview의 grid line과 data edge ruler border는 숨김 유지, ruler 영역/눈금은 유지되어야 한다. 공용라벨관리의 출력 영역 경계선/헤더 구분선은 기존처럼 유지되어야 한다.
+- 사용자가 “마찬가지”라고 하면 먼저 최신 로그에서 v13 marker와 `drawTopBottom=false drawLeftRight=false` 적용 여부를 확인한다. 적용됐는데도 같으면 data edge ruler border 가설도 틀린 것이므로, `beforeRenderCellArea`, raw shape/image overlay, scroll/canvas container border 순서로 추가 trace를 넣어 레이어를 좁힌다.
 - 현재 unrelated dirty 파일은 `lib/core/app.dart`, `pubspec.lock`, `third_party/fortune_sheet/pubspec.lock`, `third_party/mssql_connection/pubspec.lock`이며 이번 preview 작업 커밋에는 포함하지 않았다.
 - 최근 검증 완료: v12 painter focused test 3개, `test/label_sheet_toolbar_test.dart --plain-name "item output preview"`, `C:\Flutter\bin\flutter.bat analyze`, `git diff --check` 모두 통과.
 

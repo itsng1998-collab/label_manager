@@ -18,7 +18,7 @@ void _fortuneSheetRulerTrace(String key, String message) {
   if (!_fortuneSheetRulerTraceKeys.add(key)) {
     return;
   }
-  debugPrint('FSRULER-2026-07-07-preview-hide-print-boundary-v12 $message');
+  debugPrint('FSRULER-2026-07-08-preview-data-edge-ruler-v13 $message');
 }
 
 bool _intDoubleMapEquals(Map<int, double> left, Map<int, double> right) {
@@ -63066,6 +63066,10 @@ class FortuneSheetPainter extends CustomPainter {
     final cornerRightBottom = settings.hideRowColumnHeaderLabels
         ? corner.bottom
         : _sheetHeaderTop(settings);
+    final hideDataEdgeRulerBorder =
+      settings.hideRowColumnHeaderLabels &&
+      settings.hidePrintAreaBoundary &&
+      !workbook.activeSheet.showGridLines;
     final borderPaint = Paint()
       ..color = fortuneSheetRulerBorderColor
       ..strokeWidth = 1;
@@ -63080,10 +63084,14 @@ class FortuneSheetPainter extends CustomPainter {
       ' cornerRightBottom=$cornerRightBottom'
       ' dataLeft=${_sheetDataLeft(settings)} dataTop=${_sheetDataTop(settings)}'
       ' boundaryStyle=rulerBorder'
-      ' drawTopBottom=true drawLeftRight=true drawCornerBottom=true drawCornerRight=true',
+      ' drawTopBottom=${!hideDataEdgeRulerBorder}'
+      ' drawLeftRight=${!hideDataEdgeRulerBorder}'
+      ' drawCornerBottom=true drawCornerRight=true',
     );
-    canvas.drawLine(topRuler.bottomLeft, topRuler.bottomRight, borderPaint);
-    canvas.drawLine(leftRuler.topRight, leftRuler.bottomRight, borderPaint);
+    if (!hideDataEdgeRulerBorder) {
+      canvas.drawLine(topRuler.bottomLeft, topRuler.bottomRight, borderPaint);
+      canvas.drawLine(leftRuler.topRight, leftRuler.bottomRight, borderPaint);
+    }
     canvas.drawLine(
       corner.bottomLeft,
       Offset(cornerBottomRight, corner.bottom),

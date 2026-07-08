@@ -543,6 +543,90 @@ void main() {
     );
   });
 
+  test('preview hidden headers omit data edge ruler border', () async {
+    const size = Size(420, 320);
+    final workbook = FortuneWorkbook(
+      settings: const FortuneSettings(
+        hideRowColumnHeaderLabels: true,
+        hidePrintAreaBoundary: true,
+      ),
+      sheets: [
+        FortuneSheet(
+          id: 's1',
+          name: 'Sheet1',
+          rowCount: 30,
+          columnCount: 20,
+          showGridLines: false,
+          extraFields: const {
+            fortuneSheetGridClientWidthMmKey: 40,
+            fortuneSheetGridClientHeightMmKey: 30,
+          },
+        ),
+      ],
+    );
+    final painter = FortuneSheetPainter(
+      workbook: workbook,
+      selection: const FortuneSelection(row: 0, column: 0),
+      scrollOffset: Offset.zero,
+      sheetTabScrollOffset: 0,
+      textDirection: TextDirection.ltr,
+      sheetRulerVisible: true,
+    );
+
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+    painter.paint(canvas, size);
+    final image = await recorder.endRecording().toImage(
+      size.width.toInt(),
+      size.height.toInt(),
+    );
+    final bytes = (await image.toByteData(
+      format: ui.ImageByteFormat.rawRgba,
+    ))!;
+    final settings = workbook.settings;
+    final sheetTop =
+        settings.effectiveToolbarHeight + settings.effectiveFormulaBarHeight;
+    final dataLeft = settings.rowHeaderWidth;
+    final dataTop = sheetTop + settings.columnHeaderHeight;
+
+    expect(
+      _countPixels(
+        bytes,
+        image.width,
+        Rect.fromLTWH(dataLeft - 1, dataTop + 2, 2, 80),
+        _isRulerBorderPixel,
+      ),
+      0,
+    );
+    expect(
+      _countPixels(
+        bytes,
+        image.width,
+        Rect.fromLTWH(dataLeft + 2, dataTop - 1, 80, 2),
+        _isRulerBorderPixel,
+      ),
+      0,
+    );
+    expect(
+      _countPixels(
+        bytes,
+        image.width,
+        Rect.fromLTWH(dataLeft - 18, dataTop + 8, 16, 80),
+        _isRulerTickPixel,
+      ),
+      greaterThan(5),
+    );
+    expect(
+      _countPixels(
+        bytes,
+        image.width,
+        Rect.fromLTWH(dataLeft + 8, dataTop - 16, 80, 14),
+        _isRulerTickPixel,
+      ),
+      greaterThan(5),
+    );
+  });
+
   test('hide print area boundary suppresses adjusted boundary', () async {
     const size = Size(420, 320);
     final workbook = FortuneWorkbook(
