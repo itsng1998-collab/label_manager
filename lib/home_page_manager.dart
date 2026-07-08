@@ -72,6 +72,7 @@ class _HomePageManagerState extends State<HomePageManager> {
   final GlobalKey _rtfPreviewBoxKey = GlobalKey();
   int? _labelSizesBrandId;
   int _labelLoadToken = 0;
+  int _itemElementAutoMigrationGeneration = 0;
   int? _labelDialogBrandChangeInFlightId;
   bool _labelDialogBrandChangeInFlight = false;
   int _rtfPreviewCaptureGeneration = 0;
@@ -80,6 +81,7 @@ class _HomePageManagerState extends State<HomePageManager> {
   PreviewFloatingWindow? _commonLabelPreviewWindow;
   final LabelSheetImageImportController _commonLabelImageImportController =
       LabelSheetImageImportController();
+  final Set<String> _itemElementAutoMigrationFailedKeys = <String>{};
   Timer? _rtfPreviewResizeDebounce;
   Timer? _rtfPreviewResizeFinalizeTimer;
   List<Brand> _brands = const <Brand>[];
@@ -524,6 +526,7 @@ class _HomePageManagerState extends State<HomePageManager> {
       }
 
       if (labelSize == null) {
+        _itemElementAutoMigrationGeneration += 1;
         _currentLabelSize = null;
         _rtfPreviewReadyKey = null;
         _commonLabelTabActivated = false;
@@ -572,6 +575,7 @@ class _HomePageManagerState extends State<HomePageManager> {
       if (mounted) {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
       }
+      _startItemElementAutoMigration(labelSize, ItemOfMarket.datas ?? const []);
     } catch (e) {
       debugLog('$e');
     } finally {
@@ -1001,6 +1005,113 @@ class _HomePageManagerState extends State<HomePageManager> {
     }
     if (_selectedTabValue() == 'items') {
       _showItemPreviewWindow();
+    }
+  }
+
+  void _startItemElementAutoMigration(
+    LabelSize labelSize,
+    List<ItemOfMarket> items,
+  ) {
+    final generation = ++_itemElementAutoMigrationGeneration;
+    final candidates = items
+        .where(_shouldAutoMigrateItemElementRtf)
+        .toList(growable: false);
+    if (candidates.isEmpty) return;
+    final selectedItemId = _selectedItemOfMarket?.item.itemId;
+    final ordered = [...candidates]..sort((a, b) {
+      if (a.item.itemId == selectedItemId) return -1;
+      if (b.item.itemId == selectedItemId) return 1;
+      return 0;
+    });
+    unawaited(_runItemElementAutoMigrationQueue(generation, labelSize, ordered));
+  }
+
+  bool _shouldAutoMigrateItemElementRtf(ItemOfMarket item) {
+    final payload = item.item.elementRTF.trim();
+    return labelSheetLooksLikeRichEditRtf(payload) &&
+        labelSheetTryDecodeWorkbookSave(payload) == null &&
+        !_itemElementAutoMigrationFailedKeys.contains(
+          _itemElementAutoMigrationKey(item),
+        );
+  }
+
+  String _itemElementAutoMigrationKey(ItemOfMarket item) {
+    return '${item.item.itemId}:${item.item.elementRTF.trim().hashCode}';
+  }
+
+  Future<void> _runItemElementAutoMigrationQueue(
+    int generation,
+    LabelSize labelSize,
+    List<ItemOfMarket> items,
+  ) async {
+    debugLog(
+      'item element auto migration start generation=$generation, count=${items.length}, labelSizeId=${labelSize.labelSizeId}',
+    );
+    for (final item in items) {
+      if (!mounted || generation != _itemElementAutoMigrationGeneration) {
+        return;
+      }
+      await _autoMigrateItemElementRtf(generation, labelSize, item);
+      await Future<void>.delayed(Duration.zero);
+    }
+    debugLog('item element auto migration end generation=$generation');
+  }
+
+  Future<void> _autoMigrateItemElementRtf(
+    int generation,
+    LabelSize labelSize,
+    ItemOfMarket item,
+  ) async {
+    final itemId = item.item.itemId;
+    final payload = item.item.elementRTF.trim();
+    final migrationKey = _itemElementAutoMigrationKey(item);
+    if (!_shouldAutoMigrateItemElementRtf(item)) return;
+    final stopwatch = Stopwatch()..start();
+    try {
+      final workbook = await _itemElementWorkbookFromRichEditRtfAsync(
+        payload,
+        labelSize,
+      );
+      if (!mounted || generation != _itemElementAutoMigrationGeneration) {
+        return;
+      }
+      if (workbook == null) {
+        _itemElementAutoMigrationFailedKeys.add(migrationKey);
+        return;
+      }
+      final elementText = _itemElementTextFromWorkbook(workbook);
+      if (elementText.trim().isEmpty) {
+        _itemElementAutoMigrationFailedKeys.add(migrationKey);
+        return;
+      }
+      final encodedWorkbook = labelSheetEncodeWorkbookSave(workbook);
+      final saved = await ItemDAO.autoMigrateElementSheetByItemId(
+        itemId,
+        elementText,
+        encodedWorkbook,
+      );
+      if (!mounted || generation != _itemElementAutoMigrationGeneration) {
+        return;
+      }
+      if (!saved) return;
+      _replaceCachedItemElementSheet(itemId, elementText, encodedWorkbook);
+      if (_selectedItemOfMarket?.item.itemId == itemId) {
+        _selectedItemOfMarket = ItemOfMarket.datas?.firstWhereOrNull(
+          (row) => row.item.itemId == itemId,
+        );
+        if (_selectedTabValue() == 'items' &&
+            _itemPreviewWindow?.isVisible == true) {
+          _showItemPreviewWindow();
+        }
+      }
+      debugLog(
+        'item element auto migration saved itemId=$itemId, elapsedMs=${stopwatch.elapsedMilliseconds}',
+      );
+    } catch (error, stackTrace) {
+      _itemElementAutoMigrationFailedKeys.add(migrationKey);
+      debugLog(
+        'item element auto migration failed itemId=$itemId, hash=${payload.hashCode}, error=$error\n$stackTrace',
+      );
     }
   }
 
@@ -1536,6 +1647,7 @@ class _HomePageManagerState extends State<HomePageManager> {
 
   @override
   void dispose() {
+    _itemElementAutoMigrationGeneration += 1;
     _rtfPreviewResizeDebounce?.cancel();
     _rtfPreviewResizeFinalizeTimer?.cancel();
     _itemPreviewWindow?.dispose();
@@ -3169,11 +3281,63 @@ fs.FortuneCell? _itemElementSingleCellFromDraftCells(
     runs.addAll(_itemInlineRunsFromCell(entry.value));
     firstInRow = false;
   }
+  final trimmedRuns = _trimItemElementBoundaryRuns(runs);
+  if (trimmedRuns.isEmpty) return null;
   return _itemRichTextCell(
-    runs,
+    trimmedRuns,
     base: baseCell,
     extraFields: baseCell?.extraFields,
   );
+}
+
+List<fs.FortuneInlineTextRun> _trimItemElementBoundaryRuns(
+  List<fs.FortuneInlineTextRun> runs,
+) {
+  var start = 0;
+  var startOffset = 0;
+  while (start < runs.length) {
+    final text = runs[start].text;
+    while (startOffset < text.length &&
+        _isItemElementBoundaryWhitespace(text.codeUnitAt(startOffset))) {
+      startOffset += 1;
+    }
+    if (startOffset < text.length) break;
+    start += 1;
+    startOffset = 0;
+  }
+  if (start >= runs.length) return const <fs.FortuneInlineTextRun>[];
+
+  var end = runs.length - 1;
+  var endOffset = runs[end].text.length;
+  while (end >= start) {
+    final text = runs[end].text;
+    while (endOffset > 0 &&
+        _isItemElementBoundaryWhitespace(text.codeUnitAt(endOffset - 1))) {
+      endOffset -= 1;
+    }
+    if (endOffset > 0) break;
+    end -= 1;
+    if (end < start) return const <fs.FortuneInlineTextRun>[];
+    endOffset = runs[end].text.length;
+  }
+
+  return [
+    for (var index = start; index <= end; index += 1)
+      runs[index].copyWith(
+        text: runs[index].text.substring(
+          index == start ? startOffset : 0,
+          index == end ? endOffset : runs[index].text.length,
+        ),
+      ),
+  ].where((run) => run.text.isNotEmpty).toList(growable: false);
+}
+
+bool _isItemElementBoundaryWhitespace(int codeUnit) {
+  return codeUnit == 0x20 ||
+      codeUnit == 0x09 ||
+      codeUnit == 0x0a ||
+      codeUnit == 0x0d ||
+      codeUnit == 0x00a0;
 }
 
 fs.FortuneWorkbook _itemElementWorkbook(

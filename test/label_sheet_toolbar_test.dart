@@ -445,6 +445,20 @@ void main() {
     );
   });
 
+  test('item element RTF conversion trims outer whitespace only', () async {
+    final workbook = await debugItemElementWorkbookFromRichEditRtfForTesting(
+      r"""{\rtf1\ansi\deff0{\fonttbl{\f0 Arial;}}
+\viewkind4\uc1\pard\f0\fs18 \tab  원료 A\line 함량 1%\tab\par} """,
+      _testLabelSizeWithFormData(''),
+    );
+
+    expect(workbook, isNotNull);
+    expect(
+      workbook!.sheets.single.cells[const FortuneCellCoord(0, 0)]?.renderedText,
+      '원료 A\n함량 1%',
+    );
+  });
+
   test('item element DAO keeps legacy RTF while saving sheet data', () {
     expect(ItemOfMarketDAO.SelectSql, contains('P2.RICH_ELEMENT_SHEET'));
     expect(ItemOfMarketDAO.SelectSql, contains('P2.RICH_ELEMENT_RTF'));
@@ -458,6 +472,19 @@ void main() {
       contains('RICH_ELEMENT_SHEET=@elementSheet'),
     );
     expect(ItemDAO.UpdateElementSheetSql, isNot(contains('RICH_ELEMENT_RTF')));
+    expect(ItemDAO.AutoMigrateElementSheetSql, contains('RICH_ELEMENT=@element'));
+    expect(
+      ItemDAO.AutoMigrateElementSheetSql,
+      contains('RICH_ELEMENT_SHEET=@elementSheet'),
+    );
+    expect(
+      ItemDAO.AutoMigrateElementSheetSql,
+      contains("RICH_ELEMENT_SHEET IS NULL OR RICH_ELEMENT_SHEET=''"),
+    );
+    expect(
+      ItemDAO.AutoMigrateElementSheetSql,
+      isNot(contains('RICH_ELEMENT_RTF')),
+    );
   });
 
   testWidgets('item preview keeps selected tab when selected row changes', (

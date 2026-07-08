@@ -54,6 +54,14 @@ class ItemDAO extends DAO {
     WHERE RICH_ITEM_ID=@itemId
   ''';
 
+  static const String AutoMigrateElementSheetSql = '''
+    UPDATE BM_RICH_ITEM
+      SET RICH_ELEMENT=@element,
+          RICH_ELEMENT_SHEET=@elementSheet
+    WHERE RICH_ITEM_ID=@itemId
+      AND (RICH_ELEMENT_SHEET IS NULL OR RICH_ELEMENT_SHEET='')
+  ''';
+
   static Future<void> updateElementSheetByItemId(
     int itemId,
     String element,
@@ -75,6 +83,31 @@ class ItemDAO extends DAO {
         throw Exception('${runtimeLogTag()} Update failed for itemId:$itemId');
       }
       debugLog('$END, BM_RICH_ITEM Result: $res, affected:$affected');
+    } catch (e) {
+      debugLog('$END, $e');
+      rethrow;
+    }
+  }
+
+  static Future<bool> autoMigrateElementSheetByItemId(
+    int itemId,
+    String element,
+    String elementSheet,
+  ) async {
+    debugLog('$START, itemId:$itemId, elementLength:${element.length}, elementSheetLength:${elementSheet.length}');
+
+    try {
+      final res = await DbClient.instance.writeDataWithParams(
+        AutoMigrateElementSheetSql,
+        {
+          'itemId': itemId,
+          'element': element,
+          'elementSheet': elementSheet,
+        },
+      );
+      final affected = DAO.affectedRows(res);
+      debugLog('$END, BM_RICH_ITEM Result: $res, affected:$affected');
+      return affected > 0;
     } catch (e) {
       debugLog('$END, $e');
       rethrow;
