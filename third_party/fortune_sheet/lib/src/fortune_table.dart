@@ -163,6 +163,7 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
         return Listener(
           behavior: HitTestBehavior.opaque,
           onPointerSignal: _handlePointerSignal,
+          onPointerPanZoomUpdate: _handlePointerPanZoomUpdate,
           child: Container(
             color: Colors.white,
             child: Column(
@@ -196,10 +197,12 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
                             controller: _vScrollIndex,
                             itemExtent: widget.rowHeight,
                             itemCount: widget.rows.length,
-                            itemBuilder: (context, index) => _rowHeaderCell(
-                              '${index + 1}',
-                              _headerColor,
-                              widget.rowHeight,
+                            itemBuilder: (context, index) => _scrollSignalBoundary(
+                              _rowHeaderCell(
+                                '${index + 1}',
+                                _headerColor,
+                                widget.rowHeight,
+                              ),
                             ),
                           ),
                         ),
@@ -209,12 +212,18 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
                           behavior: _FortuneTableScrollBehavior(
                             dragScrollEnabled: widget.dragScrollEnabled,
                           ),
-                          child: Scrollbar(
+                          child: RawScrollbar(
                             controller: _vScrollBody,
                             thumbVisibility: hasVerticalOverflow,
-                            child: Scrollbar(
+                            thickness: 8,
+                            radius: Radius.zero,
+                            notificationPredicate: (notification) =>
+                                notification.metrics.axis == Axis.vertical,
+                            child: RawScrollbar(
                               controller: _hScrollBody,
                               thumbVisibility: hasHorizontalOverflow,
+                              thickness: 8,
+                              radius: Radius.zero,
                               notificationPredicate: (notification) =>
                                   notification.metrics.axis == Axis.horizontal,
                               child: SingleChildScrollView(
@@ -226,10 +235,13 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
                                     controller: _vScrollBody,
                                     itemExtent: widget.rowHeight,
                                     itemCount: widget.rows.length,
-                                    itemBuilder: (context, rowIndex) => _buildRow(
-                                      widget.rows[rowIndex],
-                                      rowIndex,
-                                      widths,
+                                    itemBuilder: (context, rowIndex) =>
+                                        _scrollSignalBoundary(
+                                      _buildRow(
+                                        widget.rows[rowIndex],
+                                        rowIndex,
+                                        widths,
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -249,6 +261,15 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
     );
   }
 
+  Widget _scrollSignalBoundary(Widget child) {
+    return Listener(
+      behavior: HitTestBehavior.opaque,
+      onPointerSignal: _handlePointerSignal,
+      onPointerPanZoomUpdate: _handlePointerPanZoomUpdate,
+      child: child,
+    );
+  }
+
   void _handlePointerSignal(PointerSignalEvent event) {
     if (event is! PointerScrollEvent) return;
     GestureBinding.instance.pointerSignalResolver.register(
@@ -259,6 +280,10 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
         }
       },
     );
+  }
+
+  void _handlePointerPanZoomUpdate(PointerPanZoomUpdateEvent event) {
+    _handlePointerScroll(event.panDelta);
   }
 
   void _handlePointerScroll(Offset delta) {

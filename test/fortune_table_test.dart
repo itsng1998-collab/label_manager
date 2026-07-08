@@ -116,7 +116,7 @@ void main() {
     expect(selectedIndex, 0);
   });
 
-  testWidgets('FortuneTable consumes wheel signals inside a parent scroll view', (
+  testWidgets('FortuneTable consumes mouse wheel inside a parent scroll view', (
     tester,
   ) async {
     final parentController = ScrollController();
@@ -158,12 +158,70 @@ void main() {
       ),
     );
 
-    final tableCenter = tester.getCenter(find.byType(FortuneTable<String>));
+    final tableTopLeft = tester.getTopLeft(find.byType(FortuneTable<String>));
+    final firstRowCenter = tableTopLeft + const Offset(120, 36 + 14);
     for (var index = 0; index < 20; index += 1) {
       tester.binding.handlePointerEvent(
         PointerScrollEvent(
-          position: tableCenter,
+          position: firstRowCenter,
           scrollDelta: const Offset(0, 100),
+        ),
+      );
+      await tester.pump();
+    }
+
+    expect(parentController.offset, 0);
+  });
+
+  testWidgets('FortuneTable consumes trackpad pan inside a parent scroll view', (
+    tester,
+  ) async {
+    final parentController = ScrollController();
+    addTearDown(parentController.dispose);
+    final rows = List<String>.generate(40, (index) => '행 $index');
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 360,
+            height: 220,
+            child: SingleChildScrollView(
+              controller: parentController,
+              child: Column(
+                children: [
+                  SizedBox(
+                    width: 360,
+                    height: 180,
+                    child: FortuneTable<String>(
+                      rows: rows,
+                      autoFitColumns: false,
+                      columns: [
+                        FortuneTableColumn<String>(
+                          id: 'name',
+                          header: '이름',
+                          initialWidth: 240,
+                          text: (row) => row,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 600),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final tableTopLeft = tester.getTopLeft(find.byType(FortuneTable<String>));
+    final firstRowCenter = tableTopLeft + const Offset(120, 36 + 14);
+    for (var index = 0; index < 20; index += 1) {
+      tester.binding.handlePointerEvent(
+        PointerPanZoomUpdateEvent(
+          position: firstRowCenter,
+          panDelta: const Offset(0, 100),
         ),
       );
       await tester.pump();
@@ -198,11 +256,29 @@ void main() {
       ),
     );
 
-    var scrollbars = tester.widgetList<Scrollbar>(find.byType(Scrollbar));
+    var scrollbars = tester.widgetList<RawScrollbar>(find.byType(RawScrollbar));
     expect(scrollbars.map((scrollbar) => scrollbar.thumbVisibility), [
       true,
       true,
     ]);
+    expect(
+      scrollbars.map(
+        (scrollbar) => scrollbar.notificationPredicate(
+          ScrollStartNotification(
+            metrics: FixedScrollMetrics(
+              minScrollExtent: 0,
+              maxScrollExtent: 100,
+              pixels: 0,
+              viewportDimension: 50,
+              axisDirection: AxisDirection.down,
+              devicePixelRatio: 1,
+            ),
+            context: tester.element(find.byType(FortuneTable<String>)),
+          ),
+        ),
+      ),
+      [true, false],
+    );
 
     await tester.pumpWidget(
       MaterialApp(
@@ -227,7 +303,7 @@ void main() {
       ),
     );
 
-    scrollbars = tester.widgetList<Scrollbar>(find.byType(Scrollbar));
+    scrollbars = tester.widgetList<RawScrollbar>(find.byType(RawScrollbar));
     expect(scrollbars.map((scrollbar) => scrollbar.thumbVisibility), [
       false,
       false,
