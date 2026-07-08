@@ -40,8 +40,8 @@
 - 검증 완료(2026-07-08): `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "item output preview"` 통과(`+3`).
 - 검증 완료(2026-07-08): `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`).
 - 검증 완료(2026-07-08): `git diff --check -- lib/main.dart third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart third_party/fortune_sheet/test/fortune_sheet_painter_test.dart SESSION_HANDOFF.md` 통과(출력 없음).
-- stage 예정(2026-07-08): `lib/main.dart`, `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`, `third_party/fortune_sheet/test/fortune_sheet_painter_test.dart`, `SESSION_HANDOFF.md`. unrelated dirty `lib/core/app.dart`, `pubspec.lock`, `third_party/fortune_sheet/pubspec.lock`, `third_party/mssql_connection/pubspec.lock` 제외.
-- 현재 HEAD: `4f4ba4d` 품목관리 preview 경계선 인수인계 갱신. 직전 기능 커밋은 `26d0eb8` 품목관리 preview 출력 영역 경계선 숨김.
+- stage/commit 완료(2026-07-08): `lib/main.dart`, `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`, `third_party/fortune_sheet/test/fortune_sheet_painter_test.dart`, `SESSION_HANDOFF.md` 포함해 기능 커밋 `c1063eb` 품목관리 preview data edge ruler 경계선 숨김. unrelated dirty `lib/core/app.dart`, `pubspec.lock`, `third_party/fortune_sheet/pubspec.lock`, `third_party/mssql_connection/pubspec.lock` 제외.
+- 현재 HEAD: `c1063eb` 품목관리 preview data edge ruler 경계선 숨김. 직전 기능 커밋은 `26d0eb8` 품목관리 preview 출력 영역 경계선 숨김.
 - 남은 확인: 사용자가 앱을 다시 실행한 뒤 최신 `.tmp/log/app_YYYY-MM-DD_HH-mm-ss.log`에서 `FSDBG-2026-07-08-preview-data-edge-ruler-v13`와 `FSRULER-2026-07-08-preview-data-edge-ruler-v13`를 확인한다.
 - 기대 로그: 품목관리 preview sheet(`item_element`, `item_output_preview_sheet_01`)는 `stage=rulerBorders ... drawTopBottom=false drawLeftRight=false` 및 `stage=printAreaBoundary hidden=true`가 찍혀야 한다. 공용라벨관리/일반 시트는 `drawTopBottom=true drawLeftRight=true`, `hidden=false`가 정상이다.
 - 기대 화면: 품목관리 preview의 grid line과 data edge ruler border는 숨김 유지, ruler 영역/눈금은 유지되어야 한다. 공용라벨관리의 출력 영역 경계선/헤더 구분선은 기존처럼 유지되어야 한다.
