@@ -18,7 +18,7 @@ void _fortuneSheetRulerTrace(String key, String message) {
   if (!_fortuneSheetRulerTraceKeys.add(key)) {
     return;
   }
-  debugPrint('FSRULER-2026-07-08-preview-ruler-boundary-v22 $message');
+  debugPrint('FSRULER-2026-07-08-preview-ruler-boundary-v23 $message');
 }
 
 bool _intDoubleMapEquals(Map<int, double> left, Map<int, double> right) {
@@ -63081,7 +63081,7 @@ class FortuneSheetPainter extends CustomPainter {
       ' cornerBottomRight=$cornerBottomRight'
       ' cornerRightBottom=$cornerRightBottom'
       ' dataLeft=${_sheetDataLeft(settings)} dataTop=${_sheetDataTop(settings)}'
-      ' boundaryStyle=${normalizePreviewRulerBoundary ? 'gridLine' : 'rulerBorder'}'
+      ' boundaryStyle=${normalizePreviewRulerBoundary ? 'continuousGridLine' : 'rulerBorder'}'
       ' drawTopBottom=true drawLeftRight=true'
       ' drawCornerBottom=true drawCornerRight=true'
       ' normalizePreviewRulerBoundary=$normalizePreviewRulerBoundary',
@@ -63146,7 +63146,7 @@ class FortuneSheetPainter extends CustomPainter {
       ..strokeCap = StrokeCap.butt
       ..isAntiAlias = false;
     canvas.drawLine(
-      Offset(topRuler.left, topRuler.bottom - 0.5),
+      Offset(corner.left, topRuler.bottom - 0.5),
       Offset(topRuler.right, topRuler.bottom - 0.5),
       paint,
     );
@@ -63156,13 +63156,8 @@ class FortuneSheetPainter extends CustomPainter {
       paint,
     );
     canvas.drawLine(
-      Offset(corner.left, corner.bottom - 0.5),
-      Offset(cornerBottomRight, corner.bottom - 0.5),
-      paint,
-    );
-    canvas.drawLine(
       Offset(corner.right - 0.5, corner.top),
-      Offset(corner.right - 0.5, cornerRightBottom),
+      Offset(corner.right - 0.5, leftRuler.top),
       paint,
     );
   }
@@ -65218,17 +65213,7 @@ class FortuneSheetPainter extends CustomPainter {
           borderCompute: borderCompute,
         );
         if (borders != null) {
-          final effectiveBorders = _previewEdgeNormalizedBorders(
-            rect,
-            borders,
-            clipBounds,
-          );
-          _addCellBorderSegments(
-            segments,
-            slashSegments,
-            rect,
-            effectiveBorders,
-          );
+          _addCellBorderSegments(segments, slashSegments, rect, borders);
         }
       }
     }
@@ -65268,42 +65253,6 @@ class FortuneSheetPainter extends CustomPainter {
         clipBounds: clipBounds,
       );
     }
-  }
-
-  FortuneCellBorders _previewEdgeNormalizedBorders(
-    Rect rect,
-    FortuneCellBorders borders,
-    Rect clipBounds,
-  ) {
-    if (!_shouldNormalizePreviewRulerBoundary(workbook.settings)) {
-      return borders;
-    }
-    const edgeTolerance = 0.001;
-    const normalSide = FortuneBorderSide(
-      color: fortuneSheetGridLineColor,
-      style: 1,
-      strokeWidth: 1,
-    );
-    final touchesTopEdge = (rect.top - clipBounds.top).abs() <= edgeTolerance;
-    final touchesLeftEdge = (rect.left - clipBounds.left).abs() <= edgeTolerance;
-    if (!touchesTopEdge && !touchesLeftEdge) {
-      return borders;
-    }
-    _fortuneSheetRulerTrace(
-      '${workbook.activeSheet.id}:preview-edge-border-normalize:$touchesTopEdge:$touchesLeftEdge:${rect.left}:${rect.top}',
-      'sheet=${workbook.activeSheet.id}'
-      ' stage=previewEdgeBorderNormalize'
-      ' rect=$rect clipBounds=$clipBounds'
-      ' touchesTopEdge=$touchesTopEdge touchesLeftEdge=$touchesLeftEdge'
-      ' boundaryStyle=gridLine',
-    );
-    return FortuneCellBorders(
-      top: touchesTopEdge && borders.top != null ? normalSide : borders.top,
-      right: borders.right,
-      bottom: borders.bottom,
-      left: touchesLeftEdge && borders.left != null ? normalSide : borders.left,
-      slash: borders.slash,
-    );
   }
 
   void _drawSolidBorderJoins(
