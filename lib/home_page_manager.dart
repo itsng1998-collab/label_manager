@@ -269,7 +269,8 @@ class _HomePageManagerState extends State<HomePageManager> {
             : await LastConnectDAO.selectByUserId(User.instance!.userId);
         final restored = _findBrandIn(brands, lastConnect?.brandId);
         final fallback = brands.isNotEmpty ? brands.first : null;
-        final targetBrand = resolved ?? restored ?? fallback ?? widget.selectedBrand;
+        final targetBrand =
+            resolved ?? restored ?? fallback ?? widget.selectedBrand;
 
         if (resolved == null && targetBrand != null) {
           _suppressNextBrandDidUpdateLabelLoad = true;
@@ -281,7 +282,9 @@ class _HomePageManagerState extends State<HomePageManager> {
 
         await _scheduleLabelSizeLoad(
           targetBrand,
-          preferredLabelSizeId: restored == null ? null : lastConnect?.labelSizeId,
+          preferredLabelSizeId: restored == null
+              ? null
+              : lastConnect?.labelSizeId,
         );
       } finally {
         if (mounted) {
@@ -2388,7 +2391,8 @@ class _RtfPreviewAiConvertButton extends StatefulWidget {
       _RtfPreviewAiConvertButtonState();
 }
 
-class _RtfPreviewAiConvertButtonState extends State<_RtfPreviewAiConvertButton> {
+class _RtfPreviewAiConvertButtonState
+    extends State<_RtfPreviewAiConvertButton> {
   bool _hovered = false;
   bool _pressed = false;
 
@@ -2533,7 +2537,8 @@ class _ItemPreviewPanelState extends State<_ItemPreviewPanel> {
   void _handleElementWorkbookChanged(fs.FortuneWorkbook workbook) {
     final next = _itemElementTextFromWorkbook(workbook);
     final encodedWorkbook = labelSheetEncodeWorkbookSave(workbook);
-    if (next == _elementText && encodedWorkbook == _elementForm.encodedWorkbook) {
+    if (next == _elementText &&
+        encodedWorkbook == _elementForm.encodedWorkbook) {
       return;
     }
     setState(() {
@@ -2574,12 +2579,16 @@ class _ItemPreviewPanelState extends State<_ItemPreviewPanel> {
     );
 
     if (confirmed != true) {
-      debugLog('saveItemElementSheet cancelledByUser itemId=${widget.item.item.itemId} keepEditing');
+      debugLog(
+        'saveItemElementSheet cancelledByUser itemId=${widget.item.item.itemId} keepEditing',
+      );
       return;
     }
 
     final workbook = labelSheetTryDecodeWorkbookSave(encodedWorkbook);
-    final elementText = workbook == null ? _elementText : _itemElementTextFromWorkbook(workbook);
+    final elementText = workbook == null
+        ? _elementText
+        : _itemElementTextFromWorkbook(workbook);
 
     if (!context.mounted) return;
     showSnackBar(
@@ -2695,16 +2704,12 @@ class _ItemPreviewPanelState extends State<_ItemPreviewPanel> {
   }) {
     final columns = TColumn.datas ?? const <TColumn>[];
     final specialColumns = TColumnSpecial.datas ?? const <TColumnBase>[];
-    final resolvedImageObjectIds = imageObjectIds ??
-        _itemPreviewImageObjectIdsFor([
-          ...specialColumns,
-          ...columns,
-        ]);
-    final resolvedBarcodeObjectIds = barcodeObjectIds ??
-        _itemPreviewBarcodeObjectIdsFor([
-          ...specialColumns,
-          ...columns,
-        ]);
+    final resolvedImageObjectIds =
+        imageObjectIds ??
+        _itemPreviewImageObjectIdsFor([...specialColumns, ...columns]);
+    final resolvedBarcodeObjectIds =
+        barcodeObjectIds ??
+        _itemPreviewBarcodeObjectIdsFor([...specialColumns, ...columns]);
     return _ItemOutputPreviewTab(
       key: ValueKey(
         'item-output-tab:${widget.item.item.itemId}:${_elementForm.encodedWorkbook.hashCode}',
@@ -2790,7 +2795,8 @@ class _ItemElementPreviewTab extends StatelessWidget {
     int width,
     int height,
     String encodedWorkbook,
-  ) onSave;
+  )
+  onSave;
 
   @override
   Widget build(BuildContext context) {
@@ -2809,14 +2815,11 @@ class _ItemElementPreviewTab extends StatelessWidget {
       rulerCornerSizeLabelUsesAsterisk: true,
       disableSheetRulerGuideInteraction: true,
       hideStatisticBar: true,
+      limitCellActionsToClipboardAndClear: true,
       zoomToolbarPlacement: LabelSheetZoomToolbarPlacement.previewTabAreaEnd,
       onWorkbookChanged: onWorkbookChanged,
-      onSave: (width, height, encodedWorkbook) => onSave(
-        context,
-        width,
-        height,
-        encodedWorkbook,
-      ),
+      onSave: (width, height, encodedWorkbook) =>
+          onSave(context, width, height, encodedWorkbook),
     );
   }
 }
@@ -3041,7 +3044,9 @@ _ItemElementFormState _itemElementFormStateFor(
   }
   return _itemElementFormStateFromWorkbook(
     _itemElementWorkbook(item.item.element, labelSize),
-    sourceHash: payload.isNotEmpty ? payload.hashCode : item.item.element.hashCode,
+    sourceHash: payload.isNotEmpty
+        ? payload.hashCode
+        : item.item.element.hashCode,
     convertedFromRtf: false,
   );
 }
@@ -3138,13 +3143,14 @@ fs.FortuneWorkbook _itemElementWorkbookFromCell(
 fs.FortuneCell? _itemElementSingleCellFromDraftCells(
   Map<fs.FortuneCellCoord, fs.FortuneCell> cells,
 ) {
-  final entries = cells.entries
-      .where((entry) => entry.value.renderedText.trim().isNotEmpty)
-      .toList()
-    ..sort((a, b) {
-      final row = a.key.row.compareTo(b.key.row);
-      return row != 0 ? row : a.key.column.compareTo(b.key.column);
-    });
+  final entries =
+      cells.entries
+          .where((entry) => entry.value.renderedText.trim().isNotEmpty)
+          .toList()
+        ..sort((a, b) {
+          final row = a.key.row.compareTo(b.key.row);
+          return row != 0 ? row : a.key.column.compareTo(b.key.column);
+        });
   if (entries.isEmpty) return null;
 
   final runs = <fs.FortuneInlineTextRun>[];
@@ -3222,7 +3228,10 @@ fs.FortuneWorkbook _itemOutputPreviewPrivateWorkbook(
 ) {
   final source = workbook.sheets.isEmpty
       ? fs.FortuneSheet(id: 'item_output_preview_source', name: 'Labels')
-      : workbook.sheets[workbook.activeSheetIndex.clamp(0, workbook.sheets.length - 1)];
+      : workbook.sheets[workbook.activeSheetIndex.clamp(
+          0,
+          workbook.sheets.length - 1,
+        )];
   final labelName = labelSize?.labelSizeName.trim();
   final sourceName = source.name.trim();
   final name = labelName?.isNotEmpty == true
@@ -3311,7 +3320,9 @@ fs.FortuneSheet _replaceSheetKeywords(
       nextCells[entry.key] = imageReplacement.cell;
       continue;
     }
-    final containsElementKeyword = entry.value.renderedText.contains('#ELEMENT');
+    final containsElementKeyword = entry.value.renderedText.contains(
+      '#ELEMENT',
+    );
     final nextCell = _replaceCellKeywords(
       entry.value,
       replacements,
@@ -3323,7 +3334,9 @@ fs.FortuneSheet _replaceSheetKeywords(
         nextCell,
         _itemCellRect(sheet, entry.key).width,
       );
-      if (rowHeight != null && rowHeight > (nextRowHeights[entry.key.row] ?? sheet.defaultRowHeight ?? 19)) {
+      if (rowHeight != null &&
+          rowHeight >
+              (nextRowHeights[entry.key.row] ?? sheet.defaultRowHeight ?? 19)) {
         nextRowHeights[entry.key.row] = rowHeight;
         nextCustomHeight[entry.key.row] = 1;
       }
@@ -3412,16 +3425,17 @@ double? _itemPreviewRequiredRowHeight(fs.FortuneCell cell, double columnWidth) {
   if (cell.renderedText.isEmpty || columnWidth <= 0) {
     return null;
   }
-  final painter = TextPainter(
-    text: _itemPreviewTextSpan(cell),
-    maxLines: cell.normalizedTextWrap == '2' ? null : 1,
-    textDirection: TextDirection.ltr,
-    ellipsis: cell.normalizedTextWrap == '2' ? null : '',
-  )..layout(
-      maxWidth: cell.normalizedTextWrap == '2'
-          ? max(1.0, columnWidth)
-          : double.infinity,
-    );
+  final painter =
+      TextPainter(
+        text: _itemPreviewTextSpan(cell),
+        maxLines: cell.normalizedTextWrap == '2' ? null : 1,
+        textDirection: TextDirection.ltr,
+        ellipsis: cell.normalizedTextWrap == '2' ? null : '',
+      )..layout(
+        maxWidth: cell.normalizedTextWrap == '2'
+            ? max(1.0, columnWidth)
+            : double.infinity,
+      );
   return max(4.0, painter.height + 6.0);
 }
 
@@ -3599,11 +3613,7 @@ fs.FortuneCell _replaceElementKeywordInCell(
     nextRuns,
     base: cell,
     extraFields: {...cell.extraFields, ...elementCell.extraFields},
-  ).copyWith(
-    textWrap: '2',
-    rawTextWrap: '2',
-    hasRawTextWrap: true,
-  );
+  ).copyWith(textWrap: '2', rawTextWrap: '2', hasRawTextWrap: true);
 }
 
 List<fs.FortuneInlineTextRun> _itemInlineRunsFromCell(fs.FortuneCell cell) {

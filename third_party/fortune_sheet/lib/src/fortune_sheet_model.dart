@@ -23421,6 +23421,7 @@ class FortuneSettings {
     this.devicePixelRatio = 0,
     this.allowEdit = true,
     this.copyOnlyContextMenu = false,
+    this.limitCellActionsToClipboardAndClear = false,
     this.lang,
     this.currency = '¥',
     this.forceCalculation = false,
@@ -23491,6 +23492,7 @@ class FortuneSettings {
   final double devicePixelRatio;
   final bool allowEdit;
   final bool copyOnlyContextMenu;
+  final bool limitCellActionsToClipboardAndClear;
   final String? lang;
   final String currency;
   final bool forceCalculation;
@@ -23561,6 +23563,7 @@ class FortuneSettings {
     bool? showFormulaBar,
     bool? showSheetTabs,
     bool? copyOnlyContextMenu,
+    bool? limitCellActionsToClipboardAndClear,
     double? rowHeaderWidth,
     double? columnHeaderHeight,
     bool? hideRowColumnHeaderLabels,
@@ -23594,6 +23597,9 @@ class FortuneSettings {
       devicePixelRatio: devicePixelRatio,
       allowEdit: allowEdit,
       copyOnlyContextMenu: copyOnlyContextMenu ?? this.copyOnlyContextMenu,
+      limitCellActionsToClipboardAndClear:
+          limitCellActionsToClipboardAndClear ??
+          this.limitCellActionsToClipboardAndClear,
       lang: lang,
       currency: currency,
       forceCalculation: forceCalculation,

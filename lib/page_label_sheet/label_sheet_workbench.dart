@@ -54,7 +54,7 @@ const String _labelSheetGeminiApiKeyPrefsKey = 'label_sheet_gemini_api_key';
 const String _labelSheetGeminiModelPrefsKey = 'label_sheet_gemini_model';
 const String _labelSheetGeminiPromptPrefsKey = 'label_sheet_gemini_prompt';
 const String _labelSheetImageImportFilePathPrefsKey =
-  'label_sheet_image_import_file_path';
+    'label_sheet_image_import_file_path';
 const String _labelFileDirectoryPrefsKey = 'label_file_directory';
 const double _labelSheetImportMinReadableFontHeightMm = 2.5;
 
@@ -138,6 +138,12 @@ const Set<String> labelSheetHiddenContextMenuItems = {
   fortuneFilterSortAscCommand,
   fortuneFilterSortDescCommand,
 };
+
+const List<String> labelSheetClipboardClearContextMenuItems = [
+  fortuneContextCopyCommand,
+  fortuneContextPasteCommand,
+  fortuneContextClearCommand,
+];
 
 List<String> labelSheetContextMenuItems(
   List<String> base, {
@@ -1608,11 +1614,13 @@ FortuneSettings labelSheetSettings(
   bool disableSheetRulerGuideInteraction = false,
   bool hideStatisticBar = false,
   bool copyOnlyContextMenu = false,
+  bool limitCellActionsToClipboardAndClear = false,
 }) {
   final resolvedToolbarItems = toolbarItems ?? labelSheetToolbarItems;
   return base.copyWith(
     showToolbar: !hideToolbar,
     copyOnlyContextMenu: copyOnlyContextMenu,
+    limitCellActionsToClipboardAndClear: limitCellActionsToClipboardAndClear,
     toolbarItems: resolvedToolbarItems,
     rowHeaderWidth: hideRowColumnHeaders ? 0 : null,
     columnHeaderHeight: hideRowColumnHeaders ? 0 : null,
@@ -1657,9 +1665,13 @@ FortuneSettings labelSheetSettings(
     ],
     cellContextMenu: copyOnlyContextMenu
         ? const [fortuneContextCopyCommand]
+        : limitCellActionsToClipboardAndClear
+        ? labelSheetClipboardClearContextMenuItems
         : labelSheetContextMenuItems(base.cellContextMenu),
     headerContextMenu: copyOnlyContextMenu
         ? const [fortuneContextCopyCommand]
+        : limitCellActionsToClipboardAndClear
+        ? labelSheetClipboardClearContextMenuItems
         : labelSheetContextMenuItems(
             base.headerContextMenu,
             includeImportLabelImage: true,
@@ -1719,6 +1731,7 @@ class LabelSheetWorkbench extends StatefulWidget {
     this.disableSheetRulerGuideInteraction = false,
     this.hideStatisticBar = false,
     this.copyOnlyContextMenu = false,
+    this.limitCellActionsToClipboardAndClear = false,
     this.zoomToolbarPlacement = LabelSheetZoomToolbarPlacement.sheetToolbarEnd,
     this.onInitialLoadComplete,
     this.onGridRectChanged,
@@ -1749,6 +1762,7 @@ class LabelSheetWorkbench extends StatefulWidget {
   final bool disableSheetRulerGuideInteraction;
   final bool hideStatisticBar;
   final bool copyOnlyContextMenu;
+  final bool limitCellActionsToClipboardAndClear;
   final LabelSheetZoomToolbarPlacement zoomToolbarPlacement;
   final VoidCallback? onInitialLoadComplete;
   final ValueChanged<ui.Rect>? onGridRectChanged;
@@ -1879,6 +1893,8 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     disableSheetRulerGuideInteraction: widget.disableSheetRulerGuideInteraction,
     hideStatisticBar: widget.hideStatisticBar,
     copyOnlyContextMenu: widget.copyOnlyContextMenu,
+    limitCellActionsToClipboardAndClear:
+        widget.limitCellActionsToClipboardAndClear,
   );
 
   FortuneSheetGridClientPhysicalSize? get _gridClientSize {
@@ -2299,7 +2315,10 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     await prefs.setString(_labelSheetGeminiApiKeyPrefsKey, action.apiKey);
     await prefs.setString(_labelSheetGeminiModelPrefsKey, action.model);
     await prefs.setString(_labelSheetGeminiPromptPrefsKey, action.prompt);
-    await prefs.setString(_labelSheetImageImportFilePathPrefsKey, action.filePath);
+    await prefs.setString(
+      _labelSheetImageImportFilePathPrefsKey,
+      action.filePath,
+    );
     final draft = action.draft;
     if (draft == null) {
       if (mounted) {
@@ -3145,8 +3164,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
           initialModel:
               prefs.getString(_labelSheetGeminiModelPrefsKey) ??
               labelSheetDefaultGeminiModel,
-            initialPrompt:
-              prefs.getString(_labelSheetGeminiPromptPrefsKey) ?? '',
+          initialPrompt: prefs.getString(_labelSheetGeminiPromptPrefsKey) ?? '',
         ),
       );
     } finally {
@@ -3492,8 +3510,8 @@ class _LabelSheetZoomButtonState extends State<_LabelSheetZoomButton> {
 const double labelSheetImageImportPreviewHeight = 270;
 const double labelSheetImageImportPreviewPadding = 12;
 const double _labelSheetReadableTextPointSize = 9;
-const double _labelSheetReadableTextPixels = _labelSheetReadableTextPointSize *
-    (96 / 72);
+const double _labelSheetReadableTextPixels =
+    _labelSheetReadableTextPointSize * (96 / 72);
 
 class LabelSheetImageImportPreviewLayout {
   const LabelSheetImageImportPreviewLayout({
@@ -3550,7 +3568,8 @@ double _labelSheetImageImportReadableScale({
     imageWidth / widthMm,
     imageHeight / heightMm,
   );
-  final readablePixelsPerMm = _labelSheetReadableTextPixels /
+  final readablePixelsPerMm =
+      _labelSheetReadableTextPixels /
       ((_labelSheetReadableTextPointSize / 72) * 25.4);
   return readablePixelsPerMm / math.max(0.01, sourcePixelsPerMm);
 }
@@ -3791,7 +3810,9 @@ class _LabelImageImportDialogState extends State<_LabelImageImportDialog> {
                 ),
                 isExpanded: true,
                 decoration: _compactInputDecoration(
-                  _loadingGeminiModels ? 'Gemini Model 조회 중...' : 'Gemini Model',
+                  _loadingGeminiModels
+                      ? 'Gemini Model 조회 중...'
+                      : 'Gemini Model',
                 ),
                 items: [
                   for (final model in _geminiModels)
@@ -3886,7 +3907,10 @@ class _LabelImageImportDialogState extends State<_LabelImageImportDialog> {
       _labelSheetGeminiModelPrefsKey,
       _modelController.text.trim(),
     );
-    await prefs.setString(_labelSheetGeminiPromptPrefsKey, _promptController.text);
+    await prefs.setString(
+      _labelSheetGeminiPromptPrefsKey,
+      _promptController.text,
+    );
   }
 
   Future<void> _selectImageFile() async {
@@ -3907,7 +3931,10 @@ class _LabelImageImportDialogState extends State<_LabelImageImportDialog> {
       filePath: file.path,
     );
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_labelSheetImageImportFilePathPrefsKey, selection.filePath);
+    await prefs.setString(
+      _labelSheetImageImportFilePathPrefsKey,
+      selection.filePath,
+    );
     if (!mounted) {
       return;
     }

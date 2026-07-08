@@ -33023,6 +33023,12 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     if (isShortcutPressed && _applyZoomShortcut(event.logicalKey)) {
       return;
     }
+    if (_workbook.settings.limitCellActionsToClipboardAndClear &&
+        isShortcutPressed &&
+        event.logicalKey != LogicalKeyboardKey.keyC &&
+        event.logicalKey != LogicalKeyboardKey.keyV) {
+      return;
+    }
     if (isShortcutPressed && event.logicalKey == LogicalKeyboardKey.keyB) {
       _toggleSelectedCellStyle(fortuneToolbarBoldCommand);
       return;
@@ -33103,18 +33109,20 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       );
       return;
     }
-    if ((event.logicalKey == LogicalKeyboardKey.delete ||
-            event.logicalKey == LogicalKeyboardKey.backspace) &&
-        _deleteActiveImage()) {
+    final isDeleteKey =
+        event.logicalKey == LogicalKeyboardKey.delete ||
+        event.logicalKey == LogicalKeyboardKey.backspace;
+    if (isDeleteKey && _workbook.settings.limitCellActionsToClipboardAndClear) {
+      _clearSelection();
       return;
     }
-    if ((event.logicalKey == LogicalKeyboardKey.delete ||
-            event.logicalKey == LogicalKeyboardKey.backspace) &&
-        _deleteSelectedSheetRulerGuide()) {
+    if (isDeleteKey && _deleteActiveImage()) {
       return;
     }
-    if (event.logicalKey == LogicalKeyboardKey.delete ||
-        event.logicalKey == LogicalKeyboardKey.backspace) {
+    if (isDeleteKey && _deleteSelectedSheetRulerGuide()) {
+      return;
+    }
+    if (isDeleteKey) {
       _clearSelection();
       return;
     }

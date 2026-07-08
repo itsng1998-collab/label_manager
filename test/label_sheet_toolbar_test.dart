@@ -213,32 +213,35 @@ void main() {
     expect(invalidPreview.hintText, '* 저장된 라벨에 문제가 있습니다.');
   });
 
-  test('item output preview creates fallback sheet for empty saved workbook', () {
-    final encoded = _encodeLabelSheetSaveArchive(
-      manifest: {
-        'format': labelSheetSaveFormat,
-        'version': labelSheetSaveFormatVersion,
-        'features': labelSheetSaveFeatureVersions,
-        'codec': 'fortune-sheet-json',
-      },
-      workbookJson: {
-        'name': 'empty workbook',
-        'data': <Object?>[],
-      },
-    );
+  test(
+    'item output preview creates fallback sheet for empty saved workbook',
+    () {
+      final encoded = _encodeLabelSheetSaveArchive(
+        manifest: {
+          'format': labelSheetSaveFormat,
+          'version': labelSheetSaveFormatVersion,
+          'features': labelSheetSaveFeatureVersions,
+          'codec': 'fortune-sheet-json',
+        },
+        workbookJson: {'name': 'empty workbook', 'data': <Object?>[]},
+      );
 
-    final preview = debugItemOutputPreviewForTesting(
-      labelSize: _testLabelSizeWithFormData(encoded),
-      item: _testItemOfMarket(),
-      elementText: '원재료 편집',
-    );
+      final preview = debugItemOutputPreviewForTesting(
+        labelSize: _testLabelSizeWithFormData(encoded),
+        item: _testItemOfMarket(),
+        elementText: '원재료 편집',
+      );
 
-    expect(preview.hintText, isNull);
-    expect(preview.workbook, isNotNull);
-    expect(preview.workbook!.sheets, hasLength(1));
-    expect(preview.workbook!.sheets.single.id, 'item_output_preview_sheet_01');
-    expect(preview.workbook!.sheets.single.name, '테스트 라벨');
-  });
+      expect(preview.hintText, isNull);
+      expect(preview.workbook, isNotNull);
+      expect(preview.workbook!.sheets, hasLength(1));
+      expect(
+        preview.workbook!.sheets.single.id,
+        'item_output_preview_sheet_01',
+      );
+      expect(preview.workbook!.sheets.single.name, '테스트 라벨');
+    },
+  );
 
   test('item output preview uses private active saved sheet only', () {
     final encoded = labelSheetEncodeWorkbookSave(
@@ -249,9 +252,7 @@ void main() {
             id: 'common_01',
             name: '다른 시트',
             cells: {
-              const FortuneCellCoord(0, 0): const FortuneCell(
-                value: '사용하지 않음',
-              ),
+              const FortuneCellCoord(0, 0): const FortuneCell(value: '사용하지 않음'),
             },
           ),
           FortuneSheet(
@@ -283,14 +284,8 @@ void main() {
     expect(sheet.id, 'item_output_preview_sheet_01');
     expect(sheet.name, '테스트 라벨');
     expect(sheet.showGridLines, isFalse);
-    expect(
-      sheet.cells[const FortuneCellCoord(0, 0)]?.renderedText,
-      '딸기잼',
-    );
-    expect(
-      sheet.cells[const FortuneCellCoord(0, 1)]?.renderedText,
-      '딸기, 설탕',
-    );
+    expect(sheet.cells[const FortuneCellCoord(0, 0)]?.renderedText, '딸기잼');
+    expect(sheet.cells[const FortuneCellCoord(0, 1)]?.renderedText, '딸기, 설탕');
   });
 
   test('item output preview preserves rich element replacement runs', () {
@@ -349,7 +344,8 @@ void main() {
       elementWorkbook: elementWorkbook,
     );
 
-    final cell = preview.workbook!.sheets.single.cells[const FortuneCellCoord(0, 0)]!;
+    final cell =
+        preview.workbook!.sheets.single.cells[const FortuneCellCoord(0, 0)]!;
     expect(cell.renderedText, '원재료: 딸기\n설탕 / 보관');
     expect(cell.textWrap, '2');
     expect(preview.workbook!.sheets.single.customHeight[0], 1);
@@ -553,6 +549,7 @@ void main() {
       rulerCornerSizeLabelUsesAsterisk: true,
       disableSheetRulerGuideInteraction: true,
       hideStatisticBar: true,
+      limitCellActionsToClipboardAndClear: true,
     );
     final toolbarItems = fortuneToolbarItemsWithCustom(
       settings.toolbarItems,
@@ -572,6 +569,12 @@ void main() {
     expect(settings.rulerCornerSizeLabelUsesAsterisk, isTrue);
     expect(settings.disableSheetRulerGuideInteraction, isTrue);
     expect(settings.statisticBarHeight, 0);
+    expect(settings.limitCellActionsToClipboardAndClear, isTrue);
+    expect(settings.cellContextMenu, labelSheetClipboardClearContextMenuItems);
+    expect(
+      settings.headerContextMenu,
+      labelSheetClipboardClearContextMenuItems,
+    );
 
     final defaultSettings = labelSheetSettings(const FortuneSettings());
     expect(
@@ -588,6 +591,100 @@ void main() {
     expect(defaultSettings.rulerCornerSizeLabelUsesAsterisk, isFalse);
     expect(defaultSettings.disableSheetRulerGuideInteraction, isFalse);
     expect(defaultSettings.statisticBarHeight, 23);
+    expect(defaultSettings.limitCellActionsToClipboardAndClear, isFalse);
+  });
+
+  testWidgets('item element sheet limits menu and key actions by flag', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: debugItemPreviewPanelForTesting(
+            item: _testItemOfMarket(itemId: 10, itemName: '첫 품목'),
+            labelSize: _testLabelSizeWithFormData(''),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    final sheetApp = tester.widget<FortuneSheetApp>(
+      find.byType(FortuneSheetApp),
+    );
+    final settings = sheetApp.settings!;
+    expect(settings.limitCellActionsToClipboardAndClear, isTrue);
+    expect(settings.copyOnlyContextMenu, isFalse);
+    expect(settings.cellContextMenu, labelSheetClipboardClearContextMenuItems);
+    expect(
+      settings.headerContextMenu,
+      labelSheetClipboardClearContextMenuItems,
+    );
+    expect(
+      settings.cellContextMenu,
+      isNot(contains(fortuneContextInsertRowCommand)),
+    );
+    expect(
+      settings.cellContextMenu,
+      isNot(contains(fortuneContextClearSheetCommand)),
+    );
+  });
+
+  testWidgets('limited cell action mode blocks formatting shortcut', (
+    tester,
+  ) async {
+    Future<bool> ctrlBoldEnablesSave({required bool limited}) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              width: 420,
+              height: 320,
+              child: LabelSheetWorkbench(
+                key: ValueKey('limited-cell-action-$limited'),
+                initialWorkbook: FortuneWorkbook(
+                  sheets: [
+                    FortuneSheet(
+                      id: 's1',
+                      name: 'Label',
+                      cells: {
+                        const FortuneCellCoord(0, 0): const FortuneCell(
+                          value: '원료',
+                        ),
+                      },
+                    ),
+                  ],
+                ),
+                toolbarItems: _itemElementToolbarItemsForTest,
+                limitCellActionsToClipboardAndClear: limited,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump();
+
+      await tester.tapAt(
+        tester.getTopLeft(find.byType(FortuneSheetApp)) + const Offset(80, 80),
+      );
+      await tester.pump();
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyB);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await tester.pump();
+
+      final saveItem = tester
+          .widget<FortuneSheetApp>(find.byType(FortuneSheetApp))
+          .settings!
+          .customToolbarItems
+          .singleWhere((item) => item.key == labelSheetSaveToolbarCommand);
+      return saveItem.disabled == false;
+    }
+
+    expect(await ctrlBoldEnablesSave(limited: false), isTrue);
+    expect(await ctrlBoldEnablesSave(limited: true), isFalse);
   });
 
   test('label sheet settings can hide toolbar and keep copy-only menus', () {
@@ -609,7 +706,10 @@ void main() {
     final defaultSettings = labelSheetSettings(const FortuneSettings());
     expect(defaultSettings.showToolbar, isTrue);
     expect(defaultSettings.copyOnlyContextMenu, isFalse);
-    expect(defaultSettings.cellContextMenu, contains(fortuneContextPasteCommand));
+    expect(
+      defaultSettings.cellContextMenu,
+      contains(fortuneContextPasteCommand),
+    );
   });
 
   testWidgets('single cell viewport fit keeps visible size across zoom', (
@@ -1449,10 +1549,7 @@ void main() {
             find.ancestor(of: zoomInputFinder, matching: find.byType(Padding)),
           )
           .map((padding) => padding.padding);
-      expect(
-        ancestorPadding,
-        contains(const EdgeInsets.fromLTRB(5, 6, 5, 4)),
-      );
+      expect(ancestorPadding, contains(const EdgeInsets.fromLTRB(5, 6, 5, 4)));
     }
 
     Widget buildWorkbench(LabelSheetZoomToolbarPlacement placement) {
@@ -1483,9 +1580,7 @@ void main() {
     await tester.pump();
 
     final hostTop = tester.getTopLeft(find.byKey(hostKey)).dy;
-    final zoomTop = tester
-        .getTopLeft(find.byKey(zoomInputKey))
-        .dy;
+    final zoomTop = tester.getTopLeft(find.byKey(zoomInputKey)).dy;
     expect(zoomTop, lessThan(hostTop));
     expectZoomInputContentOffset();
 
@@ -2348,7 +2443,7 @@ void main() {
     );
 
     expect(smallReadableLayout.usesReadableScale, isTrue);
-  expect(smallReadableLayout.height, greaterThan(viewportHeight));
+    expect(smallReadableLayout.height, greaterThan(viewportHeight));
 
     final sufficientlyReadableLayout = labelSheetImageImportPreviewLayout(
       imageWidth: 1200,
@@ -2785,7 +2880,7 @@ void main() {
     });
 
     final resolvedSizes = <Size>[];
-  final nativeImages = <LabelSheetNativeRtfPngImage>[];
+    final nativeImages = <LabelSheetNativeRtfPngImage>[];
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(labelSheetNativeOpenXmlChannel, (call) async {
           final arguments = Map<Object?, Object?>.from(call.arguments as Map);
@@ -2948,9 +3043,7 @@ void main() {
       initialSize: const Size(120, 90),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          layoutSizes.add(
-            Size(constraints.maxWidth, constraints.maxHeight),
-          );
+          layoutSizes.add(Size(constraints.maxWidth, constraints.maxHeight));
           return const SizedBox.expand(key: ValueKey('floating-child'));
         },
       ),
@@ -2982,9 +3075,7 @@ void main() {
 
     expect(layoutSizes, isNotEmpty);
     expect(
-      layoutSizes.every(
-        (size) => size.width >= 80 && size.height >= 60,
-      ),
+      layoutSizes.every((size) => size.width >= 80 && size.height >= 60),
       isTrue,
       reason: 'layoutSizes=$layoutSizes',
     );
