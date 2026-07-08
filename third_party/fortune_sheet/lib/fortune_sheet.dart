@@ -8,4 +8,5 @@ export 'src/fortune_sheet_codec.dart';
 export 'src/fortune_sheet_model.dart';
 export 'src/fortune_sheet_painter.dart';
 export 'src/fortune_system_fonts.dart';
+export 'src/fortune_table.dart';
 export 'src/fortune_toolbar_icons.dart';

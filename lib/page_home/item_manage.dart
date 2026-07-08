@@ -1,12 +1,12 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:fortune_sheet/fortune_sheet.dart' hide Rect;
 import 'package:label_manager/models/column.dart';
 import 'package:label_manager/models/column_content.dart';
 import 'package:label_manager/models/item_of_market.dart';
 import 'package:label_manager/utils/log_context.dart';
-import 'package:label_manager/widgets/swipe_action_table.dart';
 
-class ItemManage extends StatelessWidget {
+class ItemManage extends StatefulWidget {
   final List<ItemOfMarket> items;
   final int? selectedIndex;
   final void Function(ItemOfMarket row, int index)? onRowSelected;
@@ -21,32 +21,38 @@ class ItemManage extends StatelessWidget {
   });
 
   @override
+  State<ItemManage> createState() => _ItemManageState();
+}
+
+class _ItemManageState extends State<ItemManage> {
+  final Set<int> _checkedMarketIds = <int>{};
+
+  @override
   Widget build(BuildContext context) {
     final columns = _columns;
     debugLog(
-      'rows=${items.length}, '
+      'rows=${widget.items.length}, '
       'dynamicColumns=${TColumn.datas?.length ?? 0}, columns=${columns.length}',
     );
-    return ResizableTable<ItemOfMarket>(
-      rows: items,
+    return FortuneTable<ItemOfMarket>(
+      rows: widget.items,
       columns: columns,
-      checkboxColumnIndex: 0,
-      selectedIndex: selectedIndex,
-      onRowSelected: onRowSelected,
-      onRectChanged: onTableRectChanged,
+      selectedIndex: widget.selectedIndex,
+      onRowSelected: widget.onRowSelected,
+      onRectChanged: widget.onTableRectChanged,
     );
   }
 
-  List<ResizableTableColumn<ItemOfMarket>> get _columns {
+  List<FortuneTableColumn<ItemOfMarket>> get _columns {
     final extras = List<TColumn>.from(TColumn.datas ?? const <TColumn>[]);
     final extraColumns = extras
         .map(
-          (c) => ResizableTableColumn<ItemOfMarket>(
+          (c) => FortuneTableColumn<ItemOfMarket>(
             id: 'dyn_${c.columnId}',
-            title: c.columnName,
-            width: max(c.width.toDouble(), 70),
+            header: c.columnName,
+            initialWidth: max(c.width.toDouble(), 70),
             minWidth: 70,
-            textAccessor: (row) =>
+            text: (row) =>
                 TColumnContent.get(c.columnId, row.item.itemId)?.dataString ??
                 '',
           ),
@@ -54,33 +60,43 @@ class ItemManage extends StatelessWidget {
         .toList();
 
     return [
-      const ResizableTableColumn<ItemOfMarket>(
+      FortuneTableColumn<ItemOfMarket>(
         id: 'publish',
-        title: '발행',
-        width: 40,
+        header: '발행',
+        initialWidth: 40,
         minWidth: 40,
-        textAccessor: _empty,
+        text: _empty,
+        checkboxValue: (row) => _checkedMarketIds.contains(row.marketId),
+        onCheckboxChanged: (row, value) {
+          setState(() {
+            if (value) {
+              _checkedMarketIds.add(row.marketId);
+            } else {
+              _checkedMarketIds.remove(row.marketId);
+            }
+          });
+        },
       ),
-      const ResizableTableColumn<ItemOfMarket>(
+      const FortuneTableColumn<ItemOfMarket>(
         id: 'labelSize',
-        title: '라벨크기',
-        width: 100,
+        header: '라벨크기',
+        initialWidth: 100,
         minWidth: 60,
-        textAccessor: _labelSize,
+        text: _labelSize,
       ),
-      const ResizableTableColumn<ItemOfMarket>(
+      const FortuneTableColumn<ItemOfMarket>(
         id: 'itemName',
-        title: '품명',
-        width: 280,
+        header: '품명',
+        initialWidth: 280,
         minWidth: 70,
-        textAccessor: _itemName,
+        text: _itemName,
       ),
-      const ResizableTableColumn<ItemOfMarket>(
+      const FortuneTableColumn<ItemOfMarket>(
         id: 'element',
-        title: '주원료',
-        width: 180,
+        header: '주원료',
+        initialWidth: 180,
         minWidth: 70,
-        textAccessor: _element,
+        text: _element,
       ),
       ...extraColumns,
     ];

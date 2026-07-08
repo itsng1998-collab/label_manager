@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:fortune_sheet/fortune_sheet.dart' hide Rect;
 import 'package:label_manager/models/column_base.dart';
 import 'package:label_manager/models/column_special.dart';
 import 'package:label_manager/models/column.dart';
@@ -8,7 +9,6 @@ import 'package:label_manager/models/label_size.dart';
 import 'package:label_manager/page_label_sheet/label_sheet_page.dart';
 import 'package:label_manager/page_label_sheet/label_sheet_workbench.dart';
 import 'package:label_manager/utils/log_context.dart';
-import 'package:label_manager/widgets/swipe_action_table.dart';
 
 @visibleForTesting
 List<String> commonLabelBarcodeObjectIdsFor(
@@ -321,7 +321,7 @@ class _RightPaneState extends State<_RightPane> {
   }
 }
 
-class _CommonLabelTable extends StatelessWidget {
+class _CommonLabelTable extends StatefulWidget {
   final List<TColumnBase> columns;
   final List<double>? columnWidths;
   const _CommonLabelTable({required this.columns, this.columnWidths});
@@ -387,44 +387,40 @@ class _CommonLabelTable extends StatelessWidget {
   static double _minWidth(int idx) => idx < _baseWidths.length ? 60.0 : 70.0;
 
   @override
+  State<_CommonLabelTable> createState() => _CommonLabelTableState();
+}
+
+class _CommonLabelTableState extends State<_CommonLabelTable> {
+  @override
   Widget build(BuildContext context) {
-    return SwipeActionTable<TColumnBase>(
-      rows: columns,
+    return FortuneTable<TColumnBase>(
+      rows: widget.columns,
       columns: [
-        for (var index = 0; index < _baseHeaders.length; index += 1)
-          SwipeActionTableColumn<TColumnBase>(
-            header: _headerTitle(index),
-            initialWidth: columnWidths?[index] ?? _baseWidths[index],
-            minWidth: _minWidth(index),
-            text: (row) => _cellText(row, index),
-            cellBuilder: index == 2
-                ? (context, row, width) => SizedBox(
-                    width: width,
-                    child: StatefulBuilder(
-                      builder: (context, setCellState) {
-                        return Center(
-                          child: Transform.scale(
-                            scale: 0.9,
-                            child: Checkbox(
-                              value: row.useMissingKeywordCheck,
-                              onChanged: (value) {
-                                setCellState(() {
-                                  row.useMissingKeywordCheck = value ?? false;
-                                });
-                              },
-                              materialTapTargetSize:
-                                  MaterialTapTargetSize.shrinkWrap,
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  )
+        for (var index = 0;
+            index < _CommonLabelTable._baseHeaders.length;
+            index += 1)
+          FortuneTableColumn<TColumnBase>(
+            id: 'common_label_$index',
+            header: _CommonLabelTable._headerTitle(index),
+            initialWidth:
+                widget.columnWidths?[index] ?? _CommonLabelTable._baseWidths[index],
+            minWidth: _CommonLabelTable._minWidth(index),
+            text: (row) => _CommonLabelTable._cellText(row, index),
+            checkboxValue: index == 2
+                ? (row) => row.useMissingKeywordCheck
+                : null,
+            onCheckboxChanged: index == 2
+                ? (row, value) {
+                    setState(() {
+                      row.useMissingKeywordCheck = value;
+                    });
+                  }
                 : null,
           ),
       ],
-      autoFitColumns: columnWidths == null,
+      autoFitColumns: widget.columnWidths == null,
       fillLastColumn: true,
+      rowNumberWidth: _CommonLabelTable._rowNumberWidth,
     );
   }
 }
