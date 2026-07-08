@@ -2638,6 +2638,25 @@ void main() {
     },
   );
 
+  test('toolbar popup uses full natural height when viewport has room', () {
+    final naturalHeight = fortuneToolbarPopupHeightFor(
+      fortuneToolbarBorderPopupKey,
+      fortuneToolbarBorderPopupCommands,
+    );
+    final viewportHeight =
+        fortuneToolbarPopupTop +
+        naturalHeight +
+        fortuneToolbarPopupViewportMargin;
+
+    expect(
+      fortuneToolbarPopupVisibleHeightFor(
+        viewportHeight: viewportHeight,
+        naturalHeight: naturalHeight,
+      ),
+      naturalHeight,
+    );
+  });
+
   test('toolbar popup draws scroll direction indicators', () async {
     final workbook = FortuneWorkbook(
       sheets: [FortuneSheet(id: 's1', name: 'Sheet1')],

@@ -43593,7 +43593,6 @@ const double fortuneToolbarMorePopupWidth = 180.0;
 const double fortuneToolbarLocationPopupWidth = 95.0;
 const double fortuneToolbarPopupFreezeWidth = 180.0;
 const double fortuneToolbarPopupTop = 40.0;
-const double fortuneToolbarPopupMaxHeightRatio = 0.75;
 const double fortuneToolbarPopupVerticalPadding = 16.0;
 const double fortuneToolbarPopupContentTopPadding = 8.0;
 const double fortuneToolbarPopupRowHeight = 26.0;
@@ -43736,23 +43735,18 @@ double fortuneToolbarPopupVisibleHeightFor({
   required double viewportHeight,
   required double naturalHeight,
 }) {
-  final maxByBottom = math.max(
+  final maxHeight = math.max(
     0.0,
     viewportHeight - fortuneToolbarPopupTop - fortuneToolbarPopupViewportMargin,
   );
-  final maxByRatio = math.max(
-    0.0,
-    viewportHeight * fortuneToolbarPopupMaxHeightRatio,
-  );
-  final cappedHeight = math.min(maxByBottom, maxByRatio);
-  if (naturalHeight <= cappedHeight) {
+  if (naturalHeight <= maxHeight) {
     return naturalHeight;
   }
   return math.max(
     0.0,
     math.min(
       naturalHeight,
-      cappedHeight - fortuneToolbarPopupScrollIndicatorReservedHeight,
+      maxHeight - fortuneToolbarPopupScrollIndicatorReservedHeight,
     ),
   );
 }
