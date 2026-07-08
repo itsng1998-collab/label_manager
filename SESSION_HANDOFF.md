@@ -30,6 +30,14 @@
 
 ### 다음 세션 시작 지점 (2026-07-08)
 
+- 완료(2026-07-08): 사용자가 v14 후에도 “마찬가지”라고 재보고. 최신 `.tmp/log/app_2026-07-08_09-50-31.log`에서 품목 preview `separateCornerJoint=true`, `cornerBottomEnd=45.0`, `cornerRightEnd=19.0`, `topRulerBottomStart=Offset(47.0, 20.0)`, `leftRulerRightStart=Offset(46.0, 21.0)`가 실제 적용됐는데도 동일함을 확인. v14 corner joint 1px 분리 가설은 틀린 것으로 확정하고 원복했다.
+- 수정 완료(2026-07-08): `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`에서 `hideRowColumnHeaderLabels && hidePrintAreaBoundary && !showGridLines` preview 조건일 때만 corner 영역의 bottom/right 구분선 자체를 그리지 않도록 변경했다. top/left ruler data edge 선, ruler 영역, 눈금, corner label은 유지한다. 일반 공용라벨관리/일반 hidden-header는 `hidePreviewCornerBoundary=false`로 기존 corner 구분선을 유지한다.
+- 수정 완료(2026-07-08): 로그 marker는 `FSRULER-2026-07-08-preview-corner-boundary-v15`, 앱 DebugLogger 버전은 `FSDBG-2026-07-08-preview-corner-boundary-v15`. 기대 로그는 품목 preview에서 `drawCornerBottom=false drawCornerRight=false hidePreviewCornerBoundary=true`. 공용라벨관리/일반 시트는 `drawCornerBottom=true drawCornerRight=true hidePreviewCornerBoundary=false`.
+- 테스트 갱신(2026-07-08): `preview hidden headers separate ruler corner joint`를 `preview hidden headers omit ruler corner boundary`로 교체해, preview 조건에서 corner bottom/right border 픽셀은 사라지고 top/left ruler data edge 선은 유지되는지 검증한다.
+- 검증 완료(2026-07-08): formatter 적용 후 focused painter 테스트 4개(`preview hidden headers omit ruler corner boundary`, `adjusted sheet hidden headers keep ruler separators one pixel`, `adjusted sheet header corner separators stay connected`, `hide print area boundary suppresses adjusted boundary`) 통과.
+- 검증 완료(2026-07-08): `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart --plain-name "item output preview"` 통과(`+3`).
+- 검증 완료(2026-07-08): `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`).
+- 검증 완료(2026-07-08): `git diff --check -- lib/main.dart third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart third_party/fortune_sheet/test/fortune_sheet_painter_test.dart SESSION_HANDOFF.md` 통과(출력 없음).
 - 완료(2026-07-08): 사용자가 문제 위치를 “행/열 눈금자 교차영역 우하단 구분선이 두꺼운 부분”으로 재설명. 최신 `.tmp/log/app_2026-07-08_09-41-17.log`에서 v13의 `drawTopBottom=false drawLeftRight=false`가 이미 품목 preview에 적용됐는데도 동일했으므로, v13 data-edge ruler border 가설은 틀린 것으로 확정하고 원복했다.
 - 수정 완료(2026-07-08): `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`에서 `hideRowColumnHeaderLabels && hidePrintAreaBoundary && !showGridLines` preview 조건일 때만 corner bottom/right와 top/left ruler 선이 같은 우하단 픽셀에 닿지 않도록 각 끝점을 1px 분리했다. ruler 영역/눈금/top-left data edge 선은 유지한다. 일반 공용라벨관리/일반 hidden-header는 `separateCornerJoint=false`로 기존 좌표를 유지한다.
 - 수정 완료(2026-07-08): 로그 marker는 `FSRULER-2026-07-08-preview-corner-joint-v14`, 앱 DebugLogger 버전은 `FSDBG-2026-07-08-preview-corner-joint-v14`. 기대 로그는 품목 preview에서 `separateCornerJoint=true`, `cornerBottomEnd=45.0`, `cornerRightEnd=19.0`, `topRulerBottomStart=Offset(47.0, 20.0)`, `leftRulerRightStart=Offset(46.0, 21.0)`. 공용라벨관리/일반 시트는 `separateCornerJoint=false`.
