@@ -18,7 +18,7 @@ void _fortuneSheetRulerTrace(String key, String message) {
   if (!_fortuneSheetRulerTraceKeys.add(key)) {
     return;
   }
-  debugPrint('FSRULER-2026-07-08-preview-ruler-boundary-v30 $message');
+  debugPrint('FSRULER-2026-07-08-preview-ruler-boundary-v31 $message');
 }
 
 bool _intDoubleMapEquals(Map<int, double> left, Map<int, double> right) {
@@ -65675,21 +65675,28 @@ class FortuneSheetPainter extends CustomPainter {
     FortuneSheetMetrics metrics,
   ) {
     final view = _frozenView(settings, metrics);
+    if (!view.hasFrozenPane) {
+      return;
+    }
     final paint = Paint()..color = const Color(0xffdddddd);
     final headerTop = _sheetHeaderTop(settings);
     final dataTop = _sheetDataTop(settings);
     final headerLeft = _sheetHeaderLeft(settings);
     final dataLeft = _sheetDataLeft(settings);
-    final columnHandleX = dataLeft + view.frozenWidth - 1.5;
-    canvas.drawRect(
-      Rect.fromLTWH(columnHandleX, headerTop, 3, settings.columnHeaderHeight),
-      paint,
-    );
-    final rowHandleY = dataTop + view.frozenHeight - 1.5;
-    canvas.drawRect(
-      Rect.fromLTWH(headerLeft, rowHandleY, settings.rowHeaderWidth, 3),
-      paint,
-    );
+    if (view.columnFocus != null) {
+      final columnHandleX = dataLeft + view.frozenWidth - 1.5;
+      canvas.drawRect(
+        Rect.fromLTWH(columnHandleX, headerTop, 3, settings.columnHeaderHeight),
+        paint,
+      );
+    }
+    if (view.rowFocus != null) {
+      final rowHandleY = dataTop + view.frozenHeight - 1.5;
+      canvas.drawRect(
+        Rect.fromLTWH(headerLeft, rowHandleY, settings.rowHeaderWidth, 3),
+        paint,
+      );
+    }
   }
 
   void _drawFreezeDragLine(Canvas canvas, Size size) {

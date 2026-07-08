@@ -46,6 +46,12 @@ bool _isRulerBorderPixel(int red, int green, int blue) {
       (blue - 0xe1).abs() <= 3;
 }
 
+bool _isFreezeHandlePixel(int red, int green, int blue) {
+  return (red - 0xdd).abs() <= 1 &&
+      (green - 0xdd).abs() <= 1 &&
+      (blue - 0xdd).abs() <= 1;
+}
+
 bool _isNonWhiteUiPixel(int red, int green, int blue) {
   return red < 248 || green < 248 || blue < 248;
 }
@@ -436,6 +442,15 @@ void main() {
     );
 
     expect(
+      _pixelBounds(
+        bytes,
+        image.width,
+        Rect.fromLTWH(dataLeft - 2, headerTop + 2, 5, 80),
+        _isGridLinePixel,
+      ),
+      Rect.fromLTWH(dataLeft, headerTop + 2, 1, 80),
+    );
+    expect(
       _countPixels(
         bytes,
         image.width,
@@ -569,6 +584,78 @@ void main() {
       );
     },
   );
+
+  test('visible headers skip freeze handles without frozen panes', () async {
+    const size = Size(420, 320);
+    final workbook = FortuneWorkbook(
+      settings: const FortuneSettings(),
+      sheets: [
+        FortuneSheet(
+          id: 's1',
+          name: 'Sheet1',
+          rowCount: 30,
+          columnCount: 20,
+          showGridLines: true,
+          extraFields: const {
+            fortuneSheetGridClientWidthMmKey: 40,
+            fortuneSheetGridClientHeightMmKey: 30,
+          },
+        ),
+      ],
+    );
+    final painter = FortuneSheetPainter(
+      workbook: workbook,
+      selection: const FortuneSelection(row: 0, column: 0),
+      scrollOffset: Offset.zero,
+      sheetTabScrollOffset: 0,
+      textDirection: TextDirection.ltr,
+      sheetRulerVisible: true,
+    );
+
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+    painter.paint(canvas, size);
+    final image = await recorder.endRecording().toImage(
+      size.width.toInt(),
+      size.height.toInt(),
+    );
+    final bytes = (await image.toByteData(
+      format: ui.ImageByteFormat.rawRgba,
+    ))!;
+    final settings = workbook.settings;
+    final headerLeft = settings.rowHeaderWidth;
+    final headerTop = settings.columnHeaderHeight;
+    final dataLeft = headerLeft + settings.rowHeaderWidth;
+    final dataTop = headerTop + settings.columnHeaderHeight;
+
+    expect(
+      _countPixels(
+        bytes,
+        image.width,
+        Rect.fromLTWH(dataLeft - 2, headerTop + 2, 4, dataTop - headerTop - 4),
+        _isFreezeHandlePixel,
+      ),
+      0,
+    );
+    expect(
+      _countPixels(
+        bytes,
+        image.width,
+        Rect.fromLTWH(headerLeft + 2, dataTop - 2, dataLeft - headerLeft - 4, 4),
+        _isFreezeHandlePixel,
+      ),
+      0,
+    );
+    expect(
+      _countPixels(
+        bytes,
+        image.width,
+        Rect.fromLTWH(dataLeft + 8, 2, 80, 14),
+        _isRulerTickPixel,
+      ),
+      greaterThan(5),
+    );
+  });
 
   test('preview hidden headers normalize ruler boundary lines', () async {
     const size = Size(420, 320);
