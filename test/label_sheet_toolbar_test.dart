@@ -351,6 +351,9 @@ void main() {
 
     final cell = preview.workbook!.sheets.single.cells[const FortuneCellCoord(0, 0)]!;
     expect(cell.renderedText, '원재료: 딸기\n설탕 / 보관');
+    expect(cell.textWrap, '2');
+    expect(preview.workbook!.sheets.single.customHeight[0], 1);
+    expect(preview.workbook!.sheets.single.rowHeights[0], greaterThan(19));
     final runs = cell.inlineRuns!;
     expect(runs.map((run) => run.text).join(), cell.renderedText);
     expect(runs.any((run) => run.text == '딸기' && run.bold == true), isTrue);
@@ -364,6 +367,53 @@ void main() {
       isTrue,
     );
     expect(runs.any((run) => run.text == '설탕' && run.italic == true), isTrue);
+  });
+
+  testWidgets('item element edit enables save toolbar without replacing tab', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: debugItemPreviewPanelForTesting(
+            item: _testItemOfMarket(itemId: 10, itemName: '첫 품목'),
+            labelSize: _testLabelSizeWithFormData(''),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    var sheetApp = tester.widget<FortuneSheetApp>(find.byType(FortuneSheetApp));
+    var saveItem = sheetApp.settings!.customToolbarItems.singleWhere(
+      (item) => item.key == labelSheetSaveToolbarCommand,
+    );
+    expect(saveItem.disabled, isTrue);
+
+    sheetApp.onChange!(
+      FortuneWorkbook(
+        sheets: [
+          FortuneSheet(
+            id: 'item_element',
+            name: '주원료 및 함량',
+            cells: {
+              const FortuneCellCoord(0, 0): const FortuneCell(value: '수정'),
+            },
+          ),
+        ],
+      ),
+    );
+    sheetApp.onOp!(const [
+      {'type': 'test'},
+    ]);
+    await tester.pump();
+
+    sheetApp = tester.widget<FortuneSheetApp>(find.byType(FortuneSheetApp));
+    saveItem = sheetApp.settings!.customToolbarItems.singleWhere(
+      (item) => item.key == labelSheetSaveToolbarCommand,
+    );
+    expect(saveItem.disabled, isFalse);
   });
 
   test('item element RTF conversion decodes Korean ANSI hex', () async {

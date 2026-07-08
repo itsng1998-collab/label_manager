@@ -2545,7 +2545,7 @@ class _ItemPreviewPanelState extends State<_ItemPreviewPanel> {
         convertedFromRtf: false,
       );
     });
-    _replaceTabsPreservingSelection();
+    _updateOutputPreviewTabContent();
   }
 
   Future<void> _handleElementSheetSave(
@@ -2607,7 +2607,7 @@ class _ItemPreviewPanelState extends State<_ItemPreviewPanel> {
             convertedFromRtf: false,
           );
         });
-        _replaceTabsPreservingSelection();
+        _updateOutputPreviewTabContent();
       }
       debugLog('$END - item element sheet save completed itemId=$itemId');
     } catch (e) {
@@ -2645,6 +2645,12 @@ class _ItemPreviewPanelState extends State<_ItemPreviewPanel> {
     }
   }
 
+  void _updateOutputPreviewTabContent() {
+    final tab = _controller.getTabByValue('item_output_preview');
+    if (tab == null) return;
+    tab.content = _buildItemOutputPreviewTab();
+  }
+
   List<TabData> _buildTabs() {
     final columns = TColumn.datas ?? const <TColumn>[];
     final specialColumns = TColumnSpecial.datas ?? const <TColumnBase>[];
@@ -2673,14 +2679,7 @@ class _ItemPreviewPanelState extends State<_ItemPreviewPanel> {
       TabData(
         value: 'item_output_preview',
         text: '출력내용 미리보기',
-        content: _ItemOutputPreviewTab(
-          key: ValueKey(
-            'item-output-tab:${widget.item.item.itemId}:${_elementForm.encodedWorkbook.hashCode}',
-          ),
-          item: widget.item,
-          labelSize: widget.labelSize,
-          elementText: _elementText,
-          elementWorkbook: _elementForm.workbook,
+        content: _buildItemOutputPreviewTab(
           imageObjectIds: imageObjectIds,
           barcodeObjectIds: barcodeObjectIds,
         ),
@@ -2688,6 +2687,35 @@ class _ItemPreviewPanelState extends State<_ItemPreviewPanel> {
         keepAlive: true,
       ),
     ];
+  }
+
+  _ItemOutputPreviewTab _buildItemOutputPreviewTab({
+    List<String>? imageObjectIds,
+    List<String>? barcodeObjectIds,
+  }) {
+    final columns = TColumn.datas ?? const <TColumn>[];
+    final specialColumns = TColumnSpecial.datas ?? const <TColumnBase>[];
+    final resolvedImageObjectIds = imageObjectIds ??
+        _itemPreviewImageObjectIdsFor([
+          ...specialColumns,
+          ...columns,
+        ]);
+    final resolvedBarcodeObjectIds = barcodeObjectIds ??
+        _itemPreviewBarcodeObjectIdsFor([
+          ...specialColumns,
+          ...columns,
+        ]);
+    return _ItemOutputPreviewTab(
+      key: ValueKey(
+        'item-output-tab:${widget.item.item.itemId}:${_elementForm.encodedWorkbook.hashCode}',
+      ),
+      item: widget.item,
+      labelSize: widget.labelSize,
+      elementText: _elementText,
+      elementWorkbook: _elementForm.workbook,
+      imageObjectIds: resolvedImageObjectIds,
+      barcodeObjectIds: resolvedBarcodeObjectIds,
+    );
   }
 
   @override
@@ -3265,6 +3293,8 @@ fs.FortuneSheet _replaceSheetKeywords(
 }) {
   final nextCells = <fs.FortuneCellCoord, fs.FortuneCell>{};
   final insertedImages = <fs.FortuneImage>[];
+  final nextRowHeights = <int, double>{...sheet.rowHeights};
+  final nextCustomHeight = <int, double>{...sheet.customHeight};
   for (final entry in sheet.cells.entries) {
     final imageReplacement = _itemImageReplacementForCell(
       sheet,
@@ -3281,18 +3311,35 @@ fs.FortuneSheet _replaceSheetKeywords(
       nextCells[entry.key] = imageReplacement.cell;
       continue;
     }
-    nextCells[entry.key] = _replaceCellKeywords(
+    final containsElementKeyword = entry.value.renderedText.contains('#ELEMENT');
+    final nextCell = _replaceCellKeywords(
       entry.value,
       replacements,
       elementCell: elementCell,
     );
+    nextCells[entry.key] = nextCell;
+    if (elementCell != null && containsElementKeyword) {
+      final rowHeight = _itemPreviewRequiredRowHeight(
+        nextCell,
+        _itemCellRect(sheet, entry.key).width,
+      );
+      if (rowHeight != null && rowHeight > (nextRowHeights[entry.key.row] ?? sheet.defaultRowHeight ?? 19)) {
+        nextRowHeights[entry.key.row] = rowHeight;
+        nextCustomHeight[entry.key.row] = 1;
+      }
+    }
   }
   final nextImages = [
     for (final image in sheet.images)
       _replaceImageKeywords(image, replacements),
     ...insertedImages,
   ];
-  return sheet.copyWith(cells: nextCells, images: nextImages);
+  return sheet.copyWith(
+    cells: nextCells,
+    images: nextImages,
+    rowHeights: nextRowHeights,
+    customHeight: nextCustomHeight,
+  );
 }
 
 ({fs.FortuneCell cell, fs.FortuneImage? image})? _itemImageReplacementForCell(
@@ -3359,6 +3406,83 @@ Rect _itemCellRect(fs.FortuneSheet sheet, fs.FortuneCellCoord coord) {
     width,
     height,
   );
+}
+
+double? _itemPreviewRequiredRowHeight(fs.FortuneCell cell, double columnWidth) {
+  if (cell.renderedText.isEmpty || columnWidth <= 0) {
+    return null;
+  }
+  final painter = TextPainter(
+    text: _itemPreviewTextSpan(cell),
+    maxLines: cell.normalizedTextWrap == '2' ? null : 1,
+    textDirection: TextDirection.ltr,
+    ellipsis: cell.normalizedTextWrap == '2' ? null : '',
+  )..layout(
+      maxWidth: cell.normalizedTextWrap == '2'
+          ? max(1.0, columnWidth)
+          : double.infinity,
+    );
+  return max(4.0, painter.height + 6.0);
+}
+
+TextSpan _itemPreviewTextSpan(fs.FortuneCell cell) {
+  final baseStyle = _itemPreviewTextStyle(
+    fontSize: cell.fontSize ?? 10,
+    fontFamily: cell.fontFamily,
+    bold: cell.bold,
+    italic: cell.italic,
+    foreground: cell.foreground,
+    extraFields: cell.extraFields,
+  );
+  final runs = cell.inlineRuns;
+  if (runs == null || runs.isEmpty) {
+    return TextSpan(text: cell.renderedText, style: baseStyle);
+  }
+  return TextSpan(
+    style: baseStyle,
+    children: [
+      for (final run in runs)
+        TextSpan(
+          text: run.text,
+          style: _itemPreviewTextStyle(
+            fontSize: run.fontSize ?? cell.fontSize ?? 10,
+            fontFamily: run.fontFamily ?? cell.fontFamily,
+            bold: run.bold ?? cell.bold,
+            italic: run.italic ?? cell.italic,
+            foreground: run.foreground ?? cell.foreground,
+            extraFields: run.extraFields,
+          ),
+        ),
+    ],
+  );
+}
+
+TextStyle _itemPreviewTextStyle({
+  required double fontSize,
+  required String? fontFamily,
+  required bool bold,
+  required bool italic,
+  required Color foreground,
+  required Map<String, Object?> extraFields,
+}) {
+  final lineHeight = _itemPreviewDoubleExtra(extraFields, 'lineHeight');
+  return TextStyle(
+    color: foreground,
+    fontSize: fontSize,
+    fontFamily: fontFamily,
+    fontWeight: bold ? FontWeight.bold : FontWeight.normal,
+    fontStyle: italic ? FontStyle.italic : FontStyle.normal,
+    height: lineHeight != null && lineHeight.isFinite && lineHeight > 0
+        ? lineHeight
+        : 1.2,
+    letterSpacing: _itemPreviewDoubleExtra(extraFields, 'letterSpacing'),
+  );
+}
+
+double? _itemPreviewDoubleExtra(Map<String, Object?> extraFields, String key) {
+  final value = extraFields[key];
+  if (value is num) return value.toDouble();
+  return double.tryParse('$value');
 }
 
 fs.FortuneImage _replaceImageKeywords(
@@ -3475,6 +3599,10 @@ fs.FortuneCell _replaceElementKeywordInCell(
     nextRuns,
     base: cell,
     extraFields: {...cell.extraFields, ...elementCell.extraFields},
+  ).copyWith(
+    textWrap: '2',
+    rawTextWrap: '2',
+    hasRawTextWrap: true,
   );
 }
 
