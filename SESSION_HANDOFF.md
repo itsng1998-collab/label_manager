@@ -36,6 +36,7 @@
 - 수정 완료: 일반 컬럼 가져오기 값은 string/shared string/inline string 우선, 숫자/날짜는 표시 문자열 사용, 필요 시 apostrophe fallback으로 문자열 처리하도록 정리했다.
 - 검증 완료: `git diff --check -- .tmp/item_manager_modify.txt SESSION_HANDOFF.md` 통과(출력 없음).
 - 커밋 예정: `SESSION_HANDOFF.md`만 포함한다. `.tmp/item_manager_modify.txt`는 `.gitignore`의 `.tmp/` 대상이므로 force add하지 않고 작업 파일로 유지한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+- 커밋 완료: `3100be0` 품목관리 요청서 엑셀 가져오기 애매점 정리. 포함 파일은 `SESSION_HANDOFF.md`이며, `.tmp/item_manager_modify.txt`는 ignore 대상 작업 파일로 유지했다.
 
 ### 완료 (2026-07-10): 품목관리 요청서 엑셀 가져오기 세부정책 병합
 
