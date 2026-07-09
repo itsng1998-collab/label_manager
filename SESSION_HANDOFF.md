@@ -28,6 +28,15 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-09): FortuneTable 체크박스 상태 get/set API 추가
+
+- 요청: 품목관리 테이블과 공용라벨관리 `특별 항목`/`사용 항목` 테이블에서 컬럼 내 인라인 체크박스 상태를 설정하거나 구하는 공용 API를 원본 `fortune_sheet`에 추가한다.
+- 수정 완료: `third_party/fortune_sheet/lib/src/fortune_table.dart`에 `FortuneTableCheckboxController`를 추가해 `columnId + rowIndex` 기준 `isChecked`/`setChecked`/`toggleChecked`/`setCheckedRows`/`checkedRows`/`clearColumn`/`clear` API를 제공한다. `FortuneTableColumn.checkboxController`를 추가했고, 컨트롤러 변경 시 `FortuneTable`이 listener로 갱신된다. 기존 `checkboxValue`/`checkboxValueAt`/`onCheckboxChanged`/`onCheckboxChangedAt` API는 호환 유지한다.
+- 수정 완료: `lib/page_home/item_manage.dart` 발행 체크박스는 `FortuneTableCheckboxController`를 사용한다. `lib/page_home/common_label_manage.dart`의 특별/사용 항목 체크박스도 같은 컨트롤러 API로 모델 값과 동기화한다.
+- 테스트 추가/갱신: `test/fortune_table_test.dart`에 `FortuneTable checkbox controller gets and sets state`를 추가하고, 품목관리 중복 `marketId` 회귀 테스트를 컨트롤러 API 기준으로 갱신했다.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\fortune_table_test.dart` 통과(`+8`), `C:\Flutter\bin\flutter.bat test test\common_label_manage_test.dart` 통과(`+4`), `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`), `git diff --check -- third_party/fortune_sheet/lib/src/fortune_table.dart lib/page_home/item_manage.dart lib/page_home/common_label_manage.dart test/fortune_table_test.dart SESSION_HANDOFF.md` 통과(출력 없음).
+- stage/commit 예정 파일: `third_party/fortune_sheet/lib/src/fortune_table.dart`, `lib/page_home/item_manage.dart`, `lib/page_home/common_label_manage.dart`, `test/fortune_table_test.dart`, `SESSION_HANDOFF.md`. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+
 ### 완료 (2026-07-09): FortuneTable 인라인 체크박스 행 단위 토글 보정
 
 - 요청: 품목관리 테이블과 공용라벨관리 `특별 항목`/`사용 항목` 테이블의 인라인 체크박스 클릭 시 컬럼 전체가 아니라 클릭한 체크박스만 체크/언체크되도록 수정. 공용 기능이므로 원본 `third_party/fortune_sheet/lib/src/fortune_table.dart` 기준으로 수정한다.

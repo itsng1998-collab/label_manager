@@ -142,6 +142,61 @@ void main() {
     expect(checkedRows, {1});
   });
 
+  testWidgets('FortuneTable checkbox controller gets and sets state', (
+    tester,
+  ) async {
+    final controller = FortuneTableCheckboxController();
+    addTearDown(controller.dispose);
+
+    controller.setChecked('check', 1, true);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 220,
+            height: 120,
+            child: FortuneTable<String>(
+              rows: const ['첫째', '둘째'],
+              autoFitColumns: false,
+              columns: [
+                FortuneTableColumn<String>(
+                  id: 'check',
+                  header: '체크',
+                  initialWidth: 60,
+                  text: (_) => '',
+                  checkboxController: controller,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(controller.isChecked('check', 0), isFalse);
+    expect(controller.isChecked('check', 1), isTrue);
+    expect(controller.checkedRows('check'), {1});
+
+    final tableTopLeft = tester.getTopLeft(find.byType(FortuneTable<String>));
+    await tester.tapAt(tableTopLeft + const Offset(40 + 30, 36 + 14));
+    await tester.pump();
+
+    expect(controller.isChecked('check', 0), isTrue);
+    expect(controller.checkedRows('check'), {0, 1});
+
+    controller.toggleChecked('check', 1);
+    await tester.pump();
+
+    expect(controller.checkedRows('check'), {0});
+
+    controller.setCheckedRows('check', const [1]);
+    await tester.pump();
+
+    expect(controller.isChecked('check', 0), isFalse);
+    expect(controller.isChecked('check', 1), isTrue);
+  });
+
   testWidgets('ItemManage renders the FortuneTable management table', (
     tester,
   ) async {
@@ -210,8 +265,15 @@ void main() {
     var table = tester.widget<FortuneTable<ItemOfMarket>>(
       find.byType(FortuneTable<ItemOfMarket>),
     );
-    expect(table.columns.first.checkboxValueAt!(items[0], 0), isFalse);
-    expect(table.columns.first.checkboxValueAt!(items[1], 1), isFalse);
+    final publishColumn = table.columns.first;
+    expect(
+      publishColumn.checkboxController!.isChecked(publishColumn.id, 0),
+      isFalse,
+    );
+    expect(
+      publishColumn.checkboxController!.isChecked(publishColumn.id, 1),
+      isFalse,
+    );
 
     final tableTopLeft = tester.getTopLeft(find.byType(FortuneTable<ItemOfMarket>));
     await tester.tapAt(tableTopLeft + const Offset(40 + 20, 36 + 14));
@@ -220,8 +282,21 @@ void main() {
     table = tester.widget<FortuneTable<ItemOfMarket>>(
       find.byType(FortuneTable<ItemOfMarket>),
     );
-    expect(table.columns.first.checkboxValueAt!(items[0], 0), isTrue);
-    expect(table.columns.first.checkboxValueAt!(items[1], 1), isFalse);
+    final updatedPublishColumn = table.columns.first;
+    expect(
+      updatedPublishColumn.checkboxController!.isChecked(
+        updatedPublishColumn.id,
+        0,
+      ),
+      isTrue,
+    );
+    expect(
+      updatedPublishColumn.checkboxController!.isChecked(
+        updatedPublishColumn.id,
+        1,
+      ),
+      isFalse,
+    );
   });
 
   testWidgets('FortuneTable consumes mouse wheel inside a parent scroll view', (

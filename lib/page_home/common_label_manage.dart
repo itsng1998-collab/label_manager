@@ -391,6 +391,29 @@ class _CommonLabelTable extends StatefulWidget {
 }
 
 class _CommonLabelTableState extends State<_CommonLabelTable> {
+  static const String _missingKeywordCheckColumnId = 'common_label_2';
+
+  final FortuneTableCheckboxController _missingKeywordCheckController =
+      FortuneTableCheckboxController();
+
+  @override
+  void initState() {
+    super.initState();
+    _syncMissingKeywordCheckController();
+  }
+
+  @override
+  void didUpdateWidget(covariant _CommonLabelTable oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _syncMissingKeywordCheckController();
+  }
+
+  @override
+  void dispose() {
+    _missingKeywordCheckController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return FortuneTable<TColumnBase>(
@@ -406,9 +429,8 @@ class _CommonLabelTableState extends State<_CommonLabelTable> {
                 widget.columnWidths?[index] ?? _CommonLabelTable._baseWidths[index],
             minWidth: _CommonLabelTable._minWidth(index),
             text: (row) => _CommonLabelTable._cellText(row, index),
-            checkboxValue: index == 2
-                ? (row) => row.useMissingKeywordCheck
-                : null,
+            checkboxController:
+              index == 2 ? _missingKeywordCheckController : null,
             onCheckboxChangedAt: index == 2
                 ? (row, rowIndex, value) {
                     setState(() {
@@ -421,6 +443,16 @@ class _CommonLabelTableState extends State<_CommonLabelTable> {
       autoFitColumns: widget.columnWidths == null,
       fillLastColumn: true,
       rowNumberWidth: _CommonLabelTable._rowNumberWidth,
+    );
+  }
+
+  void _syncMissingKeywordCheckController() {
+    _missingKeywordCheckController.setCheckedRows(
+      _missingKeywordCheckColumnId,
+      [
+        for (var index = 0; index < widget.columns.length; index += 1)
+          if (widget.columns[index].useMissingKeywordCheck) index,
+      ],
     );
   }
 }

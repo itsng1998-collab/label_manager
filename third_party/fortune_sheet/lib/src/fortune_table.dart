@@ -3,6 +3,58 @@ import 'dart:math' as math;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
+class FortuneTableCheckboxController extends ChangeNotifier {
+  final Map<String, Set<int>> _checkedRowsByColumn = <String, Set<int>>{};
+
+  bool isChecked(String columnId, int rowIndex) {
+    return _checkedRowsByColumn[columnId]?.contains(rowIndex) ?? false;
+  }
+
+  Set<int> checkedRows(String columnId) {
+    return Set<int>.unmodifiable(_checkedRowsByColumn[columnId] ?? const <int>{});
+  }
+
+  void setChecked(String columnId, int rowIndex, bool checked) {
+    final rows = _checkedRowsByColumn.putIfAbsent(columnId, () => <int>{});
+    final changed = checked ? rows.add(rowIndex) : rows.remove(rowIndex);
+    if (!changed) return;
+    if (rows.isEmpty) {
+      _checkedRowsByColumn.remove(columnId);
+    }
+    notifyListeners();
+  }
+
+  void toggleChecked(String columnId, int rowIndex) {
+    setChecked(columnId, rowIndex, !isChecked(columnId, rowIndex));
+  }
+
+  void setCheckedRows(String columnId, Iterable<int> rowIndexes) {
+    final nextRows = rowIndexes.toSet();
+    final currentRows = _checkedRowsByColumn[columnId] ?? const <int>{};
+    if (currentRows.length == nextRows.length &&
+        currentRows.every(nextRows.contains)) {
+      return;
+    }
+    if (nextRows.isEmpty) {
+      _checkedRowsByColumn.remove(columnId);
+    } else {
+      _checkedRowsByColumn[columnId] = nextRows;
+    }
+    notifyListeners();
+  }
+
+  void clearColumn(String columnId) {
+    if (_checkedRowsByColumn.remove(columnId) == null) return;
+    notifyListeners();
+  }
+
+  void clear() {
+    if (_checkedRowsByColumn.isEmpty) return;
+    _checkedRowsByColumn.clear();
+    notifyListeners();
+  }
+}
+
 class FortuneTableColumn<T> {
   const FortuneTableColumn({
     required this.id,
@@ -12,6 +64,7 @@ class FortuneTableColumn<T> {
     this.minWidth = 60,
     this.checkboxValue,
     this.checkboxValueAt,
+    this.checkboxController,
     this.onCheckboxChanged,
     this.onCheckboxChangedAt,
     this.fillRemaining = false,
@@ -24,6 +77,7 @@ class FortuneTableColumn<T> {
   final double minWidth;
   final bool Function(T row)? checkboxValue;
   final bool Function(T row, int rowIndex)? checkboxValueAt;
+    final FortuneTableCheckboxController? checkboxController;
   final void Function(T row, bool value)? onCheckboxChanged;
   final void Function(T row, int rowIndex, bool value)? onCheckboxChangedAt;
   final bool fillRemaining;
@@ -31,6 +85,7 @@ class FortuneTableColumn<T> {
   bool get isCheckbox =>
       checkboxValue != null ||
       checkboxValueAt != null ||
+      checkboxController != null ||
       onCheckboxChanged != null ||
       onCheckboxChangedAt != null;
 }
@@ -102,6 +157,8 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
   bool _syncingHorizontal = false;
   bool _syncingVertical = false;
   late List<double> _widths;
+  Set<FortuneTableCheckboxController> _checkboxControllers =
+      <FortuneTableCheckboxController>{};
   int? _selectedIndex;
   Rect? _lastReportedRect;
   String? _tableSignature;
@@ -111,6 +168,7 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
     super.initState();
     _widths = _initialWidths();
     _selectedIndex = widget.selectedIndex;
+    _syncCheckboxControllerListeners(<FortuneTableColumn<T>>[]);
     _hScrollBody.addListener(_syncHorizontalFromBody);
     _hScrollHeader.addListener(_syncHorizontalFromHeader);
     _vScrollBody.addListener(_syncVerticalFromBody);
@@ -138,11 +196,15 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
     if ((_selectedIndex ?? -1) >= widget.rows.length) {
       _selectedIndex = null;
     }
+    _syncCheckboxControllerListeners(oldWidget.columns);
     _syncAutoWidthsIfNeeded();
   }
 
   @override
   void dispose() {
+    for (final controller in _checkboxControllers) {
+      controller.removeListener(_handleCheckboxControllerChanged);
+    }
     _hScrollHeader.dispose();
     _hScrollBody.dispose();
     _vScrollBody.dispose();
@@ -461,11 +523,17 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
       child: column.isCheckbox
           ? _FortuneTableCheckbox(
               key: ValueKey('fortune_table_checkbox_${column.id}_$rowIndex'),
-              value: column.checkboxValueAt?.call(row, rowIndex) ??
+              value: column.checkboxController?.isChecked(column.id, rowIndex) ??
+                  column.checkboxValueAt?.call(row, rowIndex) ??
                   column.checkboxValue?.call(row) ??
                   false,
               onChanged: (value) {
                 _selectRow(row, rowIndex);
+                column.checkboxController?.setChecked(
+                  column.id,
+                  rowIndex,
+                  value,
+                );
                 final onCheckboxChangedAt = column.onCheckboxChangedAt;
                 if (onCheckboxChangedAt != null) {
                   onCheckboxChangedAt(row, rowIndex, value);
@@ -514,6 +582,32 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
       setState(() => _selectedIndex = rowIndex);
     }
     widget.onRowSelected?.call(row, rowIndex);
+  }
+
+  void _syncCheckboxControllerListeners(
+    List<FortuneTableColumn<T>> oldColumns,
+  ) {
+    final nextControllers = widget.columns
+        .map((column) => column.checkboxController)
+        .whereType<FortuneTableCheckboxController>()
+        .toSet();
+    final oldControllers = oldColumns
+        .map((column) => column.checkboxController)
+        .whereType<FortuneTableCheckboxController>()
+        .toSet();
+
+    for (final controller in oldControllers.difference(nextControllers)) {
+      controller.removeListener(_handleCheckboxControllerChanged);
+    }
+    for (final controller in nextControllers.difference(_checkboxControllers)) {
+      controller.addListener(_handleCheckboxControllerChanged);
+    }
+    _checkboxControllers = nextControllers;
+  }
+
+  void _handleCheckboxControllerChanged() {
+    if (!mounted) return;
+    setState(() {});
   }
 
   void _syncHorizontalFromBody() {

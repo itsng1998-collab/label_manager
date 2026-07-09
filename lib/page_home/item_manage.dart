@@ -25,12 +25,26 @@ class ItemManage extends StatefulWidget {
 }
 
 class _ItemManageState extends State<ItemManage> {
-  final Set<int> _checkedRowIndexes = <int>{};
+  static const String _publishColumnId = 'publish';
+
+  final FortuneTableCheckboxController _publishCheckboxController =
+      FortuneTableCheckboxController();
 
   @override
   void didUpdateWidget(covariant ItemManage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    _checkedRowIndexes.removeWhere((index) => index >= widget.items.length);
+    _publishCheckboxController.setCheckedRows(
+      _publishColumnId,
+      _publishCheckboxController
+          .checkedRows(_publishColumnId)
+          .where((index) => index < widget.items.length),
+    );
+  }
+
+  @override
+  void dispose() {
+    _publishCheckboxController.dispose();
+    super.dispose();
   }
 
   @override
@@ -68,21 +82,12 @@ class _ItemManageState extends State<ItemManage> {
 
     return [
       FortuneTableColumn<ItemOfMarket>(
-        id: 'publish',
+        id: _publishColumnId,
         header: '발행',
         initialWidth: 40,
         minWidth: 40,
         text: _empty,
-        checkboxValueAt: (row, rowIndex) => _checkedRowIndexes.contains(rowIndex),
-        onCheckboxChangedAt: (row, rowIndex, value) {
-          setState(() {
-            if (value) {
-              _checkedRowIndexes.add(rowIndex);
-            } else {
-              _checkedRowIndexes.remove(rowIndex);
-            }
-          });
-        },
+        checkboxController: _publishCheckboxController,
       ),
       const FortuneTableColumn<ItemOfMarket>(
         id: 'labelSize',
