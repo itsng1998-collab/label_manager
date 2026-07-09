@@ -28,6 +28,15 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-10): 품목관리 요청서 엑셀 가져오기 애매점 정리 병합
+
+- 요청: `.tmp/item_manager_modify.txt`의 엑셀 가져오기 정책을 다시 검토해 권장 사항으로 병합 정리한다.
+- 수정 완료: `.tmp/item_manager_modify.txt`에 `.xlsx` 파일 선택 필터, 우회 유입 `.xls` 거부, 헤더 표시 텍스트 trim/정확 일치 비교 기준을 추가했다.
+- 수정 완료: `주원료` 변환에서 병합 영역 plain text 산출 기준(row-major, 빈 셀 제외, 줄바꿈 연결), run extra metadata 보존 한계, 병합 영역 안 텍스트 스타일/inlineRuns만 복사하고 테두리/배경/row height/column width는 제외하는 기준을 본문과 검증 항목에 반영했다.
+- 수정 완료: 일반 컬럼 가져오기 값은 string/shared string/inline string 우선, 숫자/날짜는 표시 문자열 사용, 필요 시 apostrophe fallback으로 문자열 처리하도록 정리했다.
+- 검증 완료: `git diff --check -- .tmp/item_manager_modify.txt SESSION_HANDOFF.md` 통과(출력 없음).
+- 커밋 예정: `SESSION_HANDOFF.md`만 포함한다. `.tmp/item_manager_modify.txt`는 `.gitignore`의 `.tmp/` 대상이므로 force add하지 않고 작업 파일로 유지한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+
 ### 완료 (2026-07-10): 품목관리 요청서 엑셀 가져오기 세부정책 병합
 
 - 요청: `.tmp/item_manager_modify.txt`의 `엑셀 가져오기` 정책에 확정된 구현 전 세부사항을 병합한다.
