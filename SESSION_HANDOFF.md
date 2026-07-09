@@ -28,6 +28,14 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-09): FortuneTable 인라인 체크박스 행 단위 토글 보정
+
+- 요청: 품목관리 테이블과 공용라벨관리 `특별 항목`/`사용 항목` 테이블의 인라인 체크박스 클릭 시 컬럼 전체가 아니라 클릭한 체크박스만 체크/언체크되도록 수정. 공용 기능이므로 원본 `third_party/fortune_sheet/lib/src/fortune_table.dart` 기준으로 수정한다.
+- 원인/수정: `FortuneTableColumn`에 기존 row-only `checkboxValue`/`onCheckboxChanged`와 호환되는 `checkboxValueAt(row, rowIndex)`/`onCheckboxChangedAt(row, rowIndex, value)`를 추가하고, 체크박스 위젯에 `column.id + rowIndex` key를 부여했다. 품목관리 발행 체크는 `marketId`가 중복돼도 컬럼 전체가 같이 켜지지 않도록 rowIndex set을 사용한다. 공용라벨관리 `특별 항목`/`사용 항목` 테이블도 rowIndex-aware 콜백으로 해당 행만 갱신한다.
+- 테스트: `test/fortune_table_test.dart`에 동일 row 값에서도 클릭한 행만 토글되는 공용 회귀 테스트와 동일 `marketId` 2개 품목 중 클릭한 행만 체크되는 품목관리 회귀 테스트를 추가했다.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\fortune_table_test.dart` 통과(`+7`), `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`), `git diff --check -- third_party/fortune_sheet/lib/src/fortune_table.dart lib/page_home/item_manage.dart lib/page_home/common_label_manage.dart test/fortune_table_test.dart SESSION_HANDOFF.md` 통과(출력 없음).
+- stage/commit 예정 파일: `third_party/fortune_sheet/lib/src/fortune_table.dart`, `lib/page_home/item_manage.dart`, `lib/page_home/common_label_manage.dart`, `test/fortune_table_test.dart`, `SESSION_HANDOFF.md`. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+
 ### 다음 세션 시작 지점 (2026-07-08)
 
 - 보정 완료(2026-07-09): 사용자가 `0a8db9e` 이후에도 트랙패드 휠 이벤트가 새며 앱 헤더 배경색이 변한다고 재보고했고, 필요 시 디버깅 로그 추가 및 여러 차례 수정으로 생긴 오수정/과수정/불필요 수정 원복을 요청했다. Flutter `AppBar` 소스를 확인한 결과 AppBar는 일반 `NotificationListener`가 아니라 `ScrollNotificationObserver` listener로 `ScrollUpdateNotification`을 받아 `WidgetState.scrolledUnder`를 켜며, 이 listener는 일반 notification bubbling의 boolean 차단과 별개로 동작한다. 따라서 직전 `FortuneTable` 루트 `NotificationListener<ScrollNotification>` 보정은 실제 앱바 변색에는 효과 없는 오수정으로 판단해 제거했다. 실제 앱의 `lib/home_page.dart` AppBar에 `notificationPredicate: (_) => false`를 지정해 본문 내부 테이블/스크롤뷰의 알림으로 AppBar `scrolledUnder`가 켜지지 않도록 막았다. `test/widget_test.dart`에는 `HomePage AppBar ignores nested table scroll notifications` 테스트를 추가했고, 잘못된 `FortuneTable does not leak scroll notifications to ancestors` 테스트는 제거했다. 디버깅 로그는 Flutter 소스와 focused 테스트로 원인이 확인되어 추가하지 않았다. 검증 성공: `C:\Flutter\bin\flutter.bat test test\fortune_table_test.dart`(+5), `C:\Flutter\bin\flutter.bat test test\widget_test.dart`(+2), `C:\Flutter\bin\flutter.bat test test\swipe_action_table_test.dart`(+25), `C:\Flutter\bin\flutter.bat analyze`, `git diff --check`. stage/commit 파일은 `lib/home_page.dart`, `third_party/fortune_sheet/lib/src/fortune_table.dart`, `test/fortune_table_test.dart`, `test/widget_test.dart`, `SESSION_HANDOFF.md`이며 unrelated dirty `lib/core/app.dart`는 제외했다. 구현 커밋: `0d0ed85`(`앱바 스크롤 알림 반응 차단`).

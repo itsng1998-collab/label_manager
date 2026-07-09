@@ -409,10 +409,10 @@ class _CommonLabelTableState extends State<_CommonLabelTable> {
             checkboxValue: index == 2
                 ? (row) => row.useMissingKeywordCheck
                 : null,
-            onCheckboxChanged: index == 2
-                ? (row, value) {
+            onCheckboxChangedAt: index == 2
+                ? (row, rowIndex, value) {
                     setState(() {
-                      row.useMissingKeywordCheck = value;
+                      widget.columns[rowIndex].useMissingKeywordCheck = value;
                     });
                   }
                 : null,

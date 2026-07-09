@@ -11,7 +11,9 @@ class FortuneTableColumn<T> {
     this.initialWidth = 120,
     this.minWidth = 60,
     this.checkboxValue,
+    this.checkboxValueAt,
     this.onCheckboxChanged,
+    this.onCheckboxChangedAt,
     this.fillRemaining = false,
   });
 
@@ -21,10 +23,16 @@ class FortuneTableColumn<T> {
   final double initialWidth;
   final double minWidth;
   final bool Function(T row)? checkboxValue;
+  final bool Function(T row, int rowIndex)? checkboxValueAt;
   final void Function(T row, bool value)? onCheckboxChanged;
+  final void Function(T row, int rowIndex, bool value)? onCheckboxChangedAt;
   final bool fillRemaining;
 
-  bool get isCheckbox => checkboxValue != null || onCheckboxChanged != null;
+  bool get isCheckbox =>
+      checkboxValue != null ||
+      checkboxValueAt != null ||
+      onCheckboxChanged != null ||
+      onCheckboxChangedAt != null;
 }
 
 class FortuneTable<T> extends StatefulWidget {
@@ -452,10 +460,18 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
           : const EdgeInsets.symmetric(horizontal: 8),
       child: column.isCheckbox
           ? _FortuneTableCheckbox(
-              value: column.checkboxValue?.call(row) ?? false,
+              key: ValueKey('fortune_table_checkbox_${column.id}_$rowIndex'),
+              value: column.checkboxValueAt?.call(row, rowIndex) ??
+                  column.checkboxValue?.call(row) ??
+                  false,
               onChanged: (value) {
                 _selectRow(row, rowIndex);
-                column.onCheckboxChanged?.call(row, value);
+                final onCheckboxChangedAt = column.onCheckboxChangedAt;
+                if (onCheckboxChangedAt != null) {
+                  onCheckboxChangedAt(row, rowIndex, value);
+                } else {
+                  column.onCheckboxChanged?.call(row, value);
+                }
               },
             )
           : Text(
@@ -575,7 +591,7 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
 }
 
 class _FortuneTableCheckbox extends StatelessWidget {
-  const _FortuneTableCheckbox({required this.value, required this.onChanged});
+  const _FortuneTableCheckbox({super.key, required this.value, required this.onChanged});
 
   final bool value;
   final ValueChanged<bool> onChanged;

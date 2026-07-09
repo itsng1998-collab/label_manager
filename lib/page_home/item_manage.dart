@@ -25,7 +25,13 @@ class ItemManage extends StatefulWidget {
 }
 
 class _ItemManageState extends State<ItemManage> {
-  final Set<int> _checkedMarketIds = <int>{};
+  final Set<int> _checkedRowIndexes = <int>{};
+
+  @override
+  void didUpdateWidget(covariant ItemManage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _checkedRowIndexes.removeWhere((index) => index >= widget.items.length);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -67,13 +73,13 @@ class _ItemManageState extends State<ItemManage> {
         initialWidth: 40,
         minWidth: 40,
         text: _empty,
-        checkboxValue: (row) => _checkedMarketIds.contains(row.marketId),
-        onCheckboxChanged: (row, value) {
+        checkboxValueAt: (row, rowIndex) => _checkedRowIndexes.contains(rowIndex),
+        onCheckboxChangedAt: (row, rowIndex, value) {
           setState(() {
             if (value) {
-              _checkedMarketIds.add(row.marketId);
+              _checkedRowIndexes.add(rowIndex);
             } else {
-              _checkedMarketIds.remove(row.marketId);
+              _checkedRowIndexes.remove(rowIndex);
             }
           });
         },
