@@ -28,6 +28,17 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-10): 품목관리 요청서 엑셀 가져오기 구현 경계 정리
+
+- 요청: `.tmp/item_manager_modify.txt`의 남은 엑셀 가져오기 애매점을 권장 사항으로 병합 정리한다.
+- 수정 완료: `.tmp/item_manager_modify.txt`에 품목관리 xlsx adapter 입력은 원본 `.xlsx` bytes이며, 같은 parse context 안에서 `labelSheetWorkbookFromXlsxBytes()` 결과와 원본 worksheet XML metadata를 함께 사용하도록 정리했다.
+- 수정 완료: 주원료 plain text도 일반 컬럼의 표시 문자열 formatter/fallback 기준을 사용하도록 본문과 검증 항목에 반영했다.
+- 수정 완료: 1차 표시 문자열 formatter는 현재 품목관리에서 필요한 날짜/숫자 기본 format만 지원하고, 복잡한 Excel custom format은 raw value 문자열 + 저장 전 검증으로 처리하도록 정리했다.
+- 수정 완료: 엑셀 가져오기 단계에서는 구조적으로 읽을 수 있는 행을 draft로 만들고, 일반 컬럼 타입/필수/날짜/숫자 오류는 저장 전 검증에서 차단하도록 정리했다. 파일 형식 오류, workbook/worksheet 파싱 실패, 헤더 행 부재, 데이터 행 부재는 가져오기 실패로 테이블/draft를 변경하지 않는다.
+- 수정 완료: 선행 apostrophe는 quotePrefix 등 metadata로 Excel 표시값 기준 보이지 않는 escape임을 확실히 판정할 수 있을 때만 제거하고, 판정 불가 시 원문을 보존하도록 정리했다.
+- 검증 완료: `git diff --check -- .tmp/item_manager_modify.txt SESSION_HANDOFF.md` 통과(출력 없음).
+- 커밋 예정: `SESSION_HANDOFF.md`만 포함한다. `.tmp/item_manager_modify.txt`는 `.gitignore`의 `.tmp/` 대상이므로 force add하지 않고 작업 파일로 유지한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+
 ### 완료 (2026-07-10): 품목관리 요청서 엑셀 입출력 정책 재정리
 
 - 요청: `.tmp/item_manager_modify.txt`의 남은 엑셀 가져오기 애매점을 권장 사항으로 병합하고, 엑셀 내보내기는 `.xlsx`만 지원하도록 정리한다.
