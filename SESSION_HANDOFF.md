@@ -44,6 +44,7 @@
 - 추가 정리 완료: 저장 성공 후 재조회 범위를 브랜드/라벨크기 전체가 아니라 현재 선택된 브랜드/라벨크기의 품목관리 데이터(품목리스트, 일반 컬럼 값, 주원료 plain text, `RICH_ELEMENT_SHEET`, 행 순서, 신규 item id)로 확정했다. `.tmp/item_manager_modify.txt`의 단순 재렌더링/1차 구현 구분 문구를 제거하고 품목리스트 재조회 정책으로 정리했다.
 - 커밋 완료: `a13cc20` 품목관리 요청서 재조회 범위 정리. 포함 파일은 `SESSION_HANDOFF.md`이며, `.tmp/item_manager_modify.txt`는 ignore 대상 작업 파일로 유지했다.
 - 추가 정리 완료: `.tmp/item_manager_modify.txt`에서 엑셀 가져오기/내보내기 버튼 UI는 이번 구현 범위에 포함하고, 실제 가져오기/내보내기 기능만 나중 구현으로 남기도록 정리했다.
+- 커밋 완료: `8d08946` 품목관리 요청서 엑셀 버튼 유지 정리. 포함 파일은 `SESSION_HANDOFF.md`이며, `.tmp/item_manager_modify.txt`는 ignore 대상 작업 파일로 유지했다.
 
 ### 완료 (2026-07-09): 품목관리 발행 체크 행 하이라이트
 
