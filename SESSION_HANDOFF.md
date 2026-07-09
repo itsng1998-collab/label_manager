@@ -34,6 +34,7 @@
 - 수정 완료: `.tmp/item_manager_modify.txt`를 구현 요청서 형식으로 재작성했다. 레거시 검토 결론(브랜드/라벨 변경 및 라벨출력 탭 이동 시 저장 확인 없음, 주원료 컬럼은 표시용/하단 에디터가 편집 진입점)을 포함하고, 현재 Flutter 품목관리 상태, 편집 모드 정책, 우클릭 메뉴, 저장/취소 트랜잭션 정책, 이동 제한, 검증 항목을 분리해 정리했다.
 - 검증 완료: `git diff --check -- .tmp/item_manager_modify.txt SESSION_HANDOFF.md` 통과(출력 없음).
 - 커밋 예정: `SESSION_HANDOFF.md`만 포함한다. `.tmp/item_manager_modify.txt`는 `.gitignore`의 `.tmp/` 대상이므로 force add하지 않고 작업 파일로 유지한다. 기존 unrelated dirty 파일은 제외한다.
+- 커밋 완료: `fa44a22` 품목관리 요청서 정리 기록. 포함 파일은 `SESSION_HANDOFF.md`이며, `.tmp/item_manager_modify.txt`는 ignore 대상 작업 파일로 유지했다.
 
 ### 완료 (2026-07-09): 품목관리 발행 체크 행 하이라이트
 
