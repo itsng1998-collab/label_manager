@@ -28,6 +28,15 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-10): 품목관리 요청서 엑셀 구현 선택지 확정
+
+- 요청: `.tmp/item_manager_modify.txt`에서 남은 애매점을 권장 사항으로 병합 정리한다.
+- 수정 완료: xlsx import parser는 `labelSheetWorkbookFromXlsxBytes()` 내부 파싱 로직의 공용 parse helper 분리/공유를 우선하되, 분리가 기존 라벨 시트 import 안정성을 해치면 품목관리 adapter local helper로 제한하도록 정리했다.
+- 수정 완료: `주원료` 헤더가 없을 때의 빈 `RICH_ELEMENT_SHEET` payload는 신규 품목 생성 또는 하단 주원료 편집 초기화의 기존 경로를 재사용하고, helper가 없으면 품목관리 공용 helper로 분리하도록 정리했다.
+- 수정 완료: 엑셀 가져오기 직전 표시 정렬/필터 상태와 선택 상태는 draft metadata 및 임시 파일 백업 JSON metadata에 값 객체로 저장하고, controller 내부 객체는 직렬화하지 않도록 본문/검증 항목/백업 JSON 설명에 반영했다.
+- 검증 완료: `git diff --check -- .tmp/item_manager_modify.txt` 통과(출력 없음).
+- 커밋 예정: `SESSION_HANDOFF.md`만 포함한다. `.tmp/item_manager_modify.txt`는 `.gitignore`의 `.tmp/` 대상이므로 force add하지 않고 작업 파일로 유지한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+
 ### 완료 (2026-07-10): 품목관리 요청서 엑셀 최종 UX 보강
 
 - 요청: `.tmp/item_manager_modify.txt`의 남은 엑셀 최종 애매점을 권장 사항으로 병합 정리한다.
