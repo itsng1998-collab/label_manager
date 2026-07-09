@@ -435,6 +435,18 @@ void main() {
     );
 
     await _openItemManageContextMenu(tester, tableTopLeft);
+    expect(
+      tester
+          .widgetList<PopupMenuItem<String>>(find.byType(PopupMenuItem<String>))
+          .map((item) => item.height),
+      everyElement(fortuneContextMenuRowHeight),
+    );
+    expect(
+      tester
+          .widgetList<PopupMenuDivider>(find.byType(PopupMenuDivider))
+          .map((divider) => divider.height),
+      everyElement(fortuneContextMenuDividerHeight),
+    );
     await tester.tap(find.text('전체 선택'));
     await tester.pumpAndSettle();
 

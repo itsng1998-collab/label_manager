@@ -28,6 +28,15 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-09): 품목관리 우클릭 메뉴 간격 보정
+
+- 요청: 품목관리 우클릭 팝업메뉴 항목 간격이 너무 커서 원본 시트(`fortune_sheet`) 팝업메뉴 간격과 맞춘다.
+- 확인: 원본 시트 메뉴 상수는 `fortuneContextMenuRowHeight=28.0`, `fortuneContextMenuDividerHeight=9.0`이다. 품목관리 전용 메뉴는 Flutter `showMenu`/`PopupMenuItem` 기본 높이(48) 때문에 항목 간격이 크게 보인다.
+- 수정 완료: `lib/page_home/item_manage.dart`의 품목관리 전용 `PopupMenuItem.height`를 `fortuneContextMenuRowHeight`, `PopupMenuDivider.height`를 `fortuneContextMenuDividerHeight`로 지정하고, 항목 padding/input 높이를 조정해 원본 시트 팝업메뉴 밀도에 맞췄다. 메뉴 구성/동작은 유지했다.
+- 테스트 갱신: `test/fortune_table_test.dart`의 품목관리 컨텍스트 메뉴 테스트에서 모든 `PopupMenuItem`/`PopupMenuDivider` 높이가 원본 `fortune_sheet` 상수와 같은지 검증한다.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\fortune_table_test.dart` 통과(`+11`), `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`), `git diff --check -- lib/page_home/item_manage.dart test/fortune_table_test.dart SESSION_HANDOFF.md` 통과(출력 없음).
+- stage/commit 예정 파일: `lib/page_home/item_manage.dart`, `test/fortune_table_test.dart`, `SESSION_HANDOFF.md`. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+
 ### 완료 (2026-07-09): 품목관리 FortuneTable 행 멀티 선택과 우클릭 메뉴
 
 - 요청: 품목관리 테이블은 셀 단위가 아닌 행 단위 선택이며, 드래그/Shift+클릭/Ctrl+클릭/Ctrl+A/ESC 멀티 선택을 지원한다. 공용 선택 기능은 원본 `third_party/fortune_sheet/lib/src/fortune_table.dart`에 옵션/플래그로 추가한다. 품목관리 셀 그리드 우클릭 메뉴는 화면 전용 기능으로 처리한다.

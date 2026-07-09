@@ -30,6 +30,7 @@ class _ItemManageState extends State<ItemManage> {
   static const String _menuClearSelection = 'clearSelection';
   static const String _menuCheckSelectedPublish = 'checkSelectedPublish';
   static const String _menuUncheckSelectedPublish = 'uncheckSelectedPublish';
+  static const EdgeInsets _menuItemPadding = EdgeInsets.symmetric(horizontal: 12);
 
   final FortuneTableCheckboxController _publishCheckboxController =
       FortuneTableCheckboxController();
@@ -98,26 +99,36 @@ class _ItemManageState extends State<ItemManage> {
         _disabledCountMenuItem('품목 삽입'),
         const PopupMenuItem<String>(
           enabled: false,
+          height: fortuneContextMenuRowHeight,
+          padding: _menuItemPadding,
           child: Text('품목 삭제'),
         ),
-        const PopupMenuDivider(),
+        const PopupMenuDivider(height: fortuneContextMenuDividerHeight),
         const PopupMenuItem<String>(
           value: _menuSelectAll,
+          height: fortuneContextMenuRowHeight,
+          padding: _menuItemPadding,
           child: Text('전체 선택'),
         ),
         const PopupMenuItem<String>(
           value: _menuClearSelection,
+          height: fortuneContextMenuRowHeight,
+          padding: _menuItemPadding,
           child: Text('전체 선택 해제'),
         ),
-        const PopupMenuDivider(),
+        const PopupMenuDivider(height: fortuneContextMenuDividerHeight),
         PopupMenuItem<String>(
           value: _menuCheckSelectedPublish,
           enabled: _selectionController.hasSelection,
+          height: fortuneContextMenuRowHeight,
+          padding: _menuItemPadding,
           child: const Text('블럭 선택 발행 체크'),
         ),
         PopupMenuItem<String>(
           value: _menuUncheckSelectedPublish,
           enabled: _selectionController.hasSelection,
+          height: fortuneContextMenuRowHeight,
+          padding: _menuItemPadding,
           child: const Text('블럭 선택 발행 체크 해제'),
         ),
       ],
@@ -129,6 +140,8 @@ class _ItemManageState extends State<ItemManage> {
   PopupMenuItem<String> _disabledCountMenuItem(String label) {
     return PopupMenuItem<String>(
       enabled: false,
+      height: fortuneContextMenuRowHeight,
+      padding: _menuItemPadding,
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -136,7 +149,7 @@ class _ItemManageState extends State<ItemManage> {
           const SizedBox(width: 8),
           Container(
             width: 36,
-            height: 24,
+            height: 22,
             alignment: Alignment.center,
             decoration: BoxDecoration(
               border: Border.all(color: const Color(0xFFBDBDBD)),
