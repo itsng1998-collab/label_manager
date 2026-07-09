@@ -28,6 +28,16 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-10): 품목관리 요청서 엑셀 세부 검증 기준 보강
+
+- 요청: `.tmp/item_manager_modify.txt`의 남은 엑셀 세부 애매점을 권장 사항으로 병합 정리한다.
+- 수정 완료: `.tmp/item_manager_modify.txt`에 `품목` 헤더가 없으면 가져오기 실패로 처리하고 테이블/draft를 변경하지 않는 기준을 추가했다.
+- 수정 완료: 선행 apostrophe 제거 판정은 원본 worksheet XML/style metadata 또는 변환된 FortuneCell의 `quotePrefix`/`qp` 값을 사용할 수 있을 때만 수행하도록 정리했다.
+- 수정 완료: 엑셀 내보내기 일반 컬럼 값은 xlsx cell type string/inline string/shared string 기록을 우선하고, writer/library 제약으로 Excel 자동 변환이 발생할 수 있는 경로에서만 apostrophe fallback을 적용하도록 정리했다.
+- 수정 완료: 검증 항목에 주원료 병합 covered cell 빈 셀은 plain text에서 제외, 엑셀 가져오기 후 저장 전 검증 실패 시 첫 오류 셀로 스크롤/선택하고 엑셀 가져오기 값 기준 오류 원인을 표시하는 기준을 추가했다.
+- 검증 완료: `git diff --check -- .tmp/item_manager_modify.txt SESSION_HANDOFF.md` 통과(출력 없음).
+- 커밋 예정: `SESSION_HANDOFF.md`만 포함한다. `.tmp/item_manager_modify.txt`는 `.gitignore`의 `.tmp/` 대상이므로 force add하지 않고 작업 파일로 유지한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+
 ### 완료 (2026-07-10): 품목관리 요청서 엑셀 가져오기 구현 경계 정리
 
 - 요청: `.tmp/item_manager_modify.txt`의 남은 엑셀 가져오기 애매점을 권장 사항으로 병합 정리한다.
