@@ -28,6 +28,14 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-10): 품목관리 요청서 엑셀 최종 UX 보강
+
+- 요청: `.tmp/item_manager_modify.txt`의 남은 엑셀 최종 애매점을 권장 사항으로 병합 정리한다.
+- 수정 완료: `.tmp/item_manager_modify.txt`에 주원료 영역의 수식 셀도 일반 컬럼과 같은 기준으로 처리하도록 반영했다. cached value가 있으면 값/표시 텍스트로 옮기고, cached value가 없으면 수식 자체는 가져오지 않고 빈 값으로 처리한다.
+- 수정 완료: 엑셀 가져오기 후 변경 취소를 선택하면 가져오기 전 선택 상태도 함께 복원하고, 복원할 수 없으면 저장 성공 후 선택 상태 복원 fallback과 같은 기준을 따르도록 본문과 검증 항목에 반영했다.
+- 검증 완료: `git diff --check -- .tmp/item_manager_modify.txt SESSION_HANDOFF.md` 통과(출력 없음).
+- 커밋 예정: `SESSION_HANDOFF.md`만 포함한다. `.tmp/item_manager_modify.txt`는 `.gitignore`의 `.tmp/` 대상이므로 force add하지 않고 작업 파일로 유지한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+
 ### 완료 (2026-07-10): 품목관리 요청서 엑셀 edge case 병합
 
 - 요청: `.tmp/item_manager_modify.txt`의 남은 엑셀 edge case 애매점을 권장 사항으로 병합 정리한다.
