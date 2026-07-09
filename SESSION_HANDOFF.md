@@ -28,6 +28,16 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-10): 품목관리 요청서 엑셀 가져오기 UX 정책 보강
+
+- 요청: `.tmp/item_manager_modify.txt`의 남은 엑셀 가져오기 UX/판정 애매점을 권장 사항으로 병합 정리한다.
+- 수정 완료: `.tmp/item_manager_modify.txt`에 엑셀 가져오기 성공 후 첫 번째 엑셀 데이터 행을 선택하고, 변경 취소 시 가져오기 전 데이터와 표시 정렬/필터 상태를 함께 복원하도록 정리했다.
+- 수정 완료: `주원료` 헤더가 없으면 plain text는 빈 문자열, `RICH_ELEMENT_SHEET`는 현재 앱의 빈 주원료 sheet 기본 payload로 생성하도록 본문과 검증 항목에 반영했다.
+- 수정 완료: 데이터 행 판정은 2행 이후 매핑 대상 컬럼 중 하나라도 표시 텍스트가 있으면 데이터 행으로 보고, `품목` 값이 비어도 다른 매핑 값이 있으면 draft 행을 생성한 뒤 저장 전 품명 필수 검증에서 차단하도록 정리했다.
+- 수정 완료: 공용 parse helper 분리 시 기존 라벨 시트 xlsx import 테스트가 계속 통과해야 한다는 검증 기준을 추가했다.
+- 검증 완료: `git diff --check -- .tmp/item_manager_modify.txt SESSION_HANDOFF.md` 통과(출력 없음).
+- 커밋 예정: `SESSION_HANDOFF.md`만 포함한다. `.tmp/item_manager_modify.txt`는 `.gitignore`의 `.tmp/` 대상이므로 force add하지 않고 작업 파일로 유지한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+
 ### 완료 (2026-07-10): 품목관리 요청서 엑셀 잔여 정책 병합
 
 - 요청: `.tmp/item_manager_modify.txt`의 남은 엑셀 잔여 애매점을 권장 사항으로 병합 정리한다.
