@@ -28,6 +28,14 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-09): 품목관리 우클릭 메뉴 애니메이션 제거
+
+- 요청: 원본 시트 팝업메뉴는 즉시 나타나는데 품목관리 테이블 팝업메뉴는 Flutter 기본 `showMenu` 애니메이션으로 펼쳐지듯 나타나므로, 원본 시트처럼 즉시 나타나게 수정한다.
+- 확인: 현재 Flutter SDK `showMenu`는 `popUpAnimationStyle` 파라미터와 `AnimationStyle.noAnimation`을 지원한다.
+- 수정 완료: `lib/page_home/item_manage.dart`의 품목관리 우클릭 `showMenu` 호출에 `popUpAnimationStyle: AnimationStyle.noAnimation`을 지정해 기본 scale/fade 팝업 애니메이션을 제거했다. 메뉴 구성/간격/동작은 유지했다.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\fortune_table_test.dart --plain-name "ItemManage context menu controls selection and publish checks"` 통과, `C:\Flutter\bin\flutter.bat test test\fortune_table_test.dart` 통과(`+11`), `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`), `git diff --check -- lib/page_home/item_manage.dart SESSION_HANDOFF.md` 통과(출력 없음).
+- stage/commit 예정 파일: `lib/page_home/item_manage.dart`, `SESSION_HANDOFF.md`. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+
 ### 완료 (2026-07-09): 품목관리 우클릭 메뉴 간격 보정
 
 - 요청: 품목관리 우클릭 팝업메뉴 항목 간격이 너무 커서 원본 시트(`fortune_sheet`) 팝업메뉴 간격과 맞춘다.

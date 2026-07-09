@@ -94,6 +94,7 @@ class _ItemManageState extends State<ItemManage> {
         details.globalPosition.dx,
         details.globalPosition.dy,
       ),
+      popUpAnimationStyle: AnimationStyle.noAnimation,
       items: [
         _disabledCountMenuItem('품목 추가'),
         _disabledCountMenuItem('품목 삽입'),
