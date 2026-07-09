@@ -28,6 +28,15 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-10): 품목관리 요청서 엑셀 worksheet 표현 정리
+
+- 요청: `.tmp/item_manager_modify.txt`에서 최신 worksheet/병합 정책의 남은 표현상 애매점을 권장 사항으로 병합 정리한다.
+- 수정 완료: 첫 번째 worksheet의 1행에서 빈 헤더 전까지 읽은 헤더 중 trim 후 `품목` 헤더가 있으면 유효한 헤더로 본다고 본문과 검증 항목에 명시했다.
+- 수정 완료: 원본 `주원료` 셀이 병합 영역의 시작 셀일 때만 병합 영역 전체를 가져오고, 시작 셀이 아닌 covered cell이면 해당 행을 빈 값과 빈 주원료 sheet 기본 payload로 처리하도록 표현을 정리했다.
+- 수정 완료: 병합 시작 행에서 병합 영역 전체를 변환할 때 내부 covered cell이 빈 셀이면 plain text에 포함하지 않는다는 뜻이 드러나도록 검증 항목을 정리했다.
+- 검증 완료: `git diff --check -- .tmp/item_manager_modify.txt` 통과(출력 없음).
+- 커밋 예정: `SESSION_HANDOFF.md`만 포함한다. `.tmp/item_manager_modify.txt`는 `.gitignore`의 `.tmp/` 대상이므로 force add하지 않고 작업 파일로 유지한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+
 ### 완료 (2026-07-10): 품목관리 요청서 엑셀 worksheet/병합 정책 보강
 
 - 요청: `.tmp/item_manager_modify.txt`에서 남은 엑셀 worksheet 선택, 주원료 병합 셀, 백업 metadata 애매점을 권장 사항으로 병합 정리한다.
