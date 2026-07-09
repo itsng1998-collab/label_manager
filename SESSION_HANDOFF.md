@@ -37,6 +37,7 @@
 - 수정 완료: 엑셀 가져오기 직전 표시 정렬/필터 상태는 draft metadata 또는 별도 UI snapshot으로 저장하고, 변경 취소 시 데이터와 함께 복원하도록 정리했다.
 - 검증 완료: `git diff --check -- .tmp/item_manager_modify.txt SESSION_HANDOFF.md` 통과(출력 없음).
 - 커밋 예정: `SESSION_HANDOFF.md`만 포함한다. `.tmp/item_manager_modify.txt`는 `.gitignore`의 `.tmp/` 대상이므로 force add하지 않고 작업 파일로 유지한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+- 커밋 완료: `b3900e6` 품목관리 요청서 엑셀 edge case 병합. 포함 파일은 `SESSION_HANDOFF.md`이며, `.tmp/item_manager_modify.txt`는 ignore 대상 작업 파일로 유지했다.
 
 ### 완료 (2026-07-10): 품목관리 요청서 엑셀 가져오기 UX 정책 보강
 
