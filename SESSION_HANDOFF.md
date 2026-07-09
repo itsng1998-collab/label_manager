@@ -34,7 +34,7 @@
 - 확인: 현재 Flutter SDK `showMenu`는 `popUpAnimationStyle` 파라미터와 `AnimationStyle.noAnimation`을 지원한다.
 - 수정 완료: `lib/page_home/item_manage.dart`의 품목관리 우클릭 `showMenu` 호출에 `popUpAnimationStyle: AnimationStyle.noAnimation`을 지정해 기본 scale/fade 팝업 애니메이션을 제거했다. 메뉴 구성/간격/동작은 유지했다.
 - 검증 완료: `C:\Flutter\bin\flutter.bat test test\fortune_table_test.dart --plain-name "ItemManage context menu controls selection and publish checks"` 통과, `C:\Flutter\bin\flutter.bat test test\fortune_table_test.dart` 통과(`+11`), `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`), `git diff --check -- lib/page_home/item_manage.dart SESSION_HANDOFF.md` 통과(출력 없음).
-- stage/commit 예정 파일: `lib/page_home/item_manage.dart`, `SESSION_HANDOFF.md`. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+- 커밋 완료: `9ea1135` 품목관리 메뉴 애니메이션 제거. 포함 파일은 `lib/page_home/item_manage.dart`, `SESSION_HANDOFF.md`. 기존 unrelated dirty `lib/core/app.dart`는 제외했다.
 
 ### 완료 (2026-07-09): 품목관리 우클릭 메뉴 간격 보정
 
