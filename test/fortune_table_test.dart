@@ -407,6 +407,12 @@ void main() {
       ),
       isFalse,
     );
+
+    await tester.tap(find.text('둘째 품목'));
+    await tester.pump();
+
+    expect(_cellColorForText(tester, '첫째 품목'), const Color(0xFFEAF4FF));
+    expect(_cellColorForText(tester, '둘째 품목'), const Color(0xFFE3F2FD));
   });
 
   testWidgets('ItemManage context menu controls selection and publish checks', (
@@ -714,6 +720,21 @@ Future<void> _openItemManageContextMenu(
   );
   await gesture.up();
   await tester.pumpAndSettle();
+}
+
+Color? _cellColorForText(WidgetTester tester, String text) {
+  final container = tester.widget<Container>(
+    find
+        .ancestor(
+          of: find.text(text),
+          matching: find.byWidgetPredicate(
+            (widget) =>
+                widget is Container && widget.decoration is BoxDecoration,
+          ),
+        )
+        .first,
+  );
+  return (container.decoration! as BoxDecoration).color;
 }
 
 ItemOfMarket _testItemOfMarket({

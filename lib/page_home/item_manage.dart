@@ -31,6 +31,7 @@ class _ItemManageState extends State<ItemManage> {
   static const String _menuCheckSelectedPublish = 'checkSelectedPublish';
   static const String _menuUncheckSelectedPublish = 'uncheckSelectedPublish';
   static const EdgeInsets _menuItemPadding = EdgeInsets.symmetric(horizontal: 12);
+  static const Color _publishCheckedRowColor = Color(0xFFEAF4FF);
 
   final FortuneTableCheckboxController _publishCheckboxController =
       FortuneTableCheckboxController();
@@ -79,8 +80,16 @@ class _ItemManageState extends State<ItemManage> {
         multiSelectionEnabled: true,
         onRowSelected: widget.onRowSelected,
         onRectChanged: widget.onTableRectChanged,
+        rowColorBuilder: _rowColor,
       ),
     );
+  }
+
+  Color? _rowColor(ItemOfMarket row, int rowIndex, bool selected) {
+    if (selected) return null;
+    return _publishCheckboxController.isChecked(_publishColumnId, rowIndex)
+        ? _publishCheckedRowColor
+        : null;
   }
 
   Future<void> _showTableContextMenu(TapDownDetails details) async {

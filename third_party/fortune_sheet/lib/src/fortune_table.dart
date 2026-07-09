@@ -150,6 +150,7 @@ class FortuneTable<T> extends StatefulWidget {
     this.selectionController,
     this.onRowSelected,
     this.onRectChanged,
+    this.rowColorBuilder,
     this.rowNumberWidth = 40,
     this.headerHeight = 36,
     this.rowHeight = 28,
@@ -166,6 +167,7 @@ class FortuneTable<T> extends StatefulWidget {
   final FortuneTableSelectionController? selectionController;
   final void Function(T row, int index)? onRowSelected;
   final ValueChanged<Rect>? onRectChanged;
+  final Color? Function(T row, int rowIndex, bool selected)? rowColorBuilder;
   final double rowNumberWidth;
   final double headerHeight;
   final double rowHeight;
@@ -588,7 +590,8 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
 
   Widget _buildRow(T row, int rowIndex, List<double> widths) {
     final selected = _isRowSelected(rowIndex);
-    final color = _rowColor(rowIndex, selected);
+    final color = widget.rowColorBuilder?.call(row, rowIndex, selected) ??
+        _rowColor(rowIndex, selected);
     return Listener(
       onPointerDown: widget.multiSelectionEnabled
           ? (event) => _handleRowPointerDown(rowIndex, event)
