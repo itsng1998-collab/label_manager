@@ -36,6 +36,7 @@
 - 수정 완료: 병합 시작 행에서 병합 영역 전체를 변환할 때 내부 covered cell이 빈 셀이면 plain text에 포함하지 않는다는 뜻이 드러나도록 검증 항목을 정리했다.
 - 검증 완료: `git diff --check -- .tmp/item_manager_modify.txt` 통과(출력 없음).
 - 커밋 예정: `SESSION_HANDOFF.md`만 포함한다. `.tmp/item_manager_modify.txt`는 `.gitignore`의 `.tmp/` 대상이므로 force add하지 않고 작업 파일로 유지한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+- 커밋 완료: `49f8624` 품목관리 요청서 엑셀 worksheet 표현 정리. 포함 파일은 `SESSION_HANDOFF.md`이며, `.tmp/item_manager_modify.txt`는 ignore 대상 작업 파일로 유지했다.
 
 ### 완료 (2026-07-10): 품목관리 요청서 엑셀 worksheet/병합 정책 보강
 
