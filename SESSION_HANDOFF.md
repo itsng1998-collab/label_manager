@@ -28,6 +28,15 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-09): 품목관리 FortuneTable 행 멀티 선택과 우클릭 메뉴
+
+- 요청: 품목관리 테이블은 셀 단위가 아닌 행 단위 선택이며, 드래그/Shift+클릭/Ctrl+클릭/Ctrl+A/ESC 멀티 선택을 지원한다. 공용 선택 기능은 원본 `third_party/fortune_sheet/lib/src/fortune_table.dart`에 옵션/플래그로 추가한다. 품목관리 셀 그리드 우클릭 메뉴는 화면 전용 기능으로 처리한다.
+- 수정 완료: `third_party/fortune_sheet/lib/src/fortune_table.dart`에 `FortuneTableSelectionController`를 추가해 행 인덱스 기준 `selectedRows`/`isSelected`/`setSelected`/`toggleSelected`/`setSelectedRows`/`selectRange`/`selectAll`/`clear` API를 제공한다. `FortuneTable.selectionController`, `multiSelectionEnabled`, `keyboardSelectionShortcutsEnabled` 옵션을 추가했고, 멀티 선택이 켜진 경우 Ctrl+클릭 toggle, Shift+클릭 range, 드래그 range, Ctrl+A 전체 선택, ESC 선택 해제를 지원한다. 기본값은 기존 단일 선택 동작을 유지한다.
+- 수정 완료: `lib/page_home/item_manage.dart`는 `FortuneTableSelectionController`와 `FortuneTableCheckboxController`를 함께 사용한다. 셀 그리드 영역 우클릭 메뉴에 `품목 추가 [1] 개`, `품목 삽입 [1] 개`, `품목 삭제`, `전체 선택`, `전체 선택 해제`, `블럭 선택 발행 체크`, `블럭 선택 발행 체크 해제`를 추가했다. 추가/삽입/삭제는 추후 구현 항목이므로 비활성화했고, 블럭 발행 체크/해제는 선택 행이 있을 때만 활성화한다.
+- 테스트 추가/갱신: `test/fortune_table_test.dart`에 멀티 선택 shortcut, 드래그 행 범위 선택, 품목관리 우클릭 메뉴 전체 선택/발행 체크 회귀 테스트를 추가했다.
+- 검증 완료: `C:\Flutter\bin\flutter.bat test test\fortune_table_test.dart` 통과(`+11`), `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`), `git diff --check -- third_party/fortune_sheet/lib/src/fortune_table.dart lib/page_home/item_manage.dart test/fortune_table_test.dart SESSION_HANDOFF.md` 통과(출력 없음).
+- stage/commit 예정 파일: `third_party/fortune_sheet/lib/src/fortune_table.dart`, `lib/page_home/item_manage.dart`, `test/fortune_table_test.dart`, `SESSION_HANDOFF.md`. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+
 ### 완료 (2026-07-09): FortuneTable 체크박스 상태 get/set API 추가
 
 - 요청: 품목관리 테이블과 공용라벨관리 `특별 항목`/`사용 항목` 테이블에서 컬럼 내 인라인 체크박스 상태를 설정하거나 구하는 공용 API를 원본 `fortune_sheet`에 추가한다.

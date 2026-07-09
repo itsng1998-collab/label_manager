@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 class FortuneTableCheckboxController extends ChangeNotifier {
   final Map<String, Set<int>> _checkedRowsByColumn = <String, Set<int>>{};
@@ -55,6 +56,56 @@ class FortuneTableCheckboxController extends ChangeNotifier {
   }
 }
 
+class FortuneTableSelectionController extends ChangeNotifier {
+  final Set<int> _selectedRows = <int>{};
+
+  bool get hasSelection => _selectedRows.isNotEmpty;
+
+  Set<int> get selectedRows => Set<int>.unmodifiable(_selectedRows);
+
+  bool isSelected(int rowIndex) => _selectedRows.contains(rowIndex);
+
+  void setSelected(int rowIndex, bool selected) {
+    final changed = selected
+        ? _selectedRows.add(rowIndex)
+        : _selectedRows.remove(rowIndex);
+    if (!changed) return;
+    notifyListeners();
+  }
+
+  void toggleSelected(int rowIndex) {
+    setSelected(rowIndex, !isSelected(rowIndex));
+  }
+
+  void setSelectedRows(Iterable<int> rowIndexes) {
+    final nextRows = rowIndexes.toSet();
+    if (_selectedRows.length == nextRows.length &&
+        _selectedRows.every(nextRows.contains)) {
+      return;
+    }
+    _selectedRows
+      ..clear()
+      ..addAll(nextRows);
+    notifyListeners();
+  }
+
+  void selectRange(int startRowIndex, int endRowIndex) {
+    final start = math.min(startRowIndex, endRowIndex);
+    final end = math.max(startRowIndex, endRowIndex);
+    setSelectedRows([for (var index = start; index <= end; index += 1) index]);
+  }
+
+  void selectAll(int rowCount) {
+    setSelectedRows([for (var index = 0; index < rowCount; index += 1) index]);
+  }
+
+  void clear() {
+    if (_selectedRows.isEmpty) return;
+    _selectedRows.clear();
+    notifyListeners();
+  }
+}
+
 class FortuneTableColumn<T> {
   const FortuneTableColumn({
     required this.id,
@@ -96,6 +147,7 @@ class FortuneTable<T> extends StatefulWidget {
     required this.rows,
     required this.columns,
     this.selectedIndex,
+    this.selectionController,
     this.onRowSelected,
     this.onRectChanged,
     this.rowNumberWidth = 40,
@@ -104,11 +156,14 @@ class FortuneTable<T> extends StatefulWidget {
     this.autoFitColumns = true,
     this.fillLastColumn = false,
     this.dragScrollEnabled = true,
+    this.multiSelectionEnabled = false,
+    this.keyboardSelectionShortcutsEnabled = true,
   });
 
   final List<T> rows;
   final List<FortuneTableColumn<T>> columns;
   final int? selectedIndex;
+  final FortuneTableSelectionController? selectionController;
   final void Function(T row, int index)? onRowSelected;
   final ValueChanged<Rect>? onRectChanged;
   final double rowNumberWidth;
@@ -117,6 +172,8 @@ class FortuneTable<T> extends StatefulWidget {
   final bool autoFitColumns;
   final bool fillLastColumn;
   final bool dragScrollEnabled;
+  final bool multiSelectionEnabled;
+  final bool keyboardSelectionShortcutsEnabled;
 
   @override
   State<FortuneTable<T>> createState() => _FortuneTableState<T>();
@@ -154,12 +211,15 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
   final ScrollController _hScrollBody = ScrollController();
   final ScrollController _vScrollBody = ScrollController();
   final ScrollController _vScrollIndex = ScrollController();
+  final FocusNode _focusNode = FocusNode(debugLabel: 'FortuneTable');
   bool _syncingHorizontal = false;
   bool _syncingVertical = false;
   late List<double> _widths;
   Set<FortuneTableCheckboxController> _checkboxControllers =
       <FortuneTableCheckboxController>{};
   int? _selectedIndex;
+  int? _selectionAnchorIndex;
+  int? _dragSelectionStartIndex;
   Rect? _lastReportedRect;
   String? _tableSignature;
 
@@ -168,6 +228,7 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
     super.initState();
     _widths = _initialWidths();
     _selectedIndex = widget.selectedIndex;
+    widget.selectionController?.addListener(_handleSelectionControllerChanged);
     _syncCheckboxControllerListeners(<FortuneTableColumn<T>>[]);
     _hScrollBody.addListener(_syncHorizontalFromBody);
     _hScrollHeader.addListener(_syncHorizontalFromHeader);
@@ -196,6 +257,17 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
     if ((_selectedIndex ?? -1) >= widget.rows.length) {
       _selectedIndex = null;
     }
+    if (oldWidget.selectionController != widget.selectionController) {
+      oldWidget.selectionController?.removeListener(
+        _handleSelectionControllerChanged,
+      );
+      widget.selectionController?.addListener(_handleSelectionControllerChanged);
+    }
+    widget.selectionController?.setSelectedRows(
+      widget.selectionController!.selectedRows.where(
+        (index) => index < widget.rows.length,
+      ),
+    );
     _syncCheckboxControllerListeners(oldWidget.columns);
     _syncAutoWidthsIfNeeded();
   }
@@ -205,6 +277,8 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
     for (final controller in _checkboxControllers) {
       controller.removeListener(_handleCheckboxControllerChanged);
     }
+    widget.selectionController?.removeListener(_handleSelectionControllerChanged);
+    _focusNode.dispose();
     _hScrollHeader.dispose();
     _hScrollBody.dispose();
     _vScrollBody.dispose();
@@ -215,8 +289,11 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
   @override
   Widget build(BuildContext context) {
     _scheduleRectReport();
-    return LayoutBuilder(
-      builder: (context, constraints) {
+    return Focus(
+      focusNode: _focusNode,
+      onKeyEvent: _handleKeyEvent,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
         final widths = _effectiveWidths(constraints.maxWidth);
         final bodyWidth = widths.fold<double>(0, (sum, width) => sum + width);
         final horizontalViewportWidth = (constraints.maxWidth -
@@ -230,11 +307,11 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
           bodyWidth > horizontalViewportWidth + 0.5;
         final hasVerticalOverflow =
           widget.rows.length * widget.rowHeight > bodyViewportHeight + 0.5;
-        return Listener(
-          behavior: HitTestBehavior.opaque,
-          onPointerSignal: _handlePointerSignal,
-          onPointerPanZoomUpdate: _handlePointerPanZoomUpdate,
-          child: Container(
+          return Listener(
+            behavior: HitTestBehavior.opaque,
+            onPointerSignal: _handlePointerSignal,
+            onPointerPanZoomUpdate: _handlePointerPanZoomUpdate,
+            child: Container(
             color: Colors.white,
             child: Column(
               children: [
@@ -327,8 +404,9 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
               ],
             ),
           ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 
@@ -352,6 +430,30 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
 
   void _handlePointerPanZoomUpdate(PointerPanZoomUpdateEvent event) {
     _handlePointerScroll(event.panDelta);
+  }
+
+  KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
+    if (!widget.multiSelectionEnabled ||
+        !widget.keyboardSelectionShortcutsEnabled ||
+        event is! KeyDownEvent) {
+      return KeyEventResult.ignored;
+    }
+    final controller = widget.selectionController;
+    if (controller == null) return KeyEventResult.ignored;
+    if (event.logicalKey == LogicalKeyboardKey.escape) {
+      controller.clear();
+      _selectionAnchorIndex = null;
+      return KeyEventResult.handled;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.keyA &&
+        HardwareKeyboard.instance.isControlPressed) {
+      controller.selectAll(widget.rows.length);
+      if (widget.rows.isNotEmpty) {
+        _selectionAnchorIndex = 0;
+      }
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
   }
 
   void _handlePointerScroll(Offset delta) {
@@ -485,16 +587,36 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
   }
 
   Widget _buildRow(T row, int rowIndex, List<double> widths) {
-    final selected = _selectedIndex == rowIndex;
+    final selected = _isRowSelected(rowIndex);
     final color = _rowColor(rowIndex, selected);
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTapDown: (_) => _selectRow(row, rowIndex),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: List.generate(widths.length, (columnIndex) {
-          return _buildCell(row, rowIndex, columnIndex, widths[columnIndex], color);
-        }),
+    return Listener(
+      onPointerDown: widget.multiSelectionEnabled
+          ? (event) => _handleRowPointerDown(rowIndex, event)
+          : null,
+      onPointerMove: widget.multiSelectionEnabled
+          ? (event) => _handleRowPointerMove(rowIndex, event)
+          : null,
+      onPointerUp: widget.multiSelectionEnabled
+          ? (_) => _endDragSelection()
+          : null,
+      onPointerCancel: widget.multiSelectionEnabled
+          ? (_) => _endDragSelection()
+          : null,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTapDown: (_) => _selectRow(row, rowIndex),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: List.generate(widths.length, (columnIndex) {
+            return _buildCell(
+              row,
+              rowIndex,
+              columnIndex,
+              widths[columnIndex],
+              color,
+            );
+          }),
+        ),
       ),
     );
   }
@@ -577,11 +699,61 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
     return rowIndex.isEven ? Colors.white : _alternateRowColor;
   }
 
+  bool _isRowSelected(int rowIndex) {
+    if (widget.multiSelectionEnabled) {
+      return widget.selectionController?.isSelected(rowIndex) ?? false;
+    }
+    return _selectedIndex == rowIndex;
+  }
+
   void _selectRow(T row, int rowIndex) {
+    _focusNode.requestFocus();
     if (_selectedIndex != rowIndex) {
       setState(() => _selectedIndex = rowIndex);
     }
+    _selectRowIndex(rowIndex);
     widget.onRowSelected?.call(row, rowIndex);
+  }
+
+  void _selectRowIndex(int rowIndex) {
+    if (!widget.multiSelectionEnabled) return;
+    final controller = widget.selectionController;
+    if (controller == null) return;
+    final keyboard = HardwareKeyboard.instance;
+    if (keyboard.isShiftPressed && _selectionAnchorIndex != null) {
+      controller.selectRange(_selectionAnchorIndex!, rowIndex);
+      return;
+    }
+    if (keyboard.isControlPressed) {
+      controller.toggleSelected(rowIndex);
+      _selectionAnchorIndex = rowIndex;
+      return;
+    }
+    controller.setSelectedRows(<int>{rowIndex});
+    _selectionAnchorIndex = rowIndex;
+  }
+
+  void _handleRowPointerDown(int rowIndex, PointerDownEvent event) {
+    if (event.buttons != kPrimaryMouseButton) return;
+    _focusNode.requestFocus();
+    _dragSelectionStartIndex = rowIndex;
+  }
+
+  void _handleRowPointerMove(int rowIndex, PointerMoveEvent event) {
+    if (event.buttons != kPrimaryMouseButton) return;
+    final dragStartIndex = _dragSelectionStartIndex;
+    final controller = widget.selectionController;
+    if (dragStartIndex == null || controller == null) return;
+    final deltaRows = (event.localPosition.dy / widget.rowHeight).floor();
+    final targetIndex = (rowIndex + deltaRows).clamp(
+      0,
+      widget.rows.length - 1,
+    );
+    controller.selectRange(dragStartIndex, targetIndex);
+  }
+
+  void _endDragSelection() {
+    _dragSelectionStartIndex = null;
   }
 
   void _syncCheckboxControllerListeners(
@@ -606,6 +778,11 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
   }
 
   void _handleCheckboxControllerChanged() {
+    if (!mounted) return;
+    setState(() {});
+  }
+
+  void _handleSelectionControllerChanged() {
     if (!mounted) return;
     setState(() {});
   }

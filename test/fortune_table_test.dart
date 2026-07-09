@@ -1,5 +1,6 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fortune_sheet/fortune_sheet.dart' hide Rect;
 import 'package:label_manager/models/additional_item.dart';
@@ -197,6 +198,115 @@ void main() {
     expect(controller.isChecked('check', 1), isTrue);
   });
 
+  testWidgets('FortuneTable supports multi row selection shortcuts', (
+    tester,
+  ) async {
+    final selectionController = FortuneTableSelectionController();
+    addTearDown(selectionController.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 260,
+            height: 180,
+            child: FortuneTable<String>(
+              rows: const ['첫째', '둘째', '셋째', '넷째'],
+              autoFitColumns: false,
+              selectionController: selectionController,
+              multiSelectionEnabled: true,
+              columns: [
+                FortuneTableColumn<String>(
+                  id: 'name',
+                  header: '이름',
+                  initialWidth: 120,
+                  text: (row) => row,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final tableTopLeft = tester.getTopLeft(find.byType(FortuneTable<String>));
+    await tester.tapAt(tableTopLeft + const Offset(40 + 60, 36 + 28 + 14));
+    await tester.pump();
+
+    expect(selectionController.selectedRows, {1});
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.tapAt(tableTopLeft + const Offset(40 + 60, 36 + 84 + 14));
+    await tester.pump();
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+
+    expect(selectionController.selectedRows, {1, 3});
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.tapAt(tableTopLeft + const Offset(40 + 60, 36 + 14));
+    await tester.pump();
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+
+    expect(selectionController.selectedRows, {0, 1, 2, 3});
+
+    selectionController.clear();
+    await tester.pump();
+
+    await tester.tapAt(tableTopLeft + const Offset(40 + 60, 36 + 14));
+    await tester.pump();
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyA);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pump();
+
+    expect(selectionController.selectedRows, {0, 1, 2, 3});
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+
+    expect(selectionController.selectedRows, isEmpty);
+  });
+
+  testWidgets('FortuneTable drag selects row ranges', (tester) async {
+    final selectionController = FortuneTableSelectionController();
+    addTearDown(selectionController.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 260,
+            height: 180,
+            child: FortuneTable<String>(
+              rows: const ['첫째', '둘째', '셋째', '넷째'],
+              autoFitColumns: false,
+              selectionController: selectionController,
+              multiSelectionEnabled: true,
+              columns: [
+                FortuneTableColumn<String>(
+                  id: 'name',
+                  header: '이름',
+                  initialWidth: 120,
+                  text: (row) => row,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final tableTopLeft = tester.getTopLeft(find.byType(FortuneTable<String>));
+    final gesture = await tester.startGesture(
+      tableTopLeft + const Offset(40 + 60, 36 + 14),
+    );
+    await gesture.moveBy(const Offset(0, 56));
+    await gesture.up();
+    await tester.pump();
+
+    expect(selectionController.selectedRows, {0, 1, 2});
+  });
+
   testWidgets('ItemManage renders the FortuneTable management table', (
     tester,
   ) async {
@@ -297,6 +407,64 @@ void main() {
       ),
       isFalse,
     );
+  });
+
+  testWidgets('ItemManage context menu controls selection and publish checks', (
+    tester,
+  ) async {
+    final items = [
+      _testItemOfMarket(itemName: '첫째 품목', marketId: 1),
+      _testItemOfMarket(itemName: '둘째 품목', marketId: 2),
+      _testItemOfMarket(itemName: '셋째 품목', marketId: 3),
+    ];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 600,
+            height: 220,
+            child: ItemManage(items: items),
+          ),
+        ),
+      ),
+    );
+
+    final tableTopLeft = tester.getTopLeft(
+      find.byType(FortuneTable<ItemOfMarket>),
+    );
+
+    await _openItemManageContextMenu(tester, tableTopLeft);
+    await tester.tap(find.text('전체 선택'));
+    await tester.pumpAndSettle();
+
+    var table = tester.widget<FortuneTable<ItemOfMarket>>(
+      find.byType(FortuneTable<ItemOfMarket>),
+    );
+    expect(table.selectionController!.selectedRows, {0, 1, 2});
+
+    await _openItemManageContextMenu(tester, tableTopLeft);
+    await tester.tap(find.text('블럭 선택 발행 체크'));
+    await tester.pumpAndSettle();
+
+    table = tester.widget<FortuneTable<ItemOfMarket>>(
+      find.byType(FortuneTable<ItemOfMarket>),
+    );
+    final publishColumn = table.columns.first;
+    expect(publishColumn.checkboxController!.checkedRows(publishColumn.id), {
+      0,
+      1,
+      2,
+    });
+
+    await _openItemManageContextMenu(tester, tableTopLeft);
+    await tester.tap(find.text('전체 선택 해제'));
+    await tester.pumpAndSettle();
+
+    table = tester.widget<FortuneTable<ItemOfMarket>>(
+      find.byType(FortuneTable<ItemOfMarket>),
+    );
+    expect(table.selectionController!.selectedRows, isEmpty);
   });
 
   testWidgets('FortuneTable consumes mouse wheel inside a parent scroll view', (
@@ -521,6 +689,19 @@ void main() {
 ScrollController _bodyVerticalController(WidgetTester tester) {
   final listViews = tester.widgetList<ListView>(find.byType(ListView));
   return listViews.last.controller!;
+}
+
+Future<void> _openItemManageContextMenu(
+  WidgetTester tester,
+  Offset tableTopLeft,
+) async {
+  final gesture = await tester.startGesture(
+    tableTopLeft + const Offset(40 + 80, 36 + 14),
+    kind: PointerDeviceKind.mouse,
+    buttons: kSecondaryMouseButton,
+  );
+  await gesture.up();
+  await tester.pumpAndSettle();
 }
 
 ItemOfMarket _testItemOfMarket({

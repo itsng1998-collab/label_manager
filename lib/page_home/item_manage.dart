@@ -26,9 +26,15 @@ class ItemManage extends StatefulWidget {
 
 class _ItemManageState extends State<ItemManage> {
   static const String _publishColumnId = 'publish';
+  static const String _menuSelectAll = 'selectAll';
+  static const String _menuClearSelection = 'clearSelection';
+  static const String _menuCheckSelectedPublish = 'checkSelectedPublish';
+  static const String _menuUncheckSelectedPublish = 'uncheckSelectedPublish';
 
   final FortuneTableCheckboxController _publishCheckboxController =
       FortuneTableCheckboxController();
+  final FortuneTableSelectionController _selectionController =
+      FortuneTableSelectionController();
 
   @override
   void didUpdateWidget(covariant ItemManage oldWidget) {
@@ -39,11 +45,17 @@ class _ItemManageState extends State<ItemManage> {
           .checkedRows(_publishColumnId)
           .where((index) => index < widget.items.length),
     );
+    _selectionController.setSelectedRows(
+      _selectionController.selectedRows.where(
+        (index) => index < widget.items.length,
+      ),
+    );
   }
 
   @override
   void dispose() {
     _publishCheckboxController.dispose();
+    _selectionController.dispose();
     super.dispose();
   }
 
@@ -54,14 +66,111 @@ class _ItemManageState extends State<ItemManage> {
       'rows=${widget.items.length}, '
       'dynamicColumns=${TColumn.datas?.length ?? 0}, columns=${columns.length}',
     );
-    return FortuneTable<ItemOfMarket>(
-      rows: widget.items,
-      columns: columns,
-      autoFitColumns: false,
-      selectedIndex: widget.selectedIndex,
-      onRowSelected: widget.onRowSelected,
-      onRectChanged: widget.onTableRectChanged,
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onSecondaryTapDown: _showTableContextMenu,
+      child: FortuneTable<ItemOfMarket>(
+        rows: widget.items,
+        columns: columns,
+        autoFitColumns: false,
+        selectedIndex: widget.selectedIndex,
+        selectionController: _selectionController,
+        multiSelectionEnabled: true,
+        onRowSelected: widget.onRowSelected,
+        onRectChanged: widget.onTableRectChanged,
+      ),
     );
+  }
+
+  Future<void> _showTableContextMenu(TapDownDetails details) async {
+    final local = details.localPosition;
+    if (local.dx < 40 || local.dy < 36) return;
+    final command = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromLTRB(
+        details.globalPosition.dx,
+        details.globalPosition.dy,
+        details.globalPosition.dx,
+        details.globalPosition.dy,
+      ),
+      items: [
+        _disabledCountMenuItem('품목 추가'),
+        _disabledCountMenuItem('품목 삽입'),
+        const PopupMenuItem<String>(
+          enabled: false,
+          child: Text('품목 삭제'),
+        ),
+        const PopupMenuDivider(),
+        const PopupMenuItem<String>(
+          value: _menuSelectAll,
+          child: Text('전체 선택'),
+        ),
+        const PopupMenuItem<String>(
+          value: _menuClearSelection,
+          child: Text('전체 선택 해제'),
+        ),
+        const PopupMenuDivider(),
+        PopupMenuItem<String>(
+          value: _menuCheckSelectedPublish,
+          enabled: _selectionController.hasSelection,
+          child: const Text('블럭 선택 발행 체크'),
+        ),
+        PopupMenuItem<String>(
+          value: _menuUncheckSelectedPublish,
+          enabled: _selectionController.hasSelection,
+          child: const Text('블럭 선택 발행 체크 해제'),
+        ),
+      ],
+    );
+    if (!mounted || command == null) return;
+    _handleContextMenuCommand(command);
+  }
+
+  PopupMenuItem<String> _disabledCountMenuItem(String label) {
+    return PopupMenuItem<String>(
+      enabled: false,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(label),
+          const SizedBox(width: 8),
+          Container(
+            width: 36,
+            height: 24,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              border: Border.all(color: const Color(0xFFBDBDBD)),
+            ),
+            child: const Text('1'),
+          ),
+          const SizedBox(width: 4),
+          const Text('개'),
+        ],
+      ),
+    );
+  }
+
+  void _handleContextMenuCommand(String command) {
+    switch (command) {
+      case _menuSelectAll:
+        _selectionController.selectAll(widget.items.length);
+      case _menuClearSelection:
+        _selectionController.clear();
+      case _menuCheckSelectedPublish:
+        _setSelectedPublishChecked(true);
+      case _menuUncheckSelectedPublish:
+        _setSelectedPublishChecked(false);
+    }
+  }
+
+  void _setSelectedPublishChecked(bool checked) {
+    final selectedRows = _selectionController.selectedRows;
+    if (selectedRows.isEmpty) return;
+    final checkedRows = _publishCheckboxController.checkedRows(_publishColumnId);
+    final nextRows = checked
+        ? <int>{...checkedRows, ...selectedRows}
+        : checkedRows.difference(selectedRows);
+    _publishCheckboxController.setCheckedRows(_publishColumnId, nextRows);
   }
 
   List<FortuneTableColumn<ItemOfMarket>> get _columns {
