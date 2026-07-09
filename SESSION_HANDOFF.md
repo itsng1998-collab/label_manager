@@ -35,6 +35,7 @@
 - 검증 완료: `git diff --check -- .tmp/item_manager_modify.txt SESSION_HANDOFF.md` 통과(출력 없음).
 - 커밋 예정: `SESSION_HANDOFF.md`만 포함한다. `.tmp/item_manager_modify.txt`는 `.gitignore`의 `.tmp/` 대상이므로 force add하지 않고 작업 파일로 유지한다. 기존 unrelated dirty 파일은 제외한다.
 - 커밋 완료: `fa44a22` 품목관리 요청서 정리 기록. 포함 파일은 `SESSION_HANDOFF.md`이며, `.tmp/item_manager_modify.txt`는 ignore 대상 작업 파일로 유지했다.
+- 추가 병합 완료: 레거시 품목관리에는 추가/삽입/삭제/주원료 수정 외에도 품명 수정과 일반 동적 컬럼 수정이 있음을 확인했다. `.tmp/item_manager_modify.txt`에 품명/일반 컬럼 수정 dirty 정책, 저장 대상, 특수 컬럼 처리(바코드/GS1/날짜/이미지/10*8 자동 계산), 검증 항목을 병합했다.
 
 ### 완료 (2026-07-09): 품목관리 발행 체크 행 하이라이트
 
