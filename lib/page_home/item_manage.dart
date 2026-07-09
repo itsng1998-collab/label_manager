@@ -156,7 +156,7 @@ class _ItemManageState extends State<ItemManage> {
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(label),
-          const SizedBox(width: 8),
+          const SizedBox(width: 38),
           Container(
             width: 36,
             height: 22,
