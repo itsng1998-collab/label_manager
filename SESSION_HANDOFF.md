@@ -28,6 +28,14 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-10): 품목관리 요청서 엑셀 sheet 매칭/백업 역할 보강
+
+- 요청: `.tmp/item_manager_modify.txt`에서 남은 첫 worksheet 매칭 기준과 백업 JSON 선택 정보 역할 애매점을 권장 사항으로 병합 정리한다.
+- 수정 완료: 첫 번째 worksheet는 원본 `.xlsx`의 workbook sheet 순서 기준으로 판정하고, `labelSheetWorkbookFromXlsxBytes()` 결과와 원본 worksheet XML metadata는 같은 sheet id 또는 relationship 기준으로 매칭하도록 본문과 검증 항목에 명시했다.
+- 수정 완료: 백업 JSON의 선택 복원용 정보는 저장 성공 후 품목리스트 재조회 선택 복원용이고, 엑셀 가져오기 전 표시 정렬/필터/선택 상태 복원용 metadata는 변경 취소 시 import 직전 UI 상태 복원용임을 본문과 검증 항목에 분리해 명시했다.
+- 검증 완료: `git diff --check -- .tmp/item_manager_modify.txt` 통과(출력 없음).
+- 커밋 예정: `SESSION_HANDOFF.md`만 포함한다. `.tmp/item_manager_modify.txt`는 `.gitignore`의 `.tmp/` 대상이므로 force add하지 않고 작업 파일로 유지한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+
 ### 완료 (2026-07-10): 품목관리 요청서 엑셀 worksheet 표현 정리
 
 - 요청: `.tmp/item_manager_modify.txt`에서 최신 worksheet/병합 정책의 남은 표현상 애매점을 권장 사항으로 병합 정리한다.
