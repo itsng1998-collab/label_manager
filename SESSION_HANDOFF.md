@@ -78,6 +78,7 @@
 - 추가 정리 완료: `.tmp/item_manager_modify.txt`에서 선택 제한 예시의 `권한상 수정 불가한 셀`을 현재 구현 범위에 맞춰 `컬럼 정책상 수정 불가한 셀`로 변경했다. 주원료 시트 변경 반영은 commit 완료 값 즉시 draft 반영, 미commit 활성 셀은 저장/선택 변경/탭 이동 차단 판단 직전 commit/flush 후 draft 반영 및 검증으로 명확히 했다. 필수 일반 컬럼은 Flutter 컬럼 모델에서 `BM_RICH_COL_MIN.RICH_MIN_CHECK` 대응 필드를 확인해 매핑하도록 보강했고, 남은 포괄적 저장 실패 표현은 저장 전 검증 실패 또는 DB 트랜잭션 실패 기준으로 통일했다.
 - 커밋 완료: `08657d4` 품목관리 요청서 애매 표현 정리. 포함 파일은 `SESSION_HANDOFF.md`이며, `.tmp/item_manager_modify.txt`는 ignore 대상 작업 파일로 유지했다.
 - 추가 정리 완료: `.tmp/item_manager_modify.txt`에서 정렬/필터 상태의 선택 보관 기준을 표시 rowIndex가 아니라 기존 행 item id 또는 신규 행 임시 draft row key로 명시했다. 필터로 보이지 않는 자동 선택 행은 선택 상태만 유지하고 필터 해제 전까지 삭제/전체 선택/전체 선택 해제 같은 표시 행 기반 액션 대상에서 제외하도록 정리했다. 행 선택 제한과 셀 편집 제한도 분리했고, 저장 성공 후 신규 행 선택 복원은 임시 draft row key와 생성 item id 매핑을 우선 사용하도록 보강했다. 임시 백업 JSON의 신규 행에는 draft 추적/선택 복원용 임시 draft row key를 포함한다.
+- 커밋 완료: `00b9e42` 품목관리 요청서 선택 키 기준 정리. 포함 파일은 `SESSION_HANDOFF.md`이며, `.tmp/item_manager_modify.txt`는 ignore 대상 작업 파일로 유지했다.
 
 ### 완료 (2026-07-09): 품목관리 발행 체크 행 하이라이트
 
