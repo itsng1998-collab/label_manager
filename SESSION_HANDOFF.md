@@ -41,6 +41,7 @@
 - 커밋 완료: `6a1e500` 품목관리 요청서 선택 제한 정리. 포함 파일은 `SESSION_HANDOFF.md`이며, `.tmp/item_manager_modify.txt`는 ignore 대상 작업 파일로 유지했다.
 - 추가 정리 완료: 현재 앱은 `path_provider`, `shared_preferences`, `sqflite/sqflite_common_ffi`를 이미 사용하므로 품목관리 draft 로컬 백업 구현 수단이 충분하다고 판단했다. `.tmp/item_manager_modify.txt`에 1차 구현부터 앱 지원 디렉터리 하위 JSON 백업 파일을 사용하고, SharedPreferences는 작은 메타데이터만 저장하며, debounce/비동기/원자적 파일 교체로 성능 영향을 줄이는 정책과 복구 검증 항목을 병합했다.
 - 커밋 완료: `50e86e2` 품목관리 요청서에 로컬 백업 정책 반영. 포함 파일은 `SESSION_HANDOFF.md`이며, `.tmp/item_manager_modify.txt`는 ignore 대상 작업 파일로 유지했다.
+- 추가 정리 완료: 저장 성공 후 재조회 범위를 브랜드/라벨크기 전체가 아니라 현재 선택된 브랜드/라벨크기의 품목관리 데이터(품목리스트, 일반 컬럼 값, 주원료 plain text, `RICH_ELEMENT_SHEET`, 행 순서, 신규 item id)로 확정했다. `.tmp/item_manager_modify.txt`의 단순 재렌더링/1차 구현 구분 문구를 제거하고 품목리스트 재조회 정책으로 정리했다.
 
 ### 완료 (2026-07-09): 품목관리 발행 체크 행 하이라이트
 
