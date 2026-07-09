@@ -86,6 +86,7 @@
 - 추가 정리 완료: `.tmp/item_manager_modify.txt` 6.4 팝업메뉴 제한 문단에서 `draft 편집 모드에서 다음 액션은 신규 행으로 제한하지 않는다`로 도입 문장을 바꾸고, `품목 삭제`/`전체 선택`/행 멀티 선택 액션과 `전체 선택 해제` 동작을 각각 bullet로 분리해 문서 형식을 정리했다. 기능 요구사항 변경은 없고 문서 가독성 정리이다.
 - 커밋 완료: `9364041` 품목관리 요청서 팝업메뉴 문단 정리. 포함 파일은 `SESSION_HANDOFF.md`이며, `.tmp/item_manager_modify.txt`는 ignore 대상 작업 파일로 유지했다.
 - 추가 정리 완료: `.tmp/item_manager_modify.txt`에서 필수 일반 컬럼 기준을 레거시 `BM_RICH_COL_MIN.RICH_MIN_CHECK` 단독 참조에서 현재 Flutter 실제 매핑 기준으로 정리했다. 일반 동적 컬럼은 `TColumnDAO`가 `BM_RICH_CHECK_COLUMNS.RICH_CHECK_YN`을 조회하고 `TColumn.fromMap`이 `TColumn.useMissingKeywordCheck`로 매핑한다. 품명/주원료/저울중량/최종가격 같은 고정 특수 컬럼은 `TColumnSpecial.selectByLabelSizeId`가 같은 `RICH_CHECK_YN`을 조회해 `TColumnBase.useMissingKeywordCheck`로 매핑한다. 레거시 `BM_RICH_COL_MIN.RICH_MIN_CHECK`는 라벨 편집 화면의 최소/필수 체크 표시와 동기화에 사용되던 설정 테이블로 참고하되, 현재 저장 전 필수 검증의 직접 기준은 `BM_RICH_CHECK_COLUMNS.RICH_CHECK_YN`을 거친 `useMissingKeywordCheck`임을 본문과 검증 항목에 반영했다.
+- 커밋 완료: `3cc52dc` 품목관리 요청서 필수 컬럼 기준 정리. 포함 파일은 `SESSION_HANDOFF.md`이며, `.tmp/item_manager_modify.txt`는 ignore 대상 작업 파일로 유지했다.
 
 ### 완료 (2026-07-09): 품목관리 발행 체크 행 하이라이트
 
