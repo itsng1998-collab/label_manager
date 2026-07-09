@@ -28,11 +28,19 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-10): 품목관리 요청서 엑셀 내보내기 병합
+
+- 요청: `.tmp/item_manager_modify.txt`에 레거시 품목관리 엑셀 내보내기 분석 결과를 권장안대로 병합한다.
+- 수정 완료: `.tmp/item_manager_modify.txt`에 `엑셀 내보내기` 실제 기능을 이번 구현 범위로 병합했다. 변경 사항이 없는 안정된 working table에서만 실행하며, `품목`/`주원료`/일반 컬럼 값 중심의 단순 엑셀 테이블로 저장하고, 행 번호/발행 체크/선택 상태/스타일/`RICH_ELEMENT_SHEET`/`RICH_ELEMENT_RTF`/출력 미리보기 서식은 제외하도록 정리했다.
+- 수정 완료: 기존 `엑셀 내보내기 실제 기능 제외` 문구를 제거하고, 검증 항목과 최종 정리에 내보내기 대상/dirty 비활성/데이터 없음 메시지 정책을 반영했다.
+- 검증 완료: `git diff --check -- .tmp/item_manager_modify.txt SESSION_HANDOFF.md` 통과(출력 없음).
+- 커밋 예정: `SESSION_HANDOFF.md`만 포함한다. `.tmp/item_manager_modify.txt`는 `.gitignore`의 `.tmp/` 대상이므로 force add하지 않고 작업 파일로 유지한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+
 ### 완료 (2026-07-10): 품목관리 요청서 엑셀 가져오기 병합
 
 - 요청: `.tmp/item_manager_modify.txt`에 레거시 품목관리 엑셀 가져오기 분석 결과를 권장안대로 병합하고, 변경 사항이 있으면 `엑셀 가져오기`/`엑셀 내보내기`를 비활성화하도록 정리한다.
 - 수정 완료: `.tmp/item_manager_modify.txt`에 `엑셀 가져오기`를 전체 교체형 draft 액션으로 병합했다. 기존 행 전체 삭제 예정 + 엑셀 행 임시 신규 생성 + order 재계산 + 기존 저장 정책의 단일 트랜잭션 확정 + 변경 취소 시 임시 파일 백업 원본 스냅샷 복원으로 정리했다.
-- 수정 완료: dirty 상태에서는 `엑셀 가져오기`/`엑셀 내보내기` 버튼을 비활성화하고, `엑셀 내보내기` 실제 기능은 이번 구현 범위에서 제외하는 정책을 본문/검증/최종 정리에 반영했다.
+- 수정 완료: dirty 상태에서는 `엑셀 가져오기`/`엑셀 내보내기` 버튼을 비활성화하고, 당시 기준으로 `엑셀 내보내기` 실제 기능은 이번 구현 범위에서 제외하는 정책을 본문/검증/최종 정리에 반영했다. 이후 2026-07-10 `엑셀 내보내기 병합`에서 내보내기 실제 기능도 이번 구현 범위에 포함하도록 재정리했다.
 - 검증 완료: `git diff --check -- .tmp/item_manager_modify.txt SESSION_HANDOFF.md` 통과(출력 없음).
 - 커밋 예정: `SESSION_HANDOFF.md`만 포함한다. `.tmp/item_manager_modify.txt`는 `.gitignore`의 `.tmp/` 대상이므로 force add하지 않고 작업 파일로 유지한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
 - 커밋 완료: `23af3f8` 품목관리 요청서 엑셀 가져오기 병합. 포함 파일은 `SESSION_HANDOFF.md`이며, `.tmp/item_manager_modify.txt`는 ignore 대상 작업 파일로 유지했다.
