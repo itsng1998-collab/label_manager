@@ -35,7 +35,7 @@
 - 수정 완료: `lib/page_home/item_manage.dart`는 `FortuneTableSelectionController`와 `FortuneTableCheckboxController`를 함께 사용한다. 셀 그리드 영역 우클릭 메뉴에 `품목 추가 [1] 개`, `품목 삽입 [1] 개`, `품목 삭제`, `전체 선택`, `전체 선택 해제`, `블럭 선택 발행 체크`, `블럭 선택 발행 체크 해제`를 추가했다. 추가/삽입/삭제는 추후 구현 항목이므로 비활성화했고, 블럭 발행 체크/해제는 선택 행이 있을 때만 활성화한다.
 - 테스트 추가/갱신: `test/fortune_table_test.dart`에 멀티 선택 shortcut, 드래그 행 범위 선택, 품목관리 우클릭 메뉴 전체 선택/발행 체크 회귀 테스트를 추가했다.
 - 검증 완료: `C:\Flutter\bin\flutter.bat test test\fortune_table_test.dart` 통과(`+11`), `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`), `git diff --check -- third_party/fortune_sheet/lib/src/fortune_table.dart lib/page_home/item_manage.dart test/fortune_table_test.dart SESSION_HANDOFF.md` 통과(출력 없음).
-- stage/commit 예정 파일: `third_party/fortune_sheet/lib/src/fortune_table.dart`, `lib/page_home/item_manage.dart`, `test/fortune_table_test.dart`, `SESSION_HANDOFF.md`. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+- 커밋 완료: `0e1a314` 품목관리 테이블 행 멀티 선택 추가. 포함 파일은 `third_party/fortune_sheet/lib/src/fortune_table.dart`, `lib/page_home/item_manage.dart`, `test/fortune_table_test.dart`, `SESSION_HANDOFF.md`. 기존 unrelated dirty `lib/core/app.dart`는 제외했다.
 
 ### 완료 (2026-07-09): FortuneTable 체크박스 상태 get/set API 추가
 
