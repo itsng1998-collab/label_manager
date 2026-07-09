@@ -36,6 +36,7 @@
 - 수정 완료: 엑셀 가져오기 직전 표시 정렬/필터 상태와 선택 상태는 draft metadata 및 임시 파일 백업 JSON metadata에 값 객체로 저장하고, controller 내부 객체는 직렬화하지 않도록 본문/검증 항목/백업 JSON 설명에 반영했다.
 - 검증 완료: `git diff --check -- .tmp/item_manager_modify.txt` 통과(출력 없음).
 - 커밋 예정: `SESSION_HANDOFF.md`만 포함한다. `.tmp/item_manager_modify.txt`는 `.gitignore`의 `.tmp/` 대상이므로 force add하지 않고 작업 파일로 유지한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+- 커밋 완료: `a107838` 품목관리 요청서 엑셀 구현 선택지 확정. 포함 파일은 `SESSION_HANDOFF.md`이며, `.tmp/item_manager_modify.txt`는 ignore 대상 작업 파일로 유지했다.
 
 ### 완료 (2026-07-10): 품목관리 요청서 엑셀 최종 UX 보강
 
