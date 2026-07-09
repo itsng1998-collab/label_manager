@@ -28,6 +28,16 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-10): 품목관리 요청서 엑셀 잔여 정책 병합
+
+- 요청: `.tmp/item_manager_modify.txt`의 남은 엑셀 잔여 애매점을 권장 사항으로 병합 정리한다.
+- 수정 완료: `.tmp/item_manager_modify.txt`에 중복 파싱을 줄이기 위해 `labelSheetWorkbookFromXlsxBytes()` 내부 파싱 로직에서 공용 parse helper를 분리해 품목관리 xlsx adapter와 공유할 수 있다는 구현 허용 기준을 추가했다.
+- 수정 완료: `주원료` 헤더가 없으면 주원료 plain text와 `RICH_ELEMENT_SHEET`를 빈 값으로 생성하도록 본문과 검증 항목에 반영했다.
+- 수정 완료: 1차 표시 문자열 formatter 숫자 범위는 정수/소수/천단위 구분/소수 자리수 고정, 날짜 범위는 Excel serial date의 `yyyy-mm-dd`, `yyyy/mm/dd`, `yyyy.mm.dd`로 정리했다.
+- 수정 완료: 엑셀 가져오기 성공 후 기존 표시 정렬/필터를 초기화해 전체 교체 결과를 표시하고, 저장 전 검증 실패 시 첫 오류 행이 필터로 숨겨지지 않도록 검증 기준을 추가했다.
+- 검증 완료: `git diff --check -- .tmp/item_manager_modify.txt SESSION_HANDOFF.md` 통과(출력 없음).
+- 커밋 예정: `SESSION_HANDOFF.md`만 포함한다. `.tmp/item_manager_modify.txt`는 `.gitignore`의 `.tmp/` 대상이므로 force add하지 않고 작업 파일로 유지한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+
 ### 완료 (2026-07-10): 품목관리 요청서 엑셀 세부 검증 기준 보강
 
 - 요청: `.tmp/item_manager_modify.txt`의 남은 엑셀 세부 애매점을 권장 사항으로 병합 정리한다.
