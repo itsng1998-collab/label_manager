@@ -76,6 +76,7 @@
 - 추가 정리 완료: `.tmp/item_manager_modify.txt`에서 정렬/필터로 자동 선택된 신규 행이 보이지 않는 경우를 `선택 상태는 유지하되 테이블 선택 하이라이트는 표시되지 않음`으로 확정했다. 저장 실패 검증 문구도 저장 전 검증 실패와 DB 트랜잭션 실패로 좁혔고, debounce 백업 작업 유지/백업 저장 재예약 또는 즉시 flush는 DB 트랜잭션 실패에만 적용되도록 본문과 검증 항목 표현을 통일했다.
 - 커밋 완료: `c980e04` 품목관리 요청서 실패 처리 표현 정리. 포함 파일은 `SESSION_HANDOFF.md`이며, `.tmp/item_manager_modify.txt`는 ignore 대상 작업 파일로 유지했다.
 - 추가 정리 완료: `.tmp/item_manager_modify.txt`에서 선택 제한 예시의 `권한상 수정 불가한 셀`을 현재 구현 범위에 맞춰 `컬럼 정책상 수정 불가한 셀`로 변경했다. 주원료 시트 변경 반영은 commit 완료 값 즉시 draft 반영, 미commit 활성 셀은 저장/선택 변경/탭 이동 차단 판단 직전 commit/flush 후 draft 반영 및 검증으로 명확히 했다. 필수 일반 컬럼은 Flutter 컬럼 모델에서 `BM_RICH_COL_MIN.RICH_MIN_CHECK` 대응 필드를 확인해 매핑하도록 보강했고, 남은 포괄적 저장 실패 표현은 저장 전 검증 실패 또는 DB 트랜잭션 실패 기준으로 통일했다.
+- 커밋 완료: `08657d4` 품목관리 요청서 애매 표현 정리. 포함 파일은 `SESSION_HANDOFF.md`이며, `.tmp/item_manager_modify.txt`는 ignore 대상 작업 파일로 유지했다.
 
 ### 완료 (2026-07-09): 품목관리 발행 체크 행 하이라이트
 
