@@ -28,6 +28,16 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-10): 품목관리 요청서 엑셀 edge case 병합
+
+- 요청: `.tmp/item_manager_modify.txt`의 남은 엑셀 edge case 애매점을 권장 사항으로 병합 정리한다.
+- 수정 완료: `.tmp/item_manager_modify.txt`에 같은 매핑 대상 헤더가 중복되면 첫 번째 매핑 컬럼만 사용하고 이후 중복 헤더는 무시하도록 본문과 검증 항목에 반영했다.
+- 수정 완료: 수식 셀은 cached value가 있으면 표시 문자열 formatter 대상으로 사용하고, cached value가 없으면 수식 문자열을 가져오기 값으로 쓰지 않고 빈 값으로 처리하도록 정리했다.
+- 수정 완료: Excel serial date 변환은 workbook date system을 읽을 수 있으면 해당 기준을 따르고, 확인할 수 없으면 Excel 기본 1900 date system을 사용하도록 정리했다.
+- 수정 완료: 엑셀 가져오기 직전 표시 정렬/필터 상태는 draft metadata 또는 별도 UI snapshot으로 저장하고, 변경 취소 시 데이터와 함께 복원하도록 정리했다.
+- 검증 완료: `git diff --check -- .tmp/item_manager_modify.txt SESSION_HANDOFF.md` 통과(출력 없음).
+- 커밋 예정: `SESSION_HANDOFF.md`만 포함한다. `.tmp/item_manager_modify.txt`는 `.gitignore`의 `.tmp/` 대상이므로 force add하지 않고 작업 파일로 유지한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+
 ### 완료 (2026-07-10): 품목관리 요청서 엑셀 가져오기 UX 정책 보강
 
 - 요청: `.tmp/item_manager_modify.txt`의 남은 엑셀 가져오기 UX/판정 애매점을 권장 사항으로 병합 정리한다.
