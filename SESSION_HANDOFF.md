@@ -40,6 +40,7 @@
 - 추가 정리 완료: 레거시에서는 추가/삽입 후 신규 행만 선택하도록 제한하는 별도 모드가 없고, 기존 행 선택/품명·일반 컬럼·주원료 수정/삭제가 같은 dirty 상태에 함께 누적될 수 있음을 확인했다. `.tmp/item_manager_modify.txt`의 신규 행 한정 선택·삭제 정책을 제거하고, draft 편집 중에도 신규/기존 행을 모두 선택·수정·삭제할 수 있도록 정리했다.
 - 커밋 완료: `6a1e500` 품목관리 요청서 선택 제한 정리. 포함 파일은 `SESSION_HANDOFF.md`이며, `.tmp/item_manager_modify.txt`는 ignore 대상 작업 파일로 유지했다.
 - 추가 정리 완료: 현재 앱은 `path_provider`, `shared_preferences`, `sqflite/sqflite_common_ffi`를 이미 사용하므로 품목관리 draft 로컬 백업 구현 수단이 충분하다고 판단했다. `.tmp/item_manager_modify.txt`에 1차 구현부터 앱 지원 디렉터리 하위 JSON 백업 파일을 사용하고, SharedPreferences는 작은 메타데이터만 저장하며, debounce/비동기/원자적 파일 교체로 성능 영향을 줄이는 정책과 복구 검증 항목을 병합했다.
+- 커밋 완료: `50e86e2` 품목관리 요청서에 로컬 백업 정책 반영. 포함 파일은 `SESSION_HANDOFF.md`이며, `.tmp/item_manager_modify.txt`는 ignore 대상 작업 파일로 유지했다.
 
 ### 완료 (2026-07-09): 품목관리 발행 체크 행 하이라이트
 
