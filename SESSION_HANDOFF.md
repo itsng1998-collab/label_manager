@@ -35,6 +35,7 @@
 - 수정 완료: 기존 `엑셀 내보내기 실제 기능 제외` 문구를 제거하고, 검증 항목과 최종 정리에 내보내기 대상/dirty 비활성/데이터 없음 메시지 정책을 반영했다.
 - 검증 완료: `git diff --check -- .tmp/item_manager_modify.txt SESSION_HANDOFF.md` 통과(출력 없음).
 - 커밋 예정: `SESSION_HANDOFF.md`만 포함한다. `.tmp/item_manager_modify.txt`는 `.gitignore`의 `.tmp/` 대상이므로 force add하지 않고 작업 파일로 유지한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+- 커밋 완료: `2a4bff6` 품목관리 요청서 엑셀 내보내기 병합. 포함 파일은 `SESSION_HANDOFF.md`이며, `.tmp/item_manager_modify.txt`는 ignore 대상 작업 파일로 유지했다.
 
 ### 완료 (2026-07-10): 품목관리 요청서 엑셀 가져오기 병합
 
