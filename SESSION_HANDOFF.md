@@ -37,6 +37,7 @@
 - 수정 완료: 엑셀 내보내기는 `.xlsx`만 지원하고 `.xls`는 안내 후 저장하지 않도록 본문, 검증 항목, 최종 정리에 반영했다.
 - 검증 완료: `git diff --check -- .tmp/item_manager_modify.txt SESSION_HANDOFF.md` 통과(출력 없음).
 - 커밋 예정: `SESSION_HANDOFF.md`만 포함한다. `.tmp/item_manager_modify.txt`는 `.gitignore`의 `.tmp/` 대상이므로 force add하지 않고 작업 파일로 유지한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+- 커밋 완료: `1c52a8a` 품목관리 요청서 엑셀 입출력 정책 재정리. 포함 파일은 `SESSION_HANDOFF.md`이며, `.tmp/item_manager_modify.txt`는 ignore 대상 작업 파일로 유지했다.
 
 ### 완료 (2026-07-10): 품목관리 요청서 엑셀 가져오기 애매점 정리 병합
 
