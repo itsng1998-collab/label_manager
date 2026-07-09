@@ -35,7 +35,7 @@
 - 수정 완료: `lib/page_home/item_manage.dart` 발행 체크박스는 `FortuneTableCheckboxController`를 사용한다. `lib/page_home/common_label_manage.dart`의 특별/사용 항목 체크박스도 같은 컨트롤러 API로 모델 값과 동기화한다.
 - 테스트 추가/갱신: `test/fortune_table_test.dart`에 `FortuneTable checkbox controller gets and sets state`를 추가하고, 품목관리 중복 `marketId` 회귀 테스트를 컨트롤러 API 기준으로 갱신했다.
 - 검증 완료: `C:\Flutter\bin\flutter.bat test test\fortune_table_test.dart` 통과(`+8`), `C:\Flutter\bin\flutter.bat test test\common_label_manage_test.dart` 통과(`+4`), `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`), `git diff --check -- third_party/fortune_sheet/lib/src/fortune_table.dart lib/page_home/item_manage.dart lib/page_home/common_label_manage.dart test/fortune_table_test.dart SESSION_HANDOFF.md` 통과(출력 없음).
-- stage/commit 예정 파일: `third_party/fortune_sheet/lib/src/fortune_table.dart`, `lib/page_home/item_manage.dart`, `lib/page_home/common_label_manage.dart`, `test/fortune_table_test.dart`, `SESSION_HANDOFF.md`. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+- 커밋 완료: `89cccda` 테이블 체크박스 상태 API 추가. 포함 파일은 `third_party/fortune_sheet/lib/src/fortune_table.dart`, `lib/page_home/item_manage.dart`, `lib/page_home/common_label_manage.dart`, `test/fortune_table_test.dart`, `SESSION_HANDOFF.md`. 기존 unrelated dirty `lib/core/app.dart`는 제외했다.
 
 ### 완료 (2026-07-09): FortuneTable 인라인 체크박스 행 단위 토글 보정
 
