@@ -37,6 +37,7 @@
 - 수정 완료: 검증 항목에 주원료 병합 covered cell 빈 셀은 plain text에서 제외, 엑셀 가져오기 후 저장 전 검증 실패 시 첫 오류 셀로 스크롤/선택하고 엑셀 가져오기 값 기준 오류 원인을 표시하는 기준을 추가했다.
 - 검증 완료: `git diff --check -- .tmp/item_manager_modify.txt SESSION_HANDOFF.md` 통과(출력 없음).
 - 커밋 예정: `SESSION_HANDOFF.md`만 포함한다. `.tmp/item_manager_modify.txt`는 `.gitignore`의 `.tmp/` 대상이므로 force add하지 않고 작업 파일로 유지한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+- 커밋 완료: `e764686` 품목관리 요청서 엑셀 세부 검증 기준 보강. 포함 파일은 `SESSION_HANDOFF.md`이며, `.tmp/item_manager_modify.txt`는 ignore 대상 작업 파일로 유지했다.
 
 ### 완료 (2026-07-10): 품목관리 요청서 엑셀 가져오기 구현 경계 정리
 
