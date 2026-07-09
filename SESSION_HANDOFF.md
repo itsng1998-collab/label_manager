@@ -35,6 +35,7 @@
 - 수정 완료: `주원료` 셀은 품목관리 adapter로 `RICH_ELEMENT_SHEET`를 생성하며, 일반 셀은 `A1` 단일 셀로 옮기고 병합 셀은 병합 영역 전체를 `A1` 기준 상대 위치로 보존해 옮기도록 정리했다. row height/column width/테두리/배경은 무시하고, 텍스트 내용/inlineRuns/장평/자간/첨자/줄간격은 보존하도록 본문과 검증 항목에 반영했다.
 - 검증 완료: `git diff --check -- .tmp/item_manager_modify.txt SESSION_HANDOFF.md` 통과(출력 없음).
 - 커밋 예정: `SESSION_HANDOFF.md`만 포함한다. `.tmp/item_manager_modify.txt`는 `.gitignore`의 `.tmp/` 대상이므로 force add하지 않고 작업 파일로 유지한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+- 커밋 완료: `93366f3` 품목관리 요청서 엑셀 가져오기 세부정책 병합. 포함 파일은 `SESSION_HANDOFF.md`이며, `.tmp/item_manager_modify.txt`는 ignore 대상 작업 파일로 유지했다.
 
 ### 완료 (2026-07-10): 품목관리 요청서 엑셀 내보내기 병합
 
