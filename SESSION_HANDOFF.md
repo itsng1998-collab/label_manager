@@ -34,7 +34,7 @@
 - 원인/수정: `FortuneTableColumn`에 기존 row-only `checkboxValue`/`onCheckboxChanged`와 호환되는 `checkboxValueAt(row, rowIndex)`/`onCheckboxChangedAt(row, rowIndex, value)`를 추가하고, 체크박스 위젯에 `column.id + rowIndex` key를 부여했다. 품목관리 발행 체크는 `marketId`가 중복돼도 컬럼 전체가 같이 켜지지 않도록 rowIndex set을 사용한다. 공용라벨관리 `특별 항목`/`사용 항목` 테이블도 rowIndex-aware 콜백으로 해당 행만 갱신한다.
 - 테스트: `test/fortune_table_test.dart`에 동일 row 값에서도 클릭한 행만 토글되는 공용 회귀 테스트와 동일 `marketId` 2개 품목 중 클릭한 행만 체크되는 품목관리 회귀 테스트를 추가했다.
 - 검증 완료: `C:\Flutter\bin\flutter.bat test test\fortune_table_test.dart` 통과(`+7`), `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`), `git diff --check -- third_party/fortune_sheet/lib/src/fortune_table.dart lib/page_home/item_manage.dart lib/page_home/common_label_manage.dart test/fortune_table_test.dart SESSION_HANDOFF.md` 통과(출력 없음).
-- stage/commit 예정 파일: `third_party/fortune_sheet/lib/src/fortune_table.dart`, `lib/page_home/item_manage.dart`, `lib/page_home/common_label_manage.dart`, `test/fortune_table_test.dart`, `SESSION_HANDOFF.md`. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+- 커밋 완료: `33b247a` 테이블 체크박스 행 단위 토글 보정. 포함 파일은 `third_party/fortune_sheet/lib/src/fortune_table.dart`, `lib/page_home/item_manage.dart`, `lib/page_home/common_label_manage.dart`, `test/fortune_table_test.dart`, `SESSION_HANDOFF.md`. 기존 unrelated dirty `lib/core/app.dart`는 제외했다.
 
 ### 다음 세션 시작 지점 (2026-07-08)
 
