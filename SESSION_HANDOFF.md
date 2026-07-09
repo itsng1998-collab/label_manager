@@ -35,7 +35,7 @@
 - 수정 완료: `lib/page_home/item_manage.dart`에서 발행 체크된 비선택 행에 `Color(0xFFEAF4FF)` 체크 하이라이트를 적용했다. 선택 행은 기존 선택 하이라이트 `Color(0xFFE3F2FD)`가 우선해 선택/체크 색이 난잡하게 겹치지 않는다.
 - 테스트 갱신: `test/fortune_table_test.dart`의 품목관리 발행 체크 테스트에서 체크된 비선택 행과 선택 행의 배경색 우선순위를 검증한다.
 - 검증 완료: `C:\Flutter\bin\flutter.bat test test\fortune_table_test.dart` 통과(`+11`), `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`), `git diff --check -- third_party/fortune_sheet/lib/src/fortune_table.dart lib/page_home/item_manage.dart test/fortune_table_test.dart SESSION_HANDOFF.md` 통과(출력 없음).
-- stage/commit 예정 파일: `third_party/fortune_sheet/lib/src/fortune_table.dart`, `lib/page_home/item_manage.dart`, `test/fortune_table_test.dart`, `SESSION_HANDOFF.md`. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+- 커밋 완료: `1b7b4d8` 품목관리 발행 체크 행 강조. 포함 파일은 `third_party/fortune_sheet/lib/src/fortune_table.dart`, `lib/page_home/item_manage.dart`, `test/fortune_table_test.dart`, `SESSION_HANDOFF.md`. 기존 unrelated dirty `lib/core/app.dart`는 제외했다.
 
 ### 완료 (2026-07-09): 품목관리 우클릭 메뉴 애니메이션 제거
 
