@@ -35,7 +35,7 @@
 - 수정 완료: `lib/page_home/item_manage.dart`의 품목관리 전용 `PopupMenuItem.height`를 `fortuneContextMenuRowHeight`, `PopupMenuDivider.height`를 `fortuneContextMenuDividerHeight`로 지정하고, 항목 padding/input 높이를 조정해 원본 시트 팝업메뉴 밀도에 맞췄다. 메뉴 구성/동작은 유지했다.
 - 테스트 갱신: `test/fortune_table_test.dart`의 품목관리 컨텍스트 메뉴 테스트에서 모든 `PopupMenuItem`/`PopupMenuDivider` 높이가 원본 `fortune_sheet` 상수와 같은지 검증한다.
 - 검증 완료: `C:\Flutter\bin\flutter.bat test test\fortune_table_test.dart` 통과(`+11`), `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`), `git diff --check -- lib/page_home/item_manage.dart test/fortune_table_test.dart SESSION_HANDOFF.md` 통과(출력 없음).
-- stage/commit 예정 파일: `lib/page_home/item_manage.dart`, `test/fortune_table_test.dart`, `SESSION_HANDOFF.md`. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+- 커밋 완료: `5b611b4` 품목관리 메뉴 간격 보정. 포함 파일은 `lib/page_home/item_manage.dart`, `test/fortune_table_test.dart`, `SESSION_HANDOFF.md`. 기존 unrelated dirty `lib/core/app.dart`는 제외했다.
 
 ### 완료 (2026-07-09): 품목관리 FortuneTable 행 멀티 선택과 우클릭 메뉴
 
