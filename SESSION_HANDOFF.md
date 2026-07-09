@@ -38,6 +38,7 @@
 - 수정 완료: 선행 apostrophe는 quotePrefix 등 metadata로 Excel 표시값 기준 보이지 않는 escape임을 확실히 판정할 수 있을 때만 제거하고, 판정 불가 시 원문을 보존하도록 정리했다.
 - 검증 완료: `git diff --check -- .tmp/item_manager_modify.txt SESSION_HANDOFF.md` 통과(출력 없음).
 - 커밋 예정: `SESSION_HANDOFF.md`만 포함한다. `.tmp/item_manager_modify.txt`는 `.gitignore`의 `.tmp/` 대상이므로 force add하지 않고 작업 파일로 유지한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+- 커밋 완료: `2ff236d` 품목관리 요청서 엑셀 가져오기 구현 경계 정리. 포함 파일은 `SESSION_HANDOFF.md`이며, `.tmp/item_manager_modify.txt`는 ignore 대상 작업 파일로 유지했다.
 
 ### 완료 (2026-07-10): 품목관리 요청서 엑셀 입출력 정책 재정리
 
