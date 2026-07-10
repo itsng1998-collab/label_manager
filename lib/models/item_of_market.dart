@@ -157,6 +157,115 @@ class ItemOfMarket {
     'rightMargin: $rightMargin, topMargin: $topMargin, leftPush: $leftPush, topPush: $topPush';
 }
 
+class ItemOfMarketRawSnapshot {
+  final int marketId;
+  final int itemId;
+  final int? additionalItemId;
+  final int? gdsNo;
+  final DateTime? dateSaleStart;
+  final DateTime? dateSaleEnd;
+  final double? discountPercent;
+  final int? discountAmount;
+  final DateTime? dateStartDiscount;
+  final DateTime? dateEndDiscount;
+  final bool? useDefineElement;
+  final String? rtfText;
+  final bool? useLinefeed;
+  final int? linefeed;
+  final bool? useScaleBarcode;
+  final int? printCount;
+  final bool? useLabelSize;
+  final int? labelSizeWidth;
+  final int? labelSizeHeight;
+  final bool? useMargin;
+  final double? leftMargin;
+  final double? rightMargin;
+  final double? topMargin;
+  final double? leftPush;
+  final double? topPush;
+
+  const ItemOfMarketRawSnapshot({
+    required this.marketId,
+    required this.itemId,
+    required this.additionalItemId,
+    required this.gdsNo,
+    required this.dateSaleStart,
+    required this.dateSaleEnd,
+    required this.discountPercent,
+    required this.discountAmount,
+    required this.dateStartDiscount,
+    required this.dateEndDiscount,
+    required this.useDefineElement,
+    required this.rtfText,
+    required this.useLinefeed,
+    required this.linefeed,
+    required this.useScaleBarcode,
+    required this.printCount,
+    required this.useLabelSize,
+    required this.labelSizeWidth,
+    required this.labelSizeHeight,
+    required this.useMargin,
+    required this.leftMargin,
+    required this.rightMargin,
+    required this.topMargin,
+    required this.leftPush,
+    required this.topPush,
+  });
+
+  factory ItemOfMarketRawSnapshot.fromMap(Map<String, dynamic> map) {
+    int? nullableInt(String key) {
+      final value = map[key];
+      if (value == null) return null;
+      return value is int ? value : int.tryParse(value.toString());
+    }
+
+    double? nullableDouble(String key) {
+      final value = map[key];
+      if (value == null) return null;
+      return value is num ? value.toDouble() : double.tryParse(value.toString());
+    }
+
+    DateTime? nullableDate(String key) {
+      final value = map[key];
+      if (value == null) return null;
+      return value is DateTime ? value : DateTime.tryParse(value.toString());
+    }
+
+    bool? nullableBool(String key) {
+      final value = nullableInt(key);
+      return value == null ? null : value != 0;
+    }
+
+    return ItemOfMarketRawSnapshot(
+      marketId: nullableInt('MARKET_ID') ?? 0,
+      itemId: nullableInt('ITEM_ID') ?? 0,
+      additionalItemId: nullableInt('ADDITIONAL_ITEM_ID'),
+      gdsNo: nullableInt('GDS_NO'),
+      dateSaleStart: nullableDate('SALE_START_DATE'),
+      dateSaleEnd: nullableDate('SALE_END_DATE'),
+      discountPercent: nullableDouble('DISCOUNT_PERCENT'),
+      discountAmount: nullableInt('DISCOUNT_AMOUNT'),
+      dateStartDiscount: nullableDate('DISCOUNT_START_DATE'),
+      dateEndDiscount: nullableDate('DISCOUNT_END_DATE'),
+      useDefineElement: nullableBool('USE_USER_DEFINE_ELEMENT'),
+      rtfText: map['USER_DEFINE_ELEMENT_RTF'] as String?,
+      useLinefeed: nullableBool('USE_LINEFEED'),
+      linefeed: nullableInt('LINEFEED'),
+      useScaleBarcode: nullableBool('USE_SCALEBARCODE'),
+      printCount: nullableInt('PRINT_COUNT'),
+      useLabelSize: nullableBool('USE_LABELSIZE'),
+      labelSizeWidth: nullableInt('LABEL_SIZE_WIDTH'),
+      labelSizeHeight: nullableInt('LABEL_SIZE_HEIGHT'),
+      useMargin: nullableBool('USE_MARGIN'),
+      leftMargin: nullableDouble('LEFT_MARGIN'),
+      rightMargin: nullableDouble('RIGHT_MARGIN'),
+      topMargin: nullableDouble('TOP_MARGIN'),
+      leftPush: nullableDouble('LEFT_PUSH'),
+      topPush: nullableDouble('TOP_PUSH'),
+    );
+  }
+}
+
 class ItemOfMarketDAO extends DAO {
   static const String SelectSql = '''
 		SELECT 
@@ -188,8 +297,8 @@ class ItemOfMarketDAO extends DAO {
       COALESCE(CONVERT(NVARCHAR(20), P1.RICH_USE_SCALEBARCODE), N'') AS P1_USE_SCALEBARCODE,
       COALESCE(CONVERT(NVARCHAR(20), P1.RICH_PRINT_COUNT), N'') AS P1_PRINT_COUNT,
       COALESCE(CONVERT(NVARCHAR(20), P1.RICH_USE_LABELSIZE), N'') AS P1_USE_LABELSIZE,
-      COALESCE(CONVERT(NVARCHAR(20), P1.RICH_LABELSIZE_WIDTH), N'') AS P1_LABELSIZE_WIDTH,
-      COALESCE(CONVERT(NVARCHAR(20), P1.RICH_LABELSIZE_HEIGHT), N'') AS P1_LABELSIZE_HEIGHT,
+      COALESCE(CONVERT(NVARCHAR(20), P1.RICH_LABELSIZE_WIDTH), N'') AS P1_LABEL_SIZE_WIDTH,
+      COALESCE(CONVERT(NVARCHAR(20), P1.RICH_LABELSIZE_HEIGHT), N'') AS P1_LABEL_SIZE_HEIGHT,
       COALESCE(CONVERT(NVARCHAR(20), P1.RICH_USE_MARGIN), N'') AS P1_USE_MARGIN,
       COALESCE(CONVERT(NVARCHAR(20), P1.RICH_LEFT_MARGIN), N'') AS P1_LEFT_MARGIN,
       COALESCE(CONVERT(NVARCHAR(20), P1.RICH_RIGHT_MARGIN), N'') AS P1_RIGHT_MARGIN,
@@ -210,12 +319,47 @@ class ItemOfMarketDAO extends DAO {
 		WHERE P1.RICH_MARKET_ID=@marketId AND P2.RICH_LABELSIZE_ID=@labelSizeId
   ''';
 
+  static const String OrderByItemOrder = '''
+    ORDER BY P2.RICH_ITEM_ORDER, P2.RICH_ITEM_ID ASC
+  ''';
+
+  static const String SelectRawSnapshotSql = '''
+    SELECT
+      P1.RICH_MARKET_ID AS MARKET_ID,
+      P1.RICH_ITEM_ID AS ITEM_ID,
+      P1.RICH_ADDITIONAL_ITEM_ID AS ADDITIONAL_ITEM_ID,
+      P1.RICH_GDS_NO AS GDS_NO,
+      P1.RICH_SALE_START_DATE AS SALE_START_DATE,
+      P1.RICH_SALE_END_DATE AS SALE_END_DATE,
+      P1.RICH_DISCOUNT_PERCENT AS DISCOUNT_PERCENT,
+      P1.RICH_DISCOUNT_AMOUNT AS DISCOUNT_AMOUNT,
+      P1.RICH_DISCOUNT_START_DATE AS DISCOUNT_START_DATE,
+      P1.RICH_DISCOUNT_END_DATE AS DISCOUNT_END_DATE,
+      P1.RICH_USE_USER_DEFINE_ELEMENT AS USE_USER_DEFINE_ELEMENT,
+      CONVERT(NVARCHAR(MAX), P1.RICH_USER_DEFINE_ELEMENT_RTF COLLATE ${DAO.CP949}) AS USER_DEFINE_ELEMENT_RTF,
+      P1.RICH_USE_LINEFEED AS USE_LINEFEED,
+      P1.RICH_LINEFEED AS LINEFEED,
+      P1.RICH_USE_SCALEBARCODE AS USE_SCALEBARCODE,
+      P1.RICH_PRINT_COUNT AS PRINT_COUNT,
+      P1.RICH_USE_LABELSIZE AS USE_LABELSIZE,
+      P1.RICH_LABELSIZE_WIDTH AS LABEL_SIZE_WIDTH,
+      P1.RICH_LABELSIZE_HEIGHT AS LABEL_SIZE_HEIGHT,
+      P1.RICH_USE_MARGIN AS USE_MARGIN,
+      P1.RICH_LEFT_MARGIN AS LEFT_MARGIN,
+      P1.RICH_RIGHT_MARGIN AS RIGHT_MARGIN,
+      P1.RICH_TOP_MARGIN AS TOP_MARGIN,
+      P1.RICH_LEFT_PUSH AS LEFT_PUSH,
+      P1.RICH_TOP_PUSH AS TOP_PUSH
+    FROM BM_ITEM_OF_MARKET P1
+    INNER JOIN BM_RICH_ITEM P2 ON P1.RICH_ITEM_ID=P2.RICH_ITEM_ID
+  ''';
+
   static Future<List<ItemOfMarket>?> selectByItemOfMarketAndLabelSizeId(int marketId, int labelSizeId) async {
     debugLog('$START, ItemOfMarketAndLabelSizeId:$marketId,$labelSizeId');
 
     try {
 			final res = await DbClient.instance.getDataWithParams(
-				'$SelectSql $WhereSqlMarketAndLabelSizeId', { 'marketId': marketId, 'labelSizeId': labelSizeId }
+        '$SelectSql $WhereSqlMarketAndLabelSizeId $OrderByItemOrder', { 'marketId': marketId, 'labelSizeId': labelSizeId }
 			);
 
       final itemOfMarkets = DAO.mapRows(res, ItemOfMarket.fromMap);
@@ -224,6 +368,27 @@ class ItemOfMarketDAO extends DAO {
       return itemOfMarkets;
     }
     catch (e) {
+      debugLog('$END, $e');
+      throw Exception(e);
+    }
+  }
+
+  static Future<List<ItemOfMarketRawSnapshot>?>
+  selectRawSnapshotsByMarketAndLabelSizeId(
+    int marketId,
+    int labelSizeId,
+  ) async {
+    debugLog('$START, rawSnapshot:$marketId,$labelSizeId');
+
+    try {
+      final res = await DbClient.instance.getDataWithParams(
+        '$SelectRawSnapshotSql $WhereSqlMarketAndLabelSizeId $OrderByItemOrder',
+        {'marketId': marketId, 'labelSizeId': labelSizeId},
+      );
+      final snapshots = DAO.mapRows(res, ItemOfMarketRawSnapshot.fromMap);
+      debugLog(END);
+      return snapshots;
+    } catch (e) {
       debugLog('$END, $e');
       throw Exception(e);
     }

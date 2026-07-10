@@ -28,6 +28,16 @@
 
 ## 현재 상태
 
+### 진행 중 (2026-07-10): 품목관리 편집·저장·Excel·설정 기능 구현
+
+- 작업 지시서 `doc/item_manager_modify.txt` 전체를 확인했다. 구현 범위는 ① 읽기/스냅샷 기반, ② transaction/저장 DAO, ③ UI draft/edit와 임시 journal, ④ `.xlsx` import/export, ⑤ QR/바코드 resolver와 출력 미리보기, ⑥ 라벨 날짜 타입 설정, ⑦ 품목 순서 변경의 7개 단위다.
+- 구현 순서는 지시서 13.1을 따른다. 각 단위의 API와 focused test를 완료한 뒤 다음 단위로 진행하며, 아직 연결되지 않은 단위는 `미검증`으로 유지한다.
+- 1단계 `읽기/스냅샷 기반` 구현 완료: `lib/models/item_of_market.dart`에서 표시 SQL alias를 `P1_LABEL_SIZE_WIDTH/HEIGHT`로 맞추고 item order 정렬을 추가했다. nullable DB 값을 보존하는 `ItemOfMarketRawSnapshot`과 별도 raw projection/query를 추가했다.
+- 1단계 구현 완료: `lib/models/market.dart`에 로그인 customer id를 명시적으로 받는 `MarketDAO.selectByCustomerId`를 추가했다. `lib/models/column_content.dart`에는 단일 XML 파라미터를 SQL rowset으로 변환해 item id 집합을 제한하는 `selectScopedByItemIds`와 전역 cache와 분리된 `TColumnContentScopedView`를 추가했다.
+- 1단계 테스트 추가: `test/item_manager_read_snapshot_test.dart`에서 표시 alias/order, raw `NULL`/빈 문자열 구분, customer 조건, 대량 `IN` 없는 XML rowset, scoped resolver를 `[읽기/스냅샷]` 5개 테스트로 검증한다.
+- 1단계 검증 완료: `C:\Flutter\bin\flutter.bat test test\item_manager_read_snapshot_test.dart` 통과(`+5`), 기존 `item element DAO keeps legacy RTF while saving sheet data` 통과(`+1`), `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`).
+- 다음 2단계 `transaction/DAO 기반` 진행 예정: `lib/database/db_isolate.dart`, `lib/database/db_client.dart`, DB driver 구현, transaction DTO/테스트를 먼저 수정해 하나의 isolate action 안에서 commit/rollback을 보장한다. 저장 DAO와 schema capability probe는 transaction API 검증 후 연결한다.
+
 ### 완료 (2026-07-10): 불필요한 작업 규칙 정리
 
 - 사용자 요청에 따라 `FortuneSheet/bwip-js는 래퍼 우회 없이 원본 엔진 직접 수정`, `WebView 캐시 수정 시 clear_webview2_userdata.ps1 자동 실행`, `.tmp/backups ZIP을 복원 기준으로 사용하고 patch는 보조 수단으로만 사용` 규칙을 사용자 작업 메모에서 제거했다.
