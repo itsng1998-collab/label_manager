@@ -39,6 +39,7 @@
 - `.tmp/item_manager_modify.txt` 반영 완료: 검증 항목에 `DbIsolateAction.transaction` 없는 상태의 다중 write 조합 금지, alias/fallback 값 draft 혼입 방지, output workbook metadata 반영 검증을 추가했다.
 - 검증: `git diff --check -- .tmp/item_manager_modify.txt` 통과. `grep_search`로 `resolver에서만 우회 처리한 구현은 완료로 보지 않는다`, `metadata가 조용히 제거될 수 있으므로`, `DbIsolateAction.transaction` 다중 write 금지, `save codec round-trip`, `기본 false`, `사용자 답변: 미확정` 없음 확인.
 - stage/commit 대상: ignored `.tmp/item_manager_modify.txt` 변경 추적용 `SESSION_HANDOFF.md`만 stage/commit한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+- 커밋: `089bfa2` 품목관리 요청서 구현 누락 방지 기준 기록
 
 ### 완료 (2026-07-10): 품목관리 요청서 바코드/복구 UI 계약 권장안 병합
 
