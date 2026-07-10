@@ -28,6 +28,19 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-10): 품목관리 요청서 재검토 권장안 병합
+
+- 요청: 재검토에서 남은 애매점(바코드 fallback 결정 규칙, 삭제/전체교체 checksum 영향 범위, 엑셀 `주원료` 변환 배치 기준, `preserveTemplateBarcodeFormat` 저장 feature key, `targetMarketIds` customerId source)을 권장안으로 `.tmp/item_manager_modify.txt`에 병합한다.
+- 수정 예정 파일: `.tmp/item_manager_modify.txt`는 ignored 요청서 본문 수정, `SESSION_HANDOFF.md`는 ignored 요청서 변경 추적용 기록/검증/커밋 정보 갱신.
+- 사용자 확인: 새 비즈니스 정책 질문은 없으며, 기존 확정 답변을 유지하고 기술 구현 규칙을 권장안으로 닫는다.
+- `.tmp/item_manager_modify.txt` 반영 완료: `targetMarketIds` 산출용 `customerId` source를 로그인 세션 customer id로 고정하고, 선택/표시값 역추정이나 불일치 시 조용한 저장을 금지하도록 정리했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: 삭제/엑셀 전체교체는 item-id-wide mapping delete이므로 current market checksum과 별도로 삭제 대상 item id 집합의 `BM_ITEM_OF_MARKET` mapping fingerprint를 baseline metadata에 저장하도록 정리했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: 엑셀 `주원료` 셀/병합 영역은 bounding rectangle을 좌상단 `(0, 0)`부터 시작하는 단일 FortuneSheet sheet로 변환하고 import 단계 임의 scale은 적용하지 않도록 정리했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: barcode fallback은 `normalizeForPrint(strict: false)` pad/truncate 결과를 유효 판정에 쓰지 않고, 공용 fallback 후보를 일반 1D `code128`, QR `qrCode`로 닫으며 GS1은 일반 fallback 없이 오류로 표시하도록 정리했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: `preserveTemplateBarcodeFormat` 저장 feature key를 `sheet.images.preserveTemplateBarcodeFormat`으로 고정하고 sanitizer/normalize/migrate/`.lms`/`.xlsx` 검증 필요성을 반영했다.
+- 검증: `git diff --check -- .tmp/item_manager_modify.txt SESSION_HANDOFF.md` 통과. `grep_search`로 `sheet.images.preserveTemplateBarcodeFormat`, `mapping fingerprint`, `normalizeForPrint(strict: false)`, `bounding rectangle`, `로그인 세션 customer id`, fallback 후보(`code128`/`qrCode`) 반영을 확인했다. `사용자 답변: 미확정`은 새로 생기지 않았다.
+- stage/commit 대상: ignored `.tmp/item_manager_modify.txt` 변경 추적용 `SESSION_HANDOFF.md`만 stage/commit한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+
 ### 완료 (2026-07-10): 품목관리 삭제/엑셀 전체교체 market 범위 레거시 확정
 
 - 요청: `품목 삭제와 엑셀 전체 교체는 어느 market까지 적용할까요? A: 레거시와 같게`를 레거시 코드에서 직접 확인해 `.tmp/item_manager_modify.txt`에 확정 반영한다.
