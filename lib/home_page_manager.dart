@@ -22,6 +22,7 @@ import 'package:label_manager/models/column_special.dart';
 import 'package:label_manager/models/column.dart';
 import 'package:label_manager/models/customer.dart';
 import 'package:label_manager/models/gs1_ai.dart';
+import 'package:label_manager/models/item.dart';
 import 'package:label_manager/models/item_manager_draft.dart';
 import 'package:label_manager/models/item_manager_draft_journal.dart';
 import 'package:label_manager/models/item_manager_save.dart';
@@ -43,6 +44,7 @@ import 'package:label_manager/page_home/item_manage.dart';
 import 'package:label_manager/page_home/item_code_data_resolver.dart';
 import 'package:label_manager/page_home/item_manager_xlsx.dart';
 import 'package:label_manager/page_home/date_type_setup_dialog.dart';
+import 'package:label_manager/page_home/item_order_dialog.dart';
 import 'package:label_manager/page_home/common_label_manage.dart';
 import 'package:label_manager/page_home/preview_floating_window.dart';
 import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
@@ -960,6 +962,73 @@ class _HomePageManagerState extends State<HomePageManager> {
     );
   }
 
+  Future<void> _changeItemOrder() async {
+    final labelSize = _effectiveLabelSize;
+    final market = Market.instance;
+    final controller = _itemDraftController;
+    if (labelSize == null ||
+        market == null ||
+        controller == null ||
+        controller.isDirty ||
+        _itemDraftCommandBusy) {
+      return;
+    }
+    final selectedItemId = _selectedItemOfMarket?.item.itemId;
+    setState(() => _itemDraftCommandBusy = true);
+    try {
+      final storedItems =
+          await ItemOfMarketDAO.selectByItemOfMarketAndLabelSizeId(
+            market.marketId,
+            labelSize.labelSizeId,
+          ) ??
+          const <ItemOfMarket>[];
+      if (!mounted || storedItems.length < 2) return;
+      final ordered = await showDialog<List<ItemOfMarket>>(
+        context: context,
+        builder: (_) => ItemOrderDialog(items: storedItems),
+      );
+      if (!mounted || ordered == null) return;
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('품목 순서 저장'),
+          content: const Text(
+            '변경된 품목 순서를 저장할까요?\n\n'
+            '순서는 품목에 저장되므로 같은 라벨의 품목을 공유하는 다른 매장 표시 순서에도 영향을 줄 수 있습니다.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('취소'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('저장'),
+            ),
+          ],
+        ),
+      );
+      if (!mounted || confirmed != true) return;
+      await ItemDAO.updateOrders([
+        for (var index = 0; index < ordered.length; index++)
+          ItemOrderUpdate(
+            itemId: ordered[index].item.itemId,
+            order: index + 1,
+          ),
+      ]);
+      if (!mounted) return;
+      await _reloadItemDraftFromDatabase(selectedItemId: selectedItemId);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('품목 순서를 저장했습니다.')),
+      );
+    } catch (error) {
+      if (mounted) _showItemDraftError('품목 순서 변경 실패', error);
+    } finally {
+      if (mounted) setState(() => _itemDraftCommandBusy = false);
+    }
+  }
+
   Future<void> _reloadItemDraftFromDatabase({int? selectedItemId}) async {
     final labelSize = _currentLabelSize;
     if (labelSize == null) return;
@@ -1311,6 +1380,14 @@ class _HomePageManagerState extends State<HomePageManager> {
           onExcelImport: _importItemManagerXlsx,
           onExcelExport: _exportItemManagerXlsx,
           onQrDataView: _showItemQrData,
+          onItemOrderChange:
+              _effectiveLabelSize != null &&
+                  (ItemOfMarket.datas?.length ?? 0) >= 2
+              ? _changeItemOrder
+              : null,
+          itemOrderDisabledReason: (ItemOfMarket.datas?.length ?? 0) < 2
+              ? '순서를 바꾸려면 품목이 2개 이상 필요합니다.'
+              : null,
           onCancelDraft: _cancelItemDraft,
           onSaveDraft: _saveItemDraft,
           commandBusy: _itemDraftCommandBusy,

@@ -75,7 +75,11 @@
 - 날짜 저장은 `LabelSizeDateSetupUpdate`의 12개 필드만 `BM_RICH_LABELSIZE_FORM`에 반영한다. `BM_RICH_LABELSIZE_FORM_LOG`의 before/`RICH_ALTER_` after 24개 컬럼을 probe하고, 전부 있으면 로그 insert와 update를 같은 SQL batch transaction에서 실행하며 일부라도 없으면 logless 단일 update를 실행한다. probe 자체 실패, 최신 setup 누락, affected row 불일치는 저장 실패로 처리한다. 저장 결과는 최신 DB setup의 `readOnly`/`useScale`을 유지한 채 `LabelSize.datas`와 현재 선택 cache에 반영한다.
 - 상단 라벨 `설정` 버튼은 `라벨 설정...`/`날짜 타입 설정...` 메뉴로 전환했다. 날짜 다이얼로그는 제조일자/제조시한/소비기한/소비시한 4개 그룹의 사용 여부, 고정/사용자 정의 형식, 실시간 preview를 제공한다. draft dirty 또는 저장 command busy 상태에서는 날짜 설정 메뉴가 비활성화되며 저장 성공 후 setup revision으로 관련 탭/미리보기를 refresh한다.
 - 6단계 검증: `test/date_manager_test.dart` 4개와 `test/date_type_setup_dialog_test.dart` 1개, 전체 `flutter analyze`가 통과했다. 운영 DB의 실제 로그 컬럼 probe와 transaction/logless update는 연결 fixture가 없어 미검증이다.
-- 다음 작업: 품목 순서 변경 DAO/dialog/menu를 구현한다. 운영 DB capability/save transaction의 실제 trigger/schema 통합 실행은 fixture가 없어 계속 미검증이다.
+- 7단계 품목 순서 변경 완료: 품목관리 우클릭 command 그룹의 `품목 삭제` 바로 아래에 `순서 변경`을 추가했다. 특정 행이 아닌 현재 목록 command이므로 실제 행과 빈 테이블 영역 우클릭 모두에서 메뉴를 열 수 있으며, 빈 영역에서는 직전 행의 QR context를 재사용하지 않는다. 품목 2개 미만, command busy, draft dirty 상태에서는 비활성화하고 dirty 상태에는 저장 완료 또는 변경 취소 확정 후 실행하라는 안내를 표시한다.
+- 순서 변경 다이얼로그는 현재 market/label size의 저장된 품목을 `RICH_ITEM_ORDER`, `RICH_ITEM_ID` 순으로 DB에서 새로 읽고, 번호 목록/선택 강조/위·아래 이동/닫기/적용을 제공한다. 변경 전에는 적용이 비활성화되며 적용 확인에는 item-level `RICH_ITEM_ORDER`가 같은 label size 품목을 공유하는 다른 market 표시 순서에도 영향을 줄 수 있음을 안내한다.
+- 적용 시 다이얼로그 표시 순서대로 `ItemOrderUpdate(order: index + 1)`를 만들고 기존 `ItemDAO.updateOrders` transaction으로 `BM_RICH_ITEM.RICH_ITEM_ORDER`만 갱신한다. 성공 후 기존 `_reloadItemDraftFromDatabase` 경로로 journal/controller를 폐기하고 DB를 재조회하며, 이전 선택 item id가 남아 있으면 선택과 preview를 복원한다.
+- 7단계 검증: `test/item_order_dialog_test.dart`에서 이동/번호/적용 반환/닫기 no-op을 검증하고, `test/fortune_table_test.dart`에서 메뉴 배치/callback/dirty 차단/빈 영역 메뉴를 검증했다. `test/item_manager_save_dao_test.dart`의 order identity/SQL 계약을 포함한 관련 26개 테스트와 전체 `flutter analyze`가 통과했다. 운영 DB에서의 실제 order transaction 실행은 연결 fixture가 없어 미검증이다.
+- 작업 지시서의 1~7단계 구현은 완료했다. 실제 품목 인쇄 연동은 홈 `라벨출력(F3)` 탭이 아직 placeholder라 연결할 기존 print job이 없으며, 운영 DB capability/save/date/order transaction 통합 실행은 fixture가 없어 계속 미검증이다.
 
 ### 완료 (2026-07-10): 불필요한 작업 규칙 정리
 

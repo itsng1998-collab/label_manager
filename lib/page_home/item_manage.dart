@@ -20,6 +20,8 @@ class ItemManage extends StatefulWidget {
   final Future<void> Function()? onExcelImport;
   final Future<void> Function()? onExcelExport;
   final Future<void> Function(ItemManagerDraftRow row)? onQrDataView;
+  final Future<void> Function()? onItemOrderChange;
+  final String? itemOrderDisabledReason;
   final Future<void> Function()? onCancelDraft;
   final Future<void> Function()? onSaveDraft;
   final bool commandBusy;
@@ -37,6 +39,8 @@ class ItemManage extends StatefulWidget {
     this.onExcelImport,
     this.onExcelExport,
     this.onQrDataView,
+    this.onItemOrderChange,
+    this.itemOrderDisabledReason,
     this.onCancelDraft,
     this.onSaveDraft,
     this.commandBusy = false,
@@ -52,6 +56,7 @@ class _ItemManageState extends State<ItemManage> {
   static const String _menuAdd = 'add';
   static const String _menuInsert = 'insert';
   static const String _menuDelete = 'delete';
+  static const String _menuItemOrder = 'itemOrder';
   static const String _menuQrDataView = 'qrDataView';
   static const String _menuClearSelection = 'clearSelection';
   static const String _menuCheckSelectedPublish = 'checkSelectedPublish';
@@ -125,17 +130,21 @@ class _ItemManageState extends State<ItemManage> {
     return Column(
       children: [
         Expanded(
-          child: FortuneTable<ItemOfMarket>(
-            rows: displayItems,
-            columns: columns,
-            autoFitColumns: false,
-            selectedIndex: widget.selectedIndex,
-            selectionController: _selectionController,
-            multiSelectionEnabled: true,
-            onRowSelected: _handleRowSelected,
-            onRowSecondaryTapDown: _showTableContextMenu,
-            onRectChanged: widget.onTableRectChanged,
-            rowColorBuilder: _rowColor,
+          child: GestureDetector(
+            behavior: HitTestBehavior.translucent,
+            onSecondaryTapDown: _showEmptyTableContextMenu,
+            child: FortuneTable<ItemOfMarket>(
+              rows: displayItems,
+              columns: columns,
+              autoFitColumns: false,
+              selectedIndex: widget.selectedIndex,
+              selectionController: _selectionController,
+              multiSelectionEnabled: true,
+              onRowSelected: _handleRowSelected,
+              onRowSecondaryTapDown: _showTableContextMenu,
+              onRectChanged: widget.onTableRectChanged,
+              rowColorBuilder: _rowColor,
+            ),
           ),
         ),
         _buildCommandFooter(),
@@ -237,6 +246,20 @@ class _ItemManageState extends State<ItemManage> {
     TapDownDetails details,
   ) async {
     _contextMenuDraftRow = _draftByDisplayItem[row];
+    await _showContextMenu(details);
+  }
+
+  Future<void> _showEmptyTableContextMenu(TapDownDetails details) async {
+    _contextMenuDraftRow = null;
+    await _showContextMenu(details);
+  }
+
+  Future<void> _showContextMenu(TapDownDetails details) async {
+    final orderDisabledReason = widget.draftController?.isDirty == true
+        ? '저장 완료 또는 변경 취소 확정 후 순서 변경을 실행해 주세요.'
+        : widget.commandBusy
+        ? '현재 작업이 끝난 후 실행해 주세요.'
+        : widget.itemOrderDisabledReason;
     final command = await showMenu<String>(
       context: context,
       position: RelativeRect.fromLTRB(
@@ -269,6 +292,27 @@ class _ItemManageState extends State<ItemManage> {
           height: fortuneContextMenuRowHeight,
           padding: _menuItemPadding,
           child: Text('품목 삭제'),
+        ),
+        PopupMenuItem<String>(
+          value: _menuItemOrder,
+          enabled:
+              widget.onItemOrderChange != null && orderDisabledReason == null,
+          height: orderDisabledReason == null
+              ? fortuneContextMenuRowHeight
+              : fortuneContextMenuRowHeight + 18,
+          padding: _menuItemPadding,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Text('순서 변경'),
+              if (orderDisabledReason case final reason?)
+                Text(
+                  reason,
+                  style: const TextStyle(fontSize: 11, color: Color(0xFF777777)),
+                ),
+            ],
+          ),
         ),
         PopupMenuItem<String>(
           value: _menuQrDataView,
@@ -365,6 +409,8 @@ class _ItemManageState extends State<ItemManage> {
         _insertDraftRows(_insertCountController.text);
       case _menuDelete:
         await _deleteSelectedDraftRows();
+      case _menuItemOrder:
+        await widget.onItemOrderChange?.call();
       case _menuQrDataView:
         final row = _contextMenuDraftRow;
         if (row != null) await widget.onQrDataView?.call(row);

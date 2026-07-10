@@ -549,6 +549,103 @@ void main() {
     expect(table.selectionController!.selectedRows, isEmpty);
   });
 
+  testWidgets('ItemManage order command follows delete and invokes callback', (
+    tester,
+  ) async {
+    var invoked = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 600,
+            height: 220,
+            child: ItemManage(
+              items: [
+                _testItemOfMarket(itemName: '첫째 품목'),
+                _testItemOfMarket(itemName: '둘째 품목'),
+              ],
+              onItemOrderChange: () async => invoked = true,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final tableTopLeft = tester.getTopLeft(
+      find.byType(FortuneTable<ItemOfMarket>),
+    );
+    await _openItemManageContextMenu(tester, tableTopLeft);
+
+    expect(
+      tester.getTopLeft(find.text('품목 삭제')).dy,
+      lessThan(tester.getTopLeft(find.text('순서 변경')).dy),
+    );
+    expect(
+      tester.getTopLeft(find.text('순서 변경')).dy,
+      lessThan(tester.getTopLeft(find.text('QR코드 데이터 보기')).dy),
+    );
+    await tester.tap(find.text('순서 변경'));
+    await tester.pumpAndSettle();
+
+    expect(invoked, isTrue);
+  });
+
+  testWidgets('ItemManage disables order command while draft is dirty', (
+    tester,
+  ) async {
+    final controller = ItemManagerDraftController(
+      rows: [
+        ItemManagerDraftRow.newRow(
+          draftRowKey: 'draft-order',
+          order: 1,
+          originalIndex: 0,
+          insertAnchorItemId: null,
+          rowState: ItemManagerDraftRowState.added,
+          emptyElementPayload: 'UEsDempty',
+        ),
+      ],
+      scopedColumnContents: TColumnContentScopedView(const {}),
+    );
+    addTearDown(controller.dispose);
+    var invoked = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 600,
+            height: 220,
+            child: ItemManage(
+              items: const [],
+              draftController: controller,
+              labelSize: const LabelSize(
+                labelSizeId: 20,
+                brandId: 30,
+                labelSizeName: '테스트 라벨',
+              ),
+              marketId: 1,
+              onItemOrderChange: () async => invoked = true,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final tableTopLeft = tester.getTopLeft(
+      find.byType(FortuneTable<ItemOfMarket>),
+    );
+    await _openItemManageContextMenu(tester, tableTopLeft);
+
+    expect(
+      find.text('저장 완료 또는 변경 취소 확정 후 순서 변경을 실행해 주세요.'),
+      findsOneWidget,
+    );
+    await tester.tap(find.text('순서 변경'));
+    await tester.pump();
+    expect(invoked, isFalse);
+    await tester.tapAt(const Offset(1, 1));
+    await tester.pumpAndSettle();
+  });
+
   testWidgets('ItemManage adds and confirms deletion of a draft row', (
     tester,
   ) async {
