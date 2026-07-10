@@ -36,7 +36,7 @@
 - 확정 답변 요약: 주원료 글자+서식/병합 보존, 삭제/전체교체는 레거시와 같게 `targetMarketIds` 전체 적용, 날짜 용어는 `소비기한`/`소비시한`, 순서 변경의 다른 market 영향 허용, 바코드/QR 형식은 column 우선, 잘못된 바코드 값은 fallback 허용, check digit 자동 보정, QR format 기본 정책 유지, EZPL 미지원 format raster fallback, QR 날짜 token은 `DATE_FORMAT_NONE`, setup 로그는 컬럼 있으면 기록/없으면 update만 수행.
 - 검증: `git diff --check -- .tmp/item_manager_modify.txt SESSION_HANDOFF.md` 통과. `grep_search`로 `사용자 답변: 미확정` 없음, fallback 허용/대체 형식/경고 문구 반영 확인.
 - stage/commit 대상: ignored `.tmp/item_manager_modify.txt` 변경 추적용 `SESSION_HANDOFF.md`만 stage/commit한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
-- 커밋: 예정.
+- 커밋: `07fd640` 품목관리 요청서 사용자 답변 확정 반영
 
 ### 완료 (2026-07-10): 품목관리 요청서 사용자 확인 사항 확정 질문화
 
