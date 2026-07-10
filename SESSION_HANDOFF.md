@@ -28,6 +28,19 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-10): 품목관리 요청서 바코드 미리보기 권장안 후속 병합
+
+- 요청: 재검토에서 확인된 출력 미리보기 바코드 형식 재설정 관련 애매한 부분을 권장안으로 `.tmp/item_manager_modify.txt`에 병합하고, 사용자 확인 사항을 이해하기 쉽게 정리한다.
+- `.tmp/item_manager_modify.txt` 반영 완료: 출력 미리보기 바코드 형식 재설정에서 기존 형식 자동 fallback을 금지하고 오류 placeholder/오류 목록을 표시하는 권장안으로 정리했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: barcode object 매칭은 keyword 문자열 포함 여부가 아니라 `TColumn.columnType.code`의 바코드/QR 계열 여부와 object id/column keyword 매칭 기준으로 정리했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: `BarcodeType.CodeEAN8`의 현재 `dbName=CODE128` 정의가 실제 DB 값과 충돌할 수 있으므로 구현 전 DB 값 확인과 normalize 규칙 정리를 요구했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: QR/바코드 공용 helper 이름을 `ItemCodeDataResolver` 방향으로 통일하고, QR viewer/출력 미리보기/실제 출력 경로가 문자열과 `barcodeFormatId`를 공유하도록 정리했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: 구현 범위, 권장 구현 단위, 완료 기준, 검증 태그에 `[barcode/output preview]`와 출력 미리보기 바코드/QR 재렌더링 검증 항목을 추가했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: 사용자 확인 사항에 template 형식 유지 vs column 형식 우선, 유효하지 않은 값 오류 표시 vs fallback 허용의 의미를 설명해 추가했다.
+- 검증: `grep_search`로 `ItemCodeDataResolver`, `[barcode/output preview]`, `barcodeText`/`barcodeFormatId`, `CodeEAN8`, 자동 fallback 금지, column type 기준 문구 반영을 확인했다.
+- 검증: 이전 애매 표현인 `fallback 여부를 명시적으로 결정`, `ItemQRCodeDataResolver`, `14.8 [item/order]`가 남지 않았음을 확인했다. `keyword 문자열에 barcode` 표현은 금지 문맥으로만 남아 있음을 확인했다.
+- stage/commit 대상: ignored `.tmp/item_manager_modify.txt` 변경 추적용 `SESSION_HANDOFF.md`만 stage/commit한다.
+
 ### 완료 (2026-07-10): 품목관리 출력 미리보기 바코드 형식 재설정 요청서 병합
 
 - 요청: 현재 구현 분석 결과를 바탕으로 `출력내용 미리보기`에서 바코드 값뿐 아니라 바코드 형식까지 재설정해 렌더링할 수 있는지 요청서에 병합 정리한다.
