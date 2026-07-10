@@ -28,6 +28,21 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-10): 품목관리 요청서 market mapping/delete 범위 보강
+
+- 요청: 다시 검토한 애매점과 레거시/현 구현 문제를 권장 사항으로 `.tmp/item_manager_modify.txt`에 병합한다.
+- 사용자 응답: 기존 child row 정리와 market-specific 편집 범위는 레거시를 먼저 확인해 달라고 요청했다.
+- 레거시 확인 완료: `CMainItemTable::SaveToDB` 삭제 경로는 `BM_RICH_COL_CONTENT`, `BM_ITEM_OF_MARKET`, update 테이블, `BM_RICH_ITEM` 순서로 삭제한다.
+- 레거시 확인 완료: 기존 행 수정 저장 경로는 `CItemDAO::UpdateBatchOrder`, `CItemDAO::UpdateBatch`, `CColumnContentDAO::UpdateBatchDataByColAndItemID`를 호출하고, `CItemOfMarketDAO::UpdateBatch`는 품목관리 일반 저장 경로에서 호출되지 않는다.
+- 수정 완료: 기존 `BM_RICH_ITEM` 물리 delete 금지 정책과 맞춰 1차 구현은 기존 item의 child row도 삭제하지 않고, item id 기준 `BM_ITEM_OF_MARKET` mapping 제거만 수행하도록 정리했다.
+- 수정 완료: 기존 행의 market-specific 값은 1차 편집 대상이 아니라 보존/복원용 snapshot이며, 신규 item 저장 시에만 레거시처럼 고객의 모든 market mapping을 생성하도록 정리했다.
+- 수정 완료: `marketMappingDraft`를 현재 화면 market용 `marketMappingDraftTemplate`/snapshot으로 설명하고, 저장 target은 `targetMarketIds`로 분리했다.
+- 수정 완료: trigger가 있을 수 있는 `BM_RICH_ITEM` insert 생성 id 수집은 direct OUTPUT resultset이 아니라 `OUTPUT INTO` 임시 테이블/table variable 방식을 우선하도록 정리했다.
+- 수정 완료: 기존 mapping 보존/복원 시 `RICH_ADDITIONAL_ITEM_ID`에는 Flutter `AdditionalItem.AdditionalItemId`를 사용하고 `AdditionalItem.itemId`와 혼동하지 않도록 명시했다.
+- 검증 완료: `Select-String -Path .tmp/item_manager_modify.txt -Pattern 'marketMappingDraftTemplate|targetMarketIds|target market ids|현재 로그인 고객의 모든 market|기존 행의 market-specific|child row도 삭제하지|item 참조 child row|OUTPUT INSERTED.*INTO|OUTPUT INTO|direct OUTPUT|AdditionalItem\.AdditionalItemId|AdditionalItem\.itemId|baseline은 현재 화면 market|현재 화면 market.*저장 대상|mapping 제거 -> 신규|CItemOfMarketDAO::UpdateBatch'`로 병합 문구 반영을 확인했다.
+- 검증 완료: `git diff --check -- .tmp/item_manager_modify.txt` 통과(공백 오류 없음).
+- 커밋 예정: `SESSION_HANDOFF.md`만 포함한다. `.tmp/item_manager_modify.txt`는 `.gitignore` 대상이므로 force add하지 않고 작업 파일로 유지한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+
 ### 완료 (2026-07-10): 품목관리 요청서 레거시 기본값/시장 매핑 정책 병합
 
 - 요청: 다시 검토한 애매점과 레거시/현 구현 문제를 권장 사항으로 `.tmp/item_manager_modify.txt`에 병합한다.
