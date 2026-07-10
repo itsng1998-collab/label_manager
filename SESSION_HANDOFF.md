@@ -28,6 +28,18 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-10): 품목관리 요청서 date setup/API 검증 권장안 병합
+
+- 수정 예정 파일: `.tmp/item_manager_modify.txt`는 ignored 요청서 본문 수정, `SESSION_HANDOFF.md`는 ignored 요청서 변경 추적용 기록/검증/커밋 정보 갱신.
+- 사용자 확인: 새 비즈니스 정책 질문은 없다. 이번 병합은 기존 확정 정책 안에서 요약/검증/캐시 갱신 문구를 상세 정책과 일치시키는 문서 정리다.
+- 병합 예정: 날짜 타입 설정 요약/수용 조건의 `setup 계열 컬럼` 표현을 날짜/시간 12개 컬럼으로 닫고, API/DTO가 full `LabelSizeSetup` 덮어쓰기로 구현되지 않게 `updateDateSetup` 또는 date-only DTO 기준을 명시한다. `hasRichElementSheet=false` 검증 fixture를 추가하고, 날짜 setup 저장 후 캐시는 최신 DB setup과 날짜/시간 변경값 merge 결과로 갱신한다고 명시한다.
+- `.tmp/item_manager_modify.txt` 반영 완료: 레거시 `CLabelSizeDAO::UpdateSetup`은 full setup update이지만 이번 Flutter 날짜 타입 설정 저장 대상은 날짜/시간 12개 컬럼으로 제한한다고 명시했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: 날짜 타입 설정 저장 API를 `LabelSizeDAO.updateDateSetup(labelSizeId, LabelSizeDateSetupUpdate)`로 고정하고, full `LabelSizeSetup` DTO를 저장 입력으로 받지 않는다고 명시했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: 저장 성공 후 `LabelSize.datas`와 현재 선택 라벨 캐시는 최신 DB setup에 날짜/시간 변경값을 merge한 `LabelSizeSetup`으로 갱신하고 `RICH_SETUP_READONLY`/`RICH_SETUP_USE_SCALE`은 최신 DB 값을 유지한다고 명시했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: `[transaction/DAO]` 검증에 `hasRichElementSheet=false` fixture를 추가해 기존 `ItemOfMarketDAO.SelectSql` 미실행, migration 안내 화면, read-only fallback SELECT 성공/실패 분기를 검증하도록 했다.
+- 검증: `git diff --check -- .tmp/item_manager_modify.txt` 통과. `grep_search`로 `updateDateSetup`, `LabelSizeDateSetupUpdate`, `날짜/시간 12개 컬럼`, `full LabelSizeSetup DTO`, `최신 DB setup에 날짜/시간 변경값`, `hasRichElementSheet=false fixture`, `read-only fallback SELECT` 문구 확인. `LabelSizeDAO.updateSetup(`, `BM_RICH_LABELSIZE_FORM setup 계열 컬럼`, `setup 계열 컬럼만 갱신`, `저장 대상은 BM_RICH_LABELSIZE_FORM의 setup 계열 컬럼`, `사용자 답변: 미확정` 없음 확인.
+- stage/commit 대상: ignored `.tmp/item_manager_modify.txt` 변경 추적용 `SESSION_HANDOFF.md`만 stage/commit한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+
 ### 완료 (2026-07-10): 품목관리 요청서 schema/setup/xlsx round-trip 권장안 병합
 
 - 수정 예정 파일: `.tmp/item_manager_modify.txt`는 ignored 요청서 본문 수정, `SESSION_HANDOFF.md`는 ignored 요청서 변경 추적용 기록/검증/커밋 정보 갱신.
