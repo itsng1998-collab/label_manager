@@ -38,6 +38,7 @@
 - `.tmp/item_manager_modify.txt` 반영 완료: 최종 정리의 구현 순서에 `QR/바코드 데이터 helper 기반`을 포함해 13.1 권장 구현 단위와 맞췄다.
 - 검증: `grep_search`로 공용 바코드 모델 문제, 실제 출력 경로 output workbook metadata 입력, GS1 FNC1/AI 오류 정책, `_ItemOutputPreviewTab` 오류 목록 필수, 최종 구현 순서 문구 반영을 확인했다.
 - stage/commit 대상: ignored `.tmp/item_manager_modify.txt` 변경 추적용 `SESSION_HANDOFF.md`만 stage/commit한다.
+- 커밋: `6355909` 품목관리 바코드 미리보기 최종 권장안 정리
 
 ### 완료 (2026-07-10): 품목관리 요청서 바코드 미리보기 권장안 추가 병합
 
