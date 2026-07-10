@@ -28,6 +28,19 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-10): 품목관리 요청서 날짜 setup/save codec/schema 권장안 병합
+
+- 수정 예정 파일: `.tmp/item_manager_modify.txt`는 ignored 요청서 본문 수정, `SESSION_HANDOFF.md`는 ignored 요청서 변경 추적용 기록/검증/커밋 정보 갱신.
+- 사용자 확인: 새 비즈니스 정책 질문은 없다. 이번 병합은 기존 확정 정책 안에서 구현 선택지를 줄이는 문서 정리다.
+- 병합 예정: 날짜 setup 저장 transaction 방식을 setup 전용 SQL batch transaction으로 고정하고, setup 로그 컬럼 allow-list/after 컬럼명을 닫는다. `preserveTemplateBarcodeFormat` save codec 선행 조건을 강화하고, `RICH_ELEMENT_SHEET` 컬럼 부재 시 기본 동작을 저장 기능 비활성+마이그레이션 안내로 정리한다. Excel 주원료 보존 범위는 fixture별 검증 기준으로 보완한다.
+- `.tmp/item_manager_modify.txt` 반영 완료: 날짜 setup 로그 after 컬럼명을 `RICH_ALTER_` prefix allow-list로 고정하고 예시(`RICH_ALTER_SETUP_READONLY`, `RICH_ALTER_USER_MAKEDATE`)를 추가했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: 날짜 setup 로그/업데이트 transaction 방식을 setup 전용 SQL batch transaction으로 고정하고, 품목관리 저장용 `DbIsolateAction.transaction` 완료를 선행 조건으로 두지 않는다고 명시했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: `RICH_ELEMENT_SHEET` 컬럼 부재 시 품목관리 저장 기능 비활성화와 DB migration 안내를 기본 동작으로 고정하고 별도 호환 저장 정책은 만들지 않는다고 명시했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: `preserveTemplateBarcodeFormat` save codec feature key/allow-list/normalize/migrate/round-trip 선행 검증을 완료 기준과 검증 태그에 반영했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: Excel 주원료 보존 검증을 inlineRuns/병합/row height/column width/테두리/배경/줄바꿈 fixture로 분리하도록 추가했다.
+- 검증: `git diff --check -- .tmp/item_manager_modify.txt` 통과. `grep_search`로 `setup 전용 SQL batch transaction`, `RICH_ALTER_SETUP_READONLY`, `RICH_ALTER_USER_MAKEDATE`, `allow-list 컬럼 세트`, `품목관리 저장 기능을 비활성화`, `별도 호환 저장 정책은 만들지 않는다`, `save codec feature key/allow-list/normalize/migrate/round-trip`, `inlineRuns, 병합 영역, row height, column width, 테두리, 배경, 줄바꿈 fixture` 문구 확인. `SQL batch transaction 또는 공용 DB isolate transaction`, `migration 또는 호환 저장 정책을 먼저 확정`, `이에 대응하는 after/alter 값 컬럼`, `사용자 답변: 미확정` 없음 확인.
+- stage/commit 대상: ignored `.tmp/item_manager_modify.txt` 변경 추적용 `SESSION_HANDOFF.md`만 stage/commit한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+
 ### 완료 (2026-07-10): 품목관리 요청서 바코드/날짜 setup 검토 권장안 병합
 
 - 수정 예정 파일: `.tmp/item_manager_modify.txt`는 ignored 요청서 본문 수정, `SESSION_HANDOFF.md`는 ignored 요청서 변경 추적용 기록/검증/커밋 정보 갱신.
