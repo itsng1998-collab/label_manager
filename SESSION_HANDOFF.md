@@ -37,6 +37,7 @@
 - `.tmp/item_manager_modify.txt` 반영 완료: 수용조건의 check digit 문구를 EAN-13/UPC-A/EAN-8 범위로 좁히고, 0 padding/truncation 결과와 ITF 홀수/기타 레거시 전용 check digit은 자동 보정 저장 대상이 아니라고 명시했다.
 - 검증: `git diff --check -- .tmp/item_manager_modify.txt` 통과. `grep_search`로 `Excel import의 이미지 타입`, `TYPE_IMAGE ... 셀 표시 문자열`, `경로와 .bmp 확장자는 제거`, `다른 확장자가 명시된 값은 저장 전 검증 오류`, `EAN-13/UPC-A/EAN-8의 check digit 사용 컬럼`, `길이 부족/초과를 0 padding 또는 truncation으로 맞춘 값은 자동 보정 저장값` 문구 확인. `바코드 체크디지트 사용 컬럼은 저장 전 draft`, `사용자 답변: 미확정`, `확정 필요`, `TODO`, `FIXME` 없음 확인.
 - stage/commit 대상: ignored `.tmp/item_manager_modify.txt` 변경 추적용 `SESSION_HANDOFF.md`만 stage/commit한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+- 커밋: `bf1a76c` 품목관리 요청서 이미지 가져오기 기준 기록
 
 ### 완료 (2026-07-10): 품목관리 요청서 fallback/check digit 범위 권장안 병합
 
