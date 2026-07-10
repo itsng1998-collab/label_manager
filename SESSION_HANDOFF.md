@@ -40,7 +40,7 @@
 - 수정 완료: `AFTER_INSERT_ITEM` trigger body와 운영 DB의 `BM_RICH_ITEM.RICH_ELEMENT_SHEET` 컬럼 존재 여부를 저장 DAO 구현 전 확인하도록 정리했다.
 - 검증 완료: `Select-String -Path .tmp/item_manager_modify.txt -Pattern 'RICH_PRICE=0|itemPrice|고객의 모든 market|모든 market|DateTime.now\(\)|nullable|RICH_ELEMENT_SHEET.*컬럼|trigger body|BM_RICH_ELEMENT_CONTENT|RICH_ADDITIONAL_ITEM_ID=NULL|저장 draft의 실제 DB 값|레거시 신규 `CItem`|현재 로그인 고객의 모든 market|판매/할인 시작·종료일.*NULL'`로 병합 문구 반영을 확인했다.
 - 검증 완료: `git diff --check -- .tmp/item_manager_modify.txt` 통과(공백 오류 없음).
-- 커밋 예정: `SESSION_HANDOFF.md`만 포함한다. `.tmp/item_manager_modify.txt`는 `.gitignore` 대상이므로 force add하지 않고 작업 파일로 유지한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+- 커밋 완료: `c45c9f9` 품목관리 요청서 레거시 저장 정책 병합. 포함 파일은 `SESSION_HANDOFF.md`이며, `.tmp/item_manager_modify.txt`는 ignore 대상 작업 파일로 유지했다. 기존 unrelated dirty `lib/core/app.dart`는 제외했다.
 
 ### 완료 (2026-07-10): 품목관리 요청서 DB 저장 세부 정책 병합
 
