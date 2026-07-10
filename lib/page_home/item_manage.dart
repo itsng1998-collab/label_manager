@@ -10,6 +10,36 @@ import 'package:label_manager/models/item_of_market.dart';
 import 'package:label_manager/models/label_size.dart';
 import 'package:label_manager/utils/log_context.dart';
 
+class ItemManagerMigrationRequired extends StatelessWidget {
+  const ItemManagerMigrationRequired({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const Center(
+      child: Padding(
+        padding: EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.storage_outlined, size: 32, color: Color(0xFF5F6368)),
+            SizedBox(height: 12),
+            Text(
+              '품목관리 DB 업데이트가 필요합니다.',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            ),
+            SizedBox(height: 6),
+            Text(
+              'BM_RICH_ITEM.RICH_ELEMENT_SHEET 컬럼을 추가한 뒤 다시 로그인해 주세요.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Color(0xFF5F6368)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class ItemManage extends StatefulWidget {
   final List<ItemOfMarket> items;
   final int? selectedIndex;

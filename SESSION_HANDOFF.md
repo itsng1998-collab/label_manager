@@ -37,10 +37,11 @@
 - DB 재조회는 기존 controller/journal을 유지한 채 강제 load하고, 모든 DB 읽기가 성공한 뒤에만 기존 세션을 폐기·교체한다. post-commit 재조회 실패에서는 stale 저장 완료 백업과 force 상태를 다시 조회 성공 또는 화면 종료까지 유지하며, Excel 전체 교체 취소 재조회가 실패해도 현재 draft를 잃지 않는다.
 - 일반 추가·삽입·삭제·셀 편집 취소는 controller 생성 시 보관한 불변 메모리 baseline으로 원본 rows/deletion set/선택을 즉시 복원하고 journal을 정리한다. Excel 전체 교체 취소만 DB 재조회하며, 취소 확인 문구는 지시서의 `변경 내용을 취소할까요?`로 맞췄다.
 - 저장·재조회 등 `commandBusy` 동안 품목관리 footer에 16px progress indicator와 `처리 중` 상태를 표시한다. 기존 명령 비활성화와 함께 중복 클릭 방지와 진행 상태 안내를 모두 제공한다.
+- 품목 load는 `ItemOfMarketDAO`가 `RICH_ELEMENT_SHEET`를 참조하기 전에 `ItemSaveSchemaCapabilityDAO`를 probe한다. 컬럼이 없으면 품목/컬럼 SELECT와 `ItemManage`를 열지 않고 DB migration 안내 전용 화면을 표시해 편집·저장·Excel·메뉴 진입을 구조적으로 차단한다. 강제 재조회는 capability cache를 갱신한다.
 - draft dirty 또는 command busy 상태에서는 발행 checkbox controller를 제거하고 기존 체크값만 표시한다. 저장/취소 후 clean 상태에서만 다시 조작할 수 있다.
 - 이미지 타입 동적 셀은 일반 텍스트 편집 대신 double-click BMP 파일 선택기를 사용한다. 선택한 값은 경로와 `.bmp` 확장자를 제거한 파일명만 draft에 반영하고 경로 비저장 정책을 안내한다. 선택형 컬럼은 현재 `TColumnType`/`TColumn` DB projection에 선택 옵션을 나타내는 타입이나 option source가 없어 근거 없는 dropdown을 추가하지 않았다.
 - dirty 로그아웃/종료는 `LifecycleManager.notifyExitRequested()`의 bool 승인 계약으로 취소할 수 있으며 Windows close와 `PopScope` 모두 거부 결과를 존중한다.
-- 최신 검증 완료: draft/journal/FortuneTable 관련 테스트 `42 통과 / 0 실패`, `C:\Flutter\bin\flutter.bat analyze` `No issues found`, 전체 Flutter suite `3270 통과 / 0 실패`.
+- 최신 검증 완료: `test/fortune_table_test.dart` `23 통과 / 0 실패`, draft/journal/FortuneTable 관련 테스트 `43 통과 / 0 실패`, `C:\Flutter\bin\flutter.bat analyze` `No issues found`, 전체 Flutter suite `3271 통과 / 0 실패`.
 - 자동 검증 제외: 운영 DB capability/save/date/order transaction 실제 실행과 Windows BMP/XLSX 파일 대화상자 수동 선택은 연결 fixture 및 interactive 환경이 없어 미검증이다. 실제 품목 출력 job은 홈 `라벨출력(F3)`이 placeholder라 기존 연결 대상이 없다.
 - acceptance 보완 구현 커밋 완료: `1183c5b` 품목관리 저장 검증과 재조회 복구 보완.
 

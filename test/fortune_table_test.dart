@@ -499,6 +499,21 @@ void main() {
     expect(selectedIndex, 0);
   });
 
+  testWidgets('Item manager migration state does not open the table', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(body: ItemManagerMigrationRequired()),
+      ),
+    );
+
+    expect(find.text('품목관리 DB 업데이트가 필요합니다.'), findsOneWidget);
+    expect(find.textContaining('RICH_ELEMENT_SHEET'), findsOneWidget);
+    expect(find.byType(FortuneTable<ItemOfMarket>), findsNothing);
+    expect(find.widgetWithText(FilledButton, '저장'), findsNothing);
+  });
+
   testWidgets('ItemManage publish checkbox is scoped to clicked row', (
     tester,
   ) async {

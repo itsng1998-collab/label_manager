@@ -126,6 +126,7 @@ class _HomePageManagerState extends State<HomePageManager> {
   bool _commonLabelPreviewMovedByUser = false;
   bool _itemDraftCommandBusy = false;
   bool _itemDraftForceReloadRequired = false;
+  bool _itemManagerMigrationRequired = false;
   bool _lastReportedItemDraftDirty = false;
   int _labelSetupRevision = 0;
   bool _suppressNextBrandDidUpdateLabelLoad = false;
@@ -603,6 +604,7 @@ class _HomePageManagerState extends State<HomePageManager> {
           ScaffoldMessenger.of(context).hideCurrentSnackBar();
         }
         _setItemDraftForceReloadRequired(false);
+        _itemManagerMigrationRequired = false;
         return true;
       }
 
@@ -631,6 +633,22 @@ class _HomePageManagerState extends State<HomePageManager> {
       _itemDraftTargetMarketIds = targetMarkets
           .map((value) => value.marketId)
           .toList(growable: false);
+      final capabilities = await ItemSaveSchemaCapabilityDAO.probe(
+        force: forceReload,
+      );
+      if (!capabilities.hasRichElementSheet) {
+        await _itemDraftJournal?.close();
+        _itemDraftJournal = null;
+        _disposeItemDraftController();
+        _itemManagerMigrationRequired = true;
+        ItemOfMarket.datas = <ItemOfMarket>[];
+        _selectedItemOfMarket = null;
+        _selectedItemIndex = null;
+        _resetTabs();
+        _setItemDraftForceReloadRequired(false);
+        return true;
+      }
+      _itemManagerMigrationRequired = false;
       TColumn.datas = await TColumnDAO.selectByLabelSizeId(
         labelSize.labelSizeId,
       );
@@ -1515,7 +1533,9 @@ class _HomePageManagerState extends State<HomePageManager> {
       TabData(
         value: 'items',
         text: '품목관리(F1)',
-        content: ItemManage(
+        content: _itemManagerMigrationRequired
+            ? const ItemManagerMigrationRequired()
+            : ItemManage(
           key: ValueKey('items:$_labelContentKey'),
           items: ItemOfMarket.datas ?? const <ItemOfMarket>[],
           selectedIndex: _selectedItemIndex,
