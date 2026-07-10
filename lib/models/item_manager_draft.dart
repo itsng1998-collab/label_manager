@@ -19,6 +19,22 @@ class ItemManagerFixedColumnIds {
 
 enum ItemManagerDraftRowState { existing, modified, added, imported }
 
+int? resolveItemManagerReloadSelectionIndex(
+  List<ItemOfMarket> items, {
+  int? selectedItemId,
+  int? fallbackIndex,
+}) {
+  if (items.isEmpty) return null;
+  if (selectedItemId != null) {
+    final selectedIndex = items.indexWhere(
+      (item) => item.item.itemId == selectedItemId,
+    );
+    if (selectedIndex >= 0) return selectedIndex;
+  }
+  if (fallbackIndex != null) return fallbackIndex.clamp(0, items.length - 1);
+  return 0;
+}
+
 enum ItemManagerElementPayloadFormat { empty, workbook, legacyRtf, unknown }
 
 class ItemManagerDraftValidationError extends StateError {

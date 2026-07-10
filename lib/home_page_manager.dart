@@ -802,7 +802,10 @@ class _HomePageManagerState extends State<HomePageManager> {
     );
     if (confirmed != true || !mounted) return;
     if (controller.hasImportedRows) {
-      final reloaded = await _reloadItemDraftFromDatabase();
+      final reloaded = await _reloadItemDraftFromDatabase(
+        selectedItemId: _selectedItemOfMarket?.item.itemId,
+        fallbackIndex: _selectedItemIndex,
+      );
       if (!reloaded && mounted) {
         _showItemDraftError('변경 취소 실패', StateError('품목 목록을 다시 불러오지 못했습니다.'));
       }
@@ -869,10 +872,14 @@ class _HomePageManagerState extends State<HomePageManager> {
     if (confirmed != true || !mounted) return;
 
     final selectedKey = controller.anchorRowKey;
-    final selectedRow = selectedKey == null
-        ? null
-        : controller.rows.firstWhereOrNull((row) => row.rowKey == selectedKey);
+    final selectedRowIndex = selectedKey == null
+      ? -1
+      : controller.rows.indexWhere((row) => row.rowKey == selectedKey);
+    final selectedRow = selectedRowIndex < 0
+      ? null
+      : controller.rows[selectedRowIndex];
     setState(() => _itemDraftCommandBusy = true);
+    var dbSaveCompleted = false;
     try {
       final capabilities = await ItemSaveSchemaCapabilityDAO.probe();
       final command = controller.toSaveCommand(
@@ -892,11 +899,13 @@ class _HomePageManagerState extends State<HomePageManager> {
         }
       }
       final result = await ItemManagerSaveDAO.save(command, capabilities);
+      dbSaveCompleted = true;
       final selectedItemId =
           selectedRow?.sourceItemId ??
           result.insertedItemIdsByDraftKey[selectedRow?.draftRowKey];
       final reloaded = await _reloadItemDraftFromDatabase(
         selectedItemId: selectedItemId,
+        fallbackIndex: selectedRowIndex < 0 ? null : selectedRowIndex,
       );
       if (!reloaded) {
         _setItemDraftForceReloadRequired(true);
@@ -910,6 +919,7 @@ class _HomePageManagerState extends State<HomePageManager> {
     } on _ItemMappingFingerprintConflict catch (error) {
       if (mounted) await _resolveItemMappingFingerprintConflict(error);
     } catch (error) {
+      if (!dbSaveCompleted) await _flushItemDraftJournalAfterSaveFailure();
       if (mounted) _showItemDraftError('품목 저장 실패', error);
     } finally {
       if (mounted) setState(() => _itemDraftCommandBusy = false);
@@ -922,6 +932,7 @@ class _HomePageManagerState extends State<HomePageManager> {
     try {
       final reloaded = await _reloadItemDraftFromDatabase(
         selectedItemId: _selectedItemOfMarket?.item.itemId,
+        fallbackIndex: _selectedItemIndex,
       );
       if (!reloaded) {
         throw StateError('품목 목록을 다시 불러오지 못했습니다.');
@@ -963,12 +974,21 @@ class _HomePageManagerState extends State<HomePageManager> {
     if (shouldReload != true || !mounted) return;
     final reloaded = await _reloadItemDraftFromDatabase(
       selectedItemId: _selectedItemOfMarket?.item.itemId,
+      fallbackIndex: _selectedItemIndex,
     );
     if (!reloaded && mounted) {
       _showItemDraftError(
         '품목 다시 조회 실패',
         StateError('품목 목록을 다시 불러오지 못했습니다.'),
       );
+    }
+  }
+
+  Future<void> _flushItemDraftJournalAfterSaveFailure() async {
+    try {
+      await _itemDraftJournal?.flush();
+    } catch (error) {
+      debugLog('item draft journal flush after save failure: $error');
     }
   }
 
@@ -1181,6 +1201,7 @@ class _HomePageManagerState extends State<HomePageManager> {
       return;
     }
     final selectedItemId = _selectedItemOfMarket?.item.itemId;
+    final selectedItemIndex = _selectedItemIndex;
     setState(() => _itemDraftCommandBusy = true);
     try {
       final storedItems =
@@ -1224,6 +1245,7 @@ class _HomePageManagerState extends State<HomePageManager> {
       if (!mounted) return;
       final reloaded = await _reloadItemDraftFromDatabase(
         selectedItemId: selectedItemId,
+        fallbackIndex: selectedItemIndex,
       );
       if (!reloaded) {
         _setItemDraftForceReloadRequired(true);
@@ -1240,22 +1262,27 @@ class _HomePageManagerState extends State<HomePageManager> {
     }
   }
 
-  Future<bool> _reloadItemDraftFromDatabase({int? selectedItemId}) async {
+  Future<bool> _reloadItemDraftFromDatabase({
+    int? selectedItemId,
+    int? fallbackIndex,
+  }) async {
     final labelSize = _currentLabelSize;
     if (labelSize == null) return false;
     final loaded = await _handleLabelSizeChanged(labelSize, forceReload: true);
     if (!loaded) return false;
-    if (selectedItemId == null) return true;
     final items = ItemOfMarket.datas ?? const <ItemOfMarket>[];
-    final index = items.indexWhere(
-      (item) => item.item.itemId == selectedItemId,
+    final index = resolveItemManagerReloadSelectionIndex(
+      items,
+      selectedItemId: selectedItemId,
+      fallbackIndex: fallbackIndex,
     );
-    if (index < 0) return true;
+    if (index == null) return true;
     _selectedItemIndex = index;
     _selectedItemOfMarket = items[index];
+    final restoredItemId = items[index].item.itemId;
     _itemDraftController?.setSelection([
-      'item:$selectedItemId',
-    ], anchorRowKey: 'item:$selectedItemId');
+      'item:$restoredItemId',
+    ], anchorRowKey: 'item:$restoredItemId');
     _resetTabs();
     return true;
   }

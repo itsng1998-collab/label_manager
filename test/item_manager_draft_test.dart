@@ -10,6 +10,33 @@ import 'package:label_manager/models/item_of_market.dart';
 
 void main() {
   group('[item manager draft]', () {
+    test('resolves reload selection by item id, row index, then first row', () {
+      final items = [
+        _itemOfMarket(itemId: 10, order: 1, name: '첫 품목'),
+        _itemOfMarket(itemId: 20, order: 2, name: '둘째 품목'),
+        _itemOfMarket(itemId: 30, order: 3, name: '셋째 품목'),
+      ];
+
+      expect(
+        resolveItemManagerReloadSelectionIndex(
+          items,
+          selectedItemId: 20,
+          fallbackIndex: 0,
+        ),
+        1,
+      );
+      expect(
+        resolveItemManagerReloadSelectionIndex(
+          items,
+          selectedItemId: 99,
+          fallbackIndex: 2,
+        ),
+        2,
+      );
+      expect(resolveItemManagerReloadSelectionIndex(items), 0);
+      expect(resolveItemManagerReloadSelectionIndex(const []), isNull);
+    });
+
     test('builds existing rows without mutating display models', () {
       final first = _itemOfMarket(itemId: 10, order: 1, name: '첫 품목');
       final second = _itemOfMarket(itemId: 20, order: 2, name: '둘째 품목');
