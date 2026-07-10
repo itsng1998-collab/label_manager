@@ -39,6 +39,7 @@
 - 사용자 확인 사항 반영 완료: check digit 자동 보정 여부, QR 기본 format 정책, EZPL native 미지원 format 허용 여부를 운영 의사결정으로 이해하기 쉽게 추가했다.
 - 검증: `grep_search`로 `barcodeObjectId`, 기본 `qrCode`, preview/output payload, raster fallback, `barcodeFormatLabel`, check digit/QR/native 사용자 확인 문구 반영을 확인했다. 긴 줄 구간은 `read_file`로 문장 손상 없음도 확인했다.
 - stage/commit 대상: ignored `.tmp/item_manager_modify.txt` 변경 추적용 `SESSION_HANDOFF.md`만 stage/commit한다.
+- 커밋: `c9eee14` 품목관리 바코드 QR 모호점 권장안 정리
 
 ### 완료 (2026-07-10): 품목관리 요청서 바코드 미리보기 최종 권장안 병합
 
