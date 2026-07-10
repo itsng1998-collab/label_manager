@@ -28,6 +28,16 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-10): 품목관리 요청서 image import/check digit 수용조건 병합
+
+- 수정 예정 파일: `.tmp/item_manager_modify.txt`는 ignored 요청서 본문 수정, `SESSION_HANDOFF.md`는 ignored 요청서 변경 추적용 기록/검증/커밋 정보 갱신.
+- 사용자 확인: 새 비즈니스 정책 질문은 없다. 이번 병합은 기존 확정 정책 안에서 수용조건과 Excel import 이미지 컬럼 처리 기준을 명확히 닫는 문서 수정이다.
+- 병합 예정: 수용조건의 `바코드 체크디지트 사용 컬럼` 문구를 EAN-13/UPC-A/EAN-8 범위로 좁히고, Excel import의 `TYPE_IMAGE` 컬럼은 셀 표시 문자열만 받아 경로 제거 + `.bmp` 확장자 제거한 파일명으로 정규화하며 다른 확장자는 저장 전 검증 오류로 처리하도록 명시한다.
+- `.tmp/item_manager_modify.txt` 반영 완료: Excel import 이미지 타입(`TYPE_IMAGE`) 컬럼은 Excel 객체 이미지를 가져오지 않고 셀 표시 문자열만 사용하며, 경로와 `.bmp` 확장자를 제거한 파일명만 저장 후보로 두고 다른 확장자는 저장 전 검증 오류로 처리하도록 명시했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: 수용조건의 check digit 문구를 EAN-13/UPC-A/EAN-8 범위로 좁히고, 0 padding/truncation 결과와 ITF 홀수/기타 레거시 전용 check digit은 자동 보정 저장 대상이 아니라고 명시했다.
+- 검증: `git diff --check -- .tmp/item_manager_modify.txt` 통과. `grep_search`로 `Excel import의 이미지 타입`, `TYPE_IMAGE ... 셀 표시 문자열`, `경로와 .bmp 확장자는 제거`, `다른 확장자가 명시된 값은 저장 전 검증 오류`, `EAN-13/UPC-A/EAN-8의 check digit 사용 컬럼`, `길이 부족/초과를 0 padding 또는 truncation으로 맞춘 값은 자동 보정 저장값` 문구 확인. `바코드 체크디지트 사용 컬럼은 저장 전 draft`, `사용자 답변: 미확정`, `확정 필요`, `TODO`, `FIXME` 없음 확인.
+- stage/commit 대상: ignored `.tmp/item_manager_modify.txt` 변경 추적용 `SESSION_HANDOFF.md`만 stage/commit한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+
 ### 완료 (2026-07-10): 품목관리 요청서 fallback/check digit 범위 권장안 병합
 
 - 수정 예정 파일: `.tmp/item_manager_modify.txt`는 ignored 요청서 본문 수정, `SESSION_HANDOFF.md`는 ignored 요청서 변경 추적용 기록/검증/커밋 정보 갱신.
