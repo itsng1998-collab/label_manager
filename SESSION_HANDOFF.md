@@ -64,7 +64,13 @@
 - 4단계 export 완료: `itemManagerExportXlsxBytes`가 `품목`, `주원료`, editable 일반 컬럼 순서의 최소 OpenXML workbook을 생성한다. 모든 셀을 inline string으로 기록해 선행 0과 XML 특수문자를 보존하며, export→import round-trip 테스트를 추가했다.
 - 4단계 UI 연결 완료: 품목관리 footer의 Excel callback을 실제 `.xlsx` 파일 선택/저장 대화상자에 연결했다. import는 clean 상태에서만 실행하고 parser 경고 확인 후 기존 draft 전체를 imported rows로 교체하며 첫 행 선택/preview를 동기화한다. export는 clean working rows가 있을 때만 실행하고 확장자 누락 시 `.xlsx`를 붙이며 다른 확장자는 차단한다.
 - 4단계 최종 검증: `test/item_manager_xlsx_test.dart` 통과(`+3`), `test/item_manager_draft_test.dart` 통과(`+10`), `test/fortune_table_test.dart --plain-name "ItemManage commits item name edits to the draft row"` 통과(`+1`), `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`). 실제 Windows 파일 대화상자의 수동 선택/저장은 자동 테스트 범위 밖이며 앱 수동 확인이 남아 있다.
-- 다음 작업: 5단계 QR/바코드 resolver와 `QR코드 데이터 보기` 조회 UI를 구현한다. 이후 날짜 타입 설정, 품목 순서 변경 순서로 진행한다. 운영 DB capability/save transaction의 실제 trigger/schema 통합 실행은 fixture가 없어 계속 미검증이다.
+- 4단계 커밋 완료: `82dc76a` 품목관리 엑셀 입출력 연결.
+- 5단계 QR/바코드 진행 중: 공용 `BarcodeType.CodeEAN8.dbName`을 `EAN8`로 수정하고 `EAN8`/`EAN-8`/`CodeEAN8` alias와 `CODE128`을 구분하는 `barcodeTypeFromDbName`을 추가했다. `BarcodeDataHelper.normalizeMeaningPreservingForPrint`는 EAN/UPC check digit만 보정하고 길이 padding/truncation 및 홀수 ITF를 유효 후보에서 제외한다.
+- 5단계 resolver 진행: `ItemCodeDataResolver`가 current row value callback을 입력으로 plain/user-defined/text-link/natrium QR 데이터, 1D/QR format id, 표시 metadata, 의미 보존 normalization/fallback 결과를 산출한다. 레거시 6-record 나트륨 설정과 `na3.php` URL/rate 계산을 반영했다.
+- 5단계 viewer 진행: `FortuneTable.onRowSecondaryTapDown` 공용 hook으로 실제 우클릭 row를 전달하고, 품목관리 메뉴의 `QR코드 데이터 보기`가 current draft row 기준 resolver 결과 전체를 읽기 전용/선택 가능 목록으로 표시한다. viewer는 controller mutation을 수행하지 않아 dirty 상태에 포함되지 않는다.
+- 5단계 preview/metadata 진행: barcode object id가 column keyword와 일치할 때 resolver가 `barcodeText`, `barcodeFormatId`, `barcodeFormatLabel`, `barcodeShowText`를 갱신하며 geometry metadata는 유지한다. `preserveTemplateBarcodeFormat=true`이면 template format metadata를 보존한다. save codec feature/allow-list와 OpenXML customXml image metadata export/import를 보완해 `.lms` 및 `.xlsx` round-trip에서 플래그가 유지된다.
+- 5단계 현재 검증: `test/barcode_data_helper_test.dart`와 `test/item_code_data_resolver_test.dart` 통과(총 `+7`), QR 우클릭 row widget test 통과(`+1`), image save metadata 및 XLSX image metadata focused test 각각 통과(`+1`, `+1`), `flutter analyze` 통과(`No issues found`).
+- 다음 작업: 5단계의 GS1 `containColumns`/AI 조합·검증 helper, preview 상단 경고/오류 및 object placeholder, 실제 print job이 resolver 적용 output workbook을 사용하도록 연결하는 작업이 남아 있다. 이후 날짜 타입 설정, 품목 순서 변경 순서로 진행한다. 운영 DB capability/save transaction의 실제 trigger/schema 통합 실행은 fixture가 없어 계속 미검증이다.
 
 ### 완료 (2026-07-10): 불필요한 작업 규칙 정리
 

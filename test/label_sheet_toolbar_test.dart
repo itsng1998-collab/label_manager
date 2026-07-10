@@ -262,9 +262,7 @@ void main() {
               const FortuneCellCoord(0, 0): const FortuneCell(
                 value: '#ITEMNAME',
               ),
-              const FortuneCellCoord(0, 1): const FortuneCell(
-                value: '원재료',
-              ),
+              const FortuneCellCoord(0, 1): const FortuneCell(value: '원재료'),
             },
           ),
         ],
@@ -532,7 +530,10 @@ void main() {
       contains('RICH_ELEMENT_SHEET=@elementSheet'),
     );
     expect(ItemDAO.UpdateElementSheetSql, isNot(contains('RICH_ELEMENT_RTF')));
-    expect(ItemDAO.AutoMigrateElementSheetSql, contains('RICH_ELEMENT=@element'));
+    expect(
+      ItemDAO.AutoMigrateElementSheetSql,
+      contains('RICH_ELEMENT=@element'),
+    );
     expect(
       ItemDAO.AutoMigrateElementSheetSql,
       contains('RICH_ELEMENT_SHEET=@elementSheet'),
@@ -1066,6 +1067,7 @@ void main() {
                 'barcodeShowText': true,
                 'barcodeHumanReadableFontFamily': 'Arial',
                 'barcodeHumanReadableFontSize': 12,
+                'preserveTemplateBarcodeFormat': true,
                 'crop': {
                   'width': 80,
                   'height': 40,
@@ -1109,6 +1111,10 @@ void main() {
       labelSheetSaveFeatureVersions,
       contains('sheet.images.objectMetadata'),
     );
+    expect(
+      labelSheetSaveFeatureVersions,
+      contains('sheet.images.preserveTemplateBarcodeFormat'),
+    );
     expect(savedBarcodeJson['unsupportedImageField'], isNull);
     expect(savedCropJson['unsupportedCropField'], isNull);
     expect(savedBarcodeJson[fortuneBarcodeObjectIdExtraKey], '#BARCODE9');
@@ -1134,6 +1140,7 @@ void main() {
     expect(decodedBarcode.extraFields[fortuneBarcodeBodyTopExtraKey], 6);
     expect(decodedBarcode.extraFields[fortuneBarcodeBodyHeightExtraKey], 44);
     expect(decodedBarcode.extraFields[fortuneBarcodeBodyRatioExtraKey], 0.73);
+    expect(decodedBarcode.extraFields['preserveTemplateBarcodeFormat'], isTrue);
     expect(
       decodedBarcode.extraFields[fortuneBarcodeIdLabelPrintExcludedExtraKey],
       isTrue,

@@ -73,6 +73,16 @@ void main() {
     expect(c1.inlineRuns![1].extraFields['letterSpacing'], 0.5);
     expect(c1.inlineRuns![1].extraFields['lineHeight'], 1.2);
 
+    final barcodeImage = sheet.images.single;
+    expect(barcodeImage.id, 'barcode-image');
+    expect(barcodeImage.src, 'data:image/png;base64,AAA=');
+    expect(barcodeImage.left, 10);
+    expect(barcodeImage.top, 20);
+    expect(barcodeImage.width, 120);
+    expect(barcodeImage.height, 60);
+    expect(barcodeImage.extraFields['barcodeFormatId'], 'code128');
+    expect(barcodeImage.extraFields['preserveTemplateBarcodeFormat'], isTrue);
+
     expect(
       sheet.borderInfo.map((border) => border.borderType),
       contains('border-left'),
@@ -335,6 +345,7 @@ Uint8List _xlsxBytes({
 <labelSheetRtfMetadata xmlns="urn:label-manager:rtf-metadata">
   <cell ref="A1" fontScale="85" letterSpacing="1.25" lineHeight="1.4"/>
   <cell ref="C1"><run index="1" fontScale="70" letterSpacing="0.5" lineHeight="1.2" script="subscript"/></cell>
+  <image index="0" id="barcode-image" src="data:image/png;base64,AAA=" left="10" top="20" width="120" height="60" barcodeFormatId="code128" preserveTemplateBarcodeFormat="true"/>
 </labelSheetRtfMetadata>''');
 
   return Uint8List.fromList(ZipEncoder().encodeBytes(archive));

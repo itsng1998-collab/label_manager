@@ -19,6 +19,7 @@ class ItemManage extends StatefulWidget {
   final String emptyElementPayload;
   final Future<void> Function()? onExcelImport;
   final Future<void> Function()? onExcelExport;
+  final Future<void> Function(ItemManagerDraftRow row)? onQrDataView;
   final Future<void> Function()? onCancelDraft;
   final Future<void> Function()? onSaveDraft;
   final bool commandBusy;
@@ -35,6 +36,7 @@ class ItemManage extends StatefulWidget {
     this.emptyElementPayload = '',
     this.onExcelImport,
     this.onExcelExport,
+    this.onQrDataView,
     this.onCancelDraft,
     this.onSaveDraft,
     this.commandBusy = false,
@@ -50,6 +52,7 @@ class _ItemManageState extends State<ItemManage> {
   static const String _menuAdd = 'add';
   static const String _menuInsert = 'insert';
   static const String _menuDelete = 'delete';
+  static const String _menuQrDataView = 'qrDataView';
   static const String _menuClearSelection = 'clearSelection';
   static const String _menuCheckSelectedPublish = 'checkSelectedPublish';
   static const String _menuUncheckSelectedPublish = 'uncheckSelectedPublish';
@@ -70,6 +73,7 @@ class _ItemManageState extends State<ItemManage> {
   );
   List<ItemManagerDraftRow> _displayDraftRows = const [];
   Map<ItemOfMarket, ItemManagerDraftRow> _draftByDisplayItem = Map.identity();
+  ItemManagerDraftRow? _contextMenuDraftRow;
 
   @override
   void initState() {
@@ -121,20 +125,17 @@ class _ItemManageState extends State<ItemManage> {
     return Column(
       children: [
         Expanded(
-          child: GestureDetector(
-            behavior: HitTestBehavior.translucent,
-            onSecondaryTapDown: _showTableContextMenu,
-            child: FortuneTable<ItemOfMarket>(
-              rows: displayItems,
-              columns: columns,
-              autoFitColumns: false,
-              selectedIndex: widget.selectedIndex,
-              selectionController: _selectionController,
-              multiSelectionEnabled: true,
-              onRowSelected: _handleRowSelected,
-              onRectChanged: widget.onTableRectChanged,
-              rowColorBuilder: _rowColor,
-            ),
+          child: FortuneTable<ItemOfMarket>(
+            rows: displayItems,
+            columns: columns,
+            autoFitColumns: false,
+            selectedIndex: widget.selectedIndex,
+            selectionController: _selectionController,
+            multiSelectionEnabled: true,
+            onRowSelected: _handleRowSelected,
+            onRowSecondaryTapDown: _showTableContextMenu,
+            onRectChanged: widget.onTableRectChanged,
+            rowColorBuilder: _rowColor,
           ),
         ),
         _buildCommandFooter(),
@@ -230,9 +231,12 @@ class _ItemManageState extends State<ItemManage> {
         : null;
   }
 
-  Future<void> _showTableContextMenu(TapDownDetails details) async {
-    final local = details.localPosition;
-    if (local.dx < 40 || local.dy < 36) return;
+  Future<void> _showTableContextMenu(
+    ItemOfMarket row,
+    int rowIndex,
+    TapDownDetails details,
+  ) async {
+    _contextMenuDraftRow = _draftByDisplayItem[row];
     final command = await showMenu<String>(
       context: context,
       position: RelativeRect.fromLTRB(
@@ -265,6 +269,13 @@ class _ItemManageState extends State<ItemManage> {
           height: fortuneContextMenuRowHeight,
           padding: _menuItemPadding,
           child: Text('품목 삭제'),
+        ),
+        PopupMenuItem<String>(
+          value: _menuQrDataView,
+          enabled: _contextMenuDraftRow != null && widget.onQrDataView != null,
+          height: fortuneContextMenuRowHeight,
+          padding: _menuItemPadding,
+          child: const Text('QR코드 데이터 보기'),
         ),
         const PopupMenuDivider(height: fortuneContextMenuDividerHeight),
         const PopupMenuItem<String>(
@@ -354,6 +365,9 @@ class _ItemManageState extends State<ItemManage> {
         _insertDraftRows(_insertCountController.text);
       case _menuDelete:
         await _deleteSelectedDraftRows();
+      case _menuQrDataView:
+        final row = _contextMenuDraftRow;
+        if (row != null) await widget.onQrDataView?.call(row);
       case _menuSelectAll:
         _selectionController.selectAll(
           widget.draftController?.rows.length ?? widget.items.length,

@@ -612,6 +612,59 @@ void main() {
     expect(table.selectionController!.selectedRows, isEmpty);
   });
 
+  testWidgets('ItemManage QR viewer uses the right-clicked draft row', (
+    tester,
+  ) async {
+    final controller = ItemManagerDraftController(
+      rows: [
+        ItemManagerDraftRow.newRow(
+          draftRowKey: 'draft-qr',
+          order: 1,
+          originalIndex: 0,
+          insertAnchorItemId: null,
+          rowState: ItemManagerDraftRowState.added,
+          emptyElementPayload: 'UEsDempty',
+        ),
+      ],
+      scopedColumnContents: TColumnContentScopedView(const {}),
+    );
+    addTearDown(controller.dispose);
+    controller.updateItemName('draft:draft-qr', 'QR 품목');
+    ItemManagerDraftRow? viewedRow;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 600,
+            height: 220,
+            child: ItemManage(
+              items: const [],
+              draftController: controller,
+              labelSize: const LabelSize(
+                labelSizeId: 20,
+                brandId: 30,
+                labelSizeName: '테스트 라벨',
+              ),
+              marketId: 1,
+              onQrDataView: (row) async => viewedRow = row,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final tableTopLeft = tester.getTopLeft(
+      find.byType(FortuneTable<ItemOfMarket>),
+    );
+    await _openItemManageContextMenu(tester, tableTopLeft);
+    await tester.tap(find.text('QR코드 데이터 보기'));
+    await tester.pumpAndSettle();
+
+    expect(viewedRow?.rowKey, 'draft:draft-qr');
+    expect(controller.rows.single.rowState, ItemManagerDraftRowState.added);
+  });
+
   testWidgets('ItemManage commits item name edits to the draft row', (
     tester,
   ) async {

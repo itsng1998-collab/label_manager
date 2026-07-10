@@ -203,11 +203,7 @@ class TColumn extends TColumnBase {
   }
 
   static BarcodeType _barcodeTypeFromDb(String dbName) {
-    final normalized = dbName.toUpperCase();
-    return BarcodeType.values.firstWhere(
-      (e) => e.dbName.toUpperCase() == normalized,
-      orElse: () => BarcodeType.Code128,
-    );
+    return barcodeTypeFromDbName(dbName);
   }
 
   static QRTextAlignment _qrTextAlignmentFromCode(Object? code) {

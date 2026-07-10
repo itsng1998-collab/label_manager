@@ -685,6 +685,7 @@ Map<String, Object?> _sheetJsonFromWorksheet(
     'row': _max(maxRow, 1),
     'column': _max(maxColumn, 1),
     'celldata': cells,
+    if (metadata.images.isNotEmpty) 'images': metadata.images,
     if (hyperlinks.isNotEmpty) 'hyperlink': hyperlinks,
     'config': {
       if (mergeMap.isNotEmpty) 'merge': mergeMap,
@@ -1159,10 +1160,12 @@ class _XlsxExtensionMetadata {
   const _XlsxExtensionMetadata({
     this.cellExtraByRef = const <String, Map<String, Object?>>{},
     this.runExtraByRef = const <String, Map<int, Map<String, Object?>>>{},
+    this.images = const <Map<String, Object?>>[],
   });
 
   final Map<String, Map<String, Object?>> cellExtraByRef;
   final Map<String, Map<int, Map<String, Object?>>> runExtraByRef;
+  final List<Map<String, Object?>> images;
 
   int get cellCount => cellExtraByRef.length;
 
@@ -1172,6 +1175,7 @@ class _XlsxExtensionMetadata {
   static _XlsxExtensionMetadata fromArchive(Archive archive) {
     final cellExtra = <String, Map<String, Object?>>{};
     final runExtra = <String, Map<int, Map<String, Object?>>>{};
+    final images = <Map<String, Object?>>[];
     for (final file in archive.files) {
       final name = file.name.replaceAll('\\', '/');
       if (!file.isFile ||
@@ -1188,7 +1192,7 @@ class _XlsxExtensionMetadata {
         continue;
       }
       _xlsxImportLog('customXml metadata found path=$name chars=${xml.length}');
-      _readMetadataXml(xml, cellExtra, runExtra);
+      _readMetadataXml(xml, cellExtra, runExtra, images);
     }
     _xlsxImportLog(
       'customXml metadata parsed cells=${cellExtra.length} '
@@ -1197,6 +1201,7 @@ class _XlsxExtensionMetadata {
     return _XlsxExtensionMetadata(
       cellExtraByRef: cellExtra,
       runExtraByRef: runExtra,
+      images: images,
     );
   }
 
@@ -1228,6 +1233,7 @@ class _XlsxExtensionMetadata {
     String xml,
     Map<String, Map<String, Object?>> cellExtra,
     Map<String, Map<int, Map<String, Object?>>> runExtra,
+    List<Map<String, Object?>> images,
   ) {
     for (final match in RegExp(
       r'<cell\b([^>]*)/>|<cell\b([^>]*)>(.*?)</cell>',
@@ -1272,8 +1278,41 @@ class _XlsxExtensionMetadata {
             {...?runExtra[ref]?[index], ...run};
       }
     }
+    for (final match in RegExp(
+      r'<image\b([^>]*)/>|<image\b([^>]*)>(.*?)</image>',
+      caseSensitive: false,
+      dotAll: true,
+    ).allMatches(xml)) {
+      final attributes = _xmlAttributes(match.group(1) ?? match.group(2) ?? '');
+      final id = attributes['id'];
+      if (id == null || id.isEmpty) continue;
+      final image = <String, Object?>{
+        'id': id,
+        'src': attributes['src'] ?? '',
+        'left': _metadataNumber(attributes['left']),
+        'top': _metadataNumber(attributes['top']),
+        'width': _metadataNumber(attributes['width']),
+        'height': _metadataNumber(attributes['height']),
+        ..._metadataExtra(attributes, const {
+          'index',
+          'id',
+          'src',
+          'left',
+          'top',
+          'width',
+          'height',
+        }),
+      };
+      final controls = _metadataControls(match.group(3) ?? '');
+      if (controls.isNotEmpty) {
+        image['rtfUnmappedControls'] = controls;
+      }
+      images.add(image);
+    }
   }
 }
+
+double _metadataNumber(String? value) => double.tryParse(value ?? '') ?? 0;
 
 List<_XlsxFont> _fonts(String xml) {
   final body = _extractElement(xml, 'fonts') ?? '';

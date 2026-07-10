@@ -11,13 +11,32 @@ enum BarcodeType {
   MicroQrCode(6, 'MicroQRCode'),
   UpcA(7, 'UPC-A'),
   Code93(8, 'CODE93'),
-  CodeEAN8(9, 'CODE128');
-//ISBN(10, 'ISBN'),
-//PDF417(11, 'PDF417'),
+  CodeEAN8(9, 'EAN8');
+  //ISBN(10, 'ISBN'),
+  //PDF417(11, 'PDF417'),
 
   final int code;
   final String dbName;
   const BarcodeType(this.code, this.dbName);
+}
+
+BarcodeType barcodeTypeFromDbName(String dbName) {
+  final normalized = dbName.trim().toUpperCase().replaceAll(
+    RegExp(r'[-_\s]'),
+    '',
+  );
+  return switch (normalized) {
+    'EAN8' || 'CODEEAN8' => BarcodeType.CodeEAN8,
+    'EAN13' || 'CODEEAN13' => BarcodeType.CodeEAN13,
+    'UPCA' => BarcodeType.UpcA,
+    'I2OF5' || 'ITF' => BarcodeType.Itf,
+    'DATAMATRIX' => BarcodeType.DataMatrix,
+    'CODE39' => BarcodeType.Code39,
+    'QRCODE' => BarcodeType.QrCode,
+    'MICROQRCODE' => BarcodeType.MicroQrCode,
+    'CODE93' => BarcodeType.Code93,
+    _ => BarcodeType.Code128,
+  };
 }
 
 /// Helpers for validating/normalizing barcode payloads before preview/print.
@@ -30,9 +49,35 @@ enum BarcodeType {
 ///   left-pad with '0' when odd. Non-digits are stripped.
 /// - For other symbologies we return the original trimmed string.
 class BarcodeDataHelper {
+  /// Returns a print payload only when normalization preserves the original
+  /// numeric body. Invalid lengths and lossy padding/truncation return null.
+  static String? normalizeMeaningPreservingForPrint(
+    BarcodeType type,
+    String raw,
+  ) {
+    final value = raw.trim();
+    switch (type) {
+      case BarcodeType.CodeEAN13:
+        return _normalizeMeaningPreserving(value, 12, 13, ean13);
+      case BarcodeType.UpcA:
+        return _normalizeMeaningPreserving(value, 11, 12, upcA);
+      case BarcodeType.CodeEAN8:
+        return _normalizeMeaningPreserving(value, 7, 8, ean8);
+      case BarcodeType.Itf:
+        return RegExp(r'^\d+$').hasMatch(value) && value.length.isEven
+            ? value
+            : null;
+      default:
+        return value;
+    }
+  }
+
   /// High-level normalization for printing. Returns a safe payload string.
-  static String normalizeForPrint(BarcodeType type, String raw,
-      {bool strict = false}) {
+  static String normalizeForPrint(
+    BarcodeType type,
+    String raw, {
+    bool strict = false,
+  }) {
     switch (type) {
       case BarcodeType.CodeEAN13:
         return ean13(raw, strict: strict);
@@ -128,6 +173,19 @@ class BarcodeDataHelper {
   }
 
   // --- internals ---
+
+  static String? _normalizeMeaningPreserving(
+    String input,
+    int bodyLength,
+    int fullLength,
+    String Function(String input, {bool strict}) normalize,
+  ) {
+    if (!RegExp(r'^\d+$').hasMatch(input) ||
+        (input.length != bodyLength && input.length != fullLength)) {
+      return null;
+    }
+    return normalize(input);
+  }
 
   // EAN-13/UPC-A mod10 for a 12- or 11-digit base respectively, using EAN weighting for 12-digit base.
   static int _eanUpcMod10(String base12) {

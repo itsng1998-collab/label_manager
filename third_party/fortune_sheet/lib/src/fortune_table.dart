@@ -157,6 +157,7 @@ class FortuneTable<T> extends StatefulWidget {
     this.selectedIndex,
     this.selectionController,
     this.onRowSelected,
+    this.onRowSecondaryTapDown,
     this.onRectChanged,
     this.rowColorBuilder,
     this.rowNumberWidth = 40,
@@ -174,6 +175,8 @@ class FortuneTable<T> extends StatefulWidget {
   final int? selectedIndex;
   final FortuneTableSelectionController? selectionController;
   final void Function(T row, int index)? onRowSelected;
+  final void Function(T row, int index, TapDownDetails details)?
+  onRowSecondaryTapDown;
   final ValueChanged<Rect>? onRectChanged;
   final Color? Function(T row, int rowIndex, bool selected)? rowColorBuilder;
   final double rowNumberWidth;
@@ -651,6 +654,8 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTapDown: (_) => _selectRow(row, rowIndex),
+        onSecondaryTapDown: (details) =>
+            widget.onRowSecondaryTapDown?.call(row, rowIndex, details),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: List.generate(widths.length, (columnIndex) {

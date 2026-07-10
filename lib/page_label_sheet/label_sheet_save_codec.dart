@@ -31,6 +31,7 @@ const List<String> _labelSheetSaveFeatureKeys = [
   'sheet.formulaMetadata',
   'sheet.frozen',
   'sheet.labelMetadata',
+  'sheet.images.preserveTemplateBarcodeFormat',
 ];
 
 const Set<String> _supportedWorkbookKeys = {
@@ -203,6 +204,7 @@ const Set<String> _supportedImageKeys = {
   'barcodeShowText',
   'barcodeHumanReadableFontFamily',
   'barcodeHumanReadableFontSize',
+  'preserveTemplateBarcodeFormat',
   fortuneImageObjectIdExtraKey,
   fortuneBarcodeObjectIdExtraKey,
   fortuneSheetObjectZOrderExtraKey,
@@ -232,15 +234,8 @@ String labelSheetEncodeWorkbookSave(FortuneWorkbook workbook) {
     FortuneSheetCodec.workbookToJson(workbook),
   );
   final archive = Archive()
-    ..addFile(
-      ArchiveFile.string('manifest.json', jsonEncode(manifest)),
-    )
-    ..addFile(
-      ArchiveFile.string(
-        'workbook.json',
-        jsonEncode(workbookJson),
-      ),
-    );
+    ..addFile(ArchiveFile.string('manifest.json', jsonEncode(manifest)))
+    ..addFile(ArchiveFile.string('workbook.json', jsonEncode(workbookJson)));
   return base64Encode(ZipEncoder().encodeBytes(archive));
 }
 
@@ -396,9 +391,8 @@ _LabelSheetSaveBounds _estimatedCellTextExtent(
   final longestLine = lines.fold<int>(0, (longest, line) {
     return math.max(longest, line.runes.length);
   });
-  final estimatedTextWidth = longestLine * (fontSize * 0.56 + letterSpacing) *
-      fontScale /
-      100;
+  final estimatedTextWidth =
+      longestLine * (fontSize * 0.56 + letterSpacing) * fontScale / 100;
   final estimatedTextHeight = lines.length * fontSize * lineHeight;
   final availableWidth = _spanLength(
     startColumn,
@@ -411,13 +405,15 @@ _LabelSheetSaveBounds _estimatedCellTextExtent(
     lengthForIndex: (row) => _rowHeight(sheet, row),
   );
   return _LabelSheetSaveBounds(
-    maxRow: startRow +
+    maxRow:
+        startRow +
         math.max<int>(
           rowSpan,
           (estimatedTextHeight / math.max(availableHeight, 1)).ceil() * rowSpan,
         ) -
         1,
-    maxColumn: startColumn +
+    maxColumn:
+        startColumn +
         math.max<int>(
           columnSpan,
           (estimatedTextWidth / math.max(availableWidth, 1)).ceil() *
@@ -665,19 +661,20 @@ ArchiveFile? _archiveFile(Archive archive, String name) {
 Map<String, Object?> labelSheetSanitizeWorkbookSaveJson(
   Map<String, Object?> json,
 ) {
-  return _sanitizeMap(json, _supportedWorkbookKeys, valueSanitizer: (
-    key,
-    value,
-  ) {
-    if (key == 'data' && value is List) {
-      return [
-        for (final item in value)
-          if (item is Map)
-            _sanitizeSheetJson(Map<String, Object?>.from(item)),
-      ];
-    }
-    return _cloneSupportedSaveValue(value);
-  });
+  return _sanitizeMap(
+    json,
+    _supportedWorkbookKeys,
+    valueSanitizer: (key, value) {
+      if (key == 'data' && value is List) {
+        return [
+          for (final item in value)
+            if (item is Map)
+              _sanitizeSheetJson(Map<String, Object?>.from(item)),
+        ];
+      }
+      return _cloneSupportedSaveValue(value);
+    },
+  );
 }
 
 Map<String, Object?> labelSheetMigrateWorkbookSaveJson(
@@ -701,7 +698,8 @@ void _migrateLegacySheetImageKey(
   required Map<String, int> sourceFeatures,
 }) {
   final sheetImagesFeatureVersion =
-      labelSheetSaveFeatureVersions['sheet.images'] ?? labelSheetSaveFormatVersion;
+      labelSheetSaveFeatureVersions['sheet.images'] ??
+      labelSheetSaveFormatVersion;
   final currentImagesFeatureKnown =
       sourceVersion >= sheetImagesFeatureVersion &&
       sourceFeatures.containsKey('sheet.images');
@@ -754,16 +752,21 @@ Map<String, Object?> _cloneStringObjectMap(Map<String, Object?> value) {
 }
 
 Map<String, Object?> _sanitizeSheetJson(Map<String, Object?> json) {
-  return _sanitizeMap(json, _supportedSheetKeys, valueSanitizer: (key, value) {
-    return switch (key) {
-      'config' when value is Map =>
-        _sanitizeSheetConfigJson(Map<String, Object?>.from(value)),
-      'celldata' when value is List => _sanitizeCelldata(value),
-      'data' when value is List => _sanitizeMatrixData(value),
-      'images' || 'image' when value is List => _sanitizeImages(value),
-      _ => _cloneSupportedSaveValue(value),
-    };
-  });
+  return _sanitizeMap(
+    json,
+    _supportedSheetKeys,
+    valueSanitizer: (key, value) {
+      return switch (key) {
+        'config' when value is Map => _sanitizeSheetConfigJson(
+          Map<String, Object?>.from(value),
+        ),
+        'celldata' when value is List => _sanitizeCelldata(value),
+        'data' when value is List => _sanitizeMatrixData(value),
+        'images' || 'image' when value is List => _sanitizeImages(value),
+        _ => _cloneSupportedSaveValue(value),
+      };
+    },
+  );
 }
 
 List<Object?> _sanitizeImages(List<Object?> raw) {
@@ -774,15 +777,19 @@ List<Object?> _sanitizeImages(List<Object?> raw) {
 }
 
 Map<String, Object?> _sanitizeImageJson(Map<String, Object?> json) {
-  return _sanitizeMap(json, _supportedImageKeys, valueSanitizer: (key, value) {
-    if (key == 'crop' && value is Map) {
-      return _sanitizeMap(
-        Map<String, Object?>.from(value),
-        _supportedImageCropKeys,
-      );
-    }
-    return _cloneSupportedSaveValue(value);
-  });
+  return _sanitizeMap(
+    json,
+    _supportedImageKeys,
+    valueSanitizer: (key, value) {
+      if (key == 'crop' && value is Map) {
+        return _sanitizeMap(
+          Map<String, Object?>.from(value),
+          _supportedImageCropKeys,
+        );
+      }
+      return _cloneSupportedSaveValue(value);
+    },
+  );
 }
 
 Map<String, Object?> _sanitizeSheetConfigJson(Map<String, Object?> json) {
@@ -803,7 +810,9 @@ List<Object?> _sanitizeCelldata(List<Object?> raw) {
               '${entry.key}': _cloneSupportedSaveValue(entry.value)
             else if (entry.key == 'v')
               'v': entry.value is Map
-                  ? _sanitizeCellJson(Map<String, Object?>.from(entry.value as Map))
+                  ? _sanitizeCellJson(
+                      Map<String, Object?>.from(entry.value as Map),
+                    )
                   : _cloneSupportedSaveValue(entry.value),
         },
   ];
@@ -825,31 +834,39 @@ List<Object?> _sanitizeMatrixData(List<Object?> raw) {
 }
 
 Map<String, Object?> _sanitizeCellJson(Map<String, Object?> json) {
-  return _sanitizeMap(json, _supportedCellKeys, valueSanitizer: (key, value) {
-    return switch (key) {
-      'mc' when value is Map => _sanitizeMap(
-        Map<String, Object?>.from(value),
-        _supportedMergeKeys,
-      ),
-      'ct' when value is Map => _sanitizeCellTypeJson(
-        Map<String, Object?>.from(value),
-      ),
-      _ => _cloneSupportedSaveValue(value),
-    };
-  });
+  return _sanitizeMap(
+    json,
+    _supportedCellKeys,
+    valueSanitizer: (key, value) {
+      return switch (key) {
+        'mc' when value is Map => _sanitizeMap(
+          Map<String, Object?>.from(value),
+          _supportedMergeKeys,
+        ),
+        'ct' when value is Map => _sanitizeCellTypeJson(
+          Map<String, Object?>.from(value),
+        ),
+        _ => _cloneSupportedSaveValue(value),
+      };
+    },
+  );
 }
 
 Map<String, Object?> _sanitizeCellTypeJson(Map<String, Object?> json) {
-  return _sanitizeMap(json, _supportedCellTypeKeys, valueSanitizer: (key, value) {
-    if (key == 's' && value is List) {
-      return [
-        for (final item in value)
-          if (item is Map)
-            _sanitizeInlineRunJson(Map<String, Object?>.from(item)),
-      ];
-    }
-    return _cloneSupportedSaveValue(value);
-  });
+  return _sanitizeMap(
+    json,
+    _supportedCellTypeKeys,
+    valueSanitizer: (key, value) {
+      if (key == 's' && value is List) {
+        return [
+          for (final item in value)
+            if (item is Map)
+              _sanitizeInlineRunJson(Map<String, Object?>.from(item)),
+        ];
+      }
+      return _cloneSupportedSaveValue(value);
+    },
+  );
 }
 
 Map<String, Object?> _sanitizeInlineRunJson(Map<String, Object?> json) {

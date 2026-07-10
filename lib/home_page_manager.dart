@@ -39,6 +39,7 @@ import 'package:label_manager/page_label_sheet/label_sheet_rtf_preview_debug.dar
 import 'package:label_manager/utils/log_context.dart';
 import 'package:label_manager/utils/on_messages.dart';
 import 'package:label_manager/page_home/item_manage.dart';
+import 'package:label_manager/page_home/item_code_data_resolver.dart';
 import 'package:label_manager/page_home/item_manager_xlsx.dart';
 import 'package:label_manager/page_home/common_label_manage.dart';
 import 'package:label_manager/page_home/preview_floating_window.dart';
@@ -893,6 +894,66 @@ class _HomePageManagerState extends State<HomePageManager> {
     }
   }
 
+  Future<void> _showItemQrData(ItemManagerDraftRow row) async {
+    final controller = _itemDraftController;
+    if (controller == null ||
+        !controller.rows.any((item) => item.rowKey == row.rowKey)) {
+      return;
+    }
+    final columns = [
+      for (final column in TColumn.datas ?? const <TColumn>[])
+        ItemCodeColumnSpec.fromColumn(column),
+    ];
+    final results = ItemCodeDataResolver(
+      itemName: row.itemName,
+      columns: columns,
+      columnValue: (columnId) => controller.columnValue(row, columnId),
+    ).resolveViewerData();
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('QR코드 데이터 보기'),
+        content: SizedBox(
+          width: 560,
+          child: results.isEmpty
+              ? const Text('표시할 QR코드 또는 텍스트 연동 데이터가 없습니다.')
+              : ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 420),
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: results.length,
+                    separatorBuilder: (_, _) => const Divider(height: 20),
+                    itemBuilder: (context, index) {
+                      final result = results[index];
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            result.column.columnName,
+                            style: Theme.of(context).textTheme.labelLarge,
+                          ),
+                          const SizedBox(height: 4),
+                          SelectableText(
+                            result.error ??
+                                (result.data.isEmpty ? '데이터 없음' : result.data),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('닫기'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _reloadItemDraftFromDatabase({int? selectedItemId}) async {
     final labelSize = _currentLabelSize;
     if (labelSize == null) return;
@@ -1186,6 +1247,7 @@ class _HomePageManagerState extends State<HomePageManager> {
           emptyElementPayload: _itemDraftEmptyElementPayload,
           onExcelImport: _importItemManagerXlsx,
           onExcelExport: _exportItemManagerXlsx,
+          onQrDataView: _showItemQrData,
           onCancelDraft: _cancelItemDraft,
           onSaveDraft: _saveItemDraft,
           commandBusy: _itemDraftCommandBusy,
@@ -3382,6 +3444,15 @@ debugItemOutputPreviewForTesting({
       workbook: _replaceItemPreviewKeywords(
         _itemOutputPreviewPrivateWorkbook(workbook, labelSize),
         _itemOutputPreviewReplacements(item: item, elementText: elementText),
+        codeDataResolver: ItemCodeDataResolver(
+          itemName: item.item.itemName,
+          columns: [
+            for (final column in TColumn.datas ?? const <TColumn>[])
+              ItemCodeColumnSpec.fromColumn(column),
+          ],
+          columnValue: (columnId) =>
+              TColumnContent.get(columnId, item.item.itemId)?.dataString ?? '',
+        ),
         elementCell: _itemElementCellFromWorkbook(
           elementWorkbook ?? _itemElementWorkbook(elementText, labelSize),
         ),
@@ -3707,6 +3778,7 @@ Set<String> _itemOutputPreviewImageKeywords() {
 fs.FortuneWorkbook _replaceItemPreviewKeywords(
   fs.FortuneWorkbook workbook,
   Map<String, String> replacements, {
+  ItemCodeDataResolver? codeDataResolver,
   fs.FortuneCell? elementCell,
   required Set<String> imageKeywords,
 }) {
@@ -3715,6 +3787,7 @@ fs.FortuneWorkbook _replaceItemPreviewKeywords(
       _replaceSheetKeywords(
         sheet,
         replacements,
+        codeDataResolver: codeDataResolver,
         elementCell: elementCell,
         imageKeywords: imageKeywords,
       ),
@@ -3725,6 +3798,7 @@ fs.FortuneWorkbook _replaceItemPreviewKeywords(
 fs.FortuneSheet _replaceSheetKeywords(
   fs.FortuneSheet sheet,
   Map<String, String> replacements, {
+  ItemCodeDataResolver? codeDataResolver,
   fs.FortuneCell? elementCell,
   required Set<String> imageKeywords,
 }) {
@@ -3772,7 +3846,11 @@ fs.FortuneSheet _replaceSheetKeywords(
   }
   final nextImages = [
     for (final image in sheet.images)
-      _replaceImageKeywords(image, replacements),
+      _replaceImageKeywords(
+        image,
+        replacements,
+        codeDataResolver: codeDataResolver,
+      ),
     ...insertedImages,
   ];
   return sheet.copyWith(
@@ -3929,13 +4007,30 @@ double? _itemPreviewDoubleExtra(Map<String, Object?> extraFields, String key) {
 
 fs.FortuneImage _replaceImageKeywords(
   fs.FortuneImage image,
-  Map<String, String> replacements,
-) {
+  Map<String, String> replacements, {
+  ItemCodeDataResolver? codeDataResolver,
+}) {
   final extraFields = Map<String, Object?>.from(image.extraFields);
   if (extraFields['fortuneBarcode'] == true) {
     final objectId = '${extraFields[fs.fortuneBarcodeObjectIdExtraKey] ?? ''}'
         .trim()
         .toLowerCase();
+    final preserveTemplateFormat =
+        extraFields['preserveTemplateBarcodeFormat'] == true;
+    final resolved = codeDataResolver?.resolveObject(
+      objectId,
+      templateFormatId: '${extraFields['barcodeFormatId'] ?? ''}',
+      preserveTemplateBarcodeFormat: preserveTemplateFormat,
+    );
+    if (resolved != null) {
+      return image.copyWith(
+        extraFields: itemCodeBarcodeMetadata(
+          extraFields,
+          resolved,
+          preserveTemplateBarcodeFormat: preserveTemplateFormat,
+        ),
+      );
+    }
     for (final entry in replacements.entries) {
       if (entry.key.toLowerCase() != objectId) continue;
       extraFields['barcodeText'] = entry.value;
