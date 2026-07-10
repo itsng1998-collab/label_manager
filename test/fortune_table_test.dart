@@ -666,6 +666,86 @@ void main() {
     );
     expect(table.rows.single.item.itemId, 10);
     expect(table.columns.first.checkboxValueAt!(table.rows.single, 0), isTrue);
+
+    final refreshedController = ItemManagerDraftController.fromItems(
+      items: [first],
+      rawSnapshots: {10: _rawSnapshot(10)},
+      scopedColumnContents: TColumnContentScopedView(const {}),
+    );
+    addTearDown(refreshedController.dispose);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 600,
+            height: 220,
+            child: ItemManage(
+              items: const [],
+              draftController: refreshedController,
+              labelSize: const LabelSize(
+                labelSizeId: 20,
+                brandId: 30,
+                labelSizeName: '테스트 라벨',
+              ),
+              marketId: 1,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    table = tester.widget<FortuneTable<ItemOfMarket>>(
+      find.byType(FortuneTable<ItemOfMarket>),
+    );
+    expect(table.columns.first.checkboxController!.checkedRows('publish'), isEmpty);
+  });
+
+  testWidgets('ItemManage blocks publish command when open menu becomes dirty', (
+    tester,
+  ) async {
+    final source = _testItemOfMarket(itemName: '기존 품목');
+    final controller = ItemManagerDraftController.fromItems(
+      items: [source],
+      rawSnapshots: {10: _rawSnapshot(10)},
+      scopedColumnContents: TColumnContentScopedView(const {}),
+    );
+    addTearDown(controller.dispose);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 600,
+            height: 220,
+            child: ItemManage(
+              items: const [],
+              draftController: controller,
+              labelSize: const LabelSize(
+                labelSizeId: 20,
+                brandId: 30,
+                labelSizeName: '테스트 라벨',
+              ),
+              marketId: 1,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('기존 품목'));
+    await tester.pump();
+    await _openItemManageContextMenu(
+      tester,
+      tester.getTopLeft(find.byType(FortuneTable<ItemOfMarket>)),
+    );
+    controller.updateItemName('item:10', '수정 품목');
+    await tester.pump();
+    await tester.tap(find.text('블럭 선택 발행 체크'));
+    await tester.pumpAndSettle();
+
+    final table = tester.widget<FortuneTable<ItemOfMarket>>(
+      find.byType(FortuneTable<ItemOfMarket>),
+    );
+    expect(table.columns.first.checkboxValueAt!(table.rows.single, 0), isFalse);
   });
 
   testWidgets('ItemManage context menu controls selection and publish checks', (
@@ -989,6 +1069,14 @@ void main() {
 
     expect(viewedRow?.rowKey, 'draft:draft-qr');
     expect(controller.rows.single.rowState, ItemManagerDraftRowState.added);
+
+    viewedRow = null;
+    await _openItemManageContextMenu(tester, tableTopLeft);
+    controller.deleteRows(const ['draft:draft-qr']);
+    await tester.pump();
+    await tester.tap(find.text('QR코드 데이터 보기'));
+    await tester.pumpAndSettle();
+    expect(viewedRow, isNull);
   });
 
   testWidgets('ItemManage commits item name edits to the draft row', (

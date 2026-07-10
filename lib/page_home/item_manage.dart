@@ -556,7 +556,12 @@ class _ItemManageState extends State<ItemManage> {
         await widget.onItemOrderChange?.call();
       case _menuQrDataView:
         final row = _contextMenuDraftRow;
-        if (row != null) await widget.onQrDataView?.call(row);
+        final targetExists = row != null &&
+            (widget.draftController?.rows.any(
+                  (current) => current.rowKey == row.rowKey,
+                ) ??
+                false);
+        if (targetExists) await widget.onQrDataView?.call(row);
       case _menuSelectAll:
         _selectionController.selectAll(
           widget.draftController?.rows.length ?? widget.items.length,
@@ -727,6 +732,11 @@ class _ItemManageState extends State<ItemManage> {
   }
 
   void _setSelectedPublishChecked(bool checked) {
+    if (widget.commandBusy ||
+        widget.forceReloadRequired ||
+        widget.draftController?.isDirty == true) {
+      return;
+    }
     final selectedRows = _selectionController.selectedRows;
     if (selectedRows.isEmpty) return;
     final checkedRows = _publishCheckboxController.checkedRows(
