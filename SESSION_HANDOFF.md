@@ -39,6 +39,7 @@
 - `.tmp/item_manager_modify.txt` 반영 완료: `[label/date setup]` 완료 기준/검증 태그에 setup 로그 컬럼 probe 실패, 전체 컬럼 존재 시 transaction logging, 일부/전체 누락 시 logless update, 로그 insert rollback, logless update 앱 로그 검증을 추가했다.
 - 검증: `git diff --check -- .tmp/item_manager_modify.txt` 통과. `grep_search`로 `품목 column 형식을 먼저 평가`, `template 형식 우선 평가는`, `logless update가 기본 경로`, `DATE_FORMAT_DOT`, `TIME_FORMAT_COLON`, `setup 로그 컬럼 probe 실패` 문구 확인. `후보 평가 순서는 해당 object의 template 형식`, `기본값 fallback 또는 오류 안내`, `사용자 답변: 미확정` 없음 확인.
 - stage/commit 대상: ignored `.tmp/item_manager_modify.txt` 변경 추적용 `SESSION_HANDOFF.md`만 stage/commit한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+- 커밋: `f1bb4b5` 품목관리 요청서 바코드 날짜 계약 기록
 
 ### 완료 (2026-07-10): 품목관리 요청서 날짜 setup 로그 계약 권장안 병합
 
