@@ -36,6 +36,7 @@
 - `.tmp/item_manager_modify.txt` 반영 완료: check digit 본문, 수용조건, 사용자 확인 사항의 열린 추가 구현 표현을 제거하고, EAN-13/UPC-A/EAN-8 외 타입은 이번 요청 범위에서 자동 보정 저장 대상으로 추가하지 않으며 저장 전 검증 오류로 처리하도록 명시했다.
 - 검증: `git diff --check -- .tmp/item_manager_modify.txt` 통과. `grep_search`로 `이번 구현의 범위는 EAN-13/UPC-A/EAN-8로 닫는다`, `이번 요청 범위에서 추가 구현하지 않고 저장 전 검증 오류`, `이번 요청 범위에서 자동 보정 저장 대상으로 추가하지 않고 저장 전 검증 오류` 문구 확인. `별도 명시된 추가 구현 대상으로 처리`, `레거시 함수와 DB 저장 규칙을 확인해 요청서에 명시한 경우에만 추가`, `사용자 답변: 미확정`, `확정 필요`, `TODO`, `FIXME` 없음 확인.
 - stage/commit 대상: ignored `.tmp/item_manager_modify.txt` 변경 추적용 `SESSION_HANDOFF.md`만 stage/commit한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+- 커밋: `55db352` 품목관리 요청서 체크디지트 범위 기록
 
 ### 완료 (2026-07-10): 품목관리 요청서 Excel image 검증/check digit 문구 정리
 
