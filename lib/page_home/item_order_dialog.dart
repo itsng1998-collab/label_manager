@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:label_manager/models/item_of_market.dart';
 
 class ItemOrderDialog extends StatefulWidget {
-  const ItemOrderDialog({super.key, required this.items});
+  const ItemOrderDialog({super.key, required this.items, this.selectedItemId});
 
   final List<ItemOfMarket> items;
+  final int? selectedItemId;
 
   @override
   State<ItemOrderDialog> createState() => _ItemOrderDialogState();
@@ -18,6 +19,10 @@ class _ItemOrderDialogState extends State<ItemOrderDialog> {
   void initState() {
     super.initState();
     _items = [...widget.items];
+    final selectedIndex = _items.indexWhere(
+      (value) => value.item.itemId == widget.selectedItemId,
+    );
+    if (selectedIndex >= 0) _selectedIndex = selectedIndex;
   }
 
   bool get _changed {

@@ -646,6 +646,40 @@ void main() {
     await tester.pumpAndSettle();
   });
 
+  testWidgets('ItemManage disables order command without edit permission', (
+    tester,
+  ) async {
+    var invoked = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 600,
+            height: 220,
+            child: ItemManage(
+              items: [
+                _testItemOfMarket(itemName: '첫째 품목'),
+                _testItemOfMarket(itemName: '둘째 품목'),
+              ],
+              onItemOrderChange: () async => invoked = true,
+              itemOrderDisabledReason: '편집 권한이 없습니다.',
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final tableTopLeft = tester.getTopLeft(
+      find.byType(FortuneTable<ItemOfMarket>),
+    );
+    await _openItemManageContextMenu(tester, tableTopLeft);
+
+    expect(find.text('편집 권한이 없습니다.'), findsOneWidget);
+    await tester.tap(find.text('순서 변경'));
+    await tester.pump();
+    expect(invoked, isFalse);
+  });
+
   testWidgets('ItemManage adds and confirms deletion of a draft row', (
     tester,
   ) async {

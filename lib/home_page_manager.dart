@@ -969,6 +969,7 @@ class _HomePageManagerState extends State<HomePageManager> {
     if (labelSize == null ||
         market == null ||
         controller == null ||
+      User.instance?.canEdit != true ||
         controller.isDirty ||
         _itemDraftCommandBusy) {
       return;
@@ -985,7 +986,10 @@ class _HomePageManagerState extends State<HomePageManager> {
       if (!mounted || storedItems.length < 2) return;
       final ordered = await showDialog<List<ItemOfMarket>>(
         context: context,
-        builder: (_) => ItemOrderDialog(items: storedItems),
+        builder: (_) => ItemOrderDialog(
+          items: storedItems,
+          selectedItemId: selectedItemId,
+        ),
       );
       if (!mounted || ordered == null) return;
       final confirmed = await showDialog<bool>(
@@ -1382,10 +1386,13 @@ class _HomePageManagerState extends State<HomePageManager> {
           onQrDataView: _showItemQrData,
           onItemOrderChange:
               _effectiveLabelSize != null &&
+                User.instance?.canEdit == true &&
                   (ItemOfMarket.datas?.length ?? 0) >= 2
               ? _changeItemOrder
               : null,
-          itemOrderDisabledReason: (ItemOfMarket.datas?.length ?? 0) < 2
+            itemOrderDisabledReason: User.instance?.canEdit != true
+              ? '편집 권한이 없습니다.'
+              : (ItemOfMarket.datas?.length ?? 0) < 2
               ? '순서를 바꾸려면 품목이 2개 이상 필요합니다.'
               : null,
           onCancelDraft: _cancelItemDraft,

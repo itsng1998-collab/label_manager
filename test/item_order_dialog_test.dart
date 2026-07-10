@@ -18,6 +18,7 @@ void main() {
               result = await showDialog<List<ItemOfMarket>>(
                 context: context,
                 builder: (_) => ItemOrderDialog(
+                  selectedItemId: 2,
                   items: [
                     _item(itemId: 1, name: '첫째 품목'),
                     _item(itemId: 2, name: '둘째 품목'),
@@ -43,7 +44,16 @@ void main() {
     expect(find.text('2'), findsOneWidget);
     expect(find.text('3'), findsOneWidget);
 
-    await tester.tap(find.byKey(const ValueKey('item-order-down')));
+    final upButton = tester.widget<IconButton>(
+      find.byKey(const ValueKey('item-order-up')),
+    );
+    final downButton = tester.widget<IconButton>(
+      find.byKey(const ValueKey('item-order-down')),
+    );
+    expect(upButton.onPressed, isNotNull);
+    expect(downButton.onPressed, isNotNull);
+
+    await tester.tap(find.byKey(const ValueKey('item-order-up')));
     await tester.pump();
 
     expect(
