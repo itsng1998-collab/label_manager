@@ -41,7 +41,7 @@
 - 수정 완료: 기존 mapping 보존/복원 시 `RICH_ADDITIONAL_ITEM_ID`에는 Flutter `AdditionalItem.AdditionalItemId`를 사용하고 `AdditionalItem.itemId`와 혼동하지 않도록 명시했다.
 - 검증 완료: `Select-String -Path .tmp/item_manager_modify.txt -Pattern 'marketMappingDraftTemplate|targetMarketIds|target market ids|현재 로그인 고객의 모든 market|기존 행의 market-specific|child row도 삭제하지|item 참조 child row|OUTPUT INSERTED.*INTO|OUTPUT INTO|direct OUTPUT|AdditionalItem\.AdditionalItemId|AdditionalItem\.itemId|baseline은 현재 화면 market|현재 화면 market.*저장 대상|mapping 제거 -> 신규|CItemOfMarketDAO::UpdateBatch'`로 병합 문구 반영을 확인했다.
 - 검증 완료: `git diff --check -- .tmp/item_manager_modify.txt` 통과(공백 오류 없음).
-- 커밋 예정: `SESSION_HANDOFF.md`만 포함한다. `.tmp/item_manager_modify.txt`는 `.gitignore` 대상이므로 force add하지 않고 작업 파일로 유지한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+- 커밋 완료: `8c89b97` 품목관리 요청서 market mapping 범위 보강. 포함 파일은 `SESSION_HANDOFF.md`이며, `.tmp/item_manager_modify.txt`는 ignore 대상 작업 파일로 유지했다. 기존 unrelated dirty `lib/core/app.dart`는 제외했다.
 
 ### 완료 (2026-07-10): 품목관리 요청서 레거시 기본값/시장 매핑 정책 병합
 
