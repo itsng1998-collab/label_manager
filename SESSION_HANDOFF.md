@@ -28,6 +28,15 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-10): 품목관리 요청서 preview/output check digit 문구 정리
+
+- 수정 예정 파일: `.tmp/item_manager_modify.txt`는 ignored 요청서 본문 수정, `SESSION_HANDOFF.md`는 ignored 요청서 변경 추적용 기록/검증/커밋 정보 갱신.
+- 사용자 확인: 새 비즈니스 정책 질문은 없다. 이번 병합은 기존 확정 정책 안에서 출력 미리보기/실제 출력 경로의 check digit 보정 문장이 셀 편집 자동 보정 저장 정책과 충돌해 보이지 않도록 문맥을 좁히는 문서 수정이다.
+- 병합 예정: preview/output 경로에서 수행하는 check digit 보정은 payload 산출 전용임을 명시하고, 셀 편집 자동 보정 저장 정책은 별도 셀 편집 규칙을 따른다고 구분한다.
+- `.tmp/item_manager_modify.txt` 반영 완료: preview/output barcode text 산출 문장에서 출력 미리보기/실제 출력 경로의 check digit 보정은 payload 산출 전용이고, 셀 편집 자동 보정 저장 정책은 별도 셀 편집 규칙을 따른다고 명시했다.
+- 검증: `git diff --check -- .tmp/item_manager_modify.txt` 통과. `grep_search`로 `출력 미리보기/실제 출력 경로에서 수행하는 check digit 보정은 preview/output payload 산출에만 적용`, `셀 편집 자동 보정 저장 정책은 별도 셀 편집 규칙을 따른다` 문구 확인. 기존 충돌 가능 표현 `check digit 자동 보정은 preview/output payload 산출에만 적용하고`, `사용자 답변: 미확정`, `확정 필요`, `TODO`, `FIXME` 없음 확인.
+- stage/commit 대상: ignored `.tmp/item_manager_modify.txt` 변경 추적용 `SESSION_HANDOFF.md`만 stage/commit한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+
 ### 완료 (2026-07-10): 품목관리 요청서 check digit 오류 범위 정리
 
 - 수정 예정 파일: `.tmp/item_manager_modify.txt`는 ignored 요청서 본문 수정, `SESSION_HANDOFF.md`는 ignored 요청서 변경 추적용 기록/검증/커밋 정보 갱신.
