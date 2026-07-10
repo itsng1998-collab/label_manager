@@ -101,6 +101,8 @@ class _ItemManageState extends State<ItemManage> {
     horizontal: 12,
   );
   static const Color _publishCheckedRowColor = Color(0xFFEAF4FF);
+  static const Color _addedRowColor = Color(0xFFEAF7EE);
+  static const Color _modifiedRowColor = Color(0xFFFFF6DF);
 
   final FortuneTableCheckboxController _publishCheckboxController =
       FortuneTableCheckboxController();
@@ -116,12 +118,15 @@ class _ItemManageState extends State<ItemManage> {
   );
   List<ItemManagerDraftRow> _displayDraftRows = const [];
   Map<ItemOfMarket, ItemManagerDraftRow> _draftByDisplayItem = Map.identity();
+  final Set<int> _publishCheckedItemIds = <int>{};
   ItemManagerDraftRow? _contextMenuDraftRow;
   int _lastFocusRequestId = 0;
+  bool _projectingPublishChecks = false;
 
   @override
   void initState() {
     super.initState();
+    _publishCheckboxController.addListener(_handlePublishChecksChanged);
     widget.draftController?.addListener(_handleDraftChanged);
   }
 
@@ -131,14 +136,11 @@ class _ItemManageState extends State<ItemManage> {
     if (oldWidget.draftController != widget.draftController) {
       oldWidget.draftController?.removeListener(_handleDraftChanged);
       widget.draftController?.addListener(_handleDraftChanged);
+      _publishCheckedItemIds.clear();
+      _publishCheckboxController.clearColumn(_publishColumnId);
     }
+    _projectPublishChecks();
     final rowCount = widget.draftController?.rows.length ?? widget.items.length;
-    _publishCheckboxController.setCheckedRows(
-      _publishColumnId,
-      _publishCheckboxController
-          .checkedRows(_publishColumnId)
-          .where((index) => index < rowCount),
-    );
     _selectionController.setSelectedRows(
       _selectionController.selectedRows.where((index) => index < rowCount),
     );
@@ -169,13 +171,44 @@ class _ItemManageState extends State<ItemManage> {
           _focusController.focusCell(indexes.first, columnId);
         }
       }
+      _projectPublishChecks();
     }
     if (mounted) setState(() {});
+  }
+
+  void _handlePublishChecksChanged() {
+    if (_projectingPublishChecks) return;
+    final rows = widget.draftController?.rows;
+    _publishCheckedItemIds.clear();
+    for (final index in _publishCheckboxController.checkedRows(
+      _publishColumnId,
+    )) {
+      final itemId = rows != null
+          ? (index < rows.length ? rows[index].sourceItemId : null)
+          : (index < widget.items.length ? widget.items[index].item.itemId : null);
+      if (itemId != null) _publishCheckedItemIds.add(itemId);
+    }
+  }
+
+  void _projectPublishChecks() {
+    final rows = widget.draftController?.rows;
+    if (rows == null) return;
+    final indexes = <int>[];
+    for (var index = 0; index < rows.length; index += 1) {
+      final itemId = rows[index].sourceItemId;
+      if (itemId != null && _publishCheckedItemIds.contains(itemId)) {
+        indexes.add(index);
+      }
+    }
+    _projectingPublishChecks = true;
+    _publishCheckboxController.setCheckedRows(_publishColumnId, indexes);
+    _projectingPublishChecks = false;
   }
 
   @override
   void dispose() {
     widget.draftController?.removeListener(_handleDraftChanged);
+    _publishCheckboxController.removeListener(_handlePublishChecksChanged);
     _addCountController.dispose();
     _insertCountController.dispose();
     _publishCheckboxController.dispose();
@@ -322,6 +355,14 @@ class _ItemManageState extends State<ItemManage> {
 
   Color? _rowColor(ItemOfMarket row, int rowIndex, bool selected) {
     if (selected) return null;
+    final draft = _draftByDisplayItem[row];
+    if (draft?.rowState == ItemManagerDraftRowState.added ||
+        draft?.rowState == ItemManagerDraftRowState.imported) {
+      return _addedRowColor;
+    }
+    if (draft?.rowState == ItemManagerDraftRowState.modified) {
+      return _modifiedRowColor;
+    }
     return _publishCheckboxController.isChecked(_publishColumnId, rowIndex)
         ? _publishCheckedRowColor
         : null;

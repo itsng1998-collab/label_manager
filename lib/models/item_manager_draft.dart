@@ -35,6 +35,22 @@ int? resolveItemManagerReloadSelectionIndex(
   return 0;
 }
 
+int? resolveItemManagerSavedSelectionItemId({
+  required ItemManagerDraftRow? selectedRow,
+  required Map<String, int> insertedItemIdsByDraftKey,
+}) {
+  final selectedDraftRowKey = selectedRow?.draftRowKey;
+  if (selectedDraftRowKey != null) {
+    final insertedItemId = insertedItemIdsByDraftKey[selectedDraftRowKey];
+    if (insertedItemId != null) return insertedItemId;
+  }
+  final selectedSourceItemId = selectedRow?.sourceItemId;
+  if (selectedSourceItemId != null) return selectedSourceItemId;
+  return selectedRow == null && insertedItemIdsByDraftKey.length == 1
+      ? insertedItemIdsByDraftKey.values.single
+      : null;
+}
+
 enum ItemManagerElementPayloadFormat { empty, workbook, legacyRtf, unknown }
 
 class ItemManagerImportViewState {

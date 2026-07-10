@@ -579,6 +579,95 @@ void main() {
     expect(_cellColorForText(tester, '둘째 품목'), const Color(0xFFE3F2FD));
   });
 
+  testWidgets('ItemManage distinguishes added and modified draft rows', (
+    tester,
+  ) async {
+    final source = _testItemOfMarket(itemName: '기존 품목', marketId: 1);
+    final controller = ItemManagerDraftController.fromItems(
+      items: [source],
+      rawSnapshots: {source.item.itemId: _rawSnapshot(source.item.itemId)},
+      scopedColumnContents: TColumnContentScopedView(const {}),
+    );
+    addTearDown(controller.dispose);
+    controller.updateItemName('item:${source.item.itemId}', '수정 품목');
+    controller.addRows(1, emptyElementPayload: 'UEsDempty');
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 600,
+            height: 220,
+            child: ItemManage(
+              items: const [],
+              draftController: controller,
+              labelSize: const LabelSize(
+                labelSizeId: 20,
+                brandId: 30,
+                labelSizeName: '테스트 라벨',
+              ),
+              marketId: 1,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final table = tester.widget<FortuneTable<ItemOfMarket>>(
+      find.byType(FortuneTable<ItemOfMarket>),
+    );
+    expect(table.rowColorBuilder!(table.rows[0], 0, false), const Color(0xFFFFF6DF));
+    expect(table.rowColorBuilder!(table.rows[1], 1, false), const Color(0xFFEAF7EE));
+    expect(table.rowColorBuilder!(table.rows[1], 1, true), isNull);
+  });
+
+  testWidgets('ItemManage remaps publish checks by item id after deletion', (
+    tester,
+  ) async {
+    final first = _testItemOfMarket(itemName: '첫째 품목', itemId: 10);
+    final second = _testItemOfMarket(itemName: '둘째 품목', itemId: 20);
+    final controller = ItemManagerDraftController.fromItems(
+      items: [first, second],
+      rawSnapshots: {10: _rawSnapshot(10), 20: _rawSnapshot(20)},
+      scopedColumnContents: TColumnContentScopedView(const {}),
+    );
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 600,
+            height: 220,
+            child: ItemManage(
+              items: const [],
+              draftController: controller,
+              labelSize: const LabelSize(
+                labelSizeId: 20,
+                brandId: 30,
+                labelSizeName: '테스트 라벨',
+              ),
+              marketId: 1,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    var table = tester.widget<FortuneTable<ItemOfMarket>>(
+      find.byType(FortuneTable<ItemOfMarket>),
+    );
+    table.columns.first.checkboxController!.setChecked('publish', 0, true);
+    controller.deleteRows(['item:20']);
+    await tester.pump();
+
+    table = tester.widget<FortuneTable<ItemOfMarket>>(
+      find.byType(FortuneTable<ItemOfMarket>),
+    );
+    expect(table.rows.single.item.itemId, 10);
+    expect(table.columns.first.checkboxValueAt!(table.rows.single, 0), isTrue);
+  });
+
   testWidgets('ItemManage context menu controls selection and publish checks', (
     tester,
   ) async {
@@ -1302,12 +1391,16 @@ Color? _cellColorForText(WidgetTester tester, String text) {
   return (container.decoration! as BoxDecoration).color;
 }
 
-ItemOfMarket _testItemOfMarket({String itemName = '테스트 품목', int marketId = 1}) {
+ItemOfMarket _testItemOfMarket({
+  String itemName = '테스트 품목',
+  int marketId = 1,
+  int itemId = 10,
+}) {
   final now = DateTime(2026, 7, 8);
   return ItemOfMarket(
     marketId: marketId,
     item: Item(
-      itemId: 10,
+      itemId: itemId,
       labelSizeId: 20,
       itemName: itemName,
       labelSizeName: '테스트 라벨',
@@ -1316,9 +1409,9 @@ ItemOfMarket _testItemOfMarket({String itemName = '테스트 품목', int market
       price: 0,
       order: 0,
     ),
-    additionalItem: const AdditionalItem(
+    additionalItem: AdditionalItem(
       AdditionalItemId: 0,
-      itemId: 10,
+      itemId: itemId,
       element: '',
       elementRTF: '',
       price: 0,
@@ -1345,5 +1438,35 @@ ItemOfMarket _testItemOfMarket({String itemName = '테스트 품목', int market
     topMargin: 0,
     leftPush: 0,
     topPush: 0,
+  );
+}
+
+ItemOfMarketRawSnapshot _rawSnapshot(int itemId) {
+  return ItemOfMarketRawSnapshot(
+    marketId: 1,
+    itemId: itemId,
+    additionalItemId: null,
+    gdsNo: null,
+    dateSaleStart: null,
+    dateSaleEnd: null,
+    discountPercent: null,
+    discountAmount: null,
+    dateStartDiscount: null,
+    dateEndDiscount: null,
+    useDefineElement: null,
+    rtfText: null,
+    useLinefeed: null,
+    linefeed: null,
+    useScaleBarcode: null,
+    printCount: null,
+    useLabelSize: null,
+    labelSizeWidth: null,
+    labelSizeHeight: null,
+    useMargin: null,
+    leftMargin: null,
+    rightMargin: null,
+    topMargin: null,
+    leftPush: null,
+    topPush: null,
   );
 }

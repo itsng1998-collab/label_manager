@@ -40,6 +40,9 @@
 - 저장·순서 변경·force retry·mapping conflict·Excel 취소 후 재조회 선택은 `item id -> 이전 row index -> 첫 행` 순서로 복원한다. 삭제 등으로 item id가 사라져도 가능한 한 같은 화면 위치를 유지한다.
 - 일반 추가·삽입·삭제·셀 편집 취소는 controller 생성 시 보관한 불변 메모리 baseline으로 원본 rows/deletion set/선택을 즉시 복원하고 journal을 정리한다. Excel 전체 교체 취소만 DB 재조회하며, 취소 확인 문구는 지시서의 `변경 내용을 취소할까요?`로 맞췄다.
 - Excel 전체 교체 직전에 선택 item id/index와 현재 테이블의 정렬·필터 metadata(현재 기능 미지원이므로 빈 구조)를 `ItemManagerImportViewState`로 controller와 journal에 보관한다. 변경 취소 DB 재조회는 import 후 첫 행이 아니라 이 import 전 item id/index를 사용해 선택을 복원한다.
+- 비선택 draft 행은 신규/Excel imported 행을 연녹색, 수정된 기존 행을 연황색으로 구분한다. 선택된 행은 기존 테이블 선택색을 우선하고 unchanged 발행 체크 행은 기존 연청색을 유지한다.
+- 발행 체크 상태는 clean 상태에서 기존 item id snapshot으로 추적하고, draft 추가/삽입/삭제로 row index가 바뀔 때 현재 source item id 기준으로 다시 투영한다. source item id가 없는 신규 행은 unchecked이며 저장 후 새 controller로 교체되면 체크 snapshot을 초기화한다.
+- 저장 전 선택 행이 없고 신규 저장 행이 정확히 하나인 경우 저장 결과의 생성 item id를 재조회 선택 후보로 사용한다. 선택된 신규 draft mapping과 선택된 기존 item id가 있으면 이를 우선한다.
 - draft journal schema를 v2로 올려 세션 최초 `createdAt`과 flush별 `updatedAt`을 분리하고, baseline에 `checksumSchemaVersion` 및 checksum 입력 field 목록을 명시한다. SharedPreferences의 마지막 저장 시각은 `updatedAt`을 사용한다.
 - debounce clear/flush의 파일 오류는 background helper가 로그로 격리해 메모리 draft와 사용자 편집을 막지 않는다. 실패한 write queue는 다음 flush 전에 이전 오류를 흡수하고 새 문서 쓰기를 재시도하므로 일시적 파일 오류 후에도 백업이 회복된다.
 - draft key는 지시서 identity인 `user/customer/brand/labelSize` 조합으로 생성한다. 새 clean 세션 시작 시 SharedPreferences가 가리키는 이전 실행 journal은 앱 지원 디렉터리의 `item_manager_drafts` 하위 경로인지 확인한 뒤 `.tmp/.json/.bak`과 metadata를 정리해 다른 key의 stale 파일도 남기지 않는다.
@@ -49,7 +52,7 @@
 - draft dirty 또는 command busy 상태에서는 발행 checkbox controller를 제거하고 기존 체크값만 표시한다. 저장/취소 후 clean 상태에서만 다시 조작할 수 있다.
 - 이미지 타입 동적 셀은 일반 텍스트 편집 대신 double-click BMP 파일 선택기를 사용한다. 선택한 값은 경로와 `.bmp` 확장자를 제거한 파일명만 draft에 반영하고 경로 비저장 정책을 안내한다. 선택형 컬럼은 현재 `TColumnType`/`TColumn` DB projection에 선택 옵션을 나타내는 타입이나 option source가 없어 근거 없는 dropdown을 추가하지 않았다.
 - dirty 로그아웃/종료는 `LifecycleManager.notifyExitRequested()`의 bool 승인 계약으로 취소할 수 있으며 Windows close와 `PopScope` 모두 거부 결과를 존중한다.
-- 최신 검증 완료: draft/journal import metadata 관련 테스트 `25 통과 / 0 실패`, `C:\Flutter\bin\flutter.bat analyze` `No issues found`, 전체 Flutter suite `3277 통과 / 0 실패`.
+- 최신 검증 완료: 행 상태/발행 체크/저장 선택 관련 테스트 `45 통과 / 0 실패`, `C:\Flutter\bin\flutter.bat analyze` `No issues found`, 전체 Flutter suite `3280 통과 / 0 실패`.
 - 자동 검증 제외: 운영 DB capability/save/date/order transaction 및 실제 mapping fingerprint 변동 dialog 실행과 Windows BMP/XLSX 파일 대화상자 수동 선택은 연결 fixture 및 interactive 환경이 없어 미검증이다. 실제 품목 출력 job은 홈 `라벨출력(F3)`이 placeholder라 기존 연결 대상이 없다.
 - acceptance 보완 구현 커밋 완료: `1183c5b` 품목관리 저장 검증과 재조회 복구 보완.
 

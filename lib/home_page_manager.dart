@@ -913,9 +913,10 @@ class _HomePageManagerState extends State<HomePageManager> {
       }
       final result = await ItemManagerSaveDAO.save(command, capabilities);
       dbSaveCompleted = true;
-      final selectedItemId =
-          selectedRow?.sourceItemId ??
-          result.insertedItemIdsByDraftKey[selectedRow?.draftRowKey];
+      final selectedItemId = resolveItemManagerSavedSelectionItemId(
+        selectedRow: selectedRow,
+        insertedItemIdsByDraftKey: result.insertedItemIdsByDraftKey,
+      );
       final reloaded = await _reloadItemDraftFromDatabase(
         selectedItemId: selectedItemId,
         fallbackIndex: selectedRowIndex < 0 ? null : selectedRowIndex,

@@ -37,6 +37,39 @@ void main() {
       expect(resolveItemManagerReloadSelectionIndex(const []), isNull);
     });
 
+    test('resolves saved selection from mapping and sole insert fallback', () {
+      final selected = ItemManagerDraftRow.newRow(
+        draftRowKey: 'draft-1',
+        order: 1,
+        originalIndex: 0,
+        insertAnchorItemId: null,
+        rowState: ItemManagerDraftRowState.added,
+        emptyElementPayload: 'UEsDempty',
+      );
+
+      expect(
+        resolveItemManagerSavedSelectionItemId(
+          selectedRow: selected,
+          insertedItemIdsByDraftKey: const {'draft-1': 101, 'draft-2': 102},
+        ),
+        101,
+      );
+      expect(
+        resolveItemManagerSavedSelectionItemId(
+          selectedRow: null,
+          insertedItemIdsByDraftKey: const {'draft-1': 101},
+        ),
+        101,
+      );
+      expect(
+        resolveItemManagerSavedSelectionItemId(
+          selectedRow: null,
+          insertedItemIdsByDraftKey: const {'draft-1': 101, 'draft-2': 102},
+        ),
+        isNull,
+      );
+    });
+
     test('builds existing rows without mutating display models', () {
       final first = _itemOfMarket(itemId: 10, order: 1, name: '첫 품목');
       final second = _itemOfMarket(itemId: 20, order: 2, name: '둘째 품목');
