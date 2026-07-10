@@ -38,6 +38,7 @@
 - `.tmp/item_manager_modify.txt` 반영 완료: template barcode format 유지 후속 옵션 metadata key를 `preserveTemplateBarcodeFormat`으로 고정하고 save feature key/sanitizer/normalize/migrate 및 `.lms`/`.xlsx` import 검증 필요성을 정리했다.
 - 검증: `grep_search`로 `LabelSizeDAO.updateSetup`, `formatDateToken`, `forceReloadRequired` 상태, `preserveTemplateBarcodeFormat`, targetMarket 필수 확인, item-level order dialog 문구 반영과 `또는 동등 API` 표현 제거를 확인했다. `git diff --check -- .tmp/item_manager_modify.txt` 통과.
 - stage/commit 대상: ignored `.tmp/item_manager_modify.txt` 변경 추적용 `SESSION_HANDOFF.md`만 stage/commit한다.
+- 커밋: `b042195` 품목관리 요청서 구현 전 정책 권장안 정리
 
 ### 완료 (2026-07-10): 품목관리 요청서 잔여 모호점 권장안 병합
 
