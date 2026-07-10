@@ -28,6 +28,18 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-10): 품목관리 요청서 잔여 구현 계약 권장안 병합
+
+- 요청: 재검토에서 남은 애매점(`preserveTemplateBarcodeFormat=true` fallback 정책, mapping fingerprint 저장 시점, 의미 보존 바코드 보정 helper 계약, Excel `주원료` 병합 영역 plain text 기준)을 권장안으로 `.tmp/item_manager_modify.txt`에 병합한다.
+- 수정 예정 파일: `.tmp/item_manager_modify.txt`는 ignored 요청서 본문 수정, `SESSION_HANDOFF.md`는 ignored 요청서 변경 추적용 기록/검증/커밋 정보 갱신.
+- 사용자 확인: 새 비즈니스 정책 질문은 없으며, 기존 확정 답변을 유지하고 구현 세부 계약을 권장안으로 닫는다.
+- `.tmp/item_manager_modify.txt` 반영 완료: `preserveTemplateBarcodeFormat=true` object는 template 형식 실패 시 fallback으로 format을 바꾸지 않고 오류 표시로 고정했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: 일반 삭제 mapping fingerprint는 row가 최초 삭제 예정이 되는 시점의 before snapshot/journal에 저장하고, 엑셀 전체 교체 fingerprint는 import 직전 baseline metadata에 저장하도록 시점을 분리했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: `BarcodeDataHelper.normalizeMeaningPreservingForPrint` 또는 동등 helper를 추가해 check digit 의미 보존 보정과 pad/truncate best-effort를 분리하도록 정리했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: 엑셀 `주원료` 병합 영역 plain text는 top-left cell 표시 텍스트만 사용하고 다른 셀 값은 sheet payload에만 보존하도록 정리했다.
+- 검증: `git diff --check -- .tmp/item_manager_modify.txt` 통과. `grep_search`로 `fallback으로 형식을 바꾸지 않고`, `normalizeMeaningPreservingForPrint`, `최초 삭제 예정`, `mapping fingerprint`, `top-left cell` 반영과 `사용자 답변: 미확정` 없음 확인.
+- stage/commit 대상: ignored `.tmp/item_manager_modify.txt` 변경 추적용 `SESSION_HANDOFF.md`만 stage/commit한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+
 ### 완료 (2026-07-10): 품목관리 요청서 재검토 권장안 병합
 
 - 요청: 재검토에서 남은 애매점(바코드 fallback 결정 규칙, 삭제/전체교체 checksum 영향 범위, 엑셀 `주원료` 변환 배치 기준, `preserveTemplateBarcodeFormat` 저장 feature key, `targetMarketIds` customerId source)을 권장안으로 `.tmp/item_manager_modify.txt`에 병합한다.
