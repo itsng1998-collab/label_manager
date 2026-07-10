@@ -28,6 +28,18 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-10): 품목관리 요청서 삭제/snapshot/cache 경계 보강
+
+- 요청: 다시 검토한 애매점과 레거시/현 구현 문제를 권장 사항으로 `.tmp/item_manager_modify.txt`에 병합한다.
+- 반영 완료: 기존 행 삭제 저장은 현재 화면 market 하나가 아니라 세션 `targetMarketIds` 기준으로 `BM_ITEM_OF_MARKET` mapping을 제거하고, `BM_RICH_ITEM`/item 참조 child row 물리 삭제는 1차 구현에서 수행하지 않도록 명시했다.
+- 반영 완료: raw snapshot DTO 조회는 표시용 `ItemOfMarketDAO.SelectSql`/`COALESCE` fallback 결과를 그대로 재사용하지 않고, DB `NULL`과 빈 문자열을 구분하는 별도 projection을 사용하도록 명시했다.
+- 반영 완료: `newMappingDefaults`는 market id를 제외한 mapping 기본값 template으로 보관하고, 저장 시 `targetMarketIds` 각각과 합성해 실제 `BM_ITEM_OF_MARKET` row를 만들도록 정리했다.
+- 반영 완료: 품목관리 일반 컬럼 표시/checksum은 전용 scoped column content view model을 사용하고, 별도 합의 없이 전역 `TColumnContent.datas`의 label-size 전체 cache 의미를 current market scope로 바꾸지 않도록 명시했다.
+- 반영 완료: 엑셀 빈 헤더 이후 매핑 가능한 헤더 경고를 반복 요약 섹션에도 병합하고, 빈 헤더 뒤쪽 `품목` 헤더는 무시되어 `품목` 헤더 없음 실패로 처리된다고 명시했다.
+- 검증 완료: `Select-String -Path .tmp/item_manager_modify.txt -Pattern 'raw snapshot DTO 조회는|DB `NULL`과 빈 문자열|market id를 제외한 mapping 기본값 template|sourceItemId` 집합과 편집 세션의 `targetMarketIds`|sourceItemId`와 세션 `targetMarketIds`|전용 scoped cache/view model|전용 scoped column content view model|빈 헤더 뒤쪽에 필수 `품목`|빈 헤더 뒤쪽에 `품목`|기존 행 삭제 저장도 현재 화면 market 하나가 아니라|전역 `TColumnContent.datas`'`로 병합 문구 반영을 확인했다.
+- 검증 완료: `git diff --check -- .tmp/item_manager_modify.txt` 통과(공백 오류 없음).
+- 커밋 예정: `SESSION_HANDOFF.md`만 stage/commit한다. `.tmp/item_manager_modify.txt`는 ignore 대상 작업 파일로 유지하고, 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+
 ### 완료 (2026-07-10): 품목관리 요청서 snapshot/검증 선행 기준 보강
 
 - 요청: 다시 검토한 애매점과 레거시/현 구현 문제를 권장 사항으로 `.tmp/item_manager_modify.txt`에 병합한다.
