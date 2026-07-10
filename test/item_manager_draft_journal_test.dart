@@ -175,6 +175,48 @@ void main() {
         isNull,
       );
     });
+
+    test('recovers a later flush after a journal write failure', () async {
+      final controller = ItemManagerDraftController.fromItems(
+        items: [_itemOfMarket()],
+        rawSnapshots: {10: _snapshot()},
+        scopedColumnContents: TColumnContentScopedView(const {}),
+      );
+      addTearDown(controller.dispose);
+      final invalidDirectoryFile = File('${directory.path}/not-a-directory');
+      await invalidDirectoryFile.writeAsString('file');
+      var failWrite = true;
+      final journal = ItemManagerDraftJournal(
+        controller: controller,
+        mappingFingerprints: ItemMarketMappingFingerprints(const {}),
+        metadata: const ItemManagerDraftJournalMetadata(
+          draftKey: 'user-1_4_3',
+          userId: 'user-1',
+          customerId: 2,
+          brandId: 8,
+          labelSizeId: 4,
+          currentMarketId: 3,
+          targetMarketIds: [3, 5],
+        ),
+        directoryProvider: () async => failWrite
+            ? Directory(invalidDirectoryFile.path)
+            : directory,
+      );
+      await journal.start();
+      controller.updateItemName('item:10', '복구 품목');
+
+      await expectLater(journal.flush(), throwsA(isA<FileSystemException>()));
+      failWrite = false;
+      await journal.flush();
+
+      final preferences = await SharedPreferences.getInstance();
+      final path = preferences.getString(
+        ItemManagerDraftJournal.lastPathPreferenceKey,
+      );
+      expect(path, isNotNull);
+      expect(await File(path!).exists(), isTrue);
+      await journal.close();
+    });
   });
 }
 

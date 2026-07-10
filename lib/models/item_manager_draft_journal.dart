@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:label_manager/models/item_manager_draft.dart';
 import 'package:label_manager/models/item_of_market.dart';
+import 'package:label_manager/utils/log_context.dart';
 
 class ItemManagerDraftJournalMetadata {
   final String draftKey;
@@ -108,16 +109,19 @@ class ItemManagerDraftJournal {
     _createdAt ??= DateTime.now().toUtc();
     _started = true;
     controller.addListener(_handleDraftChanged);
-    if (!controller.isDirty) await clear();
+    if (!controller.isDirty) await _ignoreBackgroundError(clear, 'start clear');
   }
 
   void _handleDraftChanged() {
     _debounce?.cancel();
     if (!controller.isDirty) {
-      unawaited(clear());
+      unawaited(_ignoreBackgroundError(clear, 'dirty clear'));
       return;
     }
-    _debounce = Timer(debounceDuration, () => unawaited(flush()));
+    _debounce = Timer(
+      debounceDuration,
+      () => unawaited(_ignoreBackgroundError(flush, 'debounced flush')),
+    );
   }
 
   Future<void> flush() async {
@@ -128,8 +132,27 @@ class ItemManagerDraftJournal {
       return;
     }
     final document = _buildDocument();
-    _writeQueue = _writeQueue.then((_) => _writeDocument(document));
+    final previousWrite = _writeQueue;
+    _writeQueue = () async {
+      try {
+        await previousWrite;
+      } catch (error) {
+        debugLog('item draft journal previous write failed: $error');
+      }
+      await _writeDocument(document);
+    }();
     await _writeQueue;
+  }
+
+  Future<void> _ignoreBackgroundError(
+    Future<void> Function() operation,
+    String operationName,
+  ) async {
+    try {
+      await operation();
+    } catch (error) {
+      debugLog('item draft journal $operationName failed: $error');
+    }
   }
 
   Future<void> clear() async {
