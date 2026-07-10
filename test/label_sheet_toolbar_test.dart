@@ -330,6 +330,58 @@ void main() {
     expect(sheet.cells[const FortuneCellCoord(0, 1)]?.renderedText, '딸기, 설탕');
   });
 
+  testWidgets('item label print tab exposes print-only read-only sheet', (
+    tester,
+  ) async {
+    final encoded = labelSheetEncodeWorkbookSave(
+      FortuneWorkbook(
+        sheets: [
+          FortuneSheet(
+            id: 'common_01',
+            name: '출력 시트',
+            cells: {
+              const FortuneCellCoord(0, 0): const FortuneCell(
+                value: '#ITEMNAME',
+              ),
+            },
+          ),
+        ],
+      ),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 900,
+            height: 600,
+            child: debugItemLabelPrintTabForTesting(
+              item: _testItemOfMarket(itemName: '출력 품목'),
+              labelSize: _testLabelSizeWithFormData(encoded),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    final settings = tester
+        .widget<FortuneSheetApp>(find.byType(FortuneSheetApp))
+        .settings!;
+    expect(settings.allowEdit, isFalse);
+    expect(settings.rowHeaderWidth, 0);
+    expect(settings.columnHeaderHeight, 0);
+    expect(settings.hideSelectionHighlight, isTrue);
+    expect(settings.statisticBarHeight, 0);
+    expect(settings.toolbarItems, const [labelSheetPrintToolbarCommand]);
+    expect(settings.customToolbarItems, hasLength(1));
+    expect(
+      settings.customToolbarItems.single.key,
+      labelSheetPrintToolbarCommand,
+    );
+  });
+
   test('item output preview preserves rich element replacement runs', () {
     final encoded = labelSheetEncodeWorkbookSave(
       FortuneWorkbook(
@@ -853,6 +905,7 @@ void main() {
       hideToolbar: true,
       copyOnlyContextMenu: true,
       toolbarItems: const <String>[],
+      allowEdit: false,
     );
 
     expect(settings.showToolbar, isFalse);
@@ -860,6 +913,7 @@ void main() {
     expect(settings.toolbarItems, isEmpty);
     expect(settings.customToolbarItems, isEmpty);
     expect(settings.copyOnlyContextMenu, isTrue);
+    expect(settings.allowEdit, isFalse);
     expect(settings.cellContextMenu, const [fortuneContextCopyCommand]);
     expect(settings.headerContextMenu, const [fortuneContextCopyCommand]);
 
@@ -870,6 +924,11 @@ void main() {
       defaultSettings.cellContextMenu,
       contains(fortuneContextPasteCommand),
     );
+
+    final preservedReadOnlySettings = labelSheetSettings(
+      const FortuneSettings(allowEdit: false),
+    );
+    expect(preservedReadOnlySettings.allowEdit, isFalse);
   });
 
   testWidgets('single cell viewport fit keeps visible size across zoom', (

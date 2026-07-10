@@ -23562,6 +23562,7 @@ class FortuneSettings {
     bool? showToolbar,
     bool? showFormulaBar,
     bool? showSheetTabs,
+    bool? allowEdit,
     bool? copyOnlyContextMenu,
     bool? limitCellActionsToClipboardAndClear,
     double? rowHeaderWidth,
@@ -23595,7 +23596,7 @@ class FortuneSettings {
       showSheetTabs: showSheetTabs ?? this.showSheetTabs,
       config: config,
       devicePixelRatio: devicePixelRatio,
-      allowEdit: allowEdit,
+      allowEdit: allowEdit ?? this.allowEdit,
       copyOnlyContextMenu: copyOnlyContextMenu ?? this.copyOnlyContextMenu,
       limitCellActionsToClipboardAndClear:
           limitCellActionsToClipboardAndClear ??

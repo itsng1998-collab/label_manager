@@ -1746,7 +1746,7 @@ class _HomePageManagerState extends State<HomePageManager> {
       TabData(
         value: 'label_print',
         text: '라벨출력(F3)',
-        content: const _PlaceholderTab(title: '라벨출력'),
+        content: _buildLabelPrintTab(),
         closable: false,
         keepAlive: true,
       ),
@@ -1898,12 +1898,33 @@ class _HomePageManagerState extends State<HomePageManager> {
   void _handleItemRowSelected(ItemOfMarket row, int index) {
     _selectedItemOfMarket = row;
     _selectedItemIndex = index;
+    _updateLabelPrintTabContent();
     if (mounted) {
       setState(() {});
     }
     if (_selectedTabValue() == 'items') {
       _showItemPreviewWindow();
     }
+  }
+
+  void _updateLabelPrintTabContent() {
+    final index = _tabs.indexWhere((tab) => tab.value == 'label_print');
+    if (index < 0) return;
+    _tabs[index].content = _buildLabelPrintTab();
+  }
+
+  Widget _buildLabelPrintTab() {
+    final item = _selectedItemOfMarket;
+    if (item == null) {
+      return const _ItemOutputPreviewHint('출력할 품목을 선택하세요.');
+    }
+    return _ItemLabelPrintTab(
+      key: ValueKey(
+        'label-print:${_effectiveLabelSize?.labelSizeId ?? 'none'}:${item.item.itemId}',
+      ),
+      item: item,
+      labelSize: _effectiveLabelSize,
+    );
   }
 
   Future<void> _commitSelectedItemElementDraft(
@@ -3918,6 +3939,59 @@ class _ItemOutputPreviewTab extends StatelessWidget {
   }
 }
 
+class _ItemLabelPrintTab extends StatelessWidget {
+  const _ItemLabelPrintTab({
+    super.key,
+    required this.item,
+    required this.labelSize,
+  });
+
+  final ItemOfMarket item;
+  final LabelSize? labelSize;
+
+  @override
+  Widget build(BuildContext context) {
+    final elementForm = _itemElementFormStateFor(item, labelSize);
+    final preview = _itemOutputPreview(
+      labelSize: labelSize,
+      item: item,
+      elementText: elementForm.text,
+      elementWorkbook: elementForm.workbook,
+    );
+    if (preview.hintText != null) {
+      return _ItemOutputPreviewHint(preview.hintText!);
+    }
+    final workbook = preview.workbook;
+    if (workbook == null) {
+      return const _ItemOutputPreviewHint('현재 공용라벨 시트가 없습니다.');
+    }
+    final columns = TColumn.datas ?? const <TColumn>[];
+    final specialColumns = TColumnSpecial.datas ?? const <TColumnBase>[];
+    final allColumns = <TColumnBase>[...specialColumns, ...columns];
+    final messages = _itemCodePreviewMessages(workbook);
+    return Column(
+      children: [
+        if (messages.isNotEmpty) _ItemCodePreviewMessages(messages: messages),
+        Expanded(
+          child: LabelSheetWorkbench(
+            initialWorkbook: workbook,
+            labelSize: labelSize,
+            imageObjectIds: _itemPreviewImageObjectIdsFor(allColumns),
+            barcodeObjectIds: _itemPreviewBarcodeObjectIdsFor(allColumns),
+            toolbarItems: const [labelSheetPrintToolbarCommand],
+            hideRowColumnHeaders: true,
+            hideSelectionHighlight: true,
+            disableSheetRulerGuideInteraction: true,
+            hideStatisticBar: true,
+            copyOnlyContextMenu: true,
+            allowEdit: false,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _ItemCodePreviewMessages extends StatelessWidget {
   const _ItemCodePreviewMessages({required this.messages});
 
@@ -4014,6 +4088,12 @@ Widget debugItemPreviewPanelForTesting({
   onElementCommitted: onElementCommitted ?? (_, _) async {},
   canSelectOutputPreview: canSelectOutputPreview ?? () => true,
 );
+
+@visibleForTesting
+Widget debugItemLabelPrintTabForTesting({
+  required ItemOfMarket item,
+  required LabelSize? labelSize,
+}) => _ItemLabelPrintTab(item: item, labelSize: labelSize);
 
 @visibleForTesting
 ({fs.FortuneWorkbook? workbook, String? hintText})
