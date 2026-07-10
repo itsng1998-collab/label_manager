@@ -28,6 +28,16 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-10): 품목관리 요청서 단위별 완료 기준 보강
+
+- 요청: 재검토에서 남은 구현 단위별 완료 기준과 검증 항목 그룹핑을 권장 사항으로 `.tmp/item_manager_modify.txt`에 병합한다.
+- `.tmp/item_manager_modify.txt` 반영 완료: `13.1 권장 구현 단위`에 읽기/스냅샷, transaction/DAO, UI draft/edit, Excel import/export 단위별 최소 완료 기준을 추가했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: 14장 검증 항목은 13.1의 네 구현 단위별 태그/소제목으로 추적하고, 후속 단위 검증은 연결 전까지 `미검증`으로 표시한다는 운용 기준을 추가했다.
+- 사용자 확인 사항: 새 항목은 추가하지 않았고, 기존 Excel `주원료` 서식/병합 보존 여부 1건만 유지했다.
+- 검증: `grep_search`로 `단위별 최소 완료 기준`, `검증 항목은 13.1`, `사용자 확인 사항`, Excel `주원료` 문구를 확인했다.
+- 검증: `git diff --check -- .tmp/item_manager_modify.txt SESSION_HANDOFF.md` 통과.
+- stage/commit 대상: ignored `.tmp/item_manager_modify.txt` 변경 추적용 `SESSION_HANDOFF.md`만 stage/commit한다.
+
 ### 완료 (2026-07-10): 품목관리 요청서 구현 단위/테스트 기대값 정리
 
 - 요청: 재검토에서 남은 구현 범위 과다 리스크와 chunk 조회 best-effort 테스트 기대값을 권장 사항으로 `.tmp/item_manager_modify.txt`에 병합했다.
