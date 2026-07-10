@@ -37,6 +37,7 @@
 - `.tmp/item_manager_modify.txt` 반영 완료: Excel custom format 처리 문구를 `표시 문자열 formatter 지원 범위 밖의 숫자/날짜/custom format은 raw value 문자열 사용 + 저장 전 컬럼 타입 검증`으로 단일화했다.
 - 검증: `git diff --check -- .tmp/item_manager_modify.txt` 통과. `grep_search`로 `표시 문자열 formatter 지원 범위 밖`, `hasRichElementSheet=false ... 읽기/로드 단계 검증`, `read-only fallback SELECT가 없거나 실패하면 테이블을 열지 않는지` 문구 확인. `지원하지 않는 복잡한 Excel custom format`, `복잡한 Excel custom format 또는 표시 문자열 formatter`, `사용자 답변: 미확정`, `SQL batch transaction 또는 공용 DB isolate transaction`, `migration 또는 호환 저장 정책을 먼저 확정` 없음 확인.
 - stage/commit 대상: ignored `.tmp/item_manager_modify.txt` 변경 추적용 `SESSION_HANDOFF.md`만 stage/commit한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+- 커밋: `8a0a5e4` 품목관리 요청서 읽기 검증 기준 기록
 
 ### 완료 (2026-07-10): 품목관리 요청서 date setup/API 검증 권장안 병합
 
