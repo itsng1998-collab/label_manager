@@ -40,6 +40,7 @@
 - 검증: `grep_search`로 `SESSION_HANDOFF.md`의 진행/근거 문구 반영을 확인했다.
 - 검증: `git diff --check -- SESSION_HANDOFF.md` 통과.
 - stage/commit 대상: ignored `.tmp/item_manager_modify.txt` 변경 추적용 `SESSION_HANDOFF.md`만 stage/commit한다.
+- 커밋: `72eaa4c` 품목관리 바코드 미리보기 요청서 정리
 
 ### 완료 (2026-07-10): 품목관리 요청서 재검토 권장안 후속 병합
 
