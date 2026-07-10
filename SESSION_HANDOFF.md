@@ -37,6 +37,7 @@
 - 검증: `grep_search`로 `단위별 최소 완료 기준`, `검증 항목은 13.1`, `사용자 확인 사항`, Excel `주원료` 문구를 확인했다.
 - 검증: `git diff --check -- .tmp/item_manager_modify.txt SESSION_HANDOFF.md` 통과.
 - stage/commit 대상: ignored `.tmp/item_manager_modify.txt` 변경 추적용 `SESSION_HANDOFF.md`만 stage/commit한다.
+- 커밋: `c2c5eb4` 품목관리 요청서 완료 기준 정리
 
 ### 완료 (2026-07-10): 품목관리 요청서 구현 단위/테스트 기대값 정리
 
