@@ -28,6 +28,17 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-10): 품목관리 요청서 취소/재조회 계약 권장안 병합
+
+- 요청: 재검토에서 남은 애매 문구(엑셀 버튼 차단 조건의 `저장 또는 변경 취소 전까지`, mapping fingerprint 불일치 후 `다시 조회` 시 draft/백업 처리)를 권장안으로 `.tmp/item_manager_modify.txt`에 병합한다.
+- 수정 예정 파일: `.tmp/item_manager_modify.txt`는 ignored 요청서 본문 수정, `SESSION_HANDOFF.md`는 ignored 요청서 변경 추적용 기록/검증/커밋 정보 갱신.
+- 사용자 확인: 새 비즈니스 정책 질문은 없으며, 구현 세부 계약 문구를 권장안으로 닫는다.
+- 병합 예정: 엑셀 가져오기 성공 후 버튼 차단은 `저장 완료 또는 변경 취소 확정 전까지`로 통일하고, mapping fingerprint 불일치 dialog에서 `다시 조회`를 선택하면 현재 draft와 임시 백업을 폐기한 뒤 현재 DB 기준으로 새 baseline을 만든다고 명시한다.
+- `.tmp/item_manager_modify.txt` 반영 완료: 엑셀 가져오기 성공 후 버튼 차단 조건을 `저장 완료 또는 변경 취소 확정 전까지`로 정리했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: mapping fingerprint 불일치 경고 dialog가 열린 동안에는 편집 상태/임시 백업을 유지하지만, `다시 조회` 선택 시 현재 draft와 임시 백업을 폐기하고 현재 DB 기준으로 새 baseline을 만든다고 명시했다.
+- 검증: `git diff --check -- .tmp/item_manager_modify.txt` 통과. `grep_search`로 `저장 또는 변경 취소 전까지`, `사용자 답변: 미확정` 없음 확인. `저장 완료 또는 변경 취소 확정 전까지`, `경고 dialog가 열린 동안에는 편집 상태와 임시 백업을 유지`, `다시 조회를 선택하면 현재 draft와 임시 백업을 폐기` 문구 확인.
+- stage/commit 대상: ignored `.tmp/item_manager_modify.txt` 변경 추적용 `SESSION_HANDOFF.md`만 stage/commit한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+
 ### 완료 (2026-07-10): 품목관리 요청서 바코드 helper/취소 문구 권장안 병합
 
 - 요청: 재검토에서 남은 애매 문구(`normalizeMeaningPreservingForPrint 또는 동등 helper`, `저장/취소 후`, EAN-8 운영 DB 확인/테스트 기준)를 권장안으로 `.tmp/item_manager_modify.txt`에 병합한다.
