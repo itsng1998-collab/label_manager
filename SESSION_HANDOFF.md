@@ -37,6 +37,7 @@
 - 검증: `grep_search`로 `save command DTO를 표준 입력`, `draft snapshot DTO는 저장 DAO 입력이 아니라`, `14.1`~`14.5` 태그 소제목을 확인했다.
 - 검증: `git diff --check -- .tmp/item_manager_modify.txt SESSION_HANDOFF.md` 통과.
 - stage/commit 대상: ignored `.tmp/item_manager_modify.txt` 변경 추적용 `SESSION_HANDOFF.md`만 stage/commit한다.
+- 커밋: `453a3b7` 품목관리 요청서 저장 입력과 검증 소제목 정리
 
 ### 완료 (2026-07-10): 품목관리 요청서 저장 DTO와 검증 태그 보강
 
