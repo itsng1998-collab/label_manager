@@ -144,6 +144,17 @@ void main() {
       );
       expect(
         ItemManagerSaveDAO.saveSql,
+        contains(
+          'SELECT M.MARKET_ID, I.ITEM_ID, NULL,\n'
+          '      N.GDS_NO, N.SALE_START_DATE, N.SALE_END_DATE,',
+        ),
+      );
+      expect(
+        ItemManagerSaveDAO.saveSql,
+        contains('N.DISCOUNT_START_DATE, N.DISCOUNT_END_DATE,'),
+      );
+      expect(
+        ItemManagerSaveDAO.saveSql,
         contains('DELETE M\n    FROM BM_ITEM_OF_MARKET M'),
       );
       expect(
