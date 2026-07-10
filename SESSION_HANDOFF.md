@@ -38,6 +38,7 @@
 - `.tmp/item_manager_modify.txt` 반영 완료: mapping fingerprint 산출 DAO도 1만 id 단순 대량 `IN` parameter를 금지하고 temp table/table variable 또는 DAO chunk 조회 규칙을 따르도록 정리했다.
 - 검증: `git diff --check -- .tmp/item_manager_modify.txt` 통과. `grep_search`로 `ITF 홀수 길이 left-pad`, `mapping fingerprint 산출 DAO`, `DB transaction을 시작하지 않는다`, `다시 조회`, `현재 DB 기준 복원`, `사용자 답변: 미확정` 없음, 예전 `값으로 정상 렌더링 가능한 공용 fallback` 없음 확인.
 - stage/commit 대상: ignored `.tmp/item_manager_modify.txt` 변경 추적용 `SESSION_HANDOFF.md`만 stage/commit한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+- 커밋: `f578460` 품목관리 요청서 추가 계약 기록
 
 ### 완료 (2026-07-10): 품목관리 요청서 잔여 구현 계약 권장안 병합
 
