@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:fortune_sheet/fortune_sheet.dart' hide Rect;
 import 'package:label_manager/models/column.dart';
 import 'package:label_manager/models/column_content.dart';
+import 'package:label_manager/models/item_manager_draft.dart';
 import 'package:label_manager/models/item_of_market.dart';
+import 'package:label_manager/models/label_size.dart';
 import 'package:label_manager/utils/log_context.dart';
 
 class ItemManage extends StatefulWidget {
@@ -11,6 +13,10 @@ class ItemManage extends StatefulWidget {
   final int? selectedIndex;
   final void Function(ItemOfMarket row, int index)? onRowSelected;
   final ValueChanged<Rect>? onTableRectChanged;
+  final ItemManagerDraftController? draftController;
+  final LabelSize? labelSize;
+  final int? marketId;
+  final String emptyElementPayload;
 
   const ItemManage({
     super.key,
@@ -18,6 +24,10 @@ class ItemManage extends StatefulWidget {
     this.selectedIndex,
     this.onRowSelected,
     this.onTableRectChanged,
+    this.draftController,
+    this.labelSize,
+    this.marketId,
+    this.emptyElementPayload = '',
   });
 
   @override
@@ -27,35 +37,64 @@ class ItemManage extends StatefulWidget {
 class _ItemManageState extends State<ItemManage> {
   static const String _publishColumnId = 'publish';
   static const String _menuSelectAll = 'selectAll';
+  static const String _menuAdd = 'add';
+  static const String _menuInsert = 'insert';
+  static const String _menuDelete = 'delete';
   static const String _menuClearSelection = 'clearSelection';
   static const String _menuCheckSelectedPublish = 'checkSelectedPublish';
   static const String _menuUncheckSelectedPublish = 'uncheckSelectedPublish';
-  static const EdgeInsets _menuItemPadding = EdgeInsets.symmetric(horizontal: 12);
+  static const EdgeInsets _menuItemPadding = EdgeInsets.symmetric(
+    horizontal: 12,
+  );
   static const Color _publishCheckedRowColor = Color(0xFFEAF4FF);
 
   final FortuneTableCheckboxController _publishCheckboxController =
       FortuneTableCheckboxController();
   final FortuneTableSelectionController _selectionController =
       FortuneTableSelectionController();
+  final TextEditingController _addCountController = TextEditingController(
+    text: '1',
+  );
+  final TextEditingController _insertCountController = TextEditingController(
+    text: '1',
+  );
+  List<ItemManagerDraftRow> _displayDraftRows = const [];
+  Map<ItemOfMarket, ItemManagerDraftRow> _draftByDisplayItem = Map.identity();
+
+  @override
+  void initState() {
+    super.initState();
+    widget.draftController?.addListener(_handleDraftChanged);
+  }
 
   @override
   void didUpdateWidget(covariant ItemManage oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.draftController != widget.draftController) {
+      oldWidget.draftController?.removeListener(_handleDraftChanged);
+      widget.draftController?.addListener(_handleDraftChanged);
+    }
+    final rowCount = widget.draftController?.rows.length ?? widget.items.length;
     _publishCheckboxController.setCheckedRows(
       _publishColumnId,
       _publishCheckboxController
           .checkedRows(_publishColumnId)
-          .where((index) => index < widget.items.length),
+          .where((index) => index < rowCount),
     );
     _selectionController.setSelectedRows(
-      _selectionController.selectedRows.where(
-        (index) => index < widget.items.length,
-      ),
+      _selectionController.selectedRows.where((index) => index < rowCount),
     );
+  }
+
+  void _handleDraftChanged() {
+    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
+    widget.draftController?.removeListener(_handleDraftChanged);
+    _addCountController.dispose();
+    _insertCountController.dispose();
     _publishCheckboxController.dispose();
     _selectionController.dispose();
     super.dispose();
@@ -63,26 +102,63 @@ class _ItemManageState extends State<ItemManage> {
 
   @override
   Widget build(BuildContext context) {
+    final displayItems = _resolveDisplayItems();
     final columns = _columns;
     debugLog(
-      'rows=${widget.items.length}, '
+      'rows=${displayItems.length}, '
       'dynamicColumns=${TColumn.datas?.length ?? 0}, columns=${columns.length}',
     );
     return GestureDetector(
       behavior: HitTestBehavior.translucent,
       onSecondaryTapDown: _showTableContextMenu,
       child: FortuneTable<ItemOfMarket>(
-        rows: widget.items,
+        rows: displayItems,
         columns: columns,
         autoFitColumns: false,
         selectedIndex: widget.selectedIndex,
         selectionController: _selectionController,
         multiSelectionEnabled: true,
-        onRowSelected: widget.onRowSelected,
+        onRowSelected: _handleRowSelected,
         onRectChanged: widget.onTableRectChanged,
         rowColorBuilder: _rowColor,
       ),
     );
+  }
+
+  List<ItemOfMarket> _resolveDisplayItems() {
+    final controller = widget.draftController;
+    final labelSize = widget.labelSize;
+    final marketId = widget.marketId;
+    if (controller == null || labelSize == null || marketId == null) {
+      _displayDraftRows = const [];
+      _draftByDisplayItem = Map.identity();
+      return widget.items;
+    }
+    _displayDraftRows = controller.rows;
+    final displayItems = <ItemOfMarket>[];
+    final draftByDisplayItem =
+        Map<ItemOfMarket, ItemManagerDraftRow>.identity();
+    for (final row in _displayDraftRows) {
+      final display = row.toPreviewItem(
+        marketId: marketId,
+        labelSizeId: labelSize.labelSizeId,
+        labelSizeName: labelSize.labelSizeName,
+      );
+      displayItems.add(display);
+      draftByDisplayItem[display] = row;
+    }
+    _draftByDisplayItem = draftByDisplayItem;
+    return displayItems;
+  }
+
+  void _handleRowSelected(ItemOfMarket row, int index) {
+    final draft = _draftByDisplayItem[row];
+    if (draft != null) {
+      widget.draftController?.setSelection([
+        draft.rowKey,
+      ], anchorRowKey: draft.rowKey);
+    }
+    widget.onRowSelected?.call(row, index);
   }
 
   Color? _rowColor(ItemOfMarket row, int rowIndex, bool selected) {
@@ -105,10 +181,25 @@ class _ItemManageState extends State<ItemManage> {
       ),
       popUpAnimationStyle: AnimationStyle.noAnimation,
       items: [
-        _disabledCountMenuItem('품목 추가'),
-        _disabledCountMenuItem('품목 삽입'),
-        const PopupMenuItem<String>(
-          enabled: false,
+        _countMenuItem(
+          label: '품목 추가',
+          command: _menuAdd,
+          controller: _addCountController,
+          enabled: widget.draftController != null,
+        ),
+        _countMenuItem(
+          label: '품목 삽입',
+          command: _menuInsert,
+          controller: _insertCountController,
+          enabled:
+              widget.draftController != null &&
+              _selectionController.hasSelection,
+        ),
+        PopupMenuItem<String>(
+          value: _menuDelete,
+          enabled:
+              widget.draftController != null &&
+              _selectionController.hasSelection,
           height: fortuneContextMenuRowHeight,
           padding: _menuItemPadding,
           child: Text('품목 삭제'),
@@ -144,41 +235,70 @@ class _ItemManageState extends State<ItemManage> {
       ],
     );
     if (!mounted || command == null) return;
-    _handleContextMenuCommand(command);
+    await _handleContextMenuCommand(command);
   }
 
-  PopupMenuItem<String> _disabledCountMenuItem(String label) {
+  PopupMenuItem<String> _countMenuItem({
+    required String label,
+    required String command,
+    required TextEditingController controller,
+    required bool enabled,
+  }) {
     return PopupMenuItem<String>(
       enabled: false,
       height: fortuneContextMenuRowHeight,
       padding: _menuItemPadding,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(label),
-          const SizedBox(width: 38),
-          Container(
-            width: 36,
-            height: 22,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              border: Border.all(color: const Color(0xFFBDBDBD)),
+      child: Builder(
+        builder: (menuContext) => Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            InkWell(
+              onTap: enabled
+                  ? () => Navigator.of(menuContext).pop(command)
+                  : null,
+              child: SizedBox(width: 102, child: Text(label)),
             ),
-            child: const Text('1'),
-          ),
-          const SizedBox(width: 4),
-          const Text('개'),
-        ],
+            SizedBox(
+              width: 44,
+              height: 26,
+              child: TextField(
+                controller: controller,
+                enabled: enabled,
+                textAlign: TextAlign.center,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  isDense: true,
+                  contentPadding: EdgeInsets.symmetric(vertical: 5),
+                  border: OutlineInputBorder(),
+                ),
+                onSubmitted: enabled
+                    ? (_) => Navigator.of(menuContext).pop(command)
+                    : null,
+              ),
+            ),
+            const SizedBox(width: 4),
+            const Text('개'),
+          ],
+        ),
       ),
     );
   }
 
-  void _handleContextMenuCommand(String command) {
+  Future<void> _handleContextMenuCommand(String command) async {
     switch (command) {
+      case _menuAdd:
+        _addDraftRows(_addCountController.text);
+      case _menuInsert:
+        _insertDraftRows(_insertCountController.text);
+      case _menuDelete:
+        await _deleteSelectedDraftRows();
       case _menuSelectAll:
-        _selectionController.selectAll(widget.items.length);
+        _selectionController.selectAll(
+          widget.draftController?.rows.length ?? widget.items.length,
+        );
       case _menuClearSelection:
         _selectionController.clear();
+        widget.draftController?.setSelection(const []);
       case _menuCheckSelectedPublish:
         _setSelectedPublishChecked(true);
       case _menuUncheckSelectedPublish:
@@ -186,10 +306,135 @@ class _ItemManageState extends State<ItemManage> {
     }
   }
 
+  void _addDraftRows(String rawCount) {
+    final count = _parseCount(rawCount);
+    if (count == null) return;
+    try {
+      final added = widget.draftController!.addRows(
+        count,
+        emptyElementPayload: widget.emptyElementPayload,
+      );
+      _selectDraftRows(added);
+    } on StateError catch (error) {
+      _showWarning(error.message);
+    }
+  }
+
+  void _insertDraftRows(String rawCount) {
+    final count = _parseCount(rawCount);
+    if (count == null) return;
+    final controller = widget.draftController!;
+    final selectedIndexes = _selectionController.selectedRows.toList()..sort();
+    final anchorKey =
+        controller.anchorRowKey ??
+        (selectedIndexes.isEmpty
+            ? null
+            : controller.rows[selectedIndexes.last].rowKey);
+    if (anchorKey == null) {
+      _showWarning('삽입할 기준 품목을 선택해 주세요.');
+      return;
+    }
+    try {
+      final added = controller.insertRowsAfter(
+        anchorKey,
+        count,
+        emptyElementPayload: widget.emptyElementPayload,
+      );
+      _selectDraftRows(added);
+    } on StateError catch (error) {
+      _showWarning(error.message);
+    }
+  }
+
+  Future<void> _deleteSelectedDraftRows() async {
+    final controller = widget.draftController!;
+    final selectedIndexes =
+        _selectionController.selectedRows
+            .where((index) => index >= 0 && index < controller.rows.length)
+            .toList()
+          ..sort();
+    if (selectedIndexes.isEmpty) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('품목 삭제'),
+        content: Text('선택한 ${selectedIndexes.length}개 품목을 삭제할까요?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('계속 편집'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('삭제'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    final rowKeys = selectedIndexes
+        .map((index) => controller.rows[index].rowKey)
+        .toList(growable: false);
+    final nextKey = controller.deleteRows(rowKeys);
+    if (nextKey == null) {
+      _selectionController.clear();
+      return;
+    }
+    final nextIndex = controller.rows.indexWhere(
+      (row) => row.rowKey == nextKey,
+    );
+    if (nextIndex >= 0) {
+      _selectionController.setSelectedRows([nextIndex]);
+      _notifySelectedDraftRow(controller.rows[nextIndex], nextIndex);
+    }
+  }
+
+  int? _parseCount(String rawCount) {
+    final count = int.tryParse(rawCount.trim());
+    if (count == null || count < 1) {
+      _showWarning('개수는 1 이상의 숫자로 입력해 주세요.');
+      return null;
+    }
+    return count;
+  }
+
+  void _selectDraftRows(List<ItemManagerDraftRow> rows) {
+    final controller = widget.draftController!;
+    final rowKeys = rows.map((row) => row.rowKey).toSet();
+    final indexes = <int>[];
+    for (var index = 0; index < controller.rows.length; index++) {
+      if (rowKeys.contains(controller.rows[index].rowKey)) indexes.add(index);
+    }
+    _selectionController.setSelectedRows(indexes);
+    if (indexes.isNotEmpty) {
+      _notifySelectedDraftRow(controller.rows[indexes.first], indexes.first);
+    }
+  }
+
+  void _notifySelectedDraftRow(ItemManagerDraftRow row, int index) {
+    final labelSize = widget.labelSize!;
+    widget.onRowSelected?.call(
+      row.toPreviewItem(
+        marketId: widget.marketId!,
+        labelSizeId: labelSize.labelSizeId,
+        labelSizeName: labelSize.labelSizeName,
+      ),
+      index,
+    );
+  }
+
+  void _showWarning(String message) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
   void _setSelectedPublishChecked(bool checked) {
     final selectedRows = _selectionController.selectedRows;
     if (selectedRows.isEmpty) return;
-    final checkedRows = _publishCheckboxController.checkedRows(_publishColumnId);
+    final checkedRows = _publishCheckboxController.checkedRows(
+      _publishColumnId,
+    );
     final nextRows = checked
         ? <int>{...checkedRows, ...selectedRows}
         : checkedRows.difference(selectedRows);
@@ -205,9 +450,17 @@ class _ItemManageState extends State<ItemManage> {
             header: c.columnName,
             initialWidth: max(c.width.toDouble(), 70),
             minWidth: 70,
-            text: (row) =>
-                TColumnContent.get(c.columnId, row.item.itemId)?.dataString ??
-                '',
+            text: (row) {
+              final draft = _draftByDisplayItem[row];
+              if (draft != null) {
+                return widget.draftController!.columnValue(draft, c.columnId);
+              }
+              return TColumnContent.get(
+                    c.columnId,
+                    row.item.itemId,
+                  )?.dataString ??
+                  '';
+            },
           ),
         )
         .toList();

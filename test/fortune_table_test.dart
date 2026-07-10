@@ -4,8 +4,11 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fortune_sheet/fortune_sheet.dart' hide Rect;
 import 'package:label_manager/models/additional_item.dart';
+import 'package:label_manager/models/column_content.dart';
 import 'package:label_manager/models/item.dart';
+import 'package:label_manager/models/item_manager_draft.dart';
 import 'package:label_manager/models/item_of_market.dart';
+import 'package:label_manager/models/label_size.dart';
 import 'package:label_manager/page_home/item_manage.dart';
 
 void main() {
@@ -71,7 +74,9 @@ void main() {
 
     expect(checked, {'첫째'});
 
-    await tester.tapAt(tableTopLeft + const Offset(40 + 100 + 30, 36 + 28 + 14));
+    await tester.tapAt(
+      tableTopLeft + const Offset(40 + 100 + 30, 36 + 28 + 14),
+    );
     await tester.pump();
 
     expect(checked, {'첫째', '둘째'});
@@ -385,7 +390,9 @@ void main() {
       isFalse,
     );
 
-    final tableTopLeft = tester.getTopLeft(find.byType(FortuneTable<ItemOfMarket>));
+    final tableTopLeft = tester.getTopLeft(
+      find.byType(FortuneTable<ItemOfMarket>),
+    );
     await tester.tapAt(tableTopLeft + const Offset(40 + 20, 36 + 14));
     await tester.pump();
 
@@ -485,6 +492,69 @@ void main() {
     expect(table.selectionController!.selectedRows, isEmpty);
   });
 
+  testWidgets('ItemManage adds and confirms deletion of a draft row', (
+    tester,
+  ) async {
+    final controller = ItemManagerDraftController(
+      rows: const [],
+      scopedColumnContents: TColumnContentScopedView(const {}),
+    );
+    addTearDown(controller.dispose);
+    ItemOfMarket? selected;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 600,
+            height: 220,
+            child: ItemManage(
+              items: const [],
+              draftController: controller,
+              labelSize: const LabelSize(
+                labelSizeId: 20,
+                brandId: 30,
+                labelSizeName: '테스트 라벨',
+              ),
+              marketId: 1,
+              emptyElementPayload: 'UEsDempty',
+              onRowSelected: (row, _) => selected = row,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final tableTopLeft = tester.getTopLeft(
+      find.byType(FortuneTable<ItemOfMarket>),
+    );
+    await _openItemManageContextMenu(tester, tableTopLeft);
+    await tester.tap(find.text('품목 추가'));
+    await tester.pumpAndSettle();
+
+    expect(controller.rows, hasLength(1));
+    expect(controller.rows.single.rowState, ItemManagerDraftRowState.added);
+    expect(selected?.item.itemId, 0);
+    var table = tester.widget<FortuneTable<ItemOfMarket>>(
+      find.byType(FortuneTable<ItemOfMarket>),
+    );
+    expect(table.selectionController!.selectedRows, {0});
+
+    await _openItemManageContextMenu(tester, tableTopLeft);
+    await tester.tap(find.text('품목 삭제'));
+    await tester.pumpAndSettle();
+    expect(find.text('선택한 1개 품목을 삭제할까요?'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, '삭제'));
+    await tester.pumpAndSettle();
+
+    expect(controller.rows, isEmpty);
+    expect(controller.deletedSourceItemIds, isEmpty);
+    table = tester.widget<FortuneTable<ItemOfMarket>>(
+      find.byType(FortuneTable<ItemOfMarket>),
+    );
+    expect(table.selectionController!.selectedRows, isEmpty);
+  });
+
   testWidgets('FortuneTable consumes mouse wheel inside a parent scroll view', (
     tester,
   ) async {
@@ -556,72 +626,73 @@ void main() {
     expect(bodyVerticalController.offset, greaterThan(0));
   });
 
-  testWidgets('FortuneTable consumes trackpad pan inside a parent scroll view', (
-    tester,
-  ) async {
-    final parentController = ScrollController();
-    addTearDown(parentController.dispose);
-    final rows = List<String>.generate(40, (index) => '행 $index');
+  testWidgets(
+    'FortuneTable consumes trackpad pan inside a parent scroll view',
+    (tester) async {
+      final parentController = ScrollController();
+      addTearDown(parentController.dispose);
+      final rows = List<String>.generate(40, (index) => '행 $index');
 
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: SizedBox(
-            width: 360,
-            height: 220,
-            child: SingleChildScrollView(
-              controller: parentController,
-              child: Column(
-                children: [
-                  SizedBox(
-                    width: 360,
-                    height: 180,
-                    child: FortuneTable<String>(
-                      rows: rows,
-                      autoFitColumns: false,
-                      columns: [
-                        FortuneTableColumn<String>(
-                          id: 'name',
-                          header: '이름',
-                          initialWidth: 240,
-                          text: (row) => row,
-                        ),
-                      ],
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              width: 360,
+              height: 220,
+              child: SingleChildScrollView(
+                controller: parentController,
+                child: Column(
+                  children: [
+                    SizedBox(
+                      width: 360,
+                      height: 180,
+                      child: FortuneTable<String>(
+                        rows: rows,
+                        autoFitColumns: false,
+                        columns: [
+                          FortuneTableColumn<String>(
+                            id: 'name',
+                            header: '이름',
+                            initialWidth: 240,
+                            text: (row) => row,
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 600),
-                ],
+                    const SizedBox(height: 600),
+                  ],
+                ),
               ),
             ),
           ),
         ),
-      ),
-    );
+      );
 
-    final tableTopLeft = tester.getTopLeft(find.byType(FortuneTable<String>));
-    final bodyVerticalController = _bodyVerticalController(tester);
-    final firstRowCenter = tableTopLeft + const Offset(120, 36 + 14);
-    tester.binding.handlePointerEvent(
-      PointerPanZoomStartEvent(position: firstRowCenter),
-    );
-    await tester.pump();
-    for (var index = 0; index < 20; index += 1) {
+      final tableTopLeft = tester.getTopLeft(find.byType(FortuneTable<String>));
+      final bodyVerticalController = _bodyVerticalController(tester);
+      final firstRowCenter = tableTopLeft + const Offset(120, 36 + 14);
       tester.binding.handlePointerEvent(
-        PointerPanZoomUpdateEvent(
-          position: firstRowCenter,
-          panDelta: const Offset(0, 100),
-        ),
+        PointerPanZoomStartEvent(position: firstRowCenter),
       );
       await tester.pump();
-    }
-    tester.binding.handlePointerEvent(
-      PointerPanZoomEndEvent(position: firstRowCenter),
-    );
-    await tester.pump();
+      for (var index = 0; index < 20; index += 1) {
+        tester.binding.handlePointerEvent(
+          PointerPanZoomUpdateEvent(
+            position: firstRowCenter,
+            panDelta: const Offset(0, 100),
+          ),
+        );
+        await tester.pump();
+      }
+      tester.binding.handlePointerEvent(
+        PointerPanZoomEndEvent(position: firstRowCenter),
+      );
+      await tester.pump();
 
-    expect(parentController.offset, 0);
-    expect(bodyVerticalController.offset, greaterThan(0));
-  });
+      expect(parentController.offset, 0);
+      expect(bodyVerticalController.offset, greaterThan(0));
+    },
+  );
 
   testWidgets('FortuneTable shows scrollbars only when content overflows', (
     tester,
@@ -737,10 +808,7 @@ Color? _cellColorForText(WidgetTester tester, String text) {
   return (container.decoration! as BoxDecoration).color;
 }
 
-ItemOfMarket _testItemOfMarket({
-  String itemName = '테스트 품목',
-  int marketId = 1,
-}) {
+ItemOfMarket _testItemOfMarket({String itemName = '테스트 품목', int marketId = 1}) {
   final now = DateTime(2026, 7, 8);
   return ItemOfMarket(
     marketId: marketId,

@@ -21,6 +21,7 @@ import 'package:label_manager/models/column_special.dart';
 import 'package:label_manager/models/column.dart';
 import 'package:label_manager/models/customer.dart';
 import 'package:label_manager/models/item.dart';
+import 'package:label_manager/models/item_manager_draft.dart';
 import 'package:label_manager/models/item_of_market.dart';
 import 'package:label_manager/models/label_size.dart';
 import 'package:label_manager/models/last_connect.dart';
@@ -72,7 +73,6 @@ class _HomePageManagerState extends State<HomePageManager> {
   final GlobalKey _rtfPreviewBoxKey = GlobalKey();
   int? _labelSizesBrandId;
   int _labelLoadToken = 0;
-  int _itemElementAutoMigrationGeneration = 0;
   int? _labelDialogBrandChangeInFlightId;
   bool _labelDialogBrandChangeInFlight = false;
   int _rtfPreviewCaptureGeneration = 0;
@@ -81,7 +81,6 @@ class _HomePageManagerState extends State<HomePageManager> {
   PreviewFloatingWindow? _commonLabelPreviewWindow;
   final LabelSheetImageImportController _commonLabelImageImportController =
       LabelSheetImageImportController();
-  final Set<String> _itemElementAutoMigrationFailedKeys = <String>{};
   Timer? _rtfPreviewResizeDebounce;
   Timer? _rtfPreviewResizeFinalizeTimer;
   List<Brand> _brands = const <Brand>[];
@@ -99,6 +98,8 @@ class _HomePageManagerState extends State<HomePageManager> {
   Rect? _commonLabelGridRect;
   ItemOfMarket? _selectedItemOfMarket;
   int? _selectedItemIndex;
+  ItemManagerDraftController? _itemDraftController;
+  String _itemDraftEmptyElementPayload = '';
   bool _rtfPreviewHasResolvedImage = false;
   bool _autoSelectedCommonLabelOnce = false;
   bool _commonLabelTabActivated = false;
@@ -526,7 +527,9 @@ class _HomePageManagerState extends State<HomePageManager> {
       }
 
       if (labelSize == null) {
-        _itemElementAutoMigrationGeneration += 1;
+        _itemDraftController?.dispose();
+        _itemDraftController = null;
+        _itemDraftEmptyElementPayload = '';
         _currentLabelSize = null;
         _rtfPreviewReadyKey = null;
         _commonLabelTabActivated = false;
@@ -563,6 +566,28 @@ class _HomePageManagerState extends State<HomePageManager> {
             Market.instance!.marketId,
             labelSize.labelSizeId,
           );
+      final items = ItemOfMarket.datas ?? const <ItemOfMarket>[];
+      final rawSnapshots =
+          await ItemOfMarketDAO.selectRawSnapshotsByMarketAndLabelSizeId(
+            Market.instance!.marketId,
+            labelSize.labelSizeId,
+          ) ??
+          const <ItemOfMarketRawSnapshot>[];
+      final scopedColumnContents =
+          await TColumnContentDAO.selectScopedByItemIds(
+            items.map((item) => item.item.itemId),
+          );
+      _itemDraftController?.dispose();
+      _itemDraftController = ItemManagerDraftController.fromItems(
+        items: items,
+        rawSnapshots: {
+          for (final snapshot in rawSnapshots) snapshot.itemId: snapshot,
+        },
+        scopedColumnContents: scopedColumnContents,
+      );
+      _itemDraftEmptyElementPayload = labelSheetEncodeWorkbookSave(
+        _itemElementWorkbook('', labelSize),
+      );
       _selectInitialItemOfMarket();
       debugLog(
         'loaded labelSizeId=${labelSize.labelSizeId}, '
@@ -575,7 +600,6 @@ class _HomePageManagerState extends State<HomePageManager> {
       if (mounted) {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
       }
-      _startItemElementAutoMigration(labelSize, ItemOfMarket.datas ?? const []);
     } catch (e) {
       debugLog('$e');
     } finally {
@@ -831,6 +855,10 @@ class _HomePageManagerState extends State<HomePageManager> {
           selectedIndex: _selectedItemIndex,
           onRowSelected: _handleItemRowSelected,
           onTableRectChanged: _handleItemTableRectChanged,
+          draftController: _itemDraftController,
+          labelSize: _effectiveLabelSize,
+          marketId: Market.instance?.marketId,
+          emptyElementPayload: _itemDraftEmptyElementPayload,
         ),
         closable: false,
         keepAlive: true,
@@ -1005,113 +1033,6 @@ class _HomePageManagerState extends State<HomePageManager> {
     }
     if (_selectedTabValue() == 'items') {
       _showItemPreviewWindow();
-    }
-  }
-
-  void _startItemElementAutoMigration(
-    LabelSize labelSize,
-    List<ItemOfMarket> items,
-  ) {
-    final generation = ++_itemElementAutoMigrationGeneration;
-    final candidates = items
-        .where(_shouldAutoMigrateItemElementRtf)
-        .toList(growable: false);
-    if (candidates.isEmpty) return;
-    final selectedItemId = _selectedItemOfMarket?.item.itemId;
-    final ordered = [...candidates]..sort((a, b) {
-      if (a.item.itemId == selectedItemId) return -1;
-      if (b.item.itemId == selectedItemId) return 1;
-      return 0;
-    });
-    unawaited(_runItemElementAutoMigrationQueue(generation, labelSize, ordered));
-  }
-
-  bool _shouldAutoMigrateItemElementRtf(ItemOfMarket item) {
-    final payload = item.item.elementRTF.trim();
-    return labelSheetLooksLikeRichEditRtf(payload) &&
-        labelSheetTryDecodeWorkbookSave(payload) == null &&
-        !_itemElementAutoMigrationFailedKeys.contains(
-          _itemElementAutoMigrationKey(item),
-        );
-  }
-
-  String _itemElementAutoMigrationKey(ItemOfMarket item) {
-    return '${item.item.itemId}:${item.item.elementRTF.trim().hashCode}';
-  }
-
-  Future<void> _runItemElementAutoMigrationQueue(
-    int generation,
-    LabelSize labelSize,
-    List<ItemOfMarket> items,
-  ) async {
-    debugLog(
-      'item element auto migration start generation=$generation, count=${items.length}, labelSizeId=${labelSize.labelSizeId}',
-    );
-    for (final item in items) {
-      if (!mounted || generation != _itemElementAutoMigrationGeneration) {
-        return;
-      }
-      await _autoMigrateItemElementRtf(generation, labelSize, item);
-      await Future<void>.delayed(Duration.zero);
-    }
-    debugLog('item element auto migration end generation=$generation');
-  }
-
-  Future<void> _autoMigrateItemElementRtf(
-    int generation,
-    LabelSize labelSize,
-    ItemOfMarket item,
-  ) async {
-    final itemId = item.item.itemId;
-    final payload = item.item.elementRTF.trim();
-    final migrationKey = _itemElementAutoMigrationKey(item);
-    if (!_shouldAutoMigrateItemElementRtf(item)) return;
-    final stopwatch = Stopwatch()..start();
-    try {
-      final workbook = await _itemElementWorkbookFromRichEditRtfAsync(
-        payload,
-        labelSize,
-      );
-      if (!mounted || generation != _itemElementAutoMigrationGeneration) {
-        return;
-      }
-      if (workbook == null) {
-        _itemElementAutoMigrationFailedKeys.add(migrationKey);
-        return;
-      }
-      final elementText = _itemElementTextFromWorkbook(workbook);
-      if (elementText.trim().isEmpty) {
-        _itemElementAutoMigrationFailedKeys.add(migrationKey);
-        return;
-      }
-      final encodedWorkbook = labelSheetEncodeWorkbookSave(workbook);
-      final saved = await ItemDAO.autoMigrateElementSheetByItemId(
-        itemId,
-        elementText,
-        encodedWorkbook,
-      );
-      if (!mounted || generation != _itemElementAutoMigrationGeneration) {
-        return;
-      }
-      if (!saved) return;
-      _replaceCachedItemElementSheet(itemId, elementText, encodedWorkbook);
-      if (_selectedItemOfMarket?.item.itemId == itemId) {
-        _selectedItemOfMarket = ItemOfMarket.datas?.firstWhereOrNull(
-          (row) => row.item.itemId == itemId,
-        );
-        if (_selectedTabValue() == 'items' &&
-            _itemPreviewWindow?.isVisible == true) {
-          _showItemPreviewWindow();
-        }
-      }
-      debugLog(
-        'item element auto migration saved itemId=$itemId, elapsedMs=${stopwatch.elapsedMilliseconds}',
-      );
-    } catch (error, stackTrace) {
-      _itemElementAutoMigrationFailedKeys.add(migrationKey);
-      debugLog(
-        'item element auto migration failed itemId=$itemId, hash=${payload.hashCode}, error=$error\n$stackTrace',
-      );
     }
   }
 
@@ -1647,7 +1568,7 @@ class _HomePageManagerState extends State<HomePageManager> {
 
   @override
   void dispose() {
-    _itemElementAutoMigrationGeneration += 1;
+    _itemDraftController?.dispose();
     _rtfPreviewResizeDebounce?.cancel();
     _rtfPreviewResizeFinalizeTimer?.cancel();
     _itemPreviewWindow?.dispose();

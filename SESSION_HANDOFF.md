@@ -43,7 +43,11 @@
 - 2단계 구현 완료: `ItemDAO.updateOrders(List<ItemOrderUpdate>)`를 transaction action 기반 독립 reorder API로 추가하고 item id별 affected row를 검증한다.
 - 2단계 테스트 추가/완료: `test/db_transaction_test.dart`의 `[transaction/DAO]` 4개 테스트에서 commit/rollback/원래 오류/DTO 전달을 검증한다. `test/item_manager_save_dao_test.dart`의 7개 테스트에서 capability flags/probe SQL, order identity, nullable 신규 mapping defaults, save command identity, `OUTPUT INTO`, mapping-only delete, column upsert, schema migration 차단을 검증한다.
 - 2단계 검증 완료: `C:\Flutter\bin\flutter.bat test test\item_manager_save_dao_test.dart` 통과(`+7`), `C:\Flutter\bin\flutter.bat test test\db_transaction_test.dart` 통과(`+4`), `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`). 운영 DB 연결 fixture가 없어 capability probe와 save SQL의 실제 trigger/schema 통합 실행은 미검증이며 UI 저장 연결 전에 현재 DB 기준으로 확인해야 한다.
-- 다음 3단계 `UI draft/edit 기반` 진행 예정: 전용 draft row/session/controller, `ItemManagerLimits.maxRows`, row-key 선택/anchor, 임시 journal 백업, `ItemManage` working row/value resolver와 추가/삽입/삭제/dirty 버튼 정책을 구현한다.
+- 3단계 `UI draft/edit 기반` 진행 중: `lib/models/item_manager_draft.dart`에 `ItemManagerLimits.maxRows=10000`, existing/modified/added/imported row state, item/draft row key, raw current-market snapshot/new mapping defaults, scoped column fallback, row-key 선택/anchor, add/insert/delete, 품명/일반 컬럼/주원료 변경, no-op 복원, save command 변환을 구현했다. 신규 row preview `ItemOfMarket(itemId:0)`은 표시/미리보기 전용이며 저장 identity는 draft key로 유지한다.
+- 3단계 UI 연결 진행 중: label load에서 표시 items와 nullable raw snapshots/scoped column contents를 같은 item id 범위로 조회해 draft controller를 구성한다. `ItemManage`는 기존 `items` API 호환을 유지하면서 controller working rows/value resolver를 표시하고, 우클릭 추가/삽입/삭제(개수 입력/Enter, 10000행 제한, 삭제 확인, 삭제 후 선택 이동)를 controller command에 연결했다. 신규 주원료는 현재 label size의 실제 encoded empty workbook payload를 사용한다.
+- 3단계 정책 반영: 품목관리 진입 시 legacy RTF 전체 background DB 자동 마이그레이션 경로를 제거했다. preview/명시적 편집의 lazy 변환 경로는 유지하며, 사용자 저장 없는 `RICH_ELEMENT_SHEET` 변경은 더 이상 수행하지 않는다.
+- 3단계 현재 검증: `test/item_manager_draft_test.dart` 통과(`+8`), `test/fortune_table_test.dart` 전체 통과(`+12`, draft 메뉴 widget 포함), `flutter analyze` 통과(`No issues found`), `git diff --check` 통과.
+- 3단계 남은 작업: 임시 journal 파일/metadata와 취소 복원, FortuneTable 공용 편집 hook 기반 품명/일반 컬럼 직접 편집, 하단 주원료 draft 반영, dirty 취소/저장 버튼 및 브랜드/라벨 변경 차단, target market/customer identity 검증과 실제 save/reload/선택 복원을 연결한다.
 
 ### 완료 (2026-07-10): 불필요한 작업 규칙 정리
 
