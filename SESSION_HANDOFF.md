@@ -28,6 +28,21 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-10): 품목관리 요청서 DB 저장 세부 정책 병합
+
+- 요청: `.tmp/item_manager_modify.txt`에 남은 권장 사항을 병합하고, 사용자 확인이 필요한 사항은 의미를 이해하기 쉽게 확인한다.
+- 확인 완료: 전체 교체/삭제 시 기존 `BM_RICH_ITEM`은 1차 구현에서 물리 삭제하지 않고 `BM_ITEM_OF_MARKET` mapping 제거로 처리한다.
+- 확인 완료: 신규/엑셀 import 행의 additional item 미사용 값은 `NULL`로 저장한다.
+- 수정 완료: `sourceItemId`는 기존 행 before snapshot 기준 item id로 한정하고, 신규 행은 null로 두며, 삽입 기준 행이 필요하면 별도 `insertAnchorItemId`로 관리하도록 정리했다.
+- 수정 완료: `marketMappingDraft`의 최소 필드를 marketId, additionalItemId, gdsNo, 판매/할인 날짜와 값, 사용자 정의 주원료 사용 여부, linefeed/scale barcode/print count/label size/margin/push 값으로 정리했다.
+- 수정 완료: 품목관리 xlsx adapter는 `labelSheetWorkbookFromXlsxBytes()` 내부 parser/helper를 재사용하되, activeTab 기준 기존 결과가 아니라 지정 sheet parser의 `FortuneWorkbook`과 같은 worksheet XML metadata를 사용하도록 정리했다.
+- 수정 완료: 현재 DB의 `AFTER_INSERT_ITEM` trigger가 column content/barcode/image row를 자동 생성하면 저장 DAO는 중복 insert하지 않고 trigger 생성 row를 update/upsert하도록 정리했다.
+- 수정 완료: trigger가 다중 insert를 안전하게 처리하지 못하면 신규 item insert는 단건 반복 또는 trigger 우회/대체 batch로 구현하도록 정리했다.
+- 수정 완료: 기존 `BM_RICH_ITEM`, `BM_RICH_COL_CONTENT`, `BM_RICH_BARCODE`, `BM_RICH_IMAGE`, `BM_RICH_PRINT_LOG`, `BM_ADDITIONAL_ITEM` orphan 정리는 이번 범위에서 수행하지 않고 별도 유지보수 작업으로 분리한다고 정리했다.
+- 검증 완료: `Select-String -Path .tmp/item_manager_modify.txt -Pattern 'AFTER_INSERT_ITEM|trigger 생성 row|중복 insert|sourceItemId|insertAnchorItemId|marketMappingDraft|RICH_ADDITIONAL_ITEM_ID=NULL|additional item.*NULL|물리 delete를 수행하지|orphan 정리|지정 sheet parser|기존 `labelSheetWorkbookFromXlsxBytes\\(\\)` 원본 결과|변환 경로를 우선 사용|다른 참조가 없을 때만 수행|mapping/column content 제거'`로 새 정책 반영과 구형 충돌 문구 제거를 확인했다.
+- 검증 완료: `git diff --check -- .tmp/item_manager_modify.txt` 통과(공백 오류 없음).
+- 커밋 예정: `SESSION_HANDOFF.md`만 포함한다. `.tmp/item_manager_modify.txt`는 `.gitignore`의 `.tmp/` 대상이므로 force add하지 않고 작업 파일로 유지한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+
 ### 완료 (2026-07-10): 품목관리 요청서 구현 경계 권장안 병합
 
 - 요청: `.tmp/item_manager_modify.txt`를 다시 검토해 남은 권장 사항을 병합 정리한다.
