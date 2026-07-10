@@ -109,6 +109,21 @@ class FortuneTableSelectionController extends ChangeNotifier {
   }
 }
 
+class FortuneTableFocusController extends ChangeNotifier {
+  int? _rowIndex;
+  String? _columnId;
+
+  int? get rowIndex => _rowIndex;
+  String? get columnId => _columnId;
+
+  void focusCell(int rowIndex, String columnId) {
+    if (rowIndex < 0 || columnId.isEmpty) return;
+    _rowIndex = rowIndex;
+    _columnId = columnId;
+    notifyListeners();
+  }
+}
+
 class FortuneTableColumn<T> {
   const FortuneTableColumn({
     required this.id,
@@ -123,6 +138,7 @@ class FortuneTableColumn<T> {
     this.onCheckboxChangedAt,
     this.isTextEditable,
     this.onTextCommitted,
+    this.onDoubleTap,
     this.fillRemaining = false,
   });
 
@@ -139,6 +155,7 @@ class FortuneTableColumn<T> {
   final bool Function(T row, int rowIndex)? isTextEditable;
   final FutureOr<void> Function(T row, int rowIndex, String value)?
   onTextCommitted;
+  final FutureOr<void> Function(T row, int rowIndex)? onDoubleTap;
   final bool fillRemaining;
 
   bool get isCheckbox =>
@@ -156,6 +173,7 @@ class FortuneTable<T> extends StatefulWidget {
     required this.columns,
     this.selectedIndex,
     this.selectionController,
+    this.focusController,
     this.onRowSelected,
     this.onRowSecondaryTapDown,
     this.onRectChanged,
@@ -174,6 +192,7 @@ class FortuneTable<T> extends StatefulWidget {
   final List<FortuneTableColumn<T>> columns;
   final int? selectedIndex;
   final FortuneTableSelectionController? selectionController;
+  final FortuneTableFocusController? focusController;
   final void Function(T row, int index)? onRowSelected;
   final void Function(T row, int index, TapDownDetails details)?
   onRowSecondaryTapDown;
@@ -228,6 +247,7 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
   bool _syncingHorizontal = false;
   bool _syncingVertical = false;
   late List<double> _widths;
+  List<double> _effectiveColumnWidths = const [];
   Set<FortuneTableCheckboxController> _checkboxControllers =
       <FortuneTableCheckboxController>{};
   int? _selectedIndex;
@@ -247,6 +267,7 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
     _widths = _initialWidths();
     _selectedIndex = widget.selectedIndex;
     widget.selectionController?.addListener(_handleSelectionControllerChanged);
+    widget.focusController?.addListener(_handleFocusControllerChanged);
     _syncCheckboxControllerListeners(<FortuneTableColumn<T>>[]);
     _hScrollBody.addListener(_syncHorizontalFromBody);
     _hScrollHeader.addListener(_syncHorizontalFromHeader);
@@ -287,6 +308,10 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
         _handleSelectionControllerChanged,
       );
     }
+    if (oldWidget.focusController != widget.focusController) {
+      oldWidget.focusController?.removeListener(_handleFocusControllerChanged);
+      widget.focusController?.addListener(_handleFocusControllerChanged);
+    }
     widget.selectionController?.setSelectedRows(
       widget.selectionController!.selectedRows.where(
         (index) => index < widget.rows.length,
@@ -305,6 +330,7 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
     widget.selectionController?.removeListener(
       _handleSelectionControllerChanged,
     );
+    widget.focusController?.removeListener(_handleFocusControllerChanged);
     _focusNode.dispose();
     _hScrollHeader.dispose();
     _hScrollBody.dispose();
@@ -322,6 +348,7 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
       child: LayoutBuilder(
         builder: (context, constraints) {
           final widths = _effectiveWidths(constraints.maxWidth);
+          _effectiveColumnWidths = widths;
           final bodyWidth = widths.fold<double>(0, (sum, width) => sum + width);
           final horizontalViewportWidth =
               (constraints.maxWidth - widget.rowNumberWidth)
@@ -758,7 +785,9 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
         _focusedColumnIndex = columnIndex;
         _selectRow(row, rowIndex);
       },
-      onDoubleTap: _isTextEditable(column, row, rowIndex)
+      onDoubleTap: column.onDoubleTap != null
+          ? () => column.onDoubleTap!(row, rowIndex)
+          : _isTextEditable(column, row, rowIndex)
           ? () => _startTextEditing(row, rowIndex, columnIndex, column)
           : null,
       child: SizedBox.expand(
@@ -945,6 +974,63 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
   void _handleSelectionControllerChanged() {
     if (!mounted) return;
     setState(() {});
+  }
+
+  void _handleFocusControllerChanged() {
+    final controller = widget.focusController;
+    final rowIndex = controller?.rowIndex;
+    final columnId = controller?.columnId;
+    if (rowIndex == null ||
+        columnId == null ||
+        rowIndex >= widget.rows.length) {
+      return;
+    }
+    final columnIndex = widget.columns.indexWhere(
+      (column) => column.id == columnId,
+    );
+    if (columnIndex < 0) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _focusedColumnIndex = columnIndex;
+      _selectedIndex = rowIndex;
+      _selectionAnchorIndex = rowIndex;
+      widget.selectionController?.setSelectedRows([rowIndex]);
+      _focusNode.requestFocus();
+      _revealCell(rowIndex, columnIndex);
+      setState(() {});
+    });
+  }
+
+  void _revealCell(int rowIndex, int columnIndex) {
+    if (_vScrollBody.hasClients) {
+      _revealRange(
+        _vScrollBody,
+        rowIndex * widget.rowHeight,
+        (rowIndex + 1) * widget.rowHeight,
+      );
+    }
+    if (_hScrollBody.hasClients &&
+        columnIndex < _effectiveColumnWidths.length) {
+      final start = _effectiveColumnWidths
+          .take(columnIndex)
+          .fold<double>(0, (sum, width) => sum + width);
+      _revealRange(
+        _hScrollBody,
+        start,
+        start + _effectiveColumnWidths[columnIndex],
+      );
+    }
+  }
+
+  void _revealRange(ScrollController controller, double start, double end) {
+    final position = controller.position;
+    var target = position.pixels;
+    if (start < target) {
+      target = start;
+    } else if (end > target + position.viewportDimension) {
+      target = end - position.viewportDimension;
+    }
+    controller.jumpTo(target.clamp(0, position.maxScrollExtent).toDouble());
   }
 
   void _syncHorizontalFromBody() {

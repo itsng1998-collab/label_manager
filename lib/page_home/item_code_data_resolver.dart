@@ -226,9 +226,20 @@ class ItemCodeDataResolver {
           error: 'GS1 AI $definitionCode 정의를 찾을 수 없습니다.',
         );
       }
+      final sourceValue =
+          tokenColumnValue?.call(source) ?? columnValue(source.columnId);
+      if (!definition.accepts(sourceValue)) {
+        return _result(
+          column,
+          data: '',
+          displayText: '',
+          formatId: formatId,
+          error: '${source.columnName} 값이 GS1 AI ${source.gs1Ai} 형식과 맞지 않습니다.',
+        );
+      }
       parts
         ..add(source.gs1Ai)
-        ..add(tokenColumnValue?.call(source) ?? columnValue(source.columnId));
+        ..add(sourceValue);
       if (definition.needsFnc1 && index < column.containColumnIds.length - 1) {
         parts.add(String.fromCharCode(29));
       }
@@ -432,6 +443,5 @@ String _legacyUriValue(String value) =>
     Uri.encodeComponent(value).replaceAll('%26', '%09');
 
 List<int> _parseColumnIds(String value) => [
-  for (final token in value.split('|'))
-    ?int.tryParse(token.trim()),
+  for (final token in value.split('|')) ?int.tryParse(token.trim()),
 ];

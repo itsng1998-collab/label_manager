@@ -1,8 +1,10 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:file_selector/file_selector.dart';
 import 'package:fortune_sheet/fortune_sheet.dart' hide Rect;
 import 'package:label_manager/models/column.dart';
 import 'package:label_manager/models/column_content.dart';
+import 'package:label_manager/models/column_type.dart';
 import 'package:label_manager/models/item_manager_draft.dart';
 import 'package:label_manager/models/item_of_market.dart';
 import 'package:label_manager/models/label_size.dart';
@@ -24,7 +26,9 @@ class ItemManage extends StatefulWidget {
   final String? itemOrderDisabledReason;
   final Future<void> Function()? onCancelDraft;
   final Future<void> Function()? onSaveDraft;
+  final Future<void> Function()? onReloadDraft;
   final bool commandBusy;
+  final bool forceReloadRequired;
 
   const ItemManage({
     super.key,
@@ -43,7 +47,9 @@ class ItemManage extends StatefulWidget {
     this.itemOrderDisabledReason,
     this.onCancelDraft,
     this.onSaveDraft,
+    this.onReloadDraft,
     this.commandBusy = false,
+    this.forceReloadRequired = false,
   });
 
   @override
@@ -70,6 +76,8 @@ class _ItemManageState extends State<ItemManage> {
       FortuneTableCheckboxController();
   final FortuneTableSelectionController _selectionController =
       FortuneTableSelectionController();
+  final FortuneTableFocusController _focusController =
+      FortuneTableFocusController();
   final TextEditingController _addCountController = TextEditingController(
     text: '1',
   );
@@ -79,6 +87,7 @@ class _ItemManageState extends State<ItemManage> {
   List<ItemManagerDraftRow> _displayDraftRows = const [];
   Map<ItemOfMarket, ItemManagerDraftRow> _draftByDisplayItem = Map.identity();
   ItemManagerDraftRow? _contextMenuDraftRow;
+  int _lastFocusRequestId = 0;
 
   @override
   void initState() {
@@ -106,6 +115,31 @@ class _ItemManageState extends State<ItemManage> {
   }
 
   void _handleDraftChanged() {
+    final controller = widget.draftController;
+    if (controller != null) {
+      final indexes = <int>[];
+      for (var index = 0; index < controller.rows.length; index += 1) {
+        if (controller.selectedRowKeys.contains(
+          controller.rows[index].rowKey,
+        )) {
+          indexes.add(index);
+        }
+      }
+      _selectionController.setSelectedRows(indexes);
+      if (controller.focusRequestId != _lastFocusRequestId &&
+          indexes.isNotEmpty) {
+        _lastFocusRequestId = controller.focusRequestId;
+        final columnId = switch (controller.selectedColumnId) {
+          ItemManagerFixedColumnIds.itemName => 'itemName',
+          ItemManagerFixedColumnIds.element => 'element',
+          final int value when value > 0 => 'dyn_$value',
+          _ => null,
+        };
+        if (columnId != null) {
+          _focusController.focusCell(indexes.first, columnId);
+        }
+      }
+    }
     if (mounted) setState(() {});
   }
 
@@ -116,6 +150,7 @@ class _ItemManageState extends State<ItemManage> {
     _insertCountController.dispose();
     _publishCheckboxController.dispose();
     _selectionController.dispose();
+    _focusController.dispose();
     super.dispose();
   }
 
@@ -139,6 +174,7 @@ class _ItemManageState extends State<ItemManage> {
               autoFitColumns: false,
               selectedIndex: widget.selectedIndex,
               selectionController: _selectionController,
+              focusController: _focusController,
               multiSelectionEnabled: true,
               onRowSelected: _handleRowSelected,
               onRowSecondaryTapDown: _showTableContextMenu,
@@ -154,8 +190,10 @@ class _ItemManageState extends State<ItemManage> {
 
   Widget _buildCommandFooter() {
     final dirty = widget.draftController?.isDirty == true;
-    final cleanEnabled = !widget.commandBusy && !dirty;
-    final dirtyEnabled = !widget.commandBusy && dirty;
+    final cleanEnabled =
+        !widget.commandBusy && !widget.forceReloadRequired && !dirty;
+    final dirtyEnabled =
+        !widget.commandBusy && !widget.forceReloadRequired && dirty;
     return Container(
       height: 48,
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
@@ -179,19 +217,28 @@ class _ItemManageState extends State<ItemManage> {
             child: const Text('엑셀 내보내기'),
           ),
           const Spacer(),
-          OutlinedButton(
-            onPressed: dirtyEnabled && widget.onCancelDraft != null
-                ? widget.onCancelDraft
-                : null,
-            child: const Text('취소'),
-          ),
-          const SizedBox(width: 8),
-          FilledButton(
-            onPressed: dirtyEnabled && widget.onSaveDraft != null
-                ? widget.onSaveDraft
-                : null,
-            child: const Text('저장'),
-          ),
+          if (widget.forceReloadRequired)
+            FilledButton(
+              onPressed: !widget.commandBusy && widget.onReloadDraft != null
+                  ? widget.onReloadDraft
+                  : null,
+              child: const Text('다시 조회'),
+            )
+          else ...[
+            OutlinedButton(
+              onPressed: dirtyEnabled && widget.onCancelDraft != null
+                  ? widget.onCancelDraft
+                  : null,
+              child: const Text('취소'),
+            ),
+            const SizedBox(width: 8),
+            FilledButton(
+              onPressed: dirtyEnabled && widget.onSaveDraft != null
+                  ? widget.onSaveDraft
+                  : null,
+              child: const Text('저장'),
+            ),
+          ],
         ],
       ),
     );
@@ -255,7 +302,12 @@ class _ItemManageState extends State<ItemManage> {
   }
 
   Future<void> _showContextMenu(TapDownDetails details) async {
-    final orderDisabledReason = widget.draftController?.isDirty == true
+    final mutationEnabled = !widget.commandBusy && !widget.forceReloadRequired;
+    final publishEnabled =
+        mutationEnabled && widget.draftController?.isDirty != true;
+    final orderDisabledReason = widget.forceReloadRequired
+        ? '품목 목록을 다시 조회한 후 실행해 주세요.'
+        : widget.draftController?.isDirty == true
         ? '저장 완료 또는 변경 취소 확정 후 순서 변경을 실행해 주세요.'
         : widget.commandBusy
         ? '현재 작업이 끝난 후 실행해 주세요.'
@@ -274,19 +326,21 @@ class _ItemManageState extends State<ItemManage> {
           label: '품목 추가',
           command: _menuAdd,
           controller: _addCountController,
-          enabled: widget.draftController != null,
+          enabled: mutationEnabled && widget.draftController != null,
         ),
         _countMenuItem(
           label: '품목 삽입',
           command: _menuInsert,
           controller: _insertCountController,
           enabled:
+              mutationEnabled &&
               widget.draftController != null &&
               _selectionController.hasSelection,
         ),
         PopupMenuItem<String>(
           value: _menuDelete,
           enabled:
+              mutationEnabled &&
               widget.draftController != null &&
               _selectionController.hasSelection,
           height: fortuneContextMenuRowHeight,
@@ -309,7 +363,10 @@ class _ItemManageState extends State<ItemManage> {
               if (orderDisabledReason case final reason?)
                 Text(
                   reason,
-                  style: const TextStyle(fontSize: 11, color: Color(0xFF777777)),
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: Color(0xFF777777),
+                  ),
                 ),
             ],
           ),
@@ -322,14 +379,16 @@ class _ItemManageState extends State<ItemManage> {
           child: const Text('QR코드 데이터 보기'),
         ),
         const PopupMenuDivider(height: fortuneContextMenuDividerHeight),
-        const PopupMenuItem<String>(
+        PopupMenuItem<String>(
           value: _menuSelectAll,
+          enabled: mutationEnabled,
           height: fortuneContextMenuRowHeight,
           padding: _menuItemPadding,
           child: Text('전체 선택'),
         ),
-        const PopupMenuItem<String>(
+        PopupMenuItem<String>(
           value: _menuClearSelection,
+          enabled: mutationEnabled,
           height: fortuneContextMenuRowHeight,
           padding: _menuItemPadding,
           child: Text('전체 선택 해제'),
@@ -337,14 +396,14 @@ class _ItemManageState extends State<ItemManage> {
         const PopupMenuDivider(height: fortuneContextMenuDividerHeight),
         PopupMenuItem<String>(
           value: _menuCheckSelectedPublish,
-          enabled: _selectionController.hasSelection,
+          enabled: publishEnabled && _selectionController.hasSelection,
           height: fortuneContextMenuRowHeight,
           padding: _menuItemPadding,
           child: const Text('블럭 선택 발행 체크'),
         ),
         PopupMenuItem<String>(
           value: _menuUncheckSelectedPublish,
-          enabled: _selectionController.hasSelection,
+          enabled: publishEnabled && _selectionController.hasSelection,
           height: fortuneContextMenuRowHeight,
           padding: _menuItemPadding,
           child: const Text('블럭 선택 발행 체크 해제'),
@@ -402,6 +461,9 @@ class _ItemManageState extends State<ItemManage> {
   }
 
   Future<void> _handleContextMenuCommand(String command) async {
+    if (widget.commandBusy || widget.forceReloadRequired) {
+      return;
+    }
     switch (command) {
       case _menuAdd:
         _addDraftRows(_addCountController.text);
@@ -551,6 +613,38 @@ class _ItemManageState extends State<ItemManage> {
     ).showSnackBar(SnackBar(content: Text(message)));
   }
 
+  bool _canEditDynamicColumn(ItemManagerDraftRow? draft, int columnId) {
+    if (widget.commandBusy || widget.forceReloadRequired || draft == null) {
+      return false;
+    }
+    return draft.isNew ||
+        (widget.draftController!.scopedColumnContents
+                .get(columnId, draft.sourceItemId!)
+                ?.editable ??
+            false);
+  }
+
+  Future<void> _selectBmpImage(ItemOfMarket row, TColumn column) async {
+    final draft = _draftByDisplayItem[row];
+    if (!_canEditDynamicColumn(draft, column.columnId)) return;
+    const bmpGroup = XTypeGroup(label: 'BMP 이미지', extensions: <String>['bmp']);
+    final file = await openFile(acceptedTypeGroups: const [bmpGroup]);
+    if (file == null || !mounted) return;
+    final fileName = file.name.replaceFirst(
+      RegExp(r'\.bmp$', caseSensitive: false),
+      '',
+    );
+    widget.draftController!.updateColumnValue(
+      draft!.rowKey,
+      columnId: column.columnId,
+      editable: true,
+      dataString: fileName,
+    );
+    _showWarning(
+      '경로는 저장되지 않고 파일명만 저장됩니다. 같은 파일명이 여러 위치에 있으면 출력 환경에 따라 다른 이미지가 사용될 수 있습니다.',
+    );
+  }
+
   void _setSelectedPublishChecked(bool checked) {
     final selectedRows = _selectionController.selectedRows;
     if (selectedRows.isEmpty) return;
@@ -564,6 +658,10 @@ class _ItemManageState extends State<ItemManage> {
   }
 
   List<FortuneTableColumn<ItemOfMarket>> get _columns {
+    final publishEnabled =
+        !widget.commandBusy &&
+        !widget.forceReloadRequired &&
+        widget.draftController?.isDirty != true;
     final extras = List<TColumn>.from(TColumn.datas ?? const <TColumn>[]);
     final extraColumns = extras
         .map(
@@ -585,14 +683,14 @@ class _ItemManageState extends State<ItemManage> {
             },
             isTextEditable: (row, _) {
               final draft = _draftByDisplayItem[row];
-              if (draft == null) return false;
-              if (draft.isNew) return true;
-              return widget.draftController!.scopedColumnContents
-                      .get(c.columnId, draft.sourceItemId!)
-                      ?.editable ??
-                  false;
+              return c.columnType.code != TColumnType.TYPE_IMAGE &&
+                  _canEditDynamicColumn(draft, c.columnId);
             },
+            onDoubleTap: c.columnType.code == TColumnType.TYPE_IMAGE
+                ? (row, _) => _selectBmpImage(row, c)
+                : null,
             onTextCommitted: (row, _, value) {
+              if (widget.commandBusy || widget.forceReloadRequired) return;
               final draft = _draftByDisplayItem[row];
               if (draft == null) return;
               final editable =
@@ -602,12 +700,15 @@ class _ItemManageState extends State<ItemManage> {
                           ?.editable ??
                       false);
               if (!editable) return;
-              widget.draftController!.updateColumnValue(
+              final applied = widget.draftController!.updateColumnValue(
                 draft.rowKey,
                 columnId: c.columnId,
                 editable: editable,
                 dataString: value,
               );
+              if (!applied) {
+                _showWarning('${c.columnName} 값이 GS1 AI 형식과 일치하지 않습니다.');
+              }
             },
           ),
         )
@@ -620,7 +721,13 @@ class _ItemManageState extends State<ItemManage> {
         initialWidth: 40,
         minWidth: 40,
         text: _empty,
-        checkboxController: _publishCheckboxController,
+        checkboxController: !publishEnabled ? null : _publishCheckboxController,
+        checkboxValueAt: !publishEnabled
+            ? (_, rowIndex) => _publishCheckboxController.isChecked(
+                _publishColumnId,
+                rowIndex,
+              )
+            : null,
       ),
       const FortuneTableColumn<ItemOfMarket>(
         id: 'labelSize',
@@ -635,8 +742,12 @@ class _ItemManageState extends State<ItemManage> {
         initialWidth: 280,
         minWidth: 70,
         text: _itemName,
-        isTextEditable: (row, _) => _draftByDisplayItem.containsKey(row),
+        isTextEditable: (row, _) =>
+            !widget.commandBusy &&
+            !widget.forceReloadRequired &&
+            _draftByDisplayItem.containsKey(row),
         onTextCommitted: (row, _, value) {
+          if (widget.commandBusy || widget.forceReloadRequired) return;
           final draft = _draftByDisplayItem[row];
           if (draft == null) return;
           widget.draftController!.updateItemName(draft.rowKey, value);

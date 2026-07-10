@@ -67,6 +67,7 @@ class ItemManagerDraftJournal {
 
   final ItemManagerDraftController controller;
   final ItemManagerDraftJournalMetadata metadata;
+  final ItemMarketMappingFingerprints mappingFingerprints;
   final Duration debounceDuration;
   final Future<Directory> Function() _directoryProvider;
   final Future<SharedPreferences> Function() _preferencesProvider;
@@ -77,6 +78,7 @@ class ItemManagerDraftJournal {
   ItemManagerDraftJournal({
     required this.controller,
     required this.metadata,
+    required this.mappingFingerprints,
     this.debounceDuration = const Duration(milliseconds: 250),
     Future<Directory> Function()? directoryProvider,
     Future<SharedPreferences> Function()? preferencesProvider,
@@ -156,6 +158,9 @@ class ItemManagerDraftJournal {
     final baselineRows = orderedSourceRows
         .map(_baselineRowJson)
         .toList(growable: false);
+    final baselineItemIds = orderedSourceRows
+        .map((row) => row.sourceItemId!)
+        .toList(growable: false);
     final scopedColumns = controller.scopedColumnContents.values.values.toList()
       ..sort((left, right) {
         final itemCompare = left.itemId.compareTo(right.itemId);
@@ -196,6 +201,9 @@ class ItemManagerDraftJournal {
         'rowCount': baselineRows.length,
         'rows': baselineRows,
         'checksum': _fnv1a64Hex(checksumInput),
+        'mappingFingerprints': mappingFingerprints.toJsonForItems(
+          baselineItemIds,
+        ),
       },
       'changes': {
         'rows': changedRows,

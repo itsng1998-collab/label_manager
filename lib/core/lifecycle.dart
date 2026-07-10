@@ -1,14 +1,15 @@
 import 'package:flutter/widgets.dart';
 
 typedef LifecycleCallback = Future<void> Function();
+typedef ExitRequestCallback = Future<bool> Function();
 
 /// 콜백 모음: 필요한 이벤트만 선택적으로 전달하면 됩니다.
 class LifecycleCallbacks {
   final LifecycleCallback? onResumed;
   final LifecycleCallback? onInactive;
   final LifecycleCallback? onPaused;
-  final LifecycleCallback? onDetached;       // 엔진 분리 (종료 직전)
-  final LifecycleCallback? onExitRequested;  // 데스크톱 창 닫기 등 명시적 종료 요청 시 수동 통지용
+  final LifecycleCallback? onDetached; // 엔진 분리 (종료 직전)
+  final ExitRequestCallback? onExitRequested; // false면 명시적 종료 요청 취소
 
   const LifecycleCallbacks({
     this.onResumed,
@@ -86,11 +87,14 @@ class LifecycleManager with WidgetsBindingObserver {
   }
 
   /// 창 닫기 등 명시적 종료 요청 시 수동으로 호출해 콜백을 알립니다.
-  Future<void> notifyExitRequested() async {
+  Future<bool> notifyExitRequested() async {
     for (final cb in List<LifecycleCallbacks>.from(_observers)) {
       try {
-        await cb.onExitRequested?.call();
-      } catch (_) {}
+        if (await cb.onExitRequested?.call() == false) return false;
+      } catch (_) {
+        return false;
+      }
     }
+    return true;
   }
 }

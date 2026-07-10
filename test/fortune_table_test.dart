@@ -69,6 +69,91 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
   });
 
+  testWidgets('FortuneTable delegates custom double tap editing', (
+    tester,
+  ) async {
+    var doubleTapCount = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 320,
+            height: 140,
+            child: FortuneTable<String>(
+              rows: const ['logo.bmp'],
+              columns: [
+                FortuneTableColumn<String>(
+                  id: 'image',
+                  header: '이미지',
+                  text: (row) => row,
+                  onDoubleTap: (_, _) => doubleTapCount += 1,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('logo.bmp'));
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.tap(find.text('logo.bmp'));
+    await tester.pump();
+
+    expect(doubleTapCount, 1);
+    expect(find.byType(TextField), findsNothing);
+    await tester.pump(const Duration(milliseconds: 100));
+  });
+
+  testWidgets('FortuneTable focus controller reveals an off-screen cell', (
+    tester,
+  ) async {
+    final focusController = FortuneTableFocusController();
+    final selectionController = FortuneTableSelectionController();
+    addTearDown(focusController.dispose);
+    addTearDown(selectionController.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 320,
+            height: 180,
+            child: FortuneTable<int>(
+              rows: List.generate(40, (index) => index),
+              autoFitColumns: false,
+              focusController: focusController,
+              selectionController: selectionController,
+              columns: List.generate(
+                5,
+                (column) => FortuneTableColumn<int>(
+                  id: 'c$column',
+                  header: 'C$column',
+                  initialWidth: 120,
+                  text: (row) => 'r${row}c$column',
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('r39c4'), findsNothing);
+    focusController.focusCell(39, 'c4');
+    await tester.pump();
+    await tester.pump();
+
+    expect(selectionController.selectedRows, {39});
+    expect(find.text('r39c4'), findsOneWidget);
+    expect(
+      tester
+          .getRect(find.text('r39c4'))
+          .overlaps(tester.getRect(find.byType(FortuneTable<int>))),
+      isTrue,
+    );
+  });
+
   testWidgets('FortuneTable selects rows and toggles checkbox cells', (
     tester,
   ) async {
@@ -630,15 +715,21 @@ void main() {
       ),
     );
 
+    final table = tester.widget<FortuneTable<ItemOfMarket>>(
+      find.byType(FortuneTable<ItemOfMarket>),
+    );
+    final publishColumn = table.columns.firstWhere(
+      (column) => column.id == 'publish',
+    );
+    expect(publishColumn.checkboxController, isNull);
+    expect(publishColumn.checkboxValueAt, isNotNull);
+
     final tableTopLeft = tester.getTopLeft(
       find.byType(FortuneTable<ItemOfMarket>),
     );
     await _openItemManageContextMenu(tester, tableTopLeft);
 
-    expect(
-      find.text('저장 완료 또는 변경 취소 확정 후 순서 변경을 실행해 주세요.'),
-      findsOneWidget,
-    );
+    expect(find.text('저장 완료 또는 변경 취소 확정 후 순서 변경을 실행해 주세요.'), findsOneWidget);
     await tester.tap(find.text('순서 변경'));
     await tester.pump();
     expect(invoked, isFalse);
@@ -873,6 +964,47 @@ void main() {
     expect(find.text('편집 후 품명'), findsOneWidget);
     await tester.pump(const Duration(milliseconds: 100));
   });
+
+  testWidgets(
+    'ItemManage allows only reload after a saved draft reload fails',
+    (tester) async {
+      var reloadCount = 0;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              width: 600,
+              height: 220,
+              child: ItemManage(
+                items: const [],
+                onExcelImport: () async {},
+                onExcelExport: () async {},
+                onCancelDraft: () async {},
+                onSaveDraft: () async {},
+                onReloadDraft: () async => reloadCount += 1,
+                forceReloadRequired: true,
+              ),
+            ),
+          ),
+        ),
+      );
+
+      expect(
+        tester
+            .widget<OutlinedButton>(
+              find.widgetWithText(OutlinedButton, '엑셀 가져오기'),
+            )
+            .onPressed,
+        isNull,
+      );
+      expect(find.widgetWithText(OutlinedButton, '취소'), findsNothing);
+      expect(find.widgetWithText(FilledButton, '저장'), findsNothing);
+
+      await tester.tap(find.widgetWithText(FilledButton, '다시 조회'));
+      await tester.pump();
+      expect(reloadCount, 1);
+    },
+  );
 
   testWidgets('FortuneTable consumes mouse wheel inside a parent scroll view', (
     tester,

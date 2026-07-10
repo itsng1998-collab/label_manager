@@ -6,14 +6,8 @@ import 'package:label_manager/models/market.dart';
 void main() {
   group('[읽기/스냅샷]', () {
     test('item display query aliases label size and orders rows', () {
-      expect(
-        ItemOfMarketDAO.SelectSql,
-        contains('AS P1_LABEL_SIZE_WIDTH'),
-      );
-      expect(
-        ItemOfMarketDAO.SelectSql,
-        contains('AS P1_LABEL_SIZE_HEIGHT'),
-      );
+      expect(ItemOfMarketDAO.SelectSql, contains('AS P1_LABEL_SIZE_WIDTH'));
+      expect(ItemOfMarketDAO.SelectSql, contains('AS P1_LABEL_SIZE_HEIGHT'));
       expect(
         ItemOfMarketDAO.OrderByItemOrder,
         contains('P2.RICH_ITEM_ORDER, P2.RICH_ITEM_ID ASC'),
@@ -85,6 +79,39 @@ void main() {
             content,
         throwsUnsupportedError,
       );
+    });
+
+    test('mapping fingerprints use an XML rowset and sorted market ids', () {
+      expect(
+        ItemOfMarketDAO.SelectMappingFingerprintsSql,
+        contains('@itemIdsXml'),
+      );
+      expect(
+        ItemOfMarketDAO.SelectMappingFingerprintsSql,
+        contains("nodes('/items/id')"),
+      );
+      expect(
+        ItemOfMarketDAO.SelectMappingFingerprintsSql,
+        isNot(contains(' IN (')),
+      );
+
+      final baseline = ItemMarketMappingFingerprints.fromRows(const [
+        {'ITEM_ID': 10, 'MARKET_ID': 3},
+        {'ITEM_ID': 10, 'MARKET_ID': 1},
+        {'ITEM_ID': 20, 'MARKET_ID': 5},
+      ]);
+      final same = ItemMarketMappingFingerprints.fromRows(const [
+        {'ITEM_ID': 10, 'MARKET_ID': 1},
+        {'ITEM_ID': 10, 'MARKET_ID': 3},
+      ]);
+      final changed = ItemMarketMappingFingerprints.fromRows(const [
+        {'ITEM_ID': 10, 'MARKET_ID': 1},
+        {'ITEM_ID': 10, 'MARKET_ID': 7},
+      ]);
+
+      expect(baseline.marketIdsFor(10), [1, 3]);
+      expect(baseline.matchesForItems(same, [10]), isTrue);
+      expect(baseline.matchesForItems(changed, [10]), isFalse);
     });
   });
 }

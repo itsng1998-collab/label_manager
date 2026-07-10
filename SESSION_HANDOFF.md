@@ -30,6 +30,16 @@
 
 ### 진행 중 (2026-07-10): 품목관리 편집·저장·Excel·설정 기능 구현
 
+- 2026-07-10 acceptance 재감사 보완 완료: 저장 전 검증을 품명/필수 주원료/필수 동적 컬럼/BMP 이미지/EAN·UPC·ITF/날짜·시간 범위/GS1 AI/타임바코드/`10*8` 수량 규칙까지 확장했다. 첫 오류는 row key와 column id를 포함한 `ItemManagerDraftValidationError`로 반환하고, `FortuneTableFocusController`가 해당 셀을 수직·수평 reveal한 뒤 focus한다.
+- GS1 AI 직접 편집은 형식 실패 값을 draft에 반영하지 않고 직전 유효값을 유지한다. 레거시 타임바코드 type 1/2/4/9 suffix와 `10*8`의 `매수`/`발행수량` 파생값은 draft dirty cell로 재계산한다.
+- 삭제 영향 범위 외부 변경 감지를 위해 item별 정렬된 market id fingerprint를 XML rowset 조회로 만들고 save 직전에 baseline과 비교한다. 같은 fingerprint를 journal baseline JSON의 `mappingFingerprints`에도 기록한다.
+- DB commit 후 재조회 실패는 `forceReloadRequired`로 전환한다. 이 상태에서는 다시 조회 외 저장/취소/셀 편집/추가·삽입·삭제/전체 선택·해제/발행 체크/Excel/순서 변경을 차단한다. 로그아웃·앱 종료에는 DB 저장 완료와 stale 임시 백업 정리를 단일 정보 dialog로 알린다.
+- draft dirty 또는 command busy 상태에서는 발행 checkbox controller를 제거하고 기존 체크값만 표시한다. 저장/취소 후 clean 상태에서만 다시 조작할 수 있다.
+- 이미지 타입 동적 셀은 일반 텍스트 편집 대신 double-click BMP 파일 선택기를 사용한다. 선택한 값은 경로와 `.bmp` 확장자를 제거한 파일명만 draft에 반영하고 경로 비저장 정책을 안내한다. 선택형 컬럼은 현재 `TColumnType`/`TColumn` DB projection에 선택 옵션을 나타내는 타입이나 option source가 없어 근거 없는 dropdown을 추가하지 않았다.
+- dirty 로그아웃/종료는 `LifecycleManager.notifyExitRequested()`의 bool 승인 계약으로 취소할 수 있으며 Windows close와 `PopScope` 모두 거부 결과를 존중한다.
+- 최신 검증 완료: 관련 품목/테이블/lifecycle 테스트 `57 통과 / 0 실패`, `test/fortune_table_test.dart` 전체 `21 통과 / 0 실패`, `C:\Flutter\bin\flutter.bat analyze` `No issues found`, 전체 Flutter suite `3267 통과 / 0 실패`.
+- 자동 검증 제외: 운영 DB capability/save/date/order transaction 실제 실행과 Windows BMP/XLSX 파일 대화상자 수동 선택은 연결 fixture 및 interactive 환경이 없어 미검증이다. 실제 품목 출력 job은 홈 `라벨출력(F3)`이 placeholder라 기존 연결 대상이 없다.
+
 - 작업 지시서 `doc/item_manager_modify.txt` 전체를 확인했다. 구현 범위는 ① 읽기/스냅샷 기반, ② transaction/저장 DAO, ③ UI draft/edit와 임시 journal, ④ `.xlsx` import/export, ⑤ QR/바코드 resolver와 출력 미리보기, ⑥ 라벨 날짜 타입 설정, ⑦ 품목 순서 변경의 7개 단위다.
 - 구현 순서는 지시서 13.1을 따른다. 각 단위의 API와 focused test를 완료한 뒤 다음 단위로 진행하며, 아직 연결되지 않은 단위는 `미검증`으로 유지한다.
 - 1단계 `읽기/스냅샷 기반` 구현 완료: `lib/models/item_of_market.dart`에서 표시 SQL alias를 `P1_LABEL_SIZE_WIDTH/HEIGHT`로 맞추고 item order 정렬을 추가했다. nullable DB 값을 보존하는 `ItemOfMarketRawSnapshot`과 별도 raw projection/query를 추가했다.

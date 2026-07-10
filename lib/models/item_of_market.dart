@@ -1,6 +1,7 @@
 // UTF-8, 한국어 주석
 // ignore_for_file: constant_identifier_names, non_constant_identifier_names
 
+import 'package:flutter/foundation.dart';
 import 'package:label_manager/core/app.dart';
 import 'package:label_manager/database/db_client.dart';
 import 'package:label_manager/utils/log_context.dart';
@@ -8,39 +9,87 @@ import 'dao.dart';
 import 'item.dart';
 import 'additional_item.dart';
 
+class ItemMarketMappingFingerprints {
+  ItemMarketMappingFingerprints(Map<int, Iterable<int>> values)
+    : _values = Map.unmodifiable(<int, List<int>>{
+        for (final entry in values.entries)
+          entry.key: List.unmodifiable(entry.value.toSet().toList()..sort()),
+      });
+
+  factory ItemMarketMappingFingerprints.fromRows(
+    Iterable<Map<String, dynamic>> rows,
+  ) {
+    final values = <int, List<int>>{};
+    for (final row in rows) {
+      final itemId = _mappingFingerprintInt(row['ITEM_ID']);
+      final marketId = _mappingFingerprintInt(row['MARKET_ID']);
+      if (itemId <= 0 || marketId <= 0) continue;
+      values.putIfAbsent(itemId, () => []).add(marketId);
+    }
+    return ItemMarketMappingFingerprints(values);
+  }
+
+  final Map<int, List<int>> _values;
+
+  List<int> marketIdsFor(int itemId) => _values[itemId] ?? const [];
+
+  Map<String, List<int>> toJsonForItems(Iterable<int> itemIds) => {
+    for (final itemId in itemIds.toSet().toList()..sort())
+      '$itemId': marketIdsFor(itemId),
+  };
+
+  bool matchesForItems(
+    ItemMarketMappingFingerprints other,
+    Iterable<int> itemIds,
+  ) {
+    for (final itemId in itemIds) {
+      if (!listEquals(marketIdsFor(itemId), other.marketIdsFor(itemId))) {
+        return false;
+      }
+    }
+    return true;
+  }
+}
+
+int _mappingFingerprintInt(Object? value) => switch (value) {
+  final int number => number,
+  final num number => number.toInt(),
+  _ => int.tryParse('$value') ?? 0,
+};
+
 class ItemOfMarket {
   static List<ItemOfMarket>? datas;
 
-	final int marketId;
-	final Item item;
-	final AdditionalItem additionalItem;
-	final int gdsNo;                  // 호출번호
-	final DateTime dateSaleStart;
-	final DateTime dateSaleEnd;
-	final double discountPercent;
-	final int discountAmount;
-	final DateTime dateStartDiscount;
-	final DateTime dateEndDiscount;
-	final bool useDefineElement;      // 사용자 지정 
-	final String rtfText;
-	final bool useLinefeed;
-	final int linefeed;
-	final bool useScaleBarcode;
-	final int printCount;
-	final bool useLabelSize;
-	final int labelSizeWidth;
-	final int labelSizeHeight;
-	final bool useMargin;
-	final double leftMargin;
-	final double rightMargin;
-	final double topMargin;
-	final double leftPush;
-	final double topPush;
+  final int marketId;
+  final Item item;
+  final AdditionalItem additionalItem;
+  final int gdsNo; // 호출번호
+  final DateTime dateSaleStart;
+  final DateTime dateSaleEnd;
+  final double discountPercent;
+  final int discountAmount;
+  final DateTime dateStartDiscount;
+  final DateTime dateEndDiscount;
+  final bool useDefineElement; // 사용자 지정
+  final String rtfText;
+  final bool useLinefeed;
+  final int linefeed;
+  final bool useScaleBarcode;
+  final int printCount;
+  final bool useLabelSize;
+  final int labelSizeWidth;
+  final int labelSizeHeight;
+  final bool useMargin;
+  final double leftMargin;
+  final double rightMargin;
+  final double topMargin;
+  final double leftPush;
+  final double topPush;
 
   const ItemOfMarket({
     required this.marketId,
-		required this.item,
-		required this.additionalItem,
+    required this.item,
+    required this.additionalItem,
     required this.gdsNo,
     required this.dateSaleStart,
     required this.dateSaleEnd,
@@ -106,28 +155,33 @@ class ItemOfMarket {
 
     return ItemOfMarket(
       marketId: i('P1_MARKET_ID'),
-			item: Item(
-				itemId: i('P2_ITEM_ID'),
-				labelSizeId: i('P2_LABELSIZE_ID'),
-				itemName: s('P2_ITEM_NAME'),
-				labelSizeName: s('P4_LABELSIZE_NAME'),
-				element: s('P2_ELEMENT'),
-				elementRTF: s('P2_ELEMENT_RTF'),
-				price: i('P2_PRICE'),
-				order: i('P2_PRICE_ORDER')),
-			additionalItem: AdditionalItem(
-				AdditionalItemId: i('P3_ADDITIONAL_ITEM_ID'),
-				itemId: i('P3_ITEM_ID'),
-				element: s('P3_ELEMENT'),
-				elementRTF: s('P3_ELEMENT_RTF'),
-				price: i('P3_PRICE')),
+      item: Item(
+        itemId: i('P2_ITEM_ID'),
+        labelSizeId: i('P2_LABELSIZE_ID'),
+        itemName: s('P2_ITEM_NAME'),
+        labelSizeName: s('P4_LABELSIZE_NAME'),
+        element: s('P2_ELEMENT'),
+        elementRTF: s('P2_ELEMENT_RTF'),
+        price: i('P2_PRICE'),
+        order: i('P2_PRICE_ORDER'),
+      ),
+      additionalItem: AdditionalItem(
+        AdditionalItemId: i('P3_ADDITIONAL_ITEM_ID'),
+        itemId: i('P3_ITEM_ID'),
+        element: s('P3_ELEMENT'),
+        elementRTF: s('P3_ELEMENT_RTF'),
+        price: i('P3_PRICE'),
+      ),
       gdsNo: i('P1_GDS_NO'),
-      dateSaleStart: DateTime.tryParse(s('P1_SALE_START_DATE')) ?? DateTime.now(),
+      dateSaleStart:
+          DateTime.tryParse(s('P1_SALE_START_DATE')) ?? DateTime.now(),
       dateSaleEnd: DateTime.tryParse(s('P1_SALE_END_DATE')) ?? DateTime.now(),
       discountPercent: f('P1_DISCOUNT_PERCENT'),
       discountAmount: i('P1_DISCOUNT_AMOUNT'),
-      dateStartDiscount: DateTime.tryParse(s('P1_DISCOUNT_START_DATE')) ?? DateTime.now(),
-      dateEndDiscount: DateTime.tryParse(s('P1_DISCOUNT_END_DATE')) ?? DateTime.now(),
+      dateStartDiscount:
+          DateTime.tryParse(s('P1_DISCOUNT_START_DATE')) ?? DateTime.now(),
+      dateEndDiscount:
+          DateTime.tryParse(s('P1_DISCOUNT_END_DATE')) ?? DateTime.now(),
       useDefineElement: i('P1_USE_USER_DEFINE_ELEMENT') != 0,
       rtfText: s('P1_USER_DEFINE_ELEMENT_RTF'),
       useLinefeed: i('P1_USE_LINEFEED') != 0,
@@ -148,13 +202,13 @@ class ItemOfMarket {
 
   @override
   String toString() =>
-    'marketId: $marketId, gdsNo: $gdsNo, dateSaleStart: $dateSaleStart, dateSaleEnd: $dateSaleEnd, '
-    'discountPercent: $discountPercent, discountAmount: $discountAmount, dateStartDiscount: $dateStartDiscount, '
-    'dateEndDiscount: $dateEndDiscount, useDefineElement: $useDefineElement, rtfText: $rtfText, '
-    'useLinefeed: $useLinefeed, linefeed: $linefeed, useScaleBarcode: $useScaleBarcode, '
-    'printCount: $printCount, useLabelSize: $useLabelSize, labelSizeWidth: $labelSizeWidth, '
-    'labelSizeHeight: $labelSizeHeight, useMargin: $useMargin, leftMargin: $leftMargin, '
-    'rightMargin: $rightMargin, topMargin: $topMargin, leftPush: $leftPush, topPush: $topPush';
+      'marketId: $marketId, gdsNo: $gdsNo, dateSaleStart: $dateSaleStart, dateSaleEnd: $dateSaleEnd, '
+      'discountPercent: $discountPercent, discountAmount: $discountAmount, dateStartDiscount: $dateStartDiscount, '
+      'dateEndDiscount: $dateEndDiscount, useDefineElement: $useDefineElement, rtfText: $rtfText, '
+      'useLinefeed: $useLinefeed, linefeed: $linefeed, useScaleBarcode: $useScaleBarcode, '
+      'printCount: $printCount, useLabelSize: $useLabelSize, labelSizeWidth: $labelSizeWidth, '
+      'labelSizeHeight: $labelSizeHeight, useMargin: $useMargin, leftMargin: $leftMargin, '
+      'rightMargin: $rightMargin, topMargin: $topMargin, leftPush: $leftPush, topPush: $topPush';
 }
 
 class ItemOfMarketRawSnapshot {
@@ -222,7 +276,9 @@ class ItemOfMarketRawSnapshot {
     double? nullableDouble(String key) {
       final value = map[key];
       if (value == null) return null;
-      return value is num ? value.toDouble() : double.tryParse(value.toString());
+      return value is num
+          ? value.toDouble()
+          : double.tryParse(value.toString());
     }
 
     DateTime? nullableDate(String key) {
@@ -267,7 +323,8 @@ class ItemOfMarketRawSnapshot {
 }
 
 class ItemOfMarketDAO extends DAO {
-  static const String SelectSql = '''
+  static const String SelectSql =
+      '''
 		SELECT 
       COALESCE(CONVERT(NVARCHAR(20), P1.RICH_MARKET_ID), N'') AS P1_MARKET_ID,
       COALESCE(CONVERT(NVARCHAR(20), P2.RICH_ITEM_ID), N'') AS P2_ITEM_ID,
@@ -323,7 +380,8 @@ class ItemOfMarketDAO extends DAO {
     ORDER BY P2.RICH_ITEM_ORDER, P2.RICH_ITEM_ID ASC
   ''';
 
-  static const String SelectRawSnapshotSql = '''
+  static const String SelectRawSnapshotSql =
+      '''
     SELECT
       P1.RICH_MARKET_ID AS MARKET_ID,
       P1.RICH_ITEM_ID AS ITEM_ID,
@@ -354,20 +412,37 @@ class ItemOfMarketDAO extends DAO {
     INNER JOIN BM_RICH_ITEM P2 ON P1.RICH_ITEM_ID=P2.RICH_ITEM_ID
   ''';
 
-  static Future<List<ItemOfMarket>?> selectByItemOfMarketAndLabelSizeId(int marketId, int labelSizeId) async {
+  static const String SelectMappingFingerprintsSql = '''
+    DECLARE @ScopedItemIds XML = @itemIdsXml;
+    WITH ScopedItemIds AS (
+      SELECT ItemIdNode.value('.', 'INT') AS RICH_ITEM_ID
+      FROM @ScopedItemIds.nodes('/items/id') AS ItemIds(ItemIdNode)
+    )
+    SELECT
+      P1.RICH_ITEM_ID AS ITEM_ID,
+      P1.RICH_MARKET_ID AS MARKET_ID
+    FROM BM_ITEM_OF_MARKET P1
+    INNER JOIN ScopedItemIds S ON P1.RICH_ITEM_ID=S.RICH_ITEM_ID
+    ORDER BY P1.RICH_ITEM_ID, P1.RICH_MARKET_ID
+  ''';
+
+  static Future<List<ItemOfMarket>?> selectByItemOfMarketAndLabelSizeId(
+    int marketId,
+    int labelSizeId,
+  ) async {
     debugLog('$START, ItemOfMarketAndLabelSizeId:$marketId,$labelSizeId');
 
     try {
-			final res = await DbClient.instance.getDataWithParams(
-        '$SelectSql $WhereSqlMarketAndLabelSizeId $OrderByItemOrder', { 'marketId': marketId, 'labelSizeId': labelSizeId }
-			);
+      final res = await DbClient.instance.getDataWithParams(
+        '$SelectSql $WhereSqlMarketAndLabelSizeId $OrderByItemOrder',
+        {'marketId': marketId, 'labelSizeId': labelSizeId},
+      );
 
       final itemOfMarkets = DAO.mapRows(res, ItemOfMarket.fromMap);
 
       debugLog(END);
       return itemOfMarkets;
-    }
-    catch (e) {
+    } catch (e) {
       debugLog('$END, $e');
       throw Exception(e);
     }
@@ -392,5 +467,23 @@ class ItemOfMarketDAO extends DAO {
       debugLog('$END, $e');
       throw Exception(e);
     }
+  }
+
+  static Future<ItemMarketMappingFingerprints>
+  selectMappingFingerprintsByItemIds(Iterable<int> itemIds) async {
+    final normalizedIds = itemIds.where((id) => id > 0).toSet().toList()
+      ..sort();
+    if (normalizedIds.isEmpty) {
+      return ItemMarketMappingFingerprints(const {});
+    }
+    final itemIdsXml =
+        '<items>${normalizedIds.map((id) => '<id>$id</id>').join()}</items>';
+    final result = await DbClient.instance.getDataWithParams(
+      SelectMappingFingerprintsSql,
+      {'itemIdsXml': itemIdsXml},
+    );
+    return ItemMarketMappingFingerprints.fromRows(
+      DAO.getRowsFromResult(result).cast<Map<String, dynamic>>(),
+    );
   }
 }

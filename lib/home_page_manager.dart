@@ -56,6 +56,8 @@ class HomePageManager extends StatefulWidget {
   final ValueChanged<Brand?> onBrandChanged;
   final LabelSize? selectedLabelSize;
   final ValueChanged<LabelSize?> onLabelSizeChanged;
+  final ValueChanged<bool>? onItemDraftDirtyChanged;
+  final ValueChanged<bool>? onItemDraftForceReloadChanged;
 
   const HomePageManager({
     super.key,
@@ -63,6 +65,8 @@ class HomePageManager extends StatefulWidget {
     required this.onBrandChanged,
     required this.selectedLabelSize,
     required this.onLabelSizeChanged,
+    this.onItemDraftDirtyChanged,
+    this.onItemDraftForceReloadChanged,
   });
 
   @override
@@ -109,6 +113,8 @@ class _HomePageManagerState extends State<HomePageManager> {
   ItemManagerDraftController? _itemDraftController;
   ItemManagerDraftJournal? _itemDraftJournal;
   List<int> _itemDraftTargetMarketIds = const [];
+  ItemMarketMappingFingerprints _itemDraftMappingFingerprints =
+      ItemMarketMappingFingerprints(const {});
   String _itemDraftEmptyElementPayload = '';
   bool _rtfPreviewHasResolvedImage = false;
   bool _autoSelectedCommonLabelOnce = false;
@@ -119,6 +125,8 @@ class _HomePageManagerState extends State<HomePageManager> {
   bool _commonLabelPreviewHiddenForSheetDialog = false;
   bool _commonLabelPreviewMovedByUser = false;
   bool _itemDraftCommandBusy = false;
+  bool _itemDraftForceReloadRequired = false;
+  bool _lastReportedItemDraftDirty = false;
   int _labelSetupRevision = 0;
   bool _suppressNextBrandDidUpdateLabelLoad = false;
 
@@ -129,13 +137,34 @@ class _HomePageManagerState extends State<HomePageManager> {
   final ValueNotifier<bool> _brandDialogBusyNotifier = ValueNotifier(false);
 
   bool get _isAutoLoginMode => AutoLoginGuard.instance.enabled;
+
+  void _handleItemDraftDirtyChanged() {
+    final dirty = _itemDraftController?.isDirty == true;
+    if (dirty == _lastReportedItemDraftDirty) return;
+    _lastReportedItemDraftDirty = dirty;
+    widget.onItemDraftDirtyChanged?.call(dirty);
+  }
+
+  void _setItemDraftForceReloadRequired(bool value) {
+    if (_itemDraftForceReloadRequired == value) return;
+    _itemDraftForceReloadRequired = value;
+    widget.onItemDraftForceReloadChanged?.call(value);
+  }
+
+  void _disposeItemDraftController() {
+    _itemDraftController?.removeListener(_handleItemDraftDirtyChanged);
+    _itemDraftController?.dispose();
+    _itemDraftController = null;
+    _handleItemDraftDirtyChanged();
+  }
+
   LabelSize? get _effectiveLabelSize => _currentLabelSize;
   String get _labelContentKey {
     final labelSize = _effectiveLabelSize;
     return '${labelSize?.labelSizeId ?? 'none'}:'
         '${labelSize?.labelSizeCommon?.width ?? 0}:'
-      '${labelSize?.labelSizeCommon?.height ?? 0}:'
-      '$_labelSetupRevision';
+        '${labelSize?.labelSizeCommon?.height ?? 0}:'
+        '$_labelSetupRevision';
   }
 
   List<DropdownMenuItem<Brand>> _brandDropdownItems(List<Brand> brands) =>
@@ -531,14 +560,14 @@ class _HomePageManagerState extends State<HomePageManager> {
     }
   }
 
-  Future<void> _handleLabelSizeChanged(LabelSize? labelSize) async {
+  Future<bool> _handleLabelSizeChanged(LabelSize? labelSize) async {
     try {
       debugLog(START);
 
       if (labelSize?.labelSizeId != _currentLabelSize?.labelSizeId &&
           _blockItemDraftContextChange()) {
         widget.onLabelSizeChanged(_currentLabelSize);
-        return;
+        return false;
       }
 
       final currentLabelSizeId = _currentLabelSize?.labelSizeId;
@@ -546,14 +575,13 @@ class _HomePageManagerState extends State<HomePageManager> {
       if (labelSize?.labelSizeId == currentLabelSizeId &&
           labelSize?.labelSizeId == selectedLabelSizeId) {
         debugLog('skip unchanged labelSizeId=${labelSize?.labelSizeId}');
-        return;
+        return true;
       }
 
       if (labelSize == null) {
         await _itemDraftJournal?.close();
         _itemDraftJournal = null;
-        _itemDraftController?.dispose();
-        _itemDraftController = null;
+        _disposeItemDraftController();
         _itemDraftTargetMarketIds = const [];
         _itemDraftEmptyElementPayload = '';
         _currentLabelSize = null;
@@ -569,7 +597,8 @@ class _HomePageManagerState extends State<HomePageManager> {
         if (mounted) {
           ScaffoldMessenger.of(context).hideCurrentSnackBar();
         }
-        return;
+        _setItemDraftForceReloadRequired(false);
+        return true;
       }
 
       _currentLabelSize = labelSize;
@@ -622,21 +651,51 @@ class _HomePageManagerState extends State<HomePageManager> {
           await TColumnContentDAO.selectScopedByItemIds(
             items.map((item) => item.item.itemId),
           );
+      _itemDraftMappingFingerprints =
+          await ItemOfMarketDAO.selectMappingFingerprintsByItemIds(
+            items.map((item) => item.item.itemId),
+          );
       await _itemDraftJournal?.close();
       _itemDraftJournal = null;
-      _itemDraftController?.dispose();
+      _disposeItemDraftController();
       _itemDraftController = ItemManagerDraftController.fromItems(
         items: items,
         rawSnapshots: {
           for (final snapshot in rawSnapshots) snapshot.itemId: snapshot,
         },
         scopedColumnContents: scopedColumnContents,
+        validationRules: [
+          for (final column in TColumn.datas ?? const <TColumn>[])
+            ItemManagerColumnValidationRule(
+              columnId: column.columnId,
+              columnName: column.columnName,
+              typeCode: column.columnType.code,
+              required: column.useMissingKeywordCheck,
+              barcodeType: column.barcodeType,
+              useBarcodeCheckDigit: column.useBarcodeCheckDigit,
+              useDateRange: column.useDateRange,
+              dateRange: column.dateRange,
+              gs1Definition: _itemManagerGs1Definition(column),
+              timeBarcodeType: column.timeBarcodeType,
+            ),
+        ],
+        requireElement:
+            (TColumnSpecial.datas ?? const <TColumnBase>[])
+                .firstWhereOrNull(
+                  (column) =>
+                      column.keyword == SpecalKeyword.INDEX_ELEMENT.keyword,
+                )
+                ?.useMissingKeywordCheck ==
+            true,
+        labelSizeName: labelSize.labelSizeName,
       );
+      _itemDraftController!.addListener(_handleItemDraftDirtyChanged);
       _itemDraftEmptyElementPayload = labelSheetEncodeWorkbookSave(
         _itemElementWorkbook('', labelSize),
       );
       _itemDraftJournal = ItemManagerDraftJournal(
         controller: _itemDraftController!,
+        mappingFingerprints: _itemDraftMappingFingerprints,
         metadata: ItemManagerDraftJournalMetadata(
           draftKey:
               '${user.userId}_${customer.customerId}_${labelSize.labelSizeId}_${market.marketId}',
@@ -658,17 +717,28 @@ class _HomePageManagerState extends State<HomePageManager> {
         'items=${ItemOfMarket.datas?.length ?? 0}',
       );
       _resetTabs();
+      _setItemDraftForceReloadRequired(false);
       if (mounted) {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
       }
+      return true;
     } catch (e) {
       debugLog('$e');
+      return false;
     } finally {
       debugLog(END);
     }
   }
 
   bool _blockItemDraftContextChange() {
+    if (_itemDraftForceReloadRequired) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('품목 목록을 다시 불러온 뒤 변경해 주세요.')),
+        );
+      }
+      return true;
+    }
     if (_itemDraftController?.isDirty != true) return false;
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -710,11 +780,20 @@ class _HomePageManagerState extends State<HomePageManager> {
     if (controller == null ||
         labelSize == null ||
         !controller.isDirty ||
-        _itemDraftCommandBusy) {
+        _itemDraftCommandBusy ||
+        _itemDraftForceReloadRequired) {
       return;
     }
     try {
       controller.validateForSave();
+    } on ItemManagerDraftValidationError catch (error) {
+      controller.setSelection(
+        [error.rowKey],
+        anchorRowKey: error.rowKey,
+        columnId: error.columnId,
+      );
+      _showItemDraftError('품목 저장 확인', error);
+      return;
     } catch (error) {
       _showItemDraftError('품목 저장 확인', error);
       return;
@@ -749,11 +828,29 @@ class _HomePageManagerState extends State<HomePageManager> {
         labelSizeId: labelSize.labelSizeId,
         targetMarketIds: _itemDraftTargetMarketIds,
       );
+      if (command.deletedSourceItemIds.isNotEmpty) {
+        final currentFingerprints =
+            await ItemOfMarketDAO.selectMappingFingerprintsByItemIds(
+              command.deletedSourceItemIds,
+            );
+        if (!_itemDraftMappingFingerprints.matchesForItems(
+          currentFingerprints,
+          command.deletedSourceItemIds,
+        )) {
+          throw StateError('삭제 대상 품목의 market 연결이 편집 시작 후 변경됐습니다. 다시 조회해 주세요.');
+        }
+      }
       final result = await ItemManagerSaveDAO.save(command, capabilities);
       final selectedItemId =
           selectedRow?.sourceItemId ??
           result.insertedItemIdsByDraftKey[selectedRow?.draftRowKey];
-      await _reloadItemDraftFromDatabase(selectedItemId: selectedItemId);
+      final reloaded = await _reloadItemDraftFromDatabase(
+        selectedItemId: selectedItemId,
+      );
+      if (!reloaded) {
+        _setItemDraftForceReloadRequired(true);
+        throw StateError('DB 저장은 완료됐지만 품목 목록을 다시 불러오지 못했습니다. 다시 조회해 주세요.');
+      }
       if (mounted) {
         ScaffoldMessenger.of(
           context,
@@ -761,6 +858,29 @@ class _HomePageManagerState extends State<HomePageManager> {
       }
     } catch (error) {
       if (mounted) _showItemDraftError('품목 저장 실패', error);
+    } finally {
+      if (mounted) setState(() => _itemDraftCommandBusy = false);
+    }
+  }
+
+  Future<void> _retryItemDraftReload() async {
+    if (_itemDraftCommandBusy || !_itemDraftForceReloadRequired) return;
+    setState(() => _itemDraftCommandBusy = true);
+    try {
+      final reloaded = await _reloadItemDraftFromDatabase(
+        selectedItemId: _selectedItemOfMarket?.item.itemId,
+      );
+      if (!reloaded) {
+        throw StateError('품목 목록을 다시 불러오지 못했습니다.');
+      }
+      _setItemDraftForceReloadRequired(false);
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('품목 목록을 다시 불러왔습니다.')));
+      }
+    } catch (error) {
+      if (mounted) _showItemDraftError('품목 다시 조회 실패', error);
     } finally {
       if (mounted) setState(() => _itemDraftCommandBusy = false);
     }
@@ -969,7 +1089,7 @@ class _HomePageManagerState extends State<HomePageManager> {
     if (labelSize == null ||
         market == null ||
         controller == null ||
-      User.instance?.canEdit != true ||
+        User.instance?.canEdit != true ||
         controller.isDirty ||
         _itemDraftCommandBusy) {
       return;
@@ -986,10 +1106,8 @@ class _HomePageManagerState extends State<HomePageManager> {
       if (!mounted || storedItems.length < 2) return;
       final ordered = await showDialog<List<ItemOfMarket>>(
         context: context,
-        builder: (_) => ItemOrderDialog(
-          items: storedItems,
-          selectedItemId: selectedItemId,
-        ),
+        builder: (_) =>
+            ItemOrderDialog(items: storedItems, selectedItemId: selectedItemId),
       );
       if (!mounted || ordered == null) return;
       final confirmed = await showDialog<bool>(
@@ -1015,17 +1133,20 @@ class _HomePageManagerState extends State<HomePageManager> {
       if (!mounted || confirmed != true) return;
       await ItemDAO.updateOrders([
         for (var index = 0; index < ordered.length; index++)
-          ItemOrderUpdate(
-            itemId: ordered[index].item.itemId,
-            order: index + 1,
-          ),
+          ItemOrderUpdate(itemId: ordered[index].item.itemId, order: index + 1),
       ]);
       if (!mounted) return;
-      await _reloadItemDraftFromDatabase(selectedItemId: selectedItemId);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('품목 순서를 저장했습니다.')),
+      final reloaded = await _reloadItemDraftFromDatabase(
+        selectedItemId: selectedItemId,
       );
+      if (!reloaded) {
+        _setItemDraftForceReloadRequired(true);
+        throw StateError('품목 순서는 저장됐지만 목록을 다시 불러오지 못했습니다.');
+      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('품목 순서를 저장했습니다.')));
     } catch (error) {
       if (mounted) _showItemDraftError('품목 순서 변경 실패', error);
     } finally {
@@ -1033,27 +1154,28 @@ class _HomePageManagerState extends State<HomePageManager> {
     }
   }
 
-  Future<void> _reloadItemDraftFromDatabase({int? selectedItemId}) async {
+  Future<bool> _reloadItemDraftFromDatabase({int? selectedItemId}) async {
     final labelSize = _currentLabelSize;
-    if (labelSize == null) return;
+    if (labelSize == null) return false;
     await _itemDraftJournal?.close();
     _itemDraftJournal = null;
-    _itemDraftController?.dispose();
-    _itemDraftController = null;
+    _disposeItemDraftController();
     _currentLabelSize = null;
-    await _handleLabelSizeChanged(labelSize);
-    if (selectedItemId == null) return;
+    final loaded = await _handleLabelSizeChanged(labelSize);
+    if (!loaded) return false;
+    if (selectedItemId == null) return true;
     final items = ItemOfMarket.datas ?? const <ItemOfMarket>[];
     final index = items.indexWhere(
       (item) => item.item.itemId == selectedItemId,
     );
-    if (index < 0) return;
+    if (index < 0) return true;
     _selectedItemIndex = index;
     _selectedItemOfMarket = items[index];
     _itemDraftController?.setSelection([
       'item:$selectedItemId',
     ], anchorRowKey: 'item:$selectedItemId');
     _resetTabs();
+    return true;
   }
 
   void _showItemDraftError(String title, Object error) {
@@ -1250,9 +1372,9 @@ class _HomePageManagerState extends State<HomePageManager> {
       widget.onLabelSizeChanged(saved);
       _labelSetupRevision++;
       _resetTabs();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('날짜 타입 설정을 저장했습니다.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('날짜 타입 설정을 저장했습니다.')));
     } catch (error) {
       if (mounted) _showItemDraftError('날짜 타입 설정 저장 실패', error);
     } finally {
@@ -1381,23 +1503,30 @@ class _HomePageManagerState extends State<HomePageManager> {
           labelSize: _effectiveLabelSize,
           marketId: Market.instance?.marketId,
           emptyElementPayload: _itemDraftEmptyElementPayload,
-          onExcelImport: _importItemManagerXlsx,
-          onExcelExport: _exportItemManagerXlsx,
-          onQrDataView: _showItemQrData,
+          onExcelImport: _itemDraftForceReloadRequired
+              ? null
+              : _importItemManagerXlsx,
+          onExcelExport: _itemDraftForceReloadRequired
+              ? null
+              : _exportItemManagerXlsx,
+          onQrDataView: _itemDraftForceReloadRequired ? null : _showItemQrData,
           onItemOrderChange:
-              _effectiveLabelSize != null &&
-                User.instance?.canEdit == true &&
+              !_itemDraftForceReloadRequired &&
+                  _effectiveLabelSize != null &&
+                  User.instance?.canEdit == true &&
                   (ItemOfMarket.datas?.length ?? 0) >= 2
               ? _changeItemOrder
               : null,
-            itemOrderDisabledReason: User.instance?.canEdit != true
+          itemOrderDisabledReason: User.instance?.canEdit != true
               ? '편집 권한이 없습니다.'
               : (ItemOfMarket.datas?.length ?? 0) < 2
               ? '순서를 바꾸려면 품목이 2개 이상 필요합니다.'
               : null,
           onCancelDraft: _cancelItemDraft,
           onSaveDraft: _saveItemDraft,
+          onReloadDraft: _retryItemDraftReload,
           commandBusy: _itemDraftCommandBusy,
+          forceReloadRequired: _itemDraftForceReloadRequired,
         ),
         closable: false,
         keepAlive: true,
@@ -2141,7 +2270,10 @@ class _HomePageManagerState extends State<HomePageManager> {
 
   @override
   void dispose() {
+    widget.onItemDraftDirtyChanged?.call(false);
+    widget.onItemDraftForceReloadChanged?.call(false);
     unawaited(_itemDraftJournal?.close() ?? Future<void>.value());
+    _itemDraftController?.removeListener(_handleItemDraftDirtyChanged);
     _itemDraftController?.dispose();
     _rtfPreviewResizeDebounce?.cancel();
     _rtfPreviewResizeFinalizeTimer?.cancel();
@@ -2316,9 +2448,9 @@ class _HomePageManagerState extends State<HomePageManager> {
     );
     final settingsEnabled = _selectedTabValue() == 'common_label';
     final dateSettingsEnabled =
-      resolvedLabel?.labelSizeSetup != null &&
-      !_itemDraftCommandBusy &&
-      _itemDraftController?.isDirty != true;
+        resolvedLabel?.labelSizeSetup != null &&
+        !_itemDraftCommandBusy &&
+        _itemDraftController?.isDirty != true;
 
     final tabbedView = TabbedViewTheme(
       data: _buildTabbedTheme(),
@@ -2351,7 +2483,7 @@ class _HomePageManagerState extends State<HomePageManager> {
               onLabelSettingsPressed: settingsEnabled
                   ? _openLabelSettingsDialog
                   : null,
-                onDateSettingsPressed: dateSettingsEnabled
+              onDateSettingsPressed: dateSettingsEnabled
                   ? _openDateTypeSetupDialog
                   : null,
               brandItems: brandItems,
@@ -3012,6 +3144,17 @@ class _ModelessDropdownFieldState<T> extends State<_ModelessDropdownField<T>> {
       ],
     );
   }
+}
+
+Gs1AiDefinition? _itemManagerGs1Definition(TColumn column) {
+  if (column.columnType.code != TColumnType.TYPE_GS1_AI) return null;
+  final ai = column.gs1ai;
+  final definitionCode = column.formatOption == -1
+      ? ai
+      : ai.length >= 2
+      ? ai.substring(0, ai.length - 1)
+      : '';
+  return Gs1AiDefinitions.values[definitionCode];
 }
 
 class _PlaceholderTab extends StatelessWidget {
@@ -3713,7 +3856,7 @@ String debugItemCodeErrorPlaceholderForTesting() =>
           ],
           columnValue: (columnId) =>
               TColumnContent.get(columnId, item.item.itemId)?.dataString ?? '',
-            gs1Definitions: Gs1AiDefinitions.values,
+          gs1Definitions: Gs1AiDefinitions.values,
         ),
         elementCell: _itemElementCellFromWorkbook(
           elementWorkbook ?? _itemElementWorkbook(elementText, labelSize),
@@ -4318,7 +4461,8 @@ fs.FortuneImage _replaceImageKeywords(
 }
 
 String _itemCodeErrorPlaceholderDataUri() {
-  const svg = '''<svg xmlns="http://www.w3.org/2000/svg" width="240" height="120" viewBox="0 0 240 120">
+  const svg =
+      '''<svg xmlns="http://www.w3.org/2000/svg" width="240" height="120" viewBox="0 0 240 120">
 <rect width="240" height="120" fill="#fff4f4" stroke="#b3261e" stroke-width="4"/>
 <path d="M88 36l64 48M152 36L88 84" stroke="#b3261e" stroke-width="8"/>
 <text x="120" y="108" text-anchor="middle" font-family="sans-serif" font-size="14" fill="#b3261e">BARCODE ERROR</text>

@@ -63,10 +63,8 @@ Future<void> main(List<String> args) async {
   runApp(
     MaterialApp(
       debugShowCheckedModeBanner: false,
-      builder: (context, child) => withLabelManagerCompactUi(
-        context,
-        DbReconnectOverlay(child: child),
-      ),
+      builder: (context, child) =>
+          withLabelManagerCompactUi(context, DbReconnectOverlay(child: child)),
       home: const HomePage(),
       theme: labelManagerTheme(
         ColorScheme.fromSeed(seedColor: Colors.deepPurple),
@@ -90,12 +88,20 @@ class _AppWindowListener extends WindowListener {
       _closing = true;
       DebugLogger.log('Window close start');
       // 앱 전역 종료 요청 브로드캐스트(비동기 정리 작업이 있다면 여기서 시작)
-      await LifecycleManager.instance.notifyExitRequested().timeout(
-        const Duration(seconds: 5),
-        onTimeout: () {
-          DebugLogger.log('Window close cleanup timed out');
-        },
-      );
+      final exitAllowed = await LifecycleManager.instance
+          .notifyExitRequested()
+          .timeout(
+            const Duration(seconds: 5),
+            onTimeout: () {
+              DebugLogger.log('Window close cleanup timed out');
+              return false;
+            },
+          );
+      if (!exitAllowed) {
+        _closing = false;
+        DebugLogger.log('Window close cancelled');
+        return;
+      }
       // 짧은 딜레이로 즉시 종료로 인한 정리 누락을 완화(필요시 조정)
       await Future.delayed(const Duration(milliseconds: 120));
       windowManager.removeListener(this);

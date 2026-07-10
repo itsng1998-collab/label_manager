@@ -41,6 +41,8 @@ class _HomePageState extends State<HomePage> {
   bool _disconnectCleanupDone = false;
   bool _isExiting = false;
   bool _loggedIn = false;
+  bool _itemDraftDirty = false;
+  bool _itemDraftForceReloadRequired = false;
   // 선택 상태
   Brand? _selectedBrand;
   LabelSize? _selectedLabelSize;
@@ -61,7 +63,9 @@ class _HomePageState extends State<HomePage> {
         await _onLogout(true);
       },
       onExitRequested: () async {
+        if (!await _confirmDiscardItemDraft('앱을 종료')) return false;
         await _onLogout(true);
+        return true;
       },
     );
     LifecycleManager.instance.addObserver(_lifecycleCallbacks!);
@@ -84,7 +88,8 @@ class _HomePageState extends State<HomePage> {
   // 재연결 모달은 전역 오버레이(GlobalReconnectOverlay)가 담당하므로 여기서는 처리하지 않음
   void _showStartupDialog({bool forceNoticeClosed = false}) async {
     await StartupDialog.show(
-      context, onLogin: _onLogin,
+      context,
+      onLogin: _onLogin,
       serverName: _db.lastConnectInfo?.serverName,
       forceNoticeClosed: forceNoticeClosed,
     );
@@ -93,7 +98,9 @@ class _HomePageState extends State<HomePage> {
   void _onLogin() {
     if (!mounted) return;
     if (!_loggedIn) {
-      setState(() { _loggedIn = true; });
+      setState(() {
+        _loggedIn = true;
+      });
     }
   }
 
@@ -117,7 +124,51 @@ class _HomePageState extends State<HomePage> {
       return future;
     }
 
+    if (!await _confirmDiscardItemDraft('로그아웃')) return;
     return _doLogout(isDisconnect);
+  }
+
+  Future<bool> _confirmDiscardItemDraft(String action) async {
+    if (_itemDraftForceReloadRequired && mounted) {
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('품목 저장 완료'),
+          content: const Text(
+            '저장은 DB에 반영됐고 화면 동기화만 실패했습니다. '
+            '임시 백업은 복구에 사용하지 않고 정리합니다.',
+          ),
+          actions: [
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('확인'),
+            ),
+          ],
+        ),
+      );
+      return true;
+    }
+    if (!_itemDraftDirty || !mounted) return true;
+    return await showDialog<bool>(
+          context: context,
+          barrierDismissible: false,
+          builder: (dialogContext) => AlertDialog(
+            title: Text('$action할까요?'),
+            content: const Text('저장하지 않은 품목 변경 내용이 있습니다.'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(false),
+                child: const Text('계속 편집'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(dialogContext).pop(true),
+                child: Text(action),
+              ),
+            ],
+          ),
+        ) ??
+        false;
   }
 
   Future<void> _doLogout(bool isDisconnect) async {
@@ -138,7 +189,9 @@ class _HomePageState extends State<HomePage> {
     }
 
     if (mounted && _loggedIn) {
-      setState(() { _loggedIn = false; });
+      setState(() {
+        _loggedIn = false;
+      });
     }
 
     debugLog(END);
@@ -192,7 +245,9 @@ class _HomePageState extends State<HomePage> {
       onPopInvokedWithResult: (bool didPop, dynamic result) async {
         if (didPop) return;
         // 데스크톱의 창 닫기와 동일한 로직으로 종료 처리
-        await LifecycleManager.instance.notifyExitRequested();
+        final exitAllowed = await LifecycleManager.instance
+            .notifyExitRequested();
+        if (!exitAllowed) return;
         // 짧은 딜레이로 정리(예: DB연결 해제) 누락 완화
         await Future.delayed(const Duration(milliseconds: 120));
         await SystemNavigator.pop(); // 앱 완전 종료
@@ -215,7 +270,8 @@ class _HomePageState extends State<HomePage> {
                 icon: const Icon(Icons.login),
                 tooltip: '로그인',
                 onPressed: () => DbClient.instance.isConnected
-                  ? _showStartupDialog() : _loginToServerDB(),
+                    ? _showStartupDialog()
+                    : _loginToServerDB(),
               ),
             // IconButton(
             //   icon: const Icon(Icons.exit_to_app),
@@ -226,18 +282,24 @@ class _HomePageState extends State<HomePage> {
           ],
         ),
         body: _loggedIn
-          ? HomePageManager(
-            selectedBrand: _selectedBrand,
-            onBrandChanged: (v) {
-              setState(() => _selectedBrand = v);
-            },
-            selectedLabelSize: _selectedLabelSize,
-            onLabelSizeChanged: (v) {
-              setState(() => _selectedLabelSize = v);
-              _onLabelSizeChanged(v);
-            },
-          )
-          : _buildLoggedOutBackground(),
+            ? HomePageManager(
+                selectedBrand: _selectedBrand,
+                onBrandChanged: (v) {
+                  setState(() => _selectedBrand = v);
+                },
+                selectedLabelSize: _selectedLabelSize,
+                onLabelSizeChanged: (v) {
+                  setState(() => _selectedLabelSize = v);
+                  _onLabelSizeChanged(v);
+                },
+                onItemDraftDirtyChanged: (dirty) {
+                  _itemDraftDirty = dirty;
+                },
+                onItemDraftForceReloadChanged: (required) {
+                  _itemDraftForceReloadRequired = required;
+                },
+              )
+            : _buildLoggedOutBackground(),
       ),
     );
   }
@@ -246,11 +308,16 @@ class _HomePageState extends State<HomePage> {
     return Container(
       decoration: BoxDecoration(
         color: const Color(0xFFF4F4F4),
-        image: isShowLogo ? const DecorationImage(
-          image: AssetImage('assets/images/MainLogo.webp'),
-          fit: BoxFit.none,
-          colorFilter: ColorFilter.mode(Color(0xFFF4F4F4), BlendMode.multiply),
-        ) : null,
+        image: isShowLogo
+            ? const DecorationImage(
+                image: AssetImage('assets/images/MainLogo.webp'),
+                fit: BoxFit.none,
+                colorFilter: ColorFilter.mode(
+                  Color(0xFFF4F4F4),
+                  BlendMode.multiply,
+                ),
+              )
+            : null,
       ),
     );
   }

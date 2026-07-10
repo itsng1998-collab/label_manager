@@ -45,6 +45,9 @@ void main() {
         addTearDown(controller.dispose);
         final journal = ItemManagerDraftJournal(
           controller: controller,
+          mappingFingerprints: ItemMarketMappingFingerprints(const {
+            10: [5, 3],
+          }),
           metadata: const ItemManagerDraftJournalMetadata(
             draftKey: 'user-1_4_3',
             userId: 'user-1',
@@ -86,6 +89,9 @@ void main() {
         expect(baseline['checksum'], hasLength(16));
         expect(baselineRow['payloadLength'], source.item.elementRTF.length);
         expect(baselineRow.containsKey('elementPayload'), isFalse);
+        expect(baseline['mappingFingerprints'], {
+          '10': [3, 5],
+        });
 
         final changes = document['changes'] as Map<String, dynamic>;
         final changedRows = changes['rows'] as List;

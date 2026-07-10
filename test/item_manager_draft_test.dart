@@ -1,6 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:label_manager/models/additional_item.dart';
+import 'package:label_manager/models/barcode.dart';
 import 'package:label_manager/models/column_content.dart';
+import 'package:label_manager/models/column_type.dart';
+import 'package:label_manager/models/gs1_ai.dart';
 import 'package:label_manager/models/item.dart';
 import 'package:label_manager/models/item_manager_draft.dart';
 import 'package:label_manager/models/item_of_market.dart';
@@ -245,6 +248,422 @@ void main() {
         ),
         throwsStateError,
       );
+    });
+
+    test('rejects missing required and unsupported image column values', () {
+      final row = _itemOfMarket(itemId: 10, order: 1, name: '품목');
+      final controller = ItemManagerDraftController.fromItems(
+        items: [row],
+        rawSnapshots: {10: _snapshot(10)},
+        scopedColumnContents: TColumnContentScopedView(const {}),
+        validationRules: const [
+          ItemManagerColumnValidationRule(
+            columnId: 7,
+            columnName: '필수 컬럼',
+            typeCode: TColumnType.TYPE_BASE,
+            required: true,
+          ),
+          ItemManagerColumnValidationRule(
+            columnId: 8,
+            columnName: '이미지',
+            typeCode: TColumnType.TYPE_IMAGE,
+            required: false,
+          ),
+        ],
+      );
+
+      expect(
+        controller.validateForSave,
+        throwsA(
+          isA<ItemManagerDraftValidationError>()
+              .having((error) => error.rowKey, 'rowKey', 'item:10')
+              .having((error) => error.columnId, 'columnId', 7)
+              .having(
+                (error) => error.message,
+                'message',
+                contains('1행 필수 컬럼'),
+              ),
+        ),
+      );
+
+      controller.updateColumnValue(
+        'item:10',
+        columnId: 7,
+        editable: true,
+        dataString: '값',
+      );
+      controller.updateColumnValue(
+        'item:10',
+        columnId: 8,
+        editable: true,
+        dataString: 'logo.png',
+      );
+      expect(
+        controller.validateForSave,
+        throwsA(
+          isA<StateError>().having(
+            (error) => error.message,
+            'message',
+            contains('BMP 파일만'),
+          ),
+        ),
+      );
+
+      controller.updateColumnValue(
+        'item:10',
+        columnId: 8,
+        editable: true,
+        dataString: 'logo',
+      );
+      expect(controller.validateForSave, returnsNormally);
+    });
+
+    test('rejects an empty element when the special column is required', () {
+      final row = _itemOfMarket(itemId: 10, order: 1, name: '품목');
+      final controller = ItemManagerDraftController.fromItems(
+        items: [row],
+        rawSnapshots: {10: _snapshot(10)},
+        scopedColumnContents: TColumnContentScopedView(const {}),
+        requireElement: true,
+      );
+
+      expect(
+        controller.validateForSave,
+        throwsA(
+          isA<StateError>().having(
+            (error) => error.message,
+            'message',
+            contains('1행의 주원료'),
+          ),
+        ),
+      );
+
+      controller.updateElement(
+        'item:10',
+        elementPlain: '원재료',
+        elementPayload: 'UEsDelement',
+      );
+      expect(controller.validateForSave, returnsNormally);
+    });
+
+    test('normalizes EAN check digits and rejects odd ITF values', () {
+      final row = _itemOfMarket(itemId: 10, order: 1, name: '품목');
+      final controller = ItemManagerDraftController.fromItems(
+        items: [row],
+        rawSnapshots: {10: _snapshot(10)},
+        scopedColumnContents: TColumnContentScopedView(const {}),
+        validationRules: const [
+          ItemManagerColumnValidationRule(
+            columnId: 7,
+            columnName: 'EAN-8',
+            typeCode: TColumnType.TYPE_BARCODE,
+            required: false,
+            barcodeType: BarcodeType.CodeEAN8,
+            useBarcodeCheckDigit: true,
+          ),
+          ItemManagerColumnValidationRule(
+            columnId: 8,
+            columnName: 'ITF',
+            typeCode: TColumnType.TYPE_BARCODE,
+            required: false,
+            barcodeType: BarcodeType.Itf,
+          ),
+        ],
+      );
+
+      controller.updateColumnValue(
+        'item:10',
+        columnId: 7,
+        editable: true,
+        dataString: '1234567',
+      );
+      expect(
+        controller.columnValue(controller.rows.single, 7),
+        BarcodeDataHelper.ean8('1234567'),
+      );
+
+      controller.updateColumnValue(
+        'item:10',
+        columnId: 8,
+        editable: true,
+        dataString: '123',
+      );
+      expect(
+        controller.validateForSave,
+        throwsA(
+          isA<StateError>().having(
+            (error) => error.message,
+            'message',
+            contains('ITF 바코드 형식'),
+          ),
+        ),
+      );
+    });
+
+    test('validates legacy date and time column formats', () {
+      final row = _itemOfMarket(itemId: 10, order: 1, name: '품목');
+      final controller = ItemManagerDraftController.fromItems(
+        items: [row],
+        rawSnapshots: {10: _snapshot(10)},
+        scopedColumnContents: TColumnContentScopedView(const {}),
+        validationRules: const [
+          ItemManagerColumnValidationRule(
+            columnId: 7,
+            columnName: '제조일자',
+            typeCode: TColumnType.TYPE_MAKEDATE,
+            required: false,
+          ),
+          ItemManagerColumnValidationRule(
+            columnId: 8,
+            columnName: '소비기한',
+            typeCode: TColumnType.TYPE_VALIDDATE,
+            required: false,
+            useDateRange: true,
+            dateRange: '3|5',
+          ),
+          ItemManagerColumnValidationRule(
+            columnId: 9,
+            columnName: '제조시한',
+            typeCode: TColumnType.TYPE_MAKETIME,
+            required: false,
+          ),
+        ],
+      );
+
+      controller.updateColumnValue(
+        'item:10',
+        columnId: 7,
+        editable: true,
+        dataString: '20260230',
+      );
+      expect(controller.validateForSave, throwsStateError);
+
+      controller.updateColumnValue(
+        'item:10',
+        columnId: 7,
+        editable: true,
+        dataString: '20260228',
+      );
+      controller.updateColumnValue(
+        'item:10',
+        columnId: 8,
+        editable: true,
+        dataString: '6',
+      );
+      expect(controller.validateForSave, throwsStateError);
+
+      controller.updateColumnValue(
+        'item:10',
+        columnId: 8,
+        editable: true,
+        dataString: '-3',
+      );
+      controller.updateColumnValue(
+        'item:10',
+        columnId: 9,
+        editable: true,
+        dataString: '2360',
+      );
+      expect(controller.validateForSave, throwsStateError);
+
+      controller.updateColumnValue(
+        'item:10',
+        columnId: 9,
+        editable: true,
+        dataString: '2359',
+      );
+      expect(controller.validateForSave, returnsNormally);
+    });
+
+    test('rejects invalid GS1 AI edits without changing the draft', () {
+      final row = _itemOfMarket(itemId: 10, order: 1, name: '품목');
+
+      final controller = ItemManagerDraftController.fromItems(
+        items: [row],
+        rawSnapshots: {10: _snapshot(10)},
+        scopedColumnContents: TColumnContentScopedView(const {}),
+        validationRules: const [
+          ItemManagerColumnValidationRule(
+            columnId: 7,
+            columnName: 'GTIN',
+            typeCode: TColumnType.TYPE_GS1_AI,
+            required: false,
+            gs1Definition: Gs1AiDefinition(
+              code: '01',
+              name: 'GTIN',
+              content: '',
+              dataFormat: '01+N14',
+              dataFormatType: 0,
+              needsFnc1: false,
+            ),
+          ),
+        ],
+      );
+
+      expect(
+        controller.updateColumnValue(
+          'item:10',
+          columnId: 7,
+          editable: true,
+          dataString: '1234',
+        ),
+        isFalse,
+      );
+      expect(controller.columnValue(controller.rows.single, 7), isEmpty);
+      expect(controller.isDirty, isFalse);
+
+      expect(
+        controller.updateColumnValue(
+          'item:10',
+          columnId: 7,
+          editable: true,
+          dataString: '12345678901234',
+        ),
+        isTrue,
+      );
+      expect(controller.validateForSave, returnsNormally);
+    });
+
+    test('calculates and validates 10*8 quantity columns', () {
+      final row = _itemOfMarket(itemId: 10, order: 1, name: '품목');
+      const rules = [
+        ItemManagerColumnValidationRule(
+          columnId: 7,
+          columnName: '현재수량',
+          typeCode: TColumnType.TYPE_BASE,
+          required: false,
+        ),
+        ItemManagerColumnValidationRule(
+          columnId: 8,
+          columnName: '총 수량',
+          typeCode: TColumnType.TYPE_BASE,
+          required: false,
+        ),
+        ItemManagerColumnValidationRule(
+          columnId: 9,
+          columnName: '매수',
+          typeCode: TColumnType.TYPE_BASE,
+          required: false,
+        ),
+        ItemManagerColumnValidationRule(
+          columnId: 10,
+          columnName: '발행수량',
+          typeCode: TColumnType.TYPE_BASE,
+          required: false,
+        ),
+      ];
+      final controller = ItemManagerDraftController.fromItems(
+        items: [row],
+        rawSnapshots: {10: _snapshot(10)},
+        scopedColumnContents: TColumnContentScopedView(const {}),
+        validationRules: rules,
+        labelSizeName: '10*8',
+      );
+
+      controller.updateColumnValue(
+        'item:10',
+        columnId: 7,
+        editable: true,
+        dataString: '20',
+      );
+      controller.updateColumnValue(
+        'item:10',
+        columnId: 8,
+        editable: true,
+        dataString: '100',
+      );
+      expect(controller.columnValue(controller.rows.single, 9), '5');
+      expect(controller.columnValue(controller.rows.single, 10), '1/5');
+      expect(controller.validateForSave, returnsNormally);
+
+      controller.updateColumnValue(
+        'item:10',
+        columnId: 7,
+        editable: true,
+        dataString: '0',
+      );
+      expect(controller.validateForSave, throwsStateError);
+
+      controller.updateColumnValue(
+        'item:10',
+        columnId: 7,
+        editable: true,
+        dataString: 'not-a-number',
+      );
+      expect(controller.validateForSave, throwsStateError);
+    });
+
+    test('recalculates legacy time barcode suffixes as dirty values', () {
+      final controller = ItemManagerDraftController.fromItems(
+        items: [_itemOfMarket(itemId: 10, order: 1, name: '품목')],
+        rawSnapshots: {10: _snapshot(10)},
+        scopedColumnContents: TColumnContentScopedView({
+          const ColumnItemKey(columnId: 7, itemId: 10): TColumnContent(
+            colContentId: 1,
+            columnId: 7,
+            itemId: 10,
+            editable: true,
+            dataString: '88001234',
+          ),
+        }),
+        validationRules: const [
+          ItemManagerColumnValidationRule(
+            columnId: 7,
+            columnName: '바코드',
+            typeCode: TColumnType.TYPE_BARCODE,
+            required: false,
+            timeBarcodeType: 2,
+          ),
+          ItemManagerColumnValidationRule(
+            columnId: 8,
+            columnName: '유통기한',
+            typeCode: TColumnType.TYPE_VALIDDATE,
+            required: false,
+          ),
+          ItemManagerColumnValidationRule(
+            columnId: 9,
+            columnName: '유통시한',
+            typeCode: TColumnType.TYPE_VALIDTIME,
+            required: false,
+          ),
+        ],
+        now: () => DateTime(2026, 1, 1, 12),
+      );
+
+      controller.updateColumnValue(
+        'item:10',
+        columnId: 8,
+        editable: true,
+        dataString: '2',
+      );
+      controller.updateColumnValue(
+        'item:10',
+        columnId: 9,
+        editable: true,
+        dataString: '1530',
+      );
+      controller.updateColumnValue(
+        'item:10',
+        columnId: 7,
+        editable: true,
+        dataString: '88001234',
+      );
+      expect(
+        controller.columnValue(controller.rows.single, 7),
+        '8800123421503',
+      );
+
+      controller.updateColumnValue(
+        'item:10',
+        columnId: 8,
+        editable: true,
+        dataString: '3',
+      );
+      expect(
+        controller.columnValue(controller.rows.single, 7),
+        '8800123421504',
+      );
+      expect(controller.validateForSave, returnsNormally);
     });
 
     test('rejects additions above the shared row limit', () {

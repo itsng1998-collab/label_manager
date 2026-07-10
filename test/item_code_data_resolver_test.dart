@@ -242,13 +242,45 @@ void main() {
       );
       final result = ItemCodeDataResolver(
         itemName: '품목',
-        columns: [gs1, _column(id: 1, keyword: 'LOT', name: '로트', gs1Ai: '10')],
+        columns: [
+          gs1,
+          _column(id: 1, keyword: 'LOT', name: '로트', gs1Ai: '10'),
+        ],
         columnValue: (_) => 'A',
       ).resolve(gs1);
 
       expect(result.data, isEmpty);
       expect(result.warning, isNull);
       expect(result.error, contains('GS1 AI 10'));
+    });
+
+    test('reports GS1 source values outside the AI data format', () {
+      final source = _column(id: 1, keyword: 'GTIN', name: 'GTIN', gs1Ai: '01');
+      final gs1 = _column(
+        id: 2,
+        keyword: 'GS1',
+        name: 'GS1',
+        type: TColumnType.TYPE_GS1_BARCODE,
+        useGs1: true,
+        containIds: const [1],
+      );
+      final resolver = ItemCodeDataResolver(
+        itemName: '품목',
+        columns: [source, gs1],
+        columnValue: (_) => '1234',
+        gs1Definitions: const {
+          '01': Gs1AiDefinition(
+            code: '01',
+            name: 'GTIN',
+            content: '',
+            dataFormat: '01+N14',
+            dataFormatType: 0,
+            needsFnc1: false,
+          ),
+        },
+      );
+
+      expect(resolver.resolve(gs1).error, contains('GS1 AI 01 형식'));
     });
   });
 }

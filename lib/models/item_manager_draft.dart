@@ -1,6 +1,9 @@
 import 'package:flutter/foundation.dart';
 import 'package:label_manager/models/additional_item.dart';
+import 'package:label_manager/models/barcode.dart';
 import 'package:label_manager/models/column_content.dart';
+import 'package:label_manager/models/column_type.dart';
+import 'package:label_manager/models/gs1_ai.dart';
 import 'package:label_manager/models/item.dart';
 import 'package:label_manager/models/item_manager_save.dart';
 import 'package:label_manager/models/item_of_market.dart';
@@ -9,9 +12,27 @@ abstract final class ItemManagerLimits {
   static const int maxRows = 10000;
 }
 
+class ItemManagerFixedColumnIds {
+  static const int itemName = -1;
+  static const int element = -2;
+}
+
 enum ItemManagerDraftRowState { existing, modified, added, imported }
 
 enum ItemManagerElementPayloadFormat { empty, workbook, legacyRtf, unknown }
+
+class ItemManagerDraftValidationError extends StateError {
+  ItemManagerDraftValidationError({
+    required this.rowKey,
+    required this.rowIndex,
+    required this.columnId,
+    required String message,
+  }) : super(message);
+
+  final String rowKey;
+  final int rowIndex;
+  final int? columnId;
+}
 
 @immutable
 class ItemManagerColumnDraft {
@@ -22,6 +43,33 @@ class ItemManagerColumnDraft {
     required this.editable,
     required this.dataString,
   });
+}
+
+@immutable
+class ItemManagerColumnValidationRule {
+  const ItemManagerColumnValidationRule({
+    required this.columnId,
+    required this.columnName,
+    required this.typeCode,
+    required this.required,
+    this.barcodeType,
+    this.useBarcodeCheckDigit = false,
+    this.useDateRange = false,
+    this.dateRange = '',
+    this.gs1Definition,
+    this.timeBarcodeType = 0,
+  });
+
+  final int columnId;
+  final String columnName;
+  final int typeCode;
+  final bool required;
+  final BarcodeType? barcodeType;
+  final bool useBarcodeCheckDigit;
+  final bool useDateRange;
+  final String dateRange;
+  final Gs1AiDefinition? gs1Definition;
+  final int timeBarcodeType;
 }
 
 @immutable
@@ -240,16 +288,25 @@ class ItemManagerDraftRow {
 class ItemManagerDraftController extends ChangeNotifier {
   final List<ItemManagerDraftRow> _rows;
   final TColumnContentScopedView scopedColumnContents;
+  final List<ItemManagerColumnValidationRule> validationRules;
   final Set<int> _deletedSourceItemIds = {};
   final Map<int, ItemManagerDraftRow> _deletedRowsBySourceItemId = {};
   final Set<String> _selectedRowKeys = {};
+  final DateTime Function() _now;
   int _draftSequence = 0;
   String? _anchorRowKey;
+  int? _selectedColumnId;
+  int _focusRequestId = 0;
 
   ItemManagerDraftController({
     required List<ItemManagerDraftRow> rows,
     required this.scopedColumnContents,
-  }) : _rows = List.of(rows) {
+    this.validationRules = const [],
+    this.requireElement = false,
+    this.labelSizeName = '',
+    DateTime Function()? now,
+  }) : _rows = List.of(rows),
+       _now = now ?? DateTime.now {
     _validateRows(_rows);
   }
 
@@ -257,6 +314,10 @@ class ItemManagerDraftController extends ChangeNotifier {
     required List<ItemOfMarket> items,
     required Map<int, ItemOfMarketRawSnapshot> rawSnapshots,
     required TColumnContentScopedView scopedColumnContents,
+    List<ItemManagerColumnValidationRule> validationRules = const [],
+    bool requireElement = false,
+    String labelSizeName = '',
+    DateTime Function()? now,
   }) {
     final rows = <ItemManagerDraftRow>[];
     for (var index = 0; index < items.length; index++) {
@@ -278,15 +339,23 @@ class ItemManagerDraftController extends ChangeNotifier {
     return ItemManagerDraftController(
       rows: rows,
       scopedColumnContents: scopedColumnContents,
+      validationRules: validationRules,
+      requireElement: requireElement,
+      labelSizeName: labelSizeName,
+      now: now,
     );
   }
 
   List<ItemManagerDraftRow> get rows => List.unmodifiable(_rows);
+  final bool requireElement;
+  final String labelSizeName;
   Set<int> get deletedSourceItemIds => Set.unmodifiable(_deletedSourceItemIds);
   Map<int, ItemManagerDraftRow> get deletedRowsBySourceItemId =>
       Map.unmodifiable(_deletedRowsBySourceItemId);
   Set<String> get selectedRowKeys => Set.unmodifiable(_selectedRowKeys);
   String? get anchorRowKey => _anchorRowKey;
+  int? get selectedColumnId => _selectedColumnId;
+  int get focusRequestId => _focusRequestId;
   bool get isDirty =>
       _deletedSourceItemIds.isNotEmpty ||
       _rows.any((row) => row.rowState != ItemManagerDraftRowState.existing);
@@ -325,7 +394,7 @@ class ItemManagerDraftController extends ChangeNotifier {
     });
   }
 
-  void updateColumnValue(
+  bool updateColumnValue(
     String rowKey, {
     required int columnId,
     required bool editable,
@@ -334,22 +403,32 @@ class ItemManagerDraftController extends ChangeNotifier {
     if (columnId <= 0) {
       throw ArgumentError.value(columnId, 'columnId', 'Must be positive.');
     }
+    final rule = _validationRuleFor(columnId);
+    final normalizedValue = _normalizeEditedColumnValue(rule, dataString);
+    if (rule?.gs1Definition case final definition?) {
+      if (normalizedValue.isNotEmpty && !definition.accepts(normalizedValue)) {
+        return false;
+      }
+    }
     _updateRow(rowKey, (row) {
       final original = row.sourceItemId == null
           ? ''
           : scopedColumnContents.value(columnId, row.sourceItemId!);
       final drafts = Map<int, ItemManagerColumnDraft>.of(row.columnDrafts);
-      if (!row.isNew && dataString == original) {
+      if (!row.isNew && normalizedValue == original) {
         drafts.remove(columnId);
       } else {
         drafts[columnId] = ItemManagerColumnDraft(
           editable: editable,
-          dataString: dataString,
+          dataString: normalizedValue,
         );
       }
+      _applyTenByEightDerivedValues(row, drafts, changedColumnId: columnId);
+      _applyTimeBarcodeDerivedValues(row, drafts, changedColumnId: columnId);
       final changed = row.copyWith(columnDrafts: Map.unmodifiable(drafts));
       return _withCurrentState(changed);
     });
+    return true;
   }
 
   ItemManagerSaveCommand toSaveCommand({
@@ -424,11 +503,305 @@ class ItemManagerDraftController extends ChangeNotifier {
       (row) => row.itemName.trim().isEmpty,
     );
     if (emptyNameIndex >= 0) {
-      throw StateError('${emptyNameIndex + 1}행의 품명을 입력해 주세요.');
+      final row = _rows[emptyNameIndex];
+      throw ItemManagerDraftValidationError(
+        rowKey: row.rowKey,
+        rowIndex: emptyNameIndex,
+        columnId: ItemManagerFixedColumnIds.itemName,
+        message: '${emptyNameIndex + 1}행의 품명을 입력해 주세요.',
+      );
+    }
+    if (requireElement) {
+      final emptyElementIndex = _rows.indexWhere(
+        (row) => row.elementPlain.trim().isEmpty,
+      );
+      if (emptyElementIndex >= 0) {
+        final row = _rows[emptyElementIndex];
+        throw ItemManagerDraftValidationError(
+          rowKey: row.rowKey,
+          rowIndex: emptyElementIndex,
+          columnId: ItemManagerFixedColumnIds.element,
+          message: '${emptyElementIndex + 1}행의 주원료 값을 입력해 주세요.',
+        );
+      }
+    }
+    for (var rowIndex = 0; rowIndex < _rows.length; rowIndex += 1) {
+      final row = _rows[rowIndex];
+      for (final rule in validationRules) {
+        final value = columnValue(row, rule.columnId).trim();
+        if (rule.required && value.isEmpty) {
+          throw _columnValidationError(
+            row,
+            rowIndex,
+            rule,
+            '${rowIndex + 1}행 ${rule.columnName} 값을 입력해 주세요.',
+          );
+        }
+        if (value.isNotEmpty &&
+            rule.typeCode == TColumnType.TYPE_IMAGE &&
+            _hasUnsupportedImageExtension(value)) {
+          throw _columnValidationError(
+            row,
+            rowIndex,
+            rule,
+            '${rowIndex + 1}행 ${rule.columnName}은 BMP 파일만 사용할 수 있습니다.',
+          );
+        }
+        final barcodeType = rule.barcodeType;
+        if (value.isNotEmpty &&
+            barcodeType != null &&
+            _requiresMeaningPreservingBarcodeValidation(rule) &&
+            BarcodeDataHelper.normalizeMeaningPreservingForPrint(
+                  barcodeType,
+                  value,
+                ) ==
+                null) {
+          throw _columnValidationError(
+            row,
+            rowIndex,
+            rule,
+            '${rowIndex + 1}행 ${rule.columnName} 바코드 형식이 올바르지 않습니다.',
+          );
+        }
+        if (value.isNotEmpty && !_isValidDateOrTimeValue(rule, value)) {
+          throw _columnValidationError(
+            row,
+            rowIndex,
+            rule,
+            '${rowIndex + 1}행 ${rule.columnName} 날짜/시간 형식 또는 범위가 올바르지 않습니다.',
+          );
+        }
+        if (value.isNotEmpty && rule.timeBarcodeType > 0) {
+          _validateTimeBarcodeSources(row, rowIndex, rule);
+        }
+        if (value.isNotEmpty &&
+            rule.typeCode == TColumnType.TYPE_GS1_AI &&
+            (rule.gs1Definition == null ||
+                !rule.gs1Definition!.accepts(value))) {
+          throw _columnValidationError(
+            row,
+            rowIndex,
+            rule,
+            '${rowIndex + 1}행 ${rule.columnName} GS1 AI 형식이 올바르지 않습니다.',
+          );
+        }
+        if (labelSizeName == '10*8' &&
+            (rule.columnName == '현재수량' || rule.columnName == '총 수량') &&
+            value.isNotEmpty &&
+            int.tryParse(value) == null) {
+          throw _columnValidationError(
+            row,
+            rowIndex,
+            rule,
+            '${rowIndex + 1}행 ${rule.columnName}은 정수로 입력해 주세요.',
+          );
+        }
+        if (labelSizeName == '10*8' &&
+            rule.columnName == '현재수량' &&
+            value == '0') {
+          throw _columnValidationError(
+            row,
+            rowIndex,
+            rule,
+            '${rowIndex + 1}행 현재수량은 0일 수 없습니다.',
+          );
+        }
+      }
     }
   }
 
-  void setSelection(Iterable<String> rowKeys, {String? anchorRowKey}) {
+  ItemManagerDraftValidationError _columnValidationError(
+    ItemManagerDraftRow row,
+    int rowIndex,
+    ItemManagerColumnValidationRule rule,
+    String message,
+  ) {
+    return ItemManagerDraftValidationError(
+      rowKey: row.rowKey,
+      rowIndex: rowIndex,
+      columnId: rule.columnId,
+      message: message,
+    );
+  }
+
+  void _applyTenByEightDerivedValues(
+    ItemManagerDraftRow row,
+    Map<int, ItemManagerColumnDraft> drafts, {
+    required int changedColumnId,
+  }) {
+    if (labelSizeName != '10*8') return;
+    final currentRule = _validationRuleNamed('현재수량');
+    final totalRule = _validationRuleNamed('총 수량');
+    final countRule = _validationRuleNamed('매수');
+    final outputRule = _validationRuleNamed('발행수량');
+    if (currentRule == null ||
+        totalRule == null ||
+        countRule == null ||
+        outputRule == null ||
+        (changedColumnId != currentRule.columnId &&
+            changedColumnId != totalRule.columnId)) {
+      return;
+    }
+    String value(ItemManagerColumnValidationRule rule) {
+      final draft = drafts[rule.columnId];
+      if (draft != null) return draft.dataString;
+      final itemId = row.sourceItemId;
+      return itemId == null
+          ? ''
+          : scopedColumnContents.value(rule.columnId, itemId);
+    }
+
+    final current = int.tryParse(value(currentRule));
+    final total = int.tryParse(value(totalRule));
+    if (current == null || current == 0 || total == null) return;
+    final count = total ~/ current;
+    _setDerivedDraft(row, drafts, countRule.columnId, '$count');
+    _setDerivedDraft(row, drafts, outputRule.columnId, '1/$count');
+  }
+
+  void _applyTimeBarcodeDerivedValues(
+    ItemManagerDraftRow row,
+    Map<int, ItemManagerColumnDraft> drafts, {
+    required int changedColumnId,
+  }) {
+    final changedRule = _validationRuleFor(changedColumnId);
+    if (changedRule == null ||
+        changedRule.typeCode != TColumnType.TYPE_BARCODE &&
+            changedRule.typeCode != TColumnType.TYPE_VALIDDATE &&
+            changedRule.typeCode != TColumnType.TYPE_VALIDTIME &&
+            changedRule.typeCode != TColumnType.TYPE_MAKEDATE) {
+      return;
+    }
+    final validDateRule = _validationRuleOfType(TColumnType.TYPE_VALIDDATE);
+    final validTimeRule = _validationRuleOfType(TColumnType.TYPE_VALIDTIME);
+    final makeDateRule = _validationRuleOfType(TColumnType.TYPE_MAKEDATE);
+
+    String value(ItemManagerColumnValidationRule rule) {
+      final draft = drafts[rule.columnId];
+      if (draft != null) return draft.dataString;
+      final itemId = row.sourceItemId;
+      return itemId == null
+          ? ''
+          : scopedColumnContents.value(rule.columnId, itemId);
+    }
+
+    final offset = validDateRule == null
+        ? null
+        : int.tryParse(value(validDateRule).trim());
+    if (offset == null) return;
+    final current = _now();
+    var baseDate = DateTime(current.year, current.month, current.day);
+    if (makeDateRule != null) {
+      final rawMakeDate = value(makeDateRule).trim();
+      final makeDate = _parseMakeDate(rawMakeDate);
+      if (makeDate == null && rawMakeDate.isNotEmpty) return;
+      if (makeDate != null) baseDate = makeDate;
+    }
+    final validDate = baseDate.add(Duration(days: offset));
+
+    for (final barcodeRule in validationRules.where(
+      (rule) =>
+          rule.typeCode == TColumnType.TYPE_BARCODE && rule.timeBarcodeType > 0,
+    )) {
+      if (changedRule.typeCode == TColumnType.TYPE_BARCODE &&
+          changedColumnId != barcodeRule.columnId) {
+        continue;
+      }
+      final suffix = _timeBarcodeSuffix(
+        barcodeRule.timeBarcodeType,
+        validDate,
+        validTimeRule == null ? '' : value(validTimeRule).trim(),
+      );
+      if (suffix == null) continue;
+      final barcode = value(barcodeRule);
+      if (barcode.isEmpty) continue;
+      final base = changedColumnId == barcodeRule.columnId
+          ? barcode
+          : barcode.length > suffix.length
+          ? barcode.substring(0, barcode.length - suffix.length)
+          : '';
+      if (base.isEmpty) continue;
+      _setDerivedDraft(row, drafts, barcodeRule.columnId, '$base$suffix');
+    }
+  }
+
+  void _validateTimeBarcodeSources(
+    ItemManagerDraftRow row,
+    int rowIndex,
+    ItemManagerColumnValidationRule barcodeRule,
+  ) {
+    final validDateRule = _validationRuleOfType(TColumnType.TYPE_VALIDDATE);
+    if (validDateRule == null ||
+        int.tryParse(columnValue(row, validDateRule.columnId).trim()) == null) {
+      throw _columnValidationError(
+        row,
+        rowIndex,
+        validDateRule ?? barcodeRule,
+        '${rowIndex + 1}행 타임바코드 유통기한 값을 입력해 주세요.',
+      );
+    }
+    if (barcodeRule.timeBarcodeType == 2 || barcodeRule.timeBarcodeType == 4) {
+      final validTimeRule = _validationRuleOfType(TColumnType.TYPE_VALIDTIME);
+      final validTime = validTimeRule == null
+          ? ''
+          : columnValue(row, validTimeRule.columnId).trim();
+      if (validTimeRule == null ||
+          !_isValidDateOrTimeValue(validTimeRule, validTime)) {
+        throw _columnValidationError(
+          row,
+          rowIndex,
+          validTimeRule ?? barcodeRule,
+          '${rowIndex + 1}행 타임바코드 유통시한 값을 입력해 주세요.',
+        );
+      }
+    }
+  }
+
+  ItemManagerColumnValidationRule? _validationRuleOfType(int typeCode) {
+    for (final rule in validationRules) {
+      if (rule.typeCode == typeCode) return rule;
+    }
+    return null;
+  }
+
+  ItemManagerColumnValidationRule? _validationRuleNamed(String name) {
+    for (final rule in validationRules) {
+      if (rule.columnName == name) return rule;
+    }
+    return null;
+  }
+
+  void _setDerivedDraft(
+    ItemManagerDraftRow row,
+    Map<int, ItemManagerColumnDraft> drafts,
+    int columnId,
+    String value,
+  ) {
+    final original = row.sourceItemId == null
+        ? ''
+        : scopedColumnContents.value(columnId, row.sourceItemId!);
+    if (!row.isNew && value == original) {
+      drafts.remove(columnId);
+      return;
+    }
+    drafts[columnId] = ItemManagerColumnDraft(
+      editable: true,
+      dataString: value,
+    );
+  }
+
+  ItemManagerColumnValidationRule? _validationRuleFor(int columnId) {
+    for (final rule in validationRules) {
+      if (rule.columnId == columnId) return rule;
+    }
+    return null;
+  }
+
+  void setSelection(
+    Iterable<String> rowKeys, {
+    String? anchorRowKey,
+    int? columnId,
+  }) {
     final validKeys = _rows.map((row) => row.rowKey).toSet();
     _selectedRowKeys
       ..clear()
@@ -436,6 +809,8 @@ class ItemManagerDraftController extends ChangeNotifier {
     _anchorRowKey = anchorRowKey != null && validKeys.contains(anchorRowKey)
         ? anchorRowKey
         : (_selectedRowKeys.isEmpty ? null : _selectedRowKeys.last);
+    _selectedColumnId = columnId;
+    if (columnId != null) _focusRequestId += 1;
     notifyListeners();
   }
 
@@ -583,7 +958,7 @@ class ItemManagerDraftController extends ChangeNotifier {
   ) {
     final index = _rows.indexWhere((row) => row.rowKey == rowKey);
     if (index < 0) {
-      throw ArgumentError.value(rowKey, 'rowKey', 'Unknown row.');
+      throw StateError('Draft row not found: $rowKey.');
     }
     final previous = _rows[index];
     final next = update(previous);
@@ -671,6 +1046,106 @@ class ItemManagerDraftController extends ChangeNotifier {
       }
     }
   }
+}
+
+String _normalizeEditedColumnValue(
+  ItemManagerColumnValidationRule? rule,
+  String value,
+) {
+  if (rule == null || !rule.useBarcodeCheckDigit || rule.barcodeType == null) {
+    return value;
+  }
+  return BarcodeDataHelper.normalizeMeaningPreservingForPrint(
+        rule.barcodeType!,
+        value,
+      ) ??
+      value;
+}
+
+bool _requiresMeaningPreservingBarcodeValidation(
+  ItemManagerColumnValidationRule rule,
+) {
+  return rule.barcodeType == BarcodeType.Itf || rule.useBarcodeCheckDigit;
+}
+
+bool _isValidDateOrTimeValue(
+  ItemManagerColumnValidationRule rule,
+  String value,
+) {
+  switch (rule.typeCode) {
+    case TColumnType.TYPE_MAKEDATE:
+      if (!RegExp(r'^\d{8}$').hasMatch(value)) return false;
+      final year = int.parse(value.substring(0, 4));
+      final month = int.parse(value.substring(4, 6));
+      final day = int.parse(value.substring(6, 8));
+      final parsed = DateTime(year, month, day);
+      if (parsed.year != year || parsed.month != month || parsed.day != day) {
+        return false;
+      }
+      if (!rule.useDateRange) return true;
+      final range = _parseDateRange(rule.dateRange);
+      if (range == null) return false;
+      final today = DateTime.now();
+      final base = DateTime(today.year, today.month, today.day);
+      return !parsed.isBefore(base.subtract(Duration(days: range.$1))) &&
+          !parsed.isAfter(base.add(Duration(days: range.$2)));
+    case TColumnType.TYPE_VALIDDATE:
+      final offset = int.tryParse(value);
+      if (offset == null) return false;
+      if (!rule.useDateRange) return true;
+      final range = _parseDateRange(rule.dateRange);
+      return range != null && offset >= -range.$1 && offset <= range.$2;
+    case TColumnType.TYPE_MAKETIME:
+    case TColumnType.TYPE_VALIDTIME:
+      if (!RegExp(r'^\d{4}$').hasMatch(value)) return false;
+      final hour = int.parse(value.substring(0, 2));
+      final minute = int.parse(value.substring(2, 4));
+      return hour <= 23 && minute <= 59;
+    default:
+      return true;
+  }
+}
+
+DateTime? _parseMakeDate(String value) {
+  if (!RegExp(r'^\d{8}$').hasMatch(value)) return null;
+  final year = int.parse(value.substring(0, 4));
+  final month = int.parse(value.substring(4, 6));
+  final day = int.parse(value.substring(6, 8));
+  final parsed = DateTime(year, month, day);
+  return parsed.year == year && parsed.month == month && parsed.day == day
+      ? parsed
+      : null;
+}
+
+String? _timeBarcodeSuffix(int type, DateTime validDate, String validTime) {
+  final day = validDate.day.toString().padLeft(2, '0');
+  final month = validDate.month.toString().padLeft(2, '0');
+  final year = (validDate.year % 100).toString().padLeft(2, '0');
+  return switch (type) {
+    1 => '1$day$month',
+    2 when RegExp(r'^\d{4}$').hasMatch(validTime) =>
+      '2${validTime.substring(0, 2)}$day',
+    4 when RegExp(r'^\d{4}$').hasMatch(validTime) =>
+      '4$day${validTime.substring(0, 2)}',
+    9 => '9$year$month$day',
+    _ => null,
+  };
+}
+
+(int, int)? _parseDateRange(String value) {
+  final parts = value.split('|');
+  if (parts.length != 2) return null;
+  final before = int.tryParse(parts[0].trim());
+  final after = int.tryParse(parts[1].trim());
+  if (before == null || after == null || before < 0 || after < 0) return null;
+  return (before, after);
+}
+
+bool _hasUnsupportedImageExtension(String value) {
+  return RegExp(
+    r'\.(?:png|jpe?g|gif|webp|svg|tiff?|ico)$',
+    caseSensitive: false,
+  ).hasMatch(value);
 }
 
 ItemManagerElementPayloadFormat _classifyElementPayload(String payload) {
