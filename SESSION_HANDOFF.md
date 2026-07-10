@@ -28,6 +28,17 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-10): 품목관리 요청서 QR코드 데이터 보기 병합
+
+- 요청: 레거시 품목관리의 `QR코드 데이터 보기` 분석 내용을 `.tmp/item_manager_modify.txt` 요청서에 병합하고, 필요한 사용자 확인 사항을 이해하기 쉽게 정리한다.
+- `.tmp/item_manager_modify.txt` 반영 완료: `2.11 레거시 QR코드 데이터 보기 동작`을 추가해 이 기능이 품목 row/cell 수정이 아니라 우클릭한 단일 행 기준 QR/텍스트연동 데이터 조회/진단 기능이며, dirty 상태와 저장 batch에 포함되지 않는다고 정리했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: 우클릭 메뉴 항목에 `QR코드 데이터 보기`를 추가하고, draft 편집 중에도 현재 draft row 값 기준으로 조회 가능하지만 dirty를 만들지 않는 메뉴로 분리했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: `12.2 QR코드 데이터 보기 UX`, `14.7 [QR viewer][UI draft/edit]` 검증 항목, 최종 요약에 현재 row/draft 값 + column QR 설정 기준 데이터 계산, 사용자 정의/나트륨/바코드 텍스트연동 치환, 읽기 전용 viewer 기준을 추가했다.
+- 사용자 확인 사항: QR 데이터가 4개를 초과할 때 레거시처럼 앞 4개만 보여줄지, 현재 Flutter에서는 스크롤 목록으로 모두 보여줄지 확인 항목을 추가했다. 1차 권장안은 데이터 누락을 피하기 위해 모두 표시하는 것이다.
+- 검증: `grep_search`로 `2.11`, `12.2`, `14.7 [QR viewer]`, 최종 요약, 사용자 확인 문구를 확인했다.
+- 검증: `git diff --check -- .tmp/item_manager_modify.txt SESSION_HANDOFF.md` 통과.
+- stage/commit 대상: ignored `.tmp/item_manager_modify.txt` 변경 추적용 `SESSION_HANDOFF.md`만 stage/commit한다.
+
 ### 완료 (2026-07-10): 품목관리 요청서 날짜 타입 설정 병합
 
 - 요청: 레거시 `날짜 타입 설정` 분석 내용을 `.tmp/item_manager_modify.txt` 요청서에 병합하고, 필요한 사용자 확인 사항을 이해하기 쉽게 정리한다.
