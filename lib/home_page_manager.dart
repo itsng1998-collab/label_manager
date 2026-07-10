@@ -821,6 +821,30 @@ class _HomePageManagerState extends State<HomePageManager> {
       );
       if (!reloaded && mounted) {
         _showItemDraftError('변경 취소 실패', StateError('품목 목록을 다시 불러오지 못했습니다.'));
+      } else if (reloaded && mounted) {
+        final baselineChecksum = importViewState?.baselineChecksum;
+        final reloadedController = _itemDraftController;
+        if (baselineChecksum == null ||
+            reloadedController == null ||
+            itemManagerBaselineChecksum(reloadedController) ==
+                baselineChecksum) {
+          return;
+        }
+        await showDialog<void>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            title: const Text('외부 변경 가능성'),
+            content: const Text(
+              'Excel 가져오기 이후 DB 품목 데이터가 변경되었습니다. 현재 DB 기준으로 복원했습니다.',
+            ),
+            actions: [
+              FilledButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('확인'),
+              ),
+            ],
+          ),
+        );
       }
       return;
     }
@@ -869,7 +893,11 @@ class _HomePageManagerState extends State<HomePageManager> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('품목 저장'),
-        content: const Text('품목관리 변경 사항을 저장할까요?'),
+        content: Text(
+          itemManagerSaveConfirmationMessage(
+            hasDeletedItems: controller.deletedSourceItemIds.isNotEmpty,
+          ),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
@@ -1069,6 +1097,7 @@ class _HomePageManagerState extends State<HomePageManager> {
         importViewState: ItemManagerImportViewState(
           selectedItemId: _selectedItemOfMarket?.item.itemId,
           selectedIndex: _selectedItemIndex,
+          baselineChecksum: itemManagerBaselineChecksum(controller),
         ),
       );
       final labelSize = _currentLabelSize;

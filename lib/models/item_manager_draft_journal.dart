@@ -17,6 +17,39 @@ String itemManagerDraftKey({
   required int labelSizeId,
 }) => '${userId}_${customerId}_${brandId}_$labelSizeId';
 
+String itemManagerBaselineChecksum(ItemManagerDraftController controller) {
+  final sourceRows = <int, ItemManagerDraftRow>{};
+  for (final row in controller.rows) {
+    final sourceItemId = row.sourceItemId;
+    if (sourceItemId != null) sourceRows[sourceItemId] = row;
+  }
+  sourceRows.addAll(controller.deletedRowsBySourceItemId);
+  final orderedSourceRows = sourceRows.values.toList()
+    ..sort((left, right) => left.originalIndex.compareTo(right.originalIndex));
+  final scopedColumns = controller.scopedColumnContents.values.values.toList()
+    ..sort((left, right) {
+      final itemCompare = left.itemId.compareTo(right.itemId);
+      return itemCompare != 0
+          ? itemCompare
+          : left.columnId.compareTo(right.columnId);
+    });
+  return _fnv1a64Hex(
+    jsonEncode({
+      'rows': orderedSourceRows
+          .map(_itemManagerBaselineRowJson)
+          .toList(growable: false),
+      'columns': [
+        for (final value in scopedColumns)
+          {
+            'itemId': value.itemId,
+            'columnId': value.columnId,
+            'dataString': value.dataString,
+          },
+      ],
+    }),
+  );
+}
+
 class ItemManagerDraftJournalMetadata {
   final String draftKey;
   final String userId;
@@ -232,31 +265,11 @@ class ItemManagerDraftJournal {
       );
 
     final baselineRows = orderedSourceRows
-        .map(_baselineRowJson)
+      .map(_itemManagerBaselineRowJson)
         .toList(growable: false);
     final baselineItemIds = orderedSourceRows
         .map((row) => row.sourceItemId!)
         .toList(growable: false);
-    final scopedColumns = controller.scopedColumnContents.values.values.toList()
-      ..sort((left, right) {
-        final itemCompare = left.itemId.compareTo(right.itemId);
-        return itemCompare != 0
-            ? itemCompare
-            : left.columnId.compareTo(right.columnId);
-      });
-    final baselineColumnValues = scopedColumns
-        .map(
-          (value) => {
-            'itemId': value.itemId,
-            'columnId': value.columnId,
-            'dataString': value.dataString,
-          },
-        )
-        .toList(growable: false);
-    final checksumInput = jsonEncode({
-      'rows': baselineRows,
-      'columns': baselineColumnValues,
-    });
     final changedRows = controller.rows
         .where((row) => row.rowState != ItemManagerDraftRowState.existing)
         .map(_draftRowJson)
@@ -279,7 +292,7 @@ class ItemManagerDraftJournal {
       'baseline': {
         'rowCount': baselineRows.length,
         'rows': baselineRows,
-        'checksum': _fnv1a64Hex(checksumInput),
+        'checksum': itemManagerBaselineChecksum(controller),
         'checksumSchemaVersion': checksumSchemaVersion,
         'checksumFields': checksumFields,
         'mappingFingerprints': mappingFingerprints.toJsonForItems(
@@ -293,21 +306,6 @@ class ItemManagerDraftJournal {
           growable: false,
         ),
       },
-    };
-  }
-
-  Map<String, Object?> _baselineRowJson(ItemManagerDraftRow row) {
-    final source = row.source!;
-    final payload = source.item.elementRTF;
-    return {
-      'itemId': source.item.itemId,
-      'order': source.item.order,
-      'itemName': source.item.itemName,
-      'elementPlain': source.item.element,
-      'payloadEmpty': payload.isEmpty,
-      'payloadFormat': row.elementPayloadFormat.name,
-      'payloadLength': payload.length,
-      'payloadEdgeHash': _payloadEdgeHash(payload),
     };
   }
 
@@ -408,6 +406,23 @@ String _payloadEdgeHash(String payload) {
   final head = payload.substring(0, payload.length.clamp(0, edgeLength));
   final tailStart = (payload.length - edgeLength).clamp(0, payload.length);
   return _fnv1a64Hex('$head|${payload.substring(tailStart)}');
+}
+
+Map<String, Object?> _itemManagerBaselineRowJson(
+  ItemManagerDraftRow row,
+) {
+  final source = row.source!;
+  final payload = source.item.elementRTF;
+  return {
+    'itemId': source.item.itemId,
+    'order': source.item.order,
+    'itemName': source.item.itemName,
+    'elementPlain': source.item.element,
+    'payloadEmpty': payload.isEmpty,
+    'payloadFormat': row.elementPayloadFormat.name,
+    'payloadLength': payload.length,
+    'payloadEdgeHash': _payloadEdgeHash(payload),
+  };
 }
 
 String _fnv1a64Hex(String input) {

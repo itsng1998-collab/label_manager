@@ -19,6 +19,13 @@ class ItemManagerFixedColumnIds {
 
 enum ItemManagerDraftRowState { existing, modified, added, imported }
 
+String itemManagerSaveConfirmationMessage({required bool hasDeletedItems}) {
+  const prompt = '품목관리 변경 사항을 저장할까요?';
+  return hasDeletedItems
+      ? '$prompt\n\n삭제한 품목은 같은 고객의 다른 market 품목관리에서도 보이지 않을 수 있습니다.'
+      : prompt;
+}
+
 int? resolveItemManagerReloadSelectionIndex(
   List<ItemOfMarket> items, {
   int? selectedItemId,
@@ -57,18 +64,21 @@ class ItemManagerImportViewState {
   const ItemManagerImportViewState({
     this.selectedItemId,
     this.selectedIndex,
+    this.baselineChecksum,
     this.sortState = const [],
     this.filterState = const {},
   });
 
   final int? selectedItemId;
   final int? selectedIndex;
+  final String? baselineChecksum;
   final List<Object?> sortState;
   final Map<String, Object?> filterState;
 
   Map<String, Object?> toJson() => {
     'selectedItemId': selectedItemId,
     'selectedIndex': selectedIndex,
+    'baselineChecksum': baselineChecksum,
     'sortState': sortState,
     'filterState': filterState,
   };

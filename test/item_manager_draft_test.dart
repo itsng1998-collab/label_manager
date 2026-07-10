@@ -10,6 +10,17 @@ import 'package:label_manager/models/item_of_market.dart';
 
 void main() {
   group('[item manager draft]', () {
+    test('warns about other markets when save includes deletion', () {
+      expect(
+        itemManagerSaveConfirmationMessage(hasDeletedItems: false),
+        '품목관리 변경 사항을 저장할까요?',
+      );
+      expect(
+        itemManagerSaveConfirmationMessage(hasDeletedItems: true),
+        contains('같은 고객의 다른 market 품목관리에서도 보이지 않을 수 있습니다.'),
+      );
+    });
+
     test('resolves reload selection by item id, row index, then first row', () {
       final items = [
         _itemOfMarket(itemId: 10, order: 1, name: '첫 품목'),
@@ -232,6 +243,7 @@ void main() {
           importViewState: const ItemManagerImportViewState(
             selectedItemId: 20,
             selectedIndex: 1,
+            baselineChecksum: 'baseline-1',
           ),
         );
 
@@ -241,6 +253,7 @@ void main() {
         expect(controller.importViewState?.toJson(), {
           'selectedItemId': 20,
           'selectedIndex': 1,
+          'baselineChecksum': 'baseline-1',
           'sortState': const [],
           'filterState': const {},
         });

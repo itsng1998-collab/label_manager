@@ -101,6 +101,7 @@ void main() {
         importViewState: const ItemManagerImportViewState(
           selectedItemId: 10,
           selectedIndex: 0,
+          baselineChecksum: 'baseline-1',
         ),
       );
       final journal = ItemManagerDraftJournal(
@@ -130,6 +131,7 @@ void main() {
       expect(metadata['importViewState'], {
         'selectedItemId': 10,
         'selectedIndex': 0,
+        'baselineChecksum': 'baseline-1',
         'sortState': const [],
         'filterState': const {},
       });
@@ -242,6 +244,33 @@ void main() {
       },
     );
 
+    test('baseline checksum changes with reloaded DB row values', () {
+      ItemManagerDraftController controllerFor(String itemName) {
+        final source = _itemOfMarket(itemName: itemName);
+        return ItemManagerDraftController.fromItems(
+          items: [source],
+          rawSnapshots: {10: _snapshot()},
+          scopedColumnContents: TColumnContentScopedView(const {}),
+        );
+      }
+
+      final original = controllerFor('기존 품목');
+      final same = controllerFor('기존 품목');
+      final changed = controllerFor('외부 변경 품목');
+      addTearDown(original.dispose);
+      addTearDown(same.dispose);
+      addTearDown(changed.dispose);
+
+      expect(
+        itemManagerBaselineChecksum(same),
+        itemManagerBaselineChecksum(original),
+      );
+      expect(
+        itemManagerBaselineChecksum(changed),
+        isNot(itemManagerBaselineChecksum(original)),
+      );
+    });
+
     test('can retain a committed journal until reload cleanup', () async {
       final controller = ItemManagerDraftController.fromItems(
         items: [_itemOfMarket()],
@@ -331,14 +360,14 @@ void main() {
   });
 }
 
-ItemOfMarket _itemOfMarket() {
+ItemOfMarket _itemOfMarket({String itemName = '기존 품목'}) {
   final date = DateTime(2026, 1, 1);
   return ItemOfMarket(
     marketId: 3,
-    item: const Item(
+    item: Item(
       itemId: 10,
       labelSizeId: 4,
-      itemName: '기존 품목',
+      itemName: itemName,
       labelSizeName: '60x40',
       element: '기존 원료',
       elementRTF: 'UEsDoriginal-payload',
