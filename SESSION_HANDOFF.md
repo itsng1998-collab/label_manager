@@ -28,6 +28,18 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-10): 품목관리 요청서 구현경계/엑셀 주원료 범위 보강
+
+- 요청: 다시 검토한 애매점과 레거시/현 구현 문제를 권장 사항으로 `.tmp/item_manager_modify.txt`에 병합한다.
+- `.tmp/item_manager_modify.txt`에 `ItemManage`가 원본 `List<ItemOfMarket>`/전역 `TColumnContent.get()` 직접 의존에서 working/draft row 목록과 일반 컬럼 값 resolver 입력 구조로 전환되어야 함을 명시했다.
+- 품목 삽입 기준 anchor/focus 행은 현재 `FortuneTableSelectionController` 외부에 노출되지 않으므로 controller getter/callback 추가 또는 `ItemManage` 별도 추적이 선행되어야 함을 명시했다.
+- 품목관리 저장은 Dart/UI 레이어의 여러 `DbClient.writeData...` 호출 조합이 아니라 하나의 isolate action 또는 하나의 SQL batch 안에서 `BEGIN`/`COMMIT`/`ROLLBACK`이 완료되는 방식으로 구현하도록 정리했다.
+- `ItemOfMarketDAO.SelectSql` label size override alias 불일치는 raw snapshot 우회만으로 남기지 않고 표시 SQL alias도 `ItemOfMarket.fromMap` key와 맞게 수정하도록 정리했다.
+- `forceReloadRequired` 상태에서 로그아웃/앱 종료만 예외 허용하고, 브랜드/라벨 변경과 탭 이동은 `다시 조회` 성공 전까지 차단하도록 정리했다.
+- 엑셀 `주원료` import는 1차 구현에서 표시 텍스트만 plain text로 가져오고 `RICH_ELEMENT_SHEET`는 빈 기본 payload로 생성하도록 낮췄다. 서식/inlineRuns/병합 영역 보존은 사용자 확인 후 후속 범위로 분리했다.
+- 사용자 확인 사항: 엑셀 `주원료` 셀의 서식/inlineRuns/병합 영역까지 보존해야 하는지 확인 필요. 1차 권장안은 plain text만 가져오는 방식이다.
+- 검증: `grep_search`로 새 문구와 잔여 주원료 서식 보존 기대 제거를 확인했고, `git diff --check -- .tmp/item_manager_modify.txt SESSION_HANDOFF.md` 통과.
+
 ### 완료 (2026-07-10): 품목관리 요청서 reload 상태/상수/용어 보강
 
 - 요청: 다시 검토한 애매점과 레거시/현 구현 문제를 권장 사항으로 `.tmp/item_manager_modify.txt`에 병합한다.
