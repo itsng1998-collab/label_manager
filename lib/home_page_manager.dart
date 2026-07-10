@@ -846,6 +846,7 @@ class _HomePageManagerState extends State<HomePageManager> {
           result.insertedItemIdsByDraftKey[selectedRow?.draftRowKey];
       final reloaded = await _reloadItemDraftFromDatabase(
         selectedItemId: selectedItemId,
+        preserveJournalOnFailure: true,
       );
       if (!reloaded) {
         _setItemDraftForceReloadRequired(true);
@@ -869,6 +870,7 @@ class _HomePageManagerState extends State<HomePageManager> {
     try {
       final reloaded = await _reloadItemDraftFromDatabase(
         selectedItemId: _selectedItemOfMarket?.item.itemId,
+        preserveJournalOnFailure: true,
       );
       if (!reloaded) {
         throw StateError('품목 목록을 다시 불러오지 못했습니다.');
@@ -1138,6 +1140,7 @@ class _HomePageManagerState extends State<HomePageManager> {
       if (!mounted) return;
       final reloaded = await _reloadItemDraftFromDatabase(
         selectedItemId: selectedItemId,
+        preserveJournalOnFailure: true,
       );
       if (!reloaded) {
         _setItemDraftForceReloadRequired(true);
@@ -1154,15 +1157,22 @@ class _HomePageManagerState extends State<HomePageManager> {
     }
   }
 
-  Future<bool> _reloadItemDraftFromDatabase({int? selectedItemId}) async {
+  Future<bool> _reloadItemDraftFromDatabase({
+    int? selectedItemId,
+    bool preserveJournalOnFailure = false,
+  }) async {
     final labelSize = _currentLabelSize;
     if (labelSize == null) return false;
-    await _itemDraftJournal?.close();
+    final previousJournal = _itemDraftJournal;
+    await previousJournal?.close(clearFile: !preserveJournalOnFailure);
     _itemDraftJournal = null;
     _disposeItemDraftController();
     _currentLabelSize = null;
     final loaded = await _handleLabelSizeChanged(labelSize);
-    if (!loaded) return false;
+    if (!loaded) {
+      if (preserveJournalOnFailure) _itemDraftJournal = previousJournal;
+      return false;
+    }
     if (selectedItemId == null) return true;
     final items = ItemOfMarket.datas ?? const <ItemOfMarket>[];
     final index = items.indexWhere(

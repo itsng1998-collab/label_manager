@@ -119,6 +119,51 @@ void main() {
         );
       },
     );
+
+    test('can retain a committed journal until reload cleanup', () async {
+      final controller = ItemManagerDraftController.fromItems(
+        items: [_itemOfMarket()],
+        rawSnapshots: {10: _snapshot()},
+        scopedColumnContents: TColumnContentScopedView(const {}),
+      );
+      addTearDown(controller.dispose);
+      final journal = ItemManagerDraftJournal(
+        controller: controller,
+        mappingFingerprints: ItemMarketMappingFingerprints(const {}),
+        metadata: const ItemManagerDraftJournalMetadata(
+          draftKey: 'user-1_4_3',
+          userId: 'user-1',
+          customerId: 2,
+          brandId: 8,
+          labelSizeId: 4,
+          currentMarketId: 3,
+          targetMarketIds: [3, 5],
+        ),
+        directoryProvider: () async => directory,
+      );
+      await journal.start();
+      controller.updateItemName('item:10', '저장된 품목');
+      await journal.flush();
+
+      final preferences = await SharedPreferences.getInstance();
+      final path = preferences.getString(
+        ItemManagerDraftJournal.lastPathPreferenceKey,
+      )!;
+      await journal.close(clearFile: false);
+
+      expect(await File(path).exists(), isTrue);
+      expect(
+        preferences.getString(ItemManagerDraftJournal.lastPathPreferenceKey),
+        path,
+      );
+
+      await journal.clear();
+      expect(await File(path).exists(), isFalse);
+      expect(
+        preferences.getString(ItemManagerDraftJournal.lastPathPreferenceKey),
+        isNull,
+      );
+    });
   });
 }
 

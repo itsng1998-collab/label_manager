@@ -216,6 +216,16 @@ class _ItemManageState extends State<ItemManage> {
                 : null,
             child: const Text('엑셀 내보내기'),
           ),
+          if (widget.commandBusy) ...[
+            const SizedBox(width: 12),
+            const SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            const SizedBox(width: 6),
+            const Text('처리 중'),
+          ],
           const Spacer(),
           if (widget.forceReloadRequired)
             FilledButton(

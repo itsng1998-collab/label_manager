@@ -1006,6 +1006,34 @@ void main() {
     },
   );
 
+  testWidgets('ItemManage shows progress while a command is running', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 600,
+            height: 220,
+            child: ItemManage(items: [], commandBusy: true),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(find.text('처리 중'), findsOneWidget);
+    expect(
+      tester
+          .widget<OutlinedButton>(
+            find.widgetWithText(OutlinedButton, '엑셀 가져오기'),
+          )
+          .onPressed,
+      isNull,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('FortuneTable consumes mouse wheel inside a parent scroll view', (
     tester,
   ) async {
