@@ -36,7 +36,7 @@
 - 최종 요약에도 1만 행 id 집합은 DAO 단일 action 안의 temp table/table variable 또는 chunk 기준으로 전달하고, 단순 대량 `IN` parameter 나열은 사용하지 않는다고 반복했다.
 - 사용자 확인 사항은 추가하지 않았고, 엑셀 `주원료` 칸의 보이는 글자만 가져올지 셀 서식/병합 모양까지 재현할지 여부 1개만 유지했다.
 - 검증: `grep_search`로 운영 fallback 금지와 chunk best-effort/baseline checksum 문구를 확인했고, `git diff --check -- .tmp/item_manager_modify.txt SESSION_HANDOFF.md` 통과.
-- 커밋 예정: `.tmp/item_manager_modify.txt`는 ignored 파일이므로 staging하지 않고, 추적 가능한 변경 기록으로 `SESSION_HANDOFF.md`만 커밋한다.
+- 커밋: `199f49b` 품목관리 요청서 scoped fallback 경계 정리. `.tmp/item_manager_modify.txt`는 ignored 파일이므로 staging하지 않고, 추적 가능한 변경 기록으로 `SESSION_HANDOFF.md`만 커밋했다.
 
 ### 완료 (2026-07-10): 품목관리 요청서 bulk id 전달 경계 보강
 
