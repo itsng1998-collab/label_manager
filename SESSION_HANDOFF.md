@@ -1,6 +1,6 @@
 # 세션 인수인계
 
-마지막 업데이트: 2026-07-08
+마지막 업데이트: 2026-07-10
 
 ## 작업 규칙
 
@@ -27,6 +27,19 @@
 - Godex G500 같은 라벨 프린터에서 정밀한 인쇄가 핵심이면 일반 프린터 경로와 직접 출력 경로를 분리한다. 직접 출력은 처음부터 모든 스타일을 100% EZPL 명령만으로 처리하기보다 `정밀 좌표 엔진 + EZPL 명령 + 셀 bitmap fallback` 구조를 우선한다. 테두리/선/박스와 바코드는 가능한 한 EZPL 명령으로 출력하고, 화면 폰트와 프린터 폰트 차이로 1:1 보장이 어려운 복합 스타일 텍스트/이미지/배경/RTF 계열 셀은 셀 단위 bitmap fallback을 사용해 시각적 일치도를 확보한다.
 
 ## 현재 상태
+
+### 완료 (2026-07-10): 품목관리 출력 미리보기 바코드 형식 재설정 요청서 병합
+
+- 요청: 현재 구현 분석 결과를 바탕으로 `출력내용 미리보기`에서 바코드 값뿐 아니라 바코드 형식까지 재설정해 렌더링할 수 있는지 요청서에 병합 정리한다.
+- `.tmp/item_manager_modify.txt` 반영 완료: `8.4 출력내용 미리보기 탭 제한`에 현재 구현이 `barcodeText`만 치환한다는 점과, 출력 미리보기에서 `barcodeFormatId` 및 표시 metadata를 함께 갱신해 품목 컬럼 설정 기준으로 재렌더링해야 한다는 권장안을 추가했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: `TColumn.barcodeType`에서 FortuneSheet barcode format id로 변환하는 helper 요구와 주요 매핑 예시(`Code128 -> code128`, `CodeEAN13 -> ean13`, `QrCode -> qrCode` 등)를 추가했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: 형식 변경 전 `BarcodeDataHelper.normalizeForPrint`를 우선 재사용하고, 유효하지 않은 값은 빈 바코드로 조용히 표시하지 않도록 오류 상태 또는 fallback 정책을 명시하도록 정리했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: object id가 품목 컬럼 keyword와 매칭되고 해당 column이 바코드/QR 계열일 때만 column 설정으로 형식을 재설정하도록 template 형식 덮어쓰기 범위를 제한했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: QR viewer helper 문구를 `ItemQRCodeDataResolver` 또는 통합 `ItemCodeDataResolver`로 확장해 viewer/출력 미리보기/실제 출력 경로가 문자열과 barcode format id를 공유하도록 정리했다.
+- 검증: `grep_search`로 `.tmp/item_manager_modify.txt`의 `barcodeFormatId`, `ItemCodeDataResolver`, format id 매핑, 현재 구현 문구 반영을 확인했다.
+- 검증: `grep_search`로 `SESSION_HANDOFF.md`의 진행/근거 문구 반영을 확인했다.
+- 검증: `git diff --check -- SESSION_HANDOFF.md` 통과.
+- stage/commit 대상: ignored `.tmp/item_manager_modify.txt` 변경 추적용 `SESSION_HANDOFF.md`만 stage/commit한다.
 
 ### 완료 (2026-07-10): 품목관리 요청서 재검토 권장안 후속 병합
 
