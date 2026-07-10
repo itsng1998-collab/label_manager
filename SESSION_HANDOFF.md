@@ -28,6 +28,17 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-10): 품목관리 요청서 저장 경로/mapping 기본값 보강
+
+- 요청: 다시 검토한 애매점과 레거시/현 구현 문제를 권장 사항으로 `.tmp/item_manager_modify.txt`에 병합한다.
+- 반영 완료: 일반 draft 저장과 엑셀 전체 교체 저장의 `mapping delete` 적용 범위를 분리해, 일반 저장에서 기존 mapping을 잘못 지우지 않도록 명시했다.
+- 반영 완료: 신규/엑셀 import item의 `BM_ITEM_OF_MARKET` 값은 현재 화면 기존 row snapshot 복제가 아니라 레거시 `CItemOfMarket(int marketID, item)` 신규 기본값 기반임을 명시했다.
+- 반영 완료: `currentMarketSnapshot`과 `newMappingDefaults` 역할을 분리하고, 기존 `marketMappingDraftTemplate` 표현의 혼선을 정리했다.
+- 반영 완료: 기존 item/child row no-op, 신규 row insert/update/upsert, order update 대상 범위를 테이블별 action 기준으로 보강했다.
+- 검증 완료: `Select-String -Path .tmp/item_manager_modify.txt -Pattern 'currentMarketSnapshot|newMappingDefaults|일반 draft 저장 권장 순서|엑셀 전체 교체 저장 권장 순서|일반 저장은 삭제 예정 기존 row만 mapping delete|수정/추가만 있는 일반 저장에서는|테이블별 1차 action 기준|현재 화면 market의 item id 집합에 속한 column content data hash|linefeed `100`|printCount `1`|MarketDAO\.selectByCustomerId'`로 병합 문구 반영을 확인했다.
+- 검증 완료: `git diff --check -- .tmp/item_manager_modify.txt` 통과(공백 오류 없음).
+- 커밋 예정: `SESSION_HANDOFF.md`만 포함한다. `.tmp/item_manager_modify.txt`는 ignore 대상이므로 force add하지 않고 작업 파일로 유지한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+
 ### 완료 (2026-07-10): 품목관리 요청서 current market/cache 경계 보강
 
 - 요청: 다시 검토한 애매점과 레거시/현 구현 문제를 권장 사항으로 `.tmp/item_manager_modify.txt`에 병합한다.
