@@ -37,6 +37,7 @@
 - `.tmp/item_manager_modify.txt` 반영 완료: Code128/QR/DataMatrix 등 check digit 자동 보정과 무관한 일반 barcode/QR 값은 각 타입의 기존 형식 검증 규칙을 따른다고 명시했다.
 - 검증: `git diff --check -- .tmp/item_manager_modify.txt` 통과. `grep_search`로 `EAN-13/UPC-A/EAN-8 외 타입은 check digit 자동 보정 저장을 수행하지 않는다`, `check digit 옵션 또는 레거시 전용 check digit 보정이 요구되는 입력만 저장 전 검증 오류`, `Code128/QR/DataMatrix 등 check digit 자동 보정과 무관한 일반 barcode/QR 값은 각 타입의 기존 형식 검증 규칙` 문구 확인. 기존 과도 표현 `그 외 barcode type이나 레거시 전용 check digit 보정은 이번 요청 범위에서 추가 구현하지 않고 저장 전 검증 오류`, `기타 레거시 전용 check digit은 이번 요청 범위에서 자동 보정 저장 대상으로 추가하지 않고 저장 전 검증 오류`, `사용자 답변: 미확정`, `확정 필요`, `TODO`, `FIXME` 없음 확인.
 - stage/commit 대상: ignored `.tmp/item_manager_modify.txt` 변경 추적용 `SESSION_HANDOFF.md`만 stage/commit한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+- 커밋: `46349e2` 품목관리 요청서 체크디지트 오류 범위 기록
 
 ### 완료 (2026-07-10): 품목관리 요청서 check digit 범위 닫기
 
