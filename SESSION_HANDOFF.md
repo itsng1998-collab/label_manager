@@ -28,6 +28,17 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-10): 품목관리 요청서 잔여 모호점 권장안 병합
+
+- 요청: 재검토에서 발견한 check digit 저장/출력 정책 충돌, QR/텍스트연동 날짜 포맷 기준, xlsx 지정 sheet parse DTO 계약, 날짜 setup enum range guard, template barcode format 유지 옵션 저장 위치를 권장안으로 `.tmp/item_manager_modify.txt`에 병합한다.
+- `.tmp/item_manager_modify.txt` 반영 완료: check digit 정책을 셀 편집 보정은 draft/DB 저장값 변경, preview/output 보정은 렌더링 payload만 변경하는 영역 분리 방식으로 정리했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: QR/텍스트연동 날짜형 token은 라벨 날짜 타입 표시 포맷이 아니라 `DATE_FORMAT_NONE` 기준을 사용하도록 정리했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: 품목관리 xlsx 지정 sheet parse helper가 parsed workbook, worksheet XML, relationship id, styles/shared strings, workbook date system, extension metadata를 담은 DTO를 반환하도록 계약을 구체화했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: 날짜 setup enum range guard를 추가해 DB enum 값이 범위 밖이어도 조회 단계에서 앱이 깨지지 않도록 완료 기준/검증 항목을 정리했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: template barcode format 유지가 필요하면 FortuneSheet barcode image `extraFields` 기반 후속 옵션으로 분리하고, 저장 feature key/sanitizer/normalize/migrate 갱신이 필요함을 사용자 확인 사항에 추가했다.
+- 검증: `grep_search`와 `read_file`로 결과 DTO/workbookDateSystem, check digit 영역 분리, `DATE_FORMAT_NONE` QR token, range guard, template format 후속 옵션 문구 반영 및 기존 preview/output-only check digit 확인 문구 제거를 확인했다.
+- stage/commit 대상: ignored `.tmp/item_manager_modify.txt` 변경 추적용 `SESSION_HANDOFF.md`만 stage/commit한다.
+
 ### 완료 (2026-07-10): 품목관리 요청서 바코드/QR 구현 모호점 권장안 병합
 
 - 요청: 재검토에서 발견한 barcode object id 의미, QR 기본 format 정책, check digit 자동 보정/오류 정책, EZPL native 지원 범위, FortuneSheet 표시 metadata 범위를 권장안으로 `.tmp/item_manager_modify.txt`에 병합한다.
