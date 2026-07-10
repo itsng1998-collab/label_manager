@@ -37,6 +37,7 @@
 - `.tmp/item_manager_modify.txt` 반영 완료: `[Excel]` 검증 태그에 `TYPE_IMAGE` 셀 표시 문자열 사용, 경로 제거, `.bmp` 확장자 제거, 다른 확장자 저장 전 검증 오류 fixture를 추가했다.
 - 검증: `git diff --check -- .tmp/item_manager_modify.txt` 통과. `grep_search`로 `EAN-13/UPC-A/EAN-8 컬럼의 TColumn.useBarcodeCheckDigit`, `[Excel] ... TYPE_IMAGE`, `경로 제거, .bmp 확장자 제거`, `다른 확장자 저장 전 검증 오류 fixture` 문구 확인. 기존 넓은 `바코드 셀 편집에서 TColumn.useBarcodeCheckDigit가 켜진 컬럼` 문구 없음 및 `사용자 답변: 미확정`, `확정 필요`, `TODO`, `FIXME` 없음 확인.
 - stage/commit 대상: ignored `.tmp/item_manager_modify.txt` 변경 추적용 `SESSION_HANDOFF.md`만 stage/commit한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+- 커밋: `f68e8b8` 품목관리 요청서 이미지 검증 기준 기록
 
 ### 완료 (2026-07-10): 품목관리 요청서 image import/check digit 수용조건 병합
 
