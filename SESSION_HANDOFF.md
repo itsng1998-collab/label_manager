@@ -28,6 +28,18 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-10): 품목관리 요청서 날짜 setup 로그 계약 권장안 병합
+
+- 요청: 재검토에서 남은 날짜 타입 설정 저장 이력 처리 애매점(로그 컬럼 probe 실패, 일부 컬럼만 존재, 로그 insert 실패)을 권장안으로 `.tmp/item_manager_modify.txt`에 병합한다.
+- 수정 예정 파일: `.tmp/item_manager_modify.txt`는 ignored 요청서 본문 수정, `SESSION_HANDOFF.md`는 ignored 요청서 변경 추적용 기록/검증/커밋 정보 갱신.
+- 사용자 확인: 새 비즈니스 정책 질문은 없으며, 기존 확정 답변(`로그 컬럼이 있으면 기록, 없으면 로그 없이 update`)을 구현 세부 계약으로 닫는다.
+- 병합 예정: 로그 컬럼 probe 실패 시 저장 차단, 필요한 로그 컬럼이 모두 있을 때만 로그 insert+setup update를 같은 transaction으로 처리, 일부/전체 로그 컬럼 없음은 로그 없이 setup update, 로그 insert 실패 시 rollback, 로그 없이 update 시 앱 로그 명시.
+- `.tmp/item_manager_modify.txt` 반영 완료: 날짜 setup 로그 컬럼 probe 실패 시 setup 저장을 차단하고 오류로 처리하도록 명시했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: 필요한 setup 로그 컬럼이 모두 있을 때만 로그 insert와 setup update를 같은 transaction에서 처리하고, 로그 insert 실패 시 setup update도 rollback하도록 명시했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: 로그 컬럼이 없거나 일부만 있으면 로그 없이 setup update만 수행하되 앱 로그에 이 사실을 남기도록 명시했다.
+- 검증: `git diff --check -- .tmp/item_manager_modify.txt` 통과. `grep_search`로 `로그 컬럼 probe 자체가 실패하면`, `로그 insert가 실패하면 setup update도 rollback`, `로그 컬럼이 없거나 일부만 있으면`, `로그 없이 update한 사실을 앱 로그`, `사용자 답변: 미확정` 없음 확인.
+- stage/commit 대상: ignored `.tmp/item_manager_modify.txt` 변경 추적용 `SESSION_HANDOFF.md`만 stage/commit한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+
 ### 완료 (2026-07-10): 품목관리 요청서 취소/재조회 계약 권장안 병합
 
 - 요청: 재검토에서 남은 애매 문구(엑셀 버튼 차단 조건의 `저장 또는 변경 취소 전까지`, mapping fingerprint 불일치 후 `다시 조회` 시 draft/백업 처리)를 권장안으로 `.tmp/item_manager_modify.txt`에 병합한다.
