@@ -119,6 +119,32 @@ void main() {
       expect(controller.selectedRowKeys, {'item:30'});
     });
 
+    test('discards ordinary edits from the in-memory baseline', () {
+      final controller = _controller([
+        _itemOfMarket(itemId: 10, order: 1, name: '첫 품목'),
+        _itemOfMarket(itemId: 20, order: 2, name: '둘째 품목'),
+      ]);
+      controller.updateItemName('item:10', '수정 품목');
+      controller.updateColumnValue(
+        'item:10',
+        columnId: 7,
+        editable: true,
+        dataString: 'changed',
+      );
+      controller.addRows(1, emptyElementPayload: '{}');
+      controller.deleteRows(const ['item:20']);
+
+      controller.discardChanges(selectedItemId: 20);
+
+      expect(controller.isDirty, isFalse);
+      expect(controller.rows.map((row) => row.rowKey), ['item:10', 'item:20']);
+      expect(controller.rows.first.itemName, '첫 품목');
+      expect(controller.rows.first.columnDrafts, isEmpty);
+      expect(controller.deletedSourceItemIds, isEmpty);
+      expect(controller.anchorRowKey, 'item:20');
+      expect(controller.selectedRowKeys, {'item:20'});
+    });
+
     test(
       'replaces clean rows with imported drafts and deletes all sources',
       () {
@@ -145,6 +171,7 @@ void main() {
 
         expect(controller.deletedSourceItemIds, {10, 20});
         expect(controller.deletedRowsBySourceItemId.keys, {10, 20});
+        expect(controller.hasImportedRows, isTrue);
         expect(imported.map((row) => row.rowState), [
           ItemManagerDraftRowState.imported,
           ItemManagerDraftRowState.imported,

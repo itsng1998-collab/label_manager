@@ -560,11 +560,15 @@ class _HomePageManagerState extends State<HomePageManager> {
     }
   }
 
-  Future<bool> _handleLabelSizeChanged(LabelSize? labelSize) async {
+  Future<bool> _handleLabelSizeChanged(
+    LabelSize? labelSize, {
+    bool forceReload = false,
+  }) async {
     try {
       debugLog(START);
 
-      if (labelSize?.labelSizeId != _currentLabelSize?.labelSizeId &&
+        if (!forceReload &&
+          labelSize?.labelSizeId != _currentLabelSize?.labelSizeId &&
           _blockItemDraftContextChange()) {
         widget.onLabelSizeChanged(_currentLabelSize);
         return false;
@@ -572,7 +576,8 @@ class _HomePageManagerState extends State<HomePageManager> {
 
       final currentLabelSizeId = _currentLabelSize?.labelSizeId;
       final selectedLabelSizeId = widget.selectedLabelSize?.labelSizeId;
-      if (labelSize?.labelSizeId == currentLabelSizeId &&
+        if (!forceReload &&
+          labelSize?.labelSizeId == currentLabelSizeId &&
           labelSize?.labelSizeId == selectedLabelSizeId) {
         debugLog('skip unchanged labelSizeId=${labelSize?.labelSizeId}');
         return true;
@@ -757,7 +762,7 @@ class _HomePageManagerState extends State<HomePageManager> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('변경 취소'),
-        content: const Text('품목관리 변경 사항을 모두 취소할까요?'),
+        content: const Text('변경 내용을 취소할까요?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
@@ -771,7 +776,28 @@ class _HomePageManagerState extends State<HomePageManager> {
       ),
     );
     if (confirmed != true || !mounted) return;
-    await _reloadItemDraftFromDatabase();
+    if (controller.hasImportedRows) {
+      final reloaded = await _reloadItemDraftFromDatabase();
+      if (!reloaded && mounted) {
+        _showItemDraftError('변경 취소 실패', StateError('품목 목록을 다시 불러오지 못했습니다.'));
+      }
+      return;
+    }
+    final selectedItemId = _selectedItemOfMarket?.item.itemId;
+    controller.discardChanges(selectedItemId: selectedItemId);
+    final anchorRowKey = controller.anchorRowKey;
+    final selectedIndex = anchorRowKey == null
+        ? -1
+        : controller.rows.indexWhere((row) => row.rowKey == anchorRowKey);
+    if (selectedIndex >= 0) {
+      _selectedItemIndex = selectedIndex;
+      _selectedItemOfMarket = controller.rows[selectedIndex].source;
+    } else {
+      _selectedItemIndex = null;
+      _selectedItemOfMarket = null;
+    }
+    _resetTabs();
+    setState(() {});
   }
 
   Future<void> _saveItemDraft() async {
@@ -846,7 +872,6 @@ class _HomePageManagerState extends State<HomePageManager> {
           result.insertedItemIdsByDraftKey[selectedRow?.draftRowKey];
       final reloaded = await _reloadItemDraftFromDatabase(
         selectedItemId: selectedItemId,
-        preserveJournalOnFailure: true,
       );
       if (!reloaded) {
         _setItemDraftForceReloadRequired(true);
@@ -870,7 +895,6 @@ class _HomePageManagerState extends State<HomePageManager> {
     try {
       final reloaded = await _reloadItemDraftFromDatabase(
         selectedItemId: _selectedItemOfMarket?.item.itemId,
-        preserveJournalOnFailure: true,
       );
       if (!reloaded) {
         throw StateError('품목 목록을 다시 불러오지 못했습니다.');
@@ -1140,7 +1164,6 @@ class _HomePageManagerState extends State<HomePageManager> {
       if (!mounted) return;
       final reloaded = await _reloadItemDraftFromDatabase(
         selectedItemId: selectedItemId,
-        preserveJournalOnFailure: true,
       );
       if (!reloaded) {
         _setItemDraftForceReloadRequired(true);
@@ -1157,22 +1180,11 @@ class _HomePageManagerState extends State<HomePageManager> {
     }
   }
 
-  Future<bool> _reloadItemDraftFromDatabase({
-    int? selectedItemId,
-    bool preserveJournalOnFailure = false,
-  }) async {
+  Future<bool> _reloadItemDraftFromDatabase({int? selectedItemId}) async {
     final labelSize = _currentLabelSize;
     if (labelSize == null) return false;
-    final previousJournal = _itemDraftJournal;
-    await previousJournal?.close(clearFile: !preserveJournalOnFailure);
-    _itemDraftJournal = null;
-    _disposeItemDraftController();
-    _currentLabelSize = null;
-    final loaded = await _handleLabelSizeChanged(labelSize);
-    if (!loaded) {
-      if (preserveJournalOnFailure) _itemDraftJournal = previousJournal;
-      return false;
-    }
+    final loaded = await _handleLabelSizeChanged(labelSize, forceReload: true);
+    if (!loaded) return false;
     if (selectedItemId == null) return true;
     final items = ItemOfMarket.datas ?? const <ItemOfMarket>[];
     final index = items.indexWhere(

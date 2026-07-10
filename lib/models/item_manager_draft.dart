@@ -287,6 +287,7 @@ class ItemManagerDraftRow {
 
 class ItemManagerDraftController extends ChangeNotifier {
   final List<ItemManagerDraftRow> _rows;
+  final List<ItemManagerDraftRow> _baselineRows;
   final TColumnContentScopedView scopedColumnContents;
   final List<ItemManagerColumnValidationRule> validationRules;
   final Set<int> _deletedSourceItemIds = {};
@@ -306,6 +307,7 @@ class ItemManagerDraftController extends ChangeNotifier {
     this.labelSizeName = '',
     DateTime Function()? now,
   }) : _rows = List.of(rows),
+      _baselineRows = List.unmodifiable(rows),
        _now = now ?? DateTime.now {
     _validateRows(_rows);
   }
@@ -359,6 +361,30 @@ class ItemManagerDraftController extends ChangeNotifier {
   bool get isDirty =>
       _deletedSourceItemIds.isNotEmpty ||
       _rows.any((row) => row.rowState != ItemManagerDraftRowState.existing);
+  bool get hasImportedRows =>
+      _rows.any((row) => row.rowState == ItemManagerDraftRowState.imported);
+
+  void discardChanges({int? selectedItemId}) {
+    _rows
+      ..clear()
+      ..addAll(_baselineRows);
+    _deletedSourceItemIds.clear();
+    _deletedRowsBySourceItemId.clear();
+    ItemManagerDraftRow? selectedRow;
+    for (final row in _rows) {
+      if (row.sourceItemId == selectedItemId) {
+        selectedRow = row;
+        break;
+      }
+    }
+    final anchorRow = selectedRow ?? (_rows.isEmpty ? null : _rows.first);
+    _selectedRowKeys
+      ..clear()
+      ..addAll(anchorRow == null ? const [] : [anchorRow.rowKey]);
+    _anchorRowKey = anchorRow?.rowKey;
+    _selectedColumnId = null;
+    notifyListeners();
+  }
 
   String columnValue(ItemManagerDraftRow row, int columnId) {
     final draft = row.columnDrafts[columnId];
