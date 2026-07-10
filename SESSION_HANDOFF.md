@@ -28,6 +28,17 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-10): 품목관리 요청서 남은 구현 경계 권장안 병합
+
+- 요청: 재검토에서 남은 `ItemDAO.updateOrders` transaction 예외 범위, 날짜 setup 저장 로그 정책, `preserveTemplateBarcodeFormat` 보존 범위, `MarketDAO.selectByCustomerId` 포함 조건, enum range guard fallback UI, barcode 오류 표시 검증 기준을 권장안으로 `.tmp/item_manager_modify.txt`에 병합한다.
+- `.tmp/item_manager_modify.txt` 반영 완료: 독립 reorder command인 `ItemDAO.updateOrders`는 단일 SQL batch transaction 허용, 품목관리 저장 DAO는 `DbIsolateAction.transaction` 필수로 경계를 분리했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: 날짜 setup 저장 전 `BM_RICH_LABELSIZE_FORM_LOG` setup 로그 컬럼 확인 후 로그 포함 transaction 또는 로그 없는 update 정책을 확정하도록 정리했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: `preserveTemplateBarcodeFormat=true`이면 `barcodeText`만 바꾸고 `barcodeFormatId`/label/showText/human-readable 등 template barcode metadata를 보존하도록 범위를 구체화했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: `MarketDAO.selectByCustomerId`는 레거시 고객별 market 조회 조건과 `BM_MARKET` 상태 컬럼 의미를 확인해 `targetMarketIds`를 산출하도록 정리했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: enum range guard는 기본값 표시 + 다이얼로그 상단 경고로 고정하고, barcode invalid 값 검증은 `_ItemOutputPreviewTab` 상단 오류 목록을 1차 필수로 고정했다.
+- 검증: `grep_search`로 `BM_RICH_LABELSIZE_FORM_LOG`, `단일 SQL batch transaction을 허용`, `DbIsolateAction.transaction`, `비활성/숨김/삭제`, `barcodeText만`, `기본값으로 표시하되 다이얼로그 상단`, `_ItemOutputPreviewTab 상단 오류 목록` 반영 및 기존 애매 문구 제거를 확인했다. `git diff --check -- .tmp/item_manager_modify.txt SESSION_HANDOFF.md` 통과.
+- stage/commit 대상: ignored `.tmp/item_manager_modify.txt` 변경 추적용 `SESSION_HANDOFF.md`만 stage/commit한다.
+
 ### 완료 (2026-07-10): 품목관리 요청서 구현 전 필수 정책 권장안 병합
 
 - 요청: 재검토에서 남은 `LabelSizeDAO.updateSetup` API 고정, 삭제/전체교체 targetMarket 적용 범위, item-level order 영향, template barcode format 유지 옵션 key, DateManager 날짜/시간 token helper 분리, `forceReloadRequired` 상태 소유자 모호점을 권장안으로 `.tmp/item_manager_modify.txt`에 병합한다.
