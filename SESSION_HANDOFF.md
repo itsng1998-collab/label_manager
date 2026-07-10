@@ -37,6 +37,7 @@
 - `.tmp/item_manager_modify.txt` 반영 완료: 바코드 셀 편집 check digit 자동 보정 저장 범위를 EAN-13/UPC-A/EAN-8로 닫고, 0 padding/truncation 결과는 저장 보정값으로 사용하지 않으며 ITF 홀수와 기타 레거시 전용 check digit은 저장 전 검증 오류 또는 별도 명시 구현 대상으로 정리했다.
 - 검증: `git diff --check -- .tmp/item_manager_modify.txt` 통과. `grep_search`로 `read-only fallback SELECT는 선택 구현`, `필수 완료 기준은 기존 SELECT 미실행`, `필수 동작은 DB migration 안내 화면 전환`, `fallback SELECT가 없거나 실패하면 테이블을 열지 않는다`, `셀 편집 자동 보정 저장 범위는 EAN-13/UPC-A/EAN-8`, `길이 부족/초과를 0 padding 또는 truncation으로 맞춘 값은 셀 편집 자동 보정 저장값으로 사용하지 않는다` 문구 확인. `사용자 답변: 미확정`, `확정 필요`, `TODO`, `FIXME` 없음 확인.
 - stage/commit 대상: ignored `.tmp/item_manager_modify.txt` 변경 추적용 `SESSION_HANDOFF.md`만 stage/commit한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+- 커밋: `7938fed` 품목관리 요청서 fallback 보정 기준 기록
 
 ### 완료 (2026-07-10): 품목관리 요청서 읽기 검증/Excel format 중복 정리
 
