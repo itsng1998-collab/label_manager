@@ -28,6 +28,16 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-10): 품목관리 요청서 1만 행 백업/RTF lazy 정책 병합
+
+- 요청: `.tmp/item_manager_modify.txt`에 최대 1만 행 기준의 효율적인 임시 백업 정책과 기존 품목관리 RTF 자동 변환 충돌 방지 정책을 병합한다.
+- 수정 완료: 임시 파일 백업 기준을 전체 heavy 원본 스냅샷에서 `최소 baseline + 변경 대상 before snapshot + draft journal` 구조로 변경했다. 변경되지 않은 행의 `RICH_ELEMENT_SHEET`/`RICH_ELEMENT_RTF` heavy payload는 JSON에 저장하지 않고, 수정/삭제 대상 before snapshot과 신규/수정 draft에만 포함하도록 정리했다.
+- 수정 완료: 엑셀 가져오기 전체 교체 취소는 1만 행 전체 heavy snapshot을 만들지 않고 DB 재조회와 import 직전 UI metadata 복원으로 처리하도록 본문, UX, 검증 항목, 최종 정리에 반영했다.
+- 수정 완료: 품목관리 편집 기능 중 legacy RTF는 테이블 진입 시 전체 자동 DB 마이그레이션하지 않고, 주원료 편집/미리보기 진입 시 lazy 변환한 뒤 draft 변경으로만 반영하도록 `2.7.1`, `10.5`, 검증 항목에 추가했다.
+- 검증 완료: `Select-String -Path .tmp/item_manager_modify.txt -Pattern '마지막 DB 조회 원본 스냅샷|DB 조회 원본 스냅샷 \\+ 임시 편집 상태|원본 스냅샷|전체 자동 DB 마이그레이션|lazy RTF|baseline/journal'`로 이전 충돌 문구가 제거되고 새 정책 문구만 남은 것을 확인했다.
+- 검증 완료: `git diff --check -- SESSION_HANDOFF.md` 통과(출력 없음).
+- 커밋 예정: `SESSION_HANDOFF.md`만 포함한다. `.tmp/item_manager_modify.txt`는 `.gitignore`의 `.tmp/` 대상이므로 force add하지 않고 작업 파일로 유지한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+
 ### 완료 (2026-07-10): 품목관리 요청서 엑셀 sheet 매칭/백업 역할 보강
 
 - 요청: `.tmp/item_manager_modify.txt`에서 남은 첫 worksheet 매칭 기준과 백업 JSON 선택 정보 역할 애매점을 권장 사항으로 병합 정리한다.
