@@ -727,8 +727,12 @@ class _HomePageManagerState extends State<HomePageManager> {
         controller: _itemDraftController!,
         mappingFingerprints: _itemDraftMappingFingerprints,
         metadata: ItemManagerDraftJournalMetadata(
-          draftKey:
-              '${user.userId}_${customer.customerId}_${labelSize.labelSizeId}_${market.marketId}',
+          draftKey: itemManagerDraftKey(
+            userId: user.userId,
+            customerId: customer.customerId,
+            brandId: labelSize.brandId,
+            labelSizeId: labelSize.labelSizeId,
+          ),
           userId: user.userId,
           customerId: customer.customerId,
           brandId: labelSize.brandId,

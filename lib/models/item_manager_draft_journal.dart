@@ -10,6 +10,13 @@ import 'package:label_manager/models/item_manager_draft.dart';
 import 'package:label_manager/models/item_of_market.dart';
 import 'package:label_manager/utils/log_context.dart';
 
+String itemManagerDraftKey({
+  required String userId,
+  required int customerId,
+  required int brandId,
+  required int labelSizeId,
+}) => '${userId}_${customerId}_${brandId}_$labelSizeId';
+
 class ItemManagerDraftJournalMetadata {
   final String draftKey;
   final String userId;
@@ -107,6 +114,10 @@ class ItemManagerDraftJournal {
     if (_started) return;
     metadata.validate();
     _createdAt ??= DateTime.now().toUtc();
+    await _ignoreBackgroundError(
+      _clearLastJournalFromPreviousSession,
+      'startup stale clear',
+    );
     _started = true;
     controller.addListener(_handleDraftChanged);
     if (!controller.isDirty) await _ignoreBackgroundError(clear, 'start clear');
@@ -170,6 +181,31 @@ class ItemManagerDraftJournal {
       await preferences.remove(lastDraftKeyPreferenceKey);
       await preferences.remove(lastSavedAtPreferenceKey);
     }
+  }
+
+  Future<void> _clearLastJournalFromPreviousSession() async {
+    final preferences = await _preferencesProvider();
+    final lastPath = preferences.getString(lastPathPreferenceKey);
+    if (lastPath != null) {
+      final directory = await _directoryProvider();
+      final draftsDirectory = p.normalize(
+        p.join(directory.path, 'item_manager_drafts'),
+      );
+      final normalizedPath = p.normalize(lastPath);
+      if (p.isWithin(draftsDirectory, normalizedPath)) {
+        for (final path in [
+          '$normalizedPath.tmp',
+          normalizedPath,
+          '$normalizedPath.bak',
+        ]) {
+          final file = File(path);
+          if (await file.exists()) await file.delete();
+        }
+      }
+    }
+    await preferences.remove(lastPathPreferenceKey);
+    await preferences.remove(lastDraftKeyPreferenceKey);
+    await preferences.remove(lastSavedAtPreferenceKey);
   }
 
   Future<void> close({bool clearFile = true}) async {

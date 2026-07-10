@@ -25,6 +25,64 @@ void main() {
       if (await directory.exists()) await directory.delete(recursive: true);
     });
 
+    test('draft key uses user, customer, brand, and label size', () {
+      expect(
+        itemManagerDraftKey(
+          userId: 'user-1',
+          customerId: 2,
+          brandId: 8,
+          labelSizeId: 4,
+        ),
+        'user-1_2_8_4',
+      );
+    });
+
+    test('start clears the previous session journal for another key', () async {
+      final draftsDirectory = Directory(
+        '${directory.path}${Platform.pathSeparator}item_manager_drafts',
+      );
+      await draftsDirectory.create();
+      final staleFile = File(
+        '${draftsDirectory.path}${Platform.pathSeparator}old-key.json',
+      );
+      await staleFile.writeAsString('{}');
+      SharedPreferences.setMockInitialValues({
+        ItemManagerDraftJournal.lastPathPreferenceKey: staleFile.path,
+        ItemManagerDraftJournal.lastDraftKeyPreferenceKey: 'old-key',
+        ItemManagerDraftJournal.lastSavedAtPreferenceKey: '2026-07-09T00:00:00Z',
+      });
+      final controller = ItemManagerDraftController.fromItems(
+        items: [_itemOfMarket()],
+        rawSnapshots: {10: _snapshot()},
+        scopedColumnContents: TColumnContentScopedView(const {}),
+      );
+      addTearDown(controller.dispose);
+      final journal = ItemManagerDraftJournal(
+        controller: controller,
+        mappingFingerprints: ItemMarketMappingFingerprints(const {}),
+        metadata: const ItemManagerDraftJournalMetadata(
+          draftKey: 'new-key',
+          userId: 'user-1',
+          customerId: 2,
+          brandId: 8,
+          labelSizeId: 4,
+          currentMarketId: 3,
+          targetMarketIds: [3],
+        ),
+        directoryProvider: () async => directory,
+      );
+
+      await journal.start();
+
+      expect(await staleFile.exists(), isFalse);
+      final preferences = await SharedPreferences.getInstance();
+      expect(
+        preferences.getString(ItemManagerDraftJournal.lastPathPreferenceKey),
+        isNull,
+      );
+      await journal.close();
+    });
+
     test(
       'writes lightweight baseline and changed row journal atomically',
       () async {
