@@ -35,7 +35,7 @@
 - 수정 완료: `ItemOfMarket`/`Item`은 `final` 필드 기반 값 객체이며, 기존 값 변경 경로는 직접 mutate가 아니라 대상 행만 `copyWith`/새 객체로 교체하는 방식임을 명시했다.
 - 수정 완료: 품목 추가/삽입 신규 행은 기존 `ItemOfMarket.datas` row나 관리 객체를 참조 공유하지 않고, 임시 draft row key를 가진 독립 신규 row draft로 생성하도록 `5.2`, `5.3`, `6.1`, `10.2`, 최종 정리에 반영했다.
 - 검증 완료: `Select-String -Path .tmp/item_manager_modify.txt -Pattern 'ItemOfMarket\\.datas|직접 mutate|참조 공유|독립 신규 row draft|draft row key|기존 row 객체|값 객체'`로 현재 구현 기준과 신규 행 독립 draft 정책 문구가 반영된 것을 확인했다.
-- 커밋 예정: `SESSION_HANDOFF.md`만 포함한다. `.tmp/item_manager_modify.txt`는 `.gitignore`의 `.tmp/` 대상이므로 force add하지 않고 작업 파일로 유지한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+- 커밋 완료: `fdc07e1` 품목관리 요청서 데이터 보관 방식 병합. 포함 파일은 `SESSION_HANDOFF.md`이며, `.tmp/item_manager_modify.txt`는 ignore 대상 작업 파일로 유지했다. 기존 unrelated dirty `lib/core/app.dart`는 제외했다.
 
 ### 완료 (2026-07-10): 품목관리 요청서 1만 행 백업/RTF lazy 정책 병합
 
