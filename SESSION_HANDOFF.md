@@ -28,6 +28,18 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-10): 품목관리 요청서 구현 누락 방지 기준 권장안 병합
+
+- 요청: 재검토 결과를 권장안으로 `.tmp/item_manager_modify.txt`에 병합하고, 사용자 확인 사항이 있으면 즉시 질문해 확정한다.
+- 수정 예정 파일: `.tmp/item_manager_modify.txt`는 ignored 요청서 본문 수정, `SESSION_HANDOFF.md`는 ignored 요청서 변경 추적용 기록/검증/커밋 정보 갱신.
+- 사용자 확인: 새 비즈니스 정책 질문은 없으며, 현재 검토 결과는 구현 선행 조건/검증 누락 방지 기준 보강으로 처리한다.
+- 병합 예정: `CodeEAN8`/barcode resolver 선행 검증, `preserveTemplateBarcodeFormat` 저장 codec migrate/normalize/import 테스트, output workbook metadata 반영 검증, transaction/scoped 조회 선행 조건을 완료 기준과 검증 항목에 더 명확히 반영한다.
+- `.tmp/item_manager_modify.txt` 반영 완료: 현 `CodeEAN8(9, 'CODE128')` 상태를 resolver 내부 우회만으로 덮는 구현은 완료로 보지 않도록 명시했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: `preserveTemplateBarcodeFormat` metadata는 feature key, image sanitizer allow-list, save json normalize/migrate, `.lms`/`.xlsx` round-trip 검증을 같은 완료 조건으로 묶었다.
+- `.tmp/item_manager_modify.txt` 반영 완료: 검증 항목에 `DbIsolateAction.transaction` 없는 상태의 다중 write 조합 금지, alias/fallback 값 draft 혼입 방지, output workbook metadata 반영 검증을 추가했다.
+- 검증: `git diff --check -- .tmp/item_manager_modify.txt` 통과. `grep_search`로 `resolver에서만 우회 처리한 구현은 완료로 보지 않는다`, `metadata가 조용히 제거될 수 있으므로`, `DbIsolateAction.transaction` 다중 write 금지, `save codec round-trip`, `기본 false`, `사용자 답변: 미확정` 없음 확인.
+- stage/commit 대상: ignored `.tmp/item_manager_modify.txt` 변경 추적용 `SESSION_HANDOFF.md`만 stage/commit한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+
 ### 완료 (2026-07-10): 품목관리 요청서 바코드/복구 UI 계약 권장안 병합
 
 - 요청: 재검토에서 남은 애매점(`preserveTemplateBarcodeFormat=true` 완료 기준 예외, 바코드 셀 편집 시 ITF 홀수 길이 left-pad 저장 정책, mapping fingerprint 불일치 시 UI 기본/보조 액션)을 권장안으로 `.tmp/item_manager_modify.txt`에 병합한다.
