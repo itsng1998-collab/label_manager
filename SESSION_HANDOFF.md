@@ -28,6 +28,16 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-10): 품목관리 요청서 사용자 답변 확정 반영
+
+- 요청: `사용자 확인 사항`을 나중에 묻는 목록으로 두지 말고 지금 받은 사용자 답변을 요청서에 확정 반영한다.
+- `.tmp/item_manager_modify.txt` 반영 완료: 하단 제목을 `사용자 확인 사항(확정 답변)`으로 바꾸고, 11개 `사용자 답변: 미확정`을 현재 받은 사용자 답변으로 확정했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: 사용자 답변이 권장안과 달라진 `잘못된 바코드 값 fallback 허용` 정책을 출력 미리보기 본문, QR/바코드 helper 완료 기준, barcode/output preview 검증 항목에 반영했다.
+- 확정 답변 요약: 주원료 글자+서식/병합 보존, 삭제/전체교체는 레거시와 같게 `targetMarketIds` 전체 적용, 날짜 용어는 `소비기한`/`소비시한`, 순서 변경의 다른 market 영향 허용, 바코드/QR 형식은 column 우선, 잘못된 바코드 값은 fallback 허용, check digit 자동 보정, QR format 기본 정책 유지, EZPL 미지원 format raster fallback, QR 날짜 token은 `DATE_FORMAT_NONE`, setup 로그는 컬럼 있으면 기록/없으면 update만 수행.
+- 검증: `git diff --check -- .tmp/item_manager_modify.txt SESSION_HANDOFF.md` 통과. `grep_search`로 `사용자 답변: 미확정` 없음, fallback 허용/대체 형식/경고 문구 반영 확인.
+- stage/commit 대상: ignored `.tmp/item_manager_modify.txt` 변경 추적용 `SESSION_HANDOFF.md`만 stage/commit한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+- 커밋: 예정.
+
 ### 완료 (2026-07-10): 품목관리 요청서 사용자 확인 사항 확정 질문화
 
 - 요청: 하단 `사용자 확인 사항`이 실 구현 중 방향을 흔들 수 있으므로, 사용자에게 실제로 물어볼 수 있는 질문/권장 선택/다른 선택 시 구현 영향으로 정리해 요청서에 반영한다.
