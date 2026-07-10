@@ -761,6 +761,14 @@ class _HomePageManagerState extends State<HomePageManager> {
   }
 
   bool _blockItemDraftContextChange() {
+    if (_itemDraftCommandBusy) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('현재 작업이 끝난 뒤 변경해 주세요.')),
+        );
+      }
+      return true;
+    }
     if (_itemDraftForceReloadRequired) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1363,6 +1371,14 @@ class _HomePageManagerState extends State<HomePageManager> {
   }
 
   void _onTabSelection(int? index, TabData? tab) {
+    if (tab?.value != 'items' && _blockItemDraftContextChange()) {
+      final itemIndex = _tabs.indexWhere((candidate) => candidate.value == 'items');
+      if (itemIndex >= 0 && _tabController.selectedIndex != itemIndex) {
+        _tabController.selectedIndex = itemIndex;
+      }
+      _showItemPreviewWindow();
+      return;
+    }
     if (tab?.value == 'items') {
       _showItemPreviewWindow();
     } else if (tab?.value == 'common_label') {
@@ -1750,6 +1766,7 @@ class _HomePageManagerState extends State<HomePageManager> {
             'item:${selected.item.itemId}',
         labelSize: _effectiveLabelSize,
         onElementCommitted: _commitSelectedItemElementDraft,
+        canSelectOutputPreview: () => !_blockItemDraftContextChange(),
       );
       if (_itemPreviewWindow == null) {
         _itemPreviewAlignedToTable = false;
@@ -3350,6 +3367,7 @@ class _ItemPreviewPanel extends StatefulWidget {
     required this.item,
     required this.rowIdentity,
     required this.onElementCommitted,
+    required this.canSelectOutputPreview,
     this.labelSize,
   });
 
@@ -3358,6 +3376,7 @@ class _ItemPreviewPanel extends StatefulWidget {
   final LabelSize? labelSize;
   final Future<void> Function(String elementPlain, String elementPayload)
   onElementCommitted;
+  final bool Function() canSelectOutputPreview;
 
   @override
   State<_ItemPreviewPanel> createState() => _ItemPreviewPanelState();
@@ -3372,7 +3391,16 @@ class _ItemPreviewPanelState extends State<_ItemPreviewPanel> {
   int _elementRtfConversionGeneration = 0;
   late final TabbedViewController _controller = TabbedViewController(
     _buildTabs(),
+    onTabSelection: _handleTabSelection,
   );
+
+  void _handleTabSelection(int? index, TabData? tab) {
+    if (tab?.value != 'item_output_preview' ||
+        widget.canSelectOutputPreview()) {
+      return;
+    }
+    _controller.selectTabByValue('item_element');
+  }
 
   @override
   void initState() {
@@ -3910,11 +3938,13 @@ Widget debugItemPreviewPanelForTesting({
   String? rowIdentity,
   Future<void> Function(String elementPlain, String elementPayload)?
   onElementCommitted,
+  bool Function()? canSelectOutputPreview,
 }) => _ItemPreviewPanel(
   item: item,
   rowIdentity: rowIdentity ?? 'item:${item.item.itemId}',
   labelSize: labelSize,
   onElementCommitted: onElementCommitted ?? (_, _) async {},
+  canSelectOutputPreview: canSelectOutputPreview ?? () => true,
 );
 
 @visibleForTesting

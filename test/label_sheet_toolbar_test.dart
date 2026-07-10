@@ -627,6 +627,34 @@ void main() {
     expect(find.text('* 라벨을 편집 저장 후 가능합니다.'), findsOneWidget);
   });
 
+  testWidgets('item preview blocks output tab while draft context is locked', (
+    tester,
+  ) async {
+    var blockedRequests = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: debugItemPreviewPanelForTesting(
+            item: _testItemOfMarket(itemId: 10, itemName: '첫 품목'),
+            labelSize: _testLabelSizeWithFormData(r'{\rtf1\ansi legacy}'),
+            canSelectOutputPreview: () {
+              blockedRequests += 1;
+              return false;
+            },
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(find.text('출력내용 미리보기').last);
+    await tester.pumpAndSettle();
+
+    expect(blockedRequests, 1);
+    expect(find.text('* 라벨을 편집 저장 후 가능합니다.'), findsNothing);
+    expect(find.text('주원료 및 함량'), findsWidgets);
+  });
+
   test('label sheet toolbar starts with save and print actions', () {
     final settings = labelSheetSettings(
       const FortuneSettings(),
