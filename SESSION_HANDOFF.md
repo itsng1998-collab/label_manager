@@ -38,6 +38,7 @@
 - `.tmp/item_manager_modify.txt` 반영 완료: enum range guard는 기본값 표시 + 다이얼로그 상단 경고로 고정하고, barcode invalid 값 검증은 `_ItemOutputPreviewTab` 상단 오류 목록을 1차 필수로 고정했다.
 - 검증: `grep_search`로 `BM_RICH_LABELSIZE_FORM_LOG`, `단일 SQL batch transaction을 허용`, `DbIsolateAction.transaction`, `비활성/숨김/삭제`, `barcodeText만`, `기본값으로 표시하되 다이얼로그 상단`, `_ItemOutputPreviewTab 상단 오류 목록` 반영 및 기존 애매 문구 제거를 확인했다. `git diff --check -- .tmp/item_manager_modify.txt SESSION_HANDOFF.md` 통과.
 - stage/commit 대상: ignored `.tmp/item_manager_modify.txt` 변경 추적용 `SESSION_HANDOFF.md`만 stage/commit한다.
+- 커밋: `1a5e58c` 품목관리 요청서 구현 경계 권장안 정리
 
 ### 완료 (2026-07-10): 품목관리 요청서 구현 전 필수 정책 권장안 병합
 
