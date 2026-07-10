@@ -28,6 +28,20 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-10): 품목관리 요청서 current market/cache 경계 보강
+
+- 요청: 다시 검토한 애매점과 레거시/현 구현 문제를 권장 사항으로 `.tmp/item_manager_modify.txt`에 병합한다.
+- 현 구현 확인 완료: Flutter `MarketDAO`에는 현재 `selectByMarketId`만 있고, 레거시의 `CMarketDAO::SelectByCustID`에 대응하는 고객별 market 목록 DAO가 없다.
+- 현 구현 확인 완료: `TColumnContentDAO.selectByLabelSizeId`는 `BM_RICH_ITEM.RICH_LABELSIZE_ID`만 기준으로 column content를 조회하므로, mapping 제거 후 남은 item/child row가 캐시·checksum 범위에 섞일 수 있다.
+- 수정 완료: `MarketDAO.selectByCustomerId` 또는 동등 DAO를 `targetMarketIds` 산출 선행 작업으로 명시했다.
+- 수정 완료: `TColumnContentDAO` 조회 또는 캐시/checksum 입력을 현재 화면 item id 집합 기준으로 제한하도록 정리했다.
+- 수정 완료: `targetMarketIds`는 row별 필드가 아니라 편집 세션/저장 batch metadata로 분리했다.
+- 수정 완료: `RICH_ITEM_ORDER`는 item-level 전역 순서라 다른 market 표시 순서에도 영향을 줄 수 있음을 명시하고, market별 독립 order는 이번 범위에서 제외했다.
+- 수정 완료: 요청서의 `delete` 용어를 `draft row delete`, `mapping delete`, `physical item delete`, `child row cleanup`으로 구분하도록 정리했다.
+- 검증 완료: `Select-String -Path .tmp/item_manager_modify.txt -Pattern 'MarketDAO\.selectByCustomerId|고객별 market|세션 metadata|편집 세션/저장 batch metadata|row별|현재 화면 market의 item id 집합|orphan.*checksum|orphan 데이터|RICH_ITEM_ORDER|market별 독립 order|draft row delete|mapping delete|physical item delete|child row cleanup|TColumnContentDAO.*현재 화면|targetMarketIds.*row별'`로 병합 문구 반영을 확인했다.
+- 검증 완료: `git diff --check -- .tmp/item_manager_modify.txt` 통과(공백 오류 없음).
+- 커밋 예정: `SESSION_HANDOFF.md`만 포함한다. `.tmp/item_manager_modify.txt`는 `.gitignore` 대상이므로 force add하지 않고 작업 파일로 유지한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+
 ### 완료 (2026-07-10): 품목관리 요청서 market mapping/delete 범위 보강
 
 - 요청: 다시 검토한 애매점과 레거시/현 구현 문제를 권장 사항으로 `.tmp/item_manager_modify.txt`에 병합한다.
