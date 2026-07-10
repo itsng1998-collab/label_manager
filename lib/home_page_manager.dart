@@ -21,6 +21,7 @@ import 'package:label_manager/models/column_type.dart';
 import 'package:label_manager/models/column_special.dart';
 import 'package:label_manager/models/column.dart';
 import 'package:label_manager/models/customer.dart';
+import 'package:label_manager/models/gs1_ai.dart';
 import 'package:label_manager/models/item_manager_draft.dart';
 import 'package:label_manager/models/item_manager_draft_journal.dart';
 import 'package:label_manager/models/item_manager_save.dart';
@@ -254,6 +255,7 @@ class _HomePageManagerState extends State<HomePageManager> {
       try {
         debugLog(START);
         await TColumnType.init();
+        Gs1AiDefinitions.set(await Gs1AiDAO.selectAll());
         final brands = await BrandDAO.selectByCustomerIdByBrandOrder(
           Customer.instance!.customerId,
         );
@@ -908,6 +910,7 @@ class _HomePageManagerState extends State<HomePageManager> {
       itemName: row.itemName,
       columns: columns,
       columnValue: (columnId) => controller.columnValue(row, columnId),
+      gs1Definitions: Gs1AiDefinitions.values,
     ).resolveViewerData();
     if (!mounted) return;
     await showDialog<void>(
@@ -3357,24 +3360,94 @@ class _ItemOutputPreviewTab extends StatelessWidget {
     if (workbook == null) {
       return const _ItemOutputPreviewHint('현재 공용라벨 시트가 없습니다.');
     }
-    return LabelSheetWorkbench(
-      key: ValueKey(
-        'item-output:${labelSize?.labelSizeId ?? 'none'}:${item.item.itemId}',
-      ),
-      initialWorkbook: workbook,
-      labelSize: labelSize,
-      imageObjectIds: imageObjectIds,
-      barcodeObjectIds: barcodeObjectIds,
-      hideToolbar: true,
-      hideRowColumnHeaderLabels: true,
-      hideSelectionHighlight: true,
-      rulerCornerSizeLabelUsesAsterisk: true,
-      disableSheetRulerGuideInteraction: true,
-      hideStatisticBar: true,
-      copyOnlyContextMenu: true,
-      zoomToolbarPlacement: LabelSheetZoomToolbarPlacement.previewTabAreaEnd,
+    final messages = _itemCodePreviewMessages(workbook);
+    return Column(
+      children: [
+        if (messages.isNotEmpty) _ItemCodePreviewMessages(messages: messages),
+        Expanded(
+          child: LabelSheetWorkbench(
+            key: ValueKey(
+              'item-output:${labelSize?.labelSizeId ?? 'none'}:${item.item.itemId}',
+            ),
+            initialWorkbook: workbook,
+            labelSize: labelSize,
+            imageObjectIds: imageObjectIds,
+            barcodeObjectIds: barcodeObjectIds,
+            hideToolbar: true,
+            hideRowColumnHeaderLabels: true,
+            hideSelectionHighlight: true,
+            rulerCornerSizeLabelUsesAsterisk: true,
+            disableSheetRulerGuideInteraction: true,
+            hideStatisticBar: true,
+            copyOnlyContextMenu: true,
+            zoomToolbarPlacement:
+                LabelSheetZoomToolbarPlacement.previewTabAreaEnd,
+          ),
+        ),
+      ],
     );
   }
+}
+
+class _ItemCodePreviewMessages extends StatelessWidget {
+  const _ItemCodePreviewMessages({required this.messages});
+
+  final List<({String text, bool error})> messages;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: double.infinity,
+    constraints: const BoxConstraints(maxHeight: 96),
+    color: Theme.of(context).colorScheme.surfaceContainerHighest,
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+    child: ListView.separated(
+      shrinkWrap: true,
+      itemCount: messages.length,
+      separatorBuilder: (_, _) => const SizedBox(height: 2),
+      itemBuilder: (context, index) {
+        final message = messages[index];
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(
+              message.error ? Icons.error_outline : Icons.warning_amber,
+              size: 16,
+              color: message.error
+                  ? Theme.of(context).colorScheme.error
+                  : Colors.orange.shade800,
+            ),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                message.text,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ),
+          ],
+        );
+      },
+    ),
+  );
+}
+
+List<({String text, bool error})> _itemCodePreviewMessages(
+  fs.FortuneWorkbook workbook,
+) {
+  final messages = <({String text, bool error})>[];
+  final seen = <String>{};
+  for (final sheet in workbook.sheets) {
+    for (final image in sheet.images) {
+      final warning = image.extraFields['itemCodeWarning']?.toString().trim();
+      final error = image.extraFields['itemCodeError']?.toString().trim();
+      if (warning != null && warning.isNotEmpty && seen.add('w:$warning')) {
+        messages.add((text: warning, error: false));
+      }
+      if (error != null && error.isNotEmpty && seen.add('e:$error')) {
+        messages.add((text: error, error: true));
+      }
+    }
+  }
+  return messages;
 }
 
 class _ItemOutputPreviewHint extends StatelessWidget {
@@ -3425,6 +3498,15 @@ debugItemOutputPreviewForTesting({
   elementWorkbook: elementWorkbook,
 );
 
+@visibleForTesting
+List<({String text, bool error})> debugItemCodePreviewMessagesForTesting(
+  fs.FortuneWorkbook workbook,
+) => _itemCodePreviewMessages(workbook);
+
+@visibleForTesting
+String debugItemCodeErrorPlaceholderForTesting() =>
+    _itemCodeErrorPlaceholderDataUri();
+
 ({fs.FortuneWorkbook? workbook, String? hintText}) _itemOutputPreview({
   required LabelSize? labelSize,
   required ItemOfMarket item,
@@ -3452,6 +3534,7 @@ debugItemOutputPreviewForTesting({
           ],
           columnValue: (columnId) =>
               TColumnContent.get(columnId, item.item.itemId)?.dataString ?? '',
+            gs1Definitions: Gs1AiDefinitions.values,
         ),
         elementCell: _itemElementCellFromWorkbook(
           elementWorkbook ?? _itemElementWorkbook(elementText, labelSize),
@@ -4023,12 +4106,16 @@ fs.FortuneImage _replaceImageKeywords(
       preserveTemplateBarcodeFormat: preserveTemplateFormat,
     );
     if (resolved != null) {
+      final metadata = itemCodeBarcodeMetadata(
+        extraFields,
+        resolved,
+        preserveTemplateBarcodeFormat: preserveTemplateFormat,
+      );
       return image.copyWith(
-        extraFields: itemCodeBarcodeMetadata(
-          extraFields,
-          resolved,
-          preserveTemplateBarcodeFormat: preserveTemplateFormat,
-        ),
+        src: resolved.error == null
+            ? image.src
+            : _itemCodeErrorPlaceholderDataUri(),
+        extraFields: metadata,
       );
     }
     for (final entry in replacements.entries) {
@@ -4049,6 +4136,15 @@ fs.FortuneImage _replaceImageKeywords(
     }
   }
   return image.copyWith();
+}
+
+String _itemCodeErrorPlaceholderDataUri() {
+  const svg = '''<svg xmlns="http://www.w3.org/2000/svg" width="240" height="120" viewBox="0 0 240 120">
+<rect width="240" height="120" fill="#fff4f4" stroke="#b3261e" stroke-width="4"/>
+<path d="M88 36l64 48M152 36L88 84" stroke="#b3261e" stroke-width="8"/>
+<text x="120" y="108" text-anchor="middle" font-family="sans-serif" font-size="14" fill="#b3261e">BARCODE ERROR</text>
+</svg>''';
+  return 'data:image/svg+xml;base64,${base64Encode(utf8.encode(svg))}';
 }
 
 String? _itemImageDataUri(String fileNameWithoutExtension) {

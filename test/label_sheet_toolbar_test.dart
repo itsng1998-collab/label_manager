@@ -213,6 +213,50 @@ void main() {
     expect(invalidPreview.hintText, '* 저장된 라벨에 문제가 있습니다.');
   });
 
+  test('item output preview collects barcode messages and error placeholder', () {
+    final workbook = FortuneWorkbook(
+      sheets: [
+        FortuneSheet(
+          id: 's1',
+          name: 'Label',
+          images: const [
+            FortuneImage(
+              id: 'warning',
+              src: 'data:image/png;base64,AAA=',
+              left: 0,
+              top: 0,
+              width: 10,
+              height: 10,
+              extraFields: {'itemCodeWarning': '대체 형식을 사용합니다.'},
+            ),
+            FortuneImage(
+              id: 'error',
+              src: 'data:image/png;base64,AAA=',
+              left: 10,
+              top: 0,
+              width: 10,
+              height: 10,
+              extraFields: {
+                'itemCodeWarning': '대체 형식을 사용합니다.',
+                'itemCodeError': '바코드를 표시할 수 없습니다.',
+              },
+            ),
+          ],
+        ),
+      ],
+    );
+
+    final messages = debugItemCodePreviewMessagesForTesting(workbook);
+    expect(messages, [
+      (text: '대체 형식을 사용합니다.', error: false),
+      (text: '바코드를 표시할 수 없습니다.', error: true),
+    ]);
+    expect(
+      debugItemCodeErrorPlaceholderForTesting(),
+      startsWith('data:image/svg+xml;base64,'),
+    );
+  });
+
   test(
     'item output preview creates fallback sheet for empty saved workbook',
     () {

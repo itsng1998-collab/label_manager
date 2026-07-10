@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:label_manager/models/barcode.dart';
 import 'package:label_manager/models/column.dart';
 import 'package:label_manager/models/column_type.dart';
+import 'package:label_manager/models/gs1_ai.dart';
 
 @immutable
 class ItemCodeColumnSpec {
@@ -17,6 +18,11 @@ class ItemCodeColumnSpec {
     required this.natriumJoinString,
     required this.showBarcodeText,
     required this.showQrText,
+    this.gs1Ai = '',
+    this.gs1FormatOption = -1,
+    this.useGs1Code = false,
+    this.containColumnIds = const [],
+    this.showGs1Code = false,
   });
 
   factory ItemCodeColumnSpec.fromColumn(TColumn column) => ItemCodeColumnSpec(
@@ -31,6 +37,11 @@ class ItemCodeColumnSpec {
     natriumJoinString: column.natriumJoinString,
     showBarcodeText: column.showBarcodeNum,
     showQrText: column.showQRCodeText,
+    gs1Ai: column.gs1ai,
+    gs1FormatOption: column.formatOption,
+    useGs1Code: column.useGS1Code,
+    containColumnIds: _parseColumnIds(column.containColumns),
+    showGs1Code: column.showGS1Code,
   );
 
   final int columnId;
@@ -44,6 +55,11 @@ class ItemCodeColumnSpec {
   final String natriumJoinString;
   final bool showBarcodeText;
   final bool showQrText;
+  final String gs1Ai;
+  final int gs1FormatOption;
+  final bool useGs1Code;
+  final List<int> containColumnIds;
+  final bool showGs1Code;
 }
 
 @immutable
@@ -75,6 +91,7 @@ class ItemCodeDataResolver {
     required this.columns,
     required this.columnValue,
     this.tokenColumnValue,
+    this.gs1Definitions = const {},
   });
 
   final String itemName;
@@ -83,6 +100,7 @@ class ItemCodeDataResolver {
 
   /// Allows callers to supply DATE_FORMAT_NONE values for date-like tokens.
   final String Function(ItemCodeColumnSpec column)? tokenColumnValue;
+  final Map<String, Gs1AiDefinition> gs1Definitions;
 
   List<ItemCodeDataResult> resolveViewerData() => [
     for (final column in columns)
@@ -115,6 +133,9 @@ class ItemCodeDataResolver {
     String? templateFormatId,
     bool preserveTemplateBarcodeFormat = false,
   }) {
+    if (column.typeCode == TColumnType.TYPE_GS1_BARCODE) {
+      return _resolveGs1(column, templateFormatId: templateFormatId);
+    }
     final payload = _payload(column);
     final requestedFormat = preserveTemplateBarcodeFormat
         ? templateFormatId ?? _formatId(column)
@@ -152,6 +173,80 @@ class ItemCodeDataResolver {
           ? '${column.columnName} 바코드 데이터가 비어 있습니다.'
           : null,
     );
+  }
+
+  ItemCodeDataResult _resolveGs1(
+    ItemCodeColumnSpec column, {
+    String? templateFormatId,
+  }) {
+    final formatId = templateFormatId?.isNotEmpty == true
+        ? templateFormatId!
+        : _formatId(column);
+    if (!column.useGs1Code || column.containColumnIds.isEmpty) {
+      return _result(
+        column,
+        data: '',
+        displayText: '',
+        formatId: formatId,
+        error: '${column.columnName}의 GS1 포함 컬럼 설정이 없습니다.',
+      );
+    }
+
+    final parts = <String>[];
+    for (var index = 0; index < column.containColumnIds.length; index++) {
+      final source = _columnById(column.containColumnIds[index]);
+      if (source == null || source.gs1Ai.isEmpty) {
+        return _result(
+          column,
+          data: '',
+          displayText: '',
+          formatId: formatId,
+          error: '${column.columnName}의 GS1 포함 컬럼 정보를 찾을 수 없습니다.',
+        );
+      }
+      if (source.gs1FormatOption != -1 && source.gs1Ai.length < 2) {
+        return _result(
+          column,
+          data: '',
+          displayText: '',
+          formatId: formatId,
+          error: '${source.columnName}의 GS1 AI 설정이 올바르지 않습니다.',
+        );
+      }
+      final definitionCode = source.gs1FormatOption == -1
+          ? source.gs1Ai
+          : source.gs1Ai.substring(0, source.gs1Ai.length - 1);
+      final definition = gs1Definitions[definitionCode];
+      if (definition == null) {
+        return _result(
+          column,
+          data: '',
+          displayText: '',
+          formatId: formatId,
+          error: 'GS1 AI $definitionCode 정의를 찾을 수 없습니다.',
+        );
+      }
+      parts
+        ..add(source.gs1Ai)
+        ..add(tokenColumnValue?.call(source) ?? columnValue(source.columnId));
+      if (definition.needsFnc1 && index < column.containColumnIds.length - 1) {
+        parts.add(String.fromCharCode(29));
+      }
+    }
+    final data = parts.join();
+    return _result(
+      column,
+      data: data,
+      displayText: column.showGs1Code ? data : '',
+      formatId: formatId,
+    );
+  }
+
+  ItemCodeColumnSpec? _columnById(int columnId) {
+    for (final column in columns) {
+      if (column.columnId == columnId) return column;
+    }
+    return null;
   }
 
   ItemCodeDataResult _result(
@@ -335,3 +430,8 @@ String _formatLabel(String formatId) => switch (formatId) {
 
 String _legacyUriValue(String value) =>
     Uri.encodeComponent(value).replaceAll('%26', '%09');
+
+List<int> _parseColumnIds(String value) => [
+  for (final token in value.split('|'))
+    ?int.tryParse(token.trim()),
+];

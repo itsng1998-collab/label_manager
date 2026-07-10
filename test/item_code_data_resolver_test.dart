@@ -2,10 +2,26 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:label_manager/models/barcode.dart';
 import 'package:label_manager/models/column.dart';
 import 'package:label_manager/models/column_type.dart';
+import 'package:label_manager/models/gs1_ai.dart';
 import 'package:label_manager/page_home/item_code_data_resolver.dart';
 
 void main() {
   group('[QR viewer][barcode/output preview]', () {
+    test('maps GS1 AI database flags from string values', () {
+      final definition = Gs1AiDefinition.fromMap(const {
+        'GS1_AI_CODE': '10',
+        'GS1_AI_NAME': '로트 번호',
+        'GS1_AI_CONTENT': '로트',
+        'GS1_DATA_FORMAT': 'X..20',
+        'GS1_DATA_FORMAT_TYPE': '1',
+        'GS1_NEED_FNC1': '1',
+      });
+
+      expect(definition.code, '10');
+      expect(definition.dataFormatType, 1);
+      expect(definition.needsFnc1, isTrue);
+    });
+
     test('resolves user-defined QR tokens from current row values', () {
       final columns = [
         _column(
@@ -151,6 +167,89 @@ void main() {
       expect(result.data, contains('&n=500&t=100%20g&nn=50'));
       expect(result.data, contains('it=%EB%A9%B4%EB%A5%98'));
     });
+
+    test('builds GS1 data in contain-column order with FNC1', () {
+      final gs1 = _column(
+        id: 10,
+        keyword: 'GS1',
+        name: 'GS1 바코드',
+        type: TColumnType.TYPE_GS1_BARCODE,
+        useGs1: true,
+        containIds: const [2, 1, 3],
+        showGs1: true,
+      );
+      final columns = [
+        gs1,
+        _column(id: 1, keyword: 'GTIN', name: '상품코드', gs1Ai: '01'),
+        _column(id: 2, keyword: 'LOT', name: '로트', gs1Ai: '10'),
+        _column(
+          id: 3,
+          keyword: 'DATE',
+          name: '유통기한',
+          gs1Ai: '3102',
+          gs1FormatOption: 2,
+        ),
+      ];
+      final resolver = ItemCodeDataResolver(
+        itemName: '품목',
+        columns: columns,
+        columnValue: (id) => {1: '123', 2: 'LOT-A', 3: 'display-date'}[id]!,
+        tokenColumnValue: (column) => column.columnId == 3
+            ? '250101'
+            : {1: '123', 2: 'LOT-A'}[column.columnId]!,
+        gs1Definitions: const {
+          '01': Gs1AiDefinition(
+            code: '01',
+            name: '',
+            content: '',
+            dataFormat: '',
+            dataFormatType: 0,
+            needsFnc1: false,
+          ),
+          '10': Gs1AiDefinition(
+            code: '10',
+            name: '',
+            content: '',
+            dataFormat: '',
+            dataFormatType: 0,
+            needsFnc1: true,
+          ),
+          '310': Gs1AiDefinition(
+            code: '310',
+            name: '',
+            content: '',
+            dataFormat: '',
+            dataFormatType: 0,
+            needsFnc1: false,
+          ),
+        },
+      );
+
+      final result = resolver.resolve(gs1);
+      expect(result.error, isNull);
+      expect(result.data, '10LOT-A${String.fromCharCode(29)}011233102250101');
+      expect(result.displayText, result.data);
+    });
+
+    test('reports missing GS1 AI definitions without fallback', () {
+      final gs1 = _column(
+        id: 10,
+        keyword: 'GS1',
+        name: 'GS1 바코드',
+        type: TColumnType.TYPE_GS1_BARCODE,
+        useGs1: true,
+        containIds: const [1],
+      );
+      final result = ItemCodeDataResolver(
+        itemName: '품목',
+        columns: [gs1, _column(id: 1, keyword: 'LOT', name: '로트', gs1Ai: '10')],
+        columnValue: (_) => 'A',
+      ).resolve(gs1);
+
+      expect(result.data, isEmpty);
+      expect(result.warning, isNull);
+      expect(result.error, contains('GS1 AI 10'));
+    });
   });
 }
 
@@ -164,6 +263,11 @@ ItemCodeColumnSpec _column({
   String data = '',
   String text = '',
   String natrium = '',
+  String gs1Ai = '',
+  int gs1FormatOption = -1,
+  bool useGs1 = false,
+  List<int> containIds = const [],
+  bool showGs1 = false,
 }) => ItemCodeColumnSpec(
   columnId: id,
   keyword: keyword,
@@ -176,4 +280,9 @@ ItemCodeColumnSpec _column({
   natriumJoinString: natrium,
   showBarcodeText: true,
   showQrText: true,
+  gs1Ai: gs1Ai,
+  gs1FormatOption: gs1FormatOption,
+  useGs1Code: useGs1,
+  containColumnIds: containIds,
+  showGs1Code: showGs1,
 );
