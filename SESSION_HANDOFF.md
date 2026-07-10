@@ -28,6 +28,16 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-10): 품목관리 요청서 Excel image 검증/check digit 문구 정리
+
+- 수정 예정 파일: `.tmp/item_manager_modify.txt`는 ignored 요청서 본문 수정, `SESSION_HANDOFF.md`는 ignored 요청서 변경 추적용 기록/검증/커밋 정보 갱신.
+- 사용자 확인: 새 비즈니스 정책 질문은 없다. 이번 병합은 기존 확정 정책 안에서 check digit 문장의 오해 가능성과 Excel 검증 태그 누락을 정리하는 문서 수정이다.
+- 병합 예정: `TColumn.useBarcodeCheckDigit` 문장을 EAN-13/UPC-A/EAN-8 범위로 좁히고, `[Excel]` 검증 태그에 `TYPE_IMAGE` 셀 표시 문자열, 경로 제거, `.bmp` 확장자 제거, 다른 확장자 저장 전 검증 오류 fixture를 추가한다.
+- `.tmp/item_manager_modify.txt` 반영 완료: check digit 본문 문장을 EAN-13/UPC-A/EAN-8 컬럼의 `TColumn.useBarcodeCheckDigit`가 켜진 경우로 좁혔다.
+- `.tmp/item_manager_modify.txt` 반영 완료: `[Excel]` 검증 태그에 `TYPE_IMAGE` 셀 표시 문자열 사용, 경로 제거, `.bmp` 확장자 제거, 다른 확장자 저장 전 검증 오류 fixture를 추가했다.
+- 검증: `git diff --check -- .tmp/item_manager_modify.txt` 통과. `grep_search`로 `EAN-13/UPC-A/EAN-8 컬럼의 TColumn.useBarcodeCheckDigit`, `[Excel] ... TYPE_IMAGE`, `경로 제거, .bmp 확장자 제거`, `다른 확장자 저장 전 검증 오류 fixture` 문구 확인. 기존 넓은 `바코드 셀 편집에서 TColumn.useBarcodeCheckDigit가 켜진 컬럼` 문구 없음 및 `사용자 답변: 미확정`, `확정 필요`, `TODO`, `FIXME` 없음 확인.
+- stage/commit 대상: ignored `.tmp/item_manager_modify.txt` 변경 추적용 `SESSION_HANDOFF.md`만 stage/commit한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+
 ### 완료 (2026-07-10): 품목관리 요청서 image import/check digit 수용조건 병합
 
 - 수정 예정 파일: `.tmp/item_manager_modify.txt`는 ignored 요청서 본문 수정, `SESSION_HANDOFF.md`는 ignored 요청서 변경 추적용 기록/검증/커밋 정보 갱신.
