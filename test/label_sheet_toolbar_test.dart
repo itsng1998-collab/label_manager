@@ -263,7 +263,7 @@ void main() {
                 value: '#ITEMNAME',
               ),
               const FortuneCellCoord(0, 1): const FortuneCell(
-                value: '#ELEMENT',
+                value: '원재료',
               ),
             },
           ),
@@ -410,6 +410,66 @@ void main() {
       (item) => item.key == labelSheetSaveToolbarCommand,
     );
     expect(saveItem.disabled, isFalse);
+  });
+
+  testWidgets('item element save commits plain text and workbook to draft', (
+    tester,
+  ) async {
+    String? committedPlain;
+    String? committedPayload;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: debugItemPreviewPanelForTesting(
+            item: _testItemOfMarket(itemId: 0, itemName: '신규 품목'),
+            rowIdentity: 'draft:new-item',
+            labelSize: _testLabelSizeWithFormData(''),
+            onElementCommitted: (plain, payload) async {
+              committedPlain = plain;
+              committedPayload = payload;
+            },
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    var sheetApp = tester.widget<FortuneSheetApp>(find.byType(FortuneSheetApp));
+    sheetApp.onChange!(
+      FortuneWorkbook(
+        sheets: [
+          FortuneSheet(
+            id: 'item_element',
+            name: '주원료 및 함량',
+            cells: {
+              const FortuneCellCoord(0, 0): const FortuneCell(value: '딸기, 설탕'),
+            },
+          ),
+        ],
+      ),
+    );
+    sheetApp.onOp!(const [
+      {'type': 'test'},
+    ]);
+    await tester.pump();
+
+    sheetApp = tester.widget<FortuneSheetApp>(find.byType(FortuneSheetApp));
+    final saveItem = sheetApp.settings!.customToolbarItems.singleWhere(
+      (item) => item.key == labelSheetSaveToolbarCommand,
+    );
+    saveItem.onClick!(saveItem);
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(TextButton, '확인'));
+    await tester.pumpAndSettle();
+
+    expect(committedPlain, '원재료');
+    expect(committedPayload, isNotNull);
+    final decoded = labelSheetDecodeWorkbookSave(committedPayload!);
+    expect(
+      decoded.sheets.single.cells[const FortuneCellCoord(0, 0)]!.value,
+      '원재료',
+    );
   });
 
   test('item element RTF conversion decodes Korean ANSI hex', () async {

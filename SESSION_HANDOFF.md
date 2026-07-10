@@ -52,7 +52,9 @@
 - 3단계 추가 구현: 품목관리 footer에 `엑셀 가져오기`, `엑셀 내보내기`, `취소`, `저장`을 배치했다. dirty이면 Excel 비활성/취소·저장 활성, clean이면 반대로 동작한다. 로그인 customer/current market identity 검증 후 customer 전체 target market id를 세션 단위로 확정하며, dirty 중 브랜드/라벨 변경을 차단한다.
 - 3단계 추가 구현: 취소 확인 후 journal 폐기/DB 재조회, 저장 확인 후 capability probe → save command 검증 → isolate transaction → DB 재조회 → source item id 또는 신규 draft id mapping 기준 선택 복원을 연결했다. 빈 품명은 DB 접근 전에 행 번호 안내로 차단한다.
 - 3단계 최신 검증: `test/item_manager_draft_test.dart` 통과(`+9`), `test/item_manager_draft_journal_test.dart` 통과(`+1`), `test/fortune_table_test.dart` 전체 통과(`+14`), `flutter analyze` 통과(`No issues found`). 운영 DB transaction 통합 실행은 아직 미검증이다.
-- 3단계 남은 작업: 하단 주원료 편집을 즉시 DB 저장에서 draft 반영으로 전환하고 lazy RTF journal 정책을 확인한다. 이후 Excel import/export, QR 데이터 보기, 순서 변경 dialog, 날짜 설정을 지시서 순서대로 구현한다.
+- 3단계 주원료 draft 전환 완료: `_ItemPreviewPanel`의 `ItemDAO.updateElementSheetByItemId` 즉시 DB 저장과 전역 cache 교체를 제거했다. 저장 확인 후 plain text와 encoded workbook을 `onElementCommitted` callback으로 전달하고, `HomePageManager`가 현재 controller의 `anchorRowKey`를 기준으로 `updateElement`를 호출한다. 신규 품목은 모두 `itemId=0`이므로 preview 갱신 identity에 draft row key를 별도로 전달해 신규 행 사이 전환도 정확히 재초기화한다. controller listener가 기존 dirty/journal 기록을 담당하며 실제 DB write는 품목관리 footer 저장 transaction에서만 수행된다.
+- 3단계 주원료 검증 완료: `test/label_sheet_toolbar_test.dart`에 신규 row(`itemId=0`, draft row key)의 주원료 저장 확인 후 plain/payload callback 전달 테스트를 추가했다. 인접 preview 회귀 3개 통과, `test/item_manager_draft_test.dart` 통과(`+9`), `test/widget_test.dart` 통과(`+2`), `flutter analyze` 통과(`No issues found`).
+- 다음 작업: 지시서 순서에 따라 4단계 Excel import/export를 구현한다. 운영 DB capability/save transaction의 실제 trigger/schema 통합 실행은 fixture가 없어 계속 미검증이다.
 
 ### 완료 (2026-07-10): 불필요한 작업 규칙 정리
 

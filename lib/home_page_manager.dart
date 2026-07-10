@@ -20,7 +20,6 @@ import 'package:label_manager/models/column_type.dart';
 import 'package:label_manager/models/column_special.dart';
 import 'package:label_manager/models/column.dart';
 import 'package:label_manager/models/customer.dart';
-import 'package:label_manager/models/item.dart';
 import 'package:label_manager/models/item_manager_draft.dart';
 import 'package:label_manager/models/item_manager_draft_journal.dart';
 import 'package:label_manager/models/item_manager_save.dart';
@@ -1158,7 +1157,11 @@ class _HomePageManagerState extends State<HomePageManager> {
       final child = _ItemPreviewPanel(
         key: const ValueKey('item-preview'),
         item: selected,
+        rowIdentity:
+            _itemDraftController?.anchorRowKey ??
+            'item:${selected.item.itemId}',
         labelSize: _effectiveLabelSize,
+        onElementCommitted: _commitSelectedItemElementDraft,
       );
       if (_itemPreviewWindow == null) {
         _itemPreviewAlignedToTable = false;
@@ -1215,6 +1218,9 @@ class _HomePageManagerState extends State<HomePageManager> {
     }
     _selectedItemIndex = 0;
     _selectedItemOfMarket = items.first;
+    _itemDraftController?.setSelection([
+      'item:${items.first.item.itemId}',
+    ], anchorRowKey: 'item:${items.first.item.itemId}');
   }
 
   void _handleItemRowSelected(ItemOfMarket row, int index) {
@@ -1226,6 +1232,33 @@ class _HomePageManagerState extends State<HomePageManager> {
     if (_selectedTabValue() == 'items') {
       _showItemPreviewWindow();
     }
+  }
+
+  Future<void> _commitSelectedItemElementDraft(
+    String elementPlain,
+    String elementPayload,
+  ) async {
+    final controller = _itemDraftController;
+    final rowKey = controller?.anchorRowKey;
+    if (controller == null || rowKey == null) {
+      throw StateError('선택된 품목 draft가 없습니다.');
+    }
+    controller.updateElement(
+      rowKey,
+      elementPlain: elementPlain,
+      elementPayload: elementPayload,
+    );
+    final draft = controller.rows.firstWhere((row) => row.rowKey == rowKey);
+    final labelSize = _currentLabelSize;
+    final marketId = Market.instance?.marketId;
+    if (labelSize != null && marketId != null) {
+      _selectedItemOfMarket = draft.toPreviewItem(
+        marketId: marketId,
+        labelSizeId: labelSize.labelSizeId,
+        labelSizeName: labelSize.labelSizeName,
+      );
+    }
+    if (mounted) setState(() {});
   }
 
   Future<void> _handleItemPreviewCloseRequested() async {
@@ -2675,10 +2708,19 @@ class _RtfPreviewAiConvertButtonState
 }
 
 class _ItemPreviewPanel extends StatefulWidget {
-  const _ItemPreviewPanel({super.key, required this.item, this.labelSize});
+  const _ItemPreviewPanel({
+    super.key,
+    required this.item,
+    required this.rowIdentity,
+    required this.onElementCommitted,
+    this.labelSize,
+  });
 
   final ItemOfMarket item;
+  final String rowIdentity;
   final LabelSize? labelSize;
+  final Future<void> Function(String elementPlain, String elementPayload)
+  onElementCommitted;
 
   @override
   State<_ItemPreviewPanel> createState() => _ItemPreviewPanelState();
@@ -2704,7 +2746,7 @@ class _ItemPreviewPanelState extends State<_ItemPreviewPanel> {
   @override
   void didUpdateWidget(covariant _ItemPreviewPanel oldWidget) {
     super.didUpdateWidget(oldWidget);
-    final itemChanged = oldWidget.item.item.itemId != widget.item.item.itemId;
+    final itemChanged = oldWidget.rowIdentity != widget.rowIdentity;
     final labelSizeChanged =
         oldWidget.labelSize?.labelSizeId != widget.labelSize?.labelSizeId;
     if (itemChanged || labelSizeChanged) {
@@ -2816,22 +2858,8 @@ class _ItemPreviewPanelState extends State<_ItemPreviewPanel> {
         ? _elementText
         : _itemElementTextFromWorkbook(workbook);
 
-    if (!context.mounted) return;
-    showSnackBar(
-      context,
-      '주원료 및 함량을 저장 중입니다...',
-      type: SnackBarType.inProgress,
-      duration: const Duration(days: 1),
-    );
-
     try {
-      final itemId = widget.item.item.itemId;
-      await ItemDAO.updateElementSheetByItemId(
-        itemId,
-        elementText,
-        encodedWorkbook,
-      );
-      _replaceCachedItemElementSheet(itemId, elementText, encodedWorkbook);
+      await widget.onElementCommitted(elementText, encodedWorkbook);
       if (mounted && workbook != null) {
         setState(() {
           _elementText = elementText;
@@ -2844,11 +2872,12 @@ class _ItemPreviewPanelState extends State<_ItemPreviewPanel> {
         });
         _updateOutputPreviewTabContent();
       }
-      debugLog('$END - item element sheet save completed itemId=$itemId');
+      debugLog(
+        '$END - item element draft committed rowItemId=${widget.item.item.itemId}',
+      );
     } catch (e) {
-      debugLog('$END - item element sheet save failed, error=$e');
+      debugLog('$END - item element draft commit failed, error=$e');
       if (context.mounted) {
-        ScaffoldMessenger.of(context).hideCurrentSnackBar();
         await showDialog<void>(
           context: context,
           traversalEdgeBehavior: TraversalEdgeBehavior.closedLoop,
@@ -2865,10 +2894,6 @@ class _ItemPreviewPanelState extends State<_ItemPreviewPanel> {
         );
       }
       rethrow;
-    } finally {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      }
     }
   }
 
@@ -3175,7 +3200,15 @@ class _ItemOutputPreviewHint extends StatelessWidget {
 Widget debugItemPreviewPanelForTesting({
   required ItemOfMarket item,
   LabelSize? labelSize,
-}) => _ItemPreviewPanel(item: item, labelSize: labelSize);
+  String? rowIdentity,
+  Future<void> Function(String elementPlain, String elementPayload)?
+  onElementCommitted,
+}) => _ItemPreviewPanel(
+  item: item,
+  rowIdentity: rowIdentity ?? 'item:${item.item.itemId}',
+  labelSize: labelSize,
+  onElementCommitted: onElementCommitted ?? (_, _) async {},
+);
 
 @visibleForTesting
 ({fs.FortuneWorkbook? workbook, String? hintText})
@@ -3287,26 +3320,6 @@ _ItemElementFormState _itemElementFormStateFromWorkbook(
     sourceHash: sourceHash,
     convertedFromRtf: convertedFromRtf,
   );
-}
-
-void _replaceCachedItemElementSheet(
-  int itemId,
-  String elementText,
-  String encodedWorkbook,
-) {
-  final current = ItemOfMarket.datas;
-  if (current == null) return;
-  ItemOfMarket.datas = [
-    for (final row in current)
-      row.item.itemId == itemId
-          ? row.copyWith(
-              item: row.item.copyWith(
-                element: elementText,
-                elementRTF: encodedWorkbook,
-              ),
-            )
-          : row,
-  ];
 }
 
 String _itemElementTextFromWorkbook(fs.FortuneWorkbook workbook) {
