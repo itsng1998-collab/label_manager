@@ -40,6 +40,7 @@
 - `.tmp/item_manager_modify.txt` 반영 완료: Excel 주원료 보존 검증을 inlineRuns/병합/row height/column width/테두리/배경/줄바꿈 fixture로 분리하도록 추가했다.
 - 검증: `git diff --check -- .tmp/item_manager_modify.txt` 통과. `grep_search`로 `setup 전용 SQL batch transaction`, `RICH_ALTER_SETUP_READONLY`, `RICH_ALTER_USER_MAKEDATE`, `allow-list 컬럼 세트`, `품목관리 저장 기능을 비활성화`, `별도 호환 저장 정책은 만들지 않는다`, `save codec feature key/allow-list/normalize/migrate/round-trip`, `inlineRuns, 병합 영역, row height, column width, 테두리, 배경, 줄바꿈 fixture` 문구 확인. `SQL batch transaction 또는 공용 DB isolate transaction`, `migration 또는 호환 저장 정책을 먼저 확정`, `이에 대응하는 after/alter 값 컬럼`, `사용자 답변: 미확정` 없음 확인.
 - stage/commit 대상: ignored `.tmp/item_manager_modify.txt` 변경 추적용 `SESSION_HANDOFF.md`만 stage/commit한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+- 커밋: `8695299` 품목관리 요청서 구현 선택지 기록
 
 ### 완료 (2026-07-10): 품목관리 요청서 바코드/날짜 setup 검토 권장안 병합
 
