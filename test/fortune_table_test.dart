@@ -12,6 +12,63 @@ import 'package:label_manager/models/label_size.dart';
 import 'package:label_manager/page_home/item_manage.dart';
 
 void main() {
+  testWidgets('FortuneTable commits and cancels inline text editing', (
+    tester,
+  ) async {
+    var value = '원본';
+    var committed = '';
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 320,
+            height: 140,
+            child: StatefulBuilder(
+              builder: (context, setState) => FortuneTable<String>(
+                rows: [value],
+                columns: [
+                  FortuneTableColumn<String>(
+                    id: 'name',
+                    header: '이름',
+                    text: (row) => row,
+                    isTextEditable: (_, _) => true,
+                    onTextCommitted: (_, _, next) {
+                      committed = next;
+                      setState(() => value = next);
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('원본'));
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.tap(find.text('원본'));
+    await tester.pump();
+    expect(find.byType(TextField), findsOneWidget);
+    await tester.enterText(find.byType(TextField), '수정');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pump();
+    expect(committed, '수정');
+    expect(find.text('수정'), findsOneWidget);
+
+    await tester.tap(find.text('수정'));
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.tap(find.text('수정'));
+    await tester.pump();
+    await tester.enterText(find.byType(TextField), '취소 값');
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+    expect(committed, '수정');
+    expect(find.text('수정'), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 100));
+  });
+
   testWidgets('FortuneTable selects rows and toggles checkbox cells', (
     tester,
   ) async {
@@ -553,6 +610,84 @@ void main() {
       find.byType(FortuneTable<ItemOfMarket>),
     );
     expect(table.selectionController!.selectedRows, isEmpty);
+  });
+
+  testWidgets('ItemManage commits item name edits to the draft row', (
+    tester,
+  ) async {
+    final controller = ItemManagerDraftController(
+      rows: [
+        ItemManagerDraftRow.newRow(
+          draftRowKey: 'draft-1',
+          order: 1,
+          originalIndex: 0,
+          insertAnchorItemId: null,
+          rowState: ItemManagerDraftRowState.added,
+          emptyElementPayload: 'UEsDempty',
+        ),
+      ],
+      scopedColumnContents: TColumnContentScopedView(const {}),
+    );
+    addTearDown(controller.dispose);
+    controller.updateItemName('draft:draft-1', '편집 전 품명');
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 600,
+            height: 220,
+            child: ItemManage(
+              items: const [],
+              draftController: controller,
+              labelSize: const LabelSize(
+                labelSizeId: 20,
+                brandId: 30,
+                labelSizeName: '테스트 라벨',
+              ),
+              marketId: 1,
+              onCancelDraft: () async {},
+              onSaveDraft: () async {},
+              onExcelImport: () async {},
+              onExcelExport: () async {},
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      tester
+          .widget<OutlinedButton>(
+            find.widgetWithText(OutlinedButton, '엑셀 가져오기'),
+          )
+          .onPressed,
+      isNull,
+    );
+    expect(
+      tester
+          .widget<OutlinedButton>(find.widgetWithText(OutlinedButton, '취소'))
+          .onPressed,
+      isNotNull,
+    );
+    expect(
+      tester
+          .widget<FilledButton>(find.widgetWithText(FilledButton, '저장'))
+          .onPressed,
+      isNotNull,
+    );
+
+    await tester.tap(find.text('편집 전 품명'));
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.tap(find.text('편집 전 품명'));
+    await tester.pump();
+    await tester.enterText(find.byType(TextField), '편집 후 품명');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pump();
+
+    expect(controller.rows.single.itemName, '편집 후 품명');
+    expect(find.text('편집 후 품명'), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 100));
   });
 
   testWidgets('FortuneTable consumes mouse wheel inside a parent scroll view', (

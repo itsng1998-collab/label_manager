@@ -22,6 +22,8 @@ import 'package:label_manager/models/column.dart';
 import 'package:label_manager/models/customer.dart';
 import 'package:label_manager/models/item.dart';
 import 'package:label_manager/models/item_manager_draft.dart';
+import 'package:label_manager/models/item_manager_draft_journal.dart';
+import 'package:label_manager/models/item_manager_save.dart';
 import 'package:label_manager/models/item_of_market.dart';
 import 'package:label_manager/models/label_size.dart';
 import 'package:label_manager/models/last_connect.dart';
@@ -99,6 +101,8 @@ class _HomePageManagerState extends State<HomePageManager> {
   ItemOfMarket? _selectedItemOfMarket;
   int? _selectedItemIndex;
   ItemManagerDraftController? _itemDraftController;
+  ItemManagerDraftJournal? _itemDraftJournal;
+  List<int> _itemDraftTargetMarketIds = const [];
   String _itemDraftEmptyElementPayload = '';
   bool _rtfPreviewHasResolvedImage = false;
   bool _autoSelectedCommonLabelOnce = false;
@@ -108,6 +112,7 @@ class _HomePageManagerState extends State<HomePageManager> {
   bool _commonLabelPreviewClosedByUser = false;
   bool _commonLabelPreviewHiddenForSheetDialog = false;
   bool _commonLabelPreviewMovedByUser = false;
+  bool _itemDraftCommandBusy = false;
   bool _suppressNextBrandDidUpdateLabelLoad = false;
 
   OverlayEntry? _brandSettingsOverlayEntry;
@@ -332,6 +337,7 @@ class _HomePageManagerState extends State<HomePageManager> {
     debugLog(
       'handleBrandChanged brandId=${brand?.brandId} autoLogin=$_isAutoLoginMode',
     );
+    if (_blockItemDraftContextChange()) return;
     widget.onBrandChanged(brand);
   }
 
@@ -340,6 +346,7 @@ class _HomePageManagerState extends State<HomePageManager> {
   // 근거: .tmp/log/app_2026-07-01_17-13-52.log — 더블탭/핸들러는 정상 도달하나
   // _handleBrandChanged 의 autoLogin=true 가드에서 선택이 무시되어 무반응이었음.
   void _handleBrandSelectedFromDialog(Brand? brand) {
+    if (_blockItemDraftContextChange()) return;
     _brandDialogBusyNotifier.value = true;
     widget.onBrandChanged(brand);
   }
@@ -348,6 +355,7 @@ class _HomePageManagerState extends State<HomePageManager> {
     debugLog(
       'labelSettings brandChanged brandId=${brand?.brandId} name=${brand?.brandName}',
     );
+    if (_blockItemDraftContextChange()) return;
     _labelDialogBrandChangeInFlight = true;
     _labelDialogBrandChangeInFlightId = brand?.brandId;
     try {
@@ -518,6 +526,12 @@ class _HomePageManagerState extends State<HomePageManager> {
     try {
       debugLog(START);
 
+      if (labelSize?.labelSizeId != _currentLabelSize?.labelSizeId &&
+          _blockItemDraftContextChange()) {
+        widget.onLabelSizeChanged(_currentLabelSize);
+        return;
+      }
+
       final currentLabelSizeId = _currentLabelSize?.labelSizeId;
       final selectedLabelSizeId = widget.selectedLabelSize?.labelSizeId;
       if (labelSize?.labelSizeId == currentLabelSizeId &&
@@ -527,8 +541,11 @@ class _HomePageManagerState extends State<HomePageManager> {
       }
 
       if (labelSize == null) {
+        await _itemDraftJournal?.close();
+        _itemDraftJournal = null;
         _itemDraftController?.dispose();
         _itemDraftController = null;
+        _itemDraftTargetMarketIds = const [];
         _itemDraftEmptyElementPayload = '';
         _currentLabelSize = null;
         _rtfPreviewReadyKey = null;
@@ -552,6 +569,25 @@ class _HomePageManagerState extends State<HomePageManager> {
       _itemPreviewClosedByUser = false;
       _commonLabelPreviewClosedByUser = false;
       widget.onLabelSizeChanged(labelSize);
+      final customer = Customer.instance;
+      final market = Market.instance;
+      final user = User.instance;
+      if (customer == null || market == null || user == null) {
+        throw StateError('품목관리 편집 세션의 로그인 정보가 없습니다.');
+      }
+      if (market.customerId != customer.customerId) {
+        throw StateError('현재 거래처와 로그인 고객 정보가 일치하지 않습니다.');
+      }
+      final targetMarkets =
+          await MarketDAO.selectByCustomerId(customer.customerId) ??
+          const <Market>[];
+      if (targetMarkets.isEmpty ||
+          !targetMarkets.any((value) => value.marketId == market.marketId)) {
+        throw StateError('저장 대상 market 목록에서 현재 market을 찾을 수 없습니다.');
+      }
+      _itemDraftTargetMarketIds = targetMarkets
+          .map((value) => value.marketId)
+          .toList(growable: false);
       TColumn.datas = await TColumnDAO.selectByLabelSizeId(
         labelSize.labelSizeId,
       );
@@ -569,7 +605,7 @@ class _HomePageManagerState extends State<HomePageManager> {
       final items = ItemOfMarket.datas ?? const <ItemOfMarket>[];
       final rawSnapshots =
           await ItemOfMarketDAO.selectRawSnapshotsByMarketAndLabelSizeId(
-            Market.instance!.marketId,
+            market.marketId,
             labelSize.labelSizeId,
           ) ??
           const <ItemOfMarketRawSnapshot>[];
@@ -577,6 +613,8 @@ class _HomePageManagerState extends State<HomePageManager> {
           await TColumnContentDAO.selectScopedByItemIds(
             items.map((item) => item.item.itemId),
           );
+      await _itemDraftJournal?.close();
+      _itemDraftJournal = null;
       _itemDraftController?.dispose();
       _itemDraftController = ItemManagerDraftController.fromItems(
         items: items,
@@ -588,6 +626,20 @@ class _HomePageManagerState extends State<HomePageManager> {
       _itemDraftEmptyElementPayload = labelSheetEncodeWorkbookSave(
         _itemElementWorkbook('', labelSize),
       );
+      _itemDraftJournal = ItemManagerDraftJournal(
+        controller: _itemDraftController!,
+        metadata: ItemManagerDraftJournalMetadata(
+          draftKey:
+              '${user.userId}_${customer.customerId}_${labelSize.labelSizeId}_${market.marketId}',
+          userId: user.userId,
+          customerId: customer.customerId,
+          brandId: labelSize.brandId,
+          labelSizeId: labelSize.labelSizeId,
+          currentMarketId: market.marketId,
+          targetMarketIds: _itemDraftTargetMarketIds,
+        ),
+      );
+      await _itemDraftJournal!.start();
       _selectInitialItemOfMarket();
       debugLog(
         'loaded labelSizeId=${labelSize.labelSizeId}, '
@@ -605,6 +657,143 @@ class _HomePageManagerState extends State<HomePageManager> {
     } finally {
       debugLog(END);
     }
+  }
+
+  bool _blockItemDraftContextChange() {
+    if (_itemDraftController?.isDirty != true) return false;
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('저장 완료 또는 변경 취소 확정 후 변경해 주세요.')),
+      );
+    }
+    return true;
+  }
+
+  Future<void> _cancelItemDraft() async {
+    final controller = _itemDraftController;
+    if (controller == null || !controller.isDirty || _itemDraftCommandBusy) {
+      return;
+    }
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('변경 취소'),
+        content: const Text('품목관리 변경 사항을 모두 취소할까요?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('계속 편집'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('변경 취소'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    await _reloadItemDraftFromDatabase();
+  }
+
+  Future<void> _saveItemDraft() async {
+    final controller = _itemDraftController;
+    final labelSize = _currentLabelSize;
+    if (controller == null ||
+        labelSize == null ||
+        !controller.isDirty ||
+        _itemDraftCommandBusy) {
+      return;
+    }
+    try {
+      controller.validateForSave();
+    } catch (error) {
+      _showItemDraftError('품목 저장 확인', error);
+      return;
+    }
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('품목 저장'),
+        content: const Text('품목관리 변경 사항을 저장할까요?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('취소'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('저장'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    final selectedKey = controller.anchorRowKey;
+    final selectedRow = selectedKey == null
+        ? null
+        : controller.rows.firstWhereOrNull((row) => row.rowKey == selectedKey);
+    setState(() => _itemDraftCommandBusy = true);
+    try {
+      final capabilities = await ItemSaveSchemaCapabilityDAO.probe();
+      final command = controller.toSaveCommand(
+        labelSizeId: labelSize.labelSizeId,
+        targetMarketIds: _itemDraftTargetMarketIds,
+      );
+      final result = await ItemManagerSaveDAO.save(command, capabilities);
+      final selectedItemId =
+          selectedRow?.sourceItemId ??
+          result.insertedItemIdsByDraftKey[selectedRow?.draftRowKey];
+      await _reloadItemDraftFromDatabase(selectedItemId: selectedItemId);
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('품목관리 변경 사항을 저장했습니다.')));
+      }
+    } catch (error) {
+      if (mounted) _showItemDraftError('품목 저장 실패', error);
+    } finally {
+      if (mounted) setState(() => _itemDraftCommandBusy = false);
+    }
+  }
+
+  Future<void> _reloadItemDraftFromDatabase({int? selectedItemId}) async {
+    final labelSize = _currentLabelSize;
+    if (labelSize == null) return;
+    await _itemDraftJournal?.close();
+    _itemDraftJournal = null;
+    _itemDraftController?.dispose();
+    _itemDraftController = null;
+    _currentLabelSize = null;
+    await _handleLabelSizeChanged(labelSize);
+    if (selectedItemId == null) return;
+    final items = ItemOfMarket.datas ?? const <ItemOfMarket>[];
+    final index = items.indexWhere(
+      (item) => item.item.itemId == selectedItemId,
+    );
+    if (index < 0) return;
+    _selectedItemIndex = index;
+    _selectedItemOfMarket = items[index];
+    _itemDraftController?.setSelection([
+      'item:$selectedItemId',
+    ], anchorRowKey: 'item:$selectedItemId');
+    _resetTabs();
+  }
+
+  void _showItemDraftError(String title, Object error) {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(title),
+        content: Text(error.toString()),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('확인'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _resetTabs() {
@@ -859,6 +1048,9 @@ class _HomePageManagerState extends State<HomePageManager> {
           labelSize: _effectiveLabelSize,
           marketId: Market.instance?.marketId,
           emptyElementPayload: _itemDraftEmptyElementPayload,
+          onCancelDraft: _cancelItemDraft,
+          onSaveDraft: _saveItemDraft,
+          commandBusy: _itemDraftCommandBusy,
         ),
         closable: false,
         keepAlive: true,
@@ -1568,6 +1760,7 @@ class _HomePageManagerState extends State<HomePageManager> {
 
   @override
   void dispose() {
+    unawaited(_itemDraftJournal?.close() ?? Future<void>.value());
     _itemDraftController?.dispose();
     _rtfPreviewResizeDebounce?.cancel();
     _rtfPreviewResizeFinalizeTimer?.cancel();

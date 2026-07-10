@@ -17,6 +17,11 @@ class ItemManage extends StatefulWidget {
   final LabelSize? labelSize;
   final int? marketId;
   final String emptyElementPayload;
+  final Future<void> Function()? onExcelImport;
+  final Future<void> Function()? onExcelExport;
+  final Future<void> Function()? onCancelDraft;
+  final Future<void> Function()? onSaveDraft;
+  final bool commandBusy;
 
   const ItemManage({
     super.key,
@@ -28,6 +33,11 @@ class ItemManage extends StatefulWidget {
     this.labelSize,
     this.marketId,
     this.emptyElementPayload = '',
+    this.onExcelImport,
+    this.onExcelExport,
+    this.onCancelDraft,
+    this.onSaveDraft,
+    this.commandBusy = false,
   });
 
   @override
@@ -108,19 +118,71 @@ class _ItemManageState extends State<ItemManage> {
       'rows=${displayItems.length}, '
       'dynamicColumns=${TColumn.datas?.length ?? 0}, columns=${columns.length}',
     );
-    return GestureDetector(
-      behavior: HitTestBehavior.translucent,
-      onSecondaryTapDown: _showTableContextMenu,
-      child: FortuneTable<ItemOfMarket>(
-        rows: displayItems,
-        columns: columns,
-        autoFitColumns: false,
-        selectedIndex: widget.selectedIndex,
-        selectionController: _selectionController,
-        multiSelectionEnabled: true,
-        onRowSelected: _handleRowSelected,
-        onRectChanged: widget.onTableRectChanged,
-        rowColorBuilder: _rowColor,
+    return Column(
+      children: [
+        Expanded(
+          child: GestureDetector(
+            behavior: HitTestBehavior.translucent,
+            onSecondaryTapDown: _showTableContextMenu,
+            child: FortuneTable<ItemOfMarket>(
+              rows: displayItems,
+              columns: columns,
+              autoFitColumns: false,
+              selectedIndex: widget.selectedIndex,
+              selectionController: _selectionController,
+              multiSelectionEnabled: true,
+              onRowSelected: _handleRowSelected,
+              onRectChanged: widget.onTableRectChanged,
+              rowColorBuilder: _rowColor,
+            ),
+          ),
+        ),
+        _buildCommandFooter(),
+      ],
+    );
+  }
+
+  Widget _buildCommandFooter() {
+    final dirty = widget.draftController?.isDirty == true;
+    final cleanEnabled = !widget.commandBusy && !dirty;
+    final dirtyEnabled = !widget.commandBusy && dirty;
+    return Container(
+      height: 48,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(top: BorderSide(color: Color(0xFFE6E8EB))),
+      ),
+      child: Row(
+        children: [
+          OutlinedButton(
+            onPressed: cleanEnabled && widget.onExcelImport != null
+                ? widget.onExcelImport
+                : null,
+            child: const Text('엑셀 가져오기'),
+          ),
+          const SizedBox(width: 8),
+          OutlinedButton(
+            onPressed: cleanEnabled && widget.onExcelExport != null
+                ? widget.onExcelExport
+                : null,
+            child: const Text('엑셀 내보내기'),
+          ),
+          const Spacer(),
+          OutlinedButton(
+            onPressed: dirtyEnabled && widget.onCancelDraft != null
+                ? widget.onCancelDraft
+                : null,
+            child: const Text('취소'),
+          ),
+          const SizedBox(width: 8),
+          FilledButton(
+            onPressed: dirtyEnabled && widget.onSaveDraft != null
+                ? widget.onSaveDraft
+                : null,
+            child: const Text('저장'),
+          ),
+        ],
       ),
     );
   }
@@ -461,6 +523,32 @@ class _ItemManageState extends State<ItemManage> {
                   )?.dataString ??
                   '';
             },
+            isTextEditable: (row, _) {
+              final draft = _draftByDisplayItem[row];
+              if (draft == null) return false;
+              if (draft.isNew) return true;
+              return widget.draftController!.scopedColumnContents
+                      .get(c.columnId, draft.sourceItemId!)
+                      ?.editable ??
+                  false;
+            },
+            onTextCommitted: (row, _, value) {
+              final draft = _draftByDisplayItem[row];
+              if (draft == null) return;
+              final editable =
+                  draft.isNew ||
+                  (widget.draftController!.scopedColumnContents
+                          .get(c.columnId, draft.sourceItemId!)
+                          ?.editable ??
+                      false);
+              if (!editable) return;
+              widget.draftController!.updateColumnValue(
+                draft.rowKey,
+                columnId: c.columnId,
+                editable: editable,
+                dataString: value,
+              );
+            },
           ),
         )
         .toList();
@@ -481,12 +569,18 @@ class _ItemManageState extends State<ItemManage> {
         minWidth: 60,
         text: _labelSize,
       ),
-      const FortuneTableColumn<ItemOfMarket>(
+      FortuneTableColumn<ItemOfMarket>(
         id: 'itemName',
         header: '품명',
         initialWidth: 280,
         minWidth: 70,
         text: _itemName,
+        isTextEditable: (row, _) => _draftByDisplayItem.containsKey(row),
+        onTextCommitted: (row, _, value) {
+          final draft = _draftByDisplayItem[row];
+          if (draft == null) return;
+          widget.draftController!.updateItemName(draft.rowKey, value);
+        },
       ),
       const FortuneTableColumn<ItemOfMarket>(
         id: 'element',

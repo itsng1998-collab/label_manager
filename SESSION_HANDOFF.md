@@ -47,7 +47,12 @@
 - 3단계 UI 연결 진행 중: label load에서 표시 items와 nullable raw snapshots/scoped column contents를 같은 item id 범위로 조회해 draft controller를 구성한다. `ItemManage`는 기존 `items` API 호환을 유지하면서 controller working rows/value resolver를 표시하고, 우클릭 추가/삽입/삭제(개수 입력/Enter, 10000행 제한, 삭제 확인, 삭제 후 선택 이동)를 controller command에 연결했다. 신규 주원료는 현재 label size의 실제 encoded empty workbook payload를 사용한다.
 - 3단계 정책 반영: 품목관리 진입 시 legacy RTF 전체 background DB 자동 마이그레이션 경로를 제거했다. preview/명시적 편집의 lazy 변환 경로는 유지하며, 사용자 저장 없는 `RICH_ELEMENT_SHEET` 변경은 더 이상 수행하지 않는다.
 - 3단계 현재 검증: `test/item_manager_draft_test.dart` 통과(`+8`), `test/fortune_table_test.dart` 전체 통과(`+12`, draft 메뉴 widget 포함), `flutter analyze` 통과(`No issues found`), `git diff --check` 통과.
-- 3단계 남은 작업: 임시 journal 파일/metadata와 취소 복원, FortuneTable 공용 편집 hook 기반 품명/일반 컬럼 직접 편집, 하단 주원료 draft 반영, dirty 취소/저장 버튼 및 브랜드/라벨 변경 차단, target market/customer identity 검증과 실제 save/reload/선택 복원을 연결한다.
+- 3단계 추가 구현: `item_manager_draft_journal.dart`에 app support 디렉터리 JSON journal, 250ms debounce, `.tmp`/`.bak` 교체, SharedPreferences의 path/key/savedAt metadata, BigInt FNV-1a 64-bit lightweight checksum을 구현했다. baseline은 item/order/name/plain/payload signature와 scoped column 값만 저장하고 큰 payload는 modified/new/deleted 상세 row에만 기록한다. close/cancel/save/새 clean load에서 파일과 metadata를 폐기한다.
+- 3단계 추가 구현: `FortuneTableColumn` 공용 `isTextEditable`/`onTextCommitted` hook과 inline editor를 원본 fortune_sheet 엔진에 추가했다. 더블클릭 또는 Enter/F2 진입, Enter/포커스 이탈 commit, Escape 취소를 지원한다. `ItemManage` 품명과 editable 일반 컬럼을 draft API에 연결하고 주원료 셀은 직접 편집 불가로 유지했다.
+- 3단계 추가 구현: 품목관리 footer에 `엑셀 가져오기`, `엑셀 내보내기`, `취소`, `저장`을 배치했다. dirty이면 Excel 비활성/취소·저장 활성, clean이면 반대로 동작한다. 로그인 customer/current market identity 검증 후 customer 전체 target market id를 세션 단위로 확정하며, dirty 중 브랜드/라벨 변경을 차단한다.
+- 3단계 추가 구현: 취소 확인 후 journal 폐기/DB 재조회, 저장 확인 후 capability probe → save command 검증 → isolate transaction → DB 재조회 → source item id 또는 신규 draft id mapping 기준 선택 복원을 연결했다. 빈 품명은 DB 접근 전에 행 번호 안내로 차단한다.
+- 3단계 최신 검증: `test/item_manager_draft_test.dart` 통과(`+9`), `test/item_manager_draft_journal_test.dart` 통과(`+1`), `test/fortune_table_test.dart` 전체 통과(`+14`), `flutter analyze` 통과(`No issues found`). 운영 DB transaction 통합 실행은 아직 미검증이다.
+- 3단계 남은 작업: 하단 주원료 편집을 즉시 DB 저장에서 draft 반영으로 전환하고 lazy RTF journal 정책을 확인한다. 이후 Excel import/export, QR 데이터 보기, 순서 변경 dialog, 날짜 설정을 지시서 순서대로 구현한다.
 
 ### 완료 (2026-07-10): 불필요한 작업 규칙 정리
 

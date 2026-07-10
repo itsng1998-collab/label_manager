@@ -182,6 +182,30 @@ void main() {
       expect(() => command.toSqlParams(), returnsNormally);
     });
 
+    test('rejects save while a working row has an empty item name', () {
+      final controller = ItemManagerDraftController(
+        rows: [
+          ItemManagerDraftRow.newRow(
+            draftRowKey: 'draft-1',
+            order: 1,
+            originalIndex: 0,
+            insertAnchorItemId: null,
+            rowState: ItemManagerDraftRowState.added,
+            emptyElementPayload: 'UEsDempty',
+          ),
+        ],
+        scopedColumnContents: TColumnContentScopedView(const {}),
+      );
+
+      expect(
+        () => controller.toSaveCommand(
+          labelSizeId: 4,
+          targetMarketIds: const [3],
+        ),
+        throwsStateError,
+      );
+    });
+
     test('rejects additions above the shared row limit', () {
       final rows = List.generate(
         ItemManagerLimits.maxRows,

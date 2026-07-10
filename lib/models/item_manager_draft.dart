@@ -226,6 +226,7 @@ class ItemManagerDraftController extends ChangeNotifier {
   final List<ItemManagerDraftRow> _rows;
   final TColumnContentScopedView scopedColumnContents;
   final Set<int> _deletedSourceItemIds = {};
+  final Map<int, ItemManagerDraftRow> _deletedRowsBySourceItemId = {};
   final Set<String> _selectedRowKeys = {};
   int _draftSequence = 0;
   String? _anchorRowKey;
@@ -267,6 +268,8 @@ class ItemManagerDraftController extends ChangeNotifier {
 
   List<ItemManagerDraftRow> get rows => List.unmodifiable(_rows);
   Set<int> get deletedSourceItemIds => Set.unmodifiable(_deletedSourceItemIds);
+  Map<int, ItemManagerDraftRow> get deletedRowsBySourceItemId =>
+      Map.unmodifiable(_deletedRowsBySourceItemId);
   Set<String> get selectedRowKeys => Set.unmodifiable(_selectedRowKeys);
   String? get anchorRowKey => _anchorRowKey;
   bool get isDirty =>
@@ -338,6 +341,7 @@ class ItemManagerDraftController extends ChangeNotifier {
     required int labelSizeId,
     required List<int> targetMarketIds,
   }) {
+    validateForSave();
     if (labelSizeId <= 0) {
       throw ArgumentError.value(
         labelSizeId,
@@ -395,6 +399,18 @@ class ItemManagerDraftController extends ChangeNotifier {
     );
     command.validate();
     return command;
+  }
+
+  void validateForSave() {
+    if (_rows.length > ItemManagerLimits.maxRows) {
+      throw StateError('품목은 최대 ${ItemManagerLimits.maxRows}개까지 저장할 수 있습니다.');
+    }
+    final emptyNameIndex = _rows.indexWhere(
+      (row) => row.itemName.trim().isEmpty,
+    );
+    if (emptyNameIndex >= 0) {
+      throw StateError('${emptyNameIndex + 1}행의 품명을 입력해 주세요.');
+    }
   }
 
   void setSelection(Iterable<String> rowKeys, {String? anchorRowKey}) {
@@ -464,7 +480,10 @@ class ItemManagerDraftController extends ChangeNotifier {
     for (final index in indexes.reversed) {
       final removed = _rows.removeAt(index);
       final sourceItemId = removed.sourceItemId;
-      if (sourceItemId != null) _deletedSourceItemIds.add(sourceItemId);
+      if (sourceItemId != null) {
+        _deletedSourceItemIds.add(sourceItemId);
+        _deletedRowsBySourceItemId.putIfAbsent(sourceItemId, () => removed);
+      }
     }
     _renumberRows();
     _selectedRowKeys.removeAll(keys);
