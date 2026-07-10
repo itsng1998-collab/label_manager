@@ -70,7 +70,9 @@
 - 5단계 viewer 진행: `FortuneTable.onRowSecondaryTapDown` 공용 hook으로 실제 우클릭 row를 전달하고, 품목관리 메뉴의 `QR코드 데이터 보기`가 current draft row 기준 resolver 결과 전체를 읽기 전용/선택 가능 목록으로 표시한다. viewer는 controller mutation을 수행하지 않아 dirty 상태에 포함되지 않는다.
 - 5단계 preview/metadata 진행: barcode object id가 column keyword와 일치할 때 resolver가 `barcodeText`, `barcodeFormatId`, `barcodeFormatLabel`, `barcodeShowText`를 갱신하며 geometry metadata는 유지한다. `preserveTemplateBarcodeFormat=true`이면 template format metadata를 보존한다. save codec feature/allow-list와 OpenXML customXml image metadata export/import를 보완해 `.lms` 및 `.xlsx` round-trip에서 플래그가 유지된다. 출력 미리보기는 `itemCodeWarning`/`itemCodeError`를 중복 제거해 상단에 표시하고 오류 barcode object의 기존 이미지를 명시적 SVG placeholder로 교체한다.
 - 5단계 현재 검증: `test/barcode_data_helper_test.dart`와 `test/item_code_data_resolver_test.dart` 통과(현재 resolver 파일 `+8`), QR 우클릭 row widget test 통과(`+1`), preview message/placeholder focused test 통과(`+1`), image save metadata 및 XLSX image metadata focused test 각각 통과(`+1`, `+1`), `flutter analyze` 통과(`No issues found`).
-- 다음 작업: 5단계의 실제 print job이 resolver 적용 output workbook을 사용하도록 연결하고 EZPL native 지원 format/미지원 raster fallback을 검증하는 작업이 남아 있다. 이후 날짜 타입 설정, 품목 순서 변경 순서로 진행한다. 운영 DB capability/save transaction의 실제 trigger/schema 통합 실행은 fixture가 없어 계속 미검증이다.
+- 5단계 실제 print 조사: 홈의 `라벨출력(F3)`는 현재 `_PlaceholderTab`이고 품목 출력 미리보기 workbench도 인쇄 명령을 노출하지 않으므로 resolver workbook을 연결할 기존 품목 print job이 아직 없다. 라벨출력 화면 구현 시 resolver 적용 output workbook을 입력으로 사용하고 EZPL native 지원 format/미지원 raster fallback을 검증해야 한다.
+- 6단계 날짜 설정 기반 진행: `DateManager`에 레거시 날짜/시간 고정 포맷 및 `Y/M/D`, `H/M` 사용자 정의 sample preview helper를 추가했다. `LabelSize.fromMap`은 날짜/시간 enum index를 range guard하고 범위 밖 값은 날짜 `DATE_FORMAT_DOT`, 시간 `TIME_FORMAT_COLON`으로 열며 `hasInvalidDateSetupValues` 경고 상태를 보존한다. `test/date_manager_test.dart` 2개와 전체 `flutter analyze`가 통과했다.
+- 다음 작업: 날짜/시간 12컬럼 전용 update DTO/DAO와 로그 capability probe, 날짜 타입 설정 다이얼로그/상단 메뉴/캐시 refresh를 구현한다. 이후 품목 순서 변경 순서로 진행한다. 운영 DB capability/save transaction의 실제 trigger/schema 통합 실행은 fixture가 없어 계속 미검증이다.
 
 ### 완료 (2026-07-10): 불필요한 작업 규칙 정리
 

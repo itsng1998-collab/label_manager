@@ -29,4 +29,31 @@ enum PrintTimeFormat {
 }
 
 class DateManager {
+	const DateManager._();
+
+	static String datePreview(PrintDateFormat format, {String custom = ''}) =>
+			switch (format) {
+				PrintDateFormat.DATE_FORMAT_DOT => '2000.01.01',
+				PrintDateFormat.DATE_FORMAT_SLASH => '2000/01/01',
+				PrintDateFormat.DATE_FORMAT_HANGUL => '2000년01월01일',
+				PrintDateFormat.DATE_FORMAT_NONE => '20000101',
+				PrintDateFormat.DATE_FORMAT_DOT_MMDD => '01.01',
+				PrintDateFormat.DATE_FORMAT_SLASH_MMDD => '01/01',
+				PrintDateFormat.DATE_FORMAT_HANGUL_MMDD => '01월01일',
+				PrintDateFormat.DATE_FORMAT_USER_DEFINE => custom
+						.replaceAll('Y', '2000')
+						.replaceAll('M', '01')
+						.replaceAll('D', '01'),
+			};
+
+	static String timePreview(PrintTimeFormat format, {String custom = ''}) =>
+			switch (format) {
+				PrintTimeFormat.TIME_FORMAT_COLON => '12:01',
+				PrintTimeFormat.TIME_FORMAT_HANGUL => '12시01분',
+				PrintTimeFormat.TIME_FORMAT_NONE => '1201',
+				PrintTimeFormat.TIME_FORMAT_HANGUL_hh => '12시',
+				PrintTimeFormat.TIME_FORMAT_USER_DEFINE => custom
+						.replaceAll('H', '12')
+						.replaceAll('M', '01'),
+			};
 }

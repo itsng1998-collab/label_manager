@@ -88,6 +88,7 @@ class LabelSize {
   final String labelSizeName;
   final LabelSizeCommon? labelSizeCommon;
   final LabelSizeSetup? labelSizeSetup;
+  final bool hasInvalidDateSetupValues;
 
   const LabelSize({
     required this.labelSizeId,
@@ -95,6 +96,7 @@ class LabelSize {
     required this.labelSizeName,
     this.labelSizeCommon,
     this.labelSizeSetup,
+    this.hasInvalidDateSetupValues = false,
   });
 
   static void setDatas(List<LabelSize>? values) {
@@ -135,6 +137,7 @@ class LabelSize {
     String? labelSizeName,
     LabelSizeCommon? labelSizeCommon,
     LabelSizeSetup? labelSizeSetup,
+    bool? hasInvalidDateSetupValues,
   }) {
     return LabelSize(
       labelSizeId: labelSizeId ?? this.labelSizeId,
@@ -142,11 +145,27 @@ class LabelSize {
       labelSizeName: labelSizeName ?? this.labelSizeName,
       labelSizeCommon: labelSizeCommon ?? this.labelSizeCommon,
       labelSizeSetup: labelSizeSetup ?? this.labelSizeSetup,
+        hasInvalidDateSetupValues:
+          hasInvalidDateSetupValues ?? this.hasInvalidDateSetupValues,
     );
   }
 
   factory LabelSize.fromMap(Map<String, dynamic> map) {
     String s(String key) => (map[key] ?? '').toString();
+    int number(String key) {
+      final value = map[key];
+      return value is num ? value.toInt() : int.tryParse('$value') ?? 0;
+    }
+
+    T enumValue<T>(List<T> values, String key) {
+      final index = number(key);
+      return index >= 0 && index < values.length ? values[index] : values.first;
+    }
+
+    bool invalidEnumIndex<T>(List<T> values, String key) {
+      final index = number(key);
+      return index < 0 || index >= values.length;
+    }
 
     final labelSizeId = map['LABELSIZE_ID'];
     final brandId = map['BRAND_ID'];
@@ -164,10 +183,22 @@ class LabelSize {
       useMakeTime: map['SETUP_USE_MAKETIME'] != 0,
       useValidDate: map['SETUP_USE_VALIDDATE'] != 0,
       useValidTime: map['SETUP_USE_VALIDTIME'] != 0,
-      makingDateFormat: PrintDateFormat.values[map['SETUP_MAKEDATE_TYPE']],
-      makingTimeFormat: PrintTimeFormat.values[map['SETUP_MAKETIME_TYPE']],
-      validDateFormat: PrintDateFormat.values[map['SETUP_VALIDDATE_TYPE']],
-      validTimeFormat: PrintTimeFormat.values[map['SETUP_VALIDTIME_TYPE']],
+      makingDateFormat: enumValue(
+        PrintDateFormat.values,
+        'SETUP_MAKEDATE_TYPE',
+      ),
+      makingTimeFormat: enumValue(
+        PrintTimeFormat.values,
+        'SETUP_MAKETIME_TYPE',
+      ),
+      validDateFormat: enumValue(
+        PrintDateFormat.values,
+        'SETUP_VALIDDATE_TYPE',
+      ),
+      validTimeFormat: enumValue(
+        PrintTimeFormat.values,
+        'SETUP_VALIDTIME_TYPE',
+      ),
       strMakeDate: s('USER_MAKEDATE'),
       strMakeTime: s('USER_MAKETIME'),
       strValidDate: s('USER_VALIDDATE'),
@@ -181,6 +212,23 @@ class LabelSize {
       labelSizeName: labelSizeName,
       labelSizeCommon: labelSizeCommon,
       labelSizeSetup: labelSizeSetup,
+      hasInvalidDateSetupValues:
+          invalidEnumIndex(
+            PrintDateFormat.values,
+            'SETUP_MAKEDATE_TYPE',
+          ) ||
+          invalidEnumIndex(
+            PrintTimeFormat.values,
+            'SETUP_MAKETIME_TYPE',
+          ) ||
+          invalidEnumIndex(
+            PrintDateFormat.values,
+            'SETUP_VALIDDATE_TYPE',
+          ) ||
+          invalidEnumIndex(
+            PrintTimeFormat.values,
+            'SETUP_VALIDTIME_TYPE',
+          ),
     );
   }
 
