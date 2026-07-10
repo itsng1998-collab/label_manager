@@ -39,6 +39,7 @@
 - 검증: `.tmp/item_manager_modify.txt` 본문에 예전 선택지 문구(`저장 후 계속`, `변경 취소 후 계속`, 라벨 설정 순서변경 패턴)가 남지 않았음을 `grep_search`로 확인했다.
 - 검증: `git diff --check -- .tmp/item_manager_modify.txt SESSION_HANDOFF.md` 통과.
 - stage/commit 대상: ignored `.tmp/item_manager_modify.txt` 변경 추적용 `SESSION_HANDOFF.md`만 stage/commit한다.
+- 커밋: `b969aab` 품목관리 요청서 순서 변경 권장안 정리
 
 ### 완료 (2026-07-10): 품목관리 요청서 순서 변경 병합
 
