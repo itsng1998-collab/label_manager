@@ -28,6 +28,16 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-10): 품목관리 요청서 bulk id 전달 경계 보강
+
+- 요청: 재검토에서 남은 temp table/table variable 실행 경계, chunk 조회 결과 병합 기준, 검증 안 된 bulk 전달 방식 표현을 권장 사항으로 `.tmp/item_manager_modify.txt`에 병합했다.
+- `.tmp/item_manager_modify.txt`에서 scoped 조회의 temp table/table variable은 DAO 단일 isolate action 또는 단일 SQL batch 안에서 id 적재/조회/정리까지 완료하고, 여러 `DbClient.query...` 호출로 나누지 않도록 명시했다.
+- chunk 조회 fallback은 DAO 단일 action 안에서 실행하고 결과를 `columnId + itemId` key로 dedupe/merge하도록 정리했다.
+- SQL 길이 제한 대응에서 1차 bulk 전달 후보를 temp table/table variable 또는 DAO chunk 조회/갱신으로 제한하고, 그 외 bulk 전달 방식은 driver/ODBC 동작 검증 후 별도 확정된 경우에만 사용하도록 낮췄다.
+- 사용자 확인 사항은 추가하지 않았고, 엑셀 `주원료` 칸의 보이는 글자만 가져올지 셀 서식/병합 모양까지 재현할지 여부 1개만 유지했다.
+- 검증: `grep_search`로 넓은 bulk 표현 제거와 단일 action/merge 기준 문구를 확인했고, `git diff --check -- .tmp/item_manager_modify.txt SESSION_HANDOFF.md` 통과.
+- 커밋 예정: `.tmp/item_manager_modify.txt`는 ignored 파일이므로 staging하지 않고, 추적 가능한 변경 기록으로 `SESSION_HANDOFF.md`만 커밋한다.
+
 ### 완료 (2026-07-10): 품목관리 요청서 scoped 조회/trigger fallback 보강
 
 - 요청: 재검토에서 남은 scoped column content 조회의 SQL Server parameter 한도 위험, trigger fallback 표현, 상단 scoped cache 진단 문구를 권장 사항으로 `.tmp/item_manager_modify.txt`에 병합했다.
