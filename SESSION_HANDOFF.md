@@ -40,7 +40,7 @@
 - 수정 완료: 품목관리 편집 기능이 켜진 화면에서는 라벨크기 로드 직후 `_startItemElementAutoMigration()` 호출 자체를 skip하도록 정리했다.
 - 검증 완료: `Select-String -Path .tmp/item_manager_modify.txt -Pattern 'transaction/batch API|단일 SQL batch transaction|workbook sheet order index 0|activeTab|lightweight checksum|checksum 산출 입력|BM_ADDITIONAL_ITEM|draft row/value model|_startItemElementAutoMigration\\(\\) 호출|여러 `writeDataWithParams` 호출|sheet index 또는 relationship id'`로 본문/검증/최종 정리 반영을 확인했다.
 - 검증 완료: `git diff --check -- .tmp/item_manager_modify.txt` 통과(공백 오류 없음).
-- 커밋 예정: `SESSION_HANDOFF.md`만 포함한다. `.tmp/item_manager_modify.txt`는 `.gitignore`의 `.tmp/` 대상이므로 force add하지 않고 작업 파일로 유지한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+- 커밋 완료: `ff7f423` 품목관리 요청서 저장 엑셀 권장안 병합. 포함 파일은 `SESSION_HANDOFF.md`이며, `.tmp/item_manager_modify.txt`는 ignore 대상 작업 파일로 유지했다. 기존 unrelated dirty `lib/core/app.dart`는 제외했다.
 
 ### 완료 (2026-07-10): 품목관리 요청서 주원료 payload 판별 기준 정리
 
