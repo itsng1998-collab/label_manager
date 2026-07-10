@@ -41,7 +41,7 @@
 - 수정 완료: 기존 `BM_RICH_ITEM`, `BM_RICH_COL_CONTENT`, `BM_RICH_BARCODE`, `BM_RICH_IMAGE`, `BM_RICH_PRINT_LOG`, `BM_ADDITIONAL_ITEM` orphan 정리는 이번 범위에서 수행하지 않고 별도 유지보수 작업으로 분리한다고 정리했다.
 - 검증 완료: `Select-String -Path .tmp/item_manager_modify.txt -Pattern 'AFTER_INSERT_ITEM|trigger 생성 row|중복 insert|sourceItemId|insertAnchorItemId|marketMappingDraft|RICH_ADDITIONAL_ITEM_ID=NULL|additional item.*NULL|물리 delete를 수행하지|orphan 정리|지정 sheet parser|기존 `labelSheetWorkbookFromXlsxBytes\\(\\)` 원본 결과|변환 경로를 우선 사용|다른 참조가 없을 때만 수행|mapping/column content 제거'`로 새 정책 반영과 구형 충돌 문구 제거를 확인했다.
 - 검증 완료: `git diff --check -- .tmp/item_manager_modify.txt` 통과(공백 오류 없음).
-- 커밋 예정: `SESSION_HANDOFF.md`만 포함한다. `.tmp/item_manager_modify.txt`는 `.gitignore`의 `.tmp/` 대상이므로 force add하지 않고 작업 파일로 유지한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+- 커밋 완료: `a5f2326` 품목관리 요청서 DB 저장 세부 정책 병합. 포함 파일은 `SESSION_HANDOFF.md`이며, `.tmp/item_manager_modify.txt`는 ignore 대상 작업 파일로 유지했다. 기존 unrelated dirty `lib/core/app.dart`는 제외했다.
 
 ### 완료 (2026-07-10): 품목관리 요청서 구현 경계 권장안 병합
 
