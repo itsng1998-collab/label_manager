@@ -79,6 +79,7 @@
 - 순서 변경 다이얼로그는 현재 market/label size의 저장된 품목을 `RICH_ITEM_ORDER`, `RICH_ITEM_ID` 순으로 DB에서 새로 읽고, 번호 목록/선택 강조/위·아래 이동/닫기/적용을 제공한다. 변경 전에는 적용이 비활성화되며 적용 확인에는 item-level `RICH_ITEM_ORDER`가 같은 label size 품목을 공유하는 다른 market 표시 순서에도 영향을 줄 수 있음을 안내한다.
 - 적용 시 다이얼로그 표시 순서대로 `ItemOrderUpdate(order: index + 1)`를 만들고 기존 `ItemDAO.updateOrders` transaction으로 `BM_RICH_ITEM.RICH_ITEM_ORDER`만 갱신한다. 성공 후 기존 `_reloadItemDraftFromDatabase` 경로로 journal/controller를 폐기하고 DB를 재조회하며, 이전 선택 item id가 남아 있으면 선택과 preview를 복원한다.
 - 7단계 검증: `test/item_order_dialog_test.dart`에서 이동/번호/적용 반환/닫기 no-op을 검증하고, `test/fortune_table_test.dart`에서 메뉴 배치/callback/dirty 차단/빈 영역 메뉴를 검증했다. `test/item_manager_save_dao_test.dart`의 order identity/SQL 계약을 포함한 관련 26개 테스트와 전체 `flutter analyze`가 통과했다. 운영 DB에서의 실제 order transaction 실행은 연결 fixture가 없어 미검증이다.
+- 7단계 커밋 완료: `7bc558f` 품목 순서 변경 기능 추가.
 - 작업 지시서의 1~7단계 구현은 완료했다. 실제 품목 인쇄 연동은 홈 `라벨출력(F3)` 탭이 아직 placeholder라 연결할 기존 print job이 없으며, 운영 DB capability/save/date/order transaction 통합 실행은 fixture가 없어 계속 미검증이다.
 
 ### 완료 (2026-07-10): 불필요한 작업 규칙 정리
