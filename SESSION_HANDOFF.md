@@ -28,6 +28,17 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-10): 품목관리 요청서 구현 전 필수 정책 권장안 병합
+
+- 요청: 재검토에서 남은 `LabelSizeDAO.updateSetup` API 고정, 삭제/전체교체 targetMarket 적용 범위, item-level order 영향, template barcode format 유지 옵션 key, DateManager 날짜/시간 token helper 분리, `forceReloadRequired` 상태 소유자 모호점을 권장안으로 `.tmp/item_manager_modify.txt`에 병합한다.
+- `.tmp/item_manager_modify.txt` 반영 완료: `LabelSizeDAO.updateSetup(labelSizeId, LabelSizeSetup)`를 날짜 setup 저장 전용/확정 API로 고정하고 기존 form data 저장 경로와 분리했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: `DateManager` 날짜/시간 token helper를 분리하고, edit controller/view model 상태로 `idle`, `editing`, `saving`, `forceReloadRequired`를 명시했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: 삭제/엑셀 전체교체의 모든 `targetMarketIds` 적용은 구현 전 필수 확인 항목으로 올리고 저장 확인 dialog에 다른 market 영향 안내를 포함하도록 정리했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: `순서 변경`은 item-level `BM_RICH_ITEM.RICH_ITEM_ORDER` 영향이 있으므로 적용 확인 dialog에 다른 market 순서 영향 안내를 포함하도록 정리했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: template barcode format 유지 후속 옵션 metadata key를 `preserveTemplateBarcodeFormat`으로 고정하고 save feature key/sanitizer/normalize/migrate 및 `.lms`/`.xlsx` import 검증 필요성을 정리했다.
+- 검증: `grep_search`로 `LabelSizeDAO.updateSetup`, `formatDateToken`, `forceReloadRequired` 상태, `preserveTemplateBarcodeFormat`, targetMarket 필수 확인, item-level order dialog 문구 반영과 `또는 동등 API` 표현 제거를 확인했다. `git diff --check -- .tmp/item_manager_modify.txt` 통과.
+- stage/commit 대상: ignored `.tmp/item_manager_modify.txt` 변경 추적용 `SESSION_HANDOFF.md`만 stage/commit한다.
+
 ### 완료 (2026-07-10): 품목관리 요청서 잔여 모호점 권장안 병합
 
 - 요청: 재검토에서 발견한 check digit 저장/출력 정책 충돌, QR/텍스트연동 날짜 포맷 기준, xlsx 지정 sheet parse DTO 계약, 날짜 setup enum range guard, template barcode format 유지 옵션 저장 위치를 권장안으로 `.tmp/item_manager_modify.txt`에 병합한다.
