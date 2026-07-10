@@ -28,6 +28,16 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-10): 품목관리 요청서 저장 DTO와 검증 태그 보강
+
+- 요청: 재검토에서 남은 권장 사항인 저장 DAO 입력 DTO 기준과 검증 항목 태그화를 `.tmp/item_manager_modify.txt`에 병합한다.
+- `.tmp/item_manager_modify.txt` 반영 완료: `13.1 권장 구현 단위`의 transaction/DAO 완료 기준에 UI 없이 테스트 가능한 save command DTO 또는 draft snapshot DTO 입력 경계를 추가했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: 14장 검증 항목에 `[읽기/스냅샷]`, `[transaction/DAO]`, `[UI draft/edit]`, `[Excel]` 태그 기준과 복합 태그/미검증 운용 기준을 추가했다.
+- 사용자 확인 사항: 새 항목은 추가하지 않았고, 기존 Excel `주원료` 서식/병합 보존 여부를 보이는 글자만 가져올지 하단 `주원료 및 함량` 편집 시트 형태까지 재현할지로 풀어 썼다.
+- 검증: `grep_search`로 `save command DTO`, `draft snapshot DTO`, 검증 태그 4종, 사용자 확인 문구를 확인했다.
+- 검증: `git diff --check -- .tmp/item_manager_modify.txt SESSION_HANDOFF.md` 통과.
+- stage/commit 대상: ignored `.tmp/item_manager_modify.txt` 변경 추적용 `SESSION_HANDOFF.md`만 stage/commit한다.
+
 ### 완료 (2026-07-10): 품목관리 요청서 단위별 완료 기준 보강
 
 - 요청: 재검토에서 남은 구현 단위별 완료 기준과 검증 항목 그룹핑을 권장 사항으로 `.tmp/item_manager_modify.txt`에 병합한다.
