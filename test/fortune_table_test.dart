@@ -499,6 +499,47 @@ void main() {
     expect(selectedIndex, 0);
   });
 
+  testWidgets('ItemManage keeps the element column read-only', (tester) async {
+    final source = _testItemOfMarket(itemName: '테스트 품목');
+    final controller = ItemManagerDraftController.fromItems(
+      items: [source],
+      rawSnapshots: {source.item.itemId: _rawSnapshot(source.item.itemId)},
+      scopedColumnContents: TColumnContentScopedView(const {}),
+    );
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 600,
+            height: 220,
+            child: ItemManage(
+              items: const [],
+              draftController: controller,
+              labelSize: const LabelSize(
+                labelSizeId: 20,
+                brandId: 30,
+                labelSizeName: '테스트 라벨',
+              ),
+              marketId: 1,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final elementText = controller.rows.single.elementPlain;
+    await tester.tap(find.text(elementText));
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.tap(find.text(elementText));
+    await tester.pump();
+
+    expect(find.byType(TextField), findsNothing);
+    expect(controller.rows.single.elementPlain, elementText);
+    expect(controller.isDirty, isFalse);
+  });
+
   testWidgets('Item manager migration state does not open the table', (
     tester,
   ) async {
