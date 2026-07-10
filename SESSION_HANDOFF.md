@@ -28,6 +28,17 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-10): 품목관리 요청서 바코드/복구 UI 계약 권장안 병합
+
+- 요청: 재검토에서 남은 애매점(`preserveTemplateBarcodeFormat=true` 완료 기준 예외, 바코드 셀 편집 시 ITF 홀수 길이 left-pad 저장 정책, mapping fingerprint 불일치 시 UI 기본/보조 액션)을 권장안으로 `.tmp/item_manager_modify.txt`에 병합한다.
+- 수정 예정 파일: `.tmp/item_manager_modify.txt`는 ignored 요청서 본문 수정, `SESSION_HANDOFF.md`는 ignored 요청서 변경 추적용 기록/검증/커밋 정보 갱신.
+- 사용자 확인: 새 비즈니스 정책 질문은 없으며, 기존 확정 답변을 유지하고 구현 세부 계약을 권장안으로 닫는다.
+- `.tmp/item_manager_modify.txt` 반영 완료: 바코드 셀 편집에서 ITF 홀수 길이 값은 자동 left-pad해 draft/DB 저장값으로 바꾸지 않고 저장 전 검증 오류로 표시하도록 정리했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: QR/바코드 helper 완료 기준에도 `preserveTemplateBarcodeFormat=true` object는 fallback 없이 template 형식 실패를 오류로 표시한다고 반영했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: mapping fingerprint 불일치 경고 dialog의 기본/권장 액션은 `다시 조회`, 보조 액션은 `변경 취소`로 고정했다.
+- 검증: `git diff --check -- .tmp/item_manager_modify.txt` 통과. `grep_search`로 `홀수 길이 ITF 값을 셀 편집에서 자동 left-pad`, `preserveTemplateBarcodeFormat=true` 완료 기준 예외, `기본/권장 액션은 다시 조회`, `보조 액션은 변경 취소`, `사용자 답변: 미확정` 없음 확인.
+- stage/commit 대상: ignored `.tmp/item_manager_modify.txt` 변경 추적용 `SESSION_HANDOFF.md`만 stage/commit한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+
 ### 완료 (2026-07-10): 품목관리 요청서 추가 구현 계약 권장안 병합
 
 - 요청: 재검토에서 남은 애매점(ITF 의미 보존 보정 기준, mapping fingerprint 불일치 시 저장 차단/재조회 흐름, mapping fingerprint 조회 bulk id 전달 규칙)을 권장안으로 `.tmp/item_manager_modify.txt`에 병합한다.
