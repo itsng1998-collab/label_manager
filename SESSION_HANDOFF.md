@@ -36,7 +36,7 @@
 - trigger multi-row 미지원 fallback은 1차 구현에서 같은 transaction 안의 단건 insert 반복으로 고정하고, trigger 우회/대체 batch는 DBA 또는 스키마 변경 확정 후 별도 범위로 분리했다.
 - 사용자 확인 사항은 추가하지 않았고, 엑셀 `주원료` 칸의 보이는 글자만 가져올지 셀 서식/병합 모양까지 재현할지 여부 1개만 유지했다.
 - 검증: `grep_search`로 예전 trigger/scoped 조회 모호 문구 제거와 새 SQL 전달/trigger fallback 문구를 확인했고, `git diff --check -- .tmp/item_manager_modify.txt SESSION_HANDOFF.md` 통과.
-- 커밋 예정: `.tmp/item_manager_modify.txt`는 ignored 파일이므로 staging하지 않고, 추적 가능한 변경 기록으로 `SESSION_HANDOFF.md`만 커밋한다.
+- 커밋: `6991996` 품목관리 요청서 scoped 조회 보강. `.tmp/item_manager_modify.txt`는 ignored 파일이므로 staging하지 않고, 추적 가능한 변경 기록으로 `SESSION_HANDOFF.md`만 커밋했다.
 
 ### 완료 (2026-07-10): 품목관리 요청서 transaction/scoped cache 잔여 정리
 
