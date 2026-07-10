@@ -28,6 +28,17 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-10): 품목관리 요청서 바코드 미리보기 최종 권장안 병합
+
+- 요청: 재검토에서 남은 구현 순서, 실제 출력 경로 경계, EAN-8 공용 선행 작업, GS1 format 정책, 오류 placeholder 필수/선택 범위를 권장안으로 `.tmp/item_manager_modify.txt`에 병합한다.
+- `.tmp/item_manager_modify.txt` 반영 완료: EAN-8 normalize를 출력 미리보기 전용이 아니라 품목관리 바코드 보정/검증/미리보기/출력 전반에 영향을 주는 공용 바코드 모델 선행 작업으로 정리했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: 실제 출력 경로는 raw template workbook을 바로 출력하지 않고 `ItemCodeDataResolver` 결과가 반영된 output workbook/image metadata를 입력으로 사용하도록 정리했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: GS1 바코드의 1차 `barcodeFormatId`는 column `barcodeType`에서 산출하되, FNC1/AI 의미 보존이 검증되지 않은 경우 Code128 텍스트 fallback이 아니라 preview/저장 전 검증 오류로 표시하도록 정리했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: `_ItemOutputPreviewTab`의 오류 표시는 탭 상단 오류 목록을 필수로 하고, barcode object 위치 placeholder는 선택 구현/후속 범위로 정리했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: 최종 정리의 구현 순서에 `QR/바코드 데이터 helper 기반`을 포함해 13.1 권장 구현 단위와 맞췄다.
+- 검증: `grep_search`로 공용 바코드 모델 문제, 실제 출력 경로 output workbook metadata 입력, GS1 FNC1/AI 오류 정책, `_ItemOutputPreviewTab` 오류 목록 필수, 최종 구현 순서 문구 반영을 확인했다.
+- stage/commit 대상: ignored `.tmp/item_manager_modify.txt` 변경 추적용 `SESSION_HANDOFF.md`만 stage/commit한다.
+
 ### 완료 (2026-07-10): 품목관리 요청서 바코드 미리보기 권장안 추가 병합
 
 - 요청: 재검토에서 남은 EAN-8 매핑, `ItemCodeDataResolver` 입력 범위, GS1 바코드 처리, 바코드 오류 UI 소유자, fallback 예외 정책을 권장안으로 `.tmp/item_manager_modify.txt`에 병합한다.
