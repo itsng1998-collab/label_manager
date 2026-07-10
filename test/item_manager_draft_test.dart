@@ -180,25 +180,37 @@ void main() {
           _itemOfMarket(itemId: 20, order: 2, name: '둘째 품목'),
         ]);
 
-        final imported = controller.replaceAllWithImportedRows(const [
-          ItemManagerImportedRow(
-            itemName: '가져온 첫 품목',
-            elementPlain: '딸기',
-            elementPayload: 'UEsDfirst',
-            columnDrafts: {
-              7: ItemManagerColumnDraft(editable: true, dataString: '00123'),
-            },
+        final imported = controller.replaceAllWithImportedRows(
+          const [
+            ItemManagerImportedRow(
+              itemName: '가져온 첫 품목',
+              elementPlain: '딸기',
+              elementPayload: 'UEsDfirst',
+              columnDrafts: {
+                7: ItemManagerColumnDraft(editable: true, dataString: '00123'),
+              },
+            ),
+            ItemManagerImportedRow(
+              itemName: '가져온 둘째 품목',
+              elementPlain: '',
+              elementPayload: 'UEsDempty',
+            ),
+          ],
+          importViewState: const ItemManagerImportViewState(
+            selectedItemId: 20,
+            selectedIndex: 1,
           ),
-          ItemManagerImportedRow(
-            itemName: '가져온 둘째 품목',
-            elementPlain: '',
-            elementPayload: 'UEsDempty',
-          ),
-        ]);
+        );
 
         expect(controller.deletedSourceItemIds, {10, 20});
         expect(controller.deletedRowsBySourceItemId.keys, {10, 20});
         expect(controller.hasImportedRows, isTrue);
+        expect(controller.importViewState?.toJson(), {
+          'selectedItemId': 20,
+          'selectedIndex': 1,
+          'sortState': const [],
+          'filterState': const {},
+        });
         expect(imported.map((row) => row.rowState), [
           ItemManagerDraftRowState.imported,
           ItemManagerDraftRowState.imported,

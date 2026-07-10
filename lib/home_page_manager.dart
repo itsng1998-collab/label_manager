@@ -814,9 +814,10 @@ class _HomePageManagerState extends State<HomePageManager> {
     );
     if (confirmed != true || !mounted) return;
     if (controller.hasImportedRows) {
+      final importViewState = controller.importViewState;
       final reloaded = await _reloadItemDraftFromDatabase(
-        selectedItemId: _selectedItemOfMarket?.item.itemId,
-        fallbackIndex: _selectedItemIndex,
+        selectedItemId: importViewState?.selectedItemId,
+        fallbackIndex: importViewState?.selectedIndex,
       );
       if (!reloaded && mounted) {
         _showItemDraftError('변경 취소 실패', StateError('품목 목록을 다시 불러오지 못했습니다.'));
@@ -1062,7 +1063,13 @@ class _HomePageManagerState extends State<HomePageManager> {
         );
         if (confirmed != true || !mounted) return;
       }
-      final imported = controller.replaceAllWithImportedRows(result.rows);
+      final imported = controller.replaceAllWithImportedRows(
+        result.rows,
+        importViewState: ItemManagerImportViewState(
+          selectedItemId: _selectedItemOfMarket?.item.itemId,
+          selectedIndex: _selectedItemIndex,
+        ),
+      );
       final labelSize = _currentLabelSize;
       final marketId = Market.instance?.marketId;
       if (labelSize != null && marketId != null) {

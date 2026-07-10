@@ -37,6 +37,27 @@ int? resolveItemManagerReloadSelectionIndex(
 
 enum ItemManagerElementPayloadFormat { empty, workbook, legacyRtf, unknown }
 
+class ItemManagerImportViewState {
+  const ItemManagerImportViewState({
+    this.selectedItemId,
+    this.selectedIndex,
+    this.sortState = const [],
+    this.filterState = const {},
+  });
+
+  final int? selectedItemId;
+  final int? selectedIndex;
+  final List<Object?> sortState;
+  final Map<String, Object?> filterState;
+
+  Map<String, Object?> toJson() => {
+    'selectedItemId': selectedItemId,
+    'selectedIndex': selectedIndex,
+    'sortState': sortState,
+    'filterState': filterState,
+  };
+}
+
 class ItemManagerDraftValidationError extends StateError {
   ItemManagerDraftValidationError({
     required this.rowKey,
@@ -314,6 +335,7 @@ class ItemManagerDraftController extends ChangeNotifier {
   String? _anchorRowKey;
   int? _selectedColumnId;
   int _focusRequestId = 0;
+  ItemManagerImportViewState? _importViewState;
 
   ItemManagerDraftController({
     required List<ItemManagerDraftRow> rows,
@@ -379,6 +401,7 @@ class ItemManagerDraftController extends ChangeNotifier {
       _rows.any((row) => row.rowState != ItemManagerDraftRowState.existing);
   bool get hasImportedRows =>
       _rows.any((row) => row.rowState == ItemManagerDraftRowState.imported);
+  ItemManagerImportViewState? get importViewState => _importViewState;
 
   void discardChanges({int? selectedItemId}) {
     _rows
@@ -386,6 +409,7 @@ class ItemManagerDraftController extends ChangeNotifier {
       ..addAll(_baselineRows);
     _deletedSourceItemIds.clear();
     _deletedRowsBySourceItemId.clear();
+    _importViewState = null;
     ItemManagerDraftRow? selectedRow;
     for (final row in _rows) {
       if (row.sourceItemId == selectedItemId) {
@@ -901,6 +925,7 @@ class ItemManagerDraftController extends ChangeNotifier {
 
   List<ItemManagerDraftRow> replaceAllWithImportedRows(
     List<ItemManagerImportedRow> importedRows,
+    {ItemManagerImportViewState? importViewState}
   ) {
     if (isDirty) {
       throw StateError('Import requires a clean item draft.');
@@ -940,6 +965,7 @@ class ItemManagerDraftController extends ChangeNotifier {
         ),
     ];
     _validateRows(replacements);
+    _importViewState = importViewState;
     _rows
       ..clear()
       ..addAll(replacements);

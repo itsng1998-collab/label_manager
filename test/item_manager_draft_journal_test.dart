@@ -83,6 +83,59 @@ void main() {
       await journal.close();
     });
 
+    test('writes the pre-import view state into journal metadata', () async {
+      final controller = ItemManagerDraftController.fromItems(
+        items: [_itemOfMarket()],
+        rawSnapshots: {10: _snapshot()},
+        scopedColumnContents: TColumnContentScopedView(const {}),
+      );
+      addTearDown(controller.dispose);
+      controller.replaceAllWithImportedRows(
+        const [
+          ItemManagerImportedRow(
+            itemName: '가져온 품목',
+            elementPlain: '',
+            elementPayload: 'UEsDempty',
+          ),
+        ],
+        importViewState: const ItemManagerImportViewState(
+          selectedItemId: 10,
+          selectedIndex: 0,
+        ),
+      );
+      final journal = ItemManagerDraftJournal(
+        controller: controller,
+        mappingFingerprints: ItemMarketMappingFingerprints(const {}),
+        metadata: const ItemManagerDraftJournalMetadata(
+          draftKey: 'user-1_2_8_4',
+          userId: 'user-1',
+          customerId: 2,
+          brandId: 8,
+          labelSizeId: 4,
+          currentMarketId: 3,
+          targetMarketIds: [3],
+        ),
+        directoryProvider: () async => directory,
+      );
+      await journal.start();
+      await journal.flush();
+
+      final preferences = await SharedPreferences.getInstance();
+      final path = preferences.getString(
+        ItemManagerDraftJournal.lastPathPreferenceKey,
+      )!;
+      final document =
+          jsonDecode(await File(path).readAsString()) as Map<String, dynamic>;
+      final metadata = document['metadata'] as Map<String, dynamic>;
+      expect(metadata['importViewState'], {
+        'selectedItemId': 10,
+        'selectedIndex': 0,
+        'sortState': const [],
+        'filterState': const {},
+      });
+      await journal.close();
+    });
+
     test(
       'writes lightweight baseline and changed row journal atomically',
       () async {

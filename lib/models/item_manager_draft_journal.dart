@@ -274,6 +274,7 @@ class ItemManagerDraftJournal {
         ...metadata.toJson(),
         'selectedRowKeys': controller.selectedRowKeys.toList(growable: false),
         'anchorRowKey': controller.anchorRowKey,
+        'importViewState': controller.importViewState?.toJson(),
       },
       'baseline': {
         'rowCount': baselineRows.length,
