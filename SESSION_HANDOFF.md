@@ -28,6 +28,17 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-10): 품목관리 요청서 snapshot/검증 선행 기준 보강
+
+- 요청: 다시 검토한 애매점과 레거시/현 구현 문제를 권장 사항으로 `.tmp/item_manager_modify.txt`에 병합한다.
+- 반영 완료: `currentMarketSnapshot` 구현 전 `ItemOfMarketDAO` alias 불일치(`P1_LABEL_SIZE_WIDTH` vs `P1_LABELSIZE_WIDTH`) 수정 또는 raw snapshot DTO 사용을 선행 작업으로 명시했다.
+- 반영 완료: `currentMarketSnapshot`은 표시용 `ItemOfMarket` 객체가 아니라 nullable DB 저장값을 보존하는 별도 snapshot DTO 기준으로 생성한다고 정리했다.
+- 반영 완료: 바코드 check digit, GS1 AI, time barcode 검증/보정 helper의 기존 재사용 가능 범위와 신규 구현 필요 범위를 분리했다.
+- 반영 완료: 엑셀 빈 헤더 이후 뒤쪽에 매핑 가능한 헤더가 있으면 조용히 무시하지 않고 가져오기 전 안내/경고하도록 명시했다.
+- 검증 완료: `Select-String -Path .tmp/item_manager_modify.txt -Pattern 'raw snapshot DTO|P1_LABELSIZE_WIDTH|P1_LABEL_SIZE_WIDTH|alias 불일치|BarcodeDataHelper|time barcode 재계산|recalculator|GS1 AI 검증/조합|validator/helper|빈 헤더 이후.*매핑 가능한 헤더|무시 안내/경고|nullable DB 저장값'`로 병합 문구 반영을 확인했다.
+- 검증 완료: `git diff --check -- .tmp/item_manager_modify.txt` 통과(공백 오류 없음).
+- 커밋 예정: `SESSION_HANDOFF.md`만 포함한다. `.tmp/item_manager_modify.txt`는 ignore 대상 작업 파일로 유지한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+
 ### 완료 (2026-07-10): 품목관리 요청서 scoped load/checksum 표현 보강
 
 - 요청: 다시 검토한 애매점과 레거시/현 구현 문제를 권장 사항으로 `.tmp/item_manager_modify.txt`에 병합한다.
