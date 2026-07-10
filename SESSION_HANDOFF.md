@@ -28,6 +28,15 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-10): 품목관리 요청서 사용자 확인 사항 확정 질문화
+
+- 요청: 하단 `사용자 확인 사항`이 실 구현 중 방향을 흔들 수 있으므로, 사용자에게 실제로 물어볼 수 있는 질문/권장 선택/다른 선택 시 구현 영향으로 정리해 요청서에 반영한다.
+- `.tmp/item_manager_modify.txt` 반영 완료: `사용자 확인 사항`을 구현 전 필수 확정 질문 목록으로 재작성하고, 각 질문에 `사용자 답변: 미확정`, 권장 선택, 다른 선택 시 구현 영향을 추가했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: 엑셀 주원료 보존 범위, 삭제/전체교체 market 범위, 날짜 용어, 순서 변경 영향, 바코드/QR format 우선순위, fallback, check digit, QR format, EZPL fallback, QR 날짜 token, 날짜 setup 로그 정책을 실제 사용자 질문으로 정리했다.
+- 검증: `git diff --check -- .tmp/item_manager_modify.txt SESSION_HANDOFF.md` 통과. `grep_search`로 `사용자 답변: 미확정` 11개 항목과 핵심 질문 문구 반영 확인.
+- stage/commit 대상: ignored `.tmp/item_manager_modify.txt` 변경 추적용 `SESSION_HANDOFF.md`만 stage/commit한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+- 커밋: 예정.
+
 ### 완료 (2026-07-10): 품목관리 요청서 1차/후속 표현 제거 및 단일 구현 범위 정리
 
 - 요청: 사용자 관점에서 `1차 구현`/`후속`/`선택 구현` 표현이 2차 일정처럼 보이므로, 기능정의상 문제 없는 항목은 이번 구현 포함으로 병합하고 DB/schema/운영정책 변경이 필요한 항목만 기능정의 제외로 정리한다.
