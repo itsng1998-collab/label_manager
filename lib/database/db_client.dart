@@ -7,6 +7,7 @@ import 'package:label_manager/utils/debug_logger.dart';
 import 'package:label_manager/utils/log_context.dart';
 
 import 'db_isolate.dart';
+import 'drivers/db_driver.dart';
 
 class _DbIsolateStartupFailure {
   const _DbIsolateStartupFailure._(this.message);
@@ -278,6 +279,25 @@ class DbClient {
     sw.stop();
     _log('writeDataWithParams 요청 완료 (${sw.elapsedMilliseconds}ms)');
     return result;
+  }
+
+  Future<List<Object>> transaction(
+    List<DbTransactionStatement> statements,
+  ) async {
+    if (statements.isEmpty) return const [];
+    _log('transaction 요청 시작: statements=${statements.length}');
+    final sw = Stopwatch()..start();
+    final result = await _sendToIsolate<Object>(
+      DbIsolateAction.transaction,
+      {
+        'statements': statements
+            .map((statement) => statement.toMap())
+            .toList(growable: false),
+      },
+    );
+    sw.stop();
+    _log('transaction 요청 완료 (${sw.elapsedMilliseconds}ms)');
+    return List<Object>.from(result as List);
   }
 
   Future<void> disconnect() async {

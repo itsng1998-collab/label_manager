@@ -36,7 +36,14 @@
 - 1단계 구현 완료: `lib/models/market.dart`에 로그인 customer id를 명시적으로 받는 `MarketDAO.selectByCustomerId`를 추가했다. `lib/models/column_content.dart`에는 단일 XML 파라미터를 SQL rowset으로 변환해 item id 집합을 제한하는 `selectScopedByItemIds`와 전역 cache와 분리된 `TColumnContentScopedView`를 추가했다.
 - 1단계 테스트 추가: `test/item_manager_read_snapshot_test.dart`에서 표시 alias/order, raw `NULL`/빈 문자열 구분, customer 조건, 대량 `IN` 없는 XML rowset, scoped resolver를 `[읽기/스냅샷]` 5개 테스트로 검증한다.
 - 1단계 검증 완료: `C:\Flutter\bin\flutter.bat test test\item_manager_read_snapshot_test.dart` 통과(`+5`), 기존 `item element DAO keeps legacy RTF while saving sheet data` 통과(`+1`), `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`).
-- 다음 2단계 `transaction/DAO 기반` 진행 예정: `lib/database/db_isolate.dart`, `lib/database/db_client.dart`, DB driver 구현, transaction DTO/테스트를 먼저 수정해 하나의 isolate action 안에서 commit/rollback을 보장한다. 저장 DAO와 schema capability probe는 transaction API 검증 후 연결한다.
+- 1단계 커밋 완료: `cf53482` 품목관리 읽기 스냅샷 기반 추가.
+- 2단계 `transaction/DAO 기반` 구현 완료: `DbTransactionStatement`, 공통 `executeDriverTransaction`, `DbIsolateAction.transaction`, `DbClient.transaction`을 추가했다. 같은 isolate/driver 연결에서 begin/statement/commit을 수행하고 중간 오류 또는 commit 오류 시 `@@TRANCOUNT` rollback 후 원래 오류를 전달한다.
+- 2단계 구현 완료: `lib/models/item_manager_save.dart`에 `ItemSaveSchemaCapabilities` probe/cache를 추가했다. `RICH_ELEMENT_SHEET`, `AFTER_INSERT_ITEM`, trigger의 column/barcode/image/element row 생성과 다중 행 사용 패턴을 현재 DB에서 조회한다.
+- 2단계 구현 완료: UI 독립 `ItemManagerSaveCommand` DTO와 `ItemManagerSaveDAO`를 추가했다. 기존 item update, trigger-safe 단건 신규 item insert 및 `OUTPUT INTO` draft key/id 매핑, 로그인 customer의 target market mapping 생성, item-id 기준 전체 mapping delete, column content `MERGE` upsert를 하나의 parameterized SQL statement와 isolate transaction에서 처리한다. `BM_RICH_ITEM`/child row 물리 delete는 하지 않는다.
+- 2단계 구현 완료: `ItemDAO.updateOrders(List<ItemOrderUpdate>)`를 transaction action 기반 독립 reorder API로 추가하고 item id별 affected row를 검증한다.
+- 2단계 테스트 추가/완료: `test/db_transaction_test.dart`의 `[transaction/DAO]` 4개 테스트에서 commit/rollback/원래 오류/DTO 전달을 검증한다. `test/item_manager_save_dao_test.dart`의 7개 테스트에서 capability flags/probe SQL, order identity, nullable 신규 mapping defaults, save command identity, `OUTPUT INTO`, mapping-only delete, column upsert, schema migration 차단을 검증한다.
+- 2단계 검증 완료: `C:\Flutter\bin\flutter.bat test test\item_manager_save_dao_test.dart` 통과(`+7`), `C:\Flutter\bin\flutter.bat test test\db_transaction_test.dart` 통과(`+4`), `C:\Flutter\bin\flutter.bat analyze` 통과(`No issues found`). 운영 DB 연결 fixture가 없어 capability probe와 save SQL의 실제 trigger/schema 통합 실행은 미검증이며 UI 저장 연결 전에 현재 DB 기준으로 확인해야 한다.
+- 다음 3단계 `UI draft/edit 기반` 진행 예정: 전용 draft row/session/controller, `ItemManagerLimits.maxRows`, row-key 선택/anchor, 임시 journal 백업, `ItemManage` working row/value resolver와 추가/삽입/삭제/dirty 버튼 정책을 구현한다.
 
 ### 완료 (2026-07-10): 불필요한 작업 규칙 정리
 
