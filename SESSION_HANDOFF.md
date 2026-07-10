@@ -28,6 +28,15 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-10): 품목관리 요청서 check digit 범위 닫기
+
+- 수정 예정 파일: `.tmp/item_manager_modify.txt`는 ignored 요청서 본문 수정, `SESSION_HANDOFF.md`는 ignored 요청서 변경 추적용 기록/검증/커밋 정보 갱신.
+- 사용자 확인: 새 비즈니스 정책 질문은 없다. 이번 병합은 기존 확정 정책 안에서 기타 barcode/check digit 타입이 추가 구현 대상으로 열려 보이는 표현을 현재 요청 범위 밖으로 명확히 닫는 문서 수정이다.
+- 병합 예정: 셀 편집 자동 보정 저장 대상은 EAN-13/UPC-A/EAN-8로 닫고, 그 외 barcode type/레거시 전용 check digit은 이번 요청 범위에서 추가 구현하지 않으며 저장 전 검증 오류로 처리하도록 본문과 사용자 확인 사항을 정리한다.
+- `.tmp/item_manager_modify.txt` 반영 완료: check digit 본문, 수용조건, 사용자 확인 사항의 열린 추가 구현 표현을 제거하고, EAN-13/UPC-A/EAN-8 외 타입은 이번 요청 범위에서 자동 보정 저장 대상으로 추가하지 않으며 저장 전 검증 오류로 처리하도록 명시했다.
+- 검증: `git diff --check -- .tmp/item_manager_modify.txt` 통과. `grep_search`로 `이번 구현의 범위는 EAN-13/UPC-A/EAN-8로 닫는다`, `이번 요청 범위에서 추가 구현하지 않고 저장 전 검증 오류`, `이번 요청 범위에서 자동 보정 저장 대상으로 추가하지 않고 저장 전 검증 오류` 문구 확인. `별도 명시된 추가 구현 대상으로 처리`, `레거시 함수와 DB 저장 규칙을 확인해 요청서에 명시한 경우에만 추가`, `사용자 답변: 미확정`, `확정 필요`, `TODO`, `FIXME` 없음 확인.
+- stage/commit 대상: ignored `.tmp/item_manager_modify.txt` 변경 추적용 `SESSION_HANDOFF.md`만 stage/commit한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+
 ### 완료 (2026-07-10): 품목관리 요청서 Excel image 검증/check digit 문구 정리
 
 - 수정 예정 파일: `.tmp/item_manager_modify.txt`는 ignored 요청서 본문 수정, `SESSION_HANDOFF.md`는 ignored 요청서 변경 추적용 기록/검증/커밋 정보 갱신.
