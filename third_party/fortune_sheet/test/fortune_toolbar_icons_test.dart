@@ -509,6 +509,7 @@ void main() {
       'send-backward': 'Send backward',
       'bring-to-front': 'Bring to front',
       'send-to-back': 'Send to back',
+      'label-sheet-import-image': 'Import label image',
       'insert-auto-ingredient-table': 'Insert auto ingredient table',
       'load-common-label': 'Load common label',
       'link': 'Insert link',

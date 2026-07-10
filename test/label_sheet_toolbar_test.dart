@@ -306,7 +306,7 @@ void main() {
               const FortuneCellCoord(0, 0): const FortuneCell(
                 value: '#ITEMNAME',
               ),
-              const FortuneCellCoord(0, 1): const FortuneCell(value: '원재료'),
+              const FortuneCellCoord(0, 1): const FortuneCell(value: '#ELEMENT'),
             },
           ),
         ],
