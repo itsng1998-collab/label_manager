@@ -151,6 +151,29 @@ void main() {
       'subscript',
     );
   });
+
+  test(
+    'parses a requested worksheet while preserving active sheet behavior',
+    () {
+      final bytes = _twoSheetXlsxBytes();
+
+      expect(labelSheetWorkbookFromXlsxBytes(bytes).activeSheet.name, 'Second');
+      final first = labelSheetXlsxParseContext(bytes, sheetIndex: 0);
+      expect(first.sheetName, 'First');
+      expect(first.relationshipId, 'rId1');
+      expect(first.worksheetPath, 'xl/worksheets/sheet1.xml');
+      expect(first.worksheetXml, contains('첫 시트'));
+      expect(first.workbookUses1904DateSystem, isTrue);
+      expect(
+        first
+            .parsedWorkbook
+            .activeSheet
+            .cells[const FortuneCellCoord(0, 0)]
+            ?.value,
+        '첫 시트',
+      );
+    },
+  );
 }
 
 bool _hasBorderAt(FortuneSheet sheet, FortuneCellCoord coord) {
@@ -296,6 +319,36 @@ Uint8List _xlsxBytes({
   <cell ref="C1"><run index="1" fontScale="70" letterSpacing="0.5" lineHeight="1.2" script="subscript"/></cell>
 </labelSheetRtfMetadata>''');
 
+  return Uint8List.fromList(ZipEncoder().encodeBytes(archive));
+}
+
+Uint8List _twoSheetXlsxBytes() {
+  final archive = Archive();
+  void addXml(String name, String content) {
+    archive.addFile(ArchiveFile.string(name, content));
+  }
+
+  addXml('xl/workbook.xml', '''<?xml version="1.0" encoding="UTF-8"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <workbookPr date1904="1"/>
+  <bookViews><workbookView activeTab="1"/></bookViews>
+  <sheets><sheet name="First" sheetId="1" r:id="rId1"/><sheet name="Second" sheetId="2" r:id="rId2"/></sheets>
+</workbook>''');
+  addXml('xl/_rels/workbook.xml.rels', '''<?xml version="1.0" encoding="UTF-8"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet2.xml"/>
+</Relationships>''');
+  addXml(
+    'xl/worksheets/sheet1.xml',
+    '''<?xml version="1.0" encoding="UTF-8"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData><row r="1"><c r="A1" t="inlineStr"><is><t>첫 시트</t></is></c></row></sheetData></worksheet>''',
+  );
+  addXml(
+    'xl/worksheets/sheet2.xml',
+    '''<?xml version="1.0" encoding="UTF-8"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData><row r="1"><c r="A1" t="inlineStr"><is><t>둘째 시트</t></is></c></row></sheetData></worksheet>''',
+  );
   return Uint8List.fromList(ZipEncoder().encodeBytes(archive));
 }
 

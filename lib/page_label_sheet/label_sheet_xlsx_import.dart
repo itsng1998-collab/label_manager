@@ -58,7 +58,38 @@ bool labelSheetLooksLikeXlsx(Uint8List bytes) {
   }
 }
 
+class LabelSheetXlsxParseContext {
+  const LabelSheetXlsxParseContext({
+    required this.parsedWorkbook,
+    required this.sheetName,
+    required this.relationshipId,
+    required this.worksheetPath,
+    required this.worksheetXml,
+    required this.styles,
+    required this.sharedStrings,
+    required this.workbookUses1904DateSystem,
+    required this.extensionMetadata,
+  });
+
+  final FortuneWorkbook parsedWorkbook;
+  final String sheetName;
+  final String relationshipId;
+  final String worksheetPath;
+  final String worksheetXml;
+  final Object styles;
+  final Object sharedStrings;
+  final bool workbookUses1904DateSystem;
+  final Object extensionMetadata;
+}
+
 FortuneWorkbook labelSheetWorkbookFromXlsxBytes(Uint8List bytes) {
+  return labelSheetXlsxParseContext(bytes).parsedWorkbook;
+}
+
+LabelSheetXlsxParseContext labelSheetXlsxParseContext(
+  Uint8List bytes, {
+  int? sheetIndex,
+}) {
   _xlsxImportLog('decode start bytes=${bytes.length}');
   try {
     final archive = ZipDecoder().decodeBytes(bytes);
@@ -70,7 +101,9 @@ FortuneWorkbook labelSheetWorkbookFromXlsxBytes(Uint8List bytes) {
     _xlsxImportLog('workbook.xml loaded chars=${workbookXml.length}');
     final workbookRelsXml = _xlsxText(archive, 'xl/_rels/workbook.xml.rels');
     _xlsxImportLog('workbook rels loaded chars=${workbookRelsXml.length}');
-    final sheetInfo = _activeSheetInfo(workbookXml);
+    final sheetInfo = sheetIndex == null
+        ? _activeSheetInfo(workbookXml)
+        : _sheetInfoAt(workbookXml, sheetIndex);
     _xlsxImportLog(
       'active sheet name=${sheetInfo.name} relId=${sheetInfo.relationshipId}',
     );
@@ -107,7 +140,19 @@ FortuneWorkbook labelSheetWorkbookFromXlsxBytes(Uint8List bytes) {
       'activeColumns=${workbook.activeSheet.columnCount} '
       'cells=${workbook.activeSheet.cells.length}',
     );
-    return workbook;
+    return LabelSheetXlsxParseContext(
+      parsedWorkbook: workbook,
+      sheetName: sheetInfo.name,
+      relationshipId: sheetInfo.relationshipId,
+      worksheetPath: sheetPath,
+      worksheetXml: sheetXml,
+      styles: styles,
+      sharedStrings: sharedStrings,
+      workbookUses1904DateSystem: _xmlBool(
+        _firstTagAttributes(workbookXml, 'workbookPr')?['date1904'],
+      ),
+      extensionMetadata: metadata,
+    );
   } catch (error, stackTrace) {
     _xlsxImportLog('decode failed error=$error\n$stackTrace');
     rethrow;
@@ -154,32 +199,55 @@ String? _tryXlsxText(Archive archive, String path) {
 }
 
 ({String name, String relationshipId}) _activeSheetInfo(String workbookXml) {
-  final sheets = [
+  final sheets = _sheetInfos(workbookXml);
+  final activeTab = int.tryParse(
+    _firstTagAttributes(workbookXml, 'workbookView')?['activeTab'] ?? '',
+  );
+  final index = activeTab == null ? 0 : activeTab.clamp(0, sheets.length - 1);
+  return sheets[index];
+}
+
+({String name, String relationshipId}) _sheetInfoAt(
+  String workbookXml,
+  int index,
+) {
+  final sheets = _sheetInfos(workbookXml);
+  if (index < 0 || index >= sheets.length) {
+    throw RangeError.index(index, sheets, 'sheetIndex');
+  }
+  return sheets[index];
+}
+
+List<({String name, String relationshipId})> _sheetInfos(String workbookXml) {
+  final sheetAttributes = [
     for (final match in RegExp(
       r'<sheet\b([^>]*)/?>',
       caseSensitive: false,
     ).allMatches(workbookXml))
       _xmlAttributes(match.group(1) ?? ''),
   ];
-  if (sheets.isEmpty) {
+  if (sheetAttributes.isEmpty) {
     _xlsxImportLog('workbook has no sheet tags');
     throw const FormatException('XLSX workbook has no sheets');
   }
-  final activeTab = int.tryParse(
-    _firstTagAttributes(workbookXml, 'workbookView')?['activeTab'] ?? '',
-  );
-  final index = activeTab == null ? 0 : activeTab.clamp(0, sheets.length - 1);
-  final sheet = sheets[index];
-  final relationshipId = sheet['r:id'] ?? sheet['id'];
-  if (relationshipId == null || relationshipId.isEmpty) {
-    _xlsxImportLog('active sheet relationship missing attributes=$sheet');
-    throw const FormatException('XLSX sheet relationship is missing');
-  }
-  final name = sheet['name']?.trim();
-  return (
-    name: name == null || name.isEmpty ? 'Sheet${index + 1}' : name,
-    relationshipId: relationshipId,
-  );
+  return [
+    for (var index = 0; index < sheetAttributes.length; index += 1)
+      () {
+        final attributes = sheetAttributes[index];
+        final relationshipId = attributes['r:id'] ?? attributes['id'];
+        if (relationshipId == null || relationshipId.isEmpty) {
+          _xlsxImportLog(
+            'sheet relationship missing index=$index attributes=$attributes',
+          );
+          throw const FormatException('XLSX sheet relationship is missing');
+        }
+        final name = attributes['name']?.trim();
+        return (
+          name: name == null || name.isEmpty ? 'Sheet${index + 1}' : name,
+          relationshipId: relationshipId,
+        );
+      }(),
+  ];
 }
 
 String _worksheetPath(String relationshipsXml, String relationshipId) {
