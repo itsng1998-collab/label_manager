@@ -28,6 +28,18 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-10): 품목관리 요청서 바코드/날짜 setup 검토 권장안 병합
+
+- 수정 예정 파일: `.tmp/item_manager_modify.txt`는 ignored 요청서 본문 수정, `SESSION_HANDOFF.md`는 ignored 요청서 변경 추적용 기록/검증/커밋 정보 갱신.
+- 사용자 확인: 새 비즈니스 정책 질문은 없다. 이번 병합은 기존 확정 답변을 구현 가능 문구로 정리한다.
+- 병합 예정: 바코드 fallback 후보 순서를 column 형식 우선으로 정리하고, `preserveTemplateBarcodeFormat=true`만 template 형식 유지 예외로 고정한다. 날짜 setup 로그는 known schema에 setup 로그 컬럼이 없으면 logless update가 기본임을 명시하고, 로그 컬럼 probe/rollback/logless app log 검증을 완료 기준과 검증 태그에 반영한다. 날짜 setup enum range guard 기본값과 setup 저장 transaction 방식도 명시한다.
+- `.tmp/item_manager_modify.txt` 반영 완료: `preserveTemplateBarcodeFormat=false` object는 품목 column 형식을 먼저 평가하고 유효하지 않을 때만 공용 fallback을 평가하도록 본문/완료 기준/확정 답변을 통일했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: `preserveTemplateBarcodeFormat=true` object에만 template 형식 유지 예외를 적용한다고 명시했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: 날짜 setup 로그의 required column set, repository/레거시 기준 logless update 기본 경로, setup 전용 transaction 방식, enum range guard 기본값(`DATE_FORMAT_DOT`/`TIME_FORMAT_COLON`)을 명시했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: `[label/date setup]` 완료 기준/검증 태그에 setup 로그 컬럼 probe 실패, 전체 컬럼 존재 시 transaction logging, 일부/전체 누락 시 logless update, 로그 insert rollback, logless update 앱 로그 검증을 추가했다.
+- 검증: `git diff --check -- .tmp/item_manager_modify.txt` 통과. `grep_search`로 `품목 column 형식을 먼저 평가`, `template 형식 우선 평가는`, `logless update가 기본 경로`, `DATE_FORMAT_DOT`, `TIME_FORMAT_COLON`, `setup 로그 컬럼 probe 실패` 문구 확인. `후보 평가 순서는 해당 object의 template 형식`, `기본값 fallback 또는 오류 안내`, `사용자 답변: 미확정` 없음 확인.
+- stage/commit 대상: ignored `.tmp/item_manager_modify.txt` 변경 추적용 `SESSION_HANDOFF.md`만 stage/commit한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+
 ### 완료 (2026-07-10): 품목관리 요청서 날짜 setup 로그 계약 권장안 병합
 
 - 요청: 재검토에서 남은 날짜 타입 설정 저장 이력 처리 애매점(로그 컬럼 probe 실패, 일부 컬럼만 존재, 로그 insert 실패)을 권장안으로 `.tmp/item_manager_modify.txt`에 병합한다.
