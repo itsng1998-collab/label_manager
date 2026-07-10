@@ -28,6 +28,20 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-10): 품목관리 요청서 레거시 기본값/시장 매핑 정책 병합
+
+- 요청: 다시 검토한 애매점과 레거시/현 구현 문제를 권장 사항으로 `.tmp/item_manager_modify.txt`에 병합한다.
+- 사용자 확인 완료: 판매/할인 시작·종료일이 비어 있으면 `NULL`을 유지한다.
+- 사용자 확인 완료: 신규/엑셀 import 품목의 market mapping 범위는 레거시와 같게 처리한다.
+- 레거시 분석 완료: `CItem(labelSizeId, labelSizeName)` 신규 생성자는 `m_nPrice(0)`으로 초기화되고, 품목관리 추가/엑셀 import는 이 신규 행 생성 경로를 거친다. 따라서 신규/엑셀 import 품목의 `RICH_PRICE` 기본값은 `0`으로 병합 예정이다.
+- 수정 완료: 요청서에 `additionalItemId`/판매·할인 날짜 nullable draft 정책, `RICH_PRICE=0`, 고객의 모든 market mapping, trigger/schema probe, `RICH_ELEMENT_SHEET` 컬럼 확인 기준을 추가했다.
+- 수정 완료: Flutter 조회 모델의 `AdditionalItemId=0`/`DateTime.now()` fallback을 저장 draft의 실제 DB 값으로 사용하지 않도록 명시했다.
+- 수정 완료: 신규 `BM_RICH_ITEM` insert 후 생성 item id는 레거시와 동일하게 현재 로그인 고객의 모든 market mapping 생성에 사용하도록 정리했다.
+- 수정 완료: `AFTER_INSERT_ITEM` trigger body와 운영 DB의 `BM_RICH_ITEM.RICH_ELEMENT_SHEET` 컬럼 존재 여부를 저장 DAO 구현 전 확인하도록 정리했다.
+- 검증 완료: `Select-String -Path .tmp/item_manager_modify.txt -Pattern 'RICH_PRICE=0|itemPrice|고객의 모든 market|모든 market|DateTime.now\(\)|nullable|RICH_ELEMENT_SHEET.*컬럼|trigger body|BM_RICH_ELEMENT_CONTENT|RICH_ADDITIONAL_ITEM_ID=NULL|저장 draft의 실제 DB 값|레거시 신규 `CItem`|현재 로그인 고객의 모든 market|판매/할인 시작·종료일.*NULL'`로 병합 문구 반영을 확인했다.
+- 검증 완료: `git diff --check -- .tmp/item_manager_modify.txt` 통과(공백 오류 없음).
+- 커밋 예정: `SESSION_HANDOFF.md`만 포함한다. `.tmp/item_manager_modify.txt`는 `.gitignore` 대상이므로 force add하지 않고 작업 파일로 유지한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+
 ### 완료 (2026-07-10): 품목관리 요청서 DB 저장 세부 정책 병합
 
 - 요청: `.tmp/item_manager_modify.txt`에 남은 권장 사항을 병합하고, 사용자 확인이 필요한 사항은 의미를 이해하기 쉽게 확인한다.
