@@ -38,6 +38,7 @@
 - `.tmp/item_manager_modify.txt` 반영 완료: mapping fingerprint 불일치 경고 dialog가 열린 동안에는 편집 상태/임시 백업을 유지하지만, `다시 조회` 선택 시 현재 draft와 임시 백업을 폐기하고 현재 DB 기준으로 새 baseline을 만든다고 명시했다.
 - 검증: `git diff --check -- .tmp/item_manager_modify.txt` 통과. `grep_search`로 `저장 또는 변경 취소 전까지`, `사용자 답변: 미확정` 없음 확인. `저장 완료 또는 변경 취소 확정 전까지`, `경고 dialog가 열린 동안에는 편집 상태와 임시 백업을 유지`, `다시 조회를 선택하면 현재 draft와 임시 백업을 폐기` 문구 확인.
 - stage/commit 대상: ignored `.tmp/item_manager_modify.txt` 변경 추적용 `SESSION_HANDOFF.md`만 stage/commit한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+- 커밋: `7da4551` 품목관리 요청서 취소 재조회 계약 기록
 
 ### 완료 (2026-07-10): 품목관리 요청서 바코드 helper/취소 문구 권장안 병합
 
