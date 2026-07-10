@@ -59,7 +59,9 @@
 - 4단계 raw metadata 진행 완료: parse context에 `LabelSheetXlsxCellMetadata` map을 추가해 cell reference/type, raw/cached value, parsed text, formula, style index, number format, quote-prefix를 변환 workbook과 같은 parse에서 제공한다. shared string 및 cached formula/style fixture 테스트를 추가했고 `test/label_sheet_xlsx_import_test.dart` 전체와 `flutter analyze`가 통과했다.
 - 4단계 draft 전체 교체 완료: `ItemManagerImportedRow`와 `replaceAllWithImportedRows`를 추가했다. clean draft에서만 실행하며 기존 source item 전체를 삭제 예정으로 기록하고, import row를 신규 identity/imported state/1부터의 order로 교체한 뒤 첫 행을 선택한다. 빈 import, 10000행 초과, dirty 충돌은 mutation 전에 차단한다.
 - 4단계 draft 검증: 기존 2개 source를 2개 imported row로 교체해 삭제 identity, order, column 값, 첫 행 selection을 확인하는 테스트를 추가했다. `test/item_manager_draft_test.dart` 전체 통과(`+10`), `flutter analyze` 통과(`No issues found`).
-- 다음 작업: 품목 header/value/주원료 영역 parser → OpenXML 단순 table export → file dialog/UI 연결 순서로 진행한다. 운영 DB capability/save transaction의 실제 trigger/schema 통합 실행은 fixture가 없어 계속 미검증이다.
+- 4단계 품목 XLSX import adapter 완료: `lib/page_home/item_manager_xlsx.dart`에서 첫 worksheet/1행 헤더, 빈 헤더 이후 절단·경고, 정확한 헤더/첫 중복 매핑, cached formula, 문자열/정수/소수/천단위/고정 소수/1900·1904 날짜/시간 표시, image BMP 파일명 정규화, 데이터 행/10000행 검증을 구현했다. 주원료는 셀 또는 병합 bounding rectangle을 `(0,0)` 기준 workbook으로 옮겨 cell style/inline run/merge/row·column 크기/border를 encoded payload로 보존한다.
+- 4단계 adapter 검증: OpenXML fixture에서 품목/주원료/일반 컬럼, 문자열 `00123`, serial date, BMP 경로 제거, 빈 헤더 뒤 경고, 주원료 bold/background/축 크기와 품목 헤더 누락 실패를 검증했다. `test/item_manager_xlsx_test.dart` 통과(`+2`), `flutter analyze` 통과(`No issues found`).
+- 다음 작업: OpenXML 단순 table export → file dialog/UI 연결 순서로 진행한다. 운영 DB capability/save transaction의 실제 trigger/schema 통합 실행은 fixture가 없어 계속 미검증이다.
 
 ### 완료 (2026-07-10): 불필요한 작업 규칙 정리
 
