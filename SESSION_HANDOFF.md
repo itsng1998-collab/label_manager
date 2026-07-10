@@ -37,7 +37,7 @@
 - `.tmp/item_manager_modify.txt` 반영 완료: 신규 mapping 생성은 현재 로그인 고객의 전체 `targetMarketIds`에 적용하고, 삭제/엑셀 전체교체의 기존 item mapping 제거는 레거시와 동일하게 item id 기준 전체 mapping delete(market 조건 없음)로 확정했다.
 - 검증: `git diff --check -- .tmp/item_manager_modify.txt SESSION_HANDOFF.md` 통과. `grep_search`로 `DeleteBatchByItemIDs`, `CMarketDAO::SelectByCustID`, `RICH_CUSTOMER_ID`, `market 조건`, `item id 기준 전체 mapping delete`, `RICH_ITEM_ID 조건만` 반영을 확인했다. `targetMarketIds` 교집합 표현은 `교집합으로 제한하지 않고`라는 부정문으로만 남아 레거시 item-id-wide delete 정책과 충돌하지 않음을 확인했다.
 - stage/commit 대상: ignored `.tmp/item_manager_modify.txt` 변경 추적용 `SESSION_HANDOFF.md`만 stage/commit한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
-- 커밋: 예정.
+- 커밋: `550aac7` 품목관리 삭제 범위 레거시 확인 반영
 
 ### 완료 (2026-07-10): 품목관리 요청서 사용자 답변 확정 반영
 
