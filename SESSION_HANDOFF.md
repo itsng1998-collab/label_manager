@@ -40,6 +40,7 @@
 - `.tmp/item_manager_modify.txt` 반영 완료: `preserveTemplateBarcodeFormat` 저장 feature key를 `sheet.images.preserveTemplateBarcodeFormat`으로 고정하고 sanitizer/normalize/migrate/`.lms`/`.xlsx` 검증 필요성을 반영했다.
 - 검증: `git diff --check -- .tmp/item_manager_modify.txt SESSION_HANDOFF.md` 통과. `grep_search`로 `sheet.images.preserveTemplateBarcodeFormat`, `mapping fingerprint`, `normalizeForPrint(strict: false)`, `bounding rectangle`, `로그인 세션 customer id`, fallback 후보(`code128`/`qrCode`) 반영을 확인했다. `사용자 답변: 미확정`은 새로 생기지 않았다.
 - stage/commit 대상: ignored `.tmp/item_manager_modify.txt` 변경 추적용 `SESSION_HANDOFF.md`만 stage/commit한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+- 커밋: `38e6b74` 품목관리 요청서 권장안 병합 기록
 
 ### 완료 (2026-07-10): 품목관리 삭제/엑셀 전체교체 market 범위 레거시 확정
 
