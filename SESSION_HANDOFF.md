@@ -39,7 +39,7 @@
 - 수정 완료: 추가/삽입은 실행 후 전체 working row 수가 10000을 넘으면 차단하도록 본문과 검증 항목에 반영했다.
 - 검증 완료: `Select-String -Path .tmp/item_manager_modify.txt -Pattern '주원료 편집 또는 미리보기 진입|미리보기 진입 시 필요한 경우 lazy|legacy update item apply|draftRowKey \\+ columnId|display-only cache|row count|lightweight version/checksum|item id 기준 snapshot|전체 working row 수가 10000'`로 이전 RTF 미리보기 draft 표현이 제거되고 새 권장 정책 문구가 반영된 것을 확인했다.
 - 검증 완료: `git diff --check -- .tmp/item_manager_modify.txt` 통과(공백 오류 없음).
-- 커밋 예정: `SESSION_HANDOFF.md`만 포함한다. `.tmp/item_manager_modify.txt`는 `.gitignore`의 `.tmp/` 대상이므로 force add하지 않고 작업 파일로 유지한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+- 커밋 완료: `1b9dc47` 품목관리 요청서 잔여 정책 병합. 포함 파일은 `SESSION_HANDOFF.md`이며, `.tmp/item_manager_modify.txt`는 ignore 대상 작업 파일로 유지했다. 기존 unrelated dirty `lib/core/app.dart`는 제외했다.
 
 ### 완료 (2026-07-10): 품목관리 요청서 현재 구현 데이터 보관 방식 병합
 
