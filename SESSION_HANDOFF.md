@@ -28,6 +28,16 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-10): 품목관리 요청서 주원료 payload 판별 기준 정리
+
+- 요청: `RICH_ELEMENT_SHEET`와 legacy `RICH_ELEMENT_RTF`를 현재 모델에서 별도 분리하지 않고, `COALESCE(NULLIF(RICH_ELEMENT_SHEET,''), RICH_ELEMENT_RTF, '') AS P2_ELEMENT_RTF`로 합쳐진 `Item.elementRTF` payload를 포맷에 따라 그대로 사용하거나 lazy 변환하는 기준으로 요청서를 정리한다.
+- 수정 완료: `.tmp/item_manager_modify.txt`의 현재 Flutter 품목관리 테이블 상태에 `ItemOfMarketDAO`의 coalesced 조회 구조와 `Item.elementRTF` payload 포맷 판별 원칙을 추가했다.
+- 수정 완료: RTF 변환/백업/검증/최종 정리 문구에서 raw `RICH_ELEMENT_SHEET`/`RICH_ELEMENT_RTF` 분리 전제를 제거하고, encoded workbook save는 그대로 사용하며 legacy RichEdit RTF만 필요한 시점에 lazy 변환한다고 정리했다.
+- 수정 완료: lazy 변환 before snapshot 기준을 기존 raw 필드 분리가 아니라 변환 전 plain text, 변환 전 `Item.elementRTF` payload, payload 포맷 판별 결과로 정리했다.
+- 검증 완료: `Select-String -Path .tmp/item_manager_modify.txt -Pattern 'COALESCE\\(NULLIF\\(RICH_ELEMENT_SHEET|Item\\.elementRTF|기존 `RICH_ELEMENT_SHEET` 값, 기존 `RICH_ELEMENT_RTF` 참조 상태|legacy RTF가 있는 행|legacy RTF가 있는 주원료|encoded workbook save|payload 포맷'`로 새 기준 반영과 이전 분리 전제 문구 제거를 확인했다.
+- 검증 완료: `git diff --check -- .tmp/item_manager_modify.txt` 통과(공백 오류 없음).
+- 커밋 예정: `SESSION_HANDOFF.md`만 포함한다. `.tmp/item_manager_modify.txt`는 `.gitignore`의 `.tmp/` 대상이므로 force add하지 않고 작업 파일로 유지한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+
 ### 완료 (2026-07-10): 품목관리 요청서 잔여 애매점 권장 병합
 
 - 요청: `.tmp/item_manager_modify.txt`를 다시 검토해 애매하거나 레거시/현 구현과 충돌 가능한 부분을 권장 사항으로 병합 정리한다.
