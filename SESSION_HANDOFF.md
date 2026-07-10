@@ -28,6 +28,17 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-10): 품목관리 요청서 추가 구현 계약 권장안 병합
+
+- 요청: 재검토에서 남은 애매점(ITF 의미 보존 보정 기준, mapping fingerprint 불일치 시 저장 차단/재조회 흐름, mapping fingerprint 조회 bulk id 전달 규칙)을 권장안으로 `.tmp/item_manager_modify.txt`에 병합한다.
+- 수정 예정 파일: `.tmp/item_manager_modify.txt`는 ignored 요청서 본문 수정, `SESSION_HANDOFF.md`는 ignored 요청서 변경 추적용 기록/검증/커밋 정보 갱신.
+- 사용자 확인: 새 비즈니스 정책 질문은 없으며, 기존 확정 답변을 유지하고 구현 세부 계약을 권장안으로 닫는다.
+- `.tmp/item_manager_modify.txt` 반영 완료: ITF 홀수 길이 left-pad는 preview/output 렌더링용 best-effort 보정으로만 허용하고 fallback 판정의 유효 형식 보정으로 사용하지 않도록 정리했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: mapping fingerprint 불일치가 저장 전 검증에서 발견되면 DB transaction을 시작하지 않고 `다시 조회` 또는 `현재 DB 기준 복원/변경 취소`로 유도하도록 정리했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: mapping fingerprint 산출 DAO도 1만 id 단순 대량 `IN` parameter를 금지하고 temp table/table variable 또는 DAO chunk 조회 규칙을 따르도록 정리했다.
+- 검증: `git diff --check -- .tmp/item_manager_modify.txt` 통과. `grep_search`로 `ITF 홀수 길이 left-pad`, `mapping fingerprint 산출 DAO`, `DB transaction을 시작하지 않는다`, `다시 조회`, `현재 DB 기준 복원`, `사용자 답변: 미확정` 없음, 예전 `값으로 정상 렌더링 가능한 공용 fallback` 없음 확인.
+- stage/commit 대상: ignored `.tmp/item_manager_modify.txt` 변경 추적용 `SESSION_HANDOFF.md`만 stage/commit한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+
 ### 완료 (2026-07-10): 품목관리 요청서 잔여 구현 계약 권장안 병합
 
 - 요청: 재검토에서 남은 애매점(`preserveTemplateBarcodeFormat=true` fallback 정책, mapping fingerprint 저장 시점, 의미 보존 바코드 보정 helper 계약, Excel `주원료` 병합 영역 plain text 기준)을 권장안으로 `.tmp/item_manager_modify.txt`에 병합한다.
