@@ -38,6 +38,7 @@
 - `.tmp/item_manager_modify.txt` 반영 완료: mapping fingerprint 불일치 경고 dialog의 기본/권장 액션은 `다시 조회`, 보조 액션은 `변경 취소`로 고정했다.
 - 검증: `git diff --check -- .tmp/item_manager_modify.txt` 통과. `grep_search`로 `홀수 길이 ITF 값을 셀 편집에서 자동 left-pad`, `preserveTemplateBarcodeFormat=true` 완료 기준 예외, `기본/권장 액션은 다시 조회`, `보조 액션은 변경 취소`, `사용자 답변: 미확정` 없음 확인.
 - stage/commit 대상: ignored `.tmp/item_manager_modify.txt` 변경 추적용 `SESSION_HANDOFF.md`만 stage/commit한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+- 커밋: `03ae86f` 품목관리 요청서 바코드 복구 계약 기록
 
 ### 완료 (2026-07-10): 품목관리 요청서 추가 구현 계약 권장안 병합
 
