@@ -38,7 +38,7 @@
 - 반영 완료: 엑셀 빈 헤더 이후 매핑 가능한 헤더 경고를 반복 요약 섹션에도 병합하고, 빈 헤더 뒤쪽 `품목` 헤더는 무시되어 `품목` 헤더 없음 실패로 처리된다고 명시했다.
 - 검증 완료: `Select-String -Path .tmp/item_manager_modify.txt -Pattern 'raw snapshot DTO 조회는|DB `NULL`과 빈 문자열|market id를 제외한 mapping 기본값 template|sourceItemId` 집합과 편집 세션의 `targetMarketIds`|sourceItemId`와 세션 `targetMarketIds`|전용 scoped cache/view model|전용 scoped column content view model|빈 헤더 뒤쪽에 필수 `품목`|빈 헤더 뒤쪽에 `품목`|기존 행 삭제 저장도 현재 화면 market 하나가 아니라|전역 `TColumnContent.datas`'`로 병합 문구 반영을 확인했다.
 - 검증 완료: `git diff --check -- .tmp/item_manager_modify.txt` 통과(공백 오류 없음).
-- 커밋 예정: `SESSION_HANDOFF.md`만 stage/commit한다. `.tmp/item_manager_modify.txt`는 ignore 대상 작업 파일로 유지하고, 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+- 커밋 완료: `cac43ad` 품목관리 요청서 삭제 snapshot 경계 보강. 포함 파일은 `SESSION_HANDOFF.md`이며, `.tmp/item_manager_modify.txt`는 ignore 대상 작업 파일로 유지했다. 기존 unrelated dirty `lib/core/app.dart`는 제외했다.
 
 ### 완료 (2026-07-10): 품목관리 요청서 snapshot/검증 선행 기준 보강
 
