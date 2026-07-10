@@ -38,6 +38,7 @@
 - `.tmp/item_manager_modify.txt` 반영 완료: 품목관리 Excel export는 새 외부 Excel 패키지 없이 기존 `archive` 기반 OpenXML 작성 패턴을 분리한 단순 table writer로 구현/검증한다고 명시했다.
 - 검증: `git diff --check -- .tmp/item_manager_modify.txt` 통과. `grep_search`로 `DB 최신 setup을 다시 읽`, `날짜/시간 관련 필드만 merge`, `RICH_SETUP_READONLY`/`RICH_SETUP_USE_SCALE`, `조회 전용`, `편집 진입 액션 전체`, `archive 기반 OpenXML`, `단순 table writer`, `외부 Excel 패키지` 문구 확인. `SQL batch transaction 또는 공용 DB isolate transaction`, `migration 또는 호환 저장 정책을 먼저 확정`, `품목관리 저장 기능을 비활성화한 뒤 DB migration 필요 안내`, `사용자 답변: 미확정` 없음 확인.
 - stage/commit 대상: ignored `.tmp/item_manager_modify.txt` 변경 추적용 `SESSION_HANDOFF.md`만 stage/commit한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+- 커밋: `5f191ad` 품목관리 요청서 설정 병합 기준 기록
 
 ### 완료 (2026-07-10): 품목관리 요청서 날짜 setup/save codec/schema 권장안 병합
 
