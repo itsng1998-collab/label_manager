@@ -28,6 +28,17 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-10): 품목관리 요청서 schema/setup/xlsx round-trip 권장안 병합
+
+- 수정 예정 파일: `.tmp/item_manager_modify.txt`는 ignored 요청서 본문 수정, `SESSION_HANDOFF.md`는 ignored 요청서 변경 추적용 기록/검증/커밋 정보 갱신.
+- 사용자 확인: 새 비즈니스 정책 질문은 없다. 이번 병합은 기존 정책 안에서 현 구현/레거시와 충돌할 수 있는 구현 조건을 닫는 문서 정리다.
+- 병합 예정: `RICH_ELEMENT_SHEET` 컬럼 부재 시 조회 SQL 실패를 막기 위해 품목관리 로드 전 capability probe와 조회 fallback/진입 차단 기준을 명시한다. 날짜 타입 설정 저장은 SQL `SET` 대상 자체를 날짜/시간 컬럼으로 제한해 `readOnly`/`useScale` 덮어쓰기 여지를 제거한다. `preserveTemplateBarcodeFormat` `.xlsx` round-trip은 customXml image metadata 파싱/복원까지 포함한다고 명시한다.
+- `.tmp/item_manager_modify.txt` 반영 완료: 날짜 타입 설정 저장 API는 날짜/시간 setup 컬럼만 갱신하고, update SQL `SET` 대상과 로그 변경 대상에서 `RICH_SETUP_READONLY`/`RICH_SETUP_USE_SCALE`을 제외한다고 명시했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: `hasRichElementSheet=false`이면 `RICH_ELEMENT_SHEET`를 직접 참조하는 현재 `ItemOfMarketDAO.SelectSql`을 실행하지 않고, 기본은 DB migration 안내 화면으로 전환한다고 명시했다. 조회 전용 테이블은 `RICH_ELEMENT_RTF`만 참조하는 read-only fallback SELECT가 성공한 경우에만 허용한다.
+- `.tmp/item_manager_modify.txt` 반영 완료: `preserveTemplateBarcodeFormat` `.xlsx` round-trip은 customXml image metadata 파싱/복원까지 포함하며, cell/run metadata만 보존하는 상태는 완료로 보지 않는다고 명시했다.
+- 검증: `git diff --check -- .tmp/item_manager_modify.txt` 통과. `grep_search`로 `hasRichElementSheet=false`, `read-only fallback SELECT`, `RICH_ELEMENT_RTF`만 참조, `migration 안내 화면`, `update SQL SET`, `로그 변경 대상`, `customXml image metadata`, `cell/run metadata`, `날짜 타입 설정 저장 대상 12개 컬럼` 문구 확인. `setup 저장 대상 전체`, `RICH_ALTER_SETUP_READONLY`, `품목관리 테이블을 조회 전용으로 표시하고`, `RICH_ELEMENT_SHEET 컬럼 존재 여부를 확인하고, 없으면`, `사용자 답변: 미확정`, `SQL batch transaction 또는 공용 DB isolate transaction`, `migration 또는 호환 저장 정책을 먼저 확정` 없음 확인.
+- stage/commit 대상: ignored `.tmp/item_manager_modify.txt` 변경 추적용 `SESSION_HANDOFF.md`만 stage/commit한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+
 ### 완료 (2026-07-10): 품목관리 요청서 날짜 setup merge/export 권장안 병합
 
 - 수정 예정 파일: `.tmp/item_manager_modify.txt`는 ignored 요청서 본문 수정, `SESSION_HANDOFF.md`는 ignored 요청서 변경 추적용 기록/검증/커밋 정보 갱신.
