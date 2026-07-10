@@ -39,6 +39,7 @@
 - 검증: `grep_search`로 EAN-8 선행 수정/검증, GS1 조합/검증 helper, `_ItemOutputPreviewTab` 오류 표시 소유, draft 입력/preview 차단 범위, fallback 예외 정책 문구 반영을 확인했다.
 - 검증: 이전 `QR/바코드 데이터 및 출력 미리보기 기반` 구현 단위명이 `QR/바코드 데이터 helper 기반`으로 정리됐음을 확인했다.
 - stage/commit 대상: ignored `.tmp/item_manager_modify.txt` 변경 추적용 `SESSION_HANDOFF.md`만 stage/commit한다.
+- 커밋: `f06bf6c` 품목관리 바코드 미리보기 후속 권장안 정리
 
 ### 완료 (2026-07-10): 품목관리 요청서 바코드 미리보기 권장안 후속 병합
 
