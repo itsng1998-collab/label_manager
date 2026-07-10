@@ -41,6 +41,7 @@
 - 검증: `targetMarketIds` 전체 적용, 발행 체크 책임 경계, 날짜 설정 읽기 전용 권한 처리, `ItemQRCodeDataResolver`, 적용 전 선택 복원, 사용자 확인 문구가 반영됐음을 `grep_search`로 확인했다.
 - 검증: `git diff --check -- .tmp/item_manager_modify.txt SESSION_HANDOFF.md` 통과.
 - stage/commit 대상: ignored `.tmp/item_manager_modify.txt` 변경 추적용 `SESSION_HANDOFF.md`만 stage/commit한다.
+- 커밋: `f622b65` 품목관리 요청서 후속 권장안 정리
 
 ### 완료 (2026-07-10): 품목관리 요청서 재검토 권장안 추가 병합
 
