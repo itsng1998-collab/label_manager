@@ -82,11 +82,22 @@ void main() {
         expect(await File('$path.bak').exists(), isFalse);
         final document =
             jsonDecode(await file.readAsString()) as Map<String, dynamic>;
+        expect(document['version'], ItemManagerDraftJournal.schemaVersion);
+        expect(DateTime.tryParse(document['createdAt'] as String), isNotNull);
+        expect(DateTime.tryParse(document['updatedAt'] as String), isNotNull);
         final baseline = document['baseline'] as Map<String, dynamic>;
         final baselineRow =
             (baseline['rows'] as List).single as Map<String, dynamic>;
         expect(baseline['rowCount'], 1);
         expect(baseline['checksum'], hasLength(16));
+        expect(
+          baseline['checksumSchemaVersion'],
+          ItemManagerDraftJournal.checksumSchemaVersion,
+        );
+        expect(
+          baseline['checksumFields'],
+          ItemManagerDraftJournal.checksumFields,
+        );
         expect(baselineRow['payloadLength'], source.item.elementRTF.length);
         expect(baselineRow.containsKey('elementPayload'), isFalse);
         expect(baseline['mappingFingerprints'], {

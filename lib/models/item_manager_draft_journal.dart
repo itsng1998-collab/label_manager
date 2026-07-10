@@ -59,6 +59,21 @@ class ItemManagerDraftJournalMetadata {
 }
 
 class ItemManagerDraftJournal {
+  static const int schemaVersion = 2;
+  static const int checksumSchemaVersion = 1;
+  static const List<String> checksumFields = [
+    'rows.itemId',
+    'rows.order',
+    'rows.itemName',
+    'rows.elementPlain',
+    'rows.payloadEmpty',
+    'rows.payloadFormat',
+    'rows.payloadLength',
+    'rows.payloadEdgeHash',
+    'columns.itemId',
+    'columns.columnId',
+    'columns.dataString',
+  ];
   static const String lastPathPreferenceKey = 'item_manager_draft_journal_path';
   static const String lastDraftKeyPreferenceKey =
       'item_manager_draft_journal_key';
@@ -74,6 +89,7 @@ class ItemManagerDraftJournal {
   Timer? _debounce;
   Future<void> _writeQueue = Future<void>.value();
   bool _started = false;
+  DateTime? _createdAt;
 
   ItemManagerDraftJournal({
     required this.controller,
@@ -89,6 +105,7 @@ class ItemManagerDraftJournal {
   Future<void> start() async {
     if (_started) return;
     metadata.validate();
+    _createdAt ??= DateTime.now().toUtc();
     _started = true;
     controller.addListener(_handleDraftChanged);
     if (!controller.isDirty) await clear();
@@ -189,9 +206,11 @@ class ItemManagerDraftJournal {
         .map(_draftRowJson)
         .toList(growable: false);
 
+    final updatedAt = DateTime.now().toUtc();
     return {
-      'version': 1,
-      'savedAt': DateTime.now().toUtc().toIso8601String(),
+      'version': schemaVersion,
+      'createdAt': (_createdAt ?? updatedAt).toIso8601String(),
+      'updatedAt': updatedAt.toIso8601String(),
       'metadata': {
         ...metadata.toJson(),
         'selectedRowKeys': controller.selectedRowKeys.toList(growable: false),
@@ -201,6 +220,8 @@ class ItemManagerDraftJournal {
         'rowCount': baselineRows.length,
         'rows': baselineRows,
         'checksum': _fnv1a64Hex(checksumInput),
+        'checksumSchemaVersion': checksumSchemaVersion,
+        'checksumFields': checksumFields,
         'mappingFingerprints': mappingFingerprints.toJsonForItems(
           baselineItemIds,
         ),
@@ -313,7 +334,7 @@ class ItemManagerDraftJournal {
       rethrow;
     }
 
-    final savedAt = document['savedAt']! as String;
+    final savedAt = document['updatedAt']! as String;
     final preferences = await _preferencesProvider();
     await preferences.setString(lastPathPreferenceKey, target.path);
     await preferences.setString(lastDraftKeyPreferenceKey, metadata.draftKey);
