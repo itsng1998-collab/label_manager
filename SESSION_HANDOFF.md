@@ -28,6 +28,18 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-10): 품목관리 요청서 순서 변경 재검토 권장안 병합
+
+- 요청: `순서 변경` 재검토에서 나온 권장 사항을 `.tmp/item_manager_modify.txt` 요청서에 병합하고, 필요한 사용자 확인 사항을 이해하기 쉽게 정리한다.
+- `.tmp/item_manager_modify.txt` 반영 완료: 현재 `ItemOfMarketDAO.selectByItemOfMarketAndLabelSizeId()`의 order 미보장 문제를 선행 수정 항목으로 추가하고, 품목관리 리스트/순서 변경/저장 후 재조회가 `ORDER BY P2.RICH_ITEM_ORDER, P2.RICH_ITEM_ID ASC`를 공통 전제로 삼도록 정리했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: `순서 변경` 대상은 레거시 호환을 우선해 현재 market에 표시되는 품목만 재정렬하는 권장안으로 확정하고, draft 편집 중에는 메뉴 비활성화 + 안내로 확정했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: UI 표현을 현재 Flutter 라벨 설정 화면의 `orderEditMode` 패턴으로 수정하고, `ItemDAO.updateOrders(List<ItemOrderUpdate>)` 추가, 상위 controller/view model의 메뉴 상태 주입, Excel/date 완료 전 독립 구현 가능 조건을 추가했다.
+- 사용자 확인 사항: market별 독립 품목 순서가 반드시 필요한 경우 현재 `RICH_ITEM_ORDER` item-level 구조와 레거시 호환 범위를 넘어서는 별도 order 저장 설계가 필요하다는 확인 항목으로 정리했다.
+- 검증: `grep_search`로 `ORDER BY P2.RICH_ITEM_ORDER`, `ItemDAO.updateOrders`, `orderEditMode`, 현재 market 표시 품목 기준, 상위 메뉴 상태 주입, market별 독립 순서 확인 문구를 확인했다.
+- 검증: `.tmp/item_manager_modify.txt` 본문에 예전 선택지 문구(`저장 후 계속`, `변경 취소 후 계속`, 라벨 설정 순서변경 패턴)가 남지 않았음을 `grep_search`로 확인했다.
+- 검증: `git diff --check -- .tmp/item_manager_modify.txt SESSION_HANDOFF.md` 통과.
+- stage/commit 대상: ignored `.tmp/item_manager_modify.txt` 변경 추적용 `SESSION_HANDOFF.md`만 stage/commit한다.
+
 ### 완료 (2026-07-10): 품목관리 요청서 순서 변경 병합
 
 - 요청: 레거시 품목관리의 `순서 변경` 로직 분석과 `라벨 설정` 순서변경형 다이얼로그 UI 권장안을 `.tmp/item_manager_modify.txt` 요청서에 병합하고, 필요한 사용자 확인 사항을 이해하기 쉽게 정리한다.
