@@ -28,6 +28,18 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-10): 품목관리 요청서 scoped load/checksum 표현 보강
+
+- 요청: 다시 검토한 애매점과 레거시/현 구현 문제를 권장 사항으로 `.tmp/item_manager_modify.txt`에 병합한다.
+- 반영 완료: 최종 정리에 남은 `신규 mapping 생성 template` 표현을 `currentMarketSnapshot`/`newMappingDefaults` 분리 기준으로 정리했다.
+- 반영 완료: `TColumnContentDAO` current item id 필터 정책에 맞춰 품목관리 로드 순서를 `ItemOfMarket` 조회 -> item id set 산출 -> `TColumnContent` scoped 조회/필터로 명시했다.
+- 반영 완료: checksum 최소 입력 문구를 현재 화면 item id 집합 기준 column content hash로 통일했다.
+- 반영 완료: rowState별 필수/nullable draft 필드와 order update 대상에서 orphan item 제외를 명시했다.
+- 검증 완료: `Select-String -Path .tmp/item_manager_modify.txt -Pattern 'rowState별 필수 필드|기존 row는 `currentMarketSnapshot`|신규 추가/삽입/엑셀 import row는 `newMappingDefaults`|품목관리 로드 순서는 `ItemOfMarketDAO|현재 화면 market의 item id 집합에 속한 column content|order update 대상에는 mapping 제거 후 남는|기존 행의 market-specific 값은.*current market snapshot|신규 mapping 생성값은.*new mapping defaults'`로 병합 문구 반영을 확인했다.
+- 검증 완료: `grep_search`로 `신규 mapping 생성 template`, 범위 없는 `column content` checksum, `surviving working row` 같은 이전 표현이 남지 않았음을 확인했다.
+- 검증 완료: `git diff --check -- .tmp/item_manager_modify.txt` 통과(공백 오류 없음).
+- 커밋 예정: `SESSION_HANDOFF.md`만 포함한다. `.tmp/item_manager_modify.txt`는 ignore 대상 작업 파일로 유지한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+
 ### 완료 (2026-07-10): 품목관리 요청서 저장 경로/mapping 기본값 보강
 
 - 요청: 다시 검토한 애매점과 레거시/현 구현 문제를 권장 사항으로 `.tmp/item_manager_modify.txt`에 병합한다.
