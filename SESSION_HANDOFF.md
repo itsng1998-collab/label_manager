@@ -28,6 +28,19 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-10): 품목관리 요청서 잔여 애매점 권장 병합
+
+- 요청: `.tmp/item_manager_modify.txt`를 다시 검토해 애매하거나 레거시/현 구현과 충돌 가능한 부분을 권장 사항으로 병합 정리한다.
+- 수정 완료: 레거시 dirty/insert/update/delete 구분은 참고하되, Flutter 저장은 현재 품목/컬럼 DAO와 DB 구조 기준으로 수행하고 legacy update item apply 구조를 재현하지 않는다고 명시했다.
+- 수정 완료: 엑셀 가져오기 전체 교체 취소는 DB 재조회를 사용하되 import 직전 baseline에 row count, item id/order 목록, lightweight version/checksum을 저장하고, 현재 DB와 다르면 외부 변경 가능성을 경고하도록 정리했다.
+- 수정 완료: legacy RTF lazy 변환은 주원료 편집 진입/명시적 변환 적용만 draft 변경으로 반영하고, 미리보기 목적 변환은 display-only cache로만 유지해 dirty 상태를 만들지 않도록 정리했다.
+- 수정 완료: 신규 행 일반 컬럼 draft는 `draftRowKey + columnId`로 관리하고 저장 후 생성 item id에 매핑해 column content insert/표시 우선순위에 사용하도록 정리했다.
+- 수정 완료: draft 편집 모드의 발행 체크 표시는 rowIndex가 아니라 item id 기준 snapshot으로 유지하고, 추가/삽입/삭제 후 현재 rowIndex로 재매핑하도록 정리했다.
+- 수정 완료: 추가/삽입은 실행 후 전체 working row 수가 10000을 넘으면 차단하도록 본문과 검증 항목에 반영했다.
+- 검증 완료: `Select-String -Path .tmp/item_manager_modify.txt -Pattern '주원료 편집 또는 미리보기 진입|미리보기 진입 시 필요한 경우 lazy|legacy update item apply|draftRowKey \\+ columnId|display-only cache|row count|lightweight version/checksum|item id 기준 snapshot|전체 working row 수가 10000'`로 이전 RTF 미리보기 draft 표현이 제거되고 새 권장 정책 문구가 반영된 것을 확인했다.
+- 검증 완료: `git diff --check -- .tmp/item_manager_modify.txt` 통과(공백 오류 없음).
+- 커밋 예정: `SESSION_HANDOFF.md`만 포함한다. `.tmp/item_manager_modify.txt`는 `.gitignore`의 `.tmp/` 대상이므로 force add하지 않고 작업 파일로 유지한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+
 ### 완료 (2026-07-10): 품목관리 요청서 현재 구현 데이터 보관 방식 병합
 
 - 요청: 현재 Flutter 품목관리 구현에서 행 추가 시 관리 객체를 복사/참조하는 방식에 대한 정리안을 `.tmp/item_manager_modify.txt`에 병합한다.
