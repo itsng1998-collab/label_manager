@@ -28,6 +28,18 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-10): 품목관리 요청서 바코드/QR 구현 모호점 권장안 병합
+
+- 요청: 재검토에서 발견한 barcode object id 의미, QR 기본 format 정책, check digit 자동 보정/오류 정책, EZPL native 지원 범위, FortuneSheet 표시 metadata 범위를 권장안으로 `.tmp/item_manager_modify.txt`에 병합한다.
+- `.tmp/item_manager_modify.txt` 반영 완료: FortuneSheet image 내부 `id`가 아니라 `extraFields['barcodeObjectId']`(`fortuneBarcodeObjectIdExtraKey`)를 column keyword 매칭 기준으로 명시했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: `TYPE_QR_CODE`의 format 정책을 QR/MicroQR/DataMatrix 계열 `barcodeType` 우선, 그 외 기본 `qrCode`로 정리했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: EAN-13/UPC-A/EAN-8/ITF check digit 보정은 preview/output payload에만 적용하고 품목 셀 원본값은 저장 액션 없이 자동 변경하지 않도록 정리했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: 실제 출력에서 EZPL native 미지원 format은 resolver metadata가 반영된 raster fallback으로 출력하도록 정리했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: `barcodeFormatLabel`, `barcodeShowText`를 최소 갱신 metadata로 명시하고 geometry/font/quiet-zone metadata는 template 값을 보존하도록 정리했다.
+- 사용자 확인 사항 반영 완료: check digit 자동 보정 여부, QR 기본 format 정책, EZPL native 미지원 format 허용 여부를 운영 의사결정으로 이해하기 쉽게 추가했다.
+- 검증: `grep_search`로 `barcodeObjectId`, 기본 `qrCode`, preview/output payload, raster fallback, `barcodeFormatLabel`, check digit/QR/native 사용자 확인 문구 반영을 확인했다. 긴 줄 구간은 `read_file`로 문장 손상 없음도 확인했다.
+- stage/commit 대상: ignored `.tmp/item_manager_modify.txt` 변경 추적용 `SESSION_HANDOFF.md`만 stage/commit한다.
+
 ### 완료 (2026-07-10): 품목관리 요청서 바코드 미리보기 최종 권장안 병합
 
 - 요청: 재검토에서 남은 구현 순서, 실제 출력 경로 경계, EAN-8 공용 선행 작업, GS1 format 정책, 오류 placeholder 필수/선택 범위를 권장안으로 `.tmp/item_manager_modify.txt`에 병합한다.
