@@ -28,6 +28,18 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-10): 품목관리 요청서 바코드 helper/취소 문구 권장안 병합
+
+- 요청: 재검토에서 남은 애매 문구(`normalizeMeaningPreservingForPrint 또는 동등 helper`, `저장/취소 후`, EAN-8 운영 DB 확인/테스트 기준)를 권장안으로 `.tmp/item_manager_modify.txt`에 병합한다.
+- 수정 예정 파일: `.tmp/item_manager_modify.txt`는 ignored 요청서 본문 수정, `SESSION_HANDOFF.md`는 ignored 요청서 변경 추적용 기록/검증/커밋 정보 갱신.
+- 사용자 확인: 새 비즈니스 정책 질문은 없으며, 구현 세부 계약 문구를 권장안으로 닫는다.
+- 병합 예정: 의미 보존 barcode helper는 공용 API 추가/호출로 고정, 출력 미리보기/발행 체크 재개 조건은 `저장 완료 또는 변경 취소 확정 후`로 통일, EAN-8은 운영 DB 확인과 별개로 normalize fixture 테스트를 완료 기준에 추가한다.
+- `.tmp/item_manager_modify.txt` 반영 완료: `BarcodeDataHelper.normalizeMeaningPreservingForPrint`를 공용 API로 추가하고 `ItemCodeDataResolver`가 이 helper를 호출하도록 고정했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: `저장/취소 후` 계열 표현을 `저장 완료 또는 취소 dialog에서 변경 취소 확정 후`/`저장 완료 또는 변경 취소 확정 후`로 정리했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: EAN-8은 운영 DB 샘플 유무와 별개로 `EAN8`/`EAN-8`/`CodeEAN8` fixture가 Code128과 구분되는지 테스트하도록 추가했다.
+- 검증: `git diff --check -- .tmp/item_manager_modify.txt` 통과. `grep_search`로 `normalizeMeaningPreservingForPrint.*동등`, `이 helper 또는 동일 규칙`, `저장/취소 후`, `저장 또는 취소 후`, `저장 또는 변경 취소 후`, `사용자 답변: 미확정` 없음 확인. `저장 완료 또는 취소 dialog에서 변경 취소를 확정`, `EAN8` fixture, `ItemCodeDataResolver` helper 호출 문구 확인.
+- stage/commit 대상: ignored `.tmp/item_manager_modify.txt` 변경 추적용 `SESSION_HANDOFF.md`만 stage/commit한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+
 ### 완료 (2026-07-10): 품목관리 요청서 구현 누락 방지 기준 권장안 병합
 
 - 요청: 재검토 결과를 권장안으로 `.tmp/item_manager_modify.txt`에 병합하고, 사용자 확인 사항이 있으면 즉시 질문해 확정한다.
