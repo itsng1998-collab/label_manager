@@ -39,6 +39,7 @@
 - `.tmp/item_manager_modify.txt` 반영 완료: `[transaction/DAO]` 검증에 `hasRichElementSheet=false` fixture를 추가해 기존 `ItemOfMarketDAO.SelectSql` 미실행, migration 안내 화면, read-only fallback SELECT 성공/실패 분기를 검증하도록 했다.
 - 검증: `git diff --check -- .tmp/item_manager_modify.txt` 통과. `grep_search`로 `updateDateSetup`, `LabelSizeDateSetupUpdate`, `날짜/시간 12개 컬럼`, `full LabelSizeSetup DTO`, `최신 DB setup에 날짜/시간 변경값`, `hasRichElementSheet=false fixture`, `read-only fallback SELECT` 문구 확인. `LabelSizeDAO.updateSetup(`, `BM_RICH_LABELSIZE_FORM setup 계열 컬럼`, `setup 계열 컬럼만 갱신`, `저장 대상은 BM_RICH_LABELSIZE_FORM의 setup 계열 컬럼`, `사용자 답변: 미확정` 없음 확인.
 - stage/commit 대상: ignored `.tmp/item_manager_modify.txt` 변경 추적용 `SESSION_HANDOFF.md`만 stage/commit한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+- 커밋: `db4b9b2` 품목관리 요청서 날짜 설정 API 기준 기록
 
 ### 완료 (2026-07-10): 품목관리 요청서 schema/setup/xlsx round-trip 권장안 병합
 
