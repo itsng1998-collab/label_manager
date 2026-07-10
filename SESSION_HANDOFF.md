@@ -38,6 +38,7 @@
 - 검증: `grep_search`로 `2.11`, `12.2`, `14.7 [QR viewer]`, 최종 요약, 사용자 확인 문구를 확인했다.
 - 검증: `git diff --check -- .tmp/item_manager_modify.txt SESSION_HANDOFF.md` 통과.
 - stage/commit 대상: ignored `.tmp/item_manager_modify.txt` 변경 추적용 `SESSION_HANDOFF.md`만 stage/commit한다.
+- 커밋: `2cfe228` 품목관리 요청서 QR코드 데이터 보기 정리
 
 ### 완료 (2026-07-10): 품목관리 요청서 날짜 타입 설정 병합
 
