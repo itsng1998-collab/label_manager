@@ -28,6 +28,18 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-10): 품목관리 요청서 바코드 미리보기 권장안 추가 병합
+
+- 요청: 재검토에서 남은 EAN-8 매핑, `ItemCodeDataResolver` 입력 범위, GS1 바코드 처리, 바코드 오류 UI 소유자, fallback 예외 정책을 권장안으로 `.tmp/item_manager_modify.txt`에 병합한다.
+- `.tmp/item_manager_modify.txt` 반영 완료: `BarcodeType.CodeEAN8`의 `dbName=CODE128` 문제를 단순 확인이 아니라 EAN-8 normalize 선행 수정/검증 요구로 격상했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: `ItemCodeDataResolver`는 draft row 입력도 받을 수 있지만, 출력내용 미리보기 탭은 draft 편집 중 진입하지 않고 저장/취소 후 working row만 렌더링한다는 범위를 명시했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: `TYPE_GS1_BARCODE`는 단순 `TColumn.barcodeType` 직접 매핑이 아니라 GS1 조합/검증 helper 결과를 `barcodeText`로 사용하도록 정리했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: 바코드 오류 표시의 1차 구현 소유자를 `_ItemOutputPreviewTab`으로 두고, resolver validation 결과를 탭 상단 오류 목록/필요 시 object placeholder로 표시하도록 정리했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: fallback은 1차 권장안이 아니라 실제 출력 형식과 미리보기 형식이 달라질 수 있는 예외 정책임을 사용자 확인 사항에 명시했다.
+- 검증: `grep_search`로 EAN-8 선행 수정/검증, GS1 조합/검증 helper, `_ItemOutputPreviewTab` 오류 표시 소유, draft 입력/preview 차단 범위, fallback 예외 정책 문구 반영을 확인했다.
+- 검증: 이전 `QR/바코드 데이터 및 출력 미리보기 기반` 구현 단위명이 `QR/바코드 데이터 helper 기반`으로 정리됐음을 확인했다.
+- stage/commit 대상: ignored `.tmp/item_manager_modify.txt` 변경 추적용 `SESSION_HANDOFF.md`만 stage/commit한다.
+
 ### 완료 (2026-07-10): 품목관리 요청서 바코드 미리보기 권장안 후속 병합
 
 - 요청: 재검토에서 확인된 출력 미리보기 바코드 형식 재설정 관련 애매한 부분을 권장안으로 `.tmp/item_manager_modify.txt`에 병합하고, 사용자 확인 사항을 이해하기 쉽게 정리한다.
