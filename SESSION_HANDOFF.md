@@ -28,6 +28,20 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-10): 품목관리 요청서 저장/엑셀/백업 권장안 병합
+
+- 요청: `.tmp/item_manager_modify.txt`에 남은 권장 사항 6개를 병합 정리한다.
+- 수정 완료: 현재 `DbClient`/`DbIsolateAction`에 품목 저장용 transaction/batch API가 없음을 명시하고, 구현 전 `DbClient`/driver transaction API 또는 단일 SQL batch transaction 경로와 품목관리 저장 DAO를 먼저 추가하도록 정리했다.
+- 수정 완료: 여러 `writeDataWithParams` 순차 호출은 전체 롤백을 보장하지 못하므로 품목관리 저장 경로에 사용하지 않는다고 명시했다.
+- 수정 완료: 엑셀 가져오기는 기존 xlsx helper의 activeTab 기준이 아니라 원본 workbook sheet order index 0을 강제하고, sheet index 또는 relationship id 지정 parse helper가 필요하다고 정리했다.
+- 수정 완료: 엑셀 가져오기 취소용 lightweight checksum 산출 기준을 row count, item id/order, item name, 주원료 plain text, `Item.elementRTF` payload 존재/포맷 정보, column content data hash로 명시하고, 변경되지 않은 heavy payload 전체 문자열은 hash하지 않도록 정리했다.
+- 수정 완료: 전체 교체 저장은 `BM_RICH_COL_CONTENT`, `BM_ITEM_OF_MARKET`, `BM_RICH_ITEM`, `BM_ADDITIONAL_ITEM` 처리 정책과 FK 제약 순서를 명시한 DAO 경로로 실행하도록 정리했다.
+- 수정 완료: 품목관리 편집 상태는 기존 `Item.copyWith` 확장보다 전용 draft row/value model을 우선 사용하도록 정리했다.
+- 수정 완료: 품목관리 편집 기능이 켜진 화면에서는 라벨크기 로드 직후 `_startItemElementAutoMigration()` 호출 자체를 skip하도록 정리했다.
+- 검증 완료: `Select-String -Path .tmp/item_manager_modify.txt -Pattern 'transaction/batch API|단일 SQL batch transaction|workbook sheet order index 0|activeTab|lightweight checksum|checksum 산출 입력|BM_ADDITIONAL_ITEM|draft row/value model|_startItemElementAutoMigration\\(\\) 호출|여러 `writeDataWithParams` 호출|sheet index 또는 relationship id'`로 본문/검증/최종 정리 반영을 확인했다.
+- 검증 완료: `git diff --check -- .tmp/item_manager_modify.txt` 통과(공백 오류 없음).
+- 커밋 예정: `SESSION_HANDOFF.md`만 포함한다. `.tmp/item_manager_modify.txt`는 `.gitignore`의 `.tmp/` 대상이므로 force add하지 않고 작업 파일로 유지한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+
 ### 완료 (2026-07-10): 품목관리 요청서 주원료 payload 판별 기준 정리
 
 - 요청: `RICH_ELEMENT_SHEET`와 legacy `RICH_ELEMENT_RTF`를 현재 모델에서 별도 분리하지 않고, `COALESCE(NULLIF(RICH_ELEMENT_SHEET,''), RICH_ELEMENT_RTF, '') AS P2_ELEMENT_RTF`로 합쳐진 `Item.elementRTF` payload를 포맷에 따라 그대로 사용하거나 lazy 변환하는 기준으로 요청서를 정리한다.
