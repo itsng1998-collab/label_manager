@@ -37,7 +37,7 @@
 - 반영 완료: 엑셀 빈 헤더 이후 뒤쪽에 매핑 가능한 헤더가 있으면 조용히 무시하지 않고 가져오기 전 안내/경고하도록 명시했다.
 - 검증 완료: `Select-String -Path .tmp/item_manager_modify.txt -Pattern 'raw snapshot DTO|P1_LABELSIZE_WIDTH|P1_LABEL_SIZE_WIDTH|alias 불일치|BarcodeDataHelper|time barcode 재계산|recalculator|GS1 AI 검증/조합|validator/helper|빈 헤더 이후.*매핑 가능한 헤더|무시 안내/경고|nullable DB 저장값'`로 병합 문구 반영을 확인했다.
 - 검증 완료: `git diff --check -- .tmp/item_manager_modify.txt` 통과(공백 오류 없음).
-- 커밋 예정: `SESSION_HANDOFF.md`만 포함한다. `.tmp/item_manager_modify.txt`는 ignore 대상 작업 파일로 유지한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+- 커밋 완료: `652c8f4` 품목관리 요청서 snapshot 검증 기준 보강. 포함 파일은 `SESSION_HANDOFF.md`이며, `.tmp/item_manager_modify.txt`는 ignore 대상 작업 파일로 유지했다. 기존 unrelated dirty `lib/core/app.dart`는 제외했다.
 
 ### 완료 (2026-07-10): 품목관리 요청서 scoped load/checksum 표현 보강
 
