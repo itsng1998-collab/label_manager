@@ -28,6 +28,16 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-10): 품목관리 요청서 엑셀/선택 owner 잔여 경계 정리
+
+- 요청: 다시 검토한 애매점과 레거시/현 구현 문제를 권장 사항으로 `.tmp/item_manager_modify.txt`에 병합한다.
+- `.tmp/item_manager_modify.txt`에서 엑셀 `주원료` 1차 import 기준을 해당 데이터 행의 `주원료` 단일 셀 표시 텍스트로 좁히고, `각 셀`/`주원료 영역`/row-major 계열 잔여 표현은 1차 구현 문맥에서 제거했다.
+- `labelSheetWorkbookFromXlsxBytes()` activeTab 결과를 쓰는 것으로 오해되지 않도록 지정 sheet parse helper 결과와 worksheet XML metadata를 같은 sheet id/relationship 기준으로 매칭한다고 정리했다.
+- 선택/anchor/focus 상태는 품목관리 edit controller/draft session이 `rowKey`/`draftRowKey`/기존 item id 기준으로 소유하고, `home_page_manager`는 출력 미리보기/하단 주원료 연동용 selected item 표시 모델만 동기화하도록 정리했다.
+- `forceReloadRequired` 상태에서 로그아웃/앱 종료 예외 안내는 추가 저장 확인 dialog가 아니라 단발 안내이며, DB 저장은 완료됐고 화면 동기화만 실패했으며 임시 백업은 복구에 사용하지 않고 정리한다는 의미를 포함하도록 명시했다.
+- 사용자 확인 문구를 `엑셀 주원료 칸의 굵게/색/부분 스타일/병합 모양까지 가져와야 하는지, 아니면 보이는 글자만 가져오면 되는지`로 이해하기 쉽게 정리했다.
+- 검증: `grep_search`로 새 문구와 잔여 표현 정리를 확인했고, `git diff --check -- .tmp/item_manager_modify.txt SESSION_HANDOFF.md` 통과.
+
 ### 완료 (2026-07-10): 품목관리 요청서 구현경계/엑셀 주원료 범위 보강
 
 - 요청: 다시 검토한 애매점과 레거시/현 구현 문제를 권장 사항으로 `.tmp/item_manager_modify.txt`에 병합한다.
