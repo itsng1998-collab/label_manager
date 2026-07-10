@@ -25,6 +25,21 @@ class ItemManagerColumnDraft {
 }
 
 @immutable
+class ItemManagerImportedRow {
+  const ItemManagerImportedRow({
+    required this.itemName,
+    required this.elementPlain,
+    required this.elementPayload,
+    this.columnDrafts = const {},
+  });
+
+  final String itemName;
+  final String elementPlain;
+  final String elementPayload;
+  final Map<int, ItemManagerColumnDraft> columnDrafts;
+}
+
+@immutable
 class ItemManagerDraftRow {
   final String rowKey;
   final int? itemId;
@@ -465,6 +480,58 @@ class ItemManagerDraftController extends ChangeNotifier {
     _selectAdded(added);
     notifyListeners();
     return List.unmodifiable(added);
+  }
+
+  List<ItemManagerDraftRow> replaceAllWithImportedRows(
+    List<ItemManagerImportedRow> importedRows,
+  ) {
+    if (isDirty) {
+      throw StateError('Import requires a clean item draft.');
+    }
+    if (importedRows.isEmpty) {
+      throw ArgumentError.value(
+        importedRows,
+        'importedRows',
+        'Must not be empty.',
+      );
+    }
+    if (importedRows.length > ItemManagerLimits.maxRows) {
+      throw StateError(
+        'Item row limit exceeded: ${ItemManagerLimits.maxRows}.',
+      );
+    }
+    for (final row in _rows) {
+      final sourceItemId = row.sourceItemId;
+      if (sourceItemId == null) continue;
+      _deletedSourceItemIds.add(sourceItemId);
+      _deletedRowsBySourceItemId[sourceItemId] = row;
+    }
+    final replacements = [
+      for (var index = 0; index < importedRows.length; index += 1)
+        ItemManagerDraftRow.newRow(
+          draftRowKey:
+              'import-${DateTime.now().microsecondsSinceEpoch}-${_draftSequence++}',
+          order: index + 1,
+          originalIndex: index,
+          insertAnchorItemId: null,
+          rowState: ItemManagerDraftRowState.imported,
+          emptyElementPayload: importedRows[index].elementPayload,
+        ).copyWith(
+          itemName: importedRows[index].itemName,
+          elementPlain: importedRows[index].elementPlain,
+          columnDrafts: Map.unmodifiable(importedRows[index].columnDrafts),
+        ),
+    ];
+    _validateRows(replacements);
+    _rows
+      ..clear()
+      ..addAll(replacements);
+    _selectedRowKeys
+      ..clear()
+      ..add(replacements.first.rowKey);
+    _anchorRowKey = replacements.first.rowKey;
+    notifyListeners();
+    return List.unmodifiable(replacements);
   }
 
   String? deleteRows(Iterable<String> rowKeys) {

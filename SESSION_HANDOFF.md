@@ -57,7 +57,9 @@
 - 4단계 Excel 기반 진행 중: 기존 `labelSheetWorkbookFromXlsxBytes` 변환 코어에서 `LabelSheetXlsxParseContext`와 `labelSheetXlsxParseContext(bytes, sheetIndex:)`를 분리했다. 기존 API는 active sheet context를 그대로 반환하고, 품목 import는 workbook 원본 순서의 `sheetIndex: 0`과 동일 parse context의 sheet name/relationship/path/XML/resources/date system을 사용할 수 있다.
 - 4단계 현재 검증: 2-sheet `activeTab=1`, `date1904=1` fixture에서 기존 API가 두 번째 sheet를 유지하고 지정 index 0 context가 첫 sheet 및 같은 relationship/XML을 반환하는 테스트를 추가했다. `test/label_sheet_xlsx_import_test.dart` 전체 통과, `flutter analyze` 통과(`No issues found`).
 - 4단계 raw metadata 진행 완료: parse context에 `LabelSheetXlsxCellMetadata` map을 추가해 cell reference/type, raw/cached value, parsed text, formula, style index, number format, quote-prefix를 변환 workbook과 같은 parse에서 제공한다. shared string 및 cached formula/style fixture 테스트를 추가했고 `test/label_sheet_xlsx_import_test.dart` 전체와 `flutter analyze`가 통과했다.
-- 다음 작업: 품목 header/value/주원료 영역 parser → draft 전체 교체 API → OpenXML 단순 table export → file dialog/UI 연결 순서로 진행한다. 운영 DB capability/save transaction의 실제 trigger/schema 통합 실행은 fixture가 없어 계속 미검증이다.
+- 4단계 draft 전체 교체 완료: `ItemManagerImportedRow`와 `replaceAllWithImportedRows`를 추가했다. clean draft에서만 실행하며 기존 source item 전체를 삭제 예정으로 기록하고, import row를 신규 identity/imported state/1부터의 order로 교체한 뒤 첫 행을 선택한다. 빈 import, 10000행 초과, dirty 충돌은 mutation 전에 차단한다.
+- 4단계 draft 검증: 기존 2개 source를 2개 imported row로 교체해 삭제 identity, order, column 값, 첫 행 selection을 확인하는 테스트를 추가했다. `test/item_manager_draft_test.dart` 전체 통과(`+10`), `flutter analyze` 통과(`No issues found`).
+- 다음 작업: 품목 header/value/주원료 영역 parser → OpenXML 단순 table export → file dialog/UI 연결 순서로 진행한다. 운영 DB capability/save transaction의 실제 trigger/schema 통합 실행은 fixture가 없어 계속 미검증이다.
 
 ### 완료 (2026-07-10): 불필요한 작업 규칙 정리
 

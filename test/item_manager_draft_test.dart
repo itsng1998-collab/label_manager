@@ -116,6 +116,47 @@ void main() {
       expect(controller.selectedRowKeys, {'item:30'});
     });
 
+    test(
+      'replaces clean rows with imported drafts and deletes all sources',
+      () {
+        final controller = _controller([
+          _itemOfMarket(itemId: 10, order: 1, name: '첫 품목'),
+          _itemOfMarket(itemId: 20, order: 2, name: '둘째 품목'),
+        ]);
+
+        final imported = controller.replaceAllWithImportedRows(const [
+          ItemManagerImportedRow(
+            itemName: '가져온 첫 품목',
+            elementPlain: '딸기',
+            elementPayload: 'UEsDfirst',
+            columnDrafts: {
+              7: ItemManagerColumnDraft(editable: true, dataString: '00123'),
+            },
+          ),
+          ItemManagerImportedRow(
+            itemName: '가져온 둘째 품목',
+            elementPlain: '',
+            elementPayload: 'UEsDempty',
+          ),
+        ]);
+
+        expect(controller.deletedSourceItemIds, {10, 20});
+        expect(controller.deletedRowsBySourceItemId.keys, {10, 20});
+        expect(imported.map((row) => row.rowState), [
+          ItemManagerDraftRowState.imported,
+          ItemManagerDraftRowState.imported,
+        ]);
+        expect(imported.map((row) => row.order), [1, 2]);
+        expect(imported.first.sourceItemId, isNull);
+        expect(imported.first.itemName, '가져온 첫 품목');
+        expect(imported.first.elementPlain, '딸기');
+        expect(imported.first.columnDrafts[7]?.dataString, '00123');
+        expect(controller.selectedRowKeys, {imported.first.rowKey});
+        expect(controller.anchorRowKey, imported.first.rowKey);
+        expect(controller.isDirty, isTrue);
+      },
+    );
+
     test('reverting existing edits clears modified state', () {
       final controller = _controller([
         _itemOfMarket(itemId: 10, order: 1, name: '원본 품명'),
