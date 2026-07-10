@@ -28,6 +28,17 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-10): 품목관리 요청서 순서 변경 병합
+
+- 요청: 레거시 품목관리의 `순서 변경` 로직 분석과 `라벨 설정` 순서변경형 다이얼로그 UI 권장안을 `.tmp/item_manager_modify.txt` 요청서에 병합하고, 필요한 사용자 확인 사항을 이해하기 쉽게 정리한다.
+- `.tmp/item_manager_modify.txt` 반영 완료: `2.12 레거시 품목 순서 변경 동작`을 추가해 이 기능이 품목 추가/삽입 draft가 아니라 기존 품목의 `BM_RICH_ITEM.RICH_ITEM_ORDER`를 갱신하는 별도 reorder command라고 정리했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: 우클릭 메뉴에 `순서 변경`을 `품목 삭제` 아래 배치하고, draft 편집 중에는 데이터 손실 방지를 위해 비활성화하거나 저장/변경 취소 선행 선택이 필요하다고 정리했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: `12.3 순서 변경 UX`, `13.1`의 품목 순서 변경 기반 구현 단위/완료 기준, `14.8 [item/order][transaction/DAO]` 검증 항목, 최종 요약을 추가했다.
+- 사용자 확인 사항: 미저장 draft가 있을 때 `순서 변경`을 비활성화할지, `저장 후 계속`/`변경 취소 후 계속`/`취소` 선택 다이얼로그를 제공할지 확인 항목을 추가했다. 1차 권장안은 데이터 손실 방지를 위해 draft 중 비활성화하는 것이다.
+- 검증: `grep_search`로 `2.12`, `5.5`, `12.3`, 품목 순서 변경 완료 기준, `14.8 [item/order]`, 사용자 확인 문구를 확인했다.
+- 검증: `git diff --check -- .tmp/item_manager_modify.txt SESSION_HANDOFF.md` 통과.
+- stage/commit 대상: ignored `.tmp/item_manager_modify.txt` 변경 추적용 `SESSION_HANDOFF.md`만 stage/commit한다.
+
 ### 완료 (2026-07-10): 품목관리 요청서 QR코드 데이터 보기 병합
 
 - 요청: 레거시 품목관리의 `QR코드 데이터 보기` 분석 내용을 `.tmp/item_manager_modify.txt` 요청서에 병합하고, 필요한 사용자 확인 사항을 이해하기 쉽게 정리한다.
