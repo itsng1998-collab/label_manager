@@ -40,6 +40,7 @@
 - 검증: `grep_search`로 `ItemCodeDataResolver`, `[barcode/output preview]`, `barcodeText`/`barcodeFormatId`, `CodeEAN8`, 자동 fallback 금지, column type 기준 문구 반영을 확인했다.
 - 검증: 이전 애매 표현인 `fallback 여부를 명시적으로 결정`, `ItemQRCodeDataResolver`, `14.8 [item/order]`가 남지 않았음을 확인했다. `keyword 문자열에 barcode` 표현은 금지 문맥으로만 남아 있음을 확인했다.
 - stage/commit 대상: ignored `.tmp/item_manager_modify.txt` 변경 추적용 `SESSION_HANDOFF.md`만 stage/commit한다.
+- 커밋: `72d0dda` 품목관리 바코드 미리보기 권장안 병합
 
 ### 완료 (2026-07-10): 품목관리 출력 미리보기 바코드 형식 재설정 요청서 병합
 
