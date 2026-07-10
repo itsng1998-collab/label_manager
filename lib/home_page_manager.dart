@@ -50,6 +50,13 @@ import 'package:label_manager/page_home/preview_floating_window.dart';
 import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
 import 'package:label_manager/widgets/swipe_action_table.dart';
 
+class _ItemMappingFingerprintConflict implements Exception {
+  const _ItemMappingFingerprintConflict();
+
+  @override
+  String toString() => '삭제 대상 품목의 market 연결이 편집 시작 후 변경됐습니다.';
+}
+
 /// 로그인 이후 메인 UI
 class HomePageManager extends StatefulWidget {
   final Brand? selectedBrand;
@@ -881,7 +888,7 @@ class _HomePageManagerState extends State<HomePageManager> {
           currentFingerprints,
           command.deletedSourceItemIds,
         )) {
-          throw StateError('삭제 대상 품목의 market 연결이 편집 시작 후 변경됐습니다. 다시 조회해 주세요.');
+          throw const _ItemMappingFingerprintConflict();
         }
       }
       final result = await ItemManagerSaveDAO.save(command, capabilities);
@@ -900,6 +907,8 @@ class _HomePageManagerState extends State<HomePageManager> {
           context,
         ).showSnackBar(const SnackBar(content: Text('품목관리 변경 사항을 저장했습니다.')));
       }
+    } on _ItemMappingFingerprintConflict catch (error) {
+      if (mounted) await _resolveItemMappingFingerprintConflict(error);
     } catch (error) {
       if (mounted) _showItemDraftError('품목 저장 실패', error);
     } finally {
@@ -927,6 +936,39 @@ class _HomePageManagerState extends State<HomePageManager> {
       if (mounted) _showItemDraftError('품목 다시 조회 실패', error);
     } finally {
       if (mounted) setState(() => _itemDraftCommandBusy = false);
+    }
+  }
+
+  Future<void> _resolveItemMappingFingerprintConflict(
+    _ItemMappingFingerprintConflict error,
+  ) async {
+    final shouldReload = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('품목 연결 변경 감지'),
+        content: Text('$error\n현재 DB 기준으로 품목 목록을 다시 조회해 주세요.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('변경 취소'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('다시 조회'),
+          ),
+        ],
+      ),
+    );
+    if (shouldReload != true || !mounted) return;
+    final reloaded = await _reloadItemDraftFromDatabase(
+      selectedItemId: _selectedItemOfMarket?.item.itemId,
+    );
+    if (!reloaded && mounted) {
+      _showItemDraftError(
+        '품목 다시 조회 실패',
+        StateError('품목 목록을 다시 불러오지 못했습니다.'),
+      );
     }
   }
 
