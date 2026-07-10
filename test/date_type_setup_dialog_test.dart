@@ -62,4 +62,41 @@ void main() {
     expect(result!.makingDateFormat, PrintDateFormat.DATE_FORMAT_USER_DEFINE);
     expect(result!.useMakeTime, isFalse);
   });
+
+  testWidgets('date setup dialog is read-only without edit permission', (
+    tester,
+  ) async {
+    const setup = LabelSizeSetup(
+      readOnly: false,
+      useMakeDate: true,
+      useMakeTime: false,
+      useValidDate: true,
+      useValidTime: false,
+      makingDateFormat: PrintDateFormat.DATE_FORMAT_DOT,
+      makingTimeFormat: PrintTimeFormat.TIME_FORMAT_COLON,
+      validDateFormat: PrintDateFormat.DATE_FORMAT_SLASH,
+      validTimeFormat: PrintTimeFormat.TIME_FORMAT_COLON,
+      strMakeDate: '',
+      strMakeTime: '',
+      strValidDate: '',
+      strValidTime: '',
+      useScale: false,
+    );
+
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: DateTypeSetupDialog(
+            initialSetup: setup,
+            showInvalidValueWarning: false,
+            readOnly: true,
+          ),
+        ),
+      ),
+    );
+
+    expect(tester.widget<FilledButton>(find.widgetWithText(FilledButton, '적용')).onPressed, isNull);
+    expect(tester.widget<Checkbox>(find.byType(Checkbox).first).onChanged, isNull);
+    expect(tester.widget<TextField>(find.byType(TextField).first).enabled, isFalse);
+  });
 }

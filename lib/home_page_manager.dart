@@ -1497,6 +1497,7 @@ class _HomePageManagerState extends State<HomePageManager> {
     if (labelSize == null ||
         setup == null ||
         _itemDraftCommandBusy ||
+      _itemDraftForceReloadRequired ||
         _itemDraftController?.isDirty == true) {
       return;
     }
@@ -1505,9 +1506,10 @@ class _HomePageManagerState extends State<HomePageManager> {
       builder: (_) => DateTypeSetupDialog(
         initialSetup: setup,
         showInvalidValueWarning: labelSize.hasInvalidDateSetupValues,
+        readOnly: User.instance?.canEdit != true,
       ),
     );
-    if (!mounted || update == null) return;
+    if (!mounted || update == null || User.instance?.canEdit != true) return;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -2619,6 +2621,7 @@ class _HomePageManagerState extends State<HomePageManager> {
     final dateSettingsEnabled =
         resolvedLabel?.labelSizeSetup != null &&
         !_itemDraftCommandBusy &&
+      !_itemDraftForceReloadRequired &&
         _itemDraftController?.isDirty != true;
 
     final tabbedView = TabbedViewTheme(

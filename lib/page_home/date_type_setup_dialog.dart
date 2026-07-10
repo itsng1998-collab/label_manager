@@ -7,10 +7,12 @@ class DateTypeSetupDialog extends StatefulWidget {
     super.key,
     required this.initialSetup,
     required this.showInvalidValueWarning,
+    this.readOnly = false,
   });
 
   final LabelSizeSetup initialSetup;
   final bool showInvalidValueWarning;
+  final bool readOnly;
 
   @override
   State<DateTypeSetupDialog> createState() => _DateTypeSetupDialogState();
@@ -72,6 +74,7 @@ class _DateTypeSetupDialogState extends State<DateTypeSetupDialog> {
               ),
             _DateSetupRow(
               title: '제조일자',
+              readOnly: widget.readOnly,
               enabled: _useMakeDate,
               onEnabled: (value) => setState(() => _useMakeDate = value),
               format: _makeDateFormat,
@@ -80,6 +83,7 @@ class _DateTypeSetupDialogState extends State<DateTypeSetupDialog> {
             ),
             _TimeSetupRow(
               title: '제조시한',
+              readOnly: widget.readOnly,
               enabled: _useMakeTime,
               onEnabled: (value) => setState(() => _useMakeTime = value),
               format: _makeTimeFormat,
@@ -88,6 +92,7 @@ class _DateTypeSetupDialogState extends State<DateTypeSetupDialog> {
             ),
             _DateSetupRow(
               title: '소비기한',
+              readOnly: widget.readOnly,
               enabled: _useValidDate,
               onEnabled: (value) => setState(() => _useValidDate = value),
               format: _validDateFormat,
@@ -96,6 +101,7 @@ class _DateTypeSetupDialogState extends State<DateTypeSetupDialog> {
             ),
             _TimeSetupRow(
               title: '소비시한',
+              readOnly: widget.readOnly,
               enabled: _useValidTime,
               onEnabled: (value) => setState(() => _useValidTime = value),
               format: _validTimeFormat,
@@ -119,7 +125,9 @@ class _DateTypeSetupDialogState extends State<DateTypeSetupDialog> {
         child: const Text('취소'),
       ),
       FilledButton(
-        onPressed: () => Navigator.of(context).pop(_result()),
+        onPressed: widget.readOnly
+            ? null
+            : () => Navigator.of(context).pop(_result()),
         child: const Text('적용'),
       ),
     ],
@@ -162,6 +170,7 @@ class _SetupWarning extends StatelessWidget {
 class _DateSetupRow extends StatefulWidget {
   const _DateSetupRow({
     required this.title,
+    required this.readOnly,
     required this.enabled,
     required this.onEnabled,
     required this.format,
@@ -170,6 +179,7 @@ class _DateSetupRow extends StatefulWidget {
   });
 
   final String title;
+  final bool readOnly;
   final bool enabled;
   final ValueChanged<bool> onEnabled;
   final PrintDateFormat format;
@@ -198,6 +208,7 @@ class _DateSetupRowState extends State<_DateSetupRow> {
   @override
   Widget build(BuildContext context) => _SetupRow<PrintDateFormat>(
     title: widget.title,
+    readOnly: widget.readOnly,
     enabled: widget.enabled,
     onEnabled: widget.onEnabled,
     format: widget.format,
@@ -216,6 +227,7 @@ class _DateSetupRowState extends State<_DateSetupRow> {
 class _TimeSetupRow extends StatefulWidget {
   const _TimeSetupRow({
     required this.title,
+    required this.readOnly,
     required this.enabled,
     required this.onEnabled,
     required this.format,
@@ -224,6 +236,7 @@ class _TimeSetupRow extends StatefulWidget {
   });
 
   final String title;
+  final bool readOnly;
   final bool enabled;
   final ValueChanged<bool> onEnabled;
   final PrintTimeFormat format;
@@ -252,6 +265,7 @@ class _TimeSetupRowState extends State<_TimeSetupRow> {
   @override
   Widget build(BuildContext context) => _SetupRow<PrintTimeFormat>(
     title: widget.title,
+    readOnly: widget.readOnly,
     enabled: widget.enabled,
     onEnabled: widget.onEnabled,
     format: widget.format,
@@ -270,6 +284,7 @@ class _TimeSetupRowState extends State<_TimeSetupRow> {
 class _SetupRow<T> extends StatelessWidget {
   const _SetupRow({
     required this.title,
+    required this.readOnly,
     required this.enabled,
     required this.onEnabled,
     required this.format,
@@ -282,6 +297,7 @@ class _SetupRow<T> extends StatelessWidget {
   });
 
   final String title;
+  final bool readOnly;
   final bool enabled;
   final ValueChanged<bool> onEnabled;
   final T format;
@@ -308,7 +324,7 @@ class _SetupRow<T> extends StatelessWidget {
             controlAffinity: ListTileControlAffinity.leading,
             title: Text(title),
             value: enabled,
-            onChanged: (value) => onEnabled(value ?? false),
+            onChanged: readOnly ? null : (value) => onEnabled(value ?? false),
           ),
         ),
         const SizedBox(width: 8),
@@ -326,14 +342,16 @@ class _SetupRow<T> extends StatelessWidget {
               for (final value in formats)
                 DropdownMenuItem(value: value, child: Text(formatLabel(value))),
             ],
-            onChanged: enabled ? (value) => onFormat(value as T) : null,
+            onChanged: enabled && !readOnly
+              ? (value) => onFormat(value as T)
+              : null,
           ),
         ),
         const SizedBox(width: 8),
         Expanded(
           child: TextField(
             controller: customController,
-            enabled: enabled && format == customFormat,
+            enabled: enabled && format == customFormat && !readOnly,
             decoration: const InputDecoration(
               labelText: '사용자 정의',
               isDense: true,
