@@ -28,6 +28,16 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-10): 품목관리 요청서 읽기 검증/Excel format 중복 정리
+
+- 수정 예정 파일: `.tmp/item_manager_modify.txt`는 ignored 요청서 본문 수정, `SESSION_HANDOFF.md`는 ignored 요청서 변경 추적용 기록/검증/커밋 정보 갱신.
+- 사용자 확인: 새 비즈니스 정책 질문은 없다. 이번 병합은 기존 확정 정책 안에서 검증 소유와 중복 문구를 정리하는 문서 수정이다.
+- 병합 예정: `hasRichElementSheet=false` fixture를 `[읽기/스냅샷]` 검증에도 추가해 로드/조회 단계의 기존 SELECT 미실행과 migration/read-only fallback 분기를 검증하게 한다. Excel custom format 처리 중복 문구를 하나로 합쳐 formatter 지원 범위 밖 숫자/날짜/custom format은 raw value 문자열 사용 후 저장 전 컬럼 타입 검증으로 단일화한다.
+- `.tmp/item_manager_modify.txt` 반영 완료: `[읽기/스냅샷]` 검증에 `hasRichElementSheet=false` fixture를 추가해 기존 `ItemOfMarketDAO.SelectSql` 미실행, migration 안내 화면, read-only fallback SELECT 성공/실패 분기를 읽기/로드 단계에서 검증하도록 했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: Excel custom format 처리 문구를 `표시 문자열 formatter 지원 범위 밖의 숫자/날짜/custom format은 raw value 문자열 사용 + 저장 전 컬럼 타입 검증`으로 단일화했다.
+- 검증: `git diff --check -- .tmp/item_manager_modify.txt` 통과. `grep_search`로 `표시 문자열 formatter 지원 범위 밖`, `hasRichElementSheet=false ... 읽기/로드 단계 검증`, `read-only fallback SELECT가 없거나 실패하면 테이블을 열지 않는지` 문구 확인. `지원하지 않는 복잡한 Excel custom format`, `복잡한 Excel custom format 또는 표시 문자열 formatter`, `사용자 답변: 미확정`, `SQL batch transaction 또는 공용 DB isolate transaction`, `migration 또는 호환 저장 정책을 먼저 확정` 없음 확인.
+- stage/commit 대상: ignored `.tmp/item_manager_modify.txt` 변경 추적용 `SESSION_HANDOFF.md`만 stage/commit한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+
 ### 완료 (2026-07-10): 품목관리 요청서 date setup/API 검증 권장안 병합
 
 - 수정 예정 파일: `.tmp/item_manager_modify.txt`는 ignored 요청서 본문 수정, `SESSION_HANDOFF.md`는 ignored 요청서 변경 추적용 기록/검증/커밋 정보 갱신.
