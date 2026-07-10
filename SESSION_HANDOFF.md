@@ -28,6 +28,18 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-10): 품목관리 요청서 저장 선행순서/capability 경계 보강
+
+- 요청: 다시 검토한 애매점과 레거시/현 구현 문제를 권장 사항으로 `.tmp/item_manager_modify.txt`에 병합했다.
+- `.tmp/item_manager_modify.txt`에 저장 구현 선행 순서를 `ItemOfMarketDAO` alias/raw snapshot -> `MarketDAO.selectByCustomerId` -> scoped column content -> `DbIsolateAction.transaction` -> schema/trigger capability probe -> 저장 DAO 순서로 고정했다.
+- transaction 구현 우선순위는 `DbIsolateAction.transaction` 단일 action으로 명시하고, 단일 SQL batch transaction은 제한적 fallback으로 정리했다.
+- schema/trigger 확인 결과는 `ItemSaveSchemaCapabilities` 내부 구조로 저장 DAO에 전달하도록 정리했고, 최소 확인값을 `hasRichElementSheet`, trigger 자동 생성 row 종류, multi-row 지원 여부로 명시했다.
+- 신규/import row preview DTO 최소 필드와 하단 `주원료 및 함량` 편집 UI의 원천을 edit controller selected draft row로 고정했다.
+- 엑셀 전체 교체 저장의 `mapping delete`는 표시 필터/정렬과 무관한 current market 전체 working table item id 집합 기준임을 명시했다.
+- 사용자 확인 사항은 엑셀 `주원료` 칸의 서식/병합 모양 보존 여부 1개만 유지했고, 1차 권장안은 보이는 글자만 가져오는 것으로 정리했다.
+- 검증: `grep_search`로 남은 모호 문구와 새 결정 문구를 확인했고, `git diff --check -- .tmp/item_manager_modify.txt SESSION_HANDOFF.md` 통과.
+- 커밋 예정: `.tmp/item_manager_modify.txt`는 ignored 파일이므로 staging하지 않고, 추적 가능한 변경 기록으로 `SESSION_HANDOFF.md`만 커밋한다.
+
 ### 완료 (2026-07-10): 품목관리 요청서 지정 sheet/선택 fallback 잔여 정리
 
 - 요청: 다시 검토한 애매점과 레거시/현 구현 문제를 권장 사항으로 `.tmp/item_manager_modify.txt`에 병합한다.
