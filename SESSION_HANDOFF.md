@@ -40,7 +40,7 @@
 - 수정 완료: 요청서의 `delete` 용어를 `draft row delete`, `mapping delete`, `physical item delete`, `child row cleanup`으로 구분하도록 정리했다.
 - 검증 완료: `Select-String -Path .tmp/item_manager_modify.txt -Pattern 'MarketDAO\.selectByCustomerId|고객별 market|세션 metadata|편집 세션/저장 batch metadata|row별|현재 화면 market의 item id 집합|orphan.*checksum|orphan 데이터|RICH_ITEM_ORDER|market별 독립 order|draft row delete|mapping delete|physical item delete|child row cleanup|TColumnContentDAO.*현재 화면|targetMarketIds.*row별'`로 병합 문구 반영을 확인했다.
 - 검증 완료: `git diff --check -- .tmp/item_manager_modify.txt` 통과(공백 오류 없음).
-- 커밋 예정: `SESSION_HANDOFF.md`만 포함한다. `.tmp/item_manager_modify.txt`는 `.gitignore` 대상이므로 force add하지 않고 작업 파일로 유지한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+- 커밋 완료: `a424700` 품목관리 요청서 current market 경계 보강. 포함 파일은 `SESSION_HANDOFF.md`이며, `.tmp/item_manager_modify.txt`는 ignore 대상 작업 파일로 유지했다. 기존 unrelated dirty `lib/core/app.dart`는 제외했다.
 
 ### 완료 (2026-07-10): 품목관리 요청서 market mapping/delete 범위 보강
 
