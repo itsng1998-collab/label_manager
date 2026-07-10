@@ -39,6 +39,7 @@
 - `.tmp/item_manager_modify.txt` 반영 완료: EAN-8은 운영 DB 샘플 유무와 별개로 `EAN8`/`EAN-8`/`CodeEAN8` fixture가 Code128과 구분되는지 테스트하도록 추가했다.
 - 검증: `git diff --check -- .tmp/item_manager_modify.txt` 통과. `grep_search`로 `normalizeMeaningPreservingForPrint.*동등`, `이 helper 또는 동일 규칙`, `저장/취소 후`, `저장 또는 취소 후`, `저장 또는 변경 취소 후`, `사용자 답변: 미확정` 없음 확인. `저장 완료 또는 취소 dialog에서 변경 취소를 확정`, `EAN8` fixture, `ItemCodeDataResolver` helper 호출 문구 확인.
 - stage/commit 대상: ignored `.tmp/item_manager_modify.txt` 변경 추적용 `SESSION_HANDOFF.md`만 stage/commit한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+- 커밋: `7b6a71f` 품목관리 요청서 바코드 취소 문구 기록
 
 ### 완료 (2026-07-10): 품목관리 요청서 구현 누락 방지 기준 권장안 병합
 
