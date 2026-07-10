@@ -39,6 +39,7 @@
 - dirty 로그아웃/종료는 `LifecycleManager.notifyExitRequested()`의 bool 승인 계약으로 취소할 수 있으며 Windows close와 `PopScope` 모두 거부 결과를 존중한다.
 - 최신 검증 완료: 관련 품목/테이블/lifecycle 테스트 `57 통과 / 0 실패`, `test/fortune_table_test.dart` 전체 `21 통과 / 0 실패`, `C:\Flutter\bin\flutter.bat analyze` `No issues found`, 전체 Flutter suite `3267 통과 / 0 실패`.
 - 자동 검증 제외: 운영 DB capability/save/date/order transaction 실제 실행과 Windows BMP/XLSX 파일 대화상자 수동 선택은 연결 fixture 및 interactive 환경이 없어 미검증이다. 실제 품목 출력 job은 홈 `라벨출력(F3)`이 placeholder라 기존 연결 대상이 없다.
+- acceptance 보완 구현 커밋 완료: `1183c5b` 품목관리 저장 검증과 재조회 복구 보완.
 
 - 작업 지시서 `doc/item_manager_modify.txt` 전체를 확인했다. 구현 범위는 ① 읽기/스냅샷 기반, ② transaction/저장 DAO, ③ UI draft/edit와 임시 journal, ④ `.xlsx` import/export, ⑤ QR/바코드 resolver와 출력 미리보기, ⑥ 라벨 날짜 타입 설정, ⑦ 품목 순서 변경의 7개 단위다.
 - 구현 순서는 지시서 13.1을 따른다. 각 단위의 API와 focused test를 완료한 뒤 다음 단위로 진행하며, 아직 연결되지 않은 단위는 `미검증`으로 유지한다.
