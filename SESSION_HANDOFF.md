@@ -39,6 +39,7 @@
 - 엑셀 `주원료` import는 1차 구현에서 표시 텍스트만 plain text로 가져오고 `RICH_ELEMENT_SHEET`는 빈 기본 payload로 생성하도록 낮췄다. 서식/inlineRuns/병합 영역 보존은 사용자 확인 후 후속 범위로 분리했다.
 - 사용자 확인 사항: 엑셀 `주원료` 셀의 서식/inlineRuns/병합 영역까지 보존해야 하는지 확인 필요. 1차 권장안은 plain text만 가져오는 방식이다.
 - 검증: `grep_search`로 새 문구와 잔여 주원료 서식 보존 기대 제거를 확인했고, `git diff --check -- .tmp/item_manager_modify.txt SESSION_HANDOFF.md` 통과.
+- 커밋: `8606cea` 품목관리 요청서 구현경계 보강
 
 ### 완료 (2026-07-10): 품목관리 요청서 reload 상태/상수/용어 보강
 
