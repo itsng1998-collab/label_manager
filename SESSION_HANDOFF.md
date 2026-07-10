@@ -28,6 +28,16 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-10): 품목관리 요청서 scoped 조회/trigger fallback 보강
+
+- 요청: 재검토에서 남은 scoped column content 조회의 SQL Server parameter 한도 위험, trigger fallback 표현, 상단 scoped cache 진단 문구를 권장 사항으로 `.tmp/item_manager_modify.txt`에 병합했다.
+- `.tmp/item_manager_modify.txt`에서 상단 현재 구현 진단을 SQL 제한 scoped DAO 추가와 그 결과를 보관하는 scoped cache/view model 기준으로 맞췄다.
+- 1만 item id scoped 조회는 단순 대량 `IN` parameter 나열을 금지하고, temp table/table variable 또는 DAO 상수 chunk 단위 조회로 item id 집합을 전달하도록 정리했다. 9.3 SQL 길이 제한 대응에도 같은 원칙을 추가했다.
+- trigger multi-row 미지원 fallback은 1차 구현에서 같은 transaction 안의 단건 insert 반복으로 고정하고, trigger 우회/대체 batch는 DBA 또는 스키마 변경 확정 후 별도 범위로 분리했다.
+- 사용자 확인 사항은 추가하지 않았고, 엑셀 `주원료` 칸의 보이는 글자만 가져올지 셀 서식/병합 모양까지 재현할지 여부 1개만 유지했다.
+- 검증: `grep_search`로 예전 trigger/scoped 조회 모호 문구 제거와 새 SQL 전달/trigger fallback 문구를 확인했고, `git diff --check -- .tmp/item_manager_modify.txt SESSION_HANDOFF.md` 통과.
+- 커밋 예정: `.tmp/item_manager_modify.txt`는 ignored 파일이므로 staging하지 않고, 추적 가능한 변경 기록으로 `SESSION_HANDOFF.md`만 커밋한다.
+
 ### 완료 (2026-07-10): 품목관리 요청서 transaction/scoped cache 잔여 정리
 
 - 요청: 재검토에서 남은 transaction 표현 잔재, scoped column content 구현 기준, `ItemSaveSchemaCapabilities` 실행 시점을 권장 사항으로 `.tmp/item_manager_modify.txt`에 병합했다.
