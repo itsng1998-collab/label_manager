@@ -174,6 +174,24 @@ void main() {
       );
     },
   );
+
+  test('parse context exposes raw cell value and style metadata', () {
+    final context = labelSheetXlsxParseContext(_xlsxBytes(), sheetIndex: 0);
+    final a1 = context.cellMetadata[const FortuneCellCoord(0, 0)]!;
+    final b1 = context.cellMetadata[const FortuneCellCoord(0, 1)]!;
+
+    expect(a1.reference, 'A1');
+    expect(a1.cellType, 's');
+    expect(a1.rawValue, '0');
+    expect(a1.parsedText, '라벨');
+    expect(a1.formatCode, '0.00');
+    expect(a1.quotePrefix, isTrue);
+    expect(b1.cellType, isNull);
+    expect(b1.rawValue, '42');
+    expect(b1.parsedText, '42');
+    expect(b1.formula, '=SUM(A1,1)');
+    expect(b1.hasCachedValue, isTrue);
+  });
 }
 
 bool _hasBorderAt(FortuneSheet sheet, FortuneCellCoord coord) {

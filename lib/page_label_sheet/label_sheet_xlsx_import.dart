@@ -69,6 +69,7 @@ class LabelSheetXlsxParseContext {
     required this.sharedStrings,
     required this.workbookUses1904DateSystem,
     required this.extensionMetadata,
+    required this.cellMetadata,
   });
 
   final FortuneWorkbook parsedWorkbook;
@@ -80,6 +81,31 @@ class LabelSheetXlsxParseContext {
   final Object sharedStrings;
   final bool workbookUses1904DateSystem;
   final Object extensionMetadata;
+  final Map<FortuneCellCoord, LabelSheetXlsxCellMetadata> cellMetadata;
+}
+
+class LabelSheetXlsxCellMetadata {
+  const LabelSheetXlsxCellMetadata({
+    required this.reference,
+    required this.cellType,
+    required this.rawValue,
+    required this.parsedText,
+    required this.formula,
+    required this.hasCachedValue,
+    required this.styleIndex,
+    required this.formatCode,
+    required this.quotePrefix,
+  });
+
+  final String reference;
+  final String? cellType;
+  final String? rawValue;
+  final String? parsedText;
+  final String? formula;
+  final bool hasCachedValue;
+  final int? styleIndex;
+  final String? formatCode;
+  final bool quotePrefix;
 }
 
 FortuneWorkbook labelSheetWorkbookFromXlsxBytes(Uint8List bytes) {
@@ -152,11 +178,53 @@ LabelSheetXlsxParseContext labelSheetXlsxParseContext(
         _firstTagAttributes(workbookXml, 'workbookPr')?['date1904'],
       ),
       extensionMetadata: metadata,
+      cellMetadata: _worksheetCellMetadata(
+        sheetXml,
+        sharedStrings: sharedStrings,
+        styles: styles,
+      ),
     );
   } catch (error, stackTrace) {
     _xlsxImportLog('decode failed error=$error\n$stackTrace');
     rethrow;
   }
+}
+
+Map<FortuneCellCoord, LabelSheetXlsxCellMetadata> _worksheetCellMetadata(
+  String xml, {
+  required _XlsxSharedStrings sharedStrings,
+  required _XlsxStyleTable styles,
+}) {
+  final result = <FortuneCellCoord, LabelSheetXlsxCellMetadata>{};
+  for (final match in RegExp(
+    r'<c\b([^>]*)/>|<c\b([^>]*)>(.*?)</c>',
+    caseSensitive: false,
+    dotAll: true,
+  ).allMatches(xml)) {
+    final attributes = _xmlAttributes(match.group(1) ?? match.group(2) ?? '');
+    final reference = attributes['r'];
+    final coord = reference == null ? null : _cellRefToCoord(reference);
+    if (reference == null || coord == null) continue;
+    final styleIndex = int.tryParse(attributes['s'] ?? '');
+    final style = styles.cellStyle(styleIndex);
+    final body = match.group(3) ?? '';
+    final value = _cellValue(body, attributes, sharedStrings, style);
+    result[FortuneCellCoord(
+      coord.row,
+      coord.column,
+    )] = LabelSheetXlsxCellMetadata(
+      reference: reference,
+      cellType: attributes['t'],
+      rawValue: _tagText(body, 'v'),
+      parsedText: value.text,
+      formula: value.formula,
+      hasCachedValue: _tagText(body, 'v') != null,
+      styleIndex: styleIndex,
+      formatCode: style.formatCode,
+      quotePrefix: style.quotePrefix,
+    );
+  }
+  return Map.unmodifiable(result);
 }
 
 String _archiveEntrySample(Archive archive) {
