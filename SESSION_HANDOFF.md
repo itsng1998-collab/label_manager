@@ -37,6 +37,7 @@
 - 저장 후 재조회 표시 모델은 현재 구조처럼 `RICH_ELEMENT_SHEET`/legacy `RICH_ELEMENT_RTF`가 합쳐진 `Item.elementRTF` payload를 다시 채우고, 저장 DAO/검증 기준에서는 `RICH_ELEMENT_SHEET` 저장값을 확인하도록 정리했다.
 - 남은 `저장 성공` 표현을 `DB 저장 성공`, `품목리스트 재조회 성공`, `화면 복원 완료` 단계에 맞춰 정리하고, 백업 삭제/선택 복원/발행 체크 초기화 시점을 단계별 용어로 맞췄다.
 - 검증: `git diff --check -- .tmp/item_manager_modify.txt SESSION_HANDOFF.md` 통과.
+- 커밋: `043e04e` 품목관리 요청서 reload 상태 상수 용어 보강
 
 ### 완료 (2026-07-10): 품목관리 요청서 reload/row-limit 경계 보강
 
