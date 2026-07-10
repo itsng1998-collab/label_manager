@@ -38,6 +38,7 @@
 - `.tmp/item_manager_modify.txt` 반영 완료: template barcode format 유지가 필요하면 FortuneSheet barcode image `extraFields` 기반 후속 옵션으로 분리하고, 저장 feature key/sanitizer/normalize/migrate 갱신이 필요함을 사용자 확인 사항에 추가했다.
 - 검증: `grep_search`와 `read_file`로 결과 DTO/workbookDateSystem, check digit 영역 분리, `DATE_FORMAT_NONE` QR token, range guard, template format 후속 옵션 문구 반영 및 기존 preview/output-only check digit 확인 문구 제거를 확인했다.
 - stage/commit 대상: ignored `.tmp/item_manager_modify.txt` 변경 추적용 `SESSION_HANDOFF.md`만 stage/commit한다.
+- 커밋: `0bcf9b8` 품목관리 요청서 잔여 모호점 권장안 정리
 
 ### 완료 (2026-07-10): 품목관리 요청서 바코드/QR 구현 모호점 권장안 병합
 
