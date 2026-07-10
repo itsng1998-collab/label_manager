@@ -28,6 +28,17 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-10): 품목관리 삭제/엑셀 전체교체 market 범위 레거시 확정
+
+- 요청: `품목 삭제와 엑셀 전체 교체는 어느 market까지 적용할까요? A: 레거시와 같게`를 레거시 코드에서 직접 확인해 `.tmp/item_manager_modify.txt`에 확정 반영한다.
+- 레거시 확인: `.tmp/LabelManager/LabelManagerLib/MainItemTable.cpp`에서 `LoadExcel`은 기존 row를 `DeleteRow`로 삭제 예정 item id에 넣고, `SaveToDB`는 `CItemOfMarketDAO::DeleteBatchByItemIDs(m_deleteItemIDs)`를 호출한다.
+- 레거시 확인: `.tmp/LabelManager/LabelManagerLib/ItemOfMarket.cpp`의 `DeleteBatchByItemIDs` SQL은 `DELETE FROM BM_ITEM_OF_MARKET WHERE RICH_ITEM_ID=...` 형태로 market 조건이 없다. `InsertBatch`는 `CMarketDAO::SelectByCustID(CLoginCustomer::Get()->GetCustID())` 결과 전체에 신규 mapping을 생성한다.
+- 레거시 확인: `.tmp/LabelManager/LabelManagerLib/Market.cpp`의 `SelectByCustID` 조건은 `WHERE RICH_CUSTOMER_ID=%d`뿐이며, market 비활성/숨김/삭제 상태 필터는 이 경로에서 확인되지 않았다.
+- `.tmp/item_manager_modify.txt` 반영 완료: 신규 mapping 생성은 현재 로그인 고객의 전체 `targetMarketIds`에 적용하고, 삭제/엑셀 전체교체의 기존 item mapping 제거는 레거시와 동일하게 item id 기준 전체 mapping delete(market 조건 없음)로 확정했다.
+- 검증: `git diff --check -- .tmp/item_manager_modify.txt SESSION_HANDOFF.md` 통과. `grep_search`로 `DeleteBatchByItemIDs`, `CMarketDAO::SelectByCustID`, `RICH_CUSTOMER_ID`, `market 조건`, `item id 기준 전체 mapping delete`, `RICH_ITEM_ID 조건만` 반영을 확인했다. `targetMarketIds` 교집합 표현은 `교집합으로 제한하지 않고`라는 부정문으로만 남아 레거시 item-id-wide delete 정책과 충돌하지 않음을 확인했다.
+- stage/commit 대상: ignored `.tmp/item_manager_modify.txt` 변경 추적용 `SESSION_HANDOFF.md`만 stage/commit한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+- 커밋: 예정.
+
 ### 완료 (2026-07-10): 품목관리 요청서 사용자 답변 확정 반영
 
 - 요청: `사용자 확인 사항`을 나중에 묻는 목록으로 두지 말고 지금 받은 사용자 답변을 요청서에 확정 반영한다.
