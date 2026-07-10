@@ -35,7 +35,7 @@
 - `.tmp/item_manager_modify.txt` 반영 완료: 엑셀 주원료 보존 범위, 삭제/전체교체 market 범위, 날짜 용어, 순서 변경 영향, 바코드/QR format 우선순위, fallback, check digit, QR format, EZPL fallback, QR 날짜 token, 날짜 setup 로그 정책을 실제 사용자 질문으로 정리했다.
 - 검증: `git diff --check -- .tmp/item_manager_modify.txt SESSION_HANDOFF.md` 통과. `grep_search`로 `사용자 답변: 미확정` 11개 항목과 핵심 질문 문구 반영 확인.
 - stage/commit 대상: ignored `.tmp/item_manager_modify.txt` 변경 추적용 `SESSION_HANDOFF.md`만 stage/commit한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
-- 커밋: 예정.
+- 커밋: `c953958` 품목관리 요청서 사용자 확인 사항 질문화
 
 ### 완료 (2026-07-10): 품목관리 요청서 1차/후속 표현 제거 및 단일 구현 범위 정리
 
