@@ -28,6 +28,17 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-10): 품목관리 요청서 날짜 타입 설정 병합
+
+- 요청: 레거시 `날짜 타입 설정` 분석 내용을 `.tmp/item_manager_modify.txt` 요청서에 병합하고, 필요한 사용자 확인 사항을 이해하기 쉽게 정리한다.
+- `.tmp/item_manager_modify.txt` 반영 완료: `2.10 레거시 날짜 타입 설정 동작`을 추가해 날짜 타입 설정이 품목 row/cell 수정이 아니라 현재 라벨크기 `LabelSizeSetup` 출력 포맷 설정이며, 제조일자/제조시한/소비기한/소비시한 사용 여부와 포맷/사용자 정의/preview를 갖는다고 정리했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: 구현 원칙과 `12.1 날짜 타입 설정 UX`에 상단 라벨 설정 메뉴의 `날짜 타입 설정...` 진입점, 2x2 섹션형 다이얼로그 재배치, 품목관리 우클릭 메뉴 제외, draft 편집 중 비활성화, 적용 시 라벨크기 setup 저장/캐시 갱신/미리보기 refresh 기준을 추가했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: `13.1 권장 구현 단위`에 라벨 날짜 타입 설정 기반 단위와 완료 기준을 추가하고, `14.6 [label/date setup]` 검증 항목을 추가했다.
+- 사용자 확인 사항: 날짜 타입 설정 화면 표시 용어를 레거시 리소스처럼 `소비기한`/`소비시한`으로 맞출지, 기존 설명의 `유통기한`/`유통시한`으로 유지할지 확인 항목을 추가했다. 1차 권장안은 화면은 `소비기한`/`소비시한`, 내부 enum/DB 의미는 기존 `validDate`/`validTime` 유지이다.
+- 검증: `grep_search`로 `2.10`, `12.1`, `14.6 [label/date setup]`, 라벨 날짜 타입 설정 완료 기준, 사용자 확인 문구를 확인했다.
+- 검증: `git diff --check -- .tmp/item_manager_modify.txt SESSION_HANDOFF.md` 통과.
+- stage/commit 대상: ignored `.tmp/item_manager_modify.txt` 변경 추적용 `SESSION_HANDOFF.md`만 stage/commit한다.
+
 ### 완료 (2026-07-10): 품목관리 요청서 save command DTO와 검증 소제목 보강
 
 - 요청: 재검토에서 남은 권장 사항인 저장 입력 타입 단일화와 14장 검증 항목 실제 태그 소제목 반영을 `.tmp/item_manager_modify.txt`에 병합한다.
