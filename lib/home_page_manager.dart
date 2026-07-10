@@ -42,6 +42,7 @@ import 'package:label_manager/utils/on_messages.dart';
 import 'package:label_manager/page_home/item_manage.dart';
 import 'package:label_manager/page_home/item_code_data_resolver.dart';
 import 'package:label_manager/page_home/item_manager_xlsx.dart';
+import 'package:label_manager/page_home/date_type_setup_dialog.dart';
 import 'package:label_manager/page_home/common_label_manage.dart';
 import 'package:label_manager/page_home/preview_floating_window.dart';
 import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
@@ -116,6 +117,7 @@ class _HomePageManagerState extends State<HomePageManager> {
   bool _commonLabelPreviewHiddenForSheetDialog = false;
   bool _commonLabelPreviewMovedByUser = false;
   bool _itemDraftCommandBusy = false;
+  int _labelSetupRevision = 0;
   bool _suppressNextBrandDidUpdateLabelLoad = false;
 
   OverlayEntry? _brandSettingsOverlayEntry;
@@ -130,7 +132,8 @@ class _HomePageManagerState extends State<HomePageManager> {
     final labelSize = _effectiveLabelSize;
     return '${labelSize?.labelSizeId ?? 'none'}:'
         '${labelSize?.labelSizeCommon?.width ?? 0}:'
-        '${labelSize?.labelSizeCommon?.height ?? 0}';
+      '${labelSize?.labelSizeCommon?.height ?? 0}:'
+      '$_labelSetupRevision';
   }
 
   List<DropdownMenuItem<Brand>> _brandDropdownItems(List<Brand> brands) =>
@@ -1125,6 +1128,63 @@ class _HomePageManagerState extends State<HomePageManager> {
     _labelSettingsOverlayEntry = entry;
     Overlay.of(context).insert(entry);
     debugLog('labelSettings overlay inserted mounted=${entry.mounted}');
+  }
+
+  Future<void> _openDateTypeSetupDialog() async {
+    final labelSize = _effectiveLabelSize;
+    final setup = labelSize?.labelSizeSetup;
+    if (labelSize == null ||
+        setup == null ||
+        _itemDraftCommandBusy ||
+        _itemDraftController?.isDirty == true) {
+      return;
+    }
+    final update = await showDialog<LabelSizeDateSetupUpdate>(
+      context: context,
+      builder: (_) => DateTypeSetupDialog(
+        initialSetup: setup,
+        showInvalidValueWarning: labelSize.hasInvalidDateSetupValues,
+      ),
+    );
+    if (!mounted || update == null) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('날짜 타입 설정 저장'),
+        content: const Text('변경한 날짜 및 시간 형식을 적용할까요?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('취소'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('저장'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted || confirmed != true) return;
+    setState(() => _itemDraftCommandBusy = true);
+    try {
+      final saved = await LabelSizeDAO.updateDateSetup(
+        labelSize.labelSizeId,
+        update,
+      );
+      if (!mounted) return;
+      LabelSize.replaceCachedDateSetup(saved);
+      _currentLabelSize = saved;
+      widget.onLabelSizeChanged(saved);
+      _labelSetupRevision++;
+      _resetTabs();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('날짜 타입 설정을 저장했습니다.')),
+      );
+    } catch (error) {
+      if (mounted) _showItemDraftError('날짜 타입 설정 저장 실패', error);
+    } finally {
+      if (mounted) setState(() => _itemDraftCommandBusy = false);
+    }
   }
 
   Future<List<LabelSize>> _handleLabelsChangedFromDialog({
@@ -2171,6 +2231,10 @@ class _HomePageManagerState extends State<HomePageManager> {
       _effectiveLabelSize,
     );
     final settingsEnabled = _selectedTabValue() == 'common_label';
+    final dateSettingsEnabled =
+      resolvedLabel?.labelSizeSetup != null &&
+      !_itemDraftCommandBusy &&
+      _itemDraftController?.isDirty != true;
 
     final tabbedView = TabbedViewTheme(
       data: _buildTabbedTheme(),
@@ -2202,6 +2266,9 @@ class _HomePageManagerState extends State<HomePageManager> {
                   : null,
               onLabelSettingsPressed: settingsEnabled
                   ? _openLabelSettingsDialog
+                  : null,
+                onDateSettingsPressed: dateSettingsEnabled
+                  ? _openDateTypeSetupDialog
                   : null,
               brandItems: brandItems,
               resolvedBrand: resolvedBrand,
@@ -2316,6 +2383,7 @@ class _TopControlArea extends StatelessWidget {
   final bool settingsEnabled;
   final VoidCallback? onBrandSettingsPressed;
   final VoidCallback? onLabelSettingsPressed;
+  final VoidCallback? onDateSettingsPressed;
   final List<DropdownMenuItem<Brand>> brandItems;
   final Brand? resolvedBrand;
   final List<DropdownMenuItem<LabelSize>> labelItems;
@@ -2328,6 +2396,7 @@ class _TopControlArea extends StatelessWidget {
     required this.settingsEnabled,
     required this.onBrandSettingsPressed,
     required this.onLabelSettingsPressed,
+    required this.onDateSettingsPressed,
     required this.brandItems,
     required this.resolvedBrand,
     required this.labelItems,
@@ -2415,18 +2484,44 @@ class _TopControlArea extends StatelessWidget {
                         SizedBox(width: lmSize(6)),
                         SizedBox(
                           height: lmSize(36),
-                          child: OutlinedButton(
-                            onPressed: onLabelSettingsPressed,
-                            style: OutlinedButton.styleFrom(
-                              minimumSize: lmSize2(60, 36),
-                              padding: lmInsetsSymmetric(horizontal: 8),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
+                          child: PopupMenuButton<String>(
+                            enabled:
+                                onLabelSettingsPressed != null ||
+                                onDateSettingsPressed != null,
+                            tooltip: '라벨 설정',
+                            onSelected: (value) {
+                              if (value == 'label') {
+                                onLabelSettingsPressed?.call();
+                              } else if (value == 'date') {
+                                onDateSettingsPressed?.call();
+                              }
+                            },
+                            itemBuilder: (_) => [
+                              PopupMenuItem(
+                                value: 'label',
+                                enabled: onLabelSettingsPressed != null,
+                                child: const Text('라벨 설정...'),
                               ),
-                            ),
-                            child: const Text(
-                              '설정',
-                              style: TextStyle(fontSize: 14),
+                              PopupMenuItem(
+                                value: 'date',
+                                enabled: onDateSettingsPressed != null,
+                                child: const Text('날짜 타입 설정...'),
+                              ),
+                            ],
+                            child: OutlinedButton.icon(
+                              onPressed: null,
+                              icon: const Icon(Icons.settings, size: 16),
+                              label: const Text(
+                                '설정',
+                                style: TextStyle(fontSize: 14),
+                              ),
+                              style: OutlinedButton.styleFrom(
+                                minimumSize: lmSize2(72, 36),
+                                padding: lmInsetsSymmetric(horizontal: 8),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                              ),
                             ),
                           ),
                         ),
