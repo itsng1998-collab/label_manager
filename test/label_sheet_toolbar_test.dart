@@ -333,6 +333,7 @@ void main() {
   testWidgets('item label print tab exposes print-only read-only sheet', (
     tester,
   ) async {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
     final encoded = labelSheetEncodeWorkbookSave(
       FortuneWorkbook(
         sheets: [
@@ -380,6 +381,22 @@ void main() {
       settings.customToolbarItems.single.key,
       labelSheetPrintToolbarCommand,
     );
+
+    settings.customToolbarItems.single.onClick!(
+      settings.customToolbarItems.single,
+    );
+    await tester.pump();
+    await tester.pump();
+
+    expect(
+      find.byKey(const ValueKey('label-sheet-print-settings-dialog')),
+      findsOneWidget,
+    );
+    expect(find.text('프린터 설정'), findsOneWidget);
+    expect(find.text('발행'), findsOneWidget);
+
+    await tester.tap(_printDialogCloseButtonFinder());
+    await tester.pump();
   });
 
   test('item output preview preserves rich element replacement runs', () {

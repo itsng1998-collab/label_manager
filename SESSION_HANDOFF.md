@@ -59,7 +59,7 @@
 - draft dirty 또는 command busy 상태에서는 발행 checkbox controller를 제거하고 기존 체크값만 표시한다. 저장/취소 후 clean 상태에서만 다시 조작할 수 있다.
 - 이미지 타입 동적 셀은 일반 텍스트 편집 대신 double-click BMP 파일 선택기를 사용한다. 선택한 값은 경로와 `.bmp` 확장자를 제거한 파일명만 draft에 반영하고 경로 비저장 정책을 안내한다. 선택형 컬럼은 현재 `TColumnType`/`TColumn` DB projection에 선택 옵션을 나타내는 타입이나 option source가 없어 근거 없는 dropdown을 추가하지 않았다.
 - dirty 로그아웃/종료는 `LifecycleManager.notifyExitRequested()`의 bool 승인 계약으로 취소할 수 있으며 Windows close와 `PopScope` 모두 거부 결과를 존중한다.
-- 홈 `라벨출력(F3)`은 선택 품목의 공용라벨에 `_itemOutputPreview()`와 `ItemCodeDataResolver`를 적용한 workbook을 기존 `LabelSheetWorkbench`에 연결한다. 품목 선택 변경 시 기존 `TabData.content`도 교체하며, 출력 화면은 인쇄 toolbar만 노출하고 FortuneSheet `allowEdit=false`, 헤더/선택 강조/통계 숨김, copy-only 메뉴로 구성한다. 기존 workbench의 PDF/EZPL printer settings와 실행 경로를 그대로 재사용한다.
+- 홈 `라벨출력(F3)`은 선택 품목의 공용라벨에 `_itemOutputPreview()`와 `ItemCodeDataResolver`를 적용한 workbook을 기존 `LabelSheetWorkbench`에 연결한다. 품목 선택 변경 시 기존 `TabData.content`도 교체하며, 출력 화면은 인쇄 toolbar만 노출하고 FortuneSheet `allowEdit=false`, 헤더/선택 강조/통계 숨김, copy-only 메뉴로 구성한다. 기존 workbench의 PDF/EZPL printer settings와 실행 경로를 그대로 재사용하며, F3의 실제 인쇄 custom item 호출로 프린터 설정 dialog와 발행 command가 노출되는 widget 계약까지 검증한다.
 - 최신 검증 완료: journal focused `8 통과 / 0 실패`, draft/manager focused `21 통과 / 0 실패`, item manager save DAO `7 통과 / 0 실패`, item manager XLSX `4 통과 / 0 실패`, FortuneTable widget `27 통과 / 0 실패`, label sheet toolbar/output `104 통과 / 0 실패`, `C:\Flutter\bin\flutter.bat analyze` `No issues found`, 전체 Flutter suite `3288 통과 / 0 실패`.
 - 자동 검증 제외: 운영 DB capability/save/date/order transaction 및 실제 mapping fingerprint 변동 dialog 실행과 Windows BMP/XLSX 파일 대화상자 수동 선택은 연결 fixture 및 interactive 환경이 없어 미검증이다. F3의 실제 프린터별 PDF/EZPL 출력 위치와 품질은 연결 장비에서 수동 검증이 필요하다.
 - acceptance 보완 구현 커밋 완료: `1183c5b` 품목관리 저장 검증과 재조회 복구 보완.
