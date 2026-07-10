@@ -28,6 +28,17 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-10): 품목관리 요청서 delete/cache 잔여 표현 정리
+
+- 요청: 다시 검토한 애매점과 레거시/현 구현 문제를 권장 사항으로 `.tmp/item_manager_modify.txt`에 병합한다.
+- 반영 완료: 검증 항목의 `DB에서 삭제`, `기존 품목 delete`, 저장 정책의 `기존 행 delete` 표현을 세션 `targetMarketIds` 기준 `BM_ITEM_OF_MARKET` mapping delete로 정리했다.
+- 반영 완료: `BM_RICH_ITEM`과 item 참조 child row는 삭제하지 않고, 저장 후 품목관리 재조회에서 보이지 않는다는 검증 표현으로 바꿨다.
+- 반영 완료: 엑셀 전체 교체 설명에서 기존 item mapping 제거와 신규 item mapping 생성이 모두 세션 `targetMarketIds` 기준으로 적용된다고 명시했다.
+- 반영 완료: 일반 컬럼 값 조회 fallback을 전역 `TColumnContent.datas` 직접 참조가 아니라 품목관리 전용 scoped column content view model 기준으로 정리했다.
+- 검증 완료: `Select-String -Path .tmp/item_manager_modify.txt -Pattern 'DB에서 삭제|기존 품목 delete|기존 행 delete|TColumnContent\.datas by itemId|신규 item mapping 생성만|저장 시 삭제를 DB에 반영'` 결과 없음.
+- 검증 완료: `git diff --check -- .tmp/item_manager_modify.txt` 통과(공백 오류 없음).
+- 커밋 예정: `SESSION_HANDOFF.md`만 stage/commit한다. `.tmp/item_manager_modify.txt`는 ignore 대상 작업 파일로 유지하고, 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+
 ### 완료 (2026-07-10): 품목관리 요청서 삭제/snapshot/cache 경계 보강
 
 - 요청: 다시 검토한 애매점과 레거시/현 구현 문제를 권장 사항으로 `.tmp/item_manager_modify.txt`에 병합한다.
