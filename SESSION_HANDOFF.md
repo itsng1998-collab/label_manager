@@ -28,6 +28,15 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-10): 품목관리 요청서 지정 sheet/선택 fallback 잔여 정리
+
+- 요청: 다시 검토한 애매점과 레거시/현 구현 문제를 권장 사항으로 `.tmp/item_manager_modify.txt`에 병합한다.
+- `.tmp/item_manager_modify.txt`에서 `labelSheetWorkbookFromXlsxBytes()` activeTab 결과로 오해될 수 있는 문구를 지정 sheet parse helper 기준으로 정리하고, 일반 컬럼 값 결정도 지정 sheet parse helper의 변환 결과 기준으로 맞췄다.
+- 신규/import row처럼 저장 전 실제 `ItemOfMarket` 표시 모델 또는 item id가 없는 행은 edit controller가 selected draft row에서 임시 `ItemOfMarket` 표시 모델 또는 preview DTO를 생성해 `home_page_manager`에 전달하도록 명시했다.
+- 임시 표시 모델/DTO는 preview와 하단 주원료 로드에만 사용하고 DB 저장 identity로 사용하지 않도록 정리했다.
+- 엑셀 주원료 서식 보존은 사용자 확인 후에도 바로 1차 범위에 포함하지 않고 별도 xlsx cell/merge 영역 추출 adapter 설계와 추가 검증을 거친 후속 범위로 진행하도록 정리했다.
+- 검증: `grep_search`로 activeTab 결과 참조 제거, 지정 sheet helper 기준, preview DTO fallback, 별도 설계/검증 후속 범위 문구를 확인했고, `git diff --check -- .tmp/item_manager_modify.txt SESSION_HANDOFF.md` 통과.
+
 ### 완료 (2026-07-10): 품목관리 요청서 엑셀/선택 owner 잔여 경계 정리
 
 - 요청: 다시 검토한 애매점과 레거시/현 구현 문제를 권장 사항으로 `.tmp/item_manager_modify.txt`에 병합한다.
