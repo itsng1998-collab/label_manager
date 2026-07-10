@@ -28,6 +28,17 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-10): 품목관리 요청서 날짜 setup merge/export 권장안 병합
+
+- 수정 예정 파일: `.tmp/item_manager_modify.txt`는 ignored 요청서 본문 수정, `SESSION_HANDOFF.md`는 ignored 요청서 변경 추적용 기록/검증/커밋 정보 갱신.
+- 사용자 확인: 새 비즈니스 정책 질문은 없다. 이번 병합은 기존 정책 안에서 구현 중 덮어쓰기/진입 시점/작성기 선택을 명확히 닫는다.
+- 병합 예정: 날짜 타입 설정 저장은 DB 최신 setup 재조회 후 date/time 필드만 merge-update하도록 고정하고 `readOnly`/`useScale` 캐시 덮어쓰기 위험을 차단한다. `RICH_ELEMENT_SHEET` 부재 시 편집 진입 액션 전체를 비활성화하고 조회 전용+마이그레이션 안내로 표시한다. 품목관리 Excel export는 외부 패키지 추가 없이 기존 `archive` 기반 OpenXML writer 패턴을 단순 테이블 export helper로 분리하는 기준으로 고정한다.
+- `.tmp/item_manager_modify.txt` 반영 완료: 날짜 타입 설정 저장 직전 DB 최신 setup을 다시 읽고 날짜/시간 관련 필드만 merge-update하며 `RICH_SETUP_READONLY`/`RICH_SETUP_USE_SCALE`은 최신 DB 값을 유지한다고 명시했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: `RICH_ELEMENT_SHEET` 컬럼 부재 시 품목관리 테이블을 조회 전용으로 표시하고 편집 진입 액션 전체와 저장 버튼을 비활성화한 뒤 migration 안내를 표시한다고 명시했다. DB 저장을 만들지 않는 엑셀 내보내기/QR코드 데이터 보기는 허용 가능하다고 정리했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: 품목관리 Excel export는 새 외부 Excel 패키지 없이 기존 `archive` 기반 OpenXML 작성 패턴을 분리한 단순 table writer로 구현/검증한다고 명시했다.
+- 검증: `git diff --check -- .tmp/item_manager_modify.txt` 통과. `grep_search`로 `DB 최신 setup을 다시 읽`, `날짜/시간 관련 필드만 merge`, `RICH_SETUP_READONLY`/`RICH_SETUP_USE_SCALE`, `조회 전용`, `편집 진입 액션 전체`, `archive 기반 OpenXML`, `단순 table writer`, `외부 Excel 패키지` 문구 확인. `SQL batch transaction 또는 공용 DB isolate transaction`, `migration 또는 호환 저장 정책을 먼저 확정`, `품목관리 저장 기능을 비활성화한 뒤 DB migration 필요 안내`, `사용자 답변: 미확정` 없음 확인.
+- stage/commit 대상: ignored `.tmp/item_manager_modify.txt` 변경 추적용 `SESSION_HANDOFF.md`만 stage/commit한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+
 ### 완료 (2026-07-10): 품목관리 요청서 날짜 setup/save codec/schema 권장안 병합
 
 - 수정 예정 파일: `.tmp/item_manager_modify.txt`는 ignored 요청서 본문 수정, `SESSION_HANDOFF.md`는 ignored 요청서 변경 추적용 기록/검증/커밋 정보 갱신.
