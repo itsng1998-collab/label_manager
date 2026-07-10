@@ -4,6 +4,7 @@ import 'package:archive/archive.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fortune_sheet/fortune_sheet.dart';
 import 'package:label_manager/models/column_type.dart';
+import 'package:label_manager/models/item_manager_draft.dart';
 import 'package:label_manager/page_home/item_manager_xlsx.dart';
 import 'package:label_manager/page_label_sheet/label_sheet_save_codec.dart';
 
@@ -67,6 +68,52 @@ void main() {
       throwsA(isA<FormatException>()),
     );
   });
+
+  test(
+    'exports stable rows as inline strings that round-trip through import',
+    () {
+      const columns = [
+        ItemManagerXlsxColumn(
+          columnId: 7,
+          name: '코드',
+          editable: true,
+          typeCode: TColumnType.TYPE_BASE,
+        ),
+      ];
+      final row =
+          ItemManagerDraftRow.newRow(
+            draftRowKey: 'export-1',
+            order: 1,
+            originalIndex: 0,
+            insertAnchorItemId: null,
+            rowState: ItemManagerDraftRowState.imported,
+            emptyElementPayload: 'UEsDempty',
+          ).copyWith(
+            itemName: '딸기 & 설탕 <특가>',
+            elementPlain: '딸기 60%',
+            columnDrafts: const {
+              7: ItemManagerColumnDraft(editable: true, dataString: '00123'),
+            },
+          );
+
+      final bytes = itemManagerExportXlsxBytes(
+        rows: [row],
+        columns: columns,
+        columnValue: (draft, column) =>
+            draft.columnDrafts[column.columnId]?.dataString ?? '',
+      );
+      final imported = itemManagerImportXlsxBytes(
+        bytes,
+        columns: columns,
+        emptyElementPayload: 'UEsDempty',
+      );
+
+      expect(imported.rows, hasLength(1));
+      expect(imported.rows.single.itemName, '딸기 & 설탕 <특가>');
+      expect(imported.rows.single.elementPlain, '딸기 60%');
+      expect(imported.rows.single.columnDrafts[7]?.dataString, '00123');
+    },
+  );
 }
 
 Uint8List _itemWorkbookBytes({String itemHeader = '품목'}) {

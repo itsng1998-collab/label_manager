@@ -5,6 +5,7 @@ import 'dart:math' show max, min, pi;
 
 import 'package:collection/collection.dart';
 import 'package:dropdown_button2/dropdown_button2.dart';
+import 'package:file_selector/file_selector.dart';
 import 'package:fortune_sheet/fortune_sheet.dart' as fs;
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
@@ -38,6 +39,7 @@ import 'package:label_manager/page_label_sheet/label_sheet_rtf_preview_debug.dar
 import 'package:label_manager/utils/log_context.dart';
 import 'package:label_manager/utils/on_messages.dart';
 import 'package:label_manager/page_home/item_manage.dart';
+import 'package:label_manager/page_home/item_manager_xlsx.dart';
 import 'package:label_manager/page_home/common_label_manage.dart';
 import 'package:label_manager/page_home/preview_floating_window.dart';
 import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
@@ -756,6 +758,141 @@ class _HomePageManagerState extends State<HomePageManager> {
     }
   }
 
+  List<ItemManagerXlsxColumn> _itemManagerXlsxColumns() => [
+    for (final column in TColumn.datas ?? const <TColumn>[])
+      ItemManagerXlsxColumn(
+        columnId: column.columnId,
+        name: column.columnName,
+        editable: column.editableCellNum > 0,
+        typeCode: column.columnType.code,
+      ),
+  ];
+
+  Future<void> _importItemManagerXlsx() async {
+    final controller = _itemDraftController;
+    if (controller == null || controller.isDirty || _itemDraftCommandBusy) {
+      return;
+    }
+    const xlsxGroup = XTypeGroup(
+      label: 'Excel Workbook',
+      extensions: ['xlsx'],
+      mimeTypes: [
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      ],
+    );
+    final file = await openFile(acceptedTypeGroups: const [xlsxGroup]);
+    if (file == null || !mounted) return;
+    final extension = p.extension(file.path).toLowerCase();
+    if (extension != '.xlsx') {
+      _showItemDraftError('Excel 가져오기', '지원하지 않는 형식입니다. .xlsx 파일을 선택해 주세요.');
+      return;
+    }
+    setState(() => _itemDraftCommandBusy = true);
+    try {
+      final bytes = await file.readAsBytes();
+      if (!mounted) return;
+      final result = itemManagerImportXlsxBytes(
+        bytes,
+        columns: _itemManagerXlsxColumns(),
+        emptyElementPayload: _itemDraftEmptyElementPayload,
+      );
+      if (result.warnings.isNotEmpty) {
+        final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            title: const Text('Excel 가져오기 확인'),
+            content: Text(result.warnings.join('\n')),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(false),
+                child: const Text('취소'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(dialogContext).pop(true),
+                child: const Text('계속'),
+              ),
+            ],
+          ),
+        );
+        if (confirmed != true || !mounted) return;
+      }
+      final imported = controller.replaceAllWithImportedRows(result.rows);
+      final labelSize = _currentLabelSize;
+      final marketId = Market.instance?.marketId;
+      if (labelSize != null && marketId != null) {
+        _selectedItemIndex = 0;
+        _selectedItemOfMarket = imported.first.toPreviewItem(
+          marketId: marketId,
+          labelSizeId: labelSize.labelSizeId,
+          labelSizeName: labelSize.labelSizeName,
+        );
+      }
+      _resetTabs();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${imported.length}개 품목을 가져왔습니다. 저장 전 내용을 확인해 주세요.'),
+          ),
+        );
+      }
+    } catch (error) {
+      if (mounted) _showItemDraftError('Excel 가져오기 실패', error);
+    } finally {
+      if (mounted) setState(() => _itemDraftCommandBusy = false);
+    }
+  }
+
+  Future<void> _exportItemManagerXlsx() async {
+    final controller = _itemDraftController;
+    if (controller == null || controller.isDirty || _itemDraftCommandBusy) {
+      return;
+    }
+    if (controller.rows.isEmpty) {
+      _showItemDraftError('Excel 내보내기', 'Excel로 저장할 데이터가 없습니다.');
+      return;
+    }
+    const xlsxGroup = XTypeGroup(
+      label: 'Excel Workbook',
+      extensions: ['xlsx'],
+      mimeTypes: [
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      ],
+    );
+    final location = await getSaveLocation(
+      acceptedTypeGroups: const [xlsxGroup],
+      suggestedName: '${_currentLabelSize?.labelSizeName ?? '품목관리'}.xlsx',
+    );
+    if (location == null || !mounted) return;
+    var path = location.path;
+    final extension = p.extension(path).toLowerCase();
+    if (extension.isEmpty) {
+      path = '$path.xlsx';
+    } else if (extension != '.xlsx') {
+      _showItemDraftError('Excel 내보내기', '지원하지 않는 형식입니다. .xlsx 파일로 저장해 주세요.');
+      return;
+    }
+    setState(() => _itemDraftCommandBusy = true);
+    try {
+      final columns = _itemManagerXlsxColumns();
+      final bytes = itemManagerExportXlsxBytes(
+        rows: controller.rows,
+        columns: columns,
+        columnValue: (row, column) =>
+            controller.columnValue(row, column.columnId),
+      );
+      await File(path).writeAsBytes(bytes, flush: true);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Excel 파일을 저장했습니다: ${p.basename(path)}')),
+        );
+      }
+    } catch (error) {
+      if (mounted) _showItemDraftError('Excel 내보내기 실패', error);
+    } finally {
+      if (mounted) setState(() => _itemDraftCommandBusy = false);
+    }
+  }
+
   Future<void> _reloadItemDraftFromDatabase({int? selectedItemId}) async {
     final labelSize = _currentLabelSize;
     if (labelSize == null) return;
@@ -1047,6 +1184,8 @@ class _HomePageManagerState extends State<HomePageManager> {
           labelSize: _effectiveLabelSize,
           marketId: Market.instance?.marketId,
           emptyElementPayload: _itemDraftEmptyElementPayload,
+          onExcelImport: _importItemManagerXlsx,
+          onExcelExport: _exportItemManagerXlsx,
           onCancelDraft: _cancelItemDraft,
           onSaveDraft: _saveItemDraft,
           commandBusy: _itemDraftCommandBusy,
