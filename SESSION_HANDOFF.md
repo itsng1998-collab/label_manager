@@ -36,6 +36,7 @@
 - 임시 표시 모델/DTO는 preview와 하단 주원료 로드에만 사용하고 DB 저장 identity로 사용하지 않도록 정리했다.
 - 엑셀 주원료 서식 보존은 사용자 확인 후에도 바로 1차 범위에 포함하지 않고 별도 xlsx cell/merge 영역 추출 adapter 설계와 추가 검증을 거친 후속 범위로 진행하도록 정리했다.
 - 검증: `grep_search`로 activeTab 결과 참조 제거, 지정 sheet helper 기준, preview DTO fallback, 별도 설계/검증 후속 범위 문구를 확인했고, `git diff --check -- .tmp/item_manager_modify.txt SESSION_HANDOFF.md` 통과.
+- 커밋: `e789799` 품목관리 요청서 지정 sheet 선택 fallback 정리
 
 ### 완료 (2026-07-10): 품목관리 요청서 엑셀/선택 owner 잔여 경계 정리
 
