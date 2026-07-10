@@ -83,6 +83,7 @@
 - 작업 지시서의 1~7단계 구현은 완료했다. 실제 품목 인쇄 연동은 홈 `라벨출력(F3)` 탭이 아직 placeholder라 연결할 기존 print job이 없으며, 운영 DB capability/save/date/order transaction 통합 실행은 fixture가 없어 계속 미검증이다.
 - 통합 검증 완료(2026-07-10): 전체 Flutter suite 최초 실행에서 `3237 통과 / 15 실패`를 확인했다. 실패는 `#ELEMENT` 대신 일반 문자열을 사용한 preview fixture, 제거된 toolbar popup 75% ratio cap을 기대한 barcode/canvas 테스트, 새 `label-sheet-import-image` locale key 누락, data row까지 포함한 painter 픽셀 범위, screenshot dashed border의 과도한 픽셀 임계치, 현재 렌더링과 불일치한 golden 9개였다. 제품 구현을 우회하지 않고 각 테스트 계약/범위를 현재 의도에 맞게 보정하고 공식 `FORTUNE_UPDATE_GOLDENS=1` 경로로 실패 golden만 갱신했다.
 - 통합 검증 최종 결과: 포맷 후 `C:\Flutter\bin\flutter.bat test` 전체 suite가 `3252 통과 / 0 실패`로 통과했다. 운영 DB capability/save/date/order transaction 실행과 실제 Windows 파일 대화상자 import/export는 fixture 및 수동 앱 환경이 없어 자동 검증 범위에서 제외한다.
+- 통합 검증 커밋 완료: `d775607` 품목관리 통합 테스트 기준 정리.
 
 ### 완료 (2026-07-10): 불필요한 작업 규칙 정리
 
