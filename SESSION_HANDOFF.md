@@ -28,6 +28,16 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-10): 품목관리 요청서 transaction/scoped cache 잔여 정리
+
+- 요청: 재검토에서 남은 transaction 표현 잔재, scoped column content 구현 기준, `ItemSaveSchemaCapabilities` 실행 시점을 권장 사항으로 `.tmp/item_manager_modify.txt`에 병합했다.
+- `.tmp/item_manager_modify.txt`의 앞쪽 구현 원칙/검증 목록/최종 요약에서 transaction 표현을 `DbIsolateAction.transaction` 단일 action 우선으로 통일하고, 단일 SQL batch transaction은 제한적 fallback으로 정리했다.
+- column content는 1차 구현에서 현재 화면 market item id 집합을 SQL 조건으로 전달하는 `TColumnContentDAO` scoped 조회를 수행하도록 고정했고, 조회 후 필터는 테스트 보조 또는 임시 fallback으로 낮췄다.
+- `ItemSaveSchemaCapabilities`는 DB 연결 또는 품목관리 저장 DAO 초기화 시 현재 DB 기준으로 probe하고, 같은 연결/세션에서는 capability 값을 캐시해 저장 DAO가 참조하도록 정리했다.
+- 사용자 확인 사항은 추가하지 않았고, 엑셀 `주원료` 칸의 서식/병합 모양 보존 여부 1개만 유지했다. 의미는 보이는 글자만 가져올지, 셀 서식과 병합 모양까지 주원료 시트로 재현할지 여부이다.
+- 검증: `grep_search`로 잔여 모호 문구 제거와 새 결정 문구를 확인했고, `git diff --check -- .tmp/item_manager_modify.txt SESSION_HANDOFF.md` 통과.
+- 커밋 예정: `.tmp/item_manager_modify.txt`는 ignored 파일이므로 staging하지 않고, 추적 가능한 변경 기록으로 `SESSION_HANDOFF.md`만 커밋한다.
+
 ### 완료 (2026-07-10): 품목관리 요청서 저장 선행순서/capability 경계 보강
 
 - 요청: 다시 검토한 애매점과 레거시/현 구현 문제를 권장 사항으로 `.tmp/item_manager_modify.txt`에 병합했다.
