@@ -28,6 +28,17 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-10): 품목관리 요청서 reload/row-limit 경계 보강
+
+- 요청: 다시 검토한 애매점과 레거시/현 구현 문제를 권장 사항으로 `.tmp/item_manager_modify.txt`에 병합한다.
+- 반영 완료: 엑셀 가져오기 데이터 행이 10000개를 초과하면 일부만 가져오지 않고 가져오기 실패로 처리하며 테이블 상태와 draft를 변경하지 않도록 명시했다.
+- 반영 완료: 저장 완료 흐름을 `DB 저장 성공`, `품목리스트 재조회 성공`, `화면 복원 완료`로 분리했다.
+- 반영 완료: DB 저장 성공 후 품목리스트 재조회/화면 복원 실패 시 DB 반영은 유지하고 강제 재조회 필요 상태로 전환하며, 같은 draft를 저장 버튼으로 재반영하지 않도록 명시했다.
+- 반영 완료: DB 저장 성공 직후 백업을 즉시 삭제하지 않고, 재조회와 화면 복원이 완료된 뒤 삭제하도록 정리했다. 재조회 실패 시 기존 백업은 rollback 용도가 아닌 stale 저장 완료 백업으로 표시 후 강제 재조회 성공 또는 화면 이탈 정리 시 삭제한다.
+- 검증 완료: `Select-String -Path .tmp/item_manager_modify.txt -Pattern '엑셀 데이터 행 수가 10000개를 초과|DB 저장 성공|품목리스트 재조회 성공|화면 복원 완료|강제 재조회 필요|stale 저장 완료 백업|rollback 용도로 사용하지 않고|같은 draft를 저장 버튼으로 다시 DB에 재반영하지 않는다|일부만 가져오지 않고'`로 병합 문구 반영을 확인했다.
+- 검증 완료: `git diff --check -- .tmp/item_manager_modify.txt` 통과(공백 오류 없음).
+- 커밋 예정: `SESSION_HANDOFF.md`만 stage/commit한다. `.tmp/item_manager_modify.txt`는 ignore 대상 작업 파일로 유지하고, 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+
 ### 완료 (2026-07-10): 품목관리 요청서 delete/cache 잔여 표현 정리
 
 - 요청: 다시 검토한 애매점과 레거시/현 구현 문제를 권장 사항으로 `.tmp/item_manager_modify.txt`에 병합한다.
