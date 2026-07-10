@@ -36,7 +36,7 @@
 - `ItemSaveSchemaCapabilities`는 DB 연결 또는 품목관리 저장 DAO 초기화 시 현재 DB 기준으로 probe하고, 같은 연결/세션에서는 capability 값을 캐시해 저장 DAO가 참조하도록 정리했다.
 - 사용자 확인 사항은 추가하지 않았고, 엑셀 `주원료` 칸의 서식/병합 모양 보존 여부 1개만 유지했다. 의미는 보이는 글자만 가져올지, 셀 서식과 병합 모양까지 주원료 시트로 재현할지 여부이다.
 - 검증: `grep_search`로 잔여 모호 문구 제거와 새 결정 문구를 확인했고, `git diff --check -- .tmp/item_manager_modify.txt SESSION_HANDOFF.md` 통과.
-- 커밋 예정: `.tmp/item_manager_modify.txt`는 ignored 파일이므로 staging하지 않고, 추적 가능한 변경 기록으로 `SESSION_HANDOFF.md`만 커밋한다.
+- 커밋: `0c604c4` 품목관리 요청서 transaction 잔여 정리. `.tmp/item_manager_modify.txt`는 ignored 파일이므로 staging하지 않고, 추적 가능한 변경 기록으로 `SESSION_HANDOFF.md`만 커밋했다.
 
 ### 완료 (2026-07-10): 품목관리 요청서 저장 선행순서/capability 경계 보강
 
