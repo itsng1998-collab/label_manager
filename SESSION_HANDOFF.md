@@ -28,6 +28,19 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-10): 품목관리 요청서 재검토 권장안 추가 병합
+
+- 요청: 재검토에서 확인된 요청서의 애매한 부분과 레거시/현 구현 기준 문제를 권장안으로 `.tmp/item_manager_modify.txt`에 병합 정리하고, 사용자 확인 사항을 이해하기 쉽게 정리한다.
+- `.tmp/item_manager_modify.txt` 반영 완료: 순서 변경의 대상 범위를 `현재 브랜드/라벨크기/market에 표시되는 품목`으로 통일하고, 다이얼로그 동작 표현을 하단 `취소`/`적용` footer 기준으로 정리했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: 일반 draft 저장의 추가/삽입/삭제 order 재계산과 저장된 DB 목록을 즉시 갱신하는 별도 `순서 변경` command를 구분했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: QR viewer 4개 초과 데이터는 스크롤 목록으로 모두 표시하는 권장안으로 확정하고, 레거시 앞 4개 제한은 viewer UI 제한으로만 문서화했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: 날짜 타입 설정 구현 전 `DateManager` 포맷/preview helper와 `LabelSizeDAO.updateSetup(labelSizeId, LabelSizeSetup)` 또는 동등 API를 선행 추가하도록 정리했다.
+- 사용자 확인 사항: 엑셀 주원료 서식 보존 여부, 날짜 타입 설정 표시 용어(`소비기한/소비시한` vs `유통기한/유통시한`), market별 독립 품목 순서 필요 여부만 남겼다.
+- 검증: `.tmp/item_manager_modify.txt` 본문에 예전 충돌 표현(`현재 브랜드/라벨크기 전체`, `다이얼로그의 저장`, `레거시 호환 모드`, `앞 4개만 표시`, `저장/취소 선택`, `현재 라벨크기 품목`)이 남지 않았음을 `grep_search`로 확인했다.
+- 검증: `LabelSizeDAO.updateSetup`, `DateManager` preview helper, current market 표시 품목 기준, `적용` 표현, 별도 `순서 변경` command, QR 모두 표시 권장안이 반영됐음을 `grep_search`로 확인했다.
+- 검증: `git diff --check -- .tmp/item_manager_modify.txt SESSION_HANDOFF.md` 통과.
+- stage/commit 대상: ignored `.tmp/item_manager_modify.txt` 변경 추적용 `SESSION_HANDOFF.md`만 stage/commit한다.
+
 ### 완료 (2026-07-10): 품목관리 요청서 순서 변경 재검토 권장안 병합
 
 - 요청: `순서 변경` 재검토에서 나온 권장 사항을 `.tmp/item_manager_modify.txt` 요청서에 병합하고, 필요한 사용자 확인 사항을 이해하기 쉽게 정리한다.
