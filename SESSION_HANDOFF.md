@@ -36,7 +36,7 @@
 - chunk 조회 fallback 테스트는 외부 변경을 100% 차단/감지한다고 기대하지 않고, `columnId + itemId` dedupe/merge, 단순 대량 `IN` parameter 없는 1만 행 id 전달, baseline checksum의 best-effort 보조 감지를 검증하도록 정리했다.
 - 사용자 확인 사항은 추가하지 않았고, 엑셀 `주원료` 칸의 보이는 글자만 가져올지 셀 서식/병합 모양까지 재현할지 여부 1개만 유지했다.
 - 검증: `grep_search`로 권장 구현 단위와 chunk 조회 테스트 기대값 문구를 확인했고, `git diff --check -- .tmp/item_manager_modify.txt SESSION_HANDOFF.md` 통과.
-- 커밋 예정: `.tmp/item_manager_modify.txt`는 ignored 파일이므로 staging하지 않고, 추적 가능한 변경 기록으로 `SESSION_HANDOFF.md`만 커밋한다.
+- 커밋: `0b5bd38` 품목관리 요청서 구현 단위 정리. `.tmp/item_manager_modify.txt`는 ignored 파일이므로 staging하지 않고, 추적 가능한 변경 기록으로 `SESSION_HANDOFF.md`만 커밋했다.
 
 ### 완료 (2026-07-10): 품목관리 요청서 scoped 조회 fallback 경계 정리
 
