@@ -28,6 +28,16 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-10): 품목관리 요청서 구현 단위/테스트 기대값 정리
+
+- 요청: 재검토에서 남은 구현 범위 과다 리스크와 chunk 조회 best-effort 테스트 기대값을 권장 사항으로 `.tmp/item_manager_modify.txt`에 병합했다.
+- `.tmp/item_manager_modify.txt`에 `13.1 권장 구현 단위`를 추가해 읽기/스냅샷 기반 -> transaction/DAO 기반 -> UI draft/edit 기반 -> Excel import/export 기반 순서로 나누어 구현하도록 정리했다.
+- 각 단위는 이전 단위의 API와 검증이 끝난 뒤 이어서 구현하고, UI draft/edit 구현은 raw snapshot/scoped column content/transaction 저장 DAO 경계가 정리된 뒤 연결하도록 명시했다.
+- chunk 조회 fallback 테스트는 외부 변경을 100% 차단/감지한다고 기대하지 않고, `columnId + itemId` dedupe/merge, 단순 대량 `IN` parameter 없는 1만 행 id 전달, baseline checksum의 best-effort 보조 감지를 검증하도록 정리했다.
+- 사용자 확인 사항은 추가하지 않았고, 엑셀 `주원료` 칸의 보이는 글자만 가져올지 셀 서식/병합 모양까지 재현할지 여부 1개만 유지했다.
+- 검증: `grep_search`로 권장 구현 단위와 chunk 조회 테스트 기대값 문구를 확인했고, `git diff --check -- .tmp/item_manager_modify.txt SESSION_HANDOFF.md` 통과.
+- 커밋 예정: `.tmp/item_manager_modify.txt`는 ignored 파일이므로 staging하지 않고, 추적 가능한 변경 기록으로 `SESSION_HANDOFF.md`만 커밋한다.
+
 ### 완료 (2026-07-10): 품목관리 요청서 scoped 조회 fallback 경계 정리
 
 - 요청: 재검토에서 남은 조회 후 필터 fallback 범위, chunk 조회의 snapshot 일관성 한계, 최종 요약의 DAO 단일 action 경계 표현을 권장 사항으로 `.tmp/item_manager_modify.txt`에 병합했다.
