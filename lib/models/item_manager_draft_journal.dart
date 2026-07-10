@@ -242,14 +242,14 @@ class ItemManagerDraftJournal {
   }
 
   Future<void> close({bool clearFile = true}) async {
-    if (_started) {
-      controller.removeListener(_handleDraftChanged);
-      _started = false;
-    }
     _debounce?.cancel();
     _debounce = null;
     await _writeQueue;
     if (clearFile) await clear();
+    if (_started) {
+      controller.removeListener(_handleDraftChanged);
+      _started = false;
+    }
   }
 
   Map<String, Object?> _buildDocument() {

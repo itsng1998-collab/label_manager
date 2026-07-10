@@ -35,7 +35,7 @@
 - 삭제 영향 범위 외부 변경 감지를 위해 item별 정렬된 market id fingerprint를 XML rowset 조회로 만들고 save 직전에 baseline과 비교한다. 같은 fingerprint를 journal baseline JSON의 `mappingFingerprints`에도 기록한다.
 - mapping fingerprint 불일치는 일반 저장 실패로 처리하지 않고 typed conflict로 분기한다. 닫을 수 없는 전용 dialog에서 보조 `변경 취소`와 기본 `다시 조회`만 제공하며, 선택 시 stale draft를 원자적 DB 재조회로 교체한다. 재조회 실패 시 기존 draft/journal은 유지된다.
 - DB commit 후 재조회 실패는 `forceReloadRequired`로 전환한다. 이 상태에서는 다시 조회 외 저장/취소/셀 편집/추가·삽입·삭제/전체 선택·해제/발행 체크/Excel/순서 변경을 차단한다. 로그아웃·앱 종료에는 DB 저장 완료와 stale 임시 백업 정리를 단일 정보 dialog로 알린다.
-- DB 재조회는 기존 controller/journal을 유지한 채 강제 load하고, 모든 DB 읽기가 성공한 뒤에만 기존 세션을 폐기·교체한다. post-commit 재조회 실패에서는 stale 저장 완료 백업과 force 상태를 다시 조회 성공 또는 화면 종료까지 유지하며, Excel 전체 교체 취소 재조회가 실패해도 현재 draft를 잃지 않는다.
+- DB 재조회는 columns/column contents/special columns/items/raw snapshots/scoped contents/mapping fingerprints와 새 controller/빈 element payload를 모두 지역 상태로 완성한 뒤 기존 journal/controller와 static cache를 한 번에 교체한다. DB/model 준비 실패와 기존 journal cleanup 실패에서는 기존 화면·draft·journal·static cache를 유지하고, 연결되지 않은 새 controller는 dispose한다. post-commit 재조회 실패에서는 stale 저장 완료 백업과 force 상태를 다시 조회 성공 또는 화면 종료까지 유지하며, Excel 전체 교체 취소 재조회가 실패해도 현재 draft를 잃지 않는다.
 - DB 저장 DAO가 완료되기 전에 capability/transaction 오류가 발생하면 현재 메모리 draft를 journal에 즉시 flush한다. journal 저장 자체가 실패해도 해당 오류는 로그만 남기고 원래 DB 저장 오류와 편집 상태를 유지한다.
 - 저장·순서 변경·force retry·mapping conflict·Excel 취소 후 재조회 선택은 `item id -> 이전 row index -> 첫 행` 순서로 복원한다. 삭제 등으로 item id가 사라져도 가능한 한 같은 화면 위치를 유지한다.
 - 일반 추가·삽입·삭제·셀 편집 취소는 controller 생성 시 보관한 불변 메모리 baseline으로 원본 rows/deletion set/선택을 즉시 복원하고 journal을 정리한다. Excel 전체 교체 취소만 DB 재조회하며, 취소 확인 문구는 지시서의 `변경 내용을 취소할까요?`로 맞췄다.
@@ -48,7 +48,7 @@
 - Excel 전체 교체 직전 journal과 동일한 lightweight baseline checksum을 import metadata에 저장한다. 변경 취소 DB 재조회 후 새 controller checksum이 다르면 현재 DB 기준 복원은 유지하면서 `외부 변경 가능성` dialog를 표시한다.
 - 날짜 타입 설정은 편집 권한이 없는 사용자도 열 수 있지만 체크/포맷/사용자 정의 입력과 `적용` 버튼을 조회 전용으로 비활성화한다. callback 이후에도 권한을 재검증하며, `forceReloadRequired` 상태에서는 메뉴 enable 조건과 실행부 양쪽에서 진입을 차단한다.
 - draft journal schema를 v2로 올려 세션 최초 `createdAt`과 flush별 `updatedAt`을 분리하고, baseline에 `checksumSchemaVersion` 및 checksum 입력 field 목록을 명시한다. SharedPreferences의 마지막 저장 시각은 `updatedAt`을 사용한다.
-- debounce clear/flush의 파일 오류는 background helper가 로그로 격리해 메모리 draft와 사용자 편집을 막지 않는다. 실패한 write queue는 다음 flush 전에 이전 오류를 흡수하고 새 문서 쓰기를 재시도하므로 일시적 파일 오류 후에도 백업이 회복된다.
+- debounce clear/flush의 파일 오류는 background helper가 로그로 격리해 메모리 draft와 사용자 편집을 막지 않는다. 실패한 write queue는 다음 flush 전에 이전 오류를 흡수하고 새 문서 쓰기를 재시도하므로 일시적 파일 오류 후에도 백업이 회복된다. 명시적 journal close는 pending write와 파일 정리가 성공한 뒤에만 controller listener를 제거하므로 cleanup 실패 후에도 기존 draft 자동 백업과 close 재시도가 가능하다.
 - draft key는 지시서 identity인 `user/customer/brand/labelSize` 조합으로 생성한다. 새 clean 세션 시작 시 SharedPreferences가 가리키는 이전 실행 journal은 앱 지원 디렉터리의 `item_manager_drafts` 하위 경로인지 확인한 뒤 `.tmp/.json/.bak`과 metadata를 정리해 다른 key의 stale 파일도 남기지 않는다.
 - 저장·재조회 등 `commandBusy` 동안 품목관리 footer에 16px progress indicator와 `처리 중` 상태를 표시한다. 기존 명령 비활성화와 함께 중복 클릭 방지와 진행 상태 안내를 모두 제공한다.
 - `commandBusy`, dirty, `forceReloadRequired` 상태에서는 브랜드/라벨 context 변경뿐 아니라 품목관리 외 메인 탭 선택도 공용 guard로 차단하고 품목관리 탭을 복원한다. 플로팅 품목 preview의 `출력내용 미리보기` 선택도 manager 상태를 실시간 확인해 잠긴 경우 `주원료 및 함량` 탭으로 되돌린다.
@@ -56,7 +56,7 @@
 - draft dirty 또는 command busy 상태에서는 발행 checkbox controller를 제거하고 기존 체크값만 표시한다. 저장/취소 후 clean 상태에서만 다시 조작할 수 있다.
 - 이미지 타입 동적 셀은 일반 텍스트 편집 대신 double-click BMP 파일 선택기를 사용한다. 선택한 값은 경로와 `.bmp` 확장자를 제거한 파일명만 draft에 반영하고 경로 비저장 정책을 안내한다. 선택형 컬럼은 현재 `TColumnType`/`TColumn` DB projection에 선택 옵션을 나타내는 타입이나 option source가 없어 근거 없는 dropdown을 추가하지 않았다.
 - dirty 로그아웃/종료는 `LifecycleManager.notifyExitRequested()`의 bool 승인 계약으로 취소할 수 있으며 Windows close와 `PopScope` 모두 거부 결과를 존중한다.
-- 최신 검증 완료: 날짜 설정 관련 테스트 `6 통과 / 0 실패`, `C:\Flutter\bin\flutter.bat analyze` `No issues found`, 전체 Flutter suite `3284 통과 / 0 실패`.
+- 최신 검증 완료: journal focused `8 통과 / 0 실패`, draft/manager focused `21 통과 / 0 실패`, `C:\Flutter\bin\flutter.bat analyze` `No issues found`, 전체 Flutter suite `3285 통과 / 0 실패`.
 - 자동 검증 제외: 운영 DB capability/save/date/order transaction 및 실제 mapping fingerprint 변동 dialog 실행과 Windows BMP/XLSX 파일 대화상자 수동 선택은 연결 fixture 및 interactive 환경이 없어 미검증이다. 실제 품목 출력 job은 홈 `라벨출력(F3)`이 placeholder라 기존 연결 대상이 없다.
 - acceptance 보완 구현 커밋 완료: `1183c5b` 품목관리 저장 검증과 재조회 복구 보완.
 

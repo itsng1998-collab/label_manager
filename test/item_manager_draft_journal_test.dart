@@ -357,6 +357,53 @@ void main() {
       expect(await File(path!).exists(), isTrue);
       await journal.close();
     });
+
+    test('keeps draft listener when close cleanup fails', () async {
+      final controller = ItemManagerDraftController.fromItems(
+        items: [_itemOfMarket()],
+        rawSnapshots: {10: _snapshot()},
+        scopedColumnContents: TColumnContentScopedView(const {}),
+      );
+      addTearDown(controller.dispose);
+      var failDirectory = false;
+      final journal = ItemManagerDraftJournal(
+        controller: controller,
+        mappingFingerprints: ItemMarketMappingFingerprints(const {}),
+        metadata: const ItemManagerDraftJournalMetadata(
+          draftKey: 'user-1_4_3',
+          userId: 'user-1',
+          customerId: 2,
+          brandId: 8,
+          labelSizeId: 4,
+          currentMarketId: 3,
+          targetMarketIds: [3, 5],
+        ),
+        debounceDuration: Duration.zero,
+        directoryProvider: () async {
+          if (failDirectory) {
+            throw const FileSystemException('close cleanup failed');
+          }
+          return directory;
+        },
+      );
+      await journal.start();
+      controller.updateItemName('item:10', '첫 변경');
+      await journal.flush();
+
+      final preferences = await SharedPreferences.getInstance();
+      final path = preferences.getString(
+        ItemManagerDraftJournal.lastPathPreferenceKey,
+      )!;
+      failDirectory = true;
+      await expectLater(journal.close(), throwsA(isA<FileSystemException>()));
+      failDirectory = false;
+      await File(path).delete();
+
+      controller.updateItemName('item:10', '두 번째 변경');
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      expect(await File(path).exists(), isTrue);
+      await journal.close();
+    });
   });
 }
 

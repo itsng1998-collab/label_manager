@@ -615,12 +615,6 @@ class _HomePageManagerState extends State<HomePageManager> {
         return true;
       }
 
-      _currentLabelSize = labelSize;
-      _rtfPreviewReadyKey = null;
-      _commonLabelTabActivated = false;
-      _itemPreviewClosedByUser = false;
-      _commonLabelPreviewClosedByUser = false;
-      widget.onLabelSizeChanged(labelSize);
       final customer = Customer.instance;
       final market = Market.instance;
       final user = User.instance;
@@ -637,7 +631,7 @@ class _HomePageManagerState extends State<HomePageManager> {
           !targetMarkets.any((value) => value.marketId == market.marketId)) {
         throw StateError('저장 대상 market 목록에서 현재 market을 찾을 수 없습니다.');
       }
-      _itemDraftTargetMarketIds = targetMarkets
+      final targetMarketIds = targetMarkets
           .map((value) => value.marketId)
           .toList(growable: false);
       final capabilities = await ItemSaveSchemaCapabilityDAO.probe(
@@ -647,6 +641,13 @@ class _HomePageManagerState extends State<HomePageManager> {
         await _itemDraftJournal?.close();
         _itemDraftJournal = null;
         _disposeItemDraftController();
+        _currentLabelSize = labelSize;
+        _itemDraftTargetMarketIds = targetMarketIds;
+        _rtfPreviewReadyKey = null;
+        _commonLabelTabActivated = false;
+        _itemPreviewClosedByUser = false;
+        _commonLabelPreviewClosedByUser = false;
+        widget.onLabelSizeChanged(labelSize);
         _itemManagerMigrationRequired = true;
         ItemOfMarket.datas = <ItemOfMarket>[];
         _selectedItemOfMarket = null;
@@ -655,22 +656,24 @@ class _HomePageManagerState extends State<HomePageManager> {
         _setItemDraftForceReloadRequired(false);
         return true;
       }
-      _itemManagerMigrationRequired = false;
-      TColumn.datas = await TColumnDAO.selectByLabelSizeId(
-        labelSize.labelSizeId,
-      );
-      TColumnContent.datas = await TColumnContentDAO.selectByLabelSizeId(
-        labelSize.labelSizeId,
-      );
-      TColumnSpecial.datas = await TColumnSpecial.selectByLabelSizeId(
-        labelSize.labelSizeId,
-      );
-      ItemOfMarket.datas =
+      final columns = await TColumnDAO.selectByLabelSizeId(
+            labelSize.labelSizeId,
+          ) ??
+          const <TColumn>[];
+      final columnContents = await TColumnContentDAO.selectByLabelSizeId(
+            labelSize.labelSizeId,
+          ) ??
+          const <ColumnItemKey, TColumnContent>{};
+      final specialColumns = await TColumnSpecial.selectByLabelSizeId(
+            labelSize.labelSizeId,
+          ) ??
+          const <TColumnBase>[];
+      final items =
           await ItemOfMarketDAO.selectByItemOfMarketAndLabelSizeId(
             Market.instance!.marketId,
             labelSize.labelSizeId,
-          );
-      final items = ItemOfMarket.datas ?? const <ItemOfMarket>[];
+          ) ??
+          const <ItemOfMarket>[];
       final rawSnapshots =
           await ItemOfMarketDAO.selectRawSnapshotsByMarketAndLabelSizeId(
             market.marketId,
@@ -681,21 +684,18 @@ class _HomePageManagerState extends State<HomePageManager> {
           await TColumnContentDAO.selectScopedByItemIds(
             items.map((item) => item.item.itemId),
           );
-      _itemDraftMappingFingerprints =
+      final mappingFingerprints =
           await ItemOfMarketDAO.selectMappingFingerprintsByItemIds(
             items.map((item) => item.item.itemId),
           );
-      await _itemDraftJournal?.close();
-      _itemDraftJournal = null;
-      _disposeItemDraftController();
-      _itemDraftController = ItemManagerDraftController.fromItems(
+      final nextController = ItemManagerDraftController.fromItems(
         items: items,
         rawSnapshots: {
           for (final snapshot in rawSnapshots) snapshot.itemId: snapshot,
         },
         scopedColumnContents: scopedColumnContents,
         validationRules: [
-          for (final column in TColumn.datas ?? const <TColumn>[])
+          for (final column in columns)
             ItemManagerColumnValidationRule(
               columnId: column.columnId,
               columnName: column.columnName,
@@ -710,7 +710,7 @@ class _HomePageManagerState extends State<HomePageManager> {
             ),
         ],
         requireElement:
-            (TColumnSpecial.datas ?? const <TColumnBase>[])
+            specialColumns
                 .firstWhereOrNull(
                   (column) =>
                       column.keyword == SpecalKeyword.INDEX_ELEMENT.keyword,
@@ -719,10 +719,34 @@ class _HomePageManagerState extends State<HomePageManager> {
             true,
         labelSizeName: labelSize.labelSizeName,
       );
-      _itemDraftController!.addListener(_handleItemDraftDirtyChanged);
-      _itemDraftEmptyElementPayload = labelSheetEncodeWorkbookSave(
+      final emptyElementPayload = labelSheetEncodeWorkbookSave(
         _itemElementWorkbook('', labelSize),
       );
+
+      try {
+        await _itemDraftJournal?.close();
+      } catch (_) {
+        nextController.dispose();
+        rethrow;
+      }
+      _itemDraftJournal = null;
+      _disposeItemDraftController();
+      _currentLabelSize = labelSize;
+      _itemDraftTargetMarketIds = targetMarketIds;
+      _itemDraftMappingFingerprints = mappingFingerprints;
+      _rtfPreviewReadyKey = null;
+      _commonLabelTabActivated = false;
+      _itemPreviewClosedByUser = false;
+      _commonLabelPreviewClosedByUser = false;
+      _itemManagerMigrationRequired = false;
+      TColumn.datas = columns;
+      TColumnContent.datas = columnContents;
+      TColumnSpecial.datas = specialColumns;
+      ItemOfMarket.datas = items;
+      widget.onLabelSizeChanged(labelSize);
+      _itemDraftController = nextController;
+      _itemDraftController!.addListener(_handleItemDraftDirtyChanged);
+      _itemDraftEmptyElementPayload = emptyElementPayload;
       _itemDraftJournal = ItemManagerDraftJournal(
         controller: _itemDraftController!,
         mappingFingerprints: _itemDraftMappingFingerprints,
@@ -738,7 +762,7 @@ class _HomePageManagerState extends State<HomePageManager> {
           brandId: labelSize.brandId,
           labelSizeId: labelSize.labelSizeId,
           currentMarketId: market.marketId,
-          targetMarketIds: _itemDraftTargetMarketIds,
+          targetMarketIds: targetMarketIds,
         ),
       );
       await _itemDraftJournal!.start();
