@@ -28,6 +28,16 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-10): 품목관리 요청서 1차/후속 표현 제거 및 단일 구현 범위 정리
+
+- 요청: 사용자 관점에서 `1차 구현`/`후속`/`선택 구현` 표현이 2차 일정처럼 보이므로, 기능정의상 문제 없는 항목은 이번 구현 포함으로 병합하고 DB/schema/운영정책 변경이 필요한 항목만 기능정의 제외로 정리한다.
+- `.tmp/item_manager_modify.txt` 반영 완료: Excel 주원료 서식 보존, `preserveTemplateBarcodeFormat`, barcode 오류 placeholder, BMP 파일명 충돌 안내, 날짜 setup 로그 capability 분기, Excel formatter 지원 범위를 이번 구현 포함으로 정리했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: market별 독립 order, `BM_RICH_ITEM` 물리 delete와 orphan 정리, GS1 FNC1/native 의미 보존 신규 지원, 모든 Excel custom format 완전 재현은 기능정의 제외 또는 별도 DB/유지보수 정책 작업으로 분리했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: 사용자 확인 사항을 `2차/후속` 대기 표현이 아니라 데이터 영향과 제외 범위를 이해할 수 있는 확인 문구로 정리했다.
+- 검증: `git diff --check -- .tmp/item_manager_modify.txt SESSION_HANDOFF.md` 통과. `grep_search`로 `1차|후속|선택 구현|별도 범위|이번 범위|별도 설계|사용자 확인 후` 잔여 표현 없음 확인. `grep_search`로 `이번 구현 범위에 포함`, `이번 구현에 포함`, `기능정의에서 제외` 반영 확인.
+- stage/commit 대상: ignored `.tmp/item_manager_modify.txt` 변경 추적용 `SESSION_HANDOFF.md`만 stage/commit한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+- 커밋: 예정.
+
 ### 완료 (2026-07-10): 품목관리 요청서 남은 구현 경계 권장안 병합
 
 - 요청: 재검토에서 남은 `ItemDAO.updateOrders` transaction 예외 범위, 날짜 setup 저장 로그 정책, `preserveTemplateBarcodeFormat` 보존 범위, `MarketDAO.selectByCustomerId` 포함 조건, enum range guard fallback UI, barcode 오류 표시 검증 기준을 권장안으로 `.tmp/item_manager_modify.txt`에 병합한다.
