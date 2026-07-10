@@ -37,7 +37,7 @@
 - 반영 완료: 일반 컬럼 값 조회 fallback을 전역 `TColumnContent.datas` 직접 참조가 아니라 품목관리 전용 scoped column content view model 기준으로 정리했다.
 - 검증 완료: `Select-String -Path .tmp/item_manager_modify.txt -Pattern 'DB에서 삭제|기존 품목 delete|기존 행 delete|TColumnContent\.datas by itemId|신규 item mapping 생성만|저장 시 삭제를 DB에 반영'` 결과 없음.
 - 검증 완료: `git diff --check -- .tmp/item_manager_modify.txt` 통과(공백 오류 없음).
-- 커밋 예정: `SESSION_HANDOFF.md`만 stage/commit한다. `.tmp/item_manager_modify.txt`는 ignore 대상 작업 파일로 유지하고, 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+- 커밋 완료: `bc73bc8` 품목관리 요청서 delete cache 표현 정리. 포함 파일은 `SESSION_HANDOFF.md`이며, `.tmp/item_manager_modify.txt`는 ignore 대상 작업 파일로 유지했다. 기존 unrelated dirty `lib/core/app.dart`는 제외했다.
 
 ### 완료 (2026-07-10): 품목관리 요청서 삭제/snapshot/cache 경계 보강
 
