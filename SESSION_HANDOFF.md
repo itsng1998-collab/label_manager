@@ -38,7 +38,7 @@
 - 검증 완료: `Select-String -Path .tmp/item_manager_modify.txt -Pattern 'rowState별 필수 필드|기존 row는 `currentMarketSnapshot`|신규 추가/삽입/엑셀 import row는 `newMappingDefaults`|품목관리 로드 순서는 `ItemOfMarketDAO|현재 화면 market의 item id 집합에 속한 column content|order update 대상에는 mapping 제거 후 남는|기존 행의 market-specific 값은.*current market snapshot|신규 mapping 생성값은.*new mapping defaults'`로 병합 문구 반영을 확인했다.
 - 검증 완료: `grep_search`로 `신규 mapping 생성 template`, 범위 없는 `column content` checksum, `surviving working row` 같은 이전 표현이 남지 않았음을 확인했다.
 - 검증 완료: `git diff --check -- .tmp/item_manager_modify.txt` 통과(공백 오류 없음).
-- 커밋 예정: `SESSION_HANDOFF.md`만 포함한다. `.tmp/item_manager_modify.txt`는 ignore 대상 작업 파일로 유지한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+- 커밋 완료: `6e344cc` 품목관리 요청서 scoped load 기준 보강. 포함 파일은 `SESSION_HANDOFF.md`이며, `.tmp/item_manager_modify.txt`는 ignore 대상 작업 파일로 유지했다. 기존 unrelated dirty `lib/core/app.dart`는 제외했다.
 
 ### 완료 (2026-07-10): 품목관리 요청서 저장 경로/mapping 기본값 보강
 
