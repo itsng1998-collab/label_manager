@@ -39,7 +39,7 @@
 - 수정 완료: `BM_ADDITIONAL_ITEM`은 이번 품목관리 신규/엑셀 저장의 편집 대상이 아니며, 신규/엑셀 import 행은 additional item 미사용 기본값으로 생성하고 orphan 정리는 별도 작업으로 분리한다고 정리했다.
 - 검증 완료: `Select-String -Path .tmp/item_manager_modify.txt -Pattern 'draft row/value model의 최소 필드|source item id|OUTPUT INSERTED|draftRowKey.*생성 item id|지정 sheet parser|best-effort|payload length|capped hash|BM_RICH_ITEM 물리 delete|additional item 미사용|orphan 정리|activeTab 기준 기존 helper 결과'`로 본문/검증/최종 정리 반영을 확인했다.
 - 검증 완료: `git diff --check -- .tmp/item_manager_modify.txt` 통과(공백 오류 없음).
-- 커밋 예정: `SESSION_HANDOFF.md`만 포함한다. `.tmp/item_manager_modify.txt`는 `.gitignore`의 `.tmp/` 대상이므로 force add하지 않고 작업 파일로 유지한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+- 커밋 완료: `88217cc` 품목관리 요청서 구현 경계 권장안 병합. 포함 파일은 `SESSION_HANDOFF.md`이며, `.tmp/item_manager_modify.txt`는 ignore 대상 작업 파일로 유지했다. 기존 unrelated dirty `lib/core/app.dart`는 제외했다.
 
 ### 완료 (2026-07-10): 품목관리 요청서 저장/엑셀/백업 권장안 병합
 
