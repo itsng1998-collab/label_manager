@@ -28,6 +28,20 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-10): 품목관리 요청서 재검토 권장안 후속 병합
+
+- 요청: 재검토에서 남은 애매한 부분을 권장안으로 `.tmp/item_manager_modify.txt`에 병합하고, 사용자 확인 사항을 의미가 드러나게 정리한다.
+- `.tmp/item_manager_modify.txt` 반영 완료: 삭제 저장은 레거시 호환 권장안으로 현재 로그인 고객의 `targetMarketIds` 전체에 적용된다는 점과 다른 market 품목관리에도 보이지 않을 수 있음을 명시했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: 발행 체크는 테이블 controller가 rowIndex 상태를 유지하고, 품목관리 edit controller가 item id snapshot을 보관해 rowIndex로 투영하는 책임 경계로 정리했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: 날짜 타입 설정은 저장 권한이 없어도 읽기 전용 다이얼로그를 열 수 있고, `적용`만 비활성화하는 권장안으로 정리했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: QR 데이터 계산은 viewer 내부 전용 로직이 아니라 `ItemQRCodeDataResolver` 같은 순수 helper로 분리해 viewer/미리보기/출력 경로가 공유하도록 정리했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: 순서 변경 선택 복원과 완료 기준을 `적용 전`/`적용 시` 표현으로 맞췄다.
+- 사용자 확인 사항: 엑셀 주원료 서식 보존, 삭제/엑셀 전체 교체의 전체 `targetMarketIds` 적용 여부, 날짜 타입 설정 표시 용어, market별 독립 품목 순서 필요 여부로 정리했다.
+- 검증: `.tmp/item_manager_modify.txt` 본문에 예전 충돌 표현(`저장 시 ItemDAO.updateOrders`, `순서 변경 저장만으로`, `재조회 후 저장 전 선택 item id`, `저장 권한이 없는 사용자는 레거시와 같이`, `레거시 호환 모드`, `앞 4개만 표시`)이 남지 않았음을 `grep_search`로 확인했다.
+- 검증: `targetMarketIds` 전체 적용, 발행 체크 책임 경계, 날짜 설정 읽기 전용 권한 처리, `ItemQRCodeDataResolver`, 적용 전 선택 복원, 사용자 확인 문구가 반영됐음을 `grep_search`로 확인했다.
+- 검증: `git diff --check -- .tmp/item_manager_modify.txt SESSION_HANDOFF.md` 통과.
+- stage/commit 대상: ignored `.tmp/item_manager_modify.txt` 변경 추적용 `SESSION_HANDOFF.md`만 stage/commit한다.
+
 ### 완료 (2026-07-10): 품목관리 요청서 재검토 권장안 추가 병합
 
 - 요청: 재검토에서 확인된 요청서의 애매한 부분과 레거시/현 구현 기준 문제를 권장안으로 `.tmp/item_manager_modify.txt`에 병합 정리하고, 사용자 확인 사항을 이해하기 쉽게 정리한다.
