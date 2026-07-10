@@ -38,7 +38,7 @@
 - 엑셀 전체 교체 저장의 `mapping delete`는 표시 필터/정렬과 무관한 current market 전체 working table item id 집합 기준임을 명시했다.
 - 사용자 확인 사항은 엑셀 `주원료` 칸의 서식/병합 모양 보존 여부 1개만 유지했고, 1차 권장안은 보이는 글자만 가져오는 것으로 정리했다.
 - 검증: `grep_search`로 남은 모호 문구와 새 결정 문구를 확인했고, `git diff --check -- .tmp/item_manager_modify.txt SESSION_HANDOFF.md` 통과.
-- 커밋 예정: `.tmp/item_manager_modify.txt`는 ignored 파일이므로 staging하지 않고, 추적 가능한 변경 기록으로 `SESSION_HANDOFF.md`만 커밋한다.
+- 커밋: `3907e92` 품목관리 요청서 저장 선행순서 정리. `.tmp/item_manager_modify.txt`는 ignored 파일이므로 staging하지 않고, 추적 가능한 변경 기록으로 `SESSION_HANDOFF.md`만 커밋했다.
 
 ### 완료 (2026-07-10): 품목관리 요청서 지정 sheet/선택 fallback 잔여 정리
 
