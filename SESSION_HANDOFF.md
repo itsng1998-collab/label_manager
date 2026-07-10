@@ -28,6 +28,16 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-10): 품목관리 요청서 save command DTO와 검증 소제목 보강
+
+- 요청: 재검토에서 남은 권장 사항인 저장 입력 타입 단일화와 14장 검증 항목 실제 태그 소제목 반영을 `.tmp/item_manager_modify.txt`에 병합한다.
+- `.tmp/item_manager_modify.txt` 반영 완료: transaction/DAO 저장 DAO 입력을 `save command DTO` 표준으로 단일화하고, draft snapshot DTO는 UI/edit session 내부 자료에서 save command DTO를 생성하는 상위 계층 입력으로만 둔다고 명시했다.
+- `.tmp/item_manager_modify.txt` 반영 완료: 14장 검증 항목에 `14.1 [UI draft/edit][transaction/DAO]`, `14.2 [Excel][UI draft/edit][transaction/DAO]`, `14.3 [UI draft/edit][읽기/스냅샷][transaction/DAO]`, `14.4 [UI draft/edit][transaction/DAO]`, `14.5 [transaction/DAO][UI draft/edit][읽기/스냅샷]` 소제목을 추가했다.
+- 사용자 확인 사항: 새 확인 사항은 추가하지 않고, 기존 Excel `주원료` 서식/병합 보존 여부 1건만 유지한다.
+- 검증: `grep_search`로 `save command DTO를 표준 입력`, `draft snapshot DTO는 저장 DAO 입력이 아니라`, `14.1`~`14.5` 태그 소제목을 확인했다.
+- 검증: `git diff --check -- .tmp/item_manager_modify.txt SESSION_HANDOFF.md` 통과.
+- stage/commit 대상: ignored `.tmp/item_manager_modify.txt` 변경 추적용 `SESSION_HANDOFF.md`만 stage/commit한다.
+
 ### 완료 (2026-07-10): 품목관리 요청서 저장 DTO와 검증 태그 보강
 
 - 요청: 재검토에서 남은 권장 사항인 저장 DAO 입력 DTO 기준과 검증 항목 태그화를 `.tmp/item_manager_modify.txt`에 병합한다.
