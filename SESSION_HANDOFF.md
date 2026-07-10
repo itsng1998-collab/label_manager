@@ -40,6 +40,7 @@
 - 검증: `LabelSizeDAO.updateSetup`, `DateManager` preview helper, current market 표시 품목 기준, `적용` 표현, 별도 `순서 변경` command, QR 모두 표시 권장안이 반영됐음을 `grep_search`로 확인했다.
 - 검증: `git diff --check -- .tmp/item_manager_modify.txt SESSION_HANDOFF.md` 통과.
 - stage/commit 대상: ignored `.tmp/item_manager_modify.txt` 변경 추적용 `SESSION_HANDOFF.md`만 stage/commit한다.
+- 커밋: `ef3ab65` 품목관리 요청서 재검토 권장안 정리
 
 ### 완료 (2026-07-10): 품목관리 요청서 순서 변경 재검토 권장안 병합
 
