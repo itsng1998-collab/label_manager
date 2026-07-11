@@ -11,6 +11,18 @@ import 'package:label_manager/models/label_size.dart';
 import 'package:label_manager/utils/item_manager_debug_log.dart';
 import 'package:label_manager/utils/log_context.dart';
 
+bool itemManagerCanPersistDynamicCell({
+  required bool canManageItemStructure,
+  required bool commandBusy,
+  required bool forceReloadRequired,
+  required bool hasDraftRow,
+}) {
+  return canManageItemStructure &&
+      !commandBusy &&
+      !forceReloadRequired &&
+      hasDraftRow;
+}
+
 class ItemManagerMigrationRequired extends StatelessWidget {
   const ItemManagerMigrationRequired({super.key});
 
@@ -815,20 +827,18 @@ class _ItemManageState extends State<ItemManage> {
     ).showSnackBar(SnackBar(content: Text(message)));
   }
 
-  bool _canEditDynamicColumn(ItemManagerDraftRow? draft, int columnId) {
-    if (widget.commandBusy || widget.forceReloadRequired || draft == null) {
-      return false;
-    }
-    return draft.isNew ||
-        (widget.draftController!.scopedColumnContents
-                .get(columnId, draft.sourceItemId!)
-                ?.editable ??
-            false);
+  bool _canEditDynamicColumn(ItemManagerDraftRow? draft) {
+    return itemManagerCanPersistDynamicCell(
+      canManageItemStructure: widget.canEdit,
+      commandBusy: widget.commandBusy,
+      forceReloadRequired: widget.forceReloadRequired,
+      hasDraftRow: draft != null,
+    );
   }
 
   Future<void> _selectBmpImage(ItemOfMarket row, TColumn column) async {
     final draft = _draftByDisplayItem[row];
-    if (!_canEditDynamicColumn(draft, column.columnId)) return;
+    if (!_canEditDynamicColumn(draft)) return;
     const bmpGroup = XTypeGroup(label: 'BMP 이미지', extensions: <String>['bmp']);
     final file = await openFile(acceptedTypeGroups: const [bmpGroup]);
     if (file == null || !mounted) return;
@@ -890,25 +900,22 @@ class _ItemManageState extends State<ItemManage> {
             },
             isTextEditable: (row, _) {
               final draft = _draftByDisplayItem[row];
-              return widget.canEdit &&
-                  c.columnType.code != TColumnType.TYPE_IMAGE &&
-                  _canEditDynamicColumn(draft, c.columnId);
+              return c.columnType.code != TColumnType.TYPE_IMAGE &&
+                  _canEditDynamicColumn(draft);
             },
             onDoubleTap:
-                widget.canEdit && c.columnType.code == TColumnType.TYPE_IMAGE
+              widget.canEdit && c.columnType.code == TColumnType.TYPE_IMAGE
                 ? (row, _) => _selectBmpImage(row, c)
                 : null,
             onTextCommitted: (row, _, value) {
               if (widget.commandBusy || widget.forceReloadRequired) return;
               final draft = _draftByDisplayItem[row];
-              if (draft == null) return;
-              final editable =
-                  draft.isNew ||
-                  (widget.draftController!.scopedColumnContents
-                          .get(c.columnId, draft.sourceItemId!)
-                          ?.editable ??
-                      false);
-              if (!editable) return;
+              if (!_canEditDynamicColumn(draft)) return;
+              final editable = draft!.isNew ||
+                (widget.draftController!.scopedColumnContents
+                    .get(c.columnId, draft.sourceItemId!)
+                    ?.editable ??
+                  false);
               final applied = widget.draftController!.updateColumnValue(
                 draft.rowKey,
                 columnId: c.columnId,

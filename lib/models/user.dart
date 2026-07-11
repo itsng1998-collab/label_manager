@@ -56,7 +56,14 @@ class User {
     instance = user;
   }
 
-  bool get canEdit => grade != UserGrade.CLIENT_USER;
+  bool get canEditItemDetails => grade != UserGrade.CLIENT_USER;
+
+  bool get canManageItemStructure => canEditItemDetails;
+
+  bool get canAccessCommonLabelManagement =>
+      grade != UserGrade.CLIENT_USER;
+
+  bool get canEdit => canEditItemDetails;
 
 	static User fromMap(Map<String, dynamic> map) {
     String s(String key) => (map[key] ?? '').toString();

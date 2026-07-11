@@ -2229,29 +2229,30 @@ class _HomePageManagerState extends State<HomePageManager> {
                 onReloadDraft: _retryItemDraftReload,
                 commandBusy: _itemDraftCommandBusy,
                 forceReloadRequired: _itemDraftForceReloadRequired,
-                canEdit: User.instance?.canEdit == true,
+                canEdit: User.instance?.canManageItemStructure == true,
               ),
         closable: false,
         keepAlive: true,
       ),
-      TabData(
-        value: 'common_label',
-        text: '공용라벨관리(F2)',
-        content: _commonLabelTabActivated
-            ? CommonLabelManage(
-                key: ValueKey('common_label:$_labelContentKey'),
-                title: '공용라벨관리',
-                labelSize: _effectiveLabelSize,
-                onSheetReady: _handleCommonLabelSheetReady,
-                onGridRectChanged: _handleCommonLabelGridRectChanged,
-                onBeforeSheetDialog: _handleCommonLabelSheetDialogOpening,
-                onSheetDialogClosed: _handleCommonLabelSheetDialogClosed,
-                imageImportController: _commonLabelImageImportController,
-              )
-            : const SizedBox.shrink(),
-        closable: false,
-        keepAlive: true,
-      ),
+      if (User.instance?.canAccessCommonLabelManagement == true)
+        TabData(
+          value: 'common_label',
+          text: '공용라벨관리(F2)',
+          content: _commonLabelTabActivated
+              ? CommonLabelManage(
+                  key: ValueKey('common_label:$_labelContentKey'),
+                  title: '공용라벨관리',
+                  labelSize: _effectiveLabelSize,
+                  onSheetReady: _handleCommonLabelSheetReady,
+                  onGridRectChanged: _handleCommonLabelGridRectChanged,
+                  onBeforeSheetDialog: _handleCommonLabelSheetDialogOpening,
+                  onSheetDialogClosed: _handleCommonLabelSheetDialogClosed,
+                  imageImportController: _commonLabelImageImportController,
+                )
+              : const SizedBox.shrink(),
+          closable: false,
+          keepAlive: true,
+        ),
       TabData(
         value: 'label_print',
         text: '라벨출력(F3)',
@@ -2343,7 +2344,7 @@ class _HomePageManagerState extends State<HomePageManager> {
         labelSize: _effectiveLabelSize,
         onElementCommitted: _commitSelectedItemElementDraft,
         canSelectOutputPreview: () => !_blockItemDraftContextChange(),
-        canEdit: User.instance?.canEdit == true,
+        canEdit: User.instance?.canEditItemDetails == true,
       );
       if (_itemPreviewWindow == null) {
         _itemPreviewAlignedToTable = false;

@@ -12,6 +12,27 @@ import 'package:label_manager/models/label_size.dart';
 import 'package:label_manager/page_home/item_manage.dart';
 
 void main() {
+  test('item manager persists dynamic cells only for legacy editable grades', () {
+    expect(
+      itemManagerCanPersistDynamicCell(
+        canManageItemStructure: true,
+        commandBusy: false,
+        forceReloadRequired: false,
+        hasDraftRow: true,
+      ),
+      isTrue,
+    );
+    expect(
+      itemManagerCanPersistDynamicCell(
+        canManageItemStructure: false,
+        commandBusy: false,
+        forceReloadRequired: false,
+        hasDraftRow: true,
+      ),
+      isFalse,
+    );
+  });
+
   testWidgets('FortuneTable commits and cancels inline text editing', (
     tester,
   ) async {

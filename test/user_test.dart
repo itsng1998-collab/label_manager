@@ -14,7 +14,11 @@ void main() {
         customerName: '고객',
       );
 
-      expect(user.canEdit, grade != UserGrade.CLIENT_USER);
+      final legacyEditable = grade != UserGrade.CLIENT_USER;
+      expect(user.canEditItemDetails, legacyEditable);
+      expect(user.canManageItemStructure, legacyEditable);
+      expect(user.canAccessCommonLabelManagement, legacyEditable);
+      expect(user.canEdit, legacyEditable);
     }
   });
 }
