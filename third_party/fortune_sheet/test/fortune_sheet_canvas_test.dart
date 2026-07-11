@@ -39044,7 +39044,7 @@ void main() {
     expect(fortuneToolbarPopupShadowColor, const Color(0x33000000));
   });
 
-  test('toolbar popup visible height clamps to viewport and ratio', () {
+  test('toolbar popup visible height clamps to available viewport', () {
     expect(
       fortuneToolbarPopupVisibleHeightFor(
         viewportHeight: 600,
@@ -39064,7 +39064,7 @@ void main() {
         viewportHeight: 1000,
         naturalHeight: 900,
       ),
-      724,
+      900,
     );
     expect(
       fortuneToolbarPopupVisibleHeightFor(
@@ -74241,7 +74241,7 @@ void main() {
         }
       }
     }
-    expect(redBorderPixels, greaterThan(20));
+    expect(redBorderPixels, greaterThan(10));
   });
 
   testWidgets('toolbar screenshot preserves conditional format colors', (

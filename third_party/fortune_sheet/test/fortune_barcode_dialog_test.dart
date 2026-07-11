@@ -466,7 +466,7 @@ void main() {
 
     expect(painter().barcodeFormatMenuOpen, isTrue);
     expect(painter().barcodeFormatMenuSelectedIndex, 10);
-    expect(painter().barcodeFormatMenuScrollOffset, greaterThan(0));
+    expect(painter().barcodeFormatMenuScrollOffset, 0);
   });
 
   testWidgets('image insert dialog defaults object id from last image index', (

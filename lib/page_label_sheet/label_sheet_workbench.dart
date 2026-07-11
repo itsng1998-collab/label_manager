@@ -2521,7 +2521,13 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     );
     final profile = detectPrinterProfile(printer);
     var printed = false;
-    if (profile.canSendRaw && profile.language == PrinterLanguage.ezpl) {
+    final rawPortName = profile.canSendRaw
+      ? await RawPrinterWin32.queryPrinterPortName(printer)
+      : null;
+    final filePort = RawPrinterWin32.isFilePortName(rawPortName);
+    if (profile.canSendRaw &&
+      profile.language == PrinterLanguage.ezpl &&
+      !filePort) {
       try {
         final ezplBytes = await buildLabelSheetHybridEzplBytes(
           sheet: sheet,
@@ -2539,6 +2545,11 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
           );
         }
       }
+    }
+    if (filePort && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('파일 포트 프린터는 일반 인쇄로 전환합니다.')),
+      );
     }
     if (printed || !mounted) {
       return;

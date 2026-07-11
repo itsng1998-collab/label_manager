@@ -73,6 +73,16 @@ void main() {
     expect(c1.inlineRuns![1].extraFields['letterSpacing'], 0.5);
     expect(c1.inlineRuns![1].extraFields['lineHeight'], 1.2);
 
+    final barcodeImage = sheet.images.single;
+    expect(barcodeImage.id, 'barcode-image');
+    expect(barcodeImage.src, 'data:image/png;base64,AAA=');
+    expect(barcodeImage.left, 10);
+    expect(barcodeImage.top, 20);
+    expect(barcodeImage.width, 120);
+    expect(barcodeImage.height, 60);
+    expect(barcodeImage.extraFields['barcodeFormatId'], 'code128');
+    expect(barcodeImage.extraFields['preserveTemplateBarcodeFormat'], isTrue);
+
     expect(
       sheet.borderInfo.map((border) => border.borderType),
       contains('border-left'),
@@ -150,6 +160,47 @@ void main() {
           .extraFields['script'],
       'subscript',
     );
+  });
+
+  test(
+    'parses a requested worksheet while preserving active sheet behavior',
+    () {
+      final bytes = _twoSheetXlsxBytes();
+
+      expect(labelSheetWorkbookFromXlsxBytes(bytes).activeSheet.name, 'Second');
+      final first = labelSheetXlsxParseContext(bytes, sheetIndex: 0);
+      expect(first.sheetName, 'First');
+      expect(first.relationshipId, 'rId1');
+      expect(first.worksheetPath, 'xl/worksheets/sheet1.xml');
+      expect(first.worksheetXml, contains('첫 시트'));
+      expect(first.workbookUses1904DateSystem, isTrue);
+      expect(
+        first
+            .parsedWorkbook
+            .activeSheet
+            .cells[const FortuneCellCoord(0, 0)]
+            ?.value,
+        '첫 시트',
+      );
+    },
+  );
+
+  test('parse context exposes raw cell value and style metadata', () {
+    final context = labelSheetXlsxParseContext(_xlsxBytes(), sheetIndex: 0);
+    final a1 = context.cellMetadata[const FortuneCellCoord(0, 0)]!;
+    final b1 = context.cellMetadata[const FortuneCellCoord(0, 1)]!;
+
+    expect(a1.reference, 'A1');
+    expect(a1.cellType, 's');
+    expect(a1.rawValue, '0');
+    expect(a1.parsedText, '라벨');
+    expect(a1.formatCode, '0.00');
+    expect(a1.quotePrefix, isTrue);
+    expect(b1.cellType, isNull);
+    expect(b1.rawValue, '42');
+    expect(b1.parsedText, '42');
+    expect(b1.formula, '=SUM(A1,1)');
+    expect(b1.hasCachedValue, isTrue);
   });
 }
 
@@ -294,8 +345,39 @@ Uint8List _xlsxBytes({
 <labelSheetRtfMetadata xmlns="urn:label-manager:rtf-metadata">
   <cell ref="A1" fontScale="85" letterSpacing="1.25" lineHeight="1.4"/>
   <cell ref="C1"><run index="1" fontScale="70" letterSpacing="0.5" lineHeight="1.2" script="subscript"/></cell>
+  <image index="0" id="barcode-image" src="data:image/png;base64,AAA=" left="10" top="20" width="120" height="60" barcodeFormatId="code128" preserveTemplateBarcodeFormat="true"/>
 </labelSheetRtfMetadata>''');
 
+  return Uint8List.fromList(ZipEncoder().encodeBytes(archive));
+}
+
+Uint8List _twoSheetXlsxBytes() {
+  final archive = Archive();
+  void addXml(String name, String content) {
+    archive.addFile(ArchiveFile.string(name, content));
+  }
+
+  addXml('xl/workbook.xml', '''<?xml version="1.0" encoding="UTF-8"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <workbookPr date1904="1"/>
+  <bookViews><workbookView activeTab="1"/></bookViews>
+  <sheets><sheet name="First" sheetId="1" r:id="rId1"/><sheet name="Second" sheetId="2" r:id="rId2"/></sheets>
+</workbook>''');
+  addXml('xl/_rels/workbook.xml.rels', '''<?xml version="1.0" encoding="UTF-8"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet2.xml"/>
+</Relationships>''');
+  addXml(
+    'xl/worksheets/sheet1.xml',
+    '''<?xml version="1.0" encoding="UTF-8"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData><row r="1"><c r="A1" t="inlineStr"><is><t>첫 시트</t></is></c></row></sheetData></worksheet>''',
+  );
+  addXml(
+    'xl/worksheets/sheet2.xml',
+    '''<?xml version="1.0" encoding="UTF-8"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData><row r="1"><c r="A1" t="inlineStr"><is><t>둘째 시트</t></is></c></row></sheetData></worksheet>''',
+  );
   return Uint8List.fromList(ZipEncoder().encodeBytes(archive));
 }
 

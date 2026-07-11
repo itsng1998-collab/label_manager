@@ -3,6 +3,7 @@
 
 import 'package:label_manager/core/app.dart';
 import 'package:label_manager/database/db_client.dart';
+import 'package:label_manager/database/drivers/db_driver.dart';
 import 'package:label_manager/utils/log_context.dart';
 import 'dao.dart';
 
@@ -46,6 +47,13 @@ class Item {
     'element: $element, elementRTF: $elementRTF, price: $price, order: $order';
 }
 
+class ItemOrderUpdate {
+  final int itemId;
+  final int order;
+
+  const ItemOrderUpdate({required this.itemId, required this.order});
+}
+
 class ItemDAO extends DAO {
   static const String UpdateElementSheetSql = '''
     UPDATE BM_RICH_ITEM
@@ -60,6 +68,12 @@ class ItemDAO extends DAO {
           RICH_ELEMENT_SHEET=@elementSheet
     WHERE RICH_ITEM_ID=@itemId
       AND (RICH_ELEMENT_SHEET IS NULL OR RICH_ELEMENT_SHEET='')
+  ''';
+
+  static const String UpdateOrderSql = '''
+    UPDATE BM_RICH_ITEM
+      SET RICH_ITEM_ORDER=@order
+    WHERE RICH_ITEM_ID=@itemId
   ''';
 
   static Future<void> updateElementSheetByItemId(
@@ -108,6 +122,36 @@ class ItemDAO extends DAO {
       final affected = DAO.affectedRows(res);
       debugLog('$END, BM_RICH_ITEM Result: $res, affected:$affected');
       return affected > 0;
+    } catch (e) {
+      debugLog('$END, $e');
+      rethrow;
+    }
+  }
+
+  static Future<void> updateOrders(List<ItemOrderUpdate> updates) async {
+    if (updates.isEmpty) return;
+    final itemIds = updates.map((update) => update.itemId).toSet();
+    if (itemIds.length != updates.length || itemIds.contains(0)) {
+      throw ArgumentError('Item order updates require unique positive item ids.');
+    }
+
+    debugLog('$START, itemOrderCount:${updates.length}');
+    try {
+      final results = await DbClient.instance.transaction(
+        updates
+            .map(
+              (update) => DbTransactionStatement(
+                sql: UpdateOrderSql,
+                params: {'itemId': update.itemId, 'order': update.order},
+              ),
+            )
+            .toList(growable: false),
+      );
+      if (results.length != updates.length ||
+          results.any((result) => DAO.affectedRows(result) != 1)) {
+        throw Exception('${runtimeLogTag()} Item order update affected mismatch');
+      }
+      debugLog('$END, itemOrderCount:${updates.length}');
     } catch (e) {
       debugLog('$END, $e');
       rethrow;

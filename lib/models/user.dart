@@ -56,6 +56,8 @@ class User {
     instance = user;
   }
 
+  bool get canEdit => grade != UserGrade.CLIENT_USER;
+
 	static User fromMap(Map<String, dynamic> map) {
     String s(String key) => (map[key] ?? '').toString();
     int i(String key) => int.tryParse(s(key)) ?? 0;

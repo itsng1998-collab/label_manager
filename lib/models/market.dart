@@ -54,6 +54,14 @@ class MarketDAO extends DAO {
 	  WHERE RICH_MARKET_ID=@marketId
   ''';
 
+  static const String WhereSqlCustomerId = '''
+    WHERE RICH_CUSTOMER_ID=@customerId
+  ''';
+
+  static const String OrderByMarketId = '''
+    ORDER BY RICH_MARKET_ID ASC
+  ''';
+
   static Future<Market?> selectByMarketId(int marketId) async {
     debugLog('$START, marketId:$marketId');
 
@@ -68,6 +76,23 @@ class MarketDAO extends DAO {
       return Market.fromMap(map!);
     }
     catch (e) {
+      debugLog('$END, $e');
+      throw Exception('${runtimeLogTag()} $e');
+    }
+  }
+
+  static Future<List<Market>?> selectByCustomerId(int customerId) async {
+    debugLog('$START, customerId:$customerId');
+
+    try {
+      final res = await DbClient.instance.getDataWithParams(
+        '$SelectSql $WhereSqlCustomerId $OrderByMarketId',
+        {'customerId': customerId},
+      );
+      final markets = DAO.mapRows(res, Market.fromMap);
+      debugLog(END);
+      return markets;
+    } catch (e) {
       debugLog('$END, $e');
       throw Exception('${runtimeLogTag()} $e');
     }

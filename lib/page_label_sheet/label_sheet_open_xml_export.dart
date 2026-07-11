@@ -384,6 +384,7 @@ String _metadataXml(LabelSheetImageImportDraft draft) {
     final image = draft.images[index];
     buffer.write(
       '<image index="$index" id="${_xmlEscape(image.id)}" '
+      'src="${_xmlEscape(image.src)}" '
       'left="${_fixed(image.left)}" top="${_fixed(image.top)}" '
       'width="${_fixed(image.width)}" height="${_fixed(image.height)}"',
     );

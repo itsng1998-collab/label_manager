@@ -445,10 +445,20 @@ void main() {
       _pixelBounds(
         bytes,
         image.width,
-        Rect.fromLTWH(dataLeft - 2, headerTop + 2, 5, 80),
+        Rect.fromLTWH(
+          dataLeft - 2,
+          headerTop + 2,
+          5,
+          settings.columnHeaderHeight - 4,
+        ),
         _isGridLinePixel,
       ),
-      Rect.fromLTWH(dataLeft, headerTop + 2, 1, 80),
+      Rect.fromLTWH(
+        dataLeft - 1,
+        headerTop + 2,
+        1,
+        settings.columnHeaderHeight - 4,
+      ),
     );
     expect(
       _countPixels(

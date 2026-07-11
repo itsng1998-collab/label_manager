@@ -4,11 +4,156 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fortune_sheet/fortune_sheet.dart' hide Rect;
 import 'package:label_manager/models/additional_item.dart';
+import 'package:label_manager/models/column_content.dart';
 import 'package:label_manager/models/item.dart';
+import 'package:label_manager/models/item_manager_draft.dart';
 import 'package:label_manager/models/item_of_market.dart';
+import 'package:label_manager/models/label_size.dart';
 import 'package:label_manager/page_home/item_manage.dart';
 
 void main() {
+  testWidgets('FortuneTable commits and cancels inline text editing', (
+    tester,
+  ) async {
+    var value = '원본';
+    var committed = '';
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 320,
+            height: 140,
+            child: StatefulBuilder(
+              builder: (context, setState) => FortuneTable<String>(
+                rows: [value],
+                columns: [
+                  FortuneTableColumn<String>(
+                    id: 'name',
+                    header: '이름',
+                    text: (row) => row,
+                    isTextEditable: (_, _) => true,
+                    onTextCommitted: (_, _, next) {
+                      committed = next;
+                      setState(() => value = next);
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('원본'));
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.tap(find.text('원본'));
+    await tester.pump();
+    expect(find.byType(TextField), findsOneWidget);
+    await tester.enterText(find.byType(TextField), '수정');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pump();
+    expect(committed, '수정');
+    expect(find.text('수정'), findsOneWidget);
+
+    await tester.tap(find.text('수정'));
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.tap(find.text('수정'));
+    await tester.pump();
+    await tester.enterText(find.byType(TextField), '취소 값');
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+    expect(committed, '수정');
+    expect(find.text('수정'), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 100));
+  });
+
+  testWidgets('FortuneTable delegates custom double tap editing', (
+    tester,
+  ) async {
+    var doubleTapCount = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 320,
+            height: 140,
+            child: FortuneTable<String>(
+              rows: const ['logo.bmp'],
+              columns: [
+                FortuneTableColumn<String>(
+                  id: 'image',
+                  header: '이미지',
+                  text: (row) => row,
+                  onDoubleTap: (_, _) => doubleTapCount += 1,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('logo.bmp'));
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.tap(find.text('logo.bmp'));
+    await tester.pump();
+
+    expect(doubleTapCount, 1);
+    expect(find.byType(TextField), findsNothing);
+    await tester.pump(const Duration(milliseconds: 100));
+  });
+
+  testWidgets('FortuneTable focus controller reveals an off-screen cell', (
+    tester,
+  ) async {
+    final focusController = FortuneTableFocusController();
+    final selectionController = FortuneTableSelectionController();
+    addTearDown(focusController.dispose);
+    addTearDown(selectionController.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 320,
+            height: 180,
+            child: FortuneTable<int>(
+              rows: List.generate(40, (index) => index),
+              autoFitColumns: false,
+              focusController: focusController,
+              selectionController: selectionController,
+              columns: List.generate(
+                5,
+                (column) => FortuneTableColumn<int>(
+                  id: 'c$column',
+                  header: 'C$column',
+                  initialWidth: 120,
+                  text: (row) => 'r${row}c$column',
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('r39c4'), findsNothing);
+    focusController.focusCell(39, 'c4');
+    await tester.pump();
+    await tester.pump();
+
+    expect(selectionController.selectedRows, {39});
+    expect(find.text('r39c4'), findsOneWidget);
+    expect(
+      tester
+          .getRect(find.text('r39c4'))
+          .overlaps(tester.getRect(find.byType(FortuneTable<int>))),
+      isTrue,
+    );
+  });
+
   testWidgets('FortuneTable selects rows and toggles checkbox cells', (
     tester,
   ) async {
@@ -71,7 +216,9 @@ void main() {
 
     expect(checked, {'첫째'});
 
-    await tester.tapAt(tableTopLeft + const Offset(40 + 100 + 30, 36 + 28 + 14));
+    await tester.tapAt(
+      tableTopLeft + const Offset(40 + 100 + 30, 36 + 28 + 14),
+    );
     await tester.pump();
 
     expect(checked, {'첫째', '둘째'});
@@ -352,6 +499,62 @@ void main() {
     expect(selectedIndex, 0);
   });
 
+  testWidgets('ItemManage keeps the element column read-only', (tester) async {
+    final source = _testItemOfMarket(itemName: '테스트 품목');
+    final controller = ItemManagerDraftController.fromItems(
+      items: [source],
+      rawSnapshots: {source.item.itemId: _rawSnapshot(source.item.itemId)},
+      scopedColumnContents: TColumnContentScopedView(const {}),
+    );
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 600,
+            height: 220,
+            child: ItemManage(
+              items: const [],
+              draftController: controller,
+              labelSize: const LabelSize(
+                labelSizeId: 20,
+                brandId: 30,
+                labelSizeName: '테스트 라벨',
+              ),
+              marketId: 1,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final elementText = controller.rows.single.elementPlain;
+    await tester.tap(find.text(elementText));
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.tap(find.text(elementText));
+    await tester.pump();
+
+    expect(find.byType(TextField), findsNothing);
+    expect(controller.rows.single.elementPlain, elementText);
+    expect(controller.isDirty, isFalse);
+  });
+
+  testWidgets('Item manager migration state does not open the table', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(body: ItemManagerMigrationRequired()),
+      ),
+    );
+
+    expect(find.text('품목관리 DB 업데이트가 필요합니다.'), findsOneWidget);
+    expect(find.textContaining('RICH_ELEMENT_SHEET'), findsOneWidget);
+    expect(find.byType(FortuneTable<ItemOfMarket>), findsNothing);
+    expect(find.widgetWithText(FilledButton, '저장'), findsNothing);
+  });
+
   testWidgets('ItemManage publish checkbox is scoped to clicked row', (
     tester,
   ) async {
@@ -385,7 +588,9 @@ void main() {
       isFalse,
     );
 
-    final tableTopLeft = tester.getTopLeft(find.byType(FortuneTable<ItemOfMarket>));
+    final tableTopLeft = tester.getTopLeft(
+      find.byType(FortuneTable<ItemOfMarket>),
+    );
     await tester.tapAt(tableTopLeft + const Offset(40 + 20, 36 + 14));
     await tester.pump();
 
@@ -413,6 +618,175 @@ void main() {
 
     expect(_cellColorForText(tester, '첫째 품목'), const Color(0xFFEAF4FF));
     expect(_cellColorForText(tester, '둘째 품목'), const Color(0xFFE3F2FD));
+  });
+
+  testWidgets('ItemManage distinguishes added and modified draft rows', (
+    tester,
+  ) async {
+    final source = _testItemOfMarket(itemName: '기존 품목', marketId: 1);
+    final controller = ItemManagerDraftController.fromItems(
+      items: [source],
+      rawSnapshots: {source.item.itemId: _rawSnapshot(source.item.itemId)},
+      scopedColumnContents: TColumnContentScopedView(const {}),
+    );
+    addTearDown(controller.dispose);
+    controller.updateItemName('item:${source.item.itemId}', '수정 품목');
+    controller.addRows(1, emptyElementPayload: 'UEsDempty');
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 600,
+            height: 220,
+            child: ItemManage(
+              items: const [],
+              draftController: controller,
+              labelSize: const LabelSize(
+                labelSizeId: 20,
+                brandId: 30,
+                labelSizeName: '테스트 라벨',
+              ),
+              marketId: 1,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final table = tester.widget<FortuneTable<ItemOfMarket>>(
+      find.byType(FortuneTable<ItemOfMarket>),
+    );
+    expect(table.rowColorBuilder!(table.rows[0], 0, false), const Color(0xFFFFF6DF));
+    expect(table.rowColorBuilder!(table.rows[1], 1, false), const Color(0xFFEAF7EE));
+    expect(table.rowColorBuilder!(table.rows[1], 1, true), isNull);
+  });
+
+  testWidgets('ItemManage remaps publish checks by item id after deletion', (
+    tester,
+  ) async {
+    final first = _testItemOfMarket(itemName: '첫째 품목', itemId: 10);
+    final second = _testItemOfMarket(itemName: '둘째 품목', itemId: 20);
+    final controller = ItemManagerDraftController.fromItems(
+      items: [first, second],
+      rawSnapshots: {10: _rawSnapshot(10), 20: _rawSnapshot(20)},
+      scopedColumnContents: TColumnContentScopedView(const {}),
+    );
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 600,
+            height: 220,
+            child: ItemManage(
+              items: const [],
+              draftController: controller,
+              labelSize: const LabelSize(
+                labelSizeId: 20,
+                brandId: 30,
+                labelSizeName: '테스트 라벨',
+              ),
+              marketId: 1,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    var table = tester.widget<FortuneTable<ItemOfMarket>>(
+      find.byType(FortuneTable<ItemOfMarket>),
+    );
+    table.columns.first.checkboxController!.setChecked('publish', 0, true);
+    controller.deleteRows(['item:20']);
+    await tester.pump();
+
+    table = tester.widget<FortuneTable<ItemOfMarket>>(
+      find.byType(FortuneTable<ItemOfMarket>),
+    );
+    expect(table.rows.single.item.itemId, 10);
+    expect(table.columns.first.checkboxValueAt!(table.rows.single, 0), isTrue);
+
+    final refreshedController = ItemManagerDraftController.fromItems(
+      items: [first],
+      rawSnapshots: {10: _rawSnapshot(10)},
+      scopedColumnContents: TColumnContentScopedView(const {}),
+    );
+    addTearDown(refreshedController.dispose);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 600,
+            height: 220,
+            child: ItemManage(
+              items: const [],
+              draftController: refreshedController,
+              labelSize: const LabelSize(
+                labelSizeId: 20,
+                brandId: 30,
+                labelSizeName: '테스트 라벨',
+              ),
+              marketId: 1,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    table = tester.widget<FortuneTable<ItemOfMarket>>(
+      find.byType(FortuneTable<ItemOfMarket>),
+    );
+    expect(table.columns.first.checkboxController!.checkedRows('publish'), isEmpty);
+  });
+
+  testWidgets('ItemManage blocks publish command when open menu becomes dirty', (
+    tester,
+  ) async {
+    final source = _testItemOfMarket(itemName: '기존 품목');
+    final controller = ItemManagerDraftController.fromItems(
+      items: [source],
+      rawSnapshots: {10: _rawSnapshot(10)},
+      scopedColumnContents: TColumnContentScopedView(const {}),
+    );
+    addTearDown(controller.dispose);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 600,
+            height: 220,
+            child: ItemManage(
+              items: const [],
+              draftController: controller,
+              labelSize: const LabelSize(
+                labelSizeId: 20,
+                brandId: 30,
+                labelSizeName: '테스트 라벨',
+              ),
+              marketId: 1,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('기존 품목'));
+    await tester.pump();
+    await _openItemManageContextMenu(
+      tester,
+      tester.getTopLeft(find.byType(FortuneTable<ItemOfMarket>)),
+    );
+    controller.updateItemName('item:10', '수정 품목');
+    await tester.pump();
+    await tester.tap(find.text('블럭 선택 발행 체크'));
+    await tester.pumpAndSettle();
+
+    final table = tester.widget<FortuneTable<ItemOfMarket>>(
+      find.byType(FortuneTable<ItemOfMarket>),
+    );
+    expect(table.columns.first.checkboxValueAt!(table.rows.single, 0), isFalse);
   });
 
   testWidgets('ItemManage context menu controls selection and publish checks', (
@@ -483,6 +857,414 @@ void main() {
       find.byType(FortuneTable<ItemOfMarket>),
     );
     expect(table.selectionController!.selectedRows, isEmpty);
+  });
+
+  testWidgets('ItemManage order command follows delete and invokes callback', (
+    tester,
+  ) async {
+    var invoked = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 600,
+            height: 220,
+            child: ItemManage(
+              items: [
+                _testItemOfMarket(itemName: '첫째 품목'),
+                _testItemOfMarket(itemName: '둘째 품목'),
+              ],
+              onItemOrderChange: () async => invoked = true,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final tableTopLeft = tester.getTopLeft(
+      find.byType(FortuneTable<ItemOfMarket>),
+    );
+    await _openItemManageContextMenu(tester, tableTopLeft);
+
+    expect(
+      tester.getTopLeft(find.text('품목 삭제')).dy,
+      lessThan(tester.getTopLeft(find.text('순서 변경')).dy),
+    );
+    expect(
+      tester.getTopLeft(find.text('순서 변경')).dy,
+      lessThan(tester.getTopLeft(find.text('QR코드 데이터 보기')).dy),
+    );
+    await tester.tap(find.text('순서 변경'));
+    await tester.pumpAndSettle();
+
+    expect(invoked, isTrue);
+  });
+
+  testWidgets('ItemManage disables order command while draft is dirty', (
+    tester,
+  ) async {
+    final controller = ItemManagerDraftController(
+      rows: [
+        ItemManagerDraftRow.newRow(
+          draftRowKey: 'draft-order',
+          order: 1,
+          originalIndex: 0,
+          insertAnchorItemId: null,
+          rowState: ItemManagerDraftRowState.added,
+          emptyElementPayload: 'UEsDempty',
+        ),
+      ],
+      scopedColumnContents: TColumnContentScopedView(const {}),
+    );
+    addTearDown(controller.dispose);
+    var invoked = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 600,
+            height: 220,
+            child: ItemManage(
+              items: const [],
+              draftController: controller,
+              labelSize: const LabelSize(
+                labelSizeId: 20,
+                brandId: 30,
+                labelSizeName: '테스트 라벨',
+              ),
+              marketId: 1,
+              onItemOrderChange: () async => invoked = true,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final table = tester.widget<FortuneTable<ItemOfMarket>>(
+      find.byType(FortuneTable<ItemOfMarket>),
+    );
+    final publishColumn = table.columns.firstWhere(
+      (column) => column.id == 'publish',
+    );
+    expect(publishColumn.checkboxController, isNull);
+    expect(publishColumn.checkboxValueAt, isNotNull);
+
+    final tableTopLeft = tester.getTopLeft(
+      find.byType(FortuneTable<ItemOfMarket>),
+    );
+    await _openItemManageContextMenu(tester, tableTopLeft);
+
+    expect(find.text('저장 완료 또는 변경 취소 확정 후 순서 변경을 실행해 주세요.'), findsOneWidget);
+    await tester.tap(find.text('순서 변경'));
+    await tester.pump();
+    expect(invoked, isFalse);
+    await tester.tapAt(const Offset(1, 1));
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('ItemManage disables order command without edit permission', (
+    tester,
+  ) async {
+    var invoked = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 600,
+            height: 220,
+            child: ItemManage(
+              items: [
+                _testItemOfMarket(itemName: '첫째 품목'),
+                _testItemOfMarket(itemName: '둘째 품목'),
+              ],
+              onItemOrderChange: () async => invoked = true,
+              itemOrderDisabledReason: '편집 권한이 없습니다.',
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final tableTopLeft = tester.getTopLeft(
+      find.byType(FortuneTable<ItemOfMarket>),
+    );
+    await _openItemManageContextMenu(tester, tableTopLeft);
+
+    expect(find.text('편집 권한이 없습니다.'), findsOneWidget);
+    await tester.tap(find.text('순서 변경'));
+    await tester.pump();
+    expect(invoked, isFalse);
+  });
+
+  testWidgets('ItemManage adds and confirms deletion of a draft row', (
+    tester,
+  ) async {
+    final controller = ItemManagerDraftController(
+      rows: const [],
+      scopedColumnContents: TColumnContentScopedView(const {}),
+    );
+    addTearDown(controller.dispose);
+    ItemOfMarket? selected;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 600,
+            height: 220,
+            child: ItemManage(
+              items: const [],
+              draftController: controller,
+              labelSize: const LabelSize(
+                labelSizeId: 20,
+                brandId: 30,
+                labelSizeName: '테스트 라벨',
+              ),
+              marketId: 1,
+              emptyElementPayload: 'UEsDempty',
+              onRowSelected: (row, _) => selected = row,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final tableTopLeft = tester.getTopLeft(
+      find.byType(FortuneTable<ItemOfMarket>),
+    );
+    await _openItemManageContextMenu(tester, tableTopLeft);
+    await tester.tap(find.text('품목 추가'));
+    await tester.pumpAndSettle();
+
+    expect(controller.rows, hasLength(1));
+    expect(controller.rows.single.rowState, ItemManagerDraftRowState.added);
+    expect(selected?.item.itemId, 0);
+    var table = tester.widget<FortuneTable<ItemOfMarket>>(
+      find.byType(FortuneTable<ItemOfMarket>),
+    );
+    expect(table.selectionController!.selectedRows, {0});
+
+    await _openItemManageContextMenu(tester, tableTopLeft);
+    await tester.tap(find.text('품목 삭제'));
+    await tester.pumpAndSettle();
+    expect(find.text('선택한 1개 품목을 삭제할까요?'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, '삭제'));
+    await tester.pumpAndSettle();
+
+    expect(controller.rows, isEmpty);
+    expect(controller.deletedSourceItemIds, isEmpty);
+    table = tester.widget<FortuneTable<ItemOfMarket>>(
+      find.byType(FortuneTable<ItemOfMarket>),
+    );
+    expect(table.selectionController!.selectedRows, isEmpty);
+  });
+
+  testWidgets('ItemManage QR viewer uses the right-clicked draft row', (
+    tester,
+  ) async {
+    final controller = ItemManagerDraftController(
+      rows: [
+        ItemManagerDraftRow.newRow(
+          draftRowKey: 'draft-qr',
+          order: 1,
+          originalIndex: 0,
+          insertAnchorItemId: null,
+          rowState: ItemManagerDraftRowState.added,
+          emptyElementPayload: 'UEsDempty',
+        ),
+      ],
+      scopedColumnContents: TColumnContentScopedView(const {}),
+    );
+    addTearDown(controller.dispose);
+    controller.updateItemName('draft:draft-qr', 'QR 품목');
+    ItemManagerDraftRow? viewedRow;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 600,
+            height: 220,
+            child: ItemManage(
+              items: const [],
+              draftController: controller,
+              labelSize: const LabelSize(
+                labelSizeId: 20,
+                brandId: 30,
+                labelSizeName: '테스트 라벨',
+              ),
+              marketId: 1,
+              onQrDataView: (row) async => viewedRow = row,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final tableTopLeft = tester.getTopLeft(
+      find.byType(FortuneTable<ItemOfMarket>),
+    );
+    await _openItemManageContextMenu(tester, tableTopLeft);
+    await tester.tap(find.text('QR코드 데이터 보기'));
+    await tester.pumpAndSettle();
+
+    expect(viewedRow?.rowKey, 'draft:draft-qr');
+    expect(controller.rows.single.rowState, ItemManagerDraftRowState.added);
+
+    viewedRow = null;
+    await _openItemManageContextMenu(tester, tableTopLeft);
+    controller.deleteRows(const ['draft:draft-qr']);
+    await tester.pump();
+    await tester.tap(find.text('QR코드 데이터 보기'));
+    await tester.pumpAndSettle();
+    expect(viewedRow, isNull);
+  });
+
+  testWidgets('ItemManage commits item name edits to the draft row', (
+    tester,
+  ) async {
+    final controller = ItemManagerDraftController(
+      rows: [
+        ItemManagerDraftRow.newRow(
+          draftRowKey: 'draft-1',
+          order: 1,
+          originalIndex: 0,
+          insertAnchorItemId: null,
+          rowState: ItemManagerDraftRowState.added,
+          emptyElementPayload: 'UEsDempty',
+        ),
+      ],
+      scopedColumnContents: TColumnContentScopedView(const {}),
+    );
+    addTearDown(controller.dispose);
+    controller.updateItemName('draft:draft-1', '편집 전 품명');
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 600,
+            height: 220,
+            child: ItemManage(
+              items: const [],
+              draftController: controller,
+              labelSize: const LabelSize(
+                labelSizeId: 20,
+                brandId: 30,
+                labelSizeName: '테스트 라벨',
+              ),
+              marketId: 1,
+              onCancelDraft: () async {},
+              onSaveDraft: () async {},
+              onExcelImport: () async {},
+              onExcelExport: () async {},
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      tester
+          .widget<OutlinedButton>(
+            find.widgetWithText(OutlinedButton, '엑셀 가져오기'),
+          )
+          .onPressed,
+      isNull,
+    );
+    expect(
+      tester
+          .widget<OutlinedButton>(find.widgetWithText(OutlinedButton, '취소'))
+          .onPressed,
+      isNotNull,
+    );
+    expect(
+      tester
+          .widget<FilledButton>(find.widgetWithText(FilledButton, '저장'))
+          .onPressed,
+      isNotNull,
+    );
+
+    await tester.tap(find.text('편집 전 품명'));
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.tap(find.text('편집 전 품명'));
+    await tester.pump();
+    await tester.enterText(find.byType(TextField), '편집 후 품명');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pump();
+
+    expect(controller.rows.single.itemName, '편집 후 품명');
+    expect(find.text('편집 후 품명'), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 100));
+  });
+
+  testWidgets(
+    'ItemManage allows only reload after a saved draft reload fails',
+    (tester) async {
+      var reloadCount = 0;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              width: 600,
+              height: 220,
+              child: ItemManage(
+                items: const [],
+                onExcelImport: () async {},
+                onExcelExport: () async {},
+                onCancelDraft: () async {},
+                onSaveDraft: () async {},
+                onReloadDraft: () async => reloadCount += 1,
+                forceReloadRequired: true,
+              ),
+            ),
+          ),
+        ),
+      );
+
+      expect(
+        tester
+            .widget<OutlinedButton>(
+              find.widgetWithText(OutlinedButton, '엑셀 가져오기'),
+            )
+            .onPressed,
+        isNull,
+      );
+      expect(find.widgetWithText(OutlinedButton, '취소'), findsNothing);
+      expect(find.widgetWithText(FilledButton, '저장'), findsNothing);
+
+      await tester.tap(find.widgetWithText(FilledButton, '다시 조회'));
+      await tester.pump();
+      expect(reloadCount, 1);
+    },
+  );
+
+  testWidgets('ItemManage shows progress while a command is running', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 600,
+            height: 220,
+            child: ItemManage(items: [], commandBusy: true),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(find.text('처리 중'), findsOneWidget);
+    expect(
+      tester
+          .widget<OutlinedButton>(
+            find.widgetWithText(OutlinedButton, '엑셀 가져오기'),
+          )
+          .onPressed,
+      isNull,
+    );
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('FortuneTable consumes mouse wheel inside a parent scroll view', (
@@ -556,72 +1338,73 @@ void main() {
     expect(bodyVerticalController.offset, greaterThan(0));
   });
 
-  testWidgets('FortuneTable consumes trackpad pan inside a parent scroll view', (
-    tester,
-  ) async {
-    final parentController = ScrollController();
-    addTearDown(parentController.dispose);
-    final rows = List<String>.generate(40, (index) => '행 $index');
+  testWidgets(
+    'FortuneTable consumes trackpad pan inside a parent scroll view',
+    (tester) async {
+      final parentController = ScrollController();
+      addTearDown(parentController.dispose);
+      final rows = List<String>.generate(40, (index) => '행 $index');
 
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: SizedBox(
-            width: 360,
-            height: 220,
-            child: SingleChildScrollView(
-              controller: parentController,
-              child: Column(
-                children: [
-                  SizedBox(
-                    width: 360,
-                    height: 180,
-                    child: FortuneTable<String>(
-                      rows: rows,
-                      autoFitColumns: false,
-                      columns: [
-                        FortuneTableColumn<String>(
-                          id: 'name',
-                          header: '이름',
-                          initialWidth: 240,
-                          text: (row) => row,
-                        ),
-                      ],
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              width: 360,
+              height: 220,
+              child: SingleChildScrollView(
+                controller: parentController,
+                child: Column(
+                  children: [
+                    SizedBox(
+                      width: 360,
+                      height: 180,
+                      child: FortuneTable<String>(
+                        rows: rows,
+                        autoFitColumns: false,
+                        columns: [
+                          FortuneTableColumn<String>(
+                            id: 'name',
+                            header: '이름',
+                            initialWidth: 240,
+                            text: (row) => row,
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 600),
-                ],
+                    const SizedBox(height: 600),
+                  ],
+                ),
               ),
             ),
           ),
         ),
-      ),
-    );
+      );
 
-    final tableTopLeft = tester.getTopLeft(find.byType(FortuneTable<String>));
-    final bodyVerticalController = _bodyVerticalController(tester);
-    final firstRowCenter = tableTopLeft + const Offset(120, 36 + 14);
-    tester.binding.handlePointerEvent(
-      PointerPanZoomStartEvent(position: firstRowCenter),
-    );
-    await tester.pump();
-    for (var index = 0; index < 20; index += 1) {
+      final tableTopLeft = tester.getTopLeft(find.byType(FortuneTable<String>));
+      final bodyVerticalController = _bodyVerticalController(tester);
+      final firstRowCenter = tableTopLeft + const Offset(120, 36 + 14);
       tester.binding.handlePointerEvent(
-        PointerPanZoomUpdateEvent(
-          position: firstRowCenter,
-          panDelta: const Offset(0, 100),
-        ),
+        PointerPanZoomStartEvent(position: firstRowCenter),
       );
       await tester.pump();
-    }
-    tester.binding.handlePointerEvent(
-      PointerPanZoomEndEvent(position: firstRowCenter),
-    );
-    await tester.pump();
+      for (var index = 0; index < 20; index += 1) {
+        tester.binding.handlePointerEvent(
+          PointerPanZoomUpdateEvent(
+            position: firstRowCenter,
+            panDelta: const Offset(0, 100),
+          ),
+        );
+        await tester.pump();
+      }
+      tester.binding.handlePointerEvent(
+        PointerPanZoomEndEvent(position: firstRowCenter),
+      );
+      await tester.pump();
 
-    expect(parentController.offset, 0);
-    expect(bodyVerticalController.offset, greaterThan(0));
-  });
+      expect(parentController.offset, 0);
+      expect(bodyVerticalController.offset, greaterThan(0));
+    },
+  );
 
   testWidgets('FortuneTable shows scrollbars only when content overflows', (
     tester,
@@ -740,12 +1523,13 @@ Color? _cellColorForText(WidgetTester tester, String text) {
 ItemOfMarket _testItemOfMarket({
   String itemName = '테스트 품목',
   int marketId = 1,
+  int itemId = 10,
 }) {
   final now = DateTime(2026, 7, 8);
   return ItemOfMarket(
     marketId: marketId,
     item: Item(
-      itemId: 10,
+      itemId: itemId,
       labelSizeId: 20,
       itemName: itemName,
       labelSizeName: '테스트 라벨',
@@ -754,9 +1538,9 @@ ItemOfMarket _testItemOfMarket({
       price: 0,
       order: 0,
     ),
-    additionalItem: const AdditionalItem(
+    additionalItem: AdditionalItem(
       AdditionalItemId: 0,
-      itemId: 10,
+      itemId: itemId,
       element: '',
       elementRTF: '',
       price: 0,
@@ -783,5 +1567,35 @@ ItemOfMarket _testItemOfMarket({
     topMargin: 0,
     leftPush: 0,
     topPush: 0,
+  );
+}
+
+ItemOfMarketRawSnapshot _rawSnapshot(int itemId) {
+  return ItemOfMarketRawSnapshot(
+    marketId: 1,
+    itemId: itemId,
+    additionalItemId: null,
+    gdsNo: null,
+    dateSaleStart: null,
+    dateSaleEnd: null,
+    discountPercent: null,
+    discountAmount: null,
+    dateStartDiscount: null,
+    dateEndDiscount: null,
+    useDefineElement: null,
+    rtfText: null,
+    useLinefeed: null,
+    linefeed: null,
+    useScaleBarcode: null,
+    printCount: null,
+    useLabelSize: null,
+    labelSizeWidth: null,
+    labelSizeHeight: null,
+    useMargin: null,
+    leftMargin: null,
+    rightMargin: null,
+    topMargin: null,
+    leftPush: null,
+    topPush: null,
   );
 }

@@ -213,6 +213,50 @@ void main() {
     expect(invalidPreview.hintText, '* 저장된 라벨에 문제가 있습니다.');
   });
 
+  test('item output preview collects barcode messages and error placeholder', () {
+    final workbook = FortuneWorkbook(
+      sheets: [
+        FortuneSheet(
+          id: 's1',
+          name: 'Label',
+          images: const [
+            FortuneImage(
+              id: 'warning',
+              src: 'data:image/png;base64,AAA=',
+              left: 0,
+              top: 0,
+              width: 10,
+              height: 10,
+              extraFields: {'itemCodeWarning': '대체 형식을 사용합니다.'},
+            ),
+            FortuneImage(
+              id: 'error',
+              src: 'data:image/png;base64,AAA=',
+              left: 10,
+              top: 0,
+              width: 10,
+              height: 10,
+              extraFields: {
+                'itemCodeWarning': '대체 형식을 사용합니다.',
+                'itemCodeError': '바코드를 표시할 수 없습니다.',
+              },
+            ),
+          ],
+        ),
+      ],
+    );
+
+    final messages = debugItemCodePreviewMessagesForTesting(workbook);
+    expect(messages, [
+      (text: '대체 형식을 사용합니다.', error: false),
+      (text: '바코드를 표시할 수 없습니다.', error: true),
+    ]);
+    expect(
+      debugItemCodeErrorPlaceholderForTesting(),
+      startsWith('data:image/svg+xml;base64,'),
+    );
+  });
+
   test(
     'item output preview creates fallback sheet for empty saved workbook',
     () {
@@ -262,9 +306,7 @@ void main() {
               const FortuneCellCoord(0, 0): const FortuneCell(
                 value: '#ITEMNAME',
               ),
-              const FortuneCellCoord(0, 1): const FortuneCell(
-                value: '#ELEMENT',
-              ),
+              const FortuneCellCoord(0, 1): const FortuneCell(value: '#ELEMENT'),
             },
           ),
         ],
@@ -412,6 +454,66 @@ void main() {
     expect(saveItem.disabled, isFalse);
   });
 
+  testWidgets('item element save commits plain text and workbook to draft', (
+    tester,
+  ) async {
+    String? committedPlain;
+    String? committedPayload;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: debugItemPreviewPanelForTesting(
+            item: _testItemOfMarket(itemId: 0, itemName: '신규 품목'),
+            rowIdentity: 'draft:new-item',
+            labelSize: _testLabelSizeWithFormData(''),
+            onElementCommitted: (plain, payload) async {
+              committedPlain = plain;
+              committedPayload = payload;
+            },
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    var sheetApp = tester.widget<FortuneSheetApp>(find.byType(FortuneSheetApp));
+    sheetApp.onChange!(
+      FortuneWorkbook(
+        sheets: [
+          FortuneSheet(
+            id: 'item_element',
+            name: '주원료 및 함량',
+            cells: {
+              const FortuneCellCoord(0, 0): const FortuneCell(value: '딸기, 설탕'),
+            },
+          ),
+        ],
+      ),
+    );
+    sheetApp.onOp!(const [
+      {'type': 'test'},
+    ]);
+    await tester.pump();
+
+    sheetApp = tester.widget<FortuneSheetApp>(find.byType(FortuneSheetApp));
+    final saveItem = sheetApp.settings!.customToolbarItems.singleWhere(
+      (item) => item.key == labelSheetSaveToolbarCommand,
+    );
+    saveItem.onClick!(saveItem);
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(TextButton, '확인'));
+    await tester.pumpAndSettle();
+
+    expect(committedPlain, '원재료');
+    expect(committedPayload, isNotNull);
+    final decoded = labelSheetDecodeWorkbookSave(committedPayload!);
+    expect(
+      decoded.sheets.single.cells[const FortuneCellCoord(0, 0)]!.value,
+      '원재료',
+    );
+  });
+
   test('item element RTF conversion decodes Korean ANSI hex', () async {
     const channel = MethodChannel('charset_converter');
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
@@ -472,7 +574,10 @@ void main() {
       contains('RICH_ELEMENT_SHEET=@elementSheet'),
     );
     expect(ItemDAO.UpdateElementSheetSql, isNot(contains('RICH_ELEMENT_RTF')));
-    expect(ItemDAO.AutoMigrateElementSheetSql, contains('RICH_ELEMENT=@element'));
+    expect(
+      ItemDAO.AutoMigrateElementSheetSql,
+      contains('RICH_ELEMENT=@element'),
+    );
     expect(
       ItemDAO.AutoMigrateElementSheetSql,
       contains('RICH_ELEMENT_SHEET=@elementSheet'),
@@ -520,6 +625,34 @@ void main() {
     await tester.pump();
 
     expect(find.text('* 라벨을 편집 저장 후 가능합니다.'), findsOneWidget);
+  });
+
+  testWidgets('item preview blocks output tab while draft context is locked', (
+    tester,
+  ) async {
+    var blockedRequests = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: debugItemPreviewPanelForTesting(
+            item: _testItemOfMarket(itemId: 10, itemName: '첫 품목'),
+            labelSize: _testLabelSizeWithFormData(r'{\rtf1\ansi legacy}'),
+            canSelectOutputPreview: () {
+              blockedRequests += 1;
+              return false;
+            },
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(find.text('출력내용 미리보기').last);
+    await tester.pumpAndSettle();
+
+    expect(blockedRequests, 1);
+    expect(find.text('* 라벨을 편집 저장 후 가능합니다.'), findsNothing);
+    expect(find.text('주원료 및 함량'), findsWidgets);
   });
 
   test('label sheet toolbar starts with save and print actions', () {
@@ -1006,6 +1139,7 @@ void main() {
                 'barcodeShowText': true,
                 'barcodeHumanReadableFontFamily': 'Arial',
                 'barcodeHumanReadableFontSize': 12,
+                'preserveTemplateBarcodeFormat': true,
                 'crop': {
                   'width': 80,
                   'height': 40,
@@ -1049,6 +1183,10 @@ void main() {
       labelSheetSaveFeatureVersions,
       contains('sheet.images.objectMetadata'),
     );
+    expect(
+      labelSheetSaveFeatureVersions,
+      contains('sheet.images.preserveTemplateBarcodeFormat'),
+    );
     expect(savedBarcodeJson['unsupportedImageField'], isNull);
     expect(savedCropJson['unsupportedCropField'], isNull);
     expect(savedBarcodeJson[fortuneBarcodeObjectIdExtraKey], '#BARCODE9');
@@ -1074,6 +1212,7 @@ void main() {
     expect(decodedBarcode.extraFields[fortuneBarcodeBodyTopExtraKey], 6);
     expect(decodedBarcode.extraFields[fortuneBarcodeBodyHeightExtraKey], 44);
     expect(decodedBarcode.extraFields[fortuneBarcodeBodyRatioExtraKey], 0.73);
+    expect(decodedBarcode.extraFields['preserveTemplateBarcodeFormat'], isTrue);
     expect(
       decodedBarcode.extraFields[fortuneBarcodeIdLabelPrintExcludedExtraKey],
       isTrue,

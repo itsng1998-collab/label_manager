@@ -68,6 +68,23 @@ class ColumnItemKey {
   int get hashCode => Object.hash(columnId, itemId);
 }
 
+class TColumnContentScopedView {
+  final Map<ColumnItemKey, TColumnContent> _values;
+
+  TColumnContentScopedView(Map<ColumnItemKey, TColumnContent> values)
+    : _values = Map.unmodifiable(values);
+
+  TColumnContent? get(int columnId, int itemId) {
+    return _values[ColumnItemKey(columnId: columnId, itemId: itemId)];
+  }
+
+  String value(int columnId, int itemId) {
+    return get(columnId, itemId)?.dataString ?? '';
+  }
+
+  Map<ColumnItemKey, TColumnContent> get values => _values;
+}
+
 class TColumnContentDAO extends DAO {
   static const String SelectByLabelSizeId = '''
     SELECT 
@@ -91,6 +108,26 @@ class TColumnContentDAO extends DAO {
 		ORDER BY P2.RICH_ITEM_ORDER,P2.RICH_ITEM_ID, P3.RICH_COLUMN_ORDER, P3.RICH_COLUMN_ID ASC
 	''';
 
+  static const String SelectByItemIds = '''
+    DECLARE @ScopedItemIds XML = @itemIdsXml;
+    WITH ScopedItemIds AS (
+      SELECT ItemIdNode.value('.', 'INT') AS RICH_ITEM_ID
+      FROM @ScopedItemIds.nodes('/items/id') AS ItemIds(ItemIdNode)
+    )
+    SELECT
+      P1.RICH_COL_CONTENT_ID AS RICH_COL_CONTENT_ID,
+      P1.RICH_COLUMN_ID AS RICH_COLUMN_ID,
+      P1.RICH_ITEM_ID AS RICH_ITEM_ID,
+      P1.RICH_EDITABLE AS RICH_EDITABLE,
+      COALESCE(CONVERT(NVARCHAR(3000), P1.RICH_COL_CONTENT_DATA COLLATE ${DAO.CP949}), N'') AS RICH_COL_CONTENT_DATA
+    FROM BM_RICH_COL_CONTENT P1
+    INNER JOIN ScopedItemIds S ON P1.RICH_ITEM_ID=S.RICH_ITEM_ID
+    INNER JOIN BM_RICH_ITEM P2 ON P1.RICH_ITEM_ID=P2.RICH_ITEM_ID
+    INNER JOIN BM_RICH_COLUMN P3 ON P1.RICH_COLUMN_ID=P3.RICH_COLUMN_ID
+    ORDER BY P2.RICH_ITEM_ORDER, P2.RICH_ITEM_ID,
+      P3.RICH_COLUMN_ORDER, P3.RICH_COLUMN_ID ASC
+  ''';
+
   static Future<Map<ColumnItemKey, TColumnContent>?> selectByLabelSizeId(int labelSizeId) async {
     debugLog('$START, labelSizeId:$labelSizeId');
 
@@ -112,5 +149,38 @@ class TColumnContentDAO extends DAO {
       debugLog('$END, $e');
       throw Exception(e);
     }
+  }
+
+  static Future<TColumnContentScopedView> selectScopedByItemIds(
+    Iterable<int> itemIds,
+  ) async {
+    final normalizedIds = itemIds.where((id) => id > 0).toSet().toList()
+      ..sort();
+    if (normalizedIds.isEmpty) {
+      return TColumnContentScopedView(const {});
+    }
+
+    debugLog('$START, scopedItemCount:${normalizedIds.length}');
+    try {
+      final res = await DbClient.instance.getDataWithParams(SelectByItemIds, {
+        'itemIdsXml': itemIdsXml(normalizedIds),
+      });
+      final values = DAO.mapRowsByKey(
+        res,
+        TColumnContent.fromMap,
+        (item) => ColumnItemKey(columnId: item.columnId, itemId: item.itemId),
+      );
+      debugLog(END);
+      return TColumnContentScopedView(values);
+    } catch (e) {
+      debugLog('$END, $e');
+      throw Exception(e);
+    }
+  }
+
+  static String itemIdsXml(Iterable<int> itemIds) {
+    final normalizedIds = itemIds.where((id) => id > 0).toSet().toList()
+      ..sort();
+    return '<items>${normalizedIds.map((id) => '<id>$id</id>').join()}</items>';
   }
 }

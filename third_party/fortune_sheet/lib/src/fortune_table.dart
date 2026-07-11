@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:async';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -12,7 +13,9 @@ class FortuneTableCheckboxController extends ChangeNotifier {
   }
 
   Set<int> checkedRows(String columnId) {
-    return Set<int>.unmodifiable(_checkedRowsByColumn[columnId] ?? const <int>{});
+    return Set<int>.unmodifiable(
+      _checkedRowsByColumn[columnId] ?? const <int>{},
+    );
   }
 
   void setChecked(String columnId, int rowIndex, bool checked) {
@@ -106,6 +109,21 @@ class FortuneTableSelectionController extends ChangeNotifier {
   }
 }
 
+class FortuneTableFocusController extends ChangeNotifier {
+  int? _rowIndex;
+  String? _columnId;
+
+  int? get rowIndex => _rowIndex;
+  String? get columnId => _columnId;
+
+  void focusCell(int rowIndex, String columnId) {
+    if (rowIndex < 0 || columnId.isEmpty) return;
+    _rowIndex = rowIndex;
+    _columnId = columnId;
+    notifyListeners();
+  }
+}
+
 class FortuneTableColumn<T> {
   const FortuneTableColumn({
     required this.id,
@@ -118,6 +136,9 @@ class FortuneTableColumn<T> {
     this.checkboxController,
     this.onCheckboxChanged,
     this.onCheckboxChangedAt,
+    this.isTextEditable,
+    this.onTextCommitted,
+    this.onDoubleTap,
     this.fillRemaining = false,
   });
 
@@ -128,9 +149,13 @@ class FortuneTableColumn<T> {
   final double minWidth;
   final bool Function(T row)? checkboxValue;
   final bool Function(T row, int rowIndex)? checkboxValueAt;
-    final FortuneTableCheckboxController? checkboxController;
+  final FortuneTableCheckboxController? checkboxController;
   final void Function(T row, bool value)? onCheckboxChanged;
   final void Function(T row, int rowIndex, bool value)? onCheckboxChangedAt;
+  final bool Function(T row, int rowIndex)? isTextEditable;
+  final FutureOr<void> Function(T row, int rowIndex, String value)?
+  onTextCommitted;
+  final FutureOr<void> Function(T row, int rowIndex)? onDoubleTap;
   final bool fillRemaining;
 
   bool get isCheckbox =>
@@ -148,7 +173,9 @@ class FortuneTable<T> extends StatefulWidget {
     required this.columns,
     this.selectedIndex,
     this.selectionController,
+    this.focusController,
     this.onRowSelected,
+    this.onRowSecondaryTapDown,
     this.onRectChanged,
     this.rowColorBuilder,
     this.rowNumberWidth = 40,
@@ -165,7 +192,10 @@ class FortuneTable<T> extends StatefulWidget {
   final List<FortuneTableColumn<T>> columns;
   final int? selectedIndex;
   final FortuneTableSelectionController? selectionController;
+  final FortuneTableFocusController? focusController;
   final void Function(T row, int index)? onRowSelected;
+  final void Function(T row, int index, TapDownDetails details)?
+  onRowSecondaryTapDown;
   final ValueChanged<Rect>? onRectChanged;
   final Color? Function(T row, int rowIndex, bool selected)? rowColorBuilder;
   final double rowNumberWidth;
@@ -217,6 +247,7 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
   bool _syncingHorizontal = false;
   bool _syncingVertical = false;
   late List<double> _widths;
+  List<double> _effectiveColumnWidths = const [];
   Set<FortuneTableCheckboxController> _checkboxControllers =
       <FortuneTableCheckboxController>{};
   int? _selectedIndex;
@@ -224,6 +255,11 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
   int? _dragSelectionStartIndex;
   Rect? _lastReportedRect;
   String? _tableSignature;
+  int? _focusedColumnIndex;
+  int? _editingRowIndex;
+  int? _editingColumnIndex;
+  TextEditingController? _textEditorController;
+  FocusNode? _textEditorFocusNode;
 
   @override
   void initState() {
@@ -231,6 +267,7 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
     _widths = _initialWidths();
     _selectedIndex = widget.selectedIndex;
     widget.selectionController?.addListener(_handleSelectionControllerChanged);
+    widget.focusController?.addListener(_handleFocusControllerChanged);
     _syncCheckboxControllerListeners(<FortuneTableColumn<T>>[]);
     _hScrollBody.addListener(_syncHorizontalFromBody);
     _hScrollHeader.addListener(_syncHorizontalFromHeader);
@@ -259,11 +296,21 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
     if ((_selectedIndex ?? -1) >= widget.rows.length) {
       _selectedIndex = null;
     }
+    if ((_editingRowIndex ?? -1) >= widget.rows.length ||
+        (_editingColumnIndex ?? -1) >= widget.columns.length) {
+      _clearTextEditingState();
+    }
     if (oldWidget.selectionController != widget.selectionController) {
       oldWidget.selectionController?.removeListener(
         _handleSelectionControllerChanged,
       );
-      widget.selectionController?.addListener(_handleSelectionControllerChanged);
+      widget.selectionController?.addListener(
+        _handleSelectionControllerChanged,
+      );
+    }
+    if (oldWidget.focusController != widget.focusController) {
+      oldWidget.focusController?.removeListener(_handleFocusControllerChanged);
+      widget.focusController?.addListener(_handleFocusControllerChanged);
     }
     widget.selectionController?.setSelectedRows(
       widget.selectionController!.selectedRows.where(
@@ -276,10 +323,14 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
 
   @override
   void dispose() {
+    _disposeTextEditor();
     for (final controller in _checkboxControllers) {
       controller.removeListener(_handleCheckboxControllerChanged);
     }
-    widget.selectionController?.removeListener(_handleSelectionControllerChanged);
+    widget.selectionController?.removeListener(
+      _handleSelectionControllerChanged,
+    );
+    widget.focusController?.removeListener(_handleFocusControllerChanged);
     _focusNode.dispose();
     _hScrollHeader.dispose();
     _hScrollBody.dispose();
@@ -296,102 +347,106 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
       onKeyEvent: _handleKeyEvent,
       child: LayoutBuilder(
         builder: (context, constraints) {
-        final widths = _effectiveWidths(constraints.maxWidth);
-        final bodyWidth = widths.fold<double>(0, (sum, width) => sum + width);
-        final horizontalViewportWidth = (constraints.maxWidth -
-            widget.rowNumberWidth)
-          .clamp(0, double.infinity)
-          .toDouble();
-        final bodyViewportHeight = (constraints.maxHeight - widget.headerHeight)
-          .clamp(0, double.infinity)
-          .toDouble();
-        final hasHorizontalOverflow =
-          bodyWidth > horizontalViewportWidth + 0.5;
-        final hasVerticalOverflow =
-          widget.rows.length * widget.rowHeight > bodyViewportHeight + 0.5;
+          final widths = _effectiveWidths(constraints.maxWidth);
+          _effectiveColumnWidths = widths;
+          final bodyWidth = widths.fold<double>(0, (sum, width) => sum + width);
+          final horizontalViewportWidth =
+              (constraints.maxWidth - widget.rowNumberWidth)
+                  .clamp(0, double.infinity)
+                  .toDouble();
+          final bodyViewportHeight =
+              (constraints.maxHeight - widget.headerHeight)
+                  .clamp(0, double.infinity)
+                  .toDouble();
+          final hasHorizontalOverflow =
+              bodyWidth > horizontalViewportWidth + 0.5;
+          final hasVerticalOverflow =
+              widget.rows.length * widget.rowHeight > bodyViewportHeight + 0.5;
           return Listener(
             behavior: HitTestBehavior.opaque,
             onPointerSignal: _handlePointerSignal,
             onPointerPanZoomUpdate: _handlePointerPanZoomUpdate,
             child: Container(
-            color: Colors.white,
-            child: Column(
-              children: [
-                Row(
-                  children: [
-                    _rowHeaderCell('', _headerColor, widget.headerHeight),
-                    Expanded(
-                      child: SingleChildScrollView(
-                        controller: _hScrollHeader,
-                        scrollDirection: Axis.horizontal,
-                        child: SizedBox(
-                          width: bodyWidth,
-                          height: widget.headerHeight,
-                          child: _buildHeader(widths),
+              color: Colors.white,
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      _rowHeaderCell('', _headerColor, widget.headerHeight),
+                      Expanded(
+                        child: SingleChildScrollView(
+                          controller: _hScrollHeader,
+                          scrollDirection: Axis.horizontal,
+                          child: SizedBox(
+                            width: bodyWidth,
+                            height: widget.headerHeight,
+                            child: _buildHeader(widths),
+                          ),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-                Expanded(
-                  child: Row(
-                    children: [
-                      SizedBox(
-                        width: widget.rowNumberWidth,
-                        child: ScrollConfiguration(
-                          behavior: const _FortuneTableScrollBehavior(
-                            dragScrollEnabled: false,
-                          ),
-                          child: ListView.builder(
-                            controller: _vScrollIndex,
-                            itemExtent: widget.rowHeight,
-                            itemCount: widget.rows.length,
-                            itemBuilder: (context, index) =>
-                                _scrollSignalBoundary(
-                              _rowHeaderCell(
-                                '${index + 1}',
-                                _headerColor,
-                                widget.rowHeight,
-                              ),
+                    ],
+                  ),
+                  Expanded(
+                    child: Row(
+                      children: [
+                        SizedBox(
+                          width: widget.rowNumberWidth,
+                          child: ScrollConfiguration(
+                            behavior: const _FortuneTableScrollBehavior(
+                              dragScrollEnabled: false,
+                            ),
+                            child: ListView.builder(
+                              controller: _vScrollIndex,
+                              itemExtent: widget.rowHeight,
+                              itemCount: widget.rows.length,
+                              itemBuilder: (context, index) =>
+                                  _scrollSignalBoundary(
+                                    _rowHeaderCell(
+                                      '${index + 1}',
+                                      _headerColor,
+                                      widget.rowHeight,
+                                    ),
+                                  ),
                             ),
                           ),
                         ),
-                      ),
-                      Expanded(
-                        child: ScrollConfiguration(
-                          behavior: _FortuneTableScrollBehavior(
-                            dragScrollEnabled: widget.dragScrollEnabled,
-                          ),
-                          child: RawScrollbar(
-                            controller: _vScrollBody,
-                            thumbVisibility: hasVerticalOverflow,
-                            thickness: 8,
-                            radius: Radius.zero,
-                            notificationPredicate: (notification) =>
-                                notification.metrics.axis == Axis.vertical,
+                        Expanded(
+                          child: ScrollConfiguration(
+                            behavior: _FortuneTableScrollBehavior(
+                              dragScrollEnabled: widget.dragScrollEnabled,
+                            ),
                             child: RawScrollbar(
-                              controller: _hScrollBody,
-                              thumbVisibility: hasHorizontalOverflow,
+                              controller: _vScrollBody,
+                              thumbVisibility: hasVerticalOverflow,
                               thickness: 8,
                               radius: Radius.zero,
                               notificationPredicate: (notification) =>
-                                  notification.metrics.axis == Axis.horizontal,
-                              child: SingleChildScrollView(
+                                  notification.metrics.axis == Axis.vertical,
+                              child: RawScrollbar(
                                 controller: _hScrollBody,
-                                scrollDirection: Axis.horizontal,
-                                child: SizedBox(
-                                  width: bodyWidth,
-                                  child: ListView.builder(
-                                    controller: _vScrollBody,
-                                    itemExtent: widget.rowHeight,
-                                    itemCount: widget.rows.length,
-                                    itemBuilder: (context, rowIndex) =>
-                                        _scrollSignalBoundary(
-                                      _buildRow(
-                                        widget.rows[rowIndex],
-                                        rowIndex,
-                                        widths,
-                                      ),
+                                thumbVisibility: hasHorizontalOverflow,
+                                thickness: 8,
+                                radius: Radius.zero,
+                                notificationPredicate: (notification) =>
+                                    notification.metrics.axis ==
+                                    Axis.horizontal,
+                                child: SingleChildScrollView(
+                                  controller: _hScrollBody,
+                                  scrollDirection: Axis.horizontal,
+                                  child: SizedBox(
+                                    width: bodyWidth,
+                                    child: ListView.builder(
+                                      controller: _vScrollBody,
+                                      itemExtent: widget.rowHeight,
+                                      itemCount: widget.rows.length,
+                                      itemBuilder: (context, rowIndex) =>
+                                          _scrollSignalBoundary(
+                                            _buildRow(
+                                              widget.rows[rowIndex],
+                                              rowIndex,
+                                              widths,
+                                            ),
+                                          ),
                                     ),
                                   ),
                                 ),
@@ -399,13 +454,12 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
                             ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
           );
         },
       ),
@@ -435,6 +489,23 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
   }
 
   KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
+    if (event is KeyDownEvent &&
+        (event.logicalKey == LogicalKeyboardKey.enter ||
+            event.logicalKey == LogicalKeyboardKey.f2)) {
+      final rowIndex = _selectedIndex;
+      final columnIndex = _focusedColumnIndex;
+      if (rowIndex != null &&
+          columnIndex != null &&
+          rowIndex < widget.rows.length &&
+          columnIndex < widget.columns.length) {
+        final row = widget.rows[rowIndex];
+        final column = widget.columns[columnIndex];
+        if (_isTextEditable(column, row, rowIndex)) {
+          _startTextEditing(row, rowIndex, columnIndex, column);
+          return KeyEventResult.handled;
+        }
+      }
+    }
     if (!widget.multiSelectionEnabled ||
         !widget.keyboardSelectionShortcutsEnabled ||
         event is! KeyDownEvent) {
@@ -548,7 +619,8 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
         ? fillIndex
         : (widget.fillLastColumn ? widths.length - 1 : -1);
     if (targetIndex < 0) return widths;
-    final reserved = widget.rowNumberWidth +
+    final reserved =
+        widget.rowNumberWidth +
         widths.asMap().entries.fold<double>(
           0,
           (sum, entry) => entry.key == targetIndex ? sum : sum + entry.value,
@@ -590,7 +662,8 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
 
   Widget _buildRow(T row, int rowIndex, List<double> widths) {
     final selected = _isRowSelected(rowIndex);
-    final color = widget.rowColorBuilder?.call(row, rowIndex, selected) ??
+    final color =
+        widget.rowColorBuilder?.call(row, rowIndex, selected) ??
         _rowColor(rowIndex, selected);
     return Listener(
       onPointerDown: widget.multiSelectionEnabled
@@ -608,6 +681,8 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTapDown: (_) => _selectRow(row, rowIndex),
+        onSecondaryTapDown: (details) =>
+            widget.onRowSecondaryTapDown?.call(row, rowIndex, details),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: List.generate(widths.length, (columnIndex) {
@@ -648,7 +723,8 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
       child: column.isCheckbox
           ? _FortuneTableCheckbox(
               key: ValueKey('fortune_table_checkbox_${column.id}_$rowIndex'),
-              value: column.checkboxController?.isChecked(column.id, rowIndex) ??
+              value:
+                  column.checkboxController?.isChecked(column.id, rowIndex) ??
                   column.checkboxValueAt?.call(row, rowIndex) ??
                   column.checkboxValue?.call(row) ??
                   false,
@@ -667,13 +743,126 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
                 }
               },
             )
-          : Text(
-              column.text(row),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 14, color: Color(0xFF202124)),
-            ),
+          : _buildTextCell(row, rowIndex, columnIndex, column),
     );
+  }
+
+  Widget _buildTextCell(
+    T row,
+    int rowIndex,
+    int columnIndex,
+    FortuneTableColumn<T> column,
+  ) {
+    if (_editingRowIndex == rowIndex && _editingColumnIndex == columnIndex) {
+      return Focus(
+        onKeyEvent: (_, event) {
+          if (event is KeyDownEvent &&
+              event.logicalKey == LogicalKeyboardKey.escape) {
+            _cancelTextEditing();
+            return KeyEventResult.handled;
+          }
+          return KeyEventResult.ignored;
+        },
+        child: TextField(
+          controller: _textEditorController,
+          focusNode: _textEditorFocusNode,
+          autofocus: true,
+          maxLines: 1,
+          style: const TextStyle(fontSize: 14, color: Color(0xFF202124)),
+          decoration: const InputDecoration(
+            isDense: true,
+            border: InputBorder.none,
+            contentPadding: EdgeInsets.zero,
+          ),
+          onSubmitted: (_) => _commitTextEditing(),
+          onTapOutside: (_) => _commitTextEditing(),
+        ),
+      );
+    }
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTapDown: (_) {
+        _focusedColumnIndex = columnIndex;
+        _selectRow(row, rowIndex);
+      },
+      onDoubleTap: column.onDoubleTap != null
+          ? () => column.onDoubleTap!(row, rowIndex)
+          : _isTextEditable(column, row, rowIndex)
+          ? () => _startTextEditing(row, rowIndex, columnIndex, column)
+          : null,
+      child: SizedBox.expand(
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: Text(
+            column.text(row),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 14, color: Color(0xFF202124)),
+          ),
+        ),
+      ),
+    );
+  }
+
+  bool _isTextEditable(FortuneTableColumn<T> column, T row, int rowIndex) {
+    return column.onTextCommitted != null &&
+        (column.isTextEditable?.call(row, rowIndex) ?? true);
+  }
+
+  void _startTextEditing(
+    T row,
+    int rowIndex,
+    int columnIndex,
+    FortuneTableColumn<T> column,
+  ) {
+    if (!_isTextEditable(column, row, rowIndex)) return;
+    _disposeTextEditor();
+    _textEditorController = TextEditingController(text: column.text(row));
+    _textEditorFocusNode = FocusNode(debugLabel: 'FortuneTableTextEditor');
+    setState(() {
+      _selectedIndex = rowIndex;
+      _focusedColumnIndex = columnIndex;
+      _editingRowIndex = rowIndex;
+      _editingColumnIndex = columnIndex;
+    });
+    _selectRowIndex(rowIndex);
+    widget.onRowSelected?.call(row, rowIndex);
+  }
+
+  Future<void> _commitTextEditing() async {
+    final rowIndex = _editingRowIndex;
+    final columnIndex = _editingColumnIndex;
+    final value = _textEditorController?.text;
+    if (rowIndex == null ||
+        columnIndex == null ||
+        value == null ||
+        rowIndex >= widget.rows.length ||
+        columnIndex >= widget.columns.length) {
+      _cancelTextEditing();
+      return;
+    }
+    final row = widget.rows[rowIndex];
+    final column = widget.columns[columnIndex];
+    setState(_clearTextEditingState);
+    await column.onTextCommitted?.call(row, rowIndex, value);
+  }
+
+  void _cancelTextEditing() {
+    if (_editingRowIndex == null) return;
+    setState(_clearTextEditingState);
+  }
+
+  void _clearTextEditingState() {
+    _editingRowIndex = null;
+    _editingColumnIndex = null;
+    _disposeTextEditor();
+  }
+
+  void _disposeTextEditor() {
+    _textEditorController?.dispose();
+    _textEditorController = null;
+    _textEditorFocusNode?.dispose();
+    _textEditorFocusNode = null;
   }
 
   Widget _rowHeaderCell(String text, Color color, double height) {
@@ -748,10 +937,7 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
     final controller = widget.selectionController;
     if (dragStartIndex == null || controller == null) return;
     final deltaRows = (event.localPosition.dy / widget.rowHeight).floor();
-    final targetIndex = (rowIndex + deltaRows).clamp(
-      0,
-      widget.rows.length - 1,
-    );
+    final targetIndex = (rowIndex + deltaRows).clamp(0, widget.rows.length - 1);
     controller.selectRange(dragStartIndex, targetIndex);
   }
 
@@ -788,6 +974,63 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
   void _handleSelectionControllerChanged() {
     if (!mounted) return;
     setState(() {});
+  }
+
+  void _handleFocusControllerChanged() {
+    final controller = widget.focusController;
+    final rowIndex = controller?.rowIndex;
+    final columnId = controller?.columnId;
+    if (rowIndex == null ||
+        columnId == null ||
+        rowIndex >= widget.rows.length) {
+      return;
+    }
+    final columnIndex = widget.columns.indexWhere(
+      (column) => column.id == columnId,
+    );
+    if (columnIndex < 0) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _focusedColumnIndex = columnIndex;
+      _selectedIndex = rowIndex;
+      _selectionAnchorIndex = rowIndex;
+      widget.selectionController?.setSelectedRows([rowIndex]);
+      _focusNode.requestFocus();
+      _revealCell(rowIndex, columnIndex);
+      setState(() {});
+    });
+  }
+
+  void _revealCell(int rowIndex, int columnIndex) {
+    if (_vScrollBody.hasClients) {
+      _revealRange(
+        _vScrollBody,
+        rowIndex * widget.rowHeight,
+        (rowIndex + 1) * widget.rowHeight,
+      );
+    }
+    if (_hScrollBody.hasClients &&
+        columnIndex < _effectiveColumnWidths.length) {
+      final start = _effectiveColumnWidths
+          .take(columnIndex)
+          .fold<double>(0, (sum, width) => sum + width);
+      _revealRange(
+        _hScrollBody,
+        start,
+        start + _effectiveColumnWidths[columnIndex],
+      );
+    }
+  }
+
+  void _revealRange(ScrollController controller, double start, double end) {
+    final position = controller.position;
+    var target = position.pixels;
+    if (start < target) {
+      target = start;
+    } else if (end > target + position.viewportDimension) {
+      target = end - position.viewportDimension;
+    }
+    controller.jumpTo(target.clamp(0, position.maxScrollExtent).toDouble());
   }
 
   void _syncHorizontalFromBody() {
@@ -865,7 +1108,11 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
 }
 
 class _FortuneTableCheckbox extends StatelessWidget {
-  const _FortuneTableCheckbox({super.key, required this.value, required this.onChanged});
+  const _FortuneTableCheckbox({
+    super.key,
+    required this.value,
+    required this.onChanged,
+  });
 
   final bool value;
   final ValueChanged<bool> onChanged;

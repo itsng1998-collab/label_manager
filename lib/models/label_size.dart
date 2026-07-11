@@ -69,6 +69,24 @@ class LabelSizeSetup {
     required this.useScale,
   });
 
+  LabelSizeSetup copyWithDateSetup(LabelSizeDateSetupUpdate update) =>
+      LabelSizeSetup(
+        readOnly: readOnly,
+        useMakeDate: update.useMakeDate,
+        useMakeTime: update.useMakeTime,
+        useValidDate: update.useValidDate,
+        useValidTime: update.useValidTime,
+        makingDateFormat: update.makingDateFormat,
+        makingTimeFormat: update.makingTimeFormat,
+        validDateFormat: update.validDateFormat,
+        validTimeFormat: update.validTimeFormat,
+        strMakeDate: update.strMakeDate,
+        strMakeTime: update.strMakeTime,
+        strValidDate: update.strValidDate,
+        strValidTime: update.strValidTime,
+        useScale: useScale,
+      );
+
   @override
   String toString() =>
       'ReadOnly: $readOnly, '
@@ -80,6 +98,79 @@ class LabelSizeSetup {
       'StrValidDate: $strValidDate, StrValidTime: $strValidTime, UseScale: $useScale';
 }
 
+class LabelSizeDateSetupUpdate {
+  const LabelSizeDateSetupUpdate({
+    required this.useMakeDate,
+    required this.useMakeTime,
+    required this.useValidDate,
+    required this.useValidTime,
+    required this.makingDateFormat,
+    required this.makingTimeFormat,
+    required this.validDateFormat,
+    required this.validTimeFormat,
+    required this.strMakeDate,
+    required this.strMakeTime,
+    required this.strValidDate,
+    required this.strValidTime,
+  });
+
+  factory LabelSizeDateSetupUpdate.fromSetup(LabelSizeSetup setup) =>
+      LabelSizeDateSetupUpdate(
+        useMakeDate: setup.useMakeDate,
+        useMakeTime: setup.useMakeTime,
+        useValidDate: setup.useValidDate,
+        useValidTime: setup.useValidTime,
+        makingDateFormat: setup.makingDateFormat,
+        makingTimeFormat: setup.makingTimeFormat,
+        validDateFormat: setup.validDateFormat,
+        validTimeFormat: setup.validTimeFormat,
+        strMakeDate: setup.strMakeDate,
+        strMakeTime: setup.strMakeTime,
+        strValidDate: setup.strValidDate,
+        strValidTime: setup.strValidTime,
+      );
+
+  final bool useMakeDate;
+  final bool useMakeTime;
+  final bool useValidDate;
+  final bool useValidTime;
+  final PrintDateFormat makingDateFormat;
+  final PrintTimeFormat makingTimeFormat;
+  final PrintDateFormat validDateFormat;
+  final PrintTimeFormat validTimeFormat;
+  final String strMakeDate;
+  final String strMakeTime;
+  final String strValidDate;
+  final String strValidTime;
+
+  Map<String, dynamic> toParams() => {
+    'useMakeDate': useMakeDate ? 1 : 0,
+    'useMakeTime': useMakeTime ? 1 : 0,
+    'useValidDate': useValidDate ? 1 : 0,
+    'useValidTime': useValidTime ? 1 : 0,
+    'makeDateType': makingDateFormat.index,
+    'makeTimeType': makingTimeFormat.index,
+    'validDateType': validDateFormat.index,
+    'validTimeType': validTimeFormat.index,
+    'userMakeDate': strMakeDate,
+    'userMakeTime': strMakeTime,
+    'userValidDate': strValidDate,
+    'userValidTime': strValidTime,
+  };
+}
+
+class LabelSizeDateSetupLogCapabilities {
+  const LabelSizeDateSetupLogCapabilities({required this.hasAllColumns});
+
+  factory LabelSizeDateSetupLogCapabilities.fromMap(
+    Map<String, dynamic> map,
+  ) => LabelSizeDateSetupLogCapabilities(
+    hasAllColumns: '${map['HAS_ALL_COLUMNS']}' == '1',
+  );
+
+  final bool hasAllColumns;
+}
+
 class LabelSize {
   static List<LabelSize>? datas;
 
@@ -88,6 +179,7 @@ class LabelSize {
   final String labelSizeName;
   final LabelSizeCommon? labelSizeCommon;
   final LabelSizeSetup? labelSizeSetup;
+  final bool hasInvalidDateSetupValues;
 
   const LabelSize({
     required this.labelSizeId,
@@ -95,6 +187,7 @@ class LabelSize {
     required this.labelSizeName,
     this.labelSizeCommon,
     this.labelSizeSetup,
+    this.hasInvalidDateSetupValues = false,
   });
 
   static void setDatas(List<LabelSize>? values) {
@@ -129,12 +222,26 @@ class LabelSize {
     return null;
   }
 
+  static LabelSize replaceCachedDateSetup(LabelSize updated) {
+    final current = datas;
+    if (current == null) return updated;
+    final index = current.indexWhere(
+      (value) => value.labelSizeId == updated.labelSizeId,
+    );
+    if (index < 0) return updated;
+    final next = [...current];
+    next[index] = updated;
+    datas = next;
+    return updated;
+  }
+
   LabelSize copyWith({
     int? labelSizeId,
     int? brandId,
     String? labelSizeName,
     LabelSizeCommon? labelSizeCommon,
     LabelSizeSetup? labelSizeSetup,
+    bool? hasInvalidDateSetupValues,
   }) {
     return LabelSize(
       labelSizeId: labelSizeId ?? this.labelSizeId,
@@ -142,11 +249,27 @@ class LabelSize {
       labelSizeName: labelSizeName ?? this.labelSizeName,
       labelSizeCommon: labelSizeCommon ?? this.labelSizeCommon,
       labelSizeSetup: labelSizeSetup ?? this.labelSizeSetup,
+        hasInvalidDateSetupValues:
+          hasInvalidDateSetupValues ?? this.hasInvalidDateSetupValues,
     );
   }
 
   factory LabelSize.fromMap(Map<String, dynamic> map) {
     String s(String key) => (map[key] ?? '').toString();
+    int number(String key) {
+      final value = map[key];
+      return value is num ? value.toInt() : int.tryParse('$value') ?? 0;
+    }
+
+    T enumValue<T>(List<T> values, String key) {
+      final index = number(key);
+      return index >= 0 && index < values.length ? values[index] : values.first;
+    }
+
+    bool invalidEnumIndex<T>(List<T> values, String key) {
+      final index = number(key);
+      return index < 0 || index >= values.length;
+    }
 
     final labelSizeId = map['LABELSIZE_ID'];
     final brandId = map['BRAND_ID'];
@@ -164,10 +287,22 @@ class LabelSize {
       useMakeTime: map['SETUP_USE_MAKETIME'] != 0,
       useValidDate: map['SETUP_USE_VALIDDATE'] != 0,
       useValidTime: map['SETUP_USE_VALIDTIME'] != 0,
-      makingDateFormat: PrintDateFormat.values[map['SETUP_MAKEDATE_TYPE']],
-      makingTimeFormat: PrintTimeFormat.values[map['SETUP_MAKETIME_TYPE']],
-      validDateFormat: PrintDateFormat.values[map['SETUP_VALIDDATE_TYPE']],
-      validTimeFormat: PrintTimeFormat.values[map['SETUP_VALIDTIME_TYPE']],
+      makingDateFormat: enumValue(
+        PrintDateFormat.values,
+        'SETUP_MAKEDATE_TYPE',
+      ),
+      makingTimeFormat: enumValue(
+        PrintTimeFormat.values,
+        'SETUP_MAKETIME_TYPE',
+      ),
+      validDateFormat: enumValue(
+        PrintDateFormat.values,
+        'SETUP_VALIDDATE_TYPE',
+      ),
+      validTimeFormat: enumValue(
+        PrintTimeFormat.values,
+        'SETUP_VALIDTIME_TYPE',
+      ),
       strMakeDate: s('USER_MAKEDATE'),
       strMakeTime: s('USER_MAKETIME'),
       strValidDate: s('USER_VALIDDATE'),
@@ -181,6 +316,23 @@ class LabelSize {
       labelSizeName: labelSizeName,
       labelSizeCommon: labelSizeCommon,
       labelSizeSetup: labelSizeSetup,
+      hasInvalidDateSetupValues:
+          invalidEnumIndex(
+            PrintDateFormat.values,
+            'SETUP_MAKEDATE_TYPE',
+          ) ||
+          invalidEnumIndex(
+            PrintTimeFormat.values,
+            'SETUP_MAKETIME_TYPE',
+          ) ||
+          invalidEnumIndex(
+            PrintDateFormat.values,
+            'SETUP_VALIDDATE_TYPE',
+          ) ||
+          invalidEnumIndex(
+            PrintTimeFormat.values,
+            'SETUP_VALIDTIME_TYPE',
+          ),
     );
   }
 
@@ -200,6 +352,97 @@ class LabelSizeOrderUpdate {
 }
 
 class LabelSizeDAO extends DAO {
+  static const String dateSetupLogCapabilitySql = '''
+    SELECT CASE WHEN COUNT(*) = 24 THEN 1 ELSE 0 END AS HAS_ALL_COLUMNS
+      FROM sys.columns
+     WHERE object_id = OBJECT_ID(N'BM_RICH_LABELSIZE_FORM_LOG')
+       AND name IN (
+         N'RICH_SETUP_USE_MAKEDATE', N'RICH_SETUP_USE_MAKETIME',
+         N'RICH_SETUP_USE_VALIDDATE', N'RICH_SETUP_USE_VALIDTIME',
+         N'RICH_SETUP_MAKEDATE_TYPE', N'RICH_SETUP_MAKETIME_TYPE',
+         N'RICH_SETUP_VALIDDATE_TYPE', N'RICH_SETUP_VALIDTIME_TYPE',
+         N'RICH_USER_MAKEDATE', N'RICH_USER_MAKETIME',
+         N'RICH_USER_VALIDDATE', N'RICH_USER_VALIDTIME',
+         N'RICH_ALTER_SETUP_USE_MAKEDATE', N'RICH_ALTER_SETUP_USE_MAKETIME',
+         N'RICH_ALTER_SETUP_USE_VALIDDATE', N'RICH_ALTER_SETUP_USE_VALIDTIME',
+         N'RICH_ALTER_SETUP_MAKEDATE_TYPE', N'RICH_ALTER_SETUP_MAKETIME_TYPE',
+         N'RICH_ALTER_SETUP_VALIDDATE_TYPE', N'RICH_ALTER_SETUP_VALIDTIME_TYPE',
+         N'RICH_ALTER_USER_MAKEDATE', N'RICH_ALTER_USER_MAKETIME',
+         N'RICH_ALTER_USER_VALIDDATE', N'RICH_ALTER_USER_VALIDTIME'
+       )
+  ''';
+
+  static const String dateSetupUpdateSql = '''
+    UPDATE BM_RICH_LABELSIZE_FORM
+       SET RICH_SETUP_USE_MAKEDATE=@useMakeDate,
+           RICH_SETUP_USE_MAKETIME=@useMakeTime,
+           RICH_SETUP_USE_VALIDDATE=@useValidDate,
+           RICH_SETUP_USE_VALIDTIME=@useValidTime,
+           RICH_SETUP_MAKEDATE_TYPE=@makeDateType,
+           RICH_SETUP_MAKETIME_TYPE=@makeTimeType,
+           RICH_SETUP_VALIDDATE_TYPE=@validDateType,
+           RICH_SETUP_VALIDTIME_TYPE=@validTimeType,
+           RICH_USER_MAKEDATE=@userMakeDate,
+           RICH_USER_MAKETIME=@userMakeTime,
+           RICH_USER_VALIDDATE=@userValidDate,
+           RICH_USER_VALIDTIME=@userValidTime
+     WHERE RICH_LABELSIZE_ID=@labelSizeId
+  ''';
+
+  static const String dateSetupLogInsertSql = '''
+    INSERT INTO BM_RICH_LABELSIZE_FORM_LOG (
+      RICH_MOD_DATE, RICH_MOD_DATETIME, RICH_LABELSIZE_ID, RICH_LABELSIZE_NAME,
+      RICH_FORM_WIDTH, RICH_FORM_HEIGHT, RICH_FORM_DATA, RICH_FORM_SHEET,
+      RICH_USER_ID, RICH_BRAND_ID, RICH_INNER_IP, RICH_OUTER_IP,
+      RICH_SETUP_USE_MAKEDATE, RICH_SETUP_USE_MAKETIME,
+      RICH_SETUP_USE_VALIDDATE, RICH_SETUP_USE_VALIDTIME,
+      RICH_SETUP_MAKEDATE_TYPE, RICH_SETUP_MAKETIME_TYPE,
+      RICH_SETUP_VALIDDATE_TYPE, RICH_SETUP_VALIDTIME_TYPE,
+      RICH_USER_MAKEDATE, RICH_USER_MAKETIME,
+      RICH_USER_VALIDDATE, RICH_USER_VALIDTIME,
+      RICH_ALTER_SETUP_USE_MAKEDATE, RICH_ALTER_SETUP_USE_MAKETIME,
+      RICH_ALTER_SETUP_USE_VALIDDATE, RICH_ALTER_SETUP_USE_VALIDTIME,
+      RICH_ALTER_SETUP_MAKEDATE_TYPE, RICH_ALTER_SETUP_MAKETIME_TYPE,
+      RICH_ALTER_SETUP_VALIDDATE_TYPE, RICH_ALTER_SETUP_VALIDTIME_TYPE,
+      RICH_ALTER_USER_MAKEDATE, RICH_ALTER_USER_MAKETIME,
+      RICH_ALTER_USER_VALIDDATE, RICH_ALTER_USER_VALIDTIME
+    )
+    SELECT CONVERT(CHAR(8), GETDATE(), 112), GETDATE(), RICH_LABELSIZE_ID,
+      RICH_LABELSIZE_NAME, RICH_FORM_WIDTH, RICH_FORM_HEIGHT, RICH_FORM_DATA,
+      RICH_FORM_SHEET, @userId, RICH_BRAND_ID,
+      CONVERT(NVARCHAR(100), CONVERT(VARCHAR(100), CONVERT(VARBINARY(100), @loginIP, 1)) COLLATE ${DAO.CP949}),
+      CONVERT(VARCHAR(48), CONNECTIONPROPERTY('client_net_address')),
+      RICH_SETUP_USE_MAKEDATE, RICH_SETUP_USE_MAKETIME,
+      RICH_SETUP_USE_VALIDDATE, RICH_SETUP_USE_VALIDTIME,
+      RICH_SETUP_MAKEDATE_TYPE, RICH_SETUP_MAKETIME_TYPE,
+      RICH_SETUP_VALIDDATE_TYPE, RICH_SETUP_VALIDTIME_TYPE,
+      RICH_USER_MAKEDATE, RICH_USER_MAKETIME,
+      RICH_USER_VALIDDATE, RICH_USER_VALIDTIME,
+      @useMakeDate, @useMakeTime, @useValidDate, @useValidTime,
+      @makeDateType, @makeTimeType, @validDateType, @validTimeType,
+      @userMakeDate, @userMakeTime, @userValidDate, @userValidTime
+      FROM BM_RICH_LABELSIZE_FORM
+     WHERE RICH_LABELSIZE_ID=@labelSizeId
+  ''';
+
+  static const String dateSetupLoggedTransactionSql = '''
+    SET XACT_ABORT ON;
+    SET NOCOUNT ON;
+    BEGIN TRY
+      BEGIN TRANSACTION;
+      $dateSetupLogInsertSql;
+      IF @@ROWCOUNT <> 1 THROW 51010, 'Insert date setup log failed.', 1;
+      $dateSetupUpdateSql;
+      IF @@ROWCOUNT <> 1 THROW 51011, 'Update date setup failed.', 1;
+      COMMIT TRANSACTION;
+      SELECT 1 AS AFFECTED;
+    END TRY
+    BEGIN CATCH
+      IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
+      THROW;
+    END CATCH
+  ''';
+
   static const String SelectSql =
       '''
     SELECT
@@ -312,6 +555,67 @@ class LabelSizeDAO extends DAO {
       debugLog('$END, $e');
       throw Exception('${runtimeLogTag()} $e');
     }
+  }
+
+  static Future<LabelSize> updateDateSetup(
+    int labelSizeId,
+    LabelSizeDateSetupUpdate update,
+  ) async {
+    debugLog('$START, labelSizeId:$labelSizeId');
+    final capabilityResult = await DbClient.instance.getData(
+      dateSetupLogCapabilitySql,
+    );
+    final capabilities = DAO.mapRow(
+      capabilityResult,
+      LabelSizeDateSetupLogCapabilities.fromMap,
+    );
+    if (capabilities == null) {
+      throw StateError('날짜 설정 로그 컬럼 확인 결과가 없습니다.');
+    }
+
+    final latestResult = await DbClient.instance.getDataWithParams(
+      '$SelectSql $WhereSqlLabelSizeId',
+      {'labelSizeId': labelSizeId},
+    );
+    final latest = DAO.mapRow(latestResult, LabelSize.fromMap);
+    if (latest?.labelSizeSetup == null) {
+      throw StateError('저장할 라벨 날짜 설정을 찾을 수 없습니다.');
+    }
+
+    final params = <String, dynamic>{
+      ...update.toParams(),
+      'labelSizeId': labelSizeId,
+    };
+    late final Object result;
+    if (capabilities.hasAllColumns) {
+      final localIp = await RGetIp.internalIP;
+      params
+        ..['userId'] = User.instance!.userId
+        ..['loginIP'] = await stringToHexCp949(localIp ?? '');
+      result = await DbClient.instance.writeDataWithParams(
+        dateSetupLoggedTransactionSql,
+        params,
+      );
+    } else {
+      debugLog(
+        'date setup log columns incomplete; applying logless update '
+        'for labelSizeId:$labelSizeId',
+      );
+      result = await DbClient.instance.writeDataWithParams(
+        dateSetupUpdateSql,
+        params,
+      );
+    }
+    if (DAO.affectedRows(result) != 1) {
+      throw StateError('라벨 날짜 설정 저장 결과가 올바르지 않습니다.');
+    }
+
+    final saved = latest!.copyWith(
+      labelSizeSetup: latest.labelSizeSetup!.copyWithDateSetup(update),
+      hasInvalidDateSetupValues: false,
+    );
+    debugLog('$END, labelSizeId:$labelSizeId, logged:${capabilities.hasAllColumns}');
+    return saved;
   }
 
   static Future<void> updateByLabelSizeId(

@@ -13,6 +13,7 @@ enum DbIsolateAction {
   queryWithParams,
   write,
   writeWithParams,
+  transaction,
   disconnect,
 }
 
@@ -94,6 +95,21 @@ Future<void> dbIsolateMain(DbIsolateBootstrapMessage bootstrap) async {
           final res = await _requireDriver(
             driver,
           ).writeDataWithParams(msg.payload['sql'], msg.payload['params']);
+          msg.replyTo.send(DbIsolateResponse(success: true, result: res));
+          break;
+        case DbIsolateAction.transaction:
+          final statementMaps = List<Map<String, dynamic>>.from(
+            (msg.payload['statements'] as List).map(
+              (value) => Map<String, dynamic>.from(value as Map),
+            ),
+          );
+          final statements = statementMaps
+              .map(DbTransactionStatement.fromMap)
+              .toList(growable: false);
+          final res = await executeDriverTransaction(
+            _requireDriver(driver),
+            statements,
+          );
           msg.replyTo.send(DbIsolateResponse(success: true, result: res));
           break;
         case DbIsolateAction.disconnect:
