@@ -3155,11 +3155,13 @@ class _HomePageManagerState extends State<HomePageManager> {
       _effectiveLabelSize,
     );
     final settingsEnabled = _selectedTabValue() == 'common_label';
-    final dateSettingsEnabled =
-        resolvedLabel?.labelSizeSetup != null &&
-        !_itemDraftCommandBusy &&
-        !_itemDraftForceReloadRequired &&
-        _itemDraftController?.isDirty != true;
+    final dateSettingsEnabled = _itemManagerDateSettingsEnabled(
+      selectedTabValue: _selectedTabValue(),
+      hasDateSetup: resolvedLabel?.labelSizeSetup != null,
+      commandBusy: _itemDraftCommandBusy,
+      forceReloadRequired: _itemDraftForceReloadRequired,
+      draftDirty: _itemDraftController?.isDirty == true,
+    );
 
     final tabbedView = TabbedViewTheme(
       data: _buildTabbedTheme(),
@@ -4335,10 +4337,10 @@ class _ItemElementPreviewTab extends StatelessWidget {
       hideToolbar: !canEdit,
       hideRowColumnHeaderLabels: true,
       hideSelectionHighlight: true,
-      singleClickCellEdit: true,
       rulerCornerSizeLabelUsesAsterisk: true,
       disableSheetRulerGuideInteraction: true,
       hideStatisticBar: true,
+      showFormulaBar: true,
       limitCellActionsToClipboardAndClear: true,
       zoomToolbarPlacement: LabelSheetZoomToolbarPlacement.previewTabAreaEnd,
       onUserWorkbookChanged: canEdit ? onWorkbookChanged : null,
@@ -4351,8 +4353,6 @@ class _ItemElementPreviewTab extends StatelessWidget {
 }
 
 const List<String> _itemElementToolbarItems = [
-  labelSheetSaveToolbarCommand,
-  '|',
   fs.fortuneToolbarFontPopupKey,
   fs.fortuneToolbarFontSizePopupKey,
   fs.fortuneToolbarBoldCommand,
@@ -4366,6 +4366,19 @@ const List<String> _itemElementToolbarItems = [
   fs.fortuneToolbarTextWrapPopupKey,
   fs.fortuneToolbarTextRotationPopupKey,
 ];
+
+bool _itemManagerDateSettingsEnabled({
+  required Object? selectedTabValue,
+  required bool hasDateSetup,
+  required bool commandBusy,
+  required bool forceReloadRequired,
+  required bool draftDirty,
+}) =>
+    selectedTabValue == 'items' &&
+    hasDateSetup &&
+    !commandBusy &&
+    !forceReloadRequired &&
+    !draftDirty;
 
 List<String> _itemPreviewImageObjectIdsFor(Iterable<TColumnBase> columns) {
   final result = <String>[];
@@ -4581,6 +4594,21 @@ Widget debugTopControlAreaForTesting({
       resolvedLabel: null,
     ),
   ),
+);
+
+@visibleForTesting
+bool debugItemManagerDateSettingsEnabledForTesting({
+  required Object? selectedTabValue,
+  bool hasDateSetup = true,
+  bool commandBusy = false,
+  bool forceReloadRequired = false,
+  bool draftDirty = false,
+}) => _itemManagerDateSettingsEnabled(
+  selectedTabValue: selectedTabValue,
+  hasDateSetup: hasDateSetup,
+  commandBusy: commandBusy,
+  forceReloadRequired: forceReloadRequired,
+  draftDirty: draftDirty,
 );
 
 @visibleForTesting

@@ -1730,6 +1730,7 @@ class LabelSheetWorkbench extends StatefulWidget {
     this.rulerCornerSizeLabelUsesAsterisk = false,
     this.disableSheetRulerGuideInteraction = false,
     this.hideStatisticBar = false,
+    this.showFormulaBar = false,
     this.copyOnlyContextMenu = false,
     this.limitCellActionsToClipboardAndClear = false,
     this.zoomToolbarPlacement = LabelSheetZoomToolbarPlacement.sheetToolbarEnd,
@@ -1762,6 +1763,7 @@ class LabelSheetWorkbench extends StatefulWidget {
   final bool rulerCornerSizeLabelUsesAsterisk;
   final bool disableSheetRulerGuideInteraction;
   final bool hideStatisticBar;
+  final bool showFormulaBar;
   final bool copyOnlyContextMenu;
   final bool limitCellActionsToClipboardAndClear;
   final LabelSheetZoomToolbarPlacement zoomToolbarPlacement;
@@ -3297,7 +3299,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
               imageObjectIds: widget.imageObjectIds,
               barcodeObjectIds: widget.barcodeObjectIds,
               gridClientSize: _gridClientSize,
-              showFormulaBar: false,
+              showFormulaBar: widget.showFormulaBar,
               showSheetTabs: false,
             );
             _notifyGridRectChanged(

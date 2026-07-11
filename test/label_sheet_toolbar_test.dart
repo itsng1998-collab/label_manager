@@ -157,8 +157,6 @@ Finder _printDialogCloseButtonFinder() {
 }
 
 const List<String> _itemElementToolbarItemsForTest = [
-  labelSheetSaveToolbarCommand,
-  '|',
   fortuneToolbarFontPopupKey,
   fortuneToolbarFontSizePopupKey,
   fortuneToolbarBoldCommand,
@@ -190,6 +188,25 @@ Offset _floatingResizeGripPoint(WidgetTester tester, String key) {
 }
 
 void main() {
+  test('date settings is enabled only on item management tab', () {
+    expect(
+      debugItemManagerDateSettingsEnabledForTesting(selectedTabValue: 'items'),
+      isTrue,
+    );
+    expect(
+      debugItemManagerDateSettingsEnabledForTesting(
+        selectedTabValue: 'common_label',
+      ),
+      isFalse,
+    );
+    expect(
+      debugItemManagerDateSettingsEnabledForTesting(
+        selectedTabValue: 'label_output',
+      ),
+      isFalse,
+    );
+  });
+
   testWidgets(
     'label settings button is active when date settings is available',
     (tester) async {
@@ -446,7 +463,7 @@ void main() {
     expect(runs.any((run) => run.text == '설탕' && run.italic == true), isTrue);
   });
 
-  testWidgets('item element edit enables save toolbar without replacing tab', (
+  testWidgets('item element omits save toolbar and shows formula input', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -462,94 +479,16 @@ void main() {
     await tester.pump();
     await tester.pump();
 
-    var sheetApp = tester.widget<FortuneSheetApp>(find.byType(FortuneSheetApp));
-    var saveItem = sheetApp.settings!.customToolbarItems.singleWhere(
-      (item) => item.key == labelSheetSaveToolbarCommand,
+    final sheetApp = tester.widget<FortuneSheetApp>(
+      find.byType(FortuneSheetApp),
     );
-    expect(saveItem.disabled, isTrue);
-
-    sheetApp.onChange!(
-      FortuneWorkbook(
-        sheets: [
-          FortuneSheet(
-            id: 'item_element',
-            name: '주원료 및 함량',
-            cells: {
-              const FortuneCellCoord(0, 0): const FortuneCell(value: '수정'),
-            },
-          ),
-        ],
-      ),
-    );
-    sheetApp.onOp!(const [
-      {'type': 'test'},
-    ]);
-    await tester.pump();
-
-    sheetApp = tester.widget<FortuneSheetApp>(find.byType(FortuneSheetApp));
-    saveItem = sheetApp.settings!.customToolbarItems.singleWhere(
-      (item) => item.key == labelSheetSaveToolbarCommand,
-    );
-    expect(saveItem.disabled, isFalse);
-  });
-
-  testWidgets('item element save commits plain text and workbook to draft', (
-    tester,
-  ) async {
-    String? committedPlain;
-    String? committedPayload;
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: debugItemPreviewPanelForTesting(
-            item: _testItemOfMarket(itemId: 0, itemName: '신규 품목'),
-            rowIdentity: 'draft:new-item',
-            labelSize: _testLabelSizeWithFormData(''),
-            onElementCommitted: (plain, payload) async {
-              committedPlain = plain;
-              committedPayload = payload;
-            },
-          ),
-        ),
-      ),
-    );
-    await tester.pump();
-    await tester.pump();
-
-    var sheetApp = tester.widget<FortuneSheetApp>(find.byType(FortuneSheetApp));
-    sheetApp.onChange!(
-      FortuneWorkbook(
-        sheets: [
-          FortuneSheet(
-            id: 'item_element',
-            name: '주원료 및 함량',
-            cells: {
-              const FortuneCellCoord(0, 0): const FortuneCell(value: '딸기, 설탕'),
-            },
-          ),
-        ],
-      ),
-    );
-    sheetApp.onOp!(const [
-      {'type': 'test'},
-    ]);
-    await tester.pump();
-
-    sheetApp = tester.widget<FortuneSheetApp>(find.byType(FortuneSheetApp));
-    final saveItem = sheetApp.settings!.customToolbarItems.singleWhere(
-      (item) => item.key == labelSheetSaveToolbarCommand,
-    );
-    saveItem.onClick!(saveItem);
-    await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(TextButton, '확인'));
-    await tester.pumpAndSettle();
-
-    expect(committedPlain, '원재료');
-    expect(committedPayload, isNotNull);
-    final decoded = labelSheetDecodeWorkbookSave(committedPayload!);
+    expect(sheetApp.settings!.singleClickCellEdit, isFalse);
+    expect(sheetApp.showFormulaBar, isTrue);
     expect(
-      decoded.sheets.single.cells[const FortuneCellCoord(0, 0)]!.value,
-      '원재료',
+      sheetApp.settings!.customToolbarItems.where(
+        (item) => item.key == labelSheetSaveToolbarCommand,
+      ),
+      isEmpty,
     );
   });
 
@@ -875,7 +814,6 @@ void main() {
       toolbarItems: _itemElementToolbarItemsForTest,
       hideRowColumnHeaderLabels: true,
       hideSelectionHighlight: true,
-      singleClickCellEdit: true,
       rulerCornerSizeLabelUsesAsterisk: true,
       disableSheetRulerGuideInteraction: true,
       hideStatisticBar: true,
@@ -886,14 +824,14 @@ void main() {
       settings.customToolbarItems,
     );
 
-    expect(toolbarItems.first, labelSheetSaveToolbarCommand);
-    expect(toolbarItems, contains(labelSheetSaveToolbarCommand));
+    expect(toolbarItems.first, fortuneToolbarFontPopupKey);
+    expect(toolbarItems, isNot(contains(labelSheetSaveToolbarCommand)));
     expect(toolbarItems, isNot(contains(labelSheetPrintToolbarCommand)));
     expect(settings.rowHeaderWidth, 46);
     expect(settings.columnHeaderHeight, 20);
     expect(settings.hideRowColumnHeaderLabels, isTrue);
     expect(settings.hideSelectionHighlight, isTrue);
-    expect(settings.singleClickCellEdit, isTrue);
+    expect(settings.singleClickCellEdit, isFalse);
     expect(settings.hidePrintAreaBoundary, isFalse);
     expect(settings.fitSingleCellToViewport, isFalse);
     expect(settings.rulerCornerSizeLabelUsesAsterisk, isTrue);
@@ -964,7 +902,8 @@ void main() {
   testWidgets('limited cell action mode blocks formatting shortcut', (
     tester,
   ) async {
-    Future<bool> ctrlBoldEnablesSave({required bool limited}) async {
+    Future<bool> ctrlBoldChangesWorkbook({required bool limited}) async {
+      var changed = false;
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
@@ -988,6 +927,7 @@ void main() {
                 ),
                 toolbarItems: _itemElementToolbarItemsForTest,
                 limitCellActionsToClipboardAndClear: limited,
+                onUserWorkbookChanged: (_) => changed = true,
               ),
             ),
           ),
@@ -1005,16 +945,11 @@ void main() {
       await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
       await tester.pump();
 
-      final saveItem = tester
-          .widget<FortuneSheetApp>(find.byType(FortuneSheetApp))
-          .settings!
-          .customToolbarItems
-          .singleWhere((item) => item.key == labelSheetSaveToolbarCommand);
-      return saveItem.disabled == false;
+      return changed;
     }
 
-    expect(await ctrlBoldEnablesSave(limited: false), isTrue);
-    expect(await ctrlBoldEnablesSave(limited: true), isFalse);
+    expect(await ctrlBoldChangesWorkbook(limited: false), isTrue);
+    expect(await ctrlBoldChangesWorkbook(limited: true), isFalse);
   });
 
   test('label sheet settings can hide toolbar and keep copy-only menus', () {
