@@ -28,6 +28,21 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-11): FortuneTable 편집 박스 geometry 정합
+
+- 사용자 확인: 실제 품목관리 화면의 편집 박스가 FortuneSheet 셀 editor와 전혀 다르게 보인다.
+- 원인: FortuneTable은 셀 `Container`의 좌우 8px padding 내부에 intrinsic 높이의 Material `TextField`를 렌더링해 테두리가 셀 전체를 덮지 않는다. FortuneSheet는 셀 rect 전체를 덮는 `EditableText` overlay를 사용한다.
+- 수정: 편집 중 바깥 셀 padding을 제거하고 `SizedBox.expand + DecoratedBox + Padding + EditableText` 구조로 변경했다. editor는 grid border를 제외한 셀 전체 27px 높이를 덮고 FortuneSheet cursor/selection 색을 사용한다.
+- 추가 수정: 모든 셀 pointer-down에서 행/활성 셀을 즉시 선택하고, 다른 셀 pointer-up에서 기존 editor를 commit한다. 선택과 commit 순서를 분리해 클릭한 셀 선택이 사라지지 않으며 Ctrl/Shift 다중 선택과 체크박스도 유지한다.
+- focused 검증: geometry/Enter/Esc/무변경, 문자/F2, 다른 셀 클릭 commit+선택 이동, Ctrl/Shift 선택, 체크박스, ItemManage 품명 편집 관련 9개 통과. 임시 진단 로그 제거 및 diagnostics 0건. 파일 전체 검증 예정.
+- 회귀 수정: 오른쪽 클릭 pointer-down이 기존 다중 선택을 1행으로 축소하지 않도록 행/활성 셀 선택을 주 버튼에만 적용했다. `test/fortune_table_test.dart` 전체 31개 통과.
+- 전체 검증 예정: diagnostics, `C:\Flutter\bin\flutter.bat analyze`, 전체 `flutter test`, `git diff --check`.
+- 변경 파일 diagnostics 0건, `C:\Flutter\bin\flutter.bat analyze` 이슈 0건. 전체 테스트 예정.
+- 전체 테스트 3,344개 통과. 테스트 산출물 정리와 `git diff --check` 후 `third_party/fortune_sheet/lib/src/fortune_table.dart`, `test/fortune_table_test.dart`를 기능 commit하고 `SESSION_HANDOFF.md`는 별도 commit한다.
+- 최종 geometry 검증: auto-fit 테스트 셀의 실제 `59x27` rect와 editor `DecoratedBox` 크기가 일치해 기존 좌우 8px inset이 제거됨을 확인했다. 포맷 후 파일 테스트 31개, diagnostics 0건, `flutter analyze` 이슈 0건, `git diff --check` 통과.
+- 기능 commit: `15ab6c5` (`품목관리 셀 전체 편집 영역 보정`). Material `TextField` 대신 셀 전체 `EditableText`를 사용하고, 다른 셀을 클릭하면 클릭 대상 선택 후 기존 셀 편집을 commit한다.
+- 기존 unrelated dirty `lib/core/app.dart`는 수정·stage 대상에서 제외한다.
+
 ### 완료 (2026-07-11): FortuneTable 시트형 셀 편집 UX 정합
 
 - 사용자 요청: FortuneSheetApp 전환 없이 품목관리 `FortuneTable`의 셀 입력 박스와 편집 UX를 FortuneSheet 셀과 동일하게 맞춘다.
