@@ -3330,6 +3330,8 @@ class _TopControlArea extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final labelMenuEnabled =
+        onLabelSettingsPressed != null || onDateSettingsPressed != null;
     return LayoutBuilder(
       builder: (context, constraints) {
         return Container(
@@ -3410,9 +3412,7 @@ class _TopControlArea extends StatelessWidget {
                         SizedBox(
                           height: lmSize(36),
                           child: PopupMenuButton<String>(
-                            enabled:
-                                onLabelSettingsPressed != null ||
-                                onDateSettingsPressed != null,
+                            enabled: labelMenuEnabled,
                             tooltip: '라벨 설정',
                             onSelected: (value) {
                               if (value == 'label') {
@@ -3433,18 +3433,20 @@ class _TopControlArea extends StatelessWidget {
                                 child: const Text('날짜 타입 설정...'),
                               ),
                             ],
-                            child: OutlinedButton.icon(
-                              onPressed: null,
-                              icon: const Icon(Icons.settings, size: 16),
-                              label: const Text(
-                                '설정',
-                                style: TextStyle(fontSize: 14),
-                              ),
-                              style: OutlinedButton.styleFrom(
-                                minimumSize: lmSize2(72, 36),
-                                padding: lmInsetsSymmetric(horizontal: 8),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
+                            child: IgnorePointer(
+                              child: OutlinedButton.icon(
+                                onPressed: labelMenuEnabled ? () {} : null,
+                                icon: const Icon(Icons.settings, size: 16),
+                                label: const Text(
+                                  '설정',
+                                  style: TextStyle(fontSize: 14),
+                                ),
+                                style: OutlinedButton.styleFrom(
+                                  minimumSize: lmSize2(72, 36),
+                                  padding: lmInsetsSymmetric(horizontal: 8),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
                                 ),
                               ),
                             ),
@@ -4556,6 +4558,29 @@ Widget debugItemPreviewPanelForTesting({
   onElementCommitted: onElementCommitted ?? (_, _) async {},
   canSelectOutputPreview: canSelectOutputPreview ?? () => true,
   canEdit: canEdit,
+);
+
+@visibleForTesting
+Widget debugTopControlAreaForTesting({
+  VoidCallback? onLabelSettingsPressed,
+  VoidCallback? onDateSettingsPressed,
+}) => Material(
+  child: SizedBox(
+    width: 1400,
+    child: _TopControlArea(
+      onBrandChanged: (_) {},
+      onLabelSizeChanged: (_) {},
+      onDropdownMenuStateChanged: (_) {},
+      settingsEnabled: false,
+      onBrandSettingsPressed: null,
+      onLabelSettingsPressed: onLabelSettingsPressed,
+      onDateSettingsPressed: onDateSettingsPressed,
+      brandItems: const [],
+      resolvedBrand: null,
+      labelItems: const [],
+      resolvedLabel: null,
+    ),
+  ),
 );
 
 @visibleForTesting

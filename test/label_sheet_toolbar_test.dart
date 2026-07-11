@@ -190,6 +190,45 @@ Offset _floatingResizeGripPoint(WidgetTester tester, String key) {
 }
 
 void main() {
+  testWidgets(
+    'label settings button is active when date settings is available',
+    (tester) async {
+      tester.view.physicalSize = const Size(1400, 500);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: debugTopControlAreaForTesting(onDateSettingsPressed: () {}),
+          ),
+        ),
+      );
+
+      final popupFinder = find.byWidgetPredicate(
+        (widget) =>
+            widget is PopupMenuButton<String> && widget.tooltip == '라벨 설정',
+      );
+      final popup = tester.widget<PopupMenuButton<String>>(popupFinder);
+      final button = tester.widget<OutlinedButton>(
+        find.descendant(of: popupFinder, matching: find.byType(OutlinedButton)),
+      );
+      expect(popup.enabled, isTrue);
+      expect(button.onPressed, isNotNull);
+
+      await tester.tap(popupFinder);
+      await tester.pumpAndSettle();
+      expect(find.text('날짜 타입 설정...'), findsOneWidget);
+      final dateItem = tester.widget<PopupMenuItem<String>>(
+        find.ancestor(
+          of: find.text('날짜 타입 설정...'),
+          matching: find.byType(PopupMenuItem<String>),
+        ),
+      );
+      expect(dateItem.enabled, isTrue);
+    },
+  );
+
   TestWidgetsFlutterBinding.ensureInitialized();
 
   test('item output preview reports RTF and invalid sheet states', () {
