@@ -1615,12 +1615,10 @@ FortuneSettings labelSheetSettings(
   bool hideStatisticBar = false,
   bool copyOnlyContextMenu = false,
   bool limitCellActionsToClipboardAndClear = false,
-  bool? allowEdit,
 }) {
   final resolvedToolbarItems = toolbarItems ?? labelSheetToolbarItems;
   return base.copyWith(
     showToolbar: !hideToolbar,
-    allowEdit: allowEdit,
     copyOnlyContextMenu: copyOnlyContextMenu,
     limitCellActionsToClipboardAndClear: limitCellActionsToClipboardAndClear,
     toolbarItems: resolvedToolbarItems,
@@ -1734,7 +1732,6 @@ class LabelSheetWorkbench extends StatefulWidget {
     this.hideStatisticBar = false,
     this.copyOnlyContextMenu = false,
     this.limitCellActionsToClipboardAndClear = false,
-    this.allowEdit,
     this.zoomToolbarPlacement = LabelSheetZoomToolbarPlacement.sheetToolbarEnd,
     this.onInitialLoadComplete,
     this.onGridRectChanged,
@@ -1766,7 +1763,6 @@ class LabelSheetWorkbench extends StatefulWidget {
   final bool hideStatisticBar;
   final bool copyOnlyContextMenu;
   final bool limitCellActionsToClipboardAndClear;
-  final bool? allowEdit;
   final LabelSheetZoomToolbarPlacement zoomToolbarPlacement;
   final VoidCallback? onInitialLoadComplete;
   final ValueChanged<ui.Rect>? onGridRectChanged;
@@ -1899,7 +1895,6 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     copyOnlyContextMenu: widget.copyOnlyContextMenu,
     limitCellActionsToClipboardAndClear:
         widget.limitCellActionsToClipboardAndClear,
-    allowEdit: widget.allowEdit,
   );
 
   FortuneSheetGridClientPhysicalSize? get _gridClientSize {

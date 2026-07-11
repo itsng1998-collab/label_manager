@@ -14,14 +14,10 @@ import 'package:http/testing.dart';
 import 'package:image/image.dart' as imglib;
 import 'package:label_manager/home_page_manager.dart';
 import 'package:label_manager/models/additional_item.dart';
-import 'package:label_manager/models/barcode.dart';
-import 'package:label_manager/models/column.dart';
-import 'package:label_manager/models/column_type.dart';
 import 'package:label_manager/models/item.dart';
 import 'package:label_manager/models/item_of_market.dart';
 import 'package:label_manager/models/label_size.dart';
 import 'package:label_manager/page_home/preview_floating_window.dart';
-import 'package:label_manager/page_home/item_code_data_resolver.dart';
 import 'package:label_manager/page_label_sheet/label_sheet_ai_import.dart';
 import 'package:label_manager/page_label_sheet/label_sheet_ai_import_temp.dart';
 import 'package:label_manager/page_label_sheet/label_sheet_page.dart';
@@ -33,7 +29,6 @@ import 'package:label_manager/page_label_sheet/label_sheet_rtf_preview.dart';
 import 'package:label_manager/page_label_sheet/label_sheet_save_codec.dart';
 import 'package:label_manager/page_label_sheet/label_sheet_workbench.dart';
 import 'package:label_manager/printing/label_printer_preferences.dart';
-import 'package:label_manager/printing/label_sheet_print_job.dart';
 import 'package:path/path.dart' as p;
 import 'package:printing/printing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -333,171 +328,6 @@ void main() {
     expect(sheet.showGridLines, isFalse);
     expect(sheet.cells[const FortuneCellCoord(0, 0)]?.renderedText, '딸기잼');
     expect(sheet.cells[const FortuneCellCoord(0, 1)]?.renderedText, '딸기, 설탕');
-  });
-
-  test('item output barcode metadata reaches hybrid EZPL job', () async {
-    final encoded = labelSheetEncodeWorkbookSave(
-      FortuneWorkbook(
-        sheets: [
-          FortuneSheet(
-            id: 'common_01',
-            name: '출력 시트',
-            rowCount: 1,
-            columnCount: 1,
-            images: const [
-              FortuneImage(
-                id: 'item-barcode',
-                src: '',
-                left: 0,
-                top: 0,
-                width: 40,
-                height: 20,
-                extraFields: {
-                  'fortuneBarcode': true,
-                  fortuneBarcodeObjectIdExtraKey: '#BARCODE',
-                  'barcodeFormatId': 'code128',
-                  'barcodeModuleScale': 2,
-                  'barcodeBarHeight': 16,
-                  'barcodeShowText': true,
-                },
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-    final resolver = ItemCodeDataResolver(
-      itemName: '출력 품목',
-      columns: const [
-        ItemCodeColumnSpec(
-          columnId: 1,
-          keyword: 'BARCODE',
-          columnName: '상품 바코드',
-          typeCode: TColumnType.TYPE_BARCODE,
-          barcodeType: BarcodeType.Code128,
-          createType: QRCodeCreateType.QRCODE_TYPE_PLAIN_TEXT,
-          userDefineData: '',
-          userDefineText: '',
-          natriumJoinString: '',
-          showBarcodeText: true,
-          showQrText: false,
-        ),
-      ],
-      columnValue: (_) => 'ITEM-12345',
-    );
-
-    final preview = debugItemOutputPreviewForTesting(
-      labelSize: _testLabelSizeWithFormData(encoded),
-      item: _testItemOfMarket(itemName: '출력 품목'),
-      elementText: '원재료',
-      codeDataResolver: resolver,
-    );
-    final sheet = preview.workbook!.sheets.single;
-    expect(sheet.images.single.extraFields['barcodeText'], 'ITEM-12345');
-    expect(sheet.images.single.extraFields['barcodeFormatId'], 'code128');
-
-    final fallback = imglib.Image(width: 100, height: 80);
-    imglib.fill(fallback, color: imglib.ColorRgb8(255, 255, 255));
-    final bytes = await buildLabelSheetHybridEzplBytes(
-      sheet: sheet,
-      range: const FortuneRange(
-        rowStart: 0,
-        rowEnd: 0,
-        columnStart: 0,
-        columnEnd: 0,
-      ),
-      fallbackPngBytes: Uint8List.fromList(imglib.encodePng(fallback)),
-      metrics: const LabelSheetPrintPageMetrics(
-        labelWidthMm: 100,
-        labelHeightMm: 80,
-        dpi: 25.4,
-      ),
-      options: const LabelSheetPrintOptions(
-        copies: 1,
-        leftMarginMm: 0,
-        topMarginMm: 0,
-        extraAreaMm: 0,
-        autoSpacingPercent: null,
-        orientation: LabelSheetPrintOrientation.horizontal,
-      ),
-    );
-    final commandText = ascii.decode(
-      bytes
-          .where((byte) => byte == 0x0d || byte == 0x0a || byte >= 0x20)
-          .toList(),
-      allowInvalid: true,
-    );
-    expect(commandText, contains('~G'));
-    expect(commandText, contains('BQ0,0,2,5,8,0,1,ITEM-12345'));
-  });
-
-  testWidgets('item label print tab exposes print-only read-only sheet', (
-    tester,
-  ) async {
-    SharedPreferences.setMockInitialValues(<String, Object>{});
-    final encoded = labelSheetEncodeWorkbookSave(
-      FortuneWorkbook(
-        sheets: [
-          FortuneSheet(
-            id: 'common_01',
-            name: '출력 시트',
-            cells: {
-              const FortuneCellCoord(0, 0): const FortuneCell(
-                value: '#ITEMNAME',
-              ),
-            },
-          ),
-        ],
-      ),
-    );
-
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: SizedBox(
-            width: 900,
-            height: 600,
-            child: debugItemLabelPrintTabForTesting(
-              item: _testItemOfMarket(itemName: '출력 품목'),
-              labelSize: _testLabelSizeWithFormData(encoded),
-            ),
-          ),
-        ),
-      ),
-    );
-    await tester.pump();
-    await tester.pump();
-
-    final settings = tester
-        .widget<FortuneSheetApp>(find.byType(FortuneSheetApp))
-        .settings!;
-    expect(settings.allowEdit, isFalse);
-    expect(settings.rowHeaderWidth, 0);
-    expect(settings.columnHeaderHeight, 0);
-    expect(settings.hideSelectionHighlight, isTrue);
-    expect(settings.statisticBarHeight, 0);
-    expect(settings.toolbarItems, const [labelSheetPrintToolbarCommand]);
-    expect(settings.customToolbarItems, hasLength(1));
-    expect(
-      settings.customToolbarItems.single.key,
-      labelSheetPrintToolbarCommand,
-    );
-
-    settings.customToolbarItems.single.onClick!(
-      settings.customToolbarItems.single,
-    );
-    await tester.pump();
-    await tester.pump();
-
-    expect(
-      find.byKey(const ValueKey('label-sheet-print-settings-dialog')),
-      findsOneWidget,
-    );
-    expect(find.text('프린터 설정'), findsOneWidget);
-    expect(find.text('발행'), findsOneWidget);
-
-    await tester.tap(_printDialogCloseButtonFinder());
-    await tester.pump();
   });
 
   test('item output preview preserves rich element replacement runs', () {
@@ -1023,7 +853,6 @@ void main() {
       hideToolbar: true,
       copyOnlyContextMenu: true,
       toolbarItems: const <String>[],
-      allowEdit: false,
     );
 
     expect(settings.showToolbar, isFalse);
@@ -1031,7 +860,6 @@ void main() {
     expect(settings.toolbarItems, isEmpty);
     expect(settings.customToolbarItems, isEmpty);
     expect(settings.copyOnlyContextMenu, isTrue);
-    expect(settings.allowEdit, isFalse);
     expect(settings.cellContextMenu, const [fortuneContextCopyCommand]);
     expect(settings.headerContextMenu, const [fortuneContextCopyCommand]);
 
@@ -1042,11 +870,6 @@ void main() {
       defaultSettings.cellContextMenu,
       contains(fortuneContextPasteCommand),
     );
-
-    final preservedReadOnlySettings = labelSheetSettings(
-      const FortuneSettings(allowEdit: false),
-    );
-    expect(preservedReadOnlySettings.allowEdit, isFalse);
   });
 
   testWidgets('single cell viewport fit keeps visible size across zoom', (

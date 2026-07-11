@@ -59,11 +59,10 @@
 - draft dirty 또는 command busy 상태에서는 발행 checkbox controller를 제거하고 기존 체크값만 표시한다. 저장/취소 후 clean 상태에서만 다시 조작할 수 있다.
 - 이미지 타입 동적 셀은 일반 텍스트 편집 대신 double-click BMP 파일 선택기를 사용한다. 선택한 값은 경로와 `.bmp` 확장자를 제거한 파일명만 draft에 반영하고 경로 비저장 정책을 안내한다. 선택형 컬럼은 현재 `TColumnType`/`TColumn` DB projection에 선택 옵션을 나타내는 타입이나 option source가 없어 근거 없는 dropdown을 추가하지 않았다.
 - dirty 로그아웃/종료는 `LifecycleManager.notifyExitRequested()`의 bool 승인 계약으로 취소할 수 있으며 Windows close와 `PopScope` 모두 거부 결과를 존중한다.
-- 홈 `라벨출력(F3)`은 선택 품목의 공용라벨에 `_itemOutputPreview()`와 `ItemCodeDataResolver`를 적용한 workbook을 기존 `LabelSheetWorkbench`에 연결한다. 품목 선택 변경 시 기존 `TabData.content`도 교체하며, 출력 화면은 인쇄 toolbar만 노출하고 FortuneSheet `allowEdit=false`, 헤더/선택 강조/통계 숨김, copy-only 메뉴로 구성한다. 기존 workbench의 PDF/EZPL printer settings와 실행 경로를 그대로 재사용하며, F3의 실제 인쇄 custom item 호출로 프린터 설정 dialog와 발행 command가 노출되는 widget 계약까지 검증한다.
 - Windows G500 직접 출력은 이름만으로 EZPL raw를 선택하지 않고 spooler `PRINTER_INFO_2.pPortName`도 확인한다. `FILE:`/`PORTPROMPT:` 포트는 실장비 raw 대상으로 사용하지 않고 안내 후 일반 PDF 인쇄로 전환하며, USB/TCP 포트와 포트 조회 실패는 기존 raw 경로를 유지한다. 현재 개발 PC의 `Godex G500`은 `FILE:` 포트이며 일회성 실제 spooler probe로 새 API가 이를 정확히 읽는 것을 확인했다.
-- F3 품목 출력 통합 계약은 `#BARCODE` template object에 테스트 resolver의 실제 품목 값을 적용한 output workbook을 hybrid EZPL 생성기에 전달한다. resolver가 만든 `barcodeText`/`barcodeFormatId`가 native `BQ` 명령에 반영되고 raster `~G` fallback도 함께 유지되는 것을 검증한다.
-- 최신 검증 완료: journal focused `8 통과 / 0 실패`, draft/manager focused `21 통과 / 0 실패`, item manager save DAO `7 통과 / 0 실패`, item manager XLSX `4 통과 / 0 실패`, FortuneTable widget `27 통과 / 0 실패`, printer/output focused `115 통과 / 0 실패`, `C:\Flutter\bin\flutter.bat analyze` `No issues found`, 전체 Flutter suite `3290 통과 / 0 실패`.
-- 자동 검증 제외: 운영 DB capability/save/date/order transaction 및 실제 mapping fingerprint 변동 dialog 실행과 Windows BMP/XLSX 파일 대화상자 수동 선택은 연결 fixture 및 interactive 환경이 없어 미검증이다. 현재 G500이 `FILE:` 포트라 F3의 실장비 EZPL 출력 위치와 품질은 USB/TCP 포트로 연결한 뒤 수동 검증이 필요하다.
+- 자동 검증 제외: 운영 DB capability/save/date/order transaction 및 실제 mapping fingerprint 변동 dialog 실행과 Windows BMP/XLSX 파일 대화상자 수동 선택은 연결 fixture 및 interactive 환경이 없어 미검증이다.
+- 홈 `라벨출력(F3)` 구현은 작업 지시서 범위가 아니므로 placeholder를 유지한다. 지시서의 resolver 기반 실제 출력 입력 계약은 새 F3 화면 구현 요구로 해석하지 않는다.
+- F3 과구현 제거 검증 완료: label toolbar/print job/raw printer focused `107 통과 / 0 실패`, `C:\Flutter\bin\flutter.bat analyze` `No issues found`, 전체 Flutter suite `3288 통과 / 0 실패`.
 - acceptance 보완 구현 커밋 완료: `1183c5b` 품목관리 저장 검증과 재조회 복구 보완.
 - 원자적 재조회와 journal close 실패 복구 커밋 완료: `d36d2c4` 품목관리 재조회 상태 교체를 원자화.
 
@@ -107,7 +106,7 @@
 - 5단계 viewer 진행: `FortuneTable.onRowSecondaryTapDown` 공용 hook으로 실제 우클릭 row를 전달하고, 품목관리 메뉴의 `QR코드 데이터 보기`가 current draft row 기준 resolver 결과 전체를 읽기 전용/선택 가능 목록으로 표시한다. viewer는 controller mutation을 수행하지 않아 dirty 상태에 포함되지 않는다.
 - 5단계 preview/metadata 진행: barcode object id가 column keyword와 일치할 때 resolver가 `barcodeText`, `barcodeFormatId`, `barcodeFormatLabel`, `barcodeShowText`를 갱신하며 geometry metadata는 유지한다. `preserveTemplateBarcodeFormat=true`이면 template format metadata를 보존한다. save codec feature/allow-list와 OpenXML customXml image metadata export/import를 보완해 `.lms` 및 `.xlsx` round-trip에서 플래그가 유지된다. 출력 미리보기는 `itemCodeWarning`/`itemCodeError`를 중복 제거해 상단에 표시하고 오류 barcode object의 기존 이미지를 명시적 SVG placeholder로 교체한다.
 - 5단계 현재 검증: `test/barcode_data_helper_test.dart`와 `test/item_code_data_resolver_test.dart` 통과(현재 resolver 파일 `+8`), QR 우클릭 row widget test 통과(`+1`), preview message/placeholder focused test 통과(`+1`), image save metadata 및 XLSX image metadata focused test 각각 통과(`+1`, `+1`), `flutter analyze` 통과(`No issues found`).
-- 5단계 실제 print 연결 완료: 홈 `라벨출력(F3)`에 resolver 적용 output workbook을 기존 `LabelSheetWorkbench`의 print-only/read-only 모드로 연결했다. 기존 PDF/EZPL native·raster fallback 인쇄 경로를 재사용하며 실제 장비별 위치와 품질 수동 검증만 남아 있다.
+- 5단계 출력 경계 조사: 작업 지시서는 resolver 결과를 실제 출력 입력에 사용하도록 요구하지만 새 출력 화면이나 홈 `라벨출력(F3)` 구현을 요구하지 않는다. 현재 품목관리에는 연결할 기존 실제 출력 command가 없으므로 F3를 새로 구현하지 않고 resolver/출력 미리보기 계약까지만 유지한다.
 - 6단계 날짜 설정 완료: `DateManager`에 레거시 날짜/시간 고정 포맷 및 `Y/M/D`, `H/M` 사용자 정의 sample preview helper를 추가했다. `LabelSize.fromMap`은 날짜/시간 enum index를 range guard하고 범위 밖 값은 날짜 `DATE_FORMAT_DOT`, 시간 `TIME_FORMAT_COLON`으로 열며 `hasInvalidDateSetupValues` 경고 상태를 보존한다.
 - 날짜 저장은 `LabelSizeDateSetupUpdate`의 12개 필드만 `BM_RICH_LABELSIZE_FORM`에 반영한다. `BM_RICH_LABELSIZE_FORM_LOG`의 before/`RICH_ALTER_` after 24개 컬럼을 probe하고, 전부 있으면 로그 insert와 update를 같은 SQL batch transaction에서 실행하며 일부라도 없으면 logless 단일 update를 실행한다. probe 자체 실패, 최신 setup 누락, affected row 불일치는 저장 실패로 처리한다. 저장 결과는 최신 DB setup의 `readOnly`/`useScale`을 유지한 채 `LabelSize.datas`와 현재 선택 cache에 반영한다.
 - 상단 라벨 `설정` 버튼은 `라벨 설정...`/`날짜 타입 설정...` 메뉴로 전환했다. 날짜 다이얼로그는 제조일자/제조시한/소비기한/소비시한 4개 그룹의 사용 여부, 고정/사용자 정의 형식, 실시간 preview를 제공한다. draft dirty 또는 저장 command busy 상태에서는 날짜 설정 메뉴가 비활성화되며 저장 성공 후 setup revision으로 관련 탭/미리보기를 refresh한다.
@@ -118,7 +117,7 @@
 - 7단계 검증: `test/item_order_dialog_test.dart`에서 현재 item 초기 선택/이동/번호/적용 반환/닫기 no-op을 검증하고, `test/user_test.dart`에서 `CLIENT_USER` 조회 전용 계약을 검증했다. `test/fortune_table_test.dart`에서는 메뉴 배치/callback/dirty 차단/편집 권한 안내/빈 영역 메뉴를 검증했다. order identity/SQL 계약을 포함한 관련 28개 테스트, 전체 `flutter analyze`, 전체 Flutter suite `3254 통과 / 0 실패`가 통과했다. 운영 DB에서의 실제 order transaction 실행은 연결 fixture가 없어 미검증이다.
 - 7단계 커밋 완료: `7bc558f` 품목 순서 변경 기능 추가.
 - 7단계 권한/현재 선택 보완 커밋 완료: `fb28808` 품목 순서 권한과 현재 선택 보완.
-- 작업 지시서의 1~7단계 구현과 홈 `라벨출력(F3)` 품목 인쇄 연결을 완료했다. 운영 DB capability/save/date/order transaction 통합 실행과 실제 프린터 출력 품질은 fixture/장비가 없어 계속 미검증이다.
+- 작업 지시서의 1~7단계 구현은 완료했다. 새 F3 출력 화면은 작업 지시서 범위가 아니므로 placeholder를 유지하며, 운영 DB capability/save/date/order transaction 통합 실행은 fixture가 없어 계속 미검증이다.
 - 통합 검증 완료(2026-07-10): 전체 Flutter suite 최초 실행에서 `3237 통과 / 15 실패`를 확인했다. 실패는 `#ELEMENT` 대신 일반 문자열을 사용한 preview fixture, 제거된 toolbar popup 75% ratio cap을 기대한 barcode/canvas 테스트, 새 `label-sheet-import-image` locale key 누락, data row까지 포함한 painter 픽셀 범위, screenshot dashed border의 과도한 픽셀 임계치, 현재 렌더링과 불일치한 golden 9개였다. 제품 구현을 우회하지 않고 각 테스트 계약/범위를 현재 의도에 맞게 보정하고 공식 `FORTUNE_UPDATE_GOLDENS=1` 경로로 실패 golden만 갱신했다.
 - 통합 검증 최종 결과: 품목 순서 권한/현재 선택 보완 후 포맷, focused 28개 테스트, 전체 `flutter analyze`, `C:\Flutter\bin\flutter.bat test` 전체 suite가 모두 통과했다. 최종 suite 결과는 `3254 통과 / 0 실패`다. 운영 DB capability/save/date/order transaction 실행과 실제 Windows 파일 대화상자 import/export는 fixture 및 수동 앱 환경이 없어 자동 검증 범위에서 제외한다.
 - 통합 검증 커밋 완료: `d775607` 품목관리 통합 테스트 기준 정리.
