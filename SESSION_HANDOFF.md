@@ -44,6 +44,7 @@
 - 변경 Dart 6개 파일 format 완료. journal/draft/transaction focused 묶음 44개 통과. 다음 검증은 workspace 진단, `C:\Flutter\bin\flutter.bat analyze`, `C:\Flutter\bin\flutter.bat test`, `git diff --check` 순서로 실행한다.
 - 최종 검증 완료: workspace 진단 0건, `C:\Flutter\bin\flutter.bat analyze`는 `No issues found`, 전체 `C:\Flutter\bin\flutter.bat test`는 296개 통과 / 0 실패, `git diff --check`는 출력 없이 통과했다.
 - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/database/drivers/db_driver.dart`, `lib/home_page_manager.dart`, `lib/models/item_manager_draft.dart`, `lib/models/item_manager_draft_journal.dart`, `test/db_transaction_test.dart`, `test/item_manager_draft_journal_test.dart`. 기존 unrelated dirty `lib/core/app.dart`는 제외하며 배포 빌드/설치 파일은 생성하지 않았다.
+- 기능 커밋 완료: `ae4fd41` 품목관리 journal 복원 보완.
 
 ### 진행 중 (2026-07-11): 품목관리 3차 재검토 보완
 
