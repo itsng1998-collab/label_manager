@@ -28,6 +28,24 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-11): 품목관리 10차 재검토 보완
+
+- 9차 보완 재검토에서 COMMIT 통신 단절이 결과 불확실 예외로 변환되며 client 연결 무효화 신호가 사라지는 문제, 이전 reconnect 세대가 새 attach를 차단하는 문제, 서로 다른 접속정보의 동시 connect가 같은 Future로 병합되는 문제를 확인했다.
+- 권장 작업 순서: COMMIT 단절 신호 보존 -> reconnect 세대별 작업 소유권 -> connect identity 직렬화 -> 실제 비동기 경합 테스트 -> focused/analyze/전체 suite.
+- 수정 예정 1순위: `DbCommitOutcomeUnknown`에 connection-lost 상태를 보존하고 isolate 응답에서 결과 불확실 의미와 연결 무효화를 함께 전달한다. 미검증.
+- `lib/database/drivers/db_driver.dart`/`db_isolate.dart`/`db_client.dart` 편집 완료: COMMIT 단절을 결과 불확실로 유지하면서 `connectionLost` 속성과 전용 응답 코드를 보존해 client cached 연결 상태를 먼저 무효화한다. transaction/client focused 23개 통과.
+- `lib/database/db_connection_service.dart` 편집 완료: reconnect loop owner를 generation별로 관리해 새 attach가 이전 loop의 boolean 상태에 막히지 않게 한다. 이전 세대 recovery를 기다린 새 세대는 cached 연결 상태를 우회하고 자기 접속정보로 강제 재연결한다. 미검증.
+- reconnect 세대/COMMIT 단절 focused 26개 통과.
+- `lib/database/db_client.dart` 후속 편집 완료: 서버/IP/DB/계정/password/timeout identity가 완전히 같은 connect만 in-flight Future를 공유한다. 다른 identity는 앞선 connect의 성공·실패 후 순서대로 실행한다. 미검증.
+- connect identity focused 포함 DB 경계 27개 통과. 후속으로 실제 queue abstraction을 추출해 동일 identity 병합과 다른 identity의 선행 실패 후 실행을 Completer 기반 비동기 테스트로 검증한다. 미검증.
+- `DbConnectOperationQueue` 기반 동일 identity 병합/다른 identity 대기/선행 실패 후 실행 비동기 테스트를 포함한 DB 경계 29개 통과.
+- 최종 검증 전 변경 Dart 파일을 `C:\Flutter\bin\dart.bat format`으로 정리한 뒤 DB client/service/transaction/ODBC focused, workspace 진단, `C:\Flutter\bin\flutter.bat analyze`, 전체 `C:\Flutter\bin\flutter.bat test`, `git diff --check`를 순서대로 실행한다.
+- 변경 Dart 7개 파일 format 완료. DB lifecycle/transaction/ODBC/journal/draft/save focused 86개 통과, 변경 파일 workspace 진단 0건, `C:\Flutter\bin\flutter.bat analyze`는 `No issues found`. 전체 test와 diff check를 이어서 실행한다.
+- 최종 검증 완료: 전체 `C:\Flutter\bin\flutter.bat test` 331개 통과, `git diff --check` 성공.
+- 기능 commit 대상: `lib/database/db_client.dart`, `db_connection_service.dart`, `db_isolate.dart`, `drivers/db_driver.dart`와 관련 테스트 3개 파일. `SESSION_HANDOFF.md`는 기능 commit 해시 기록 후 별도 commit하며 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+- 기능 커밋 `111859d` (`품목관리 DB 재연결 경합 보완`) 완료. 기존 unrelated dirty `lib/core/app.dart`는 제외했다.
+- 기존 unrelated dirty `lib/core/app.dart`는 수정·stage 대상에서 제외한다.
+
 ### 완료 (2026-07-11): 품목관리 9차 재검토 보완
 
 - 8차 보완 재검토에서 isolate가 살아 있는 일반 네트워크 장애는 ODBC/client 연결 flag가 true로 남아 reconnect가 실행되지 않는 문제, reconnect detach 세대 경합, 동시 connect 상태 불일치, journal 필수 before snapshot 누락 수용 문제를 확인했다.
