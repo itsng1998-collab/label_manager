@@ -43,6 +43,7 @@
 - 최종 검증 진행: 변경 Dart 10개 파일 format 완료, transaction/order/date/journal/draft focused 테스트 57개 통과. `C:\Flutter\bin\flutter.bat analyze`는 `No issues found`, 전체 `C:\Flutter\bin\flutter.bat test`는 292개 통과 / 0 실패, workspace 진단 0건이다.
 - 최종 남은 검증: `git diff --check`, 변경 목록 확인 후 `lib/core/app.dart`를 제외한 관련 파일만 stage/commit한다. 배포 빌드와 설치 파일은 생성하지 않았다.
 - 최종 검증 완료: `git diff --check` 출력 없이 통과. stage/commit 대상은 `SESSION_HANDOFF.md`, transaction/order/date/journal 관련 lib 6개와 test 4개이며, 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+- 기능 커밋 완료: `bb6a6a1` 품목관리 3차 재검토 보완.
 
 ### 완료 (2026-07-11): 품목관리 재검토 보완
 
