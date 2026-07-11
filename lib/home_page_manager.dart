@@ -139,6 +139,11 @@ class _HomePageManagerState extends State<HomePageManager> {
   bool _lastReportedItemDraftDirty = false;
   int _labelSetupRevision = 0;
   bool _suppressNextBrandDidUpdateLabelLoad = false;
+  int _itemDraftCancelTraceSequence = 0;
+  int? _lastItemDraftCancelTraceId;
+
+  static const String _itemDraftCancelDebugVersion =
+      'item-draft-cancel-debug-v1';
 
   OverlayEntry? _brandSettingsOverlayEntry;
   OverlayEntry? _labelSettingsOverlayEntry;
@@ -150,9 +155,37 @@ class _HomePageManagerState extends State<HomePageManager> {
 
   void _handleItemDraftDirtyChanged() {
     final dirty = _itemDraftController?.isDirty == true;
+    _logItemDraftCancelDebug(
+      'dirtyChanged observed=$dirty previous=$_lastReportedItemDraftDirty',
+      traceId: _lastItemDraftCancelTraceId,
+    );
     if (dirty == _lastReportedItemDraftDirty) return;
     _lastReportedItemDraftDirty = dirty;
     widget.onItemDraftDirtyChanged?.call(dirty);
+  }
+
+  void _logItemDraftCancelDebug(String event, {int? traceId}) {
+    final controller = _itemDraftController;
+    final stateCounts = <ItemManagerDraftRowState, int>{};
+    if (controller != null) {
+      for (final row in controller.rows) {
+        stateCounts.update(
+          row.rowState,
+          (count) => count + 1,
+          ifAbsent: () => 1,
+        );
+      }
+    }
+    debugLog(
+      '[$_itemDraftCancelDebugVersion] '
+      'trace=${traceId ?? '-'} event=$event '
+      'controller=${controller == null ? 'null' : identityHashCode(controller)} '
+      'dirty=${controller?.isDirty} imported=${controller?.hasImportedRows} '
+      'rows=${controller?.rows.length ?? 0} states=$stateCounts '
+      'deleted=${controller?.deletedSourceItemIds.length ?? 0} '
+      'busy=$_itemDraftCommandBusy forceReload=$_itemDraftForceReloadRequired '
+      'mounted=$mounted selectedTab=${_selectedTabValue()}',
+    );
   }
 
   void _setItemDraftForceReloadRequired(bool value) {
@@ -788,6 +821,10 @@ class _HomePageManagerState extends State<HomePageManager> {
 
   bool _blockItemDraftContextChange() {
     if (_itemDraftCommandBusy) {
+      _logItemDraftCancelDebug(
+        'contextChange blocked reason=commandBusy',
+        traceId: _lastItemDraftCancelTraceId,
+      );
       if (mounted) {
         ScaffoldMessenger.of(
           context,
@@ -796,6 +833,10 @@ class _HomePageManagerState extends State<HomePageManager> {
       return true;
     }
     if (_itemDraftForceReloadRequired) {
+      _logItemDraftCancelDebug(
+        'contextChange blocked reason=forceReload',
+        traceId: _lastItemDraftCancelTraceId,
+      );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('품목 목록을 다시 불러온 뒤 변경해 주세요.')),
@@ -803,7 +844,17 @@ class _HomePageManagerState extends State<HomePageManager> {
       }
       return true;
     }
-    if (_itemDraftController?.isDirty != true) return false;
+    if (_itemDraftController?.isDirty != true) {
+      _logItemDraftCancelDebug(
+        'contextChange allowed',
+        traceId: _lastItemDraftCancelTraceId,
+      );
+      return false;
+    }
+    _logItemDraftCancelDebug(
+      'contextChange blocked reason=dirty',
+      traceId: _lastItemDraftCancelTraceId,
+    );
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('저장 완료 또는 변경 취소 확정 후 변경해 주세요.')),
@@ -814,6 +865,12 @@ class _HomePageManagerState extends State<HomePageManager> {
 
   Future<void> _cancelItemDraft() async {
     final controller = _itemDraftController;
+    final traceId = ++_itemDraftCancelTraceSequence;
+    _lastItemDraftCancelTraceId = traceId;
+    _logItemDraftCancelDebug(
+      'cancel requested eligible=${controller != null && controller.isDirty && !_itemDraftCommandBusy}',
+      traceId: traceId,
+    );
     if (controller == null || !controller.isDirty || _itemDraftCommandBusy) {
       return;
     }
@@ -834,101 +891,151 @@ class _HomePageManagerState extends State<HomePageManager> {
         ],
       ),
     );
-    if (confirmed != true || !mounted) return;
-    if (controller.hasImportedRows) {
-      final importViewState = controller.importViewState;
-      final reloaded = await _reloadItemDraftFromDatabase(
-        selectedItemId: importViewState?.selectedItemId,
-        fallbackIndex: importViewState?.selectedIndex,
-      );
-      if (!reloaded && mounted) {
-        _showItemDraftError('변경 취소 실패', StateError('품목 목록을 다시 불러오지 못했습니다.'));
-      } else if (reloaded && mounted) {
-        final baselineChecksum = importViewState?.baselineChecksum;
-        final reloadedController = _itemDraftController;
-        if (baselineChecksum == null ||
-            reloadedController == null ||
-            itemManagerBaselineChecksum(reloadedController) ==
-                baselineChecksum) {
-          return;
-        }
-        await showDialog<void>(
-          context: context,
-          builder: (dialogContext) => AlertDialog(
-            title: const Text('외부 변경 가능성'),
-            content: const Text(
-              'Excel 가져오기 이후 DB 품목 데이터가 변경되었습니다. 현재 DB 기준으로 복원했습니다.',
-            ),
-            actions: [
-              FilledButton(
-                onPressed: () => Navigator.of(dialogContext).pop(),
-                child: const Text('확인'),
-              ),
-            ],
-          ),
-        );
-      }
-      return;
-    }
-    ItemManagerJournalRestoreResult restoreResult;
     try {
-      restoreResult =
-          await _itemDraftJournal?.restoreBaseline() ??
-          ItemManagerJournalRestoreResult.notFound;
-    } catch (error) {
-      debugLog('item draft journal restore failed: $error');
-      final reloaded = await _reloadItemDraftFromDatabase();
-      if (!reloaded && mounted) {
-        _showItemDraftError('변경 취소 실패', error);
-      }
-      return;
-    }
-    if (restoreResult == ItemManagerJournalRestoreResult.invalid) {
-      final error = StateError('변경 취소 백업이 현재 품목 기준과 일치하지 않습니다.');
-      final reloaded = await _reloadItemDraftFromDatabase();
-      if (!reloaded && mounted) _showItemDraftError('변경 취소 실패', error);
-      return;
-    }
-    if (restoreResult == ItemManagerJournalRestoreResult.externalChange) {
-      final reloaded = await _reloadItemDraftFromDatabase();
-      if (!reloaded && mounted) {
-        _showItemDraftError(
-          '변경 취소 실패',
-          StateError('외부 품목 연결 변경 후 목록을 다시 불러오지 못했습니다.'),
+      _logItemDraftCancelDebug(
+        'cancel dialog completed confirmed=$confirmed',
+        traceId: traceId,
+      );
+      if (confirmed != true || !mounted) return;
+      if (controller.hasImportedRows) {
+        final importViewState = controller.importViewState;
+        _logItemDraftCancelDebug(
+          'cancel branch=import reload start',
+          traceId: traceId,
         );
-      } else if (reloaded && mounted) {
-        await showDialog<void>(
-          context: context,
-          builder: (dialogContext) => AlertDialog(
-            title: const Text('외부 변경 가능성'),
-            content: const Text('다른 매장의 품목 연결 상태가 변경되어 현재 DB 기준으로 복원했습니다.'),
-            actions: [
-              FilledButton(
-                onPressed: () => Navigator.of(dialogContext).pop(),
-                child: const Text('확인'),
+        final reloaded = await _reloadItemDraftFromDatabase(
+          selectedItemId: importViewState?.selectedItemId,
+          fallbackIndex: importViewState?.selectedIndex,
+        );
+        _logItemDraftCancelDebug(
+          'cancel branch=import reload completed result=$reloaded',
+          traceId: traceId,
+        );
+        if (!reloaded && mounted) {
+          _showItemDraftError('변경 취소 실패', StateError('품목 목록을 다시 불러오지 못했습니다.'));
+        } else if (reloaded && mounted) {
+          final baselineChecksum = importViewState?.baselineChecksum;
+          final reloadedController = _itemDraftController;
+          if (baselineChecksum == null ||
+              reloadedController == null ||
+              itemManagerBaselineChecksum(reloadedController) ==
+                  baselineChecksum) {
+            return;
+          }
+          await showDialog<void>(
+            context: context,
+            builder: (dialogContext) => AlertDialog(
+              title: const Text('외부 변경 가능성'),
+              content: const Text(
+                'Excel 가져오기 이후 DB 품목 데이터가 변경되었습니다. 현재 DB 기준으로 복원했습니다.',
               ),
-            ],
-          ),
+              actions: [
+                FilledButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: const Text('확인'),
+                ),
+              ],
+            ),
+          );
+        }
+        return;
+      }
+      ItemManagerJournalRestoreResult restoreResult;
+      try {
+        _logItemDraftCancelDebug(
+          'cancel branch=journal restore start journal=${_itemDraftJournal != null}',
+          traceId: traceId,
+        );
+        restoreResult =
+            await _itemDraftJournal?.restoreBaseline() ??
+            ItemManagerJournalRestoreResult.notFound;
+        _logItemDraftCancelDebug(
+          'cancel branch=journal restore completed result=$restoreResult',
+          traceId: traceId,
+        );
+      } catch (error) {
+        debugLog(
+          '[$_itemDraftCancelDebugVersion] trace=$traceId '
+          'event=journal restore failed error=$error',
+        );
+        final reloaded = await _reloadItemDraftFromDatabase();
+        _logItemDraftCancelDebug(
+          'cancel branch=journal exception reload result=$reloaded',
+          traceId: traceId,
+        );
+        if (!reloaded && mounted) {
+          _showItemDraftError('변경 취소 실패', error);
+        }
+        return;
+      }
+      if (restoreResult == ItemManagerJournalRestoreResult.invalid) {
+        final error = StateError('변경 취소 백업이 현재 품목 기준과 일치하지 않습니다.');
+        final reloaded = await _reloadItemDraftFromDatabase();
+        _logItemDraftCancelDebug(
+          'cancel branch=invalid reload result=$reloaded',
+          traceId: traceId,
+        );
+        if (!reloaded && mounted) _showItemDraftError('변경 취소 실패', error);
+        return;
+      }
+      if (restoreResult == ItemManagerJournalRestoreResult.externalChange) {
+        final reloaded = await _reloadItemDraftFromDatabase();
+        _logItemDraftCancelDebug(
+          'cancel branch=externalChange reload result=$reloaded',
+          traceId: traceId,
+        );
+        if (!reloaded && mounted) {
+          _showItemDraftError(
+            '변경 취소 실패',
+            StateError('외부 품목 연결 변경 후 목록을 다시 불러오지 못했습니다.'),
+          );
+        } else if (reloaded && mounted) {
+          await showDialog<void>(
+            context: context,
+            builder: (dialogContext) => AlertDialog(
+              title: const Text('외부 변경 가능성'),
+              content: const Text('다른 매장의 품목 연결 상태가 변경되어 현재 DB 기준으로 복원했습니다.'),
+              actions: [
+                FilledButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: const Text('확인'),
+                ),
+              ],
+            ),
+          );
+        }
+        return;
+      }
+      if (restoreResult == ItemManagerJournalRestoreResult.notFound) {
+        _logItemDraftCancelDebug(
+          'cancel branch=discardChanges start',
+          traceId: traceId,
+        );
+        controller.discardChanges();
+        _logItemDraftCancelDebug(
+          'cancel branch=discardChanges completed',
+          traceId: traceId,
         );
       }
-      return;
+      final anchorRowKey = controller.anchorRowKey;
+      final selectedIndex = anchorRowKey == null
+          ? -1
+          : controller.rows.indexWhere((row) => row.rowKey == anchorRowKey);
+      if (selectedIndex >= 0) {
+        _selectedItemIndex = selectedIndex;
+        _selectedItemOfMarket = controller.rows[selectedIndex].source;
+      } else {
+        _selectedItemIndex = null;
+        _selectedItemOfMarket = null;
+      }
+      _resetTabs();
+      setState(() {});
+    } finally {
+      _logItemDraftCancelDebug(
+        'cancel finished originalController=${identityHashCode(controller)} currentController=${_itemDraftController == null ? 'null' : identityHashCode(_itemDraftController!)}',
+        traceId: traceId,
+      );
     }
-    if (restoreResult == ItemManagerJournalRestoreResult.notFound) {
-      controller.discardChanges();
-    }
-    final anchorRowKey = controller.anchorRowKey;
-    final selectedIndex = anchorRowKey == null
-        ? -1
-        : controller.rows.indexWhere((row) => row.rowKey == anchorRowKey);
-    if (selectedIndex >= 0) {
-      _selectedItemIndex = selectedIndex;
-      _selectedItemOfMarket = controller.rows[selectedIndex].source;
-    } else {
-      _selectedItemIndex = null;
-      _selectedItemOfMarket = null;
-    }
-    _resetTabs();
-    setState(() {});
   }
 
   Future<void> _saveItemDraft() async {
@@ -1496,6 +1603,10 @@ class _HomePageManagerState extends State<HomePageManager> {
   }
 
   void _onTabSelection(int? index, TabData? tab) {
+    _logItemDraftCancelDebug(
+      'tabSelection requested index=$index value=${tab?.value}',
+      traceId: _lastItemDraftCancelTraceId,
+    );
     if (tab?.value != 'items' && _blockItemDraftContextChange()) {
       final itemIndex = _tabs.indexWhere(
         (candidate) => candidate.value == 'items',
@@ -1504,6 +1615,10 @@ class _HomePageManagerState extends State<HomePageManager> {
         _tabController.selectedIndex = itemIndex;
       }
       _showItemPreviewWindow();
+      _logItemDraftCancelDebug(
+        'tabSelection reverted requested=${tab?.value} itemIndex=$itemIndex',
+        traceId: _lastItemDraftCancelTraceId,
+      );
       return;
     }
     if (tab?.value == 'items') {
@@ -1519,6 +1634,10 @@ class _HomePageManagerState extends State<HomePageManager> {
     if (mounted) {
       setState(() {});
     }
+    _logItemDraftCancelDebug(
+      'tabSelection completed value=${tab?.value}',
+      traceId: _lastItemDraftCancelTraceId,
+    );
   }
 
   void _openBrandSettingsDialog() {
