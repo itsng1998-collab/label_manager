@@ -555,6 +555,9 @@ void main() {
         ],
       ),
     );
+    sheetApp.onOp!(const [
+      {'type': 'test'},
+    ]);
     await tester.pump();
 
     expect(committedPlain, '저장 버튼 없는 변경');
@@ -565,6 +568,36 @@ void main() {
           .value,
       '저장 버튼 없는 변경',
     );
+  });
+
+  testWidgets('item element initial workbook sync does not dirty draft', (
+    tester,
+  ) async {
+    var commitCount = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: debugItemPreviewPanelForTesting(
+            item: _testItemOfMarket(itemId: 578, itemName: '조회 품목'),
+            rowIdentity: 'item:578',
+            labelSize: _testLabelSizeWithFormData(''),
+            onElementCommitted: (_, _) async {
+              commitCount += 1;
+            },
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    final sheetApp = tester.widget<FortuneSheetApp>(
+      find.byType(FortuneSheetApp),
+    );
+    sheetApp.onChange!(sheetApp.workbook!);
+    await tester.pump();
+
+    expect(commitCount, 0);
   });
 
   testWidgets('item element is read-only without edit permission', (

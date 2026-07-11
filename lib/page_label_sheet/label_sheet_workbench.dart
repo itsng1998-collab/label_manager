@@ -1740,6 +1740,7 @@ class LabelSheetWorkbench extends StatefulWidget {
     this.printerListProvider,
     this.imageImportController,
     this.onWorkbookChanged,
+    this.onUserWorkbookChanged,
     this.onSave,
     super.key,
   });
@@ -1771,6 +1772,7 @@ class LabelSheetWorkbench extends StatefulWidget {
   final LabelPrinterListProvider? printerListProvider;
   final LabelSheetImageImportController? imageImportController;
   final ValueChanged<FortuneWorkbook>? onWorkbookChanged;
+  final ValueChanged<FortuneWorkbook>? onUserWorkbookChanged;
   final FutureOr<void> Function(
     int widthMm,
     int heightMm,
@@ -3273,6 +3275,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
                 if (!_initialWorkbookOpsSettled) {
                   return;
                 }
+                widget.onUserWorkbookChanged?.call(_latestWorkbook);
                 if (_opsClearSheet(ops)) {
                   if (_isDirty) {
                     setState(() {

@@ -4339,7 +4339,7 @@ class _ItemElementPreviewTab extends StatelessWidget {
       hideStatisticBar: true,
       limitCellActionsToClipboardAndClear: true,
       zoomToolbarPlacement: LabelSheetZoomToolbarPlacement.previewTabAreaEnd,
-      onWorkbookChanged: canEdit ? onWorkbookChanged : null,
+      onUserWorkbookChanged: canEdit ? onWorkbookChanged : null,
       onSave: canEdit
           ? (width, height, encodedWorkbook) =>
                 onSave(context, width, height, encodedWorkbook)
