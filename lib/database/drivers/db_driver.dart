@@ -28,7 +28,8 @@ class DbTransactionStatement {
 
 void _throwIfDriverError(Object result) {
   final Object? decoded = switch (result) {
-    final String value => jsonDecode(value),
+    final String value when value.trimLeft().startsWith('{') =>
+      jsonDecode(value),
     _ => result,
   };
   if (decoded is! Map) return;
@@ -70,9 +71,11 @@ Future<List<Object>> executeDriverTransaction(
   }
   if (statements.isEmpty) return const [];
 
-  final beginResult = await driver.writeData('BEGIN TRANSACTION');
-  _throwIfDriverError(beginResult);
+  var transactionStarted = false;
   try {
+    final beginResult = await driver.writeData('BEGIN TRANSACTION');
+    transactionStarted = true;
+    _throwIfDriverError(beginResult);
     final results = <Object>[];
     for (final statement in statements) {
       final hasParams = statement.params.isNotEmpty;
@@ -93,11 +96,13 @@ Future<List<Object>> executeDriverTransaction(
     _throwIfDriverError(commitResult);
     return results;
   } catch (error, stackTrace) {
-    try {
-      await driver.writeData(
-        'IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION',
-      );
-    } catch (_) {}
+    if (transactionStarted) {
+      try {
+        await driver.writeData(
+          'IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION',
+        );
+      } catch (_) {}
+    }
     Error.throwWithStackTrace(error, stackTrace);
   }
 }

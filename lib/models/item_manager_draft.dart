@@ -352,8 +352,8 @@ class ItemManagerDraftRow {
 
 class ItemManagerDraftController extends ChangeNotifier {
   final List<ItemManagerDraftRow> _rows;
-  final List<ItemManagerDraftRow> _baselineRows;
-  final TColumnContentScopedView scopedColumnContents;
+  List<ItemManagerDraftRow> _baselineRows;
+  TColumnContentScopedView scopedColumnContents;
   final List<ItemManagerColumnValidationRule> validationRules;
   final Set<int> _deletedSourceItemIds = {};
   final Map<int, ItemManagerDraftRow> _deletedRowsBySourceItemId = {};
@@ -417,6 +417,7 @@ class ItemManagerDraftController extends ChangeNotifier {
   }
 
   List<ItemManagerDraftRow> get rows => List.unmodifiable(_rows);
+  List<ItemManagerDraftRow> get baselineRows => List.unmodifiable(_baselineRows);
   final bool requireElement;
   final String labelSizeName;
   Set<int> get deletedSourceItemIds => Set.unmodifiable(_deletedSourceItemIds);
@@ -477,6 +478,40 @@ class ItemManagerDraftController extends ChangeNotifier {
         : baselineKeys.isNotEmpty
         ? baselineKeys.last
         : fallbackRow?.rowKey);
+    _selectedColumnId = null;
+    notifyListeners();
+  }
+
+  void restoreJournalBaseline({
+    required List<ItemManagerDraftRow> rows,
+    required TColumnContentScopedView columnContents,
+    required Iterable<String> selectedRowKeys,
+    String? anchorRowKey,
+  }) {
+    _validateRows(rows);
+    if (rows.any((row) => row.rowState != ItemManagerDraftRowState.existing)) {
+      throw ArgumentError('Journal baseline rows must be existing rows.');
+    }
+    _baselineRows = List.unmodifiable(rows);
+    scopedColumnContents = columnContents;
+    _rows
+      ..clear()
+      ..addAll(_baselineRows);
+    _deletedSourceItemIds.clear();
+    _deletedRowsBySourceItemId.clear();
+    _importViewState = null;
+    final validKeys = _rows.map((row) => row.rowKey).toSet();
+    _selectedRowKeys
+      ..clear()
+      ..addAll(selectedRowKeys.where(validKeys.contains));
+    if (_selectedRowKeys.isEmpty && _rows.isNotEmpty) {
+      _selectedRowKeys.add(_rows.first.rowKey);
+    }
+    _anchorRowKey = anchorRowKey != null && _selectedRowKeys.contains(anchorRowKey)
+        ? anchorRowKey
+        : (_selectedRowKeys.isEmpty ? null : _selectedRowKeys.last);
+    _baselineSelectedRowKeys = Set.unmodifiable(_selectedRowKeys);
+    _baselineAnchorRowKey = _anchorRowKey;
     _selectedColumnId = null;
     notifyListeners();
   }

@@ -28,6 +28,23 @@
 
 ## 현재 상태
 
+### 진행 중 (2026-07-11): 품목관리 4차 재검토 보완
+
+- 3차 보완 재검토에서 journal 파일이 before snapshot을 실제 복원하지 않고 controller 메모리 baseline만 사용하며, journal version/key/checksum 불일치를 파일 부재와 동일하게 처리하고, transaction BEGIN 결과 검사가 rollback 보호 범위 밖인 문제를 확인했다.
+- 권장 작업 순서: 변경 기존/삭제 행 before snapshot과 원본 컬럼값 journal 저장 -> 파일 snapshot 기반 clean controller 복원 -> journal 결과 `notFound/restored/invalid` 분기와 invalid DB reload -> BEGIN부터 rollback 보호 -> focused/analyze/전체 suite.
+- 수정 예정 1순위: `lib/models/item_manager_draft.dart`에 journal이 검증한 clean row/column/선택 상태를 적용하는 전용 복원 API를 추가하고, `lib/models/item_manager_draft_journal.dart`가 변경 대상 before snapshot을 직렬화/역직렬화하도록 한다. 기존 unrelated dirty `lib/core/app.dart`는 수정·stage 대상에서 제외한다. 미검증.
+- `lib/models/item_manager_draft.dart` 편집 완료: `restoreJournalBaseline`이 journal에서 재구성한 existing rows/scoped columns/선택을 새 clean baseline으로 교체하고 신규·삭제·수정 상태를 폐기한다. 기존 draft 테스트 24개 통과.
+- `lib/models/item_manager_draft_journal.dart` 편집 완료: schema 3에서 수정·삭제 기존 행의 `ItemOfMarket`/raw snapshot/주원료 payload/전체 원본 컬럼을 `beforeSnapshots`에 저장하고, baseline 순서와 결합해 다른 controller에도 clean 상태를 복원한다. restore 결과는 `notFound/restored/invalid`로 구분한다.
+- `lib/home_page_manager.dart` 편집 완료: 일반 취소는 `invalid` journal을 메모리 fallback하지 않고 DB reload하며 `notFound`만 controller baseline을 사용한다. Excel 전체 교체 경로는 유지한다.
+- `test/item_manager_draft_journal_test.dart` 편집 완료: before snapshot JSON과 cross-controller 품명/컬럼 복원을 검증한다. `flutter test test\item_manager_draft_journal_test.dart` 11개 통과.
+- 다음 작업: journal mismatch 상태 테스트 추가 후 `lib/database/drivers/db_driver.dart`에서 BEGIN부터 rollback 보호 범위에 포함하고 plain-text/malformed 응답 회귀 테스트를 추가한다.
+- journal 후속 완료: checksum 불일치는 `invalid`로 분류하고, 복원 적용 후 파일 cleanup 실패는 로그만 남겨 이미 복원된 controller를 다시 DB reload하지 않는다. journal 테스트는 mismatch/cross-controller 포함 12개로 확장됐다.
+- `lib/database/drivers/db_driver.dart` 편집 완료: BEGIN 실행/응답 검사를 rollback 보호 범위에 포함하고 JSON object 형태 문자열만 decode해 plain-text 정상 결과를 허용한다. malformed BEGIN 응답은 rollback하며 원래 오류를 보존한다.
+- `test/db_transaction_test.dart` 편집 완료: plain-text 성공 commit과 malformed JSON BEGIN rollback 테스트를 추가했다. transaction 테스트 8개 통과.
+- 변경 Dart 6개 파일 format 완료. journal/draft/transaction focused 묶음 44개 통과. 다음 검증은 workspace 진단, `C:\Flutter\bin\flutter.bat analyze`, `C:\Flutter\bin\flutter.bat test`, `git diff --check` 순서로 실행한다.
+- 최종 검증 완료: workspace 진단 0건, `C:\Flutter\bin\flutter.bat analyze`는 `No issues found`, 전체 `C:\Flutter\bin\flutter.bat test`는 296개 통과 / 0 실패, `git diff --check`는 출력 없이 통과했다.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `lib/database/drivers/db_driver.dart`, `lib/home_page_manager.dart`, `lib/models/item_manager_draft.dart`, `lib/models/item_manager_draft_journal.dart`, `test/db_transaction_test.dart`, `test/item_manager_draft_journal_test.dart`. 기존 unrelated dirty `lib/core/app.dart`는 제외하며 배포 빌드/설치 파일은 생성하지 않았다.
+
 ### 진행 중 (2026-07-11): 품목관리 3차 재검토 보완
 
 - 재검토에서 비 Windows driver의 JSON `error` 결과가 transaction에서 예외로 변환되지 않는 문제, 품목 순서 affected 검증이 commit 후 수행되는 문제, QR/preview 날짜 token callback 누락, 일반 취소가 journal 파일을 실제 복원 기준으로 사용하지 않는 문제를 확인했다.

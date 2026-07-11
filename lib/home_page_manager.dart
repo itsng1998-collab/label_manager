@@ -868,9 +868,11 @@ class _HomePageManagerState extends State<HomePageManager> {
       }
       return;
     }
-    var restoredFromJournal = false;
+    ItemManagerJournalRestoreResult restoreResult;
     try {
-      restoredFromJournal = await _itemDraftJournal?.restoreBaseline() ?? false;
+      restoreResult =
+          await _itemDraftJournal?.restoreBaseline() ??
+          ItemManagerJournalRestoreResult.notFound;
     } catch (error) {
       debugLog('item draft journal restore failed: $error');
       final reloaded = await _reloadItemDraftFromDatabase();
@@ -879,7 +881,15 @@ class _HomePageManagerState extends State<HomePageManager> {
       }
       return;
     }
-    if (!restoredFromJournal) controller.discardChanges();
+    if (restoreResult == ItemManagerJournalRestoreResult.invalid) {
+      final error = StateError('변경 취소 백업이 현재 품목 기준과 일치하지 않습니다.');
+      final reloaded = await _reloadItemDraftFromDatabase();
+      if (!reloaded && mounted) _showItemDraftError('변경 취소 실패', error);
+      return;
+    }
+    if (restoreResult == ItemManagerJournalRestoreResult.notFound) {
+      controller.discardChanges();
+    }
     final anchorRowKey = controller.anchorRowKey;
     final selectedIndex = anchorRowKey == null
         ? -1

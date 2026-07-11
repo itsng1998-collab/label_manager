@@ -219,8 +219,16 @@ void main() {
         });
 
         final changes = document['changes'] as Map<String, dynamic>;
+        final beforeSnapshots = document['beforeSnapshots'] as List;
         final changedRows = changes['rows'] as List;
         final deletedRows = changes['deletedRows'] as List;
+        expect(beforeSnapshots, hasLength(1));
+        final beforeSnapshot = beforeSnapshots.single as Map;
+        final beforeSource = beforeSnapshot['source'] as Map;
+        final beforeItem = beforeSource['item'] as Map;
+        expect(beforeItem['itemName'], '기존 품목');
+        expect(beforeItem['elementRTF'], source.item.elementRTF);
+        expect((beforeSnapshot['columns'] as List).single, containsPair('dataString', '00123'));
         expect(changedRows, hasLength(1));
         expect((changedRows.single as Map)['itemName'], '신규 품목');
         expect(deletedRows, hasLength(1));
@@ -299,7 +307,10 @@ void main() {
       controller.setSelection(const []);
       await journal.flush();
 
-      expect(await journal.restoreBaseline(), isTrue);
+      expect(
+        await journal.restoreBaseline(),
+        ItemManagerJournalRestoreResult.restored,
+      );
       expect(controller.rows.single.itemName, '기존 품목');
       expect(controller.selectedRowKeys, {'item:10'});
       expect(controller.anchorRowKey, 'item:10');
@@ -346,6 +357,127 @@ void main() {
       expect(controller.rows.single.itemName, '변경 품목');
       expect(controller.isDirty, isTrue);
       await journal.close();
+    });
+
+    test('marks a baseline checksum mismatch as invalid', () async {
+      final controller = ItemManagerDraftController.fromItems(
+        items: [_itemOfMarket()],
+        rawSnapshots: {10: _snapshot()},
+        scopedColumnContents: TColumnContentScopedView(const {}),
+      );
+      addTearDown(controller.dispose);
+      final journal = ItemManagerDraftJournal(
+        controller: controller,
+        mappingFingerprints: ItemMarketMappingFingerprints(const {}),
+        metadata: const ItemManagerDraftJournalMetadata(
+          draftKey: 'mismatch-key',
+          userId: 'user-1',
+          customerId: 2,
+          brandId: 8,
+          labelSizeId: 4,
+          currentMarketId: 3,
+          targetMarketIds: [3],
+        ),
+        directoryProvider: () async => directory,
+      );
+      await journal.start();
+      controller.updateItemName('item:10', '변경 품목');
+      await journal.flush();
+      final preferences = await SharedPreferences.getInstance();
+      final path = preferences.getString(
+        ItemManagerDraftJournal.lastPathPreferenceKey,
+      )!;
+      final document = jsonDecode(await File(path).readAsString()) as Map;
+      (document['baseline'] as Map)['checksum'] = '0000000000000000';
+      await File(path).writeAsString(jsonEncode(document));
+
+      expect(
+        await journal.restoreBaseline(),
+        ItemManagerJournalRestoreResult.invalid,
+      );
+      expect(controller.rows.single.itemName, '변경 품목');
+      expect(controller.isDirty, isTrue);
+      await journal.close();
+    });
+
+    test('restores changed row data from file into another controller', () async {
+      final original = _itemOfMarket();
+      final writerController = ItemManagerDraftController.fromItems(
+        items: [original],
+        rawSnapshots: {10: _snapshot()},
+        scopedColumnContents: TColumnContentScopedView({
+          const ColumnItemKey(columnId: 7, itemId: 10): TColumnContent(
+            colContentId: 1,
+            columnId: 7,
+            itemId: 10,
+            editable: true,
+            dataString: '00123',
+          ),
+        }),
+      );
+      addTearDown(writerController.dispose);
+      final metadata = const ItemManagerDraftJournalMetadata(
+        draftKey: 'cross-controller-key',
+        userId: 'user-1',
+        customerId: 2,
+        brandId: 8,
+        labelSizeId: 4,
+        currentMarketId: 3,
+        targetMarketIds: [3],
+      );
+      final writer = ItemManagerDraftJournal(
+        controller: writerController,
+        mappingFingerprints: ItemMarketMappingFingerprints(const {}),
+        metadata: metadata,
+        directoryProvider: () async => directory,
+      );
+      await writer.start();
+      writerController.updateItemName('item:10', '변경 품목');
+      writerController.updateColumnValue(
+        'item:10',
+        columnId: 7,
+        editable: true,
+        dataString: '99999',
+      );
+      await writer.flush();
+      await writer.close(clearFile: false);
+
+      final readerController = ItemManagerDraftController.fromItems(
+        items: [original],
+        rawSnapshots: {10: _snapshot()},
+        scopedColumnContents: TColumnContentScopedView({
+          const ColumnItemKey(columnId: 7, itemId: 10): TColumnContent(
+            colContentId: 1,
+            columnId: 7,
+            itemId: 10,
+            editable: true,
+            dataString: '00123',
+          ),
+        }),
+      );
+      addTearDown(readerController.dispose);
+      readerController.updateItemName('item:10', '다른 메모리 변경');
+      readerController.updateColumnValue(
+        'item:10',
+        columnId: 7,
+        editable: true,
+        dataString: '88888',
+      );
+      final reader = ItemManagerDraftJournal(
+        controller: readerController,
+        mappingFingerprints: ItemMarketMappingFingerprints(const {}),
+        metadata: metadata,
+        directoryProvider: () async => directory,
+      );
+
+      expect(
+        await reader.restoreBaseline(),
+        ItemManagerJournalRestoreResult.restored,
+      );
+      expect(readerController.rows.single.itemName, '기존 품목');
+      expect(readerController.columnValue(readerController.rows.single, 7), '00123');
+      expect(readerController.isDirty, isFalse);
+      await reader.close();
     });
 
     test('can retain a committed journal until reload cleanup', () async {

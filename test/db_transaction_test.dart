@@ -80,6 +80,39 @@ void main() {
       });
     }
 
+    test('transaction accepts plain-text success results', () async {
+      final driver = _FakeDbDriver(
+        resultSql: 'UPDATE TEXT RESULT',
+        result: 'success',
+      );
+
+      expect(
+        await executeDriverTransaction(driver, const [
+          DbTransactionStatement(sql: 'UPDATE TEXT RESULT'),
+        ]),
+        ['success'],
+      );
+      expect(driver.calls.last, 'write:COMMIT TRANSACTION');
+    });
+
+    test('transaction rolls back malformed JSON begin result', () async {
+      final driver = _FakeDbDriver(
+        resultSql: 'BEGIN TRANSACTION',
+        result: '{malformed',
+      );
+
+      await expectLater(
+        executeDriverTransaction(driver, const [
+          DbTransactionStatement(sql: 'UPDATE NEVER'),
+        ]),
+        throwsFormatException,
+      );
+      expect(driver.calls, [
+        'write:BEGIN TRANSACTION',
+        'write:IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION',
+      ]);
+    });
+
     test('transaction statement maps are isolate safe', () {
       const statement = DbTransactionStatement(
         sql: 'UPDATE T SET VALUE=@value',

@@ -6,6 +6,9 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:label_manager/models/additional_item.dart';
+import 'package:label_manager/models/column_content.dart';
+import 'package:label_manager/models/item.dart';
 import 'package:label_manager/models/item_manager_draft.dart';
 import 'package:label_manager/models/item_of_market.dart';
 import 'package:label_manager/utils/log_context.dart';
@@ -99,8 +102,10 @@ class ItemManagerDraftJournalMetadata {
   };
 }
 
+enum ItemManagerJournalRestoreResult { notFound, restored, invalid }
+
 class ItemManagerDraftJournal {
-  static const int schemaVersion = 2;
+  static const int schemaVersion = 3;
   static const int checksumSchemaVersion = 1;
   static const List<String> checksumFields = [
     'rows.itemId',
@@ -188,16 +193,16 @@ class ItemManagerDraftJournal {
     await _writeQueue;
   }
 
-  Future<bool> restoreBaseline() async {
+  Future<ItemManagerJournalRestoreResult> restoreBaseline() async {
     _debounce?.cancel();
     _debounce = null;
     await _writeQueue;
     final file = await _journalFile();
-    if (!await file.exists()) return false;
+    if (!await file.exists()) return ItemManagerJournalRestoreResult.notFound;
     final document = jsonDecode(await file.readAsString());
     if (document is! Map<String, dynamic> ||
         document['version'] != schemaVersion) {
-      return false;
+      return ItemManagerJournalRestoreResult.invalid;
     }
     final documentMetadata = document['metadata'];
     final baseline = document['baseline'];
@@ -205,21 +210,68 @@ class ItemManagerDraftJournal {
         documentMetadata['draftKey'] != metadata.draftKey ||
         baseline is! Map<String, dynamic> ||
         baseline['checksum'] != itemManagerBaselineChecksum(controller)) {
-      return false;
+      return ItemManagerJournalRestoreResult.invalid;
     }
     final selectedRowKeys = documentMetadata['baselineSelectedRowKeys'];
-    if (selectedRowKeys is! List) return false;
-    if (_started) controller.removeListener(_handleDraftChanged);
-    try {
-      controller.discardChanges(
-        selectedRowKeys: selectedRowKeys.whereType<String>(),
-        anchorRowKey: documentMetadata['baselineAnchorRowKey'] as String?,
-      );
-      await clear();
-    } finally {
-      if (_started) controller.addListener(_handleDraftChanged);
+    final baselineRows = baseline['rows'];
+    final beforeSnapshots = document['beforeSnapshots'];
+    if (selectedRowKeys is! List ||
+        baselineRows is! List ||
+        beforeSnapshots is! List) {
+      return ItemManagerJournalRestoreResult.invalid;
     }
-    return true;
+    final currentRows = {
+      for (final row in controller.baselineRows) row.sourceItemId!: row,
+    };
+    final snapshotRows = <int, ItemManagerDraftRow>{};
+    final snapshotColumns = <int, List<TColumnContent>>{};
+    try {
+      for (final value in beforeSnapshots) {
+        final snapshot = Map<String, dynamic>.from(value as Map);
+        final row = _draftRowBeforeSnapshotFromJson(snapshot);
+        snapshotRows[row.sourceItemId!] = row;
+        snapshotColumns[row.sourceItemId!] = [
+          for (final column in snapshot['columns'] as List)
+            _columnContentFromJson(Map<String, dynamic>.from(column as Map)),
+        ];
+      }
+      final restoredRows = <ItemManagerDraftRow>[];
+      for (final value in baselineRows) {
+        final rowJson = Map<String, dynamic>.from(value as Map);
+        final itemId = _jsonInt(rowJson, 'itemId');
+        final row = snapshotRows[itemId] ?? currentRows[itemId];
+        if (row == null) return ItemManagerJournalRestoreResult.invalid;
+        restoredRows.add(row);
+      }
+      final restoredColumns = Map<ColumnItemKey, TColumnContent>.from(
+        controller.scopedColumnContents.values,
+      );
+      for (final entry in snapshotColumns.entries) {
+        restoredColumns.removeWhere((key, _) => key.itemId == entry.key);
+        for (final column in entry.value) {
+          restoredColumns[ColumnItemKey(
+            columnId: column.columnId,
+            itemId: column.itemId,
+          )] = column;
+        }
+      }
+      if (_started) controller.removeListener(_handleDraftChanged);
+      try {
+        controller.restoreJournalBaseline(
+          rows: restoredRows,
+          columnContents: TColumnContentScopedView(restoredColumns),
+          selectedRowKeys: selectedRowKeys.whereType<String>(),
+          anchorRowKey: documentMetadata['baselineAnchorRowKey'] as String?,
+        );
+      } finally {
+        if (_started) controller.addListener(_handleDraftChanged);
+      }
+    } on Object catch (error) {
+      debugLog('item draft journal restore invalid: $error');
+      return ItemManagerJournalRestoreResult.invalid;
+    }
+    await _ignoreBackgroundError(clear, 'restore clear');
+    return ItemManagerJournalRestoreResult.restored;
   }
 
   Future<void> _ignoreBackgroundError(
@@ -311,6 +363,13 @@ class ItemManagerDraftJournal {
     final deletedRows = controller.deletedRowsBySourceItemId.values
         .map(_draftRowJson)
         .toList(growable: false);
+    final beforeSnapshotRows = <int, ItemManagerDraftRow>{
+      for (final row in controller.rows)
+        if (row.sourceItemId != null &&
+            row.rowState != ItemManagerDraftRowState.existing)
+          row.sourceItemId!: row,
+      ...controller.deletedRowsBySourceItemId,
+    };
 
     final updatedAt = DateTime.now().toUtc();
     return {
@@ -337,6 +396,10 @@ class ItemManagerDraftJournal {
           baselineItemIds,
         ),
       },
+      'beforeSnapshots': [
+        for (final row in beforeSnapshotRows.values)
+          _draftRowBeforeSnapshotJson(row),
+      ],
       'changes': {
         'rows': changedRows,
         'deletedRows': deletedRows,
@@ -370,6 +433,70 @@ class ItemManagerDraftJournal {
     },
     'currentMarketSnapshot': _rawSnapshotJson(row.currentMarketSnapshot),
     'newMappingDefaults': row.newMappingDefaults?.toJson(),
+  };
+
+  Map<String, Object?> _draftRowBeforeSnapshotJson(ItemManagerDraftRow row) {
+    final source = row.source!;
+    final itemId = row.sourceItemId!;
+    return {
+      'originalIndex': row.originalIndex,
+      'source': _itemOfMarketJson(source),
+      'rawSnapshot': _rawSnapshotJson(row.currentMarketSnapshot),
+      'columns': [
+        for (final value in controller.scopedColumnContents.values.values)
+          if (value.itemId == itemId)
+            {
+              'colContentId': value.colContentId,
+              'columnId': value.columnId,
+              'itemId': value.itemId,
+              'editable': value.editable,
+              'dataString': value.dataString,
+            },
+      ],
+    };
+  }
+
+  Map<String, Object?> _itemOfMarketJson(ItemOfMarket value) => {
+    'marketId': value.marketId,
+    'item': {
+      'itemId': value.item.itemId,
+      'labelSizeId': value.item.labelSizeId,
+      'itemName': value.item.itemName,
+      'labelSizeName': value.item.labelSizeName,
+      'element': value.item.element,
+      'elementRTF': value.item.elementRTF,
+      'price': value.item.price,
+      'order': value.item.order,
+    },
+    'additionalItem': {
+      'additionalItemId': value.additionalItem.AdditionalItemId,
+      'itemId': value.additionalItem.itemId,
+      'element': value.additionalItem.element,
+      'elementRTF': value.additionalItem.elementRTF,
+      'price': value.additionalItem.price,
+    },
+    'gdsNo': value.gdsNo,
+    'dateSaleStart': value.dateSaleStart.toIso8601String(),
+    'dateSaleEnd': value.dateSaleEnd.toIso8601String(),
+    'discountPercent': value.discountPercent,
+    'discountAmount': value.discountAmount,
+    'dateStartDiscount': value.dateStartDiscount.toIso8601String(),
+    'dateEndDiscount': value.dateEndDiscount.toIso8601String(),
+    'useDefineElement': value.useDefineElement,
+    'rtfText': value.rtfText,
+    'useLinefeed': value.useLinefeed,
+    'linefeed': value.linefeed,
+    'useScaleBarcode': value.useScaleBarcode,
+    'printCount': value.printCount,
+    'useLabelSize': value.useLabelSize,
+    'labelSizeWidth': value.labelSizeWidth,
+    'labelSizeHeight': value.labelSizeHeight,
+    'useMargin': value.useMargin,
+    'leftMargin': value.leftMargin,
+    'rightMargin': value.rightMargin,
+    'topMargin': value.topMargin,
+    'leftPush': value.leftPush,
+    'topPush': value.topPush,
   };
 
   Map<String, Object?>? _rawSnapshotJson(ItemOfMarketRawSnapshot? snapshot) {
@@ -462,6 +589,116 @@ Map<String, Object?> _itemManagerBaselineRowJson(
     'payloadEdgeHash': _payloadEdgeHash(payload),
   };
 }
+
+ItemManagerDraftRow _draftRowBeforeSnapshotFromJson(
+  Map<String, dynamic> json,
+) {
+  final source = _itemOfMarketFromJson(
+    Map<String, dynamic>.from(json['source'] as Map),
+  );
+  final rawSnapshot = _rawSnapshotFromJson(
+    Map<String, dynamic>.from(json['rawSnapshot'] as Map),
+  );
+  return ItemManagerDraftRow.existing(
+    source: source,
+    currentMarketSnapshot: rawSnapshot,
+    originalIndex: _jsonInt(json, 'originalIndex'),
+  );
+}
+
+ItemOfMarket _itemOfMarketFromJson(Map<String, dynamic> json) {
+  final item = Map<String, dynamic>.from(json['item'] as Map);
+  final additional = Map<String, dynamic>.from(json['additionalItem'] as Map);
+  return ItemOfMarket(
+    marketId: _jsonInt(json, 'marketId'),
+    item: Item(
+      itemId: _jsonInt(item, 'itemId'),
+      labelSizeId: _jsonInt(item, 'labelSizeId'),
+      itemName: item['itemName'] as String,
+      labelSizeName: item['labelSizeName'] as String,
+      element: item['element'] as String,
+      elementRTF: item['elementRTF'] as String,
+      price: _jsonInt(item, 'price'),
+      order: _jsonInt(item, 'order'),
+    ),
+    additionalItem: AdditionalItem(
+      AdditionalItemId: _jsonInt(additional, 'additionalItemId'),
+      itemId: _jsonInt(additional, 'itemId'),
+      element: additional['element'] as String,
+      elementRTF: additional['elementRTF'] as String,
+      price: _jsonInt(additional, 'price'),
+    ),
+    gdsNo: _jsonInt(json, 'gdsNo'),
+    dateSaleStart: DateTime.parse(json['dateSaleStart'] as String),
+    dateSaleEnd: DateTime.parse(json['dateSaleEnd'] as String),
+    discountPercent: (json['discountPercent'] as num).toDouble(),
+    discountAmount: _jsonInt(json, 'discountAmount'),
+    dateStartDiscount: DateTime.parse(json['dateStartDiscount'] as String),
+    dateEndDiscount: DateTime.parse(json['dateEndDiscount'] as String),
+    useDefineElement: json['useDefineElement'] as bool,
+    rtfText: json['rtfText'] as String,
+    useLinefeed: json['useLinefeed'] as bool,
+    linefeed: _jsonInt(json, 'linefeed'),
+    useScaleBarcode: json['useScaleBarcode'] as bool,
+    printCount: _jsonInt(json, 'printCount'),
+    useLabelSize: json['useLabelSize'] as bool,
+    labelSizeWidth: _jsonInt(json, 'labelSizeWidth'),
+    labelSizeHeight: _jsonInt(json, 'labelSizeHeight'),
+    useMargin: json['useMargin'] as bool,
+    leftMargin: (json['leftMargin'] as num).toDouble(),
+    rightMargin: (json['rightMargin'] as num).toDouble(),
+    topMargin: (json['topMargin'] as num).toDouble(),
+    leftPush: (json['leftPush'] as num).toDouble(),
+    topPush: (json['topPush'] as num).toDouble(),
+  );
+}
+
+ItemOfMarketRawSnapshot _rawSnapshotFromJson(Map<String, dynamic> json) {
+  DateTime? date(String key) => json[key] == null
+      ? null
+      : DateTime.parse(json[key] as String);
+  int? integer(String key) => (json[key] as num?)?.toInt();
+  double? number(String key) => (json[key] as num?)?.toDouble();
+  return ItemOfMarketRawSnapshot(
+    marketId: _jsonInt(json, 'marketId'),
+    itemId: _jsonInt(json, 'itemId'),
+    additionalItemId: integer('additionalItemId'),
+    gdsNo: integer('gdsNo'),
+    dateSaleStart: date('dateSaleStart'),
+    dateSaleEnd: date('dateSaleEnd'),
+    discountPercent: number('discountPercent'),
+    discountAmount: integer('discountAmount'),
+    dateStartDiscount: date('dateStartDiscount'),
+    dateEndDiscount: date('dateEndDiscount'),
+    useDefineElement: json['useDefineElement'] as bool?,
+    rtfText: json['rtfText'] as String?,
+    useLinefeed: json['useLinefeed'] as bool?,
+    linefeed: integer('linefeed'),
+    useScaleBarcode: json['useScaleBarcode'] as bool?,
+    printCount: integer('printCount'),
+    useLabelSize: json['useLabelSize'] as bool?,
+    labelSizeWidth: integer('labelSizeWidth'),
+    labelSizeHeight: integer('labelSizeHeight'),
+    useMargin: json['useMargin'] as bool?,
+    leftMargin: number('leftMargin'),
+    rightMargin: number('rightMargin'),
+    topMargin: number('topMargin'),
+    leftPush: number('leftPush'),
+    topPush: number('topPush'),
+  );
+}
+
+TColumnContent _columnContentFromJson(Map<String, dynamic> json) =>
+    TColumnContent(
+      colContentId: _jsonInt(json, 'colContentId'),
+      columnId: _jsonInt(json, 'columnId'),
+      itemId: _jsonInt(json, 'itemId'),
+      editable: json['editable'] as bool,
+      dataString: json['dataString'] as String,
+    );
+
+int _jsonInt(Map<String, dynamic> json, String key) =>
+    (json[key] as num).toInt();
 
 String _fnv1a64Hex(String input) {
   final offset = BigInt.parse('cbf29ce484222325', radix: 16);
