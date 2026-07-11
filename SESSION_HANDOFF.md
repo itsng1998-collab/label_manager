@@ -28,7 +28,7 @@
 
 ## 현재 상태
 
-### 진행 중 (2026-07-11): 품목관리 8차 재검토 보완
+### 완료 (2026-07-11): 품목관리 8차 재검토 보완
 
 - 7차 보완 재검토에서 isolate 종료 후 새 isolate가 생성돼도 driver는 미연결인데 `DbClient.isConnected`가 true가 되어 재연결이 막히는 문제, 명시적 disconnect가 pending 요청 종료 신호를 완료하지 않는 문제, journal 삭제 ID 집합과 strict integer 검증 누락을 확인했다.
 - 권장 작업 순서: DB client 실제 연결 상태/disconnect gate/pending 종료 완료 -> 재연결 서비스와 품목 다시 조회 연결 -> 동시성 테스트 -> journal 삭제 집합 교차 검증 -> strict ID parser -> focused/analyze/전체 suite.
@@ -43,7 +43,7 @@
 - 변경 Dart 8개 파일 format 완료. DB client/monitor/transaction/journal/draft/save DAO focused 묶음 71개 통과.
 - 중간 전체 검증은 workspace 진단 0건, analyze 성공, 전체 테스트 316개 통과, diff check 성공이었다. 최종 lifecycle 보완 후 analyze/전체 suite/diff check를 재실행한다.
 - 최종 검증 완료: workspace 진단 0건, `C:\Flutter\bin\flutter.bat analyze`는 `No issues found`, 전체 `C:\Flutter\bin\flutter.bat test` 316개 통과, `git diff --check` 성공.
-- 기능 커밋 stage 대상: `SESSION_HANDOFF.md`, `lib/database/db_client.dart`, `lib/database/db_connection_monitor.dart`, `lib/database/db_connection_service.dart`, `lib/home_page_manager.dart`, `lib/models/item_manager_draft_journal.dart`, `test/db_client_test.dart`, `test/db_connection_monitor_test.dart`, `test/item_manager_draft_journal_test.dart`. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+- 기능 커밋 `954e195` (`품목관리 DB 재연결과 journal 무결성 보완`) 완료. 기존 unrelated dirty `lib/core/app.dart`는 제외했다.
 - 기존 unrelated dirty `lib/core/app.dart`는 수정·stage 대상에서 제외한다.
 
 ### 완료 (2026-07-11): 품목관리 7차 재검토 보완
