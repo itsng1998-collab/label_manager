@@ -741,6 +741,59 @@ void main() {
     expect(table.columns.first.checkboxController!.checkedRows('publish'), isEmpty);
   });
 
+  testWidgets('ItemManage keeps publish selection available in read-only mode', (
+    tester,
+  ) async {
+    final source = _testItemOfMarket(itemName: '조회 전용 품목', itemId: 10);
+    final controller = ItemManagerDraftController.fromItems(
+      items: [source],
+      rawSnapshots: {10: _rawSnapshot(10)},
+      scopedColumnContents: TColumnContentScopedView(const {}),
+    );
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 600,
+            height: 220,
+            child: ItemManage(
+              items: const [],
+              draftController: controller,
+              labelSize: const LabelSize(
+                labelSizeId: 20,
+                brandId: 30,
+                labelSizeName: '테스트 라벨',
+              ),
+              marketId: 1,
+              canEdit: false,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final table = tester.widget<FortuneTable<ItemOfMarket>>(
+      find.byType(FortuneTable<ItemOfMarket>),
+    );
+    expect(table.columns.first.checkboxController, isNotNull);
+    table.selectionController!.setSelectedRows(const [0]);
+    await tester.pump();
+
+    await _openItemManageContextMenu(
+      tester,
+      tester.getTopLeft(find.byType(FortuneTable<ItemOfMarket>)),
+    );
+    final publishItem = tester.widget<PopupMenuItem<String>>(
+      find.ancestor(
+        of: find.text('블럭 선택 발행 체크'),
+        matching: find.byType(PopupMenuItem<String>),
+      ),
+    );
+    expect(publishItem.enabled, isTrue);
+  });
+
   testWidgets('ItemManage blocks publish command when open menu becomes dirty', (
     tester,
   ) async {

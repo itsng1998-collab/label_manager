@@ -414,8 +414,10 @@ class _ItemManageState extends State<ItemManage> {
   Future<void> _showContextMenu(TapDownDetails details) async {
     final mutationEnabled =
         widget.canEdit && !widget.commandBusy && !widget.forceReloadRequired;
-    final publishEnabled =
-        mutationEnabled && widget.draftController?.isDirty != true;
+    final publishSelectionEnabled =
+      !widget.commandBusy &&
+      !widget.forceReloadRequired &&
+      widget.draftController?.isDirty != true;
     final orderDisabledReason = widget.forceReloadRequired
         ? '품목 목록을 다시 조회한 후 실행해 주세요.'
         : widget.draftController?.isDirty == true
@@ -507,14 +509,16 @@ class _ItemManageState extends State<ItemManage> {
         const PopupMenuDivider(height: fortuneContextMenuDividerHeight),
         PopupMenuItem<String>(
           value: _menuCheckSelectedPublish,
-          enabled: publishEnabled && _selectionController.hasSelection,
+            enabled:
+              publishSelectionEnabled && _selectionController.hasSelection,
           height: fortuneContextMenuRowHeight,
           padding: _menuItemPadding,
           child: const Text('블럭 선택 발행 체크'),
         ),
         PopupMenuItem<String>(
           value: _menuUncheckSelectedPublish,
-          enabled: publishEnabled && _selectionController.hasSelection,
+            enabled:
+              publishSelectionEnabled && _selectionController.hasSelection,
           height: fortuneContextMenuRowHeight,
           padding: _menuItemPadding,
           child: const Text('블럭 선택 발행 체크 해제'),
@@ -779,7 +783,7 @@ class _ItemManageState extends State<ItemManage> {
   }
 
   List<FortuneTableColumn<ItemOfMarket>> get _columns {
-    final publishEnabled =
+    final publishSelectionEnabled =
         !widget.commandBusy &&
         !widget.forceReloadRequired &&
         widget.draftController?.isDirty != true;
@@ -844,8 +848,10 @@ class _ItemManageState extends State<ItemManage> {
         initialWidth: 40,
         minWidth: 40,
         text: _empty,
-        checkboxController: !publishEnabled ? null : _publishCheckboxController,
-        checkboxValueAt: !publishEnabled
+        checkboxController: !publishSelectionEnabled
+          ? null
+          : _publishCheckboxController,
+        checkboxValueAt: !publishSelectionEnabled
             ? (_, rowIndex) => _publishCheckboxController.isChecked(
                 _publishColumnId,
                 rowIndex,

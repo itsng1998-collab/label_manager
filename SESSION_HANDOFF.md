@@ -28,6 +28,21 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-11): 품목관리 재검토 보완
+
+- 재검토 결과 조회 전용 사용자의 하단 주원료 sheet 편집 가능, 실제 일반 취소 경로의 baseline 멀티 선택 단일화, 발행 체크의 우클릭/체크박스 권한 불일치를 확인했다.
+- 수정 예정 1순위: `lib/home_page_manager.dart`에서 조회 전용 품목 주원료 workbook을 FortuneSheet engine 보호 상태로 열고 편집 toolbar/callback을 제거하며, draft commit 진입점에서도 권한을 재검증한다. `test/label_sheet_toolbar_test.dart`에 조회 전용 회귀 테스트를 추가한다. 미검증.
+- 후속 예정: 일반 취소는 명시 item id 없이 controller baseline 선택을 복원하고, 발행 체크는 품목 편집 권한과 분리된 일관된 로컬 선택 정책으로 정리한 뒤 focused/전체 검증한다.
+- `lib/home_page_manager.dart`/`test/label_sheet_toolbar_test.dart` 1순위 완료: 조회 전용 주원료 workbook에 FortuneSheet sheet authority 보호를 적용하고 toolbar/onChange/onSave를 제거했으며 draft commit 진입점도 권한을 재검증한다. `flutter test test\label_sheet_toolbar_test.dart --plain-name "item element"` 9개 통과.
+- `lib/home_page_manager.dart` 선택 복원 완료: 일반 취소에서 현재 anchor item id를 강제하지 않고 `discardChanges()`의 clean baseline 단일/멀티 선택을 그대로 복원한다. draft/FortuneTable focused 묶음 52개 통과.
+- `lib/page_home/item_manage.dart`/`test/fortune_table_test.dart` 발행 선택 정책 완료: 발행 체크를 DB 편집 권한과 분리된 로컬 출력 선택으로 명시하고 체크박스와 우클릭 메뉴에 같은 `publishSelectionEnabled` 조건을 적용했다. 조회 전용 회귀 테스트 포함 FortuneTable 29개 통과.
+- 최종 검증 예정: 변경 Dart 파일 format, 관련 파일 오류 확인, focused 테스트, `C:\Flutter\bin\flutter.bat analyze`, 전체 `C:\Flutter\bin\flutter.bat test`, `git diff --check`. 미검증 상태이며 배포 빌드/설치 파일은 생성하지 않는다.
+- 최종 검증 진행: 변경 Dart 4개 파일 format 완료, 편집기 진단 0건, `git diff --check` 통과. 이어서 주원료/품목 draft/FortuneTable focused 테스트와 `C:\Flutter\bin\flutter.bat analyze`를 실행한다.
+- focused/analyze 완료: `test\item_manager_draft_test.dart`, `test\fortune_table_test.dart`, `test\label_sheet_toolbar_test.dart` 전체 158개 통과. `C:\Flutter\bin\flutter.bat analyze`는 `No issues found`. 최초 plain-name 필터 명령은 Windows에서 `|`가 pipe로 해석되어 테스트 미실행 후 파일 전체 명령으로 재검증했다.
+- 전체 검증 실행 예정: `C:\Flutter\bin\flutter.bat test` 후 결과와 최종 stage/commit 대상을 기록한다.
+- 전체 검증 완료: `C:\Flutter\bin\flutter.bat test` 287개 통과 / 0 실패, 최종 `git diff --check` 통과. 배포 빌드와 설치 파일은 생성하지 않았다.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `lib/home_page_manager.dart`, `lib/page_home/item_manage.dart`, `test/fortune_table_test.dart`, `test/label_sheet_toolbar_test.dart`. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+
 ### 완료 (2026-07-11): 품목관리 머지 검토 보완
 
 - 다른 PC에서 구현한 `doc/item_manager_modify.txt` 기준 변경을 merge한 뒤 코드 검토를 수행했다. merge 충돌은 `SESSION_HANDOFF.md`뿐이었으나 구현 자체에서 권한 차단, 주원료 미commit 반영, 문자열 길이 검증, 멀티 선택/취소 선택 복원, scoped column content 조회, journal 테스트 안정성, 실제 출력 계약 보완 필요성을 확인했다.

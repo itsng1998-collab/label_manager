@@ -567,6 +567,51 @@ void main() {
     );
   });
 
+  testWidgets('item element is read-only without edit permission', (
+    tester,
+  ) async {
+    var commitCount = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: debugItemPreviewPanelForTesting(
+            item: _testItemOfMarket(itemId: 10, itemName: '조회 전용 품목'),
+            labelSize: _testLabelSizeWithFormData(''),
+            canEdit: false,
+            onElementCommitted: (_, _) async {
+              commitCount += 1;
+            },
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    final sheetApp = tester.widget<FortuneSheetApp>(
+      find.byType(FortuneSheetApp),
+    );
+    expect(sheetApp.workbook!.activeSheet.authority, {'sheet': 1});
+    expect(sheetApp.settings!.customToolbarItems, isEmpty);
+
+    sheetApp.onChange!(
+      FortuneWorkbook(
+        sheets: [
+          FortuneSheet(
+            id: 'item_element',
+            name: '주원료 및 함량',
+            cells: {
+              const FortuneCellCoord(0, 0): const FortuneCell(value: '수정'),
+            },
+          ),
+        ],
+      ),
+    );
+    await tester.pump();
+
+    expect(commitCount, 0);
+  });
+
   test('item element RTF conversion decodes Korean ANSI hex', () async {
     const channel = MethodChannel('charset_converter');
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger

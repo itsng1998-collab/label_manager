@@ -868,8 +868,7 @@ class _HomePageManagerState extends State<HomePageManager> {
       }
       return;
     }
-    final selectedItemId = _selectedItemOfMarket?.item.itemId;
-    controller.discardChanges(selectedItemId: selectedItemId);
+    controller.discardChanges();
     final anchorRowKey = controller.anchorRowKey;
     final selectedIndex = anchorRowKey == null
         ? -1
@@ -1836,6 +1835,7 @@ class _HomePageManagerState extends State<HomePageManager> {
         labelSize: _effectiveLabelSize,
         onElementCommitted: _commitSelectedItemElementDraft,
         canSelectOutputPreview: () => !_blockItemDraftContextChange(),
+        canEdit: User.instance?.canEdit == true,
       );
       if (_itemPreviewWindow == null) {
         _itemPreviewAlignedToTable = false;
@@ -1912,6 +1912,9 @@ class _HomePageManagerState extends State<HomePageManager> {
     String elementPlain,
     String elementPayload,
   ) async {
+    if (User.instance?.canEdit != true) {
+      throw StateError('품목 편집 권한이 없습니다.');
+    }
     final controller = _itemDraftController;
     final rowKey = controller?.anchorRowKey;
     if (controller == null || rowKey == null) {
@@ -3439,6 +3442,7 @@ class _ItemPreviewPanel extends StatefulWidget {
     required this.onElementCommitted,
     required this.canSelectOutputPreview,
     this.labelSize,
+    this.canEdit = true,
   });
 
   final ItemOfMarket item;
@@ -3447,6 +3451,7 @@ class _ItemPreviewPanel extends StatefulWidget {
   final Future<void> Function(String elementPlain, String elementPayload)
   onElementCommitted;
   final bool Function() canSelectOutputPreview;
+  final bool canEdit;
 
   @override
   State<_ItemPreviewPanel> createState() => _ItemPreviewPanelState();
@@ -3538,6 +3543,7 @@ class _ItemPreviewPanelState extends State<_ItemPreviewPanel> {
   }
 
   void _handleElementWorkbookChanged(fs.FortuneWorkbook workbook) {
+    if (!widget.canEdit) return;
     final next = _itemElementTextFromWorkbook(workbook);
     final encodedWorkbook = labelSheetEncodeWorkbookSave(workbook);
     if (next == _elementText &&
@@ -3676,6 +3682,7 @@ class _ItemPreviewPanelState extends State<_ItemPreviewPanel> {
           item: widget.item,
           labelSize: widget.labelSize,
           elementForm: _elementForm,
+          canEdit: widget.canEdit,
           onWorkbookChanged: _handleElementWorkbookChanged,
           onSave: _handleElementSheetSave,
         ),
@@ -3779,6 +3786,7 @@ class _ItemElementPreviewTab extends StatelessWidget {
     required this.item,
     required this.labelSize,
     required this.elementForm,
+    required this.canEdit,
     required this.onWorkbookChanged,
     required this.onSave,
   });
@@ -3786,6 +3794,7 @@ class _ItemElementPreviewTab extends StatelessWidget {
   final ItemOfMarket item;
   final LabelSize? labelSize;
   final _ItemElementFormState elementForm;
+  final bool canEdit;
   final ValueChanged<fs.FortuneWorkbook> onWorkbookChanged;
   final Future<void> Function(
     BuildContext context,
@@ -3797,14 +3806,23 @@ class _ItemElementPreviewTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final workbook = canEdit
+        ? elementForm.workbook
+        : elementForm.workbook.copyWith(
+            sheets: [
+              for (final sheet in elementForm.workbook.sheets)
+                sheet.copyWith(authority: const <String, Object?>{'sheet': 1}),
+            ],
+          );
     return LabelSheetWorkbench(
       key: ValueKey(
         'item-element:${labelSize?.labelSizeId ?? 'none'}:${item.item.itemId}:${elementForm.sourceHash}',
       ),
-      initialWorkbook: elementForm.workbook,
+      initialWorkbook: workbook,
       labelSize: labelSize,
-      initialDirty: elementForm.convertedFromRtf,
-      toolbarItems: _itemElementToolbarItems,
+      initialDirty: canEdit && elementForm.convertedFromRtf,
+      toolbarItems: canEdit ? _itemElementToolbarItems : const <String>[],
+      hideToolbar: !canEdit,
       hideRowColumnHeaderLabels: true,
       hideSelectionHighlight: true,
       singleClickCellEdit: true,
@@ -3813,9 +3831,11 @@ class _ItemElementPreviewTab extends StatelessWidget {
       hideStatisticBar: true,
       limitCellActionsToClipboardAndClear: true,
       zoomToolbarPlacement: LabelSheetZoomToolbarPlacement.previewTabAreaEnd,
-      onWorkbookChanged: onWorkbookChanged,
-      onSave: (width, height, encodedWorkbook) =>
-          onSave(context, width, height, encodedWorkbook),
+        onWorkbookChanged: canEdit ? onWorkbookChanged : null,
+        onSave: canEdit
+          ? (width, height, encodedWorkbook) =>
+            onSave(context, width, height, encodedWorkbook)
+          : null,
     );
   }
 }
@@ -4020,12 +4040,14 @@ Widget debugItemPreviewPanelForTesting({
   Future<void> Function(String elementPlain, String elementPayload)?
   onElementCommitted,
   bool Function()? canSelectOutputPreview,
+  bool canEdit = true,
 }) => _ItemPreviewPanel(
   item: item,
   rowIdentity: rowIdentity ?? 'item:${item.item.itemId}',
   labelSize: labelSize,
   onElementCommitted: onElementCommitted ?? (_, _) async {},
   canSelectOutputPreview: canSelectOutputPreview ?? () => true,
+  canEdit: canEdit,
 );
 
 @visibleForTesting
