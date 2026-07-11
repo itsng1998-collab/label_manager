@@ -216,6 +216,105 @@ void main() {
       expect(controller.selectedRowKeys, {'item:20'});
     });
 
+    test('discards added rows to the clean selection baseline', () {
+      final controller = _controller([
+        _itemOfMarket(itemId: 10, order: 1, name: '첫 품목'),
+        _itemOfMarket(itemId: 20, order: 2, name: '둘째 품목'),
+      ]);
+      controller.setSelection(const ['item:20'], anchorRowKey: 'item:20');
+      controller.addRows(1, emptyElementPayload: '{}');
+
+      controller.discardChanges();
+
+      expect(controller.anchorRowKey, 'item:20');
+      expect(controller.selectedRowKeys, {'item:20'});
+    });
+
+    test('discards added rows to the clean multi-selection baseline', () {
+      final controller = _controller([
+        _itemOfMarket(itemId: 10, order: 1, name: '첫 품목'),
+        _itemOfMarket(itemId: 20, order: 2, name: '둘째 품목'),
+      ]);
+      controller.setSelection(
+        const ['item:10', 'item:20'],
+        anchorRowKey: 'item:20',
+      );
+      controller.addRows(1, emptyElementPayload: '{}');
+
+      controller.discardChanges();
+
+      expect(controller.anchorRowKey, 'item:20');
+      expect(controller.selectedRowKeys, {'item:10', 'item:20'});
+    });
+
+    test('rejects values that exceed save SQL string limits', () {
+      final controller = ItemManagerDraftController.fromItems(
+        items: [_itemOfMarket(itemId: 10, order: 1, name: '기존 품목')],
+        rawSnapshots: {10: _snapshot(10)},
+        scopedColumnContents: TColumnContentScopedView(const {}),
+        validationRules: const [
+          ItemManagerColumnValidationRule(
+            columnId: 7,
+            columnName: '일반 컬럼',
+            typeCode: TColumnType.TYPE_BASE,
+            required: false,
+          ),
+        ],
+      );
+      controller.updateItemName(
+        'item:10',
+        '가' * (ItemManagerLimits.maxItemNameLength + 1),
+      );
+
+      expect(
+        controller.validateForSave,
+        throwsA(
+          isA<ItemManagerDraftValidationError>()
+              .having(
+                (error) => error.columnId,
+                'columnId',
+                ItemManagerFixedColumnIds.itemName,
+              )
+              .having(
+                (error) => error.message,
+                'message',
+                contains('${ItemManagerLimits.maxItemNameLength}자 이하'),
+              ),
+        ),
+      );
+
+      controller.updateItemName(
+        'item:10',
+        '가' * ItemManagerLimits.maxItemNameLength,
+      );
+      controller.updateColumnValue(
+        'item:10',
+        columnId: 7,
+        editable: true,
+        dataString: '나' * (ItemManagerLimits.maxColumnValueLength + 1),
+      );
+      expect(
+        controller.validateForSave,
+        throwsA(
+          isA<ItemManagerDraftValidationError>()
+              .having((error) => error.columnId, 'columnId', 7)
+              .having(
+                (error) => error.message,
+                'message',
+                contains('${ItemManagerLimits.maxColumnValueLength}자 이하'),
+              ),
+        ),
+      );
+
+      controller.updateColumnValue(
+        'item:10',
+        columnId: 7,
+        editable: true,
+        dataString: '나' * ItemManagerLimits.maxColumnValueLength,
+      );
+      expect(controller.validateForSave, returnsNormally);
+    });
+
     test(
       'replaces clean rows with imported drafts and deletes all sources',
       () {

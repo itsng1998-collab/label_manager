@@ -28,6 +28,23 @@
 
 ## 현재 상태
 
+### 진행 중 (2026-07-11): 품목관리 머지 검토 보완
+
+- 다른 PC에서 구현한 `doc/item_manager_modify.txt` 기준 변경을 merge한 뒤 코드 검토를 수행했다. merge 충돌은 `SESSION_HANDOFF.md`뿐이었으나 구현 자체에서 권한 차단, 주원료 미commit 반영, 문자열 길이 검증, 멀티 선택/취소 선택 복원, scoped column content 조회, journal 테스트 안정성, 실제 출력 계약 보완 필요성을 확인했다.
+- 수정 예정 1순위: `lib/page_home/item_manage.dart`와 `lib/home_page_manager.dart`에서 조회 전용 사용자의 품목 추가/삽입/삭제/셀 편집/Excel import/저장을 UI와 command 진입점 양쪽에서 차단한다. `test/fortune_table_test.dart`에 조회 전용 회귀 테스트를 추가한다. 기존 unrelated dirty `lib/core/app.dart`는 수정·stage 대상에서 제외한다.
+- 현재 검증 기준: merge 상태 `flutter analyze` 통과. 전체 `flutter test`는 두 번 모두 journal 테스트의 고정 20ms 파일 생성 대기 1건 실패(`+279 -1`), 해당 테스트 단독 실행은 통과했다. 보완 후 focused test와 전체 suite를 다시 실행한다.
+- `lib/page_home/item_manage.dart`/`lib/home_page_manager.dart` 편집 완료: `canEdit`을 mutation command에 주입하고 조회 전용 사용자의 추가/삽입/삭제/셀·이미지 편집/Excel import/취소/저장을 차단했다. `_saveItemDraft()`에서도 권한을 재검증한다. 조회 전용 widget test 통과.
+- `lib/home_page_manager.dart` 주원료 편집 완료: FortuneSheet workbook 변경 callback에서 plain text/encoded workbook을 품목 draft callback에 즉시 반영해 내부 toolbar 저장 없이 행 전환·하단 저장 전에 변경이 draft에 남도록 했다. 기존 toolbar 저장과 자동 반영 focused test 2개 통과.
+- `lib/models/item_manager_draft.dart` 저장 검증 완료: SQL `OPENJSON` 계약과 같은 품명 100자/일반 컬럼 3000자 상수를 추가하고 초과 값을 정확한 row/column validation error로 차단했다. draft 전체 22개(후속 선택 복원 포함 23개) 테스트 통과.
+- `lib/page_home/item_manage.dart`/`lib/models/item_manager_draft.dart` 선택 상태 완료: FortuneTable 전체 선택 집합을 row key 집합으로 동기화하고 clean 상태의 baseline 선택을 보관해 추가/삽입 후 일반 취소에서도 편집 전 선택을 복원한다. FortuneTable 전체 28개와 draft 전체 23개 테스트 통과.
+- `lib/home_page_manager.dart` scoped 조회 완료: label-size 전체 `TColumnContentDAO.selectByLabelSizeId` 선조회를 제거하고 현재 market item id scoped 결과만 draft와 호환 static cache에 반영한다. 읽기/스냅샷 6개 테스트 통과.
+- `test/item_manager_draft_journal_test.dart` 안정화 완료: 고정 20ms 파일 생성 대기를 directory 접근 완료 신호와 명시적 flush 대기로 교체했다. journal 전체 8개 테스트 통과.
+- 출력 계약 정리 완료: `doc/item_manager_modify.txt`에서 이번 범위는 resolver metadata가 반영된 output workbook 생성 계약까지로 확정하고, 홈 `라벨출력(F3)` 화면과 실제 발행 command 연결은 별도 출력 기능 작업으로 분리했다. 실제 연결 시 raw template이 아닌 output workbook 계약을 사용한다.
+- 다음 검증 예정: 변경 파일 format, focused test 묶음, `flutter analyze`, 전체 `flutter test`, `git diff --check`. 검증 후 기존 unrelated dirty `lib/core/app.dart`를 제외하고 stage/commit한다.
+- 검증 실행 예정: `C:\Flutter\bin\flutter.bat test test\item_manager_draft_test.dart`, `test\fortune_table_test.dart`, `test\label_sheet_toolbar_test.dart`, `test\item_manager_draft_journal_test.dart`, `test\item_manager_read_snapshot_test.dart`를 focused 실행한 뒤 `C:\Flutter\bin\flutter.bat analyze`, `C:\Flutter\bin\flutter.bat test`, `git diff --check`를 실행한다.
+- 검증 완료: draft 24개, FortuneTable 28개, 주원료 focused 8개, journal 8개, 읽기/스냅샷 6개 테스트가 통과했다. `C:\Flutter\bin\flutter.bat analyze`는 `No issues found`, 전체 `C:\Flutter\bin\flutter.bat test`는 `285 통과 / 0 실패`, `git diff --check`는 출력 없이 통과했다.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `doc/item_manager_modify.txt`, `lib/home_page_manager.dart`, `lib/models/item_manager_draft.dart`, `lib/page_home/item_manage.dart`, `test/fortune_table_test.dart`, `test/item_manager_draft_journal_test.dart`, `test/item_manager_draft_test.dart`, `test/label_sheet_toolbar_test.dart`. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+
 ### 완료 (2026-07-10): 품목관리 요청서 preview/output check digit 문구 정리
 
 - 수정 예정 파일: `.tmp/item_manager_modify.txt`는 ignored 요청서 본문 수정, `SESSION_HANDOFF.md`는 ignored 요청서 변경 추적용 기록/검증/커밋 정보 갱신.

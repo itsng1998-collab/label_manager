@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -366,6 +367,7 @@ void main() {
       );
       addTearDown(controller.dispose);
       var failDirectory = false;
+      Completer<void>? retryWriteStarted;
       final journal = ItemManagerDraftJournal(
         controller: controller,
         mappingFingerprints: ItemMarketMappingFingerprints(const {}),
@@ -383,6 +385,10 @@ void main() {
           if (failDirectory) {
             throw const FileSystemException('close cleanup failed');
           }
+          if (retryWriteStarted case final completer?
+              when !completer.isCompleted) {
+            completer.complete();
+          }
           return directory;
         },
       );
@@ -399,8 +405,10 @@ void main() {
       failDirectory = false;
       await File(path).delete();
 
+      retryWriteStarted = Completer<void>();
       controller.updateItemName('item:10', '두 번째 변경');
-      await Future<void>.delayed(const Duration(milliseconds: 20));
+      await retryWriteStarted.future.timeout(const Duration(seconds: 1));
+      await journal.flush();
       expect(await File(path).exists(), isTrue);
       await journal.close();
     });

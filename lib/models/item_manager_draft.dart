@@ -10,6 +10,8 @@ import 'package:label_manager/models/item_of_market.dart';
 
 abstract final class ItemManagerLimits {
   static const int maxRows = 10000;
+  static const int maxItemNameLength = 100;
+  static const int maxColumnValueLength = 3000;
 }
 
 class ItemManagerFixedColumnIds {
@@ -359,6 +361,8 @@ class ItemManagerDraftController extends ChangeNotifier {
   final DateTime Function() _now;
   int _draftSequence = 0;
   String? _anchorRowKey;
+  Set<String> _baselineSelectedRowKeys = const {};
+  String? _baselineAnchorRowKey;
   int? _selectedColumnId;
   int _focusRequestId = 0;
   ItemManagerImportViewState? _importViewState;
@@ -443,11 +447,29 @@ class ItemManagerDraftController extends ChangeNotifier {
         break;
       }
     }
-    final anchorRow = selectedRow ?? (_rows.isEmpty ? null : _rows.first);
+    final baselineKeys = _baselineSelectedRowKeys
+        .where((key) => _rows.any((row) => row.rowKey == key))
+        .toSet();
+    final fallbackRow = baselineKeys.isEmpty
+      ? (_rows.isEmpty ? null : _rows.first)
+      : null;
     _selectedRowKeys
       ..clear()
-      ..addAll(anchorRow == null ? const [] : [anchorRow.rowKey]);
-    _anchorRowKey = anchorRow?.rowKey;
+      ..addAll(
+      selectedRow != null
+        ? [selectedRow.rowKey]
+        : baselineKeys.isNotEmpty
+        ? baselineKeys
+        : fallbackRow == null
+        ? const <String>[]
+        : [fallbackRow.rowKey],
+      );
+    _anchorRowKey = selectedRow?.rowKey ??
+        (_baselineAnchorRowKey != null && baselineKeys.contains(_baselineAnchorRowKey)
+            ? _baselineAnchorRowKey
+        : baselineKeys.isNotEmpty
+        ? baselineKeys.last
+        : fallbackRow?.rowKey);
     _selectedColumnId = null;
     notifyListeners();
   }
@@ -603,6 +625,20 @@ class ItemManagerDraftController extends ChangeNotifier {
         message: '${emptyNameIndex + 1}행의 품명을 입력해 주세요.',
       );
     }
+    final longNameIndex = _rows.indexWhere(
+      (row) => row.itemName.length > ItemManagerLimits.maxItemNameLength,
+    );
+    if (longNameIndex >= 0) {
+      final row = _rows[longNameIndex];
+      throw ItemManagerDraftValidationError(
+        rowKey: row.rowKey,
+        rowIndex: longNameIndex,
+        columnId: ItemManagerFixedColumnIds.itemName,
+        message:
+            '${longNameIndex + 1}행의 품명은 '
+            '${ItemManagerLimits.maxItemNameLength}자 이하로 입력해 주세요.',
+      );
+    }
     if (requireElement) {
       final emptyElementIndex = _rows.indexWhere(
         (row) => row.elementPlain.trim().isEmpty,
@@ -621,6 +657,15 @@ class ItemManagerDraftController extends ChangeNotifier {
       final row = _rows[rowIndex];
       for (final rule in validationRules) {
         final value = columnValue(row, rule.columnId).trim();
+        if (value.length > ItemManagerLimits.maxColumnValueLength) {
+          throw _columnValidationError(
+            row,
+            rowIndex,
+            rule,
+            '${rowIndex + 1}행 ${rule.columnName} 값은 '
+            '${ItemManagerLimits.maxColumnValueLength}자 이하로 입력해 주세요.',
+          );
+        }
         if (rule.required && value.isEmpty) {
           throw _columnValidationError(
             row,
@@ -903,6 +948,10 @@ class ItemManagerDraftController extends ChangeNotifier {
         : (_selectedRowKeys.isEmpty ? null : _selectedRowKeys.last);
     _selectedColumnId = columnId;
     if (columnId != null) _focusRequestId += 1;
+    if (!isDirty) {
+      _baselineSelectedRowKeys = Set.unmodifiable(_selectedRowKeys);
+      _baselineAnchorRowKey = _anchorRowKey;
+    }
     notifyListeners();
   }
 

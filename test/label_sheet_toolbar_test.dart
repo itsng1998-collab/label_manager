@@ -514,6 +514,59 @@ void main() {
     );
   });
 
+  testWidgets('item element changes commit to draft without toolbar save', (
+    tester,
+  ) async {
+    String? committedPlain;
+    String? committedPayload;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: debugItemPreviewPanelForTesting(
+            item: _testItemOfMarket(itemId: 0, itemName: '신규 품목'),
+            rowIdentity: 'draft:auto-commit',
+            labelSize: _testLabelSizeWithFormData(''),
+            onElementCommitted: (plain, payload) async {
+              committedPlain = plain;
+              committedPayload = payload;
+            },
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    final sheetApp = tester.widget<FortuneSheetApp>(
+      find.byType(FortuneSheetApp),
+    );
+    sheetApp.onChange!(
+      FortuneWorkbook(
+        sheets: [
+          FortuneSheet(
+            id: 'item_element',
+            name: '주원료 및 함량',
+            cells: {
+              const FortuneCellCoord(0, 0): const FortuneCell(
+                value: '저장 버튼 없는 변경',
+              ),
+            },
+          ),
+        ],
+      ),
+    );
+    await tester.pump();
+
+    expect(committedPlain, '저장 버튼 없는 변경');
+    expect(committedPayload, isNotNull);
+    expect(
+      labelSheetDecodeWorkbookSave(committedPayload!).sheets.first.cells.values
+          .single
+          .value,
+      '저장 버튼 없는 변경',
+    );
+  });
+
   test('item element RTF conversion decodes Korean ANSI hex', () async {
     const channel = MethodChannel('charset_converter');
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger

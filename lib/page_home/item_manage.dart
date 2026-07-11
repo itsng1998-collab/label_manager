@@ -59,6 +59,7 @@ class ItemManage extends StatefulWidget {
   final Future<void> Function()? onReloadDraft;
   final bool commandBusy;
   final bool forceReloadRequired;
+  final bool canEdit;
 
   const ItemManage({
     super.key,
@@ -80,6 +81,7 @@ class ItemManage extends StatefulWidget {
     this.onReloadDraft,
     this.commandBusy = false,
     this.forceReloadRequired = false,
+    this.canEdit = true,
   });
 
   @override
@@ -122,11 +124,13 @@ class _ItemManageState extends State<ItemManage> {
   ItemManagerDraftRow? _contextMenuDraftRow;
   int _lastFocusRequestId = 0;
   bool _projectingPublishChecks = false;
+  bool _projectingSelection = false;
 
   @override
   void initState() {
     super.initState();
     _publishCheckboxController.addListener(_handlePublishChecksChanged);
+    _selectionController.addListener(_handleSelectionChanged);
     widget.draftController?.addListener(_handleDraftChanged);
   }
 
@@ -157,7 +161,9 @@ class _ItemManageState extends State<ItemManage> {
           indexes.add(index);
         }
       }
+      _projectingSelection = true;
       _selectionController.setSelectedRows(indexes);
+      _projectingSelection = false;
       if (controller.focusRequestId != _lastFocusRequestId &&
           indexes.isNotEmpty) {
         _lastFocusRequestId = controller.focusRequestId;
@@ -190,6 +196,19 @@ class _ItemManageState extends State<ItemManage> {
     }
   }
 
+  void _handleSelectionChanged() {
+    if (_projectingSelection) return;
+    final controller = widget.draftController;
+    if (controller == null) return;
+    final rowKeys = <String>[];
+    for (final index in _selectionController.selectedRows) {
+      if (index >= 0 && index < controller.rows.length) {
+        rowKeys.add(controller.rows[index].rowKey);
+      }
+    }
+    controller.setSelection(rowKeys);
+  }
+
   void _projectPublishChecks() {
     final rows = widget.draftController?.rows;
     if (rows == null) return;
@@ -209,6 +228,7 @@ class _ItemManageState extends State<ItemManage> {
   void dispose() {
     widget.draftController?.removeListener(_handleDraftChanged);
     _publishCheckboxController.removeListener(_handlePublishChecksChanged);
+    _selectionController.removeListener(_handleSelectionChanged);
     _addCountController.dispose();
     _insertCountController.dispose();
     _publishCheckboxController.dispose();
@@ -256,7 +276,10 @@ class _ItemManageState extends State<ItemManage> {
     final cleanEnabled =
         !widget.commandBusy && !widget.forceReloadRequired && !dirty;
     final dirtyEnabled =
-        !widget.commandBusy && !widget.forceReloadRequired && dirty;
+      widget.canEdit &&
+      !widget.commandBusy &&
+      !widget.forceReloadRequired &&
+      dirty;
     return Container(
       height: 48,
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
@@ -267,7 +290,8 @@ class _ItemManageState extends State<ItemManage> {
       child: Row(
         children: [
           OutlinedButton(
-            onPressed: cleanEnabled && widget.onExcelImport != null
+            onPressed:
+                widget.canEdit && cleanEnabled && widget.onExcelImport != null
                 ? widget.onExcelImport
                 : null,
             child: const Text('엑셀 가져오기'),
@@ -346,9 +370,14 @@ class _ItemManageState extends State<ItemManage> {
   void _handleRowSelected(ItemOfMarket row, int index) {
     final draft = _draftByDisplayItem[row];
     if (draft != null) {
-      widget.draftController?.setSelection([
-        draft.rowKey,
-      ], anchorRowKey: draft.rowKey);
+      final controller = widget.draftController!;
+      final selectedKeys = <String>[];
+      for (final selectedIndex in _selectionController.selectedRows) {
+        if (selectedIndex >= 0 && selectedIndex < controller.rows.length) {
+          selectedKeys.add(controller.rows[selectedIndex].rowKey);
+        }
+      }
+      controller.setSelection(selectedKeys, anchorRowKey: draft.rowKey);
     }
     widget.onRowSelected?.call(row, index);
   }
@@ -383,7 +412,8 @@ class _ItemManageState extends State<ItemManage> {
   }
 
   Future<void> _showContextMenu(TapDownDetails details) async {
-    final mutationEnabled = !widget.commandBusy && !widget.forceReloadRequired;
+    final mutationEnabled =
+        widget.canEdit && !widget.commandBusy && !widget.forceReloadRequired;
     final publishEnabled =
         mutationEnabled && widget.draftController?.isDirty != true;
     final orderDisabledReason = widget.forceReloadRequired
@@ -774,10 +804,12 @@ class _ItemManageState extends State<ItemManage> {
             },
             isTextEditable: (row, _) {
               final draft = _draftByDisplayItem[row];
-              return c.columnType.code != TColumnType.TYPE_IMAGE &&
+              return widget.canEdit &&
+                c.columnType.code != TColumnType.TYPE_IMAGE &&
                   _canEditDynamicColumn(draft, c.columnId);
             },
-            onDoubleTap: c.columnType.code == TColumnType.TYPE_IMAGE
+            onDoubleTap:
+              widget.canEdit && c.columnType.code == TColumnType.TYPE_IMAGE
                 ? (row, _) => _selectBmpImage(row, c)
                 : null,
             onTextCommitted: (row, _, value) {
@@ -834,7 +866,8 @@ class _ItemManageState extends State<ItemManage> {
         minWidth: 70,
         text: _itemName,
         isTextEditable: (row, _) =>
-            !widget.commandBusy &&
+          widget.canEdit &&
+          !widget.commandBusy &&
             !widget.forceReloadRequired &&
             _draftByDisplayItem.containsKey(row),
         onTextCommitted: (row, _, value) {

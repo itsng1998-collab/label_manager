@@ -1239,6 +1239,79 @@ void main() {
     },
   );
 
+  testWidgets('ItemManage blocks mutations when edit permission is missing', (
+    tester,
+  ) async {
+    final controller = ItemManagerDraftController(
+      rows: [
+        ItemManagerDraftRow.newRow(
+          draftRowKey: 'draft-read-only',
+          order: 1,
+          originalIndex: 0,
+          insertAnchorItemId: null,
+          rowState: ItemManagerDraftRowState.added,
+          emptyElementPayload: 'UEsDempty',
+        ),
+      ],
+      scopedColumnContents: TColumnContentScopedView(const {}),
+    );
+    addTearDown(controller.dispose);
+    controller.updateItemName('draft:draft-read-only', '조회 전용 품목');
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 600,
+            height: 220,
+            child: ItemManage(
+              items: const [],
+              draftController: controller,
+              labelSize: const LabelSize(
+                labelSizeId: 20,
+                brandId: 30,
+                labelSizeName: '테스트 라벨',
+              ),
+              marketId: 1,
+              canEdit: false,
+              onExcelImport: () async {},
+              onExcelExport: () async {},
+              onCancelDraft: () async {},
+              onSaveDraft: () async {},
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      tester
+          .widget<OutlinedButton>(
+            find.widgetWithText(OutlinedButton, '엑셀 가져오기'),
+          )
+          .onPressed,
+      isNull,
+    );
+    expect(
+      tester
+          .widget<OutlinedButton>(find.widgetWithText(OutlinedButton, '취소'))
+          .onPressed,
+      isNull,
+    );
+    expect(
+      tester
+          .widget<FilledButton>(find.widgetWithText(FilledButton, '저장'))
+          .onPressed,
+      isNull,
+    );
+
+    await tester.tap(find.text('조회 전용 품목'));
+    await tester.pump();
+    await tester.tap(find.text('조회 전용 품목'));
+    await tester.pump();
+    expect(find.byType(TextField), findsNothing);
+  });
+
   testWidgets('ItemManage shows progress while a command is running', (
     tester,
   ) async {

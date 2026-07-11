@@ -660,10 +660,6 @@ class _HomePageManagerState extends State<HomePageManager> {
             labelSize.labelSizeId,
           ) ??
           const <TColumn>[];
-      final columnContents = await TColumnContentDAO.selectByLabelSizeId(
-            labelSize.labelSizeId,
-          ) ??
-          const <ColumnItemKey, TColumnContent>{};
       final specialColumns = await TColumnSpecial.selectByLabelSizeId(
             labelSize.labelSizeId,
           ) ??
@@ -740,7 +736,7 @@ class _HomePageManagerState extends State<HomePageManager> {
       _commonLabelPreviewClosedByUser = false;
       _itemManagerMigrationRequired = false;
       TColumn.datas = columns;
-      TColumnContent.datas = columnContents;
+      TColumnContent.datas = scopedColumnContents.values;
       TColumnSpecial.datas = specialColumns;
       ItemOfMarket.datas = items;
       widget.onLabelSizeChanged(labelSize);
@@ -894,6 +890,7 @@ class _HomePageManagerState extends State<HomePageManager> {
     final labelSize = _currentLabelSize;
     if (controller == null ||
         labelSize == null ||
+        User.instance?.canEdit != true ||
         !controller.isDirty ||
         _itemDraftCommandBusy ||
         _itemDraftForceReloadRequired) {
@@ -1070,7 +1067,10 @@ class _HomePageManagerState extends State<HomePageManager> {
 
   Future<void> _importItemManagerXlsx() async {
     final controller = _itemDraftController;
-    if (controller == null || controller.isDirty || _itemDraftCommandBusy) {
+    if (controller == null ||
+        User.instance?.canEdit != true ||
+        controller.isDirty ||
+        _itemDraftCommandBusy) {
       return;
     }
     const xlsxGroup = XTypeGroup(
@@ -1698,6 +1698,7 @@ class _HomePageManagerState extends State<HomePageManager> {
           marketId: Market.instance?.marketId,
           emptyElementPayload: _itemDraftEmptyElementPayload,
           onExcelImport: _itemDraftForceReloadRequired
+              || User.instance?.canEdit != true
               ? null
               : _importItemManagerXlsx,
           onExcelExport: _itemDraftForceReloadRequired
@@ -1721,6 +1722,7 @@ class _HomePageManagerState extends State<HomePageManager> {
           onReloadDraft: _retryItemDraftReload,
           commandBusy: _itemDraftCommandBusy,
           forceReloadRequired: _itemDraftForceReloadRequired,
+          canEdit: User.instance?.canEdit == true,
         ),
         closable: false,
         keepAlive: true,
@@ -3552,6 +3554,17 @@ class _ItemPreviewPanelState extends State<_ItemPreviewPanel> {
       );
     });
     _updateOutputPreviewTabContent();
+    unawaited(
+      widget.onElementCommitted(next, encodedWorkbook).catchError((
+        Object error,
+        StackTrace stackTrace,
+      ) {
+        debugLog(
+          'item element draft auto commit failed '
+          'rowIdentity=${widget.rowIdentity}, error=$error\n$stackTrace',
+        );
+      }),
+    );
   }
 
   Future<void> _handleElementSheetSave(
