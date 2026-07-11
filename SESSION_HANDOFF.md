@@ -28,7 +28,7 @@
 
 ## 현재 상태
 
-### 진행 중 (2026-07-11): 품목관리 머지 검토 보완
+### 완료 (2026-07-11): 품목관리 머지 검토 보완
 
 - 다른 PC에서 구현한 `doc/item_manager_modify.txt` 기준 변경을 merge한 뒤 코드 검토를 수행했다. merge 충돌은 `SESSION_HANDOFF.md`뿐이었으나 구현 자체에서 권한 차단, 주원료 미commit 반영, 문자열 길이 검증, 멀티 선택/취소 선택 복원, scoped column content 조회, journal 테스트 안정성, 실제 출력 계약 보완 필요성을 확인했다.
 - 수정 예정 1순위: `lib/page_home/item_manage.dart`와 `lib/home_page_manager.dart`에서 조회 전용 사용자의 품목 추가/삽입/삭제/셀 편집/Excel import/저장을 UI와 command 진입점 양쪽에서 차단한다. `test/fortune_table_test.dart`에 조회 전용 회귀 테스트를 추가한다. 기존 unrelated dirty `lib/core/app.dart`는 수정·stage 대상에서 제외한다.
@@ -44,6 +44,7 @@
 - 검증 실행 예정: `C:\Flutter\bin\flutter.bat test test\item_manager_draft_test.dart`, `test\fortune_table_test.dart`, `test\label_sheet_toolbar_test.dart`, `test\item_manager_draft_journal_test.dart`, `test\item_manager_read_snapshot_test.dart`를 focused 실행한 뒤 `C:\Flutter\bin\flutter.bat analyze`, `C:\Flutter\bin\flutter.bat test`, `git diff --check`를 실행한다.
 - 검증 완료: draft 24개, FortuneTable 28개, 주원료 focused 8개, journal 8개, 읽기/스냅샷 6개 테스트가 통과했다. `C:\Flutter\bin\flutter.bat analyze`는 `No issues found`, 전체 `C:\Flutter\bin\flutter.bat test`는 `285 통과 / 0 실패`, `git diff --check`는 출력 없이 통과했다.
 - stage/commit 대상: `SESSION_HANDOFF.md`, `doc/item_manager_modify.txt`, `lib/home_page_manager.dart`, `lib/models/item_manager_draft.dart`, `lib/page_home/item_manage.dart`, `test/fortune_table_test.dart`, `test/item_manager_draft_journal_test.dart`, `test/item_manager_draft_test.dart`, `test/label_sheet_toolbar_test.dart`. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+- 기능 커밋 완료: `0ab5b92` 품목관리 머지 검토 보완.
 
 ### 완료 (2026-07-10): 품목관리 요청서 preview/output check digit 문구 정리
 
