@@ -52,6 +52,7 @@ class DbConnectionMonitor {
       if (_isUp == null) {
         _isUp = ok;
         _emitStatus(ok);
+        if (!ok) onLost?.call();
         return;
       }
       if (_isUp != ok) {

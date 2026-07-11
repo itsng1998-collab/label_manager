@@ -667,6 +667,98 @@ void main() {
       await journal.close();
     });
 
+    test('rejects a deleted item id list that omits a deleted row', () async {
+      final controller = ItemManagerDraftController.fromItems(
+        items: [_itemOfMarket()],
+        rawSnapshots: {10: _snapshot()},
+        scopedColumnContents: TColumnContentScopedView(const {}),
+      );
+      addTearDown(controller.dispose);
+      final journal = ItemManagerDraftJournal(
+        controller: controller,
+        mappingFingerprints: ItemMarketMappingFingerprints(const {
+          10: [3, 5],
+        }),
+        mappingFingerprintProvider: (_) async =>
+            ItemMarketMappingFingerprints(const {
+              10: [3, 5],
+            }),
+        metadata: const ItemManagerDraftJournalMetadata(
+          draftKey: 'mapping-deleted-list-key',
+          userId: 'user-1',
+          customerId: 2,
+          brandId: 8,
+          labelSizeId: 4,
+          currentMarketId: 3,
+          targetMarketIds: [3, 5],
+        ),
+        directoryProvider: () async => directory,
+      );
+      await journal.start();
+      controller.deleteRows(const ['item:10']);
+      await journal.flush();
+
+      final preferences = await SharedPreferences.getInstance();
+      final path = preferences.getString(
+        ItemManagerDraftJournal.lastPathPreferenceKey,
+      )!;
+      final document =
+          jsonDecode(await File(path).readAsString()) as Map<String, dynamic>;
+      final changes = document['changes'] as Map<String, dynamic>;
+      changes['deletedSourceItemIds'] = <int>[];
+      await File(path).writeAsString(jsonEncode(document));
+
+      expect(
+        await journal.restoreBaseline(),
+        ItemManagerJournalRestoreResult.invalid,
+      );
+      expect(controller.isDirty, isTrue);
+      await journal.close();
+    });
+
+    test('rejects fractional identity metadata', () async {
+      final controller = ItemManagerDraftController.fromItems(
+        items: [_itemOfMarket()],
+        rawSnapshots: {10: _snapshot()},
+        scopedColumnContents: TColumnContentScopedView(const {}),
+      );
+      addTearDown(controller.dispose);
+      final journal = ItemManagerDraftJournal(
+        controller: controller,
+        mappingFingerprints: ItemMarketMappingFingerprints(const {}),
+        metadata: const ItemManagerDraftJournalMetadata(
+          draftKey: 'fractional-identity-key',
+          userId: 'user-1',
+          customerId: 2,
+          brandId: 8,
+          labelSizeId: 4,
+          currentMarketId: 3,
+          targetMarketIds: [3],
+        ),
+        directoryProvider: () async => directory,
+      );
+      await journal.start();
+      controller.updateItemName('item:10', '변경 품목');
+      await journal.flush();
+
+      final preferences = await SharedPreferences.getInstance();
+      final path = preferences.getString(
+        ItemManagerDraftJournal.lastPathPreferenceKey,
+      )!;
+      final document =
+          jsonDecode(await File(path).readAsString()) as Map<String, dynamic>;
+      final metadata = document['metadata'] as Map<String, dynamic>;
+      metadata['currentMarketId'] = 3.5;
+      await File(path).writeAsString(jsonEncode(document));
+
+      expect(
+        await journal.restoreBaseline(),
+        ItemManagerJournalRestoreResult.invalid,
+      );
+      expect(controller.isDirty, isTrue);
+      await journal.close();
+    });
+
     test('preserves delete draft when fingerprint lookup fails', () async {
       final controller = ItemManagerDraftController.fromItems(
         items: [_itemOfMarket()],

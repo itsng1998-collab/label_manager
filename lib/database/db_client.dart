@@ -33,6 +33,16 @@ class _DbIsolateTerminated {
   final Object reason;
 }
 
+@visibleForTesting
+void completeDbIsolateTermination(
+  Completer<Object>? termination,
+  Object reason,
+) {
+  if (termination != null && !termination.isCompleted) {
+    termination.complete(reason);
+  }
+}
+
 class _DbIsolateStartupFailure {
   const _DbIsolateStartupFailure._(this.message);
 
@@ -72,10 +82,14 @@ class DbClient {
   ReceivePort? _logReceivePort;
   StreamSubscription<dynamic>? _logSubscription;
   Future<void>? _isolateInit;
+  Future<void>? _disconnectFuture;
+  bool _driverConnected = false;
+  bool _disconnecting = false;
 
   static const int _maxIsolateStartAttempts = 2;
 
-  bool get isConnected => _dbIsolate != null && _dbSendPort != null;
+  bool get isConnected =>
+      _driverConnected && _dbIsolate != null && _dbSendPort != null;
 
   void _log(String message) {
     final timestamp = DateTime.now().toIso8601String();
@@ -214,8 +228,9 @@ class DbClient {
   }
 
   void _handleIsolateTermination(Completer<Object> termination, Object reason) {
-    if (!termination.isCompleted) termination.complete(reason);
+    completeDbIsolateTermination(termination, reason);
     if (!identical(_isolateTermination, termination)) return;
+    _driverConnected = false;
     _dbIsolate = null;
     _dbSendPort = null;
     _isolateTermination = null;
@@ -234,8 +249,13 @@ class DbClient {
     _log('DB isolate 종료 감지: $reason');
   }
 
-  Future<void> _disposeIsolateResources({required bool kill}) async {
+  Future<void> _disposeIsolateResources({
+    required bool kill,
+    Object reason = 'DB isolate disposed.',
+  }) async {
+    completeDbIsolateTermination(_isolateTermination, reason);
     if (kill) _dbIsolate?.kill(priority: Isolate.immediate);
+    _driverConnected = false;
     _dbIsolate = null;
     _dbSendPort = null;
     _isolateTermination = null;
@@ -257,7 +277,13 @@ class DbClient {
     DbIsolateAction action,
     Map<String, dynamic> payload,
   ) async {
+    if (_disconnecting && action != DbIsolateAction.disconnect) {
+      throw StateError('DB client is disconnecting.');
+    }
     await _ensureIsolate();
+    if (_disconnecting && action != DbIsolateAction.disconnect) {
+      throw StateError('DB client is disconnecting.');
+    }
     final responsePort = ReceivePort();
     _log('Isolate 요청: $action, payload=${_maskPayload(payload)}');
     if (action == DbIsolateAction.connect) {
@@ -312,6 +338,7 @@ class DbClient {
       'password': password,
       'timeoutInSeconds': timeoutInSeconds,
     });
+    _driverConnected = ok;
     sw.stop();
     _log('DB 연결 결과: $ok (${sw.elapsedMilliseconds}ms)');
     return ok;
@@ -389,14 +416,36 @@ class DbClient {
     return List<Object>.from(result as List);
   }
 
-  Future<void> disconnect() async {
-    if (_dbSendPort == null) return;
+  Future<void> disconnect() {
+    final active = _disconnectFuture;
+    if (active != null) return active;
+    late final Future<void> operation;
+    operation = _performDisconnect().whenComplete(() {
+      if (identical(_disconnectFuture, operation)) {
+        _disconnectFuture = null;
+      }
+    });
+    _disconnectFuture = operation;
+    return operation;
+  }
+
+  Future<void> _performDisconnect() async {
+    _disconnecting = true;
     _log('DB 연결 종료 요청');
     final sw = Stopwatch()..start();
     try {
-      await _sendToIsolate(DbIsolateAction.disconnect, {});
+      try {
+        await _isolateInit;
+      } catch (_) {}
+      if (_dbSendPort != null) {
+        await _sendToIsolate(DbIsolateAction.disconnect, {});
+      }
     } finally {
-      await _disposeIsolateResources(kill: true);
+      await _disposeIsolateResources(
+        kill: true,
+        reason: 'DB client disconnected.',
+      );
+      _disconnecting = false;
       sw.stop();
       _log('DB 연결 종료 완료 (${sw.elapsedMilliseconds}ms)');
     }

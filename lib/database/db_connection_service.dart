@@ -17,9 +17,15 @@ class DbConnectionService {
   int _retryAttempt = 0;
   bool _reconnectCancelled = false;
   int _pollingPauseDepth = 0;
+  Future<bool>? _connectionRecovery;
 
-  void attachAndStart({required ServerConnectInfo info, Duration interval = const Duration(seconds: 20)}) {
+  void attachAndStart({
+    required ServerConnectInfo info,
+    Duration interval = const Duration(seconds: 20),
+  }) {
     _lastConnectInfo = info;
+    _reconnectCancelled = false;
+    _retryAttempt = 0;
     _monitor?.dispose();
     _monitor = DbConnectionMonitor(
       interval: interval,
@@ -91,34 +97,64 @@ class DbConnectionService {
     if (status.reconnecting.value) return;
     status.reconnecting.value = true;
     _reconnectCancelled = false;
-  final db = DbClient.instance;
+    final db = DbClient.instance;
 
-  while (!db.isConnected && _lastConnectInfo != null) {
+    while (!db.isConnected && _lastConnectInfo != null) {
       if (_reconnectCancelled) break;
-      final backoff = Duration(seconds: (5 * (1 << _retryAttempt)).clamp(5, 60));
+      final backoff = Duration(
+        seconds: (5 * (1 << _retryAttempt)).clamp(5, 60),
+      );
       await Future.delayed(backoff);
       if (_reconnectCancelled) break;
 
-      try {
-        final ok = await db.connect(
-          ip: _lastConnectInfo!.serverIp,
-          port: _lastConnectInfo!.serverPort.toString(),
-          databaseName: _lastConnectInfo!.databaseName,
-          username: _lastConnectInfo!.userId,
-          password: _lastConnectInfo!.password,
-          timeoutInSeconds: 15,
-        );
-        if (!ok) {
-          throw Exception('reconnect failed');
-        }
+      if (await ensureConnected()) {
         status.up.value = true;
         break;
-      } catch (_) {}
+      }
 
       _retryAttempt = (_retryAttempt + 1).clamp(0, 6);
     }
 
     status.reconnecting.value = false;
+  }
+
+  Future<bool> ensureConnected() async {
+    final db = DbClient.instance;
+    if (db.isConnected) return true;
+    final info = _lastConnectInfo;
+    if (info == null || _reconnectCancelled) return false;
+    final active = _connectionRecovery;
+    if (active != null) return active;
+
+    final recovery = () async {
+      try {
+        final ok = await db.connect(
+          ip: info.serverIp,
+          port: info.serverPort.toString(),
+          databaseName: info.databaseName,
+          username: info.userId,
+          password: info.password,
+          timeoutInSeconds: 15,
+        );
+        status.up.value = ok;
+        if (ok) {
+          _retryAttempt = 0;
+          status.reconnecting.value = false;
+        }
+        return ok;
+      } catch (_) {
+        status.up.value = false;
+        return false;
+      }
+    }();
+    _connectionRecovery = recovery;
+    try {
+      return await recovery;
+    } finally {
+      if (identical(_connectionRecovery, recovery)) {
+        _connectionRecovery = null;
+      }
+    }
   }
 
   void cancelReconnect() {

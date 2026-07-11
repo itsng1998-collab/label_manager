@@ -28,6 +28,24 @@
 
 ## 현재 상태
 
+### 진행 중 (2026-07-11): 품목관리 8차 재검토 보완
+
+- 7차 보완 재검토에서 isolate 종료 후 새 isolate가 생성돼도 driver는 미연결인데 `DbClient.isConnected`가 true가 되어 재연결이 막히는 문제, 명시적 disconnect가 pending 요청 종료 신호를 완료하지 않는 문제, journal 삭제 ID 집합과 strict integer 검증 누락을 확인했다.
+- 권장 작업 순서: DB client 실제 연결 상태/disconnect gate/pending 종료 완료 -> 재연결 서비스와 품목 다시 조회 연결 -> 동시성 테스트 -> journal 삭제 집합 교차 검증 -> strict ID parser -> focused/analyze/전체 suite.
+- 수정 예정 1순위: `lib/database/db_client.dart`에 driver 연결 상태를 분리하고 disconnect 중 신규 요청을 차단하며, isolate 자원 정리 전에 현재 termination completer를 완료한다. 미검증.
+- `lib/database/db_client.dart` 편집 완료: `isConnected`를 실제 driver 연결 성공 기준으로 분리하고 isolate 종료/dispose에서 false로 전환한다. disconnect 중 신규 요청을 차단하고 startup을 기다리며 cleanup 전에 termination completer를 완료해 pending 요청을 해제한다.
+- `lib/database/db_connection_monitor.dart`/`lib/database/db_connection_service.dart` 편집 완료: 최초 ping 실패도 loss로 전달하고, 저장 접속정보 기반 `ensureConnected()`를 단일 recovery future로 제공한다. 새 attach는 이전 reconnect 취소/재시도 상태를 초기화한다.
+- `lib/home_page_manager.dart` 편집 완료: 품목 강제 다시 조회 전에 `ensureConnected()`를 수행한다.
+- `test/db_client_test.dart`/`test/db_connection_monitor_test.dart` 편집 완료: cleanup pending 완료/idempotence 및 최초 ping 실패 loss 경계 포함 DB focused 6개 통과.
+- DB lifecycle 후속 완료: isolate startup을 기다리던 요청은 대기 후 disconnect gate를 재검사하고, 중복 disconnect 호출은 같은 완료 future를 공유한다. DB client/monitor/transaction 19개 재통과, 관련 진단 0건.
+- `lib/models/item_manager_draft_journal.dart` 편집 완료: 삭제 fingerprint 대상 ID를 `deletedRows`에서 재산출하고 파일 삭제 목록/현재 controller 삭제 집합과 교차 검증한다. identity/market metadata는 strict int와 양수 집합을 사용한다.
+- `test/item_manager_draft_journal_test.dart` 편집 완료: 삭제 ID 목록 누락과 fractional identity 변조를 `invalid`로 차단하며 journal 21개 통과.
+- 변경 Dart 8개 파일 format 완료. DB client/monitor/transaction/journal/draft/save DAO focused 묶음 71개 통과.
+- 중간 전체 검증은 workspace 진단 0건, analyze 성공, 전체 테스트 316개 통과, diff check 성공이었다. 최종 lifecycle 보완 후 analyze/전체 suite/diff check를 재실행한다.
+- 최종 검증 완료: workspace 진단 0건, `C:\Flutter\bin\flutter.bat analyze`는 `No issues found`, 전체 `C:\Flutter\bin\flutter.bat test` 316개 통과, `git diff --check` 성공.
+- 기능 커밋 stage 대상: `SESSION_HANDOFF.md`, `lib/database/db_client.dart`, `lib/database/db_connection_monitor.dart`, `lib/database/db_connection_service.dart`, `lib/home_page_manager.dart`, `lib/models/item_manager_draft_journal.dart`, `test/db_client_test.dart`, `test/db_connection_monitor_test.dart`, `test/item_manager_draft_journal_test.dart`. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+- 기존 unrelated dirty `lib/core/app.dart`는 수정·stage 대상에서 제외한다.
+
 ### 완료 (2026-07-11): 품목관리 7차 재검토 보완
 
 - 6차 보완 재검토에서 DB transaction COMMIT 후 isolate가 응답 전 종료되면 `DbClient._sendToIsolate()`가 영구 대기하는 문제와 mapping fingerprint가 동일 market 중복 mapping count를 제거하는 문제를 확인했다.

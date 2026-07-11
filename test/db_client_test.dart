@@ -49,5 +49,29 @@ void main() {
 
       expect(await result, same(expected));
     });
+
+    test('explicit cleanup completes pending requests', () async {
+      final response = Completer<DbIsolateResponse>();
+      final termination = Completer<Object>();
+
+      final result = waitForDbIsolateResponse(
+        action: DbIsolateAction.query,
+        response: response.future,
+        termination: termination.future,
+      );
+      completeDbIsolateTermination(termination, 'client disconnected');
+
+      await expectLater(result, throwsStateError);
+      expect(termination.isCompleted, isTrue);
+    });
+
+    test('termination completion is idempotent', () async {
+      final termination = Completer<Object>();
+
+      completeDbIsolateTermination(termination, 'first');
+      completeDbIsolateTermination(termination, 'second');
+
+      expect(await termination.future, 'first');
+    });
   });
 }

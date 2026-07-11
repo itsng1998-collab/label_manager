@@ -14,6 +14,7 @@ import 'package:tabbed_view/tabbed_view.dart';
 import 'package:label_manager/core/app.dart';
 import 'package:label_manager/core/auto_login_guard.dart';
 import 'package:label_manager/core/ui_scale.dart';
+import 'package:label_manager/database/db_connection_service.dart';
 import 'package:label_manager/database/drivers/db_driver.dart';
 import 'package:label_manager/models/brand.dart';
 import 'package:label_manager/models/column_base.dart';
@@ -576,7 +577,7 @@ class _HomePageManagerState extends State<HomePageManager> {
     try {
       debugLog(START);
 
-        if (!forceReload &&
+      if (!forceReload &&
           labelSize?.labelSizeId != _currentLabelSize?.labelSizeId &&
           _blockItemDraftContextChange()) {
         widget.onLabelSizeChanged(_currentLabelSize);
@@ -585,7 +586,7 @@ class _HomePageManagerState extends State<HomePageManager> {
 
       final currentLabelSizeId = _currentLabelSize?.labelSizeId;
       final selectedLabelSizeId = widget.selectedLabelSize?.labelSizeId;
-        if (!forceReload &&
+      if (!forceReload &&
           labelSize?.labelSizeId == currentLabelSizeId &&
           labelSize?.labelSizeId == selectedLabelSizeId) {
         debugLog('skip unchanged labelSizeId=${labelSize?.labelSizeId}');
@@ -657,13 +658,11 @@ class _HomePageManagerState extends State<HomePageManager> {
         _setItemDraftForceReloadRequired(false);
         return true;
       }
-      final columns = await TColumnDAO.selectByLabelSizeId(
-            labelSize.labelSizeId,
-          ) ??
+      final columns =
+          await TColumnDAO.selectByLabelSizeId(labelSize.labelSizeId) ??
           const <TColumn>[];
-      final specialColumns = await TColumnSpecial.selectByLabelSizeId(
-            labelSize.labelSizeId,
-          ) ??
+      final specialColumns =
+          await TColumnSpecial.selectByLabelSizeId(labelSize.labelSizeId) ??
           const <TColumnBase>[];
       final items =
           await ItemOfMarketDAO.selectByItemOfMarketAndLabelSizeId(
@@ -790,9 +789,9 @@ class _HomePageManagerState extends State<HomePageManager> {
   bool _blockItemDraftContextChange() {
     if (_itemDraftCommandBusy) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('현재 작업이 끝난 뒤 변경해 주세요.')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('현재 작업이 끝난 뒤 변경해 주세요.')));
       }
       return true;
     }
@@ -902,9 +901,7 @@ class _HomePageManagerState extends State<HomePageManager> {
           context: context,
           builder: (dialogContext) => AlertDialog(
             title: const Text('외부 변경 가능성'),
-            content: const Text(
-              '다른 매장의 품목 연결 상태가 변경되어 현재 DB 기준으로 복원했습니다.',
-            ),
+            content: const Text('다른 매장의 품목 연결 상태가 변경되어 현재 DB 기준으로 복원했습니다.'),
             actions: [
               FilledButton(
                 onPressed: () => Navigator.of(dialogContext).pop(),
@@ -984,11 +981,11 @@ class _HomePageManagerState extends State<HomePageManager> {
 
     final selectedKey = controller.anchorRowKey;
     final selectedRowIndex = selectedKey == null
-      ? -1
-      : controller.rows.indexWhere((row) => row.rowKey == selectedKey);
+        ? -1
+        : controller.rows.indexWhere((row) => row.rowKey == selectedKey);
     final selectedRow = selectedRowIndex < 0
-      ? null
-      : controller.rows[selectedRowIndex];
+        ? null
+        : controller.rows[selectedRowIndex];
     setState(() => _itemDraftCommandBusy = true);
     var dbSaveCompleted = false;
     try {
@@ -1050,6 +1047,9 @@ class _HomePageManagerState extends State<HomePageManager> {
     if (_itemDraftCommandBusy || !_itemDraftForceReloadRequired) return;
     setState(() => _itemDraftCommandBusy = true);
     try {
+      if (!await DbConnectionService.instance.ensureConnected()) {
+        throw StateError('데이터베이스 연결을 복구하지 못했습니다.');
+      }
       final reloaded = await _reloadItemDraftFromDatabase(
         selectedItemId: _selectedItemOfMarket?.item.itemId,
         fallbackIndex: _selectedItemIndex,
@@ -1097,10 +1097,7 @@ class _HomePageManagerState extends State<HomePageManager> {
       fallbackIndex: _selectedItemIndex,
     );
     if (!reloaded && mounted) {
-      _showItemDraftError(
-        '품목 다시 조회 실패',
-        StateError('품목 목록을 다시 불러오지 못했습니다.'),
-      );
+      _showItemDraftError('품목 다시 조회 실패', StateError('품목 목록을 다시 불러오지 못했습니다.'));
     }
   }
 
@@ -1500,7 +1497,9 @@ class _HomePageManagerState extends State<HomePageManager> {
 
   void _onTabSelection(int? index, TabData? tab) {
     if (tab?.value != 'items' && _blockItemDraftContextChange()) {
-      final itemIndex = _tabs.indexWhere((candidate) => candidate.value == 'items');
+      final itemIndex = _tabs.indexWhere(
+        (candidate) => candidate.value == 'items',
+      );
       if (itemIndex >= 0 && _tabController.selectedIndex != itemIndex) {
         _tabController.selectedIndex = itemIndex;
       }
@@ -1584,7 +1583,7 @@ class _HomePageManagerState extends State<HomePageManager> {
     if (labelSize == null ||
         setup == null ||
         _itemDraftCommandBusy ||
-      _itemDraftForceReloadRequired ||
+        _itemDraftForceReloadRequired ||
         _itemDraftController?.isDirty == true) {
       return;
     }
@@ -1751,42 +1750,45 @@ class _HomePageManagerState extends State<HomePageManager> {
         content: _itemManagerMigrationRequired
             ? const ItemManagerMigrationRequired()
             : ItemManage(
-          key: ValueKey('items:$_labelContentKey'),
-          items: ItemOfMarket.datas ?? const <ItemOfMarket>[],
-          selectedIndex: _selectedItemIndex,
-          onRowSelected: _handleItemRowSelected,
-          onTableRectChanged: _handleItemTableRectChanged,
-          draftController: _itemDraftController,
-          labelSize: _effectiveLabelSize,
-          marketId: Market.instance?.marketId,
-          emptyElementPayload: _itemDraftEmptyElementPayload,
-          onExcelImport: _itemDraftForceReloadRequired
-              || User.instance?.canEdit != true
-              ? null
-              : _importItemManagerXlsx,
-          onExcelExport: _itemDraftForceReloadRequired
-              ? null
-              : _exportItemManagerXlsx,
-          onQrDataView: _itemDraftForceReloadRequired ? null : _showItemQrData,
-          onItemOrderChange:
-              !_itemDraftForceReloadRequired &&
-                  _effectiveLabelSize != null &&
-                  User.instance?.canEdit == true &&
-                  (ItemOfMarket.datas?.length ?? 0) >= 2
-              ? _changeItemOrder
-              : null,
-          itemOrderDisabledReason: User.instance?.canEdit != true
-              ? '편집 권한이 없습니다.'
-              : (ItemOfMarket.datas?.length ?? 0) < 2
-              ? '순서를 바꾸려면 품목이 2개 이상 필요합니다.'
-              : null,
-          onCancelDraft: _cancelItemDraft,
-          onSaveDraft: _saveItemDraft,
-          onReloadDraft: _retryItemDraftReload,
-          commandBusy: _itemDraftCommandBusy,
-          forceReloadRequired: _itemDraftForceReloadRequired,
-          canEdit: User.instance?.canEdit == true,
-        ),
+                key: ValueKey('items:$_labelContentKey'),
+                items: ItemOfMarket.datas ?? const <ItemOfMarket>[],
+                selectedIndex: _selectedItemIndex,
+                onRowSelected: _handleItemRowSelected,
+                onTableRectChanged: _handleItemTableRectChanged,
+                draftController: _itemDraftController,
+                labelSize: _effectiveLabelSize,
+                marketId: Market.instance?.marketId,
+                emptyElementPayload: _itemDraftEmptyElementPayload,
+                onExcelImport:
+                    _itemDraftForceReloadRequired ||
+                        User.instance?.canEdit != true
+                    ? null
+                    : _importItemManagerXlsx,
+                onExcelExport: _itemDraftForceReloadRequired
+                    ? null
+                    : _exportItemManagerXlsx,
+                onQrDataView: _itemDraftForceReloadRequired
+                    ? null
+                    : _showItemQrData,
+                onItemOrderChange:
+                    !_itemDraftForceReloadRequired &&
+                        _effectiveLabelSize != null &&
+                        User.instance?.canEdit == true &&
+                        (ItemOfMarket.datas?.length ?? 0) >= 2
+                    ? _changeItemOrder
+                    : null,
+                itemOrderDisabledReason: User.instance?.canEdit != true
+                    ? '편집 권한이 없습니다.'
+                    : (ItemOfMarket.datas?.length ?? 0) < 2
+                    ? '순서를 바꾸려면 품목이 2개 이상 필요합니다.'
+                    : null,
+                onCancelDraft: _cancelItemDraft,
+                onSaveDraft: _saveItemDraft,
+                onReloadDraft: _retryItemDraftReload,
+                commandBusy: _itemDraftCommandBusy,
+                forceReloadRequired: _itemDraftForceReloadRequired,
+                canEdit: User.instance?.canEdit == true,
+              ),
         closable: false,
         keepAlive: true,
       ),
@@ -2714,7 +2716,7 @@ class _HomePageManagerState extends State<HomePageManager> {
     final dateSettingsEnabled =
         resolvedLabel?.labelSizeSetup != null &&
         !_itemDraftCommandBusy &&
-      !_itemDraftForceReloadRequired &&
+        !_itemDraftForceReloadRequired &&
         _itemDraftController?.isDirty != true;
 
     final tabbedView = TabbedViewTheme(
@@ -3895,10 +3897,10 @@ class _ItemElementPreviewTab extends StatelessWidget {
       hideStatisticBar: true,
       limitCellActionsToClipboardAndClear: true,
       zoomToolbarPlacement: LabelSheetZoomToolbarPlacement.previewTabAreaEnd,
-        onWorkbookChanged: canEdit ? onWorkbookChanged : null,
-        onSave: canEdit
+      onWorkbookChanged: canEdit ? onWorkbookChanged : null,
+      onSave: canEdit
           ? (width, height, encodedWorkbook) =>
-            onSave(context, width, height, encodedWorkbook)
+                onSave(context, width, height, encodedWorkbook)
           : null,
     );
   }

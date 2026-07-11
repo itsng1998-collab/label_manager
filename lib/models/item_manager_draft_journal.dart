@@ -244,14 +244,13 @@ class ItemManagerDraftJournal {
       return ItemManagerJournalRestoreResult.invalid;
     }
     final deletedSourceItemIds = changes['deletedSourceItemIds'];
-    if (deletedSourceItemIds is! List) {
-      return ItemManagerJournalRestoreResult.invalid;
-    }
-    final deletedItemIds = deletedSourceItemIds
-        .whereType<num>()
-        .map((id) => id.toInt())
-        .toSet();
-    if (deletedItemIds.length != deletedSourceItemIds.length) {
+    final deletedRows = changes['deletedRows'];
+    final deletedItemIds = _strictPositiveIntSet(deletedSourceItemIds);
+    final deletedRowItemIds = _deletedRowItemIds(deletedRows);
+    if (deletedItemIds == null ||
+        deletedRowItemIds == null ||
+        !setEquals(deletedItemIds, deletedRowItemIds) ||
+        !setEquals(deletedItemIds, controller.deletedSourceItemIds)) {
       return ItemManagerJournalRestoreResult.invalid;
     }
     if (deletedItemIds.isNotEmpty && _mappingFingerprintProvider != null) {
@@ -733,7 +732,8 @@ ItemOfMarket _itemOfMarketFromJson(Map<String, dynamic> json) {
 ItemOfMarketRawSnapshot _rawSnapshotFromJson(Map<String, dynamic> json) {
   DateTime? date(String key) =>
       json[key] == null ? null : DateTime.parse(json[key] as String);
-  int? integer(String key) => (json[key] as num?)?.toInt();
+  int? integer(String key) =>
+      json[key] == null ? null : _strictJsonInt(json[key], key);
   double? number(String key) => (json[key] as num?)?.toDouble();
   return ItemOfMarketRawSnapshot(
     marketId: _jsonInt(json, 'marketId'),
@@ -774,26 +774,56 @@ TColumnContent _columnContentFromJson(Map<String, dynamic> json) =>
     );
 
 int _jsonInt(Map<String, dynamic> json, String key) =>
-    (json[key] as num).toInt();
+    _strictJsonInt(json[key], key);
+
+int _strictJsonInt(Object? value, String key) {
+  if (value is! int) throw FormatException('$key must be an integer.');
+  return value;
+}
+
+Set<int>? _strictPositiveIntSet(Object? value) {
+  if (value is! List) return null;
+  final result = <int>{};
+  for (final item in value) {
+    if (item is! int || item <= 0 || !result.add(item)) return null;
+  }
+  return result;
+}
+
+Set<int>? _deletedRowItemIds(Object? value) {
+  if (value is! List) return null;
+  final result = <int>{};
+  for (final item in value) {
+    if (item is! Map) return null;
+    final row = Map<String, dynamic>.from(item);
+    final sourceItemId = row['sourceItemId'];
+    if (sourceItemId is! int ||
+        sourceItemId <= 0 ||
+        !result.add(sourceItemId)) {
+      return null;
+    }
+  }
+  return result;
+}
 
 bool _journalMetadataMatches(
   Map<String, dynamic> json,
   ItemManagerDraftJournalMetadata expected,
 ) {
   final targetMarketIds = json['targetMarketIds'];
-  if (targetMarketIds is! List) return false;
-  final actualTargets = targetMarketIds
-      .whereType<num>()
-      .map((id) => id.toInt())
-      .toSet();
+  final actualTargets = _strictPositiveIntSet(targetMarketIds);
+  if (actualTargets == null) return false;
   final expectedTargets = expected.targetMarketIds.toSet();
   return json['draftKey'] == expected.draftKey &&
       json['userId'] == expected.userId &&
+      json['customerId'] is int &&
       json['customerId'] == expected.customerId &&
+      json['brandId'] is int &&
       json['brandId'] == expected.brandId &&
+      json['labelSizeId'] is int &&
       json['labelSizeId'] == expected.labelSizeId &&
+      json['currentMarketId'] is int &&
       json['currentMarketId'] == expected.currentMarketId &&
-      actualTargets.length == targetMarketIds.length &&
       actualTargets.length == expectedTargets.length &&
       actualTargets.containsAll(expectedTargets);
 }
