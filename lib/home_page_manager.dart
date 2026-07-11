@@ -868,7 +868,18 @@ class _HomePageManagerState extends State<HomePageManager> {
       }
       return;
     }
-    controller.discardChanges();
+    var restoredFromJournal = false;
+    try {
+      restoredFromJournal = await _itemDraftJournal?.restoreBaseline() ?? false;
+    } catch (error) {
+      debugLog('item draft journal restore failed: $error');
+      final reloaded = await _reloadItemDraftFromDatabase();
+      if (!reloaded && mounted) {
+        _showItemDraftError('변경 취소 실패', error);
+      }
+      return;
+    }
+    if (!restoredFromJournal) controller.discardChanges();
     final anchorRowKey = controller.anchorRowKey;
     final selectedIndex = anchorRowKey == null
         ? -1
@@ -1209,10 +1220,16 @@ class _HomePageManagerState extends State<HomePageManager> {
       for (final column in TColumn.datas ?? const <TColumn>[])
         ItemCodeColumnSpec.fromColumn(column),
     ];
+    String columnValue(int columnId) => controller.columnValue(row, columnId);
     final results = ItemCodeDataResolver(
       itemName: row.itemName,
       columns: columns,
-      columnValue: (columnId) => controller.columnValue(row, columnId),
+      columnValue: columnValue,
+      tokenColumnValue: (column) => itemCodeTokenColumnValue(
+        column: column,
+        columns: columns,
+        columnValue: columnValue,
+      ),
       gs1Definitions: Gs1AiDefinitions.values,
     ).resolveViewerData();
     if (!mounted) return;
@@ -4088,18 +4105,25 @@ String debugItemCodeErrorPlaceholderForTesting() =>
     if (workbook == null) {
       return (workbook: null, hintText: '* 저장된 라벨에 문제가 있습니다.');
     }
+    final columns = [
+      for (final column in TColumn.datas ?? const <TColumn>[])
+        ItemCodeColumnSpec.fromColumn(column),
+    ];
+    String columnValue(int columnId) =>
+        TColumnContent.get(columnId, item.item.itemId)?.dataString ?? '';
     return (
       workbook: _replaceItemPreviewKeywords(
         _itemOutputPreviewPrivateWorkbook(workbook, labelSize),
         _itemOutputPreviewReplacements(item: item, elementText: elementText),
         codeDataResolver: ItemCodeDataResolver(
           itemName: item.item.itemName,
-          columns: [
-            for (final column in TColumn.datas ?? const <TColumn>[])
-              ItemCodeColumnSpec.fromColumn(column),
-          ],
-          columnValue: (columnId) =>
-              TColumnContent.get(columnId, item.item.itemId)?.dataString ?? '',
+          columns: columns,
+          columnValue: columnValue,
+          tokenColumnValue: (column) => itemCodeTokenColumnValue(
+            column: column,
+            columns: columns,
+            columnValue: columnValue,
+          ),
           gs1Definitions: Gs1AiDefinitions.values,
         ),
         elementCell: _itemElementCellFromWorkbook(

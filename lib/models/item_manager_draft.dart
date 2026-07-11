@@ -424,6 +424,8 @@ class ItemManagerDraftController extends ChangeNotifier {
       Map.unmodifiable(_deletedRowsBySourceItemId);
   Set<String> get selectedRowKeys => Set.unmodifiable(_selectedRowKeys);
   String? get anchorRowKey => _anchorRowKey;
+  Set<String> get baselineSelectedRowKeys => _baselineSelectedRowKeys;
+  String? get baselineAnchorRowKey => _baselineAnchorRowKey;
   int? get selectedColumnId => _selectedColumnId;
   int get focusRequestId => _focusRequestId;
   bool get isDirty =>
@@ -433,7 +435,11 @@ class ItemManagerDraftController extends ChangeNotifier {
       _rows.any((row) => row.rowState == ItemManagerDraftRowState.imported);
   ItemManagerImportViewState? get importViewState => _importViewState;
 
-  void discardChanges({int? selectedItemId}) {
+  void discardChanges({
+    int? selectedItemId,
+    Iterable<String>? selectedRowKeys,
+    String? anchorRowKey,
+  }) {
     _rows
       ..clear()
       ..addAll(_baselineRows);
@@ -447,7 +453,7 @@ class ItemManagerDraftController extends ChangeNotifier {
         break;
       }
     }
-    final baselineKeys = _baselineSelectedRowKeys
+    final baselineKeys = (selectedRowKeys ?? _baselineSelectedRowKeys)
         .where((key) => _rows.any((row) => row.rowKey == key))
         .toSet();
     final fallbackRow = baselineKeys.isEmpty
@@ -464,9 +470,10 @@ class ItemManagerDraftController extends ChangeNotifier {
         ? const <String>[]
         : [fallbackRow.rowKey],
       );
+    final preferredAnchor = anchorRowKey ?? _baselineAnchorRowKey;
     _anchorRowKey = selectedRow?.rowKey ??
-        (_baselineAnchorRowKey != null && baselineKeys.contains(_baselineAnchorRowKey)
-            ? _baselineAnchorRowKey
+      (preferredAnchor != null && baselineKeys.contains(preferredAnchor)
+        ? preferredAnchor
         : baselineKeys.isNotEmpty
         ? baselineKeys.last
         : fallbackRow?.rowKey);

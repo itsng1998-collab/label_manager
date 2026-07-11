@@ -272,6 +272,82 @@ void main() {
       );
     });
 
+    test('restores baseline selection from the journal and clears it', () async {
+      final controller = ItemManagerDraftController.fromItems(
+        items: [_itemOfMarket()],
+        rawSnapshots: {10: _snapshot()},
+        scopedColumnContents: TColumnContentScopedView(const {}),
+      );
+      addTearDown(controller.dispose);
+      controller.setSelection(const ['item:10'], anchorRowKey: 'item:10');
+      final journal = ItemManagerDraftJournal(
+        controller: controller,
+        mappingFingerprints: ItemMarketMappingFingerprints(const {}),
+        metadata: const ItemManagerDraftJournalMetadata(
+          draftKey: 'restore-key',
+          userId: 'user-1',
+          customerId: 2,
+          brandId: 8,
+          labelSizeId: 4,
+          currentMarketId: 3,
+          targetMarketIds: [3],
+        ),
+        directoryProvider: () async => directory,
+      );
+      await journal.start();
+      controller.updateItemName('item:10', '변경 품목');
+      controller.setSelection(const []);
+      await journal.flush();
+
+      expect(await journal.restoreBaseline(), isTrue);
+      expect(controller.rows.single.itemName, '기존 품목');
+      expect(controller.selectedRowKeys, {'item:10'});
+      expect(controller.anchorRowKey, 'item:10');
+      expect(controller.isDirty, isFalse);
+      final preferences = await SharedPreferences.getInstance();
+      expect(
+        preferences.getString(ItemManagerDraftJournal.lastPathPreferenceKey),
+        isNull,
+      );
+      await journal.close();
+    });
+
+    test('rejects a damaged journal without discarding memory draft', () async {
+      final controller = ItemManagerDraftController.fromItems(
+        items: [_itemOfMarket()],
+        rawSnapshots: {10: _snapshot()},
+        scopedColumnContents: TColumnContentScopedView(const {}),
+      );
+      addTearDown(controller.dispose);
+      final journal = ItemManagerDraftJournal(
+        controller: controller,
+        mappingFingerprints: ItemMarketMappingFingerprints(const {}),
+        metadata: const ItemManagerDraftJournalMetadata(
+          draftKey: 'damaged-key',
+          userId: 'user-1',
+          customerId: 2,
+          brandId: 8,
+          labelSizeId: 4,
+          currentMarketId: 3,
+          targetMarketIds: [3],
+        ),
+        directoryProvider: () async => directory,
+      );
+      await journal.start();
+      controller.updateItemName('item:10', '변경 품목');
+      await journal.flush();
+      final preferences = await SharedPreferences.getInstance();
+      final path = preferences.getString(
+        ItemManagerDraftJournal.lastPathPreferenceKey,
+      )!;
+      await File(path).writeAsString('{broken');
+
+      await expectLater(journal.restoreBaseline(), throwsFormatException);
+      expect(controller.rows.single.itemName, '변경 품목');
+      expect(controller.isDirty, isTrue);
+      await journal.close();
+    });
+
     test('can retain a committed journal until reload cleanup', () async {
       final controller = ItemManagerDraftController.fromItems(
         items: [_itemOfMarket()],

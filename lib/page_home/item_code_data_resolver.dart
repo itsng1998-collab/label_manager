@@ -85,6 +85,38 @@ class ItemCodeDataResult {
   final String? error;
 }
 
+String itemCodeTokenColumnValue({
+  required ItemCodeColumnSpec column,
+  required List<ItemCodeColumnSpec> columns,
+  required String Function(int columnId) columnValue,
+  DateTime Function()? now,
+}) {
+  final raw = columnValue(column.columnId);
+  if (column.typeCode != TColumnType.TYPE_VALIDDATE) return raw;
+  final offset = int.tryParse(raw.trim());
+  if (offset == null) return raw;
+
+  final current = (now ?? DateTime.now)();
+  var baseDate = DateTime(current.year, current.month, current.day);
+  for (final candidate in columns) {
+    if (candidate.typeCode != TColumnType.TYPE_MAKEDATE) continue;
+    final value = columnValue(candidate.columnId).trim();
+    if (!RegExp(r'^\d{8}$').hasMatch(value)) break;
+    final year = int.parse(value.substring(0, 4));
+    final month = int.parse(value.substring(4, 6));
+    final day = int.parse(value.substring(6, 8));
+    final parsed = DateTime(year, month, day);
+    if (parsed.year == year && parsed.month == month && parsed.day == day) {
+      baseDate = parsed;
+    }
+    break;
+  }
+  final validDate = baseDate.add(Duration(days: offset));
+  return '${validDate.year.toString().padLeft(4, '0')}'
+      '${validDate.month.toString().padLeft(2, '0')}'
+      '${validDate.day.toString().padLeft(2, '0')}';
+}
+
 class ItemCodeDataResolver {
   const ItemCodeDataResolver({
     required this.itemName,

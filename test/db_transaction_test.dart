@@ -52,6 +52,34 @@ void main() {
       ]);
     });
 
+    for (final errorResult in <Object>[
+      {'error': 'map driver failure'},
+      '{"rows":[],"affected":1,"error":"json driver failure"}',
+    ]) {
+      test('transaction rolls back driver error result $errorResult', () async {
+        final driver = _FakeDbDriver(
+          resultSql: 'UPDATE FAIL RESULT',
+          result: errorResult,
+        );
+
+        await expectLater(
+          executeDriverTransaction(driver, const [
+            DbTransactionStatement(sql: 'UPDATE FIRST'),
+            DbTransactionStatement(sql: 'UPDATE FAIL RESULT'),
+            DbTransactionStatement(sql: 'UPDATE NEVER'),
+          ]),
+          throwsA(isA<StateError>()),
+        );
+
+        expect(driver.calls, [
+          'write:BEGIN TRANSACTION',
+          'write:UPDATE FIRST',
+          'write:UPDATE FAIL RESULT',
+          'write:IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION',
+        ]);
+      });
+    }
+
     test('transaction statement maps are isolate safe', () {
       const statement = DbTransactionStatement(
         sql: 'UPDATE T SET VALUE=@value',
@@ -74,9 +102,11 @@ void main() {
 }
 
 class _FakeDbDriver implements DbDriver {
-  _FakeDbDriver({this.failingSql});
+  _FakeDbDriver({this.failingSql, this.resultSql, this.result});
 
   final String? failingSql;
+  final String? resultSql;
+  final Object? result;
   final List<String> calls = [];
 
   @override
@@ -86,11 +116,14 @@ class _FakeDbDriver implements DbDriver {
     if (sql == failingSql) throw StateError('failed: $sql');
   }
 
+  Object _resultFor(String sql, Object fallback) =>
+      sql == resultSql ? result! : fallback;
+
   @override
   Future<Object> getData(String sql) async {
     calls.add('query:$sql');
     _failIfNeeded(sql);
-    return {'rows': <Object>[]};
+    return _resultFor(sql, {'rows': <Object>[]});
   }
 
   @override
@@ -100,14 +133,14 @@ class _FakeDbDriver implements DbDriver {
   ) async {
     calls.add('queryParams:$sql:$params');
     _failIfNeeded(sql);
-    return {'rows': <Object>[]};
+    return _resultFor(sql, {'rows': <Object>[]});
   }
 
   @override
   Future<Object> writeData(String sql) async {
     calls.add('write:$sql');
     _failIfNeeded(sql);
-    return {'affected': 1};
+    return _resultFor(sql, {'affected': 1});
   }
 
   @override
@@ -117,7 +150,7 @@ class _FakeDbDriver implements DbDriver {
   ) async {
     calls.add('writeParams:$sql:$params');
     _failIfNeeded(sql);
-    return {'affected': 1};
+    return _resultFor(sql, {'affected': 1});
   }
 
   @override

@@ -188,6 +188,40 @@ class ItemManagerDraftJournal {
     await _writeQueue;
   }
 
+  Future<bool> restoreBaseline() async {
+    _debounce?.cancel();
+    _debounce = null;
+    await _writeQueue;
+    final file = await _journalFile();
+    if (!await file.exists()) return false;
+    final document = jsonDecode(await file.readAsString());
+    if (document is! Map<String, dynamic> ||
+        document['version'] != schemaVersion) {
+      return false;
+    }
+    final documentMetadata = document['metadata'];
+    final baseline = document['baseline'];
+    if (documentMetadata is! Map<String, dynamic> ||
+        documentMetadata['draftKey'] != metadata.draftKey ||
+        baseline is! Map<String, dynamic> ||
+        baseline['checksum'] != itemManagerBaselineChecksum(controller)) {
+      return false;
+    }
+    final selectedRowKeys = documentMetadata['baselineSelectedRowKeys'];
+    if (selectedRowKeys is! List) return false;
+    if (_started) controller.removeListener(_handleDraftChanged);
+    try {
+      controller.discardChanges(
+        selectedRowKeys: selectedRowKeys.whereType<String>(),
+        anchorRowKey: documentMetadata['baselineAnchorRowKey'] as String?,
+      );
+      await clear();
+    } finally {
+      if (_started) controller.addListener(_handleDraftChanged);
+    }
+    return true;
+  }
+
   Future<void> _ignoreBackgroundError(
     Future<void> Function() operation,
     String operationName,
@@ -287,6 +321,10 @@ class ItemManagerDraftJournal {
         ...metadata.toJson(),
         'selectedRowKeys': controller.selectedRowKeys.toList(growable: false),
         'anchorRowKey': controller.anchorRowKey,
+        'baselineSelectedRowKeys': controller.baselineSelectedRowKeys.toList(
+          growable: false,
+        ),
+        'baselineAnchorRowKey': controller.baselineAnchorRowKey,
         'importViewState': controller.importViewState?.toJson(),
       },
       'baseline': {

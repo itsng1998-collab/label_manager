@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 class DbTransactionStatement {
   final String sql;
   final Map<String, dynamic> params;
@@ -21,6 +23,18 @@ class DbTransactionStatement {
 
   Map<String, dynamic> toMap() {
     return {'sql': sql, 'params': params, 'returnsRows': returnsRows};
+  }
+}
+
+void _throwIfDriverError(Object result) {
+  final Object? decoded = switch (result) {
+    final String value => jsonDecode(value),
+    _ => result,
+  };
+  if (decoded is! Map) return;
+  final error = decoded['error']?.toString().trim();
+  if (error != null && error.isNotEmpty) {
+    throw StateError(error);
   }
 }
 
@@ -56,7 +70,8 @@ Future<List<Object>> executeDriverTransaction(
   }
   if (statements.isEmpty) return const [];
 
-  await driver.writeData('BEGIN TRANSACTION');
+  final beginResult = await driver.writeData('BEGIN TRANSACTION');
+  _throwIfDriverError(beginResult);
   try {
     final results = <Object>[];
     for (final statement in statements) {
@@ -71,9 +86,11 @@ Future<List<Object>> executeDriverTransaction(
           : hasParams
           ? await driver.writeDataWithParams(statement.sql, statement.params)
           : await driver.writeData(statement.sql);
+      _throwIfDriverError(result);
       results.add(result);
     }
-    await driver.writeData('COMMIT TRANSACTION');
+    final commitResult = await driver.writeData('COMMIT TRANSACTION');
+    _throwIfDriverError(commitResult);
     return results;
   } catch (error, stackTrace) {
     try {

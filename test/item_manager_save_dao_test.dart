@@ -59,8 +59,16 @@ void main() {
         ItemDAO.updateOrders(const [ItemOrderUpdate(itemId: 0, order: 1)]),
         throwsArgumentError,
       );
-      expect(ItemDAO.UpdateOrderSql, contains('RICH_ITEM_ORDER=@order'));
-      expect(ItemDAO.UpdateOrderSql, contains('RICH_ITEM_ID=@itemId'));
+      await expectLater(
+        ItemDAO.updateOrders(const [
+          ItemOrderUpdate(itemId: 1, order: 1),
+          ItemOrderUpdate(itemId: 2, order: 1),
+        ]),
+        throwsArgumentError,
+      );
+      expect(ItemDAO.UpdateOrdersSql, contains('OPENJSON(@updatesJson)'));
+      expect(ItemDAO.UpdateOrdersSql, contains('IF @@ROWCOUNT <>'));
+      expect(ItemDAO.UpdateOrdersSql, contains('THROW 51002'));
     });
 
     test('save command keeps nullable mapping defaults in JSON', () {

@@ -1,6 +1,8 @@
 // UTF-8, 한국어 주석
 // ignore_for_file: constant_identifier_names, non_constant_identifier_names
 
+import 'dart:convert';
+
 import 'package:label_manager/core/app.dart';
 import 'package:label_manager/database/db_client.dart';
 import 'package:label_manager/database/drivers/db_driver.dart';
@@ -70,10 +72,24 @@ class ItemDAO extends DAO {
       AND (RICH_ELEMENT_SHEET IS NULL OR RICH_ELEMENT_SHEET='')
   ''';
 
-  static const String UpdateOrderSql = '''
-    UPDATE BM_RICH_ITEM
-      SET RICH_ITEM_ORDER=@order
-    WHERE RICH_ITEM_ID=@itemId
+  static const String UpdateOrdersSql = r'''
+    DECLARE @OrderUpdates TABLE (
+      ITEM_ID INT NOT NULL PRIMARY KEY,
+      ITEM_ORDER INT NOT NULL
+    );
+    INSERT INTO @OrderUpdates(ITEM_ID, ITEM_ORDER)
+    SELECT ITEM_ID, ITEM_ORDER
+    FROM OPENJSON(@updatesJson) WITH (
+      ITEM_ID INT '$.itemId',
+      ITEM_ORDER INT '$.order'
+    );
+
+    UPDATE I SET RICH_ITEM_ORDER=U.ITEM_ORDER
+    FROM BM_RICH_ITEM I
+    INNER JOIN @OrderUpdates U ON U.ITEM_ID=I.RICH_ITEM_ID;
+
+    IF @@ROWCOUNT <> (SELECT COUNT(*) FROM @OrderUpdates)
+      THROW 51002, 'Item order update count mismatch.', 1;
   ''';
 
   static Future<void> updateElementSheetByItemId(
@@ -131,26 +147,27 @@ class ItemDAO extends DAO {
   static Future<void> updateOrders(List<ItemOrderUpdate> updates) async {
     if (updates.isEmpty) return;
     final itemIds = updates.map((update) => update.itemId).toSet();
-    if (itemIds.length != updates.length || itemIds.contains(0)) {
+    final orders = updates.map((update) => update.order).toSet();
+    if (itemIds.length != updates.length ||
+        itemIds.any((itemId) => itemId <= 0) ||
+        orders.length != updates.length ||
+        orders.any((order) => order <= 0)) {
       throw ArgumentError('Item order updates require unique positive item ids.');
     }
 
     debugLog('$START, itemOrderCount:${updates.length}');
     try {
-      final results = await DbClient.instance.transaction(
-        updates
-            .map(
-              (update) => DbTransactionStatement(
-                sql: UpdateOrderSql,
-                params: {'itemId': update.itemId, 'order': update.order},
-              ),
-            )
-            .toList(growable: false),
-      );
-      if (results.length != updates.length ||
-          results.any((result) => DAO.affectedRows(result) != 1)) {
-        throw Exception('${runtimeLogTag()} Item order update affected mismatch');
-      }
+      await DbClient.instance.transaction([
+        DbTransactionStatement(
+          sql: UpdateOrdersSql,
+          params: {
+            'updatesJson': jsonEncode([
+              for (final update in updates)
+                {'itemId': update.itemId, 'order': update.order},
+            ]),
+          },
+        ),
+      ]);
       debugLog('$END, itemOrderCount:${updates.length}');
     } catch (e) {
       debugLog('$END, $e');

@@ -28,6 +28,22 @@
 
 ## 현재 상태
 
+### 진행 중 (2026-07-11): 품목관리 3차 재검토 보완
+
+- 재검토에서 비 Windows driver의 JSON `error` 결과가 transaction에서 예외로 변환되지 않는 문제, 품목 순서 affected 검증이 commit 후 수행되는 문제, QR/preview 날짜 token callback 누락, 일반 취소가 journal 파일을 실제 복원 기준으로 사용하지 않는 문제를 확인했다.
+- 작업 순서: 공용 transaction 오류 결과 rollback 보장 -> 순서 변경 검증을 transaction 내부 SQL로 이동 -> QR/preview `DATE_FORMAT_NONE` token 계산 연결 -> journal reader/일반 취소 복원 경로 구현 -> focused/analyze/전체 suite.
+- 수정 예정 1순위: `lib/database/drivers/db_driver.dart`가 BEGIN/statement/COMMIT의 JSON 문자열 또는 Map `error` 결과를 즉시 예외로 변환하도록 하고 `test/db_transaction_test.dart`에 rollback 회귀 테스트를 추가한다. 미검증. 기존 unrelated dirty `lib/core/app.dart`는 수정·stage 대상에서 제외한다.
+- 1순위 완료: transaction boundary가 Map/JSON `error` 결과를 예외로 변환해 rollback하며 `test/db_transaction_test.dart` 6개가 통과했다.
+- 2순위 완료: `ItemDAO.updateOrders`를 JSON 단일 batch와 transaction 내부 affected-row `THROW` 검증으로 변경했으며 `test/item_manager_save_dao_test.dart` 7개가 통과했다.
+- 3순위 진행: `itemCodeTokenColumnValue`가 유통기한 offset을 제조일자 또는 현재일 기준 `yyyyMMdd`로 계산하고 QR viewer/output preview가 같은 callback을 사용한다. resolver 테스트 10개 통과, 관련 세 파일 편집기 진단 0건.
+- 4순위 수정 예정: journal 파일의 identity/checksum과 편집 전 선택 상태를 검증해 일반 변경 취소의 우선 복원 기준으로 사용하고, 파일 부재/기록 실패 때만 controller 메모리 baseline으로 fallback한다. Excel 전체 교체 취소의 DB reload 경로는 유지한다. 미검증.
+- 4순위 완료: `ItemManagerDraftJournal.restoreBaseline()`이 version/draftKey/baseline checksum을 검증하고 파일에 저장된 clean 다중 선택으로 controller baseline을 복원한 뒤 journal을 삭제한다. 일반 취소는 journal 우선, 파일 부재 시 메모리 baseline, 손상/검증 오류 시 DB reload를 사용하며 Excel 전체 교체 DB reload는 유지한다.
+- journal listener와 복원 clear의 파일 삭제 경쟁을 복원 중 listener 분리로 해결했다. draft/journal/resolver focused 테스트 44개 통과, 관련 파일 편집기 진단 0건.
+- 최종 검증 예정: 변경 Dart 파일 format 후 transaction/order/date/journal/draft focused 테스트, `C:\Flutter\bin\flutter.bat analyze`, `C:\Flutter\bin\flutter.bat test`, `git diff --check`. 기존 unrelated dirty `lib/core/app.dart`는 제외하고 관련 파일만 stage/commit하며 배포 파일은 생성하지 않는다.
+- 최종 검증 진행: 변경 Dart 10개 파일 format 완료, transaction/order/date/journal/draft focused 테스트 57개 통과. `C:\Flutter\bin\flutter.bat analyze`는 `No issues found`, 전체 `C:\Flutter\bin\flutter.bat test`는 292개 통과 / 0 실패, workspace 진단 0건이다.
+- 최종 남은 검증: `git diff --check`, 변경 목록 확인 후 `lib/core/app.dart`를 제외한 관련 파일만 stage/commit한다. 배포 빌드와 설치 파일은 생성하지 않았다.
+- 최종 검증 완료: `git diff --check` 출력 없이 통과. stage/commit 대상은 `SESSION_HANDOFF.md`, transaction/order/date/journal 관련 lib 6개와 test 4개이며, 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+
 ### 완료 (2026-07-11): 품목관리 재검토 보완
 
 - 재검토 결과 조회 전용 사용자의 하단 주원료 sheet 편집 가능, 실제 일반 취소 경로의 baseline 멀티 선택 단일화, 발행 체크의 우클릭/체크박스 권한 불일치를 확인했다.

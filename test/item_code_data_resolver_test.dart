@@ -49,6 +49,45 @@ void main() {
       expect(result.showText, isTrue);
     });
 
+    test('resolves valid-date token with DATE_FORMAT_NONE calculation', () {
+      final columns = [
+        _column(
+          id: 1,
+          keyword: 'QR',
+          name: 'QR 데이터',
+          type: TColumnType.TYPE_QR_CODE,
+          createType: QRCodeCreateType.QRCODE_TYPE_USER_DEFINE,
+          data: '#유통기한',
+        ),
+        _column(
+          id: 2,
+          keyword: '제조일자',
+          name: '제조일자',
+          type: TColumnType.TYPE_MAKEDATE,
+        ),
+        _column(
+          id: 3,
+          keyword: '유통기한',
+          name: '유통기한',
+          type: TColumnType.TYPE_VALIDDATE,
+        ),
+      ];
+      String value(int id) => {2: '20260711', 3: '3'}[id] ?? '';
+      final resolver = ItemCodeDataResolver(
+        itemName: '품목',
+        columns: columns,
+        columnValue: value,
+        tokenColumnValue: (column) => itemCodeTokenColumnValue(
+          column: column,
+          columns: columns,
+          columnValue: value,
+          now: () => DateTime(2026, 1, 1),
+        ),
+      );
+
+      expect(resolver.resolveViewerData().single.data, '20260714');
+    });
+
     test('normalizes EAN-8 and falls back without lossy padding', () {
       final column = _column(
         id: 1,
