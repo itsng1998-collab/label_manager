@@ -28,7 +28,7 @@
 
 ## 현재 상태
 
-### 진행 중 (2026-07-11): 품목관리 7차 재검토 보완
+### 완료 (2026-07-11): 품목관리 7차 재검토 보완
 
 - 6차 보완 재검토에서 DB transaction COMMIT 후 isolate가 응답 전 종료되면 `DbClient._sendToIsolate()`가 영구 대기하는 문제와 mapping fingerprint가 동일 market 중복 mapping count를 제거하는 문제를 확인했다.
 - 권장 작업 순서: 실행 중 isolate 종료 감시와 pending transaction의 `DbCommitOutcomeUnknown` 완료 -> 응답/종료 경계 테스트 -> fingerprint count 보존과 malformed journal 차단 -> focused/analyze/전체 suite.
@@ -41,7 +41,7 @@
 - 변경 Dart 6개 파일 format 완료, 관련 파일 진단 0건. DB client/transaction/journal/read snapshot/save DAO focused 묶음 48개 통과.
 - `_sendToIsolate()`의 ensure 직후 요청 전 isolate 종료 경쟁도 null 단정 대신 명시적 `StateError`로 차단했다. DB client/transaction 16개 재통과.
 - 최종 검증 완료: workspace 진단 0건, `C:\Flutter\bin\flutter.bat analyze`는 `No issues found`, 전체 `C:\Flutter\bin\flutter.bat test` 311개 통과, `git diff --check` 성공.
-- 기능 커밋 stage 대상: `SESSION_HANDOFF.md`, `lib/database/db_client.dart`, `lib/models/item_of_market.dart`, `lib/models/item_manager_draft_journal.dart`, `test/db_client_test.dart`, `test/item_manager_read_snapshot_test.dart`, `test/item_manager_draft_journal_test.dart`. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+- 기능 커밋 `b31890a` (`품목관리 DB 응답 유실과 연결 지문 보완`) 완료. 기존 unrelated dirty `lib/core/app.dart`는 제외했다.
 - 기존 unrelated dirty `lib/core/app.dart`는 수정·stage 대상에서 제외한다.
 
 ### 완료 (2026-07-11): 품목관리 6차 재검토 보완
