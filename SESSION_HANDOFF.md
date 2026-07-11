@@ -28,6 +28,21 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-11): 주원료 셀 편집 표시와 실변경 판정
+
+- 사용자 요청: 주원료 시트의 툴바-눈금자 사이 입력 영역을 다시 숨기고, 더블클릭 편집은 셀 내부 입력 박스로 표시하며, 내용 변경 없는 편집 종료는 품목 draft를 dirty로 만들지 않는다.
+- 수정: workbench의 opt-in formula bar를 제거해 다시 항상 숨긴다. 주원료는 `singleClickCellEdit=false`를 유지해 더블클릭에서 fortune_sheet 셀 editor를 사용한다. workbench에 operation 직전/직후 workbook 판정 callback을 추가하고, 주원료는 선택/scroll/status view-state를 제거한 content 비교가 다를 때만 draft commit callback을 전달한다.
+- 테스트: formula bar 숨김, 단일 클릭 미편집/더블클릭 `EditableText` 생성, 편집 진입 및 무변경 Enter 완료 시 commit 0회, view-state-only 비교 동일/셀 내용 변경 비교 상이, 실제 변경 commit을 focused 검증했다. `test/label_sheet_toolbar_test.dart` 전체 108개 통과.
+- 전체 검증 예정: `C:\Flutter\bin\flutter.bat analyze`, `C:\Flutter\bin\flutter.bat test`, `git diff --check`.
+- 전체 정적 분석 완료: `C:\Flutter\bin\flutter.bat analyze` 이슈 0건. 전체 테스트와 diff 검증은 진행 예정.
+- 전체 테스트 1차: 3,341개 통과, `third_party/fortune_sheet/test/fortune_sheet_canvas_test.dart`의 `toolbar screenshot preserves raw chart legend border radius` 1개가 캡처 대상 null로 실패. 이번 변경 경로와 무관한 렌더 타이밍 여부를 단독 재실행으로 판별 예정.
+- 간헐 실패 재검증: 위 스크린샷 테스트 단독 실행 1개 통과. 전체 suite를 재실행해 최종 상태를 확정한다.
+- 전체 검증 완료: 변경 파일 diagnostics 0건, `C:\Flutter\bin\flutter.bat analyze` 이슈 0건, 전체 테스트 재실행 3,342개 통과. `git diff --check`는 커밋 직전 실행한다.
+- stage/기능 commit 대상: `lib/page_label_sheet/label_sheet_workbench.dart`, `lib/home_page_manager.dart`, `test/label_sheet_toolbar_test.dart`. 이후 기능 commit 해시를 기록한 `SESSION_HANDOFF.md`만 별도 commit한다.
+- 임시 산출물 정리 완료: 전체 테스트가 생성한 `third_party/fortune_sheet/build/`를 삭제했다. `git diff --check` 통과.
+- 기능 commit: `0eeba0d` (`주원료 시트 실변경 판정 보완`). formula bar 숨김, 더블클릭 셀 editor, operation 전후 content 판정 및 무변경 draft commit 차단을 포함한다.
+- 기존 unrelated dirty `lib/core/app.dart`는 수정·stage 대상에서 제외한다.
+
 ### 완료 (2026-07-11): 품목 날짜 설정 및 주원료 편집 UI 정리
 
 - 사용자 요청: `날짜 타입 설정`은 품목관리 탭에서만 활성화하고, 주원료 플로팅 시트의 저장 아이콘을 제거하며, 더블클릭 셀 편집 시 원래 formula 입력 박스를 표시한다.
