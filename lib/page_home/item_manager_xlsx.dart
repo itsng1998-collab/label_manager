@@ -7,6 +7,7 @@ import 'package:label_manager/models/item_manager_draft.dart';
 import 'package:label_manager/models/column_type.dart';
 import 'package:label_manager/page_label_sheet/label_sheet_save_codec.dart';
 import 'package:label_manager/page_label_sheet/label_sheet_xlsx_import.dart';
+import 'package:label_manager/utils/item_manager_debug_log.dart';
 import 'package:path/path.dart' as p;
 
 class ItemManagerXlsxColumn {
@@ -42,6 +43,13 @@ Uint8List itemManagerExportXlsxBytes({
   )
   columnValue,
 }) {
+  final trace = ItemManagerDebugLog.nextTrace('xlsxWriter');
+  ItemManagerDebugLog.event(
+    'xlsxWriter',
+    'started',
+    trace: trace,
+    fields: {'rows': rows.length, 'columns': columns.length},
+  );
   if (rows.isEmpty) {
     throw StateError('Excel로 저장할 데이터가 없습니다.');
   }
@@ -106,7 +114,14 @@ Uint8List itemManagerExportXlsxBytes({
     ..addFile(
       ArchiveFile.string('xl/worksheets/sheet1.xml', sheetXml.toString()),
     );
-  return Uint8List.fromList(ZipEncoder().encodeBytes(archive));
+  final bytes = Uint8List.fromList(ZipEncoder().encodeBytes(archive));
+  ItemManagerDebugLog.event(
+    'xlsxWriter',
+    'completed',
+    trace: trace,
+    fields: {'bytes': bytes.length},
+  );
+  return bytes;
 }
 
 void _writeInlineStringRow(
@@ -148,6 +163,13 @@ ItemManagerXlsxImportResult itemManagerImportXlsxBytes(
   required List<ItemManagerXlsxColumn> columns,
   required String emptyElementPayload,
 }) {
+  final trace = ItemManagerDebugLog.nextTrace('xlsxParser');
+  ItemManagerDebugLog.event(
+    'xlsxParser',
+    'started',
+    trace: trace,
+    fields: {'bytes': bytes.length, 'columns': columns.length},
+  );
   if (!labelSheetLooksLikeXlsx(bytes)) {
     throw const FormatException('지원하지 않는 Excel 파일 형식입니다. .xlsx 파일을 선택해 주세요.');
   }
@@ -155,6 +177,12 @@ ItemManagerXlsxImportResult itemManagerImportXlsxBytes(
   final sheet = context.parsedWorkbook.activeSheet;
   final rowCount = sheet.rowCount ?? 0;
   final columnCount = sheet.columnCount ?? 0;
+  ItemManagerDebugLog.event(
+    'xlsxParser',
+    'sheetParsed',
+    trace: trace,
+    fields: {'rows': rowCount, 'columns': columnCount},
+  );
   final descriptors = <String, _ItemManagerHeader>{
     '품목': const _ItemManagerHeader.item(),
     '주원료': const _ItemManagerHeader.element(),
@@ -244,6 +272,16 @@ ItemManagerXlsxImportResult itemManagerImportXlsxBytes(
   if (rows.isEmpty) {
     throw const FormatException('Excel 파일에 가져올 품목 데이터가 없습니다.');
   }
+  ItemManagerDebugLog.event(
+    'xlsxParser',
+    'completed',
+    trace: trace,
+    fields: {
+      'rows': rows.length,
+      'warnings': warnings.length,
+      'mappedHeaders': mappedHeaders.length,
+    },
+  );
   return ItemManagerXlsxImportResult(
     rows: List.unmodifiable(rows),
     warnings: List.unmodifiable(warnings),

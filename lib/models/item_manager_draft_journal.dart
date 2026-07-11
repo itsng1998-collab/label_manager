@@ -12,6 +12,7 @@ import 'package:label_manager/models/column_content.dart';
 import 'package:label_manager/models/item.dart';
 import 'package:label_manager/models/item_manager_draft.dart';
 import 'package:label_manager/models/item_of_market.dart';
+import 'package:label_manager/utils/item_manager_debug_log.dart';
 import 'package:label_manager/utils/log_context.dart';
 
 String itemManagerDraftKey({
@@ -170,7 +171,19 @@ class ItemManagerDraftJournal {
        _mappingFingerprintProvider = mappingFingerprintProvider;
 
   Future<void> start() async {
-    if (_started) return;
+    if (_started) {
+      ItemManagerDebugLog.event(
+        'journal',
+        'startSkipped',
+        fields: {'draftKey': metadata.draftKey},
+      );
+      return;
+    }
+    ItemManagerDebugLog.event(
+      'journal',
+      'start',
+      fields: {'draftKey': metadata.draftKey, 'dirty': controller.isDirty},
+    );
     metadata.validate();
     _createdAt ??= DateTime.now().toUtc();
     await _ignoreBackgroundError(
@@ -185,9 +198,23 @@ class ItemManagerDraftJournal {
   void _handleDraftChanged() {
     _debounce?.cancel();
     if (!controller.isDirty) {
+      ItemManagerDebugLog.event(
+        'journal',
+        'dirtyCleared',
+        fields: {'draftKey': metadata.draftKey},
+      );
       unawaited(_ignoreBackgroundError(clear, 'dirty clear'));
       return;
     }
+    ItemManagerDebugLog.event(
+      'journal',
+      'flushScheduled',
+      fields: {
+        'draftKey': metadata.draftKey,
+        'rows': controller.rows.length,
+        'deleted': controller.deletedSourceItemIds.length,
+      },
+    );
     _debounce = Timer(
       debounceDuration,
       () => unawaited(_ignoreBackgroundError(flush, 'debounced flush')),
@@ -198,10 +225,24 @@ class ItemManagerDraftJournal {
     _debounce?.cancel();
     _debounce = null;
     if (!controller.isDirty) {
+      ItemManagerDebugLog.event(
+        'journal',
+        'flushClearsCleanDraft',
+        fields: {'draftKey': metadata.draftKey},
+      );
       await clear();
       return;
     }
     final document = _buildDocument();
+    ItemManagerDebugLog.event(
+      'journal',
+      'flushStarted',
+      fields: {
+        'draftKey': metadata.draftKey,
+        'rows': controller.rows.length,
+        'deleted': controller.deletedSourceItemIds.length,
+      },
+    );
     final previousWrite = _writeQueue;
     _writeQueue = () async {
       try {
@@ -212,18 +253,30 @@ class ItemManagerDraftJournal {
       await _writeDocument(document);
     }();
     await _writeQueue;
+    ItemManagerDebugLog.event(
+      'journal',
+      'flushCompleted',
+      fields: {'draftKey': metadata.draftKey},
+    );
   }
 
   Future<ItemManagerJournalRestoreResult> restoreBaseline() async {
+    ItemManagerDebugLog.event(
+      'journal',
+      'restoreStarted',
+      fields: {'draftKey': metadata.draftKey},
+    );
     _debounce?.cancel();
     _debounce = null;
     await _writeQueue;
     final file = await _journalFile();
-    if (!await file.exists()) return ItemManagerJournalRestoreResult.notFound;
+    if (!await file.exists()) {
+      return _restoreResult(ItemManagerJournalRestoreResult.notFound);
+    }
     final document = jsonDecode(await file.readAsString());
     if (document is! Map<String, dynamic> ||
         document['version'] != schemaVersion) {
-      return ItemManagerJournalRestoreResult.invalid;
+      return _restoreResult(ItemManagerJournalRestoreResult.invalid);
     }
     final documentMetadata = document['metadata'];
     final baseline = document['baseline'];
@@ -231,7 +284,7 @@ class ItemManagerDraftJournal {
         !_journalMetadataMatches(documentMetadata, metadata) ||
         baseline is! Map<String, dynamic> ||
         baseline['checksum'] != itemManagerBaselineChecksum(controller)) {
-      return ItemManagerJournalRestoreResult.invalid;
+      return _restoreResult(ItemManagerJournalRestoreResult.invalid);
     }
     final selectedRowKeys = documentMetadata['baselineSelectedRowKeys'];
     final baselineRows = baseline['rows'];
@@ -241,7 +294,7 @@ class ItemManagerDraftJournal {
         baselineRows is! List ||
         beforeSnapshots is! List ||
         changes is! Map<String, dynamic>) {
-      return ItemManagerJournalRestoreResult.invalid;
+      return _restoreResult(ItemManagerJournalRestoreResult.invalid);
     }
     final deletedSourceItemIds = changes['deletedSourceItemIds'];
     final changedRows = changes['rows'];
@@ -254,12 +307,12 @@ class ItemManagerDraftJournal {
         deletedRowItemIds == null ||
         !setEquals(deletedItemIds, deletedRowItemIds) ||
         !setEquals(deletedItemIds, controller.deletedSourceItemIds)) {
-      return ItemManagerJournalRestoreResult.invalid;
+      return _restoreResult(ItemManagerJournalRestoreResult.invalid);
     }
     if (deletedItemIds.isNotEmpty && _mappingFingerprintProvider != null) {
       final storedFingerprints = baseline['mappingFingerprints'];
       if (storedFingerprints is! Map) {
-        return ItemManagerJournalRestoreResult.invalid;
+        return _restoreResult(ItemManagerJournalRestoreResult.invalid);
       }
       final currentFingerprints = await _mappingFingerprintProvider(
         deletedItemIds,
@@ -267,14 +320,14 @@ class ItemManagerDraftJournal {
       for (final itemId in deletedItemIds) {
         final stored = storedFingerprints['$itemId'];
         if (stored is! List || stored.any((id) => id is! int || id <= 0)) {
-          return ItemManagerJournalRestoreResult.invalid;
+          return _restoreResult(ItemManagerJournalRestoreResult.invalid);
         }
         final storedMarketIds = stored.cast<int>()..sort();
         if (!listEquals(
           storedMarketIds,
           currentFingerprints.marketIdsFor(itemId),
         )) {
-          return ItemManagerJournalRestoreResult.externalChange;
+          return _restoreResult(ItemManagerJournalRestoreResult.externalChange);
         }
       }
     }
@@ -291,7 +344,7 @@ class ItemManagerDraftJournal {
         if (snapshotRows.containsKey(itemId) ||
             row.currentMarketSnapshot?.itemId != itemId ||
             row.currentMarketSnapshot?.marketId != metadata.currentMarketId) {
-          return ItemManagerJournalRestoreResult.invalid;
+          return _restoreResult(ItemManagerJournalRestoreResult.invalid);
         }
         snapshotRows[itemId] = row;
         snapshotColumns[itemId] = [
@@ -299,7 +352,7 @@ class ItemManagerDraftJournal {
             _columnContentFromJson(Map<String, dynamic>.from(column as Map)),
         ];
         if (snapshotColumns[itemId]!.any((column) => column.itemId != itemId)) {
-          return ItemManagerJournalRestoreResult.invalid;
+          return _restoreResult(ItemManagerJournalRestoreResult.invalid);
         }
       }
       final requiredSnapshotItemIds = <int>{
@@ -307,7 +360,7 @@ class ItemManagerDraftJournal {
         ...deletedItemIds,
       };
       if (!setEquals(snapshotRows.keys.toSet(), requiredSnapshotItemIds)) {
-        return ItemManagerJournalRestoreResult.invalid;
+        return _restoreResult(ItemManagerJournalRestoreResult.invalid);
       }
       final restoredRows = <ItemManagerDraftRow>[];
       final baselineItemIds = <int>{};
@@ -315,13 +368,13 @@ class ItemManagerDraftJournal {
         final rowJson = Map<String, dynamic>.from(value as Map);
         final itemId = _jsonInt(rowJson, 'itemId');
         if (!baselineItemIds.add(itemId)) {
-          return ItemManagerJournalRestoreResult.invalid;
+          return _restoreResult(ItemManagerJournalRestoreResult.invalid);
         }
         final row = snapshotRows[itemId] ?? currentRows[itemId];
         if (row == null ||
             row.order != _jsonInt(rowJson, 'order') ||
             row.originalIndex != restoredRows.length) {
-          return ItemManagerJournalRestoreResult.invalid;
+          return _restoreResult(ItemManagerJournalRestoreResult.invalid);
         }
         restoredRows.add(row);
       }
@@ -343,7 +396,7 @@ class ItemManagerDraftJournal {
         restoredColumns.values,
       );
       if (restoredChecksum != baseline['checksum']) {
-        return ItemManagerJournalRestoreResult.invalid;
+        return _restoreResult(ItemManagerJournalRestoreResult.invalid);
       }
       if (_started) controller.removeListener(_handleDraftChanged);
       try {
@@ -358,10 +411,21 @@ class ItemManagerDraftJournal {
       }
     } on Object catch (error) {
       debugLog('item draft journal restore invalid: $error');
-      return ItemManagerJournalRestoreResult.invalid;
+      return _restoreResult(ItemManagerJournalRestoreResult.invalid);
     }
     await _ignoreBackgroundError(clear, 'restore clear');
-    return ItemManagerJournalRestoreResult.restored;
+    return _restoreResult(ItemManagerJournalRestoreResult.restored);
+  }
+
+  ItemManagerJournalRestoreResult _restoreResult(
+    ItemManagerJournalRestoreResult result,
+  ) {
+    ItemManagerDebugLog.event(
+      'journal',
+      'restoreCompleted',
+      fields: {'draftKey': metadata.draftKey, 'result': result.name},
+    );
+    return result;
   }
 
   Future<void> _ignoreBackgroundError(
@@ -376,6 +440,11 @@ class ItemManagerDraftJournal {
   }
 
   Future<void> clear() async {
+    ItemManagerDebugLog.event(
+      'journal',
+      'clearStarted',
+      fields: {'draftKey': metadata.draftKey},
+    );
     _debounce?.cancel();
     _debounce = null;
     final file = await _journalFile();
@@ -390,6 +459,11 @@ class ItemManagerDraftJournal {
       await preferences.remove(lastDraftKeyPreferenceKey);
       await preferences.remove(lastSavedAtPreferenceKey);
     }
+    ItemManagerDebugLog.event(
+      'journal',
+      'clearCompleted',
+      fields: {'draftKey': metadata.draftKey},
+    );
   }
 
   Future<void> _clearLastJournalFromPreviousSession() async {
@@ -418,6 +492,15 @@ class ItemManagerDraftJournal {
   }
 
   Future<void> close({bool clearFile = true}) async {
+    ItemManagerDebugLog.event(
+      'journal',
+      'closeStarted',
+      fields: {
+        'draftKey': metadata.draftKey,
+        'clearFile': clearFile,
+        'started': _started,
+      },
+    );
     _debounce?.cancel();
     _debounce = null;
     await _writeQueue;
@@ -426,6 +509,11 @@ class ItemManagerDraftJournal {
       controller.removeListener(_handleDraftChanged);
       _started = false;
     }
+    ItemManagerDebugLog.event(
+      'journal',
+      'closeCompleted',
+      fields: {'draftKey': metadata.draftKey},
+    );
   }
 
   Map<String, Object?> _buildDocument() {
@@ -636,6 +724,14 @@ class ItemManagerDraftJournal {
     final temporary = File('${target.path}.tmp');
     final backup = File('${target.path}.bak');
     await temporary.writeAsString(jsonEncode(document), flush: true);
+    ItemManagerDebugLog.event(
+      'journal',
+      'temporaryWritten',
+      fields: {
+        'draftKey': metadata.draftKey,
+        'bytes': await temporary.length(),
+      },
+    );
     if (await backup.exists()) await backup.delete();
     if (await target.exists()) await target.rename(backup.path);
     try {

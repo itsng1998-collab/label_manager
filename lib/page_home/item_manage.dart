@@ -8,6 +8,7 @@ import 'package:label_manager/models/column_type.dart';
 import 'package:label_manager/models/item_manager_draft.dart';
 import 'package:label_manager/models/item_of_market.dart';
 import 'package:label_manager/models/label_size.dart';
+import 'package:label_manager/utils/item_manager_debug_log.dart';
 import 'package:label_manager/utils/log_context.dart';
 
 class ItemManagerMigrationRequired extends StatelessWidget {
@@ -191,7 +192,9 @@ class _ItemManageState extends State<ItemManage> {
     )) {
       final itemId = rows != null
           ? (index < rows.length ? rows[index].sourceItemId : null)
-          : (index < widget.items.length ? widget.items[index].item.itemId : null);
+          : (index < widget.items.length
+                ? widget.items[index].item.itemId
+                : null);
       if (itemId != null) _publishCheckedItemIds.add(itemId);
     }
   }
@@ -276,10 +279,10 @@ class _ItemManageState extends State<ItemManage> {
     final cleanEnabled =
         !widget.commandBusy && !widget.forceReloadRequired && !dirty;
     final dirtyEnabled =
-      widget.canEdit &&
-      !widget.commandBusy &&
-      !widget.forceReloadRequired &&
-      dirty;
+        widget.canEdit &&
+        !widget.commandBusy &&
+        !widget.forceReloadRequired &&
+        dirty;
     return Container(
       height: 48,
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
@@ -415,9 +418,9 @@ class _ItemManageState extends State<ItemManage> {
     final mutationEnabled =
         widget.canEdit && !widget.commandBusy && !widget.forceReloadRequired;
     final publishSelectionEnabled =
-      !widget.commandBusy &&
-      !widget.forceReloadRequired &&
-      widget.draftController?.isDirty != true;
+        !widget.commandBusy &&
+        !widget.forceReloadRequired &&
+        widget.draftController?.isDirty != true;
     final orderDisabledReason = widget.forceReloadRequired
         ? '품목 목록을 다시 조회한 후 실행해 주세요.'
         : widget.draftController?.isDirty == true
@@ -509,16 +512,14 @@ class _ItemManageState extends State<ItemManage> {
         const PopupMenuDivider(height: fortuneContextMenuDividerHeight),
         PopupMenuItem<String>(
           value: _menuCheckSelectedPublish,
-            enabled:
-              publishSelectionEnabled && _selectionController.hasSelection,
+          enabled: publishSelectionEnabled && _selectionController.hasSelection,
           height: fortuneContextMenuRowHeight,
           padding: _menuItemPadding,
           child: const Text('블럭 선택 발행 체크'),
         ),
         PopupMenuItem<String>(
           value: _menuUncheckSelectedPublish,
-            enabled:
-              publishSelectionEnabled && _selectionController.hasSelection,
+          enabled: publishSelectionEnabled && _selectionController.hasSelection,
           height: fortuneContextMenuRowHeight,
           padding: _menuItemPadding,
           child: const Text('블럭 선택 발행 체크 해제'),
@@ -576,7 +577,20 @@ class _ItemManageState extends State<ItemManage> {
   }
 
   Future<void> _handleContextMenuCommand(String command) async {
+    final trace = ItemManagerDebugLog.nextTrace('contextMenu');
+    ItemManagerDebugLog.event(
+      'contextMenu',
+      'requested',
+      trace: trace,
+      fields: {
+        'command': command,
+        'busy': widget.commandBusy,
+        'forceReload': widget.forceReloadRequired,
+        'selected': _selectionController.selectedRows.length,
+      },
+    );
     if (widget.commandBusy || widget.forceReloadRequired) {
+      ItemManagerDebugLog.event('contextMenu', 'blocked', trace: trace);
       return;
     }
     switch (command) {
@@ -590,7 +604,8 @@ class _ItemManageState extends State<ItemManage> {
         await widget.onItemOrderChange?.call();
       case _menuQrDataView:
         final row = _contextMenuDraftRow;
-        final targetExists = row != null &&
+        final targetExists =
+            row != null &&
             (widget.draftController?.rows.any(
                   (current) => current.rowKey == row.rowKey,
                 ) ??
@@ -611,22 +626,45 @@ class _ItemManageState extends State<ItemManage> {
   }
 
   void _addDraftRows(String rawCount) {
+    final trace = ItemManagerDebugLog.nextTrace('addRows');
     final count = _parseCount(rawCount);
-    if (count == null) return;
+    if (count == null) {
+      ItemManagerDebugLog.event('addRows', 'invalidCount', trace: trace);
+      return;
+    }
     try {
       final added = widget.draftController!.addRows(
         count,
         emptyElementPayload: widget.emptyElementPayload,
       );
       _selectDraftRows(added);
+      ItemManagerDebugLog.event(
+        'addRows',
+        'completed',
+        trace: trace,
+        fields: {
+          'count': added.length,
+          'rows': widget.draftController!.rows.length,
+        },
+      );
     } on StateError catch (error) {
+      ItemManagerDebugLog.event(
+        'addRows',
+        'failed',
+        trace: trace,
+        fields: {'error': error.runtimeType},
+      );
       _showWarning(error.message);
     }
   }
 
   void _insertDraftRows(String rawCount) {
+    final trace = ItemManagerDebugLog.nextTrace('insertRows');
     final count = _parseCount(rawCount);
-    if (count == null) return;
+    if (count == null) {
+      ItemManagerDebugLog.event('insertRows', 'invalidCount', trace: trace);
+      return;
+    }
     final controller = widget.draftController!;
     final selectedIndexes = _selectionController.selectedRows.toList()..sort();
     final anchorKey =
@@ -635,6 +673,7 @@ class _ItemManageState extends State<ItemManage> {
             ? null
             : controller.rows[selectedIndexes.last].rowKey);
     if (anchorKey == null) {
+      ItemManagerDebugLog.event('insertRows', 'missingAnchor', trace: trace);
       _showWarning('삽입할 기준 품목을 선택해 주세요.');
       return;
     }
@@ -645,19 +684,45 @@ class _ItemManageState extends State<ItemManage> {
         emptyElementPayload: widget.emptyElementPayload,
       );
       _selectDraftRows(added);
+      ItemManagerDebugLog.event(
+        'insertRows',
+        'completed',
+        trace: trace,
+        fields: {
+          'count': added.length,
+          'anchor': anchorKey,
+          'rows': controller.rows.length,
+        },
+      );
     } on StateError catch (error) {
+      ItemManagerDebugLog.event(
+        'insertRows',
+        'failed',
+        trace: trace,
+        fields: {'error': error.runtimeType},
+      );
       _showWarning(error.message);
     }
   }
 
   Future<void> _deleteSelectedDraftRows() async {
+    final trace = ItemManagerDebugLog.nextTrace('deleteRows');
     final controller = widget.draftController!;
     final selectedIndexes =
         _selectionController.selectedRows
             .where((index) => index >= 0 && index < controller.rows.length)
             .toList()
           ..sort();
-    if (selectedIndexes.isEmpty) return;
+    if (selectedIndexes.isEmpty) {
+      ItemManagerDebugLog.event('deleteRows', 'emptySelection', trace: trace);
+      return;
+    }
+    ItemManagerDebugLog.event(
+      'deleteRows',
+      'confirmShown',
+      trace: trace,
+      fields: {'count': selectedIndexes.length},
+    );
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -675,11 +740,28 @@ class _ItemManageState extends State<ItemManage> {
         ],
       ),
     );
+    ItemManagerDebugLog.event(
+      'deleteRows',
+      'confirmCompleted',
+      trace: trace,
+      fields: {'confirmed': confirmed, 'mounted': mounted},
+    );
     if (confirmed != true || !mounted) return;
     final rowKeys = selectedIndexes
         .map((index) => controller.rows[index].rowKey)
         .toList(growable: false);
     final nextKey = controller.deleteRows(rowKeys);
+    ItemManagerDebugLog.event(
+      'deleteRows',
+      'completed',
+      trace: trace,
+      fields: {
+        'count': rowKeys.length,
+        'rows': controller.rows.length,
+        'deletedExisting': controller.deletedSourceItemIds.length,
+        'nextKey': nextKey,
+      },
+    );
     if (nextKey == null) {
       _selectionController.clear();
       return;
@@ -809,11 +891,11 @@ class _ItemManageState extends State<ItemManage> {
             isTextEditable: (row, _) {
               final draft = _draftByDisplayItem[row];
               return widget.canEdit &&
-                c.columnType.code != TColumnType.TYPE_IMAGE &&
+                  c.columnType.code != TColumnType.TYPE_IMAGE &&
                   _canEditDynamicColumn(draft, c.columnId);
             },
             onDoubleTap:
-              widget.canEdit && c.columnType.code == TColumnType.TYPE_IMAGE
+                widget.canEdit && c.columnType.code == TColumnType.TYPE_IMAGE
                 ? (row, _) => _selectBmpImage(row, c)
                 : null,
             onTextCommitted: (row, _, value) {
@@ -833,6 +915,16 @@ class _ItemManageState extends State<ItemManage> {
                 editable: editable,
                 dataString: value,
               );
+              ItemManagerDebugLog.event(
+                'editColumn',
+                applied ? 'completed' : 'validationRejected',
+                fields: {
+                  'rowKey': draft.rowKey,
+                  'sourceItemId': draft.sourceItemId,
+                  'columnId': c.columnId,
+                  'length': value.length,
+                },
+              );
               if (!applied) {
                 _showWarning('${c.columnName} 값이 GS1 AI 형식과 일치하지 않습니다.');
               }
@@ -849,8 +941,8 @@ class _ItemManageState extends State<ItemManage> {
         minWidth: 40,
         text: _empty,
         checkboxController: !publishSelectionEnabled
-          ? null
-          : _publishCheckboxController,
+            ? null
+            : _publishCheckboxController,
         checkboxValueAt: !publishSelectionEnabled
             ? (_, rowIndex) => _publishCheckboxController.isChecked(
                 _publishColumnId,
@@ -872,8 +964,8 @@ class _ItemManageState extends State<ItemManage> {
         minWidth: 70,
         text: _itemName,
         isTextEditable: (row, _) =>
-          widget.canEdit &&
-          !widget.commandBusy &&
+            widget.canEdit &&
+            !widget.commandBusy &&
             !widget.forceReloadRequired &&
             _draftByDisplayItem.containsKey(row),
         onTextCommitted: (row, _, value) {
@@ -881,6 +973,15 @@ class _ItemManageState extends State<ItemManage> {
           final draft = _draftByDisplayItem[row];
           if (draft == null) return;
           widget.draftController!.updateItemName(draft.rowKey, value);
+          ItemManagerDebugLog.event(
+            'editItemName',
+            'completed',
+            fields: {
+              'rowKey': draft.rowKey,
+              'sourceItemId': draft.sourceItemId,
+              'length': value.length,
+            },
+          );
         },
       ),
       const FortuneTableColumn<ItemOfMarket>(

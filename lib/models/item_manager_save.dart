@@ -4,6 +4,7 @@ import 'package:label_manager/core/app.dart';
 import 'package:label_manager/database/db_client.dart';
 import 'package:label_manager/database/drivers/db_driver.dart';
 import 'package:label_manager/models/dao.dart';
+import 'package:label_manager/utils/item_manager_debug_log.dart';
 import 'package:label_manager/utils/log_context.dart';
 
 class ItemSaveSchemaCapabilities {
@@ -34,9 +35,7 @@ class ItemSaveSchemaCapabilities {
     return ItemSaveSchemaCapabilities(
       hasRichElementSheet: flag('HAS_RICH_ELEMENT_SHEET'),
       hasAfterInsertItemTrigger: flag('HAS_AFTER_INSERT_ITEM_TRIGGER'),
-      insertTriggerCreatesColumnContent: flag(
-        'TRIGGER_CREATES_COLUMN_CONTENT',
-      ),
+      insertTriggerCreatesColumnContent: flag('TRIGGER_CREATES_COLUMN_CONTENT'),
       insertTriggerCreatesBarcodeOrImageRows: flag(
         'TRIGGER_CREATES_BARCODE_OR_IMAGE',
       ),
@@ -278,7 +277,8 @@ class ItemManagerSaveCommand {
   void validate() {
     void requireUniquePositive(Iterable<int> values, String field) {
       final list = values.toList();
-      if (list.any((value) => value <= 0) || list.toSet().length != list.length) {
+      if (list.any((value) => value <= 0) ||
+          list.toSet().length != list.length) {
         throw ArgumentError('$field requires unique positive ids.');
       }
     }
@@ -500,10 +500,25 @@ class ItemManagerSaveDAO extends DAO {
     ItemManagerSaveCommand command,
     ItemSaveSchemaCapabilities capabilities,
   ) async {
+    final trace = ItemManagerDebugLog.nextTrace('saveDao');
     if (!capabilities.hasRichElementSheet) {
-      throw StateError('BM_RICH_ITEM.RICH_ELEMENT_SHEET migration is required.');
+      throw StateError(
+        'BM_RICH_ITEM.RICH_ELEMENT_SHEET migration is required.',
+      );
     }
     final params = command.toSqlParams();
+    ItemManagerDebugLog.event(
+      'saveDao',
+      'transactionStarted',
+      trace: trace,
+      fields: {
+        'existing': command.existingRows.length,
+        'new': command.newRows.length,
+        'deleted': command.deletedSourceItemIds.length,
+        'columns': command.columnValues.length,
+        'targetMarkets': command.targetMarketIds.length,
+      },
+    );
     debugLog(
       '$START, existing:${command.existingRows.length}, '
       'new:${command.newRows.length}, deleted:${command.deletedSourceItemIds.length}, '
@@ -523,9 +538,21 @@ class ItemManagerSaveDAO extends DAO {
         throw StateError('Inserted item id mapping count mismatch.');
       }
       debugLog('$END, inserted:${insertedIds.length}');
+      ItemManagerDebugLog.event(
+        'saveDao',
+        'transactionCompleted',
+        trace: trace,
+        fields: {'inserted': insertedIds.length},
+      );
       return ItemManagerSaveResult(insertedItemIdsByDraftKey: insertedIds);
     } catch (e) {
       debugLog('$END, $e');
+      ItemManagerDebugLog.event(
+        'saveDao',
+        'transactionFailed',
+        trace: trace,
+        fields: {'error': e.runtimeType},
+      );
       rethrow;
     }
   }

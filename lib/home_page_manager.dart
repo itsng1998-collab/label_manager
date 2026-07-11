@@ -41,6 +41,7 @@ import 'package:label_manager/page_label_sheet/label_sheet_rtf_import.dart';
 import 'package:label_manager/page_label_sheet/label_sheet_rtf_preview.dart';
 import 'package:label_manager/page_label_sheet/label_sheet_rtf_preview_debug.dart';
 import 'package:label_manager/utils/log_context.dart';
+import 'package:label_manager/utils/item_manager_debug_log.dart';
 import 'package:label_manager/utils/on_messages.dart';
 import 'package:label_manager/page_home/item_manage.dart';
 import 'package:label_manager/page_home/item_code_data_resolver.dart';
@@ -607,6 +608,17 @@ class _HomePageManagerState extends State<HomePageManager> {
     LabelSize? labelSize, {
     bool forceReload = false,
   }) async {
+    final trace = ItemManagerDebugLog.nextTrace('sessionLoad');
+    ItemManagerDebugLog.event(
+      'sessionLoad',
+      'started',
+      trace: trace,
+      fields: {
+        'labelSizeId': labelSize?.labelSizeId,
+        'forceReload': forceReload,
+        'currentLabelSizeId': _currentLabelSize?.labelSizeId,
+      },
+    );
     try {
       debugLog(START);
 
@@ -614,6 +626,11 @@ class _HomePageManagerState extends State<HomePageManager> {
           labelSize?.labelSizeId != _currentLabelSize?.labelSizeId &&
           _blockItemDraftContextChange()) {
         widget.onLabelSizeChanged(_currentLabelSize);
+        ItemManagerDebugLog.event(
+          'sessionLoad',
+          'blockedByDraft',
+          trace: trace,
+        );
         return false;
       }
 
@@ -623,6 +640,11 @@ class _HomePageManagerState extends State<HomePageManager> {
           labelSize?.labelSizeId == currentLabelSizeId &&
           labelSize?.labelSizeId == selectedLabelSizeId) {
         debugLog('skip unchanged labelSizeId=${labelSize?.labelSizeId}');
+        ItemManagerDebugLog.event(
+          'sessionLoad',
+          'skippedUnchanged',
+          trace: trace,
+        );
         return true;
       }
 
@@ -647,6 +669,7 @@ class _HomePageManagerState extends State<HomePageManager> {
         }
         _setItemDraftForceReloadRequired(false);
         _itemManagerMigrationRequired = false;
+        ItemManagerDebugLog.event('sessionLoad', 'cleared', trace: trace);
         return true;
       }
 
@@ -807,12 +830,30 @@ class _HomePageManagerState extends State<HomePageManager> {
       );
       _resetTabs();
       _setItemDraftForceReloadRequired(false);
+      ItemManagerDebugLog.event(
+        'sessionLoad',
+        'completed',
+        trace: trace,
+        fields: {
+          'labelSizeId': labelSize.labelSizeId,
+          'items': items.length,
+          'columns': columns.length,
+          'contents': scopedColumnContents.values.length,
+          'targetMarkets': targetMarketIds.length,
+        },
+      );
       if (mounted) {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
       }
       return true;
     } catch (e) {
       debugLog('$e');
+      ItemManagerDebugLog.event(
+        'sessionLoad',
+        'failed',
+        trace: trace,
+        fields: {'error': e.runtimeType},
+      );
       return false;
     } finally {
       debugLog(END);
@@ -864,6 +905,7 @@ class _HomePageManagerState extends State<HomePageManager> {
   }
 
   Future<void> _cancelItemDraft() async {
+    final commonTrace = ItemManagerDebugLog.nextTrace('cancel');
     final controller = _itemDraftController;
     final traceId = ++_itemDraftCancelTraceSequence;
     _lastItemDraftCancelTraceId = traceId;
@@ -871,7 +913,19 @@ class _HomePageManagerState extends State<HomePageManager> {
       'cancel requested eligible=${controller != null && controller.isDirty && !_itemDraftCommandBusy}',
       traceId: traceId,
     );
+    ItemManagerDebugLog.event(
+      'cancel',
+      'requested',
+      trace: commonTrace,
+      fields: {
+        'cancelTrace': traceId,
+        'controller': controller != null,
+        'dirty': controller?.isDirty,
+        'busy': _itemDraftCommandBusy,
+      },
+    );
     if (controller == null || !controller.isDirty || _itemDraftCommandBusy) {
+      ItemManagerDebugLog.event('cancel', 'blocked', trace: commonTrace);
       return;
     }
     final confirmed = await showDialog<bool>(
@@ -1035,10 +1089,21 @@ class _HomePageManagerState extends State<HomePageManager> {
         'cancel finished originalController=${identityHashCode(controller)} currentController=${_itemDraftController == null ? 'null' : identityHashCode(_itemDraftController!)}',
         traceId: traceId,
       );
+      ItemManagerDebugLog.event(
+        'cancel',
+        'finished',
+        trace: commonTrace,
+        fields: {
+          'cancelTrace': traceId,
+          'currentDirty': _itemDraftController?.isDirty,
+          'forceReload': _itemDraftForceReloadRequired,
+        },
+      );
     }
   }
 
   Future<void> _saveItemDraft() async {
+    final trace = ItemManagerDebugLog.nextTrace('save');
     final controller = _itemDraftController;
     final labelSize = _currentLabelSize;
     if (controller == null ||
@@ -1047,8 +1112,30 @@ class _HomePageManagerState extends State<HomePageManager> {
         !controller.isDirty ||
         _itemDraftCommandBusy ||
         _itemDraftForceReloadRequired) {
+      ItemManagerDebugLog.event(
+        'save',
+        'blocked',
+        trace: trace,
+        fields: {
+          'controller': controller != null,
+          'labelSize': labelSize?.labelSizeId,
+          'canEdit': User.instance?.canEdit,
+          'dirty': controller?.isDirty,
+          'busy': _itemDraftCommandBusy,
+          'forceReload': _itemDraftForceReloadRequired,
+        },
+      );
       return;
     }
+    ItemManagerDebugLog.event(
+      'save',
+      'validationStarted',
+      trace: trace,
+      fields: {
+        'rows': controller.rows.length,
+        'deleted': controller.deletedSourceItemIds.length,
+      },
+    );
     try {
       controller.validateForSave();
     } on ItemManagerDraftValidationError catch (error) {
@@ -1058,9 +1145,21 @@ class _HomePageManagerState extends State<HomePageManager> {
         columnId: error.columnId,
       );
       _showItemDraftError('품목 저장 확인', error);
+      ItemManagerDebugLog.event(
+        'save',
+        'validationRejected',
+        trace: trace,
+        fields: {'rowKey': error.rowKey, 'columnId': error.columnId},
+      );
       return;
     } catch (error) {
       _showItemDraftError('품목 저장 확인', error);
+      ItemManagerDebugLog.event(
+        'save',
+        'validationFailed',
+        trace: trace,
+        fields: {'error': error.runtimeType},
+      );
       return;
     }
     final confirmed = await showDialog<bool>(
@@ -1084,6 +1183,12 @@ class _HomePageManagerState extends State<HomePageManager> {
         ],
       ),
     );
+    ItemManagerDebugLog.event(
+      'save',
+      'confirmCompleted',
+      trace: trace,
+      fields: {'confirmed': confirmed, 'mounted': mounted},
+    );
     if (confirmed != true || !mounted) return;
 
     final selectedKey = controller.anchorRowKey;
@@ -1101,6 +1206,18 @@ class _HomePageManagerState extends State<HomePageManager> {
         labelSizeId: labelSize.labelSizeId,
         targetMarketIds: _itemDraftTargetMarketIds,
       );
+      ItemManagerDebugLog.event(
+        'save',
+        'commandBuilt',
+        trace: trace,
+        fields: {
+          'existing': command.existingRows.length,
+          'new': command.newRows.length,
+          'deleted': command.deletedSourceItemIds.length,
+          'columns': command.columnValues.length,
+          'targetMarkets': command.targetMarketIds.length,
+        },
+      );
       if (command.deletedSourceItemIds.isNotEmpty) {
         final currentFingerprints =
             await ItemOfMarketDAO.selectMappingFingerprintsByItemIds(
@@ -1115,6 +1232,12 @@ class _HomePageManagerState extends State<HomePageManager> {
       }
       final result = await ItemManagerSaveDAO.save(command, capabilities);
       dbSaveCompleted = true;
+      ItemManagerDebugLog.event(
+        'save',
+        'transactionCompleted',
+        trace: trace,
+        fields: {'inserted': result.insertedItemIdsByDraftKey.length},
+      );
       final selectedItemId = resolveItemManagerSavedSelectionItemId(
         selectedRow: selectedRow,
         insertedItemIdsByDraftKey: result.insertedItemIdsByDraftKey,
@@ -1127,14 +1250,22 @@ class _HomePageManagerState extends State<HomePageManager> {
         _setItemDraftForceReloadRequired(true);
         throw StateError('DB 저장은 완료됐지만 품목 목록을 다시 불러오지 못했습니다. 다시 조회해 주세요.');
       }
+      ItemManagerDebugLog.event('save', 'completed', trace: trace);
       if (mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('품목관리 변경 사항을 저장했습니다.')));
       }
     } on _ItemMappingFingerprintConflict catch (error) {
+      ItemManagerDebugLog.event('save', 'mappingConflict', trace: trace);
       if (mounted) await _resolveItemMappingFingerprintConflict(error);
     } on DbCommitOutcomeUnknown catch (error) {
+      ItemManagerDebugLog.event(
+        'save',
+        'commitOutcomeUnknown',
+        trace: trace,
+        fields: {'connectionLost': error.connectionLost},
+      );
       _setItemDraftForceReloadRequired(true);
       if (mounted) {
         _showItemDraftError(
@@ -1143,15 +1274,46 @@ class _HomePageManagerState extends State<HomePageManager> {
         );
       }
     } catch (error) {
+      ItemManagerDebugLog.event(
+        'save',
+        'failed',
+        trace: trace,
+        fields: {
+          'error': error.runtimeType,
+          'dbSaveCompleted': dbSaveCompleted,
+        },
+      );
       if (!dbSaveCompleted) await _flushItemDraftJournalAfterSaveFailure();
       if (mounted) _showItemDraftError('품목 저장 실패', error);
     } finally {
       if (mounted) setState(() => _itemDraftCommandBusy = false);
+      ItemManagerDebugLog.event(
+        'save',
+        'finished',
+        trace: trace,
+        fields: {
+          'mounted': mounted,
+          'forceReload': _itemDraftForceReloadRequired,
+        },
+      );
     }
   }
 
   Future<void> _retryItemDraftReload() async {
-    if (_itemDraftCommandBusy || !_itemDraftForceReloadRequired) return;
+    final trace = ItemManagerDebugLog.nextTrace('reloadRetry');
+    if (_itemDraftCommandBusy || !_itemDraftForceReloadRequired) {
+      ItemManagerDebugLog.event(
+        'reloadRetry',
+        'blocked',
+        trace: trace,
+        fields: {
+          'busy': _itemDraftCommandBusy,
+          'forceReload': _itemDraftForceReloadRequired,
+        },
+      );
+      return;
+    }
+    ItemManagerDebugLog.event('reloadRetry', 'started', trace: trace);
     setState(() => _itemDraftCommandBusy = true);
     try {
       if (!await DbConnectionService.instance.ensureConnected()) {
@@ -1165,12 +1327,19 @@ class _HomePageManagerState extends State<HomePageManager> {
         throw StateError('품목 목록을 다시 불러오지 못했습니다.');
       }
       _setItemDraftForceReloadRequired(false);
+      ItemManagerDebugLog.event('reloadRetry', 'completed', trace: trace);
       if (mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('품목 목록을 다시 불러왔습니다.')));
       }
     } catch (error) {
+      ItemManagerDebugLog.event(
+        'reloadRetry',
+        'failed',
+        trace: trace,
+        fields: {'error': error.runtimeType},
+      );
       if (mounted) _showItemDraftError('품목 다시 조회 실패', error);
     } finally {
       if (mounted) setState(() => _itemDraftCommandBusy = false);
@@ -1227,11 +1396,13 @@ class _HomePageManagerState extends State<HomePageManager> {
   ];
 
   Future<void> _importItemManagerXlsx() async {
+    final trace = ItemManagerDebugLog.nextTrace('xlsxImport');
     final controller = _itemDraftController;
     if (controller == null ||
         User.instance?.canEdit != true ||
         controller.isDirty ||
         _itemDraftCommandBusy) {
+      ItemManagerDebugLog.event('xlsxImport', 'blocked', trace: trace);
       return;
     }
     const xlsxGroup = XTypeGroup(
@@ -1242,20 +1413,43 @@ class _HomePageManagerState extends State<HomePageManager> {
       ],
     );
     final file = await openFile(acceptedTypeGroups: const [xlsxGroup]);
-    if (file == null || !mounted) return;
+    if (file == null || !mounted) {
+      ItemManagerDebugLog.event('xlsxImport', 'pickerCancelled', trace: trace);
+      return;
+    }
     final extension = p.extension(file.path).toLowerCase();
     if (extension != '.xlsx') {
       _showItemDraftError('Excel 가져오기', '지원하지 않는 형식입니다. .xlsx 파일을 선택해 주세요.');
+      ItemManagerDebugLog.event(
+        'xlsxImport',
+        'unsupportedExtension',
+        trace: trace,
+      );
       return;
     }
     setState(() => _itemDraftCommandBusy = true);
     try {
       final bytes = await file.readAsBytes();
+      ItemManagerDebugLog.event(
+        'xlsxImport',
+        'parseStarted',
+        trace: trace,
+        fields: {'bytes': bytes.length},
+      );
       if (!mounted) return;
       final result = itemManagerImportXlsxBytes(
         bytes,
         columns: _itemManagerXlsxColumns(),
         emptyElementPayload: _itemDraftEmptyElementPayload,
+      );
+      ItemManagerDebugLog.event(
+        'xlsxImport',
+        'parsed',
+        trace: trace,
+        fields: {
+          'rows': result.rows.length,
+          'warnings': result.warnings.length,
+        },
       );
       if (result.warnings.isNotEmpty) {
         final confirmed = await showDialog<bool>(
@@ -1275,7 +1469,14 @@ class _HomePageManagerState extends State<HomePageManager> {
             ],
           ),
         );
-        if (confirmed != true || !mounted) return;
+        if (confirmed != true || !mounted) {
+          ItemManagerDebugLog.event(
+            'xlsxImport',
+            'warningCancelled',
+            trace: trace,
+          );
+          return;
+        }
       }
       final imported = controller.replaceAllWithImportedRows(
         result.rows,
@@ -1296,6 +1497,12 @@ class _HomePageManagerState extends State<HomePageManager> {
         );
       }
       _resetTabs();
+      ItemManagerDebugLog.event(
+        'xlsxImport',
+        'completed',
+        trace: trace,
+        fields: {'rows': imported.length},
+      );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -1304,6 +1511,12 @@ class _HomePageManagerState extends State<HomePageManager> {
         );
       }
     } catch (error) {
+      ItemManagerDebugLog.event(
+        'xlsxImport',
+        'failed',
+        trace: trace,
+        fields: {'error': error.runtimeType},
+      );
       if (mounted) _showItemDraftError('Excel 가져오기 실패', error);
     } finally {
       if (mounted) setState(() => _itemDraftCommandBusy = false);
@@ -1311,6 +1524,7 @@ class _HomePageManagerState extends State<HomePageManager> {
   }
 
   Future<void> _exportItemManagerXlsx() async {
+    final trace = ItemManagerDebugLog.nextTrace('xlsxExport');
     final controller = _itemDraftController;
     if (controller == null || controller.isDirty || _itemDraftCommandBusy) {
       return;
@@ -1330,7 +1544,10 @@ class _HomePageManagerState extends State<HomePageManager> {
       acceptedTypeGroups: const [xlsxGroup],
       suggestedName: '${_currentLabelSize?.labelSizeName ?? '품목관리'}.xlsx',
     );
-    if (location == null || !mounted) return;
+    if (location == null || !mounted) {
+      ItemManagerDebugLog.event('xlsxExport', 'pickerCancelled', trace: trace);
+      return;
+    }
     var path = location.path;
     final extension = p.extension(path).toLowerCase();
     if (extension.isEmpty) {
@@ -1348,13 +1565,30 @@ class _HomePageManagerState extends State<HomePageManager> {
         columnValue: (row, column) =>
             controller.columnValue(row, column.columnId),
       );
+      ItemManagerDebugLog.event(
+        'xlsxExport',
+        'writeStarted',
+        trace: trace,
+        fields: {
+          'rows': controller.rows.length,
+          'columns': columns.length,
+          'bytes': bytes.length,
+        },
+      );
       await File(path).writeAsBytes(bytes, flush: true);
+      ItemManagerDebugLog.event('xlsxExport', 'completed', trace: trace);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Excel 파일을 저장했습니다: ${p.basename(path)}')),
         );
       }
     } catch (error) {
+      ItemManagerDebugLog.event(
+        'xlsxExport',
+        'failed',
+        trace: trace,
+        fields: {'error': error.runtimeType},
+      );
       if (mounted) _showItemDraftError('Excel 내보내기 실패', error);
     } finally {
       if (mounted) setState(() => _itemDraftCommandBusy = false);
@@ -1362,6 +1596,7 @@ class _HomePageManagerState extends State<HomePageManager> {
   }
 
   Future<void> _showItemQrData(ItemManagerDraftRow row) async {
+    final trace = ItemManagerDebugLog.nextTrace('qrViewer');
     final controller = _itemDraftController;
     if (controller == null ||
         !controller.rows.any((item) => item.rowKey == row.rowKey)) {
@@ -1383,6 +1618,18 @@ class _HomePageManagerState extends State<HomePageManager> {
       ),
       gs1Definitions: Gs1AiDefinitions.values,
     ).resolveViewerData();
+    ItemManagerDebugLog.event(
+      'qrViewer',
+      'resolved',
+      trace: trace,
+      fields: {
+        'rowKey': row.rowKey,
+        'sourceItemId': row.sourceItemId,
+        'columns': columns.length,
+        'results': results.length,
+        'errors': results.where((result) => result.error != null).length,
+      },
+    );
     if (!mounted) return;
     await showDialog<void>(
       context: context,
@@ -1429,6 +1676,7 @@ class _HomePageManagerState extends State<HomePageManager> {
   }
 
   Future<void> _changeItemOrder() async {
+    final trace = ItemManagerDebugLog.nextTrace('itemOrder');
     final labelSize = _effectiveLabelSize;
     final market = Market.instance;
     final controller = _itemDraftController;
@@ -1438,6 +1686,7 @@ class _HomePageManagerState extends State<HomePageManager> {
         User.instance?.canEdit != true ||
         controller.isDirty ||
         _itemDraftCommandBusy) {
+      ItemManagerDebugLog.event('itemOrder', 'blocked', trace: trace);
       return;
     }
     final selectedItemId = _selectedItemOfMarket?.item.itemId;
@@ -1450,13 +1699,22 @@ class _HomePageManagerState extends State<HomePageManager> {
             labelSize.labelSizeId,
           ) ??
           const <ItemOfMarket>[];
+      ItemManagerDebugLog.event(
+        'itemOrder',
+        'loaded',
+        trace: trace,
+        fields: {'items': storedItems.length},
+      );
       if (!mounted || storedItems.length < 2) return;
       final ordered = await showDialog<List<ItemOfMarket>>(
         context: context,
         builder: (_) =>
             ItemOrderDialog(items: storedItems, selectedItemId: selectedItemId),
       );
-      if (!mounted || ordered == null) return;
+      if (!mounted || ordered == null) {
+        ItemManagerDebugLog.event('itemOrder', 'dialogCancelled', trace: trace);
+        return;
+      }
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (dialogContext) => AlertDialog(
@@ -1477,11 +1735,20 @@ class _HomePageManagerState extends State<HomePageManager> {
           ],
         ),
       );
-      if (!mounted || confirmed != true) return;
+      if (!mounted || confirmed != true) {
+        ItemManagerDebugLog.event('itemOrder', 'saveCancelled', trace: trace);
+        return;
+      }
       await ItemDAO.updateOrders([
         for (var index = 0; index < ordered.length; index++)
           ItemOrderUpdate(itemId: ordered[index].item.itemId, order: index + 1),
       ]);
+      ItemManagerDebugLog.event(
+        'itemOrder',
+        'updateCompleted',
+        trace: trace,
+        fields: {'items': ordered.length},
+      );
       if (!mounted) return;
       final reloaded = await _reloadItemDraftFromDatabase(
         selectedItemId: selectedItemId,
@@ -1496,6 +1763,12 @@ class _HomePageManagerState extends State<HomePageManager> {
         context,
       ).showSnackBar(const SnackBar(content: Text('품목 순서를 저장했습니다.')));
     } catch (error) {
+      ItemManagerDebugLog.event(
+        'itemOrder',
+        'failed',
+        trace: trace,
+        fields: {'error': error.runtimeType},
+      );
       if (mounted) _showItemDraftError('품목 순서 변경 실패', error);
     } finally {
       if (mounted) setState(() => _itemDraftCommandBusy = false);
@@ -1506,17 +1779,41 @@ class _HomePageManagerState extends State<HomePageManager> {
     int? selectedItemId,
     int? fallbackIndex,
   }) async {
+    final trace = ItemManagerDebugLog.nextTrace('reload');
     final labelSize = _currentLabelSize;
-    if (labelSize == null) return false;
+    if (labelSize == null) {
+      ItemManagerDebugLog.event('reload', 'missingLabelSize', trace: trace);
+      return false;
+    }
+    ItemManagerDebugLog.event(
+      'reload',
+      'started',
+      trace: trace,
+      fields: {
+        'labelSizeId': labelSize.labelSizeId,
+        'selectedItemId': selectedItemId,
+        'fallbackIndex': fallbackIndex,
+      },
+    );
     final loaded = await _handleLabelSizeChanged(labelSize, forceReload: true);
-    if (!loaded) return false;
+    if (!loaded) {
+      ItemManagerDebugLog.event('reload', 'loadFailed', trace: trace);
+      return false;
+    }
     final items = ItemOfMarket.datas ?? const <ItemOfMarket>[];
     final index = resolveItemManagerReloadSelectionIndex(
       items,
       selectedItemId: selectedItemId,
       fallbackIndex: fallbackIndex,
     );
-    if (index == null) return true;
+    if (index == null) {
+      ItemManagerDebugLog.event(
+        'reload',
+        'completedWithoutSelection',
+        trace: trace,
+      );
+      return true;
+    }
     _selectedItemIndex = index;
     _selectedItemOfMarket = items[index];
     final restoredItemId = items[index].item.itemId;
@@ -1524,6 +1821,12 @@ class _HomePageManagerState extends State<HomePageManager> {
       'item:$restoredItemId',
     ], anchorRowKey: 'item:$restoredItemId');
     _resetTabs();
+    ItemManagerDebugLog.event(
+      'reload',
+      'completed',
+      trace: trace,
+      fields: {'restoredItemId': restoredItemId, 'index': index},
+    );
     return true;
   }
 
@@ -1697,6 +2000,7 @@ class _HomePageManagerState extends State<HomePageManager> {
   }
 
   Future<void> _openDateTypeSetupDialog() async {
+    final trace = ItemManagerDebugLog.nextTrace('dateSetup');
     final labelSize = _effectiveLabelSize;
     final setup = labelSize?.labelSizeSetup;
     if (labelSize == null ||
@@ -1704,6 +2008,7 @@ class _HomePageManagerState extends State<HomePageManager> {
         _itemDraftCommandBusy ||
         _itemDraftForceReloadRequired ||
         _itemDraftController?.isDirty == true) {
+      ItemManagerDebugLog.event('dateSetup', 'blocked', trace: trace);
       return;
     }
     final update = await showDialog<LabelSizeDateSetupUpdate>(
@@ -1714,7 +2019,10 @@ class _HomePageManagerState extends State<HomePageManager> {
         readOnly: User.instance?.canEdit != true,
       ),
     );
-    if (!mounted || update == null || User.instance?.canEdit != true) return;
+    if (!mounted || update == null || User.instance?.canEdit != true) {
+      ItemManagerDebugLog.event('dateSetup', 'dialogCancelled', trace: trace);
+      return;
+    }
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -1732,12 +2040,21 @@ class _HomePageManagerState extends State<HomePageManager> {
         ],
       ),
     );
-    if (!mounted || confirmed != true) return;
+    if (!mounted || confirmed != true) {
+      ItemManagerDebugLog.event('dateSetup', 'saveCancelled', trace: trace);
+      return;
+    }
     setState(() => _itemDraftCommandBusy = true);
     try {
       final saved = await LabelSizeDAO.updateDateSetup(
         labelSize.labelSizeId,
         update,
+      );
+      ItemManagerDebugLog.event(
+        'dateSetup',
+        'updateCompleted',
+        trace: trace,
+        fields: {'labelSizeId': labelSize.labelSizeId},
       );
       if (!mounted) return;
       LabelSize.replaceCachedDateSetup(saved);
@@ -1749,6 +2066,12 @@ class _HomePageManagerState extends State<HomePageManager> {
         context,
       ).showSnackBar(const SnackBar(content: Text('날짜 타입 설정을 저장했습니다.')));
     } catch (error) {
+      ItemManagerDebugLog.event(
+        'dateSetup',
+        'failed',
+        trace: trace,
+        fields: {'error': error.runtimeType},
+      );
       if (mounted) _showItemDraftError('날짜 타입 설정 저장 실패', error);
     } finally {
       if (mounted) setState(() => _itemDraftCommandBusy = false);

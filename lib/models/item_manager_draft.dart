@@ -7,6 +7,7 @@ import 'package:label_manager/models/gs1_ai.dart';
 import 'package:label_manager/models/item.dart';
 import 'package:label_manager/models/item_manager_save.dart';
 import 'package:label_manager/models/item_of_market.dart';
+import 'package:label_manager/utils/item_manager_debug_log.dart';
 
 abstract final class ItemManagerLimits {
   static const int maxRows = 10000;
@@ -375,7 +376,7 @@ class ItemManagerDraftController extends ChangeNotifier {
     this.labelSizeName = '',
     DateTime Function()? now,
   }) : _rows = List.of(rows),
-      _baselineRows = List.unmodifiable(rows),
+       _baselineRows = List.unmodifiable(rows),
        _now = now ?? DateTime.now {
     _validateRows(_rows);
   }
@@ -417,7 +418,8 @@ class ItemManagerDraftController extends ChangeNotifier {
   }
 
   List<ItemManagerDraftRow> get rows => List.unmodifiable(_rows);
-  List<ItemManagerDraftRow> get baselineRows => List.unmodifiable(_baselineRows);
+  List<ItemManagerDraftRow> get baselineRows =>
+      List.unmodifiable(_baselineRows);
   final bool requireElement;
   final String labelSizeName;
   Set<int> get deletedSourceItemIds => Set.unmodifiable(_deletedSourceItemIds);
@@ -441,6 +443,15 @@ class ItemManagerDraftController extends ChangeNotifier {
     Iterable<String>? selectedRowKeys,
     String? anchorRowKey,
   }) {
+    ItemManagerDebugLog.event(
+      'draftDiscard',
+      'started',
+      fields: {
+        'rows': _rows.length,
+        'deleted': _deletedSourceItemIds.length,
+        'dirty': isDirty,
+      },
+    );
     _rows
       ..clear()
       ..addAll(_baselineRows);
@@ -458,28 +469,38 @@ class ItemManagerDraftController extends ChangeNotifier {
         .where((key) => _rows.any((row) => row.rowKey == key))
         .toSet();
     final fallbackRow = baselineKeys.isEmpty
-      ? (_rows.isEmpty ? null : _rows.first)
-      : null;
+        ? (_rows.isEmpty ? null : _rows.first)
+        : null;
     _selectedRowKeys
       ..clear()
       ..addAll(
-      selectedRow != null
-        ? [selectedRow.rowKey]
-        : baselineKeys.isNotEmpty
-        ? baselineKeys
-        : fallbackRow == null
-        ? const <String>[]
-        : [fallbackRow.rowKey],
+        selectedRow != null
+            ? [selectedRow.rowKey]
+            : baselineKeys.isNotEmpty
+            ? baselineKeys
+            : fallbackRow == null
+            ? const <String>[]
+            : [fallbackRow.rowKey],
       );
     final preferredAnchor = anchorRowKey ?? _baselineAnchorRowKey;
-    _anchorRowKey = selectedRow?.rowKey ??
-      (preferredAnchor != null && baselineKeys.contains(preferredAnchor)
-        ? preferredAnchor
-        : baselineKeys.isNotEmpty
-        ? baselineKeys.last
-        : fallbackRow?.rowKey);
+    _anchorRowKey =
+        selectedRow?.rowKey ??
+        (preferredAnchor != null && baselineKeys.contains(preferredAnchor)
+            ? preferredAnchor
+            : baselineKeys.isNotEmpty
+            ? baselineKeys.last
+            : fallbackRow?.rowKey);
     _selectedColumnId = null;
     notifyListeners();
+    ItemManagerDebugLog.event(
+      'draftDiscard',
+      'completed',
+      fields: {
+        'rows': _rows.length,
+        'selected': _selectedRowKeys.length,
+        'dirty': isDirty,
+      },
+    );
   }
 
   void restoreJournalBaseline({
@@ -507,7 +528,8 @@ class ItemManagerDraftController extends ChangeNotifier {
     if (_selectedRowKeys.isEmpty && _rows.isNotEmpty) {
       _selectedRowKeys.add(_rows.first.rowKey);
     }
-    _anchorRowKey = anchorRowKey != null && _selectedRowKeys.contains(anchorRowKey)
+    _anchorRowKey =
+        anchorRowKey != null && _selectedRowKeys.contains(anchorRowKey)
         ? anchorRowKey
         : (_selectedRowKeys.isEmpty ? null : _selectedRowKeys.last);
     _baselineSelectedRowKeys = Set.unmodifiable(_selectedRowKeys);
@@ -536,6 +558,15 @@ class ItemManagerDraftController extends ChangeNotifier {
     required String elementPlain,
     required String elementPayload,
   }) {
+    ItemManagerDebugLog.event(
+      'editElement',
+      'requested',
+      fields: {
+        'rowKey': rowKey,
+        'plainLength': elementPlain.length,
+        'payloadLength': elementPayload.length,
+      },
+    );
     _updateRow(rowKey, (row) {
       if (row.elementPlain == elementPlain &&
           row.elementPayload == elementPayload) {
@@ -1001,6 +1032,7 @@ class ItemManagerDraftController extends ChangeNotifier {
     int count, {
     required String emptyElementPayload,
   }) {
+    final beforeRows = _rows.length;
     _validateAddCount(count);
     final added = _createNewRows(
       count,
@@ -1012,6 +1044,15 @@ class ItemManagerDraftController extends ChangeNotifier {
     _rows.addAll(added);
     _selectAdded(added);
     notifyListeners();
+    ItemManagerDebugLog.event(
+      'draftAddRows',
+      'completed',
+      fields: {
+        'count': count,
+        'beforeRows': beforeRows,
+        'afterRows': _rows.length,
+      },
+    );
     return List.unmodifiable(added);
   }
 
@@ -1020,6 +1061,7 @@ class ItemManagerDraftController extends ChangeNotifier {
     int count, {
     required String emptyElementPayload,
   }) {
+    final beforeRows = _rows.length;
     _validateAddCount(count);
     final anchorIndex = _rows.indexWhere((row) => row.rowKey == anchorRowKey);
     if (anchorIndex < 0) {
@@ -1037,13 +1079,32 @@ class ItemManagerDraftController extends ChangeNotifier {
     _renumberRows();
     _selectAdded(added);
     notifyListeners();
+    ItemManagerDebugLog.event(
+      'draftInsertRows',
+      'completed',
+      fields: {
+        'count': count,
+        'anchor': anchorRowKey,
+        'beforeRows': beforeRows,
+        'afterRows': _rows.length,
+      },
+    );
     return List.unmodifiable(added);
   }
 
   List<ItemManagerDraftRow> replaceAllWithImportedRows(
-    List<ItemManagerImportedRow> importedRows,
-    {ItemManagerImportViewState? importViewState}
-  ) {
+    List<ItemManagerImportedRow> importedRows, {
+    ItemManagerImportViewState? importViewState,
+  }) {
+    ItemManagerDebugLog.event(
+      'draftImportReplace',
+      'started',
+      fields: {
+        'incoming': importedRows.length,
+        'rows': _rows.length,
+        'dirty': isDirty,
+      },
+    );
     if (isDirty) {
       throw StateError('Import requires a clean item draft.');
     }
@@ -1091,6 +1152,15 @@ class ItemManagerDraftController extends ChangeNotifier {
       ..add(replacements.first.rowKey);
     _anchorRowKey = replacements.first.rowKey;
     notifyListeners();
+    ItemManagerDebugLog.event(
+      'draftImportReplace',
+      'completed',
+      fields: {
+        'rows': _rows.length,
+        'deletedExisting': _deletedSourceItemIds.length,
+        'dirty': isDirty,
+      },
+    );
     return List.unmodifiable(replacements);
   }
 
@@ -1123,6 +1193,17 @@ class ItemManagerDraftController extends ChangeNotifier {
       ..addAll(nextKey == null ? const <String>[] : [nextKey]);
     _anchorRowKey = nextKey;
     notifyListeners();
+    ItemManagerDebugLog.event(
+      'draftDeleteRows',
+      'completed',
+      fields: {
+        'requested': keys.length,
+        'removed': indexes.length,
+        'rows': _rows.length,
+        'deletedExisting': _deletedSourceItemIds.length,
+        'nextKey': nextKey,
+      },
+    );
     return nextKey;
   }
 
