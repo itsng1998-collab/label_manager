@@ -28,6 +28,21 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-11): FortuneTable 시트형 셀 편집 UX 정합
+
+- 사용자 요청: FortuneSheetApp 전환 없이 품목관리 `FortuneTable`의 셀 입력 박스와 편집 UX를 FortuneSheet 셀과 동일하게 맞춘다.
+- 분석: FortuneSheet는 선택 셀에서 더블클릭/Enter/F2로 기존값 편집, 문자 입력으로 기존값을 대체하며 즉시 편집, Esc 취소, 무변경 완료 시 update 없음으로 동작한다. 일반 셀 editor Enter 완료는 다음 행으로 이동하지 않는다. editor는 기존 셀 배경과 `#0188FB` 2px 테두리, 좌우 2px padding을 사용한다.
+- 수정: FortuneTable의 editor를 FortuneSheet 원본과 같은 현재 셀 배경, `#0188FB` 2px 테두리, 좌우 2px padding으로 맞췄다. pointer-down에서 셀 좌표를 즉시 선택하고 pointer-up에서 table focus를 확보해 문자 입력 시 기존값 대체 편집, Enter/F2 기존값 편집, hardware Enter commit, Esc 취소, 종료 후 focus 복귀를 지원한다. 동일값 완료는 `onTextCommitted`를 호출하지 않는다.
+- focused 검증: `FortuneTable starts selected cell editing from keyboard` 1개 통과. 시각 효과/무변경/품목관리 실제 경로와 파일 전체 검증 예정.
+- 회귀 수정: 셀 pointer-down은 활성 좌표만 기록하고 기존 행 선택 로직이 Ctrl/Shift 다중 선택을 단독 처리하도록 분리했다. 포맷 후 `test/fortune_table_test.dart` 30개 통과.
+- 의도적 유지: Delete/Backspace의 품목 셀 삭제 및 화살표 기반 셀 범위 이동은 품목관리의 행 선택·행 삭제 계약과 충돌하므로 적용하지 않는다. 편집 진입/입력/commit/cancel UX만 FortuneSheet와 정합한다.
+- 전체 검증 예정: 변경 파일 diagnostics, `C:\Flutter\bin\flutter.bat analyze`, 전체 `flutter test`, `git diff --check`.
+- 전체 정적 분석: 중복 `KeyDownEvent` 타입 검사 warning 1건을 제거한 뒤 `C:\Flutter\bin\flutter.bat analyze` 이슈 0건. 전체 테스트 예정.
+- 전체 검증: 변경 파일 diagnostics 0건, 전체 테스트 3,343개 통과. 테스트 build 산출물 정리와 `git diff --check` 후 `third_party/fortune_sheet/lib/src/fortune_table.dart`, `test/fortune_table_test.dart`를 기능 commit하고 `SESSION_HANDOFF.md`는 별도 commit한다.
+- 최종 재검증: 포맷 후 `test/fortune_table_test.dart` 30개 통과, diagnostics 0건, `flutter analyze` 이슈 0건, `git diff --check` 통과. 전체 테스트 생성 `third_party/fortune_sheet/build/` 정리 완료.
+- 기능 commit: `e118307` (`품목관리 시트형 셀 편집 동작 보완`). FortuneSheet와 동일한 선택 셀 문자 덮어쓰기 편집, Enter/F2 기존값 편집, hardware Enter commit, Esc 취소, 무변경 commit 차단, 원본 셀 배경과 `#0188FB` editor 테두리를 적용한다.
+- 기존 unrelated dirty `lib/core/app.dart`는 수정·stage 대상에서 제외한다.
+
 ### 완료 (2026-07-11): 품목관리 메인 테이블 셀 편집 표시
 
 - 사용자 요청: 품목관리 메인 테이블에서 셀 입력 진입 시 셀 내부에 입력 박스 효과를 표시한다.
