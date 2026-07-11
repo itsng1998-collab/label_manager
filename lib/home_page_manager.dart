@@ -4102,11 +4102,13 @@ debugItemOutputPreviewForTesting({
   required ItemOfMarket item,
   required String elementText,
   fs.FortuneWorkbook? elementWorkbook,
+  ItemCodeDataResolver? codeDataResolver,
 }) => _itemOutputPreview(
   labelSize: labelSize,
   item: item,
   elementText: elementText,
   elementWorkbook: elementWorkbook,
+  codeDataResolver: codeDataResolver,
 );
 
 @visibleForTesting
@@ -4123,6 +4125,7 @@ String debugItemCodeErrorPlaceholderForTesting() =>
   required ItemOfMarket item,
   required String elementText,
   fs.FortuneWorkbook? elementWorkbook,
+  ItemCodeDataResolver? codeDataResolver,
 }) {
   final encodedWorkbook = labelSize?.labelSizeCommon?.rtf;
   if (labelSheetLooksLikeRichEditRtf(encodedWorkbook)) {
@@ -4137,16 +4140,19 @@ String debugItemCodeErrorPlaceholderForTesting() =>
       workbook: _replaceItemPreviewKeywords(
         _itemOutputPreviewPrivateWorkbook(workbook, labelSize),
         _itemOutputPreviewReplacements(item: item, elementText: elementText),
-        codeDataResolver: ItemCodeDataResolver(
-          itemName: item.item.itemName,
-          columns: [
-            for (final column in TColumn.datas ?? const <TColumn>[])
-              ItemCodeColumnSpec.fromColumn(column),
-          ],
-          columnValue: (columnId) =>
-              TColumnContent.get(columnId, item.item.itemId)?.dataString ?? '',
-          gs1Definitions: Gs1AiDefinitions.values,
-        ),
+        codeDataResolver:
+            codeDataResolver ??
+            ItemCodeDataResolver(
+              itemName: item.item.itemName,
+              columns: [
+                for (final column in TColumn.datas ?? const <TColumn>[])
+                  ItemCodeColumnSpec.fromColumn(column),
+              ],
+              columnValue: (columnId) =>
+                  TColumnContent.get(columnId, item.item.itemId)?.dataString ??
+                  '',
+              gs1Definitions: Gs1AiDefinitions.values,
+            ),
         elementCell: _itemElementCellFromWorkbook(
           elementWorkbook ?? _itemElementWorkbook(elementText, labelSize),
         ),
