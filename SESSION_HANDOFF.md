@@ -28,6 +28,19 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-11): 라벨 날짜 설정 버튼 활성 표시
+
+- 사용자 요청: 품목관리에서는 브랜드 설정 비활성은 맞지만, 드롭다운의 `날짜 타입 설정...`을 사용할 수 있으면 라벨 설정 버튼도 활성 상태로 보여야 한다.
+- 원인: `PopupMenuButton.enabled`는 날짜 설정 callback으로 true였지만 child `OutlinedButton.icon`은 항상 `onPressed: null`이라 비활성 스타일로 렌더링됐다.
+- 수정: popup과 child 버튼이 동일한 `labelMenuEnabled`를 사용하고, child는 `IgnorePointer`로 popup 클릭 처리를 유지한다. 날짜 설정만 가능한 상태의 popup/버튼/menu item 활성 회귀 테스트를 추가했다.
+- `lib/home_page_manager.dart`: 라벨 설정 popup과 child 버튼 활성 조건을 통일하고 테스트용 top control builder를 추가했다.
+- `test/label_sheet_toolbar_test.dart`: 날짜 설정 callback만 있을 때 popup/child 버튼/날짜 메뉴 항목이 모두 활성인지 검증한다.
+- focused 검증: 신규 회귀 테스트 1개 통과, 변경 파일 diagnostics 0건. 다음 검증은 변경 Dart format 후 toolbar 전체 테스트.
+- 전체 검증 완료: toolbar/preview 테스트 107개 통과, `C:\Flutter\bin\flutter.bat analyze` 이슈 0건, 전체 `C:\Flutter\bin\flutter.bat test` 333개 통과, `git diff --check` 통과. 포맷 잡음 제거 후 신규 테스트/diagnostics/diff check를 재검증했다.
+- stage/기능 commit 대상: `lib/home_page_manager.dart`, `test/label_sheet_toolbar_test.dart`.
+- 기능 commit: `2a558c7` (`라벨 날짜 설정 버튼 활성 표시`).
+- 기존 unrelated dirty `lib/core/app.dart`는 수정·stage 대상에서 제외한다.
+
 ### 완료 (2026-07-11): 품목 조회 직후 오편집 차단
 
 - 사용자 재현: 앱 실행 후 품목관리 조회만 완료된 상태에서 다른 탭을 선택하면 편집 중 안내로 이동이 차단된다.
