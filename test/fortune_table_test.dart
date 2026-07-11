@@ -17,6 +17,7 @@ void main() {
   ) async {
     var value = '원본';
     var committed = '';
+    var commitCount = 0;
 
     await tester.pumpWidget(
       MaterialApp(
@@ -34,6 +35,7 @@ void main() {
                     text: (row) => row,
                     isTextEditable: (_, _) => true,
                     onTextCommitted: (_, _, next) {
+                      commitCount += 1;
                       committed = next;
                       setState(() => value = next);
                     },
@@ -58,16 +60,25 @@ void main() {
       ).first,
     );
     final editorDecoration = editorBox.decoration as BoxDecoration;
-    expect(editorDecoration.color, const Color(0xFFF8FBFF));
+    expect(editorDecoration.color, const Color(0xFFE3F2FD));
     expect(
       editorDecoration.border,
-      Border.all(color: const Color(0xFF1A73E8), width: 2),
+      Border.all(color: const Color(0xFF0188FB), width: 2),
     );
     await tester.enterText(find.byType(TextField), '수정');
     await tester.testTextInput.receiveAction(TextInputAction.done);
     await tester.pump();
     expect(committed, '수정');
+    expect(commitCount, 1);
     expect(find.text('수정'), findsOneWidget);
+
+    await tester.tap(find.text('수정'));
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.tap(find.text('수정'));
+    await tester.pump();
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pump();
+    expect(commitCount, 1);
 
     await tester.tap(find.text('수정'));
     await tester.pump(const Duration(milliseconds: 50));
@@ -75,8 +86,9 @@ void main() {
     await tester.pump();
     await tester.enterText(find.byType(TextField), '취소 값');
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
-    await tester.pump();
+    await tester.pumpAndSettle();
     expect(committed, '수정');
+    expect(commitCount, 1);
     expect(find.text('수정'), findsOneWidget);
     await tester.pump(const Duration(milliseconds: 100));
   });
@@ -115,6 +127,60 @@ void main() {
     expect(doubleTapCount, 1);
     expect(find.byType(TextField), findsNothing);
     await tester.pump(const Duration(milliseconds: 100));
+  });
+
+  testWidgets('FortuneTable starts selected cell editing from keyboard', (
+    tester,
+  ) async {
+    var value = '원본';
+    var commitCount = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 320,
+            height: 140,
+            child: StatefulBuilder(
+              builder: (context, setState) => FortuneTable<String>(
+                rows: [value],
+                columns: [
+                  FortuneTableColumn<String>(
+                    id: 'name',
+                    header: '이름',
+                    text: (row) => row,
+                    isTextEditable: (_, _) => true,
+                    onTextCommitted: (_, _, next) {
+                      commitCount += 1;
+                      setState(() => value = next);
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('원본'));
+    await tester.pump();
+    expect(FocusManager.instance.primaryFocus?.debugLabel, 'FortuneTable');
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyK);
+    await tester.pump();
+    expect(find.byType(TextField), findsOneWidget);
+    expect(tester.widget<TextField>(find.byType(TextField)).controller!.text, 'k');
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.f2);
+    await tester.pump();
+    expect(find.byType(TextField), findsOneWidget);
+    expect(tester.widget<TextField>(find.byType(TextField)).controller!.text, '원본');
+    await tester.enterText(find.byType(TextField), '변경');
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pump();
+    expect(commitCount, 1);
+    expect(find.text('변경'), findsOneWidget);
   });
 
   testWidgets('FortuneTable focus controller reveals an off-screen cell', (
@@ -1261,10 +1327,10 @@ void main() {
       ).first,
     );
     final editorDecoration = editorBox.decoration as BoxDecoration;
-    expect(editorDecoration.color, const Color(0xFFF8FBFF));
+    expect(editorDecoration.color, const Color(0xFFE3F2FD));
     expect(
       editorDecoration.border,
-      Border.all(color: const Color(0xFF1A73E8), width: 2),
+      Border.all(color: const Color(0xFF0188FB), width: 2),
     );
     await tester.enterText(find.byType(TextField), '편집 후 품명');
     await tester.testTextInput.receiveAction(TextInputAction.done);

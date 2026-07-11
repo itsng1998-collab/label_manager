@@ -237,8 +237,7 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
   static const Color _alternateRowColor = Color(0xFFF2F4F7);
   static const Color _checkboxBorderColor = Color(0xffb7b7b7);
   static const Color _checkboxCheckColor = Color(0xff0188fb);
-  static const Color _textEditorBorderColor = Color(0xFF1A73E8);
-  static const Color _textEditorBackgroundColor = Color(0xFFF8FBFF);
+  static const Color _textEditorBorderColor = Color(0xFF0188FB);
   static const double _checkboxSize = 13.0;
 
   final ScrollController _hScrollHeader = ScrollController();
@@ -260,6 +259,7 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
   int? _focusedColumnIndex;
   int? _editingRowIndex;
   int? _editingColumnIndex;
+  String? _textEditorInitialValue;
   TextEditingController? _textEditorController;
   FocusNode? _textEditorFocusNode;
 
@@ -491,7 +491,10 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
   }
 
   KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
-    if (event is KeyDownEvent &&
+    if (event is! KeyDownEvent) {
+      return KeyEventResult.ignored;
+    }
+    if (
         (event.logicalKey == LogicalKeyboardKey.enter ||
             event.logicalKey == LogicalKeyboardKey.f2)) {
       final rowIndex = _selectedIndex;
@@ -508,9 +511,30 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
         }
       }
     }
+    final editingCharacter = _printableEditingCharacter(event);
+    if (editingCharacter != null) {
+      final rowIndex = _selectedIndex;
+      final columnIndex = _focusedColumnIndex;
+      if (rowIndex != null &&
+          columnIndex != null &&
+          rowIndex < widget.rows.length &&
+          columnIndex < widget.columns.length) {
+        final row = widget.rows[rowIndex];
+        final column = widget.columns[columnIndex];
+        if (_isTextEditable(column, row, rowIndex)) {
+          _startTextEditing(
+            row,
+            rowIndex,
+            columnIndex,
+            column,
+            initialText: editingCharacter,
+          );
+          return KeyEventResult.handled;
+        }
+      }
+    }
     if (!widget.multiSelectionEnabled ||
-        !widget.keyboardSelectionShortcutsEnabled ||
-        event is! KeyDownEvent) {
+      !widget.keyboardSelectionShortcutsEnabled) {
       return KeyEventResult.ignored;
     }
     final controller = widget.selectionController;
@@ -529,6 +553,34 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
       return KeyEventResult.handled;
     }
     return KeyEventResult.ignored;
+  }
+
+  String? _printableEditingCharacter(KeyEvent event) {
+    if (HardwareKeyboard.instance.isControlPressed ||
+        HardwareKeyboard.instance.isMetaPressed ||
+        HardwareKeyboard.instance.isAltPressed) {
+      return null;
+    }
+    final character = event.character;
+    if (character != null && character.length == 1) {
+      final codeUnit = character.codeUnitAt(0);
+      if (codeUnit >= 0x20 || character == ' ') return character;
+    }
+    final keyId = event.logicalKey.keyId;
+    final keyA = LogicalKeyboardKey.keyA.keyId;
+    final keyZ = LogicalKeyboardKey.keyZ.keyId;
+    if (keyId >= keyA && keyId <= keyZ) {
+      final letter = String.fromCharCode('a'.codeUnitAt(0) + keyId - keyA);
+      return HardwareKeyboard.instance.isShiftPressed
+          ? letter.toUpperCase()
+          : letter;
+    }
+    final digit0 = LogicalKeyboardKey.digit0.keyId;
+    final digit9 = LogicalKeyboardKey.digit9.keyId;
+    if (keyId >= digit0 && keyId <= digit9) {
+      return String.fromCharCode('0'.codeUnitAt(0) + keyId - digit0);
+    }
+    return null;
   }
 
   void _handlePointerScroll(Offset delta) {
@@ -745,7 +797,7 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
                 }
               },
             )
-          : _buildTextCell(row, rowIndex, columnIndex, column),
+          : _buildTextCell(row, rowIndex, columnIndex, column, color),
     );
   }
 
@@ -754,6 +806,7 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
     int rowIndex,
     int columnIndex,
     FortuneTableColumn<T> column,
+    Color cellColor,
   ) {
     if (_editingRowIndex == rowIndex && _editingColumnIndex == columnIndex) {
       return Focus(
@@ -763,11 +816,16 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
             _cancelTextEditing();
             return KeyEventResult.handled;
           }
+          if (event is KeyDownEvent &&
+              event.logicalKey == LogicalKeyboardKey.enter) {
+            _commitTextEditing();
+            return KeyEventResult.handled;
+          }
           return KeyEventResult.ignored;
         },
         child: DecoratedBox(
           decoration: BoxDecoration(
-            color: _textEditorBackgroundColor,
+            color: cellColor,
             border: Border.all(color: _textEditorBorderColor, width: 2),
           ),
           child: TextField(
@@ -787,25 +845,28 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
         ),
       );
     }
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTapDown: (_) {
+    return Listener(
+      onPointerDown: (_) {
         _focusedColumnIndex = columnIndex;
-        _selectRow(row, rowIndex);
+        _selectedIndex = rowIndex;
       },
-      onDoubleTap: column.onDoubleTap != null
-          ? () => column.onDoubleTap!(row, rowIndex)
-          : _isTextEditable(column, row, rowIndex)
-          ? () => _startTextEditing(row, rowIndex, columnIndex, column)
-          : null,
-      child: SizedBox.expand(
-        child: Align(
-          alignment: Alignment.centerLeft,
-          child: Text(
-            column.text(row),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 14, color: Color(0xFF202124)),
+      onPointerUp: (_) => FocusScope.of(context).requestFocus(_focusNode),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onDoubleTap: column.onDoubleTap != null
+            ? () => column.onDoubleTap!(row, rowIndex)
+            : _isTextEditable(column, row, rowIndex)
+            ? () => _startTextEditing(row, rowIndex, columnIndex, column)
+            : null,
+        child: SizedBox.expand(
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              column.text(row),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 14, color: Color(0xFF202124)),
+            ),
           ),
         ),
       ),
@@ -822,10 +883,17 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
     int rowIndex,
     int columnIndex,
     FortuneTableColumn<T> column,
+    {String? initialText}
   ) {
     if (!_isTextEditable(column, row, rowIndex)) return;
     _disposeTextEditor();
-    _textEditorController = TextEditingController(text: column.text(row));
+    _textEditorInitialValue = column.text(row);
+    _textEditorController = TextEditingController(
+      text: initialText ?? _textEditorInitialValue,
+    );
+    _textEditorController!.selection = TextSelection.collapsed(
+      offset: _textEditorController!.text.length,
+    );
     _textEditorFocusNode = FocusNode(debugLabel: 'FortuneTableTextEditor');
     setState(() {
       _selectedIndex = rowIndex;
@@ -851,18 +919,30 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
     }
     final row = widget.rows[rowIndex];
     final column = widget.columns[columnIndex];
+    final changed = value != _textEditorInitialValue;
     setState(_clearTextEditingState);
-    await column.onTextCommitted?.call(row, rowIndex, value);
+    _restoreTableFocus();
+    if (changed) {
+      await column.onTextCommitted?.call(row, rowIndex, value);
+    }
   }
 
   void _cancelTextEditing() {
     if (_editingRowIndex == null) return;
     setState(_clearTextEditingState);
+    _restoreTableFocus();
+  }
+
+  void _restoreTableFocus() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) FocusScope.of(context).requestFocus(_focusNode);
+    });
   }
 
   void _clearTextEditingState() {
     _editingRowIndex = null;
     _editingColumnIndex = null;
+    _textEditorInitialValue = null;
     _disposeTextEditor();
   }
 
@@ -908,6 +988,11 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
 
   void _selectRow(T row, int rowIndex) {
     _focusNode.requestFocus();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _editingRowIndex == null) {
+        FocusScope.of(context).requestFocus(_focusNode);
+      }
+    });
     if (_selectedIndex != rowIndex) {
       setState(() => _selectedIndex = rowIndex);
     }
