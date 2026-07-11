@@ -28,6 +28,21 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-11): 품목 날짜 설정 및 주원료 편집 UI 정리
+
+- 사용자 요청: `날짜 타입 설정`은 품목관리 탭에서만 활성화하고, 주원료 플로팅 시트의 저장 아이콘을 제거하며, 더블클릭 셀 편집 시 원래 formula 입력 박스를 표시한다.
+- 수정: 날짜 설정 eligibility에 `items` 탭 조건을 추가했다. 주원료 toolbar에서 save command를 제거하고 `singleClickCellEdit`를 기본 false로 되돌렸다. 공용 workbench에 기본 false인 `showFormulaBar`를 추가해 주원료에서만 활성화했다.
+- 테스트: 탭별 날짜 설정 eligibility와 주원료 FortuneSheet의 save icon 없음/single click false/formula bar true 계약으로 갱신했다.
+- `lib/page_label_sheet/label_sheet_workbench.dart`: opt-in `showFormulaBar`를 FortuneSheetApp에 전달한다.
+- `lib/home_page_manager.dart`: 날짜 설정을 `items` 탭으로 제한하고 주원료 toolbar/save 및 single-click 설정을 제거하고 formula bar를 켰다.
+- `test/label_sheet_toolbar_test.dart`: 세 UI 계약 테스트를 추가/갱신했다. 변경 파일 diagnostics 0건이며 테스트 도구가 이름 지정 실행을 0개로 반환해 Flutter runner로 전체 파일을 검증한다.
+- 저장 버튼을 dirty proxy로 사용하던 제한 모드 테스트는 `onUserWorkbookChanged` 직접 관찰로 전환해 저장 아이콘 없이 같은 shortcut 차단 계약을 유지했다.
+- focused 검증 완료: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart` 107개 통과.
+- 전체 검증 완료: 변경 파일 diagnostics 0건, `C:\Flutter\bin\flutter.bat analyze` 이슈 0건, `C:\Flutter\bin\flutter.bat test` 333개 통과, `git diff --check` 통과. 포맷 잡음 제거 후 세 핵심 계약 테스트를 재통과했다.
+- stage/기능 commit 대상: `lib/page_label_sheet/label_sheet_workbench.dart`, `lib/home_page_manager.dart`, `test/label_sheet_toolbar_test.dart`.
+- 기능 commit: `214d077` (`품목 날짜 설정과 주원료 편집 UI 정리`).
+- 기존 unrelated dirty `lib/core/app.dart`는 수정·stage 대상에서 제외한다.
+
 ### 완료 (2026-07-11): 라벨 날짜 설정 버튼 활성 표시
 
 - 사용자 요청: 품목관리에서는 브랜드 설정 비활성은 맞지만, 드롭다운의 `날짜 타입 설정...`을 사용할 수 있으면 라벨 설정 버튼도 활성 상태로 보여야 한다.
