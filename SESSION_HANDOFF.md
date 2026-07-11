@@ -42,6 +42,7 @@
 - 전체 검증 실행 예정: `C:\Flutter\bin\flutter.bat test` 후 결과와 최종 stage/commit 대상을 기록한다.
 - 전체 검증 완료: `C:\Flutter\bin\flutter.bat test` 287개 통과 / 0 실패, 최종 `git diff --check` 통과. 배포 빌드와 설치 파일은 생성하지 않았다.
 - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/home_page_manager.dart`, `lib/page_home/item_manage.dart`, `test/fortune_table_test.dart`, `test/label_sheet_toolbar_test.dart`. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+- 기능 커밋 완료: `45d08d7` 품목관리 재검토 보완.
 
 ### 완료 (2026-07-11): 품목관리 머지 검토 보완
 
