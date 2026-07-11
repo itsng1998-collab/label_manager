@@ -463,15 +463,19 @@ void main() {
     expect(runs.any((run) => run.text == '설탕' && run.italic == true), isTrue);
   });
 
-  testWidgets('item element omits save toolbar and shows formula input', (
+  testWidgets('item element hides formula bar and opens editor on double tap', (
     tester,
   ) async {
+    var commitCount = 0;
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
           body: debugItemPreviewPanelForTesting(
             item: _testItemOfMarket(itemId: 10, itemName: '첫 품목'),
             labelSize: _testLabelSizeWithFormData(''),
+            onElementCommitted: (_, _) async {
+              commitCount += 1;
+            },
           ),
         ),
       ),
@@ -483,12 +487,84 @@ void main() {
       find.byType(FortuneSheetApp),
     );
     expect(sheetApp.settings!.singleClickCellEdit, isFalse);
-    expect(sheetApp.showFormulaBar, isTrue);
+    expect(sheetApp.showFormulaBar, isFalse);
     expect(
       sheetApp.settings!.customToolbarItems.where(
         (item) => item.key == labelSheetSaveToolbarCommand,
       ),
       isEmpty,
+    );
+
+    final sheetTopLeft = tester.getTopLeft(find.byType(FortuneSheetApp));
+    final initialEditorCount = find.byType(EditableText).evaluate().length;
+    await tester.tapAt(sheetTopLeft + const Offset(80, 80));
+    await tester.pump();
+    expect(find.byType(EditableText), findsNWidgets(initialEditorCount));
+    await tester.tapAt(sheetTopLeft + const Offset(80, 80));
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(find.byType(EditableText), findsNWidgets(initialEditorCount + 1));
+    expect(commitCount, 0);
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pump();
+    expect(commitCount, 0);
+  });
+
+  test('item element content comparison ignores view state only', () {
+    final previous = FortuneWorkbook(
+      sheets: [
+        FortuneSheet(
+          id: 'item_element',
+          name: '주원료 및 함량',
+          status: 1,
+          cells: {
+            const FortuneCellCoord(0, 0): const FortuneCell(value: '원료'),
+          },
+        ),
+      ],
+    );
+    final viewStateChanged = previous.copyWith(
+      sheets: [previous.sheets.single.copyWith(status: 0)],
+    );
+    final contentChanged = previous.copyWith(
+      sheets: [
+        previous.sheets.single.copyWith(
+          cells: {
+            const FortuneCellCoord(0, 0): const FortuneCell(value: '변경 원료'),
+          },
+        ),
+      ],
+    );
+    final normalizedUnchangedEdit = previous.copyWith(
+      sheets: [
+        previous.sheets.single.copyWith(
+          cells: {
+            const FortuneCellCoord(0, 0): previous
+                .sheets
+                .single
+                .cells[const FortuneCellCoord(0, 0)]!
+                .withEditedValue('원료'),
+          },
+        ),
+      ],
+    );
+
+    expect(
+      debugItemElementWorkbookContentEqualsForTesting(
+        previous,
+        viewStateChanged,
+      ),
+      isTrue,
+    );
+    expect(
+      debugItemElementWorkbookContentEqualsForTesting(previous, contentChanged),
+      isFalse,
+    );
+    expect(
+      debugItemElementWorkbookContentEqualsForTesting(
+        previous,
+        normalizedUnchangedEdit,
+      ),
+      isTrue,
     );
   });
 

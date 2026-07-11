@@ -4056,6 +4056,9 @@ class _ItemPreviewPanelState extends State<_ItemPreviewPanel> {
 
   void _handleElementWorkbookChanged(fs.FortuneWorkbook workbook) {
     if (!widget.canEdit) return;
+    if (_itemElementWorkbookContentEquals(_elementForm.workbook, workbook)) {
+      return;
+    }
     final next = _itemElementTextFromWorkbook(workbook);
     final encodedWorkbook = labelSheetEncodeWorkbookSave(workbook);
     if (next == _elementText &&
@@ -4340,10 +4343,13 @@ class _ItemElementPreviewTab extends StatelessWidget {
       rulerCornerSizeLabelUsesAsterisk: true,
       disableSheetRulerGuideInteraction: true,
       hideStatisticBar: true,
-      showFormulaBar: true,
       limitCellActionsToClipboardAndClear: true,
       zoomToolbarPlacement: LabelSheetZoomToolbarPlacement.previewTabAreaEnd,
       onUserWorkbookChanged: canEdit ? onWorkbookChanged : null,
+      onUserWorkbookChangedShouldNotify: canEdit
+          ? (previous, current) =>
+            !_itemElementWorkbookContentEquals(previous, current)
+          : null,
       onSave: canEdit
           ? (width, height, encodedWorkbook) =>
                 onSave(context, width, height, encodedWorkbook)
@@ -4366,6 +4372,45 @@ const List<String> _itemElementToolbarItems = [
   fs.fortuneToolbarTextWrapPopupKey,
   fs.fortuneToolbarTextRotationPopupKey,
 ];
+
+const Set<String> _itemElementViewStateKeys = {
+  'm',
+  'status',
+  'luckysheet_select_save',
+  'luckysheet_selection_range',
+  'visibledatarow',
+  'visibledatacolumn',
+};
+
+bool _itemElementWorkbookContentEquals(
+  fs.FortuneWorkbook previous,
+  fs.FortuneWorkbook current,
+) {
+  final previousJson = labelSheetSanitizeWorkbookSaveJson(
+    fs.FortuneSheetCodec.workbookToJson(previous),
+  );
+  final currentJson = labelSheetSanitizeWorkbookSaveJson(
+    fs.FortuneSheetCodec.workbookToJson(current),
+  );
+  _removeItemElementViewState(previousJson);
+  _removeItemElementViewState(currentJson);
+  return const DeepCollectionEquality().equals(previousJson, currentJson);
+}
+
+void _removeItemElementViewState(Object? value) {
+  if (value is Map) {
+    for (final key in _itemElementViewStateKeys) {
+      value.remove(key);
+    }
+    for (final child in value.values) {
+      _removeItemElementViewState(child);
+    }
+  } else if (value is List) {
+    for (final child in value) {
+      _removeItemElementViewState(child);
+    }
+  }
+}
 
 bool _itemManagerDateSettingsEnabled({
   required Object? selectedTabValue,
@@ -4610,6 +4655,12 @@ bool debugItemManagerDateSettingsEnabledForTesting({
   forceReloadRequired: forceReloadRequired,
   draftDirty: draftDirty,
 );
+
+@visibleForTesting
+bool debugItemElementWorkbookContentEqualsForTesting(
+  fs.FortuneWorkbook previous,
+  fs.FortuneWorkbook current,
+) => _itemElementWorkbookContentEquals(previous, current);
 
 @visibleForTesting
 ({fs.FortuneWorkbook? workbook, String? hintText})

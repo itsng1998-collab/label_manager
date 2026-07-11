@@ -1730,7 +1730,6 @@ class LabelSheetWorkbench extends StatefulWidget {
     this.rulerCornerSizeLabelUsesAsterisk = false,
     this.disableSheetRulerGuideInteraction = false,
     this.hideStatisticBar = false,
-    this.showFormulaBar = false,
     this.copyOnlyContextMenu = false,
     this.limitCellActionsToClipboardAndClear = false,
     this.zoomToolbarPlacement = LabelSheetZoomToolbarPlacement.sheetToolbarEnd,
@@ -1742,6 +1741,7 @@ class LabelSheetWorkbench extends StatefulWidget {
     this.imageImportController,
     this.onWorkbookChanged,
     this.onUserWorkbookChanged,
+    this.onUserWorkbookChangedShouldNotify,
     this.onSave,
     super.key,
   });
@@ -1763,7 +1763,6 @@ class LabelSheetWorkbench extends StatefulWidget {
   final bool rulerCornerSizeLabelUsesAsterisk;
   final bool disableSheetRulerGuideInteraction;
   final bool hideStatisticBar;
-  final bool showFormulaBar;
   final bool copyOnlyContextMenu;
   final bool limitCellActionsToClipboardAndClear;
   final LabelSheetZoomToolbarPlacement zoomToolbarPlacement;
@@ -1775,6 +1774,8 @@ class LabelSheetWorkbench extends StatefulWidget {
   final LabelSheetImageImportController? imageImportController;
   final ValueChanged<FortuneWorkbook>? onWorkbookChanged;
   final ValueChanged<FortuneWorkbook>? onUserWorkbookChanged;
+  final bool Function(FortuneWorkbook previous, FortuneWorkbook current)?
+  onUserWorkbookChangedShouldNotify;
   final FutureOr<void> Function(
     int widthMm,
     int heightMm,
@@ -1850,6 +1851,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
   bool _zoomCommitPendingBlur = false;
   late FortuneSheetLocale _locale = _localeForPlatform();
   late FortuneWorkbook _latestWorkbook = _fallbackWorkbook;
+  FortuneWorkbook? _workbookBeforeLastChange;
   int _zoomPercent = labelSheetDefaultZoomPercent;
   bool _isDirty = false;
   bool _rtfSnackBarVisible = false;
@@ -3266,6 +3268,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
               settings: sheetSettings,
               controller: _controller,
               onChange: (workbook) {
+                _workbookBeforeLastChange = _latestWorkbook;
                 _latestWorkbook = workbook;
                 _syncLabelSheetZoomPercent(workbook);
                 widget.onWorkbookChanged?.call(workbook);
@@ -3277,7 +3280,18 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
                 if (!_initialWorkbookOpsSettled) {
                   return;
                 }
-                widget.onUserWorkbookChanged?.call(_latestWorkbook);
+                final previousWorkbook = _workbookBeforeLastChange;
+                final shouldNotify =
+                    previousWorkbook == null ||
+                    widget.onUserWorkbookChangedShouldNotify?.call(
+                          previousWorkbook,
+                          _latestWorkbook,
+                        ) !=
+                        false;
+                if (shouldNotify) {
+                  widget.onUserWorkbookChanged?.call(_latestWorkbook);
+                }
+                _workbookBeforeLastChange = null;
                 if (_opsClearSheet(ops)) {
                   if (_isDirty) {
                     setState(() {
@@ -3299,7 +3313,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
               imageObjectIds: widget.imageObjectIds,
               barcodeObjectIds: widget.barcodeObjectIds,
               gridClientSize: _gridClientSize,
-              showFormulaBar: widget.showFormulaBar,
+              showFormulaBar: false,
               showSheetTabs: false,
             );
             _notifyGridRectChanged(
