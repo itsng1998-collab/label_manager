@@ -28,6 +28,19 @@
 
 ## 현재 상태
 
+### 진행 중 (2026-07-11): 품목관리 5차 재검토 보완
+
+- 4차 보완 재검토에서 journal 저장 checksum을 현재 controller와만 비교하고 파일 `beforeSnapshots` 복원 후보 자체를 재검증하지 않는 문제, journal identity가 draft key만 비교해 current/target market 불일치를 수용할 수 있는 문제, BEGIN 호출 자체 throw 시 rollback을 시도하지 않는 문제를 확인했다.
+- 권장 작업 순서: 복원 후보 rows/columns checksum 재계산과 baseline identity 대조 -> journal metadata 전체 identity/market 집합 검증 -> 유효 JSON snapshot 변조 및 market mismatch 테스트 -> BEGIN 호출 throw rollback -> focused/analyze/전체 suite.
+- 수정 예정 1순위: `lib/models/item_manager_draft_journal.dart`의 baseline checksum 산출을 rows/scoped columns 입력 순수 helper로 분리하고, 파일에서 재구성한 후보를 controller에 적용하기 전에 저장 checksum과 다시 비교한다. 기존 unrelated dirty `lib/core/app.dart`는 수정·stage 대상에서 제외한다. 미검증.
+- `lib/models/item_manager_draft_journal.dart` 편집 완료: 복원 후보 rows/columns로 저장 시와 같은 checksum을 재계산하고 item id/order/original index, raw snapshot item/current market, column item identity를 적용 전에 검증한다. metadata는 draft key뿐 아니라 user/customer/brand/label/current market과 target market 집합 전체를 비교한다.
+- `test/item_manager_draft_journal_test.dart` 편집 완료: 저장 checksum 필드는 유지한 before snapshot 품명 변조와 current market metadata 불일치를 `invalid`로 차단하고 dirty controller를 보존하는 테스트를 추가했다. journal 전체 14개 통과.
+- `lib/database/drivers/db_driver.dart` 편집 완료: BEGIN 호출 직전에 begin attempt를 기록해 호출 자체 throw에도 `IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION`을 시도한다.
+- `test/db_transaction_test.dart` 편집 완료: BEGIN 호출 throw rollback과 rollback 동시 실패 시 원래 BEGIN 오류 보존 테스트를 추가했다. transaction 전체 10개 통과.
+- 다음 검증: 변경 Dart 파일 format, journal/transaction/draft focused 묶음, workspace 진단, `C:\Flutter\bin\flutter.bat analyze`, `C:\Flutter\bin\flutter.bat test`, `git diff --check`.
+- 최종 검증 완료: 변경 Dart 4개 파일 format, journal/transaction/draft focused 48개 통과, workspace 진단 0건. 최초 analyze에서 checksum helper 분리 후 미사용 지역 변수 1건을 제거했고 재실행은 `No issues found`였다. 전체 `C:\Flutter\bin\flutter.bat test`는 300개 통과 / 0 실패, `git diff --check`는 출력 없이 통과했다.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `lib/database/drivers/db_driver.dart`, `lib/models/item_manager_draft_journal.dart`, `test/db_transaction_test.dart`, `test/item_manager_draft_journal_test.dart`. 기존 unrelated dirty `lib/core/app.dart`는 제외하며 배포 빌드/설치 파일은 생성하지 않았다.
+
 ### 진행 중 (2026-07-11): 품목관리 4차 재검토 보완
 
 - 3차 보완 재검토에서 journal 파일이 before snapshot을 실제 복원하지 않고 controller 메모리 baseline만 사용하며, journal version/key/checksum 불일치를 파일 부재와 동일하게 처리하고, transaction BEGIN 결과 검사가 rollback 보호 범위 밖인 문제를 확인했다.

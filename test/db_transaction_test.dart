@@ -113,6 +113,44 @@ void main() {
       ]);
     });
 
+    test('transaction attempts rollback when begin call throws', () async {
+      final driver = _FakeDbDriver(failingSql: 'BEGIN TRANSACTION');
+
+      await expectLater(
+        executeDriverTransaction(driver, const [
+          DbTransactionStatement(sql: 'UPDATE NEVER'),
+        ]),
+        throwsA(isA<StateError>().having(
+          (error) => error.message,
+          'message',
+          'failed: BEGIN TRANSACTION',
+        )),
+      );
+      expect(driver.calls, [
+        'write:BEGIN TRANSACTION',
+        'write:IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION',
+      ]);
+    });
+
+    test('transaction preserves begin error when rollback also fails', () async {
+      final driver = _FakeDbDriver(
+        failingSql: 'BEGIN TRANSACTION',
+        rollbackFails: true,
+      );
+
+      await expectLater(
+        executeDriverTransaction(driver, const [
+          DbTransactionStatement(sql: 'UPDATE NEVER'),
+        ]),
+        throwsA(isA<StateError>().having(
+          (error) => error.message,
+          'message',
+          'failed: BEGIN TRANSACTION',
+        )),
+      );
+      expect(driver.calls.last, 'write:IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION');
+    });
+
     test('transaction statement maps are isolate safe', () {
       const statement = DbTransactionStatement(
         sql: 'UPDATE T SET VALUE=@value',
@@ -135,11 +173,17 @@ void main() {
 }
 
 class _FakeDbDriver implements DbDriver {
-  _FakeDbDriver({this.failingSql, this.resultSql, this.result});
+  _FakeDbDriver({
+    this.failingSql,
+    this.resultSql,
+    this.result,
+    this.rollbackFails = false,
+  });
 
   final String? failingSql;
   final String? resultSql;
   final Object? result;
+  final bool rollbackFails;
   final List<String> calls = [];
 
   @override
@@ -147,6 +191,9 @@ class _FakeDbDriver implements DbDriver {
 
   void _failIfNeeded(String sql) {
     if (sql == failingSql) throw StateError('failed: $sql');
+    if (rollbackFails && sql.contains('ROLLBACK TRANSACTION')) {
+      throw StateError('rollback failed');
+    }
   }
 
   Object _resultFor(String sql, Object fallback) =>

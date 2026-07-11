@@ -27,9 +27,19 @@ String itemManagerBaselineChecksum(ItemManagerDraftController controller) {
     if (sourceItemId != null) sourceRows[sourceItemId] = row;
   }
   sourceRows.addAll(controller.deletedRowsBySourceItemId);
-  final orderedSourceRows = sourceRows.values.toList()
+  return _itemManagerBaselineChecksumFor(
+    sourceRows.values,
+    controller.scopedColumnContents.values.values,
+  );
+}
+
+String _itemManagerBaselineChecksumFor(
+  Iterable<ItemManagerDraftRow> rows,
+  Iterable<TColumnContent> columns,
+) {
+  final orderedSourceRows = rows.toList()
     ..sort((left, right) => left.originalIndex.compareTo(right.originalIndex));
-  final scopedColumns = controller.scopedColumnContents.values.values.toList()
+  final scopedColumns = columns.toList()
     ..sort((left, right) {
       final itemCompare = left.itemId.compareTo(right.itemId);
       return itemCompare != 0
@@ -42,7 +52,7 @@ String itemManagerBaselineChecksum(ItemManagerDraftController controller) {
           .map(_itemManagerBaselineRowJson)
           .toList(growable: false),
       'columns': [
-        for (final value in scopedColumns)
+          for (final value in scopedColumns)
           {
             'itemId': value.itemId,
             'columnId': value.columnId,
@@ -207,7 +217,7 @@ class ItemManagerDraftJournal {
     final documentMetadata = document['metadata'];
     final baseline = document['baseline'];
     if (documentMetadata is! Map<String, dynamic> ||
-        documentMetadata['draftKey'] != metadata.draftKey ||
+      !_journalMetadataMatches(documentMetadata, metadata) ||
         baseline is! Map<String, dynamic> ||
         baseline['checksum'] != itemManagerBaselineChecksum(controller)) {
       return ItemManagerJournalRestoreResult.invalid;
@@ -229,18 +239,35 @@ class ItemManagerDraftJournal {
       for (final value in beforeSnapshots) {
         final snapshot = Map<String, dynamic>.from(value as Map);
         final row = _draftRowBeforeSnapshotFromJson(snapshot);
-        snapshotRows[row.sourceItemId!] = row;
-        snapshotColumns[row.sourceItemId!] = [
+        final itemId = row.sourceItemId!;
+        if (snapshotRows.containsKey(itemId) ||
+            row.currentMarketSnapshot?.itemId != itemId ||
+            row.currentMarketSnapshot?.marketId != metadata.currentMarketId) {
+          return ItemManagerJournalRestoreResult.invalid;
+        }
+        snapshotRows[itemId] = row;
+        snapshotColumns[itemId] = [
           for (final column in snapshot['columns'] as List)
             _columnContentFromJson(Map<String, dynamic>.from(column as Map)),
         ];
+        if (snapshotColumns[itemId]!.any((column) => column.itemId != itemId)) {
+          return ItemManagerJournalRestoreResult.invalid;
+        }
       }
       final restoredRows = <ItemManagerDraftRow>[];
+      final baselineItemIds = <int>{};
       for (final value in baselineRows) {
         final rowJson = Map<String, dynamic>.from(value as Map);
         final itemId = _jsonInt(rowJson, 'itemId');
+        if (!baselineItemIds.add(itemId)) {
+          return ItemManagerJournalRestoreResult.invalid;
+        }
         final row = snapshotRows[itemId] ?? currentRows[itemId];
-        if (row == null) return ItemManagerJournalRestoreResult.invalid;
+        if (row == null ||
+            row.order != _jsonInt(rowJson, 'order') ||
+            row.originalIndex != restoredRows.length) {
+          return ItemManagerJournalRestoreResult.invalid;
+        }
         restoredRows.add(row);
       }
       final restoredColumns = Map<ColumnItemKey, TColumnContent>.from(
@@ -254,6 +281,13 @@ class ItemManagerDraftJournal {
             itemId: column.itemId,
           )] = column;
         }
+      }
+      final restoredChecksum = _itemManagerBaselineChecksumFor(
+        restoredRows,
+        restoredColumns.values,
+      );
+      if (restoredChecksum != baseline['checksum']) {
+        return ItemManagerJournalRestoreResult.invalid;
       }
       if (_started) controller.removeListener(_handleDraftChanged);
       try {
@@ -699,6 +733,25 @@ TColumnContent _columnContentFromJson(Map<String, dynamic> json) =>
 
 int _jsonInt(Map<String, dynamic> json, String key) =>
     (json[key] as num).toInt();
+
+bool _journalMetadataMatches(
+  Map<String, dynamic> json,
+  ItemManagerDraftJournalMetadata expected,
+) {
+  final targetMarketIds = json['targetMarketIds'];
+  if (targetMarketIds is! List) return false;
+  final actualTargets = targetMarketIds.whereType<num>().map((id) => id.toInt()).toSet();
+  final expectedTargets = expected.targetMarketIds.toSet();
+  return json['draftKey'] == expected.draftKey &&
+      json['userId'] == expected.userId &&
+      json['customerId'] == expected.customerId &&
+      json['brandId'] == expected.brandId &&
+      json['labelSizeId'] == expected.labelSizeId &&
+      json['currentMarketId'] == expected.currentMarketId &&
+      actualTargets.length == targetMarketIds.length &&
+      actualTargets.length == expectedTargets.length &&
+      actualTargets.containsAll(expectedTargets);
+}
 
 String _fnv1a64Hex(String input) {
   final offset = BigInt.parse('cbf29ce484222325', radix: 16);

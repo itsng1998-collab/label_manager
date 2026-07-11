@@ -71,10 +71,10 @@ Future<List<Object>> executeDriverTransaction(
   }
   if (statements.isEmpty) return const [];
 
-  var transactionStarted = false;
+  var beginAttempted = false;
   try {
+    beginAttempted = true;
     final beginResult = await driver.writeData('BEGIN TRANSACTION');
-    transactionStarted = true;
     _throwIfDriverError(beginResult);
     final results = <Object>[];
     for (final statement in statements) {
@@ -96,7 +96,7 @@ Future<List<Object>> executeDriverTransaction(
     _throwIfDriverError(commitResult);
     return results;
   } catch (error, stackTrace) {
-    if (transactionStarted) {
+    if (beginAttempted) {
       try {
         await driver.writeData(
           'IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION',
