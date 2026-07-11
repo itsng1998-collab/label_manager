@@ -1,0 +1,1477 @@
+품목관리 추가/삽입/삭제/품명·일반 컬럼·주원료 수정·엑셀 가져오기/내보내기 기능 요청서
+작성일: 2026-07-09
+
+1. 목적
+
+품목관리 테이블에서 품목 추가, 삽입, 삭제, 품명 수정, 일반 컬럼 수정, 주원료 수정, 엑셀 가져오기 작업을 임시 편집 상태로 관리한 뒤 사용자가 저장 완료 또는 취소 dialog의 변경 취소 확정을 명확히 선택하도록 구현한다. 엑셀 내보내기는 변경 사항이 없는 안정된 품목관리 테이블 상태를 파일로 저장하는 기능으로 함께 구현한다.
+현재 Flutter 앱의 FortuneTable 기반 품목관리 동작을 유지하면서, 레거시 품목관리의 저장 구조와 주원료 편집 방식을 참고해 현재 앱 구조에 맞는 안전한 편집 흐름으로 정리한다.
+
+2. 지금까지 확인한 사항
+
+2.1 현재 Flutter 품목관리 테이블 상태
+
+- 품목관리 테이블은 `FortuneTable<ItemOfMarket>` 기반이다.
+- 현재 품목관리 데이터는 DB 조회 결과를 `ItemOfMarket.datas` static cache에 저장하고, `ItemManage`가 같은 `List<ItemOfMarket>`를 받아 테이블 rows로 표시하는 구조이다.
+- 현재 선택 행은 표시 row 객체 자체를 `_selectedItemOfMarket`에 보관한다.
+- `ItemOfMarket`과 `Item` 모델은 대부분 `final` 필드 기반 값 객체이며, 기존 구현의 값 변경 경로는 객체를 직접 mutate하기보다 대상 행만 `copyWith`/새 객체로 교체하는 방식이다.
+- 현재 `Item.copyWith`는 주원료 관련 `element`, `elementRTF` 교체만 지원하므로, 품명/order/일반 컬럼/신규 행까지 다루는 품목관리 편집은 기존 모델 `copyWith` 확장보다 품목관리 전용 draft row/value model을 우선 사용한다.
+- 품목관리 전용 draft row/value model의 최소 필드는 `rowKey`, 기존 행 `itemId`, 신규 행 `draftRowKey`, 원본 `sourceItemId`, `rowState`, `order`, `originalIndex`, `itemName`, `itemPrice`, `elementPlain`, `elementPayload`, `elementPayloadFormat`, `columnDrafts`, `currentMarketSnapshot`, `newMappingDefaults`이다.
+- rowState별 필수 필드는 분리한다. 기존 row는 `currentMarketSnapshot`이 필수이고 `newMappingDefaults`는 사용하지 않는다. 신규 추가/삽입/엑셀 import row는 `newMappingDefaults`가 필수이고, 저장 전 실제 current market mapping row가 없으면 `currentMarketSnapshot`은 null 또는 표시 전용 임시값으로 둔다.
+- 품목관리 편집 세션/저장 batch metadata의 최소 필드는 현재 사용자/거래처/브랜드/라벨크기/현재 화면 market id, 저장 대상 `targetMarketIds`, 정렬/필터/선택 복원 정보, 백업 파일 key이다.
+- 품목관리 행 수 상한은 품목관리 feature 공용 상수 `ItemManagerLimits.maxRows=10000`으로 정의한다. 추가/삽입 UI, 엑셀 import parser, 저장 전 검증, 테스트는 모두 이 단일 상수를 참조한다.
+- `sourceItemId`는 기존 행의 before snapshot 기준 item id를 뜻한다. 신규 추가/삽입/엑셀 import 행은 `sourceItemId=null`로 두며, 삽입 기준 행이 필요하면 별도 `insertAnchorItemId`로 관리한다.
+- `currentMarketSnapshot`의 최소 필드는 현재 화면 market id, additional item id, gdsNo, 판매 시작/종료일, 할인율/할인액, 할인 시작/종료일, 사용자 정의 주원료 사용 여부, linefeed 설정, scale barcode 사용 여부, print count, label size override, margin/push 값이다.
+- `currentMarketSnapshot`은 현재 화면 market의 표시/검증/취소 복원용 snapshot이며, 기존 row의 market-specific 값을 직접 편집/저장하는 대상이 아니다.
+- `currentMarketSnapshot`은 표시용 `ItemOfMarket` 객체를 그대로 복사하지 않고, nullable DB 저장값을 보존하는 품목관리 전용 raw snapshot DTO로 생성한다.
+- raw snapshot DTO 조회는 표시용 `ItemOfMarketDAO.SelectSql`을 그대로 재사용하지 않고 별도 조회 또는 별도 projection을 사용한다. nullable DB 저장 필드는 `COALESCE(..., N'')` 같은 표시용 보정 없이 DB `NULL`과 빈 문자열을 구분해 보존한다.
+- 현재 `ItemOfMarket.fromMap`은 `P1_LABEL_SIZE_WIDTH`/`P1_LABEL_SIZE_HEIGHT`를 읽지만 `ItemOfMarketDAO.SelectSql` alias는 `P1_LABELSIZE_WIDTH`/`P1_LABELSIZE_HEIGHT`이므로, 품목관리 편집 구현 전 표시 SQL alias를 `fromMap` key와 맞게 수정한다. raw snapshot DTO 조회도 이 표시 모델 보정과 별개로 DB nullable 값을 보존하는 올바른 alias/projection을 사용한다.
+- `newMappingDefaults`는 신규 추가/삽입/엑셀 import row의 `BM_ITEM_OF_MARKET` 생성값 template이다. 이 값은 market id를 포함한 완성 mapping row가 아니라 market id 외 기본값 묶음이며, 저장 시 편집 세션의 `targetMarketIds` 각각과 합성해 실제 mapping row를 만든다.
+- `newMappingDefaults`는 현재 화면 기존 row의 snapshot을 복제하지 않고 레거시 신규 `CItemOfMarket(int marketID, item)`의 market id 외 기본값을 명시적으로 산출해 사용한다.
+- 저장 대상 market 목록은 row별 draft가 아니라 편집 세션/저장 batch metadata의 `targetMarketIds`로 별도 관리한다.
+- 신규 추가/삽입/엑셀 import 세션의 `targetMarketIds`는 레거시 `CItemOfMarketDAO::InsertBatch`와 동일하게 `CMarketDAO::SelectByCustID(CLoginCustomer::Get()->GetCustID())` 결과 전체 market id이다. 레거시 조회 조건은 `BM_MARKET.RICH_CUSTOMER_ID = 현재 로그인 고객 ID`뿐이다.
+- 현재 Flutter `MarketDAO`에는 고객별 market 목록 조회가 없으므로, 저장 DAO 구현 전 `MarketDAO.selectByCustomerId(customerId)`를 추가해 위 조건과 동일하게 `targetMarketIds`를 산출한다. 이때 `customerId` source는 레거시 `CLoginCustomer::Get()->GetCustID()`에 대응하는 로그인 세션 customer id로 고정하고, 현재 화면 market id나 label size/brand 표시값에서 임의 추정하지 않는다. Flutter 앱 상태에서 로그인 customer id와 선택된 거래처/customer id가 분리되어 있으면 저장 DAO 진입 전에 동일성 또는 명시적 source를 검증하고, 불일치 시 조용히 다른 customer의 market에 mapping을 만들지 않고 저장 전 오류로 차단한다.
+- 기존 행의 market-specific 값은 이번 품목관리 기능의 직접 편집 대상이 아니며, 기존 값 보존/복원용 `currentMarketSnapshot`으로만 사용한다.
+- `currentMarketSnapshot.additionalItemId`와 판매/할인 시작·종료일은 DB 저장값 기준 nullable 필드로 관리한다.
+- 현재 `ItemOfMarket.fromMap`은 additional item이 없으면 `AdditionalItemId=0`, 날짜가 없으면 `DateTime.now()`로 표시 모델을 채울 수 있으므로, 이 fallback 값을 저장 draft의 실제 DB 값으로 사용하지 않는다.
+- 신규 추가/삽입/엑셀 import 행의 `additionalItemId`는 미사용을 뜻하는 `NULL`로 저장한다.
+- 신규 추가/삽입/엑셀 import 행의 판매/할인 시작·종료일은 사용자가 명시적으로 입력하지 않으면 `NULL`로 저장한다.
+- 레거시 신규 `CItem(labelSizeId, labelSizeName)` 생성자는 가격을 `0`으로 초기화하므로, 신규 추가/삽입/엑셀 import 행의 `RICH_PRICE` 기본값도 `0`으로 저장한다.
+- draft row/value model은 저장/재조회 시점에만 `ItemOfMarket`/`Item` 표시 모델로 재구성하며, 편집 중에는 기존 조회 모델의 `copyWith` 확장에 의존하지 않는다.
+- 현재 `ItemOfMarketDAO`는 `COALESCE(NULLIF(RICH_ELEMENT_SHEET,''), RICH_ELEMENT_RTF, '') AS P2_ELEMENT_RTF`로 조회해 `Item.elementRTF`에 저장한다.
+- 따라서 현재 모델에서는 `RICH_ELEMENT_SHEET`와 legacy `RICH_ELEMENT_RTF`를 별도 필드로 분리하지 않고, `Item.elementRTF` payload 포맷을 판별해 encoded workbook이면 그대로 사용하고 legacy RTF이면 필요한 시점에 lazy 변환한다.
+- 현재 `ItemOfMarketDAO.selectByItemOfMarketAndLabelSizeId()`는 `RICH_ITEM_ORDER` 기준 `ORDER BY`를 명시하지 않으므로, 품목관리 편집/순서 변경 구현 전 현재 품목 리스트 조회에 `ORDER BY P2.RICH_ITEM_ORDER, P2.RICH_ITEM_ID ASC`를 추가한다. 이 정렬 보장은 메인 품목관리 리스트, 순서 변경 다이얼로그, 저장 후 재조회 선택 복원의 공통 전제이다.
+- 현재 `TColumnContentDAO.selectByLabelSizeId`는 label size의 item 전체 column content를 조회하고 현재 market mapping으로 필터링하지 않으므로, 품목관리 편집 구현에서는 현재 화면 `ItemOfMarket` item id 집합을 SQL에서 제한하는 scoped DAO를 추가하고 그 결과를 전용 scoped cache/view model로 보관해 column content 표시/checksum 입력을 제한한다. 전역 `TColumnContent.datas`의 label-size 전체 cache 의미는 별도 합의 없이 current market scope로 바꾸지 않는다.
+- `ItemManage`는 편집 기능 구현 시 원본 `List<ItemOfMarket>`와 전역 `TColumnContent.get()`에 직접 의존하는 표시 컴포넌트에서, 품목관리 working/draft row 목록과 일반 컬럼 값 resolver를 입력으로 받는 컴포넌트로 전환한다. 전역 `ItemOfMarket.datas`/`TColumnContent.datas`는 초기 로드 원본 또는 기존 화면 호환 cache로만 사용하고, 편집 중 표시/검증/저장은 품목관리 세션의 draft/scoped view model을 기준으로 한다.
+- 현재 `FortuneTableSelectionController`는 선택 row 집합만 외부로 노출하고 삽입 기준 anchor/focus 행은 테이블 내부 private 상태로 보관한다. 품목 삽입 구현 전 `FortuneTableSelectionController`에 anchor/focus getter 또는 변경 callback을 추가하거나, `ItemManage`가 마지막 클릭/키보드/드래그 기준 행을 별도 상태로 추적해 삽입 기준을 안정적으로 산출한다.
+- 선택/anchor/focus 상태의 소유자는 품목관리 edit controller/draft session으로 둔다. edit controller는 row index가 아니라 `rowKey`/`draftRowKey`/기존 item id 기준으로 선택과 anchor를 관리하고, `home_page_manager`는 출력 미리보기/하단 주원료 연동에 필요한 selected item 표시 모델만 동기화한다.
+- 신규/import row처럼 저장 전 실제 `ItemOfMarket` 표시 모델이 없거나 아직 item id가 없는 행은 edit controller가 selected draft row에서 임시 `ItemOfMarket` 표시 모델 또는 preview DTO를 생성해 `home_page_manager`에 전달한다. `home_page_manager`는 이 임시 표시 모델/DTO를 preview와 하단 주원료 로드에만 사용하고 DB 저장 identity로 사용하지 않는다.
+- 신규/import row preview DTO의 최소 필드는 `rowKey`, `itemName`, `elementPlain`, `elementPayload`, `elementPayloadFormat`, 일반 컬럼 표시값이다. 하단 `주원료 및 함량` 편집 UI는 preview DTO 복사본이 아니라 edit controller의 selected draft row를 원천으로 읽고 draft row에 다시 반영한다.
+- 현재 구현에서 품목 추가/삽입/삭제 실제 기능은 아직 비활성화되어 있어 신규 행 draft 관리 객체는 구현 전이다.
+- 따라서 신규 품목 편집 기능을 추가할 때는 조회 원본 리스트를 직접 mutate하지 않고, 별도 working/draft row를 관리하거나 대상 행만 값 객체로 교체하는 현재 스타일을 유지한다.
+- 행 단위 선택과 멀티 선택을 지원한다.
+- 지원 동작: 클릭 선택, 드래그 선택, Shift+클릭 범위 선택, Ctrl+클릭 토글, Ctrl+A 전체 선택.
+- 발행 체크박스는 `FortuneTableCheckboxController`로 rowIndex 기준 상태를 관리한다.
+- 발행 체크된 비선택 행은 체크 하이라이트를 표시한다.
+- 우클릭 메뉴는 원본 시트 메뉴와 같은 조밀한 간격이며 애니메이션 없이 즉시 표시된다.
+- 현재 우클릭 메뉴의 추가/삽입/삭제 항목은 구현 전 단계라 비활성화되어 있다.
+
+2.2 레거시 품목관리 저장 상태
+
+- 품목 추가, 삽입, 삭제, 일반 셀 수정, 주원료 수정이 발생하면 모델의 변경 상태가 켜지고 저장 버튼이 활성화된다.
+- 저장 버튼을 누르면 현재 테이블 상태를 DB에 반영한다.
+- 추가/삽입된 신규 행, 수정된 기존 행, 삭제된 기존 행을 구분해 저장한다.
+- 저장 전에는 현재 선택 행의 하단 주원료 RichEdit 내용을 현재 행 데이터에 반영한다.
+
+2.3 레거시 품명/일반 컬럼 수정 동작
+
+- 레거시에는 추가/삽입/삭제/주원료 수정 외에도 품명 수정과 일반 컬럼 수정이 있다.
+- 품명 컬럼을 수정하면 item의 `ItemName`을 바꾸고 row changed 상태를 켠다.
+- 주원료 컬럼은 예외로, 시트 직접 입력값을 저장하지 않고 기존 주원료 plain text로 되돌린다.
+- 주원료 외 동적 컬럼은 cell data를 갱신하고 cell changed 및 row changed 상태를 켠다.
+- 바코드 컬럼은 check digit 적용 및 타임바코드 재계산 경로가 있다.
+- GS1 AI 컬럼은 포맷 검사를 수행한다.
+- 제조일자/유통기한/시간 관련 컬럼은 날짜 포맷/범위 검사와 타임바코드 재계산 경로가 있다.
+- 이미지 타입 컬럼은 더블클릭으로 BMP 파일명을 넣는 경로가 있다.
+- 특정 라벨명 `10*8`에서는 `현재수량`, `총 수량` 수정 시 `매수`, `발행수량`을 자동 계산한다.
+- 저장 시 변경된 item은 item batch update 대상이고, 변경된 cell은 column content batch update 대상이다.
+- 레거시의 dirty/insert/update/delete 구분은 참고하되, Flutter 저장은 현재 DAO/테이블 구조 기준으로 수행하며 legacy update item apply 테이블 구조를 재현하지 않는다.
+- 레거시 품목 추가/엑셀 import 신규 행은 `CItem(labelSizeId, labelSizeName)` 생성자를 거치며, 이 생성자는 `RICH_PRICE`에 대응하는 가격을 `0`으로 초기화한다.
+- 레거시 신규 item 저장 후 `BM_ITEM_OF_MARKET` insert batch는 현재 로그인 고객의 모든 market을 조회해 각 market에 mapping을 생성한다.
+- 레거시 날짜 helper는 판매/할인 시작·종료일 값이 없으면 `NULL`을 저장한다.
+- 레거시 삭제 저장 경로는 `CMainItemTable::DeleteRow`가 삭제 대상 item id를 `m_deleteItemIDs`에 모으고, `SaveToDB`에서 `CItemOfMarketDAO::DeleteBatchByItemIDs(m_deleteItemIDs)`를 호출한다. 이 DAO의 SQL은 `DELETE FROM BM_ITEM_OF_MARKET WHERE RICH_ITEM_ID=...` 형태로 market 조건이 없다. 이후 레거시는 같은 item id에 대해 `BM_RICH_COL_CONTENT`, update 테이블, `BM_RICH_ITEM`까지 삭제한다.
+- 단, 이번 품목관리 기능정의는 기존 `BM_RICH_ITEM` 물리 delete 금지 정책을 따르므로 레거시 삭제 순서를 그대로 재현하지 않는다.
+- 레거시 기존 행 수정 저장 경로는 `CItemDAO::UpdateBatchOrder`, `CItemDAO::UpdateBatch`, `CColumnContentDAO::UpdateBatchDataByColAndItemID` 중심이며, 품목관리 일반 저장에서 `CItemOfMarketDAO::UpdateBatch`는 호출되지 않는다.
+- 레거시 order 저장은 `BM_RICH_ITEM.RICH_ITEM_ORDER` item-level 값이므로 market별 독립 순서가 아니라 같은 label size/item을 공유하는 다른 market 표시 순서에도 영향을 줄 수 있다.
+
+2.4 레거시 추가/삽입 후 선택·수정·삭제 동작
+
+- 레거시에는 추가/삽입 후 신규 행만 선택할 수 있게 제한하는 별도 편집 모드가 확인되지 않았다.
+- 추가/삽입은 새 행을 만들고 저장 버튼을 활성화한 뒤 새 행을 자동 선택한다.
+- 이후 사용자는 다른 기존 행을 선택할 수 있고, 기존 행의 품명/일반 컬럼/주원료 수정도 같은 dirty 상태에 함께 누적될 수 있다.
+- 추가/삽입 후 기존 행 삭제도 가능하다. DB에 이미 존재하는 행은 삭제 ID 목록에 저장되고, 아직 저장되지 않은 신규 행은 테이블/draft 목록에서만 제거된다.
+- 우클릭 메뉴도 dirty 상태라는 이유만으로 추가/삽입/삭제를 막는 흐름은 확인되지 않았다.
+- 따라서 Flutter 구현도 추가/삽입 이후 선택 범위를 신규 행으로 제한하지 않고, 신규/기존 행의 추가·삽입·삭제·수정을 하나의 draft 편집 상태로 함께 관리한다.
+
+2.5 레거시 브랜드/라벨크기 변경 및 탭 이동 동작
+
+- 브랜드 변경 시 별도 저장 확인 메시지는 확인되지 않았다.
+- 브랜드 변경은 해당 브랜드의 라벨크기 목록을 다시 읽고, 가능한 경우 첫 번째 라벨크기를 자동 선택한다.
+- 라벨크기 변경 이벤트는 품목관리 화면의 현재 상태를 Clear/재세팅하는 흐름으로 이어진다.
+- 라벨출력 탭 이동 시에도 품목관리 dirty 상태를 저장할지 묻는 코드가 확인되지 않았다.
+- 탭 이동은 화면 전환 중심이며, 품목관리 수정분 저장/폐기 확인은 없다.
+- 새 Flutter 구현은 레거시 그대로 묻지 않고 초기화하기보다, 임시 편집 중에는 브랜드/라벨 선택 및 다른 탭 이동을 막는 정책으로 한다.
+
+2.6 레거시 주원료 컬럼과 하단 에디터 동작
+
+- 레거시에서 주원료의 실제 편집 위치는 하단 `주원료 및 함량` RichEdit 에디터이다.
+- 테이블의 `주원료` 컬럼은 직접 편집용이 아니라 표시용/미러 컬럼에 가깝다.
+- 테이블의 주원료 셀을 직접 수정하면 입력값을 저장하지 않고 기존 주원료 plain text로 되돌린다.
+- 하단 에디터에서 Enter 또는 저장 버튼을 누르면 현재 선택 행의 주원료 plain text, RTF, 시트 셀 표시, 미리보기, 저장 상태가 갱신된다.
+- 하단 에디터 내용을 수정한 뒤 Enter/저장 없이 다른 행을 선택할 때 자동 반영되는 코드는 확인되지 않았다.
+- 현재 Flutter 앱은 이미 `RICH_ELEMENT_SHEET` 기반 주원료 편집/저장과 출력 preview `#ELEMENT` rich run 합성 경로를 갖고 있다.
+
+2.7 변경 취소용 임시 파일 백업 정책
+
+- 현재 앱은 `path_provider`, `shared_preferences`, `sqflite/sqflite_common_ffi` 의존성을 이미 사용한다.
+- 품목관리 대상은 최대 1만 행까지 고려한다.
+- 임시 파일 백업은 추가/삽입/삭제/수정 후 사용자가 `변경 취소`를 선택할 때 품목 테이블을 변경 전 DB 조회 상태로 복원하기 위한 기준 데이터이다.
+- 이 백업은 재시작 복구 목적이 아니라, 변경 전 원본/working draft를 메모리에만 들고 있을 때 발생할 수 있는 OOM 부담과 1만 행 전체 heavy payload 직렬화 부담을 줄이기 위한 파일 기반 방어 수단이다.
+- 전체 행의 큰 payload를 매번 저장하지 않고, 전체 복원에 필요한 최소 baseline과 변경 대상 중심 journal을 저장한다.
+- baseline은 전체 item id/order/선택 복원/정렬/필터 같은 가벼운 기준 정보 중심으로 저장한다.
+- baseline의 lightweight version/checksum은 명시적 updated_at/version 컬럼이 없는 현재 구조를 고려해 안정 hash로 산출한다.
+- lightweight checksum 최소 입력은 row count, item id/order 목록, item name, 주원료 plain text, `Item.elementRTF` payload의 비어 있음 여부와 포맷 판별 결과, 현재 화면 market의 item id 집합에 속한 column content의 `columnId/itemId/dataString` hash이다.
+- 1만 행 성능을 위해 변경되지 않은 대형 `RICH_ELEMENT_SHEET`/legacy RTF payload 전체 문자열은 baseline checksum 입력에 포함하지 않는다.
+- 이 checksum은 외부 변경을 완전히 증명하는 값이 아니라 엑셀 가져오기 취소 시 DB 재조회 결과가 import 직전 기준과 크게 달라졌는지 감지하는 best-effort 신호로 사용한다.
+- 삭제/엑셀 전체 교체는 item id 기준 전체 `BM_ITEM_OF_MARKET` mapping delete로 저장 영향 범위가 current market보다 넓으므로, baseline/journal metadata에는 current market checksum과 별도로 삭제 대상 기존 item id 집합의 mapping fingerprint를 저장한다. mapping fingerprint 최소 입력은 `itemId`, 연결된 `marketId` 목록 또는 정렬 hash, item별 mapping count이다. 일반 삭제는 row가 최초 삭제 예정이 되는 시점에 해당 item id의 before snapshot/journal에 fingerprint를 저장하고, 엑셀 전체 교체는 import 직전 current market working table의 기존 item id 집합 전체 fingerprint를 import baseline metadata에 저장한다. 이 fingerprint는 mapping 복원용 전체 snapshot이 아니라 저장 전 경고/외부 변경 감지 보조 신호이며, fingerprint가 달라지면 삭제 영향 범위가 기록 시점과 달라졌을 수 있음을 경고하고 현재 DB 기준 복원 또는 재조회 흐름으로 전환한다.
+- 주원료 payload 내용 변경 감지력을 보완하려면 전체 payload hash 대신 payload length와 앞/뒤 capped hash를 checksum 입력에 포함할 수 있다.
+- 기존 행 수정/삭제의 상세 before snapshot은 해당 행이 최초 변경 대상이 되는 시점에 1회만 저장한다.
+- 신규 행은 draft row 전체를 저장하고, 이후 수정은 같은 신규 row draft에 합친다.
+- 대형 `RICH_ELEMENT_SHEET` payload는 전 행에 저장하지 않고 변경/삭제 대상의 before snapshot 또는 신규/수정 draft에만 저장한다.
+- 엑셀 가져오기처럼 dirty가 없는 상태에서 시작하는 전체 교체 액션은 기존 1만 행 전체 heavy snapshot을 만들지 않고, 취소 시 DB 재조회와 import 직전 UI metadata 복원을 우선한다.
+- 엑셀 가져오기 직전 baseline에는 DB 재조회 복원 기준이 되는 row count, item id/order 목록, lightweight version/checksum 정보를 저장한다.
+- 엑셀 가져오기 취소 시 DB 재조회 결과가 import 직전 baseline과 다르면 외부 DB 변경 가능성을 경고하고, 재조회된 현재 DB 기준으로 복원한다.
+- dirty가 없는 상태에서 앱 시작 후 최초 품목 테이블 진입 또는 새 브랜드/라벨 조회를 시작하면 기존 임시 백업 파일과 메타데이터를 폐기한다.
+- dirty 상태에서는 브랜드/라벨 변경 자체를 차단하므로 다른 브랜드/라벨 조회로 인한 백업 폐기는 발생하지 않는다.
+- 같은 편집 세션의 위젯 재생성/리빌드에서는 임시 파일 백업을 폐기하지 않는다.
+- 화면 복원 완료 시, 변경 취소 시, 종료 시에는 기존 임시 백업 파일과 메타데이터를 폐기한다.
+- SharedPreferences는 큰 JSON payload 저장에 적합하지 않으므로 백업 본문 저장에는 사용하지 않는다.
+- SharedPreferences는 마지막 백업 파일 경로, draft key, 저장 시각 같은 작은 메타데이터에만 사용한다.
+- 백업 파일은 앱 지원 디렉터리 하위에 저장한다. Windows release 기준으로는 기존 로컬 DB/로그 정책과 같이 사용자별 앱 데이터 영역을 사용한다.
+- 일반 품목관리 draft는 변경 목록과 필요한 row/cell snapshot 중심이라 파일 쓰기 비용이 작고, 큰 `RICH_ELEMENT_SHEET` payload가 포함되어도 변경 대상에만 포함하며 debounce 저장과 원자적 파일 교체를 사용한다.
+- 따라서 변경 취소용 임시 파일 백업/폐기는 이번 구현 범위에 포함한다.
+
+2.7.1 품목관리 RTF 변환과 임시 편집 정책
+
+- 현재 Flutter 품목관리는 legacy `RICH_ELEMENT_RTF`가 있는 행을 테이블 로드 후 비동기 큐로 `RICH_ELEMENT_SHEET`로 자동 마이그레이션하는 경로가 있다.
+- 해당 자동 마이그레이션은 DB와 캐시를 사용자의 명시적 저장 없이 변경할 수 있으므로, 1만 행 기준 journal 백업/취소 정책과 충돌한다.
+- 품목관리 편집 기능에서는 테이블 진입 시 legacy RTF 전체 자동 마이그레이션을 수행하지 않는다.
+- 품목관리 편집 기능이 활성화된 화면에서는 라벨크기 로드 직후 `_startItemElementAutoMigration()` 호출 자체를 skip한다.
+- 행 선택/주원료 로드 시 `Item.elementRTF`가 encoded workbook save 형식이면 `RICH_ELEMENT_SHEET` 조회값으로 보고 그대로 사용한다.
+- `Item.elementRTF`가 legacy RichEdit RTF 형식이면 해당 행의 주원료 편집 진입, 사용자의 명시적 변환 적용, 또는 미리보기 표시 시 필요한 경우에만 lazy 변환한다.
+- 미리보기 표시 목적의 lazy 변환은 display-only cache로만 보관하고 dirty 편집 상태를 켜지 않는다.
+- 주원료 편집 진입 또는 사용자의 명시적 변환 적용으로 생성된 lazy 변환 결과만 draft 변경으로 반영한다.
+- draft lazy 변환 결과는 즉시 DB에 자동 저장하지 않고, 편집 세션의 draft 변경으로만 반영한다.
+- draft lazy 변환으로 주원료 draft가 생성되면 해당 기존 행의 before snapshot은 최초 1회 journal에 저장한다.
+- 사용자가 `저장`을 확정할 때만 `RICH_ELEMENT`와 `RICH_ELEMENT_SHEET`를 DB에 저장한다.
+- dirty 편집 세션이 시작되면 기존 RTF 자동 마이그레이션 큐는 취소하거나 결과 반영을 중단한다.
+- dirty가 없는 별도 유지보수/마이그레이션 경로에서만 background RTF DB 마이그레이션을 허용한다.
+
+2.8 레거시 엑셀 가져오기 동작
+
+- 레거시 품목관리의 엑셀 가져오기는 테이블이 비어 있을 때만 동작하는 기능이 아니다.
+- 라벨크기가 선택되어 품목 테이블이 로드되면 엑셀 가져오기 버튼이 활성화된다.
+- 엑셀 파일은 `.xls`, `.xlsx`를 선택할 수 있고, 파일 선택 후 주원료 RTF 생성을 위한 font point 입력 대화상자를 표시한다.
+- 레거시는 엑셀 1행을 헤더로 보고 2행부터 데이터를 읽는다.
+- 첫 행 헤더가 빈 컬럼을 만나면 그 이후 컬럼은 읽지 않는다.
+- 엑셀 헤더 `품목`은 품목명, `주원료`는 주원료, 그 외 헤더는 현재 라벨크기의 일반 컬럼명과 정확히 일치할 때만 해당 컬럼에 매핑한다.
+- 매칭되지 않는 엑셀 컬럼은 무시하고, 현재 테이블에 있지만 엑셀에 없는 컬럼은 빈 값으로 유지된다.
+- 숫자처럼 읽힌 셀은 소수점 뒤 0을 제거한다. 예: `12.00`은 `12`, `12.30`은 `12.3`으로 처리된다.
+- 레거시 의도는 기존 품목 전체를 삭제 대상으로 두고 엑셀 행을 신규 행으로 채운 뒤 저장 버튼으로 DB에 반영하는 전체 교체 흐름이다.
+- 단, 기존 행이 정확히 1개일 때 삭제 조건 누락으로 기존 1행이 삭제되지 않는 버그성 예외가 있다. Flutter 구현에서는 이 동작을 따르지 않고 기존 행 수와 관계없이 전체 교체로 처리한다.
+- 엑셀 데이터 행이 없으면 가져오기는 실패로 보고 테이블 상태를 바꾸지 않는다.
+
+2.9 레거시 엑셀 내보내기 동작
+
+- 레거시 품목관리의 엑셀 내보내기는 DB 저장과 별개의 현재 메모리 테이블 내보내기 기능이다.
+- 화면 시트 행 수가 1개 이상이면 저장 파일 대화상자를 표시한다.
+- 화면 시트 행이 없으면 `Excel로 저장할 데이터가 없습니다` 메시지를 표시한다.
+- 저장 파일 형식은 `.xlsx`, `.xls`를 선택할 수 있다.
+- 실제 저장은 Excel COM `SaveAs`에 파일명을 넘기는 방식이며, 명시적 workbook 포맷 변환 로직은 확인되지 않았다.
+- 엑셀 1행 헤더는 `품목`, `주원료`, 현재 라벨크기의 일반 컬럼명 순서로 작성한다.
+- 데이터 행은 품목명, 주원료 plain text, 각 일반 컬럼 cell data 순서로 작성한다.
+- 일반 컬럼 값은 Excel 자동 숫자/날짜 변환을 막기 위해 앞에 apostrophe를 붙여 문자열로 저장한다.
+- 품목명과 주원료에는 apostrophe를 붙이지 않는다.
+- 행 번호, 라벨크기명, 발행 체크 상태, 선택 상태, 셀 색상/폭/폰트/스타일, 주원료 RTF, `RICH_ELEMENT_SHEET`, 출력 미리보기/라벨 시트 서식은 내보내지 않는다.
+- 레거시는 dirty 여부와 상관없이 현재 메모리 테이블 상태를 내보낼 수 있다.
+- 단, 하단 주원료 RichEdit에 입력만 하고 Enter 또는 저장 버튼으로 현재 행에 반영하지 않은 내용은 엑셀 내보내기 전에 강제 반영하지 않는다.
+- Flutter 구현에서는 레거시의 dirty 상태 내보내기를 그대로 따르지 않고, 변경 사항이 없는 상태에서만 엑셀 내보내기를 허용한다.
+
+2.10 레거시 날짜 타입 설정 동작
+
+- 레거시의 `날짜 타입 설정`은 품목 행/셀을 수정하는 기능이 아니라 현재 선택된 라벨크기의 `CLabelSizeSetup`을 바꾸는 라벨크기 출력 포맷 설정 기능이다.
+- 레거시 품목관리 화면의 날짜 타입 설정 버튼은 현재 선택 라벨크기를 `CDateTypeSetupDlg`에 넘겨 modal dialog를 열고, 적용 시 `CLabelEditModel::ResetSelectedLabelSize()`를 통해 현재 라벨크기 setup을 DB에 저장한 뒤 테이블 formatter와 화면을 다시 설정한다.
+- 레거시 `CLabelSizeDAO::UpdateSetup`은 `BM_RICH_LABELSIZE_FORM`의 setup 계열 컬럼을 full update하지만, 이번 Flutter 구현의 날짜 타입 설정 저장 대상은 날짜/시간 12개 컬럼으로 제한한다. 품목 row의 `BM_RICH_ITEM`/`BM_RICH_COL_CONTENT` 원본값은 날짜 타입 설정 적용만으로 직접 변경되지 않는다.
+- 레거시 다이얼로그는 제조일자, 제조시한, 소비기한, 소비시한 4개 그룹으로 구성된다.
+- 각 그룹에는 `사용` 체크박스, 고정 포맷 radio, 사용자 정의 radio, 사용자 정의 입력칸, preview 입력칸이 있다.
+- 날짜 포맷은 `2000.01.01`, `2000/01/01`, `2000년01월01일`, `01.01`, `01/01`, `01월01일`, 사용자 정의를 지원한다.
+- 시간 포맷은 `12:01`, `12시01분`, `12시`, 사용자 정의를 지원한다.
+- 사용자 정의 포맷은 날짜의 `Y/M/D`, 시간의 `H/M` 토큰을 샘플 값으로 치환해 preview를 갱신한다.
+- `사용`이 꺼진 그룹은 포맷 선택이 비활성화되고, 출력/미리보기 생성 시 셀 원본값을 그대로 사용한다.
+- `사용자 정의` 포맷을 선택한 경우에만 해당 사용자 정의 입력칸이 활성화된다.
+- 레거시 리소스에는 `*소비시한은 현재 계산 되지 않습니다.` 안내가 있으며, 실제 출력 경로에서도 소비시한은 별도 만료 시각 계산이 아니라 셀 원본 시각 값을 선택 포맷으로 표시하는 동작에 가깝다.
+- 제조일자/제조시한 컬럼이 있는 상태에서 품목 추가/삽입을 하면 새 행의 제조일자에는 현재일 원본값, 제조시한에는 현재시각 원본값이 자동 입력된다.
+- 소비기한은 셀 원본값을 제조일자 또는 현재일 기준 일수 offset으로 해석해 출력 포맷에 맞춰 계산한다.
+- 날짜 범위/알림 검증은 날짜 타입 설정 다이얼로그가 아니라 컬럼 설정의 별도 날짜 범위 설정에서 온다.
+- 품목관리 셀 수정 시 제조일자/소비기한/소비시한 변경은 타임바코드 재계산과 날짜 범위 검증에 영향을 줄 수 있지만, 날짜 타입 설정 자체는 품목관리 draft dirty 대상이 아니다.
+
+2.11 레거시 QR코드 데이터 보기 동작
+
+- 레거시의 `QR코드 데이터 보기`는 품목 행/셀을 수정하거나 저장하는 기능이 아니라, 우클릭한 품목 행 기준으로 QR/텍스트연동 데이터가 어떻게 생성되는지 보여주는 조회/진단 기능이다.
+- 레거시 품목관리 우클릭 메뉴에는 `QR코드 데이터 보기` 항목이 있으며, 우클릭 위치가 실제 품목 행이 아니면 비활성화된다.
+- 실행 흐름은 `CLabelEditDlg::OnMouseDownSheet()` -> `CLabelEditModel::ShowQRCodeViewer(nRow)` -> `CMainItemTable::GetQRCodeDatas(rowIndex)` -> `CTableRowRTFMaker::GetQRCodeDataByRow()` -> `CQRCodeViewerDlg` 표시 순서이다.
+- `CQRCodeViewerDlg`는 제목 `QR코드 보기`, 멀티라인 edit box 4개, `닫기` 버튼으로 구성된 단순 표시창이다.
+- 레거시 viewer는 전달받은 QR 데이터 문자열을 앞에서부터 최대 4개까지만 표시하고, 다이얼로그 안에서 값을 바꿔도 저장 경로가 없다.
+- QR 데이터 생성은 현재 행의 컬럼 정의와 cell 값을 입력으로 하며, DB 재조회가 아니라 품목관리 메모리 테이블의 현재 값을 사용한다.
+- 따라서 저장 전 셀 수정이 이미 메모리 table/draft에 반영되어 있으면 `QR코드 데이터 보기`도 그 현재 값을 기준으로 계산한다.
+- `TYPE_QR_CODE + QRCODE_TYPE_PLAIN_TEXT`는 해당 QR 컬럼의 셀 원본값을 그대로 QR 데이터로 사용한다.
+- `TYPE_QR_CODE + QRCODE_TYPE_USER_DEFINE`은 컬럼 설정의 `userDefineQRData`/`userDefineQRText`에 있는 `#품목`, `#컬럼키워드` 토큰을 현재 행 값으로 치환한다. viewer에는 QR 이미지 데이터 문자열인 `userDefineQRData` 치환 결과를 표시한다.
+- `TYPE_QR_CODE + QRCODE_TYPE_NATRIUM`은 나트륨 QR 설정 문자열을 parse해 품명과 지정 컬럼 값을 채운 뒤 나트륨 URL 형태의 QR 데이터를 생성한다.
+- `TYPE_BARCODE + BARCODE_TEXT_LINK`는 바코드 컬럼의 텍스트 연동 설정 문자열에 있는 토큰을 현재 행 값으로 치환해 표시 대상 데이터로 만든다.
+- `TYPE_BASE` 컬럼이라도 `QRCODE_TYPE_USER_DEFINE`이 설정되어 있으면 사용자 정의 QR 데이터 치환 대상으로 처리된다.
+- 사용자 정의 QR/텍스트연동 치환 중 유통기한 타입 컬럼은 레거시처럼 날짜 타입 설정의 표시 포맷이 아니라 `DATE_FORMAT_NONE` 기준 계산값으로 치환한다.
+- QR 설정에 참조되는 컬럼은 레거시에서 분홍색 계열로 표시된다. 이 색상은 `이 컬럼 값이 QR 데이터 생성에 사용된다`는 힌트이며, 편집/저장 기능은 아니다.
+- `QR코드 데이터 보기` 실행은 dirty 상태를 만들지 않고, 저장 버튼 활성화나 저장 batch에는 포함되지 않는다.
+
+2.12 레거시 품목 순서 변경 동작
+
+- 레거시의 `순서 변경`은 품목 추가/삽입 draft 기능이 아니라 현재 선택된 브랜드/라벨크기와 현재 market에 표시되는 기존 품목의 표시 순서를 바꾸는 별도 modal 기능이다.
+- 레거시 품목관리 화면에는 `품목 순서 변경` 버튼이 있으며, 편집 권한이 있을 때만 표시된다.
+- 실행 흐름은 `CLabelEditDlg::OnClickedItemChange()` -> `CItemOrderChange` modal dialog -> 저장 성공 시 `CLabelEditModel::Refresh()` 순서이다.
+- `CItemOrderChange`는 현재 선택된 brand와 label size 기준으로 `CItemOfMarketDAO::SelectByMarketAndLabelSizeID(marketId, labelSizeId)`를 다시 조회한다.
+- 조회 정렬은 `ORDER BY P2.RICH_ITEM_ORDER, P2.RICH_ITEM_ID ASC`이며, 다이얼로그 목록에는 품목명만 표시하고 숨은 cell note에 `RICH_ITEM_ID`를 보관한다.
+- 다이얼로그 UI는 품목명 목록 sheet, `↑`, `↓`, `저장`, `닫기` 버튼으로 구성된다.
+- 행을 클릭하면 단일 행이 선택되고, `↑`/`↓` 버튼은 선택 행과 바로 위/아래 행을 swap한다. 첫 행에서 `↑`, 마지막 행에서 `↓`는 무시된다.
+- 저장 시 현재 다이얼로그 표시 순서대로 1부터 순번을 재부여하고, 각 행의 item id에 대해 `CItemDAO::UpdateOrder(itemId, rowNo)`를 호출한다.
+- 저장 대상은 `BM_RICH_ITEM.RICH_ITEM_ORDER` 하나이며, 품목명, 주원료, 일반 컬럼, `BM_ITEM_OF_MARKET`, column content는 변경하지 않는다.
+- 저장 후 품목관리 메인 리스트는 DB에서 다시 조회되며, 변경된 `RICH_ITEM_ORDER` 기준으로 표시 순서가 바뀐다.
+- `RICH_ITEM_ORDER`는 item-level 값이므로 현재 market만의 독립 순서가 아니라 같은 label size item을 공유하는 다른 market 표시 순서에도 영향을 줄 수 있다.
+- 레거시의 품목 순서 변경 다이얼로그는 메인 품목관리의 미저장 추가/삽입/수정 draft를 기반으로 하지 않고 DB에서 다시 읽은 목록을 기준으로 동작한다.
+- 레거시에는 순서 변경 실행 전 미저장 변경 확인이 없고, 저장 후 refresh로 메인 화면을 다시 읽으므로 미저장 draft가 있으면 사라질 수 있다.
+- 현재 Flutter 구현에서는 이 데이터 손실 가능성을 그대로 따르지 않고, 이번 구현에서 draft 편집 중에는 `순서 변경`을 비활성화하고 저장 완료 또는 변경 취소 확정 후 실행하도록 안내한다.
+
+3. 구현 원칙
+
+- 테이블의 주원료 컬럼은 직접 편집하지 않는다.
+- 주원료 수정은 플로팅 창의 `주원료 및 함량` 탭에서만 수행한다.
+- 추가/삽입/삭제/품명 수정/일반 컬럼 수정/주원료 수정/엑셀 가져오기는 즉시 DB에 저장하지 않고 관리 객체의 임시 편집 상태에 반영한다.
+- 사용자가 `저장`을 누를 때만 DB에 반영한다.
+- 레거시의 update item apply 테이블 구조는 재현 대상이 아니며, 현재 Flutter의 품목/컬럼 DAO와 DB 테이블 구조에 맞춰 insert/update/delete를 수행한다.
+- 현재 `DbClient`/`DbIsolateAction`은 단일 write/query 중심이고 품목 저장용 transaction API가 없으므로, 저장 구현 전 `DbIsolateAction.transaction` 단일 action을 먼저 마련한다. 단일 SQL batch transaction은 제한적 fallback으로만 사용한다.
+- 품목관리 저장 DAO는 기존 `ItemDAO.updateElementSheetByItemId` 범위를 넘어 신규 item/market mapping/column content insert, 기존 item/column content update, delete/order update를 transaction 안에서 수행할 수 있게 별도로 추가한다.
+- 사용자가 `취소`에서 `변경 취소`를 선택하면 임시 파일 백업의 최소 baseline과 변경 대상 journal을 기준으로 복원하고 임시 편집 상태를 폐기한다.
+- 엑셀 가져오기 전체 교체 취소처럼 백업에 전체 heavy 원본을 저장하지 않는 경우에는 DB 재조회와 import 직전 UI metadata 복원으로 변경 전 상태를 복구한다.
+- 변경 전 복원 기준과 draft 편집 상태는 임시 파일 백업에도 저장하고, 화면 복원 완료/변경 취소/종료/dirty가 없는 새 조회 시작 시 정리한다.
+- 품목관리 편집 기능 중 legacy RTF 변환은 lazy draft 변환으로 처리하고, 사용자의 `저장` 전에는 자동 DB 마이그레이션을 수행하지 않는다.
+- 임시 편집 중에는 데이터 손실을 막기 위해 브랜드/라벨 선택, 품목관리 외 탭 이동, 플로팅 창의 `출력내용 미리보기` 탭 이동을 막는다.
+- 로그아웃/앱 종료처럼 화면을 벗어나는 동작은 `저장하지 않고 종료할까요?` 확인 후 `종료` 또는 `계속 편집`으로 처리한다.
+- 날짜 타입 설정은 품목관리 draft 편집 기능이 아니라 현재 선택된 라벨크기의 `LabelSizeSetup` 저장 기능으로 분리한다.
+- 날짜 타입 설정 적용은 품목 row/cell 원본값을 변경하지 않고, 출력/미리보기/라벨 시트 치환 시 사용할 날짜·시간 표시 포맷만 갱신한다.
+- 날짜 타입 설정 진입점은 품목관리 테이블 우클릭 메뉴가 아니라 상단 라벨 선택 영역의 라벨 설정 메뉴에 둔다.
+- 상단 라벨 영역의 기존 `설정` 버튼은 라벨 관련 하위 메뉴를 여는 형태로 바꾸고, 메뉴 항목에 `라벨 설정...`과 `날짜 타입 설정...`을 둔다.
+- 날짜 타입 설정 메뉴는 현재 선택된 라벨크기가 있고 저장/재조회/forceReloadRequired 상태가 아닐 때 활성화한다.
+- 품목관리 draft 편집 중에는 날짜 타입 설정 적용으로 출력 포맷과 preview 기준이 바뀌어 사용자가 편집 중인 화면 판단이 흔들릴 수 있으므로 메뉴를 비활성화한다.
+- 날짜 타입 설정 저장은 품목관리 하단 `저장` 버튼에 합치지 않고, 다이얼로그의 `적용`에서 별도 저장 확인 후 즉시 `BM_RICH_LABELSIZE_FORM`의 날짜/시간 12개 컬럼에 반영한다.
+- 날짜 타입 설정 구현 전 `DateManager`에 레거시 포맷/사용자 정의 preview helper를 추가하고, `LabelSizeDAO.updateDateSetup(labelSizeId, LabelSizeDateSetupUpdate)` 날짜/시간 전용 API를 추가한다. 이 API는 기존 form data 저장 경로와 섞지 않고, full `LabelSizeSetup` DTO를 저장 입력으로 받지 않는다.
+- 날짜 타입 설정 저장은 다이얼로그가 가진 날짜/시간 관련 필드만 사용자가 변경한 값으로 반영한다. `LabelSizeDAO.updateDateSetup` 진입 직전 DB 최신 `LabelSizeSetup`을 다시 읽고, `RICH_SETUP_USE_MAKEDATE`, `RICH_SETUP_USE_MAKETIME`, `RICH_SETUP_USE_VALIDDATE`, `RICH_SETUP_USE_VALIDTIME`, `RICH_SETUP_MAKEDATE_TYPE`, `RICH_SETUP_MAKETIME_TYPE`, `RICH_SETUP_VALIDDATE_TYPE`, `RICH_SETUP_VALIDTIME_TYPE`, `RICH_USER_MAKEDATE`, `RICH_USER_MAKETIME`, `RICH_USER_VALIDDATE`, `RICH_USER_VALIDTIME`만 다이얼로그 값으로 merge한 뒤 update한다. 날짜 타입 설정 update SQL의 `SET` 대상도 이 12개 날짜/시간 컬럼으로 제한한다. 날짜 타입 설정 다이얼로그에 없는 `RICH_SETUP_READONLY`, `RICH_SETUP_USE_SCALE`은 `SET` 대상과 로그 변경 대상에서 제외하고 캐시 또는 레거시 full setup update 방식으로 덮어쓰지 않는다.
+- 날짜 타입 설정 구현 전 `BM_RICH_LABELSIZE_FORM_LOG`에 날짜/시간 setup 전/후 값 기록 컬럼이 있는지 확인한다. 로그 컬럼 probe 자체가 실패하면 setup 저장을 진행하지 않고 오류로 차단한다. 필요한 setup 로그 컬럼은 날짜 타입 설정 저장 대상(`RICH_SETUP_USE_MAKEDATE`, `RICH_SETUP_USE_MAKETIME`, `RICH_SETUP_USE_VALIDDATE`, `RICH_SETUP_USE_VALIDTIME`, `RICH_SETUP_MAKEDATE_TYPE`, `RICH_SETUP_MAKETIME_TYPE`, `RICH_SETUP_VALIDDATE_TYPE`, `RICH_SETUP_VALIDTIME_TYPE`, `RICH_USER_MAKEDATE`, `RICH_USER_MAKETIME`, `RICH_USER_VALIDDATE`, `RICH_USER_VALIDTIME`)의 before 값 컬럼과, 같은 이름에 `RICH_ALTER_` prefix를 적용한 after 값 컬럼으로 고정한다. 예: `RICH_USER_MAKEDATE`의 after 값 컬럼은 `RICH_ALTER_USER_MAKEDATE`이다. 운영 DB에 이 정확한 컬럼 세트가 모두 있으면 `LabelSizeDAO.updateDateSetup`은 setup 변경 로그 insert와 날짜/시간 컬럼 update를 같은 transaction에서 처리한다. 이때 로그 insert가 실패하면 setup update도 rollback한다. 로그 컬럼이 없거나 일부만 있으면 이번 구현은 setup 저장 로그를 남기지 않고 날짜/시간 컬럼 update만 수행하며, 로그 없이 update한 사실을 앱 로그에 명시하고 update 성공/실패는 사용자 안내로 처리한다. 현재 repository의 `BM_RICH_LABELSIZE_FORM.sql`과 레거시 `CLabelSizeDAO::UpdateSetup` 기준으로는 setup 전용 로그 컬럼/로그 insert 경로가 확인되지 않으므로, 운영 DB probe에서 위 allow-list 컬럼 세트가 정확히 확인되지 않는 한 logless update가 기본 경로이다. 로그 컬럼 추가가 필요하면 DB schema 변경 작업으로 분리한다.
+- 날짜 타입 설정 로그 insert와 날짜/시간 컬럼 update를 함께 수행하는 경우는 `LabelSizeDAO.updateDateSetup` 내부의 setup 전용 SQL batch transaction으로 처리한다. 기존 form data 저장 경로와 SQL 문자열을 공유하지 않고 날짜/시간 12개 컬럼만 update하는 별도 batch를 둔다. Dart/UI 레이어에서 여러 write 호출을 조합해 transaction처럼 처리하지 않으며, 품목관리 저장용 `DbIsolateAction.transaction` 구현 완료를 날짜 setup 저장의 선행 조건으로 두지 않는다. 로그 없이 날짜/시간 컬럼 update만 수행하는 경로도 단일 update 성공/실패가 명확히 반환되어야 한다.
+- 날짜 타입 설정 구현 전 `LabelSizeSetup`을 DB에서 읽을 때 `PrintDateFormat.values[index]`, `PrintTimeFormat.values[index]` 직접 접근이 범위 밖 값으로 실패하지 않도록 range guard를 추가한다. 범위 밖 값은 DB 기본값과 enum index 0 기준으로 날짜는 `DATE_FORMAT_DOT`, 시간은 `TIME_FORMAT_COLON`으로 열되 다이얼로그 상단에 `저장된 날짜/시간 설정 값이 현재 앱에서 지원하는 범위를 벗어나 기본값으로 표시합니다.` 의미의 경고를 표시하고, 저장 시에는 사용자가 확인한 유효 enum 값만 기록한다.
+- 날짜 타입 설정 저장 성공 후에는 최신 DB setup에 날짜/시간 변경값을 merge한 결과로 `LabelSize.datas`와 현재 선택 라벨 캐시를 갱신한다. `RICH_SETUP_READONLY`/`RICH_SETUP_USE_SCALE`은 최신 DB 값을 유지한 merge 결과를 사용하고, 품목관리/공용라벨관리/라벨출력 미리보기에서 새 setup을 사용하도록 관련 화면을 refresh한다.
+- `순서 변경`은 품목 추가/삽입 draft 기능이 아니라 기존 품목의 `RICH_ITEM_ORDER`를 갱신하는 별도 reorder command로 분리한다.
+- `순서 변경` 로직은 레거시 품목관리와 동일하게 현재 브랜드/라벨크기/market에 표시되는 품목을 order, item id 순으로 조회하고, 적용 시 현재 다이얼로그 표시 순서대로 `RICH_ITEM_ORDER`를 1부터 재부여한다.
+- `순서 변경` UI는 레거시 품목 순서변경의 협소한 버튼 배치보다, 현재 Flutter 라벨 설정 화면의 order edit mode UI 패턴을 따른다. 즉 별도 구현에서도 목록, 선택 행 하이라이트, 우측 위/아래 이동 버튼, 하단 취소/적용 footer 구조를 유지하되 품목 순서 변경 dialog 스타일로 정리한다.
+- `순서 변경` 저장은 품목관리 하단 `저장` 버튼에 합치지 않고, 다이얼로그의 `적용`에서 저장 확인 후 별도 transaction으로 즉시 반영한 뒤 품목관리 리스트를 재조회한다.
+- 품목관리 draft 편집 중에는 레거시의 무확인 refresh로 인한 데이터 손실을 재현하지 않는다. 이번 구현에서는 미저장 변경이 있으면 `순서 변경`을 비활성화하고, 저장 완료 또는 변경 취소 확정 후 실행하도록 안내한다.
+- 품목 순서 변경 저장 API는 현재 `LabelSizeDAO.updateOrders()`와 같은 단일 SQL batch transaction 패턴으로 `ItemDAO.updateOrders(List<ItemOrderUpdate>)`를 추가해 구현한다. 이 API는 `RICH_ITEM_ID`와 새 `RICH_ITEM_ORDER` 목록을 받아 `BM_RICH_ITEM.RICH_ITEM_ORDER`만 갱신하고, affected row 검증과 rollback을 보장한다.
+- `ItemDAO.updateOrders`는 품목관리 draft 저장 DAO가 아니라 독립 reorder command이므로 이번 구현에서 단일 SQL batch transaction을 허용한다. 반면 추가/삽입/삭제/엑셀 전체 교체/column content upsert를 포함하는 품목관리 저장 DAO는 `DbIsolateAction.transaction` 단일 action을 필수 전제로 한다.
+
+4. 하단 버튼 영역
+
+4.1 배치
+
+- 품목관리 테이블 하단 왼쪽에 다음 버튼을 배치한다.
+- `엑셀 가져오기`
+- `엑셀 내보내기`
+- 여백
+- `취소`
+- `저장`
+
+4.2 스타일
+
+- 버튼 스타일은 프린터 설정 다이얼로그에 있는 버튼 스타일을 따른다.
+- `취소`, `저장` 버튼은 추가/삽입/삭제/품명 수정/일반 컬럼 수정/주원료 수정 등 임시 변경이 있을 때만 활성화한다.
+- 변경이 없으면 `취소`, `저장` 버튼은 비활성화한다.
+
+4.3 엑셀 기능
+
+- `엑셀 가져오기`, `엑셀 내보내기` 버튼 UI는 이번 구현 범위에 포함한다.
+- `엑셀 가져오기` 실제 기능은 이번 구현 범위에 포함한다.
+- `엑셀 내보내기` 실제 기능은 이번 구현 범위에 포함한다.
+- 변경 사항이 없는 상태에서는 `엑셀 가져오기`, `엑셀 내보내기` 버튼을 활성화한다.
+- 변경 사항이 있는 draft 편집 모드에서는 데이터 손실과 draft 충돌을 막기 위해 `엑셀 가져오기`, `엑셀 내보내기` 버튼을 비활성화한다.
+
+4.4 엑셀 가져오기 동작
+
+- 엑셀 가져오기는 품목 테이블 전체 교체형 draft 액션으로 처리한다.
+- 엑셀 가져오기 실행 전 변경 사항이 있으면 버튼이 비활성화되어 실행할 수 없다.
+- 엑셀 가져오기 파일 형식은 `.xlsx`만 지원한다.
+- `.xls`는 이번 구현에서 지원하지 않는다. `.xls` 선택 시 지원하지 않는 형식이라는 안내를 표시하고 draft를 변경하지 않는다.
+- 파일 선택 대화상자의 필터는 `.xlsx`만 노출한다. 드래그 앤 드롭, 직접 경로 입력, 최근 파일 등 다른 경로로 `.xls`가 들어오면 지원하지 않는 형식이라는 안내를 표시하고 draft를 변경하지 않는다.
+- `.xlsx` 파싱은 현재 앱의 `labelSheetWorkbookFromXlsxBytes()` 내부 parser 로직/공용 helper를 우선 재사용한다.
+- 품목관리 xlsx adapter의 입력은 원본 `.xlsx` bytes로 한다.
+- 품목관리 xlsx adapter는 같은 parse context 안에서 지정 sheet parser가 반환한 `FortuneWorkbook` 결과와 원본 worksheet XML metadata를 함께 사용한다.
+- 지정 sheet parse helper는 active sheet 기준 `FortuneWorkbook`만 반환하지 않고, 품목관리 import가 같은 parse context에서 사용할 수 있는 결과 DTO를 반환한다. 최소 필드는 `parsedWorkbook`, `sheetName`, `relationshipId`, `worksheetPath`, `worksheetXml`, `styles`, `sharedStrings`, `workbookDateSystem`, `extensionMetadata`이다.
+- 단, 품목관리 import의 대상 sheet는 workbook activeTab이 아니라 원본 workbook sheet order index 0으로 강제한다.
+- 현재 `labelSheetWorkbookFromXlsxBytes()`는 active sheet를 선택하므로, 품목관리 adapter는 sheet index 또는 relationship id를 지정할 수 있는 xlsx parse helper를 분리해 사용한다.
+- 품목관리 adapter는 activeTab 기준으로 생성된 기존 `labelSheetWorkbookFromXlsxBytes()` 결과를 그대로 사용하지 않는다. `labelSheetWorkbookFromXlsxBytes()` 내부 로직을 분리한 지정 sheet parse helper의 결과와 같은 worksheet XML metadata를 사용한다.
+- 구현 시 중복 파싱과 parser 동작 불일치를 줄이기 위해 `labelSheetWorkbookFromXlsxBytes()` 내부 파싱 로직에서 공용 parse helper를 분리해 품목관리 xlsx adapter와 공유하는 것을 우선한다.
+- 단, 공용 parse helper 분리 범위가 과도해 기존 라벨 시트 xlsx import 안정성을 해치면 품목관리 adapter 내부 local helper로 제한하되, 원본 worksheet XML metadata와 지정 sheet parse helper 결과를 같은 parse context에서 함께 참조한다는 기준은 유지한다.
+- 품목관리 엑셀 가져오기는 첫 번째 worksheet만 대상으로 한다. 첫 번째 worksheet의 1행에서 빈 헤더 전까지 읽은 헤더 중 trim 후 `품목` 헤더가 있으면 유효한 헤더로 본다.
+- 첫 번째 worksheet는 원본 `.xlsx`의 workbook sheet 순서 기준으로 판정한다. 지정 sheet parse helper가 반환한 `FortuneWorkbook` 결과와 원본 worksheet XML metadata는 같은 sheet id 또는 relationship 기준으로 매칭한다.
+- 첫 번째 worksheet에 유효한 헤더가 없으면 다른 worksheet를 탐색하지 않고 가져오기를 실패 처리한다.
+- 엑셀 1행을 헤더로 보고 2행부터 데이터 행으로 읽는다.
+- 첫 행 헤더가 빈 컬럼을 만나면 그 이후 컬럼은 읽지 않는다.
+- 헤더명은 xlsx 변환 결과의 표시 텍스트를 trim한 값으로 비교한다.
+- trim 결과가 빈 문자열인 헤더는 빈 헤더로 보고 그 이후 컬럼은 읽지 않는다.
+- 빈 헤더 이후 뒤쪽 컬럼에 현재 라벨크기의 매핑 가능한 헤더가 존재하면 조용히 무시하지 않고, 가져오기 전 사용자에게 빈 헤더 이후 컬럼은 무시된다는 안내/경고를 표시한다.
+- 빈 헤더 뒤쪽에 필수 `품목` 헤더가 있더라도 해당 헤더는 무시된 것으로 처리한다. 빈 헤더 전까지 읽은 헤더에 `품목`이 없으면 `품목` 헤더 없음 오류로 가져오기를 실패 처리한다.
+- 헤더 비교는 앞뒤 공백만 trim한 뒤 정확히 일치해야 하며, 대소문자 변경, 내부 공백 정규화, 별칭 매핑은 하지 않는다.
+- 같은 매핑 대상 헤더가 중복되면 첫 번째 매핑 컬럼만 사용하고 이후 중복 헤더는 무시한다.
+- 헤더 `품목`은 품목명으로 매핑한다.
+- 헤더 행은 있으나 `품목` 헤더가 없으면 가져오기 실패로 보고 테이블 상태와 draft를 변경하지 않는다.
+- 레거시는 `품목` 헤더가 없어도 매칭되는 컬럼만으로 행을 만들 수 있지만, 현재 Flutter 구현에서는 품명 없는 대량 import를 방지하기 위해 `품목` 헤더를 필수로 본다.
+- 헤더 `주원료`는 이번 구현에서 해당 데이터 행의 `주원료` 셀 또는 병합 영역을 하단 `주원료 및 함량` 편집 시트 형태로 가져온다. plain text는 표시 텍스트 기준으로 생성하고, `RICH_ELEMENT_SHEET`는 원본 셀의 inlineRuns, 병합 영역, row height, column width, 테두리, 배경, 줄바꿈을 가능한 범위에서 보존한 FortuneSheet workbook payload로 생성한다. 변환 배치 기준은 원본 `주원료` 셀 또는 병합 영역의 bounding rectangle을 좌상단 `(0, 0)`에서 시작하는 단일 FortuneSheet sheet로 옮기는 방식으로 고정한다. 원본 row height/column width는 가능한 범위에서 그대로 보존하고, 라벨 편집 영역에 맞추기 위한 임의 확대/축소는 import 변환 단계에서 수행하지 않는다. 표시 크기 조정은 하단 편집 UI의 zoom/viewport와 실제 출력 단계의 기존 라벨 sheet 렌더링 규칙에 맡긴다. plain text는 병합 영역이면 원본 병합 영역의 top-left cell 표시 텍스트만 사용하고, 병합 영역 내부의 다른 셀 값은 `RICH_ELEMENT_SHEET` payload에만 보존한다.
+- 헤더 `주원료`가 없으면 주원료 plain text는 빈 문자열로 생성한다.
+- 헤더 `주원료`가 없거나 값이 비어 있으면 `RICH_ELEMENT_SHEET`는 현재 앱의 빈 주원료 sheet 기본 payload로 생성한다.
+- 빈 주원료 sheet 기본 payload는 신규 품목 생성 또는 하단 주원료 편집 초기화에서 사용하는 기존 초기화 경로를 재사용한다. 동일 helper가 없으면 품목관리 공용 helper로 분리해 엑셀 가져오기, 신규 행, 주원료 편집 초기화가 같은 payload를 사용하게 한다.
+- `주원료` 셀의 서식, inlineRuns, 병합 영역, row height, column width, 테두리, 배경을 `RICH_ELEMENT_SHEET`로 옮기는 작업은 이번 구현 범위에 포함한다. 단, Excel 차트/도형/이미지/매크로/조건부서식처럼 품목관리 주원료 편집 시트로 직접 표현하기 어려운 객체성 기능은 기능정의에서 제외하고, 제외된 객체는 가져오지 않는다는 안내를 남긴다.
+- 주원료 plain text는 `주원료` 단일 셀의 표시 텍스트 기준으로 저장한다.
+- 주원료 plain text 산출 시 단일 셀의 표시 텍스트는 일반 컬럼의 표시 문자열 formatter/fallback과 같은 기준을 사용한다.
+- `주원료` 단일 셀이 수식 셀이면 일반 컬럼과 같은 기준으로 처리한다. cached value가 있으면 값/표시 텍스트로 옮기고, cached value가 없으면 수식 자체는 가져오지 않고 빈 값으로 처리한다.
+- 주원료 plain text가 여러 줄이면 셀 표시 텍스트의 줄바꿈을 그대로 보존한다.
+- 레거시처럼 새 import 저장 대상으로 `RICH_ELEMENT_RTF`를 생성하거나 덮어쓰지 않는다. 기존 `RICH_ELEMENT_RTF` 값은 마이그레이션/호환용으로 보존한다.
+- 그 외 헤더는 현재 라벨크기의 일반 컬럼명과 정확히 일치할 때만 해당 column content로 매핑한다.
+- 일반 컬럼 값은 품목관리 xlsx adapter가 원본 worksheet XML의 cell attribute `t`와 지정 sheet parse helper의 변환 결과를 함께 참조해 결정한다.
+- 일반 컬럼 값은 원본 xlsx cell type이 string/shared string/inline string이면 해당 문자열을 우선 사용한다.
+- 수식 셀은 cached value가 있으면 cached value를 표시 문자열 formatter 대상으로 사용한다.
+- 수식 셀에 cached value가 없으면 수식 문자열 자체를 가져오기 값으로 사용하지 않고 빈 값으로 처리한다.
+- 일반 컬럼 값이 숫자/날짜 등으로만 읽히는 경우에는 원본 raw value, xlsx number format, 현재 앱 변환 결과의 cell formatCode를 기준으로 표시 문자열 formatter를 적용한다.
+- 표시 문자열 formatter는 이번 품목관리 구현의 확정 지원 범위로 문자열, 정수, 소수, 천단위 구분, 소수 자리수 고정, Excel serial date의 `yyyy-mm-dd`, `yyyy/mm/dd`, `yyyy.mm.dd`, 기본 시간 표시를 지원한다.
+- Excel serial date 변환은 workbook date system을 읽을 수 있으면 해당 기준을 따른다.
+- workbook date system을 확인할 수 없으면 Excel 기본 1900 date system을 사용한다.
+- 표시 문자열 formatter 지원 범위 밖의 숫자/날짜/custom format은 raw value를 문자열로 사용하되, 저장 전 검증에서 해당 컬럼 타입 기준 허용 여부를 판단한다. 모든 Excel custom format의 화면 표시를 완전 재현하는 작업은 이번 기능정의에서 제외한다.
+- Excel import의 이미지 타입(`TYPE_IMAGE`) 컬럼은 Excel 객체 이미지 삽입/embedded image를 가져오지 않고 셀 표시 문자열만 입력값으로 사용한다. 값은 직접 편집의 BMP 선택 정책과 맞춰 경로를 제거하고 `.bmp` 확장자는 대소문자 구분 없이 제거한 파일명으로 정규화한다. 빈 값은 빈 draft 값으로 두며, `.bmp`가 아닌 다른 확장자가 명시된 값은 구조 오류가 아니라 저장 전 검증 오류로 표시한다.
+- 엑셀 가져오기 단계에서는 구조적으로 읽을 수 있는 행을 draft로 생성하고, 일반 컬럼 타입/필수/날짜/숫자 검증은 저장 전 검증에서 차단한다.
+- 단, 파일 형식 오류, workbook/worksheet 파싱 실패, 헤더 행 부재, 데이터 행 부재처럼 테이블 구조를 만들 수 없는 오류는 가져오기 실패로 보고 테이블 상태와 draft를 변경하지 않는다.
+- 가져오기 저장값에는 Excel 문자열 보존용 literal apostrophe를 새로 붙이지 않는다.
+- 원본 xlsx 값이 문자열 escape 목적의 선행 apostrophe를 포함하더라도, 이를 확실히 판정할 수 없으면 원문을 보존한다.
+- 원본 cell type이 string/shared string/inline string이고 값이 apostrophe로 시작하며, 원본 worksheet XML/style metadata 또는 변환된 FortuneCell의 `quotePrefix`/`qp` 값으로 Excel 표시값 기준 apostrophe가 보이지 않는 문자열 escape임을 판정할 수 있는 경우에만 저장값에서 선행 apostrophe를 제거한다.
+- apostrophe fallback은 엑셀 내보내기 직렬화 시 Excel 자동 변환을 막기 위한 처리로만 사용한다.
+- 매칭되지 않는 엑셀 컬럼은 무시한다.
+- 현재 테이블에는 있지만 엑셀에 없는 일반 컬럼은 빈 값으로 유지한다.
+- 2행 이후 매핑 대상 컬럼 중 하나라도 표시 텍스트가 있으면 데이터 행으로 본다.
+- 매칭되지 않는 엑셀 컬럼에만 값이 있고 매핑 대상 컬럼 값이 모두 비어 있는 행은 import 대상 데이터 행으로 보지 않는다.
+- `품목` 값이 비어 있어도 다른 매핑 대상 컬럼 값이 있으면 draft 행을 생성하고, 품명 필수 오류는 저장 전 검증에서 차단한다.
+- 2행 이후 매핑 대상 컬럼의 표시 텍스트가 모두 비어 있는 행은 데이터 행으로 보지 않는다.
+- 엑셀 데이터 행이 없으면 가져오기를 실패로 보고 테이블 상태와 draft를 변경하지 않는다.
+- 엑셀 데이터 행 수가 `ItemManagerLimits.maxRows`를 초과하면 가져오기를 실패로 보고 테이블 상태와 draft를 변경하지 않는다. 일부 행만 잘라서 가져오지 않고, 최대 10000행까지만 가져올 수 있다는 안내를 표시한다.
+- 가져오기 성공 시 기존 working table의 기존 행 전체를 삭제 예정 item id로 기록하고, 엑셀 데이터 행을 임시 신규 행으로 생성한다.
+- 기존 행이 0개 또는 1개인 경우도 같은 전체 교체 규칙을 적용한다. 레거시의 기존 1행 삭제 누락 동작은 버그로 보고 따르지 않는다.
+- 가져오기 성공 시 order는 엑셀 데이터 행 순서 기준으로 1부터 연속 재계산한다.
+- 가져오기 성공으로 생성되는 신규 item draft의 `RICH_PRICE` 기본값은 레거시 신규 `CItem` 기준과 동일하게 `0`이다.
+- 가져오기 성공으로 생성되는 신규 market mapping draft의 additional item과 판매/할인 시작·종료일은 입력값이 없으면 `NULL`이다.
+- 저장 시 신규 item의 `BM_ITEM_OF_MARKET` mapping은 레거시 `InsertBatch`와 동일하게 현재 로그인 고객의 모든 market에 생성한다.
+- 엑셀 가져오기 전 표시 정렬/필터/선택/취소 baseline은 현재 화면 market 기준으로 저장한다. 저장 확정 시 기존 item mapping 제거는 레거시 `DeleteBatchByItemIDs`와 동일하게 import 직전 current market working table의 기존 item id 기준으로 market 조건 없이 적용하고, 신규 item mapping 생성은 세션 `targetMarketIds` 기준으로 적용한다.
+- 엑셀 가져오기와 변경 취소 baseline/checksum은 현재 화면 market의 item id 집합 기준으로 계산하고, 신규 mapping 생성 대상 `targetMarketIds`는 백업 metadata에 세션 단위로 1회만 저장한다.
+- 가져오기 성공 후에는 전체 교체 결과를 사용자가 바로 확인할 수 있도록 기존 표시 정렬/필터를 초기화한다.
+- 가져오기 성공 후 첫 번째 엑셀 데이터 행을 선택한다.
+- 가져오기 성공 시 draft 편집 모드로 진입하고 `취소`, `저장` 버튼을 활성화한다.
+- 가져오기 성공 후 `엑셀 가져오기`, `엑셀 내보내기` 버튼은 변경 사항이 있으므로 비활성화한다.
+- 엑셀 가져오기 직전 표시 정렬/필터 상태와 선택 상태는 draft metadata에 저장하고, 임시 파일 백업 JSON의 metadata에도 함께 기록한다.
+- 정렬/필터 controller의 내부 객체를 그대로 직렬화하지 않고, 복원 가능한 컬럼 key, 정렬 방향, 필터 조건, 선택 item id 또는 draft row key, fallback row index 같은 값 객체만 저장한다.
+- 변경 취소 시 엑셀 가져오기 전 데이터는 DB 재조회 기준으로 복원한다.
+- 변경 취소 시 엑셀 가져오기 전 표시 정렬/필터 상태도 함께 복원한다.
+- 변경 취소 시 엑셀 가져오기 전 선택 상태도 함께 복원한다. 복원할 수 없으면 품목리스트 재조회 성공 후 선택 상태 복원 fallback과 같은 기준을 따른다.
+
+4.5 엑셀 내보내기 동작
+
+- 엑셀 내보내기는 변경 사항이 없는 안정된 품목관리 working table을 파일로 저장한다.
+- 변경 사항이 있으면 버튼이 비활성화되어 실행할 수 없다.
+- 내보내기 대상 파일 형식은 `.xlsx`만 지원한다.
+- `.xls` 내보내기는 이번 구현에서 지원하지 않는다. 파일 선택 대화상자의 필터는 `.xlsx`만 노출하고, 다른 경로로 `.xls`가 지정되면 지원하지 않는 형식이라는 안내를 표시하고 저장하지 않는다.
+- 내보내기 전 DB를 다시 조회하지 않고 현재 품목관리 working table의 값을 사용한다.
+- 내보내기 대상 컬럼은 `품목`, `주원료`, 현재 라벨크기의 일반 컬럼 순서이다.
+- `품목`은 품목명 plain text를 저장한다.
+- `주원료`는 테이블에 표시되는 주원료 plain text를 저장한다.
+- 일반 컬럼은 현재 column content 값을 저장한다.
+- 일반 컬럼 값은 Excel 자동 숫자/날짜 변환을 막기 위해 문자열로 저장한다.
+- 일반 컬럼 값은 xlsx cell type string/inline string/shared string으로 기록하는 방식을 우선한다.
+- 사용하는 xlsx writer 또는 라이브러리 제약으로 Excel 자동 변환이 발생할 수 있는 경로에서만 apostrophe fallback을 적용한다.
+- 품목관리 Excel export는 새 외부 Excel 패키지를 추가하지 않고, 기존 `archive` 기반 OpenXML 작성 패턴을 품목관리 단순 테이블 export helper로 분리해 구현한다. helper는 `[Content_Types].xml`, workbook, worksheet, styles, shared/inline string 중 필요한 최소 OpenXML 파트를 생성하고, 일반 컬럼 값은 Excel 자동 변환을 막기 위해 inline string 또는 shared string으로 기록한다. 기존 라벨 시트 OpenXML export helper의 스타일/zip 작성 유틸을 재사용할 수 있지만, 품목관리 export는 라벨 sheet/이미지/RTF export와 분리된 단순 table writer로 둔다.
+- 행 번호, 라벨크기명, 발행 체크 상태, 선택 상태, 셀 색상/폭/폰트/스타일, `RICH_ELEMENT_SHEET` 원본 payload, 기존 `RICH_ELEMENT_RTF`, 출력 미리보기/라벨 시트 서식은 내보내지 않는다.
+- 품목 행이 없으면 파일 대화상자를 열지 않고 `Excel로 저장할 데이터가 없습니다`에 준하는 메시지를 표시한다.
+
+5. 우클릭 팝업메뉴
+
+5.1 항목
+
+품목관리 테이블 우클릭 메뉴는 다음 항목을 제공한다.
+
+- `품목 추가 [개수 입력] 개`
+- `품목 삽입 [개수 입력] 개`
+- `품목 삭제`
+- `순서 변경`
+- `전체 선택`
+- `전체 선택 해제`
+- `블럭 선택 발행 체크`
+- `블럭 선택 발행 체크 해제`
+- `QR코드 데이터 보기`
+
+5.2 품목 추가
+
+- 입력박스 기본값은 `1`로 한다.
+- 입력박스 값이 비어 있거나 숫자가 아니거나 1 미만이면 실행하지 않고 경고한다.
+- `현재 working row 수`는 필터/정렬 표시 결과가 아니라 draft working table의 실제 전체 행 수이다. 삭제 확인으로 working table에서 제거된 행은 제외하고, 필터로 숨겨진 행과 신규/import draft 행은 포함한다.
+- 최대 허용 개수는 `ItemManagerLimits.maxRows`를 사용하며, 기본 상한은 `현재 working row 수 + 추가/삽입 개수 <= ItemManagerLimits.maxRows`이다.
+- 최대 허용 개수를 초과하면 경고 메시지를 표시하고 실행을 막는다.
+- 입력박스의 개수만큼 working table의 실제 품목 순서 맨 끝에 빈 행을 추가한다.
+- 메뉴 항목 클릭 시 입력박스 값을 사용한다.
+- 입력박스에서 Enter를 눌러도 같은 동작을 수행한다.
+- 추가된 행들은 임시 신규 행 상태로 관리한다.
+- 추가된 신규 행은 기존 `ItemOfMarket.datas`의 row 객체나 기존 관리 객체를 참조 공유하지 않고, 임시 draft row key를 가진 독립 신규 row draft로 생성한다.
+- 신규 행의 기본값은 현재 라벨크기, 시장/거래처 기준, 빈 품명, `RICH_PRICE=0`, 빈 일반 컬럼 값, 빈 주원료 sheet 기본 payload를 사용한다.
+- 신규 행의 `newMappingDefaults` 기본값은 additional item 미사용 `NULL`, 판매/할인 시작·종료일 `NULL`, gdsNo `0`, discount percent `0`, discount amount `0`, useDefineElement `false`, user define RTF 빈 값, useLinefeed `false`, linefeed `100`, useScaleBarcode `false`, printCount `1`, useLabelSize `false`, label size override `0`, useMargin `false`, margin/push `0`처럼 레거시 신규 `CItemOfMarket(int marketID, item)` 기본값을 기준으로 명시적으로 산출한다.
+- 저장 시 신규 행의 `BM_ITEM_OF_MARKET` mapping은 현재 화면의 market 하나에만 만들지 않고, 레거시와 동일하게 현재 로그인 고객의 모든 market에 생성한다.
+- 신규 행 수정은 같은 신규 row draft에 누적하며, DB 저장 전에는 실제 item id가 없으므로 선택/추적/저장 후 복원은 draft row key 기준으로 처리한다.
+
+5.3 품목 삽입
+
+- 입력박스 기본값은 `1`로 한다.
+- 입력박스 값이 비어 있거나 숫자가 아니거나 1 미만이면 실행하지 않고 경고한다.
+- `현재 working row 수` 계산 기준은 품목 추가와 동일하게 draft working table의 실제 전체 행 수이다.
+- 최대 허용 개수는 `ItemManagerLimits.maxRows`를 사용하며, 기본 상한은 `현재 working row 수 + 추가/삽입 개수 <= ItemManagerLimits.maxRows`이다.
+- 최대 허용 개수를 초과하면 경고 메시지를 표시하고 실행을 막는다.
+- 입력박스의 개수만큼 working table의 실제 품목 순서에서 삽입 기준 행 바로 아래에 빈 행을 삽입한다.
+- 선택 행이 없으면 `품목 삽입` 메뉴를 비활성화한다.
+- 현재 표시 선택 행 또는 표시 anchor 행이 없고 필터로 보이지 않는 숨은 선택 행만 있으면 `품목 삽입` 메뉴를 비활성화한다.
+- 여러 행이 선택된 경우 삽입 기준은 현재 포커스/anchor 행으로 한다.
+- 포커스/anchor 행을 확인할 수 없는 경우 선택 범위의 마지막 표시 행을 삽입 기준으로 한다.
+- 포커스/anchor 행은 마지막으로 클릭, 키보드 이동, 드래그 시작, Shift/Ctrl 선택의 기준이 된 표시 행으로 갱신한다.
+- 프로그램 방식으로 선택 상태를 바꿨는데 포커스/anchor 행이 없으면 선택 범위의 마지막 표시 행을 사용한다.
+- 메뉴 항목 클릭 시 입력박스 값을 사용한다.
+- 입력박스에서 Enter를 눌러도 같은 동작을 수행한다.
+- 삽입된 행들은 임시 신규 행 상태로 관리한다.
+- 삽입된 신규 행도 품목 추가와 동일하게 기존 row 객체를 복제 참조하지 않고, 삽입 위치와 임시 draft row key를 가진 독립 신규 row draft로 생성한다.
+- 삽입 위치의 기준 행은 위치/order 계산에만 사용하며, 기준 행의 `ItemOfMarket`/`Item` 객체를 신규 행의 내부 참조로 재사용하지 않는다.
+
+5.4 품목 삭제
+
+- 현재 표시 선택 행들을 삭제 대상으로 표시한다.
+- 필터로 보이지 않는 숨은 선택 행은 삭제 대상에 포함하지 않는다.
+- 삭제 전 `선택한 N개 품목을 삭제할까요?` 확인 메시지를 표시한다.
+- 사용자가 `삭제`를 선택한 경우에만 삭제를 진행한다.
+- 사용자가 `계속 편집`을 선택하면 삭제하지 않고 현재 편집 상태를 유지한다.
+- DB에 이미 존재하는 행은 화면 working table에서 즉시 제거한다.
+- draft에는 삭제 예정 item id를 보관한다.
+- 저장 시 기존 행은 레거시 `CItemOfMarketDAO::DeleteBatchByItemIDs`와 동일하게 `sourceItemId` 기준 `BM_ITEM_OF_MARKET` mapping delete로 DB에 반영한다. 이 delete는 market 조건을 붙이지 않는다. 신규 미저장 행은 DB delete 대상이 아니다.
+- 삭제 저장은 레거시 호환을 우선해 현재 화면 market 하나에만 제한하지 않고, 삭제 item id에 연결된 `BM_ITEM_OF_MARKET` mapping 전체에 적용한다. 레거시 신규 mapping은 현재 로그인 고객의 전체 market에 생성되므로, 삭제한 품목은 같은 고객의 다른 market 품목관리에서도 보이지 않을 수 있다.
+- 취소 시 임시 파일 백업의 baseline과 삭제 전 before snapshot 기준으로 복원한다.
+- 신규 추가/삽입 후 아직 저장되지 않은 행을 삭제하면 임시 목록에서 제거한다.
+- 단일 행 삭제 후 선택 상태는 제거된 행 바로 아래의 다음 표시 행으로 이동한다.
+- 여러 행 삭제 후 선택 상태는 삭제된 표시 행 묶음의 마지막 위치 바로 아래 다음 표시 행으로 이동한다.
+- 다음 표시 행이 없으면 제거된 행 또는 삭제된 표시 행 묶음 바로 위의 이전 표시 행으로 이동한다.
+- 남은 표시 행이 없으면 선택을 비운다.
+- 신규 행 삭제도 같은 선택 이동 기준을 따른다.
+
+5.5 순서 변경
+
+- `순서 변경`은 품목관리 우클릭 메뉴에서 `품목 삭제` 아래, 선택/발행 체크 메뉴 그룹 위에 배치한다.
+- `순서 변경`은 현재 품목 리스트의 표시 순서를 바꾸는 품목 관리 command이므로 `품목 추가`, `품목 삽입`, `품목 삭제`와 같은 그룹으로 취급한다.
+- `순서 변경`은 현재 선택된 브랜드와 라벨크기가 있고, 편집 권한이 있으며, 현재 브랜드/라벨크기/market에 표시되는 품목이 2개 이상일 때 활성화한다.
+- `순서 변경`은 우클릭 위치가 특정 행이 아니어도 실행할 수 있다. 실행 대상은 단일 행이 아니라 현재 브랜드/라벨크기/market에 표시되는 품목 순서이다.
+- `순서 변경` 다이얼로그를 열 때는 현재 draft working table이 아니라 저장된 DB 목록을 기준으로 조회한다.
+- 조회 기준은 현재 화면 market id와 현재 label size id이며, 정렬은 `RICH_ITEM_ORDER`, `RICH_ITEM_ID` 오름차순이다. 레거시 호환을 위해 현재 market에 표시되는 품목만 재정렬하고, 같은 label size지만 현재 market에 연결되지 않은 품목은 이 다이얼로그의 order update 대상에 포함하지 않는다.
+- 다이얼로그에서 `적용`하면 저장 확인 후 현재 다이얼로그 표시 순서대로 `RICH_ITEM_ORDER`를 1부터 재부여하는 batch update를 실행한다.
+- 순서 적용 성공 후에는 품목관리 리스트를 재조회하고, 가능하면 적용 전 선택 item id를 기준으로 선택을 복원한다.
+- 순서 변경 저장은 품목명/주원료/일반 컬럼/발행 체크/market-specific 값을 변경하지 않는다.
+- 미저장 draft 편집 중에는 `순서 변경`을 바로 실행하지 않는다. 이번 구현은 메뉴를 비활성화하고 `저장 완료 또는 변경 취소 확정 후 순서 변경을 실행해 주세요.` 안내를 표시한다.
+
+6. draft 편집 모드 정책
+
+6.1 진입 조건
+
+- 품목 추가, 품목 삽입, 품목 삭제, 품명 수정, 일반 컬럼 수정, 주원료 수정, 엑셀 가져오기 중 하나라도 발생하면 draft 편집 모드로 진입한다.
+- draft 편집 모드에서는 `취소`, `저장` 버튼이 활성화된다.
+- draft 편집 모드에서는 `엑셀 가져오기`, `엑셀 내보내기` 버튼이 비활성화된다.
+- draft 편집 모드의 working table은 원본 `ItemOfMarket.datas`를 직접 mutate하지 않는다.
+- 변경되지 않은 기존 행은 기존 조회 객체 참조를 유지할 수 있지만, 수정되는 기존 행은 대상 행만 새 값 객체 또는 draft row 값으로 교체한다.
+- 신규 행은 기존 행 객체 참조를 재사용하지 않는 별도 draft row로 관리한다.
+- 일반 컬럼 값 조회는 `draft cell value by draftRowKey/itemId` -> 품목관리 전용 scoped column content view model의 `itemId/columnId` 값 -> 빈 값 순서로 수행한다.
+- 신규 행의 일반 컬럼 draft 값은 `draftRowKey + columnId` 키로 관리한다.
+- DB 저장 성공 후에는 `draftRowKey -> 생성 itemId` 매핑을 사용해 신규 행의 column content insert와 품목리스트 재조회 성공 후 선택 복원을 수행한다.
+
+6.2 행 선택
+
+- 추가/삽입 직후 working table의 실제 품목 순서 기준 첫 번째 신규 행을 자동 선택한다.
+- 정렬/필터 상태에서 해당 신규 행이 현재 화면에 보이지 않으면 선택 상태는 유지하되 테이블에는 선택 하이라이트가 표시되지 않는다.
+- 선택 상태는 표시 rowIndex가 아니라 기존 행의 item id 또는 신규 행의 임시 draft row key 기준으로 보관한다.
+- 필터로 보이지 않는 자동 선택 행은 선택 상태만 유지하며, 필터 해제 전까지 삭제/전체 선택 같은 표시 행 기반 액션 대상에는 포함하지 않는다.
+- `전체 선택 해제`는 표시 행 선택과 필터로 보이지 않는 숨은 자동 선택 상태를 모두 해제한다.
+- draft 편집 모드에서도 신규 행과 기존 행을 모두 선택할 수 있다.
+- 추가/삽입 후에도 기존 행의 수정과 삭제가 함께 발생할 수 있으므로, 테이블 클릭/드래그/Shift+클릭/Ctrl+클릭/Ctrl+A 선택 범위를 신규 행으로 제한하지 않는다.
+- 행 선택 제한은 삭제 예정으로 이미 화면에서 제거된 행과 필터링으로 보이지 않는 행처럼 명확한 비활성 대상에 한정한다.
+- 컬럼 정책상 수정 불가한 셀은 행 선택이 아니라 셀 편집 진입만 막는다.
+
+6.3 발행 체크박스
+
+- draft 편집 모드에서는 테이블의 발행 컬럼 체크박스를 비활성화한다.
+- 기존 체크 상태는 그대로 표시만 하고 조작할 수 없게 한다.
+- draft 편집 모드 진입 시 기존 발행 체크 상태는 rowIndex가 아니라 기존 item id 기준 snapshot으로 변환해 표시한다.
+- 신규 추가/삽입 행의 발행 체크 기본값은 unchecked로 한다.
+- 추가/삽입/삭제로 rowIndex가 바뀌어도 기존 발행 체크 표시가 다른 행에 붙지 않도록 item id 기준 snapshot에서 현재 표시 rowIndex로 재매핑한다.
+- 레거시의 발행 체크는 저장 dirty 대상과 별도라서, 반드시 신규 행 선택 제한과 묶어 처리하지 않는다.
+- 레거시와 달리 Flutter에서는 draft 편집 중 발행 체크 변경을 허용하지 않는다.
+- 발행 체크는 품목 편집 저장 대상과 섞지 않기 위해 저장 완료 또는 취소 dialog에서 변경 취소를 확정한 뒤에만 조작 가능하게 한다.
+- 발행 체크는 품목 편집 저장 대상이 아니므로 DB 저장 성공 후 품목리스트 재조회 시 기존 발행 체크 UI 상태는 초기화한다.
+- 필요한 경우 사용자는 저장 완료 또는 취소 dialog에서 변경 취소를 확정한 뒤 다시 발행 체크를 조작한다.
+- 이 동작은 FortuneTable 공용 옵션/플래그로 처리한다.
+- 공용화 시 기존 화면의 체크박스 동작을 깨지 않도록 기본값은 기존과 동일하게 유지한다.
+- 체크박스 controller 자체는 기존처럼 화면 rowIndex 기준 상태를 유지하고, 품목관리 edit controller가 기존 item id 기준 발행 체크 snapshot을 보관한 뒤 현재 표시 rowIndex로 투영한다. 공용 API는 특정 rowIndex의 체크 상태 조회/설정, 여러 rowIndex 일괄 설정, 비활성화 표시를 제공하되 DB 저장 의미를 갖지 않는다.
+
+6.4 팝업메뉴 제한
+
+draft 편집 모드에서도 다음 메뉴는 계속 허용한다.
+
+- `품목 추가`
+- `품목 삽입`
+- `품목 삭제`
+- `전체 선택`
+- `전체 선택 해제`
+- `QR코드 데이터 보기`
+
+draft 편집 모드에서 다음 액션은 신규 행으로 제한하지 않는다.
+
+- `품목 삭제`, `전체 선택`, 행 멀티 선택 관련 일반화 액션은 현재 표시/선택 가능한 전체 행을 대상으로 한다.
+- `전체 선택 해제`는 현재 표시 행 선택과 필터로 보이지 않는 숨은 선택 상태를 함께 해제한다.
+
+- 필터로 보이지 않는 행은 전체 선택/삭제 대상에 포함하지 않는다.
+- 삽입 위치와 order 재계산 기준은 현재 화면 정렬/필터 표시 순서가 아니라 working table의 실제 품목 순서 기준으로 처리한다.
+- 일반 draft 저장에서 추가/삽입/삭제가 반영될 때는 전체 working table 기준으로 order를 연속 재계산한다. 이는 저장된 DB 목록을 즉시 갱신하는 별도 `순서 변경` command와 구분한다.
+- `RICH_ITEM_ORDER`는 `BM_RICH_ITEM` item-level 값이므로 현재 화면 순서 저장은 같은 label size item을 공유하는 다른 market의 표시 순서에도 영향을 줄 수 있다. market별 독립 order는 이번 기능정의에서 제외한다.
+- `QR코드 데이터 보기`는 현재 표시/선택 가능한 단일 행 기준 조회 기능이며, draft 편집 중에도 현재 draft row 값 기준으로 실행할 수 있다. 이 메뉴는 dirty 상태를 만들지 않고 저장/취소 대상에도 포함하지 않는다.
+- `QR코드 데이터 보기`는 우클릭한 위치가 실제 품목 행이 아니거나, 필터/삭제 등으로 대상 행을 확인할 수 없으면 비활성화한다.
+- QR/텍스트연동 token 치환에서 제조일자/소비기한/소비시한 같은 날짜형 컬럼은 레거시 호환을 위해 라벨 날짜 타입 설정의 표시 포맷이 아니라 `DATE_FORMAT_NONE` 기준 값으로 계산한다. 라벨 날짜 타입 설정은 출력 미리보기/라벨 출력의 일반 날짜 표시에는 적용하지만, QR/텍스트연동 payload token 치환에는 적용하지 않는다.
+- `순서 변경`은 저장된 DB 품목 순서를 기준으로 즉시 order update를 수행하므로 draft 편집 중 허용 메뉴에 포함하지 않는다.
+- 현재 `ItemManage`는 표시 컴포넌트라 편집 권한, draft dirty, 저장 중, forceReloadRequired, 현재 브랜드/라벨 상태를 직접 소유하지 않는다. 따라서 `순서 변경`을 포함한 우클릭 메뉴 command의 enabled 상태와 실행 callback은 상위 품목관리 controller/view model에서 계산해 `ItemManage`로 주입하거나, 메뉴 모델 자체를 상위에서 내려주는 구조로 구현한다.
+
+draft 편집 모드에서는 다음 메뉴를 비활성화한다.
+
+- `순서 변경`
+- `블럭 선택 발행 체크`
+- `블럭 선택 발행 체크 해제`
+- 하단 버튼 `엑셀 가져오기`
+- 하단 버튼 `엑셀 내보내기`
+
+7. 테이블 컬럼 편집 정책
+
+7.1 주원료 컬럼
+
+- 주원료 컬럼은 직접 편집하지 않는다.
+- 추가/삽입된 신규 행에서도 주원료 컬럼 직접 편집은 막는다.
+- 주원료 컬럼에는 현재 관리 객체의 주원료 plain text를 표시한다.
+- 주원료 수정은 플로팅 창 `주원료 및 함량` 탭에서 수행한다.
+
+7.2 나머지 컬럼
+
+- 주원료 외 컬럼은 컬럼 타입에 따라 편집 방식을 결정한다.
+- 일반 텍스트/숫자 계열은 현재 Flutter 테이블의 기본 셀 편집 진입 방식으로 편집한다.
+- 선택형 컬럼은 드롭다운을 사용한다.
+- 날짜, 바코드, GS1 등 특수 타입은 레거시 검증/보정 규칙을 참고하되, 현재 Flutter 구현에서는 저장 전 검증 계층에서 더 안전하게 검증한다.
+- 바코드 셀 편집에서 EAN-13/UPC-A/EAN-8 컬럼의 `TColumn.useBarcodeCheckDigit`가 켜져 있으면 레거시처럼 의미 보존 check digit 보정 결과를 draft와 화면에 반영하고, 사용자가 저장하면 보정된 draft 값을 DB 저장 대상으로 사용한다.
+- 바코드 check digit 자동 보정으로 draft/화면/DB 저장값까지 바꾸는 이번 구현의 범위는 EAN-13/UPC-A/EAN-8로 닫는다. 이 범위는 `BarcodeDataHelper`의 의미 보존 check digit 추가/수정 규칙을 재사용하되, 길이 부족/초과를 0 padding 또는 truncation으로 맞춘 값은 셀 편집 자동 보정 저장값으로 사용하지 않는다. EAN-13/UPC-A/EAN-8 외 타입은 check digit 자동 보정 저장을 수행하지 않는다. 해당 타입에서 check digit 옵션 또는 레거시 전용 check digit 보정이 요구되는 입력만 저장 전 검증 오류로 처리하며, Code128/QR/DataMatrix 등 check digit 자동 보정과 무관한 일반 barcode/QR 값은 각 타입의 기존 형식 검증 규칙을 따른다. ITF 셀 편집 저장값은 숫자만 허용하고 짝수 길이만 유효로 본다. 홀수 길이 ITF 값을 셀 편집에서 자동 left-pad해 draft/DB 저장값으로 바꾸지 않고 저장 전 검증 오류로 표시한다. ITF 홀수 길이 left-pad는 preview/output 렌더링 payload용 best-effort 보정에만 사용할 수 있다.
+- 출력 미리보기/실제 출력에서 수행하는 `BarcodeDataHelper.normalizeForPrint` 보정은 저장 액션이 아니므로 품목 셀 원본값을 자동 변경하지 않는다. 즉 셀 편집 보정은 draft 저장값을 바꾸고, preview/output 보정은 렌더링 payload만 바꾼다.
+- 바코드/유통기한/유통시한/제조일자 변경 시 레거시의 타임바코드 재계산 규칙을 draft와 화면에 반영한다.
+- time barcode 재계산은 현재 Flutter에 품목관리용 공용 helper가 없으므로 `TColumn.timeBarcodeType`, 날짜/시간/바코드 기준 컬럼, 레거시 계산 규칙을 입력으로 받는 품목관리 전용 recalculator를 추가한다.
+- 타임바코드 재계산에 필요한 날짜/시간/바코드 기준값이 누락되거나 유효하지 않으면 저장 전 검증에서 차단한다.
+- 타임바코드 재계산 결과가 바뀐 바코드 컬럼도 dirty cell로 저장 대상에 포함한다.
+- GS1 AI는 레거시처럼 포맷 검사를 수행하되, 실패한 값은 draft에 반영하지 않고 경고를 표시한다.
+- GS1 AI 검증/조합은 현재 Flutter에 품목관리용 공용 validator가 없으므로 `TColumn.gs1ai`, `formatOption`, `useGS1Code`, `containColumns`를 입력으로 받는 validator/helper를 추가한다.
+- GS1 AI 포맷 실패 시 테이블 셀 표시는 직전 유효값으로 되돌린다.
+- 날짜/제조일자/유통기한 계열은 입력 중 draft에 반영하되, 저장 전 검증에서 형식/범위 오류가 남아 있으면 저장을 차단하고 오류 상태와 편집 상태를 유지한다.
+- 숫자 계열과 `10*8` 자동 계산 대상 컬럼은 숫자 변환 실패, 0 나눗셈, 필수값 누락을 저장 전 검증에서 차단한다.
+- `10*8` 자동 계산으로 변경된 `매수`, `발행수량`도 draft와 화면에 반영하고 저장 대상 cell에 포함한다.
+- 신규 행의 품명 필수 검증은 레거시 확인 사항이 아니라 현재 Flutter의 저장 전 검증 정책으로 적용한다.
+- 필수 일반 컬럼이 있으면 저장 전 검증에서 누락을 차단한다.
+- 필수 일반 컬럼 정의는 현재 Flutter 컬럼 모델의 `TColumnBase.useMissingKeywordCheck` 값을 따른다.
+- 일반 동적 컬럼은 `TColumnDAO`가 `BM_RICH_CHECK_COLUMNS.RICH_CHECK_YN`을 `RICH_CHECK_YN`으로 조회하고, `TColumn.fromMap`이 이를 `useMissingKeywordCheck`로 매핑한다.
+- 품명/주원료/저울중량/최종가격 같은 고정 특수 컬럼은 `TColumnSpecial.selectByLabelSizeId`가 `BM_RICH_CHECK_COLUMNS.RICH_CHECK_YN`을 조회해 `TColumnBase.useMissingKeywordCheck`로 매핑한다.
+- 레거시 `BM_RICH_COL_MIN.RICH_MIN_CHECK`는 라벨 편집 화면에서 최소/필수 체크 표시와 동기화에 사용되던 설정 테이블로 참고하되, 현재 Flutter 저장 전 필수 검증의 직접 기준은 `BM_RICH_CHECK_COLUMNS.RICH_CHECK_YN`을 거쳐 매핑된 `useMissingKeywordCheck`로 한다.
+- `useMissingKeywordCheck`가 false인 일반 컬럼은 필수로 보지 않는다.
+- 단, 신규 행 품명은 Flutter 저장 전 검증 정책으로 항상 필수로 본다.
+- 이미지 타입은 더블클릭으로 BMP 파일 선택창을 열고, 선택된 파일명에서 `.bmp` 확장자를 제외한 값을 draft에 반영한다.
+- 레거시와 동일하게 이미지 타입에는 선택된 BMP의 확장자 없는 파일명만 저장하고, 파일 경로는 저장하지 않는다.
+- DB에는 BMP 경로가 아니라 확장자를 제외한 파일명만 저장하는 레거시 호환 정책을 유지한다. 동일 파일명이 다른 경로에 존재할 수 있으므로, 이미지 파일 선택 시 `경로는 저장되지 않고 파일명만 저장됩니다. 같은 파일명이 여러 위치에 있으면 출력 환경에 따라 다른 이미지가 사용될 수 있습니다.` 의미의 안내를 표시한다.
+- 각 셀 수정은 즉시 DB에 저장하지 않고 임시 편집 상태에 반영한다.
+
+8. 플로팅 창 `주원료 및 함량` 탭
+
+8.1 툴바 저장 제거
+
+- `주원료 및 함량` 시트 내부 툴바의 저장 버튼은 제거한다.
+- 내부 툴바 저장 버튼 활성화 로직은 제거한다.
+- 최종 저장은 품목관리 하단의 `저장` 버튼 하나로 통합한다.
+
+8.2 편집 반영
+
+- 주원료 시트 셀 변경 이벤트에서 commit 완료된 값은 즉시 관리 객체의 draft에 반영한다.
+- 편집기가 아직 commit하지 않은 활성 셀 값은 저장, 선택 행 변경, 탭 이동 차단 판단 직전에 반드시 commit/flush한 뒤 draft에 반영하고 검증한다.
+- 반영 시 테이블의 주원료 컬럼에도 plain text를 표시한다.
+- `RICH_ELEMENT_SHEET` 기반 sheet payload와 plain text를 함께 관리한다.
+- 기존 `RICH_ELEMENT_RTF`는 신규 저장 포맷의 주 저장 대상이 아니며, 기존 값이 있으면 마이그레이션/호환용으로 삭제하지 않고 유지한다.
+- 새 주원료 편집 결과의 기준 저장 대상은 `RICH_ELEMENT_SHEET`와 plain text이다.
+
+8.3 선택 행 변경 시 주원료 에디터 전환
+
+- 선택 행 변경 전 현재 행의 활성 주원료 편집 셀을 commit/flush한다.
+- flush된 주원료 plain text와 `RICH_ELEMENT_SHEET`는 현재 행 draft에 반영한다.
+- 그 다음 새 선택 행의 주원료 draft 값을 우선 로드한다.
+- 새 선택 행에 주원료 draft가 없으면 변경 대상 before snapshot 또는 DB 조회/working row 값을 에디터에 로드한다.
+
+8.4 출력내용 미리보기 탭 제한
+
+- 임시 편집 중에는 플로팅 창의 `출력내용 미리보기` 탭 선택을 막는다.
+- 저장 완료 또는 취소 dialog에서 변경 취소를 확정한 뒤에만 출력 미리보기로 이동할 수 있게 한다. 단순히 `취소` 버튼을 눌러 확인 dialog가 열린 상태나 `계속 편집`을 선택한 상태는 여전히 draft 편집 중으로 본다.
+- 이유: 미저장 주원료/셀 변경분과 출력 미리보기 기준 데이터가 달라지는 혼선을 막기 위함이다.
+- 현재 Flutter 구현의 출력 미리보기는 라벨 sheet의 barcode image 객체를 유지한 채 `extraFields['barcodeText']`만 품목 값으로 치환한다.
+- 출력 미리보기에서 바코드 형식까지 품목 컬럼 설정에 맞춰 다시 렌더링해야 하므로, 바코드 치환 시 `barcodeText`뿐 아니라 `barcodeFormatId`, `barcodeFormatLabel`, `barcodeShowText` 같은 최소 표시 metadata도 함께 갱신한다. `barcodeModuleScale`, `barcodeBarHeight`, quiet-zone, human-readable font, rotation, 위치/크기 같은 template geometry/style metadata는 기본적으로 기존 object 값을 보존한다.
+- `TColumn.barcodeType`을 FortuneSheet barcode format id로 변환하는 품목관리용 helper를 추가한다. 예: `Code128 -> code128`, `CodeEAN13 -> ean13`, `CodeEAN8 -> ean8`, `UpcA -> upca`, `Itf -> itf`, `Code39 -> code39`, `Code93 -> code93`, `QrCode -> qrCode`, `MicroQrCode -> microQRCode`, `DataMatrix -> dataMatrix`.
+- 현재 모델의 `BarcodeType.CodeEAN8`은 `dbName`이 `CODE128`로 정의되어 있어 `_barcodeTypeFromDb` 경로에서 EAN-8이 Code128로 매핑될 수 있다. 이는 출력 미리보기 전용 문제가 아니라 품목관리 바코드 보정/검증/미리보기/출력 전반에 영향을 주는 공용 바코드 모델 문제이므로, `ItemCodeDataResolver` 구현 전에 운영 DB의 `RICH_BARCODE_TYPE` 실제 값을 확인하고, `EAN8`/`EAN-8`/`CodeEAN8` 같은 허용 입력이 `CodeEAN8`로 들어가며 `CODE128`과 구분되는 공용 normalize fixture 테스트를 추가한다. 운영 DB에 EAN-8 샘플 값이 없더라도 이 fixture 테스트는 생략하지 않는다. 현 구현의 `CodeEAN8(9, 'CODE128')` 상태를 그대로 둔 채 resolver에서만 우회 처리한 구현은 완료로 보지 않는다.
+- 바코드 값은 형식 변경 전에 `BarcodeDataHelper.normalizeForPrint`가 지원하는 EAN-13/UPC-A/EAN-8/ITF 범위의 보정 규칙을 우선 적용한다. 이 보정은 preview/output payload 산출용이며, 사용자가 바코드 셀을 편집해 check digit 보정 draft를 저장하는 경우가 아니라면 DB 원본 셀 값을 자동 변경하지 않는다. 단, fallback 여부 판단에는 `normalizeForPrint(strict: false)`의 pad/truncate best-effort 결과를 그대로 사용하지 않는다. resolver는 먼저 raw 값과 check digit 추가/수정으로 의미 보존 가능한 값만 strict validation 후보로 평가하고, 길이 부족/초과를 0 padding 또는 truncation으로 맞춘 값은 선택 형식 유효 판정에 사용하지 않는다.
+- `BarcodeDataHelper.normalizeMeaningPreservingForPrint`를 공용 API로 추가한다. 이 helper는 EAN-13/UPC-A/EAN-8의 check digit 추가/수정처럼 원본 숫자 본문을 보존하는 보정만 수행하고, 길이 부족/초과를 맞추는 0 padding/truncation은 수행하지 않는다. ITF는 숫자만 허용하고 짝수 길이일 때만 선택 형식 유효로 본다. 현 `itf()`의 홀수 길이 left-pad는 preview/output 렌더링용 best-effort 보정으로만 사용하고, 선택 형식 유효성 및 fallback 판정에는 사용하지 않는다. `ItemCodeDataResolver`의 선택 형식 유효성 및 fallback 판정은 resolver 내부 중복 규칙이 아니라 이 helper를 호출한다.
+- 선택된 column 형식에서 값이 유효하지 않으면 가능한 형식으로 fallback을 허용한다. `preserveTemplateBarcodeFormat=false` object의 후보 평가 순서는 품목 column 형식, 공용 fallback 형식 순서로 고정한다. 일반 1D barcode column은 `code128`, QR column은 `qrCode`를 공용 fallback으로 사용한다. GS1 barcode column은 FNC1/AI 의미 보존이 검증되지 않은 일반 fallback 대상에서 제외하고 오류로 표시한다. `preserveTemplateBarcodeFormat=true` object만 template 형식 유지가 명시된 예외이므로 fallback으로 `barcodeFormatId`를 바꾸지 않는다. 이 경우 template 형식으로 렌더링할 수 없으면 해당 object를 오류로 표시하고, `barcodeText` 외 metadata는 유지한다. fallback을 사용하면 preview/output metadata의 실제 `barcodeFormatId`는 fallback 형식으로 기록하고, 출력 미리보기 탭 상단에는 `선택한 바코드 형식에 맞지 않아 대체 형식으로 미리보기/출력합니다.` 의미의 경고를 표시한다. 어떤 fallback 형식으로도 렌더링할 수 없으면 해당 barcode object 위치의 오류 placeholder와 탭 상단 오류 목록으로 오류를 표시한다.
+- 라벨 template에 사용자가 직접 지정한 barcode object 형식을 무조건 덮어쓰면 의도한 label design이 바뀔 수 있으므로, FortuneSheet image의 내부 `id`가 아니라 `extraFields['barcodeObjectId']`(`fortuneBarcodeObjectIdExtraKey`)가 품목 컬럼 keyword와 매칭되고 해당 column이 바코드/QR 계열일 때만 column 설정으로 형식을 재설정한다.
+- template barcode object 형식 유지 옵션은 이번 구현 범위에 포함한다. object별 FortuneSheet barcode image `extraFields`에 `preserveTemplateBarcodeFormat` boolean metadata를 추가하고 기본값은 `false`로 둔다. 이 값이 `true`인 object는 `barcodeText`만 resolver 값으로 갱신하고, `barcodeFormatId`, `barcodeFormatLabel`, `barcodeShowText`, human-readable 관련 표시 metadata, 위치/크기/회전 같은 template barcode metadata는 유지한다. 새 metadata 저장을 위해 라벨 시트 저장 feature key는 `sheet.images.preserveTemplateBarcodeFormat`으로 고정해 `_labelSheetSaveFeatureKeys`에 추가하고, image sanitizer allow-list에는 `preserveTemplateBarcodeFormat` key를 추가한다. allow-list 누락 시 저장/불러오기 과정에서 metadata가 조용히 제거될 수 있으므로, workbook save normalize/migrate 경로와 `.lms`/`.xlsx` import round-trip 검증까지 같은 완료 조건으로 묶는다. `.xlsx` round-trip 검증은 customXml의 image metadata 파싱/복원까지 포함하며, cell/run metadata만 보존하는 상태는 완료로 보지 않는다.
+- 바코드/QR 계열 판정은 현재 구현처럼 keyword 문자열에 `barcode`/`qrcode`가 포함되는지로 판단하지 않고, `TColumn.columnType.code`가 `TYPE_BARCODE`, `TYPE_QR_CODE`, `TYPE_GS1_BARCODE` 같은 코드인지로 판단한다.
+- `TYPE_QR_CODE`는 QR 전용 `qrCodeCreateType`, `userDefineQRData`, `natriumJoinString`, `userDefineQRText`, `showQRCodeText` 설정으로 문자열과 표시 metadata를 산출한다. column의 `barcodeType`이 QR/MicroQR/DataMatrix 계열로 명시된 경우에는 해당 형식을 사용하고, 그렇지 않으면 QR column의 기본 `barcodeFormatId`는 `qrCode`로 둔다.
+- `TYPE_GS1_BARCODE`는 단순 `TColumn.barcodeType` 직접 매핑만으로 처리하지 않는다. `TColumn.gs1ai`, `formatOption`, `useGS1Code`, `containColumns`, `showGS1Code`를 사용하는 GS1 조합/검증 helper 결과를 `barcodeText`로 사용하고, GS1 출력 정책에 맞는 `barcodeFormatId`와 표시 metadata를 산출한다.
+- GS1 바코드의 `barcodeFormatId`는 해당 column의 `barcodeType`을 FortuneSheet format id로 변환한 값을 사용한다. 단, FNC1/AI 표현처럼 일반 ZXing/FortuneSheet 렌더러나 EZPL native 출력에서 의미 보존이 검증되지 않은 GS1 전용 표현은 일반 fallback 대상에서 제외하고 preview/저장 전 검증 오류로 표시한다.
+- 형식 재설정 후에도 barcode image의 위치, 크기, 회전, module scale, bar height 같은 geometry는 template 값을 기본으로 보존한다. 하단 숫자/텍스트 표시 여부는 1D 바코드는 `TColumn.showBarcodeNum`, QR 계열은 `TColumn.showQRCodeText`를 우선 반영하되, 이 값을 `barcodeShowText` 등 FortuneSheet 표시 metadata로 변환하는 별도 helper에서 일관되게 산출한다.
+
+9. 저장 정책
+
+9.1 저장 대상
+
+저장 대상은 관리 객체의 임시 편집 상태이다.
+
+- 신규 추가 행
+- 신규 삽입 행
+- 엑셀 가져오기로 생성된 신규 행
+- 삭제 예정 기존 행
+- 수정된 기존 행
+- 수정된 신규 행
+- 품명 변경
+- 주원료 plain text
+- 주원료 `RICH_ELEMENT_SHEET`
+- 일반 컬럼 값 변경
+- 추가/삽입/삭제/엑셀 가져오기로 품목 순서가 바뀐 경우 변경된 order 값
+
+9.2 DB 반영 방식
+
+- 레거시 품목관리 저장 버튼의 저장 흐름을 참고하되, 현재 앱의 DAO/모델 구조로 구현한다.
+- 저장 구현 전 선행 순서는 `ItemOfMarketDAO` 표시 alias 수정과 raw snapshot DTO/query 추가 -> `MarketDAO.selectByCustomerId(customerId)` 추가 -> 현재 화면 item id 집합 기준 scoped column content 조회/view model 추가 -> `DbIsolateAction.transaction` 단일 transaction action 추가 -> schema/trigger capability probe 추가 -> 품목관리 저장 DAO 구현 순서로 진행한다.
+- 저장 구현 전제: 현재 `DbClient`/`DbIsolateAction`에는 transaction API가 없으므로, `BEGIN`/`COMMIT`/`ROLLBACK`을 보장하는 isolate 단일 transaction action을 먼저 추가한다. 단일 SQL batch transaction은 driver transaction action으로 처리하기 어려운 제한적 fallback으로만 사용한다.
+- 품목관리 저장은 Dart/UI 레이어에서 여러 `DbClient.writeData...` 호출을 `BEGIN`/`COMMIT` 사이에 순차 조합하는 방식으로 구현하지 않는다. 하나의 isolate action 안에서 `BEGIN`/`COMMIT`/`ROLLBACK`이 완료되어야 하며, fallback을 쓰는 경우에도 하나의 SQL batch 안에서 완료되어야 한다.
+- transaction API는 MSSQL/ODBC placeholder 처리와 `@@TRANCOUNT`/`@@ROWCOUNT` 같은 SQL Server 시스템 변수를 깨지 않도록 구현한다.
+- DB 트랜잭션 시작 전에 임시 편집 상태 전체를 저장 전 검증 계층으로 검사한다.
+- 저장 전 검증 실패 시 DB 반영을 시작하지 않고, 오류 셀 위치와 사유를 표시하며 편집 상태와 임시 파일 백업을 유지한다.
+- 저장 전 검증 실패 시 DB 트랜잭션을 시작하지 않고 UI 잠금을 해제한다.
+- 저장은 하나의 트랜잭션으로 처리한다.
+- 저장은 현재 Flutter의 품목/컬럼 DAO와 DB 테이블 구조 기준으로 수행하며, 레거시 `RICH_IS_APPLY`/`RICH_APPLY_DATE` 기반 update item apply 구조는 새로 만들지 않는다.
+- 신규 insert, 기존 update, delete, order update, column content update를 한 트랜잭션 안에서 반영한다.
+- 엑셀 가져오기 draft는 기존 행의 `BM_ITEM_OF_MARKET` mapping delete, 엑셀 신규 행 insert, column content insert, order update를 같은 트랜잭션 안에서 반영한다.
+- 신규 `BM_RICH_ITEM` insert는 `OUTPUT INSERTED.RICH_ITEM_ID` 또는 임시 테이블 방식으로 `draftRowKey`, import row index, 생성 item id를 같은 transaction 안에서 매핑한다.
+- 이 생성 id 매핑은 신규 행 column content insert, `BM_ITEM_OF_MARKET` mapping insert, 품목리스트 재조회 성공 후 선택 복원에 공통으로 사용한다.
+- `AFTER_INSERT_ITEM` trigger가 존재할 수 있는 테이블에는 direct `OUTPUT INSERTED...` resultset을 사용하지 않고, `OUTPUT INSERTED... INTO #InsertedItems` 또는 table variable 방식으로 생성 id를 수집한다.
+- 신규 `BM_RICH_ITEM` insert 시 `RICH_PRICE`는 레거시 신규 `CItem` 기본값과 동일하게 `0`을 명시적으로 저장한다.
+- 신규 item id가 생성되면 `BM_ITEM_OF_MARKET` mapping은 레거시 `InsertBatch`와 동일하게 현재 로그인 고객의 모든 market에 생성한다.
+- 신규 item의 `BM_ITEM_OF_MARKET` mapping 생성에는 편집 세션 metadata의 `targetMarketIds`와 row draft의 `newMappingDefaults`를 사용한다. 현재 화면 market의 `currentMarketSnapshot`은 저장 대상 market 목록이나 신규 mapping 기본값과 혼동하지 않는다.
+- `newMappingDefaults`는 market id를 제외한 mapping 기본값 template이며, 저장 시 `targetMarketIds`의 각 market id와 합성해 `BM_ITEM_OF_MARKET` row를 생성한다. 현재 화면 market id가 들어간 완성 객체를 모든 market에 복제하지 않는다.
+- `targetMarketIds`는 1만 행에서도 row별로 반복 저장하지 않고 편집 세션/저장 batch metadata에 한 번만 보관한다.
+- `MarketDAO.selectByCustomerId(customerId)`는 레거시 `CMarketDAO::SelectByCustID`와 동일하게 `BM_MARKET.RICH_CUSTOMER_ID = customerId` 조건만 사용해 신규 mapping 생성 대상 `targetMarketIds`를 산출한다. `customerId` 인자는 로그인 세션 customer id에서 전달받으며, 현재 화면 market id나 label size/brand 표시값에서 역추정하지 않는다. 레거시에는 이 경로에서 market 비활성/숨김/삭제 상태 필터가 확인되지 않았으므로 Flutter도 추가 상태 필터를 임의로 넣지 않는다.
+- 일반 draft 저장의 `mapping delete`는 삭제 예정 기존 row의 `sourceItemId` 집합에 대해 레거시 `CItemOfMarketDAO::DeleteBatchByItemIDs`와 동일하게 `RICH_ITEM_ID` 조건만으로 적용한다. 즉 기존 행 삭제는 현재 화면 market 하나나 `targetMarketIds` 교집합으로 제한하지 않고, 해당 item id의 `BM_ITEM_OF_MARKET` mapping 전체를 제거한다. 수정/추가만 있는 일반 저장에서는 기존 row의 `BM_ITEM_OF_MARKET` mapping을 제거하지 않는다.
+- 엑셀 전체 교체 저장의 `mapping delete`는 import 직전 current market의 전체 working table을 구성하던 기존 item id 집합에 대해 레거시와 동일하게 `RICH_ITEM_ID` 조건만으로 적용한다. 이 집합은 표시 필터/정렬로 숨겨진 행도 포함하며, 사용자가 화면에서 보고 있던 일부 보이는 행만을 의미하지 않는다. 단, 기존 `BM_RICH_ITEM` 물리 delete는 이번 품목관리 기능에서 수행하지 않는다.
+- 삭제와 엑셀 전체 교체의 기존 item mapping 제거는 레거시처럼 item id 기준 전체 mapping delete로 확정한다. 저장 확인 dialog에는 `같은 고객의 다른 market 품목관리에서도 해당 품목이 보이지 않을 수 있습니다.` 의미를 포함한다. 현재 화면 market에만 적용하는 정책으로 바꾸면 레거시와 달라지므로 mapping delete 범위, 취소 baseline/checksum, 재조회/선택 복원 기준을 함께 재설계해야 한다.
+- 이번 품목관리 기능에서는 기존 item id에 붙은 `BM_RICH_COL_CONTENT`, barcode/image/element content 등 item 참조 child row도 삭제하지 않는다. 기존 item과 child row orphan 정리는 별도 유지보수 작업으로 분리한다.
+- 기존 행의 market-specific 값은 이번 구현에서 update하지 않는다. 품목관리 저장 대상은 품명, 주원료, 일반 컬럼, order, 신규 추가/삽입, 삭제/전체 교체 mapping 반영으로 제한한다.
+- `BM_ITEM_OF_MARKET.RICH_ADDITIONAL_ITEM_ID`와 판매/할인 시작·종료일은 nullable 저장값으로 처리하며, Flutter 조회 모델의 `0`/`DateTime.now()` fallback 값을 DB 저장값으로 재사용하지 않는다.
+- 기존 mapping을 보존/복원할 때는 `RICH_ADDITIONAL_ITEM_ID`에 Flutter `AdditionalItem.AdditionalItemId`를 사용하고, `AdditionalItem.itemId`와 혼동하지 않는다.
+- 저장 DAO 구현 전 schema/trigger 확인 결과는 `ItemSaveSchemaCapabilities` 같은 내부 구조로 저장 DAO에 전달한다. 최소 확인값은 `hasRichElementSheet`, `insertTriggerCreatesColumnContent`, `insertTriggerCreatesBarcodeOrImageRows`, `insertTriggerCreatesElementContent`, `insertTriggerSupportsMultiRow`이다. 설치처/버전별 DB 차이를 고려해 DB 연결 또는 품목관리 저장 DAO 초기화 시 현재 DB 기준으로 probe하고, 같은 연결/세션에서는 capability 값을 캐시해 저장 DAO가 참조한다.
+- 품목관리 로드 전 현재 운영 DB의 `BM_RICH_ITEM.RICH_ELEMENT_SHEET` 컬럼 존재 여부를 먼저 capability probe한다. 현재 `ItemOfMarketDAO.SelectSql`은 `RICH_ELEMENT_SHEET`를 직접 참조하므로, `hasRichElementSheet=false`이면 해당 SELECT를 실행하지 않는다. 컬럼이 없을 때 이번 구현의 필수 완료 기준은 기존 SELECT 미실행, DB migration 안내 화면 전환, 품목관리 테이블 미오픈, 편집 진입 액션과 저장 버튼 비활성화이다. 조회 전용 테이블을 제공하는 read-only fallback SELECT는 선택 구현이며, 구현하는 경우에만 `RICH_ELEMENT_RTF`만 참조하는 별도 SELECT를 먼저 성공시킨 뒤 품목관리 테이블을 조회 전용으로 표시한다. fallback SELECT가 없거나 실패하면 테이블을 열지 않는다. read-only fallback 성공 상태에서도 품목 추가/삽입/삭제/품명 수정/일반 컬럼 수정/주원료 수정/엑셀 가져오기 같은 편집 진입 액션 전체와 저장 버튼을 비활성화한다. 엑셀 내보내기와 QR코드 데이터 보기처럼 DB 저장을 만들지 않는 조회/내보내기 동작은 read-only fallback 조회가 성공한 경우에만 허용할 수 있다. 호환 저장 정책을 새로 만들지 않고, 컬럼 부재 환경 지원은 별도 DB migration/배포 작업으로 분리한다.
+- 저장 DAO 구현 전 고객별 market id 목록 조회를 위해 `MarketDAO.selectByCustomerId(customerId)`를 추가한다.
+- 저장/편집 구현 전 `ItemOfMarketDAO.SelectSql`의 `P1_LABELSIZE_WIDTH`/`P1_LABELSIZE_HEIGHT` alias와 `ItemOfMarket.fromMap`의 `P1_LABEL_SIZE_WIDTH`/`P1_LABEL_SIZE_HEIGHT` key 불일치를 표시 모델 기준으로 수정한다. 품목관리 raw snapshot DTO 조회도 이 수정과 별개로 DB nullable 값을 보존하는 별도 projection을 사용한다.
+- `TColumnContentDAO` 조회는 현재 화면 market item id 집합을 SQL에서 제한하는 scoped DAO를 추가한다. 1만 행을 고려해 scoped 조회는 단순 대량 `IN (@p1, @p2, ...)` parameter 나열을 금지하고, temp table/table variable 또는 DAO 상수 chunk 단위 조회 중 하나로 item id 집합을 전달한다. temp table/table variable 방식은 scoped 조회 DAO의 단일 isolate action 또는 단일 SQL batch 안에서 id 적재, 조회, 정리까지 완료하며, 여러 `DbClient.query...` 호출로 나누지 않는다. chunk 조회 fallback도 DAO 단일 action 안에서 실행하고 결과는 `columnId + itemId` key로 dedupe/merge한다. chunk 사이 외부 DB 변경 감지는 best-effort이며, 편집 시작 baseline checksum으로 보조 감지한다. 조회 후 품목관리 전용 scoped cache/view model 필터는 테스트 보조 전용이며 운영 fallback으로 사용하지 않는다. 별도 합의 없이 전역 `TColumnContent.datas`의 label-size 전체 cache 의미를 current market scope로 변경하지 않는다.
+- 품목관리 로드 순서는 `ItemOfMarketDAO.selectByItemOfMarketAndLabelSizeId`로 현재 화면 row와 item id 집합을 먼저 산출한 뒤, 그 item id 집합을 SQL 조건으로 전달하는 `TColumnContentDAO` scoped 조회를 수행하도록 조정한다. 조회 후 필터는 테스트 보조 전용이며 운영 fallback으로 사용하지 않는다.
+- 품목관리 저장 DAO 구현 전 현재 DB의 `AFTER_INSERT_ITEM` trigger 존재 여부와 동작을 확인한다.
+- trigger body를 조회해 신규 item insert 시 자동 생성되는 대상 테이블을 실제 DB 기준으로 확인한다. 레거시 스키마 버전에 따라 `BM_RICH_COL_CONTENT`, barcode/image row, `BM_RICH_ELEMENT_CONTENT` 등 자동 생성 대상이 달라질 수 있다.
+- trigger가 신규 item의 column content/barcode/image/element content row를 자동 생성하면, 저장 DAO는 같은 row를 중복 insert하지 않고 trigger가 만든 row를 update/upsert한다.
+- trigger가 다중 insert를 안전하게 처리하지 못하면 신규 item insert는 같은 transaction 안에서 trigger 안전성이 보장되는 단건 insert 반복으로 구현한다. trigger 우회/대체 batch는 운영 DB 무결성/감사/자동 생성 정책을 바꿀 수 있으므로 DBA 또는 스키마 변경 확정 후 기능정의 밖의 DB 정책 작업으로 분리한다.
+- 전체 교체 저장의 delete/insert 대상 테이블과 순서는 명시적으로 구현한다. 요청서에서 `delete`는 문맥별로 `draft row delete`, `mapping delete`, `physical item delete`, `child row cleanup`으로 구분한다.
+- 일반 draft 저장 권장 순서: 신규 `BM_RICH_ITEM` insert와 생성 id 매핑 -> 신규 `BM_ITEM_OF_MARKET` mapping insert(`targetMarketIds` 전체) -> 기존/신규 column content update/upsert -> 삭제 예정 기존 row의 `sourceItemId` 기준 `BM_ITEM_OF_MARKET` mapping delete(market 조건 없음) -> 저장 후 current market query에 남을 기존/신규 item id 집합 order update.
+- 엑셀 전체 교체 저장 권장 순서: import 직전 기존 item id 기준 `BM_ITEM_OF_MARKET` mapping delete(market 조건 없음) -> 신규 `BM_RICH_ITEM` insert와 생성 id 매핑 -> 신규 `BM_ITEM_OF_MARKET` mapping insert(`targetMarketIds` 전체) -> 신규 column content update/upsert -> 저장 후 current market query에 남을 신규 item id 집합 order update.
+- order update 대상에는 mapping 제거 후 남는 기존 `BM_RICH_ITEM` orphan item을 포함하지 않는다.
+- `순서 변경` 적용 확인 dialog에는 `현재 market에 표시되는 품목을 재정렬하지만 저장 컬럼은 BM_RICH_ITEM.RICH_ITEM_ORDER이므로 같은 label size item을 공유하는 다른 market 표시 순서에도 영향이 갈 수 있습니다.` 의미를 포함한다. market별 독립 순서가 필요하면 이번 기능정의가 아니라 별도 order 저장 구조 설계로 분리한다.
+- 이번 품목관리 기능에서는 기존 `BM_RICH_ITEM` 물리 delete를 수행하지 않는다.
+- 기존 `BM_RICH_ITEM`, `BM_RICH_COL_CONTENT`, `BM_RICH_BARCODE`, `BM_RICH_IMAGE`, `BM_RICH_PRINT_LOG` 등 item 참조 테이블의 orphan 정리는 별도 유지보수/정리 작업으로 분리한다.
+- 테이블별 action 기준: 기존 삭제 row는 `BM_ITEM_OF_MARKET` mapping delete만 수행하고 `BM_RICH_ITEM`/child row는 no-op, 기존 수정 row는 `BM_RICH_ITEM`/현재 item id의 column content update/upsert, 신규 row는 `BM_RICH_ITEM` insert와 `BM_ITEM_OF_MARKET` insert 및 column content update/upsert, `BM_ADDITIONAL_ITEM`은 no-op이다.
+- `BM_ADDITIONAL_ITEM`은 이번 품목관리 신규/엑셀 저장의 편집 대상이 아니다. 신규/엑셀 import 행은 additional item 미사용을 뜻하는 `NULL`로 생성하고, 기존 행 전체 교체/삭제 시 additional item 행 자체는 삭제하지 않는다.
+- 기존 `BM_ADDITIONAL_ITEM` orphan 정리는 이번 기능정의에서 제외하며, FK 제약 때문에 정리가 필요하면 별도 유지보수/정리 작업으로 분리한다.
+- 엑셀 가져오기 저장 시 기존 행이 0개 또는 1개여도 같은 전체 교체 저장 경로를 사용한다.
+- DB 트랜잭션 중 하나라도 실패하면 전체 롤백한다.
+- DB 트랜잭션 실패 후 UI 잠금을 해제하고, 현재 메모리 draft 기준으로 임시 파일 백업 저장을 다시 예약하거나 즉시 flush한다.
+
+9.3 SQL 길이 제한 대응
+
+- 대량 행 저장 시 단일 SQL 문자열을 과도하게 길게 만들지 않는다.
+- transaction API가 준비되기 전에는 품목관리 저장 구현을 시작하지 않는다. 여러 `writeDataWithParams` 호출을 Dart/UI 레이어에서 순차 실행하는 방식은 중간 실패 시 전체 롤백을 보장하지 못하므로 사용하지 않는다.
+- batch insert/update/delete는 DAO 상수로 정의한 chunk 단위로 나눈다.
+- 모든 chunk는 같은 트랜잭션 안에서 실행한다.
+- DB 드라이버가 parameterized query를 지원하는 경로에서는 문자열 조합보다 parameterized query를 사용한다.
+- SQL Server parameter 한도를 고려해 1만 개 item id 집합을 단순 대량 `IN` parameter로 나열하지 않는다. scoped 조회와 mapping delete/order update 같은 대량 id 조건은 temp table/table variable 또는 DAO chunk 조회/갱신으로 제한한다. temp table/table variable은 DAO 단일 isolate action 또는 단일 SQL batch 안에서 id 적재, 대상 작업, 정리까지 완료한다. chunk 방식은 DAO 단일 action 안에서 실행하고, 조회 결과는 `columnId + itemId` key로 dedupe/merge한다. chunk 사이 외부 DB 변경 감지는 best-effort이며, 편집 시작 baseline checksum으로 보조 감지한다. 그 외 bulk 전달 방식은 driver/ODBC 동작 검증 후 별도 확정된 경우에만 사용한다.
+- mapping fingerprint 산출 DAO도 같은 bulk id 전달 규칙을 따른다. 삭제 대상 item id 집합의 `BM_ITEM_OF_MARKET` mapping fingerprint를 조회할 때도 1만 개 id를 단순 대량 `IN` parameter로 나열하지 않고, temp table/table variable 또는 DAO chunk 조회를 사용한다. chunk 방식이면 itemId별 `marketId` 목록/count hash를 dedupe/merge하고, chunk 사이 외부 DB 변경 감지는 best-effort + baseline/fingerprint 재검증으로만 취급한다.
+
+9.4 DB 저장 성공 후 화면 처리
+
+- 저장 완료 상태는 `DB 저장 성공`, `품목리스트 재조회 성공`, `화면 복원 완료`로 구분한다.
+- `DB 저장 성공`은 transaction commit이 완료된 상태를 뜻한다. 이 시점 이후에는 DB 반영이 확정된 것으로 보고, DB 트랜잭션 실패/롤백 처리와 구분한다.
+- DB 저장 성공 후에는 현재 선택된 브랜드/라벨크기의 품목리스트를 DB에서 재조회한다.
+- 재조회 범위는 품목관리 테이블을 구성하는 품목, 일반 컬럼 값, 주원료 plain text, 표시 모델의 `Item.elementRTF` 합성 payload, 행 순서, DB 저장 후 생성된 item id이다. 저장 DAO/검증 기준에서는 `RICH_ELEMENT_SHEET` 저장값을 확인하되, 화면 표시 모델은 현재 조회 구조처럼 `RICH_ELEMENT_SHEET`/legacy `RICH_ELEMENT_RTF`가 합쳐진 `Item.elementRTF`를 다시 채운다.
+- 브랜드 목록과 라벨크기 목록 전체는 DB 저장 성공 후 재조회 대상이 아니다.
+- 이유: 신규 item id, order, DB trigger/기본값, 저장 중 보정된 값을 품목관리 화면 상태와 일치시키기 위해서이다.
+- 품목리스트 재조회 후 선택 상태는 다음 우선순위로 복원한다.
+- 저장 전 선택 행이 신규 행이면 해당 행의 임시 draft row key와 저장 후 생성된 item id 매핑으로 찾은 행.
+- 저장 전 선택 행이 엑셀 가져오기로 생성된 신규 행이면 해당 행의 임시 draft row key와 저장 후 생성된 item id 매핑으로 찾은 행.
+- 저장 전 선택 행을 특정할 수 없고 신규 저장 행이 1개뿐이면 해당 신규 저장 행의 새 item id.
+- 저장 전 선택 행의 기존 item id.
+- 저장 전과 같은 row index.
+- 첫 번째 행.
+- 품목리스트 재조회가 끝나면 먼저 발행 체크 UI 상태를 초기화한다.
+- 그 다음 위 우선순위에 따라 선택 상태를 복원한다.
+- DB 저장은 성공했지만 품목리스트 재조회 또는 화면 복원에 실패하면 DB 저장 성공은 유지한다. 오류 메시지를 표시하고 UI 잠금을 해제하되, 화면은 `forceReloadRequired` 강제 재조회 필요 상태로 전환해 사용자가 `다시 조회`로 동기화하도록 한다.
+- post-commit 재조회 실패 상태에서는 저장 버튼으로 같은 draft를 다시 DB에 재반영하지 않는다. 기존 draft는 DB 저장 완료 상태로 마감하고, 화면 동기화가 끝날 때까지 추가 편집과 엑셀 가져오기/내보내기는 잠근다.
+- `강제 재조회 필요` 상태는 `forceReloadRequired` 같은 별도 상태값으로 관리한다. 이 상태에서는 `저장`, `취소`, 셀 편집, 주원료 편집, 추가/삽입/삭제, 전체 선택/삭제, 발행 체크, 엑셀 가져오기/내보내기를 막고, 현재 브랜드/라벨크기의 품목리스트 재조회 재시도만 허용한다.
+- 이번 구현은 별도 화면 이동을 유도하지 않고 오류 영역 또는 하단 버튼 영역에 `다시 조회` 액션을 표시한다. `다시 조회`는 현재 선택된 브랜드/라벨크기를 유지한 채 품목관리 로드 경로를 재실행하며, 성공하면 `forceReloadRequired`를 해제하고 새 baseline을 만든다.
+- `forceReloadRequired` 상태에서도 로그아웃/앱 종료 같은 앱 생명주기 종료 동작은 예외적으로 허용한다. 이때 저장 확인은 다시 띄우지 않고 stale 저장 완료 백업을 rollback 용도로 사용하지 않는다는 안내 후 정리하고 종료한다. 브랜드/라벨 변경, 탭 이동, 엑셀 작업, 일반 편집은 `다시 조회` 성공 전까지 차단한다.
+- 종료 예외 안내는 추가 저장 확인 dialog가 아니라 단발 안내로 처리한다. 안내 문구는 `저장은 DB에 반영됐고 화면 동기화만 실패했습니다. 임시 백업은 복구에 사용하지 않고 정리합니다.` 의미를 포함한다.
+
+9.5 저장 중 UI 잠금
+
+- 저장 중에는 `저장`, `취소`, `엑셀 가져오기`, `엑셀 내보내기`, 추가/삽입/삭제 메뉴, 테이블 셀 편집, 브랜드/라벨/탭 이동, 주원료 편집을 잠근다.
+- 저장 전 검증 실패 또는 DB 트랜잭션 실패 시 잠금을 해제하고 편집 상태와 임시 파일 백업을 유지한다.
+- DB 트랜잭션 실패 시 남아 있는 debounce 백업 작업은 취소하지 않는다.
+- DB 트랜잭션 실패 직후 현재 메모리 draft 기준으로 임시 파일 백업 저장을 다시 예약하거나 즉시 flush한다.
+- DB 저장 성공 후 품목리스트 재조회와 화면 상태 복원이 끝난 뒤 잠금을 해제한다.
+- DB 저장 성공 후 품목리스트 재조회 또는 화면 복원에 실패하면 DB 재반영은 시도하지 않고 잠금을 해제하되, 화면을 `forceReloadRequired` 강제 재조회 필요 상태로 표시하고 저장/취소/편집/엑셀/발행 체크 작업은 재조회 성공 전까지 막는다.
+
+10. 취소 정책
+
+10.1 기본 정책
+
+- 품목관리 `취소` 버튼 클릭 시 `변경 내용을 취소할까요?` 확인 메시지를 표시한다.
+- 사용자가 `변경 취소`를 선택하면 임시 편집 상태를 모두 폐기한다.
+- 사용자가 `계속 편집`을 선택하면 취소하지 않고 현재 편집 상태를 유지한다.
+- 변경 취소 시 기본 복원 기준은 임시 파일 백업에 저장된 최소 baseline과 변경 대상 journal이다.
+- 일반 편집 취소는 journal의 기존 행 before snapshot, 신규 행 draft, 삭제 예정 item id를 역적용해 변경 전 상태로 복원한다.
+- 엑셀 가져오기 전체 교체 취소는 1만 행 전체 heavy snapshot을 파일에 저장하지 않고 DB 재조회로 원본 데이터를 복원한 뒤 import 직전 UI metadata를 적용한다.
+- 엑셀 가져오기 취소의 DB 재조회는 import 직전 DB 상태와 현재 DB 상태가 같다는 전제를 사용한다.
+- DB 재조회 결과가 import 직전 baseline의 row count, item id/order 목록, lightweight version/checksum과 다르면 외부 변경 가능성을 경고하고 현재 DB 기준으로 복원한다.
+- lightweight version/checksum은 명시적 DB version 컬럼이 아니라 baseline 생성 시 계산한 안정 hash이며, 대형 payload 전체 문자열 비교가 아니라 item/column의 가벼운 식별·표시·데이터 hash 기준으로 사용한다.
+- 필요 시 DB 재조회로 다시 동기화할 수 있으며, 백업 journal만으로 복원 가능한 일반 편집은 파일 백업 기준 복원을 우선한다.
+- 신규 추가/삽입/엑셀 가져오기 행은 제거한다.
+- 삭제 예정 item id 목록을 폐기하고, 삭제 전 before snapshot을 원래 위치/order 기준으로 복원한다.
+- 수정된 셀/주원료는 해당 행이 최초 변경 대상이 된 시점에 저장한 before snapshot 값으로 되돌린다.
+- 필요 시 이후 DB 재조회로 동기화한다.
+
+10.2 변경 취소용 임시 파일 백업 방식
+
+- 별도 임시 백업 파일을 사용한다.
+- 기본 구조는 `최소 baseline + 변경 대상 before snapshot + draft journal`을 임시 백업 파일에 저장하는 방식이다.
+- baseline은 전체 품목 행의 item id, 원본 order, 선택 복원 기준, 정렬/필터/스크롤 복원 정보, 사용자/거래처/브랜드/라벨크기/draft key 같은 가벼운 기준 정보만 포함한다.
+- baseline에는 DB 재조회 복원 검증을 위한 row count, item id/order 목록, lightweight version/checksum 정보를 포함한다.
+- baseline checksum은 현재 화면 market의 item id 집합에 속한 `BM_RICH_ITEM` 계열의 item id, order, item name, 주원료 plain text, `Item.elementRTF` payload 존재 여부/포맷 판별 결과와 같은 item id 집합에 속한 `BM_RICH_COL_CONTENT` 계열의 column id, item id, dataString hash를 포함한다.
+- mapping 제거 후 남아 있는 기존 item/child row orphan은 baseline/checksum 입력에 포함하지 않는다.
+- 삭제/엑셀 전체 교체의 mapping delete 영향 범위 감지를 위해 baseline/journal metadata에는 삭제 대상 기존 item id 집합의 `BM_ITEM_OF_MARKET` mapping fingerprint를 별도 필드로 포함한다. 일반 삭제는 row가 최초 삭제 예정이 되는 시점의 before snapshot/journal에 item별 fingerprint를 저장하고, 엑셀 전체 교체는 import 직전 기존 item id 집합 전체 fingerprint를 import baseline metadata에 저장한다. 이 값은 current market checksum과 분리하며, mapping 복원 snapshot으로 사용하지 않는다.
+- baseline checksum은 변경되지 않은 `RICH_ELEMENT_SHEET`/legacy RTF 전체 payload를 직접 hash하지 않는다.
+- baseline에는 1만 행 전체의 `RICH_ELEMENT_SHEET` 같은 heavy payload를 저장하지 않는다.
+- 기존 행의 품명/일반 컬럼/주원료가 최초 수정될 때 해당 행의 before snapshot을 1회 저장한다.
+- 기존 행 삭제 시 삭제 전 row snapshot과 원본 order를 저장한다.
+- 신규 행은 임시 draft row key와 row 전체 draft를 저장한다.
+- 신규 행 draft는 기존 `ItemOfMarket`/`Item` 객체 참조를 공유하지 않는 독립 값으로 저장한다.
+- 변경되지 않은 기존 행은 백업 JSON에 heavy payload를 저장하지 않고, 메모리 working table에서는 조회 객체 참조를 유지할 수 있다.
+- 기존 행을 수정할 때만 해당 행의 before snapshot과 after patch/draft 값을 별도로 저장한다.
+- 같은 행을 여러 번 수정해도 before snapshot은 최초 1회만 유지하고, after/draft 값은 debounce 저장 시 마지막 상태로 합친다.
+- 기존 행을 수정한 뒤 삭제하면 저장 대상은 삭제 journal로 정리하되, 취소 복원을 위해 최초 before snapshot과 원본 위치를 유지한다.
+- 신규 행을 수정한 뒤 삭제하면 해당 신규 row draft를 제거하고 DB 저장 대상에도 포함하지 않는다.
+- 편집은 원본을 직접 변경하지 않고 draft/working copy를 대상으로 수행한다.
+- draft가 변경되면 메모리 상태를 먼저 갱신하고, 임시 파일 백업은 debounce 후 비동기로 저장한다.
+- 이 백업은 한 편집 세션에서 `변경 취소` 선택 시 테이블을 변경 전 상태로 복원하는 기준을 보조하고 OOM 위험을 낮추기 위한 임시 백업으로만 사용한다.
+- 화면 복원 완료, 변경 취소, 종료, dirty가 없는 새 조회 시작 시 백업 파일과 메타데이터를 삭제한다.
+- 앱 시작 후 최초 품목관리 진입 시 이전 실행에서 남은 백업 파일과 메타데이터가 있으면 stale 백업으로 보고 복구하지 않고 삭제한다.
+- 같은 편집 세션의 위젯 재생성/리빌드에서는 백업 파일과 메타데이터를 유지한다.
+- 같은 사용자/거래처/브랜드/라벨크기 기준으로는 최신 백업 1개만 유지한다.
+- 같은 실행 중 dirty가 없는 상태에서 새 편집 세션을 시작할 때 같은 기준의 기존 백업이 있으면 먼저 기존 백업 파일과 메타데이터를 삭제한다.
+- 새 임시 파일 백업은 실제 draft 변경이 처음 발생하는 시점에 생성한다.
+- DB 저장 성공 직후에는 기존 임시 파일 백업과 메타데이터를 즉시 삭제하지 않는다. 품목리스트 재조회와 화면 복원이 모두 완료된 뒤 기존 백업을 삭제한다.
+- DB 저장 성공 후 품목리스트 재조회가 실패하면 기존 백업은 rollback 용도로 사용하지 않고 stale 저장 완료 백업으로 표시한다. 강제 재조회가 성공하거나 화면을 떠나는 정리 시점에 삭제한다.
+- 품목리스트 재조회가 완료되면 그 결과를 새 baseline 기준으로 삼는다.
+- 품목리스트 재조회 완료 후에는 새 baseline 기준만 갱신하고, 이후 신규 변경이 발생하면 재조회된 새 baseline 기준으로 새 임시 파일 백업을 생성한다.
+
+10.3 백업 저장 위치와 파일 형식
+
+- 백업 파일은 `path_provider`의 앱 지원 디렉터리 하위에 저장한다.
+- 하위 경로는 `item_manager_drafts`이다.
+- 파일명은 사용자/거래처/브랜드/라벨크기 기준 draft key를 포함한 고정 파일명으로 만든다.
+- 백업 본문은 JSON으로 저장한다.
+- JSON에는 schema version을 포함한다.
+- JSON에는 사용자 ID, 거래처 ID, 브랜드 ID, 라벨크기 ID, 생성/수정 시각, 원본 조회 기준, 최소 baseline, 신규 행 draft, 수정 행 before snapshot과 after patch, 삭제 예정 item id와 삭제 전 row snapshot, 변경 대상 주원료 sheet payload, 일반 컬럼 변경, 선택 복원용 정보, 엑셀 가져오기 전 표시 정렬/필터/선택 상태 복원용 metadata가 포함되어야 한다.
+- baseline JSON에는 row count, item id/order 목록, lightweight version/checksum을 포함해 DB 재조회 복원 시 외부 변경 여부를 감지할 수 있게 한다.
+- baseline JSON의 checksum 산출 입력 목록과 schema version을 함께 기록해 구현 변경 후에도 기존 백업 해석이 흔들리지 않게 한다.
+- 변경되지 않은 행의 `RICH_ELEMENT_SHEET`/`RICH_ELEMENT_RTF` heavy payload는 JSON에 저장하지 않는다.
+- 선택 복원용 정보는 품목리스트 재조회 성공 후 화면 복원 단계의 선택 복원에 사용한다. 엑셀 가져오기 전 표시 정렬/필터/선택 상태 복원용 metadata는 변경 취소 시 import 직전 UI 상태 복원에만 사용한다.
+- 신규 행에는 저장 전 선택 복원과 draft 추적에 사용할 임시 draft row key를 포함한다.
+- 민감한 DB 접속 정보나 비밀번호는 저장하지 않는다.
+- SharedPreferences에는 큰 JSON을 저장하지 않고, 마지막 백업 파일 경로와 draft 메타데이터만 저장한다.
+
+10.4 백업 저장 성능 정책
+
+- 셀 입력마다 즉시 동기 파일 쓰기를 하지 않는다.
+- 변경 발생 후 짧은 debounce를 두고 마지막 상태만 저장한다.
+- 저장 중 추가 변경이 발생하면 다음 debounce 저장으로 합친다.
+- 파일은 `*.tmp`에 먼저 쓴 뒤 flush 후 실제 파일로 교체하는 원자적 저장 방식을 사용한다.
+- 대형 주원료 sheet payload가 포함될 수 있으므로 저장 실패는 사용자 작업을 막지 말고 경고/로그를 남기되, 메모리 draft는 유지한다.
+- 대형 주원료 sheet payload는 변경 대상에만 포함하며, 변경되지 않은 1만 행 전체 payload를 주기적으로 직렬화하지 않는다.
+- 임시 파일 백업 저장 실패 시 메모리의 baseline/journal/draft가 살아 있으면 변경 취소는 메모리 기준으로 수행한다.
+- 메모리 원본도 사용할 수 없는 예외 상황에서는 DB 재조회로 동기화하고 경고/로그를 남긴다.
+- 화면 복원 완료/변경 취소/종료/dirty가 없는 새 조회/stale 백업 처리 시에는 남은 debounce 작업을 취소하고 임시 파일 백업을 정리한다.
+
+10.5 legacy RTF 변환과 백업 충돌 방지
+
+- 품목관리 편집 기능에서는 테이블 진입 시 legacy RTF 전체 자동 DB 마이그레이션을 실행하지 않는다.
+- 품목관리 편집 기능이 켜진 화면에서는 `_handleLabelSizeChanged`의 라벨크기 로드 완료 직후 `_startItemElementAutoMigration()` 호출을 하지 않는다.
+- 기존 자동 마이그레이션 큐가 실행 중인 상태에서 품목관리 편집 세션이 dirty로 전환되면 generation 취소 또는 결과 반영 차단으로 DB/캐시 자동 변경을 중단한다.
+- 행의 `Item.elementRTF`가 encoded workbook save 형식이면 기존 `RICH_ELEMENT_SHEET` payload로 보고 변환 없이 그대로 사용한다.
+- 행의 `Item.elementRTF`가 legacy RichEdit RTF 형식이면 주원료 편집 진입, 사용자의 명시적 변환 적용, 또는 미리보기 표시 시 필요한 경우에만 lazy 변환한다.
+- 미리보기 표시 목적의 lazy 변환 결과는 display-only cache에만 반영하고, DB와 draft에는 즉시 저장하지 않는다.
+- 주원료 편집 진입 또는 사용자의 명시적 변환 적용으로 생성된 lazy 변환 결과만 draft에 반영한다.
+- draft lazy 변환으로 `RICH_ELEMENT_SHEET`가 생성된 기존 행은 주원료 수정과 동일하게 변경 대상 journal에 편입한다.
+- 해당 행의 before snapshot에는 변환 전 plain text, 변환 전 `Item.elementRTF` payload, payload 포맷 판별 결과를 저장한다.
+- 사용자가 저장을 확정하면 `RICH_ELEMENT`와 `RICH_ELEMENT_SHEET`를 저장하고, 기존 `RICH_ELEMENT_RTF`는 마이그레이션/호환용으로 삭제하지 않는다.
+- 사용자가 변경 취소를 선택하면 lazy 변환 결과를 폐기하고 before snapshot 또는 DB 재조회 기준으로 되돌린다.
+- display-only cache에만 있는 미리보기 변환 결과는 저장/취소 대상이 아니며 행 선택 변경, 탭 닫기, 데이터 재조회 시 폐기할 수 있다.
+- dirty가 없는 별도 유지보수/마이그레이션 동작에서만 background RTF DB 마이그레이션을 허용한다.
+
+11. 화면 이동 제한
+
+11.1 임시 편집 중 차단할 동작
+
+추가/삽입/삭제/품명 수정/일반 컬럼 수정/주원료 수정/엑셀 가져오기 등 임시 변경이 있으면 다음 동작을 막는다.
+
+- 브랜드 선택 변경
+- 라벨크기 선택 변경
+- 품목관리 외 탭 메뉴 선택
+- 플로팅 창의 `출력내용 미리보기` 탭 선택
+- `엑셀 가져오기`
+- `엑셀 내보내기`
+- `순서 변경`
+
+11.2 로그아웃/앱 종료
+
+- 로그아웃 또는 앱 종료 시 임시 변경이 있으면 확인 메시지를 표시한다.
+- 확인 메시지는 `저장하지 않고 종료할까요?`로 표시한다.
+- 버튼명은 `종료`, `계속 편집`으로 표시한다.
+- 사용자가 `종료`를 선택하면 임시 편집 상태와 임시 파일 백업을 폐기하고 로그아웃 또는 앱 종료를 계속한다.
+- 사용자가 `계속 편집`을 선택하면 화면 이탈을 중단하고 편집 상태를 유지한다.
+- `forceReloadRequired` 상태는 이미 DB 저장이 완료된 뒤 화면 동기화가 실패한 상태이므로 일반 dirty 확인을 다시 띄우지 않는다. 로그아웃/앱 종료는 stale 저장 완료 백업을 정리하고 계속 진행하며, 브랜드/라벨 변경과 탭 이동은 `다시 조회` 성공 전까지 차단한다.
+- `forceReloadRequired` 상태에서 로그아웃/앱 종료를 진행할 때는 추가 저장 확인 dialog가 아니라 단발 안내로 처리하고, 안내 문구는 `저장은 DB에 반영됐고 화면 동기화만 실패했습니다. 임시 백업은 복구에 사용하지 않고 정리합니다.` 의미를 포함한다.
+
+12. 누락되면 안 되는 UX
+
+- 저장 중 중복 클릭 방지.
+- 저장 중 진행 상태 표시.
+- 저장 실패 시 오류 메시지 표시 및 편집 상태 유지.
+- 품목관리 `취소` 버튼 클릭 시 `변경 내용을 취소할까요?` 확인 메시지 표시.
+- `변경 취소` 선택 시 일반 편집은 임시 파일 백업의 baseline/journal를 우선해 복원하고, 엑셀 가져오기 전체 교체는 DB 재조회와 import 직전 UI metadata로 복원한 뒤 draft와 임시 파일 백업을 폐기.
+- `계속 편집` 선택 시 현재 편집 상태 유지.
+- 삭제 전 확인 메시지 표시.
+- 추가/삽입 개수는 1 이상으로 검증.
+- 추가/삽입 후 전체 working row 수가 `ItemManagerLimits.maxRows`를 넘으면 실행이 차단된다.
+- 너무 큰 개수 입력 시 DAO/화면 상수로 정의한 최대 허용 개수 기준으로 경고 메시지를 표시하고 실행을 막는다.
+- 신규 행과 수정된 기존 행은 구분되는 시각 표시를 적용한다.
+- 삭제 예정 행은 화면에서 제거하되 draft에 삭제 예정 ID를 보관하는 방식.
+- 변경 사항이 있는 draft 편집 모드에서는 `엑셀 가져오기`, `엑셀 내보내기` 버튼을 비활성화한다.
+- `엑셀 가져오기` 성공 후에도 변경 사항이 생긴 상태이므로 저장 완료 또는 변경 취소 확정 전까지 `엑셀 가져오기`, `엑셀 내보내기` 버튼을 비활성화한다.
+- 변경 사항이 있는 draft 편집 모드에서는 `순서 변경`을 바로 실행하지 않고, 저장 완료 또는 변경 취소 확정 후 실행하도록 안내한다.
+
+12.2 QR코드 데이터 보기 UX
+
+- `QR코드 데이터 보기`는 품목관리 테이블 우클릭 메뉴에 배치한다.
+- 이 기능은 행 단위 조회/진단 액션이므로 상단 라벨 설정 메뉴나 하단 저장 버튼 영역에는 배치하지 않는다.
+- 메뉴는 우클릭 위치가 실제 표시 행일 때 활성화한다.
+- 여러 행이 선택되어 있어도 실행 대상은 우클릭한 단일 행이다. 우클릭 행을 안정적으로 특정할 수 없으면 메뉴를 비활성화한다.
+- 다이얼로그 제목은 현재 Flutter 메뉴명과 맞춰 `QR코드 데이터 보기`로 표시한다. 레거시의 `QR코드 보기` 명칭은 동작 분석 참고로만 둔다.
+- 다이얼로그에는 현재 대상 품목명과 행 식별 정보를 표시해 사용자가 어떤 행의 데이터인지 확인할 수 있게 한다.
+- 표시 데이터는 현재 품목관리 working/draft row 값과 현재 라벨크기의 column 설정을 기준으로 계산한다.
+- 표시 항목은 QR 컬럼의 일반 텍스트/사용자 정의/나트륨 QR 데이터와 바코드 텍스트 연동 데이터처럼 `CTableRowRTFMaker::GetQRCodeDataByRow()`가 생성하던 데이터 문자열을 대상으로 한다.
+- 각 표시 항목에는 가능하면 대상 컬럼명 또는 생성 타입을 함께 표시한다. 단, 레거시 parity 우선 구현에서는 문자열만 표시해도 된다.
+- viewer 안에서 문자열을 수정해도 품목관리 draft나 DB에 반영하지 않는다. 입력 가능한 edit box보다 읽기 전용 multi-line text 영역과 복사 버튼을 우선한다.
+- QR 데이터가 없으면 빈 다이얼로그 대신 `이 행에서 생성되는 QR코드 데이터가 없습니다.`에 준하는 안내를 표시한다.
+- 레거시 viewer는 최대 4개만 표시하지만, 현재 Flutter 구현에서는 데이터 누락을 피하기 위해 스크롤 가능한 목록으로 모든 생성 데이터를 표시하는 방식을 우선한다.
+
+12.3 순서 변경 UX
+
+- `순서 변경`은 품목관리 테이블 우클릭 메뉴에서 `품목 삭제` 바로 아래에 배치한다.
+- 이 기능은 선택/발행 체크 보조 기능이 아니라 품목 리스트 자체의 order를 바꾸는 품목 관리 command이므로 `품목 추가`, `품목 삽입`, `품목 삭제`와 같은 그룹에 둔다.
+- 메뉴는 현재 선택된 브랜드와 라벨크기가 있고, 편집 권한이 있으며, 품목이 2개 이상이고, 저장/재조회/forceReloadRequired/draft 편집 상태가 아닐 때 활성화한다.
+- 우클릭 위치가 실제 행이 아니어도 메뉴는 실행 가능하다. 실행 대상은 우클릭 행이 아니라 현재 브랜드/라벨크기의 전체 품목 목록이다.
+- 다이얼로그 제목은 `품목 순서 변경`으로 표시한다.
+- 다이얼로그 UI는 현재 Flutter 라벨 설정 화면의 `orderEditMode` 패턴을 따른다. 중앙에 품목명 목록을 두고, 선택 행 하이라이트, 우측 `위로`/`아래로` 이동 버튼, 하단 `취소`/`적용` footer 동작을 제공한다.
+- 목록 행에는 품목명을 표시하고, 내부 값으로 item id와 현재 order를 보관한다.
+- 다이얼로그를 열 때 현재 선택 item id가 목록에 있으면 해당 행을 기본 선택한다. 없으면 첫 행을 선택하거나 선택 없이 시작한다.
+- `위로`/`아래로` 버튼은 선택 행과 인접 행을 swap하고, 이동 후 같은 item을 계속 선택한다.
+- 첫 행 선택 시 `위로`, 마지막 행 선택 시 `아래로`는 비활성화하거나 눌러도 동작하지 않는다.
+- 저장 전에는 변경된 순서를 눈으로 확인할 수 있게 목록 번호 또는 순번 표시를 제공한다.
+- `적용` 클릭 시 `변경된 품목 순서를 저장할까요?`에 준하는 확인을 표시한다.
+- 저장 성공 후 다이얼로그를 닫고 품목관리 리스트를 재조회한다.
+- `닫기` 또는 창 닫기는 순서를 저장하지 않고 닫는다.
+- 미저장 draft 편집 중에는 `순서 변경` 메뉴를 비활성화하고 `저장 완료 또는 변경 취소 확정 후 순서 변경을 실행해 주세요.` 안내를 표시한다.
+
+12.1 날짜 타입 설정 UX
+
+- 상단 라벨 선택 영역의 라벨 옆 `설정` 버튼은 단일 버튼보다 라벨 관련 메뉴 버튼으로 정리한다.
+- 권장 메뉴 구조는 `라벨 설정...`, `날짜 타입 설정...` 순서이다.
+- 날짜 타입 설정은 현재 라벨크기에 대한 설정이므로 품목관리 테이블 우클릭 메뉴에는 넣지 않는다.
+- 다이얼로그 제목은 `날짜 타입 설정`으로 표시한다.
+- 다이얼로그 상단에는 현재 라벨명과 라벨 크기를 표시해 어떤 라벨 설정을 바꾸는지 사용자가 알 수 있게 한다.
+- 레거시 기능은 그대로 유지하되, 화면 배치는 4개 그룹을 세로로 빽빽하게 쌓는 방식보다 `제조일자/소비기한`, `제조시한/소비시한`의 2x2 섹션형 배치를 우선한다.
+- 각 섹션은 `사용` 체크, 포맷 선택, 사용자 정의 입력, 미리보기로 구성한다.
+- 날짜 섹션의 포맷 선택지는 레거시와 동일하게 `2000.01.01`, `2000/01/01`, `2000년01월01일`, `01.01`, `01/01`, `01월01일`, `사용자 정의`를 제공한다.
+- 시간 섹션의 포맷 선택지는 레거시와 동일하게 `12:01`, `12시01분`, `12시`, `사용자 정의`를 제공한다.
+- 고정 포맷 선택은 radio button 그대로 구현해도 되지만, 현재 Flutter UI에서는 조밀한 segmented control 또는 chip형 선택 컨트롤을 우선 검토한다.
+- 사용자 정의 입력칸은 `사용자 정의` 선택 시에만 활성화한다.
+- preview는 입력 중 즉시 갱신하고 읽기 전용으로 표시한다.
+- 하단에는 사용자 정의 토큰 도움말을 표시한다. 날짜는 `Y/YY/YYYY`, `M/MM`, `D/DD`, 시간은 `H/HH`, `M/MM` 의미를 사용자가 이해할 수 있게 짧게 설명한다.
+- 레거시 안내에 맞춰 소비시한은 자동 계산 항목이 아니라 입력된 시각 값을 포맷하는 항목임을 다이얼로그 안에 짧게 안내한다.
+- `적용` 클릭 시 `저장하시겠습니까?` 확인을 표시하고, 사용자가 확인한 경우에만 DB에 저장한다.
+- `취소` 또는 닫기는 변경 내용을 저장하지 않고 닫는다.
+- 저장 권한이 없는 사용자도 현재 라벨 설정을 확인할 수 있도록 다이얼로그는 열 수 있게 하되, 컨트롤과 `적용`은 읽기 전용/비활성 상태로 표시한다. 메뉴 자체는 현재 라벨크기가 없거나 저장/재조회/forceReloadRequired/draft 편집 상태일 때만 비활성화한다.
+- `DateManager` 포맷/preview helper는 날짜와 시간 token 해석을 같은 parser에 섞지 않고 분리한다. 권장 API는 날짜용 `formatDateToken`/`previewDateFormat`, 시간용 `formatTimeToken`/`previewTimeFormat`처럼 모드를 명확히 드러내는 함수이다. 날짜의 `M/MM`은 월, 시간의 `M/MM`은 분으로 해석되므로 helper 이름과 테스트도 날짜/시간을 분리한다.
+
+13. 구현 범위
+
+이번 구현 범위에 다음을 모두 포함한다.
+
+1. 임시 편집 모델/draft 구조.
+2. 변경 취소용 임시 파일 백업 저장/폐기 구조.
+3. 하단 `취소`/`저장` 버튼 배치 및 dirty 상태 연동.
+4. 추가/삽입/삭제 우클릭 메뉴 실제 동작.
+5. `엑셀 가져오기` 전체 교체형 draft 액션.
+6. `엑셀 내보내기` 현재 테이블 값 저장 기능.
+7. draft 편집 모드에서 선택/체크박스/팝업메뉴/엑셀 버튼 정책 적용.
+8. 주원료 편집을 하단 저장 흐름으로 통합.
+9. 저장 트랜잭션 DAO.
+10. DB 저장 성공 후 품목리스트 재조회 및 화면 상태 복원.
+11. 취소 리셋 및 임시 파일 백업 삭제.
+12. 브랜드/라벨/탭/출력내용 미리보기 이동 차단.
+13. 상단 라벨 설정 메뉴의 `날짜 타입 설정...` 항목과 날짜 타입 설정 다이얼로그, 라벨크기 setup 저장/캐시 갱신/미리보기 refresh 연동.
+14. 품목관리 우클릭 메뉴의 `QR코드 데이터 보기` 조회 액션과 현재 row/draft 값 기준 QR 데이터 viewer.
+15. 품목관리 우클릭 메뉴의 `순서 변경` 항목과 라벨 설정 `orderEditMode` 패턴의 품목 순서 변경 다이얼로그, item order batch update, 저장 후 품목리스트 재조회 연동.
+16. 출력내용 미리보기의 바코드/QR object 값과 형식을 품목 column 설정 기준으로 재계산해 렌더링하는 preview workbook 치환 경로.
+
+13.1 권장 구현 단위
+
+요청서 전체 범위는 크므로 실제 구현은 다음 작업 단위로 나누어 진행한다.
+
+1. 읽기/스냅샷 기반: `ItemOfMarketDAO` 표시 alias 수정, raw snapshot DTO/query, `MarketDAO.selectByCustomerId(customerId)`, SQL 제한 scoped `TColumnContentDAO` 조회와 scoped view model을 먼저 구현한다.
+2. transaction/DAO 기반: `DbIsolateAction.transaction`, `ItemSaveSchemaCapabilities` probe/cache, trigger-safe 신규 item id 매핑, mapping delete/order update/column content upsert를 수행하는 품목관리 저장 DAO를 구현한다.
+3. UI draft/edit 기반: 품목관리 edit controller/draft row/value model, `ItemManage` working row/value resolver API, 선택/anchor/focus 소유권, 추가/삽입/삭제/품명/일반 컬럼/주원료 draft 반영과 임시 백업을 구현한다.
+4. Excel import/export 기반: 지정 sheet xlsx parser, 전체 교체형 import draft, `.xlsx` export, import 전후 metadata/취소 복원, row limit 검증을 구현한다.
+5. QR/바코드 데이터 helper 기반: `ItemCodeDataResolver`를 추가해 QR viewer, 출력내용 미리보기, 실제 출력 경로가 현재 row/draft 값과 column 설정에서 같은 QR/바코드 문자열과 FortuneSheet `barcodeFormatId`를 산출하도록 구현한다. QR viewer는 draft 편집 중에도 draft row 값을 입력으로 사용할 수 있지만, 출력내용 미리보기 탭은 draft 편집 중 진입하지 않고 저장 완료 또는 취소 dialog에서 변경 취소를 확정한 뒤의 안정 상태 working row 값만 렌더링한다. QR/텍스트연동 token 치환용 날짜 계산은 라벨 날짜 타입 표시 포맷과 분리해 `DATE_FORMAT_NONE` 기준을 사용한다. 실제 출력 경로는 raw template workbook을 바로 출력하지 않고, `ItemCodeDataResolver` 결과가 반영된 output workbook/image metadata를 입력으로 사용한다.
+6. 라벨 날짜 타입 설정 기반: 상단 라벨 설정 메뉴, 날짜 타입 설정 다이얼로그, 날짜/시간 token 해석을 분리한 `DateManager` 포맷/preview helper, `LabelSizeDAO.updateDateSetup(labelSizeId, LabelSizeDateSetupUpdate)` 날짜/시간 전용 API, 선택 라벨 캐시 갱신과 미리보기 refresh를 구현한다. setup 저장은 기존 form data 저장 API와 섞지 않고 `BM_RICH_LABELSIZE_FORM`의 날짜/시간 12개 컬럼만 갱신하는 전용 경로로 둔다.
+7. 품목 순서 변경 기반: 품목관리 우클릭 메뉴의 `순서 변경`, 라벨 설정 `orderEditMode` 패턴의 dialog, 현재 브랜드/라벨크기/market item order 조회, `ItemDAO.updateOrders` batch update, 저장 후 품목리스트 재조회와 선택 복원을 구현한다.
+
+각 단위는 이전 단위의 API와 검증이 끝난 뒤 이어서 구현한다. 특히 UI draft/edit 구현은 raw snapshot/scoped column content/transaction 저장 DAO 경계가 정리된 뒤 연결한다. 단, 품목 순서 변경 기반은 전체 Excel/date 단위 완료를 기다릴 필요는 없고, 현재 품목 조회 order 보장, `ItemDAO.updateOrders`, 저장 중/forceReloadRequired/draft dirty 상태 판단 API가 준비되면 독립적으로 구현할 수 있다.
+
+단위별 최소 완료 기준은 다음과 같다.
+
+1. 읽기/스냅샷 기반 완료 기준: `ItemOfMarketDAO` 표시 alias가 `ItemOfMarket.fromMap` key와 일치하고, raw snapshot DTO가 DB `NULL`/빈 문자열/fallback 값을 구분하며, `MarketDAO.selectByCustomerId(customerId)`와 SQL 제한 scoped `TColumnContentDAO` 조회가 테스트에서 검증된다.
+2. transaction/DAO 기반 완료 기준: `DbIsolateAction.transaction` 단일 action이 rollback을 보장하고, `ItemSaveSchemaCapabilities` probe/cache가 현재 DB 기준으로 동작하며, 저장 DAO가 UI 위젯 없이 테스트 가능한 save command DTO를 표준 입력으로 받아 trigger-safe 신규 item id 매핑, mapping delete, order update, column content upsert를 같은 transaction 안에서 검증한다. UI draft/edit session의 draft snapshot DTO는 저장 DAO 입력이 아니라 save command DTO를 생성하는 상위 계층 입력으로 사용한다.
+3. UI draft/edit 기반 완료 기준: edit controller/draft row/value model이 조회 원본을 직접 mutate하지 않고, `ItemManage`가 working row/value resolver API로 표시/편집하며, 선택/anchor/focus와 임시 백업/변경 취소/저장 전 검증이 draft 기준으로 동작한다. edit controller/view model은 최소 상태로 `idle`, `editing`, `saving`, `forceReloadRequired`를 구분하고, 각 상태별 허용 command를 상위에서 계산해 `ItemManage`에 주입한다.
+4. Excel import/export 기반 완료 기준: 지정 sheet xlsx parser가 원본 workbook sheet order index 0을 사용하고, 품목관리 import용 parse result DTO로 parsed workbook, worksheet XML, relationship id, styles/shared strings, workbook date system, extension metadata를 같은 parse context에서 제공한다. 전체 교체형 import draft와 `.xlsx` export, import 전후 metadata/취소 복원, row limit/헤더/주원료 plain text 정책이 검증된다. `.xlsx` export는 외부 Excel 패키지를 추가하지 않고 기존 `archive` 기반 OpenXML 작성 패턴을 분리한 품목관리 단순 table writer로 검증한다. 주원료 sheet 보존은 inlineRuns, 병합 영역, row height, column width, 테두리, 배경, 줄바꿈 fixture로 분리해 검증한다.
+5. QR/바코드 데이터 helper 기반 완료 기준: `ItemCodeDataResolver`가 column type과 `TColumn.barcodeType` 기준으로 QR/바코드 문자열, FortuneSheet `barcodeFormatId`, 표시 metadata를 산출하고, GS1 바코드는 GS1 조합/검증 helper 결과를 재사용한다. QR/텍스트연동 token 치환용 날짜 계산은 라벨 날짜 타입 표시 포맷과 분리해 `DATE_FORMAT_NONE` 기준을 사용한다. `TYPE_QR_CODE`는 column `barcodeType`이 QR/MicroQR/DataMatrix 계열이면 그 값을 쓰고, 아니면 기본 `qrCode`로 렌더링한다. EAN-8은 공용 `BarcodeType.CodeEAN8` normalize 선행 수정/검증으로 Code128과 구분된다. `preserveTemplateBarcodeFormat` save codec feature key, image sanitizer allow-list, save json normalize/migrate, `.lms`/`.xlsx` round-trip이 먼저 검증된 뒤 출력내용 미리보기 metadata 연결을 완료한다. `.xlsx` round-trip은 customXml image metadata 파싱/복원까지 포함한다. 출력내용 미리보기의 barcode image `extraFields`는 `barcodeText`, 실제 렌더링에 사용할 `barcodeFormatId`, `barcodeFormatLabel`, `barcodeShowText`를 함께 갱신하며, 실제 출력 경로도 이 metadata가 반영된 output workbook을 입력으로 사용한다. `preserveTemplateBarcodeFormat=false` object는 품목 column 형식을 먼저 평가하고 유효하지 않을 때만 공용 fallback 형식을 사용하며, fallback 사용 경고를 preview에 표시한다. 단, `preserveTemplateBarcodeFormat=true` object는 fallback으로 format을 바꾸지 않고 template 형식 실패를 오류로 표시한다. 어떤 fallback 형식으로도 렌더링할 수 없으면 오류 상태로 표시된다. EZPL native 출력은 현재 지원 format만 명령으로 출력하고, 미지원 format은 resolver metadata가 반영된 raster fallback 출력으로 처리한다.
+6. 라벨 날짜 타입 설정 기반 완료 기준: 날짜/시간 포맷 helper가 레거시 포맷과 사용자 정의 토큰을 재현하되 날짜 token과 시간 token 해석을 분리하고, 날짜 타입 설정 다이얼로그가 range guard를 거친 `LabelSizeSetup` 값을 읽고 날짜/시간 전용 DTO를 쓴다. 저장 API는 `LabelSizeDAO.updateDateSetup(labelSizeId, LabelSizeDateSetupUpdate)`로 고정하며, 저장 직전 DB 최신 setup을 다시 읽어 날짜/시간 관련 필드만 merge-update한다. update SQL의 `SET` 대상과 로그 변경 대상은 날짜/시간 12개 컬럼으로 제한하고 `RICH_SETUP_READONLY`/`RICH_SETUP_USE_SCALE` 같은 다이얼로그 외 필드는 제외한다. 저장 성공 후 현재 선택 라벨 캐시는 최신 DB setup에 날짜/시간 변경값을 merge한 결과를 사용하고, 품목/공용라벨/출력 미리보기가 새 setup을 사용한다. DB enum 값이 범위 밖이어도 조회 단계에서 앱이 깨지지 않고 날짜는 `DATE_FORMAT_DOT`, 시간은 `TIME_FORMAT_COLON` 기본값 fallback과 경고 안내로 처리된다. setup 로그 컬럼 probe 실패, 정확한 날짜/시간 setup 로그 allow-list 컬럼 세트 전체 존재 시 setup 전용 SQL batch transaction logging, 일부/전체 컬럼 누락 시 logless update, 로그 insert 실패 rollback, logless update 앱 로그 기록이 검증된다. 품목 row/cell 원본값은 날짜 타입 설정 적용만으로 변경되지 않는다.
+7. 품목 순서 변경 기반 완료 기준: `순서 변경` 메뉴가 품목 관리 command 그룹에 표시되고, 라벨 설정 `orderEditMode` 패턴의 다이얼로그가 현재 브랜드/라벨크기/market item order를 읽어 위/아래 이동을 제공하며, 적용 시 `ItemDAO.updateOrders`로 `RICH_ITEM_ORDER` batch update 후 품목관리 리스트를 재조회한다. 품목명/주원료/일반 컬럼/market-specific 값은 순서 변경 적용만으로 변경되지 않는다.
+
+14. 검증 항목
+
+검증 항목은 13.1의 구현 단위별로 태그 또는 소제목을 붙여 추적한다. 단계별 작업/PR에서는 해당 단위의 최소 완료 기준과 관련 검증을 먼저 통과시키고, 전체 기능 통합 전까지 아직 연결되지 않은 다른 단위의 검증은 미검증으로 표시한다.
+
+검증 태그는 다음 기준으로 붙인다.
+
+- `[읽기/스냅샷]`: 표시 alias, raw snapshot, 고객별 market 조회, scoped column content 조회/view model, baseline/checksum 입력 범위 검증. 특히 `P1_LABELSIZE_WIDTH`/`P1_LABEL_SIZE_WIDTH` 같은 현 구현 alias 불일치와 nullable 날짜/추가품목 fallback 값이 저장 draft 원본값으로 섞이지 않는지 검증한다. `hasRichElementSheet=false` fixture의 필수 검증은 현재 `ItemOfMarketDAO.SelectSql` 미실행, DB migration 안내 화면 전환, 품목관리 테이블 미오픈, 편집 액션 비활성화이다. read-only fallback SELECT는 선택 구현이므로 구현한 경우에만 fallback SELECT 없음/실패 시 테이블 미오픈, 성공 시 조회 전용 테이블과 편집 액션 비활성화를 추가 검증한다.
+- `[transaction/DAO]`: transaction rollback, schema/trigger capability, save command DTO 입력, 신규 item id 매핑, mapping delete, order update, column content upsert, 저장 후 재조회/forceReloadRequired 검증. `hasRichElementSheet=false` fixture에서는 컬럼 부재 환경에서 저장 DAO와 편집 command가 실행되지 않는지 검증한다. read-only fallback SELECT는 선택 구현이므로 구현한 경우에만 fallback 조회 성공 상태에서도 저장/편집 command가 비활성화되는지 추가 검증한다. 현재 `DbIsolateAction.transaction`이 없는 상태에서 UI/Dart 레이어의 다중 write 호출 조합으로 저장 기능을 완료 처리하지 않는다.
+- `[UI draft/edit]`: 추가/삽입/삭제/품명/일반 컬럼/주원료 draft, 선택/anchor/focus, dirty 상태, 임시 백업/취소, 탭/브랜드 이동 차단, 발행 체크 비활성화 검증.
+- `[Excel]`: `.xlsx` import/export, 지정 sheet parser, 헤더/행 수/표시 문자열 처리, 전체 교체 draft, import 전후 metadata 복원 검증. export는 기존 `archive` 기반 OpenXML 작성 패턴을 분리한 품목관리 단순 table writer로 검증하고, 일반 컬럼 값이 inline/shared string으로 저장되어 Excel 자동 숫자/날짜 변환이 발생하지 않는지 확인한다. Excel import의 `TYPE_IMAGE` 컬럼은 셀 표시 문자열 사용, 경로 제거, `.bmp` 확장자 제거, 다른 확장자 저장 전 검증 오류 fixture로 검증한다. 주원료 `RICH_ELEMENT_SHEET` 변환은 inlineRuns, 병합 영역, row height, column width, 테두리, 배경, 줄바꿈 fixture로 나눠 검증한다.
+- `[label/date setup]`: 상단 라벨 설정 메뉴, 날짜 타입 설정 다이얼로그, 날짜/시간 token 해석을 분리한 `DateManager` 포맷/preview helper, `LabelSizeDAO.updateDateSetup(labelSizeId, LabelSizeDateSetupUpdate)` 날짜/시간 전용 API, 캐시 갱신, preview/output refresh 검증. 저장 직전 DB 최신 setup을 다시 읽고 날짜/시간 관련 필드만 merge하며, update SQL `SET` 대상과 로그 변경 대상에 `RICH_SETUP_READONLY`/`RICH_SETUP_USE_SCALE`이 포함되지 않는지도 검증한다. 저장 성공 후 캐시는 최신 DB setup에 날짜/시간 변경값을 merge한 결과인지 검증한다. DB enum 범위 밖 값의 `DATE_FORMAT_DOT`/`TIME_FORMAT_COLON` fallback과 경고 표시, setup 로그 컬럼 probe 실패 차단, 정확한 날짜/시간 setup 로그 allow-list 컬럼 세트 전체 존재 시 setup 전용 SQL batch transaction logging, 일부/전체 컬럼 누락 시 logless update, 로그 insert 실패 rollback, logless update 앱 로그 근거도 같은 태그에서 검증한다.
+- `[QR viewer]`: 품목관리 우클릭 QR 데이터 보기, 현재 row/draft 값 기준 QR 데이터 계산, 사용자 정의/나트륨/텍스트연동 치환, 읽기 전용 viewer 검증.
+- `[barcode/output preview]`: 출력내용 미리보기 barcode image object 치환, column type 기준 object 매칭, `barcodeText`/실제 렌더링 `barcodeFormatId` 동시 갱신, 표시 metadata 반영, column 형식 불일치 시 fallback 경고 또는 렌더링 불가 오류 표시 검증. `CodeEAN8` DB normalize 선행 수정, `EAN8`/`EAN-8`/`CodeEAN8` fixture가 Code128과 구분되는지, `preserveTemplateBarcodeFormat` save codec feature key/allow-list/normalize/migrate/round-trip 선행 검증, `.xlsx` customXml image metadata 파싱/복원, 실제 출력 경로가 resolver metadata 반영 output workbook을 사용하는지도 같은 태그에서 검증한다.
+- `[item/order]`: 품목관리 우클릭 순서 변경, 라벨 설정 `orderEditMode` 패턴 dialog, item order 조회/이동/저장, 저장 후 재조회와 draft 충돌 방지 검증.
+- 여러 단위가 함께 필요한 항목은 `[UI draft/edit][transaction/DAO]`처럼 태그를 함께 붙인다. 아직 필요한 단위가 연결되지 않아 실행할 수 없는 검증은 해당 태그와 함께 `미검증`으로 남긴다.
+
+14.1 [UI draft/edit][transaction/DAO] 추가/삽입/삭제와 저장 반영
+
+- 품목 추가 1개 후 저장하면 DB에 신규 품목이 생성된다.
+- 품목 추가 여러 개 후 저장하면 입력 개수만큼 생성된다.
+- 품목 추가는 working table의 실제 품목 순서 맨 끝에 신규 행을 추가한다.
+- 품목 추가/삽입은 실행 후 전체 working row 수가 `ItemManagerLimits.maxRows`를 넘으면 차단된다.
+- 정렬/필터 상태에서는 추가된 새 행이 화면 표시상 마지막에 보이지 않을 수 있다.
+- 추가/삽입 입력박스 기본값은 `1`이다.
+- 추가/삽입 입력박스 값이 비어 있거나 숫자가 아니거나 1 미만이면 실행하지 않고 경고한다.
+- 추가/삽입 입력박스 값이 최대 허용 개수를 초과하면 경고 메시지를 표시하고 실행을 막는다.
+- 품목 삽입 후 저장하면 working table의 실제 품목 순서에서 삽입 기준 행 아래 순서로 저장된다.
+- 선택 행이 없으면 `품목 삽입` 메뉴가 비활성화된다.
+- 현재 표시 선택 행 또는 표시 anchor 행이 없고 필터로 보이지 않는 숨은 선택 행만 있으면 `품목 삽입` 메뉴가 비활성화된다.
+- 여러 행 선택 후 `품목 삽입`을 실행하면 현재 포커스/anchor 행 아래에 삽입되고, 포커스/anchor 행을 확인할 수 없으면 선택 범위의 마지막 표시 행 아래에 삽입된다.
+- 포커스/anchor 행은 마지막 클릭, 키보드 이동, 드래그 시작, Shift/Ctrl 선택 기준 행으로 갱신된다.
+- 프로그램 방식 선택 변경으로 포커스/anchor 행이 없으면 선택 범위의 마지막 표시 행을 삽입 기준으로 사용한다.
+- 정렬/필터 상태에서도 삽입 위치와 저장 order는 working table의 실제 품목 순서 기준으로 계산된다.
+- 정렬/필터 상태에서는 새 행이 화면 표시상 선택 행 바로 아래에 보이지 않을 수 있다.
+- 기존 행 여러 개 선택 후 삭제 저장하면 레거시 `CItemOfMarketDAO::DeleteBatchByItemIDs`와 동일하게 삭제 item id 기준으로 `BM_ITEM_OF_MARKET` mapping이 제거되어 품목관리 재조회에서 보이지 않는다. 이 mapping delete에는 market 조건을 붙이지 않는다. `BM_RICH_ITEM`과 item 참조 child row는 삭제하지 않는다.
+- 신규 추가 행을 삭제하면 DB delete 없이 draft에서만 제거된다.
+- 삭제 확인에서 `계속 편집`을 선택하면 행이 제거되지 않는다.
+- 삭제 확인에서 `삭제`를 선택하면 기존 행은 화면에서 제거되고 삭제 예정 ID에 들어간다.
+- 삭제 확인에서 `삭제`를 선택하면 신규 행은 draft에서 제거되고 DB delete 대상이 아니다.
+- 삭제 후 품목관리 `변경 취소`를 선택하면 화면에서 제거됐던 기존 행이 원래 위치로 복원된다.
+- 단일 행 삭제 후 선택 상태는 제거된 행 바로 아래의 다음 표시 행으로 이동한다.
+- 여러 행 삭제 후 선택 상태는 삭제된 표시 행 묶음의 마지막 위치 바로 아래 다음 표시 행으로 이동한다.
+- 다음 표시 행이 없으면 제거된 행 또는 삭제된 표시 행 묶음 바로 위의 이전 표시 행으로 이동한다.
+- 남은 표시 행이 없으면 선택이 비워진다.
+- 신규 행 삭제도 같은 선택 이동 기준을 따른다.
+- 추가/삽입 직후 working table의 실제 품목 순서 기준 첫 번째 신규 행이 자동 선택된다.
+- 정렬/필터 상태에서 자동 선택된 신규 행이 화면에 보이지 않으면 선택 상태는 유지되지만 테이블에는 선택 하이라이트가 표시되지 않는다.
+- 선택 상태는 표시 rowIndex가 아니라 기존 행의 item id 또는 신규 행의 임시 draft row key 기준으로 유지된다.
+- 필터로 보이지 않는 자동 선택 행은 필터 해제 전까지 삭제/전체 선택 같은 표시 행 기반 액션 대상에 포함되지 않는다.
+- `전체 선택 해제`를 실행하면 표시 행 선택과 필터로 보이지 않는 숨은 자동 선택 상태가 모두 해제된다.
+- 추가/삽입 후 기존 행을 선택해 수정할 수 있다.
+- 추가/삽입 후 기존 행을 선택해 삭제할 수 있다.
+- draft 편집 중 전체 선택/삭제는 신규 행으로 제한되지 않는다.
+- 필터로 보이지 않는 행은 전체 선택/삭제 대상에 포함되지 않는다.
+- 추가/삽입/삭제 저장 시 전체 working table 기준으로 order가 연속 재계산된다.
+
+14.2 [Excel][UI draft/edit][transaction/DAO] 엑셀 내보내기/가져오기와 전체 교체 draft
+
+- 변경 사항이 없는 상태에서는 `엑셀 가져오기`, `엑셀 내보내기` 버튼이 활성화된다.
+- 변경 사항이 있는 draft 편집 모드에서는 `엑셀 가져오기`, `엑셀 내보내기` 버튼이 비활성화된다.
+- 품목 행이 없으면 `엑셀 내보내기` 실행 시 파일 대화상자를 열지 않고 데이터 없음 메시지를 표시한다.
+- 엑셀 내보내기는 `.xlsx`만 지원한다.
+- 엑셀 내보내기 파일 선택 대화상자는 `.xlsx`만 노출한다.
+- 엑셀 내보내기에서 다른 경로로 `.xls`가 지정되면 지원하지 않는 형식이라는 안내를 표시하고 저장하지 않는다.
+- 엑셀 내보내기는 DB를 다시 조회하지 않고 현재 품목관리 working table의 값을 사용한다.
+- 엑셀 내보내기 헤더는 `품목`, `주원료`, 현재 라벨크기의 일반 컬럼명 순서로 작성된다.
+- 엑셀 내보내기 데이터 행은 품목명, 주원료 plain text, 일반 컬럼 cell data 순서로 작성된다.
+- 엑셀 내보내기 일반 컬럼 값은 Excel 자동 숫자/날짜 변환을 막기 위해 문자열로 저장된다.
+- 엑셀 내보내기 일반 컬럼 값은 xlsx cell type string/inline string/shared string으로 기록되는 방식이 우선 적용된다.
+- 엑셀 내보내기 writer는 외부 Excel 패키지를 추가하지 않고 기존 `archive` 기반 OpenXML 작성 패턴을 품목관리 단순 table writer로 분리해 사용한다.
+- xlsx writer 또는 라이브러리 제약으로 Excel 자동 변환이 발생할 수 있는 경로에서만 apostrophe fallback이 적용된다.
+- 엑셀 내보내기는 행 번호, 라벨크기명, 발행 체크 상태, 선택 상태, 셀 스타일, `RICH_ELEMENT_SHEET`, 기존 `RICH_ELEMENT_RTF`, 출력 미리보기/라벨 시트 서식을 포함하지 않는다.
+- 엑셀 가져오기 성공 후 기존 행 전체가 삭제 예정 기존 행으로 기록되고, 엑셀 데이터 행이 임시 신규 행으로 생성된다.
+- 기존 행이 정확히 1개인 상태에서 엑셀 가져오기를 실행해도 레거시 삭제 누락 동작을 따르지 않고 전체 교체 draft로 처리된다.
+- 엑셀 가져오기 후 저장하면 기존 품목 mapping delete와 엑셀 신규 행 insert가 같은 트랜잭션 안에서 반영된다.
+- 엑셀 가져오기 후 변경 취소를 선택하면 DB 재조회로 가져오기 전 데이터를 복원하고, import 직전 표시 정렬/필터/선택 metadata를 적용한다.
+- 엑셀 가져오기는 `.xlsx`만 지원한다.
+- `.xls` 선택 시 지원하지 않는 형식이라는 안내를 표시하고 draft가 변경되지 않는다.
+- 파일 선택 대화상자는 `.xlsx`만 노출한다.
+- 드래그 앤 드롭, 직접 경로 입력, 최근 파일 등 다른 경로로 `.xls`가 들어오면 지원하지 않는 형식이라는 안내를 표시하고 draft가 변경되지 않는다.
+- `.xlsx` 가져오기는 현재 앱의 `labelSheetWorkbookFromXlsxBytes()` 내부 parser 로직/공용 helper를 우선 재사용한다.
+- 품목관리 xlsx adapter는 원본 `.xlsx` bytes를 입력으로 받고, 같은 parse context 안에서 지정 sheet parser 결과와 원본 worksheet XML metadata를 함께 사용한다. 지정 sheet parser는 최소 `parsedWorkbook`, `sheetName`, `relationshipId`, `worksheetPath`, `worksheetXml`, `styles`, `sharedStrings`, `workbookDateSystem`, `extensionMetadata`를 담은 DTO를 반환한다.
+- 중복 파싱과 parser 동작 불일치를 줄이기 위해 `labelSheetWorkbookFromXlsxBytes()` 내부 파싱 로직에서 공용 parse helper를 분리해 품목관리 xlsx adapter와 공유하는 것을 우선한다.
+- 공용 parse helper를 분리한 경우 기존 라벨 시트 xlsx import 테스트가 계속 통과한다.
+- 공용 parse helper 분리 범위가 과도해 기존 라벨 시트 xlsx import 안정성을 해치면 품목관리 adapter 내부 local helper로 제한하되, 원본 worksheet XML metadata와 지정 sheet parse 결과를 같은 parse context에서 함께 참조한다.
+- 품목관리 import는 workbook activeTab이 첫 번째가 아니어도 원본 workbook sheet order index 0을 대상으로 한다.
+- 품목관리 xlsx parse helper는 sheet index 또는 relationship id를 지정할 수 있어야 한다.
+- 품목관리 xlsx adapter는 activeTab 기준 기존 helper 결과를 그대로 사용하지 않고, 지정 sheet parse helper가 반환한 `FortuneWorkbook`과 같은 worksheet XML metadata를 사용한다.
+- 품목관리 엑셀 가져오기는 첫 번째 worksheet만 대상으로 한다. 첫 번째 worksheet의 1행에서 빈 헤더 전까지 읽은 헤더 중 trim 후 `품목` 헤더가 있으면 유효한 헤더로 판정된다.
+- 첫 번째 worksheet는 원본 `.xlsx`의 workbook sheet 순서 기준으로 판정되고, 지정 sheet parse helper 결과와 원본 worksheet XML metadata는 같은 sheet id 또는 relationship 기준으로 매칭된다.
+- 첫 번째 worksheet에 유효한 헤더가 없으면 다른 worksheet를 탐색하지 않고 가져오기가 실패한다.
+- 엑셀 헤더명은 xlsx 변환 결과의 표시 텍스트를 trim한 값으로 비교된다.
+- 엑셀 헤더명의 trim 결과가 빈 문자열이면 빈 헤더로 보고 그 이후 컬럼을 읽지 않는다.
+- 빈 헤더 이후 뒤쪽 컬럼에 현재 라벨크기의 매핑 가능한 헤더가 있으면 가져오기 전 무시 안내/경고가 표시된다.
+- 빈 헤더 뒤쪽에 `품목` 헤더가 있더라도 빈 헤더 전까지 읽은 헤더에 `품목`이 없으면 가져오기는 `품목` 헤더 없음 오류로 실패한다.
+- 엑셀 헤더명은 앞뒤 공백만 trim한 뒤 정확히 일치할 때만 매핑되고, 대소문자 변경, 내부 공백 정규화, 별칭 매핑은 적용되지 않는다.
+- 같은 매핑 대상 헤더가 중복되면 첫 번째 매핑 컬럼만 사용되고 이후 중복 헤더는 무시된다.
+- 헤더 행은 있으나 `품목` 헤더가 없으면 가져오기는 실패하고 테이블 상태와 draft가 변경되지 않는다.
+- `품목` 헤더가 없으면 레거시처럼 매칭되는 컬럼만으로 행을 만들지 않고, 품명 없는 대량 import를 막기 위해 가져오기를 실패 처리한다.
+- 엑셀 헤더 `품목`은 품목명으로 매핑된다.
+- 엑셀 헤더 `주원료`는 해당 데이터 행의 `주원료` 셀 또는 병합 영역을 하단 `주원료 및 함량` 편집 시트 형태로 가져온다. plain text는 표시 텍스트 기준으로 생성하고, `RICH_ELEMENT_SHEET`는 원본 셀의 inlineRuns, 병합 영역, row height, column width, 테두리, 배경, 줄바꿈을 가능한 범위에서 보존한 FortuneSheet workbook payload로 생성한다. 원본 셀/병합 영역의 bounding rectangle을 좌상단 `(0, 0)`부터 배치하는 단일 sheet로 변환하고, import 단계에서는 라벨 크기에 맞춘 임의 scale을 적용하지 않는다. plain text는 병합 영역 top-left cell의 표시 텍스트만 사용한다.
+- 엑셀 헤더 `주원료`가 없으면 주원료 plain text는 빈 문자열로 생성된다.
+- 엑셀 헤더 `주원료`가 없으면 `RICH_ELEMENT_SHEET`는 현재 앱의 빈 주원료 sheet 기본 payload로 생성된다.
+- 빈 주원료 sheet 기본 payload는 신규 품목 생성 또는 하단 주원료 편집 초기화에서 사용하는 기존 초기화 경로와 동일하다. 동일 helper가 없으면 품목관리 공용 helper로 분리되어 엑셀 가져오기, 신규 행, 주원료 편집 초기화가 같은 payload를 사용한다.
+- `주원료` 셀의 서식, inlineRuns, 병합 영역, row height, column width, 테두리, 배경을 `RICH_ELEMENT_SHEET`로 옮기는 작업은 이번 구현 범위에 포함된다. Excel 차트/도형/이미지/매크로/조건부서식처럼 품목관리 주원료 편집 시트로 직접 표현하기 어려운 객체성 기능은 기능정의에서 제외된다.
+- 엑셀 주원료 보존 검증은 inlineRuns, 병합 영역, row height, column width, 테두리, 배경, 줄바꿈을 각각 분리한 fixture로 작성한다. 각 fixture는 해당 속성이 `RICH_ELEMENT_SHEET` payload에 반영되는지와 plain text가 top-left/표시 텍스트 정책을 따르는지를 검증한다.
+- 주원료 plain text 산출 시 단일 셀의 표시 텍스트는 일반 컬럼의 표시 문자열 formatter/fallback과 같은 기준으로 계산된다.
+- `주원료` 단일 셀이 수식 셀이면 일반 컬럼과 같은 기준으로 처리된다. cached value가 있으면 값/표시 텍스트로 옮겨지고, cached value가 없으면 수식 자체는 가져오지 않고 빈 값으로 처리된다.
+- 주원료 plain text는 `주원료` 단일 셀의 표시 텍스트로 저장하고, 셀 표시 텍스트에 포함된 줄바꿈은 보존한다.
+- 엑셀 가져오기는 기존 `RICH_ELEMENT_RTF`를 새 저장 대상으로 생성하거나 덮어쓰지 않는다.
+- 엑셀 헤더가 현재 라벨크기의 일반 컬럼명과 정확히 일치하면 해당 column content로 매핑된다.
+- 일반 컬럼 값은 품목관리 xlsx adapter가 원본 worksheet XML의 cell attribute `t`와 지정 sheet parse helper의 변환 결과를 함께 참조해 결정된다.
+- 일반 컬럼 값은 원본 xlsx cell type이 string/shared string/inline string이면 해당 문자열이 우선 사용된다.
+- 수식 셀은 cached value가 있으면 cached value가 표시 문자열 formatter 대상으로 사용된다.
+- 수식 셀에 cached value가 없으면 수식 문자열 자체가 가져오기 값으로 사용되지 않고 빈 값으로 처리된다.
+- 일반 컬럼 값이 숫자/날짜 등으로만 읽히면 원본 raw value, xlsx number format, 현재 앱 변환 결과의 cell formatCode를 기준으로 표시 문자열 formatter가 적용된다.
+- 표시 문자열 formatter는 문자열, 정수, 소수, 천단위 구분, 소수 자리수 고정, Excel serial date의 `yyyy-mm-dd`, `yyyy/mm/dd`, `yyyy.mm.dd`, 기본 시간 표시를 지원한다.
+- Excel serial date 변환은 workbook date system을 읽을 수 있으면 해당 기준을 따른다.
+- workbook date system을 확인할 수 없으면 Excel 기본 1900 date system이 사용된다.
+- 표시 문자열 formatter 지원 범위 밖의 숫자/날짜/custom format은 raw value가 문자열로 사용되고, 저장 전 검증에서 해당 컬럼 타입 기준으로 허용 여부가 판단된다. 모든 Excel custom format의 화면 표시를 완전 재현하는 작업은 이번 기능정의에서 제외된다.
+- 이미지 타입(`TYPE_IMAGE`) 컬럼은 Excel 객체 이미지가 아니라 셀 표시 문자열 기준으로 draft 값이 생성된다. 경로와 `.bmp` 확장자는 제거되어 파일명만 저장 후보가 되며, 다른 확장자가 명시된 값은 저장 전 검증 오류로 표시된다.
+- 엑셀 가져오기 단계에서는 구조적으로 읽을 수 있는 행이 draft로 생성되고, 일반 컬럼 타입/필수/날짜/숫자 검증은 저장 전 검증에서 차단된다.
+- 파일 형식 오류, workbook/worksheet 파싱 실패, 헤더 행 부재, 데이터 행 부재처럼 테이블 구조를 만들 수 없는 오류는 가져오기 실패로 처리되고 테이블 상태와 draft가 변경되지 않는다.
+- 엑셀 가져오기 성공 후 기존 표시 정렬/필터가 초기화되고 전체 교체 결과가 표시된다.
+- 엑셀 가져오기 성공 후 첫 번째 엑셀 데이터 행이 선택된다.
+- 엑셀 가져오기 직전 표시 정렬/필터 상태와 선택 상태는 draft metadata와 임시 파일 백업 JSON의 metadata에 함께 저장된다.
+- 임시 파일 백업 JSON에는 엑셀 가져오기 전 표시 정렬/필터/선택 상태 복원용 metadata가 포함된다.
+- 백업 JSON의 선택 복원용 정보는 품목리스트 재조회 성공 후 선택 복원에 사용되고, 엑셀 가져오기 전 표시 정렬/필터/선택 상태 복원용 metadata는 변경 취소 시 import 직전 UI 상태 복원에만 사용된다.
+- 정렬/필터 controller의 내부 객체는 그대로 직렬화되지 않고, 복원 가능한 컬럼 key, 정렬 방향, 필터 조건, 선택 item id 또는 draft row key, fallback row index 같은 값 객체만 저장된다.
+- 가져오기 저장값에는 Excel 문자열 보존용 literal apostrophe가 새로 붙지 않는다.
+- 원본 xlsx 값이 문자열 escape 목적의 선행 apostrophe를 포함하더라도, 이를 확실히 판정할 수 없으면 원문이 보존된다.
+- 원본 cell type이 string/shared string/inline string이고 값이 apostrophe로 시작하며, 원본 worksheet XML/style metadata 또는 변환된 FortuneCell의 `quotePrefix`/`qp` 값으로 Excel 표시값 기준 apostrophe가 보이지 않는 문자열 escape임을 판정할 수 있는 경우에만 저장값에서 선행 apostrophe가 제거된다.
+- apostrophe fallback은 엑셀 내보내기 직렬화 시 Excel 자동 변환을 막기 위한 처리로만 적용된다.
+- 매칭되지 않는 엑셀 컬럼은 무시된다.
+- 현재 테이블에 있지만 엑셀에 없는 일반 컬럼은 빈 값으로 유지된다.
+- 2행 이후 매핑 대상 컬럼 중 하나라도 표시 텍스트가 있으면 데이터 행으로 판정된다.
+- 매칭되지 않는 엑셀 컬럼에만 값이 있고 매핑 대상 컬럼 값이 모두 비어 있는 행은 import 대상 데이터 행으로 판정되지 않는다.
+- `품목` 값이 비어 있어도 다른 매핑 대상 컬럼 값이 있으면 draft 행이 생성되고, 품명 필수 오류는 저장 전 검증에서 차단된다.
+- 2행 이후 매핑 대상 컬럼의 표시 텍스트가 모두 비어 있는 행은 데이터 행으로 판정되지 않는다.
+- 엑셀 데이터 행이 없으면 가져오기는 실패하고 테이블 상태와 draft가 변경되지 않는다.
+- 엑셀 데이터 행 수가 `ItemManagerLimits.maxRows`를 초과하면 가져오기는 실패하고 테이블 상태와 draft가 변경되지 않는다.
+
+14.3 [UI draft/edit][읽기/스냅샷][transaction/DAO] draft 모델, 저장 전 검증, 일반 컬럼 저장
+
+- 품명 수정 후 저장하면 item name이 DB에 반영된다.
+- 일반 컬럼 수정 후 저장하면 column content가 DB에 반영된다.
+- 신규 행의 일반 컬럼 draft는 `draftRowKey + columnId` 기준으로 관리되고, DB 저장 성공 후 생성 item id에 매핑되어 column content로 insert된다.
+- 품목관리 편집 상태는 기존 `Item.copyWith` 확장에 의존하지 않고 품목관리 전용 draft row/value model로 관리된다.
+- 품목관리 전용 draft row/value model은 최소한 row identity, source item id, row state, order/originalIndex, item name, item price, 주원료 plain/payload/format, column drafts, current market snapshot, new mapping defaults를 포함한다.
+- 편집 세션 metadata는 현재 화면 market id, 저장 대상 target market ids, 정렬/필터/선택 복원 정보, 백업 파일 key를 포함한다.
+- `sourceItemId`는 기존 행 before snapshot 기준 item id이며, 신규 행은 null로 둔다.
+- 신규 행의 `newMappingDefaults.additionalItemId`는 additional item 미사용을 뜻하는 `NULL`이다.
+- 신규 행의 `itemPrice`는 레거시 신규 `CItem` 기본값과 동일하게 `0`이다.
+- 판매/할인 시작·종료일 draft는 nullable로 관리하고, 입력값이 없으면 DB에는 `NULL`을 저장한다.
+- 현재 조회 모델의 additional item `0` 또는 날짜 `DateTime.now()` fallback은 화면 표시용 보정일 수 있으므로 저장 draft 생성 시 실제 DB 값으로 간주하지 않는다.
+- 신규 행 저장에 적용되는 `targetMarketIds`는 row별 필드가 아니라 편집 세션 metadata에 저장된 현재 로그인 고객의 모든 market id이다. 산출 조건은 레거시 `CMarketDAO::SelectByCustID`와 동일한 `BM_MARKET.RICH_CUSTOMER_ID = 현재 로그인 고객 ID`이며, Flutter 구현의 source는 로그인 세션 customer id로 고정한다. `newMappingDefaults`는 market id를 제외한 mapping 기본값 template으로 보관된다.
+- 기존 행의 market-specific 값은 직접 편집 대상으로 저장되지 않는다.
+- 일반 컬럼 표시값은 draft 값이 있으면 draft 값을 우선하고, 없으면 품목관리 전용 scoped column content view model 값을 사용한다.
+- 신규 행 품명 필수 검증은 현재 Flutter의 저장 전 검증 정책으로 적용되고, 품명이 비어 있으면 저장 전 검증에서 차단된다.
+- `TColumnBase.useMissingKeywordCheck`가 true인 컬럼 값이 비어 있으면 저장 전 검증에서 차단된다.
+- 일반 동적 컬럼의 `useMissingKeywordCheck`는 `BM_RICH_CHECK_COLUMNS.RICH_CHECK_YN`을 조회한 `TColumn.useMissingKeywordCheck` 기준으로 판정된다.
+- 고정 특수 컬럼의 `useMissingKeywordCheck`는 `TColumnSpecial.selectByLabelSizeId`가 조회한 `BM_RICH_CHECK_COLUMNS.RICH_CHECK_YN` 기준으로 판정된다.
+- 날짜/제조일자/유통기한 값이 형식 또는 범위 검증에 실패하면 저장이 차단되고 편집 상태가 유지된다.
+- 날짜/제조일자/유통기한 값은 입력 중 draft에 반영되며, 저장 전 검증 실패 시 오류 상태가 표시되고 저장이 차단된다.
+- 저장 전 검증 실패 시 오류 셀 위치와 사유가 표시되고 편집 상태와 임시 파일 백업이 유지된다.
+- 엑셀 가져오기 후 저장 전 검증에 실패하면 첫 오류 셀로 스크롤/선택하고, 오류 원인은 엑셀 가져오기 값 기준으로 표시된다.
+- 엑셀 가져오기 후 저장 전 검증에 실패한 첫 오류 행이 기존 표시 정렬/필터 때문에 숨겨지는 상황은 발생하지 않는다.
+- 엑셀 가져오기 후 변경 취소를 선택하면 가져오기 전 데이터와 표시 정렬/필터 상태가 함께 복원된다.
+- 엑셀 가져오기 후 변경 취소를 선택하면 가져오기 전 선택 상태도 함께 복원된다. 복원할 수 없으면 품목리스트 재조회 성공 후 선택 상태 복원 fallback과 같은 기준을 따른다.
+- 엑셀 가져오기 후 변경 취소 시 DB 재조회 결과가 import 직전 lightweight baseline과 다르면 외부 변경 가능성을 경고하고 현재 DB 기준으로 복원된다.
+- GS1 AI 값이 포맷 검증에 실패하면 draft에 반영되지 않고 경고가 표시되며 테이블 셀 표시는 직전 유효값으로 되돌아간다.
+- EAN-13/UPC-A/EAN-8의 check digit 사용 컬럼은 저장 전 draft와 화면 값이 의미 보존 check digit 보정 결과로 일치한다. 길이 부족/초과를 0 padding 또는 truncation으로 맞춘 값은 자동 보정 저장값으로 사용되지 않는다. EAN-13/UPC-A/EAN-8 외 타입은 check digit 자동 보정 저장을 수행하지 않으며, 해당 타입에서 check digit 옵션 또는 레거시 전용 check digit 보정이 요구되는 입력만 저장 전 검증 오류로 처리된다. Code128/QR/DataMatrix 등 check digit 자동 보정과 무관한 일반 barcode/QR 값은 각 타입의 기존 형식 검증 규칙을 따른다. ITF 홀수 길이 값은 셀 편집 자동 left-pad 저장 대상이 아니므로 저장 전 검증 오류로 처리된다.
+- 출력 미리보기/실제 출력용 check digit 보정은 렌더링 payload에만 적용되며, 사용자가 셀 편집을 저장한 경우가 아니면 DB 셀 원본값을 자동 변경하지 않는다.
+- 바코드 값 변경 시 타임바코드 설정이 있으면 재계산 결과가 draft와 화면에 반영된다.
+- 유통기한/유통시한/제조일자 변경 시 타임바코드 재계산 결과가 draft와 화면에 반영된다.
+- 타임바코드 재계산에 필요한 날짜/시간/바코드 기준값이 누락되거나 유효하지 않으면 저장 전 검증에서 차단된다.
+- 타임바코드 재계산으로 변경된 바코드 컬럼은 dirty cell로 저장 대상에 포함된다.
+- 숫자 계열과 `10*8` 자동 계산 대상 컬럼의 숫자 변환 실패, 0 나눗셈, 필수값 누락은 저장 전 검증에서 차단된다.
+- `10*8` 자동 계산으로 변경된 `매수`, `발행수량`이 draft와 화면에 반영되고 저장 대상 cell에 포함된다.
+- 이미지 타입 컬럼은 BMP 파일 선택 후 경로와 확장자를 제외한 파일명만 draft와 테이블에 반영된다.
+- BMP 선택 시 경로가 저장되지 않고 파일명만 저장된다는 안내가 표시된다. 동일 BMP 파일명이 여러 경로에 있을 때 출력 환경별 이미지 선택이 달라질 수 있다는 위험을 사용자에게 알린다.
+
+14.4 [UI draft/edit][transaction/DAO] 주원료 편집과 RTF lazy 변환
+
+- 주원료 수정 후 테이블 주원료 컬럼 plain text가 갱신된다.
+- 주원료 선택 행 변경 전 현재 행의 활성 편집 셀이 commit/flush되고, plain text와 `RICH_ELEMENT_SHEET`가 현재 행 draft에 반영된다.
+- 새 선택 행은 주원료 draft 값을 우선 로드하고, draft가 없으면 변경 대상 before snapshot 또는 DB 조회/working row 값을 로드한다.
+- 새 선택 행의 `Item.elementRTF`가 encoded workbook save 형식이면 변환 없이 그대로 주원료 sheet로 사용된다.
+- 새 선택 행의 `Item.elementRTF`가 legacy RichEdit RTF 형식이면 주원료 편집 진입 또는 명시적 변환 적용 시 lazy 변환이 수행되고, 변환 결과는 즉시 DB에 저장되지 않고 draft 변경으로만 반영된다.
+- 미리보기 표시 목적 lazy 변환은 display-only cache로만 유지되며 dirty 상태를 만들지 않는다.
+- draft lazy 변환으로 생성된 `RICH_ELEMENT_SHEET`는 주원료 수정과 같은 저장/취소/journal 규칙을 따른다.
+- 품목관리 편집 기능이 켜진 화면에서는 라벨크기 로드 직후 `_startItemElementAutoMigration()` 호출 자체가 실행되지 않는다.
+- dirty 편집 세션 중에는 기존 RTF 자동 마이그레이션 큐가 DB와 캐시를 자동 변경하지 않는다.
+- 주원료 수정 후 저장하면 `RICH_ELEMENT_SHEET`와 plain text가 저장된다.
+- 기존 `RICH_ELEMENT_RTF`는 신규 저장 포맷의 주 저장 대상이 아니며, 기존 값이 있으면 마이그레이션/호환용으로 삭제하지 않고 유지된다.
+- 새 주원료 편집 결과의 기준 저장 대상은 `RICH_ELEMENT_SHEET`와 plain text이다.
+
+14.5 [transaction/DAO][UI draft/edit][읽기/스냅샷] 저장 transaction, 재조회, 백업, 화면 잠금
+
+- 저장 중에는 `저장`, `취소`, `엑셀 가져오기`, `엑셀 내보내기`, 추가/삽입/삭제 메뉴, 테이블 셀 편집, 브랜드/라벨/탭 이동, 주원료 편집이 잠긴다.
+- 저장 전 검증 실패 시 DB 트랜잭션이 시작되지 않고 UI 잠금이 해제되며 편집 상태와 임시 파일 백업이 유지된다.
+- 품목관리 저장은 `DbIsolateAction.transaction` 단일 action이 준비된 뒤 구현된다. 단일 SQL batch transaction은 제한적 fallback으로만 사용한다.
+- 여러 `writeDataWithParams` 호출을 순차 실행하는 방식은 전체 롤백을 보장하지 못하므로 품목관리 저장 경로에 사용되지 않는다.
+- 일반 draft 저장과 엑셀 전체 교체 저장은 서로 다른 기존 item id 집합을 입력으로 받는 DAO 경로로 실행된다. 일반 저장은 삭제 예정 기존 row의 `sourceItemId` 집합, 엑셀 전체 교체는 import 직전 current market working table의 기존 item id 집합을 사용한다. 두 경로 모두 레거시 `DeleteBatchByItemIDs`와 동일하게 `RICH_ITEM_ID` 조건만으로 `BM_ITEM_OF_MARKET` mapping을 제거하며 market 조건을 붙이지 않는다.
+- 신규 `BM_RICH_ITEM` insert는 `OUTPUT INSERTED.RICH_ITEM_ID` 또는 임시 테이블로 `draftRowKey`와 생성 item id를 같은 transaction 안에서 매핑한다.
+- trigger가 있을 수 있으므로 생성 id 매핑은 direct OUTPUT resultset이 아니라 `OUTPUT INTO` 임시 테이블/table variable 방식을 우선한다.
+- 신규 `BM_RICH_ITEM` insert는 `RICH_PRICE=0`을 명시하고, 생성 item id는 고객의 모든 market mapping 생성에 사용한다.
+- 고객의 모든 market mapping 생성을 위해 저장 전 `MarketDAO.selectByCustomerId(customerId)`로 세션 `targetMarketIds`를 산출한다. 이 DAO는 레거시와 동일하게 `BM_MARKET.RICH_CUSTOMER_ID = customerId` 조건만 사용한다. 호출부는 로그인 세션 customer id를 명시적으로 전달하고, 현재 화면 market에서 customer id를 역추적해 대체하지 않는다.
+- 현재 DB에 `AFTER_INSERT_ITEM` trigger가 있으면 신규 item insert 후 실제 trigger body가 자동 생성한 테이블 row를 중복 insert하지 않고 trigger 생성 row를 update/upsert한다.
+- 품목관리 로드 전 `BM_RICH_ITEM.RICH_ELEMENT_SHEET` 컬럼 존재 여부를 capability probe하고, `hasRichElementSheet=false`이면 `RICH_ELEMENT_SHEET`를 직접 참조하는 현재 `ItemOfMarketDAO.SelectSql`을 실행하지 않는다. 필수 동작은 DB migration 안내 화면 전환, 품목관리 테이블 미오픈, 편집 진입 액션 전체와 저장 버튼 비활성화이다. 조회 전용 테이블을 제공하는 read-only fallback SELECT는 선택 구현이며, 구현한 경우에만 `RICH_ELEMENT_RTF`만 참조하는 별도 SELECT 성공 후 조회 전용 테이블을 표시한다. fallback SELECT가 없거나 실패하면 테이블을 열지 않는다. 이번 구현은 `RICH_ELEMENT_SHEET` 존재를 전제로 하며 별도 호환 저장 정책은 만들지 않는다.
+- 이번 품목관리 기능에서는 기존 `BM_RICH_ITEM` 물리 delete를 수행하지 않고 기존 item id 기준 `BM_ITEM_OF_MARKET` mapping 제거로 전체 교체를 반영한다.
+- 기존 `BM_RICH_ITEM`과 item 참조 child row는 삭제하지 않으며, orphan 정리는 이번 기능정의에서 제외한다.
+- 기존 item/child row orphan을 남기는 대신, 품목관리 column content 조회·캐시·checksum은 현재 화면 item id 집합을 SQL에서 제한하는 scoped 조회 결과 기준으로 제한해 orphan 데이터가 화면/백업 판단에 섞이지 않게 한다. 1만 행 id 집합은 DAO 단일 action 안의 temp table/table variable 또는 chunk 기준으로 전달하고, 단순 대량 `IN` parameter 나열은 사용하지 않는다. 조회 후 필터는 테스트 보조 전용이며 운영 fallback으로 사용하지 않는다.
+- scoped column content chunk 조회 fallback 테스트는 외부 변경을 100% 차단/감지한다고 기대하지 않는다. 테스트 기대값은 chunk별 조회 결과가 `columnId + itemId` key로 dedupe/merge되는지, 1만 행 id 전달이 단순 대량 `IN` parameter 없이 수행되는지, baseline checksum이 외부 변경 가능성을 best-effort로 보조 감지하는지에 둔다.
+- 신규/엑셀 import 행은 `RICH_ADDITIONAL_ITEM_ID=NULL`로 생성되고, 기존 `BM_ADDITIONAL_ITEM` orphan 정리는 이번 기능정의에서 제외한다.
+- 저장 전 검증 실패 또는 DB 트랜잭션 실패 시 UI 잠금이 해제되고 편집 상태와 임시 파일 백업이 유지된다.
+- DB 트랜잭션 실패 시 전체 롤백 후 UI 잠금이 해제된다.
+- DB 트랜잭션 실패 시 남아 있는 debounce 백업 작업은 취소되지 않는다.
+- DB 트랜잭션 실패 직후 현재 메모리 draft 기준으로 임시 파일 백업 저장이 다시 예약되거나 즉시 flush된다.
+- DB 저장 성공 후 품목리스트 재조회와 화면 상태 복원이 끝난 뒤 UI 잠금이 해제된다.
+- DB 저장은 성공했지만 품목리스트 재조회 또는 화면 복원에 실패하면 DB 저장 성공은 유지하고, `forceReloadRequired` 강제 재조회 필요 상태로 전환한다. 이 상태에서는 같은 draft를 저장 버튼으로 다시 DB에 재반영하지 않고 저장/취소/편집/엑셀/발행 체크 작업을 재조회 성공 전까지 막는다.
+- 저장 전 검증 실패 또는 DB 트랜잭션 실패 시 변경 상태가 유지된다.
+- 엑셀 가져오기 취소용 baseline checksum은 row count, item id/order, item name, 주원료 plain text, `Item.elementRTF` payload의 존재/포맷 정보, 현재 화면 market의 item id 집합에 속한 column content data hash를 기준으로 산출된다.
+- 삭제/전체 교체 저장 영향 범위가 current market보다 넓은 점을 보완하기 위해, 일반 삭제는 row가 최초 삭제 예정이 되는 시점의 before snapshot/journal에 item별 `BM_ITEM_OF_MARKET` mapping fingerprint를 저장하고, 엑셀 전체 교체는 import 직전 기존 item id 집합의 mapping fingerprint를 baseline metadata에 별도 저장한다. fingerprint가 달라지면 외부 변경 가능성 경고를 표시하고, current DB 재조회 기준 복원을 우선한다.
+- 저장 전 검증에서 mapping fingerprint 불일치가 발견되면 DB transaction을 시작하지 않는다. 이 경우 경고 dialog가 열린 동안에는 편집 상태와 임시 백업을 유지하되 저장 버튼 재시도만 반복하지 않도록 경고를 표시한다. 경고 dialog의 기본/권장 액션은 `다시 조회`로 고정하고, 보조 액션은 `변경 취소`로 둔다. 사용자가 `다시 조회`를 선택하면 현재 draft와 임시 백업을 폐기하고 현재 DB 기준으로 품목관리 로드 경로를 재실행해 새 baseline을 만든다. `변경 취소`는 현재 DB 기준 복원/취소 흐름으로 진입한다.
+- baseline checksum은 변경되지 않은 대형 `RICH_ELEMENT_SHEET`/legacy RTF payload 전체 문자열을 직접 hash하지 않는다.
+- baseline checksum은 best-effort 외부 변경 감지 신호이며, 필요 시 payload length와 앞/뒤 capped hash로 주원료 payload 변경 감지력을 보완한다.
+- 품목관리 `취소`에서 `계속 편집`을 선택하면 draft와 임시 파일 백업이 유지된다.
+- 품목관리 `취소`에서 `변경 취소`를 선택하면 임시 파일 백업의 baseline/journal 또는 DB 재조회 기준으로 테이블이 복원되고 draft와 백업이 삭제된다.
+- 변경 취소 시 일반 편집은 임시 파일 백업에 저장된 baseline/journal 복원을 우선하고, 엑셀 가져오기 전체 교체는 DB 재조회와 import 직전 UI metadata 복원을 우선한다.
+- 취소 시 추가/삽입/삭제/수정/lazy RTF 변환 상태가 모두 변경 전 기준으로 돌아간다.
+- draft 변경 시 변경 취소용 임시 파일 백업이 생성/갱신된다.
+- 같은 사용자/거래처/브랜드/라벨크기 기준의 임시 파일 백업은 최신 1개만 유지된다.
+- dirty가 없는 상태에서 새 편집 세션을 시작할 때 같은 기준의 기존 백업은 먼저 삭제되고, 새 백업은 실제 draft 변경이 처음 발생하는 시점에 생성된다.
+- 임시 파일 백업 저장 실패 시 메모리 baseline/journal/draft가 살아 있으면 변경 취소는 메모리 기준으로 수행된다.
+- 메모리 원본도 사용할 수 없는 예외 상황에서는 DB 재조회로 동기화하고 경고/로그가 남는다.
+- 화면 복원 완료 시 임시 파일 백업과 메타데이터가 삭제된다.
+- DB 저장 성공 후 품목리스트 재조회 또는 화면 복원에 실패하면 기존 임시 파일 백업은 rollback 용도로 사용하지 않고 stale 저장 완료 백업으로 표시했다가 강제 재조회 성공 또는 화면 이탈 정리 시 삭제된다.
+- 변경 취소 시 임시 파일 백업과 메타데이터가 삭제된다.
+- 앱 시작 후 최초 품목 테이블 진입 시 이전 실행에서 남은 임시 파일 백업과 메타데이터가 삭제된다.
+- dirty가 없는 상태에서 새 브랜드/라벨 조회를 시작하면 기존 임시 파일 백업과 메타데이터가 삭제된다.
+- dirty 상태에서는 브랜드/라벨 변경이 차단되어 다른 브랜드/라벨 조회로 인한 백업 폐기가 발생하지 않는다.
+- 같은 편집 세션의 위젯 재생성/리빌드에서는 임시 파일 백업이 유지된다.
+- 품목리스트 재조회와 화면 복원이 완료되면 그 결과가 새 baseline 기준이 된다.
+- 이후 신규 변경이 발생하면 재조회된 새 baseline 기준으로 새 임시 파일 백업이 생성된다.
+- 편집 중 브랜드/라벨 변경이 차단된다.
+- 편집 중 라벨출력 등 다른 탭 이동이 차단된다.
+- 편집 중 출력내용 미리보기 탭 이동이 차단된다.
+- 저장, 선택 행 변경, 탭 이동 차단 판단 직전 현재 편집 중인 셀이 commit/flush되고 draft 검증에 반영된다.
+- 저장 완료 또는 취소 dialog에서 변경 취소를 확정한 뒤 차단된 이동 동작이 다시 가능하다.
+- draft 편집 모드에서는 발행 체크박스와 블럭 선택 발행 체크/해제 메뉴가 함께 비활성화된다.
+- draft 편집 모드에서 기존 발행 체크 상태는 표시만 되고 조작할 수 없으며, 신규 행 발행 체크는 unchecked로 시작한다.
+- draft 편집 모드의 기존 발행 체크 표시는 item id 기준 snapshot으로 유지되고, 추가/삽입/삭제로 rowIndex가 바뀌어도 다른 행에 붙지 않는다.
+- DB 저장 성공 후 품목리스트 재조회 시 기존 발행 체크 UI 상태는 초기화된다.
+- 품목리스트 재조회 성공 후 발행 체크 UI 상태 초기화가 먼저 수행되고, 그 다음 선택 상태가 복원된다.
+- 저장 전 선택 행이 신규 행이면 draft row key와 생성 item id 매핑으로 선택 상태가 복원된다.
+- 저장 전 선택 행을 특정할 수 없고 신규 저장 행이 1개뿐이면 해당 신규 item id로 선택 상태가 복원된다.
+- 저장 전 선택 행이 기존 행이면 기존 item id로 선택 상태가 복원된다.
+- 두 기준 모두 실패하면 같은 row index, 첫 번째 행 순서로 선택 상태가 복원된다.
+
+14.6 [label/date setup] 날짜 타입 설정 다이얼로그와 라벨크기 setup 저장
+
+- 상단 라벨 선택 영역의 라벨 설정 메뉴에 `날짜 타입 설정...` 항목이 표시된다.
+- 날짜 타입 설정은 품목관리 테이블 우클릭 메뉴에는 표시되지 않는다.
+- 현재 선택된 라벨크기가 없으면 `날짜 타입 설정...` 항목이 비활성화된다.
+- 저장 중, 강제 재조회 필요 상태, 품목관리 draft 편집 중에는 `날짜 타입 설정...` 항목이 비활성화된다.
+- 날짜 타입 설정 다이얼로그는 현재 선택된 라벨명과 라벨 크기를 표시한다.
+- 다이얼로그는 제조일자, 제조시한, 소비기한, 소비시한 4개 섹션을 제공한다.
+- 각 섹션은 `사용` 체크, 레거시 고정 포맷 선택, 사용자 정의 입력, 읽기 전용 preview를 제공한다.
+- `사용` 체크가 꺼진 섹션은 포맷 선택과 사용자 정의 입력이 비활성화된다.
+- `사용자 정의` 포맷을 선택한 경우에만 사용자 정의 입력칸이 활성화된다.
+- 날짜 사용자 정의 입력은 `Y/M/D` 토큰을, 시간 사용자 정의 입력은 `H/M` 토큰을 preview에 반영한다.
+- `DateManager` 또는 품목관리 날짜 설정 helper는 `2000.01.01`, `2000/01/01`, `2000년01월01일`, `01.01`, `01/01`, `01월01일`, 사용자 정의를 레거시와 같은 의미로 출력한다.
+- `DateManager` 또는 품목관리 날짜 설정 helper는 `12:01`, `12시01분`, `12시`, 사용자 정의를 레거시와 같은 의미로 출력한다.
+- DB에 저장된 날짜/시간 format enum 값이 현재 앱 enum 범위를 벗어나도 다이얼로그 진입 전 조회가 실패하지 않는다. 범위 밖 값은 기본값으로 표시하되 다이얼로그 상단에 경고를 표시하고, 사용자가 적용하면 유효 enum 값만 저장된다.
+- 소비시한은 자동 만료시각 계산이 아니라 셀 원본 시각 값을 선택 포맷으로 표시한다는 안내가 다이얼로그에 표시된다.
+- `적용` 클릭 시 저장 확인을 표시하고, 사용자가 확인한 경우에만 `LabelSizeSetup`을 저장한다.
+- `취소` 또는 닫기를 선택하면 변경 내용이 저장되지 않는다.
+- 저장 성공 시 `LabelSizeDAO.updateDateSetup(labelSizeId, LabelSizeDateSetupUpdate)` 날짜/시간 전용 API를 통해 `BM_RICH_LABELSIZE_FORM`의 날짜/시간 12개 컬럼만 갱신된다.
+- 저장 성공 시 `LabelSize.datas`와 현재 선택 라벨 캐시는 최신 DB setup에 날짜/시간 변경값을 merge한 `LabelSizeSetup`으로 갱신된다. `RICH_SETUP_READONLY`/`RICH_SETUP_USE_SCALE`은 최신 DB 값을 유지한다.
+- 저장 성공 후 품목 row/cell 원본값은 변경되지 않는다.
+- 저장 성공 후 품목관리 출력 미리보기, 공용라벨관리 미리보기, 라벨출력에서 새 날짜 타입 설정을 사용한다.
+- 저장 권한이 없는 사용자도 다이얼로그는 열 수 있으나 설정 컨트롤과 `적용`은 읽기 전용 또는 비활성 상태로 표시된다.
+
+14.7 [QR viewer][UI draft/edit] QR코드 데이터 보기
+
+- 품목관리 우클릭 메뉴에 `QR코드 데이터 보기` 항목이 표시된다.
+- 우클릭 위치가 실제 표시 행이 아니면 `QR코드 데이터 보기` 항목이 비활성화된다.
+- 삭제 예정으로 화면에서 제거된 행이나 필터로 보이지 않는 숨은 선택 행은 viewer 실행 대상이 아니다.
+- 여러 행이 선택되어 있어도 viewer 실행 대상은 우클릭한 단일 행이다.
+- draft 편집 중에도 현재 대상 draft row 값 기준으로 QR 데이터가 계산된다.
+- viewer 실행은 품목관리 dirty 상태를 만들지 않고 저장/취소 대상에 포함되지 않는다.
+- viewer는 현재 행 값과 현재 라벨크기 column 설정을 입력으로 QR 데이터 문자열을 계산한다.
+- QR/바코드 데이터 계산은 viewer 위젯 내부에 묶지 않고 QR/바코드를 함께 다루는 `ItemCodeDataResolver` 같은 순수 helper로 분리한다. 이 helper는 현재 row/draft 값, column 설정, 날짜 타입 계산 규칙을 입력으로 받아 viewer, 출력 미리보기, 실제 출력 경로에서 같은 문자열과 barcode format id를 재사용할 수 있게 한다.
+- `QRCODE_TYPE_PLAIN_TEXT` QR 컬럼은 해당 셀 원본값을 표시 데이터로 사용한다.
+- `QRCODE_TYPE_USER_DEFINE` QR 컬럼은 `userDefineQRData`의 `#품목`/`#컬럼키워드` 토큰을 현재 행 값으로 치환해 표시한다.
+- `QRCODE_TYPE_NATRIUM` QR 컬럼은 나트륨 설정을 parse해 현재 행 값으로 채운 나트륨 URL 데이터를 표시한다.
+- `BARCODE_TEXT_LINK` 바코드 컬럼은 텍스트 연동 설정을 현재 행 값으로 치환해 표시한다.
+- 사용자 정의 QR/텍스트연동 치환에서 유통기한 타입 컬럼은 레거시와 같이 `DATE_FORMAT_NONE` 기준 계산값으로 치환된다.
+- 사용자 정의 QR/텍스트연동 치환의 날짜형 token은 라벨 날짜 타입 설정의 표시 포맷을 적용하지 않는다. 출력 미리보기/라벨 출력의 일반 날짜 표시와 QR payload token 치환은 `ItemCodeDataResolver` 내부에서 목적별 날짜 계산 정책을 분리한다.
+- QR 데이터가 없으면 데이터 없음 안내가 표시된다.
+- viewer는 읽기 전용으로 표시되며, 사용자가 문자열을 편집해도 품목관리 draft나 DB에 반영되지 않는다.
+- QR 데이터가 4개를 초과하는 경우 현재 Flutter 구현 권장안대로 스크롤 가능한 목록으로 모두 표시한다. 레거시의 앞 4개 표시 제한은 저장 데이터 제한이 아니라 viewer UI 제한으로만 문서화한다.
+
+14.8 [barcode/output preview][QR viewer][UI draft/edit] 출력내용 미리보기 바코드/QR 재렌더링
+
+- 출력내용 미리보기는 저장 완료 또는 취소 dialog에서 변경 취소를 확정한 뒤 진입 가능한 안정 상태의 working row 값을 기준으로 preview workbook을 생성한다.
+- barcode image object의 `extraFields['barcodeObjectId']`(`fortuneBarcodeObjectIdExtraKey`)가 품목 column keyword와 일치하고 해당 column type이 바코드/QR 계열이면, 해당 object의 `extraFields['barcodeText']`, `extraFields['barcodeFormatId']`, `extraFields['barcodeFormatLabel']`, `extraFields['barcodeShowText']`를 함께 갱신한다. FortuneSheet image 내부 `id`는 업무용 keyword 매칭 기준으로 사용하지 않는다.
+- 바코드/QR 계열 판정은 keyword 문자열 포함 여부가 아니라 `TColumn.columnType.code` 기준으로 수행한다.
+- `TColumn.barcodeType`에서 FortuneSheet `barcodeFormatId`로 변환하는 helper는 Code128/EAN-13/EAN-8/UPC-A/ITF/Code39/Code93/QR/MicroQR/DataMatrix 매핑을 검증한다.
+- `TYPE_QR_CODE`의 문자열은 `qrCodeCreateType` 기준으로 plain text/user define/natrium/text link 규칙을 적용해 산출한다. QR column의 `barcodeFormatId`는 column `barcodeType`이 QR/MicroQR/DataMatrix 계열이면 그 값을 사용하고, 그렇지 않으면 기본 `qrCode`를 사용한다.
+- 현재 `BarcodeType.CodeEAN8`의 DB 이름 정의가 실제 DB 값과 맞는지 확인하는 데 그치지 않고, EAN-8 컬럼이 Code128로 잘못 매핑되지 않도록 공용 barcode type normalize 규칙을 선행 수정/검증한다. `EAN8`/`EAN-8`/`CodeEAN8` fixture는 `BarcodeType.CodeEAN8`로, `CODE128`/`Code128` fixture는 `BarcodeType.Code128`로 분리되는지 테스트한다. 운영 DB에 EAN-8 샘플 값이 없더라도 fixture 테스트는 생략하지 않는다. `CodeEAN8(9, 'CODE128')` 상태를 resolver 내부 특수 분기만으로 덮는 방식은 다른 저장/검증/출력 경로에 같은 오인을 남길 수 있으므로 완료로 보지 않는다.
+- EAN-13/UPC-A/EAN-8/ITF 값은 `BarcodeDataHelper.normalizeForPrint` 또는 동일 규칙으로 보정된 뒤 preview/output barcode text로 사용된다. 출력 미리보기/실제 출력 경로에서 수행하는 check digit 보정은 preview/output payload 산출에만 적용하고, 별도 저장 액션 없이 품목 셀 원본값을 자동 변경하지 않는다. 셀 편집 자동 보정 저장 정책은 별도 셀 편집 규칙을 따른다. 단, fallback 판정용 의미 보존 helper에서 ITF 홀수 길이 left-pad는 유효 판정 보정으로 사용하지 않는다.
+- GS1 바코드 컬럼은 `TColumn.gs1ai`, `formatOption`, `useGS1Code`, `containColumns`, `showGS1Code` 기반 GS1 조합/검증 helper가 만든 문자열을 preview barcode text로 사용한다. GS1 helper가 실패하거나 FNC1/AI 의미 보존이 검증되지 않은 GS1 전용 표현이 필요하면 preview workbook 생성 전에 오류 목록에 반영하고, 해당 object는 일반 fallback 대상에서 제외한다.
+- GS1 바코드의 `barcodeFormatId`는 column의 `barcodeType`에서 산출한다. FNC1/AI 의미 보존이 필요한 GS1 전용 표현이 현재 renderer/native 출력에서 검증되지 않았으면 Code128 텍스트로 조용히 대체하지 않고 오류로 표시한다.
+- 선택된 column 형식에서 값이 유효하지 않으면 가능한 형식으로 fallback을 허용한다. 후보 평가는 `normalizeForPrint(strict: false)`의 pad/truncate best-effort 결과가 아니라 raw 값과 의미 보존 가능한 check digit 보정 결과 기준으로 수행하며, 이를 위해 `BarcodeDataHelper.normalizeMeaningPreservingForPrint`를 추가하고 `ItemCodeDataResolver`가 이 helper를 호출한다. 셀 편집 자동 보정 저장 범위는 EAN-13/UPC-A/EAN-8로 닫고, 길이 부족/초과를 0 padding 또는 truncation으로 맞춘 값은 자동 보정 저장값으로 사용하지 않는다. ITF 홀수 길이 left-pad는 이 의미 보존 후보 평가와 셀 편집 저장 보정에 포함하지 않는다. `preserveTemplateBarcodeFormat=false` object는 품목 column 형식을 먼저 평가하고 유효하지 않을 때만 공용 fallback을 평가한다. 공용 fallback은 일반 1D barcode column의 `code128`, QR column의 `qrCode`로 고정하고, GS1 barcode column은 일반 fallback 없이 오류로 표시한다. `preserveTemplateBarcodeFormat=true` object는 fallback으로 `barcodeFormatId`를 바꾸지 않고 template 형식 실패를 오류로 표시한다. fallback을 사용하면 실제 preview/output metadata의 `barcodeFormatId`는 fallback 형식으로 기록하고, `_ItemOutputPreviewTab` 상단 경고 목록에 대체 형식 사용을 표시한다.
+- 어떤 fallback 형식으로도 렌더링할 수 없으면 `_ItemOutputPreviewTab` 상단 오류 목록과 해당 barcode object 위치의 오류 placeholder에 오류 상태가 표시된다. 오류/경고 표시의 구현 소유자는 `_ItemOutputPreviewTab`이다. FortuneSheet/renderer 내부에 전역 오류 UI를 새로 추가하는 작업은 이번 기능정의에서 제외한다.
+- barcode image의 위치, 크기, 회전, module scale, bar height, quiet-zone, human-readable font 계열 metadata는 template 값을 유지한다.
+- 하단 숫자/텍스트 표시 여부는 1D 바코드는 `TColumn.showBarcodeNum`, QR 계열은 `TColumn.showQRCodeText` 기준으로 FortuneSheet 표시 metadata에 반영된다.
+- `preserveTemplateBarcodeFormat`은 `ItemCodeDataResolver`와 출력 미리보기 연결 전에 먼저 라벨 시트 저장 feature key, image sanitizer allow-list, save json normalize/migrate 경로에 모두 포함되어야 한다. `.lms` 저장/불러오기와 `.xlsx` import 후에도 metadata가 유지되는 round-trip 테스트를 추가한다. `.xlsx` round-trip은 customXml의 image metadata 파싱/복원 경로를 포함하며, cell/run metadata만 보존하는 상태는 완료로 보지 않는다. 기존 저장 파일에 해당 metadata가 없으면 migrate/normalize 결과는 기본 `false`로 취급한다. 이 save codec 선행 수정 없이 출력 미리보기만 metadata를 읽거나 쓰는 구현은 완료로 보지 않는다.
+- `ItemCodeDataResolver`의 QR/바코드 문자열 및 format id 산출 결과는 QR viewer와 출력내용 미리보기에서 같은 입력에 대해 동일해야 한다. 단, QR viewer는 draft 편집 중 draft row 값을 입력으로 사용할 수 있고, 출력내용 미리보기는 draft 편집 중 탭 진입이 차단되므로 저장 완료 또는 취소 dialog에서 변경 취소를 확정한 뒤의 working row 값만 입력으로 사용한다. 실제 출력은 raw template workbook이 아니라 이 resolver 결과가 `extraFields`에 반영된 output workbook/image metadata를 입력으로 수행한다. EZPL native barcode 명령은 현재 직접 지원되는 format만 사용하고, 미지원 format은 native 명령으로 억지 변환하지 않고 raster fallback 이미지 출력에 맡긴다.
+
+14.9 [item/order][transaction/DAO] 품목 순서 변경
+
+- 품목관리 우클릭 메뉴에서 `순서 변경` 항목이 `품목 삭제` 아래, 선택/발행 체크 메뉴 그룹 위에 표시된다.
+- 현재 선택된 브랜드나 라벨크기가 없으면 `순서 변경` 항목이 비활성화된다.
+- 편집 권한이 없으면 `순서 변경` 항목이 비활성화된다.
+- 현재 브랜드/라벨크기/market에 표시되는 품목이 2개 미만이면 `순서 변경` 항목이 비활성화된다.
+- 저장 중, 강제 재조회 필요 상태, 품목관리 draft 편집 중에는 `순서 변경` 항목이 비활성화된다.
+- `순서 변경` command의 enabled 상태와 실행 callback은 상위 품목관리 controller/view model에서 계산되어 `ItemManage`에 주입된다.
+- `순서 변경`은 우클릭 위치가 실제 행이 아니어도 현재 브랜드/라벨크기/market에 표시되는 품목 목록 기준으로 실행된다.
+- 다이얼로그 제목은 `품목 순서 변경`으로 표시된다.
+- 다이얼로그는 라벨 설정 `orderEditMode` 패턴의 목록, 선택 행 하이라이트, 우측 `위로`/`아래로` 이동 버튼, 하단 `취소`/`적용` 동작을 제공한다.
+- 목록은 현재 화면 market id와 현재 label size id 기준으로 `RICH_ITEM_ORDER`, `RICH_ITEM_ID` 오름차순 조회 결과를 표시한다.
+- 메인 품목관리 리스트 조회도 `ORDER BY P2.RICH_ITEM_ORDER, P2.RICH_ITEM_ID ASC`를 보장한다.
+- 같은 label size지만 현재 market에 연결되지 않은 품목은 순서 변경 목록과 order update 대상에 포함되지 않는다.
+- 다이얼로그를 열 때 현재 선택 item id가 목록에 있으면 해당 행이 기본 선택된다.
+- `위로`/`아래로` 이동 후에도 같은 item이 선택 상태를 유지한다.
+- 첫 행에서 `위로`, 마지막 행에서 `아래로`는 비활성화되거나 눌러도 순서를 바꾸지 않는다.
+- `적용` 확인 후 현재 표시 순서대로 `RICH_ITEM_ORDER`가 1부터 연속 재부여된다.
+- 적용은 `ItemDAO.updateOrders(List<ItemOrderUpdate>)`의 품목 순서 update 전용 transaction 또는 단일 DAO action으로 수행된다.
+- 적용 성공 후 품목관리 리스트가 재조회된다.
+- 재조회 후 적용 전 선택 item id가 남아 있으면 해당 item을 다시 선택한다.
+- `닫기` 또는 창 닫기를 선택하면 순서 변경이 DB에 저장되지 않는다.
+- 순서 변경 적용만으로 품목명, 주원료, 일반 컬럼 값, 발행 체크, `BM_ITEM_OF_MARKET` market-specific 값은 변경되지 않는다.
+- `RICH_ITEM_ORDER`가 item-level 값이므로 같은 label size item을 공유하는 다른 market 표시 순서에도 영향을 줄 수 있음을 코드 주석 또는 구현 문서에 남긴다.
+- 미저장 draft 편집 중 순서 변경 실행 시 데이터 손실이 발생하지 않도록 메뉴가 비활성화되고, 저장 완료 또는 변경 취소 확정 후 실행하라는 안내가 표시된다.
+
+15. 최종 정리
+
+레거시와 동일하게 브랜드 변경이나 탭 이동 시 묻지 않고 초기화하는 방식은 데이터 손실 가능성이 크다.
+현재 앱에서는 `저장`/`취소`가 있는 명시적 편집 모드로 구현하고, 편집 중에는 화면 이동을 제한하는 방식이 더 적합하다.
+품명과 일반 컬럼 수정도 주원료와 마찬가지로 dirty 편집 상태에 포함한다.
+주원료는 레거시처럼 테이블 컬럼 직접 편집이 아니라 하단 `주원료 및 함량` 편집 UI를 단일 진입점으로 사용한다.
+일반 컬럼은 레거시의 인라인 편집, 바코드 보정, GS1 포맷 검사, 날짜 경고 로직을 참고하되, 현재 Flutter 구현에서는 저장 전 검증 계층으로 형식/범위/숫자 계산 오류를 저장 전에 차단한다.
+레거시 update item apply 구조는 재현하지 않고, 현재 Flutter의 품목/컬럼 DAO와 DB 테이블 구조에 맞춰 저장한다.
+현재 DB API에는 품목 저장용 transaction API가 없으므로, 구현 전 `DbIsolateAction.transaction` 단일 transaction action과 품목관리 저장 DAO를 먼저 추가한다. 단일 SQL batch transaction은 제한적 fallback으로만 사용한다. 품목관리 저장은 Dart/UI 레이어의 여러 `DbClient.writeData...` 호출 조합이 아니라 하나의 isolate action 안에서 `BEGIN`/`COMMIT`/`ROLLBACK`이 완료되는 방식으로 구현한다.
+현재 Flutter 구현의 데이터 보관 방식에 맞춰, 조회 원본 리스트는 직접 mutate하지 않고 변경 대상 행만 값 객체/draft row로 교체한다.
+`ItemManage`는 원본 `List<ItemOfMarket>`와 전역 `TColumnContent.get()`에 직접 의존하는 구조에서 working/draft row 목록과 일반 컬럼 값 resolver를 입력으로 받는 구조로 전환한다.
+품목 삽입 기준이 되는 anchor/focus 행은 현재 `FortuneTableSelectionController` 외부에 노출되지 않으므로, 구현 전 controller getter/callback을 추가하거나 `ItemManage`에서 마지막 클릭/키보드/드래그 기준 행을 별도 추적한다.
+선택/anchor/focus 상태는 품목관리 edit controller/draft session이 `rowKey`/`draftRowKey`/기존 item id 기준으로 소유하고, `home_page_manager`는 출력 미리보기/하단 주원료 연동에 필요한 selected item 표시 모델만 동기화한다.
+신규/import row처럼 저장 전 실제 `ItemOfMarket` 표시 모델이 없거나 아직 item id가 없는 행은 edit controller가 selected draft row에서 임시 `ItemOfMarket` 표시 모델 또는 preview DTO를 생성해 `home_page_manager`에 전달한다. preview DTO의 최소 필드는 `rowKey`, `itemName`, `elementPlain`, `elementPayload`, `elementPayloadFormat`, 일반 컬럼 표시값이다. 이 임시 표시 모델/DTO는 preview와 하단 주원료 표시 보조에만 사용하고 DB 저장 identity로 사용하지 않는다. 하단 주원료 편집의 원천과 저장 반영 대상은 edit controller의 selected draft row이다.
+품목관리 편집 상태는 기존 `Item.copyWith` 확장보다 전용 draft row/value model을 우선 사용한다.
+draft row/value model에는 row identity, source item id, row state, order/originalIndex, item name, item price, 주원료 plain/payload/format, column drafts, current market snapshot, new mapping defaults를 포함한다.
+기존 row는 current market snapshot을 필수로 보관하고, 신규/import row는 new mapping defaults를 필수로 보관한다. 반대쪽 필드는 nullable 또는 미사용으로 둔다.
+current market snapshot은 표시용 `ItemOfMarket` 객체 복사가 아니라 nullable DB 저장값을 보존하는 raw snapshot DTO로 만든다. raw snapshot DTO 조회는 표시용 `COALESCE`/fallback 결과가 아니라 DB `NULL`과 빈 문자열을 구분하는 별도 projection을 사용한다. 특히 label size override alias 불일치는 raw snapshot 우회만으로 남겨두지 않고 표시 SQL alias도 `ItemOfMarket.fromMap` key와 맞게 수정한다.
+target market ids는 row별 반복 필드가 아니라 편집 세션/저장 batch metadata에 저장한다.
+`sourceItemId`는 기존 행 before snapshot 기준 item id로 한정하고, 신규 행은 null로 둔다. 신규 행의 item price는 레거시 기본값과 동일하게 `0`, additional item은 `NULL`, 판매/할인 시작·종료일 미입력 값은 `NULL`로 저장한다.
+현재 Flutter 조회 모델의 additional item `0`/날짜 `DateTime.now()` fallback은 저장 draft의 실제 DB 값으로 사용하지 않는다.
+신규 추가/삽입 행은 기존 관리 객체를 참조 공유하지 않는 독립 draft row로 생성하며, 저장 전 선택/추적은 임시 draft row key 기준으로 수행한다.
+신규 행의 일반 컬럼 draft는 `draftRowKey + columnId`로 관리하고, 저장 시 `OUTPUT INSERTED.RICH_ITEM_ID` 또는 임시 테이블로 생성 item id에 매핑해 column content를 insert한다.
+품목관리 일반 컬럼 표시/checksum은 현재 화면 item id 집합을 SQL에서 제한해 조회한 전용 scoped column content view model을 사용하고, 별도 합의 없이 전역 `TColumnContent.datas`의 label-size 전체 cache 의미를 current market scope로 바꾸지 않는다.
+기존 행의 market-specific 값은 이번 구현에서 직접 편집/저장하지 않고, current market snapshot으로 보관해 표시/검증/변경 취소 복원 기준으로만 사용한다. 신규 mapping 생성값은 기존 행 snapshot이 아니라 new mapping defaults로 별도 산출한다.
+최대 1만 행과 대형 `RICH_ELEMENT_SHEET`를 고려해 변경 취소용 임시 파일 백업은 전체 heavy 원본 스냅샷이 아니라 최소 baseline과 변경 대상 journal 중심으로 구현한다.
+엑셀 가져오기 취소용 lightweight checksum은 명시적 DB version 컬럼이 없는 현재 구조에 맞춰 item/order/name/plain text/payload 포맷 정보와 현재 화면 market의 item id 집합에 속한 column content data hash 중심으로 계산하고, 변경되지 않은 heavy payload 전체 문자열은 hash하지 않는다. 이 checksum은 best-effort 외부 변경 감지 신호로 사용하고, 필요 시 payload length와 앞/뒤 capped hash를 추가한다. 삭제/전체 교체의 item-id-wide mapping delete 영향 범위는 일반 삭제 before snapshot/journal 또는 엑셀 import baseline metadata의 별도 mapping fingerprint로 보조 감지한다.
+checksum의 column content data hash는 현재 화면 market의 item id 집합에 속한 column content만 대상으로 하며, mapping 제거 후 남는 orphan child row는 제외한다.
+일반 편집 취소는 baseline/journal로 복원하고, 엑셀 가져오기 전체 교체 취소는 DB 재조회와 import 직전 UI metadata 복원으로 처리한다.
+품목관리 편집 기능 중 `Item.elementRTF`는 현재 모델처럼 `RICH_ELEMENT_SHEET`/legacy `RICH_ELEMENT_RTF`가 합쳐진 payload로 다루며, encoded workbook save는 그대로 사용하고 legacy RTF만 주원료 편집 진입 또는 명시적 변환 적용 시 lazy 변환한 뒤 draft 변경으로 반영한다. 미리보기 목적 변환은 display-only cache로만 유지한다.
+품목관리 편집 기능이 켜진 화면에서는 라벨크기 로드 직후 `_startItemElementAutoMigration()` 호출 자체를 skip해 사용자의 저장 없이 DB가 바뀌는 경로를 막는다.
+엑셀 가져오기는 전체 교체형 draft 액션으로 이번 구현 범위에 포함하고, 기존 저장 정책의 단일 트랜잭션으로 확정한다.
+품목관리 행 수 상한은 `ItemManagerLimits.maxRows=10000` 단일 상수로 정의하고 추가/삽입 UI, 엑셀 import parser, 저장 전 검증, 테스트가 모두 이 상수를 참조한다.
+엑셀 가져오기 데이터 행 수가 `ItemManagerLimits.maxRows`를 초과하면 일부만 가져오지 않고 가져오기를 실패 처리하며 테이블 상태와 draft를 변경하지 않는다.
+엑셀 가져오기는 기존 xlsx helper의 activeTab 기준이 아니라 원본 workbook sheet order index 0을 대상으로 하는 지정 sheet parser 결과를 사용한다.
+엑셀 1행에서 빈 헤더 이후 뒤쪽에 매핑 가능한 헤더가 있으면 해당 컬럼을 조용히 무시하지 않고, 가져오기 전 무시 안내/경고를 표시한다.
+빈 헤더 뒤쪽에 필수 `품목` 헤더가 있더라도 빈 헤더 전까지 읽은 헤더에 `품목`이 없으면 가져오기를 실패 처리한다.
+엑셀 `주원료` 헤더는 해당 데이터 행의 `주원료` 셀 또는 병합 영역을 하단 `주원료 및 함량` 편집 시트 형태로 가져온다. plain text는 표시 텍스트 기준으로 생성하고, `RICH_ELEMENT_SHEET`는 원본 셀의 inlineRuns, 병합 영역, row height, column width, 테두리, 배경, 줄바꿈을 가능한 범위에서 보존한 FortuneSheet workbook payload로 생성한다. 원본 영역의 bounding rectangle은 좌상단 `(0, 0)`에서 시작하는 단일 sheet로 배치하고, import 단계에서 임의 scale은 적용하지 않는다. 병합 영역의 plain text는 top-left cell 표시 텍스트만 사용하고, 다른 셀 값은 sheet payload에만 보존한다. Excel 차트/도형/이미지/매크로/조건부서식처럼 품목관리 주원료 편집 시트로 직접 표현하기 어려운 객체성 기능은 기능정의에서 제외한다.
+엑셀 import의 이미지 타입(`TYPE_IMAGE`) 컬럼은 Excel 객체 이미지를 가져오지 않고 셀 표시 문자열만 사용한다. 경로와 `.bmp` 확장자는 제거하고 파일명만 저장 후보로 삼으며, 다른 확장자가 명시된 값은 저장 전 검증 오류로 처리한다.
+신규 item 저장 시 현재 DB trigger가 자동 생성하는 column content/barcode/image/element content 등 실제 대상 테이블을 먼저 확인하고, 중복 insert하지 않고 update/upsert한다.
+신규 item의 `BM_ITEM_OF_MARKET` mapping은 레거시와 동일하게 현재 로그인 고객의 모든 market에 생성한다. 이때 현재 화면 market의 `currentMarketSnapshot`, market id를 제외한 신규 mapping 기본값 template `newMappingDefaults`, 저장 대상 `targetMarketIds`를 분리하고, `targetMarketIds`는 세션 metadata로 관리한다. `targetMarketIds` 산출은 레거시 `CMarketDAO::SelectByCustID`와 동일하게 `BM_MARKET.RICH_CUSTOMER_ID = 현재 로그인 고객 ID` 조건만 사용하며, Flutter 구현에서는 로그인 세션 customer id를 명시적으로 전달한다.
+기존 행 삭제 저장은 레거시와 동일하게 현재 화면 market 하나나 `targetMarketIds` 교집합으로 제한하지 않고, 삭제 item id 기준으로 `BM_ITEM_OF_MARKET` mapping 전체를 제거한다. 이번 품목관리 기능에서는 `BM_RICH_ITEM`과 item 참조 child row 물리 삭제는 수행하지 않는다.
+현재 Flutter에는 고객별 market 목록 DAO가 없으므로 `MarketDAO.selectByCustomerId(customerId)`를 먼저 추가한다.
+저장 DAO 구현 전 schema/trigger 확인 결과는 `ItemSaveSchemaCapabilities` 같은 내부 구조로 정리한다. DB 연결 또는 품목관리 저장 DAO 초기화 시 현재 DB 기준으로 probe하고 같은 연결/세션에서는 capability 값을 캐시한다. 저장 DAO는 이 capability 값에 따라 trigger 자동 생성 row를 중복 insert하지 않고 update/upsert한다.
+품목 순서 `RICH_ITEM_ORDER`는 market-specific 값이 아니라 item-level 전역 값이므로, 현재 화면 순서 저장은 다른 market의 같은 label size item 표시 순서에도 영향을 줄 수 있다. market별 독립 order는 이번 기능정의에서 제외한다.
+품목관리 로드 전 운영 DB에 `BM_RICH_ITEM.RICH_ELEMENT_SHEET` 컬럼이 있는지 capability probe하고, 없으면 `RICH_ELEMENT_SHEET`를 직접 참조하는 현재 `ItemOfMarketDAO.SelectSql`을 실행하지 않는다. 필수 동작은 DB migration 안내 화면 전환, 품목관리 테이블 미오픈, 편집 진입 액션 전체와 저장 버튼 비활성화이다. 조회 전용 테이블을 제공하는 read-only fallback SELECT는 선택 구현이며, 구현한 경우에만 `RICH_ELEMENT_RTF`만 참조하는 별도 SELECT 성공 후 조회 전용 테이블을 표시한다. fallback SELECT가 없거나 실패하면 테이블을 열지 않는다. 이번 구현은 `RICH_ELEMENT_SHEET` 존재를 전제로 하며 별도 호환 저장 정책은 만들지 않는다.
+전체 교체 저장은 기존 `BM_RICH_ITEM` 물리 delete를 수행하지 않고 item id 기준 `BM_ITEM_OF_MARKET` mapping 제거로 처리하며, 기존 item 참조 child row, `BM_ADDITIONAL_ITEM`, orphan 정리는 품목관리 사용자 기능이 아니라 데이터 유지보수 기능정의로 분리한다.
+변경 사항이 있는 동안에는 `엑셀 가져오기`, `엑셀 내보내기` 버튼을 비활성화해 draft 충돌을 막는다.
+엑셀 가져오기와 엑셀 내보내기는 모두 `.xlsx`만 지원하고 `.xls`는 안내 후 처리하지 않는다.
+엑셀 내보내기는 변경 사항이 없는 안정된 품목관리 working table을 `품목`, `주원료`, 일반 컬럼 값 중심의 단순 `.xlsx` 테이블로 저장한다.
+날짜 타입 설정은 품목관리 셀 편집/저장 draft에 포함하지 않고 현재 선택된 라벨크기의 `LabelSizeSetup` 저장 기능으로 분리한다. 진입점은 상단 라벨 설정 메뉴의 `날짜 타입 설정...` 항목으로 두고, 다이얼로그는 레거시의 제조일자/제조시한/소비기한/소비시한 사용 여부와 포맷 선택, 사용자 정의 입력, 미리보기를 유지하되 현재 Flutter 화면에 맞춰 2x2 섹션형으로 재배치한다. 적용 시 품목 row/cell 원본값은 변경하지 않고 라벨크기 setup 저장, 선택 라벨 캐시 갱신, 출력/미리보기 refresh만 수행한다.
+`QR코드 데이터 보기`는 품목관리 셀 편집/저장 draft에 포함하지 않고, 우클릭한 단일 행의 현재 row/draft 값과 column QR 설정을 기준으로 생성될 QR/텍스트연동 데이터 문자열을 보여주는 조회/진단 액션으로 구현한다. viewer 실행은 dirty 상태를 만들지 않고, 저장/취소/DB transaction 대상에도 포함하지 않는다. 레거시처럼 QR 참조 컬럼 색상 힌트는 유지하되, viewer UI는 읽기 전용 목록과 복사 가능한 텍스트 표시를 우선한다.
+QR/바코드 데이터 문자열과 barcode format id 계산은 viewer 전용 로직으로 만들지 않고 `ItemCodeDataResolver` 같은 순수 helper로 분리해 viewer, 출력 미리보기, 실제 출력 경로가 같은 계산 규칙을 사용하게 한다. 이 helper는 draft row 입력도 받을 수 있지만, 출력내용 미리보기 탭은 draft 편집 중 진입하지 않으므로 저장 완료 또는 취소 dialog에서 변경 취소를 확정한 뒤의 working row 값만 렌더링한다. QR/텍스트연동 token 치환용 날짜 계산은 라벨 날짜 타입 표시 포맷과 분리해 `DATE_FORMAT_NONE` 기준을 사용한다. QR column은 column `barcodeType`이 QR/MicroQR/DataMatrix 계열이 아니면 기본 `qrCode` format으로 렌더링한다. 실제 출력 경로는 resolver 결과가 반영된 output workbook/image metadata를 입력으로 사용하고, EZPL native 미지원 format은 raster fallback으로 출력한다.
+`순서 변경`은 품목관리 셀 편집/저장 draft에 포함하지 않고, 기존 품목의 `RICH_ITEM_ORDER`를 바꾸는 별도 reorder command로 구현한다. 로직은 레거시 품목 순서 변경처럼 현재 브랜드/라벨크기/market에 표시되는 품목을 order/item id 순으로 조회하고, 적용 시 표시 순서대로 order를 1부터 재부여한다. UI는 라벨 설정 `orderEditMode` 패턴을 따라 목록, 선택 행 하이라이트, 우측 위/아래 이동, 하단 취소/적용으로 구성한다. 적용 후 품목관리 리스트를 재조회하며, 품목명/주원료/일반 컬럼/market-specific 값은 변경하지 않는다.
+구현은 읽기/스냅샷 기반 -> transaction/DAO 기반 -> UI draft/edit 기반 -> Excel import/export 기반 -> QR/바코드 데이터 helper 기반 -> 라벨 날짜 타입 설정 기반으로 나누어 진행한다. 품목 순서 변경 기반은 전체 Excel/date 단위 뒤로만 미루지 않고, 현재 품목 조회 order 보장, `ItemDAO.updateOrders`, 상위 controller의 dirty/저장/forceReload 상태 주입이 준비되면 독립 구현 가능 단위로 진행한다. 각 단위는 필요한 선행 API와 검증이 끝난 뒤 이어서 구현하고, chunk 조회의 외부 변경 감지는 best-effort + baseline checksum 보조 감지 수준으로 검증한다.
+저장은 현재 앱의 `RICH_ELEMENT_SHEET` 구조와 품목/컬럼 DAO 구조에 맞춰 트랜잭션 기반으로 구현한다.
+저장 완료 흐름은 `DB 저장 성공`, `품목리스트 재조회 성공`, `화면 복원 완료`를 구분한다. DB 저장 성공 후 재조회/화면 복원이 실패하면 DB 반영은 되돌리지 않고 `forceReloadRequired` 강제 재조회 필요 상태로 전환한다. 이 상태에서는 `다시 조회`만 허용하고 저장/취소/편집/엑셀/발행 체크 작업은 재조회 성공 전까지 막는다.
+`forceReloadRequired` 상태에서도 로그아웃/앱 종료는 예외적으로 허용하되, 저장 확인을 다시 띄우지 않고 stale 저장 완료 백업을 rollback 용도로 사용하지 않는다는 안내 후 정리한다. 브랜드/라벨 변경과 탭 이동은 `다시 조회` 성공 전까지 차단한다.
+종료 예외 안내는 추가 저장 확인 dialog가 아니라 단발 안내로 처리하며, `저장은 DB에 반영됐고 화면 동기화만 실패했습니다. 임시 백업은 복구에 사용하지 않고 정리합니다.` 의미를 포함한다.
+
+사용자 확인 사항(확정 답변):
+
+아래 항목은 사용자에게 지금 확인해 확정한 답변이다. 구현자는 `사용자 답변`을 기준으로 구현하고, 이후 답변이 바뀌면 해당 항목의 관련 구현/검증 항목을 먼저 수정한 뒤 구현한다.
+
+1. 엑셀 `주원료` 칸을 가져올 때 어디까지 보존할까요?
+	- 사용자 답변: 권장 선택 확정. 글자와 함께 서식/병합까지 가능한 범위에서 보존한다.
+	- 권장 선택: 보이는 글자와 함께 굵게, 색, 부분 스타일, 병합 모양, 행 높이/열 너비, 테두리, 배경, 줄바꿈을 하단 `주원료 및 함량` 편집 시트 형태로 가능한 범위에서 재현한다.
+	- 구현 고정 사항: 원본 `주원료` 셀 또는 병합 영역의 bounding rectangle을 좌상단 `(0, 0)`부터 시작하는 단일 FortuneSheet sheet로 옮기고, import 단계에서 라벨 크기에 맞춘 임의 scale은 적용하지 않는다. 병합 영역의 plain text는 top-left cell 표시 텍스트만 사용한다.
+	- 제외 확인: Excel 차트, 도형, 이미지, 매크로, 조건부서식처럼 품목관리 주원료 편집 시트로 직접 표현하기 어려운 객체성 기능은 가져오지 않는다.
+	- 다른 선택 시 영향: 보이는 글자만 가져오기로 바꾸면 Excel import 구현과 검증에서 서식/병합 보존 항목을 제거해야 한다.
+
+2. 품목 삭제와 엑셀 전체 교체는 어느 market까지 적용할까요?
+	- 사용자 답변: 레거시와 같게 적용한다. 신규 mapping 생성은 현재 로그인 고객의 `targetMarketIds` 전체에 적용하고, 기존 item mapping 삭제는 삭제/교체 대상 item id 기준으로 market 조건 없이 적용한다.
+	- 확정 근거: 레거시 `CItemOfMarketDAO::InsertBatch`는 `CMarketDAO::SelectByCustID(CLoginCustomer::Get()->GetCustID())` 결과 전체에 mapping을 생성한다. `SelectByCustID` 조건은 `BM_MARKET.RICH_CUSTOMER_ID = 현재 로그인 고객 ID`뿐이다. 레거시 `CItemOfMarketDAO::DeleteBatchByItemIDs`는 `DELETE FROM BM_ITEM_OF_MARKET WHERE RICH_ITEM_ID=...` 형태라 market 조건이 없다.
+	- 권장 선택: 레거시 호환처럼 신규 mapping은 현재 로그인 고객의 `targetMarketIds` 전체에 생성하고, 삭제/전체 교체의 기존 item mapping은 item id 기준 전체 mapping delete로 처리한다. 즉 현재 market에서 삭제/교체한 품목이 같은 고객의 다른 market 품목관리에서도 보이지 않을 수 있다.
+	- 구현 고정 사항: `targetMarketIds` 산출용 `customerId`는 로그인 세션 customer id로 고정한다. 일반 삭제는 row가 최초 삭제 예정이 되는 시점의 before snapshot/journal에 item별 mapping fingerprint를 저장하고, 엑셀 전체 교체는 import 직전 baseline에 기존 item id 집합의 mapping fingerprint를 저장해 다른 market mapping 영향 범위 변경을 best-effort로 감지한다.
+	- 사용자에게 보여줄 확인 문구: `같은 고객의 다른 market 품목관리에서도 해당 품목이 보이지 않을 수 있습니다.`
+	- 다른 선택 시 영향: 현재 화면 market에만 적용하려면 mapping delete 범위, 변경 취소 복원, checksum, 재조회/선택 복원 기준을 새로 확정해야 하므로 저장 DAO 구현 전에 요청서를 다시 수정한다.
+
+3. 날짜 타입 설정 화면의 사용자 표시 용어는 무엇으로 할까요?
+	- 사용자 답변: 권장 선택 확정. `소비기한`/`소비시한`으로 표시한다.
+	- 권장 선택: 레거시 다이얼로그 이식 범위에서는 `소비기한`/`소비시한`으로 표시하고, 내부 코드 enum/DB 필드는 기존 `validDate`/`validTime` 의미를 유지한다.
+	- 다른 선택 시 영향: `유통기한`/`유통시한`으로 유지하면 화면 문구, 도움말/검증 메시지, 테스트 기대 문자열을 모두 해당 용어로 맞춘다.
+
+4. `순서 변경`이 다른 market 표시 순서에도 영향을 줄 수 있다는 정책을 허용할까요?
+	- 사용자 답변: 권장 선택 확정. 다른 market 표시 순서 영향 가능성을 허용하고 확인 문구를 표시한다.
+	- 권장 선택: 허용한다. 현재 DB 저장 컬럼은 `BM_RICH_ITEM.RICH_ITEM_ORDER`인 item-level 값이므로, 같은 label size item을 공유하는 다른 market의 표시 순서에도 영향이 갈 수 있음을 적용 확인 dialog에 표시한다.
+	- 사용자에게 보여줄 확인 문구: `현재 market에 표시되는 품목을 재정렬하지만, 같은 라벨크기의 품목을 공유하는 다른 market 표시 순서에도 영향이 갈 수 있습니다.`
+	- 다른 선택 시 영향: market별 독립 order가 필요하면 현재 DB 구조와 레거시 호환 범위를 넘어서는 별도 저장 구조가 필요하므로 이번 품목관리 기능정의에서 제외한다.
+
+5. 출력 미리보기의 바코드/QR 형식은 column 설정과 template 설정 중 무엇을 우선할까요?
+	- 사용자 답변: 권장 선택 확정. 기본은 품목 column 설정을 우선한다.
+	- 권장 선택: 기본은 품목 column 설정을 우선한다. 라벨 template의 object 위치/크기/회전은 유지하지만, 값과 형식은 현재 품목 column의 `barcodeType`/QR 설정에서 다시 계산한다.
+	- 예외 선택: template에서 지정한 barcode format을 유지해야 하는 object는 `extraFields['preserveTemplateBarcodeFormat']=true`로 표시한다. 이 object는 `barcodeText`만 품목 데이터로 바꾸고 `barcodeFormatId`, `barcodeFormatLabel`, `barcodeShowText`, human-readable 표시 metadata는 template 값을 유지한다. template 형식으로 렌더링할 수 없으면 fallback으로 형식을 바꾸지 않고 오류를 표시한다.
+	- 구현 고정 사항: `preserveTemplateBarcodeFormat` 저장을 위해 라벨 시트 저장 feature key `sheet.images.preserveTemplateBarcodeFormat`, image sanitizer allow-list, workbook save normalize/migrate 경로와 `.lms`/`.xlsx` import 검증을 함께 갱신한다. `.xlsx` import 검증은 customXml image metadata 파싱/복원까지 포함하며, cell/run metadata만 보존하는 상태는 완료로 보지 않는다.
+
+6. 품목 값이 선택된 barcode format에 맞지 않을 때 fallback을 허용할까요?
+	- 사용자 답변: fallback 허용. 가능한 대체 형식으로 미리보기/출력하되, fallback 사용 경고를 표시한다.
+	- 확정 선택: 선택된 column 형식에서 값이 유효하지 않으면 가능한 형식으로 fallback한다. fallback 후보는 일반 1D barcode column의 `code128`, QR column의 `qrCode`로 닫고, GS1 barcode column은 일반 fallback 없이 오류로 표시한다. 단, `preserveTemplateBarcodeFormat=true` object는 fallback으로 format을 바꾸지 않고 오류를 표시한다. 어떤 fallback 형식으로도 렌더링할 수 없을 때만 오류를 표시한다.
+	- 구현 고정 사항: `preserveTemplateBarcodeFormat=false` object는 품목 column 형식을 먼저 평가하고 유효하지 않을 때만 공용 fallback 형식을 평가한다. template 형식 우선 평가는 `preserveTemplateBarcodeFormat=true` object에만 적용한다. fallback 판정에는 `normalizeForPrint(strict: false)`의 pad/truncate best-effort 결과를 사용하지 않고, raw 값과 의미 보존 가능한 check digit 보정 결과만 사용한다. 이를 위해 `BarcodeDataHelper.normalizeMeaningPreservingForPrint`를 공용 API로 추가하고 `ItemCodeDataResolver`가 이 helper를 호출한다. 셀 편집 자동 보정 저장 범위는 EAN-13/UPC-A/EAN-8로 닫고, ITF 홀수 길이 left-pad는 preview/output 렌더링용 best-effort 보정으로만 허용하며 fallback 판정이나 셀 편집 저장 보정에는 사용하지 않는다.
+	- 구현 영향: preview/output이 같은 fallback metadata를 사용하도록 `ItemCodeDataResolver`와 output workbook 생성 경로를 맞추고, fallback 사용 경고 검증을 추가한다.
+
+7. check digit이 없거나 틀린 바코드 값을 셀 편집 중 자동 보정할까요?
+	- 사용자 답변: 권장 선택 확정. 셀 편집 중 자동 보정한다.
+	- 권장 선택: 자동 보정한다. 사용자가 EAN-13/UPC-A/EAN-8의 check digit 사용 컬럼 셀 값을 편집하면 의미 보존 check digit 추가/수정 결과가 draft와 화면에 반영되고, 저장 시 DB 값도 보정값이 된다. 길이 부족/초과를 0 padding 또는 truncation으로 맞춘 값은 셀 편집 자동 보정 저장값으로 사용하지 않는다. EAN-13/UPC-A/EAN-8 외 타입은 check digit 자동 보정 저장을 수행하지 않는다. 해당 타입에서 check digit 옵션 또는 레거시 전용 check digit 보정이 요구되는 입력만 저장 전 검증 오류로 처리하며, Code128/QR/DataMatrix 등 check digit 자동 보정과 무관한 일반 barcode/QR 값은 각 타입의 기존 형식 검증 규칙을 따른다. ITF 홀수 길이 값은 셀 편집 자동 left-pad 저장 대상이 아니므로 저장 전 검증 오류로 처리한다.
+	- 출력 전용 보정: 출력 미리보기/실제 출력에서만 수행하는 보정은 렌더링 payload만 바꾸고 DB 원본 셀 값은 자동 변경하지 않는다.
+	- 다른 선택 시 영향: 셀 편집 중 자동 보정을 막고 오류 표시만 하려면 저장 전 검증, 셀 편집 UX, 테스트 기대값을 오류 중심으로 바꿔야 한다.
+
+8. QR 컬럼의 format은 어떻게 정할까요?
+	- 사용자 답변: 권장 선택 확정. QR 계열이면 해당 값을 사용하고, 아니면 기본 `qrCode`로 렌더링한다.
+	- 권장 선택: column `barcodeType`이 QR/MicroQR/DataMatrix 계열이면 그 값을 사용하고, 아니면 기본 `qrCode`로 렌더링한다.
+	- 다른 선택 시 영향: QR 컬럼이라도 template object format을 항상 유지하거나, `barcodeType`이 QR 계열이 아니면 오류로 막으려면 `ItemCodeDataResolver` 정책과 preview/output 검증을 해당 기준으로 바꾼다.
+
+9. EZPL native 명령이 직접 지원하지 않는 barcode format을 실제 출력에서 허용할까요?
+	- 사용자 답변: 권장 선택 확정. EZPL native 미지원 format은 raster fallback 이미지로 출력한다.
+	- 권장 선택: 허용한다. native 명령이 직접 지원하지 않는 format은 resolver metadata가 반영된 raster fallback 이미지로 출력한다.
+	- 다른 선택 시 영향: native 명령으로 출력되지 않는 format을 금지하려면 preview/저장 전 오류로 막고, 사용자가 미지원 format을 template/column에서 선택했을 때의 안내 문구를 추가한다.
+
+10. 사용자 정의 QR/텍스트연동의 날짜형 token에는 어떤 날짜 포맷을 사용할까요?
+	- 사용자 답변: 권장 선택 확정. `DATE_FORMAT_NONE` 기준 값으로 치환한다.
+	- 권장 선택: 레거시 호환을 위해 `DATE_FORMAT_NONE` 기준 값으로 치환한다. 라벨 날짜 타입 설정의 표시 포맷은 일반 날짜 표시와 출력 미리보기에만 적용하고, QR payload token에는 적용하지 않는다.
+	- 다른 선택 시 영향: QR payload에도 라벨 날짜 타입 설정의 표시 포맷을 적용하려면 출력/표시용 날짜와 QR payload용 날짜가 달라질 수 있다는 안내와 별도 검증을 추가한다.
+
+11. 날짜 타입 설정 저장 이력은 어떻게 처리할까요?
+	- 사용자 답변: 권장 선택 확정. 로그 컬럼이 있으면 기록하고, 없으면 로그 없이 update만 수행한다.
+	- 권장 선택: 운영 DB의 `BM_RICH_LABELSIZE_FORM_LOG`에 날짜 타입 설정 저장 대상 12개 컬럼의 before 값 컬럼과 같은 이름에 `RICH_ALTER_` prefix를 적용한 after 값 컬럼이 모두 있으면 setup 변경 로그 insert와 날짜/시간 컬럼 update를 setup 전용 SQL batch transaction에서 처리한다. 예: `RICH_USER_MAKEDATE`의 after 값은 `RICH_ALTER_USER_MAKEDATE`이다. `RICH_SETUP_READONLY`와 `RICH_SETUP_USE_SCALE`은 날짜 타입 설정 저장의 update SQL `SET` 대상과 로그 변경 대상에서 제외한다. 로그 insert가 실패하면 setup update도 rollback한다. 로그 컬럼 probe가 실패하면 setup 저장을 진행하지 않고 오류로 차단한다. 로그 컬럼이 없거나 일부만 있으면 이번 구현은 로그 없이 날짜/시간 컬럼 update만 수행하고, 이 사실을 앱 로그에 명시한다. 현재 repository/레거시 기준으로 setup 전용 로그 컬럼과 로그 insert 경로가 확인되지 않으므로, 운영 DB probe에서 위 allow-list 컬럼 세트가 정확히 확인되지 않는 한 logless update가 기본 경로이다.
+	- 다른 선택 시 영향: 로그 컬럼이 없는 DB에도 반드시 저장 이력을 남겨야 한다면 DB schema 변경 작업으로 분리하고, schema 변경 전에는 날짜 setup 저장 구현을 진행하지 않는다.
