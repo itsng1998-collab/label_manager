@@ -51,6 +51,18 @@ void main() {
     await tester.tap(find.text('원본'));
     await tester.pump();
     expect(find.byType(TextField), findsOneWidget);
+    final editorBox = tester.widget<DecoratedBox>(
+      find.ancestor(
+        of: find.byType(TextField),
+        matching: find.byType(DecoratedBox),
+      ).first,
+    );
+    final editorDecoration = editorBox.decoration as BoxDecoration;
+    expect(editorDecoration.color, const Color(0xFFF8FBFF));
+    expect(
+      editorDecoration.border,
+      Border.all(color: const Color(0xFF1A73E8), width: 2),
+    );
     await tester.enterText(find.byType(TextField), '수정');
     await tester.testTextInput.receiveAction(TextInputAction.done);
     await tester.pump();
@@ -1242,6 +1254,18 @@ void main() {
     await tester.pump(const Duration(milliseconds: 50));
     await tester.tap(find.text('편집 전 품명'));
     await tester.pump();
+    final editorBox = tester.widget<DecoratedBox>(
+      find.ancestor(
+        of: find.byType(TextField),
+        matching: find.byType(DecoratedBox),
+      ).first,
+    );
+    final editorDecoration = editorBox.decoration as BoxDecoration;
+    expect(editorDecoration.color, const Color(0xFFF8FBFF));
+    expect(
+      editorDecoration.border,
+      Border.all(color: const Color(0xFF1A73E8), width: 2),
+    );
     await tester.enterText(find.byType(TextField), '편집 후 품명');
     await tester.testTextInput.receiveAction(TextInputAction.done);
     await tester.pump();

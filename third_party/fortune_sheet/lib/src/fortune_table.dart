@@ -237,6 +237,8 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
   static const Color _alternateRowColor = Color(0xFFF2F4F7);
   static const Color _checkboxBorderColor = Color(0xffb7b7b7);
   static const Color _checkboxCheckColor = Color(0xff0188fb);
+  static const Color _textEditorBorderColor = Color(0xFF1A73E8);
+  static const Color _textEditorBackgroundColor = Color(0xFFF8FBFF);
   static const double _checkboxSize = 13.0;
 
   final ScrollController _hScrollHeader = ScrollController();
@@ -763,19 +765,25 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
           }
           return KeyEventResult.ignored;
         },
-        child: TextField(
-          controller: _textEditorController,
-          focusNode: _textEditorFocusNode,
-          autofocus: true,
-          maxLines: 1,
-          style: const TextStyle(fontSize: 14, color: Color(0xFF202124)),
-          decoration: const InputDecoration(
-            isDense: true,
-            border: InputBorder.none,
-            contentPadding: EdgeInsets.zero,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: _textEditorBackgroundColor,
+            border: Border.all(color: _textEditorBorderColor, width: 2),
           ),
-          onSubmitted: (_) => _commitTextEditing(),
-          onTapOutside: (_) => _commitTextEditing(),
+          child: TextField(
+            controller: _textEditorController,
+            focusNode: _textEditorFocusNode,
+            autofocus: true,
+            maxLines: 1,
+            style: const TextStyle(fontSize: 14, color: Color(0xFF202124)),
+            decoration: const InputDecoration(
+              isDense: true,
+              border: InputBorder.none,
+              contentPadding: EdgeInsets.symmetric(horizontal: 2),
+            ),
+            onSubmitted: (_) => _commitTextEditing(),
+            onTapOutside: (_) => _commitTextEditing(),
+          ),
         ),
       );
     }
