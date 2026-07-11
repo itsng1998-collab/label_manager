@@ -28,6 +28,25 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-11): 품목관리 작업지시서 전체 진단 로그
+
+- 사용자 요청: `doc/item_manager_modify.txt`로 구현한 모든 품목관리 기능에 디버깅 로그를 추가한다.
+- 계측 범위: session 조회/구성, 추가·삽입·삭제, 품명·일반 컬럼·주원료 수정, dirty/selection, journal start/flush/restore/clear, 취소, 저장 transaction/reload, Excel import/export, QR 조회, 순서 변경, 날짜 타입 설정, context 변경 차단.
+- 로그 정책: 공용 `[item-manager-debug-v1]` 태그와 operation별 trace ID를 사용하며 payload 본문·비밀번호·실제 셀 데이터는 기록하지 않는다. 로그는 상태 관찰만 수행하고 비즈니스 로직에 사용하지 않는다.
+- `lib/utils/item_manager_debug_log.dart`: `[item-manager-debug-v1]`, operation, event, 순번 trace를 출력하는 공용 logger를 추가했다.
+- `lib/home_page_manager.dart`: session load, context 차단, 취소, 저장/transaction, reload/retry, Excel import/export, QR 조회, 순서 변경, 날짜 타입 설정의 eligibility·확인·완료·실패 상태를 계측했다.
+- `lib/page_home/item_manage.dart`: context menu, 행 추가·삽입·삭제, 품명·일반 컬럼 편집 결과를 계측했다.
+- `lib/models/item_manager_draft.dart`: 주원료 편집 요청, draft discard/import/행 추가·삽입·삭제의 전후 상태를 계측했다.
+- `lib/models/item_manager_draft_journal.dart`: start, dirty debounce, flush/write, restore 결과, clear, close를 draft key·행 수·파일 크기 수준으로 계측했다.
+- `lib/models/item_manager_save.dart`: 저장 transaction 시작·완료·실패와 command 개수를 계측했다.
+- `lib/page_home/item_manager_xlsx.dart`: xlsx writer/parser 시작·sheet 구조·완료 결과를 byte/행/컬럼/경고 개수로 계측했다.
+- 포맷 완료: `C:\Flutter\bin\dart.bat format`으로 위 7개 Dart 파일을 정리했다.
+- focused 검증 완료: draft/journal/save/xlsx/순서/날짜/UI 관련 8개 테스트 파일, 69개 통과. 변경 파일 diagnostics 0건.
+- 전체 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 이슈 0건, `C:\Flutter\bin\flutter.bat test` 331개 통과, `git diff --check` 통과.
+- stage/기능 commit 대상: `lib/utils/item_manager_debug_log.dart`, `lib/home_page_manager.dart`, `lib/page_home/item_manage.dart`, `lib/models/item_manager_draft.dart`, `lib/models/item_manager_draft_journal.dart`, `lib/models/item_manager_save.dart`, `lib/page_home/item_manager_xlsx.dart`.
+- 기능 commit: `5f208d3` (`품목관리 전체 작업 진단 로그 추가`).
+- 기존 unrelated dirty `lib/core/app.dart`는 수정·stage 대상에서 제외한다.
+
 ### 완료 (2026-07-11): 품목 편집 취소 후 탭 이동 진단 로그
 
 - 사용자 재현: 품목관리에서 `변경 취소`를 확정했지만 다른 탭 메뉴로 이동되지 않는다.
