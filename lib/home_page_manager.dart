@@ -14,6 +14,7 @@ import 'package:tabbed_view/tabbed_view.dart';
 import 'package:label_manager/core/app.dart';
 import 'package:label_manager/core/auto_login_guard.dart';
 import 'package:label_manager/core/ui_scale.dart';
+import 'package:label_manager/database/drivers/db_driver.dart';
 import 'package:label_manager/models/brand.dart';
 import 'package:label_manager/models/column_base.dart';
 import 'package:label_manager/models/column_content.dart';
@@ -746,6 +747,8 @@ class _HomePageManagerState extends State<HomePageManager> {
       _itemDraftJournal = ItemManagerDraftJournal(
         controller: _itemDraftController!,
         mappingFingerprints: _itemDraftMappingFingerprints,
+        mappingFingerprintProvider:
+            ItemOfMarketDAO.selectMappingFingerprintsByItemIds,
         metadata: ItemManagerDraftJournalMetadata(
           draftKey: itemManagerDraftKey(
             userId: user.userId,
@@ -887,6 +890,32 @@ class _HomePageManagerState extends State<HomePageManager> {
       if (!reloaded && mounted) _showItemDraftError('변경 취소 실패', error);
       return;
     }
+    if (restoreResult == ItemManagerJournalRestoreResult.externalChange) {
+      final reloaded = await _reloadItemDraftFromDatabase();
+      if (!reloaded && mounted) {
+        _showItemDraftError(
+          '변경 취소 실패',
+          StateError('외부 품목 연결 변경 후 목록을 다시 불러오지 못했습니다.'),
+        );
+      } else if (reloaded && mounted) {
+        await showDialog<void>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            title: const Text('외부 변경 가능성'),
+            content: const Text(
+              '다른 매장의 품목 연결 상태가 변경되어 현재 DB 기준으로 복원했습니다.',
+            ),
+            actions: [
+              FilledButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('확인'),
+              ),
+            ],
+          ),
+        );
+      }
+      return;
+    }
     if (restoreResult == ItemManagerJournalRestoreResult.notFound) {
       controller.discardChanges();
     }
@@ -1001,6 +1030,14 @@ class _HomePageManagerState extends State<HomePageManager> {
       }
     } on _ItemMappingFingerprintConflict catch (error) {
       if (mounted) await _resolveItemMappingFingerprintConflict(error);
+    } on DbCommitOutcomeUnknown catch (error) {
+      _setItemDraftForceReloadRequired(true);
+      if (mounted) {
+        _showItemDraftError(
+          '품목 저장 결과 확인 필요',
+          StateError('DB 반영 여부를 확인할 수 없습니다. 다시 조회해 주세요.\n$error'),
+        );
+      }
     } catch (error) {
       if (!dbSaveCompleted) await _flushItemDraftJournalAfterSaveFailure();
       if (mounted) _showItemDraftError('품목 저장 실패', error);

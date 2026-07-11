@@ -196,6 +196,9 @@ class DbClient {
     if (res.success) {
       return res.result as T;
     }
+    if (res.errorCode == 'commitOutcomeUnknown') {
+      throw DbCommitOutcomeUnknown(res.error ?? 'Commit outcome is unknown.');
+    }
     throw Exception(res.error ?? 'DB Isolate error');
   }
 

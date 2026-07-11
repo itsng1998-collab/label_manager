@@ -37,7 +37,13 @@ class DbIsolateResponse {
   final bool success;
   final dynamic result;
   final String? error;
-  DbIsolateResponse({required this.success, this.result, this.error});
+  final String? errorCode;
+  DbIsolateResponse({
+    required this.success,
+    this.result,
+    this.error,
+    this.errorCode,
+  });
 }
 
 Future<void> dbIsolateMain(DbIsolateBootstrapMessage bootstrap) async {
@@ -121,7 +127,15 @@ Future<void> dbIsolateMain(DbIsolateBootstrapMessage bootstrap) async {
     } catch (e, st) {
       log('DbIsolate error: $e');
       log(st.toString());
-      msg.replyTo.send(DbIsolateResponse(success: false, error: e.toString()));
+      msg.replyTo.send(
+        DbIsolateResponse(
+          success: false,
+          error: e.toString(),
+          errorCode: e is DbCommitOutcomeUnknown
+              ? 'commitOutcomeUnknown'
+              : null,
+        ),
+      );
     }
   }
 }

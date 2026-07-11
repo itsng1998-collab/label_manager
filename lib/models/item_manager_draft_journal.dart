@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -112,7 +113,12 @@ class ItemManagerDraftJournalMetadata {
   };
 }
 
-enum ItemManagerJournalRestoreResult { notFound, restored, invalid }
+enum ItemManagerJournalRestoreResult {
+  notFound,
+  restored,
+  invalid,
+  externalChange,
+}
 
 class ItemManagerDraftJournal {
   static const int schemaVersion = 3;
@@ -142,6 +148,8 @@ class ItemManagerDraftJournal {
   final Duration debounceDuration;
   final Future<Directory> Function() _directoryProvider;
   final Future<SharedPreferences> Function() _preferencesProvider;
+  final Future<ItemMarketMappingFingerprints> Function(Iterable<int> itemIds)?
+  _mappingFingerprintProvider;
   Timer? _debounce;
   Future<void> _writeQueue = Future<void>.value();
   bool _started = false;
@@ -154,9 +162,12 @@ class ItemManagerDraftJournal {
     this.debounceDuration = const Duration(milliseconds: 250),
     Future<Directory> Function()? directoryProvider,
     Future<SharedPreferences> Function()? preferencesProvider,
+    Future<ItemMarketMappingFingerprints> Function(Iterable<int> itemIds)?
+    mappingFingerprintProvider,
   }) : _directoryProvider = directoryProvider ?? getApplicationSupportDirectory,
        _preferencesProvider =
-           preferencesProvider ?? SharedPreferences.getInstance;
+         preferencesProvider ?? SharedPreferences.getInstance,
+       _mappingFingerprintProvider = mappingFingerprintProvider;
 
   Future<void> start() async {
     if (_started) return;
@@ -225,10 +236,42 @@ class ItemManagerDraftJournal {
     final selectedRowKeys = documentMetadata['baselineSelectedRowKeys'];
     final baselineRows = baseline['rows'];
     final beforeSnapshots = document['beforeSnapshots'];
+    final changes = document['changes'];
     if (selectedRowKeys is! List ||
         baselineRows is! List ||
-        beforeSnapshots is! List) {
+        beforeSnapshots is! List ||
+        changes is! Map<String, dynamic>) {
       return ItemManagerJournalRestoreResult.invalid;
+    }
+    final deletedSourceItemIds = changes['deletedSourceItemIds'];
+    if (deletedSourceItemIds is! List) {
+      return ItemManagerJournalRestoreResult.invalid;
+    }
+    final deletedItemIds = deletedSourceItemIds
+        .whereType<num>()
+        .map((id) => id.toInt())
+        .toSet();
+    if (deletedItemIds.length != deletedSourceItemIds.length) {
+      return ItemManagerJournalRestoreResult.invalid;
+    }
+    if (deletedItemIds.isNotEmpty && _mappingFingerprintProvider != null) {
+      final storedFingerprints = baseline['mappingFingerprints'];
+      if (storedFingerprints is! Map) {
+        return ItemManagerJournalRestoreResult.invalid;
+      }
+      final currentFingerprints = await _mappingFingerprintProvider(
+        deletedItemIds,
+      );
+      for (final itemId in deletedItemIds) {
+        final stored = storedFingerprints['$itemId'];
+        if (stored is! List ||
+            !listEquals(
+              stored.whereType<num>().map((id) => id.toInt()).toList()..sort(),
+              currentFingerprints.marketIdsFor(itemId),
+            )) {
+          return ItemManagerJournalRestoreResult.externalChange;
+        }
+      }
     }
     final currentRows = {
       for (final row in controller.baselineRows) row.sourceItemId!: row,

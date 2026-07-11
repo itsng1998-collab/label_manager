@@ -151,6 +151,34 @@ void main() {
       expect(driver.calls.last, 'write:IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION');
     });
 
+    for (final commitFailure in <Object>[
+      const _ThrowCommit(),
+      {'error': 'commit response failure'},
+      '{malformed',
+    ]) {
+      test('transaction marks commit outcome unknown for $commitFailure', () async {
+        final driver = commitFailure is _ThrowCommit
+            ? _FakeDbDriver(failingSql: 'COMMIT TRANSACTION')
+            : _FakeDbDriver(
+                resultSql: 'COMMIT TRANSACTION',
+                result: commitFailure,
+              );
+
+        await expectLater(
+          executeDriverTransaction(driver, const [
+            DbTransactionStatement(sql: 'UPDATE FIRST'),
+          ]),
+          throwsA(isA<DbCommitOutcomeUnknown>()),
+        );
+        expect(driver.calls, [
+          'write:BEGIN TRANSACTION',
+          'write:UPDATE FIRST',
+          'write:COMMIT TRANSACTION',
+          'write:IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION',
+        ]);
+      });
+    }
+
     test('transaction statement maps are isolate safe', () {
       const statement = DbTransactionStatement(
         sql: 'UPDATE T SET VALUE=@value',
@@ -170,6 +198,10 @@ void main() {
       expect(driver.calls, isEmpty);
     });
   });
+}
+
+class _ThrowCommit {
+  const _ThrowCommit();
 }
 
 class _FakeDbDriver implements DbDriver {

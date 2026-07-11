@@ -26,6 +26,15 @@ class DbTransactionStatement {
   }
 }
 
+class DbCommitOutcomeUnknown implements Exception {
+  const DbCommitOutcomeUnknown(this.message);
+
+  final String message;
+
+  @override
+  String toString() => 'DbCommitOutcomeUnknown: $message';
+}
+
 void _throwIfDriverError(Object result) {
   final Object? decoded = switch (result) {
     final String value when value.trimLeft().startsWith('{') =>
@@ -72,6 +81,7 @@ Future<List<Object>> executeDriverTransaction(
   if (statements.isEmpty) return const [];
 
   var beginAttempted = false;
+  var commitAttempted = false;
   try {
     beginAttempted = true;
     final beginResult = await driver.writeData('BEGIN TRANSACTION');
@@ -92,6 +102,7 @@ Future<List<Object>> executeDriverTransaction(
       _throwIfDriverError(result);
       results.add(result);
     }
+    commitAttempted = true;
     final commitResult = await driver.writeData('COMMIT TRANSACTION');
     _throwIfDriverError(commitResult);
     return results;
@@ -102,6 +113,12 @@ Future<List<Object>> executeDriverTransaction(
           'IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION',
         );
       } catch (_) {}
+    }
+    if (commitAttempted) {
+      Error.throwWithStackTrace(
+        DbCommitOutcomeUnknown(error.toString()),
+        stackTrace,
+      );
     }
     Error.throwWithStackTrace(error, stackTrace);
   }

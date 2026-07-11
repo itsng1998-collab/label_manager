@@ -484,6 +484,121 @@ void main() {
       await journal.close();
     });
 
+    test('restores deleted row when mapping fingerprint still matches', () async {
+      final controller = ItemManagerDraftController.fromItems(
+        items: [_itemOfMarket()],
+        rawSnapshots: {10: _snapshot()},
+        scopedColumnContents: TColumnContentScopedView(const {}),
+      );
+      addTearDown(controller.dispose);
+      final journal = ItemManagerDraftJournal(
+        controller: controller,
+        mappingFingerprints: ItemMarketMappingFingerprints(const {
+          10: [3, 5],
+        }),
+        mappingFingerprintProvider: (_) async =>
+            ItemMarketMappingFingerprints(const {
+              10: [5, 3],
+            }),
+        metadata: const ItemManagerDraftJournalMetadata(
+          draftKey: 'mapping-match-key',
+          userId: 'user-1',
+          customerId: 2,
+          brandId: 8,
+          labelSizeId: 4,
+          currentMarketId: 3,
+          targetMarketIds: [3, 5],
+        ),
+        directoryProvider: () async => directory,
+      );
+      await journal.start();
+      controller.deleteRows(const ['item:10']);
+      await journal.flush();
+
+      expect(
+        await journal.restoreBaseline(),
+        ItemManagerJournalRestoreResult.restored,
+      );
+      expect(controller.rows.single.itemName, '기존 품목');
+      expect(controller.isDirty, isFalse);
+      await journal.close();
+    });
+
+    test('detects an external mapping change before delete restore', () async {
+      final controller = ItemManagerDraftController.fromItems(
+        items: [_itemOfMarket()],
+        rawSnapshots: {10: _snapshot()},
+        scopedColumnContents: TColumnContentScopedView(const {}),
+      );
+      addTearDown(controller.dispose);
+      final journal = ItemManagerDraftJournal(
+        controller: controller,
+        mappingFingerprints: ItemMarketMappingFingerprints(const {
+          10: [3, 5],
+        }),
+        mappingFingerprintProvider: (_) async =>
+            ItemMarketMappingFingerprints(const {
+              10: [3, 7],
+            }),
+        metadata: const ItemManagerDraftJournalMetadata(
+          draftKey: 'mapping-change-key',
+          userId: 'user-1',
+          customerId: 2,
+          brandId: 8,
+          labelSizeId: 4,
+          currentMarketId: 3,
+          targetMarketIds: [3, 5],
+        ),
+        directoryProvider: () async => directory,
+      );
+      await journal.start();
+      controller.deleteRows(const ['item:10']);
+      await journal.flush();
+
+      expect(
+        await journal.restoreBaseline(),
+        ItemManagerJournalRestoreResult.externalChange,
+      );
+      expect(controller.rows, isEmpty);
+      expect(controller.isDirty, isTrue);
+      await journal.close();
+    });
+
+    test('preserves delete draft when fingerprint lookup fails', () async {
+      final controller = ItemManagerDraftController.fromItems(
+        items: [_itemOfMarket()],
+        rawSnapshots: {10: _snapshot()},
+        scopedColumnContents: TColumnContentScopedView(const {}),
+      );
+      addTearDown(controller.dispose);
+      final journal = ItemManagerDraftJournal(
+        controller: controller,
+        mappingFingerprints: ItemMarketMappingFingerprints(const {
+          10: [3, 5],
+        }),
+        mappingFingerprintProvider: (_) async =>
+            throw StateError('fingerprint lookup failed'),
+        metadata: const ItemManagerDraftJournalMetadata(
+          draftKey: 'mapping-error-key',
+          userId: 'user-1',
+          customerId: 2,
+          brandId: 8,
+          labelSizeId: 4,
+          currentMarketId: 3,
+          targetMarketIds: [3, 5],
+        ),
+        directoryProvider: () async => directory,
+      );
+      await journal.start();
+      controller.deleteRows(const ['item:10']);
+      await journal.flush();
+
+      await expectLater(journal.restoreBaseline(), throwsStateError);
+      expect(controller.rows, isEmpty);
+      expect(controller.isDirty, isTrue);
+      await journal.close();
+    });
+
     test('restores changed row data from file into another controller', () async {
       final original = _itemOfMarket();
       final writerController = ItemManagerDraftController.fromItems(

@@ -28,6 +28,18 @@
 
 ## 현재 상태
 
+### 진행 중 (2026-07-11): 품목관리 6차 재검토 보완
+
+- 5차 보완 재검토에서 COMMIT 호출/응답 오류가 일반 transaction 실패로 처리돼 같은 draft를 재저장할 수 있는 문제와, 일반 삭제 취소에서 journal에 저장한 mapping fingerprint를 읽지 않는 문제를 확인했다.
+- `lib/database/drivers/db_driver.dart` 편집 완료: COMMIT 시도 후 오류를 `DbCommitOutcomeUnknown`으로 분류하고 안전한 rollback SQL은 시도하되 rollback 성공으로 오인하지 않는다.
+- `lib/database/db_isolate.dart`/`lib/database/db_client.dart` 편집 완료: isolate 응답의 `commitOutcomeUnknown` 오류 코드를 통해 전용 예외 타입을 UI isolate까지 보존한다.
+- `lib/home_page_manager.dart` 편집 완료: commit 결과 불확실 시 journal을 재flush하지 않고 `forceReloadRequired`로 전환해 재저장을 차단한다. journal에는 삭제 item 전용 mapping fingerprint DAO를 주입하고 `externalChange` 결과를 현재 DB 재조회와 경고로 처리한다.
+- `lib/models/item_manager_draft_journal.dart` 편집 완료: 삭제 item이 있을 때만 현재 mapping fingerprint를 조회해 저장값과 비교하며, 불일치는 `externalChange`, 조회 실패는 예외로 전달해 상위 DB reload 경로를 사용한다.
+- 테스트 추가: COMMIT throw/JSON error/malformed 응답 3종은 `DbCommitOutcomeUnknown`이며 transaction 13개 통과. fingerprint 일치/불일치/조회 실패 포함 journal 17개 통과.
+- 변경 Dart 파일 format 완료. transaction/journal/draft/save focused 묶음 61개 통과, workspace 진단 0건, `C:\Flutter\bin\flutter.bat analyze` 성공(`No issues found`).
+- 전체 `C:\Flutter\bin\flutter.bat test` 306개 통과, `git diff --check` 성공.
+- 기능 커밋 stage 대상: `lib/database/db_client.dart`, `lib/database/db_isolate.dart`, `lib/database/drivers/db_driver.dart`, `lib/home_page_manager.dart`, `lib/models/item_manager_draft_journal.dart`, `test/db_transaction_test.dart`, `test/item_manager_draft_journal_test.dart`, `SESSION_HANDOFF.md`. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+
 ### 진행 중 (2026-07-11): 품목관리 5차 재검토 보완
 
 - 4차 보완 재검토에서 journal 저장 checksum을 현재 controller와만 비교하고 파일 `beforeSnapshots` 복원 후보 자체를 재검증하지 않는 문제, journal identity가 draft key만 비교해 current/target market 불일치를 수용할 수 있는 문제, BEGIN 호출 자체 throw 시 rollback을 시도하지 않는 문제를 확인했다.
