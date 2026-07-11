@@ -28,6 +28,19 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-11): 품목관리 메인 테이블 셀 편집 표시
+
+- 사용자 요청: 품목관리 메인 테이블에서 셀 입력 진입 시 셀 내부에 입력 박스 효과를 표시한다.
+- 원인: 메인 테이블은 `FortuneSheetApp`이 아니라 fortune_sheet 공용 `FortuneTable`이며, 더블클릭 시 `TextField`로 전환되지만 `InputBorder.none`이라 편집 상태가 시각적으로 드러나지 않는다.
+- 수정: `third_party/fortune_sheet/lib/src/fortune_table.dart`의 inline editor에 셀 크기를 바꾸지 않는 옅은 편집 배경과 파란색 2px 테두리를 적용했다. `test/fortune_table_test.dart`에서 공용 FortuneTable과 실제 ItemManage 품명 셀 더블클릭 편집 경로의 decoration을 검증한다.
+- focused 검증 완료: `FortuneTable commits and cancels inline text editing`, `ItemManage commits item name edits to the draft row` 각 1개 통과. 파일 전체 및 전체 프로젝트 검증 예정.
+- 파일 전체 검증 완료: `test/fortune_table_test.dart` 29개 통과. 전체 검증 예정: `C:\Flutter\bin\flutter.bat analyze`, 전체 `flutter test`, `git diff --check`.
+- 변경 파일 diagnostics 0건, `C:\Flutter\bin\flutter.bat analyze` 이슈 0건. 전체 테스트와 diff 검증 예정.
+- 전체 테스트 완료: 3,342개 통과. 테스트 임시 산출물 정리와 `git diff --check` 후 `third_party/fortune_sheet/lib/src/fortune_table.dart`, `test/fortune_table_test.dart`를 기능 commit하고 `SESSION_HANDOFF.md`는 별도 commit한다.
+- 임시 산출물 `third_party/fortune_sheet/build/` 정리 완료, `git diff --check` 통과.
+- 기능 commit: `b9aa696` (`품목관리 셀 편집 표시 보완`). 품목관리 메인 FortuneTable의 편집 가능한 셀을 더블클릭하면 옅은 배경과 파란색 2px 테두리의 셀 내부 입력 박스가 표시된다.
+- 기존 unrelated dirty `lib/core/app.dart`는 수정·stage 대상에서 제외한다.
+
 ### 완료 (2026-07-11): 주원료 셀 편집 표시와 실변경 판정
 
 - 사용자 요청: 주원료 시트의 툴바-눈금자 사이 입력 영역을 다시 숨기고, 더블클릭 편집은 셀 내부 입력 박스로 표시하며, 내용 변경 없는 편집 종료는 품목 draft를 dirty로 만들지 않는다.
