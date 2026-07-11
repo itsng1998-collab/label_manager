@@ -28,6 +28,24 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-12): 레거시 사용자 권한별 품목관리 접근 적용
+
+- 사용자 요청: 레거시의 사용자 등급별 접근 정책을 현 프로젝트에 적용한다.
+- 레거시 확인: `BM_USER.RICH_USER_GRADE`의 0(시스템 관리자), 1(협력업체 관리자), 2(책임자)는 `CLoginUser::IsEditable()==TRUE`, 3(일반 사용자)은 FALSE다. 품명·행 추가/삽입/삭제·editable 지정·이미지 폴더는 편집 권한 사용자만 가능하다.
+- 동적 컬럼 확인: 일반 사용자의 `RICH_VISIBLE=1` 컬럼은 레거시 시트에서 입력할 수 있지만 저장 버튼이 숨겨지고 DB 반영은 `Save()`에서만 수행되어 출력 세션용 임시 값이다. 현 프로젝트에는 별도 임시 출력값 모델이 없으므로 이를 영구 draft 편집으로 허용하지 않는다.
+- 적용 기준: 0·1·2는 품명·주원료·행 구조와 모든 동적 컬럼을 영구 편집/저장할 수 있고, 3은 품목 조회·발행 선택만 가능하다. 일반 사용자는 레거시와 같이 공용라벨관리 액세스도 차단한다. 기존 행 동적 컬럼에 `RICH_EDITABLE=1`을 필수로 요구하던 과도한 제한은 제거한다.
+- `lib/models/user.dart` 편집 완료: `canEditItemDetails`, `canManageItemStructure`, `canAccessCommonLabelManagement`으로 레거시 `IsEditable`/`IsClientUser` 의미를 명시하고 기존 `canEdit` 호환을 유지했다.
+- `lib/page_home/item_manage.dart` 편집 완료: 기존 행 동적 컬럼의 `RICH_EDITABLE=1` 필수 조건을 제거하고, 0·1·2 등급의 품목 구조 편집 권한과 busy/reload/draft 존재 여부만으로 모든 동적 셀 영구 편집을 허용한다. 3등급은 품명·주원료·행 구조·동적 셀 영구 편집을 차단한다.
+- `lib/home_page_manager.dart` 편집 완료: 품목관리/주원료에 목적별 권한 getter를 전달하고, 일반 사용자에게 레거시와 같이 공용라벨관리(F2) 탭을 구성하지 않는다.
+- `test/user_test.dart`/`test/fortune_table_test.dart` 편집 완료: 0·1·2/3 등급 getter와 동적 셀 영구 편집 권한, 기존 읽기 전용 품목 명령 차단을 검증한다.
+- 변경 Dart 5개 포맷 완료. 관련 `user_test.dart`/`fortune_table_test.dart` 전체 33개 통과, 변경 파일 diagnostics 0건.
+- 전체 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 이슈 0건, 전체 `C:\Flutter\bin\flutter.bat test` 3,345개 통과, `git diff --check` 통과.
+- 전체 테스트 생성 임시 산출물 `third_party/fortune_sheet/build/` 정리 완료.
+- 기능 stage/commit 대상: `lib/models/user.dart`, `lib/page_home/item_manage.dart`, `lib/home_page_manager.dart`, `test/user_test.dart`, `test/fortune_table_test.dart`. 기존 unrelated dirty `lib/core/app.dart`와 `SESSION_HANDOFF.md`는 기능 commit에서 제외한다.
+- 기능 commit: `4d31a84` (`레거시 사용자 권한별 접근 적용`). 0·1·2 등급은 품목의 모든 동적 컬럼을 `RICH_EDITABLE`과 무관하게 영구 편집할 수 있고, 3등급은 품목 영구 편집과 공용라벨관리 접근이 차단된다. 조회·발행 선택은 유지한다.
+- 기존 unrelated dirty `lib/core/app.dart`는 수정·stage 대상에서 제외했다.
+- 검증 예정: 관련 focused 테스트, 변경 파일 diagnostics, `C:\Flutter\bin\flutter.bat analyze`, 전체 `C:\Flutter\bin\flutter.bat test`, `git diff --check`.
+
 ### 완료 (2026-07-11): FortuneTable 편집 박스 geometry 정합
 
 - 사용자 확인: 실제 품목관리 화면의 편집 박스가 FortuneSheet 셀 editor와 전혀 다르게 보인다.
