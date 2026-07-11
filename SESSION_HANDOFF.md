@@ -28,6 +28,19 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-11): 품목 편집 취소 후 탭 이동 진단 로그
+
+- 사용자 재현: 품목관리에서 `변경 취소`를 확정했지만 다른 탭 메뉴로 이동되지 않는다.
+- 로컬 가설: journal 복원/DB reload/controller discard 분기 중 하나에서 dirty 또는 command busy/force reload 상태가 남거나 controller 교체 후 상태 callback 순서가 어긋나 탭 guard가 계속 차단한다.
+- 수정 예정: `lib/home_page_manager.dart`의 취소 시작·확정·복원 분기·종료 상태와 dirty callback, 탭 선택 요청, context guard 차단 사유를 동일 trace ID 및 로그 버전으로 기록한다. 로그에는 비즈니스 로직을 포함하지 않는다. 미검증.
+- `lib/home_page_manager.dart` 편집 완료: `item-draft-cancel-debug-v1`/trace ID로 취소 eligibility·dialog 결과·import/journal/reload/discard 분기·controller identity/dirty/row state·탭 요청/guard 차단 사유/원복·완료를 기록한다. 로그는 상태 관찰만 수행하고 비즈니스 분기 결과를 변경하지 않는다.
+- 품목 draft/journal/HomePage widget focused 49개 통과, 변경 파일 진단 0건. 변경 Dart format 후 focused/analyze/전체 suite/diff check를 실행한다.
+- `lib/home_page_manager.dart` format 완료 후 focused 49개 재통과. 변경 파일 진단 0건, `C:\Flutter\bin\flutter.bat analyze`는 `No issues found`, `git diff --check` 성공. 전체 `C:\Flutter\bin\flutter.bat test`를 실행한다.
+- 최종 검증 완료: 전체 `C:\Flutter\bin\flutter.bat test` 331개 통과, 최종 `git diff --check` 성공.
+- 기능 commit 대상은 `lib/home_page_manager.dart`만이며 `SESSION_HANDOFF.md`는 기능 commit 해시 기록 후 별도 commit한다. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+- 기능 커밋 `c201384` (`품목 편집 취소 탭 이동 진단 로그 추가`) 완료. 사용자 재현 로그에서는 `[item-draft-cancel-debug-v1]` 태그와 같은 trace 번호의 `cancel finished` 이후 `tabSelection requested`/`contextChange ...`를 우선 확인한다.
+- 기존 unrelated dirty `lib/core/app.dart`는 수정·stage 대상에서 제외한다.
+
 ### 완료 (2026-07-11): 품목관리 10차 재검토 보완
 
 - 9차 보완 재검토에서 COMMIT 통신 단절이 결과 불확실 예외로 변환되며 client 연결 무효화 신호가 사라지는 문제, 이전 reconnect 세대가 새 attach를 차단하는 문제, 서로 다른 접속정보의 동시 connect가 같은 Future로 병합되는 문제를 확인했다.
