@@ -28,6 +28,28 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-11): 품목관리 9차 재검토 보완
+
+- 8차 보완 재검토에서 isolate가 살아 있는 일반 네트워크 장애는 ODBC/client 연결 flag가 true로 남아 reconnect가 실행되지 않는 문제, reconnect detach 세대 경합, 동시 connect 상태 불일치, journal 필수 before snapshot 누락 수용 문제를 확인했다.
+- 권장 작업 순서: ODBC 연결 단절 오류 분류/session invalidation -> reconnect generation/detach 취소 -> connect 직렬화 -> journal snapshot ID 집합 검증 -> focused/analyze/전체 suite.
+- 수정 예정 1순위: `lib/database/windows_odbc/odbc_driver.dart`가 SQLSTATE class `08` 및 invalid handle만 연결 단절로 분류해 session을 무효화하고, connect 시작/실패도 false 상태를 확정한다. 미검증.
+- `lib/database/windows_odbc/odbc_driver.dart`/`odbc_bindings.dart` 편집 완료: SQLSTATE class `08` 및 `SQL_INVALID_HANDLE`을 session-fatal로 분류하고 connect 시작/실패와 실행 중 단절 오류에서 연결 상태를 무효화한다.
+- `test/odbc_connection_state_test.dart` 추가 완료: 통신 단절/invalid handle과 문법·constraint 오류 분류 경계를 검증한다. 첫 실행은 누락된 `sqlInvalidHandle` 공용 상수로 컴파일 실패해 binding에 표준값 `-2`를 추가한 뒤 재검증한다.
+- ODBC 분류 focused 3개 통과. 후속 경로 확인 결과 driver 내부 무효화만으로 UI isolate의 cached 상태는 내려가지 않아 `DbConnectionLost`/`connectionLost` 응답 코드를 추가하고 `DbClient`가 해당 응답에서 연결 상태를 무효화하도록 보완했다. 미검증.
+- ODBC 단절 전달/client 상태 focused 10개 통과.
+- `lib/database/db_connection_service.dart` 편집 완료: attach 세대를 monitor/reconnect/recovery에 캡처하고 모든 지연·connect 완료 뒤 현재 세대를 재검사한다. detach/cancel은 세대를 무효화하고 detach는 저장 접속정보를 폐기해 오래된 recovery가 상태를 복원하지 못하게 한다. 미검증.
+- 재연결 generation 및 DB 단절 focused 12개 통과.
+- `lib/database/db_client.dart` 후속 편집 완료: 동시 connect를 단일 in-flight Future로 병합하고 connect 시작/실패 상태를 false로 확정한다. disconnect 진행 중 도착한 성공 결과는 폐기해 연결 상태를 다시 올리지 않는다. 미검증.
+- DB connect 동시성/재연결/ODBC focused 13개 통과.
+- `lib/models/item_manager_draft_journal.dart` 편집 완료: 기존 수정행 ID와 삭제 ID의 합집합이 before snapshot ID 집합과 정확히 같은지 fallback 전에 검증한다. 신규 added/imported 행은 null source identity만 허용하고 기존 수정행은 positive unique ID만 허용한다.
+- `test/item_manager_draft_journal_test.dart` 편집 완료: 필수 before snapshot 누락과 변경행/snapshot ID 불일치를 `invalid`로 차단하는 테스트를 추가했다. 미검증.
+- journal focused 23개 통과. 최종 검증 전 변경 Dart 파일을 `C:\Flutter\bin\dart.bat format`으로 정리한 뒤 DB lifecycle/transaction/journal/save focused, workspace 진단, `C:\Flutter\bin\flutter.bat analyze`, 전체 `C:\Flutter\bin\flutter.bat test`, `git diff --check`를 순서대로 실행한다.
+- 변경 Dart 11개 파일 format 완료. DB lifecycle/transaction/journal/draft/save focused 80개 통과, 변경 파일 workspace 진단 0건, `C:\Flutter\bin\flutter.bat analyze`는 `No issues found`. 전체 test와 diff check를 이어서 실행한다.
+- 최종 검증 완료: 전체 `C:\Flutter\bin\flutter.bat test` 325개 통과, `git diff --check` 성공.
+- 기능 commit 대상: DB client/service/isolate/driver/ODBC 6개 파일, journal 1개 파일, 관련 테스트 4개 파일. `SESSION_HANDOFF.md`는 기능 commit 해시 기록 후 별도 commit하며 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+- 기능 커밋 `fda0f5b` (`품목관리 DB 연결 복구와 journal 무결성 보완`) 완료. 기존 unrelated dirty `lib/core/app.dart`는 제외했다.
+- 기존 unrelated dirty `lib/core/app.dart`는 수정·stage 대상에서 제외한다.
+
 ### 완료 (2026-07-11): 품목관리 8차 재검토 보완
 
 - 7차 보완 재검토에서 isolate 종료 후 새 isolate가 생성돼도 driver는 미연결인데 `DbClient.isConnected`가 true가 되어 재연결이 막히는 문제, 명시적 disconnect가 pending 요청 종료 신호를 완료하지 않는 문제, journal 삭제 ID 집합과 strict integer 검증 누락을 확인했다.
