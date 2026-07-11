@@ -48,7 +48,10 @@ bool dbDriverConnectedAfterResponse({
   required bool current,
   required DbIsolateResponse response,
 }) {
-  return response.errorCode == 'connectionLost' ? false : current;
+  return switch (response.errorCode) {
+    'connectionLost' || 'commitOutcomeUnknownConnectionLost' => false,
+    _ => current,
+  };
 }
 
 @visibleForTesting
@@ -57,6 +60,58 @@ bool dbConnectResultAccepted({
   required bool disconnecting,
 }) {
   return result && !disconnecting;
+}
+
+@visibleForTesting
+bool dbConnectIdentityMatches({
+  required ({
+    String ip,
+    String port,
+    String databaseName,
+    String username,
+    String password,
+    int timeoutInSeconds,
+  })
+  left,
+  required ({
+    String ip,
+    String port,
+    String databaseName,
+    String username,
+    String password,
+    int timeoutInSeconds,
+  })
+  right,
+}) {
+  return left == right;
+}
+
+@visibleForTesting
+class DbConnectOperationQueue<T> {
+  Future<bool>? _active;
+  T? _activeIdentity;
+
+  Future<bool> run(T identity, Future<bool> Function() operation) {
+    final active = _active;
+    if (active != null) {
+      if (_activeIdentity == identity) return active;
+      return active.then(
+        (_) => run(identity, operation),
+        onError: (_) => run(identity, operation),
+      );
+    }
+
+    late final Future<bool> current;
+    current = operation().whenComplete(() {
+      if (identical(_active, current)) {
+        _active = null;
+        _activeIdentity = null;
+      }
+    });
+    _active = current;
+    _activeIdentity = identity;
+    return current;
+  }
 }
 
 class _DbIsolateStartupFailure {
@@ -98,7 +153,17 @@ class DbClient {
   ReceivePort? _logReceivePort;
   StreamSubscription<dynamic>? _logSubscription;
   Future<void>? _isolateInit;
-  Future<bool>? _connectFuture;
+  final DbConnectOperationQueue<
+    ({
+      String ip,
+      String port,
+      String databaseName,
+      String username,
+      String password,
+      int timeoutInSeconds,
+    })
+  >
+  _connectOperations = DbConnectOperationQueue();
   Future<void>? _disconnectFuture;
   bool _driverConnected = false;
   bool _disconnecting = false;
@@ -328,13 +393,17 @@ class DbClient {
     if (res.success) {
       return res.result as T;
     }
-    if (res.errorCode == 'commitOutcomeUnknown') {
-      throw DbCommitOutcomeUnknown(res.error ?? 'Commit outcome is unknown.');
-    }
     _driverConnected = dbDriverConnectedAfterResponse(
       current: _driverConnected,
       response: res,
     );
+    if (res.errorCode == 'commitOutcomeUnknown' ||
+        res.errorCode == 'commitOutcomeUnknownConnectionLost') {
+      throw DbCommitOutcomeUnknown(
+        res.error ?? 'Commit outcome is unknown.',
+        connectionLost: res.errorCode == 'commitOutcomeUnknownConnectionLost',
+      );
+    }
     if (res.errorCode == 'connectionLost') {
       throw DbConnectionLost(res.error ?? 'Database connection was lost.');
     }
@@ -349,24 +418,25 @@ class DbClient {
     required String password,
     int timeoutInSeconds = 15,
   }) {
-    final active = _connectFuture;
-    if (active != null) return active;
-    late final Future<bool> operation;
-    operation =
-        _performConnect(
-          ip: ip,
-          port: port,
-          databaseName: databaseName,
-          username: username,
-          password: password,
-          timeoutInSeconds: timeoutInSeconds,
-        ).whenComplete(() {
-          if (identical(_connectFuture, operation)) {
-            _connectFuture = null;
-          }
-        });
-    _connectFuture = operation;
-    return operation;
+    final identity = (
+      ip: ip,
+      port: port,
+      databaseName: databaseName,
+      username: username,
+      password: password,
+      timeoutInSeconds: timeoutInSeconds,
+    );
+    return _connectOperations.run(
+      identity,
+      () => _performConnect(
+        ip: ip,
+        port: port,
+        databaseName: databaseName,
+        username: username,
+        password: password,
+        timeoutInSeconds: timeoutInSeconds,
+      ),
+    );
   }
 
   Future<bool> _performConnect({

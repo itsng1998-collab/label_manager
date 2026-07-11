@@ -37,11 +37,13 @@ void main() {
           DbTransactionStatement(sql: 'UPDATE FAIL'),
           DbTransactionStatement(sql: 'UPDATE NEVER'),
         ]),
-        throwsA(isA<StateError>().having(
-          (error) => error.message,
-          'message',
-          'failed: UPDATE FAIL',
-        )),
+        throwsA(
+          isA<StateError>().having(
+            (error) => error.message,
+            'message',
+            'failed: UPDATE FAIL',
+          ),
+        ),
       );
 
       expect(driver.calls, [
@@ -120,11 +122,13 @@ void main() {
         executeDriverTransaction(driver, const [
           DbTransactionStatement(sql: 'UPDATE NEVER'),
         ]),
-        throwsA(isA<StateError>().having(
-          (error) => error.message,
-          'message',
-          'failed: BEGIN TRANSACTION',
-        )),
+        throwsA(
+          isA<StateError>().having(
+            (error) => error.message,
+            'message',
+            'failed: BEGIN TRANSACTION',
+          ),
+        ),
       );
       expect(driver.calls, [
         'write:BEGIN TRANSACTION',
@@ -132,52 +136,83 @@ void main() {
       ]);
     });
 
-    test('transaction preserves begin error when rollback also fails', () async {
-      final driver = _FakeDbDriver(
-        failingSql: 'BEGIN TRANSACTION',
-        rollbackFails: true,
-      );
+    test(
+      'transaction preserves begin error when rollback also fails',
+      () async {
+        final driver = _FakeDbDriver(
+          failingSql: 'BEGIN TRANSACTION',
+          rollbackFails: true,
+        );
 
-      await expectLater(
-        executeDriverTransaction(driver, const [
-          DbTransactionStatement(sql: 'UPDATE NEVER'),
-        ]),
-        throwsA(isA<StateError>().having(
-          (error) => error.message,
-          'message',
-          'failed: BEGIN TRANSACTION',
-        )),
-      );
-      expect(driver.calls.last, 'write:IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION');
-    });
+        await expectLater(
+          executeDriverTransaction(driver, const [
+            DbTransactionStatement(sql: 'UPDATE NEVER'),
+          ]),
+          throwsA(
+            isA<StateError>().having(
+              (error) => error.message,
+              'message',
+              'failed: BEGIN TRANSACTION',
+            ),
+          ),
+        );
+        expect(
+          driver.calls.last,
+          'write:IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION',
+        );
+      },
+    );
 
     for (final commitFailure in <Object>[
       const _ThrowCommit(),
       {'error': 'commit response failure'},
       '{malformed',
     ]) {
-      test('transaction marks commit outcome unknown for $commitFailure', () async {
-        final driver = commitFailure is _ThrowCommit
-            ? _FakeDbDriver(failingSql: 'COMMIT TRANSACTION')
-            : _FakeDbDriver(
-                resultSql: 'COMMIT TRANSACTION',
-                result: commitFailure,
-              );
+      test(
+        'transaction marks commit outcome unknown for $commitFailure',
+        () async {
+          final driver = commitFailure is _ThrowCommit
+              ? _FakeDbDriver(failingSql: 'COMMIT TRANSACTION')
+              : _FakeDbDriver(
+                  resultSql: 'COMMIT TRANSACTION',
+                  result: commitFailure,
+                );
 
-        await expectLater(
-          executeDriverTransaction(driver, const [
-            DbTransactionStatement(sql: 'UPDATE FIRST'),
-          ]),
-          throwsA(isA<DbCommitOutcomeUnknown>()),
-        );
-        expect(driver.calls, [
-          'write:BEGIN TRANSACTION',
-          'write:UPDATE FIRST',
-          'write:COMMIT TRANSACTION',
-          'write:IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION',
-        ]);
-      });
+          await expectLater(
+            executeDriverTransaction(driver, const [
+              DbTransactionStatement(sql: 'UPDATE FIRST'),
+            ]),
+            throwsA(isA<DbCommitOutcomeUnknown>()),
+          );
+          expect(driver.calls, [
+            'write:BEGIN TRANSACTION',
+            'write:UPDATE FIRST',
+            'write:COMMIT TRANSACTION',
+            'write:IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION',
+          ]);
+        },
+      );
     }
+
+    test('commit connection loss preserves unknown outcome and loss', () async {
+      final driver = _FakeDbDriver(
+        failingSql: 'COMMIT TRANSACTION',
+        failure: const DbConnectionLost('link lost'),
+      );
+
+      await expectLater(
+        executeDriverTransaction(driver, const [
+          DbTransactionStatement(sql: 'UPDATE FIRST'),
+        ]),
+        throwsA(
+          isA<DbCommitOutcomeUnknown>().having(
+            (error) => error.connectionLost,
+            'connectionLost',
+            isTrue,
+          ),
+        ),
+      );
+    });
 
     test('transaction statement maps are isolate safe', () {
       const statement = DbTransactionStatement(
@@ -207,12 +242,14 @@ class _ThrowCommit {
 class _FakeDbDriver implements DbDriver {
   _FakeDbDriver({
     this.failingSql,
+    this.failure,
     this.resultSql,
     this.result,
     this.rollbackFails = false,
   });
 
   final String? failingSql;
+  final Object? failure;
   final String? resultSql;
   final Object? result;
   final bool rollbackFails;
@@ -222,7 +259,7 @@ class _FakeDbDriver implements DbDriver {
   bool get isConnected => true;
 
   void _failIfNeeded(String sql) {
-    if (sql == failingSql) throw StateError('failed: $sql');
+    if (sql == failingSql) throw failure ?? StateError('failed: $sql');
     if (rollbackFails && sql.contains('ROLLBACK TRANSACTION')) {
       throw StateError('rollback failed');
     }

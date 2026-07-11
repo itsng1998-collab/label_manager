@@ -27,9 +27,10 @@ class DbTransactionStatement {
 }
 
 class DbCommitOutcomeUnknown implements Exception {
-  const DbCommitOutcomeUnknown(this.message);
+  const DbCommitOutcomeUnknown(this.message, {this.connectionLost = false});
 
   final String message;
+  final bool connectionLost;
 
   @override
   String toString() => 'DbCommitOutcomeUnknown: $message';
@@ -124,7 +125,10 @@ Future<List<Object>> executeDriverTransaction(
     }
     if (commitAttempted) {
       Error.throwWithStackTrace(
-        DbCommitOutcomeUnknown(error.toString()),
+        DbCommitOutcomeUnknown(
+          error.toString(),
+          connectionLost: error is DbConnectionLost,
+        ),
         stackTrace,
       );
     }

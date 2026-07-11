@@ -132,6 +132,8 @@ Future<void> dbIsolateMain(DbIsolateBootstrapMessage bootstrap) async {
           success: false,
           error: e.toString(),
           errorCode: switch (e) {
+            DbCommitOutcomeUnknown(connectionLost: true) =>
+              'commitOutcomeUnknownConnectionLost',
             DbCommitOutcomeUnknown() => 'commitOutcomeUnknown',
             DbConnectionLost() => 'connectionLost',
             _ => null,

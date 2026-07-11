@@ -41,4 +41,25 @@ void main() {
       isFalse,
     );
   });
+
+  test('new generation takes reconnect ownership from an old loop', () async {
+    final oldLoop = Completer<void>();
+    int? ownerGeneration = 3;
+    final oldCompletion = oldLoop.future.then((_) {
+      if (ownerGeneration == 3) ownerGeneration = null;
+    });
+
+    expect(
+      dbReconnectLoopCanTakeOwnership(
+        generation: 4,
+        ownerGeneration: ownerGeneration,
+      ),
+      isTrue,
+    );
+    ownerGeneration = 4;
+    oldLoop.complete();
+    await oldCompletion;
+
+    expect(ownerGeneration, 4);
+  });
 }

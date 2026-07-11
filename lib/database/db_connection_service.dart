@@ -15,6 +15,14 @@ bool dbConnectionGenerationIsCurrent({
   return !cancelled && current == expected;
 }
 
+@visibleForTesting
+bool dbReconnectLoopCanTakeOwnership({
+  required int generation,
+  required int? ownerGeneration,
+}) {
+  return ownerGeneration != generation;
+}
+
 /// DB 연결 상태 모니터링과 재연결을 담당하는 전역 서비스
 class DbConnectionService {
   DbConnectionService._();
@@ -29,6 +37,7 @@ class DbConnectionService {
   int _pollingPauseDepth = 0;
   Future<bool>? _connectionRecovery;
   int? _connectionRecoveryGeneration;
+  int? _reconnectLoopGeneration;
   int _attachmentGeneration = 0;
 
   void attachAndStart({
@@ -121,7 +130,14 @@ class DbConnectionService {
   }
 
   Future<void> _scheduleReconnect(int generation) async {
-    if (status.reconnecting.value) return;
+    if (!_isCurrentGeneration(generation) ||
+        !dbReconnectLoopCanTakeOwnership(
+          generation: generation,
+          ownerGeneration: _reconnectLoopGeneration,
+        )) {
+      return;
+    }
+    _reconnectLoopGeneration = generation;
     status.reconnecting.value = true;
     final db = DbClient.instance;
 
@@ -144,14 +160,16 @@ class DbConnectionService {
       _retryAttempt = (_retryAttempt + 1).clamp(0, 6);
     }
 
-    if (_attachmentGeneration == generation) {
+    if (_reconnectLoopGeneration == generation) {
+      _reconnectLoopGeneration = null;
       status.reconnecting.value = false;
     }
   }
 
-  Future<bool> ensureConnected() async {
+  Future<bool> ensureConnected() => _ensureConnected();
+
+  Future<bool> _ensureConnected({bool force = false}) async {
     final db = DbClient.instance;
-    if (db.isConnected) return true;
     final generation = _attachmentGeneration;
     final info = _lastConnectInfo;
     if (info == null || !_isCurrentGeneration(generation)) return false;
@@ -160,8 +178,9 @@ class DbConnectionService {
       if (_connectionRecoveryGeneration == generation) return active;
       await active;
       if (!_isCurrentGeneration(generation)) return false;
-      return ensureConnected();
+      return _ensureConnected(force: true);
     }
+    if (!force && db.isConnected) return true;
 
     final recovery = () async {
       try {
@@ -201,6 +220,7 @@ class DbConnectionService {
   void cancelReconnect() {
     _reconnectCancelled = true;
     _attachmentGeneration++;
+    _reconnectLoopGeneration = null;
     status.reconnecting.value = false;
   }
 }
