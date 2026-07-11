@@ -28,6 +28,22 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-11): 품목 조회 직후 오편집 차단
+
+- 사용자 재현: 앱 실행 후 품목관리 조회만 완료된 상태에서 다른 탭을 선택하면 편집 중 안내로 이동이 차단된다.
+- 최신 로그 확인: session load 완료 시 26행 모두 `existing`/dirty=false였으나 0.67초 뒤 사용자 입력 없이 `editElement rowKey=item:578`가 발생해 1행이 `modified`로 전환됐다.
+- 원인: 주원료 `LabelSheetWorkbench`의 초기 workbook 장착 `onChange`가 사용자 편집 callback과 같은 경로로 전달되어 draft를 변경했다.
+- 수정: workbench에 초기 operation 정착 이후 실제 operation에서만 호출되는 `onUserWorkbookChanged`를 추가하고 품목 주원료 preview는 이 callback으로만 자동 commit한다. 초기 sync 무시 및 실제 operation commit 회귀 테스트를 추가했다.
+- `lib/page_label_sheet/label_sheet_workbench.dart`: 초기 operation 정착 후 `onOp`에서만 최신 workbook을 전달하는 `onUserWorkbookChanged` API를 추가했다.
+- `lib/home_page_manager.dart`: 품목 주원료 preview의 자동 draft commit을 일반 `onWorkbookChanged`에서 `onUserWorkbookChanged`로 변경했다.
+- `test/label_sheet_toolbar_test.dart`: 초기 workbook sync는 commit하지 않고 실제 operation 변경은 commit하는 회귀 테스트를 추가/보강했다.
+- focused 검증: 위 핵심 테스트 2개 통과, 변경 파일 diagnostics 0건. 다음 검증은 변경 Dart format 후 `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart`.
+- 포맷 및 인접 검증 완료: 변경 Dart 3개 format 후 `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart` 106개 통과.
+- 전체 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 이슈 0건, `C:\Flutter\bin\flutter.bat test` 332개 통과, `git diff --check` 통과. 포맷 잡음 제거 후 핵심 테스트 2개와 diagnostics/diff check를 재검증했다.
+- stage/기능 commit 대상: `lib/page_label_sheet/label_sheet_workbench.dart`, `lib/home_page_manager.dart`, `test/label_sheet_toolbar_test.dart`.
+- 기능 commit: `8c6c162` (`품목 조회 직후 오편집 방지`).
+- 기존 unrelated dirty `lib/core/app.dart`는 수정·stage 대상에서 제외한다.
+
 ### 완료 (2026-07-11): 품목관리 작업지시서 전체 진단 로그
 
 - 사용자 요청: `doc/item_manager_modify.txt`로 구현한 모든 품목관리 기능에 디버깅 로그를 추가한다.
