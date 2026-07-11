@@ -73,5 +73,38 @@ void main() {
 
       expect(await termination.future, 'first');
     });
+
+    test('connection-lost response invalidates cached driver state', () {
+      final response = DbIsolateResponse(
+        success: false,
+        error: 'link failure',
+        errorCode: 'connectionLost',
+      );
+
+      expect(
+        dbDriverConnectedAfterResponse(current: true, response: response),
+        isFalse,
+      );
+    });
+
+    test('statement error preserves cached driver state', () {
+      final response = DbIsolateResponse(success: false, error: 'syntax error');
+
+      expect(
+        dbDriverConnectedAfterResponse(current: true, response: response),
+        isTrue,
+      );
+    });
+
+    test('connect result is rejected after disconnect starts', () {
+      expect(
+        dbConnectResultAccepted(result: true, disconnecting: true),
+        isFalse,
+      );
+      expect(
+        dbConnectResultAccepted(result: true, disconnecting: false),
+        isTrue,
+      );
+    });
   });
 }

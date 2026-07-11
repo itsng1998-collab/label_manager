@@ -131,9 +131,11 @@ Future<void> dbIsolateMain(DbIsolateBootstrapMessage bootstrap) async {
         DbIsolateResponse(
           success: false,
           error: e.toString(),
-          errorCode: e is DbCommitOutcomeUnknown
-              ? 'commitOutcomeUnknown'
-              : null,
+          errorCode: switch (e) {
+            DbCommitOutcomeUnknown() => 'commitOutcomeUnknown',
+            DbConnectionLost() => 'connectionLost',
+            _ => null,
+          },
         ),
       );
     }

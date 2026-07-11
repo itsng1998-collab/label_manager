@@ -716,6 +716,95 @@ void main() {
       await journal.close();
     });
 
+    test('rejects a missing before snapshot for a modified row', () async {
+      final controller = ItemManagerDraftController.fromItems(
+        items: [_itemOfMarket()],
+        rawSnapshots: {10: _snapshot()},
+        scopedColumnContents: TColumnContentScopedView(const {}),
+      );
+      addTearDown(controller.dispose);
+      final journal = ItemManagerDraftJournal(
+        controller: controller,
+        mappingFingerprints: ItemMarketMappingFingerprints(const {}),
+        metadata: const ItemManagerDraftJournalMetadata(
+          draftKey: 'missing-before-snapshot-key',
+          userId: 'user-1',
+          customerId: 2,
+          brandId: 8,
+          labelSizeId: 4,
+          currentMarketId: 3,
+          targetMarketIds: [3],
+        ),
+        directoryProvider: () async => directory,
+      );
+      await journal.start();
+      controller.updateItemName('item:10', '변경 품목');
+      await journal.flush();
+
+      final preferences = await SharedPreferences.getInstance();
+      final path = preferences.getString(
+        ItemManagerDraftJournal.lastPathPreferenceKey,
+      )!;
+      final document =
+          jsonDecode(await File(path).readAsString()) as Map<String, dynamic>;
+      document['beforeSnapshots'] = <Object>[];
+      await File(path).writeAsString(jsonEncode(document));
+
+      expect(
+        await journal.restoreBaseline(),
+        ItemManagerJournalRestoreResult.invalid,
+      );
+      expect(controller.isDirty, isTrue);
+      await journal.close();
+    });
+
+    test(
+      'rejects a changed row identity without a matching snapshot',
+      () async {
+        final controller = ItemManagerDraftController.fromItems(
+          items: [_itemOfMarket()],
+          rawSnapshots: {10: _snapshot()},
+          scopedColumnContents: TColumnContentScopedView(const {}),
+        );
+        addTearDown(controller.dispose);
+        final journal = ItemManagerDraftJournal(
+          controller: controller,
+          mappingFingerprints: ItemMarketMappingFingerprints(const {}),
+          metadata: const ItemManagerDraftJournalMetadata(
+            draftKey: 'mismatched-snapshot-key',
+            userId: 'user-1',
+            customerId: 2,
+            brandId: 8,
+            labelSizeId: 4,
+            currentMarketId: 3,
+            targetMarketIds: [3],
+          ),
+          directoryProvider: () async => directory,
+        );
+        await journal.start();
+        controller.updateItemName('item:10', '변경 품목');
+        await journal.flush();
+
+        final preferences = await SharedPreferences.getInstance();
+        final path = preferences.getString(
+          ItemManagerDraftJournal.lastPathPreferenceKey,
+        )!;
+        final document =
+            jsonDecode(await File(path).readAsString()) as Map<String, dynamic>;
+        final changes = document['changes'] as Map<String, dynamic>;
+        final changedRow = (changes['rows'] as List).single as Map;
+        changedRow['sourceItemId'] = 11;
+        await File(path).writeAsString(jsonEncode(document));
+
+        expect(
+          await journal.restoreBaseline(),
+          ItemManagerJournalRestoreResult.invalid,
+        );
+        expect(controller.isDirty, isTrue);
+        await journal.close();
+      },
+    );
+
     test('rejects fractional identity metadata', () async {
       final controller = ItemManagerDraftController.fromItems(
         items: [_itemOfMarket()],

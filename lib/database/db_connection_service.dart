@@ -1,9 +1,19 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:label_manager/database/db_connection_status.dart';
 import 'package:label_manager/database/db_connection_monitor.dart';
 import 'package:label_manager/database/db_server_connect_info.dart';
 import 'package:label_manager/database/db_client.dart';
+
+@visibleForTesting
+bool dbConnectionGenerationIsCurrent({
+  required int current,
+  required int expected,
+  required bool cancelled,
+}) {
+  return !cancelled && current == expected;
+}
 
 /// DB 연결 상태 모니터링과 재연결을 담당하는 전역 서비스
 class DbConnectionService {
@@ -18,11 +28,14 @@ class DbConnectionService {
   bool _reconnectCancelled = false;
   int _pollingPauseDepth = 0;
   Future<bool>? _connectionRecovery;
+  int? _connectionRecoveryGeneration;
+  int _attachmentGeneration = 0;
 
   void attachAndStart({
     required ServerConnectInfo info,
     Duration interval = const Duration(seconds: 20),
   }) {
+    final generation = ++_attachmentGeneration;
     _lastConnectInfo = info;
     _reconnectCancelled = false;
     _retryAttempt = 0;
@@ -30,10 +43,12 @@ class DbConnectionService {
     _monitor = DbConnectionMonitor(
       interval: interval,
       onLost: () {
+        if (!_isCurrentGeneration(generation)) return;
         status.up.value = false;
-        _scheduleReconnect();
+        _scheduleReconnect(generation);
       },
       onRestored: () {
+        if (!_isCurrentGeneration(generation)) return;
         status.up.value = true;
         _retryAttempt = 0;
         status.reconnecting.value = false;
@@ -42,16 +57,28 @@ class DbConnectionService {
     _pollingPauseDepth = 0;
     _sub?.cancel();
     _sub = _monitor!.statusStream.listen((up) {
+      if (!_isCurrentGeneration(generation)) return;
       status.up.value = up;
     });
   }
 
   void detach() {
+    _attachmentGeneration++;
+    _reconnectCancelled = true;
+    _lastConnectInfo = null;
     _monitor?.dispose();
     _monitor = null;
     _sub?.cancel();
     _sub = null;
     status.reset();
+  }
+
+  bool _isCurrentGeneration(int generation) {
+    return dbConnectionGenerationIsCurrent(
+      current: _attachmentGeneration,
+      expected: generation,
+      cancelled: _reconnectCancelled,
+    );
   }
 
   // 사용자 쿼리 수행 중에는 모니터링 핑을 중지하여 세션 충돌을 피한다.
@@ -93,38 +120,48 @@ class DbConnectionService {
     }
   }
 
-  Future<void> _scheduleReconnect() async {
+  Future<void> _scheduleReconnect(int generation) async {
     if (status.reconnecting.value) return;
     status.reconnecting.value = true;
-    _reconnectCancelled = false;
     final db = DbClient.instance;
 
-    while (!db.isConnected && _lastConnectInfo != null) {
-      if (_reconnectCancelled) break;
+    while (!db.isConnected &&
+        _lastConnectInfo != null &&
+        _isCurrentGeneration(generation)) {
       final backoff = Duration(
         seconds: (5 * (1 << _retryAttempt)).clamp(5, 60),
       );
       await Future.delayed(backoff);
-      if (_reconnectCancelled) break;
+      if (!_isCurrentGeneration(generation)) break;
 
-      if (await ensureConnected()) {
+      if (await ensureConnected() && _isCurrentGeneration(generation)) {
         status.up.value = true;
         break;
       }
 
+      if (!_isCurrentGeneration(generation)) break;
+
       _retryAttempt = (_retryAttempt + 1).clamp(0, 6);
     }
 
-    status.reconnecting.value = false;
+    if (_attachmentGeneration == generation) {
+      status.reconnecting.value = false;
+    }
   }
 
   Future<bool> ensureConnected() async {
     final db = DbClient.instance;
     if (db.isConnected) return true;
+    final generation = _attachmentGeneration;
     final info = _lastConnectInfo;
-    if (info == null || _reconnectCancelled) return false;
+    if (info == null || !_isCurrentGeneration(generation)) return false;
     final active = _connectionRecovery;
-    if (active != null) return active;
+    if (active != null) {
+      if (_connectionRecoveryGeneration == generation) return active;
+      await active;
+      if (!_isCurrentGeneration(generation)) return false;
+      return ensureConnected();
+    }
 
     final recovery = () async {
       try {
@@ -136,6 +173,7 @@ class DbConnectionService {
           password: info.password,
           timeoutInSeconds: 15,
         );
+        if (!_isCurrentGeneration(generation)) return false;
         status.up.value = ok;
         if (ok) {
           _retryAttempt = 0;
@@ -143,22 +181,26 @@ class DbConnectionService {
         }
         return ok;
       } catch (_) {
+        if (!_isCurrentGeneration(generation)) return false;
         status.up.value = false;
         return false;
       }
     }();
     _connectionRecovery = recovery;
+    _connectionRecoveryGeneration = generation;
     try {
       return await recovery;
     } finally {
       if (identical(_connectionRecovery, recovery)) {
         _connectionRecovery = null;
+        _connectionRecoveryGeneration = null;
       }
     }
   }
 
   void cancelReconnect() {
     _reconnectCancelled = true;
+    _attachmentGeneration++;
     status.reconnecting.value = false;
   }
 }

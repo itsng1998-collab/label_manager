@@ -35,10 +35,20 @@ class DbCommitOutcomeUnknown implements Exception {
   String toString() => 'DbCommitOutcomeUnknown: $message';
 }
 
+class DbConnectionLost implements Exception {
+  const DbConnectionLost(this.message);
+
+  final String message;
+
+  @override
+  String toString() => 'DbConnectionLost: $message';
+}
+
 void _throwIfDriverError(Object result) {
   final Object? decoded = switch (result) {
-    final String value when value.trimLeft().startsWith('{') =>
-      jsonDecode(value),
+    final String value when value.trimLeft().startsWith('{') => jsonDecode(
+      value,
+    ),
     _ => result,
   };
   if (decoded is! Map) return;
@@ -109,9 +119,7 @@ Future<List<Object>> executeDriverTransaction(
   } catch (error, stackTrace) {
     if (beginAttempted) {
       try {
-        await driver.writeData(
-          'IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION',
-        );
+        await driver.writeData('IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION');
       } catch (_) {}
     }
     if (commitAttempted) {

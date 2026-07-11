@@ -12,6 +12,13 @@ import 'odbc_error.dart';
 import 'odbc_handles.dart';
 import 'odbc_param_utils.dart';
 
+@visibleForTesting
+bool odbcErrorInvalidatesConnection(OdbcException error) {
+  final state = error.sqlState?.trim().toUpperCase();
+  return state?.startsWith('08') == true ||
+      error.message.contains('failed: ${OdbcConst.sqlInvalidHandle}');
+}
+
 class OdbcMssqlDriver implements DbDriver {
   OdbcMssqlDriver({void Function(String message)? logger}) : _logger = logger;
 
@@ -36,6 +43,7 @@ class OdbcMssqlDriver implements DbDriver {
       throw StateError('ODBC 드라이버는 Windows 환경에서만 동작합니다.');
     }
     return Future<bool>(() {
+      _connected = false;
       _environment ??= OdbcEnvironment.allocate();
       _connection?.dispose();
       _connection = OdbcConnection.allocate(_environment!);
@@ -61,7 +69,11 @@ class OdbcMssqlDriver implements DbDriver {
           lastError = e;
         }
       }
-      if (lastError != null) throw lastError;
+      if (lastError != null) {
+        _connection?.dispose();
+        _connection = null;
+        throw lastError;
+      }
       return false;
     });
   }
@@ -159,6 +171,12 @@ class OdbcMssqlDriver implements DbDriver {
           }
         }
         return _collectResults(stmt);
+      } on OdbcException catch (error) {
+        if (odbcErrorInvalidatesConnection(error)) {
+          _connected = false;
+          throw DbConnectionLost(error.toString());
+        }
+        rethrow;
       } finally {
         for (final p in paramBindings) {
           p.dispose();
@@ -398,8 +416,8 @@ class OdbcMssqlDriver implements DbDriver {
           final safeLength = rawLength <= 0
               ? 0
               : rawLength > capacity
-                  ? capacity
-                  : rawLength;
+              ? capacity
+              : rawLength;
           final data = bytes.asTypedList(safeLength);
           return base64Encode(data);
         } finally {
@@ -407,9 +425,12 @@ class OdbcMssqlDriver implements DbDriver {
         }
       } else {
         final capacity = requestedBytes > 0 ? requestedBytes : fallbackBytes;
-        final adjustedCapacity = capacity > 0 ? capacity + 2 : fallbackBytes + 2;
-        final evenCapacity =
-            (adjustedCapacity & 1) == 0 ? adjustedCapacity : adjustedCapacity + 1;
+        final adjustedCapacity = capacity > 0
+            ? capacity + 2
+            : fallbackBytes + 2;
+        final evenCapacity = (adjustedCapacity & 1) == 0
+            ? adjustedCapacity
+            : adjustedCapacity + 1;
         final charCount = evenCapacity ~/ 2;
         final raw = calloc<Uint16>(charCount > 0 ? charCount : 1);
         final buffer = raw.cast<Utf16>();
@@ -514,10 +535,7 @@ class OdbcMssqlDriver implements DbDriver {
     return '';
   }
 
-  String _formatSqlWithParams(
-    String sql,
-    List<OdbcParamEntry> entries,
-  ) {
+  String _formatSqlWithParams(String sql, List<OdbcParamEntry> entries) {
     if (entries.isEmpty) return sql;
     final parts = sql.split('?');
     final buffer = StringBuffer();
@@ -605,9 +623,7 @@ class OdbcMssqlDriver implements DbDriver {
   }) {
     final base =
         'Server=$ip,$port;Database=$databaseName;UID=$username;PWD=$password;Encrypt=No;Login Timeout=$timeoutInSeconds;';
-    final drivers = <String>[
-      '{ODBC Driver 18 for SQL Server}',
-    ];
+    final drivers = <String>['{ODBC Driver 18 for SQL Server}'];
     return drivers.map((driver) => 'Driver=$driver;$base').toList();
   }
 }
@@ -685,22 +701,3 @@ int odbcTextParameterTypeForLength(int lengthChars) {
   }
   return OdbcConst.sqlTypeWvarchar;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

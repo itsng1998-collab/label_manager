@@ -244,10 +244,13 @@ class ItemManagerDraftJournal {
       return ItemManagerJournalRestoreResult.invalid;
     }
     final deletedSourceItemIds = changes['deletedSourceItemIds'];
+    final changedRows = changes['rows'];
     final deletedRows = changes['deletedRows'];
+    final changedExistingItemIds = _changedExistingRowItemIds(changedRows);
     final deletedItemIds = _strictPositiveIntSet(deletedSourceItemIds);
     final deletedRowItemIds = _deletedRowItemIds(deletedRows);
-    if (deletedItemIds == null ||
+    if (changedExistingItemIds == null ||
+        deletedItemIds == null ||
         deletedRowItemIds == null ||
         !setEquals(deletedItemIds, deletedRowItemIds) ||
         !setEquals(deletedItemIds, controller.deletedSourceItemIds)) {
@@ -298,6 +301,13 @@ class ItemManagerDraftJournal {
         if (snapshotColumns[itemId]!.any((column) => column.itemId != itemId)) {
           return ItemManagerJournalRestoreResult.invalid;
         }
+      }
+      final requiredSnapshotItemIds = <int>{
+        ...changedExistingItemIds,
+        ...deletedItemIds,
+      };
+      if (!setEquals(snapshotRows.keys.toSet(), requiredSnapshotItemIds)) {
+        return ItemManagerJournalRestoreResult.invalid;
       }
       final restoredRows = <ItemManagerDraftRow>[];
       final baselineItemIds = <int>{};
@@ -799,6 +809,31 @@ Set<int>? _deletedRowItemIds(Object? value) {
     final sourceItemId = row['sourceItemId'];
     if (sourceItemId is! int ||
         sourceItemId <= 0 ||
+        !result.add(sourceItemId)) {
+      return null;
+    }
+  }
+  return result;
+}
+
+Set<int>? _changedExistingRowItemIds(Object? value) {
+  if (value is! List) return null;
+  final result = <int>{};
+  for (final item in value) {
+    if (item is! Map) return null;
+    final row = Map<String, dynamic>.from(item);
+    final sourceItemId = row['sourceItemId'];
+    final rowState = row['rowState'];
+    if (sourceItemId == null) {
+      if (rowState != ItemManagerDraftRowState.added.name &&
+          rowState != ItemManagerDraftRowState.imported.name) {
+        return null;
+      }
+      continue;
+    }
+    if (sourceItemId is! int ||
+        sourceItemId <= 0 ||
+        rowState != ItemManagerDraftRowState.modified.name ||
         !result.add(sourceItemId)) {
       return null;
     }

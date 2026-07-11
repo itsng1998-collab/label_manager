@@ -43,6 +43,22 @@ void completeDbIsolateTermination(
   }
 }
 
+@visibleForTesting
+bool dbDriverConnectedAfterResponse({
+  required bool current,
+  required DbIsolateResponse response,
+}) {
+  return response.errorCode == 'connectionLost' ? false : current;
+}
+
+@visibleForTesting
+bool dbConnectResultAccepted({
+  required bool result,
+  required bool disconnecting,
+}) {
+  return result && !disconnecting;
+}
+
 class _DbIsolateStartupFailure {
   const _DbIsolateStartupFailure._(this.message);
 
@@ -82,6 +98,7 @@ class DbClient {
   ReceivePort? _logReceivePort;
   StreamSubscription<dynamic>? _logSubscription;
   Future<void>? _isolateInit;
+  Future<bool>? _connectFuture;
   Future<void>? _disconnectFuture;
   bool _driverConnected = false;
   bool _disconnecting = false;
@@ -314,6 +331,13 @@ class DbClient {
     if (res.errorCode == 'commitOutcomeUnknown') {
       throw DbCommitOutcomeUnknown(res.error ?? 'Commit outcome is unknown.');
     }
+    _driverConnected = dbDriverConnectedAfterResponse(
+      current: _driverConnected,
+      response: res,
+    );
+    if (res.errorCode == 'connectionLost') {
+      throw DbConnectionLost(res.error ?? 'Database connection was lost.');
+    }
     throw Exception(res.error ?? 'DB Isolate error');
   }
 
@@ -324,24 +348,64 @@ class DbClient {
     required String username,
     required String password,
     int timeoutInSeconds = 15,
+  }) {
+    final active = _connectFuture;
+    if (active != null) return active;
+    late final Future<bool> operation;
+    operation =
+        _performConnect(
+          ip: ip,
+          port: port,
+          databaseName: databaseName,
+          username: username,
+          password: password,
+          timeoutInSeconds: timeoutInSeconds,
+        ).whenComplete(() {
+          if (identical(_connectFuture, operation)) {
+            _connectFuture = null;
+          }
+        });
+    _connectFuture = operation;
+    return operation;
+  }
+
+  Future<bool> _performConnect({
+    required String ip,
+    required String port,
+    required String databaseName,
+    required String username,
+    required String password,
+    required int timeoutInSeconds,
   }) async {
+    if (_disconnecting) {
+      throw StateError('DB client is disconnecting.');
+    }
+    _driverConnected = false;
     // Isolate가 준비될 때까지 기다려서 경합 조건을 방지한다.
     await _ensureIsolate();
 
     _log('DB 연결 시도: $ip:$port/$databaseName ($username)');
     final sw = Stopwatch()..start();
-    final ok = await _sendToIsolate<bool>(DbIsolateAction.connect, {
-      'ip': ip,
-      'port': port,
-      'databaseName': databaseName,
-      'username': username,
-      'password': password,
-      'timeoutInSeconds': timeoutInSeconds,
-    });
-    _driverConnected = ok;
-    sw.stop();
-    _log('DB 연결 결과: $ok (${sw.elapsedMilliseconds}ms)');
-    return ok;
+    try {
+      final ok = await _sendToIsolate<bool>(DbIsolateAction.connect, {
+        'ip': ip,
+        'port': port,
+        'databaseName': databaseName,
+        'username': username,
+        'password': password,
+        'timeoutInSeconds': timeoutInSeconds,
+      });
+      _driverConnected = dbConnectResultAccepted(
+        result: ok,
+        disconnecting: _disconnecting,
+      );
+      sw.stop();
+      _log('DB 연결 결과: $_driverConnected (${sw.elapsedMilliseconds}ms)');
+      return _driverConnected;
+    } catch (_) {
+      _driverConnected = false;
+      rethrow;
+    }
   }
 
   Future<Object> getData(String sql) async {

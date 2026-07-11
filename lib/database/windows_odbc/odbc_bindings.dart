@@ -12,6 +12,7 @@ class OdbcConst {
 
   static const int sqlSuccess = 0;
   static const int sqlSuccessWithInfo = 1;
+  static const int sqlInvalidHandle = -2;
   static const int sqlNoData = 100;
 
   static const int sqlAttrOdbcVersion = 200;
@@ -380,7 +381,6 @@ class OdbcBindings {
           .lookupFunction<SqlColAttributeWNative, SqlColAttributeW>(
             'SQLColAttributeW',
           );
-  
 
   final SqlAllocHandle sqlAllocHandle;
   final SqlFreeHandle sqlFreeHandle;
