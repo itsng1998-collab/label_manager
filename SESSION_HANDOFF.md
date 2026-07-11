@@ -28,6 +28,22 @@
 
 ## 현재 상태
 
+### 진행 중 (2026-07-11): 품목관리 7차 재검토 보완
+
+- 6차 보완 재검토에서 DB transaction COMMIT 후 isolate가 응답 전 종료되면 `DbClient._sendToIsolate()`가 영구 대기하는 문제와 mapping fingerprint가 동일 market 중복 mapping count를 제거하는 문제를 확인했다.
+- 권장 작업 순서: 실행 중 isolate 종료 감시와 pending transaction의 `DbCommitOutcomeUnknown` 완료 -> 응답/종료 경계 테스트 -> fingerprint count 보존과 malformed journal 차단 -> focused/analyze/전체 suite.
+- 수정 예정 1순위: `lib/database/db_client.dart`가 bootstrap 이후에도 isolate error/exit monitor를 유지하고, 요청 응답과 종료 신호를 경합시킨다. 응답 없는 transaction 종료는 자동 재시도하지 않고 `DbCommitOutcomeUnknown`, 일반 요청 종료는 명시적 오류로 완료한다. 미검증.
+- `lib/database/db_client.dart` 편집 완료: bootstrap 이후 error/exit port를 유지하고 현재 isolate 세대의 종료 신호와 요청 응답을 경합한다. 응답 없는 transaction은 `DbCommitOutcomeUnknown`, 일반 요청은 `StateError`로 완료하며 종료된 isolate 자원을 무효화한다.
+- `test/db_client_test.dart` 추가 완료: transaction 종료, query 종료, 정상 응답 우선 경계 3개 통과.
+- `lib/models/item_of_market.dart` 편집 완료: fingerprint market id를 set으로 축약하지 않고 정렬 multiset으로 유지해 동일 market 중복 mapping count를 보존한다.
+- `lib/models/item_manager_draft_journal.dart` 편집 완료: 저장 fingerprint의 모든 원소를 양의 정수로 검증하고 count를 포함한 정렬 목록으로 현재 DB와 비교한다.
+- `test/item_manager_read_snapshot_test.dart`/`test/item_manager_draft_journal_test.dart` 편집 완료: 중복 mapping count 변경과 문자열 원소 journal 변조 회귀를 추가했으며 관련 묶음 25개 통과.
+- 변경 Dart 6개 파일 format 완료, 관련 파일 진단 0건. DB client/transaction/journal/read snapshot/save DAO focused 묶음 48개 통과.
+- `_sendToIsolate()`의 ensure 직후 요청 전 isolate 종료 경쟁도 null 단정 대신 명시적 `StateError`로 차단했다. DB client/transaction 16개 재통과.
+- 최종 검증 완료: workspace 진단 0건, `C:\Flutter\bin\flutter.bat analyze`는 `No issues found`, 전체 `C:\Flutter\bin\flutter.bat test` 311개 통과, `git diff --check` 성공.
+- 기능 커밋 stage 대상: `SESSION_HANDOFF.md`, `lib/database/db_client.dart`, `lib/models/item_of_market.dart`, `lib/models/item_manager_draft_journal.dart`, `test/db_client_test.dart`, `test/item_manager_read_snapshot_test.dart`, `test/item_manager_draft_journal_test.dart`. 기존 unrelated dirty `lib/core/app.dart`는 제외한다.
+- 기존 unrelated dirty `lib/core/app.dart`는 수정·stage 대상에서 제외한다.
+
 ### 완료 (2026-07-11): 품목관리 6차 재검토 보완
 
 - 5차 보완 재검토에서 COMMIT 호출/응답 오류가 일반 transaction 실패로 처리돼 같은 draft를 재저장할 수 있는 문제와, 일반 삭제 취소에서 journal에 저장한 mapping fingerprint를 읽지 않는 문제를 확인했다.

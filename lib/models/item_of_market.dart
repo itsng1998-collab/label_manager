@@ -13,7 +13,7 @@ class ItemMarketMappingFingerprints {
   ItemMarketMappingFingerprints(Map<int, Iterable<int>> values)
     : _values = Map.unmodifiable(<int, List<int>>{
         for (final entry in values.entries)
-          entry.key: List.unmodifiable(entry.value.toSet().toList()..sort()),
+          entry.key: List.unmodifiable(entry.value.toList()..sort()),
       });
 
   factory ItemMarketMappingFingerprints.fromRows(

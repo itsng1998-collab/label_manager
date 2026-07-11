@@ -53,7 +53,7 @@ String _itemManagerBaselineChecksumFor(
           .map(_itemManagerBaselineRowJson)
           .toList(growable: false),
       'columns': [
-          for (final value in scopedColumns)
+        for (final value in scopedColumns)
           {
             'itemId': value.itemId,
             'columnId': value.columnId,
@@ -166,7 +166,7 @@ class ItemManagerDraftJournal {
     mappingFingerprintProvider,
   }) : _directoryProvider = directoryProvider ?? getApplicationSupportDirectory,
        _preferencesProvider =
-         preferencesProvider ?? SharedPreferences.getInstance,
+           preferencesProvider ?? SharedPreferences.getInstance,
        _mappingFingerprintProvider = mappingFingerprintProvider;
 
   Future<void> start() async {
@@ -228,7 +228,7 @@ class ItemManagerDraftJournal {
     final documentMetadata = document['metadata'];
     final baseline = document['baseline'];
     if (documentMetadata is! Map<String, dynamic> ||
-      !_journalMetadataMatches(documentMetadata, metadata) ||
+        !_journalMetadataMatches(documentMetadata, metadata) ||
         baseline is! Map<String, dynamic> ||
         baseline['checksum'] != itemManagerBaselineChecksum(controller)) {
       return ItemManagerJournalRestoreResult.invalid;
@@ -264,11 +264,14 @@ class ItemManagerDraftJournal {
       );
       for (final itemId in deletedItemIds) {
         final stored = storedFingerprints['$itemId'];
-        if (stored is! List ||
-            !listEquals(
-              stored.whereType<num>().map((id) => id.toInt()).toList()..sort(),
-              currentFingerprints.marketIdsFor(itemId),
-            )) {
+        if (stored is! List || stored.any((id) => id is! int || id <= 0)) {
+          return ItemManagerJournalRestoreResult.invalid;
+        }
+        final storedMarketIds = stored.cast<int>()..sort();
+        if (!listEquals(
+          storedMarketIds,
+          currentFingerprints.marketIdsFor(itemId),
+        )) {
           return ItemManagerJournalRestoreResult.externalChange;
         }
       }
@@ -320,9 +323,10 @@ class ItemManagerDraftJournal {
         restoredColumns.removeWhere((key, _) => key.itemId == entry.key);
         for (final column in entry.value) {
           restoredColumns[ColumnItemKey(
-            columnId: column.columnId,
-            itemId: column.itemId,
-          )] = column;
+                columnId: column.columnId,
+                itemId: column.itemId,
+              )] =
+              column;
         }
       }
       final restoredChecksum = _itemManagerBaselineChecksumFor(
@@ -428,7 +432,7 @@ class ItemManagerDraftJournal {
       );
 
     final baselineRows = orderedSourceRows
-      .map(_itemManagerBaselineRowJson)
+        .map(_itemManagerBaselineRowJson)
         .toList(growable: false);
     final baselineItemIds = orderedSourceRows
         .map((row) => row.sourceItemId!)
@@ -650,9 +654,7 @@ String _payloadEdgeHash(String payload) {
   return _fnv1a64Hex('$head|${payload.substring(tailStart)}');
 }
 
-Map<String, Object?> _itemManagerBaselineRowJson(
-  ItemManagerDraftRow row,
-) {
+Map<String, Object?> _itemManagerBaselineRowJson(ItemManagerDraftRow row) {
   final source = row.source!;
   final payload = source.item.elementRTF;
   return {
@@ -667,9 +669,7 @@ Map<String, Object?> _itemManagerBaselineRowJson(
   };
 }
 
-ItemManagerDraftRow _draftRowBeforeSnapshotFromJson(
-  Map<String, dynamic> json,
-) {
+ItemManagerDraftRow _draftRowBeforeSnapshotFromJson(Map<String, dynamic> json) {
   final source = _itemOfMarketFromJson(
     Map<String, dynamic>.from(json['source'] as Map),
   );
@@ -731,9 +731,8 @@ ItemOfMarket _itemOfMarketFromJson(Map<String, dynamic> json) {
 }
 
 ItemOfMarketRawSnapshot _rawSnapshotFromJson(Map<String, dynamic> json) {
-  DateTime? date(String key) => json[key] == null
-      ? null
-      : DateTime.parse(json[key] as String);
+  DateTime? date(String key) =>
+      json[key] == null ? null : DateTime.parse(json[key] as String);
   int? integer(String key) => (json[key] as num?)?.toInt();
   double? number(String key) => (json[key] as num?)?.toDouble();
   return ItemOfMarketRawSnapshot(
@@ -783,7 +782,10 @@ bool _journalMetadataMatches(
 ) {
   final targetMarketIds = json['targetMarketIds'];
   if (targetMarketIds is! List) return false;
-  final actualTargets = targetMarketIds.whereType<num>().map((id) => id.toInt()).toSet();
+  final actualTargets = targetMarketIds
+      .whereType<num>()
+      .map((id) => id.toInt())
+      .toSet();
   final expectedTargets = expected.targetMarketIds.toSet();
   return json['draftKey'] == expected.draftKey &&
       json['userId'] == expected.userId &&

@@ -9,6 +9,30 @@ import 'package:label_manager/utils/log_context.dart';
 import 'db_isolate.dart';
 import 'drivers/db_driver.dart';
 
+@visibleForTesting
+Future<DbIsolateResponse> waitForDbIsolateResponse({
+  required DbIsolateAction action,
+  required Future<dynamic> response,
+  required Future<Object> termination,
+}) async {
+  final result = await Future.any<Object>([
+    response.then<Object>((value) => value as DbIsolateResponse),
+    termination.then<Object>((reason) => _DbIsolateTerminated(reason)),
+  ]);
+  if (result is DbIsolateResponse) return result;
+  final reason = (result as _DbIsolateTerminated).reason;
+  if (action == DbIsolateAction.transaction) {
+    throw DbCommitOutcomeUnknown('DB isolate terminated: $reason');
+  }
+  throw StateError('DB isolate terminated before responding: $reason');
+}
+
+class _DbIsolateTerminated {
+  const _DbIsolateTerminated(this.reason);
+
+  final Object reason;
+}
+
 class _DbIsolateStartupFailure {
   const _DbIsolateStartupFailure._(this.message);
 
@@ -25,12 +49,12 @@ class _DbIsolateStartupFailure {
 
 class _DbIsolateStartupFailureExit extends _DbIsolateStartupFailure {
   const _DbIsolateStartupFailureExit()
-      : super._('DB isolate exited before sending bootstrap SendPort');
+    : super._('DB isolate exited before sending bootstrap SendPort');
 }
 
 class _DbIsolateStartupFailureTimeout extends _DbIsolateStartupFailure {
   const _DbIsolateStartupFailureTimeout()
-      : super._('DB isolate bootstrap SendPort timed out after 5s');
+    : super._('DB isolate bootstrap SendPort timed out after 5s');
 }
 
 /// DB 작업을 처리하는 Isolate 기반 클라이언트
@@ -40,6 +64,11 @@ class DbClient {
 
   Isolate? _dbIsolate;
   SendPort? _dbSendPort;
+  ReceivePort? _errorReceivePort;
+  ReceivePort? _exitReceivePort;
+  StreamSubscription<dynamic>? _errorSubscription;
+  StreamSubscription<dynamic>? _exitSubscription;
+  Completer<Object>? _isolateTermination;
   ReceivePort? _logReceivePort;
   StreamSubscription<dynamic>? _logSubscription;
   Future<void>? _isolateInit;
@@ -107,8 +136,26 @@ class DbClient {
     _log('Isolate 준비 시작 (attempt $attempt/$_maxIsolateStartAttempts)');
     final sw = Stopwatch()..start();
     final commandReceivePort = ReceivePort();
-    final errorReceivePort = ReceivePort();
-    final exitReceivePort = ReceivePort();
+    final errorReceivePort = _errorReceivePort = ReceivePort();
+    final exitReceivePort = _exitReceivePort = ReceivePort();
+    final termination = Completer<Object>();
+    _isolateTermination = termination;
+    var bootstrapped = false;
+    final startupFailure = Completer<_DbIsolateStartupFailure>();
+    _errorSubscription = errorReceivePort.listen((error) {
+      final failure = _DbIsolateStartupFailure.error(error);
+      if (!bootstrapped && !startupFailure.isCompleted) {
+        startupFailure.complete(failure);
+      }
+      _handleIsolateTermination(termination, failure.message);
+    });
+    _exitSubscription = exitReceivePort.listen((_) {
+      const failure = _DbIsolateStartupFailure.exit();
+      if (!bootstrapped && !startupFailure.isCompleted) {
+        startupFailure.complete(failure);
+      }
+      _handleIsolateTermination(termination, failure.message);
+    });
     _logReceivePort = ReceivePort();
     _logSubscription = _logReceivePort!.listen((message) {
       final text = message is String ? message : message.toString();
@@ -135,26 +182,21 @@ class DbClient {
         errorsAreFatal: true,
       );
       _log('Isolate spawn 반환 완료, bootstrap SendPort 대기 시작');
-      final bootstrapResult = await Future.any<dynamic>([
-        commandReceivePort.first,
-        errorReceivePort.first.then<dynamic>(
-          (error) => _DbIsolateStartupFailure.error(error),
-        ),
-        exitReceivePort.first.then<dynamic>(
-          (_) => const _DbIsolateStartupFailure.exit(),
-        ),
-      ]).timeout(
-        const Duration(seconds: 5),
-        onTimeout: () => const _DbIsolateStartupFailure.timeout(),
-      );
+      final bootstrapResult =
+          await Future.any<dynamic>([
+            commandReceivePort.first,
+            startupFailure.future,
+          ]).timeout(
+            const Duration(seconds: 5),
+            onTimeout: () => const _DbIsolateStartupFailure.timeout(),
+          );
       if (bootstrapResult is _DbIsolateStartupFailure) {
         throw StateError(bootstrapResult.message);
       }
+      bootstrapped = true;
       _dbSendPort = bootstrapResult as SendPort;
       _log('Isolate bootstrap SendPort 수신 완료');
       commandReceivePort.close();
-      errorReceivePort.close();
-      exitReceivePort.close();
       sw.stop();
       _log(
         'Isolate 생성 완료 (${sw.elapsedMilliseconds}ms), '
@@ -162,21 +204,53 @@ class DbClient {
       );
     } catch (e) {
       commandReceivePort.close();
-      errorReceivePort.close();
-      exitReceivePort.close();
-      _dbIsolate?.kill(priority: Isolate.immediate);
-      await _logSubscription?.cancel();
-      _logSubscription = null;
-      _logReceivePort?.close();
-      _logReceivePort = null;
-      _dbIsolate = null;
-      _dbSendPort = null;
+      await _disposeIsolateResources(kill: true);
       _log(
         'Isolate spawn failed (attempt '
         '$attempt/$_maxIsolateStartAttempts): $e',
       );
       rethrow;
     }
+  }
+
+  void _handleIsolateTermination(Completer<Object> termination, Object reason) {
+    if (!termination.isCompleted) termination.complete(reason);
+    if (!identical(_isolateTermination, termination)) return;
+    _dbIsolate = null;
+    _dbSendPort = null;
+    _isolateTermination = null;
+    _errorReceivePort?.close();
+    _errorReceivePort = null;
+    _exitReceivePort?.close();
+    _exitReceivePort = null;
+    unawaited(_errorSubscription?.cancel());
+    _errorSubscription = null;
+    unawaited(_exitSubscription?.cancel());
+    _exitSubscription = null;
+    unawaited(_logSubscription?.cancel());
+    _logSubscription = null;
+    _logReceivePort?.close();
+    _logReceivePort = null;
+    _log('DB isolate 종료 감지: $reason');
+  }
+
+  Future<void> _disposeIsolateResources({required bool kill}) async {
+    if (kill) _dbIsolate?.kill(priority: Isolate.immediate);
+    _dbIsolate = null;
+    _dbSendPort = null;
+    _isolateTermination = null;
+    _errorReceivePort?.close();
+    _errorReceivePort = null;
+    _exitReceivePort?.close();
+    _exitReceivePort = null;
+    await _errorSubscription?.cancel();
+    _errorSubscription = null;
+    await _exitSubscription?.cancel();
+    _exitSubscription = null;
+    await _logSubscription?.cancel();
+    _logSubscription = null;
+    _logReceivePort?.close();
+    _logReceivePort = null;
   }
 
   Future<T> _sendToIsolate<T>(
@@ -189,9 +263,24 @@ class DbClient {
     if (action == DbIsolateAction.connect) {
       _log('Isolate 연결 문자열(mask): ${_maskConnectionString(payload)}');
     }
-    _dbSendPort!.send(DbIsolateRequest(action, payload, responsePort.sendPort));
-    final DbIsolateResponse res = await responsePort.first as DbIsolateResponse;
-    responsePort.close();
+    final sendPort = _dbSendPort;
+    final terminationSignal = _isolateTermination;
+    if (sendPort == null || terminationSignal == null) {
+      responsePort.close();
+      throw StateError('DB isolate terminated before request dispatch.');
+    }
+    final termination = terminationSignal.future;
+    sendPort.send(DbIsolateRequest(action, payload, responsePort.sendPort));
+    final DbIsolateResponse res;
+    try {
+      res = await waitForDbIsolateResponse(
+        action: action,
+        response: responsePort.first,
+        termination: termination,
+      );
+    } finally {
+      responsePort.close();
+    }
     _log('Isolate 응답: $action, success=${res.success}');
     if (res.success) {
       return res.result as T;
@@ -290,14 +379,11 @@ class DbClient {
     if (statements.isEmpty) return const [];
     _log('transaction 요청 시작: statements=${statements.length}');
     final sw = Stopwatch()..start();
-    final result = await _sendToIsolate<Object>(
-      DbIsolateAction.transaction,
-      {
-        'statements': statements
-            .map((statement) => statement.toMap())
-            .toList(growable: false),
-      },
-    );
+    final result = await _sendToIsolate<Object>(DbIsolateAction.transaction, {
+      'statements': statements
+          .map((statement) => statement.toMap())
+          .toList(growable: false),
+    });
     sw.stop();
     _log('transaction 요청 완료 (${sw.elapsedMilliseconds}ms)');
     return List<Object>.from(result as List);
@@ -310,13 +396,7 @@ class DbClient {
     try {
       await _sendToIsolate(DbIsolateAction.disconnect, {});
     } finally {
-      _dbIsolate?.kill(priority: Isolate.immediate);
-      _dbIsolate = null;
-      _dbSendPort = null;
-      await _logSubscription?.cancel();
-      _logSubscription = null;
-      _logReceivePort?.close();
-      _logReceivePort = null;
+      await _disposeIsolateResources(kill: true);
       sw.stop();
       _log('DB 연결 종료 완료 (${sw.elapsedMilliseconds}ms)');
     }

@@ -108,10 +108,17 @@ void main() {
         {'ITEM_ID': 10, 'MARKET_ID': 1},
         {'ITEM_ID': 10, 'MARKET_ID': 7},
       ]);
+      final duplicated = ItemMarketMappingFingerprints.fromRows(const [
+        {'ITEM_ID': 10, 'MARKET_ID': 1},
+        {'ITEM_ID': 10, 'MARKET_ID': 3},
+        {'ITEM_ID': 10, 'MARKET_ID': 3},
+      ]);
 
       expect(baseline.marketIdsFor(10), [1, 3]);
       expect(baseline.matchesForItems(same, [10]), isTrue);
       expect(baseline.matchesForItems(changed, [10]), isFalse);
+      expect(duplicated.marketIdsFor(10), [1, 3, 3]);
+      expect(baseline.matchesForItems(duplicated, [10]), isFalse);
     });
   });
 }
