@@ -52,20 +52,27 @@ void main() {
     await tester.pump(const Duration(milliseconds: 50));
     await tester.tap(find.text('원본'));
     await tester.pump();
-    expect(find.byType(TextField), findsOneWidget);
+    expect(find.byType(EditableText), findsOneWidget);
     final editorBox = tester.widget<DecoratedBox>(
       find.ancestor(
-        of: find.byType(TextField),
+        of: find.byType(EditableText),
         matching: find.byType(DecoratedBox),
       ).first,
     );
+    final editorSize = tester.getSize(
+      find.ancestor(
+        of: find.byType(EditableText),
+        matching: find.byType(DecoratedBox),
+      ).first,
+    );
+    expect(editorSize, const Size(59, 27));
     final editorDecoration = editorBox.decoration as BoxDecoration;
     expect(editorDecoration.color, const Color(0xFFE3F2FD));
     expect(
       editorDecoration.border,
       Border.all(color: const Color(0xFF0188FB), width: 2),
     );
-    await tester.enterText(find.byType(TextField), '수정');
+    await tester.enterText(find.byType(EditableText), '수정');
     await tester.testTextInput.receiveAction(TextInputAction.done);
     await tester.pump();
     expect(committed, '수정');
@@ -84,7 +91,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 50));
     await tester.tap(find.text('수정'));
     await tester.pump();
-    await tester.enterText(find.byType(TextField), '취소 값');
+    await tester.enterText(find.byType(EditableText), '취소 값');
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await tester.pumpAndSettle();
     expect(committed, '수정');
@@ -125,8 +132,58 @@ void main() {
     await tester.pump();
 
     expect(doubleTapCount, 1);
-    expect(find.byType(TextField), findsNothing);
+    expect(find.byType(EditableText), findsNothing);
     await tester.pump(const Duration(milliseconds: 100));
+  });
+
+  testWidgets('FortuneTable commits editing when another cell is clicked', (
+    tester,
+  ) async {
+    final rows = ['첫째', '둘째'];
+    var commitCount = 0;
+    var selectedIndex = -1;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 320,
+            height: 140,
+            child: StatefulBuilder(
+              builder: (context, setState) => FortuneTable<String>(
+                rows: rows,
+                onRowSelected: (_, index) => selectedIndex = index,
+                columns: [
+                  FortuneTableColumn<String>(
+                    id: 'name',
+                    header: '이름',
+                    text: (row) => row,
+                    isTextEditable: (_, _) => true,
+                    onTextCommitted: (row, _, next) {
+                      commitCount += 1;
+                      setState(() => rows[rows.indexOf(row)] = next);
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('첫째'));
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.tap(find.text('첫째'));
+    await tester.pump();
+    await tester.enterText(find.byType(EditableText), '첫째 수정');
+
+    await tester.tap(find.text('둘째'));
+    await tester.pumpAndSettle();
+
+    expect(commitCount, 1);
+    expect(find.byType(EditableText), findsNothing);
+    expect(find.text('첫째 수정'), findsOneWidget);
+    expect(selectedIndex, 1);
   });
 
   testWidgets('FortuneTable starts selected cell editing from keyboard', (
@@ -167,16 +224,16 @@ void main() {
     expect(FocusManager.instance.primaryFocus?.debugLabel, 'FortuneTable');
     await tester.sendKeyEvent(LogicalKeyboardKey.keyK);
     await tester.pump();
-    expect(find.byType(TextField), findsOneWidget);
-    expect(tester.widget<TextField>(find.byType(TextField)).controller!.text, 'k');
+    expect(find.byType(EditableText), findsOneWidget);
+    expect(tester.widget<EditableText>(find.byType(EditableText)).controller.text, 'k');
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await tester.pumpAndSettle();
 
     await tester.sendKeyEvent(LogicalKeyboardKey.f2);
     await tester.pump();
-    expect(find.byType(TextField), findsOneWidget);
-    expect(tester.widget<TextField>(find.byType(TextField)).controller!.text, '원본');
-    await tester.enterText(find.byType(TextField), '변경');
+    expect(find.byType(EditableText), findsOneWidget);
+    expect(tester.widget<EditableText>(find.byType(EditableText)).controller.text, '원본');
+    await tester.enterText(find.byType(EditableText), '변경');
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);
     await tester.pump();
     expect(commitCount, 1);
@@ -1322,7 +1379,7 @@ void main() {
     await tester.pump();
     final editorBox = tester.widget<DecoratedBox>(
       find.ancestor(
-        of: find.byType(TextField),
+        of: find.byType(EditableText),
         matching: find.byType(DecoratedBox),
       ).first,
     );
@@ -1332,7 +1389,7 @@ void main() {
       editorDecoration.border,
       Border.all(color: const Color(0xFF0188FB), width: 2),
     );
-    await tester.enterText(find.byType(TextField), '편집 후 품명');
+    await tester.enterText(find.byType(EditableText), '편집 후 품명');
     await tester.testTextInput.receiveAction(TextInputAction.done);
     await tester.pump();
 

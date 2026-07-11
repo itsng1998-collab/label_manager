@@ -734,7 +734,6 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
           : null,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onTapDown: (_) => _selectRow(row, rowIndex),
         onSecondaryTapDown: (details) =>
             widget.onRowSecondaryTapDown?.call(row, rowIndex, details),
         child: Row(
@@ -761,21 +760,38 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
     Color color,
   ) {
     final column = widget.columns[columnIndex];
-    return Container(
-      width: width,
-      decoration: BoxDecoration(
-        color: color,
-        border: const Border(
-          right: BorderSide(color: _bodySeparatorColor),
-          bottom: BorderSide(color: _bodySeparatorColor),
+    return Listener(
+      behavior: HitTestBehavior.opaque,
+      onPointerDown: (event) {
+        if (event.buttons == kPrimaryMouseButton) {
+          _selectRow(row, rowIndex);
+        }
+      },
+      onPointerUp: (_) {
+        if (_editingRowIndex != null &&
+            (_editingRowIndex != rowIndex ||
+                _editingColumnIndex != columnIndex)) {
+          unawaited(_commitTextEditing());
+        }
+      },
+      child: Container(
+        width: width,
+        decoration: BoxDecoration(
+          color: color,
+          border: const Border(
+            right: BorderSide(color: _bodySeparatorColor),
+            bottom: BorderSide(color: _bodySeparatorColor),
+          ),
         ),
-      ),
-      alignment: column.isCheckbox ? Alignment.center : Alignment.centerLeft,
-      padding: column.isCheckbox
-          ? EdgeInsets.zero
-          : const EdgeInsets.symmetric(horizontal: 8),
-      child: column.isCheckbox
-          ? _FortuneTableCheckbox(
+        alignment: column.isCheckbox ? Alignment.center : Alignment.centerLeft,
+        padding: column.isCheckbox
+            ? EdgeInsets.zero
+            : _editingRowIndex == rowIndex &&
+                  _editingColumnIndex == columnIndex
+            ? EdgeInsets.zero
+            : const EdgeInsets.symmetric(horizontal: 8),
+        child: column.isCheckbox
+            ? _FortuneTableCheckbox(
               key: ValueKey('fortune_table_checkbox_${column.id}_$rowIndex'),
               value:
                   column.checkboxController?.isChecked(column.id, rowIndex) ??
@@ -783,7 +799,6 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
                   column.checkboxValue?.call(row) ??
                   false,
               onChanged: (value) {
-                _selectRow(row, rowIndex);
                 column.checkboxController?.setChecked(
                   column.id,
                   rowIndex,
@@ -796,8 +811,9 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
                   column.onCheckboxChanged?.call(row, value);
                 }
               },
-            )
-          : _buildTextCell(row, rowIndex, columnIndex, column, color),
+              )
+            : _buildTextCell(row, rowIndex, columnIndex, column, color),
+      ),
     );
   }
 
@@ -823,32 +839,45 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
           }
           return KeyEventResult.ignored;
         },
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: cellColor,
-            border: Border.all(color: _textEditorBorderColor, width: 2),
-          ),
-          child: TextField(
-            controller: _textEditorController,
-            focusNode: _textEditorFocusNode,
-            autofocus: true,
-            maxLines: 1,
-            style: const TextStyle(fontSize: 14, color: Color(0xFF202124)),
-            decoration: const InputDecoration(
-              isDense: true,
-              border: InputBorder.none,
-              contentPadding: EdgeInsets.symmetric(horizontal: 2),
+        child: SizedBox.expand(
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: cellColor,
+              border: Border.all(color: _textEditorBorderColor, width: 2),
             ),
-            onSubmitted: (_) => _commitTextEditing(),
-            onTapOutside: (_) => _commitTextEditing(),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 2),
+              child: EditableText(
+                controller: _textEditorController!,
+                focusNode: _textEditorFocusNode!,
+                autofocus: true,
+                maxLines: 1,
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: Color(0xFF202124),
+                ),
+                cursorColor: Colors.black,
+                backgroundCursorColor: const Color(0x330188FB),
+                selectionColor: const Color(0x550188FB),
+                selectionControls: desktopTextSelectionControls,
+                mouseCursor: SystemMouseCursors.text,
+                enableInteractiveSelection: true,
+                keyboardType: TextInputType.text,
+                textInputAction: TextInputAction.done,
+                onSubmitted: (_) => _commitTextEditing(),
+                onTapOutside: (_) => _commitTextEditing(),
+              ),
+            ),
           ),
         ),
       );
     }
     return Listener(
-      onPointerDown: (_) {
-        _focusedColumnIndex = columnIndex;
-        _selectedIndex = rowIndex;
+      onPointerDown: (event) {
+        if (event.buttons == kPrimaryMouseButton) {
+          _focusedColumnIndex = columnIndex;
+          _selectedIndex = rowIndex;
+        }
       },
       onPointerUp: (_) => FocusScope.of(context).requestFocus(_focusNode),
       child: GestureDetector(
