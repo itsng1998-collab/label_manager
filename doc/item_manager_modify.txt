@@ -269,7 +269,7 @@
 - 날짜 타입 설정 저장 성공 후에는 최신 DB setup에 날짜/시간 변경값을 merge한 결과로 `LabelSize.datas`와 현재 선택 라벨 캐시를 갱신한다. `RICH_SETUP_READONLY`/`RICH_SETUP_USE_SCALE`은 최신 DB 값을 유지한 merge 결과를 사용하고, 품목관리/공용라벨관리/라벨출력 미리보기에서 새 setup을 사용하도록 관련 화면을 refresh한다.
 - `순서 변경`은 품목 추가/삽입 draft 기능이 아니라 기존 품목의 `RICH_ITEM_ORDER`를 갱신하는 별도 reorder command로 분리한다.
 - `순서 변경` 로직은 레거시 품목관리와 동일하게 현재 브랜드/라벨크기/market에 표시되는 품목을 order, item id 순으로 조회하고, 적용 시 현재 다이얼로그 표시 순서대로 `RICH_ITEM_ORDER`를 1부터 재부여한다.
-- `순서 변경` UI는 레거시 품목 순서변경의 협소한 버튼 배치보다, 현재 Flutter 라벨 설정 화면의 order edit mode UI 패턴을 따른다. 즉 별도 구현에서도 목록, 선택 행 하이라이트, 우측 위/아래 이동 버튼, 하단 취소/적용 footer 구조를 유지하되 품목 순서 변경 dialog 스타일로 정리한다.
+- `순서 변경` UI는 현재 Flutter 라벨 설정 화면의 `EditableSwipeNameTable` order edit mode를 그대로 재사용한다. 행 또는 번호 열 드래그로 순서를 바꾸고, 선택 행 하이라이트, 우측 위/아래 보조 버튼, 하단 취소/적용 footer 구조를 유지한다.
 - `순서 변경` 저장은 품목관리 하단 `저장` 버튼에 합치지 않고, 다이얼로그의 `적용`에서 저장 확인 후 별도 transaction으로 즉시 반영한 뒤 품목관리 리스트를 재조회한다.
 - 품목관리 draft 편집 중에는 레거시의 무확인 refresh로 인한 데이터 손실을 재현하지 않는다. 이번 구현에서는 미저장 변경이 있으면 `순서 변경`을 비활성화하고, 저장 완료 또는 변경 취소 확정 후 실행하도록 안내한다.
 - 품목 순서 변경 저장 API는 현재 `LabelSizeDAO.updateOrders()`와 같은 단일 SQL batch transaction 패턴으로 `ItemDAO.updateOrders(List<ItemOrderUpdate>)`를 추가해 구현한다. 이 API는 `RICH_ITEM_ID`와 새 `RICH_ITEM_ORDER` 목록을 받아 `BM_RICH_ITEM.RICH_ITEM_ORDER`만 갱신하고, affected row 검증과 rollback을 보장한다.
@@ -923,7 +923,7 @@ draft 편집 모드에서는 다음 메뉴를 비활성화한다.
 - 메뉴는 현재 선택된 브랜드와 라벨크기가 있고, 편집 권한이 있으며, 품목이 2개 이상이고, 저장/재조회/forceReloadRequired/draft 편집 상태가 아닐 때 활성화한다.
 - 우클릭 위치가 실제 행이 아니어도 메뉴는 실행 가능하다. 실행 대상은 우클릭 행이 아니라 현재 브랜드/라벨크기의 전체 품목 목록이다.
 - 다이얼로그 제목은 `품목 순서 변경`으로 표시한다.
-- 다이얼로그 UI는 현재 Flutter 라벨 설정 화면의 `orderEditMode` 패턴을 따른다. 중앙에 품목명 목록을 두고, 선택 행 하이라이트, 우측 `위로`/`아래로` 이동 버튼, 하단 `취소`/`적용` footer 동작을 제공한다.
+- 다이얼로그 UI는 현재 Flutter 라벨 설정 화면의 `EditableSwipeNameTable`을 그대로 사용한다. 행 또는 번호 열 드래그, 선택 행 하이라이트, 우측 `위로`/`아래로` 보조 버튼, 하단 `취소`/`적용` footer 동작을 제공한다.
 - 목록 행에는 품목명을 표시하고, 내부 값으로 item id와 현재 order를 보관한다.
 - 다이얼로그를 열 때 현재 선택 item id가 목록에 있으면 해당 행을 기본 선택한다. 없으면 첫 행을 선택하거나 선택 없이 시작한다.
 - `위로`/`아래로` 버튼은 선택 행과 인접 행을 swap하고, 이동 후 같은 item을 계속 선택한다.
@@ -931,7 +931,7 @@ draft 편집 모드에서는 다음 메뉴를 비활성화한다.
 - 저장 전에는 변경된 순서를 눈으로 확인할 수 있게 목록 번호 또는 순번 표시를 제공한다.
 - `적용` 클릭 시 `변경된 품목 순서를 저장할까요?`에 준하는 확인을 표시한다.
 - 저장 성공 후 다이얼로그를 닫고 품목관리 리스트를 재조회한다.
-- `닫기` 또는 창 닫기는 순서를 저장하지 않고 닫는다.
+- `취소` 또는 창 닫기는 순서를 저장하지 않고 닫는다.
 - 미저장 draft 편집 중에는 `순서 변경` 메뉴를 비활성화하고 `저장 완료 또는 변경 취소 확정 후 순서 변경을 실행해 주세요.` 안내를 표시한다.
 
 12.1 날짜 타입 설정 UX
@@ -998,7 +998,7 @@ draft 편집 모드에서는 다음 메뉴를 비활성화한다.
 4. Excel import/export 기반 완료 기준: 지정 sheet xlsx parser가 원본 workbook sheet order index 0을 사용하고, 품목관리 import용 parse result DTO로 parsed workbook, worksheet XML, relationship id, styles/shared strings, workbook date system, extension metadata를 같은 parse context에서 제공한다. 전체 교체형 import draft와 `.xlsx` export, import 전후 metadata/취소 복원, row limit/헤더/주원료 plain text 정책이 검증된다. `.xlsx` export는 외부 Excel 패키지를 추가하지 않고 기존 `archive` 기반 OpenXML 작성 패턴을 분리한 품목관리 단순 table writer로 검증한다. 주원료 sheet 보존은 inlineRuns, 병합 영역, row height, column width, 테두리, 배경, 줄바꿈 fixture로 분리해 검증한다.
 5. QR/바코드 데이터 helper 기반 완료 기준: `ItemCodeDataResolver`가 column type과 `TColumn.barcodeType` 기준으로 QR/바코드 문자열, FortuneSheet `barcodeFormatId`, 표시 metadata를 산출하고, GS1 바코드는 GS1 조합/검증 helper 결과를 재사용한다. QR/텍스트연동 token 치환용 날짜 계산은 라벨 날짜 타입 표시 포맷과 분리해 `DATE_FORMAT_NONE` 기준을 사용한다. `TYPE_QR_CODE`는 column `barcodeType`이 QR/MicroQR/DataMatrix 계열이면 그 값을 쓰고, 아니면 기본 `qrCode`로 렌더링한다. EAN-8은 공용 `BarcodeType.CodeEAN8` normalize 선행 수정/검증으로 Code128과 구분된다. `preserveTemplateBarcodeFormat` save codec feature key, image sanitizer allow-list, save json normalize/migrate, `.lms`/`.xlsx` round-trip이 먼저 검증된 뒤 출력내용 미리보기 metadata 연결을 완료한다. `.xlsx` round-trip은 customXml image metadata 파싱/복원까지 포함한다. 출력내용 미리보기의 barcode image `extraFields`는 `barcodeText`, 실제 렌더링에 사용할 `barcodeFormatId`, `barcodeFormatLabel`, `barcodeShowText`를 함께 갱신하며, 같은 metadata를 실제 발행 기능이 재사용할 수 있는 output workbook 계약을 유지한다. 홈 `라벨출력(F3)` 화면과 실제 발행 command 연결은 별도 출력 기능 작업의 완료 기준으로 둔다. `preserveTemplateBarcodeFormat=false` object는 품목 column 형식을 먼저 평가하고 유효하지 않을 때만 공용 fallback 형식을 사용하며, fallback 사용 경고를 preview에 표시한다. 단, `preserveTemplateBarcodeFormat=true` object는 fallback으로 format을 바꾸지 않고 template 형식 실패를 오류로 표시한다. 어떤 fallback 형식으로도 렌더링할 수 없으면 오류 상태로 표시된다. EZPL native 출력은 실제 발행 기능 연결 시 현재 지원 format만 명령으로 출력하고, 미지원 format은 resolver metadata가 반영된 raster fallback 출력으로 처리한다.
 6. 라벨 날짜 타입 설정 기반 완료 기준: 날짜/시간 포맷 helper가 레거시 포맷과 사용자 정의 토큰을 재현하되 날짜 token과 시간 token 해석을 분리하고, 날짜 타입 설정 다이얼로그가 range guard를 거친 `LabelSizeSetup` 값을 읽고 날짜/시간 전용 DTO를 쓴다. 저장 API는 `LabelSizeDAO.updateDateSetup(labelSizeId, LabelSizeDateSetupUpdate)`로 고정하며, 저장 직전 DB 최신 setup을 다시 읽어 날짜/시간 관련 필드만 merge-update한다. update SQL의 `SET` 대상과 로그 변경 대상은 날짜/시간 12개 컬럼으로 제한하고 `RICH_SETUP_READONLY`/`RICH_SETUP_USE_SCALE` 같은 다이얼로그 외 필드는 제외한다. 저장 성공 후 현재 선택 라벨 캐시는 최신 DB setup에 날짜/시간 변경값을 merge한 결과를 사용하고, 품목/공용라벨/출력 미리보기가 새 setup을 사용한다. DB enum 값이 범위 밖이어도 조회 단계에서 앱이 깨지지 않고 날짜는 `DATE_FORMAT_DOT`, 시간은 `TIME_FORMAT_COLON` 기본값 fallback과 경고 안내로 처리된다. setup 로그 컬럼 probe 실패, 정확한 날짜/시간 setup 로그 allow-list 컬럼 세트 전체 존재 시 setup 전용 SQL batch transaction logging, 일부/전체 컬럼 누락 시 logless update, 로그 insert 실패 rollback, logless update 앱 로그 기록이 검증된다. 품목 row/cell 원본값은 날짜 타입 설정 적용만으로 변경되지 않는다.
-7. 품목 순서 변경 기반 완료 기준: `순서 변경` 메뉴가 품목 관리 command 그룹에 표시되고, 라벨 설정 `orderEditMode` 패턴의 다이얼로그가 현재 브랜드/라벨크기/market item order를 읽어 위/아래 이동을 제공하며, 적용 시 `ItemDAO.updateOrders`로 `RICH_ITEM_ORDER` batch update 후 품목관리 리스트를 재조회한다. 품목명/주원료/일반 컬럼/market-specific 값은 순서 변경 적용만으로 변경되지 않는다.
+7. 품목 순서 변경 기반 완료 기준: `순서 변경` 메뉴가 품목 관리 command 그룹에 표시되고, 라벨 설정의 `EditableSwipeNameTable`을 재사용한 다이얼로그가 현재 브랜드/라벨크기/market item order를 읽어 행 드래그와 위/아래 보조 이동을 제공하며, 적용 시 `ItemDAO.updateOrders`로 `RICH_ITEM_ORDER` batch update 후 품목관리 리스트를 재조회한다. 품목명/주원료/일반 컬럼/market-specific 값은 순서 변경 적용만으로 변경되지 않는다.
 
 14. 검증 항목
 
@@ -1332,7 +1332,7 @@ draft 편집 모드에서는 다음 메뉴를 비활성화한다.
 - `순서 변경` command의 enabled 상태와 실행 callback은 상위 품목관리 controller/view model에서 계산되어 `ItemManage`에 주입된다.
 - `순서 변경`은 우클릭 위치가 실제 행이 아니어도 현재 브랜드/라벨크기/market에 표시되는 품목 목록 기준으로 실행된다.
 - 다이얼로그 제목은 `품목 순서 변경`으로 표시된다.
-- 다이얼로그는 라벨 설정 `orderEditMode` 패턴의 목록, 선택 행 하이라이트, 우측 `위로`/`아래로` 이동 버튼, 하단 `취소`/`적용` 동작을 제공한다.
+- 다이얼로그는 라벨 설정의 `EditableSwipeNameTable`을 재사용해 행/번호 열 드래그, 선택 행 하이라이트, 우측 `위로`/`아래로` 보조 버튼, 하단 `취소`/`적용` 동작을 제공한다.
 - 목록은 현재 화면 market id와 현재 label size id 기준으로 `RICH_ITEM_ORDER`, `RICH_ITEM_ID` 오름차순 조회 결과를 표시한다.
 - 메인 품목관리 리스트 조회도 `ORDER BY P2.RICH_ITEM_ORDER, P2.RICH_ITEM_ID ASC`를 보장한다.
 - 같은 label size지만 현재 market에 연결되지 않은 품목은 순서 변경 목록과 order update 대상에 포함되지 않는다.
@@ -1401,7 +1401,7 @@ checksum의 column content data hash는 현재 화면 market의 item id 집합�
 날짜 타입 설정은 품목관리 셀 편집/저장 draft에 포함하지 않고 현재 선택된 라벨크기의 `LabelSizeSetup` 저장 기능으로 분리한다. 진입점은 상단 라벨 설정 메뉴의 `날짜 타입 설정...` 항목으로 두고, 다이얼로그는 레거시의 제조일자/제조시한/소비기한/소비시한 사용 여부와 포맷 선택, 사용자 정의 입력, 미리보기를 유지하되 현재 Flutter 화면에 맞춰 2x2 섹션형으로 재배치한다. 적용 시 품목 row/cell 원본값은 변경하지 않고 라벨크기 setup 저장, 선택 라벨 캐시 갱신, 출력/미리보기 refresh만 수행한다.
 `QR코드 데이터 보기`는 품목관리 셀 편집/저장 draft에 포함하지 않고, 우클릭한 단일 행의 현재 row/draft 값과 column QR 설정을 기준으로 생성될 QR/텍스트연동 데이터 문자열을 보여주는 조회/진단 액션으로 구현한다. viewer 실행은 dirty 상태를 만들지 않고, 저장/취소/DB transaction 대상에도 포함하지 않는다. 레거시처럼 QR 참조 컬럼 색상 힌트는 유지하되, viewer UI는 읽기 전용 목록과 복사 가능한 텍스트 표시를 우선한다.
 QR/바코드 데이터 문자열과 barcode format id 계산은 viewer 전용 로직으로 만들지 않고 `ItemCodeDataResolver` 같은 순수 helper로 분리해 viewer, 출력 미리보기, 실제 출력 경로가 같은 계산 규칙을 사용하게 한다. 이 helper는 draft row 입력도 받을 수 있지만, 출력내용 미리보기 탭은 draft 편집 중 진입하지 않으므로 저장 완료 또는 취소 dialog에서 변경 취소를 확정한 뒤의 working row 값만 렌더링한다. QR/텍스트연동 token 치환용 날짜 계산은 라벨 날짜 타입 표시 포맷과 분리해 `DATE_FORMAT_NONE` 기준을 사용한다. QR column은 column `barcodeType`이 QR/MicroQR/DataMatrix 계열이 아니면 기본 `qrCode` format으로 렌더링한다. 실제 출력 경로는 resolver 결과가 반영된 output workbook/image metadata를 입력으로 사용하고, EZPL native 미지원 format은 raster fallback으로 출력한다.
-`순서 변경`은 품목관리 셀 편집/저장 draft에 포함하지 않고, 기존 품목의 `RICH_ITEM_ORDER`를 바꾸는 별도 reorder command로 구현한다. 로직은 레거시 품목 순서 변경처럼 현재 브랜드/라벨크기/market에 표시되는 품목을 order/item id 순으로 조회하고, 적용 시 표시 순서대로 order를 1부터 재부여한다. UI는 라벨 설정 `orderEditMode` 패턴을 따라 목록, 선택 행 하이라이트, 우측 위/아래 이동, 하단 취소/적용으로 구성한다. 적용 후 품목관리 리스트를 재조회하며, 품목명/주원료/일반 컬럼/market-specific 값은 변경하지 않는다.
+`순서 변경`은 품목관리 셀 편집/저장 draft에 포함하지 않고, 기존 품목의 `RICH_ITEM_ORDER`를 바꾸는 별도 reorder command로 구현한다. 로직은 레거시 품목 순서 변경처럼 현재 브랜드/라벨크기/market에 표시되는 품목을 order/item id 순으로 조회하고, 적용 시 표시 순서대로 order를 1부터 재부여한다. UI는 라벨 설정의 `EditableSwipeNameTable`을 그대로 재사용해 행/번호 열 드래그, 선택 행 하이라이트, 우측 위/아래 보조 이동, 하단 취소/적용으로 구성한다. 적용 후 품목관리 리스트를 재조회하며, 품목명/주원료/일반 컬럼/market-specific 값은 변경하지 않는다.
 구현은 읽기/스냅샷 기반 -> transaction/DAO 기반 -> UI draft/edit 기반 -> Excel import/export 기반 -> QR/바코드 데이터 helper 기반 -> 라벨 날짜 타입 설정 기반으로 나누어 진행한다. 품목 순서 변경 기반은 전체 Excel/date 단위 뒤로만 미루지 않고, 현재 품목 조회 order 보장, `ItemDAO.updateOrders`, 상위 controller의 dirty/저장/forceReload 상태 주입이 준비되면 독립 구현 가능 단위로 진행한다. 각 단위는 필요한 선행 API와 검증이 끝난 뒤 이어서 구현하고, chunk 조회의 외부 변경 감지는 best-effort + baseline checksum 보조 감지 수준으로 검증한다.
 저장은 현재 앱의 `RICH_ELEMENT_SHEET` 구조와 품목/컬럼 DAO 구조에 맞춰 트랜잭션 기반으로 구현한다.
 저장 완료 흐름은 `DB 저장 성공`, `품목리스트 재조회 성공`, `화면 복원 완료`를 구분한다. DB 저장 성공 후 재조회/화면 복원이 실패하면 DB 반영은 되돌리지 않고 `forceReloadRequired` 강제 재조회 필요 상태로 전환한다. 이 상태에서는 `다시 조회`만 허용하고 저장/취소/편집/엑셀/발행 체크 작업은 재조회 성공 전까지 막는다.

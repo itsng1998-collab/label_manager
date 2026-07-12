@@ -4,6 +4,7 @@ import 'package:label_manager/models/additional_item.dart';
 import 'package:label_manager/models/item.dart';
 import 'package:label_manager/models/item_of_market.dart';
 import 'package:label_manager/page_home/item_order_dialog.dart';
+import 'package:label_manager/widgets/swipe_action_table.dart';
 
 void main() {
   testWidgets('moves the selected item and returns the changed order', (
@@ -43,18 +44,38 @@ void main() {
     expect(find.text('1'), findsOneWidget);
     expect(find.text('2'), findsOneWidget);
     expect(find.text('3'), findsOneWidget);
-
-    final upButton = tester.widget<IconButton>(
-      find.byKey(const ValueKey('item-order-up')),
+    expect(
+      find.byType(EditableSwipeNameTable<ItemOfMarket>),
+      findsOneWidget,
     );
-    final downButton = tester.widget<IconButton>(
-      find.byKey(const ValueKey('item-order-down')),
+    final upButton = find.byKey(const ValueKey('item-order-up'));
+    final downButton = find.byKey(const ValueKey('item-order-down'));
+    expect(upButton, findsOneWidget);
+    expect(downButton, findsOneWidget);
+    expect(tester.getSize(upButton), const Size(34, 34));
+    expect(tester.getSize(downButton), const Size(34, 34));
+    expect(tester.getTopLeft(downButton).dy - tester.getBottomLeft(upButton).dy, 8);
+    expect(
+      tester.widget<OutlinedButton>(
+        find.descendant(of: upButton, matching: find.byType(OutlinedButton)),
+      ).onPressed,
+      isNotNull,
     );
-    expect(upButton.onPressed, isNotNull);
-    expect(downButton.onPressed, isNotNull);
+    expect(
+      tester.widget<OutlinedButton>(
+        find.descendant(of: downButton, matching: find.byType(OutlinedButton)),
+      ).onPressed,
+      isNotNull,
+    );
 
-    await tester.tap(find.byKey(const ValueKey('item-order-up')));
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.text('둘째 품목')),
+    );
     await tester.pump();
+    await gesture.moveTo(tester.getCenter(find.text('첫째 품목')));
+    await tester.pump(const Duration(milliseconds: 180));
+    await gesture.up();
+    await tester.pumpAndSettle();
 
     expect(
       tester.getTopLeft(find.text('둘째 품목')).dy,
@@ -91,7 +112,7 @@ void main() {
 
     await tester.tap(find.text('열기'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('닫기'));
+    await tester.tap(find.text('취소'));
     await tester.pumpAndSettle();
 
     expect(result, isNull);
