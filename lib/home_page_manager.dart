@@ -55,6 +55,8 @@ import 'package:label_manager/widgets/swipe_action_table.dart';
 
 bool itemManagerSearchVisibleForTab(Object? tabValue) => tabValue == 'items';
 
+const Duration itemManagerLoadProgressDuration = Duration(days: 1);
+
 class _ItemMappingFingerprintConflict implements Exception {
   const _ItemMappingFingerprintConflict();
 
@@ -394,6 +396,7 @@ class _HomePageManagerState extends State<HomePageManager> {
       context,
       '브랜드 데이터를 불러오고 있습니다...',
       type: SnackBarType.inProgress,
+      duration: itemManagerLoadProgressDuration,
       onVisible: afterSnackBarVisible,
     );
   }
@@ -535,7 +538,7 @@ class _HomePageManagerState extends State<HomePageManager> {
         context,
         '브랜드 데이터를 불러오고 있습니다...',
         type: SnackBarType.inProgress,
-        duration: const Duration(days: 1),
+        duration: itemManagerLoadProgressDuration,
       );
     }
     try {

@@ -189,6 +189,10 @@ Offset _floatingResizeGripPoint(WidgetTester tester, String key) {
 }
 
 void main() {
+  test('item manager load progress does not expire during slow DB work', () {
+    expect(itemManagerLoadProgressDuration, greaterThan(const Duration(hours: 1)));
+  });
+
   testWidgets('blocked header dropdown changes restore current selections', (
     tester,
   ) async {
