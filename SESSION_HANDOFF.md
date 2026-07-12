@@ -28,6 +28,26 @@
 
 ## 현재 상태
 
+### 진행 중 (2026-07-12): dirty 품목 편집 중 헤더 dropdown 메뉴 열림 차단
+
+- 사용자 재현: 품목관리 편집 중에도 헤더 브랜드/라벨 dropdown이 동작한다.
+- 최신 로그 `.tmp/log/app_2026-07-12_16-01-26.log` 확인: `dirtyChanged observed=true` 이후 브랜드/라벨 메뉴의 `isOpen=true/false` 로그가 남았다. 선택 handler 로그는 없어 기존 구현이 선택 변경만 guard하고 메뉴 열기 자체는 허용한 상태였다.
+- 원인 1: `_DropdownField`는 dirty 여부와 무관하게 `onChanged`가 있으면 enabled여서 dropdown_button2가 route를 먼저 열었다. 패키지의 `onMenuStateChange(true)`는 route push 이후 호출되어 open 취소 hook으로 사용할 수 없다.
+- 원인 2: `_handleItemDraftDirtyChanged()`가 dirty 변경을 외부 callback으로만 전달하고 HomePageManager를 rebuild하지 않아 헤더에 새 차단 상태를 즉시 반영할 수 없었다.
+- 편집 완료 `lib/home_page_manager.dart`: dirty/command busy/force reload 상태를 `_itemDraftContextChangeBlocked`로 헤더에 전달한다. 차단 시 dropdown 입력은 AbsorbPointer로 막고 상위 tap layer가 기존 `_blockItemDraftContextChange()`를 호출해 메뉴를 열지 않은 채 경고만 표시한다. dirty true/false 전환 때 HomePageManager를 rebuild한다.
+- 사용자 후속 요청 반영: 헤더 브랜드 선택 callback의 post-selection guard, 헤더 라벨 선택 callback의 post-selection guard 진입, reset generation/ValueKey/선택 복원 테스트를 모두 제거해 pre-open 차단으로 단일화했다. 헤더 라벨 callback은 선차단을 통과한 선택에 한해 `skipDraftContextGuard: true`로 로드하며, 자동 로드·설정 다이얼로그 등 비헤더 경로의 draft guard는 유지한다. reset generation 관련 참조 0건 확인.
+- 테스트 추가 `test/label_sheet_toolbar_test.dart`: dirty 차단 상태에서 브랜드/라벨을 각각 클릭해도 대체 항목이 나타나지 않고 차단 callback만 2회 호출되는 widget test를 추가했다. focused 테스트 통과, 변경 파일 diagnostics 오류 0건. 기존 post-selection 복원 테스트는 제거했다.
+- 문서 수정 `doc/item_manager_modify.txt`: dirty 편집 중에는 dropdown 메뉴 자체를 열지 않고 경고를 표시하는 계약으로 명확히 했다.
+- 선차단 단일화 후 검증 완료: Dart 포맷, 변경 파일 diagnostics 오류 0건, `test/label_sheet_toolbar_test.dart` 111개 및 `test/fortune_table_test.dart` 38개 통과. post-selection 복원 테스트 제거로 toolbar 테스트 수는 1개 감소했다.
+- 선차단 단일화 후 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 성공(`No issues found`).
+- 선차단 단일화 후 전체 검증 완료: 전체 테스트 러너 집계 3,354개 통과, 실패 0건.
+- 임시 산출물 정리 완료: 전체 테스트가 생성한 `third_party/fortune_sheet/build` 삭제.
+- 최종 점검 완료: `git diff --check` 이상 없음, reset generation 관련 코드·테스트 참조 0건. 헤더 라벨의 `skipDraftContextGuard: true`는 pre-open 차단을 통과한 선택 callback 한 곳에만 적용되며 비헤더 guard는 유지된다.
+- stage 완료: `lib/home_page_manager.dart`, `test/label_sheet_toolbar_test.dart`, `doc/item_manager_modify.txt`. 사용자 기존 변경 `lib/core/app.dart`와 이 인수인계 파일은 기능 커밋에서 제외했다.
+- 완료: 기능 커밋 `89d5b51` (`품목 편집 중 헤더 선택 선차단`). 헤더 브랜드/라벨 dropdown은 dirty 편집 중 메뉴를 열기 전에 차단하며, 선택 후 guard/reset generation 경로는 제거됐다.
+- 남은 작업: 전체 검증, 캐시 정리, `git diff --check`, 로컬 커밋.
+- 기존 unrelated dirty `lib/core/app.dart`는 수정·stage 대상에서 제외한다.
+
 ### 완료 (2026-07-12): 품목 조회 실패 안내를 경고 다이얼로그로 변경
 
 - 사용자 요청: 오류 발생 시 진행/오류 스낵바를 사용하지 않고, 진행 스낵바를 닫은 뒤 경고 다이얼로그를 표시한다.
@@ -83,6 +103,7 @@
 - 검증 완료: `C:\Flutter\bin\flutter.bat test` 전체 344개 통과.
 - 정리 완료: 테스트 생성물 `third_party/fortune_sheet/build` 삭제, `git diff --check` 통과, diff/stage 범위 확인 완료.
 - 기능 커밋: `9f3b954` (`품목 편집 중 헤더 선택 변경 차단`).
+- 현재 구현 변경: 이후 pre-open 차단 단일화 작업에서 이 커밋의 reset generation과 post-selection 복원 경로는 제거됐다.
 - 기존 unrelated dirty `lib/core/app.dart`는 수정·stage 대상에서 제외한다.
 
 ### 완료 (2026-07-12): 품목관리 진입 스낵바 완료 시점 보정
