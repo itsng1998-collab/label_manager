@@ -29,6 +29,7 @@ import 'package:label_manager/page_label_sheet/label_sheet_rtf_import.dart';
 import 'package:label_manager/page_label_sheet/label_sheet_rtf_preview.dart';
 import 'package:label_manager/page_label_sheet/label_sheet_save_codec.dart';
 import 'package:label_manager/page_label_sheet/label_sheet_workbench.dart';
+import 'package:label_manager/utils/on_messages.dart';
 import 'package:label_manager/printing/label_printer_preferences.dart';
 import 'package:path/path.dart' as p;
 import 'package:printing/printing.dart';
@@ -191,6 +192,39 @@ Offset _floatingResizeGripPoint(WidgetTester tester, String key) {
 void main() {
   test('item manager load progress does not expire during slow DB work', () {
     expect(itemManagerLoadProgressDuration, greaterThan(const Duration(hours: 1)));
+  });
+
+  testWidgets('item manager load failure replaces progress with an error', (
+    tester,
+  ) async {
+    late BuildContext scaffoldContext;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Builder(
+            builder: (context) {
+              scaffoldContext = context;
+              return const SizedBox();
+            },
+          ),
+        ),
+      ),
+    );
+
+    showSnackBar(
+      scaffoldContext,
+      '브랜드 데이터를 불러오고 있습니다...',
+      type: SnackBarType.inProgress,
+      duration: itemManagerLoadProgressDuration,
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    showItemManagerLoadFailure(scaffoldContext);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(find.text(itemManagerLoadFailureMessage), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsNothing);
   });
 
   testWidgets('blocked header dropdown changes restore current selections', (

@@ -56,6 +56,17 @@ import 'package:label_manager/widgets/swipe_action_table.dart';
 bool itemManagerSearchVisibleForTab(Object? tabValue) => tabValue == 'items';
 
 const Duration itemManagerLoadProgressDuration = Duration(days: 1);
+const String itemManagerLoadFailureMessage =
+    '품목 데이터를 불러오지 못했습니다. 네트워크 연결을 확인한 뒤 다시 시도해 주세요.';
+
+void showItemManagerLoadFailure(BuildContext context) {
+  ScaffoldMessenger.of(context).clearSnackBars();
+  showSnackBar(
+    context,
+    itemManagerLoadFailureMessage,
+    type: SnackBarType.error,
+  );
+}
 
 class _ItemMappingFingerprintConflict implements Exception {
   const _ItemMappingFingerprintConflict();
@@ -384,10 +395,10 @@ class _HomePageManagerState extends State<HomePageManager> {
               ? null
               : lastConnect?.labelSizeId,
         );
+      } catch (error) {
+        debugLog('$error');
+        _showItemManagerLoadFailure();
       } finally {
-        if (mounted) {
-          ScaffoldMessenger.of(context).hideCurrentSnackBar();
-        }
         debugLog(END);
       }
     }
@@ -616,6 +627,9 @@ class _HomePageManagerState extends State<HomePageManager> {
           ? fallback
           : preferred ?? resolved ?? fallback ?? widget.selectedLabelSize;
       await _handleLabelSizeChanged(selected);
+    } catch (error) {
+      debugLog('$error');
+      _showItemManagerLoadFailure();
     } finally {
       debugLog(END);
       // 다이얼로그 더블클릭 차단 해제: 로드가 완료(또는 중단)될 때 항상 해제한다.
@@ -884,10 +898,16 @@ class _HomePageManagerState extends State<HomePageManager> {
         trace: trace,
         fields: {'error': e.runtimeType},
       );
+      _showItemManagerLoadFailure();
       return false;
     } finally {
       debugLog(END);
     }
+  }
+
+  void _showItemManagerLoadFailure() {
+    if (!mounted) return;
+    showItemManagerLoadFailure(context);
   }
 
   bool _blockItemDraftContextChange() {
