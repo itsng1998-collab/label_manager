@@ -28,6 +28,19 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-12): 품목관리 popup 외부 첫 클릭 즉시 종료
+
+- 사용자 재현: 품목관리 popup의 개수 입력 필드가 focus된 상태에서 popup 외부를 클릭하면 첫 클릭은 focus만 해제하고, 두 번째 외부 클릭에서 popup이 닫힌다.
+- 현재 가설: `TextField`의 tap-outside 처리가 popup route barrier보다 먼저 첫 pointer를 소비한다.
+- 수정 방향: popup의 첫/마지막 item 경계로 전체 메뉴 rect를 계산하고, count 입력의 `onTapOutside`에서 pointer가 메뉴 rect 밖이면 즉시 route를 닫는다. 메뉴 내부 다른 항목 클릭은 그대로 전달해 command 실행을 방해하지 않는다.
+- 편집 완료 `lib/page_home/item_manage.dart`: popup 첫/마지막 item의 global rect를 계산하고, 품목 추가/삽입 count `TextField.onTapOutside`에서 pointer가 rect 밖이면 즉시 `Navigator.pop()`한다. popup 내부 클릭은 route를 유지해 기존 menu command가 처리한다.
+- 테스트 추가 `test/fortune_table_test.dart`: count 입력 focus 후 외부를 한 번 클릭하면 popup이 사라지는지, 다시 focus 후 popup 내부 `전체 선택`을 클릭하면 두 행 선택 command가 정상 실행되는지 검증한다.
+- focused 검증 완료: 외부 첫 클릭/내부 command 테스트 및 `test/fortune_table_test.dart` 전체 35개 통과. 변경 파일 diagnostics 오류 0건.
+- 전체 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 이슈 0건, 전체 Flutter 테스트 3,348개 통과.
+- 정리 완료: 전체 테스트가 생성한 `third_party/fortune_sheet/build`를 삭제했고 `git diff --check` 오류가 없다.
+- stage 대상: `lib/page_home/item_manage.dart`, `test/fortune_table_test.dart`, `doc/item_manager_modify.txt`. 기존 unrelated `lib/core/app.dart`와 `SESSION_HANDOFF.md`는 기능 커밋에서 제외한다.
+- 기능·테스트·문서 커밋: `0262449` (`품목관리 팝업 외부 클릭 종료 개선`).
+
 ### 완료 (2026-07-12): 품목 추가 popup 종료 및 첫 추가 행 자동 스크롤
 
 - 사용자 재현: popup의 특수 `품목 추가` 항목 선택 시 메뉴가 남고, 행 추가 후 첫 추가 행이 화면 밖이어도 자동 스크롤되지 않는다.
