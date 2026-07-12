@@ -28,6 +28,21 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-13): 라벨 항목 편집기 작업지시서 2차 검토 권장안 병합
+
+- 사용자 요청: 재작성된 `doc/user_item_modify.txt`의 레거시/현 프로젝트 재검토에서 확정한 문제와 권장안을 기존 작업지시서에 병합 정리한다.
+- 수정 예정 `doc/user_item_modify.txt`: transaction 소유권, post-commit reload 원자성/실패 상태, 신규 draft key-ID 매핑, Windows ODBC/비Windows DB-Lib parameter 경로, 모든 DB 문자열의 CP949 byte 검증, 필수 동시성 fingerprint, 편집 타입·수치 범위·raw enum 보존, 전용 모드 Esc/닫기, 권한 matrix, QR 문자열 참조와 `BM_COLUMN_QRCODE_INFO` 의미를 명시한다. 미검증.
+- 수정 예정 `SESSION_HANDOFF.md`: 문서 편집, 검증, stage, commit 결과를 기록한다.
+- 기존 unrelated dirty `lib/core/app.dart`는 수정·stage 대상에서 제외한다.
+- 편집 완료 `doc/user_item_modify.txt`: transaction 소유자를 `DbClient.transaction()`으로 단일화하고 SQL 내부 transaction을 금지했다. ROW_NO/draft key 기반 신규 ID 매핑, Windows ODBC/비Windows DB-Lib JSON parameter, 모든 DB 문자열의 field별 CP949 byte 검증을 명시했다.
+- 편집 완료 `doc/user_item_modify.txt`: commit 전 실패/commit 결과 미확정/commit 후 reload 실패를 구분하고 `committedReloadPending`, candidate label-size session, generation guard, atomic swap과 reload-only 복구 계약을 추가했다.
+- 편집 완료 `doc/user_item_modify.txt`: 필수 original fingerprint와 lock, type 0~12 및 sentinel 13 제외, raw enum 보존, 레거시 수치 범위, child focus Esc와 전용 모드 취소 우선순위, 사용자 등급 matrix, QR 정확 token parser/참조 차단/QR 관계 테이블 cleanup-only 정책을 테스트와 완료 조건까지 반영했다.
+- 검증 완료: 두 문서 diagnostics 오류 0건, 새 핵심 계약 26개 위치 확인, 이전 상충 계약 검색 0건, `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md` 통과. 문서만 변경했으므로 Flutter 테스트는 실행하지 않았다.
+- 현 journal API 대조 보정 완료: `ItemManagerDraftJournal.start()`가 동일 draft key의 이전 상태 정리와 listener 등록을 수행하므로 candidate journal 선시작을 금지하고, metadata/storage preflight 후 `HomePageManager`가 rollback 가능한 journal handoff와 session swap을 소유하도록 수정했다. 보정 후 diagnostics 오류 0건과 `git diff --check` 통과.
+- stage/commit 예정: `doc/user_item_modify.txt`만 먼저 기능 문서 커밋하고, 확정 해시를 기록한 `SESSION_HANDOFF.md`를 별도 커밋한다. 기존 사용자 변경 `lib/core/app.dart`는 제외한다.
+- 기능 문서 커밋: `93994bb` (`라벨 항목 편집기 작업지시서 권장안 병합`). 2차 검토의 transaction/reload/driver/validation/concurrency/type/Esc/권한/QR 권장안을 기존 작업지시서에 병합했다.
+- 완료: 임시 산출물이나 캐시를 생성하지 않았으며 문서만 변경해 Flutter 테스트는 실행하지 않았다. 원격 push와 배포 작업은 수행하지 않았다.
+
 ### 완료 (2026-07-12): 라벨 항목 편집기 작업지시서 검토 보완 병합
 
 - 사용자 요청: `doc/user_item_modify.txt` 검토에서 확인한 레거시/현 프로젝트 대비 문제를 기존 작업지시서에 병합 정리한다.
