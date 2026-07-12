@@ -12,6 +12,23 @@ import 'package:label_manager/models/label_size.dart';
 import 'package:label_manager/page_home/item_manage.dart';
 
 void main() {
+  test('item manager formats single and multiple delete confirmations', () {
+    expect(
+      itemManagerDeleteConfirmationMessage(
+        firstItemName: 'A',
+        selectedCount: 1,
+      ),
+      "선택한 'A'를 삭제하시겠습니까?",
+    );
+    expect(
+      itemManagerDeleteConfirmationMessage(
+        firstItemName: 'A',
+        selectedCount: 2,
+      ),
+      "선택한 'A' 외 1개 항목을 모두 삭제하시겠습니까?",
+    );
+  });
+
   test('item manager persists dynamic cells only for legacy editable grades', () {
     expect(
       itemManagerCanPersistDynamicCell(
@@ -1248,6 +1265,8 @@ void main() {
     expect(controller.rows, hasLength(1));
     expect(controller.rows.single.rowState, ItemManagerDraftRowState.added);
     expect(selected?.item.itemId, 0);
+    controller.updateItemName(controller.rows.single.rowKey, 'A');
+    await tester.pump();
     var table = tester.widget<FortuneTable<ItemOfMarket>>(
       find.byType(FortuneTable<ItemOfMarket>),
     );
@@ -1256,7 +1275,7 @@ void main() {
     await _openItemManageContextMenu(tester, tableTopLeft);
     await tester.tap(find.text('품목 삭제'));
     await tester.pumpAndSettle();
-    expect(find.text('선택한 1개 품목을 삭제할까요?'), findsOneWidget);
+    expect(find.text("선택한 'A'를 삭제하시겠습니까?"), findsOneWidget);
     await tester.tap(find.widgetWithText(FilledButton, '삭제'));
     await tester.pumpAndSettle();
 

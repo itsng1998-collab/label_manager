@@ -23,6 +23,17 @@ bool itemManagerCanPersistDynamicCell({
       hasDraftRow;
 }
 
+String itemManagerDeleteConfirmationMessage({
+  required String firstItemName,
+  required int selectedCount,
+}) {
+  assert(selectedCount > 0);
+  if (selectedCount == 1) {
+    return "선택한 '$firstItemName'를 삭제하시겠습니까?";
+  }
+  return "선택한 '$firstItemName' 외 ${selectedCount - 1}개 항목을 모두 삭제하시겠습니까?";
+}
+
 class ItemManagerMigrationRequired extends StatelessWidget {
   const ItemManagerMigrationRequired({super.key});
 
@@ -735,11 +746,15 @@ class _ItemManageState extends State<ItemManage> {
       trace: trace,
       fields: {'count': selectedIndexes.length},
     );
+    final confirmationMessage = itemManagerDeleteConfirmationMessage(
+      firstItemName: controller.rows[selectedIndexes.first].itemName,
+      selectedCount: selectedIndexes.length,
+    );
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('품목 삭제'),
-        content: Text('선택한 ${selectedIndexes.length}개 품목을 삭제할까요?'),
+        content: Text(confirmationMessage),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
