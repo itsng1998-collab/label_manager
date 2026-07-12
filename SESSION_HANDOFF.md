@@ -28,6 +28,23 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-12): 품목관리 popup 간헐적 외부 클릭 미종료 진단
+
+- 사용자 재현: rect 기반 외부 클릭 종료 적용 후에도 간헐적으로 첫 외부 클릭에서 popup이 닫히지 않아 한 번 더 클릭해야 한다. 재현 시 원인을 구분할 진단 로그도 요청했다.
+- 원인 가설 확인: Flutter SDK의 `TextField.groupId` 기본값은 모든 필드가 공유하는 `EditableText`다. popup count 입력과 앱의 다른 `TextField`가 같은 TapRegion 그룹으로 취급되면 외부 필드 클릭에서 `onTapOutside` callback 자체가 누락될 수 있다.
+- 편집 완료 `lib/page_home/item_manage.dart`: popup을 열 때마다 전용 TapRegion group object를 만들고 품목 추가/삽입 count `TextField` 두 개만 같은 group으로 묶었다. popup별 trace로 opening, 외부 탭 pointer/메뉴 rect/inside/focus, rect 누락, route 완료, command dispatch 준비를 기록한다.
+- 편집 완료 `lib/utils/item_manager_debug_log.dart`: 품목관리 진단 로그 버전을 `item-manager-debug-v2`로 올려 사용자 제출 로그에서 새 계측 적용 여부를 구분한다.
+- 테스트 보강 `test/fortune_table_test.dart`: 두 count 필드가 동일한 전용 groupId를 공유하고 기본 `EditableText` group과 다름을 검증한다. focus 후 외부 첫 클릭 종료와 메뉴 내부 `전체 선택` command 전달도 함께 검증한다.
+- 포맷 및 focused 검증 완료: 변경 Dart 3개 포맷, 대상 외부 클릭 테스트와 인접 dirty-menu 테스트 통과. 로그에서 외부 좌표는 `inside=false` 후 route 종료, 내부 명령은 `inside=true` 후 `selectAll` dispatch를 확인했다.
+- 파일 전체 검증 완료: `C:\Flutter\bin\flutter.bat test test/fortune_table_test.dart` 35개 통과.
+- 부분 검증 완료: 변경 파일 diagnostics 오류 0건, `C:\Flutter\bin\flutter.bat analyze` 이슈 0건.
+- 전체 테스트 완료: `C:\Flutter\bin\flutter.bat test` 3,348개 통과.
+- 최종 검증 완료: 전체 테스트 생성 `third_party/fortune_sheet/build` 삭제, `git diff --check` 통과, 변경 목록과 diff 검토 완료.
+- 기능 stage/commit 대상: `lib/page_home/item_manage.dart`, `lib/utils/item_manager_debug_log.dart`, `test/fortune_table_test.dart`. `SESSION_HANDOFF.md`는 기능 커밋 후 해시를 기록해 별도 커밋한다.
+- 기능 커밋: `014f660` (`품목관리 팝업 외부 클릭 진단 및 종료 안정화`). popup count 입력을 앱의 기본 TextField TapRegion 그룹에서 격리하고 `item-manager-debug-v2` popup trace를 추가했다.
+- 사용자 재현 확인: 문제가 다시 발생하면 최신 `.tmp/log/app_YYYY-MM-DD_HH-mm-ss.log`에서 같은 `contextMenuPopup-*` trace의 `opening`, `tapOutside`/`tapOutsideMissingBounds`, `routeCompleted` 순서를 확인한다. `opening` 후 tap 이벤트가 없으면 callback 미진입 경로로 판별한다.
+- 기존 unrelated dirty `lib/core/app.dart`는 수정·stage 대상에서 제외한다.
+
 ### 완료 (2026-07-12): 품목관리 popup 외부 첫 클릭 즉시 종료
 
 - 사용자 재현: 품목관리 popup의 개수 입력 필드가 focus된 상태에서 popup 외부를 클릭하면 첫 클릭은 focus만 해제하고, 두 번째 외부 클릭에서 popup이 닫힌다.
