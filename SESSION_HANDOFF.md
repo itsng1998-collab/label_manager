@@ -28,6 +28,24 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-12): 품목관리 popup 중복 route 차단
+
+- 최신 사용자 재현 로그 `.tmp/log/app_2026-07-12_14-24-56.log`: 동일 좌표 `(604, 322)`에서 `contextMenuPopup-3`과 `contextMenuPopup-4`가 2ms 간격으로 연속 opening됐다. 위쪽 `-4`만 외부 클릭으로 닫히고 아래쪽 `-3` route가 남아 두 번째 클릭이 필요했다.
+- 원인 확인: 품목관리 테이블 전체의 빈 영역 `GestureDetector.onSecondaryTapDown`과 FortuneTable 행의 `onRowSecondaryTapDown`이 동일 우클릭을 함께 전달할 수 있어 `showMenu`가 중복 호출된다.
+- 편집 완료 `lib/page_home/item_manage.dart`: popup route 수명 동안 `_contextMenuOpen` 가드로 후속 opening을 차단하고 `duplicateOpeningIgnored`를 기록한다. 행 draft 문맥은 가드 획득 후에만 설정해 부모 빈 영역 callback이 덮어쓰지 못하게 했다.
+- 테스트 보강 `test/fortune_table_test.dart`: 행/바깥 secondary tap handler를 동일 좌표로 연속 호출하고 Navigator observer로 `PopupRoute`가 정확히 1개만 push되는지 검증한다.
+- focused 검증 완료: 중복 callback에서 `duplicateOpeningIgnored` 로그와 popup route 1개를 확인했으며 외부 첫 클릭 종료/내부 `전체 선택` command도 통과했다.
+- 편집 완료 `lib/utils/item_manager_debug_log.dart`: 적용 확인을 위해 진단 로그 버전을 `item-manager-debug-v3`로 갱신했다.
+- 포맷 및 파일 전체 검증 완료: 변경 Dart 3개 포맷, `test/fortune_table_test.dart` 35개 통과. v3 focused 로그에서 중복 요청은 `duplicateOpeningIgnored`, 실제 popup route는 1개임을 확인했다.
+- 기존 State 구조와 이미 열린 route를 배제해야 하므로 사용자 확인은 핫 리로드가 아니라 Hot Restart 또는 앱 프로세스 재실행 후 수행한다.
+- 부분 검증 완료: 변경 파일 diagnostics 오류 0건, `C:\Flutter\bin\flutter.bat analyze` 이슈 0건.
+- 전체 테스트 완료: `C:\Flutter\bin\flutter.bat test` 3,348개 통과.
+- 최종 정리 완료: `third_party/fortune_sheet/build` 삭제, `git diff --check` 통과, 변경 diff 검토 완료.
+- 기능 stage/commit 대상: `lib/page_home/item_manage.dart`, `lib/utils/item_manager_debug_log.dart`, `test/fortune_table_test.dart`. `SESSION_HANDOFF.md`는 기능 해시 기록 후 별도 커밋한다.
+- 기능 커밋: `5c8ca2e` (`품목관리 팝업 중복 경로 차단`). 동일 secondary tap-down에서 행/바깥 callback이 함께 들어와도 popup route를 하나만 유지한다.
+- 사용자 확인 절차: 핫 리로드가 아닌 Hot Restart 또는 앱 프로세스 재실행 후 재현한다. 최신 로그에 `item-manager-debug-v3`가 표시돼야 수정본이며, 중복 callback 발생 시 `duplicateOpeningIgnored` 뒤 popup은 한 번의 외부 클릭으로 닫혀야 한다.
+- 기존 unrelated dirty `lib/core/app.dart`는 수정·stage 대상에서 제외한다.
+
 ### 완료 (2026-07-12): 품목관리 popup 간헐적 외부 클릭 미종료 진단
 
 - 사용자 재현: rect 기반 외부 클릭 종료 적용 후에도 간헐적으로 첫 외부 클릭에서 popup이 닫히지 않아 한 번 더 클릭해야 한다. 재현 시 원인을 구분할 진단 로그도 요청했다.
