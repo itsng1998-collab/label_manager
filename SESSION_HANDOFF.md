@@ -28,6 +28,25 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-12): 품목관리 진입 스낵바 완료 시점 보정
+
+- 사용자 요청: 품목관리 진입 시 진행 중 스낵바를 DB 로드 직후가 아니라 렌더링과 내부 작업이 모두 끝난 시점에 종료한다.
+- 원인 확인: 정상 세션 로드는 DB 조회, draft controller/journal 시작 후 `_resetTabs()`만 호출하고 실제 ItemManage/FortuneTable 첫 프레임과 post-frame 레이아웃·선택·미리보기 정렬 전에 `sessionLoad completed`를 기록하고 스낵바를 닫았다.
+- 편집 완료 `lib/page_home/item_manage.dart`: `onReady` callback을 추가하고 첫 렌더 프레임의 FortuneTable post-frame 작업 뒤 두 번째 post-frame에서 한 번만 준비 완료를 알린다.
+- 편집 완료 `lib/home_page_manager.dart`: 최신 세션 generation별 ready completer를 생성하고 `_resetTabs()` 후 ItemManage ready와 미리보기 overlay/부모 후처리용 최종 프레임을 추가로 await한다. 같은 trace에 `renderWaiting`/`renderReady`를 기록하고 그 뒤 `sessionLoad completed`와 `hideCurrentSnackBar()`를 실행한다. 이전 세대 callback은 무시하며 dispose 시 대기를 해제한다.
+- 테스트 추가 `test/fortune_table_test.dart`: 첫 pump에서는 ready가 발생하지 않고 다음 렌더 프레임 뒤 정확히 한 번 발생하는지 검증한다. focused ready 테스트와 기존 ItemManage 렌더 테스트 통과, 변경 파일 diagnostics 오류 0건.
+- 세대/재조회 보완: 새 로드가 시작되거나 dispose되면 이전 generation은 `renderCancelled`로 종료해 해당 세션의 완료/스낵바 종료 경로를 실행하지 않는다. 같은 라벨 강제 재조회로 ItemManage State가 재사용돼도 변경된 `onReady`를 새로 예약하고 예약 당시 callback만 호출한다.
+- 포맷 및 파일 전체 검증 완료: 변경 Dart 3개 포맷, `test/fortune_table_test.dart` 38개 통과.
+- 문서 갱신 `doc/item_manager_modify.txt`: DB/journal뿐 아니라 ItemManage/FortuneTable 렌더, 선택·레이아웃 post-frame, 미리보기 overlay와 부모 후처리까지 끝난 뒤 진행 스낵바를 종료한다고 명시했다.
+- 부분 검증 완료: 변경 파일 diagnostics 오류 0건, `C:\Flutter\bin\flutter.bat analyze` 이슈 0건.
+- 전체 테스트 완료: `C:\Flutter\bin\flutter.bat test` 3,351개 통과.
+- 최종 보완 후 재검증 완료: 변경 Dart 3개 포맷, `test/fortune_table_test.dart` 38개 통과, diagnostics 오류 0건, `flutter analyze` 이슈 0건, 전체 `flutter test` 3,351개 통과.
+- 최종 정리 완료: `third_party/fortune_sheet/build` 삭제, `git diff --check` 통과, 변경 diff 검토 완료.
+- 기능 stage/commit 대상: `lib/home_page_manager.dart`, `lib/page_home/item_manage.dart`, `test/fortune_table_test.dart`, `doc/item_manager_modify.txt`. `SESSION_HANDOFF.md`는 기능 해시 기록 후 별도 커밋한다.
+- 기능 커밋: `668bc55` (`품목관리 진입 완료 시점 보정`). 진행 스낵바는 같은 session trace의 `renderWaiting` 후 ItemManage/FortuneTable·미리보기 최종 프레임이 끝나 `renderReady`가 기록된 다음 종료된다.
+- 사용자 확인 절차: Hot Restart 또는 앱 프로세스 재실행 후 품목관리 진입 로그에서 `renderWaiting` -> `renderReady` -> `completed` 순서를 확인하고, 테이블·선택·출력내용 미리보기 렌더가 끝날 때까지 진행 스낵바가 유지되는지 확인한다.
+- 기존 unrelated dirty `lib/core/app.dart`는 수정·stage 대상에서 제외한다.
+
 ### 완료 (2026-07-12): 품목관리 탭 전용 레거시 검색 적용
 
 - 사용자 요청: 탭 메뉴 우측 `검색어 입력`/`검색` 영역을 품목관리에서만 보이게 하고 레거시 품목관리 검색과 같은 동작을 적용한다.
