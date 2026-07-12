@@ -122,7 +122,6 @@ class _HomePageManagerState extends State<HomePageManager> {
   bool _itemManagerLoadFailureDialogVisible = false;
   int _itemManagerReadyGeneration = 0;
   Completer<void>? _itemManagerReadyCompleter;
-  int _headerDropdownResetGeneration = 0;
   int? _labelDialogBrandChangeInFlightId;
   bool _labelDialogBrandChangeInFlight = false;
   int _rtfPreviewCaptureGeneration = 0;
@@ -190,6 +189,7 @@ class _HomePageManagerState extends State<HomePageManager> {
     );
     if (dirty == _lastReportedItemDraftDirty) return;
     _lastReportedItemDraftDirty = dirty;
+    if (mounted) setState(() {});
     widget.onItemDraftDirtyChanged?.call(dirty);
   }
 
@@ -448,21 +448,11 @@ class _HomePageManagerState extends State<HomePageManager> {
     debugLog(
       'handleBrandChanged brandId=${brand?.brandId} autoLogin=$_isAutoLoginMode',
     );
-    if (_blockItemDraftContextChange()) {
-      _resetHeaderDropdownSelection();
-      return;
-    }
     widget.onBrandChanged(brand);
   }
 
   Future<void> _handleHeaderLabelSizeChanged(LabelSize? labelSize) async {
-    final changed = await _handleLabelSizeChanged(labelSize);
-    if (!changed) _resetHeaderDropdownSelection();
-  }
-
-  void _resetHeaderDropdownSelection() {
-    if (!mounted) return;
-    setState(() => _headerDropdownResetGeneration += 1);
+    await _handleLabelSizeChanged(labelSize, skipDraftContextGuard: true);
   }
 
   // 브랜드 설정 다이얼로그에서의 명시적 브랜드 선택(더블클릭)은 사용자의 의도적
@@ -652,6 +642,7 @@ class _HomePageManagerState extends State<HomePageManager> {
   Future<bool> _handleLabelSizeChanged(
     LabelSize? labelSize, {
     bool forceReload = false,
+    bool skipDraftContextGuard = false,
   }) async {
     final trace = ItemManagerDebugLog.nextTrace('sessionLoad');
     ItemManagerDebugLog.event(
@@ -668,6 +659,7 @@ class _HomePageManagerState extends State<HomePageManager> {
       debugLog(START);
 
       if (!forceReload &&
+          !skipDraftContextGuard &&
           labelSize?.labelSizeId != _currentLabelSize?.labelSizeId &&
           _blockItemDraftContextChange()) {
         widget.onLabelSizeChanged(_currentLabelSize);
@@ -967,6 +959,11 @@ class _HomePageManagerState extends State<HomePageManager> {
     }
     return true;
   }
+
+  bool get _itemDraftContextChangeBlocked =>
+      _itemDraftCommandBusy ||
+      _itemDraftForceReloadRequired ||
+      _itemDraftController?.isDirty == true;
 
   Future<void> _cancelItemDraft() async {
     final commonTrace = ItemManagerDebugLog.nextTrace('cancel');
@@ -3322,7 +3319,8 @@ class _HomePageManagerState extends State<HomePageManager> {
               onBrandChanged: _handleBrandChanged,
               onLabelSizeChanged: _handleHeaderLabelSizeChanged,
               onDropdownMenuStateChanged: _handleTopDropdownMenuStateChanged,
-              dropdownResetGeneration: _headerDropdownResetGeneration,
+              dropdownChangeBlocked: _itemDraftContextChangeBlocked,
+              onBlockedDropdownTap: _blockItemDraftContextChange,
               settingsEnabled: settingsEnabled,
               onBrandSettingsPressed: settingsEnabled
                   ? _openBrandSettingsDialog
@@ -3443,7 +3441,8 @@ class _TopControlArea extends StatelessWidget {
   final ValueChanged<Brand?> onBrandChanged;
   final ValueChanged<LabelSize?> onLabelSizeChanged;
   final ValueChanged<bool> onDropdownMenuStateChanged;
-  final int dropdownResetGeneration;
+  final bool dropdownChangeBlocked;
+  final VoidCallback onBlockedDropdownTap;
   final bool settingsEnabled;
   final VoidCallback? onBrandSettingsPressed;
   final VoidCallback? onLabelSettingsPressed;
@@ -3457,7 +3456,8 @@ class _TopControlArea extends StatelessWidget {
     required this.onBrandChanged,
     required this.onLabelSizeChanged,
     required this.onDropdownMenuStateChanged,
-    required this.dropdownResetGeneration,
+    required this.dropdownChangeBlocked,
+    required this.onBlockedDropdownTap,
     required this.settingsEnabled,
     required this.onBrandSettingsPressed,
     required this.onLabelSettingsPressed,
@@ -3515,7 +3515,8 @@ class _TopControlArea extends StatelessWidget {
                           items: brandItems,
                           onChanged: brandItems.isEmpty ? null : onBrandChanged,
                           onMenuStateChange: onDropdownMenuStateChanged,
-                          resetGeneration: dropdownResetGeneration,
+                          blocked: dropdownChangeBlocked,
+                          onBlockedTap: onBlockedDropdownTap,
                           width: isDesktop ? 220 : 150,
                           labelWidth: 48,
                         ),
@@ -3546,7 +3547,8 @@ class _TopControlArea extends StatelessWidget {
                               ? null
                               : onLabelSizeChanged,
                           onMenuStateChange: onDropdownMenuStateChanged,
-                          resetGeneration: dropdownResetGeneration,
+                          blocked: dropdownChangeBlocked,
+                          onBlockedTap: onBlockedDropdownTap,
                           width: isDesktop ? 220 : 150,
                           labelWidth: 48,
                         ),
@@ -3638,7 +3640,8 @@ class _DropdownField<T> extends StatelessWidget {
   final List<DropdownMenuItem<T>> items;
   final ValueChanged<T?>? onChanged;
   final ValueChanged<bool>? onMenuStateChange;
-  final int resetGeneration;
+  final bool blocked;
+  final VoidCallback? onBlockedTap;
   final bool useRootNavigator;
   final double width;
   final double labelWidth;
@@ -3649,7 +3652,8 @@ class _DropdownField<T> extends StatelessWidget {
     required this.items,
     this.onChanged,
     this.onMenuStateChange,
-    this.resetGeneration = 0,
+    this.blocked = false,
+    this.onBlockedTap,
     this.useRootNavigator = true,
     this.width = 170,
     this.labelWidth = 80,
@@ -3672,51 +3676,64 @@ class _DropdownField<T> extends StatelessWidget {
         SizedBox(width: lmSize(6)),
         SizedBox(
           width: lmSize(width),
-          child: DropdownButtonFormField2<T>(
-            key: ValueKey((resetGeneration, value)),
-            value: value,
-            items: items,
-            onChanged: enabled ? onChanged : null,
-            onMenuStateChange: onMenuStateChange,
-            style: const TextStyle(fontSize: 14, color: Colors.black),
-            isExpanded: true,
-            buttonStyleData: ButtonStyleData(
-              height: lmSize(28),
-              padding: lmInsetsSymmetric(horizontal: 2),
-            ),
-            dropdownStyleData: DropdownStyleData(
-              useRootNavigator: useRootNavigator,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(4),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Color(0x14000000),
-                    blurRadius: 8,
-                    offset: Offset(0, 2),
+          child: Stack(
+            children: [
+              AbsorbPointer(
+                absorbing: blocked,
+                child: DropdownButtonFormField2<T>(
+                  value: value,
+                  items: items,
+                  onChanged: enabled ? onChanged : null,
+                  onMenuStateChange: onMenuStateChange,
+                  style: const TextStyle(fontSize: 14, color: Colors.black),
+                  isExpanded: true,
+                  buttonStyleData: ButtonStyleData(
+                    height: lmSize(28),
+                    padding: lmInsetsSymmetric(horizontal: 2),
                   ),
-                ],
+                  dropdownStyleData: DropdownStyleData(
+                    useRootNavigator: useRootNavigator,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(4),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color(0x14000000),
+                          blurRadius: 8,
+                          offset: Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                  ),
+                  menuItemStyleData: MenuItemStyleData(height: lmSize(28)),
+                  decoration: InputDecoration(
+                    isDense: true,
+                    filled: true,
+                    fillColor: enabled ? Colors.white : const Color(0xFFE9ECEF),
+                    contentPadding: lmInsetsSymmetric(horizontal: 4, vertical: 10),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(4),
+                      borderSide: const BorderSide(color: Color(0xFFCED4DA)),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(4),
+                      borderSide: const BorderSide(color: Color(0xFFCED4DA)),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(4),
+                      borderSide: const BorderSide(color: Color(0xFF3B82F6)),
+                    ),
+                  ),
+                ),
               ),
-            ),
-            menuItemStyleData: MenuItemStyleData(height: lmSize(28)),
-            decoration: InputDecoration(
-              isDense: true,
-              filled: true,
-              fillColor: enabled ? Colors.white : const Color(0xFFE9ECEF),
-              contentPadding: lmInsetsSymmetric(horizontal: 4, vertical: 10),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(4),
-                borderSide: const BorderSide(color: Color(0xFFCED4DA)),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(4),
-                borderSide: const BorderSide(color: Color(0xFFCED4DA)),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(4),
-                borderSide: const BorderSide(color: Color(0xFF3B82F6)),
-              ),
-            ),
+              if (blocked)
+                Positioned.fill(
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: onBlockedTap,
+                  ),
+                ),
+            ],
           ),
         ),
       ],
@@ -4771,7 +4788,8 @@ Widget debugTopControlAreaForTesting({
   List<LabelSize> labelSizes = const [],
   LabelSize? selectedLabelSize,
   ValueChanged<LabelSize?>? onLabelSizeChanged,
-  int dropdownResetGeneration = 0,
+  bool dropdownChangeBlocked = false,
+  VoidCallback? onBlockedDropdownTap,
 }) => Material(
   child: SizedBox(
     width: 1400,
@@ -4779,7 +4797,8 @@ Widget debugTopControlAreaForTesting({
       onBrandChanged: onBrandChanged ?? (_) {},
       onLabelSizeChanged: onLabelSizeChanged ?? (_) {},
       onDropdownMenuStateChanged: (_) {},
-      dropdownResetGeneration: dropdownResetGeneration,
+      dropdownChangeBlocked: dropdownChangeBlocked,
+      onBlockedDropdownTap: onBlockedDropdownTap ?? () {},
       settingsEnabled: false,
       onBrandSettingsPressed: null,
       onLabelSettingsPressed: onLabelSettingsPressed,

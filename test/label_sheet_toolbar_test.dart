@@ -233,9 +233,7 @@ void main() {
     expect(find.byType(AlertDialog), findsNothing);
   });
 
-  testWidgets('blocked header dropdown changes restore current selections', (
-    tester,
-  ) async {
+  testWidgets('dirty item draft blocks header dropdown menus', (tester) async {
     tester.view.physicalSize = const Size(1400, 500);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -252,41 +250,31 @@ void main() {
       brandId: 1,
       labelSizeName: '라벨 B',
     );
-    var resetGeneration = 0;
+    var blockedTapCount = 0;
 
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
-          body: StatefulBuilder(
-            builder: (context, setState) => debugTopControlAreaForTesting(
-              brands: const [firstBrand, secondBrand],
-              selectedBrand: firstBrand,
-              onBrandChanged: (_) =>
-                  setState(() => resetGeneration += 1),
-              labelSizes: const [firstLabel, secondLabel],
-              selectedLabelSize: firstLabel,
-              onLabelSizeChanged: (_) =>
-                  setState(() => resetGeneration += 1),
-              dropdownResetGeneration: resetGeneration,
-            ),
+          body: debugTopControlAreaForTesting(
+            brands: const [firstBrand, secondBrand],
+            selectedBrand: firstBrand,
+            labelSizes: const [firstLabel, secondLabel],
+            selectedLabelSize: firstLabel,
+            dropdownChangeBlocked: true,
+            onBlockedDropdownTap: () => blockedTapCount += 1,
           ),
         ),
       ),
     );
 
-    await tester.tap(find.text('브랜드 A'));
+    await tester.tapAt(tester.getCenter(find.text('브랜드 A')));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('브랜드 B').last);
-    await tester.pumpAndSettle();
-    expect(find.text('브랜드 A'), findsOneWidget);
     expect(find.text('브랜드 B'), findsNothing);
 
-    await tester.tap(find.text('라벨 A'));
+    await tester.tapAt(tester.getCenter(find.text('라벨 A')));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('라벨 B').last);
-    await tester.pumpAndSettle();
-    expect(find.text('라벨 A'), findsOneWidget);
     expect(find.text('라벨 B'), findsNothing);
+    expect(blockedTapCount, 2);
   });
 
   test('date settings is enabled only on item management tab', () {
