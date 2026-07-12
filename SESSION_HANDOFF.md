@@ -28,6 +28,21 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-12): 느린 품목 조회 중 진행 스낵바 조기 종료 수정
+
+- 사용자 재현: 품목관리 진입 시 진행 스낵바가 먼저 닫힌 뒤 한참 후 목록이 표시된다.
+- 최신 로그 `.tmp/log/app_2026-07-12_15-36-33.log` 분석: DB 구간은 `15:36:54.670`부터 `15:37:08.456`까지 약 14초였다. 주요 응답은 매장 조회 5.4초, 컬럼 조회 3.36초, 품목 조회 2.31초다. 데이터 준비 후 ItemManage 첫 build는 65ms 뒤, `renderReady`는 약 0.94초 뒤여서 렌더 계산보다 네트워크/DB 응답이 지연의 대부분이다.
+- 원인: 최초 `_loadBrands()` 진행 스낵바는 `duration`을 지정하지 않아 `showSnackBar` 기본값 4초로 자동 종료됐다. 브랜드 변경 경로만 1일 duration을 사용하고 있었다. 따라서 느린 DB 작업에서 완료 callback보다 자동 만료가 먼저 발생했다.
+- 편집 완료 `lib/home_page_manager.dart`: `itemManagerLoadProgressDuration`을 추가해 최초 진입과 브랜드 변경의 진행 스낵바가 같은 장기 duration을 사용한다. 실제 종료는 기존 `hideCurrentSnackBar()` 완료 경로가 담당한다.
+- 테스트 추가 `test/label_sheet_toolbar_test.dart`: 품목관리 로드 진행 duration이 느린 DB 작업 중 자동 만료되지 않는 계약을 검증한다. focused 테스트 1개 통과, diagnostics 오류 0건.
+- 문서 완료 `doc/item_manager_modify.txt`: 최초 진입/브랜드 변경 진행 스낵바는 DB 조회와 ItemManage 렌더 준비가 끝날 때 명시적으로 닫는다고 기록했다.
+- 검증 완료: Dart 포맷, 변경 파일 diagnostics 오류 0건, `test/label_sheet_toolbar_test.dart` 110개 및 `test/fortune_table_test.dart` 38개 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 성공(`No issues found`).
+- 검증 완료: `C:\Flutter\bin\flutter.bat test` 전체 345개 통과.
+- 정리 완료: 테스트 생성물 `third_party/fortune_sheet/build` 삭제, `git diff --check` 통과, diff/stage 범위 확인 완료.
+- 기능 커밋: `e53003a` (`느린 품목 조회 중 진행 표시 유지`).
+- 기존 unrelated dirty `lib/core/app.dart`는 수정·stage 대상에서 제외한다.
+
 ### 완료 (2026-07-12): 품목 편집 중 헤더 dropdown 변경 차단 정합
 
 - 사용자 확인 요청: 품목관리 편집 모드에서 탭 변경처럼 헤더 브랜드/라벨 dropdown 변경도 경고 스낵바 후 차단되고 선택값이 바뀌지 않아야 한다.
