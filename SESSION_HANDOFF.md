@@ -28,6 +28,19 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-12): 품목관리 popup 명령 route 종료 일반화
+
+- 사용자 재현: 품목관리 popup에서 `순서 변경`을 선택하고 순서 변경 dialog를 닫으면 이전 popup 메뉴가 다시 남는다.
+- 현재 가설: `showMenu()`가 command를 반환한 직후 단일 `endOfFrame`만 기다려서는 popup route 제거가 완료되지 않을 수 있고, 즉시 dialog를 여는 callback과 route 종료가 겹친다.
+- 수정 방향: 삭제/순서 변경 등 개별 command가 아니라 `_showContextMenu`의 공용 dispatch 경계에서 popup route가 완전히 제거된 뒤 `_handleContextMenuCommand`를 호출하도록 일반화한다.
+- 편집 완료 `lib/page_home/item_manage.dart`: popup 내부 `GlobalKey` marker가 위젯 트리에서 실제 제거될 때까지 `endOfFrame`을 기다린 뒤 `_handleContextMenuCommand`를 호출한다. 삭제, 순서 변경, QR 보기와 선택/발행 명령 모두 같은 공용 route 종료 경계를 사용한다.
+- 테스트 보강 `test/fortune_table_test.dart`: 순서 변경 callback이 실제 dialog를 열고 닫는 흐름에서 callback 진입 전에 `PopupMenuItem`이 이미 제거되고 dialog 종료 후에도 popup이 남지 않는지 검증한다.
+- focused 검증 완료: 순서 변경/삭제 2개 테스트 통과, `test/fortune_table_test.dart` 전체 33개 통과.
+- 전체 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 이슈 0건, 전체 Flutter 테스트 3,346개 통과.
+- 정리 완료: 전체 테스트가 생성한 `third_party/fortune_sheet/build`를 삭제했고 변경 파일 diagnostics 및 `git diff --check` 오류가 없다.
+- stage 대상: `lib/page_home/item_manage.dart`, `test/fortune_table_test.dart`. 기존 unrelated `lib/core/app.dart`와 `SESSION_HANDOFF.md`는 기능 커밋에서 제외한다.
+- 기능·테스트 커밋: `0dcc808` (`품목관리 팝업 메뉴 종료 처리 일반화`).
+
 ### 완료 (2026-07-12): 품목 순서 변경 공용 드래그 테이블 적용
 
 - 사용자 확인: 현재 `ItemOrderDialog`는 라벨 설정 순서 변경의 공용 테이블을 재사용하지 않고 `ListView`와 위/아래 버튼으로 별도 구현되어 요구와 다르다.
