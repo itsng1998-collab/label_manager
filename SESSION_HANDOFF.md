@@ -28,6 +28,27 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-12): 품목관리 탭 전용 레거시 검색 적용
+
+- 사용자 요청: 탭 메뉴 우측 `검색어 입력`/`검색` 영역을 품목관리에서만 보이게 하고 레거시 품목관리 검색과 같은 동작을 적용한다.
+- 레거시 확인 `.tmp/LabelManager/LabelManager/FindItemDlg.cpp`, `LabelEditDlg.cpp`: 우클릭한 활성 셀 컬럼에서 시작 행부터 `CString::Find` 대소문자 구분 부분 일치로 검색한다. 찾은 셀을 선택/활성화하고 다음 검색은 다음 행부터 시작한다. 끝까지 못 찾으면 `마지막까지 검색하였습니다. 처음부터 검색하시겠습니까?`를 표시하고 확인 시 시작 행만 첫 행으로 초기화한다.
+- 편집 완료 `third_party/fortune_sheet/lib/src/fortune_table.dart`: 사용자가 주 버튼으로 활성화한 셀의 row/index/column id를 전달하는 `onCellActivated` callback을 추가했다.
+- 편집 완료 `lib/page_home/item_manage.dart`: `ItemManageController`와 검색 결과 API를 추가했다. 활성 컬럼의 현재 표시값을 다음 행부터 부분 검색하고, 찾은 행/셀 선택 및 자동 reveal, 다음 검색 위치 갱신, 처음부터 초기화를 처리한다. 탭 재구성 시 이전 State dispose가 새 controller 연결을 끊지 않도록 owner 기반 attach/detach를 사용한다.
+- 편집 완료 `lib/home_page_manager.dart`: 검색 controller를 `ItemManage`에 전달하고 검색 영역을 `items` 탭에서만 렌더링한다. Enter/검색 버튼에서 검색하며 끝 도달 시 레거시 문구의 확인 dialog를 표시하고 확인 시 처음부터 검색 위치로 초기화한다.
+- 테스트 추가 `test/fortune_table_test.dart`: 품목관리 탭에서만 검색 노출 조건이 true인지, 기본 품명/활성 주원료 컬럼의 대소문자 구분 부분 검색, 다음 결과 이동, 끝 도달, 처음부터 초기화를 검증한다. focused 테스트 2개 통과.
+- 문서 갱신 `doc/item_manager_modify.txt`: 레거시 검색 대상 컬럼, 부분 일치/다음 행/끝 도달/처음부터 동작과 Flutter 품목관리 탭 전용 노출 완료 기준을 추가했다.
+- 포맷 및 파일 전체 검증 완료: 변경 Dart 4개 포맷, `test/fortune_table_test.dart` 37개 통과. 실제 주원료 셀 클릭을 통한 공용 `onCellActivated` 경로도 포함한다.
+- 최종 동작 보완: 활성 검색 컬럼이 바뀌면 레거시에서 새 컬럼 검색 dialog를 연 것처럼 첫 행부터 검색하도록 시작 위치를 초기화했다. 수동 reset 없는 컬럼 전환 테스트 통과.
+- 부분 검증 완료: 변경 파일 diagnostics 오류 0건, `C:\Flutter\bin\flutter.bat analyze` 이슈 0건.
+- 전체 테스트 완료: `C:\Flutter\bin\flutter.bat test` 3,350개 통과.
+- 최종 보완 후 재검증 완료: `test/fortune_table_test.dart` 37개 통과, 변경 파일 diagnostics 오류 0건, `flutter analyze` 이슈 0건, 전체 `flutter test` 3,350개 통과.
+- 기존 `HomePageManager`/`ItemManage` State에 controller와 검색 위치 필드가 추가됐으므로 사용자 확인은 핫 리로드가 아니라 Hot Restart 또는 앱 프로세스 재실행 후 수행한다.
+- 최종 정리 완료: `third_party/fortune_sheet/build` 삭제, `git diff --check` 통과, 변경 diff 검토 완료.
+- 기능 stage/commit 대상: `third_party/fortune_sheet/lib/src/fortune_table.dart`, `lib/page_home/item_manage.dart`, `lib/home_page_manager.dart`, `test/fortune_table_test.dart`, `doc/item_manager_modify.txt`. `SESSION_HANDOFF.md`는 기능 해시 기록 후 별도 커밋한다.
+- 기능 커밋: `8c498c1` (`품목관리 레거시 검색 기능 적용`). 품목관리 탭에서만 검색 UI를 표시하고 활성 컬럼 기준 부분 일치/다음 행/끝 도달/처음부터 검색과 셀 reveal을 적용한다.
+- 사용자 확인 절차: Hot Restart 또는 앱 프로세스 재실행 후 품목관리에서 검색 UI 노출, 다른 탭에서 미노출, 같은 검색어 반복 시 다음 결과 이동, 끝 도달 확인 dialog, 컬럼 클릭 후 해당 컬럼 검색을 확인한다.
+- 기존 unrelated dirty `lib/core/app.dart`는 수정·stage 대상에서 제외한다.
+
 ### 완료 (2026-07-12): 품목관리 popup 중복 route 차단
 
 - 최신 사용자 재현 로그 `.tmp/log/app_2026-07-12_14-24-56.log`: 동일 좌표 `(604, 322)`에서 `contextMenuPopup-3`과 `contextMenuPopup-4`가 2ms 간격으로 연속 opening됐다. 위쪽 `-4`만 외부 클릭으로 닫히고 아래쪽 `-3` route가 남아 두 번째 클릭이 필요했다.
