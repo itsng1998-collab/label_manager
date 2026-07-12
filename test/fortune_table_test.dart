@@ -1059,7 +1059,22 @@ void main() {
       tester,
       tester.getTopLeft(find.byType(FortuneTable<ItemOfMarket>)),
     );
-    await tester.tap(find.byType(TextField).first);
+    final countFields = tester.widgetList<TextField>(
+      find.descendant(
+        of: find.byType(PopupMenuItem<String>),
+        matching: find.byType(TextField),
+      ),
+    ).toList();
+    expect(countFields, hasLength(2));
+    expect(countFields[0].groupId, same(countFields[1].groupId));
+    expect(countFields[0].groupId, isNot(same(EditableText)));
+    final countField = find
+        .descendant(
+          of: find.byType(PopupMenuItem<String>),
+          matching: find.byType(TextField),
+        )
+        .first;
+    await tester.tap(countField);
     await tester.pump();
     expect(tester.testTextInput.isVisible, isTrue);
 
@@ -1072,7 +1087,14 @@ void main() {
       tester,
       tester.getTopLeft(find.byType(FortuneTable<ItemOfMarket>)),
     );
-    await tester.tap(find.byType(TextField).first);
+    await tester.tap(
+      find
+          .descendant(
+            of: find.byType(PopupMenuItem<String>),
+            matching: find.byType(TextField),
+          )
+          .first,
+    );
     await tester.pump();
     await tester.tap(find.text('전체 선택'));
     await tester.pumpAndSettle();

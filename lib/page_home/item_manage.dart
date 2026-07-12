@@ -440,6 +440,18 @@ class _ItemManageState extends State<ItemManage> {
   Future<void> _showContextMenu(TapDownDetails details) async {
     final menuRouteMarkerKey = GlobalKey();
     final menuRouteEndKey = GlobalKey();
+    final menuTapRegionGroupId = Object();
+    final popupTrace = ItemManagerDebugLog.nextTrace('contextMenuPopup');
+    ItemManagerDebugLog.event(
+      'contextMenuPopup',
+      'opening',
+      trace: popupTrace,
+      fields: {
+        'version': ItemManagerDebugLog.version,
+        'x': details.globalPosition.dx.round(),
+        'y': details.globalPosition.dy.round(),
+      },
+    );
     final mutationEnabled =
         widget.canEdit && !widget.commandBusy && !widget.forceReloadRequired;
     final publishSelectionEnabled =
@@ -469,12 +481,15 @@ class _ItemManageState extends State<ItemManage> {
           command: _menuAdd,
           controller: _addCountController,
           enabled: mutationEnabled && widget.draftController != null,
+          tapRegionGroupId: menuTapRegionGroupId,
           onTapOutside: (event, menuContext) =>
               _dismissContextMenuOnOutsideTap(
                 event,
                 menuContext,
                 menuRouteMarkerKey,
                 menuRouteEndKey,
+                popupTrace,
+                _menuAdd,
               ),
         ),
         _countMenuItem(
@@ -485,12 +500,15 @@ class _ItemManageState extends State<ItemManage> {
               mutationEnabled &&
               widget.draftController != null &&
               _selectionController.hasSelection,
+          tapRegionGroupId: menuTapRegionGroupId,
           onTapOutside: (event, menuContext) =>
               _dismissContextMenuOnOutsideTap(
                 event,
                 menuContext,
                 menuRouteMarkerKey,
                 menuRouteEndKey,
+                popupTrace,
+                _menuInsert,
               ),
         ),
         PopupMenuItem<String>(
@@ -567,11 +585,27 @@ class _ItemManageState extends State<ItemManage> {
         ),
       ],
     );
+    ItemManagerDebugLog.event(
+      'contextMenuPopup',
+      'routeCompleted',
+      trace: popupTrace,
+      fields: {
+        'command': command,
+        'markerMounted': menuRouteMarkerKey.currentContext != null,
+        'focus': FocusManager.instance.primaryFocus?.debugLabel,
+      },
+    );
     if (!mounted || command == null) return;
     while (mounted && menuRouteMarkerKey.currentContext != null) {
       await WidgetsBinding.instance.endOfFrame;
     }
     if (!mounted) return;
+    ItemManagerDebugLog.event(
+      'contextMenuPopup',
+      'dispatchReady',
+      trace: popupTrace,
+      fields: {'command': command},
+    );
     await _handleContextMenuCommand(command);
   }
 
@@ -581,6 +615,7 @@ class _ItemManageState extends State<ItemManage> {
     required String command,
     required TextEditingController controller,
     required bool enabled,
+    required Object tapRegionGroupId,
     required void Function(PointerDownEvent event, BuildContext menuContext)
     onTapOutside,
   }) {
@@ -614,6 +649,7 @@ class _ItemManageState extends State<ItemManage> {
                 width: 44,
                 height: 26,
                 child: TextField(
+                  groupId: tapRegionGroupId,
                   controller: controller,
                   enabled: enabled,
                   textAlign: TextAlign.center,
@@ -643,13 +679,49 @@ class _ItemManageState extends State<ItemManage> {
     BuildContext menuContext,
     GlobalKey firstItemKey,
     GlobalKey lastItemKey,
+    String trace,
+    String sourceCommand,
   ) {
     final firstBox =
         firstItemKey.currentContext?.findRenderObject() as RenderBox?;
     final lastBox = lastItemKey.currentContext?.findRenderObject() as RenderBox?;
-    if (firstBox == null || lastBox == null) return;
+    if (firstBox == null || lastBox == null) {
+      ItemManagerDebugLog.event(
+        'contextMenuPopup',
+        'tapOutsideMissingBounds',
+        trace: trace,
+        fields: {
+          'source': sourceCommand,
+          'firstBox': firstBox != null,
+          'lastBox': lastBox != null,
+          'x': event.position.dx.round(),
+          'y': event.position.dy.round(),
+        },
+      );
+      Navigator.of(menuContext).pop();
+      return;
+    }
     final menuRect = _globalRect(firstBox).expandToInclude(_globalRect(lastBox));
-    if (menuRect.contains(event.position)) return;
+    final inside = menuRect.contains(event.position);
+    ItemManagerDebugLog.event(
+      'contextMenuPopup',
+      'tapOutside',
+      trace: trace,
+      fields: {
+        'source': sourceCommand,
+        'kind': event.kind.name,
+        'buttons': event.buttons,
+        'x': event.position.dx.round(),
+        'y': event.position.dy.round(),
+        'menuLeft': menuRect.left.round(),
+        'menuTop': menuRect.top.round(),
+        'menuRight': menuRect.right.round(),
+        'menuBottom': menuRect.bottom.round(),
+        'inside': inside,
+        'focus': FocusManager.instance.primaryFocus?.debugLabel,
+      },
+    );
+    if (inside) return;
     Navigator.of(menuContext).pop();
   }
 
