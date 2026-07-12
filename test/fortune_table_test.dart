@@ -1016,6 +1016,73 @@ void main() {
     expect(table.columns.first.checkboxValueAt!(table.rows.single, 0), isFalse);
   });
 
+  testWidgets('ItemManage closes a focused count menu on first outside tap', (
+    tester,
+  ) async {
+    final controller = ItemManagerDraftController(
+      rows: [
+        for (var index = 0; index < 2; index++)
+          ItemManagerDraftRow.newRow(
+            draftRowKey: 'draft-outside-$index',
+            order: index + 1,
+            originalIndex: index,
+            insertAnchorItemId: null,
+            rowState: ItemManagerDraftRowState.added,
+            emptyElementPayload: 'UEsDempty',
+          ),
+      ],
+      scopedColumnContents: TColumnContentScopedView(const {}),
+    );
+    addTearDown(controller.dispose);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 600,
+            height: 220,
+            child: ItemManage(
+              items: const [],
+              draftController: controller,
+              labelSize: const LabelSize(
+                labelSizeId: 20,
+                brandId: 30,
+                labelSizeName: '테스트 라벨',
+              ),
+              marketId: 1,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await _openItemManageContextMenu(
+      tester,
+      tester.getTopLeft(find.byType(FortuneTable<ItemOfMarket>)),
+    );
+    await tester.tap(find.byType(TextField).first);
+    await tester.pump();
+    expect(tester.testTextInput.isVisible, isTrue);
+
+    await tester.tapAt(const Offset(1, 1));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(PopupMenuItem<String>), findsNothing);
+
+    await _openItemManageContextMenu(
+      tester,
+      tester.getTopLeft(find.byType(FortuneTable<ItemOfMarket>)),
+    );
+    await tester.tap(find.byType(TextField).first);
+    await tester.pump();
+    await tester.tap(find.text('전체 선택'));
+    await tester.pumpAndSettle();
+
+    final table = tester.widget<FortuneTable<ItemOfMarket>>(
+      find.byType(FortuneTable<ItemOfMarket>),
+    );
+    expect(table.selectionController!.selectedRows, {0, 1});
+  });
+
   testWidgets('ItemManage context menu controls selection and publish checks', (
     tester,
   ) async {

@@ -439,6 +439,7 @@ class _ItemManageState extends State<ItemManage> {
 
   Future<void> _showContextMenu(TapDownDetails details) async {
     final menuRouteMarkerKey = GlobalKey();
+    final menuRouteEndKey = GlobalKey();
     final mutationEnabled =
         widget.canEdit && !widget.commandBusy && !widget.forceReloadRequired;
     final publishSelectionEnabled =
@@ -468,6 +469,13 @@ class _ItemManageState extends State<ItemManage> {
           command: _menuAdd,
           controller: _addCountController,
           enabled: mutationEnabled && widget.draftController != null,
+          onTapOutside: (event, menuContext) =>
+              _dismissContextMenuOnOutsideTap(
+                event,
+                menuContext,
+                menuRouteMarkerKey,
+                menuRouteEndKey,
+              ),
         ),
         _countMenuItem(
           label: '품목 삽입',
@@ -477,6 +485,13 @@ class _ItemManageState extends State<ItemManage> {
               mutationEnabled &&
               widget.draftController != null &&
               _selectionController.hasSelection,
+          onTapOutside: (event, menuContext) =>
+              _dismissContextMenuOnOutsideTap(
+                event,
+                menuContext,
+                menuRouteMarkerKey,
+                menuRouteEndKey,
+              ),
         ),
         PopupMenuItem<String>(
           value: _menuDelete,
@@ -543,6 +558,7 @@ class _ItemManageState extends State<ItemManage> {
           child: const Text('블럭 선택 발행 체크'),
         ),
         PopupMenuItem<String>(
+          key: menuRouteEndKey,
           value: _menuUncheckSelectedPublish,
           enabled: publishSelectionEnabled && _selectionController.hasSelection,
           height: fortuneContextMenuRowHeight,
@@ -565,6 +581,8 @@ class _ItemManageState extends State<ItemManage> {
     required String command,
     required TextEditingController controller,
     required bool enabled,
+    required void Function(PointerDownEvent event, BuildContext menuContext)
+    onTapOutside,
   }) {
     return PopupMenuItem<String>(
       key: key,
@@ -605,6 +623,7 @@ class _ItemManageState extends State<ItemManage> {
                     contentPadding: EdgeInsets.symmetric(vertical: 5),
                     border: OutlineInputBorder(),
                   ),
+                  onTapOutside: (event) => onTapOutside(event, menuContext),
                   onSubmitted: enabled
                       ? (_) => Navigator.of(menuContext).pop(command)
                       : null,
@@ -617,6 +636,25 @@ class _ItemManageState extends State<ItemManage> {
         },
       ),
     );
+  }
+
+  void _dismissContextMenuOnOutsideTap(
+    PointerDownEvent event,
+    BuildContext menuContext,
+    GlobalKey firstItemKey,
+    GlobalKey lastItemKey,
+  ) {
+    final firstBox =
+        firstItemKey.currentContext?.findRenderObject() as RenderBox?;
+    final lastBox = lastItemKey.currentContext?.findRenderObject() as RenderBox?;
+    if (firstBox == null || lastBox == null) return;
+    final menuRect = _globalRect(firstBox).expandToInclude(_globalRect(lastBox));
+    if (menuRect.contains(event.position)) return;
+    Navigator.of(menuContext).pop();
+  }
+
+  Rect _globalRect(RenderBox box) {
+    return box.localToGlobal(Offset.zero) & box.size;
   }
 
   Future<void> _handleContextMenuCommand(String command) async {
