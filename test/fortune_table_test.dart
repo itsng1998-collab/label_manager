@@ -313,9 +313,10 @@ void main() {
     );
 
     expect(find.text('r39c4'), findsNothing);
-    focusController.focusCell(39, 'c4');
-    await tester.pump();
-    await tester.pump();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      focusController.focusCell(39, 'c4');
+    });
+    await tester.pumpAndSettle();
 
     expect(selectionController.selectedRows, {39});
     expect(find.text('r39c4'), findsOneWidget);
@@ -1330,6 +1331,66 @@ void main() {
       find.byType(FortuneTable<ItemOfMarket>),
     );
     expect(table.selectionController!.selectedRows, isEmpty);
+  });
+
+  testWidgets('ItemManage closes add popup and reveals the first added row', (
+    tester,
+  ) async {
+    final controller = ItemManagerDraftController(
+      rows: [
+        for (var index = 0; index < 20; index++)
+          ItemManagerDraftRow.newRow(
+            draftRowKey: 'draft-$index',
+            order: index + 1,
+            originalIndex: index,
+            insertAnchorItemId: null,
+            rowState: ItemManagerDraftRowState.added,
+            emptyElementPayload: 'UEsDempty',
+          ),
+      ],
+      scopedColumnContents: TColumnContentScopedView(const {}),
+    );
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 600,
+            height: 220,
+            child: ItemManage(
+              items: const [],
+              draftController: controller,
+              labelSize: const LabelSize(
+                labelSizeId: 20,
+                brandId: 30,
+                labelSizeName: '테스트 라벨',
+              ),
+              marketId: 1,
+              emptyElementPayload: 'UEsDempty',
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final tableTopLeft = tester.getTopLeft(
+      find.byType(FortuneTable<ItemOfMarket>),
+    );
+    final bodyVerticalController = _bodyVerticalController(tester);
+    expect(bodyVerticalController.offset, 0);
+
+    await _openItemManageContextMenu(tester, tableTopLeft);
+    await tester.tap(find.text('품목 추가'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(PopupMenuItem<String>), findsNothing);
+    expect(controller.rows, hasLength(21));
+    expect(bodyVerticalController.offset, greaterThan(0));
+    final table = tester.widget<FortuneTable<ItemOfMarket>>(
+      find.byType(FortuneTable<ItemOfMarket>),
+    );
+    expect(table.selectionController!.selectedRows, {20});
   });
 
   testWidgets('ItemManage QR viewer uses the right-clicked draft row', (

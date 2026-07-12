@@ -1121,6 +1121,7 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
       _revealCell(rowIndex, columnIndex);
       setState(() {});
     });
+    WidgetsBinding.instance.ensureVisualUpdate();
   }
 
   void _revealCell(int rowIndex, int columnIndex) {

@@ -463,6 +463,7 @@ class _ItemManageState extends State<ItemManage> {
       popUpAnimationStyle: AnimationStyle.noAnimation,
       items: [
         _countMenuItem(
+          key: menuRouteMarkerKey,
           label: '품목 추가',
           command: _menuAdd,
           controller: _addCountController,
@@ -478,7 +479,6 @@ class _ItemManageState extends State<ItemManage> {
               _selectionController.hasSelection,
         ),
         PopupMenuItem<String>(
-          key: menuRouteMarkerKey,
           value: _menuDelete,
           enabled:
               mutationEnabled &&
@@ -560,12 +560,14 @@ class _ItemManageState extends State<ItemManage> {
   }
 
   PopupMenuItem<String> _countMenuItem({
+    Key? key,
     required String label,
     required String command,
     required TextEditingController controller,
     required bool enabled,
   }) {
     return PopupMenuItem<String>(
+      key: key,
       enabled: false,
       height: fortuneContextMenuRowHeight,
       padding: _menuItemPadding,
@@ -679,6 +681,7 @@ class _ItemManageState extends State<ItemManage> {
         emptyElementPayload: widget.emptyElementPayload,
       );
       _selectDraftRows(added);
+      _focusFirstDraftRowAfterBuild(added);
       ItemManagerDebugLog.event(
         'addRows',
         'completed',
@@ -840,6 +843,19 @@ class _ItemManageState extends State<ItemManage> {
     if (indexes.isNotEmpty) {
       _notifySelectedDraftRow(controller.rows[indexes.first], indexes.first);
     }
+  }
+
+  void _focusFirstDraftRowAfterBuild(List<ItemManagerDraftRow> rows) {
+    if (rows.isEmpty) return;
+    final firstRowKey = rows.first.rowKey;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final rowIndex = widget.draftController?.rows.indexWhere(
+        (row) => row.rowKey == firstRowKey,
+      );
+      if (rowIndex == null || rowIndex < 0) return;
+      _focusController.focusCell(rowIndex, 'itemName');
+    });
   }
 
   void _notifySelectedDraftRow(ItemManagerDraftRow row, int index) {
