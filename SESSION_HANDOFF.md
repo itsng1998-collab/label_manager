@@ -28,6 +28,23 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-12): 품목 순서 변경 공용 드래그 테이블 적용
+
+- 사용자 확인: 현재 `ItemOrderDialog`는 라벨 설정 순서 변경의 공용 테이블을 재사용하지 않고 `ListView`와 위/아래 버튼으로 별도 구현되어 요구와 다르다.
+- 확인 결과: 라벨 설정은 `EditableSwipeNameTable`의 `rowReorderEnabled`/`onRowReorder`를 사용해 행과 번호 열을 직접 드래그한다.
+- 편집 완료 `lib/page_home/item_order_dialog.dart`: 별도 `ListView`를 제거하고 라벨 설정과 동일한 `EditableSwipeNameTable<ItemOfMarket>`의 `rowReorderEnabled`/`onRowReorder`를 직접 사용한다. 행/번호 열 드래그, 선택 유지, 원래 행 번호 표시, 변경 시 적용 활성 동작을 제공하며 라벨 설정처럼 우측 위·아래 보조 버튼도 유지한다.
+- 테스트 변경 `test/item_order_dialog_test.dart`: 이동 버튼 검증을 제거하고 공용 테이블 렌더링 및 실제 마우스 행 드래그 후 반환 순서를 검증한다.
+- 사용자 추가 확인: 우측 위·아래 버튼 영역도 라벨 설정과 동일해야 한다. 기존 품목 dialog의 임의 `VerticalDivider + IconButton.outlined` 구성을 제거하고 라벨 설정 `_buildOrderMoveRail`과 같은 폭 38, 테이블 간격 6, 버튼 34x34, 버튼 간격 8, `OutlinedButton` 색상/테두리/radius 6 구성으로 교체했다.
+- rail 테스트 보강 `test/item_order_dialog_test.dart`: 위·아래 버튼의 `OutlinedButton` 사용, 34x34 크기, 8px 간격, 현재 선택 행 기준 활성 상태를 검증한다.
+- 문서 갱신 `doc/item_manager_modify.txt`: 품목 순서 변경 완료 기준과 UX를 공용 `EditableSwipeNameTable` 재사용 및 행/번호 열 드래그 기준으로 정정한다.
+- focused 검증 완료: `test/item_order_dialog_test.dart` 2개 통과, 공용 테이블 포함 관련 테스트 27개 통과. Dart 포맷 완료.
+- 부분 검증 완료: 변경 Dart 파일 diagnostics 오류 0건.
+- 전체 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 이슈 0건, 전체 테스트 3,346개 통과.
+- rail 보완 검증 완료: 품목 dialog와 공용 swipe table 관련 테스트 27개 통과, 변경 파일 diagnostics 오류 0건, `C:\Flutter\bin\flutter.bat analyze` 이슈 0건.
+- 정리 완료: 전체 테스트가 생성한 `third_party/fortune_sheet/build`를 삭제했고 `git diff --check` 오류가 없다.
+- stage 대상: `lib/page_home/item_order_dialog.dart`, `test/item_order_dialog_test.dart`, `doc/item_manager_modify.txt`. 기존 unrelated `lib/core/app.dart`와 `SESSION_HANDOFF.md`는 기능 커밋에서 제외한다.
+- 기능·테스트·문서 커밋: `ec73c1b` (`품목 순서 변경에 공용 드래그 테이블 적용`). 라벨 설정 공용 드래그 테이블과 동일한 우측 이동 rail 보완까지 포함한다.
+
 ### 완료 (2026-07-12): 품목 추가·삽입 메뉴 활성 표시
 
 - 사용자 재현: 행 선택 상태에서 품목 popup의 `품목 추가`/`품목 삽입`이 비활성처럼 보인다.
