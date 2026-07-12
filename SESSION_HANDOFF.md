@@ -28,6 +28,19 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-12): 품목 추가·삽입 메뉴 활성 표시
+
+- 사용자 재현: 행 선택 상태에서 품목 popup의 `품목 추가`/`품목 삽입`이 비활성처럼 보인다.
+- 원인: 개수 `TextField`를 클릭해도 popup이 자동 종료되지 않게 바깥 `PopupMenuItem.enabled=false`를 사용하고 내부 `InkWell`/`TextField`만 활성화했으나, disabled 기본 텍스트 스타일이 내부 라벨과 `개` 단위에 상속된다. 편집 권한·controller·행 선택 조건이 충족되면 기능은 이미 활성이다.
+- 편집 완료 `lib/page_home/item_manage.dart`: `_countMenuItem`의 라벨·단위 색상과 마우스 커서를 내부 `enabled` 조건에 맞춰 렌더링한다. 수량 입력 중 popup 유지 동작은 보존한다.
+- 테스트 추가 `test/fortune_table_test.dart`: draft 행 선택 후 `품목 추가`/`품목 삽입`의 on-surface 색상과 두 수량 입력창의 활성 상태를 검증한다.
+- focused 검증 완료: `ItemManage adds and confirms deletion of a draft row` 1개 통과. 포맷 완료.
+- 부분 검증 완료: 변경 파일 diagnostics 오류 0건, `test/fortune_table_test.dart` 33개 통과.
+- 전체 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 이슈 0건, 전체 테스트 3,346개 통과.
+- 정리 완료: 전체 테스트가 생성한 추적되지 않은 `third_party/fortune_sheet/build` 캐시를 삭제했다. `git diff --check` 이상 없음.
+- 기능 커밋 완료: `1026e01 품목 추가 삽입 메뉴 활성 상태 표시`. 커밋 diff 재검토 결과 의도한 `_countMenuItem` 및 회귀 테스트 변경만 포함한다.
+- 인수인계 commit 대상: `SESSION_HANDOFF.md`만 별도 커밋한다. 기존 unrelated `lib/core/app.dart`는 제외한다.
+
 ### 완료 (2026-07-12): 품목 팝업 메뉴 선택 후 닫힘 보장
 
 - 사용자 재현: 품목 삭제를 선택한 뒤 확인 질의에서 `계속 편집`을 누르면 품목 팝업 메뉴가 계속 남는다.
