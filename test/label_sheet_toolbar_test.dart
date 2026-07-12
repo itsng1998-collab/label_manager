@@ -2721,6 +2721,29 @@ void main() {
     );
   });
 
+  testWidgets('fortune sheet page gives hidden footer height to the grid', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: SizedBox(width: 400, height: 300, child: LabelSheetPage()),
+      ),
+    );
+    await tester.pump();
+
+    final sheetApp = tester.widget<FortuneSheetApp>(
+      find.byType(FortuneSheetApp),
+    );
+    final sheetPainter = tester
+        .widgetList<CustomPaint>(find.byType(CustomPaint))
+        .map((paint) => paint.painter)
+        .whereType<FortuneSheetPainter>()
+        .first;
+    expect(sheetApp.showSheetTabs, isFalse);
+    expect(sheetPainter.workbook.settings.effectiveSheetBarHeight, 0);
+    expect(sheetPainter.workbook.settings.statisticBarHeight, 0);
+  });
+
   testWidgets(
     'fortune sheet page ignores zero label size during initial load',
     (tester) async {

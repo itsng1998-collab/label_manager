@@ -169,6 +169,7 @@ class LabelSheetPage extends StatelessWidget {
         onBeforeSheetDialog: onBeforeSheetDialog,
         onSheetDialogClosed: onSheetDialogClosed,
         imageImportController: imageImportController,
+        hideStatisticBar: true,
         onSave: (width, height, encodedWorkbook) =>
           _handleSaveLabelSheet(context, width, height, encodedWorkbook),
       ),
