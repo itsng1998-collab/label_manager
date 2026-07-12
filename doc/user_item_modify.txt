@@ -14,7 +14,8 @@
 - 사용 항목의 상세 속성은 별도 모달을 열지 않고 왼쪽 속성 패널에서 편집한다.
 - 속성 편집, 순서 변경, 사용자 항목 설정은 동시에 열리지 않는 상호 배타 상태로 관리한다.
 - 사용 항목 DB 저장은 신규, 수정, 삭제, 순서, 보조 테이블 및 기존 품목의 빈 컬럼 콘텐츠를 하나의 SQL Server 트랜잭션으로 반영한다.
-- DB transaction commit 전에는 working copy를 확정하지 않는다. commit 성공 후에는 같은 저장 command를 다시 실행할 수 없는 `committedReloadPending` 상태로 전환하고 `HomePageManager`가 현재 라벨 크기 세션 전체를 같은 generation으로 강제 재로드한다. reload가 실패해도 DB 저장 실패로 취급하거나 저장 command를 재시도하지 않고, 부분 cache를 노출하지 않은 채 reload만 다시 실행한다.
+- DB transaction commit 전에는 working copy를 확정하지 않는다. commit 성공 후에는 같은 저장 command를 다시 실행할 수 없는 `committedReloadPending` 상태로 전환하고 `HomePageManager`가 현재 라벨 크기 세션 전체를 하나의 immutable bundle과 같은 generation으로 강제 재로드한다. reload가 실패해도 DB 저장 실패로 취급하거나 저장 command를 재시도하지 않고, 부분 cache를 노출하지 않은 채 reload만 다시 실행한다.
+- commit 응답이 유실된 `DbCommitOutcomeUnknown`은 재조회만으로 해당 operation의 실제 commit 여부를 단정하지 않는다. original/desired fingerprint와 현재 DB 상태를 비교해 `desiredStateObserved`, `originalStateObserved`, `indeterminate` 3상태로 reconciliation하고, 정확한 operation 귀속이나 자동 멱등 재시도가 필요하면 별도 operation ID ledger 또는 저장 stored procedure를 선행한다.
 
 2. 현재 프로젝트 기준점
 
@@ -48,13 +49,14 @@
 - 고객별 사용자 항목 설정 모드
 - 속성별 입력 UI와 검증
 - 사용 항목 및 사용자 항목 모델/DAO/transaction
+- 컬럼 구조 저장과 품목 저장이 공유하는 label-size 단위 DB lock protocol
 - 저장 후 `HomePageManager` 소유 label-size 세션 전체 강제 재로드
 - widget/model/DAO/transaction 회귀 테스트
 
 3.2 제외 범위
 
 - 공용라벨 시트 workbook 자체의 셀/서식 저장 포맷 변경
-- 품목관리의 기존 품목 값 편집 기능 변경
+- 품목관리의 기존 품목 값 편집 기능 변경. 단, 컬럼 구조 저장과의 동시 쓰기를 막기 위해 기존 품목 저장 DAO가 같은 label-size DB lock protocol을 획득하는 최소 변경은 포함한다.
 - 레거시 SpreadSheet OCX UI 복제
 - 레거시의 비어 있는 `InsertColumnsToLogDB()`를 근거 없이 새 로그 테이블로 구현하는 작업
 - DB 스키마를 임의 변경하는 작업. 스키마 변경이 필요하면 별도 SQL과 배포 절차를 먼저 합의한다.
@@ -97,7 +99,8 @@
 - 미저장 변경이 있으면 `변경 내용을 취소하고 닫으시겠습니까?`를 질의한다. 확인한 경우에만 원본 snapshot으로 복원하고 닫는다.
 - 창 닫기 아이콘과 Esc도 메인 `취소`와 같은 guard를 거친다.
 - 현재 `BlockingModelessDialog`는 wrapper가 primary focus일 때만 key를 소비하고 Esc 취소 callback이 없다. 공용 위젯에 optional `onEscape` callback을 추가하고 TextField/dropdown 등 child가 focus를 가진 상태에서도 Esc를 바깥 shortcut으로 전달하지 않고 callback을 정확히 한 번 호출하도록 key 처리 경계를 수정한다. callback 기본값은 기존 동작을 유지한다.
-- `reorder` 또는 `userItemEdit` 모드에서 창 닫기/Esc를 누르면 메인 취소를 바로 실행하지 않는다. 먼저 현재 전용 모드의 취소 guard를 실행해 `normal`로 돌아가며, 사용자가 다시 닫기를 요청했을 때만 메인 close guard를 실행한다. DB busy 또는 `committedReloadPending`에서는 Esc와 창 닫기를 소비만 하고 상태를 변경하지 않는다.
+- `reorder` 또는 `userItemEdit` 모드에서 창 닫기/Esc를 누르면 메인 취소를 바로 실행하지 않는다. 먼저 현재 전용 모드의 취소 guard를 실행해 `normal`로 돌아가며, 사용자가 다시 닫기를 요청했을 때만 메인 close guard를 실행한다. DB busy, `commitOutcomeReconciling`, `committedReloadPending`에서는 Esc와 제목 표시줄 닫기를 소비만 하고 상태를 변경하지 않는다.
+- commit 후 reload 실패 상태는 `committedReloadFailed`로 분리한다. 이 상태에서도 Esc와 제목 표시줄 닫기는 소비하고, read-only 오류 화면의 명시적 `화면 닫기` 버튼만 overlay를 닫을 수 있다. 이 버튼은 상위 `force-reload-required`를 해제하지 않으며 저장 command도 실행하지 않는다.
 - `normal` 이외의 전용 모드 또는 DB command 실행 중에는 메인 footer의 `취소`와 `저장`을 비활성화한다.
 
 5. 편집 상태 모델
@@ -112,7 +115,7 @@
 
 `reorder`와 `userItemEdit`는 동시에 true가 될 수 없다. 여러 boolean 조합으로 유효하지 않은 상태가 생기지 않도록 단일 mode를 source of truth로 사용한다.
 
-DB 조회/저장 중에는 별도 busy state를 두고 중복 command, 다중 route, 중복 저장을 막는다.
+DB 조회/저장 중에는 별도 busy state를 두고 중복 command, 다중 route, 중복 저장을 막는다. post-commit 상태는 최소 `commitOutcomeReconciling`, `committedReloadPending`, `committedReloadFailed`로 구분하고 `normal`/busy boolean 조합으로 표현하지 않는다.
 
 5.2 사용 항목 working copy
 
@@ -255,7 +258,7 @@ guard callback 안에서 이벤트별 로직을 복제하지 말고 `Future<bool
 
 - `고정 항목` 선택 시 고정 항목 분류 dropdown을 활성화한다.
 - 분류는 레거시 `BM_RICH_FIX_COL_TYPE`의 ID와 이름을 조회한다. 배포 스키마에 별도 순서 컬럼이 없으므로 `RICH_FIX_COL_TYPE_ID ASC`를 결정적 표시 순서로 사용한다. 향후 별도 사용자 정렬이 필요하면 이번 기능과 분리된 DB 스키마 변경으로 처리한다.
-- 선택 분류의 후보는 `BM_RICH_FIX_COLUMN`에서 조회하고 키워드, 항목명, 종류를 표시한다.
+- 선택 분류의 후보는 `BM_RICH_FIX_COLUMN`에서 조회하고 키워드, 항목명, 종류를 표시한다. 후보 query에는 실제 primary key가 확인되면 해당 ID ASC, 없으면 정규화한 키워드 ASC, 종류 ASC, 항목명 ASC의 결정적 `ORDER BY`를 둔다. DB 반환 순서를 암묵적으로 사용하지 않는다.
 - 분류를 바꾸면 후보 선택을 해제하고 해당 분류 목록을 다시 표시한다.
 
 8.2 사용 항목으로 추가
@@ -272,6 +275,7 @@ guard callback 안에서 이벤트별 로직을 복제하지 말고 `Future<bool
 
 - `사용자 항목` 선택 시 현재 로그인 고객 ID의 `BM_RICH_CUST_COLUMN`을 조회한다.
 - 키워드, 항목명, 종류를 표시한다.
+- 후보는 `RICH_CUST_COLUMN_ID ASC`로 결정적으로 정렬하고 재조회 뒤에도 stable ID로 선택을 복원한다.
 - 선택 행을 왼쪽 화살표 또는 사용 항목 테이블 drop으로 추가한다.
 - 추가 시 고객별 사전 row를 직접 연결하지 않고 레거시처럼 현재 라벨 크기의 신규 `TColumn` draft로 복사한다. 이후 사용자 항목 사전을 수정해도 이미 추가된 사용 항목은 자동 변경하지 않는다.
 - 사용자 항목 테이블의 좌상단 헤더 교차 영역에는 `항목 편집` 아이콘과 tooltip을 둔다.
@@ -292,7 +296,7 @@ guard callback 안에서 이벤트별 로직을 복제하지 말고 `Future<bool
 - 키워드 입력은 레거시처럼 즉시 대문자로 정규화한다.
 - 키워드는 ASCII 영문과 숫자만 허용한다. 한글, 공백, 기호가 들어오면 저장하지 않고 해당 셀에 오류를 표시한다.
 - 종류 컬럼의 모든 셀을 dropdown으로 바꾼다.
-- 종류 목록은 레거시와 동일한 DB `BM_RICH_COLUMN_TYPE` 목록을 `RICH_COLUMN_TYPE_ORDER` 순서로 사용한다. 임의의 축약 목록을 하드코딩하지 않는다.
+- 종류 목록은 DB `BM_RICH_COLUMN_TYPE`을 `RICH_COLUMN_TYPE_ORDER`, `RICH_COLUMN_TYPE_CODE` 순서로 조회하되 공통 `editableColumnTypes` 정책으로 type code 0~12만 제공한다. `TYPE_END_OF_CULUMN(13)` sentinel과 미지원 raw type은 사용자 항목 dropdown에도 표시·추가·저장하지 않으며 임의의 축약 목록을 별도로 하드코딩하지 않는다.
 - 신규/수정 행의 키워드와 항목명은 필수이며 고객별 사용자 항목 목록 안에서 키워드 중복을 허용하지 않는다.
 - 셀 값이 바뀔 때마다 원본 snapshot과 content 비교로 `userItemDirty`를 계산한다.
 
@@ -309,8 +313,9 @@ guard callback 안에서 이벤트별 로직을 복제하지 말고 `Future<bool
 - `저장`은 `userItemDirty=true`, 모든 행 validation 성공, busy=false일 때만 활성화한다.
 - 클릭하면 `사용자 항목 설정 변경을 저장하시겠습니까?`를 질의한다.
 - 확인 시 신규/수정/삭제를 하나의 DB transaction으로 저장한다.
+- 저장 command는 진입 시 customer-scoped 원본 목록의 정규화 original fingerprint와 working copy의 desired fingerprint를 필수로 가진다. transaction에서 같은 customer 범위를 공통 customer-column DB lock과 `UPDLOCK, HOLDLOCK`으로 다시 읽고 fingerprint가 다르면 어떤 CRUD도 실행하지 않은 채 conflict로 rollback한다.
 - 성공하면 DB에서 사용자 항목 후보를 재조회하고 `normal` 모드로 돌아간다.
-- 실패하면 모드를 유지하고 working copy를 보존한다.
+- commit 전 실패는 모드를 유지하고 working copy를 보존해 재시도를 허용한다. `DbCommitOutcomeUnknown`은 11.2와 같은 desired/original/indeterminate reconciliation을 수행하고 동일 command 자동 재실행을 금지한다.
 - `취소`는 변경이 있으면 `사용자 항목 설정 변경을 취소하시겠습니까?`를 질의하고, 확인 시 snapshot으로 되돌린 뒤 `normal`로 돌아간다.
 - 모드 종료 시 좌상단 `항목 추가` 아이콘을 다시 `항목 편집` 아이콘으로 바꾼다.
 
@@ -364,12 +369,13 @@ guard callback 안에서 이벤트별 로직을 복제하지 말고 `Future<bool
 11.2 저장 결과
 
 - `저장` 확인 후 12장의 단일 transaction을 실행한다.
-- DB transaction 실패 또는 commit 결과 미확정이면 오류 상태를 구분해 표시한다. commit 전에 확실히 실패한 경우에만 다이얼로그와 working copy를 편집 가능한 상태로 유지하고 저장 재시도를 허용한다. `DbCommitOutcomeUnknown`이면 재저장을 금지하고 DB 재조회로 실제 반영 여부를 판정한다.
+- DB transaction 실패 또는 commit 결과 미확정이면 오류 상태를 구분해 표시한다. commit 전에 확실히 실패한 경우에만 다이얼로그와 working copy를 편집 가능한 상태로 유지하고 저장 재시도를 허용한다. `DbCommitOutcomeUnknown`이면 `commitOutcomeReconciling`으로 전환하고 동일 save command 재실행을 금지한다.
+- reconciliation은 current DB fingerprint를 original/desired fingerprint와 비교한다. desired와만 일치하면 `desiredStateObserved`로 보고 reload-only 경로로 이동하고, original과만 일치하면 `originalStateObserved`로 표시한 뒤 DB에서 새 snapshot을 만들어 사용자가 새 command를 명시적으로 생성할 때만 재저장을 허용한다. 둘 다 일치하거나 둘 다 불일치하거나 재조회가 실패하면 `indeterminate`로 두고 `force-reload-required`와 수동 확인을 요구한다. 이 비교 결과를 해당 operation의 commit 여부로 로그/문구에서 단정하지 않는다.
 - commit 성공 즉시 dialog session을 `committedReloadPending`으로 전환하고 저장/편집/닫기를 차단한다. 이 상태에서는 동일 save command를 다시 실행하지 않는다.
-- `HomePageManager`는 컬럼, 특수 컬럼, scoped column content, 품목 목록/raw snapshot, validation rule, 새 `ItemManagerDraftController`, journal fingerprint, 공용라벨 required keyword/image/barcode 정보와 출력 미리보기를 담은 candidate label-size session을 전역 상태와 분리해 완전히 생성한다.
-- candidate는 controller, journal metadata, storage 접근과 baseline 검증까지 수행하되 기존 journal과 같은 draft key의 listener를 미리 시작하지 않는다. load generation과 immutable customer/market/labelSize context가 여전히 일치할 때 `HomePageManager`의 단일 session handoff API가 기존 clean journal 정지, candidate journal 활성화, 전역 session swap을 순서대로 소유한다. candidate journal 활성화나 swap이 실패하면 기존 controller/journal/listener를 복원하고 candidate를 폐기하며, 복원이 불가능한 경우에만 `force-reload-required`로 잠근다. 오래된 generation의 완료 결과는 handoff 전에 폐기한다.
+- `HomePageManager`는 컬럼, 특수 컬럼, scoped column content, 품목 목록/raw snapshot, validation rule, 새 `ItemManagerDraftController`, journal fingerprint, 공용라벨 required keyword/image/barcode 정보와 출력 미리보기를 하나의 immutable `LabelSizeSessionBundle`에 담아 전역 상태와 분리해 완전히 생성한다. `TColumn.datas`, `TColumnContent.datas`, `TColumnSpecial.datas`, `ItemOfMarket.datas` 같은 개별 static cache를 순차 교체하는 방식은 atomic swap으로 간주하지 않는다. 관련 화면은 bundle 또는 단일 session accessor를 읽도록 전환한다.
+- candidate는 controller, journal metadata, storage 접근과 baseline 검증을 부작용 없는 `prepare` 단계까지 수행하고 기존 journal과 같은 draft key의 listener를 미리 시작하거나 이전 파일을 정리하지 않는다. journal API에 `prepare`, `suspend(clearFile: false)`, `activate`, `resume`, `dispose` 또는 동등한 2단계 lifecycle과 draft-key lease를 추가한다. load generation과 immutable customer/market/labelSize context가 여전히 일치할 때 `HomePageManager`의 단일 session handoff API가 기존 clean journal suspend, candidate activate, bundle reference swap, 기존 journal dispose를 순서대로 소유한다. activate/swap이 실패하면 candidate를 dispose하고 기존 journal을 resume하며, 복원이 불가능한 경우에만 `force-reload-required`로 잠근다. 오래된 generation의 완료 결과는 handoff 전에 폐기한다.
 - swap 완료 후 render가 취소되거나 실패하면 상위 상태를 `force-reload-required`로 전환해 후속 편집을 차단한다. 이미 commit된 DB를 되돌리거나 save command를 재실행하지 않는다.
-- reload 성공 후에만 다이얼로그를 닫는다. reload 실패 시 다이얼로그는 committed/read-only 오류 화면으로 유지하고 `다시 불러오기`만 제공한다. 사용자가 닫기를 선택해도 상위 `force-reload-required` 차단은 유지한다.
+- reload 성공 후에만 다이얼로그를 자동으로 닫는다. reload 실패 시 `committedReloadFailed` read-only 오류 화면으로 유지하고 `다시 불러오기`와 명시적 `화면 닫기` 버튼을 제공한다. 제목 표시줄 닫기/Esc는 계속 소비하며, `화면 닫기`로 overlay를 닫아도 상위 `force-reload-required` 차단은 유지한다.
 
 12. DB 모델과 DAO
 
@@ -384,6 +390,7 @@ guard callback 안에서 이벤트별 로직을 복제하지 말고 `Future<bool
 - `CustomerColumnCandidate`: custColumnId, customerId, 타입, 키워드, 항목명
 - `CustomerColumnEditSession`: 사용자 항목 original/working/deleted 상태
 - `LabelColumnSaveCommand`: labelSizeId, insert/update/delete 목록, 최종 순서 및 저장 context
+- `LabelSizeSessionBundle`: 같은 generation의 컬럼/콘텐츠/품목/controller/journal/validation/미리보기 입력 전체를 소유하는 immutable 상위 세션
 
 `TColumn`에 UI 임시 상태를 넣지 않는다. 저장 command는 widget 상태를 직접 참조하지 않는 immutable DTO로 만든다.
 
@@ -407,15 +414,17 @@ guard callback 안에서 이벤트별 로직을 복제하지 말고 `Future<bool
 
 12.2 조회 DAO
 
-- 현재 사용 항목: 기존 `TColumnDAO.selectByLabelSizeId`
+- 현재 사용 항목: 편집기 전용 raw-row DAO 또는 raw 필드를 보존하도록 확장한 `TColumnDAO.selectByLabelSizeId`. 기존 mapper처럼 미지원 type/QR alignment/QR create type/barcode type을 fallback 값으로 치환한 결과를 편집기 snapshot으로 사용하지 않는다.
 - 고정 항목 분류: `BM_RICH_FIX_COL_TYPE`, `RICH_FIX_COL_TYPE_ID ASC`로 정렬
 - 고정 항목 후보: `BM_RICH_FIX_COLUMN`, 선택한 type ID 조건
 - 사용자 항목 후보: `BM_RICH_CUST_COLUMN`, 현재 로그인 customer ID 조건
 - 항목 종류: 기존 `TColumnType.datas`; 미초기화 상태면 DB 조회 후 dialog를 표시한다.
 
-모든 조회 문자열은 현재 프로젝트 DAO 규칙에 맞춰 CP949 컬럼을 명시적으로 NVARCHAR로 변환한다. 저장 문자열은 capability probe의 `sys.columns.max_length`, nullable, collation 결과로 필드별 byte limit을 만들고 Dart validation과 SQL validation 양쪽에서 확인한다. 사용자/거래처 ID를 화면 표시값에서 추정하지 말고 로그인 세션의 명시적 customer ID를 전달한다.
+모든 조회 문자열은 현재 프로젝트 DAO 규칙에 맞춰 CP949 컬럼을 명시적으로 NVARCHAR로 변환한다. 저장 capability는 `sys.columns`에서 필드별 `typeName`, `maxLength`, `isUnicode`, `isMax`, `nullable`, `collation`을 수집한다. `max_length=-1`은 MAX로, `NVARCHAR/NCHAR`의 양수 `max_length`는 UTF-16 byte 단위로, `VARCHAR/CHAR`는 대상 code page byte 단위로 해석해 하나의 문자 수 제한으로 혼용하지 않는다. 사용자/거래처 ID를 화면 표시값에서 추정하지 말고 로그인 세션의 명시적 customer ID를 전달한다.
 
-Windows는 ODBC, 비Windows는 DB-Lib driver를 사용하므로 parameter 계약을 ODBC에만 한정하지 않는다. 두 driver 모두 Unicode JSON scalar parameter, `NVARCHAR(MAX)`, 작은따옴표, 한글, 4,000자 초과 payload와 최종 단일 결과셋을 동일하게 처리해야 한다. 현 DB-Lib 사용자 `SYBNVARCHAR` parameter의 UTF-16 길이 계산을 먼저 검증하고 잘못된 경우 공용 driver에서 수정한 뒤 이 기능을 구현한다.
+JSON의 문자열 값은 `OPENJSON ... WITH NVARCHAR(MAX)` staging table에 먼저 보존하고, staging 값에서 nullability, target collation 변환 후 `DATALENGTH`, Unicode→대상 type→Unicode round-trip 동일성을 검증한 다음 명시적으로 대상 SQL 타입으로 변환한다. `OPENJSON WITH VARCHAR(n)`로 곧바로 파싱해 검증 전에 잘린 값을 저장하지 않는다. Dart CP949 validator도 encode 성공만 보지 않고 encode→decode round-trip이 원문과 동일한지 확인한다.
+
+Windows는 ODBC, 비Windows는 DB-Lib driver를 사용하므로 parameter 계약을 ODBC에만 한정하지 않는다. 두 driver 모두 Unicode JSON scalar parameter, `NVARCHAR(MAX)`, 작은따옴표, 한글, 4,000자 초과 payload와 최종 단일 결과셋을 동일하게 처리해야 한다. 현 DB-Lib 사용자 `SYBNVARCHAR` parameter의 UTF-16 길이 계산을 먼저 검증하고, binding API가 요구하는 byte length와 UTF-16 code-unit length를 공용 helper 한 곳에서 구분해 사용하도록 수정한 뒤 이 기능을 구현한다.
 
 12.3 사용자 항목 저장 DAO
 
@@ -423,6 +432,7 @@ Windows는 ODBC, 비Windows는 DB-Lib driver를 사용하므로 parameter 계약
 
 - SQL은 `SET XACT_ABORT ON`, `SET NOCOUNT ON`과 validation `THROW`를 포함한 단일 parameterized batch로 작성하되 batch 내부에 `BEGIN TRANSACTION`, `COMMIT`, `ROLLBACK`을 넣지 않는다.
 - DAO는 해당 batch를 `DbClient.transaction([DbTransactionStatement(..., returnsRows: true)])` 한 문장으로 실행한다. 외부 transaction API와 SQL 내부 transaction을 중첩하지 않는다.
+- transaction 첫 단계에서 `label-manager:customer:{customerId}:cust-column` 같은 결정적 resource를 `sys.sp_getapplock @LockMode='Exclusive', @LockOwner='Transaction'`으로 획득하고, 음수 return code는 conflict/timeout으로 `THROW`한다. 현재 customer 원본 목록을 `UPDLOCK, HOLDLOCK`으로 재조회해 command original fingerprint와 비교하고 불일치하면 전체 rollback한다.
 - 신규: `BM_RICH_CUST_COLUMN(RICH_CUSTOMER_ID, RICH_KEYWORD, RICH_COLUMN_NAME, RICH_TYPE)` insert
 - 수정: 현재 customer ID와 custColumnId를 함께 조건으로 update
 - 삭제: 현재 customer ID와 custColumnId를 함께 조건으로 delete
@@ -434,20 +444,21 @@ Windows는 ODBC, 비Windows는 DB-Lib driver를 사용하므로 parameter 계약
 레거시의 저장 범위를 유지하면서 동시성과 실패 처리를 보완한다.
 
 1. `DbClient.transaction()`이 외부 transaction 시작
-2. 현재 labelSizeId와 기존 column ID의 소유권 검증
-3. 신규 입력 JSON을 `ROW_NO`, `DRAFT_COLUMN_KEY`를 가진 table variable로 정규화하고, 각 행 insert의 `OUTPUT INSERTED.RICH_COLUMN_ID INTO @CapturedColumns` 결과를 같은 row의 draft key와 결합
-4. 신규/기존 `BM_RICH_COL_MIN` upsert
-5. 신규/기존 `BM_RICH_CHECK_COLUMNS` upsert
-6. 신규 컬럼마다 해당 label size의 기존 `BM_RICH_ITEM`에 `BM_RICH_COL_CONTENT` 빈 값 insert
-7. 레거시 update 품목 테이블을 현 DB가 실제 사용하면 `BM_UPDATE_COL_CONTENT` 빈 값 insert. 테이블/기능이 현재 프로젝트에서 사용되지 않는다고 확인되면 근거를 문서화하고 제외
-8. 기존 `BM_RICH_COLUMN` 전체 속성 및 최종 order update
-9. `BM_GS1_COLUMN_INFO` upsert/delete
-10. `BM_GS1_CONTAIN_COLUMN`을 최종 working copy 관계와 일치하도록 insert/delete
-11. 삭제 대상의 status date 갱신 및 종속 데이터 정리 후 `BM_RICH_COLUMN` delete
-12. 모든 affected row와 최종 order/keyword uniqueness 검증
-13. batch 최종 단일 `SELECT` 반환 후 `DbClient.transaction()`이 commit
+2. `label-manager:label-size:{labelSizeId}:schema-content` 같은 결정적 resource를 `sys.sp_getapplock @LockMode='Exclusive', @LockOwner='Transaction'`으로 획득하고 음수 return code면 `THROW`
+3. 현재 labelSizeId와 기존 column ID의 소유권 및 original fingerprint 검증
+4. 신규 입력 JSON을 `ROW_NO`, `DRAFT_COLUMN_KEY`를 가진 table variable로 정규화하고, 각 행 insert의 `OUTPUT INSERTED.RICH_COLUMN_ID INTO @CapturedColumns` 결과를 같은 row의 draft key와 결합
+5. 신규/기존 `BM_RICH_COL_MIN` upsert
+6. 신규/기존 `BM_RICH_CHECK_COLUMNS` upsert
+7. 신규 컬럼마다 해당 label size의 기존 `BM_RICH_ITEM`에 `BM_RICH_COL_CONTENT` 빈 값 insert
+8. 레거시 update 품목 테이블을 현 DB가 실제 사용하면 `BM_UPDATE_COL_CONTENT` 빈 값 insert. 테이블/기능이 현재 프로젝트에서 사용되지 않는다고 확인되면 근거를 문서화하고 제외
+9. 기존 `BM_RICH_COLUMN` 전체 속성 및 최종 order update
+10. `BM_GS1_COLUMN_INFO` upsert/delete
+11. `BM_GS1_CONTAIN_COLUMN`을 최종 working copy 관계와 일치하도록 insert/delete
+12. 삭제 대상의 status date 갱신 및 종속 데이터 정리 후 `BM_RICH_COLUMN` delete
+13. 모든 affected row와 최종 order/keyword uniqueness 검증
+14. batch 최종 단일 `SELECT` 반환 후 `DbClient.transaction()`이 commit
 
-저장 command의 insert/update/delete/GS1 관계 목록은 JSON scalar parameter로 전달하고 SQL의 `OPENJSON ... WITH`에서 명시적 SQL 타입으로 변환한다. JSON payload가 4,000자를 넘는 정상 대량 저장도 잘리지 않도록 Windows ODBC와 비Windows DB-Lib의 `NVARCHAR(MAX)` binding 경로를 각각 검증한다.
+저장 command의 insert/update/delete/GS1 관계 목록은 JSON scalar parameter로 전달하고 SQL의 `OPENJSON ... WITH NVARCHAR(MAX)` staging 후 검증된 값만 명시적 대상 SQL 타입으로 변환한다. JSON payload가 4,000자를 넘는 정상 대량 저장도 잘리지 않도록 Windows ODBC와 비Windows DB-Lib의 `NVARCHAR(MAX)` binding 경로를 각각 검증한다.
 
 신규 ID는 레거시 `SelectLastNRecord()` 방식으로 찾지 않는다. trigger와 driver의 결과셋 처리에 안전하도록 direct `OUTPUT` resultset을 중간에 노출하지 않고, 기존 품목 저장처럼 `ROW_NO` 순회 insert마다 `OUTPUT INSERTED... INTO`로 ID를 수집한 뒤 해당 `DRAFT_COLUMN_KEY`와 결합한다. 검증된 SQL Server `MERGE ... OUTPUT source.DRAFT_COLUMN_KEY, inserted.ID` 대안을 사용할 수 있지만 입력/출력 key 결합을 실행계획의 행 순서에 의존해서는 안 된다. batch 외부에는 저장 성공 정보와 draft key/column ID 매핑을 담은 하나의 최종 `SELECT`만 반환하며, Dart에서 mapping 개수, key 유일성, ID 유일성을 재검증한다.
 
@@ -465,7 +476,7 @@ Windows는 ODBC, 비Windows는 DB-Lib driver를 사용하므로 parameter 계약
 
 transaction 실행 전 또는 capability cache 초기화 시 `sys.tables`, `sys.columns`, `sys.foreign_keys`, `sys.triggers`로 실제 배포 스키마를 확인한다. FK cascade에 암묵적으로 의존하지 않는다. 실제 cascade가 확인되면 중복 delete를 피하되 DAO 테스트에 그 전제를 기록한다.
 
-QR/기본 사용자 정의 참조의 source of truth는 `RICH_NATRIUM_JOIN_STRING`과 `RICH_USER_DEFINE_QRDATA` 안의 구조화된 token이다. `#ABC`가 `#ABCD`와 일치하지 않도록 문자열 substring 검색이 아닌 나트륨 parser와 정확한 `#KEYWORD` token parser를 사용한다. 이번 기능에서는 참조 token의 자동 rewrite를 구현하지 않고, 참조 대상 키워드 변경/삭제를 먼저 차단한다.
+QR/기본 사용자 정의 참조의 source of truth는 `RICH_NATRIUM_JOIN_STRING`, `RICH_USER_DEFINE_QRDATA`, `RICH_USER_DEFINE_QRTEXT` 안의 구조화된 token이다. 편집기와 실제 출력 `ItemCodeDataResolver`가 같은 공용 parser/replacer를 사용하고, token을 길이 우선 순차 `replaceAll`로 처리하지 않는다. `#ABC`가 `#ABCD`와 일치하지 않도록 나트륨 parser와 경계가 있는 정확한 `#KEYWORD` token parser를 사용한다. 이번 기능에서는 참조 token의 자동 rewrite를 구현하지 않고, 참조 대상 키워드 변경/삭제를 먼저 차단한다.
 
 `BM_COLUMN_QRCODE_INFO`는 레거시 DAO가 존재하지만 활성 항목 편집 저장 경로에서 insert/update 사용이 확인되지 않았으므로 기본 계약에서는 authoritative 관계나 upsert 대상으로 간주하지 않는다. capability 및 실제 운영 데이터 조사로 사용 주체가 확인되기 전에는 삭제 컬럼의 orphan 방지 cleanup만 수행한다. 사용 중인 정식 관계로 확인되면 별도 조회/working relation/upsert 계약과 migration 테스트를 추가한 뒤 사용한다.
 
@@ -503,8 +514,9 @@ QR/기본 사용자 정의 참조의 source of truth는 `RICH_NATRIUM_JOIN_STRIN
 - 저장 command는 generation 또는 in-flight Future로 중복 실행을 막는다.
 - 저장 중 dialog close, mode 전환, drag/drop, 행 선택을 막는다.
 - 저장 성공 후 상위 widget이 dispose됐으면 setState하지 않되 DAO transaction 결과는 유실하지 않는다.
-- `LabelColumnSaveCommand`는 dialog open 시점의 기존 컬럼 및 `BM_RICH_CHECK_COLUMNS`, GS1 정보/포함 관계를 정규화한 `originalFingerprint`를 필수로 가진다.
-- save transaction 안에서 대상 label size의 기존 행과 관계를 `UPDLOCK, HOLDLOCK`으로 다시 읽어 같은 정규화 규칙으로 fingerprint를 계산한다. 원본과 다르면 어떤 update/delete도 실행하지 않고 conflict 오류로 rollback하며 재조회 안내를 표시한다. row version 컬럼이 실제 스키마에 있으면 fingerprint 대신 또는 함께 사용할 수 있다.
+- `LabelColumnSaveCommand`는 dialog open 시점의 기존 컬럼, `BM_RICH_COL_MIN` 일반/sentinel 행, `BM_RICH_CHECK_COLUMNS`, GS1 정보/포함 관계 및 저장 batch가 변경하는 관계 상태를 정규화한 `originalFingerprint`와 목표 상태의 `desiredFingerprint`를 필수로 가진다.
+- 컬럼 구조 save와 품목 save는 같은 label-size resource 이름, exclusive transaction ownership, lock timeout, 획득 순서를 사용하는 DB application lock protocol을 공유한다. 컬럼 구조 save는 lock 획득 후 대상 label size의 기존 행과 관계를 `UPDLOCK, HOLDLOCK`으로 다시 읽어 fingerprint를 계산한다. 원본과 다르면 어떤 update/delete도 실행하지 않고 conflict 오류로 rollback한다. 품목 save도 같은 lock을 모든 item/content read/write 전에 획득한다. 여러 resource가 필요하면 customer→label-size처럼 전역 순서를 하나로 고정한다.
+- application lock은 이 protocol을 사용하는 writer 사이에서만 유효하다. 레거시 앱, trigger, 외부 stored procedure처럼 lock을 사용하지 않는 writer가 운영 중이면 실제 item/content/column range에 필요한 `UPDLOCK, HOLDLOCK`과 FK/trigger 동작을 함께 검증하고, 공통 protocol 적용 또는 운영상 배타 조건 없이는 동시성 완료로 판정하지 않는다. row version 컬럼이 실제 스키마에 있으면 fingerprint 대신 또는 함께 사용할 수 있다.
 - 로그는 operation/trace, labelSizeId, customerId, insert/update/delete 개수, mode 전환, 성공/실패만 기록한다. 키워드 본문, 사용자 정의 QR 데이터, 비밀번호 등 실제 payload는 기록하지 않는다.
 - 로그는 상태 관찰용이며 저장 여부나 분기를 결정하는 비즈니스 로직으로 사용하지 않는다.
 
@@ -529,11 +541,13 @@ QR/기본 사용자 정의 참조의 source of truth는 `RICH_NATRIUM_JOIN_STRIN
 - duplicate keyword/빈 필드/type별 validation
 - 제목 CP949 20바이트 경계: 한글, 영문, 혼합, CP949 변환 불가 문자
 - 모든 DB 문자열의 field별 CP949 byte 경계, nullability, 변환 불가 문자 거부
+- CP949 encode→decode round-trip, VARCHAR/NVARCHAR/MAX capability 단위, NVARCHAR(MAX) staging 후 target 변환 검증
 - persisted field allow-list가 runtime-only `TColumn` 필드를 제외함
 - type code 13 제외, 0~12 editor 매핑, 미지원 raw enum 보존과 저장 차단
+- 사용자 항목 dropdown도 공통 editable type 0~12만 노출하고 type 13을 제외함
 - QR 수치 범위 및 타입 변경 초기화 매핑
 - 누락 검사 check table/main legacy flag 충돌 시 source of truth와 동기화
-- QR/기본/GS1 참조 관계 계산
+- QR data/QR 하단 text/나트륨/GS1 참조 관계 계산과 prefix keyword exact-token 처리
 - reorder 후 1부터 연속 order 생성
 - 사용자 항목 대문자/영숫자/중복 검증
 
@@ -558,6 +572,7 @@ QR/기본 사용자 정의 참조의 source of truth는 `RICH_NATRIUM_JOIN_STRIN
 - reorder 적용 확인 취소 시 임시 순서 유지, 확인 시 working copy 반영
 - reorder `저장`은 working copy만 갱신하고 DB를 호출하지 않으며 메인 `취소`로 전체 변경 복원
 - userItemEdit 모드의 편집→추가 아이콘 전환, 마지막 행 추가, 종류 dropdown, 삭제/drop, footer, 취소/저장
+- committedReloadFailed에서 제목 표시줄 닫기/Esc 차단, 명시적 화면 닫기만 허용하고 force-reload-required 유지
 - 전용 모드에서 메인 footer 비활성
 - DB busy 중 중복 클릭과 닫기 차단
 - mode별 drag gesture 배타, stable row key 유지, 다른 label/customer/session payload drop 거부
@@ -567,9 +582,11 @@ QR/기본 사용자 정의 참조의 source of truth는 `RICH_NATRIUM_JOIN_STRIN
 - 고정 분류/후보 및 customer scoped 사용자 후보 조회
 - 사용자 항목 insert/update/delete가 한 transaction으로 commit
 - 사용자 항목 중간 실패 전체 rollback
+- 사용자 항목 customer-scoped lock/fingerprint 일치 저장과 동시 변경 conflict rollback
 - 신규 column ID가 source draft key에 정확히 매핑
 - `DbClient.transaction()` 단독 transaction 소유와 SQL 내부 transaction 문구 부재
-- Windows ODBC와 비Windows DB-Lib 각각에서 JSON/`OPENJSON` payload의 명시적 타입 변환, 한글, 작은따옴표, 4,000자 초과 batch 전달
+- Windows ODBC와 비Windows DB-Lib 각각에서 JSON/`OPENJSON` NVARCHAR(MAX) staging과 명시적 target 타입 변환, 한글, 작은따옴표, 4,000자 초과 batch 전달
+- DB-Lib `SYBNVARCHAR` binding의 byte/code-unit 길이와 ODBC Unicode 길이 회귀 테스트
 - `OUTPUT ... INTO` 수집 후 최종 단일 결과셋만 반환
 - ROW_NO/draft key 기반 mapping과 mapping key/ID 유일성 검증
 - 신규 column마다 기존 item content 생성
@@ -580,16 +597,17 @@ QR/기본 사용자 정의 참조의 source of truth는 `RICH_NATRIUM_JOIN_STRIN
 - `BM_RICH_COL_MIN`의 `ELEMENT` sentinel이 insert/update/delete 뒤 정확히 1개 유지
 - capability probe 결과에 따른 `BM_UPDATE_COL_CONTENT`, FK cascade, trigger 호환 분기
 - original fingerprint 일치 저장과 동시 변경 conflict rollback
+- 컬럼 구조 저장과 품목 저장이 같은 label-size application lock을 같은 순서로 획득하며 동시 실행이 직렬화됨
 - 중간 단계 실패 전체 rollback
 - affected row 0 또는 identity 소유권 불일치 시 rollback
 - commit 전 저장 실패가 UI working copy를 지우지 않고 재시도를 허용함
-- `DbCommitOutcomeUnknown`이 save 재실행을 차단하고 DB 재조회로 반영 여부를 판정함
+- `DbCommitOutcomeUnknown`이 save 재실행을 차단하고 desired/original/indeterminate 3상태로 reconciliation하며 실제 commit 여부를 단정하지 않음
 - parameter binding으로 작은따옴표가 있는 허용 문자열도 SQL 문법을 깨지 않음
 
 16.4 통합 회귀
 
-- 저장 후 `HomePageManager`의 force reload가 `TColumn.datas`, 특수 컬럼, item/raw snapshot, scoped content, validation rule, draft controller, journal fingerprint를 같은 generation으로 재구성
-- candidate session 준비 또는 journal handoff 실패 시 기존 session/controller/journal/listener가 유지되거나 복원됨
+- 저장 후 `HomePageManager`의 force reload가 컬럼, 특수 컬럼, item/raw snapshot, scoped content, validation rule, draft controller, journal fingerprint를 하나의 immutable `LabelSizeSessionBundle`과 같은 generation으로 재구성하고 관련 화면이 bundle accessor를 사용함
+- candidate prepare는 기존 journal 파일/listener를 변경하지 않고, suspend/activate/swap 실패 시 기존 session/controller/journal/listener가 resume되거나 복원됨
 - 겹친 reload에서 오래된 generation 결과가 최신 session을 덮지 않음
 - force reload 실패 시 부분 cache가 노출되지 않고 force-reload-required 상태로 후속 편집 차단
 - commit 성공 후 reload 실패 시 DB save 재실행 없이 candidate session reload만 재시도
@@ -603,17 +621,17 @@ QR/기본 사용자 정의 참조의 source of truth는 `RICH_NATRIUM_JOIN_STRIN
 17. 구현 권장 순서
 
 1. DB schema capability와 모든 문자열/enum/type 매핑표 작성
-2. Windows ODBC/비Windows DB-Lib JSON parameter 검증 및 필요한 driver 수정
-3. `HomePageManager` candidate label-size session, generation guard, rollback 가능한 journal handoff와 atomic swap 구현
-4. 모델/DAO 조회와 save command DTO, original fingerprint
+2. Windows ODBC/비Windows DB-Lib JSON parameter 길이, NVARCHAR(MAX) staging, CP949 round-trip 검증 및 필요한 driver 수정
+3. `LabelSizeSessionBundle`, 단일 session accessor, generation guard와 journal prepare/suspend/activate/resume 기반 atomic handoff 구현
+4. 편집기 raw-row DAO, 모델/DAO 조회와 save command DTO, original/desired fingerprint
 5. 사용 항목 edit session 및 validation 순수 로직
-6. 사용자 항목 edit session 및 transaction
+6. 사용자 항목 edit session 및 customer-scoped lock/fingerprint transaction
 7. `SwipeActionTable`의 교차 헤더 action/외부 drag/drop 최소 확장과 `BlockingModelessDialog.onEscape`
 8. 다이얼로그 기본 layout과 normal mode
 9. 속성 패널 공통/타입별 editor
 10. 후보 추가와 휴지통 삭제
 11. reorder mode와 userItemEdit mode
-12. 사용 항목 원자적 save transaction 및 post-commit reload 연결
+12. 컬럼/품목 공통 label-size DB lock을 적용한 사용 항목 원자적 save transaction 및 post-commit 3상태 reconciliation/reload 연결
 13. focused widget/DAO/driver 테스트, analyze, 전체 suite
 
 각 단계는 미검증 상태로 다음 큰 단계에 넘어가지 않는다. 저장 vertical slice 전에 driver parameter와 candidate session swap 실패 테스트를 먼저 통과시킨다. 첫 저장 vertical slice는 `기본 타입 후보 1개 추가 → 속성 적용 → DbClient.transaction 저장 → candidate session reload/swap → 재조회 표시`로 잡고, 이후 특수 타입/GS1/drag/drop을 확장한다.
@@ -650,7 +668,7 @@ QR/기본 사용자 정의 참조의 source of truth는 `RICH_NATRIUM_JOIN_STRIN
 - 제목 `20Byte` 문구와 실제 20자 판정 불일치: UI/검증을 CP949 20바이트로 통일하고 모든 DB 문자열에 field별 byte 검증 적용
 - 상세 설정 `Apply()` 실패 결과를 무시하고 닫는 동작: validation 실패 시 속성 패널을 유지
 - 알 수 없는 enum을 기본값으로 치환: raw 값을 보존하고 명시적 호환 규칙 전까지 저장 차단
-- QR/기본 참조 키워드 변경·삭제 경고 후 손상 허용: 정확한 token parser와 참조 해제 전 변경·삭제 차단으로 대체
+- QR/기본 참조 키워드 변경·삭제 경고 후 손상 허용: QR data와 하단 text를 모두 처리하는 공용 exact-token parser와 참조 해제 전 변경·삭제 차단으로 대체
 - 삭제 시 content/FK cascade 의존: 실제 FK를 확인하고 GS1/QR 양방향 관계를 포함해 transaction에서 명시적으로 정리
 
 19. 완료 조건
@@ -663,8 +681,9 @@ QR/기본 사용자 정의 참조의 source of truth는 `RICH_NATRIUM_JOIN_STRIN
 - 순서 변경과 사용자 항목 설정이 상호 배타 전용 모드로 동작한다.
 - 순서 변경 모드 저장은 working copy에만 적용되고 최종 메인 저장 전까지 DB를 변경하지 않는다.
 - 사용 항목과 사용자 항목 저장은 `DbClient.transaction()`이 단독 소유하는 각각의 원자적 transaction이며 commit 전 실패 시 편집 상태를 보존한다.
-- 저장 후 부분 cache 교체 없이 `HomePageManager`의 candidate label-size session을 generation 검증 후 원자적으로 swap한 뒤 공용라벨/품목관리/미리보기가 새 컬럼 목록을 사용한다.
+- 저장 후 개별 static cache를 순차 교체하지 않고 `HomePageManager`의 immutable candidate `LabelSizeSessionBundle`을 generation 검증과 journal 2단계 handoff 후 단일 reference로 swap하며 공용라벨/품목관리/미리보기가 같은 bundle accessor를 사용한다.
 - commit 성공 후 reload 실패는 같은 save command를 재실행하지 않고 force-reload-required 상태에서 reload만 재시도한다.
+- commit 결과 미확정은 desired/original/indeterminate 3상태로 reconciliation하며 operation ledger 없이 실제 commit 여부를 단정하거나 자동 재실행하지 않는다.
 - 모든 DB 문자열, type code와 enum, 숫자 범위가 명시적 매핑표와 validation을 가지며 미지원 raw 값은 조용히 변환되지 않는다.
-- 권한 등급 matrix, 전용 모드 Esc/닫기, QR token 참조 차단과 필수 original fingerprint 동시성 검증이 테스트로 고정된다.
+- 컬럼/품목 저장의 공통 label-size lock, 사용자 항목 customer lock, 권한 등급 matrix, 전용 모드와 committed 상태 Esc/닫기, QR data/하단 text token 참조 차단과 필수 original/desired fingerprint 동시성 검증이 테스트로 고정된다.
 - 16장의 테스트와 전체 정적 분석/테스트가 통과한다.
