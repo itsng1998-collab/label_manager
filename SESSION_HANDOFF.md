@@ -28,12 +28,29 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-12): 라벨 항목 편집기 작업지시서 검토 보완 병합
+
+- 사용자 요청: `doc/user_item_modify.txt` 검토에서 확인한 레거시/현 프로젝트 대비 문제를 기존 작업지시서에 병합 정리한다.
+- 검토 확정 사항: 저장 후 `TColumn.datas` 부분 교체 금지와 품목 draft 세션 전체 재로드, 현재 공용라벨 `필수등록` 체크박스의 저장 소유권, JSON+`OPENJSON` batch parameter, `OUTPUT ... INTO` 신규 ID 매핑, `BM_COLUMN_QRCODE_INFO` 및 양방향 관계 정리, DB 저장 필드 allow-list, 공용 drag API 구체화, 순서 저장 의미, CP949 20바이트 제목, 고정 분류 order 부재, overlay/권한/Esc 계약과 테스트 보완이 필요하다.
+- 수정 예정 `doc/user_item_modify.txt`: 위 항목을 기존 UI/상태/DAO/테스트/완료 조건 절에 병합하고 상충 문구를 제거한다. 미검증.
+- 수정 예정 `SESSION_HANDOFF.md`: 문서 편집·검증·stage·commit 결과를 기록한다.
+- 기존 unrelated dirty `lib/core/app.dart`는 수정·stage 대상에서 제외한다.
+- 편집 완료 `doc/user_item_modify.txt`: 순서 변경 저장을 DB commit이 아닌 working copy 적용으로 정리하고, 메인 저장만 원자적 transaction을 실행하도록 취소 의미를 일치시켰다. 저장 후 `HomePageManager` label-size 세션 전체 force reload, 기존 공용라벨 `필수등록`의 읽기 전용 소유권, DB persisted field allow-list/runtime 필드 제외, CP949 20바이트 제목, 고정 분류 ID 정렬을 명시했다.
+- 편집 완료 `doc/user_item_modify.txt`: JSON scalar+`OPENJSON ... WITH`, `OUTPUT ... INTO` 후 최종 단일 결과셋, GS1/QR 양방향 삭제, `BM_RICH_COL_MIN` `ELEMENT` sentinel, 누락 검사 source of truth, capability probe를 DAO 계약에 반영했다.
+- 편집 완료 `doc/user_item_modify.txt`: `HomePageManager` overlay 소유, `BlockingModelessDialog.onEscape`, stable row key/typed external drag payload/mode별 gesture 배타, 컬럼 편집 전용 권한과 customer/market/session 검증, 관련 모델/widget/DAO/통합 테스트를 구현 필수 계약으로 보완했다.
+- 중간 검증 완료: 변경 문서 diagnostics 오류 0건, 상충 문구 검색 확인, `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md` 통과.
+- 최종 검증 예정: 핵심 계약 검색, 문서 diff/stat 검토, `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md`, Git stage 대상 확인. 문서만 변경했으므로 Flutter 테스트는 실행하지 않는다.
+- 최종 검증 완료: 두 문서 diagnostics 오류 0건, 핵심 계약 28개 위치 확인, `TColumnDAO` 조회 필드와 persisted allow-list 대조 완료, 작업지시서 전체 diff 검토, `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md` 통과. 변경량은 작업지시서와 인수인계 2개 파일뿐이며 Flutter 코드/테스트는 변경하지 않아 Flutter 테스트는 실행하지 않았다.
+- stage/commit 대상: `doc/user_item_modify.txt`만 먼저 커밋한다. `SESSION_HANDOFF.md`는 기능 문서 커밋 해시 기록 후 별도 커밋하고, 기존 사용자 변경 `lib/core/app.dart`는 제외한다.
+- 기능 문서 커밋: `ddf65da` (`공용 라벨 항목 편집기 작업지시서 보완`). 검토에서 확정한 세션/DB/UI/API/권한/테스트 보완을 기존 19개 장에 병합하고 상충 문구를 제거했다.
+- 완료: 임시 산출물이나 캐시를 생성하지 않았으며 원격 push와 배포 작업은 수행하지 않았다. 인수인계만 별도 커밋한다.
+
 ### 완료 (2026-07-12): 공용라벨관리 라벨 항목 편집기 작업지시서
 
 - 사용자 요청: 레거시 공용라벨관리 `사용 항목 > 항목편집` 분석을 기준으로 현 프로젝트에 구현할 `라벨 항목 편집` 다이얼로그의 기능/UI/상태/DB/테스트 작업지시서를 작성한다.
 - 분석 완료: 레거시 `CColumnEditDlg`/`CColumnEditModel`/`CColumnSetupMainDlg`/`CUserColumnEditDlg`/`CCommonLabelModel::SaveColumns`/`CColumnDAO` 흐름과 현 프로젝트 `CommonLabelManage`, `SwipeActionTable`, 라벨 설정 `orderEditMode`, `TColumn`/`TColumnDAO` 구조를 대조했다.
 - 편집 완료 `doc/user_item_modify.txt`: 속성 패널, 사용/고정/사용자 항목 테이블, `normal`/`reorder`/`userItemEdit` 상호 배타 상태, drag/drop 삭제·추가, property/working dirty guard, 사용 항목·사용자 항목 원자적 DB 저장, 모델/DAO, 공용 테이블 확장, 테스트 및 레거시 대비 누락 방지 목록을 구현 계약으로 정리했다.
-- 설계 결정: 순서 변경 모드 저장은 순서만 별도 반영하지 않고 현재 working copy의 신규/수정/삭제/순서를 같은 transaction으로 저장해 신규 ID와 최종 순서 정합성을 유지한다. 속성 미적용 변경은 모드 진입 전 공용 취소 guard로 해소한다.
+- 초안 설계 결정: 순서 변경 모드에서 working copy 전체 transaction을 저장하도록 작성했으나, 후속 보완 커밋 `ddf65da`에서 순서 변경은 working copy에만 적용하고 메인 저장만 DB transaction을 실행하도록 대체했다.
 - 문서 검증 완료: `doc/user_item_modify.txt` diagnostics 오류 0건, 요구사항 핵심 키워드 검색 확인, `git diff --check -- doc/user_item_modify.txt` 통과. 최종 전체 문서 diff 검토와 stage/commit 예정.
 - 최종 검토 완료: 작업지시서는 19개 상위 장, 588줄이며 `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md` 통과. 변경 범위는 새 작업지시서와 이 인수인계뿐이며 기존 사용자 변경은 분리돼 있다.
 - 기능 문서 commit 예정: `doc/user_item_modify.txt`만 먼저 커밋하고, 확정 해시를 기록한 `SESSION_HANDOFF.md`는 별도 커밋한다.
