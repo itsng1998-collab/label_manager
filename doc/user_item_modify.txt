@@ -1,0 +1,588 @@
+공용라벨관리 라벨 항목 편집기 구현 작업지시서
+작성일: 2026-07-12
+
+1. 목적
+
+공용라벨관리의 `사용 항목 > 항목 편집`에서 현재 라벨 크기에 사용할 항목을 추가, 수정, 삭제, 정렬하고 DB에 저장할 수 있는 `라벨 항목 편집` 다이얼로그를 구현한다.
+
+기능과 데이터 의미는 레거시 `CColumnEditDlg`, `CColumnEditModel`, `CColumnSetupMainDlg`, `CUserColumnEditDlg`, `CCommonLabelModel::SaveColumns`, `CColumnDAO`를 기준으로 한다. UI는 레거시 화면을 그대로 복제하지 않고 현 프로젝트의 라벨 설정 다이얼로그와 공용 테이블 패턴에 맞춘다.
+
+핵심 원칙은 다음과 같다.
+
+- 현재 라벨 크기의 실제 사용 항목과 고객별 사용자 항목 사전을 서로 다른 편집 단위로 관리한다.
+- 다이얼로그의 두 테이블은 라벨 설정에서 사용하는 `SwipeActionTable` 계열 공용 위젯을 재사용한다.
+- 사용 항목의 상세 속성은 별도 모달을 열지 않고 왼쪽 속성 패널에서 편집한다.
+- 속성 편집, 순서 변경, 사용자 항목 설정은 동시에 열리지 않는 상호 배타 상태로 관리한다.
+- 사용 항목 DB 저장은 신규, 수정, 삭제, 순서, 보조 테이블 및 기존 품목의 빈 컬럼 콘텐츠를 하나의 SQL Server 트랜잭션으로 반영한다.
+- DB 저장이 성공한 경우에만 working copy와 전역 캐시를 교체한다. 실패하면 사용자의 편집 상태를 보존한다.
+
+2. 현재 프로젝트 기준점
+
+2.1 현재 UI
+
+- 공용라벨관리 오른쪽 `사용 항목` 영역의 `항목 편집` 버튼은 `lib/page_home/common_label_manage.dart`에 있으나 callback은 비어 있다.
+- 현재 공용라벨의 사용 항목 목록은 `TColumn.datas`를 읽어 표시한다.
+- 현재 목록용 `_CommonLabelTable`은 `FortuneTable` 기반이다. 기존 공용라벨 화면의 읽기 전용 목록은 그대로 유지하고, 새 편집 다이얼로그 안의 두 테이블만 라벨 설정과 같은 `SwipeActionTable` 계열로 구현한다.
+- 라벨 설정 다이얼로그는 `BlockingModelessDialog`, `BlockingModelessDialogFrame`, `EditableSwipeNameTable`, `rowReorderEnabled`, 우측 위/아래 이동 rail, 전용 footer를 사용한다.
+
+2.2 현재 모델/DAO
+
+- `lib/models/column.dart`의 `TColumn`은 레거시 컬럼 속성 대부분을 이미 보유하고 있다.
+- `TColumnDAO.selectByLabelSizeId()`는 `BM_RICH_COLUMN`, `BM_RICH_CHECK_COLUMNS`, `BM_GS1_COLUMN_INFO`, `VIEW_BM_GS1_CONTAIN_COLUMN`을 조회한다.
+- 현재 `TColumnDAO`에는 라벨 항목 편집용 insert/update/delete transaction API가 없다.
+- 고정 항목 분류, 고정 항목, 고객별 사용자 항목에 대응하는 현 프로젝트 모델/DAO가 없다면 새로 추가해야 한다.
+- `TColumn`과 `TColumnBase`는 대부분 불변 필드지만 편집용 `copyWith`와 안정적인 draft identity가 없다. DB 조회 모델을 직접 mutate하지 말고 편집 전용 draft를 사용한다.
+
+3. 구현 범위
+
+3.1 포함 범위
+
+- 공용라벨관리 `사용 항목 > 항목 편집` 진입 연결
+- `라벨 항목 편집` blocking modeless 다이얼로그
+- 사용 항목 속성 패널과 사용 항목 테이블
+- 고정 항목/사용자 항목 전환 및 후보 테이블
+- 후보 항목 추가 버튼과 drag/drop 추가
+- 사용 항목 삭제 버튼과 drag/drop 삭제
+- 사용 항목 순서 변경 모드
+- 고객별 사용자 항목 설정 모드
+- 속성별 입력 UI와 검증
+- 사용 항목 및 사용자 항목 모델/DAO/transaction
+- 저장 후 공용라벨, 품목관리 및 출력 미리보기에서 사용하는 컬럼 캐시 갱신
+- widget/model/DAO/transaction 회귀 테스트
+
+3.2 제외 범위
+
+- 공용라벨 시트 workbook 자체의 셀/서식 저장 포맷 변경
+- 품목관리의 기존 품목 값 편집 기능 변경
+- 레거시 SpreadSheet OCX UI 복제
+- 레거시의 비어 있는 `InsertColumnsToLogDB()`를 근거 없이 새 로그 테이블로 구현하는 작업
+- DB 스키마를 임의 변경하는 작업. 스키마 변경이 필요하면 별도 SQL과 배포 절차를 먼저 합의한다.
+
+4. 다이얼로그 공통 구조
+
+4.1 표시 방식
+
+- 기존 Label Manager 모달리스 규칙에 따라 `BlockingModelessDialog(child: BlockingModelessDialogFrame(...))`를 사용한다.
+- 다이얼로그 제목은 `라벨 항목 편집`으로 한다.
+- 화면이 작은 경우에도 속성 패널, 두 테이블, 중앙 command rail, footer가 겹치지 않도록 최소 크기와 화면 기준 최대 크기를 함께 둔다.
+- 권장 기본 크기는 화면 너비의 85~90%, 화면 높이의 80~90%이며, 최소 너비는 세 영역이 가로로 유지되는 값으로 정한다.
+- 확인, 경고, 실패 알림은 다이얼로그보다 위에 나타나는 공용 blocking overlay dialog API를 사용한다.
+- 다이얼로그가 열린 동안 공용라벨의 시트, 브랜드/라벨 선택, 탭 전환 등 바깥 화면 입력을 차단한다.
+
+4.2 기본 배치
+
+왼쪽부터 다음 순서로 배치한다.
+
+1. 사용 항목 속성 패널
+2. 사용 항목 테이블
+3. 중앙 command rail
+4. 후보 영역
+
+후보 영역 상단에는 `고정 항목`/`사용자 항목` segmented control 또는 radio를 둔다. 고정 항목일 때는 고정 항목 분류 dropdown을 표시하고, 사용자 항목일 때는 고객별 사용자 항목 테이블을 표시한다.
+
+중앙 command rail에는 다음 아이콘 버튼을 세로로 둔다.
+
+- 휴지통: 위쪽에 독립적으로 배치하고 아래 추가 버튼과 시각적 간격을 둔다.
+- 왼쪽 화살표: 선택한 고정/사용자 후보를 사용 항목으로 추가한다.
+
+아이콘은 현 프로젝트의 Material/Lucide 정책에 맞는 익숙한 아이콘을 사용하고 tooltip을 제공한다. 텍스트가 있는 둥근 사각형으로 아이콘 기능을 대신하지 않는다.
+
+4.3 메인 footer
+
+- 다이얼로그 하단 오른쪽에 `취소`, `저장` 버튼을 둔다.
+- `저장`은 사용 항목 working copy가 원본과 다를 때만 활성화한다.
+- `취소`는 다이얼로그 전체의 미저장 변경을 버리고 닫는 기능이다.
+- 미저장 변경이 있으면 `변경 내용을 취소하고 닫으시겠습니까?`를 질의한다. 확인한 경우에만 원본 snapshot으로 복원하고 닫는다.
+- 창 닫기 아이콘과 Esc도 메인 `취소`와 같은 guard를 거친다.
+- `normal` 이외의 전용 모드 또는 DB command 실행 중에는 메인 footer의 `취소`와 `저장`을 비활성화한다.
+
+5. 편집 상태 모델
+
+5.1 상호 배타 모드
+
+다이얼로그 상태는 최소한 다음 enum으로 관리한다.
+
+- `normal`: 사용 항목 선택, 속성 편집, 후보 추가/삭제, 메인 저장 가능
+- `reorder`: 사용 항목 순서 변경 전용
+- `userItemEdit`: 고객별 사용자 항목 사전 편집 전용
+
+`reorder`와 `userItemEdit`는 동시에 true가 될 수 없다. 여러 boolean 조합으로 유효하지 않은 상태가 생기지 않도록 단일 mode를 source of truth로 사용한다.
+
+DB 조회/저장 중에는 별도 busy state를 두고 중복 command, 다중 route, 중복 저장을 막는다.
+
+5.2 사용 항목 working copy
+
+다이얼로그를 열 때 DB 조회 결과로 다음 상태를 만든다.
+
+- `originalColumns`: 다이얼로그를 연 시점의 immutable snapshot
+- `workingColumns`: 화면에서 추가/수정/삭제/정렬되는 목록
+- `deletedColumnIds`: DB에 존재했던 행 중 working copy에서 삭제된 ID
+- `selectedColumnKey`: index가 아닌 안정적인 행 identity
+- `propertyBaseline`: 현재 선택 행에서 속성 패널을 연 시점의 값
+- `propertyDraft`: 속성 패널 입력값
+- `propertyDirty`: baseline과 draft의 실제 내용 비교 결과
+
+기존 행 identity는 `columnId`, 신규 행 identity는 dialog session에서 생성한 `draftColumnKey`를 사용한다. 선택, drag/drop, reorder, 삭제 후 선택 복원은 list index를 identity로 사용하지 않는다.
+
+5.3 dirty 구분
+
+- `propertyDirty`: 속성 패널의 아직 적용하지 않은 변경
+- `workingDirty`: 적용된 속성 변경, 항목 추가/삭제, 순서 변경으로 working copy가 original snapshot과 달라진 상태
+- `userItemDirty`: 사용자 항목 설정 모드 안의 별도 working copy가 해당 모드 진입 snapshot과 달라진 상태
+- `orderDirty`: 순서 변경 모드 진입 snapshot과 현재 순서가 다른 상태
+
+속성 패널의 `적용`은 `propertyDraft`를 `workingColumns`에 반영하여 `workingDirty`를 만들지만 DB에는 쓰지 않는다. 메인 `저장` 또는 순서 변경 모드의 저장만 사용 항목 DB transaction을 실행한다.
+
+6. 사용 항목 테이블
+
+6.1 테이블 구성
+
+- `SwipeActionTable<LabelColumnDraft>` 또는 이를 일반화한 공용 wrapper를 사용한다.
+- 컬럼은 레거시와 동일한 의미를 유지한다.
+  - 신규 상태
+  - 키워드
+  - 항목명
+  - 종류
+  - 제목
+  - 표시 여부
+- 행 번호 영역과 컬럼 헤더의 좌상단 교차 영역에는 순서 변경 아이콘을 둔다.
+- 현재 QR/기본 사용자 정의/GS1 관계에서 참조 중인 행은 레거시처럼 일반 행과 구분되는 참조 상태 표시를 제공한다. 색만으로 의미를 전달하지 말고 tooltip 또는 상태 아이콘을 함께 둔다.
+- 신규 행은 `신규` 상태를 표시한다.
+- 행 클릭은 해당 행을 선택하고 속성 패널을 갱신한다. 더블클릭으로 별도 속성 다이얼로그를 열지 않는다.
+
+6.2 선택과 속성 dirty guard
+
+`propertyDirty=true`인 상태에서 다음 이벤트를 요청하면 먼저 `적용하지 않은 속성 변경을 취소하시겠습니까?`를 질의한다.
+
+- 다른 사용 항목 행 선택
+- 고정/사용자 후보 선택 또는 추가
+- 사용 항목 삭제
+- 사용 항목 순서 변경 모드 진입
+- 고정/사용자 후보 모드 전환
+- 사용자 항목 설정 모드 진입
+- 메인 저장, 메인 취소, 창 닫기
+
+사용자가 `변경 취소`를 확인하면 property draft를 baseline으로 되돌린 뒤 원래 요청한 이벤트를 정확히 한 번 이어서 실행한다. 확인하지 않으면 현재 행과 입력 focus를 유지하고 요청 이벤트를 실행하지 않는다.
+
+guard callback 안에서 이벤트별 로직을 복제하지 말고 `Future<bool> resolvePendingPropertyEdit()` 같은 공용 경계를 둔다. route가 닫히기 전에 다음 command가 실행되지 않도록 확인 dialog Future 완료 뒤 처리한다.
+
+6.3 항목 삭제
+
+- 사용 항목 선택이 없으면 중앙 휴지통 버튼을 비활성화한다.
+- 휴지통 버튼을 누르면 선택 행을 working copy에서 삭제한다.
+- DB 기존 행은 `deletedColumnIds`에 추가하고 신규 행은 working copy에서만 제거한다.
+- QR/기본 사용자 정의/GS1에서 참조 중인 행은 레거시 경고를 표시하고 확인한 경우에만 삭제한다.
+- 삭제 시 GS1 바코드 draft의 포함 항목 목록에서도 해당 기존 ID 또는 신규 draft key를 제거한다.
+- 삭제 후 가능한 경우 다음 행, 마지막 행 삭제였으면 이전 행을 선택한다. 행이 없으면 선택과 속성 패널을 비운다.
+
+사용 항목 행을 drag하여 휴지통 drop target에 올릴 수 있어야 한다.
+
+- drag payload에는 안정적인 행 key와 source 종류를 넣고 index만 전달하지 않는다.
+- drag hover 중 휴지통을 강조한다.
+- 허용된 행을 drop하면 참조 경고/확인을 먼저 처리한다.
+- 삭제가 확정된 경우에만 휴지통이 항목을 받아들이는 짧은 scale/fade 애니메이션을 실행하고 행을 제거한다.
+- 확인을 취소하거나 유효하지 않은 payload이면 애니메이션과 삭제를 실행하지 않는다.
+- 아이콘 버튼 삭제와 drag/drop 삭제는 같은 command handler를 사용한다.
+
+7. 사용 항목 속성 패널
+
+7.1 공통 동작
+
+- 선택 행이 없으면 빈 상태를 표시하고 모든 입력을 비활성화한다.
+- 행 선택 시 해당 타입에 맞는 속성 UI를 구성한다.
+- 패널 하단에는 항상 `취소`, `적용` 버튼을 둔다.
+- `적용`은 property draft가 baseline과 다르고 현재 입력이 유효할 때만 활성화한다.
+- `취소`는 property draft를 baseline으로 복원한다. DB 또는 working copy의 적용 완료 값은 바꾸지 않는다.
+- `적용` 성공 후 현재 값이 새 baseline이 되고 `propertyDirty=false`가 된다.
+- 신규 특수 타입 행은 사용 항목 테이블에 pending 신규 행으로 표시하고 즉시 선택한다. 해당 행의 첫 속성 적용 전 `취소`하면 레거시 상세 설정 dialog 취소와 동일하게 신규 행 자체를 제거한다.
+- 일반 타입처럼 별도 설정 없이 추가 가능한 항목은 레거시 기본값으로 즉시 working copy에 추가한다.
+
+7.2 공통 속성
+
+최소한 다음 속성을 제공한다.
+
+- 키워드
+- 항목명
+- 항목 종류
+- 제목
+- 표시 여부
+- 누락 키워드 검사 사용 여부
+
+검증 규칙은 다음과 같다.
+
+- 키워드와 항목명은 필수다.
+- 키워드는 현재 사용 항목 안에서 중복될 수 없다.
+- 제목은 레거시 실제 동작과 같이 최대 20자로 제한하고 안내 문구도 `20자`로 일치시킨다.
+- 종류 dropdown 값은 `TColumnType.datas`에 존재하는 타입만 허용한다.
+- 키워드 변경 대상이 QR/기본 사용자 정의/GS1 관계에서 참조 중이면 영향 경고 후 적용한다.
+- 종류 변경 시 기존 타입 전용 값이 초기화될 수 있음을 확인한다.
+- GS1 AI를 다른 타입으로 바꿀 때 GS1 바코드 포함 관계에서 제거되는 영향을 확인한다.
+
+7.3 타입별 속성
+
+레거시 `CColumnSetupMainDlg`와 각 하위 설정 화면에 있는 속성을 누락 없이 제공한다. 현재 `TColumn` 필드와 DB 컬럼을 source of truth로 사용한다.
+
+- 기본/문자: 일반 텍스트 또는 사용자 정의 데이터, 자동 증가 사용/자리수/범위/저장/0 제거/업데이트, 검색 출력, 사용자 정의 텍스트
+- 제조일자/유통기한/시간: 날짜·시간 타입, 자동 증가 속성, 날짜 범위 사용 및 전/후 범위
+- 바코드: 바코드 종류, 폭, 높이, 체크디지트, 번호 표시, 텍스트 연동, 타임바코드 타입, 자동 증가 속성, 사용자 정의 바코드 텍스트, line check/size, 회전
+- 이미지: 폭, 높이
+- QR/2D 코드: 2D 종류, 생성 방식(일반/사용자 정의/나트륨), 사용자 정의 데이터와 하단 문자열, pixel size, scale, 하단 문자열 표시, 정렬, 폰트/크기, 자동 증가 속성
+- GS1 AI: AI 코드, format option, GS1 코드 표시 여부
+- GS1 바코드: 종류, 폭, 높이, 포함할 GS1 AI 항목 목록
+
+레거시 검증과 경고도 유지한다.
+
+- 바코드/이미지/GS1 바코드의 폭 또는 높이가 0이면 출력되지 않을 수 있음을 경고한다.
+- QR pixel size 또는 scale이 0이면 출력되지 않을 수 있음을 경고한다.
+- GS1 AI 코드는 필수다.
+- 체크디지트 또는 타임바코드 변경이 기존 품목 바코드 값에 영향을 주면 경고한다.
+- 사용자 정의 QR 데이터가 비어 있거나 나트륨 구성에 초기화되지 않은 값이 있으면 적용하지 않는다.
+
+속성 패널은 하나의 거대한 build 함수로 만들지 않는다. 공통 입력과 타입별 editor widget을 분리하되, 각 editor는 `LabelColumnPropertyDraft`를 입력받아 변경 callback만 반환하고 DB를 직접 호출하지 않는다.
+
+8. 고정 항목 후보
+
+8.1 조회와 표시
+
+- `고정 항목` 선택 시 고정 항목 분류 dropdown을 활성화한다.
+- 분류는 레거시 `BM_RICH_FIX_COL_TYPE`의 순서/이름을 조회한다.
+- 선택 분류의 후보는 `BM_RICH_FIX_COLUMN`에서 조회하고 키워드, 항목명, 종류를 표시한다.
+- 분류를 바꾸면 후보 선택을 해제하고 해당 분류 목록을 다시 표시한다.
+
+8.2 사용 항목으로 추가
+
+- 고정 항목 행 선택이 없거나 같은 키워드가 이미 사용 중이면 왼쪽 화살표를 비활성화한다.
+- 행 선택 후 왼쪽 화살표를 누르면 레거시와 같은 기본값으로 신규 사용 항목 draft를 만든다.
+- 고정 항목 행을 drag하여 사용 항목 테이블에 drop해도 같은 add command를 실행한다.
+- 버튼과 drag/drop은 중복 검사, 초기값 생성, 특수 타입 pending 속성 편집, 선택 이동까지 동일한 handler를 사용한다.
+- 같은 drag gesture가 중복 callback으로 전달되어 두 행이 추가되지 않도록 command generation 또는 in-flight guard를 둔다.
+
+9. 사용자 항목 후보와 사용자 항목 설정
+
+9.1 일반 후보 상태
+
+- `사용자 항목` 선택 시 현재 로그인 고객 ID의 `BM_RICH_CUST_COLUMN`을 조회한다.
+- 키워드, 항목명, 종류를 표시한다.
+- 선택 행을 왼쪽 화살표 또는 사용 항목 테이블 drop으로 추가한다.
+- 추가 시 고객별 사전 row를 직접 연결하지 않고 레거시처럼 현재 라벨 크기의 신규 `TColumn` draft로 복사한다. 이후 사용자 항목 사전을 수정해도 이미 추가된 사용 항목은 자동 변경하지 않는다.
+- 사용자 항목 테이블의 좌상단 헤더 교차 영역에는 `항목 편집` 아이콘과 tooltip을 둔다.
+
+9.2 사용자 항목 설정 모드 진입
+
+- `항목 편집` 아이콘을 누르면 `userItemEdit` 모드로 전환한다.
+- 진입 전 pending property edit을 공용 guard로 해소한다.
+- 모드 진입 시 고객별 사용자 항목 원본 snapshot과 별도 working copy를 만든다.
+- 사용자 항목 영역 이외의 속성 패널, 사용 항목 테이블, 고정/사용자 전환, 분류 dropdown, 왼쪽 화살표, 메인 footer를 비활성화한다.
+- 사용자 항목 테이블 좌상단의 편집 아이콘은 숨기고 `항목 추가` 아이콘으로 교체한다.
+- 테이블 아래에는 라벨 설정 순서 변경 footer와 같은 형식으로 왼쪽 제목 `사용자 항목 설정`, 오른쪽 `취소`, `저장`을 둔다.
+
+9.3 사용자 항목 inline 편집
+
+- `항목 추가` 아이콘을 누르면 마지막에 신규 빈 행을 추가하고 첫 입력 셀에 focus한다.
+- 키워드와 항목명은 직접 입력한다.
+- 키워드 입력은 레거시처럼 즉시 대문자로 정규화한다.
+- 키워드는 ASCII 영문과 숫자만 허용한다. 한글, 공백, 기호가 들어오면 저장하지 않고 해당 셀에 오류를 표시한다.
+- 종류 컬럼의 모든 셀을 dropdown으로 바꾼다.
+- 종류 목록은 레거시와 동일한 DB `BM_RICH_COLUMN_TYPE` 목록을 `RICH_COLUMN_TYPE_ORDER` 순서로 사용한다. 임의의 축약 목록을 하드코딩하지 않는다.
+- 신규/수정 행의 키워드와 항목명은 필수이며 고객별 사용자 항목 목록 안에서 키워드 중복을 허용하지 않는다.
+- 셀 값이 바뀔 때마다 원본 snapshot과 content 비교로 `userItemDirty`를 계산한다.
+
+9.4 사용자 항목 삭제
+
+- `userItemEdit` 모드에서는 중앙 휴지통의 대상이 사용자 항목 테이블로 전환된다.
+- 선택 행이 없으면 휴지통을 비활성화한다.
+- 기존 행 삭제는 delete ID에 기록하고 신규 행은 working copy에서만 제거한다.
+- 사용자 항목 행을 휴지통에 drop하면 사용 항목 삭제와 같은 hover 및 수용 애니메이션 후 삭제한다.
+- 사용자 항목 사전 삭제는 이미 현재 사용 항목으로 복사된 컬럼을 삭제하지 않는다. 이 동작을 확인 dialog 문구에서 명확히 알린다.
+
+9.5 사용자 항목 설정 저장/취소
+
+- `저장`은 `userItemDirty=true`, 모든 행 validation 성공, busy=false일 때만 활성화한다.
+- 클릭하면 `사용자 항목 설정 변경을 저장하시겠습니까?`를 질의한다.
+- 확인 시 신규/수정/삭제를 하나의 DB transaction으로 저장한다.
+- 성공하면 DB에서 사용자 항목 후보를 재조회하고 `normal` 모드로 돌아간다.
+- 실패하면 모드를 유지하고 working copy를 보존한다.
+- `취소`는 변경이 있으면 `사용자 항목 설정 변경을 취소하시겠습니까?`를 질의하고, 확인 시 snapshot으로 되돌린 뒤 `normal`로 돌아간다.
+- 모드 종료 시 좌상단 `항목 추가` 아이콘을 다시 `항목 편집` 아이콘으로 바꾼다.
+
+10. 사용 항목 순서 변경
+
+10.1 진입과 UI
+
+- 사용 항목 테이블 좌상단의 순서 변경 아이콘을 누르면 `reorder` 모드로 전환한다.
+- 진입 전에 pending property edit을 공용 guard로 해소한다.
+- 사용 항목 목록의 현재 순서를 별도 snapshot으로 보관한다.
+- 사용 항목 테이블의 컬럼 구성과 행 내용은 그대로 유지한다.
+- 테이블 오른쪽에 라벨 설정과 같은 폭/간격/버튼 크기의 위/아래 이동 rail을 표시한다.
+- `rowReorderEnabled=true`로 전환하여 행 또는 행 번호 drag reorder를 지원한다.
+- 선택 행 기준으로 위/아래 버튼 활성 상태를 계산한다.
+- 속성 패널을 포함한 사용 항목 테이블 이외의 위젯은 비활성화한다.
+- 속성 패널은 값을 표시해도 입력과 `취소`/`적용`은 비활성화한다.
+- 메인 footer `취소`/`저장`도 비활성화한다.
+- 사용 항목 테이블 아래에는 왼쪽 제목 `순서 변경`, 오른쪽 `취소`, `저장`을 둔다.
+
+10.2 이동 규칙
+
+- drag와 위/아래 버튼은 같은 reorder function을 사용한다.
+- 인접 이동과 비인접 이동의 insert index 계산은 현재 `SwipeActionTable` 라벨 설정 테스트 계약을 따른다.
+- 이동 후 선택은 이동한 행의 안정 key를 유지한다.
+- 한 행뿐이거나 실제 순서가 바뀌지 않으면 `orderDirty=false`다.
+
+10.3 저장과 취소
+
+- `취소`는 reorder snapshot 순서로 복원하고 `normal` 모드로 돌아간다.
+- `저장`은 `orderDirty=true`일 때만 활성화한다.
+- 클릭하면 `사용 항목 순서 변경을 저장하시겠습니까?`를 질의한다.
+- 확인 시 현재 working copy 전체를 1부터 연속된 order로 다시 부여하고 12장의 사용 항목 저장 transaction을 실행한다.
+- 순서만 별도 SQL로 저장하지 않는다. 다이얼로그 안에 이미 적용된 추가/삭제/속성 변경이 있을 수 있으므로 신규/수정/삭제/순서를 같은 transaction으로 저장해야 ID와 순서가 일치한다.
+- 확인 dialog에는 순서 변경과 함께 현재까지 적용된 사용 항목 변경도 저장된다는 사실을 표시한다.
+- 성공하면 DB 재조회 결과로 original/working snapshot을 교체하고 `normal` 모드로 돌아간다.
+- 실패하면 `reorder` 모드와 순서 working copy를 유지한다.
+
+11. 메인 저장
+
+11.1 저장 전 검증
+
+- pending property edit이 있으면 자동 적용하지 않는다. 먼저 변경 취소 guard를 거치거나 사용자가 속성 `적용`을 완료하도록 안내한다.
+- 모든 행의 키워드와 항목명 필수
+- 전체 키워드 중복 금지
+- order를 1부터 연속 값으로 정규화
+- 타입별 필수 속성과 범위 검증
+- GS1 포함 대상이 현재 working copy에 존재하는지 검증
+- 삭제 대상과 신규/수정 대상의 identity 중복 금지
+- 현재 labelSizeId와 모든 기존 column의 labelSizeId 일치 확인
+
+해당 라벨 크기에 `BM_RICH_ITEM`이 하나라도 있으면 레거시와 같이 기존 편집 데이터 영향 경고와 최종 확인을 제공한다. 문구는 실제 transaction이 신규 컬럼 콘텐츠 생성, 컬럼 삭제 및 타입 속성 변경을 수행한다는 사실을 명확히 설명한다.
+
+11.2 저장 결과
+
+- `저장` 확인 후 12장의 단일 transaction을 실행한다.
+- 성공하면 DB에서 컬럼을 재조회하고 `TColumn.datas` 및 관련 cache를 성공 결과로 교체한다.
+- 공용라벨 사용 항목 표, 라벨 시트 required keyword/image/barcode 정보, 품목관리 동적 컬럼, 출력 미리보기가 새 컬럼 목록을 다시 사용하도록 상위 callback을 호출한다.
+- 저장 완료 후 다이얼로그를 닫는다.
+- 실패하면 오류 dialog를 표시하고 다이얼로그와 working copy를 그대로 유지한다. 저장 버튼을 비활성화하거나 DB 재조회로 편집 내용을 덮어쓰지 않는다.
+
+12. DB 모델과 DAO
+
+12.1 추가할 모델
+
+구체 파일명은 기존 모델 구조에 맞추되 최소한 다음 역할을 분리한다.
+
+- `LabelColumnDraft`: `TColumn`의 전체 저장 속성, 기존 columnId 또는 신규 draft key, new/modified 상태
+- `LabelColumnEditSession`: original/working/deleted/selection/property 상태와 content 비교
+- `FixedColumnType`: 고정 항목 분류 ID, 이름, 순서
+- `FixedColumnCandidate`: 타입, 키워드, 항목명, 분류 ID
+- `CustomerColumnCandidate`: custColumnId, customerId, 타입, 키워드, 항목명
+- `CustomerColumnEditSession`: 사용자 항목 original/working/deleted 상태
+- `LabelColumnSaveCommand`: labelSizeId, insert/update/delete 목록, 최종 순서 및 저장 context
+
+`TColumn`에 UI 임시 상태를 넣지 않는다. 저장 command는 widget 상태를 직접 참조하지 않는 immutable DTO로 만든다.
+
+12.2 조회 DAO
+
+- 현재 사용 항목: 기존 `TColumnDAO.selectByLabelSizeId`
+- 고정 항목 분류: `BM_RICH_FIX_COL_TYPE`, DB 정의 순서로 정렬
+- 고정 항목 후보: `BM_RICH_FIX_COLUMN`, 선택한 type ID 조건
+- 사용자 항목 후보: `BM_RICH_CUST_COLUMN`, 현재 로그인 customer ID 조건
+- 항목 종류: 기존 `TColumnType.datas`; 미초기화 상태면 DB 조회 후 dialog를 표시한다.
+
+모든 문자열은 현재 프로젝트 DAO 규칙에 맞춰 CP949 컬럼을 명시적으로 NVARCHAR로 변환한다. 사용자/거래처 ID를 화면 표시값에서 추정하지 말고 로그인 세션의 명시적 customer ID를 전달한다.
+
+12.3 사용자 항목 저장 DAO
+
+레거시의 행별 CRUD 의미는 유지하되 현재 프로젝트에서는 부분 저장을 허용하지 않는다.
+
+- `SET XACT_ABORT ON`, `SET NOCOUNT ON`, `BEGIN TRY/BEGIN TRANSACTION/COMMIT`, `BEGIN CATCH/ROLLBACK/THROW` 구조의 단일 parameterized batch를 사용한다.
+- 신규: `BM_RICH_CUST_COLUMN(RICH_CUSTOMER_ID, RICH_KEYWORD, RICH_COLUMN_NAME, RICH_TYPE)` insert
+- 수정: 현재 customer ID와 custColumnId를 함께 조건으로 update
+- 삭제: 현재 customer ID와 custColumnId를 함께 조건으로 delete
+- 기대 affected row가 다르면 `THROW`하여 전체 rollback한다.
+- SQL 문자열 보간을 사용하지 않고 `writeDataWithParams`와 구조화된 parameter binding을 사용한다.
+
+12.4 사용 항목 저장 transaction
+
+레거시의 저장 범위를 유지하면서 동시성과 실패 처리를 보완한다.
+
+1. transaction 시작
+2. 현재 labelSizeId와 기존 column ID의 소유권 검증
+3. 신규 `BM_RICH_COLUMN` insert 및 신규 draft key와 `OUTPUT INSERTED.RICH_COLUMN_ID`의 안정적 매핑
+4. 신규/기존 `BM_RICH_COL_MIN` upsert
+5. 신규/기존 `BM_RICH_CHECK_COLUMNS` upsert
+6. 신규 컬럼마다 해당 label size의 기존 `BM_RICH_ITEM`에 `BM_RICH_COL_CONTENT` 빈 값 insert
+7. 레거시 update 품목 테이블을 현 DB가 실제 사용하면 `BM_UPDATE_COL_CONTENT` 빈 값 insert. 테이블/기능이 현재 프로젝트에서 사용되지 않는다고 확인되면 근거를 문서화하고 제외
+8. 기존 `BM_RICH_COLUMN` 전체 속성 및 최종 order update
+9. `BM_GS1_COLUMN_INFO` upsert/delete
+10. `BM_GS1_CONTAIN_COLUMN`을 최종 working copy 관계와 일치하도록 insert/delete
+11. 삭제 대상의 status date 갱신 및 종속 데이터 정리 후 `BM_RICH_COLUMN` delete
+12. 모든 affected row와 최종 order/keyword uniqueness 검증
+13. commit
+
+신규 ID는 레거시 `SelectLastNRecord()` 방식으로 찾지 않는다. `OUTPUT INSERTED` 또는 source key를 보존하는 temp table/MERGE 결과로 정확히 매핑한다.
+
+삭제 시 다음 테이블을 명시적으로 검토한다.
+
+- `BM_RICH_COL_CONTENT`
+- `BM_UPDATE_COL_CONTENT`
+- `BM_RICH_COL_MIN`
+- `BM_RICH_CHECK_COLUMNS`
+- `BM_GS1_COLUMN_INFO`
+- `BM_GS1_CONTAIN_COLUMN`의 `MAIN_COLUMN_ID`와 `CONTAIN_COLUMN_ID` 양쪽 관계
+- `BM_RICH_STATUS_DATA.RICH_COLID_CHANGE_DELETE_DATE`
+- 최종 `BM_RICH_COLUMN`
+
+FK cascade에 암묵적으로 의존하지 않는다. 실제 FK/cascade가 확인되면 중복 delete를 피하되 DAO 테스트에 그 전제를 기록한다.
+
+문자열 SQL 직접 결합, 마지막 N개 행 재조회, transaction 밖 보조 테이블 저장, 실패를 삼키는 void API를 사용하지 않는다. DAO는 성공 결과 또는 예외를 호출자에게 반환해야 한다.
+
+13. 공용 테이블 확장 원칙
+
+현재 `SwipeActionTable`에 필요한 API가 없으면 라벨 항목 다이얼로그 안에서 gesture/table을 다시 구현하지 말고 공용 위젯을 최소 확장한다.
+
+필요한 공용 확장 후보는 다음과 같다.
+
+- 행/열 헤더 교차 영역의 action builder
+- 외부 drag payload builder
+- row drag 시작/종료 callback
+- 외부 drop target과 함께 사용할 안정 row key
+- 편집 mode의 타입별 cell builder/dropdown cell
+- table enabled 상태에서도 선택 표시를 유지하는 read-only mode
+
+기존 라벨 설정, 브랜드 설정, 품목 순서 변경 동작을 깨지 않도록 새 옵션 기본값은 현재 동작을 유지해야 한다. 공용 위젯 변경에는 기존 `test/swipe_action_table_test.dart` 회귀 테스트를 반드시 추가한다.
+
+14. 오류, 동시성, 재진입 처리
+
+- dialog open 중 동일 버튼을 다시 눌러 중복 overlay를 만들지 않는다.
+- 조회 중에는 loading 상태와 닫기 정책을 명확히 하고 빈 목록을 정상 조회 실패로 오인하지 않는다.
+- DB 연결 실패는 진행 표시를 닫은 뒤 경고 dialog로 알리고 사용자의 working copy를 유지한다.
+- 저장 command는 generation 또는 in-flight Future로 중복 실행을 막는다.
+- 저장 중 dialog close, mode 전환, drag/drop, 행 선택을 막는다.
+- 저장 성공 후 상위 widget이 dispose됐으면 setState하지 않되 DAO transaction 결과는 유실하지 않는다.
+- dialog가 열린 사이 외부에서 같은 label size column이 바뀔 수 있다면 저장 전 original fingerprint 또는 row version에 준하는 재검증을 수행한다. 충돌이 확인되면 덮어쓰지 않고 재조회 안내를 표시한다.
+- 로그는 operation/trace, labelSizeId, customerId, insert/update/delete 개수, mode 전환, 성공/실패만 기록한다. 키워드 본문, 사용자 정의 QR 데이터, 비밀번호 등 실제 payload는 기록하지 않는다.
+- 로그는 상태 관찰용이며 저장 여부나 분기를 결정하는 비즈니스 로직으로 사용하지 않는다.
+
+15. 권한과 진입 조건
+
+- 선택된 label size가 없으면 `항목 편집` 버튼을 비활성화한다.
+- 현재 사용자가 공용라벨관리 접근/편집 권한이 없으면 진입할 수 없다.
+- 품목관리 draft command, 강제 reload, 공용라벨 저장 등 충돌 가능한 상위 command가 진행 중이면 진입을 차단하고 이유를 안내한다.
+- dialog를 열 때 labelSizeId, customerId, 현재 column cache generation을 immutable input으로 전달한다. 열린 뒤 상단 dropdown 값에 다시 의존하지 않는다.
+
+16. 테스트 요구사항
+
+16.1 순수 모델 테스트
+
+- original/working/property dirty 구분
+- 속성 적용과 취소
+- 신규 pending 특수 행의 속성 취소 시 행 제거
+- 기존/신규 삭제 ID 처리
+- 안정 key 기반 선택 유지
+- duplicate keyword/빈 필드/type별 validation
+- QR/기본/GS1 참조 관계 계산
+- reorder 후 1부터 연속 order 생성
+- 사용자 항목 대문자/영숫자/중복 검증
+
+16.2 widget 테스트
+
+- 공용라벨 `항목 편집` 버튼으로 blocking modeless dialog가 하나만 열림
+- 큰 화면과 최소 지원 화면에서 속성 패널, 두 테이블, command rail, footer가 겹치지 않음
+- 고정/사용자 전환 및 고정 분류 dropdown
+- 후보 선택 + 왼쪽 화살표 추가
+- 고정/사용자 후보 drag + 사용 항목 drop 추가
+- 중복 후보 추가 차단
+- 선택 없음 휴지통 비활성
+- 사용 항목 선택 + 휴지통 삭제
+- 사용 항목 drag + 휴지통 drop 애니메이션과 삭제
+- property dirty 상태의 행 선택/모드 전환/닫기 guard에서 취소와 변경 취소 양쪽 결과
+- 타입 변경에 따른 속성 editor 교체와 입력값 보존/초기화
+- 속성 적용 버튼의 content dirty 기반 활성 상태
+- reorder mode의 교차 영역 아이콘, drag reorder, 위/아래 rail, 전용 footer, 다른 영역 비활성
+- reorder 저장 확인 취소/확인/실패 상태 유지
+- userItemEdit 모드의 편집→추가 아이콘 전환, 마지막 행 추가, 종류 dropdown, 삭제/drop, footer, 취소/저장
+- 전용 모드에서 메인 footer 비활성
+- DB busy 중 중복 클릭과 닫기 차단
+
+16.3 DAO/transaction 테스트
+
+- 고정 분류/후보 및 customer scoped 사용자 후보 조회
+- 사용자 항목 insert/update/delete가 한 transaction으로 commit
+- 사용자 항목 중간 실패 전체 rollback
+- 신규 column ID가 source draft key에 정확히 매핑
+- 신규 column마다 기존 item content 생성
+- update가 전체 속성과 order 및 보조 테이블 반영
+- delete가 content/check/min/GS1/status/main row를 정리
+- GS1 contain 관계의 양쪽 참조 정리
+- 중간 단계 실패 전체 rollback
+- affected row 0 또는 identity 소유권 불일치 시 rollback
+- 저장 실패가 UI working copy를 지우지 않음
+- parameter binding으로 작은따옴표가 있는 허용 문자열도 SQL 문법을 깨지 않음
+
+16.4 통합 회귀
+
+- 저장 후 `TColumn.datas`와 공용라벨 사용 항목 표 갱신
+- 저장 후 품목관리 동적 컬럼 및 출력 미리보기 재조회/갱신
+- 새 이미지/바코드/QR keyword가 라벨 시트 object/required keyword 처리에 반영
+- 삭제/키워드 변경한 항목을 참조하는 라벨 workbook에 대해 영향 경고가 표시됨
+- 기존 라벨 설정/브랜드 설정/품목 순서 변경 테이블 테스트 전체 통과
+- `flutter analyze`, 관련 테스트, 전체 `flutter test`, `git diff --check` 통과
+
+17. 구현 권장 순서
+
+1. 모델/DAO 조회와 save command DTO
+2. 사용 항목 edit session 및 validation 순수 로직
+3. 사용자 항목 edit session 및 transaction
+4. `SwipeActionTable`의 교차 헤더 action/외부 drag/drop 최소 확장
+5. 다이얼로그 기본 layout과 normal mode
+6. 속성 패널 공통/타입별 editor
+7. 후보 추가와 휴지통 삭제
+8. reorder mode
+9. userItemEdit mode
+10. 사용 항목 원자적 save transaction
+11. 상위 callback/cache/미리보기 refresh
+12. focused widget/DAO 테스트, analyze, 전체 suite
+
+각 단계는 미검증 상태로 다음 큰 단계에 넘어가지 않는다. 첫 vertical slice는 `기본 타입 후보 1개 추가 → 속성 적용 → transaction 저장 → 재조회 표시`로 잡고, 이후 특수 타입/GS1/drag/drop을 확장한다.
+
+18. 레거시 대비 누락 방지 목록
+
+사용자가 명시한 UI 요구 외에도 아래 레거시 기능이 빠지면 기능 회귀다.
+
+- 현재 사용 항목의 신규/키워드/항목명/종류/제목/표시 여부
+- 제목 직접 변경과 최대 길이 검증
+- 표시 여부 변경
+- 누락 키워드 검사 `BM_RICH_CHECK_COLUMNS`
+- QR/기본 사용자 정의에서 참조 중인 항목 표시와 키워드 변경/삭제 경고
+- 같은 키워드 중복 추가/저장 차단
+- 빈 키워드/항목명 저장 차단
+- 기존 품목 존재 시 데이터 영향 이중 확인 또는 동등한 강도의 명확한 최종 확인
+- 바코드/이미지/QR/GS1/날짜 타입의 전체 속성 UI와 검증
+- 체크디지트/타임바코드 변경 영향 경고
+- GS1 AI 포함 관계의 추가/수정/삭제
+- 신규 컬럼의 기존 품목 및 update 품목 빈 content 생성
+- `BM_RICH_COL_MIN`, `BM_RICH_CHECK_COLUMNS`, GS1 보조 테이블 동기화
+- 삭제 status date 갱신
+- 저장 후 컬럼 변경 observer/cache refresh
+- 고객별 사용자 항목 사전의 추가/수정/삭제와 대문자/영숫자 키워드 규칙
+
+다음 항목은 레거시 구현에 존재하지만 그대로 재현하지 않고 개선해야 한다.
+
+- `SelectLastNRecord()` 신규 ID 추정: `OUTPUT INSERTED` 기반 정확한 매핑으로 대체
+- 문자열 보간 SQL: parameterized query로 대체
+- 사용자 항목의 transaction 없는 행별 CRUD: 단일 transaction으로 대체
+- 저장 실패를 삼킨 뒤 화면을 재조회하는 동작: 실패 반환과 working copy 보존으로 대체
+- 빈 `InsertColumnsToLogDB()`: 별도 감사 로그 요구/스키마가 확정되기 전 구현 대상에서 제외
+- 제목 `20Byte` 문구와 실제 20자 판정 불일치: UI/검증을 20자로 통일
+- 상세 설정 `Apply()` 실패 결과를 무시하고 닫는 동작: validation 실패 시 속성 패널을 유지
+- 삭제 시 content/FK cascade 의존: 실제 FK를 확인하고 transaction에서 명시적으로 정리
+
+19. 완료 조건
+
+- 공용라벨관리에서 선택한 라벨 크기의 `라벨 항목 편집` 다이얼로그를 열 수 있다.
+- 두 테이블과 순서 변경 UX가 라벨 설정의 공용 테이블 패턴을 사용한다.
+- 별도 상세 dialog 없이 선택 행 타입에 맞는 속성을 왼쪽 패널에서 수정, 취소, 적용할 수 있다.
+- 미적용 속성 변경은 다른 이벤트 전에 반드시 취소 질의를 거친다.
+- 아이콘과 drag/drop 양쪽으로 후보 추가 및 항목 삭제가 가능하고 동일 command 결과를 낸다.
+- 순서 변경과 사용자 항목 설정이 상호 배타 전용 모드로 동작한다.
+- 사용 항목과 사용자 항목 저장이 각각 원자적 transaction이며 실패 시 편집 상태를 보존한다.
+- 저장 후 공용라벨/품목관리/미리보기가 새 컬럼 목록을 사용한다.
+- 16장의 테스트와 전체 정적 분석/테스트가 통과한다.
