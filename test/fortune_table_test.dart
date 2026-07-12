@@ -1019,6 +1019,7 @@ void main() {
   testWidgets('ItemManage closes a focused count menu on first outside tap', (
     tester,
   ) async {
+    final popupRouteObserver = _PopupRouteObserver();
     final controller = ItemManagerDraftController(
       rows: [
         for (var index = 0; index < 2; index++)
@@ -1036,6 +1037,7 @@ void main() {
     addTearDown(controller.dispose);
     await tester.pumpWidget(
       MaterialApp(
+        navigatorObservers: [popupRouteObserver],
         home: Scaffold(
           body: SizedBox(
             width: 600,
@@ -1055,10 +1057,30 @@ void main() {
       ),
     );
 
-    await _openItemManageContextMenu(
-      tester,
-      tester.getTopLeft(find.byType(FortuneTable<ItemOfMarket>)),
+    final tableFinder = find.byType(FortuneTable<ItemOfMarket>);
+    final menuPosition =
+        tester.getTopLeft(tableFinder) + const Offset(40 + 80, 36 + 14);
+    final rowGesture = tester.widget<GestureDetector>(
+      find
+          .descendant(
+            of: tableFinder,
+            matching: find.byWidgetPredicate(
+              (widget) =>
+                  widget is GestureDetector &&
+                  widget.onSecondaryTapDown != null,
+            ),
+          )
+          .first,
     );
+    final outerGesture = tester.widget<GestureDetector>(
+      find.ancestor(of: tableFinder, matching: find.byType(GestureDetector)).first,
+    );
+    final details = TapDownDetails(globalPosition: menuPosition);
+    rowGesture.onSecondaryTapDown!(details);
+    outerGesture.onSecondaryTapDown!(details);
+    await tester.pumpAndSettle();
+
+    expect(popupRouteObserver.popupPushCount, 1);
     final countFields = tester.widgetList<TextField>(
       find.descendant(
         of: find.byType(PopupMenuItem<String>),
@@ -1993,6 +2015,16 @@ void main() {
       false,
     ]);
   });
+}
+
+class _PopupRouteObserver extends NavigatorObserver {
+  int popupPushCount = 0;
+
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    super.didPush(route, previousRoute);
+    if (route is PopupRoute<dynamic>) popupPushCount += 1;
+  }
 }
 
 ScrollController _bodyVerticalController(WidgetTester tester) {

@@ -149,6 +149,7 @@ class _ItemManageState extends State<ItemManage> {
   int _lastFocusRequestId = 0;
   bool _projectingPublishChecks = false;
   bool _projectingSelection = false;
+  bool _contextMenuOpen = false;
 
   @override
   void initState() {
@@ -428,16 +429,38 @@ class _ItemManageState extends State<ItemManage> {
     int rowIndex,
     TapDownDetails details,
   ) async {
-    _contextMenuDraftRow = _draftByDisplayItem[row];
-    await _showContextMenu(details);
+    await _showContextMenu(details, draftRow: _draftByDisplayItem[row]);
   }
 
   Future<void> _showEmptyTableContextMenu(TapDownDetails details) async {
-    _contextMenuDraftRow = null;
     await _showContextMenu(details);
   }
 
-  Future<void> _showContextMenu(TapDownDetails details) async {
+  Future<void> _showContextMenu(
+    TapDownDetails details, {
+    ItemManagerDraftRow? draftRow,
+  }) async {
+    if (_contextMenuOpen) {
+      ItemManagerDebugLog.event(
+        'contextMenuPopup',
+        'duplicateOpeningIgnored',
+        fields: {
+          'x': details.globalPosition.dx.round(),
+          'y': details.globalPosition.dy.round(),
+        },
+      );
+      return;
+    }
+    _contextMenuOpen = true;
+    _contextMenuDraftRow = draftRow;
+    try {
+      await _showContextMenuRoute(details);
+    } finally {
+      _contextMenuOpen = false;
+    }
+  }
+
+  Future<void> _showContextMenuRoute(TapDownDetails details) async {
     final menuRouteMarkerKey = GlobalKey();
     final menuRouteEndKey = GlobalKey();
     final menuTapRegionGroupId = Object();
