@@ -64,6 +64,36 @@ class ItemManagerMigrationRequired extends StatelessWidget {
   }
 }
 
+enum ItemManageSearchResult { found, reachedEnd, unavailable }
+
+class ItemManageController {
+  Object? _owner;
+  ItemManageSearchResult Function(String query)? _search;
+  VoidCallback? _resetSearch;
+
+  ItemManageSearchResult search(String query) =>
+      _search?.call(query) ?? ItemManageSearchResult.unavailable;
+
+  void resetSearch() => _resetSearch?.call();
+
+  void _attach({
+    required Object owner,
+    required ItemManageSearchResult Function(String query) search,
+    required VoidCallback resetSearch,
+  }) {
+    _owner = owner;
+    _search = search;
+    _resetSearch = resetSearch;
+  }
+
+  void _detach(Object owner) {
+    if (!identical(_owner, owner)) return;
+    _owner = null;
+    _search = null;
+    _resetSearch = null;
+  }
+}
+
 class ItemManage extends StatefulWidget {
   final List<ItemOfMarket> items;
   final int? selectedIndex;
@@ -84,6 +114,7 @@ class ItemManage extends StatefulWidget {
   final bool commandBusy;
   final bool forceReloadRequired;
   final bool canEdit;
+  final ItemManageController? controller;
 
   const ItemManage({
     super.key,
@@ -106,6 +137,7 @@ class ItemManage extends StatefulWidget {
     this.commandBusy = false,
     this.forceReloadRequired = false,
     this.canEdit = true,
+    this.controller,
   });
 
   @override
@@ -150,6 +182,8 @@ class _ItemManageState extends State<ItemManage> {
   bool _projectingPublishChecks = false;
   bool _projectingSelection = false;
   bool _contextMenuOpen = false;
+  String _activeSearchColumnId = 'itemName';
+  int _searchStartIndex = 0;
 
   @override
   void initState() {
@@ -157,6 +191,7 @@ class _ItemManageState extends State<ItemManage> {
     _publishCheckboxController.addListener(_handlePublishChecksChanged);
     _selectionController.addListener(_handleSelectionChanged);
     widget.draftController?.addListener(_handleDraftChanged);
+    _attachController();
   }
 
   @override
@@ -167,6 +202,10 @@ class _ItemManageState extends State<ItemManage> {
       widget.draftController?.addListener(_handleDraftChanged);
       _publishCheckedItemIds.clear();
       _publishCheckboxController.clearColumn(_publishColumnId);
+    }
+    if (oldWidget.controller != widget.controller) {
+      oldWidget.controller?._detach(this);
+      _attachController();
     }
     _projectPublishChecks();
     final rowCount = widget.draftController?.rows.length ?? widget.items.length;
@@ -261,7 +300,16 @@ class _ItemManageState extends State<ItemManage> {
     _publishCheckboxController.dispose();
     _selectionController.dispose();
     _focusController.dispose();
+    widget.controller?._detach(this);
     super.dispose();
+  }
+
+  void _attachController() {
+    widget.controller?._attach(
+      owner: this,
+      search: _search,
+      resetSearch: () => _searchStartIndex = 0,
+    );
   }
 
   @override
@@ -287,6 +335,12 @@ class _ItemManageState extends State<ItemManage> {
               focusController: _focusController,
               multiSelectionEnabled: true,
               onRowSelected: _handleRowSelected,
+              onCellActivated: (_, _, columnId) {
+                if (_activeSearchColumnId != columnId) {
+                  _searchStartIndex = 0;
+                }
+                _activeSearchColumnId = columnId;
+              },
               onRowSecondaryTapDown: _showTableContextMenu,
               onRectChanged: widget.onTableRectChanged,
               rowColorBuilder: _rowColor,
@@ -296,6 +350,34 @@ class _ItemManageState extends State<ItemManage> {
         _buildCommandFooter(),
       ],
     );
+  }
+
+  ItemManageSearchResult _search(String query) {
+    final rows = _resolveDisplayItems();
+    final columns = _columns;
+    final columnIndex = columns.indexWhere(
+      (column) => column.id == _activeSearchColumnId,
+    );
+    if (rows.isEmpty || columnIndex < 0) {
+      return ItemManageSearchResult.unavailable;
+    }
+    final column = columns[columnIndex];
+    for (var index = _searchStartIndex; index < rows.length; index += 1) {
+      if (!column.text(rows[index]).contains(query)) continue;
+      _searchStartIndex = index + 1;
+      _selectionController.setSelectedRows([index]);
+      final draft = _draftByDisplayItem[rows[index]];
+      if (draft != null) {
+        widget.draftController?.setSelection(
+          [draft.rowKey],
+          anchorRowKey: draft.rowKey,
+        );
+      }
+      _focusController.focusCell(index, column.id);
+      widget.onRowSelected?.call(rows[index], index);
+      return ItemManageSearchResult.found;
+    }
+    return ItemManageSearchResult.reachedEnd;
   }
 
   Widget _buildCommandFooter() {

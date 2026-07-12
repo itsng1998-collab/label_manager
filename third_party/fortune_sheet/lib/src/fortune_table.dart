@@ -175,6 +175,7 @@ class FortuneTable<T> extends StatefulWidget {
     this.selectionController,
     this.focusController,
     this.onRowSelected,
+    this.onCellActivated,
     this.onRowSecondaryTapDown,
     this.onRectChanged,
     this.rowColorBuilder,
@@ -194,6 +195,7 @@ class FortuneTable<T> extends StatefulWidget {
   final FortuneTableSelectionController? selectionController;
   final FortuneTableFocusController? focusController;
   final void Function(T row, int index)? onRowSelected;
+  final void Function(T row, int rowIndex, String columnId)? onCellActivated;
   final void Function(T row, int index, TapDownDetails details)?
   onRowSecondaryTapDown;
   final ValueChanged<Rect>? onRectChanged;
@@ -765,6 +767,7 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
       onPointerDown: (event) {
         if (event.buttons == kPrimaryMouseButton) {
           _selectRow(row, rowIndex);
+          widget.onCellActivated?.call(row, rowIndex, column.id);
         }
       },
       onPointerUp: (_) {

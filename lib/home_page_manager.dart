@@ -53,6 +53,8 @@ import 'package:label_manager/page_home/preview_floating_window.dart';
 import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
 import 'package:label_manager/widgets/swipe_action_table.dart';
 
+bool itemManagerSearchVisibleForTab(Object? tabValue) => tabValue == 'items';
+
 class _ItemMappingFingerprintConflict implements Exception {
   const _ItemMappingFingerprintConflict();
 
@@ -90,6 +92,7 @@ class _HomePageManagerState extends State<HomePageManager> {
 
   late TabbedViewController _tabController;
   final TextEditingController _tabSearchController = TextEditingController();
+  final ItemManageController _itemManageController = ItemManageController();
   final GlobalKey _itemPreviewButtonKey = GlobalKey();
   final GlobalKey _commonLabelPreviewButtonKey = GlobalKey();
   final GlobalKey _rtfPreviewBoxKey = GlobalKey();
@@ -2193,6 +2196,7 @@ class _HomePageManagerState extends State<HomePageManager> {
             ? const ItemManagerMigrationRequired()
             : ItemManage(
                 key: ValueKey('items:$_labelContentKey'),
+                controller: _itemManageController,
                 items: ItemOfMarket.datas ?? const <ItemOfMarket>[],
                 selectedIndex: _selectedItemIndex,
                 onRowSelected: _handleItemRowSelected,
@@ -2998,10 +3002,29 @@ class _HomePageManagerState extends State<HomePageManager> {
     super.dispose();
   }
 
-  void _onTabSearch() {
+  Future<void> _onTabSearch() async {
     final query = _tabSearchController.text.trim();
-    if (query.isEmpty) return;
-    // TODO: 검색 로직
+    if (query.isEmpty || _selectedTabValue() != 'items') return;
+    final result = _itemManageController.search(query);
+    if (result == ItemManageSearchResult.found || !mounted) return;
+    final restart = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('검색'),
+        content: const Text('마지막까지 검색하였습니다. 처음부터 검색하시겠습니까?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('취소'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('확인'),
+          ),
+        ],
+      ),
+    );
+    if (restart == true) _itemManageController.resetSearch();
   }
 
   Widget _buildTabTrailing(BuildContext context) {
@@ -3019,71 +3042,75 @@ class _HomePageManagerState extends State<HomePageManager> {
         children: [
           _buildItemPreviewButton(context),
           _buildCommonLabelPreviewButton(context),
-          Transform.translate(
-            offset: const Offset(0, -1),
-            child: SizedBox(
-              width: fieldWidth,
-              child: TextField(
-                controller: _tabSearchController,
-                style: const TextStyle(fontSize: 13),
-                textAlignVertical: TextAlignVertical.center,
-                textInputAction: TextInputAction.search,
-                onSubmitted: (_) => _onTabSearch(),
-                decoration: InputDecoration(
-                  isDense: true,
-                  hintText: '검색어 입력',
-                  contentPadding: lmInsetsSymmetric(
-                    horizontal: 12,
-                    vertical: isDesktop ? 8 : 4,
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(6),
-                    borderSide: const BorderSide(color: Color(0xFFCED4DA)),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(6),
-                    borderSide: const BorderSide(color: Color(0xFFCED4DA)),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(6),
-                    borderSide: const BorderSide(color: Color(0xFF3B82F6)),
+          if (itemManagerSearchVisibleForTab(_selectedTabValue())) ...[
+            Transform.translate(
+              offset: const Offset(0, -1),
+              child: SizedBox(
+                width: fieldWidth,
+                child: TextField(
+                  key: const ValueKey('item-manager-search-field'),
+                  controller: _tabSearchController,
+                  style: const TextStyle(fontSize: 13),
+                  textAlignVertical: TextAlignVertical.center,
+                  textInputAction: TextInputAction.search,
+                  onSubmitted: (_) => _onTabSearch(),
+                  decoration: InputDecoration(
+                    isDense: true,
+                    hintText: '검색어 입력',
+                    contentPadding: lmInsetsSymmetric(
+                      horizontal: 12,
+                      vertical: isDesktop ? 8 : 4,
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(6),
+                      borderSide: const BorderSide(color: Color(0xFFCED4DA)),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(6),
+                      borderSide: const BorderSide(color: Color(0xFFCED4DA)),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(6),
+                      borderSide: const BorderSide(color: Color(0xFF3B82F6)),
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-          SizedBox(width: lmSize(8)),
-          Transform.translate(
-            offset: const Offset(0, -1),
-            child: SizedBox(
-              height: fieldHeight - lmSize(10),
-              child: FilledButton.icon(
-                onPressed: _onTabSearch,
-                icon: Icon(
-                  Icons.search,
-                  size: lmSize(14),
-                  color: onButtonColor,
-                ),
-                label: Text(
-                  '검색',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
+            SizedBox(width: lmSize(8)),
+            Transform.translate(
+              offset: const Offset(0, -1),
+              child: SizedBox(
+                height: fieldHeight - lmSize(10),
+                child: FilledButton.icon(
+                  key: const ValueKey('item-manager-search-button'),
+                  onPressed: _onTabSearch,
+                  icon: Icon(
+                    Icons.search,
+                    size: lmSize(14),
                     color: onButtonColor,
                   ),
-                ),
-                style: FilledButton.styleFrom(
-                  backgroundColor: buttonColor,
-                  padding: lmInsetsSymmetric(horizontal: 10),
-                  minimumSize: Size(0, fieldHeight - lmSize(10)),
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(6),
+                  label: Text(
+                    '검색',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: onButtonColor,
+                    ),
+                  ),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: buttonColor,
+                    padding: lmInsetsSymmetric(horizontal: 10),
+                    minimumSize: Size(0, fieldHeight - lmSize(10)),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(6),
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
+          ],
           const SizedBox(width: 8),
         ],
       ),

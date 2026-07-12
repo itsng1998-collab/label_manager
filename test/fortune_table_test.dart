@@ -10,8 +10,17 @@ import 'package:label_manager/models/item_manager_draft.dart';
 import 'package:label_manager/models/item_of_market.dart';
 import 'package:label_manager/models/label_size.dart';
 import 'package:label_manager/page_home/item_manage.dart';
+import 'package:label_manager/home_page_manager.dart';
 
 void main() {
+  test('item manager search is visible only on the item tab', () {
+    expect(itemManagerSearchVisibleForTab('items'), isTrue);
+    expect(itemManagerSearchVisibleForTab('common_label'), isFalse);
+    expect(itemManagerSearchVisibleForTab('label_print'), isFalse);
+    expect(itemManagerSearchVisibleForTab('auto_update'), isFalse);
+    expect(itemManagerSearchVisibleForTab(null), isFalse);
+  });
+
   test('item manager formats single and multiple delete confirmations', () {
     expect(
       itemManagerDeleteConfirmationMessage(
@@ -671,6 +680,64 @@ void main() {
 
     expect(selected?.item.itemName, '테스트 품목');
     expect(selectedIndex, 0);
+  });
+
+  testWidgets('ItemManage searches the active column from the next row', (
+    tester,
+  ) async {
+    final searchController = ItemManageController();
+    int? selectedIndex;
+    final items = [
+      _testItemOfMarket(
+        itemName: 'Alpha 사과',
+        element: '첫째 원료',
+        itemId: 10,
+      ),
+      _testItemOfMarket(
+        itemName: 'Alpha 배',
+        element: '둘째 원료',
+        itemId: 20,
+      ),
+      _testItemOfMarket(
+        itemName: 'alpha 포도',
+        element: '셋째 원료',
+        itemId: 30,
+      ),
+    ];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 700,
+            height: 220,
+            child: ItemManage(
+              controller: searchController,
+              items: items,
+              onRowSelected: (_, index) => selectedIndex = index,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(searchController.search('Alpha'), ItemManageSearchResult.found);
+    expect(selectedIndex, 0);
+    expect(searchController.search('Alpha'), ItemManageSearchResult.found);
+    expect(selectedIndex, 1);
+    expect(
+      searchController.search('Alpha'),
+      ItemManageSearchResult.reachedEnd,
+    );
+
+    searchController.resetSearch();
+    expect(searchController.search('Alpha'), ItemManageSearchResult.found);
+    expect(selectedIndex, 0);
+
+    await tester.tap(find.text('둘째 원료'));
+    await tester.pump();
+    expect(searchController.search('셋째'), ItemManageSearchResult.found);
+    expect(selectedIndex, 2);
   });
 
   testWidgets('ItemManage keeps the element column read-only', (tester) async {
@@ -2062,6 +2129,7 @@ Color? _cellColorForText(WidgetTester tester, String text) {
 
 ItemOfMarket _testItemOfMarket({
   String itemName = '테스트 품목',
+  String element = '원재료',
   int marketId = 1,
   int itemId = 10,
 }) {
@@ -2073,7 +2141,7 @@ ItemOfMarket _testItemOfMarket({
       labelSizeId: 20,
       itemName: itemName,
       labelSizeName: '테스트 라벨',
-      element: '원재료',
+      element: element,
       elementRTF: '',
       price: 0,
       order: 0,
