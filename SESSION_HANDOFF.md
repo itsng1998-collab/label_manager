@@ -28,6 +28,20 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-12): 품목 편집 중 헤더 dropdown 변경 차단 정합
+
+- 사용자 확인 요청: 품목관리 편집 모드에서 탭 변경처럼 헤더 브랜드/라벨 dropdown 변경도 경고 스낵바 후 차단되고 선택값이 바뀌지 않아야 한다.
+- 확인 결과: `_blockItemDraftContextChange()` 가드는 탭, 헤더 브랜드, 헤더 라벨에 이미 적용되어 dirty 시 `저장 완료 또는 변경 취소 확정 후 변경해 주세요.` 스낵바를 표시한다. 그러나 DropdownButtonFormField2는 callback 전에 내부 표시값을 변경하며, 브랜드 handler는 차단 시 단순 return해 새 브랜드 표시가 남을 수 있었다. 라벨은 현재값 부모 callback에 간접 의존해 복원했다.
+- 편집 완료 `lib/home_page_manager.dart`: 헤더 전용 dropdown reset generation을 추가했다. 브랜드 차단 시 즉시 reset하며, 라벨 변경 handler가 false를 반환하면 같은 reset을 수행한다. 브랜드·라벨 FormField는 generation/current value key로 재생성되어 경고 후 실제 표시도 원래 선택값으로 복원된다.
+- 문서 완료 `doc/item_manager_modify.txt`: dirty 변경 시 dropdown은 경고를 받을 수 있도록 활성 상태를 유지하고, FormField 내부 표시도 현재 브랜드/라벨로 복원한다는 계약을 추가했다.
+- 테스트 보강 `lib/home_page_manager.dart`, `test/label_sheet_toolbar_test.dart`: 테스트용 헤더 builder에 controlled dropdown 입력을 추가하고, 다른 브랜드/라벨 선택을 차단한 뒤 둘 다 원래 표시값으로 돌아오는 실제 widget test를 추가했다.
+- 검증 완료: Dart 포맷 완료. `test/label_sheet_toolbar_test.dart` 109개 통과, `test/fortune_table_test.dart` 38개 통과, 변경 Dart 파일 diagnostics 오류 0건.
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 성공(`No issues found`).
+- 검증 완료: `C:\Flutter\bin\flutter.bat test` 전체 344개 통과.
+- 정리 완료: 테스트 생성물 `third_party/fortune_sheet/build` 삭제, `git diff --check` 통과, diff/stage 범위 확인 완료.
+- 기능 커밋: `9f3b954` (`품목 편집 중 헤더 선택 변경 차단`).
+- 기존 unrelated dirty `lib/core/app.dart`는 수정·stage 대상에서 제외한다.
+
 ### 완료 (2026-07-12): 품목관리 진입 스낵바 완료 시점 보정
 
 - 사용자 요청: 품목관리 진입 시 진행 중 스낵바를 DB 로드 직후가 아니라 렌더링과 내부 작업이 모두 끝난 시점에 종료한다.
