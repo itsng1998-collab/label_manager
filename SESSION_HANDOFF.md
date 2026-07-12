@@ -28,6 +28,20 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-12): 품목 추가 popup 종료 및 첫 추가 행 자동 스크롤
+
+- 사용자 재현: popup의 특수 `품목 추가` 항목 선택 시 메뉴가 남고, 행 추가 후 첫 추가 행이 화면 밖이어도 자동 스크롤되지 않는다.
+- 편집 완료 `lib/page_home/item_manage.dart`: `_countMenuItem`에 route marker key를 전달해 일반 menu item과 동일하게 popup route의 실제 제거 후 command를 실행한다. `addRows` 완료 후 첫 추가 draft 행의 `itemName` 셀에 `FortuneTableFocusController.focusCell`을 요청한다.
+- 공용 편집 완료 `third_party/fortune_sheet/lib/src/fortune_table.dart`: focus 요청이 post-frame 중 발생해도 등록된 reveal callback이 다음 frame에 실행되도록 `_handleFocusControllerChanged`에서 `ensureVisualUpdate()`를 호출한다.
+- 테스트 추가 `test/fortune_table_test.dart`: 20개 draft 행에서 `품목 추가` 실행 후 popup 미잔존, 21번째 첫 추가 행 선택, 세로 scroll offset 증가를 검증한다.
+- 공용 테스트 보강 `test/fortune_table_test.dart`: `FortuneTable focus controller reveals an off-screen cell`을 post-frame focus 요청 기준으로 강화해 frame 예약과 reveal을 검증한다.
+- 문서 갱신 `doc/item_manager_modify.txt`: 품목 추가 command는 popup route 완전 종료 후 실행하고 첫 추가 행을 선택/자동 스크롤한다고 명시한다.
+- focused 검증 완료: 자동 스크롤 전용 테스트 및 post-frame focus 테스트 통과, `test/fortune_table_test.dart` 전체 34개와 `test/item_manager_draft_test.dart` 24개 통과. 변경 파일 diagnostics 오류 0건.
+- 전체 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 이슈 0건, 전체 Flutter 테스트 3,347개 통과.
+- 정리 완료: 전체 테스트가 생성한 `third_party/fortune_sheet/build`를 삭제했고 `git diff --check` 오류가 없다.
+- stage 대상: `lib/page_home/item_manage.dart`, `third_party/fortune_sheet/lib/src/fortune_table.dart`, `test/fortune_table_test.dart`, `doc/item_manager_modify.txt`. 기존 unrelated `lib/core/app.dart`와 `SESSION_HANDOFF.md`는 기능 커밋에서 제외한다.
+- 기능·테스트·문서 커밋: `dcafe96` (`품목 추가 팝업 종료 및 자동 스크롤 적용`).
+
 ### 완료 (2026-07-12): 품목관리 popup 명령 route 종료 일반화
 
 - 사용자 재현: 품목관리 popup에서 `순서 변경`을 선택하고 순서 변경 dialog를 닫으면 이전 popup 메뉴가 다시 남는다.
