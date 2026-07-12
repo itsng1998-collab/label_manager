@@ -28,6 +28,23 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-13): 라벨 항목 편집기 작업지시서 3차 검토 권장안 병합
+
+- 사용자 요청: 최신 `doc/user_item_modify.txt`의 레거시/현 프로젝트 재검토에서 확정한 구현 모호성과 문제의 권장안을 기존 작업지시서에 병합 정리한다.
+- 수정 예정 `doc/user_item_modify.txt`: commit 결과 미확정 3상태 reconciliation, 실제 session bundle 기반 atomic swap, journal prepare/suspend/activate/resume lifecycle, committed 상태 닫기 계약, 편집기 raw-row DAO, 컬럼/품목 저장 공통 DB lock, CP949 capability/staging, QR 하단 텍스트 token 참조, 사용자 항목 사전 동시성/type filter, 후보 결정적 정렬을 기존 UI/상태/DAO/테스트/완료 조건 절에 반영한다. 미검증.
+- 수정 예정 `SESSION_HANDOFF.md`: 문서 편집, 검증, stage, commit 결과를 단계별로 기록한다.
+- 기존 unrelated dirty `lib/core/app.dart`는 수정·stage 대상에서 제외한다.
+- 편집 완료 `doc/user_item_modify.txt`: `DbCommitOutcomeUnknown`을 desired/original/indeterminate 3상태 reconciliation으로 정의하고 operation ledger 없이 실제 commit 여부 단정·동일 command 자동 재실행을 금지했다. `committedReloadFailed`의 제목 표시줄/Esc 차단과 명시적 화면 닫기 동작도 분리했다.
+- 편집 완료 `doc/user_item_modify.txt`: 개별 static cache 교체 대신 immutable `LabelSizeSessionBundle` 단일 reference swap을 요구하고, journal prepare/suspend/activate/resume/dispose와 draft-key lease를 rollback 가능한 handoff 계약으로 추가했다.
+- 편집 완료 `doc/user_item_modify.txt`: 편집기 raw-row DAO, VARCHAR/NVARCHAR/MAX capability와 NVARCHAR(MAX) staging/CP949 round-trip, DB-Lib 길이 helper, QR data/하단 text 공용 exact-token parser를 명시했다.
+- 편집 완료 `doc/user_item_modify.txt`: 컬럼/품목 저장 공통 label-size `sp_getapplock`, 사용자 항목 customer lock과 original/desired fingerprint, type 0~12 공통 filter, 후보 결정적 정렬을 범위/DAO/테스트/완료 조건에 반영했다.
+- 중간 검증 완료: `doc/user_item_modify.txt` diagnostics 오류 0건. 이전 상충 문구 5종 검색 결과 0건, 새 핵심 계약 23개 위치를 확인했다.
+- 최종 검증 예정: 두 문서 diagnostics, 핵심 계약/상충 문구 검색, `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md`, diff/stat와 stage 대상 확인. 문서만 변경했으므로 Flutter 테스트는 실행하지 않는다.
+- 최종 검증 완료: 두 문서 diagnostics 오류 0건, 이전 상충 문구 검색 0건, 새 핵심 계약 28개 위치 확인, `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md` 통과. 변경량은 작업지시서 63행 추가/44행 교체와 인수인계 13행 추가이며 Flutter 코드/테스트를 변경하지 않아 Flutter 테스트는 실행하지 않았다.
+- stage/commit 예정: `doc/user_item_modify.txt`만 먼저 기능 문서 커밋하고, 확정 해시를 기록한 `SESSION_HANDOFF.md`를 별도 커밋한다. 기존 사용자 변경 `lib/core/app.dart`는 제외한다.
+- 기능 문서 커밋: `a6fd1ca` (`라벨 항목 편집기 작업지시서 3차 권장안 병합`). commit unknown/session bundle/journal/raw DAO/공통 lock/CP949/QR/사용자 항목 권장안을 기존 작업지시서에 병합했다.
+- 완료: 임시 산출물이나 캐시를 생성하지 않았으며 원격 push와 배포 작업은 수행하지 않았다. 인수인계만 별도 커밋한다.
+
 ### 완료 (2026-07-13): 라벨 항목 편집기 작업지시서 2차 검토 권장안 병합
 
 - 사용자 요청: 재작성된 `doc/user_item_modify.txt`의 레거시/현 프로젝트 재검토에서 확정한 문제와 권장안을 기존 작업지시서에 병합 정리한다.
