@@ -566,37 +566,49 @@ class _ItemManageState extends State<ItemManage> {
       height: fortuneContextMenuRowHeight,
       padding: _menuItemPadding,
       child: Builder(
-        builder: (menuContext) => Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            InkWell(
-              onTap: enabled
-                  ? () => Navigator.of(menuContext).pop(command)
-                  : null,
-              child: SizedBox(width: 102, child: Text(label)),
-            ),
-            SizedBox(
-              width: 44,
-              height: 26,
-              child: TextField(
-                controller: controller,
-                enabled: enabled,
-                textAlign: TextAlign.center,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  isDense: true,
-                  contentPadding: EdgeInsets.symmetric(vertical: 5),
-                  border: OutlineInputBorder(),
-                ),
-                onSubmitted: enabled
-                    ? (_) => Navigator.of(menuContext).pop(command)
+        builder: (menuContext) {
+          final textColor = enabled
+              ? Theme.of(menuContext).colorScheme.onSurface
+              : Theme.of(menuContext).disabledColor;
+          final textStyle = TextStyle(color: textColor);
+          return Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              InkWell(
+                mouseCursor: enabled
+                    ? SystemMouseCursors.click
+                    : SystemMouseCursors.basic,
+                onTap: enabled
+                    ? () => Navigator.of(menuContext).pop(command)
                     : null,
+                child: SizedBox(
+                  width: 102,
+                  child: Text(label, style: textStyle),
+                ),
               ),
-            ),
-            const SizedBox(width: 4),
-            const Text('개'),
-          ],
-        ),
+              SizedBox(
+                width: 44,
+                height: 26,
+                child: TextField(
+                  controller: controller,
+                  enabled: enabled,
+                  textAlign: TextAlign.center,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    isDense: true,
+                    contentPadding: EdgeInsets.symmetric(vertical: 5),
+                    border: OutlineInputBorder(),
+                  ),
+                  onSubmitted: enabled
+                      ? (_) => Navigator.of(menuContext).pop(command)
+                      : null,
+                ),
+              ),
+              const SizedBox(width: 4),
+              Text('개', style: textStyle),
+            ],
+          );
+        },
       ),
     );
   }

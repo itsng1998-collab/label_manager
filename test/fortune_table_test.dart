@@ -1273,6 +1273,17 @@ void main() {
     expect(table.selectionController!.selectedRows, {0});
 
     await _openItemManageContextMenu(tester, tableTopLeft);
+    final activeColor = Theme.of(
+      tester.element(find.byType(ItemManage)),
+    ).colorScheme.onSurface;
+    expect(tester.widget<Text>(find.text('품목 추가')).style?.color, activeColor);
+    expect(tester.widget<Text>(find.text('품목 삽입')).style?.color, activeColor);
+    expect(
+      tester
+          .widgetList<TextField>(find.byType(TextField))
+          .map((field) => field.enabled),
+      everyElement(isTrue),
+    );
     await tester.tap(find.text('품목 삭제'));
     await tester.pumpAndSettle();
     expect(find.text("선택한 'A'를 삭제하시겠습니까?"), findsOneWidget);
