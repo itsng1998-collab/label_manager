@@ -28,6 +28,20 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-12): 공용라벨관리 라벨 항목 편집기 작업지시서
+
+- 사용자 요청: 레거시 공용라벨관리 `사용 항목 > 항목편집` 분석을 기준으로 현 프로젝트에 구현할 `라벨 항목 편집` 다이얼로그의 기능/UI/상태/DB/테스트 작업지시서를 작성한다.
+- 분석 완료: 레거시 `CColumnEditDlg`/`CColumnEditModel`/`CColumnSetupMainDlg`/`CUserColumnEditDlg`/`CCommonLabelModel::SaveColumns`/`CColumnDAO` 흐름과 현 프로젝트 `CommonLabelManage`, `SwipeActionTable`, 라벨 설정 `orderEditMode`, `TColumn`/`TColumnDAO` 구조를 대조했다.
+- 편집 완료 `doc/user_item_modify.txt`: 속성 패널, 사용/고정/사용자 항목 테이블, `normal`/`reorder`/`userItemEdit` 상호 배타 상태, drag/drop 삭제·추가, property/working dirty guard, 사용 항목·사용자 항목 원자적 DB 저장, 모델/DAO, 공용 테이블 확장, 테스트 및 레거시 대비 누락 방지 목록을 구현 계약으로 정리했다.
+- 설계 결정: 순서 변경 모드 저장은 순서만 별도 반영하지 않고 현재 working copy의 신규/수정/삭제/순서를 같은 transaction으로 저장해 신규 ID와 최종 순서 정합성을 유지한다. 속성 미적용 변경은 모드 진입 전 공용 취소 guard로 해소한다.
+- 문서 검증 완료: `doc/user_item_modify.txt` diagnostics 오류 0건, 요구사항 핵심 키워드 검색 확인, `git diff --check -- doc/user_item_modify.txt` 통과. 최종 전체 문서 diff 검토와 stage/commit 예정.
+- 최종 검토 완료: 작업지시서는 19개 상위 장, 588줄이며 `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md` 통과. 변경 범위는 새 작업지시서와 이 인수인계뿐이며 기존 사용자 변경은 분리돼 있다.
+- 기능 문서 commit 예정: `doc/user_item_modify.txt`만 먼저 커밋하고, 확정 해시를 기록한 `SESSION_HANDOFF.md`는 별도 커밋한다.
+- 기능 문서 stage 완료: `doc/user_item_modify.txt` 1개만 포함했다. `SESSION_HANDOFF.md`와 기존 사용자 변경 `lib/core/app.dart`는 제외했다.
+- 기능 문서 커밋: `f4f1761` (`공용 라벨 항목 편집기 작업지시서 작성`). 코드 변경 없이 구현 작업지시서만 추가했다.
+- 완료: 문서 diagnostics 오류 0건, 요구사항 핵심 키워드 확인, 최종 `git diff --check` 통과. 코드/테스트는 변경하지 않아 Flutter 테스트는 실행하지 않았다.
+- 기존 unrelated dirty `lib/core/app.dart`는 수정·stage 대상에서 제외한다.
+
 ### 완료 (2026-07-12): 공용 라벨 시트 그리드 하단 클라이언트 채움
 
 - 사용자 재현: 공용라벨관리의 라벨 시트 셀 그리드가 하단 스크롤바 높이를 감안해도 좌측 클라이언트 영역 끝까지 렌더링되지 않고 빈 영역이 남는다.
