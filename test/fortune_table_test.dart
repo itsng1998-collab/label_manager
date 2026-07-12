@@ -1276,6 +1276,14 @@ void main() {
     await tester.tap(find.text('품목 삭제'));
     await tester.pumpAndSettle();
     expect(find.text("선택한 'A'를 삭제하시겠습니까?"), findsOneWidget);
+    await tester.tap(find.widgetWithText(TextButton, '계속 편집'));
+    await tester.pumpAndSettle();
+    expect(find.text("선택한 'A'를 삭제하시겠습니까?"), findsNothing);
+    expect(find.byType(PopupMenuItem<String>), findsNothing);
+
+    await _openItemManageContextMenu(tester, tableTopLeft);
+    await tester.tap(find.text('품목 삭제'));
+    await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(FilledButton, '삭제'));
     await tester.pumpAndSettle();
 

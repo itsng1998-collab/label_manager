@@ -550,6 +550,8 @@ class _ItemManageState extends State<ItemManage> {
       ],
     );
     if (!mounted || command == null) return;
+    await WidgetsBinding.instance.endOfFrame;
+    if (!mounted) return;
     await _handleContextMenuCommand(command);
   }
 
