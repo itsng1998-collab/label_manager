@@ -28,6 +28,25 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-12): 품목 팝업 메뉴 선택 후 닫힘 보장
+
+- 사용자 재현: 품목 삭제를 선택한 뒤 확인 질의에서 `계속 편집`을 누르면 품목 팝업 메뉴가 계속 남는다.
+- 조사 결과: 삭제 취소 후 popup 잔류 회귀 테스트는 기존 구현에서도 통과해 중복 route 가설은 기각했다. 실제 UI에서는 `showMenu` Future 완료와 popup route 제거 프레임 사이에 삭제 확인 dialog가 즉시 push되는 타이밍 차이가 원인으로 판단된다.
+- `lib/page_home/item_manage.dart` 편집 완료: 메뉴 선택 결과를 받은 뒤 `WidgetsBinding.instance.endOfFrame`까지 기다려 popup route가 화면에서 제거된 다음 명령/확인 dialog를 실행한다. 모든 품목 popup 명령에 공통 적용한다. 미검증.
+- `test/fortune_table_test.dart` 편집 완료: 삭제 질의에서 `계속 편집`을 선택한 뒤 확인 dialog와 `PopupMenuItem`이 모두 사라지고, 메뉴를 다시 열어 실제 삭제할 수 있음을 검증한다.
+- focused 검증: 삭제 취소/재삭제, 순서 변경, 선택·발행 메뉴 명령 3개 통과. 포맷 및 파일 전체/프로젝트 전체 검증은 미완료.
+- 변경 Dart 2개 포맷 완료. `test/fortune_table_test.dart` 전체 33개 통과, 변경 파일 diagnostics 0건.
+- 전체 검증 실행 예정: `C:\Flutter\bin\flutter.bat analyze`, 전체 `C:\Flutter\bin\flutter.bat test`, `git diff --check`. 미검증.
+- 전체 정적 분석: `C:\Flutter\bin\flutter.bat analyze` 이슈 0건.
+- 전체 테스트 1차: 3,345개 통과, `third_party/fortune_sheet/test/fortune_debug_log_test.dart`의 `active editor deletes IME residual after caret` 1개 실패(기대 `가`, 실제 `낟`). 이번 popup 변경 경로와 무관한 IME 입력 타이밍 여부를 단독 재실행 후 전체 suite 재실행으로 판별한다.
+- 간헐 실패 재검증: 위 IME 테스트 단독 1개 통과, 전체 suite 재실행 3,346개 통과. 남은 검증은 테스트 산출물 정리와 `git diff --check`.
+- 최종 검증 완료: 변경 파일 diagnostics 0건, `C:\Flutter\bin\flutter.bat analyze` 이슈 0건, 전체 테스트 재실행 3,346개 통과, `git diff --check` 통과.
+- 전체 테스트 생성 임시 산출물 `third_party/fortune_sheet/build/` 정리 완료.
+- 기능 stage/commit 대상: `lib/page_home/item_manage.dart`, `test/fortune_table_test.dart`. 기존 unrelated dirty `lib/core/app.dart`와 `SESSION_HANDOFF.md`는 기능 commit에서 제외한다.
+- 기능 commit: `47f013c` (`품목 팝업 메뉴 닫힘 보장`). 모든 품목 popup 메뉴 명령은 popup route 제거가 프레임에 반영된 후 실행되며, 삭제 질의에서 `계속 편집`을 선택해도 popup이 남지 않는다.
+- 기존 unrelated dirty `lib/core/app.dart`는 수정·stage 대상에서 제외했다.
+- 검증 예정: focused 테스트, 변경 파일 diagnostics, `C:\Flutter\bin\flutter.bat analyze`, 전체 `C:\Flutter\bin\flutter.bat test`, `git diff --check`.
+
 ### 완료 (2026-07-12): 품목 삭제 확인 문구 분기
 
 - 사용자 요청: 선택 품목이 1개면 `선택한 'A'를 삭제하시겠습니까?`, 복수면 `선택한 'A' 외 N개 항목을 모두 삭제하시겠습니까?`로 질의한다.
