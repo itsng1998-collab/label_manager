@@ -28,6 +28,21 @@
 
 ## 현재 상태
 
+### 진행 중 (2026-07-12): DB 연결 실패 시 빈 품목 목록 무응답 보정
+
+- 사용자 재현: 진행 스낵바가 닫힌 뒤에도 품목 목록이 표시되지 않는다.
+- 최신 로그 `.tmp/log/app_2026-07-12_15-44-52.log` 확인: 시작 DB 연결에서 SQL Server TCP timeout이 발생했고, `sessionLoad-1`의 `MarketDAO.selectByCustomerId`도 `DbConnectionLost`로 실패했다. ItemManage는 `rows=0`이며 `sessionLoad failed` 뒤 데이터/렌더 완료 이벤트가 없다.
+- 원인: `_handleLabelSizeChanged`는 DB 예외를 기록하고 `false`만 반환했으며, 최초 `_loadBrands`의 `finally`가 진행 스낵바를 무조건 닫았다. 따라서 데이터가 없는 연결 실패를 사용자에게 알리지 않고 진행 표시만 사라졌다.
+- 편집 완료 `lib/home_page_manager.dart`: 최초 브랜드 조회, 브랜드 변경 라벨 조회, 품목 세션 조회 실패가 `showItemManagerLoadFailure`로 수렴한다. 진행 스낵바와 큐를 제거한 뒤 `품목 데이터를 불러오지 못했습니다. 네트워크 연결을 확인한 뒤 다시 시도해 주세요.` 오류 스낵바를 표시한다. 최초 로드의 무조건 `hideCurrentSnackBar()`는 제거했으며 성공 종료는 기존 renderReady 경로가 담당한다.
+- 테스트 추가 `test/label_sheet_toolbar_test.dart`: 장기 진행 스낵바를 로드 실패 처리했을 때 오류 문구로 교체되고 진행 spinner가 제거되는 실제 widget test를 추가했다. focused 테스트 통과.
+- 문서 완료 `doc/item_manager_modify.txt`: DB 조회 실패 시 진행 표시를 오류 안내로 교체하고 빈 목록을 정상 완료 처리하지 않는 계약을 추가했다.
+- 검증 완료: Dart 포맷, 변경 파일 diagnostics 오류 0건, `test/label_sheet_toolbar_test.dart` 111개 및 `test/fortune_table_test.dart` 38개 통과.
+- 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 성공(`No issues found`).
+- 검증 완료: `C:\Flutter\bin\flutter.bat test` 전체 346개 통과.
+- 정리 완료: 테스트 생성물 `third_party/fortune_sheet/build` 삭제, `git diff --check` 통과, diff/stage 범위 확인 완료.
+- 기능 커밋: `7ac06c5` (`품목 조회 연결 실패 안내 추가`).
+- 기존 unrelated dirty `lib/core/app.dart`는 수정·stage 대상에서 제외한다.
+
 ### 완료 (2026-07-12): 느린 품목 조회 중 진행 스낵바 조기 종료 수정
 
 - 사용자 재현: 품목관리 진입 시 진행 스낵바가 먼저 닫힌 뒤 한참 후 목록이 표시된다.
