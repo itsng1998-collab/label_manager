@@ -28,6 +28,18 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-12): 품목 삭제 확인 문구 분기
+
+- 사용자 요청: 선택 품목이 1개면 `선택한 'A'를 삭제하시겠습니까?`, 복수면 `선택한 'A' 외 N개 항목을 모두 삭제하시겠습니까?`로 질의한다.
+- `lib/page_home/item_manage.dart` 편집 완료: 정렬된 첫 선택 행의 현재 draft 품명을 기준으로 단일·복수 삭제 확인 문구를 생성한다.
+- `test/fortune_table_test.dart` 편집 완료: 단일/복수 순수 문구와 실제 단일 삭제 다이얼로그 연결을 검증한다. focused 2개 통과.
+- 변경 Dart 2개 포맷 완료. `test/fortune_table_test.dart` 전체 33개 통과, 변경 파일 diagnostics 0건.
+- 전체 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 이슈 0건, 전체 `C:\Flutter\bin\flutter.bat test` 3,346개 통과, `git diff --check` 통과.
+- 전체 테스트 생성 임시 산출물 `third_party/fortune_sheet/build/` 정리 완료.
+- 기능 stage/commit 대상: `lib/page_home/item_manage.dart`, `test/fortune_table_test.dart`. 기존 unrelated dirty `lib/core/app.dart`와 `SESSION_HANDOFF.md`는 기능 commit에서 제외한다.
+- 기능 commit: `3da6e81` (`품목 삭제 확인 문구 분기`). 단일 선택은 첫 품목명을 표시하고, 복수 선택은 첫 품목명과 나머지 항목 수를 표시한다.
+- 기존 unrelated dirty `lib/core/app.dart`는 수정·stage 대상에서 제외했다.
+
 ### 완료 (2026-07-12): 레거시 사용자 권한별 품목관리 접근 적용
 
 - 사용자 요청: 레거시의 사용자 등급별 접근 정책을 현 프로젝트에 적용한다.
