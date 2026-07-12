@@ -28,6 +28,23 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-12): 공용 라벨 시트 그리드 하단 클라이언트 채움
+
+- 사용자 재현: 공용라벨관리의 라벨 시트 셀 그리드가 하단 스크롤바 높이를 감안해도 좌측 클라이언트 영역 끝까지 렌더링되지 않고 빈 영역이 남는다.
+- 원인 확인: `LabelSheetPage`는 `FortuneSheetApp(showSheetTabs: false)`를 사용해 시트 탭 높이는 0이지만, `LabelSheetWorkbench.hideStatisticBar` 기본값이 false여서 `FortuneSettings.statisticBarHeight` 기본 23px을 하단에 계속 예약한다. 공용 라벨은 줌 UI를 상단 툴바에 별도 제공하므로 예약된 하단 통계 영역이 빈 공간으로 남는다.
+- 수정 예정: `lib/page_label_sheet/label_sheet_page.dart`에서 공용 라벨 workbench의 통계 바를 숨겨 예약 높이를 셀 viewport에 반환한다. `test/label_sheet_toolbar_test.dart`에 실제 `LabelSheetPage` painter 설정 회귀 테스트를 추가한다.
+- 편집 완료 `lib/page_label_sheet/label_sheet_page.dart`: 공용 `LabelSheetPage`가 생성하는 `LabelSheetWorkbench`에 `hideStatisticBar: true`를 전달해 하단 23px 예약 영역을 셀 viewport에 반환한다.
+- 테스트 추가 `test/label_sheet_toolbar_test.dart`: 실제 `LabelSheetPage`가 탭 바와 통계 바 높이를 모두 0으로 합성하는지 검증한다. 첫 focused 실행은 `FortuneSheetApp.settings` 입력값에서 탭 바 높이를 검사해 31px로 실패했으며, `showSheetTabs: false`가 canvas 내부에서 합성되는 구조에 맞춰 실제 `FortuneSheetPainter.workbook.settings` 검사로 수정했다.
+- focused 검증 완료: `fortune sheet page gives hidden footer height to the grid` 통과. 실제 painter에서 `effectiveSheetBarHeight == 0`, `statisticBarHeight == 0`을 확인했다.
+- 관련 검증 완료: Dart 포맷, 변경 파일 diagnostics 오류 0건, `test/label_sheet_toolbar_test.dart` 112개 통과.
+- 전체 정적 분석 완료: `C:\Flutter\bin\flutter.bat analyze` 성공(`No issues found`).
+- 전체 테스트 완료: 전체 테스트 러너 집계 3,355개 통과, 실패 0건.
+- 정리 완료: `third_party/fortune_sheet/build` 삭제, `git diff --check` 통과. formatter가 기존 미포맷 구간까지 재정렬한 변경은 원래 서식으로 복원해 최종 기능 diff를 `hideStatisticBar: true` 한 줄과 회귀 테스트 하나로 축소했다.
+- 서식 복원 후 재검증 완료: focused widget test 통과, 변경 파일 diagnostics 오류 0건. 앞서 관련 테스트 112개, 전체 정적 분석, 전체 테스트 3,355개도 모두 통과했다.
+- stage 완료: `lib/page_label_sheet/label_sheet_page.dart`, `test/label_sheet_toolbar_test.dart`. 사용자 기존 변경 `lib/core/app.dart`와 이 인수인계 파일은 기능 커밋에서 제외했다.
+- 기능 커밋: `0080e14` (`공용 라벨 시트 하단 영역 채움`). 공용 라벨 workbench의 숨겨진 하단 통계 바 예약 높이를 제거해 셀 그리드와 필요한 스크롤바가 클라이언트 영역 끝까지 렌더링된다.
+- 기존 unrelated dirty `lib/core/app.dart`는 수정·stage 대상에서 제외한다.
+
 ### 진행 중 (2026-07-12): dirty 품목 편집 중 헤더 dropdown 메뉴 열림 차단
 
 - 사용자 재현: 품목관리 편집 중에도 헤더 브랜드/라벨 dropdown이 동작한다.
