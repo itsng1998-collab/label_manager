@@ -115,6 +115,7 @@ class ItemManage extends StatefulWidget {
   final bool forceReloadRequired;
   final bool canEdit;
   final ItemManageController? controller;
+  final VoidCallback? onReady;
 
   const ItemManage({
     super.key,
@@ -138,6 +139,7 @@ class ItemManage extends StatefulWidget {
     this.forceReloadRequired = false,
     this.canEdit = true,
     this.controller,
+    this.onReady,
   });
 
   @override
@@ -184,6 +186,7 @@ class _ItemManageState extends State<ItemManage> {
   bool _contextMenuOpen = false;
   String _activeSearchColumnId = 'itemName';
   int _searchStartIndex = 0;
+  bool _readyScheduled = false;
 
   @override
   void initState() {
@@ -206,6 +209,9 @@ class _ItemManageState extends State<ItemManage> {
     if (oldWidget.controller != widget.controller) {
       oldWidget.controller?._detach(this);
       _attachController();
+    }
+    if (!identical(oldWidget.onReady, widget.onReady)) {
+      _readyScheduled = false;
     }
     _projectPublishChecks();
     final rowCount = widget.draftController?.rows.length ?? widget.items.length;
@@ -314,6 +320,7 @@ class _ItemManageState extends State<ItemManage> {
 
   @override
   Widget build(BuildContext context) {
+    _scheduleReady();
     final displayItems = _resolveDisplayItems();
     final columns = _columns;
     debugLog(
@@ -350,6 +357,20 @@ class _ItemManageState extends State<ItemManage> {
         _buildCommandFooter(),
       ],
     );
+  }
+
+  void _scheduleReady() {
+    if (_readyScheduled || widget.onReady == null) return;
+    final onReady = widget.onReady!;
+    _readyScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        onReady();
+      });
+      WidgetsBinding.instance.ensureVisualUpdate();
+    });
   }
 
   ItemManageSearchResult _search(String query) {

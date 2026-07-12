@@ -682,6 +682,37 @@ void main() {
     expect(selectedIndex, 0);
   });
 
+  testWidgets('ItemManage reports ready after render work completes', (
+    tester,
+  ) async {
+    var readyCount = 0;
+    Widget buildItemManage(VoidCallback onReady) => MaterialApp(
+      home: Scaffold(
+        body: SizedBox(
+          width: 600,
+          height: 220,
+          child: ItemManage(
+            items: [_testItemOfMarket()],
+            onReady: onReady,
+          ),
+        ),
+      ),
+    );
+
+    await tester.pumpWidget(buildItemManage(() => readyCount += 1));
+
+    expect(readyCount, 0);
+    await tester.pump();
+    expect(readyCount, 1);
+    await tester.pump();
+    expect(readyCount, 1);
+
+    await tester.pumpWidget(buildItemManage(() => readyCount += 10));
+    expect(readyCount, 1);
+    await tester.pump();
+    expect(readyCount, 11);
+  });
+
   testWidgets('ItemManage searches the active column from the next row', (
     tester,
   ) async {

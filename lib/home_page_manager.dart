@@ -98,6 +98,8 @@ class _HomePageManagerState extends State<HomePageManager> {
   final GlobalKey _rtfPreviewBoxKey = GlobalKey();
   int? _labelSizesBrandId;
   int _labelLoadToken = 0;
+  int _itemManagerReadyGeneration = 0;
+  Completer<void>? _itemManagerReadyCompleter;
   int? _labelDialogBrandChangeInFlightId;
   bool _labelDialogBrandChangeInFlight = false;
   int _rtfPreviewCaptureGeneration = 0;
@@ -831,7 +833,15 @@ class _HomePageManagerState extends State<HomePageManager> {
         'specials=${TColumnSpecial.datas?.length ?? 0}, '
         'items=${ItemOfMarket.datas?.length ?? 0}',
       );
-      _resetTabs();
+      final renderReady = await _resetTabsAndWaitForItemManager(trace);
+      if (!renderReady) {
+        ItemManagerDebugLog.event(
+          'sessionLoad',
+          'renderCancelled',
+          trace: trace,
+        );
+        return false;
+      }
       _setItemDraftForceReloadRequired(false);
       ItemManagerDebugLog.event(
         'sessionLoad',
@@ -1862,6 +1872,45 @@ class _HomePageManagerState extends State<HomePageManager> {
     _maybeAutoSelectCommonLabel();
   }
 
+  Future<bool> _resetTabsAndWaitForItemManager(String trace) async {
+    final previous = _itemManagerReadyCompleter;
+    if (previous != null && !previous.isCompleted) previous.complete();
+    final generation = ++_itemManagerReadyGeneration;
+    final completer = Completer<void>();
+    _itemManagerReadyCompleter = completer;
+    ItemManagerDebugLog.event(
+      'sessionLoad',
+      'renderWaiting',
+      trace: trace,
+      fields: {'generation': generation},
+    );
+    _resetTabs();
+    await completer.future;
+    if (!mounted || generation != _itemManagerReadyGeneration) return false;
+    final finalFrame = Completer<void>();
+    WidgetsBinding.instance.addPostFrameCallback((_) => finalFrame.complete());
+    WidgetsBinding.instance.ensureVisualUpdate();
+    await finalFrame.future;
+    if (!mounted || generation != _itemManagerReadyGeneration) return false;
+    ItemManagerDebugLog.event(
+      'sessionLoad',
+      'renderReady',
+      trace: trace,
+      fields: {'generation': generation},
+    );
+    if (identical(_itemManagerReadyCompleter, completer)) {
+      _itemManagerReadyCompleter = null;
+    }
+    return true;
+  }
+
+  void _handleItemManagerReady(int generation) {
+    if (generation != _itemManagerReadyGeneration) return;
+    final completer = _itemManagerReadyCompleter;
+    if (completer == null || completer.isCompleted) return;
+    completer.complete();
+  }
+
   Object? _selectedTabValue() {
     final selectedIndex = _tabController.selectedIndex;
     if (selectedIndex == null ||
@@ -2182,6 +2231,7 @@ class _HomePageManagerState extends State<HomePageManager> {
   }
 
   List<TabData> _buildTabs() {
+    final itemManagerReadyGeneration = _itemManagerReadyGeneration;
     debugLog(
       'labelContentKey=$_labelContentKey, '
       'labelSizeId=${_effectiveLabelSize?.labelSizeId}, '
@@ -2197,6 +2247,8 @@ class _HomePageManagerState extends State<HomePageManager> {
             : ItemManage(
                 key: ValueKey('items:$_labelContentKey'),
                 controller: _itemManageController,
+                onReady: () =>
+                    _handleItemManagerReady(itemManagerReadyGeneration),
                 items: ItemOfMarket.datas ?? const <ItemOfMarket>[],
                 selectedIndex: _selectedItemIndex,
                 onRowSelected: _handleItemRowSelected,
@@ -2983,6 +3035,10 @@ class _HomePageManagerState extends State<HomePageManager> {
 
   @override
   void dispose() {
+    final readyCompleter = _itemManagerReadyCompleter;
+    if (readyCompleter != null && !readyCompleter.isCompleted) {
+      readyCompleter.complete();
+    }
     widget.onItemDraftDirtyChanged?.call(false);
     widget.onItemDraftForceReloadChanged?.call(false);
     unawaited(_itemDraftJournal?.close() ?? Future<void>.value());
