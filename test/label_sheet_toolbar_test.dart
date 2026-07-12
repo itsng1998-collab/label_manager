@@ -14,6 +14,7 @@ import 'package:http/testing.dart';
 import 'package:image/image.dart' as imglib;
 import 'package:label_manager/home_page_manager.dart';
 import 'package:label_manager/models/additional_item.dart';
+import 'package:label_manager/models/brand.dart';
 import 'package:label_manager/models/item.dart';
 import 'package:label_manager/models/item_of_market.dart';
 import 'package:label_manager/models/label_size.dart';
@@ -188,6 +189,62 @@ Offset _floatingResizeGripPoint(WidgetTester tester, String key) {
 }
 
 void main() {
+  testWidgets('blocked header dropdown changes restore current selections', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1400, 500);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    const firstBrand = Brand(brandId: 1, customerId: 1, brandName: '브랜드 A');
+    const secondBrand = Brand(brandId: 2, customerId: 1, brandName: '브랜드 B');
+    const firstLabel = LabelSize(
+      labelSizeId: 10,
+      brandId: 1,
+      labelSizeName: '라벨 A',
+    );
+    const secondLabel = LabelSize(
+      labelSizeId: 20,
+      brandId: 1,
+      labelSizeName: '라벨 B',
+    );
+    var resetGeneration = 0;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: StatefulBuilder(
+            builder: (context, setState) => debugTopControlAreaForTesting(
+              brands: const [firstBrand, secondBrand],
+              selectedBrand: firstBrand,
+              onBrandChanged: (_) =>
+                  setState(() => resetGeneration += 1),
+              labelSizes: const [firstLabel, secondLabel],
+              selectedLabelSize: firstLabel,
+              onLabelSizeChanged: (_) =>
+                  setState(() => resetGeneration += 1),
+              dropdownResetGeneration: resetGeneration,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('브랜드 A'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('브랜드 B').last);
+    await tester.pumpAndSettle();
+    expect(find.text('브랜드 A'), findsOneWidget);
+    expect(find.text('브랜드 B'), findsNothing);
+
+    await tester.tap(find.text('라벨 A'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('라벨 B').last);
+    await tester.pumpAndSettle();
+    expect(find.text('라벨 A'), findsOneWidget);
+    expect(find.text('라벨 B'), findsNothing);
+  });
+
   test('date settings is enabled only on item management tab', () {
     expect(
       debugItemManagerDateSettingsEnabledForTesting(selectedTabValue: 'items'),

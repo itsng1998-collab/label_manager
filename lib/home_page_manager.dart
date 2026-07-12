@@ -100,6 +100,7 @@ class _HomePageManagerState extends State<HomePageManager> {
   int _labelLoadToken = 0;
   int _itemManagerReadyGeneration = 0;
   Completer<void>? _itemManagerReadyCompleter;
+  int _headerDropdownResetGeneration = 0;
   int? _labelDialogBrandChangeInFlightId;
   bool _labelDialogBrandChangeInFlight = false;
   int _rtfPreviewCaptureGeneration = 0;
@@ -424,8 +425,21 @@ class _HomePageManagerState extends State<HomePageManager> {
     debugLog(
       'handleBrandChanged brandId=${brand?.brandId} autoLogin=$_isAutoLoginMode',
     );
-    if (_blockItemDraftContextChange()) return;
+    if (_blockItemDraftContextChange()) {
+      _resetHeaderDropdownSelection();
+      return;
+    }
     widget.onBrandChanged(brand);
+  }
+
+  Future<void> _handleHeaderLabelSizeChanged(LabelSize? labelSize) async {
+    final changed = await _handleLabelSizeChanged(labelSize);
+    if (!changed) _resetHeaderDropdownSelection();
+  }
+
+  void _resetHeaderDropdownSelection() {
+    if (!mounted) return;
+    setState(() => _headerDropdownResetGeneration += 1);
   }
 
   // 브랜드 설정 다이얼로그에서의 명시적 브랜드 선택(더블클릭)은 사용자의 의도적
@@ -3269,8 +3283,9 @@ class _HomePageManagerState extends State<HomePageManager> {
             ),
             child: _TopControlArea(
               onBrandChanged: _handleBrandChanged,
-              onLabelSizeChanged: _handleLabelSizeChanged,
+              onLabelSizeChanged: _handleHeaderLabelSizeChanged,
               onDropdownMenuStateChanged: _handleTopDropdownMenuStateChanged,
+              dropdownResetGeneration: _headerDropdownResetGeneration,
               settingsEnabled: settingsEnabled,
               onBrandSettingsPressed: settingsEnabled
                   ? _openBrandSettingsDialog
@@ -3391,6 +3406,7 @@ class _TopControlArea extends StatelessWidget {
   final ValueChanged<Brand?> onBrandChanged;
   final ValueChanged<LabelSize?> onLabelSizeChanged;
   final ValueChanged<bool> onDropdownMenuStateChanged;
+  final int dropdownResetGeneration;
   final bool settingsEnabled;
   final VoidCallback? onBrandSettingsPressed;
   final VoidCallback? onLabelSettingsPressed;
@@ -3404,6 +3420,7 @@ class _TopControlArea extends StatelessWidget {
     required this.onBrandChanged,
     required this.onLabelSizeChanged,
     required this.onDropdownMenuStateChanged,
+    required this.dropdownResetGeneration,
     required this.settingsEnabled,
     required this.onBrandSettingsPressed,
     required this.onLabelSettingsPressed,
@@ -3461,6 +3478,7 @@ class _TopControlArea extends StatelessWidget {
                           items: brandItems,
                           onChanged: brandItems.isEmpty ? null : onBrandChanged,
                           onMenuStateChange: onDropdownMenuStateChanged,
+                          resetGeneration: dropdownResetGeneration,
                           width: isDesktop ? 220 : 150,
                           labelWidth: 48,
                         ),
@@ -3491,6 +3509,7 @@ class _TopControlArea extends StatelessWidget {
                               ? null
                               : onLabelSizeChanged,
                           onMenuStateChange: onDropdownMenuStateChanged,
+                          resetGeneration: dropdownResetGeneration,
                           width: isDesktop ? 220 : 150,
                           labelWidth: 48,
                         ),
@@ -3582,6 +3601,7 @@ class _DropdownField<T> extends StatelessWidget {
   final List<DropdownMenuItem<T>> items;
   final ValueChanged<T?>? onChanged;
   final ValueChanged<bool>? onMenuStateChange;
+  final int resetGeneration;
   final bool useRootNavigator;
   final double width;
   final double labelWidth;
@@ -3592,6 +3612,7 @@ class _DropdownField<T> extends StatelessWidget {
     required this.items,
     this.onChanged,
     this.onMenuStateChange,
+    this.resetGeneration = 0,
     this.useRootNavigator = true,
     this.width = 170,
     this.labelWidth = 80,
@@ -3615,6 +3636,7 @@ class _DropdownField<T> extends StatelessWidget {
         SizedBox(
           width: lmSize(width),
           child: DropdownButtonFormField2<T>(
+            key: ValueKey((resetGeneration, value)),
             value: value,
             items: items,
             onChanged: enabled ? onChanged : null,
@@ -4706,21 +4728,38 @@ Widget debugItemPreviewPanelForTesting({
 Widget debugTopControlAreaForTesting({
   VoidCallback? onLabelSettingsPressed,
   VoidCallback? onDateSettingsPressed,
+  List<Brand> brands = const [],
+  Brand? selectedBrand,
+  ValueChanged<Brand?>? onBrandChanged,
+  List<LabelSize> labelSizes = const [],
+  LabelSize? selectedLabelSize,
+  ValueChanged<LabelSize?>? onLabelSizeChanged,
+  int dropdownResetGeneration = 0,
 }) => Material(
   child: SizedBox(
     width: 1400,
     child: _TopControlArea(
-      onBrandChanged: (_) {},
-      onLabelSizeChanged: (_) {},
+      onBrandChanged: onBrandChanged ?? (_) {},
+      onLabelSizeChanged: onLabelSizeChanged ?? (_) {},
       onDropdownMenuStateChanged: (_) {},
+      dropdownResetGeneration: dropdownResetGeneration,
       settingsEnabled: false,
       onBrandSettingsPressed: null,
       onLabelSettingsPressed: onLabelSettingsPressed,
       onDateSettingsPressed: onDateSettingsPressed,
-      brandItems: const [],
-      resolvedBrand: null,
-      labelItems: const [],
-      resolvedLabel: null,
+      brandItems: [
+        for (final brand in brands)
+          DropdownMenuItem(value: brand, child: Text(brand.brandName)),
+      ],
+      resolvedBrand: selectedBrand,
+      labelItems: [
+        for (final labelSize in labelSizes)
+          DropdownMenuItem(
+            value: labelSize,
+            child: Text(labelSize.labelSizeName),
+          ),
+      ],
+      resolvedLabel: selectedLabelSize,
     ),
   ),
 );
