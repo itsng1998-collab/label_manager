@@ -194,7 +194,7 @@ void main() {
     expect(itemManagerLoadProgressDuration, greaterThan(const Duration(hours: 1)));
   });
 
-  testWidgets('item manager load failure replaces progress with an error', (
+  testWidgets('item manager load failure closes progress and shows warning dialog', (
     tester,
   ) async {
     late BuildContext scaffoldContext;
@@ -219,12 +219,18 @@ void main() {
     );
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
-    showItemManagerLoadFailure(scaffoldContext);
+    unawaited(showItemManagerLoadFailureDialog(scaffoldContext));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));
 
+    expect(find.byType(AlertDialog), findsOneWidget);
+    expect(find.text('품목 조회 오류'), findsOneWidget);
     expect(find.text(itemManagerLoadFailureMessage), findsOneWidget);
     expect(find.byType(CircularProgressIndicator), findsNothing);
+
+    await tester.tap(find.text('확인'));
+    await tester.pumpAndSettle();
+    expect(find.byType(AlertDialog), findsNothing);
   });
 
   testWidgets('blocked header dropdown changes restore current selections', (

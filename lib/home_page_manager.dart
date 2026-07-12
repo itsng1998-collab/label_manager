@@ -59,12 +59,20 @@ const Duration itemManagerLoadProgressDuration = Duration(days: 1);
 const String itemManagerLoadFailureMessage =
     '품목 데이터를 불러오지 못했습니다. 네트워크 연결을 확인한 뒤 다시 시도해 주세요.';
 
-void showItemManagerLoadFailure(BuildContext context) {
+Future<void> showItemManagerLoadFailureDialog(BuildContext context) {
   ScaffoldMessenger.of(context).clearSnackBars();
-  showSnackBar(
-    context,
-    itemManagerLoadFailureMessage,
-    type: SnackBarType.error,
+  return showDialog<void>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: const Text('품목 조회 오류'),
+      content: const Text(itemManagerLoadFailureMessage),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(dialogContext).pop(),
+          child: const Text('확인'),
+        ),
+      ],
+    ),
   );
 }
 
@@ -111,6 +119,7 @@ class _HomePageManagerState extends State<HomePageManager> {
   final GlobalKey _rtfPreviewBoxKey = GlobalKey();
   int? _labelSizesBrandId;
   int _labelLoadToken = 0;
+  bool _itemManagerLoadFailureDialogVisible = false;
   int _itemManagerReadyGeneration = 0;
   Completer<void>? _itemManagerReadyCompleter;
   int _headerDropdownResetGeneration = 0;
@@ -906,8 +915,13 @@ class _HomePageManagerState extends State<HomePageManager> {
   }
 
   void _showItemManagerLoadFailure() {
-    if (!mounted) return;
-    showItemManagerLoadFailure(context);
+    if (!mounted || _itemManagerLoadFailureDialogVisible) return;
+    _itemManagerLoadFailureDialogVisible = true;
+    unawaited(
+      showItemManagerLoadFailureDialog(context).whenComplete(() {
+        _itemManagerLoadFailureDialogVisible = false;
+      }),
+    );
   }
 
   bool _blockItemDraftContextChange() {
