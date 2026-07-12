@@ -1089,8 +1089,11 @@ void main() {
     tester,
   ) async {
     var invoked = false;
+    var popupRemovedBeforeCallback = false;
+    final navigatorKey = GlobalKey<NavigatorState>();
     await tester.pumpWidget(
       MaterialApp(
+        navigatorKey: navigatorKey,
         home: Scaffold(
           body: SizedBox(
             width: 600,
@@ -1100,7 +1103,25 @@ void main() {
                 _testItemOfMarket(itemName: '첫째 품목'),
                 _testItemOfMarket(itemName: '둘째 품목'),
               ],
-              onItemOrderChange: () async => invoked = true,
+              onItemOrderChange: () async {
+                invoked = true;
+                popupRemovedBeforeCallback = find
+                    .byType(PopupMenuItem<String>)
+                    .evaluate()
+                    .isEmpty;
+                await showDialog<void>(
+                  context: navigatorKey.currentContext!,
+                  builder: (context) => AlertDialog(
+                    title: const Text('품목 순서 변경'),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        child: const Text('취소'),
+                      ),
+                    ],
+                  ),
+                );
+              },
             ),
           ),
         ),
@@ -1124,6 +1145,11 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(invoked, isTrue);
+  expect(popupRemovedBeforeCallback, isTrue);
+    expect(find.text('품목 순서 변경'), findsOneWidget);
+    await tester.tap(find.widgetWithText(TextButton, '취소'));
+    await tester.pumpAndSettle();
+    expect(find.byType(PopupMenuItem<String>), findsNothing);
   });
 
   testWidgets('ItemManage disables order command while draft is dirty', (

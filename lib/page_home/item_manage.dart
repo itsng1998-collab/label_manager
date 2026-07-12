@@ -438,6 +438,7 @@ class _ItemManageState extends State<ItemManage> {
   }
 
   Future<void> _showContextMenu(TapDownDetails details) async {
+    final menuRouteMarkerKey = GlobalKey();
     final mutationEnabled =
         widget.canEdit && !widget.commandBusy && !widget.forceReloadRequired;
     final publishSelectionEnabled =
@@ -477,6 +478,7 @@ class _ItemManageState extends State<ItemManage> {
               _selectionController.hasSelection,
         ),
         PopupMenuItem<String>(
+          key: menuRouteMarkerKey,
           value: _menuDelete,
           enabled:
               mutationEnabled &&
@@ -550,7 +552,9 @@ class _ItemManageState extends State<ItemManage> {
       ],
     );
     if (!mounted || command == null) return;
-    await WidgetsBinding.instance.endOfFrame;
+    while (mounted && menuRouteMarkerKey.currentContext != null) {
+      await WidgetsBinding.instance.endOfFrame;
+    }
     if (!mounted) return;
     await _handleContextMenuCommand(command);
   }
