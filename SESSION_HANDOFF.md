@@ -28,6 +28,24 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-13): 라벨 항목 편집기 작업지시서 4차 검토 권장안 병합
+
+- 사용자 요청: 최신 `doc/user_item_modify.txt`의 구현 가능성 재검토에서 확정한 문제와 권장안을 기존 작업지시서에 병합 정리한다.
+- 수정 예정 `doc/user_item_modify.txt`: post-commit 결과 파싱 전용 오류, 신규 ID 독립 desired observation projection, 결과셋 marker/collector, 전체 writer application lock 참여, crash-safe journal manifest/lease, session data/resource 분리와 retirement, 실행 가능한 raw JSON staging, 일관된 reconciliation snapshot, QR V1 token grammar, 전용 `RawLabelColumnRow` strict mapper를 기존 상태/DAO/테스트/완료 조건에 반영한다. 미검증.
+- 수정 예정 `SESSION_HANDOFF.md`: 문서 편집, 검증, stage, commit 결과를 단계별로 기록한다.
+- 기존 unrelated dirty `lib/core/app.dart`는 수정·stage 대상에서 제외한다.
+- 편집 완료 `doc/user_item_modify.txt`: `DbClient.transaction()` 정상 반환 후 count/ID mapping payload 검증 실패를 `DbCommittedResultInvalid`로 분류하고 동일 command 재실행을 금지했다. `DbExecutionResult.resultSets`, `DbTransactionStatement.expectedResultKind/expectedSchemaVersion`, marker/schema commit 전 검증과 post-commit payload 검증 경계를 명시했다.
+- 편집 완료 `doc/user_item_modify.txt`: 기존 ID 기반 concurrency fingerprint와 신규 keyword 기반 desired observation projection을 분리하고 canonicalization, 신규 관측 ID 관계 재투영, 일관된 reconciliation transaction과 indeterminate reason을 추가했다.
+- 편집 완료 `doc/user_item_modify.txt`: 모든 column/item/content writer와 라벨 크기 삭제의 공통 application lock 참여, typed lock error, raw key/value/type JSON staging, 명시적 Unicode large parameter, 전용 `RawLabelColumnRowDAO` strict mapper를 구현 필수 계약으로 확정했다.
+- 편집 완료 `doc/user_item_modify.txt`: immutable session data와 lifecycle resources를 분리하고 durable journal manifest/owner lease, crash recovery matrix, renderReady 후 old resource dispose, static session cache read 0건을 완료 조건과 통합 테스트에 반영했다.
+- 편집 완료 `doc/user_item_modify.txt`: QR V1 token의 ordinal case-sensitive boundary/예약 token과 나트륨 6개 record·delimiter 제한을 확정하고 구현 순서를 driver/canonicalization/journal 선행 16단계로 재정리했다.
+- 중간 검증 완료: `doc/user_item_modify.txt` diagnostics 오류 0건, 이전 용어·commit 경계 상충 문구 검색 0건, 새 핵심 계약 20개 위치 확인.
+- 최종 검증 예정: 두 문서 diagnostics, 핵심/상충 문구 검색, `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md`, diff/stat와 stage 대상 확인. 문서만 변경했으므로 Flutter 테스트는 실행하지 않는다.
+- 최종 검증 완료: 두 문서 diagnostics 오류 0건, 이전 용어·상충 계약 검색 0건, 새 핵심 계약 24개 위치 확인, `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md` 통과. 변경량은 작업지시서 93행 추가/52행 교체와 인수인계 14행 추가이며 Flutter 코드/테스트를 변경하지 않아 Flutter 테스트는 실행하지 않았다.
+- stage/commit 예정: `doc/user_item_modify.txt`만 먼저 기능 문서 커밋하고, 확정 해시를 기록한 `SESSION_HANDOFF.md`를 별도 커밋한다. 기존 사용자 변경 `lib/core/app.dart`는 제외한다.
+- 기능 문서 커밋: `b1ae74d` (`라벨 항목 편집기 작업지시서 4차 권장안 병합`). post-commit 결과 분류, desired observation projection, marker 결과셋, 전체 writer lock, durable journal/session lifecycle, raw staging/enum/token 계약을 병합했다.
+- 완료: 임시 산출물이나 캐시를 생성하지 않았으며 원격 push와 배포 작업은 수행하지 않았다. 인수인계만 별도 커밋한다.
+
 ### 완료 (2026-07-13): 라벨 항목 편집기 작업지시서 3차 검토 권장안 병합
 
 - 사용자 요청: 최신 `doc/user_item_modify.txt`의 레거시/현 프로젝트 재검토에서 확정한 구현 모호성과 문제의 권장안을 기존 작업지시서에 병합 정리한다.
