@@ -158,7 +158,8 @@ DB 조회/저장 중에는 별도 busy state를 두고 중복 command, 다중 ro
   - 제목
   - 표시 여부
 - 행 번호 영역과 컬럼 헤더의 좌상단 교차 영역에는 순서 변경 아이콘을 둔다.
-- 현재 QR/기본 사용자 정의/GS1 관계에서 참조 중인 행은 레거시처럼 일반 행과 구분되는 참조 상태 표시를 제공한다. 색만으로 의미를 전달하지 말고 tooltip 또는 상태 아이콘을 함께 둔다.
+- 현재 QR/기본 사용자 정의/바코드 텍스트 연동/GS1 관계에서 참조 중인 행은 레거시처럼 일반 행과 구분되는 참조 상태 표시를 제공한다. 색만으로 의미를 전달하지 말고 tooltip 또는 상태 아이콘을 함께 둔다.
+- 참조 여부는 하나의 순수 계산 함수에서 구한다. 이 함수는 QR/기본 사용자 정의 data, `TYPE_BARCODE && createType == BARCODE_TEXT_LINK`인 행의 `userDefineData`, GS1 contain 관계에 포함된 기존 column ID와 신규 draft key를 입력으로 사용하며, 행 상태 표시와 키워드 변경/삭제 경고가 같은 결과를 공유한다.
 - 신규 행은 `신규` 상태를 표시한다.
 - 행 클릭은 해당 행을 선택하고 속성 패널을 갱신한다. 더블클릭으로 별도 속성 다이얼로그를 열지 않는다.
 
@@ -183,7 +184,7 @@ guard callback 안에서 이벤트별 로직을 복제하지 말고 `Future<bool
 - 사용 항목 선택이 없으면 중앙 휴지통 버튼을 비활성화한다.
 - 휴지통 버튼을 누르면 선택 행을 working copy에서 삭제한다.
 - DB 기존 행은 `deletedColumnIds`에 추가하고 신규 행은 working copy에서만 제거한다.
-- QR/기본 사용자 정의/GS1에서 참조 중인 행은 레거시 경고를 표시하고 확인한 경우에만 삭제한다.
+- QR/기본 사용자 정의/바코드 텍스트 연동/GS1에서 참조 중인 행은 6.1의 공용 참조 계산 결과로 레거시 경고를 표시하고 확인한 경우에만 삭제한다.
 - 삭제 시 GS1 바코드 draft의 포함 항목 목록에서도 해당 기존 ID 또는 신규 draft key를 제거한다.
 - 삭제 후 가능한 경우 다음 행, 마지막 행 삭제였으면 이전 행을 선택한다. 행이 없으면 선택과 속성 패널을 비운다.
 
@@ -230,7 +231,7 @@ guard callback 안에서 이벤트별 로직을 복제하지 말고 `Future<bool
 - 제목은 `RICH_TITLE VARCHAR(20)` 저장 한계에 맞춰 CP949 변환 가능하고 encode/decode round-trip이 원문과 같으며 encoded byte 길이가 20바이트 이하인 값만 허용한다. 속성 `적용`과 메인 저장 command가 키워드/항목명과 같은 공용 validation helper를 사용하고 안내 문구도 `20바이트`로 표시한다.
 - 종류 dropdown 값은 `TColumnType.datas`에 존재하는 타입만 허용한다.
 - DB에서 읽은 알 수 없는 종류나 옵션은 현 프로젝트의 `TColumn.fromMap()` 규칙에 따라 기존 기본값으로 변환한다. 편집기만을 위한 별도 raw 보존 모델이나 저장 차단 상태는 추가하지 않는다.
-- 키워드 변경 대상이 QR/기본 사용자 정의/GS1 관계에서 참조 중이면 영향 경고 후 적용한다.
+- 키워드 변경 대상이 QR/기본 사용자 정의/바코드 텍스트 연동/GS1 관계에서 참조 중이면 6.1의 공용 참조 계산 결과로 영향 경고 후 적용한다.
 - 종류 변경은 단일 `changeType` 순수 함수로 처리한다. 기본↔QR 전환에서만 QR 생성 방식을 plain text로 바꾸고 사용자 정의 QR data/text를 빈 값으로 초기화하며, GS1 AI에서 다른 타입으로 바꿀 때 모든 GS1 바코드의 contain 관계에서 해당 항목을 제거한다. 나머지 공통·타입 전용 값은 레거시처럼 보존하고 이 변경 내용을 확인 dialog에 표시한다.
 - GS1 AI를 다른 타입으로 바꿀 때 GS1 바코드 포함 관계에서 제거되는 영향을 확인한다.
 
@@ -240,7 +241,7 @@ guard callback 안에서 이벤트별 로직을 복제하지 말고 `Future<bool
 
 - 기본/문자: 일반 텍스트 또는 사용자 정의 데이터, 자동 증가 사용/자리수/범위/저장/0 제거/업데이트, 검색 출력, 사용자 정의 텍스트
 - 제조일자/유통기한/시간: 날짜·시간 타입, 자동 증가 속성, 날짜 범위 사용 및 전/후 범위
-- 바코드: 바코드 종류, 폭, 높이, 체크디지트, 번호 표시, 텍스트 연동, 타임바코드 타입, 자동 증가 속성, 사용자 정의 바코드 텍스트, line check/size, 회전
+- 바코드: 바코드 종류, 폭, 높이, 체크디지트, 번호 표시, 텍스트 연동, 타임바코드 타입, 자동 증가 속성, 사용자 정의 바코드 텍스트, 바코드 비율 조절 사용 여부/수치, line check/size, 회전. 비율 조절 사용 여부는 `TColumn.showQRCodeText`/`RICH_SHOW_QRCODE_TEXT`, 수치는 `TColumn.qrTextFontSize`/`RICH_QRTEXT_FONTSIZE`를 source of truth로 사용한다. 신규 draft 기본값은 각각 false와 10이며 기존 행은 DB에서 읽은 값을 보존한다. DB source가 아닌 임시 `checkMode`/`barFontSize`를 별도 저장 필드로 만들지 않는다.
 - 이미지: 폭, 높이
 - QR/2D 코드: 2D 종류, 생성 방식(일반/사용자 정의/나트륨), 사용자 정의 데이터와 하단 문자열, pixel size, scale, 하단 문자열 표시, 정렬, 폰트/크기, 자동 증가 속성
 - GS1 AI: AI 코드, format option, GS1 코드 표시 여부
@@ -253,6 +254,8 @@ guard callback 안에서 이벤트별 로직을 복제하지 말고 `Future<bool
 - GS1 AI 코드는 필수다.
 - 체크디지트 또는 타임바코드 변경이 기존 품목 바코드 값에 영향을 주면 경고한다.
 - 사용자 정의 QR 데이터가 비어 있거나 나트륨 구성에 초기화되지 않은 값이 있으면 적용하지 않는다.
+
+타입별 수치와 옵션 validation은 정수 파싱 가능 여부, 실제 DB 컬럼 타입에 저장 가능한 범위, enum/dropdown에 정의된 값, 이 문서의 필수 조건과 레거시가 명시적으로 차단하는 조건만 검사한다. 폭·높이·QR pixel size·scale의 0은 위 경고 대상으로 유지하고 오류로 바꾸지 않는다. 레거시 최종 적용 경로에서 일관되게 강제하지 않는 UX 최소·최대값을 임의로 추가하거나, 기존 DB 값을 새 임의 범위 때문에 적용·저장하지 못하게 해서는 안 된다. 레거시보다 엄격한 제품 범위가 필요하면 항목별 정책을 별도 확정한 뒤 추가한다.
 
 속성 패널은 하나의 거대한 build 함수로 만들지 않는다. 공통 입력과 타입별 editor widget을 분리하되, 각 editor는 `LabelColumnPropertyDraft`를 입력받아 변경 callback만 반환하고 DB를 직접 호출하지 않는다.
 
@@ -362,7 +365,7 @@ guard callback 안에서 이벤트별 로직을 복제하지 말고 `Future<bool
 - 전체 키워드를 `Korean_Wansung_CI_AS` 의미로 비교해 대소문자만 다른 중복도 금지
 - 모든 키워드, 항목명, 제목의 CP949 변환 가능 여부 및 각각 100바이트/50바이트/20바이트 저장 길이 검증
 - order를 1부터 연속 값으로 정규화
-- 타입별 필수 속성과 범위 검증
+- 타입별 필수 속성 및 7.3에서 확정한 파싱/DB 저장 범위/enum/레거시 명시 차단 조건 검증. 별도로 확정되지 않은 UX 상·하한은 적용하지 않음
 - GS1 포함 대상이 현재 working copy에 존재하는지 검증
 - 삭제 대상과 신규/수정 대상의 identity 중복 금지
 - 현재 labelSizeId와 모든 기존 column의 labelSizeId 일치 확인
@@ -378,7 +381,7 @@ guard callback 안에서 이벤트별 로직을 복제하지 말고 `Future<bool
 - 공용라벨 사용 항목 표, 라벨 시트 required keyword/image/barcode 정보, 품목관리 동적 컬럼, 출력 미리보기가 재조회 결과를 다시 사용해야 한다. 다이얼로그가 `TColumn.datas`만 직접 대입하고 품목 draft/controller를 이전 컬럼 기준으로 남겨서는 안 된다.
 - 같은 label size의 강제 재조회가 성공하면 `labelContextReloadRequired`와 원인을 해제하고 저장 완료를 알린 뒤 다이얼로그를 닫는다. 다른 조회나 다이얼로그 dispose가 이 상태를 해제하지 않는다.
 - commit은 성공했지만 강제 재조회가 실패하면 `저장은 완료됐지만 다시 불러오지 못했습니다. 다시 조회해 주세요.`라고 알리고 다이얼로그를 닫는다. `labelContextReloadRequired=columnStructureSave`와 충돌 command 차단은 유지하며, 이전 working copy를 다시 저장하거나 이전 cache를 성공 결과로 간주하지 않는다.
-- transaction commit 후 반환 결과의 decode 또는 신규 ID mapping 변환이 실패하면 DB 반영 여부를 되돌릴 수 없는 `commit 후 결과 해석 실패`로 처리한다. callback은 `labelContextReloadRequired=columnStructureSave`를 유지하고 저장 성공이나 이전 cache 교체로 간주하지 않으며, 동일 working copy 재저장을 차단한 채 DB 재조회를 요구한다.
+- transaction commit 후 반환 결과의 decode 또는 신규 ID mapping 변환이 실패하면 DB 반영 여부를 되돌릴 수 없는 `LabelColumnPostCommitResultInvalid`로 처리한다. callback은 이 타입을 commit 전 일반 실패보다 먼저 catch하고 `labelContextReloadRequired=columnStructureSave`를 유지한다. 저장 성공이나 이전 cache 교체로 간주하지 않으며, 동일 working copy 재저장을 차단한 채 DB 재조회를 요구한다.
 - commit 전 실패는 활성 transaction을 rollback할 수 있으면 rollback하고 오류 dialog를 표시한 뒤 다이얼로그와 working copy를 그대로 유지한다. 사용자가 오류를 확인한 뒤 현재 working copy로 다시 `저장`을 누를 수 있다.
 - `DbCommitOutcomeUnknown`은 DB 반영 여부를 확인할 수 없다고 알리고 callback이 `labelContextReloadRequired=columnStructureSave`를 설정한다. 성공 처리나 cache 교체를 하지 않고, 중복 insert를 막기 위해 같은 다이얼로그의 저장을 비활성화한 뒤 DB 재조회 후 편집기를 다시 시작하도록 한다.
 - 어떤 실패도 자동 재시도하지 않는다. commit 결과를 추정하거나 별도 복구 상태를 만들지 않는다.
@@ -398,6 +401,7 @@ guard callback 안에서 이벤트별 로직을 복제하지 말고 `Future<bool
 - `SpecialMissingKeywordCheckSnapshot`: `ITEMNAME`, `ELEMENT`, `SWEIGHT`, `SPRICE` 네 특별 항목의 canonical identity와 최종 `useMissingKeywordCheck` 값
 - `LabelColumnSaveCommand`: labelSizeId, insert/update/delete 목록, 최종 순서 및 저장 context
 - `LabelColumnSaveResult`: 정상 commit 결과의 신규 draft key와 column ID mapping
+- `LabelColumnPostCommitResultInvalid`: `DbClient.transaction()`이 정상 반환해 commit이 완료된 뒤 DAO가 반환 row를 decode하지 못하거나 draft key/mapping 개수를 검증하지 못했음을 상위 callback에 전달하는 전용 exception. 원본 오류와 검증 사유를 보유하되 pre-commit SQL/validation 오류나 `DbCommitOutcomeUnknown`을 이 타입으로 감싸지 않음
 
 `TColumn`에 UI 임시 상태를 넣지 않는다. 저장 command는 widget 상태를 직접 참조하지 않는 immutable DTO로 만든다.
 
@@ -444,7 +448,7 @@ guard callback 안에서 이벤트별 로직을 복제하지 말고 `Future<bool
 12. 소유권을 확인한 기존 `BM_RICH_COLUMN` update/delete, 신규 ID mapping, 입력 원본 개수로 기대 건수가 정해지는 필수 insert/upsert는 expected affected row를 검증한다. 반면 출력 이력이 없는 컬럼의 `BM_RICH_STATUS_DATA` 날짜 update와 존재할 때만 지우는 check/GS1/min/content 종속행 delete는 0건을 정상으로 허용한다. 이어 최종 order/keyword uniqueness를 `Korean_Wansung_CI_AS` 기준으로 검증하고, 입력 신규 draft key 집합과 `@InsertedColumns`의 key 집합·개수가 정확히 같은지 batch 내부에서 검증한다. 필수 DML의 건수 불일치나 대소문자만 다른 keyword 중복, mapping의 누락·중복·예상하지 않은 key가 있으면 `THROW`한다.
 13. 마지막에 `@InsertedColumns`의 draft key와 column ID를 조회 결과로 반환하고 같은 `DbClient.transaction()` 실행 경로에서 commit
 
-신규 ID는 레거시 `SelectLastNRecord()` 방식으로 찾지 않는다. source draft key를 반환할 수 있는 insert-only `MERGE ... OUTPUT` 또는 batch 내부의 결정적 row-by-row insert와 `OUTPUT INSERTED`를 사용해 `@InsertedColumns`에 정확히 매핑한다. mapping 완전성은 commit 전에 SQL batch가 검증한다. commit 결과를 받은 Dart 코드는 반환된 mapping을 다시 검증하고 `LabelColumnSaveResult`로 반환하되, 이 단계의 decode나 key/count 검증 실패를 commit 전 오류로 오인해 같은 command를 재시도하지 않는다. 이 실패는 11.2의 commit 후 결과 해석 실패 경로로 처리한다.
+신규 ID는 레거시 `SelectLastNRecord()` 방식으로 찾지 않는다. source draft key를 반환할 수 있는 insert-only `MERGE ... OUTPUT` 또는 batch 내부의 결정적 row-by-row insert와 `OUTPUT INSERTED`를 사용해 `@InsertedColumns`에 정확히 매핑한다. mapping 완전성은 commit 전에 SQL batch가 검증한다. DAO는 `await DbClient.transaction(...)` 호출과 반환값 해석 구간을 분리한다. transaction 호출이 정상 반환한 뒤에만 반환 row를 decode하고 draft key 집합·개수를 다시 검증해 `LabelColumnSaveResult`로 반환하며, 이 해석 구간의 raw decode 또는 key/count 검증 실패만 `LabelColumnPostCommitResultInvalid`로 변환한다. transaction 호출 자체의 SQL/validation 예외와 `DbCommitOutcomeUnknown`은 변환하지 않는다. 상위 callback은 전용 exception을 11.2의 commit 후 결과 해석 실패 경로로 처리하고 같은 command를 재시도하지 않는다.
 
 1~12 중 어느 단계에서든 오류가 발생하면 13의 commit을 실행하지 않고 기존 driver transaction 경로가 활성 transaction을 가능한 경우 rollback한다. commit 시도 후 오류는 기존 `DbCommitOutcomeUnknown`으로 구분해 사용자에게 알리고 성공 결과나 cache 갱신을 수행하지 않으며, 재조회 전 같은 command의 재저장을 차단한다. 별도 commit 결과 판정·복구 시스템은 만들지 않는다.
 
@@ -503,7 +507,7 @@ FK cascade에 암묵적으로 의존하지 않는다. 실제 FK/cascade가 확�
 - 저장 성공 후 상위 widget이 dispose됐으면 setState하지 않되 DAO transaction 결과는 유실하지 않는다.
 - transaction commit 직후 후속 재조회가 끝나기 전까지 force-reload 상태를 유지한다. 재조회 실패는 commit 전 실패와 구분하며 동일 working copy 재저장을 허용하지 않는다.
 - 컬럼 구조 저장의 reload-required 상태와 원인은 `HomePageManager`가 소유한다. 항목 편집 다이얼로그는 상위 command callback만 호출하고 상태를 직접 set/clear하지 않으며, 같은 label size의 전체 재조회 성공만 `columnStructureSave` 원인을 해제한다.
-- commit 전 DB 처리 실패는 오류를 알리고 활성 transaction을 rollback할 수 있으면 rollback하며 working copy를 유지한다. `DbCommitOutcomeUnknown`과 commit 후 결과 decode/mapping 실패는 별도 복구 시스템 없이 force-reload와 재조회 전 저장 차단을 유지한다. 어떤 실패도 성공 처리하거나 자동 재시도하지 않는다.
+- commit 전 DB 처리 실패는 오류를 알리고 활성 transaction을 rollback할 수 있으면 rollback하며 working copy를 유지한다. `DbCommitOutcomeUnknown`과 `LabelColumnPostCommitResultInvalid`는 별도 복구 시스템 없이 force-reload와 재조회 전 저장 차단을 유지한다. 어떤 실패도 성공 처리하거나 자동 재시도하지 않는다.
 - `LabelSheetWorkbench`의 dirty 변경은 `_setDirty(bool)` 같은 단일 내부 경계를 사용해 실제 값이 바뀔 때만 `onDirtyChanged`를 통지한다. 최초 attach는 첫 frame 뒤 현재 `initialDirty`를 한 번 보고하고, 이후 RTF 변환, 라벨 파일 import, 사용자 operation, 특별 항목 누락검사 변경, 저장 성공을 모두 이 경계로 처리한다. 파일 import가 내부적으로 실행하는 `clearSheet → updateSheet` 중간 operation은 외부에 clean 상태로 통지하지 않고 최종 dirty 상태만 전달한다.
 - 로그는 operation/trace, labelSizeId, customerId, insert/update/delete 개수, mode 전환, 성공/실패만 기록한다. 키워드 본문, 사용자 정의 QR 데이터, 비밀번호 등 실제 payload는 기록하지 않는다.
 - 로그는 상태 관찰용이며 저장 여부나 분기를 결정하는 비즈니스 로직으로 사용하지 않는다.
@@ -531,7 +535,9 @@ FK cascade에 암묵적으로 의존하지 않는다. 실제 FK/cascade가 확�
 - 대소문자만 다른 duplicate keyword/빈 필드/type별 validation
 - 사용 항목과 사용자 항목의 키워드/항목명 및 사용 항목 제목의 CP949 변환 가능 여부와 100바이트/50바이트/20바이트 경계값 validation
 - 타입 변경 시 기본↔QR의 생성 방식·사용자 정의 data/text 초기화와 GS1 AI 이탈의 contain 관계 제거만 수행하고 나머지 값은 보존
-- QR/기본/GS1 참조 관계 계산
+- 바코드 신규 draft의 비율 조절 기본값이 false/10이고 기존 행의 `showQRCodeText`/`qrTextFontSize` 값이 편집 전후 보존됨
+- QR/기본/바코드 텍스트 연동/GS1 참조 관계를 하나의 공용 함수로 계산하고 행 표시·키워드 변경·삭제 경고가 같은 결과를 사용
+- 타입별 수치 validation이 파싱/DB 저장 범위/정의 enum/레거시 명시 차단 조건만 적용하고 0 경고값과 기존 DB 값을 임의 UX 상·하한으로 차단하지 않음
 - reorder 후 1부터 연속 order 생성
 - 사용자 항목 대문자/영숫자/중복 검증
 
@@ -549,6 +555,7 @@ FK cascade에 암묵적으로 의존하지 않는다. 실제 FK/cascade가 확�
 - property dirty 상태의 행 선택/모드 전환/닫기 guard에서 취소와 변경 취소 양쪽 결과
 - 최초 적용 전 특수 행의 행 선택/모드 전환/닫기 guard와 취소 시 pending 행 제거
 - 타입 변경에 따른 속성 editor 교체와 레거시 분기별 입력값 보존/초기화
+- 바코드 속성 editor에서 비율 조절 사용 여부/수치를 표시하고 적용 시 property draft에 반영
 - 속성 적용 버튼이 `propertyDirty || requiresInitialApply`와 validation 결과로 활성화
 - reorder mode의 교차 영역 아이콘, drag reorder, 위/아래 rail, 전용 footer, 다른 영역 비활성
 - reorder 취소 시 진입 전 순서 복원, 저장 시 working copy에만 순서 적용, 이후 메인 취소 시 전체 변경 폐기
@@ -582,6 +589,7 @@ FK cascade에 암묵적으로 의존하지 않는다. 실제 FK/cascade가 확�
 - `BM_RICH_COL_MIN`의 라벨 크기별 `ELEMENT` 기준행을 중복 없이 보장하고 신규 컬럼행은 `RICH_MIN_CHECK=0`으로 생성
 - 기존 `BM_RICH_COL_MIN` 컬럼행 update가 `RICH_MIN_CHECK`를 보존하고 삭제가 `ELEMENT` 기준행을 제거하지 않음
 - update가 전체 속성과 order 및 보조 테이블 반영
+- 바코드 비율 조절 사용 여부/수치가 `RICH_SHOW_QRCODE_TEXT`/`RICH_QRTEXT_FONTSIZE`에 저장되고 재조회 시 `showQRCodeText`/`qrTextFontSize`로 복원
 - delete가 content/check/min/GS1/status/main row를 정리
 - GS1 contain 관계의 양쪽 참조 정리
 - 같은 저장에서 신규 GS1 바코드가 신규 GS1 AI를 포함할 때 main/contain draft key 양쪽이 실제 column ID로 변환되고, 미해결·삭제 대상 참조는 rollback
@@ -591,7 +599,8 @@ FK cascade에 암묵적으로 의존하지 않는다. 실제 FK/cascade가 확�
 - 연결/SQL/validation/affected row 오류를 사용자에게 알림. 활성 transaction은 가능한 경우 rollback하고 어떤 실패도 성공으로 처리하지 않음
 - 저장 실패가 UI working copy를 지우지 않고 자동 재시도하지 않음
 - `DbCommitOutcomeUnknown`에서 cache를 교체하지 않고 재조회 전 동일 working copy 재저장을 차단
-- commit 후 결과 decode 또는 mapping 변환 실패에서 force-reload 상태를 유지하고 동일 working copy 재저장을 차단
+- transaction 정상 반환 뒤 raw mapping decode 실패와 draft key/mapping key·count 불일치가 각각 `LabelColumnPostCommitResultInvalid`로 전달되고, pre-commit 오류와 `DbCommitOutcomeUnknown`은 이 타입으로 변환되지 않음
+- `LabelColumnPostCommitResultInvalid`에서 force-reload 상태를 유지하고 동일 working copy 재저장을 차단
 - commit 성공 후 강제 재조회 실패에서 force-reload 상태를 유지하고 동일 working copy 재저장을 차단
 - 컬럼 저장 callback이 commit 후 `labelContextReloadRequired=columnStructureSave`를 설정하고 같은 label size 전체 재조회 성공에서만 해제하며, 다이얼로그가 item 전용 private 상태를 직접 조작하지 않음
 - parameter binding으로 작은따옴표가 있는 허용 문자열도 SQL 문법을 깨지 않음
@@ -608,6 +617,7 @@ FK cascade에 암묵적으로 의존하지 않는다. 실제 FK/cascade가 확�
 - 특별 항목 누락검사 변경이 즉시 required keyword와 공용라벨 dirty에 반영되고 typed save 성공 시 `BM_RICH_CHECK_COLUMNS` 저장값과 함께 해제
 - 컬럼 저장·commit 분류·전체 재조회가 `HomePageManager`의 단일 상위 command를 통과하고, 재조회 실패 시 공용 reload-required 원인과 충돌 command 차단을 유지
 - 새 이미지/바코드/QR keyword가 라벨 시트 object/required keyword 처리에 반영
+- `BARCODE_TEXT_LINK`의 `userDefineData`에 포함된 `#keyword` 참조가 행 상태 표시와 키워드 변경/삭제 경고에 동일하게 반영
 - 컬럼 삭제/키워드 변경 시 workbook 직접 참조 분석 없이 라벨 내용과 출력 영향에 대한 일반 확인 경고 표시
 - 기존 라벨 설정/브랜드 설정/품목 순서 변경 테이블 테스트 전체 통과
 - `flutter analyze`, 관련 테스트, 전체 `flutter test`, `git diff --check` 통과
@@ -638,11 +648,12 @@ FK cascade에 암묵적으로 의존하지 않는다. 실제 FK/cascade가 확�
 - 표시 여부 변경
 - 누락 키워드 검사 `BM_RICH_CHECK_COLUMNS`
 - 특별 항목 네 행의 canonical ID/keyword/name과 form 저장 transaction에 전달하는 immutable 최종 check snapshot
-- QR/기본 사용자 정의에서 참조 중인 항목 표시와 키워드 변경/삭제 경고
+- QR/기본 사용자 정의/바코드 텍스트 연동/GS1에서 참조 중인 항목 표시와 공용 계산 결과를 사용하는 키워드 변경/삭제 경고
 - DB collation 기준으로 대소문자만 다른 키워드 중복도 추가/저장 차단
 - 빈 키워드/항목명 저장 차단
 - 기존 품목 존재 시 데이터 영향 이중 확인 또는 동등한 강도의 명확한 최종 확인
-- 바코드/이미지/QR/GS1/날짜 타입의 전체 속성 UI와 검증
+- 바코드 비율 조절 사용 여부/수치를 기존 `RICH_SHOW_QRCODE_TEXT`/`RICH_QRTEXT_FONTSIZE`에 저장하는 것을 포함한 바코드/이미지/QR/GS1/날짜 타입의 전체 속성 UI와 검증
+- 타입별 수치 검증은 파싱/DB 저장 범위/정의 enum/문서 필수 조건/레거시 명시 차단 조건만 적용하고 확정되지 않은 UX 상·하한을 추가하지 않음
 - 체크디지트/타임바코드 변경 영향 경고
 - GS1 AI 포함 관계의 추가/수정/삭제
 - 신규 컬럼의 기존 품목 content를 `RICH_EDITABLE=0`과 빈 data로 생성하고, 배포 DB에 update 테이블이 존재하면 update 품목의 빈 content도 생성
@@ -681,13 +692,16 @@ FK cascade에 암묵적으로 의존하지 않는다. 실제 FK/cascade가 확�
 - `BM_RICH_COL_MIN`은 라벨 크기별 `ELEMENT` 기준행을 하나 유지하고 기존 컬럼의 `RICH_MIN_CHECK`를 보존하며, 삭제 컬럼행만 제거한다.
 - 사용 항목과 사용자 항목의 키워드/항목명은 SQL 실행 전에 CP949 변환 가능 여부와 100바이트/50바이트 저장 한계를 검증한다.
 - 사용 항목 제목은 SQL 실행 전에 CP949 변환 가능 여부와 20바이트 저장 한계를 검증하고, 키워드 중복은 UI와 SQL에서 `Korean_Wansung_CI_AS` 의미로 동일하게 판정한다.
+- 타입별 수치와 옵션은 파싱/DB 저장 범위/정의 enum/문서 필수 조건/레거시 명시 차단 조건만 검증하며, 0 경고값이나 기존 DB 값을 확정되지 않은 UX 상·하한으로 차단하지 않는다.
+- 바코드 비율 조절은 기존 `showQRCodeText`/`qrTextFontSize` 필드와 DB 컬럼에 저장되고 신규 기본값 false/10 및 기존 DB 값이 유지된다.
 - 사용 항목과 사용자 항목 저장은 각각 원자적 transaction이며 DB 처리 오류 시 사용자 알림, 가능한 rollback, 성공 처리·cache 교체 금지와 편집 상태 보존이 동작한다.
 - commit 전 저장 실패는 working copy를 유지해 수동 재시도할 수 있고, `DbCommitOutcomeUnknown`은 재조회 전 동일 command 재저장을 차단한다.
-- commit 후 반환 결과를 decode하거나 mapping으로 변환하지 못하면 force-reload와 동일 working copy 재저장 차단을 유지하고 DB 재조회를 요구한다.
+- commit 후 반환 결과를 decode하거나 mapping key/count를 검증하지 못하면 DAO가 `LabelColumnPostCommitResultInvalid`를 throw해 상위 callback에 전달하고, callback은 force-reload와 동일 working copy 재저장 차단을 유지한 채 DB 재조회를 요구한다.
 - commit 성공 후 강제 재조회가 실패하면 저장 완료 사실을 알리고 force-reload 상태를 유지하며 동일 working copy를 다시 저장하지 않는다.
 - 품목 draft 또는 공용라벨 시트가 dirty이면 항목 편집기 진입과 저장을 차단한다. 공용라벨 시트 dirty는 모든 의미 있는 true/false 전이가 단일 callback으로 전달되고 실제 저장 완료일 때만 해제되며 저장 취소·검증 중단·오류에서는 유지된다.
 - 일반 사용 항목의 기존 표는 누락검사를 읽기 전용으로 표시하고 새 편집기만 수정한다. 특별 항목 누락검사는 기존 표에서 편집하되 required keyword와 dirty를 즉시 갱신하고, canonical 네 행의 immutable snapshot을 필수 입력으로 받은 typed save가 시트와 해당 check 값을 기존 form batch 한 transaction에서 모두 저장한 경우에만 해제한다.
 - 사용 항목 저장과 후속 전체 재조회는 `HomePageManager`의 단일 상위 command가 소유한다. commit 후 공용 `labelContextReloadRequired=columnStructureSave`를 설정하고 같은 label size 재조회 성공에서만 해제하며, 다이얼로그는 item 전용 private force-reload 상태를 직접 재사용하지 않는다.
 - 저장 실패를 자동 재시도하거나 commit 결과 reconciliation·재시작 복구 상태를 만들지 않는다.
 - 저장 후 공용라벨/품목관리/미리보기가 새 컬럼 목록을 사용한다.
+- QR/기본 사용자 정의/바코드 텍스트 연동/GS1 참조를 공용 계산해 행 표시와 키워드 변경/삭제 경고에 같은 결과를 사용한다.
 - 16장의 테스트와 전체 정적 분석/테스트가 통과한다.
