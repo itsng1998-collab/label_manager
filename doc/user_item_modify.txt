@@ -99,7 +99,7 @@
 4.3 메인 footer
 
 - 다이얼로그 하단 오른쪽에 `취소`, `저장` 버튼을 둔다.
-- `저장`은 `workingDirty=true`, `propertyDirty=false`, busy=false일 때만 활성화한다. 속성 변경만 있고 아직 `적용`하지 않은 동안에는 비활성화하고 `먼저 속성 변경을 적용하거나 취소해 주세요.` 안내를 제공한다.
+- `저장`은 `workingDirty=true`, `propertyDirty=false`, 모든 working row의 `initialApplyState != requiredPending`, busy=false일 때만 활성화한다. 속성 변경 또는 최초 적용 필수 행이 아직 `적용`되지 않은 동안에는 비활성화하고 `먼저 속성 변경을 적용하거나 취소해 주세요.` 안내를 제공한다.
 - `취소`는 다이얼로그 전체의 미저장 변경을 버리고 닫는 기능이다.
 - 미저장 변경이 있으면 `변경 내용을 취소하고 닫으시겠습니까?`를 질의한다. 확인한 경우에만 원본 snapshot으로 복원하고 닫는다.
 - 창 닫기 아이콘과 Esc도 메인 `취소`와 같은 guard를 거친다.
@@ -133,6 +133,7 @@ DB 조회/저장 중에는 coordinator의 별도 busy state로 중복 command, �
 - `propertyBaseline`: 현재 선택 행에서 속성 패널을 연 시점의 값
 - `propertyDraft`: 속성 패널 입력값
 - `propertyDirty`: baseline과 draft의 실제 내용 비교 결과
+- 각 `LabelColumnDraft.initialApplyState`: `notRequired | requiredPending | completed`. `requiredPending`은 `propertyDirty`와 독립적인 저장·선택 이탈·모드 전환 차단 상태다.
 
 기존 행 identity는 `columnId`, 신규 행 identity는 dialog session에서 생성한 `draftColumnKey`를 사용한다. 선택, drag/drop, reorder, 삭제 후 선택 복원은 list index를 identity로 사용하지 않는다.
 
@@ -164,7 +165,7 @@ DB 조회/저장 중에는 coordinator의 별도 busy state로 중복 command, �
 
 6.2 선택과 속성 dirty guard
 
-`propertyDirty=true`인 상태에서 다음 이벤트를 요청하면 먼저 `적용하지 않은 속성 변경을 취소하시겠습니까?`를 질의한다.
+`propertyDirty=true` 또는 현재 선택 행의 `initialApplyState=requiredPending`인 상태에서 다음 이벤트를 요청하면 공용 guard를 먼저 실행한다.
 
 - 다른 사용 항목 행 선택
 - 고정/사용자 후보 선택 또는 추가
@@ -174,9 +175,9 @@ DB 조회/저장 중에는 coordinator의 별도 busy state로 중복 command, �
 - 사용자 항목 설정 모드 진입
 - 메인 취소, 창 닫기
 
-사용자가 `변경 취소`를 확인하면 property draft를 baseline으로 되돌린 뒤 원래 요청한 이벤트를 정확히 한 번 이어서 실행한다. 확인하지 않으면 현재 행과 입력 focus를 유지하고 요청 이벤트를 실행하지 않는다.
+guard는 폐쇄된 두 분기를 가진다. `requiredPending`이면 `이 항목은 최초 속성 적용이 필요합니다. 적용하지 않고 항목 추가를 취소하시겠습니까?`를 질의하고, 사용자가 확인한 경우에만 해당 pending 신규 행을 working copy와 selection/property state에서 원자 제거한 뒤 원래 요청한 이벤트를 정확히 한 번 이어서 실행한다. 확인하지 않으면 현재 행과 입력 focus를 유지하고 이벤트를 실행하지 않는다. 그 외 `propertyDirty`이면 기존 `적용하지 않은 속성 변경을 취소하시겠습니까?`를 질의하고, `변경 취소` 확인 시 property draft를 baseline으로 되돌린 뒤 원래 이벤트를 정확히 한 번 이어서 실행한다. 두 조건이 동시에 true이면 `requiredPending` 분기를 우선해 행 제거 또는 현재 선택 유지 중 하나로 종료하며 draft 복원만으로 원래 이벤트를 허용하지 않는다.
 
-guard callback 안에서 이벤트별 로직을 복제하지 말고 `Future<bool> resolvePendingPropertyEdit()` 같은 공용 경계를 둔다. route가 닫히기 전에 다음 command가 실행되지 않도록 확인 dialog Future 완료 뒤 처리한다.
+guard callback 안에서 이벤트별 로직을 복제하지 말고 `Future<PendingPropertyResolution> resolvePendingPropertyEdit()` 같은 공용 경계를 둔다. 결과는 최소 `proceedUnchanged | proceedAfterDraftReset | proceedAfterPendingRowRemoved | stay`를 폐쇄 열거하고, route가 닫히기 전에 다음 command가 실행되지 않도록 확인 dialog Future와 원자 상태 변경 완료 뒤 호출자가 `proceed*` 결과에서만 원래 이벤트를 한 번 실행한다.
 
 6.3 항목 삭제
 
@@ -203,10 +204,10 @@ guard callback 안에서 이벤트별 로직을 복제하지 말고 `Future<bool
 - 선택 행이 없으면 빈 상태를 표시하고 모든 입력을 비활성화한다.
 - 행 선택 시 해당 타입에 맞는 속성 UI를 구성한다.
 - 패널 하단에는 항상 `취소`, `적용` 버튼을 둔다.
-- `적용`은 property draft가 baseline과 다르고 현재 입력이 유효할 때만 활성화한다.
+- `적용`은 현재 입력이 유효하고 `propertyDirty=true` 또는 현재 행의 `initialApplyState=requiredPending`일 때 활성화한다. 최초 적용 필수 행은 값을 바꾸지 않았어도 적용할 수 있어야 한다.
 - `취소`는 property draft를 baseline으로 복원한다. DB 또는 working copy의 적용 완료 값은 바꾸지 않는다.
-- `적용` 성공 후 현재 값이 새 baseline이 되고 `propertyDirty=false`가 된다.
-- 신규 특수 타입 행은 사용 항목 테이블에 pending 신규 행으로 표시하고 즉시 선택한다. `requiresInitialPropertyApply` 폐쇄 집합은 레거시와 같은 바코드/이미지/QR/GS1 AI/GS1 바코드(type code `3 | 4 | 9 | 11 | 12`)이며, 해당 행의 첫 속성 적용 전 `취소`하면 레거시 상세 설정 dialog 취소와 동일하게 신규 행 자체를 제거한다. 제조일자/유통기한을 포함한 나머지 지원 타입은 pending으로 만들지 않고 기본값으로 즉시 추가한다.
+- `적용` 성공 후 현재 값이 새 baseline이 되고 `propertyDirty=false`가 된다. `requiredPending` 행이면 같은 command에서 `initialApplyState=completed`로 전환한다.
+- 신규 특수 타입 행은 사용 항목 테이블에 pending 신규 행으로 표시하고 즉시 선택한다. `requiresInitialPropertyApply` 폐쇄 집합은 레거시와 같은 바코드/이미지/QR/GS1 AI/GS1 바코드(type code `3 | 4 | 9 | 11 | 12`)이며, 해당 행은 `initialApplyState=requiredPending`으로 생성한다. 첫 속성 적용 전 `취소`하면 레거시 상세 설정 dialog 취소와 동일하게 신규 행 자체를 제거한다. `requiredPending`인 동안 다른 행 선택, 후보 추가, reorder/userItemEdit 진입과 메인 저장을 공용 `resolvePendingPropertyEdit()` guard가 차단하고 `적용` 또는 행 제거 중 하나를 완료하도록 한다. 제조일자/유통기한을 포함한 나머지 지원 타입은 `initialApplyState=notRequired`로 기본값을 즉시 추가한다.
 - 일반 타입처럼 별도 설정 없이 추가 가능한 항목은 레거시 기본값으로 즉시 working copy에 추가한다.
 
 7.2 공통 속성
@@ -298,6 +299,7 @@ guard callback 안에서 이벤트별 로직을 복제하지 말고 `Future<bool
 9.3 사용자 항목 inline 편집
 
 - `항목 추가` 아이콘을 누르면 마지막에 신규 빈 행을 추가하고 첫 입력 셀에 focus한다.
+- 사용자 항목 working row는 기존 행의 `custColumnId` 또는 dialog session에서 생성한 opaque `draftCustomerColumnKey` 중 정확히 하나를 stable identity로 가진다. 선택, focus, inline edit, 삭제와 drag payload는 row index나 레거시 공통 `NEW_COLUMN` sentinel을 사용하지 않고 이 identity를 사용한다.
 - 키워드와 항목명은 직접 입력한다.
 - `CustomerColumnGrandfatherPolicyV1`은 `normalEditable | keywordFrozenOtherFieldsEditable | fullyReadOnlyDeleteOnly`의 폐쇄 집합이다. hydration/focus는 어떤 policy에서도 keyword를 정규화하지 않고 DB raw를 그대로 표시한다. 레거시 즉시 대문자화는 `normalEditable` 행의 사용자 keyword 입력 event에만 적용한다.
 - 신규 행과 정상 기존 행은 `normalEditable`이며 사용자가 실제로 키워드를 수정하면 `[A-Z0-9]+`만 허용하고 예약 token과 충돌하는 `ITEMNAME`은 거부한다. 한글, 공백, 기호가 들어오면 저장하지 않고 해당 셀에 오류를 표시한다. 레거시 `IsAlphabet()` 범위 때문에 이미 저장된 `_`, `[`, `\\`, `]`, `^`, `` ` `` 등을 포함한 비준수 키워드와 기존 `ITEMNAME`은 `keywordFrozenOtherFieldsEditable`로 분류해 keyword raw를 보존하고 keyword 변경·복사·V1 컬럼 참조 선택을 차단하되 항목명과 지원 type 변경 및 삭제는 허용한다. 0~12 밖의 미지원 raw type 행은 `fullyReadOnlyDeleteOnly`로 분류한다. 비준수/예약어 충돌/미지원 기존 행이 존재한다는 이유만으로 다른 정상 행의 저장과 해당 행 삭제를 차단하지 않으며 자동 정규화하지 않는다.
@@ -320,7 +322,7 @@ guard callback 안에서 이벤트별 로직을 복제하지 말고 `Future<bool
 - 클릭하면 `사용자 항목 설정 변경을 저장하시겠습니까?`를 질의한다.
 - 확인 시 신규/수정/삭제를 하나의 DB transaction으로 저장한다.
 - 저장 command는 진입 시 customer-scoped 원본 목록의 정규화 original fingerprint와 working copy의 desired fingerprint를 필수로 가진다. transaction에서 같은 customer 범위를 공통 customer-column DB lock과 `UPDLOCK, HOLDLOCK`으로 다시 읽고 fingerprint가 다르면 어떤 CRUD도 실행하지 않은 채 conflict로 rollback한다.
-- commit 성공하면 `customerDictionaryReloadPending`으로 전환해 동일 command 재실행과 편집을 차단하고 DB에서 사용자 항목 후보 전체를 다시 조회한다. 재조회 성공 후에만 새 customer-column baseline을 만들고 `normal` 모드로 돌아간다. 이 저장은 이미 사용 항목으로 복사된 label-column이나 현재 `LabelSizeSession`을 변경하지 않으므로 label-size session reload를 실행하지 않는다. 후보 재조회가 실패하면 read-only 복구 화면에서 후보 재조회만 다시 시도하며 customer-column save를 재실행하지 않는다.
+- commit과 result decode가 정상 성공하면 `customerDictionaryReloadPending`으로 전환해 동일 command 재실행과 편집을 차단하고 DB에서 사용자 항목 후보 전체를 다시 조회한다. 저장 직전 선택이 기존 행이면 같은 `custColumnId`, 신규 행이면 검증된 `draftCustomerColumnKey → custColumnId` mapping으로 선택 복원 ID를 계산한다. 재조회 결과에 해당 ID가 정확히 한 번 있을 때만 선택을 복원하고 삭제됐거나 없으면 선택을 `null`로 해제한다. 재조회 성공 후에만 새 customer-column baseline을 만들고 `normal` 모드로 돌아간다. committed-invalid/reload-only 경로에서는 mapping을 working state나 선택 복원에 사용하지 않고 전체 재조회 후 선택을 해제한다. 이 저장은 이미 사용 항목으로 복사된 label-column이나 현재 `LabelSizeSession`을 변경하지 않으므로 label-size session reload를 실행하지 않는다. 후보 재조회가 실패하면 read-only 복구 화면에서 후보 재조회만 다시 시도하며 customer-column save를 재실행하지 않는다.
 - 일반적인 commit 전 실패는 모드를 유지하고 working copy를 보존해 같은 command 재시도를 허용한다. `DbConcurrencyConflict`는 이 범위에서 제외한다. conflict이면 working copy를 별도 비교 입력으로 보존하되 동일 command와 자동 rebase를 금지하고, 최신 customer-column snapshot을 재조회한 뒤 사용자가 변경을 수동 재적용·재확인해 새 fingerprint와 operation ID를 가진 command를 생성해야만 다시 저장할 수 있다. `DbCommitOutcomeUnknown`은 11.2의 공용 desired/original/indeterminate 판정 알고리즘에 customer-column 전용 adapter를 주입해 수행하고 동일 command 자동 재실행을 금지한다. 이 adapter는 customer application lock resource, cust-column raw snapshot/projection, `(customerId, keyword)` natural-key resolver를 소유하며 label-size lock이나 label-column projection을 재사용하지 않는다.
 - `취소`는 변경이 있으면 `사용자 항목 설정 변경을 취소하시겠습니까?`를 질의하고, 확인 시 snapshot으로 되돌린 뒤 `normal`로 돌아간다.
 - 모드 종료 시 좌상단 `항목 추가` 아이콘을 다시 `항목 편집` 아이콘으로 바꾼다.
@@ -331,7 +333,7 @@ guard callback 안에서 이벤트별 로직을 복제하지 말고 `Future<bool
 
 - 사용 항목 테이블 좌상단의 순서 변경 아이콘을 누르면 `reorder` 모드로 전환한다.
 - 진입 전에 pending property edit을 공용 guard로 해소한다.
-- 사용 항목 목록의 현재 순서를 별도 snapshot으로 보관한다.
+- 사용 항목 목록의 현재 stable key 순서를 `ReorderSession(snapshotKeys, draftKeys, selectedKey)`로 보관한다. 진입 시 두 key 목록은 같고 이 mode-local session이 확인 전 임시 순서의 유일한 source of truth다.
 - 사용 항목 테이블의 컬럼 구성과 행 내용은 그대로 유지한다.
 - 테이블 오른쪽에 라벨 설정과 같은 폭/간격/버튼 크기의 위/아래 이동 rail을 표시한다.
 - `rowReorderEnabled=true`로 전환하여 행 또는 행 번호 drag reorder를 지원한다.
@@ -343,17 +345,17 @@ guard callback 안에서 이벤트별 로직을 복제하지 말고 `Future<bool
 
 10.2 이동 규칙
 
-- drag와 위/아래 버튼은 같은 reorder function을 사용한다.
+- drag와 위/아래 버튼은 같은 reorder function을 사용하고 `ReorderSession.draftKeys`만 변경한다. 확인 전 `workingColumns`의 목록 순서와 persisted order는 바꾸지 않는다.
 - 인접 이동과 비인접 이동의 insert index 계산은 현재 `SwipeActionTable` 라벨 설정 테스트 계약을 따른다.
 - 이동 후 선택은 이동한 행의 안정 key를 유지한다.
-- 한 행뿐이거나 실제 순서가 바뀌지 않으면 `orderDirty=false`다.
+- `orderDirty`는 `ReorderSession.snapshotKeys`와 `draftKeys`의 stable-key sequence 비교 결과다. 한 행뿐이거나 실제 순서가 바뀌지 않으면 false다.
 
 10.3 저장과 취소
 
-- `취소`는 reorder snapshot 순서로 복원하고 `normal` 모드로 돌아간다.
+- `취소`는 `ReorderSession`만 폐기하고 `normal` 모드로 돌아간다. `workingColumns`, 진입 전 `workingDirty`와 적용된 속성/추가/삭제 상태는 변경하지 않는다.
 - `저장`은 `orderDirty=true`일 때만 활성화한다.
 - 클릭하면 `변경한 사용 항목 순서를 적용하시겠습니까?`를 질의한다.
-- 확인 시 현재 순서를 `workingColumns`에 적용하고 각 행의 order를 1부터 연속 값으로 다시 부여한 뒤 `workingDirty=true`로 만들고 `normal` 모드로 돌아간다. DB transaction은 실행하지 않는다.
+- 확인 시 `draftKeys`가 현재 `workingColumns` stable key 집합과 정확히 일치하는지 검증하고, 그 key 순서를 `workingColumns`에 원자 투영해 각 행의 order를 1부터 연속 값으로 다시 부여한다. 원래 순서와 달라진 경우에만 content 비교로 `workingDirty`를 갱신하고 `ReorderSession`을 폐기한 뒤 `normal` 모드로 돌아간다. key 누락·중복·추가는 typed conflict이며 DB transaction을 실행하지 않는다.
 - 확인을 취소하면 `reorder` 모드와 현재 임시 순서를 유지한다.
 - 최종 DB 저장은 메인 footer의 `저장`에서 신규/수정/삭제/순서를 하나의 transaction으로 처리한다. 따라서 순서 변경 적용 후에도 메인 `취소`로 다이얼로그 전체 변경을 버릴 수 있다.
 
@@ -361,7 +363,7 @@ guard callback 안에서 이벤트별 로직을 복제하지 말고 `Future<bool
 
 11.1 저장 전 검증
 
-- `propertyDirty=true`이면 메인 저장을 실행하지 않고 사용자가 속성 `적용` 또는 `취소`를 먼저 완료하도록 안내한다.
+- `propertyDirty=true`이거나 `initialApplyState=requiredPending`인 행이 하나라도 있으면 메인 저장을 실행하지 않고 사용자가 속성 `적용` 또는 pending 행 제거를 먼저 완료하도록 안내한다.
 - 모든 행의 키워드와 항목명 필수
 - 전체 키워드 중복 금지
 - order를 1부터 연속 값으로 정규화
@@ -395,18 +397,20 @@ guard callback 안에서 이벤트별 로직을 복제하지 말고 `Future<bool
 
 구체 파일명은 기존 모델 구조에 맞추되 최소한 다음 역할을 분리한다.
 
-- `LabelColumnDraft`: 아래 persisted field allow-list, 기존 columnId 또는 신규 draft key, new/modified 상태
+- `LabelColumnDraft`: 아래 persisted field allow-list, 기존 columnId 또는 신규 draft key, new/modified 상태와 `initialApplyState: notRequired | requiredPending | completed`
 - `LabelColumnEditSession`: original/working/deleted/selection/property 상태와 content 비교
+- `ReorderSession`: 진입 시 `snapshotKeys`, mode-local `draftKeys`, nullable `selectedKey`를 소유하고 확인 전 임시 순서의 유일한 source of truth가 되는 상태
 - `FixedColumnType`: 고정 항목 분류 ID와 이름. 존재하지 않는 order 필드를 만들지 않는다.
 - `FixedColumnCandidate`: fixedColumnId, 타입, 키워드, 항목명, 분류 ID
 - `CustomerColumnCandidate`: custColumnId, customerId, 타입, 키워드, 항목명
-- `CustomerColumnEditSession`: 사용자 항목 original/working/deleted 상태
+- `CustomerColumnDraft`: 기존 `custColumnId` 또는 session-local opaque `draftCustomerColumnKey` 중 정확히 하나, customerId, 타입, 키워드, 항목명과 grandfather policy/new/modified 상태
+- `CustomerColumnEditSession`: 사용자 항목 original/working/deleted/selected stable key 상태
 - `LabelColumnSaveCommand`: labelSizeId, insert/update/delete 목록, 최종 순서, 저장 context, concurrency fingerprint와 observation projection
 - `CustomerColumnSaveCommand`: customerId, insert/update/delete 목록, original concurrency fingerprint, desired observation projection, immutable 로그인/DB identity context와 opaque operation ID. labelSizeId, GS1 관계와 label session generation은 포함하지 않는다.
 - `DbExecutionResult`/동등 DTO: 각 결과셋의 독립 columns/logical types/rows와 전체 affected count를 보존하는 driver 반환 타입
 - `DbLogicalType`/`DbColumnMetadata`: ODBC native type, DB-Lib `SYB*` 또는 Android/iOS driver native type을 직접 노출·비교하지 않고 `integer`, `decimal`, `string`, `dateTime`, `binary`, `boolean` 등 공용 logical type으로 정규화한다. nullability는 `noNulls | nullable | unknown`, 각 수치 metadata는 `known(value) | unknown | notApplicable`로 구분하고 character length/octet length/numeric precision/numeric scale/temporal fractional precision을 혼용하지 않는다.
 - `DbWireScalar`: row value를 driver 구현 타입에 맡기지 않고 integer 범위 보존 값, decimal canonical 문자열, timezone/precision이 명시된 temporal 문자열, boolean, string, binary base64 descriptor와 DB null로 정규화하는 versioned wire 값. DB null, 빈 string, 빈 binary, 문자열 `"0"`, 숫자 0과 false는 서로 다른 kind/value로 보존한다.
-- `DbResultContract`: marker column/type, result-set/row cardinality, count 기대값, mapping object schema와 command의 신규 draft key 집합을 commit 전에 검증하는 versioned wire descriptor
+- `DbResultContract`: marker column/type, result-set/row cardinality, count 기대값, resource별 mapping object schema와 command의 신규 draft key 집합을 commit 전에 검증하는 versioned wire descriptor. label/customer mapping kind를 서로 cross-decode하지 않는다.
 - `DbResultSetContract`: raw snapshot의 rowset kind/version/ordinal, column/type와 cardinality를 검증하는 versioned descriptor
 - `DatabaseIdentity`/`stableDatabaseIdentityDigest`/`connectionEpoch`: 비밀정보를 제외한 검증된 server/database identity, recovery namespace용 안정 digest와 connect 성공마다 증가하는 cache/요청 소유 epoch. 연결 전 endpoint/DB name은 `connectionProfileHint`일 뿐 identity가 아니다. digest는 canonicalization version과 아래 versioned identity probe의 verified tuple을 사용하고 password, connection epoch, `family_guid`와 단순 DNS/IP 별칭을 포함하지 않는다. 사용자 결정에 따라 AG의 `group_id`/`group_database_id`가 일치하는 failover 또는 standalone의 같은 `database_guid`만 같은 identity로 보고 restore·clone은 새 namespace로 분리한다.
 - `DbIdentityProbeResult`: `verifiedAvailabilityGroup | verifiedStandalone | notInAvailabilityGroup | unsupportedPlatform | permissionDenied | metadataHidden | malformed` kind, canonical database name, `SERVERPROPERTY('EngineEdition')`/product version, current DB의 `sys.database_recovery_status.database_guid`, AG일 때 `sys.availability_databases_cluster.group_id`/`group_database_id`, 필드별 provenance와 권한 진단을 보존한다. `family_guid`, server/machine/instance 표시명은 진단값일 뿐 digest source가 아니다.
@@ -415,6 +419,7 @@ guard callback 안에서 이벤트별 로직을 복제하지 말고 `Future<bool
 - `DbTransactionIsolation`: 최소 `snapshot | readCommitted | serializable`을 wire에서 폐쇄 열거하는 transaction isolation descriptor. V1은 baseline raw DAO=`snapshot`, label/customer save와 reconciliation=`serializable`로 고정하며 manifest나 호출자가 더 약한 값으로 낮출 수 없다.
 - `NativeDbTransactionSession`: driver가 발급한 하나의 `DbNativeSessionToken`과 native connection을 배타 소유하고 `begin(DbTransactionIsolation isolation)`, `executeAndDrain`, `commit`, `rollback`, `verifyTransactionClosed`, `discard`만 노출하는 transaction 전용 객체. transaction 제어 SQL을 일반 `writeData()`로 보내거나 command마다 native connection을 다시 선택하지 않는다. transaction 종료 시 connection isolation을 검증된 기본값으로 복원하거나 native session을 폐기해 다음 command로 isolation이 누출되지 않게 한다.
 - `DbOperationAck`: worker가 관측한 `operationAccepted → commitDispatchObserved → commitCompleted → resultFrameSendCompleted`의 cumulative high-watermark와 operation/session/epoch ID를 보존하는 versioned ack. worker의 send 완료는 parent의 receive 완료를 뜻하지 않는다. `commitDispatchObserved`는 worker가 native commit 호출에 진입하기 직전 별도 control channel로 방출한 관측 증거이며 parent의 사전 `commitDispatchIntentDurable`을 대체하지 않는다. control/result channel 간 지연·재정렬이나 중간 ACK 유실이 있어도 더 높은 유효 ACK는 이전 worker 관측 단계를 함의하는 high-watermark로 수용한다. 낮은 단계의 후착 ACK는 같은 canonical payload이면 idempotent stale ACK로 무시하고 ID/payload가 다르면 typed reject한다. `resultContractValidated`는 commit 전 worker 내부 증거로 result frame/contract에 포함한다. `resultFrameFullyReceived`, `wireEnvelopeDecoded`와 `domainDtoDecoded`는 worker ACK가 아니라 각각 parent frame reader, parent wire decoder와 DAO mapper가 동일 operation/session/epoch를 검증한 뒤 `RecoveryTransitionTableV1`에 제출하는 local event다.
+- `NativeOperationEvidenceStoreV1`: P0 root가 소유하는 strict operation 전용 최소 crash-safe store. schema/checksum, owner token, monotonic publish sequence, operation/session/epoch, 비민감 identity/resource key와 `NativeOperationEvidenceDescriptorV1` evidence를 플랫폼별 단일 writer·target/tmp/bak 원자 교체로 보존한다. DB 연결 전 namespace-neutral 무결성 scan과 identity bind 뒤 unresolved evidence 재발견을 수행하며 P2 recovery consumer가 아직 bind되지 않은 상태에서 unresolved evidence가 있으면 해당 resource의 새 strict dispatch를 fail-closed한다. P2 journal/registry는 이 store를 교체하거나 별도 evidence source를 만들지 않고 workflow/resource barrier/tombstone projection을 확장한다.
 - `DbActionRequirementV1`: 모든 bootstrap/일반 DB action ID별 `requiredPhase`, `requiresAuthoritativeIdentity`, `allowedInDegradedReady`, `cacheScope`, `isWrite`, `executionClass: strictNativeRecovery | compatibilityLockOnly`를 폐쇄 열거하는 checked-in manifest
 - `ContentCreationOwnershipV1`: `BM_RICH_COL_CONTENT`와 capability에 따른 `BM_UPDATE_COL_CONTENT`별 `triggerOwned | daoOwned | unsupported` 생성 주체, trigger 이름/활성 상태/정의 hash, statement-level inserted 집합 처리 여부, label-size별 order 부작용, unique key와 검증 query를 보존하는 배포 capability. 레거시 `AFTER_INSERT_COLUMN`은 `inserted` 집합 대신 전역 마지막 row와 전역 `MAX(RICH_COLUMN_ORDER)+1`을 사용하므로 승인 hash 여부와 무관하게 `unsupported`다.
 - `GateManifestV1`: gate ID, blocking 여부, 대상 OS/architecture/SQL Server edition·version, provisioning/권한 DDL, 실행 명령, timeout, expected assertion과 결과 artifact schema/유효기간을 고정하는 checked-in 완료 gate
@@ -439,7 +444,7 @@ guard callback 안에서 이벤트별 로직을 복제하지 말고 `Future<bool
 - `LabelSizeSession`: data/resources/context/generation을 묶어 단일 reference로 교체하는 상위 세션
 - `LabelSizeSessionStore`: 앱 root 수명으로 authoritative current session reference를 보관하고 UI manager dispose와 독립적인 read-only session accessor를 제공한다. generation 발급과 compare-and-swap은 `LabelSizeReloadCoordinator`만 호출할 수 있는 비공개 atomic primitive이며 store 자체와 다른 consumer는 reload 정책을 시작하거나 swap하지 않는다.
 - `LabelSizeReloadCoordinator`: 앱 root 수명으로 generation 발급 primitive 호출, candidate prepare/activate/compare-and-swap, durable pending render acknowledgement와 old resource retirement 정책을 단독 소유하고 attach된 `HomePageManager`를 UI consumer로 호출한다.
-- `StrictOperationCommitAuthority`: P0 앱 root 수명으로 strict operation의 durable prepare/dispatch/commit-intent publish와 operation/session/epoch commit authorization port를 소유한다. P2 application recovery가 없어도 P0 strict executor가 사용할 수 있으며 P2 `RecoveryTransitionTableV1`은 이 authority가 게시한 `NativeOperationEvidenceDescriptorV1` evidence를 소비한다.
+- `StrictOperationCommitAuthority`: P0 앱 root 수명으로 `NativeOperationEvidenceStoreV1`을 통해 strict operation의 durable prepare/dispatch/commit-intent publish와 operation/session/epoch commit authorization port를 소유한다. P2 application recovery가 없어도 clean store에서는 P0 strict executor가 사용할 수 있고, 재시작 후 unresolved evidence가 있으면 P2 recovery consumer가 bind·판정하기 전 해당 resource의 새 strict dispatch를 차단한다. P2 `RecoveryTransitionTableV1`은 같은 store에 게시된 `NativeOperationEvidenceDescriptorV1` evidence를 소비한다.
 - `LabelColumnEditCoordinator`: dialog 밖에서 edit/save/post-commit 상태와 in-flight Future를 소유하고 UI detach와 application recovery handoff를 처리하는 coordinator
 - `LabelColumnSaveRecoveryRegistry`: 앱 루트 수명으로 detached coordinator와 opaque random operation ID, DB identity별 resource key/context/phase를 소유한다. 같은 프로세스에서는 projection을 가진 coordinator의 reconciliation/reload-only를 이어받고, 프로세스 재시작 후에는 startup scan과 identity-bound resource 차단, 강제 reload·사용자 확인 해제만 담당하는 recovery service
 - `LabelManagerAppBootstrapService` 또는 동등한 프로세스당 단일 root owner: P0에서 `main.dart`의 `MaterialApp`/로그인·`HomePage` subtree보다 먼저 최소 container와 동일 identity의 `StrictOperationCommitAuthority`를 설치한다. P2는 새 singleton을 만들거나 authority를 교체하지 않고 같은 root 인스턴스에 `LabelColumnSaveRecoveryRegistry`, `LabelSizeSessionStore`, `LabelSizeReloadCoordinator`와 DB bootstrap을 확장한다. root는 `storageReady → databaseIdentity bind → login context attach → logout detach → app shutdown`을 직렬화하고 route/widget dispose와 무관하게 in-flight coordinator를 처음부터 등록·소유한다.
@@ -516,8 +521,8 @@ parameter wrapper는 `logPolicy`를 wire schema에 포함한다. 저장 JSON, ke
 - 수정: 현재 customer ID와 custColumnId를 함께 조건으로 update
 - 삭제: 현재 customer ID와 custColumnId를 함께 조건으로 delete
 - 기대 affected row가 다르면 `THROW`하여 전체 rollback한다.
-- SQL 문자열 보간을 사용하지 않는다. 현재 공용 DB API는 목록 parameter를 지원하지 않으므로 insert/update/delete DTO 목록을 명시적 Unicode large JSON parameter 하나 또는 소수로 전달하고 12.2의 raw scalar staging/validation을 적용한다.
-- 최종 `SELECT`는 항상 정확히 1행이며 `RESULT_KIND='customer-column-save/v1'`, `SCHEMA_VERSION=1`, insert/update/delete count를 포함한다. 저장 건수가 모두 0이어도 marker 1행을 반환한다. result contract가 marker/schema/cardinality와 count 정수·command 기대값을 commit 전에 검증한다. `commitCompleted`와 frame 수신 뒤 wire envelope 또는 customer-column domain DTO 복원이 실패하면 stage가 있는 `DbCommittedResultInvalid(committedKnown: true)`로 분류하고 동일 command를 재실행하지 않는다. 이 경우 customer dictionary 전체 재조회만 허용하고 label-size session reload나 mapping 복구를 수행하지 않는다.
+- SQL 문자열 보간을 사용하지 않는다. 현재 공용 DB API는 목록 parameter를 지원하지 않으므로 insert/update/delete DTO 목록을 명시적 Unicode large JSON parameter 하나 또는 소수로 전달하고 12.2의 raw scalar staging/validation을 적용한다. customer insert staging row는 command의 opaque `draftCustomerColumnKey`와 결정적 `ROW_NO`를 함께 보존한다. SQL Server의 일반 `INSERT ... SELECT ... OUTPUT`에서 source alias를 참조할 수 있다고 가정하지 않고, 승인된 insert-only `MERGE target USING staged source ON 1=0 WHEN NOT MATCHED THEN INSERT ... OUTPUT source.ROW_NO, source.draftCustomerColumnKey, inserted.RICH_CUST_COLUMN_ID INTO @mapping` template 또는 source key 대응이 동일하게 증명된 set-based template만 사용한다. template은 target-only trigger/FK 동작, 중복 source, 실행 계획과 concurrency를 integration fixture로 검증하며 identity 연속성, 마지막 N개 행 재조회나 공통 `NEW_COLUMN` sentinel에 의존하지 않는다.
+- 최종 `SELECT`는 항상 정확히 1행이며 `RESULT_KIND='customer-column-save/v1'`, `SCHEMA_VERSION=1`, insert/update/delete count와 `MAPPING_JSON` 배열을 포함한다. 저장 건수가 모두 0이어도 marker 1행과 `MAPPING_JSON=[]`를 반환한다. mapping object는 `ROW_NO`, `draftCustomerColumnKey`, 양수 `custColumnId`를 가지며 result contract가 marker/schema/cardinality, count 정수·command 기대값, 신규 draft key 집합과 ROW_NO/key/ID의 누락·초과·중복을 commit 전에 검증한다. 정상 commit/result decode 성공 경로에서만 이 mapping을 재조회 선택 복원 입력으로 사용한다. `commitCompleted`와 frame 수신 뒤 wire envelope 또는 customer-column domain DTO 복원이 실패하면 stage가 있는 `DbCommittedResultInvalid(committedKnown: true)`로 분류하고 동일 command를 재실행하지 않는다. 이 경우 mapping payload를 폐기하고 customer dictionary 전체 재조회 후 선택을 해제하며 label-size session reload나 mapping 복구를 수행하지 않는다.
 
 12.4 사용 항목 저장 transaction
 
@@ -580,7 +585,7 @@ QR/기본 사용자 정의 참조의 source of truth는 create type별 active fi
 
 실제 QR data/text와 barcode link 출력의 `LegacyOutputTokenReplacerV1`은 레거시 `TableRowRTFMaker`처럼 출력 대상 session의 persisted `RICH_COLUMN_ORDER ASC, RICH_COLUMN_ID ASC` 순서로 각 `# + rawKeyword`를 ordinal case-sensitive 전역 순차 치환한다. 예약 item token을 먼저 치환한 뒤 컬럼을 순회하며, 앞선 치환 결과에 뒤 keyword token이 새로 생겨도 후속 치환 대상으로 삼는다. longest-match, identifier continuation과 punctuation boundary를 출력에 적용하지 않는다. duplicate order/keyword 또는 결정적 tie-break를 만들 수 없는 raw row는 출력 전에 capability 오류로 차단한다. 참조 parser와 출력 replacer는 API, fixture와 golden을 공유하지 않고 parser 결과를 출력 span으로 재사용하지 않는다. 기존 출력 호환을 위한 `intentionalDivergence=false` 정책이다.
 
-같은 실제 replacer는 선택 가능한 부가 모드가 아니라 매 치환 pass의 `(outputContextId, itemStableKey, sourceField, sourceColumnId, rawKeyword, inputSpan, outputSpan, replacementCreated)`를 수집하는 `LegacyOutputDependencyTraceV1`을 지원한다. trace mode도 일반 출력과 동일한 코드 경로·순서·문자열 결과를 사용하고 별도 parser나 유사 치환 구현으로 dependency를 재구성하지 않는다. rename/delete guard는 dialog open generation의 완전한 현재 session 품목 snapshot 전체에 대해 `QRCodeCreateTypeActiveReferenceFieldsV1`의 active QR data/text, barcode link 및 workbook의 실제 출력 가능 context를 replay하고, 최초 template의 직접 치환뿐 아니라 앞선 replacement가 만든 후속 token의 transitive source column을 모두 보존한다. guard dependency는 `ReferenceTokenParserV1` 결과와 이 exact trace의 합집합이다. 출력 context 목록, 품목 snapshot completeness, stable key, generation/context 또는 trace 실행 중 하나라도 검증할 수 없으면 참조 없음으로 낮추지 않고 mutation을 fail-closed한다. 완전한 snapshot이 정상적으로 0개 품목임은 입력 누락과 구분해 empty trace로 허용한다.
+같은 실제 replacer는 선택 가능한 부가 모드가 아니라 매 치환 pass의 `(traceEventId, parentEventIds, passOrdinal, outputContextId, itemStableKey, sourceField, source, rawKeyword, inputSpan, outputSpan, replacementCreated)`를 수집하는 `LegacyOutputDependencyTraceV1`을 지원한다. `LegacyOutputTraceSourceV1`은 `column(columnId) | reservedItemName(tokenKind) | system(sourceKind)`의 폐쇄 union이고, 예약 `품목 | ITEMNAME` 선행 치환은 `reservedItemName` source를 사용하며 임의 column ID sentinel을 만들지 않는다. replacement-created 후속 token은 자신을 만든 선행 event ID와 해당 event의 parent lineage를 `parentEventIds`에 결정적으로 보존해 최종 컬럼 dependency뿐 아니라 예약 품목명과 system contributor까지 추적한다. trace mode도 일반 출력과 동일한 코드 경로·순서·문자열 결과를 사용하고 별도 parser나 유사 치환 구현으로 dependency를 재구성하지 않는다. rename/delete guard는 dialog open generation의 완전한 현재 session 품목 snapshot 전체에 대해 `QRCodeCreateTypeActiveReferenceFieldsV1`의 active QR data/text, barcode link 및 workbook의 실제 출력 가능 context를 replay하고, 최초 template의 직접 치환뿐 아니라 앞선 replacement가 만든 후속 token의 transitive source를 모두 보존한다. guard dependency는 `ReferenceTokenParserV1` 결과와 이 exact trace의 합집합이다. 출력 context 목록, 품목 snapshot completeness, stable key, generation/context 또는 trace 실행 중 하나라도 검증할 수 없으면 참조 없음으로 낮추지 않고 mutation을 fail-closed한다. 완전한 snapshot이 정상적으로 0개 품목임은 입력 누락과 구분해 empty trace로 허용한다.
 
 `BARCODE_TEXT_LINK`의 기존 persisted token은 출력에서 모든 raw existing keyword를 위 순서대로 치환한다. 신규 picker는 레거시와 같이 `TYPE_BASE | TYPE_FIX`만 제공한다. 참조 판정에서 제외된 whitespace/`#` 포함 또는 예약어 충돌 keyword도 기존 출력 raw 치환 대상에서는 자동 제외하거나 rewrite하지 않으며, 해당 운영 데이터의 결정적 순서와 충돌 여부를 capability fixture로 검증한다.
 
@@ -652,7 +657,7 @@ QR/기본 사용자 정의 참조의 source of truth는 create type별 active fi
 - original/working/property dirty 구분
 - 속성 적용과 취소
 - 신규 pending 특수 행의 속성 취소 시 행 제거
-- `requiresInitialPropertyApply={3,4,9,11,12}`만 pending으로 생성되고 날짜/기본 타입은 즉시 추가됨
+- `requiresInitialPropertyApply={3,4,9,11,12}`만 `initialApplyState=requiredPending`으로 생성되고 날짜/기본 타입은 `notRequired`로 즉시 추가됨. 값 변경이 없어 `propertyDirty=false`여도 pending 행의 `적용`은 활성화되고 성공 시 `completed`가 되며, 그 전에는 선택 이탈·후보 추가·reorder/userItemEdit 진입·메인 저장이 모두 차단됨
 - 기존/신규 삭제 ID 처리
 - 안정 key 기반 선택 유지
 - duplicate keyword/빈 필드/type별 validation
@@ -674,7 +679,7 @@ QR/기본 사용자 정의 참조의 source of truth는 create type별 active fi
 - 기본 타입은 data만 편집하고 data 실제 변경 시 text를 `''`로 초기화하며 다른 속성만 저장하면 기존 text를 보존함. `RICH_USE_USER_DEFINE_QRDATA` 기존 raw는 UI/create type에서 재계산하지 않고 round-trip 보존하며 신규만 0으로 생성함
 - 누락 검사 check table/main legacy flag 충돌 시 source of truth와 동기화
 - `QRCodeCreateTypeActiveReferenceFieldsV1`이 plain text=없음, user define=data+text, natrium=natrium records, barcode text link=data를 반환하고 비활성 stale field는 raw 보존하되 참조 판정에서 제외함
-- 전체 keyword 집합은 기존 원문을 보존하되 `referenceableKnownKeywordsV1`이 whitespace/`#` 포함 및 `품목`/`ITEMNAME` 충돌 keyword를 제외하고 신규 생성·rename을 차단함. 제외 기존 행과 persisted active-field/workbook 원문은 자동 rewrite/참조 추정 없이 보존됨을 검증함. `ReferenceTokenParserV1`은 예약 token 우선, referenceable known-keyword 길이 내림차순 ordinal match, `EOF | whitespace | 다음 # | Unicode punctuation/symbol` boundary와 letter/number/combining mark/connector continuation 및 non-overlapping token span을 검증함. 별도 `LegacyOutputTokenReplacerV1`은 persisted column order/ID 순서의 레거시 전역 순차 치환과 치환 결과 재치환을 golden으로 검증하고 parser의 longest-match 결과를 실제 출력에 사용하지 않음. 동일 replacer trace는 `#ABC`의 known-prefix 부분 치환과 replacement-created 후속 token의 transitive source를 실제 출력과 같은 결과로 기록함
+- 전체 keyword 집합은 기존 원문을 보존하되 `referenceableKnownKeywordsV1`이 whitespace/`#` 포함 및 `품목`/`ITEMNAME` 충돌 keyword를 제외하고 신규 생성·rename을 차단함. 제외 기존 행과 persisted active-field/workbook 원문은 자동 rewrite/참조 추정 없이 보존됨을 검증함. `ReferenceTokenParserV1`은 예약 token 우선, referenceable known-keyword 길이 내림차순 ordinal match, `EOF | whitespace | 다음 # | Unicode punctuation/symbol` boundary와 letter/number/combining mark/connector continuation 및 non-overlapping token span을 검증함. 별도 `LegacyOutputTokenReplacerV1`은 persisted column order/ID 순서의 레거시 전역 순차 치환과 치환 결과 재치환을 golden으로 검증하고 parser의 longest-match 결과를 실제 출력에 사용하지 않음. 동일 replacer trace는 `#ABC`의 known-prefix 부분 치환과 replacement-created 후속 token의 transitive source를 실제 출력과 같은 결과로 기록하며, 품목명이 `#OLD`를 생성하는 fixture에서 `reservedItemName` source와 parent event lineage를 보존하고 임의 column ID sentinel을 만들지 않음
 - `BARCODE_TEXT_LINK` 기존 token은 모든 raw existing keyword를 persisted order/ID 순서로 출력하고 exact dependency trace에도 포함하되 신규 picker는 `TYPE_BASE | TYPE_FIX`만 제공하고 다른 타입의 기존 token을 자동 변경하지 않음. whitespace/`#` 포함 또는 예약어 충돌로 parser/picker에서 제외된 기존 keyword도 출력·trace에는 포함되고 자동 rewrite되지 않는 fixture를 검증함
 - QR data/QR 하단 text/나트륨/GS1 참조 관계 계산, active create type field만 사용하는 예약 token 충돌과 unknown candidate의 known-prefix 비치환 처리
 - QR token 참조와 GS1 ID 관계가 별도 상태이며 GS1 AI keyword 변경은 ID 관계를 유지하고 타입 변경·삭제 때만 endpoint 제거 확인을 요구함
@@ -686,7 +691,8 @@ QR/기본 사용자 정의 참조의 source of truth는 create type별 active fi
 - 나트륨 V1 6개 record, `-`/`/` 금지와 URL encoding 레거시 parity
 - concurrency fingerprint와 desired observation projection의 null/빈 값/정렬/raw enum canonicalization
 - 신규 keyword의 관측 ID 재투영, 0/복수 매칭과 no-op command 판정
-- reorder 후 1부터 연속 order 생성
+- `ReorderSession`의 drag/rail 이동은 `draftKeys`만 바꾸고 취소 시 working copy와 진입 전 dirty를 유지함. 확인 시 key 집합 누락·중복을 거부하고 draft key 순서를 working copy에 한 번만 투영해 1부터 연속 order를 생성함
+- 다중 신규 `CustomerColumnDraft`가 서로 다른 `draftCustomerColumnKey`로 선택/focus/edit/delete를 유지하고 레거시 공통 `NEW_COLUMN` sentinel이나 index를 identity로 사용하지 않음
 - 사용자 항목 대문자/영숫자/중복 검증
 - `probeDatabaseIdentityV1`이 AG/standalone, 권한 부족, metadata hidden, unsupported/malformed를 구분하고 검증된 AG failover만 동일 digest를 만들며 restore·clone은 다른 digest를 만듦. 검증 불가는 authoritative namespace를 만들지 않고 `degradedReady`와 편집 차단 reason을 반환함
 - connect attempt마다 `connectAttemptId`/`expectedPreviousEpoch`가 적용되고 native connect 성공 응답이 새 `connectionEpoch`를 발급하며 오래된 attempt 응답은 readiness를 변경하지 않음
@@ -713,9 +719,9 @@ QR/기본 사용자 정의 참조의 source of truth는 create type별 active fi
 - 속성 적용 버튼의 content dirty 기반 활성 상태
 - reorder mode의 교차 영역 아이콘, drag reorder, 위/아래 rail, 전용 footer, 다른 영역 비활성
 - stable-key mode에서 행 reorder/add/delete 뒤에도 `selectedRowKey`가 같은 행을 가리킴. 삭제된 supplied key는 effective selection을 먼저 null로 만든 뒤 `missingKeyInvalidated(missingKey)`를 정확히 한 번 통지하고, owner가 null/유효 key를 다시 공급할 때까지 rebuild·재진입으로 반복하거나 index 재사용 행을 선택하지 않음
-- reorder 적용 확인 취소 시 임시 순서 유지, 확인 시 working copy 반영
+- reorder 적용 확인 취소 시 `ReorderSession.draftKeys` 임시 순서를 유지하고, 전용 취소 시 session만 폐기하며, 적용 확인 시에만 working copy에 반영
 - reorder `저장`은 working copy만 갱신하고 DB를 호출하지 않으며 메인 `취소`로 전체 변경 복원
-- userItemEdit 모드의 편집→추가 아이콘 전환, 마지막 행 추가, 종류 dropdown, 삭제/drop, footer, 취소/저장
+- userItemEdit 모드의 편집→추가 아이콘 전환, 마지막 행 추가, 종류 dropdown, stable draft key 기반 선택·삭제/drop, footer, 취소/저장. 정상 저장/재조회는 mapping된 ID를 정확히 한 번 선택하고 삭제/미존재 또는 committed-invalid reload-only는 선택을 null로 해제함
 - committedReloadFailed에서 제목 표시줄 닫기/Esc 차단, 지속 복구 배너가 있는 플랫폼에서만 명시적 화면 닫기를 허용하고 force-reload-required와 배너의 reload 진입점 유지
 - 중첩 confirmation의 `BlockingOverlayStack` top token만 Esc/닫기 Future를 한 번 실행하고 하위 dialog, repeat/up, 연타와 stale pop은 상태를 변경하지 않음
 - committedResultInvalid에서 편집/동일 command 재실행과 commit 여부 reconciliation을 차단하고, 같은 프로세스와 재시작 모두 신규 ID mapping을 중간 적용하지 않은 채 resource별 전체 재조회만 수행한다. 재시작 후에는 마지막 durable 상태에 따라 commit 확정 reload-only 또는 결과 미확정 수동 수용으로 이동
@@ -729,7 +735,7 @@ QR/기본 사용자 정의 참조의 source of truth는 create type별 active fi
 
 - 고정 분류/후보 및 customer scoped 사용자 후보 조회
 - 고정 후보가 필수 `RICH_FIX_COLUMN_ID` stable key와 ID 순서를 사용하고, 사용 항목이 `RICH_COLUMN_ORDER, RICH_COLUMN_ID` 순서로 재현됨
-- 사용자 항목 insert/update/delete가 한 transaction으로 commit
+- 사용자 항목 insert/update/delete가 한 transaction으로 commit하고 다중 신규 insert의 `ROW_NO/draftCustomerColumnKey/custColumnId` mapping을 결정적으로 반환함
 - 사용자 항목 중간 실패 전체 rollback
 - 사용자 항목 customer-scoped lock/fingerprint 일치 저장과 동시 변경 conflict rollback
 - label/customer concurrency conflict는 working copy를 보존하되 동일 command/자동 rebase를 금지하고 최신 snapshot 수동 재적용 뒤 새 operation ID/fingerprint command만 허용함
@@ -743,10 +749,10 @@ QR/기본 사용자 정의 참조의 source of truth는 create type별 active fi
 - 모든 production adapter의 integer 경계, 고정 scale decimal, datetime precision/timezone, binary와 DB null이 같은 `DbWireScalar` round-trip 및 canonical projection을 만들고 decimal이 `double`로 변환되지 않음
 - 모든 production adapter가 모든 결과셋을 고유 schema로 drain하고 기대 `RESULT_KIND`/`SCHEMA_VERSION` marker 결과셋 하나만 반환
 - trigger 중간 `SELECT`, rowcount-only/빈/marker 중복·누락 결과가 최종 결과로 오인되지 않음
-- marker/schema 누락·중복과 count 불일치, malformed mapping JSON, mapping field type 오류, draft key 누락/초과, key/ID 중복·0/음수 ID는 result contract의 commit 전 protocol error로 rollback됨
+- marker/schema 누락·중복과 count 불일치, malformed mapping JSON, mapping field type 오류, draft key 누락/초과, ROW_NO/key/ID 중복·0/음수 ID와 label/customer mapping kind cross-decode는 result contract의 commit 전 protocol error로 rollback됨
 - `NativeDbTransactionSession`이 하나의 native connection에서 begin/executeAndDrain/commit/rollback/verify/discard를 수행하고 일반 `writeData()`로 transaction 제어 SQL을 보내지 않음
 - operation accepted/commit dispatch intent/commit dispatch observed/commit completed/result frame send 완료/parent frame receive 완료/wire envelope decode/domain DTO decode 각 경계의 crash·EOF·partial frame이 단일 오류 상태로 분류되고 `commitCompleted` 증거 없는 오류는 `DbCommittedResultInvalid`가 되지 않음. worker send 완료만으로 parent receive 완료를 게시하지 않으며 length/checksum/ID 검증 뒤에만 `resultFrameFullyReceivedDurable`이 됨. control/result channel 재정렬과 중간 ACK 유실에서 높은 cumulative ACK를 수용하고 낮은 후착 ACK는 idempotent stale/typed reject로 결정적으로 분류함. ACK보다 먼저 온 local decode evidence는 pending 보존 후 재평가되고, 같은 operation/session/epoch의 prerequisite sequence/digest closure를 가진 원자적 `evidenceSnapshot`으로 승격된 경우만 committed-invalid 권한을 가짐
-- marker 결과셋과 marker row가 각각 정확히 1개이고 신규 0건은 `MAPPING_JSON=[]`, N건은 같은 1행의 배열로 전달됨
+- label/customer marker 결과셋과 marker row가 각각 정확히 1개이고 신규 0건은 `MAPPING_JSON=[]`, N건은 resource별 schema의 같은 1행 배열로 전달됨. customer 정상 result decode 성공에서만 mapping을 선택 복원에 사용하고 committed-invalid payload는 폐기함
 - `DbNvarcharMax`/statement/result contract/result-set contract/result/logical metadata/wire scalar/typed lock·discard error의 isolate `toMap/fromMap` version round-trip, 알 수 없는 version 실행 전 차단, 모든 production adapter의 native error number/state 보존
 - connect/reconnect/disconnect/connection loss/isolate 재생성/DB identity 변경에서 capability와 `TColumnType` cache가 올바른 epoch로 폐기·재조회됨
 - connect envelope는 아직 생성되지 않은 새 epoch를 요구하지 않고 `connectAttemptId`/`expectedPreviousEpoch`를 검증하며, 성공 응답부터 발급된 epoch를 bootstrap/일반 request가 사용함. 겹친 connect의 오래된 응답은 SQL readiness와 cache owner를 덮지 않음
@@ -754,7 +760,7 @@ QR/기본 사용자 정의 참조의 source of truth는 create type별 active fi
 - bootstrap 이후 모든 일반 DB request의 connection epoch가 dequeue/driver 실행 전 검증되고 taint 당시 epoch로 queue된 request는 SQL 실행 없이 `DbConnectionDiscarded`로 실패하며 새 native connection 성공 후에만 새 epoch 요청이 허용됨
 - `DbClient.isConnected` 신규 사용 금지와 startup/connection service/monitor/로그인 초기 DAO/cache 호출부 migration 표가 구조 lint를 통과하고 privileged bootstrap send port가 일반 DAO에 노출되지 않음
 - redacted save parameter와 임의 깊이 `statements[].params`가 `DbClient`, isolate, ODBC, DB-Lib 로그에 값/preview/hash 또는 중첩 payload 직렬화 없이 metadata allow-list의 name/type/length/count로만 기록됨
-- ROW_NO/draft key 기반 mapping과 mapping key/ID 유일성 검증
+- label `ROW_NO/draftColumnKey/columnId`와 customer `ROW_NO/draftCustomerColumnKey/custColumnId` mapping의 resource별 key/ID 유일성 검증
 - `ContentCreationOwnershipV1`이 trigger-owned/DAO-owned 생성 주체를 정확히 하나 선택하고 각 주체가 신규 column의 기존 item/update-item content를 중복 없이 정확히 한 번 생성함. 혼합·미승인 trigger hash·불명확 주체는 진입 차단됨
 - 레거시 `AFTER_INSERT_COLUMN` 동등 trigger는 definition hash가 알려져 있어도 statement-level `inserted` 전체 집합을 처리하지 않고 전역 order를 변경하므로 `unsupported`이며 활성 상태에서 편집 진입이 차단됨. 검증된 set-based trigger 또는 DAO 단일 주체만 허용됨
 - `updateRows`는 persisted projection 또는 최종 order가 달라진 기존 행만 포함하고 SQL affected count/result contract `expectedUpdateCount`가 같은 집합과 일치하며 변경 없는 행을 재기록하지 않음
@@ -791,6 +797,7 @@ QR/기본 사용자 정의 참조의 source of truth는 create type별 active fi
 - candidate prepare는 기존 journal 파일/listener를 변경하지 않고, suspend/activate/swap/render 실패 시 durable manifest recovery matrix에 따라 기존 session resume, candidate active 또는 force-reload-required로 복구됨
 - journal handoff 각 phase 직후 프로세스 종료 주입에서 generation/owner token이 다른 파일을 삭제하지 않고 startup recovery가 단일 owner를 선택함
 - 각 production 플랫폼의 process/service/native cancel 실패 주입과 durable file API 실패에서 startup이 platform hint에 의존하지 않고 checksum/generation/phase/ownerToken으로 단일 owner를 복구하며, hard-kill 미지원 iOS는 cancel/session discard capability 미충족 시 기능을 사전 차단함
+- P0-only bootstrap에서 P2 recovery consumer 없이 prepare/dispatch/commit-intent/worker ACK 각 publish 직후 process 종료를 주입해 `NativeOperationEvidenceStoreV1`이 target/tmp/bak authoritative artifact를 재발견함. clean store만 strict dispatch를 허용하고 unresolved resource는 P2 consumer bind·판정 전 새 strict dispatch를 차단하며 store 교체나 메모리 fallback이 없음
 - 저장 coordinator가 overlay/HomePageManager dispose 후에도 commit success/unknown/committed-invalid와 reload 필요 상태를 `LabelColumnSaveRecoveryRegistry`에 정확히 한 번 전달한다. 같은 프로세스에서 projection이 남아 있을 때만 reconciliation하고 startup/reconnect에서 save를 재실행하지 않음
 - closed V1 state/event/reject Cartesian matrix가 모든 ordered guard, duplicate/stale ack와 durable publish-DB send 경계를 정확히 하나의 transition/reject로 매핑함. process/service 종료 또는 iOS native failure에서 단일 record를 선택하고 publish 완료 전 DB send가 0건이며 각 실패가 정의된 block/action만 노출함
 - 동일 server의 검증된 AG failover fixture는 같은 `stableDatabaseIdentityDigest` namespace를 사용하고, 폐쇄 열거된 backup/restore·detach/attach·AG seed/failover·storage/VM snapshot 절차는 기대 identity 유지/변경 또는 production 금지를 재현함. permission denied/metadata hidden/unsupported fixture는 degraded action allow-list만 허용하고 다른 identity record를 reload/tombstone하지 않음
@@ -821,7 +828,7 @@ QR/기본 사용자 정의 참조의 source of truth는 create type별 active fi
 - identity gate는 SQL Server edition/AG/standalone, 폐쇄 열거된 backup/restore·detach/attach·AG seed/failover·storage/VM snapshot과 최소 권한·권한 부족·metadata-hidden fixture에서 exact probe row, digest 유지/변경 또는 금지, degraded action allow-list를 검증한다.
 - schema capability runtime gate는 `IndexPredicateRequirementV1` 전체 query coverage와 고정 schema metadata fixture로 검증하고, 실제 execution plan/range-lock/index hint/query template은 권한·통계·SET option을 고정한 배포 integration gate에서 별도로 검증한다.
 - native gate는 release별 `RequiredTargetMatrixV1`의 `productionExitRequired=true`인 Windows ODBC worker, macOS DB-Lib worker, Android arm64-v8a remote service, iOS arm64 in-process driver target과 필수 x86_64 Android integration target을 각각 실행한다. Android는 PID/UID/Binder identity, service process 단독 종료, 앱 process 생존과 clean reconnect를 검증한다. 공통으로 장시간 query/lock wait의 cancel, session discard, native 무응답, framing/credential 비노출과 ack crash matrix를 검증한다. hard-kill 미지원 iOS는 deadline cancel/session cleanup 실패 fixture에서 transaction 시작 전 capability 차단을 검증한다. 유한 required target 또는 blocking gate manifest 누락은 gate 실패다.
-- recovery gate는 각 플랫폼의 process/service/native fault-injection harness로 closed V1 ack/transition phase와 durable publish/DB dispatch 경계를 중단하고 다음 startup의 artifact 선택, DB identity namespace, owner/lease와 resource 차단을 검증한다. `preparedDurable`, `preCommitFailedTerminal`, `commitDispatchIntentDurable`, `commitDispatchObservedDurable`, `commitCompletedDurable`, `resultFrameSendCompletedDurable`, `resultFrameFullyReceivedDurable`, decode 성공/실패 evidence와 손상 artifact fixture가 각각 미실행 종료, 실패 확정, 결과 미확정 수동 수용, commit 확정 resource별 reload-only, stage별 committed-invalid 또는 격리로 전이되는지 검증한다. decode-failed fixture는 prerequisite 전 pending, operation/session/epoch 또는 sequence/digest 불일치 격리, wire closure와 domain closure 완성 뒤 committed-invalid 승격을 각각 포함한다. ACK/local-event 양방향 재정렬, decode evidence snapshot 원자 교체와 파생 UI/reload 상태 publish 사이 crash, decode 미시도 종료와 동일 resource 복수 unresolved operation의 barrier 합성 fixture를 포함한다. 같은 durable state라도 label-column은 label-size reload/session handoff, customer-column은 dictionary-only reload를 수행하고 금지된 교차 action을 typed reject한다.
+- recovery gate는 P0 `NativeOperationEvidenceStoreV1`의 각 플랫폼 process/service/native fault-injection harness로 durable publish/DB dispatch 경계를 중단하고 P2 없이도 다음 startup의 artifact 선택, DB identity namespace와 unresolved strict resource 차단을 먼저 검증한다. 이어 P2가 같은 store에 bind한 closed V1 ack/transition phase, owner/lease와 resource barrier를 검증한다. `preparedDurable`, `preCommitFailedTerminal`, `commitDispatchIntentDurable`, `commitDispatchObservedDurable`, `commitCompletedDurable`, `resultFrameSendCompletedDurable`, `resultFrameFullyReceivedDurable`, decode 성공/실패 evidence와 손상 artifact fixture가 각각 미실행 종료, 실패 확정, 결과 미확정 수동 수용, commit 확정 resource별 reload-only, stage별 committed-invalid 또는 격리로 전이되는지 검증한다. decode-failed fixture는 prerequisite 전 pending, operation/session/epoch 또는 sequence/digest 불일치 격리, wire closure와 domain closure 완성 뒤 committed-invalid 승격을 각각 포함한다. ACK/local-event 양방향 재정렬, decode evidence snapshot 원자 교체와 파생 UI/reload 상태 publish 사이 crash, decode 미시도 종료와 동일 resource 복수 unresolved operation의 barrier 합성 fixture를 포함한다. 같은 durable state라도 label-column은 label-size reload/session handoff, customer-column은 dictionary-only reload를 수행하고 금지된 교차 action을 typed reject한다.
 - durable file primitive는 Windows `FlushFileBuffers`/`ReplaceFileW`/`MoveFileExW`, macOS/Android/iOS의 승인된 동등 primitive와 artifact 복구를 플랫폼별 native integration test로 검증한다. 실제 전원 차단 durability는 자동 완료 조건으로 주장하지 않는다.
 - `DbWorkerArtifactManifestV1`의 build/package/install/bundle/hash/version 검증은 플랫폼별 release lane에서 수행한다. 한 환경의 mock/unit 통과를 다른 driver/OS/architecture gate 통과로 대체하지 않는다.
 
@@ -829,16 +836,16 @@ QR/기본 사용자 정의 참조의 source of truth는 create type별 active fi
 
 완료 판정은 한 덩어리로 처리하지 않고 다음 milestone gate로 분리한다. 각 gate는 독립 검증 결과와 미완료 prerequisite를 기록한다.
 
-- `P0 DB substrate`: identity/bootstrap/readiness, action/writer/gate manifest, driver wire/result/null/decimal, strict native transaction session/ack와 플랫폼별 process/service/native cancel primitive 및 `NativeOperationEvidenceDescriptorV1`
+- `P0 DB substrate`: identity/bootstrap/readiness, action/writer/gate manifest, driver wire/result/null/decimal, strict native transaction session/ack, 플랫폼별 process/service/native cancel primitive와 최소 crash-safe `NativeOperationEvidenceStoreV1` 및 `NativeOperationEvidenceDescriptorV1`
 - `P1 locked writer migration`: 공용 customer/label-size lock API와 모든 참여 writer 전환, predicate별 index capability
-- `P2 session/recovery handoff`: immutable `LabelSizeSession`, durable journal/registry와 P0 evidence schema를 입력으로 쓰는 유일한 canonical 총함수 `RecoveryTransitionTableV1`
+- `P2 session/recovery handoff`: immutable `LabelSizeSession`, P0 evidence store를 교체하지 않고 확장하는 durable journal/registry와 그 evidence schema를 입력으로 쓰는 유일한 canonical 총함수 `RecoveryTransitionTableV1`
 - `P3 label-column feature`: edit session, UI, validation, 사용자 항목과 사용 항목 DAO/save/reload
 
 milestone은 `entry`, `development-complete`, `production-exit`을 분리한다.
 
-- `P0 entry`: 16.5의 운영 DB capability fixture, normative platform support matrix, planned native source target/build·package destination와 release lane/책임자가 설계 manifest로 확정되어야 하며 실제 binary 존재는 요구하지 않는다. `P0 development-complete`는 `main.dart`에 프로세스당 하나의 최소 `LabelManagerAppBootstrapService`와 동일 root identity의 `StrictOperationCommitAuthority`가 설치되고, source target과 fake/native contract harness artifact가 존재하며 strict session, wire/result/ACK 및 worker/parent/DAO 단조 evidence schema인 `NativeOperationEvidenceDescriptorV1`이 통과한 상태다. application recovery workflow/UI transition은 P2 산출물이므로 P0 완료 조건에 포함하지 않는다. `P0 production-exit`은 설치·bundle·서명된 실제 artifact와 각 필수 OS/architecture/ABI 및 SQL Server fixture gate가 통과한 상태다.
+- `P0 entry`: 16.5의 운영 DB capability fixture, normative platform support matrix, planned native source target/build·package destination와 release lane/책임자가 설계 manifest로 확정되어야 하며 실제 binary 존재는 요구하지 않는다. `P0 development-complete`는 `main.dart`에 프로세스당 하나의 최소 `LabelManagerAppBootstrapService`, 동일 root identity의 `StrictOperationCommitAuthority`와 `NativeOperationEvidenceStoreV1`이 설치되고, fake store fault harness에서 target/tmp/bak 원자 교체, monotonic publish, process restart scan, identity bind와 unresolved resource dispatch 차단이 통과한 상태다. source target과 fake/native contract harness artifact가 존재하며 strict session, wire/result/ACK 및 worker/parent/DAO 단조 evidence schema인 `NativeOperationEvidenceDescriptorV1`도 통과해야 한다. application recovery workflow/UI transition은 P2 산출물이므로 P0 완료 조건에 포함하지 않는다. `P0 production-exit`은 설치·bundle·서명된 실제 artifact, 각 필수 OS/architecture/ABI 및 SQL Server fixture gate와 해당 플랫폼 crash-safe evidence primitive fault gate가 통과한 상태다.
 - `P1 entry`: `DbWriterManifestV1`에 기존 `existingWriter`의 실제 call site/SQL target/API 변경이 모두 열거되고 기존 writer의 lock-only compatibility 경계가 분류되어야 한다. P3 label/customer writer는 action/target/lock/execution class만 가진 `reservedFutureWriter`로 등록하며 실제 call site는 P3 development-complete 승격 조건이다. `P1 development-complete`는 fake lock/transaction 회귀와 기존 writer compatibility 테스트 통과, `P1 production-exit`은 실제 DB lock/range/deadlock integration gate 통과다.
-- `P2 entry`: 현재 static session read/write와 journal lifecycle 호출부 inventory, P0에서 설치한 동일 root owner의 session/recovery 확장 및 startup/login/logout/reconnect/shutdown migration 표가 확정되어야 한다. `P2 development-complete`는 P0 authority를 교체하지 않은 동일 root 인스턴스에서 P0 `NativeOperationEvidenceDescriptorV1`을 입력으로 하는 canonical `RecoveryTransitionTableV1`과 fake session/journal fault harness의 handoff/recovery/consumer ACK가 통과, `P2 production-exit`은 플랫폼별 durable primitive와 process/service/native fault gate 통과다.
+- `P2 entry`: 현재 static session read/write와 journal lifecycle 호출부 inventory, P0에서 설치한 동일 root owner/evidence store의 session/recovery 확장 및 startup/login/logout/reconnect/shutdown migration 표가 확정되어야 한다. `P2 development-complete`는 P0 authority/store를 교체하지 않은 동일 root 인스턴스에서 P0 `NativeOperationEvidenceDescriptorV1`을 입력으로 하는 canonical `RecoveryTransitionTableV1`과 fake session/journal fault harness의 handoff/recovery/consumer ACK가 통과한 상태다. `P2 production-exit`은 P0에서 검증한 플랫폼별 evidence primitive를 journal/registry workflow로 확장한 handoff·resource barrier·process/service/native fault gate 통과다.
 - `P3 entry`: P0~P2의 public contract와 fake harness가 고정되어 UI/model 개발을 시작할 수 있다. `P3 development-complete`는 fake harness 위의 model/widget/DAO command 계약과 vertical slice 통과 및 reserved future writer의 existing 승격까지 포함한다. `P3 production-exit`은 승격 후 `DbWriterManifestV1` digest에 바인딩된 P1 lock/range/deadlock gate 재실행, 실제 P0~P2 production-exit 및 P3 SQL/native/session 통합 gate가 모두 통과한 상태다.
 
 따라서 P3 vertical slice는 P0~P2 fake/contract harness 위에서 병행 개발할 수 있지만 이를 P0~P2 production 완료로 기록하지 않는다. "항목 편집 기능 개발 완료"와 "production release 완료"를 구분하고, 19장의 전체 조건은 production release gate로 해석한다.
@@ -846,11 +853,11 @@ milestone은 `entry`, `development-complete`, `production-exit`을 분리한다.
 1. `probeDatabaseIdentityV1` exact SQL/권한/이동 절차 fixture, `connectionProfileHint`/검증된 `DatabaseIdentity`/`stableDatabaseIdentityDigest`, `connectAttemptId` bootstrap과 ready/degraded-ready 상태기계, `DbActionRequirementV1`, 호출부 migration 표, `connectionEpoch` cache·request 폐기 protocol 구현
 2. `IndexPredicateRequirementV1`, `DbWriterManifestV1`, `ContentCreationOwnershipV1`, `GateManifestV1`과 snapshot isolation capability, DB schema/index/trigger capability와 배포 plan gate, 전체 mutation-closure manifest, sentinel/운영 `BM_RICH_COLUMN_TYPE` 및 레거시 type 0~12의 raw field/default/editor 관측 fixture 작성. `LabelColumnDraft`와 source→target 저장 projection을 요구하는 전환 정책 fixture는 P3 entry에서 이 P0 raw fixture를 입력으로 작성하고 P3 model development-complete에서 확정한다.
 3. tri-state `DbLogicalType`/column metadata와 null/빈 값이 분리된 canonical `DbWireScalar`, typed `queryResultSets`, 독립 raw rowset/`RawLabelColumnRow`/`RawLabelColumnMinRow` strict mapper, stable ID/결정적 정렬 구현. 기존 `Object` 조회 API는 명시적 compatibility read adapter로만 유지하고 strict raw/save/reconciliation에서 사용하지 않는다.
-4. P0 최소 root bootstrap container/단일 `StrictOperationCommitAuthority`, `NativeDbTransactionSession`/`DbOperationAck`, Windows ODBC desktop worker, macOS DB-Lib worker, Android remote native service, iOS in-process native driver의 `PlatformDbExecutionCapabilityV1`/`DbWorkerArtifactManifestV1`, 명시적 transaction isolation/Unicode large parameter, DB-Lib 암묵 reconnect 제거, 플랫폼별 cancel/credential/framing/orphan 방지, metadata-only redaction, versioned wire schema, complete-drain/tainted-discard/result contract/marker collector 구현과 통합 테스트. `strictTransactionV1`/`compatibilityTransactionV1` wire action·DTO·decoder·result/error를 분리하고 strict action에서 기존 `executeDriverTransaction()`을 구조적으로 차단한다. label-column/customer-column save만 strict native session/result/ACK/recovery를 필수 사용한다. P1 기존 writer는 기존 명시적 transaction owner 유지, autocommit 단일 writer의 compatibility locked transaction owner 이관, 복수 resource writer의 multi-resource owner 이관으로 분류해 공용 lock만 우선 적용하고 별도 승인 전 strict ACK/recovery 완료 범위에 포함하지 않는다. legacy transaction API는 이 lock-only 경계로 격리하고 호출 inventory와 제거 gate를 둔다.
+4. P0 최소 root bootstrap container/단일 `StrictOperationCommitAuthority`와 `NativeOperationEvidenceStoreV1`, `NativeDbTransactionSession`/`DbOperationAck`, Windows ODBC desktop worker, macOS DB-Lib worker, Android remote native service, iOS in-process native driver의 `PlatformDbExecutionCapabilityV1`/`DbWorkerArtifactManifestV1`, 명시적 transaction isolation/Unicode large parameter, DB-Lib 암묵 reconnect 제거, 플랫폼별 cancel/credential/framing/orphan 방지, metadata-only redaction, versioned wire schema, complete-drain/tainted-discard/result contract/marker collector 구현과 통합 테스트. evidence store의 원자 교체, startup scan/identity bind, unresolved strict resource dispatch 차단을 P0 fake/native fault harness에서 검증한다. `strictTransactionV1`/`compatibilityTransactionV1` wire action·DTO·decoder·result/error를 분리하고 strict action에서 기존 `executeDriverTransaction()`을 구조적으로 차단한다. label-column/customer-column save만 strict native session/result/ACK/recovery를 필수 사용한다. P1 기존 writer는 기존 명시적 transaction owner 유지, autocommit 단일 writer의 compatibility locked transaction owner 이관, 복수 resource writer의 multi-resource owner 이관으로 분류해 공용 lock만 우선 적용하고 별도 승인 전 strict ACK/recovery 완료 범위에 포함하지 않는다. legacy transaction API는 이 lock-only 경계로 격리하고 호출 inventory와 제거 gate를 둔다.
 5. 공용 customer/label-size locked transaction API와 참여 writer 전환, typed application-lock error 구현
 6. raw key/value/type JSON staging, CP949 round-trip과 target conversion 검증
 7. customer/market/label-size context, `expectedOldGeneration/newGeneration`과 `LabelSizeSessionConsumerManifestV1`을 포함한 `LabelSizeSessionData`/`LabelSizeSessionResources`/`LabelSizeSession`, 단일 accessor와 generation guard, root `prepareCandidate`/`commitCandidateSwap`, manager `attachCandidateAndAwaitRender`, FortuneSheet mutation version/snapshot pin 공용 API, constructor-injected revisioned `LabelWorkbookDraftPort`의 owner-token/attachment-epoch attach/detach, serializer 안 attempt capture/밖 controller await/안 lease 발급과 `validateSnapshotLeaseAndFreezeCommand()` 이중 선형화 API 구현
-8. 플랫폼별 atomic replace primitive, journal/recovery registry 공용 durable manifest/lease, 검증된 DB identity namespace, startup artifact discovery와 process/service/native fault recovery matrix 구현
+8. P0 `NativeOperationEvidenceStoreV1`의 플랫폼별 atomic replace primitive와 startup artifact discovery를 재사용해 journal/recovery registry durable manifest/lease, 검증된 DB identity namespace, workflow tombstone과 process/service/native fault recovery matrix로 확장
 9. 앱 bootstrap service가 소유하는 `LabelColumnEditCoordinator`/`LabelColumnSaveRecoveryRegistry`, closed `RecoveryTransitionTableV1`/필수 ack barrier, decode prerequisite sequence/digest closure를 포함한 원자적 `evidenceSnapshot`, `storageReady`/`identityReady`/resource barrier, logout detach, unresolved artifact와 재시작 수동 수용 구현
 10. save command DTO, resource별 reconciliation adapter, SQL Server natural-key resolver와 original/desired projection canonicalization, `QRCodeCreateTypeActiveReferenceFieldsV1`, punctuation boundary/identifier continuation 기반 longest full known-match `ReferenceTokenParserV1`과 persisted-order 레거시 순차 치환 및 동일 코드 경로 `LegacyOutputDependencyTraceV1`을 제공하는 `LegacyOutputTokenReplacerV1`을 별도 구현
 11. 사용 항목 edit session 및 validation 순수 로직
@@ -908,9 +915,11 @@ milestone은 `entry`, `development-complete`, `production-exit`을 분리한다.
 - 미적용 속성 변경은 다른 이벤트 전에 반드시 취소 질의를 거친다.
 - 아이콘과 drag/drop 양쪽으로 후보 추가 및 항목 삭제가 가능하고 동일 command 결과를 낸다.
 - 순서 변경과 사용자 항목 설정이 상호 배타 전용 모드로 동작한다.
-- 순서 변경 모드 저장은 working copy에만 적용되고 최종 메인 저장 전까지 DB를 변경하지 않는다.
+- 특수 신규 행의 `initialApplyState=requiredPending`은 property dirty와 독립적으로 값 변경 없는 최초 적용 또는 행 제거를 요구하고 그 전에는 선택 이탈, 전용 모드와 메인 저장을 차단한다.
+- 순서 변경 모드는 mode-local `ReorderSession.draftKeys`만 변경하며 전용 저장 시에만 working copy에 원자 적용되고 최종 메인 저장 전까지 DB를 변경하지 않는다. 전용 취소는 진입 전 working copy와 dirty를 바꾸지 않는다.
+- 사용자 항목 신규 행은 session-local draft key로 식별되고 정상 customer commit/result decode의 검증된 draft-key→DB-ID mapping으로만 재조회 선택을 복원한다. committed-invalid/reload-only는 mapping을 폐기하고 선택을 해제한다.
 - 사용 항목과 사용자 항목 저장은 `DbClient.strictTransaction()`이 단독 소유하는 각각의 원자적 transaction이며 commit 전 실패 시 편집 상태를 보존한다. 기존 writer의 `compatibilityTransaction()`과 operation/session을 공유하지 않는다. 단, concurrency conflict는 동일 command 재시도를 금지하고 최신 snapshot 수동 재적용·재확인 뒤 새 command만 허용한다.
-- save command와 post-commit 상태는 dialog widget 밖 coordinator가 소유하고 UI/HomePageManager dispose 뒤에도 앱 bootstrap service의 `LabelColumnSaveRecoveryRegistry`가 결과와 reload 필요 상태를 이어받는다. 같은 프로세스에서 projection이 남아 있을 때만 reconciliation한다. 재시작은 마지막 durable 상태의 증거를 보존해 미실행/실패 확정, commit 결과 미확정, commit 확정 reload-only를 구분하며 durable 증거가 불충분한 상태에서만 전체 reload와 명시적 수동 수용으로 차단을 해제한다. durable DB dispatch intent와 commit dispatch intent publish 전에 각각 최초 DB request와 native commit을 보내지 않고 startup/reconnect에서 save command를 재실행하지 않는다.
+- save command와 post-commit 상태는 dialog widget 밖 coordinator가 소유하고 UI/HomePageManager dispose 뒤에도 앱 bootstrap service의 `LabelColumnSaveRecoveryRegistry`가 결과와 reload 필요 상태를 이어받는다. P0 `NativeOperationEvidenceStoreV1`이 P2와 무관하게 strict evidence를 crash-safe 원자 저장·재발견하고 unresolved resource의 새 dispatch를 차단하며, P2 registry는 같은 store를 교체하지 않고 workflow를 확장한다. 같은 프로세스에서 projection이 남아 있을 때만 reconciliation한다. 재시작은 마지막 durable 상태의 증거를 보존해 미실행/실패 확정, commit 결과 미확정, commit 확정 reload-only를 구분하며 durable 증거가 불충분한 상태에서만 전체 reload와 명시적 수동 수용으로 차단을 해제한다. durable DB dispatch intent와 commit dispatch intent publish 전에 각각 최초 DB request와 native commit을 보내지 않고 startup/reconnect에서 save command를 재실행하지 않는다.
 - 저장 후 개별 static cache를 순차 교체하지 않고 `expectedOldGeneration`보다 큰 `newGeneration`의 immutable data/lifecycle resources candidate를 durable journal lease 검증 후 단일 `LabelSizeSession` reference로 swap한다. `LabelSizeSessionConsumerManifestV1`의 필수 소비자가 같은 candidate generation을 관측하고 render acknowledgement를 반환한 뒤에만 old resources를 폐기한다. post-commit call graph는 기존 `_handleLabelSizeChanged(forceReload: true)`/`_reloadItemDraftFromDatabase()`와 static cache write를 참조하지 않고 root `prepareCandidate`/`commitCandidateSwap` 및 manager `attachCandidateAndAwaitRender` 경계만 사용한다.
 - commit 성공 후 reload 실패는 같은 save command를 재실행하지 않고 force-reload-required 상태에서 reload만 재시도한다.
 - commit 결과 미확정은 desired/original/indeterminate 3상태로 reconciliation하며 operation ledger 없이 실제 commit 여부를 단정하거나 자동 재실행하지 않는다.
@@ -922,6 +931,6 @@ milestone은 `entry`, `development-complete`, `production-exit`을 분리한다.
 - raw DAO는 최초 baseline을 검증된 짧은 `SNAPSHOT` transaction으로 읽고 DB null/빈 값과 중복 관계를 보존한다. save/reconciliation은 `IndexPredicateRequirementV1`이 확인한 query key/range를 application lock 뒤 `UPDLOCK, HOLDLOCK`으로 관측한다. manifest/query/capability가 없으면 fail-closed다. 플랫폼별 durable manifest와 closed recovery 전이표는 검증된 DB identity별 원자 교체와 hint 비의존 startup recovery를 제공한다.
 - P0 entry 전에 승인 운영 DB의 비민감 schema/snapshot-isolation/index/FK/trigger/sentinel/type fixture, normative platform support matrix, 플랫폼별 planned native source target/build·package destination, release lane·artifact 보관·승인 책임이 설계 manifest로 확정된다. 실제 target/binary는 development-complete/production-exit에서 단계별로 요구한다. 추정 schema, 현재 Dart isolate 또는 개발 PC의 우연한 native library 발견은 production 완료 근거가 아니다.
 - `RICH_MIN_CHECK` 기존 값 보존, 레거시 혼합 동작 근거를 가진 type 0~12 전체 전환 matrix, 기존 미지원 사용자 타입의 읽기·삭제 전용 정책, 고정/사용 항목 stable ID·결정적 정렬, connect attempt/ready·degraded-ready 상태기계와 DB identity/connection epoch cache·request 폐기, failover/restore/clone namespace 정책 및 모든 DB 계층의 중첩 payload 비직렬화 metadata-only sensitive parameter redaction이 테스트로 고정된다.
-- 권한 등급 matrix, 전용 모드와 committed 상태 Esc/닫기, QR V1 active-field matrix, 참조 판정용 punctuation boundary/identifier continuation longest full-match와 실제 출력용 persisted-order 레거시 순차 치환, 나트륨 문법 및 concurrency fingerprint/desired observation projection이 각각 분리된 테스트로 고정된다. 기존 label keyword 원문에는 신규 ASCII 제한을 소급하지 않고 CP949/DB field validation만 적용하되 whitespace/`#` 포함 및 예약어 충돌 keyword는 V1 참조 가능 집합에서 제외하고 신규 생성·rename을 차단한다. QR 직접 입력 0 경고 허용, BASE↔QR data/text 초기화, 기본 data 실제 변경 시 text 초기화와 hydration 시 보존, preservation-only `RICH_USE_USER_DEFINE_QRDATA`와 바코드 picker의 `TYPE_BASE | TYPE_FIX` 제한도 fixture로 고정한다.
+- 권한 등급 matrix, 전용 모드와 committed 상태 Esc/닫기, QR V1 active-field matrix, 참조 판정용 punctuation boundary/identifier continuation longest full-match와 실제 출력용 persisted-order 레거시 순차 치환, `column | reservedItemName | system` trace source 및 parent lineage, 나트륨 문법과 concurrency fingerprint/desired observation projection이 각각 분리된 테스트로 고정된다. 기존 label keyword 원문에는 신규 ASCII 제한을 소급하지 않고 CP949/DB field validation만 적용하되 whitespace/`#` 포함 및 예약어 충돌 keyword는 V1 참조 가능 집합에서 제외하고 신규 생성·rename을 차단한다. QR 직접 입력 0 경고 허용, BASE↔QR data/text 초기화, 기본 data 실제 변경 시 text 초기화와 hydration 시 보존, preservation-only `RICH_USE_USER_DEFINE_QRDATA`와 바코드 picker의 `TYPE_BASE | TYPE_FIX` 제한도 fixture로 고정한다.
 - 삭제·키워드 변경의 workbook 영향 검사는 FortuneSheet controller가 모든 mutation 적용점에서 증가시킨 version과 immutable workbook/mutation pin을 원자 반환하고, constructor로 주입·attach된 `LabelWorkbookDraftPort`가 이를 owner token/attachment epoch/generation/context snapshot lease로 결합해 사용한다. `ReferenceTokenParserV1` 결과와 현재 session 전 품목 active output context의 실제 `LegacyOutputTokenReplacerV1` exact dependency trace를 합쳐 known-prefix 부분 치환 및 replacement-created token까지 판정한다. attach owner mismatch, detach/dispose·pin/flush/snapshot/parser/trace 입력 실패, 불완전 품목 snapshot과 context/generation 불일치는 저장을 차단하며 DB 저장본/마지막 callback으로 낮추지 않는다. callback revision은 저장 권한 근거가 아니며 pin 동안 새 mutation은 typed reject된다. `validateSnapshotLeaseAndFreezeCommand()`가 controller pin을 유지한 채 detach와 save authorization의 승자를 원자적으로 정하고 freeze 뒤 UI detach는 승인된 command를 취소하지 않는다. 모든 취소/failure는 pin을 정확히 한 번 release한다. committed-invalid는 신규 ID mapping을 working state에 중간 적용하지 않고 resource별 전체 재조회만 수행한다. scale consumer는 실제 화면 활성화 전 `future`와 필수 ACK 비참여이며 활성화 시 별도 table rebinding/renderReady gate와 함께 `currentRequired`로 승격한다.
 - P0~P3 milestone의 독립 검증 결과와 prerequisite가 기록되고 production 진입 capability는 대상 플랫폼/architecture별 P0~P2 실제 gate와 P3 기능 gate가 모두 통과한 경우에만 true다. `RequiredGatePolicyV1`의 immutable digest와 필수 gate ID가 `GateManifestV1` 및 결과 artifact에 일치하고, unit/widget/구조 lint, SQL Server identity/trigger/snapshot, Windows/macOS/Android/iOS driver·cancel·fault, durable file와 release artifact gate 및 전체 정적 분석이 각각 통과한다. 필수 gate의 `blocking=false`, 누락, 만료 또는 digest 불일치는 production-exit을 거부한다. Flutter Web, Linux와 전원 차단 내구성은 이번 완료 조건에 포함하지 않는다.
