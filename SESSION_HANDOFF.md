@@ -28,6 +28,18 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-13): 항목 편집기 저장 동시성·세션 계약 병합
+
+- 사용자 요청: `doc/user_item_modify.txt` 재검토에서 확인한 동시 저장, SQL session option 복원, 누락검사 이중 필드, transaction phase 불명 오류 권장안을 작업지시서에 병합한다.
+- 사용자 확인: 같은 라벨 크기나 고객별 사용자 항목 사전을 두 사용자가 편집하면 변경분 CRUD 기준의 마지막 저장을 우선한다. 같은 기존 행 update는 뒤 transaction 값이 우선하고 서로 다른 행 변경은 유지하며, 선행 삭제 행의 stale update/delete는 rollback 후 재조회한다. 전체 목록 교체, 삭제 행/content 복원, original snapshot 전체 충돌 검사, 자동 병합·재시도는 하지 않는다. 같은 대상의 저장 transaction은 부모 행 잠금으로 직렬화하고 최종 keyword 중복 검증은 유지한다.
+- 수정 예정 `doc/user_item_modify.txt`: 라벨 크기/고객 부모 행 `UPDLOCK, HOLDLOCK`과 마지막 저장 우선 의미, `SET NOCOUNT` 등 변경한 session option의 원상 복원, 배포 DB에 `BM_RICH_COLUMN.RICH_USE_MISSING_KEYWORD_CHECK`가 있으면 `BM_RICH_CHECK_COLUMNS.RICH_CHECK_YN`과 함께 최종 draft 값으로 동기화하는 계약, DB isolate 종료로 transaction phase를 알 수 없는 경우의 `DbCommitOutcomeUnknown` 분류를 본문·테스트·완료 조건에 연결한다. 미검증.
+- 편집 완료 `doc/user_item_modify.txt`: 사용 항목은 `BM_RICH_LABELSIZE_FORM`, 사용자 항목은 `BM_CUSTOMER` 부모 행을 transaction 안에서 `UPDLOCK, HOLDLOCK`으로 잠가 같은 대상의 저장을 직렬화하되 original snapshot 차이는 오류로 보지 않는 마지막 저장 우선 정책을 반영했다. 단일 사용 항목 batch가 `@@OPTIONS`에서 기존 `NOCOUNT`와 변경한 session option을 저장해 정상/실패 경로에서 복원하고, 배포 DB에 `RICH_USE_MISSING_KEYWORD_CHECK`가 있으면 main/check 양쪽 최종값을 동기화하도록 했다. commit 오류뿐 아니라 DB isolate 종료로 begin/batch/commit phase를 확인할 수 없는 경우도 `DbCommitOutcomeUnknown`으로 처리하도록 원칙·DAO·오류·테스트·완료 조건을 갱신했다. 편집 직후 문서 diagnostics 오류 0건이다.
+- 독립 재검토 보완: delta command가 전체 snapshot의 마지막 저장으로 오해될 수 있다는 높음 finding을 사용자에게 다시 확인해 변경분 기준 정책으로 확정하고, 동일 행 update/서로 다른 행 유지/선행 삭제 affected-row 실패 시나리오를 본문·테스트·완료 조건에 명시했다. optional legacy 컬럼은 정적 batch의 `IF EXISTS`가 compile 오류를 피하지 못한다는 중간 finding을 반영해 capability별로 식별자 자체를 포함하거나 제외한 SQL variant를 선택하도록 했고, `NOCOUNT` ON/OFF의 정상/`CATCH` 및 mapping decode 조합 테스트를 추가했다. 보완 직후 문서 diagnostics 오류 0건이다.
+- 검증 예정: 두 문서 diagnostics, 네 계약의 본문·DAO 테스트·완료 조건 연결 검색, stale snapshot 충돌 차단/자동 병합/자동 재시도 요구가 남지 않았는지 검색, `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md`. 문서만 변경하므로 Flutter 테스트·빌드·배포는 실행하지 않는다.
+- 최종 검증 완료: 두 문서 diagnostics 오류 0건, 변경분 동시 저장 정책·부모 행 잠금·session option 복원·optional main check SQL variant·transaction phase 불명 오류가 원칙/DAO/테스트/완료 조건에 연결됐다. 상충 검색 결과는 전체 목록 교체와 자동 복구를 금지하는 의도된 문장뿐이며 `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md`를 통과했다. 독립 재검토도 치명/높음/중간/낮음 finding 없이 최종 승인했다. 문서만 변경해 Flutter 테스트·빌드·배포와 임시 산출물/캐시는 생성하지 않았다.
+- stage/commit 대상: 먼저 `doc/user_item_modify.txt`만 작업지시서 커밋에 포함하고, 해당 commit 해시를 기록한 `SESSION_HANDOFF.md`를 후속 인수인계 커밋에 포함한다. 기존 unrelated `.vscode/settings.json`, `lib/core/app.dart`는 제외하고 원격 push는 수행하지 않는다.
+- 작업지시서 로컬 커밋 완료: `74f2ab2` (`문서: 항목 편집기 동시 저장 계약 보완`). `doc/user_item_modify.txt`만 포함했으며 마지막 stage/commit 대상은 이 해시를 기록한 `SESSION_HANDOFF.md` 단독이다.
+
 ### 완료 (2026-07-13): 항목 편집기 예약 keyword·문자열 무손실 계약 병합
 
 - 사용자 요청: 최신 `doc/user_item_modify.txt` 재검토에서 확인한 특별 항목 예약 keyword 충돌, 자유 입력 문자열 CP949/byte 무손실 저장, 일반 항목 check 보조행 identity 동기화 권장안을 작업지시서에 병합한다.
