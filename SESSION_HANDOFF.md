@@ -28,7 +28,7 @@
 
 ## 현재 상태
 
-### 진행 중 (2026-07-13): 항목 편집기 잔여 구현 blocker 정리
+### 완료 (2026-07-13): 항목 편집기 잔여 구현 blocker 정리
 
 - 사용자 요청: 최신 `doc/user_item_modify.txt` 재검토에서 확인한 잔여 구현 문제의 권장안을 작업지시서에 병합한다.
 - 사용자 결정: 컬럼 삭제·키워드 변경 시 live/saved workbook의 실제 참조를 분석하지 않고 라벨 내용에 영향을 줄 수 있다는 일반 확인 경고만 표시한다. 별도 workbook snapshot/참조 분석 API는 추가하지 않는다.
@@ -37,6 +37,7 @@
 - 검증 예정: 두 문서 diagnostics, 다중 statement 신규 ID 전달·column cache generation·workbook 직접 참조 검사 잔존 검색, 단일 batch/mapping table/reload failure/sheet dirty/general warning 계약 연결 검색, `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md`. 문서만 변경하므로 Flutter 테스트·빌드·배포는 실행하지 않는다.
 - 최종 검증 완료: 두 문서 diagnostics 오류 0건, `column cache generation`과 workbook 실제 참조 검사 요구 및 다중 statement 신규 ID 전달 계약 0건이다. 검색된 workbook 분석·statement 결과 전달 표현은 각각 직접 분석 금지와 현 API 한계 설명인 의도된 문장이다. 단일 batch/mapping/reload failure/sheet dirty/general warning 계약은 17곳에 연결됐고 `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md`를 통과했다. 문서만 변경해 Flutter 테스트·빌드·배포와 임시 산출물/캐시는 생성하지 않았다.
 - stage/commit 대상: `doc/user_item_modify.txt`, `SESSION_HANDOFF.md`만 포함한다. 기존 unrelated `.vscode/settings.json`, `lib/core/app.dart`는 제외하고 원격 push는 수행하지 않는다.
+- 로컬 커밋 완료: `f796f8f 문서: 항목 편집기 잔여 blocker 정리`. 관련 두 문서만 포함했으며 마지막 stage/commit 대상은 이 해시를 기록한 `SESSION_HANDOFF.md` 단독이다.
 - 기존 unrelated dirty `.vscode/settings.json`, `lib/core/app.dart`는 수정·stage/commit 대상에서 제외하고 원격 push는 수행하지 않는다.
 
 ### 완료 (2026-07-13): 단순화 작업지시서 구현성 권장안 병합
