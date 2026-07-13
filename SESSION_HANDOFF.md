@@ -28,6 +28,19 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-13): 항목 편집기 잔여 저장·속성 계약 병합
+
+- 사용자 요청: 최신 `doc/user_item_modify.txt` 재검토에서 확인한 commit 후 mapping 해석 오류 전달, 타입별 validation 경계, 바코드 비율 조절 속성, 바코드 텍스트 연동 참조 권장안을 작업지시서에 병합한다.
+- 사용자 확인: 별도 정책 선택이 필요한 사항은 없다. commit 후 DAO decode/key-count 실패는 전용 typed exception으로 전달하고, 타입별 validation은 실제 DB 저장 범위·정의 enum·문서 필수 조건·레거시 명시 차단 조건으로 제한한다. 바코드 비율 조절은 기존 `showQRCodeText`/`qrTextFontSize` DB 필드를 사용하며, `BARCODE_TEXT_LINK`의 `userDefineData` token을 실제 출력 참조로 포함한다.
+- 수정 예정 `doc/user_item_modify.txt`: `LabelColumnPostCommitResultInvalid`의 생성·catch 경계와 테스트를 추가한다. 포괄적인 타입별 범위 검증을 구체화하고 임의 UX 상·하한 및 기존 DB 값 차단을 금지한다. 바코드 비율 조절 사용 여부/수치의 DB 매핑과 신규 기본값을 추가한다. 참조 표시·키워드 변경·삭제 경고가 QR/기본/바코드 텍스트 연동/GS1 공용 참조 계산을 사용하도록 본문·테스트·완료 조건을 갱신한다. 미검증.
+- 편집 완료 `doc/user_item_modify.txt`: `DbClient.transaction()` 정상 반환 뒤 raw mapping decode와 key/count 검증 구간만 `LabelColumnPostCommitResultInvalid`로 변환하고 `HomePageManager` callback이 pre-commit 오류보다 먼저 구분하도록 했다. 타입별 validation은 파싱·DB 저장 범위·정의 enum·문서 필수 조건·레거시 명시 차단 조건으로 제한하고 임의 UX 상·하한과 0 경고값 차단을 금지했다. 바코드 비율 조절을 `showQRCodeText`/`RICH_SHOW_QRCODE_TEXT`, `qrTextFontSize`/`RICH_QRTEXT_FONTSIZE`에 연결하고 신규 false/10·기존 DB 값 보존을 명시했다. `BARCODE_TEXT_LINK.userDefineData`의 token을 QR/기본/GS1과 같은 공용 참조 계산에 포함해 행 표시·키워드 변경·삭제 경고 및 테스트·완료 조건까지 연결했다. 편집 직후 문서 diagnostics 오류 0건이다.
+- 검증 예정: 두 문서 diagnostics, 네 계약의 본문·모델·테스트·완료 조건 연결 검색, 폐기된 포괄적 범위 검증과 QR/기본/GS1 전용 참조 표현 검색, `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md`. 문서만 변경하므로 Flutter 테스트·빌드·배포는 실행하지 않는다.
+- 최종 검증 실행 중: 두 문서 diagnostics, `LabelColumnPostCommitResultInvalid`/바코드 비율 조절/validation 경계/`BARCODE_TEXT_LINK` 계약 연결과 폐기 표현을 검색한다. 이어 `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md`, 관련 diff·working tree 상태를 확인한다.
+- 최종 검증 완료: 두 문서 diagnostics 오류 0건, 네 새 계약 23개 연결 위치, 폐기된 QR/기본/GS1 전용 참조·포괄적 타입별 범위 검증·commit 후 일반 오류 표현 0건을 확인했다. `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md`를 통과했고 최종 diff는 작업지시서 40줄 변경과 이번 인수인계 기록에 한정됐다. 문서만 변경해 Flutter 테스트·빌드·배포와 임시 산출물/캐시는 생성하지 않았다.
+- stage/commit 대상: 먼저 `doc/user_item_modify.txt`만 작업지시서 커밋에 포함하고, 해당 commit 해시를 기록한 `SESSION_HANDOFF.md`를 후속 인수인계 커밋에 포함한다. 기존 unrelated `.vscode/settings.json`, `lib/core/app.dart`는 제외하고 원격 push는 수행하지 않는다.
+- 작업지시서 로컬 커밋 완료: `3a7ff08` (`문서: 항목 편집기 잔여 계약 보완`). `doc/user_item_modify.txt`만 포함했으며 마지막 stage/commit 대상은 이 해시를 기록한 `SESSION_HANDOFF.md` 단독이다.
+- 기존 unrelated dirty `.vscode/settings.json`, `lib/core/app.dart`는 수정·stage/commit 대상에서 제외하고 원격 push는 수행하지 않는다.
+
 ### 완료 (2026-07-13): 항목 편집기 저장 입력·재조회 소유권 권장안 병합
 
 - 사용자 요청: 최신 `doc/user_item_modify.txt` 재검토에서 확인한 신규 최초 적용 타입 집합, 특별 항목 누락검사 저장 입력, 컬럼 저장 후 강제 재조회 소유권 권장안을 작업지시서에 병합한다.
