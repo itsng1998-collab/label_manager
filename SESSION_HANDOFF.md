@@ -28,6 +28,26 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-13): 라벨 항목 편집기 작업지시서 12차 검토 권장안 병합
+
+- 사용자 요청: 최신 `doc/user_item_modify.txt`를 레거시/현 프로젝트/명세 내부 정합성 관점에서 재검토한 권장안을 병합하고 제품 정책 선택은 즉시 확정한다.
+- 사용자 결정: 제조시각/유통시각은 레거시와 같이 기본 editor를 사용하고 제조일자/유통기한만 날짜 editor를 사용한다.
+- 사용자 결정: 레거시에서 저장된 `[A-Z0-9]+` 외 사용자 키워드는 raw 값을 보존한 read-only 행으로 표시해 삭제만 허용하고, 신규 및 실제 수정 행에만 새 ASCII 영숫자 규칙을 적용한다.
+- 사용자 결정: production 최소 지원 matrix는 Windows 10/11 x64, macOS 10.15+ x64/arm64, Android API 24+ arm64-v8a 기기 및 x86_64 테스트, iOS 13+ arm64 기기로 확정한다.
+- 수정 예정 `doc/user_item_modify.txt`: commit intent/observed ACK, durable 상태별 startup 복구, decode 경계, idempotent consumer ACK, customer/label-column post-commit 분리, committed 복구 UI, 레거시 trigger/type/GS1/default/keyword 정책, P0 prerequisite와 milestone entry/exit를 정합화한다. 미검증.
+- 기존 unrelated dirty `.vscode/settings.json`, `lib/core/app.dart`는 수정·stage 대상에서 제외한다.
+- 편집 완료 `doc/user_item_modify.txt`: commit dispatch intent/worker observed/completed를 분리하고 wire-envelope/domain-DTO decode stage, durable 증거별 startup 복구, idempotent session consumer ACK, label/customer-column post-commit 상태와 지속 복구 UI를 정합화했다. 문서 diagnostics 오류 0건.
+- 편집 완료 `doc/user_item_modify.txt`: 제조시각/유통시각 기본 editor, GS1 ID 관계와 QR token 분리, 후보 추가 persisted 기본값 fixture, 기존 비준수 사용자 키워드 read-only·삭제 허용, 레거시 `AFTER_INSERT_COLUMN` unsupported와 consumer별 observer 효과를 반영했다. 문서 diagnostics 오류 0건.
+- 사용자 결정: 가용 너비 960 logical px 미만의 Android/iOS 및 축소 window는 4영역 가로 배치 대신 속성/사용 항목/후보 적응형 탭·단계 UI와 touch 명령 버튼을 사용한다.
+- 편집 완료 `doc/user_item_modify.txt`: production 최소 OS/architecture/ABI matrix, desktop/mobile viewport·text-scale gate, 운영 DB capability fixture와 플랫폼 native target/release lane prerequisite, strict/legacy transaction 격리와 P0~P3 entry/development-complete/production-exit를 반영했다. 문서 diagnostics 오류 0건.
+- 독립 재검토 편집 완료 `doc/user_item_modify.txt`: worker cumulative ACK를 send-complete까지로 제한하고 parent frame receive/parent wire decode/DAO domain decode를 독립 local evidence로 분리했다. ACK/local-event 재정렬은 pending evidence 재평가로 처리하고 decode 실패 durable state와 send/receive closed state를 추가했다. 문서 diagnostics 오류 0건.
+- 독립 재검토 편집 완료 `doc/user_item_modify.txt`: resourceKind별 label/customer startup action, customer dictionary-only durable recovery, grandfathered raw 행 validation, DB/customer/market/label-size context를 포함한 consumer ACK key를 반영했다. 동일 resource의 복수 unresolved operation은 임의 최신 선택 없이 barrier를 합성하고 commit 확정/committed-invalid를 낮은 phase보다 우선한다. 문서 diagnostics 오류 0건.
+- 독립 재검토 편집 완료 `doc/user_item_modify.txt`: P0 entry는 planned target/build·package destination 설계 승인만 요구하고 development-complete/production-exit에서 source/harness와 설치·서명 artifact를 단계별 요구하도록 순환 조건을 제거했다. ACK 유실·재정렬, decode 미시도, 복수 operation, customer resource별 recovery fixture를 테스트·완료 gate에 연결했다. 문서 diagnostics 오류 0건.
+- 최종 독립 재검토 편집 완료 `doc/user_item_modify.txt`: decode success/failure evidence와 파생 committed-invalid/reload 상태 publish 사이 crash window를 닫았다. 실패 evidence 자체로 stage별 committed-invalid를 복원하고 성공 evidence만 남으면 stage 추정 없이 resource별 reload-only로 복원한다. 문서 diagnostics 오류 0건.
+- 최종 검증 완료: 두 문서 diagnostics 오류 0건, 구 ACK/result-frame/consumer/P0 상충 표현 0건, 12차 핵심 계약 9개 위치 확인, `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md` 통과. 변경량은 두 문서 81 insertions/41 deletions다. 문서 계약만 변경했으므로 Flutter 테스트는 실행하지 않았다.
+- 임시 산출물/캐시는 생성하지 않았다. stage/commit 대상은 `doc/user_item_modify.txt`를 먼저 단독 커밋하고 확정 hash를 이 항목에 기록한 뒤 `SESSION_HANDOFF.md`를 별도 커밋한다. 기존 unrelated `.vscode/settings.json`, `lib/core/app.dart`는 제외하며 원격 push와 배포 작업은 수행하지 않는다.
+- 작업지시서 커밋 완료: `5e47bf8 라벨 항목 편집기 작업지시서 12차 권장안 병합` (`doc/user_item_modify.txt` 단독, 63 insertions/41 deletions). 다음 stage/commit 대상은 `SESSION_HANDOFF.md` 단독이다.
+
 ### 완료 (2026-07-13): 라벨 항목 편집기 작업지시서 11차 검토 권장안 병합
 
 - 사용자 요청: 최신 `doc/user_item_modify.txt`의 레거시/현 프로젝트 재검토에서 확인한 문제와 권장안을 병합하고 필요한 정책을 즉시 확정한다.
