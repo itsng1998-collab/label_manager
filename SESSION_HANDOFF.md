@@ -28,6 +28,20 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-13): 항목 편집기 레거시 데이터 경계 보완
+
+- 사용자 요청: 최신 `doc/user_item_modify.txt` 재검토에서 확인한 `BM_RICH_COL_MIN`, 공용 시트 dirty 전이, DB 문자열 길이 검증 권장안을 작업지시서에 병합한다.
+- 사용자 확인: 별도 선택이 필요한 정책 분기는 없다. 레거시 저장 의미에 따라 라벨 크기별 `ELEMENT` 기준행을 보장하고 기존 `RICH_MIN_CHECK`를 보존한다. 시트 dirty는 모든 의미 있는 전이를 단일 callback 경계로 전달하며, 문자열은 실제 CP949 `VARCHAR` 저장 한계를 UI와 save command에서 함께 검증한다.
+- 수정 예정 `doc/user_item_modify.txt`: `BM_RICH_COL_MIN` 기준행 생성·컬럼행 최소검사값 보존·삭제 범위를 명시한다. `LabelSheetWorkbench`의 초기값, RTF 변환, 파일 import, 사용자 편집, 저장 성공을 단일 dirty setter로 통지하고 내부 import의 중간 clear는 false로 노출하지 않는다. 공용 `onSave` typed result 변경을 공용라벨·품목 요소 call site와 widget 테스트에 연결한다. 사용 항목과 사용자 항목의 키워드 100바이트, 항목명 50바이트 CP949 저장 길이를 UI와 command에서 검증한다. 미검증.
+- 편집 완료 `doc/user_item_modify.txt`: `BM_RICH_COL_MIN`의 라벨 크기별 `ELEMENT` 기준행 단일 생성, 신규 컬럼행 `RICH_MIN_CHECK=0`, 기존 컬럼행 최소검사값 보존, 삭제 시 기준행 유지 계약을 반영했다. `_setDirty(bool)` 형태의 단일 전이 경계에 초기 dirty, RTF 변환, 파일 import, 사용자 operation, 저장 성공을 연결하고 import 내부 `clearSheet`의 중간 clean 통지를 금지했다. 공용 `onSave` typed result를 공용라벨·품목 요소 call site와 widget 테스트까지 연결했다. 사용 항목과 사용자 항목의 CP949 변환 가능 여부 및 키워드 100바이트·항목명 50바이트 검증을 UI/save command/테스트/완료 조건에 반영했다. 편집 직후 문서 diagnostics 오류 0건이다.
+- 구현 기반 확인: 현 프로젝트의 `charset_converter`와 `lib/database/db_result_utils.dart` CP949/MS949 변환 경로를 공용 byte-length validation helper로 최소 추출해 재사용할 수 있으므로 별도 인코딩 하위 시스템은 필요하지 않다.
+- 검증 예정: 두 문서 diagnostics, 새 `BM_RICH_COL_MIN`/dirty setter/shared save call site/CP949 length 계약 연결 검색, `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md`. 문서만 변경하므로 Flutter 테스트·빌드·배포는 실행하지 않는다.
+- 최종 검증 실행 중: 두 문서 diagnostics, 단순 `BM_RICH_COL_MIN upsert`/저장 callback 일부 call site만 변경/문자 수만 검증하는 잔존 표현과 새 기준행·최소검사값 보존/dirty 첫 보고·단일 setter/shared typed result/CP949 round-trip·byte length 계약을 검색한다. 이어 `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md`, 관련 diff와 working tree 상태를 확인한다.
+- 최종 검증 완료: 두 문서 diagnostics 오류 0건, 단순 `BM_RICH_COL_MIN upsert`와 문자 수 전용 검증 표현 0건이다. `ELEMENT` 기준행·`RICH_MIN_CHECK` 보존, dirty 첫 보고·단일 setter·공용 typed save result, CP949 round-trip·100바이트/50바이트 검증 계약이 본문·테스트·완료 조건 14곳에 연결됐다. `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md`를 통과했고 최종 diff는 세 권장안에만 한정됐다. 문서만 변경해 Flutter 테스트·빌드·배포와 임시 산출물/캐시는 생성하지 않았다.
+- stage/commit 대상: 먼저 `doc/user_item_modify.txt`만 작업지시서 커밋에 포함하고, 해당 commit 해시를 기록한 `SESSION_HANDOFF.md`를 후속 인수인계 커밋에 포함한다. 기존 unrelated `.vscode/settings.json`, `lib/core/app.dart`는 제외하고 원격 push는 수행하지 않는다.
+- 작업지시서 로컬 커밋 완료: `7dcb625 문서: 항목 편집기 레거시 데이터 경계 보완` (`doc/user_item_modify.txt` 단독, 20 insertions/7 deletions). 마지막 stage/commit 대상은 이 해시를 기록한 `SESSION_HANDOFF.md` 단독이다.
+- 기존 unrelated `.vscode/settings.json`, `lib/core/app.dart`는 수정·stage/commit 대상에서 제외하고 원격 push는 수행하지 않는다.
+
 ### 완료 (2026-07-13): 항목 편집기 저장 경계 권장안 병합
 
 - 사용자 요청: 최신 `doc/user_item_modify.txt` 재검토에서 확인한 저장 결과 경계, 시트 dirty 전이, GS1 신규 관계, SQL result set 권장안을 작업지시서에 병합한다.
