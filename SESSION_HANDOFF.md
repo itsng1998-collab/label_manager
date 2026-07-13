@@ -28,6 +28,17 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-13): 항목 편집기 UI 상태·문자열 경계 권장안 병합
+
+- 사용자 요청: 최신 `doc/user_item_modify.txt` 재검토에서 확인한 pending 초기 적용, 누락검사 편집 소유권, 제목 저장 길이, 타입 전환 및 키워드 중복 비교 권장안을 작업지시서에 병합한다.
+- 사용자 확인: 별도 선택이 필요한 정책 분기는 없다. 신규 특수 타입은 `propertyDirty`와 독립된 최초 적용 상태로 관리하고, 일반 사용 항목 누락검사는 새 편집기만 수정한다. 특별 항목 누락검사는 기존 공용라벨 화면에서 유지하되 dirty/required keyword/typed save 경계에 연결한다. 제목은 DB `VARCHAR(20)`에 맞춰 CP949 20바이트 이하, 타입 변경은 레거시의 기본↔QR 초기화와 GS1 AI 관계 제거만 수행하고 나머지는 보존한다. 키워드 중복은 DB collation과 같이 대소문자를 무시하되 원문은 보존한다.
+- 수정 예정 `doc/user_item_modify.txt`: pending 최초 적용 key와 적용·취소·이동·저장 guard를 명시한다. 기존 일반 사용 항목 checkbox를 읽기 전용으로 만들고 특별 항목 checkbox의 dirty/save 계약을 추가한다. 제목 CP949 20바이트와 case-insensitive keyword 중복 검증, 레거시 타입 전환 순수 함수, 관련 순수/widget/DAO/통합 테스트 및 완료 조건을 함께 갱신한다. 미검증.
+- 편집 완료 `doc/user_item_modify.txt`: `pendingInitialApplyColumnKeys`/`requiresInitialApply`를 `propertyDirty`와 분리해 기본값 그대로 최초 적용, 취소 시 행 제거, 이동·모드 전환·메인 저장 차단을 명시했다. 일반 사용 항목의 기존 누락검사 checkbox는 읽기 전용, 특별 항목은 최소 dirty controller로 workbench의 단일 setter와 required keyword를 갱신하도록 했다. 특별 항목 최종값은 바깥 transaction 중첩 없이 기존 `LabelSizeDAO.UpdateFormDataTransactionSql` batch의 form log/update와 함께 저장하도록 확정했다. 제목 CP949 20바이트, `Korean_Wansung_CI_AS` 기준 keyword 중복, 기본↔QR 초기화와 GS1 AI 이탈 관계 제거만 수행하는 `changeType` 규칙을 본문·테스트·누락 방지 목록·완료 조건에 연결했다. 편집 직후 문서 diagnostics 오류 0건이다.
+- 검증 예정: 두 문서 diagnostics, 새 pending/check ownership/title byte/type transition/case-insensitive 계약 연결 검색, 폐기된 제목 20자·propertyDirty 전용 pending guard 표현 검색, `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md`. 문서만 변경하므로 Flutter 테스트·빌드·배포는 실행하지 않는다.
+- 최종 검증 완료: 두 문서 diagnostics 오류 0건, 새 pending/check ownership/title byte/type transition/case-insensitive 계약 20곳 연결, 폐기된 제목 20자·propertyDirty 전용 guard·content dirty 전용 적용 표현 0건이다. `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md`를 마지막 개행 보완 후 재통과했고 최종 diff는 권장안 다섯 건과 관련 테스트·완료 조건에만 한정됐다. 문서만 변경해 Flutter 테스트·빌드·배포와 임시 산출물/캐시는 생성하지 않았다.
+- stage/commit 대상: 먼저 `doc/user_item_modify.txt`만 작업지시서 커밋에 포함하고, 해당 commit 해시를 기록한 `SESSION_HANDOFF.md`를 후속 인수인계 커밋에 포함한다. 기존 unrelated `.vscode/settings.json`, `lib/core/app.dart`는 제외하고 원격 push는 수행하지 않는다.
+- 작업지시서 커밋: `e8ac191` (`문서: 항목 편집기 UI 상태와 검증 경계 보완`).
+
 ### 완료 (2026-07-13): 항목 편집기 저장 데이터 의미 권장안 병합
 
 - 사용자 요청: 최신 `doc/user_item_modify.txt` 재검토에서 확인한 저장 데이터 의미와 affected row 검증 권장안을 작업지시서에 병합한다.
