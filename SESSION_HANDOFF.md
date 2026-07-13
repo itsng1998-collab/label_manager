@@ -28,7 +28,7 @@
 
 ## 현재 상태
 
-### 진행 중 (2026-07-13): 라벨 항목 편집기 작업지시서 23차 재검토 권장안 병합
+### 완료 (2026-07-13): 라벨 항목 편집기 작업지시서 23차 재검토 권장안 병합
 
 - 사용자 요청: 최신 `doc/user_item_modify.txt`를 레거시/현 프로젝트에 다시 대조해 확인한 strict commit pre-commit evidence, gate definition digest, recovery state/release field, commit-unknown 총함수, 날짜 offset, barcode format fallback, collector 순서, logout-save 경합, output clock identity, DB-Lib fixture source와 Natrium encoding 문제의 권장안을 작업지시서에 병합한다.
 - 사용자 결정: 잘못된 EAN/UPC/ITF 입력은 Code128/QR로 자동 변경하지 않고 선택 symbology를 유지한 명시적 오류 또는 동일 symbology bitmap 경로만 허용한다. commit-unknown에서 original/desired가 모두 일치하거나 row별로 섞이면 reason code가 있는 `indeterminate`로 차단한다. commit intent 이후 저장 workflow가 terminal이 되기 전에는 logout 요청을 typed busy로 차단한다.
@@ -52,6 +52,8 @@
 - 독립 finding 후속 보완 완료 `doc/user_item_modify.txt`: `LogoutTerminalWorkflowStateSetV1`의 `terminalCompleted | terminalCancelled`에서만 retirement를 시작하고 `terminalRecoveryBlocked`/recovery-blocked projection은 기존 login context와 durable owner/evidence를 보존하도록 본문·테스트·16.5·19장을 통일했다. 구 `durable release field` 의미를 제거하고 `deactivatePreserveEvidence` 직접 의미로 교체했다. worker evidence에는 evidence ordinal까지만 두고 parent publish 뒤 sequence-bound token을 발급하며 canonical protocol·테스트·16.5·17·19장 모두 `consumeCommitAuthorization(expectedTokenVersion)` CAS 성공을 native commit의 유일한 선형화점으로 고정했다. DB-Lib 두 후보 단위 주입의 승인/반대 단위 exclusivity 음성 fixture와 gate를 추가하고 digest 순서를 gate definition 포함으로 통일했다. 승인 `CP_ACP=949` 정상 bytes는 parity, malformed/unmappable/NUL strict 거부와 rate range guard는 `safetyImprovement=true`로 모델·12.5·golden·16.5·17·19장에 연결했다. 각 편집 직후 diagnostics 오류 0건이며 최종 재검증/독립 승인은 미실행이다.
 - 최종 독립 승인: UI/recovery, DB/gate, legacy output, 문서 실행성 네 관점 모두 치명/높음/중간 finding 없음. 낮은 stale 차수 표기 `22차 transition gate`는 `23차 output transition gate`로 정리했다. 후속 보완 뒤 두 문서 diagnostics 오류 0건, 폐기 release/네 digest/comparison-zero-error/decimal-text/invalid→bitmap/evidence-sequence 혼합/구 digest 순서 검색 0건, 새 핵심 계약 26개 연결 위치를 확인했다. `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md` 통과했고 마지막 문서 변경 후 재실행 예정이다.
 - stage/commit 예정: `doc/user_item_modify.txt`, `SESSION_HANDOFF.md`만 포함한다. 기존 unrelated dirty `.vscode/settings.json`, `lib/core/app.dart`는 제외한다. 문서 계약 변경만 수행했으므로 Flutter 테스트·빌드·배포는 실행하지 않는다.
+- 최종 검증 완료: 두 문서 diagnostics 오류 0건, stale 계약 검색 0건, 새 핵심 계약 연결 검색 20건, `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md`와 staged diff check 통과. 네 관점 최종 독립 재검토에서 모두 치명/높음/중간 finding 없음으로 승인됐다. 문서만 변경했으므로 Flutter 테스트·빌드·배포는 실행하지 않았다.
+- 로컬 커밋 완료: `b57ac07 문서: 23차 항목 편집기 권장안 정합화`. 관련 두 문서만 포함했고 기존 unrelated dirty `.vscode/settings.json`, `lib/core/app.dart`는 제외했다. 원격 push는 수행하지 않았다.
 
 ### 완료 (2026-07-13): 라벨 항목 편집기 작업지시서 22차 재검토 권장안 병합
 
