@@ -28,6 +28,22 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-13): 항목 편집기 writer 경계·교차 저장 계약 병합
+
+- 사용자 요청: 최신 `doc/user_item_modify.txt` 재검토에서 확인한 레거시 writer 잠금 범위, 품목/컬럼 교차 저장 content 누락, GS1 타입 전환 보조행, 진입 조건 테스트 권장안을 작업지시서에 병합한다.
+- 사용자 확인: 레거시 프로그램과 새 프로그램의 동일 라벨 항목/사용자 항목 동시 편집은 지원하지 않는다. 부모 행 잠금의 동시성 보장은 같은 잠금 규약을 사용하는 새 프로그램 writer끼리로 한정하고, 레거시 병행 편집 금지를 명시한다.
+- 수정 예정 `doc/user_item_modify.txt`: 현 `ItemManagerSaveCommand`에 immutable labelSizeId와 대상 소유권 검증을 추가하고 `ItemManagerSaveDAO`가 컬럼 저장과 같은 `BM_RICH_LABELSIZE_FORM UPDLOCK, HOLDLOCK`을 transaction 첫 단계에서 획득하도록 한다. 타입 변경만으로도 최종 타입 기준 GS1 info/contain upsert·삭제가 발생하도록 하고, label size/권한/상위 busy/reload-required 진입 차단 테스트를 추가한다. 미검증.
+- 본문 편집 완료 `doc/user_item_modify.txt`: 부모 잠금의 보장 범위를 같은 규약을 쓰는 새 프로그램 writer로 한정하고 레거시 동시 편집을 제외 범위에 명시했다. `ItemManagerSaveCommand.labelSizeId`, item/column 소유권 선검증, `ItemManagerSaveDAO`의 동일 label size 부모 잠금과 부모→자식 잠금 순서를 12.6에 추가했다. GS1 info/contain은 field/relation delta뿐 아니라 최종 타입의 진입·이탈로도 upsert·삭제되며 stale GS1 command는 현재 DB 타입 역할을 선검증하도록 했다. 편집 직후 작업지시서 diagnostics 오류 0건이다.
+- 테스트·완료 조건 편집 완료 `doc/user_item_modify.txt`: 순수 테스트에 GS1 타입 전환 command, widget 테스트에 label size/권한/품목·시트·상위 command 상태의 진입 및 저장 재검증, DAO/통합 테스트에 품목/컬럼 공통 부모 잠금과 GS1 전환 시나리오를 추가했다. 공통 부모 잠금만으로 대기 중 stale 품목 snapshot을 해결할 수 없어 `ItemManagerSaveCommand.baselineColumnIds`를 추가하고, 컬럼 구조 저장이 먼저 commit되면 첫 품목/content DML 전에 membership 불일치로 rollback·재조회하도록 보완했다. 품목 저장 선행이면 후행 컬럼 저장이 새 품목 content까지 생성하는 양방향 교차 테스트와 누락 방지·완료 조건을 연결했다. 각 편집 직후 diagnostics 오류 0건이다.
+- 독립 재검토 보완: 현 품목 저장이 command의 `columnValues`와 레거시 trigger에 의존해 신규 품목의 기존 컬럼 content를 누락할 수 있다는 높음 finding을 반영해, 부모 잠금/membership 검증 후 `@InsertedRows × baselineColumnIds`의 누락 행을 editable 0·빈 data로 DAO가 명시 생성하고 trigger 선생성 행은 중복하지 않도록 했다. GS1 역할 검증은 같은 command에 type 변경이 있으면 그 effective final type, 없으면 현재 DB 타입을 사용하도록 정리하고 동일 command 타입 전환+relation 테스트를 추가했다. dialog open 후 품목 draft 또는 공용라벨 시트가 dirty로 바뀌는 저장 차단 widget 테스트도 명시했다. 보완 직후 diagnostics 오류 0건이다.
+- 최종 재검토 보완: GS1 바코드 타입 이탈 cleanup 대상을 `gs1RelationUpdates`에 섞으면 effective final type 역할 검증에 막히는 높음 finding을 반영했다. 최종 GS1 바코드 관계 구성용 `gs1RelationUpdates`와 original GS1 AI/GS1 바코드 역할 정리용 `gs1CleanupColumnIds`를 분리하고, cleanup은 original DB 역할의 incoming/outgoing을 먼저 삭제한 뒤 final info/relation을 적용하도록 했다. cleanup ID는 final relation main 역할 검증 대상에서 제외하며 입력 집합 검증과 타입 전환 테스트를 추가했다. 보완 직후 diagnostics 오류 0건이다.
+- 승인 재검토 보완: `gs1CleanupColumnIds`를 삭제되지 않고 생존하는 기존 GS1 역할 타입 전환으로 한정하고, delete ID는 cleanup 없이 기존 삭제 경로에서 incoming/outgoing 양쪽 관계를 정리하도록 분리했다. cleanup/delete 중복, 필요한 cleanup 누락, 역할 전환 없는 생존 GS1 ID 과잉 포함을 original DB 타입과 effective final type의 exact-set 검증으로 첫 DML 전에 차단하는 DAO 테스트를 추가했다. 보완 직후 diagnostics 오류 0건이다.
+- 검증 예정: 두 문서 diagnostics, writer 범위·item-column 공통 잠금·GS1 타입 전환·진입 조건의 본문/DAO/widget/통합/완료 조건 연결 검색, 기존 상충 표현 검색, `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md`, 독립 재검토. 문서만 변경하므로 Flutter 테스트·빌드·배포는 실행하지 않는다.
+- 최종 검증 실행 중: 독립 승인, 두 문서 diagnostics, 레거시 writer 범위·품목/컬럼 baseline/content·GS1 relation/cleanup/delete·진입 재검증 연결과 상충 표현 검색, `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md`, 관련 diff/status를 확인한다.
+- 최종 검증 완료: 두 문서 diagnostics 오류 0건, 네 계약의 본문·DTO·SQL·순수/widget/DAO/통합 테스트·누락 방지·완료 조건 연결과 상충 표현 검색을 완료했다. `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md`를 통과했고 독립 최종 승인도 finding 없음이다. 문서만 변경해 Flutter 테스트·빌드·배포와 임시 산출물/캐시는 생성하지 않았다.
+- stage/commit 대상: 먼저 `doc/user_item_modify.txt`만 작업지시서 커밋에 포함하고, 해당 commit 해시를 기록한 `SESSION_HANDOFF.md`를 후속 인수인계 커밋에 포함한다. 기존 unrelated `.vscode/settings.json`, `lib/core/app.dart`는 제외하고 원격 push는 수행하지 않는다.
+- 작업지시서 로컬 커밋 완료: `eef7415` (`문서: 항목 편집기 교차 저장 계약 보완`). `doc/user_item_modify.txt`만 포함했으며 마지막 stage/commit 대상은 이 해시를 기록한 `SESSION_HANDOFF.md` 단독이다.
+
 ### 완료 (2026-07-13): 항목 편집기 delta 저장·순서 계약 병합
 
 - 사용자 요청: 최신 `doc/user_item_modify.txt` 재검토에서 확인한 property/order update 혼합, untouched 보조행 덮어쓰기, DB 전체 order 완전성 권장안을 작업지시서에 병합한다.
