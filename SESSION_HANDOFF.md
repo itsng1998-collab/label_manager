@@ -28,6 +28,17 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-13): 항목 편집기 저장 데이터 의미 권장안 병합
+
+- 사용자 요청: 최신 `doc/user_item_modify.txt` 재검토에서 확인한 저장 데이터 의미와 affected row 검증 권장안을 작업지시서에 병합한다.
+- 사용자 확인: 별도 선택이 필요한 정책 분기는 없다. 레거시 최종 저장 의미에 따라 누락 키워드 검사값과 신규 품목 content 기본값을 확정하고, update 품목 content는 배포 DB 스키마 존재 여부로 포함 범위를 결정한다.
+- 수정 예정 `doc/user_item_modify.txt`: 신규 draft 생성에 단일 레거시 기본값 factory를 요구한다. `BM_RICH_CHECK_COLUMNS.RICH_CHECK_YN`은 최종 `LabelColumnDraft.useMissingKeywordCheck`, 신규 `BM_RICH_COL_CONTENT`는 `RICH_EDITABLE=0`과 빈 data를 저장한다. `BM_UPDATE_COL_CONTENT` 포함 조건을 배포 DB의 두 update 테이블 존재 여부로 확정하고, 필수 DML과 선택적 status/종속행 정리의 affected row 0 의미를 분리한다. 관련 순수/DAO 테스트와 완료 조건을 함께 갱신한다. 미검증.
+- 편집 완료 `doc/user_item_modify.txt`: 고정/사용자 후보의 신규 사용 항목을 단일 `LabelColumnDraft.fromCandidate` 계열 factory와 레거시 생성자 기본값으로 만들도록 했다. `RICH_CHECK_YN`은 최종 draft 값, 신규 품목 content는 `RICH_EDITABLE=0`·빈 data로 저장하도록 확정했다. 두 update 테이블이 배포 DB에 존재하면 빈 update content를 생성하고, 테이블 부재가 확인된 경우에만 근거를 남겨 제외하도록 했다. 필수 소유권/source-count DML의 affected row 불일치만 rollback하고 status 갱신·선택적 종속행 정리의 정상 0건은 허용하도록 본문·DAO 테스트·누락 방지 목록·완료 조건을 통일했다. 편집 직후 문서 diagnostics 오류 0건이다.
+- 검증 예정: 두 문서 diagnostics, 새 기본값/check/content/update-table/affected-row 계약 연결 검색, 폐기된 포괄적 affected row 0 rollback 표현 검색, `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md`. 문서만 변경하므로 Flutter 테스트·빌드·배포는 실행하지 않는다.
+- 최종 검증 완료: 두 문서 diagnostics 오류 0건이다. 기본값 2곳, check/content 6곳, update-table 4곳, affected-row 구분 4곳에 연결됐고 포괄적인 모든 affected row 0 rollback 표현은 없다. `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md`를 통과했으며 최종 diff는 권장안 다섯 건에만 한정됐다. 문서만 변경해 Flutter 테스트·빌드·배포와 임시 산출물/캐시는 생성하지 않았다.
+- stage/commit 대상: 먼저 `doc/user_item_modify.txt`만 작업지시서 커밋에 포함하고, 해당 commit 해시를 기록한 `SESSION_HANDOFF.md`를 후속 인수인계 커밋에 포함한다. 기존 unrelated `.vscode/settings.json`, `lib/core/app.dart`는 제외하고 원격 push는 수행하지 않는다.
+- 작업지시서 로컬 커밋 완료: `50317f4 문서: 항목 편집기 저장 데이터 의미 보완` (`doc/user_item_modify.txt` 단독, 15 insertions/8 deletions). 마지막 stage/commit 대상은 이 해시를 기록한 `SESSION_HANDOFF.md` 단독이다.
+
 ### 완료 (2026-07-13): 항목 편집기 레거시 데이터 경계 보완
 
 - 사용자 요청: 최신 `doc/user_item_modify.txt` 재검토에서 확인한 `BM_RICH_COL_MIN`, 공용 시트 dirty 전이, DB 문자열 길이 검증 권장안을 작업지시서에 병합한다.
