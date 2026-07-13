@@ -28,6 +28,25 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-13): 라벨 항목 편집기 작업지시서 13차 검토 권장안 병합
+
+- 사용자 요청: 최신 `doc/user_item_modify.txt`의 레거시/현 프로젝트 재검토에서 확인한 문제와 권장안을 병합하고 필요한 제품 정책을 즉시 확정한다.
+- 사용자 결정: P1 기존 품목/라벨크기 writer는 공용 application lock과 strict native transaction API까지만 이관하고, durable ACK/recovery coordinator는 이번 범위의 label-column/customer-column save에만 적용한다.
+- 사용자 결정: concurrency fingerprint 충돌은 동일 command 재실행과 자동 rebase를 금지하고, working copy를 보존한 채 최신 snapshot 재조회 후 사용자가 수동 재적용·재확인해 새 operation/command를 생성한다.
+- 사용자 결정: 레거시 별도 화면 소유인 `RICH_SEARCH_PRINT`는 이번 항목 편집기 UI/저장 대상에서 제외하고 raw 값을 보존한다.
+- 사용자 결정: update-item은 `legacyOnly/future` consumer로 분류해 production 필수 ACK에서 제외하되, 실제 update-item row가 있는 DB의 content 호환은 유지한다.
+- 사용자 결정: Android production DB 경계는 별도 `android:process`에서 실행되는 bound native service로 고정한다.
+- 사용자 결정: 기존 `BM_RICH_COLUMN`은 persisted projection 또는 order가 실제 변경된 행만 UPDATE하고 result count도 같은 집합으로 검증한다.
+- 사용자 결정: 후보 추가 직후 첫 속성 적용이 필요한 타입은 레거시와 같은 바코드/이미지/QR/GS1 AI/GS1 바코드 폐쇄 집합으로 고정한다.
+- 수정 예정 `doc/user_item_modify.txt`: P1 lock-only와 label/customer strict recovery 범위, conflict 새 command 정책, 검색출력 보존 제외, update-item legacy/future 분류, Android remote service, 변경 행 UPDATE, 특수 타입 집합을 반영한다. macOS architecture별 최소 버전, transaction isolation API, customer command, post-commit state, cascade/multi-resource lock과 runtime dispatch gate도 정합화한다. 미검증.
+- 기존 unrelated dirty `.vscode/settings.json`, `lib/core/app.dart`는 수정·stage 대상에서 제외한다.
+- 편집 완료 `doc/user_item_modify.txt`: P1 기존 writer는 compatibility transaction에 공용 lock만 우선 이관하고 strict result/ACK/recovery는 label/customer save로 한정했다. concurrency conflict는 최신 snapshot 수동 재적용 후 새 command만 허용하고, 별도 `CustomerColumnSaveCommand`, `DbTransactionIsolation`, resource별 reload-failed state를 추가했다. 문서 diagnostics 오류 0건.
+- 편집 완료 `doc/user_item_modify.txt`: `RICH_SEARCH_PRINT` UI/dirty/updateRows 제외·raw 보존, 레거시 특수 pending type `3|4|9|11|12`, 실제 변경 기존 행만 UPDATE, update-item `legacyOnly/future`와 실제 row content 호환을 반영했다. 문서 diagnostics 오류 0건.
+- 편집 완료 `doc/user_item_modify.txt`: macOS 10.15+ x64/11.0+ arm64, Android 별도 `android:process` remote service, strict action의 legacy in-isolate driver 금지, cascade/multi-label-size lock, `main.dart` 위 root bootstrap service와 lifecycle migration gate를 반영했다. 문서 diagnostics 오류 0건.
+- 최종 검증 완료: 구 P1 strict/Android/macOS/update-all/update-item 필수 ACK/검색출력 수정 상충 표현은 0건이며 검색 결과 2건은 update-item 필수 ACK 제외를 명시한 의도된 문장이다. 두 문서 diagnostics 오류 0건, 독립 재검토에서 치명적·높은 상충 0건, `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md` 통과. 변경량은 두 문서 63 insertions/36 deletions다. 문서 계약만 변경했으므로 Flutter 테스트는 실행하지 않았다.
+- 임시 산출물/캐시는 생성하지 않았다. stage/commit 대상은 `doc/user_item_modify.txt`를 먼저 단독 커밋하고 확정 hash를 이 항목에 기록한 뒤 `SESSION_HANDOFF.md`를 별도 커밋한다. 기존 unrelated `.vscode/settings.json`, `lib/core/app.dart`는 제외하며 원격 push와 배포 작업은 수행하지 않는다.
+- 작업지시서 커밋 완료: `228dc0e 라벨 항목 편집기 작업지시서 13차 권장안 병합` (`doc/user_item_modify.txt` 단독, 46 insertions/36 deletions). 다음 stage/commit 대상은 `SESSION_HANDOFF.md` 단독이다.
+
 ### 완료 (2026-07-13): 라벨 항목 편집기 작업지시서 12차 검토 권장안 병합
 
 - 사용자 요청: 최신 `doc/user_item_modify.txt`를 레거시/현 프로젝트/명세 내부 정합성 관점에서 재검토한 권장안을 병합하고 제품 정책 선택은 즉시 확정한다.
