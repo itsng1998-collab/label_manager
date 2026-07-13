@@ -28,6 +28,30 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-13): 라벨 항목 편집기 작업지시서 6차 검토 권장안 병합
+
+- 사용자 요청: 최신 `doc/user_item_modify.txt` 재검토에서 확인한 9개 문제의 권장안을 기존 작업지시서에 병합하고, 사용자 확인이 필요한 사항은 즉시 확정한다.
+- 사용자 결정: `BM_RICH_COL_MIN.RICH_MIN_CHECK`는 이번 편집기 UI에 노출하지 않고 기존 일반 행/sentinel 값을 보존하며, 신규 일반 행과 신규 `ELEMENT` sentinel만 0으로 생성한다.
+- 수정 예정 `doc/user_item_modify.txt`: commit 전 versioned result contract, DB identity/connection epoch capability cache, typed multi-rowset public API, `RICH_MIN_CHECK` 보존, DB parameter 로그 redaction, widget 외부 save coordinator, 고정 후보 stable ID와 결정적 정렬, Windows crash-consistency 보장 범위, 실행 환경별 완료 gate를 모델/DAO/상태/테스트/완료 조건에 병합한다. 미검증.
+- 수정 예정 `SESSION_HANDOFF.md`: 문서 편집, 검증, stage, commit 결과를 단계별로 기록한다.
+- 기존 unrelated dirty `.vscode/settings.json`, `lib/core/app.dart`는 수정·stage 대상에서 제외한다.
+- 편집 완료 `doc/user_item_modify.txt`: `DbResultContract`/`DbResultSetContract`를 versioned wire descriptor로 추가해 count/mapping 구조와 command draft key 집합을 commit 전에 검증하고, post-commit 오류를 wire 복원 실패로 한정했다.
+- 편집 완료 `doc/user_item_modify.txt`: `(DatabaseIdentity, connectionEpoch)` capability/reference cache, typed `queryResultSets` public API, 고정 후보 `fixedColumnId`, 사용 항목 `order,id` 정렬과 raw rowset protocol을 명시했다.
+- 편집 완료 `doc/user_item_modify.txt`: 사용자 결정대로 기존 `RICH_MIN_CHECK`를 raw snapshot/fingerprint에서 보존하고 신규 일반/sentinel만 0으로 생성하도록 확정했다.
+- 편집 완료 `doc/user_item_modify.txt`: parameter `logPolicy`와 client/isolate/ODBC/DB-Lib 전체 redaction, dialog 밖 `LabelColumnEditCoordinator`와 application recovery handoff, Win32 file flush/replace와 process-crash consistency 범위를 반영했다.
+- 중간 검증 완료: `doc/user_item_modify.txt` diagnostics 오류 0건. 테스트 gate/구현 순서/완료 조건 후속 편집은 미검증.
+- 편집 완료 `doc/user_item_modify.txt`: result contract rollback, raw typed API, cache epoch, stable 정렬, `RICH_MIN_CHECK`, redaction, coordinator detach를 순수/widget/DAO/통합 테스트에 연결했다.
+- 편집 완료 `doc/user_item_modify.txt`: unit/widget, AST 구조 검사, disposable SQL Server 양 driver, child-process crash, Win32 native 시험을 별도 완료 gate로 나누고 전원 차단 durability는 자동 완료 조건에서 제외했다.
+- 편집 완료 `doc/user_item_modify.txt`: 구현 순서를 DB identity/cache → typed raw API → driver wire/result contract/redaction → lock/coordinator/session/save vertical slice 순으로 18단계 재정렬하고 완료 조건을 갱신했다.
+- 후속 편집 검증 완료: `doc/user_item_modify.txt` diagnostics 오류 0건. 이전 용어/상충 계약 검색과 전체 diff 검토는 미검증.
+- 편집 완료 `doc/user_item_modify.txt`: 추상적인 application recovery owner를 앱 루트 수명의 `LabelColumnSaveRecoveryRegistry`로 확정하고 UI detach/startup/reconnect 복구, 비민감 durable record, save 자동 재실행 금지를 명시했다.
+- 최종 검증 예정: 두 문서 diagnostics, 이전 result/Windows/reconciliation 용어와 6차 핵심 계약 검색, `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md`, 전체 diff/stat 및 stage 대상 확인. 문서만 변경했으므로 Flutter 테스트는 실행하지 않는다.
+- 검증 진행: 두 문서 diagnostics 오류 0건, 이전 `expectedResultKind`/directory durability/post-commit 재검증/committed-invalid reconciliation/조건부 PK 문구 0건, 6차 핵심 계약 33개 위치 확인, `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md` 통과. 변경 범위는 작업지시서와 인수인계뿐이며 전체 diff 최종 검토 전이다.
+- 최종 검증 완료: 전체 diff를 검토해 사용자 결정과 9개 권장안이 모델/DAO/lifecycle/테스트/완료 조건에 일관되게 연결된 것을 확인했다. 두 문서 diagnostics 오류 0건, 상충 문구 0건, 핵심 계약 33개 위치 확인, `git diff --check` 통과. 코드/테스트를 변경하지 않아 Flutter 테스트는 실행하지 않았다.
+- stage/commit 예정: `doc/user_item_modify.txt`만 먼저 기능 문서 커밋하고 확정 해시를 기록한 `SESSION_HANDOFF.md`를 별도 커밋한다. 기존 사용자 변경 `.vscode/settings.json`, `lib/core/app.dart`는 제외한다.
+- 기능 문서 커밋: `5da15b7` (`라벨 항목 편집기 작업지시서 6차 권장안 병합`). pre-commit result contract, DB identity cache, typed raw rowset, `RICH_MIN_CHECK` 보존, parameter redaction, save recovery registry, stable identity/order, Windows crash consistency와 환경별 gate를 병합했다.
+- 완료: 임시 산출물이나 캐시를 생성하지 않았으며 원격 push와 배포 작업은 수행하지 않았다. 인수인계만 별도 커밋한다.
+
 ### 완료 (2026-07-13): 라벨 항목 편집기 작업지시서 5차 검토 권장안 병합
 
 - 사용자 요청: 최신 `doc/user_item_modify.txt` 재검토에서 확정한 11개 문제의 권장안을 기존 작업지시서에 병합 정리한다.
