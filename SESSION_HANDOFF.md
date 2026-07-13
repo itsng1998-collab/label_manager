@@ -39,6 +39,7 @@
 - 독립 범위 재검토 보완 완료: 상태 enum과 최소 edit session/save command는 UI working copy와 DB 전달을 위한 기존 기능 구조로 유지하되 새 복구 상태기계로 확장하지 않는다. 별도 optimistic fingerprint/row-version 요구는 제거했다. 모든 연결 오류에서 rollback 완료를 절대 보장하던 표현은 가능한 rollback, 사용자 알림, 성공 처리/cache 교체 금지로 교정하고 commit 시도 오류도 같은 단순 정책에 포함했다.
 - 최종 검증 완료: 두 문서 diagnostics 오류 0건, strict worker/recovery/gate/DB identity/FortuneSheet runtime/output 재설계 심볼과 별도 optimistic fingerprint 잔존 0건, DB 오류 알림·가능한 rollback·working copy 유지와 단일 메인 저장 계약을 본문·테스트·완료조건에서 확인했다. `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md`를 통과했다. 범위 제한 독립 재검토에서도 본래 목적 선언, 과도한 긍정 요구 0건, 단순 DB 오류 정책 세 항목 모두 치명/높음/중간 finding 없이 승인됐다. 문서만 변경해 Flutter 테스트·빌드·배포와 임시 산출물/캐시 생성은 수행하지 않았다.
 - stage/commit 대상: `doc/user_item_modify.txt`, `SESSION_HANDOFF.md`만 포함한다. 기존 unrelated `.vscode/settings.json`, `lib/core/app.dart`는 제외하고 원격 push는 수행하지 않는다.
+- 로컬 커밋 완료: `8f647c6 문서: 항목 편집기 구현 범위 단순화`. 관련 두 문서만 포함했으며 마지막 stage/commit 대상은 이 해시를 기록한 `SESSION_HANDOFF.md` 단독이다.
 - 기존 unrelated dirty `.vscode/settings.json`, `lib/core/app.dart`는 수정·stage/commit 대상에서 제외하고 원격 push는 수행하지 않는다.
 
 ### 진행 중 (2026-07-13): 라벨 항목 편집기 작업지시서 25차 구현성 권장안 병합
