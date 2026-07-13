@@ -28,7 +28,7 @@
 
 ## 현재 상태
 
-### 진행 중 (2026-07-13): 단순화 작업지시서 구현성 권장안 병합
+### 완료 (2026-07-13): 단순화 작업지시서 구현성 권장안 병합
 
 - 사용자 요청: 단순화된 `doc/user_item_modify.txt`를 레거시/현 프로젝트에 대조해 확인한 구현성 권장안을 작업지시서에 병합한다.
 - 사용자 결정: 미지원 DB 타입/옵션은 별도 raw 보존 DTO를 추가하지 않고 현재 `TColumn`의 fallback 동작을 허용한다. commit 시도 후 `DbCommitOutcomeUnknown`이면 같은 working copy의 재저장을 차단하고 DB 재조회 후 편집기를 다시 시작한다. `BM_RICH_FIX_COL_TYPE`은 별도 순서 컬럼이나 `ORDER BY`를 추가하지 않고 레거시처럼 DB 반환 순서를 유지한다.
@@ -37,6 +37,7 @@
 - 검증 예정: 두 문서 diagnostics, 상충하는 raw 보존/고정 분류 order/중첩 transaction 표현 검색, 새 dirty guard/commit-unknown/transaction owner 계약 연결 검색, `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md`. 문서 변경만 수행하므로 Flutter 테스트·빌드·배포는 실행하지 않는다.
 - 최종 검증 완료: 두 문서 diagnostics 오류 0건, 폐기 raw 원문 보존·`FixedColumnType` 순서 필드·DB 정의 순서 정렬·DAO 내부 transaction batch 표현 0건이다. 새 `DbCommitOutcomeUnknown`/재조회 차단/`DbClient.transaction()` 단독 소유/품목 draft guard/상위 강제 재조회 계약은 19곳에 연결됐고 `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md`를 통과했다. 문서만 변경해 Flutter 테스트·빌드·배포와 임시 산출물/캐시 생성은 수행하지 않았다.
 - stage/commit 대상: `doc/user_item_modify.txt`, `SESSION_HANDOFF.md`만 포함한다. 기존 unrelated `.vscode/settings.json`, `lib/core/app.dart`는 제외하고 원격 push는 수행하지 않는다.
+- 로컬 커밋 완료: `8407da9 문서: 항목 편집기 구현성 권장안 병합`. 관련 두 문서만 포함했으며 마지막 stage/commit 대상은 이 해시를 기록한 `SESSION_HANDOFF.md` 단독이다.
 - 기존 unrelated dirty `.vscode/settings.json`, `lib/core/app.dart`는 수정·stage/commit 대상에서 제외하고 원격 push는 수행하지 않는다.
 
 ### 진행 중 (2026-07-13): 라벨 항목 편집기 작업지시서 구현 목적 중심 재정리
