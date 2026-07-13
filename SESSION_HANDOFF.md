@@ -28,6 +28,19 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-13): 항목 편집기 예약 keyword·문자열 무손실 계약 병합
+
+- 사용자 요청: 최신 `doc/user_item_modify.txt` 재검토에서 확인한 특별 항목 예약 keyword 충돌, 자유 입력 문자열 CP949/byte 무손실 저장, 일반 항목 check 보조행 identity 동기화 권장안을 작업지시서에 병합한다.
+- 사용자 확인: 별도 정책 선택은 필요 없다. `ITEMNAME`, `ELEMENT`, `SWEIGHT`, `SPRICE`는 일반 사용 항목에서 `Korean_Wansung_CI_AS` 의미의 예약 keyword로 차단하되 사용자 항목 사전의 기존 행을 강제 삭제하지 않고 실제 사용 항목 추가만 막는다. `ISBN` 등 미지원 바코드 옵션은 이전에 확정한 현 `TColumn.fromMap()` fallback 허용 정책을 유지한다.
+- 수정 예정 `doc/user_item_modify.txt`: 예약 keyword를 속성 적용·후보 추가·메인 command·SQL 최종 검증에 연결한다. 사용자 정의 QR data/text, 나트륨 join, QR font name, 사용자 정의 바코드 text, 최종 date range를 배포 DB 실제 `VARCHAR` 길이 기준 CP949 round-trip/byte 검증 대상으로 추가하고, 구조화 입력은 검증 전에 좁은 `VARCHAR(n)`로 투영하지 않도록 한다. 일반 항목 `BM_RICH_CHECK_COLUMNS` upsert가 최종 keyword/name/check 값을 모두 동기화하도록 본문·테스트·완료 조건을 갱신한다. 미검증.
+- 편집 완료 `doc/user_item_modify.txt`: 네 특별 항목 keyword를 일반 사용 항목 예약 집합으로 정의하고 속성 적용·고정/사용자 후보 화살표/drop·메인 command·SQL collation 검증에 연결했다. 자유 입력 문자열 여섯 필드는 구현 전 배포 `sys.columns`의 실제 byte 길이를 확인하고 공용 CP949 round-trip helper로 속성 적용·저장 command에서 검증하도록 했으며, 구조화 입력을 검증 전 `VARCHAR(n)`로 축소하지 않고 원문 보존 staging을 사용하도록 했다. 일반 항목 `BM_RICH_CHECK_COLUMNS` upsert와 최종 SQL 검증은 keyword/name/check를 최종 draft와 일치시키도록 본문·순수/widget/DAO/통합 테스트·누락 방지·완료 조건까지 반영했다. 편집 직후 문서 diagnostics 오류 0건이다.
+- 독립 재검토 보완: 구현 불가능·상충·과잉 설계 finding은 없었다. 사용자 항목 사전의 기존 예약 keyword 행 보존과 고정 후보 source의 add 차단 테스트가 빠진 중간/낮음 finding을 반영해, 다른 사전 행 저장 시 예약 행 유지·일반 사용 항목 add만 실패하는 DAO/통합 시나리오와 고정/사용자 후보 각각의 화살표/drop 비활성 widget 테스트를 추가했다. 보완 직후 문서 diagnostics 오류 0건이다.
+- 검증 예정: 두 문서 diagnostics, 세 계약의 속성·후보·save command·SQL·테스트·완료 조건 연결 검색, 예약 keyword를 현재 목록 중복만으로 처리하는 표현과 check 값만 upsert하는 표현 검색, `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md`. 문서만 변경하므로 Flutter 테스트·빌드·배포는 실행하지 않는다.
+- 최종 검증 완료: 두 문서 diagnostics 오류 0건, 예약 keyword 계약 15곳 이상, 자유 문자열 검증/staging 계약 9곳, check identity 계약 6곳에 연결됐다. 상충 검색 결과는 사용자 항목 사전 행을 삭제하지 않고 add만 차단하는 의도된 보존 문장뿐이며, check 값만 갱신하거나 검증 전 `VARCHAR(n)`로 축소하는 요구는 0건이다. `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md`를 통과했고 최종 diff는 작업지시서 31줄과 이번 인수인계 기록에 한정됐다. 문서만 변경해 Flutter 테스트·빌드·배포와 임시 산출물/캐시는 생성하지 않았다.
+- stage/commit 대상: 먼저 `doc/user_item_modify.txt`만 작업지시서 커밋에 포함하고, 해당 commit 해시를 기록한 `SESSION_HANDOFF.md`를 후속 인수인계 커밋에 포함한다. 기존 unrelated `.vscode/settings.json`, `lib/core/app.dart`는 제외하고 원격 push는 수행하지 않는다.
+- 작업지시서 로컬 커밋 완료: `627091b` (`문서: 항목 편집기 데이터 무손실 계약 보완`). `doc/user_item_modify.txt`만 포함했으며 마지막 stage/commit 대상은 이 해시를 기록한 `SESSION_HANDOFF.md` 단독이다.
+- 기존 unrelated dirty `.vscode/settings.json`, `lib/core/app.dart`는 수정·stage/commit 대상에서 제외하고 원격 push는 수행하지 않는다.
+
 ### 완료 (2026-07-13): 항목 편집기 잔여 저장·속성 계약 병합
 
 - 사용자 요청: 최신 `doc/user_item_modify.txt` 재검토에서 확인한 commit 후 mapping 해석 오류 전달, 타입별 validation 경계, 바코드 비율 조절 속성, 바코드 텍스트 연동 참조 권장안을 작업지시서에 병합한다.
