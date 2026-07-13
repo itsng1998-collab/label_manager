@@ -28,6 +28,26 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-13): 라벨 항목 편집기 작업지시서 11차 검토 권장안 병합
+
+- 사용자 요청: 최신 `doc/user_item_modify.txt`의 레거시/현 프로젝트 재검토에서 확인한 문제와 권장안을 병합하고 필요한 정책을 즉시 확정한다.
+- 사용자 결정: production 대상은 Web과 Linux를 제외한 Windows/macOS/Android/iOS다. Windows/macOS는 세션별 worker process, Android는 native service/isolated process, iOS는 in-process native driver와 독립 cancel 경계를 사용한다. iOS는 무응답 process 강제 종료를 보장하지 않으며 검증된 transaction cancel/session discard capability가 없으면 항목 편집을 fail-closed한다.
+- 사용자 결정: 신규 `BM_RICH_COL_CONTENT`/update content 생성은 배포 capability별 단일 주체로 정한다. trigger 활성 DB는 trigger 소유, 미활성 DB는 DAO 소유이며 혼합·불명확 상태는 진입 차단한다.
+- 사용자 결정: 최초 baseline은 snapshot isolation이 확인된 짧은 `SNAPSHOT` transaction으로 읽고 save/reconciliation에서만 application lock과 `UPDLOCK, HOLDLOCK`을 사용한다.
+- 사용자 결정: 재시작 후 operation 결과와 신규 ID의 정확한 귀속은 DB ledger 없이 주장하지 않는다. 현재 DB 상태 강제 reload와 사용자 수용으로 resource를 해제하는 수동 확인 모드를 사용한다.
+- 수정 예정 `doc/user_item_modify.txt`: native transaction session/commit ack, 플랫폼별 DB execution boundary와 배포 산출물, generation 규칙, degraded action manifest, closed recovery event table, identity clone 절차, sentinel predicate, trigger ownership, observer/session consumer, reproducible gate manifest를 모델·DAO·테스트·완료 조건에 병합한다. 미검증.
+- 기존 unrelated dirty `.vscode/settings.json`, `lib/core/app.dart`는 수정·stage 대상에서 제외한다.
+- 편집 완료 `doc/user_item_modify.txt`: `NativeDbTransactionSession`과 필수 `DbOperationAck` 경계, command-path transaction control/reconnect 금지, `commitCompleted` 증거 기반 오류 분류를 모델·driver·테스트·완료 조건에 연결했다. 기존 session과 candidate의 `expectedOldGeneration/newGeneration` 규칙을 단일화했다.
+- 편집 완료 `doc/user_item_modify.txt`: Web/Linux 제외 4개 플랫폼의 `PlatformDbExecutionCapabilityV1`/`DbWorkerArtifactManifestV1`, Windows/macOS worker·Android native service/process·iOS in-process cancel/session-discard 계약과 OS별 credential/framing/release gate를 반영했다.
+- 편집 완료 `doc/user_item_modify.txt`: 최초 baseline의 검증된 SNAPSHOT transaction, `ContentCreationOwnershipV1` trigger/DAO 단일 주체, canonical `BM_RICH_COL_MIN` sentinel predicate, `DbActionRequirementV1` degraded allow-list, 폐쇄 identity 이동 절차를 DAO·테스트에 반영했다.
+- 편집 완료 `doc/user_item_modify.txt`: closed `RecoveryTransitionTableV1` state/event/reject와 필수 durable ack, 앱 bootstrap registry lifecycle, 재시작 후 정확한 결과/mapping 복구를 주장하지 않는 수동 수용 정책을 반영했다.
+- 편집 완료 `doc/user_item_modify.txt`: `DbWriterManifestV1`, `LabelSizeSessionConsumerManifestV1`, `GateManifestV1`을 추가해 레거시 품목/update-item/scale observer 효과와 재현 가능한 platform/SQL/release 완료 gate를 구현 순서·production 조건까지 연결했다.
+- 편집 완료 `doc/user_item_modify.txt`: Linux capability/worker/gate를 제거하고 공통 collector·logical type·wire/error/null 회귀를 Windows/macOS/Android/iOS의 모든 production adapter 계약으로 정합화했다. recovery 단일 writer도 Windows mutex 단일 표현에서 플랫폼별 승인 process-lock primitive와 fault gate로 확장했다.
+- 중간 검증 완료: 두 문서 diagnostics 오류 0건. 이전 baseline `UPDLOCK`, 모든 비Windows DB-Lib/child-process, 재시작 mapping 복구, 기존 generation 재사용, 선택적 ack state 문구를 검색해 실질 상충 0건으로 정리했다. 11차 핵심 manifest/capability 계약은 모델·DAO·테스트·구현 순서·완료 조건 35개 위치에서 확인됐다.
+- 최종 검증 완료: 두 문서 diagnostics 오류 0건, `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md` 통과. `linuxDesktopWorker`, `macOS/Linux`, `Windows/macOS/Linux`, `비Windows`, `두 driver`, `양 driver`, Windows mutex 단일 강제 표현은 0건이며 `Linux` 6건은 모두 Web/Linux 제외 정책 문구다. 최종 변경량은 두 문서 99 insertions/60 deletions다. 문서 계약만 변경했으므로 Flutter 테스트는 실행하지 않았다.
+- stage/commit 대상: `doc/user_item_modify.txt`를 작업지시서 커밋으로 먼저 저장하고 해당 hash를 이 항목에 기록한 뒤 `SESSION_HANDOFF.md`를 별도 인수인계 커밋으로 저장한다. 기존 unrelated dirty `.vscode/settings.json`, `lib/core/app.dart`는 제외한다.
+- 작업지시서 커밋 완료: `467bab7 라벨 항목 편집기 작업지시서 11차 권장안 병합` (`doc/user_item_modify.txt` 단독, 80 insertions/60 deletions). 다음 stage/commit 대상은 `SESSION_HANDOFF.md` 단독이다.
+
 ### 완료 (2026-07-13): 라벨 항목 편집기 작업지시서 10차 검토 권장안 병합
 
 - 사용자 요청: 최신 `doc/user_item_modify.txt`를 레거시/현 프로젝트에 재대조해 확인한 10차 권장안을 작업지시서에 병합하고, 사용자 확인 사항은 즉시 확정한다.
