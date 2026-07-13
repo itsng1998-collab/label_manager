@@ -28,6 +28,20 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-13): 항목 편집기 delta 저장·순서 계약 병합
+
+- 사용자 요청: 최신 `doc/user_item_modify.txt` 재검토에서 확인한 property/order update 혼합, untouched 보조행 덮어쓰기, DB 전체 order 완전성 권장안을 작업지시서에 병합한다.
+- 사용자 확인: 추가 질문은 필요 없다. 이전에 확정한 변경분 기준 마지막 저장 정책에 따라 같은 column ID 집합의 동시 reorder는 나중 transaction의 전체 order가 우선하고, 부모 잠금 후 DB 현재 기존 ID 집합이 구조 command의 baseline ID 집합과 다르면 stale 구조 저장으로 rollback 후 재조회한다. property-only 저장은 order를 쓰지 않고 서로 다른 행의 선행 속성·check·GS1 관계를 유지한다.
+- 수정 예정 `doc/user_item_modify.txt`: `LabelColumnSaveCommand`를 property/order/GS1 relation 변경분으로 분리하고, 구조 저장에만 baseline membership 검증과 전체 order update를 적용한다. check/min/GS1 info는 실제 변경 행에만 동기화하고 삭제 참조는 DB 기준으로 정리한다. 배포 order 타입/index 확인과 label size 전체 order의 1..N 완전성 검증을 본문·테스트·완료 조건에 연결한다. 미검증.
+- 편집 완료 `doc/user_item_modify.txt`: edit session이 original 대비 행별 changed property keys, structure dirty, GS1 changed main keys를 별도 source of truth로 계산하도록 했다. save command를 `propertyUpdates`, insert/delete, 구조 변경 시 baseline ID 집합과 전체 `orderUpdates`, `gs1RelationUpdates`로 분리했다. property-only 저장은 order와 untouched check/min/GS1을 갱신하지 않고, 구조 저장은 부모 잠금 후 membership 일치 때만 타입/index capability에 맞는 전체 order update를 수행한 뒤 DB 전체 1..N 완전성을 검증한다. 삭제 GS1 참조는 DB 기준 main/contain 양쪽을 정리한다. 순수·DAO·통합 테스트와 누락 방지·완료 조건까지 연결했으며 편집 직후 diagnostics 오류 0건이다.
+- 검증 예정: 두 문서 diagnostics, property/order/relation delta 및 membership/order 완전성의 본문·테스트·완료 조건 연결 검색, untouched 전체 working copy 동기화나 property-only order update 표현 검색, `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md`. 문서만 변경하므로 Flutter 테스트·빌드·배포는 실행하지 않는다.
+- 최종 검증 실행 중: 두 문서 diagnostics와 delta source/command/SQL/테스트/완료 조건 연결 및 상충 표현을 검색하고, `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md`와 관련 diff/status를 확인한 뒤 독립 재검토한다.
+- 독립 재검토 보완: 같은 기존 행에서 keyword/name과 check를 stale A/B가 따로 저장할 때 check 보조행 전체 upsert가 선행 값을 덮을 수 있다는 높음 finding을 반영해 matched check/GS1 info 행도 실제 changed key만 갱신하고 같은 행 교차 저장 테스트를 추가했다. unique order 환경에서 신규 insert가 임시 order 처리보다 앞서 충돌할 수 있다는 높음 finding은 임시값 집합을 모든 order-bearing DML 전에 검증하고 신규 행부터 서로 다른 임시 order로 insert하도록 보완했다. 마지막 행 삭제 시 MIN/MAX가 NULL인 중간 finding은 레거시가 빈 사용 항목 목록을 허용함을 확인해 `COUNT=0`을 정상으로 정의하고 DAO 테스트에 연결했다. 보완 직후 작업지시서 diagnostics 오류 0건이다.
+- 최종 승인 검토 보완: unique delete+add에서 삭제 예정 행이 최종 order를 점유하는 충돌을 막기 위해 구조 command만 삭제 예정 포함 기존 행 전체를 최종 1..N과 겹치지 않는 고유 임시 order로 먼저 이동하고 신규 행도 고유 임시 order로 insert하도록 했다. property-only command는 unique capability에서도 order-bearing DML을 전혀 실행하지 않는다. 입력 property/delete/order/GS1 참조 오류와 구조 membership은 첫 target DML 전에 검증하며, GS1 기존 ID의 현재 DB 역할 타입과 신규 draft의 최종 타입도 main=GS1 바코드/contain=GS1 AI인지 선검증한다. 누락 check/GS1 info 보조행은 현재 DB 값과 실제 changed key를 조합해 insert하는 테스트까지 추가했다. 각 보완 직후 diagnostics 오류 0건이다.
+- 최종 검증 완료: 두 문서 diagnostics 오류 0건, delta source/command/SQL/순수·DAO·통합 테스트/완료 조건 연결과 상충 표현 검색을 완료했다. `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md`를 통과했고 최종 독립 승인도 finding 없음이다. 문서만 변경해 Flutter 테스트·빌드·배포와 임시 산출물/캐시는 생성하지 않았다.
+- stage/commit 대상: 먼저 `doc/user_item_modify.txt`만 작업지시서 커밋에 포함하고, 해당 commit 해시를 기록한 `SESSION_HANDOFF.md`를 후속 인수인계 커밋에 포함한다. 기존 unrelated `.vscode/settings.json`, `lib/core/app.dart`는 제외하고 원격 push는 수행하지 않는다.
+- 작업지시서 로컬 커밋 완료: `bd20355` (`문서: 항목 편집기 변경분 저장 계약 보완`). `doc/user_item_modify.txt`만 포함했으며 마지막 stage/commit 대상은 이 해시를 기록한 `SESSION_HANDOFF.md` 단독이다.
+
 ### 완료 (2026-07-13): 항목 편집기 저장 동시성·세션 계약 병합
 
 - 사용자 요청: `doc/user_item_modify.txt` 재검토에서 확인한 동시 저장, SQL session option 복원, 누락검사 이중 필드, transaction phase 불명 오류 권장안을 작업지시서에 병합한다.
