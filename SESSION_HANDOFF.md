@@ -35,6 +35,7 @@
 - 편집 완료 `doc/user_item_modify.txt`: 기존 `FortuneSheetRuntimeV1`, `LabelColumnSaveCommand`, `LegacyBarcodeRawPayloadPolicyV1` 계약과 기존 fixture/완료조건만 최소 수정했다. 새 하위 시스템, release gate, 보안 프로토콜 또는 retention 정책은 추가하지 않았다. 편집 직후 diagnostics 오류 0건이다.
 - 최종 검증 완료: 두 문서 diagnostics 오류 0건, 과도한 gate/trust/credential/release/runtime 확장 심볼 잔존 0건, 핵심 세 계약 연결 10곳을 확인했다. `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md`를 통과했고 24차 대비 작업지시서 변경은 13줄이다. 범위 제한 독립 재검토 결과 치명/높음 finding 없이 세 blocker만 반영한 것으로 승인됐다. 문서만 변경해 Flutter 테스트·빌드·배포와 임시 산출물/캐시 생성은 수행하지 않았다.
 - stage/commit 대상: `doc/user_item_modify.txt`, `SESSION_HANDOFF.md`만 포함한다. 기존 unrelated `.vscode/settings.json`, `lib/core/app.dart`는 제외하고 원격 push는 수행하지 않는다.
+- 로컬 커밋 완료: `92c89bd 문서: 25차 항목 편집기 핵심 보완만 반영`. 관련 두 문서만 포함했으며 과도한 확장 계약은 커밋에 포함하지 않았다. 마지막 stage/commit 대상은 이 해시를 기록한 `SESSION_HANDOFF.md` 단독이다.
 - 기존 unrelated dirty `.vscode/settings.json`, `lib/core/app.dart`는 수정·stage/commit 대상에서 제외하고 원격 push와 배포 작업은 수행하지 않는다.
 
 - 사용자 요청: `doc/user_item_modify.txt`를 레거시/현 프로젝트에 재대조해 확인한 구현 불가능·착수 불가능 계약과 UI/session/output 누락의 권장안을 작업지시서에 병합한다.
