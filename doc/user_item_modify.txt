@@ -204,6 +204,7 @@ guard callback 안에서 이벤트별 로직을 복제하지 말고 `Future<bool
 - `적용` 성공 후 현재 값이 새 baseline이 되고 `propertyDirty=false`가 된다.
 - 신규 특수 타입 행은 사용 항목 테이블에 pending 신규 행으로 표시하고 즉시 선택한다. 해당 행의 첫 속성 적용 전 `취소`하면 레거시 상세 설정 dialog 취소와 동일하게 신규 행 자체를 제거한다.
 - 일반 타입처럼 별도 설정 없이 추가 가능한 항목은 레거시 기본값으로 즉시 working copy에 추가한다.
+- 고정/사용자 후보에서 신규 사용 항목 draft를 만드는 경로는 `LabelColumnDraft.fromCandidate`와 같은 단일 factory를 사용한다. 이 factory는 레거시 `CColumn(int labelSizeId, const CColumnBase&, int order)` 생성자의 기본값을 기준으로 하며, 출력에 영향을 주는 체크디지트 사용=true, 바코드 번호 표시=true, 표시=false, QR 하단 문자열 표시=false, QR 정렬=left, QR font size=10, QR scale=100, GS1 AI=`01`, format option=-1, line check/size/rotate=0과 나머지 빈 문자열·0·false 값을 명시적으로 만든다. 일반적인 Dart 0/false 값이나 DB 조회용 `TColumn.fromMap()` fallback으로 대신하지 않는다.
 
 7.2 공통 속성
 
@@ -427,14 +428,14 @@ guard callback 안에서 이벤트별 로직을 복제하지 말고 `Future<bool
 2. JSON 등 구조화 parameter를 batch 내부 table variable로 투영하고 현재 labelSizeId와 기존 column ID의 소유권 검증
 3. 신규 `BM_RICH_COLUMN` insert 및 batch 내부 `@InsertedColumns(draftKey, columnId)` mapping 생성
 4. 라벨 크기별 `BM_RICH_COL_MIN` 기준행과 신규/기존 컬럼행 동기화. 레거시의 빈 문자열 column ID가 SQL Server에서 0으로 변환되는 의미에 맞춰 `RICH_COLUMN_ID=0`, keyword `ELEMENT`, 이름 `주원료`, order 0, `RICH_MIN_CHECK=0` 기준행을 없을 때만 하나 생성한다. 신규 컬럼행은 `RICH_MIN_CHECK=0`으로 insert하고, 기존 컬럼행은 keyword, 이름, order만 update하여 기존 `RICH_MIN_CHECK`를 보존한다.
-5. 신규/기존 `BM_RICH_CHECK_COLUMNS` upsert
-6. 신규 컬럼마다 해당 label size의 기존 `BM_RICH_ITEM`에 `BM_RICH_COL_CONTENT` 빈 값 insert
-7. 레거시 update 품목 테이블을 현 DB가 실제 사용하면 `BM_UPDATE_COL_CONTENT` 빈 값 insert. 테이블/기능이 현재 프로젝트에서 사용되지 않는다고 확인되면 근거를 문서화하고 제외
+5. 신규/기존 `BM_RICH_CHECK_COLUMNS`를 column ID와 labelSizeId 기준으로 upsert하고 `RICH_CHECK_YN`에는 최종 `LabelColumnDraft.useMissingKeywordCheck` 값을 저장
+6. 신규 컬럼마다 해당 label size의 기존 `BM_RICH_ITEM`에 `BM_RICH_COL_CONTENT`를 `RICH_EDITABLE=0`, `RICH_COL_CONTENT_DATA=''`로 insert
+7. 구현 전 배포 DB 스키마에서 `BM_UPDATE_ITEM`과 `BM_UPDATE_COL_CONTENT` 존재 여부를 확인한다. 두 테이블이 존재하면 신규 컬럼마다 해당 label size의 기존 `BM_UPDATE_ITEM`에 `BM_UPDATE_COL_CONTENT.RICH_COL_CONTENT_DATA=''`를 insert한다. 배포 DB에 update 테이블이 없다고 확인된 경우에만 확인 근거를 구현 기록과 DAO 테스트 전제에 남기고 제외한다. 현재 Flutter 호출처나 현재 행 개수가 0이라는 이유만으로 제외하지 않는다.
 8. 기존 `BM_RICH_COLUMN` 전체 속성 및 최종 order update
 9. `BM_GS1_COLUMN_INFO` upsert/delete
 10. `BM_GS1_CONTAIN_COLUMN`을 최종 working copy 관계와 일치하도록 insert/delete. 관계의 `MAIN_COLUMN_ID`와 `CONTAIN_COLUMN_ID`는 각각 기존 column ID 또는 신규 draft key를 받을 수 있으며, 신규 draft key는 같은 batch의 `@InsertedColumns`와 결합해 실제 column ID로 변환한다. 삭제 대상이거나 mapping에서 해결되지 않는 참조가 하나라도 있으면 `THROW`한다.
 11. 삭제 대상의 status date 갱신 및 종속 데이터 정리 후 `BM_RICH_COLUMN` delete. `BM_RICH_COL_MIN`은 삭제 column ID에 해당하는 컬럼행만 제거하고 라벨 크기별 `ELEMENT` 기준행은 유지한다.
-12. 모든 affected row와 최종 order/keyword uniqueness를 검증하고, 입력 신규 draft key 집합과 `@InsertedColumns`의 key 집합 및 개수가 정확히 같은지 batch 내부에서 검증한다. 누락, 중복 또는 예상하지 않은 key가 있으면 `THROW`한다.
+12. 소유권을 확인한 기존 `BM_RICH_COLUMN` update/delete, 신규 ID mapping, 입력 원본 개수로 기대 건수가 정해지는 필수 insert/upsert는 expected affected row를 검증한다. 반면 출력 이력이 없는 컬럼의 `BM_RICH_STATUS_DATA` 날짜 update와 존재할 때만 지우는 check/GS1/min/content 종속행 delete는 0건을 정상으로 허용한다. 이어 최종 order/keyword uniqueness와 입력 신규 draft key 집합 및 `@InsertedColumns`의 key 집합·개수가 정확히 같은지 batch 내부에서 검증하고, 필수 DML의 건수 불일치나 mapping의 누락·중복·예상하지 않은 key가 있으면 `THROW`한다.
 13. 마지막에 `@InsertedColumns`의 draft key와 column ID를 조회 결과로 반환하고 같은 `DbClient.transaction()` 실행 경로에서 commit
 
 신규 ID는 레거시 `SelectLastNRecord()` 방식으로 찾지 않는다. source draft key를 반환할 수 있는 insert-only `MERGE ... OUTPUT` 또는 batch 내부의 결정적 row-by-row insert와 `OUTPUT INSERTED`를 사용해 `@InsertedColumns`에 정확히 매핑한다. mapping 완전성은 commit 전에 SQL batch가 검증한다. commit 결과를 받은 Dart 코드는 반환된 mapping을 다시 검증하고 `LabelColumnSaveResult`로 반환하되, 이 단계의 decode나 key/count 검증 실패를 commit 전 오류로 오인해 같은 command를 재시도하지 않는다. 이 실패는 11.2의 commit 후 결과 해석 실패 경로로 처리한다.
@@ -542,7 +543,10 @@ FK cascade에 암묵적으로 의존하지 않는다. 실제 FK/cascade가 확�
 - 신규 column ID가 source draft key에 정확히 매핑
 - 입력 신규 draft key와 SQL mapping의 누락/중복/예상하지 않은 key가 batch 내부 검증에서 commit 전에 `THROW`
 - 마지막 신규 ID mapping `SELECT`만 유일한 row-bearing result set이고 중간 DML/검증 결과가 반환 mapping으로 오인되지 않음
-- 신규 column마다 기존 item content 생성
+- 후보 종류별 신규 draft가 단일 factory를 사용하고 체크디지트 사용=true, 바코드 번호 표시=true, QR font size=10, QR scale=100, GS1 AI=`01`, format option=-1, line size=0 등 레거시 기본값으로 생성
+- 신규 column마다 기존 item content가 `RICH_EDITABLE=0`, `RICH_COL_CONTENT_DATA=''`로 생성
+- 신규/기존 column의 `BM_RICH_CHECK_COLUMNS.RICH_CHECK_YN`이 각각 최종 draft의 true/false 값을 반영
+- 배포 DB에 두 update 테이블이 존재하는 fixture에서는 신규 column마다 해당 label size의 기존 update item content가 빈 값으로 생성되고, update 테이블 부재를 전제로 제외하는 fixture는 그 스키마 전제를 명시
 - `BM_RICH_COL_MIN`의 라벨 크기별 `ELEMENT` 기준행을 중복 없이 보장하고 신규 컬럼행은 `RICH_MIN_CHECK=0`으로 생성
 - 기존 `BM_RICH_COL_MIN` 컬럼행 update가 `RICH_MIN_CHECK`를 보존하고 삭제가 `ELEMENT` 기준행을 제거하지 않음
 - update가 전체 속성과 order 및 보조 테이블 반영
@@ -550,7 +554,8 @@ FK cascade에 암묵적으로 의존하지 않는다. 실제 FK/cascade가 확�
 - GS1 contain 관계의 양쪽 참조 정리
 - 같은 저장에서 신규 GS1 바코드가 신규 GS1 AI를 포함할 때 main/contain draft key 양쪽이 실제 column ID로 변환되고, 미해결·삭제 대상 참조는 rollback
 - 중간 단계 실패 전체 rollback
-- affected row 0 또는 identity 소유권 불일치 시 rollback
+- 기존 `BM_RICH_COLUMN` 소유권 update/delete와 source 개수로 기대 건수가 정해지는 필수 DML의 affected row 불일치 또는 identity 소유권 불일치 시 rollback
+- 출력 이력이 없는 컬럼 삭제의 status date update와 존재하지 않는 선택적 종속행 delete가 affected row 0이어도 정상 저장
 - 연결/SQL/validation/affected row 오류를 사용자에게 알림. 활성 transaction은 가능한 경우 rollback하고 어떤 실패도 성공으로 처리하지 않음
 - 저장 실패가 UI working copy를 지우지 않고 자동 재시도하지 않음
 - `DbCommitOutcomeUnknown`에서 cache를 교체하지 않고 재조회 전 동일 working copy 재저장을 차단
@@ -603,8 +608,8 @@ FK cascade에 암묵적으로 의존하지 않는다. 실제 FK/cascade가 확�
 - 바코드/이미지/QR/GS1/날짜 타입의 전체 속성 UI와 검증
 - 체크디지트/타임바코드 변경 영향 경고
 - GS1 AI 포함 관계의 추가/수정/삭제
-- 신규 컬럼의 기존 품목 및 update 품목 빈 content 생성
-- `BM_RICH_COL_MIN`의 `ELEMENT` 기준행과 기존 `RICH_MIN_CHECK` 보존, `BM_RICH_CHECK_COLUMNS`, GS1 보조 테이블 동기화
+- 신규 컬럼의 기존 품목 content를 `RICH_EDITABLE=0`과 빈 data로 생성하고, 배포 DB에 update 테이블이 존재하면 update 품목의 빈 content도 생성
+- `BM_RICH_COL_MIN`의 `ELEMENT` 기준행과 기존 `RICH_MIN_CHECK` 보존, 최종 draft의 누락검사 값을 반영하는 `BM_RICH_CHECK_COLUMNS`, GS1 보조 테이블 동기화
 - 삭제 status date 갱신
 - 저장 후 컬럼 변경 observer/cache refresh
 - 고객별 사용자 항목 사전의 추가/수정/삭제와 대문자/영숫자 키워드 규칙
@@ -632,6 +637,8 @@ FK cascade에 암묵적으로 의존하지 않는다. 실제 FK/cascade가 확�
 - 순서 변경 모드의 저장은 working copy에만 반영되고 사용 항목 DB 저장은 메인 footer의 저장에서만 실행된다.
 - 사용 항목 저장은 단일 parameterized SQL batch 안에서 신규 draft ID mapping과 보조 테이블 반영을 완료한다.
 - 단일 SQL batch는 `SET NOCOUNT ON`을 사용하고 마지막 신규 ID mapping `SELECT`만 row-bearing result set으로 반환하며, 신규 draft mapping과 GS1 양쪽 draft 참조를 commit 전에 완전히 검증한다.
+- 신규 사용 항목은 단일 factory에서 레거시 생성자 기본값으로 초기화되고, 저장 시 신규 품목 content의 `RICH_EDITABLE=0`·빈 data와 신규/기존 항목의 최종 누락검사 값이 반영된다. 배포 DB에 두 update 테이블이 존재하면 신규 컬럼의 update 품목 빈 content도 함께 생성한다.
+- 필수 소유권 update/delete와 source 개수로 기대 건수가 정해지는 DML의 affected row 불일치는 rollback하되, 출력 이력이 없는 status date update와 존재하지 않는 선택적 종속행 정리의 0건은 정상으로 허용한다.
 - `BM_RICH_COL_MIN`은 라벨 크기별 `ELEMENT` 기준행을 하나 유지하고 기존 컬럼의 `RICH_MIN_CHECK`를 보존하며, 삭제 컬럼행만 제거한다.
 - 사용 항목과 사용자 항목의 키워드/항목명은 SQL 실행 전에 CP949 변환 가능 여부와 100바이트/50바이트 저장 한계를 검증한다.
 - 사용 항목과 사용자 항목 저장은 각각 원자적 transaction이며 DB 처리 오류 시 사용자 알림, 가능한 rollback, 성공 처리·cache 교체 금지와 편집 상태 보존이 동작한다.
