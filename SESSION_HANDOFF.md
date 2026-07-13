@@ -28,6 +28,23 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-13): 라벨 항목 편집기 작업지시서 17차 검토 권장안 병합
+
+- 사용자 요청: 최신 `doc/user_item_modify.txt`를 레거시/현 프로젝트에 다시 대조해 확인한 strict/compat wire 격리, root bootstrap milestone, candidate reload API, workbook draft attach, stable-key selection, blocking overlay stack과 레거시 타입/token 차이를 작업지시서에 병합한다.
+- 사용자 결정: 실제 출력 token 치환은 신규 longest-match로 바꾸지 않고 레거시 컬럼 순서 기반 순차 `CString::Replace` 의미를 유지한다. 참조 판정용 구조 parser와 출력 치환기는 별도 정책/API로 분리한다.
+- 사용자 결정: `TYPE_BASE ↔ TYPE_QR_CODE` 전환은 레거시처럼 `createType=QRCODE_TYPE_PLAIN_TEXT`, `RICH_USER_DEFINE_QRDATA=''`, `RICH_USER_DEFINE_QRTEXT=''`로 초기화한다.
+- 사용자 결정: 기본 editor를 열거나 hydration하는 것만으로 QRTEXT를 지우지 않고 사용자가 data를 실제 변경해 적용할 때만 `RICH_USER_DEFINE_QRTEXT=''`로 초기화한다. 레거시 UI event 부작용을 수정한 의도적 차이로 기록한다.
+- 수정 예정 `doc/user_item_modify.txt`: strict/compat wire action·DTO·error 분리, P0 root bootstrap 단일 authority, 기존 force reload 호출 금지와 candidate attach API, workbook draft port attach/detach/flush 선형화, stable-key controlled selection, blocking overlay stack, token 참조/출력 정책 분리와 BASE↔QR fixture를 본문·모델·테스트·milestone·완료 조건에 반영한다. 미검증.
+- 검증 예정: 두 문서 diagnostics, 구 longest-match 공용 출력/모호한 transaction wire·selection·overlay·owner 표현 검색, 독립 현 프로젝트·레거시 정합성 재검토, `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md`. 문서 계약만 변경하므로 Flutter 테스트는 실행하지 않는다.
+- 기존 unrelated dirty `.vscode/settings.json`, `lib/core/app.dart`는 수정·stage 대상에서 제외하며 원격 push와 배포 작업은 수행하지 않는다.
+- 편집 완료 `doc/user_item_modify.txt`: `strictTransactionV1`/`compatibilityTransactionV1`의 wire action·DTO·decoder·result/error를 분리하고 compatibility outcome이 strict recovery evidence로 유입되지 않도록 했다. P0에서 프로세스당 단일 root bootstrap/commit authority를 설치하고 P2는 같은 인스턴스만 확장하도록 milestone을 정합화했다.
+- 편집 완료 `doc/user_item_modify.txt`: legacy force reload의 post-commit 재사용을 금지하고 root candidate prepare/swap과 manager render ACK API를 분리했다. workbook draft port의 constructor 주입, owner-token attach/detach, flush 선형화·revision 규칙과 fallback 금지를 추가했다.
+- 편집 완료 `doc/user_item_modify.txt`: `SwipeActionTable` stable-key controlled selection과 `BlockingOverlayStack` top-token/비동기 close latch를 공용 API·widget test·구현 순서에 연결했다.
+- 편집 완료 `doc/user_item_modify.txt`: 12.5 authoritative 정책에서 참조 판정 `ReferenceTokenParserV1`과 실제 출력 `LegacyOutputTokenReplacerV1`을 분리했다. BASE↔QR은 plain/data/text 초기화, 기본 editor hydration은 QRTEXT 보존·실제 data 변경 때만 초기화하도록 fixture와 완료 조건에 고정했다.
+- 최종 검증 완료: 두 문서 diagnostics 오류 0건, 구 모호한 wire/root/selection/overlay/구현 순서 표현 검색 0건, 독립 현 프로젝트 및 레거시 승인 검토 모두 치명적·높은 상충 0건, `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md` 통과. 문서 계약만 변경했으므로 Flutter 테스트는 실행하지 않았고 임시 산출물/캐시는 생성하지 않았다.
+- stage/commit 대상은 `doc/user_item_modify.txt` 단독 후 `SESSION_HANDOFF.md` 단독이다. 기존 unrelated `.vscode/settings.json`, `lib/core/app.dart`는 제외하며 원격 push와 배포 작업은 수행하지 않는다.
+- 작업지시서 커밋 완료: `4e42fbb 라벨 항목 편집기 작업지시서 17차 권장안 병합` (`doc/user_item_modify.txt` 단독, 33 insertions/19 deletions). 다음 stage/commit 대상은 `SESSION_HANDOFF.md` 단독이다.
+
 ### 완료 (2026-07-13): 라벨 항목 편집기 작업지시서 16차 검토 권장안 병합
 
 - 사용자 요청: 최신 `doc/user_item_modify.txt`를 레거시/현 프로젝트 대비 재검토해 확인한 milestone 순환, strict/compat transaction, commit/session/workbook owner, token 호환, QR 0값, legacy raw field와 공용 UI API 문제의 권장안을 작업지시서에 병합한다.
