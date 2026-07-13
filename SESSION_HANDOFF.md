@@ -28,6 +28,26 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-13): 라벨 항목 편집기 작업지시서 16차 검토 권장안 병합
+
+- 사용자 요청: 최신 `doc/user_item_modify.txt`를 레거시/현 프로젝트 대비 재검토해 확인한 milestone 순환, strict/compat transaction, commit/session/workbook owner, token 호환, QR 0값, legacy raw field와 공용 UI API 문제의 권장안을 작업지시서에 병합한다.
+- 사용자 결정: `#PRICE,`, `(#PRICE)`처럼 punctuation이 인접한 known token은 기존·신규 template 모두 치환을 유지하되, known이 `AB`뿐인 `#ABC`는 전체 unknown candidate literal로 보존한다.
+- 사용자 결정: QR pixel size/scale 직접 입력 `0`은 validation error가 아니라 출력 불가 경고와 명시적 확인 후 저장 가능한 레거시 값으로 유지한다.
+- 사용자 결정: 기본 타입 UI는 사용자 정의 data만 노출하고, 사용자가 data를 실제 변경하면 레거시처럼 `RICH_USER_DEFINE_QRTEXT=''`로 초기화한다.
+- 수정 예정 `doc/user_item_modify.txt`: P1/P3 writer manifest와 P0/P2 recovery 산출물 순환 해소, strict/compat transaction API·execution class·commit authorization owner, root session reload owner, FortuneSheet pending edit API, workflow/evidence/UI state 분리, legacy QR/raw field/token picker와 UI event/reorder 계약을 본문·모델·테스트·구현 순서·완료 조건에 반영한다. 미검증.
+- 검증 예정: 두 문서 diagnostics, 구 milestone/API/token/QR 범위/reorder 모호 표현 검색, 독립 레거시·현 프로젝트 정합성 재검토, `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md`. 문서 계약만 변경하므로 Flutter 테스트는 실행하지 않는다.
+- 기존 unrelated dirty `.vscode/settings.json`, `lib/core/app.dart`는 수정·stage 대상에서 제외하며 원격 push와 배포 작업은 수행하지 않는다.
+- 편집 완료 `doc/user_item_modify.txt`: `strictTransaction`/`compatibilityTransaction`과 manifest execution class, root commit authorization/worker native commit owner, P1 reserved future writer 및 P0 evidence/P2 application recovery 산출물 분리로 API·milestone 순환을 해소했다. recovery descriptor는 evidence/workflow/UI projection 및 recovery/lock resource kind를 분리했다.
+- 편집 완료 `doc/user_item_modify.txt`: root `LabelSizeSessionStore`/`LabelSizeReloadCoordinator`, FortuneSheet `commitPendingEditAndSnapshot()`, stable-key reorder와 Esc event 경계를 추가하고 userItemEdit reorder를 제거했다.
+- 편집 완료 `doc/user_item_modify.txt`: punctuation 인접 token 치환과 identifier continuation, QR 0 경고 허용, 기본 data 변경 시 text 초기화, preservation-only `RICH_USE_USER_DEFINE_QRDATA`, barcode picker 범위와 grandfather policy를 본문·fixture·완료 조건에 반영했다. release별 유한 `RequiredTargetMatrixV1`과 P0 raw/P3 전환 fixture 소유권도 분리했다.
+- 중간 검증: 두 문서 diagnostics 오류 0건, 구 strict/P1/HomePageManager/token/reorder 표현 검색에서 의도된 새 규범만 확인, `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md` 통과. 현재 변경량은 두 문서 60 insertions/38 deletions이며 독립 재검토 예정.
+- 독립 현 구조 검토 후 편집 완료 `doc/user_item_modify.txt`: root `StrictOperationCommitAuthority`를 추가하고 root coordinator만 session activate/swap/retire를 소유하며 `HomePageManager`는 render ACK만 반환하도록 통일했다. canonical descriptor 이름을 `RecoveryTransitionTableV1`로 고정하고 reserved writer 승격 시 manifest digest 변경, 기존 P1 artifact 만료와 production-exit 재실행을 연결했다.
+- 최종 독립 검토 후 편집 완료 `doc/user_item_modify.txt`: reload owner 잔여 표현을 root `LabelSizeReloadCoordinator`로 통일하고 `LabelSizeSessionStore`는 coordinator 전용 generation/compare-and-swap primitive 제공자로 한정했다. recovery descriptor는 단일 `stateSet` 없이 `evidenceSet`/`workflowStateSet`/`uiProjectionSet`을 각각 canonical source로 고정했다.
+- 최종 독립 검토 후 편집 완료 `doc/user_item_modify.txt`: `RequiredGatePolicyV1`이 release lane별 필수 gate를 immutable digest로 폐쇄 열거하도록 추가해 `GateManifestV1.blocking=false`, 누락, 만료 또는 digest 불일치로 production gate를 우회할 수 없게 했다.
+- 최종 검증 완료: 두 문서 diagnostics 오류 0건, 옛 recovery descriptor·중복 reload owner·단일 stateSet 표현 검색에서 의도된 새 규범만 확인, 독립 최종 승인에서 치명적·높은 상충 0건, `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md` 통과. 문서 계약만 변경했으므로 Flutter 테스트는 실행하지 않았고 임시 산출물/캐시는 생성하지 않았다.
+- stage/commit 대상은 `doc/user_item_modify.txt` 단독 후 `SESSION_HANDOFF.md` 단독이다. 기존 unrelated `.vscode/settings.json`, `lib/core/app.dart`는 제외하며 원격 push와 배포 작업은 수행하지 않는다.
+- 작업지시서 커밋 완료: `b158584 라벨 항목 편집기 작업지시서 16차 권장안 병합` (`doc/user_item_modify.txt` 단독, 59 insertions/45 deletions). 다음 stage/commit 대상은 `SESSION_HANDOFF.md` 단독이다.
+
 ### 완료 (2026-07-13): 라벨 항목 편집기 작업지시서 15차 검토 권장안 병합
 
 - 사용자 요청: 최신 `doc/user_item_modify.txt` 재검토에서 확인한 workbook draft 관측 경계, create type별 token 활성 필드, exact-token grammar와 recovery closed state 목록 문제를 작업지시서에 병합한다.
