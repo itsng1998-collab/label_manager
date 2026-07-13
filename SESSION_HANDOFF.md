@@ -28,6 +28,25 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-13): 라벨 항목 편집기 작업지시서 10차 검토 권장안 병합
+
+- 사용자 요청: 최신 `doc/user_item_modify.txt`를 레거시/현 프로젝트에 재대조해 확인한 10차 권장안을 작업지시서에 병합하고, 사용자 확인 사항은 즉시 확정한다.
+- 사용자 결정: DB identity probe가 권한 부족·미지원으로 검증되지 않으면 일반 기능만 `degradedReady`로 허용하고 라벨 항목 편집과 recovery namespace bind는 fail-closed로 차단한다.
+- 사용자 결정: cancel 불가 driver의 별도 DB worker process는 세션별 child가 environment/connection/statement/transaction을 전부 소유하고 parent는 opaque session/operation ID만 관리한다.
+- 사용자 결정: 운영 DB에 0~12 외 사용자 항목 타입이 이미 존재하면 원본 읽기와 삭제만 허용하고 신규 추가·수정·사용 항목 복사는 차단한다.
+- 수정 예정 `doc/user_item_modify.txt`: edition/권한별 DB identity probe와 degraded-ready, child-process IPC/credential/handle 소유권, DB-Lib 암묵 재연결 금지와 session token, 총함수 recovery 전이표, bootstrap API migration 표, predicate별 index manifest, 단계별 완료 gate, 미지원 사용자 타입 fixture를 모델/DAO/상태/테스트/완료 조건에 병합한다. 미검증.
+- 수정 예정 `SESSION_HANDOFF.md`: 문서 편집, 검증, stage, commit 결과를 단계별로 기록한다.
+- 기존 unrelated dirty `.vscode/settings.json`, `lib/core/app.dart`는 수정·stage 대상에서 제외한다.
+- 편집 완료 `doc/user_item_modify.txt`: `probeDatabaseIdentityV1`의 AG/standalone SQL source·권한/metadata 상태와 verified digest tuple을 정의하고 검증 실패를 endpoint namespace가 아닌 일반 업무 전용 `degradedReady`로 분리했다. bootstrap privileged API, readiness 상태와 기존 호출부 migration 표 요구를 연결했다.
+- 편집 완료 `doc/user_item_modify.txt`: 세션별 child process가 모든 native DB 자원/transaction을 소유하는 IPC·credential·Job Object 계약, DB-Lib command-path 암묵 reconnect 금지와 `DbNativeSessionToken` 검증을 driver/DAO/테스트/완료 조건에 반영했다.
+- 편집 완료 `doc/user_item_modify.txt`: `RecoveryTransitionTableV1` 총함수와 failure event, `IndexPredicateRequirementV1` query별 manifest, P0~P3 milestone/production gate, 기존 미지원 사용자 타입 읽기·삭제 전용 정책과 배포 타입 fixture를 추가했다.
+- 최종 diff 보완 `doc/user_item_modify.txt`: bootstrap 외부 상태에 `transportConnecting`을 명시하고 unresolved identity artifact를 기본 무기한 보존으로 확정했다. child IPC header와 command 64 MiB/control 64 KiB frame 상한, 세션당 SQL operation 1건을 protocol 상수로 고정했다. 보완 직후 diagnostics 오류 0건.
+- 중간 검증 완료: `doc/user_item_modify.txt`, `SESSION_HANDOFF.md` diagnostics 오류 0건. 검증 불가 identity의 authoritative 새 namespace, 미지원 사용자 타입 완전 숨김, 소유자 없는 worker process, runtime plan gate 등 이전 상충 문구는 실질 0건이며 10차 핵심 계약이 27개 위치에서 확인됐다.
+- 최종 검증 완료: 두 문서 diagnostics 오류 0건, `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md` 통과, 변경량은 2개 문서 64줄 추가/25줄 삭제다. 실제 dirty는 `.vscode/settings.json`, `SESSION_HANDOFF.md`, `doc/user_item_modify.txt`, `lib/core/app.dart`이며 기존 unrelated 두 파일은 제외한다. 문서 계약만 변경했으므로 Flutter 테스트는 실행하지 않았다.
+- stage 확인: `git diff --cached --name-only` 결과 `doc/user_item_modify.txt` 1개만 포함됐고 unrelated dirty 파일은 제외됐다.
+- 작업지시서 커밋 완료: `908be89 라벨 항목 편집기 작업지시서 10차 권장안 병합`.
+- `SESSION_HANDOFF.md`는 위 완료·검증·커밋 정보를 기록한 뒤 별도 로컬 커밋한다. 원격 push는 하지 않는다.
+
 ### 완료 (2026-07-13): 라벨 항목 편집기 작업지시서 9차 검토 권장안 병합
 
 - 사용자 요청: 최신 `doc/user_item_modify.txt` 재검토에서 확인한 권장안을 작업지시서에 병합하고, 사용자 확인 사항은 즉시 확정한다.
