@@ -1,6 +1,6 @@
 # 세션 인수인계
 
-마지막 업데이트: 2026-07-10
+마지막 업데이트: 2026-07-13
 
 ## 작업 규칙
 
@@ -27,6 +27,23 @@
 - Godex G500 같은 라벨 프린터에서 정밀한 인쇄가 핵심이면 일반 프린터 경로와 직접 출력 경로를 분리한다. 직접 출력은 처음부터 모든 스타일을 100% EZPL 명령만으로 처리하기보다 `정밀 좌표 엔진 + EZPL 명령 + 셀 bitmap fallback` 구조를 우선한다. 테두리/선/박스와 바코드는 가능한 한 EZPL 명령으로 출력하고, 화면 폰트와 프린터 폰트 차이로 1:1 보장이 어려운 복합 스타일 텍스트/이미지/배경/RTF 계열 셀은 셀 단위 bitmap fallback을 사용해 시각적 일치도를 확보한다.
 
 ## 현재 상태
+
+### 완료 (2026-07-13): 라벨 항목 편집기 작업지시서 7차 검토 권장안 병합
+
+- 사용자 요청: 최신 `doc/user_item_modify.txt` 재검토에서 확인한 권장안을 작업지시서에 병합하고, 사용자 확인 사항은 즉시 확정한다.
+- 사용자 결정: durable recovery record에는 민감한 original/desired projection을 저장하지 않는다. 프로세스 재시작 후 미완료 operation은 자동 reconciliation하지 않고 해당 resource를 차단한 상태에서 강제 DB reload와 사용자 확인으로만 해제한다. 앱 프로세스가 살아 있고 coordinator가 projection을 보유한 경우에만 기존 reconciliation을 허용한다.
+- 수정 예정 `doc/user_item_modify.txt`: recovery startup/entry barrier, driver-neutral `DbLogicalType`, 일관된 SQL snapshot isolation, complete-drain/rollback/tainted-connection 상태기계, recovery registry의 crash-safe manifest/lease, 재귀 payload 대신 metadata-only 로그 allow-list, type 0~12 전환 fixture를 모델/DAO/상태/테스트/완료 조건에 병합한다. 미검증.
+- 수정 예정 `SESSION_HANDOFF.md`: 문서 편집, 검증, stage, commit 결과를 단계별로 기록한다.
+- 기존 unrelated dirty `.vscode/settings.json`, `lib/core/app.dart`는 수정·stage 대상에서 제외한다.
+- 편집 완료 `doc/user_item_modify.txt`: 같은 프로세스에서 projection을 보유한 경우에만 reconciliation을 허용하고, 재시작 후에는 `registry.ready`/resource barrier에서 강제 reload·사용자 확인·tombstone으로만 해제하도록 lifecycle/진입/통합 테스트/완료 조건을 일치시켰다.
+- 편집 완료 `doc/user_item_modify.txt`: ODBC/DB-Lib native type을 `DbLogicalType`/column metadata로 정규화하고, 모든 base-table key/range의 `UPDLOCK, HOLDLOCK` 관측, complete drain→contract validate→commit과 실패 connection taint/폐기 계약을 DAO/테스트에 반영했다.
+- 편집 완료 `doc/user_item_modify.txt`: recovery registry를 journal 공용 crash-safe manifest/owner/lease/tombstone primitive로 구체화하고, 중첩 wire payload 비직렬화 metadata-only 로그 allow-list와 type 0~12 전체 전환 fixture를 구현 순서와 완료 조건까지 연결했다.
+- 중간 검증 완료: `doc/user_item_modify.txt`, `SESSION_HANDOFF.md` diagnostics 오류 0건. 상충 문구/핵심 계약 검색과 전체 diff 검토는 미검증.
+- 최종 검증 예정: startup 자동 reconciliation/native SQL type 직접 비교/transaction-only snapshot 등 상충 문구 검색, 7차 핵심 계약 위치 확인, 두 문서 diagnostics, `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md`, diff/stat 및 실제 변경 범위 검토. 문서만 변경했으므로 Flutter 테스트는 실행하지 않는다.
+- 최종 검증 완료: 두 문서 diagnostics 오류 0건, startup 자동 reconciliation/native SQL type 직접 비교/transaction-only snapshot 상충 문구 0건, 7차 핵심 계약이 lifecycle/DAO/테스트/완료 조건에 연결된 것을 확인했다. `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md` 통과. 코드/테스트를 변경하지 않아 Flutter 테스트는 실행하지 않았다.
+- stage/commit 예정: `doc/user_item_modify.txt`만 먼저 기능 문서 커밋하고 확정 해시를 기록한 `SESSION_HANDOFF.md`를 별도 커밋한다. 기존 사용자 변경 `.vscode/settings.json`, `lib/core/app.dart`는 제외한다.
+- 기능 문서 커밋: `7eef774` (`라벨 항목 편집기 작업지시서 7차 권장안 병합`). 재시작 강제 reload·사용자 확인 정책, recovery resource barrier와 durable registry, driver-neutral logical type, 일관된 key-range 관측, complete-drain/tainted connection, metadata-only 로그와 전체 타입 전환 fixture를 병합했다.
+- 완료: 임시 산출물이나 캐시를 생성하지 않았으며 원격 push와 배포 작업은 수행하지 않았다. 기존 사용자 변경 `.vscode/settings.json`, `lib/core/app.dart`는 수정·stage·commit하지 않았고 인수인계만 별도 커밋한다.
 
 ### 완료 (2026-07-13): 라벨 항목 편집기 작업지시서 6차 검토 권장안 병합
 
