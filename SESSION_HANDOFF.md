@@ -28,6 +28,17 @@
 
 ## 현재 상태
 
+### 진행 중 (2026-07-13): 항목 편집기 레거시 trigger 무영향 계약 병합
+
+- 사용자 요청: 최신 `doc/user_item_modify.txt` 재검토에서 확인한 unsafe legacy trigger, 컬럼 content 중복, capability/baseline/GS1 테스트 권장안을 작업지시서에 병합하되 별도 운용되는 레거시 동작에는 영향을 주지 않는다.
+- 사용자 결정: 레거시와 새 프로그램은 같은 DB를 사용하지만 저장은 동시에 실행하지 않는다. 레거시 소스와 공유 DB의 `AFTER_INSERT_ITEM`/`AFTER_INSERT_COLUMN` trigger는 수정·제거·비활성화하지 않고 레거시 저장 동작을 그대로 유지한다.
+- 수정 예정 `doc/user_item_modify.txt`: 새 앱은 기존 전역 `TOP 1` trigger 호환을 위해 신규 item/column을 단건 insert하고, insert command끼리는 transaction-owned 전역 application lock으로 직렬화한다. trigger가 먼저 만든 content는 `NOT EXISTS` 보충 insert로 중복을 피하고 column trigger가 덮은 order는 기존 최종 order 단계에서 교정한다. capability probe가 두 trigger의 존재·활성·실제 자동 생성 동작을 확인하며 예상하지 않은 정의에서는 저장을 차단한다. 레거시와 새 앱의 저장 비동시 운용 범위를 label size와 무관한 전체 품목/컬럼 insert로 명시한다. immutable `baselineColumnIds`, 서로 다른 label size의 새 writer 직렬화, GS1 관계 non-empty→empty 테스트를 추가한다. 미검증.
+- 편집 완료 `doc/user_item_modify.txt`: 공유 DB와 legacy trigger/schema 무변경을 포함·제외 범위와 완료 조건에 고정했다. 신규 품목/컬럼이 있는 새 transaction은 label size 부모 잠금 뒤 공통 transaction-owned `sp_getapplock`을 획득하고 단건 `OUTPUT ... INTO` insert를 실행하며, 컬럼 trigger가 덮은 order는 최종 order 단계에서 교정하도록 했다. 컬럼 content step은 `NOT EXISTS` 보충과 조합별 정확히 한 행 검증으로 변경했다. `LabelColumnSchemaCapabilities`, 품목 controller의 로드 시점 전체 regular column immutable baseline, 변경 main만 포함하되 non-empty→empty를 빈 payload로 구분하는 GS1 relation 계약을 추가했다. DAO·통합 테스트와 누락 방지·완료 조건을 함께 갱신했으며 두 문서 diagnostics 오류 0건이다. 미검증.
+- 검증 예정: 두 문서 diagnostics, trigger migration/제거/비활성화 요구와 무조건 content insert 잔존 표현을 검색하고 trigger 호환·capability·테스트 연결 및 `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md`를 확인한다. 문서만 변경하므로 Flutter 테스트·빌드·배포는 실행하지 않는다.
+- 최종 검증 완료: 두 문서 diagnostics 오류 0건, trigger migration/제거/비활성화 요구와 구형 trigger 비활성 성공·부모→자식 전용 잠금·무조건 content insert 표현 0건이다. 레거시 무변경, 단건 insert, 공통 application lock, content 정확히 한 행, 최종 order 교정, immutable baseline, GS1 non-empty→empty 계약이 본문·DAO/통합 테스트·누락 방지·완료 조건에 연결됐다. `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md`를 통과했고 DB 계약 및 문서 일관성 독립 재검토 두 건 모두 치명·높음·중간 finding 없이 승인했다. 실제 legacy schema의 `BM_RICH_COL_CONTENT.RICH_EDITABLE` 기본값 0도 확인했다. 문서만 변경해 Flutter 테스트·빌드·배포와 임시 산출물/캐시는 생성하지 않았다.
+- stage/commit 대상: 먼저 `doc/user_item_modify.txt`만 작업지시서 커밋에 포함하고, 그 commit 해시를 기록한 `SESSION_HANDOFF.md`를 후속 인수인계 커밋에 포함한다. 기존 unrelated `.vscode/settings.json`, `lib/core/app.dart`는 제외하고 원격 push는 수행하지 않는다.
+- 작업지시서 로컬 커밋 완료: `366c20e` (`문서: 레거시 무영향 저장 계약 보완`). `doc/user_item_modify.txt`만 포함했으며 마지막 stage/commit 대상은 이 해시를 기록한 `SESSION_HANDOFF.md` 단독이다.
+
 ### 완료 (2026-07-13): 항목 편집기 writer 경계·교차 저장 계약 병합
 
 - 사용자 요청: 최신 `doc/user_item_modify.txt` 재검토에서 확인한 레거시 writer 잠금 범위, 품목/컬럼 교차 저장 content 누락, GS1 타입 전환 보조행, 진입 조건 테스트 권장안을 작업지시서에 병합한다.
