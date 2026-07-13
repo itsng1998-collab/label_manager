@@ -28,6 +28,19 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-13): 항목 편집기 저장 경계 권장안 병합
+
+- 사용자 요청: 최신 `doc/user_item_modify.txt` 재검토에서 확인한 저장 결과 경계, 시트 dirty 전이, GS1 신규 관계, SQL result set 권장안을 작업지시서에 병합한다.
+- 사용자 확인: 별도 선택이 필요한 정책 분기는 없다. 기존 확정 원칙에 따라 실제 저장 완료만 시트 dirty를 해제하고, commit 후 결과 해석 실패는 force-reload 및 동일 working copy 재저장 차단으로 처리하며, 신규 GS1 관계는 같은 SQL batch의 draft key mapping으로 해석한다.
+- 수정 예정 `doc/user_item_modify.txt`: `LabelSheetWorkbench.onSave`가 실제 저장 성공 여부를 반환하게 하고 취소·필수 키워드 누락은 dirty를 유지한다. SQL batch 내부에서 입력 draft key와 `@InsertedColumns` mapping의 key/count를 검증해 불일치는 commit 전에 `THROW`한다. transaction 반환 후 decode/mapping 실패는 commit 후 결과 해석 실패로 분류한다. GS1 관계의 main/contain 양쪽 기존 ID 또는 draft key를 실제 column ID로 해석하고 미해결 참조를 `THROW`한다. `SET NOCOUNT ON`과 마지막 mapping `SELECT`만 유일한 row-bearing result set이라는 조건을 추가한다. 미검증.
+- 편집 완료 `doc/user_item_modify.txt`: 공용라벨 시트 저장 callback을 실제 저장 완료 여부를 반환하는 `bool` 또는 typed result로 변경하고 저장 취소·필수 키워드 누락·오류에서는 dirty를 유지하도록 했다. SQL batch에 `SET NOCOUNT ON`, 유일한 마지막 mapping result set, commit 전 신규 draft mapping 집합 검증을 추가했다. GS1 main/contain 양쪽의 기존 ID·신규 draft key 해석과 미해결 참조 rollback, commit 후 decode/mapping 실패의 force-reload·재저장 차단을 본문·테스트·완료 조건에 연결했다. 편집 직후 문서 diagnostics 오류 0건이다.
+- 검증 예정: 두 문서 diagnostics, 새 저장 결과/dirty/mapping/GS1/result set 계약 연결 검색, `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md`. 문서만 변경하므로 Flutter 테스트·빌드·배포는 실행하지 않는다.
+- 최종 검증 실행 중: 두 문서 diagnostics, 폐기 `FutureOr<void>` 유지/Dart-only mapping 검증 표현과 새 typed save result/commit 후 decode 차단/GS1 양쪽 mapping/유일 result set 계약 검색, `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md`, 관련 diff와 working tree 상태를 확인한다.
+- 최종 검증 완료: 두 문서 diagnostics 오류 0건, 폐기 `FutureOr<void>`는 현재 문제와 typed result 교체를 설명하는 문장에만 남았고 Dart-only mapping 검증 표현은 없다. 실제 저장 완료/commit 후 결과 해석 실패/`SET NOCOUNT ON`/유일 row-bearing result set/GS1 양쪽 draft mapping 계약이 본문·테스트·완료 조건 11곳에 연결됐다. `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md`를 통과했다. 문서만 변경해 Flutter 테스트·빌드·배포와 임시 산출물/캐시는 생성하지 않았다.
+- stage/commit 대상: 먼저 `doc/user_item_modify.txt`만 작업지시서 커밋에 포함하고, 해당 commit 해시를 기록한 `SESSION_HANDOFF.md`를 후속 인수인계 커밋에 포함한다. 기존 unrelated `.vscode/settings.json`, `lib/core/app.dart`는 제외하고 원격 push는 수행하지 않는다.
+- 작업지시서 로컬 커밋 완료: `91fda2d 문서: 항목 편집기 저장 경계 보완` (`doc/user_item_modify.txt` 단독, 17 insertions/9 deletions). 마지막 stage/commit 대상은 이 해시를 기록한 `SESSION_HANDOFF.md` 단독이다.
+- 기존 unrelated dirty 파일은 수정·stage/commit 대상에서 제외하고 원격 push는 수행하지 않는다.
+
 ### 완료 (2026-07-13): 항목 편집기 잔여 구현 blocker 정리
 
 - 사용자 요청: 최신 `doc/user_item_modify.txt` 재검토에서 확인한 잔여 구현 문제의 권장안을 작업지시서에 병합한다.
