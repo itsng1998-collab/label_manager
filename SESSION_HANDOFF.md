@@ -28,6 +28,27 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-13): 라벨 항목 편집기 작업지시서 18차 검토 권장안 병합
+
+- 사용자 요청: 17차 반영본 재검토에서 확인한 decode evidence prerequisite closure, 레거시 출력 token 의존성 guard, workbook detach/flush 선형화와 stable-key selection invalidation 문제의 권장안을 `doc/user_item_modify.txt`에 병합한다.
+- 사용자 결정: 컬럼 rename/delete 전 레거시 출력 의존성은 보수적 정적 추정이 아니라 현재 session의 모든 active 출력 context를 실제 `LegacyOutputTokenReplacerV1`로 replay하는 exact trace로 검사한다. 입력 누락, context 불일치 또는 trace 실패는 저장을 차단한다.
+- 수정 예정 `doc/user_item_modify.txt`: decode-failure evidence prerequisite closure와 startup fail-closed 판정, attachment epoch 기반 workbook flush/detach 승자 규칙, 실제 replacer provenance trace 기반 mutation guard, typed stable-selection invalidation API·순서·재진입 규칙을 본문·테스트·완료 조건에 반영한다. 미검증.
+- 검증 예정: 두 문서 diagnostics, decode-failed 단독 committed-invalid·진행 중 flush 무조건 실패·모호한 selection invalidation·parser-only guard 표현 검색, 독립 현 프로젝트·레거시 정합성 재검토, `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md`. 문서 계약만 변경하므로 Flutter 테스트는 실행하지 않는다.
+- 기존 unrelated dirty `.vscode/settings.json`, `lib/core/app.dart`는 수정·stage 대상에서 제외하며 원격 push와 배포 작업은 수행하지 않는다.
+- 편집 완료 `doc/user_item_modify.txt`: `LabelWorkbookDraftPort`에 단조 `attachmentEpoch`, flush 선형화 winner, snapshot lease와 command 직전 최종 검증을 추가했다. `LegacyOutputTokenReplacerV1`의 동일 코드 경로 exact provenance trace를 현재 session 전 품목·active output context에 replay해 parser 결과와 합치는 mutation guard를 확정했다.
+- 편집 완료 `doc/user_item_modify.txt`: stable selection을 nullable typed controlled callback과 missing-key 단일 통지 순서로 고정하고, decode-failure durable evidence는 operation/session/epoch와 commit/frame prerequisite가 닫힌 원자적 evidence snapshot일 때만 startup committed-invalid 권한을 갖도록 수정했다. 본문 편집 직후 diagnostics 오류 0건이며 테스트·구현 순서·완료 조건 정합화는 진행 중이다.
+- 정합화 완료 `doc/user_item_modify.txt`: snapshot lease 검증과 command freeze를 `validateSnapshotLeaseAndFreezeCommand()`의 원자적 save-authorization 선형화점으로 합쳐 detach 사이 race를 닫았다. 모델, pure/widget/recovery/integration test, 구현 순서와 완료 조건에 attachment epoch/trace/typed selection/evidence closure 계약을 연결했으며 두 문서 diagnostics 오류 0건이다.
+- 검증 실행 예정: 옛 decode-failed 단독 committed-invalid, parser-only mutation guard, 진행 중 flush 무조건 실패와 모호한 selection invalidation 표현을 검색하고 `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md` 및 두 문서 diff/status를 확인한다. 이후 독립 정합성 검토를 수행한다.
+- 중간 검증 완료: 옛 상충 표현 검색 0건, 새 계약 15개 연결 위치 확인, `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md` 통과. 독립 검토에서 decode closure, actual replacer trace와 typed stable selection은 승인됐으나 controller await 전체를 serializer가 점유하면 detach가 snapshot 선형화 전에 이길 수 없다는 workbook flush/detach 높은 모순 1건이 확인됐다.
+- 보완 진행 중 `doc/user_item_modify.txt`: flush를 짧은 capture 임계구역, serializer 밖 controller await, 짧은 lease 발급 임계구역으로 분리하고 detach가 await 중 attachment epoch/flush attempt를 즉시 무효화하도록 승자 규칙과 스케줄 테스트를 수정한다. 미검증.
+- 독립 재검토: await 중 detach, lease 발급 뒤 detach, command freeze 뒤 detach의 세 승자 스케줄은 승인됐다. 다만 같은 attachment epoch에서 snapshot 복사 전후의 callback이 지연되면 callback revision만으로 snapshot 포함 여부를 판정할 수 없는 높은 문제 1건이 남았다.
+- 보완 진행 중 `doc/user_item_modify.txt`: FortuneSheet controller가 모든 workbook mutation 적용점에서 동기 증가시키는 `controllerMutationVersion`을 snapshot과 원자 반환하고, lease 발급과 command freeze가 callback 도착 여부가 아니라 controller의 현재 version을 직접 비교하도록 수정한다. 12.4의 폐기된 공용 parser/replacer 표현도 현재 분리 정책으로 직접 정리한다. 미검증.
+- 보완 완료 `doc/user_item_modify.txt`: FortuneSheet controller가 mutation version, pending edit commit, immutable snapshot과 mutation pin을 같은 queue 경계에서 원자 반환하고 pin 동안 새 mutation을 typed reject하도록 했다. callback은 관측 전용으로 낮추고 serializer 밖 await, attachment epoch, lease 발급과 pin 유지 command freeze의 승자 및 exact-once pin release를 테스트·모델·완료 조건에 연결했다.
+- 최종 독립 검토에서 확인된 `BARCODE_TEXT_LINK` 테스트 범위 상충도 수정했다. parser/picker에서 제외된 whitespace/`#`/예약어 충돌 keyword를 포함한 모든 raw existing keyword를 실제 persisted-order 출력과 exact dependency trace에 포함하는 fixture를 추가했다.
+- 최종 검증 완료: 두 문서 diagnostics 오류 0건, 옛 decode-failed 단독 committed-invalid/parser-only guard/모호한 detach·selection 표현 검색 0건, 새 핵심 계약 16개 위치 확인, `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md` 통과. 최종 독립 검토에서 치명적·높은 상충 0건으로 전체 승인됐다. 문서 계약만 변경했으므로 Flutter 테스트는 실행하지 않았고 임시 산출물/캐시는 생성하지 않았다.
+- stage/commit 대상은 `doc/user_item_modify.txt` 단독 후 `SESSION_HANDOFF.md` 단독이다. 기존 unrelated `.vscode/settings.json`, `lib/core/app.dart`는 제외하며 원격 push와 배포 작업은 수행하지 않는다.
+- 작업지시서 커밋 완료: `ccdd4b4 라벨 항목 편집기 작업지시서 18차 권장안 병합` (`doc/user_item_modify.txt` 단독, 26 insertions/20 deletions). 다음 stage/commit 대상은 `SESSION_HANDOFF.md` 단독이다.
+
 ### 완료 (2026-07-13): 라벨 항목 편집기 작업지시서 17차 검토 권장안 병합
 
 - 사용자 요청: 최신 `doc/user_item_modify.txt`를 레거시/현 프로젝트에 다시 대조해 확인한 strict/compat wire 격리, root bootstrap milestone, candidate reload API, workbook draft attach, stable-key selection, blocking overlay stack과 레거시 타입/token 차이를 작업지시서에 병합한다.
