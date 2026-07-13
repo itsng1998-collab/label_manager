@@ -28,6 +28,18 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-13): 항목 편집기 저장 입력·재조회 소유권 권장안 병합
+
+- 사용자 요청: 최신 `doc/user_item_modify.txt` 재검토에서 확인한 신규 최초 적용 타입 집합, 특별 항목 누락검사 저장 입력, 컬럼 저장 후 강제 재조회 소유권 권장안을 작업지시서에 병합한다.
+- 사용자 확인: 별도 선택이 필요한 정책 분기는 없다. 레거시에 따라 최초 적용 대상은 `TYPE_BARCODE`, `TYPE_IMAGE`, `TYPE_QR_CODE`, `TYPE_GS1_AI`, `TYPE_GS1_BARCODE` 신규 행으로 고정한다. 특별 항목은 `ITEMNAME`, `ELEMENT`, `SWEIGHT`, `SPRICE` 네 keyword의 immutable snapshot을 form 저장 API의 필수 입력으로 전달한다. 컬럼 저장 transaction과 후속 전체 재조회는 `HomePageManager`의 단일 상위 command가 소유하며 item 전용 private force-reload 상태를 다이얼로그가 직접 조작하지 않는다.
+- 수정 예정 `doc/user_item_modify.txt`: `initialApplyRequiredTypeCodes`와 신규/기존 타입 변경 경계를 명시한다. `SpecialMissingKeywordCheckSnapshot`, `LabelSizeDAO.updateByLabelSizeId()` 필수 입력, 구조화 parameter와 네 keyword 검증/upsert를 기존 form 저장 batch에 연결한다. 컬럼 저장·reload callback과 공용 reload-required 상태/원인의 set·clear 조건을 정의하고 관련 모델/widget/DAO/통합 테스트 및 완료 조건을 갱신한다. 미검증.
+- 편집 완료 `doc/user_item_modify.txt`: 최초 적용 타입을 바코드/이미지/QR/GS1 AI/GS1 바코드 다섯 타입으로 고정하고 기존 행 타입 변경은 신규 pending 상태를 만들지 않도록 했다. save command 생성 시 네 checkbox 최종값으로 `SpecialMissingKeywordCheckSnapshot`을 만들고, 현 `LabelSizeDAO.insert()`와 같은 canonical `(-1, ITEMNAME)`, `(-2, ELEMENT)`, `(-3, SWEIGHT)`, `(-4, SPRICE)` identity를 구조화 parameter로 기존 form batch에 전달해 form log/update와 함께 검증·upsert하도록 했다. 사용 항목 저장은 `HomePageManager.saveLabelColumnsAndReload(...)`와 동등한 단일 상위 command가 transaction·commit 분류·`labelContextReloadRequired=columnStructureSave`·같은 label size 전체 재조회를 소유하고 다이얼로그가 item 전용 private 상태를 직접 조작하지 않도록 본문·테스트·완료 조건에 연결했다. 편집 직후 문서 diagnostics 오류 0건이다.
+- 구현 근거 확인: 레거시 최초 상세 설정 분기는 `TYPE_BARCODE`, `TYPE_IMAGE`, `TYPE_QR_CODE`, `TYPE_GS1_AI`, `TYPE_GS1_BARCODE`이며, 현 `LabelSizeDAO.insert()`는 네 특별 항목을 각각 column ID `-1`, `-2`, `-3`, `-4`로 생성한다. 별도 사용자 정책 확인은 필요하지 않다.
+- 검증 예정: 두 문서 diagnostics, 세 계약의 본문·테스트·완료 조건 연결 검색, 모호한 `신규 특수 타입`과 item 전용 force-reload 직접 재사용 표현 검색, `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md`. 문서만 변경하므로 Flutter 테스트·빌드·배포는 실행하지 않는다.
+- 최종 검증 완료: 두 문서 diagnostics 오류 0건, 최초 적용 타입 계약 9곳, 특별 항목 snapshot/DAO 계약 12곳, 상위 저장·재조회 소유권 계약 9곳 연결을 확인했다. 모호한 `신규 특수 타입`, 상위의 기존 force-reload 상태 직접 재사용, checkbox 변경 시점 snapshot 표현은 0건이고 `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md`를 통과했다. 최종 diff는 권장안 세 건과 관련 테스트·누락 방지 목록·완료 조건에만 한정됐다. 문서만 변경해 Flutter 테스트·빌드·배포와 임시 산출물/캐시는 생성하지 않았다.
+- stage/commit 대상: 먼저 `doc/user_item_modify.txt`만 작업지시서 커밋에 포함하고, 해당 commit 해시를 기록한 `SESSION_HANDOFF.md`를 후속 인수인계 커밋에 포함한다. 기존 unrelated `.vscode/settings.json`, `lib/core/app.dart`는 제외하고 원격 push는 수행하지 않는다.
+- 작업지시서 커밋: `cbd51af` (`문서: 항목 편집기 저장 입력과 재조회 소유권 보완`).
+
 ### 완료 (2026-07-13): 항목 편집기 UI 상태·문자열 경계 권장안 병합
 
 - 사용자 요청: 최신 `doc/user_item_modify.txt` 재검토에서 확인한 pending 초기 적용, 누락검사 편집 소유권, 제목 저장 길이, 타입 전환 및 키워드 중복 비교 권장안을 작업지시서에 병합한다.
