@@ -28,6 +28,26 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-13): 라벨 항목 편집기 작업지시서 15차 검토 권장안 병합
+
+- 사용자 요청: 최신 `doc/user_item_modify.txt` 재검토에서 확인한 workbook draft 관측 경계, create type별 token 활성 필드, exact-token grammar와 recovery closed state 목록 문제를 작업지시서에 병합한다.
+- 사용자 결정: 기존 라벨 컬럼 keyword는 새 `[A-Z0-9]+` 제한을 추가하지 않고 CP949/DB field validation 범위에서 모두 보존한다. token parser는 현재 session의 known-keyword 집합에서 가장 긴 ordinal case-sensitive exact match를 선택한다.
+- 확정 권장안: `createType → active reference fields`는 plain text=없음, user define=QR data+text, natrium=natrium records, barcode text link=QR data로 폐쇄 고정하고 비활성 필드는 raw 보존하되 참조 판정에서 제외한다.
+- 확정 권장안: `LabelSheetWorkbench`의 pending cell/formula edit 확정과 immutable workbook snapshot을 하나의 `flushPendingEditAndSnapshot()` 또는 동등 API로 제공하고 session-owned revisioned workbook draft port에 generation/context/revision과 함께 게시한다. 실패·detach·generation 불일치는 저장을 차단한다.
+- 수정 예정 `doc/user_item_modify.txt`: known-keyword longest-match grammar와 parser/replacer 공용 token stream, 활성 필드 matrix, workbook snapshot port/API, recovery closed enum의 `mappingRecoveryReloadPending` 삭제와 `committedReloadFailed` 추가를 본문·모델·테스트·구현 순서·완료 조건에 반영한다. 미검증.
+- 검증 예정: 두 문서 diagnostics, 구 recovery token/모호한 active field·boundary·workbook snapshot 문구 검색, 독립 재검토, `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md`. 문서 계약만 변경하므로 Flutter 테스트는 실행하지 않는다.
+- 기존 unrelated dirty `.vscode/settings.json`, `lib/core/app.dart`는 수정·stage 대상에서 제외하며 원격 push와 배포 작업은 수행하지 않는다.
+- 편집 완료 `doc/user_item_modify.txt`: `LabelWorkbookSnapshot`/`LabelWorkbookDraftPort`와 `flushPendingEditAndSnapshot()` 계약을 추가해 pending cell/formula/IME 편집 확정, same-generation/context/revision immutable snapshot과 detach·flush·revision conflict 저장 차단을 본문·모델·테스트·구현 순서·완료 조건에 연결했다.
+- 편집 완료 `doc/user_item_modify.txt`: `QRCodeCreateTypeActiveReferenceFieldsV1`을 plain text=없음/user define=data+text/natrium=records/barcode text link=data로 고정했다. 기존 label keyword는 제한하지 않고 예약 token 우선, known-keyword 최장 ordinal exact match, 충돌 차단과 non-overlapping span 단일 치환을 공용 parser/replacer 및 테스트 계약으로 반영했다.
+- 편집 완료 `doc/user_item_modify.txt`: `RecoveryTransitionTableV1.stateSet`을 유일한 생성 목록으로 고정하고 장문 폐쇄 목록에서 `mappingRecoveryReloadPending`을 실제 삭제했으며 `committedReloadFailed`를 추가했다. 이전 역사적 잔여 토큰 유예 설명도 제거했다. 두 문서 diagnostics와 최종 독립 검증 예정.
+- 독립 검토 후 편집 완료 `doc/user_item_modify.txt`: coordinator가 canonical `commitOutcomeUnknown`을 사용하고 `commitOutcomeReconciling` 계열은 enum/stateSet/transition ID가 아닌 resource별 전단사 UI display mapping으로만 투영하도록 통일했다.
+- 사용자 결정: known keyword가 `AB`뿐인 `#ABC`는 `#AB`를 부분 치환하지 않고 candidate 전체를 literal로 보존한다. V1 separator는 `EOF | Unicode whitespace | 다음 #`, token 판정은 candidate 전체 ordinal exact match로 고정했다.
+- 사용자 결정: whitespace 또는 `#`를 포함한 기존 keyword는 raw/관계를 보존하되 V1 token 참조 불가로 두고 신규 생성·rename을 차단한다. 기존 `품목`/`ITEMNAME` 충돌 keyword도 raw 보존하되 예약 token을 항상 우선하고 V1 컬럼 참조 선택·복사를 차단한다.
+- 편집 완료 `doc/user_item_modify.txt`: 전체 keyword 집합과 `referenceableKnownKeywordsV1`을 분리하고 separator/예약어 충돌 기존 행과 persisted active-field/workbook 문자열을 자동 rewrite·참조 추정하지 않는 정책을 본문·validation·fixture·구현 순서·완료 조건에 연결했다. diagnostics 오류 0건, 최종 독립 검토와 `git diff --check` 예정.
+- 최종 검증 완료: 두 문서 diagnostics 오류 0건, 폐기 recovery state/구 longest-match 및 reconciling-state 용어 검색 0건, 독립 최종 검토에서 치명적·높은 내부 상충 0건, `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md` 통과. 완료 기록을 포함한 변경량은 두 문서 41 insertions/15 deletions다. 문서 계약만 변경했으므로 Flutter 테스트는 실행하지 않았고 임시 산출물/캐시는 생성하지 않았다.
+- stage/commit 대상은 `doc/user_item_modify.txt` 단독 후 `SESSION_HANDOFF.md` 단독이다. 기존 unrelated `.vscode/settings.json`, `lib/core/app.dart`는 제외하며 원격 push와 배포 작업은 수행하지 않는다.
+- 작업지시서 커밋 완료: `ef7c732 라벨 항목 편집기 작업지시서 15차 권장안 병합` (`doc/user_item_modify.txt` 단독, 22 insertions/15 deletions). 다음 stage/commit 대상은 `SESSION_HANDOFF.md` 단독이다.
+
 ### 완료 (2026-07-13): 라벨 항목 편집기 작업지시서 14차 검토 권장안 병합
 
 - 사용자 요청: 최신 `doc/user_item_modify.txt` 재검토에서 확인한 P1 transaction 호환, scale consumer, committed-invalid mapping 복구, workbook 영향 검사 권장안을 작업지시서에 병합한다.
