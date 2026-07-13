@@ -11,6 +11,7 @@
 
 - 이 작업지시서는 위 라벨 항목 편집 기능을 구현하는 데 직접 필요한 범위만 요구한다. 구현 중 확인되지 않은 위험을 가정해 별도 하위 시스템, 범용 프레임워크, 복구 상태기계 또는 운영·배포 정책을 선제 추가하지 않는다.
 - 본문 해석이 여러 가지일 때는 레거시 데이터 의미와 현재 프로젝트의 기존 구조를 유지하는 가장 단순한 구현을 선택한다. 본래 목적을 벗어난 보완이나 예외 처리가 필요해 보이면 임의로 확장하지 말고 별도 작업으로 분리해 사용자 확인을 받는다.
+- 레거시는 데이터 의미와 저장 결과를 확인하는 참조 대상으로만 사용한다. `.tmp/LabelManager` 아래 소스와 별도 설치된 레거시 실행 파일·설정·배포물·프로세스를 수정, 교체, 재배포, 주입, 감지, 종료 또는 차단하지 않는다. 새 프로그램 구현은 현재 workspace 안에서만 수행한다.
 - 현재 라벨 크기의 실제 사용 항목과 고객별 사용자 항목 사전을 서로 다른 편집 단위로 관리한다.
 - 다이얼로그의 두 테이블은 라벨 설정에서 사용하는 `SwipeActionTable` 계열 공용 위젯을 재사용한다.
 - 사용 항목의 상세 속성은 별도 모달을 열지 않고 왼쪽 속성 패널에서 편집한다.
@@ -19,7 +20,8 @@
 - 사용 항목과 사용자 항목 transaction은 현재 프로젝트의 `DbClient.transaction()`과 같은 driver 실행 경로가 시작, commit, rollback을 소유한다. 개별 DAO나 SQL batch가 내부에서 transaction을 다시 시작하지 않는다. 공용라벨 form과 특별 항목 누락검사를 함께 저장하는 기존 `LabelSizeDAO.UpdateFormDataTransactionSql` 경로는 12.5의 별도 계약을 따른다.
 - 같은 라벨 크기 또는 고객별 사용자 항목 사전의 동시 저장은 transaction 안에서 해당 `BM_RICH_LABELSIZE_FORM` 또는 `BM_CUSTOMER` 부모 행을 `UPDLOCK, HOLDLOCK`으로 먼저 잠가 대상별로 직렬화한다. 이 보장은 같은 잠금 규약을 사용하는 새 프로그램 writer끼리에만 적용한다. 부모 행을 잠그지 않고 자식 테이블을 직접 수정하는 레거시 프로그램과 새 프로그램에서 동일 라벨 항목 또는 사용자 항목을 동시에 편집·저장하는 운용은 지원하지 않으며, 레거시 병행 편집을 전제로 한 child key-range 잠금이나 호환 계층은 이번 범위에 추가하지 않는다. 저장 command가 선언한 insert/property update/delete/order/GS1 relation 변경분만 반영하며 전체 목록을 뒤 working copy의 전체 속성으로 교체하지 않는다. 같은 기존 행의 같은 속성을 연속 수정하면 잠금을 나중에 획득한 property update 값이 우선하고 서로 다른 행의 선행 속성·check·GS1 관계 변경은 유지한다. 선행 transaction이 삭제한 기존 행을 stale working copy가 수정·삭제하려 하면 affected-row 불일치로 rollback하고 재조회를 안내한다. add/delete/reorder가 있는 구조 command만 부모 잠금 후 DB 현재 기존 column ID 집합과 dialog open 시점의 baseline 기존 ID 집합을 비교하며, 다르면 stale 구조 저장으로 rollback하고 재조회한다. 집합이 같으면 동시 reorder는 나중 transaction의 전체 order가 우선한다. original 전체 속성 비교, 자동 병합, 삭제 행/content 복원 또는 stale snapshot 복구 상태는 추가하지 않는다.
 - 새 프로그램의 품목 저장과 컬럼 저장이 교차 실행돼 `(신규 품목, 신규 컬럼)`의 `BM_RICH_COL_CONTENT`가 누락되지 않도록 현 `ItemManagerSaveDAO`도 같은 labelSizeId의 `BM_RICH_LABELSIZE_FORM` 부모 행을 transaction 첫 단계에서 같은 방식으로 잠근다. 품목/컬럼 transaction은 항상 부모 행을 먼저 잠근 뒤 자식 DML을 실행해 잠금 순서를 통일한다.
-- 레거시 프로그램과 새 프로그램은 같은 DB를 사용하지만 품목/컬럼 저장은 동시에 실행하지 않는 운용을 전제로 한다. 레거시 소스와 공유 DB의 `AFTER_INSERT_ITEM`/`AFTER_INSERT_COLUMN` trigger는 수정·제거·비활성화하지 않는다. 두 trigger가 전역 마지막 identity를 선택하므로 새 프로그램에서 신규 품목 또는 신규 컬럼을 insert하는 transaction은 label size 부모 잠금 뒤 동일한 transaction-owned 전역 application lock을 획득하고, 모든 신규 행을 단건 insert해 새 프로그램 writer끼리 label size와 무관하게 직렬화한다. property-only 저장은 이 전역 lock을 사용하지 않는다.
+- 레거시 프로그램과 새 프로그램은 같은 DB를 사용하지만 품목/컬럼 저장은 동시에 실행하지 않는 외부 운용을 전제로 한다. 새 프로그램이 레거시 프로세스 실행 여부를 검사하거나 저장을 원격 차단하지 않는다. 레거시 소스와 공유 DB의 `AFTER_INSERT_ITEM`/`AFTER_INSERT_COLUMN` trigger는 수정·제거·비활성화하지 않는다. 두 trigger가 전역 마지막 identity를 선택하므로 새 프로그램에서 신규 품목 또는 신규 컬럼을 insert하는 transaction은 label size 부모 잠금 뒤 새 프로그램 writer만 사용하는 동일한 transaction-owned 전역 application lock을 획득하고, 모든 신규 행을 단건 insert해 새 프로그램 writer끼리 label size와 무관하게 직렬화한다. 이 lock은 transaction 종료와 함께 해제되며 레거시 실행·설정·코드 경로를 변경하지 않는다. property-only 저장은 이 전역 lock을 사용하지 않는다.
+- 새 프로그램이 사용자의 저장 명령에 따라 공유 DB의 항목, 품목, content와 보조 테이블을 정상 CRUD하면 그 데이터 결과는 이후 레거시 조회에도 보일 수 있다. 이는 이 기능의 의도된 데이터 반영이며 레거시 프로그램 자체를 수정하거나 실행 동작을 제어하는 것으로 보지 않는다. 레거시 전용 테이블·설정이나 이 문서의 저장 대상이 아닌 데이터를 호환 명목으로 수정하지 않는다.
 - DB 저장이 성공한 경우에만 working copy와 전역 캐시를 교체한다. DB 처리 중 오류가 발생하면 사용자에게 알리고 활성 transaction을 rollback할 수 있으면 rollback한 뒤 편집 상태를 보존한다.
 - commit 전에 실패했고 transaction phase를 확인할 수 있는 저장은 사용자가 다시 시도할 수 있다. commit 시도 후 오류가 발생했거나 DB isolate 종료로 begin/batch/commit 중 어느 단계였는지 확인할 수 없는 `DbCommitOutcomeUnknown`, commit 완료 후 반환 결과를 해석하지 못한 경우는 같은 working copy의 재저장을 차단하고 DB 재조회 후 편집기를 다시 시작하도록 안내한다.
 - 자동 재시도, commit 결과 추정·재조정, 프로세스 재시작 후 저장 작업 복구는 이번 구현 범위에 포함하지 않는다.
@@ -64,6 +66,7 @@
 - 공용라벨 시트 workbook 자체의 셀/서식 저장 포맷 변경
 - 품목관리의 기존 품목 값 편집 기능 변경
 - 레거시 SpreadSheet OCX UI 복제
+- `.tmp/LabelManager` 또는 별도 설치된 레거시 소스·실행 파일·설정·배포물 수정과 레거시 프로세스 감지·종료·차단
 - 레거시의 비어 있는 `InsertColumnsToLogDB()`를 근거 없이 새 로그 테이블로 구현하는 작업
 - 공유 DB의 trigger를 포함한 DB 스키마 변경. 스키마 변경이 필요하면 레거시 영향 검토와 별도 SQL·배포 절차를 먼저 합의한다.
 - 별도 DB worker/process, durable recovery 저장소, 플랫폼별 release gate와 DB 연결 계층 전면 재설계
@@ -418,7 +421,7 @@ guard callback 안에서 이벤트별 로직을 복제하지 말고 `Future<bool
 - `LabelColumnSaveCommand`: labelSizeId, 신규 insert, order를 제외한 실제 변경 속성만 가진 `propertyUpdates`, delete ID, 구조 변경 여부, dialog open 시점의 `baselineExistingColumnIds`, 구조 변경 시 기존 column ID 또는 신규 draft key와 최종 order를 가진 전체 `orderUpdates`, 신규·타입 전환 또는 original 대비 관계가 실제 변경된 최종 GS1 바코드 main column별 최종 관계를 가진 `gs1RelationUpdates`, 삭제되지 않고 생존하면서 기존 GS1 AI/GS1 바코드 역할에서 이탈·전환해 incoming/outgoing 정리가 필요한 기존 `gs1CleanupColumnIds`, 저장 context. 관계를 빈 목록으로 바꾼 main도 빈 최종 관계 항목을 포함하고 untouched GS1 바코드는 포함하지 않는다. property-only command는 `orderUpdates`와 구조 membership 검증 입력을 만들지 않음
 - `LabelColumnSaveResult`: 정상 commit 결과의 신규 draft key와 column ID mapping
 - `LabelColumnPostCommitResultInvalid`: `DbClient.transaction()`이 정상 반환해 commit이 완료된 뒤 DAO가 반환 row를 decode하지 못하거나 draft key/mapping 개수를 검증하지 못했음을 상위 callback에 전달하는 전용 exception. 원본 오류와 검증 사유를 보유하되 pre-commit SQL/validation 오류나 `DbCommitOutcomeUnknown`을 이 타입으로 감싸지 않음
-- `LabelColumnSchemaCapabilities`: 배포 DB의 column order 타입/index, optional main check 컬럼, update 테이블과 `AFTER_INSERT_ITEM`/`AFTER_INSERT_COLUMN`의 존재·활성·자동 생성 동작을 한 번 probe한 immutable 결과. 연결 DB가 바뀌거나 명시적으로 새로고침할 때 cache를 무효화하고, 저장 DAO가 이 결과로 SQL variant와 trigger 호환 경로를 선택함
+- `LabelColumnSchemaCapabilities`: 배포 DB의 column order 타입/index, optional main check 컬럼, update 테이블과 `AFTER_INSERT_ITEM`/`AFTER_INSERT_COLUMN`의 존재·활성·자동 생성 동작을 한 번 probe한 immutable 결과. probe는 `sys.columns`, `sys.indexes`, `sys.triggers`, `sys.sql_modules` 등 metadata를 읽기만 하고 DDL, trigger enable/disable 또는 schema 보정 DML을 실행하지 않는다. 연결 DB가 바뀌거나 명시적으로 새로고침할 때 cache를 무효화하고, 저장 DAO가 이 결과로 SQL variant와 trigger 호환 경로를 선택함
 
 `TColumn`에 UI 임시 상태를 넣지 않는다. 저장 command는 widget 상태를 직접 참조하지 않는 immutable DTO로 만든다.
 
@@ -624,6 +627,8 @@ FK cascade에 암묵적으로 의존하지 않는다. 실제 FK/cascade가 확�
 - 품목 저장 batch도 첫 자식 DML 전에 같은 `BM_RICH_LABELSIZE_FORM` 행을 `UPDLOCK, HOLDLOCK`으로 잠그고 기존 item ID와 column ID가 command labelSizeId 소유인지 검증하며, 다른 label size ID·부모 행 누락·기대 건수 불일치는 전체 rollback
 - 신규 품목/컬럼이 있는 새 프로그램 transaction은 부모 잠금 뒤 같은 transaction-owned 전역 application lock을 획득하고 음수 반환 시 DML 전에 실패하며, 서로 다른 label size의 item/item·column/column·item/column insert도 단건 처리로 직렬화
 - 공유 DB의 두 legacy trigger를 수정·제거·비활성화하지 않고 존재·활성·예상 자동 생성 동작을 capability probe하며, 예상과 다른 fixture에서는 property-only 저장은 유지하고 신규 품목/컬럼 insert만 DML 전에 차단
+- capability probe가 metadata SELECT만 실행하고 trigger/schema/레거시 설정을 변경하지 않으며, 신규 저장 전후에도 두 trigger의 object definition과 enabled 상태가 동일함
+- 새 프로그램의 application lock은 새 프로그램 transaction끼리만 직렬화하고 transaction 종료 후 해제되며, 레거시 파일·설정·프로세스를 조회하거나 변경하는 API를 호출하지 않음
 - 예상한 legacy trigger가 활성인 fixture에서 신규 품목은 단건 insert되고, trigger가 먼저 만든 `@InsertedRows × baselineColumnIds` 기본행을 중복 insert하지 않은 채 누락 조합만 editable 0·빈 data로 보충한 뒤 command 값을 MERGE함
 - 같은 label size에서 품목 저장이 부모 잠금을 먼저 얻은 뒤 신규 컬럼 저장이 이어지면 commit 후 `(기존/신규 품목 × 기존/신규 컬럼)`의 필요한 `BM_RICH_COL_CONTENT` 조합이 모두 한 행씩 존재함
 - 컬럼 add/delete가 부모 잠금을 먼저 얻어 commit되면 이전 `baselineColumnIds`를 가진 대기 중 품목 저장은 첫 품목/content DML 전에 rollback·재조회를 요구하고 부분 item/content를 남기지 않음
@@ -750,6 +755,7 @@ FK cascade에 암묵적으로 의존하지 않는다. 실제 FK/cascade가 확�
 - property/order/GS1 relation 변경분 분리, 구조 command의 baseline membership 검증, untouched 속성·check/min/GS1 보존과 label size 전체 1..N order 완전성
 - 새 프로그램 품목/컬럼 저장의 공통 label size 부모 잠금, item/column 소유권과 품목 command baseline column membership 검증을 통한 신규 item-column content 교차 누락 방지
 - 공유 DB와 legacy trigger를 변경하지 않는 단건 insert, 새 프로그램 insert의 공통 전역 application lock, trigger 선생성 content의 `NOT EXISTS` 보충과 최종 order 재적용
+- 레거시를 참조 전용으로 사용하고 legacy source/executable/config/process 및 공유 DB trigger/schema를 수정·감지·제어하지 않는 구현 경계
 
 다음 항목은 레거시 구현에 존재하지만 그대로 재현하지 않고 개선해야 한다.
 
@@ -778,6 +784,7 @@ FK cascade에 암묵적으로 의존하지 않는다. 실제 FK/cascade가 확�
 - 사용 항목과 사용자 항목 저장은 각각 label size/customer 부모 행 잠금으로 같은 잠금 규약을 사용하는 새 프로그램 writer의 동일 대상 transaction을 직렬화한다. 신규 품목/컬럼 insert는 추가로 공통 전역 application lock과 단건 insert를 사용해 서로 다른 label size의 새 프로그램 writer도 직렬화한다. 레거시 프로그램과 새 프로그램의 품목/컬럼 동시 저장은 label size와 무관하게 지원하지 않는다. 사용 항목 property/order/GS1 relation 변경분을 분리해 property-only 저장은 order와 untouched 속성·check/min/GS1을 갱신하지 않는다. 구조 command는 DB 기존 ID 집합과 baseline ID 집합이 같을 때만 전체 order를 반영하고, 같은 멤버십의 동시 reorder는 후행 order가 우선하며 멤버십이 다르면 rollback 후 재조회를 요구한다. 전체 속성 목록 교체나 삭제 행/content 복원은 하지 않는다.
 - 새 프로그램의 품목 저장도 controller가 같은 로드에서 캡처한 immutable labelSizeId·전체 baseline column ID 집합과 대상 item/column 소유권 검증을 사용하고 컬럼 저장과 같은 `BM_RICH_LABELSIZE_FORM` 부모 행을 첫 단계에서 잠근다. 신규 품목의 baseline 컬럼 기본 content는 DAO가 없는 조합에 명시 생성한다. 신규 품목/컬럼이 있으면 두 저장 모두 같은 transaction-owned 전역 application lock 뒤 단건 insert하고, 컬럼 구조가 먼저 바뀐 stale 품목 command는 DML 전에 rollback·재조회해 신규 item-column content 조합을 누락하지 않는다.
 - 레거시 소스와 공유 DB의 `AFTER_INSERT_ITEM`/`AFTER_INSERT_COLUMN` trigger를 수정·제거·비활성화하지 않는다. capability가 기대한 legacy 자동 생성 의미와 다르면 신규 insert를 차단하고, 레거시와 새 프로그램의 품목/컬럼 저장은 label size와 무관하게 동시에 실행하지 않는 운용을 전제로 한다.
+- 레거시 소스·실행 파일·설정·배포물·프로세스는 참조 외에 접근하거나 변경하지 않는다. schema capability는 metadata를 읽기만 하고 application lock은 새 프로그램 transaction 안에서만 사용한다. 저장 비동시는 외부 운용 전제이며 새 프로그램이 레거시 실행을 감지·종료·차단하지 않는다. 새 프로그램의 명시적 저장으로 공유 DB 대상 데이터가 변경되어 이후 레거시 조회에 보이는 것은 정상 CRUD 결과로 한정한다.
 - 단일 SQL batch는 기존 `NOCOUNT`와 추가로 변경한 session option을 정상/실패 경로에서 원래 상태로 복원하고, 마지막 신규 ID mapping `SELECT`만 row-bearing result set으로 반환하며 신규 draft mapping과 GS1 양쪽 draft 참조를 commit 전에 완전히 검증한다.
 - 신규 사용 항목은 단일 factory에서 레거시 생성자 기본값으로 초기화되고, 저장 시 신규 품목 content의 `RICH_EDITABLE=0`·빈 data와 신규/기존 항목의 최종 누락검사 값이 반영된다. 배포 DB에 두 update 테이블이 존재하면 신규 컬럼의 update 품목 빈 content도 함께 생성한다.
 - 필수 소유권 update/delete와 source 개수로 기대 건수가 정해지는 DML의 affected row 불일치는 rollback하되, 출력 이력이 없는 status date update와 존재하지 않는 선택적 종속행 정리의 0건은 정상으로 허용한다.
