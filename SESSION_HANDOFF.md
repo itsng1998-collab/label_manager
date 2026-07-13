@@ -1,6 +1,6 @@
 # 세션 인수인계
 
-마지막 업데이트: 2026-07-13
+마지막 업데이트: 2026-07-14
 
 ## 작업 규칙
 
@@ -27,6 +27,16 @@
 - Godex G500 같은 라벨 프린터에서 정밀한 인쇄가 핵심이면 일반 프린터 경로와 직접 출력 경로를 분리한다. 직접 출력은 처음부터 모든 스타일을 100% EZPL 명령만으로 처리하기보다 `정밀 좌표 엔진 + EZPL 명령 + 셀 bitmap fallback` 구조를 우선한다. 테두리/선/박스와 바코드는 가능한 한 EZPL 명령으로 출력하고, 화면 폰트와 프린터 폰트 차이로 1:1 보장이 어려운 복합 스타일 텍스트/이미지/배경/RTF 계열 셀은 셀 단위 bitmap fallback을 사용해 시각적 일치도를 확보한다.
 
 ## 현재 상태
+
+### 완료 (2026-07-14): 항목 편집기 구현성 재검토 권장안 병합
+
+- 사용자 요청: 최신 `doc/user_item_modify.txt` 재검토에서 확인한 save result 의미 충돌, property registry 완전성, journal restore 판정 순서, stable-key reorder 목적지, trigger fingerprint/cache/result-set 조건, 필수 보조 schema capability 권장안을 작업지시서에 병합하고 필요한 사용자 결정을 즉시 확인한다.
+- 사용자 확인 필요 여부: 없음. 품목 요소 저장은 부모 품목 draft가 변경을 인수하는 기존 경계이므로 공용 결과를 DB 저장 여부가 아닌 현재 persistence boundary 적용 여부인 `LabelSheetSaveResult.applied/notApplied`로 정의한다. 레거시/source/schema 무변경과 자동 재시도·별도 복구 체계 금지 정책은 유지한다.
+- 수정 예정 `doc/user_item_modify.txt`: 공용 save result 의미와 두 callsite dirty 소유권, 전체 `LabelColumnPropertyKey` canonical 매핑 및 set-equality 완전성, journal 자체 무결성→membership externalChange→baseline 비교 순서, `{sourceKey,targetKey,before|after}` reorder intent, trigger 정규화 fingerprint·DB 연결 generation cache key·row-bearing result 금지, core/GS1/optional schema capability와 DML 전 차단을 본문·테스트·완료 조건에 연결한다. 미검증.
+- 편집 완료 `doc/user_item_modify.txt`: `LabelSheetSaveResult.applied/notApplied`를 callback persistence boundary 적용 여부로 정의해 공용라벨 DB commit과 품목 요소 부모 draft 반영의 dirty 소유권을 분리했다. `LabelColumnPropertyKey` 39개 각각의 실제 table.column·값 종류·적용 타입·길이 기준과 구조/관계/runtime 제외 집합을 열거하고 registry/draft set-equality를 요구했다. journal restore 판정 순서, source/target/before-after reorder intent, trigger 정규화 fingerprint·연결 generation cache·rowset 금지, core/GS1/optional schema capability, 품목/컬럼 동일 배포 단위를 본문·SQL·테스트·구현 순서·완료 조건에 연결했다.
+- 재검토 보완 `doc/user_item_modify.txt`: 바코드 텍스트 연동을 `TYPE_BARCODE && qrCodeCreateType == BARCODE_TEXT_LINK`의 `userDefineBarcodeText`로 바로잡고 `barcodeType`을 canonical DB name 문자열 staging으로 고정했다. legacy schema v1/v2 원본 fixture의 `overwritesColumnOrder=false/true`를 직접 assertion하고 overwrite trigger만 `MAX+1` 상한 검증과 insert 직후 예약 임시 order 재배치를 수행하도록 분기했다. SQL lexer 기반 fingerprint 정규화 순서를 재현 가능하게 고정하고 `barcodeType`/`gs1ai`의 실제 byte 경계·조기 잘림 금지·저장 후 강제 재조회 회귀를 추가했다.
+- 최종 검증 완료: 두 문서 diagnostics 오류 0건, 구형 `saved/notSaved`·잘못된 바코드 필드·모호한 enum/text staging 표현은 0건이고 39개 property mapping과 새 계약의 본문·테스트·완료 조건 연결을 확인했다. 독립 최종 재검토는 치명·높음·중간 finding 없이 승인했고 `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md`도 통과했다. 문서만 변경해 Flutter 테스트·빌드·배포와 임시 산출물/캐시는 생성하지 않았다.
+- 작업지시서 로컬 커밋 완료: `aecee63` (`문서: 항목 편집기 구현 계약 구체화`). `doc/user_item_modify.txt`만 포함했다. 마지막 stage/commit 대상은 이 해시와 완료 상태를 기록한 `SESSION_HANDOFF.md` 단독이며, 기존 unrelated `.vscode/settings.json`, `lib/core/app.dart`는 제외하고 원격 push는 수행하지 않는다.
 
 ### 완료 (2026-07-13): 항목 편집기 최종 재검토 권장안 병합
 
