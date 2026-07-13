@@ -28,6 +28,18 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-13): 항목 편집기 최종 재검토 권장안 병합
+
+- 사용자 요청: 최신 `doc/user_item_modify.txt` 재검토에서 확인한 품목 post-commit 결과 오분류, unique order trigger 경로, journal column membership, property key 매핑, trigger capability 소유권, 시트 저장 결과 타입, 안정 key reorder 권장안을 작업지시서에 병합하고 필요한 사용자 결정을 즉시 확인한다.
+- 사용자 확인 필요 여부: 없음. 레거시 소스/runtime/schema 무변경, 새 앱의 원자적 CRUD와 오류 시 알림·가능한 rollback, commit 후 결과 불명 시 재저장 차단이라는 기존 확정 정책 안에서 구현 계약을 구체화한다. 새 복구 체계, 자동 재시도, 레거시 프로세스 제어는 추가하지 않는다.
+- 수정 예정 `doc/user_item_modify.txt`: 공용 legacy trigger capability 단일 소유권과 세부 flag, 폐쇄형 `LabelColumnPropertyKey` 매핑, unique order에서 각 단건 insert 직후 신규 행 임시 order 재배치, `ItemManagerPostCommitResultInvalid` 및 정확한 mapping key 집합 검증, journal의 `baselineColumnIds` checksum/restore 결합과 schema version 증가, `LabelSheetSaveResult.saved/notSaved` 고정, `SwipeActionTable`의 안정 key drag payload/reorder 경계를 본문·테스트·완료 조건에 연결한다. 미검증.
+- 편집 완료 `doc/user_item_modify.txt`: `LegacyInsertTriggerCapabilities` 단일 probe/cache와 trigger별 세부 flag, 폐쇄형 `LabelColumnPropertyKey` persistence registry, unique order의 신규 단건 insert 직후 실제 ID 임시 order 재배치, 품목 journal의 versioned `baselineColumnIds` checksum/restore, `ItemManagerPostCommitResultInvalid`, `LabelSheetSaveResult.saved/notSaved`, stable row key drag/drop 계약을 모델·SQL·오류·권한·테스트·구현 순서·완료 조건에 연결했다. 편집 직후 diagnostics 오류 0건이다. 미검증.
+- 검증 예정: 두 문서 diagnostics, 구형 bool/중복 capability/trigger order 표현 및 새 계약의 본문·테스트·완료 조건 연결 검색, `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md`, 관련 diff/status와 독립 재검토를 수행한다. 문서만 변경하므로 Flutter 테스트·빌드·배포는 실행하지 않는다.
+- 최종 검증 실행 중: 두 문서 diagnostics와 구형 표현/새 계약 연결 검색은 통과했고 독립 재검토도 치명·높음·중간 finding 없이 승인했다. 이제 `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md`, 관련 diff와 status를 확인한다.
+- 최종 검증 완료: 두 문서 diagnostics 오류 0건, 구형 `bool 또는 typed result`·중복 trigger capability 소유·trigger 덮어쓰기 후 재배치 없는 표현은 0건이다. 일곱 계약이 본문·순수/widget/DAO/통합 테스트·구현 순서·완료 조건에 연결됐고 독립 재검토는 치명·높음·중간 finding 없이 승인했다. `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md`를 통과했다. 문서만 변경해 Flutter 테스트·빌드·배포와 임시 산출물/캐시는 생성하지 않았다.
+- stage/commit 대상: 먼저 `doc/user_item_modify.txt`만 작업지시서 커밋에 포함하고, 해당 commit 해시를 기록한 `SESSION_HANDOFF.md`를 후속 인수인계 커밋에 포함한다. 기존 unrelated `.vscode/settings.json`, `lib/core/app.dart`는 제외하고 원격 push는 수행하지 않는다.
+- 작업지시서 로컬 커밋 완료: `d9d9685` (`문서: 항목 편집기 저장 계약 최종 보완`). `doc/user_item_modify.txt`만 포함했으며 마지막 stage/commit 대상은 이 해시를 기록한 `SESSION_HANDOFF.md` 단독이다.
+
 ### 진행 중 (2026-07-13): 항목 편집기 레거시 실행·배포 무영향 경계 명확화
 
 - 사용자 요청: 레거시는 별도 위치에서 독립 동작하므로 작업지시서가 레거시 동작에 영향을 주는 부분이 있는지 전반 확인하고 영향이 없도록 정리한다.
