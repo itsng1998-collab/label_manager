@@ -28,6 +28,17 @@
 
 ## 현재 상태
 
+### 진행 중 (2026-07-13): 항목 편집기 잔여 구현 blocker 정리
+
+- 사용자 요청: 최신 `doc/user_item_modify.txt` 재검토에서 확인한 잔여 구현 문제의 권장안을 작업지시서에 병합한다.
+- 사용자 결정: 컬럼 삭제·키워드 변경 시 live/saved workbook의 실제 참조를 분석하지 않고 라벨 내용에 영향을 줄 수 있다는 일반 확인 경고만 표시한다. 별도 workbook snapshot/참조 분석 API는 추가하지 않는다.
+- 수정 예정 `doc/user_item_modify.txt`: 사용 항목 저장을 `DbClient.transaction()`에 전달하는 단일 `returnsRows=true` parameterized SQL batch와 batch 내부 draft key→column ID mapping table로 확정한다. commit 성공과 후속 강제 재조회를 분리하고, commit 직후 기존 force-reload 상태를 설정해 재조회 성공 전 동일 저장·충돌 command를 차단한다. 공용라벨 시트는 최소 dirty boolean callback만 상위에 전달하고 dirty 상태에서는 항목 편집 진입·저장을 차단한다. 존재하지 않는 `column cache generation` 입력 요구와 workbook 직접 참조 검사 요구는 제거한다. 미검증.
+- 편집 완료 `doc/user_item_modify.txt`: `DbClient.transaction()`에 전달하는 단일 `returnsRows=true` SQL batch와 `@InsertedColumns(draftKey, columnId)` mapping, `LabelColumnSaveResult` 반환 검증을 저장 계약에 반영했다. commit 직후 force-reload 설정, 재조회 성공 시 해제, 재조회 실패 시 저장 완료 안내·동일 working copy 재저장 차단을 명시했다. `LabelSheetWorkbench`에서 `HomePageManager`까지 dirty boolean만 전달해 시트 dirty 상태의 진입·저장을 차단하고, workbook 직접 참조 분석은 사용자 결정에 따라 일반 영향 경고로 대체했다. 존재하지 않는 `column cache generation` 요구를 제거했다. 편집 직후 문서 diagnostics 오류 0건이다.
+- 검증 예정: 두 문서 diagnostics, 다중 statement 신규 ID 전달·column cache generation·workbook 직접 참조 검사 잔존 검색, 단일 batch/mapping table/reload failure/sheet dirty/general warning 계약 연결 검색, `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md`. 문서만 변경하므로 Flutter 테스트·빌드·배포는 실행하지 않는다.
+- 최종 검증 완료: 두 문서 diagnostics 오류 0건, `column cache generation`과 workbook 실제 참조 검사 요구 및 다중 statement 신규 ID 전달 계약 0건이다. 검색된 workbook 분석·statement 결과 전달 표현은 각각 직접 분석 금지와 현 API 한계 설명인 의도된 문장이다. 단일 batch/mapping/reload failure/sheet dirty/general warning 계약은 17곳에 연결됐고 `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md`를 통과했다. 문서만 변경해 Flutter 테스트·빌드·배포와 임시 산출물/캐시는 생성하지 않았다.
+- stage/commit 대상: `doc/user_item_modify.txt`, `SESSION_HANDOFF.md`만 포함한다. 기존 unrelated `.vscode/settings.json`, `lib/core/app.dart`는 제외하고 원격 push는 수행하지 않는다.
+- 기존 unrelated dirty `.vscode/settings.json`, `lib/core/app.dart`는 수정·stage/commit 대상에서 제외하고 원격 push는 수행하지 않는다.
+
 ### 완료 (2026-07-13): 단순화 작업지시서 구현성 권장안 병합
 
 - 사용자 요청: 단순화된 `doc/user_item_modify.txt`를 레거시/현 프로젝트에 대조해 확인한 구현성 권장안을 작업지시서에 병합한다.
