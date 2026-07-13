@@ -28,6 +28,17 @@
 
 ## 현재 상태
 
+### 진행 중 (2026-07-13): 항목 편집기 레거시 실행·배포 무영향 경계 명확화
+
+- 사용자 요청: 레거시는 별도 위치에서 독립 동작하므로 작업지시서가 레거시 동작에 영향을 주는 부분이 있는지 전반 확인하고 영향이 없도록 정리한다.
+- 확인 결과: 현재 작업지시서에는 레거시 소스·실행 파일·설정·공유 DB trigger/schema를 수정하는 요구가 없고 trigger DDL/migration 표현도 없다. 다만 저장 비동시 전제가 새 앱의 레거시 프로세스 감지·차단·종료 기능으로 오해될 수 있고, capability probe와 application lock이 레거시 실행에 미치는 범위가 명시되지 않았다.
+- 수정 예정 `doc/user_item_modify.txt`: 레거시는 동작 기준을 확인하는 참조 대상으로만 사용하고 `.tmp/LabelManager` 및 레거시 배포물·설정·프로세스를 변경하거나 제어하지 않는다고 명시한다. trigger/schema capability probe는 read-only 조회, application lock은 새 앱만 사용하는 transaction-scoped resource로 한정한다. 저장 비동시는 외부 운용 전제일 뿐 새 앱이 레거시 실행을 감지·차단하지 않으며, 새 앱의 본래 CRUD로 변경된 공유 데이터가 레거시 조회에 보이는 것은 의도된 데이터 효과임을 구분한다. 미검증.
+- 편집 완료 `doc/user_item_modify.txt`: 핵심 원칙과 제외 범위에 레거시 참조 전용, `.tmp/LabelManager` 및 별도 레거시 executable/config/deployment/process 무변경·무제어를 추가했다. 저장 비동시는 외부 운용 전제이며 새 앱이 레거시 프로세스를 감지·종료·차단하지 않도록 명시했다. `LabelColumnSchemaCapabilities`는 metadata SELECT 전용이고 DDL/trigger 상태 변경/schema 보정 DML을 금지했으며, application lock은 새 앱 transaction 내부에서만 사용하고 종료 시 해제하도록 했다. 새 앱의 명시적 CRUD가 공유 DB에 반영되어 이후 레거시 조회에 보이는 정상 데이터 효과와 레거시 프로그램 자체 변경을 구분했다. DAO 테스트·누락 방지·완료 조건까지 연결했으며 편집 직후 diagnostics 오류 0건이다. 미검증.
+- 검증 예정: 두 문서 diagnostics, 레거시 파일/배포물/설정/프로세스 및 trigger/schema 변경 요구 검색, read-only probe·new-app-only lock·정상 CRUD 영향 경계 연결, `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md`, 독립 재검토를 수행한다. 문서만 변경하므로 Flutter 테스트·빌드·배포는 실행하지 않는다.
+- 최종 검증 완료: 두 문서 diagnostics 오류 0건, `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md` 통과. trigger DDL/migration, 레거시 파일 수정, 프로세스 kill/감지·차단 요구는 0건이며 검색된 두 표현은 모두 이를 금지하는 문장이다. 참조 전용·read-only metadata probe·새 앱 transaction 전용 lock·외부 비동시 운용·정상 CRUD 결과 경계가 원칙/제외 범위/모델/DAO 테스트/누락 방지/완료 조건에 연결됐다. 독립 재검토도 치명·높음·중간 finding 없이 승인했다. 문서만 변경해 Flutter 테스트·빌드·배포와 임시 산출물/캐시는 생성하지 않았다.
+- stage/commit 대상: 먼저 `doc/user_item_modify.txt`만 작업지시서 커밋에 포함하고, 그 commit 해시를 기록한 `SESSION_HANDOFF.md`를 후속 인수인계 커밋에 포함한다. 기존 unrelated `.vscode/settings.json`, `lib/core/app.dart`는 제외하고 원격 push는 수행하지 않는다.
+- 작업지시서 로컬 커밋 완료: `ea2e61a` (`문서: 레거시 독립 동작 경계 명확화`). `doc/user_item_modify.txt`만 포함했으며 마지막 stage/commit 대상은 이 해시를 기록한 `SESSION_HANDOFF.md` 단독이다.
+
 ### 진행 중 (2026-07-13): 항목 편집기 레거시 trigger 무영향 계약 병합
 
 - 사용자 요청: 최신 `doc/user_item_modify.txt` 재검토에서 확인한 unsafe legacy trigger, 컬럼 content 중복, capability/baseline/GS1 테스트 권장안을 작업지시서에 병합하되 별도 운용되는 레거시 동작에는 영향을 주지 않는다.
