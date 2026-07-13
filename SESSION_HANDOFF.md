@@ -28,6 +28,19 @@
 
 ## 현재 상태
 
+### 진행 중 (2026-07-13): 라벨 항목 편집기 작업지시서 구현 목적 중심 재정리
+
+- 사용자 요청: 현재 작업지시서에서 과도한 보완·예외를 제거하고 본래 목표인 라벨 항목 편집 UI와 원자적 DB 저장 구현에 필요한 내용만 남긴다.
+- 확정 범위: 최초 작업지시서의 19개 장 구조와 실제 UI/레거시 DB 필드·CRUD 의미를 기준으로 한다. 안정적 draft ID, 미지원 raw 보존, parameterized SQL, 신규 ID 정확한 매핑과 focused 테스트는 유지한다.
+- 최상위 구현 원칙 확정: 라벨 항목 편집 기능에 직접 필요한 범위만 요구하고, 확인되지 않은 위험을 가정한 별도 하위 시스템·범용 프레임워크·복구 상태기계·운영/배포 정책을 선제 추가하지 않는다. 본래 목적 밖 보완이나 예외는 별도 작업으로 분리해 사용자 확인을 받는다.
+- DB 오류 정책: 조회·저장 중 DB 오류를 사용자에게 알리고, 활성 transaction을 rollback할 수 있으면 rollback하며 working copy를 유지한다. 연결 단절이나 commit 오류로 rollback을 확인할 수 없어도 성공 처리/cache 교체를 하지 않는다. 자동 재시도, commit 결과 reconciliation, durable recovery/startup 복원은 구현하지 않는다.
+- 제거 대상: strict/compatibility wire 분리, native worker·commit authorization·evidence store, recovery transition/tombstone/quarantine, DB identity bootstrap, 플랫폼 release gate, FortuneSheet runtime 전면 재설계, 출력 엔진·barcode/Godex/Natrium 재구현 계약.
+- 편집 완료 `doc/user_item_modify.txt`: 최초 기능 중심 19개 장 기준으로 재정리해 908줄·약 26.2만 자에서 446줄 기준 규모로 축소했다. 순서 변경 모드 저장은 working copy 적용만 수행하고 사용 항목 DB transaction은 메인 footer 저장 한 곳만 소유하도록 교정했다. DB 오류는 사용자 알림·전체 rollback·working copy 유지로 통일하고 자동 재시도, commit 결과 reconciliation, 재시작 복구를 제외했다. 미지원 raw 값 비변환, parameterized SQL, draft key와 신규 ID 정확한 매핑은 유지했다.
+- 독립 범위 재검토 보완 완료: 상태 enum과 최소 edit session/save command는 UI working copy와 DB 전달을 위한 기존 기능 구조로 유지하되 새 복구 상태기계로 확장하지 않는다. 별도 optimistic fingerprint/row-version 요구는 제거했다. 모든 연결 오류에서 rollback 완료를 절대 보장하던 표현은 가능한 rollback, 사용자 알림, 성공 처리/cache 교체 금지로 교정하고 commit 시도 오류도 같은 단순 정책에 포함했다.
+- 최종 검증 완료: 두 문서 diagnostics 오류 0건, strict worker/recovery/gate/DB identity/FortuneSheet runtime/output 재설계 심볼과 별도 optimistic fingerprint 잔존 0건, DB 오류 알림·가능한 rollback·working copy 유지와 단일 메인 저장 계약을 본문·테스트·완료조건에서 확인했다. `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md`를 통과했다. 범위 제한 독립 재검토에서도 본래 목적 선언, 과도한 긍정 요구 0건, 단순 DB 오류 정책 세 항목 모두 치명/높음/중간 finding 없이 승인됐다. 문서만 변경해 Flutter 테스트·빌드·배포와 임시 산출물/캐시 생성은 수행하지 않았다.
+- stage/commit 대상: `doc/user_item_modify.txt`, `SESSION_HANDOFF.md`만 포함한다. 기존 unrelated `.vscode/settings.json`, `lib/core/app.dart`는 제외하고 원격 push는 수행하지 않는다.
+- 기존 unrelated dirty `.vscode/settings.json`, `lib/core/app.dart`는 수정·stage/commit 대상에서 제외하고 원격 push는 수행하지 않는다.
+
 ### 진행 중 (2026-07-13): 라벨 항목 편집기 작업지시서 25차 구현성 권장안 병합
 
 - 사용자 요청: 24차 작업지시서 재검토 권장안을 병합하되 과도한 보완·예외 계약은 줄인다.
