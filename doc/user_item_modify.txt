@@ -28,7 +28,7 @@
 - 공용라벨관리 오른쪽 `사용 항목` 영역의 `항목 편집` 버튼은 `lib/page_home/common_label_manage.dart`에 있으나 callback은 비어 있다.
 - 현재 공용라벨의 사용 항목 목록은 `TColumn.datas`를 읽어 표시한다.
 - 현재 목록용 `_CommonLabelTable`은 `FortuneTable` 기반이다. 기존 공용라벨 화면의 읽기 전용 목록은 그대로 유지하고, 새 편집 다이얼로그 안의 두 테이블만 라벨 설정과 같은 `SwipeActionTable` 계열로 구현한다.
-- 현재 `LabelSheetWorkbench`는 workbook 변경 callback을 제공하지만 `LabelSheetPage`와 `CommonLabelManage`가 공용라벨 시트의 미저장 여부를 상위 `HomePageManager`에 전달하지 않는다. 항목 저장 후 강제 재조회에 앞서 미저장 시트 유실을 막을 수 있도록 dirty 여부만 전달하는 최소 callback을 연결한다. 기존 `FutureOr<void>` 저장 callback은 사용자 취소나 필수 키워드 누락도 정상 반환하므로 실제 저장 완료 여부를 구분할 수 있는 `bool` 또는 동등한 typed result를 반환하도록 함께 변경한다.
+- 현재 `LabelSheetWorkbench`는 workbook 변경 callback을 제공하지만 `LabelSheetPage`와 `CommonLabelManage`가 공용라벨 시트의 미저장 여부를 상위 `HomePageManager`에 전달하지 않는다. 항목 저장 후 강제 재조회에 앞서 미저장 시트 유실을 막을 수 있도록 dirty 여부만 전달하는 최소 callback을 연결한다. 기존 `FutureOr<void>` 저장 callback은 사용자 취소나 필수 키워드 누락도 정상 반환하므로 실제 저장 완료 여부를 구분할 수 있는 `bool` 또는 동등한 typed result를 반환하도록 함께 변경한다. 이 공용 API를 사용하는 공용라벨과 품목 요소 저장 call site를 함께 변경하고, 취소·검증 중단은 `notSaved`, 실제 저장 완료만 `saved`를 반환한다.
 - 라벨 설정 다이얼로그는 `BlockingModelessDialog`, `BlockingModelessDialogFrame`, `EditableSwipeNameTable`, `rowReorderEnabled`, 우측 위/아래 이동 rail, 전용 footer를 사용한다.
 
 2.2 현재 모델/DAO
@@ -220,6 +220,7 @@ guard callback 안에서 이벤트별 로직을 복제하지 말고 `Future<bool
 
 - 키워드와 항목명은 필수다.
 - 키워드는 현재 사용 항목 안에서 중복될 수 없다.
+- DB `VARCHAR` 저장 한계에 맞춰 키워드는 CP949 변환 가능 100바이트 이하, 항목명은 CP949 변환 가능 50바이트 이하로 제한한다. 기존 `charset_converter` 기반 CP949/MS949 변환 경로를 공용 validation helper로 최소 추출하고 encode/decode round-trip이 원문과 같은지와 encoded byte 길이를 함께 검사한다. 변환할 수 없는 문자나 제한을 넘는 값은 속성 `적용`과 메인 저장 command 양쪽에서 차단하고 해당 입력에 오류를 표시한다.
 - 제목은 레거시 실제 동작과 같이 최대 20자로 제한하고 안내 문구도 `20자`로 일치시킨다.
 - 종류 dropdown 값은 `TColumnType.datas`에 존재하는 타입만 허용한다.
 - DB에서 읽은 알 수 없는 종류나 옵션은 현 프로젝트의 `TColumn.fromMap()` 규칙에 따라 기존 기본값으로 변환한다. 편집기만을 위한 별도 raw 보존 모델이나 저장 차단 상태는 추가하지 않는다.
@@ -294,6 +295,7 @@ guard callback 안에서 이벤트별 로직을 복제하지 말고 `Future<bool
 - 종류 컬럼의 모든 셀을 dropdown으로 바꾼다.
 - 종류 목록은 레거시와 동일한 DB `BM_RICH_COLUMN_TYPE` 목록을 `RICH_COLUMN_TYPE_ORDER` 순서로 사용한다. 임의의 축약 목록을 하드코딩하지 않는다.
 - 신규/수정 행의 키워드와 항목명은 필수이며 고객별 사용자 항목 목록 안에서 키워드 중복을 허용하지 않는다.
+- 사용자 항목의 키워드는 ASCII 규칙에 따라 최대 100자, 항목명은 CP949 변환 가능 50바이트 이하로 제한한다. inline UI와 저장 command가 같은 검증 함수를 사용하며 초과 또는 변환 불가 값을 DB 오류까지 보내지 않는다.
 - 셀 값이 바뀔 때마다 원본 snapshot과 content 비교로 `userItemDirty`를 계산한다.
 
 9.4 사용자 항목 삭제
@@ -352,6 +354,7 @@ guard callback 안에서 이벤트별 로직을 복제하지 말고 `Future<bool
 - pending property edit이 있으면 자동 적용하지 않는다. 먼저 변경 취소 guard를 거치거나 사용자가 속성 `적용`을 완료하도록 안내한다.
 - 모든 행의 키워드와 항목명 필수
 - 전체 키워드 중복 금지
+- 모든 키워드와 항목명의 CP949 변환 가능 여부 및 각각 100바이트/50바이트 저장 길이 검증
 - order를 1부터 연속 값으로 정규화
 - 타입별 필수 속성과 범위 검증
 - GS1 포함 대상이 현재 working copy에 존재하는지 검증
@@ -423,14 +426,14 @@ guard callback 안에서 이벤트별 로직을 복제하지 말고 `Future<bool
 1. 단일 parameterized SQL batch를 한 번의 `DbClient.transaction()`으로 실행해 transaction 시작
 2. JSON 등 구조화 parameter를 batch 내부 table variable로 투영하고 현재 labelSizeId와 기존 column ID의 소유권 검증
 3. 신규 `BM_RICH_COLUMN` insert 및 batch 내부 `@InsertedColumns(draftKey, columnId)` mapping 생성
-4. 신규/기존 `BM_RICH_COL_MIN` upsert
+4. 라벨 크기별 `BM_RICH_COL_MIN` 기준행과 신규/기존 컬럼행 동기화. 레거시의 빈 문자열 column ID가 SQL Server에서 0으로 변환되는 의미에 맞춰 `RICH_COLUMN_ID=0`, keyword `ELEMENT`, 이름 `주원료`, order 0, `RICH_MIN_CHECK=0` 기준행을 없을 때만 하나 생성한다. 신규 컬럼행은 `RICH_MIN_CHECK=0`으로 insert하고, 기존 컬럼행은 keyword, 이름, order만 update하여 기존 `RICH_MIN_CHECK`를 보존한다.
 5. 신규/기존 `BM_RICH_CHECK_COLUMNS` upsert
 6. 신규 컬럼마다 해당 label size의 기존 `BM_RICH_ITEM`에 `BM_RICH_COL_CONTENT` 빈 값 insert
 7. 레거시 update 품목 테이블을 현 DB가 실제 사용하면 `BM_UPDATE_COL_CONTENT` 빈 값 insert. 테이블/기능이 현재 프로젝트에서 사용되지 않는다고 확인되면 근거를 문서화하고 제외
 8. 기존 `BM_RICH_COLUMN` 전체 속성 및 최종 order update
 9. `BM_GS1_COLUMN_INFO` upsert/delete
 10. `BM_GS1_CONTAIN_COLUMN`을 최종 working copy 관계와 일치하도록 insert/delete. 관계의 `MAIN_COLUMN_ID`와 `CONTAIN_COLUMN_ID`는 각각 기존 column ID 또는 신규 draft key를 받을 수 있으며, 신규 draft key는 같은 batch의 `@InsertedColumns`와 결합해 실제 column ID로 변환한다. 삭제 대상이거나 mapping에서 해결되지 않는 참조가 하나라도 있으면 `THROW`한다.
-11. 삭제 대상의 status date 갱신 및 종속 데이터 정리 후 `BM_RICH_COLUMN` delete
+11. 삭제 대상의 status date 갱신 및 종속 데이터 정리 후 `BM_RICH_COLUMN` delete. `BM_RICH_COL_MIN`은 삭제 column ID에 해당하는 컬럼행만 제거하고 라벨 크기별 `ELEMENT` 기준행은 유지한다.
 12. 모든 affected row와 최종 order/keyword uniqueness를 검증하고, 입력 신규 draft key 집합과 `@InsertedColumns`의 key 집합 및 개수가 정확히 같은지 batch 내부에서 검증한다. 누락, 중복 또는 예상하지 않은 key가 있으면 `THROW`한다.
 13. 마지막에 `@InsertedColumns`의 draft key와 column ID를 조회 결과로 반환하고 같은 `DbClient.transaction()` 실행 경로에서 commit
 
@@ -478,6 +481,7 @@ FK cascade에 암묵적으로 의존하지 않는다. 실제 FK/cascade가 확�
 - 저장 성공 후 상위 widget이 dispose됐으면 setState하지 않되 DAO transaction 결과는 유실하지 않는다.
 - transaction commit 직후 후속 재조회가 끝나기 전까지 force-reload 상태를 유지한다. 재조회 실패는 commit 전 실패와 구분하며 동일 working copy 재저장을 허용하지 않는다.
 - commit 전 DB 처리 실패는 오류를 알리고 활성 transaction을 rollback할 수 있으면 rollback하며 working copy를 유지한다. `DbCommitOutcomeUnknown`과 commit 후 결과 decode/mapping 실패는 별도 복구 시스템 없이 force-reload와 재조회 전 저장 차단을 유지한다. 어떤 실패도 성공 처리하거나 자동 재시도하지 않는다.
+- `LabelSheetWorkbench`의 dirty 변경은 `_setDirty(bool)` 같은 단일 내부 경계를 사용해 실제 값이 바뀔 때만 `onDirtyChanged`를 통지한다. 최초 attach는 첫 frame 뒤 현재 `initialDirty`를 한 번 보고하고, 이후 RTF 변환, 라벨 파일 import, 사용자 operation, 저장 성공을 모두 이 경계로 처리한다. 파일 import가 내부적으로 실행하는 `clearSheet → updateSheet` 중간 operation은 외부에 clean 상태로 통지하지 않고 최종 dirty 상태만 전달한다.
 - 로그는 operation/trace, labelSizeId, customerId, insert/update/delete 개수, mode 전환, 성공/실패만 기록한다. 키워드 본문, 사용자 정의 QR 데이터, 비밀번호 등 실제 payload는 기록하지 않는다.
 - 로그는 상태 관찰용이며 저장 여부나 분기를 결정하는 비즈니스 로직으로 사용하지 않는다.
 
@@ -486,7 +490,7 @@ FK cascade에 암묵적으로 의존하지 않는다. 실제 FK/cascade가 확�
 - 선택된 label size가 없으면 `항목 편집` 버튼을 비활성화한다.
 - 현재 사용자가 공용라벨관리 접근/편집 권한이 없으면 진입할 수 없다.
 - 품목관리 draft가 dirty이거나 draft command 실행 중이거나 강제 reload가 필요한 상태이면 항목 편집기 진입과 저장을 차단하고 먼저 품목 저장, 변경 취소 또는 재조회를 완료하도록 안내한다.
-- 공용라벨 시트가 dirty이면 항목 편집기 진입과 저장을 차단하고 먼저 시트를 저장하거나 변경을 취소하도록 안내한다. 이를 위해 `LabelSheetWorkbench → LabelSheetPage → CommonLabelManage → HomePageManager`로 dirty boolean만 전달하며 workbook snapshot이나 별도 runtime은 추가하지 않는다. 시트 저장 callback의 typed 결과가 실제 저장 완료일 때만 dirty false를 전달하고, 취소·검증 중단·오류에서는 기존 dirty true를 유지한다.
+- 공용라벨 시트가 dirty이면 항목 편집기 진입과 저장을 차단하고 먼저 시트를 저장하거나 변경을 취소하도록 안내한다. 이를 위해 `LabelSheetWorkbench → LabelSheetPage → CommonLabelManage → HomePageManager`로 dirty boolean만 전달하며 workbook snapshot이나 별도 runtime은 추가하지 않는다. 시트 저장 callback의 typed 결과가 실제 저장 완료일 때만 dirty false를 전달하고, 취소·검증 중단·오류에서는 기존 dirty true를 유지한다. 공용 `LabelSheetWorkbench.onSave`를 함께 사용하는 품목 요소 저장도 같은 typed 결과 계약으로 변경하되 공용라벨 dirty guard에는 공용라벨 workbench의 상태만 연결한다.
 - 공용라벨 저장 등 충돌 가능한 상위 command가 진행 중이어도 진입을 차단하고 이유를 안내한다.
 - dialog를 열 때 labelSizeId와 customerId를 immutable input으로 전달한다. 열린 뒤 상단 dropdown 값에 다시 의존하지 않고, 저장 transaction에서 기존 column ID가 해당 labelSizeId 소유인지 재검증한다.
 
@@ -500,6 +504,7 @@ FK cascade에 암묵적으로 의존하지 않는다. 실제 FK/cascade가 확�
 - 기존/신규 삭제 ID 처리
 - 안정 key 기반 선택 유지
 - duplicate keyword/빈 필드/type별 validation
+- 사용 항목과 사용자 항목의 키워드/항목명 CP949 변환 가능 여부 및 100바이트/50바이트 경계값 validation
 - QR/기본/GS1 참조 관계 계산
 - reorder 후 1부터 연속 order 생성
 - 사용자 항목 대문자/영숫자/중복 검증
@@ -523,6 +528,9 @@ FK cascade에 암묵적으로 의존하지 않는다. 실제 FK/cascade가 확�
 - userItemEdit 모드의 편집→추가 아이콘 전환, 마지막 행 추가, 종류 dropdown, 삭제/drop, footer, 취소/저장
 - 전용 모드에서 메인 footer 비활성
 - DB busy 중 중복 클릭과 닫기 차단
+- `LabelSheetWorkbench`가 첫 frame 뒤 초기 dirty를 한 번 보고하고, 이후 RTF 변환, 파일 import, 일반 편집, 저장 성공이 단일 `onDirtyChanged` 경계로 실제 전이마다 true/false를 한 번씩 통지
+- 파일 import의 내부 `clearSheet`가 중간 dirty false를 통지하지 않음
+- 공용라벨과 품목 요소 저장의 확인 취소·검증 중단은 `notSaved`로 dirty를 유지하고 실제 저장 완료만 `saved`로 dirty를 해제
 
 16.3 DAO/transaction 테스트
 
@@ -535,6 +543,8 @@ FK cascade에 암묵적으로 의존하지 않는다. 실제 FK/cascade가 확�
 - 입력 신규 draft key와 SQL mapping의 누락/중복/예상하지 않은 key가 batch 내부 검증에서 commit 전에 `THROW`
 - 마지막 신규 ID mapping `SELECT`만 유일한 row-bearing result set이고 중간 DML/검증 결과가 반환 mapping으로 오인되지 않음
 - 신규 column마다 기존 item content 생성
+- `BM_RICH_COL_MIN`의 라벨 크기별 `ELEMENT` 기준행을 중복 없이 보장하고 신규 컬럼행은 `RICH_MIN_CHECK=0`으로 생성
+- 기존 `BM_RICH_COL_MIN` 컬럼행 update가 `RICH_MIN_CHECK`를 보존하고 삭제가 `ELEMENT` 기준행을 제거하지 않음
 - update가 전체 속성과 order 및 보조 테이블 반영
 - delete가 content/check/min/GS1/status/main row를 정리
 - GS1 contain 관계의 양쪽 참조 정리
@@ -547,6 +557,7 @@ FK cascade에 암묵적으로 의존하지 않는다. 실제 FK/cascade가 확�
 - commit 후 결과 decode 또는 mapping 변환 실패에서 force-reload 상태를 유지하고 동일 working copy 재저장을 차단
 - commit 성공 후 강제 재조회 실패에서 force-reload 상태를 유지하고 동일 working copy 재저장을 차단
 - parameter binding으로 작은따옴표가 있는 허용 문자열도 SQL 문법을 깨지 않음
+- 키워드/항목명의 CP949 변환 불가 또는 100바이트/50바이트 초과 command가 SQL 실행 전에 validation 실패
 
 16.4 통합 회귀
 
@@ -554,7 +565,7 @@ FK cascade에 암묵적으로 의존하지 않는다. 실제 FK/cascade가 확�
 - 저장 후 상위 강제 재조회 경계로 품목 draft/controller의 validation rule, 동적 컬럼 및 출력 미리보기 갱신
 - 품목 draft dirty/busy/force-reload 상태에서 항목 편집기 진입과 저장 차단
 - 공용라벨 시트 dirty 상태에서 항목 편집기 진입과 저장 차단
-- 공용라벨 시트 저장 성공일 때만 dirty false를 상위에 통지하고, 저장 확인 취소·필수 키워드 누락·저장 오류에서는 dirty 유지
+- 공용라벨 시트의 초기값, RTF 변환, 파일 import, 사용자 operation, 저장 결과를 단일 dirty callback 경계로 상위에 통지하고, 저장 성공일 때만 dirty false로 전환하며 저장 확인 취소·필수 키워드 누락·저장 오류에서는 dirty 유지
 - 새 이미지/바코드/QR keyword가 라벨 시트 object/required keyword 처리에 반영
 - 컬럼 삭제/키워드 변경 시 workbook 직접 참조 분석 없이 라벨 내용과 출력 영향에 대한 일반 확인 경고 표시
 - 기존 라벨 설정/브랜드 설정/품목 순서 변경 테이블 테스트 전체 통과
@@ -593,7 +604,7 @@ FK cascade에 암묵적으로 의존하지 않는다. 실제 FK/cascade가 확�
 - 체크디지트/타임바코드 변경 영향 경고
 - GS1 AI 포함 관계의 추가/수정/삭제
 - 신규 컬럼의 기존 품목 및 update 품목 빈 content 생성
-- `BM_RICH_COL_MIN`, `BM_RICH_CHECK_COLUMNS`, GS1 보조 테이블 동기화
+- `BM_RICH_COL_MIN`의 `ELEMENT` 기준행과 기존 `RICH_MIN_CHECK` 보존, `BM_RICH_CHECK_COLUMNS`, GS1 보조 테이블 동기화
 - 삭제 status date 갱신
 - 저장 후 컬럼 변경 observer/cache refresh
 - 고객별 사용자 항목 사전의 추가/수정/삭제와 대문자/영숫자 키워드 규칙
@@ -621,11 +632,13 @@ FK cascade에 암묵적으로 의존하지 않는다. 실제 FK/cascade가 확�
 - 순서 변경 모드의 저장은 working copy에만 반영되고 사용 항목 DB 저장은 메인 footer의 저장에서만 실행된다.
 - 사용 항목 저장은 단일 parameterized SQL batch 안에서 신규 draft ID mapping과 보조 테이블 반영을 완료한다.
 - 단일 SQL batch는 `SET NOCOUNT ON`을 사용하고 마지막 신규 ID mapping `SELECT`만 row-bearing result set으로 반환하며, 신규 draft mapping과 GS1 양쪽 draft 참조를 commit 전에 완전히 검증한다.
+- `BM_RICH_COL_MIN`은 라벨 크기별 `ELEMENT` 기준행을 하나 유지하고 기존 컬럼의 `RICH_MIN_CHECK`를 보존하며, 삭제 컬럼행만 제거한다.
+- 사용 항목과 사용자 항목의 키워드/항목명은 SQL 실행 전에 CP949 변환 가능 여부와 100바이트/50바이트 저장 한계를 검증한다.
 - 사용 항목과 사용자 항목 저장은 각각 원자적 transaction이며 DB 처리 오류 시 사용자 알림, 가능한 rollback, 성공 처리·cache 교체 금지와 편집 상태 보존이 동작한다.
 - commit 전 저장 실패는 working copy를 유지해 수동 재시도할 수 있고, `DbCommitOutcomeUnknown`은 재조회 전 동일 command 재저장을 차단한다.
 - commit 후 반환 결과를 decode하거나 mapping으로 변환하지 못하면 force-reload와 동일 working copy 재저장 차단을 유지하고 DB 재조회를 요구한다.
 - commit 성공 후 강제 재조회가 실패하면 저장 완료 사실을 알리고 force-reload 상태를 유지하며 동일 working copy를 다시 저장하지 않는다.
-- 품목 draft 또는 공용라벨 시트가 dirty이면 항목 편집기 진입과 저장을 차단한다. 공용라벨 시트 dirty는 실제 저장 완료일 때만 해제되며 저장 취소·검증 중단·오류에서는 유지된다.
+- 품목 draft 또는 공용라벨 시트가 dirty이면 항목 편집기 진입과 저장을 차단한다. 공용라벨 시트 dirty는 모든 의미 있는 true/false 전이가 단일 callback으로 전달되고 실제 저장 완료일 때만 해제되며 저장 취소·검증 중단·오류에서는 유지된다.
 - 저장 실패를 자동 재시도하거나 commit 결과 reconciliation·재시작 복구 상태를 만들지 않는다.
 - 저장 후 공용라벨/품목관리/미리보기가 새 컬럼 목록을 사용한다.
 - 16장의 테스트와 전체 정적 분석/테스트가 통과한다.
