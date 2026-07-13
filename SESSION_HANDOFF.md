@@ -28,6 +28,24 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-13): 라벨 항목 편집기 작업지시서 9차 검토 권장안 병합
+
+- 사용자 요청: 최신 `doc/user_item_modify.txt` 재검토에서 확인한 권장안을 작업지시서에 병합하고, 사용자 확인 사항은 즉시 확정한다.
+- 사용자 결정: native SQL 실행은 세션별 worker/control thread를 분리해 실제 cancel 경계를 만들고, driver가 thread-safe cancel을 지원하지 않거나 native 호출이 응답하지 않으면 별도 DB worker process 종료로 session을 폐기한다.
+- 사용자 결정: recovery DB identity는 검증된 cluster/lineage identity가 일치하는 failover만 동일하게 취급하고 restore·clone·검증 불가는 새 namespace로 분리한다.
+- 수정 예정 `doc/user_item_modify.txt`: connectAttempt bootstrap/DB ready 상태기계, connection profile hint와 검증 identity bind, event 기반 durable phase 전이표와 pre-commit terminal 증거, native worker/control/process fallback, DB-Lib null/empty 보존, 결정적 index capability/runtime gate를 모델/DAO/상태/테스트/완료 조건에 병합한다. 미검증.
+- 수정 예정 `SESSION_HANDOFF.md`: 문서 편집, 검증, stage, commit 결과를 단계별로 기록한다.
+- 기존 unrelated dirty `.vscode/settings.json`, `lib/core/app.dart`는 수정·stage 대상에서 제외한다.
+- 편집 완료 `doc/user_item_modify.txt`: connect를 일반 epoch request에서 분리해 `connectAttemptId`/`expectedPreviousEpoch` 응답이 새 epoch를 발급하도록 하고, transport 연결 뒤 identity probe/recovery bind를 마쳐야 일반 DB 작업과 `status.up`을 허용하는 `ready` 상태기계를 정의했다.
+- 편집 완료 `doc/user_item_modify.txt`: `connectionProfileHint`와 검증 identity를 분리하고 동일 lineage failover만 같은 namespace, restore·clone·검증 불가는 새 namespace로 고정했다. recovery phase를 event 기반 전이표로 바꾸고 cleanup 전체 증거가 있을 때만 `preCommitFailedTerminal`이 되도록 했다.
+- 편집 완료 `doc/user_item_modify.txt`: native execution worker/control 경계와 cross-thread cancel 불가 시 DB worker process 종료 fallback, DB-Lib null/빈 string/빈 binary 분리, deterministic index schema runtime gate와 execution plan 배포 integration gate를 테스트·구현 순서·완료 조건까지 연결했다.
+- 중간 검증 완료: `doc/user_item_modify.txt`, `SESSION_HANDOFF.md` diagnostics 오류 0건. 이전 단일 durable phase, connect 포함 모든 request epoch 요구, runtime index/plan gate와 same-isolate cancel 계약 상충 문구는 0건이고 9차 핵심 계약은 20개 지점에서 확인했다.
+- 최종 검증 예정: 두 문서 diagnostics 재확인, `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md`, 전체 diff/stat와 실제 변경 파일·stage 대상을 확인한다. 코드/테스트를 변경하지 않았으므로 Flutter 테스트는 실행하지 않는다.
+- 최종 검증 완료: 두 문서 diagnostics 오류 0건, 이전 상충 문구 0건, 9차 핵심 계약의 모델/DAO/recovery/테스트/실행 gate/완료 조건 연결과 전체 diff를 확인했다. `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md`를 통과했다. 코드/테스트를 변경하지 않아 Flutter 테스트는 실행하지 않았다.
+- stage/commit 예정: `doc/user_item_modify.txt`만 먼저 기능 문서 커밋하고 확정 해시를 기록한 `SESSION_HANDOFF.md`를 별도 커밋한다. 기존 사용자 변경 `.vscode/settings.json`, `lib/core/app.dart`는 제외한다.
+- 기능 문서 커밋: `266d88a` (`라벨 항목 편집기 작업지시서 9차 권장안 병합`). connect bootstrap/readiness, 검증 identity namespace, event 기반 recovery 전이, native worker cancel/process fallback, DB-Lib null/empty와 결정적 index capability 계약을 병합했다.
+- 완료: 임시 산출물이나 캐시를 생성하지 않았으며 원격 push와 배포 작업은 수행하지 않았다. 기존 사용자 변경 `.vscode/settings.json`, `lib/core/app.dart`는 수정·stage·commit하지 않았고 인수인계만 별도 커밋한다.
+
 ### 완료 (2026-07-13): 라벨 항목 편집기 작업지시서 8차 검토 권장안 병합
 
 - 사용자 요청: 최신 `doc/user_item_modify.txt` 재검토에서 확인한 권장안을 작업지시서에 병합하고, 사용자 확인 사항은 즉시 확정한다.
