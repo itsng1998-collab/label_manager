@@ -28,7 +28,14 @@
 
 ## 현재 상태
 
-### 진행 중 (2026-07-13): 라벨 항목 편집기 작업지시서 24차 구현성 권장안 병합
+### 진행 중 (2026-07-13): 라벨 항목 편집기 작업지시서 25차 구현성 권장안 병합
+
+- 사용자 요청: 24차 작업지시서 재검토 권장안을 병합하되 과도한 보완·예외 계약은 줄인다.
+- 사용자 결정: 25차는 실제 구현 blocker 세 건만 유지한다. FortuneSheet pending editor가 runtime serializer를 재진입하지 않도록 State는 mutation proposal만 반환하고, `LabelColumnSaveCommand`는 검증된 DB identity/canonicalization version/connection epoch를 캡처하며, 레거시 barcode는 check-digit OFF에서 기존 suffix 제거와 공통 마지막 자리 교체를 모두 생략하고 제조·유통일·유통시간 fallback을 원문대로 유지한다. gate 서명 trust root, credential delivery generation, release selector wire schema, P-1 bootstrap 확장과 별도 운영 정책은 이번 문서 반영 대상에서 제외한다.
+- 편집 완료 `doc/user_item_modify.txt`: 기존 `FortuneSheetRuntimeV1`, `LabelColumnSaveCommand`, `LegacyBarcodeRawPayloadPolicyV1` 계약과 기존 fixture/완료조건만 최소 수정했다. 새 하위 시스템, release gate, 보안 프로토콜 또는 retention 정책은 추가하지 않았다. 편집 직후 diagnostics 오류 0건이다.
+- 최종 검증 완료: 두 문서 diagnostics 오류 0건, 과도한 gate/trust/credential/release/runtime 확장 심볼 잔존 0건, 핵심 세 계약 연결 10곳을 확인했다. `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md`를 통과했고 24차 대비 작업지시서 변경은 13줄이다. 범위 제한 독립 재검토 결과 치명/높음 finding 없이 세 blocker만 반영한 것으로 승인됐다. 문서만 변경해 Flutter 테스트·빌드·배포와 임시 산출물/캐시 생성은 수행하지 않았다.
+- stage/commit 대상: `doc/user_item_modify.txt`, `SESSION_HANDOFF.md`만 포함한다. 기존 unrelated `.vscode/settings.json`, `lib/core/app.dart`는 제외하고 원격 push는 수행하지 않는다.
+- 기존 unrelated dirty `.vscode/settings.json`, `lib/core/app.dart`는 수정·stage/commit 대상에서 제외하고 원격 push와 배포 작업은 수행하지 않는다.
 
 - 사용자 요청: `doc/user_item_modify.txt`를 레거시/현 프로젝트에 재대조해 확인한 구현 불가능·착수 불가능 계약과 UI/session/output 누락의 권장안을 작업지시서에 병합한다.
 - 사용자 결정: strict commit CAS는 native commit의 exactly-once 선형화점이 아니라 최대 1회 실행 허가로 사용하고, consume 성공 뒤 `commitCompleted` durable evidence 전 종료는 `commitOutcomeUnknown`으로 복구한다. SNAPSHOT isolation·레거시 trigger·GS1 관계 순서 capability가 미충족인 DB는 migration을 이번 범위에 넣지 않고 해당 기능을 명시적으로 차단한다. production capability는 편집기/strict DB/session/output/platform release로 분리하고 Windows를 우선 활성화한다. EAN/UPC/ITF payload는 trim·문자 제거·padding·check digit 생성/교정 없이 레거시 원문을 보존하고 선택 symbology validation 실패로 반환한다.
