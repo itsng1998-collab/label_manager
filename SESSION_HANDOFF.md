@@ -28,6 +28,24 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-13): 라벨 항목 편집기 작업지시서 5차 검토 권장안 병합
+
+- 사용자 요청: 최신 `doc/user_item_modify.txt` 재검토에서 확정한 11개 문제의 권장안을 기존 작업지시서에 병합 정리한다.
+- 수정 예정 `doc/user_item_modify.txt`: 공용 label-size locked transaction API와 참여 writer 강제 전환, typed lock error/isolate wire schema, resource별 reconciliation adapter와 mutation-closure projection, Windows durable manifest 교체·startup recovery, marker 1행 envelope, 독립 raw rowset, SQL Server natural-key 동등성, generation-bound session context, `DbCommittedResultInvalid`의 commit 확정 상태를 기존 모델/DAO/동시성/테스트/완료 조건에 반영한다. 미검증.
+- 수정 예정 `SESSION_HANDOFF.md`: 문서 편집, 검증, stage, commit 결과를 단계별로 기록한다.
+- 기존 unrelated dirty `.vscode/settings.json`, `lib/core/app.dart`는 수정·stage 대상에서 제외한다.
+- 편집 완료 `doc/user_item_modify.txt`: `LabelSizeLockedTransaction` 동등 API를 통해 참여 writer가 같은 connection/transaction의 첫 statement에서 lock을 획득하도록 강제하고, SQL 내부 transaction·단독 write 금지와 item 소유권 재검증을 명시했다.
+- 편집 완료 `doc/user_item_modify.txt`: lock error/parameter/result의 versioned isolate wire schema와 ODBC/DB-Lib error number 보존, marker 결과셋·행 정확히 1개와 `MAPPING_JSON` 배열 envelope를 driver/DAO/테스트 계약에 반영했다.
+- 편집 완료 `doc/user_item_modify.txt`: label/customer별 reconciliation adapter, 테이블별 mutation-closure manifest, SQL Server 대상 컬럼 natural-key 동등성, `DbCommittedResultInvalid(committedKnown: true)`의 mapping 복구/reload-only 경로를 확정했다.
+- 편집 완료 `doc/user_item_modify.txt`: base table 독립 raw rowset과 null/중복 관계 보존, Windows atomic replace와 hint 비의존 startup recovery, customer/market/label-size를 포함한 generation-bound session 범위를 구현 순서·테스트·완료 조건까지 병합했다.
+- 중간 검증 완료: `doc/user_item_modify.txt` diagnostics 오류 0건. 상충 문구/핵심 계약 검색과 최종 문서 diff 검토는 미검증.
+- 최종 검증 예정: 두 문서 diagnostics, 기존 상충 문구와 5차 핵심 계약 검색, `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md`, `git diff --stat` 및 실제 diff/stage 대상 확인. 문서만 변경했으므로 Flutter 테스트는 실행하지 않는다.
+- 검증 진행: 두 문서 diagnostics 오류 0건, 이전의 customer reconciliation 직접 재사용 문구 0건, 5차 핵심 계약 21개 위치 확인, `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md` 통과. 현재 변경량은 작업지시서 76행 변경과 인수인계 13행 추가이며 실제 diff 최종 검토 전이다.
+- 최종 검증 완료: 두 문서 diagnostics 오류 0건, 상충 문구 0건(검색 1건은 marker 0행의 의도된 pre-commit 오류 계약), 5차 핵심 계약 17개 검색 결과와 전체 diff를 확인했다. `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md` 통과. 작업지시서는 48행 추가/30행 교체이고 코드/테스트를 변경하지 않아 Flutter 테스트는 실행하지 않았다.
+- stage/commit 예정: `doc/user_item_modify.txt`만 먼저 기능 문서 커밋하고 확정 해시를 기록한 `SESSION_HANDOFF.md`를 별도 커밋한다. 기존 사용자 변경 `.vscode/settings.json`, `lib/core/app.dart`는 제외한다.
+- 기능 문서 커밋: `f5c3a8e` (`라벨 항목 편집기 작업지시서 5차 권장안 병합`). locked transaction/wire schema/reconciliation closure/manifest recovery/marker/raw DAO/natural key/session 범위 권장안을 병합했다.
+- 완료: 임시 산출물이나 캐시를 생성하지 않았으며 원격 push와 배포 작업은 수행하지 않았다. 인수인계만 별도 커밋한다.
+
 ### 완료 (2026-07-13): 라벨 항목 편집기 작업지시서 4차 검토 권장안 병합
 
 - 사용자 요청: 최신 `doc/user_item_modify.txt`의 구현 가능성 재검토에서 확정한 문제와 권장안을 기존 작업지시서에 병합 정리한다.
