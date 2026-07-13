@@ -227,6 +227,7 @@ guard callback 안에서 이벤트별 로직을 복제하지 말고 `Future<bool
 
 - 키워드와 항목명은 필수다.
 - 키워드는 현재 사용 항목 안에서 DB `Korean_Wansung_CI_AS`와 같이 대소문자를 무시해 중복될 수 없다. 비교를 위해 원문 키워드를 대문자/소문자로 바꾸어 저장하지는 않는다.
+- `ITEMNAME`, `ELEMENT`, `SWEIGHT`, `SPRICE`는 12.5의 특별 항목 canonical identity가 사용하는 예약 keyword다. 일반 사용 항목은 이 네 값을 `Korean_Wansung_CI_AS` 의미로 대소문자를 무시해 사용할 수 없다. 속성 `적용`, 고정/사용자 후보 추가, 메인 저장 command가 같은 공용 예약 keyword 집합을 사용한다. 사용자 항목 사전에 이미 예약 keyword 행이 있어도 사전 조회나 삭제를 강제하지 않고, 실제 사용 항목으로 추가하는 command만 차단한다.
 - DB `VARCHAR` 저장 한계에 맞춰 키워드는 CP949 변환 가능 100바이트 이하, 항목명은 CP949 변환 가능 50바이트 이하로 제한한다. 기존 `charset_converter` 기반 CP949/MS949 변환 경로를 공용 validation helper로 최소 추출하고 encode/decode round-trip이 원문과 같은지와 encoded byte 길이를 함께 검사한다. 변환할 수 없는 문자나 제한을 넘는 값은 속성 `적용`과 메인 저장 command 양쪽에서 차단하고 해당 입력에 오류를 표시한다.
 - 제목은 `RICH_TITLE VARCHAR(20)` 저장 한계에 맞춰 CP949 변환 가능하고 encode/decode round-trip이 원문과 같으며 encoded byte 길이가 20바이트 이하인 값만 허용한다. 속성 `적용`과 메인 저장 command가 키워드/항목명과 같은 공용 validation helper를 사용하고 안내 문구도 `20바이트`로 표시한다.
 - 종류 dropdown 값은 `TColumnType.datas`에 존재하는 타입만 허용한다.
@@ -255,6 +256,10 @@ guard callback 안에서 이벤트별 로직을 복제하지 말고 `Future<bool
 - 체크디지트 또는 타임바코드 변경이 기존 품목 바코드 값에 영향을 주면 경고한다.
 - 사용자 정의 QR 데이터가 비어 있거나 나트륨 구성에 초기화되지 않은 값이 있으면 적용하지 않는다.
 
+구현 전 배포 DB `sys.columns`에서 자유 입력 문자열 컬럼의 실제 타입과 최대 byte 길이를 확인하고 그 값을 validation source of truth로 사용한다. 현 `TColumnDAO` 조회 변환 폭 기준 예상 대상은 `RICH_USER_DEFINE_QRDATA` 3000바이트, `RICH_USER_DEFINE_QRTEXT` 200바이트, `RICH_NATRIUM_JOIN_STRING` 200바이트, `RICH_QRTEXT_FONTNAME` 50바이트, `RICH_USER_DEFINE_BARCODE_TEXT` 200바이트, `RICH_DATERANGE` 12바이트다. 실제 배포 스키마가 다르면 확인된 스키마 값을 사용하고 구현 기록과 DAO 테스트 전제에 남긴다.
+
+위 자유 입력 문자열은 키워드/항목명/제목과 같은 공용 CP949 helper로 encode/decode round-trip과 최종 encoded byte 길이를 속성 `적용` 및 메인 저장 command에서 검증한다. `RICH_DATERANGE`는 전/후 개별 입력이 아니라 최종 직렬화된 `before|after` 문자열을 검증한다. UI `maxLength`를 별도로 강제할 필요는 없지만, 변환 불가 문자나 DB 저장 한계를 넘는 값은 SQL 실행 전에 해당 입력 오류로 차단한다. 바코드 종류와 GS1 option처럼 정의 목록에서 고르는 값은 이 자유 문자열 검증 대상이 아니라 기존 enum/dropdown validation을 따른다.
+
 타입별 수치와 옵션 validation은 정수 파싱 가능 여부, 실제 DB 컬럼 타입에 저장 가능한 범위, enum/dropdown에 정의된 값, 이 문서의 필수 조건과 레거시가 명시적으로 차단하는 조건만 검사한다. 폭·높이·QR pixel size·scale의 0은 위 경고 대상으로 유지하고 오류로 바꾸지 않는다. 레거시 최종 적용 경로에서 일관되게 강제하지 않는 UX 최소·최대값을 임의로 추가하거나, 기존 DB 값을 새 임의 범위 때문에 적용·저장하지 못하게 해서는 안 된다. 레거시보다 엄격한 제품 범위가 필요하면 항목별 정책을 별도 확정한 뒤 추가한다.
 
 속성 패널은 하나의 거대한 build 함수로 만들지 않는다. 공통 입력과 타입별 editor widget을 분리하되, 각 editor는 `LabelColumnPropertyDraft`를 입력받아 변경 callback만 반환하고 DB를 직접 호출하지 않는다.
@@ -271,6 +276,7 @@ guard callback 안에서 이벤트별 로직을 복제하지 말고 `Future<bool
 8.2 사용 항목으로 추가
 
 - 고정 항목 행 선택이 없거나 같은 키워드가 이미 사용 중이면 왼쪽 화살표를 비활성화한다.
+- 후보 keyword가 특별 항목 예약 keyword이면 기존 후보 행을 삭제하지 않고 왼쪽 화살표와 drop 추가만 비활성화하며 이유를 tooltip 또는 오류 문구로 알린다.
 - 행 선택 후 왼쪽 화살표를 누르면 레거시와 같은 기본값으로 신규 사용 항목 draft를 만든다.
 - 고정 항목 행을 drag하여 사용 항목 테이블에 drop해도 같은 add command를 실행한다.
 - 버튼과 drag/drop은 중복 검사, 초기값 생성, 특수 타입 pending 속성 편집, 선택 이동까지 동일한 handler를 사용한다.
@@ -283,6 +289,7 @@ guard callback 안에서 이벤트별 로직을 복제하지 말고 `Future<bool
 - `사용자 항목` 선택 시 현재 로그인 고객 ID의 `BM_RICH_CUST_COLUMN`을 조회한다.
 - 키워드, 항목명, 종류를 표시한다.
 - 선택 행을 왼쪽 화살표 또는 사용 항목 테이블 drop으로 추가한다.
+- 선택 행의 keyword가 특별 항목 예약 keyword이면 사용자 항목 사전에는 그대로 표시하되 왼쪽 화살표와 drop 추가를 비활성화한다.
 - 추가 시 고객별 사전 row를 직접 연결하지 않고 레거시처럼 현재 라벨 크기의 신규 `TColumn` draft로 복사한다. 이후 사용자 항목 사전을 수정해도 이미 추가된 사용 항목은 자동 변경하지 않는다.
 - 사용자 항목 테이블의 좌상단 헤더 교차 영역에는 `항목 편집` 아이콘과 tooltip을 둔다.
 
@@ -363,7 +370,9 @@ guard callback 안에서 이벤트별 로직을 복제하지 말고 `Future<bool
 - `propertyDirty` 또는 `pendingInitialApplyColumnKeys`가 남아 있으면 자동 적용하지 않는다. 먼저 변경 취소 guard를 거치거나 사용자가 속성 `적용`을 완료하도록 안내하며, 최초 적용 전 특수 행이 하나라도 있으면 저장 command를 만들지 않는다.
 - 모든 행의 키워드와 항목명 필수
 - 전체 키워드를 `Korean_Wansung_CI_AS` 의미로 비교해 대소문자만 다른 중복도 금지
+- 일반 사용 항목 keyword가 특별 항목 예약 keyword `ITEMNAME`, `ELEMENT`, `SWEIGHT`, `SPRICE`와 `Korean_Wansung_CI_AS` 의미로 일치하면 저장 금지
 - 모든 키워드, 항목명, 제목의 CP949 변환 가능 여부 및 각각 100바이트/50바이트/20바이트 저장 길이 검증
+- 사용자 정의 QR data/text, 나트륨 join, QR font name, 사용자 정의 바코드 text, 최종 date range의 CP949 round-trip 및 배포 DB 실제 byte 길이 검증
 - order를 1부터 연속 값으로 정규화
 - 타입별 필수 속성 및 7.3에서 확정한 파싱/DB 저장 범위/enum/레거시 명시 차단 조건 검증. 별도로 확정되지 않은 UX 상·하한은 적용하지 않음
 - GS1 포함 대상이 현재 working copy에 존재하는지 검증
@@ -435,17 +444,17 @@ guard callback 안에서 이벤트별 로직을 복제하지 말고 `Future<bool
 현재 `DbClient.transaction()`은 앞 statement의 조회 결과를 뒤 statement parameter로 전달하지 않는다. 따라서 신규 ID가 필요한 사용 항목 저장은 `returnsRows=true`인 단일 `DbTransactionStatement`로 구성하고, 그 하나의 parameterized SQL batch 안에서 아래 2~12단계를 모두 실행한다. 바깥 transaction의 시작, commit, rollback은 기존 `DbClient.transaction()`만 소유한다. batch는 `SET NOCOUNT ON`으로 DML rowcount result를 억제하고 마지막 신규 ID mapping `SELECT`만 유일한 row-bearing result set으로 반환한다. 중간 검증은 결과를 반환하는 `SELECT` 대신 `IF EXISTS`, `@@ROWCOUNT`, `THROW`를 사용한다.
 
 1. 단일 parameterized SQL batch를 한 번의 `DbClient.transaction()`으로 실행해 transaction 시작
-2. JSON 등 구조화 parameter를 batch 내부 table variable로 투영하고 현재 labelSizeId와 기존 column ID의 소유권 검증
+2. JSON 등 구조화 parameter를 batch 내부 table variable로 투영하고 현재 labelSizeId와 기존 column ID의 소유권 검증. 자유 입력 문자열은 validation 전에 제한 길이 `VARCHAR(n)`로 변환하지 않고 `NVARCHAR(MAX)` 등 원문을 보존하는 staging 컬럼에 먼저 투영한다. 검증된 값만 실제 target 컬럼 DML에서 변환하며 `OPENJSON ... WITH (VARCHAR(n))` 같은 조기 축소로 오류 없이 잘린 값을 저장하지 않는다.
 3. 신규 `BM_RICH_COLUMN` insert 및 batch 내부 `@InsertedColumns(draftKey, columnId)` mapping 생성
 4. 라벨 크기별 `BM_RICH_COL_MIN` 기준행과 신규/기존 컬럼행 동기화. 레거시의 빈 문자열 column ID가 SQL Server에서 0으로 변환되는 의미에 맞춰 `RICH_COLUMN_ID=0`, keyword `ELEMENT`, 이름 `주원료`, order 0, `RICH_MIN_CHECK=0` 기준행을 없을 때만 하나 생성한다. 신규 컬럼행은 `RICH_MIN_CHECK=0`으로 insert하고, 기존 컬럼행은 keyword, 이름, order만 update하여 기존 `RICH_MIN_CHECK`를 보존한다.
-5. 신규/기존 `BM_RICH_CHECK_COLUMNS`를 column ID와 labelSizeId 기준으로 upsert하고 `RICH_CHECK_YN`에는 최종 `LabelColumnDraft.useMissingKeywordCheck` 값을 저장
+5. 신규/기존 `BM_RICH_CHECK_COLUMNS`를 column ID와 labelSizeId 기준으로 upsert한다. matched update와 insert 모두 `RICH_KEYWORD`, `RICH_COLUMN_NAME`, `RICH_CHECK_YN`을 최종 `LabelColumnDraft.keyword`, `columnName`, `useMissingKeywordCheck` 값으로 저장해 `BM_RICH_COLUMN`과 보조행 identity가 일치하도록 한다.
 6. 신규 컬럼마다 해당 label size의 기존 `BM_RICH_ITEM`에 `BM_RICH_COL_CONTENT`를 `RICH_EDITABLE=0`, `RICH_COL_CONTENT_DATA=''`로 insert
 7. 구현 전 배포 DB 스키마에서 `BM_UPDATE_ITEM`과 `BM_UPDATE_COL_CONTENT` 존재 여부를 확인한다. 두 테이블이 존재하면 신규 컬럼마다 해당 label size의 기존 `BM_UPDATE_ITEM`에 `BM_UPDATE_COL_CONTENT.RICH_COL_CONTENT_DATA=''`를 insert한다. 배포 DB에 update 테이블이 없다고 확인된 경우에만 확인 근거를 구현 기록과 DAO 테스트 전제에 남기고 제외한다. 현재 Flutter 호출처나 현재 행 개수가 0이라는 이유만으로 제외하지 않는다.
 8. 기존 `BM_RICH_COLUMN` 전체 속성 및 최종 order update
 9. `BM_GS1_COLUMN_INFO` upsert/delete
 10. `BM_GS1_CONTAIN_COLUMN`을 최종 working copy 관계와 일치하도록 insert/delete. 관계의 `MAIN_COLUMN_ID`와 `CONTAIN_COLUMN_ID`는 각각 기존 column ID 또는 신규 draft key를 받을 수 있으며, 신규 draft key는 같은 batch의 `@InsertedColumns`와 결합해 실제 column ID로 변환한다. 삭제 대상이거나 mapping에서 해결되지 않는 참조가 하나라도 있으면 `THROW`한다.
 11. 삭제 대상의 status date 갱신 및 종속 데이터 정리 후 `BM_RICH_COLUMN` delete. `BM_RICH_COL_MIN`은 삭제 column ID에 해당하는 컬럼행만 제거하고 라벨 크기별 `ELEMENT` 기준행은 유지한다.
-12. 소유권을 확인한 기존 `BM_RICH_COLUMN` update/delete, 신규 ID mapping, 입력 원본 개수로 기대 건수가 정해지는 필수 insert/upsert는 expected affected row를 검증한다. 반면 출력 이력이 없는 컬럼의 `BM_RICH_STATUS_DATA` 날짜 update와 존재할 때만 지우는 check/GS1/min/content 종속행 delete는 0건을 정상으로 허용한다. 이어 최종 order/keyword uniqueness를 `Korean_Wansung_CI_AS` 기준으로 검증하고, 입력 신규 draft key 집합과 `@InsertedColumns`의 key 집합·개수가 정확히 같은지 batch 내부에서 검증한다. 필수 DML의 건수 불일치나 대소문자만 다른 keyword 중복, mapping의 누락·중복·예상하지 않은 key가 있으면 `THROW`한다.
+12. 소유권을 확인한 기존 `BM_RICH_COLUMN` update/delete, 신규 ID mapping, 입력 원본 개수로 기대 건수가 정해지는 필수 insert/upsert는 expected affected row를 검증한다. 반면 출력 이력이 없는 컬럼의 `BM_RICH_STATUS_DATA` 날짜 update와 존재할 때만 지우는 check/GS1/min/content 종속행 delete는 0건을 정상으로 허용한다. 이어 최종 order/keyword uniqueness와 네 특별 항목 예약 keyword 미사용을 `Korean_Wansung_CI_AS` 기준으로 검증하고, 각 일반 항목의 `BM_RICH_COLUMN`과 `BM_RICH_CHECK_COLUMNS` keyword/name identity가 일치하는지 확인한다. 입력 신규 draft key 집합과 `@InsertedColumns`의 key 집합·개수도 정확히 같은지 batch 내부에서 검증한다. 필수 DML의 건수 불일치, 대소문자만 다른 keyword 중복, 예약 keyword 사용, check 보조행 identity 불일치, mapping의 누락·중복·예상하지 않은 key가 있으면 `THROW`한다.
 13. 마지막에 `@InsertedColumns`의 draft key와 column ID를 조회 결과로 반환하고 같은 `DbClient.transaction()` 실행 경로에서 commit
 
 신규 ID는 레거시 `SelectLastNRecord()` 방식으로 찾지 않는다. source draft key를 반환할 수 있는 insert-only `MERGE ... OUTPUT` 또는 batch 내부의 결정적 row-by-row insert와 `OUTPUT INSERTED`를 사용해 `@InsertedColumns`에 정확히 매핑한다. mapping 완전성은 commit 전에 SQL batch가 검증한다. DAO는 `await DbClient.transaction(...)` 호출과 반환값 해석 구간을 분리한다. transaction 호출이 정상 반환한 뒤에만 반환 row를 decode하고 draft key 집합·개수를 다시 검증해 `LabelColumnSaveResult`로 반환하며, 이 해석 구간의 raw decode 또는 key/count 검증 실패만 `LabelColumnPostCommitResultInvalid`로 변환한다. transaction 호출 자체의 SQL/validation 예외와 `DbCommitOutcomeUnknown`은 변환하지 않는다. 상위 callback은 전용 exception을 11.2의 commit 후 결과 해석 실패 경로로 처리하고 같은 command를 재시도하지 않는다.
@@ -533,7 +542,9 @@ FK cascade에 암묵적으로 의존하지 않는다. 실제 FK/cascade가 확�
 - 기존/신규 삭제 ID 처리
 - 안정 key 기반 선택 유지
 - 대소문자만 다른 duplicate keyword/빈 필드/type별 validation
+- 일반 사용 항목에서 `ITEMNAME`, `ELEMENT`, `SWEIGHT`, `SPRICE`와 대소문자만 다른 값까지 예약 keyword로 차단
 - 사용 항목과 사용자 항목의 키워드/항목명 및 사용 항목 제목의 CP949 변환 가능 여부와 100바이트/50바이트/20바이트 경계값 validation
+- 사용자 정의 QR data/text, 나트륨 join, QR font name, 사용자 정의 바코드 text와 최종 date range의 CP949 round-trip 및 배포 DB byte 길이 경계값 validation
 - 타입 변경 시 기본↔QR의 생성 방식·사용자 정의 data/text 초기화와 GS1 AI 이탈의 contain 관계 제거만 수행하고 나머지 값은 보존
 - 바코드 신규 draft의 비율 조절 기본값이 false/10이고 기존 행의 `showQRCodeText`/`qrTextFontSize` 값이 편집 전후 보존됨
 - QR/기본/바코드 텍스트 연동/GS1 참조 관계를 하나의 공용 함수로 계산하고 행 표시·키워드 변경·삭제 경고가 같은 결과를 사용
@@ -549,6 +560,7 @@ FK cascade에 암묵적으로 의존하지 않는다. 실제 FK/cascade가 확�
 - 후보 선택 + 왼쪽 화살표 추가
 - 고정/사용자 후보 drag + 사용 항목 drop 추가
 - 중복 후보 추가 차단
+- 특별 항목 예약 keyword 후보는 고정/사용자 후보 목록에 그대로 표시하되 각 source에서 화살표와 drop 추가가 비활성화됨
 - 선택 없음 휴지통 비활성
 - 사용 항목 선택 + 휴지통 삭제
 - 사용 항목 drag + 휴지통 drop 애니메이션과 삭제
@@ -574,6 +586,7 @@ FK cascade에 암묵적으로 의존하지 않는다. 실제 FK/cascade가 확�
 - 사용자 항목 insert/update/delete가 한 transaction으로 commit
 - 사용자 항목 DAO가 내부 transaction을 중첩하지 않고 기존 `DbClient.transaction()`만 transaction을 소유
 - 사용자 항목 중간 실패 전체 rollback
+- 사용자 항목 사전에 기존 예약 keyword 행이 있어도 다른 행의 수정·저장에 성공하고 해당 예약 행을 유지하며, 일반 사용 항목으로 복사하는 add command만 실패
 - `SpecialMissingKeywordCheckSnapshot`이 canonical `(-1, ITEMNAME)`, `(-2, ELEMENT)`, `(-3, SWEIGHT)`, `(-4, SPRICE)` 네 행과 최종 check 값을 정확히 전달
 - `LabelSizeDAO.updateByLabelSizeId()`가 특별 항목 snapshot을 필수 입력으로 받고, 구조화 parameter의 누락·중복·예상하지 않은 keyword를 SQL 실행 전에 또는 batch 안에서 차단
 - 공용라벨 form log/update와 네 특별 항목 누락검사 upsert가 기존 `UpdateFormDataTransactionSql` 한 transaction에서 함께 commit되고 중간 실패 또는 기대 건수 불일치 시 전체 rollback
@@ -585,6 +598,7 @@ FK cascade에 암묵적으로 의존하지 않는다. 실제 FK/cascade가 확�
 - 후보 종류별 신규 draft가 단일 factory를 사용하고 체크디지트 사용=true, 바코드 번호 표시=true, QR font size=10, QR scale=100, GS1 AI=`01`, format option=-1, line size=0 등 레거시 기본값으로 생성
 - 신규 column마다 기존 item content가 `RICH_EDITABLE=0`, `RICH_COL_CONTENT_DATA=''`로 생성
 - 신규/기존 column의 `BM_RICH_CHECK_COLUMNS.RICH_CHECK_YN`이 각각 최종 draft의 true/false 값을 반영
+- 기존 column의 keyword/name 변경 시 `BM_RICH_CHECK_COLUMNS.RICH_KEYWORD`/`RICH_COLUMN_NAME`도 최종 draft 값으로 갱신되고 `BM_RICH_COLUMN`과 identity가 일치
 - 배포 DB에 두 update 테이블이 존재하는 fixture에서는 신규 column마다 해당 label size의 기존 update item content가 빈 값으로 생성되고, update 테이블 부재를 전제로 제외하는 fixture는 그 스키마 전제를 명시
 - `BM_RICH_COL_MIN`의 라벨 크기별 `ELEMENT` 기준행을 중복 없이 보장하고 신규 컬럼행은 `RICH_MIN_CHECK=0`으로 생성
 - 기존 `BM_RICH_COL_MIN` 컬럼행 update가 `RICH_MIN_CHECK`를 보존하고 삭제가 `ELEMENT` 기준행을 제거하지 않음
@@ -606,6 +620,8 @@ FK cascade에 암묵적으로 의존하지 않는다. 실제 FK/cascade가 확�
 - parameter binding으로 작은따옴표가 있는 허용 문자열도 SQL 문법을 깨지 않음
 - 키워드/항목명의 CP949 변환 불가 또는 100바이트/50바이트 초과 command가 SQL 실행 전에 validation 실패
 - 제목의 CP949 변환 불가 또는 20바이트 초과 command와 대소문자만 다른 keyword 중복이 SQL 실행 전에 validation 실패하고 SQL batch에서도 같은 collation으로 중복을 차단
+- 네 특별 항목 예약 keyword를 사용하는 일반 항목 command가 SQL 실행 전에 실패하고 SQL batch도 같은 collation으로 차단
+- 자유 입력 문자열의 CP949 변환 불가 또는 배포 DB byte 길이 초과 command가 SQL 실행 전에 실패하며, 구조화 parameter staging이 검증 전 문자열을 자르거나 `?`로 바꾼 결과를 commit하지 않음
 
 16.4 통합 회귀
 
@@ -615,6 +631,8 @@ FK cascade에 암묵적으로 의존하지 않는다. 실제 FK/cascade가 확�
 - 공용라벨 시트 dirty 상태에서 항목 편집기 진입과 저장 차단
 - 공용라벨 시트의 초기값, RTF 변환, 파일 import, 사용자 operation, 저장 결과를 단일 dirty callback 경계로 상위에 통지하고, 저장 성공일 때만 dirty false로 전환하며 저장 확인 취소·필수 키워드 누락·저장 오류에서는 dirty 유지
 - 특별 항목 누락검사 변경이 즉시 required keyword와 공용라벨 dirty에 반영되고 typed save 성공 시 `BM_RICH_CHECK_COLUMNS` 저장값과 함께 해제
+- 일반 사용 항목이 특별 항목 예약 keyword를 만들 수 없고 특별 항목 keyword 조회가 일반 항목 보조행과 충돌하지 않음
+- 사용자 항목 사전의 기존 예약 keyword 행은 무관한 사전 편집 저장 후에도 보존되고 일반 사용 항목 추가 command에서만 차단됨
 - 컬럼 저장·commit 분류·전체 재조회가 `HomePageManager`의 단일 상위 command를 통과하고, 재조회 실패 시 공용 reload-required 원인과 충돌 command 차단을 유지
 - 새 이미지/바코드/QR keyword가 라벨 시트 object/required keyword 처리에 반영
 - `BARCODE_TEXT_LINK`의 `userDefineData`에 포함된 `#keyword` 참조가 행 상태 표시와 키워드 변경/삭제 경고에 동일하게 반영
@@ -650,14 +668,16 @@ FK cascade에 암묵적으로 의존하지 않는다. 실제 FK/cascade가 확�
 - 특별 항목 네 행의 canonical ID/keyword/name과 form 저장 transaction에 전달하는 immutable 최종 check snapshot
 - QR/기본 사용자 정의/바코드 텍스트 연동/GS1에서 참조 중인 항목 표시와 공용 계산 결과를 사용하는 키워드 변경/삭제 경고
 - DB collation 기준으로 대소문자만 다른 키워드 중복도 추가/저장 차단
+- 특별 항목의 `ITEMNAME`, `ELEMENT`, `SWEIGHT`, `SPRICE`를 일반 사용 항목 예약 keyword로 유지
 - 빈 키워드/항목명 저장 차단
+- 사용자 정의 QR data/text, 나트륨 join, QR font name, 사용자 정의 바코드 text, 최종 date range의 CP949 round-trip 및 실제 DB byte 길이 검증
 - 기존 품목 존재 시 데이터 영향 이중 확인 또는 동등한 강도의 명확한 최종 확인
 - 바코드 비율 조절 사용 여부/수치를 기존 `RICH_SHOW_QRCODE_TEXT`/`RICH_QRTEXT_FONTSIZE`에 저장하는 것을 포함한 바코드/이미지/QR/GS1/날짜 타입의 전체 속성 UI와 검증
 - 타입별 수치 검증은 파싱/DB 저장 범위/정의 enum/문서 필수 조건/레거시 명시 차단 조건만 적용하고 확정되지 않은 UX 상·하한을 추가하지 않음
 - 체크디지트/타임바코드 변경 영향 경고
 - GS1 AI 포함 관계의 추가/수정/삭제
 - 신규 컬럼의 기존 품목 content를 `RICH_EDITABLE=0`과 빈 data로 생성하고, 배포 DB에 update 테이블이 존재하면 update 품목의 빈 content도 생성
-- `BM_RICH_COL_MIN`의 `ELEMENT` 기준행과 기존 `RICH_MIN_CHECK` 보존, 최종 draft의 누락검사 값을 반영하는 `BM_RICH_CHECK_COLUMNS`, GS1 보조 테이블 동기화
+- `BM_RICH_COL_MIN`의 `ELEMENT` 기준행과 기존 `RICH_MIN_CHECK` 보존, 최종 draft의 keyword/name/check 값을 함께 반영하는 `BM_RICH_CHECK_COLUMNS`, GS1 보조 테이블 동기화
 - 삭제 status date 갱신
 - 저장 후 컬럼 변경 observer/cache refresh
 - 고객별 사용자 항목 사전의 추가/수정/삭제와 대문자/영숫자 키워드 규칙
@@ -690,8 +710,11 @@ FK cascade에 암묵적으로 의존하지 않는다. 실제 FK/cascade가 확�
 - 신규 사용 항목은 단일 factory에서 레거시 생성자 기본값으로 초기화되고, 저장 시 신규 품목 content의 `RICH_EDITABLE=0`·빈 data와 신규/기존 항목의 최종 누락검사 값이 반영된다. 배포 DB에 두 update 테이블이 존재하면 신규 컬럼의 update 품목 빈 content도 함께 생성한다.
 - 필수 소유권 update/delete와 source 개수로 기대 건수가 정해지는 DML의 affected row 불일치는 rollback하되, 출력 이력이 없는 status date update와 존재하지 않는 선택적 종속행 정리의 0건은 정상으로 허용한다.
 - `BM_RICH_COL_MIN`은 라벨 크기별 `ELEMENT` 기준행을 하나 유지하고 기존 컬럼의 `RICH_MIN_CHECK`를 보존하며, 삭제 컬럼행만 제거한다.
+- 일반 항목의 `BM_RICH_CHECK_COLUMNS` 행은 최종 keyword/name/check를 모두 반영하고 `BM_RICH_COLUMN`과 identity가 일치한다.
 - 사용 항목과 사용자 항목의 키워드/항목명은 SQL 실행 전에 CP949 변환 가능 여부와 100바이트/50바이트 저장 한계를 검증한다.
 - 사용 항목 제목은 SQL 실행 전에 CP949 변환 가능 여부와 20바이트 저장 한계를 검증하고, 키워드 중복은 UI와 SQL에서 `Korean_Wansung_CI_AS` 의미로 동일하게 판정한다.
+- 일반 사용 항목은 특별 항목 예약 keyword 네 개를 사용할 수 없으며 후보 추가·속성 적용·저장 command·SQL 최종 검증이 같은 예약 집합과 collation 의미를 사용한다.
+- 사용자 정의 QR data/text, 나트륨 join, QR font name, 사용자 정의 바코드 text와 최종 date range는 SQL 실행 전에 CP949 round-trip과 배포 DB 실제 byte 저장 한계를 검증하고, 구조화 staging은 검증 전에 값을 축소하거나 변환하지 않는다.
 - 타입별 수치와 옵션은 파싱/DB 저장 범위/정의 enum/문서 필수 조건/레거시 명시 차단 조건만 검증하며, 0 경고값이나 기존 DB 값을 확정되지 않은 UX 상·하한으로 차단하지 않는다.
 - 바코드 비율 조절은 기존 `showQRCodeText`/`qrTextFontSize` 필드와 DB 컬럼에 저장되고 신규 기본값 false/10 및 기존 DB 값이 유지된다.
 - 사용 항목과 사용자 항목 저장은 각각 원자적 transaction이며 DB 처리 오류 시 사용자 알림, 가능한 rollback, 성공 처리·cache 교체 금지와 편집 상태 보존이 동작한다.
