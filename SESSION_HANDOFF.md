@@ -28,6 +28,25 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-13): 라벨 항목 편집기 작업지시서 19차 검토 권장안 병합
+
+- 사용자 요청: 18차 반영본을 레거시/현 프로젝트와 다시 대조해 확인한 P0 durable evidence store, 특수 신규 행 최초 적용, 사용자 항목 draft identity/정상 성공 ID mapping, reorder mode-local 순서 owner와 token trace source 문제의 권장안을 `doc/user_item_modify.txt`에 병합한다.
+- 추가 사용자 결정은 필요하지 않다. 사용자 항목은 기존 규범인 재조회 후 stable ID 선택 복원을 유지하므로 정상 commit/result decode 성공 경로에서만 draft key→DB ID mapping을 사용하고, committed-invalid/reload-only에서는 mapping을 폐기하고 선택을 해제한다.
+- 수정 예정 `doc/user_item_modify.txt`: P0 최소 crash-safe `NativeOperationEvidenceStoreV1`, `initialApplyState`, `ReorderSession`, `CustomerColumnDraft`와 정상 성공 mapping, 폐쇄 `LegacyOutputTraceSourceV1`/lineage를 모델·UI·DAO·milestone·테스트·완료 조건에 반영한다. 미검증.
+- 검증 예정: 두 문서 diagnostics, 옛 P0/P2 durable 소유권·propertyDirty-only save·암묵 reorder 순서·customer count-only 결과·필수 sourceColumnId 표현 검색, 독립 현 프로젝트·레거시 정합성 재검토, `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md`. 문서 계약만 변경하므로 Flutter 테스트는 실행하지 않는다.
+- 기존 unrelated dirty `.vscode/settings.json`, `lib/core/app.dart`는 수정·stage 대상에서 제외하며 원격 push와 배포 작업은 수행하지 않는다.
+- 편집 완료 `doc/user_item_modify.txt`: 특수 신규 행에 dirty와 독립적인 `initialApplyState=requiredPending`을 추가해 값 변경 없는 최초 적용도 가능하게 하고, 적용/행 제거 전 선택 이탈·후보 추가·전용 모드·메인 저장을 차단했다.
+- 편집 완료 `doc/user_item_modify.txt`: `ReorderSession(snapshotKeys, draftKeys, selectedKey)`을 임시 순서의 유일한 owner로 두고 확인 시에만 stable key 순서를 working copy에 원자 투영하도록 했다. 사용자 항목은 기존 ID 또는 session-local `draftCustomerColumnKey`로 선택·편집·삭제 identity를 통일하고 정상 성공 mapping으로만 재조회 선택을 복원하며 committed-invalid에서는 선택을 해제한다. 편집 직후 diagnostics 오류 0건이다.
+- 편집 완료 `doc/user_item_modify.txt`: `CustomerColumnDraft`와 customer save `MAPPING_JSON`에 `ROW_NO/draftCustomerColumnKey/custColumnId` 결정적 mapping을 추가해 정상 commit/result decode 성공에서만 선택 복원에 사용하고 committed-invalid에서는 폐기하도록 했다.
+- 편집 완료 `doc/user_item_modify.txt`: `LegacyOutputTraceSourceV1=column | reservedItemName | system` 폐쇄 union과 event/parent/pass lineage를 추가해 예약 품목명 선치환과 replacement-created transitive provenance를 임의 column sentinel 없이 표현한다. P0 root 모델에는 원자 evidence 저장·startup scan·unresolved dispatch 차단을 소유하는 `NativeOperationEvidenceStoreV1`을 추가했다. 두 문서 diagnostics 오류 0건이며 milestone·테스트 정합화는 진행 중이다.
+- 정합화 완료 `doc/user_item_modify.txt`: P0 development/production gate에 evidence store 원자 교체·재시작 scan·identity bind·unresolved dispatch 차단을 포함하고 P2는 같은 store를 journal/registry workflow로 확장하도록 milestone과 구현 순서를 수정했다.
+- 정합화 완료 `doc/user_item_modify.txt`: 값 변경 없는 최초 적용, reorder key-set 취소/확정, 다중 customer draft mapping/cross-decode, 예약 품목 trace lineage, P0-only restart evidence 차단을 순수 모델/widget/DAO/integration/recovery test와 완료 조건에 연결했다. 두 문서 diagnostics 오류 0건이다.
+- 검증 실행 예정: 옛 propertyDirty-only save, 암묵 reorder 순서, customer count-only result, 필수 sourceColumnId, P2 신규 durable primitive 소유 표현과 새 계약 연결 위치를 검색하고 `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md`를 실행한 뒤 독립 정합성 검토를 수행한다.
+- 독립 검토 후 보완 완료 `doc/user_item_modify.txt`: `resolvePendingPropertyEdit()` 진입 조건을 `propertyDirty || requiredPending`으로 확장하고 pending 우선 행 제거/현재 선택 유지, dirty draft reset과 원래 이벤트 exact-once 재개를 `PendingPropertyResolution` 폐쇄 결과로 분리했다. customer mapping SQL은 일반 `INSERT OUTPUT`의 source alias를 가정하지 않고 source key를 반환할 수 있는 승인 insert-only `MERGE ... OUTPUT ... INTO @mapping` 또는 동등한 검증 template로 고정했다.
+- 최종 검증 완료: 두 문서 diagnostics 오류 0건, 옛 propertyDirty-only guard/customer count-only result/필수 sourceColumnId/P2 신규 durable primitive 소유 표현 검색 0건, 새 핵심 계약 39개 위치 확인, `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md` 통과. 최종 독립 검토에서 19차 목표 5개 모두와 전체 변경이 치명적·높은 상충 0건으로 승인됐다. 문서 계약만 변경했으므로 Flutter 테스트는 실행하지 않았고 임시 산출물/캐시는 생성하지 않았다.
+- stage/commit 대상은 `doc/user_item_modify.txt` 단독 후 `SESSION_HANDOFF.md` 단독이다. 기존 unrelated `.vscode/settings.json`, `lib/core/app.dart`는 제외하며 원격 push와 배포 작업은 수행하지 않는다.
+- 작업지시서 커밋 완료: `29bbd0a 라벨 항목 편집기 작업지시서 19차 권장안 병합` (`doc/user_item_modify.txt` 단독, 49 insertions/40 deletions). 다음 stage/commit 대상은 `SESSION_HANDOFF.md` 단독이다.
+
 ### 완료 (2026-07-13): 라벨 항목 편집기 작업지시서 18차 검토 권장안 병합
 
 - 사용자 요청: 17차 반영본 재검토에서 확인한 decode evidence prerequisite closure, 레거시 출력 token 의존성 guard, workbook detach/flush 선형화와 stable-key selection invalidation 문제의 권장안을 `doc/user_item_modify.txt`에 병합한다.
