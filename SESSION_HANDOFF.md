@@ -28,6 +28,24 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-13): 라벨 항목 편집기 작업지시서 8차 검토 권장안 병합
+
+- 사용자 요청: 최신 `doc/user_item_modify.txt` 재검토에서 확인한 권장안을 작업지시서에 병합하고, 사용자 확인 사항은 즉시 확정한다.
+- 사용자 결정: type 0~12 전환은 비활성 데이터를 일괄 정리하지 않고 필드별 실제 레거시 혼합 동작을 재현한다. 각 scalar/QR·GS1 child에 `legacyObserved`, `newPolicy`, `intentionalDivergence`, 근거 symbol을 기록해 보존·기본값 덮어쓰기·조건부 child 처리를 fixture로 고정한다.
+- 수정 예정 `doc/user_item_modify.txt`: recovery record의 stable DB identity namespace/2단계 ready, durable phase 전이와 dispatch barrier, content-derived durable fingerprint 제거, metadata unknown 의미와 canonical scalar wire 표현, epoch-bound connection discard와 ODBC/DB-Lib cancel binding, key-range index capability fail-closed, 레거시 type 전환 fixture를 모델/DAO/상태/테스트/완료 조건에 병합한다. 미검증.
+- 수정 예정 `SESSION_HANDOFF.md`: 문서 편집, 검증, stage, commit 결과를 단계별로 기록한다.
+- 기존 unrelated dirty `.vscode/settings.json`, `lib/core/app.dart`는 수정·stage 대상에서 제외한다.
+- 편집 완료 `doc/user_item_modify.txt`: recovery artifact/mutex/barrier를 `stableDatabaseIdentityDigest` namespace로 격리하고 `storageReady`/`identityReady`, versioned durable phase와 DB dispatch 전 publish barrier를 정의했다. durable record의 content-derived fingerprint/hash를 제거했다.
+- 편집 완료 `doc/user_item_modify.txt`: nullable/수치 metadata의 unknown/not-applicable 의미와 `DbWireScalar` canonical 값, request epoch 검증, `DbConnectionDiscarded`, ODBC/DB-Lib native cancel binding과 tainted session command 선차단을 driver/isolate 계약에 반영했다.
+- 편집 완료 `doc/user_item_modify.txt`: index leading-key capability 부적합 시 편집/save/reconciliation fail-closed와 사용자 결정에 따른 레거시 혼합 type 전환 근거 fixture를 테스트/구현 순서/완료 조건까지 연결했다.
+- 중간 검증 완료: `doc/user_item_modify.txt`, `SESSION_HANDOFF.md` diagnostics 오류 0건. 이전 상충 문구/핵심 계약 검색과 전체 diff 검토는 미검증.
+- 검색 검증 완료: 이전 `registry.ready`, durable command fingerprint 저장, 레거시 일괄 초기화 문구는 0건이고 검색 1건은 content-derived fingerprint/hash 저장 금지 문장이다. DB identity/phase/discard/scalar/cancel/index/legacy fixture 핵심 계약이 모델·DAO·상태·테스트·완료 조건에 연결된 것을 확인했다.
+- 최종 검증 예정: 두 문서 diagnostics, `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md`, 전체 diff/stat와 실제 변경 범위 및 stage 대상 확인. 문서만 변경했으므로 Flutter 테스트는 실행하지 않는다.
+- 최종 검증 완료: 두 문서 diagnostics 오류 0건, 전체 diff에서 사용자 결정과 8차 권장안의 모델/DAO/lifecycle/테스트/완료 조건 연결을 확인했고 `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md`를 통과했다. 코드/테스트를 변경하지 않아 Flutter 테스트는 실행하지 않았다.
+- stage/commit 예정: `doc/user_item_modify.txt`만 먼저 기능 문서 커밋하고 확정 해시를 기록한 `SESSION_HANDOFF.md`를 별도 커밋한다. 기존 사용자 변경 `.vscode/settings.json`, `lib/core/app.dart`는 제외한다.
+- 기능 문서 커밋: `c674b43` (`라벨 항목 편집기 작업지시서 8차 권장안 병합`). DB identity별 recovery namespace와 durable dispatch barrier, fingerprint 비저장, tri-state metadata/canonical scalar, epoch-bound connection discard/native cancel, index fail-closed와 레거시 혼합 type 전환 fixture를 병합했다.
+- 완료: 임시 산출물이나 캐시를 생성하지 않았으며 원격 push와 배포 작업은 수행하지 않았다. 기존 사용자 변경 `.vscode/settings.json`, `lib/core/app.dart`는 수정·stage·commit하지 않았고 인수인계만 별도 커밋한다.
+
 ### 완료 (2026-07-13): 라벨 항목 편집기 작업지시서 7차 검토 권장안 병합
 
 - 사용자 요청: 최신 `doc/user_item_modify.txt` 재검토에서 확인한 권장안을 작업지시서에 병합하고, 사용자 확인 사항은 즉시 확정한다.
