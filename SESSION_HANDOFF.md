@@ -28,6 +28,26 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-13): 라벨 항목 편집기 작업지시서 14차 검토 권장안 병합
+
+- 사용자 요청: 최신 `doc/user_item_modify.txt` 재검토에서 확인한 P1 transaction 호환, scale consumer, committed-invalid mapping 복구, workbook 영향 검사 권장안을 작업지시서에 병합한다.
+- 사용자 결정: committed-invalid는 신규 ID mapping 중간 복구를 제거하고 resource별 전체 DB 재조회만 수행한다.
+- 사용자 결정: 삭제·키워드 변경 영향 검사에서 현재 session workbook을 decode하지 못하면 참조 여부를 확인할 수 없으므로 저장을 차단한다.
+- 확정 권장안: autocommit 기존 writer는 business/result semantics를 유지하되 compatibility locked transaction wrapper가 transaction을 소유한다. 기존 명시적 transaction writer는 기존 owner를 유지하고 첫 mutation 전 lock을 삽입하며, 복수 resource writer는 multi-resource wrapper를 사용한다. P1에서는 strict ACK/recovery를 요구하지 않는다.
+- 확정 권장안: 현 프로젝트의 저울출력은 placeholder이므로 scale consumer를 `future`와 필수 ACK 비참여로 고정하고, 실제 화면 활성화 시 `currentRequired`로 승격해 table rebinding/renderReady gate를 추가한다.
+- 수정 예정 `doc/user_item_modify.txt`: 위 네 계약을 본문, 상태/복구, consumer manifest, 테스트, 구현 순서와 완료 조건에 일관되게 반영한다. workbook 검사는 current `LabelSizeSession` draft를 source of truth로 삼고 공용 V1 exact-token parser를 사용한다. 미검증.
+- 검증 예정: 두 문서 diagnostics, 구 `mapping 복구`/모호한 scale/P1 transaction 문구 검색, 독립 정합성 재검토, `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md`. 문서 계약만 변경하므로 Flutter 테스트는 실행하지 않는다.
+- 기존 unrelated dirty `.vscode/settings.json`, `lib/core/app.dart`는 수정·stage 대상에서 제외하며 원격 push와 배포 작업은 수행하지 않는다.
+- 편집 완료 `doc/user_item_modify.txt`: P1 writer를 기존 명시적 transaction owner 유지/autocommit compatibility wrapper owner 이관/multi-resource wrapper owner 이관으로 분류하고 모든 범주를 lock-only·strict ACK/recovery 비참여로 고정했다. scale은 placeholder 동안 `future`와 필수/no-op ACK 비참여이며 실제 화면 활성화 시 table rebinding/renderReady gate와 함께 `currentRequired`로 승격한다.
+- 편집 완료 `doc/user_item_modify.txt`: committed-invalid의 mapping 중간 복구를 제거하고 같은 프로세스/재시작 모두 resource별 전체 재조회-only로 단순화했다. workbook 영향 검사는 같은 generation session draft와 V1 exact-token parser를 사용하며 decode/입력 추출 실패 시 저장을 차단한다. 본문·모델·테스트·구현 순서·완료 조건에 연결했다.
+- 문서 정규화 참고: 3천 자 단일 행인 역사적 prose 최소 state 목록에 `mappingRecoveryReloadPending` 문자열 1건이 남아 있으나, 바로 앞 우선 규범이 해당 상태를 V1 descriptor/enum/fixture에서 명시적으로 금지한다. exact line patch가 두 차례 실패해 이번에는 의미 없는 잔여 표기로 격리했으며 독립 검토에서 상충 여부를 재확인한다.
+- 독립 중간 검토: 역사적 state 목록의 잔여 토큰은 descriptor 우선·명시적 금지 계약으로 높은 상충이 아니라고 판정됐다. 다만 startup recovery 문장에 같은 프로세스의 mapping 복구 허용 표현이 남은 높은 상충 1건을 발견했다.
+- 독립 검토 후 편집 완료 `doc/user_item_modify.txt`: 같은 프로세스에서도 original/desired projection을 보유한 resource coordinator의 `commitOutcomeUnknown` reconciliation만 허용하고, 신규 ID mapping payload는 어떤 post-commit state에서도 working state 복구 입력으로 사용하지 않도록 수정했다. 문서 diagnostics 오류 0건. 최종 재검증 예정.
+- 최종 검증 완료: 구 mapping 복구 허용/모호한 scale/P1 transaction 문구는 0건이며 검색 결과 1건은 mapping payload를 post-commit 복구 입력으로 금지한 의도된 문장이다. 두 문서 diagnostics 오류 0건, 독립 최종 검토에서 치명적·높은 상충 0건, `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md` 통과. 변경량은 두 문서 34 insertions/14 deletions다. 문서 계약만 변경했으므로 Flutter 테스트는 실행하지 않았다.
+- 역사적 3천 자 prose state 목록의 `mappingRecoveryReloadPending` 잔여 표기는 낮은 수준의 정리 대상이며, 우선 규범이 descriptor/enum/fixture 입력에서 명시적으로 금지하므로 구현·production gate 계약에는 포함되지 않는다. 임시 산출물/캐시는 생성하지 않았다.
+- stage/commit 대상은 `doc/user_item_modify.txt`를 먼저 단독 커밋하고 확정 hash를 이 항목에 기록한 뒤 `SESSION_HANDOFF.md`를 별도 커밋한다. 기존 unrelated `.vscode/settings.json`, `lib/core/app.dart`는 제외하며 원격 push와 배포 작업은 수행하지 않는다.
+- 작업지시서 커밋 완료: `8c08dc5 라벨 항목 편집기 작업지시서 14차 권장안 병합` (`doc/user_item_modify.txt` 단독, 18 insertions/14 deletions). 다음 stage/commit 대상은 `SESSION_HANDOFF.md` 단독이다.
+
 ### 완료 (2026-07-13): 라벨 항목 편집기 작업지시서 13차 검토 권장안 병합
 
 - 사용자 요청: 최신 `doc/user_item_modify.txt`의 레거시/현 프로젝트 재검토에서 확인한 문제와 권장안을 병합하고 필요한 제품 정책을 즉시 확정한다.
