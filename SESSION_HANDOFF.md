@@ -35,7 +35,7 @@
 - 사용 항목 저장은 main/check/min/content/update-content/GS1/delete/status/order를 하나의 transaction batch로 처리한다. optional schema capability별 정적 SQL variant와 `OUTPUT INSERTED` 신규 ID 매핑을 사용하고, 저장 완료 후 전체 column session을 강제 재조회한다.
 - 독립 modeless 항목 편집 dialog에 3영역 UI, fixed/customer 전환, 사용자 항목 CRUD, reorder, 속성 panel, dirty/busy/pending 확인을 연결했다. sheet 저장 결과는 `LabelSheetSaveResult`로 성공/취소를 구분하며 실제 반영된 경우에만 dirty를 해제한다.
 - 바코드 연결 후보는 `TYPE_BARCODE`/`TYPE_QR_CODE`/`TYPE_GS1_BARCODE`, 이미지 후보는 `TYPE_IMAGE`만 사용한다. 구조화 option은 표시 label과 저장 keyword를 분리하고 항목 기본 형식과 `showBarcodeNum`을 전달한다.
-- FortuneSheet dialog에 `연결 안 함`, 연결/고정/연결 끊김 표시, 연결형 바코드 값 read-only, 항목 기본 형식·번호 표시, `이 라벨에서 형식 고정`, 고정형 metadata 제거를 구현했다. 품목 이미지는 파일 없이 placeholder 객체를 삽입하고 파일 control을 숨기며, 고정 이미지는 기존 파일 선택/교체 동작을 유지한다. 후보에서 사라진 연결 keyword는 `연결 끊김`으로 표시하면서 저장값을 보존한다.
+- FortuneSheet dialog에 `연결 안 함`, 연결/고정/연결 끊김 표시, 연결형 바코드 값 read-only, 항목 기본 형식·번호 표시, `이 라벨에서 형식 고정`, 고정형 metadata 제거를 구현했다. 바코드는 1D/2D 형식별 적용 control만 표시하고 Tab 순회에서도 숨긴 control을 제외한다. 이미지는 `품목 이미지`/`고정 이미지` segmented control로 mode를 전환하며, 품목 이미지는 파일 없이 placeholder 객체를 삽입하고 파일 control을 숨기고 고정 이미지는 기존 파일 선택/교체 동작을 유지한다. 후보에서 사라진 연결 keyword는 `연결 끊김`으로 표시하면서 저장값을 보존한다.
 - 출력 materialize에서 연결 이미지 값/BMP가 없으면 해당 객체를 제외하고 고정 이미지는 유지한다. 연결 바코드는 항목 소유 형식/번호 표시와 라벨별 형식 고정 metadata를 사용한다.
 - formatter 적용 완료. 항목 편집 focused suite 143개 통과, FortuneSheet 바코드·이미지 dialog 66개 통과, `flutter analyze` 결과 `No issues found`, 전체 `flutter test` 358개 통과했다. 테스트가 생성한 `third_party/fortune_sheet/build/` 캐시를 삭제했다.
 - 실제 SQL Server 연결 smoke test는 로컬 DB 연결 정보가 없어 실행하지 못했다. DAO SQL 계약은 단위 테스트로 검증했으며 배포 build/installer와 원격 push는 수행하지 않는다.

@@ -5429,14 +5429,6 @@ void main() {
     await tester.sendKeyEvent(LogicalKeyboardKey.tab);
     await tester.pump();
 
-    expect(
-      editor('fortune-barcode-bar-height-input').focusNode.hasFocus,
-      isTrue,
-    );
-
-    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
-    await tester.pump();
-
     expect(editor('fortune-barcode-width-input').focusNode.hasFocus, isTrue);
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
@@ -5445,7 +5437,7 @@ void main() {
     await tester.pump();
 
     expect(
-      editor('fortune-barcode-bar-height-input').focusNode.hasFocus,
+      editor('fortune-barcode-module-scale-input').focusNode.hasFocus,
       isTrue,
     );
   });
@@ -6845,7 +6837,7 @@ void main() {
         matching: find.byType(EditableText),
       ),
     );
-    expect(editableTexts, hasLength(8));
+    expect(editableTexts, hasLength(7));
     for (final editableText in editableTexts) {
       expect(editableText.selectionControls, isNotNull);
       expect(editableText.contextMenuBuilder, isNotNull);
@@ -7108,6 +7100,14 @@ void main() {
       find.byKey(const ValueKey('fortune-barcode-text-input')),
       findsNothing,
     );
+    expect(
+      find.byKey(const ValueKey('fortune-barcode-module-scale-input')),
+      findsNothing,
+    );
+    expect(
+      find.byKey(const ValueKey('fortune-barcode-bar-height-input')),
+      findsOneWidget,
+    );
 
     await tester.tapAt(
       topLeft + fortuneBarcodeConfirmButtonRect(rect).center,
@@ -7191,7 +7191,14 @@ void main() {
     await tester.pump();
 
     expect(painter().imageLinked, isTrue);
+    expect(painter().imageModeAvailable, isTrue);
     expect(painter().imageInsertHasFile, isFalse);
+    await tester.tapAt(topLeft + fortuneImageFixedModeRect(rect).center);
+    await tester.pump();
+    expect(painter().imageLinked, isFalse);
+    await tester.tapAt(topLeft + fortuneImageLinkedModeRect(rect).center);
+    await tester.pump();
+    expect(painter().imageLinked, isTrue);
     await tester.tapAt(
       topLeft + fortuneImageInsertConfirmButtonRect(rect).center,
     );

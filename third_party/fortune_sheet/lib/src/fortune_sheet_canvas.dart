@@ -23621,6 +23621,14 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     return formats[index];
   }
 
+  bool get _barcodeIsTwoDimensional {
+    final id = (_barcodeUsesLinkedObject && !_barcodePreserveTemplateFormat
+            ? _selectedBarcodeObjectOption?.formatId
+            : _selectedBarcodeFormat.id)
+        ?.toLowerCase();
+    return id?.contains('qr') == true || id?.contains('matrix') == true;
+  }
+
   int _barcodeFormatIndexForMetadata(String? id, String? label) {
     final formats = _effectiveBarcodeFormats;
     if (id != null && id.trim().isNotEmpty) {
@@ -37189,6 +37197,14 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         return 'object-id-$index';
       }
     }
+    if (widget.imageObjectOptions.isNotEmpty &&
+        fortuneImageLinkedModeRect(rect).contains(local)) {
+      return 'image-mode-linked';
+    }
+    if (widget.imageObjectOptions.isNotEmpty &&
+        fortuneImageFixedModeRect(rect).contains(local)) {
+      return 'image-mode-fixed';
+    }
     if (fortuneImageObjectIdInputRect(rect).contains(local)) {
       return 'object-id';
     }
@@ -37283,31 +37299,38 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     if (fortuneBarcodeWidthInputRect(rect).contains(local)) {
       return 'width';
     }
-    if (fortuneBarcodeModuleScaleInputRect(rect).contains(local)) {
+    if (_barcodeIsTwoDimensional &&
+        fortuneBarcodeModuleScaleInputRect(rect).contains(local)) {
       return 'module-scale';
     }
-    if (fortuneBarcodeBarHeightInputRect(rect).contains(local)) {
+    if (!_barcodeIsTwoDimensional &&
+        fortuneBarcodeBarHeightInputRect(rect).contains(local)) {
       return 'bar-height';
     }
     if (fortuneBarcodeHeightInputRect(rect).contains(local)) {
       return 'height';
     }
-    if (fortuneBarcodeLeadingQuietZoneInputRect(rect).contains(local)) {
+    if (!_barcodeIsTwoDimensional &&
+        fortuneBarcodeLeadingQuietZoneInputRect(rect).contains(local)) {
       return 'leading-quiet-zone';
     }
-    if (fortuneBarcodeTrailingQuietZoneInputRect(rect).contains(local)) {
+    if (!_barcodeIsTwoDimensional &&
+        fortuneBarcodeTrailingQuietZoneInputRect(rect).contains(local)) {
       return 'trailing-quiet-zone';
     }
-    if (fortuneBarcodeShowTextCheckboxRect(rect).contains(local)) {
+    if (!_barcodeIsTwoDimensional &&
+        fortuneBarcodeShowTextCheckboxRect(rect).contains(local)) {
       return 'show-text';
     }
     if (fortuneBarcodePreserveFormatCheckboxRect(rect).contains(local)) {
       return 'preserve-format';
     }
-    if (fortuneBarcodeTextFontComboRect(rect).contains(local)) {
+    if (!_barcodeIsTwoDimensional &&
+        fortuneBarcodeTextFontComboRect(rect).contains(local)) {
       return 'text-font';
     }
-    if (fortuneBarcodeTextFontSizeComboRect(rect).contains(local)) {
+    if (!_barcodeIsTwoDimensional &&
+        fortuneBarcodeTextFontSizeComboRect(rect).contains(local)) {
       return 'text-font-size';
     }
     if (fortuneBarcodeLinkButtonRect(rect).contains(local)) {
@@ -37473,6 +37496,27 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     }
     if (command == 'height') {
       _imageInsertHeightFocusNode.requestFocus();
+      return;
+    }
+    if (command == 'image-mode-linked') {
+      final options = widget.imageObjectOptions;
+      if (options.isNotEmpty) {
+        setState(() {
+          _setImageObjectIdSelection(options.first.value);
+          if (_imageInsertWidthController.text.trim().isEmpty) {
+            _setImageInsertControllerText(_imageInsertWidthController, '30');
+          }
+          if (_imageInsertHeightController.text.trim().isEmpty) {
+            _setImageInsertControllerText(_imageInsertHeightController, '30');
+          }
+        });
+      }
+      return;
+    }
+    if (command == 'image-mode-fixed') {
+      setState(() {
+        _setImageObjectIdSelection(_fortuneUnlinkedObjectValue);
+      });
       return;
     }
     if (command == 'object-id') {
@@ -41868,6 +41912,19 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     if (_barcodeDialogOpen) {
       return _sortDialogFocusNodesByVisibleOrder(
         _barcodeDialogInputs
+            .where((input) {
+              final node = input.focusNode;
+              if (_barcodeUsesLinkedObject &&
+                  identical(node, _barcodeTextFocusNode)) {
+                return false;
+              }
+              if (_barcodeIsTwoDimensional) {
+                return !identical(node, _barcodeBarHeightFocusNode) &&
+                    !identical(node, _barcodeLeadingQuietZoneFocusNode) &&
+                    !identical(node, _barcodeTrailingQuietZoneFocusNode);
+              }
+              return !identical(node, _barcodeModuleScaleFocusNode);
+            })
             .map((input) => input.focusNode)
             .toList(growable: false),
       );
@@ -44138,7 +44195,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
               controller: _barcodeWidthController,
               focusNode: _barcodeWidthFocusNode,
             ),
-          if (!_barcodeFormatMenuIntersects(size, moduleScaleRect))
+            if (_barcodeIsTwoDimensional &&
+              !_barcodeFormatMenuIntersects(size, moduleScaleRect))
             _buildBarcodeDialogInput(
               key: const ValueKey('fortune-barcode-module-scale-input'),
               editableKey: _barcodeModuleScaleEditableKey,
@@ -44146,7 +44204,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
               controller: _barcodeModuleScaleController,
               focusNode: _barcodeModuleScaleFocusNode,
             ),
-          if (!_barcodeFormatMenuIntersects(size, barHeightRect))
+            if (!_barcodeIsTwoDimensional &&
+              !_barcodeFormatMenuIntersects(size, barHeightRect))
             _buildBarcodeDialogInput(
               key: const ValueKey('fortune-barcode-bar-height-input'),
               editableKey: _barcodeBarHeightEditableKey,
@@ -44171,7 +44230,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
               focusNode: _barcodeRotationFocusNode,
               signed: true,
             ),
-          if (!_barcodeFormatMenuIntersects(size, leadingQuietZoneRect))
+            if (!_barcodeIsTwoDimensional &&
+              !_barcodeFormatMenuIntersects(size, leadingQuietZoneRect))
             _buildBarcodeDialogInput(
               key: const ValueKey('fortune-barcode-leading-quiet-zone-input'),
               editableKey: _barcodeLeadingQuietZoneEditableKey,
@@ -44180,7 +44240,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
               focusNode: _barcodeLeadingQuietZoneFocusNode,
               keyboardType: TextInputType.text,
             ),
-          if (!_barcodeFormatMenuIntersects(size, trailingQuietZoneRect))
+            if (!_barcodeIsTwoDimensional &&
+              !_barcodeFormatMenuIntersects(size, trailingQuietZoneRect))
             _buildBarcodeDialogInput(
               key: const ValueKey('fortune-barcode-trailing-quiet-zone-input'),
               editableKey: _barcodeTrailingQuietZoneEditableKey,
@@ -45112,6 +45173,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
                 imageInsertFileName: _imageInsertFileName,
                 imageInsertHasFile: _imageInsertPickResult != null,
                 imageLinked: _imageUsesStructuredLinkedObject,
+                imageModeAvailable: widget.imageObjectOptions.isNotEmpty,
                 imageObjectId: _imageObjectLabel(_selectedImageObjectId),
                 imageObjectIdOptions: [
                   for (final value in _effectiveImageObjectIds)
@@ -45147,6 +45209,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
                   : '',
                 barcodePreserveTemplateFormat:
                   _barcodePreserveTemplateFormat,
+                barcodeTwoDimensional: _barcodeIsTwoDimensional,
                 barcodeFormatLabel: _barcodeUsesLinkedObject &&
                     !_barcodePreserveTemplateFormat
                   ? _barcodeFormatOptionForMetadata(

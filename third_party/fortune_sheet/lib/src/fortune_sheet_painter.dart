@@ -60292,6 +60292,15 @@ Rect fortuneImageInsertCloseButtonRect(Rect dialogRect) {
   );
 }
 
+Rect fortuneImageLinkedModeRect(Rect dialogRect) {
+  return Rect.fromLTWH(dialogRect.left + 154, dialogRect.top + 10, 104, 28);
+}
+
+Rect fortuneImageFixedModeRect(Rect dialogRect) {
+  final linked = fortuneImageLinkedModeRect(dialogRect);
+  return Rect.fromLTWH(linked.right, linked.top, 104, linked.height);
+}
+
 Rect fortuneImageInsertWidthUnitRect(Rect dialogRect) {
   final input = fortuneImageInsertWidthInputRect(dialogRect);
   return Rect.fromLTWH(
@@ -61676,6 +61685,7 @@ class FortuneSheetPainter extends CustomPainter {
     this.imageInsertFileName = '선택된 파일 없음',
     this.imageInsertHasFile = false,
     this.imageLinked = false,
+    this.imageModeAvailable = false,
     this.imageObjectId = '',
     this.imageObjectIdOptions = const <String>[],
     this.imageObjectIdMenuOpen = false,
@@ -61698,6 +61708,7 @@ class FortuneSheetPainter extends CustomPainter {
     this.barcodeLinked = false,
     this.barcodeValueLabel = '',
     this.barcodePreserveTemplateFormat = false,
+    this.barcodeTwoDimensional = false,
     this.barcodeFormatLabel = '',
     this.barcodeFormatOptions = const <String>[],
     this.barcodeFormatMenuOpen = false,
@@ -61892,6 +61903,7 @@ class FortuneSheetPainter extends CustomPainter {
   final String imageInsertFileName;
   final bool imageInsertHasFile;
   final bool imageLinked;
+  final bool imageModeAvailable;
   final String imageObjectId;
   final List<String> imageObjectIdOptions;
   final bool imageObjectIdMenuOpen;
@@ -61914,6 +61926,7 @@ class FortuneSheetPainter extends CustomPainter {
   final bool barcodeLinked;
   final String barcodeValueLabel;
   final bool barcodePreserveTemplateFormat;
+  final bool barcodeTwoDimensional;
   final String barcodeFormatLabel;
   final List<String> barcodeFormatOptions;
   final bool barcodeFormatMenuOpen;
@@ -68933,6 +68946,22 @@ class FortuneSheetPainter extends CustomPainter {
       fortuneImageInsertCloseButtonRect(rect),
       'image-insert',
     );
+    if (imageModeAvailable) {
+      _drawImageInsertButton(
+        canvas,
+        fortuneImageLinkedModeRect(rect),
+        '품목 이미지',
+        'image-mode-linked',
+        primary: imageLinked,
+      );
+      _drawImageInsertButton(
+        canvas,
+        fortuneImageFixedModeRect(rect),
+        '고정 이미지',
+        'image-mode-fixed',
+        primary: !imageLinked,
+      );
+    }
 
     final labelLeft = rect.left + fortuneImageInsertDialogPaddingLeft;
     void drawLabel(String label, double top) {
@@ -69084,12 +69113,17 @@ class FortuneSheetPainter extends CustomPainter {
     drawLabel('값', textInput.top + 4);
     final moduleScaleInput = fortuneBarcodeModuleScaleInputRect(rect);
     final barHeightInput = fortuneBarcodeBarHeightInputRect(rect);
-    drawLabel('막대/모듈 두께의 배율', moduleScaleInput.top + 4);
-    drawLabel('바코드 높이', barHeightInput.top + 4);
+    if (barcodeTwoDimensional) {
+      drawLabel('모듈 두께의 배율', moduleScaleInput.top + 4);
+    } else {
+      drawLabel('바코드 높이', barHeightInput.top + 4);
+    }
     _drawInputShell(canvas, objectIdInput);
     _drawInputShell(canvas, textInput);
-    _drawInputShell(canvas, moduleScaleInput);
-    _drawInputShell(canvas, barHeightInput);
+    _drawInputShell(
+      canvas,
+      barcodeTwoDimensional ? moduleScaleInput : barHeightInput,
+    );
     _drawInputShell(canvas, formatCombo);
     if (barcodeLinked) {
       _drawText(
@@ -69157,56 +69191,58 @@ class FortuneSheetPainter extends CustomPainter {
     );
     final textFontCombo = fortuneBarcodeTextFontComboRect(rect);
     final textFontSizeCombo = fortuneBarcodeTextFontSizeComboRect(rect);
-    drawLabel('표시 텍스트', textFontCombo.top + 4);
-    _drawInputShell(canvas, textFontCombo);
-    _drawText(
-      canvas,
-      barcodeTextFontFamilyLabel,
-      textFontCombo.deflate(8),
-      fontSize: 12,
-      color: const Color(0xff222222),
-    );
-    _drawComboArrow(canvas, textFontCombo.right - 18, textFontCombo.center.dy);
-    _drawInputShell(canvas, textFontSizeCombo);
-    _drawText(
-      canvas,
-      barcodeTextFontSizeLabel,
-      textFontSizeCombo.deflate(8),
-      fontSize: 12,
-      color: const Color(0xff222222),
-    );
-    _drawComboArrow(
-      canvas,
-      textFontSizeCombo.right - 18,
-      textFontSizeCombo.center.dy,
-    );
     final leadingInput = fortuneBarcodeLeadingQuietZoneInputRect(rect);
     final trailingInput = fortuneBarcodeTrailingQuietZoneInputRect(rect);
-    final checkbox = fortuneBarcodeShowTextCheckboxRect(rect);
-    _drawText(
-      canvas,
-      '앞',
-      Rect.fromLTWH(rect.left + 28, leadingInput.top + 4, 18, 22),
-      fontSize: 12,
-      color: const Color(0xff333333),
-    );
-    _drawInputShell(canvas, leadingInput);
-    _drawCheckbox(canvas, checkbox, barcodeShowHumanReadableText);
-    _drawText(
-      canvas,
-      '사람이 읽을 수 있는 텍스트 표시',
-      fortuneBarcodeShowTextLabelRect(rect),
-      fontSize: 12,
-      color: const Color(0xff333333),
-    );
-    _drawText(
-      canvas,
-      '뒤',
-      Rect.fromLTWH(trailingInput.left - 18, trailingInput.top + 4, 18, 22),
-      fontSize: 12,
-      color: const Color(0xff333333),
-    );
-    _drawInputShell(canvas, trailingInput);
+    if (!barcodeTwoDimensional) {
+      drawLabel('표시 텍스트', textFontCombo.top + 4);
+      _drawInputShell(canvas, textFontCombo);
+      _drawText(
+        canvas,
+        barcodeTextFontFamilyLabel,
+        textFontCombo.deflate(8),
+        fontSize: 12,
+        color: const Color(0xff222222),
+      );
+      _drawComboArrow(canvas, textFontCombo.right - 18, textFontCombo.center.dy);
+      _drawInputShell(canvas, textFontSizeCombo);
+      _drawText(
+        canvas,
+        barcodeTextFontSizeLabel,
+        textFontSizeCombo.deflate(8),
+        fontSize: 12,
+        color: const Color(0xff222222),
+      );
+      _drawComboArrow(
+        canvas,
+        textFontSizeCombo.right - 18,
+        textFontSizeCombo.center.dy,
+      );
+      final checkbox = fortuneBarcodeShowTextCheckboxRect(rect);
+      _drawText(
+        canvas,
+        '앞',
+        Rect.fromLTWH(rect.left + 28, leadingInput.top + 4, 18, 22),
+        fontSize: 12,
+        color: const Color(0xff333333),
+      );
+      _drawInputShell(canvas, leadingInput);
+      _drawCheckbox(canvas, checkbox, barcodeShowHumanReadableText);
+      _drawText(
+        canvas,
+        '사람이 읽을 수 있는 텍스트 표시',
+        fortuneBarcodeShowTextLabelRect(rect),
+        fontSize: 12,
+        color: const Color(0xff333333),
+      );
+      _drawText(
+        canvas,
+        '뒤',
+        Rect.fromLTWH(trailingInput.left - 18, trailingInput.top + 4, 18, 22),
+        fontSize: 12,
+        color: const Color(0xff333333),
+      );
+      _drawInputShell(canvas, trailingInput);
+    }
     if (barcodeLinked) {
       final preserveCheckbox = fortuneBarcodePreserveFormatCheckboxRect(rect);
       _drawCheckbox(
