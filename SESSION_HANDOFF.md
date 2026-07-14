@@ -42,6 +42,7 @@
 - 임시 산출물 `third_party/fortune_sheet/build/` 정리 완료. 최종 Dart 진단 이슈 없음, `git diff --check` 통과.
 - stage/commit 대상: `lib/page_home/label_column_edit_dialog.dart`, `test/label_column_edit_dialog_test.dart`, `SESSION_HANDOFF.md`. unrelated `lib/core/app.dart`는 제외한다.
 - 커밋 직전 focused 테스트 8개 재통과, Dart 진단 이슈 없음, `git diff --check` 재통과.
+- 기능 커밋: `0ad43be 라벨 항목 편집 버튼과 드롭다운 UI 보정`.
 
 ### 완료 (2026-07-14): 라벨 항목 편집 UI 밀도와 후보 테이블 통일
 
