@@ -40,6 +40,7 @@
 - 전체 회귀 검증 완료: `C:\Flutter\bin\flutter.bat test` 결과 359개 통과, 실패 0건.
 - 전체 테스트가 생성한 `third_party/fortune_sheet/build/` 캐시를 삭제했다. 관련 파일 제한 `git diff --check`를 통과했고 최종 diff는 production/test/인수인계 3개 파일에 한정됐다.
 - stage/commit 대상: `lib/page_label_sheet/label_sheet_workbench.dart`, `test/label_sheet_toolbar_test.dart`, `SESSION_HANDOFF.md`. unrelated `.vscode/settings.json`, `lib/core/app.dart`는 제외하고 원격 push와 배포 작업은 수행하지 않는다.
+- 기능 커밋 완료: `51a6e57` (`공용라벨 초기 로드 진행 표시 종료 보정`). 원격 push와 배포 작업은 수행하지 않았다.
 
 ### 완료 (2026-07-14): 공용라벨 라벨 항목 편집기 구현
 
