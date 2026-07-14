@@ -154,6 +154,7 @@ class BlockingModelessDialogFrame extends StatelessWidget {
     required this.child,
     this.footer,
     this.closeIcon = const Icon(Icons.close, size: 18),
+    this.closeEnabled = true,
   });
 
   final String title;
@@ -163,6 +164,7 @@ class BlockingModelessDialogFrame extends StatelessWidget {
   final Widget child;
   final Widget? footer;
   final Widget closeIcon;
+  final bool closeEnabled;
 
   @override
   Widget build(BuildContext context) {
@@ -192,7 +194,7 @@ class BlockingModelessDialogFrame extends StatelessWidget {
                 _BlockingModelessDialogTitleBar(
                   title: title,
                   closeIcon: closeIcon,
-                  onClose: onClose,
+                  onClose: closeEnabled ? onClose : null,
                 ),
                 Expanded(child: child),
                 ?footer,
@@ -214,7 +216,7 @@ class _BlockingModelessDialogTitleBar extends StatelessWidget {
 
   final String title;
   final Widget closeIcon;
-  final VoidCallback onClose;
+  final VoidCallback? onClose;
 
   @override
   Widget build(BuildContext context) {

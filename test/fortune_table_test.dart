@@ -15,8 +15,8 @@ import 'package:label_manager/page_home/item_manage.dart';
 import 'package:label_manager/home_page_manager.dart';
 
 void main() {
-  test('brand name submission gate ignores concurrent submissions', () async {
-    final gate = BrandNameSubmissionGate();
+  test('settings operation gate ignores concurrent operations', () async {
+    final gate = SettingsOperationGate();
     final completer = Completer<void>();
     var submissions = 0;
 
@@ -41,8 +41,8 @@ void main() {
     expect(submissions, 2);
   });
 
-  test('brand name submission gate unlocks after failure', () async {
-    final gate = BrandNameSubmissionGate();
+  test('settings operation gate unlocks after failure', () async {
+    final gate = SettingsOperationGate();
 
     await expectLater(
       gate.run(() async => throw StateError('save failed')),

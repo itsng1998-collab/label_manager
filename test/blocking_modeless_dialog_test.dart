@@ -30,6 +30,30 @@ void main() {
     expect(closeCount, 1);
   });
 
+  testWidgets('frame disables close action while operation is active', (
+    tester,
+  ) async {
+    var closeCount = 0;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: BlockingModelessDialogFrame(
+          title: '공통 설정',
+          width: 240,
+          height: 160,
+          closeEnabled: false,
+          onClose: () => closeCount += 1,
+          child: const Text('body'),
+        ),
+      ),
+    );
+
+    final closeButton = tester.widget<IconButton>(find.byType(IconButton));
+    expect(closeButton.onPressed, isNull);
+    await tester.tap(find.byType(IconButton));
+    expect(closeCount, 0);
+  });
+
   testWidgets('blocks pointer events outside dialog content', (tester) async {
     var outsideTapCount = 0;
     var insideTapCount = 0;

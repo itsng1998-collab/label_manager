@@ -28,6 +28,22 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-14): 브랜드·라벨 설정 삭제 경합 보정
+
+- 재검토 확정 문제: 브랜드 삭제 DB commit 전 dialog를 닫으면 부모 목록/선택 재조회가 생략되고, 라벨 삭제 중 브랜드 전환·라벨 선택·연속 삭제가 가능해 늦은 reload가 최신 목록/선택을 덮을 수 있다.
+- 수정 예정: 설정 dialog별 단일 operation gate로 추가·수정·삭제를 직렬화하고 operation 중 닫기, 목록 조작, 브랜드/라벨 선택, 순서 모드 진입을 비활성화한다. DAO/SQL transaction/schema는 변경하지 않는다.
+- `lib/home_page_manager.dart` 편집 완료: `SettingsOperationGate`가 브랜드 추가·수정·삭제 전체를 직렬화하고 operation 중 설정 테이블·브랜드 선택·닫기를 비활성화한다. 라벨 삭제는 `_deletingLabel`로 DB 삭제부터 부모 재조회까지 브랜드 dropdown, 테이블 action, 라벨 선택, 순서 모드, 닫기를 차단한다.
+- `lib/widgets/blocking_modeless_dialog.dart` 편집 완료: 기존 호출부 기본 동작을 유지하는 `closeEnabled`를 추가해 operation 중 닫기 아이콘이 실제 disabled 상태가 된다.
+- `test/blocking_modeless_dialog_test.dart` 편집 완료: `closeEnabled: false`일 때 닫기 callback이 실행되지 않는 focused 테스트를 추가했다. finder 오류 2회를 실제 비활성 IconButton 탐색으로 수정한 뒤 통과했다.
+- formatter 적용, 수정 파일 diagnostics 오류 0건, gate/관련 UI 회귀 75개 통과, 제한 `git diff --check` 통과.
+- 전체 정적 검증 완료: `flutter analyze` 결과 `No issues found`.
+- 전체 회귀 검증 완료: 전체 `flutter test` 3,336개 통과, 실패 0건.
+- 전체 테스트가 생성한 `third_party/fortune_sheet/build/` 캐시를 정리했다.
+- 최종 diff 검토에서 브랜드 삭제 후 목록 재조회 실패가 `브랜드 삭제 실패`로 합쳐진 메시지 회귀를 확인해 DB 삭제 실패와 목록 갱신 실패를 다시 구분했다. operation gate 범위는 유지하며 관련 UI 회귀 75개 재검증을 통과했다.
+- 최종 수정에 formatter를 적용하고 `flutter analyze`를 재실행해 `No issues found`로 통과했다. 전체 `flutter test`도 3,336개 통과, 실패 0건으로 재검증했다.
+- 최종 전체 테스트가 재생성한 `third_party/fortune_sheet/build/` 캐시를 삭제한다.
+- stage/commit 대상: `lib/home_page_manager.dart`, `lib/widgets/blocking_modeless_dialog.dart`, `test/fortune_table_test.dart`, `test/blocking_modeless_dialog_test.dart`, `SESSION_HANDOFF.md`만 포함한다. unrelated `.vscode/settings.json`, `lib/core/app.dart`는 제외한다.
+
 ### 완료 (2026-07-14): 브랜드 설정 중복 제출 차단
 
 - 재검토 확정 문제: 브랜드 인라인 추가/수정은 비동기 확인 및 DB 저장 중 제출 상태가 없어 Enter 또는 적용 버튼 재호출 시 같은 저장 작업이 중복 실행될 수 있다.

@@ -127,7 +127,7 @@ class ItemElementCommitQueue {
 }
 
 @visibleForTesting
-class BrandNameSubmissionGate {
+class SettingsOperationGate {
   bool _submitting = false;
 
   bool get submitting => _submitting;
@@ -5596,6 +5596,7 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
   bool _selectingLabel = false;
   bool _changingBrand = false;
   bool _submittingLabelNameEdit = false;
+  bool _deletingLabel = false;
   bool _labelUseScaleEditValue = false;
   int? _selectedBrandId;
   int? _selectedLabelSizeId;
@@ -5660,7 +5661,8 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
       _insertingLabel ||
       _selectingLabel ||
       _changingBrand ||
-      _submittingLabelNameEdit;
+      _submittingLabelNameEdit ||
+      _deletingLabel;
 
   Brand? get _selectedBrand {
     final selectedBrandId = _selectedBrandId;
@@ -5713,6 +5715,7 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
       height: dialogHeight,
       closeIcon: const _BrandDialogCloseIcon(),
       onClose: widget.onClose,
+      closeEnabled: !_deletingLabel,
       footer: _orderEditMode ? _buildOrderEditFooter() : null,
       child: KeyedSubtree(
         key: _dialogContentKey,
@@ -5870,7 +5873,7 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
       onDeleteRow: _deleteLabel,
       onNameDoubleTap: _handleLabelNameDoubleTap,
       inlineTrailingBuilder: _buildLabelInlineTrailing,
-      enabled: !_orderEditMode,
+      enabled: !_orderEditMode && !_deletingLabel,
       fillLastColumn: true,
       autoFitColumns: false,
       rowSwipeEnabled: !_orderEditMode,
@@ -6337,6 +6340,7 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
     );
     if (_editingIndex != null ||
         _orderEditMode ||
+      _deletingLabel ||
         index < 0 ||
         index >= _labels.length) {
       debugLog(
@@ -6375,6 +6379,7 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
         ? _resolveLabelAfterDelete(index)
         : null;
 
+    setState(() => _deletingLabel = true);
     try {
       await LabelSizeDAO.deleteByLabelSizeId(label.labelSizeId);
       final reloadedLabels = await widget.onLabelsChanged(
@@ -6410,6 +6415,10 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
           ),
         );
       }
+    } finally {
+      if (mounted) {
+        setState(() => _deletingLabel = false);
+      }
     }
   }
 
@@ -6425,7 +6434,7 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
   }
 
   void _handleLabelRowSelected(LabelSize label, int index) {
-    if (_selectedLabelSizeId == label.labelSizeId) {
+    if (_deletingLabel || _selectedLabelSizeId == label.labelSizeId) {
       return;
     }
     debugLog(
@@ -6438,7 +6447,10 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
     debugLog(
       'labelNameDoubleTap index=$index editingIndex=$_editingIndex orderEditMode=$_orderEditMode selecting=$_selectingLabel labelSizeId=${label.labelSizeId} name=${label.labelSizeName}',
     );
-    if (_editingIndex != null || _orderEditMode || _selectingLabel) {
+    if (_editingIndex != null ||
+      _orderEditMode ||
+      _selectingLabel ||
+      _deletingLabel) {
       debugLog(
         'labelNameDoubleTap blocked editingIndex=$_editingIndex orderEditMode=$_orderEditMode selecting=$_selectingLabel',
       );
@@ -6456,7 +6468,10 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
   }
 
   void _startOrderEditMode() {
-    if (_editingIndex != null || _applyingOrderChanges || _orderEditMode) {
+    if (_editingIndex != null ||
+      _applyingOrderChanges ||
+      _orderEditMode ||
+      _deletingLabel) {
       debugLog(
         'labelSettings reorder startBlocked editingIndex=$_editingIndex applying=$_applyingOrderChanges orderEditMode=$_orderEditMode',
       );
@@ -6968,7 +6983,7 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
   int? _editingIndex;
   int? _insertActionIndex;
   bool _insertingBrand = false;
-  final BrandNameSubmissionGate _submissionGate = BrandNameSubmissionGate();
+  final SettingsOperationGate _submissionGate = SettingsOperationGate();
 
   @override
   void initState() {
@@ -7039,6 +7054,7 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
       height: dialogHeight,
       closeIcon: const _BrandDialogCloseIcon(),
       onClose: widget.onClose,
+      closeEnabled: !_submissionGate.submitting,
       child: Padding(
         padding: const EdgeInsets.only(left: 8, right: 8, bottom: 8),
         child: EditableSwipeNameTable<Brand>(
@@ -7061,6 +7077,7 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
           fillLastColumn: true,
           autoFitColumns: false,
           rowSwipeEnabled: true,
+          enabled: !_submissionGate.submitting,
           keepRowContentOnSwipe: true,
           rowTooltip: '컬럼 왼쪽 스와이프 수정/삽입/삭제',
           showActionsWhenEmpty: true,
@@ -7093,7 +7110,9 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
     debugLog(
       'brandNameDoubleTap index=$index editingIndex=$_editingIndex busy=${widget.busyNotifier.value} brandId=${brand.brandId} name=${brand.brandName}',
     );
-    if (_editingIndex != null || widget.busyNotifier.value) {
+    if (_editingIndex != null ||
+      widget.busyNotifier.value ||
+      _submissionGate.submitting) {
       debugLog(
         'brandNameDoubleTap blocked editingIndex=$_editingIndex busy=${widget.busyNotifier.value}',
       );
@@ -7259,8 +7278,8 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
       );
       return;
     }
-    setState(() {});
     await _submissionGate.run(() async {
+      if (mounted) setState(() {});
       if (_insertingBrand) {
         await _insertBrandName(editingIndex, value.trim());
         return;
@@ -7500,75 +7519,68 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
       return;
     }
 
-    try {
-      await BrandDAO.deleteByBrandId(brand);
-    } catch (e) {
-      debugLog('deleteBrand failed brandId=${brand.brandId} error=$e');
-      if (mounted) {
-        await _showBrandOverlayDialog<void>(
-          (dialogContext, close) => AlertDialog(
-            title: const Text('브랜드 삭제 실패'),
-            content: const Text('브랜드 삭제에 실패했습니다.'),
-            actions: [
-              TextButton(onPressed: () => close(null), child: const Text('확인')),
-            ],
-          ),
-        );
-      }
-      return;
-    }
-
-    if (!mounted) {
-      debugLog('deleteBrand aborted unmounted after delete');
-      return;
-    }
-
-    final currentIndex = _brands.indexWhere(
-      (value) => value.brandId == brand.brandId,
-    );
-    if (currentIndex < 0) {
-      debugLog(
-        'deleteBrand skippedStateUpdate missing brandId=${brand.brandId}',
-      );
-      return;
-    }
-
-    final wasSelected = widget.selectedBrand?.brandId == brand.brandId;
-    final nextSelectedBrand = wasSelected
-        ? _resolveBrandAfterDelete(currentIndex)
-        : widget.selectedBrand;
-
-    try {
-      final reloadedBrands = await _reloadBrandsChanged(
-        selectedBrand: nextSelectedBrand,
-        updateSelection: wasSelected,
-      );
-
-      if (!mounted) {
-        debugLog('deleteBrand aborted unmounted after reload');
+    await _submissionGate.run(() async {
+      if (mounted) setState(() {});
+      try {
+        await BrandDAO.deleteByBrandId(brand);
+      } catch (e) {
+        debugLog('deleteBrand failed brandId=${brand.brandId} error=$e');
+        if (mounted) {
+          await _showBrandOverlayDialog<void>(
+            (dialogContext, close) => AlertDialog(
+              title: const Text('브랜드 삭제 실패'),
+              content: const Text('브랜드 삭제에 실패했습니다.'),
+              actions: [
+                TextButton(
+                  onPressed: () => close(null),
+                  child: const Text('확인'),
+                ),
+              ],
+            ),
+          );
+        }
         return;
       }
 
-      setState(() {
-        _brands = List<Brand>.from(reloadedBrands);
-      });
-    } catch (e) {
-      debugLog('deleteBrand reload failed brandId=${brand.brandId} error=$e');
-      if (mounted) {
-        await _showBrandOverlayDialog<void>(
-          (dialogContext, close) => AlertDialog(
-            title: const Text('브랜드 목록 갱신 실패'),
-            content: const Text('브랜드 목록 갱신에 실패했습니다.'),
-            actions: [
-              TextButton(onPressed: () => close(null), child: const Text('확인')),
-            ],
-          ),
-        );
-      }
-      return;
-    }
+      if (!mounted) return;
+      final currentIndex = _brands.indexWhere(
+        (value) => value.brandId == brand.brandId,
+      );
+      if (currentIndex < 0) return;
+      final wasSelected = widget.selectedBrand?.brandId == brand.brandId;
+      final nextSelectedBrand = wasSelected
+          ? _resolveBrandAfterDelete(currentIndex)
+          : widget.selectedBrand;
 
-    debugLog('deleteBrand done brandId=${brand.brandId} index=$currentIndex');
+      try {
+        final reloadedBrands = await _reloadBrandsChanged(
+          selectedBrand: nextSelectedBrand,
+          updateSelection: wasSelected,
+        );
+        if (!mounted) return;
+        setState(() => _brands = List<Brand>.from(reloadedBrands));
+        debugLog(
+          'deleteBrand done brandId=${brand.brandId} index=$currentIndex',
+        );
+      } catch (e) {
+        debugLog('deleteBrand reload failed brandId=${brand.brandId} error=$e');
+        if (mounted) {
+          await _showBrandOverlayDialog<void>(
+            (dialogContext, close) => AlertDialog(
+              title: const Text('브랜드 목록 갱신 실패'),
+              content: const Text('브랜드 목록 갱신에 실패했습니다.'),
+              actions: [
+                TextButton(
+                  onPressed: () => close(null),
+                  child: const Text('확인'),
+                ),
+              ],
+            ),
+          );
+        }
+      }
+    });
+    if (mounted) setState(() {});
   }
 
   Brand? _resolveBrandAfterDelete(int deletedIndex) {
