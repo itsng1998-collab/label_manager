@@ -40,7 +40,7 @@
 - formatter 적용 완료. 항목 편집 focused suite 143개 통과, FortuneSheet 바코드·이미지 dialog 66개 통과, `flutter analyze` 결과 `No issues found`, 전체 `flutter test` 358개 통과했다. 테스트가 생성한 `third_party/fortune_sheet/build/` 캐시를 삭제했다.
 - 실제 SQL Server 연결 smoke test는 로컬 DB 연결 정보가 없어 실행하지 못했다. DAO SQL 계약은 단위 테스트로 검증했으며 배포 build/installer와 원격 push는 수행하지 않는다.
 - stage/commit 대상은 항목 편집 production/test 파일과 `SESSION_HANDOFF.md`다. unrelated `lib/core/app.dart`는 제외한다.
-- 로컬 기능 커밋: `dfe95f0 공용라벨 항목 편집 기능을 구현`. 원격 push와 배포 build/installer 생성은 수행하지 않았다.
+- 로컬 기능 커밋: `49712bd 공용라벨 항목 편집 기능을 구현`. 원격 push와 배포 build/installer 생성은 수행하지 않았다.
 
 ### 완료 (2026-07-14): 브랜드·라벨 설정 현재 HEAD 최종 재검토
 
