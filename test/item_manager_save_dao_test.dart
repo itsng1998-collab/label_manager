@@ -6,44 +6,18 @@ import 'package:label_manager/models/item_manager_save.dart';
 
 void main() {
   group('[transaction/DAO]', () {
-    test('schema capabilities preserve probe flags', () {
+    test('schema capabilities preserve rich element sheet flag', () {
       final capabilities = ItemSaveSchemaCapabilities.fromMap({
         'HAS_RICH_ELEMENT_SHEET': 1,
-        'HAS_AFTER_INSERT_ITEM_TRIGGER': 1,
-        'TRIGGER_CREATES_COLUMN_CONTENT': 1,
-        'TRIGGER_CREATES_BARCODE_OR_IMAGE': 0,
-        'TRIGGER_CREATES_ELEMENT_CONTENT': 1,
-        'TRIGGER_SUPPORTS_MULTI_ROW': 0,
       });
 
       expect(capabilities.hasRichElementSheet, isTrue);
-      expect(capabilities.hasAfterInsertItemTrigger, isTrue);
-      expect(capabilities.insertTriggerCreatesColumnContent, isTrue);
-      expect(capabilities.insertTriggerCreatesBarcodeOrImageRows, isFalse);
-      expect(capabilities.insertTriggerCreatesElementContent, isTrue);
-      expect(capabilities.insertTriggerSupportsMultiRow, isFalse);
     });
 
-    test('schema probe checks required column and insert trigger tables', () {
+    test('schema probe checks required rich element sheet column', () {
       expect(
         ItemSaveSchemaCapabilityDAO.probeSql,
         contains("COL_LENGTH(N'BM_RICH_ITEM', N'RICH_ELEMENT_SHEET')"),
-      );
-      expect(
-        ItemSaveSchemaCapabilityDAO.probeSql,
-        contains("T.name=N'AFTER_INSERT_ITEM'"),
-      );
-      expect(
-        ItemSaveSchemaCapabilityDAO.probeSql,
-        contains("CHARINDEX(N'BM_RICH_COL_CONTENT'"),
-      );
-      expect(
-        ItemSaveSchemaCapabilityDAO.probeSql,
-        contains("CHARINDEX(N'BM_RICH_BARCODE'"),
-      );
-      expect(
-        ItemSaveSchemaCapabilityDAO.probeSql,
-        contains("CHARINDEX(N'BM_RICH_ELEMENT_CONTENT'"),
       );
     });
 
@@ -176,11 +150,6 @@ void main() {
     test('save blocks databases without rich element sheet', () async {
       const capabilities = ItemSaveSchemaCapabilities(
         hasRichElementSheet: false,
-        hasAfterInsertItemTrigger: false,
-        insertTriggerCreatesColumnContent: false,
-        insertTriggerCreatesBarcodeOrImageRows: false,
-        insertTriggerCreatesElementContent: false,
-        insertTriggerSupportsMultiRow: true,
       );
       await expectLater(
         ItemManagerSaveDAO.save(

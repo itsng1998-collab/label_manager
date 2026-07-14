@@ -342,17 +342,15 @@ void main() {
           importViewState: const ItemManagerImportViewState(
             selectedItemId: 20,
             selectedIndex: 1,
-            baselineChecksum: 'baseline-1',
           ),
         );
 
         expect(controller.deletedSourceItemIds, {10, 20});
-        expect(controller.deletedRowsBySourceItemId.keys, {10, 20});
+        expect(controller.deletedRowsBySourceItemId, isEmpty);
         expect(controller.hasImportedRows, isTrue);
         expect(controller.importViewState?.toJson(), {
           'selectedItemId': 20,
           'selectedIndex': 1,
-          'baselineChecksum': 'baseline-1',
           'sortState': const [],
           'filterState': const {},
         });

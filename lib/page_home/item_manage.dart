@@ -14,13 +14,9 @@ import 'package:label_manager/utils/log_context.dart';
 bool itemManagerCanPersistDynamicCell({
   required bool canManageItemStructure,
   required bool commandBusy,
-  required bool forceReloadRequired,
   required bool hasDraftRow,
 }) {
-  return canManageItemStructure &&
-      !commandBusy &&
-      !forceReloadRequired &&
-      hasDraftRow;
+  return canManageItemStructure && !commandBusy && hasDraftRow;
 }
 
 String itemManagerDeleteConfirmationMessage({
@@ -110,9 +106,15 @@ class ItemManage extends StatefulWidget {
   final String? itemOrderDisabledReason;
   final Future<void> Function()? onCancelDraft;
   final Future<void> Function()? onSaveDraft;
-  final Future<void> Function()? onReloadDraft;
+  final Future<void> Function(ItemManagerDraftRow row)? onBeforeItemNameChange;
+  final Future<void> Function(ItemManagerDraftRow row, int columnId)?
+  onBeforeColumnChange;
+  final Future<void> Function(Iterable<ItemManagerDraftRow> rows)?
+  onBeforeRowsReordered;
+  final Future<void> Function(Iterable<ItemManagerDraftRow> rows)?
+  onBeforeRowsDeleted;
+  final Future<void> Function(Iterable<String> rowKeys)? onRowsAdded;
   final bool commandBusy;
-  final bool forceReloadRequired;
   final bool canEdit;
   final ItemManageController? controller;
   final VoidCallback? onReady;
@@ -134,9 +136,12 @@ class ItemManage extends StatefulWidget {
     this.itemOrderDisabledReason,
     this.onCancelDraft,
     this.onSaveDraft,
-    this.onReloadDraft,
+    this.onBeforeItemNameChange,
+    this.onBeforeColumnChange,
+    this.onBeforeRowsReordered,
+    this.onBeforeRowsDeleted,
+    this.onRowsAdded,
     this.commandBusy = false,
-    this.forceReloadRequired = false,
     this.canEdit = true,
     this.controller,
     this.onReady,
@@ -403,13 +408,10 @@ class _ItemManageState extends State<ItemManage> {
 
   Widget _buildCommandFooter() {
     final dirty = widget.draftController?.isDirty == true;
-    final cleanEnabled =
-        !widget.commandBusy && !widget.forceReloadRequired && !dirty;
+    final cleanEnabled = !widget.commandBusy && !dirty;
     final dirtyEnabled =
         widget.canEdit &&
-        !widget.commandBusy &&
-        !widget.forceReloadRequired &&
-        dirty;
+        !widget.commandBusy && dirty;
     return Container(
       height: 48,
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
@@ -444,28 +446,19 @@ class _ItemManageState extends State<ItemManage> {
             const Text('처리 중'),
           ],
           const Spacer(),
-          if (widget.forceReloadRequired)
-            FilledButton(
-              onPressed: !widget.commandBusy && widget.onReloadDraft != null
-                  ? widget.onReloadDraft
-                  : null,
-              child: const Text('다시 조회'),
-            )
-          else ...[
-            OutlinedButton(
-              onPressed: dirtyEnabled && widget.onCancelDraft != null
-                  ? widget.onCancelDraft
-                  : null,
-              child: const Text('취소'),
-            ),
-            const SizedBox(width: 8),
-            FilledButton(
-              onPressed: dirtyEnabled && widget.onSaveDraft != null
-                  ? widget.onSaveDraft
-                  : null,
-              child: const Text('저장'),
-            ),
-          ],
+          OutlinedButton(
+            onPressed: dirtyEnabled && widget.onCancelDraft != null
+                ? widget.onCancelDraft
+                : null,
+            child: const Text('취소'),
+          ),
+          const SizedBox(width: 8),
+          FilledButton(
+            onPressed: dirtyEnabled && widget.onSaveDraft != null
+                ? widget.onSaveDraft
+                : null,
+            child: const Text('저장'),
+          ),
         ],
       ),
     );
@@ -578,15 +571,10 @@ class _ItemManageState extends State<ItemManage> {
         'y': details.globalPosition.dy.round(),
       },
     );
-    final mutationEnabled =
-        widget.canEdit && !widget.commandBusy && !widget.forceReloadRequired;
+    final mutationEnabled = widget.canEdit && !widget.commandBusy;
     final publishSelectionEnabled =
-        !widget.commandBusy &&
-        !widget.forceReloadRequired &&
-        widget.draftController?.isDirty != true;
-    final orderDisabledReason = widget.forceReloadRequired
-        ? '품목 목록을 다시 조회한 후 실행해 주세요.'
-        : widget.draftController?.isDirty == true
+      !widget.commandBusy && widget.draftController?.isDirty != true;
+    final orderDisabledReason = widget.draftController?.isDirty == true
         ? '저장 완료 또는 변경 취소 확정 후 순서 변경을 실행해 주세요.'
         : widget.commandBusy
         ? '현재 작업이 끝난 후 실행해 주세요.'
@@ -864,19 +852,18 @@ class _ItemManageState extends State<ItemManage> {
       fields: {
         'command': command,
         'busy': widget.commandBusy,
-        'forceReload': widget.forceReloadRequired,
         'selected': _selectionController.selectedRows.length,
       },
     );
-    if (widget.commandBusy || widget.forceReloadRequired) {
+    if (widget.commandBusy) {
       ItemManagerDebugLog.event('contextMenu', 'blocked', trace: trace);
       return;
     }
     switch (command) {
       case _menuAdd:
-        _addDraftRows(_addCountController.text);
+        await _addDraftRows(_addCountController.text);
       case _menuInsert:
-        _insertDraftRows(_insertCountController.text);
+        await _insertDraftRows(_insertCountController.text);
       case _menuDelete:
         await _deleteSelectedDraftRows();
       case _menuItemOrder:
@@ -904,7 +891,7 @@ class _ItemManageState extends State<ItemManage> {
     }
   }
 
-  void _addDraftRows(String rawCount) {
+  Future<void> _addDraftRows(String rawCount) async {
     final trace = ItemManagerDebugLog.nextTrace('addRows');
     final count = _parseCount(rawCount);
     if (count == null) {
@@ -916,6 +903,12 @@ class _ItemManageState extends State<ItemManage> {
         count,
         emptyElementPayload: widget.emptyElementPayload,
       );
+      try {
+        await widget.onRowsAdded?.call(added.map((row) => row.rowKey));
+      } catch (error) {
+        widget.draftController!.deleteRows(added.map((row) => row.rowKey));
+        rethrow;
+      }
       _selectDraftRows(added);
       _focusFirstDraftRowAfterBuild(added);
       ItemManagerDebugLog.event(
@@ -927,18 +920,18 @@ class _ItemManageState extends State<ItemManage> {
           'rows': widget.draftController!.rows.length,
         },
       );
-    } on StateError catch (error) {
+    } catch (error) {
       ItemManagerDebugLog.event(
         'addRows',
         'failed',
         trace: trace,
         fields: {'error': error.runtimeType},
       );
-      _showWarning(error.message);
+      _showWarning(error is StateError ? error.message : '$error');
     }
   }
 
-  void _insertDraftRows(String rawCount) {
+  Future<void> _insertDraftRows(String rawCount) async {
     final trace = ItemManagerDebugLog.nextTrace('insertRows');
     final count = _parseCount(rawCount);
     if (count == null) {
@@ -958,11 +951,23 @@ class _ItemManageState extends State<ItemManage> {
       return;
     }
     try {
+      final anchorIndex = controller.rows.indexWhere(
+        (row) => row.rowKey == anchorKey,
+      );
+      await widget.onBeforeRowsReordered?.call(
+        controller.rows.skip(anchorIndex + 1),
+      );
       final added = controller.insertRowsAfter(
         anchorKey,
         count,
         emptyElementPayload: widget.emptyElementPayload,
       );
+      try {
+        await widget.onRowsAdded?.call(added.map((row) => row.rowKey));
+      } catch (error) {
+        controller.deleteRows(added.map((row) => row.rowKey));
+        rethrow;
+      }
       _selectDraftRows(added);
       ItemManagerDebugLog.event(
         'insertRows',
@@ -974,14 +979,14 @@ class _ItemManageState extends State<ItemManage> {
           'rows': controller.rows.length,
         },
       );
-    } on StateError catch (error) {
+    } catch (error) {
       ItemManagerDebugLog.event(
         'insertRows',
         'failed',
         trace: trace,
         fields: {'error': error.runtimeType},
       );
-      _showWarning(error.message);
+      _showWarning(error is StateError ? error.message : '$error');
     }
   }
 
@@ -1034,6 +1039,18 @@ class _ItemManageState extends State<ItemManage> {
     final rowKeys = selectedIndexes
         .map((index) => controller.rows[index].rowKey)
         .toList(growable: false);
+    final selectedRows = selectedIndexes
+        .map((index) => controller.rows[index])
+        .toList(growable: false);
+    try {
+      await widget.onBeforeRowsDeleted?.call(selectedRows);
+      await widget.onBeforeRowsReordered?.call(
+        controller.rows.skip(selectedIndexes.first),
+      );
+    } catch (error) {
+      if (mounted) _showWarning('변경 취소용 백업을 저장하지 못했습니다.\n$error');
+      return;
+    }
     final nextKey = controller.deleteRows(rowKeys);
     ItemManagerDebugLog.event(
       'deleteRows',
@@ -1116,7 +1133,6 @@ class _ItemManageState extends State<ItemManage> {
     return itemManagerCanPersistDynamicCell(
       canManageItemStructure: widget.canEdit,
       commandBusy: widget.commandBusy,
-      forceReloadRequired: widget.forceReloadRequired,
       hasDraftRow: draft != null,
     );
   }
@@ -1124,6 +1140,7 @@ class _ItemManageState extends State<ItemManage> {
   Future<void> _selectBmpImage(ItemOfMarket row, TColumn column) async {
     final draft = _draftByDisplayItem[row];
     if (!_canEditDynamicColumn(draft)) return;
+    final targetDraft = draft!;
     const bmpGroup = XTypeGroup(label: 'BMP 이미지', extensions: <String>['bmp']);
     final file = await openFile(acceptedTypeGroups: const [bmpGroup]);
     if (file == null || !mounted) return;
@@ -1131,8 +1148,14 @@ class _ItemManageState extends State<ItemManage> {
       RegExp(r'\.bmp$', caseSensitive: false),
       '',
     );
+    try {
+      await widget.onBeforeColumnChange?.call(targetDraft, column.columnId);
+    } catch (error) {
+      if (mounted) _showWarning('변경 취소용 백업을 저장하지 못했습니다.\n$error');
+      return;
+    }
     widget.draftController!.updateColumnValue(
-      draft!.rowKey,
+      targetDraft.rowKey,
       columnId: column.columnId,
       editable: true,
       dataString: fileName,
@@ -1143,9 +1166,7 @@ class _ItemManageState extends State<ItemManage> {
   }
 
   void _setSelectedPublishChecked(bool checked) {
-    if (widget.commandBusy ||
-        widget.forceReloadRequired ||
-        widget.draftController?.isDirty == true) {
+    if (widget.commandBusy || widget.draftController?.isDirty == true) {
       return;
     }
     final selectedRows = _selectionController.selectedRows;
@@ -1161,9 +1182,7 @@ class _ItemManageState extends State<ItemManage> {
 
   List<FortuneTableColumn<ItemOfMarket>> get _columns {
     final publishSelectionEnabled =
-        !widget.commandBusy &&
-        !widget.forceReloadRequired &&
-        widget.draftController?.isDirty != true;
+      !widget.commandBusy && widget.draftController?.isDirty != true;
     final extras = List<TColumn>.from(TColumn.datas ?? const <TColumn>[]);
     final extraColumns = extras
         .map(
@@ -1192,8 +1211,8 @@ class _ItemManageState extends State<ItemManage> {
               widget.canEdit && c.columnType.code == TColumnType.TYPE_IMAGE
                 ? (row, _) => _selectBmpImage(row, c)
                 : null,
-            onTextCommitted: (row, _, value) {
-              if (widget.commandBusy || widget.forceReloadRequired) return;
+            onTextCommitted: (row, _, value) async {
+              if (widget.commandBusy) return;
               final draft = _draftByDisplayItem[row];
               if (!_canEditDynamicColumn(draft)) return;
               final editable = draft!.isNew ||
@@ -1201,6 +1220,14 @@ class _ItemManageState extends State<ItemManage> {
                     .get(c.columnId, draft.sourceItemId!)
                     ?.editable ??
                   false);
+              try {
+                await widget.onBeforeColumnChange?.call(draft, c.columnId);
+              } catch (error) {
+                if (mounted) {
+                  _showWarning('변경 취소용 백업을 저장하지 못했습니다.\n$error');
+                }
+                return;
+              }
               final applied = widget.draftController!.updateColumnValue(
                 draft.rowKey,
                 columnId: c.columnId,
@@ -1258,12 +1285,19 @@ class _ItemManageState extends State<ItemManage> {
         isTextEditable: (row, _) =>
             widget.canEdit &&
             !widget.commandBusy &&
-            !widget.forceReloadRequired &&
             _draftByDisplayItem.containsKey(row),
-        onTextCommitted: (row, _, value) {
-          if (widget.commandBusy || widget.forceReloadRequired) return;
+        onTextCommitted: (row, _, value) async {
+          if (widget.commandBusy) return;
           final draft = _draftByDisplayItem[row];
           if (draft == null) return;
+          try {
+            await widget.onBeforeItemNameChange?.call(draft);
+          } catch (error) {
+            if (mounted) {
+              _showWarning('변경 취소용 백업을 저장하지 못했습니다.\n$error');
+            }
+            return;
+          }
           widget.draftController!.updateItemName(draft.rowKey, value);
           ItemManagerDebugLog.event(
             'editItemName',

@@ -30,16 +30,21 @@ class Item {
     required this.order
   });
 
-  Item copyWith({String? element, String? elementRTF}) {
+  Item copyWith({
+    String? itemName,
+    String? element,
+    String? elementRTF,
+    int? order,
+  }) {
     return Item(
       itemId: itemId,
       labelSizeId: labelSizeId,
-      itemName: itemName,
+      itemName: itemName ?? this.itemName,
       labelSizeName: labelSizeName,
       element: element ?? this.element,
       elementRTF: elementRTF ?? this.elementRTF,
       price: price,
-      order: order,
+      order: order ?? this.order,
     );
   }
 

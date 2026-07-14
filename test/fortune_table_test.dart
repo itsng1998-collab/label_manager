@@ -43,7 +43,6 @@ void main() {
       itemManagerCanPersistDynamicCell(
         canManageItemStructure: true,
         commandBusy: false,
-        forceReloadRequired: false,
         hasDraftRow: true,
       ),
       isTrue,
@@ -52,7 +51,6 @@ void main() {
       itemManagerCanPersistDynamicCell(
         canManageItemStructure: false,
         commandBusy: false,
-        forceReloadRequired: false,
         hasDraftRow: true,
       ),
       isFalse,
@@ -1752,47 +1750,6 @@ void main() {
     expect(find.text('편집 후 품명'), findsOneWidget);
     await tester.pump(const Duration(milliseconds: 100));
   });
-
-  testWidgets(
-    'ItemManage allows only reload after a saved draft reload fails',
-    (tester) async {
-      var reloadCount = 0;
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: SizedBox(
-              width: 600,
-              height: 220,
-              child: ItemManage(
-                items: const [],
-                onExcelImport: () async {},
-                onExcelExport: () async {},
-                onCancelDraft: () async {},
-                onSaveDraft: () async {},
-                onReloadDraft: () async => reloadCount += 1,
-                forceReloadRequired: true,
-              ),
-            ),
-          ),
-        ),
-      );
-
-      expect(
-        tester
-            .widget<OutlinedButton>(
-              find.widgetWithText(OutlinedButton, '엑셀 가져오기'),
-            )
-            .onPressed,
-        isNull,
-      );
-      expect(find.widgetWithText(OutlinedButton, '취소'), findsNothing);
-      expect(find.widgetWithText(FilledButton, '저장'), findsNothing);
-
-      await tester.tap(find.widgetWithText(FilledButton, '다시 조회'));
-      await tester.pump();
-      expect(reloadCount, 1);
-    },
-  );
 
   testWidgets('ItemManage blocks mutations when edit permission is missing', (
     tester,

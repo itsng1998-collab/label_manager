@@ -1,61 +1,12 @@
 // UTF-8, 한국어 주석
 // ignore_for_file: constant_identifier_names, non_constant_identifier_names
 
-import 'package:flutter/foundation.dart';
 import 'package:label_manager/core/app.dart';
 import 'package:label_manager/database/db_client.dart';
 import 'package:label_manager/utils/log_context.dart';
 import 'dao.dart';
 import 'item.dart';
 import 'additional_item.dart';
-
-class ItemMarketMappingFingerprints {
-  ItemMarketMappingFingerprints(Map<int, Iterable<int>> values)
-    : _values = Map.unmodifiable(<int, List<int>>{
-        for (final entry in values.entries)
-          entry.key: List.unmodifiable(entry.value.toList()..sort()),
-      });
-
-  factory ItemMarketMappingFingerprints.fromRows(
-    Iterable<Map<String, dynamic>> rows,
-  ) {
-    final values = <int, List<int>>{};
-    for (final row in rows) {
-      final itemId = _mappingFingerprintInt(row['ITEM_ID']);
-      final marketId = _mappingFingerprintInt(row['MARKET_ID']);
-      if (itemId <= 0 || marketId <= 0) continue;
-      values.putIfAbsent(itemId, () => []).add(marketId);
-    }
-    return ItemMarketMappingFingerprints(values);
-  }
-
-  final Map<int, List<int>> _values;
-
-  List<int> marketIdsFor(int itemId) => _values[itemId] ?? const [];
-
-  Map<String, List<int>> toJsonForItems(Iterable<int> itemIds) => {
-    for (final itemId in itemIds.toSet().toList()..sort())
-      '$itemId': marketIdsFor(itemId),
-  };
-
-  bool matchesForItems(
-    ItemMarketMappingFingerprints other,
-    Iterable<int> itemIds,
-  ) {
-    for (final itemId in itemIds) {
-      if (!listEquals(marketIdsFor(itemId), other.marketIdsFor(itemId))) {
-        return false;
-      }
-    }
-    return true;
-  }
-}
-
-int _mappingFingerprintInt(Object? value) => switch (value) {
-  final int number => number,
-  final num number => number.toInt(),
-  _ => int.tryParse('$value') ?? 0,
-};
 
 class ItemOfMarket {
   static List<ItemOfMarket>? datas;
@@ -412,20 +363,6 @@ class ItemOfMarketDAO extends DAO {
     INNER JOIN BM_RICH_ITEM P2 ON P1.RICH_ITEM_ID=P2.RICH_ITEM_ID
   ''';
 
-  static const String SelectMappingFingerprintsSql = '''
-    DECLARE @ScopedItemIds XML = @itemIdsXml;
-    WITH ScopedItemIds AS (
-      SELECT ItemIdNode.value('.', 'INT') AS RICH_ITEM_ID
-      FROM @ScopedItemIds.nodes('/items/id') AS ItemIds(ItemIdNode)
-    )
-    SELECT
-      P1.RICH_ITEM_ID AS ITEM_ID,
-      P1.RICH_MARKET_ID AS MARKET_ID
-    FROM BM_ITEM_OF_MARKET P1
-    INNER JOIN ScopedItemIds S ON P1.RICH_ITEM_ID=S.RICH_ITEM_ID
-    ORDER BY P1.RICH_ITEM_ID, P1.RICH_MARKET_ID
-  ''';
-
   static Future<List<ItemOfMarket>?> selectByItemOfMarketAndLabelSizeId(
     int marketId,
     int labelSizeId,
@@ -467,23 +404,5 @@ class ItemOfMarketDAO extends DAO {
       debugLog('$END, $e');
       throw Exception(e);
     }
-  }
-
-  static Future<ItemMarketMappingFingerprints>
-  selectMappingFingerprintsByItemIds(Iterable<int> itemIds) async {
-    final normalizedIds = itemIds.where((id) => id > 0).toSet().toList()
-      ..sort();
-    if (normalizedIds.isEmpty) {
-      return ItemMarketMappingFingerprints(const {});
-    }
-    final itemIdsXml =
-        '<items>${normalizedIds.map((id) => '<id>$id</id>').join()}</items>';
-    final result = await DbClient.instance.getDataWithParams(
-      SelectMappingFingerprintsSql,
-      {'itemIdsXml': itemIdsXml},
-    );
-    return ItemMarketMappingFingerprints.fromRows(
-      DAO.getRowsFromResult(result).cast<Map<String, dynamic>>(),
-    );
   }
 }

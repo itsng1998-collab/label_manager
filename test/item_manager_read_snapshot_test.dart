@@ -81,44 +81,5 @@ void main() {
       );
     });
 
-    test('mapping fingerprints use an XML rowset and sorted market ids', () {
-      expect(
-        ItemOfMarketDAO.SelectMappingFingerprintsSql,
-        contains('@itemIdsXml'),
-      );
-      expect(
-        ItemOfMarketDAO.SelectMappingFingerprintsSql,
-        contains("nodes('/items/id')"),
-      );
-      expect(
-        ItemOfMarketDAO.SelectMappingFingerprintsSql,
-        isNot(contains(' IN (')),
-      );
-
-      final baseline = ItemMarketMappingFingerprints.fromRows(const [
-        {'ITEM_ID': 10, 'MARKET_ID': 3},
-        {'ITEM_ID': 10, 'MARKET_ID': 1},
-        {'ITEM_ID': 20, 'MARKET_ID': 5},
-      ]);
-      final same = ItemMarketMappingFingerprints.fromRows(const [
-        {'ITEM_ID': 10, 'MARKET_ID': 1},
-        {'ITEM_ID': 10, 'MARKET_ID': 3},
-      ]);
-      final changed = ItemMarketMappingFingerprints.fromRows(const [
-        {'ITEM_ID': 10, 'MARKET_ID': 1},
-        {'ITEM_ID': 10, 'MARKET_ID': 7},
-      ]);
-      final duplicated = ItemMarketMappingFingerprints.fromRows(const [
-        {'ITEM_ID': 10, 'MARKET_ID': 1},
-        {'ITEM_ID': 10, 'MARKET_ID': 3},
-        {'ITEM_ID': 10, 'MARKET_ID': 3},
-      ]);
-
-      expect(baseline.marketIdsFor(10), [1, 3]);
-      expect(baseline.matchesForItems(same, [10]), isTrue);
-      expect(baseline.matchesForItems(changed, [10]), isFalse);
-      expect(duplicated.marketIdsFor(10), [1, 3, 3]);
-      expect(baseline.matchesForItems(duplicated, [10]), isFalse);
-    });
   });
 }

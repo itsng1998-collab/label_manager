@@ -9,20 +9,8 @@ import 'package:label_manager/utils/log_context.dart';
 
 class ItemSaveSchemaCapabilities {
   final bool hasRichElementSheet;
-  final bool hasAfterInsertItemTrigger;
-  final bool insertTriggerCreatesColumnContent;
-  final bool insertTriggerCreatesBarcodeOrImageRows;
-  final bool insertTriggerCreatesElementContent;
-  final bool insertTriggerSupportsMultiRow;
 
-  const ItemSaveSchemaCapabilities({
-    required this.hasRichElementSheet,
-    required this.hasAfterInsertItemTrigger,
-    required this.insertTriggerCreatesColumnContent,
-    required this.insertTriggerCreatesBarcodeOrImageRows,
-    required this.insertTriggerCreatesElementContent,
-    required this.insertTriggerSupportsMultiRow,
-  });
+  const ItemSaveSchemaCapabilities({required this.hasRichElementSheet});
 
   factory ItemSaveSchemaCapabilities.fromMap(Map<String, dynamic> map) {
     bool flag(String key) {
@@ -34,15 +22,6 @@ class ItemSaveSchemaCapabilities {
 
     return ItemSaveSchemaCapabilities(
       hasRichElementSheet: flag('HAS_RICH_ELEMENT_SHEET'),
-      hasAfterInsertItemTrigger: flag('HAS_AFTER_INSERT_ITEM_TRIGGER'),
-      insertTriggerCreatesColumnContent: flag('TRIGGER_CREATES_COLUMN_CONTENT'),
-      insertTriggerCreatesBarcodeOrImageRows: flag(
-        'TRIGGER_CREATES_BARCODE_OR_IMAGE',
-      ),
-      insertTriggerCreatesElementContent: flag(
-        'TRIGGER_CREATES_ELEMENT_CONTENT',
-      ),
-      insertTriggerSupportsMultiRow: flag('TRIGGER_SUPPORTS_MULTI_ROW'),
     );
   }
 }
@@ -51,30 +30,9 @@ class ItemSaveSchemaCapabilityDAO extends DAO {
   static ItemSaveSchemaCapabilities? _cached;
 
   static const String probeSql = '''
-    DECLARE @TriggerDefinition NVARCHAR(MAX) = N'';
-    SELECT @TriggerDefinition = COALESCE(SM.definition, N'')
-    FROM sys.triggers T
-    LEFT JOIN sys.sql_modules SM ON SM.object_id=T.object_id
-    WHERE T.parent_id=OBJECT_ID(N'BM_RICH_ITEM')
-      AND T.name=N'AFTER_INSERT_ITEM';
-
-    DECLARE @UpperDefinition NVARCHAR(MAX) = UPPER(@TriggerDefinition);
     SELECT
       CASE WHEN COL_LENGTH(N'BM_RICH_ITEM', N'RICH_ELEMENT_SHEET') IS NULL
-        THEN 0 ELSE 1 END AS HAS_RICH_ELEMENT_SHEET,
-      CASE WHEN LEN(@TriggerDefinition) > 0
-        THEN 1 ELSE 0 END AS HAS_AFTER_INSERT_ITEM_TRIGGER,
-      CASE WHEN CHARINDEX(N'BM_RICH_COL_CONTENT', @UpperDefinition) > 0
-        THEN 1 ELSE 0 END AS TRIGGER_CREATES_COLUMN_CONTENT,
-      CASE WHEN CHARINDEX(N'BM_RICH_BARCODE', @UpperDefinition) > 0
-             OR CHARINDEX(N'BM_RICH_IMAGE', @UpperDefinition) > 0
-        THEN 1 ELSE 0 END AS TRIGGER_CREATES_BARCODE_OR_IMAGE,
-      CASE WHEN CHARINDEX(N'BM_RICH_ELEMENT_CONTENT', @UpperDefinition) > 0
-        THEN 1 ELSE 0 END AS TRIGGER_CREATES_ELEMENT_CONTENT,
-      CASE WHEN LEN(@TriggerDefinition) = 0 THEN 1
-           WHEN CHARINDEX(N'FROM INSERTED', @UpperDefinition) > 0
-             OR CHARINDEX(N'JOIN INSERTED', @UpperDefinition) > 0
-           THEN 1 ELSE 0 END AS TRIGGER_SUPPORTS_MULTI_ROW;
+        THEN 0 ELSE 1 END AS HAS_RICH_ELEMENT_SHEET;
   ''';
 
   static Future<ItemSaveSchemaCapabilities> probe({bool force = false}) async {
@@ -89,8 +47,6 @@ class ItemSaveSchemaCapabilityDAO extends DAO {
       _cached = capabilities;
       debugLog(
         '$END, hasRichElementSheet:${capabilities.hasRichElementSheet}, '
-        'hasTrigger:${capabilities.hasAfterInsertItemTrigger}, '
-        'multiRow:${capabilities.insertTriggerSupportsMultiRow}',
       );
       return capabilities;
     } catch (e) {

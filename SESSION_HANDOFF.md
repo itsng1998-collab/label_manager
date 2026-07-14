@@ -28,6 +28,28 @@
 
 ## 현재 상태
 
+### 진행 중 (2026-07-14): 품목관리 임시편집 SQLite 백업 계약 정리
+
+- 사용자 요청: 품목관리 임시편집의 OOM 방어용 백업을 JSON 파일 journal이 아니라 세션 전용 SQLite로 정리한다. 일반 편집은 실제 변경 대상의 최초 원본만 delta 백업하고, 삭제는 해당 행 전체 복원값, Excel 전체 교체는 기존 전체 원본을 batch 백업한 뒤 변경 취소 시 SQL Server 재조회 없이 원복한다.
+- `lib/models/item_manager_draft_backup.dart` 추가 완료: 세션 SQLite/WAL 저장소와 최초 원본 `INSERT OR IGNORE`, 일반 delta·삭제 행 전체·Excel full-import batch snapshot/read/clear API를 구현했다. 직접 셀과 10×8/타임바코드 파생 셀은 한 transaction으로 기록한다. 파일 diagnostics 오류 0건이며 테스트 미검증.
+- `lib/models/item_manager_draft.dart` 편집 완료: SQLite snapshot 역적용 `restoreBackup`, 파생 변경 column ID 계산, Excel 교체 후 기존 전체 baseline/삭제 snapshot/scoped content 메모리 해제를 구현했다. diagnostics 오류 0건이며 테스트 미검증.
+- `lib/page_home/item_manage.dart` 편집 완료: 품목명·셀·순서·삭제는 mutation 전에 async backup을 완료하고, 추가 행 key는 생성 직후 SQLite에 기록한다. backup 실패 시 mutation을 막고 추가 행은 rollback한다. diagnostics 오류 0건이며 widget 테스트 미검증.
+- `lib/home_page_manager.dart` 편집 완료: draft load/취소를 SQLite 전용 lifecycle로 전환하고 일반 편집·주원료·Excel 전체 교체 callback을 연결했다. 취소 시 DB 재조회/checksum/mapping fingerprint fallback 없이 snapshot 역적용하며 실패하면 draft/SQLite를 유지한다. 저장 전 mapping fingerprint 충돌 검사를 제거하고 transaction 성공 시 SQLite를 폐기한다. diagnostics 오류 0건이며 테스트 미검증.
+- `lib/models/item.dart` 편집 완료: snapshot 복원에 필요한 `Item.copyWith(itemName, order)`를 추가했다. diagnostics 오류 0건이며 테스트 미검증.
+- 제거 완료: JSON `item_manager_draft_journal.dart`와 1,000줄대 전용 테스트, mapping fingerprint 모델/SQL/DAO/테스트, import `baselineChecksum`, 미사용 trigger capability 5개와 trigger definition 파싱을 제거했다. schema capability는 실제 저장 분기에서 사용하는 `RICH_ELEMENT_SHEET` 열 존재 여부만 남겼다. 관련 파일 diagnostics 오류 0건이다.
+- `test/item_manager_draft_backup_test.dart` 추가·검증 완료: 실제 파일 SQLite로 delta 최초 원본, 삭제 행·셀 전체, Excel full-import 전체, controller 역적용을 검증하는 4개 테스트를 추가했다. 첫 실행은 테스트의 positional API/const fixture 오류로 compile 실패했고 즉시 실제 named API와 non-const fixture로 수정했다. 재실행 `flutter test test/item_manager_draft_backup_test.dart` 결과 4개 모두 통과했다.
+- 과도 구조 제거 완료: `HomePage`/`HomePageManager`/`ItemManage`의 `forceReloadRequired` 전역 상태, callback, 전용 다시 조회 버튼, 30여 UI 차단 조건, commit-unknown 전용 catch와 widget 테스트를 제거했다. DB transaction 오류는 일반 저장 오류로 전달하고 working draft/SQLite를 유지한다. commit 성공 후 재조회 실패는 stale controller/목록을 비우고 오류를 표시한다. 관련 파일 diagnostics 오류 0건이며 회귀 테스트 미검증.
+- 순서·수정 후 삭제 복원 보완 완료: SQLite `order_before` snapshot을 `restoreBackup`에 연결하고, 수정 뒤 삭제된 행도 별도 최초 품명/주원료/order 원본을 삭제 snapshot 위에 적용한다. 강화한 `flutter test test/item_manager_draft_backup_test.dart` 4개가 모두 통과했다.
+- 포맷 완료: 이번 작업의 Dart production/test 파일 13개에 VS Code Dart formatter를 적용했다. unrelated `lib/core/app.dart`, `.vscode/settings.json`은 편집하지 않았다.
+- focused 회귀 검증 완료: `flutter test test/item_manager_draft_backup_test.dart test/item_manager_draft_test.dart test/item_manager_save_dao_test.dart test/fortune_table_test.dart`. 첫 실행에서 Excel import 후 메모리 baseline 해제와 구 테스트 기대 충돌 1건, BMP backup callback `await` 뒤 nullable promotion compile 오류 1건을 확인했다. 테스트 기대를 새 메모리 해제 계약으로 수정하고 non-null local을 고정한 뒤 재실행해 72개 모두 통과했다.
+- 전체 정적 검증 완료: `flutter analyze`. 첫 실행에서 제거된 force-reload/commit-unknown 경로가 남긴 `home_page_manager.dart` unused import 2건을 정리한 뒤 재실행해 `No issues found`로 통과했다.
+- 전체 회귀 검증 완료: `flutter test`에서 326개 모두 통과했다.
+- 문서 정리 완료: `doc/item_manager_modify.txt`의 JSON journal/checksum/mapping fingerprint/DB 재조회 취소/force-reload/trigger-definition capability 구 요구를 2.7의 SQLite delta/full-import 계약과 현재 저장 오류 처리로 최소 치환했다. 독립적인 저장 후 목록 조회와 순서 변경 설명은 유지했다.
+- 제거 대상 최종 검색 완료: `lib`/`test`에 `ItemManagerDraftJournal`, baseline checksum, mapping fingerprint, `forceReloadRequired`, `onReloadDraft`, mapping fingerprint DAO 참조가 0건이다. 문서 잔존 검색 결과는 모두 해당 구조를 사용하지 않는다는 현재 정책 또는 `DB 재조회 없이 복원` 설명이다.
+- 최종 diff 검증: 전체 `git diff --check`의 유일한 경고는 unrelated `.vscode/settings.json` 기존 들여쓰기였다. 작업 범위 파일 제한 검사는 whitespace 출력이 없었고, 신규 파일 `--no-index` 비교의 정상적인 difference exit code 때문에 명령 상태만 1이었다. stage 후 `git diff --cached --check`로 재확인한다.
+- stage 대상: `SESSION_HANDOFF.md`, `doc/item_manager_modify.txt`, 품목관리 SQLite 전환 관련 `lib`/`test` 수정·추가·삭제 파일만 포함한다. unrelated `.vscode/settings.json`, `lib/core/app.dart`는 제외한다.
+- stage 완료: 위 관련 파일만 staged 상태이며 `git diff --cached --check`가 출력 없이 통과했다. unrelated `.vscode/settings.json`, `lib/core/app.dart`는 unstaged로 유지했다.
+
 ### 완료 (2026-07-14): 바코드 비율·번호 표시 소유권 보정
 
 - 사용자 요청: 최신 검토에서 확인한 1D 바코드 비율 조절의 레거시 DB 매핑과 연결형 바코드 번호 표시 소유권을 `doc/user_item_modify.txt`에 병합한다.

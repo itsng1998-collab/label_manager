@@ -67,21 +67,18 @@ class ItemManagerImportViewState {
   const ItemManagerImportViewState({
     this.selectedItemId,
     this.selectedIndex,
-    this.baselineChecksum,
     this.sortState = const [],
     this.filterState = const {},
   });
 
   final int? selectedItemId;
   final int? selectedIndex;
-  final String? baselineChecksum;
   final List<Object?> sortState;
   final Map<String, Object?> filterState;
 
   Map<String, Object?> toJson() => {
     'selectedItemId': selectedItemId,
     'selectedIndex': selectedIndex,
-    'baselineChecksum': baselineChecksum,
     'sortState': sortState,
     'filterState': filterState,
   };
@@ -538,11 +535,130 @@ class ItemManagerDraftController extends ChangeNotifier {
     notifyListeners();
   }
 
+  void restoreBackup({
+    required bool fullImport,
+    required Map<int, String> itemNames,
+    required Map<int, ({String plain, String payload})> elements,
+    required Map<ColumnItemKey, TColumnContent> cells,
+    required Map<int, ({int originalIndex, int order})> orders,
+    required Set<String> addedRowKeys,
+    required Map<int, ItemManagerDraftRow> deletedRows,
+    required Map<ColumnItemKey, TColumnContent> deletedColumns,
+    required Iterable<String> selectedRowKeys,
+    String? anchorRowKey,
+  }) {
+    final restoredRows = <ItemManagerDraftRow>[];
+    if (fullImport) {
+      restoredRows.addAll(deletedRows.values);
+    } else {
+      for (final row in _rows) {
+        if (addedRowKeys.contains(row.rowKey) || row.sourceItemId == null) {
+          continue;
+        }
+        final itemId = row.sourceItemId!;
+        final element = elements[itemId];
+        final originalOrder = orders[itemId];
+        final source = row.source!;
+        restoredRows.add(
+          ItemManagerDraftRow.existing(
+            source: source.copyWith(
+              item: source.item.copyWith(
+                itemName: itemNames[itemId],
+                element: element?.plain,
+                elementRTF: element?.payload,
+                order: originalOrder?.order,
+              ),
+            ),
+            currentMarketSnapshot: row.currentMarketSnapshot!,
+            originalIndex: originalOrder?.originalIndex ?? row.originalIndex,
+          ),
+        );
+      }
+      for (final entry in deletedRows.entries) {
+        if (!restoredRows.any((row) => row.sourceItemId == entry.key)) {
+          final originalOrder = orders[entry.key];
+          final row = entry.value;
+          final element = elements[entry.key];
+          restoredRows.add(
+            ItemManagerDraftRow.existing(
+              source: row.source!.copyWith(
+                item: row.source!.item.copyWith(
+                  itemName: itemNames[entry.key],
+                  element: element?.plain,
+                  elementRTF: element?.payload,
+                  order: originalOrder?.order,
+                ),
+              ),
+              currentMarketSnapshot: row.currentMarketSnapshot!,
+              originalIndex:
+                  originalOrder?.originalIndex ?? row.originalIndex,
+            ),
+          );
+        }
+      }
+    }
+    restoredRows.sort((left, right) {
+      final orderCompare = left.source!.item.order.compareTo(
+        right.source!.item.order,
+      );
+      return orderCompare != 0
+          ? orderCompare
+          : left.sourceItemId!.compareTo(right.sourceItemId!);
+    });
+    final normalizedRows = [
+      for (var index = 0; index < restoredRows.length; index += 1)
+        ItemManagerDraftRow.existing(
+          source: restoredRows[index].source!,
+          currentMarketSnapshot: restoredRows[index].currentMarketSnapshot!,
+          originalIndex: index,
+        ),
+    ];
+    final restoredColumns = fullImport
+        ? Map<ColumnItemKey, TColumnContent>.from(deletedColumns)
+        : Map<ColumnItemKey, TColumnContent>.from(
+            scopedColumnContents.values,
+          )
+      ..addAll(cells)
+      ..addAll(deletedColumns);
+    restoreJournalBaseline(
+      rows: normalizedRows,
+      columnContents: TColumnContentScopedView(restoredColumns),
+      selectedRowKeys: selectedRowKeys,
+      anchorRowKey: anchorRowKey,
+    );
+  }
+
   String columnValue(ItemManagerDraftRow row, int columnId) {
     final draft = row.columnDrafts[columnId];
     if (draft != null) return draft.dataString;
     final itemId = row.sourceItemId;
     return itemId == null ? '' : scopedColumnContents.value(columnId, itemId);
+  }
+
+  Set<int> affectedColumnIds(int changedColumnId) {
+    final result = <int>{changedColumnId};
+    final changedRule = _validationRuleFor(changedColumnId);
+    if (labelSizeName == '10*8' &&
+        (changedRule?.columnName == '현재수량' ||
+            changedRule?.columnName == '총 수량')) {
+      final countRule = _validationRuleNamed('매수');
+      final outputRule = _validationRuleNamed('발행수량');
+      if (countRule != null) result.add(countRule.columnId);
+      if (outputRule != null) result.add(outputRule.columnId);
+    }
+    if (changedRule != null &&
+        (changedRule.typeCode == TColumnType.TYPE_BARCODE ||
+            changedRule.typeCode == TColumnType.TYPE_VALIDDATE ||
+            changedRule.typeCode == TColumnType.TYPE_VALIDTIME ||
+            changedRule.typeCode == TColumnType.TYPE_MAKEDATE)) {
+      for (final rule in validationRules) {
+        if (rule.typeCode == TColumnType.TYPE_BARCODE &&
+            rule.timeBarcodeType > 0) {
+          result.add(rule.columnId);
+        }
+      }
+    }
+    return result;
   }
 
   void updateItemName(String rowKey, String itemName) {
@@ -1124,7 +1240,6 @@ class ItemManagerDraftController extends ChangeNotifier {
       final sourceItemId = row.sourceItemId;
       if (sourceItemId == null) continue;
       _deletedSourceItemIds.add(sourceItemId);
-      _deletedRowsBySourceItemId[sourceItemId] = row;
     }
     final replacements = [
       for (var index = 0; index < importedRows.length; index += 1)
@@ -1144,6 +1259,9 @@ class ItemManagerDraftController extends ChangeNotifier {
     ];
     _validateRows(replacements);
     _importViewState = importViewState;
+    _baselineRows = const [];
+    _deletedRowsBySourceItemId.clear();
+    scopedColumnContents = TColumnContentScopedView(const {});
     _rows
       ..clear()
       ..addAll(replacements);

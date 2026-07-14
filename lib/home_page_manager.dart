@@ -14,8 +14,6 @@ import 'package:tabbed_view/tabbed_view.dart';
 import 'package:label_manager/core/app.dart';
 import 'package:label_manager/core/auto_login_guard.dart';
 import 'package:label_manager/core/ui_scale.dart';
-import 'package:label_manager/database/db_connection_service.dart';
-import 'package:label_manager/database/drivers/db_driver.dart';
 import 'package:label_manager/models/brand.dart';
 import 'package:label_manager/models/column_base.dart';
 import 'package:label_manager/models/column_content.dart';
@@ -25,8 +23,8 @@ import 'package:label_manager/models/column.dart';
 import 'package:label_manager/models/customer.dart';
 import 'package:label_manager/models/gs1_ai.dart';
 import 'package:label_manager/models/item.dart';
+import 'package:label_manager/models/item_manager_draft_backup.dart';
 import 'package:label_manager/models/item_manager_draft.dart';
-import 'package:label_manager/models/item_manager_draft_journal.dart';
 import 'package:label_manager/models/item_manager_save.dart';
 import 'package:label_manager/models/item_of_market.dart';
 import 'package:label_manager/models/label_size.dart';
@@ -76,13 +74,6 @@ Future<void> showItemManagerLoadFailureDialog(BuildContext context) {
   );
 }
 
-class _ItemMappingFingerprintConflict implements Exception {
-  const _ItemMappingFingerprintConflict();
-
-  @override
-  String toString() => '삭제 대상 품목의 market 연결이 편집 시작 후 변경됐습니다.';
-}
-
 /// 로그인 이후 메인 UI
 class HomePageManager extends StatefulWidget {
   final Brand? selectedBrand;
@@ -90,7 +81,6 @@ class HomePageManager extends StatefulWidget {
   final LabelSize? selectedLabelSize;
   final ValueChanged<LabelSize?> onLabelSizeChanged;
   final ValueChanged<bool>? onItemDraftDirtyChanged;
-  final ValueChanged<bool>? onItemDraftForceReloadChanged;
 
   const HomePageManager({
     super.key,
@@ -99,7 +89,6 @@ class HomePageManager extends StatefulWidget {
     required this.selectedLabelSize,
     required this.onLabelSizeChanged,
     this.onItemDraftDirtyChanged,
-    this.onItemDraftForceReloadChanged,
   });
 
   @override
@@ -148,10 +137,8 @@ class _HomePageManagerState extends State<HomePageManager> {
   ItemOfMarket? _selectedItemOfMarket;
   int? _selectedItemIndex;
   ItemManagerDraftController? _itemDraftController;
-  ItemManagerDraftJournal? _itemDraftJournal;
+  ItemManagerDraftBackupStore? _itemDraftBackup;
   List<int> _itemDraftTargetMarketIds = const [];
-  ItemMarketMappingFingerprints _itemDraftMappingFingerprints =
-      ItemMarketMappingFingerprints(const {});
   String _itemDraftEmptyElementPayload = '';
   bool _rtfPreviewHasResolvedImage = false;
   bool _autoSelectedCommonLabelOnce = false;
@@ -162,7 +149,6 @@ class _HomePageManagerState extends State<HomePageManager> {
   bool _commonLabelPreviewHiddenForSheetDialog = false;
   bool _commonLabelPreviewMovedByUser = false;
   bool _itemDraftCommandBusy = false;
-  bool _itemDraftForceReloadRequired = false;
   bool _itemManagerMigrationRequired = false;
   bool _lastReportedItemDraftDirty = false;
   int _labelSetupRevision = 0;
@@ -212,15 +198,9 @@ class _HomePageManagerState extends State<HomePageManager> {
       'dirty=${controller?.isDirty} imported=${controller?.hasImportedRows} '
       'rows=${controller?.rows.length ?? 0} states=$stateCounts '
       'deleted=${controller?.deletedSourceItemIds.length ?? 0} '
-      'busy=$_itemDraftCommandBusy forceReload=$_itemDraftForceReloadRequired '
+      'busy=$_itemDraftCommandBusy '
       'mounted=$mounted selectedTab=${_selectedTabValue()}',
     );
-  }
-
-  void _setItemDraftForceReloadRequired(bool value) {
-    if (_itemDraftForceReloadRequired == value) return;
-    _itemDraftForceReloadRequired = value;
-    widget.onItemDraftForceReloadChanged?.call(value);
   }
 
   void _disposeItemDraftController() {
@@ -228,6 +208,56 @@ class _HomePageManagerState extends State<HomePageManager> {
     _itemDraftController?.dispose();
     _itemDraftController = null;
     _handleItemDraftDirtyChanged();
+  }
+
+  Future<ItemManagerDraftBackupStore> _ensureItemDraftBackup() async {
+    final backup = _itemDraftBackup;
+    final controller = _itemDraftController;
+    if (backup == null || controller == null) {
+      throw StateError('품목관리 임시 백업 세션이 없습니다.');
+    }
+    await backup.start(
+      selectedRowKeys: controller.baselineSelectedRowKeys,
+      anchorRowKey: controller.baselineAnchorRowKey,
+    );
+    return backup;
+  }
+
+  Future<void> _backupItemName(ItemManagerDraftRow row) async {
+    if (row.sourceItemId == null) return;
+    await (await _ensureItemDraftBackup()).captureItemName(row);
+  }
+
+  Future<void> _backupItemColumn(
+    ItemManagerDraftRow row,
+    int columnId,
+  ) async {
+    if (row.sourceItemId == null) return;
+    final controller = _itemDraftController!;
+    await (await _ensureItemDraftBackup()).captureCells(
+      row: row,
+      columnIds: controller.affectedColumnIds(columnId),
+      columnContents: controller.scopedColumnContents,
+    );
+  }
+
+  Future<void> _backupItemOrders(Iterable<ItemManagerDraftRow> rows) async {
+    if (!rows.any((row) => row.sourceItemId != null)) return;
+    await (await _ensureItemDraftBackup()).captureOrders(rows);
+  }
+
+  Future<void> _backupDeletedItemRows(
+    Iterable<ItemManagerDraftRow> rows,
+  ) async {
+    if (!rows.any((row) => row.sourceItemId != null)) return;
+    await (await _ensureItemDraftBackup()).captureDeletedRows(
+      rows: rows,
+      columnContents: _itemDraftController!.scopedColumnContents,
+    );
+  }
+
+  Future<void> _recordAddedItemRows(Iterable<String> rowKeys) async {
+    await (await _ensureItemDraftBackup()).recordAddedRows(rowKeys);
   }
 
   LabelSize? get _effectiveLabelSize => _currentLabelSize;
@@ -686,8 +716,8 @@ class _HomePageManagerState extends State<HomePageManager> {
       }
 
       if (labelSize == null) {
-        await _itemDraftJournal?.close();
-        _itemDraftJournal = null;
+        await _itemDraftBackup?.close();
+        _itemDraftBackup = null;
         _disposeItemDraftController();
         _itemDraftTargetMarketIds = const [];
         _itemDraftEmptyElementPayload = '';
@@ -704,7 +734,6 @@ class _HomePageManagerState extends State<HomePageManager> {
         if (mounted) {
           ScaffoldMessenger.of(context).hideCurrentSnackBar();
         }
-        _setItemDraftForceReloadRequired(false);
         _itemManagerMigrationRequired = false;
         ItemManagerDebugLog.event('sessionLoad', 'cleared', trace: trace);
         return true;
@@ -733,8 +762,8 @@ class _HomePageManagerState extends State<HomePageManager> {
         force: forceReload,
       );
       if (!capabilities.hasRichElementSheet) {
-        await _itemDraftJournal?.close();
-        _itemDraftJournal = null;
+        await _itemDraftBackup?.close();
+        _itemDraftBackup = null;
         _disposeItemDraftController();
         _currentLabelSize = labelSize;
         _itemDraftTargetMarketIds = targetMarketIds;
@@ -748,7 +777,6 @@ class _HomePageManagerState extends State<HomePageManager> {
         _selectedItemOfMarket = null;
         _selectedItemIndex = null;
         _resetTabs();
-        _setItemDraftForceReloadRequired(false);
         return true;
       }
       final columns =
@@ -771,10 +799,6 @@ class _HomePageManagerState extends State<HomePageManager> {
           const <ItemOfMarketRawSnapshot>[];
       final scopedColumnContents =
           await TColumnContentDAO.selectScopedByItemIds(
-            items.map((item) => item.item.itemId),
-          );
-      final mappingFingerprints =
-          await ItemOfMarketDAO.selectMappingFingerprintsByItemIds(
             items.map((item) => item.item.itemId),
           );
       final nextController = ItemManagerDraftController.fromItems(
@@ -813,16 +837,15 @@ class _HomePageManagerState extends State<HomePageManager> {
       );
 
       try {
-        await _itemDraftJournal?.close();
+        await _itemDraftBackup?.close();
       } catch (_) {
         nextController.dispose();
         rethrow;
       }
-      _itemDraftJournal = null;
+      _itemDraftBackup = null;
       _disposeItemDraftController();
       _currentLabelSize = labelSize;
       _itemDraftTargetMarketIds = targetMarketIds;
-      _itemDraftMappingFingerprints = mappingFingerprints;
       _rtfPreviewReadyKey = null;
       _commonLabelTabActivated = false;
       _itemPreviewClosedByUser = false;
@@ -836,12 +859,8 @@ class _HomePageManagerState extends State<HomePageManager> {
       _itemDraftController = nextController;
       _itemDraftController!.addListener(_handleItemDraftDirtyChanged);
       _itemDraftEmptyElementPayload = emptyElementPayload;
-      _itemDraftJournal = ItemManagerDraftJournal(
-        controller: _itemDraftController!,
-        mappingFingerprints: _itemDraftMappingFingerprints,
-        mappingFingerprintProvider:
-            ItemOfMarketDAO.selectMappingFingerprintsByItemIds,
-        metadata: ItemManagerDraftJournalMetadata(
+      _itemDraftBackup = ItemManagerDraftBackupStore(
+        metadata: ItemManagerDraftBackupMetadata(
           draftKey: itemManagerDraftKey(
             userId: user.userId,
             customerId: customer.customerId,
@@ -853,10 +872,8 @@ class _HomePageManagerState extends State<HomePageManager> {
           brandId: labelSize.brandId,
           labelSizeId: labelSize.labelSizeId,
           currentMarketId: market.marketId,
-          targetMarketIds: targetMarketIds,
         ),
       );
-      await _itemDraftJournal!.start();
       _selectInitialItemOfMarket();
       debugLog(
         'loaded labelSizeId=${labelSize.labelSizeId}, '
@@ -874,7 +891,6 @@ class _HomePageManagerState extends State<HomePageManager> {
         );
         return false;
       }
-      _setItemDraftForceReloadRequired(false);
       ItemManagerDebugLog.event(
         'sessionLoad',
         'completed',
@@ -929,18 +945,6 @@ class _HomePageManagerState extends State<HomePageManager> {
       }
       return true;
     }
-    if (_itemDraftForceReloadRequired) {
-      _logItemDraftCancelDebug(
-        'contextChange blocked reason=forceReload',
-        traceId: _lastItemDraftCancelTraceId,
-      );
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('품목 목록을 다시 불러온 뒤 변경해 주세요.')),
-        );
-      }
-      return true;
-    }
     if (_itemDraftController?.isDirty != true) {
       _logItemDraftCancelDebug(
         'contextChange allowed',
@@ -960,10 +964,8 @@ class _HomePageManagerState extends State<HomePageManager> {
     return true;
   }
 
-  bool get _itemDraftContextChangeBlocked =>
-      _itemDraftCommandBusy ||
-      _itemDraftForceReloadRequired ||
-      _itemDraftController?.isDirty == true;
+    bool get _itemDraftContextChangeBlocked =>
+      _itemDraftCommandBusy || _itemDraftController?.isDirty == true;
 
   Future<void> _cancelItemDraft() async {
     final commonTrace = ItemManagerDebugLog.nextTrace('cancel');
@@ -1012,125 +1014,40 @@ class _HomePageManagerState extends State<HomePageManager> {
         traceId: traceId,
       );
       if (confirmed != true || !mounted) return;
-      if (controller.hasImportedRows) {
-        final importViewState = controller.importViewState;
-        _logItemDraftCancelDebug(
-          'cancel branch=import reload start',
-          traceId: traceId,
-        );
-        final reloaded = await _reloadItemDraftFromDatabase(
-          selectedItemId: importViewState?.selectedItemId,
-          fallbackIndex: importViewState?.selectedIndex,
-        );
-        _logItemDraftCancelDebug(
-          'cancel branch=import reload completed result=$reloaded',
-          traceId: traceId,
-        );
-        if (!reloaded && mounted) {
-          _showItemDraftError('변경 취소 실패', StateError('품목 목록을 다시 불러오지 못했습니다.'));
-        } else if (reloaded && mounted) {
-          final baselineChecksum = importViewState?.baselineChecksum;
-          final reloadedController = _itemDraftController;
-          if (baselineChecksum == null ||
-              reloadedController == null ||
-              itemManagerBaselineChecksum(reloadedController) ==
-                  baselineChecksum) {
-            return;
-          }
-          await showDialog<void>(
-            context: context,
-            builder: (dialogContext) => AlertDialog(
-              title: const Text('외부 변경 가능성'),
-              content: const Text(
-                'Excel 가져오기 이후 DB 품목 데이터가 변경되었습니다. 현재 DB 기준으로 복원했습니다.',
-              ),
-              actions: [
-                FilledButton(
-                  onPressed: () => Navigator.of(dialogContext).pop(),
-                  child: const Text('확인'),
-                ),
-              ],
-            ),
-          );
-        }
-        return;
-      }
-      ItemManagerJournalRestoreResult restoreResult;
       try {
         _logItemDraftCancelDebug(
-          'cancel branch=journal restore start journal=${_itemDraftJournal != null}',
+          'cancel branch=sqlite restore start backup=${_itemDraftBackup != null}',
           traceId: traceId,
         );
-        restoreResult =
-            await _itemDraftJournal?.restoreBaseline() ??
-            ItemManagerJournalRestoreResult.notFound;
+        final backup = _itemDraftBackup;
+        if (backup == null) {
+          throw StateError('변경 취소용 SQLite 백업이 없습니다.');
+        }
+        final snapshot = await backup.readSnapshot();
+        controller.restoreBackup(
+          fullImport: snapshot.mode == ItemManagerDraftBackupMode.fullImport,
+          itemNames: snapshot.itemNames,
+          elements: snapshot.elements,
+          cells: snapshot.cells,
+          orders: snapshot.orders,
+          addedRowKeys: snapshot.addedRowKeys,
+          deletedRows: snapshot.deletedRows,
+          deletedColumns: snapshot.deletedColumns,
+          selectedRowKeys: snapshot.selectedRowKeys,
+          anchorRowKey: snapshot.anchorRowKey,
+        );
+        await backup.clear();
         _logItemDraftCancelDebug(
-          'cancel branch=journal restore completed result=$restoreResult',
+          'cancel branch=sqlite restore completed',
           traceId: traceId,
         );
       } catch (error) {
         debugLog(
           '[$_itemDraftCancelDebugVersion] trace=$traceId '
-          'event=journal restore failed error=$error',
+          'event=sqlite restore failed error=$error',
         );
-        final reloaded = await _reloadItemDraftFromDatabase();
-        _logItemDraftCancelDebug(
-          'cancel branch=journal exception reload result=$reloaded',
-          traceId: traceId,
-        );
-        if (!reloaded && mounted) {
-          _showItemDraftError('변경 취소 실패', error);
-        }
+        if (mounted) _showItemDraftError('변경 취소 실패', error);
         return;
-      }
-      if (restoreResult == ItemManagerJournalRestoreResult.invalid) {
-        final error = StateError('변경 취소 백업이 현재 품목 기준과 일치하지 않습니다.');
-        final reloaded = await _reloadItemDraftFromDatabase();
-        _logItemDraftCancelDebug(
-          'cancel branch=invalid reload result=$reloaded',
-          traceId: traceId,
-        );
-        if (!reloaded && mounted) _showItemDraftError('변경 취소 실패', error);
-        return;
-      }
-      if (restoreResult == ItemManagerJournalRestoreResult.externalChange) {
-        final reloaded = await _reloadItemDraftFromDatabase();
-        _logItemDraftCancelDebug(
-          'cancel branch=externalChange reload result=$reloaded',
-          traceId: traceId,
-        );
-        if (!reloaded && mounted) {
-          _showItemDraftError(
-            '변경 취소 실패',
-            StateError('외부 품목 연결 변경 후 목록을 다시 불러오지 못했습니다.'),
-          );
-        } else if (reloaded && mounted) {
-          await showDialog<void>(
-            context: context,
-            builder: (dialogContext) => AlertDialog(
-              title: const Text('외부 변경 가능성'),
-              content: const Text('다른 매장의 품목 연결 상태가 변경되어 현재 DB 기준으로 복원했습니다.'),
-              actions: [
-                FilledButton(
-                  onPressed: () => Navigator.of(dialogContext).pop(),
-                  child: const Text('확인'),
-                ),
-              ],
-            ),
-          );
-        }
-        return;
-      }
-      if (restoreResult == ItemManagerJournalRestoreResult.notFound) {
-        _logItemDraftCancelDebug(
-          'cancel branch=discardChanges start',
-          traceId: traceId,
-        );
-        controller.discardChanges();
-        _logItemDraftCancelDebug(
-          'cancel branch=discardChanges completed',
-          traceId: traceId,
-        );
       }
       final anchorRowKey = controller.anchorRowKey;
       final selectedIndex = anchorRowKey == null
@@ -1157,7 +1074,6 @@ class _HomePageManagerState extends State<HomePageManager> {
         fields: {
           'cancelTrace': traceId,
           'currentDirty': _itemDraftController?.isDirty,
-          'forceReload': _itemDraftForceReloadRequired,
         },
       );
     }
@@ -1171,8 +1087,7 @@ class _HomePageManagerState extends State<HomePageManager> {
         labelSize == null ||
         User.instance?.canEdit != true ||
         !controller.isDirty ||
-        _itemDraftCommandBusy ||
-        _itemDraftForceReloadRequired) {
+        _itemDraftCommandBusy) {
       ItemManagerDebugLog.event(
         'save',
         'blocked',
@@ -1183,7 +1098,6 @@ class _HomePageManagerState extends State<HomePageManager> {
           'canEdit': User.instance?.canEdit,
           'dirty': controller?.isDirty,
           'busy': _itemDraftCommandBusy,
-          'forceReload': _itemDraftForceReloadRequired,
         },
       );
       return;
@@ -1279,20 +1193,9 @@ class _HomePageManagerState extends State<HomePageManager> {
           'targetMarkets': command.targetMarketIds.length,
         },
       );
-      if (command.deletedSourceItemIds.isNotEmpty) {
-        final currentFingerprints =
-            await ItemOfMarketDAO.selectMappingFingerprintsByItemIds(
-              command.deletedSourceItemIds,
-            );
-        if (!_itemDraftMappingFingerprints.matchesForItems(
-          currentFingerprints,
-          command.deletedSourceItemIds,
-        )) {
-          throw const _ItemMappingFingerprintConflict();
-        }
-      }
       final result = await ItemManagerSaveDAO.save(command, capabilities);
       dbSaveCompleted = true;
+      await _itemDraftBackup?.clear();
       ItemManagerDebugLog.event(
         'save',
         'transactionCompleted',
@@ -1308,31 +1211,18 @@ class _HomePageManagerState extends State<HomePageManager> {
         fallbackIndex: selectedRowIndex < 0 ? null : selectedRowIndex,
       );
       if (!reloaded) {
-        _setItemDraftForceReloadRequired(true);
-        throw StateError('DB 저장은 완료됐지만 품목 목록을 다시 불러오지 못했습니다. 다시 조회해 주세요.');
+        _disposeItemDraftController();
+        ItemOfMarket.datas = const [];
+        _selectedItemOfMarket = null;
+        _selectedItemIndex = null;
+        _resetTabs();
+        throw StateError('DB 저장은 완료됐지만 품목 목록을 다시 불러오지 못했습니다.');
       }
       ItemManagerDebugLog.event('save', 'completed', trace: trace);
       if (mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('품목관리 변경 사항을 저장했습니다.')));
-      }
-    } on _ItemMappingFingerprintConflict catch (error) {
-      ItemManagerDebugLog.event('save', 'mappingConflict', trace: trace);
-      if (mounted) await _resolveItemMappingFingerprintConflict(error);
-    } on DbCommitOutcomeUnknown catch (error) {
-      ItemManagerDebugLog.event(
-        'save',
-        'commitOutcomeUnknown',
-        trace: trace,
-        fields: {'connectionLost': error.connectionLost},
-      );
-      _setItemDraftForceReloadRequired(true);
-      if (mounted) {
-        _showItemDraftError(
-          '품목 저장 결과 확인 필요',
-          StateError('DB 반영 여부를 확인할 수 없습니다. 다시 조회해 주세요.\n$error'),
-        );
       }
     } catch (error) {
       ItemManagerDebugLog.event(
@@ -1344,7 +1234,6 @@ class _HomePageManagerState extends State<HomePageManager> {
           'dbSaveCompleted': dbSaveCompleted,
         },
       );
-      if (!dbSaveCompleted) await _flushItemDraftJournalAfterSaveFailure();
       if (mounted) _showItemDraftError('품목 저장 실패', error);
     } finally {
       if (mounted) setState(() => _itemDraftCommandBusy = false);
@@ -1352,97 +1241,8 @@ class _HomePageManagerState extends State<HomePageManager> {
         'save',
         'finished',
         trace: trace,
-        fields: {
-          'mounted': mounted,
-          'forceReload': _itemDraftForceReloadRequired,
-        },
+        fields: {'mounted': mounted},
       );
-    }
-  }
-
-  Future<void> _retryItemDraftReload() async {
-    final trace = ItemManagerDebugLog.nextTrace('reloadRetry');
-    if (_itemDraftCommandBusy || !_itemDraftForceReloadRequired) {
-      ItemManagerDebugLog.event(
-        'reloadRetry',
-        'blocked',
-        trace: trace,
-        fields: {
-          'busy': _itemDraftCommandBusy,
-          'forceReload': _itemDraftForceReloadRequired,
-        },
-      );
-      return;
-    }
-    ItemManagerDebugLog.event('reloadRetry', 'started', trace: trace);
-    setState(() => _itemDraftCommandBusy = true);
-    try {
-      if (!await DbConnectionService.instance.ensureConnected()) {
-        throw StateError('데이터베이스 연결을 복구하지 못했습니다.');
-      }
-      final reloaded = await _reloadItemDraftFromDatabase(
-        selectedItemId: _selectedItemOfMarket?.item.itemId,
-        fallbackIndex: _selectedItemIndex,
-      );
-      if (!reloaded) {
-        throw StateError('품목 목록을 다시 불러오지 못했습니다.');
-      }
-      _setItemDraftForceReloadRequired(false);
-      ItemManagerDebugLog.event('reloadRetry', 'completed', trace: trace);
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('품목 목록을 다시 불러왔습니다.')));
-      }
-    } catch (error) {
-      ItemManagerDebugLog.event(
-        'reloadRetry',
-        'failed',
-        trace: trace,
-        fields: {'error': error.runtimeType},
-      );
-      if (mounted) _showItemDraftError('품목 다시 조회 실패', error);
-    } finally {
-      if (mounted) setState(() => _itemDraftCommandBusy = false);
-    }
-  }
-
-  Future<void> _resolveItemMappingFingerprintConflict(
-    _ItemMappingFingerprintConflict error,
-  ) async {
-    final shouldReload = await showDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('품목 연결 변경 감지'),
-        content: Text('$error\n현재 DB 기준으로 품목 목록을 다시 조회해 주세요.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('변경 취소'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('다시 조회'),
-          ),
-        ],
-      ),
-    );
-    if (shouldReload != true || !mounted) return;
-    final reloaded = await _reloadItemDraftFromDatabase(
-      selectedItemId: _selectedItemOfMarket?.item.itemId,
-      fallbackIndex: _selectedItemIndex,
-    );
-    if (!reloaded && mounted) {
-      _showItemDraftError('품목 다시 조회 실패', StateError('품목 목록을 다시 불러오지 못했습니다.'));
-    }
-  }
-
-  Future<void> _flushItemDraftJournalAfterSaveFailure() async {
-    try {
-      await _itemDraftJournal?.flush();
-    } catch (error) {
-      debugLog('item draft journal flush after save failure: $error');
     }
   }
 
@@ -1539,12 +1339,12 @@ class _HomePageManagerState extends State<HomePageManager> {
           return;
         }
       }
+      await (await _ensureItemDraftBackup()).captureFullImport(controller);
       final imported = controller.replaceAllWithImportedRows(
         result.rows,
         importViewState: ItemManagerImportViewState(
           selectedItemId: _selectedItemOfMarket?.item.itemId,
           selectedIndex: _selectedItemIndex,
-          baselineChecksum: itemManagerBaselineChecksum(controller),
         ),
       );
       final labelSize = _currentLabelSize;
@@ -1816,7 +1616,6 @@ class _HomePageManagerState extends State<HomePageManager> {
         fallbackIndex: selectedItemIndex,
       );
       if (!reloaded) {
-        _setItemDraftForceReloadRequired(true);
         throw StateError('품목 순서는 저장됐지만 목록을 다시 불러오지 못했습니다.');
       }
       if (!mounted) return;
@@ -2105,9 +1904,8 @@ class _HomePageManagerState extends State<HomePageManager> {
     final setup = labelSize?.labelSizeSetup;
     if (labelSize == null ||
         setup == null ||
-        _itemDraftCommandBusy ||
-        _itemDraftForceReloadRequired ||
-        _itemDraftController?.isDirty == true) {
+      _itemDraftCommandBusy ||
+      _itemDraftController?.isDirty == true) {
       ItemManagerDebugLog.event('dateSetup', 'blocked', trace: trace);
       return;
     }
@@ -2305,20 +2103,13 @@ class _HomePageManagerState extends State<HomePageManager> {
                 labelSize: _effectiveLabelSize,
                 marketId: Market.instance?.marketId,
                 emptyElementPayload: _itemDraftEmptyElementPayload,
-                onExcelImport:
-                    _itemDraftForceReloadRequired ||
-                        User.instance?.canEdit != true
+                onExcelImport: User.instance?.canEdit != true
                     ? null
                     : _importItemManagerXlsx,
-                onExcelExport: _itemDraftForceReloadRequired
-                    ? null
-                    : _exportItemManagerXlsx,
-                onQrDataView: _itemDraftForceReloadRequired
-                    ? null
-                    : _showItemQrData,
+                onExcelExport: _exportItemManagerXlsx,
+                onQrDataView: _showItemQrData,
                 onItemOrderChange:
-                    !_itemDraftForceReloadRequired &&
-                        _effectiveLabelSize != null &&
+                  _effectiveLabelSize != null &&
                         User.instance?.canEdit == true &&
                         (ItemOfMarket.datas?.length ?? 0) >= 2
                     ? _changeItemOrder
@@ -2330,9 +2121,12 @@ class _HomePageManagerState extends State<HomePageManager> {
                     : null,
                 onCancelDraft: _cancelItemDraft,
                 onSaveDraft: _saveItemDraft,
-                onReloadDraft: _retryItemDraftReload,
+                onBeforeItemNameChange: _backupItemName,
+                onBeforeColumnChange: _backupItemColumn,
+                onBeforeRowsReordered: _backupItemOrders,
+                onBeforeRowsDeleted: _backupDeletedItemRows,
+                onRowsAdded: _recordAddedItemRows,
                 commandBusy: _itemDraftCommandBusy,
-                forceReloadRequired: _itemDraftForceReloadRequired,
                 canEdit: User.instance?.canManageItemStructure == true,
               ),
         closable: false,
@@ -2532,6 +2326,10 @@ class _HomePageManagerState extends State<HomePageManager> {
     final rowKey = controller?.anchorRowKey;
     if (controller == null || rowKey == null) {
       throw StateError('선택된 품목 draft가 없습니다.');
+    }
+    final row = controller.rows.firstWhere((row) => row.rowKey == rowKey);
+    if (row.sourceItemId != null) {
+      await (await _ensureItemDraftBackup()).captureElement(row);
     }
     controller.updateElement(
       rowKey,
@@ -3088,8 +2886,7 @@ class _HomePageManagerState extends State<HomePageManager> {
       readyCompleter.complete();
     }
     widget.onItemDraftDirtyChanged?.call(false);
-    widget.onItemDraftForceReloadChanged?.call(false);
-    unawaited(_itemDraftJournal?.close() ?? Future<void>.value());
+    unawaited(_itemDraftBackup?.close() ?? Future<void>.value());
     _itemDraftController?.removeListener(_handleItemDraftDirtyChanged);
     _itemDraftController?.dispose();
     _rtfPreviewResizeDebounce?.cancel();
@@ -3291,7 +3088,6 @@ class _HomePageManagerState extends State<HomePageManager> {
       selectedTabValue: _selectedTabValue(),
       hasDateSetup: resolvedLabel?.labelSizeSetup != null,
       commandBusy: _itemDraftCommandBusy,
-      forceReloadRequired: _itemDraftForceReloadRequired,
       draftDirty: _itemDraftController?.isDirty == true,
     );
 
@@ -4576,13 +4372,11 @@ bool _itemManagerDateSettingsEnabled({
   required Object? selectedTabValue,
   required bool hasDateSetup,
   required bool commandBusy,
-  required bool forceReloadRequired,
   required bool draftDirty,
 }) =>
     selectedTabValue == 'items' &&
     hasDateSetup &&
     !commandBusy &&
-    !forceReloadRequired &&
     !draftDirty;
 
 List<String> _itemPreviewImageObjectIdsFor(Iterable<TColumnBase> columns) {
@@ -4825,13 +4619,11 @@ bool debugItemManagerDateSettingsEnabledForTesting({
   required Object? selectedTabValue,
   bool hasDateSetup = true,
   bool commandBusy = false,
-  bool forceReloadRequired = false,
   bool draftDirty = false,
 }) => _itemManagerDateSettingsEnabled(
   selectedTabValue: selectedTabValue,
   hasDateSetup: hasDateSetup,
   commandBusy: commandBusy,
-  forceReloadRequired: forceReloadRequired,
   draftDirty: draftDirty,
 );
 

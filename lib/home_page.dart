@@ -42,7 +42,6 @@ class _HomePageState extends State<HomePage> {
   bool _isExiting = false;
   bool _loggedIn = false;
   bool _itemDraftDirty = false;
-  bool _itemDraftForceReloadRequired = false;
   // 선택 상태
   Brand? _selectedBrand;
   LabelSize? _selectedLabelSize;
@@ -129,26 +128,6 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<bool> _confirmDiscardItemDraft(String action) async {
-    if (_itemDraftForceReloadRequired && mounted) {
-      await showDialog<void>(
-        context: context,
-        barrierDismissible: false,
-        builder: (dialogContext) => AlertDialog(
-          title: const Text('품목 저장 완료'),
-          content: const Text(
-            '저장은 DB에 반영됐고 화면 동기화만 실패했습니다. '
-            '임시 백업은 복구에 사용하지 않고 정리합니다.',
-          ),
-          actions: [
-            FilledButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('확인'),
-            ),
-          ],
-        ),
-      );
-      return true;
-    }
     if (!_itemDraftDirty || !mounted) return true;
     return await showDialog<bool>(
           context: context,
@@ -294,9 +273,6 @@ class _HomePageState extends State<HomePage> {
                 },
                 onItemDraftDirtyChanged: (dirty) {
                   _itemDraftDirty = dirty;
-                },
-                onItemDraftForceReloadChanged: (required) {
-                  _itemDraftForceReloadRequired = required;
                 },
               )
             : _buildLoggedOutBackground(),
