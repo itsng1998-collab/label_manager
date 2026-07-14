@@ -28,6 +28,22 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-14): 품목 삭제·content 호환 계약 병합
+
+- 사용자 요청: `doc/user_item_modify.txt` 재검토에서 확인한 품목 삭제 child/FK 정리 누락, transaction 밖 market mapping 충돌 검사, v1 `RICH_EDITABLE` 부재, 품목 column content의 실제 target byte/code page 검증 권장안을 작업지시서에 병합하고 필요한 사용자 결정을 즉시 확인한다.
+- 사용자 확인 필요 여부: 없음. 기존 확정 원칙의 본래 CRUD·원자적 transaction·레거시 schema 무변경에 따라 품목 삭제는 적용 가능한 child pair와 market/update 행을 먼저 정리한 뒤 `BM_RICH_ITEM`을 물리 삭제한다. 삭제 mapping은 부모 잠금 아래 baseline exact-set으로 검증하고, `RICH_EDITABLE` 및 content text는 배포 schema capability별 정적 SQL variant와 실제 target byte/code page를 사용한다.
+- 수정 예정 `doc/user_item_modify.txt`: `ItemManagerSaveCommand`에 삭제 대상별 baseline market mapping을 포함하고 12.6에 transaction 내부 exact-set 검증, child pair/market/update/main 삭제 순서와 affected-row 검증을 추가한다. regular content pair에 `RICH_EDITABLE` 존재 여부와 data target type/byte/code page를 포함하고 v1/v2 batch variant, `NVARCHAR(MAX)` 원문 staging, 무손실 조회를 본문·DAO 테스트·통합 회귀·완료 조건에 연결한다. 미검증.
+- 품목 삭제 계약 편집 완료 `doc/user_item_modify.txt`: `ItemManagerSaveCommand`에 journal/load 시점 삭제 품목별 market ID exact-set을 추가하고, 부모 잠금 직후 transaction 내부 양방향 `EXCEPT` 검증을 거쳐 적용 가능한 content child, optional update content/item, market, main item 순으로 물리 삭제하도록 했다. main item은 품목별 1건, market은 baseline exact-set과 삭제 집합 일치를 요구하며 optional child/update/status의 정상 0건과 잔존 참조 검증을 구분했다. 편집 직후 문서 diagnostics 오류 0건이다.
+- content 호환 계약 편집 완료 `doc/user_item_modify.txt`: regular content capability에 `RICH_EDITABLE` 존재 여부와 `RICH_COL_CONTENT_DATA`의 실제 type/max bytes/collation/code page를 추가했다. v1은 editable 식별자가 SQL text에 없는 정적 variant와 `editable=false` 합성 조회를, v2는 실제 값을 보존하는 variant를 사용한다. 현 3000자/`NVARCHAR(3000)` 제한은 `NVARCHAR(MAX)` 원문 staging·무손실 조회와 실제 target CP949/MS949 round-trip/encoded byte 검증으로 교체하고 본문·DAO fixture·통합 회귀·완료 조건에 연결했다. 각 편집 직후 문서 diagnostics 오류 0건이다.
+- 독립 재검토 보완 `doc/user_item_modify.txt`: 삭제 검토에서 market exact-set 이후 경쟁 write, 존재하지만 관계를 판정 못한 참조 schema, status 이력 계약 3건을 확인했다. market DML이 있는 모든 품목 저장은 부모 다음 `BM_ITEM_OF_MARKET TABLOCKX,HOLDLOCK`을 잡아 빈 baseline까지 `DELETE OUTPUT` exact-set을 검증하고, 알려진 child/update/status/FK의 delete 의미가 미판정이면 삭제를 첫 DML 전에 차단한다. status는 존재 시 item/date type·FK/check·`-1` sentinel 호환을 확인해 main 삭제 뒤 이력 갱신한다. content 검토의 v1 alias 모순, v2 content-only 수정 flag 변조 위험, code page 허용값 모호성은 실제 DB 컬럼 참조 금지/결과 alias 허용, 모든 content source의 기존 editable 보존, 품목 content SQL Server code page exact value `949`로 닫았다. 본문·DAO 테스트·완료 조건 편집 직후 diagnostics 오류 0건이다.
+- 승인 재검토 보완 `doc/user_item_modify.txt`: content 관점은 치명·높음·중간 finding 없이 승인됐다. 삭제 관점에서 status FK action별 main 삭제 후 동작과 12.6 말미의 구형 잠금 순서 요약 2건이 남아, `BM_RICH_STATUS` item 방향 enabled FK가 없는 검증된 레거시 형태에서만 main 삭제 후 `-1`/삭제일 이력을 갱신하고 CASCADE/SET NULL/NO ACTION 등 enabled FK가 있으면 삭제를 DML 전에 차단하도록 확정했다. 품목은 `부모 → market DML 시 market table X → application lock → item schema guard`, 컬럼은 `부모 → application lock → column schema guard` 순서로 요약을 통일했다. 편집 중 v1 image source key 오타를 원래 `RICH_IMAGE_COL_ID`로 즉시 복구했으며 문서 diagnostics 오류 0건이다.
+- 최종 독립 재검토: content 관점과 삭제 관점 모두 치명·높음·중간 finding 없이 승인됐다. 최종 삭제 검토는 status enabled FK 차단, market table X/application lock 순서와 v1 image source key `RICH_IMAGE_COL_ID`를 재확인했다.
+- 검증 예정: 두 문서 diagnostics, 삭제/main DML·mapping exact-set·v1/v2 editable variant·content byte/code page 계약 연결 검색, 독립 재검토, `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md`, 제한 diff/status를 수행한다. 문서만 변경하므로 Flutter 테스트·빌드·배포는 실행하지 않는다.
+- 최종 검증 실행 예정: 두 문서 diagnostics와 핵심 계약/구형 표현 제한 검색 후 `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md`, `git diff --stat`, 두 파일 제한 diff와 `git status --short`를 확인한다.
+- 최종 검증 완료: 두 문서 diagnostics 오류 0건, 핵심 삭제/main/mapping/status 및 v1/v2 editable/content byte-code page 계약 연결 검색을 통과했고 구형 image key·잠금 순서·비어 있지 않은 baseline만 검증하는 표현은 0건이다. 독립 최종 재검토 두 관점 모두 치명·높음·중간 finding 없이 승인했으며 `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md`와 제한 diff를 통과했다. 문서만 변경해 Flutter 테스트·빌드·배포와 임시 산출물/캐시는 생성하지 않았다.
+- stage/commit 대상: 먼저 `doc/user_item_modify.txt`만 `문서: 품목 삭제와 content 계약 보완`으로 커밋하고, 해시를 반영한 `SESSION_HANDOFF.md`만 별도 커밋한다. unrelated `.vscode/settings.json`, `lib/core/app.dart`는 제외한다.
+- 기능 commit: `5cea3bc` (`문서: 품목 삭제와 content 계약 보완`). 작업지시서에 품목 물리 삭제·transaction 내부 market exact-set/잠금·참조/status schema guard와 v1/v2 editable 정적 variant·품목 content 무손실 byte/code page 계약을 반영했다.
+
 ### 완료 (2026-07-14): 항목 편집기 재검토 권장안 병합
 
 - 사용자 요청: 최신 `doc/user_item_modify.txt`를 레거시/현 프로젝트에 다시 대조해 확인한 trigger 부재 처리, fingerprint 의미 보존, 기존 keyword 위반 비소급, 현재 품목 baseline 상태 서술, 직접 구현 범위 경계 권장안을 작업지시서에 병합하고 필요한 사용자 결정을 즉시 확인한다.
