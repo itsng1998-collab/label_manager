@@ -28,6 +28,19 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-14): 품목관리 레거시 물리 삭제 반영
+
+- 사용자 확정: 품목 삭제는 현재 물리 DB를 대상으로 레거시 `CMainItemTable::SaveToDB()`의 물리 삭제를 따른다. 레거시 프로그램과의 동시 운용/표시 호환은 요구하지 않으며, 자동 schema/data migration과 과거 v1/v2 분기는 추가하지 않는다.
+- 구현 범위: `lib/models/item_manager_save.dart`의 단일 SQL transaction에서 삭제 item ID에 대해 `BM_RICH_COL_CONTENT` → `BM_ITEM_OF_MARKET` → `BM_UPDATE_COL_CONTENT` → `BM_UPDATE_ITEM` → `BM_RICH_ITEM` 순으로 삭제하고 레거시 `CItemDAO`와 같이 `BM_RICH_STATUS` 삭제 이력을 갱신한다. `test/item_manager_save_dao_test.dart`의 mapping-only 기대를 물리 삭제 순서 검증으로 교체한다.
+- `lib/models/item_manager_save.dart` 편집 완료: 위 레거시 순서로 child/update/mapping/main item을 삭제하고, main item 삭제 건수가 입력 ID 수와 다르면 `THROW 51005`로 같은 transaction을 rollback한다. main item 삭제 후 `BM_RICH_STATUS`의 삭제일과 item ID `-1`을 갱신한다.
+- `test/item_manager_save_dao_test.dart` 편집 완료: mapping-only 기대를 제거하고 다섯 delete SQL의 포함·순서, status 갱신, 삭제 건수 검증을 고정했다. 첫 focused 실행에서 4개 모두 통과했다.
+- `doc/item_manager_modify.txt` 편집 완료: mapping-only/orphan 유지와 제거된 migration capability 안내를 현재 물리 DB 기준, 자동 schema/data migration 없음, 레거시 물리 삭제 transaction 계약으로 정리했다.
+- 포맷·focused 검증 완료: production/test Dart 2개 formatter 적용, 관련 4개 파일 diagnostics 오류 0건, `item_manager_save_dao_test.dart` + `item_manager_draft_test.dart` + `item_manager_draft_backup_test.dart` 32개 모두 통과, 제한 `git diff --check` 통과.
+- 전체 정적 검증 완료: `flutter analyze` 결과 `No issues found`.
+- 전체 회귀 검증 완료: `flutter test`에서 3330개 모두 통과했다.
+- 전체 테스트가 생성한 `third_party/fortune_sheet/build/` 임시 캐시를 삭제했다.
+- stage/commit 대상: `lib/models/item_manager_save.dart`, `test/item_manager_save_dao_test.dart`, `doc/item_manager_modify.txt`, `SESSION_HANDOFF.md`만 포함한다. unrelated `.vscode/settings.json`, `lib/core/app.dart`는 제외한다.
+
 ### 완료 (2026-07-14): 품목관리 저장 계약 보정
 
 - 사용자 요청: 수동 추가가 끝난 `BM_RICH_ITEM.RICH_ELEMENT_SHEET` migration 화면과 capability 차단을 제거한다. DB commit 후 SQLite backup `clear()` 오류는 로컬 로그로만 남기고 저장 완료 흐름을 계속한다. 신규 draft key/inserted ID 검증은 SQL transaction 내부 `THROW`로 수행하며, 레거시 `BM_RICH_COL_CONTENT.RICH_COL_CONTENT_DATA VARCHAR(200)`에 맞춰 입력을 200자로 검증한다.

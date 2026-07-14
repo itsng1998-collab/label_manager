@@ -471,8 +471,8 @@
 - 사용자가 `계속 편집`을 선택하면 삭제하지 않고 현재 편집 상태를 유지한다.
 - DB에 이미 존재하는 행은 화면 working table에서 즉시 제거한다.
 - draft에는 삭제 예정 item id를 보관한다.
-- 저장 시 기존 행은 레거시 `CItemOfMarketDAO::DeleteBatchByItemIDs`와 동일하게 `sourceItemId` 기준 `BM_ITEM_OF_MARKET` mapping delete로 DB에 반영한다. 이 delete는 market 조건을 붙이지 않는다. 신규 미저장 행은 DB delete 대상이 아니다.
-- 삭제 저장은 레거시 호환을 우선해 현재 화면 market 하나에만 제한하지 않고, 삭제 item id에 연결된 `BM_ITEM_OF_MARKET` mapping 전체에 적용한다. 레거시 신규 mapping은 현재 로그인 고객의 전체 market에 생성되므로, 삭제한 품목은 같은 고객의 다른 market 품목관리에서도 보이지 않을 수 있다.
+- 저장 시 기존 행은 레거시 `CMainItemTable::SaveToDB()`와 동일하게 `sourceItemId` 기준 `BM_RICH_COL_CONTENT`, `BM_ITEM_OF_MARKET`, `BM_UPDATE_COL_CONTENT`, `BM_UPDATE_ITEM`, `BM_RICH_ITEM`을 같은 transaction에서 순서대로 물리 삭제하고 `BM_RICH_STATUS` 삭제 이력을 갱신한다. 신규 미저장 행은 DB delete 대상이 아니다.
+- 삭제는 현재 화면 market 하나에 한정하지 않고 item 자체와 연결된 전체 mapping을 제거한다. child/update/main item 삭제 중 하나라도 실패하면 transaction 전체를 rollback하고 오류를 표시한다.
 - 취소 시 임시 파일 백업의 baseline과 삭제 전 before snapshot 기준으로 복원한다.
 - 신규 추가/삽입 후 아직 저장되지 않은 행을 삭제하면 임시 목록에서 제거한다.
 - 단일 행 삭제 후 선택 상태는 제거된 행 바로 아래의 다음 표시 행으로 이동한다.
@@ -676,7 +676,7 @@ draft 편집 모드에서는 다음 메뉴를 비활성화한다.
 9.2 DB 반영 방식
 
 - 레거시 품목관리 저장 버튼의 저장 흐름을 참고하되, 현재 앱의 DAO/모델 구조로 구현한다.
-- 저장 구현 전 선행 순서는 `ItemOfMarketDAO` 표시 alias 수정과 raw snapshot DTO/query 추가 -> `MarketDAO.selectByCustomerId(customerId)` 추가 -> 현재 화면 item id 집합 기준 scoped column content 조회/view model 추가 -> `DbIsolateAction.transaction` 단일 transaction action 추가 -> schema/trigger capability probe 추가 -> 품목관리 저장 DAO 구현 순서로 진행한다.
+- 저장 구현은 `ItemOfMarketDAO` 표시 alias와 raw snapshot DTO/query, `MarketDAO.selectByCustomerId(customerId)`, 현재 화면 item ID 기준 scoped column content 조회/view model, `DbIsolateAction.transaction`, 품목관리 저장 DAO 순서로 구성한다.
 - 저장 구현 전제: 현재 `DbClient`/`DbIsolateAction`에는 transaction API가 없으므로, `BEGIN`/`COMMIT`/`ROLLBACK`을 보장하는 isolate 단일 transaction action을 먼저 추가한다. 단일 SQL batch transaction은 driver transaction action으로 처리하기 어려운 제한적 fallback으로만 사용한다.
 - 품목관리 저장은 Dart/UI 레이어에서 여러 `DbClient.writeData...` 호출을 `BEGIN`/`COMMIT` 사이에 순차 조합하는 방식으로 구현하지 않는다. 하나의 isolate action 안에서 `BEGIN`/`COMMIT`/`ROLLBACK`이 완료되어야 하며, fallback을 쓰는 경우에도 하나의 SQL batch 안에서 완료되어야 한다.
 - transaction API는 MSSQL/ODBC placeholder 처리와 `@@TRANCOUNT`/`@@ROWCOUNT` 같은 SQL Server 시스템 변수를 깨지 않도록 구현한다.
@@ -686,7 +686,7 @@ draft 편집 모드에서는 다음 메뉴를 비활성화한다.
 - 저장은 하나의 트랜잭션으로 처리한다.
 - 저장은 현재 Flutter의 품목/컬럼 DAO와 DB 테이블 구조 기준으로 수행하며, 레거시 `RICH_IS_APPLY`/`RICH_APPLY_DATE` 기반 update item apply 구조는 새로 만들지 않는다.
 - 신규 insert, 기존 update, delete, order update, column content update를 한 트랜잭션 안에서 반영한다.
-- 엑셀 가져오기 draft는 기존 행의 `BM_ITEM_OF_MARKET` mapping delete, 엑셀 신규 행 insert, column content insert, order update를 같은 트랜잭션 안에서 반영한다.
+- 엑셀 가져오기 draft는 기존 행의 레거시 물리 삭제, 엑셀 신규 행 insert, column content insert, order update를 같은 트랜잭션 안에서 반영한다.
 - 신규 `BM_RICH_ITEM` insert는 `OUTPUT INSERTED.RICH_ITEM_ID` 또는 임시 테이블 방식으로 `draftRowKey`, import row index, 생성 item id를 같은 transaction 안에서 매핑한다.
 - 이 생성 id 매핑은 신규 행 column content insert, `BM_ITEM_OF_MARKET` mapping insert, 품목리스트 재조회 성공 후 선택 복원에 공통으로 사용한다.
 - `AFTER_INSERT_ITEM` trigger가 존재할 수 있는 테이블에는 direct `OUTPUT INSERTED...` resultset을 사용하지 않고, `OUTPUT INSERTED... INTO #InsertedItems` 또는 table variable 방식으로 생성 id를 수집한다.
@@ -696,27 +696,22 @@ draft 편집 모드에서는 다음 메뉴를 비활성화한다.
 - `newMappingDefaults`는 market id를 제외한 mapping 기본값 template이며, 저장 시 `targetMarketIds`의 각 market id와 합성해 `BM_ITEM_OF_MARKET` row를 생성한다. 현재 화면 market id가 들어간 완성 객체를 모든 market에 복제하지 않는다.
 - `targetMarketIds`는 1만 행에서도 row별로 반복 저장하지 않고 편집 세션/저장 batch metadata에 한 번만 보관한다.
 - `MarketDAO.selectByCustomerId(customerId)`는 레거시 `CMarketDAO::SelectByCustID`와 동일하게 `BM_MARKET.RICH_CUSTOMER_ID = customerId` 조건만 사용해 신규 mapping 생성 대상 `targetMarketIds`를 산출한다. `customerId` 인자는 로그인 세션 customer id에서 전달받으며, 현재 화면 market id나 label size/brand 표시값에서 역추정하지 않는다. 레거시에는 이 경로에서 market 비활성/숨김/삭제 상태 필터가 확인되지 않았으므로 Flutter도 추가 상태 필터를 임의로 넣지 않는다.
-- 일반 draft 저장의 `mapping delete`는 삭제 예정 기존 row의 `sourceItemId` 집합에 대해 레거시 `CItemOfMarketDAO::DeleteBatchByItemIDs`와 동일하게 `RICH_ITEM_ID` 조건만으로 적용한다. 즉 기존 행 삭제는 현재 화면 market 하나나 `targetMarketIds` 교집합으로 제한하지 않고, 해당 item id의 `BM_ITEM_OF_MARKET` mapping 전체를 제거한다. 수정/추가만 있는 일반 저장에서는 기존 row의 `BM_ITEM_OF_MARKET` mapping을 제거하지 않는다.
-- 엑셀 전체 교체 저장의 `mapping delete`는 import 직전 current market의 전체 working table을 구성하던 기존 item id 집합에 대해 레거시와 동일하게 `RICH_ITEM_ID` 조건만으로 적용한다. 이 집합은 표시 필터/정렬로 숨겨진 행도 포함하며, 사용자가 화면에서 보고 있던 일부 보이는 행만을 의미하지 않는다. 단, 기존 `BM_RICH_ITEM` 물리 delete는 이번 품목관리 기능에서 수행하지 않는다.
-- 삭제와 엑셀 전체 교체의 기존 item mapping 제거는 레거시처럼 item id 기준 전체 mapping delete로 확정한다. 저장 확인 dialog에는 `같은 고객의 다른 market 품목관리에서도 해당 품목이 보이지 않을 수 있습니다.` 의미를 포함한다. 현재 화면 market에만 적용하는 정책으로 바꾸면 레거시와 달라지므로 mapping delete 범위와 저장 DAO를 함께 재설계해야 한다.
-- 이번 품목관리 기능에서는 기존 item id에 붙은 `BM_RICH_COL_CONTENT`, barcode/image/element content 등 item 참조 child row도 삭제하지 않는다. 기존 item과 child row orphan 정리는 별도 유지보수 작업으로 분리한다.
+- 일반 draft와 엑셀 전체 교체의 삭제 대상은 삭제 예정 기존 row의 `sourceItemId` 집합이다. 표시 필터/정렬로 숨겨진 working row도 전체 교체 삭제 집합에 포함한다.
+- 삭제는 레거시 순서대로 `BM_RICH_COL_CONTENT` → `BM_ITEM_OF_MARKET` → `BM_UPDATE_COL_CONTENT` → `BM_UPDATE_ITEM` → `BM_RICH_ITEM`을 처리하고, main item 삭제 건수가 요청 ID 수와 다르면 오류를 발생시켜 전체 rollback한다.
+- main item 삭제 후 `BM_RICH_STATUS.RICH_ID_CHANGE_DELETE_DATE=GETDATE()`, `RICH_ITEM_ID=-1`을 반영한다.
 - 기존 행의 market-specific 값은 이번 구현에서 update하지 않는다. 품목관리 저장 대상은 품명, 주원료, 일반 컬럼, order, 신규 추가/삽입, 삭제/전체 교체 mapping 반영으로 제한한다.
 - `BM_ITEM_OF_MARKET.RICH_ADDITIONAL_ITEM_ID`와 판매/할인 시작·종료일은 nullable 저장값으로 처리하며, Flutter 조회 모델의 `0`/`DateTime.now()` fallback 값을 DB 저장값으로 재사용하지 않는다.
 - 기존 mapping을 보존/복원할 때는 `RICH_ADDITIONAL_ITEM_ID`에 Flutter `AdditionalItem.AdditionalItemId`를 사용하고, `AdditionalItem.itemId`와 혼동하지 않는다.
-- 저장 DAO의 schema capability는 운영 DB의 `BM_RICH_ITEM.RICH_ELEMENT_SHEET` 컬럼 존재 여부만 확인한다. trigger definition을 조회하거나 동작을 추정하는 별도 capability matrix는 만들지 않는다.
-- 품목관리 로드 전 현재 운영 DB의 `BM_RICH_ITEM.RICH_ELEMENT_SHEET` 컬럼 존재 여부를 먼저 capability probe한다. 현재 `ItemOfMarketDAO.SelectSql`은 `RICH_ELEMENT_SHEET`를 직접 참조하므로, `hasRichElementSheet=false`이면 해당 SELECT를 실행하지 않는다. 컬럼이 없을 때 이번 구현의 필수 완료 기준은 기존 SELECT 미실행, DB migration 안내 화면 전환, 품목관리 테이블 미오픈, 편집 진입 액션과 저장 버튼 비활성화이다. 조회 전용 테이블을 제공하는 read-only fallback SELECT는 선택 구현이며, 구현하는 경우에만 `RICH_ELEMENT_RTF`만 참조하는 별도 SELECT를 먼저 성공시킨 뒤 품목관리 테이블을 조회 전용으로 표시한다. fallback SELECT가 없거나 실패하면 테이블을 열지 않는다. read-only fallback 성공 상태에서도 품목 추가/삽입/삭제/품명 수정/일반 컬럼 수정/주원료 수정/엑셀 가져오기 같은 편집 진입 액션 전체와 저장 버튼을 비활성화한다. 엑셀 내보내기와 QR코드 데이터 보기처럼 DB 저장을 만들지 않는 조회/내보내기 동작은 read-only fallback 조회가 성공한 경우에만 허용할 수 있다. 호환 저장 정책을 새로 만들지 않고, 컬럼 부재 환경 지원은 별도 DB migration/배포 작업으로 분리한다.
+- 저장과 조회는 과거 v1/v2 파일이 아니라 현재 물리 DB 스키마를 기준으로 한다. 앱은 schema/data migration, DDL, migration 안내 화면, 과거 버전별 SQL 분기를 추가하지 않는다.
 - 저장 DAO 구현 전 고객별 market id 목록 조회를 위해 `MarketDAO.selectByCustomerId(customerId)`를 추가한다.
 - 저장/편집 구현 전 `ItemOfMarketDAO.SelectSql`의 `P1_LABELSIZE_WIDTH`/`P1_LABELSIZE_HEIGHT` alias와 `ItemOfMarket.fromMap`의 `P1_LABEL_SIZE_WIDTH`/`P1_LABEL_SIZE_HEIGHT` key 불일치를 표시 모델 기준으로 수정한다. 품목관리 raw snapshot DTO 조회도 이 수정과 별개로 DB nullable 값을 보존하는 별도 projection을 사용한다.
 - `TColumnContentDAO` 조회는 현재 화면 market item id 집합을 SQL에서 제한하는 scoped DAO를 추가한다. 1만 행을 고려해 scoped 조회는 단순 대량 `IN (@p1, @p2, ...)` parameter 나열을 금지하고, temp table/table variable 또는 DAO 상수 chunk 단위 조회 중 하나로 item id 집합을 전달한다. temp table/table variable 방식은 scoped 조회 DAO의 단일 isolate action 또는 단일 SQL batch 안에서 id 적재, 조회, 정리까지 완료하며, 여러 `DbClient.query...` 호출로 나누지 않는다. chunk 조회 fallback도 DAO 단일 action 안에서 실행하고 결과는 `columnId + itemId` key로 dedupe/merge한다. 조회 후 품목관리 전용 scoped cache/view model 필터는 테스트 보조 전용이며 운영 fallback으로 사용하지 않는다. 별도 합의 없이 전역 `TColumnContent.datas`의 label-size 전체 cache 의미를 current market scope로 변경하지 않는다.
 - 품목관리 로드 순서는 `ItemOfMarketDAO.selectByItemOfMarketAndLabelSizeId`로 현재 화면 row와 item id 집합을 먼저 산출한 뒤, 그 item id 집합을 SQL 조건으로 전달하는 `TColumnContentDAO` scoped 조회를 수행하도록 조정한다. 조회 후 필터는 테스트 보조 전용이며 운영 fallback으로 사용하지 않는다.
 - 전체 교체 저장의 delete/insert 대상 테이블과 순서는 명시적으로 구현한다. 요청서에서 `delete`는 문맥별로 `draft row delete`, `mapping delete`, `physical item delete`, `child row cleanup`으로 구분한다.
-- 일반 draft 저장 권장 순서: 신규 `BM_RICH_ITEM` insert와 생성 id 매핑 -> 신규 `BM_ITEM_OF_MARKET` mapping insert(`targetMarketIds` 전체) -> 기존/신규 column content update/upsert -> 삭제 예정 기존 row의 `sourceItemId` 기준 `BM_ITEM_OF_MARKET` mapping delete(market 조건 없음) -> 저장 후 current market query에 남을 기존/신규 item id 집합 order update.
-- 엑셀 전체 교체 저장 권장 순서: import 직전 기존 item id 기준 `BM_ITEM_OF_MARKET` mapping delete(market 조건 없음) -> 신규 `BM_RICH_ITEM` insert와 생성 id 매핑 -> 신규 `BM_ITEM_OF_MARKET` mapping insert(`targetMarketIds` 전체) -> 신규 column content update/upsert -> 저장 후 current market query에 남을 신규 item id 집합 order update.
-- order update 대상에는 mapping 제거 후 남는 기존 `BM_RICH_ITEM` orphan item을 포함하지 않는다.
+- 일반 draft 저장은 신규 `BM_RICH_ITEM`/market mapping 생성, 삭제 기존 item의 레거시 물리 삭제, 기존/신규 column content update/upsert를 같은 transaction에서 수행한다.
+- 엑셀 전체 교체도 기존 item ID 전체에 같은 레거시 물리 삭제를 적용하고 신규 item/mapping/content를 같은 transaction에서 저장한다.
 - `순서 변경` 적용 확인 dialog에는 `현재 market에 표시되는 품목을 재정렬하지만 저장 컬럼은 BM_RICH_ITEM.RICH_ITEM_ORDER이므로 같은 label size item을 공유하는 다른 market 표시 순서에도 영향이 갈 수 있습니다.` 의미를 포함한다. market별 독립 순서가 필요하면 이번 기능정의가 아니라 별도 order 저장 구조 설계로 분리한다.
-- 이번 품목관리 기능에서는 기존 `BM_RICH_ITEM` 물리 delete를 수행하지 않는다.
-- 기존 `BM_RICH_ITEM`, `BM_RICH_COL_CONTENT`, `BM_RICH_BARCODE`, `BM_RICH_IMAGE`, `BM_RICH_PRINT_LOG` 등 item 참조 테이블의 orphan 정리는 별도 유지보수/정리 작업으로 분리한다.
-- 테이블별 action 기준: 기존 삭제 row는 `BM_ITEM_OF_MARKET` mapping delete만 수행하고 `BM_RICH_ITEM`/child row는 no-op, 기존 수정 row는 `BM_RICH_ITEM`/현재 item id의 column content update/upsert, 신규 row는 `BM_RICH_ITEM` insert와 `BM_ITEM_OF_MARKET` insert 및 column content update/upsert, `BM_ADDITIONAL_ITEM`은 no-op이다.
+- 테이블별 action 기준: 기존 삭제 row는 레거시 물리 삭제, 기존 수정 row는 `BM_RICH_ITEM`/현재 item ID의 column content update/upsert, 신규 row는 `BM_RICH_ITEM` insert와 `BM_ITEM_OF_MARKET` insert 및 column content update/upsert, `BM_ADDITIONAL_ITEM`은 no-op이다.
 - `BM_ADDITIONAL_ITEM`은 이번 품목관리 신규/엑셀 저장의 편집 대상이 아니다. 신규/엑셀 import 행은 additional item 미사용을 뜻하는 `NULL`로 생성하고, 기존 행 전체 교체/삭제 시 additional item 행 자체는 삭제하지 않는다.
 - 기존 `BM_ADDITIONAL_ITEM` orphan 정리는 이번 기능정의에서 제외하며, FK 제약 때문에 정리가 필요하면 별도 유지보수/정리 작업으로 분리한다.
 - 엑셀 가져오기 저장 시 기존 행이 0개 또는 1개여도 같은 전체 교체 저장 경로를 사용한다.
@@ -912,7 +907,7 @@ draft 편집 모드에서는 다음 메뉴를 비활성화한다.
 요청서 전체 범위는 크므로 실제 구현은 다음 작업 단위로 나누어 진행한다.
 
 1. 읽기/스냅샷 기반: `ItemOfMarketDAO` 표시 alias 수정, raw snapshot DTO/query, `MarketDAO.selectByCustomerId(customerId)`, SQL 제한 scoped `TColumnContentDAO` 조회와 scoped view model을 먼저 구현한다.
-2. transaction/DAO 기반: `DbIsolateAction.transaction`, `ItemSaveSchemaCapabilities` probe/cache, trigger-safe 신규 item id 매핑, mapping delete/order update/column content upsert를 수행하는 품목관리 저장 DAO를 구현한다.
+2. transaction/DAO 기반: `DbIsolateAction.transaction`, trigger-safe 신규 item ID 매핑, 레거시 물리 삭제, order update, column content upsert를 수행하는 품목관리 저장 DAO를 구현한다.
 3. UI draft/edit 기반: 품목관리 edit controller/draft row/value model, `ItemManage` working row/value resolver API, 선택/anchor/focus 소유권, 추가/삽입/삭제/품명/일반 컬럼/주원료 draft 반영과 임시 백업을 구현한다.
 4. Excel import/export 기반: 지정 sheet xlsx parser, 전체 교체형 import draft, `.xlsx` export, import 전후 metadata/취소 복원, row limit 검증을 구현한다.
 5. QR/바코드 데이터 helper 기반: `ItemCodeDataResolver`를 추가해 QR viewer와 출력내용 미리보기가 현재 row/draft 값과 column 설정에서 같은 QR/바코드 문자열과 FortuneSheet `barcodeFormatId`를 산출하도록 구현한다. QR viewer는 draft 편집 중에도 draft row 값을 입력으로 사용할 수 있지만, 출력내용 미리보기 탭은 draft 편집 중 진입하지 않고 저장 완료 또는 취소 dialog에서 변경 취소를 확정한 뒤의 안정 상태 working row 값만 렌더링한다. QR/텍스트연동 token 치환용 날짜 계산은 라벨 날짜 타입 표시 포맷과 분리해 `DATE_FORMAT_NONE` 기준을 사용한다. 이번 품목관리 범위에서는 resolver 결과가 반영된 output workbook/image metadata 생성 계약까지 완료하고, 홈 `라벨출력(F3)` 화면 및 실제 발행 command 연결은 별도 출력 기능 작업으로 분리한다. 실제 발행 기능을 연결할 때는 raw template workbook을 바로 출력하지 않고 이 output workbook 계약을 입력으로 사용한다.
@@ -924,7 +919,7 @@ draft 편집 모드에서는 다음 메뉴를 비활성화한다.
 단위별 최소 완료 기준은 다음과 같다.
 
 1. 읽기/스냅샷 기반 완료 기준: `ItemOfMarketDAO` 표시 alias가 `ItemOfMarket.fromMap` key와 일치하고, raw snapshot DTO가 DB `NULL`/빈 문자열/fallback 값을 구분하며, `MarketDAO.selectByCustomerId(customerId)`와 SQL 제한 scoped `TColumnContentDAO` 조회가 테스트에서 검증된다.
-2. transaction/DAO 기반 완료 기준: `DbIsolateAction.transaction` 단일 action이 rollback을 보장하고, `ItemSaveSchemaCapabilities` probe/cache가 현재 DB 기준으로 동작하며, 저장 DAO가 UI 위젯 없이 테스트 가능한 save command DTO를 표준 입력으로 받아 trigger-safe 신규 item id 매핑, mapping delete, order update, column content upsert를 같은 transaction 안에서 검증한다. UI draft/edit session의 draft snapshot DTO는 저장 DAO 입력이 아니라 save command DTO를 생성하는 상위 계층 입력으로 사용한다.
+2. transaction/DAO 기반 완료 기준: `DbIsolateAction.transaction` 단일 action이 rollback을 보장하고, 저장 DAO가 UI 위젯 없이 테스트 가능한 save command DTO를 표준 입력으로 받아 trigger-safe 신규 item ID 매핑, 레거시 물리 삭제, order update, column content upsert를 같은 transaction 안에서 검증한다. UI draft/edit session의 draft snapshot DTO는 저장 DAO 입력이 아니라 save command DTO를 생성하는 상위 계층 입력으로 사용한다.
 3. UI draft/edit 기반 완료 기준: edit controller/draft row/value model이 조회 원본을 직접 mutate하지 않고, `ItemManage`가 working row/value resolver API로 표시/편집하며, 선택/anchor/focus와 SQLite 백업/변경 취소/저장 전 검증이 draft 기준으로 동작한다. edit controller/view model은 `idle`, `editing`, `saving` 상태별 허용 command를 상위에서 계산해 `ItemManage`에 주입한다.
 4. Excel import/export 기반 완료 기준: 지정 sheet xlsx parser가 원본 workbook sheet order index 0을 사용하고, 품목관리 import용 parse result DTO로 parsed workbook, worksheet XML, relationship id, styles/shared strings, workbook date system, extension metadata를 같은 parse context에서 제공한다. 전체 교체형 import draft와 `.xlsx` export, import 전후 metadata/취소 복원, row limit/헤더/주원료 plain text 정책이 검증된다. `.xlsx` export는 외부 Excel 패키지를 추가하지 않고 기존 `archive` 기반 OpenXML 작성 패턴을 분리한 품목관리 단순 table writer로 검증한다. 주원료 sheet 보존은 inlineRuns, 병합 영역, row height, column width, 테두리, 배경, 줄바꿈 fixture로 분리해 검증한다.
 5. QR/바코드 데이터 helper 기반 완료 기준: `ItemCodeDataResolver`가 column type과 `TColumn.barcodeType` 기준으로 QR/바코드 문자열, FortuneSheet `barcodeFormatId`, 표시 metadata를 산출하고, GS1 바코드는 GS1 조합/검증 helper 결과를 재사용한다. QR/텍스트연동 token 치환용 날짜 계산은 라벨 날짜 타입 표시 포맷과 분리해 `DATE_FORMAT_NONE` 기준을 사용한다. `TYPE_QR_CODE`는 column `barcodeType`이 QR/MicroQR/DataMatrix 계열이면 그 값을 쓰고, 아니면 기본 `qrCode`로 렌더링한다. EAN-8은 공용 `BarcodeType.CodeEAN8` normalize 선행 수정/검증으로 Code128과 구분된다. `preserveTemplateBarcodeFormat` save codec feature key, image sanitizer allow-list, save json normalize/migrate, `.lms`/`.xlsx` round-trip이 먼저 검증된 뒤 출력내용 미리보기 metadata 연결을 완료한다. `.xlsx` round-trip은 customXml image metadata 파싱/복원까지 포함한다. 출력내용 미리보기의 barcode image `extraFields`는 `barcodeText`, 실제 렌더링에 사용할 `barcodeFormatId`, `barcodeFormatLabel`, `barcodeShowText`를 함께 갱신하며, 같은 metadata를 실제 발행 기능이 재사용할 수 있는 output workbook 계약을 유지한다. 홈 `라벨출력(F3)` 화면과 실제 발행 command 연결은 별도 출력 기능 작업의 완료 기준으로 둔다. `preserveTemplateBarcodeFormat=false` object는 품목 column 형식을 먼저 평가하고 유효하지 않을 때만 공용 fallback 형식을 사용하며, fallback 사용 경고를 preview에 표시한다. 단, `preserveTemplateBarcodeFormat=true` object는 fallback으로 format을 바꾸지 않고 template 형식 실패를 오류로 표시한다. 어떤 fallback 형식으로도 렌더링할 수 없으면 오류 상태로 표시된다. EZPL native 출력은 실제 발행 기능 연결 시 현재 지원 format만 명령으로 출력하고, 미지원 format은 resolver metadata가 반영된 raster fallback 출력으로 처리한다.
@@ -937,8 +932,8 @@ draft 편집 모드에서는 다음 메뉴를 비활성화한다.
 
 검증 태그는 다음 기준으로 붙인다.
 
-- `[읽기/스냅샷]`: 표시 alias, raw snapshot, 고객별 market 조회, scoped column content 조회/view model을 검증한다. 특히 `P1_LABELSIZE_WIDTH`/`P1_LABEL_SIZE_WIDTH` 같은 현 구현 alias 불일치와 nullable 날짜/추가품목 fallback 값이 저장 draft 원본값으로 섞이지 않는지 검증한다. `hasRichElementSheet=false` fixture의 필수 검증은 현재 `ItemOfMarketDAO.SelectSql` 미실행, DB migration 안내 화면 전환, 품목관리 테이블 미오픈, 편집 액션 비활성화이다. read-only fallback SELECT는 선택 구현이므로 구현한 경우에만 fallback SELECT 없음/실패 시 테이블 미오픈, 성공 시 조회 전용 테이블과 편집 액션 비활성화를 추가 검증한다.
-- `[transaction/DAO]`: transaction rollback, `RICH_ELEMENT_SHEET` 컬럼 capability, save command DTO 입력, 신규 item id 매핑, mapping delete, order update, column content upsert, 저장 후 재조회를 검증한다. `hasRichElementSheet=false` fixture에서는 컬럼 부재 환경에서 저장 DAO와 편집 command가 실행되지 않는지 검증한다. read-only fallback SELECT는 선택 구현이므로 구현한 경우에만 fallback 조회 성공 상태에서도 저장/편집 command가 비활성화되는지 추가 검증한다. 현재 `DbIsolateAction.transaction`이 없는 상태에서 UI/Dart 레이어의 다중 write 호출 조합으로 저장 기능을 완료 처리하지 않는다.
+- `[읽기/스냅샷]`: 표시 alias, raw snapshot, 고객별 market 조회, scoped column content 조회/view model을 검증한다. 특히 `P1_LABELSIZE_WIDTH`/`P1_LABEL_SIZE_WIDTH` 같은 현 구현 alias 불일치와 nullable 날짜/추가품목 fallback 값이 저장 draft 원본값으로 섞이지 않는지 검증한다.
+- `[transaction/DAO]`: transaction rollback, save command DTO 입력, 신규 item ID 매핑, 레거시 물리 삭제 순서와 main item 삭제 건수 검증, order update, column content upsert, 저장 후 재조회를 검증한다.
 - `[UI draft/edit]`: 추가/삽입/삭제/품명/일반 컬럼/주원료 draft, 선택/anchor/focus, dirty 상태, 임시 백업/취소, 탭/브랜드 이동 차단, 발행 체크 비활성화 검증.
 - `[Excel]`: `.xlsx` import/export, 지정 sheet parser, 헤더/행 수/표시 문자열 처리, 전체 교체 draft, import 전후 metadata 복원 검증. export는 기존 `archive` 기반 OpenXML 작성 패턴을 분리한 품목관리 단순 table writer로 검증하고, 일반 컬럼 값이 inline/shared string으로 저장되어 Excel 자동 숫자/날짜 변환이 발생하지 않는지 확인한다. Excel import의 `TYPE_IMAGE` 컬럼은 셀 표시 문자열 사용, 경로 제거, `.bmp` 확장자 제거, 다른 확장자 저장 전 검증 오류 fixture로 검증한다. 주원료 `RICH_ELEMENT_SHEET` 변환은 inlineRuns, 병합 영역, row height, column width, 테두리, 배경, 줄바꿈 fixture로 나눠 검증한다.
 - `[label/date setup]`: 상단 라벨 설정 메뉴, 날짜 타입 설정 다이얼로그, 날짜/시간 token 해석을 분리한 `DateManager` 포맷/preview helper, `LabelSizeDAO.updateDateSetup(labelSizeId, LabelSizeDateSetupUpdate)` 날짜/시간 전용 API, 캐시 갱신, preview/output refresh 검증. 저장 직전 DB 최신 setup을 다시 읽고 날짜/시간 관련 필드만 merge하며, update SQL `SET` 대상과 로그 변경 대상에 `RICH_SETUP_READONLY`/`RICH_SETUP_USE_SCALE`이 포함되지 않는지도 검증한다. 저장 성공 후 캐시는 최신 DB setup에 날짜/시간 변경값을 merge한 결과인지 검증한다. DB enum 범위 밖 값의 `DATE_FORMAT_DOT`/`TIME_FORMAT_COLON` fallback과 경고 표시, setup 로그 컬럼 probe 실패 차단, 정확한 날짜/시간 setup 로그 allow-list 컬럼 세트 전체 존재 시 setup 전용 SQL batch transaction logging, 일부/전체 컬럼 누락 시 logless update, 로그 insert 실패 rollback, logless update 앱 로그 근거도 같은 태그에서 검증한다.
@@ -965,7 +960,7 @@ draft 편집 모드에서는 다음 메뉴를 비활성화한다.
 - 프로그램 방식 선택 변경으로 포커스/anchor 행이 없으면 선택 범위의 마지막 표시 행을 삽입 기준으로 사용한다.
 - 정렬/필터 상태에서도 삽입 위치와 저장 order는 working table의 실제 품목 순서 기준으로 계산된다.
 - 정렬/필터 상태에서는 새 행이 화면 표시상 선택 행 바로 아래에 보이지 않을 수 있다.
-- 기존 행 여러 개 선택 후 삭제 저장하면 레거시 `CItemOfMarketDAO::DeleteBatchByItemIDs`와 동일하게 삭제 item id 기준으로 `BM_ITEM_OF_MARKET` mapping이 제거되어 품목관리 재조회에서 보이지 않는다. 이 mapping delete에는 market 조건을 붙이지 않는다. `BM_RICH_ITEM`과 item 참조 child row는 삭제하지 않는다.
+- 기존 행 여러 개 선택 후 삭제 저장하면 삭제 item ID 기준으로 레거시 child/update/mapping/main item 물리 삭제가 같은 transaction에서 수행된다.
 - 신규 추가 행을 삭제하면 DB delete 없이 draft에서만 제거된다.
 - 삭제 확인에서 `계속 편집`을 선택하면 행이 제거되지 않는다.
 - 삭제 확인에서 `삭제`를 선택하면 기존 행은 화면에서 제거되고 삭제 예정 ID에 들어간다.
@@ -1005,7 +1000,7 @@ draft 편집 모드에서는 다음 메뉴를 비활성화한다.
 - 엑셀 내보내기는 행 번호, 라벨크기명, 발행 체크 상태, 선택 상태, 셀 스타일, `RICH_ELEMENT_SHEET`, 기존 `RICH_ELEMENT_RTF`, 출력 미리보기/라벨 시트 서식을 포함하지 않는다.
 - 엑셀 가져오기 성공 후 기존 행 전체가 삭제 예정 기존 행으로 기록되고, 엑셀 데이터 행이 임시 신규 행으로 생성된다.
 - 기존 행이 정확히 1개인 상태에서 엑셀 가져오기를 실행해도 레거시 삭제 누락 동작을 따르지 않고 전체 교체 draft로 처리된다.
-- 엑셀 가져오기 후 저장하면 기존 품목 mapping delete와 엑셀 신규 행 insert가 같은 트랜잭션 안에서 반영된다.
+- 엑셀 가져오기 후 저장하면 기존 품목의 레거시 물리 삭제와 엑셀 신규 행 insert가 같은 트랜잭션 안에서 반영된다.
 - 엑셀 가져오기 후 변경 취소를 선택하면 SQLite full-import backup으로 가져오기 전 데이터와 import 직전 표시 정렬/필터/선택 metadata를 복원한다.
 - 엑셀 가져오기는 `.xlsx`만 지원한다.
 - `.xls` 선택 시 지원하지 않는 형식이라는 안내를 표시하고 draft가 변경되지 않는다.
@@ -1131,16 +1126,14 @@ draft 편집 모드에서는 다음 메뉴를 비활성화한다.
 - 저장 전 검증 실패 시 DB 트랜잭션이 시작되지 않고 UI 잠금이 해제되며 편집 상태와 임시 파일 백업이 유지된다.
 - 품목관리 저장은 `DbIsolateAction.transaction` 단일 action이 준비된 뒤 구현된다. 단일 SQL batch transaction은 제한적 fallback으로만 사용한다.
 - 여러 `writeDataWithParams` 호출을 순차 실행하는 방식은 전체 롤백을 보장하지 못하므로 품목관리 저장 경로에 사용되지 않는다.
-- 일반 draft 저장과 엑셀 전체 교체 저장은 서로 다른 기존 item id 집합을 입력으로 받는 DAO 경로로 실행된다. 일반 저장은 삭제 예정 기존 row의 `sourceItemId` 집합, 엑셀 전체 교체는 import 직전 current market working table의 기존 item id 집합을 사용한다. 두 경로 모두 레거시 `DeleteBatchByItemIDs`와 동일하게 `RICH_ITEM_ID` 조건만으로 `BM_ITEM_OF_MARKET` mapping을 제거하며 market 조건을 붙이지 않는다.
+- 일반 draft 저장은 삭제 예정 기존 row의 `sourceItemId` 집합, 엑셀 전체 교체는 import 직전 current market working table의 기존 item ID 집합을 물리 삭제 대상으로 사용한다. 두 경로 모두 같은 레거시 삭제 SQL을 같은 transaction에서 실행한다.
 - 신규 `BM_RICH_ITEM` insert는 `OUTPUT INSERTED.RICH_ITEM_ID` 또는 임시 테이블로 `draftRowKey`와 생성 item id를 같은 transaction 안에서 매핑한다.
 - trigger가 있을 수 있으므로 생성 id 매핑은 direct OUTPUT resultset이 아니라 `OUTPUT INTO` 임시 테이블/table variable 방식을 우선한다.
 - 신규 `BM_RICH_ITEM` insert는 `RICH_PRICE=0`을 명시하고, 생성 item id는 고객의 모든 market mapping 생성에 사용한다.
 - 고객의 모든 market mapping 생성을 위해 저장 전 `MarketDAO.selectByCustomerId(customerId)`로 세션 `targetMarketIds`를 산출한다. 이 DAO는 레거시와 동일하게 `BM_MARKET.RICH_CUSTOMER_ID = customerId` 조건만 사용한다. 호출부는 로그인 세션 customer id를 명시적으로 전달하고, 현재 화면 market에서 customer id를 역추적해 대체하지 않는다.
 - 현재 DB에 `AFTER_INSERT_ITEM` trigger가 있으면 신규 item insert 후 실제 trigger body가 자동 생성한 테이블 row를 중복 insert하지 않고 trigger 생성 row를 update/upsert한다.
-- 품목관리 로드 전 `BM_RICH_ITEM.RICH_ELEMENT_SHEET` 컬럼 존재 여부를 capability probe하고, `hasRichElementSheet=false`이면 `RICH_ELEMENT_SHEET`를 직접 참조하는 현재 `ItemOfMarketDAO.SelectSql`을 실행하지 않는다. 필수 동작은 DB migration 안내 화면 전환, 품목관리 테이블 미오픈, 편집 진입 액션 전체와 저장 버튼 비활성화이다. 조회 전용 테이블을 제공하는 read-only fallback SELECT는 선택 구현이며, 구현한 경우에만 `RICH_ELEMENT_RTF`만 참조하는 별도 SELECT 성공 후 조회 전용 테이블을 표시한다. fallback SELECT가 없거나 실패하면 테이블을 열지 않는다. 이번 구현은 `RICH_ELEMENT_SHEET` 존재를 전제로 하며 별도 호환 저장 정책은 만들지 않는다.
-- 이번 품목관리 기능에서는 기존 `BM_RICH_ITEM` 물리 delete를 수행하지 않고 기존 item id 기준 `BM_ITEM_OF_MARKET` mapping 제거로 전체 교체를 반영한다.
-- 기존 `BM_RICH_ITEM`과 item 참조 child row는 삭제하지 않으며, orphan 정리는 이번 기능정의에서 제외한다.
-- 기존 item/child row orphan을 남기는 대신, 품목관리 column content 조회·캐시는 현재 화면 item id 집합을 SQL에서 제한하는 scoped 조회 결과 기준으로 제한해 orphan 데이터가 화면/저장 대상에 섞이지 않게 한다. 1만 행 id 집합은 DAO 단일 action 안의 temp table/table variable 또는 chunk 기준으로 전달하고, 단순 대량 `IN` parameter 나열은 사용하지 않는다. 조회 후 필터는 테스트 보조 전용이며 운영 fallback으로 사용하지 않는다.
+- 조회와 저장은 현재 물리 DB 스키마를 그대로 사용하며 앱이 schema/data migration이나 과거 버전별 분기를 수행하지 않는다.
+- 삭제와 전체 교체는 기존 item ID에 대해 레거시 child/update/mapping/main item 물리 삭제를 수행한다.
 - scoped column content chunk 조회 fallback 테스트는 chunk별 조회 결과가 `columnId + itemId` key로 dedupe/merge되는지와 1만 행 id 전달이 단순 대량 `IN` parameter 없이 수행되는지를 검증한다.
 - 신규/엑셀 import 행은 `RICH_ADDITIONAL_ITEM_ID=NULL`로 생성되고, 기존 `BM_ADDITIONAL_ITEM` orphan 정리는 이번 기능정의에서 제외한다.
 - 저장 전 검증 실패 또는 DB 트랜잭션 실패 시 UI 잠금이 해제되고 편집 상태와 임시 파일 백업이 유지된다.
@@ -1306,12 +1299,12 @@ target market ids는 row별 반복 필드가 아니라 편집 세션/저장 batc
 엑셀 import의 이미지 타입(`TYPE_IMAGE`) 컬럼은 Excel 객체 이미지를 가져오지 않고 셀 표시 문자열만 사용한다. 경로와 `.bmp` 확장자는 제거하고 파일명만 저장 후보로 삼으며, 다른 확장자가 명시된 값은 저장 전 검증 오류로 처리한다.
 신규 item 저장 시 현재 DB trigger가 자동 생성하는 column content/barcode/image/element content 등 실제 대상 테이블을 먼저 확인하고, 중복 insert하지 않고 update/upsert한다.
 신규 item의 `BM_ITEM_OF_MARKET` mapping은 레거시와 동일하게 현재 로그인 고객의 모든 market에 생성한다. 이때 현재 화면 market의 `currentMarketSnapshot`, market id를 제외한 신규 mapping 기본값 template `newMappingDefaults`, 저장 대상 `targetMarketIds`를 분리하고, `targetMarketIds`는 세션 metadata로 관리한다. `targetMarketIds` 산출은 레거시 `CMarketDAO::SelectByCustID`와 동일하게 `BM_MARKET.RICH_CUSTOMER_ID = 현재 로그인 고객 ID` 조건만 사용하며, Flutter 구현에서는 로그인 세션 customer id를 명시적으로 전달한다.
-기존 행 삭제 저장은 레거시와 동일하게 현재 화면 market 하나나 `targetMarketIds` 교집합으로 제한하지 않고, 삭제 item id 기준으로 `BM_ITEM_OF_MARKET` mapping 전체를 제거한다. 이번 품목관리 기능에서는 `BM_RICH_ITEM`과 item 참조 child row 물리 삭제는 수행하지 않는다.
+기존 행 삭제 저장은 현재 화면 market 하나나 `targetMarketIds` 교집합으로 제한하지 않고, 삭제 item ID 기준으로 레거시 child/update/mapping/main item 물리 삭제를 같은 transaction에서 수행한다.
 현재 Flutter에는 고객별 market 목록 DAO가 없으므로 `MarketDAO.selectByCustomerId(customerId)`를 먼저 추가한다.
-저장 DAO 구현 전 schema/trigger 확인 결과는 `ItemSaveSchemaCapabilities` 같은 내부 구조로 정리한다. DB 연결 또는 품목관리 저장 DAO 초기화 시 현재 DB 기준으로 probe하고 같은 연결/세션에서는 capability 값을 캐시한다. 저장 DAO는 이 capability 값에 따라 trigger 자동 생성 row를 중복 insert하지 않고 update/upsert한다.
+저장 DAO는 현재 물리 DB의 기존 trigger 생성 row를 중복 insert하지 않고 update/upsert한다. 별도 migration이나 과거 v1/v2 분기는 추가하지 않는다.
 품목 순서 `RICH_ITEM_ORDER`는 market-specific 값이 아니라 item-level 전역 값이므로, 현재 화면 순서 저장은 다른 market의 같은 label size item 표시 순서에도 영향을 줄 수 있다. market별 독립 order는 이번 기능정의에서 제외한다.
-품목관리 로드 전 운영 DB에 `BM_RICH_ITEM.RICH_ELEMENT_SHEET` 컬럼이 있는지 capability probe하고, 없으면 `RICH_ELEMENT_SHEET`를 직접 참조하는 현재 `ItemOfMarketDAO.SelectSql`을 실행하지 않는다. 필수 동작은 DB migration 안내 화면 전환, 품목관리 테이블 미오픈, 편집 진입 액션 전체와 저장 버튼 비활성화이다. 조회 전용 테이블을 제공하는 read-only fallback SELECT는 선택 구현이며, 구현한 경우에만 `RICH_ELEMENT_RTF`만 참조하는 별도 SELECT 성공 후 조회 전용 테이블을 표시한다. fallback SELECT가 없거나 실패하면 테이블을 열지 않는다. 이번 구현은 `RICH_ELEMENT_SHEET` 존재를 전제로 하며 별도 호환 저장 정책은 만들지 않는다.
-전체 교체 저장은 기존 `BM_RICH_ITEM` 물리 delete를 수행하지 않고 item id 기준 `BM_ITEM_OF_MARKET` mapping 제거로 처리하며, 기존 item 참조 child row, `BM_ADDITIONAL_ITEM`, orphan 정리는 품목관리 사용자 기능이 아니라 데이터 유지보수 기능정의로 분리한다.
+조회와 저장은 현재 물리 DB 스키마를 그대로 사용하고 앱에서 schema/data migration이나 migration 안내 화면을 만들지 않는다.
+전체 교체 저장은 기존 item ID 전체에 레거시 물리 삭제를 적용하며 `BM_ADDITIONAL_ITEM` 자체는 삭제하지 않는다.
 변경 사항이 있는 동안에는 `엑셀 가져오기`, `엑셀 내보내기` 버튼을 비활성화해 draft 충돌을 막는다.
 엑셀 가져오기와 엑셀 내보내기는 모두 `.xlsx`만 지원하고 `.xls`는 안내 후 처리하지 않는다.
 엑셀 내보내기는 변경 사항이 없는 안정된 품목관리 working table을 `품목`, `주원료`, 일반 컬럼 값 중심의 단순 `.xlsx` 테이블로 저장한다.
@@ -1337,10 +1330,10 @@ QR/바코드 데이터 문자열과 barcode format id 계산은 viewer 전용 �
 2. 품목 삭제와 엑셀 전체 교체는 어느 market까지 적용할까요?
 	- 사용자 답변: 레거시와 같게 적용한다. 신규 mapping 생성은 현재 로그인 고객의 `targetMarketIds` 전체에 적용하고, 기존 item mapping 삭제는 삭제/교체 대상 item id 기준으로 market 조건 없이 적용한다.
 	- 확정 근거: 레거시 `CItemOfMarketDAO::InsertBatch`는 `CMarketDAO::SelectByCustID(CLoginCustomer::Get()->GetCustID())` 결과 전체에 mapping을 생성한다. `SelectByCustID` 조건은 `BM_MARKET.RICH_CUSTOMER_ID = 현재 로그인 고객 ID`뿐이다. 레거시 `CItemOfMarketDAO::DeleteBatchByItemIDs`는 `DELETE FROM BM_ITEM_OF_MARKET WHERE RICH_ITEM_ID=...` 형태라 market 조건이 없다.
-	- 권장 선택: 레거시 호환처럼 신규 mapping은 현재 로그인 고객의 `targetMarketIds` 전체에 생성하고, 삭제/전체 교체의 기존 item mapping은 item id 기준 전체 mapping delete로 처리한다. 즉 현재 market에서 삭제/교체한 품목이 같은 고객의 다른 market 품목관리에서도 보이지 않을 수 있다.
-	- 구현 고정 사항: `targetMarketIds` 산출용 `customerId`는 로그인 세션 customer id로 고정한다. 삭제/전체 교체 대상은 저장 확인 후 기존 transaction DAO의 item-id-wide mapping delete로 처리한다.
+	- 권장 선택: 신규 mapping은 현재 로그인 고객의 `targetMarketIds` 전체에 생성하고, 삭제/전체 교체는 기존 item ID 기준 레거시 물리 삭제로 처리한다.
+	- 구현 고정 사항: `targetMarketIds` 산출용 `customerId`는 로그인 세션 customer id로 고정한다. 삭제/전체 교체 대상은 저장 확인 후 같은 transaction DAO에서 child/update/mapping/main item 순으로 삭제한다.
 	- 사용자에게 보여줄 확인 문구: `같은 고객의 다른 market 품목관리에서도 해당 품목이 보이지 않을 수 있습니다.`
-	- 다른 선택 시 영향: 현재 화면 market에만 적용하려면 mapping delete 범위와 저장 DAO를 새로 확정해야 한다.
+	- 다른 선택 시 영향: 현재 화면 market에만 적용하려면 물리 삭제 대신 market별 mapping 정책과 저장 DAO를 새로 확정해야 한다.
 
 3. 날짜 타입 설정 화면의 사용자 표시 용어는 무엇으로 할까요?
 	- 사용자 답변: 권장 선택 확정. `소비기한`/`소비시한`으로 표시한다.

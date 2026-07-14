@@ -99,7 +99,7 @@ void main() {
       );
     });
 
-    test('save SQL maps inserted ids and deletes only market mappings', () {
+    test('save SQL maps inserted ids and physically deletes legacy rows', () {
       expect(
         ItemManagerSaveDAO.saveSql,
         contains('OUTPUT INSERTED.RICH_ITEM_ID INTO @CapturedItem'),
@@ -126,7 +126,54 @@ void main() {
       );
       expect(
         ItemManagerSaveDAO.saveSql,
-        isNot(contains('DELETE FROM BM_RICH_ITEM')),
+        contains('DELETE C\n    FROM BM_RICH_COL_CONTENT C'),
+      );
+      expect(
+        ItemManagerSaveDAO.saveSql,
+        contains('DELETE UC\n    FROM BM_UPDATE_COL_CONTENT UC'),
+      );
+      expect(
+        ItemManagerSaveDAO.saveSql,
+        contains('DELETE U\n    FROM BM_UPDATE_ITEM U'),
+      );
+      expect(
+        ItemManagerSaveDAO.saveSql,
+        contains('DELETE I\n    FROM BM_RICH_ITEM I'),
+      );
+      expect(ItemManagerSaveDAO.saveSql, contains('BM_RICH_STATUS S'));
+      expect(ItemManagerSaveDAO.saveSql, contains('Deleted item count mismatch.'));
+      final deleteContent = ItemManagerSaveDAO.saveSql.indexOf(
+        'DELETE C\n    FROM BM_RICH_COL_CONTENT C',
+      );
+      final deleteMapping = ItemManagerSaveDAO.saveSql.indexOf(
+        'DELETE M\n    FROM BM_ITEM_OF_MARKET M',
+      );
+      final deleteUpdateContent = ItemManagerSaveDAO.saveSql.indexOf(
+        'DELETE UC\n    FROM BM_UPDATE_COL_CONTENT UC',
+      );
+      final deleteUpdateItem = ItemManagerSaveDAO.saveSql.indexOf(
+        'DELETE U\n    FROM BM_UPDATE_ITEM U',
+      );
+      final deleteItem = ItemManagerSaveDAO.saveSql.indexOf(
+        'DELETE I\n    FROM BM_RICH_ITEM I',
+      );
+      expect(
+        [
+          deleteContent,
+          deleteMapping,
+          deleteUpdateContent,
+          deleteUpdateItem,
+          deleteItem,
+        ],
+        orderedEquals(
+          [
+            deleteContent,
+            deleteMapping,
+            deleteUpdateContent,
+            deleteUpdateItem,
+            deleteItem,
+          ]..sort(),
+        ),
       );
       expect(ItemManagerSaveDAO.saveSql, contains('MERGE BM_RICH_COL_CONTENT'));
       expect(ItemManagerSaveDAO.saveSql, contains(r"'$.draftRowKey'"));
