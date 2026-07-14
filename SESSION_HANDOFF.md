@@ -46,6 +46,7 @@
 - migration ternary 제거 후 `ItemManage` 생성자 들여쓰기를 정리하고 formatter를 재적용했다. `test/fortune_table_test.dart` 36개 재검증 통과, 변경 파일 diagnostics 오류 0건, 제한 `git diff --check` 통과를 확인했다.
 - 전체 테스트가 생성한 미추적 `third_party/fortune_sheet/build/` 캐시를 삭제했고 재검증 후 테스트 캐시가 남지 않았다.
 - stage/commit 대상: `lib/home_page_manager.dart`, `lib/page_home/item_manage.dart`, `lib/models/item_manager_save.dart`, `lib/models/item_manager_draft.dart`, `test/item_manager_save_dao_test.dart`, `test/fortune_table_test.dart`, `SESSION_HANDOFF.md`만 포함한다. unrelated `.vscode/settings.json`, `lib/core/app.dart` 및 그 밖의 기존 변경은 제외한다.
+- 기능 커밋 완료: `430c100` (`품목관리 저장 오류 처리와 검증 보정`). 원격 push와 배포 build/installer 생성은 수행하지 않았다.
 
 ### 완료 (2026-07-14): 품목관리 임시편집 SQLite 백업 계약 정리
 
