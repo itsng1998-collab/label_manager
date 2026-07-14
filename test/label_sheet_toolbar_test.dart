@@ -2726,6 +2726,54 @@ void main() {
     );
   });
 
+  testWidgets('label sheet reports ready when RTF import falls back', (
+    tester,
+  ) async {
+    var readyCount = 0;
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(labelSheetNativeOpenXmlChannel, (_) async => null);
+    addTearDown(
+      () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(labelSheetNativeOpenXmlChannel, null),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 400,
+            height: 300,
+            child: LabelSheetPage(
+              labelSize: LabelSize(
+                labelSizeId: 1,
+                brandId: 1,
+                labelSizeName: 'Legacy',
+                labelSizeCommon: LabelSizeCommon(
+                  width: 100,
+                  height: 60,
+                  rtf: r'{\rtf1\ansi}',
+                ),
+              ),
+              onSheetReady: () => readyCount += 1,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(readyCount, 1);
+    final workbook = tester
+        .widget<FortuneSheetApp>(find.byType(FortuneSheetApp))
+        .workbook!;
+    expect(
+      workbook.sheets.single.extraFields['labelRtfImportSource'],
+      isNot(true),
+    );
+  });
+
   testWidgets('fortune sheet page gives hidden footer height to the grid', (
     tester,
   ) async {

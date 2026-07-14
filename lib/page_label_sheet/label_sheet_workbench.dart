@@ -3272,10 +3272,9 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
                   }
                 });
               }
-              if (!labelSheetLooksLikeRichEditRtf(widget.labelRtf) ||
-                  _workbookHasRtfImportSource(workbook)) {
-                _notifyInitialLoadComplete();
-              }
+              _notifyInitialLoadComplete(
+                rtfImported: _workbookHasRtfImportSource(workbook),
+              );
             }
             final sheet = FortuneSheetApp(
               workbook: workbook,
@@ -3414,11 +3413,17 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     );
   }
 
-  void _notifyInitialLoadComplete() {
+  void _notifyInitialLoadComplete({required bool rtfImported}) {
     if (_initialLoadCompleteNotified) {
       return;
     }
     _initialLoadCompleteNotified = true;
+    fortuneSheetDebugLog(
+      'label sheet initial load complete '
+      'labelSizeId=${widget.labelSize?.labelSizeId} '
+      'hasRtf=${labelSheetLooksLikeRichEditRtf(widget.labelRtf)} '
+      'rtfImported=$rtfImported',
+    );
     final callback = widget.onInitialLoadComplete;
     if (callback == null) {
       return;

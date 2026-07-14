@@ -28,6 +28,19 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-14): 공용라벨 초기 로드 진행 표시 종료 보정
+
+- 사용자 재현: 공용라벨관리에서 DB 조회, 시트 로드, RTF 변환 등 초기 작업이 끝난 뒤에도 진행 중 스낵바가 무한 표시된다.
+- 원인 확인: `LabelSheetWorkbench`가 초기 workbook Future 완료 후에도 RTF 변환 결과에 `labelRtfImportSource=true`가 있을 때만 `onInitialLoadComplete`를 호출했다. 빈/비정형 RTF가 정상적으로 fallback workbook으로 끝나는 경우 초기 작업은 종료됐지만 상위 `_handleCommonLabelSheetReady()`가 호출되지 않아 진행 스낵바가 닫히지 않았다.
+- `lib/page_label_sheet/label_sheet_workbench.dart` 편집 완료: 초기 Future가 완료되면 RTF import 성공 여부와 무관하게 준비 완료를 정확히 한 번 통지한다. import 표식은 기존 dirty 판정에만 유지하고, 완료 로그에 label size/RTF 여부/import 성공 여부를 추가했다.
+- `test/label_sheet_toolbar_test.dart` 테스트 추가: RTF로 판정되지만 변환할 셀이 없어 fallback workbook으로 끝나는 입력에서도 `onSheetReady`가 정확히 한 번 호출되고 import 표식은 생기지 않는 계약을 검증한다.
+- 첫 focused 테스트는 입력이 RTF 판정 자체를 통과하지 않는 문제를 확인해 실제 null-draft RTF 입력으로 교정했다. 테스트 환경의 native bridge 응답 대기를 null mock으로 고정하고 실제 앱과 같은 `Scaffold`를 추가했다.
+- formatter 적용 완료. 추가한 null-draft fallback 테스트 단독 통과, 변경 파일 diagnostics 오류 0건, `test/label_sheet_toolbar_test.dart` 전체 114개 통과.
+- 전체 정적 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 결과 `No issues found`.
+- 전체 회귀 검증 완료: `C:\Flutter\bin\flutter.bat test` 결과 359개 통과, 실패 0건.
+- 전체 테스트가 생성한 `third_party/fortune_sheet/build/` 캐시를 삭제했다. 관련 파일 제한 `git diff --check`를 통과했고 최종 diff는 production/test/인수인계 3개 파일에 한정됐다.
+- stage/commit 대상: `lib/page_label_sheet/label_sheet_workbench.dart`, `test/label_sheet_toolbar_test.dart`, `SESSION_HANDOFF.md`. unrelated `.vscode/settings.json`, `lib/core/app.dart`는 제외하고 원격 push와 배포 작업은 수행하지 않는다.
+
 ### 완료 (2026-07-14): 공용라벨 라벨 항목 편집기 구현
 
 - `doc/user_item_modify.txt`의 확정 범위대로 공용라벨관리 `사용 항목 > 항목 편집`을 구현했다. `TColumn.copyWith`, 불변 `LabelColumnDraft`/`LabelColumnEditSession`, 안정 key, 추가·삭제·순서 변경, 속성 적용/취소, 예약어·중복·필수 검증과 save command를 추가했다.
