@@ -42,6 +42,7 @@
 - 최종 전체 회귀 검증 완료: 두 번째 `flutter test`에서 3335개 모두 통과했다.
 - 전체 테스트가 생성한 `third_party/fortune_sheet/build/` 임시 캐시를 삭제했다.
 - stage/commit 대상: `lib/home_page_manager.dart`, `test/fortune_table_test.dart`, `SESSION_HANDOFF.md`만 포함한다. unrelated `.vscode/settings.json`, `lib/core/app.dart`는 제외한다.
+- 기능 커밋: `e9ed23d 브랜드 설정 중복 제출을 차단`.
 
 ### 완료 (2026-07-14): 품목 주원료 commit 대상과 취소 경합 보정
 
