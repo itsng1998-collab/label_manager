@@ -28,7 +28,7 @@
 
 ## 현재 상태
 
-### 진행 중 (2026-07-14): 품목관리 임시편집 SQLite 백업 계약 정리
+### 완료 (2026-07-14): 품목관리 임시편집 SQLite 백업 계약 정리
 
 - 사용자 요청: 품목관리 임시편집의 OOM 방어용 백업을 JSON 파일 journal이 아니라 세션 전용 SQLite로 정리한다. 일반 편집은 실제 변경 대상의 최초 원본만 delta 백업하고, 삭제는 해당 행 전체 복원값, Excel 전체 교체는 기존 전체 원본을 batch 백업한 뒤 변경 취소 시 SQL Server 재조회 없이 원복한다.
 - `lib/models/item_manager_draft_backup.dart` 추가 완료: 세션 SQLite/WAL 저장소와 최초 원본 `INSERT OR IGNORE`, 일반 delta·삭제 행 전체·Excel full-import batch snapshot/read/clear API를 구현했다. 직접 셀과 10×8/타임바코드 파생 셀은 한 transaction으로 기록한다. 파일 diagnostics 오류 0건이며 테스트 미검증.
@@ -49,6 +49,7 @@
 - 최종 diff 검증: 전체 `git diff --check`의 유일한 경고는 unrelated `.vscode/settings.json` 기존 들여쓰기였다. 작업 범위 파일 제한 검사는 whitespace 출력이 없었고, 신규 파일 `--no-index` 비교의 정상적인 difference exit code 때문에 명령 상태만 1이었다. stage 후 `git diff --cached --check`로 재확인한다.
 - stage 대상: `SESSION_HANDOFF.md`, `doc/item_manager_modify.txt`, 품목관리 SQLite 전환 관련 `lib`/`test` 수정·추가·삭제 파일만 포함한다. unrelated `.vscode/settings.json`, `lib/core/app.dart`는 제외한다.
 - stage 완료: 위 관련 파일만 staged 상태이며 `git diff --cached --check`가 출력 없이 통과했다. unrelated `.vscode/settings.json`, `lib/core/app.dart`는 unstaged로 유지했다.
+- 구현 커밋 완료: `833a589 품목관리 임시편집 백업을 SQLite로 전환`. 원격 push와 배포 build/installer 생성은 수행하지 않았다.
 
 ### 완료 (2026-07-14): 바코드 비율·번호 표시 소유권 보정
 
