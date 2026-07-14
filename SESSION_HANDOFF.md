@@ -28,6 +28,24 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-14): 설정 저장 commit/reload 경계 보정
+
+- 재검토 확정 문제: 브랜드·라벨 추가/수정과 라벨 삭제·순서 변경은 DB write가 commit된 뒤 목록 재조회만 실패해도 저장 실패로 표시하고 편집 상태를 유지해, 추가 재시도 시 중복 행이 생길 수 있다.
+- 사용자 확정: 날짜 타입 설정은 레거시 `CLabelSizeDAO::UpdateSetup`과 같이 로그 INSERT 없이 현재 물리 `BM_RICH_LABELSIZE_FORM`의 날짜 12개 컬럼만 단일 UPDATE한다. runtime schema probe, 로그 유무 호환 분기, DB migration은 제거한다.
+- 수정 예정 `lib/home_page_manager.dart`: DB write와 후속 목록 reload 오류 경계를 분리하고 write 성공 즉시 동일 command 재제출을 막는 로컬 상태로 전환한다. reload 실패는 `저장은 완료됐지만 목록 갱신 실패`로 구분한다.
+- 수정 예정 `lib/models/label_size.dart`: 날짜 setup capability/log transaction 분기를 제거하고 affected row 1건을 검증하는 단일 UPDATE로 고정한다.
+- 테스트 예정: write 성공/reload 실패 시 write 1회와 재제출 차단, 날짜 저장 SQL의 12개 컬럼 제한·schema probe 제거를 검증한다. 미검증.
+- `lib/home_page_manager.dart` 편집 완료: `runSettingsWriteThenReload`가 write 성공과 reload 실패를 분리한다. 브랜드·라벨 추가는 write 성공 즉시 placeholder를 commit 객체로 교체하고 편집을 종료한다. 브랜드·라벨 수정, 삭제, 라벨 순서 변경도 write 성공 즉시 dialog와 부모 cache snapshot을 갱신하며, 선택 대상 삭제는 다음 선택을 commit callback 한 곳에서 반영한다. 후속 reload 실패는 `저장은 완료됐지만 목록 갱신 실패`로 구분한다.
+- `lib/models/label_size.dart` 편집 완료: 날짜 setup 로그 capability DTO/probe/log transaction SQL을 제거하고 최신 setup 조회 후 날짜 12개 컬럼 단일 UPDATE 및 affected row 1건 검증만 유지했다. `LabelSizeSetup.copyWith(useScale:)`로 라벨 이름/저울 수정 commit snapshot을 구성한다.
+- `test/fortune_table_test.dart` 편집 완료: reload 실패에도 write/commit이 각 1회 유지되는 계약과 write 실패 시 commit/reload가 실행되지 않는 계약을 추가했다.
+- `test/date_manager_test.dart` 편집 완료: 날짜 SQL이 날짜 필드만 갱신하고 schema/log 분기를 포함하지 않는 현재 물리 DB 계약으로 변경했다.
+- formatter 적용, 수정 파일 diagnostics 오류 0건, 관련 UI·날짜 회귀 83개 통과, 제한 `git diff --check` 통과.
+- 전체 정적 검증 완료: `flutter analyze` 결과 `No issues found`.
+- 전체 회귀 검증 완료: 전체 `flutter test` 3,338개 통과, 실패 0건.
+- 전체 테스트가 생성한 `third_party/fortune_sheet/build/` 캐시를 삭제했다.
+- 독립 최종 검토 결과 실제 버그, race, 상태 고착, 잘못된 오류 표시, compile 위험 finding이 없었다. 실제 DB 오류 주입 dialog 통합 테스트와 선택 삭제 전이 widget 테스트는 private overlay 구조에 테스트용 노출을 늘려야 하므로 이번 최소 수정 범위에는 추가하지 않았다.
+- stage/commit 대상: `lib/home_page_manager.dart`, `lib/models/label_size.dart`, `test/date_manager_test.dart`, `test/fortune_table_test.dart`, `SESSION_HANDOFF.md`만 포함한다. unrelated `.vscode/settings.json`, `lib/core/app.dart`는 제외한다.
+
 ### 완료 (2026-07-14): 브랜드·라벨 설정 삭제 경합 보정
 
 - 재검토 확정 문제: 브랜드 삭제 DB commit 전 dialog를 닫으면 부모 목록/선택 재조회가 생략되고, 라벨 삭제 중 브랜드 전환·라벨 선택·연속 삭제가 가능해 늦은 reload가 최신 목록/선택을 덮을 수 있다.

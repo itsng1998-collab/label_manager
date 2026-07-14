@@ -143,6 +143,22 @@ class SettingsOperationGate {
   }
 }
 
+@visibleForTesting
+Future<Object?> runSettingsWriteThenReload<T>({
+  required Future<T> Function() write,
+  required void Function(T value) onCommitted,
+  required Future<void> Function(T value) reload,
+}) async {
+  final value = await write();
+  onCommitted(value);
+  try {
+    await reload(value);
+    return null;
+  } catch (error) {
+    return error;
+  }
+}
+
 class _HomePageManagerState extends State<HomePageManager> {
   static const double _rtfPreviewInitialReadableScale = 1.0;
   static const double _itemPreviewScrollbarThicknessFallback = 8.0;
@@ -607,6 +623,18 @@ class _HomePageManagerState extends State<HomePageManager> {
       'selectedBrandId=${resolvedSelected?.brandId}',
     );
     return reloadedBrands;
+  }
+
+  void _handleBrandsCommittedFromDialog(
+    List<Brand> brands, {
+    Brand? selectedBrand,
+    bool updateSelection = false,
+  }) {
+    Brand.setDatas(brands);
+    _brands = List<Brand>.from(brands);
+    if (updateSelection) widget.onBrandChanged(selectedBrand);
+    if (mounted) setState(() {});
+    _brandSettingsOverlayEntry?.markNeedsBuild();
   }
 
   Future<void> _scheduleLabelSizeLoad(
@@ -1907,6 +1935,7 @@ class _HomePageManagerState extends State<HomePageManager> {
           selectedBrand: widget.selectedBrand,
           onBrandSelected: _handleBrandSelectedFromDialog,
           onBrandsChanged: _handleBrandsChangedFromDialog,
+          onBrandsCommitted: _handleBrandsCommittedFromDialog,
           onClose: _closeBrandSettingsDialog,
           busyNotifier: _brandDialogBusyNotifier,
         ),
@@ -1939,6 +1968,7 @@ class _HomePageManagerState extends State<HomePageManager> {
           onBrandChanged: _handleBrandChangedFromLabelDialog,
           onLabelSelected: _handleLabelSizeChanged,
           onLabelsChanged: _handleLabelsChangedFromDialog,
+          onLabelsCommitted: _handleLabelsCommittedFromDialog,
           onClose: _closeLabelSettingsDialog,
         ),
       ),
@@ -2075,6 +2105,23 @@ class _HomePageManagerState extends State<HomePageManager> {
       'labels=${reloadedLabels.length} selectedLabelSizeId=${resolvedSelected?.labelSizeId}',
     );
     return reloadedLabels;
+  }
+
+  void _handleLabelsCommittedFromDialog(
+    List<LabelSize> labels, {
+    LabelSize? selectedLabel,
+    bool updateSelection = false,
+  }) {
+    LabelSize.setDatas(labels);
+    final currentLabelSizeId = _currentLabelSize?.labelSizeId;
+    if (currentLabelSizeId != null) {
+      _currentLabelSize = _findLabelSizeIn(labels, currentLabelSizeId);
+    }
+    if (updateSelection) {
+      unawaited(_handleLabelSizeChanged(selectedLabel));
+    }
+    if (mounted) setState(() {});
+    _labelSettingsOverlayEntry?.markNeedsBuild();
   }
 
   void _closeBrandSettingsDialog() {
@@ -5558,6 +5605,7 @@ class _LabelSettingsDialog extends StatefulWidget {
     required this.onBrandChanged,
     required this.onLabelSelected,
     required this.onLabelsChanged,
+    required this.onLabelsCommitted,
     required this.onClose,
   });
 
@@ -5573,6 +5621,12 @@ class _LabelSettingsDialog extends StatefulWidget {
     bool updateSelection,
   })
   onLabelsChanged;
+  final void Function(
+    List<LabelSize> labels, {
+    LabelSize? selectedLabel,
+    bool updateSelection,
+  })
+  onLabelsCommitted;
   final VoidCallback onClose;
 
   @override
@@ -5715,7 +5769,10 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
       height: dialogHeight,
       closeIcon: const _BrandDialogCloseIcon(),
       onClose: widget.onClose,
-      closeEnabled: !_deletingLabel,
+        closeEnabled:
+          !_submittingLabelNameEdit &&
+          !_deletingLabel &&
+          !_applyingOrderChanges,
       footer: _orderEditMode ? _buildOrderEditFooter() : null,
       child: KeyedSubtree(
         key: _dialogContentKey,
@@ -5873,7 +5930,8 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
       onDeleteRow: _deleteLabel,
       onNameDoubleTap: _handleLabelNameDoubleTap,
       inlineTrailingBuilder: _buildLabelInlineTrailing,
-      enabled: !_orderEditMode && !_deletingLabel,
+        enabled:
+          !_orderEditMode && !_submittingLabelNameEdit && !_deletingLabel,
       fillLastColumn: true,
       autoFitColumns: false,
       rowSwipeEnabled: !_orderEditMode,
@@ -6171,32 +6229,6 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
         labelName,
         useScale,
       );
-      final reloadedLabels = await widget.onLabelsChanged();
-
-      if (!mounted) {
-        debugLog('updateLabelNameAndScale aborted unmounted after reload');
-        return;
-      }
-
-      if (_editingIndex != editingIndex) {
-        debugLog(
-          'updateLabelNameAndScale skippedStateUpdate editingIndexChanged editingIndex=$_editingIndex expected=$editingIndex',
-        );
-        return;
-      }
-
-      setState(() {
-        _labels = List<LabelSize>.from(reloadedLabels);
-        _originalLabels = List<LabelSize>.from(reloadedLabels);
-        _submittingLabelNameEdit = false;
-        _editingIndex = null;
-        _labelUseScaleEditValue = false;
-        _labelNameEditController.clear();
-      });
-
-      debugLog(
-        'updateLabelNameAndScale done labelSizeId=${label.labelSizeId} name=$labelName useScale=$useScale',
-      );
     } catch (e) {
       debugLog(
         'updateLabelNameAndScale failed labelSizeId=${label.labelSizeId} error=$e',
@@ -6217,7 +6249,42 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
           _labelNameEditFocusNode.requestFocus();
         }
       }
+      return;
     }
+
+    if (!mounted) return;
+    final updatedLabel = label.copyWith(
+      labelSizeName: labelName,
+      labelSizeSetup: label.labelSizeSetup?.copyWith(useScale: useScale),
+    );
+    setState(() {
+      _labels[editingIndex] = updatedLabel;
+      _originalLabels = List<LabelSize>.from(_labels);
+      _submittingLabelNameEdit = false;
+      _editingIndex = null;
+      _labelUseScaleEditValue = false;
+      _labelNameEditController.clear();
+    });
+    widget.onLabelsCommitted(List<LabelSize>.from(_labels));
+
+    try {
+      final reloadedLabels = await widget.onLabelsChanged();
+      if (mounted) {
+        setState(() {
+          _labels = List<LabelSize>.from(reloadedLabels);
+          _originalLabels = List<LabelSize>.from(reloadedLabels);
+        });
+      }
+    } catch (e) {
+      debugLog(
+        'updateLabelNameAndScale reload failed labelSizeId=${label.labelSizeId} error=$e',
+      );
+      if (mounted) await _showLabelReloadFailureDialog();
+    }
+
+    debugLog(
+      'updateLabelNameAndScale done labelSizeId=${label.labelSizeId} name=$labelName useScale=$useScale',
+    );
   }
 
   Future<void> _insertLabelName(int insertIndex, String labelName) async {
@@ -6274,40 +6341,46 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
       duration: const Duration(days: 1),
     );
 
+    LabelSize? inserted;
     try {
-      final inserted = await LabelSizeDAO.insert(
-        brandId,
-        labelName,
-        _labelUseScaleEditValue,
-        insertIndex + 1,
+      final reloadError = await runSettingsWriteThenReload<LabelSize>(
+        write: () => LabelSizeDAO.insert(
+          brandId,
+          labelName,
+          _labelUseScaleEditValue,
+          insertIndex + 1,
+        ),
+        onCommitted: (value) {
+          inserted = value;
+          if (!mounted) return;
+          setState(() {
+            _labels[insertIndex] = value;
+            _originalLabels = List<LabelSize>.from(_labels);
+            _insertingLabel = false;
+            _submittingLabelNameEdit = false;
+            _insertActionIndex = null;
+            _editingIndex = null;
+            _labelUseScaleEditValue = false;
+            _labelNameEditController.clear();
+          });
+          widget.onLabelsCommitted(List<LabelSize>.from(_labels));
+        },
+        reload: (value) async {
+          final reloadedLabels = await widget.onLabelsChanged();
+          if (mounted) {
+            setState(() {
+              _labels = List<LabelSize>.from(reloadedLabels);
+              _originalLabels = List<LabelSize>.from(reloadedLabels);
+            });
+          }
+        },
       );
-      final reloadedLabels = await widget.onLabelsChanged();
-
-      if (!mounted) {
-        debugLog('insertLabelName aborted unmounted after reload');
-        return;
-      }
-
-      if (!_insertingLabel || _editingIndex != insertIndex) {
+      if (reloadError != null && mounted) {
         debugLog(
-          'insertLabelName skippedStateUpdate editingIndexChanged inserting=$_insertingLabel editingIndex=$_editingIndex expected=$insertIndex',
+          'insertLabelName reload failed index=$insertIndex error=$reloadError',
         );
-        return;
+        await _showLabelReloadFailureDialog();
       }
-
-      setState(() {
-        _labels = List<LabelSize>.from(reloadedLabels);
-        _originalLabels = List<LabelSize>.from(reloadedLabels);
-        _insertingLabel = false;
-        _submittingLabelNameEdit = false;
-        _insertActionIndex = null;
-        _editingIndex = null;
-        _labelUseScaleEditValue = false;
-        _labelNameEditController.clear();
-      });
-      debugLog(
-        'insertLabelName done labelSizeId=${inserted.labelSizeId} index=$insertIndex name=${inserted.labelSizeName}',
-      );
     } catch (e) {
       debugLog('insertLabelName failed index=$insertIndex error=$e');
       if (mounted) {
@@ -6327,11 +6400,17 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
           _labelNameEditFocusNode.requestFocus();
         }
       }
+      return;
     } finally {
       if (mounted) {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
       }
     }
+
+    final committed = inserted!;
+    debugLog(
+      'insertLabelName done labelSizeId=${committed.labelSizeId} index=$insertIndex name=${committed.labelSizeName}',
+    );
   }
 
   Future<void> _deleteLabel(LabelSize label, int index) async {
@@ -6379,47 +6458,75 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
         ? _resolveLabelAfterDelete(index)
         : null;
 
-    setState(() => _deletingLabel = true);
     try {
-      await LabelSizeDAO.deleteByLabelSizeId(label.labelSizeId);
-      final reloadedLabels = await widget.onLabelsChanged(
-        preferredSelectedLabel: nextSelectedLabel,
-        updateSelection: wasSelected,
-      );
-
-      if (!mounted) {
-        debugLog('deleteLabel aborted unmounted after reload');
+      setState(() => _deletingLabel = true);
+      try {
+        await LabelSizeDAO.deleteByLabelSizeId(label.labelSizeId);
+      } catch (e) {
+        debugLog(
+          'deleteLabel failed labelSizeId=${label.labelSizeId} error=$e',
+        );
+        if (mounted) {
+          await showBlockingModelessOverlayDialog<void>(
+            context: context,
+            builder: (dialogContext, close) => AlertDialog(
+              title: const Text('라벨 삭제 실패'),
+              content: const Text('라벨 삭제에 실패했습니다.'),
+              actions: [
+                TextButton(
+                  onPressed: () => close(null),
+                  child: const Text('확인'),
+                ),
+              ],
+            ),
+          );
+        }
         return;
       }
 
-      setState(() {
-        _labels = List<LabelSize>.from(reloadedLabels);
-        _originalLabels = List<LabelSize>.from(reloadedLabels);
-        _selectedLabelSizeId = null;
-      });
-
-      debugLog(
-        'deleteLabel done labelSizeId=${label.labelSizeId} index=$index wasSelected=$wasSelected nextSelectedLabelSizeId=${nextSelectedLabel?.labelSizeId}',
+      if (!mounted) return;
+      final currentIndex = _labels.indexWhere(
+        (value) => value.labelSizeId == label.labelSizeId,
       );
-    } catch (e) {
-      debugLog('deleteLabel failed labelSizeId=${label.labelSizeId} error=$e');
-      if (mounted) {
-        await showBlockingModelessOverlayDialog<void>(
-          context: context,
-          builder: (dialogContext, close) => AlertDialog(
-            title: const Text('라벨 삭제 실패'),
-            content: const Text('라벨 삭제에 실패했습니다.'),
-            actions: [
-              TextButton(onPressed: () => close(null), child: const Text('확인')),
-            ],
-          ),
+      if (currentIndex >= 0) {
+        setState(() {
+          _labels.removeAt(currentIndex);
+          _originalLabels = List<LabelSize>.from(_labels);
+          _selectedLabelSizeId = null;
+        });
+        widget.onLabelsCommitted(
+          List<LabelSize>.from(_labels),
+          selectedLabel: nextSelectedLabel,
+          updateSelection: wasSelected,
         );
+      }
+
+      try {
+        final reloadedLabels = await widget.onLabelsChanged(
+          preferredSelectedLabel: nextSelectedLabel,
+          updateSelection: false,
+        );
+        if (mounted) {
+          setState(() {
+            _labels = List<LabelSize>.from(reloadedLabels);
+            _originalLabels = List<LabelSize>.from(reloadedLabels);
+          });
+        }
+      } catch (e) {
+        debugLog(
+          'deleteLabel reload failed labelSizeId=${label.labelSizeId} error=$e',
+        );
+        if (mounted) await _showLabelReloadFailureDialog();
       }
     } finally {
       if (mounted) {
         setState(() => _deletingLabel = false);
       }
     }
+
+    debugLog(
+      'deleteLabel done labelSizeId=${label.labelSizeId} index=$index wasSelected=$wasSelected nextSelectedLabelSizeId=${nextSelectedLabel?.labelSizeId}',
+    );
   }
 
   LabelSize? _resolveLabelAfterDelete(int deletedIndex) {
@@ -6623,25 +6730,14 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
             labelSizeOrder: index + 1,
           ),
       ]);
-      debugLog('labelSettings reorder apply updateOrders done reloadStart');
-      final appliedLabels = await widget.onLabelsChanged();
-      debugLog(
-        'labelSettings reorder apply reload done labels=${appliedLabels.length} '
-        'mounted=$mounted',
-      );
-      if (!mounted) {
-        debugLog('labelSettings reorder apply aborted unmounted after reload');
-        return;
-      }
+      if (!mounted) return;
       setState(() {
-        _labels = List<LabelSize>.from(appliedLabels);
-        _originalLabels = List<LabelSize>.from(appliedLabels);
+        _originalLabels = List<LabelSize>.from(_labels);
         _orderEditMode = false;
         _selectedLabelSizeId = null;
       });
-      debugLog(
-        'labelSettings reorder apply completed labels=${appliedLabels.length}',
-      );
+      widget.onLabelsCommitted(List<LabelSize>.from(_labels));
+      debugLog('labelSettings reorder apply updateOrders done reloadStart');
     } catch (e) {
       debugLog('labelSettings reorder apply failed error=$e');
       if (mounted) {
@@ -6667,6 +6763,31 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
         );
         debugLog('labelSettings reorder apply failureDialog closed');
       }
+      if (mounted) {
+        setState(() => _applyingOrderChanges = false);
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      }
+      return;
+    }
+
+    try {
+      final appliedLabels = await widget.onLabelsChanged();
+      debugLog(
+        'labelSettings reorder apply reload done labels=${appliedLabels.length} '
+        'mounted=$mounted',
+      );
+      if (mounted) {
+        setState(() {
+          _labels = List<LabelSize>.from(appliedLabels);
+          _originalLabels = List<LabelSize>.from(appliedLabels);
+        });
+      }
+      debugLog(
+        'labelSettings reorder apply completed labels=${appliedLabels.length}',
+      );
+    } catch (e) {
+      debugLog('labelSettings reorder reload failed error=$e');
+      if (mounted) await _showLabelReloadFailureDialog();
     } finally {
       if (mounted) {
         debugLog('labelSettings reorder apply cleanup mounted=true');
@@ -6678,6 +6799,19 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
         debugLog('labelSettings reorder apply cleanup skipped mounted=false');
       }
     }
+  }
+
+  Future<void> _showLabelReloadFailureDialog() {
+    return showBlockingModelessOverlayDialog<void>(
+      context: context,
+      builder: (dialogContext, close) => AlertDialog(
+        title: const Text('라벨 목록 갱신 실패'),
+        content: const Text('저장은 완료됐지만 라벨 목록 갱신에 실패했습니다.'),
+        actions: [
+          TextButton(onPressed: () => close(null), child: const Text('확인')),
+        ],
+      ),
+    );
   }
 }
 
@@ -6952,6 +7086,7 @@ class _BrandSettingsDialog extends StatefulWidget {
     required this.selectedBrand,
     required this.onBrandSelected,
     required this.onBrandsChanged,
+    required this.onBrandsCommitted,
     required this.onClose,
     required this.busyNotifier,
   });
@@ -6964,6 +7099,12 @@ class _BrandSettingsDialog extends StatefulWidget {
     bool updateSelection,
   })
   onBrandsChanged;
+  final void Function(
+    List<Brand> brands, {
+    Brand? selectedBrand,
+    bool updateSelection,
+  })
+  onBrandsCommitted;
   final VoidCallback onClose;
 
   /// 브랜드 선택 후 라벨 시트 로드가 완료될 때까지 true. 더블클릭 차단에 사용.
@@ -7334,37 +7475,42 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
       return;
     }
 
-    Brand inserted;
+    Brand? inserted;
     try {
-      inserted = await BrandDAO.insertByBrandName(
-        customerId,
-        brandName,
-        insertIndex + 1,
+      final reloadError = await runSettingsWriteThenReload<Brand>(
+        write: () => BrandDAO.insertByBrandName(
+          customerId,
+          brandName,
+          insertIndex + 1,
+        ),
+        onCommitted: (value) {
+          inserted = value;
+          if (!mounted) return;
+          setState(() {
+            _brands[insertIndex] = value;
+            _insertingBrand = false;
+            _insertActionIndex = null;
+            _editingIndex = null;
+            _brandNameEditController.clear();
+          });
+          widget.onBrandsCommitted(List<Brand>.from(_brands));
+        },
+        reload: (value) async {
+          final reloadedBrands = await _reloadBrandsChanged(
+            selectedBrand: value,
+            updateSelection: false,
+          );
+          if (mounted) {
+            setState(() => _brands = List<Brand>.from(reloadedBrands));
+          }
+        },
       );
-      final reloadedBrands = await _reloadBrandsChanged(
-        selectedBrand: inserted,
-        updateSelection: false,
-      );
-
-      if (!mounted) {
-        debugLog('insertBrandName aborted unmounted after reload');
-        return;
-      }
-
-      if (!_insertingBrand || _editingIndex != insertIndex) {
+      if (reloadError != null && mounted) {
         debugLog(
-          'insertBrandName skippedStateUpdate editingIndexChanged inserting=$_insertingBrand editingIndex=$_editingIndex expected=$insertIndex',
+          'insertBrandName reload failed index=$insertIndex error=$reloadError',
         );
-        return;
+        await _showBrandReloadFailureDialog();
       }
-
-      setState(() {
-        _brands = List<Brand>.from(reloadedBrands);
-        _insertingBrand = false;
-        _insertActionIndex = null;
-        _editingIndex = null;
-        _brandNameEditController.clear();
-      });
     } catch (e) {
       debugLog('insertBrandName failed index=$insertIndex error=$e');
       if (mounted) {
@@ -7384,8 +7530,9 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
       return;
     }
 
+    final committed = inserted!;
     debugLog(
-      'insertBrandName done brandId=${inserted.brandId} index=$insertIndex name=${inserted.brandName}',
+      'insertBrandName done brandId=${committed.brandId} index=$insertIndex name=${committed.brandName}',
     );
   }
 
@@ -7435,31 +7582,6 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
     );
     try {
       await BrandDAO.updateByBrandId(brand, brandName);
-      final updatedBrand = Brand(
-        brandId: brand.brandId,
-        customerId: brand.customerId,
-        brandName: brandName,
-      );
-      final reloadedBrands = await _reloadBrandsChanged(
-        selectedBrand: updatedBrand,
-        updateSelection: widget.selectedBrand?.brandId == updatedBrand.brandId,
-      );
-
-      if (!mounted) {
-        debugLog('updateBrandName aborted unmounted after reload');
-        return;
-      }
-
-      if (_editingIndex != editingIndex) {
-        debugLog('updateBrandName skippedStateUpdate editingIndexChanged');
-        return;
-      }
-
-      setState(() {
-        _brands = List<Brand>.from(reloadedBrands);
-        _editingIndex = null;
-        _brandNameEditController.clear();
-      });
     } catch (e) {
       debugLog('updateBrandName failed brandId=${brand.brandId} error=$e');
       if (mounted) {
@@ -7479,8 +7601,50 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
       return;
     }
 
+    if (!mounted) return;
+    final updatedBrand = Brand(
+      brandId: brand.brandId,
+      customerId: brand.customerId,
+      brandName: brandName,
+    );
+    setState(() {
+      _brands[editingIndex] = updatedBrand;
+      _editingIndex = null;
+      _brandNameEditController.clear();
+    });
+    widget.onBrandsCommitted(List<Brand>.from(_brands));
+
+    try {
+      final reloadedBrands = await _reloadBrandsChanged(
+        selectedBrand: updatedBrand,
+        updateSelection: widget.selectedBrand?.brandId == updatedBrand.brandId,
+      );
+      if (mounted) {
+        setState(() => _brands = List<Brand>.from(reloadedBrands));
+      }
+    } catch (e) {
+      debugLog(
+        'updateBrandName reload failed brandId=${brand.brandId} error=$e',
+      );
+      if (mounted) {
+        await _showBrandReloadFailureDialog();
+      }
+    }
+
     debugLog(
       'updateBrandName done brandId=${brand.brandId} newName=$brandName',
+    );
+  }
+
+  Future<void> _showBrandReloadFailureDialog() {
+    return _showBrandOverlayDialog<void>(
+      (dialogContext, close) => AlertDialog(
+        title: const Text('브랜드 목록 갱신 실패'),
+        content: const Text('저장은 완료됐지만 브랜드 목록 갱신에 실패했습니다.'),
+        actions: [
+          TextButton(onPressed: () => close(null), child: const Text('확인')),
+        ],
+      ),
     );
   }
 
@@ -7551,11 +7715,17 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
       final nextSelectedBrand = wasSelected
           ? _resolveBrandAfterDelete(currentIndex)
           : widget.selectedBrand;
+        setState(() => _brands.removeAt(currentIndex));
+        widget.onBrandsCommitted(
+          List<Brand>.from(_brands),
+          selectedBrand: nextSelectedBrand,
+          updateSelection: wasSelected,
+        );
 
       try {
         final reloadedBrands = await _reloadBrandsChanged(
           selectedBrand: nextSelectedBrand,
-          updateSelection: wasSelected,
+          updateSelection: false,
         );
         if (!mounted) return;
         setState(() => _brands = List<Brand>.from(reloadedBrands));
@@ -7565,18 +7735,7 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
       } catch (e) {
         debugLog('deleteBrand reload failed brandId=${brand.brandId} error=$e');
         if (mounted) {
-          await _showBrandOverlayDialog<void>(
-            (dialogContext, close) => AlertDialog(
-              title: const Text('브랜드 목록 갱신 실패'),
-              content: const Text('브랜드 목록 갱신에 실패했습니다.'),
-              actions: [
-                TextButton(
-                  onPressed: () => close(null),
-                  child: const Text('확인'),
-                ),
-              ],
-            ),
-          );
+          await _showBrandReloadFailureDialog();
         }
       }
     });

@@ -53,6 +53,50 @@ void main() {
     await gate.run(() async {});
   });
 
+  test('settings write keeps commit when reload fails', () async {
+    var writes = 0;
+    var commits = 0;
+    var reloads = 0;
+
+    final error = await runSettingsWriteThenReload<int>(
+      write: () async {
+        writes += 1;
+        return 7;
+      },
+      onCommitted: (value) {
+        expect(value, 7);
+        commits += 1;
+      },
+      reload: (value) async {
+        expect(value, 7);
+        reloads += 1;
+        throw StateError('reload failed');
+      },
+    );
+
+    expect(writes, 1);
+    expect(commits, 1);
+    expect(reloads, 1);
+    expect(error, isA<StateError>());
+  });
+
+  test('settings write failure skips commit and reload', () async {
+    var commits = 0;
+    var reloads = 0;
+
+    await expectLater(
+      runSettingsWriteThenReload<int>(
+        write: () async => throw StateError('write failed'),
+        onCommitted: (_) => commits += 1,
+        reload: (_) async => reloads += 1,
+      ),
+      throwsStateError,
+    );
+
+    expect(commits, 0);
+    expect(reloads, 0);
+  });
+
   test('item element commit queue serializes work and reports failure', () async {
     final queue = ItemElementCommitQueue();
     final firstCompleter = Completer<void>();

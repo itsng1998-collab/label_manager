@@ -69,6 +69,23 @@ class LabelSizeSetup {
     required this.useScale,
   });
 
+  LabelSizeSetup copyWith({bool? useScale}) => LabelSizeSetup(
+    readOnly: readOnly,
+    useMakeDate: useMakeDate,
+    useMakeTime: useMakeTime,
+    useValidDate: useValidDate,
+    useValidTime: useValidTime,
+    makingDateFormat: makingDateFormat,
+    makingTimeFormat: makingTimeFormat,
+    validDateFormat: validDateFormat,
+    validTimeFormat: validTimeFormat,
+    strMakeDate: strMakeDate,
+    strMakeTime: strMakeTime,
+    strValidDate: strValidDate,
+    strValidTime: strValidTime,
+    useScale: useScale ?? this.useScale,
+  );
+
   LabelSizeSetup copyWithDateSetup(LabelSizeDateSetupUpdate update) =>
       LabelSizeSetup(
         readOnly: readOnly,
@@ -157,18 +174,6 @@ class LabelSizeDateSetupUpdate {
     'userValidDate': strValidDate,
     'userValidTime': strValidTime,
   };
-}
-
-class LabelSizeDateSetupLogCapabilities {
-  const LabelSizeDateSetupLogCapabilities({required this.hasAllColumns});
-
-  factory LabelSizeDateSetupLogCapabilities.fromMap(
-    Map<String, dynamic> map,
-  ) => LabelSizeDateSetupLogCapabilities(
-    hasAllColumns: '${map['HAS_ALL_COLUMNS']}' == '1',
-  );
-
-  final bool hasAllColumns;
 }
 
 class LabelSize {
@@ -352,26 +357,6 @@ class LabelSizeOrderUpdate {
 }
 
 class LabelSizeDAO extends DAO {
-  static const String dateSetupLogCapabilitySql = '''
-    SELECT CASE WHEN COUNT(*) = 24 THEN 1 ELSE 0 END AS HAS_ALL_COLUMNS
-      FROM sys.columns
-     WHERE object_id = OBJECT_ID(N'BM_RICH_LABELSIZE_FORM_LOG')
-       AND name IN (
-         N'RICH_SETUP_USE_MAKEDATE', N'RICH_SETUP_USE_MAKETIME',
-         N'RICH_SETUP_USE_VALIDDATE', N'RICH_SETUP_USE_VALIDTIME',
-         N'RICH_SETUP_MAKEDATE_TYPE', N'RICH_SETUP_MAKETIME_TYPE',
-         N'RICH_SETUP_VALIDDATE_TYPE', N'RICH_SETUP_VALIDTIME_TYPE',
-         N'RICH_USER_MAKEDATE', N'RICH_USER_MAKETIME',
-         N'RICH_USER_VALIDDATE', N'RICH_USER_VALIDTIME',
-         N'RICH_ALTER_SETUP_USE_MAKEDATE', N'RICH_ALTER_SETUP_USE_MAKETIME',
-         N'RICH_ALTER_SETUP_USE_VALIDDATE', N'RICH_ALTER_SETUP_USE_VALIDTIME',
-         N'RICH_ALTER_SETUP_MAKEDATE_TYPE', N'RICH_ALTER_SETUP_MAKETIME_TYPE',
-         N'RICH_ALTER_SETUP_VALIDDATE_TYPE', N'RICH_ALTER_SETUP_VALIDTIME_TYPE',
-         N'RICH_ALTER_USER_MAKEDATE', N'RICH_ALTER_USER_MAKETIME',
-         N'RICH_ALTER_USER_VALIDDATE', N'RICH_ALTER_USER_VALIDTIME'
-       )
-  ''';
-
   static const String dateSetupUpdateSql = '''
     UPDATE BM_RICH_LABELSIZE_FORM
        SET RICH_SETUP_USE_MAKEDATE=@useMakeDate,
@@ -387,60 +372,6 @@ class LabelSizeDAO extends DAO {
            RICH_USER_VALIDDATE=@userValidDate,
            RICH_USER_VALIDTIME=@userValidTime
      WHERE RICH_LABELSIZE_ID=@labelSizeId
-  ''';
-
-  static const String dateSetupLogInsertSql = '''
-    INSERT INTO BM_RICH_LABELSIZE_FORM_LOG (
-      RICH_MOD_DATE, RICH_MOD_DATETIME, RICH_LABELSIZE_ID, RICH_LABELSIZE_NAME,
-      RICH_FORM_WIDTH, RICH_FORM_HEIGHT, RICH_FORM_DATA, RICH_FORM_SHEET,
-      RICH_USER_ID, RICH_BRAND_ID, RICH_INNER_IP, RICH_OUTER_IP,
-      RICH_SETUP_USE_MAKEDATE, RICH_SETUP_USE_MAKETIME,
-      RICH_SETUP_USE_VALIDDATE, RICH_SETUP_USE_VALIDTIME,
-      RICH_SETUP_MAKEDATE_TYPE, RICH_SETUP_MAKETIME_TYPE,
-      RICH_SETUP_VALIDDATE_TYPE, RICH_SETUP_VALIDTIME_TYPE,
-      RICH_USER_MAKEDATE, RICH_USER_MAKETIME,
-      RICH_USER_VALIDDATE, RICH_USER_VALIDTIME,
-      RICH_ALTER_SETUP_USE_MAKEDATE, RICH_ALTER_SETUP_USE_MAKETIME,
-      RICH_ALTER_SETUP_USE_VALIDDATE, RICH_ALTER_SETUP_USE_VALIDTIME,
-      RICH_ALTER_SETUP_MAKEDATE_TYPE, RICH_ALTER_SETUP_MAKETIME_TYPE,
-      RICH_ALTER_SETUP_VALIDDATE_TYPE, RICH_ALTER_SETUP_VALIDTIME_TYPE,
-      RICH_ALTER_USER_MAKEDATE, RICH_ALTER_USER_MAKETIME,
-      RICH_ALTER_USER_VALIDDATE, RICH_ALTER_USER_VALIDTIME
-    )
-    SELECT CONVERT(CHAR(8), GETDATE(), 112), GETDATE(), RICH_LABELSIZE_ID,
-      RICH_LABELSIZE_NAME, RICH_FORM_WIDTH, RICH_FORM_HEIGHT, RICH_FORM_DATA,
-      RICH_FORM_SHEET, @userId, RICH_BRAND_ID,
-      CONVERT(NVARCHAR(100), CONVERT(VARCHAR(100), CONVERT(VARBINARY(100), @loginIP, 1)) COLLATE ${DAO.CP949}),
-      CONVERT(VARCHAR(48), CONNECTIONPROPERTY('client_net_address')),
-      RICH_SETUP_USE_MAKEDATE, RICH_SETUP_USE_MAKETIME,
-      RICH_SETUP_USE_VALIDDATE, RICH_SETUP_USE_VALIDTIME,
-      RICH_SETUP_MAKEDATE_TYPE, RICH_SETUP_MAKETIME_TYPE,
-      RICH_SETUP_VALIDDATE_TYPE, RICH_SETUP_VALIDTIME_TYPE,
-      RICH_USER_MAKEDATE, RICH_USER_MAKETIME,
-      RICH_USER_VALIDDATE, RICH_USER_VALIDTIME,
-      @useMakeDate, @useMakeTime, @useValidDate, @useValidTime,
-      @makeDateType, @makeTimeType, @validDateType, @validTimeType,
-      @userMakeDate, @userMakeTime, @userValidDate, @userValidTime
-      FROM BM_RICH_LABELSIZE_FORM
-     WHERE RICH_LABELSIZE_ID=@labelSizeId
-  ''';
-
-  static const String dateSetupLoggedTransactionSql = '''
-    SET XACT_ABORT ON;
-    SET NOCOUNT ON;
-    BEGIN TRY
-      BEGIN TRANSACTION;
-      $dateSetupLogInsertSql;
-      IF @@ROWCOUNT <> 1 THROW 51010, 'Insert date setup log failed.', 1;
-      $dateSetupUpdateSql;
-      IF @@ROWCOUNT <> 1 THROW 51011, 'Update date setup failed.', 1;
-      COMMIT TRANSACTION;
-      SELECT 1 AS AFFECTED;
-    END TRY
-    BEGIN CATCH
-      IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
-      THROW;
-    END CATCH
   ''';
 
   static const String SelectSql =
@@ -562,17 +493,6 @@ class LabelSizeDAO extends DAO {
     LabelSizeDateSetupUpdate update,
   ) async {
     debugLog('$START, labelSizeId:$labelSizeId');
-    final capabilityResult = await DbClient.instance.getData(
-      dateSetupLogCapabilitySql,
-    );
-    final capabilities = DAO.mapRow(
-      capabilityResult,
-      LabelSizeDateSetupLogCapabilities.fromMap,
-    );
-    if (capabilities == null) {
-      throw StateError('날짜 설정 로그 컬럼 확인 결과가 없습니다.');
-    }
-
     final latestResult = await DbClient.instance.getDataWithParams(
       '$SelectSql $WhereSqlLabelSizeId',
       {'labelSizeId': labelSizeId},
@@ -586,26 +506,10 @@ class LabelSizeDAO extends DAO {
       ...update.toParams(),
       'labelSizeId': labelSizeId,
     };
-    late final Object result;
-    if (capabilities.hasAllColumns) {
-      final localIp = await RGetIp.internalIP;
-      params
-        ..['userId'] = User.instance!.userId
-        ..['loginIP'] = await stringToHexCp949(localIp ?? '');
-      result = await DbClient.instance.writeDataWithParams(
-        dateSetupLoggedTransactionSql,
-        params,
-      );
-    } else {
-      debugLog(
-        'date setup log columns incomplete; applying logless update '
-        'for labelSizeId:$labelSizeId',
-      );
-      result = await DbClient.instance.writeDataWithParams(
-        dateSetupUpdateSql,
-        params,
-      );
-    }
+    final result = await DbClient.instance.writeDataWithParams(
+      dateSetupUpdateSql,
+      params,
+    );
     if (DAO.affectedRows(result) != 1) {
       throw StateError('라벨 날짜 설정 저장 결과가 올바르지 않습니다.');
     }
@@ -614,7 +518,7 @@ class LabelSizeDAO extends DAO {
       labelSizeSetup: latest.labelSizeSetup!.copyWithDateSetup(update),
       hasInvalidDateSetupValues: false,
     );
-    debugLog('$END, labelSizeId:$labelSizeId, logged:${capabilities.hasAllColumns}');
+    debugLog('$END, labelSizeId:$labelSizeId');
     return saved;
   }
 

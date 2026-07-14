@@ -99,21 +99,13 @@ void main() {
     expect(update.toParams()['validTimeType'], 3);
   });
 
-  test('date setup SQL updates only date fields and probes full log schema', () {
+  test('date setup SQL updates only date fields without schema branching', () {
     final updateSql = LabelSizeDAO.dateSetupUpdateSql.toUpperCase();
     expect(updateSql, contains('RICH_SETUP_USE_MAKEDATE'));
     expect(updateSql, contains('RICH_USER_VALIDTIME'));
     expect(updateSql, isNot(contains('RICH_SETUP_READONLY')));
     expect(updateSql, isNot(contains('RICH_SETUP_USE_SCALE')));
-    expect(
-      LabelSizeDAO.dateSetupLogCapabilitySql,
-      contains('COUNT(*) = 24'),
-    );
-    expect(
-      LabelSizeDateSetupLogCapabilities.fromMap(const {
-        'HAS_ALL_COLUMNS': 1,
-      }).hasAllColumns,
-      isTrue,
-    );
+    expect(updateSql, isNot(contains('SYS.COLUMNS')));
+    expect(updateSql, isNot(contains('BM_RICH_LABELSIZE_FORM_LOG')));
   });
 }
