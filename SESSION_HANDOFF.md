@@ -38,6 +38,7 @@
 - 전체 회귀 검증 완료: `flutter test`에서 3333개 모두 통과했다.
 - 전체 테스트가 생성한 `third_party/fortune_sheet/build/` 임시 캐시를 삭제했다.
 - stage/commit 대상: `lib/home_page_manager.dart`, `test/fortune_table_test.dart`, `test/label_sheet_toolbar_test.dart`, `SESSION_HANDOFF.md`만 포함한다. unrelated `.vscode/settings.json`, `lib/core/app.dart`는 제외한다.
+- 기능 커밋: `eb8ac00 품목 주원료 편집 경합을 보정`.
 
 ### 완료 (2026-07-14): 품목 저장 전 편집 확정과 삽입 원복
 
