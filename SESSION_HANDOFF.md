@@ -41,6 +41,7 @@
 - 현재 물리 DDL과 레거시 `.tmp/LabelManager`를 재대조했다. 브랜드·라벨 insert/update/delete, 라벨 순서·날짜 설정의 저장 대상은 일치하며, Flutter transaction은 commit 오류 전파와 rollback 및 affected-row 검증을 충족한다. 추가 migration이나 schema 호환 분기는 필요하지 않다.
 - 전체 테스트가 생성한 `third_party/fortune_sheet/build/` 캐시를 삭제한다.
 - stage/commit 대상: `lib/home_page_manager.dart`, `SESSION_HANDOFF.md`만 포함한다. unrelated `.vscode/settings.json`, `lib/core/app.dart`는 제외한다.
+- 기능 커밋: `44f0335 브랜드 선택 삭제 경합을 보정`.
 
 ### 완료 (2026-07-14): 라벨 설정 후속 reload 경합 보정
 
