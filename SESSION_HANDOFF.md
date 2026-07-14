@@ -44,6 +44,7 @@
 - 최종 보정 반영 후 `flutter analyze`를 재실행해 `No issues found`로 통과했고, 전체 `flutter test`도 3,339개 통과, 실패 0건으로 재검증했다.
 - 최종 전체 테스트가 재생성한 `third_party/fortune_sheet/build/` 캐시를 삭제한다.
 - stage/commit 대상: `lib/home_page_manager.dart`, `test/fortune_table_test.dart`, `SESSION_HANDOFF.md`만 포함한다. unrelated `.vscode/settings.json`, `lib/core/app.dart`는 제외한다.
+- 기능 커밋: `75c1fc2 라벨 설정 후속 작업 경합을 보정`.
 
 ### 완료 (2026-07-14): 설정 저장 commit/reload 경계 보정
 
