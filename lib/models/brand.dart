@@ -40,6 +40,13 @@ class Brand {
     'BrandId: $brandId, CustomerId: $customerId, BrandName: $brandName';
 }
 
+class BrandOrderUpdate {
+  final int brandId;
+  final int brandOrder;
+
+  const BrandOrderUpdate({required this.brandId, required this.brandOrder});
+}
+
 class BrandDAO extends DAO {
   static const String SelectSql =
       '''
@@ -245,6 +252,76 @@ class BrandDAO extends DAO {
       debugLog('$END, BM_RICH_BRAND delete Result: $res, affected:$affected, succeeded:$succeeded');
     }
     catch (e) {
+      debugLog('$END, $e');
+      rethrow;
+    }
+  }
+
+  static Future<void> updateOrders(List<BrandOrderUpdate> orderUpdates) async {
+    debugLog('$START, brandOrderUpdates:${orderUpdates.length}');
+
+    if (orderUpdates.isEmpty) {
+      debugLog('$END, empty brandOrderUpdates');
+      return;
+    }
+
+    try {
+      final updateStatements = StringBuffer();
+      final params = <String, Object?>{};
+      final affectedVariables = <String>[];
+      for (var index = 0; index < orderUpdates.length; index += 1) {
+        final update = orderUpdates[index];
+        final brandIdParam = 'brandId$index';
+        final brandOrderParam = 'brandOrder$index';
+        final affectedVariable = '@affected$index';
+        affectedVariables.add(affectedVariable);
+        updateStatements.writeln('''
+          DECLARE $affectedVariable INT = 0;
+          UPDATE BM_RICH_BRAND
+             SET RICH_BRAND_ORDER=@$brandOrderParam
+           WHERE RICH_BRAND_ID=@$brandIdParam;
+          SET $affectedVariable = @@ROWCOUNT;
+          IF $affectedVariable <= 0
+            THROW 51030, 'Update brand order failed.', 1;
+        ''');
+        params[brandIdParam] = update.brandId;
+        params[brandOrderParam] = update.brandOrder;
+      }
+      final affectedExpression = affectedVariables.join(' + ');
+
+      final updateOrderTransactionSql = '''
+        SET XACT_ABORT ON;
+        SET NOCOUNT ON;
+        BEGIN TRY
+          BEGIN TRANSACTION;
+
+          $updateStatements
+
+          COMMIT TRANSACTION;
+          SET NOCOUNT OFF;
+          SET XACT_ABORT OFF;
+
+          SELECT $affectedExpression AS AFFECTED;
+        END TRY
+        BEGIN CATCH
+          IF @@TRANCOUNT > 0
+            ROLLBACK TRANSACTION;
+          SET NOCOUNT OFF;
+          SET XACT_ABORT OFF;
+          THROW;
+        END CATCH
+      ''';
+
+      final res = await DbClient.instance.writeDataWithParams(
+        updateOrderTransactionSql,
+        params,
+      );
+      if (DAO.affectedRows(res) <= 0) {
+        throw Exception('${runtimeLogTag()} Update brand order affected no rows');
+      }
+
+      debugLog('$END, BM_RICH_BRAND order Result: $res');
+    } catch (e) {
       debugLog('$END, $e');
       rethrow;
     }

@@ -5753,6 +5753,7 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
       closeIcon: const _BrandDialogCloseIcon(),
       onClose: widget.onClose,
         closeEnabled:
+          !_changingBrand &&
           !_submittingLabelNameEdit &&
           !_deletingLabel &&
           !_applyingOrderChanges,
@@ -7094,18 +7095,23 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
   static const double _dialogWidth = 500;
 
   late List<Brand> _brands;
+  late List<Brand> _originalBrands;
   final TextEditingController _brandNameEditController =
       TextEditingController();
   final FocusNode _brandNameEditFocusNode = FocusNode();
   int? _editingIndex;
   int? _insertActionIndex;
   bool _insertingBrand = false;
+  bool _orderEditMode = false;
+  bool _applyingOrderChanges = false;
+  int? _selectedBrandId;
   final SettingsOperationGate _submissionGate = SettingsOperationGate();
 
   @override
   void initState() {
     super.initState();
     _brands = List<Brand>.from(widget.brands);
+    _originalBrands = List<Brand>.from(widget.brands);
     _brandNameEditController.addListener(_handleBrandNameEditChanged);
   }
 
@@ -7123,6 +7129,9 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
         ' outOfRange=$outOfRange',
       );
       _brands = newBrands;
+      if (!_orderEditMode) {
+        _originalBrands = List<Brand>.from(newBrands);
+      }
       // 편집 인덱스가 새 목록 범위를 벗어난 경우에만 편집을 취소한다.
       // 그 외 브랜드 갱신(외부 새로고침)으로는 편집이 취소되지 않도록 한다.
       if (outOfRange) {
@@ -7171,37 +7180,279 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
       height: dialogHeight,
       closeIcon: const _BrandDialogCloseIcon(),
       onClose: widget.onClose,
-      closeEnabled: !_submissionGate.submitting,
+      closeEnabled:
+          !_submissionGate.submitting && !_applyingOrderChanges,
+      footer: _orderEditMode ? _buildBrandOrderEditFooter() : null,
       child: Padding(
         padding: const EdgeInsets.only(left: 8, right: 8, bottom: 8),
-        child: EditableSwipeNameTable<Brand>(
-          rows: _brands,
-          header: '브랜드 이름',
-          text: _brandNameText,
-          editController: _brandNameEditController,
-          editFocusNode: _brandNameEditFocusNode,
-          editingIndex: _editingIndex,
-          insertActionIndex: _insertActionIndex,
-          inserting: _insertingBrand,
-          canSubmit: _canSubmitBrandNameEdit,
-          onToggleEdit: _toggleBrandNameEdit,
-          onToggleInsert: _toggleBrandInsert,
-          onEmptyInsert: () => _startBrandInsertAt(0, actionIndex: null),
-          onCancelEdit: _cancelBrandNameEdit,
-          onSubmitEdit: _submitBrandNameEdit,
-          onDeleteRow: _deleteBrand,
-          onNameDoubleTap: _handleBrandNameDoubleTap,
-          fillLastColumn: true,
-          autoFitColumns: false,
-          rowSwipeEnabled: true,
-          enabled: !_submissionGate.submitting,
-          keepRowContentOnSwipe: true,
-          rowTooltip: '컬럼 왼쪽 스와이프 수정/삽입/삭제',
-          showActionsWhenEmpty: true,
-          rowNumberText: _brandRowNumberText,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              child: EditableSwipeNameTable<Brand>(
+                rows: _brands,
+                header: '브랜드 이름',
+                text: _brandNameText,
+                editController: _brandNameEditController,
+                editFocusNode: _brandNameEditFocusNode,
+                editingIndex: _editingIndex,
+                insertActionIndex: _insertActionIndex,
+                inserting: _insertingBrand,
+                canSubmit: _canSubmitBrandNameEdit,
+                onToggleEdit: _toggleBrandNameEdit,
+                onToggleInsert: _toggleBrandInsert,
+                onEmptyInsert: _orderEditMode
+                    ? null
+                    : () => _startBrandInsertAt(0, actionIndex: null),
+                onCancelEdit: _cancelBrandNameEdit,
+                onSubmitEdit: _submitBrandNameEdit,
+                onDeleteRow: _deleteBrand,
+                onNameDoubleTap: _handleBrandNameDoubleTap,
+                fillLastColumn: true,
+                autoFitColumns: false,
+                rowSwipeEnabled: !_orderEditMode,
+                rowReorderEnabled: _orderEditMode,
+                selectedIndex: _selectedBrandIndex,
+                onRowSelected: _handleBrandRowSelected,
+                onRowReorder: _moveBrandRow,
+                enabled:
+                    !_submissionGate.submitting &&
+                    !_applyingOrderChanges &&
+                    !_orderEditMode,
+                keepRowContentOnSwipe: true,
+                rowTooltip: _orderEditMode
+                    ? '순서 변경 중에는 스와이프 수정/삽입/삭제를 사용할 수 없습니다'
+                    : '행 드래그로 순서 변경, 컬럼 왼쪽 스와이프 수정/삽입/삭제',
+                showActionsWhenEmpty: true,
+                rowNumberText: _brandRowNumberText,
+                headerTrailingBuilder: (context, hasInlineEditor) =>
+                    _OrderModeHeaderButton(
+                      enabled:
+                          !_orderEditMode &&
+                          !_submissionGate.submitting &&
+                          !hasInlineEditor,
+                      onPressed: _startBrandOrderEditMode,
+                    ),
+              ),
+            ),
+            if (_orderEditMode) ...[
+              const SizedBox(width: 6),
+              _buildBrandOrderMoveRail(),
+            ],
+          ],
         ),
       ),
     );
+  }
+
+  bool get _hasBrandOrderChanges {
+    if (_brands.length != _originalBrands.length) return true;
+    for (var index = 0; index < _brands.length; index += 1) {
+      if (_brands[index].brandId != _originalBrands[index].brandId) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  int? get _selectedBrandIndex {
+    final selectedBrandId = _selectedBrandId;
+    if (selectedBrandId == null) return null;
+    final index = _brands.indexWhere((brand) => brand.brandId == selectedBrandId);
+    return index >= 0 ? index : null;
+  }
+
+  void _startBrandOrderEditMode() {
+    if (_editingIndex != null ||
+        _submissionGate.submitting ||
+        _applyingOrderChanges ||
+        _orderEditMode) {
+      return;
+    }
+    setState(() {
+      _orderEditMode = true;
+      _selectedBrandId = _brands.isNotEmpty ? _brands.first.brandId : null;
+    });
+  }
+
+  void _handleBrandRowSelected(Brand brand, int index) {
+    if (!_orderEditMode || _applyingOrderChanges) return;
+    setState(() => _selectedBrandId = brand.brandId);
+  }
+
+  void _moveBrandRow(int fromIndex, int toIndex) {
+    if (!_orderEditMode ||
+        _applyingOrderChanges ||
+        fromIndex < 0 ||
+        fromIndex >= _brands.length ||
+        toIndex < 0 ||
+        toIndex >= _brands.length) {
+      return;
+    }
+    if ((fromIndex - toIndex).abs() == 1) {
+      setState(() {
+        final movingBrand = _brands[fromIndex];
+        _brands[fromIndex] = _brands[toIndex];
+        _brands[toIndex] = movingBrand;
+        _selectedBrandId = movingBrand.brandId;
+      });
+      return;
+    }
+    final insertIndex = fromIndex < toIndex ? toIndex - 1 : toIndex;
+    if (insertIndex == fromIndex) return;
+    setState(() {
+      final brand = _brands.removeAt(fromIndex);
+      _brands.insert(insertIndex, brand);
+      _selectedBrandId = brand.brandId;
+    });
+  }
+
+  void _moveSelectedBrandUp() {
+    final index = _selectedBrandIndex;
+    if (index == null || index <= 0) return;
+    _moveBrandRow(index, index - 1);
+  }
+
+  void _moveSelectedBrandDown() {
+    final index = _selectedBrandIndex;
+    if (index == null || index >= _brands.length - 1) return;
+    _moveBrandRow(index, index + 1);
+  }
+
+  void _cancelBrandOrderChanges() {
+    if (_applyingOrderChanges) return;
+    setState(() {
+      _brands = List<Brand>.from(_originalBrands);
+      _orderEditMode = false;
+      _selectedBrandId = null;
+    });
+  }
+
+  Widget _buildBrandOrderEditFooter() {
+    return Padding(
+      padding: const EdgeInsets.only(left: 8, right: 8, bottom: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          const Text(
+            '순서 변경',
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(width: 8),
+          SizedBox(
+            width: 84,
+            height: 30,
+            child: _LabelSettingsFooterButton(
+              label: '취소',
+              onPressed: _applyingOrderChanges
+                  ? null
+                  : _cancelBrandOrderChanges,
+            ),
+          ),
+          const SizedBox(width: 5),
+          SizedBox(
+            width: 84,
+            height: 30,
+            child: _LabelSettingsFooterButton(
+              label: '적용',
+              onPressed: _applyingOrderChanges || !_hasBrandOrderChanges
+                  ? null
+                  : _applyBrandOrderChanges,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBrandOrderMoveRail() {
+    final selectedIndex = _selectedBrandIndex;
+    return SizedBox(
+      width: 38,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          _OrderMoveButton(
+            icon: Icons.keyboard_arrow_up,
+            tooltip: '선택 행 위로 이동',
+            enabled:
+                !_applyingOrderChanges &&
+                selectedIndex != null &&
+                selectedIndex > 0,
+            onPressed: _moveSelectedBrandUp,
+          ),
+          const SizedBox(height: 8),
+          _OrderMoveButton(
+            icon: Icons.keyboard_arrow_down,
+            tooltip: '선택 행 아래로 이동',
+            enabled:
+                !_applyingOrderChanges &&
+                selectedIndex != null &&
+                selectedIndex < _brands.length - 1,
+            onPressed: _moveSelectedBrandDown,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _applyBrandOrderChanges() async {
+    if (_applyingOrderChanges || !_hasBrandOrderChanges) return;
+    final confirmed = await _showBrandOverlayDialog<bool>(
+      (dialogContext, close) => AlertDialog(
+        content: const Text('브랜드 순서 변경을 적용하시겠습니까?'),
+        actions: [
+          TextButton(onPressed: () => close(false), child: const Text('취소')),
+          TextButton(onPressed: () => close(true), child: const Text('확인')),
+        ],
+      ),
+    );
+    if (!mounted || confirmed != true) return;
+
+    setState(() => _applyingOrderChanges = true);
+    try {
+      await BrandDAO.updateOrders([
+        for (var index = 0; index < _brands.length; index += 1)
+          BrandOrderUpdate(
+            brandId: _brands[index].brandId,
+            brandOrder: index + 1,
+          ),
+      ]);
+      if (!mounted) return;
+      setState(() {
+        _originalBrands = List<Brand>.from(_brands);
+        _orderEditMode = false;
+        _selectedBrandId = null;
+      });
+      widget.onBrandsCommitted(List<Brand>.from(_brands));
+      try {
+        final reloadedBrands = await _reloadBrandsChanged(
+          updateSelection: false,
+        );
+        if (mounted) {
+          setState(() {
+            _brands = List<Brand>.from(reloadedBrands);
+            _originalBrands = List<Brand>.from(reloadedBrands);
+          });
+        }
+      } catch (error) {
+        if (mounted) await _showBrandReloadFailureDialog();
+      }
+    } catch (error) {
+      if (mounted) {
+        await _showBrandOverlayDialog<void>(
+          (dialogContext, close) => AlertDialog(
+            title: const Text('브랜드 순서 저장 실패'),
+            content: const Text('브랜드 순서 저장에 실패했습니다.'),
+            actions: [
+              TextButton(onPressed: () => close(null), child: const Text('확인')),
+            ],
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _applyingOrderChanges = false);
+    }
   }
 
   static String _brandNameText(Brand brand) => brand.brandName;

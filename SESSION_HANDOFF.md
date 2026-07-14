@@ -28,6 +28,24 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-14): 브랜드 순서 변경 및 라벨 dialog 닫기 경합 보정
+
+- 재검토 확정 문제 1: 레거시 `CBrandOrderChange`와 현재 물리 `RICH_BRAND_ORDER` 조회/삽입 계약이 존재하지만 Flutter 브랜드 설정에는 순서 변경 UI와 저장 API가 빠져 있다.
+- 재검토 확정 문제 2: 라벨 설정에서 브랜드 변경 로드 중 `_changingBrand=true`인데 `closeEnabled`가 이를 보지 않아 dialog를 닫을 수 있다.
+- 수정 예정 `lib/models/brand.dart`: `BrandOrderUpdate`, `BrandDAO.updateOrders()`를 라벨 순서 저장과 같은 단일 SQL batch transaction, affected-row 검증, commit 오류 rollback/throw 구조로 추가한다.
+- 수정 예정 `lib/home_page_manager.dart`: 브랜드 설정에 기존 `EditableSwipeNameTable` 순서 편집 mode를 재사용하고, 라벨 설정 닫기 조건에 `_changingBrand`를 포함한다. DB migration/schema 변경은 하지 않는다.
+- 테스트 예정: DAO transaction SQL 계약, 공용 reorder UI 회귀, `flutter analyze`, 전체 `flutter test`. 미검증.
+- `lib/models/brand.dart` 편집 완료: `BrandOrderUpdate`와 `BrandDAO.updateOrders()`를 추가했다. 표시 순서 전체를 하나의 SQL batch transaction에서 갱신하고 각 UPDATE affected row 검증, commit 오류 시 rollback 후 throw를 수행한다.
+- `lib/home_page_manager.dart` 편집 완료: 브랜드 설정에 라벨 설정과 같은 공용 reorder table, 선택 행, 위/아래 이동 rail, 취소/적용 footer를 연결했다. 적용은 `BrandDAO.updateOrders()` 완료 후 cache snapshot과 목록 reload를 수행하며, reload 실패는 저장 실패와 구분한다. 라벨 설정은 `_changingBrand` 중 닫기를 차단한다.
+- 인접 아래 이동이 remove/insert 보정에서 무시되는 결함을 구현 중 확인해 라벨 reorder와 같은 인접 swap 규칙으로 수정했다.
+- formatter 적용, 수정 파일 diagnostics 오류 0건, 관련 공용 reorder/설정 UI 회귀 78개 통과. 첫 `flutter analyze`는 인접 이동 보정 전 기준 `No issues found`; 최종 보정 후 재실행 예정.
+- 레거시 `BrandManagerDlg.cpp`의 실제 버튼 호출이 `CBrandOrderChange`를 열고 `CBrandDAO::UpdateOrder`를 저장하는 것을 확인해 기능 누락으로 확정했다. 저장 전 X 닫기는 라벨 순서 편집과 같은 취소 동작으로 유지하고, 적용 중 닫기는 차단한다.
+- 최종 검증 예정: `flutter analyze`, 전체 `flutter test`.
+- 최종 `flutter analyze` 결과 `No issues found`. 전체 `flutter test` 3,339개 통과, 실패 0건.
+- 공용 `EditableSwipeNameTable`을 재검토해 `rowReorderEnabled`가 reorder target을 독립 구성하고 `enabled`는 인라인 action 입력을 제어하므로, 순서 mode의 `enabled=false`, `rowReorderEnabled=true` 조합이 기존 라벨 설정과 동일하게 동작함을 확인했다.
+- 전체 테스트가 생성한 `third_party/fortune_sheet/build/` 캐시를 삭제한다.
+- stage/commit 대상: `lib/models/brand.dart`, `lib/home_page_manager.dart`, `SESSION_HANDOFF.md`만 포함한다. unrelated `.vscode/settings.json`, `lib/core/app.dart`는 제외한다.
+
 ### 완료 (2026-07-14): 브랜드 선택 삭제 reload 경합 보정
 
 - 재검토 확정 문제: 선택 브랜드 삭제 commit 후 `onBrandsCommitted(updateSelection: true)`가 부모 선택 변경을 먼저 발행하고, 별도 `_reloadBrandsChanged(updateSelection: false)`가 병렬 진행된다. 라벨 삭제에서 제거한 것과 같은 commit snapshot/후속 reload 경계 분리 문제다.
