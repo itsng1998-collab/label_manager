@@ -43,6 +43,7 @@
 - 최종 수정에 formatter를 적용하고 `flutter analyze`를 재실행해 `No issues found`로 통과했다. 전체 `flutter test`도 3,336개 통과, 실패 0건으로 재검증했다.
 - 최종 전체 테스트가 재생성한 `third_party/fortune_sheet/build/` 캐시를 삭제한다.
 - stage/commit 대상: `lib/home_page_manager.dart`, `lib/widgets/blocking_modeless_dialog.dart`, `test/fortune_table_test.dart`, `test/blocking_modeless_dialog_test.dart`, `SESSION_HANDOFF.md`만 포함한다. unrelated `.vscode/settings.json`, `lib/core/app.dart`는 제외한다.
+- 기능 커밋: `52eb417 브랜드와 라벨 삭제 경합을 보정`.
 
 ### 완료 (2026-07-14): 브랜드 설정 중복 제출 차단
 
