@@ -12,7 +12,7 @@ import 'package:label_manager/utils/item_manager_debug_log.dart';
 abstract final class ItemManagerLimits {
   static const int maxRows = 10000;
   static const int maxItemNameLength = 100;
-  static const int maxColumnValueLength = 3000;
+  static const int maxColumnValueLength = 200;
 }
 
 class ItemManagerFixedColumnIds {

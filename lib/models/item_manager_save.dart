@@ -7,59 +7,6 @@ import 'package:label_manager/models/dao.dart';
 import 'package:label_manager/utils/item_manager_debug_log.dart';
 import 'package:label_manager/utils/log_context.dart';
 
-class ItemSaveSchemaCapabilities {
-  final bool hasRichElementSheet;
-
-  const ItemSaveSchemaCapabilities({required this.hasRichElementSheet});
-
-  factory ItemSaveSchemaCapabilities.fromMap(Map<String, dynamic> map) {
-    bool flag(String key) {
-      final value = map[key];
-      if (value is bool) return value;
-      if (value is num) return value != 0;
-      return value?.toString() == '1';
-    }
-
-    return ItemSaveSchemaCapabilities(
-      hasRichElementSheet: flag('HAS_RICH_ELEMENT_SHEET'),
-    );
-  }
-}
-
-class ItemSaveSchemaCapabilityDAO extends DAO {
-  static ItemSaveSchemaCapabilities? _cached;
-
-  static const String probeSql = '''
-    SELECT
-      CASE WHEN COL_LENGTH(N'BM_RICH_ITEM', N'RICH_ELEMENT_SHEET') IS NULL
-        THEN 0 ELSE 1 END AS HAS_RICH_ELEMENT_SHEET;
-  ''';
-
-  static Future<ItemSaveSchemaCapabilities> probe({bool force = false}) async {
-    if (!force && _cached != null) return _cached!;
-    debugLog('$START, force:$force');
-    try {
-      final result = await DbClient.instance.getData(probeSql);
-      final capabilities = DAO.mapRow(
-        result,
-        ItemSaveSchemaCapabilities.fromMap,
-      )!;
-      _cached = capabilities;
-      debugLog(
-        '$END, hasRichElementSheet:${capabilities.hasRichElementSheet}, '
-      );
-      return capabilities;
-    } catch (e) {
-      debugLog('$END, $e');
-      rethrow;
-    }
-  }
-
-  static void clearCache() {
-    _cached = null;
-  }
-}
-
 class ItemManagerNewMappingDefaults {
   final int gdsNo;
   final DateTime? dateSaleStart;
@@ -396,6 +343,19 @@ class ItemManagerSaveDAO extends DAO {
       SET @RowNo += 1;
     END;
 
+    IF (SELECT COUNT(*) FROM @InsertedRows) <> (SELECT COUNT(*) FROM @NewInput)
+      THROW 51003, 'Inserted item id mapping count mismatch.', 1;
+    IF EXISTS (
+      SELECT DRAFT_ROW_KEY FROM @NewInput
+      EXCEPT
+      SELECT DRAFT_ROW_KEY FROM @InsertedRows
+    ) OR EXISTS (
+      SELECT DRAFT_ROW_KEY FROM @InsertedRows
+      EXCEPT
+      SELECT DRAFT_ROW_KEY FROM @NewInput
+    )
+      THROW 51004, 'Inserted item id mapping key mismatch.', 1;
+
     INSERT INTO BM_ITEM_OF_MARKET (
       RICH_MARKET_ID, RICH_ITEM_ID, RICH_ADDITIONAL_ITEM_ID,
       RICH_GDS_NO, RICH_SALE_START_DATE, RICH_SALE_END_DATE,
@@ -454,14 +414,8 @@ class ItemManagerSaveDAO extends DAO {
 
   static Future<ItemManagerSaveResult> save(
     ItemManagerSaveCommand command,
-    ItemSaveSchemaCapabilities capabilities,
   ) async {
     final trace = ItemManagerDebugLog.nextTrace('saveDao');
-    if (!capabilities.hasRichElementSheet) {
-      throw StateError(
-        'BM_RICH_ITEM.RICH_ELEMENT_SHEET migration is required.',
-      );
-    }
     final params = command.toSqlParams();
     ItemManagerDebugLog.event(
       'saveDao',

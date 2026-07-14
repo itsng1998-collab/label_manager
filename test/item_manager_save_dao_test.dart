@@ -6,21 +6,6 @@ import 'package:label_manager/models/item_manager_save.dart';
 
 void main() {
   group('[transaction/DAO]', () {
-    test('schema capabilities preserve rich element sheet flag', () {
-      final capabilities = ItemSaveSchemaCapabilities.fromMap({
-        'HAS_RICH_ELEMENT_SHEET': 1,
-      });
-
-      expect(capabilities.hasRichElementSheet, isTrue);
-    });
-
-    test('schema probe checks required rich element sheet column', () {
-      expect(
-        ItemSaveSchemaCapabilityDAO.probeSql,
-        contains("COL_LENGTH(N'BM_RICH_ITEM', N'RICH_ELEMENT_SHEET')"),
-      );
-    });
-
     test('item order update validates identities before DB access', () async {
       await expectLater(
         ItemDAO.updateOrders(const [
@@ -145,19 +130,15 @@ void main() {
       );
       expect(ItemManagerSaveDAO.saveSql, contains('MERGE BM_RICH_COL_CONTENT'));
       expect(ItemManagerSaveDAO.saveSql, contains(r"'$.draftRowKey'"));
-    });
-
-    test('save blocks databases without rich element sheet', () async {
-      const capabilities = ItemSaveSchemaCapabilities(
-        hasRichElementSheet: false,
+      expect(
+        ItemManagerSaveDAO.saveSql,
+        contains('Inserted item id mapping count mismatch.'),
       );
-      await expectLater(
-        ItemManagerSaveDAO.save(
-          const ItemManagerSaveCommand(targetMarketIds: []),
-          capabilities,
-        ),
-        throwsStateError,
+      expect(
+        ItemManagerSaveDAO.saveSql,
+        contains('Inserted item id mapping key mismatch.'),
       );
+      expect(ItemManagerSaveDAO.saveSql, contains('EXCEPT'));
     });
   });
 }

@@ -28,6 +28,25 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-14): 품목관리 저장 계약 보정
+
+- 사용자 요청: 수동 추가가 끝난 `BM_RICH_ITEM.RICH_ELEMENT_SHEET` migration 화면과 capability 차단을 제거한다. DB commit 후 SQLite backup `clear()` 오류는 로컬 로그로만 남기고 저장 완료 흐름을 계속한다. 신규 draft key/inserted ID 검증은 SQL transaction 내부 `THROW`로 수행하며, 레거시 `BM_RICH_COL_CONTENT.RICH_COL_CONTENT_DATA VARCHAR(200)`에 맞춰 입력을 200자로 검증한다.
+- `lib/models/item_manager_save.dart` 편집 완료: `RICH_ELEMENT_SHEET` capability probe/저장 차단과 save 인자를 제거했다. `@InsertedRows`의 개수 및 draft key 양방향 집합 검증을 SQL batch 내부 `THROW 51003/51004`로 추가해 commit 전에 실패하도록 했다.
+- `lib/models/item_manager_draft.dart` 편집 완료: `ItemManagerLimits.maxColumnValueLength`를 레거시 DB 계약에 맞춰 3000자에서 200자로 변경했다.
+- 첫 focused 검증 완료: `test/item_manager_save_dao_test.dart`, `test/item_manager_draft_test.dart` 24개 모두 통과했다. 다음은 home migration 분기/UI와 cleanup 오류 처리를 수정하고 관련 테스트를 갱신한다.
+- `lib/home_page_manager.dart` 편집 완료: session load/save의 schema capability 조회와 migration 상태 분기를 제거했다. DB 저장 성공 후 SQLite backup `clear()`만 별도 `try/catch`로 격리하고 실패 시 `DebugLogger.log`로 공용 앱 로그에 오류와 stack trace를 남긴 뒤 reload/저장 완료 흐름을 계속한다. 별도 품목관리 로그 이벤트는 추가하지 않았다.
+- `lib/page_home/item_manage.dart` 편집 완료: `ItemManagerMigrationRequired` 화면을 제거해 품목관리 탭이 항상 실제 `ItemManage`를 구성하도록 했다.
+- 테스트 편집 완료: migration capability/UI 전용 테스트를 제거하고 save SQL에 transaction 내부 inserted mapping count/key `THROW`와 양방향 `EXCEPT`가 포함되는지 검증한다. 변경한 production/test Dart 6개 파일 formatter 적용 및 diagnostics 오류 0건을 확인했다.
+- focused 회귀 검증 완료: `test/item_manager_save_dao_test.dart`, `test/item_manager_draft_test.dart`, `test/fortune_table_test.dart` 64개 모두 통과했다. 다음 검증은 `flutter analyze`, 전체 `flutter test`다.
+- 전체 정적 검증 실행 예정: `flutter analyze`.
+- 전체 정적 검증 완료: `flutter analyze` 결과 `No issues found`.
+- 전체 회귀 검증 실행 예정: `flutter test`.
+- 전체 회귀 검증 완료: `flutter test`에서 3330개 모두 통과했다.
+- 최종 검색 완료: `lib`/`test`에 migration 화면·상태, `ItemSaveSchemaCapabilities`/`ItemSaveSchemaCapabilityDAO`, 구형 2인자 `ItemManagerSaveDAO.save` 호출이 0건이다. SQLite cleanup 실패 로그는 `DebugLogger.log` 호출 한 곳뿐이다.
+- migration ternary 제거 후 `ItemManage` 생성자 들여쓰기를 정리하고 formatter를 재적용했다. `test/fortune_table_test.dart` 36개 재검증 통과, 변경 파일 diagnostics 오류 0건, 제한 `git diff --check` 통과를 확인했다.
+- 전체 테스트가 생성한 미추적 `third_party/fortune_sheet/build/` 캐시를 삭제했고 재검증 후 테스트 캐시가 남지 않았다.
+- stage/commit 대상: `lib/home_page_manager.dart`, `lib/page_home/item_manage.dart`, `lib/models/item_manager_save.dart`, `lib/models/item_manager_draft.dart`, `test/item_manager_save_dao_test.dart`, `test/fortune_table_test.dart`, `SESSION_HANDOFF.md`만 포함한다. unrelated `.vscode/settings.json`, `lib/core/app.dart` 및 그 밖의 기존 변경은 제외한다.
+
 ### 완료 (2026-07-14): 품목관리 임시편집 SQLite 백업 계약 정리
 
 - 사용자 요청: 품목관리 임시편집의 OOM 방어용 백업을 JSON 파일 journal이 아니라 세션 전용 SQLite로 정리한다. 일반 편집은 실제 변경 대상의 최초 원본만 delta 백업하고, 삭제는 해당 행 전체 복원값, Excel 전체 교체는 기존 전체 원본을 batch 백업한 뒤 변경 취소 시 SQL Server 재조회 없이 원복한다.

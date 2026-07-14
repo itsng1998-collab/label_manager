@@ -30,36 +30,6 @@ String itemManagerDeleteConfirmationMessage({
   return "선택한 '$firstItemName' 외 ${selectedCount - 1}개 항목을 모두 삭제하시겠습니까?";
 }
 
-class ItemManagerMigrationRequired extends StatelessWidget {
-  const ItemManagerMigrationRequired({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const Center(
-      child: Padding(
-        padding: EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.storage_outlined, size: 32, color: Color(0xFF5F6368)),
-            SizedBox(height: 12),
-            Text(
-              '품목관리 DB 업데이트가 필요합니다.',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-            ),
-            SizedBox(height: 6),
-            Text(
-              'BM_RICH_ITEM.RICH_ELEMENT_SHEET 컬럼을 추가한 뒤 다시 로그인해 주세요.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Color(0xFF5F6368)),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 enum ItemManageSearchResult { found, reachedEnd, unavailable }
 
 class ItemManageController {

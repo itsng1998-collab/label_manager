@@ -38,6 +38,7 @@ import 'package:label_manager/page_label_sheet/label_sheet_workbench.dart';
 import 'package:label_manager/page_label_sheet/label_sheet_rtf_import.dart';
 import 'package:label_manager/page_label_sheet/label_sheet_rtf_preview.dart';
 import 'package:label_manager/page_label_sheet/label_sheet_rtf_preview_debug.dart';
+import 'package:label_manager/utils/debug_logger.dart';
 import 'package:label_manager/utils/log_context.dart';
 import 'package:label_manager/utils/item_manager_debug_log.dart';
 import 'package:label_manager/utils/on_messages.dart';
@@ -149,7 +150,6 @@ class _HomePageManagerState extends State<HomePageManager> {
   bool _commonLabelPreviewHiddenForSheetDialog = false;
   bool _commonLabelPreviewMovedByUser = false;
   bool _itemDraftCommandBusy = false;
-  bool _itemManagerMigrationRequired = false;
   bool _lastReportedItemDraftDirty = false;
   int _labelSetupRevision = 0;
   bool _suppressNextBrandDidUpdateLabelLoad = false;
@@ -734,7 +734,6 @@ class _HomePageManagerState extends State<HomePageManager> {
         if (mounted) {
           ScaffoldMessenger.of(context).hideCurrentSnackBar();
         }
-        _itemManagerMigrationRequired = false;
         ItemManagerDebugLog.event('sessionLoad', 'cleared', trace: trace);
         return true;
       }
@@ -758,27 +757,6 @@ class _HomePageManagerState extends State<HomePageManager> {
       final targetMarketIds = targetMarkets
           .map((value) => value.marketId)
           .toList(growable: false);
-      final capabilities = await ItemSaveSchemaCapabilityDAO.probe(
-        force: forceReload,
-      );
-      if (!capabilities.hasRichElementSheet) {
-        await _itemDraftBackup?.close();
-        _itemDraftBackup = null;
-        _disposeItemDraftController();
-        _currentLabelSize = labelSize;
-        _itemDraftTargetMarketIds = targetMarketIds;
-        _rtfPreviewReadyKey = null;
-        _commonLabelTabActivated = false;
-        _itemPreviewClosedByUser = false;
-        _commonLabelPreviewClosedByUser = false;
-        widget.onLabelSizeChanged(labelSize);
-        _itemManagerMigrationRequired = true;
-        ItemOfMarket.datas = <ItemOfMarket>[];
-        _selectedItemOfMarket = null;
-        _selectedItemIndex = null;
-        _resetTabs();
-        return true;
-      }
       final columns =
           await TColumnDAO.selectByLabelSizeId(labelSize.labelSizeId) ??
           const <TColumn>[];
@@ -850,7 +828,6 @@ class _HomePageManagerState extends State<HomePageManager> {
       _commonLabelTabActivated = false;
       _itemPreviewClosedByUser = false;
       _commonLabelPreviewClosedByUser = false;
-      _itemManagerMigrationRequired = false;
       TColumn.datas = columns;
       TColumnContent.datas = scopedColumnContents.values;
       TColumnSpecial.datas = specialColumns;
@@ -1176,7 +1153,6 @@ class _HomePageManagerState extends State<HomePageManager> {
     setState(() => _itemDraftCommandBusy = true);
     var dbSaveCompleted = false;
     try {
-      final capabilities = await ItemSaveSchemaCapabilityDAO.probe();
       final command = controller.toSaveCommand(
         labelSizeId: labelSize.labelSizeId,
         targetMarketIds: _itemDraftTargetMarketIds,
@@ -1193,9 +1169,16 @@ class _HomePageManagerState extends State<HomePageManager> {
           'targetMarkets': command.targetMarketIds.length,
         },
       );
-      final result = await ItemManagerSaveDAO.save(command, capabilities);
+      final result = await ItemManagerSaveDAO.save(command);
       dbSaveCompleted = true;
-      await _itemDraftBackup?.clear();
+      try {
+        await _itemDraftBackup?.clear();
+      } catch (error, stackTrace) {
+        DebugLogger.log(
+          'Item draft backup cleanup failed after DB save: '
+          '$error\n$stackTrace',
+        );
+      }
       ItemManagerDebugLog.event(
         'save',
         'transactionCompleted',
@@ -2088,47 +2071,45 @@ class _HomePageManagerState extends State<HomePageManager> {
       TabData(
         value: 'items',
         text: '품목관리(F1)',
-        content: _itemManagerMigrationRequired
-            ? const ItemManagerMigrationRequired()
-            : ItemManage(
-                key: ValueKey('items:$_labelContentKey'),
-                controller: _itemManageController,
-                onReady: () =>
-                    _handleItemManagerReady(itemManagerReadyGeneration),
-                items: ItemOfMarket.datas ?? const <ItemOfMarket>[],
-                selectedIndex: _selectedItemIndex,
-                onRowSelected: _handleItemRowSelected,
-                onTableRectChanged: _handleItemTableRectChanged,
-                draftController: _itemDraftController,
-                labelSize: _effectiveLabelSize,
-                marketId: Market.instance?.marketId,
-                emptyElementPayload: _itemDraftEmptyElementPayload,
-                onExcelImport: User.instance?.canEdit != true
-                    ? null
-                    : _importItemManagerXlsx,
-                onExcelExport: _exportItemManagerXlsx,
-                onQrDataView: _showItemQrData,
-                onItemOrderChange:
-                  _effectiveLabelSize != null &&
-                        User.instance?.canEdit == true &&
-                        (ItemOfMarket.datas?.length ?? 0) >= 2
-                    ? _changeItemOrder
-                    : null,
-                itemOrderDisabledReason: User.instance?.canEdit != true
-                    ? '편집 권한이 없습니다.'
-                    : (ItemOfMarket.datas?.length ?? 0) < 2
-                    ? '순서를 바꾸려면 품목이 2개 이상 필요합니다.'
-                    : null,
-                onCancelDraft: _cancelItemDraft,
-                onSaveDraft: _saveItemDraft,
-                onBeforeItemNameChange: _backupItemName,
-                onBeforeColumnChange: _backupItemColumn,
-                onBeforeRowsReordered: _backupItemOrders,
-                onBeforeRowsDeleted: _backupDeletedItemRows,
-                onRowsAdded: _recordAddedItemRows,
-                commandBusy: _itemDraftCommandBusy,
-                canEdit: User.instance?.canManageItemStructure == true,
-              ),
+        content: ItemManage(
+          key: ValueKey('items:$_labelContentKey'),
+          controller: _itemManageController,
+          onReady: () =>
+            _handleItemManagerReady(itemManagerReadyGeneration),
+          items: ItemOfMarket.datas ?? const <ItemOfMarket>[],
+          selectedIndex: _selectedItemIndex,
+          onRowSelected: _handleItemRowSelected,
+          onTableRectChanged: _handleItemTableRectChanged,
+          draftController: _itemDraftController,
+          labelSize: _effectiveLabelSize,
+          marketId: Market.instance?.marketId,
+          emptyElementPayload: _itemDraftEmptyElementPayload,
+          onExcelImport: User.instance?.canEdit != true
+            ? null
+            : _importItemManagerXlsx,
+          onExcelExport: _exportItemManagerXlsx,
+          onQrDataView: _showItemQrData,
+          onItemOrderChange:
+            _effectiveLabelSize != null &&
+              User.instance?.canEdit == true &&
+              (ItemOfMarket.datas?.length ?? 0) >= 2
+            ? _changeItemOrder
+            : null,
+          itemOrderDisabledReason: User.instance?.canEdit != true
+            ? '편집 권한이 없습니다.'
+            : (ItemOfMarket.datas?.length ?? 0) < 2
+            ? '순서를 바꾸려면 품목이 2개 이상 필요합니다.'
+            : null,
+          onCancelDraft: _cancelItemDraft,
+          onSaveDraft: _saveItemDraft,
+          onBeforeItemNameChange: _backupItemName,
+          onBeforeColumnChange: _backupItemColumn,
+          onBeforeRowsReordered: _backupItemOrders,
+          onBeforeRowsDeleted: _backupDeletedItemRows,
+          onRowsAdded: _recordAddedItemRows,
+          commandBusy: _itemDraftCommandBusy,
+          canEdit: User.instance?.canManageItemStructure == true,
+        ),
         closable: false,
         keepAlive: true,
       ),
