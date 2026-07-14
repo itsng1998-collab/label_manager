@@ -28,6 +28,20 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-14): 브랜드 선택 삭제 reload 경합 보정
+
+- 재검토 확정 문제: 선택 브랜드 삭제 commit 후 `onBrandsCommitted(updateSelection: true)`가 부모 선택 변경을 먼저 발행하고, 별도 `_reloadBrandsChanged(updateSelection: false)`가 병렬 진행된다. 라벨 삭제에서 제거한 것과 같은 commit snapshot/후속 reload 경계 분리 문제다.
+- 수정 예정 `lib/home_page_manager.dart`: 브랜드 commit callback을 cache snapshot 전용으로 축소하고, 선택 브랜드 삭제는 `_reloadBrandsChanged(updateSelection: wasSelected)` 한 경로에서 목록 재조회 후 선택을 갱신한다. DAO/SQL/schema와 DB migration은 변경하지 않는다.
+- 검증 예정: 관련 설정 UI 회귀, `flutter analyze`, 전체 `flutter test`. 미검증.
+- `lib/home_page_manager.dart` 편집 완료: `_handleBrandsCommittedFromDialog`를 브랜드 cache snapshot 전용 callback으로 축소하고, 선택 브랜드 삭제는 `_reloadBrandsChanged(updateSelection: true)`가 목록 재조회 후 선택 변경을 발행하도록 직렬화했다.
+- formatter 적용, 수정 파일 diagnostics 오류 0건, 관련 설정 UI 회귀 35개 통과.
+- 전체 검증 실행 예정: `flutter analyze`, 전체 `flutter test`.
+- 첫 `flutter analyze`에서 `_BrandSettingsDialog.onBrandsCommitted` field 타입이 기존 named parameter 계약으로 남아 argument type 오류 1건이 발생했다. field도 `ValueChanged<List<Brand>>`로 축소한 뒤 재실행해 `No issues found`로 통과했다.
+- 전체 `flutter test` 3,339개 통과, 실패 0건.
+- 현재 물리 DDL과 레거시 `.tmp/LabelManager`를 재대조했다. 브랜드·라벨 insert/update/delete, 라벨 순서·날짜 설정의 저장 대상은 일치하며, Flutter transaction은 commit 오류 전파와 rollback 및 affected-row 검증을 충족한다. 추가 migration이나 schema 호환 분기는 필요하지 않다.
+- 전체 테스트가 생성한 `third_party/fortune_sheet/build/` 캐시를 삭제한다.
+- stage/commit 대상: `lib/home_page_manager.dart`, `SESSION_HANDOFF.md`만 포함한다. unrelated `.vscode/settings.json`, `lib/core/app.dart`는 제외한다.
+
 ### 완료 (2026-07-14): 라벨 설정 후속 reload 경합 보정
 
 - 재검토 확정 문제: 라벨 추가·수정은 DB commit 직후 `_submittingLabelNameEdit`를 해제해 목록 reload 중 후속 조작이 가능하고, 선택 라벨 삭제는 commit callback의 `unawaited(_handleLabelSizeChanged)`와 별도 목록 reload가 병렬 실행되어 늦은 선택 로드가 최신 상태를 덮을 수 있다.

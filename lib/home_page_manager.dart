@@ -625,14 +625,9 @@ class _HomePageManagerState extends State<HomePageManager> {
     return reloadedBrands;
   }
 
-  void _handleBrandsCommittedFromDialog(
-    List<Brand> brands, {
-    Brand? selectedBrand,
-    bool updateSelection = false,
-  }) {
+  void _handleBrandsCommittedFromDialog(List<Brand> brands) {
     Brand.setDatas(brands);
     _brands = List<Brand>.from(brands);
-    if (updateSelection) widget.onBrandChanged(selectedBrand);
     if (mounted) setState(() {});
     _brandSettingsOverlayEntry?.markNeedsBuild();
   }
@@ -7085,12 +7080,7 @@ class _BrandSettingsDialog extends StatefulWidget {
     bool updateSelection,
   })
   onBrandsChanged;
-  final void Function(
-    List<Brand> brands, {
-    Brand? selectedBrand,
-    bool updateSelection,
-  })
-  onBrandsCommitted;
+  final ValueChanged<List<Brand>> onBrandsCommitted;
   final VoidCallback onClose;
 
   /// 브랜드 선택 후 라벨 시트 로드가 완료될 때까지 true. 더블클릭 차단에 사용.
@@ -7702,16 +7692,12 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
           ? _resolveBrandAfterDelete(currentIndex)
           : widget.selectedBrand;
         setState(() => _brands.removeAt(currentIndex));
-        widget.onBrandsCommitted(
-          List<Brand>.from(_brands),
-          selectedBrand: nextSelectedBrand,
-          updateSelection: wasSelected,
-        );
+        widget.onBrandsCommitted(List<Brand>.from(_brands));
 
       try {
         final reloadedBrands = await _reloadBrandsChanged(
           selectedBrand: nextSelectedBrand,
-          updateSelection: false,
+          updateSelection: wasSelected,
         );
         if (!mounted) return;
         setState(() => _brands = List<Brand>.from(reloadedBrands));
