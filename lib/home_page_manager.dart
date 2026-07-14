@@ -2107,18 +2107,11 @@ class _HomePageManagerState extends State<HomePageManager> {
     return reloadedLabels;
   }
 
-  void _handleLabelsCommittedFromDialog(
-    List<LabelSize> labels, {
-    LabelSize? selectedLabel,
-    bool updateSelection = false,
-  }) {
+  void _handleLabelsCommittedFromDialog(List<LabelSize> labels) {
     LabelSize.setDatas(labels);
     final currentLabelSizeId = _currentLabelSize?.labelSizeId;
     if (currentLabelSizeId != null) {
       _currentLabelSize = _findLabelSizeIn(labels, currentLabelSizeId);
-    }
-    if (updateSelection) {
-      unawaited(_handleLabelSizeChanged(selectedLabel));
     }
     if (mounted) setState(() {});
     _labelSettingsOverlayEntry?.markNeedsBuild();
@@ -5621,12 +5614,7 @@ class _LabelSettingsDialog extends StatefulWidget {
     bool updateSelection,
   })
   onLabelsChanged;
-  final void Function(
-    List<LabelSize> labels, {
-    LabelSize? selectedLabel,
-    bool updateSelection,
-  })
-  onLabelsCommitted;
+  final ValueChanged<List<LabelSize>> onLabelsCommitted;
   final VoidCallback onClose;
 
   @override
@@ -6260,7 +6248,6 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
     setState(() {
       _labels[editingIndex] = updatedLabel;
       _originalLabels = List<LabelSize>.from(_labels);
-      _submittingLabelNameEdit = false;
       _editingIndex = null;
       _labelUseScaleEditValue = false;
       _labelNameEditController.clear();
@@ -6280,6 +6267,10 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
         'updateLabelNameAndScale reload failed labelSizeId=${label.labelSizeId} error=$e',
       );
       if (mounted) await _showLabelReloadFailureDialog();
+    } finally {
+      if (mounted) {
+        setState(() => _submittingLabelNameEdit = false);
+      }
     }
 
     debugLog(
@@ -6357,7 +6348,6 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
             _labels[insertIndex] = value;
             _originalLabels = List<LabelSize>.from(_labels);
             _insertingLabel = false;
-            _submittingLabelNameEdit = false;
             _insertActionIndex = null;
             _editingIndex = null;
             _labelUseScaleEditValue = false;
@@ -6396,13 +6386,13 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
           ),
         );
         if (mounted) {
-          setState(() => _submittingLabelNameEdit = false);
           _labelNameEditFocusNode.requestFocus();
         }
       }
       return;
     } finally {
       if (mounted) {
+        setState(() => _submittingLabelNameEdit = false);
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
       }
     }
@@ -6494,17 +6484,13 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
           _originalLabels = List<LabelSize>.from(_labels);
           _selectedLabelSizeId = null;
         });
-        widget.onLabelsCommitted(
-          List<LabelSize>.from(_labels),
-          selectedLabel: nextSelectedLabel,
-          updateSelection: wasSelected,
-        );
+        widget.onLabelsCommitted(List<LabelSize>.from(_labels));
       }
 
       try {
         final reloadedLabels = await widget.onLabelsChanged(
           preferredSelectedLabel: nextSelectedLabel,
-          updateSelection: false,
+          updateSelection: wasSelected,
         );
         if (mounted) {
           setState(() {

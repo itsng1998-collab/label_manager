@@ -80,6 +80,26 @@ void main() {
     expect(error, isA<StateError>());
   });
 
+  test('settings write operation waits for reload completion', () async {
+    final reloadCompleter = Completer<void>();
+    var committed = false;
+    var completed = false;
+
+    final operation = runSettingsWriteThenReload<int>(
+      write: () async => 7,
+      onCommitted: (_) => committed = true,
+      reload: (_) => reloadCompleter.future,
+    ).whenComplete(() => completed = true);
+
+    await Future<void>.delayed(Duration.zero);
+    expect(committed, isTrue);
+    expect(completed, isFalse);
+
+    reloadCompleter.complete();
+    expect(await operation, isNull);
+    expect(completed, isTrue);
+  });
+
   test('settings write failure skips commit and reload', () async {
     var commits = 0;
     var reloads = 0;

@@ -28,6 +28,23 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-14): 라벨 설정 후속 reload 경합 보정
+
+- 재검토 확정 문제: 라벨 추가·수정은 DB commit 직후 `_submittingLabelNameEdit`를 해제해 목록 reload 중 후속 조작이 가능하고, 선택 라벨 삭제는 commit callback의 `unawaited(_handleLabelSizeChanged)`와 별도 목록 reload가 병렬 실행되어 늦은 선택 로드가 최신 상태를 덮을 수 있다.
+- 수정 예정 `lib/home_page_manager.dart`: 라벨 추가·수정은 reload 성공 또는 갱신 실패 안내 종료까지 busy를 유지한다. 선택 라벨 삭제는 commit snapshot에서 선택을 비동기로 바꾸지 않고, 기존 `onLabelsChanged(updateSelection: true)` 한 경로가 목록 reload와 다음 선택 로드를 순차적으로 완료하게 한다.
+- 테스트 예정 `test/fortune_table_test.dart`: 설정 write operation Future가 reload 완료 전에는 끝나지 않는 직렬화 계약을 추가한다. 미검증.
+- DAO/SQL/schema와 DB migration은 변경하지 않는다.
+- `lib/home_page_manager.dart` 편집 완료: 라벨 추가·수정은 commit snapshot에서 편집 상태만 종료하고 `_submittingLabelNameEdit`는 reload 성공 또는 갱신 실패 안내 종료 후 해제한다. 라벨 commit callback은 목록/cache snapshot만 담당하도록 축소했고, 선택 라벨 삭제는 `onLabelsChanged(updateSelection: true)` 한 경로를 await해 목록 재조회와 다음 선택 session load를 직렬화한다.
+- `test/fortune_table_test.dart` 편집 완료: write commit은 반영됐어도 reload completer가 완료되기 전에는 설정 operation Future가 끝나지 않는 테스트를 추가했다.
+- formatter 적용, 수정 파일 diagnostics 오류 0건, 관련 UI 회귀 78개 통과, 제한 `git diff --check` 통과.
+- 전체 정적 검증 완료: `flutter analyze` 결과 `No issues found`.
+- 전체 회귀 검증 완료: 전체 `flutter test` 3,339개 통과, 실패 0건.
+- 전체 테스트가 생성한 `third_party/fortune_sheet/build/` 캐시를 삭제했다.
+- 독립 최종 검토에서 라벨 수정 DB write 실패 시 reload `finally`에 도달하지 않아 busy가 고착되는 경로를 확인했다. 수정 실패 dialog 종료 후 `_submittingLabelNameEdit=false`를 복원했고 관련 UI 회귀 78개를 재검증해 통과했다.
+- 최종 보정 반영 후 `flutter analyze`를 재실행해 `No issues found`로 통과했고, 전체 `flutter test`도 3,339개 통과, 실패 0건으로 재검증했다.
+- 최종 전체 테스트가 재생성한 `third_party/fortune_sheet/build/` 캐시를 삭제한다.
+- stage/commit 대상: `lib/home_page_manager.dart`, `test/fortune_table_test.dart`, `SESSION_HANDOFF.md`만 포함한다. unrelated `.vscode/settings.json`, `lib/core/app.dart`는 제외한다.
+
 ### 완료 (2026-07-14): 설정 저장 commit/reload 경계 보정
 
 - 재검토 확정 문제: 브랜드·라벨 추가/수정과 라벨 삭제·순서 변경은 DB write가 commit된 뒤 목록 재조회만 실패해도 저장 실패로 표시하고 편집 상태를 유지해, 추가 재시도 시 중복 행이 생길 수 있다.
