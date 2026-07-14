@@ -28,6 +28,15 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-14): 브랜드·라벨 설정 현재 HEAD 최종 재검토
+
+- `3e63b4b`의 브랜드 순서 변경까지 포함한 현재 HEAD에서 브랜드 reorder 실제 조작, `BrandDAO.updateOrders()` parameter/transaction/result, 부모 cache/선택 동기화, modeless close 경로, 라벨 CRUD/reorder/date setup을 재검토했다.
+- ODBC driver가 각 UPDATE `SQLRowCount`를 top-level `affected`에 누적하고 마지막 SELECT row를 별도로 수집하며, parameter parser가 선언 local variable과 `@@ROWCOUNT`/`@@TRANCOUNT`를 bind 대상에서 제외함을 확인했다.
+- modeless dialog는 닫기 아이콘 외 barrier/ESC 닫기 경로가 없고, 적용·브랜드 변경 중 `closeEnabled=false`를 우회하지 않는다. 부모 selected brand에는 order 필드가 없어 순서 저장 후 cache/list 갱신만 수행하는 현재 경계가 맞다.
+- 추가 실제 버그, transaction 누락, rollback 누락, migration 필요 조건은 발견하지 못했다. 전역 `DbClient` 구조상 실제 DAO DB 호출 단위 테스트는 주입 구조 변경 없이는 어렵지만, 이를 위해 구조를 늘리지는 않았다.
+- 관련 ODBC/DAO/reorder/설정/날짜 회귀 104개 통과, `flutter analyze` 결과 `No issues found`, 전체 `flutter test` 3,339개 통과, 실패 0건.
+- 전체 테스트가 생성한 `third_party/fortune_sheet/build/` 캐시를 삭제한다.
+
 ### 완료 (2026-07-14): 브랜드 순서 변경 및 라벨 dialog 닫기 경합 보정
 
 - 재검토 확정 문제 1: 레거시 `CBrandOrderChange`와 현재 물리 `RICH_BRAND_ORDER` 조회/삽입 계약이 존재하지만 Flutter 브랜드 설정에는 순서 변경 UI와 저장 API가 빠져 있다.
