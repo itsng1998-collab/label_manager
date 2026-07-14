@@ -45,6 +45,7 @@
 - 공용 `EditableSwipeNameTable`을 재검토해 `rowReorderEnabled`가 reorder target을 독립 구성하고 `enabled`는 인라인 action 입력을 제어하므로, 순서 mode의 `enabled=false`, `rowReorderEnabled=true` 조합이 기존 라벨 설정과 동일하게 동작함을 확인했다.
 - 전체 테스트가 생성한 `third_party/fortune_sheet/build/` 캐시를 삭제한다.
 - stage/commit 대상: `lib/models/brand.dart`, `lib/home_page_manager.dart`, `SESSION_HANDOFF.md`만 포함한다. unrelated `.vscode/settings.json`, `lib/core/app.dart`는 제외한다.
+- 기능 커밋: `3e63b4b 브랜드 순서 변경 기능을 추가`.
 
 ### 완료 (2026-07-14): 브랜드 선택 삭제 reload 경합 보정
 
