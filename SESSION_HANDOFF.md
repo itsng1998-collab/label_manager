@@ -36,6 +36,7 @@
 - 편집 직후 `get_errors doc/user_item_modify.txt`: 오류 0건. 다음 검증은 DDL/migration 금지와 기존 object variant 연결 검색, 독립 구현 차단 검토, `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md` 순서로 수행한다. 문서만 변경하므로 Flutter test/build는 실행하지 않는다.
 - 레거시 read/write 의미 보정: `BM_RICH_CHECK_COLUMNS.RICH_CHECK_YN`을 조회 source로 유지하면서 기존 DB의 `BM_RICH_COLUMN.RICH_USE_MISSING_KEYWORD_CHECK`가 있으면 신규·변경 시 같은 값을 함께 기록하고, 없으면 해당 식별자를 SQL text에 포함하지 않는 variant를 사용하도록 했다.
 - 최종 검토: v1/v2 `RICH_EDITABLE`, main 누락검사 column, update/status 선택 object, GS1, transaction-local `OUTPUT INSERTED` mapping과 persistent 앱 전용 DB object 금지를 대조했다. 독립 검토 결과 `현재 작업 범위에서 구현을 막는 문제 없음`, 문서 diagnostics 오류 0건이다. 최종 `git diff --check` 후 `doc/user_item_modify.txt`, `SESSION_HANDOFF.md`만 커밋하고 unrelated `.vscode/settings.json`, `lib/core/app.dart`는 제외한다.
+- 작업지시서 무마이그레이션 정리 로컬 커밋 완료: `a9ac5cb` (`작업지시서 레거시 DB 무마이그레이션 정리`). `doc/user_item_modify.txt`, `SESSION_HANDOFF.md`만 포함했고 unrelated `.vscode/settings.json`, `lib/core/app.dart`는 제외했다.
 
 ### 진행 중 (2026-07-14): 항목 편집기 구현 선행조건·식별 계약 보완
 
