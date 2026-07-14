@@ -383,10 +383,10 @@ DTO는 immutable하게 만들고 widget 상태나 전역 목록을 직접 참조
 
 처리 순서는 다음과 같다.
 
-1. 입력 JSON 또는 구조화 parameter를 table variable로 투영한다.
+1. 현 DB driver가 scalar parameter만 지원하므로 save command를 JSON 문자열 parameter로 전달하고 기존 품목 저장과 같이 `OPENJSON`으로 table variable에 투영한다.
 2. 현재 labelSizeId와 update/delete 대상 `BM_RICH_COLUMN`의 소유권을 확인한다.
 3. 신규 `BM_RICH_COLUMN`을 한 행씩 insert하고 `OUTPUT INSERTED.RICH_COLUMN_ID`를 draft key와 함께 내부 mapping table에 기록한다.
-4. 신규 column의 `BM_RICH_CHECK_COLUMNS`는 keyword, name과 draft의 최종 `useMissingKeywordCheck` 값을 사용해 생성한다. 기존 DB의 `BM_RICH_COLUMN`에 `RICH_USE_MISSING_KEYWORD_CHECK`가 있으면 같은 최종값을 main row에도 기록하고, 없으면 해당 식별자를 INSERT SQL에 포함하지 않는다. `BM_RICH_COL_MIN` 행은 `RICH_MIN_CHECK=0`인 레거시 기본값으로 생성한다.
+4. 신규 column의 `BM_RICH_CHECK_COLUMNS`는 keyword, name과 draft의 최종 `useMissingKeywordCheck` 값을 사용해 생성한다. 기존 DB의 `BM_RICH_COLUMN`에 `RICH_USE_MISSING_KEYWORD_CHECK`가 있으면 같은 최종값을 main row에도 기록하고, 없으면 해당 식별자를 INSERT SQL에 포함하지 않는다. 해당 label size의 `BM_RICH_COL_MIN`에 `ELEMENT` 기준행이 없으면 레거시와 같이 column ID 0 의미, keyword `ELEMENT`, name `주원료`, order 0, `RICH_MIN_CHECK=0`으로 한 번 생성한다. 신규 column의 min 행도 `RICH_MIN_CHECK=0`으로 생성한다.
 5. 신규 column마다 현재 label size의 기존 `BM_RICH_ITEM`에 없는 `BM_RICH_COL_CONTENT` 조합을 빈 data로 생성한다. `RICH_EDITABLE`이 있는 DB용 INSERT는 0을 함께 기록하고, 없는 DB용 INSERT는 해당 column 이름을 SQL text에 포함하지 않는다. trigger가 먼저 생성한 행은 `NOT EXISTS` 조건으로 중복하지 않는다.
 6. 기존 DB에 `BM_UPDATE_ITEM`과 `BM_UPDATE_COL_CONTENT`가 모두 있으면 레거시와 같이 신규 column의 빈 update content를 생성한다. 둘 중 하나가 없으면 이 단계만 생략하며 table을 생성하거나 migration을 요구하지 않는다. 존재/부재별로 미리 작성된 SQL을 사용한다.
 7. 기존 `BM_RICH_COLUMN`은 실제 변경된 속성만 update한다.
@@ -457,8 +457,8 @@ DTO는 immutable하게 만들고 widget 상태나 전역 목록을 직접 참조
 
 - customer-scoped 사용자 항목 CRUD와 중간 오류 rollback
 - parameter binding과 작은따옴표 문자열
-- 사용 항목 단일 batch와 신규 draft key→column ID mapping
-- 신규 column의 최종 누락검사 값이 반영된 check 행, min/content와 지원되는 update content 생성
+- JSON parameter를 `OPENJSON`으로 투영하는 사용 항목 단일 batch와 신규 draft key→column ID mapping
+- 신규 column의 최종 누락검사 값이 반영된 check 행, label size별 `ELEMENT` 기준행과 column min/content 및 지원되는 update content 생성
 - `RICH_EDITABLE`, main 누락검사 column 존재/부재와 update/status table 존재/부재에서 없는 식별자를 참조하지 않는 SQL 선택
 - 저장 과정에서 DDL·migration SQL을 실행하지 않고 레거시 DB object와 data 의미만 사용
 - 실제 변경 속성만 update하고 untouched 값 보존
@@ -507,7 +507,7 @@ DTO는 immutable하게 만들고 widget 상태나 전역 목록을 직접 참조
 - 사용자 항목 사전과 실제 사용 항목은 각각 독립 working copy와 transaction으로 저장된다.
 - 사용 항목 저장은 하나의 parameterized transaction에서 main, order, check/min/content와 GS1 관계를 반영한다.
 - 신규 column ID는 `OUTPUT INSERTED`로 draft key에 정확히 매핑된다.
-- 신규 column은 draft의 최종 누락검사 값과 기존 item의 빈 content를 저장하고 삭제 column은 직접 소유한 종속 데이터를 정리한다.
+- 신규 column은 JSON parameter에서 투영되며 draft의 최종 누락검사 값, 없는 경우의 레거시 `ELEMENT` 기준행과 기존 item의 빈 content를 저장하고 삭제 column은 직접 소유한 종속 데이터를 정리한다.
 - `RICH_EDITABLE`, update content와 status object가 없는 기존 DB에서도 migration 없이 해당 단계만 생략하거나 기존 column용 SQL로 저장한다.
 - 저장 오류는 예외로 전달되고 가능한 rollback 뒤 working copy와 기존 cache가 유지된다.
 - 저장 성공 후 전체 column 재조회 결과가 공용라벨, 품목관리와 preview에 반영된다.

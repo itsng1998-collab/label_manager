@@ -28,6 +28,14 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-14): 항목 편집 DB 계약 최종 보정
+
+- 사용자 요청: 최신 `doc/user_item_modify.txt` 검토에서 확인한 현 DB driver 입력 방식과 레거시 `BM_RICH_COL_MIN` 기준행 의미를 작업지시서에 병합한다.
+- 사용자 확인 필요 여부: 없음. 현 `mssql_connection`은 scalar parameter만 지원하고 기존 품목 저장이 `OPENJSON(@...Json)`을 사용하므로 입력은 JSON parameter로 확정한다. 신규 column 저장 시 label size별 `ELEMENT` 기준행이 없으면 레거시 고정값으로 생성한다.
+- 수정 예정 `doc/user_item_modify.txt`: 12.4의 `JSON 또는 구조화 parameter`를 JSON parameter로 확정하고, 신규 column의 min 행 생성 전에 `ELEMENT`/`주원료`/order 0/min 0 기준행을 존재하지 않을 때만 생성하도록 명시한다. DAO 테스트와 완료 조건까지 같은 계약을 연결한다. 미검증.
+- `doc/user_item_modify.txt` 편집 완료: 사용 항목 save command를 JSON 문자열 parameter와 `OPENJSON` table variable 투영으로 확정했다. 신규 column 저장 시 해당 label size의 `BM_RICH_COL_MIN`에 기준행이 없을 때만 column ID 0 의미, `ELEMENT`/`주원료`/order 0/min 0으로 생성하고 기존 기준행은 보존하도록 본문·DAO 테스트·완료 조건에 연결했다.
+- 검증 완료: 두 문서 diagnostics 오류 0건, 미지원 `구조화 parameter` 표현 제거와 JSON/ELEMENT 계약 연결을 확인했고 `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md`를 통과했다. 독립 검토에서 비Windows FreeTDS 사용자 NVARCHAR parameter 길이 결함을 확인했으나 현 Windows 실행 경로는 `OdbcMssqlDriver`이므로 이번 작업지시서 보정의 차단 사항이 아니다. 문서만 변경해 Flutter 테스트·빌드는 실행하지 않는다. stage/commit 대상은 `doc/user_item_modify.txt`, `SESSION_HANDOFF.md`이며 unrelated `.vscode/settings.json`, `lib/core/app.dart`는 제외한다.
+
 ### 진행 중 (2026-07-14): 항목 타입과 라벨 객체 연결 UX 병합
 
 - 사용자 요청: 레거시 항목의 바코드·QR·GS1·이미지 데이터 의미와 현 라벨 에디터의 가시적 객체 편집을 함께 고려한 권장 UX를 `doc/user_item_modify.txt`에 병합하고, 항목 편집 구현 시 바코드/이미지 삽입·수정 다이얼로그도 같이 수정되도록 한다.
