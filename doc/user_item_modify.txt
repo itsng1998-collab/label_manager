@@ -35,6 +35,7 @@
 - 저장 command가 지정한 변경만 적용하며 unrelated 행이나 속성을 전체 working copy 값으로 덮어쓰지 않는다.
 - 레거시 source, 실행 파일, 설정과 공유 DB trigger/schema는 수정하지 않는다.
 - 저장 결과는 레거시가 읽는 기존 `BM_RICH_*`, `BM_GS1_*`, `BM_UPDATE_*` table과 column 의미로만 기록한다. 앱 전용 row, 별도 mapping table 또는 레거시가 해석하지 못하는 식별값을 DB에 남기지 않는다.
+- 항목 편집은 바코드·QR·GS1·이미지의 데이터 의미와 생성 규칙을 소유하고, 라벨 에디터의 객체는 연결할 항목과 위치·크기·회전 같은 시각 표현을 소유한다. 같은 설정을 두 화면에서 독립적으로 중복 저장하지 않는다.
 - DB 저장과 후속 재조회가 성공한 경우에만 화면과 cache를 교체한다. 오류 시 사용자에게 알리고 가능한 rollback 뒤 working copy를 유지한다.
 
 2. 현재 프로젝트 기준점
@@ -46,6 +47,8 @@
 - 기존 공용라벨 표 layout은 유지하고 새 편집 다이얼로그 내부 테이블만 `SwipeActionTable` 계열로 구현한다.
 - 라벨 설정 다이얼로그의 `BlockingModelessDialog`, `BlockingModelessDialogFrame`, reorder rail과 footer pattern을 재사용한다.
 - 공용라벨 시트 또는 품목 draft에 미저장 변경이 있으면 기존 상태를 잃지 않도록 항목 편집기 진입과 저장을 차단한다. 필요한 dirty/busy boolean만 기존 상위 callback 경계로 전달하며 workbook queue나 저장 체계는 재설계하지 않는다.
+- 현 라벨 에디터의 바코드·이미지 객체는 각각 `barcodeObjectId`와 `imageObjectId`로 항목 keyword에 연결되고 객체 자체가 geometry를 저장한다. 바코드 형식의 기본값은 `ItemCodeDataResolver`가 항목 type과 `TColumn.barcodeType`에서 계산하며, 기존 `preserveTemplateBarcodeFormat` metadata는 라벨별 형식 고정에 사용한다.
+- 현재 바코드 후보를 keyword의 `barcode`/`qrcode` 포함 여부로 추정하고 이미지 후보에 모든 keyword를 넣는 helper는 항목 type 기준으로 교체한다.
 
 2.2 모델과 DAO
 
@@ -69,6 +72,8 @@
 - 타입별 속성 UI와 validation
 - 사용 항목 및 사용자 항목 model/DAO/transaction
 - 성공 후 컬럼 재조회와 관련 화면/cache 갱신
+- 항목 type과 연결 의미를 반영하는 기존 라벨 에디터의 바코드·이미지 삽입/수정 다이얼로그와 후보 helper 보정
+- 연결된 바코드·이미지의 품목별 미리보기/출력 치환 보정
 - 관련 model/widget/DAO/통합 테스트
 
 3.2 제외
@@ -81,6 +86,7 @@
 - 공유 DB schema와 trigger 변경 또는 trigger 인증 체계
 - 설치 SQL, schema migration, data migration 또는 앱 전용 DB object 추가
 - 별도 DB worker, durable recovery 저장소와 DB 연결 계층 재설계
+- 라벨 시트 workbook 저장 format 변경 또는 새로운 바코드·이미지 저장 metadata 추가
 - 기존 출력 engine 동작 변경
 - 레거시 프로그램과 새 프로그램이 같은 항목을 동시에 저장하는 운용 지원
 
@@ -217,6 +223,12 @@ dirty는 다음 의미만 구분한다.
 - GS1 AI: AI code, format option, GS1 code 표시
 - GS1 바코드: 종류, 폭, 높이, 포함할 GS1 AI 목록
 
+항목 속성과 라벨 객체 속성은 다음처럼 구분한다.
+
+- 바코드 종류, QR 생성 방식·data/text, GS1 AI와 contain 관계, 체크디지트와 번호 표시 여부는 항목 속성이다.
+- 품목별 이미지 파일명은 레거시와 같이 이미지 타입 column content이며 품목관리에서 선택한다.
+- 항목의 바코드/이미지 폭·높이는 레거시 DB 호환값으로 유지한다. 현 라벨 시트에 배치된 객체의 최종 위치·크기·회전은 라벨 객체 geometry를 사용한다.
+
 레거시 validation과 경고를 유지한다.
 
 - 바코드/이미지/GS1 바코드의 폭 또는 높이 0은 경고한다.
@@ -228,6 +240,35 @@ dirty는 다음 의미만 구분한다.
 - 수치는 정수 parsing, DB 타입 범위, 정의된 enum과 레거시 필수 조건만 검사한다. 임의의 UX 범위를 추가하지 않는다.
 
 공통 입력과 타입별 editor widget을 분리한다. editor widget은 draft 변경 callback만 반환하고 DB를 직접 호출하지 않는다.
+
+7.4 라벨 에디터의 바코드·이미지 연결
+
+항목 편집 구현과 함께 기존 라벨 에디터의 바코드·이미지 삽입/수정 다이얼로그를 다음 규칙으로 보정한다. 기존 FortuneSheet 객체와 저장 metadata를 재사용하고 workbook format, DB schema 또는 출력 engine을 새로 만들지 않는다.
+
+공통 규칙은 다음과 같다.
+
+- 기술적인 `ID` label은 `연결 항목`으로 바꾸고 dropdown에는 `항목명 (#KEYWORD) · 형식`을 표시한다. 내부 저장값은 기존 `barcodeObjectId`/`imageObjectId` keyword를 유지한다.
+- `연결 안 함`을 선택한 고정 객체는 `barcodeObjectId`/`imageObjectId` extra field를 저장하지 않고 기존 Fortune 객체 `id` 자동 생성 규칙만 사용한다. 편집 재로드 시 연결 extra field 없음 또는 빈 값은 고정, 비어 있지 않고 현재 후보와 일치하면 연결, 비어 있지 않지만 후보에 없으면 연결 끊김으로 판정한다.
+- 연결 끊김 객체는 저장된 keyword를 유지하고 임의 항목으로 바꾸지 않는다. 항목 keyword 변경 시 workbook 객체 ID를 자동 변경하는 기능은 추가하지 않는다.
+
+바코드 다이얼로그는 다음과 같이 동작한다.
+
+- 연결 후보는 keyword 문자열이 아니라 `TYPE_BARCODE`, `TYPE_QR_CODE`, `TYPE_GS1_BARCODE`인 사용 항목만 포함한다. `TYPE_GS1_AI`는 GS1 바코드의 source이므로 직접 바코드 객체 후보에 넣지 않는다.
+- 연결형 바코드는 선택 항목의 type, `barcodeType`, QR 생성 규칙과 GS1 관계에서 값과 기본 형식을 가져온다. 값은 직접 편집하지 않고 현재 preview 품목의 결과 또는 `품목 데이터로 출력 시 생성` 상태를 표시한다.
+- 연결형의 형식은 기본적으로 읽기 전용이다. 기존 `preserveTemplateBarcodeFormat`을 사용하는 `이 라벨에서 형식 고정` checkbox를 선택한 경우에만 형식 dropdown을 활성화하고, 이 설정은 DB 항목 속성을 변경하지 않는다.
+- 고정 바코드는 연결 항목 없이 형식과 고정 값을 직접 입력한다.
+- 가로·세로·회전은 연결 여부와 무관하게 라벨 객체 속성으로 편집한다. 막대 높이, 번호 표시와 표시 글꼴은 1D 형식에서만 표시하고 QR/Data Matrix 같은 2D 형식은 module scale 등 적용 가능한 control만 표시한다.
+- 연결형 preview용 임시 값은 품목 column content로 저장하지 않는다. 실제 품목 미리보기와 출력용 workbook 전처리는 기존 `ItemCodeDataResolver` 결과와 `labelSheetBarcodeRenderer`를 사용해 `barcodeText`, 기본 형식과 객체 `src`를 함께 다시 생성한다. 출력 engine은 materialize된 기존 FortuneImage를 그대로 출력한다.
+- `이 라벨에서 형식 고정`은 편집 시 기존 `preserveTemplateBarcodeFormat` 값을 읽고 저장 시 보존한다. 이 값이 true일 때만 template format을 resolver에 전달하며 GS1 바코드도 같은 규칙을 사용한다.
+
+이미지 다이얼로그는 다음과 같이 동작한다.
+
+- `품목 이미지`와 `고정 이미지`를 segmented control로 구분한다.
+- 품목 이미지의 연결 후보는 `TYPE_IMAGE`인 사용 항목만 포함한다. 파일 선택은 표시하지 않고 현재 preview 품목의 BMP 또는 `품목 데이터로 출력 시 지정` placeholder를 보여준다.
+- 고정 이미지는 항목에 연결하지 않고 파일을 직접 선택한다. 삽입뿐 아니라 수정에서도 파일 교체를 제공한다.
+- 가로·세로·비율 잠금·회전은 두 종류 모두 라벨 객체 속성으로 편집한다.
+- 고정 이미지 수정에서 새 파일을 선택하면 `src`, 원본 크기와 파일 표시값을 갱신하고 선택하지 않으면 기존 `src`를 유지한다.
+- 품목 이미지 column content가 비었거나 `C:\ITS\LabelManager\bmp files`에서 해당 BMP를 찾지 못하면 라벨 편집 화면에는 명확한 placeholder를 표시하되, 품목 미리보기와 실제 출력용 workbook 전처리에서는 `TYPE_IMAGE` 연결 객체를 `sheet.images`에서 제외한다. 연결 extra field가 없는 고정 이미지는 제외하지 않는다.
 
 8. 고정 항목 후보
 
@@ -401,6 +442,12 @@ DTO는 immutable하게 만들고 widget 상태나 전역 목록을 직접 참조
 - button/drag 추가·삭제의 동일 결과
 - pending property guard
 - 타입별 editor와 적용·취소
+- 바코드 연결 후보가 세 barcode type만 포함하고 `GS1 AI`와 keyword 이름만 비슷한 일반 항목을 제외함
+- 연결 바코드의 값·기본 형식 read-only, 라벨별 형식 고정과 고정 바코드 직접 입력
+- 저장 후 재로드한 고정/연결/연결 끊김 객체의 기존 extra field 기반 판정
+- 1D/2D 바코드별 적용 가능한 표현 control
+- 이미지 연결 후보가 `TYPE_IMAGE`만 포함하고 품목 이미지/고정 이미지 mode가 파일 control을 올바르게 전환함
+- 고정 이미지 수정의 파일 교체와 연결 이미지의 품목 미지정 placeholder
 - reorder mode와 userItemEdit mode의 상호 배타 동작
 - 전용 mode와 busy 중 비활성화
 - 최소 지원 화면에서 overflow 없음
@@ -425,6 +472,10 @@ DTO는 immutable하게 만들고 widget 상태나 전역 목록을 직접 참조
 
 - dialog에서 추가·수정·정렬·삭제 후 저장·재조회
 - 사용자 항목 사전 CRUD 후 후보 갱신
+- 항목 편집 저장·재조회 뒤 바코드/이미지 연결 후보가 최신 type·keyword·name으로 갱신
+- 연결 바코드는 항목 설정의 값·기본 형식, 라벨 객체의 geometry와 라벨별 형식 고정을 함께 적용
+- 연결 바코드는 품목별 값으로 객체 `src`까지 다시 생성하고 고정 바코드는 기존 값·형식·`src`를 유지
+- 연결 이미지는 품목별 BMP를 치환하고 빈 값·파일 없음에서는 template 이미지를 출력하지 않으며, 고정 이미지는 선택 파일을 그대로 유지
 - 저장 후 `TColumn.datas`, 공용라벨 표, 품목 동적 column과 preview 갱신
 - 저장 실패 시 dialog/working copy 유지와 성공 UI 미표시
 - dirty/busy 상태에서 진입과 저장 차단
@@ -439,7 +490,7 @@ DTO는 immutable하게 만들고 widget 상태나 전역 목록을 직접 참조
 5. dialog layout, normal mode와 속성 panel
 6. reorder와 userItemEdit mode
 7. 상위 save/reload callback과 관련 화면 refresh
-8. 특수 타입, GS1, drag/drop과 통합 회귀
+8. 특수 타입, 바코드·이미지 라벨 객체 연결, GS1, drag/drop과 통합 회귀
 
 각 단계는 해당 focused test를 통과한 뒤 다음 단계로 진행한다. 품목 저장, journal, trigger 인증이나 복구 상태 구현을 선행조건으로 두지 않는다.
 
@@ -447,6 +498,11 @@ DTO는 immutable하게 만들고 widget 상태나 전역 목록을 직접 참조
 
 - 선택한 label size의 `라벨 항목 편집` dialog를 열 수 있다.
 - 사용 항목과 후보 테이블, 속성 panel, 추가·삭제·정렬과 사용자 항목 설정이 문서대로 동작한다.
+- 바코드와 이미지 항목의 데이터 의미·생성 규칙은 항목 편집에서 저장되고 라벨 에디터 객체는 연결 대상과 geometry를 저장한다.
+- 라벨 에디터의 바코드 후보는 세 barcode type, 이미지 후보는 `TYPE_IMAGE`만 사용하며 기술 ID 대신 항목명·keyword·형식을 표시한다.
+- 연결 extra field 없음/일치/불일치로 고정형·연결형·연결 끊김을 구분하고 새 workbook metadata를 추가하지 않는다.
+- 연결 바코드는 항목 설정을 기본 형식으로 사용하고 명시적인 라벨별 형식 고정만 객체 형식을 유지한다. 고정 바코드는 값과 형식을 라벨 에디터에서 직접 설정한다.
+- 품목 이미지와 고정 이미지를 구분하고, 연결 이미지의 품목 값·BMP가 없을 때 template 이미지를 실제 출력에 사용하지 않는다. 고정 이미지는 수정 시 파일을 교체할 수 있다.
 - 신규 특수 타입은 최초 적용 전 저장할 수 없고 일반 변경은 pending guard를 거친다.
 - 사용자 항목 사전과 실제 사용 항목은 각각 독립 working copy와 transaction으로 저장된다.
 - 사용 항목 저장은 하나의 parameterized transaction에서 main, order, check/min/content와 GS1 관계를 반영한다.

@@ -28,6 +28,15 @@
 
 ## 현재 상태
 
+### 진행 중 (2026-07-14): 항목 타입과 라벨 객체 연결 UX 병합
+
+- 사용자 요청: 레거시 항목의 바코드·QR·GS1·이미지 데이터 의미와 현 라벨 에디터의 가시적 객체 편집을 함께 고려한 권장 UX를 `doc/user_item_modify.txt`에 병합하고, 항목 편집 구현 시 바코드/이미지 삽입·수정 다이얼로그도 같이 수정되도록 한다.
+- 수정 예정 `doc/user_item_modify.txt`: 항목 편집은 데이터 의미·생성 규칙, 라벨 에디터는 연결 대상·배치·크기·회전을 소유하도록 구분한다. 바코드 연결 후보는 `TYPE_BARCODE`/`TYPE_QR_CODE`/`TYPE_GS1_BARCODE`, 이미지 연결 후보는 `TYPE_IMAGE`로 제한한다. 연결형/고정형 control, 항목 형식 기본 사용과 라벨별 형식 고정, 품목 이미지 미지정 시 template 이미지 오출력 방지, 관련 widget/통합 테스트와 완료 조건을 추가한다. 기존 DB schema, workbook 저장 포맷과 출력 엔진은 변경하지 않는다. 미검증.
+- `doc/user_item_modify.txt` 편집 완료: 핵심 원칙·현재 기준점·포함/제외 범위와 새 7.4절에 항목 속성/라벨 객체 geometry 소유권을 분리했다. 바코드는 세 barcode type만 연결 후보로 사용하고 연결형의 값·기본 형식 read-only, 기존 `preserveTemplateBarcodeFormat` 기반 라벨별 형식 고정, 고정 바코드 직접 입력, 1D/2D별 control을 명시했다. 이미지는 `TYPE_IMAGE`만 연결 후보로 사용하고 품목 이미지/고정 이미지 mode, 고정 이미지 파일 교체, 품목 BMP 미지정·파일 없음 시 template 이미지 출력 금지를 명시했다. widget/통합 테스트·구현 순서·완료 조건까지 연결했으며 편집 직후 diagnostics 오류 0건이다.
+- 독립 정합성 검토 보정 `doc/user_item_modify.txt`: 새 metadata 없이 연결 extra field 없음/후보 일치/후보 불일치로 고정형·연결형·연결 끊김을 판정하고, 고정 객체는 Fortune 객체 `id`만 사용하도록 확정했다. 연결 바코드는 기존 resolver와 renderer로 품목별 `src`까지 재생성하며 `preserveTemplateBarcodeFormat`을 편집·GS1 경로에서 보존한다. 고정 이미지 수정의 실제 `src` 교체와 missing `TYPE_IMAGE` 연결 객체의 출력 workbook 제외를 명시했다. 보정 직후 diagnostics 오류 0건이다.
+- 검증 예정: 두 문서 diagnostics, 후보 타입·연결형/고정형·형식 소유권·이미지 미지정 처리의 본문/테스트/완료 조건 연결 검색, `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md`, 제한 diff/status를 확인한다. 문서만 변경하므로 Flutter 테스트·빌드는 실행하지 않는다.
+- 최종 검증 완료: 두 문서 diagnostics 오류 0건, type 후보·3상태 판정·기존 renderer/metadata 재사용·missing image 제외가 본문/widget·통합 테스트/구현 순서/완료 조건에 연결됐고 `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md`를 통과했다. 독립 최종 검토 결과 `현재 작업 범위에서 구현을 막는 문제 없음`이다. stage/commit 대상은 `doc/user_item_modify.txt`, `SESSION_HANDOFF.md`이며 unrelated `.vscode/settings.json`, `lib/core/app.dart`는 제외한다.
+
 ### 진행 중 (2026-07-14): 라벨 항목 편집 DB 무마이그레이션 계약 정리
 
 - 사용자 요청: `doc/user_item_modify.txt` 전체를 검토해 새 프로그램 저장 DB를 레거시 프로젝트가 그대로 사용할 수 있고 별도 schema/data migration이 필요 없도록 정리한다.
