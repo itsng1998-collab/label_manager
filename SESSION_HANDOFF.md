@@ -28,6 +28,16 @@
 
 ## 현재 상태
 
+### 진행 중 (2026-07-14): 항목 편집기 구현 선행조건·식별 계약 보완
+
+- 사용자 요청: 최신 `doc/user_item_modify.txt`를 레거시/현 프로젝트에 대조해 확인한 DB-Lib NVARCHAR RPC 길이, 특별 항목 canonical identity, form 저장 commit 결과 분류, 연결별 capability/cache scope, 사용자 항목 commit-unknown, 컬럼 status capability, 다중 result-set collector, 누락 GS1 info 재구성 권장안을 작업지시서에 병합하고 필요한 사용자 결정을 즉시 확인한다.
+- 사용자 확인 필요 여부: 없음. 문자열 무결성과 commit 결과 분류는 기존 원자적 저장·재조회 전 재저장 차단 원칙의 선행조건으로 반영하고, 특별 항목은 기존 canonical 음수 ID를 identity로 사용한다. 배포 DB capability가 불명확한 status/trigger/result-set 경로는 임의 허용하지 않고 해당 command를 첫 DML 전에 차단한다.
+- 수정 예정 `doc/user_item_modify.txt`: DB-Lib `dbrpcparam` NVARCHAR byte-length helper와 실DB round-trip 선행 검증, 다중 result-set collector 교정, `DbExecutionIdentity`와 연결별 capability/`TColumnType` cache, 특별 항목 `(labelSizeId,columnId)` 조회·upsert, form transaction의 `DbCommitOutcomeUnknown` 분류, 사용자 항목 stable draft key/save coordinator, 컬럼 status capability, 누락 GS1 info canonical 기본값을 본문·테스트·구현 순서·완료 조건에 연결한다. 미검증.
+- 본문 편집 완료 `doc/user_item_modify.txt`: FreeTDS RPC byte-length/result-set collector 선행조건, `DbExecutionIdentity` 기반 capability·타입 목록 cache scope, 사용자 항목 stable draft mapping·commit 결과 분류, `ColumnStatusSchemaCapability`, GS1 info 누락행 canonical 기본값을 추가했다. 특별 항목 조회/upsert는 keyword-only 조건 대신 canonical 음수 column ID identity를 사용하고, form/check batch는 내부 transaction을 제거해 `DbClient.transaction()`의 `DbCommitOutcomeUnknown` 경계에 포함했다. 편집 직후 문서 diagnostics 오류 0건이며 테스트·구현 순서·완료 조건 연결은 진행 중이다.
+- 사용자 범위 정정: 과도한 보완·예외처리 없이 작업지시서의 본래 UI/CRUD 구현에 충실한다. DB commit 오류는 사용자에게 오류를 전달하고 가능한 rollback 후 working copy를 유지하는 정도로 통일한다. 별도 connection identity/generation 체계, 범용 DB-Lib 선행 gate, commit-unknown/post-commit 전용 상태·재저장 차단 체계는 요구하지 않는다. 특별 항목 canonical ID, 컬럼 삭제 status predicate, 누락 GS1 기본값처럼 실제 저장 결과를 결정하는 최소 계약만 유지하도록 작업지시서를 정리한다. 진행 중.
+- 전체 재검토 결과: UI/CRUD, 안정 draft identity, 타입별 속성, parameterized transaction, `OUTPUT INSERTED` 신규 ID mapping, 보조 테이블/content 반영, 오류 알림·가능한 rollback·working copy 유지만 유지한다. trigger lexer/fingerprint/cache generation, DDL `Sch-M` guard, table-wide schema lock, 품목 journal·market/delete 재설계, commit 복구 상태, 과도한 capability matrix와 중복 테스트·완료 조건은 본래 범위 밖이므로 제거하거나 별도 작업으로 분리한다. `doc/user_item_modify.txt`의 4~10장 UI 흐름은 보존하고 5.2 상태 모델과 11.2~19장을 최소 구현 계약으로 재정리한다. 미검증.
+- `doc/user_item_modify.txt`: 자동 검토가 범위를 반복 확장하지 않도록 최상단에 `0. 최우선 범위 제한`을 추가했다. 새 권장안·예방책·선행 작업 추가를 금지하고, 실제 구현 차단 문제는 UI/CRUD 구현 불가·현재 코드/지원 DB 직접 충돌·구체 근거 확인의 세 조건을 모두 충족할 때만 보고하도록 했다. capability/trigger fingerprint/DDL guard/table-wide lock/journal/commit 복구 상태/품목 재설계 등 명시적 금지 목록과 문제 없을 때의 검토 종료 문구를 포함했다. `get_errors doc/user_item_modify.txt`: 오류 0건.
+
 ### 완료 (2026-07-14): 품목 삭제·content 호환 계약 병합
 
 - 사용자 요청: `doc/user_item_modify.txt` 재검토에서 확인한 품목 삭제 child/FK 정리 누락, transaction 밖 market mapping 충돌 검사, v1 `RICH_EDITABLE` 부재, 품목 column content의 실제 target byte/code page 검증 권장안을 작업지시서에 병합하고 필요한 사용자 결정을 즉시 확인한다.
