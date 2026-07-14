@@ -60709,6 +60709,25 @@ Rect fortuneBarcodeShowTextLabelRect(Rect dialogRect) {
   );
 }
 
+Rect fortuneBarcodePreserveFormatCheckboxRect(Rect dialogRect) {
+  return Rect.fromLTWH(
+    dialogRect.left + fortuneImageInsertDialogPaddingLeft,
+    dialogRect.top + 394,
+    fortuneBarcodeDialogCheckboxSize,
+    fortuneBarcodeDialogCheckboxSize,
+  );
+}
+
+Rect fortuneBarcodePreserveFormatLabelRect(Rect dialogRect) {
+  final checkbox = fortuneBarcodePreserveFormatCheckboxRect(dialogRect);
+  return Rect.fromLTWH(
+    checkbox.right + fortuneBarcodeDialogShowTextLabelGap,
+    checkbox.top - 2,
+    210,
+    22,
+  );
+}
+
 Rect fortuneBarcodeTrailingQuietZoneInputRect(Rect dialogRect) {
   final leading = fortuneBarcodeLeadingQuietZoneInputRect(dialogRect);
   return Rect.fromLTWH(
@@ -61656,6 +61675,7 @@ class FortuneSheetPainter extends CustomPainter {
     this.imageInsertEditing = false,
     this.imageInsertFileName = '선택된 파일 없음',
     this.imageInsertHasFile = false,
+    this.imageLinked = false,
     this.imageObjectId = '',
     this.imageObjectIdOptions = const <String>[],
     this.imageObjectIdMenuOpen = false,
@@ -61675,6 +61695,9 @@ class FortuneSheetPainter extends CustomPainter {
     this.barcodeObjectIdMenuHoveredIndex,
     this.barcodeObjectIdMenuSelectedIndex,
     this.barcodeObjectIdMenuScrollOffset = 0,
+    this.barcodeLinked = false,
+    this.barcodeValueLabel = '',
+    this.barcodePreserveTemplateFormat = false,
     this.barcodeFormatLabel = '',
     this.barcodeFormatOptions = const <String>[],
     this.barcodeFormatMenuOpen = false,
@@ -61868,6 +61891,7 @@ class FortuneSheetPainter extends CustomPainter {
   final bool imageInsertEditing;
   final String imageInsertFileName;
   final bool imageInsertHasFile;
+  final bool imageLinked;
   final String imageObjectId;
   final List<String> imageObjectIdOptions;
   final bool imageObjectIdMenuOpen;
@@ -61887,6 +61911,9 @@ class FortuneSheetPainter extends CustomPainter {
   final int? barcodeObjectIdMenuHoveredIndex;
   final int? barcodeObjectIdMenuSelectedIndex;
   final double barcodeObjectIdMenuScrollOffset;
+  final bool barcodeLinked;
+  final String barcodeValueLabel;
+  final bool barcodePreserveTemplateFormat;
   final String barcodeFormatLabel;
   final List<String> barcodeFormatOptions;
   final bool barcodeFormatMenuOpen;
@@ -68887,7 +68914,6 @@ class FortuneSheetPainter extends CustomPainter {
     }
     final rect = fortuneImageInsertDialogRect(
       size,
-      editing: imageInsertEditing,
     );
     canvas.drawRect(
       Offset.zero & size,
@@ -68920,12 +68946,26 @@ class FortuneSheetPainter extends CustomPainter {
     }
 
     final objectIdInput = fortuneImageObjectIdInputRect(rect);
-    drawLabel('ID', objectIdInput.top + 4);
+    drawLabel('연결 항목', objectIdInput.top + 4);
     _drawInputShell(canvas, objectIdInput);
     _drawComboArrow(canvas, objectIdInput.right - 18, objectIdInput.center.dy);
 
-    if (!imageInsertEditing) {
-      final fileButton = fortuneImageInsertFileButtonRect(rect);
+    final fileButton = fortuneImageInsertFileButtonRect(rect);
+    if (imageLinked) {
+      drawLabel('이미지', fileButton.top + 4);
+      _drawText(
+        canvas,
+        '연결된 품목 이미지',
+        Rect.fromLTWH(
+          fileButton.left,
+          fileButton.top + 4,
+          rect.right - fileButton.left - 24,
+          22,
+        ),
+        fontSize: 12,
+        color: const Color(0xff777777),
+      );
+    } else {
       drawLabel('파일', fileButton.top + 4);
       _drawImageInsertButton(canvas, fileButton, '파일 선택', 'file');
       _drawText(
@@ -68985,7 +69025,7 @@ class FortuneSheetPainter extends CustomPainter {
       imageInsertEditing ? '확인' : '삽입',
       'confirm',
       primary: true,
-      enabled: imageInsertEditing || imageInsertHasFile,
+      enabled: imageInsertEditing || imageInsertHasFile || imageLinked,
     );
     _drawImageInsertButton(
       canvas,
@@ -69039,7 +69079,7 @@ class FortuneSheetPainter extends CustomPainter {
     final objectIdInput = fortuneBarcodeObjectIdInputRect(rect);
     final textInput = fortuneBarcodeTextInputRect(rect);
     final formatCombo = fortuneBarcodeFormatComboRect(rect);
-    drawLabel('ID', objectIdInput.top + 4);
+    drawLabel('연결 항목', objectIdInput.top + 4);
     drawLabel('형식', formatCombo.top + 4);
     drawLabel('값', textInput.top + 4);
     final moduleScaleInput = fortuneBarcodeModuleScaleInputRect(rect);
@@ -69051,6 +69091,15 @@ class FortuneSheetPainter extends CustomPainter {
     _drawInputShell(canvas, moduleScaleInput);
     _drawInputShell(canvas, barHeightInput);
     _drawInputShell(canvas, formatCombo);
+    if (barcodeLinked) {
+      _drawText(
+        canvas,
+        barcodeValueLabel,
+        textInput.deflate(8),
+        fontSize: 12,
+        color: const Color(0xff777777),
+      );
+    }
     _drawText(
       canvas,
       barcodeObjectId,
@@ -69158,6 +69207,21 @@ class FortuneSheetPainter extends CustomPainter {
       color: const Color(0xff333333),
     );
     _drawInputShell(canvas, trailingInput);
+    if (barcodeLinked) {
+      final preserveCheckbox = fortuneBarcodePreserveFormatCheckboxRect(rect);
+      _drawCheckbox(
+        canvas,
+        preserveCheckbox,
+        barcodePreserveTemplateFormat,
+      );
+      _drawText(
+        canvas,
+        '이 라벨에서 형식 고정',
+        fortuneBarcodePreserveFormatLabelRect(rect),
+        fontSize: 12,
+        color: const Color(0xff333333),
+      );
+    }
     if (barcodeErrorText != null && barcodeErrorText!.isNotEmpty) {
       _drawText(
         canvas,

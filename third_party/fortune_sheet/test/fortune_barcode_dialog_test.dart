@@ -7016,4 +7016,191 @@ void main() {
     await tester.pump();
     expect(tester.widget<EditableText>(textInput).controller.text, 'PASTE');
   });
+
+  testWidgets('structured barcode option inserts linked barcode without value input', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    FortuneBarcodeRequest? captured;
+    final workbook = FortuneWorkbook(
+      settings: const FortuneSettings(
+        toolbarItems: [fortuneToolbarBarcodeCommand],
+      ),
+      sheets: [FortuneSheet(id: 's1', name: 'Sheet1')],
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SizedBox(
+          width: 900,
+          height: 700,
+          child: FortuneSheetCanvas(
+            workbook: workbook,
+            barcodeFormats: const [
+              FortuneBarcodeFormatOption(id: 'code128', label: 'Code128'),
+              FortuneBarcodeFormatOption(id: 'ean13', label: 'EAN13'),
+            ],
+            barcodeObjectOptions: const [
+              FortuneObjectConnectionOption(
+                value: '#ITEM_CODE',
+                label: '품목 코드 (#ITEM_CODE) · EAN13',
+                formatId: 'ean13',
+                formatLabel: 'EAN13',
+                showHumanReadableText: true,
+              ),
+            ],
+            barcodeRenderer: (request) async {
+              captured = request;
+              return FortuneBarcodeRenderResult(
+                bytes: _transparentPng,
+                pixelWidth: 120,
+                pixelHeight: 60,
+              );
+            },
+          ),
+        ),
+      ),
+    );
+
+    FortuneSheetPainter painter() => tester
+        .widgetList<CustomPaint>(
+          find.descendant(
+            of: find.byType(FortuneSheetCanvas),
+            matching: find.byType(CustomPaint),
+          ),
+        )
+        .map((paint) => paint.painter)
+        .whereType<FortuneSheetPainter>()
+        .single;
+
+    final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
+    await tester.tapAt(
+      topLeft +
+          toolbarItemCenter(
+            fortuneToolbarBarcodeCommand,
+            width: 900,
+            items: workbook.settings.toolbarItems,
+          ),
+    );
+    await tester.pump();
+    final rect = fortuneBarcodeDialogRect(const Size(900, 700));
+    await tester.tapAt(
+      topLeft + fortuneBarcodeObjectIdInputRect(rect).centerRight -
+          const Offset(12, 0),
+    );
+    await tester.pump();
+    await tester.tapAt(
+      topLeft +
+          fortuneBarcodeObjectIdMenuRect(rect, 2).topLeft +
+          const Offset(10, 1.5 * fortuneContextMenuRowHeight),
+    );
+    await tester.pump();
+
+    expect(painter().barcodeObjectId, '품목 코드 (#ITEM_CODE) · EAN13');
+    expect(painter().barcodeLinked, isTrue);
+    expect(painter().barcodeFormatLabel, 'EAN13');
+    expect(painter().barcodeShowHumanReadableText, isTrue);
+    expect(
+      find.byKey(const ValueKey('fortune-barcode-text-input')),
+      findsNothing,
+    );
+
+    await tester.tapAt(
+      topLeft + fortuneBarcodeConfirmButtonRect(rect).center,
+    );
+    await tester.pump();
+
+    expect(captured?.formatId, 'ean13');
+    expect(captured?.showHumanReadableText, isTrue);
+    expect(
+      painter().workbook.activeSheet.images.single
+          .extraFields[fortuneBarcodeObjectIdExtraKey],
+      '#ITEM_CODE',
+    );
+  });
+
+  testWidgets('structured image option inserts linked image without file', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    final workbook = FortuneWorkbook(
+      settings: const FortuneSettings(
+        toolbarItems: [fortuneToolbarImageCommand],
+      ),
+      sheets: [FortuneSheet(id: 's1', name: 'Sheet1')],
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SizedBox(
+          width: 900,
+          height: 700,
+          child: FortuneSheetCanvas(
+            workbook: workbook,
+            imageObjectOptions: const [
+              FortuneObjectConnectionOption(
+                value: '#ITEM_IMAGE',
+                label: '품목 이미지 (#ITEM_IMAGE) · 이미지',
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    FortuneSheetPainter painter() => tester
+        .widgetList<CustomPaint>(
+          find.descendant(
+            of: find.byType(FortuneSheetCanvas),
+            matching: find.byType(CustomPaint),
+          ),
+        )
+        .map((paint) => paint.painter)
+        .whereType<FortuneSheetPainter>()
+        .single;
+
+    final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
+    await tester.tapAt(
+      topLeft +
+          toolbarItemCenter(
+            fortuneToolbarImageCommand,
+            width: 900,
+            items: workbook.settings.toolbarItems,
+          ),
+    );
+    await tester.pump();
+    final rect = fortuneImageInsertDialogRect(const Size(900, 700));
+    await tester.tapAt(
+      topLeft + fortuneImageObjectIdInputRect(rect).centerRight -
+          const Offset(12, 0),
+    );
+    await tester.pump();
+    await tester.tapAt(
+      topLeft +
+          fortuneImageObjectIdMenuRect(rect, 2).topLeft +
+          const Offset(10, 1.5 * fortuneContextMenuRowHeight),
+    );
+    await tester.pump();
+
+    expect(painter().imageLinked, isTrue);
+    expect(painter().imageInsertHasFile, isFalse);
+    await tester.tapAt(
+      topLeft + fortuneImageInsertConfirmButtonRect(rect).center,
+    );
+    await tester.pump();
+
+    expect(
+      painter().workbook.activeSheet.images.single
+          .extraFields[fortuneImageObjectIdExtraKey],
+      '#ITEM_IMAGE',
+    );
+  });
 }

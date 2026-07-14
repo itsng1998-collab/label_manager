@@ -1718,6 +1718,8 @@ class LabelSheetWorkbench extends StatefulWidget {
     this.labelRtf,
     this.imageObjectIds = const <String>[],
     this.barcodeObjectIds = const <String>[],
+    this.imageObjectOptions = const <FortuneObjectConnectionOption>[],
+    this.barcodeObjectOptions = const <FortuneObjectConnectionOption>[],
     this.toolbarItems,
     this.hideToolbar = false,
     this.hideRowColumnHeaders = false,
@@ -1742,6 +1744,7 @@ class LabelSheetWorkbench extends StatefulWidget {
     this.onWorkbookChanged,
     this.onUserWorkbookChanged,
     this.onUserWorkbookChangedShouldNotify,
+    this.onDirtyChanged,
     this.onSave,
     super.key,
   });
@@ -1751,6 +1754,8 @@ class LabelSheetWorkbench extends StatefulWidget {
   final String? labelRtf;
   final List<String> imageObjectIds;
   final List<String> barcodeObjectIds;
+  final List<FortuneObjectConnectionOption> imageObjectOptions;
+  final List<FortuneObjectConnectionOption> barcodeObjectOptions;
   final List<String>? toolbarItems;
   final bool hideToolbar;
   final bool hideRowColumnHeaders;
@@ -1776,7 +1781,8 @@ class LabelSheetWorkbench extends StatefulWidget {
   final ValueChanged<FortuneWorkbook>? onUserWorkbookChanged;
   final bool Function(FortuneWorkbook previous, FortuneWorkbook current)?
   onUserWorkbookChangedShouldNotify;
-  final FutureOr<void> Function(
+  final ValueChanged<bool>? onDirtyChanged;
+  final FutureOr<LabelSheetSaveResult> Function(
     int widthMm,
     int heightMm,
     String encodedWorkbook,
@@ -1786,6 +1792,8 @@ class LabelSheetWorkbench extends StatefulWidget {
   @override
   State<LabelSheetWorkbench> createState() => _LabelSheetWorkbenchState();
 }
+
+enum LabelSheetSaveResult { applied, notApplied }
 
 class LabelSheetImageImportController {
   _LabelSheetWorkbenchState? _state;
@@ -2222,6 +2230,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       setState(() {
         _isDirty = true;
       });
+      widget.onDirtyChanged?.call(true);
     });
   }
 
@@ -2707,13 +2716,16 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     }
     final payload = _encodedWorkbookForCurrentLabelFile();
     try {
-      await Future<void>.sync(
+      final result = await Future<LabelSheetSaveResult>.sync(
         () => callback(
           payload.widthMm,
           payload.heightMm,
           payload.encodedWorkbook,
         ),
       );
+      if (result != LabelSheetSaveResult.applied) {
+        return;
+      }
     } catch (e) {
       fortuneSheetDebugLog('label sheet save failed: $e');
       return;
@@ -2722,6 +2734,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       setState(() {
         _isDirty = false;
       });
+      widget.onDirtyChanged?.call(false);
     }
   }
 
@@ -2963,6 +2976,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     setState(() {
       _isDirty = true;
     });
+    widget.onDirtyChanged?.call(true);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(successMessage ?? '라벨 파일을 가져왔습니다: $fileName')),
     );
@@ -3297,6 +3311,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
                     setState(() {
                       _isDirty = false;
                     });
+                    widget.onDirtyChanged?.call(false);
                   }
                   return;
                 }
@@ -3306,12 +3321,15 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
                 setState(() {
                   _isDirty = true;
                 });
+                widget.onDirtyChanged?.call(true);
               },
               locale: _locale,
               barcodeRenderer: labelSheetBarcodeRenderer,
               barcodeFormats: labelSheetBarcodeFormats,
               imageObjectIds: widget.imageObjectIds,
               barcodeObjectIds: widget.barcodeObjectIds,
+              imageObjectOptions: widget.imageObjectOptions,
+              barcodeObjectOptions: widget.barcodeObjectOptions,
               gridClientSize: _gridClientSize,
               showFormulaBar: false,
               showSheetTabs: false,

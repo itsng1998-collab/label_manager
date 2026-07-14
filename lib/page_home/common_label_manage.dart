@@ -2,9 +2,11 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:fortune_sheet/fortune_sheet.dart' hide Rect;
+import 'package:label_manager/models/barcode.dart';
 import 'package:label_manager/models/column_base.dart';
 import 'package:label_manager/models/column_special.dart';
 import 'package:label_manager/models/column.dart';
+import 'package:label_manager/models/column_type.dart';
 import 'package:label_manager/models/label_size.dart';
 import 'package:label_manager/page_label_sheet/label_sheet_page.dart';
 import 'package:label_manager/page_label_sheet/label_sheet_workbench.dart';
@@ -18,25 +20,85 @@ List<String> commonLabelBarcodeObjectIdsFor(
   return commonLabelBarcodeObjectIdsFromColumns([...specialColumns, ...columns]);
 }
 
-@visibleForTesting
 List<String> commonLabelBarcodeObjectIdsFromColumns(
   Iterable<TColumnBase> columns,
 ) {
   final result = <String>[];
   final seen = <String>{};
   for (final column in columns) {
-    final keyword = column.keyword.trim();
-    final lower = keyword.toLowerCase();
-    if (keyword.isEmpty ||
-        (!lower.contains('barcode') && !lower.contains('qrcode'))) {
+    final typeCode = column.columnType.code;
+    if (typeCode != TColumnType.TYPE_BARCODE &&
+        typeCode != TColumnType.TYPE_QR_CODE &&
+        typeCode != TColumnType.TYPE_GS1_BARCODE) {
       continue;
     }
+    final keyword = column.keyword.trim();
+    if (keyword.isEmpty) continue;
     final objectId = keyword.startsWith('#') ? keyword : '#$keyword';
     if (seen.add(objectId.toLowerCase())) {
       result.add(objectId);
     }
   }
   return result.isEmpty ? const ['#BARCODE'] : result;
+}
+
+List<FortuneObjectConnectionOption> commonLabelBarcodeObjectOptionsFromColumns(
+  Iterable<TColumnBase> columns,
+) {
+  final result = <FortuneObjectConnectionOption>[];
+  final seen = <String>{};
+  for (final column in columns) {
+    if (column is! TColumn) continue;
+    final typeCode = column.columnType.code;
+    if (typeCode != TColumnType.TYPE_BARCODE &&
+        typeCode != TColumnType.TYPE_QR_CODE &&
+        typeCode != TColumnType.TYPE_GS1_BARCODE) {
+      continue;
+    }
+    final keyword = column.keyword.trim();
+    if (keyword.isEmpty) continue;
+    final objectId = keyword.startsWith('#') ? keyword : '#$keyword';
+    if (!seen.add(objectId.toLowerCase())) continue;
+    final formatId = _columnBarcodeFormatId(column);
+    final formatLabel = labelSheetBarcodeFormats
+        .where((format) => format.id == formatId)
+        .map((format) => format.label)
+        .firstOrNull;
+    final name = column.columnName.trim().isEmpty
+        ? keyword
+        : column.columnName.trim();
+    result.add(
+      FortuneObjectConnectionOption(
+        value: objectId,
+        label: '$name ($objectId) · ${formatLabel ?? formatId}',
+        formatId: formatId,
+        formatLabel: formatLabel ?? formatId,
+        showHumanReadableText: column.showBarcodeNum,
+      ),
+    );
+  }
+  return result;
+}
+
+String _columnBarcodeFormatId(TColumn column) {
+  if (column.columnType.code == TColumnType.TYPE_QR_CODE &&
+      column.barcodeType != BarcodeType.QrCode &&
+      column.barcodeType != BarcodeType.MicroQrCode &&
+      column.barcodeType != BarcodeType.DataMatrix) {
+    return 'qrCode';
+  }
+  return switch (column.barcodeType) {
+    BarcodeType.CodeEAN13 => 'ean13',
+    BarcodeType.Code128 => 'code128',
+    BarcodeType.Itf => 'itf',
+    BarcodeType.DataMatrix => 'dataMatrix',
+    BarcodeType.Code39 => 'code39',
+    BarcodeType.QrCode => 'qrCode',
+    BarcodeType.MicroQrCode => 'microQRCode',
+    BarcodeType.UpcA => 'upca',
+    BarcodeType.Code93 => 'code93',
+    BarcodeType.CodeEAN8 => 'ean8',
+  };
 }
 
 @visibleForTesting
@@ -47,13 +109,13 @@ List<String> commonLabelImageObjectIdsFor(
   return commonLabelImageObjectIdsFromColumns([...specialColumns, ...columns]);
 }
 
-@visibleForTesting
 List<String> commonLabelImageObjectIdsFromColumns(
   Iterable<TColumnBase> columns,
 ) {
   final result = <String>[];
   final seen = <String>{};
   for (final column in columns) {
+    if (column.columnType.code != TColumnType.TYPE_IMAGE) continue;
     final keyword = column.keyword.trim();
     if (keyword.isEmpty) {
       continue;
@@ -62,6 +124,30 @@ List<String> commonLabelImageObjectIdsFromColumns(
     if (seen.add(objectId.toLowerCase())) {
       result.add(objectId);
     }
+  }
+  return result;
+}
+
+List<FortuneObjectConnectionOption> commonLabelImageObjectOptionsFromColumns(
+  Iterable<TColumnBase> columns,
+) {
+  final result = <FortuneObjectConnectionOption>[];
+  final seen = <String>{};
+  for (final column in columns) {
+    if (column.columnType.code != TColumnType.TYPE_IMAGE) continue;
+    final keyword = column.keyword.trim();
+    if (keyword.isEmpty) continue;
+    final objectId = keyword.startsWith('#') ? keyword : '#$keyword';
+    if (!seen.add(objectId.toLowerCase())) continue;
+    final name = column.columnName.trim().isEmpty
+        ? keyword
+        : column.columnName.trim();
+    result.add(
+      FortuneObjectConnectionOption(
+        value: objectId,
+        label: '$name ($objectId) · 이미지',
+      ),
+    );
   }
   return result;
 }
@@ -113,6 +199,8 @@ class CommonLabelManage extends StatefulWidget {
   final FutureOr<void> Function()? onBeforeSheetDialog;
   final VoidCallback? onSheetDialogClosed;
   final LabelSheetImageImportController? imageImportController;
+  final ValueChanged<bool>? onSheetDirtyChanged;
+  final VoidCallback? onColumnEditRequested;
   const CommonLabelManage({
     super.key,
     required this.title,
@@ -122,6 +210,8 @@ class CommonLabelManage extends StatefulWidget {
     this.onBeforeSheetDialog,
     this.onSheetDialogClosed,
     this.imageImportController,
+    this.onSheetDirtyChanged,
+    this.onColumnEditRequested,
   });
 
   @override
@@ -156,6 +246,11 @@ class _CommonLabelManageState extends State<CommonLabelManage> {
         );
         final imageObjectIds = commonLabelImageObjectIdsFor(
           specialColumns,
+          columns,
+        );
+        final barcodeObjectOptions =
+            commonLabelBarcodeObjectOptionsFromColumns(columns);
+        final imageObjectOptions = commonLabelImageObjectOptionsFromColumns(
           columns,
         );
         final requiredKeywords = commonLabelRequiredKeywordsFor(
@@ -195,12 +290,15 @@ class _CommonLabelManageState extends State<CommonLabelManage> {
                     labelSize: widget.labelSize,
                     imageObjectIds: imageObjectIds,
                     barcodeObjectIds: barcodeObjectIds,
+                    imageObjectOptions: imageObjectOptions,
+                    barcodeObjectOptions: barcodeObjectOptions,
                     requiredKeywords: requiredKeywords,
                     onSheetReady: widget.onSheetReady,
                     onGridRectChanged: widget.onGridRectChanged,
                     onBeforeSheetDialog: widget.onBeforeSheetDialog,
                     onSheetDialogClosed: widget.onSheetDialogClosed,
                     imageImportController: widget.imageImportController,
+                    onDirtyChanged: widget.onSheetDirtyChanged,
                   ),
                 ),
               ),
@@ -226,6 +324,7 @@ class _CommonLabelManageState extends State<CommonLabelManage> {
               child: _RightPane(
                 title: '${widget.title} - 우측',
                 columns: specialColumns,
+                onColumnEditRequested: widget.onColumnEditRequested,
               ),
             ),
           ],
@@ -238,7 +337,12 @@ class _CommonLabelManageState extends State<CommonLabelManage> {
 class _RightPane extends StatefulWidget {
   final String title;
   final List<TColumnBase> columns;
-  const _RightPane({required this.title, required this.columns});
+  final VoidCallback? onColumnEditRequested;
+  const _RightPane({
+    required this.title,
+    required this.columns,
+    this.onColumnEditRequested,
+  });
 
   @override
   State<_RightPane> createState() => _RightPaneState();
@@ -297,7 +401,7 @@ class _RightPaneState extends State<_RightPane> {
               icon: Icons.checklist,
               height: bottomHeight,
               action: TextButton.icon(
-                onPressed: () {},
+                onPressed: widget.onColumnEditRequested,
                 icon: const Icon(Icons.edit, size: 16),
                 label: const Text('항목 편집'),
                 style: TextButton.styleFrom(

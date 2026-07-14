@@ -19,6 +19,8 @@ class FortuneSheetApp extends StatefulWidget {
     this.barcodeFormats = const <FortuneBarcodeFormatOption>[],
     this.imageObjectIds = const <String>[],
     this.barcodeObjectIds = const <String>[],
+    this.imageObjectOptions = const <FortuneObjectConnectionOption>[],
+    this.barcodeObjectOptions = const <FortuneObjectConnectionOption>[],
     this.onChange,
     this.onOp,
     this.locale = const FortuneSheetLocale(),
@@ -36,6 +38,8 @@ class FortuneSheetApp extends StatefulWidget {
   final List<FortuneBarcodeFormatOption> barcodeFormats;
   final List<String> imageObjectIds;
   final List<String> barcodeObjectIds;
+  final List<FortuneObjectConnectionOption> imageObjectOptions;
+  final List<FortuneObjectConnectionOption> barcodeObjectOptions;
   final ValueChanged<FortuneWorkbook>? onChange;
   final FortuneOpCallback? onOp;
   final FortuneSheetLocale locale;
@@ -152,6 +156,8 @@ class _FortuneSheetAppState extends State<FortuneSheetApp> {
         barcodeFormats: widget.barcodeFormats,
         imageObjectIds: widget.imageObjectIds,
         barcodeObjectIds: widget.barcodeObjectIds,
+        imageObjectOptions: widget.imageObjectOptions,
+        barcodeObjectOptions: widget.barcodeObjectOptions,
         onChange: widget.workbook == null
             ? _handleWorkbookChanged
             : widget.onChange,

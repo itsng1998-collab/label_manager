@@ -28,6 +28,20 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-14): 공용라벨 라벨 항목 편집기 구현
+
+- `doc/user_item_modify.txt`의 확정 범위대로 공용라벨관리 `사용 항목 > 항목 편집`을 구현했다. `TColumn.copyWith`, 불변 `LabelColumnDraft`/`LabelColumnEditSession`, 안정 key, 추가·삭제·순서 변경, 속성 적용/취소, 예약어·중복·필수 검증과 save command를 추가했다.
+- 고정 후보·고객 사용자 항목 DAO와 사용자 항목 CRUD working copy를 추가했다. 고객 소유권과 affected row를 검증하며 JSON scalar parameter + `OPENJSON`을 사용한다.
+- 사용 항목 저장은 main/check/min/content/update-content/GS1/delete/status/order를 하나의 transaction batch로 처리한다. optional schema capability별 정적 SQL variant와 `OUTPUT INSERTED` 신규 ID 매핑을 사용하고, 저장 완료 후 전체 column session을 강제 재조회한다.
+- 독립 modeless 항목 편집 dialog에 3영역 UI, fixed/customer 전환, 사용자 항목 CRUD, reorder, 속성 panel, dirty/busy/pending 확인을 연결했다. sheet 저장 결과는 `LabelSheetSaveResult`로 성공/취소를 구분하며 실제 반영된 경우에만 dirty를 해제한다.
+- 바코드 연결 후보는 `TYPE_BARCODE`/`TYPE_QR_CODE`/`TYPE_GS1_BARCODE`, 이미지 후보는 `TYPE_IMAGE`만 사용한다. 구조화 option은 표시 label과 저장 keyword를 분리하고 항목 기본 형식과 `showBarcodeNum`을 전달한다.
+- FortuneSheet dialog에 `연결 안 함`, 연결/고정/연결 끊김 표시, 연결형 바코드 값 read-only, 항목 기본 형식·번호 표시, `이 라벨에서 형식 고정`, 고정형 metadata 제거를 구현했다. 품목 이미지는 파일 없이 placeholder 객체를 삽입하고 파일 control을 숨기며, 고정 이미지는 기존 파일 선택/교체 동작을 유지한다. 후보에서 사라진 연결 keyword는 `연결 끊김`으로 표시하면서 저장값을 보존한다.
+- 출력 materialize에서 연결 이미지 값/BMP가 없으면 해당 객체를 제외하고 고정 이미지는 유지한다. 연결 바코드는 항목 소유 형식/번호 표시와 라벨별 형식 고정 metadata를 사용한다.
+- formatter 적용 완료. 항목 편집 focused suite 143개 통과, FortuneSheet 바코드·이미지 dialog 66개 통과, `flutter analyze` 결과 `No issues found`, 전체 `flutter test` 358개 통과했다. 테스트가 생성한 `third_party/fortune_sheet/build/` 캐시를 삭제했다.
+- 실제 SQL Server 연결 smoke test는 로컬 DB 연결 정보가 없어 실행하지 못했다. DAO SQL 계약은 단위 테스트로 검증했으며 배포 build/installer와 원격 push는 수행하지 않는다.
+- stage/commit 대상은 항목 편집 production/test 파일과 `SESSION_HANDOFF.md`다. unrelated `lib/core/app.dart`는 제외한다.
+- 로컬 기능 커밋: `dfe95f0 공용라벨 항목 편집 기능을 구현`. 원격 push와 배포 build/installer 생성은 수행하지 않았다.
+
 ### 완료 (2026-07-14): 브랜드·라벨 설정 현재 HEAD 최종 재검토
 
 - `3e63b4b`의 브랜드 순서 변경까지 포함한 현재 HEAD에서 브랜드 reorder 실제 조작, `BrandDAO.updateOrders()` parameter/transaction/result, 부모 cache/선택 동기화, modeless close 경로, 라벨 CRUD/reorder/date setup을 재검토했다.

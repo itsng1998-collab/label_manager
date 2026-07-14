@@ -1918,6 +1918,7 @@ void main() {
               savedWidth = width;
               savedHeight = height;
               savedPayload = payload;
+              return LabelSheetSaveResult.applied;
             },
           ),
         ),
@@ -2581,6 +2582,7 @@ void main() {
               ),
               onSave: (_, _, payload) {
                 savedPayload = payload;
+                return LabelSheetSaveResult.applied;
               },
             ),
           ),
@@ -2822,6 +2824,60 @@ void main() {
     ]);
 
     expect(missing, ['가격']);
+  });
+
+  test('item output excludes unresolved linked images but keeps fixed images', () {
+    const fixedImage = FortuneImage(
+      id: 'fixed',
+      src: 'data:image/png;base64,AA==',
+      left: 0,
+      top: 0,
+      width: 10,
+      height: 10,
+    );
+    final workbook = FortuneWorkbook(
+      sheets: [
+        FortuneSheet(
+          id: 's1',
+          name: 'Images',
+          images: const [
+            FortuneImage(
+              id: 'empty-linked',
+              src: 'data:image/png;base64,AA==',
+              left: 0,
+              top: 0,
+              width: 10,
+              height: 10,
+              extraFields: {fortuneImageObjectIdExtraKey: '#EMPTY_IMAGE'},
+            ),
+            FortuneImage(
+              id: 'missing-linked',
+              src: 'data:image/png;base64,AA==',
+              left: 0,
+              top: 0,
+              width: 10,
+              height: 10,
+              extraFields: {fortuneImageObjectIdExtraKey: '#MISSING_IMAGE'},
+            ),
+            fixedImage,
+          ],
+        ),
+      ],
+    );
+
+    final materialized = debugMaterializeItemImagesForTesting(workbook, {
+      '#EMPTY_IMAGE': '',
+      '#MISSING_IMAGE': '__label_manager_missing_image__',
+    });
+
+    final images = materialized.sheets.single.images;
+    expect(images, hasLength(1));
+    expect(images.single.id, fixedImage.id);
+    expect(images.single.src, fixedImage.src);
+    expect(
+      images.single.extraFields.containsKey(fortuneImageObjectIdExtraKey),
+      isFalse,
+    );
   });
 
   test('Gemini model menu includes supported model choices', () {

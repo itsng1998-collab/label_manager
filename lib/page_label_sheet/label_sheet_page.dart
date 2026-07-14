@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:fortune_sheet/fortune_sheet.dart'
   show
+    FortuneObjectConnectionOption,
     FortuneWorkbook,
     fortuneBarcodeObjectIdExtraKey,
     fortuneImageObjectIdExtraKey;
@@ -120,23 +121,29 @@ class LabelSheetPage extends StatelessWidget {
     this.labelSize,
     this.imageObjectIds = const <String>[],
     this.barcodeObjectIds = const <String>[],
+    this.imageObjectOptions = const <FortuneObjectConnectionOption>[],
+    this.barcodeObjectOptions = const <FortuneObjectConnectionOption>[],
     this.requiredKeywords = const <LabelSheetRequiredKeyword>[],
     this.onSheetReady,
     this.onGridRectChanged,
     this.onBeforeSheetDialog,
     this.onSheetDialogClosed,
     this.imageImportController,
+    this.onDirtyChanged,
   });
 
   final LabelSize? labelSize;
   final List<String> imageObjectIds;
   final List<String> barcodeObjectIds;
+  final List<FortuneObjectConnectionOption> imageObjectOptions;
+  final List<FortuneObjectConnectionOption> barcodeObjectOptions;
   final List<LabelSheetRequiredKeyword> requiredKeywords;
   final VoidCallback? onSheetReady;
   final ValueChanged<Rect>? onGridRectChanged;
   final FutureOr<void> Function()? onBeforeSheetDialog;
   final VoidCallback? onSheetDialogClosed;
   final LabelSheetImageImportController? imageImportController;
+  final ValueChanged<bool>? onDirtyChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -164,11 +171,14 @@ class LabelSheetPage extends StatelessWidget {
         labelRtf: rtf,
         imageObjectIds: imageObjectIds,
         barcodeObjectIds: barcodeObjectIds,
+        imageObjectOptions: imageObjectOptions,
+        barcodeObjectOptions: barcodeObjectOptions,
         onInitialLoadComplete: onSheetReady,
         onGridRectChanged: onGridRectChanged,
         onBeforeSheetDialog: onBeforeSheetDialog,
         onSheetDialogClosed: onSheetDialogClosed,
         imageImportController: imageImportController,
+        onDirtyChanged: onDirtyChanged,
         hideStatisticBar: true,
         onSave: (width, height, encodedWorkbook) =>
           _handleSaveLabelSheet(context, width, height, encodedWorkbook),
@@ -176,7 +186,7 @@ class LabelSheetPage extends StatelessWidget {
     );
   }
 
-  Future<void> _handleSaveLabelSheet(
+  Future<LabelSheetSaveResult> _handleSaveLabelSheet(
     BuildContext context,
     int width,
     int height,
@@ -203,7 +213,7 @@ class LabelSheetPage extends StatelessWidget {
 
     if (confirmed != true) {
       debugLog('saveLabelSheet cancelledByUser labelSizeId=${labelSize?.labelSizeId} keepEditing');
-      return;
+      return LabelSheetSaveResult.notApplied;
     }
 
     final missingRequiredNames = labelSheetMissingRequiredKeywordNames(
@@ -229,10 +239,10 @@ class LabelSheetPage extends StatelessWidget {
           ),
         );
       }
-      return;
+      return LabelSheetSaveResult.notApplied;
     }
 
-    if (!context.mounted) return;
+    if (!context.mounted) return LabelSheetSaveResult.notApplied;
     showSnackBar(
       context,
       '라벨을 저장 중입니다...',
@@ -243,7 +253,7 @@ class LabelSheetPage extends StatelessWidget {
     try {
       if (labelSize == null) {
         debugLog('$END - labelSize is null, skipping save');
-        return;
+        return LabelSheetSaveResult.notApplied;
       }
 
       final id = labelSize!.labelSizeId;
@@ -251,6 +261,7 @@ class LabelSheetPage extends StatelessWidget {
       await LabelSizeDAO.updateByLabelSizeId(id, width, height, encodedWorkbook);
       LabelSize.replaceCachedFormData(id, width, height, encodedWorkbook);
       debugLog('$END - save completed');
+      return LabelSheetSaveResult.applied;
     }
     catch (e) {
       debugLog('$END - save failed, error=$e');

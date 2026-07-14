@@ -28,6 +28,8 @@ import 'package:label_manager/models/item_manager_draft.dart';
 import 'package:label_manager/models/item_manager_save.dart';
 import 'package:label_manager/models/item_of_market.dart';
 import 'package:label_manager/models/label_size.dart';
+import 'package:label_manager/models/label_column_edit.dart';
+import 'package:label_manager/models/label_column_save.dart';
 import 'package:label_manager/models/last_connect.dart';
 import 'package:label_manager/models/market.dart';
 import 'package:label_manager/models/user.dart';
@@ -48,6 +50,7 @@ import 'package:label_manager/page_home/item_manager_xlsx.dart';
 import 'package:label_manager/page_home/date_type_setup_dialog.dart';
 import 'package:label_manager/page_home/item_order_dialog.dart';
 import 'package:label_manager/page_home/common_label_manage.dart';
+import 'package:label_manager/page_home/label_column_edit_dialog.dart';
 import 'package:label_manager/page_home/preview_floating_window.dart';
 import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
 import 'package:label_manager/widgets/swipe_action_table.dart';
@@ -213,6 +216,8 @@ class _HomePageManagerState extends State<HomePageManager> {
   bool _commonLabelPreviewHiddenForSheetDialog = false;
   bool _commonLabelPreviewMovedByUser = false;
   bool _itemDraftCommandBusy = false;
+  bool _commonLabelSheetDirty = false;
+  bool _labelColumnEditCommandBusy = false;
   final ItemElementCommitQueue _itemElementCommitQueue =
       ItemElementCommitQueue();
   bool _lastReportedItemDraftDirty = false;
@@ -226,6 +231,7 @@ class _HomePageManagerState extends State<HomePageManager> {
 
   OverlayEntry? _brandSettingsOverlayEntry;
   OverlayEntry? _labelSettingsOverlayEntry;
+  OverlayEntry? _labelColumnEditOverlayEntry;
   // 브랜드 설정 다이얼로그에서 브랜드를 선택한 후 라벨 시트 로드가 완료될 때까지
   // 다이얼로그의 더블클릭을 차단하기 위한 플래그.
   final ValueNotifier<bool> _brandDialogBusyNotifier = ValueNotifier(false);
@@ -1973,6 +1979,81 @@ class _HomePageManagerState extends State<HomePageManager> {
     debugLog('labelSettings overlay inserted mounted=${entry.mounted}');
   }
 
+  void _openLabelColumnEditDialog() {
+    final labelSize = _effectiveLabelSize;
+    final customerId = Customer.instance?.customerId;
+    if (_labelColumnEditOverlayEntry != null) return;
+    if (labelSize == null ||
+        customerId == null ||
+        User.instance?.canEdit != true ||
+        _itemDraftCommandBusy ||
+        _labelColumnEditCommandBusy ||
+        _itemDraftController?.isDirty == true ||
+        _commonLabelSheetDirty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('미저장 작업을 저장하거나 취소한 뒤 항목을 편집하세요.')),
+      );
+      return;
+    }
+
+    final targetLabelSizeId = labelSize.labelSizeId;
+    late final OverlayEntry entry;
+    entry = OverlayEntry(
+      builder: (_) => BlockingModelessDialog(
+        child: LabelColumnEditDialog(
+          labelSizeId: targetLabelSizeId,
+          customerId: customerId,
+          initialColumns: List<TColumn>.unmodifiable(
+            TColumn.datas ?? const <TColumn>[],
+          ),
+          canSave: () async =>
+              mounted &&
+              User.instance?.canEdit == true &&
+              _effectiveLabelSize?.labelSizeId == targetLabelSizeId &&
+              !_itemDraftCommandBusy &&
+              !_labelColumnEditCommandBusy &&
+              _itemDraftController?.isDirty != true &&
+              !_commonLabelSheetDirty,
+          onSave: _saveLabelColumnsAndReload,
+          onClose: _closeLabelColumnEditDialog,
+        ),
+      ),
+    );
+    _labelColumnEditOverlayEntry = entry;
+    Overlay.of(context).insert(entry);
+  }
+
+  Future<void> _saveLabelColumnsAndReload(
+    LabelColumnSaveCommand command,
+  ) async {
+    final labelSize = _effectiveLabelSize;
+    if (labelSize == null ||
+        command.labelSizeId != labelSize.labelSizeId ||
+        User.instance?.canEdit != true ||
+        _itemDraftCommandBusy ||
+        _labelColumnEditCommandBusy ||
+        _itemDraftController?.isDirty == true ||
+        _commonLabelSheetDirty) {
+      throw StateError('현재 상태에서는 라벨 항목을 저장할 수 없습니다.');
+    }
+
+    setState(() => _labelColumnEditCommandBusy = true);
+    try {
+      await LabelColumnSaveDao.save(command);
+      final loaded = await _handleLabelSizeChanged(labelSize, forceReload: true);
+      if (!loaded) {
+        throw StateError('항목은 저장됐지만 현재 라벨 정보를 다시 불러오지 못했습니다.');
+      }
+    } finally {
+      if (mounted) setState(() => _labelColumnEditCommandBusy = false);
+    }
+  }
+
+  void _closeLabelColumnEditDialog() {
+    _labelColumnEditOverlayEntry?.remove();
+    _labelColumnEditOverlayEntry = null;
+  }
+
   Future<void> _openDateTypeSetupDialog() async {
     final trace = ItemManagerDebugLog.nextTrace('dateSetup');
     final labelSize = _effectiveLabelSize;
@@ -2229,6 +2310,10 @@ class _HomePageManagerState extends State<HomePageManager> {
                   onBeforeSheetDialog: _handleCommonLabelSheetDialogOpening,
                   onSheetDialogClosed: _handleCommonLabelSheetDialogClosed,
                   imageImportController: _commonLabelImageImportController,
+                  onSheetDirtyChanged: (dirty) {
+                    _commonLabelSheetDirty = dirty;
+                  },
+                  onColumnEditRequested: _openLabelColumnEditDialog,
                 )
               : const SizedBox.shrink(),
           closable: false,
@@ -2994,6 +3079,8 @@ class _HomePageManagerState extends State<HomePageManager> {
     _brandSettingsOverlayEntry = null;
     _labelSettingsOverlayEntry?.remove();
     _labelSettingsOverlayEntry = null;
+    _labelColumnEditOverlayEntry?.remove();
+    _labelColumnEditOverlayEntry = null;
     _brandDialogBusyNotifier.dispose();
     super.dispose();
   }
@@ -4412,7 +4499,9 @@ class _ItemElementPreviewTab extends StatelessWidget {
           : null,
       onSave: canEdit
           ? (width, height, encodedWorkbook) =>
-                onSave(context, width, height, encodedWorkbook)
+                onSave(context, width, height, encodedWorkbook).then(
+                  (_) => LabelSheetSaveResult.applied,
+                )
           : null,
     );
   }
@@ -4484,35 +4573,11 @@ bool _itemManagerDateSettingsEnabled({
     !draftDirty;
 
 List<String> _itemPreviewImageObjectIdsFor(Iterable<TColumnBase> columns) {
-  final result = <String>[];
-  final seen = <String>{};
-  for (final column in columns) {
-    final keyword = column.keyword.trim();
-    if (keyword.isEmpty) continue;
-    final objectId = keyword.startsWith('#') ? keyword : '#$keyword';
-    if (seen.add(objectId.toLowerCase())) {
-      result.add(objectId);
-    }
-  }
-  return result;
+  return commonLabelImageObjectIdsFromColumns(columns);
 }
 
 List<String> _itemPreviewBarcodeObjectIdsFor(Iterable<TColumnBase> columns) {
-  final result = <String>[];
-  final seen = <String>{};
-  for (final column in columns) {
-    final keyword = column.keyword.trim();
-    final lower = keyword.toLowerCase();
-    if (keyword.isEmpty ||
-        (!lower.contains('barcode') && !lower.contains('qrcode'))) {
-      continue;
-    }
-    final objectId = keyword.startsWith('#') ? keyword : '#$keyword';
-    if (seen.add(objectId.toLowerCase())) {
-      result.add(objectId);
-    }
-  }
-  return result.isEmpty ? const ['#BARCODE'] : result;
+  return commonLabelBarcodeObjectIdsFromColumns(columns);
 }
 
 class _ItemOutputPreviewTab extends StatelessWidget {
@@ -4762,6 +4827,21 @@ List<({String text, bool error})> debugItemCodePreviewMessagesForTesting(
 @visibleForTesting
 String debugItemCodeErrorPlaceholderForTesting() =>
     _itemCodeErrorPlaceholderDataUri();
+
+@visibleForTesting
+fs.FortuneWorkbook debugMaterializeItemImagesForTesting(
+  fs.FortuneWorkbook workbook,
+  Map<String, String> replacements,
+) => workbook.copyWith(
+  sheets: [
+    for (final sheet in workbook.sheets)
+      _replaceSheetKeywords(
+        sheet,
+        replacements,
+        imageKeywords: const <String>{},
+      ),
+  ],
+);
 
 ({fs.FortuneWorkbook? workbook, String? hintText}) _itemOutputPreview({
   required LabelSize? labelSize,
@@ -5190,15 +5270,18 @@ fs.FortuneSheet _replaceSheetKeywords(
       }
     }
   }
-  final nextImages = [
-    for (final image in sheet.images)
-      _replaceImageKeywords(
-        image,
-        replacements,
-        codeDataResolver: codeDataResolver,
-      ),
-    ...insertedImages,
-  ];
+  final nextImages = <fs.FortuneImage>[];
+  for (final image in sheet.images) {
+    final materializedImage = _replaceImageKeywords(
+      image,
+      replacements,
+      codeDataResolver: codeDataResolver,
+    );
+    if (materializedImage != null) {
+      nextImages.add(materializedImage);
+    }
+  }
+  nextImages.addAll(insertedImages);
   return sheet.copyWith(
     cells: nextCells,
     images: nextImages,
@@ -5351,7 +5434,7 @@ double? _itemPreviewDoubleExtra(Map<String, Object?> extraFields, String key) {
   return double.tryParse('$value');
 }
 
-fs.FortuneImage _replaceImageKeywords(
+fs.FortuneImage? _replaceImageKeywords(
   fs.FortuneImage image,
   Map<String, String> replacements, {
   ItemCodeDataResolver? codeDataResolver,
@@ -5394,9 +5477,10 @@ fs.FortuneImage _replaceImageKeywords(
     for (final entry in replacements.entries) {
       if (entry.key.toLowerCase() != objectId) continue;
       final src = _itemImageDataUri(entry.value);
-      if (src == null) break;
+      if (src == null) return null;
       return image.copyWith(src: src, extraFields: extraFields);
     }
+    return null;
   }
   return image.copyWith();
 }
