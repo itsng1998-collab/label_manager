@@ -28,6 +28,20 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-14): 라벨 항목 편집 UI 밀도와 후보 테이블 통일
+
+- 사용자 요청: 첨부 화면의 라벨 항목 편집 다이얼로그 전체 글꼴을 1px 줄이고 위젯 크기·간격·배치를 함께 축소한다. 고정/사용자 후보 목록은 사용 항목과 같은 테이블 위젯으로 변경한다.
+- 수정 예정/완료 `lib/widgets/swipe_action_table.dart`: 기존 호출부 기본 동작을 유지하는 선택적 `rowDragDataBuilder`/`onRowDragStarted` hook을 추가해 공용 테이블 행도 외부 drag payload를 제공할 수 있게 했다.
+- 수정 예정/완료 `lib/page_home/label_column_edit_dialog.dart`: 다이얼로그 전용 Theme에서 전체 글꼴을 1px 줄이고 compact density, 축소된 최대 크기·최소 content 폭·padding·속성 패널·command rail·footer 치수를 적용했다. 고정/사용자 후보 `ListView/ListTile`을 중앙과 같은 `SwipeActionTable`로 교체하고 상태/키워드/항목명/종류 열, 선택, 사용 중 비활성 표시, 기존 drag 추가를 유지했다.
+- 테스트 `test/label_column_edit_dialog_test.dart`: 다이얼로그 `bodyMedium`이 앱 기본값보다 정확히 1px 작은지, 중앙/우측에 `SwipeActionTable` 2개가 렌더링되고 우측 후보 테이블에 `키워드` 헤더가 있는지 계약을 추가했다.
+- Dart formatter 완료.
+- focused 검증 `C:\Flutter\bin\flutter.bat test test/label_column_edit_dialog_test.dart`: 7개 전체 통과. 최초 Theme 래핑 괄호 누락과 generic `find.byType` assertion 문제를 각각 수정한 뒤 재검증했다. 후보 선택·추가/삭제, 사용자 항목 편집, 재정렬, 저장 중 비활성, 900x600 overflow가 정상이다.
+- 전체 정적 분석 `C:\Flutter\bin\flutter.bat analyze`: 성공, 이슈 없음.
+- 전체 테스트 `C:\Flutter\bin\flutter.bat test`: 360개 전체 통과.
+- 정확히 1px 축소 계약 추가 후 focused 테스트 7개 재통과. 최종 Dart 진단 이슈 없음, `git diff --check` 통과.
+- 임시 산출물 `third_party/fortune_sheet/build/` 정리 완료.
+- stage/commit 대상: `lib/widgets/swipe_action_table.dart`, `lib/page_home/label_column_edit_dialog.dart`, `test/label_column_edit_dialog_test.dart`, `SESSION_HANDOFF.md`. unrelated `lib/core/app.dart`는 제외한다.
+
 ### 완료 (2026-07-14): 공용라벨 clean 상태 항목 편집 진입 보정
 
 - 사용자 재현: 공용라벨 시트 저장 버튼이 비활성화된 clean 상태에서도 `항목 편집`에 진입하지 못한다.

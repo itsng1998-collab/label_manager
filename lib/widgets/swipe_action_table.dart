@@ -103,6 +103,8 @@ class SwipeActionTable<T> extends StatefulWidget {
     this.canSwipeRow,
     this.rowNumberText,
     this.rowColorBuilder,
+    this.rowDragDataBuilder,
+    this.onRowDragStarted,
     this.selectedIndex,
     this.onRowSelected,
     this.onRowReorder,
@@ -127,6 +129,8 @@ class SwipeActionTable<T> extends StatefulWidget {
   final bool Function(T row, int index)? canSwipeRow;
   final String Function(T row, int index)? rowNumberText;
   final Color Function(T row, int index, bool selected)? rowColorBuilder;
+  final Object? Function(T row, int index)? rowDragDataBuilder;
+  final void Function(T row, int index)? onRowDragStarted;
   final int? selectedIndex;
   final void Function(T row, int index)? onRowSelected;
   final void Function(int fromIndex, int toIndex)? onRowReorder;
@@ -1094,17 +1098,30 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
         ),
       ),
     );
+    final dragData = widget.rowDragDataBuilder?.call(row, index);
+    final draggableRow = dragData == null
+        ? rowBox
+        : Draggable<Object>(
+            data: dragData,
+            feedback: Material(
+              elevation: 4,
+              child: _buildDataRowFeedback(row, index, widths),
+            ),
+            childWhenDragging: Opacity(opacity: 0.45, child: rowBox),
+            onDragStarted: () => widget.onRowDragStarted?.call(row, index),
+            child: rowBox,
+          );
     final onRowReorder = widget.onRowReorder;
     if (!widget.rowReorderEnabled ||
         onRowReorder == null ||
         isRowContentInteractive) {
-      return rowBox;
+      return draggableRow;
     }
     return _buildRowReorderTarget(
       index: index,
       width: contentWidth,
-      child: rowBox,
-      feedback: _buildWholeRowFeedback(index, rowBox),
+      child: draggableRow,
+      feedback: _buildWholeRowFeedback(index, draggableRow),
     );
   }
 

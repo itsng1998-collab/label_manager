@@ -147,6 +147,27 @@ void main() {
     expect(find.text('속성'), findsOneWidget);
     expect(find.text('사용 항목'), findsOneWidget);
     expect(find.text('고정 A'), findsOneWidget);
+    final appFontSize = Theme.of(
+      tester.element(find.byType(Scaffold)),
+    ).textTheme.bodyMedium!.fontSize!;
+    final dialogFontSize = Theme.of(
+      tester.element(find.byKey(const Key('label-column-edit-dialog'))),
+    ).textTheme.bodyMedium!.fontSize!;
+    expect(dialogFontSize, appFontSize - 1);
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget.runtimeType.toString().startsWith('SwipeActionTable<'),
+      ),
+      findsNWidgets(2),
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('label-column-candidate-list')),
+        matching: find.text('키워드'),
+      ),
+      findsOneWidget,
+    );
 
     await _tapVisible(tester, find.text('사용자 항목'));
     await tester.pumpAndSettle();

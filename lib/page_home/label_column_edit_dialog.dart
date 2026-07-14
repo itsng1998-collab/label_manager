@@ -229,13 +229,23 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
     if (_candidateSource == LabelColumnCandidateSource.fixed) {
       for (final row in _fixedCandidates) {
         if ('fixed:${row.id}' == key) {
-          return _CandidateValue(row.columnType, row.keyword, row.columnName);
+          return _CandidateValue(
+            key,
+            row.columnType,
+            row.keyword,
+            row.columnName,
+          );
         }
       }
     } else {
       for (final row in _customerCandidates) {
         if ('customer:${row.id}' == key) {
-          return _CandidateValue(row.columnType, row.keyword, row.columnName);
+          return _CandidateValue(
+            key,
+            row.columnType,
+            row.keyword,
+            row.columnName,
+          );
         }
       }
     }
@@ -449,40 +459,55 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
   @override
   Widget build(BuildContext context) {
     final screen = MediaQuery.sizeOf(context);
-    final width = (screen.width - 56).clamp(320.0, 1220.0);
-    final height = (screen.height - 56).clamp(320.0, 760.0);
-    return Shortcuts(
-      shortcuts: const {SingleActivator(LogicalKeyboardKey.escape): _CloseIntent()},
-      child: Actions(
-        actions: {
-          _CloseIntent: CallbackAction<_CloseIntent>(onInvoke: (_) => _requestClose()),
+    final width = (screen.width - 64).clamp(320.0, 1160.0);
+    final height = (screen.height - 64).clamp(320.0, 720.0);
+    final theme = Theme.of(context);
+    return Theme(
+      data: theme.copyWith(
+        textTheme: theme.textTheme.apply(fontSizeDelta: -1),
+        primaryTextTheme: theme.primaryTextTheme.apply(fontSizeDelta: -1),
+        visualDensity: VisualDensity.compact,
+        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      ),
+      child: Shortcuts(
+        shortcuts: const {
+          SingleActivator(LogicalKeyboardKey.escape): _CloseIntent(),
         },
-        child: BlockingModelessDialogFrame(
-          key: const Key('label-column-edit-dialog'),
-          title: '라벨 항목 편집',
-          width: width,
-          height: height,
-          closeEnabled: !_busy && !_exclusiveMode,
-          onClose: _requestClose,
-          footer: _buildMainFooter(),
-          child: LayoutBuilder(
-            builder: (context, constraints) => Scrollbar(
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: SizedBox(
-                  width: constraints.maxWidth < 1080 ? 1080 : constraints.maxWidth,
-                  height: constraints.maxHeight,
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        SizedBox(width: 300, child: _buildPropertyPanel()),
-                        const VerticalDivider(width: 16),
-                        Expanded(flex: 5, child: _buildUsedColumns()),
-                        SizedBox(width: 52, child: _buildCommandRail()),
-                        Expanded(flex: 4, child: _buildCandidates()),
-                      ],
+        child: Actions(
+          actions: {
+            _CloseIntent: CallbackAction<_CloseIntent>(
+              onInvoke: (_) => _requestClose(),
+            ),
+          },
+          child: BlockingModelessDialogFrame(
+            key: const Key('label-column-edit-dialog'),
+            title: '라벨 항목 편집',
+            width: width,
+            height: height,
+            closeEnabled: !_busy && !_exclusiveMode,
+            onClose: _requestClose,
+            footer: _buildMainFooter(),
+            child: LayoutBuilder(
+              builder: (context, constraints) => Scrollbar(
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: SizedBox(
+                    width: constraints.maxWidth < 1020
+                        ? 1020
+                        : constraints.maxWidth,
+                    height: constraints.maxHeight,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(10, 6, 10, 6),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          SizedBox(width: 282, child: _buildPropertyPanel()),
+                          const VerticalDivider(width: 14),
+                          Expanded(flex: 5, child: _buildUsedColumns()),
+                          SizedBox(width: 48, child: _buildCommandRail()),
+                          Expanded(flex: 4, child: _buildCandidates()),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -496,8 +521,8 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
 
   Widget _buildMainFooter() {
     return Container(
-      height: 52,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      height: 48,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
       decoration: const BoxDecoration(border: Border(top: BorderSide(color: Color(0x22000000)))),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.end,
@@ -700,33 +725,74 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
 
   Widget _buildCandidateList() {
     final values = _candidateSource == LabelColumnCandidateSource.fixed
-        ? [for (final row in _fixedCandidates) ('fixed:${row.id}', row.columnType, row.keyword, row.columnName)]
-        : [for (final row in _customerCandidates) ('customer:${row.id}', row.columnType, row.keyword, row.columnName)];
+        ? [
+            for (final row in _fixedCandidates)
+              _CandidateValue(
+                'fixed:${row.id}',
+                row.columnType,
+                row.keyword,
+                row.columnName,
+              ),
+          ]
+        : [
+            for (final row in _customerCandidates)
+              _CandidateValue(
+                'customer:${row.id}',
+                row.columnType,
+                row.keyword,
+                row.columnName,
+              ),
+          ];
     if (values.isEmpty) return const Center(child: Text('후보가 없습니다.'));
-    return ListView.builder(
+    final selectedIndex = values.indexWhere(
+      (row) => row.key == _selectedCandidateKey,
+    );
+    return SwipeActionTable<_CandidateValue>(
       key: const Key('label-column-candidate-list'),
-      itemCount: values.length,
-      itemBuilder: (context, index) {
-        final value = values[index];
-        final disabled = _candidateDisabled(value.$3);
-        final tile = ListTile(
-          dense: true,
-          selected: _selectedCandidateKey == value.$1,
-          enabled: _normalEnabled && !disabled,
-          title: Text(value.$4),
-          subtitle: Text('${value.$3} · ${value.$2.name}'),
-          trailing: disabled ? const Icon(Icons.block, size: 18) : null,
-          onTap: () => setState(() => _selectedCandidateKey = value.$1),
-        );
-        return Draggable<_ColumnDragPayload>(
-          data: _ColumnDragPayload(value.$1),
-          maxSimultaneousDrags: _normalEnabled && !disabled ? 1 : 0,
-          feedback: Material(elevation: 4, child: SizedBox(width: 260, child: tile)),
-          childWhenDragging: Opacity(opacity: 0.45, child: tile),
-          onDragStarted: () => setState(() => _selectedCandidateKey = value.$1),
-          child: tile,
-        );
+      rows: values,
+      selectedIndex: selectedIndex < 0 ? null : selectedIndex,
+      headerHeight: 34,
+      rowHeight: 27,
+      rowColorBuilder: (row, index, selected) =>
+          _candidateDisabled(row.keyword)
+          ? Theme.of(context).disabledColor.withValues(alpha: 0.08)
+          : selected
+          ? const Color(0xFFE3F2FD)
+          : index.isEven
+          ? Colors.white
+          : const Color(0xFFF2F4F7),
+      onRowSelected: (row, index) {
+        if (!_normalEnabled || _candidateDisabled(row.keyword)) return;
+        setState(() => _selectedCandidateKey = row.key);
       },
+      rowDragDataBuilder: (row, index) =>
+          _normalEnabled && !_candidateDisabled(row.keyword)
+          ? _ColumnDragPayload(row.key)
+          : null,
+      onRowDragStarted: (row, index) =>
+          setState(() => _selectedCandidateKey = row.key),
+      columns: [
+        SwipeActionTableColumn(
+          header: '상태',
+          initialWidth: 52,
+          text: (row) => _candidateDisabled(row.keyword) ? '사용 중' : '',
+        ),
+        SwipeActionTableColumn(
+          header: '키워드',
+          initialWidth: 105,
+          text: (row) => row.keyword,
+        ),
+        SwipeActionTableColumn(
+          header: '항목명',
+          initialWidth: 105,
+          text: (row) => row.columnName,
+        ),
+        SwipeActionTableColumn(
+          header: '종류',
+          initialWidth: 80,
+          text: (row) => row.columnType.name,
+        ),
+      ],
     );
   }
 
@@ -1056,8 +1122,14 @@ class _ModeFooter extends StatelessWidget {
 }
 
 class _CandidateValue {
-  const _CandidateValue(this.columnType, this.keyword, this.columnName);
+  const _CandidateValue(
+    this.key,
+    this.columnType,
+    this.keyword,
+    this.columnName,
+  );
 
+  final String key;
   final TColumnType columnType;
   final String keyword;
   final String columnName;
