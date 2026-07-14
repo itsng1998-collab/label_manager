@@ -28,6 +28,14 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-14): 바코드 비율·번호 표시 소유권 보정
+
+- 사용자 요청: 최신 검토에서 확인한 1D 바코드 비율 조절의 레거시 DB 매핑과 연결형 바코드 번호 표시 소유권을 `doc/user_item_modify.txt`에 병합한다.
+- 사용자 확인 필요 여부: 없음. 레거시 저장 경계와 기존 문서의 소유권 원칙에 따라 1D 비율 조절은 `RICH_SHOW_QRCODE_TEXT`/`RICH_QRTEXT_FONTSIZE`를 재사용하고 transient `checkMode`/`barFontSize`를 별도 저장 필드로 만들지 않는다. 연결형 1D 번호 표시는 항목의 `showBarcodeNum`을 읽기 전용으로 따르고, 고정형만 Fortune 객체의 번호 표시를 직접 편집한다. 표시 글꼴은 DB 항목 필드가 아니므로 라벨 객체가 소유한다.
+- 수정 예정 `doc/user_item_modify.txt`: 7.3에 레거시 비율 필드 매핑, 7.4에 연결형/고정형 번호 표시와 renderer materialize 규칙을 명시하고 모델/widget/통합 테스트 및 완료 조건까지 연결한다. 미검증.
+- `doc/user_item_modify.txt` 편집 완료: 비율 조절의 기존 DB 필드 재사용과 transient 상태를 명시했다. 연결형 번호 표시를 `showBarcodeNum` read-only로 고정하고 materialize 시 Fortune `barcodeShowText`를 항목 값으로 갱신하며, 고정형만 직접 편집하고 표시 글꼴은 객체가 소유하도록 본문·widget/통합 테스트·완료 조건에 연결했다.
+- 최종 검증 완료: 두 문서 diagnostics 오류 0건, 구형 충돌 표현 제거와 핵심 계약 12건 연결을 확인했고 `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md`를 통과했다. 독립 최종 검토 결과 `현재 작업 범위에서 구현을 막는 문제 없음`이다. 문서만 변경해 Flutter 테스트·빌드는 실행하지 않는다. stage/commit 대상은 `doc/user_item_modify.txt`, `SESSION_HANDOFF.md`이며 unrelated `.vscode/settings.json`, `lib/core/app.dart`는 제외한다.
+
 ### 완료 (2026-07-14): 항목 편집 DB 계약 최종 보정
 
 - 사용자 요청: 최신 `doc/user_item_modify.txt` 검토에서 확인한 현 DB driver 입력 방식과 레거시 `BM_RICH_COL_MIN` 기준행 의미를 작업지시서에 병합한다.

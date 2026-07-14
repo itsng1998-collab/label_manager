@@ -226,6 +226,7 @@ dirty는 다음 의미만 구분한다.
 항목 속성과 라벨 객체 속성은 다음처럼 구분한다.
 
 - 바코드 종류, QR 생성 방식·data/text, GS1 AI와 contain 관계, 체크디지트와 번호 표시 여부는 항목 속성이다.
+- 레거시 1D 바코드의 `비율 조절` checkbox와 수치는 별도 DB column이 아니라 각각 `RICH_SHOW_QRCODE_TEXT`와 `RICH_QRTEXT_FONTSIZE`를 재사용한다. 현 `TColumn.checkMode`와 `barFontSize`는 이 두 영속값에서 파생되는 편집 상태이며 별도 저장 field나 schema를 추가하지 않는다.
 - 품목별 이미지 파일명은 레거시와 같이 이미지 타입 column content이며 품목관리에서 선택한다.
 - 항목의 바코드/이미지 폭·높이는 레거시 DB 호환값으로 유지한다. 현 라벨 시트에 배치된 객체의 최종 위치·크기·회전은 라벨 객체 geometry를 사용한다.
 
@@ -256,8 +257,9 @@ dirty는 다음 의미만 구분한다.
 - 연결 후보는 keyword 문자열이 아니라 `TYPE_BARCODE`, `TYPE_QR_CODE`, `TYPE_GS1_BARCODE`인 사용 항목만 포함한다. `TYPE_GS1_AI`는 GS1 바코드의 source이므로 직접 바코드 객체 후보에 넣지 않는다.
 - 연결형 바코드는 선택 항목의 type, `barcodeType`, QR 생성 규칙과 GS1 관계에서 값과 기본 형식을 가져온다. 값은 직접 편집하지 않고 현재 preview 품목의 결과 또는 `품목 데이터로 출력 시 생성` 상태를 표시한다.
 - 연결형의 형식은 기본적으로 읽기 전용이다. 기존 `preserveTemplateBarcodeFormat`을 사용하는 `이 라벨에서 형식 고정` checkbox를 선택한 경우에만 형식 dropdown을 활성화하고, 이 설정은 DB 항목 속성을 변경하지 않는다.
-- 고정 바코드는 연결 항목 없이 형식과 고정 값을 직접 입력한다.
-- 가로·세로·회전은 연결 여부와 무관하게 라벨 객체 속성으로 편집한다. 막대 높이, 번호 표시와 표시 글꼴은 1D 형식에서만 표시하고 QR/Data Matrix 같은 2D 형식은 module scale 등 적용 가능한 control만 표시한다.
+- 연결형 1D 바코드의 번호 표시는 항목의 `showBarcodeNum`을 사용하며 다이얼로그에서는 현재 값을 읽기 전용으로 표시한다. Fortune 객체의 기존 `barcodeShowText`는 연결형의 독립 설정으로 사용하지 않고 품목별 materialize 시 항목 값으로 갱신한다.
+- 고정 바코드는 연결 항목 없이 형식, 고정 값과 1D 번호 표시를 직접 입력한다.
+- 가로·세로·회전은 연결 여부와 무관하게 라벨 객체 속성으로 편집한다. 1D 표시 글꼴은 DB 항목 속성이 아니므로 라벨 객체가 소유하고 연결형에서도 편집할 수 있다. 막대 높이와 적용 가능한 표시 control은 1D 형식에서만 표시하며 QR/Data Matrix 같은 2D 형식은 module scale 등 적용 가능한 control만 표시한다.
 - 연결형 preview용 임시 값은 품목 column content로 저장하지 않는다. 실제 품목 미리보기와 출력용 workbook 전처리는 기존 `ItemCodeDataResolver` 결과와 `labelSheetBarcodeRenderer`를 사용해 `barcodeText`, 기본 형식과 객체 `src`를 함께 다시 생성한다. 출력 engine은 materialize된 기존 FortuneImage를 그대로 출력한다.
 - `이 라벨에서 형식 고정`은 편집 시 기존 `preserveTemplateBarcodeFormat` 값을 읽고 저장 시 보존한다. 이 값이 true일 때만 template format을 resolver에 전달하며 GS1 바코드도 같은 규칙을 사용한다.
 
@@ -442,8 +444,9 @@ DTO는 immutable하게 만들고 widget 상태나 전역 목록을 직접 참조
 - button/drag 추가·삭제의 동일 결과
 - pending property guard
 - 타입별 editor와 적용·취소
+- 1D 바코드 비율 조절이 `showQRCodeText`/`qrTextFontSize` 영속값에 매핑되고 transient `checkMode`/`barFontSize`를 별도 저장하지 않음
 - 바코드 연결 후보가 세 barcode type만 포함하고 `GS1 AI`와 keyword 이름만 비슷한 일반 항목을 제외함
-- 연결 바코드의 값·기본 형식 read-only, 라벨별 형식 고정과 고정 바코드 직접 입력
+- 연결 바코드의 값·기본 형식·1D 번호 표시 read-only, 라벨별 형식 고정과 고정 바코드 값·번호 표시 직접 입력
 - 저장 후 재로드한 고정/연결/연결 끊김 객체의 기존 extra field 기반 판정
 - 1D/2D 바코드별 적용 가능한 표현 control
 - 이미지 연결 후보가 `TYPE_IMAGE`만 포함하고 품목 이미지/고정 이미지 mode가 파일 control을 올바르게 전환함
@@ -473,7 +476,7 @@ DTO는 immutable하게 만들고 widget 상태나 전역 목록을 직접 참조
 - dialog에서 추가·수정·정렬·삭제 후 저장·재조회
 - 사용자 항목 사전 CRUD 후 후보 갱신
 - 항목 편집 저장·재조회 뒤 바코드/이미지 연결 후보가 최신 type·keyword·name으로 갱신
-- 연결 바코드는 항목 설정의 값·기본 형식, 라벨 객체의 geometry와 라벨별 형식 고정을 함께 적용
+- 연결 바코드는 항목 설정의 값·기본 형식·1D 번호 표시, 라벨 객체의 geometry·표시 글꼴과 라벨별 형식 고정을 함께 적용
 - 연결 바코드는 품목별 값으로 객체 `src`까지 다시 생성하고 고정 바코드는 기존 값·형식·`src`를 유지
 - 연결 이미지는 품목별 BMP를 치환하고 빈 값·파일 없음에서는 template 이미지를 출력하지 않으며, 고정 이미지는 선택 파일을 그대로 유지
 - 저장 후 `TColumn.datas`, 공용라벨 표, 품목 동적 column과 preview 갱신
@@ -499,9 +502,10 @@ DTO는 immutable하게 만들고 widget 상태나 전역 목록을 직접 참조
 - 선택한 label size의 `라벨 항목 편집` dialog를 열 수 있다.
 - 사용 항목과 후보 테이블, 속성 panel, 추가·삭제·정렬과 사용자 항목 설정이 문서대로 동작한다.
 - 바코드와 이미지 항목의 데이터 의미·생성 규칙은 항목 편집에서 저장되고 라벨 에디터 객체는 연결 대상과 geometry를 저장한다.
+- 1D 바코드 비율 조절은 레거시 DB의 `RICH_SHOW_QRCODE_TEXT`/`RICH_QRTEXT_FONTSIZE`에 저장하며 별도 schema나 저장 field를 추가하지 않는다.
 - 라벨 에디터의 바코드 후보는 세 barcode type, 이미지 후보는 `TYPE_IMAGE`만 사용하며 기술 ID 대신 항목명·keyword·형식을 표시한다.
 - 연결 extra field 없음/일치/불일치로 고정형·연결형·연결 끊김을 구분하고 새 workbook metadata를 추가하지 않는다.
-- 연결 바코드는 항목 설정을 기본 형식으로 사용하고 명시적인 라벨별 형식 고정만 객체 형식을 유지한다. 고정 바코드는 값과 형식을 라벨 에디터에서 직접 설정한다.
+- 연결 바코드는 항목 설정을 기본 형식과 1D 번호 표시로 사용하고 명시적인 라벨별 형식 고정만 객체 형식을 유지한다. 고정 바코드는 값·형식·1D 번호 표시를 라벨 에디터에서 직접 설정하며 표시 글꼴은 라벨 객체가 소유한다.
 - 품목 이미지와 고정 이미지를 구분하고, 연결 이미지의 품목 값·BMP가 없을 때 template 이미지를 실제 출력에 사용하지 않는다. 고정 이미지는 수정 시 파일을 교체할 수 있다.
 - 신규 특수 타입은 최초 적용 전 저장할 수 없고 일반 변경은 pending guard를 거친다.
 - 사용자 항목 사전과 실제 사용 항목은 각각 독립 working copy와 transaction으로 저장된다.
