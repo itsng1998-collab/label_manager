@@ -28,6 +28,15 @@
 
 ## 현재 상태
 
+### 진행 중 (2026-07-14): 라벨 항목 편집 DB 무마이그레이션 계약 정리
+
+- 사용자 요청: `doc/user_item_modify.txt` 전체를 검토해 새 프로그램 저장 DB를 레거시 프로젝트가 그대로 사용할 수 있고 별도 schema/data migration이 필요 없도록 정리한다.
+- 사용자 확인 필요 여부: 없음. 기존 확정 범위대로 레거시 운영 DB를 schema source of truth로 사용하고, 앱 전용 DB object나 DDL을 추가하지 않는다.
+- `doc/user_item_modify.txt` 편집 완료: table/column/index/constraint/view/trigger/stored procedure 생성·변경·삭제와 data migration을 금지했다. `RICH_EDITABLE`, `BM_UPDATE_ITEM`/`BM_UPDATE_COL_CONTENT`, `BM_RICH_STATUS_DATA`의 기존 설치 차이는 `OBJECT_ID`/`COL_LENGTH` read-only 확인 후 이미 존재하는 식별자만 참조하는 정적 SQL variant로 처리한다. 없는 선택 object는 해당 단계만 생략하고 core legacy schema가 없으면 자동 보정 없이 오류로 저장을 중단한다. DB에는 레거시가 읽는 기존 table/column 의미만 기록하며 앱 전용 row/mapping object를 남기지 않는다.
+- 편집 직후 `get_errors doc/user_item_modify.txt`: 오류 0건. 다음 검증은 DDL/migration 금지와 기존 object variant 연결 검색, 독립 구현 차단 검토, `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md` 순서로 수행한다. 문서만 변경하므로 Flutter test/build는 실행하지 않는다.
+- 레거시 read/write 의미 보정: `BM_RICH_CHECK_COLUMNS.RICH_CHECK_YN`을 조회 source로 유지하면서 기존 DB의 `BM_RICH_COLUMN.RICH_USE_MISSING_KEYWORD_CHECK`가 있으면 신규·변경 시 같은 값을 함께 기록하고, 없으면 해당 식별자를 SQL text에 포함하지 않는 variant를 사용하도록 했다.
+- 최종 검토: v1/v2 `RICH_EDITABLE`, main 누락검사 column, update/status 선택 object, GS1, transaction-local `OUTPUT INSERTED` mapping과 persistent 앱 전용 DB object 금지를 대조했다. 독립 검토 결과 `현재 작업 범위에서 구현을 막는 문제 없음`, 문서 diagnostics 오류 0건이다. 최종 `git diff --check` 후 `doc/user_item_modify.txt`, `SESSION_HANDOFF.md`만 커밋하고 unrelated `.vscode/settings.json`, `lib/core/app.dart`는 제외한다.
+
 ### 진행 중 (2026-07-14): 항목 편집기 구현 선행조건·식별 계약 보완
 
 - 사용자 요청: 최신 `doc/user_item_modify.txt`를 레거시/현 프로젝트에 대조해 확인한 DB-Lib NVARCHAR RPC 길이, 특별 항목 canonical identity, form 저장 commit 결과 분류, 연결별 capability/cache scope, 사용자 항목 commit-unknown, 컬럼 status capability, 다중 result-set collector, 누락 GS1 info 재구성 권장안을 작업지시서에 병합하고 필요한 사용자 결정을 즉시 확인한다.

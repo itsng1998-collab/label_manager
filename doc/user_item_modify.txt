@@ -10,6 +10,8 @@
 - 검토는 현재 문서가 요구한 UI/CRUD를 구현할 수 없는 명백한 모순, 현재 코드 또는 지원 DB와 직접 충돌하는 내용, 잘못된 테이블·컬럼·레거시 의미만 확인한다.
 - 새 하위 시스템, 범용 framework, capability 상태기계, trigger fingerprint·metadata 인증, DDL 경합 방어, 전역/table-wide lock, connection generation cache, journal·checksum, exact-set 검증 체계, commit 결과 reconciliation, 재저장 차단·force reload·자동 복구 상태, 품목 저장·삭제 재설계를 추가하지 않는다.
 - DB 처리는 현재 프로젝트의 transaction 안에서 parameterized CRUD를 실행한다. 오류가 발생하면 예외를 전달하고 가능한 경우 rollback하며 working copy를 유지한다. commit 오류를 별도로 판정하거나 자동 복구하지 않는다.
+- 레거시 프로그램이 현재 사용하는 DB schema를 그대로 사용한다. 이 기능을 위해 table, column, index, constraint, view, trigger 또는 stored procedure를 생성·변경·삭제하거나 data migration을 실행하지 않는다.
+- 기존 설치 DB 사이의 선택 column/table 차이는 필요한 object의 존재 여부를 읽기 전용으로 확인한 뒤, 이미 존재하는 object만 참조하는 미리 작성된 SQL 중 하나를 선택해 처리한다. 없는 column을 같은 SQL text의 조건문 안에서 참조하지 않는다.
 - 테스트는 이 문서의 사용자 흐름, validation, CRUD 성공, 중간 오류 rollback만 검증한다. 가상 schema 변경, DDL 동시 실행, 미지원 DB 조합이나 장애 복구 상태를 위한 테스트를 추가하지 않는다.
 - 더 강한 보완이 필요해 보여도 현재 구현이나 완료를 막지 않는다. 사용자가 별도로 승인하기 전에는 이 문서의 요구사항으로 취급하지 않는다.
 - 확인된 문제가 없으면 추가 개선안을 만들지 말고 `현재 작업 범위에서 구현을 막는 문제 없음`으로 검토를 끝낸다.
@@ -32,6 +34,7 @@
 - 신규 컬럼 ID는 레거시의 마지막 행 재조회 대신 같은 저장 batch의 `OUTPUT INSERTED`로 매핑한다.
 - 저장 command가 지정한 변경만 적용하며 unrelated 행이나 속성을 전체 working copy 값으로 덮어쓰지 않는다.
 - 레거시 source, 실행 파일, 설정과 공유 DB trigger/schema는 수정하지 않는다.
+- 저장 결과는 레거시가 읽는 기존 `BM_RICH_*`, `BM_GS1_*`, `BM_UPDATE_*` table과 column 의미로만 기록한다. 앱 전용 row, 별도 mapping table 또는 레거시가 해석하지 못하는 식별값을 DB에 남기지 않는다.
 - DB 저장과 후속 재조회가 성공한 경우에만 화면과 cache를 교체한다. 오류 시 사용자에게 알리고 가능한 rollback 뒤 working copy를 유지한다.
 
 2. 현재 프로젝트 기준점
@@ -76,6 +79,7 @@
 - 레거시 SpreadSheet OCX UI 복제
 - 레거시 source·실행 파일·설정·배포물·process 변경 또는 감지·차단
 - 공유 DB schema와 trigger 변경 또는 trigger 인증 체계
+- 설치 SQL, schema migration, data migration 또는 앱 전용 DB object 추가
 - 별도 DB worker, durable recovery 저장소와 DB 연결 계층 재설계
 - 기존 출력 engine 동작 변경
 - 레거시 프로그램과 새 프로그램이 같은 항목을 동시에 저장하는 운용 지원
@@ -220,7 +224,7 @@ dirty는 다음 의미만 구분한다.
 - GS1 AI code는 필수다.
 - 체크디지트 또는 타임바코드 변경 영향을 경고한다.
 - 사용자 정의 QR data가 비었거나 나트륨 구성이 완성되지 않으면 적용하지 않는다.
-- 자유 입력 문자열은 현 DB column 한계와 CP949 round-trip을 검사한다. 구현 시 현재 지원 DB의 실제 길이를 한 번 확인해 상수와 테스트에 반영한다.
+- 자유 입력 문자열은 레거시 운영 DB의 기존 column 길이와 CP949 round-trip을 검사한다. 확인한 길이는 코드 상수와 테스트에 반영하되 DB column을 늘리거나 type/collation을 변경하지 않는다.
 - 수치는 정수 parsing, DB 타입 범위, 정의된 enum과 레거시 필수 조건만 검사한다. 임의의 UX 범위를 추가하지 않는다.
 
 공통 입력과 타입별 editor widget을 분리한다. editor widget은 draft 변경 callback만 반환하고 DB를 직접 호출하지 않는다.
@@ -320,6 +324,7 @@ DTO는 immutable하게 만들고 widget 상태나 전역 목록을 직접 참조
 - 사용자 항목은 현재 customer ID 조건으로 `BM_RICH_CUST_COLUMN`에서 조회한다.
 - 종류는 `TColumnType.datas`를 사용하고 미초기화면 먼저 조회한다.
 - 문자열은 현 DAO의 CP949→NVARCHAR 변환 규칙을 사용하되 저장 대상 값이 잘리지 않게 조회한다.
+- `BM_RICH_COL_CONTENT.RICH_EDITABLE`이 있는 DB는 실제 값을 조회하고, 없는 DB는 SQL에서 해당 식별자를 참조하지 않은 채 결과 alias만 `0 AS RICH_EDITABLE`로 반환한다. 두 경우 모두 `TColumnContent`의 row shape는 유지한다.
 
 12.3 사용자 항목 저장
 
@@ -340,19 +345,21 @@ DTO는 immutable하게 만들고 widget 상태나 전역 목록을 직접 참조
 1. 입력 JSON 또는 구조화 parameter를 table variable로 투영한다.
 2. 현재 labelSizeId와 update/delete 대상 `BM_RICH_COLUMN`의 소유권을 확인한다.
 3. 신규 `BM_RICH_COLUMN`을 한 행씩 insert하고 `OUTPUT INSERTED.RICH_COLUMN_ID`를 draft key와 함께 내부 mapping table에 기록한다.
-4. 신규 column의 `BM_RICH_CHECK_COLUMNS`는 keyword, name과 draft의 최종 `useMissingKeywordCheck` 값을 사용해 생성한다. `BM_RICH_COL_MIN` 행은 `RICH_MIN_CHECK=0`인 레거시 기본값으로 생성한다.
-5. 신규 column마다 현재 label size의 기존 `BM_RICH_ITEM`에 없는 `BM_RICH_COL_CONTENT` 조합을 빈 data로 생성한다. trigger가 먼저 생성한 행은 `NOT EXISTS` 조건으로 중복하지 않는다.
-6. 지원 DB에 기존 update item 경로가 있으면 레거시와 같이 신규 column의 빈 update content를 생성한다. 실제 table/column 존재 여부는 구현 시 현재 지원 DB에서 한 번 확인하고 해당 정적 SQL 경로를 선택한다.
+4. 신규 column의 `BM_RICH_CHECK_COLUMNS`는 keyword, name과 draft의 최종 `useMissingKeywordCheck` 값을 사용해 생성한다. 기존 DB의 `BM_RICH_COLUMN`에 `RICH_USE_MISSING_KEYWORD_CHECK`가 있으면 같은 최종값을 main row에도 기록하고, 없으면 해당 식별자를 INSERT SQL에 포함하지 않는다. `BM_RICH_COL_MIN` 행은 `RICH_MIN_CHECK=0`인 레거시 기본값으로 생성한다.
+5. 신규 column마다 현재 label size의 기존 `BM_RICH_ITEM`에 없는 `BM_RICH_COL_CONTENT` 조합을 빈 data로 생성한다. `RICH_EDITABLE`이 있는 DB용 INSERT는 0을 함께 기록하고, 없는 DB용 INSERT는 해당 column 이름을 SQL text에 포함하지 않는다. trigger가 먼저 생성한 행은 `NOT EXISTS` 조건으로 중복하지 않는다.
+6. 기존 DB에 `BM_UPDATE_ITEM`과 `BM_UPDATE_COL_CONTENT`가 모두 있으면 레거시와 같이 신규 column의 빈 update content를 생성한다. 둘 중 하나가 없으면 이 단계만 생략하며 table을 생성하거나 migration을 요구하지 않는다. 존재/부재별로 미리 작성된 SQL을 사용한다.
 7. 기존 `BM_RICH_COLUMN`은 실제 변경된 속성만 update한다.
-8. keyword, name 또는 누락검사 값이 바뀐 기존 column은 `BM_RICH_CHECK_COLUMNS`의 대응 값을 갱신한다.
+8. keyword, name 또는 누락검사 값이 바뀐 기존 column은 `BM_RICH_CHECK_COLUMNS`의 대응 값을 갱신한다. `BM_RICH_COLUMN.RICH_USE_MISSING_KEYWORD_CHECK`가 있는 DB에서는 누락검사 변경 시 main row도 같은 값으로 갱신하고, 없는 DB용 UPDATE SQL은 해당 column을 참조하지 않는다.
 9. `BM_RICH_COL_MIN` 기존 column 행은 keyword/name/order가 바뀐 경우만 갱신하고 `RICH_MIN_CHECK`는 보존한다. label size별 `ELEMENT` 기준행은 유지한다.
 10. GS1 AI는 `BM_GS1_COLUMN_INFO`를 insert/update/delete하고 GS1 바코드 contain 관계는 최종 working copy와 일치하도록 해당 main column 관계만 교체한다.
-11. 삭제 column은 `BM_RICH_COL_CONTENT`, update content, check, min, GS1 info와 contain 양쪽 참조를 정리하고 `BM_RICH_STATUS_DATA`의 해당 column ID 삭제일을 `GETDATE()`로 갱신한 뒤 `BM_RICH_COLUMN`을 삭제한다. 존재하지 않는 선택 종속행과 status 이력 0건은 정상으로 허용한다.
+11. 삭제 column은 `BM_RICH_COL_CONTENT`, check, min, GS1 info와 contain 양쪽 참조를 정리한다. 기존 DB에 update content 또는 `BM_RICH_STATUS_DATA`가 있으면 레거시와 같이 해당 행 정리와 삭제일 `GETDATE()` 갱신을 수행하고, 없으면 그 단계만 생략한 뒤 `BM_RICH_COLUMN`을 삭제한다. 없는 table/column을 참조하거나 생성하지 않으며 선택 종속행과 status 이력 0건은 정상으로 허용한다.
 12. 잔존 column의 `RICH_COLUMN_ORDER`를 최종 목록의 1부터 연속 값으로 반영한다.
 13. 소유권이 있는 main update/delete와 개수가 정해지는 필수 DML의 affected row를 확인한다. 불일치하면 오류를 발생시킨다.
 14. 신규 draft key mapping의 누락·중복을 확인하고 mapping 결과를 반환한다.
 
 레거시 trigger가 order를 변경할 수 있으므로 최종 order는 DAO가 명시적으로 다시 적용한다. 신규 ID를 `SelectLastNRecord()` 또는 마지막 N개 행 조회로 추정하지 않는다.
+
+저장 시작 전 필요한 기존 object의 존재 여부는 `OBJECT_ID`와 `COL_LENGTH` 같은 read-only metadata 조회로 한 번 확인한다. 결과는 SQL variant 선택에만 사용한다. 지원에 필요한 core `BM_RICH_COLUMN` 또는 레거시 column 속성이 없으면 migration을 시도하지 않고 오류를 알리며 저장하지 않는다. schema 확인 SQL과 저장 SQL 어디에도 `CREATE`, `ALTER`, `DROP`, trigger enable/disable 또는 기존 data 보정 DML을 넣지 않는다.
 
 어느 단계에서든 오류가 발생하면 예외를 전달한다. 기존 driver transaction 경로가 가능한 rollback을 수행하고 호출자는 오류를 알린 뒤 working copy를 유지한다. 별도 commit 결과 상태나 복구 체계를 만들지 않는다.
 
@@ -405,6 +412,8 @@ DTO는 immutable하게 만들고 widget 상태나 전역 목록을 직접 참조
 - parameter binding과 작은따옴표 문자열
 - 사용 항목 단일 batch와 신규 draft key→column ID mapping
 - 신규 column의 최종 누락검사 값이 반영된 check 행, min/content와 지원되는 update content 생성
+- `RICH_EDITABLE`, main 누락검사 column 존재/부재와 update/status table 존재/부재에서 없는 식별자를 참조하지 않는 SQL 선택
+- 저장 과정에서 DDL·migration SQL을 실행하지 않고 레거시 DB object와 data 의미만 사용
 - 실제 변경 속성만 update하고 untouched 값 보존
 - 최종 order 1..N
 - GS1 info와 contain 관계 추가·변경·삭제
@@ -443,7 +452,8 @@ DTO는 immutable하게 만들고 widget 상태나 전역 목록을 직접 참조
 - 사용 항목 저장은 하나의 parameterized transaction에서 main, order, check/min/content와 GS1 관계를 반영한다.
 - 신규 column ID는 `OUTPUT INSERTED`로 draft key에 정확히 매핑된다.
 - 신규 column은 draft의 최종 누락검사 값과 기존 item의 빈 content를 저장하고 삭제 column은 직접 소유한 종속 데이터를 정리한다.
+- `RICH_EDITABLE`, update content와 status object가 없는 기존 DB에서도 migration 없이 해당 단계만 생략하거나 기존 column용 SQL로 저장한다.
 - 저장 오류는 예외로 전달되고 가능한 rollback 뒤 working copy와 기존 cache가 유지된다.
 - 저장 성공 후 전체 column 재조회 결과가 공용라벨, 품목관리와 preview에 반영된다.
-- 레거시 source, 실행 환경과 공유 DB schema/trigger는 변경하지 않는다.
+- 레거시 source, 실행 환경과 공유 DB schema/trigger는 변경하지 않으며 설치 SQL·DDL·data migration을 실행하지 않는다. 저장 결과는 레거시 프로그램이 기존 table/column 의미로 다시 조회할 수 있다.
 - 관련 model/widget/DAO/integration test와 정적 분석이 통과한다.
