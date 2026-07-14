@@ -1,305 +1,185 @@
 공용라벨관리 라벨 항목 편집기 구현 작업지시서
 작성일: 2026-07-12
+최종 정리: 2026-07-14
 
 0. 최우선 범위 제한
 
-이 절은 자동 검토, 구현, 테스트 작성과 문서 해석에 적용하는 최우선 규칙이다. 아래 절의 문구를 넓게 해석할 수 있거나 다른 요구와 충돌하면 반드시 이 절을 우선한다.
+이 절은 자동 검토, 구현, 테스트 작성과 문서 해석에 적용하는 최우선 규칙이다. 아래 절을 넓게 해석할 수 있거나 다른 요구와 충돌하면 이 절을 우선한다.
 
-자동 검토 도구는 다음 판정 규칙을 그대로 따른다.
-
-- 검토 결과에 새 권장안, 예방책, 예외 처리, 선행 작업 또는 완료 조건을 추가하지 않는다. “권장”, “안전하게”, “선제적으로”, “향후를 위해”라는 이유로 범위를 넓히는 것도 금지한다.
-- 문제로 보고하려면 `현재 문서가 요구한 UI/CRUD를 구현할 수 없음`, `현재 코드 또는 지원 DB와 직접 충돌함`, `구체적인 근거 파일·symbol·table을 확인함`의 세 조건을 모두 만족해야 한다.
-- 위 세 조건을 모두 만족하지 않는 잠재 위험, 가상 동시성, 미지원 환경, 운영·배포 가정은 검토 결과에 기록하지 않는다.
+- 이 문서는 구현할 요구사항을 확정한 작업지시서다. 문서에 없는 위험을 가정해 요구사항을 추가하거나 기존 요구를 더 엄격하게 만들지 않는다.
+- 검토는 현재 문서가 요구한 UI/CRUD를 구현할 수 없는 명백한 모순, 현재 코드 또는 지원 DB와 직접 충돌하는 내용, 잘못된 테이블·컬럼·레거시 의미만 확인한다.
+- 새 하위 시스템, 범용 framework, capability 상태기계, trigger fingerprint·metadata 인증, DDL 경합 방어, 전역/table-wide lock, connection generation cache, journal·checksum, exact-set 검증 체계, commit 결과 reconciliation, 재저장 차단·force reload·자동 복구 상태, 품목 저장·삭제 재설계를 추가하지 않는다.
+- DB 처리는 현재 프로젝트의 transaction 안에서 parameterized CRUD를 실행한다. 오류가 발생하면 예외를 전달하고 가능한 경우 rollback하며 working copy를 유지한다. commit 오류를 별도로 판정하거나 자동 복구하지 않는다.
+- 테스트는 이 문서의 사용자 흐름, validation, CRUD 성공, 중간 오류 rollback만 검증한다. 가상 schema 변경, DDL 동시 실행, 미지원 DB 조합이나 장애 복구 상태를 위한 테스트를 추가하지 않는다.
+- 더 강한 보완이 필요해 보여도 현재 구현이나 완료를 막지 않는다. 사용자가 별도로 승인하기 전에는 이 문서의 요구사항으로 취급하지 않는다.
 - 확인된 문제가 없으면 추가 개선안을 만들지 말고 `현재 작업 범위에서 구현을 막는 문제 없음`으로 검토를 끝낸다.
-
-- 이 문서는 구현할 요구사항을 이미 확정한 작업지시서다. 검토자는 문서에 없는 위험을 가정하여 요구사항을 추가하거나 기존 요구를 더 엄격하게 강화하지 않는다.
-- 검토 목적은 이 문서에 적힌 UI와 CRUD를 구현할 수 없는 명백한 모순, 누락된 필수 입력, 잘못된 테이블·컬럼·레거시 의미를 찾는 것으로 제한한다.
-- 구현 요청에 직접 필요하지 않은 보완은 발견하더라도 이 문서에 병합하지 않는다. 새 하위 시스템, 범용화, 운영 정책 또는 미래 호환성 개선으로 확대하지 않는다.
-- 특히 다음 항목을 새로 요구하거나 완료 조건으로 추가하지 않는다: capability·schema 적응 상태기계, trigger fingerprint·metadata 인증, DDL 경합 방어, 전역/table-wide lock, connection generation cache, journal·checksum, exact-set 검증 체계, commit 결과 reconciliation, 재저장 차단·force reload·자동 복구 상태, 품목 저장·삭제 재설계.
-- DB 처리는 이 기능의 한 transaction 안에서 parameterized CRUD를 실행하고, 오류가 발생하면 예외를 전달하며 가능한 경우 rollback하는 수준으로 구현한다. commit 오류를 별도 판정하거나 자동 복구하는 체계를 만들지 않는다.
-- 테스트는 이 문서가 요청한 사용자 흐름, validation, CRUD 성공, 중간 오류 rollback만 검증한다. 가상의 스키마 변경, DDL 동시 실행, 미지원 DB 조합, 장애 복구 상태를 위한 테스트 인프라를 추가하지 않는다.
-- 더 강한 보완이 필요하다고 판단해도 구현·문서 수정·완료 차단을 하지 않는다. 현재 작업과 분리된 참고 의견으로만 사용자에게 알리고, 사용자가 명시적으로 승인하기 전에는 요구사항으로 취급하지 않는다.
-- “더 안전할 수 있음”, “향후 필요할 수 있음”, “이론상 경쟁 가능”은 범위 확대의 근거가 아니다. 현재 코드나 지원 DB에서 재현된 문제로 인해 본래 UI/CRUD를 구현할 수 없는 경우에만 사용자에게 확인한다.
 
 1. 목적
 
 공용라벨관리의 `사용 항목 > 항목 편집`에서 현재 라벨 크기에 사용할 항목을 추가, 수정, 삭제, 정렬하고 DB에 저장할 수 있는 `라벨 항목 편집` 다이얼로그를 구현한다.
 
-기능과 데이터 의미는 레거시 `CColumnEditDlg`, `CColumnEditModel`, `CColumnSetupMainDlg`, `CUserColumnEditDlg`, `CCommonLabelModel::SaveColumns`, `CColumnDAO`를 기준으로 한다. UI는 레거시 화면을 그대로 복제하지 않고 현 프로젝트의 라벨 설정 다이얼로그와 공용 테이블 패턴에 맞춘다.
+기능과 데이터 의미는 레거시 `CColumnEditDlg`, `CColumnEditModel`, `CColumnSetupMainDlg`, `CUserColumnEditDlg`, `CCommonLabelModel::SaveColumns`, `CColumnDAO`를 기준으로 한다. UI는 현 프로젝트의 라벨 설정 다이얼로그와 공용 테이블 pattern을 따른다.
 
 핵심 원칙은 다음과 같다.
 
-- 이 작업지시서는 위 라벨 항목 편집 기능을 구현하는 데 직접 필요한 범위만 요구한다. 검토와 구현의 범위 판정은 0절을 따른다.
-- 본문 해석이 여러 가지일 때는 레거시 데이터 의미와 현재 프로젝트의 기존 구조를 유지하는 가장 단순한 구현을 선택한다.
-- 레거시는 데이터 의미와 저장 결과를 확인하는 참조 대상으로만 사용한다. `.tmp/LabelManager` 아래 소스와 별도 설치된 레거시 실행 파일·설정·배포물·프로세스를 수정, 교체, 재배포, 주입, 감지, 종료 또는 차단하지 않는다. 새 프로그램 구현은 현재 workspace 안에서만 수행한다.
-- 현재 라벨 크기의 실제 사용 항목과 고객별 사용자 항목 사전을 서로 다른 편집 단위로 관리한다.
-- 다이얼로그의 두 테이블은 라벨 설정에서 사용하는 `SwipeActionTable` 계열 공용 위젯을 재사용한다.
-- 사용 항목의 상세 속성은 별도 모달을 열지 않고 왼쪽 속성 패널에서 편집한다.
-- 속성 편집, 순서 변경, 사용자 항목 설정은 동시에 열리지 않는 상호 배타 상태로 관리한다.
-- 사용 항목 DB 저장은 신규, 수정, 삭제, 순서, 보조 테이블 및 기존 품목의 빈 컬럼 콘텐츠를 하나의 SQL Server 트랜잭션으로 반영한다.
-- 사용 항목과 사용자 항목 transaction은 현재 프로젝트의 `DbClient.transaction()` 실행 경로가 시작, commit, rollback을 소유한다. 개별 DAO나 SQL batch가 내부에서 transaction을 다시 시작하지 않는다. 공용라벨 form과 특별 항목 누락검사를 함께 저장하는 기존 `LabelSizeDAO.UpdateFormDataTransactionSql` 경로는 12.5처럼 기존 batch 내부 transaction을 유지한다.
-- 같은 라벨 크기 또는 고객별 사용자 항목 사전의 동시 저장은 transaction 안에서 해당 `BM_RICH_LABELSIZE_FORM` 또는 `BM_CUSTOMER` 부모 행을 `UPDLOCK, HOLDLOCK`으로 먼저 잠가 대상별로 직렬화한다. 이 보장은 같은 잠금 규약을 사용하는 새 프로그램 writer끼리에만 적용한다. 부모 행을 잠그지 않고 자식 테이블을 직접 수정하는 레거시 프로그램과 새 프로그램에서 동일 라벨 항목 또는 사용자 항목을 동시에 편집·저장하는 운용은 지원하지 않으며, 레거시 병행 편집을 전제로 한 child key-range 잠금이나 호환 계층은 이번 범위에 추가하지 않는다. 저장 command가 선언한 insert/property update/delete/order/GS1 relation 변경분만 반영하며 전체 목록을 뒤 working copy의 전체 속성으로 교체하지 않는다. 같은 기존 행의 같은 속성을 연속 수정하면 잠금을 나중에 획득한 property update 값이 우선하고 서로 다른 행의 선행 속성·check·GS1 관계 변경은 유지한다. 선행 transaction이 삭제한 기존 행을 stale working copy가 수정·삭제하려 하면 affected-row 불일치로 rollback하고 재조회를 안내한다. add/delete/reorder가 있는 구조 command만 부모 잠금 후 DB 현재 기존 column ID 집합과 dialog open 시점의 baseline 기존 ID 집합을 비교하며, 다르면 stale 구조 저장으로 rollback하고 재조회한다. 집합이 같으면 동시 reorder는 나중 transaction의 전체 order가 우선한다. original 전체 속성 비교, 자동 병합, 삭제 행/content 복원 또는 stale snapshot 복구 상태는 추가하지 않는다.
-- 새 프로그램의 품목 저장과 컬럼 저장이 교차 실행돼 `(신규 품목, 신규 컬럼)`의 `BM_RICH_COL_CONTENT`가 누락되지 않도록 현 `ItemManagerSaveDAO`도 같은 labelSizeId의 `BM_RICH_LABELSIZE_FORM` 부모 행을 transaction 첫 단계에서 같은 방식으로 잠근다. 품목/컬럼 transaction은 항상 부모 행을 먼저 잠근 뒤 자식 DML을 실행해 잠금 순서를 통일한다.
-- 레거시 프로그램과 새 프로그램은 같은 DB를 사용하지만 품목/컬럼 저장은 동시에 실행하지 않는 외부 운용을 전제로 한다. 새 프로그램이 레거시 프로세스 실행 여부를 검사하거나 저장을 원격 차단하지 않는다. 레거시 소스와 공유 DB의 `AFTER_INSERT_ITEM`/`AFTER_INSERT_COLUMN` trigger는 수정·제거·비활성화하지 않는다. 두 trigger가 전역 마지막 identity를 선택하므로 새 프로그램에서 신규 품목 또는 신규 컬럼을 insert하는 transaction은 label size 부모 잠금 뒤 새 프로그램 writer만 사용하는 동일한 transaction-owned 전역 application lock을 획득하고, trigger parent table에 transaction 종료까지 `TABLOCKX, HOLDLOCK` schema guard를 보유한 상태에서 검증한 trigger metadata로 모든 신규 행을 단건 insert한다. 이 경로는 새 프로그램 writer끼리 label size와 무관하게 직렬화하고 trigger DDL의 `Sch-M`을 transaction 종료까지 차단한다. lock은 transaction 종료와 함께 해제되며 레거시 실행·설정·코드 경로를 변경하지 않는다. property-only 저장은 전역/application/schema guard lock을 사용하지 않는다.
-- 새 프로그램이 사용자의 저장 명령에 따라 공유 DB의 항목, 품목, content와 보조 테이블을 정상 CRUD하면 그 데이터 결과는 이후 레거시 조회에도 보일 수 있다. 이는 이 기능의 의도된 데이터 반영이며 레거시 프로그램 자체를 수정하거나 실행 동작을 제어하는 것으로 보지 않는다. 레거시 전용 테이블·설정이나 이 문서의 저장 대상이 아닌 데이터를 호환 명목으로 수정하지 않는다.
-- DB 저장이 성공한 경우에만 working copy와 전역 캐시를 교체한다. DB 처리 중 오류가 발생하면 사용자에게 알리고 활성 transaction을 rollback할 수 있으면 rollback한 뒤 편집 상태를 보존한다.
-- commit을 포함한 DB 처리 오류는 DAO가 예외로 전달하고 성공으로 처리하지 않는다. 호출자는 오류를 알리고 가능한 rollback 뒤 working copy를 유지한다. 별도 commit 결과 판정, 재저장 차단 상태, 자동 재시도 또는 복구 체계는 이번 구현 범위에 추가하지 않는다.
+- 현재 라벨 크기의 사용 항목과 고객별 사용자 항목 사전은 서로 다른 편집 단위다.
+- 다이얼로그의 테이블은 `SwipeActionTable` 계열 공용 위젯을 재사용한다.
+- 사용 항목 상세 속성은 별도 모달이 아니라 왼쪽 속성 패널에서 편집한다.
+- 속성 편집, 순서 변경, 사용자 항목 설정은 상호 배타적으로 관리한다.
+- 사용 항목 저장은 신규, 수정, 삭제, 순서, 보조 테이블과 기존 품목의 빈 컬럼 content를 하나의 SQL Server transaction으로 반영한다.
+- 사용자 항목 사전의 신규, 수정, 삭제도 하나의 별도 transaction으로 반영한다.
+- transaction의 시작, commit과 rollback은 기존 `DbClient.transaction()` 경로가 소유한다. DAO SQL에서 transaction을 중첩하지 않는다.
+- 신규 컬럼 ID는 레거시의 마지막 행 재조회 대신 같은 저장 batch의 `OUTPUT INSERTED`로 매핑한다.
+- 저장 command가 지정한 변경만 적용하며 unrelated 행이나 속성을 전체 working copy 값으로 덮어쓰지 않는다.
+- 레거시 source, 실행 파일, 설정과 공유 DB trigger/schema는 수정하지 않는다.
+- DB 저장과 후속 재조회가 성공한 경우에만 화면과 cache를 교체한다. 오류 시 사용자에게 알리고 가능한 rollback 뒤 working copy를 유지한다.
 
 2. 현재 프로젝트 기준점
 
-2.1 현재 UI
+2.1 UI
 
-- 공용라벨관리 오른쪽 `사용 항목` 영역의 `항목 편집` 버튼은 `lib/page_home/common_label_manage.dart`에 있으나 callback은 비어 있다.
-- 현재 공용라벨의 사용 항목 목록은 `TColumn.datas`를 읽어 표시한다.
-- 현재 목록용 `_CommonLabelTable`은 `FortuneTable` 기반이다. 기존 공용라벨 화면의 목록 layout은 유지하되, 일반 사용 항목의 `필수등록` 값은 새 항목 편집기의 속성 패널만 수정하도록 기존 표에서는 읽기 전용으로 표시한다. 특별 항목의 `필수등록` checkbox는 새 편집기 대상이 아니므로 기존 표에서 편집 가능하게 유지한다. 형제 위젯인 특별 항목 표의 변경은 `LabelSheetDirtyController.markDirty()`와 같은 최소 command를 `CommonLabelManage → LabelSheetPage → LabelSheetWorkbench`로 전달해 기존 단일 `_setDirty(true)` 경계를 사용하고, `requiredKeywords`도 즉시 다시 계산한다. typed save는 save command 생성 시 네 checkbox의 최종값으로 만든 immutable `SpecialMissingKeywordCheckSnapshot`을 필수 입력으로 받아 비동기 저장 중 공유 객체를 다시 읽지 않는다. 바깥 transaction을 중첩하지 않고 기존 `LabelSizeDAO.UpdateFormDataTransactionSql` batch 안에서 form log/update와 네 특별 항목의 `BM_RICH_CHECK_COLUMNS.RICH_CHECK_YN` 저장을 함께 완료한 경우에만 `applied`를 반환하고 공용라벨 workbench dirty를 해제한다. 새 편집 다이얼로그 안의 두 테이블만 라벨 설정과 같은 `SwipeActionTable` 계열로 구현한다.
-- 현재 `LabelSheetWorkbench`는 workbook 변경 callback을 제공하지만 `LabelSheetPage`와 `CommonLabelManage`가 공용라벨 시트의 미저장 여부를 상위 `HomePageManager`에 전달하지 않는다. 항목 저장 후 강제 재조회에 앞서 미저장 시트 유실을 막을 수 있도록 dirty 여부만 전달하는 최소 callback을 연결한다. 기존 `FutureOr<void>` 저장 callback은 사용자 취소나 필수 키워드 누락도 정상 반환하므로 `LabelSheetSaveResult.applied/notApplied` enum을 반환하도록 변경한다. `applied`는 DB 저장 여부 자체가 아니라 callback이 소유한 현재 persistence boundary가 변경을 인수해 해당 workbench의 로컬 dirty를 해제해도 된다는 뜻이다. 공용라벨 callsite에서는 form/check transaction commit 완료, 품목 요소 callsite에서는 `onElementCommitted`로 부모 `ItemManagerDraftController` working copy 반영 완료가 각각 `applied`다. 품목 요소의 기존 workbook 변경 자동 반영 UX는 유지하되 row identity별 monotonically increasing generation과 단일 직렬 Future queue를 source of truth로 사용한다. 같은 row의 workbook 변경은 generation 순서대로 부모 draft에 반영하고 선행 generation의 결과가 후행 generation 상태를 덮지 못하게 한다. 선행 operation이 실패해도 그 Future의 오류는 호출 경계에 전달하되 queue tail은 후행 operation을 계속 실행할 수 있어야 한다. 명시적 저장은 별도 `onElementCommitted`를 경쟁 실행하지 않고 현재 표시 workbook의 generation이 자동 반영 queue에 등록되었는지 확인한 뒤 그 최신 Future를 기다려 같은 payload가 부모 draft에 반영된 경우에만 `applied`를 반환한다. 품목 요소 workbench의 dirty만 해제하고 부모 품목 draft dirty는 DB 저장 전까지 유지한다. 확인 취소·검증 중단은 `notApplied`, 최신 generation 반영 오류는 기존 예외 경계로 전달하며 예외를 성공 결과로 바꾸지 않는다.
-- 라벨 설정 다이얼로그는 `BlockingModelessDialog`, `BlockingModelessDialogFrame`, `EditableSwipeNameTable`, `rowReorderEnabled`, 우측 위/아래 이동 rail, 전용 footer를 사용한다.
+- `lib/page_home/common_label_manage.dart`의 사용 항목 `항목 편집` callback은 아직 비어 있다.
+- 현재 사용 항목 표는 `TColumn.datas`를 읽는다.
+- 기존 공용라벨 표 layout은 유지하고 새 편집 다이얼로그 내부 테이블만 `SwipeActionTable` 계열로 구현한다.
+- 라벨 설정 다이얼로그의 `BlockingModelessDialog`, `BlockingModelessDialogFrame`, reorder rail과 footer pattern을 재사용한다.
+- 공용라벨 시트 또는 품목 draft에 미저장 변경이 있으면 기존 상태를 잃지 않도록 항목 편집기 진입과 저장을 차단한다. 필요한 dirty/busy boolean만 기존 상위 callback 경계로 전달하며 workbook queue나 저장 체계는 재설계하지 않는다.
 
-2.2 현재 모델/DAO
+2.2 모델과 DAO
 
-- `lib/models/column.dart`의 `TColumn`은 레거시 컬럼 속성 대부분을 이미 보유하고 있다.
-- `TColumnDAO.selectByLabelSizeId()`는 `BM_RICH_COLUMN`, `BM_RICH_CHECK_COLUMNS`, `BM_GS1_COLUMN_INFO`, `VIEW_BM_GS1_CONTAIN_COLUMN`을 조회한다.
-- 현재 `TColumnDAO`에는 라벨 항목 편집용 insert/update/delete transaction API가 없다.
-- 고정 항목 분류, 고정 항목, 고객별 사용자 항목에 대응하는 현 프로젝트 모델/DAO가 없다면 새로 추가해야 한다.
-- `TColumn`과 `TColumnBase`는 대부분 불변 필드지만 편집용 `copyWith`와 안정적인 draft identity가 없다. DB 조회 모델을 직접 mutate하지 말고 편집 전용 draft를 사용한다.
+- `lib/models/column.dart`의 `TColumn`은 레거시 컬럼 속성 대부분을 보유한다.
+- `TColumnDAO.selectByLabelSizeId()`는 main, 누락검사, GS1 info와 GS1 contain 관계를 조회한다.
+- 현재 `TColumnDAO`에는 항목 편집용 insert/update/delete transaction API가 없다.
+- 고정 항목 분류·후보와 고객별 사용자 항목 모델/DAO가 없다면 기존 model pattern으로 추가한다.
+- DB 조회 모델을 직접 mutate하지 않고 편집 전용 draft와 working copy를 사용한다.
 
 3. 구현 범위
 
-3.1 포함 범위
+3.1 포함
 
-- 공용라벨관리 `사용 항목 > 항목 편집` 진입 연결
-- `라벨 항목 편집` blocking modeless 다이얼로그
-- 사용 항목 속성 패널과 사용 항목 테이블
-- 고정 항목/사용자 항목 전환 및 후보 테이블
-- 후보 항목 추가 버튼과 drag/drop 추가
-- 사용 항목 삭제 버튼과 drag/drop 삭제
-- 사용 항목 순서 변경 모드
-- 고객별 사용자 항목 설정 모드
-- 속성별 입력 UI와 검증
-- 사용 항목 및 사용자 항목 모델/DAO/transaction
-- 저장 후 공용라벨, 품목관리 및 출력 미리보기에서 사용하는 컬럼 캐시 갱신
-- widget/model/DAO/transaction 회귀 테스트
+- 공용라벨관리 `사용 항목 > 항목 편집` 진입
+- blocking modeless `라벨 항목 편집` 다이얼로그
+- 사용 항목 속성 패널과 테이블
+- 고정 항목/사용자 항목 후보 전환과 후보 테이블
+- 버튼 및 drag/drop 추가·삭제
+- 사용 항목 순서 변경 mode
+- 고객별 사용자 항목 설정 mode
+- 타입별 속성 UI와 validation
+- 사용 항목 및 사용자 항목 model/DAO/transaction
+- 성공 후 컬럼 재조회와 관련 화면/cache 갱신
+- 관련 model/widget/DAO/통합 테스트
 
-3.2 제외 범위
+3.2 제외
 
-- 공용라벨 시트 workbook 자체의 셀/서식 저장 포맷 변경
-- 품목관리의 기존 품목 값 편집 기능 변경
+- 공용라벨 시트 workbook 저장 format 또는 자동 반영 queue 변경
+- 특별 항목 checkbox/form 저장 경로 변경
+- 품목관리 저장 command, journal, market mapping 또는 품목 삭제 로직 변경
 - 레거시 SpreadSheet OCX UI 복제
-- `.tmp/LabelManager` 또는 별도 설치된 레거시 소스·실행 파일·설정·배포물 수정과 레거시 프로세스 감지·종료·차단
-- 레거시의 비어 있는 `InsertColumnsToLogDB()`를 근거 없이 새 로그 테이블로 구현하는 작업
-- 공유 DB의 trigger를 포함한 DB 스키마 변경. 스키마 변경이 필요하면 레거시 영향 검토와 별도 SQL·배포 절차를 먼저 합의한다.
-- 별도 DB worker/process, durable recovery 저장소, 플랫폼별 release gate와 DB 연결 계층 전면 재설계
-- 바코드, GS1, 나트륨, Godex 등 기존 출력 엔진의 동작 변경
-- 부모 잠금 규약을 사용하지 않는 레거시 프로그램과 새 프로그램의 품목/컬럼 동시 저장 지원. 레거시 trigger가 전역 identity/order를 사용하므로 서로 다른 label size도 동시 저장 지원 대상이 아님
+- 레거시 source·실행 파일·설정·배포물·process 변경 또는 감지·차단
+- 공유 DB schema와 trigger 변경 또는 trigger 인증 체계
+- 별도 DB worker, durable recovery 저장소와 DB 연결 계층 재설계
+- 기존 출력 engine 동작 변경
+- 레거시 프로그램과 새 프로그램이 같은 항목을 동시에 저장하는 운용 지원
 
 4. 다이얼로그 공통 구조
 
-4.1 표시 방식
+4.1 표시
 
-- 기존 Label Manager 모달리스 규칙에 따라 `BlockingModelessDialog(child: BlockingModelessDialogFrame(...))`를 사용한다.
-- 다이얼로그 제목은 `라벨 항목 편집`으로 한다.
-- 화면이 작은 경우에도 속성 패널, 두 테이블, 중앙 command rail, footer가 겹치지 않도록 최소 크기와 화면 기준 최대 크기를 함께 둔다.
-- 권장 기본 크기는 화면 너비의 85~90%, 화면 높이의 80~90%이며, 최소 너비는 세 영역이 가로로 유지되는 값으로 정한다.
-- 확인, 경고, 실패 알림은 다이얼로그보다 위에 나타나는 공용 blocking overlay dialog API를 사용한다.
-- 다이얼로그가 열린 동안 공용라벨의 시트, 브랜드/라벨 선택, 탭 전환 등 바깥 화면 입력을 차단한다.
+- `BlockingModelessDialog(child: BlockingModelessDialogFrame(...))`를 사용한다.
+- 제목은 `라벨 항목 편집`이다.
+- 화면 크기에 맞는 최대 크기와 세 영역이 유지되는 최소 크기를 둔다.
+- 확인·경고·실패 알림은 공용 blocking overlay dialog를 사용한다.
+- 다이얼로그가 열린 동안 바깥 공용라벨 화면 입력을 차단한다.
 
-4.2 기본 배치
+4.2 배치
 
 왼쪽부터 다음 순서로 배치한다.
 
 1. 사용 항목 속성 패널
 2. 사용 항목 테이블
 3. 중앙 command rail
-4. 후보 영역
+4. 고정/사용자 후보 영역
 
-후보 영역 상단에는 `고정 항목`/`사용자 항목` segmented control 또는 radio를 둔다. 고정 항목일 때는 고정 항목 분류 dropdown을 표시하고, 사용자 항목일 때는 고객별 사용자 항목 테이블을 표시한다.
+후보 영역 상단에는 `고정 항목`/`사용자 항목` 전환 control을 둔다. 고정 항목이면 분류 dropdown을, 사용자 항목이면 고객별 사용자 항목 표를 표시한다.
 
-중앙 command rail에는 다음 아이콘 버튼을 세로로 둔다.
-
-- 휴지통: 위쪽에 독립적으로 배치하고 아래 추가 버튼과 시각적 간격을 둔다.
-- 왼쪽 화살표: 선택한 고정/사용자 후보를 사용 항목으로 추가한다.
-
-아이콘은 현 프로젝트의 Material/Lucide 정책에 맞는 익숙한 아이콘을 사용하고 tooltip을 제공한다. 텍스트가 있는 둥근 사각형으로 아이콘 기능을 대신하지 않는다.
+command rail에는 휴지통과 왼쪽 화살표 icon button을 세로로 두고 tooltip을 제공한다.
 
 4.3 메인 footer
 
-- 다이얼로그 하단 오른쪽에 `취소`, `저장` 버튼을 둔다.
-- `저장`은 사용 항목 working copy가 원본과 다를 때만 활성화한다.
-- `취소`는 다이얼로그 전체의 미저장 변경을 버리고 닫는 기능이다.
-- 미저장 변경이 있으면 `변경 내용을 취소하고 닫으시겠습니까?`를 질의한다. 확인한 경우에만 원본 snapshot으로 복원하고 닫는다.
-- 창 닫기 아이콘과 Esc도 메인 `취소`와 같은 guard를 거친다.
-- `normal` 이외의 전용 모드 또는 DB command 실행 중에는 메인 footer의 `취소`와 `저장`을 비활성화한다.
+- 오른쪽에 `취소`, `저장` 버튼을 둔다.
+- `저장`은 working copy가 원본과 다르고 validation을 통과했을 때만 활성화한다.
+- 미저장 변경이 있는 `취소`, 닫기 icon과 Esc는 폐기 확인을 거친다.
+- 전용 mode 또는 DB command 실행 중에는 메인 footer를 비활성화한다.
 
-5. 편집 상태 모델
+5. 편집 상태
 
-5.1 상호 배타 모드
+5.1 mode
 
-다이얼로그 상태는 최소한 다음 enum으로 관리한다.
-
-- `normal`: 사용 항목 선택, 속성 편집, 후보 추가/삭제, 메인 저장 가능
+- `normal`: 선택, 속성 편집, 후보 추가·삭제, 메인 저장
 - `reorder`: 사용 항목 순서 변경 전용
 - `userItemEdit`: 고객별 사용자 항목 사전 편집 전용
 
-`reorder`와 `userItemEdit`는 동시에 true가 될 수 없다. 여러 boolean 조합으로 유효하지 않은 상태가 생기지 않도록 단일 mode를 source of truth로 사용한다.
+단일 enum을 source of truth로 사용한다. DB 조회·저장 중에는 busy 상태로 중복 command와 닫기를 막는다.
 
-DB 조회/저장 중에는 별도 busy state를 두고 중복 command, 다중 route, 중복 저장을 막는다.
+5.2 working copy
 
-5.2 사용 항목 working copy
+최소한 다음 상태를 둔다.
 
-다이얼로그를 열 때 DB 조회 결과로 다음 상태를 만든다.
+- `originalColumns`: dialog open 시점 immutable snapshot
+- `workingColumns`: 화면에서 편집하는 목록
+- `deletedColumnIds`: 기존 DB 행 중 삭제한 ID
+- `selectedColumnKey`: 안정적인 행 identity
+- `propertyBaseline`, `propertyDraft`, `propertyDirty`
+- `pendingInitialApplyColumnKeys`: 신규 특수 타입 중 최초 적용 전 행
+- 사용자 항목 mode의 별도 original/working/deleted/selected 상태
+- reorder mode 진입 시점 순서 snapshot
 
-- `originalColumns`: 다이얼로그를 연 시점의 immutable snapshot
-- `workingColumns`: 화면에서 추가/수정/삭제/정렬되는 목록
-- `deletedColumnIds`: DB에 존재했던 행 중 working copy에서 삭제된 ID
-- `selectedColumnKey`: index가 아닌 안정적인 행 identity
-- `propertyBaseline`: 현재 선택 행에서 속성 패널을 연 시점의 값
-- `propertyDraft`: 속성 패널 입력값
-- `propertyDirty`: baseline과 draft의 실제 내용 비교 결과
-- `changedPropertyKeysByColumn`: `originalColumns`와 적용 완료된 `workingColumns`를 비교해 기존 행별로 실제 값이 다른 저장 속성 key만 계산한 결과. order와 GS1 contain 관계는 제외하며 값을 원래대로 되돌리면 해당 key도 제거
-- `structureDirty`: original 대비 add/delete/reorder 여부. true일 때만 `originalColumns`에서 만든 baseline 기존 column ID 집합과 working copy의 전체 최종 order를 구조 command에 포함
-- `changedGs1MainColumnKeys`: original 대비 GS1 contain 관계가 실제로 달라진 main column key 집합. 관계를 원래대로 되돌리면 집합에서 제거
-- `pendingInitialApplyColumnKeys`: `initialApplyRequiredTypeCodes`에 속하는 신규 행 중 최초 `적용`을 완료하지 않은 행 key 집합
+기존 행 identity는 `columnId`, 신규 행은 dialog session에서 생성한 `draftColumnKey`를 사용한다. 선택, drag/drop, reorder와 삭제 후 선택 복원에 list index를 identity로 사용하지 않는다.
 
-`initialApplyRequiredTypeCodes`는 레거시 `CColumnEditModel::SelectInputIndex()`와 동일하게 `TYPE_BARCODE`, `TYPE_IMAGE`, `TYPE_QR_CODE`, `TYPE_GS1_AI`, `TYPE_GS1_BARCODE` 다섯 타입으로 고정한다. 이 집합은 신규 후보 추가 시 최초 상세 설정이 필요한지 판정하는 source of truth다.
+`initialApplyRequiredTypeCodes`는 레거시와 같이 바코드, 이미지, QR, GS1 AI, GS1 바코드다. 이 타입의 신규 행은 기본값 그대로라도 최초 `적용`을 완료해야 메인 저장할 수 있다.
 
-기존 행 identity는 `columnId`, 신규 행 identity는 dialog session에서 생성한 `draftColumnKey`를 사용한다. 선택, drag/drop, reorder, 삭제 후 선택 복원은 list index를 identity로 사용하지 않는다.
+dirty는 다음 의미만 구분한다.
 
-저장 속성 identity는 문자열을 직접 사용하지 않고 폐쇄형 `LabelColumnPropertyKey` enum 또는 동등한 sealed type으로 고정한다. 현재 `TColumn` 조회 모델 기준 enum case는 다음 39개로 고정하며 이름만 다르게 중복 정의하지 않는다.
+- `propertyDirty`: 속성 panel에서 아직 적용하지 않은 변경
+- `workingDirty`: 적용된 속성, 추가, 삭제 또는 순서 변경
+- `userItemDirty`: 사용자 항목 mode의 변경
+- `orderDirty`: reorder mode 진입 snapshot 대비 변경
 
-- main identity/type: `columnType`, `keyword`, `columnName`
-- main size/barcode: `width`, `height`, `barcodeType`, `useBarcodeCheckDigit`, `showBarcodeNum`, `showQRCodeText`
-- main QR: `qrTextAlignment`, `useUserDefineQRData`, `userDefineQRData`, `userDefineQRText`, `pixelSize`, `qrCodeCreateType`, `natriumJoinString`, `qrTextFontSize`, `qrTextFontName`, `qrCodeScalePercent`
-- main common/output: `title`, `visible`, `timeBarcodeType`, `searchPrint`, `userDefineBarcodeText`, `lineCheck`, `lineSize`, `rotate`
-- main auto increment/date: `autoInc`, `autoIncSize`, `autoIncSave`, `autoIncRange`, `autoIncZeroDel`, `autoIncUpdate`, `useDateRange`, `dateRange`
-- check auxiliary: `useMissingKeywordCheck`
-- GS1 info auxiliary: `gs1ai`, `formatOption`, `showGS1Code`
-
-하나의 canonical persistence registry가 각 case의 `LabelColumnDraft` field, 구조화 parameter staging 타입, 실제 DB table/column, CP949·길이·수치 validation, 신규 기본값, 적용 가능한 column type, type 변경 시 보조 테이블 효과를 정의한다. `changedPropertyKeysByColumn`, `propertyUpdates`, SQL batch variant와 테스트는 이 registry만 사용한다. case별 canonical DB 매핑과 staging 값 종류는 다음과 같다. `bool`은 JSON boolean을 원문 staging에서 검증한 뒤 target의 bit/tinyint 호환 값으로, `enum/int`는 정수 원문을 실제 target 숫자 타입 범위와 정의 enum으로 검증한 뒤 변환한다. `text`는 Dart enum도 DB에 저장하는 canonical name 문자열로 먼저 변환해 `NVARCHAR(MAX)` staging에 넣고, CP949 round-trip, capability에서 확인한 target byte 길이·collation code page와 허용 문자열 exact-set을 검증한 뒤 target `VARCHAR(n)` 계열로 변환한다. target `VARCHAR`의 `sys.columns.collation_name`과 `COLLATIONPROPERTY(collation_name, 'CodePage')`가 CP949/MS949 저장 의미와 호환되지 않거나 판정할 수 없으면 해당 text command를 첫 DML 전에 차단하며, keyword 비교에만 `Korean_Wansung_CI_AS`를 지정해 이 검증을 대신하지 않는다.
-
-- `columnType` → `BM_RICH_COLUMN.RICH_TYPE` (`enum/int`, 전체 타입, type 전환 효과 포함)
-- `keyword` → `BM_RICH_COLUMN.RICH_KEYWORD` (`text`, 전체 타입, 100바이트와 예약/중복 검증)
-- `columnName` → `BM_RICH_COLUMN.RICH_COLUMN_NAME` (`text`, 전체 타입, 50바이트)
-- `width` → `BM_RICH_COLUMN.RICH_WIDTH` (`int`, 바코드/이미지/QR/GS1 바코드)
-- `height` → `BM_RICH_COLUMN.RICH_HEIGHT` (`int`, 바코드/이미지/QR/GS1 바코드)
-- `barcodeType` → `BM_RICH_COLUMN.RICH_BARCODE_TYPE` (`text`, `BarcodeType`의 canonical DB name 문자열, 바코드/QR/GS1 바코드, 허용 DB name exact-set과 capability의 target byte 길이 검증)
-- `useBarcodeCheckDigit` → `BM_RICH_COLUMN.RICH_USE_BARCODE_CHECKDIGIT` (`bool`, 바코드)
-- `showBarcodeNum` → `BM_RICH_COLUMN.RICH_SHOW_BARCODE_NUM` (`bool`, 바코드)
-- `showQRCodeText` → `BM_RICH_COLUMN.RICH_SHOW_QRCODE_TEXT` (`bool`, 바코드/QR)
-- `qrTextAlignment` → `BM_RICH_COLUMN.RICH_QRTEXT_ALIGNMENT` (`enum/int`, QR)
-- `useUserDefineQRData` → `BM_RICH_COLUMN.RICH_USE_USER_DEFINE_QRDATA` (`bool`, QR)
-- `userDefineQRData` → `BM_RICH_COLUMN.RICH_USER_DEFINE_QRDATA` (`text`, QR, 배포 DB 확인 기준 최대 3000바이트)
-- `userDefineQRText` → `BM_RICH_COLUMN.RICH_USER_DEFINE_QRTEXT` (`text`, QR, 배포 DB 확인 기준 최대 200바이트)
-- `pixelSize` → `BM_RICH_COLUMN.RICH_PIXELSIZE` (`int`, QR)
-- `qrCodeCreateType` → `BM_RICH_COLUMN.RICH_QRCODE_CREATE_TYPE` (`enum/int`, QR/기본 및 바코드의 `BARCODE_TEXT_LINK` 생성 방식)
-- `natriumJoinString` → `BM_RICH_COLUMN.RICH_NATRIUM_JOIN_STRING` (`text`, QR 나트륨, 배포 DB 확인 기준 최대 200바이트)
-- `qrTextFontSize` → `BM_RICH_COLUMN.RICH_QRTEXT_FONTSIZE` (`int`, QR 및 바코드 비율 수치)
-- `qrTextFontName` → `BM_RICH_COLUMN.RICH_QRTEXT_FONTNAME` (`text`, QR, 배포 DB 확인 기준 최대 50바이트)
-- `qrCodeScalePercent` → `BM_RICH_COLUMN.RICH_QRCODE_SCALE` (`int`, QR)
-- `title` → `BM_RICH_COLUMN.RICH_TITLE` (`text`, 전체 타입, 20바이트)
-- `visible` → `BM_RICH_COLUMN.RICH_VISIBLE` (`bool`, 전체 타입)
-- `timeBarcodeType` → `BM_RICH_COLUMN.RICH_TIMEBARCODE_TYPE` (`enum/int`, 날짜/시간/바코드)
-- `searchPrint` → `BM_RICH_COLUMN.RICH_SEARCH_PRINT` (`bool`, 기본/문자)
-- `userDefineBarcodeText` → `BM_RICH_COLUMN.RICH_USER_DEFINE_BARCODE_TEXT` (`text`, 기본/바코드, 배포 DB 확인 기준 최대 200바이트)
-- `lineCheck` → `BM_RICH_COLUMN.RICH_BARCODE_LINE` (`int`, 바코드)
-- `lineSize` → `BM_RICH_COLUMN.RICH_BARCODE_LINE_SIZE` (`int`, 바코드)
-- `rotate` → `BM_RICH_COLUMN.RICH_BARCODE_ROTATE` (`enum/int`, 바코드)
-- `autoInc` → `BM_RICH_COLUMN.RICH_AUTO_INC` (`bool`, 기본/날짜/시간/바코드/QR)
-- `autoIncSize` → `BM_RICH_COLUMN.RICH_AUTO_INC_SIZE` (`int`, 자동 증가 사용 타입)
-- `autoIncSave` → `BM_RICH_COLUMN.RICH_AUTO_INC_SAVE` (`bool`, 자동 증가 사용 타입)
-- `autoIncRange` → `BM_RICH_COLUMN.RICH_AUTO_INC_RANGE` (`int`, 자동 증가 사용 타입)
-- `autoIncZeroDel` → `BM_RICH_COLUMN.RICH_AUTO_INC_ZERODEL` (`bool`, 자동 증가 사용 타입)
-- `autoIncUpdate` → `BM_RICH_COLUMN.RICH_AUTO_INC_UPDATE` (`bool`, 자동 증가 사용 타입)
-- `useDateRange` → `BM_RICH_COLUMN.RICH_USE_DATERANGE` (`bool`, 제조/유통 날짜·시간 타입)
-- `dateRange` → `BM_RICH_COLUMN.RICH_DATERANGE` (`text`, 제조/유통 날짜·시간 타입, 최종 `before|after`, 배포 DB 확인 기준 최대 12바이트)
-- `useMissingKeywordCheck` → `BM_RICH_CHECK_COLUMNS.RICH_CHECK_YN` (`bool`, 전체 타입) 및 capability가 확인된 배포 DB에서만 `BM_RICH_COLUMN.RICH_USE_MISSING_KEYWORD_CHECK` 동시 반영
-- `gs1ai` → `BM_GS1_COLUMN_INFO.COLUMN_GS1_CODE` (`text`, GS1 AI, capability에서 확인한 target byte 길이와 필수값 검증)
-- `formatOption` → `BM_GS1_COLUMN_INFO.COLUMN_GS1_FORMAT_OPTION` (`enum/int`, GS1 AI)
-- `showGS1Code` → `BM_GS1_COLUMN_INFO.COLUMN_SHOW_GS1CODE` (`bool`, GS1 AI)
-
-registry는 위 table.column을 상수로 보유하고 UI field 이름으로 SQL 식별자를 동적 생성하지 않는다. 각 target의 정확한 SQL type, max length, precision/scale, nullability, collation/code page와 optional 여부는 `LabelColumnSchemaCapabilities`가 `sys.columns`와 `COLLATIONPROPERTY`에서 읽어 registry 기대 값 종류와 호환되는지 검증한다. 호환되지 않거나 필수 target column이 없으면 해당 command를 첫 DML 전에 차단하며, metadata 결과를 근거로 registry 매핑을 런타임에 다른 컬럼으로 바꾸지 않는다.
-
-`order`, `columnId`, `labelSizeId`, `draftColumnKey`는 구조/identity 값이고, `useGS1Code`와 `containColumns`는 `gs1RelationUpdates`에서 파생되는 관계 값이므로 property key에서 제외한다. `editableCellNum`, `newColumnQRCodeInfo`, `modify`, `change`, `checkMode`, `barFontSize`, 선택·dirty·drag 상태는 runtime-only로 저장하지 않는다. `LabelColumnPropertyKey.values`와 registry key 집합, 위 39개 canonical case 집합은 정확히 같아야 하고, `LabelColumnDraft`의 persistent field 집합도 위 property 39개와 구조/identity/관계 제외 집합으로 완전히 분류돼야 한다. unknown key, 한 update 안의 중복 key, key와 값 타입 불일치, persistence registry 누락, persistent draft field 미분류는 첫 DML 전에 실패시키며 무시하거나 문자열 이름으로 DB 컬럼을 추론하지 않는다.
-
-5.3 dirty 구분
-
-- `propertyDirty`: 속성 패널의 아직 적용하지 않은 변경
-- `requiresInitialApply`: 선택된 `initialApplyRequiredTypeCodes` 신규 행이 `pendingInitialApplyColumnKeys`에 포함된 상태. 기본값 그대로 확정하는 경우가 있으므로 `propertyDirty`와 독립적으로 관리
-- `workingDirty`: 적용된 속성 변경, 항목 추가/삭제, 순서 변경으로 working copy가 original snapshot과 달라진 상태
-- `userItemDirty`: 사용자 항목 설정 모드 안의 별도 working copy가 해당 모드 진입 snapshot과 달라진 상태
-- `orderDirty`: 순서 변경 모드 진입 snapshot과 현재 순서가 다른 상태
-
-속성 패널의 `적용`과 순서 변경 모드의 `저장`은 `workingColumns`만 변경하며 DB에는 쓰지 않는다. 사용 항목 DB transaction은 메인 footer의 `저장`에서만 실행한다.
+속성 `적용`과 reorder mode `저장`은 working copy만 변경한다. DB 저장은 메인 footer `저장`에서만 실행한다.
 
 6. 사용 항목 테이블
 
-6.1 테이블 구성
+- `SwipeActionTable<LabelColumnDraft>` 또는 동등한 공용 wrapper를 사용한다.
+- 신규 상태, 키워드, 항목명, 종류, 제목, 표시 여부를 표시한다.
+- 좌상단 교차 영역에 순서 변경 icon을 둔다.
+- QR/사용자 정의/barcode text link/GS1 관계가 참조하는 행은 상태 icon과 tooltip으로 표시한다.
+- 참조 계산은 행 표시, keyword 변경 경고와 삭제 경고가 공유하는 하나의 순수 함수를 사용한다.
+- 행 click은 해당 행을 선택하고 속성 패널을 갱신한다.
 
-- `SwipeActionTable<LabelColumnDraft>` 또는 이를 일반화한 공용 wrapper를 사용한다.
-- 컬럼은 레거시와 동일한 의미를 유지한다.
-  - 신규 상태
-  - 키워드
-  - 항목명
-  - 종류
-  - 제목
-  - 표시 여부
-- 행 번호 영역과 컬럼 헤더의 좌상단 교차 영역에는 순서 변경 아이콘을 둔다.
-- 현재 QR/기본 사용자 정의/바코드 텍스트 연동/GS1 관계에서 참조 중인 행은 레거시처럼 일반 행과 구분되는 참조 상태 표시를 제공한다. 색만으로 의미를 전달하지 말고 tooltip 또는 상태 아이콘을 함께 둔다.
-- 참조 여부는 하나의 순수 계산 함수에서 구한다. 이 함수는 QR/기본 사용자 정의 data, `TYPE_BARCODE && qrCodeCreateType == BARCODE_TEXT_LINK`인 행의 `userDefineBarcodeText`, GS1 contain 관계에 포함된 기존 column ID와 신규 draft key를 입력으로 사용하며, 행 상태 표시와 키워드 변경/삭제 경고가 같은 결과를 공유한다.
-- 신규 행은 `신규` 상태를 표시한다.
-- 행 클릭은 해당 행을 선택하고 속성 패널을 갱신한다. 더블클릭으로 별도 속성 다이얼로그를 열지 않는다.
+`propertyDirty` 또는 최초 적용 전 신규 행이 있는 상태에서 선택 변경, 후보 추가, 삭제, mode 전환, 메인 저장·취소와 닫기를 요청하면 공용 pending edit guard를 먼저 실행한다. 사용자가 취소하지 않으면 원래 요청을 실행하지 않는다.
 
-6.2 선택과 속성 dirty guard
+삭제는 다음과 같이 처리한다.
 
-`propertyDirty=true` 또는 `requiresInitialApply=true`인 상태에서 다음 이벤트를 요청하면 pending 속성 guard를 먼저 실행한다. 일반 속성 변경에는 `적용하지 않은 속성 변경을 취소하시겠습니까?`, 최초 적용 전 신규 특수 행에는 `항목 설정을 취소하고 신규 항목을 제거하시겠습니까?`를 질의한다.
+- 기존 행은 `deletedColumnIds`에 기록하고 working copy에서 제거한다.
+- 신규 행은 working copy에서만 제거한다.
+- 참조 중인 행은 영향 경고 후 확인한 경우에만 삭제한다.
+- GS1 포함 목록에서도 삭제 행 identity를 제거한다.
+- button 삭제와 휴지통 drop은 같은 handler를 사용한다.
+- drag payload에는 source 종류와 안정 key를 넣는다.
 
-- 다른 사용 항목 행 선택
-- 고정/사용자 후보 선택 또는 추가
-- 사용 항목 삭제
-- 사용 항목 순서 변경 모드 진입
-- 고정/사용자 후보 모드 전환
-- 사용자 항목 설정 모드 진입
-- 메인 저장, 메인 취소, 창 닫기
-
-일반 속성 변경에서 `변경 취소`를 확인하면 property draft를 baseline으로 되돌린 뒤 원래 요청한 이벤트를 정확히 한 번 이어서 실행한다. 최초 적용 전 신규 특수 행에서 취소를 확인하면 해당 pending 행을 working copy와 key 집합에서 제거한 뒤 원래 이벤트를 이어서 실행한다. 확인하지 않으면 현재 행과 입력 focus를 유지하고 요청 이벤트를 실행하지 않는다.
-
-guard callback 안에서 이벤트별 로직을 복제하지 말고 `Future<bool> resolvePendingPropertyEdit()` 같은 공용 경계를 둔다. route가 닫히기 전에 다음 command가 실행되지 않도록 확인 dialog Future 완료 뒤 처리한다.
-
-6.3 항목 삭제
-
-- 사용 항목 선택이 없으면 중앙 휴지통 버튼을 비활성화한다.
-- 휴지통 버튼을 누르면 선택 행을 working copy에서 삭제한다.
-- DB 기존 행은 `deletedColumnIds`에 추가하고 신규 행은 working copy에서만 제거한다.
-- QR/기본 사용자 정의/바코드 텍스트 연동/GS1에서 참조 중인 행은 6.1의 공용 참조 계산 결과로 레거시 경고를 표시하고 확인한 경우에만 삭제한다.
-- 삭제 시 GS1 바코드 draft의 포함 항목 목록에서도 해당 기존 ID 또는 신규 draft key를 제거한다.
-- 삭제 후 가능한 경우 다음 행, 마지막 행 삭제였으면 이전 행을 선택한다. 행이 없으면 선택과 속성 패널을 비운다.
-
-사용 항목 행을 drag하여 휴지통 drop target에 올릴 수 있어야 한다.
-
-- drag payload에는 안정적인 행 key와 source 종류를 넣고 index만 전달하지 않는다.
-- drag hover 중 휴지통을 강조한다.
-- 허용된 행을 drop하면 참조 경고/확인을 먼저 처리한다.
-- 삭제가 확정된 경우에만 휴지통이 항목을 받아들이는 짧은 scale/fade 애니메이션을 실행하고 행을 제거한다.
-- 확인을 취소하거나 유효하지 않은 payload이면 애니메이션과 삭제를 실행하지 않는다.
-- 아이콘 버튼 삭제와 drag/drop 삭제는 같은 command handler를 사용한다.
-
-7. 사용 항목 속성 패널
+7. 속성 패널
 
 7.1 공통 동작
 
-- 선택 행이 없으면 빈 상태를 표시하고 모든 입력을 비활성화한다.
-- 행 선택 시 해당 타입에 맞는 속성 UI를 구성한다.
-- 패널 하단에는 항상 `취소`, `적용` 버튼을 둔다.
-- `적용`은 현재 입력이 유효하고 `propertyDirty || requiresInitialApply`일 때 활성화한다. `initialApplyRequiredTypeCodes` 신규 행은 레거시 기본값을 바꾸지 않아도 최초 적용할 수 있어야 한다.
-- `취소`는 property draft를 baseline으로 복원한다. DB 또는 working copy의 적용 완료 값은 바꾸지 않는다.
-- `적용` 성공 후 현재 값이 새 baseline이 되고 `propertyDirty=false`가 되며 해당 행을 `pendingInitialApplyColumnKeys`에서 제거한다.
-- `initialApplyRequiredTypeCodes`에 속하는 신규 행은 사용 항목 테이블에 pending 신규 행으로 표시하고 즉시 선택한다. 해당 행의 첫 속성 적용 전 `취소`하면 레거시 상세 설정 dialog 취소와 동일하게 신규 행 자체를 제거한다.
-- 기존 행 또는 이미 최초 적용을 마친 신규 행의 타입을 `initialApplyRequiredTypeCodes` 안팎으로 변경하는 것은 신규 행 최초 적용 상태를 만들지 않고 일반 `propertyDirty`와 타입별 validation 계약만 따른다.
-- 일반 타입처럼 별도 설정 없이 추가 가능한 항목은 레거시 기본값으로 즉시 working copy에 추가한다.
-- 고정/사용자 후보에서 신규 사용 항목 draft를 만드는 경로는 `LabelColumnDraft.fromCandidate`와 같은 단일 factory를 사용한다. 이 factory는 레거시 `CColumn(int labelSizeId, const CColumnBase&, int order)` 생성자의 기본값을 기준으로 하며, 출력에 영향을 주는 체크디지트 사용=true, 바코드 번호 표시=true, 표시=false, QR 하단 문자열 표시=false, QR 정렬=left, QR font size=10, QR scale=100, GS1 AI=`01`, format option=-1, line check/size/rotate=0과 나머지 빈 문자열·0·false 값을 명시적으로 만든다. 일반적인 Dart 0/false 값이나 DB 조회용 `TColumn.fromMap()` fallback으로 대신하지 않는다.
+- 선택 행이 없으면 빈 상태를 표시하고 입력을 비활성화한다.
+- 패널 하단에 `취소`, `적용`을 둔다.
+- `취소`는 property draft를 baseline으로 복원한다.
+- `적용`은 validation을 통과하고 `propertyDirty`이거나 최초 적용이 필요할 때 활성화한다.
+- 최초 적용 전 특수 타입 신규 행에서 취소하면 해당 신규 행 자체를 제거한다.
+- 신규 draft는 하나의 factory에서 레거시 기본값으로 만든다.
 
-7.2 공통 속성
+신규 기본값에는 최소한 체크디지트 사용=true, 바코드 번호 표시=true, 표시=false, QR 하단 문자열 표시=false, QR 정렬=left, QR font size=10, QR scale=100, GS1 AI=`01`, format option=-1, line check/size/rotate=0과 나머지 빈 문자열·0·false를 명시한다.
 
-최소한 다음 속성을 제공한다.
+7.2 공통 속성과 validation
 
 - 키워드
 - 항목명
@@ -308,656 +188,262 @@ guard callback 안에서 이벤트별 로직을 복제하지 말고 `Future<bool
 - 표시 여부
 - 누락 키워드 검사 사용 여부
 
-검증 규칙은 다음과 같다.
+규칙은 다음과 같다.
 
 - 키워드와 항목명은 필수다.
-- 신규 사용 항목과 keyword가 실제 변경된 기존 항목은 최종 working copy 안에서 DB `Korean_Wansung_CI_AS`와 같이 대소문자를 무시해 다른 행과 중복될 수 없다. 비교를 위해 원문 키워드를 대문자/소문자로 바꾸어 저장하지는 않는다. 기존 DB에 이미 존재하지만 이번 command가 insert하거나 keyword를 변경하지 않은 중복 행은 별도 정리 대상으로 남기고, 제목·표시·다른 속성 수정, 삭제 또는 reorder 같은 무관한 command를 차단하지 않는다.
-- `ITEMNAME`, `ELEMENT`, `SWEIGHT`, `SPRICE`는 12.5의 특별 항목 canonical identity가 사용하는 예약 keyword다. 신규 일반 사용 항목과 keyword가 실제 변경된 기존 일반 사용 항목은 이 네 값을 `Korean_Wansung_CI_AS` 의미로 대소문자를 무시해 사용할 수 없다. 속성 `적용`, 고정/사용자 후보를 실제 사용 항목으로 추가, 메인 저장 command가 같은 공용 예약 keyword 집합을 사용한다. 사용자 항목 사전 자체는 레거시처럼 ASCII 영문·숫자 및 사전 내 새 중복만 검증하므로 예약 keyword의 신규/변경도 저장할 수 있지만, 그 후보를 일반 사용 항목으로 추가하는 command는 차단한다. 기존 DB의 일반 사용 항목에 있는 예약 keyword 행도 조회·무관한 수정·삭제·정렬을 강제 차단하거나 자동 정리하지 않는다.
-- DB `VARCHAR` 저장 한계에 맞춰 키워드는 CP949 변환 가능 100바이트 이하, 항목명은 CP949 변환 가능 50바이트 이하로 제한한다. 기존 `charset_converter` 기반 CP949/MS949 변환 경로를 공용 validation helper로 최소 추출하고 encode/decode round-trip이 원문과 같은지와 encoded byte 길이를 함께 검사한다. 변환할 수 없는 문자나 제한을 넘는 값은 속성 `적용`과 메인 저장 command 양쪽에서 차단하고 해당 입력에 오류를 표시한다.
-- 제목은 `RICH_TITLE VARCHAR(20)` 저장 한계에 맞춰 CP949 변환 가능하고 encode/decode round-trip이 원문과 같으며 encoded byte 길이가 20바이트 이하인 값만 허용한다. 속성 `적용`과 메인 저장 command가 키워드/항목명과 같은 공용 validation helper를 사용하고 안내 문구도 `20바이트`로 표시한다.
-- 종류 dropdown 값은 `TColumnType.datas`에 존재하는 타입만 허용한다.
-- DB에서 읽은 알 수 없는 종류나 옵션은 현 프로젝트의 `TColumn.fromMap()` 규칙에 따라 기존 기본값으로 변환한다. 편집기만을 위한 별도 raw 보존 모델이나 저장 차단 상태는 추가하지 않는다.
-- 키워드 변경 대상이 QR/기본 사용자 정의/바코드 텍스트 연동/GS1 관계에서 참조 중이면 6.1의 공용 참조 계산 결과로 영향 경고 후 적용한다.
-- 종류 변경은 단일 `changeType` 순수 함수로 처리한다. 기본↔QR 전환에서만 QR 생성 방식을 plain text로 바꾸고 사용자 정의 QR data/text를 빈 값으로 초기화하며, GS1 AI에서 다른 타입으로 바꿀 때 모든 GS1 바코드의 contain 관계에서 해당 항목을 제거한다. GS1 타입 진입·이탈은 info 값이나 contain 목록이 원본과 같더라도 저장 command에서 보조 데이터 전환 대상으로 표시한다. 나머지 공통·타입 전용 값은 레거시처럼 보존하고 이 변경 내용을 확인 dialog에 표시한다.
-- GS1 AI를 다른 타입으로 바꿀 때 GS1 바코드 포함 관계에서 제거되는 영향을 확인한다.
+- 신규 또는 keyword 변경 행이 최종 목록에 대소문자 무시 중복을 만들 수 없다.
+- `ITEMNAME`, `ELEMENT`, `SWEIGHT`, `SPRICE`는 일반 사용 항목의 예약 keyword다.
+- 기존 DB에 이미 존재하는 untouched 중복·예약 keyword 행은 무관한 수정·삭제·정렬을 막거나 자동 정리하지 않는다.
+- 키워드, 항목명, 제목은 CP949 round-trip과 각각 100바이트, 50바이트, 20바이트 한계를 검사한다.
+- 종류는 `TColumnType.datas`의 값만 허용한다.
+- keyword 변경 대상이 다른 항목에서 참조 중이면 영향 경고를 표시한다.
+- 기본↔QR 전환은 레거시처럼 QR 생성 방식과 사용자 정의 data/text를 초기화한다.
+- GS1 AI가 다른 타입으로 바뀌면 GS1 바코드 contain 관계에서 제거한다.
+- 나머지 공통·타입별 값은 레거시처럼 보존한다.
 
 7.3 타입별 속성
 
-레거시 `CColumnSetupMainDlg`와 각 하위 설정 화면에 있는 속성을 누락 없이 제공한다. 현재 `TColumn` 필드와 DB 컬럼을 source of truth로 사용한다.
+현재 `TColumn` field와 DB column을 기준으로 다음 속성을 제공한다.
 
-- 기본/문자: 일반 텍스트 또는 사용자 정의 데이터, 자동 증가 사용/자리수/범위/저장/0 제거/업데이트, 검색 출력, 사용자 정의 텍스트
-- 제조일자/유통기한/시간: 날짜·시간 타입, 자동 증가 속성, 날짜 범위 사용 및 전/후 범위
-- 바코드: 바코드 종류, 폭, 높이, 체크디지트, 번호 표시, 텍스트 연동, 타임바코드 타입, 자동 증가 속성, 사용자 정의 바코드 텍스트, 바코드 비율 조절 사용 여부/수치, line check/size, 회전. 비율 조절 사용 여부는 `TColumn.showQRCodeText`/`RICH_SHOW_QRCODE_TEXT`, 수치는 `TColumn.qrTextFontSize`/`RICH_QRTEXT_FONTSIZE`를 source of truth로 사용한다. 신규 draft 기본값은 각각 false와 10이며 기존 행은 DB에서 읽은 값을 보존한다. DB source가 아닌 임시 `checkMode`/`barFontSize`를 별도 저장 필드로 만들지 않는다.
+- 기본/문자: 일반 또는 사용자 정의 data, 자동 증가, 검색 출력, 사용자 정의 text
+- 제조일자/유통기한/시간: 날짜·시간 타입, 자동 증가, 날짜 범위
+- 바코드: 종류, 폭, 높이, 체크디지트, 번호 표시, text link, 타임바코드, 자동 증가, 사용자 정의 text, 비율 조절, line check/size, 회전
 - 이미지: 폭, 높이
-- QR/2D 코드: 2D 종류, 생성 방식(일반/사용자 정의/나트륨), 사용자 정의 데이터와 하단 문자열, pixel size, scale, 하단 문자열 표시, 정렬, 폰트/크기, 자동 증가 속성
-- GS1 AI: AI 코드, format option, GS1 코드 표시 여부
-- GS1 바코드: 종류, 폭, 높이, 포함할 GS1 AI 항목 목록
+- QR/2D: 종류, 생성 방식, 사용자 정의 data와 하단 text, pixel size, scale, 하단 text 표시, 정렬, font/size, 자동 증가
+- GS1 AI: AI code, format option, GS1 code 표시
+- GS1 바코드: 종류, 폭, 높이, 포함할 GS1 AI 목록
 
-레거시 검증과 경고도 유지한다.
+레거시 validation과 경고를 유지한다.
 
-- 바코드/이미지/GS1 바코드의 폭 또는 높이가 0이면 출력되지 않을 수 있음을 경고한다.
-- QR pixel size 또는 scale이 0이면 출력되지 않을 수 있음을 경고한다.
-- GS1 AI 코드는 필수다.
-- 체크디지트 또는 타임바코드 변경이 기존 품목 바코드 값에 영향을 주면 경고한다.
-- 사용자 정의 QR 데이터가 비어 있거나 나트륨 구성에 초기화되지 않은 값이 있으면 적용하지 않는다.
+- 바코드/이미지/GS1 바코드의 폭 또는 높이 0은 경고한다.
+- QR pixel size 또는 scale 0은 경고한다.
+- GS1 AI code는 필수다.
+- 체크디지트 또는 타임바코드 변경 영향을 경고한다.
+- 사용자 정의 QR data가 비었거나 나트륨 구성이 완성되지 않으면 적용하지 않는다.
+- 자유 입력 문자열은 현 DB column 한계와 CP949 round-trip을 검사한다. 구현 시 현재 지원 DB의 실제 길이를 한 번 확인해 상수와 테스트에 반영한다.
+- 수치는 정수 parsing, DB 타입 범위, 정의된 enum과 레거시 필수 조건만 검사한다. 임의의 UX 범위를 추가하지 않는다.
 
-구현 전 배포 DB `sys.columns`에서 자유 입력 문자열 컬럼의 실제 타입과 최대 byte 길이를 확인하고 그 값을 validation source of truth로 사용한다. 현 `TColumnDAO` 조회 변환 폭 기준 예상 대상은 `RICH_USER_DEFINE_QRDATA` 3000바이트, `RICH_USER_DEFINE_QRTEXT` 200바이트, `RICH_NATRIUM_JOIN_STRING` 200바이트, `RICH_QRTEXT_FONTNAME` 50바이트, `RICH_USER_DEFINE_BARCODE_TEXT` 200바이트, `RICH_DATERANGE` 12바이트다. 실제 배포 스키마가 다르면 확인된 스키마 값을 사용하고 구현 기록과 DAO 테스트 전제에 남긴다.
-
-위 자유 입력 문자열은 키워드/항목명/제목과 같은 공용 CP949 helper로 encode/decode round-trip과 최종 encoded byte 길이를 속성 `적용` 및 메인 저장 command에서 검증한다. `RICH_DATERANGE`는 전/후 개별 입력이 아니라 최종 직렬화된 `before|after` 문자열을 검증한다. UI `maxLength`를 별도로 강제할 필요는 없지만, 변환 불가 문자나 DB 저장 한계를 넘는 값은 SQL 실행 전에 해당 입력 오류로 차단한다. 바코드 종류와 GS1 option처럼 정의 목록에서 고르는 값은 이 자유 문자열 검증 대상이 아니라 기존 enum/dropdown validation을 따른다.
-
-타입별 수치와 옵션 validation은 정수 파싱 가능 여부, 실제 DB 컬럼 타입에 저장 가능한 범위, enum/dropdown에 정의된 값, 이 문서의 필수 조건과 레거시가 명시적으로 차단하는 조건만 검사한다. 폭·높이·QR pixel size·scale의 0은 위 경고 대상으로 유지하고 오류로 바꾸지 않는다. 레거시 최종 적용 경로에서 일관되게 강제하지 않는 UX 최소·최대값을 임의로 추가하거나, 기존 DB 값을 새 임의 범위 때문에 적용·저장하지 못하게 해서는 안 된다. 레거시보다 엄격한 제품 범위가 필요하면 항목별 정책을 별도 확정한 뒤 추가한다.
-
-속성 패널은 하나의 거대한 build 함수로 만들지 않는다. 공통 입력과 타입별 editor widget을 분리하되, 각 editor는 `LabelColumnPropertyDraft`를 입력받아 변경 callback만 반환하고 DB를 직접 호출하지 않는다.
+공통 입력과 타입별 editor widget을 분리한다. editor widget은 draft 변경 callback만 반환하고 DB를 직접 호출하지 않는다.
 
 8. 고정 항목 후보
 
-8.1 조회와 표시
+- 분류는 `BM_RICH_FIX_COL_TYPE`에서 레거시와 같은 DB 반환 순서로 조회한다.
+- 후보는 `BM_RICH_FIX_COLUMN`에서 선택한 분류 ID로 조회한다.
+- 후보 표에는 keyword, 항목명과 종류를 표시한다.
+- 분류 변경 시 후보 선택을 해제한다.
+- 선택 없음, 중복 keyword 또는 예약 keyword 후보는 추가를 비활성화하고 이유를 표시한다.
+- 화살표와 drag/drop 추가는 같은 handler와 신규 draft factory를 사용한다.
+- 같은 drag gesture로 중복 추가하지 않도록 in-flight guard를 둔다.
 
-- `고정 항목` 선택 시 고정 항목 분류 dropdown을 활성화한다.
-- 분류는 레거시 `BM_RICH_FIX_COL_TYPE`의 ID와 이름을 조회한다. 별도 순서 컬럼이나 `ORDER BY`를 추가하지 않고 레거시와 같이 DB 반환 순서를 유지한다.
-- 선택 분류의 후보는 `BM_RICH_FIX_COLUMN`에서 조회하고 키워드, 항목명, 종류를 표시한다.
-- 분류를 바꾸면 후보 선택을 해제하고 해당 분류 목록을 다시 표시한다.
+9. 사용자 항목 후보와 설정
 
-8.2 사용 항목으로 추가
+9.1 후보
 
-- 고정 항목 행 선택이 없거나 같은 키워드가 이미 사용 중이면 왼쪽 화살표를 비활성화한다.
-- 후보 keyword가 특별 항목 예약 keyword이면 기존 후보 행을 삭제하지 않고 왼쪽 화살표와 drop 추가만 비활성화하며 이유를 tooltip 또는 오류 문구로 알린다.
-- 행 선택 후 왼쪽 화살표를 누르면 레거시와 같은 기본값으로 신규 사용 항목 draft를 만든다.
-- 고정 항목 행을 drag하여 사용 항목 테이블에 drop해도 같은 add command를 실행한다.
-- 버튼과 drag/drop은 중복 검사, 초기값 생성, 특수 타입 pending 속성 편집, 선택 이동까지 동일한 handler를 사용한다.
-- 같은 drag gesture가 중복 callback으로 전달되어 두 행이 추가되지 않도록 command generation 또는 in-flight guard를 둔다.
+- 현재 로그인 customer ID의 `BM_RICH_CUST_COLUMN`을 조회한다.
+- keyword, 항목명과 종류를 표시한다.
+- 화살표 또는 drag/drop으로 현재 라벨 크기의 신규 사용 항목 draft를 만든다.
+- 사용자 항목 사전 행과 사용 항목은 이후 자동 동기화하지 않는다.
+- 예약 keyword는 사전에는 표시·저장할 수 있지만 일반 사용 항목으로 추가하지 못한다.
 
-9. 사용자 항목 후보와 사용자 항목 설정
+9.2 설정 mode
 
-9.1 일반 후보 상태
-
-- `사용자 항목` 선택 시 현재 로그인 고객 ID의 `BM_RICH_CUST_COLUMN`을 조회한다.
-- 키워드, 항목명, 종류를 표시한다.
-- 선택 행을 왼쪽 화살표 또는 사용 항목 테이블 drop으로 추가한다.
-- 선택 행의 keyword가 특별 항목 예약 keyword이면 사용자 항목 사전에는 그대로 표시하되 왼쪽 화살표와 drop 추가를 비활성화한다.
-- 추가 시 고객별 사전 row를 직접 연결하지 않고 레거시처럼 현재 라벨 크기의 신규 `TColumn` draft로 복사한다. 이후 사용자 항목 사전을 수정해도 이미 추가된 사용 항목은 자동 변경하지 않는다.
-- 사용자 항목 테이블의 좌상단 헤더 교차 영역에는 `항목 편집` 아이콘과 tooltip을 둔다.
-
-9.2 사용자 항목 설정 모드 진입
-
-- `항목 편집` 아이콘을 누르면 `userItemEdit` 모드로 전환한다.
-- 진입 전 pending property edit을 공용 guard로 해소한다.
-- 모드 진입 시 고객별 사용자 항목 원본 snapshot과 별도 working copy를 만든다.
-- 사용자 항목 영역 이외의 속성 패널, 사용 항목 테이블, 고정/사용자 전환, 분류 dropdown, 왼쪽 화살표, 메인 footer를 비활성화한다.
-- 사용자 항목 테이블 좌상단의 편집 아이콘은 숨기고 `항목 추가` 아이콘으로 교체한다.
-- 테이블 아래에는 라벨 설정 순서 변경 footer와 같은 형식으로 왼쪽 제목 `사용자 항목 설정`, 오른쪽 `취소`, `저장`을 둔다.
-
-9.3 사용자 항목 inline 편집
-
-- `항목 추가` 아이콘을 누르면 마지막에 신규 빈 행을 추가하고 첫 입력 셀에 focus한다.
-- 키워드와 항목명은 직접 입력한다.
-- 키워드 입력은 레거시처럼 즉시 대문자로 정규화한다.
-- 키워드는 ASCII 영문과 숫자만 허용한다. 한글, 공백, 기호가 들어오면 저장하지 않고 해당 셀에 오류를 표시한다.
-- 종류 컬럼의 모든 셀을 dropdown으로 바꾼다.
-- 종류 목록은 레거시와 동일한 DB `BM_RICH_COLUMN_TYPE` 목록을 `RICH_COLUMN_TYPE_ORDER` 순서로 사용한다. 임의의 축약 목록을 하드코딩하지 않는다.
-- 신규 행과 original 대비 keyword가 실제 변경된 기존 행의 키워드·항목명은 필수이며, 이 행이 고객별 사용자 항목의 다른 잔존 행과 새 keyword 중복을 만드는 것을 허용하지 않는다. 기존 untouched 중복 행의 name/type 수정과 기존 행 삭제는 허용하고 기존 위반을 자동 정리하지 않는다.
-- 사용자 항목의 키워드는 ASCII 규칙에 따라 최대 100자, 항목명은 CP949 변환 가능 50바이트 이하로 제한한다. inline UI와 저장 command가 같은 검증 함수를 사용하며 초과 또는 변환 불가 값을 DB 오류까지 보내지 않는다.
-- 셀 값이 바뀔 때마다 원본 snapshot과 content 비교로 `userItemDirty`를 계산한다.
-
-9.4 사용자 항목 삭제
-
-- `userItemEdit` 모드에서는 중앙 휴지통의 대상이 사용자 항목 테이블로 전환된다.
-- 선택 행이 없으면 휴지통을 비활성화한다.
-- 기존 행 삭제는 delete ID에 기록하고 신규 행은 working copy에서만 제거한다.
-- 사용자 항목 행을 휴지통에 drop하면 사용 항목 삭제와 같은 hover 및 수용 애니메이션 후 삭제한다.
-- 사용자 항목 사전 삭제는 이미 현재 사용 항목으로 복사된 컬럼을 삭제하지 않는다. 이 동작을 확인 dialog 문구에서 명확히 알린다.
-
-9.5 사용자 항목 설정 저장/취소
-
-- `저장`은 `userItemDirty=true`, 신규/변경 field의 필수·길이·문자 규칙과 신규/keyword 변경 행의 새 중복 검증 성공, busy=false일 때만 활성화한다. 기존 untouched keyword 위반은 저장 활성화 validation 실패로 취급하지 않는다.
-- 클릭하면 `사용자 항목 설정 변경을 저장하시겠습니까?`를 질의한다.
-- 확인 시 신규/수정/삭제를 하나의 DB transaction으로 저장한다.
-- 성공하면 DB에서 사용자 항목 후보를 재조회하고 `normal` 모드로 돌아간다.
-- 실패하면 모드를 유지하고 working copy를 보존한다.
-- `취소`는 변경이 있으면 `사용자 항목 설정 변경을 취소하시겠습니까?`를 질의하고, 확인 시 snapshot으로 되돌린 뒤 `normal`로 돌아간다.
-- 모드 종료 시 좌상단 `항목 추가` 아이콘을 다시 `항목 편집` 아이콘으로 바꾼다.
+- 사용자 항목 표의 편집 icon으로 `userItemEdit` mode에 진입한다.
+- 진입 시 별도 original과 working copy를 만든다.
+- 사용자 항목 영역 외 control과 메인 footer를 비활성화한다.
+- 표 아래에 `사용자 항목 설정`, `취소`, `저장` footer를 둔다.
+- 추가 icon은 마지막에 신규 빈 행을 만들고 첫 입력 cell에 focus한다.
+- keyword와 항목명은 inline 입력, 종류는 DB `BM_RICH_COLUMN_TYPE` 순서의 dropdown이다.
+- keyword는 대문자로 정규화하고 ASCII 영문·숫자만 허용하며 최대 100자다.
+- 항목명은 필수이며 CP949 50바이트 이하다.
+- 신규 또는 keyword 변경 행이 사전 안에 새 중복을 만들 수 없다.
+- 기존 untouched 중복은 무관한 name/type 수정과 삭제를 막지 않는다.
+- 기존 행 삭제는 delete ID로 기록하고 신규 행 삭제는 working copy에서만 제거한다.
+- 사전 행 삭제는 이미 복사된 사용 항목을 삭제하지 않음을 확인 문구에 표시한다.
+- 저장은 확인 후 신규/수정/삭제를 하나의 transaction으로 처리한다.
+- 성공하면 사전을 재조회하고 normal mode로 돌아간다.
+- 실패하면 mode와 working copy를 유지한다.
 
 10. 사용 항목 순서 변경
 
-10.1 진입과 UI
-
-- 사용 항목 테이블 좌상단의 순서 변경 아이콘을 누르면 `reorder` 모드로 전환한다.
-- 진입 전에 pending property edit을 공용 guard로 해소한다.
-- 사용 항목 목록의 현재 순서를 별도 snapshot으로 보관한다.
-- 사용 항목 테이블의 컬럼 구성과 행 내용은 그대로 유지한다.
-- 테이블 오른쪽에 라벨 설정과 같은 폭/간격/버튼 크기의 위/아래 이동 rail을 표시한다.
-- `rowReorderEnabled=true`로 전환하여 행 또는 행 번호 drag reorder를 지원한다.
-- 선택 행 기준으로 위/아래 버튼 활성 상태를 계산한다.
-- 속성 패널을 포함한 사용 항목 테이블 이외의 위젯은 비활성화한다.
-- 속성 패널은 값을 표시해도 입력과 `취소`/`적용`은 비활성화한다.
-- 메인 footer `취소`/`저장`도 비활성화한다.
-- 사용 항목 테이블 아래에는 왼쪽 제목 `순서 변경`, 오른쪽 `취소`, `저장`을 둔다.
-
-10.2 이동 규칙
-
-- drag와 위/아래 버튼은 같은 reorder function을 사용한다.
-- 인접 이동과 비인접 이동의 insert index 계산은 현재 `SwipeActionTable` 라벨 설정 테스트 계약을 따른다.
-- 이동 후 선택은 이동한 행의 안정 key를 유지한다.
-- 한 행뿐이거나 실제 순서가 바뀌지 않으면 `orderDirty=false`다.
-
-10.3 저장과 취소
-
-- `취소`는 reorder snapshot 순서로 복원하고 `normal` 모드로 돌아간다.
-- `저장`은 `orderDirty=true`일 때만 활성화한다.
-- 클릭하면 현재 순서를 1부터 연속된 order로 정규화해 사용 항목 working copy에 적용하고 `normal` 모드로 돌아간다.
-- 이 단계에서는 DB를 변경하지 않는다. 적용된 순서는 메인 footer의 `저장`에서 신규/수정/삭제와 같은 transaction으로 저장한다.
-- 순서 적용 후에도 메인 `취소`를 누르면 다이얼로그를 연 시점의 전체 snapshot으로 되돌릴 수 있다.
+- 좌상단 순서 변경 icon으로 `reorder` mode에 진입한다.
+- 진입 전 pending property edit guard를 처리하고 현재 순서를 snapshot으로 보관한다.
+- 행 drag와 오른쪽 위/아래 rail을 제공한다.
+- drag와 button은 같은 reorder 함수를 사용한다.
+- 이동 후 선택은 안정 key를 유지한다.
+- `취소`는 snapshot 순서로 복원한다.
+- `저장`은 순서를 1부터 연속 값으로 정규화해 working copy에만 적용한다.
+- 실제 DB 저장은 메인 footer `저장`에서 실행한다.
+- 공용 `SwipeActionTable`에 필요한 API가 없으면 안정 row key, typed drag payload와 header action만 최소 확장한다. 기존 index callback 의미와 기본 동작은 유지한다.
 
 11. 메인 저장
 
 11.1 저장 전 검증
 
-- `propertyDirty` 또는 `pendingInitialApplyColumnKeys`가 남아 있으면 자동 적용하지 않는다. 먼저 변경 취소 guard를 거치거나 사용자가 속성 `적용`을 완료하도록 안내하며, 최초 적용 전 특수 행이 하나라도 있으면 저장 command를 만들지 않는다.
-- 모든 행의 키워드와 항목명 필수
-- 신규 행과 keyword가 실제 변경된 기존 행을 최종 working copy의 다른 행과 `Korean_Wansung_CI_AS` 의미로 비교해 이번 command가 만드는 대소문자 무시 중복을 금지. 기존 untouched 중복은 무관한 저장을 차단하지 않음
-- 신규 또는 keyword 변경 일반 사용 항목이 특별 항목 예약 keyword `ITEMNAME`, `ELEMENT`, `SWEIGHT`, `SPRICE`와 `Korean_Wansung_CI_AS` 의미로 일치하면 저장 금지. 기존 untouched 예약 keyword 행은 무관한 저장을 차단하지 않음
-- 모든 키워드, 항목명, 제목의 CP949 변환 가능 여부 및 각각 100바이트/50바이트/20바이트 저장 길이 검증
-- 사용자 정의 QR data/text, 나트륨 join, QR font name, 사용자 정의 바코드 text, 최종 date range의 CP949 round-trip 및 배포 DB 실제 byte 길이 검증
-- add/delete/reorder로 구조가 바뀐 경우에만 최종 working copy order를 1부터 연속 값으로 정규화해 구조 command에 포함. property-only 저장은 order 변경분을 만들지 않음
-- 타입별 필수 속성 및 7.3에서 확정한 파싱/DB 저장 범위/enum/레거시 명시 차단 조건 검증. 별도로 확정되지 않은 UX 상·하한은 적용하지 않음
-- GS1 포함 대상이 현재 working copy에 존재하는지 검증
-- 삭제 대상과 신규/수정 대상의 identity 중복 금지
-- 현재 labelSizeId와 모든 기존 column의 labelSizeId 일치 확인
+- 미적용 property와 최초 적용 전 신규 특수 행이 없어야 한다.
+- 모든 행의 keyword와 항목명이 유효해야 한다.
+- 신규/keyword 변경 행의 중복과 예약 keyword를 검사한다.
+- 문자열의 CP949 round-trip과 DB byte 한계를 검사한다.
+- 타입별 필수값, enum과 수치 parsing을 검사한다.
+- GS1 contain 대상이 현재 working copy에 존재하고 GS1 AI 타입인지 검사한다.
+- 삭제, 신규와 수정 identity가 중복되지 않아야 한다.
+- 기존 column의 labelSizeId가 현재 편집 대상과 같아야 한다.
+- 최종 order를 1부터 연속 값으로 만든다.
 
-해당 라벨 크기에 `BM_RICH_ITEM`이 하나라도 있으면 레거시와 같이 기존 편집 데이터 영향 경고와 최종 확인을 제공한다. 문구는 실제 transaction이 신규 컬럼 콘텐츠 생성, 컬럼 삭제 및 타입 속성 변경을 수행한다는 사실을 명확히 설명한다.
-
-컬럼 삭제 또는 키워드 변경이 있으면 라벨 내용이나 출력 참조에 영향을 줄 수 있다는 일반 확인 경고를 같은 최종 확인에 포함한다. live/saved workbook 내용을 직접 분석해 실제 참조 여부를 판정하는 API는 이번 범위에 추가하지 않는다.
+해당 라벨 크기에 기존 품목이 있으면 신규 content 생성, 컬럼 삭제와 속성 변경 영향을 설명하는 최종 확인을 표시한다. 삭제 또는 keyword 변경은 라벨 내용이나 출력 참조에 영향을 줄 수 있다는 일반 경고를 포함한다. workbook 참조 분석 API는 추가하지 않는다.
 
 11.2 저장 결과
 
-- `저장` 확인 후 다이얼로그가 DAO와 cache를 각각 직접 조작하지 않고 `HomePageManager`가 소유한 `saveLabelColumnsAndReload(LabelColumnSaveCommand)`와 동등한 단일 상위 command callback을 호출한다. 이 callback이 12.4의 transaction 실행과 현재 label size 재조회를 순서대로 소유한다.
-- transaction이 성공하면 `_handleLabelSizeChanged(currentLabelSize, forceReload: true)`와 동등한 기존 재조회 경계에서 DB 컬럼을 다시 읽어 `TColumn.datas`, 품목 draft/controller의 validation rule 및 관련 cache를 함께 교체한다.
-- 공용라벨 사용 항목 표, 라벨 시트 required keyword/image/barcode 정보, 품목관리 동적 컬럼, 출력 미리보기가 재조회 결과를 다시 사용해야 한다. 다이얼로그가 `TColumn.datas`만 직접 대입하고 품목 draft/controller를 이전 컬럼 기준으로 남겨서는 안 된다.
-- 재조회까지 성공하면 저장 완료를 알리고 다이얼로그를 닫는다. 재조회가 실패하면 오류를 알리고 기존 cache를 성공 결과로 교체하지 않는다.
-- transaction, commit, 반환 mapping 해석 또는 재조회 중 오류가 발생하면 오류 dialog를 표시하고 working copy를 유지한다. 활성 transaction은 가능한 경우 rollback하며 어떤 실패도 성공으로 처리하거나 자동 재시도하지 않는다.
+- dialog는 DAO와 cache를 따로 조작하지 않고 상위 save callback 하나를 호출한다.
+- callback은 사용 항목 transaction과 현재 label size 재조회를 순서대로 실행한다.
+- 성공하면 기존 label size 재조회 경계로 `TColumn.datas`와 관련 화면/cache를 갱신하고 dialog를 닫는다.
+- DB 또는 재조회 오류는 사용자에게 알리고 working copy를 유지한다.
+- 활성 transaction은 가능한 경우 rollback하며 실패를 성공으로 처리하거나 자동 재시도하지 않는다.
 
 12. DB 모델과 DAO
 
-12.1 추가할 모델
-
-구체 파일명은 기존 모델 구조에 맞추되 최소한 다음 역할을 분리한다.
-
-- `LabelColumnDraft`: `TColumn`의 전체 저장 속성, 기존 columnId 또는 신규 draft key, new 상태와 원본 대비 실제로 바뀐 저장 속성 집합. order 변경은 일반 property 변경과 분리
-- `LabelColumnEditSession`: original/working/deleted/selection/property 상태, pending 최초 적용 key 집합과 content 비교
-- `FixedColumnType`: 고정 항목 분류 ID, 이름
-- `FixedColumnCandidate`: 타입, 키워드, 항목명, 분류 ID
-- `CustomerColumnCandidate`: custColumnId, customerId, 타입, 키워드, 항목명
-- `CustomerColumnDraft`: 기존 `custColumnId` 또는 dialog session에서 생성한 `draftCustomerColumnKey`, customerId, 타입, 키워드, 항목명과 원본 대비 실제 변경 field. 신규 행 선택·inline 편집·삭제는 list index가 아니라 draft key를 사용
-- `CustomerColumnEditSession`: 사용자 항목 original/working/deleted/selection 상태와 stable draft identity
-- `CustomerColumnSaveCommand`: immutable customerId, 신규 draft, 기존 행 field delta, delete ID와 저장 context. widget 상태나 재조회 시점 전역 목록을 직접 참조하지 않음
-- `SpecialMissingKeywordCheckSnapshot`: `ITEMNAME`, `ELEMENT`, `SWEIGHT`, `SPRICE` 네 특별 항목의 canonical identity와 최종 `useMissingKeywordCheck` 값
-- `ItemSaveSchemaCapabilities`: 현 `ItemSaveSchemaCapabilities`의 trigger 이름/문자열 포함 flag를 대체하는 품목 저장 schema 계약. `BM_RICH_ITEM`과 `BM_ITEM_OF_MARKET`의 insert/update/delete 필수 key·column·type, 그리고 label size별 source-parent와 item별 content-child의 적용 가능한 pair를 열거한다. pair는 regular column `BM_RICH_COLUMN.RICH_COLUMN_ID → BM_RICH_COL_CONTENT(RICH_COLUMN_ID,RICH_ITEM_ID,RICH_COL_CONTENT_DATA='', RICH_EDITABLE=0 when present)`, legacy v2 element `BM_RICH_ELEMENT.RICH_ELEMENT_ID → BM_RICH_ELEMENT_CONTENT(RICH_ELEMENT_ID,RICH_ITEM_ID,RICH_ELEMENT_DATA='',RICH_ELEMENT_RTF='')`, legacy v1 barcode `BM_RICH_BARCODE_COL.RICH_BARCODE_COL_ID → BM_RICH_BARCODE(RICH_BARCODE_COL_ID,RICH_ITEM_ID,RICH_BARCODE_NUM='')`, legacy v1 image `BM_RICH_IMAGE_COL.RICH_IMAGE_COL_ID → BM_RICH_IMAGE(RICH_IMAGE_COL_ID,RICH_ITEM_ID,RICH_IMAGE_NAME='')`다. regular pair는 `RICH_EDITABLE` 존재 여부와 type/default/nullability, `RICH_COL_CONTENT_DATA`의 실제 SQL type·`max_length` bytes·collation·`COLLATIONPROPERTY(..., 'CodePage')`를 추가로 보유한다. 지원하는 레거시 text 계약은 실제 `VARCHAR` 계열 target과 SQL Server code page exact-set `{949}`이며, type/code page를 판정할 수 없거나 `NULL/0/949 외`이면 content write를 첫 DML 전에 차단한다. source table이 배포 schema에 없으면 그 pair는 notApplicable이고, source가 있는데 child table·관계 key·필수 data column/type/nullability를 확인할 수 없으면 unsupported다. 적용 가능한 모든 pair는 `(신규 item ID × 같은 labelSizeId의 source ID)`별 child 행이 정확히 하나가 되는 insert final-state contract와 item 방향 FK/cascade·명시 delete DML을 함께 보유한다. trigger 생성 여부와 DAO `NOT EXISTS` 보충 DML 및 기대 건수를 pair별로 관리하고, item delete cascade가 metadata로 확인되지 않으면 child를 `RICH_ITEM_ID`로 먼저 명시 삭제한다. `BM_UPDATE_ITEM/BM_UPDATE_COL_CONTENT`도 실제 item/update-item 관계 key와 delete 순서를 확인한 optional pair로 관리한다. table이 실제로 없을 때만 delete 경로의 notApplicable이며, 알려진 item 참조 child/update/status table 또는 `sys.foreign_keys`의 item 방향 참조가 존재하지만 관계 key·delete predicate·cascade 의미를 판정할 수 없으면 해당 품목 삭제는 첫 DML 전에 unsupported로 차단한다. `BM_RICH_STATUS`가 존재하면 `RICH_ITEM_ID` 정수형·`RICH_ID_CHANGE_DELETE_DATE` 날짜형, nullability/default/check와 `-1` sentinel 저장 가능 여부를 확인한다. 지원하는 status-history 계약은 `BM_RICH_STATUS.RICH_ITEM_ID`에서 `BM_RICH_ITEM`으로 향하는 enabled FK가 없을 때뿐이며, main 삭제 뒤 기존 item ID의 status 행을 `RICH_ITEM_ID=-1`, 삭제일을 DB 현재 시각으로 바꾼다. CASCADE/SET NULL/NO ACTION을 포함한 enabled FK가 하나라도 있으면 실행 순서를 추정하거나 sentinel 부모 행에 의존하지 않고 해당 품목 삭제를 첫 DML 전에 unsupported로 차단한다. table이 없으면 notApplicable, 존재하지만 이 의미를 보장할 수 없으면 삭제 unsupported다.
-- `ItemManagerSaveCommand`: controller 소유의 immutable `labelSizeId`, draft 생성 시점 전체 `baselineColumnIds`, 기존/신규/삭제 품목과 column value delta, target market IDs, 삭제 품목별 `baselineMarketIdsByItemId` exact-set을 보유한다. market baseline은 dialog open/load 시점의 `ItemMarketMappingFingerprints`에서 복사하고 저장 클릭 직전 전역 상태를 다시 읽어 command를 바꾸지 않는다. 삭제 ID 집합과 baseline map key 집합은 정확히 같아야 하며 각 market ID는 양수·중복 없음이어야 한다.
-- `LabelColumnSaveCommand`: labelSizeId, 신규 insert, order를 제외한 실제 변경 속성만 가진 `propertyUpdates`, delete ID, 구조 변경 여부, dialog open 시점의 `baselineExistingColumnIds`, 구조 변경 시 기존 column ID 또는 신규 draft key와 최종 order를 가진 전체 `orderUpdates`, 신규·타입 전환 또는 original 대비 관계가 실제 변경된 최종 GS1 바코드 main column별 최종 관계를 가진 `gs1RelationUpdates`, 삭제되지 않고 생존하면서 기존 GS1 AI/GS1 바코드 역할에서 이탈·전환해 incoming/outgoing 정리가 필요한 기존 `gs1CleanupColumnIds`, 저장 context. 관계를 빈 목록으로 바꾼 main도 빈 최종 관계 항목을 포함하고 untouched GS1 바코드는 포함하지 않는다. property-only command는 `orderUpdates`와 구조 membership 검증 입력을 만들지 않음
-- `LabelColumnSaveResult`: 정상 commit 결과의 신규 draft key와 column ID mapping
-- `LegacyInsertTriggerCapabilities`: 품목/컬럼 저장이 공유하는 단일 probe/cache 소유자. parent table별 상태를 `none`, `validatedLegacy`, `unsupported`로 구분한다. `none`은 활성 INSERT trigger가 하나도 없는 상태, `validatedLegacy`는 정확히 검증된 v1/v2 의미의 trigger만 활성인 상태, `unsupported`는 추가 활성 trigger, definition 조회 불가, 미지원 fingerprint, 필수 의미 판정 불가 또는 row-bearing result 가능성이 있는 상태다. `AFTER_INSERT_ITEM`/`AFTER_INSERT_COLUMN`별 parent object, 존재·enabled, 전역 최신 identity 사용 여부, column/element/barcode/image content 생성 여부, column order 덮어쓰기 여부, row-bearing result 반환 여부와 정의 fingerprint를 구분해 보유한다. `BM_RICH_ITEM`/`BM_RICH_COLUMN` 각 parent의 모든 활성 INSERT trigger는 두 단계로 관리한다. 경량 변경 감지 signature는 definition을 읽지 않고 정렬한 `object_id + schema/name 원문 + parent object_id + is_disabled + is_instead_of_trigger + modify_date`로 만들고, 전체 capability signature는 경량 signature, 각 definition fingerprint와 `sys.sql_modules.uses_quoted_identifier/uses_ansi_nulls`를 함께 보유한다. 두 SET metadata를 조회할 수 없거나 지원 fixture의 값과 다르면 definition 문자열이 같아도 `unsupported`로 판정한다. `unsupported`에서는 그 trigger가 결과 rowset이나 추가 DML을 만들지 않는다고 추정하지 않고 해당 parent의 신규 insert를 차단한다. `none`은 자동 실패가 아니며 12.4/12.6의 command별 명시 보조 데이터 생성 능력으로 지원 여부를 판정한다. 신규 컬럼은 DAO가 기존 품목 content와 최종 order를 직접 완성하므로 `none`을 지원한다. 신규 품목은 배포 schema에서 요구되는 column/element/barcode/image 보조행을 DAO가 모두 명시 생성하거나 해당 보조 schema가 적용되지 않음을 capability로 확인한 경우에만 `none`을 지원하며, 현재 command가 완성하지 못하는 필수 부작용이 있으면 신규 품목 insert만 차단한다.
-- trigger definition fingerprint 정규화는 의미를 지우지 않는 범위로 제한한다. UTF-8 기준으로 `CRLF/CR을 LF로 통일 → SQL lexer로 문자열 리터럴·quoted/bracket identifier token을 보존하며 line/block comment 제거 → CREATE/ALTER/CREATE OR ALTER 동사만 canonical CREATE로 통일 → trigger/parent의 생략 schema는 metadata로 해석한 실제 schema를 고정 표기로 명시하되 기존 identifier token 원문의 case·delimiter·escape spelling 보존 → WITH ENCRYPTION, EXECUTE AS, NOT FOR REPLICATION 등 header option과 event/body token 보존 → 비식별자 keyword만 invariant uppercase → token 사이 의미 없는 whitespace를 단일 ASCII space로 축소 → 앞뒤 space와 trailing batch separator 제거` 순서를 적용한다. bracket identifier와 quoted identifier, delimiter 유무 또는 escape spelling을 서로 같은 token으로 통일하지 않는다. definition 정규화 결과와 `uses_quoted_identifier/uses_ansi_nulls` 값을 길이 구분된 canonical tuple로 직렬화한 뒤 SHA-256 lowercase hex를 fingerprint로 사용한다. 레거시 v1/v2와 실제 운영 DB에서 검증한 지원 fingerprint 목록을 원본 definition 및 두 SET metadata fixture와 함께 코드 상수로 관리한다. 단순 trigger 이름이나 table 문자열 포함만으로 capability를 true로 판정하지 않는다. 지원 fingerprint와 일치하지 않으면 보수적인 구조 판정으로 자동 허용하지 않고 `unsupported`로 처리한다. 지원 trigger는 저장 batch의 마지막 mapping보다 앞서 결과 rowset을 반환하지 않아야 한다.
-- `LegacyInsertTriggerCapabilities` cache key는 최소 `server identity + database name + DB connection generation`이며 사용자명이나 비밀번호는 저장하지 않는다. cache entry는 위 경량 변경 감지 signature와 전체 capability signature를 함께 보유한다. DAO는 transaction 전에 read-only 경량 signature를 확인해 cache와 다를 때만 definition/SET metadata를 다시 읽고, 확정한 capability와 정렬된 expected 경량 metadata 행 집합을 save command 실행 context에 고정한다. SQL batch는 부모/application lock 획득 후 `SELECT @GuardCount=COUNT_BIG(*) FROM <trigger parent> WITH (TABLOCKX,HOLDLOCK)`처럼 rowset을 반환하지 않는 schema guard를 획득하고 transaction 종료까지 유지한다. 이 table X lock이 trigger DDL의 `Sch-M`과 충돌하는 상태에서 expected 행 집합과 현재 `sys.triggers` metadata 행 집합을 양방향 `EXCEPT`로 exact-set 비교한 뒤 첫 target insert를 실행하므로 비교와 trigger 실행 사이에 definition/enable 상태가 바뀌지 않는다. 비교가 다르면 transaction 안에서 definition을 재probe하거나 자동 재시도하지 않고 전용 schema-changed 오류로 DML 전에 종료한다. DAO는 해당 connection generation cache를 무효화하고 working copy를 유지하며, 사용자가 다시 저장할 때 새 전체 capability를 probe한다. 경량 signature가 같으면 매 저장마다 definition 전체를 다시 읽지 않는다. `ItemSaveSchemaCapabilities`와 `LabelColumnSchemaCapabilities`가 같은 trigger를 따로 probe/cache하지 않고 이 immutable 결과의 필요한 view를 참조한다. reconnect, server/database 변경 또는 명시적 새로고침에서 generation이 바뀌면 공용 cache를 무효화하고, 다른 DB의 process-static 결과를 재사용하지 않는다.
-- `LabelColumnSchemaCapabilities`: 배포 DB의 column order 타입/index, main/check/content/min/GS1/update 보조 schema와 공용 `LegacyInsertTriggerCapabilities`의 column-save view. probe는 `sys.tables`, `sys.columns`, `sys.indexes`, `sys.foreign_keys`, `sys.triggers`, `sys.sql_modules` 및 `COLLATIONPROPERTY` 등 metadata를 읽기만 하고 DDL, trigger enable/disable 또는 schema 보정 DML을 실행하지 않는다. core 필수 schema는 `BM_RICH_COLUMN`, `BM_RICH_COL_CONTENT`, `BM_RICH_COL_MIN`, `BM_RICH_CHECK_COLUMNS` 및 문서의 insert/update/delete에 쓰는 필수 ID·labelSize·keyword·name·order·check·content 컬럼과 호환 타입이다. 이 중 하나가 없거나 식별자/타입/키 의미를 판정할 수 없으면 모든 컬럼 저장을 첫 DML 전에 차단한다. text target은 길이뿐 아니라 실제 collation/code page가 CP949/MS949 round-trip 계약과 호환돼야 한다. GS1 schema는 `BM_GS1_COLUMN_INFO`, `BM_GS1_CONTAIN_COLUMN`의 ID·main/contain·AI·format·show 컬럼과 키 의미를 별도 capability로 두며, 없거나 판정 불가하면 GS1 컬럼 add/delete, GS1 property/relation 변경과 GS1 타입 진입·이탈만 DML 전에 차단하고 비GS1 저장은 허용한다. `BM_UPDATE_ITEM`/`BM_UPDATE_COL_CONTENT`와 optional main check 컬럼은 optional capability이며, update 두 테이블은 필요한 ID/content 컬럼·타입·관계 key까지 호환될 때만 해당 경로를 사용한다. 실제 필수 컬럼명·호환 SQL 타입·nullability·collation/code page·identity/unique/FK 전제는 capability 상수와 fixture에 열거하고, table 이름 존재만으로 지원 판정하지 않는다.
-- `ColumnStatusSchemaCapability`: `BM_RICH_STATUS_DATA` 존재 여부와 `RICH_COLUMN_ID` 관계 key, `RICH_COLID_CHANGE_DELETE_DATE` 날짜형 target, nullability와 update predicate를 확인한다. table이 없으면 컬럼 삭제 status 갱신은 notApplicable이고, table은 있지만 key/date 의미가 비호환·판정 불가이면 비삭제 저장은 허용하되 컬럼 삭제를 첫 DML 전에 차단한다. 지원 schema의 삭제 의미는 레거시처럼 `WHERE RICH_COLUMN_ID=<삭제 ID>` 행의 날짜를 SQL Server `GETDATE()`로 갱신하는 것이며 출력 이력이 없어 affected row가 0인 경우는 정상이다.
-- `CustomerColumnSchemaCapabilities`: `BM_RICH_CUST_COLUMN`의 customer/identity/type/keyword/name 컬럼과 소유권 key를 metadata read-only로 확인한다. `RICH_KEYWORD`/`RICH_COLUMN_NAME`의 실제 SQL type, max byte 길이, nullability, collation code page가 각각 ASCII keyword와 CP949/MS949 name 저장 계약에 호환되지 않거나 판정할 수 없으면 사용자 항목 사전 CRUD를 첫 DML 전에 차단한다. keyword 중복 비교용 명시 collation으로 target code page 검증을 대신하지 않는다.
-
-`TColumn`에 UI 임시 상태를 넣지 않는다. 저장 command는 widget 상태를 직접 참조하지 않는 immutable DTO로 만든다.
-
-12.2 조회 DAO
-
-- 현재 사용 항목: 기존 `TColumnDAO.selectByLabelSizeId`를 확장하되 text target을 `CONVERT(NVARCHAR(고정폭), ...)`로 잘라 읽지 않고 `NVARCHAR(MAX)` 또는 실제 target 전체 값을 보존하는 동등한 변환으로 조회한다. capability의 target byte 길이는 저장 validation에만 사용하고 조회 projection 폭으로 재사용하지 않는다. 알 수 없는 타입/옵션은 기존 `TColumn.fromMap()` fallback 의미를 그대로 사용
-- 품목 column content: `TColumnContentDAO.selectByLabelSizeId/selectByItemIds`의 고정 `CONVERT(NVARCHAR(3000), RICH_COL_CONTENT_DATA)`를 `NVARCHAR(MAX)` 또는 실제 target 전체를 무손실로 반환하는 동등 projection으로 교체한다. `RICH_EDITABLE`이 있는 v2 variant만 실제 값을 조회하고, 컬럼이 없는 v1 variant는 `P1.RICH_EDITABLE` 같은 실제 DB 컬럼 참조 없이 `CAST(0 AS TINYINT) AS RICH_EDITABLE` 결과 alias만 반환한다. 이 alias는 `TColumnContent.fromMap()`의 공통 row shape를 위한 것이며 허용한다. capability의 `max_length`는 저장 검증에만 사용하고 조회 폭을 줄이는 데 사용하지 않는다.
-- 고정 항목 분류: `BM_RICH_FIX_COL_TYPE`, 별도 `ORDER BY` 없이 DB 반환 순서 유지
-- 고정 항목 후보: `BM_RICH_FIX_COLUMN`, 선택한 type ID 조건
-- 사용자 항목 후보: `BM_RICH_CUST_COLUMN`, 현재 로그인 customer ID 조건
-- 항목 종류: 기존 `TColumnType.datas`; 미초기화 상태면 DB 조회 후 dialog를 표시한다.
-
-모든 문자열은 현재 프로젝트 DAO 규칙에 맞춰 CP949 컬럼을 명시적으로 NVARCHAR로 변환하되 target 전체 값을 무손실로 반환한다. `RICH_BARCODE_TYPE`, 사용자 정의 QR data/text, 나트륨 join, QR font name, 사용자 정의 바코드 text, date range와 GS1 AI뿐 아니라 `BM_RICH_CUST_COLUMN.RICH_KEYWORD/RICH_COLUMN_NAME`도 실제 schema가 기존 예상 폭보다 커도 조회에서 잘리지 않아야 한다. 사용자/거래처 ID를 화면 표시값에서 추정하지 말고 로그인 세션의 명시적 customer ID를 전달한다.
-
-12.3 사용자 항목 저장 DAO
-
-레거시의 행별 CRUD 의미는 유지하되 현재 프로젝트에서는 부분 저장을 허용하지 않는다.
-
-- 사용자 항목 insert/update/delete를 parameterized `DbTransactionStatement` 목록으로 만들고 기존 `DbClient.transaction()`에 한 번 전달한다.
-- 신규 행은 `draftCustomerColumnKey`로 UI identity를 유지하고 저장 성공 후 DB 재조회 결과로 목록과 선택을 갱신한다.
-- `CustomerColumnSchemaCapabilities`로 target 호환성을 확인한 뒤 keyword/name은 `NVARCHAR(MAX)` 등 원문을 보존하는 parameter/staging으로 먼저 전달한다. keyword ASCII/100자, name CP949 round-trip, 실제 target byte 길이와 code page를 검증한 값만 target `VARCHAR(n)`로 변환하며 검증 전 제한 폭 binding·`OPENJSON ... WITH (VARCHAR(n))`·대체문자 변환으로 자르지 않는다.
-- transaction의 시작, commit, 실패 시 가능한 rollback은 `DbClient.transaction()`이 사용하는 같은 driver 실행 경로만 소유한다. DAO SQL에 `BEGIN TRANSACTION`, `COMMIT`, `ROLLBACK`을 다시 넣지 않는다.
-- 첫 statement는 `BM_CUSTOMER`의 현재 customer ID 행을 `UPDLOCK, HOLDLOCK`으로 확인하고 행이 없으면 `THROW`한다. 이 잠금을 transaction 종료까지 유지한 상태에서 CRUD와 마지막 고객별 keyword 중복 검증을 실행해 같은 고객 사전의 저장을 직렬화한다.
-- 신규: `BM_RICH_CUST_COLUMN(RICH_CUSTOMER_ID, RICH_KEYWORD, RICH_COLUMN_NAME, RICH_TYPE)` insert
-- 수정: 현재 customer ID와 custColumnId를 함께 조건으로 update
-- 삭제: 현재 customer ID와 custColumnId를 함께 조건으로 delete
-- 기대 affected row가 다르면 `THROW`하여 전체 rollback한다.
-- 부모 잠금 아래 신규 행과 keyword가 실제 변경된 기존 행만 현재 customer ID의 다른 잔존 행 및 같은 command의 다른 변경 행과 DB `Korean_Wansung_CI_AS` 의미로 비교하고, 이번 command가 새 중복을 만들면 첫 해당 DML 전에 또는 batch 최종 검증에서 `THROW`한다. command가 건드리지 않은 기존 중복은 이름/type 수정이나 다른 행 삭제를 차단하지 않는다. command가 지정한 변경분만 적용하므로 서로 다른 행의 선행 변경은 유지하고, 같은 기존 행의 update는 마지막 transaction 값이 우선한다. 선행 삭제로 update/delete affected row가 기대값과 다르면 rollback하고 재조회한다.
-- SQL 문자열 보간을 사용하지 않고 `writeDataWithParams`와 구조화된 parameter binding을 사용한다.
-- 연결, SQL 실행, validation 또는 affected row 검증 오류는 호출자에게 전달한다. 호출자는 오류를 사용자에게 알리고 working copy를 유지한다.
-- 사용자 항목 저장은 상위 callback이 transaction과 후속 재조회를 순서대로 실행한다. DB 오류는 예외로 전달하고 가능한 rollback 뒤 working copy와 현재 mode를 유지한다.
-
-12.4 사용 항목 저장 transaction
-
-레거시의 저장 범위를 유지하면서 동시성과 실패 처리를 보완한다.
-
-현재 `DbClient.transaction()`은 앞 statement의 조회 결과를 뒤 statement parameter로 전달하지 않는다. 따라서 신규 ID가 필요한 사용 항목 저장은 `returnsRows=true`인 단일 `DbTransactionStatement`로 구성하고, 그 하나의 parameterized SQL batch 안에서 아래 1~13단계를 모두 실행한다. 바깥 transaction의 시작, commit, rollback은 기존 `DbClient.transaction()`만 소유한다. batch는 실행 시점의 `@@OPTIONS`에서 `NOCOUNT` 상태를 저장한 뒤 `SET NOCOUNT ON`으로 DML rowcount result를 억제하고, 정상 경로와 `CATCH` 경로에서 원래 상태로 복원한다. 구현이 `XACT_ABORT` 등 다른 session option을 변경하면 같은 방식으로 원래 값을 복원한다. 마지막 신규 ID mapping `SELECT`만 유일한 row-bearing result set으로 반환하고 중간 검증은 결과를 반환하는 `SELECT` 대신 `IF EXISTS`, `@@ROWCOUNT`, `THROW`를 사용한다.
-
-1. 단일 parameterized SQL batch를 한 번의 `DbClient.transaction()`으로 실행해 transaction을 시작하고, batch 첫 단계에서 현재 labelSizeId의 `BM_RICH_LABELSIZE_FORM` 행을 `UPDLOCK, HOLDLOCK`으로 확인해 transaction 종료까지 같은 라벨 크기의 저장을 직렬화한다. 행이 없으면 `THROW`한다. 신규 컬럼 insert가 있으면 첫 자식 DML 전에 `sp_getapplock`의 고정 resource `label_manager:rich-item-column-insert-trigger`, `Exclusive`, `LockOwner='Transaction'`을 획득한다. 음수 반환은 `THROW`하며, 신규 품목 저장도 같은 resource를 사용한다. 이 lock은 새 프로그램 writer끼리만 보호하므로 레거시와 새 프로그램의 동시 저장 금지 운용을 대체하지 않는다.
-2. JSON 등 구조화 parameter를 batch 내부 table variable로 투영하고 현재 labelSizeId와 기존 column ID의 소유권을 검증한다. 구조 command이면 부모 잠금을 보유한 상태에서 DB 현재 기존 column ID 집합과 `baselineExistingColumnIds`가 정확히 같은지 모든 insert/update/delete/order DML 전에 검증하고, 다르면 즉시 `THROW`한다. DB 생성 ID 없이 판정 가능한 입력 신규 draft key 집합의 중복·누락·예상하지 않은 key, `orderUpdates`/`gs1RelationUpdates`의 존재하지 않는 existing ID 또는 insert source에 없는 draft key, `gs1CleanupColumnIds`의 중복·다른 label size ID도 이 단계에서 DML 전에 `THROW`한다. `propertyUpdates`는 canonical `LabelColumnPropertyKey` registry로 key의 허용 여부·중복·값 타입·대상 table/column을 검증한다. 최종 관계 payload가 삭제 대상을 참조하면 실패하지만, delete ID 자체는 별도 삭제 정리 대상으로 허용한다. `gs1CleanupColumnIds`는 삭제되지 않고 생존하는 기존 컬럼 중 original DB 타입이 GS1 AI 또는 GS1 바코드이고 command의 effective final type에서 그 original 역할을 벗어나는 집합과 정확히 일치해야 하며 delete ID와 겹치면 실패한다. GS1 relation 역할 검증은 최종 관계를 구성하는 `gs1RelationUpdates`에만 적용한다. 기존 ID도 같은 command의 `propertyUpdates`에 type 변경이 있으면 그 최종 타입을 사용하고, type 변경이 없을 때만 부모 잠금 아래 현재 DB 타입을 사용한다. 신규 draft key는 insert source의 최종 타입을 사용한다. 이렇게 계산한 effective final type에서 relation main은 GS1 바코드, contain은 GS1 AI여야 한다. type 변경 없이 GS1 info property나 relation만 저장하는 stale command는 현재 DB 타입이 해당 역할과 다르면 첫 target DML 전에 `THROW`한다. 자유 입력 문자열은 validation 전에 제한 길이 `VARCHAR(n)`로 변환하지 않고 `NVARCHAR(MAX)` 등 원문을 보존하는 staging 컬럼에 먼저 투영한다. 검증된 값만 실제 target 컬럼 DML에서 변환하며 `OPENJSON ... WITH (VARCHAR(n))` 같은 조기 축소로 오류 없이 잘린 값을 저장하지 않는다. text 값은 target byte 길이와 CP949 호환 code page를 모두 검증한다. 첫 target DML 전에 `LabelColumnSchemaCapabilities`의 core 필수 schema가 호환되는지 확인하고, GS1 add/delete/property/relation/type 전환 command이면 GS1 schema 호환도 요구한다. 신규 insert가 있으면 transaction 전에 고정한 column parent의 expected 경량 trigger metadata 행 집합을 구조화 parameter로 전달한다. application lock 뒤 `BM_RICH_COLUMN WITH (TABLOCKX,HOLDLOCK)`을 transaction 종료까지 잠그고, 그 상태에서 현재 metadata와 양방향 `EXCEPT`로 exact-set 비교한다. 불일치는 전용 schema-changed 오류로 첫 자식 DML 전에 종료하고 DAO가 cache를 무효화하며 자동 재probe/재시도하지 않는다. 일치한 capability가 `none`이면 step 6 content 보충과 step 8 최종 order 적용을 source of truth로 사용하고, `validatedLegacy`이면 검증된 trigger의 선생성 content/order 덮어쓰기를 허용한 뒤 같은 단계에서 최종 상태를 완성한다. `unsupported`이면 property-only 저장은 막지 않고 신규 컬럼 insert만 첫 자식 DML 전에 실패시켜 DB 확인을 안내한다.
-3. 신규 `BM_RICH_COLUMN`은 `validatedLegacy`의 `AFTER_INSERT_COLUMN`이 한 번에 한 행만 처리하고 `none`과 동일한 결정적 mapping 경로를 유지해야 하므로 draft key 순서로 한 행씩 insert한다. 각 insert의 `OUTPUT INSERTED.RICH_COLUMN_ID INTO`를 batch 내부 `@InsertedColumns(draftKey, columnId)`에 기록한다. `LegacyInsertTriggerCapabilities.overwritesColumnOrder`가 true인 지원 trigger만 호출자가 전달한 order를 전역 `MAX(RICH_COLUMN_ORDER)+1`로 덮어쓰므로 그 결과를 최종 또는 임시 order로 신뢰하지 않는다. `none` 또는 덮어쓰지 않는 지원 trigger는 입력 order를 유지한다. `structureDirty=true`이고 `(labelSizeId, RICH_COLUMN_ORDER)` unique 제약이 있을 때만 step 2에서 target 타입 범위 안의 현재 기존 행 전체와 신규 행 각각에 서로 다른 충돌 없는 임시 order를 배정하고, 임시 영역이 최종 `1..N`과 겹치지 않으며 충분한지 모든 order-bearing DML 전에 검증한다. 기존 target 행의 임시 order는 가능한 경우 음수 영역을 사용하고, 신규 insert 입력 order는 insert 시점의 unique 제약을 통과하는 고유 값으로 만든다. `overwritesColumnOrder=true`이면 trigger의 전역 `MAX(order)+1`이 각 단건 insert에서 order 타입 상한을 넘지 않는지도 첫 order-bearing DML 전에 검증한다. 검증 후 삭제 예정 행을 포함한 현재 기존 행 전체를 먼저 각 임시 order로 옮긴다. 각 신규 행은 고유 임시 order로 단건 insert한다. `overwritesColumnOrder=true`이면 trigger가 끝난 직후 다음 신규 insert 전에 mapping된 실제 column ID를 그 행에 예약한 임시 order로 다시 이동하고 affected row 1건을 검증한다. `none` 또는 false이면 입력한 예약 임시 order가 그대로 유지되는지 확인하되 불필요한 재이동은 하지 않는다. 모든 신규 행이 예약 임시 영역에 있음을 확인한 뒤에만 step 8의 최종 order를 적용한다. 임시값 공간이 부족하거나 overwrite trigger의 다음 order가 타입 범위를 넘으면 최초 order update/insert 전에 `THROW`한다. property-only command는 capability와 무관하게 application lock, 임시 order 계산과 order-bearing DML을 실행하지 않는다.
-4. 라벨 크기별 `BM_RICH_COL_MIN` 기준행과 touched 컬럼행 동기화. 레거시의 빈 문자열 column ID가 SQL Server에서 0으로 변환되는 의미에 맞춰 `RICH_COLUMN_ID=0`, keyword `ELEMENT`, 이름 `주원료`, order 0, `RICH_MIN_CHECK=0` 기준행을 없을 때만 하나 생성한다. 신규 컬럼행은 `RICH_MIN_CHECK=0`으로 insert한다. 기존 컬럼행은 keyword/name property가 실제 변경됐을 때만 해당 identity를 갱신하고, 구조 command의 `orderUpdates`가 있을 때만 order를 갱신하며 기존 `RICH_MIN_CHECK`를 보존한다. property와 order 모두 untouched인 기존 행을 stale draft 값으로 update하거나 누락 보조행을 자동 복구하지 않는다.
-5. 신규 컬럼과 `keyword`, `columnName`, `useMissingKeywordCheck` 중 하나가 실제 변경된 기존 컬럼만 `BM_RICH_CHECK_COLUMNS` upsert 대상으로 삼는다. matched 행은 `propertyUpdates`에 포함된 keyword/name/check 컬럼만 갱신해 같은 행의 다른 선행 변경을 stale draft 값으로 덮지 않는다. 보조행이 없어서 insert할 때만 부모 잠금 아래의 현재 `BM_RICH_COLUMN` identity와 command에서 실제 변경한 check 또는 변경하지 않은 baseline check를 조합해 완전한 행을 만들며, 세 최종 값이 main/draft 의미와 일치하는지 검증한다. property가 untouched인 기존 행의 누락 보조행은 자동 복구하지 않는다. 저장 command 생성 전에 배포 DB `sys.columns` capability를 조회해 레거시 `BM_RICH_COLUMN.RICH_USE_MISSING_KEYWORD_CHECK` 존재 여부를 확인한다. 존재하면 해당 컬럼을 포함하는 SQL batch variant를 선택해 touched `BM_RICH_COLUMN` insert/property update에도 실제 changed key만 저장하고, 존재하지 않으면 해당 식별자가 SQL text에 전혀 없는 batch variant를 선택한다. 동일 정적 batch 안의 `IF EXISTS` 분기로 존재하지 않는 컬럼을 참조해서는 안 된다. capability 결과와 선택한 variant는 구현 기록과 DAO 테스트 전제에 남기며, 현재 조회와 validation의 source of truth는 `BM_RICH_CHECK_COLUMNS.RICH_CHECK_YN`으로 유지한다.
-6. 신규 컬럼마다 해당 label size의 기존 `BM_RICH_ITEM`에서 `(columnId, itemId)` 조합이 없는 `BM_RICH_COL_CONTENT`만 빈 `RICH_COL_CONTENT_DATA`로 insert한다. `RICH_EDITABLE`이 있는 capability variant는 이를 0으로 명시하고, 없는 variant는 식별자 자체를 INSERT/MERGE/SELECT SQL text에 포함하지 않는다. legacy trigger가 먼저 만든 행은 보존하고 중복 insert하지 않는다.
-7. `LabelColumnSchemaCapabilities`에서 `BM_UPDATE_ITEM`과 `BM_UPDATE_COL_CONTENT`의 필요한 ID/content 컬럼·호환 타입·관계 key가 모두 확인되면 신규 컬럼마다 해당 label size의 기존 `BM_UPDATE_ITEM`에 `BM_UPDATE_COL_CONTENT.RICH_COL_CONTENT_DATA=''`를 insert한다. 두 테이블 중 하나가 없거나 table은 있어도 필수 컬럼/타입/key 의미를 판정할 수 없으면 update-content 경로를 사용하지 않고 그 capability 근거를 구현 기록과 DAO 테스트 전제에 남긴다. 현재 Flutter 호출처나 현재 행 개수가 0이라는 이유만으로 제외하지 않는다.
-8. 기존 `BM_RICH_COLUMN`은 `propertyUpdates`에 명시된 저장 속성만 update하고 `RICH_COLUMN_ORDER`를 함께 쓰지 않는다. step 2의 membership/입력 참조 검증을 통과한 구조 command만 신규/삭제를 반영하고, `orderUpdates`의 신규 draft key를 step 3의 `@InsertedColumns`로 실제 ID에 매핑한 뒤 최종 잔존 행 전체 order를 적용한다. unique 제약 경로에서는 step 3에서 삭제 예정 행까지 임시 영역으로 이동했으므로, 삭제 예정 행이 최종 `1..N`을 점유하지 않은 상태에서 잔존 행만 최종 order로 옮긴다. 같은 ID 집합의 동시 reorder는 후행 전체 order가 우선한다. 구현 전 배포 DB `sys.columns`와 `sys.indexes`에서 `RICH_COLUMN_ORDER` 타입과 unique constraint/index를 확인한다. unique 제약이 없으면 최종 order를 set-based update하며, unique 제약이 있으면 step 3의 사전 검증된 임시 경로를 사용한다. 임의 schema 변경은 하지 않는다.
-9. 신규 컬럼과 GS1 info property 또는 type이 실제 변경된 기존 컬럼만 `BM_GS1_COLUMN_INFO` 대상으로 삼는다. 최종 타입이 GS1 AI면 info를 upsert한다. type이 GS1 AI로 바뀐 경우에는 draft의 최종 GS1 기본값/편집값 전체로 완전한 행을 만들고, type은 그대로인 matched 행은 실제 changed property key만 갱신한다. 최종 타입이 GS1 AI가 아니면 기존 info 행을 삭제한다. 보조행이 없고 type 변경 없이 GS1 info property만 바뀐 경우에는 현재 `TColumnDAO` 조회가 누락행에 합성하는 canonical 값 `gs1ai='01'`, `formatOption=-1`, `showGS1Code=false`를 immutable final auxiliary snapshot의 baseline으로 사용하고 command의 changed 값을 overlay해 완전한 행을 만든다. 존재하지 않는 보조행의 값을 DB에서 읽었다고 가정하거나 widget의 stale 전체 draft를 사용하지 않는다. type과 GS1 property가 모두 untouched인 기존 행의 누락 info는 자동 복구하지 않는다.
-10. `BM_GS1_CONTAIN_COLUMN`은 먼저 `gs1CleanupColumnIds`의 original DB 역할을 기준으로 정리한다. original 타입이 GS1 바코드면 관계가 원래 비어 있었더라도 outgoing 관계를 삭제하고, original 타입이 GS1 AI면 incoming contain 참조를 삭제한다. 그 다음 신규 GS1 바코드와 실제 관계가 바뀌었거나 타입 전환 후 최종 GS1 바코드가 된 main의 `gs1RelationUpdates`를 최종 관계와 일치하도록 replace한다. cleanup ID 자체는 최종 relation main 역할 검증 대상이 아니며, GS1 AI↔GS1 바코드 전환이면 original 역할 정리 후 final 역할의 info/relation을 적용한다. 관계의 `MAIN_COLUMN_ID`와 `CONTAIN_COLUMN_ID`는 각각 기존 column ID 또는 신규 draft key를 받을 수 있으며, 신규 draft key는 같은 batch의 `@InsertedColumns`와 결합해 실제 column ID로 변환한다. 삭제 column은 stale working copy와 무관하게 DB에서 해당 ID를 `MAIN_COLUMN_ID` 또는 `CONTAIN_COLUMN_ID`로 참조하는 양쪽 관계를 직접 삭제한다. 삭제 대상이거나 mapping에서 해결되지 않는 참조가 하나라도 있으면 `THROW`한다.
-11. 삭제 대상의 status date 갱신 및 종속 데이터 정리 후 `BM_RICH_COLUMN` delete. `ColumnStatusSchemaCapability`가 notApplicable이면 status update를 생략하고, supported이면 `BM_RICH_STATUS_DATA.RICH_COLUMN_ID`가 삭제 ID인 행의 `RICH_COLID_CHANGE_DELETE_DATE=GETDATE()`를 main delete 전에 적용한다. table이 존재하지만 capability가 unsupported이면 첫 delete DML 전에 차단한다. `BM_RICH_COL_MIN`은 삭제 column ID에 해당하는 컬럼행만 제거하고 라벨 크기별 `ELEMENT` 기준행은 유지한다.
-12. 소유권을 확인한 기존 `BM_RICH_COLUMN` property update/delete, 구조 command membership, 신규 ID mapping, 입력 원본 개수로 기대 건수가 정해지는 필수 insert/upsert는 expected affected row를 검증한다. 반면 출력 이력이 없는 컬럼의 `BM_RICH_STATUS_DATA` 날짜 update와 존재할 때만 지우는 check/GS1/min/content 종속행 delete는 0건을 정상으로 허용한다. 이어 부모 행 잠금을 유지한 채 신규 컬럼과 keyword가 실제 변경된 기존 컬럼 각각을 최종 DB의 다른 잔존 행과 `Korean_Wansung_CI_AS` 기준으로 비교해 이번 command가 만든 keyword 중복·예약 keyword 사용만 검증한다. command가 건드리지 않은 기존 위반은 무관한 property update/delete/reorder를 실패시키지 않는다. touched 일반 항목의 `BM_RICH_COLUMN`과 `BM_RICH_CHECK_COLUMNS` keyword/name identity를 확인하고, 선택한 capability variant에 `RICH_USE_MISSING_KEYWORD_CHECK`가 있으면 touched main/check 양쪽의 최종 check 값도 일치하는지 확인한다. 구조 command이면 해당 label size의 DB 전체 행에 대해 `COUNT(*)=0` 또는 `COUNT(*)=COUNT(DISTINCT RICH_COLUMN_ORDER) AND MIN(RICH_COLUMN_ORDER)=1 AND MAX(RICH_COLUMN_ORDER)=COUNT(*)`를 검증한다. 신규 컬럼과 현재 item의 각 `(columnId, itemId)` content 조합도 정확히 한 행인지 검증한다. 레거시처럼 사용 항목 전체 삭제와 빈 목록을 허용한다. 입력 신규 draft key 집합과 `@InsertedColumns`의 key 집합·개수도 정확히 같은지 batch 내부에서 검증한다. 필수 DML의 건수 불일치, 구조 membership 불일치, 선행 삭제로 인한 기존 행 update/delete 0건, 이번 command가 만든 대소문자 무시 keyword 중복·예약 keyword 사용, touched check 보조행 identity/check 값 불일치, 비어 있지 않은 전체 order의 비연속·중복, 신규 content 조합의 누락·중복, mapping의 누락·중복·예상하지 않은 key가 있으면 `THROW`한다. 기존 행이 남아 있는 한 command에 없는 다른 속성과 untouched 보조행은 갱신하지 않는다.
-13. 변경한 session option을 원래 상태로 복원한 뒤 마지막에 `@InsertedColumns`의 draft key와 column ID를 조회 결과로 반환하고 같은 `DbClient.transaction()` 실행 경로에서 commit
-
-신규 ID는 레거시 `SelectLastNRecord()` 방식으로 찾지 않는다. 활성 legacy trigger와 호환되도록 batch 내부의 결정적 단건 insert와 `OUTPUT INSERTED ... INTO`를 사용해 source draft key를 `@InsertedColumns`에 정확히 매핑한다. direct `OUTPUT` result set이나 다중 행 insert-only `MERGE`는 사용하지 않는다. mapping 완전성은 commit 전에 SQL batch가 검증한다. DAO는 반환 row를 decode하고 draft key 집합·개수를 확인해 `LabelColumnSaveResult`를 반환하며, SQL 실행이나 결과 해석 오류는 그대로 호출자에게 전달한다.
-
-1~13 중 어느 단계에서든 오류가 발생하면 SQL `CATCH`에서 변경한 session option을 원래 상태로 복원해 다시 throw하고, 기존 driver transaction 경로가 활성 transaction을 가능한 경우 rollback한다. 호출자는 오류를 사용자에게 알리고 working copy를 유지하며 성공 결과나 cache 갱신을 수행하지 않는다.
-
-삭제 시 다음 테이블을 명시적으로 검토한다.
-
-- `BM_RICH_COL_CONTENT`
-- `BM_UPDATE_COL_CONTENT`
-- `BM_RICH_COL_MIN`
-- `BM_RICH_CHECK_COLUMNS`
-- `BM_GS1_COLUMN_INFO`
-- `BM_GS1_CONTAIN_COLUMN`의 `MAIN_COLUMN_ID`와 `CONTAIN_COLUMN_ID` 양쪽 관계
-- `BM_RICH_STATUS_DATA.RICH_COLID_CHANGE_DELETE_DATE`
-- 최종 `BM_RICH_COLUMN`
-
-FK cascade에 암묵적으로 의존하지 않는다. 실제 FK/cascade가 확인되면 중복 delete를 피하되 DAO 테스트에 그 전제를 기록한다.
-
-문자열 SQL 직접 결합, 마지막 N개 행 재조회, transaction 밖 보조 테이블 저장, 실패를 삼키는 void API를 사용하지 않는다. DAO는 성공 결과 또는 예외를 호출자에게 반환해야 한다.
-
-12.5 공용라벨 form과 특별 항목 누락검사 저장
-
-`SpecialMissingKeywordCheckSnapshot`은 정확히 다음 네 canonical 행을 immutable 값으로 보유한다.
-
-- `columnId=-1`, keyword `ITEMNAME`, 이름 `품명`
-- `columnId=-2`, keyword `ELEMENT`, 이름 `주원료`
-- `columnId=-3`, keyword `SWEIGHT`, 이름 `저울중량`
-- `columnId=-4`, keyword `SPRICE`, 이름 `최종가격`
-
-이 identity는 현 `LabelSizeDAO.insert()`가 새 라벨 크기에 생성하는 특별 항목 행과 일치한다. 각 행에는 최종 `useMissingKeywordCheck` boolean을 함께 보유한다. `LabelSizeDAO.updateByLabelSizeId()`는 이 snapshot을 필수 인자로 받고 호출 시점의 `TColumnSpecial.datas`나 checkbox widget 상태를 다시 읽지 않는다.
-
-기존 `UpdateFormDataTransactionSql`은 snapshot을 JSON 등 하나의 구조화 parameter로 받아 table variable로 투영하고, 입력이 위 네 canonical `(columnId, keyword, name)` tuple과 정확히 일치하며 누락·중복·예상하지 않은 identity가 없는지 검증한다. 같은 batch 안에서 form log insert와 form update를 수행하고, 특별 항목은 `(RICH_LABELSIZE_ID, RICH_COLUMN_ID)`를 identity로 `BM_RICH_CHECK_COLUMNS`에 upsert한다. matched 행의 keyword/name이 해당 음수 ID의 canonical 값과 다르면 임의 보정하지 않고 전체 저장을 실패시킨다. 없는 행만 canonical column ID, keyword, 이름과 최종 check 값으로 insert한다. keyword는 identity가 아니라 검증 대상이며, 같은 label size에 기존 일반 양수 column ID가 예약 keyword를 사용하고 있어도 그 행을 update하거나 canonical 특별 행 존재 판정에 사용하지 않는다. 네 특별 항목 upsert와 form log/update의 기대 건수를 검증하고 하나라도 실패하면 전체 rollback한다. `TColumnSpecial.selectByLabelSizeId()`도 keyword-only 조회를 제거하고 각 canonical 음수 column ID로 조회한 뒤 keyword/name을 검증한다.
-
-이 경로는 현재처럼 `writeDataWithParams(UpdateFormDataTransactionSql, ...)` 한 번으로 실행하며 기존 batch 내부 transaction이 form과 특별 항목 저장을 함께 소유한다. commit 또는 중간 DML 오류는 batch가 rollback하고 예외를 전달하며, 오류 시 공용라벨 dirty를 유지한다. 전체 저장이 정상 완료된 경우에만 `LabelSheetSaveResult.applied`를 반환한다. 바깥 `DbClient.transaction()`을 추가해 중첩하지 않고 12.3 사용자 항목 및 12.4 사용 항목 transaction과 혼합하지 않는다.
-
-12.6 품목 저장과 컬럼 저장의 교차 잠금
-
-현재 `ItemManagerDraftController`와 `ItemManagerSaveCommand`에는 controller 소유의 immutable `labelSizeId`와 전체 `baselineColumnIds`가 없고, `toSaveCommand()`가 labelSizeId를 외부 인자로 받으며 수정된 `columnValues`만 command에 포함한다. 따라서 컬럼 add/delete/reorder를 활성화하기 전 선행 구현으로 controller가 품목 draft를 만든 labelSizeId와 같은 로드의 `TColumnDAO.selectByLabelSizeId(labelSizeId)` 전체 regular column ID 집합을 immutable하게 캡처하도록 추가하고, `ItemManagerSaveCommand`가 이 두 값과 삭제 품목별 로드 시점 market ID exact-set을 controller/journal baseline에서 복사하도록 변경한다. 수정된 `columnValues`나 누락될 수 있는 content 행에서 baseline을 만들지 않고, 로드 후 전역 `TColumn.datas` 또는 market mapping이 바뀌어도 command baseline을 바꾸지 않는다. command 생성 시 기존/신규/삭제 품목과 모든 column value가 이 labelSizeId의 편집 context에 속하는지 검증하고, SQL batch에서도 기존 item ID와 column ID의 실제 labelSizeId 소유권 및 삭제 market baseline을 첫 자식 DML 전에 다시 검증한다.
-
-품목 draft journal도 정렬된 전체 `baselineColumnIds`를 metadata와 checksum payload에 포함한다. journal schema/checksum version을 증가시키고 encode/decode, metadata 일치 검사, checksum field 목록과 `restoreJournalBaseline()` 입력을 함께 변경한다. restore 판정 순서는 `문서 version·필수 field·저장된 baseline payload 자체 checksum 검증 → 저장된 baselineColumnIds 파싱/정렬/중복·양수 검증 → 현재 DB load의 regular column membership과 exact-set 비교 → 현재 item/content baseline 및 mapping fingerprint 비교 → 변경 복원`으로 고정한다. journal 자체가 손상됐거나 저장된 payload checksum이 맞지 않으면 `invalid`, journal은 정상이나 현재 DB column membership이 다르면 item/content 행이 없어도 `externalChange`를 반환한다. membership 비교를 현재 controller checksum과 합쳐 먼저 `invalid`로 끝내지 않는다. content가 존재하는 column ID만으로 membership을 재구성하거나 현재 전역 `TColumn.datas`로 journal baseline을 묵시적으로 교체하지 않는다. 구버전 journal은 새 schema version과 맞지 않으면 기존 정책대로 `invalid`이며 자동 migration하지 않는다.
-
-`ItemManagerSaveDAO.save()`는 기존 단일 `DbClient.transaction()`과 SQL batch 구조를 유지하되 batch 첫 단계에서 해당 `BM_RICH_LABELSIZE_FORM` 행을 `UPDLOCK, HOLDLOCK`으로 확인하고 transaction 종료까지 보유한다. 행이 없으면 `THROW`한다. insert/delete 등 `BM_ITEM_OF_MARKET` DML이 있으면 그 다음 잠금으로 rowset을 반환하지 않는 `SELECT @MarketGuardCount=COUNT_BIG(*) FROM BM_ITEM_OF_MARKET WITH (TABLOCKX,HOLDLOCK)`을 실행해 mapping table write를 transaction 종료까지 직렬화한다. 이 잠금 아래 삭제 품목마다 현재 `BM_ITEM_OF_MARKET.RICH_MARKET_ID` 집합과 command의 `baselineMarketIdsByItemId`를 양방향 `EXCEPT`로 비교하고, mapping이 없던 품목은 빈 집합끼리만 일치로 본다. 하나라도 다르면 첫 품목/content/market DML 전에 stale command로 `THROW`해 rollback·재조회를 요구하며, transaction 밖 저장 직전 fingerprint 재조회 결과로 command baseline을 바꾸지 않는다. table X lock을 사용하므로 supporting index나 빈 key-range 잠금에 의존하지 않고, 모든 품목 저장의 잠금 순서는 `label-size 부모 → market DML 시 market table X → 신규 insert 시 application lock → item trigger parent schema guard → 자식 DML`로 고정한다. 삭제와 신규 insert가 한 command에 섞여도 이 순서를 바꾸지 않고, 다른 품목 저장도 application lock이나 market DML을 먼저 실행하지 않는다. DAO는 transaction 전에 공용 trigger capability와 item parent의 expected 경량 metadata 행 집합을 고정한다. 신규 item insert가 있으면 컬럼 저장과 동일한 transaction-owned 전역 application lock을 첫 자식 DML 전에 획득하고, SQL batch가 rowset 없는 guard query로 `BM_RICH_ITEM WITH (TABLOCKX,HOLDLOCK)`을 transaction 종료까지 잠근다. 이 schema guard 아래 expected metadata와 현재 metadata를 양방향 `EXCEPT`로 비교하므로 이후 첫 insert와 transaction 종료 사이 trigger DDL은 `Sch-M` 대기한다. 불일치는 전용 schema-changed 오류로 첫 품목 DML 전에 종료하고 DAO가 cache를 무효화하며, transaction 안에서 definition을 다시 읽거나 자동 재시도하지 않는다. 신규 insert capability가 `unsupported`이거나 `none`인데 적용 가능한 모든 content pair를 DAO가 완성할 수 없으면 신규 품목 insert만 첫 품목 DML 전에 차단한다. 이와 별도로 삭제 대상과 연결될 수 있는 알려진 child/update/status table 또는 item 방향 FK가 존재하지만 delete capability가 unsupported이면 기존 품목 update는 허용하되 삭제는 첫 DML 전에 차단한다. 부모 잠금 직후 DB 현재 column ID 집합과 `baselineColumnIds`를 비교하고, 다르면 대기 중 컬럼 add/delete가 먼저 commit된 stale 품목 command이므로 첫 품목/content DML 전에 `THROW`해 rollback·재조회를 요구한다. 집합이 같을 때만 `BM_RICH_ITEM`, `BM_ITEM_OF_MARKET`과 적용 가능한 content pair DML을 실행한다.
-
-삭제 품목은 같은 transaction에서 레거시의 본래 CRUD 의미를 완성한다. 실제 FK/cascade capability를 기준으로 item 방향 cascade가 없는 적용 가능한 regular/element/barcode/image content child를 먼저 `RICH_ITEM_ID`로 삭제하고, 호환되는 `BM_UPDATE_COL_CONTENT → BM_UPDATE_ITEM`, 이어 `BM_ITEM_OF_MARKET → BM_RICH_ITEM → BM_RICH_STATUS 이력 갱신` 순서로 처리한다. status table이 없으면 마지막 단계는 생략하고, 있으면 호환 capability를 필수로 요구하며 출력 이력이 없는 update 0건은 정상으로 허용한다. 삭제 전 소유권과 baseline market exact-set을 통과한 각 `BM_RICH_ITEM` main delete는 item별 정확히 1건이어야 한다. market delete는 `OUTPUT DELETED.RICH_ITEM_ID, DELETED.RICH_MARKET_ID`를 내부 staging에 수집하고 baseline이 빈 경우까지 포함해 삭제 exact-set이 command baseline과 양방향으로 정확히 같아야 한다. 적용 가능한 child/update의 0건은 허용하지만 main/mapping 기대 집합 불일치와 삭제 후 해당 item을 참조하는 모든 판정 가능한 child/update/market 행 잔존은 `THROW`한다. 존재하지만 delete 의미가 unsupported인 참조 schema는 건너뛰지 않고 첫 delete DML 전에 실패한다. 현 Flutter 테스트의 `deletes only market mappings` 계약은 제거하고 실제 item 삭제·child/status 정리 회귀로 대체한다.
-
-신규 저장은 `validatedLegacy`에서 v1/v2 `AFTER_INSERT_ITEM`의 단건 의미를 유지하고 `none`에서도 같은 결정적 mapping을 유지하도록 draft key 순서로 한 행씩 insert한 뒤 `OUTPUT INSERTED ... INTO`로 ID를 매핑한다. mapping 후 각 적용 가능한 pair에 대해 `(신규 item ID × 같은 labelSizeId의 source ID)` 중 child가 없는 조합만 pair별 빈 기본값으로 insert한다. `validatedLegacy`에서는 trigger가 만든 행을 보존하고 누락분만 보충하며, `none`에서는 모든 조합을 DAO가 생성한다. pair별 최종 조합의 누락·중복과 기대 건수를 commit 전에 검증한 뒤 regular column pair에 command의 `columnValues`를 MERGE한다. `RICH_EDITABLE`이 존재하는 variant만 신규 기본 content 행에 0과 해당 식별자를 사용하고, 기존 행의 content-only 수정과 이미지/xlsx/import 등 모든 content source는 editable을 update 대상에 넣지 않아 현재 DB 값을 보존한다. 명시적인 editable 편집 UX/요구는 이번 범위에 없으므로 기존 행 flag나 신규 기본값 0을 content 값에서 추론해 바꾸지 않는다. 없는 v1 write variant는 prepare 단계부터 해당 DB 컬럼을 전혀 참조하지 않으며 조회의 공통 결과 alias만 예외다.
-
-품목 content 원문은 JSON/XML/parameter 단계에서 `NVARCHAR(MAX)` 등 무손실 staging으로 먼저 전달하며, 현 `ItemManagerDraftController`의 3000자 고정 제한과 `ItemManagerSaveDAO`의 `NVARCHAR(3000)` staging을 실제 target 검증으로 대체한다. 각 non-empty 값은 capability가 확인한 실제 target collation code page로 encode/decode한 round-trip이 원문과 같고 encoded byte 길이가 `sys.columns.max_length` 이하인지 command validation과 SQL 첫 content DML 전에 같은 의미로 검사한다. 레거시 CP949/MS949 `VARCHAR(200)`이면 200글자가 아니라 실제 encoded 200바이트가 경계다. 검증 전 `VARCHAR(n)` binding, `OPENJSON ... WITH (VARCHAR(n))`, 제한폭 NVARCHAR 변환 또는 대체문자 변환으로 자르거나 `?`로 바꾼 값을 저장하지 않는다. 초과·변환 불가·code page 비호환/판정 불가는 전체 transaction을 content DML 전에 실패시키고 working copy를 유지한다. 별도 transaction이나 범용 잠금 관리자를 추가하지 않는다.
-
-품목 mapping은 SQL batch가 commit 전에 입력 신규 draft key 집합과 `@InsertedRows` key 집합·개수를 정확히 검증한다. DAO는 `await DbClient.transaction(...)` 호출과 반환 mapping 해석을 분리한다. transaction 정상 반환 뒤 raw row decode, draft key/ID 타입 변환, 중복·누락·예상하지 않은 key 또는 key 집합·개수 불일치가 발생하면 이미 commit된 결과를 일반 저장 실패로 분류하지 않고 `ItemManagerPostCommitResultInvalid`를 throw한다. 이 exception은 원본 오류와 검증 사유를 보유하며 pre-commit SQL/validation 오류나 `DbCommitOutcomeUnknown`을 감싸지 않는다. 상위 callback은 이를 commit 후 결과 해석 실패로 먼저 catch해 해당 label context의 force-reload와 동일 command 재저장 차단을 유지하고 DB 재조회를 요구한다. 자동 재시도나 별도 복구 상태는 만들지 않는다.
-
-12.4의 컬럼 저장도 같은 부모 행을 첫 단계에서 잠그고 insert command는 같은 전역 application lock을 사용하므로 새 프로그램의 품목/컬럼 insert는 label size와 무관하게 직렬화된다. 품목 저장이 먼저 잠금을 얻으면 품목 DAO가 신규 품목의 기존 컬럼 기본 content를 명시 생성하고, 컬럼 저장은 이후 새 품목까지 조회해 신규 컬럼 content를 만든다. 컬럼 구조 저장이 먼저 commit되면 이전 column snapshot으로 만든 대기 중 품목 command는 membership 불일치로 DB를 변경하지 않고 재조회한다. 잠금 순서는 품목 transaction이 `label-size 부모 → market DML 시 BM_ITEM_OF_MARKET TABLOCKX → 신규 insert 시 전역 application lock → item trigger parent TABLOCKX schema guard → metadata exact-set 비교 → 자식 DML`, 컬럼 transaction이 `label-size 부모 → 신규 insert 시 전역 application lock → column trigger parent TABLOCKX schema guard → metadata exact-set 비교 → 자식 DML`이다. 두 경로 모두 공통 잠금을 이 순서 밖에서 먼저 획득하지 않아 legacy trigger의 전역 identity 선택, 검증 후 trigger DDL 경합과 신규 item-column content 누락을 막는다. 부모/application lock 규약을 사용하지 않는 레거시 프로그램과 새 프로그램의 품목/컬럼 동시 저장은 label size가 달라도 3.2처럼 지원하지 않는다.
-
-13. 공용 테이블 확장 원칙
-
-현재 `SwipeActionTable`에 필요한 API가 없으면 라벨 항목 다이얼로그 안에서 gesture/table을 다시 구현하지 말고 공용 위젯을 최소 확장한다.
-
-필요한 공용 확장 후보는 다음과 같다.
-
-- 행/열 헤더 교차 영역의 action builder
-- 외부 drag payload builder
-- row drag 시작/종료 callback
-- 외부 drop target과 함께 사용할 안정 row key
-- 편집 mode의 타입별 cell builder/dropdown cell
-- table enabled 상태에서도 선택 표시를 유지하는 read-only mode
-
-기존 라벨 설정, 브랜드 설정, 품목 순서 변경 동작을 깨지 않도록 새 옵션 기본값은 현재 동작을 유지해야 한다. 공용 위젯 변경에는 기존 `test/swipe_action_table_test.dart` 회귀 테스트를 반드시 추가한다.
-
-확장 시 `rowKey(T)`와 typed row drag payload가 drag identity의 source of truth다. reorder drop intent는 최소 `{sourceKey, targetKey, placement: before|after}`를 보유하고, 휴지통/외부 추가 payload는 해당 동작에 필요한 source key와 source 종류를 보유한다. drag 시작 index와 hover 시점 target index는 표시용 snapshot일 뿐이다. 비동기 guard 또는 목록 변경 뒤 drop/reorder를 수락할 때 source와 target key를 현재 rows에서 모두 다시 찾고 placement를 적용해 최종 from/to insert index를 계산한다. 어느 key든 없거나 같은 source/target 조합이 무효하면 command를 실행하지 않고 현재 UI를 유지한다. 이전 index를 그대로 `onRowReorder(int, int)`에 전달하지 않는다. 기존 `onRowReorder(fromIndex, dropTargetIndex)`는 현재 라벨 설정/브랜드/품목 순서 소비자가 `fromIndex < dropTargetIndex ? dropTargetIndex - 1 : dropTargetIndex`를 계산하는 의미를 그대로 유지한다. stable-key 경로는 `{sourceKey,targetKey,placement}`를 받는 typed callback 또는 이미 계산된 `(fromIndex, resolvedInsertIndex)`임이 이름과 타입으로 구분되는 별도 callback을 추가하며, resolved insert index를 기존 drop-target callback에 adapter로 전달해 두 번째 보정을 다시 적용하지 않는다.
-
-14. 오류, 동시성, 재진입 처리
-
-- dialog open 중 동일 버튼을 다시 눌러 중복 overlay를 만들지 않는다.
-- 조회 중에는 loading 상태와 닫기 정책을 명확히 하고 빈 목록을 정상 조회 실패로 오인하지 않는다.
-- DB 연결 실패는 진행 표시를 닫은 뒤 경고 dialog로 알리고 사용자의 working copy를 유지한다.
-- 저장 command는 generation 또는 in-flight Future로 중복 실행을 막는다.
-- 저장 중 dialog close, mode 전환, drag/drop, 행 선택을 막는다.
-- 저장 성공 후 상위 widget이 dispose됐으면 setState하지 않되 DAO transaction 결과는 유실하지 않는다.
-- transaction commit 직후 후속 재조회가 끝나기 전까지 force-reload 상태를 유지한다. 재조회 실패는 commit 전 실패와 구분하며 동일 working copy 재저장을 허용하지 않는다.
-- 컬럼 구조 저장의 reload-required 상태와 원인은 `HomePageManager`가 소유한다. 항목 편집 다이얼로그는 상위 command callback만 호출하고 상태를 직접 set/clear하지 않으며, 같은 label size의 전체 재조회 성공만 `columnStructureSave` 원인을 해제한다.
-- commit 전 DB 처리 실패는 오류를 알리고 활성 transaction을 rollback할 수 있으면 rollback하며 working copy를 유지한다. `DbCommitOutcomeUnknown`, `LabelColumnPostCommitResultInvalid`, `ItemManagerPostCommitResultInvalid`는 별도 복구 시스템 없이 해당 label context의 force-reload와 재조회 전 저장 차단을 유지한다. 어떤 실패도 성공 처리하거나 자동 재시도하지 않는다.
-- `LabelSheetWorkbench`의 dirty 변경은 `_setDirty(bool)` 같은 단일 내부 경계를 사용해 실제 값이 바뀔 때만 `onDirtyChanged`를 통지한다. 최초 attach는 첫 frame 뒤 현재 `initialDirty`를 한 번 보고하고, 이후 RTF 변환, 라벨 파일 import, 사용자 operation, 특별 항목 누락검사 변경, 저장 성공을 모두 이 경계로 처리한다. 파일 import가 내부적으로 실행하는 `clearSheet → updateSheet` 중간 operation은 외부에 clean 상태로 통지하지 않고 최종 dirty 상태만 전달한다.
-- `LabelSheetWorkbench` 저장 payload는 dirty를 만든 최신 표시 workbook과 같은 내용이어야 한다. `_controller.getAllSheets()`와 `_latestWorkbook`을 합칠 때 controller가 아직 이전 sheet snapshot을 반환하면 최신 `onChange` workbook을 과거 값으로 덮지 않으며, callback에 전달한 payload를 decode한 workbook의 cell/config/image 내용이 저장 클릭 시점의 표시 내용과 일치하는지 테스트한다.
-- 품목 요소 workbook 자동 반영과 명시적 저장은 row identity별 generation/직렬 Future queue 경계를 공유한다. 새 operation은 최신 payload를 queue에 등록하고 명시적 저장은 그 최신 generation 완료를 기다리며, 선행 generation 결과는 후행 generation의 부모 draft·workbench dirty·`applied` 결과를 변경하지 않는다.
-- 로그는 operation/trace, labelSizeId, customerId, insert/update/delete 개수, mode 전환, 성공/실패만 기록한다. 키워드 본문, 사용자 정의 QR 데이터, 비밀번호 등 실제 payload는 기록하지 않는다.
-- 로그는 상태 관찰용이며 저장 여부나 분기를 결정하는 비즈니스 로직으로 사용하지 않는다.
-
-15. 권한과 진입 조건
-
-- 선택된 label size가 없으면 `항목 편집` 버튼을 비활성화한다.
-- 현재 사용자가 공용라벨관리 접근/편집 권한이 없으면 진입할 수 없다.
-- 품목관리 draft가 dirty이거나 draft command 실행 중이거나 강제 reload가 필요한 상태이면 항목 편집기 진입과 저장을 차단하고 먼저 품목 저장, 변경 취소 또는 재조회를 완료하도록 안내한다.
-- 공용라벨 시트가 dirty이면 항목 편집기 진입과 저장을 차단하고 먼저 시트를 저장하거나 변경을 취소하도록 안내한다. 이를 위해 `LabelSheetWorkbench → LabelSheetPage → CommonLabelManage → HomePageManager`로 dirty boolean만 전달하며 workbook snapshot이나 별도 runtime은 추가하지 않는다. 공용 save callback 결과는 `LabelSheetSaveResult.applied/notApplied` enum으로 고정한다. `LabelSheetWorkbench`는 현재 callback boundary가 변경을 인수한 `applied`에서만 자신의 dirty false를 전달하며 `notApplied`와 예외에서는 기존 dirty true를 유지한다. 공용라벨은 DB transaction commit 후, 품목 요소는 부모 품목 draft 반영 후 `applied`를 반환한다. 품목 요소 적용이 공용라벨 dirty를 해제하거나 품목 전체 DB 저장 완료로 오인되지 않도록 각 상위 dirty 상태를 별도로 유지한다.
-- 공용라벨 저장 등 충돌 가능한 상위 command가 진행 중이어도 진입을 차단하고 이유를 안내한다.
-- dialog를 열 때 labelSizeId와 customerId를 immutable input으로 전달한다. 열린 뒤 상단 dropdown 값에 다시 의존하지 않고, 저장 transaction에서 기존 column ID가 해당 labelSizeId 소유인지 재검증한다.
-
-16. 테스트 요구사항
-
-16.1 순수 모델 테스트
-
-- original/working/property dirty 구분
-- 속성 적용과 취소
-- 신규 pending 특수 행의 속성 취소 시 행 제거
-- 신규 pending 특수 행을 기본값 그대로 최초 적용할 수 있고 적용 전에는 행 이동·모드 전환·메인 저장이 차단됨
-- 최초 적용 대상 타입이 바코드/이미지/QR/GS1 AI/GS1 바코드 다섯 타입으로 고정되고 기존 행의 타입 변경은 신규 pending 상태를 만들지 않음
-- 기존/신규 삭제 ID 처리
-- 안정 key 기반 선택 유지
-- 대소문자만 다른 duplicate keyword/빈 필드/type별 validation
-- 일반 사용 항목에서 `ITEMNAME`, `ELEMENT`, `SWEIGHT`, `SPRICE`와 대소문자만 다른 값까지 예약 keyword로 차단
-- 사용 항목과 사용자 항목의 키워드/항목명 및 사용 항목 제목의 CP949 변환 가능 여부와 100바이트/50바이트/20바이트 경계값 validation
-- 사용자 정의 QR data/text, 나트륨 join, QR font name, 사용자 정의 바코드 text와 최종 date range의 CP949 round-trip 및 배포 DB byte 길이 경계값 validation
-- `barcodeType`이 enum ordinal/Dart 이름이 아닌 canonical DB name 문자열로 staging되고 허용 DB name exact-set과 실제 `RICH_BARCODE_TYPE` byte 길이 경계를 검증하며, `gs1ai`도 실제 `COLUMN_GS1_CODE` byte 길이 경계와 필수값을 검증
-- 타입 변경 시 기본↔QR의 생성 방식·사용자 정의 data/text 초기화와 GS1 AI 이탈의 contain 관계 제거만 수행하고 나머지 값은 보존
-- 일반/GS1 AI/GS1 바코드 사이의 타입 진입·이탈은 GS1 info 값이나 contain 관계가 원본과 같아도 최종 타입 기준 보조 데이터 전환 command를 생성
-- 바코드 신규 draft의 비율 조절 기본값이 false/10이고 기존 행의 `showQRCodeText`/`qrTextFontSize` 값이 편집 전후 보존됨
-- QR/기본/바코드 텍스트 연동/GS1 참조 관계를 하나의 공용 함수로 계산하고 행 표시·키워드 변경·삭제 경고가 같은 결과를 사용
-- 타입별 수치 validation이 파싱/DB 저장 범위/정의 enum/레거시 명시 차단 조건만 적용하고 0 경고값과 기존 DB 값을 임의 UX 상·하한으로 차단하지 않음
-- reorder 후 1부터 연속 order 생성
-- property-only 변경은 `propertyUpdates`만 만들고 `orderUpdates`/구조 membership 입력을 만들지 않으며, add/delete/reorder는 baseline 기존 ID 집합과 전체 최종 order를 가진 구조 command를 생성
-- `LabelColumnPropertyKey`의 39개 canonical case, registry key 집합과 `LabelColumnDraft` persistent field 분류가 set-equality로 일치하고 main/check/GS1 DB 매핑·타입·validation이 누락되지 않으며 구조/관계/runtime-only field가 property update에서 제외됨
-- 모든 저장 속성 변경이 canonical persistence registry를 사용하고 unknown/중복/type mismatch/미분류 persistent field는 command 생성 단계에서 실패
-- 최종 GS1 바코드 관계가 실제 변경되거나 타입 전환으로 새로 구성되는 main만 `gs1RelationUpdates`를 만들고, 삭제되지 않고 생존하면서 기존 GS1 AI/GS1 바코드 역할에서 이탈·전환하는 기존 컬럼만 `gs1CleanupColumnIds`를 만들며 unrelated property 변경과 delete ID는 cleanup을 만들지 않음
-- 사용자 항목 대문자/영숫자/중복 검증
-
-16.2 widget 테스트
-
-- 공용라벨 `항목 편집` 버튼으로 blocking modeless dialog가 하나만 열림
-- label size 미선택 또는 편집 권한 없음이면 `항목 편집` 버튼이 비활성화되고 callback이 실행되지 않음
-- 품목 draft dirty/command busy/reload-required, 공용라벨 시트 dirty, 공용라벨 저장 등 충돌 가능한 상위 command busy 각각에서 진입을 차단하고 원인을 안내
-- 다이얼로그를 연 뒤 권한·선택 label size·품목 draft dirty·공용라벨 시트 dirty·상위 busy/reload-required 상태가 달라지면 메인 저장 callback이 transaction 호출 전에 각각 다시 차단
-- 큰 화면과 최소 지원 화면에서 속성 패널, 두 테이블, command rail, footer가 겹치지 않음
-- 고정/사용자 전환 및 고정 분류 dropdown
-- 후보 선택 + 왼쪽 화살표 추가
-- 고정/사용자 후보 drag + 사용 항목 drop 추가
-- 중복 후보 추가 차단
-- 특별 항목 예약 keyword 후보는 고정/사용자 후보 목록에 그대로 표시하되 각 source에서 화살표와 drop 추가가 비활성화됨
-- 선택 없음 휴지통 비활성
-- 사용 항목 선택 + 휴지통 삭제
-- 사용 항목 drag + 휴지통 drop 애니메이션과 삭제
-- property dirty 상태의 행 선택/모드 전환/닫기 guard에서 취소와 변경 취소 양쪽 결과
-- 최초 적용 전 특수 행의 행 선택/모드 전환/닫기 guard와 취소 시 pending 행 제거
-- 타입 변경에 따른 속성 editor 교체와 레거시 분기별 입력값 보존/초기화
-- 바코드 속성 editor에서 비율 조절 사용 여부/수치를 표시하고 적용 시 property draft에 반영
-- 속성 적용 버튼이 `propertyDirty || requiresInitialApply`와 validation 결과로 활성화
-- reorder mode의 교차 영역 아이콘, drag reorder, 위/아래 rail, 전용 footer, 다른 영역 비활성
-- reorder 취소 시 진입 전 순서 복원, 저장 시 working copy에만 순서 적용, 이후 메인 취소 시 전체 변경 폐기
-- userItemEdit 모드의 편집→추가 아이콘 전환, 마지막 행 추가, 종류 dropdown, 삭제/drop, footer, 취소/저장
-- 전용 모드에서 메인 footer 비활성
-- DB busy 중 중복 클릭과 닫기 차단
-- `LabelSheetWorkbench`가 첫 frame 뒤 초기 dirty를 한 번 보고하고, 이후 RTF 변환, 파일 import, 일반 편집, 저장 성공이 단일 `onDirtyChanged` 경계로 실제 전이마다 true/false를 한 번씩 통지
-- 파일 import의 내부 `clearSheet`가 중간 dirty false를 통지하지 않음
-- 공용라벨과 품목 요소 저장의 확인 취소·검증 중단은 `notApplied`로 해당 workbench dirty를 유지하고, 공용라벨 DB commit 또는 품목 요소 부모 draft 반영이 완료된 `applied`에서만 해당 workbench dirty를 해제
-- 공용라벨과 품목 요소 저장 callback이 모두 `LabelSheetSaveResult.applied/notApplied` enum을 사용하고 예외를 `notApplied` 성공 결과로 변환하지 않으며, 품목 요소 `applied` 후에도 부모 품목 draft dirty는 유지
-- 품목 요소 operation A 자동 반영 중 같은 row의 최신 operation B와 명시적 저장을 등록하면 B가 직렬 queue에서 A 뒤에 실행되고, 최종 부모 draft에는 B payload가 남으며 저장은 B Future 성공 뒤 `applied`를 반환한다. A 실패도 B 실행을 막지 않고 A 결과가 B의 draft·dirty·결과를 바꾸지 않음
-- 행 X의 자동 반영이 대기 중일 때 widget이 행 Y identity로 교체되어 Y를 편집·명시 저장해도 Y는 Y의 최신 Future만 기다리고, 늦은 X 성공·실패가 Y 부모 draft·workbench dirty·`applied` 결과를 바꾸지 않음
-- `LabelSheetWorkbench`에서 cell/config/image를 변경해 dirty를 만든 뒤 저장 callback payload를 decode하면 초기 workbook이 아니라 저장 클릭 시점의 최신 표시 workbook과 동일하고, controller의 이전 sheet snapshot이 최신 `onChange` 값을 덮지 않음
-- stable row key drag 중 목록이 바뀌거나 비동기 guard가 완료돼도 `{sourceKey,targetKey,before|after}`를 현재 rows에서 모두 다시 찾아 올바른 행만 reorder하고 source/target 소실은 no-op이다. 새 typed/resolved callback은 최종 insert index를 한 번만 적용하고, 기존 `onRowReorder(fromIndex, dropTargetIndex)` 사용처는 기존 아래 방향 인접·비인접 계산과 결과를 그대로 유지
-- 기존 일반 사용 항목 표의 누락검사는 읽기 전용이고, 특별 항목 checkbox 변경은 공용라벨 dirty와 required keyword를 즉시 갱신하며 실제 DB 저장 완료에서만 dirty를 해제
-- 특별 항목 save callback이 save command 생성 시점의 immutable 네 행 snapshot을 전달하고 저장 중 공유 `TColumnSpecial.datas` 변경에 영향받지 않음
-
-16.3 DAO/transaction 테스트
-
-- 고정 분류/후보 및 customer scoped 사용자 후보 조회
-- 사용자 항목 insert/update/delete가 한 transaction으로 commit
-- 사용자 항목 DAO가 내부 transaction을 중첩하지 않고 기존 `DbClient.transaction()`만 transaction을 소유
-- 사용자 항목 transaction 첫 statement가 `BM_CUSTOMER` 대상 행을 `UPDLOCK, HOLDLOCK`으로 잠그고 마지막 statement가 신규/keyword 변경 행이 같은 customer의 다른 잔존 행과 새 중복을 만드는지만 `Korean_Wansung_CI_AS` 의미로 검증
-- `CustomerColumnSchemaCapabilities` fixture에서 identity/customer/type/keyword/name 또는 소유권 key가 누락·타입 비호환·판정 불가이면 사용자 항목의 첫 DML 전에 차단하고, 호환 fixture만 CRUD를 실행
-- 같은 customer의 동시 저장에서 동일 행 update는 마지막 값이 우선하고 서로 다른 행 변경은 유지되며, 선행 삭제 행의 stale update/delete는 affected-row 불일치로 rollback하고 전체 목록 교체·삭제 행 복원·자동 재시도하지 않음
-- 같은 customer에 기존 대소문자 무시 중복 keyword가 있어도 keyword를 건드리지 않는 이름/type 수정과 다른 행 삭제는 성공하고 기존 위반을 자동 정리하지 않으며, 신규 또는 keyword 변경 command가 새 중복을 만드는 경우만 실패
-- 사용자 항목 중간 실패 전체 rollback
-- 사용자 항목 keyword/name을 원문 보존 staging으로 전달하고 ASCII keyword 100자 및 CP949 name target byte 경계는 저장·재조회에서 동일하게 유지하며, name 1바이트 초과·CP949 변환 불가·target code page 비호환 또는 판정 불가는 첫 CRUD 전에 실패하고 검증 전 잘림·`?` 치환이 없음
-- `BM_RICH_CUST_COLUMN`의 실제 호환 target이 기존 예상 조회 폭보다 큰 fixture에서도 keyword/name 전체 값을 조회하고, 조회 후 무수정 저장이 원래 byte/content를 바꾸지 않음
-- 사용자 항목 사전에 기존 예약 keyword 행이 있어도 다른 행의 수정·저장에 성공하고 해당 예약 행을 유지하며, 일반 사용 항목으로 복사하는 add command만 실패
-- `SpecialMissingKeywordCheckSnapshot`이 canonical `(-1, ITEMNAME)`, `(-2, ELEMENT)`, `(-3, SWEIGHT)`, `(-4, SPRICE)` 네 행과 최종 check 값을 정확히 전달
-- `LabelSizeDAO.updateByLabelSizeId()`가 특별 항목 snapshot을 필수 입력으로 받고, 구조화 parameter의 누락·중복·예상하지 않은 keyword를 SQL 실행 전에 또는 batch 안에서 차단
-- 공용라벨 form log/update와 네 특별 항목 누락검사 upsert가 기존 `UpdateFormDataTransactionSql` 한 transaction에서 함께 commit되고 중간 실패 또는 기대 건수 불일치 시 전체 rollback
-- form/특별 항목 저장 batch가 바깥 `DbClient.transaction()`을 추가하지 않아 transaction을 중첩하지 않음
-- 사용 항목 저장이 단일 `returnsRows=true` SQL batch 안에서 신규 ID mapping과 모든 보조 테이블 반영을 완료
-- 사용 항목 batch가 현재 label size의 `BM_RICH_LABELSIZE_FORM` 행을 `UPDLOCK, HOLDLOCK`으로 잠근 뒤 DML과 최종 중복 검증을 실행하고, 같은 label size의 동시 저장은 변경분 기준 후행 transaction 우선으로 직렬화
-- `ItemManagerSaveCommand`가 immutable `labelSizeId`와 draft 생성 시점 `baselineColumnIds`를 보유하고 기존/신규/삭제 item과 column value의 편집 context를 command 생성 시 검증
-- 품목 controller가 같은 로드의 전체 regular column ID를 immutable baseline으로 캡처하고, 수정된 column value/content 행만으로 만들지 않으며 이후 전역 column cache 변경에도 command baseline이 바뀌지 않음
-- 품목 journal이 정렬된 전체 `baselineColumnIds`를 metadata/checksum/restore에 포함하고 schema/checksum version이 증가하며, 손상된 저장 payload checksum은 `invalid`, 정상 journal과 현재 DB membership 불일치는 품목/content가 0건이어도 checksum 비교보다 먼저 `externalChange`로 분류
-- 품목 저장 batch도 첫 자식 DML 전에 같은 `BM_RICH_LABELSIZE_FORM` 행을 `UPDLOCK, HOLDLOCK`으로 잠그고 기존 item ID와 column ID가 command labelSizeId 소유인지 검증하며, 다른 label size ID·부모 행 누락·기대 건수 불일치는 전체 rollback
-- 신규 품목/컬럼이 있는 새 프로그램 transaction은 부모 잠금 뒤 품목의 market DML이 있으면 먼저 `BM_ITEM_OF_MARKET TABLOCKX,HOLDLOCK`, 이어 같은 transaction-owned 전역 application lock을 획득하고 음수 반환 시 DML 전에 실패한다. 서로 다른 label size의 item/item·column/column·item/column insert도 이 공통 순서와 단건 처리로 직렬화
-- 공유 DB의 legacy trigger를 수정·제거·비활성화하지 않고 공용 `LegacyInsertTriggerCapabilities` 단일 probe/cache가 parent별 `none/validatedLegacy/unsupported`, 전역 identity·content 생성·order 덮어쓰기·row-bearing result flag와 정규화 fingerprint를 판정한다. CRLF/공백/주석 및 CREATE/ALTER/CREATE OR ALTER 동사만 다른 동등 fixture는 같은 fingerprint가 된다. identifier 원문 case·delimiter·escape spelling, WITH/EXECUTE AS/NOT FOR REPLICATION header option, 문자열 리터럴·DML·SELECT 의미 또는 `uses_quoted_identifier/uses_ansi_nulls`가 바뀐 fixture는 다른 fingerprint가 되며 두 SET metadata 누락/판정 불가도 `unsupported`다. 생략 schema는 metadata로 같은 실제 schema를 고정 표기하지만 `[a]]b]`와 `"a""b"` 같은 identifier token 원문은 서로 통일하지 않는다. `unsupported` 또는 rowset 반환 fixture에서는 property-only 저장은 유지하고 해당 parent 신규 insert만 DML 전에 차단
-- 활성 INSERT trigger가 없는 `none` fixture에서 신규 컬럼은 DAO가 content와 최종 order를 명시 완성해 저장하고, 신규 품목은 배포 schema의 column/element/barcode/image 필수 보조행을 DAO가 모두 완성하거나 해당 schema가 적용되지 않음을 확인한 fixture만 저장한다. 필수 부작용을 완성하지 못하는 fixture는 신규 품목만 DML 전에 차단
-- `BM_RICH_ITEM`/`BM_RICH_COLUMN`별 모든 활성 INSERT trigger의 정렬된 경량 `object_id/schema/name/parent/disabled/instead-of/modify_date` signature를 신규 insert 직전에 확인하고, 변경 시에만 definition fingerprint를 포함한 전체 capability를 재probe한다. 기대한 legacy trigger 외 추가 trigger나 definition 조회 불가 fixture는 신규 insert를 DML 전에 차단하고, 경량 signature가 같으면 definition 전체 probe를 반복하지 않음
-- transaction 전 확정한 expected trigger metadata 행 집합과 부모/application lock 및 trigger parent `TABLOCKX,HOLDLOCK` 획득 후 SQL이 읽은 현재 행 집합이 다르면 품목/컬럼 batch가 첫 target DML 전에 전용 schema-changed 오류로 종료되고, 해당 connection generation cache가 무효화되며 working copy를 유지한다. 같은 command를 자동 재probe·재시도하지 않고 다음 사용자 저장에서만 전체 capability를 다시 읽음
-- 품목/컬럼 신규 insert transaction이 trigger parent table X lock을 보유한 동안 다른 session의 ALTER/DROP/DISABLE TRIGGER는 `Sch-M`에서 대기하고, 저장 commit/rollback 뒤에만 완료된다. metadata exact-set 비교 직후 DDL을 시도하는 경쟁 fixture에서도 검증된 trigger가 전체 transaction 동안 유지되며 deadlock·부분 보조행·중간 rowset이 없음
-- 지원 원본 definition fixture별 capability를 직접 고정해 legacy schema v1 `AFTER_INSERT_COLUMN`은 `overwritesColumnOrder=false`, v2는 `overwritesColumnOrder=true`이고, 두 버전의 `AFTER_INSERT_ITEM` 및 column trigger가 각각 기대한 content 생성·전역 identity·row-bearing result flag와 fingerprint를 반환하는지 assertion
-- `ItemSaveSchemaCapabilities` fixture가 regular column, v2 element, v1 barcode, v1 image pair별 source/child 관계 key·필수 data column/type/nullability와 빈 기본값을 판정한다. source table 없음은 notApplicable, source는 있지만 child/key/필수 column이 없거나 비호환이면 unsupported이고, 지원 가능한 `none`과 각 `validatedLegacy` fixture 모두 신규 item별 같은 labelSizeId source 조합이 정확히 한 행이며 trigger 선생성 행은 중복하지 않고 누락 pair만 보충함
-- item delete capability가 알려진 child/update/status table과 `sys.foreign_keys`의 item 방향 참조를 모두 열거하고, table 부재만 notApplicable로 판정한다. table/FK는 존재하지만 관계 key·delete predicate·cascade를 판정할 수 없는 fixture는 update를 유지하되 delete를 첫 DML 전에 차단하고 orphan이나 부분 삭제를 남기지 않음
-- `BM_RICH_STATUS` 존재 fixture는 item ID/date type, nullability/default/check와 `-1` sentinel 저장 가능성을 확인하고 item 방향 enabled FK가 없는 경우에만 main delete 뒤 `RICH_ITEM_ID=-1`, 삭제일=DB 현재 시각을 반영한다. table 부재 fixture는 생략하고, CASCADE/SET NULL/NO ACTION 등 enabled FK가 있거나 sentinel 의미가 비호환·판정 불가인 fixture는 delete를 첫 DML 전에 차단하며 출력 이력 0건은 성공함
-- regular content capability가 `RICH_EDITABLE` 존재 여부와 `RICH_COL_CONTENT_DATA`의 실제 type/max bytes/collation/code page를 판정하고, v1 fixture는 `P1.RICH_EDITABLE` 같은 실제 컬럼 참조가 없는 조회 variant와 식별자 없는 insert/MERGE variant로 prepare/execute되며 공통 결과 alias를 통해 `editable=false`를 반환한다. v2 fixture는 신규 기본행만 0으로 만들고 기존 `editable=0/1` 각각에서 일반 입력·이미지·xlsx/import content-only 수정 후 원래 flag를 유지함
-- 품목 content가 `NVARCHAR(MAX)` 원문 staging에서 CP949/MS949 round-trip과 실제 target byte 길이를 검증해 SQL Server code page `949` fixture의 `VARCHAR(200)` encoded 200바이트 경계는 저장·재조회에서 동일하고 201바이트·변환 불가·`NULL/0/949 외` code page는 첫 content DML 전에 전체 rollback되며 검증 전 잘림·`?` 치환이 없음
-- item/column capability view가 `server + database + connection generation`별 같은 공용 trigger 결과를 참조하고 reconnect/다른 DB 전환에서 이전 process cache를 재사용하지 않음
-- core 필수 schema의 table/column/type/key 누락은 모든 컬럼 저장을 첫 DML 전에 차단하고, GS1 schema 누락은 비GS1 저장을 유지하면서 GS1 add/delete/property/relation/type 전환만 차단하며, optional update schema는 table 존재만이 아니라 필요한 column/type/key가 모두 호환될 때만 사용
-- text target capability가 `sys.columns.collation_name`과 `COLLATIONPROPERTY(..., 'CodePage')`를 검증해 품목 content는 exact value `949`, 다른 CP949 대상은 해당 registry가 고정한 exact-set의 fixture만 저장한다. 비호환·`NULL/0`·판정 불가 fixture는 해당 text command를 첫 DML 전에 차단하며, keyword 비교용 명시 collation만으로 지원 판정하지 않음
-- capability probe가 metadata SELECT만 실행하고 trigger/schema/레거시 설정을 변경하지 않으며, 신규 저장 전후에도 두 trigger의 object definition과 enabled 상태가 동일함
-- 새 프로그램의 application lock은 새 프로그램 transaction끼리만 직렬화하고 transaction 종료 후 해제되며, 레거시 파일·설정·프로세스를 조회하거나 변경하는 API를 호출하지 않음
-- `validatedLegacy` fixture의 신규 품목은 단건 insert되고 trigger가 먼저 만든 `@InsertedRows × baselineColumnIds` 기본행을 중복 insert하지 않은 채 누락 조합만 빈 data와 capability에 존재하는 경우의 editable 0으로 보충한 뒤 command 값을 MERGE한다. 지원 가능한 `none` fixture도 같은 최종 조합과 값을 만들며 필수 barcode/image/element 보조행을 DAO가 명시 완성함
-- 삭제 command가 삭제 품목별 로드 시점 market ID exact-set을 immutable하게 보유하고, 부모 잠금 뒤 rowset 없는 market table X lock을 획득한 상태에서 현재 mapping과 양방향 `EXCEPT`로 같을 때만 적용 가능한 content child, update content/item, market, main item, status 순으로 처리한다. 빈 baseline도 `DELETE OUTPUT` exact-set을 검증하고 mapping add/delete 경쟁, main 0/2건, baseline 삭제 집합 불일치와 참조 잔존은 전체 rollback하며 판정 가능한 child/update/status 0건은 계약대로 허용함
-- 같은 label size에서 품목 저장이 부모 잠금을 먼저 얻은 뒤 신규 컬럼 저장이 이어지면 commit 후 `(기존/신규 품목 × 기존/신규 컬럼)`의 필요한 `BM_RICH_COL_CONTENT` 조합이 모두 한 행씩 존재함
-- 컬럼 add/delete가 부모 잠금을 먼저 얻어 commit되면 이전 `baselineColumnIds`를 가진 대기 중 품목 저장은 첫 품목/content DML 전에 rollback·재조회를 요구하고 부분 item/content를 남기지 않음
-- 신규 insert가 있는 저장은 `부모 → 품목 market DML 시 market table X → 전역 application lock → trigger parent table X schema guard → metadata 비교 → 자식` 순서로 잠그며, delete+insert 혼합 command와 다른 품목/컬럼 저장도 역순 잠금을 사용하지 않아 교차 실행과 trigger DDL 경쟁에서 deadlock이나 부분 content 저장이 발생하지 않음
-- property-only 저장이 실제 변경된 기존 행 속성만 update하고 `RICH_COLUMN_ORDER`와 untouched `BM_RICH_COL_MIN`/`BM_RICH_CHECK_COLUMNS`/`BM_GS1_COLUMN_INFO`/`BM_GS1_CONTAIN_COLUMN`을 갱신하지 않음
-- unique order fixture의 property-only 저장도 임시 order 계산·기존 행 이동·최종 order update를 전혀 실행하지 않음
-- A의 X reorder/property/check/GS1 관계 저장 후 stale B가 unrelated Y property-only 저장을 해도 A의 변경이 유지됨
-- 구조 command가 부모 잠금 후 DB 현재 기존 column ID 집합과 baseline ID 집합이 다르면 property/check/min/GS1/insert/delete/order를 포함한 첫 target DML 전에 rollback하고 재조회를 요구함
-- `propertyUpdates`와 delete ID의 중복·누락·다른 label size 소유 ID·신규 draft key 오참조, insert source와 order/GS1 relation draft key 집합 불일치는 첫 target DML 전에 실패
-- `propertyUpdates`의 unknown/중복 key, 값 타입 불일치, 39개 case 대비 persistence registry 누락은 첫 DML 전에 실패하고 order·identity·GS1 relation·runtime-only 필드는 property update로 전달되지 않음
-- 같은 기존 ID 집합에서 A/B가 각각 reorder하면 후행 transaction의 전체 order가 반영되고, A add/delete 후 stale B reorder는 membership 불일치로 rollback함
-- batch가 기존 `NOCOUNT` ON/OFF 각각의 정상/`CATCH` 경로에서 원래 상태를 복원하고, 기존 OFF 복원 뒤에도 마지막 mapping 행이 정상 decode되며 mapping `SELECT` 외에는 row-bearing result가 없음. 추가로 변경하는 session option도 원래 상태로 복원
-- 신규 column ID가 source draft key에 정확히 매핑
-- 입력 신규 draft key와 SQL mapping의 누락/중복/예상하지 않은 key가 batch 내부 검증에서 commit 전에 `THROW`
-- 마지막 신규 ID mapping `SELECT`만 유일한 row-bearing result set이고 중간 DML/검증 결과가 반환 mapping으로 오인되지 않음
-- 후보 종류별 신규 draft가 단일 factory를 사용하고 체크디지트 사용=true, 바코드 번호 표시=true, QR font size=10, QR scale=100, GS1 AI=`01`, format option=-1, line size=0 등 레거시 기본값으로 생성
-- 신규 column마다 기존 item content의 없는 조합만 빈 data와 capability에 존재하는 경우의 editable 0으로 생성하고, editable 없는 v1 write variant는 실제 DB 컬럼을 참조하지 않으며 조회 variant의 공통 결과 alias만 허용한다. trigger가 먼저 만든 fixture에서도 조합별 정확히 한 행을 유지
-- 신규/기존 column의 `BM_RICH_CHECK_COLUMNS.RICH_CHECK_YN`이 각각 최종 draft의 true/false 값을 반영
-- 배포 DB에 `BM_RICH_COLUMN.RICH_USE_MISSING_KEYWORD_CHECK`가 있는 capability는 해당 컬럼을 포함한 batch variant를 선택해 main/check 양쪽에 최종 check 값을 저장하고 일치 여부를 검증하며, 컬럼이 없는 capability는 해당 식별자가 SQL text에 전혀 없는 variant를 선택해 prepare/execute에 성공
-- 기존 column의 keyword/name/check 변경 시 touched `BM_RICH_CHECK_COLUMNS`의 keyword/name/check가 최종 draft 값으로 갱신되고 `BM_RICH_COLUMN`과 identity가 일치하며, unrelated 행은 갱신하지 않음
-- 같은 기존 column에서 A가 check를 저장한 뒤 stale B가 keyword/name만 저장하거나 반대 순서여도 각 command의 changed key만 반영돼 두 변경이 모두 유지됨
-- touched 기존 column의 `BM_RICH_CHECK_COLUMNS` 보조행이 없으면 현재 DB main identity와 실제 changed check 또는 baseline check를 조합해 완전한 행을 insert하고 stale draft의 untouched 값을 쓰지 않음
-- 배포 DB에 두 update 테이블의 필수 ID/content 컬럼·호환 타입·관계 key가 존재하는 fixture에서는 신규 column마다 해당 label size의 기존 update item content가 빈 값으로 생성되고, table/column/type/key 중 하나라도 판정 불가한 fixture는 update-content 경로를 제외하고 capability 근거를 기록
-- `BM_RICH_COL_MIN`의 라벨 크기별 `ELEMENT` 기준행을 중복 없이 보장하고 신규 컬럼행은 `RICH_MIN_CHECK=0`으로 생성
-- 기존 `BM_RICH_COL_MIN` 컬럼행 update가 `RICH_MIN_CHECK`를 보존하고 삭제가 `ELEMENT` 기준행을 제거하지 않음
-- property update가 명시된 속성과 해당 touched 보조행만 반영하고, 구조 command가 전체 final order와 order가 있는 `BM_RICH_COL_MIN` 행만 반영
-- 배포 DB의 `RICH_COLUMN_ORDER` 타입/index capability를 확인하고 unique 제약 없음/있음 fixture에서 각각 set-based update 또는 충돌 없는 임시 order 경로로 정상 reorder
-- unique order fixture에서 단일/다중 add와 delete+add가 삭제 예정 행을 포함한 기존 행 전체를 먼저 최종 1..N과 겹치지 않는 서로 다른 임시 order로 옮긴다. `overwritesColumnOrder=true` fixture는 각 신규 단건 insert 직후 실제 ID를 다음 insert 전에 예약 임시값으로 재이동하고, false fixture는 입력 임시 order를 유지해 불필요한 재이동·MAX+1 상한 검증 없이 저장하며, 두 경로 모두 중간 unique 충돌이 없고 임시값 공간 부족은 최초 order update/insert 전에 실패
-- 입력 `orderUpdates`/GS1 관계가 중복·누락·예상하지 않은 draft key, insert source에 없는 draft key, 존재하지 않는 기존 ID 또는 삭제 대상을 참조하면 첫 DML 전에 rollback
-- GS1 relation의 main/contain 기존 ID는 부모 잠금 아래 현재 DB 타입이 각각 GS1 바코드/GS1 AI인지 확인하고 신규 draft key는 insert source 최종 타입을 확인하며, 선행 transaction의 타입 변경으로 역할이 달라진 stale relation command는 첫 target DML 전에 rollback
-- 같은 command에서 기존 일반 컬럼을 GS1 바코드/GS1 AI로 type 변경하면서 relation main/contain으로 함께 사용하는 경우는 `propertyUpdates`의 effective final type으로 역할을 검증해 정상 저장
-- 일반→GS1 AI는 기본값 그대로여도 `BM_GS1_COLUMN_INFO`를 생성하고 GS1 AI→일반/GS1 바코드는 info와 incoming contain 관계를 정리함
-- 일반→GS1 바코드는 빈 관계도 유효하게 적용하고 GS1 바코드→일반/GS1 AI는 원래 관계가 비어 있어도 outgoing contain을 정리하며, GS1 AI↔GS1 바코드 전환의 info/contain 최종 상태가 레거시 의미와 일치함
-- 기존 GS1 바코드가 타입을 유지한 채 contain 관계를 non-empty에서 empty로 바꾸면 빈 최종 관계 update를 생성해 해당 main의 outgoing 관계를 모두 삭제하고 unrelated main 관계는 보존
-- GS1 바코드→일반/GS1 AI cleanup ID는 최종 relation main 역할 검증을 받지 않고 original outgoing을 정리하며, GS1 AI→일반/GS1 바코드 cleanup ID도 original incoming을 정리한 뒤 final 역할을 적용함
-- 기존 GS1 AI/GS1 바코드 삭제 command는 `gs1CleanupColumnIds`를 만들지 않고 delete ID 경로에서 incoming/outgoing 양쪽 관계를 직접 정리해 정상 commit하며 cleanup과 delete ID가 겹치면 저장 전 실패
-- 생존 GS1 역할 전환에 필요한 cleanup ID가 누락되거나 역할 전환 없는 생존 GS1 ID가 cleanup에 과잉 포함되면 original DB 타입과 effective final type으로 계산한 exact set 검증에서 첫 DML 전에 실패
-- type 변경 없는 stale GS1 info/relation command는 선행 transaction으로 현재 DB 타입 역할이 달라졌으면 첫 target DML 전에 rollback
-- 구조 저장 후 비어 있지 않은 label size DB 전체 order의 count/distinct/min/max 검증에서 중복 또는 비연속 order가 있으면 rollback하며, 마지막 행 삭제로 빈 목록이 된 경우는 정상 commit
-- 바코드 비율 조절 사용 여부/수치가 `RICH_SHOW_QRCODE_TEXT`/`RICH_QRTEXT_FONTSIZE`에 저장되고 재조회 시 `showQRCodeText`/`qrTextFontSize`로 복원
-- delete가 content/check/min/GS1/status/main row를 정리
-- GS1 contain 관계의 양쪽 참조 정리
-- 같은 저장에서 신규 GS1 바코드가 신규 GS1 AI를 포함할 때 main/contain draft key 양쪽이 실제 column ID로 변환되고, 미해결·삭제 대상 참조는 rollback
-- relation이 변경된 main 컬럼만 GS1 contain을 replace하고, 삭제 column ID는 DB 기준으로 main/contain 양쪽 참조에서 제거하며 unrelated main 관계를 보존
-- 같은 기존 GS1 컬럼의 서로 다른 info property를 stale A/B가 각각 저장해도 matched update가 changed key만 반영해 두 변경을 유지
-- touched 기존 GS1 컬럼의 `BM_GS1_COLUMN_INFO` 보조행이 없으면 부모 잠금 아래 현재 DB 값과 실제 changed key를 조합해 완전한 행을 insert하고 stale draft의 untouched 값을 쓰지 않음
-- 중간 단계 실패 전체 rollback
-- 기존 `BM_RICH_COLUMN` 소유권 update/delete와 source 개수로 기대 건수가 정해지는 필수 DML의 affected row 불일치 또는 identity 소유권 불일치 시 rollback
-- 출력 이력이 없는 컬럼 삭제의 status date update와 존재하지 않는 선택적 종속행 delete가 affected row 0이어도 정상 저장
-- 연결/SQL/validation/affected row 오류를 사용자에게 알림. 활성 transaction은 가능한 경우 rollback하고 어떤 실패도 성공으로 처리하지 않음
-- 저장 실패가 UI working copy를 지우지 않고 자동 재시도하지 않음
-- `DbCommitOutcomeUnknown`에서 cache를 교체하지 않고 재조회 전 동일 working copy 재저장을 차단
-- commit 호출 오류뿐 아니라 DB isolate 종료로 begin/batch/commit phase를 확인할 수 없는 경우도 `DbCommitOutcomeUnknown`으로 분류하고 일반 pre-commit 재시도 경로로 보내지 않음
-- transaction 정상 반환 뒤 raw mapping decode 실패와 draft key/mapping key·count 불일치가 각각 `LabelColumnPostCommitResultInvalid`로 전달되고, pre-commit 오류와 `DbCommitOutcomeUnknown`은 이 타입으로 변환되지 않음
-- `LabelColumnPostCommitResultInvalid`에서 force-reload 상태를 유지하고 동일 working copy 재저장을 차단
-- 품목 transaction 정상 반환 뒤 raw mapping decode, ID 타입 변환, 중복·누락·예상하지 않은 draft key 또는 정확한 key 집합·count 불일치가 `ItemManagerPostCommitResultInvalid`로 전달되고 일반 pre-commit 실패로 분류되지 않으며, force-reload와 동일 command 재저장 차단을 유지
-- commit 성공 후 강제 재조회 실패에서 force-reload 상태를 유지하고 동일 working copy 재저장을 차단
-- 컬럼 저장 callback이 commit 후 `labelContextReloadRequired=columnStructureSave`를 설정하고 같은 label size 전체 재조회 성공에서만 해제하며, 다이얼로그가 item 전용 private 상태를 직접 조작하지 않음
-- parameter binding으로 작은따옴표가 있는 허용 문자열도 SQL 문법을 깨지 않음
-- 키워드/항목명의 CP949 변환 불가 또는 100바이트/50바이트 초과 command가 SQL 실행 전에 validation 실패
-- 제목의 CP949 변환 불가 또는 20바이트 초과 command와 신규/keyword 변경으로 대소문자만 다른 중복을 만드는 command가 SQL 실행 전에 validation 실패하고 SQL batch에서도 같은 collation으로 새 중복을 차단
-- 네 특별 항목 예약 keyword를 사용하는 일반 항목 command가 SQL 실행 전에 실패하고 SQL batch도 같은 collation으로 차단
-- 기존 일반 사용 항목에 대소문자 무시 중복 또는 예약 keyword 행이 있어도 해당 keyword를 건드리지 않는 제목/표시/다른 속성 수정, 삭제, reorder는 성공하고 기존 위반을 자동 변경하지 않으며 신규 또는 keyword 변경이 새 위반을 만드는 command만 UI와 SQL에서 차단
-- 자유 입력 문자열의 CP949 변환 불가 또는 배포 DB byte 길이 초과 command가 SQL 실행 전에 실패하며, 구조화 parameter staging이 검증 전 문자열을 자르거나 `?`로 바꾼 결과를 commit하지 않음
-- `barcodeType` canonical DB name과 `gs1ai`가 `NVARCHAR(MAX)` 원문 staging에서 조기 축소·잘림 없이 유지되고 각각 허용 name/필수값 및 capability target byte 길이의 경계값은 통과, 1바이트 초과는 첫 DML 전에 실패
-- `TColumnDAO` 조회 SQL이 저장 대상 text를 고정 `NVARCHAR(23/50/200/3000...)` 폭으로 자르지 않으며, 기존 예상 폭보다 큰 호환 target fixture의 경계값도 저장 후 강제 재조회에서 byte/content 손실 없이 동일하게 복원
-
-16.4 통합 회귀
-
-- 저장 후 `TColumn.datas`와 공용라벨 사용 항목 표 갱신
-- 저장 후 상위 강제 재조회 경계로 품목 draft/controller의 validation rule, 동적 컬럼 및 출력 미리보기 갱신
-- 품목 draft dirty/busy/force-reload 상태에서 항목 편집기 진입과 저장 차단
-- 공용라벨 시트 dirty 상태에서 항목 편집기 진입과 저장 차단
-- 공용라벨 시트의 초기값, RTF 변환, 파일 import, 사용자 operation, 저장 결과를 단일 dirty callback 경계로 상위에 통지하고, callback boundary가 변경을 인수한 `applied`일 때만 dirty false로 전환하며 저장 확인 취소·필수 키워드 누락·저장 오류에서는 dirty 유지
-- 공용라벨과 품목 요소 save callback이 공통 `LabelSheetSaveResult.applied/notApplied`를 반환하고, workbench가 `applied`에서만 자신의 dirty를 해제하며 품목 요소의 부모 draft dirty는 유지
-- 품목 요소의 자동 draft 반영과 명시적 저장이 row identity별 generation/직렬 Future queue를 공유해 빠른 연속 편집에서도 같은 row operation 순서를 유지하고 최신 표시 workbook만 부모 draft에 남으며, 선행 실패 후에도 후행 operation을 실행하고 명시적 저장 payload와 부모 반영 payload가 동일함
-- 품목 요소 row X의 자동 반영 중 row Y로 전환해 편집·저장해도 각 row generation/Future가 격리되어 X의 지연 완료가 Y 상태를 바꾸지 않음
-- 공용라벨/품목 요소 저장 callback이 받은 workbook payload가 dirty를 만든 최신 표시 cell/config/image와 동일하며 초기 또는 이전 controller snapshot으로 되돌아가지 않음
-- 특별 항목 누락검사 변경이 즉시 required keyword와 공용라벨 dirty에 반영되고 `applied` 시 `BM_RICH_CHECK_COLUMNS` 저장값과 함께 해제
-- 일반 사용 항목이 특별 항목 예약 keyword를 만들 수 없고 특별 항목 keyword 조회가 일반 항목 보조행과 충돌하지 않음
-- 사용자 항목 사전의 기존 또는 신규/변경 예약 keyword 행은 사전 편집 저장 후에도 보존되고, 그 후보를 일반 사용 항목으로 추가하는 command에서만 차단됨
-- 기존 사용 항목/사용자 항목 사전의 keyword 위반은 무관한 수정·삭제·reorder를 막지 않는다. 일반 사용 항목은 신규/keyword 변경이 새 중복·예약어 위반을 만들면 rollback되고, 사용자 항목 사전은 신규/keyword 변경이 사전 내 새 중복을 만들 때만 rollback되며 예약 keyword 후보 자체는 저장되지만 일반 사용 항목 추가는 차단됨
-- 사용 항목의 property-only 저장은 선행 add/delete/reorder와 unrelated 속성·check·GS1 관계 변경을 보존하고, 구조 저장은 baseline membership이 다르면 DB를 변경하지 않고 재조회 안내
-- 새 프로그램의 품목 추가와 컬럼 추가 교차 저장은 품목 선행이면 모든 item-column content 조합이 재조회되고 컬럼 구조 선행이면 stale 품목 command가 DB 변경 전에 재조회 안내되며, 서로 다른 label size의 새 프로그램 insert도 전역 application lock으로 직렬화됨. 레거시 프로그램과 새 프로그램의 품목/컬럼 동시 저장은 label size와 무관하게 지원 대상에서 제외됨
-- v1 DB에서는 `RICH_EDITABLE` 없는 정적 조회/저장 variant로 품목 content CRUD와 신규 item-column 보충이 성공하고 `editable=false`로 표시되며, v2 DB에서는 실제 editable 값이 무수정 조회·저장에서 보존됨
-- 품목 content의 CP949/MS949 실제 target byte 경계값을 저장한 뒤 강제 재조회에서 원문이 동일하고, 1바이트 초과·변환 불가·target code page 비호환/판정 불가 값은 첫 content DML 전에 거부되어 DB와 working copy를 부분 적용하지 않음
-- 품목 삭제는 market mapping만 지우지 않고 같은 transaction에서 적용 가능한 child/update/market/main item을 정리하며, 삭제 중 오류·mapping 동시 변경은 가능한 rollback과 재조회 안내 후 working copy를 유지하고 부분 삭제를 남기지 않음
-- 컬럼 저장·commit 분류·전체 재조회가 `HomePageManager`의 단일 상위 command를 통과하고, 재조회 실패 시 공용 reload-required 원인과 충돌 command 차단을 유지
-- 새 이미지/바코드/QR keyword가 라벨 시트 object/required keyword 처리에 반영
-- `BARCODE_TEXT_LINK`의 `userDefineBarcodeText`에 포함된 `#keyword` 참조가 행 상태 표시와 키워드 변경/삭제 경고에 동일하게 반영
-- `barcodeType` canonical DB name과 `gs1ai`의 실제 byte 길이 경계값을 저장한 뒤 상위 강제 재조회에서 같은 값으로 복원되고, 각 1바이트 초과 command는 첫 DML 전에 거부되어 DB와 UI working copy를 바꾸지 않음
-- 배포 DB text target이 기존 `TColumnDAO` 예상 조회 폭보다 큰 호환 schema fixture에서도 경계값 저장 후 강제 재조회가 전체 값을 보존하고, CP949 비호환 code page fixture는 저장 전에 차단됨
-- 고객별 사용자 항목도 keyword/name을 무손실 조회·원문 staging하고 실제 target byte 길이와 code page를 검증해 저장 후 동일 값으로 재조회하며, 초과·변환 불가·비호환 schema는 첫 CRUD 전에 거부됨
-- 컬럼 삭제/키워드 변경 시 workbook 직접 참조 분석 없이 라벨 내용과 출력 영향에 대한 일반 확인 경고 표시
-- 기존 라벨 설정/브랜드 설정/품목 순서 변경 테이블 테스트 전체 통과
-- `flutter analyze`, 관련 테스트, 전체 `flutter test`, `git diff --check` 통과
-
-17. 구현 권장 순서
-
-선행 기반 변경은 항목 편집 다이얼로그와 한 번에 크게 구현하지 않고 각 소유 모듈에서 focused test로 먼저 완료한다.
-
-1. `LabelSheetSaveResult.applied/notApplied`, 단일 dirty 통지와 최신 workbook payload를 먼저 구현해 공용라벨 시트 dirty 진입 차단의 source of truth를 확정한다. 품목 요소 generation queue는 같은 save callback 계약을 바꾸는 인접 변경으로 이 단계에서 독립 검증한다.
-2. 특별 항목 checkbox의 immutable snapshot/form transaction 저장은 기존 공용라벨 시트 저장 경계의 별도 focused 변경으로 완료한다. 이 변경은 컬럼 DAO나 품목 journal과 한 patch에 섞지 않는다.
-3. `SwipeActionTable`에는 실제 다이얼로그가 쓰는 stable row key와 typed drop intent를 최소 API로 먼저 추가하고 기존 index callback 회귀 테스트를 통과시킨다. inline editor나 외부 drop API는 해당 화면을 연결하는 단계에 필요한 것만 추가한다.
-4. 연결 DB별 공용 `LegacyInsertTriggerCapabilities`, core/GS1/optional schema capability, 39-case `LabelColumnPropertyKey` registry와 save command DTO를 구현한다.
-5. 사용 항목 edit session, 사용자 항목 edit session/transaction과 validation 순수 로직을 구현한다.
-6. 다이얼로그 기본 layout/normal mode, 속성 패널, 후보 목록 표시와 userItemEdit mode를 연결한다. 사용 항목 후보 add/delete/reorder 진입점과 handler는 아직 비활성화해 저장할 수 없는 구조 dirty 상태를 만들지 않는다.
-7. 기존 컬럼 property-only DAO와 상위 reload callback은 focused integration/fake callback까지만 검증하고 사용자 접근 가능한 DB 저장 UI는 활성화하지 않는다. 사용자 항목 사전 CRUD는 독립 vertical slice로 연결할 수 있다.
-8. 12.6의 `ItemManagerDraftController/ItemManagerSaveCommand.labelSizeId·baselineColumnIds`, 품목 부모 잠금, 공용 application lock, 신규 품목 content 보충, journal membership과 post-commit 결과 분류를 구현하고 focused DAO/journal 테스트를 통과시킨다.
-9. 8단계가 완료된 같은 배포 단위에서 기존 컬럼 property-only DB 저장 UI와 컬럼 add/delete/reorder transaction/reorder mode를 함께 활성화한다. 현재 품목 DAO가 기존 경로인 상태에서 validation·derived-value 의미를 바꾸는 컬럼 속성 또는 구조 저장을 부분 활성화하지 않는다.
-10. 특수 타입/GS1/drag/drop 전체 경로, 상위 cache/미리보기 refresh와 누적 widget/DAO 테스트를 완료하고 `flutter analyze`, 전체 suite를 실행한다.
-
-각 단계는 해당 단계의 focused test 또는 fake callback 검증을 함께 작성해 통과한 뒤 다음 단계로 넘어간다. 단계별 커밋 또는 동등한 작은 변경 단위를 유지하되, 8~9단계는 기능 활성화 시점만 같은 배포 단위로 묶는다. 첫 end-to-end DB 저장 slice는 8단계 완료 뒤 기존 기본 타입의 property-only 수정·저장·재조회로 잡고, 이어 `기본 타입 후보 1개 추가 → transaction 저장 → 재조회 표시`와 특수 타입/GS1/drag/drop을 확장한다.
-
-18. 레거시 대비 누락 방지 목록
-
-사용자가 명시한 UI 요구 외에도 아래 레거시 기능이 빠지면 기능 회귀다.
-
-- 현재 사용 항목의 신규/키워드/항목명/종류/제목/표시 여부
-- 제목 직접 변경과 CP949 20바이트 저장 길이 검증
-- 표시 여부 변경
-- 누락 키워드 검사 `BM_RICH_CHECK_COLUMNS`
-- 특별 항목 네 행의 canonical ID/keyword/name과 form 저장 transaction에 전달하는 immutable 최종 check snapshot
-- QR/기본 사용자 정의/바코드 텍스트 연동/GS1에서 참조 중인 항목 표시와 공용 계산 결과를 사용하는 키워드 변경/삭제 경고
-- DB collation 기준으로 대소문자만 다른 키워드 중복도 추가/저장 차단
-- 특별 항목의 `ITEMNAME`, `ELEMENT`, `SWEIGHT`, `SPRICE`를 일반 사용 항목 예약 keyword로 유지
-- 빈 키워드/항목명 저장 차단
-- 사용자 정의 QR data/text, 나트륨 join, QR font name, 사용자 정의 바코드 text, 최종 date range의 CP949 round-trip 및 실제 DB byte 길이 검증
-- 기존 품목 존재 시 데이터 영향 이중 확인 또는 동등한 강도의 명확한 최종 확인
-- 바코드 비율 조절 사용 여부/수치를 기존 `RICH_SHOW_QRCODE_TEXT`/`RICH_QRTEXT_FONTSIZE`에 저장하는 것을 포함한 바코드/이미지/QR/GS1/날짜 타입의 전체 속성 UI와 검증
-- 타입별 수치 검증은 파싱/DB 저장 범위/정의 enum/문서 필수 조건/레거시 명시 차단 조건만 적용하고 확정되지 않은 UX 상·하한을 추가하지 않음
-- 체크디지트/타임바코드 변경 영향 경고
-- GS1 AI 포함 관계의 추가/수정/삭제
-- GS1 타입 진입·이탈 시 값이나 관계가 원본과 같아도 최종 타입 기준 `BM_GS1_COLUMN_INFO`와 incoming/outgoing contain 관계 생성·정리
-- 신규 컬럼의 기존 품목 content를 빈 data와 배포 schema에 존재하는 경우의 `RICH_EDITABLE=0`으로 생성하고, 배포 DB에 update 테이블이 존재하면 update 품목의 빈 content도 생성
-- `BM_RICH_COL_MIN`의 `ELEMENT` 기준행과 기존 `RICH_MIN_CHECK` 보존, 최종 draft의 keyword/name/check 값을 함께 반영하는 `BM_RICH_CHECK_COLUMNS`, GS1 보조 테이블 동기화
-- 삭제 status date 갱신
-- 저장 후 컬럼 변경 observer/cache refresh
-- 고객별 사용자 항목 사전의 추가/수정/삭제와 대문자/영숫자 키워드 규칙
-- property/order/GS1 relation 변경분 분리, 구조 command의 baseline membership 검증, untouched 속성·check/min/GS1 보존과 label size 전체 1..N order 완전성
-- 새 프로그램 품목/컬럼 저장의 공통 label size 부모 잠금, item/column 소유권과 품목 command baseline column membership 검증을 통한 신규 item-column content 교차 누락 방지
-- 공유 DB와 legacy trigger를 변경하지 않는 단건 insert, 새 프로그램 insert의 공통 전역 application lock과 trigger parent table X schema guard, trigger 없음/검증된 legacy/미지원 상태별 command 지원 판정, trigger 선생성 content의 `NOT EXISTS` 보충과 최종 order 재적용
-- 레거시를 참조 전용으로 사용하고 legacy source/executable/config/process 및 공유 DB trigger/schema를 수정·감지·제어하지 않는 구현 경계
-
-다음 항목은 레거시 구현에 존재하지만 그대로 재현하지 않고 개선해야 한다.
-
-- `SelectLastNRecord()` 신규 ID 추정: `OUTPUT INSERTED` 기반 정확한 매핑으로 대체
-- 문자열 보간 SQL: parameterized query로 대체
-- 사용자 항목의 transaction 없는 행별 CRUD: 기존 `DbClient.transaction()` 한 번으로 대체하고 DAO 내부 transaction 중첩 금지
-- 저장 실패를 삼킨 뒤 화면을 재조회하는 동작: 실패 반환과 working copy 보존으로 대체
-- 빈 `InsertColumnsToLogDB()`: 별도 감사 로그 요구/스키마가 확정되기 전 구현 대상에서 제외
-- 레거시 제목 길이 판정의 모호한 문자/바이트 처리: DB `VARCHAR(20)`에 맞춘 CP949 round-trip 및 20바이트 검증으로 통일
-- 상세 설정 `Apply()` 실패 결과를 무시하고 닫는 동작: validation 실패 시 속성 패널을 유지
-- 삭제 시 content/FK cascade 의존: 실제 FK를 확인하고 transaction에서 명시적으로 정리
-- workbook 참조를 직접 분석하는 경고: 별도 snapshot API 없이 삭제/키워드 변경에 대한 일반 영향 경고로 대체
-
-19. 완료 조건
-
-- 공용라벨관리에서 선택한 라벨 크기의 `라벨 항목 편집` 다이얼로그를 열 수 있다.
-- 공용 save result/dirty·품목 요소 queue, 특별 항목 form transaction, stable-key table API는 각 소유 모듈의 focused test를 먼저 통과한다. 기존 컬럼 property-only 수정은 DAO/fake callback의 비사용자 테스트 slice로만 선행 검증하고 사용자 항목 CRUD만 독립 UI vertical slice로 연결할 수 있다. 컬럼 property-only 및 add/delete/reorder UI는 immutable 품목 label context·baseline membership, journal version, 공용 부모 잠금/application lock, content 보충과 post-commit 분류가 완료된 같은 배포 단위 전에는 활성화하지 않는다.
-- 두 테이블과 순서 변경 UX가 라벨 설정의 공용 테이블 패턴을 사용한다.
-- 별도 상세 dialog 없이 선택 행 타입에 맞는 속성을 왼쪽 패널에서 수정, 취소, 적용할 수 있다.
-- `initialApplyRequiredTypeCodes`에 속하는 신규 행은 기본값 그대로도 최초 적용할 수 있고, 적용 전에는 다른 행·모드로 이동하거나 메인 저장할 수 없다.
-- 신규 최초 적용 대상은 바코드, 이미지, QR, GS1 AI, GS1 바코드 다섯 타입이며 기존 행의 타입 변경은 신규 pending 상태를 만들지 않는다.
-- 미적용 속성 변경은 다른 이벤트 전에 반드시 취소 질의를 거친다.
-- 아이콘과 drag/drop 양쪽으로 후보 추가 및 항목 삭제가 가능하고 동일 command 결과를 낸다.
-- 순서 변경과 사용자 항목 설정이 상호 배타 전용 모드로 동작한다.
-- 순서 변경 모드의 저장은 working copy에만 반영되고 사용 항목 DB 저장은 메인 footer의 저장에서만 실행된다.
-- reorder는 `{sourceKey,targetKey,before|after}`를 drop 수락 시 현재 rows에서 모두 다시 해석하고 key 소실 시 다른 행을 이동하지 않는다. stable-key resolved insert callback은 최종 index를 한 번만 적용하고 기존 공용 테이블의 `onRowReorder(fromIndex, dropTargetIndex)` 의미와 index-only 기본 동작은 유지된다.
-- 사용 항목 저장은 단일 parameterized SQL batch 안에서 신규 draft ID mapping과 보조 테이블 반영을 완료한다.
-- 사용 항목과 사용자 항목 저장은 각각 label size/customer 부모 행 잠금으로 같은 잠금 규약을 사용하는 새 프로그램 writer의 동일 대상 transaction을 직렬화한다. 신규 품목/컬럼 insert는 추가로 공통 전역 application lock, trigger parent `TABLOCKX,HOLDLOCK` schema guard와 단건 insert를 사용해 서로 다른 label size의 새 프로그램 writer를 직렬화하고 검증한 trigger metadata를 transaction 종료까지 유지한다. 레거시 프로그램과 새 프로그램의 품목/컬럼 동시 저장은 label size와 무관하게 지원하지 않는다. 사용 항목 property/order/GS1 relation 변경분을 분리해 property-only 저장은 order와 untouched 속성·check/min/GS1을 갱신하지 않는다. 구조 command는 DB 기존 ID 집합과 baseline ID 집합이 같을 때만 전체 order를 반영하고, 같은 멤버십의 동시 reorder는 후행 order가 우선하며 멤버십이 다르면 rollback 후 재조회를 요구한다. 전체 속성 목록 교체나 삭제 행/content 복원은 하지 않는다.
-- 새 프로그램의 품목 저장도 controller가 같은 로드에서 캡처한 immutable labelSizeId·전체 baseline column ID 집합과 대상 item/column 소유권 검증을 사용하고 컬럼 저장과 같은 `BM_RICH_LABELSIZE_FORM` 부모 행을 첫 단계에서 잠근다. 신규 품목의 baseline 컬럼 기본 content는 DAO가 없는 조합에 명시 생성한다. 신규 품목/컬럼이 있으면 두 저장 모두 같은 transaction-owned 전역 application lock 뒤 단건 insert하고, 컬럼 구조가 먼저 바뀐 stale 품목 command는 DML 전에 rollback·재조회해 신규 item-column content 조합을 누락하지 않는다. 이 품목 저장 변경과 컬럼 저장은 같은 배포 단위로 활성화한다.
-- 품목 삭제 command는 로드 시점 market ID exact-set을 보유하고 부모 잠금 뒤 market table X lock으로 mapping write를 직렬화한 transaction 안에서 현재 집합과 일치할 때만 적용 가능한 content child, update content/item, market, main item, status 순으로 처리한다. 빈 baseline을 포함한 `DELETE OUTPUT` exact-set, main item별 1건과 삭제 후 참조 부재를 검증하며, 존재하지만 delete/status 의미를 판정할 수 없는 schema와 필수 불일치는 첫 DML 전 차단 또는 전체 rollback한다.
-- 품목 journal은 전체 baseline column membership을 versioned metadata/checksum/restore에 포함하고, journal 자체 checksum 손상은 `invalid`, 정상 journal과 현재 DB membership 불일치는 checksum 비교보다 먼저 `externalChange`로 분류해 복원을 거부한다. 품목 저장 transaction이 commit된 뒤 mapping 해석이 실패하면 `ItemManagerPostCommitResultInvalid`로 분류해 동일 command 재저장을 차단하고 재조회한다.
-- 레거시 소스와 공유 DB의 `AFTER_INSERT_ITEM`/`AFTER_INSERT_COLUMN` trigger를 수정·제거·비활성화하지 않는다. 연결 DB generation별 공용 `LegacyInsertTriggerCapabilities` 단일 probe/cache가 parent별 `none/validatedLegacy/unsupported`, identifier token/header 의미와 `uses_quoted_identifier/uses_ansi_nulls`를 보존한 지원 fingerprint, trigger별 세부 동작·rowset 반환 flag와 대상 table별 모든 활성 INSERT trigger를 판정하고 item/column 저장이 같은 결과를 참조한다. 신규 insert 직전 definition 없는 경량 metadata signature를 확인해 변경 시에만 fingerprint 포함 전체 capability를 재probe한다. `none`에서 신규 컬럼은 DAO가 content/order를 명시 완성해 지원하고 신규 품목은 필수 보조 데이터 전체를 명시 완성할 수 있을 때만 지원한다. 추가 활성 trigger, definition/SET metadata 조회 불가, 미지원 fingerprint, 필수 의미 판정 불가 또는 row-bearing result가 있는 `unsupported`에서는 해당 parent 신규 insert를 차단한다. 레거시와 새 프로그램의 품목/컬럼 저장은 label size와 무관하게 동시에 실행하지 않는 운용을 전제로 한다.
-- 레거시 소스·실행 파일·설정·배포물·프로세스는 참조 외에 접근하거나 변경하지 않는다. schema capability는 metadata를 읽기만 하고 application lock은 새 프로그램 transaction 안에서만 사용한다. 저장 비동시는 외부 운용 전제이며 새 프로그램이 레거시 실행을 감지·종료·차단하지 않는다. 새 프로그램의 명시적 저장으로 공유 DB 대상 데이터가 변경되어 이후 레거시 조회에 보이는 것은 정상 CRUD 결과로 한정한다.
-- 단일 SQL batch는 기존 `NOCOUNT`와 추가로 변경한 session option을 정상/실패 경로에서 원래 상태로 복원하고, 마지막 신규 ID mapping `SELECT`만 row-bearing result set으로 반환하며 신규 draft mapping과 GS1 양쪽 draft 참조를 commit 전에 완전히 검증한다.
-- 신규 사용 항목은 단일 factory에서 레거시 생성자 기본값으로 초기화되고, 저장 시 신규 품목 content의 빈 data와 배포 schema에 존재하는 경우의 `RICH_EDITABLE=0`, 신규/기존 항목의 최종 누락검사 값이 반영된다. editable 없는 v1 write variant는 실제 DB 컬럼을 참조하지 않고 조회 variant만 공통 결과 alias를 반환한다. v2의 기존 editable 값은 모든 content-only 수정에서 보존한다. 배포 DB의 두 update 테이블은 필수 ID/content 컬럼·호환 타입·관계 key가 모두 확인될 때만 신규 컬럼의 update 품목 빈 content를 함께 생성한다.
-- 필수 소유권 update/delete와 source 개수로 기대 건수가 정해지는 DML의 affected row 불일치는 rollback하되, 출력 이력이 없는 status date update와 존재하지 않는 선택적 종속행 정리의 0건은 정상으로 허용한다.
-- `BM_RICH_COL_MIN`은 라벨 크기별 `ELEMENT` 기준행을 하나 유지하고 기존 컬럼의 `RICH_MIN_CHECK`를 보존한다. touched identity와 구조 command의 order만 갱신하고 삭제 컬럼행만 제거하며 untouched 행을 stale 값으로 동기화하지 않는다.
-- touched 일반 항목의 `BM_RICH_CHECK_COLUMNS` 행은 최종 keyword/name/check를 모두 반영하고 `BM_RICH_COLUMN`과 identity가 일치하며 untouched 행은 갱신하지 않는다. 배포 DB capability에 `BM_RICH_COLUMN.RICH_USE_MISSING_KEYWORD_CHECK`가 있으면 해당 컬럼을 포함한 batch variant가 touched main/check 양쪽 최종 check 값을 일치시키고, 없으면 해당 식별자가 SQL text에 전혀 없는 variant를 사용한다.
-- GS1 info/contain은 field/relation delta뿐 아니라 최종 타입의 진입·이탈을 반영한다. GS1 AI 최종 타입은 info를 보유하고 GS1 바코드 최종 타입은 outgoing contain만 보유하며, 다른 타입은 해당 GS1 보조행·관계를 남기지 않는다. type 변경 없는 stale GS1 command는 현재 DB 타입 역할이 다르면 DML 전에 실패한다.
-- 구조 저장은 배포 DB의 `RICH_COLUMN_ORDER` 타입과 unique index/constraint 및 trigger의 `overwritesColumnOrder` flag를 확인한 경로로 적용한다. unique 제약과 overwrite trigger가 함께 있으면 각 신규 단건 insert 직후 덮인 order를 해당 ID의 예약 임시 order로 다시 옮기고, overwrite하지 않는 지원 trigger는 입력 임시 order를 유지한 뒤 다음 insert와 최종 order를 진행한다. 저장 후 빈 목록 또는 해당 label size 전체 order가 중복 없이 정확히 1..N인지 검증한다.
-- 컬럼 속성 delta는 39개 canonical `LabelColumnPropertyKey`와 단일 persistence registry만 사용해 UI field, parameter 타입, DB table/column, validation과 type 전환 효과를 연결한다. registry/draft persistent field 집합을 set-equality로 검증하며 문자열 key 추론, unknown key 무시와 persistent field 미분류를 허용하지 않는다.
-- core 필수 보조 schema는 모든 컬럼 저장 전에 검증하고, GS1 schema는 GS1 touch command에만 필수로 요구하며, optional update schema는 table/column/type/key가 모두 호환될 때만 사용한다. 품목 삭제에서는 알려진 참조 table/FK가 존재하지만 key/cascade/status sentinel 의미를 판정할 수 없으면 optional로 건너뛰지 않고 삭제를 차단한다. text target은 실제 collation code page가 registry의 CP949/MS949 exact-set과 호환돼야 하고 품목 content는 SQL Server code page `949`만 허용한다. capability probe는 metadata read-only이며 schema를 변경하지 않는다.
-- 고객별 사용자 항목 사전은 `CustomerColumnSchemaCapabilities`가 identity/customer/type/key와 keyword/name의 실제 길이·collation code page를 확인한 경우에만 CRUD하고, 두 text 값을 무손실 조회·원문 staging한 뒤 검증 후 target으로 변환한다.
-- 사용 항목과 사용자 항목의 키워드/항목명은 SQL 실행 전에 CP949 변환 가능 여부와 100바이트/50바이트 저장 한계를 검증한다.
-- 사용 항목 제목은 SQL 실행 전에 CP949 변환 가능 여부와 20바이트 저장 한계를 검증하고, 키워드 중복은 UI와 SQL에서 `Korean_Wansung_CI_AS` 의미로 동일하게 판정한다.
-- 신규 또는 keyword가 실제 변경된 일반 사용 항목은 특별 항목 예약 keyword 네 개를 사용할 수 없으며 후보 추가·속성 적용·저장 command·SQL 최종 검증이 같은 예약 집합과 collation 의미를 사용한다. 기존 untouched 중복·예약 keyword는 무관한 수정·삭제·reorder를 차단하거나 자동 정리하지 않는다.
-- 사용자 정의 QR data/text, 나트륨 join, QR font name, 사용자 정의 바코드 text와 최종 date range는 SQL 실행 전에 CP949 round-trip과 배포 DB 실제 byte 저장 한계를 검증하고, 구조화 staging은 검증 전에 값을 축소하거나 변환하지 않는다.
-- `barcodeType`은 `BarcodeType` ordinal이나 Dart enum 이름이 아닌 canonical DB name 문자열로 원문 staging하고 허용 name exact-set과 `RICH_BARCODE_TYPE` 실제 byte 길이를 검증한다. `gs1ai`도 원문 staging에서 필수값과 `COLUMN_GS1_CODE` 실제 byte 길이를 검증하며 두 값 모두 검증 전에 축소·잘림 처리하지 않는다.
-- `TColumnDAO`는 저장 대상 text를 고정 NVARCHAR projection 폭으로 자르지 않고 target 전체 값을 무손실로 조회하며, 실제 schema 길이는 저장 validation에만 사용한다. 저장 후 강제 재조회 payload는 DB 전체 값과 일치해야 한다.
-- `TColumnContentDAO`도 content를 고정 `NVARCHAR(3000)`으로 자르지 않고 무손실 조회하며, `RICH_EDITABLE` 존재 여부별 정적 SQL variant를 사용한다. 품목 content는 `NVARCHAR(MAX)` 원문 staging 뒤 실제 target max bytes와 CP949/MS949 code page round-trip을 통과한 값만 저장하고, target 길이를 조회 projection 폭이나 검증 전 binding 폭으로 재사용하지 않는다.
-- 타입별 수치와 옵션은 파싱/DB 저장 범위/정의 enum/문서 필수 조건/레거시 명시 차단 조건만 검증하며, 0 경고값이나 기존 DB 값을 확정되지 않은 UX 상·하한으로 차단하지 않는다.
-- 바코드 비율 조절은 기존 `showQRCodeText`/`qrTextFontSize` 필드와 DB 컬럼에 저장되고 신규 기본값 false/10 및 기존 DB 값이 유지된다.
-- 사용 항목과 사용자 항목 저장은 각각 원자적 transaction이며 DB 처리 오류 시 사용자 알림, 가능한 rollback, 성공 처리·cache 교체 금지와 편집 상태 보존이 동작한다.
-- transaction phase를 확인할 수 있는 commit 전 저장 실패는 working copy를 유지해 수동 재시도할 수 있고, commit 시도 후 오류 또는 DB isolate 종료로 phase를 확인할 수 없는 `DbCommitOutcomeUnknown`은 재조회 전 동일 command 재저장을 차단한다.
-- commit 후 반환 결과를 decode하거나 정확한 mapping key 집합/count를 검증하지 못하면 컬럼 DAO는 `LabelColumnPostCommitResultInvalid`, 품목 DAO는 `ItemManagerPostCommitResultInvalid`를 throw해 상위 callback에 전달하고, callback은 force-reload와 동일 working copy/command 재저장 차단을 유지한 채 DB 재조회를 요구한다.
-- commit 성공 후 강제 재조회가 실패하면 저장 완료 사실을 알리고 force-reload 상태를 유지하며 동일 working copy를 다시 저장하지 않는다.
-- 품목 draft 또는 공용라벨 시트가 dirty이면 항목 편집기 진입과 저장을 차단한다. 공용 `LabelSheetSaveResult.applied/notApplied`는 현재 callback persistence boundary의 변경 인수 여부를 뜻한다. 공용라벨 시트 dirty는 DB transaction commit 후 `applied`에서만 해제된다. 품목 요소는 row identity별 최신 generation 자동 반영 Future와 명시적 저장을 직렬화해 같은 최신 payload의 부모 draft 반영 후에만 workbench dirty를 해제하고, 이전 generation 완료는 최신 draft나 dirty를 바꾸지 않으며 부모 품목 draft dirty와 항목 편집기 진입 차단은 유지된다.
-- `LabelSheetWorkbench`가 저장 callback에 전달하는 workbook은 저장 클릭 시점의 최신 표시 cell/config/image와 동일하며 controller의 이전 sheet snapshot이나 initial workbook으로 되돌아가지 않는다.
-- label size 미선택, 편집 권한 없음, 품목 command busy/reload-required, 공용라벨 저장 등 충돌 command busy에서도 진입을 차단하고, dialog open 뒤 상태가 바뀌면 저장 시점에 다시 검증한다.
-- 일반 사용 항목의 기존 표는 누락검사를 읽기 전용으로 표시하고 새 편집기만 수정한다. 특별 항목 누락검사는 기존 표에서 편집하되 required keyword와 dirty를 즉시 갱신하고, canonical 네 행의 immutable snapshot을 필수 입력으로 받은 typed save가 시트와 해당 check 값을 기존 form batch 한 transaction에서 모두 저장한 경우에만 해제한다.
-- 사용 항목 저장과 후속 전체 재조회는 `HomePageManager`의 단일 상위 command가 소유한다. commit 후 공용 `labelContextReloadRequired=columnStructureSave`를 설정하고 같은 label size 재조회 성공에서만 해제하며, 다이얼로그는 item 전용 private force-reload 상태를 직접 재사용하지 않는다.
-- 저장 실패를 자동 재시도하거나 commit 결과 reconciliation·재시작 복구 상태를 만들지 않는다.
-- 저장 후 공용라벨/품목관리/미리보기가 새 컬럼 목록을 사용한다.
-- QR/기본 사용자 정의/바코드 텍스트 연동/GS1 참조를 공용 계산해 행 표시와 키워드 변경/삭제 경고에 같은 결과를 사용한다.
-- 16장의 테스트와 전체 정적 분석/테스트가 통과한다.
+12.1 모델
+
+- `LabelColumnDraft`: `TColumn` 저장 속성, 기존 columnId 또는 신규 draft key, order와 신규 여부
+- `LabelColumnEditSession`: original/working/deleted/selection/property 상태
+- `FixedColumnType`, `FixedColumnCandidate`
+- `CustomerColumnCandidate`, `CustomerColumnDraft`, `CustomerColumnEditSession`
+- `CustomerColumnSaveCommand`: customerId, 신규, 수정, 삭제
+- `LabelColumnSaveCommand`: labelSizeId, 신규 draft, 변경된 기존 행, delete ID, 최종 order와 GS1 관계
+- `LabelColumnSaveResult`: 신규 draft key와 실제 column ID mapping
+
+DTO는 immutable하게 만들고 widget 상태나 전역 목록을 직접 참조하지 않는다. UI 임시 상태를 `TColumn`에 추가하지 않는다.
+
+12.2 조회
+
+- 현재 사용 항목은 기존 `TColumnDAO.selectByLabelSizeId()`를 사용·확장한다.
+- 고정 분류는 `BM_RICH_FIX_COL_TYPE`, 고정 후보는 `BM_RICH_FIX_COLUMN`에서 조회한다.
+- 사용자 항목은 현재 customer ID 조건으로 `BM_RICH_CUST_COLUMN`에서 조회한다.
+- 종류는 `TColumnType.datas`를 사용하고 미초기화면 먼저 조회한다.
+- 문자열은 현 DAO의 CP949→NVARCHAR 변환 규칙을 사용하되 저장 대상 값이 잘리지 않게 조회한다.
+
+12.3 사용자 항목 저장
+
+- insert/update/delete를 parameterized statement로 만들고 `DbClient.transaction()` 한 번으로 실행한다.
+- update/delete는 customerId와 custColumnId를 함께 조건으로 사용한다.
+- 필수 update/delete affected row가 1이 아니면 오류를 발생시킨다.
+- 신규/keyword 변경 행이 같은 customer 사전에 새 중복을 만드는지 저장 전에 검사한다.
+- SQL 문자열 보간을 사용하지 않는다.
+- 성공 후 사용자 항목 후보를 재조회한다.
+- 오류는 호출자에게 전달하고 가능한 rollback 뒤 mode와 working copy를 유지한다.
+
+12.4 사용 항목 저장
+
+신규 ID와 보조 테이블 처리를 위해 `returnsRows=true`인 하나의 parameterized SQL batch를 `DbClient.transaction()`으로 실행한다. batch의 마지막 결과만 신규 draft key와 실제 ID mapping으로 반환한다.
+
+처리 순서는 다음과 같다.
+
+1. 입력 JSON 또는 구조화 parameter를 table variable로 투영한다.
+2. 현재 labelSizeId와 update/delete 대상 `BM_RICH_COLUMN`의 소유권을 확인한다.
+3. 신규 `BM_RICH_COLUMN`을 한 행씩 insert하고 `OUTPUT INSERTED.RICH_COLUMN_ID`를 draft key와 함께 내부 mapping table에 기록한다.
+4. 신규 column의 `BM_RICH_CHECK_COLUMNS`는 keyword, name과 draft의 최종 `useMissingKeywordCheck` 값을 사용해 생성한다. `BM_RICH_COL_MIN` 행은 `RICH_MIN_CHECK=0`인 레거시 기본값으로 생성한다.
+5. 신규 column마다 현재 label size의 기존 `BM_RICH_ITEM`에 없는 `BM_RICH_COL_CONTENT` 조합을 빈 data로 생성한다. trigger가 먼저 생성한 행은 `NOT EXISTS` 조건으로 중복하지 않는다.
+6. 지원 DB에 기존 update item 경로가 있으면 레거시와 같이 신규 column의 빈 update content를 생성한다. 실제 table/column 존재 여부는 구현 시 현재 지원 DB에서 한 번 확인하고 해당 정적 SQL 경로를 선택한다.
+7. 기존 `BM_RICH_COLUMN`은 실제 변경된 속성만 update한다.
+8. keyword, name 또는 누락검사 값이 바뀐 기존 column은 `BM_RICH_CHECK_COLUMNS`의 대응 값을 갱신한다.
+9. `BM_RICH_COL_MIN` 기존 column 행은 keyword/name/order가 바뀐 경우만 갱신하고 `RICH_MIN_CHECK`는 보존한다. label size별 `ELEMENT` 기준행은 유지한다.
+10. GS1 AI는 `BM_GS1_COLUMN_INFO`를 insert/update/delete하고 GS1 바코드 contain 관계는 최종 working copy와 일치하도록 해당 main column 관계만 교체한다.
+11. 삭제 column은 `BM_RICH_COL_CONTENT`, update content, check, min, GS1 info와 contain 양쪽 참조를 정리하고 `BM_RICH_STATUS_DATA`의 해당 column ID 삭제일을 `GETDATE()`로 갱신한 뒤 `BM_RICH_COLUMN`을 삭제한다. 존재하지 않는 선택 종속행과 status 이력 0건은 정상으로 허용한다.
+12. 잔존 column의 `RICH_COLUMN_ORDER`를 최종 목록의 1부터 연속 값으로 반영한다.
+13. 소유권이 있는 main update/delete와 개수가 정해지는 필수 DML의 affected row를 확인한다. 불일치하면 오류를 발생시킨다.
+14. 신규 draft key mapping의 누락·중복을 확인하고 mapping 결과를 반환한다.
+
+레거시 trigger가 order를 변경할 수 있으므로 최종 order는 DAO가 명시적으로 다시 적용한다. 신규 ID를 `SelectLastNRecord()` 또는 마지막 N개 행 조회로 추정하지 않는다.
+
+어느 단계에서든 오류가 발생하면 예외를 전달한다. 기존 driver transaction 경로가 가능한 rollback을 수행하고 호출자는 오류를 알린 뒤 working copy를 유지한다. 별도 commit 결과 상태나 복구 체계를 만들지 않는다.
+
+13. 오류와 재진입
+
+- dialog open, 조회와 저장 command의 중복 실행을 막는다.
+- busy 중 닫기, mode 전환, drag/drop과 행 선택을 막는다.
+- DB 연결·SQL·validation·affected row·commit 오류는 진행 표시를 닫고 사용자에게 알린다.
+- 저장 실패 시 dialog와 working copy를 유지하고 cache를 교체하지 않는다.
+- 저장 성공 후 widget이 dispose됐으면 setState하지 않는다.
+- 로그에는 operation, labelSizeId, customerId, 변경 개수와 성공/실패만 기록하고 실제 payload는 기록하지 않는다.
+- 로그를 저장 분기나 결과 판정에 사용하지 않는다.
+
+14. 권한과 진입 조건
+
+- 선택된 label size가 없거나 편집 권한이 없으면 진입할 수 없다.
+- 품목 draft 또는 공용라벨 시트가 dirty이면 먼저 저장하거나 취소하도록 안내한다.
+- 관련 상위 command가 busy이면 진입과 저장을 차단한다.
+- dialog를 열 때 labelSizeId와 customerId를 immutable input으로 전달한다.
+- dialog open 뒤 상위 상태가 바뀔 수 있으므로 저장 직전에 권한, 대상 ID, dirty와 busy를 다시 확인한다.
+
+15. 테스트 요구사항
+
+15.1 모델
+
+- original/working/property dirty와 적용·취소
+- 신규 특수 타입 최초 적용과 취소 시 행 제거
+- 안정 key 기반 선택·추가·삭제·reorder
+- 신규 factory의 레거시 기본값
+- keyword 필수·중복·예약어, CP949 byte 경계
+- 사용자 항목 대문자·영숫자·필수·중복 validation
+- 타입 변경 시 레거시 보존·초기화와 GS1 관계 정리
+- 최종 order 1..N과 save command 생성
+
+15.2 widget
+
+- 진입 조건과 blocking modeless dialog 단일 open
+- 고정/사용자 후보 전환과 후보 추가
+- button/drag 추가·삭제의 동일 결과
+- pending property guard
+- 타입별 editor와 적용·취소
+- reorder mode와 userItemEdit mode의 상호 배타 동작
+- 전용 mode와 busy 중 비활성화
+- 최소 지원 화면에서 overflow 없음
+- 공용 table 확장 시 기존 `swipe_action_table_test.dart` 회귀
+
+15.3 DAO/transaction
+
+- customer-scoped 사용자 항목 CRUD와 중간 오류 rollback
+- parameter binding과 작은따옴표 문자열
+- 사용 항목 단일 batch와 신규 draft key→column ID mapping
+- 신규 column의 최종 누락검사 값이 반영된 check 행, min/content와 지원되는 update content 생성
+- 실제 변경 속성만 update하고 untouched 값 보존
+- 최종 order 1..N
+- GS1 info와 contain 관계 추가·변경·삭제
+- column 삭제 시 직접 소유한 종속행과 status/main 처리
+- 필수 affected row 불일치와 중간 SQL 오류의 전체 rollback
+- 오류 전달 후 working copy와 기존 cache 유지
+
+15.4 통합
+
+- dialog에서 추가·수정·정렬·삭제 후 저장·재조회
+- 사용자 항목 사전 CRUD 후 후보 갱신
+- 저장 후 `TColumn.datas`, 공용라벨 표, 품목 동적 column과 preview 갱신
+- 저장 실패 시 dialog/working copy 유지와 성공 UI 미표시
+- dirty/busy 상태에서 진입과 저장 차단
+- `flutter analyze`, 관련 test, 전체 `flutter test`, `git diff --check` 통과
+
+16. 구현 순서
+
+1. 편집 draft/session, validation과 save command
+2. 고정/사용자 후보 조회와 사용자 항목 transaction
+3. 사용 항목 단일 batch CRUD와 focused DAO test
+4. `SwipeActionTable`의 필요한 최소 stable-key/drag API
+5. dialog layout, normal mode와 속성 panel
+6. reorder와 userItemEdit mode
+7. 상위 save/reload callback과 관련 화면 refresh
+8. 특수 타입, GS1, drag/drop과 통합 회귀
+
+각 단계는 해당 focused test를 통과한 뒤 다음 단계로 진행한다. 품목 저장, journal, trigger 인증이나 복구 상태 구현을 선행조건으로 두지 않는다.
+
+17. 완료 조건
+
+- 선택한 label size의 `라벨 항목 편집` dialog를 열 수 있다.
+- 사용 항목과 후보 테이블, 속성 panel, 추가·삭제·정렬과 사용자 항목 설정이 문서대로 동작한다.
+- 신규 특수 타입은 최초 적용 전 저장할 수 없고 일반 변경은 pending guard를 거친다.
+- 사용자 항목 사전과 실제 사용 항목은 각각 독립 working copy와 transaction으로 저장된다.
+- 사용 항목 저장은 하나의 parameterized transaction에서 main, order, check/min/content와 GS1 관계를 반영한다.
+- 신규 column ID는 `OUTPUT INSERTED`로 draft key에 정확히 매핑된다.
+- 신규 column은 draft의 최종 누락검사 값과 기존 item의 빈 content를 저장하고 삭제 column은 직접 소유한 종속 데이터를 정리한다.
+- 저장 오류는 예외로 전달되고 가능한 rollback 뒤 working copy와 기존 cache가 유지된다.
+- 저장 성공 후 전체 column 재조회 결과가 공용라벨, 품목관리와 preview에 반영된다.
+- 레거시 source, 실행 환경과 공유 DB schema/trigger는 변경하지 않는다.
+- 관련 model/widget/DAO/integration test와 정적 분석이 통과한다.
