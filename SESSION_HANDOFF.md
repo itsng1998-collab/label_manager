@@ -40,6 +40,7 @@
 - 전체 회귀 검증 완료: `flutter test`에서 3332개 모두 통과했다.
 - 전체 테스트가 생성한 `third_party/fortune_sheet/build/` 임시 캐시를 삭제했다.
 - stage/commit 대상: `third_party/fortune_sheet/lib/src/fortune_table.dart`, `lib/page_home/item_manage.dart`, `lib/home_page_manager.dart`, `lib/models/item_manager_draft.dart`, `test/fortune_table_test.dart`, `test/item_manager_draft_test.dart`, `SESSION_HANDOFF.md`만 포함한다. unrelated `.vscode/settings.json`, `lib/core/app.dart`는 제외한다.
+- 기능 커밋: `c80b1a2 품목 저장 전 편집 반영을 보장`.
 
 ### 완료 (2026-07-14): 품목관리 레거시 물리 삭제 반영
 
