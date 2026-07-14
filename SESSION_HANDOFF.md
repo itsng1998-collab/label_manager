@@ -28,6 +28,20 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-14): 항목 편집기 구현 경계 재검토 권장안 병합
+
+- 사용자 요청: 최신 `doc/user_item_modify.txt`를 레거시/현 프로젝트에 대조해 확인한 품목 요소 자동 반영 경쟁, DB 문자열 조회 절단, 활성 INSERT trigger 전체 집합, stable-key reorder callback 의미, 저장 payload 최신성, target VARCHAR 코드페이지, trigger CREATE/ALTER fingerprint 규칙 권장안을 작업지시서에 병합하고 필요한 사용자 결정을 즉시 확인한다.
+- 사용자 확인 필요 여부: 없음. 품목 요소의 현재 자동 draft 반영 UX는 유지하되 row identity별 최신 generation만 부모 draft에 적용하고 명시적 저장은 최신 자동 반영 Future를 기다리는 최소 직렬화로 정리한다. 별도 권한 체계나 trigger 상시 감시 시스템은 추가하지 않는다.
+- 수정 예정 `doc/user_item_modify.txt`: 문자열 조회를 실제 schema 길이와 무관하게 무손실로 만들고 target 길이는 저장 검증에만 사용한다. capability에 대상 table의 모든 활성 INSERT trigger 집합 signature와 VARCHAR code page를 추가한다. stable-key reorder는 기존 drop-target index callback과 resolved insert-index callback을 분리하고, 저장 payload가 최신 표시 workbook과 같은지 검증한다. fingerprint header를 CREATE/ALTER와 schema 표기에 무관한 canonical form으로 고정하며 본문·테스트·완료 조건을 함께 갱신한다. 미검증.
+- 편집 완료 `doc/user_item_modify.txt`: 품목 요소 row identity별 generation/Future 직렬화와 행 X→Y 전환 격리, 저장 대상 text 및 사용자 항목 keyword/name의 무손실 조회·원문 staging·실제 target byte/code page 검증, 모든 활성 INSERT trigger의 경량 metadata 변경 signature와 fingerprint 포함 전체 capability 분리, stable reorder callback 의미 분리, 최신 표시 workbook 저장 payload, canonical trigger header를 본문·widget/DAO/통합 테스트·완료 조건에 연결했다. 각 편집 직후 diagnostics 오류 0건이다.
+- 독립 재검토 보완: trigger definition fingerprint를 매 저장마다 읽지 않도록 `object_id/schema/name/parent/disabled/instead-of/modify_date` 경량 signature와 변경 시 재계산하는 전체 capability signature를 분리했다. `CustomerColumnSchemaCapabilities`와 사용자 항목 50바이트 경계·변환 불가·비호환 code page·무손실 조회/무수정 저장 회귀, 품목 요소 행 X 자동 반영 중 Y 전환 테스트를 추가했다. 보완 직후 diagnostics 오류 0건이다.
+- 최종 상호검증 보완: 같은 row operation은 병렬 완료 역전을 허용하지 않는 row identity별 단일 직렬 Future queue로 확정하고, 선행 A 실패 후에도 후행 B 실행·최신 payload·명시 저장 결과가 유지되는 테스트로 정정했다. 다른 row X/Y queue 격리는 유지했다. 사용자 항목 capability의 identity/customer/type/text/소유권 key 누락·비호환 fixture와 단계별 focused test 동반 원칙을 추가했다. 보완 직후 diagnostics 오류 0건이다.
+- 검증 예정: 두 문서 diagnostics, 새 계약의 본문·테스트·완료 조건 연결 및 기존 상충 표현 검색, 독립 재검토, `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md`, 관련 diff/status를 수행한다. 문서만 변경하므로 Flutter 테스트·빌드·배포는 실행하지 않는다.
+- 최종 검증 실행 예정: queue 병렬 완료 역전 표현과 trigger signature 상충 표현을 다시 검색하고 독립 재검토 승인을 받은 뒤 `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md` 및 관련 diff/status를 확인한다.
+- 최종 검증 완료: 두 문서 diagnostics 오류 0건, queue 병렬 완료 역전·구형 trigger fingerprint 집합 signature 상충 표현 0건이다. 새 계약이 본문·widget/DAO/통합 테스트·구현 순서·완료 조건에 연결됐고 독립 최종 재검토 두 건은 보완 후 치명·높음·중간 finding 없이 승인했다. `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md`를 통과했다. 문서만 변경해 Flutter 테스트·빌드·배포와 임시 산출물/캐시는 생성하지 않았다.
+- stage/commit 대상: 먼저 `doc/user_item_modify.txt`만 작업지시서 커밋에 포함하고, 해당 commit 해시를 기록한 `SESSION_HANDOFF.md`를 후속 인수인계 커밋에 포함한다. 기존 unrelated `.vscode/settings.json`, `lib/core/app.dart`는 제외하고 원격 push는 수행하지 않는다.
+- 작업지시서 로컬 커밋 완료: `3356bcb` (`문서: 항목 편집기 구현 경계 명확화`). `doc/user_item_modify.txt`만 포함했다. 마지막 stage/commit 대상은 이 해시와 완료 상태를 기록한 `SESSION_HANDOFF.md` 단독이며, 기존 unrelated `.vscode/settings.json`, `lib/core/app.dart`는 제외하고 원격 push는 수행하지 않는다.
+
 ### 완료 (2026-07-14): 항목 편집기 구현성 재검토 권장안 병합
 
 - 사용자 요청: 최신 `doc/user_item_modify.txt` 재검토에서 확인한 save result 의미 충돌, property registry 완전성, journal restore 판정 순서, stable-key reorder 목적지, trigger fingerprint/cache/result-set 조건, 필수 보조 schema capability 권장안을 작업지시서에 병합하고 필요한 사용자 결정을 즉시 확인한다.
