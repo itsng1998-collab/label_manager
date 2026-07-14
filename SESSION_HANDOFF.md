@@ -41,6 +41,7 @@
 - 정확히 1px 축소 계약 추가 후 focused 테스트 7개 재통과. 최종 Dart 진단 이슈 없음, `git diff --check` 통과.
 - 임시 산출물 `third_party/fortune_sheet/build/` 정리 완료.
 - stage/commit 대상: `lib/widgets/swipe_action_table.dart`, `lib/page_home/label_column_edit_dialog.dart`, `test/label_column_edit_dialog_test.dart`, `SESSION_HANDOFF.md`. unrelated `lib/core/app.dart`는 제외한다.
+- 기능 커밋: `229d7c5 라벨 항목 편집 UI 밀도와 테이블을 통일`.
 
 ### 완료 (2026-07-14): 공용라벨 clean 상태 항목 편집 진입 보정
 
