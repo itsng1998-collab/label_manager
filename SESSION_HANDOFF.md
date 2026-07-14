@@ -45,6 +45,7 @@
 - 전체 테스트가 생성한 `third_party/fortune_sheet/build/` 캐시를 삭제했다.
 - 독립 최종 검토 결과 실제 버그, race, 상태 고착, 잘못된 오류 표시, compile 위험 finding이 없었다. 실제 DB 오류 주입 dialog 통합 테스트와 선택 삭제 전이 widget 테스트는 private overlay 구조에 테스트용 노출을 늘려야 하므로 이번 최소 수정 범위에는 추가하지 않았다.
 - stage/commit 대상: `lib/home_page_manager.dart`, `lib/models/label_size.dart`, `test/date_manager_test.dart`, `test/fortune_table_test.dart`, `SESSION_HANDOFF.md`만 포함한다. unrelated `.vscode/settings.json`, `lib/core/app.dart`는 제외한다.
+- 기능 커밋: `64dab5d 설정 저장과 목록 갱신 오류를 분리`.
 
 ### 완료 (2026-07-14): 브랜드·라벨 설정 삭제 경합 보정
 
