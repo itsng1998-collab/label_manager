@@ -560,6 +560,11 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
             IconButton(
               key: const Key('label-column-reorder'),
               tooltip: '순서 변경',
+              iconSize: 22,
+              constraints: const BoxConstraints.tightFor(
+                width: 38,
+                height: 38,
+              ),
               onPressed: _normalEnabled ? _enterReorder : null,
               icon: const Icon(Icons.swap_vert),
             ),
@@ -621,17 +626,46 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
         DragTarget<_ColumnDragPayload>(
           onWillAcceptWithDetails: (_) => _normalEnabled && _session.selectedColumnKey != null,
           onAcceptWithDetails: (_) => _removeSelectedColumn(),
-          builder: (context, candidateData, rejectedData) => IconButton.filledTonal(
+          builder: (context, candidateData, rejectedData) => IconButton(
             key: const Key('label-column-remove'),
             tooltip: '사용 항목 삭제',
-            onPressed: _normalEnabled && _session.selectedColumnKey != null ? _removeSelectedColumn : null,
+            iconSize: 22,
+            constraints: const BoxConstraints.tightFor(
+              width: 38,
+              height: 38,
+            ),
+            style: IconButton.styleFrom(
+              foregroundColor: Theme.of(context).colorScheme.error,
+              backgroundColor: Theme.of(context).colorScheme.errorContainer,
+              disabledBackgroundColor: Theme.of(
+                context,
+              ).colorScheme.surfaceContainerHighest,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(6),
+              ),
+            ),
+            onPressed: _normalEnabled && _session.selectedColumnKey != null
+                ? _removeSelectedColumn
+                : null,
             icon: const Icon(Icons.delete_outline),
           ),
         ),
-        const SizedBox(height: 12),
-        IconButton.filled(
+        const SizedBox(height: 10),
+        IconButton(
           key: const Key('label-column-add'),
           tooltip: '선택 후보 추가',
+          iconSize: 22,
+          constraints: const BoxConstraints.tightFor(width: 38, height: 38),
+          style: IconButton.styleFrom(
+            foregroundColor: Theme.of(context).colorScheme.onPrimaryContainer,
+            backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+            disabledBackgroundColor: Theme.of(
+              context,
+            ).colorScheme.surfaceContainerHighest,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(6),
+            ),
+          ),
           onPressed: _normalEnabled && _selectedCandidate != null && !_candidateDisabled(_selectedCandidate!.keyword)
               ? _addSelectedCandidate
               : null,
@@ -677,11 +711,14 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
         ),
         const SizedBox(height: 8),
         if (_candidateSource == LabelColumnCandidateSource.fixed)
-          DropdownButtonFormField<int>(
+          _DialogDropdown<int>(
             key: const Key('label-column-fixed-type'),
-            initialValue: _fixedTypeId,
-            decoration: const InputDecoration(labelText: '분류', border: OutlineInputBorder(), isDense: true),
-            items: [for (final type in _fixedTypes) DropdownMenuItem(value: type.id, child: Text(type.name))],
+            label: '분류',
+            value: _fixedTypeId,
+            entries: [
+              for (final type in _fixedTypes)
+                DropdownMenuEntry(value: type.id, label: type.name),
+            ],
             onChanged: _normalEnabled ? _changeFixedType : null,
           )
         else
@@ -691,6 +728,11 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
               IconButton(
                 key: const Key('label-column-user-edit'),
                 tooltip: '사용자 항목 설정',
+                iconSize: 22,
+                constraints: const BoxConstraints.tightFor(
+                  width: 38,
+                  height: 38,
+                ),
                 onPressed: _normalEnabled ? _enterUserEdit : null,
                 icon: const Icon(Icons.edit),
               ),
@@ -831,11 +873,13 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
               const SizedBox(width: 6),
               SizedBox(
                 width: 105,
-                child: DropdownButtonFormField<TColumnType>(
-                  initialValue: row.columnType,
-                  isExpanded: true,
-                  decoration: const InputDecoration(labelText: '종류', isDense: true),
-                  items: [for (final type in _columnTypes) DropdownMenuItem(value: type, child: Text(type.name))],
+                child: _DialogDropdown<TColumnType>(
+                  label: '종류',
+                  value: row.columnType,
+                  entries: [
+                    for (final type in _columnTypes)
+                      DropdownMenuEntry(value: type, label: type.name),
+                  ],
                   onChanged: _busy ? null : (value) { if (value != null) _updateCustomerRow(row.copyWith(columnType: value)); },
                 ),
               ),
@@ -868,7 +912,7 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
             child: draft == null
                 ? const Center(child: Text('사용 항목을 선택하세요.'))
                 : SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    padding: const EdgeInsets.fromLTRB(10, 8, 10, 0),
                     child: _PropertyFields(
                       key: ValueKey('property:${draft.key}:$_propertyRevision'),
                       column: draft.column,
@@ -953,11 +997,14 @@ class _PropertyFields extends StatelessWidget {
       children: [
         _text('키워드', column.keyword, (value) => onChanged(column.copyWith(keyword: value.trim().toUpperCase())), key: const Key('label-column-keyword')),
         _text('항목명', column.columnName, (value) => onChanged(column.copyWith(columnName: value)), key: const Key('label-column-name')),
-        DropdownButtonFormField<TColumnType>(
+        _DialogDropdown<TColumnType>(
           key: const Key('label-column-type'),
-          initialValue: columnTypes.where((type) => type.code == column.columnType.code).firstOrNull,
-          decoration: const InputDecoration(labelText: '항목 종류', border: OutlineInputBorder(), isDense: true),
-          items: [for (final type in columnTypes) DropdownMenuItem(value: type, child: Text(type.name))],
+          label: '항목 종류',
+          value: columnTypes.where((type) => type.code == column.columnType.code).firstOrNull,
+          entries: [
+            for (final type in columnTypes)
+              DropdownMenuEntry(value: type, label: type.name),
+          ],
           onChanged: enabled ? (value) { if (value != null) onChanged(_changeType(column, value)); } : null,
         ),
         const SizedBox(height: 8),
@@ -996,10 +1043,13 @@ class _PropertyFields extends StatelessWidget {
       case TColumnType.TYPE_QR_CODE:
         return [
           _barcodeDropdown(),
-          DropdownButtonFormField<QRCodeCreateType>(
-            initialValue: column.qrCodeCreateType,
-            decoration: const InputDecoration(labelText: '생성 방식', border: OutlineInputBorder(), isDense: true),
-            items: [for (final type in QRCodeCreateType.values) DropdownMenuItem(value: type, child: Text(type.name))],
+          _DialogDropdown<QRCodeCreateType>(
+            label: '생성 방식',
+            value: column.qrCodeCreateType,
+            entries: [
+              for (final type in QRCodeCreateType.values)
+                DropdownMenuEntry(value: type, label: type.name),
+            ],
             onChanged: enabled ? (value) { if (value != null) onChanged(column.copyWith(qrCodeCreateType: value)); } : null,
           ),
           const SizedBox(height: 8),
@@ -1010,10 +1060,13 @@ class _PropertyFields extends StatelessWidget {
           _integer('Pixel size', column.pixelSize, (value) => onChanged(column.copyWith(pixelSize: value))),
           _integer('Scale', column.qrCodeScalePercent, (value) => onChanged(column.copyWith(qrCodeScalePercent: value))),
           _check('하단 text 표시', column.showQRCodeText, (value) => onChanged(column.copyWith(showQRCodeText: value))),
-          DropdownButtonFormField<QRTextAlignment>(
-            initialValue: column.qrTextAlignment,
-            decoration: const InputDecoration(labelText: '정렬', border: OutlineInputBorder(), isDense: true),
-            items: [for (final value in QRTextAlignment.values) DropdownMenuItem(value: value, child: Text(value.name))],
+          _DialogDropdown<QRTextAlignment>(
+            label: '정렬',
+            value: column.qrTextAlignment,
+            entries: [
+              for (final value in QRTextAlignment.values)
+                DropdownMenuEntry(value: value, label: value.name),
+            ],
             onChanged: enabled ? (value) { if (value != null) onChanged(column.copyWith(qrTextAlignment: value)); } : null,
           ),
           const SizedBox(height: 8),
@@ -1065,10 +1118,13 @@ class _PropertyFields extends StatelessWidget {
   Widget _barcodeDropdown() {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
-      child: DropdownButtonFormField<BarcodeType>(
-        initialValue: column.barcodeType,
-        decoration: const InputDecoration(labelText: '바코드 종류', border: OutlineInputBorder(), isDense: true),
-        items: [for (final type in BarcodeType.values) DropdownMenuItem(value: type, child: Text(type.dbName))],
+      child: _DialogDropdown<BarcodeType>(
+        label: '바코드 종류',
+        value: column.barcodeType,
+        entries: [
+          for (final type in BarcodeType.values)
+            DropdownMenuEntry(value: type, label: type.dbName),
+        ],
         onChanged: enabled ? (value) { if (value != null) onChanged(column.copyWith(barcodeType: value)); } : null,
       ),
     );
@@ -1086,6 +1142,42 @@ class _PropertyFields extends StatelessWidget {
       userDefineQRData: '',
       userDefineQRText: '',
       natriumJoinString: '',
+    );
+  }
+}
+
+class _DialogDropdown<T> extends StatelessWidget {
+  const _DialogDropdown({
+    super.key,
+    required this.label,
+    required this.value,
+    required this.entries,
+    required this.onChanged,
+  });
+
+  final String label;
+  final T? value;
+  final List<DropdownMenuEntry<T>> entries;
+  final ValueChanged<T?>? onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) => DropdownMenu<T>(
+        width: constraints.maxWidth,
+        initialSelection: value,
+        label: Text(label),
+        dropdownMenuEntries: entries,
+        enabled: onChanged != null,
+        enableFilter: false,
+        enableSearch: false,
+        requestFocusOnTap: false,
+        inputDecorationTheme: const InputDecorationTheme(
+          border: OutlineInputBorder(),
+          isDense: true,
+        ),
+        onSelected: onChanged,
+      ),
     );
   }
 }

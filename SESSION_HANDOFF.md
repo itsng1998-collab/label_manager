@@ -28,6 +28,21 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-14): 라벨 항목 편집 버튼·label·dropdown 보정
+
+- 사용자 요청: 순서 변경/사용 항목 삭제/선택 후보 추가/사용자 항목 설정 아이콘 버튼을 2px 줄이고, 키워드 label 잘림과 모든 dropdown 메뉴 미표시를 수정하며, 중앙 삭제/추가 버튼 스타일을 주변 UI와 조화롭게 변경한다.
+- 수정 `lib/page_home/label_column_edit_dialog.dart`: 지정된 네 버튼의 icon 24→22, button 40→38을 적용했다. 삭제/추가 command rail은 6px 모서리의 error/primary tonal 버튼으로 통일했다. 속성 스크롤 상단 padding 8로 첫 키워드 floating label clipping을 제거했다. Navigator route가 상위 `OverlayEntry` 아래에 배치되는 `DropdownButtonFormField` 6개를 동일 entry 안에서 overlay portal을 사용하는 공용 `_DialogDropdown`(`DropdownMenu`)으로 교체했다.
+- 테스트 `test/label_column_edit_dialog_test.dart`: 항목 종류 dropdown을 실제로 열어 `바코드` 항목 렌더링을 확인하고 지정된 네 IconButton이 `iconSize=22`, `38x38`인지 검증하도록 보강했다.
+- 실제 `OverlayEntry > BlockingModelessDialog > LabelColumnEditDialog` 구조를 재현해 dropdown popup의 `바코드` 메뉴를 클릭하고 선택값이 변경되는 회귀 테스트를 추가했다.
+- Dart formatter 완료. focused 검증 실행 예정: `C:\Flutter\bin\flutter.bat test test/label_column_edit_dialog_test.dart`. unrelated `lib/core/app.dart`는 제외한다.
+- focused 검증 `C:\Flutter\bin\flutter.bat test test/label_column_edit_dialog_test.dart`: 8개 전체 통과. 실제 modeless OverlayEntry에서 dropdown 메뉴가 barrier 위에서 클릭되고 `바코드` 선택값이 반영됨을 확인했다. 버튼 크기, 기존 후보 편집 흐름, 900x600 overflow도 정상이다.
+- 전체 검증 실행 예정: `C:\Flutter\bin\flutter.bat analyze`, `C:\Flutter\bin\flutter.bat test`.
+- 전체 정적 분석 `C:\Flutter\bin\flutter.bat analyze`: 성공, 이슈 없음.
+- 전체 테스트 `C:\Flutter\bin\flutter.bat test`: 361개 전체 통과.
+- 임시 산출물 `third_party/fortune_sheet/build/` 정리 완료. 최종 Dart 진단 이슈 없음, `git diff --check` 통과.
+- stage/commit 대상: `lib/page_home/label_column_edit_dialog.dart`, `test/label_column_edit_dialog_test.dart`, `SESSION_HANDOFF.md`. unrelated `lib/core/app.dart`는 제외한다.
+- 커밋 직전 focused 테스트 8개 재통과, Dart 진단 이슈 없음, `git diff --check` 재통과.
+
 ### 완료 (2026-07-14): 라벨 항목 편집 UI 밀도와 후보 테이블 통일
 
 - 사용자 요청: 첨부 화면의 라벨 항목 편집 다이얼로그 전체 글꼴을 1px 줄이고 위젯 크기·간격·배치를 함께 축소한다. 고정/사용자 후보 목록은 사용 항목과 같은 테이블 위젯으로 변경한다.

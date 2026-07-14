@@ -8,6 +8,7 @@ import 'package:label_manager/models/column_type.dart';
 import 'package:label_manager/models/label_column_candidates.dart';
 import 'package:label_manager/models/label_column_edit.dart';
 import 'package:label_manager/page_home/label_column_edit_dialog.dart';
+import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
 
 const baseType = TColumnType(code: TColumnType.TYPE_BASE, name: '기본', order: 1);
 const barcodeColumnType = TColumnType(
@@ -127,6 +128,41 @@ Future<void> _tapVisible(WidgetTester tester, Finder finder) async {
   await tester.pump();
 }
 
+class _OverlayHost extends StatefulWidget {
+  const _OverlayHost({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_OverlayHost> createState() => _OverlayHostState();
+}
+
+class _OverlayHostState extends State<_OverlayHost> {
+  OverlayEntry? _entry;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final entry = OverlayEntry(
+        builder: (_) => BlockingModelessDialog(child: widget.child),
+      );
+      _entry = entry;
+      Overlay.of(context).insert(entry);
+    });
+  }
+
+  @override
+  void dispose() {
+    _entry?.remove();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => const Scaffold();
+}
+
 void main() {
   setUp(() {
     TColumnType.datas = [baseType, barcodeColumnType];
@@ -168,10 +204,76 @@ void main() {
       ),
       findsOneWidget,
     );
+    for (final key in const [
+      Key('label-column-reorder'),
+      Key('label-column-remove'),
+      Key('label-column-add'),
+    ]) {
+      final button = tester.widget<IconButton>(find.byKey(key));
+      expect(button.iconSize, 22);
+      expect(button.constraints, const BoxConstraints.tightFor(width: 38, height: 38));
+    }
+
+    await _tapVisible(tester, find.byKey(const Key('label-column-type')));
+    await tester.pumpAndSettle();
+    final barcodeMenuItem = find.widgetWithText(MenuItemButton, '바코드');
+    expect(barcodeMenuItem, findsAtLeastNWidgets(1));
+    await _tapVisible(tester, barcodeMenuItem.last);
+    await tester.pumpAndSettle();
 
     await _tapVisible(tester, find.text('사용자 항목'));
     await tester.pumpAndSettle();
     expect(find.text('사용자 A'), findsOneWidget);
+    final userEdit = tester.widget<IconButton>(
+      find.byKey(const Key('label-column-user-edit')),
+    );
+    expect(userEdit.iconSize, 22);
+    expect(
+      userEdit.constraints,
+      const BoxConstraints.tightFor(width: 38, height: 38),
+    );
+  });
+
+  testWidgets('dropdown popup is selectable above the modeless overlay', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1300, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: _OverlayHost(
+          child: LabelColumnEditDialog(
+            labelSizeId: 10,
+            customerId: 7,
+            initialColumns: [_column(1, 'BASE_A')],
+            canSave: () async => true,
+            onSave: (_) async {},
+            onClose: () {},
+            loadFixedTypes: () async => const [
+              FixedColumnType(id: 1, name: '공통'),
+            ],
+            loadFixedCandidates: (_) async => const [],
+            loadCustomerCandidates: (_) async => const [],
+            saveCustomerColumns: (_) async {},
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await _tapVisible(tester, find.byKey(const Key('label-column-type')));
+    await tester.pumpAndSettle();
+    await _tapVisible(
+      tester,
+      find.widgetWithText(MenuItemButton, '바코드').last,
+    );
+    await tester.pumpAndSettle();
+
+    final editor = find.descendant(
+      of: find.byKey(const Key('label-column-type')),
+      matching: find.byType(EditableText),
+    );
+    expect(tester.widget<EditableText>(editor).controller.text, '바코드');
   });
 
   testWidgets('adds and removes candidates through shared commands', (tester) async {
