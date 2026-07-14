@@ -28,6 +28,18 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-14): 공용라벨 clean 상태 항목 편집 진입 보정
+
+- 사용자 재현: 공용라벨 시트 저장 버튼이 비활성화된 clean 상태에서도 `항목 편집`에 진입하지 못한다.
+- 원인 확인: 저장 버튼은 현재 `LabelSheetWorkbench._isDirty`를 사용하지만 항목 편집 guard는 상위 `_commonLabelSheetDirty`를 사용한다. 라벨 세션 교체 시 상위 dirty를 초기화하지 않고 이전 workbench의 늦은 callback도 세션 구분 없이 수용해 두 상태가 어긋날 수 있었다.
+- `lib/home_page_manager.dart` 편집 완료: null/새 라벨 세션 확정 시 공용라벨 dirty를 false로 초기화한다. dirty callback을 생성 당시 label size ID에 묶어 현재 세션과 다른 늦은 callback은 무시하고, 수용/무시 전이를 로그로 남긴다.
+- `test/label_sheet_toolbar_test.dart` 테스트 추가: 현재 라벨 ID callback만 수용하고 이전/해제된 라벨 callback은 거부하는 순수 세션 계약을 검증한다.
+- formatter 적용, 변경 파일 diagnostics 오류 0건, 공용라벨 시트·항목 편집 관련 테스트 115개 통과.
+- 전체 정적 검증 완료: `C:\Flutter\bin\flutter.bat analyze` 결과 `No issues found`.
+- 전체 회귀 검증 완료: `C:\Flutter\bin\flutter.bat test` 결과 360개 통과, 실패 0건.
+- 전체 테스트가 생성한 `third_party/fortune_sheet/build/` 캐시를 삭제했다. 관련 파일 제한 `git diff --check`를 통과했고 최종 diff는 production/test/인수인계 3개 파일에 한정됐다.
+- stage/commit 대상: `lib/home_page_manager.dart`, `test/label_sheet_toolbar_test.dart`, `SESSION_HANDOFF.md`. unrelated `lib/core/app.dart`는 제외하고 원격 push와 배포 작업은 수행하지 않는다.
+
 ### 완료 (2026-07-14): 공용라벨 초기 로드 진행 표시 종료 보정
 
 - 사용자 재현: 공용라벨관리에서 DB 조회, 시트 로드, RTF 변환 등 초기 작업이 끝난 뒤에도 진행 중 스낵바가 무한 표시된다.

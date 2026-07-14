@@ -61,6 +61,12 @@ const Duration itemManagerLoadProgressDuration = Duration(days: 1);
 const String itemManagerLoadFailureMessage =
     '품목 데이터를 불러오지 못했습니다. 네트워크 연결을 확인한 뒤 다시 시도해 주세요.';
 
+@visibleForTesting
+bool commonLabelSheetDirtyChangeBelongsToCurrentSession({
+  required int? sourceLabelSizeId,
+  required int? currentLabelSizeId,
+}) => sourceLabelSizeId == currentLabelSizeId;
+
 Future<void> showItemManagerLoadFailureDialog(BuildContext context) {
   ScaffoldMessenger.of(context).clearSnackBars();
   return showDialog<void>(
@@ -802,6 +808,7 @@ class _HomePageManagerState extends State<HomePageManager> {
         _currentLabelSize = null;
         _rtfPreviewReadyKey = null;
         _commonLabelTabActivated = false;
+        _commonLabelSheetDirty = false;
         _commonLabelPreviewClosedByUser = false;
         widget.onLabelSizeChanged(null);
         ItemOfMarket.datas = <ItemOfMarket>[];
@@ -904,6 +911,7 @@ class _HomePageManagerState extends State<HomePageManager> {
       _itemDraftTargetMarketIds = targetMarketIds;
       _rtfPreviewReadyKey = null;
       _commonLabelTabActivated = false;
+      _commonLabelSheetDirty = false;
       _itemPreviewClosedByUser = false;
       _commonLabelPreviewClosedByUser = false;
       TColumn.datas = columns;
@@ -2244,6 +2252,7 @@ class _HomePageManagerState extends State<HomePageManager> {
 
   List<TabData> _buildTabs() {
     final itemManagerReadyGeneration = _itemManagerReadyGeneration;
+    final commonLabelSizeId = _effectiveLabelSize?.labelSizeId;
     debugLog(
       'labelContentKey=$_labelContentKey, '
       'labelSizeId=${_effectiveLabelSize?.labelSizeId}, '
@@ -2311,6 +2320,24 @@ class _HomePageManagerState extends State<HomePageManager> {
                   onSheetDialogClosed: _handleCommonLabelSheetDialogClosed,
                   imageImportController: _commonLabelImageImportController,
                   onSheetDirtyChanged: (dirty) {
+                    final currentLabelSizeId =
+                        _effectiveLabelSize?.labelSizeId;
+                    if (!commonLabelSheetDirtyChangeBelongsToCurrentSession(
+                      sourceLabelSizeId: commonLabelSizeId,
+                      currentLabelSizeId: currentLabelSizeId,
+                    )) {
+                      debugLog(
+                        'commonLabel dirty ignored '
+                        'sourceLabelSizeId=$commonLabelSizeId '
+                        'currentLabelSizeId=$currentLabelSizeId '
+                        'dirty=$dirty',
+                      );
+                      return;
+                    }
+                    debugLog(
+                      'commonLabel dirty changed '
+                      'labelSizeId=$commonLabelSizeId dirty=$dirty',
+                    );
                     _commonLabelSheetDirty = dirty;
                   },
                   onColumnEditRequested: _openLabelColumnEditDialog,

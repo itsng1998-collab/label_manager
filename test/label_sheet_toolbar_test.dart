@@ -194,6 +194,30 @@ void main() {
     expect(itemManagerLoadProgressDuration, greaterThan(const Duration(hours: 1)));
   });
 
+  test('common label dirty callback is scoped to its label session', () {
+    expect(
+      commonLabelSheetDirtyChangeBelongsToCurrentSession(
+        sourceLabelSizeId: 10,
+        currentLabelSizeId: 10,
+      ),
+      isTrue,
+    );
+    expect(
+      commonLabelSheetDirtyChangeBelongsToCurrentSession(
+        sourceLabelSizeId: 10,
+        currentLabelSizeId: 20,
+      ),
+      isFalse,
+    );
+    expect(
+      commonLabelSheetDirtyChangeBelongsToCurrentSession(
+        sourceLabelSizeId: 10,
+        currentLabelSizeId: null,
+      ),
+      isFalse,
+    );
+  });
+
   testWidgets('item manager load failure closes progress and shows warning dialog', (
     tester,
   ) async {
