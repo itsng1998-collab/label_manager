@@ -96,6 +96,36 @@ class HomePageManager extends StatefulWidget {
   State<HomePageManager> createState() => _HomePageManagerState();
 }
 
+@visibleForTesting
+class ItemElementCommitQueue {
+  Future<void> _tail = Future<void>.value();
+  Object? _lastError;
+  StackTrace? _lastStackTrace;
+
+  Future<void> enqueue(Future<void> Function() commit) {
+    final operation = _tail.then((_) => commit());
+    _tail = operation.then<void>(
+      (_) {},
+      onError: (Object error, StackTrace stackTrace) {
+        _lastError = error;
+        _lastStackTrace = stackTrace;
+      },
+    );
+    return operation;
+  }
+
+  Future<void> wait() async {
+    await _tail;
+    final error = _lastError;
+    if (error != null) {
+      final stackTrace = _lastStackTrace ?? StackTrace.current;
+      _lastError = null;
+      _lastStackTrace = null;
+      Error.throwWithStackTrace(error, stackTrace);
+    }
+  }
+}
+
 class _HomePageManagerState extends State<HomePageManager> {
   static const double _rtfPreviewInitialReadableScale = 1.0;
   static const double _itemPreviewScrollbarThicknessFallback = 8.0;
@@ -150,7 +180,8 @@ class _HomePageManagerState extends State<HomePageManager> {
   bool _commonLabelPreviewHiddenForSheetDialog = false;
   bool _commonLabelPreviewMovedByUser = false;
   bool _itemDraftCommandBusy = false;
-  Future<void> _pendingItemElementCommit = Future<void>.value();
+  final ItemElementCommitQueue _itemElementCommitQueue =
+      ItemElementCommitQueue();
   bool _lastReportedItemDraftDirty = false;
   int _labelSetupRevision = 0;
   bool _suppressNextBrandDidUpdateLabelLoad = false;
@@ -969,6 +1000,8 @@ class _HomePageManagerState extends State<HomePageManager> {
       ItemManagerDebugLog.event('cancel', 'blocked', trace: commonTrace);
       return;
     }
+    if (!await _flushItemDraftEdits('변경 취소 확인')) return;
+    if (!mounted) return;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -1080,16 +1113,7 @@ class _HomePageManagerState extends State<HomePageManager> {
       );
       return;
     }
-    setState(() => _itemDraftCommandBusy = true);
-    try {
-      await _itemManageController.commitEditing();
-      await _pendingItemElementCommit;
-    } catch (error) {
-      if (mounted) _showItemDraftError('품목 저장 확인', error);
-      return;
-    } finally {
-      if (mounted) setState(() => _itemDraftCommandBusy = false);
-    }
+    if (!await _flushItemDraftEdits('품목 저장 확인')) return;
     if (!mounted || !controller.isDirty) return;
     ItemManagerDebugLog.event(
       'save',
@@ -1238,6 +1262,20 @@ class _HomePageManagerState extends State<HomePageManager> {
         trace: trace,
         fields: {'mounted': mounted},
       );
+    }
+  }
+
+  Future<bool> _flushItemDraftEdits(String errorTitle) async {
+    setState(() => _itemDraftCommandBusy = true);
+    try {
+      await _itemManageController.commitEditing();
+      await _itemElementCommitQueue.wait();
+      return true;
+    } catch (error) {
+      if (mounted) _showItemDraftError(errorTitle, error);
+      return false;
+    } finally {
+      if (mounted) setState(() => _itemDraftCommandBusy = false);
     }
   }
 
@@ -2233,7 +2271,7 @@ class _HomePageManagerState extends State<HomePageManager> {
             _itemDraftController?.anchorRowKey ??
             'item:${selected.item.itemId}',
         labelSize: _effectiveLabelSize,
-        onElementCommitted: _commitSelectedItemElementDraft,
+        onElementCommitted: _commitItemElementDraft,
         canSelectOutputPreview: () => !_blockItemDraftContextChange(),
         canEdit:
           User.instance?.canEditItemDetails == true &&
@@ -2310,28 +2348,27 @@ class _HomePageManagerState extends State<HomePageManager> {
     }
   }
 
-  Future<void> _commitSelectedItemElementDraft(
+  Future<void> _commitItemElementDraft(
+    String rowKey,
     String elementPlain,
     String elementPayload,
   ) async {
     if (User.instance?.canEdit != true || _itemDraftCommandBusy) {
       throw StateError('품목 편집 권한이 없습니다.');
     }
-    final operation = _pendingItemElementCommit.then(
-      (_) => _applySelectedItemElementDraft(elementPlain, elementPayload),
+    await _itemElementCommitQueue.enqueue(
+      () => _applyItemElementDraft(rowKey, elementPlain, elementPayload),
     );
-    _pendingItemElementCommit = operation.catchError((_) {});
-    await operation;
   }
 
-  Future<void> _applySelectedItemElementDraft(
+  Future<void> _applyItemElementDraft(
+    String rowKey,
     String elementPlain,
     String elementPayload,
   ) async {
     final controller = _itemDraftController;
-    final rowKey = controller?.anchorRowKey;
-    if (controller == null || rowKey == null) {
-      throw StateError('선택된 품목 draft가 없습니다.');
+    if (controller == null) {
+      throw StateError('품목 draft가 없습니다.');
     }
     final row = controller.rows.firstWhere((row) => row.rowKey == rowKey);
     if (row.sourceItemId != null) {
@@ -3922,8 +3959,11 @@ class _ItemPreviewPanel extends StatefulWidget {
   final ItemOfMarket item;
   final String rowIdentity;
   final LabelSize? labelSize;
-  final Future<void> Function(String elementPlain, String elementPayload)
-  onElementCommitted;
+  final Future<void> Function(
+    String rowIdentity,
+    String elementPlain,
+    String elementPayload,
+  ) onElementCommitted;
   final bool Function() canSelectOutputPreview;
   final bool canEdit;
 
@@ -4038,7 +4078,9 @@ class _ItemPreviewPanelState extends State<_ItemPreviewPanel> {
     });
     _updateOutputPreviewTabContent();
     unawaited(
-      widget.onElementCommitted(next, encodedWorkbook).catchError((
+        widget
+          .onElementCommitted(widget.rowIdentity, next, encodedWorkbook)
+          .catchError((
         Object error,
         StackTrace stackTrace,
       ) {
@@ -4088,7 +4130,11 @@ class _ItemPreviewPanelState extends State<_ItemPreviewPanel> {
         : _itemElementTextFromWorkbook(workbook);
 
     try {
-      await widget.onElementCommitted(elementText, encodedWorkbook);
+      await widget.onElementCommitted(
+        widget.rowIdentity,
+        elementText,
+        encodedWorkbook,
+      );
       if (mounted && workbook != null) {
         setState(() {
           _elementText = elementText;
@@ -4565,15 +4611,18 @@ Widget debugItemPreviewPanelForTesting({
   required ItemOfMarket item,
   LabelSize? labelSize,
   String? rowIdentity,
-  Future<void> Function(String elementPlain, String elementPayload)?
-  onElementCommitted,
+  Future<void> Function(
+    String rowIdentity,
+    String elementPlain,
+    String elementPayload,
+  )? onElementCommitted,
   bool Function()? canSelectOutputPreview,
   bool canEdit = true,
 }) => _ItemPreviewPanel(
   item: item,
   rowIdentity: rowIdentity ?? 'item:${item.item.itemId}',
   labelSize: labelSize,
-  onElementCommitted: onElementCommitted ?? (_, _) async {},
+  onElementCommitted: onElementCommitted ?? (_, _, _) async {},
   canSelectOutputPreview: canSelectOutputPreview ?? () => true,
   canEdit: canEdit,
 );

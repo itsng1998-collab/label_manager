@@ -562,7 +562,7 @@ void main() {
           body: debugItemPreviewPanelForTesting(
             item: _testItemOfMarket(itemId: 10, itemName: '첫 품목'),
             labelSize: _testLabelSizeWithFormData(''),
-            onElementCommitted: (_, _) async {
+            onElementCommitted: (_, _, _) async {
               commitCount += 1;
             },
           ),
@@ -660,6 +660,7 @@ void main() {
   testWidgets('item element changes commit to draft without toolbar save', (
     tester,
   ) async {
+    String? committedRowIdentity;
     String? committedPlain;
     String? committedPayload;
     await tester.pumpWidget(
@@ -669,7 +670,8 @@ void main() {
             item: _testItemOfMarket(itemId: 0, itemName: '신규 품목'),
             rowIdentity: 'draft:auto-commit',
             labelSize: _testLabelSizeWithFormData(''),
-            onElementCommitted: (plain, payload) async {
+            onElementCommitted: (rowIdentity, plain, payload) async {
+              committedRowIdentity = rowIdentity;
               committedPlain = plain;
               committedPayload = payload;
             },
@@ -703,6 +705,7 @@ void main() {
     ]);
     await tester.pump();
 
+    expect(committedRowIdentity, 'draft:auto-commit');
     expect(committedPlain, '저장 버튼 없는 변경');
     expect(committedPayload, isNotNull);
     expect(
@@ -724,7 +727,7 @@ void main() {
             item: _testItemOfMarket(itemId: 578, itemName: '조회 품목'),
             rowIdentity: 'item:578',
             labelSize: _testLabelSizeWithFormData(''),
-            onElementCommitted: (_, _) async {
+            onElementCommitted: (_, _, _) async {
               commitCount += 1;
             },
           ),
@@ -754,7 +757,7 @@ void main() {
             item: _testItemOfMarket(itemId: 10, itemName: '조회 전용 품목'),
             labelSize: _testLabelSizeWithFormData(''),
             canEdit: false,
-            onElementCommitted: (_, _) async {
+            onElementCommitted: (_, _, _) async {
               commitCount += 1;
             },
           ),

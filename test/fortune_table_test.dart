@@ -15,6 +15,31 @@ import 'package:label_manager/page_home/item_manage.dart';
 import 'package:label_manager/home_page_manager.dart';
 
 void main() {
+  test('item element commit queue serializes work and reports failure', () async {
+    final queue = ItemElementCommitQueue();
+    final firstCompleter = Completer<void>();
+    final calls = <String>[];
+
+    final first = queue.enqueue(() async {
+      calls.add('first-start');
+      await firstCompleter.future;
+      calls.add('first-end');
+    });
+    final second = queue.enqueue(() async {
+      calls.add('second');
+      throw StateError('backup failed');
+    });
+
+    await Future<void>.delayed(Duration.zero);
+    expect(calls, ['first-start']);
+    firstCompleter.complete();
+    await first;
+    await expectLater(second, throwsStateError);
+    expect(calls, ['first-start', 'first-end', 'second']);
+    await expectLater(queue.wait(), throwsStateError);
+    await queue.wait();
+  });
+
   test('item manager search is visible only on the item tab', () {
     expect(itemManagerSearchVisibleForTab('items'), isTrue);
     expect(itemManagerSearchVisibleForTab('common_label'), isFalse);

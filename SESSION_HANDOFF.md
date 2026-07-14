@@ -28,6 +28,17 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-14): 품목 주원료 commit 대상과 취소 경합 보정
+
+- 검토 확정 문제: 주원료 자동 commit이 이벤트 발생 행이 아니라 비동기 실행 시점의 현재 anchor에 적용될 수 있고, 변경 취소가 pending commit을 기다리지 않아 복원 후 변경이 되살아날 수 있다. `_pendingItemElementCommit`의 오류를 `catchError`로 성공 처리해 저장 장벽이 SQLite 백업/commit 실패를 놓칠 수도 있다.
+- `lib/home_page_manager.dart` 편집 완료: `_ItemPreviewPanel.onElementCommitted`가 이벤트 발생 당시 `rowIdentity`를 전달하고 `_applyItemElementDraft`가 해당 row key를 직접 사용한다. `ItemElementCommitQueue`가 commit을 직렬 실행하고 관찰되지 않은 실패를 `wait()`에 전달한다. 저장·취소는 공통 `_flushItemDraftEdits()`에서 table과 주원료 commit 완료를 기다린다.
+- 테스트 편집 완료: `test/label_sheet_toolbar_test.dart`에서 preview callback의 `rowIdentity` 전달을 검증하고, `test/fortune_table_test.dart`에서 queue 직렬 순서와 실패 전파/소비를 검증한다. 첫 focused 4개 테스트 모두 통과했다.
+- formatter 적용, 수정 파일 diagnostics 오류 0건, 관련 6개 테스트 파일 197개 모두 통과, 제한 `git diff --check` 통과.
+- 전체 정적 검증 완료: `flutter analyze` 결과 `No issues found`.
+- 전체 회귀 검증 완료: `flutter test`에서 3333개 모두 통과했다.
+- 전체 테스트가 생성한 `third_party/fortune_sheet/build/` 임시 캐시를 삭제했다.
+- stage/commit 대상: `lib/home_page_manager.dart`, `test/fortune_table_test.dart`, `test/label_sheet_toolbar_test.dart`, `SESSION_HANDOFF.md`만 포함한다. unrelated `.vscode/settings.json`, `lib/core/app.dart`는 제외한다.
+
 ### 완료 (2026-07-14): 품목 저장 전 편집 확정과 삽입 원복
 
 - 검토 확정 문제: FortuneTable 셀 commit 및 주원료 SQLite 백업/draft 반영이 완료되기 전에 저장 command가 생성될 수 있고, 삽입 행의 SQLite `added_row` 기록 실패 시 추가 행을 제거해도 밀렸던 기존 행의 `modified` 상태가 남는다.
