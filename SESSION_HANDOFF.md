@@ -42,6 +42,7 @@
 - 재작성 직후 검증: `get_errors doc/user_item_modify.txt` 오류 0건, 금지 계약 검색 결과는 0절·제외 범위·비선행조건 문구 3건뿐이며 구현 요구에는 남아 있지 않다. 핵심 CRUD table/API와 UI mode 연결 검색 및 `git diff --check -- doc/user_item_modify.txt`를 통과했다. 문서 최종 diff와 정합성 확인 후 커밋 예정.
 - 최종 구현 차단 검토에서 신규 column의 누락검사 값 영속화 1건을 확인해 12.4를 보정했다. 신규 `BM_RICH_CHECK_COLUMNS`는 keyword/name과 draft 최종 `useMissingKeywordCheck`를 저장하고, `BM_RICH_COL_MIN.RICH_MIN_CHECK`만 레거시 기본값 0을 사용한다. 본문·DAO 테스트·완료 조건에 연결했다.
 - 보정 후 최종 검증: 두 문서 diagnostics 오류 0건, `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md` 통과. 0절의 세 조건을 적용한 독립 최종 검토 결과는 `현재 작업 범위에서 구현을 막는 문제 없음`이다. 문서만 변경해 Flutter 테스트·빌드·배포는 실행하지 않는다. stage/commit 대상은 `doc/user_item_modify.txt`, `SESSION_HANDOFF.md`이며 unrelated `.vscode/settings.json`, `lib/core/app.dart`는 제외한다.
+- 작업지시서 정리 로컬 커밋 완료: `1774afe` (`작업지시서 라벨 항목 CRUD 범위 정리`). `doc/user_item_modify.txt`, `SESSION_HANDOFF.md`만 포함했고 unrelated `.vscode/settings.json`, `lib/core/app.dart`는 제외했다.
 
 ### 완료 (2026-07-14): 품목 삭제·content 호환 계약 병합
 
