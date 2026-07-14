@@ -8,5 +8,8 @@
 		"editor.formatOnType": false,
     	"editor.rulers": [130],
 	},
+	"[plaintext]": {
+  	"editor.wordWrap": "on"
+	},
 	"workbench.commandPalette.showAskInChat": false,
 }
