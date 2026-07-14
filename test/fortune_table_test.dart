@@ -15,6 +15,44 @@ import 'package:label_manager/page_home/item_manage.dart';
 import 'package:label_manager/home_page_manager.dart';
 
 void main() {
+  test('brand name submission gate ignores concurrent submissions', () async {
+    final gate = BrandNameSubmissionGate();
+    final completer = Completer<void>();
+    var submissions = 0;
+
+    final first = gate.run(() async {
+      submissions += 1;
+      await completer.future;
+    });
+    final second = gate.run(() async {
+      submissions += 1;
+    });
+
+    expect(gate.submitting, isTrue);
+    await second;
+    expect(submissions, 1);
+    completer.complete();
+    await first;
+    expect(gate.submitting, isFalse);
+
+    await gate.run(() async {
+      submissions += 1;
+    });
+    expect(submissions, 2);
+  });
+
+  test('brand name submission gate unlocks after failure', () async {
+    final gate = BrandNameSubmissionGate();
+
+    await expectLater(
+      gate.run(() async => throw StateError('save failed')),
+      throwsStateError,
+    );
+
+    expect(gate.submitting, isFalse);
+    await gate.run(() async {});
+  });
+
   test('item element commit queue serializes work and reports failure', () async {
     final queue = ItemElementCommitQueue();
     final firstCompleter = Completer<void>();

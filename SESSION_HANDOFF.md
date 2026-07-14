@@ -28,6 +28,21 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-14): 브랜드 설정 중복 제출 차단
+
+- 재검토 확정 문제: 브랜드 인라인 추가/수정은 비동기 확인 및 DB 저장 중 제출 상태가 없어 Enter 또는 적용 버튼 재호출 시 같은 저장 작업이 중복 실행될 수 있다.
+- 수정 예정: `lib/home_page_manager.dart`의 `_BrandSettingsDialogState`에 라벨 설정과 같은 최소 제출 잠금을 두고 `_submitBrandNameEdit` 전체를 감싼다. DAO/DB transaction과 schema는 변경하지 않는다.
+- `lib/home_page_manager.dart` 편집 완료: 테스트 가능한 `BrandNameSubmissionGate`를 추가하고 `_submitBrandNameEdit`의 확인 dialog부터 DB 저장·재조회까지 전체 추가/수정 작업을 gate로 감쌌다. 진행 중 Enter/적용 재호출은 무시되고 작업 완료 또는 오류 후 다시 제출할 수 있다.
+- `test/fortune_table_test.dart` 편집 완료: 동시 두 번째 제출 무시, 성공 후 재제출, 오류 후 잠금 해제를 검증하는 2개 테스트를 추가했고 첫 focused 실행에서 모두 통과했다.
+- formatter 적용, 수정 파일 diagnostics 오류 0건, 관련 UI 회귀 74개 통과, 제한 `git diff --check` 통과.
+- 전체 정적 검증 완료: `flutter analyze` 결과 `No issues found`.
+- 전체 회귀 검증 실행 예정: `flutter test`.
+- 전체 회귀 첫 실행: 3334개 통과, 변경과 무관한 `third_party/fortune_sheet/test/fortune_debug_log_test.dart`의 `active editor deletes IME residual after caret` 1개가 기대값 `가` 대신 `낟`으로 실패했다. 해당 단일 테스트를 재실행해 환경성 여부를 확인한다.
+- 위 IME 테스트 단독 재실행은 통과했다. 최종 전체 `flutter test`를 재실행한다.
+- 최종 전체 회귀 검증 완료: 두 번째 `flutter test`에서 3335개 모두 통과했다.
+- 전체 테스트가 생성한 `third_party/fortune_sheet/build/` 임시 캐시를 삭제했다.
+- stage/commit 대상: `lib/home_page_manager.dart`, `test/fortune_table_test.dart`, `SESSION_HANDOFF.md`만 포함한다. unrelated `.vscode/settings.json`, `lib/core/app.dart`는 제외한다.
+
 ### 완료 (2026-07-14): 품목 주원료 commit 대상과 취소 경합 보정
 
 - 검토 확정 문제: 주원료 자동 commit이 이벤트 발생 행이 아니라 비동기 실행 시점의 현재 anchor에 적용될 수 있고, 변경 취소가 pending commit을 기다리지 않아 복원 후 변경이 되살아날 수 있다. `_pendingItemElementCommit`의 오류를 `catchError`로 성공 처리해 저장 장벽이 SQLite 백업/commit 실패를 놓칠 수도 있다.

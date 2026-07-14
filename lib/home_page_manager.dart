@@ -126,6 +126,23 @@ class ItemElementCommitQueue {
   }
 }
 
+@visibleForTesting
+class BrandNameSubmissionGate {
+  bool _submitting = false;
+
+  bool get submitting => _submitting;
+
+  Future<void> run(Future<void> Function() submit) async {
+    if (_submitting) return;
+    _submitting = true;
+    try {
+      await submit();
+    } finally {
+      _submitting = false;
+    }
+  }
+}
+
 class _HomePageManagerState extends State<HomePageManager> {
   static const double _rtfPreviewInitialReadableScale = 1.0;
   static const double _itemPreviewScrollbarThicknessFallback = 8.0;
@@ -6951,6 +6968,7 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
   int? _editingIndex;
   int? _insertActionIndex;
   bool _insertingBrand = false;
+  final BrandNameSubmissionGate _submissionGate = BrandNameSubmissionGate();
 
   @override
   void initState() {
@@ -7203,6 +7221,9 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
     if (editingIndex == null || editingIndex >= _brands.length) {
       return false;
     }
+    if (_submissionGate.submitting) {
+      return false;
+    }
     final nextName = _brandNameEditController.text.trim();
     if (nextName.isEmpty) {
       return false;
@@ -7238,11 +7259,17 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
       );
       return;
     }
-    if (_insertingBrand) {
-      await _insertBrandName(editingIndex, value.trim());
-      return;
+    setState(() {});
+    await _submissionGate.run(() async {
+      if (_insertingBrand) {
+        await _insertBrandName(editingIndex, value.trim());
+        return;
+      }
+      await _updateBrandName(_brands[editingIndex], value.trim());
+    });
+    if (mounted) {
+      setState(() {});
     }
-    await _updateBrandName(_brands[editingIndex], value.trim());
   }
 
   Future<void> _insertBrandName(int insertIndex, String brandName) async {
