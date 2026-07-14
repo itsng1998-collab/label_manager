@@ -35,6 +35,7 @@
 - 수정 예정 `doc/user_item_modify.txt`: 7.3에 레거시 비율 필드 매핑, 7.4에 연결형/고정형 번호 표시와 renderer materialize 규칙을 명시하고 모델/widget/통합 테스트 및 완료 조건까지 연결한다. 미검증.
 - `doc/user_item_modify.txt` 편집 완료: 비율 조절의 기존 DB 필드 재사용과 transient 상태를 명시했다. 연결형 번호 표시를 `showBarcodeNum` read-only로 고정하고 materialize 시 Fortune `barcodeShowText`를 항목 값으로 갱신하며, 고정형만 직접 편집하고 표시 글꼴은 객체가 소유하도록 본문·widget/통합 테스트·완료 조건에 연결했다.
 - 최종 검증 완료: 두 문서 diagnostics 오류 0건, 구형 충돌 표현 제거와 핵심 계약 12건 연결을 확인했고 `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md`를 통과했다. 독립 최종 검토 결과 `현재 작업 범위에서 구현을 막는 문제 없음`이다. 문서만 변경해 Flutter 테스트·빌드는 실행하지 않는다. stage/commit 대상은 `doc/user_item_modify.txt`, `SESSION_HANDOFF.md`이며 unrelated `.vscode/settings.json`, `lib/core/app.dart`는 제외한다.
+- 로컬 커밋 완료: `e1cd2e4` (`작업지시서 바코드 표시 소유권 정리`). `doc/user_item_modify.txt`, `SESSION_HANDOFF.md`만 포함했고 unrelated `.vscode/settings.json`, `lib/core/app.dart`는 제외했다.
 
 ### 완료 (2026-07-14): 항목 편집 DB 계약 최종 보정
 
