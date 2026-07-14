@@ -36,6 +36,7 @@
 - 독립 정합성 검토 보정 `doc/user_item_modify.txt`: 새 metadata 없이 연결 extra field 없음/후보 일치/후보 불일치로 고정형·연결형·연결 끊김을 판정하고, 고정 객체는 Fortune 객체 `id`만 사용하도록 확정했다. 연결 바코드는 기존 resolver와 renderer로 품목별 `src`까지 재생성하며 `preserveTemplateBarcodeFormat`을 편집·GS1 경로에서 보존한다. 고정 이미지 수정의 실제 `src` 교체와 missing `TYPE_IMAGE` 연결 객체의 출력 workbook 제외를 명시했다. 보정 직후 diagnostics 오류 0건이다.
 - 검증 예정: 두 문서 diagnostics, 후보 타입·연결형/고정형·형식 소유권·이미지 미지정 처리의 본문/테스트/완료 조건 연결 검색, `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md`, 제한 diff/status를 확인한다. 문서만 변경하므로 Flutter 테스트·빌드는 실행하지 않는다.
 - 최종 검증 완료: 두 문서 diagnostics 오류 0건, type 후보·3상태 판정·기존 renderer/metadata 재사용·missing image 제외가 본문/widget·통합 테스트/구현 순서/완료 조건에 연결됐고 `git diff --check -- doc/user_item_modify.txt SESSION_HANDOFF.md`를 통과했다. 독립 최종 검토 결과 `현재 작업 범위에서 구현을 막는 문제 없음`이다. stage/commit 대상은 `doc/user_item_modify.txt`, `SESSION_HANDOFF.md`이며 unrelated `.vscode/settings.json`, `lib/core/app.dart`는 제외한다.
+- 작업지시서 병합 로컬 커밋 완료: `dc4a8a8` (`작업지시서 바코드 이미지 연결 UX 정리`). `doc/user_item_modify.txt`, `SESSION_HANDOFF.md`만 포함했고 unrelated `.vscode/settings.json`, `lib/core/app.dart`는 제외했다.
 
 ### 진행 중 (2026-07-14): 라벨 항목 편집 DB 무마이그레이션 계약 정리
 
