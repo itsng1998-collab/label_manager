@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -142,6 +144,61 @@ void main() {
     expect(committed, '수정');
     expect(commitCount, 1);
     expect(find.text('수정'), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 100));
+  });
+
+  testWidgets('FortuneTable editing controller waits for active commit', (
+    tester,
+  ) async {
+    final editingController = FortuneTableEditingController();
+    final commitCompleter = Completer<void>();
+    var committed = '';
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 320,
+            height: 140,
+            child: FortuneTable<String>(
+              rows: const ['원본'],
+              editingController: editingController,
+              columns: [
+                FortuneTableColumn<String>(
+                  id: 'name',
+                  header: '이름',
+                  text: (row) => row,
+                  isTextEditable: (_, _) => true,
+                  onTextCommitted: (_, _, next) async {
+                    await commitCompleter.future;
+                    committed = next;
+                  },
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('원본'));
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.tap(find.text('원본'));
+    await tester.pump();
+    await tester.enterText(find.byType(EditableText), '수정');
+
+    var completed = false;
+    final commit = editingController.commitEditing().then((_) {
+      completed = true;
+    });
+    await tester.pump();
+    expect(completed, isFalse);
+    expect(committed, isEmpty);
+
+    commitCompleter.complete();
+    await commit;
+    expect(completed, isTrue);
+    expect(committed, '수정');
     await tester.pump(const Duration(milliseconds: 100));
   });
 

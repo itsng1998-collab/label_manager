@@ -1404,11 +1404,10 @@ class ItemManagerDraftController extends ChangeNotifier {
     for (var index = 0; index < _rows.length; index++) {
       final row = _rows[index];
       final nextOrder = index + 1;
-      if (row.order == nextOrder) continue;
-      final nextState = row.rowState == ItemManagerDraftRowState.existing
-          ? ItemManagerDraftRowState.modified
-          : row.rowState;
-      _rows[index] = row.copyWith(rowState: nextState, order: nextOrder);
+      final reordered = row.copyWith(order: nextOrder);
+      _rows[index] = reordered.isNew
+          ? reordered
+          : _withCurrentState(reordered);
     }
   }
 

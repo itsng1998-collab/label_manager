@@ -124,6 +124,29 @@ class FortuneTableFocusController extends ChangeNotifier {
   }
 }
 
+class FortuneTableEditingController {
+  Object? _owner;
+  Future<void> Function()? _commitEditing;
+
+  Future<void> commitEditing() async {
+    await _commitEditing?.call();
+  }
+
+  void _attach({
+    required Object owner,
+    required Future<void> Function() commitEditing,
+  }) {
+    _owner = owner;
+    _commitEditing = commitEditing;
+  }
+
+  void _detach(Object owner) {
+    if (!identical(_owner, owner)) return;
+    _owner = null;
+    _commitEditing = null;
+  }
+}
+
 class FortuneTableColumn<T> {
   const FortuneTableColumn({
     required this.id,
@@ -174,6 +197,7 @@ class FortuneTable<T> extends StatefulWidget {
     this.selectedIndex,
     this.selectionController,
     this.focusController,
+    this.editingController,
     this.onRowSelected,
     this.onCellActivated,
     this.onRowSecondaryTapDown,
@@ -194,6 +218,7 @@ class FortuneTable<T> extends StatefulWidget {
   final int? selectedIndex;
   final FortuneTableSelectionController? selectionController;
   final FortuneTableFocusController? focusController;
+  final FortuneTableEditingController? editingController;
   final void Function(T row, int index)? onRowSelected;
   final void Function(T row, int rowIndex, String columnId)? onCellActivated;
   final void Function(T row, int index, TapDownDetails details)?
@@ -264,6 +289,7 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
   String? _textEditorInitialValue;
   TextEditingController? _textEditorController;
   FocusNode? _textEditorFocusNode;
+  Future<void>? _pendingTextCommit;
 
   @override
   void initState() {
@@ -272,6 +298,10 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
     _selectedIndex = widget.selectedIndex;
     widget.selectionController?.addListener(_handleSelectionControllerChanged);
     widget.focusController?.addListener(_handleFocusControllerChanged);
+    widget.editingController?._attach(
+      owner: this,
+      commitEditing: _commitAndWaitForTextEditing,
+    );
     _syncCheckboxControllerListeners(<FortuneTableColumn<T>>[]);
     _hScrollBody.addListener(_syncHorizontalFromBody);
     _hScrollHeader.addListener(_syncHorizontalFromHeader);
@@ -316,6 +346,13 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
       oldWidget.focusController?.removeListener(_handleFocusControllerChanged);
       widget.focusController?.addListener(_handleFocusControllerChanged);
     }
+    if (oldWidget.editingController != widget.editingController) {
+      oldWidget.editingController?._detach(this);
+      widget.editingController?._attach(
+        owner: this,
+        commitEditing: _commitAndWaitForTextEditing,
+      );
+    }
     widget.selectionController?.setSelectedRows(
       widget.selectionController!.selectedRows.where(
         (index) => index < widget.rows.length,
@@ -327,6 +364,7 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
 
   @override
   void dispose() {
+    widget.editingController?._detach(this);
     _disposeTextEditor();
     for (final controller in _checkboxControllers) {
       controller.removeListener(_handleCheckboxControllerChanged);
@@ -774,7 +812,7 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
         if (_editingRowIndex != null &&
             (_editingRowIndex != rowIndex ||
                 _editingColumnIndex != columnIndex)) {
-          unawaited(_commitTextEditing());
+          unawaited(_queueTextEditingCommit());
         }
       },
       child: Container(
@@ -837,7 +875,7 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
           }
           if (event is KeyDownEvent &&
               event.logicalKey == LogicalKeyboardKey.enter) {
-            _commitTextEditing();
+            _queueTextEditingCommit();
             return KeyEventResult.handled;
           }
           return KeyEventResult.ignored;
@@ -867,8 +905,8 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
                 enableInteractiveSelection: true,
                 keyboardType: TextInputType.text,
                 textInputAction: TextInputAction.done,
-                onSubmitted: (_) => _commitTextEditing(),
-                onTapOutside: (_) => _commitTextEditing(),
+                onSubmitted: (_) => _queueTextEditingCommit(),
+                onTapOutside: (_) => _queueTextEditingCommit(),
               ),
             ),
           ),
@@ -957,6 +995,27 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
     if (changed) {
       await column.onTextCommitted?.call(row, rowIndex, value);
     }
+  }
+
+  Future<void> _queueTextEditingCommit() {
+    final pending = _pendingTextCommit;
+    if (pending != null) return pending;
+    late final Future<void> operation;
+    operation = _commitTextEditing().whenComplete(() {
+      if (identical(_pendingTextCommit, operation)) {
+        _pendingTextCommit = null;
+      }
+    });
+    _pendingTextCommit = operation;
+    return operation;
+  }
+
+  Future<void> _commitAndWaitForTextEditing() async {
+    if (_editingRowIndex != null) {
+      await _queueTextEditingCommit();
+      return;
+    }
+    await _pendingTextCommit;
   }
 
   void _cancelTextEditing() {

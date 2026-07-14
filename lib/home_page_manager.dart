@@ -150,6 +150,7 @@ class _HomePageManagerState extends State<HomePageManager> {
   bool _commonLabelPreviewHiddenForSheetDialog = false;
   bool _commonLabelPreviewMovedByUser = false;
   bool _itemDraftCommandBusy = false;
+  Future<void> _pendingItemElementCommit = Future<void>.value();
   bool _lastReportedItemDraftDirty = false;
   int _labelSetupRevision = 0;
   bool _suppressNextBrandDidUpdateLabelLoad = false;
@@ -1079,6 +1080,17 @@ class _HomePageManagerState extends State<HomePageManager> {
       );
       return;
     }
+    setState(() => _itemDraftCommandBusy = true);
+    try {
+      await _itemManageController.commitEditing();
+      await _pendingItemElementCommit;
+    } catch (error) {
+      if (mounted) _showItemDraftError('품목 저장 확인', error);
+      return;
+    } finally {
+      if (mounted) setState(() => _itemDraftCommandBusy = false);
+    }
+    if (!mounted || !controller.isDirty) return;
     ItemManagerDebugLog.event(
       'save',
       'validationStarted',
@@ -2223,7 +2235,9 @@ class _HomePageManagerState extends State<HomePageManager> {
         labelSize: _effectiveLabelSize,
         onElementCommitted: _commitSelectedItemElementDraft,
         canSelectOutputPreview: () => !_blockItemDraftContextChange(),
-        canEdit: User.instance?.canEditItemDetails == true,
+        canEdit:
+          User.instance?.canEditItemDetails == true &&
+          !_itemDraftCommandBusy,
       );
       if (_itemPreviewWindow == null) {
         _itemPreviewAlignedToTable = false;
@@ -2300,9 +2314,20 @@ class _HomePageManagerState extends State<HomePageManager> {
     String elementPlain,
     String elementPayload,
   ) async {
-    if (User.instance?.canEdit != true) {
+    if (User.instance?.canEdit != true || _itemDraftCommandBusy) {
       throw StateError('품목 편집 권한이 없습니다.');
     }
+    final operation = _pendingItemElementCommit.then(
+      (_) => _applySelectedItemElementDraft(elementPlain, elementPayload),
+    );
+    _pendingItemElementCommit = operation.catchError((_) {});
+    await operation;
+  }
+
+  Future<void> _applySelectedItemElementDraft(
+    String elementPlain,
+    String elementPayload,
+  ) async {
     final controller = _itemDraftController;
     final rowKey = controller?.anchorRowKey;
     if (controller == null || rowKey == null) {

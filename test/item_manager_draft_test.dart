@@ -170,6 +170,27 @@ void main() {
       expect(controller.rows.last.rowState, ItemManagerDraftRowState.modified);
     });
 
+    test('removing a failed insert restores shifted rows to clean state', () {
+      final controller = _controller([
+        _itemOfMarket(itemId: 10, order: 1, name: '첫 품목'),
+        _itemOfMarket(itemId: 20, order: 2, name: '둘째 품목'),
+      ]);
+
+      final inserted = controller.insertRowsAfter(
+        'item:10',
+        1,
+        emptyElementPayload: '{}',
+      );
+      controller.deleteRows(inserted.map((row) => row.rowKey));
+
+      expect(controller.rows.map((row) => row.order), [1, 2]);
+      expect(
+        controller.rows.map((row) => row.rowState),
+        everyElement(ItemManagerDraftRowState.existing),
+      );
+      expect(controller.isDirty, isFalse);
+    });
+
     test('deletes only existing identities and selects following row', () {
       final controller = _controller([
         _itemOfMarket(itemId: 10, order: 1, name: '첫 품목'),

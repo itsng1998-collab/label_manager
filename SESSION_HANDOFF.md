@@ -28,6 +28,19 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-14): 품목 저장 전 편집 확정과 삽입 원복
+
+- 검토 확정 문제: FortuneTable 셀 commit 및 주원료 SQLite 백업/draft 반영이 완료되기 전에 저장 command가 생성될 수 있고, 삽입 행의 SQLite `added_row` 기록 실패 시 추가 행을 제거해도 밀렸던 기존 행의 `modified` 상태가 남는다.
+- `third_party/fortune_sheet/lib/src/fortune_table.dart` 편집 완료: `FortuneTableEditingController.commitEditing()`이 현재 활성 편집과 이미 진행 중인 비동기 `onTextCommitted`를 직렬화해 완료까지 기다린다.
+- `lib/page_home/item_manage.dart` 편집 완료: `ItemManageController.commitEditing()`으로 table editing controller를 노출했다. busy 이후 새 편집은 기존 editable 조건으로 막고, busy 전 이미 열린 품명/동적 셀 편집은 저장 장벽에서 정상 commit한다.
+- `lib/home_page_manager.dart` 편집 완료: 저장 검증 전에 table commit과 직렬화된 주원료 commit을 기다리고, 이 구간과 DB 저장 중에는 새 주원료 편집을 차단한다.
+- `lib/models/item_manager_draft.dart` 편집 완료: `_renumberRows()`가 기존 행을 원본과 다시 비교해 삽입 기록 실패 롤백 후 실제 변경이 없으면 `existing` 상태로 복귀한다.
+- 테스트 추가 및 focused 검증 완료: FortuneTable editing controller의 비동기 commit 대기와 실패한 삽입 제거 후 clean 상태 복귀를 고정했다. 관련 4개 테스트 파일 70개 모두 통과, 수정 파일 diagnostics 오류 0건, 제한 `git diff --check` 통과.
+- 전체 정적 검증 완료: `flutter analyze` 결과 `No issues found`.
+- 전체 회귀 검증 완료: `flutter test`에서 3332개 모두 통과했다.
+- 전체 테스트가 생성한 `third_party/fortune_sheet/build/` 임시 캐시를 삭제했다.
+- stage/commit 대상: `third_party/fortune_sheet/lib/src/fortune_table.dart`, `lib/page_home/item_manage.dart`, `lib/home_page_manager.dart`, `lib/models/item_manager_draft.dart`, `test/fortune_table_test.dart`, `test/item_manager_draft_test.dart`, `SESSION_HANDOFF.md`만 포함한다. unrelated `.vscode/settings.json`, `lib/core/app.dart`는 제외한다.
+
 ### 완료 (2026-07-14): 품목관리 레거시 물리 삭제 반영
 
 - 사용자 확정: 품목 삭제는 현재 물리 DB를 대상으로 레거시 `CMainItemTable::SaveToDB()`의 물리 삭제를 따른다. 레거시 프로그램과의 동시 운용/표시 호환은 요구하지 않으며, 자동 schema/data migration과 과거 v1/v2 분기는 추가하지 않는다.

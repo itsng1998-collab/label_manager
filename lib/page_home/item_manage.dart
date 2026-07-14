@@ -36,20 +36,27 @@ class ItemManageController {
   Object? _owner;
   ItemManageSearchResult Function(String query)? _search;
   VoidCallback? _resetSearch;
+  Future<void> Function()? _commitEditing;
 
   ItemManageSearchResult search(String query) =>
       _search?.call(query) ?? ItemManageSearchResult.unavailable;
 
   void resetSearch() => _resetSearch?.call();
 
+  Future<void> commitEditing() async {
+    await _commitEditing?.call();
+  }
+
   void _attach({
     required Object owner,
     required ItemManageSearchResult Function(String query) search,
     required VoidCallback resetSearch,
+    required Future<void> Function() commitEditing,
   }) {
     _owner = owner;
     _search = search;
     _resetSearch = resetSearch;
+    _commitEditing = commitEditing;
   }
 
   void _detach(Object owner) {
@@ -57,6 +64,7 @@ class ItemManageController {
     _owner = null;
     _search = null;
     _resetSearch = null;
+    _commitEditing = null;
   }
 }
 
@@ -145,6 +153,8 @@ class _ItemManageState extends State<ItemManage> {
       FortuneTableSelectionController();
   final FortuneTableFocusController _focusController =
       FortuneTableFocusController();
+    final FortuneTableEditingController _editingController =
+      FortuneTableEditingController();
   final TextEditingController _addCountController = TextEditingController(
     text: '1',
   );
@@ -290,6 +300,7 @@ class _ItemManageState extends State<ItemManage> {
       owner: this,
       search: _search,
       resetSearch: () => _searchStartIndex = 0,
+      commitEditing: _editingController.commitEditing,
     );
   }
 
@@ -315,6 +326,7 @@ class _ItemManageState extends State<ItemManage> {
               selectedIndex: widget.selectedIndex,
               selectionController: _selectionController,
               focusController: _focusController,
+              editingController: _editingController,
               multiSelectionEnabled: true,
               onRowSelected: _handleRowSelected,
               onCellActivated: (_, _, columnId) {
@@ -1182,10 +1194,9 @@ class _ItemManageState extends State<ItemManage> {
                 ? (row, _) => _selectBmpImage(row, c)
                 : null,
             onTextCommitted: (row, _, value) async {
-              if (widget.commandBusy) return;
               final draft = _draftByDisplayItem[row];
-              if (!_canEditDynamicColumn(draft)) return;
-              final editable = draft!.isNew ||
+              if (draft == null) return;
+              final editable = draft.isNew ||
                 (widget.draftController!.scopedColumnContents
                     .get(c.columnId, draft.sourceItemId!)
                     ?.editable ??
@@ -1257,7 +1268,6 @@ class _ItemManageState extends State<ItemManage> {
             !widget.commandBusy &&
             _draftByDisplayItem.containsKey(row),
         onTextCommitted: (row, _, value) async {
-          if (widget.commandBusy) return;
           final draft = _draftByDisplayItem[row];
           if (draft == null) return;
           try {
