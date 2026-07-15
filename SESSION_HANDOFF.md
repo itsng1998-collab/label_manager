@@ -28,6 +28,17 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-15): 사용자 항목 더블클릭 편집 스크롤 분리
+
+- 사용자 요청: 사용자 항목 설정 테이블의 기존 행 컬럼 더블클릭은 스크롤하지 않고 입력 편집 상태로 전환한다.
+- 원인: `scrollToIndex`를 `_editingCustomerKey`와 연결해 기존 행 더블클릭 편집도 스크롤 요청으로 처리했다.
+- 수정 `lib/page_home/label_column_edit_dialog.dart`: 추가 전용 `_customerScrollToIndex`를 분리하고 `_addCustomerRow`에서만 마지막 행 인덱스를 설정한다. 취소/저장 시 초기화하며 더블클릭 `_editCustomerRow`는 편집 상태만 변경한다.
+- 테스트 `test/label_column_edit_dialog_test.dart`: 기존 행 더블클릭 전후 `scrollToIndex == null`과 inline editor 생성을 검증한다. 기존 추가 테스트는 `scrollToIndex == 20` 자동 스크롤을 계속 검증한다.
+- focused 검증: 더블클릭 편집 테스트 및 추가 행 자동 스크롤 테스트 각각 통과. Dart 포맷 후 전체 다이얼로그 테스트, analyze, 전체 test 예정.
+- 두 Dart 파일 포맷 완료. 다이얼로그 전체 focused 테스트 11개 통과. `C:\Flutter\bin\flutter.bat analyze`, `C:\Flutter\bin\flutter.bat test` 실행 예정.
+- 전체 analyze 이슈 없음, 전체 test 365개 통과. 테스트 캐시 정리와 IDE 진단/`git diff --check` 후 관련 파일만 커밋 예정.
+- `third_party/fortune_sheet/build/` 정리 완료. 관련 파일 IDE 진단 없음, `git diff --check` 통과. 기능 커밋: `c38ec4f 사용자 항목 더블클릭 편집 스크롤 분리`.
+
 ### 완료 (2026-07-15): 사용자 항목 추가 자동 스크롤·종류 dropdown 복구
 
 - 사용자 요청: 사용자 항목 설정에서 행 추가 시 신규 행으로 자동 스크롤하고, 종류 컬럼에 dropdown을 다시 표시해 기존과 동일하게 수정·저장되도록 한다.
