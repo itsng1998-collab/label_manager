@@ -388,7 +388,7 @@ DTO는 immutable하게 만들고 widget 상태나 전역 목록을 직접 참조
 처리 순서는 다음과 같다.
 
 1. 현 DB driver가 scalar parameter만 지원하므로 save command를 JSON 문자열 parameter로 전달하고 기존 품목 저장과 같이 `OPENJSON`으로 table variable에 투영한다.
-2. 현재 labelSizeId의 main 저장 속성, 누락검사와 GS1 info/contain 값을 원본 snapshot과 비교해 편집 시작 후 동시 변경을 거부하고, update/delete 대상 `BM_RICH_COLUMN`의 소유권을 확인한다. main/check/GS1 info/contain 조회에는 `UPDLOCK, HOLDLOCK`을 사용해 존재하지 않는 보조 행의 key range까지 실제 DML 완료 전까지 보호한다. 레거시 nullable 값은 기존 `TColumnDAO`와 같은 0·빈 문자열·GS1 기본값으로 정규화한다.
+2. 현재 labelSizeId의 main 저장 속성, 누락검사와 GS1 info/contain 값을 원본 snapshot과 비교해 편집 시작 후 동시 변경을 거부하고, update/delete 대상 `BM_RICH_COLUMN`의 소유권을 확인한다. main/check/GS1 info/contain 조회에는 `UPDLOCK, HOLDLOCK`을 사용해 존재하지 않는 보조 행의 key range까지 실제 DML 완료 전까지 보호한다. GS1 보조 테이블 잠금은 보조 ID를 직접 읽어 optimizer가 잠금용 join을 제거하지 못하게 한다. 레거시 nullable 값은 기존 `TColumnDAO`와 같은 0·빈 문자열·GS1 기본값으로 정규화한다.
 3. 신규 `BM_RICH_COLUMN`을 한 행씩 insert하고 `OUTPUT INSERTED.RICH_COLUMN_ID`를 draft key와 함께 내부 mapping table에 기록한다.
 4. 신규 column의 `BM_RICH_CHECK_COLUMNS`는 keyword, name과 draft의 최종 `useMissingKeywordCheck` 값을 사용해 생성한다. 기존 DB의 `BM_RICH_COLUMN`에 `RICH_USE_MISSING_KEYWORD_CHECK`가 있으면 같은 최종값을 main row에도 기록하고, 없으면 해당 식별자를 INSERT SQL에 포함하지 않는다. 해당 label size의 `BM_RICH_COL_MIN`에 `ELEMENT` 기준행이 없으면 레거시와 같이 column ID 0 의미, keyword `ELEMENT`, name `주원료`, order 0, `RICH_MIN_CHECK=0`으로 한 번 생성한다. 신규 column의 min 행도 `RICH_MIN_CHECK=0`으로 생성한다.
 5. 신규 column마다 현재 label size의 기존 `BM_RICH_ITEM`에 없는 `BM_RICH_COL_CONTENT` 조합을 빈 data로 생성한다. `RICH_EDITABLE`이 있는 DB용 INSERT는 0을 함께 기록하고, 없는 DB용 INSERT는 해당 column 이름을 SQL text에 포함하지 않는다. trigger가 먼저 생성한 행은 `NOT EXISTS` 조건으로 중복하지 않는다.
@@ -399,7 +399,7 @@ DTO는 immutable하게 만들고 widget 상태나 전역 목록을 직접 참조
 10. GS1 AI는 `BM_GS1_COLUMN_INFO`를 insert/update/delete하고 GS1 바코드 contain 관계는 최종 working copy와 일치하도록 해당 main column 관계만 교체한다.
 11. 삭제 column은 `BM_RICH_COL_CONTENT`, check, min, GS1 info와 contain 양쪽 참조를 정리한다. 기존 DB에 update content 또는 `BM_RICH_STATUS_DATA`가 있으면 레거시와 같이 해당 행 정리와 삭제일 `GETDATE()` 갱신을 수행하고, 없으면 그 단계만 생략한 뒤 `BM_RICH_COLUMN`을 삭제한다. 없는 table/column을 참조하거나 생성하지 않으며 선택 종속행과 status 이력 0건은 정상으로 허용한다.
 12. 잔존 column의 `RICH_COLUMN_ORDER`를 최종 목록의 1부터 연속 값으로 반영한다.
-13. 소유권이 있는 main update/delete와 개수가 정해지는 필수 DML의 affected row를 확인한다. 불일치하면 오류를 발생시킨다.
+13. original 기존 ID에서 삭제 ID를 제외하고 신규 draft key를 더한 집합이 최종 order identity와 정확히 일치하는지 확인한다. update/delete ID는 반드시 original snapshot에 속해야 한다. 소유권이 있는 main update/delete와 개수가 정해지는 필수 DML의 affected row를 확인하고 불일치하면 오류를 발생시킨다.
 14. 신규 draft key mapping의 누락·중복을 확인하고 mapping 결과를 반환한다.
 
 레거시 trigger가 order를 변경할 수 있으므로 최종 order는 DAO가 명시적으로 다시 적용한다. 신규 ID를 `SelectLastNRecord()` 또는 마지막 N개 행 조회로 추정하지 않는다.

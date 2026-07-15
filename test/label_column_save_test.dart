@@ -90,6 +90,27 @@ LabelColumnSaveCommand _command() {
   );
 }
 
+LabelColumnSaveCommand _copyCommand(
+  LabelColumnSaveCommand command, {
+  Map<int, LabelColumnDraft>? originalColumnsById,
+  List<LabelColumnDraft>? updatedColumns,
+  Map<int, Set<String>>? changedKeysByColumnId,
+  Set<int>? deletedColumnIds,
+  List<String>? orderedKeys,
+}) {
+  return LabelColumnSaveCommand(
+    labelSizeId: command.labelSizeId,
+    originalColumnsById:
+        originalColumnsById ?? command.originalColumnsById,
+    newColumns: command.newColumns,
+    updatedColumns: updatedColumns ?? command.updatedColumns,
+    changedKeysByColumnId:
+        changedKeysByColumnId ?? command.changedKeysByColumnId,
+    deletedColumnIds: deletedColumnIds ?? command.deletedColumnIds,
+    orderedKeys: orderedKeys ?? command.orderedKeys,
+  );
+}
+
 const _none = LabelColumnSchemaCapabilities(
   hasCoreSchema: true,
   hasMainMissingKeywordCheck: false,
@@ -140,11 +161,11 @@ void main() {
       );
       expect(
         statement.sql,
-        contains('LEFT JOIN BM_GS1_COLUMN_INFO G WITH (UPDLOCK, HOLDLOCK)'),
+        contains('@LockedColumnId=G.COLUMN_ID'),
       );
       expect(
         statement.sql,
-        contains('LEFT JOIN BM_GS1_CONTAIN_COLUMN G WITH (UPDLOCK, HOLDLOCK)'),
+        contains('@LockedColumnId=G.MAIN_COLUMN_ID'),
       );
       expect(
         statement.sql,
@@ -265,6 +286,28 @@ void main() {
         ),
         throwsArgumentError,
       );
+    });
+
+    test('rejects malformed original and final order identity sets', () {
+      final command = _command();
+      final foreignOriginal = LabelColumnDraft.fromColumn(
+        _column(7, 'PRICE').copyWith(labelSizeId: 11),
+      );
+
+      for (final invalid in [
+        _copyCommand(command, originalColumnsById: {7: foreignOriginal}),
+        _copyCommand(command, orderedKeys: const ['draft:new']),
+        _copyCommand(
+          command,
+          orderedKeys: const ['column:7', 'column:8', 'draft:new'],
+        ),
+        _copyCommand(command, deletedColumnIds: const {8, 9}),
+      ]) {
+        expect(
+          () => LabelColumnSaveDao.buildSaveStatement(invalid, _none),
+          throwsStateError,
+        );
+      }
     });
 
     test('converts unknown commit outcome and skips reload', () async {

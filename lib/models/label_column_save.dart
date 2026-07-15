@@ -348,16 +348,18 @@ WHERE C.RICH_LABELSIZE_ID=@LabelSizeId;
 SELECT @LockedColumnId=C.RICH_COLUMN_ID
 FROM BM_RICH_CHECK_COLUMNS C WITH (UPDLOCK, HOLDLOCK)
 WHERE C.RICH_LABELSIZE_ID=@LabelSizeId;
-SELECT @LockedColumnId=C.RICH_COLUMN_ID
-FROM BM_RICH_COLUMN C WITH (HOLDLOCK)
-LEFT JOIN BM_GS1_COLUMN_INFO G WITH (UPDLOCK, HOLDLOCK)
-  ON G.COLUMN_ID=C.RICH_COLUMN_ID
-WHERE C.RICH_LABELSIZE_ID=@LabelSizeId;
-SELECT @LockedColumnId=C.RICH_COLUMN_ID
-FROM BM_RICH_COLUMN C WITH (HOLDLOCK)
-LEFT JOIN BM_GS1_CONTAIN_COLUMN G WITH (UPDLOCK, HOLDLOCK)
-  ON G.MAIN_COLUMN_ID=C.RICH_COLUMN_ID
-WHERE C.RICH_LABELSIZE_ID=@LabelSizeId;
+SELECT @LockedColumnId=G.COLUMN_ID
+FROM BM_GS1_COLUMN_INFO G WITH (UPDLOCK, HOLDLOCK)
+WHERE G.COLUMN_ID IN (
+  SELECT C.RICH_COLUMN_ID FROM BM_RICH_COLUMN C WITH (HOLDLOCK)
+  WHERE C.RICH_LABELSIZE_ID=@LabelSizeId
+);
+SELECT @LockedColumnId=G.MAIN_COLUMN_ID
+FROM BM_GS1_CONTAIN_COLUMN G WITH (UPDLOCK, HOLDLOCK)
+WHERE G.MAIN_COLUMN_ID IN (
+  SELECT C.RICH_COLUMN_ID FROM BM_RICH_COLUMN C WITH (HOLDLOCK)
+  WHERE C.RICH_LABELSIZE_ID=@LabelSizeId
+);
 
 IF EXISTS (
   SELECT 1 FROM (
@@ -943,6 +945,17 @@ SELECT DRAFT_KEY, COLUMN_ID FROM @InsertedRows ORDER BY DRAFT_KEY;
         throw StateError('Invalid or duplicate new column draft.');
       }
     }
+    final originalIds = <int>{};
+    for (final entry in command.originalColumnsById.entries) {
+      final draft = entry.value;
+      if (entry.key <= 0 ||
+          draft.isNew ||
+          draft.column.columnId != entry.key ||
+          draft.column.labelSizeId != command.labelSizeId ||
+          !originalIds.add(entry.key)) {
+        throw StateError('Invalid original column snapshot.');
+      }
+    }
     final updatedIds = <int>{};
     for (final draft in command.updatedColumns) {
       final id = draft.column.columnId;
@@ -966,14 +979,21 @@ SELECT DRAFT_KEY, COLUMN_ID FROM @InsertedRows ORDER BY DRAFT_KEY;
     if (command.deletedColumnIds.any(updatedIds.contains)) {
       throw StateError('A column cannot be updated and deleted together.');
     }
-    if (command.orderedKeys.toSet().length != command.orderedKeys.length ||
-        !command.orderedKeys.toSet().containsAll(newKeys) ||
-        command.orderedKeys.any(
-          (key) => !newKeys.contains(key) && !key.startsWith('column:'),
-        ) ||
-        command.deletedColumnIds.any(
-          (id) => command.orderedKeys.contains('column:$id'),
-        )) {
+    if (!originalIds.containsAll(updatedIds) ||
+        !originalIds.containsAll(command.deletedColumnIds)) {
+      throw StateError('Updated or deleted column is not in the original snapshot.');
+    }
+    final expectedOrderKeys = <String>{
+      for (final id in originalIds)
+        if (!command.deletedColumnIds.contains(id)) 'column:$id',
+      ...newKeys,
+    };
+    final orderedKeySet = command.orderedKeys.toSet();
+    if (expectedOrderKeys.length !=
+            originalIds.length - command.deletedColumnIds.length + newKeys.length ||
+        orderedKeySet.length != command.orderedKeys.length ||
+        orderedKeySet.length != expectedOrderKeys.length ||
+        !orderedKeySet.containsAll(expectedOrderKeys)) {
       throw StateError('Final column order identities are invalid.');
     }
   }
