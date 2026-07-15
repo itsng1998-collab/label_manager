@@ -1,3 +1,16 @@
+### 완료 (2026-07-16): 라벨출력 작업지시서 7차 권장안 병합
+- 사용자 요청: `doc/label_print_modify.txt` 재검토 권장안을 병합하고 구현 의미가 달라지는 사항은 즉시 질문해 확정한다.
+- 사용자 확정: 공용 프린터 preference/dialog에 `rightMargin`, `leftPush`, `topPush`를 모두 추가하고 기존 저장값이 없으면 0으로 fallback한다.
+- 사용자 확정: DB commit 확정 후 draft/preview 동기화가 실패하면 app-wide gate는 해제하고 해당 label/customer session만 `reloadRequired`로 두어 reload 전 재발행을 차단한다.
+- 변경 범위: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. pipeline snapshot 순서, journal I/O 실패 전이, terminal cleanup과 lease 분리, recovery commit finalizer, 축별 DPI, RAW job ID/abort, 고객별 history order lock, canonical manifest/DB fingerprint와 Windows owner 확인을 본문·테스트·완료 조건에 연결했다.
+- `doc/label_print_modify.txt` 핵심 상태 편집 완료: context snapshot 생성·재검증 순서, DB 실제 identity fingerprint, canonical manifest serializer와 durable I/O failure barrier, 공용 commit finalizer/`LabelPrintSessionReloadGate`, cleanup과 app-wide lease 해제를 분리했다.
+- `doc/label_print_modify.txt` 출력·DAO 편집 완료: right/left/top margin·signed push preference fallback, 축별 DPI API, RAW non-null job ID와 `AbortPrinter`, 고객별 `BM_RICH_STATUS` range lock/연속 order 할당, Windows owner process 판정을 명시했다.
+- `doc/label_print_modify.txt` 테스트·완료 조건 편집 완료: journal phase별 I/O failure, cleanup/lease 독립, session reload gate, axis DPI/RAW abort, history order lock, canonical checksum/fingerprint와 PID 재사용을 순수·print job·DAO·widget·통합 검증 및 구현 순서에 연결했다.
+- 중간 검증: 이전 cleanup 종속 gate 해제/단일 DPI/optional RAW job ID/생성 전 command snapshot/누락 preference 표현을 검색해 잔존 0건으로 정리했고 두 문서 `git diff --check`를 통과했다.
+- 독립 재검토 보완: commit finalizer는 `persistenceSucceeded` durable generation 성공 후에만 실행하고, manifest canonicalization은 RFC 8785 JCS로 고정해 number/string/key ordering 해석 차이를 제거했다.
+- 최종 검증: 폐기 표현 검색 0건, 7차 핵심 계약 본문·오류·테스트·완료 조건 연결 19곳, 두 문서 diagnostics 오류 0건, `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md` 통과. 문서만 변경해 Flutter test/analyze는 실행하지 않았다.
+- stage/commit 대상: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. 기존 사용자 `doc/label_print.txt`, `lib/core/app.dart` 변경은 제외한다.
+
 ### 완료 (2026-07-15): 라벨출력 작업지시서 6차 권장안 병합
 - 사용자 요청: `doc/label_print_modify.txt` 재검토 권장안을 병합하고 구현 의미가 달라지는 사항은 질문으로 확정한다.
 - 사용자 확정: 5분 timeout 뒤 active group late completion은 해당 group 결과만 확정하고 후속 group을 자동 전송하지 않는다.
