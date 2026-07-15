@@ -221,6 +221,23 @@ void main() {
       [for (final column in usedTable.columns) column.initialWidth],
       [44, 78, 72, 68, 58, 42],
     );
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('label-column-used-table')),
+        matching: find.byType(Checkbox),
+      ),
+      findsOneWidget,
+    );
+    final candidateTable = tester.widget(
+      find.byKey(const Key('label-column-candidate-list')),
+    ) as dynamic;
+    expect(candidateTable.rowNumberWidth, 34);
+    expect(
+      candidateTable.columns
+          .firstWhere((dynamic column) => column.header == '항목명')
+          .initialWidth,
+      111,
+    );
     for (final key in const [
       Key('label-column-reorder'),
       Key('label-column-remove'),
@@ -233,6 +250,16 @@ void main() {
 
     final typeDropdown = find.byKey(const Key('label-column-type'));
     expect(tester.getSize(typeDropdown).height, 40);
+    final keywordEditor = find.descendant(
+      of: find.byKey(const Key('label-column-keyword')),
+      matching: find.byType(EditableText),
+    );
+    expect(tester.widget<EditableText>(keywordEditor).style.fontSize, 13);
+    final dropdownEditor = find.descendant(
+      of: typeDropdown,
+      matching: find.byType(EditableText),
+    );
+    expect(tester.widget<EditableText>(dropdownEditor).style.fontSize, 13);
     await _tapVisible(tester, typeDropdown);
     await tester.pumpAndSettle();
     final barcodeMenuItem = find.widgetWithText(MenuItemButton, '바코드');
@@ -457,6 +484,14 @@ void main() {
 
     await _tapVisible(tester, find.byKey(const Key('label-column-user-add')));
     await tester.pump();
+    expect(
+      tester
+          .widget(find.byKey(const Key('label-column-user-editor')))
+          .runtimeType
+          .toString()
+          .startsWith('SwipeActionTable<'),
+      isTrue,
+    );
     await tester.enterText(find.byKey(const ValueKey('customer-keyword:customer-draft:1')), 'new1');
     await tester.enterText(find.byKey(const ValueKey('customer-name:customer-draft:1')), '새 항목');
     await tester.tap(find.byKey(const Key('label-column-user-save')));

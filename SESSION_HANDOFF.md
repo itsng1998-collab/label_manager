@@ -28,6 +28,19 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-15): 라벨 항목 편집 입력 폰트·테이블 셀 통일
+
+- 사용자 요청: 입력박스와 dropdown 선택값 폰트를 다른 위젯과 맞추고, 후보 테이블 row header를 사용 테이블과 맞추며 항목명 열을 확장한다. 사용 테이블 표시 열은 레거시처럼 checkbox로 바꾸고, 사용자 항목 설정 편집 UI를 별도 grid가 아닌 사용자 항목 테이블 위젯으로 통일한다.
+- 수정 `lib/page_home/label_column_edit_dialog.dart`: 속성/사용자 편집 TextFormField와 `_DialogDropdown` 선택값에 dialog `bodyMedium`(13px)을 적용했다. 후보 테이블 `rowNumberWidth=34`, 항목명 105→111을 적용했다. 사용 테이블 표시 셀은 읽기 전용 compact Checkbox로 변경했다. 사용자 항목 설정은 `ListView+Row`를 `SwipeActionTable<CustomerColumnDraft>` interactive cell로 교체해 키워드/항목명/종류 편집과 삭제 기능을 유지했다.
+- 테스트 `test/label_column_edit_dialog_test.dart`: 입력/dropdown 선택값 13px, 후보 row header 34/항목명 111, 사용 표시 셀 Checkbox, 사용자 편집기가 `SwipeActionTable`인지 검증하도록 보강했다. 기존 사용자 신규 행 편집·저장 테스트로 기능 유지도 확인한다.
+- Dart formatter 완료. focused 검증 실행 예정: `C:\Flutter\bin\flutter.bat test test/label_column_edit_dialog_test.dart`. unrelated `lib/core/app.dart`는 제외한다.
+- focused 검증 `C:\Flutter\bin\flutter.bat test test/label_column_edit_dialog_test.dart`: 8개 전체 통과. 13px 입력/dropdown, 후보/사용 row header 정렬, 표시 Checkbox, 사용자 편집 `SwipeActionTable`의 신규 행 입력·저장과 900x600 overflow가 정상이다.
+- 전체 검증 실행 예정: `C:\Flutter\bin\flutter.bat analyze`, `C:\Flutter\bin\flutter.bat test`.
+- 전체 정적 분석 `C:\Flutter\bin\flutter.bat analyze`: 성공, 이슈 없음.
+- 전체 테스트 `C:\Flutter\bin\flutter.bat test`: 361개 전체 통과.
+- 임시 산출물 `third_party/fortune_sheet/build/` 정리 완료. 최종 Dart 진단 이슈 없음, `git diff --check` 통과.
+- stage/commit 대상: `lib/page_home/label_column_edit_dialog.dart`, `test/label_column_edit_dialog_test.dart`, `SESSION_HANDOFF.md`. unrelated `lib/core/app.dart`는 제외한다.
+
 ### 완료 (2026-07-15): 라벨 항목 편집 dropdown·테이블 폭 보정
 
 - 사용자 요청: 모든 dropdown 필드와 popup 항목 높이를 다른 다이얼로그 수준으로 축소하고, 고정/사용자 후보 테이블의 상태 열을 숨기며, 사용 항목 테이블의 row header와 각 열 폭을 줄여 부모 client 폭 안에 전체 열을 표시한다.

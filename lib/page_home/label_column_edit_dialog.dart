@@ -604,7 +604,24 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
                   SwipeActionTableColumn(header: '항목명', initialWidth: 72, minWidth: 60, text: (row) => row.column.columnName),
                   SwipeActionTableColumn(header: '종류', initialWidth: 68, minWidth: 56, text: (row) => row.column.columnType.name),
                   SwipeActionTableColumn(header: '제목', initialWidth: 58, minWidth: 48, text: (row) => row.column.title),
-                  SwipeActionTableColumn(header: '표시', initialWidth: 42, minWidth: 38, text: (row) => row.column.visible ? '예' : '아니오'),
+                  SwipeActionTableColumn(
+                    header: '표시',
+                    initialWidth: 42,
+                    minWidth: 38,
+                    text: (row) => row.column.visible ? '예' : '아니오',
+                    cellBuilder: (context, row, width) => SizedBox(
+                      width: width,
+                      child: Center(
+                        child: IgnorePointer(
+                          child: Checkbox(
+                            value: row.column.visible,
+                            onChanged: (_) {},
+                            visualDensity: VisualDensity.compact,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -795,6 +812,7 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
     return SwipeActionTable<_CandidateValue>(
       key: const Key('label-column-candidate-list'),
       rows: values,
+      rowNumberWidth: 34,
       selectedIndex: selectedIndex < 0 ? null : selectedIndex,
       headerHeight: 34,
       rowHeight: 27,
@@ -824,7 +842,7 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
         ),
         SwipeActionTableColumn(
           header: '항목명',
-          initialWidth: 105,
+          initialWidth: 111,
           text: (row) => row.columnName,
         ),
         SwipeActionTableColumn(
@@ -838,58 +856,104 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
 
   Widget _buildCustomerEditor() {
     final rows = _customerSession?.working ?? const <CustomerColumnDraft>[];
-    return ListView.separated(
+    return SwipeActionTable<CustomerColumnDraft>(
       key: const Key('label-column-user-editor'),
-      itemCount: rows.length,
-      separatorBuilder: (_, _) => const Divider(height: 1),
-      itemBuilder: (context, index) {
-        final row = rows[index];
-        return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 4),
-          child: Row(
-            children: [
-              Expanded(
-                child: TextFormField(
-                  key: ValueKey('customer-keyword:${row.key}'),
-                  initialValue: row.keyword,
-                  enabled: !_busy,
-                  decoration: const InputDecoration(labelText: '키워드', isDense: true),
-                  inputFormatters: [FilteringTextInputFormatter.allow(RegExp('[A-Za-z0-9]')), LengthLimitingTextInputFormatter(100)],
-                  onChanged: (value) => _updateCustomerRow(row.copyWith(keyword: value)),
-                ),
+      rows: rows,
+      rowNumberWidth: 34,
+      headerHeight: 34,
+      rowHeight: 40,
+      autoFitColumns: false,
+      fillLastColumn: true,
+      isRowContentInteractive: (_, _) => true,
+      columns: [
+        SwipeActionTableColumn(
+          header: '키워드',
+          initialWidth: 105,
+          minWidth: 80,
+          text: (row) => row.keyword,
+          cellBuilder: (context, row, width) => SizedBox(
+            width: width,
+            child: TextFormField(
+              key: ValueKey('customer-keyword:${row.key}'),
+              initialValue: row.keyword,
+              enabled: !_busy,
+              style: Theme.of(context).textTheme.bodyMedium,
+              decoration: const InputDecoration(
+                isDense: true,
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.symmetric(horizontal: 6),
               ),
-              const SizedBox(width: 6),
-              Expanded(
-                child: TextFormField(
-                  key: ValueKey('customer-name:${row.key}'),
-                  initialValue: row.columnName,
-                  enabled: !_busy,
-                  decoration: const InputDecoration(labelText: '항목명', isDense: true),
-                  onChanged: (value) => _updateCustomerRow(row.copyWith(columnName: value)),
-                ),
-              ),
-              const SizedBox(width: 6),
-              SizedBox(
-                width: 105,
-                child: _DialogDropdown<TColumnType>(
-                  label: '종류',
-                  value: row.columnType,
-                  entries: [
-                    for (final type in _columnTypes)
-                      DropdownMenuEntry(value: type, label: type.name),
-                  ],
-                  onChanged: _busy ? null : (value) { if (value != null) _updateCustomerRow(row.copyWith(columnType: value)); },
-                ),
-              ),
-              IconButton(
-                tooltip: '사용자 항목 삭제',
-                onPressed: _busy ? null : () => _removeCustomerRow(row.key),
-                icon: const Icon(Icons.delete_outline),
-              ),
-            ],
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp('[A-Za-z0-9]')),
+                LengthLimitingTextInputFormatter(100),
+              ],
+              onChanged: (value) =>
+                  _updateCustomerRow(row.copyWith(keyword: value)),
+            ),
           ),
-        );
-      },
+        ),
+        SwipeActionTableColumn(
+          header: '항목명',
+          initialWidth: 111,
+          minWidth: 80,
+          text: (row) => row.columnName,
+          cellBuilder: (context, row, width) => SizedBox(
+            width: width,
+            child: TextFormField(
+              key: ValueKey('customer-name:${row.key}'),
+              initialValue: row.columnName,
+              enabled: !_busy,
+              style: Theme.of(context).textTheme.bodyMedium,
+              decoration: const InputDecoration(
+                isDense: true,
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.symmetric(horizontal: 6),
+              ),
+              onChanged: (value) =>
+                  _updateCustomerRow(row.copyWith(columnName: value)),
+            ),
+          ),
+        ),
+        SwipeActionTableColumn(
+          header: '종류',
+          initialWidth: 80,
+          minWidth: 70,
+          text: (row) => row.columnType.name,
+          cellBuilder: (context, row, width) => SizedBox(
+            width: width,
+            child: _DialogDropdown<TColumnType>(
+              value: row.columnType,
+              entries: [
+                for (final type in _columnTypes)
+                  DropdownMenuEntry(value: type, label: type.name),
+              ],
+              onChanged: _busy
+                  ? null
+                  : (value) {
+                      if (value != null) {
+                        _updateCustomerRow(row.copyWith(columnType: value));
+                      }
+                    },
+            ),
+          ),
+        ),
+        SwipeActionTableColumn(
+          header: '',
+          initialWidth: 38,
+          minWidth: 38,
+          text: (_) => '',
+          cellBuilder: (context, row, width) => SizedBox(
+            width: width,
+            child: IconButton(
+              tooltip: '사용자 항목 삭제',
+              iconSize: 18,
+              padding: EdgeInsets.zero,
+              onPressed: _busy ? null : () => _removeCustomerRow(row.key),
+              icon: const Icon(Icons.delete_outline),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -968,6 +1032,7 @@ class _PropertyFields extends StatelessWidget {
         key: key,
         initialValue: value,
         enabled: enabled,
+        style: const TextStyle(fontSize: 13),
         decoration: InputDecoration(labelText: label, border: const OutlineInputBorder(), isDense: true),
         onChanged: changed,
       ),
@@ -1147,13 +1212,13 @@ class _PropertyFields extends StatelessWidget {
 class _DialogDropdown<T> extends StatelessWidget {
   const _DialogDropdown({
     super.key,
-    required this.label,
+    this.label,
     required this.value,
     required this.entries,
     required this.onChanged,
   });
 
-  final String label;
+  final String? label;
   final T? value;
   final List<DropdownMenuEntry<T>> entries;
   final ValueChanged<T?>? onChanged;
@@ -1164,7 +1229,8 @@ class _DialogDropdown<T> extends StatelessWidget {
       builder: (context, constraints) => DropdownMenu<T>(
         width: constraints.maxWidth,
         initialSelection: value,
-        label: Text(label),
+        textStyle: Theme.of(context).textTheme.bodyMedium,
+        label: label == null ? null : Text(label!),
         dropdownMenuEntries: entries,
         enabled: onChanged != null,
         enableFilter: false,
