@@ -1,3 +1,14 @@
+### 완료 (2026-07-15): 라벨출력 작업지시서 검토 권장안 병합
+- 사용자 요청: `doc/label_print_modify.txt` 검토에서 확인한 애매점과 권장안을 지시서에 병합하고, 구현 의미를 바꾸는 사항은 질문으로 확정한다.
+- 사용자 확정: 다중 PC 동일 품목 자동증가 동시 발행은 미지원, 모든 row/copy를 전체 단일 인쇄 작업으로 전송, 검색은 발행 목록만 대상, Windows 전용으로 구현한다.
+- 사용자 확정: 자동증가 DB 최종값은 레거시 의미를 재현하고 `autoIncUpdate`는 사용하지 않는다. 좌표는 margin+push 합산, 줄간격은 행 값 우선, 프린터 설정은 공용 로직을 사용하는 라벨출력 전용 UI로 작성한다.
+- 사용자 확정: 검색 exact 비교는 양쪽 trim 후 대소문자를 무시하고, 왼쪽/위쪽 push는 signed mm로 음수를 허용한다.
+- `doc/label_print_modify.txt`: spooler/OS job 접수 성공 정의, 전체 사전 materialize·capture 후 PDF/EZPL 단일 job, job-level result와 DB 반영 경계를 명시했다.
+- `doc/label_print_modify.txt`: margin+signed push/오른쪽 clip/행 우선 줄간격 계산, 물리 값 출처, 자동증가 `autoIncSave` 최종값·`autoIncUpdate` 무시·draft 부분 동기화, 이력 집계/transaction을 구체화했다.
+- `doc/label_print_modify.txt`: 발행 목록 전용 trim·대소문자 무시 exact 검색, Windows 전용 노출, 공용 로직 기반 전용 프린터 설정 UI와 관련 테스트·완료 조건으로 정리했다.
+- 두 문서 IDE 진단 오류 없음. 이전 unit별 성공·공용 dialog 그대로 사용·전체 품목 검색 등 계약 잔존 없음, `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md` 통과.
+- stage/commit 대상: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. 기존 사용자 `doc/label_print.txt`, `lib/core/app.dart` 변경은 제외한다.
+
 ### 완료 (2026-07-15): 레거시 기준 라벨출력 작업지시서 재작성
 - 사용자 요청: 두서없는 `doc/label_print.txt`를 레거시 라벨출력과 현재 Flutter 구현에 대조해 실행 가능한 `doc/label_print_modify.txt`로 재작성한다. 필요한 전용 model/DAO도 구현 범위에 포함한다.
 - 레거시 확인: `LabelPrintDlg`/`LabelPrintModel`은 품목관리의 발행 체크 행을 별도 출력 작업 목록으로 구성하고, 행별 매수·라벨 크기·여백·밀기·줄간격을 편집하며 선택 행을 자동 미리보기한다. 자동증가는 매 장별 렌더와 선택적 DB 갱신, 성공 발행 이력 저장까지 포함한다.
