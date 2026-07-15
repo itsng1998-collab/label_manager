@@ -1,3 +1,22 @@
+### 완료 (2026-07-15): 라벨 항목 통합 저장 실패 경계 보강
+- 커밋 완료 후 결과 해석/화면 재조회 실패와 커밋 결과 불명확을 일반 저장 실패와 분리해 재저장을 차단한다.
+- 초기 후보 로딩 중 사용자 항목 설정 진입을 UI와 handler 양쪽에서 차단하고, 최종 저장 callback에서 현재 고객 ID를 재검증한다.
+- 수정 예정: `lib/models/label_column_edit.dart`, `lib/models/label_column_save.dart`, `lib/page_home/label_column_edit_dialog.dart`, `lib/home_page_manager.dart`와 관련 테스트. 미검증.
+- 우선 검증: `C:\Flutter\bin\flutter.bat test test\label_column_edit_dialog_test.dart test\label_column_save_test.dart test\db_transaction_test.dart`.
+- `lib/models/label_column_edit.dart`: 통합 command에 대상 label/customer ID와 커밋 후 상태 예외를 추가했다.
+- `lib/models/label_column_save.dart`: transaction 내부 신규 ID 매핑 개수 검증, 커밋 후 decode 실패 분리, 중첩 command 소유권 검증을 추가했다.
+- `lib/page_home/label_column_edit_dialog.dart`: 후보 로딩/session 준비 전 사용자 설정 진입을 차단하고 커밋 후 상태는 안내 뒤 닫도록 분기했다.
+- `lib/home_page_manager.dart`: 현재 label/customer 컨텍스트를 재검증하고 commit outcome unknown 및 커밋 후 재조회 실패를 분리했다.
+- `test/label_column_edit_dialog_test.dart`, `test/label_column_save_test.dart`: 로딩 race, 커밋 후 재저장 차단, 컨텍스트 불일치와 SQL 매핑 검증 테스트를 추가했다. 미검증.
+- 신규 안내 테스트의 off-screen tap/rebuild 타이밍을 보정한 뒤 focused 검증 `C:\Flutter\bin\flutter.bat test test\label_column_edit_dialog_test.dart test\label_column_save_test.dart test\db_transaction_test.dart`: 41개 전체 통과.
+- `doc/user_item_modify.txt`: 커밋 전 rollback/working copy 유지와 커밋 후 재저장 차단·dialog 종료 계약으로 갱신했다. 다음 검증: `C:\Flutter\bin\flutter.bat analyze`, `C:\Flutter\bin\flutter.bat test`.
+- 첫 전체 analyze에서 로딩 guard 이후 미사용인 `_customerCandidates` 경고 1건이 발생해 필드와 대입을 제거했다. analyze 재실행 예정.
+- 전체 `C:\Flutter\bin\flutter.bat analyze` 재실행: 이슈 없음. 다음 검증: `C:\Flutter\bin\flutter.bat test`.
+- 루트 `C:\Flutter\bin\flutter.bat test`: 373개 전체 통과. 다음 단계: `third_party/fortune_sheet/build/` 정리, IDE 진단과 diff 점검, 관련 파일만 stage/commit.
+- `third_party/fortune_sheet/build/` 정리 완료. 관련 Dart 파일 IDE 진단 없음, `git diff --check` 통과.
+- stage 대상: `doc/user_item_modify.txt`, 관련 lib 4개, test 2개. 사용자 `label-column-add` 들여쓰기와 `lib/core/app.dart`는 제외하며 기능 커밋 후 들여쓰기를 복원한다.
+- 기능 커밋: `907f1c0 라벨 항목 저장 실패 경계 보강`. 사용자 들여쓰기 변경은 working tree에 복원했고 `lib/core/app.dart`와 함께 커밋에서 제외했다.
+
 ### 완료 (2026-07-15): 라벨 항목 편집 저장 경계 통합
 - 사용자 항목 설정의 즉시 DB 저장을 `적용` 기반 working copy 반영으로 바꾸고, 속성/순서/사용자 항목 변경을 다이얼로그 하단 취소/저장에서 최종 처리한다.
 - `lib/page_home/label_column_edit_dialog.dart`: 적용된 고객 항목 session을 유지하고 사용자 설정 `저장`을 `적용`으로 변경했다. 하단 dirty/save/cancel은 사용 항목과 고객 항목 변경을 합산하며, 취소/창 닫기는 변경이 있으면 폐기 질의를 표시한다.
