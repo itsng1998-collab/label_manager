@@ -246,6 +246,8 @@ void main() {
       find.byKey(const Key('label-column-candidate-list')),
     ) as dynamic;
     expect(candidateTable.rowNumberWidth, 34);
+    expect(candidateTable.autoFitColumns, isFalse);
+    expect(candidateTable.fillLastColumn, isTrue);
     expect(
       candidateTable.columns
           .firstWhere((dynamic column) => column.header == '항목명')

@@ -908,6 +908,8 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
       selectedIndex: selectedIndex < 0 ? null : selectedIndex,
       headerHeight: 34,
       rowHeight: 27,
+      autoFitColumns: false,
+      fillLastColumn: true,
       rowColorBuilder: (row, index, selected) =>
           _candidateDisabled(row.keyword)
           ? Theme.of(context).disabledColor.withValues(alpha: 0.08)
