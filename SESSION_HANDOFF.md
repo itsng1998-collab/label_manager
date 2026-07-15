@@ -28,6 +28,20 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-15): 사용자 항목 추가 자동 스크롤·종류 dropdown 복구
+
+- 사용자 요청: 사용자 항목 설정에서 행 추가 시 신규 행으로 자동 스크롤하고, 종류 컬럼에 dropdown을 다시 표시해 기존과 동일하게 수정·저장되도록 한다.
+- 수정 `lib/widgets/swipe_action_table.dart`: opt-in `scrollToIndex`를 추가해 행 추가/대상 변경 다음 프레임에 vertical body와 row index를 대상 행 offset으로 이동한다. `isCellContentInteractive`를 추가해 dropdown 열은 자체 pointer를 처리하고 나머지 열은 기존 행 선택/더블클릭을 유지한다.
+- 수정 `lib/page_home/label_column_edit_dialog.dart`: 사용자 편집 테이블에 신규 선택 행 `scrollToIndex`를 연결하고 종류 열을 모든 행에서 compact `_DialogDropdown<TColumnType>`으로 표시한다. 종류 열만 cell interactive로 지정했다.
+- 테스트 `test/label_column_edit_dialog_test.dart`: 20개 행에서 추가 후 실제 vertical offset 증가/마지막 index 20을 검증하고, 기존 행 종류 dropdown을 바코드로 변경한 update command 저장을 검증한다.
+- focused 검증 `C:\Flutter\bin\flutter.bat test test\label_column_edit_dialog_test.dart`: 기존 9개 + 신규 2개, 총 11개 통과.
+- Dart 포맷 후 focused 재검증 및 `C:\Flutter\bin\flutter.bat analyze`, `C:\Flutter\bin\flutter.bat test` 실행 예정.
+- 세 Dart 파일 포맷 완료. 포맷 후 동일 focused 테스트 11개 재통과. 전체 정적 분석/테스트 실행 예정.
+- 전체 `C:\Flutter\bin\flutter.bat analyze`: 이슈 없음. 전체 `C:\Flutter\bin\flutter.bat test`: 365개 전체 통과.
+- `third_party/fortune_sheet/build/` 정리 후 관련 파일 IDE 진단, `git diff --check`, stage 범위를 확인하고 커밋 예정.
+- 최종 공용 테이블 포맷 후 focused 테스트 11개 재통과. `third_party/fortune_sheet/build/` 정리 완료. 관련 파일만 stage/commit하고 unrelated `lib/core/app.dart`는 제외한다.
+- 관련 3개 파일 IDE 진단 없음, `git diff --check` 통과. 기능 커밋: `e35ebed 사용자 항목 추가 스크롤과 종류 선택 복구`.
+
 ### 완료 (2026-07-15): 라벨 항목 편집 다이얼로그 소스 오류 복구
 
 - 오류: `lib/page_home/label_column_edit_dialog.dart`에서 `_session`, `setState` 등 581개 analyzer 오류가 발생했다.
