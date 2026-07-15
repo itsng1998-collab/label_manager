@@ -1,4 +1,4 @@
-### 진행 중 (2026-07-15): 라벨 항목 통합 저장 잔여 위험 보강
+### 완료 (2026-07-15): 라벨 항목 통합 저장 잔여 위험 보강
 - 초기 고정 후보와 사용자 후보 조회를 독립화해 한쪽 실패가 다른 편집 기능을 차단하지 않도록 한다.
 - 빈 통합 저장 command를 거부하고, 원본 snapshot 기반 낙관적 동시성 검사와 커밋 후 예외 변환 테스트를 추가한다.
 - 수정 예정: `lib/page_home/label_column_edit_dialog.dart`, `lib/models/label_column_edit.dart`, `lib/models/label_column_candidates.dart`, `lib/models/label_column_save.dart`, `lib/home_page_manager.dart` 및 관련 테스트. 미검증.
@@ -17,6 +17,7 @@
 - 루트 `C:\Flutter\bin\flutter.bat test`: 378개 전체 통과. 다음 단계: 테스트 캐시 정리, IDE 진단과 diff 점검, 관련 파일만 stage/commit.
 - `third_party/fortune_sheet/build/` 생성 없음. 관련 Dart 파일 IDE 진단 없음, `git diff --check` 통과.
 - stage 대상: `SESSION_HANDOFF.md`, `doc/user_item_modify.txt`, 관련 lib 5개와 test 2개. unrelated `lib/core/app.dart`와 기존 `label-column-add` 들여쓰기 hunk는 제외한다.
+- 기능 커밋: `93460a3 라벨 항목 통합 저장 잔여 위험 보강`. unrelated 사용자 변경 두 건은 working tree에 유지했다.
 
 ### 완료 (2026-07-15): 라벨 항목 통합 저장 실패 경계 보강
 - 커밋 완료 후 결과 해석/화면 재조회 실패와 커밋 결과 불명확을 일반 저장 실패와 분리해 재저장을 차단한다.
