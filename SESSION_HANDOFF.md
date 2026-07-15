@@ -9,6 +9,7 @@
 - `doc/label_print_modify.txt` 편집 완료: canonical PDFium decoded-page peak 산식과 generation fallback/손상 차단, same-process 수동 출력 판정 금지 테스트를 반영했다.
 - 최종 검증: 이전 session-local gate/late 후속 전송/persistenceFailed cleanup/commitUnknown 자동 재시도 계약 잔존 없음, 새 `notDispatched`/app-wide lease/DB-only retry/fingerprint/generation checksum/PDFium 산식 연결 확인, 두 문서 diagnostics 오류 0건, `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md` 통과. 문서만 변경해 Flutter test/analyze는 실행하지 않았다.
 - stage/commit 대상: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. 기존 사용자 `doc/label_print.txt`, `lib/core/app.dart` 변경은 제외한다.
+- 작업지시서 병합 커밋: `d16ba29 라벨출력 지시서 6차 권장안 확정`.
 
 ### 완료 (2026-07-15): 라벨출력 작업지시서 5차 권장안 병합
 - 사용자 요청: `doc/label_print_modify.txt` 재검토 권장안을 병합하고 구현 의미가 달라지는 사항은 질문으로 확정한다.
