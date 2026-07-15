@@ -1,3 +1,19 @@
+### 완료 (2026-07-15): 라벨 저장 잠금·ID 집합 계약 보강
+- GS1 info/contain 잠금 쿼리가 optimizer에서 제거되지 않도록 보조 테이블 ID를 직접 변수에 대입한다.
+- DAO는 original/update/delete/final order의 ID 집합과 label size 소유권을 정확히 검증한다.
+- 수정 예정: `lib/models/label_column_save.dart`, `test/label_column_save_test.dart`, `doc/user_item_modify.txt`. 미검증.
+- 우선 검증: `C:\Flutter\bin\flutter.bat test test\label_column_save_test.dart`.
+- `lib/models/label_column_save.dart`: GS1 info/contain 보조 ID를 직접 대입하는 잠금 쿼리로 변경하고 original/update/delete/final order ID 집합 검증을 추가했다.
+- `test/label_column_save_test.dart`: child-driven 잠금 SQL과 잘못된 원본 소유권·누락/추가 order ID·원본 밖 삭제 거부를 검증한다. DAO 테스트 14개 통과.
+- `doc/user_item_modify.txt`: optimizer 제거 방지 잠금과 최종 ID 집합 동등성 계약을 반영했다. 다음 검증: 관련 모델/transaction 테스트와 전체 analyze/test.
+- 관련 `label_column_save/edit/candidates`, `db_transaction` 테스트 38개 전체 통과. 변경 Dart 파일 IDE 진단 없음.
+- 전체 검증 예정: `C:\Flutter\bin\flutter.bat analyze`, `C:\Flutter\bin\flutter.bat test`.
+- 전체 `C:\Flutter\bin\flutter.bat analyze`: 이슈 없음. 다음 검증: `C:\Flutter\bin\flutter.bat test`.
+- 루트 `C:\Flutter\bin\flutter.bat test`: 379개 전체 통과. 다음 단계: 테스트 캐시/IDE 진단/diff 점검 후 관련 파일만 stage/commit.
+- `third_party/fortune_sheet/build/` 생성 없음. 관련 Dart 파일 IDE 진단 없음, `git diff --check` 통과.
+- stage 대상: `doc/user_item_modify.txt`, `lib/models/label_column_save.dart`, `test/label_column_save_test.dart`. unrelated `lib/core/app.dart`와 기존 다이얼로그 들여쓰기 변경은 제외한다.
+- 기능 커밋: `f205849 라벨 저장 잠금과 ID 집합 검증 보강`. unrelated 사용자 변경 두 건은 working tree에 유지했다.
+
 ### 완료 (2026-07-15): 라벨 항목 동시 편집 보호 완성
 - snapshot 검사부터 실제 갱신까지 주/보조 테이블과 고객 항목 key range에 `UPDLOCK, HOLDLOCK`을 유지한다.
 - 라벨 원본 snapshot 비교에 누락검사와 GS1 보조 값을 포함하고, 레거시 nullable 값은 `TColumnDAO` 조회와 같은 기본값으로 정규화한다.
