@@ -28,6 +28,19 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-15): 라벨 항목 편집 dropdown·테이블 폭 보정
+
+- 사용자 요청: 모든 dropdown 필드와 popup 항목 높이를 다른 다이얼로그 수준으로 축소하고, 고정/사용자 후보 테이블의 상태 열을 숨기며, 사용 항목 테이블의 row header와 각 열 폭을 줄여 부모 client 폭 안에 전체 열을 표시한다.
+- 수정 `lib/page_home/label_column_edit_dialog.dart`: `_DialogDropdown` 입력 높이를 40px, dense content padding 10/8, suffix 32px로 맞추고 popup `MenuStyle`에 compact density와 최소 행 높이 36px를 적용했다. 후보 테이블의 상태 열을 제거했다. 사용 항목 테이블은 `rowNumberWidth=34`, `autoFitColumns=false`, `fillLastColumn=true`로 전환하고 6개 열 폭 합계를 362px로 축소했다.
+- 테스트 `test/label_column_edit_dialog_test.dart`: dropdown 필드 높이 40px/popup 행 40px 이하, 후보 테이블 상태 헤더 부재, 사용 테이블 `rowNumberWidth=34`·auto-fit 해제·last-column fill·축소 열 폭 배열을 검증하도록 보강했다.
+- Dart formatter 완료. focused 검증 실행 예정: `C:\Flutter\bin\flutter.bat test test/label_column_edit_dialog_test.dart`. unrelated `lib/core/app.dart`는 제외한다.
+- focused 검증 `C:\Flutter\bin\flutter.bat test test/label_column_edit_dialog_test.dart`: 8개 전체 통과. dropdown 40px/popup 행 40px 이하, 후보 상태 헤더 제거, 사용 테이블 축소 폭과 기존 overlay 선택·편집·900x600 overflow가 정상이다.
+- 전체 검증 실행 예정: `C:\Flutter\bin\flutter.bat analyze`, `C:\Flutter\bin\flutter.bat test`.
+- 전체 정적 분석 `C:\Flutter\bin\flutter.bat analyze`: 성공, 이슈 없음.
+- 전체 테스트 `C:\Flutter\bin\flutter.bat test`: 361개 전체 통과.
+- 임시 산출물 `third_party/fortune_sheet/build/` 정리 완료. 최종 Dart 진단 이슈 없음, `git diff --check` 통과.
+- stage/commit 대상: `lib/page_home/label_column_edit_dialog.dart`, `test/label_column_edit_dialog_test.dart`, `SESSION_HANDOFF.md`. unrelated `lib/core/app.dart`는 제외한다.
+
 ### 완료 (2026-07-14): 라벨 항목 편집 버튼·label·dropdown 보정
 
 - 사용자 요청: 순서 변경/사용 항목 삭제/선택 후보 추가/사용자 항목 설정 아이콘 버튼을 2px 줄이고, 키워드 label 잘림과 모든 dropdown 메뉴 미표시를 수정하며, 중앙 삭제/추가 버튼 스타일을 주변 UI와 조화롭게 변경한다.

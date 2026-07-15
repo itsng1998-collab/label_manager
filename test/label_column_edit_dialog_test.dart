@@ -204,6 +204,23 @@ void main() {
       ),
       findsOneWidget,
     );
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('label-column-candidate-list')),
+        matching: find.text('상태'),
+      ),
+      findsNothing,
+    );
+    final usedTable = tester.widget(
+      find.byKey(const Key('label-column-used-table')),
+    ) as dynamic;
+    expect(usedTable.rowNumberWidth, 34);
+    expect(usedTable.autoFitColumns, isFalse);
+    expect(usedTable.fillLastColumn, isTrue);
+    expect(
+      [for (final column in usedTable.columns) column.initialWidth],
+      [44, 78, 72, 68, 58, 42],
+    );
     for (final key in const [
       Key('label-column-reorder'),
       Key('label-column-remove'),
@@ -214,10 +231,13 @@ void main() {
       expect(button.constraints, const BoxConstraints.tightFor(width: 38, height: 38));
     }
 
-    await _tapVisible(tester, find.byKey(const Key('label-column-type')));
+    final typeDropdown = find.byKey(const Key('label-column-type'));
+    expect(tester.getSize(typeDropdown).height, 40);
+    await _tapVisible(tester, typeDropdown);
     await tester.pumpAndSettle();
     final barcodeMenuItem = find.widgetWithText(MenuItemButton, '바코드');
     expect(barcodeMenuItem, findsAtLeastNWidgets(1));
+    expect(tester.getSize(barcodeMenuItem.last).height, lessThanOrEqualTo(40));
     await _tapVisible(tester, barcodeMenuItem.last);
     await tester.pumpAndSettle();
 

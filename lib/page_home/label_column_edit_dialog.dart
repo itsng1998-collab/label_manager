@@ -581,6 +581,9 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
               child: SwipeActionTable<LabelColumnDraft>(
                 key: const Key('label-column-used-table'),
                 rows: _session.workingColumns,
+                rowNumberWidth: 34,
+                autoFitColumns: false,
+                fillLastColumn: true,
                 selectedIndex: selectedIndex < 0 ? null : selectedIndex,
                 rowReorderEnabled: !_busy && _session.mode == LabelColumnEditMode.reorder,
                 onRowSelected: (row, index) {
@@ -596,12 +599,12 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
                   setState(() => _session = _session.reorder(key, toIndex));
                 },
                 columns: [
-                  SwipeActionTableColumn(header: '상태', initialWidth: 52, text: (row) => row.isNew ? '신규' : ''),
-                  SwipeActionTableColumn(header: '키워드', initialWidth: 105, text: (row) => row.column.keyword),
-                  SwipeActionTableColumn(header: '항목명', initialWidth: 105, text: (row) => row.column.columnName),
-                  SwipeActionTableColumn(header: '종류', initialWidth: 80, text: (row) => row.column.columnType.name),
-                  SwipeActionTableColumn(header: '제목', initialWidth: 80, text: (row) => row.column.title),
-                  SwipeActionTableColumn(header: '표시', initialWidth: 55, text: (row) => row.column.visible ? '예' : '아니오'),
+                  SwipeActionTableColumn(header: '상태', initialWidth: 44, minWidth: 40, text: (row) => row.isNew ? '신규' : ''),
+                  SwipeActionTableColumn(header: '키워드', initialWidth: 78, minWidth: 64, text: (row) => row.column.keyword),
+                  SwipeActionTableColumn(header: '항목명', initialWidth: 72, minWidth: 60, text: (row) => row.column.columnName),
+                  SwipeActionTableColumn(header: '종류', initialWidth: 68, minWidth: 56, text: (row) => row.column.columnType.name),
+                  SwipeActionTableColumn(header: '제목', initialWidth: 58, minWidth: 48, text: (row) => row.column.title),
+                  SwipeActionTableColumn(header: '표시', initialWidth: 42, minWidth: 38, text: (row) => row.column.visible ? '예' : '아니오'),
                 ],
               ),
             ),
@@ -814,11 +817,6 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
       onRowDragStarted: (row, index) =>
           setState(() => _selectedCandidateKey = row.key),
       columns: [
-        SwipeActionTableColumn(
-          header: '상태',
-          initialWidth: 52,
-          text: (row) => _candidateDisabled(row.keyword) ? '사용 중' : '',
-        ),
         SwipeActionTableColumn(
           header: '키워드',
           initialWidth: 105,
@@ -1172,9 +1170,19 @@ class _DialogDropdown<T> extends StatelessWidget {
         enableFilter: false,
         enableSearch: false,
         requestFocusOnTap: false,
+        menuStyle: const MenuStyle(
+          visualDensity: VisualDensity(horizontal: -1, vertical: -3),
+          minimumSize: WidgetStatePropertyAll(Size(0, 36)),
+        ),
         inputDecorationTheme: const InputDecorationTheme(
           border: OutlineInputBorder(),
           isDense: true,
+          contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          constraints: BoxConstraints.tightFor(height: 40),
+          suffixIconConstraints: BoxConstraints.tightFor(
+            width: 32,
+            height: 32,
+          ),
         ),
         onSelected: onChanged,
       ),
