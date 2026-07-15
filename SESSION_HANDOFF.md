@@ -1,3 +1,16 @@
+### 완료 (2026-07-16): 라벨출력 작업지시서 8차 권장안 병합
+- 사용자 요청: `doc/label_print_modify.txt` 재검토에서 확인한 8개 권장안을 병합하고 구현 의미가 달라지는 사항은 즉시 질문해 확정한다.
+- 사용자 확정: `RICH_COLUMNS`, `RICH_PRINT_CELLS`, `RICH_SAVE_IN_DB_CELLS` 값이나 컬럼명에 `|`가 포함되어도 레거시와 같이 escaping 없이 그대로 저장한다. 새 escaping이나 발행 전 구분자 차단은 추가하지 않는다.
+- 수정 예정: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. artifact 무결성 검증 순서/손상 전이, 레거시 로그 wire/byte 검증, status ID/order/detail ID, DB identity schema/JCS fingerprint, generation 재할당/버전 호환, DPI 유효성, accepted copy 결정 기준을 본문·오류·테스트·완료 조건에 연결한다. 문서만 변경하므로 Flutter test/analyze는 실행하지 않고 diagnostics, 계약 검색과 `git diff --check`로 검증한다.
+- `doc/label_print_modify.txt` 핵심 상태 편집 완료: 축별 DPI의 `null`/0/음수 판정과 profile 실패, persistence object 단일 schema resolution·완전 수식 SQL·JCS DB fingerprint, `schemaVersion` 호환성, 손상/part보다 큰 generation 배정, `dispatchStarted` 전 verified artifact bytes 사용과 startup 손상 전이를 명시했다.
+- `doc/label_print_modify.txt` DAO/pipeline 편집 완료: 최대 accepted `copyIndex` 자동증가, 주원료-first/column-order/trailing `|` 로그 wire와 값 내부 `|` 무escape 정책, target `VARCHAR` code page·1000/3000 byte 검증, 빈 고객 order 1과 legacy status/detail ID를 첫 OS call 전 검증 및 단일 transaction 계약에 연결했다.
+- `doc/label_print_modify.txt` 테스트·완료 조건 편집 완료: artifact 변조/손상 generation, schema/app/fork compatibility, DPI invalid fallback, legacy log wire/byte, status parent/ID, accepted copy 결정 기준을 순수·print job·DAO·통합 검증과 구현 순서·완료 조건에 반영했다. 편집 직후 문서 diagnostics 오류 0건이다.
+- 중간 검증: 이전 `마지막 accepted copy 다음 값`/단순 `SELECT MAX`/schema tuple 직렬화 미지정/dispatchStarted 뒤 artifact read/축 유효성 미정 표현 검색 0건, 새 계약 17곳 확인, 두 문서 diagnostics 오류 0건, `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md` 통과.
+- 독립 재검토: 8개 권장 계약의 본문·pipeline·오류·테스트·완료 조건 연결을 다시 확인했고 모순·누락·실행 불가능성 0건이다. 사용자 확정 `|` 무escape 저장 정책도 일관된다.
+- 최종 검증 예정: 두 문서 diagnostics, 이전 모호 표현/새 핵심 계약 검색, `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md`, 변경 파일/status 확인. 문서만 변경해 Flutter test/analyze는 실행하지 않는다.
+- 최종 검증 완료: 이전 모호 표현 검색 0건, 새 핵심 계약 15개 위치 확인, 두 문서 diagnostics 오류 0건, `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md` 통과. 변경량은 2개 문서 46 insertions/22 deletions이며 Flutter test/analyze는 실행하지 않았다.
+- stage/commit 대상: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. 기존 사용자 `lib/core/app.dart`, `doc/label_print.txt` 변경은 제외한다.
+
 ### 완료 (2026-07-16): 라벨출력 작업지시서 7차 권장안 병합
 - 사용자 요청: `doc/label_print_modify.txt` 재검토 권장안을 병합하고 구현 의미가 달라지는 사항은 즉시 질문해 확정한다.
 - 사용자 확정: 공용 프린터 preference/dialog에 `rightMargin`, `leftPush`, `topPush`를 모두 추가하고 기존 저장값이 없으면 0으로 fallback한다.
