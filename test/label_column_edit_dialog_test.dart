@@ -298,21 +298,23 @@ void main() {
       matching: find.byIcon(Icons.arrow_drop_down),
     );
     expect(fixedTypeArrow, findsNWidgets(2));
-    final visibleArrowIndex = tester.getCenter(fixedTypeArrow.first).dx >
-            tester.getCenter(fixedTypeArrow.last).dx
-        ? 0
-        : 1;
-    final expectedFixedTypeArrowCenter = Offset(
-      tester.getTopRight(fixedTypeDropdown).dx - 16,
-      tester.getCenter(fixedTypeDropdown).dy - 2,
+    final centeredTrailingIcon = find.byKey(
+      const Key('dialog-dropdown-centered-trailing-icon'),
     );
-    expect(
-      tester.getCenter(fixedTypeArrow.at(visibleArrowIndex)),
-      offsetMoreOrLessEquals(
-        expectedFixedTypeArrowCenter,
-        epsilon: 0.01,
-      ),
-    );
+    expect(centeredTrailingIcon, findsNWidgets(2));
+    for (var index = 0; index < 2; index++) {
+      expect(
+        tester.getSize(centeredTrailingIcon.at(index)),
+        const Size(32, 36),
+      );
+      expect(
+        tester.getCenter(fixedTypeArrow.at(index)),
+        offsetMoreOrLessEquals(
+          tester.getCenter(centeredTrailingIcon.at(index)),
+          epsilon: 0.01,
+        ),
+      );
+    }
     final dropdownArrow = find.descendant(
       of: typeDropdown,
       matching: find.byIcon(Icons.arrow_drop_down),
