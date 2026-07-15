@@ -2,6 +2,7 @@
 - 사용자 요청에 따라 과도한 보완·예외 처리 금지, SQL Server 커밋 오류 전달·가능한 rollback까지만 수행, SQL Server DB 마이그레이션 금지를 영구 작업 규칙과 인수인계에 반영한다.
 - 수정 대상: `SESSION_HANDOFF.md`와 영구 사용자 작업 규칙. 문서 변경이므로 `git diff --check -- SESSION_HANDOFF.md`로 검증한다.
 - 영구 사용자 작업 규칙과 `SESSION_HANDOFF.md`의 `작업 규칙` 반영 완료. `git diff --check -- SESSION_HANDOFF.md` 통과. stage/commit 대상은 `SESSION_HANDOFF.md`만이며 unrelated 사용자 변경 두 건은 제외한다.
+- 작업 규칙 커밋: `9288f62 작업 규칙에 SQL Server 처리 원칙 추가`.
 
 ### 완료 (2026-07-15): 라벨 저장 잠금·ID 집합 계약 보강
 - GS1 info/contain 잠금 쿼리가 optimizer에서 제거되지 않도록 보조 테이블 ID를 직접 변수에 대입한다.
