@@ -28,6 +28,18 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-15): 라벨 항목 테이블 폭·후보 포커스·dropdown 정렬 보정
+
+- 사용자 요청: 사용 항목 표시 열을 내용에 맞게 줄여 항목명/종류에 배분하고, 후보 행 drag 중 삭제/추가 버튼을 비활성화하며, 모든 dropdown 화살표를 중앙 정렬하고 후보 테이블 focus 중 삭제 버튼을 비활성화한다.
+- 수정 `lib/widgets/swipe_action_table.dart`: opt-in `onRowDragEnded`, `onFocusChanged`를 추가하고 행 pointer-down에서 내부 FocusNode를 획득해 외부가 drag/focus 상태를 정확히 추적한다.
+- 수정 `lib/page_home/label_column_edit_dialog.dart`: 사용 열 폭을 `[44, 78, 75, 71, 58, 36]`으로 조정하고 표시 checkbox를 shrink-wrap했다. 후보 drag/focus 상태를 command rail 활성 조건에 연결했다. `_DialogDropdown`의 normal/compact trailing icon을 명시적 중앙 정렬하고 compact의 0.5px 경계를 보정했다.
+- 테스트 `test/label_column_edit_dialog_test.dart`: 열 폭/checkbox, 후보 focus 삭제 비활성, 실제 drag 중 삭제·추가 비활성 및 종료 후 복구, normal/compact dropdown 두 trailing icon의 RenderBox 중심을 검증한다.
+- 초기 focused 실행에서 DropdownMenu가 일반/선택 trailing icon 두 개를 tree에 유지해 assertion 2건이 실패했으나 구현 오류는 아니었고 두 아이콘을 모두 검증하도록 수정했다. compact 0.5px 중심 오차는 구현에서 보정했고 해당 테스트 통과. 포맷 후 전체 focused/analyze/full test 예정.
+- 세 Dart 파일 포맷 완료. 다이얼로그 focused 테스트 12개 전체 통과. `C:\Flutter\bin\flutter.bat analyze`, `C:\Flutter\bin\flutter.bat test` 실행 예정.
+- 전체 analyze 이슈 없음, 전체 test 366개 통과. 테스트 캐시 정리 후 관련 파일 IDE 진단/`git diff --check`/stage 범위를 확인하고 커밋 예정.
+- 최종 들여쓰기 정리 후 대상 파일 analyze와 focused 테스트 12개 재통과. `third_party/fortune_sheet/build/` 정리 완료. 관련 파일만 stage/commit하고 unrelated `lib/core/app.dart`는 제외한다.
+- 관련 3개 파일 IDE 진단 없음, `git diff --check` 통과. 기능 커밋: `cf6da87 라벨 항목 테이블 폭과 후보 동작 보정`.
+
 ### 완료 (2026-07-15): 사용자 항목 더블클릭 편집 스크롤 분리
 
 - 사용자 요청: 사용자 항목 설정 테이블의 기존 행 컬럼 더블클릭은 스크롤하지 않고 입력 편집 상태로 전환한다.
