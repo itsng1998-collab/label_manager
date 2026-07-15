@@ -72,6 +72,8 @@ Future<void> _pumpDialog(
   Future<void> Function(LabelColumnSaveCommand command)? onSave,
   Future<void> Function(CustomerColumnSaveCommand command)? saveCustomer,
   Future<void> Function(LabelColumnDialogSaveCommand command)? onDialogSave,
+  Future<List<FixedColumnType>> Function()? loadFixedTypes,
+  Future<List<FixedColumnCandidate>> Function(int typeId)? loadFixed,
   Future<List<CustomerColumnCandidate>> Function(int customerId)? loadCustomer,
   VoidCallback? onClose,
   bool settle = true,
@@ -97,25 +99,25 @@ Future<void> _pumpDialog(
             }
           },
           onClose: onClose ?? () {},
-          loadFixedTypes: () async => const [
-            FixedColumnType(id: 1, name: '공통'),
-          ],
-          loadFixedCandidates: (_) async => const [
-            FixedColumnCandidate(
-              id: 1,
-              typeId: 1,
-              columnType: baseType,
-              keyword: 'FIXED_A',
-              columnName: '고정 A',
-            ),
-            FixedColumnCandidate(
-              id: 2,
-              typeId: 1,
-              columnType: barcodeColumnType,
-              keyword: 'BARCODE_A',
-              columnName: '바코드 A',
-            ),
-          ],
+          loadFixedTypes: loadFixedTypes ??
+              () async => const [FixedColumnType(id: 1, name: '공통')],
+          loadFixedCandidates: loadFixed ??
+              (_) async => const [
+                    FixedColumnCandidate(
+                      id: 1,
+                      typeId: 1,
+                      columnType: baseType,
+                      keyword: 'FIXED_A',
+                      columnName: '고정 A',
+                    ),
+                    FixedColumnCandidate(
+                      id: 2,
+                      typeId: 1,
+                      columnType: barcodeColumnType,
+                      keyword: 'BARCODE_A',
+                      columnName: '바코드 A',
+                    ),
+                  ],
           loadCustomerCandidates: loadCustomer ??
               (_) async => const [
                     CustomerColumnCandidate(
@@ -970,6 +972,62 @@ void main() {
           )
           .onPressed,
       isNotNull,
+    );
+  });
+
+  testWidgets('fixed candidate failure does not block customer editing', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1300, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await _pumpDialog(
+      tester,
+      loadFixed: (_) async => throw StateError('fixed load failed'),
+    );
+
+    expect(find.text('고정 항목 조회 실패'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, '확인').last);
+    await tester.pumpAndSettle();
+    await _tapVisible(tester, find.text('사용자 항목'));
+
+    expect(
+      tester
+          .widget<IconButton>(
+            find.byKey(const Key('label-column-user-edit')),
+          )
+          .onPressed,
+      isNotNull,
+    );
+    expect(find.text('사용자 A'), findsOneWidget);
+  });
+
+  testWidgets('initial candidate failures are shown sequentially', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1300, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await _pumpDialog(
+      tester,
+      loadFixed: (_) async => throw StateError('fixed load failed'),
+      loadCustomer: (_) async => throw StateError('customer load failed'),
+    );
+
+    expect(find.text('고정 항목 조회 실패'), findsOneWidget);
+    expect(find.text('사용자 항목 조회 실패'), findsNothing);
+    await tester.tap(find.widgetWithText(FilledButton, '확인').last);
+    await tester.pumpAndSettle();
+    expect(find.text('사용자 항목 조회 실패'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, '확인').last);
+    await tester.pumpAndSettle();
+
+    await _tapVisible(tester, find.text('사용자 항목'));
+    expect(
+      tester
+          .widget<IconButton>(
+            find.byKey(const Key('label-column-user-edit')),
+          )
+          .onPressed,
+      isNull,
     );
   });
 

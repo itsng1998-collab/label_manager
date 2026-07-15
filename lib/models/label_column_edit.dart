@@ -205,6 +205,7 @@ class LabelColumnValidationException implements Exception {
 class LabelColumnSaveCommand {
   const LabelColumnSaveCommand({
     required this.labelSizeId,
+    required this.originalColumnsById,
     required this.newColumns,
     required this.updatedColumns,
     required this.changedKeysByColumnId,
@@ -213,6 +214,7 @@ class LabelColumnSaveCommand {
   });
 
   final int labelSizeId;
+  final Map<int, LabelColumnDraft> originalColumnsById;
   final List<LabelColumnDraft> newColumns;
   final List<LabelColumnDraft> updatedColumns;
   final Map<int, Set<String>> changedKeysByColumnId;
@@ -499,6 +501,9 @@ class LabelColumnEditSession {
     }
     return LabelColumnSaveCommand(
       labelSizeId: labelSizeId,
+      originalColumnsById: Map.unmodifiable({
+        for (final row in originalColumns) row.column.columnId: row,
+      }),
       newColumns: List.unmodifiable(workingColumns.where((row) => row.isNew)),
       updatedColumns: List.unmodifiable(updatedColumns),
       changedKeysByColumnId: Map.unmodifiable(changedKeysByColumnId),

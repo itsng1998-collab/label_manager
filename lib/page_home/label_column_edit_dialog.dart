@@ -54,7 +54,8 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
   int? _fixedTypeId;
   String? _selectedCandidateKey;
   bool _busy = false;
-  bool _loadingCandidates = true;
+  bool _loadingFixedCandidates = true;
+  bool _loadingCustomerCandidates = true;
   int _draftSequence = 0;
   int _propertyRevision = 0;
   String? _editingCustomerKey;
@@ -74,8 +75,12 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
   bool get _workspaceEnabled => _normalEnabled && !_propertyPending;
   bool get _customerEditEnabled =>
       _workspaceEnabled &&
-      !_loadingCandidates &&
+      !_loadingCustomerCandidates &&
       _appliedCustomerSession != null;
+  bool get _loadingSelectedCandidates =>
+      _candidateSource == LabelColumnCandidateSource.fixed
+      ? _loadingFixedCandidates
+      : _loadingCustomerCandidates;
   bool get _dialogDirty =>
       _session.workingDirty || (_appliedCustomerSession?.isDirty ?? false);
   List<TColumnType> get _columnTypes {
@@ -105,29 +110,55 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
   }
 
   Future<void> _loadInitialCandidates() async {
+    final errors = await Future.wait([
+      _loadInitialFixedCandidates(),
+      _loadInitialCustomerCandidates(),
+    ]);
+    for (final error in errors.nonNulls) {
+      if (!mounted) return;
+      await _showMessage(error.key, error.value);
+    }
+  }
+
+  Future<MapEntry<String, String>?> _loadInitialFixedCandidates() async {
     try {
       final types = await widget.loadFixedTypes();
-      if (!mounted) return;
+      if (!mounted) return null;
       final typeId = types.isEmpty ? null : types.first.id;
       final fixed = typeId == null
           ? const <FixedColumnCandidate>[]
           : await widget.loadFixedCandidates(typeId);
-      final customer = await widget.loadCustomerCandidates(widget.customerId);
-      if (!mounted) return;
+      if (!mounted) return null;
       setState(() {
         _fixedTypes = types;
         _fixedTypeId = typeId;
         _fixedCandidates = fixed;
+        _loadingFixedCandidates = false;
+      });
+      return null;
+    } catch (error) {
+      if (!mounted) return null;
+      setState(() => _loadingFixedCandidates = false);
+      return MapEntry('고정 항목 조회 실패', error.toString());
+    }
+  }
+
+  Future<MapEntry<String, String>?> _loadInitialCustomerCandidates() async {
+    try {
+      final customer = await widget.loadCustomerCandidates(widget.customerId);
+      if (!mounted) return null;
+      setState(() {
         _appliedCustomerSession = CustomerColumnEditSession.fromCandidates(
           customerId: widget.customerId,
           candidates: customer,
         );
-        _loadingCandidates = false;
+        _loadingCustomerCandidates = false;
       });
+      return null;
     } catch (error) {
-      if (!mounted) return;
-      setState(() => _loadingCandidates = false);
-      await _showMessage('후보 조회 실패', error.toString());
+      if (!mounted) return null;
+      setState(() => _loadingCustomerCandidates = false);
+      return MapEntry('사용자 항목 조회 실패', error.toString());
     }
   }
 
@@ -136,19 +167,19 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
     setState(() {
       _fixedTypeId = typeId;
       _selectedCandidateKey = null;
-      _loadingCandidates = true;
+      _loadingFixedCandidates = true;
     });
     try {
       final rows = await widget.loadFixedCandidates(typeId);
       if (!mounted || _fixedTypeId != typeId) return;
       setState(() {
         _fixedCandidates = rows;
-        _loadingCandidates = false;
+        _loadingFixedCandidates = false;
       });
     } catch (error) {
       if (!mounted) return;
-      setState(() => _loadingCandidates = false);
-      await _showMessage('후보 조회 실패', error.toString());
+      setState(() => _loadingFixedCandidates = false);
+      await _showMessage('고정 항목 조회 실패', error.toString());
     }
   }
 
@@ -314,7 +345,7 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
   void _enterUserEdit() {
     final appliedSession = _appliedCustomerSession;
     if (!_workspaceEnabled ||
-        _loadingCandidates ||
+        _loadingCustomerCandidates ||
         appliedSession == null) {
       return;
     }
@@ -873,7 +904,7 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
           ),
         const SizedBox(height: 8),
         Expanded(
-          child: _loadingCandidates
+          child: _loadingSelectedCandidates
               ? const Center(child: CircularProgressIndicator())
               : userEdit
                   ? _buildCustomerEditor()

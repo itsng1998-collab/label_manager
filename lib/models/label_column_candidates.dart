@@ -158,6 +158,7 @@ class CustomerColumnDraft {
 class CustomerColumnSaveCommand {
   const CustomerColumnSaveCommand({
     required this.customerId,
+    required this.originalColumnsById,
     required this.newColumns,
     required this.updatedColumns,
     required this.keywordChangedIds,
@@ -165,6 +166,7 @@ class CustomerColumnSaveCommand {
   });
 
   final int customerId;
+  final Map<int, CustomerColumnDraft> originalColumnsById;
   final List<CustomerColumnDraft> newColumns;
   final List<CustomerColumnDraft> updatedColumns;
   final Set<int> keywordChangedIds;
@@ -172,6 +174,9 @@ class CustomerColumnSaveCommand {
 
   Map<String, dynamic> toSqlParams() => {
     'customerId': customerId,
+    'originalColumnsJson': jsonEncode([
+      for (final row in originalColumnsById.values) row.toJson(),
+    ]),
     'newColumnsJson': jsonEncode([
       for (final row in newColumns) row.toJson(keywordChanged: true),
     ]),
@@ -281,6 +286,9 @@ class CustomerColumnEditSession {
     _validateNewKeywordConflicts(originals);
     return CustomerColumnSaveCommand(
       customerId: customerId,
+      originalColumnsById: Map.unmodifiable({
+        for (final row in original) row.id: row,
+      }),
       newColumns: List.unmodifiable(working.where((row) => row.isNew)),
       updatedColumns: List.unmodifiable(updated),
       keywordChangedIds: Set.unmodifiable(changedKeywords),
@@ -394,6 +402,22 @@ DECLARE @Updated TABLE (
   KEYWORD_CHANGED BIT NOT NULL
 );
 DECLARE @Deleted TABLE (RICH_CUST_COLUMN_ID INT NOT NULL PRIMARY KEY);
+DECLARE @Original TABLE (
+  RICH_CUST_COLUMN_ID INT NOT NULL PRIMARY KEY,
+  RICH_TYPE TINYINT NOT NULL,
+  RICH_KEYWORD NVARCHAR(100) NOT NULL,
+  RICH_COLUMN_NAME NVARCHAR(50) NOT NULL
+);
+
+INSERT INTO @Original
+SELECT RICH_CUST_COLUMN_ID, RICH_TYPE, RICH_KEYWORD, RICH_COLUMN_NAME
+FROM OPENJSON(@originalColumnsJson)
+WITH (
+  RICH_CUST_COLUMN_ID INT '$.id',
+  RICH_TYPE TINYINT '$.type',
+  RICH_KEYWORD NVARCHAR(100) '$.keyword',
+  RICH_COLUMN_NAME NVARCHAR(50) '$.columnName'
+);
 
 INSERT INTO @New
 SELECT DRAFT_KEY, RICH_TYPE, RICH_KEYWORD, RICH_COLUMN_NAME
@@ -420,6 +444,21 @@ INSERT INTO @Deleted
 SELECT RICH_CUST_COLUMN_ID
 FROM OPENJSON(@deletedIdsJson)
 WITH (RICH_CUST_COLUMN_ID INT '$.id');
+
+IF (SELECT COUNT(*) FROM BM_RICH_CUST_COLUMN WHERE RICH_CUSTOMER_ID=@customerId)
+     <> (SELECT COUNT(*) FROM @Original)
+   OR EXISTS (
+     SELECT RICH_CUST_COLUMN_ID, RICH_TYPE,
+       CONVERT(VARBINARY(MAX), CONVERT(NVARCHAR(MAX), RICH_KEYWORD)),
+       CONVERT(VARBINARY(MAX), CONVERT(NVARCHAR(MAX), RICH_COLUMN_NAME))
+     FROM BM_RICH_CUST_COLUMN WHERE RICH_CUSTOMER_ID=@customerId
+     EXCEPT
+     SELECT RICH_CUST_COLUMN_ID, RICH_TYPE,
+       CONVERT(VARBINARY(MAX), RICH_KEYWORD),
+       CONVERT(VARBINARY(MAX), RICH_COLUMN_NAME)
+     FROM @Original
+   )
+  THROW 51027, 'Customer columns changed after editing started.', 1;
 
 IF EXISTS (
   SELECT 1

@@ -7,6 +7,7 @@ import 'package:label_manager/models/column_type.dart';
 import 'package:label_manager/models/label_column_candidates.dart';
 import 'package:label_manager/models/label_column_edit.dart';
 import 'package:label_manager/models/label_column_save.dart';
+import 'package:label_manager/database/drivers/db_driver.dart';
 
 const _baseType = TColumnType(
   code: TColumnType.TYPE_BASE,
@@ -75,6 +76,10 @@ LabelColumnSaveCommand _command() {
   );
   return LabelColumnSaveCommand(
     labelSizeId: 10,
+    originalColumnsById: {
+      7: LabelColumnDraft.fromColumn(_column(7, 'PRICE')),
+      9: LabelColumnDraft.fromColumn(_column(9, 'OLD')),
+    },
     newColumns: [added],
     updatedColumns: [existing],
     changedKeysByColumnId: const {
@@ -113,6 +118,7 @@ void main() {
       final json = jsonDecode(statement.params['commandJson'] as String)
           as Map<String, dynamic>;
       expect(json['labelSizeId'], 10);
+      expect(json['originalColumns'], hasLength(2));
       expect(json['updatedColumns'][0]['changedKeys'], ['name']);
       expect(json['finalOrder'][1], {
         'draftKey': 'draft:new',
@@ -120,6 +126,20 @@ void main() {
         'order': 2,
       });
       expect(statement.sql, contains('OPENJSON(@commandJson'));
+      expect(
+        statement.sql,
+        contains('Label columns changed after editing started.'),
+      );
+      final originalProjection = statement.sql.substring(
+        statement.sql.indexOf('INSERT @OriginalColumns'),
+        statement.sql.indexOf('DECLARE @FinalOrder'),
+      );
+      expect(
+        RegExp(
+          r"RICH_USE_USER_DEFINE_QRDATA BIT '\$.useUserQrData'",
+        ).allMatches(originalProjection),
+        hasLength(1),
+      );
     });
 
     test('builds label and customer saves in one transaction statement list', () {
@@ -148,6 +168,11 @@ void main() {
       expect(statements.last.returnsRows, isFalse);
       expect(statements.first.params, contains('commandJson'));
       expect(statements.last.params, contains('newColumnsJson'));
+      expect(statements.last.params, contains('originalColumnsJson'));
+      expect(
+        statements.last.sql,
+        contains('Customer columns changed after editing started.'),
+      );
     });
 
     test('rejects dialog command ownership mismatches', () {
@@ -180,6 +205,76 @@ void main() {
         ),
         throwsStateError,
       );
+    });
+
+    test('rejects a dialog command without changes', () {
+      expect(
+        () => LabelColumnSaveDao.buildDialogSaveStatements(
+          const LabelColumnDialogSaveCommand(
+            labelSizeId: 10,
+            customerId: 7,
+            labelColumns: null,
+            customerColumns: null,
+          ),
+          null,
+        ),
+        throwsArgumentError,
+      );
+    });
+
+    test('converts unknown commit outcome and skips reload', () async {
+      var reloaded = false;
+      final command = LabelColumnDialogSaveCommand(
+        labelSizeId: 10,
+        customerId: 7,
+        labelColumns: _command(),
+        customerColumns: null,
+      );
+
+      await expectLater(
+        LabelColumnSaveDao.saveDialogAndReload(
+          command,
+          save: (_) async => throw const DbCommitOutcomeUnknown('unknown'),
+          reload: () async {
+            reloaded = true;
+            return true;
+          },
+        ),
+        throwsA(
+          isA<LabelColumnSaveCommittedException>().having(
+            (error) => error.outcomeUnknown,
+            'outcomeUnknown',
+            isTrue,
+          ),
+        ),
+      );
+      expect(reloaded, isFalse);
+    });
+
+    test('converts reload failure after a successful save', () async {
+      var saved = false;
+      final command = LabelColumnDialogSaveCommand(
+        labelSizeId: 10,
+        customerId: 7,
+        labelColumns: _command(),
+        customerColumns: null,
+      );
+
+      await expectLater(
+        LabelColumnSaveDao.saveDialogAndReload(
+          command,
+          save: (_) async => saved = true,
+          reload: () async => false,
+        ),
+        throwsA(
+          isA<LabelColumnSaveCommittedException>().having(
+            (error) => error.outcomeUnknown,
+            'outcomeUnknown',
+            isFalse,
+          ),
+        ),
+      );
+      expect(saved, isTrue);
     });
 
     test('uses OUTPUT mapping and never guesses the last inserted rows', () {

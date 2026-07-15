@@ -14,7 +14,6 @@ import 'package:tabbed_view/tabbed_view.dart';
 import 'package:label_manager/core/app.dart';
 import 'package:label_manager/core/auto_login_guard.dart';
 import 'package:label_manager/core/ui_scale.dart';
-import 'package:label_manager/database/drivers/db_driver.dart';
 import 'package:label_manager/models/brand.dart';
 import 'package:label_manager/models/column_base.dart';
 import 'package:label_manager/models/column_content.dart';
@@ -2051,29 +2050,13 @@ class _HomePageManagerState extends State<HomePageManager> {
 
     setState(() => _labelColumnEditCommandBusy = true);
     try {
-      try {
-        await LabelColumnSaveDao.saveDialog(command);
-      } on DbCommitOutcomeUnknown catch (error) {
-        throw LabelColumnSaveCommittedException(
-          'DB 커밋 결과를 확인할 수 없습니다. 중복 저장을 막기 위해 '
-          '다이얼로그를 닫습니다. 연결을 확인한 뒤 최신 정보를 다시 불러오세요.\n$error',
-          outcomeUnknown: true,
-        );
-      }
-      try {
-        final loaded = await _handleLabelSizeChanged(
+      await LabelColumnSaveDao.saveDialogAndReload(
+        command,
+        reload: () => _handleLabelSizeChanged(
           labelSize,
           forceReload: true,
-        );
-        if (!loaded) {
-          throw StateError('현재 라벨 정보를 다시 불러오지 못했습니다.');
-        }
-      } catch (error) {
-        throw LabelColumnSaveCommittedException(
-          '저장은 완료됐지만 화면 갱신에 실패했습니다. 중복 저장을 막기 위해 '
-          '다이얼로그를 닫습니다. 최신 정보를 다시 불러오세요.\n$error',
-        );
-      }
+        ),
+      );
     } finally {
       if (mounted) setState(() => _labelColumnEditCommandBusy = false);
     }

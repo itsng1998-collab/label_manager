@@ -1,3 +1,23 @@
+### 진행 중 (2026-07-15): 라벨 항목 통합 저장 잔여 위험 보강
+- 초기 고정 후보와 사용자 후보 조회를 독립화해 한쪽 실패가 다른 편집 기능을 차단하지 않도록 한다.
+- 빈 통합 저장 command를 거부하고, 원본 snapshot 기반 낙관적 동시성 검사와 커밋 후 예외 변환 테스트를 추가한다.
+- 수정 예정: `lib/page_home/label_column_edit_dialog.dart`, `lib/models/label_column_edit.dart`, `lib/models/label_column_candidates.dart`, `lib/models/label_column_save.dart`, `lib/home_page_manager.dart` 및 관련 테스트. 미검증.
+- 우선 검증: `C:\Flutter\bin\flutter.bat test test\label_column_edit_dialog_test.dart test\label_column_save_test.dart`.
+- `lib/page_home/label_column_edit_dialog.dart`: 고정/사용자 후보 로딩 상태와 초기 조회를 분리해 한쪽 실패가 다른 기능을 차단하지 않도록 했다.
+- `test/label_column_edit_dialog_test.dart`: 고정 후보 실패 후 사용자 항목 편집 활성화와 사용자 후보 로딩 중 비활성 테스트 2개 통과.
+- `lib/models/label_column_edit.dart`, `lib/models/label_column_candidates.dart`: 라벨/고객 save command에 편집 시작 시점 전체 원본 snapshot을 추가했다.
+- `lib/models/label_column_save.dart`: 빈 통합 command 거부, 두 SQL의 원본 행 집합·값 동시성 검사, 주입 가능한 커밋 후 reload 경계 helper를 추가했다.
+- `lib/home_page_manager.dart`: 기존 컨텍스트/busy 검증 뒤 공용 `saveDialogAndReload` helper를 사용하도록 변경했다.
+- `test/label_column_save_test.dart`: 빈 command, snapshot 직렬화/SQL, commit outcome unknown 및 커밋 후 reload 실패 변환을 검증한다. DAO 테스트 13개 통과.
+- 관련 Dart 포맷 완료. 다음 검증: `C:\Flutter\bin\flutter.bat test test\label_column_edit_dialog_test.dart test\label_column_edit_test.dart test\label_column_candidates_test.dart test\label_column_save_test.dart`.
+- 두 초기 후보 조회가 모두 실패할 때 blocking 안내가 겹치지 않고 고정→사용자 순서로 표시되도록 보강했다.
+- focused 검증 42개 전체 통과. 전체 검증 예정: `C:\Flutter\bin\flutter.bat analyze`, `C:\Flutter\bin\flutter.bat test`.
+- 첫 전체 analyze에서 helper 이동 후 남은 `lib/home_page_manager.dart`의 미사용 `db_driver.dart` import 1건을 발견해 제거했다. analyze 재실행 예정.
+- 전체 `C:\Flutter\bin\flutter.bat analyze` 재실행: 이슈 없음. 다음 검증: `C:\Flutter\bin\flutter.bat test`.
+- 루트 `C:\Flutter\bin\flutter.bat test`: 378개 전체 통과. 다음 단계: 테스트 캐시 정리, IDE 진단과 diff 점검, 관련 파일만 stage/commit.
+- `third_party/fortune_sheet/build/` 생성 없음. 관련 Dart 파일 IDE 진단 없음, `git diff --check` 통과.
+- stage 대상: `SESSION_HANDOFF.md`, `doc/user_item_modify.txt`, 관련 lib 5개와 test 2개. unrelated `lib/core/app.dart`와 기존 `label-column-add` 들여쓰기 hunk는 제외한다.
+
 ### 완료 (2026-07-15): 라벨 항목 통합 저장 실패 경계 보강
 - 커밋 완료 후 결과 해석/화면 재조회 실패와 커밋 결과 불명확을 일반 저장 실패와 분리해 재저장을 차단한다.
 - 초기 후보 로딩 중 사용자 항목 설정 진입을 UI와 handler 양쪽에서 차단하고, 최종 저장 callback에서 현재 고객 ID를 재검증한다.

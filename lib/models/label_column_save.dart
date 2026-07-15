@@ -280,6 +280,50 @@ SELECT * FROM OPENJSON(@commandJson, '\$.updatedColumns') WITH (
 
 DECLARE @DeletedColumns TABLE (RICH_COLUMN_ID INT PRIMARY KEY);
 INSERT @DeletedColumns SELECT VALUE FROM OPENJSON(@commandJson, '\$.deletedColumnIds');
+DECLARE @OriginalColumns TABLE (
+  RICH_COLUMN_ID INT PRIMARY KEY,
+  RICH_COLUMN_NAME NVARCHAR(50), RICH_KEYWORD NVARCHAR(100), RICH_COLUMN_ORDER INT,
+  RICH_TYPE INT, RICH_WIDTH INT, RICH_HEIGHT INT, RICH_BARCODE_TYPE NVARCHAR(23),
+  RICH_USE_BARCODE_CHECKDIGIT BIT, RICH_SHOW_BARCODE_NUM BIT,
+  RICH_SHOW_QRCODE_TEXT BIT, RICH_QRTEXT_ALIGNMENT INT,
+  RICH_USE_USER_DEFINE_QRDATA BIT, RICH_USER_DEFINE_QRDATA NVARCHAR(3000),
+  RICH_USER_DEFINE_QRTEXT NVARCHAR(200), RICH_PIXELSIZE INT, RICH_TITLE NVARCHAR(20),
+  RICH_VISIBLE BIT, RICH_QRCODE_CREATE_TYPE INT, RICH_NATRIUM_JOIN_STRING NVARCHAR(200),
+  RICH_QRTEXT_FONTSIZE INT, RICH_QRTEXT_FONTNAME NVARCHAR(50), RICH_QRCODE_SCALE INT,
+  RICH_TIMEBARCODE_TYPE INT, RICH_AUTO_INC BIT, RICH_AUTO_INC_SIZE INT,
+  RICH_AUTO_INC_RANGE INT, RICH_AUTO_INC_SAVE BIT, RICH_SEARCH_PRINT BIT,
+  RICH_USER_DEFINE_BARCODE_TEXT NVARCHAR(200), RICH_AUTO_INC_ZERODEL BIT,
+  RICH_BARCODE_LINE INT, RICH_BARCODE_LINE_SIZE INT, RICH_BARCODE_ROTATE INT,
+  RICH_AUTO_INC_UPDATE BIT, RICH_USE_DATERANGE BIT, RICH_DATERANGE NVARCHAR(12)
+);
+INSERT @OriginalColumns
+SELECT * FROM OPENJSON(@commandJson, '\$.originalColumns') WITH (
+  RICH_COLUMN_ID INT '\$.columnId', RICH_COLUMN_NAME NVARCHAR(50) '\$.name',
+  RICH_KEYWORD NVARCHAR(100) '\$.keyword', RICH_COLUMN_ORDER INT '\$.order',
+  RICH_TYPE INT '\$.type', RICH_WIDTH INT '\$.width', RICH_HEIGHT INT '\$.height',
+  RICH_BARCODE_TYPE NVARCHAR(23) '\$.barcodeType',
+  RICH_USE_BARCODE_CHECKDIGIT BIT '\$.checkDigit',
+  RICH_SHOW_BARCODE_NUM BIT '\$.showBarcodeNum',
+  RICH_SHOW_QRCODE_TEXT BIT '\$.showQRCodeText',
+  RICH_QRTEXT_ALIGNMENT INT '\$.qrTextAlignment',
+  RICH_USE_USER_DEFINE_QRDATA BIT '\$.useUserQrData',
+  RICH_USER_DEFINE_QRDATA NVARCHAR(3000) '\$.userQrData',
+  RICH_USER_DEFINE_QRTEXT NVARCHAR(200) '\$.userQrText',
+  RICH_PIXELSIZE INT '\$.pixelSize', RICH_TITLE NVARCHAR(20) '\$.title',
+  RICH_VISIBLE BIT '\$.visible', RICH_QRCODE_CREATE_TYPE INT '\$.qrCreateType',
+  RICH_NATRIUM_JOIN_STRING NVARCHAR(200) '\$.natrium',
+  RICH_QRTEXT_FONTSIZE INT '\$.qrTextSize',
+  RICH_QRTEXT_FONTNAME NVARCHAR(50) '\$.qrTextFont',
+  RICH_QRCODE_SCALE INT '\$.qrScale', RICH_TIMEBARCODE_TYPE INT '\$.timeBarcodeType',
+  RICH_AUTO_INC BIT '\$.autoInc', RICH_AUTO_INC_SIZE INT '\$.autoIncSize',
+  RICH_AUTO_INC_RANGE INT '\$.autoIncRange', RICH_AUTO_INC_SAVE BIT '\$.autoIncSave',
+  RICH_SEARCH_PRINT BIT '\$.searchPrint',
+  RICH_USER_DEFINE_BARCODE_TEXT NVARCHAR(200) '\$.barcodeText',
+  RICH_AUTO_INC_ZERODEL BIT '\$.autoIncZeroDel',
+  RICH_BARCODE_LINE INT '\$.lineCheck', RICH_BARCODE_LINE_SIZE INT '\$.lineSize',
+  RICH_BARCODE_ROTATE INT '\$.rotate', RICH_AUTO_INC_UPDATE BIT '\$.autoIncUpdate',
+  RICH_USE_DATERANGE BIT '\$.useDateRange', RICH_DATERANGE NVARCHAR(12) '\$.dateRange'
+);
 DECLARE @FinalOrder TABLE (
   DRAFT_KEY NVARCHAR(100), RICH_COLUMN_ID INT, RICH_COLUMN_ORDER INT NOT NULL UNIQUE
 );
@@ -298,6 +342,58 @@ IF EXISTS (
     AND C.RICH_LABELSIZE_ID=@LabelSizeId
   WHERE C.RICH_COLUMN_ID IS NULL
 ) THROW 51101, 'Column ownership validation failed.', 1;
+
+IF (SELECT COUNT(*) FROM BM_RICH_COLUMN WHERE RICH_LABELSIZE_ID=@LabelSizeId)
+     <> (SELECT COUNT(*) FROM @OriginalColumns)
+   OR EXISTS (
+     SELECT RICH_COLUMN_ID,
+       CONVERT(VARBINARY(MAX), CONVERT(NVARCHAR(MAX), RICH_COLUMN_NAME)),
+       CONVERT(VARBINARY(MAX), CONVERT(NVARCHAR(MAX), RICH_KEYWORD)),
+       RICH_COLUMN_ORDER, RICH_TYPE, RICH_WIDTH, RICH_HEIGHT,
+       CONVERT(VARBINARY(MAX), CONVERT(NVARCHAR(MAX), RICH_BARCODE_TYPE)),
+       RICH_USE_BARCODE_CHECKDIGIT, RICH_SHOW_BARCODE_NUM, RICH_SHOW_QRCODE_TEXT,
+       RICH_QRTEXT_ALIGNMENT, RICH_USE_USER_DEFINE_QRDATA,
+       CONVERT(VARBINARY(MAX), CONVERT(NVARCHAR(MAX), RICH_USER_DEFINE_QRDATA)),
+       CONVERT(VARBINARY(MAX), CONVERT(NVARCHAR(MAX), RICH_USER_DEFINE_QRTEXT)),
+       RICH_PIXELSIZE, CONVERT(VARBINARY(MAX), CONVERT(NVARCHAR(MAX), RICH_TITLE)),
+       RICH_VISIBLE, RICH_QRCODE_CREATE_TYPE,
+       CONVERT(VARBINARY(MAX), CONVERT(NVARCHAR(MAX), RICH_NATRIUM_JOIN_STRING)),
+       RICH_QRTEXT_FONTSIZE,
+       CONVERT(VARBINARY(MAX), CONVERT(NVARCHAR(MAX), RICH_QRTEXT_FONTNAME)),
+       RICH_QRCODE_SCALE, RICH_TIMEBARCODE_TYPE, RICH_AUTO_INC,
+       RICH_AUTO_INC_SIZE, RICH_AUTO_INC_RANGE, RICH_AUTO_INC_SAVE,
+       RICH_SEARCH_PRINT,
+       CONVERT(VARBINARY(MAX), CONVERT(NVARCHAR(MAX), RICH_USER_DEFINE_BARCODE_TEXT)),
+       RICH_AUTO_INC_ZERODEL, RICH_BARCODE_LINE, RICH_BARCODE_LINE_SIZE,
+       RICH_BARCODE_ROTATE, RICH_AUTO_INC_UPDATE, RICH_USE_DATERANGE,
+       CONVERT(VARBINARY(MAX), CONVERT(NVARCHAR(MAX), RICH_DATERANGE))
+     FROM BM_RICH_COLUMN WHERE RICH_LABELSIZE_ID=@LabelSizeId
+     EXCEPT
+     SELECT RICH_COLUMN_ID,
+       CONVERT(VARBINARY(MAX), CONVERT(NVARCHAR(MAX), RICH_COLUMN_NAME)),
+       CONVERT(VARBINARY(MAX), CONVERT(NVARCHAR(MAX), RICH_KEYWORD)),
+       RICH_COLUMN_ORDER, RICH_TYPE, RICH_WIDTH, RICH_HEIGHT,
+       CONVERT(VARBINARY(MAX), CONVERT(NVARCHAR(MAX), RICH_BARCODE_TYPE)),
+       RICH_USE_BARCODE_CHECKDIGIT, RICH_SHOW_BARCODE_NUM, RICH_SHOW_QRCODE_TEXT,
+       RICH_QRTEXT_ALIGNMENT, RICH_USE_USER_DEFINE_QRDATA,
+      CONVERT(VARBINARY(MAX), CONVERT(NVARCHAR(MAX), RICH_USER_DEFINE_QRDATA)),
+      CONVERT(VARBINARY(MAX), CONVERT(NVARCHAR(MAX), RICH_USER_DEFINE_QRTEXT)),
+      RICH_PIXELSIZE,
+      CONVERT(VARBINARY(MAX), CONVERT(NVARCHAR(MAX), RICH_TITLE)), RICH_VISIBLE,
+      RICH_QRCODE_CREATE_TYPE,
+      CONVERT(VARBINARY(MAX), CONVERT(NVARCHAR(MAX), RICH_NATRIUM_JOIN_STRING)),
+      RICH_QRTEXT_FONTSIZE,
+      CONVERT(VARBINARY(MAX), CONVERT(NVARCHAR(MAX), RICH_QRTEXT_FONTNAME)),
+      RICH_QRCODE_SCALE,
+       RICH_TIMEBARCODE_TYPE, RICH_AUTO_INC, RICH_AUTO_INC_SIZE,
+       RICH_AUTO_INC_RANGE, RICH_AUTO_INC_SAVE, RICH_SEARCH_PRINT,
+      CONVERT(VARBINARY(MAX), CONVERT(NVARCHAR(MAX), RICH_USER_DEFINE_BARCODE_TEXT)),
+       RICH_AUTO_INC_ZERODEL, RICH_BARCODE_LINE, RICH_BARCODE_LINE_SIZE,
+       RICH_BARCODE_ROTATE, RICH_AUTO_INC_UPDATE, RICH_USE_DATERANGE,
+      CONVERT(VARBINARY(MAX), CONVERT(NVARCHAR(MAX), RICH_DATERANGE))
+     FROM @OriginalColumns
+   )
+  THROW 51113, 'Label columns changed after editing started.', 1;
 ''';
 
   static String _insertSql(bool hasMainMissingKeywordCheck) {
@@ -666,12 +762,41 @@ SELECT DRAFT_KEY, COLUMN_ID FROM @InsertedRows ORDER BY DRAFT_KEY;
     }
   }
 
+  static Future<void> saveDialogAndReload(
+    LabelColumnDialogSaveCommand command, {
+    Future<void> Function(LabelColumnDialogSaveCommand command)? save,
+    required Future<bool> Function() reload,
+  }) async {
+    try {
+      await (save ?? saveDialog)(command);
+    } on DbCommitOutcomeUnknown catch (error) {
+      throw LabelColumnSaveCommittedException(
+        'DB 커밋 결과를 확인할 수 없습니다. 중복 저장을 막기 위해 '
+        '다이얼로그를 닫습니다. 연결을 확인한 뒤 최신 정보를 다시 불러오세요.\n$error',
+        outcomeUnknown: true,
+      );
+    }
+    try {
+      if (!await reload()) {
+        throw StateError('현재 라벨 정보를 다시 불러오지 못했습니다.');
+      }
+    } catch (error) {
+      throw LabelColumnSaveCommittedException(
+        '저장은 완료됐지만 화면 갱신에 실패했습니다. 중복 저장을 막기 위해 '
+        '다이얼로그를 닫습니다. 최신 정보를 다시 불러오세요.\n$error',
+      );
+    }
+  }
+
   static List<DbTransactionStatement> buildDialogSaveStatements(
     LabelColumnDialogSaveCommand command,
     LabelColumnSchemaCapabilities? capabilities,
   ) {
     if (command.labelSizeId <= 0 || command.customerId <= 0) {
       throw ArgumentError('Invalid dialog save context.');
+    }
+    if (command.labelColumns == null && command.customerColumns == null) {
+      throw ArgumentError('Dialog save command has no changes.');
     }
     final statements = <DbTransactionStatement>[];
     final labelCommand = command.labelColumns;
@@ -701,6 +826,10 @@ SELECT DRAFT_KEY, COLUMN_ID FROM @InsertedRows ORDER BY DRAFT_KEY;
     final newKeys = {for (final draft in command.newColumns) draft.key};
     return {
       'labelSizeId': command.labelSizeId,
+      'originalColumns': [
+        for (final draft in command.originalColumnsById.values)
+          _draftJson(draft),
+      ],
       'newColumns': [for (final draft in command.newColumns) _draftJson(draft)],
       'updatedColumns': [
         for (final entry in command.changedKeysByColumnId.entries)
