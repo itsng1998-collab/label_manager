@@ -1,3 +1,16 @@
+### 완료 (2026-07-15): 사용자 항목 행 드래그 삭제 보정
+- 사용자 항목 설정 모드의 휴지통 tooltip을 `사용자 항목 삭제`로 표시하고, 키워드·항목명 모두 행 단위 drag source로 동작하게 한다.
+- `SwipeActionTable.rowDragDataBuilder` 공용 경로를 사용해 feedback을 셀이 아닌 전체 행으로 통일한다. 수정 예정: `lib/page_home/label_column_edit_dialog.dart`, `test/label_column_edit_dialog_test.dart`, `SESSION_HANDOFF.md`. 미검증.
+- 우선 검증: `C:\Flutter\bin\flutter.bat test test\label_column_edit_dialog_test.dart`.
+- `label_column_edit_dialog.dart`: 사용자 모드 휴지통 tooltip을 `사용자 항목 삭제`로 분기하고, 사용자 테이블의 셀별 Draggable을 공용 row drag로 교체했다. 비편집 행의 키워드·항목명에서 전체 행 feedback으로 드래그된다.
+- 기존 사용자 행 선택·편집·삭제 테스트 1개 통과. `label_column_edit_dialog_test.dart`에 keyword/name 각각의 실제 drop 삭제와 feedback 전체 행 내용을 검증하는 테스트를 추가했다.
+- 새 keyword/name 행 drag 회귀 테스트 1개 통과. 첫 실행의 종류 라벨 개수 실패는 dropdown 내부 중복 렌더링에 대한 테스트 가정만 수정했다. 다음 검증: `C:\Flutter\bin\flutter.bat test test\label_column_edit_dialog_test.dart`.
+- 테스트 파일 포맷 후 `label_column_edit_dialog_test.dart` 20개 전체 통과. 관련 Dart 파일 IDE 진단 없음. production 파일은 기존 사용자 들여쓰기 변경을 보존하기 위해 전체 formatter를 실행하지 않았다.
+- 다음 검증: `C:\Flutter\bin\flutter.bat analyze`, `git diff --check` 및 stage hunk 분리 확인.
+- 루트 `C:\Flutter\bin\flutter.bat analyze` 이슈 없음, `git diff --check` 통과. 들여쓰기 정리 후 핵심 새 테스트도 재통과했다.
+- stage 대상: `lib/page_home/label_column_edit_dialog.dart`의 이번 기능 hunk와 `test/label_column_edit_dialog_test.dart`. 같은 production 파일의 기존 사용자 `onPressed` 들여쓰기 hunk와 unrelated `lib/core/app.dart`는 제외한다.
+- 선택적 stage 확인: 기능·테스트만 cached diff에 포함하고 기존 사용자 들여쓰기 한 줄은 unstaged로 유지했다. 기능 커밋: `f6e91b6 사용자 항목 행 드래그 삭제 보정`.
+
 ### 완료 (2026-07-15): FortuneSheet 다이얼로그 버튼 순서 통일
 - 원본 `fortune_sheet`와 라벨시트에서 사용하는 하단 액션을 `취소` 먼저, `확인` 다음 순서로 통일한다. 우선 이미지·바코드 다이얼로그 좌표를 수정하고 전용 테스트로 hit-test까지 검증한다.
 - 수정 예정: `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`, 관련 FortuneSheet 테스트, `SESSION_HANDOFF.md`. 미검증.
