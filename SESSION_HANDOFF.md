@@ -1,3 +1,13 @@
+### 완료 (2026-07-15): 라벨출력 작업지시서 3차 권장안 병합
+- 사용자 요청: `doc/label_print_modify.txt` 재검토 권장안을 병합하고 구현 의미가 달라지는 사항은 질문으로 확정한다.
+- 사용자 확정: 세로 방향은 label content/clip만 시계 방향 90도 회전하고 `extraAreaMm`은 최종 물리 진행 방향의 page 뒤쪽에 둔다.
+- 사용자 확정: 행 출력 크기가 저장 workbook 크기와 달라도 Fortune logical pixel→mm 1:1 비율을 유지하며 행 크기는 viewport/clip으로만 사용한다. 비균등/균등 확대·축소는 하지 않는다.
+- `doc/label_print_modify.txt`: final media 기준 `LabelPhysicalPageSpec`, horizontal `W x (H+E)`/vertical `H x (W+E)`, content/clip 단일 회전과 최종 feed 뒤쪽 extra area를 명시했다.
+- `doc/label_print_modify.txt`: workbook logical pixel→mm 1:1과 row viewport clip, 고정 `directPrintPdf` format/option, 모든 PDF false 실패 mapping, Fortune output 줄간격 범위·대상·clip을 확정했다.
+- `doc/label_print_modify.txt`: unit 순차 materialize/capture와 temp group artifact lifecycle, peak/artifact 256 MiB 제한, 부분 접수 자동증가, dispatch/persistence 독립 outcome과 테스트·완료 조건을 반영했다.
+- 최종 검증: 이전 raw profile/flat outcome/false 취소/전체 workbook materialize 계약 잔존 없음, 두 문서 IDE 진단 오류 없음, `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md` 통과. 문서 변경만 있어 Flutter test/analyze는 실행하지 않았다.
+- stage/commit 대상: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. 기존 사용자 `doc/label_print.txt`, `lib/core/app.dart` 변경은 제외한다.
+
 ### 완료 (2026-07-15): 라벨출력 작업지시서 2차 권장안 병합
 - 사용자 요청: `doc/label_print_modify.txt` 재검토 권장안을 병합하고 구현 의미가 달라지는 사항은 질문으로 확정한다.
 - 사용자 확정: 혼합 용지 크기·방향은 물리 설정별 여러 spool job으로 분리한다. 중간 job 취소·실패 시 뒤 job 전송을 중단하고 이미 접수된 unit만 자동증가·이력에 한 transaction으로 반영한다.
