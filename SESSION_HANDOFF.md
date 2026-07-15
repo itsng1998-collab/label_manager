@@ -1,3 +1,11 @@
+### 완료 (2026-07-15): 고정·사용자 항목 테이블 폭 통일
+- 고정 항목 테이블은 기본 `autoFitColumns: true`, `fillLastColumn: false`를 사용해 사용자 항목 편집 테이블과 실제 렌더 폭이 달랐다.
+- 고정/일반 후보 테이블에 사용자 항목 편집 테이블과 같은 `autoFitColumns: false`, `fillLastColumn: true`를 적용하고 계약 테스트를 추가한다.
+- 다이얼로그 focused 테스트 13개 통과. 다음 검증: `C:\Flutter\bin\flutter.bat analyze`, `C:\Flutter\bin\flutter.bat test`.
+- `C:\Flutter\bin\flutter.bat analyze` 이슈 없음, 루트 `C:\Flutter\bin\flutter.bat test` 367개 전체 통과. 다음 단계: 테스트 캐시 정리, IDE 진단과 diff 점검, 관련 hunk만 stage/commit.
+- `third_party/fortune_sheet/build/` 정리 완료. 관련 파일 IDE 진단 없음, `git diff --check` 통과. 사용자 `label-column-add` 들여쓰기 변경과 `lib/core/app.dart`는 stage/commit에서 제외한다.
+- 수정 파일: `lib/page_home/label_column_edit_dialog.dart`, `test/label_column_edit_dialog_test.dart` (완료). 기능 커밋: `2140ab3 고정 항목 테이블 폭을 사용자 항목과 통일`.
+
 ### 완료 (2026-07-15): 라벨 항목 편집 밀도·표시 열·삭제 드롭 보정
 - 속성 패널의 공통 필드 하단 간격을 8px에서 4px로 축소해 모든 항목 타입에 적용한다.
 - 사용 항목 표시 열을 36px에서 44px로 넓히고 다이얼로그 최대 폭과 내부 최소 폭을 같은 8px만큼 확장한다.
