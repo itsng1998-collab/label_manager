@@ -73,6 +73,21 @@ Future<void> activateOpenContextMenuItem(
 }
 
 void main() {
+  test('image and barcode dialogs place cancel before confirm', () {
+    const imageRect = Rect.fromLTWH(100, 80, 420, 380);
+    const barcodeRect = Rect.fromLTWH(120, 60, 500, 440);
+
+    final imageCancel = fortuneImageInsertCancelButtonRect(imageRect);
+    final imageConfirm = fortuneImageInsertConfirmButtonRect(imageRect);
+    final barcodeCancel = fortuneBarcodeCancelButtonRect(barcodeRect);
+    final barcodeConfirm = fortuneBarcodeConfirmButtonRect(barcodeRect);
+
+    expect(imageCancel.right, lessThan(imageConfirm.left));
+    expect(imageCancel.top, imageConfirm.top);
+    expect(barcodeCancel.right, lessThan(barcodeConfirm.left));
+    expect(barcodeCancel.top, barcodeConfirm.top);
+  });
+
   test('image layer panel type labels distinguish images and barcodes', () {
     const image = FortuneImage(
       id: 'image-id',

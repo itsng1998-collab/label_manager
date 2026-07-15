@@ -44931,14 +44931,14 @@ Rect fortuneSplitTextPreviewRect(Rect rect) => Rect.fromLTWH(
 );
 
 Rect fortuneSplitTextOkButtonRect(Rect rect) => Rect.fromLTWH(
-  rect.left + fortuneSplitTextDialogPaddingLeft,
+  fortuneSplitTextCancelButtonRect(rect).right + 10,
   rect.top + 388,
   fortuneSplitTextDialogButtonWidth,
   fortuneSplitTextDialogButtonHeight,
 );
 
 Rect fortuneSplitTextCancelButtonRect(Rect rect) => Rect.fromLTWH(
-  fortuneSplitTextOkButtonRect(rect).right + 10,
+  rect.left + fortuneSplitTextDialogPaddingLeft,
   rect.top + 388,
   62,
   fortuneSplitTextDialogButtonHeight,
@@ -45031,14 +45031,14 @@ Rect fortuneLocationValueRect(Rect rect, String type, String key) {
 }
 
 Rect fortuneLocationOkButtonRect(Rect rect) => Rect.fromLTWH(
-  rect.left + fortuneLocationDialogPaddingLeft,
+  fortuneLocationCancelButtonRect(rect).right + 10,
   rect.top + fortuneLocationDialogButtonTop,
   fortuneLocationDialogOkButtonWidth,
   fortuneLocationDialogButtonHeight,
 );
 
 Rect fortuneLocationCancelButtonRect(Rect rect) => Rect.fromLTWH(
-  fortuneLocationOkButtonRect(rect).right + 10,
+  rect.left + fortuneLocationDialogPaddingLeft,
   rect.top + fortuneLocationDialogButtonTop,
   fortuneLocationDialogCancelButtonWidth,
   fortuneLocationDialogButtonHeight,
@@ -45082,14 +45082,19 @@ Rect fortuneLocationMessageOkButtonRect(Rect rect) => Rect.fromLTWH(
 );
 
 Rect fortuneLocationMessageConfirmOkButtonRect(Rect rect) => Rect.fromLTWH(
-  rect.left + rect.width / 2 - fortuneLocationMessageOkButtonWidth - 5,
+  fortuneLocationMessageConfirmCancelButtonRect(rect).right + 10,
   rect.bottom - 54,
   fortuneLocationMessageOkButtonWidth,
   fortuneLocationMessageOkButtonHeight,
 );
 
 Rect fortuneLocationMessageConfirmCancelButtonRect(Rect rect) => Rect.fromLTWH(
-  rect.left + rect.width / 2 + 5,
+  rect.left +
+      (rect.width -
+              fortuneLocationDialogCancelButtonWidth -
+              10 -
+              fortuneLocationMessageOkButtonWidth) /
+          2,
   rect.bottom - 54,
   fortuneLocationDialogCancelButtonWidth,
   fortuneLocationMessageOkButtonHeight,
@@ -59952,6 +59957,16 @@ Rect fortuneFormulaSearchCloseButtonRect(Rect dialogRect) {
 }
 
 Rect fortuneFormulaSearchOkButtonRect(Rect dialogRect) {
+  final cancel = fortuneFormulaSearchCancelButtonRect(dialogRect);
+  return Rect.fromLTWH(
+    cancel.right + fortuneFormulaSearchButtonGap,
+    cancel.top,
+    fortuneFormulaSearchOkButtonWidth,
+    fortuneFormulaSearchButtonHeight,
+  );
+}
+
+Rect fortuneFormulaSearchCancelButtonRect(Rect dialogRect) {
   final totalWidth =
       fortuneFormulaSearchOkButtonWidth +
       fortuneFormulaSearchButtonGap +
@@ -59960,16 +59975,6 @@ Rect fortuneFormulaSearchOkButtonRect(Rect dialogRect) {
   return Rect.fromLTWH(
     left,
     dialogRect.top + fortuneFormulaSearchButtonTop,
-    fortuneFormulaSearchOkButtonWidth,
-    fortuneFormulaSearchButtonHeight,
-  );
-}
-
-Rect fortuneFormulaSearchCancelButtonRect(Rect dialogRect) {
-  final ok = fortuneFormulaSearchOkButtonRect(dialogRect);
-  return Rect.fromLTWH(
-    ok.right + fortuneFormulaSearchButtonGap,
-    ok.top,
     fortuneFormulaSearchCancelButtonWidth,
     fortuneFormulaSearchButtonHeight,
   );
@@ -60048,22 +60053,22 @@ Rect fortuneFormatSearchCloseButtonRect(Rect dialogRect) {
 }
 
 Rect fortuneFormatSearchConfirmButtonRect(Rect dialogRect) {
-  final totalWidth =
-      fortuneFormatSearchButtonWidth * 2 + fortuneFormatSearchButtonGap;
-  final left = dialogRect.left + (dialogRect.width - totalWidth) / 2;
+  final cancel = fortuneFormatSearchCancelButtonRect(dialogRect);
   return Rect.fromLTWH(
-    left,
-    dialogRect.top + fortuneFormatSearchButtonTop,
+    cancel.right + fortuneFormatSearchButtonGap,
+    cancel.top,
     fortuneFormatSearchButtonWidth,
     fortuneFormatSearchButtonHeight,
   );
 }
 
 Rect fortuneFormatSearchCancelButtonRect(Rect dialogRect) {
-  final ok = fortuneFormatSearchConfirmButtonRect(dialogRect);
+  final totalWidth =
+      fortuneFormatSearchButtonWidth * 2 + fortuneFormatSearchButtonGap;
+  final left = dialogRect.left + (dialogRect.width - totalWidth) / 2;
   return Rect.fromLTWH(
-    ok.right + fortuneFormatSearchButtonGap,
-    ok.top,
+    left,
+    dialogRect.top + fortuneFormatSearchButtonTop,
     fortuneFormatSearchButtonWidth,
     fortuneFormatSearchButtonHeight,
   );
@@ -60210,7 +60215,7 @@ Rect fortuneAxisSizeInputRect(Rect dialogRect) {
 
 Rect fortuneAxisSizeConfirmButtonRect(Rect dialogRect) {
   return Rect.fromLTWH(
-    dialogRect.right - fortuneAxisSizeConfirmButtonRightInset,
+    dialogRect.right - fortuneAxisSizeCancelButtonRightInset,
     dialogRect.bottom -
         fortuneAxisSizeDialogButtonBottomInset -
         fortuneAxisSizeDialogButtonHeight,
@@ -60221,7 +60226,7 @@ Rect fortuneAxisSizeConfirmButtonRect(Rect dialogRect) {
 
 Rect fortuneAxisSizeCancelButtonRect(Rect dialogRect) {
   return Rect.fromLTWH(
-    dialogRect.right - fortuneAxisSizeCancelButtonRightInset,
+    dialogRect.right - fortuneAxisSizeConfirmButtonRightInset,
     dialogRect.bottom -
         fortuneAxisSizeDialogButtonBottomInset -
         fortuneAxisSizeDialogButtonHeight,
@@ -60405,19 +60410,23 @@ Rect fortuneImageInsertRotateButtonRect(Rect dialogRect) {
 }
 
 Rect fortuneImageInsertConfirmButtonRect(Rect dialogRect) {
+  final cancel = fortuneImageInsertCancelButtonRect(dialogRect);
   return Rect.fromLTWH(
-    dialogRect.right - 24 - fortuneImageInsertDialogConfirmButtonWidth - 66,
-    dialogRect.bottom - 18 - fortuneImageInsertDialogButtonHeight,
+    cancel.right + 12,
+    cancel.top,
     fortuneImageInsertDialogConfirmButtonWidth,
     fortuneImageInsertDialogButtonHeight,
   );
 }
 
 Rect fortuneImageInsertCancelButtonRect(Rect dialogRect) {
-  final confirm = fortuneImageInsertConfirmButtonRect(dialogRect);
   return Rect.fromLTWH(
-    confirm.right + 12,
-    confirm.top,
+    dialogRect.right -
+        24 -
+        fortuneImageInsertDialogConfirmButtonWidth -
+        12 -
+        fortuneImageInsertDialogCancelButtonWidth,
+    dialogRect.bottom - 18 - fortuneImageInsertDialogButtonHeight,
     fortuneImageInsertDialogCancelButtonWidth,
     fortuneImageInsertDialogButtonHeight,
   );
@@ -60773,19 +60782,23 @@ Rect fortuneBarcodeRotationUnitRect(Rect dialogRect) {
 }
 
 Rect fortuneBarcodeConfirmButtonRect(Rect dialogRect) {
+  final cancel = fortuneBarcodeCancelButtonRect(dialogRect);
   return Rect.fromLTWH(
-    dialogRect.right - 24 - fortuneImageInsertDialogConfirmButtonWidth - 66,
-    dialogRect.bottom - 30 - fortuneImageInsertDialogButtonHeight,
+    cancel.right + 12,
+    cancel.top,
     fortuneImageInsertDialogConfirmButtonWidth,
     fortuneImageInsertDialogButtonHeight,
   );
 }
 
 Rect fortuneBarcodeCancelButtonRect(Rect dialogRect) {
-  final confirm = fortuneBarcodeConfirmButtonRect(dialogRect);
   return Rect.fromLTWH(
-    confirm.right + 12,
-    confirm.top,
+    dialogRect.right -
+        24 -
+        fortuneImageInsertDialogConfirmButtonWidth -
+        12 -
+        fortuneImageInsertDialogCancelButtonWidth,
+    dialogRect.bottom - 30 - fortuneImageInsertDialogButtonHeight,
     fortuneImageInsertDialogCancelButtonWidth,
     fortuneImageInsertDialogButtonHeight,
   );
@@ -60893,19 +60906,20 @@ Rect fortuneDataVerificationHintInputRect(Rect dialogRect) {
 }
 
 Rect fortuneDataVerificationConfirmButtonRect(Rect dialogRect) {
+  final delete = fortuneDataVerificationDeleteButtonRect(dialogRect);
   return Rect.fromLTWH(
-    dialogRect.left + fortuneDataVerificationContentLeft,
-    dialogRect.top + fortuneDataVerificationButtonTop,
+    delete.right + fortuneDataVerificationButtonGap,
+    delete.top,
     fortuneDataVerificationOkButtonWidth,
     fortuneDataVerificationDialogButtonHeight,
   );
 }
 
 Rect fortuneDataVerificationDeleteButtonRect(Rect dialogRect) {
+  final cancel = fortuneDataVerificationCancelButtonRect(dialogRect);
   return Rect.fromLTWH(
-    fortuneDataVerificationConfirmButtonRect(dialogRect).right +
-        fortuneDataVerificationButtonGap,
-    dialogRect.top + fortuneDataVerificationButtonTop,
+    cancel.right + fortuneDataVerificationButtonGap,
+    cancel.top,
     fortuneDataVerificationDeleteButtonWidth,
     fortuneDataVerificationDialogButtonHeight,
   );
@@ -60913,8 +60927,7 @@ Rect fortuneDataVerificationDeleteButtonRect(Rect dialogRect) {
 
 Rect fortuneDataVerificationCancelButtonRect(Rect dialogRect) {
   return Rect.fromLTWH(
-    fortuneDataVerificationDeleteButtonRect(dialogRect).right +
-        fortuneDataVerificationButtonGap,
+    dialogRect.left + fortuneDataVerificationContentLeft,
     dialogRect.top + fortuneDataVerificationButtonTop,
     fortuneDataVerificationCancelButtonWidth,
     fortuneDataVerificationDialogButtonHeight,
@@ -61076,6 +61089,8 @@ Rect fortuneConditionRuleCancelButtonRect(Rect dialogRect) {
   return Rect.fromLTWH(
     dialogRect.right -
         fortuneConditionRuleButtonRightPadding -
+        fortuneConditionRuleConfirmButtonWidth -
+        fortuneConditionRuleButtonMarginRight -
         fortuneConditionRuleCancelButtonWidth,
     dialogRect.bottom - fortuneConditionRuleButtonBottomOffset,
     fortuneConditionRuleCancelButtonWidth,
@@ -61097,9 +61112,7 @@ Rect fortuneConditionRuleCloseButtonRect(Rect dialogRect) {
 Rect fortuneConditionRuleConfirmButtonRect(Rect dialogRect) {
   final cancelRect = fortuneConditionRuleCancelButtonRect(dialogRect);
   return Rect.fromLTWH(
-    cancelRect.left -
-        fortuneConditionRuleButtonMarginRight -
-        fortuneConditionRuleConfirmButtonWidth,
+    cancelRect.right + fortuneConditionRuleButtonMarginRight,
     cancelRect.top,
     fortuneConditionRuleConfirmButtonWidth,
     fortuneConditionRuleButtonHeight,

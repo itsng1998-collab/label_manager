@@ -571,15 +571,15 @@ void main() {
     );
     expect(
       fortuneDataVerificationConfirmButtonRect(dialogRect),
-      const Rect.fromLTWH(150, 490.5, 37, 30),
+      const Rect.fromLTWH(367, 490.5, 37, 30),
     );
     expect(
       fortuneDataVerificationDeleteButtonRect(dialogRect),
-      const Rect.fromLTWH(197, 490.5, 136, 30),
+      const Rect.fromLTWH(221, 490.5, 136, 30),
     );
     expect(
       fortuneDataVerificationCancelButtonRect(dialogRect),
-      const Rect.fromLTWH(343, 490.5, 61, 30),
+      const Rect.fromLTWH(150, 490.5, 61, 30),
     );
     expect(
       fortuneDataVerificationCloseButtonRect(dialogRect),
@@ -596,15 +596,15 @@ void main() {
     );
     expect(
       fortuneDataVerificationConfirmButtonRect(narrowDialogRect),
-      const Rect.fromLTWH(41, 440, 37, 30),
+      const Rect.fromLTWH(258, 440, 37, 30),
     );
     expect(
       fortuneDataVerificationDeleteButtonRect(narrowDialogRect),
-      const Rect.fromLTWH(88, 440, 136, 30),
+      const Rect.fromLTWH(112, 440, 136, 30),
     );
     expect(
       fortuneDataVerificationCancelButtonRect(narrowDialogRect),
-      const Rect.fromLTWH(234, 440, 61, 30),
+      const Rect.fromLTWH(41, 440, 61, 30),
     );
   });
 
@@ -661,11 +661,11 @@ void main() {
     );
     expect(
       fortuneSplitTextOkButtonRect(dialogRect),
-      const Rect.fromLTWH(151, 479.5, 37, 30),
+      const Rect.fromLTWH(223, 479.5, 37, 30),
     );
     expect(
       fortuneSplitTextCancelButtonRect(dialogRect),
-      const Rect.fromLTWH(198, 479.5, 62, 30),
+      const Rect.fromLTWH(151, 479.5, 62, 30),
     );
 
     final narrowDialogRect = fortuneSplitTextDialogRect(const Size(400, 300));
@@ -680,11 +680,11 @@ void main() {
     );
     expect(
       fortuneSplitTextOkButtonRect(narrowDialogRect),
-      const Rect.fromLTWH(36, 396, 37, 30),
+      const Rect.fromLTWH(108, 396, 37, 30),
     );
     expect(
       fortuneSplitTextCancelButtonRect(narrowDialogRect),
-      const Rect.fromLTWH(83, 396, 62, 30),
+      const Rect.fromLTWH(36, 396, 62, 30),
     );
   });
 
@@ -780,11 +780,11 @@ void main() {
     );
     expect(
       fortuneLocationOkButtonRect(dialogRect),
-      const Rect.fromLTWH(155, 451.5, 37, 30),
+      const Rect.fromLTWH(227, 451.5, 37, 30),
     );
     expect(
       fortuneLocationCancelButtonRect(dialogRect),
-      const Rect.fromLTWH(202, 451.5, 62, 30),
+      const Rect.fromLTWH(155, 451.5, 62, 30),
     );
 
     final narrowDialogRect = fortuneLocationDialogRect(const Size(400, 300));
@@ -795,11 +795,11 @@ void main() {
     );
     expect(
       fortuneLocationOkButtonRect(narrowDialogRect),
-      const Rect.fromLTWH(40, 341, 37, 30),
+      const Rect.fromLTWH(112, 341, 37, 30),
     );
     expect(
       fortuneLocationCancelButtonRect(narrowDialogRect),
-      const Rect.fromLTWH(87, 341, 62, 30),
+      const Rect.fromLTWH(40, 341, 62, 30),
     );
 
     const messageRect = Rect.fromLTWH(225, 231.5, 350, 137);
@@ -892,11 +892,11 @@ void main() {
     );
     expect(
       fortuneAxisSizeConfirmButtonRect(dialogRect),
-      const Rect.fromLTWH(372, 327, 68, 28),
+      const Rect.fromLTWH(454, 327, 68, 28),
     );
     expect(
       fortuneAxisSizeCancelButtonRect(dialogRect),
-      const Rect.fromLTWH(454, 327, 68, 28),
+      const Rect.fromLTWH(372, 327, 68, 28),
     );
     expectContained(dialogRect, fortuneAxisSizeConfirmButtonRect(dialogRect));
     expectContained(dialogRect, fortuneAxisSizeCancelButtonRect(dialogRect));
@@ -910,7 +910,7 @@ void main() {
       14.0,
     );
     expect(
-      dialogRect.right - fortuneAxisSizeCancelButtonRect(dialogRect).right,
+      dialogRect.right - fortuneAxisSizeConfirmButtonRect(dialogRect).right,
       18.0,
     );
     expect(
@@ -924,11 +924,11 @@ void main() {
     );
     expect(
       fortuneAxisSizeConfirmButtonRect(narrowDialogRect),
-      const Rect.fromLTWH(56, 132, 68, 28),
+      const Rect.fromLTWH(138, 132, 68, 28),
     );
     expect(
       fortuneAxisSizeCancelButtonRect(narrowDialogRect),
-      const Rect.fromLTWH(138, 132, 68, 28),
+      const Rect.fromLTWH(56, 132, 68, 28),
     );
     expectContained(
       narrowDialogRect,
@@ -1305,11 +1305,11 @@ void main() {
     );
     expect(
       fortuneFormulaSearchOkButtonRect(dialogRect),
-      const Rect.fromLTWH(340, 440.5, 46, 33),
+      const Rect.fromLTWH(414, 440.5, 46, 33),
     );
     expect(
       fortuneFormulaSearchCancelButtonRect(dialogRect),
-      const Rect.fromLTWH(392, 440.5, 68, 33),
+      const Rect.fromLTWH(340, 440.5, 68, 33),
     );
 
     final narrowDialogRect = fortuneFormulaSearchDialogRect(
@@ -1334,11 +1334,11 @@ void main() {
     );
     expect(
       fortuneFormulaSearchOkButtonRect(narrowDialogRect),
-      const Rect.fromLTWH(100, 356, 46, 33),
+      const Rect.fromLTWH(174, 356, 46, 33),
     );
     expect(
       fortuneFormulaSearchCancelButtonRect(narrowDialogRect),
-      const Rect.fromLTWH(152, 356, 68, 33),
+      const Rect.fromLTWH(100, 356, 68, 33),
     );
   });
 
@@ -1390,11 +1390,11 @@ void main() {
     );
     expect(
       fortuneFormatSearchConfirmButtonRect(dialogRect),
-      const Rect.fromLTWH(336, 427, 58, 30),
+      const Rect.fromLTWH(406, 427, 58, 30),
     );
     expect(
       fortuneFormatSearchCancelButtonRect(dialogRect),
-      const Rect.fromLTWH(406, 427, 58, 30),
+      const Rect.fromLTWH(336, 427, 58, 30),
     );
 
     expect(
@@ -1418,11 +1418,11 @@ void main() {
     );
     expect(
       fortuneFormatSearchConfirmButtonRect(narrowDialogRect),
-      const Rect.fromLTWH(116, 310, 58, 30),
+      const Rect.fromLTWH(186, 310, 58, 30),
     );
     expect(
       fortuneFormatSearchCancelButtonRect(narrowDialogRect),
-      const Rect.fromLTWH(186, 310, 58, 30),
+      const Rect.fromLTWH(116, 310, 58, 30),
     );
   });
 
@@ -1484,11 +1484,11 @@ void main() {
     expect(dialogRect, const Rect.fromLTWH(220, 163, 360, 274));
     expect(
       fortuneConditionRuleConfirmButtonRect(dialogRect),
-      const Rect.fromLTWH(412, 395, 72, 30),
+      const Rect.fromLTWH(490, 395, 72, 30),
     );
     expect(
       fortuneConditionRuleCancelButtonRect(dialogRect),
-      const Rect.fromLTWH(494, 395, 68, 30),
+      const Rect.fromLTWH(412, 395, 68, 30),
     );
     expect(
       fortuneConditionRuleCloseButtonRect(dialogRect),
@@ -1501,11 +1501,11 @@ void main() {
     expect(expandedDialogRect, const Rect.fromLTWH(220, 148, 360, 304));
     expect(
       fortuneConditionRuleConfirmButtonRect(expandedDialogRect),
-      const Rect.fromLTWH(412, 410, 72, 30),
+      const Rect.fromLTWH(490, 410, 72, 30),
     );
     expect(
       fortuneConditionRuleCancelButtonRect(expandedDialogRect),
-      const Rect.fromLTWH(494, 410, 68, 30),
+      const Rect.fromLTWH(412, 410, 68, 30),
     );
     final averageDialogRect = fortuneConditionRuleDialogRect(
       const Size(800, 600),
@@ -1514,11 +1514,11 @@ void main() {
     expect(averageDialogRect, const Rect.fromLTWH(220, 180, 360, 240));
     expect(
       fortuneConditionRuleConfirmButtonRect(averageDialogRect),
-      const Rect.fromLTWH(412, 378, 72, 30),
+      const Rect.fromLTWH(490, 378, 72, 30),
     );
     expect(
       fortuneConditionRuleCancelButtonRect(averageDialogRect),
-      const Rect.fromLTWH(494, 378, 68, 30),
+      const Rect.fromLTWH(412, 378, 68, 30),
     );
 
     final narrowDialogRect = fortuneConditionRuleDialogRect(
@@ -1528,11 +1528,11 @@ void main() {
     expect(narrowDialogRect, const Rect.fromLTWH(10, 36, 280, 274));
     expect(
       fortuneConditionRuleConfirmButtonRect(narrowDialogRect),
-      const Rect.fromLTWH(122, 268, 72, 30),
+      const Rect.fromLTWH(200, 268, 72, 30),
     );
     expect(
       fortuneConditionRuleCancelButtonRect(narrowDialogRect),
-      const Rect.fromLTWH(204, 268, 68, 30),
+      const Rect.fromLTWH(122, 268, 68, 30),
     );
     expect(
       fortuneConditionRuleCloseButtonRect(narrowDialogRect),
@@ -1545,11 +1545,11 @@ void main() {
     expect(narrowExpandedDialogRect, const Rect.fromLTWH(10, 36, 280, 304));
     expect(
       fortuneConditionRuleConfirmButtonRect(narrowExpandedDialogRect),
-      const Rect.fromLTWH(122, 298, 72, 30),
+      const Rect.fromLTWH(200, 298, 72, 30),
     );
     expect(
       fortuneConditionRuleCancelButtonRect(narrowExpandedDialogRect),
-      const Rect.fromLTWH(204, 298, 68, 30),
+      const Rect.fromLTWH(122, 298, 68, 30),
     );
   });
 
