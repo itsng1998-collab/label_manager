@@ -1,3 +1,13 @@
+### 완료 (2026-07-15): 라벨출력 작업지시서 4차 권장안 병합
+- 사용자 요청: `doc/label_print_modify.txt` 재검토 권장안을 병합하고 구현 의미가 달라지는 사항은 질문으로 확정한다.
+- 사용자 확정: 동일 physical page spec의 PDF group 예상 peak가 256 MiB를 넘으면 자동 chunk 분할하지 않고 첫 출력 전에 거부한다.
+- 사용자 확정: 발행 중 command bar에 `[발행 취소]`를 제공하고 준비 단계와 group 사이 cancellation token을 지원한다. active OS print call은 중단하지 않고 결과를 받은 뒤 다음 group 전송을 막는다.
+- `doc/label_print_modify.txt`: Windows PDF callback은 margin을 비교하지 않고 0.1mm/1 device pixel tolerance로 media를 검증하며, saved workbook physical-size metadata를 유일한 source viewport로 사용하도록 확정했다.
+- `doc/label_print_modify.txt`: PDF 0.1mm와 EZPL dot/DPI/media mode canonical page spec, group save까지 유지되는 PNG/PDF object와 native transfer를 포함한 256 MiB estimate, 초과 동일-media group 거부를 명시했다.
+- `doc/label_print_modify.txt`: atomic artifact finalize/startup orphan cleanup, output-generated bitmap fallback 줄간격, `[발행 취소]` token 경계·결과·accepted-unit 저장과 관련 테스트/완료 조건을 반영했다.
+- 최종 검증: 이전 callback exact equality/group-level cancelled/PNG 즉시 해제/row size source range 계약 잔존 없음, 두 문서 IDE 진단 오류 없음, `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md` 통과. 문서 변경만 있어 Flutter test/analyze는 실행하지 않았다.
+- stage/commit 대상: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. 기존 사용자 `doc/label_print.txt`, `lib/core/app.dart` 변경은 제외한다.
+
 ### 완료 (2026-07-15): 라벨출력 작업지시서 3차 권장안 병합
 - 사용자 요청: `doc/label_print_modify.txt` 재검토 권장안을 병합하고 구현 의미가 달라지는 사항은 질문으로 확정한다.
 - 사용자 확정: 세로 방향은 label content/clip만 시계 방향 90도 회전하고 `extraAreaMm`은 최종 물리 진행 방향의 page 뒤쪽에 둔다.
