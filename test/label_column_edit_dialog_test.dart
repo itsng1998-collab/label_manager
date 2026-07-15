@@ -219,14 +219,16 @@ void main() {
     expect(usedTable.fillLastColumn, isTrue);
     expect(
       [for (final column in usedTable.columns) column.initialWidth],
-      [44, 78, 72, 68, 58, 42],
+      [44, 78, 75, 71, 58, 36],
     );
+    final visibleCheckbox = find.descendant(
+      of: find.byKey(const Key('label-column-used-table')),
+      matching: find.byType(Checkbox),
+    );
+    expect(visibleCheckbox, findsOneWidget);
     expect(
-      find.descendant(
-        of: find.byKey(const Key('label-column-used-table')),
-        matching: find.byType(Checkbox),
-      ),
-      findsOneWidget,
+      tester.widget<Checkbox>(visibleCheckbox).materialTapTargetSize,
+      MaterialTapTargetSize.shrinkWrap,
     );
     final candidateTable = tester.widget(
       find.byKey(const Key('label-column-candidate-list')),
@@ -250,6 +252,17 @@ void main() {
 
     final typeDropdown = find.byKey(const Key('label-column-type'));
     expect(tester.getSize(typeDropdown).height, 40);
+    final dropdownArrow = find.descendant(
+      of: typeDropdown,
+      matching: find.byIcon(Icons.arrow_drop_down),
+    );
+    expect(dropdownArrow, findsNWidgets(2));
+    for (var index = 0; index < 2; index++) {
+      expect(
+        tester.getCenter(dropdownArrow.at(index)).dy,
+        closeTo(tester.getCenter(typeDropdown).dy, 0.01),
+      );
+    }
     final keywordField = find.byKey(const Key('label-column-keyword'));
     final nameField = find.byKey(const Key('label-column-name'));
     final titleField = find.widgetWithText(TextFormField, '제목');
@@ -355,9 +368,38 @@ void main() {
     );
     expect(usedFixed, findsOneWidget);
 
+    await _tapVisible(tester, usedFixed);
     await _tapVisible(tester, find.byKey(const Key('label-column-remove')));
     await tester.pump();
     expect(usedFixed, findsNothing);
+  });
+
+  testWidgets('candidate focus and drag disable command buttons', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1300, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await _pumpDialog(tester);
+
+    final remove = find.byKey(const Key('label-column-remove'));
+    final add = find.byKey(const Key('label-column-add'));
+    expect(tester.widget<IconButton>(remove).onPressed, isNotNull);
+
+    await _tapVisible(tester, find.text('고정 A'));
+    expect(tester.widget<IconButton>(remove).onPressed, isNull);
+    expect(tester.widget<IconButton>(add).onPressed, isNotNull);
+
+    await _tapVisible(tester, find.text('BASE_A').last);
+    expect(tester.widget<IconButton>(remove).onPressed, isNotNull);
+
+    final source = find.text('고정 A');
+    final gesture = await tester.startGesture(tester.getCenter(source));
+    await gesture.moveBy(const Offset(-24, 0));
+    await tester.pump();
+    expect(tester.widget<IconButton>(remove).onPressed, isNull);
+    expect(tester.widget<IconButton>(add).onPressed, isNull);
+
+    await gesture.up();
+    await tester.pumpAndSettle();
+    expect(tester.widget<IconButton>(add).onPressed, isNotNull);
   });
 
   testWidgets('guards a pending special initial apply and cancel removes it', (
@@ -667,6 +709,17 @@ void main() {
       matching: find.byType(DropdownMenu<TColumnType>),
     );
     expect(typeDropdown, findsOneWidget);
+    final compactArrow = find.descendant(
+      of: typeDropdown,
+      matching: find.byIcon(Icons.arrow_drop_down),
+    );
+    expect(compactArrow, findsNWidgets(2));
+    for (var index = 0; index < 2; index++) {
+      expect(
+        tester.getCenter(compactArrow.at(index)).dy,
+        closeTo(tester.getCenter(typeDropdown).dy, 0.01),
+      );
+    }
     await _tapVisible(tester, typeDropdown);
     await tester.pumpAndSettle();
     await _tapVisible(

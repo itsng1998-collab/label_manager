@@ -63,6 +63,8 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
   int _propertyRevision = 0;
   String? _editingCustomerKey;
   int? _customerScrollToIndex;
+  bool _candidateTableDragging = false;
+  bool _candidateTableFocused = false;
 
   bool get _exclusiveMode => _session.mode != LabelColumnEditMode.normal;
   bool get _normalEnabled => !_busy && !_exclusiveMode;
@@ -637,13 +639,13 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
                 columns: [
                   SwipeActionTableColumn(header: '상태', initialWidth: 44, minWidth: 40, text: (row) => row.isNew ? '신규' : ''),
                   SwipeActionTableColumn(header: '키워드', initialWidth: 78, minWidth: 64, text: (row) => row.column.keyword),
-                  SwipeActionTableColumn(header: '항목명', initialWidth: 72, minWidth: 60, text: (row) => row.column.columnName),
-                  SwipeActionTableColumn(header: '종류', initialWidth: 68, minWidth: 56, text: (row) => row.column.columnType.name),
+                  SwipeActionTableColumn(header: '항목명', initialWidth: 75, minWidth: 63, text: (row) => row.column.columnName),
+                  SwipeActionTableColumn(header: '종류', initialWidth: 71, minWidth: 59, text: (row) => row.column.columnType.name),
                   SwipeActionTableColumn(header: '제목', initialWidth: 58, minWidth: 48, text: (row) => row.column.title),
                   SwipeActionTableColumn(
                     header: '표시',
-                    initialWidth: 42,
-                    minWidth: 38,
+                    initialWidth: 36,
+                    minWidth: 36,
                     text: (row) => row.column.visible ? '예' : '아니오',
                     cellBuilder: (context, row, width) => SizedBox(
                       width: width,
@@ -653,6 +655,7 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
                             value: row.column.visible,
                             onChanged: (_) {},
                             visualDensity: VisualDensity.compact,
+                            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                           ),
                         ),
                       ),
@@ -719,7 +722,10 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
               ? selectedCustomerKey == null || _busy
                   ? null
                   : () => _removeCustomerRow(selectedCustomerKey)
-              : _normalEnabled && _session.selectedColumnKey != null
+              : _normalEnabled &&
+                    !_candidateTableDragging &&
+                    !_candidateTableFocused &&
+                    _session.selectedColumnKey != null
               ? _removeSelectedColumn
               : null,
             icon: const Icon(Icons.delete_outline),
@@ -741,7 +747,10 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
               borderRadius: BorderRadius.circular(6),
             ),
           ),
-          onPressed: _normalEnabled && _selectedCandidate != null && !_candidateDisabled(_selectedCandidate!.keyword)
+          onPressed: _normalEnabled &&
+              !_candidateTableDragging &&
+              _selectedCandidate != null &&
+              !_candidateDisabled(_selectedCandidate!.keyword)
               ? _addSelectedCandidate
               : null,
           icon: const Icon(Icons.arrow_back),
@@ -893,7 +902,15 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
           ? _ColumnDragPayload(row.key)
           : null,
       onRowDragStarted: (row, index) =>
-          setState(() => _selectedCandidateKey = row.key),
+          setState(() {
+            _selectedCandidateKey = row.key;
+            _candidateTableDragging = true;
+          }),
+      onRowDragEnded: (_, _) => setState(() => _candidateTableDragging = false),
+      onFocusChanged: (focused) {
+        if (_candidateTableFocused == focused) return;
+        setState(() => _candidateTableFocused = focused);
+      },
       columns: [
         SwipeActionTableColumn(
           header: '키워드',
@@ -1344,6 +1361,8 @@ class _DialogDropdown<T> extends StatelessWidget {
         enableFilter: false,
         enableSearch: false,
         requestFocusOnTap: false,
+        trailingIcon: _dropdownIcon(compact),
+        selectedTrailingIcon: _dropdownIcon(compact),
         menuStyle: const MenuStyle(
           visualDensity: VisualDensity(horizontal: -1, vertical: -3),
           minimumSize: WidgetStatePropertyAll(Size(0, 36)),
@@ -1355,13 +1374,22 @@ class _DialogDropdown<T> extends StatelessWidget {
           constraints: BoxConstraints.tightFor(height: compact ? 28 : 40),
           suffixIconConstraints: BoxConstraints.tightFor(
             width: 32,
-            height: 32,
+            height: compact ? 28 : 40,
           ),
         ),
         onSelected: onChanged,
       ),
     );
   }
+
+  Widget _dropdownIcon(bool compact) => SizedBox(
+    width: 32,
+    height: compact ? 28 : 40,
+    child: Transform.translate(
+      offset: Offset(0, compact ? -0.5 : 0),
+      child: const Center(child: Icon(Icons.arrow_drop_down, size: 20)),
+    ),
+  );
 }
 
 class _ModeFooter extends StatelessWidget {

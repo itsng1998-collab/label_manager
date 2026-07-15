@@ -106,6 +106,8 @@ class SwipeActionTable<T> extends StatefulWidget {
     this.rowColorBuilder,
     this.rowDragDataBuilder,
     this.onRowDragStarted,
+    this.onRowDragEnded,
+    this.onFocusChanged,
     this.scrollToIndex,
     this.selectedIndex,
     this.onRowSelected,
@@ -135,6 +137,8 @@ class SwipeActionTable<T> extends StatefulWidget {
   final Color Function(T row, int index, bool selected)? rowColorBuilder;
   final Object? Function(T row, int index)? rowDragDataBuilder;
   final void Function(T row, int index)? onRowDragStarted;
+  final void Function(T row, int index)? onRowDragEnded;
+  final ValueChanged<bool>? onFocusChanged;
   final int? scrollToIndex;
   final int? selectedIndex;
   final void Function(T row, int index)? onRowSelected;
@@ -172,6 +176,7 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
   final ScrollController _hScrollBody = ScrollController();
   final ScrollController _vScrollBody = ScrollController();
   final ScrollController _vScrollIndex = ScrollController();
+  final FocusNode _focusNode = FocusNode();
   bool _syncingVertical = false;
   bool _syncingHorizontal = false;
   late List<double> _widths;
@@ -255,6 +260,7 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
     _hScrollBody.dispose();
     _vScrollBody.dispose();
     _vScrollIndex.dispose();
+    _focusNode.dispose();
     super.dispose();
   }
 
@@ -823,6 +829,7 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
     int rowIndex,
     int columnIndex,
   ) {
+    if (!_focusNode.hasFocus) _focusNode.requestFocus();
     final now = DateTime.now();
     final lastPointerDownAt = _lastPointerDownAt;
     final isDoubleTap =
@@ -1158,6 +1165,7 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
             ),
             childWhenDragging: Opacity(opacity: 0.45, child: rowBox),
             onDragStarted: () => widget.onRowDragStarted?.call(row, index),
+            onDragEnd: (_) => widget.onRowDragEnded?.call(row, index),
             child: rowBox,
           );
     final onRowReorder = widget.onRowReorder;
@@ -1238,13 +1246,16 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
         final visibleBodyHeight = rowAreaHeight < bodyViewportHeight
             ? rowAreaHeight
             : bodyViewportHeight;
-        return ScrollConfiguration(
-          behavior: _SwipeActionTableScrollBehavior(
-            dragScrollEnabled: widget.dragScrollEnabled,
-          ),
-          child: Column(
-            children: [
-              Row(
+        return Focus(
+          focusNode: _focusNode,
+          onFocusChange: widget.onFocusChanged,
+          child: ScrollConfiguration(
+            behavior: _SwipeActionTableScrollBehavior(
+              dragScrollEnabled: widget.dragScrollEnabled,
+            ),
+            child: Column(
+              children: [
+                Row(
                 children: [
                   _buildRowNumberHeader(),
                   Expanded(
@@ -1316,8 +1327,9 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
                     ),
                   ],
                 ),
-              ),
-            ],
+                ),
+              ],
+            ),
           ),
         );
       },
