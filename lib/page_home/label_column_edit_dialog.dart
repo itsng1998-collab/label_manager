@@ -69,6 +69,13 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
 
   bool get _exclusiveMode => _session.mode != LabelColumnEditMode.normal;
   bool get _normalEnabled => !_busy && !_exclusiveMode;
+  bool get _propertyPending =>
+      _session.propertyDirty ||
+      (_session.propertyBaseline != null &&
+          _session.pendingInitialApplyColumnKeys.contains(
+            _session.propertyBaseline!.key,
+          ));
+  bool get _workspaceEnabled => _normalEnabled && !_propertyPending;
   List<TColumnType> get _columnTypes {
     final configured = TColumnType.datas;
     if (configured != null && configured.isNotEmpty) return configured;
@@ -140,26 +147,8 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
     }
   }
 
-  Future<bool> _discardPendingProperty() async {
-    final pending = _session.propertyDirty ||
-        (_session.propertyBaseline != null &&
-            _session.pendingInitialApplyColumnKeys.contains(
-              _session.propertyBaseline!.key,
-            ));
-    if (!pending) return true;
-    final discard = await _confirm(
-      '미적용 속성',
-      '적용하지 않은 속성 변경을 취소하고 계속하시겠습니까?',
-      confirmText: '계속',
-    );
-    if (discard != true || !mounted) return false;
-    setState(() => _session = _session.cancelProperty());
-    return true;
-  }
-
-  Future<void> _selectColumn(String key) async {
-    if (!_normalEnabled || key == _session.selectedColumnKey) return;
-    if (!await _discardPendingProperty() || !mounted) return;
+  void _selectColumn(String key) {
+    if (!_workspaceEnabled || key == _session.selectedColumnKey) return;
     setState(() {
       _session = _session.select(key).beginPropertyEdit();
       _propertyRevision += 1;
@@ -210,7 +199,7 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
   }
 
   Future<void> _addSelectedCandidate() async {
-    if (!_normalEnabled || !await _discardPendingProperty() || !mounted) return;
+    if (!_workspaceEnabled) return;
     final candidate = _selectedCandidate;
     if (candidate == null || _candidateDisabled(candidate.keyword)) return;
     try {
@@ -257,15 +246,14 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
     return null;
   }
 
-  Future<void> _removeSelectedColumn() async {
+  void _removeSelectedColumn() {
     final key = _session.selectedColumnKey;
     if (key == null) return;
-    await _removeColumn(key);
+    _removeColumn(key);
   }
 
-  Future<void> _removeColumn(String key) async {
-    if (!_normalEnabled) return;
-    if (!await _discardPendingProperty() || !mounted) return;
+  void _removeColumn(String key) {
+    if (!_workspaceEnabled) return;
     setState(() {
       _session = _session.remove(key);
       if (_session.selectedColumn != null) {
@@ -275,16 +263,16 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
   }
 
   Future<void> _acceptUsedColumnDrop(String key) async {
-    if (!_normalEnabled || _removeDropEating) return;
+    if (!_workspaceEnabled || _removeDropEating) return;
     setState(() => _removeDropEating = true);
     await Future<void>.delayed(const Duration(milliseconds: 160));
     if (!mounted) return;
-    await _removeColumn(key);
+    _removeColumn(key);
     if (mounted) setState(() => _removeDropEating = false);
   }
 
-  Future<void> _enterReorder() async {
-    if (!_normalEnabled || !await _discardPendingProperty() || !mounted) return;
+  void _enterReorder() {
+    if (!_workspaceEnabled) return;
     setState(() => _session = _session.enterReorder());
   }
 
@@ -316,8 +304,8 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
     });
   }
 
-  Future<void> _enterUserEdit() async {
-    if (!_normalEnabled || !await _discardPendingProperty() || !mounted) return;
+  void _enterUserEdit() {
+    if (!_workspaceEnabled) return;
     setState(() {
       _session = _session.enterUserItemEdit();
       _customerSession = CustomerColumnEditSession.fromCandidates(
@@ -427,8 +415,7 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
   }
 
   Future<void> _save() async {
-    if (!_normalEnabled || !_session.workingDirty) return;
-    if (!await _discardPendingProperty() || !mounted) return;
+    if (!_workspaceEnabled || !_session.workingDirty) return;
     LabelColumnSaveCommand command;
     try {
       command = _session.toSaveCommand();
@@ -463,8 +450,7 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
   }
 
   Future<void> _requestClose() async {
-    if (_busy || _exclusiveMode) return;
-    if (!await _discardPendingProperty() || !mounted) return;
+    if (!_workspaceEnabled) return;
     if (_session.workingDirty) {
       final discard = await _confirm('변경 내용 취소', '저장하지 않은 변경 내용을 버리시겠습니까?', confirmText: '버리기');
       if (discard != true || !mounted) return;
@@ -531,7 +517,7 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
             title: '라벨 항목 편집',
             width: width,
             height: height,
-            closeEnabled: !_busy && !_exclusiveMode,
+            closeEnabled: _workspaceEnabled,
             onClose: _requestClose,
             footer: _buildMainFooter(),
             child: LayoutBuilder(
@@ -550,9 +536,27 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
                         children: [
                           SizedBox(width: 282, child: _buildPropertyPanel()),
                           const VerticalDivider(width: 14),
-                          Expanded(flex: 5, child: _buildUsedColumns()),
-                          SizedBox(width: 48, child: _buildCommandRail()),
-                          Expanded(flex: 4, child: _buildCandidates()),
+                          Expanded(
+                            flex: 5,
+                            child: _propertyLockedRegion(
+                              const Key('label-column-used-region'),
+                              _buildUsedColumns(),
+                            ),
+                          ),
+                          SizedBox(
+                            width: 48,
+                            child: _propertyLockedRegion(
+                              const Key('label-column-command-region'),
+                              _buildCommandRail(),
+                            ),
+                          ),
+                          Expanded(
+                            flex: 4,
+                            child: _propertyLockedRegion(
+                              const Key('label-column-candidate-region'),
+                              _buildCandidates(),
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -580,19 +584,25 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
           ],
           OutlinedButton(
             key: const Key('label-column-main-cancel'),
-            onPressed: _normalEnabled ? _requestClose : null,
+            onPressed: _workspaceEnabled ? _requestClose : null,
             child: const Text('취소'),
           ),
           const SizedBox(width: 8),
           FilledButton(
             key: const Key('label-column-main-save'),
-            onPressed: _normalEnabled && _session.workingDirty ? _save : null,
+            onPressed: _workspaceEnabled && _session.workingDirty ? _save : null,
             child: const Text('저장'),
           ),
         ],
       ),
     );
   }
+
+  Widget _propertyLockedRegion(Key key, Widget child) => IgnorePointer(
+    key: key,
+    ignoring: _propertyPending,
+    child: Opacity(opacity: _propertyPending ? 0.55 : 1, child: child),
+  );
 
   Widget _buildUsedColumns() {
     final userEdit = _session.mode == LabelColumnEditMode.userItemEdit;
@@ -613,14 +623,14 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
                 width: 38,
                 height: 38,
               ),
-              onPressed: _normalEnabled ? _enterReorder : null,
+              onPressed: _workspaceEnabled ? _enterReorder : null,
               icon: const Icon(Icons.swap_vert),
             ),
           ],
         ),
         Expanded(
           child: DragTarget<_ColumnDragPayload>(
-            onWillAcceptWithDetails: (_) => _normalEnabled,
+            onWillAcceptWithDetails: (_) => _workspaceEnabled,
             onAcceptWithDetails: (_) => _addSelectedCandidate(),
             builder: (context, candidateData, rejectedData) => DecoratedBox(
               decoration: BoxDecoration(
@@ -638,7 +648,7 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
                 fillLastColumn: true,
                 selectedIndex: selectedIndex < 0 ? null : selectedIndex,
                 rowReorderEnabled: !_busy && _session.mode == LabelColumnEditMode.reorder,
-                rowDragDataBuilder: (row, index) => _normalEnabled
+                rowDragDataBuilder: (row, index) => _workspaceEnabled
                     ? _UsedColumnDragPayload(row.key)
                     : null,
                 onRowSelected: userEdit
@@ -708,7 +718,7 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
         DragTarget<Object>(
           onWillAcceptWithDetails: (details) => userEdit
               ? details.data is _CustomerColumnDragPayload && !_busy
-              : details.data is _UsedColumnDragPayload && _normalEnabled,
+              : details.data is _UsedColumnDragPayload && _workspaceEnabled,
           onAcceptWithDetails: (details) {
             final data = details.data;
             if (userEdit && data is _CustomerColumnDragPayload) {
@@ -744,7 +754,7 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
                 ? selectedCustomerKey == null || _busy
                     ? null
                     : () => _removeCustomerRow(selectedCustomerKey)
-                : _normalEnabled &&
+                : _workspaceEnabled &&
                       !_candidateTableDragging &&
                       !_candidateTableFocused &&
                       _session.selectedColumnKey != null
@@ -770,7 +780,7 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
               borderRadius: BorderRadius.circular(6),
             ),
           ),
-          onPressed: _normalEnabled &&
+          onPressed: _workspaceEnabled &&
               !_candidateTableDragging &&
               _selectedCandidate != null &&
               !_candidateDisabled(_selectedCandidate!.keyword)
@@ -809,7 +819,7 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
             ButtonSegment(value: LabelColumnCandidateSource.customer, label: Text('사용자 항목')),
           ],
           selected: {_candidateSource},
-          onSelectionChanged: _normalEnabled
+          onSelectionChanged: _workspaceEnabled
               ? (value) => setState(() {
                     _candidateSource = value.single;
                     _selectedCandidateKey = null;
@@ -826,7 +836,7 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
               for (final type in _fixedTypes)
                 DropdownMenuEntry(value: type.id, label: type.name),
             ],
-            onChanged: _normalEnabled ? _changeFixedType : null,
+            onChanged: _workspaceEnabled ? _changeFixedType : null,
           )
         else
           Row(
@@ -840,7 +850,7 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
                   width: 38,
                   height: 38,
                 ),
-                onPressed: _normalEnabled ? _enterUserEdit : null,
+                onPressed: _workspaceEnabled ? _enterUserEdit : null,
                 icon: const Icon(Icons.edit),
               ),
               if (userEdit)
@@ -919,11 +929,11 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
           ? Colors.white
           : const Color(0xFFF2F4F7),
       onRowSelected: (row, index) {
-        if (!_normalEnabled || _candidateDisabled(row.keyword)) return;
+        if (!_workspaceEnabled || _candidateDisabled(row.keyword)) return;
         setState(() => _selectedCandidateKey = row.key);
       },
       rowDragDataBuilder: (row, index) =>
-          _normalEnabled && !_candidateDisabled(row.keyword)
+          _workspaceEnabled && !_candidateDisabled(row.keyword)
           ? _ColumnDragPayload(row.key)
           : null,
       onRowDragStarted: (row, index) =>

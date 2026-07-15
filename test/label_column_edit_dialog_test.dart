@@ -328,6 +328,10 @@ void main() {
     expect(tester.getSize(barcodeMenuItem.last).height, lessThanOrEqualTo(40));
     await _tapVisible(tester, barcodeMenuItem.last);
     await tester.pumpAndSettle();
+    await _tapVisible(
+      tester,
+      find.byKey(const Key('label-column-property-apply')),
+    );
 
     await _tapVisible(tester, find.text('사용자 항목'));
     await tester.pumpAndSettle();
@@ -464,7 +468,7 @@ void main() {
     expect(tester.widget<IconButton>(add).onPressed, isNotNull);
   });
 
-  testWidgets('guards a pending special initial apply and cancel removes it', (
+  testWidgets('pending property disables other regions without confirmation', (
     tester,
   ) async {
     await tester.binding.setSurfaceSize(const Size(1300, 800));
@@ -474,13 +478,49 @@ void main() {
     await _tapVisible(tester, find.text('바코드 A'));
     await _tapVisible(tester, find.byKey(const Key('label-column-add')));
     await tester.pump();
-    await _tapVisible(tester, find.text('BASE_A').last);
+    expect(
+      tester
+          .widget<IgnorePointer>(
+            find.byKey(const Key('label-column-used-region')),
+          )
+          .ignoring,
+      isTrue,
+    );
+    expect(
+      tester
+          .widget<IgnorePointer>(
+            find.byKey(const Key('label-column-candidate-region')),
+          )
+          .ignoring,
+      isTrue,
+    );
+    expect(
+      tester
+          .widget<IgnorePointer>(
+            find.byKey(const Key('label-column-command-region')),
+          )
+          .ignoring,
+      isTrue,
+    );
+    expect(
+      tester
+          .widget<OutlinedButton>(
+            find.byKey(const Key('label-column-main-cancel')),
+          )
+          .onPressed,
+      isNull,
+    );
+    expect(
+      tester
+          .widget<FilledButton>(
+            find.byKey(const Key('label-column-main-save')),
+          )
+          .onPressed,
+      isNull,
+    );
+    await tester.tap(find.text('BASE_A').last);
     await tester.pump();
-
-    expect(find.text('미적용 속성'), findsOneWidget);
-    await tester.tap(find.widgetWithText(TextButton, '취소').last);
-    await tester.pumpAndSettle();
-    expect(find.byKey(const Key('label-column-property-apply')), findsOneWidget);
+    expect(find.text('미적용 속성'), findsNothing);
 
     tester
         .widget<TextButton>(
@@ -488,6 +528,14 @@ void main() {
         )
         .onPressed!();
     await tester.pump();
+    expect(
+      tester
+          .widget<IgnorePointer>(
+            find.byKey(const Key('label-column-used-region')),
+          )
+          .ignoring,
+      isFalse,
+    );
     expect(
       find.descendant(
         of: find.byKey(const Key('label-column-used-table')),
