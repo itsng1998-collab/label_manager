@@ -149,7 +149,7 @@ class _ItemOrderDialogState extends State<ItemOrderDialog> {
       ),
       FilledButton(
         onPressed: _changed ? () => Navigator.of(context).pop(_items) : null,
-        child: const Text('적용'),
+        child: const Text('저장'),
       ),
     ],
   );

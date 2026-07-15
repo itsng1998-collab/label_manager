@@ -815,7 +815,7 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
               borderRadius: BorderRadius.circular(6),
             ),
           ),
-          onPressed: _workspaceEnabled &&
+            onPressed: _workspaceEnabled &&
               !_candidateTableDragging &&
               _selectedCandidate != null &&
               !_candidateDisabled(_selectedCandidate!.keyword)
