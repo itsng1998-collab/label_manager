@@ -539,6 +539,7 @@ void main() {
     ) as dynamic;
     expect(userTable.rowHeight, 28);
     expect(userTable.columns.length, 3);
+    expect(userTable.scrollToIndex, isNull);
     expect(
       tester.widget<IconButton>(find.byKey(const Key('label-column-remove'))).onPressed,
       isNull,
@@ -582,6 +583,10 @@ void main() {
       find.byKey(const ValueKey('customer-keyword:customer-column:11')),
       findsOneWidget,
     );
+    final editingTable = tester.widget(
+      find.byKey(const Key('label-column-user-editor')),
+    ) as dynamic;
+    expect(editingTable.scrollToIndex, isNull);
 
     await _tapVisible(tester, find.byKey(const Key('label-column-user-cancel')));
     await _tapVisible(tester, find.byKey(const Key('label-column-user-edit')));

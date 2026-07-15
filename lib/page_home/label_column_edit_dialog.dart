@@ -62,6 +62,7 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
   int _draftSequence = 0;
   int _propertyRevision = 0;
   String? _editingCustomerKey;
+  int? _customerScrollToIndex;
 
   bool get _exclusiveMode => _session.mode != LabelColumnEditMode.normal;
   bool get _normalEnabled => !_busy && !_exclusiveMode;
@@ -313,6 +314,7 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
     setState(() {
       _customerSession = null;
       _editingCustomerKey = null;
+      _customerScrollToIndex = null;
       _session = _session.exitUserItemEdit();
       if (_session.selectedColumn != null) {
         _session = _session.beginPropertyEdit();
@@ -330,6 +332,7 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
     setState(() {
       _customerSession = _customerSession!.add(row);
       _editingCustomerKey = row.key;
+      _customerScrollToIndex = _customerSession!.working.length - 1;
     });
   }
 
@@ -391,6 +394,7 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
         _customerCandidates = reloaded;
         _customerSession = null;
         _editingCustomerKey = null;
+        _customerScrollToIndex = null;
         _session = _session.exitUserItemEdit();
         _busy = false;
         if (_session.selectedColumn != null) {
@@ -923,7 +927,7 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
       rowHeight: 28,
       autoFitColumns: false,
       fillLastColumn: true,
-      scrollToIndex: _editingCustomerKey == null ? null : selectedIndex,
+      scrollToIndex: _customerScrollToIndex,
       selectedIndex: selectedIndex < 0 ? null : selectedIndex,
       onRowSelected: (row, _) => _selectCustomerRow(row.key),
       isRowContentInteractive: (row, _) => row.key == _editingCustomerKey,
