@@ -373,7 +373,7 @@ DTO는 immutable하게 만들고 widget 상태나 전역 목록을 직접 참조
 12.3 사용자 항목 저장
 
 - insert/update/delete를 parameterized statement로 만들고 사용 항목 statement와 같은 `DbClient.transaction()`에서 실행한다.
-- transaction 안에서 현재 고객 항목의 행 집합과 저장 command의 원본 snapshot을 먼저 비교하고, 편집 시작 후 추가·수정·삭제가 있으면 충돌 오류로 중단한다.
+- transaction 안에서 현재 고객 항목의 행 집합과 저장 command의 원본 snapshot을 먼저 비교하고, 편집 시작 후 추가·수정·삭제가 있으면 충돌 오류로 중단한다. snapshot 조회에는 `UPDLOCK, HOLDLOCK`을 적용해 검사 후 실제 DML까지 같은 customer key range를 보호한다.
 - update/delete는 customerId와 custColumnId를 함께 조건으로 사용한다.
 - 필수 update/delete affected row가 1이 아니면 오류를 발생시킨다.
 - 신규/keyword 변경 행이 같은 customer 사전에 새 중복을 만드는지 저장 전에 검사한다.
@@ -388,7 +388,7 @@ DTO는 immutable하게 만들고 widget 상태나 전역 목록을 직접 참조
 처리 순서는 다음과 같다.
 
 1. 현 DB driver가 scalar parameter만 지원하므로 save command를 JSON 문자열 parameter로 전달하고 기존 품목 저장과 같이 `OPENJSON`으로 table variable에 투영한다.
-2. 현재 labelSizeId의 행 집합·저장 속성을 원본 snapshot과 비교해 편집 시작 후 동시 변경을 거부하고, update/delete 대상 `BM_RICH_COLUMN`의 소유권을 확인한다.
+2. 현재 labelSizeId의 main 저장 속성, 누락검사와 GS1 info/contain 값을 원본 snapshot과 비교해 편집 시작 후 동시 변경을 거부하고, update/delete 대상 `BM_RICH_COLUMN`의 소유권을 확인한다. main/check/GS1 info/contain 조회에는 `UPDLOCK, HOLDLOCK`을 사용해 존재하지 않는 보조 행의 key range까지 실제 DML 완료 전까지 보호한다. 레거시 nullable 값은 기존 `TColumnDAO`와 같은 0·빈 문자열·GS1 기본값으로 정규화한다.
 3. 신규 `BM_RICH_COLUMN`을 한 행씩 insert하고 `OUTPUT INSERTED.RICH_COLUMN_ID`를 draft key와 함께 내부 mapping table에 기록한다.
 4. 신규 column의 `BM_RICH_CHECK_COLUMNS`는 keyword, name과 draft의 최종 `useMissingKeywordCheck` 값을 사용해 생성한다. 기존 DB의 `BM_RICH_COLUMN`에 `RICH_USE_MISSING_KEYWORD_CHECK`가 있으면 같은 최종값을 main row에도 기록하고, 없으면 해당 식별자를 INSERT SQL에 포함하지 않는다. 해당 label size의 `BM_RICH_COL_MIN`에 `ELEMENT` 기준행이 없으면 레거시와 같이 column ID 0 의미, keyword `ELEMENT`, name `주원료`, order 0, `RICH_MIN_CHECK=0`으로 한 번 생성한다. 신규 column의 min 행도 `RICH_MIN_CHECK=0`으로 생성한다.
 5. 신규 column마다 현재 label size의 기존 `BM_RICH_ITEM`에 없는 `BM_RICH_COL_CONTENT` 조합을 빈 data로 생성한다. `RICH_EDITABLE`이 있는 DB용 INSERT는 0을 함께 기록하고, 없는 DB용 INSERT는 해당 column 이름을 SQL text에 포함하지 않는다. trigger가 먼저 생성한 행은 `NOT EXISTS` 조건으로 중복하지 않는다.
@@ -471,7 +471,7 @@ DTO는 immutable하게 만들고 widget 상태나 전역 목록을 직접 참조
 - GS1 info와 contain 관계 추가·변경·삭제
 - column 삭제 시 직접 소유한 종속행과 status/main 처리
 - 필수 affected row 불일치와 중간 SQL 오류의 전체 rollback
-- 라벨/고객 항목 원본 snapshot 불일치 시 동시 편집 충돌과 전체 rollback
+- 라벨/고객 항목 원본 snapshot 불일치 시 동시 편집 충돌과 전체 rollback, snapshot 검사 이후 DML까지 key-range 잠금 유지
 - 커밋 전 오류 전달 후 working copy와 기존 cache 유지, 커밋 후 오류의 재저장 차단
 
 15.4 통합

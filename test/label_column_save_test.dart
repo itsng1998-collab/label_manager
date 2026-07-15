@@ -130,6 +130,26 @@ void main() {
         statement.sql,
         contains('Label columns changed after editing started.'),
       );
+      expect(
+        statement.sql,
+        contains('BM_RICH_COLUMN C WITH (UPDLOCK, HOLDLOCK)'),
+      );
+      expect(
+        statement.sql,
+        contains('BM_RICH_CHECK_COLUMNS C WITH (UPDLOCK, HOLDLOCK)'),
+      );
+      expect(
+        statement.sql,
+        contains('LEFT JOIN BM_GS1_COLUMN_INFO G WITH (UPDLOCK, HOLDLOCK)'),
+      );
+      expect(
+        statement.sql,
+        contains('LEFT JOIN BM_GS1_CONTAIN_COLUMN G WITH (UPDLOCK, HOLDLOCK)'),
+      );
+      expect(
+        statement.sql,
+        contains('Label column auxiliary values changed after editing started.'),
+      );
       final originalProjection = statement.sql.substring(
         statement.sql.indexOf('INSERT @OriginalColumns'),
         statement.sql.indexOf('DECLARE @FinalOrder'),
@@ -139,6 +159,23 @@ void main() {
           r"RICH_USE_USER_DEFINE_QRDATA BIT '\$.useUserQrData'",
         ).allMatches(originalProjection),
         hasLength(1),
+      );
+      for (final field in [
+        "RICH_CHECK_YN BIT '\$.check'",
+        "COLUMN_GS1_CODE NVARCHAR(100) '\$.gs1ai'",
+        "COLUMN_GS1_FORMAT_OPTION INT '\$.formatOption'",
+        "CONTAIN_COLUMNS NVARCHAR(MAX) '\$.contains'",
+        "COLUMN_SHOW_GS1CODE BIT '\$.showGs1'",
+      ]) {
+        expect(originalProjection, contains(field));
+      }
+      expect(
+        statement.sql,
+        contains('COALESCE(RICH_AUTO_INC, 0)'),
+      );
+      expect(
+        statement.sql,
+        contains("COALESCE(CONVERT(NVARCHAR(MAX), RICH_DATERANGE), N'')"),
       );
     });
 
@@ -172,6 +209,14 @@ void main() {
       expect(
         statements.last.sql,
         contains('Customer columns changed after editing started.'),
+      );
+      expect(
+        statements.last.sql,
+        contains('BM_RICH_CUST_COLUMN C WITH (UPDLOCK, HOLDLOCK)'),
+      );
+      expect(
+        statements.last.sql,
+        contains("COALESCE(CONVERT(NVARCHAR(MAX), RICH_KEYWORD), N'')"),
       );
     });
 
@@ -313,6 +358,10 @@ void main() {
       final sql = LabelColumnSaveDao.buildSaveStatement(_command(), all).sql;
 
       expect(sql, contains('RICH_USE_MISSING_KEYWORD_CHECK'));
+      expect(
+        sql,
+        contains('Main missing-keyword value changed after editing started.'),
+      );
       expect(sql, contains('RICH_EDITABLE'));
       expect(sql, contains('BM_UPDATE_ITEM'));
       expect(sql, contains('BM_UPDATE_COL_CONTENT'));

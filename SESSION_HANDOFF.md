@@ -1,3 +1,19 @@
+### 진행 중 (2026-07-15): 라벨 항목 동시 편집 보호 완성
+- snapshot 검사부터 실제 갱신까지 주/보조 테이블과 고객 항목 key range에 `UPDLOCK, HOLDLOCK`을 유지한다.
+- 라벨 원본 snapshot 비교에 누락검사와 GS1 보조 값을 포함하고, 레거시 nullable 값은 `TColumnDAO` 조회와 같은 기본값으로 정규화한다.
+- 수정 예정: `lib/models/label_column_save.dart`, `lib/models/label_column_candidates.dart`, `test/label_column_save_test.dart`, `doc/user_item_modify.txt`. 미검증.
+- 우선 검증: `C:\Flutter\bin\flutter.bat test test\label_column_save_test.dart`.
+- `lib/models/label_column_save.dart`: label main/check/GS1 info/contain key range 잠금, 보조 원본 projection·비교, 레거시 NULL 정규화와 optional main check 충돌 검사를 추가했다.
+- `lib/models/label_column_candidates.dart`: customer key range 잠금과 keyword/name NULL 정규화를 추가했다.
+- `test/label_column_save_test.dart`: main/보조/customer 잠금, 보조 projection, NULL 정규화와 optional main check variant 계약을 추가했다. DAO 테스트 13개 통과.
+- `doc/user_item_modify.txt`: snapshot 검사부터 DML까지 잠금 유지와 보조 값 비교 정책을 반영했다. 다음 검증: 관련 모델/transaction 테스트와 전체 analyze/test.
+- 관련 `label_column_save/edit/candidates`, `db_transaction` 테스트 37개 전체 통과. 변경 Dart 파일 IDE 진단 없음, `git diff --check` 통과.
+- 전체 검증 예정: `C:\Flutter\bin\flutter.bat analyze`, `C:\Flutter\bin\flutter.bat test`.
+- 전체 `C:\Flutter\bin\flutter.bat analyze`: 이슈 없음. 다음 검증: `C:\Flutter\bin\flutter.bat test`.
+- 루트 `C:\Flutter\bin\flutter.bat test`: 378개 전체 통과. 다음 단계: 테스트 캐시/IDE 진단/diff 점검 후 관련 파일만 stage/commit.
+- `third_party/fortune_sheet/build/` 생성 없음. 관련 Dart 파일 IDE 진단 없음, `git diff --check` 통과.
+- stage 대상: `SESSION_HANDOFF.md`, `doc/user_item_modify.txt`, 모델 2개, `test/label_column_save_test.dart`. unrelated `lib/core/app.dart`와 기존 다이얼로그 들여쓰기 변경은 제외한다.
+
 ### 완료 (2026-07-15): 라벨 항목 통합 저장 잔여 위험 보강
 - 초기 고정 후보와 사용자 후보 조회를 독립화해 한쪽 실패가 다른 편집 기능을 차단하지 않도록 한다.
 - 빈 통합 저장 command를 거부하고, 원본 snapshot 기반 낙관적 동시성 검사와 커밋 후 예외 변환 테스트를 추가한다.
