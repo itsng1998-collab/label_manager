@@ -28,6 +28,23 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-15): 사용자 항목 선택·편집·드래그 삭제 보정
+
+- 사용자 요청: 속성 입력/그룹 간격을 전 타입에서 통일하고, 사용자 항목 설정은 클릭 시 행 선택·더블클릭 시 편집으로 분리한다. 삭제 열을 제거하고 중앙 휴지통 버튼/드롭으로 삭제하며, row height와 inline control을 사용 테이블에 맞춘다. 사용자 설정 중 사용 테이블 비활성, 설정/추가 버튼 크기 통일도 적용한다.
+- 수정 `lib/models/label_column_candidates.dart`: 사용자 편집 초기 선택을 null로 변경하고 `CustomerColumnEditSession.select`를 추가했다.
+- 수정 `lib/page_home/label_column_edit_dialog.dart`: 사용자 편집 key를 별도 관리해 단일클릭 선택/키워드·항목명 더블클릭 편집으로 분리했다. 삭제 열을 제거하고 중앙 휴지통이 선택 행 삭제 및 비-dropdown 셀 drag payload 삭제를 처리한다. 편집 테이블 row height를 28로 축소하고 보기/편집 셀을 전환했다. 사용자 설정 중 사용 테이블은 pointer 차단/55% opacity 처리했고 사용자 추가 버튼을 22px/38x38로 맞췄다.
+- 수정 `lib/page_home/label_column_edit_dialog.dart`: 모든 속성 입력/dropdown/checkbox를 공용 40px height + bottom 8px spacing으로 정렬했다.
+- 테스트 `test/label_column_candidates_test.dart`: 초기 무선택과 명시적 select 계약을 추가했다.
+- 테스트 `test/label_column_edit_dialog_test.dart`: 초기 휴지통 비활성, 단일클릭 선택, 더블클릭 편집, 삭제 열 제거, row 28, 사용 테이블 IgnorePointer, 추가 버튼 크기, 키워드 셀→휴지통 drag 삭제를 검증한다.
+- 속성 상단 4개 입력의 높이 40px/사이 간격 8px와 선택 행 휴지통 클릭 삭제도 별도 검증한다.
+- Dart formatter 완료. focused 검증 실행 예정: `C:\Flutter\bin\flutter.bat test test/label_column_candidates_test.dart test/label_column_edit_dialog_test.dart`. unrelated `lib/core/app.dart`는 제외한다.
+- focused 검증 `C:\Flutter\bin\flutter.bat test test/label_column_candidates_test.dart test/label_column_edit_dialog_test.dart`: 14개 전체 통과. 최초 compact runtime 높이의 const 컴파일 오류를 수정한 뒤 재검증했다. 단일 선택/더블클릭 편집, 휴지통 클릭/셀 drag 삭제, row 28, 사용 테이블 비활성, 속성 40px/8px 정렬이 정상이다.
+- 전체 검증 실행 예정: `C:\Flutter\bin\flutter.bat analyze`, `C:\Flutter\bin\flutter.bat test`.
+- 전체 정적 분석 `C:\Flutter\bin\flutter.bat analyze`: 성공, 이슈 없음.
+- 전체 테스트 `C:\Flutter\bin\flutter.bat test`: 363개 전체 통과.
+- 임시 산출물 `third_party/fortune_sheet/build/` 정리 완료. 관련 4개 파일 IDE 진단 없음, `git diff --check` 통과. unrelated `lib/core/app.dart`는 stage하지 않았다.
+- 기능 커밋: `0726ec8 라벨 사용자 항목 선택과 편집 동작 보정`.
+
 ### 완료 (2026-07-15): 라벨 항목 편집 입력 폰트·테이블 셀 통일
 
 - 사용자 요청: 입력박스와 dropdown 선택값 폰트를 다른 위젯과 맞추고, 후보 테이블 row header를 사용 테이블과 맞추며 항목명 열을 확장한다. 사용 테이블 표시 열은 레거시처럼 checkbox로 바꾸고, 사용자 항목 설정 편집 UI를 별도 grid가 아닌 사용자 항목 테이블 위젯으로 통일한다.
