@@ -8,6 +8,7 @@
 - `doc/label_print_modify.txt`: 발행 목록 전용 trim·대소문자 무시 exact 검색, Windows 전용 노출, 공용 로직 기반 전용 프린터 설정 UI와 관련 테스트·완료 조건으로 정리했다.
 - 두 문서 IDE 진단 오류 없음. 이전 unit별 성공·공용 dialog 그대로 사용·전체 품목 검색 등 계약 잔존 없음, `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md` 통과.
 - stage/commit 대상: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. 기존 사용자 `doc/label_print.txt`, `lib/core/app.dart` 변경은 제외한다.
+- 권장안 병합 커밋: `7457d8d 라벨출력 작업지시서 권장안 확정`.
 
 ### 완료 (2026-07-15): 레거시 기준 라벨출력 작업지시서 재작성
 - 사용자 요청: 두서없는 `doc/label_print.txt`를 레거시 라벨출력과 현재 Flutter 구현에 대조해 실행 가능한 `doc/label_print_modify.txt`로 재작성한다. 필요한 전용 model/DAO도 구현 범위에 포함한다.
