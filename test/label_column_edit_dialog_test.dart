@@ -265,7 +265,11 @@ void main() {
     }
 
     final typeDropdown = find.byKey(const Key('label-column-type'));
-    expect(tester.getSize(typeDropdown).height, 40);
+    expect(tester.getSize(typeDropdown).height, 36);
+    expect(
+      tester.getSize(find.byKey(const Key('label-column-fixed-type'))).height,
+      36,
+    );
     final dropdownArrow = find.descendant(
       of: typeDropdown,
       matching: find.byIcon(Icons.arrow_drop_down),
@@ -280,9 +284,21 @@ void main() {
     final keywordField = find.byKey(const Key('label-column-keyword'));
     final nameField = find.byKey(const Key('label-column-name'));
     final titleField = find.widgetWithText(TextFormField, '제목');
-    for (final field in [keywordField, nameField, typeDropdown, titleField]) {
+    for (final field in [keywordField, nameField, titleField]) {
       expect(tester.getSize(field).height, 40);
     }
+    expect(
+      tester
+          .widget<InputDecorator>(
+            find.descendant(
+              of: keywordField,
+              matching: find.byType(InputDecorator),
+            ),
+          )
+          .decoration
+          .contentPadding,
+      const EdgeInsets.fromLTRB(10, 12, 10, 4),
+    );
     expect(
       tester.getTopLeft(nameField).dy - tester.getBottomLeft(keywordField).dy,
       4,
@@ -760,12 +776,31 @@ void main() {
       matching: find.byIcon(Icons.arrow_drop_down),
     );
     expect(compactArrow, findsNWidgets(2));
+    final expectedCompactArrowCenter = Offset(
+      tester.getTopRight(typeDropdown).dx - 16,
+      tester.getCenter(typeDropdown).dy,
+    );
+    var visibleArrowIndex = 0;
+    var nearestDistance = double.infinity;
     for (var index = 0; index < 2; index++) {
-      expect(
-        tester.getCenter(compactArrow.at(index)).dy,
-        closeTo(tester.getCenter(typeDropdown).dy, 0.01),
-      );
+      final distance =
+          (tester.getCenter(compactArrow.at(index)) -
+                  expectedCompactArrowCenter)
+              .distance;
+      if (distance < nearestDistance) {
+        visibleArrowIndex = index;
+        nearestDistance = distance;
+      }
     }
+    final visibleCompactArrow = compactArrow.at(visibleArrowIndex);
+    expect(
+      tester.getCenter(visibleCompactArrow).dx,
+      closeTo(expectedCompactArrowCenter.dx, 0.01),
+    );
+    expect(
+      tester.getCenter(visibleCompactArrow).dy,
+      closeTo(expectedCompactArrowCenter.dy, 0.01),
+    );
     await _tapVisible(tester, typeDropdown);
     await tester.pumpAndSettle();
     await _tapVisible(

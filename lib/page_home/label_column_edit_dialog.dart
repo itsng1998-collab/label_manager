@@ -1162,9 +1162,9 @@ class _PropertyFields extends StatelessWidget {
   final bool enabled;
   final ValueChanged<TColumn> onChanged;
 
-  Widget _field(Widget child) => Padding(
+  Widget _field(Widget child, {double height = 40}) => Padding(
     padding: const EdgeInsets.only(bottom: 4),
-    child: SizedBox(height: 40, child: child),
+    child: SizedBox(height: height, child: child),
   );
 
   Widget _text(String label, String value, ValueChanged<String> changed, {Key? key}) {
@@ -1174,7 +1174,12 @@ class _PropertyFields extends StatelessWidget {
         initialValue: value,
         enabled: enabled,
         style: const TextStyle(fontSize: 13),
-        decoration: InputDecoration(labelText: label, border: const OutlineInputBorder(), isDense: true),
+        decoration: InputDecoration(
+          labelText: label,
+          border: const OutlineInputBorder(),
+          isDense: true,
+          contentPadding: const EdgeInsets.fromLTRB(10, 12, 10, 4),
+        ),
         onChanged: changed,
       ),
     );
@@ -1214,6 +1219,7 @@ class _PropertyFields extends StatelessWidget {
             ],
             onChanged: enabled ? (value) { if (value != null) onChanged(_changeType(column, value)); } : null,
           ),
+          height: 36,
         ),
         _text('제목', column.title, (value) => onChanged(column.copyWith(title: value))),
         _check('표시', column.visible, (value) => onChanged(column.copyWith(visible: value))),
@@ -1263,6 +1269,7 @@ class _PropertyFields extends StatelessWidget {
               ],
               onChanged: enabled ? (value) { if (value != null) onChanged(column.copyWith(qrCodeCreateType: value)); } : null,
             ),
+            height: 36,
           ),
           _check('사용자 정의 data', column.useUserDefineQRData, (value) => onChanged(column.copyWith(useUserDefineQRData: value))),
           _text('QR data', column.userDefineQRData, (value) => onChanged(column.copyWith(userDefineQRData: value))),
@@ -1281,6 +1288,7 @@ class _PropertyFields extends StatelessWidget {
               ],
               onChanged: enabled ? (value) { if (value != null) onChanged(column.copyWith(qrTextAlignment: value)); } : null,
             ),
+            height: 36,
           ),
           _text('글꼴', column.qrTextFontName, (value) => onChanged(column.copyWith(qrTextFontName: value))),
           _integer('글꼴 크기', column.qrTextFontSize, (value) => onChanged(column.copyWith(qrTextFontSize: value))),
@@ -1338,6 +1346,7 @@ class _PropertyFields extends StatelessWidget {
         ],
         onChanged: enabled ? (value) { if (value != null) onChanged(column.copyWith(barcodeType: value)); } : null,
       ),
+      height: 36,
     );
   }
 
@@ -1395,11 +1404,14 @@ class _DialogDropdown<T> extends StatelessWidget {
         inputDecorationTheme: InputDecorationTheme(
           border: OutlineInputBorder(),
           isDense: true,
-          contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-          constraints: BoxConstraints.tightFor(height: compact ? 28 : 40),
+          isCollapsed: compact,
+          contentPadding: compact
+              ? EdgeInsets.symmetric(horizontal: 6)
+              : EdgeInsets.fromLTRB(10, 10, 10, 2),
+          constraints: BoxConstraints.tightFor(height: compact ? 28 : 36),
           suffixIconConstraints: BoxConstraints.tightFor(
             width: 32,
-            height: compact ? 28 : 40,
+            height: compact ? 28 : 36,
           ),
         ),
         onSelected: onChanged,
@@ -1407,13 +1419,9 @@ class _DialogDropdown<T> extends StatelessWidget {
     );
   }
 
-  Widget _dropdownIcon(bool compact) => SizedBox(
-    width: 32,
-    height: compact ? 28 : 40,
-    child: Transform.translate(
-      offset: Offset(0, compact ? -0.5 : 0),
-      child: const Center(child: Icon(Icons.arrow_drop_down, size: 20)),
-    ),
+  Widget _dropdownIcon(bool compact) => Transform.translate(
+    offset: compact ? const Offset(0, -0.5) : Offset.zero,
+    child: const Icon(Icons.arrow_drop_down, size: 20),
   );
 }
 
