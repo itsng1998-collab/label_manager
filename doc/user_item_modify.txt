@@ -28,8 +28,8 @@
 - 다이얼로그의 테이블은 `SwipeActionTable` 계열 공용 위젯을 재사용한다.
 - 사용 항목 상세 속성은 별도 모달이 아니라 왼쪽 속성 패널에서 편집한다.
 - 속성 편집, 순서 변경, 사용자 항목 설정은 상호 배타적으로 관리한다.
-- 사용 항목 저장은 신규, 수정, 삭제, 순서, 보조 테이블과 기존 품목의 빈 컬럼 content를 하나의 SQL Server transaction으로 반영한다.
-- 사용자 항목 사전의 신규, 수정, 삭제도 하나의 별도 transaction으로 반영한다.
+- 사용 항목과 사용자 항목 사전은 각각 독립 working copy로 편집하고 다이얼로그 하단 저장 전에는 DB를 변경하지 않는다.
+- 하단 저장은 사용 항목의 신규, 수정, 삭제, 순서, 보조 테이블 및 사용자 항목 사전 변경 statement를 하나의 SQL Server transaction으로 반영한다.
 - transaction의 시작, commit과 rollback은 기존 `DbClient.transaction()` 경로가 소유한다. DAO SQL에서 transaction을 중첩하지 않는다.
 - 신규 컬럼 ID는 레거시의 마지막 행 재조회 대신 같은 저장 batch의 `OUTPUT INSERTED`로 매핑한다.
 - 저장 command가 지정한 변경만 적용하며 unrelated 행이나 속성을 전체 working copy 값으로 덮어쓰지 않는다.
@@ -297,7 +297,7 @@ dirty는 다음 의미만 구분한다.
 - 사용자 항목 표의 편집 icon으로 `userItemEdit` mode에 진입한다.
 - 진입 시 별도 original과 working copy를 만든다.
 - 사용자 항목 영역 외 control과 메인 footer를 비활성화한다.
-- 표 아래에 `사용자 항목 설정`, `취소`, `저장` footer를 둔다.
+- 표 아래에 `사용자 항목 설정`, `취소`, `적용` footer를 둔다.
 - 추가 icon은 마지막에 신규 빈 행을 만들고 첫 입력 cell에 focus한다.
 - keyword와 항목명은 inline 입력, 종류는 DB `BM_RICH_COLUMN_TYPE` 순서의 dropdown이다.
 - keyword는 대문자로 정규화하고 ASCII 영문·숫자만 허용하며 최대 100자다.
@@ -306,9 +306,9 @@ dirty는 다음 의미만 구분한다.
 - 기존 untouched 중복은 무관한 name/type 수정과 삭제를 막지 않는다.
 - 기존 행 삭제는 delete ID로 기록하고 신규 행 삭제는 working copy에서만 제거한다.
 - 사전 행 삭제는 이미 복사된 사용 항목을 삭제하지 않음을 확인 문구에 표시한다.
-- 저장은 확인 후 신규/수정/삭제를 하나의 transaction으로 처리한다.
-- 성공하면 사전을 재조회하고 normal mode로 돌아간다.
-- 실패하면 mode와 working copy를 유지한다.
+- 적용은 검증 후 신규/수정/삭제를 다이얼로그의 사용자 항목 working copy에 반영하고 normal mode로 돌아간다.
+- 다이얼로그 하단 취소는 적용된 변경이 있으면 폐기 확인 후 두 working copy를 버리고, 하단 저장은 두 변경 command를 하나의 transaction으로 처리한다.
+- 최종 저장 실패 시 다이얼로그와 두 working copy를 유지한다.
 
 10. 사용 항목 순서 변경
 
@@ -508,8 +508,8 @@ DTO는 immutable하게 만들고 widget 상태나 전역 목록을 직접 참조
 - 연결 바코드는 항목 설정을 기본 형식과 1D 번호 표시로 사용하고 명시적인 라벨별 형식 고정만 객체 형식을 유지한다. 고정 바코드는 값·형식·1D 번호 표시를 라벨 에디터에서 직접 설정하며 표시 글꼴은 라벨 객체가 소유한다.
 - 품목 이미지와 고정 이미지를 구분하고, 연결 이미지의 품목 값·BMP가 없을 때 template 이미지를 실제 출력에 사용하지 않는다. 고정 이미지는 수정 시 파일을 교체할 수 있다.
 - 신규 특수 타입은 최초 적용 전 저장할 수 없고 일반 변경은 pending guard를 거친다.
-- 사용자 항목 사전과 실제 사용 항목은 각각 독립 working copy와 transaction으로 저장된다.
-- 사용 항목 저장은 하나의 parameterized transaction에서 main, order, check/min/content와 GS1 관계를 반영한다.
+- 사용자 항목 사전과 실제 사용 항목은 각각 독립 working copy로 편집되고 다이얼로그 하단 취소/저장에서 함께 폐기하거나 확정된다.
+- 최종 저장은 하나의 parameterized transaction에서 사용자 항목 사전 변경과 사용 항목 main, order, check/min/content 및 GS1 관계를 함께 반영한다.
 - 신규 column ID는 `OUTPUT INSERTED`로 draft key에 정확히 매핑된다.
 - 신규 column은 JSON parameter에서 투영되며 draft의 최종 누락검사 값, 없는 경우의 레거시 `ELEMENT` 기준행과 기존 item의 빈 content를 저장하고 삭제 column은 직접 소유한 종속 데이터를 정리한다.
 - `RICH_EDITABLE`, update content와 status object가 없는 기존 DB에서도 migration 없이 해당 단계만 생략하거나 기존 column용 SQL로 저장한다.

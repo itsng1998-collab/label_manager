@@ -13,8 +13,6 @@ typedef FixedColumnCandidatesLoader =
     Future<List<FixedColumnCandidate>> Function(int typeId);
 typedef CustomerColumnCandidatesLoader =
     Future<List<CustomerColumnCandidate>> Function(int customerId);
-typedef CustomerColumnSaveCallback =
-    Future<void> Function(CustomerColumnSaveCommand command);
 
 enum LabelColumnCandidateSource { fixed, customer }
 
@@ -30,19 +28,17 @@ class LabelColumnEditDialog extends StatefulWidget {
     this.loadFixedTypes = FixedColumnDAO.selectTypes,
     this.loadFixedCandidates = FixedColumnDAO.selectCandidates,
     this.loadCustomerCandidates = CustomerColumnDAO.selectByCustomerId,
-    this.saveCustomerColumns = CustomerColumnDAO.save,
   });
 
   final int labelSizeId;
   final int customerId;
   final List<TColumn> initialColumns;
   final Future<bool> Function() canSave;
-  final Future<void> Function(LabelColumnSaveCommand command) onSave;
+  final Future<void> Function(LabelColumnDialogSaveCommand command) onSave;
   final VoidCallback onClose;
   final FixedColumnTypesLoader loadFixedTypes;
   final FixedColumnCandidatesLoader loadFixedCandidates;
   final CustomerColumnCandidatesLoader loadCustomerCandidates;
-  final CustomerColumnSaveCallback saveCustomerColumns;
 
   @override
   State<LabelColumnEditDialog> createState() => _LabelColumnEditDialogState();
@@ -54,6 +50,7 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
   List<FixedColumnType> _fixedTypes = const [];
   List<FixedColumnCandidate> _fixedCandidates = const [];
   List<CustomerColumnCandidate> _customerCandidates = const [];
+  CustomerColumnEditSession? _appliedCustomerSession;
   CustomerColumnEditSession? _customerSession;
   int? _fixedTypeId;
   String? _selectedCandidateKey;
@@ -76,6 +73,8 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
             _session.propertyBaseline!.key,
           ));
   bool get _workspaceEnabled => _normalEnabled && !_propertyPending;
+  bool get _dialogDirty =>
+      _session.workingDirty || (_appliedCustomerSession?.isDirty ?? false);
   List<TColumnType> get _columnTypes {
     final configured = TColumnType.datas;
     if (configured != null && configured.isNotEmpty) return configured;
@@ -117,6 +116,10 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
         _fixedTypeId = typeId;
         _fixedCandidates = fixed;
         _customerCandidates = customer;
+        _appliedCustomerSession = CustomerColumnEditSession.fromCandidates(
+          customerId: widget.customerId,
+          candidates: customer,
+        );
         _loadingCandidates = false;
       });
     } catch (error) {
@@ -232,8 +235,10 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
         }
       }
     } else {
-      for (final row in _customerCandidates) {
-        if ('customer:${row.id}' == key) {
+      for (final row in
+          _appliedCustomerSession?.working ??
+              const <CustomerColumnDraft>[]) {
+        if (row.key == key) {
           return _CandidateValue(
             key,
             row.columnType,
@@ -308,10 +313,11 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
     if (!_workspaceEnabled) return;
     setState(() {
       _session = _session.enterUserItemEdit();
-      _customerSession = CustomerColumnEditSession.fromCandidates(
-        customerId: widget.customerId,
-        candidates: _customerCandidates,
-      );
+      _customerSession = _appliedCustomerSession?.beginEdit() ??
+          CustomerColumnEditSession.fromCandidates(
+            customerId: widget.customerId,
+            candidates: _customerCandidates,
+          );
     });
   }
 
@@ -371,54 +377,35 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
     });
   }
 
-  Future<void> _saveCustomerRows() async {
+  Future<void> _applyCustomerRows() async {
     if (_busy || _customerSession == null) return;
-    CustomerColumnSaveCommand command;
     try {
-      command = _customerSession!.toSaveCommand();
+      _customerSession!.toSaveCommand();
     } catch (error) {
       await _showMessage('입력 확인', error.toString());
       return;
     }
-    if (command.newColumns.isEmpty &&
-      command.updatedColumns.isEmpty &&
-      command.deletedIds.isEmpty) {
-      _cancelUserEdit();
-      return;
-    }
-    final confirmed = await _confirm(
-      '사용자 항목 저장',
-      '사용자 항목 사전의 변경 내용을 저장하시겠습니까? 삭제해도 이미 추가된 사용 항목은 삭제되지 않습니다.',
-    );
-    if (confirmed != true || !mounted) return;
-    setState(() => _busy = true);
-    try {
-      await widget.saveCustomerColumns(command);
-      final reloaded = await widget.loadCustomerCandidates(widget.customerId);
-      if (!mounted) return;
-      setState(() {
-        _customerCandidates = reloaded;
-        _customerSession = null;
-        _editingCustomerKey = null;
-        _customerScrollToIndex = null;
-        _session = _session.exitUserItemEdit();
-        _busy = false;
-        if (_session.selectedColumn != null) {
-          _session = _session.beginPropertyEdit();
-        }
-      });
-    } catch (error) {
-      if (!mounted) return;
-      setState(() => _busy = false);
-      await _showMessage('사용자 항목 저장 실패', error.toString());
-    }
+    setState(() {
+      _appliedCustomerSession = _customerSession;
+      _customerSession = null;
+      _editingCustomerKey = null;
+      _customerScrollToIndex = null;
+      _session = _session.exitUserItemEdit();
+      if (_session.selectedColumn != null) {
+        _session = _session.beginPropertyEdit();
+      }
+    });
   }
 
   Future<void> _save() async {
-    if (!_workspaceEnabled || !_session.workingDirty) return;
-    LabelColumnSaveCommand command;
+    if (!_workspaceEnabled || !_dialogDirty) return;
+    LabelColumnSaveCommand? labelCommand;
+    CustomerColumnSaveCommand? customerCommand;
     try {
-      command = _session.toSaveCommand();
+      if (_session.workingDirty) labelCommand = _session.toSaveCommand();
+      if (_appliedCustomerSession?.isDirty ?? false) {
+        customerCommand = _appliedCustomerSession!.toSaveCommand();
+      }
     } catch (error) {
       await _showMessage('입력 확인', error.toString());
       return;
@@ -434,13 +421,18 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
       }
       final confirmed = await _confirm(
         '라벨 항목 저장',
-        '추가, 수정, 삭제와 순서 변경을 저장하시겠습니까? 기존 라벨 내용과 출력 참조에 영향을 줄 수 있습니다.',
+        '사용 항목과 사용자 항목 설정의 변경 내용을 저장하시겠습니까? 기존 라벨 내용과 출력 참조에 영향을 줄 수 있습니다.',
       );
       if (confirmed != true || !mounted) {
         if (mounted) setState(() => _busy = false);
         return;
       }
-      await widget.onSave(command);
+      await widget.onSave(
+        LabelColumnDialogSaveCommand(
+          labelColumns: labelCommand,
+          customerColumns: customerCommand,
+        ),
+      );
       if (mounted) widget.onClose();
     } catch (error) {
       if (!mounted) return;
@@ -451,7 +443,7 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
 
   Future<void> _requestClose() async {
     if (!_workspaceEnabled) return;
-    if (_session.workingDirty) {
+    if (_dialogDirty) {
       final discard = await _confirm('변경 내용 취소', '저장하지 않은 변경 내용을 버리시겠습니까?', confirmText: '버리기');
       if (discard != true || !mounted) return;
     }
@@ -590,7 +582,7 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
           const SizedBox(width: 8),
           FilledButton(
             key: const Key('label-column-main-save'),
-            onPressed: _workspaceEnabled && _session.workingDirty ? _save : null,
+            onPressed: _workspaceEnabled && _dialogDirty ? _save : null,
             child: const Text('저장'),
           ),
         ],
@@ -879,9 +871,12 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
           _ModeFooter(
             label: '사용자 항목 설정',
             cancelKey: const Key('label-column-user-cancel'),
-            saveKey: const Key('label-column-user-save'),
+            saveKey: const Key('label-column-user-apply'),
             onCancel: _busy ? null : _cancelUserEdit,
-            onSave: _busy || !(_customerSession?.isDirty ?? false) ? null : _saveCustomerRows,
+            onSave: _busy || !(_customerSession?.isDirty ?? false)
+              ? null
+              : _applyCustomerRows,
+            saveLabel: '적용',
           ),
       ],
     );
@@ -899,9 +894,11 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
               ),
           ]
         : [
-            for (final row in _customerCandidates)
+            for (final row in
+                _appliedCustomerSession?.working ??
+                    const <CustomerColumnDraft>[])
               _CandidateValue(
-                'customer:${row.id}',
+                row.key,
                 row.columnType,
                 row.keyword,
                 row.columnName,
@@ -1442,6 +1439,7 @@ class _ModeFooter extends StatelessWidget {
     required this.saveKey,
     required this.onCancel,
     required this.onSave,
+    this.saveLabel = '저장',
   });
 
   final String label;
@@ -1449,6 +1447,7 @@ class _ModeFooter extends StatelessWidget {
   final Key saveKey;
   final VoidCallback? onCancel;
   final VoidCallback? onSave;
+  final String saveLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -1459,7 +1458,7 @@ class _ModeFooter extends StatelessWidget {
           Expanded(child: Text(label, style: const TextStyle(fontWeight: FontWeight.w600))),
           TextButton(key: cancelKey, onPressed: onCancel, child: const Text('취소')),
           const SizedBox(width: 6),
-          FilledButton(key: saveKey, onPressed: onSave, child: const Text('저장')),
+          FilledButton(key: saveKey, onPressed: onSave, child: Text(saveLabel)),
         ],
       ),
     );

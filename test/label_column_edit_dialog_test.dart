@@ -82,7 +82,14 @@ Future<void> _pumpDialog(
           customerId: 7,
           initialColumns: columns ?? [_column(1, 'BASE_A')],
           canSave: () async => true,
-          onSave: onSave ?? (_) async {},
+          onSave: (command) async {
+            final labelCommand = command.labelColumns;
+            if (labelCommand != null) await onSave?.call(labelCommand);
+            final customerCommand = command.customerColumns;
+            if (customerCommand != null) {
+              await saveCustomer?.call(customerCommand);
+            }
+          },
           onClose: onClose ?? () {},
           loadFixedTypes: () async => const [
             FixedColumnType(id: 1, name: '공통'),
@@ -113,7 +120,6 @@ Future<void> _pumpDialog(
                       columnName: '사용자 A',
                     ),
                   ],
-          saveCustomerColumns: saveCustomer ?? (_) async {},
         ),
       ),
     ),
@@ -366,7 +372,6 @@ void main() {
             ],
             loadFixedCandidates: (_) async => const [],
             loadCustomerCandidates: (_) async => const [],
-            saveCustomerColumns: (_) async {},
           ),
         ),
       ),
@@ -618,29 +623,21 @@ void main() {
     expect(saved?.orderedKeys, ['column:2', 'column:1']);
   });
 
-  testWidgets('user edit excludes reorder and saves then reloads candidates', (
+  testWidgets('user edit applies in memory and saves from the main footer', (
     tester,
   ) async {
     await tester.binding.setSurfaceSize(const Size(1300, 800));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     var loadCount = 0;
+    LabelColumnSaveCommand? savedLabel;
     CustomerColumnSaveCommand? saved;
     await _pumpDialog(
       tester,
+      onSave: (command) async => savedLabel = command,
       saveCustomer: (command) async => saved = command,
       loadCustomer: (_) async {
         loadCount += 1;
-        return loadCount == 1
-            ? const []
-            : const [
-                CustomerColumnCandidate(
-                  id: 22,
-                  customerId: 7,
-                  columnType: baseType,
-                  keyword: 'NEW1',
-                  columnName: '새 항목',
-                ),
-              ];
+        return const [];
       },
     );
 
@@ -664,15 +661,32 @@ void main() {
     );
     await tester.enterText(find.byKey(const ValueKey('customer-keyword:customer-draft:1')), 'new1');
     await tester.enterText(find.byKey(const ValueKey('customer-name:customer-draft:1')), '새 항목');
-    await tester.tap(find.byKey(const Key('label-column-user-save')));
-    await tester.pump();
-    await tester.tap(find.widgetWithText(FilledButton, '확인').last);
+    await tester.tap(find.byKey(const Key('label-column-user-apply')));
     await tester.pumpAndSettle();
 
-    expect(saved?.newColumns.single.keyword, 'NEW1');
-    expect(loadCount, 2);
+    expect(saved, isNull);
+    expect(loadCount, 1);
     expect(find.text('새 항목'), findsOneWidget);
     expect(find.byKey(const Key('label-column-user-editor')), findsNothing);
+
+    await _tapVisible(tester, find.text('새 항목'));
+    await _tapVisible(tester, find.byKey(const Key('label-column-add')));
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('label-column-used-table')),
+        matching: find.text('NEW1'),
+      ),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.byKey(const Key('label-column-main-save')));
+    await tester.pump();
+    await tester.tap(find.widgetWithText(FilledButton, '확인').last);
+    await tester.pump();
+    await tester.pump();
+
+    expect(saved?.newColumns.single.keyword, 'NEW1');
+  expect(savedLabel?.newColumns.single.column.keyword, 'NEW1');
   });
 
   testWidgets('user rows select, edit on double tap, and delete from the rail', (
@@ -857,12 +871,54 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await _tapVisible(tester, find.byKey(const Key('label-column-user-save')));
+    await _tapVisible(tester, find.byKey(const Key('label-column-user-apply')));
+    expect(saved, isNull);
+    await _tapVisible(tester, find.byKey(const Key('label-column-main-save')));
     await tester.pump();
     await _tapVisible(tester, find.widgetWithText(FilledButton, '확인').last);
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump();
 
     expect(saved?.updatedColumns.single.columnType, barcodeColumnType);
+  });
+
+  testWidgets('main cancel confirms applied customer changes before closing', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1300, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    var closed = false;
+    var saveCount = 0;
+    await _pumpDialog(
+      tester,
+      onClose: () => closed = true,
+      saveCustomer: (_) async => saveCount += 1,
+      loadCustomer: (_) async => const [],
+    );
+
+    await _tapVisible(tester, find.text('사용자 항목'));
+    await _tapVisible(tester, find.byKey(const Key('label-column-user-edit')));
+    await _tapVisible(tester, find.byKey(const Key('label-column-user-add')));
+    await tester.enterText(
+      find.byKey(const ValueKey('customer-keyword:customer-draft:1')),
+      'new1',
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey('customer-name:customer-draft:1')),
+      '새 항목',
+    );
+    await _tapVisible(tester, find.byKey(const Key('label-column-user-apply')));
+    await _tapVisible(tester, find.byKey(const Key('label-column-main-cancel')));
+    await tester.pump();
+
+    expect(find.text('변경 내용 취소'), findsOneWidget);
+    expect(closed, isFalse);
+    expect(saveCount, 0);
+
+    await tester.tap(find.widgetWithText(FilledButton, '버리기').last);
+    await tester.pumpAndSettle();
+    expect(closed, isTrue);
+    expect(saveCount, 0);
   });
 
   testWidgets('busy disables commands and 900x600 has no overflow', (tester) async {

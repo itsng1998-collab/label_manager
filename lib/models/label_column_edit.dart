@@ -1,8 +1,19 @@
 import 'package:label_manager/models/barcode.dart';
 import 'package:label_manager/models/column.dart';
 import 'package:label_manager/models/column_type.dart';
+import 'package:label_manager/models/label_column_candidates.dart';
 
 enum LabelColumnEditMode { normal, reorder, userItemEdit }
+
+class LabelColumnDialogSaveCommand {
+  const LabelColumnDialogSaveCommand({
+    required this.labelColumns,
+    required this.customerColumns,
+  });
+
+  final LabelColumnSaveCommand? labelColumns;
+  final CustomerColumnSaveCommand? customerColumns;
+}
 
 abstract final class LabelColumnLimits {
   static const int keywordBytes = 100;

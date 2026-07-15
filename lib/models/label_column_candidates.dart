@@ -215,6 +215,8 @@ class CustomerColumnEditSession {
   final Set<int> deletedIds;
   final String? selectedKey;
 
+  CustomerColumnEditSession beginEdit() => _copy(selectedKey: selectedKey);
+
   bool get isDirty {
     if (deletedIds.isNotEmpty || working.length != original.length) return true;
     final originals = {for (final row in original) row.key: row};

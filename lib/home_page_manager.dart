@@ -2032,11 +2032,12 @@ class _HomePageManagerState extends State<HomePageManager> {
   }
 
   Future<void> _saveLabelColumnsAndReload(
-    LabelColumnSaveCommand command,
+    LabelColumnDialogSaveCommand command,
   ) async {
     final labelSize = _effectiveLabelSize;
     if (labelSize == null ||
-        command.labelSizeId != labelSize.labelSizeId ||
+        (command.labelColumns != null &&
+            command.labelColumns!.labelSizeId != labelSize.labelSizeId) ||
         User.instance?.canEdit != true ||
         _itemDraftCommandBusy ||
         _labelColumnEditCommandBusy ||
@@ -2047,7 +2048,7 @@ class _HomePageManagerState extends State<HomePageManager> {
 
     setState(() => _labelColumnEditCommandBusy = true);
     try {
-      await LabelColumnSaveDao.save(command);
+      await LabelColumnSaveDao.saveDialog(command);
       final loaded = await _handleLabelSizeChanged(labelSize, forceReload: true);
       if (!loaded) {
         throw StateError('항목은 저장됐지만 현재 라벨 정보를 다시 불러오지 못했습니다.');

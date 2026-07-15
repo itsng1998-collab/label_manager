@@ -4,6 +4,7 @@ import 'package:label_manager/database/db_client.dart';
 import 'package:label_manager/database/drivers/db_driver.dart';
 import 'package:label_manager/models/column_type.dart';
 import 'package:label_manager/models/dao.dart';
+import 'package:label_manager/models/label_column_candidates.dart';
 import 'package:label_manager/models/label_column_edit.dart';
 
 class LabelColumnSchemaCapabilities {
@@ -635,6 +636,44 @@ SELECT DRAFT_KEY, COLUMN_ID FROM @InsertedRows ORDER BY DRAFT_KEY;
       results.single,
       expectedMappingCount: command.newColumns.length,
     );
+  }
+
+  static Future<void> saveDialog(LabelColumnDialogSaveCommand command) async {
+    LabelColumnSchemaCapabilities? capabilities;
+    final labelCommand = command.labelColumns;
+    if (labelCommand != null) {
+      final capabilityResult = await DbClient.instance.getData(capabilitySql);
+      capabilities = LabelColumnSchemaCapabilities.fromResult(
+        capabilityResult,
+      );
+    }
+    final statements = buildDialogSaveStatements(command, capabilities);
+    final results = await DbClient.instance.transaction(statements);
+    if (labelCommand != null) {
+      decodeSaveResult(
+        results.first,
+        expectedMappingCount: labelCommand.newColumns.length,
+      );
+    }
+  }
+
+  static List<DbTransactionStatement> buildDialogSaveStatements(
+    LabelColumnDialogSaveCommand command,
+    LabelColumnSchemaCapabilities? capabilities,
+  ) {
+    final statements = <DbTransactionStatement>[];
+    final labelCommand = command.labelColumns;
+    if (labelCommand != null) {
+      if (capabilities == null) {
+        throw ArgumentError.notNull('capabilities');
+      }
+      statements.add(buildSaveStatement(labelCommand, capabilities));
+    }
+    final customerCommand = command.customerColumns;
+    if (customerCommand != null) {
+      statements.add(CustomerColumnDAO.buildSaveStatement(customerCommand));
+    }
+    return List.unmodifiable(statements);
   }
 
   static Map<String, Object?> _commandJson(LabelColumnSaveCommand command) {

@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:label_manager/models/barcode.dart';
 import 'package:label_manager/models/column.dart';
 import 'package:label_manager/models/column_type.dart';
+import 'package:label_manager/models/label_column_candidates.dart';
 import 'package:label_manager/models/label_column_edit.dart';
 import 'package:label_manager/models/label_column_save.dart';
 
@@ -119,6 +120,32 @@ void main() {
         'order': 2,
       });
       expect(statement.sql, contains('OPENJSON(@commandJson'));
+    });
+
+    test('builds label and customer saves in one transaction statement list', () {
+      final customerCommand = CustomerColumnEditSession.fromCandidates(
+        customerId: 7,
+        candidates: const [],
+      ).add(
+        CustomerColumnDraft.empty(
+          key: 'customer-draft:1',
+          customerId: 7,
+          columnType: _baseType,
+        ).copyWith(keyword: 'CUSTOM1', columnName: '사용자 항목'),
+      ).toSaveCommand();
+      final statements = LabelColumnSaveDao.buildDialogSaveStatements(
+        LabelColumnDialogSaveCommand(
+          labelColumns: _command(),
+          customerColumns: customerCommand,
+        ),
+        _none,
+      );
+
+      expect(statements, hasLength(2));
+      expect(statements.first.returnsRows, isTrue);
+      expect(statements.last.returnsRows, isFalse);
+      expect(statements.first.params, contains('commandJson'));
+      expect(statements.last.params, contains('newColumnsJson'));
     });
 
     test('uses OUTPUT mapping and never guesses the last inserted rows', () {
