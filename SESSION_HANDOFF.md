@@ -7,6 +7,7 @@
 - `doc/label_print_modify.txt`: unit 순차 materialize/capture와 temp group artifact lifecycle, peak/artifact 256 MiB 제한, 부분 접수 자동증가, dispatch/persistence 독립 outcome과 테스트·완료 조건을 반영했다.
 - 최종 검증: 이전 raw profile/flat outcome/false 취소/전체 workbook materialize 계약 잔존 없음, 두 문서 IDE 진단 오류 없음, `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md` 통과. 문서 변경만 있어 Flutter test/analyze는 실행하지 않았다.
 - stage/commit 대상: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. 기존 사용자 `doc/label_print.txt`, `lib/core/app.dart` 변경은 제외한다.
+- 작업지시서 병합 커밋: `aaccaa6 라벨출력 지시서 3차 권장안 확정`.
 
 ### 완료 (2026-07-15): 라벨출력 작업지시서 2차 권장안 병합
 - 사용자 요청: `doc/label_print_modify.txt` 재검토 권장안을 병합하고 구현 의미가 달라지는 사항은 질문으로 확정한다.
