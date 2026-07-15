@@ -28,6 +28,17 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-15): 라벨 항목 편집 다이얼로그 소스 오류 복구
+
+- 오류: `lib/page_home/label_column_edit_dialog.dart`에서 `_session`, `setState` 등 581개 analyzer 오류가 발생했다.
+- 원인: 기능 커밋 직전의 가독성 정리 patch가 동일 문맥을 잘못 매칭해 사용 테이블 블록을 클래스 필드 위치로 이동시켰고, 불완전한 `runTests` 결과를 통과로 오판해 손상 파일이 커밋됐다.
+- 복구: `b9bd4f0`의 정상 다이얼로그 파일을 기준으로 사용자 행 선택/더블클릭 편집/중앙 휴지통 클릭·drag 삭제/사용 테이블 비활성/28px inline 편집/속성 40px·8px 정렬을 다시 적용했다.
+- focused 검증 `C:\Flutter\bin\flutter.bat test test\label_column_candidates_test.dart test\label_column_edit_dialog_test.dart`: 포맷 전후 각각 14개 전체 통과.
+- 전체 검증 실행 예정: `C:\Flutter\bin\flutter.bat analyze`, `C:\Flutter\bin\flutter.bat test`.
+- 전체 정적 분석: 이슈 없음. 전체 테스트: 363개 전체 통과.
+- `third_party/fortune_sheet/build/` 정리 완료. 관련 파일 IDE 진단 없음, `git diff --check` 통과.
+- 복구 커밋: `7c9cdfa 라벨 항목 편집 다이얼로그 소스 오류 복구`. 이 커밋이 손상된 `0726ec8`의 다이얼로그 파일을 대체한다.
+
 ### 완료 (2026-07-15): 사용자 항목 선택·편집·드래그 삭제 보정
 
 - 사용자 요청: 속성 입력/그룹 간격을 전 타입에서 통일하고, 사용자 항목 설정은 클릭 시 행 선택·더블클릭 시 편집으로 분리한다. 삭제 열을 제거하고 중앙 휴지통 버튼/드롭으로 삭제하며, row height와 inline control을 사용 테이블에 맞춘다. 사용자 설정 중 사용 테이블 비활성, 설정/추가 버튼 크기 통일도 적용한다.
