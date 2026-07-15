@@ -640,7 +640,7 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
                   SwipeActionTableColumn(header: '상태', initialWidth: 44, minWidth: 40, text: (row) => row.isNew ? '신규' : ''),
                   SwipeActionTableColumn(header: '키워드', initialWidth: 78, minWidth: 64, text: (row) => row.column.keyword),
                   SwipeActionTableColumn(header: '항목명', initialWidth: 75, minWidth: 63, text: (row) => row.column.columnName),
-                  SwipeActionTableColumn(header: '종류', initialWidth: 71, minWidth: 59, text: (row) => row.column.columnType.name),
+                  SwipeActionTableColumn(header: '종류', initialWidth: 71, minWidth: 59, fillRemaining: true, text: (row) => row.column.columnType.name),
                   SwipeActionTableColumn(header: '제목', initialWidth: 58, minWidth: 48, text: (row) => row.column.title),
                   SwipeActionTableColumn(
                     header: '표시',

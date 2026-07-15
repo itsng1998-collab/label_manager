@@ -221,6 +221,18 @@ void main() {
       [for (final column in usedTable.columns) column.initialWidth],
       [44, 78, 75, 71, 58, 36],
     );
+    expect(
+      usedTable.columns
+          .firstWhere((dynamic column) => column.header == '종류')
+          .fillRemaining,
+      isTrue,
+    );
+    expect(
+      usedTable.columns
+          .firstWhere((dynamic column) => column.header == '표시')
+          .fillRemaining,
+      isFalse,
+    );
     final visibleCheckbox = find.descendant(
       of: find.byKey(const Key('label-column-used-table')),
       matching: find.byType(Checkbox),
