@@ -1,3 +1,14 @@
+### 완료 (2026-07-15): 라벨 항목 편집 밀도·표시 열·삭제 드롭 보정
+- 속성 패널의 공통 필드 하단 간격을 8px에서 4px로 축소해 모든 항목 타입에 적용한다.
+- 사용 항목 표시 열을 36px에서 44px로 넓히고 다이얼로그 최대 폭과 내부 최소 폭을 같은 8px만큼 확장한다.
+- 사용 항목 행 drag payload를 삭제 타깃에 연결하고, 드롭 후 삭제 버튼 수축 애니메이션이 끝난 다음 해당 행을 삭제한다.
+- 사용 항목 행이 애니메이션 동안 유지되고 완료 후 삭제되는 순서를 위젯 테스트로 추가했다.
+- 다이얼로그 focused 테스트 13개 통과, `C:\Flutter\bin\flutter.bat analyze` 이슈 없음. 다음 검증: `C:\Flutter\bin\flutter.bat test`.
+- 테스트 도구의 전체 workspace 실행은 3376개 통과 후 `third_party/fortune_sheet/test/fortune_sheet_public_api_test.dart`의 기존 `FortuneSheetApp edits selected image from right click dialog` 1개가 실패했고, 단독 재실행도 동일했다. 이번 변경 파일과 무관하며 루트 기준 `C:\Flutter\bin\flutter.bat test`를 별도 실행한다.
+- 루트 `C:\Flutter\bin\flutter.bat test` 367개 전체 통과. 다음 단계: `third_party/fortune_sheet/build/` 정리, IDE 진단과 diff 점검, 관련 hunk만 stage/commit.
+- `third_party/fortune_sheet/build/` 정리 완료. 관련 파일 IDE 진단 없음, `git diff --check` 통과. 사용자 `label-column-add` 들여쓰기 변경과 `lib/core/app.dart`는 stage/commit에서 제외한다.
+- 수정 파일: `lib/page_home/label_column_edit_dialog.dart`, `test/label_column_edit_dialog_test.dart` (완료). 기능 커밋: `44cd282 라벨 항목 편집 밀도와 삭제 드롭 보정`.
+
 # 세션 인수인계
 
 마지막 업데이트: 2026-07-14
