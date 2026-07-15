@@ -58,88 +58,54 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
   int? _fixedTypeId;
   String? _selectedCandidateKey;
   bool _busy = false;
-                    key: const Key('label-column-used-table'),
-                    rows: _session.workingColumns,
-                    rowNumberWidth: 34,
-                    autoFitColumns: false,
-                    fillLastColumn: true,
-                    selectedIndex: selectedIndex < 0 ? null : selectedIndex,
-                    rowReorderEnabled:
-                        !_busy && _session.mode == LabelColumnEditMode.reorder,
-                    onRowSelected: userEdit
-                        ? null
-                        : (row, index) {
-                            if (_session.mode == LabelColumnEditMode.reorder &&
-                                !_busy) {
-                              setState(
-                                () => _session = _session.reorder(
-                                  row.key,
-                                  index,
-                                ),
-                              );
-                            } else {
-                              _selectColumn(row.key);
-                            }
-                          },
-                    onRowReorder: (fromIndex, toIndex) {
-                      if (_session.mode != LabelColumnEditMode.reorder ||
-                          _busy) {
-                        return;
-                      }
-                      final key = _session.workingColumns[fromIndex].key;
-                      setState(() => _session = _session.reorder(key, toIndex));
-                    },
-                    columns: [
-                      SwipeActionTableColumn(
-                        header: '상태',
-                        initialWidth: 44,
-                        minWidth: 40,
-                        text: (row) => row.isNew ? '신규' : '',
-                      ),
-                      SwipeActionTableColumn(
-                        header: '키워드',
-                        initialWidth: 78,
-                        minWidth: 64,
-                        text: (row) => row.column.keyword,
-                      ),
-                      SwipeActionTableColumn(
-                        header: '항목명',
-                        initialWidth: 72,
-                        minWidth: 60,
-                        text: (row) => row.column.columnName,
-                      ),
-                      SwipeActionTableColumn(
-                        header: '종류',
-                        initialWidth: 68,
-                        minWidth: 56,
-                        text: (row) => row.column.columnType.name,
-                      ),
-                      SwipeActionTableColumn(
-                        header: '제목',
-                        initialWidth: 58,
-                        minWidth: 48,
-                        text: (row) => row.column.title,
-                      ),
-                      SwipeActionTableColumn(
-                        header: '표시',
-                        initialWidth: 42,
-                        minWidth: 38,
-                        text: (row) => row.column.visible ? '예' : '아니오',
-                        cellBuilder: (context, row, width) => SizedBox(
-                          width: width,
-                          child: Center(
-                            child: IgnorePointer(
-                              child: Checkbox(
-                                value: row.column.visible,
-                                onChanged: (_) {},
-                                visualDensity: VisualDensity.compact,
-                              ),
-                            ),
+  bool _loadingCandidates = true;
+  int _draftSequence = 0;
+  int _propertyRevision = 0;
+  String? _editingCustomerKey;
+
+  bool get _exclusiveMode => _session.mode != LabelColumnEditMode.normal;
+  bool get _normalEnabled => !_busy && !_exclusiveMode;
+  List<TColumnType> get _columnTypes {
+    final configured = TColumnType.datas;
+    if (configured != null && configured.isNotEmpty) return configured;
+    final byCode = <int, TColumnType>{
+      for (final row in widget.initialColumns) row.columnType.code: row.columnType,
+    };
+    byCode.putIfAbsent(
+      TColumnType.TYPE_BASE,
+      () => const TColumnType(code: TColumnType.TYPE_BASE, name: '기본', order: 0),
+    );
+    return byCode.values.toList()..sort((a, b) => a.order.compareTo(b.order));
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _session = LabelColumnEditSession.fromColumns(
+      labelSizeId: widget.labelSizeId,
+      columns: List<TColumn>.unmodifiable(widget.initialColumns),
+    );
+    if (_session.selectedColumn != null) {
+      _session = _session.beginPropertyEdit();
+    }
+    _loadInitialCandidates();
+  }
+
+  Future<void> _loadInitialCandidates() async {
+    try {
+      final types = await widget.loadFixedTypes();
+      if (!mounted) return;
+      final typeId = types.isEmpty ? null : types.first.id;
+      final fixed = typeId == null
+          ? const <FixedColumnCandidate>[]
           : await widget.loadFixedCandidates(typeId);
       final customer = await widget.loadCustomerCandidates(widget.customerId);
       if (!mounted) return;
-                    ],
+      setState(() {
+        _fixedTypes = types;
         _fixedTypeId = typeId;
+        _fixedCandidates = fixed;
+        _customerCandidates = customer;
         _loadingCandidates = false;
       });
     } catch (error) {
@@ -653,11 +619,11 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
                 onRowSelected: userEdit
                     ? null
                     : (row, index) {
-                  if (_session.mode == LabelColumnEditMode.reorder && !_busy) {
-                    setState(() => _session = _session.reorder(row.key, index));
-                  } else {
-                    _selectColumn(row.key);
-                  }
+                        if (_session.mode == LabelColumnEditMode.reorder && !_busy) {
+                          setState(() => _session = _session.reorder(row.key, index));
+                        } else {
+                          _selectColumn(row.key);
+                        }
                       },
                 onRowReorder: (fromIndex, toIndex) {
                   if (_session.mode != LabelColumnEditMode.reorder || _busy) return;
@@ -688,7 +654,7 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
                       ),
                     ),
                   ),
-                    ],
+                ],
                   ),
                 ),
               ),
