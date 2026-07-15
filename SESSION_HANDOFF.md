@@ -1,3 +1,15 @@
+### 완료 (2026-07-15): 라벨출력 작업지시서 6차 권장안 병합
+- 사용자 요청: `doc/label_print_modify.txt` 재검토 권장안을 병합하고 구현 의미가 달라지는 사항은 질문으로 확정한다.
+- 사용자 확정: 5분 timeout 뒤 active group late completion은 해당 group 결과만 확정하고 후속 group을 자동 전송하지 않는다.
+- 사용자 확정: 출력 접수 후 DB transaction rollback이 확정되면 manifest를 보존하고 사용자가 `[DB 저장 재시도]`로 persistence만 재실행한다. 물리 재출력은 금지한다.
+- 사용자 확정: active 또는 unresolved 출력 command가 하나라도 있으면 printer와 무관하게 앱 전체 신규 발행을 차단한다.
+- 변경 범위: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. late completion terminal 처리, persistenceFailed 복구, manual-only commitUnknown, DB fingerprint, versioned manifest journal과 PDFium page memory 산식을 구체화했다.
+- `doc/label_print_modify.txt` 편집 완료: timeout 후 후속 group을 `notDispatched`로 확정하고 late completion에서는 active group만 해소하며, 원자적 app-wide dispatch lease와 terminal 해제 조건을 pipeline에 연결했다.
+- `doc/label_print_modify.txt` 편집 완료: rollback 확인 `persistenceFailed`의 수동 DB-only 재시도, `commitUnknown` 관리자 3분기, database fingerprint write gate, Application Support immutable generation/checksum recovery를 오류·테스트·완료 조건까지 반영했다.
+- `doc/label_print_modify.txt` 편집 완료: canonical PDFium decoded-page peak 산식과 generation fallback/손상 차단, same-process 수동 출력 판정 금지 테스트를 반영했다.
+- 최종 검증: 이전 session-local gate/late 후속 전송/persistenceFailed cleanup/commitUnknown 자동 재시도 계약 잔존 없음, 새 `notDispatched`/app-wide lease/DB-only retry/fingerprint/generation checksum/PDFium 산식 연결 확인, 두 문서 diagnostics 오류 0건, `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md` 통과. 문서만 변경해 Flutter test/analyze는 실행하지 않았다.
+- stage/commit 대상: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. 기존 사용자 `doc/label_print.txt`, `lib/core/app.dart` 변경은 제외한다.
+
 ### 완료 (2026-07-15): 라벨출력 작업지시서 5차 권장안 병합
 - 사용자 요청: `doc/label_print_modify.txt` 재검토 권장안을 병합하고 구현 의미가 달라지는 사항은 질문으로 확정한다.
 - 사용자 확정: `printing 5.15.0` Windows plugin을 로컬 fork하고 모든 native/callback 오류 경로가 `onCompleted(false, error)`를 반환하도록 고친다.
