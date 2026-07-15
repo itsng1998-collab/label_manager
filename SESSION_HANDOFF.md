@@ -6,6 +6,7 @@
 - model/DAO 범위: `LabelPrintRowDraft`/session/command/result, 공용 workbook materializer·dispatcher, 자동증가 projection/update DAO, 기존 `BM_RICH_PRINT_LOG`·`BM_RICH_STATUS`·`BM_RICH_STATUS_DATA` 발행 이력 DAO를 명시했다. 기존 조회 DAO를 재사용하며 DB migration/DDL은 금지한다.
 - 레거시 근거·현재 symbol·검색/자동증가/발행 이력·테스트·완료 조건 연결 31곳을 확인했다. 두 문서 IDE 진단 오류 없음, `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md` 통과.
 - stage/commit 대상: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. 기존 사용자 `doc/label_print.txt`, `lib/core/app.dart` 변경은 제외한다.
+- 작업지시서 커밋: `67b00c8 레거시 기준 라벨출력 작업지시서 작성`.
 
 ### 완료 (2026-07-15): 고정 항목 분류 아이콘 중앙 정렬
 - 라벨 항목 편집의 고정 항목 `분류` DropdownMenu에서 아래 방향 아이콘이 우하단에 치우치는 문제를 수정한다.
