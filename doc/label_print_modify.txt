@@ -15,7 +15,7 @@
 - 동일 품목의 자동증가 라벨을 여러 client/PC에서 동시에 발행하는 경우는 지원하지 않는다. 앱 instance 내부 중복 발행만 차단하며 server 번호 예약이나 client 간 lock은 구현하지 않는다.
 - 배포 build, installer 생성, 원격 push는 별도 요청이 있을 때만 수행한다.
 
-이 문서에서 `출력 작업 접수 성공`은 Windows spooler 또는 OS PDF 인쇄 경로가 하나의 print job을 오류 없이 접수했다는 뜻이다. 실제 용지 출력 완료, 용지 부족, 접수 이후 printer 오류까지 보장하지 않는다. 발행 이력과 자동증가 DB 반영도 이 접수 성공을 기준으로 한다.
+이 문서에서 `출력 작업 접수 성공`은 Windows 출력 API가 해당 print job을 오류 없이 반환했다는 뜻이다. PDF는 `Printing.directPrintPdf()`가 `true`를 반환한 경우, RAW는 `StartDocPrinter`부터 `EndDocPrinter`까지 성공한 경우를 `accepted`로 판정한다. file/interactive PDF port에서 사용자가 취소한 것으로 확인된 `false`와 API 호출 전 사용자 취소만 `cancelled`로 판정한다. 일반 direct printer의 `false`, 취소 여부를 확인할 수 없는 `false`, RAW API 실패와 exception은 `failed`다. 현재 PDF API는 Windows spooler job ID나 실제 queue 등록을 보장하지 않으므로 그 이상을 성공 조건으로 표현하지 않는다. 실제 용지 출력 완료, 용지 부족, API 반환 이후 printer 오류까지 보장하지 않는다. 발행 이력과 자동증가 DB 반영은 이 API 접수 성공을 기준으로 한다.
 
 ## 1. 구현 목적
 
@@ -24,7 +24,7 @@
 - 출력 작업 행을 선택하면 오른쪽에 해당 품목의 실제 출력 workbook을 자동 표시한다.
 - 행별 발행매수와 레거시 출력 override를 적용해 여러 품목을 한 번에 발행한다.
 - 공용라벨관리의 프린터 설정과 현재 PDF/EZPL 출력 엔진을 공용화해 같은 프린터 선택·여백·방향·추가 영역 설정을 사용한다.
-- 전체 출력 작업이 spooler/OS 인쇄 경로에 접수된 경우에만 해당 작업의 품목·매수를 레거시 발행 이력에 기록한다.
+- 물리 출력 설정별 print job 가운데 실제 `accepted`된 unit만 자동증가 값과 레거시 발행 이력에 반영한다.
 
 ## 2. 확인한 레거시 동작
 
@@ -59,12 +59,13 @@
 ### 2.3 발행
 
 - 프린터가 선택되지 않았으면 발행하지 않고 프린터 설정을 요청한다.
-- 자동증가가 없는 행은 같은 렌더 결과를 행의 발행매수만큼 page/payload에 넣는다.
-- 자동증가가 있는 행은 매 장의 값이 다르므로 copy index별로 workbook을 materialize한다.
-- 모든 행과 copy의 materialize·capture·payload 생성을 먼저 완료한 뒤 하나의 print job으로 전송한다.
-- PDF는 전체 page를 하나의 PDF document로 만들고 `directPrintPdf`를 한 번 호출한다. EZPL은 전체 label command를 하나의 RAW document payload로 만들고 `sendRaw`를 한 번 호출한다.
-- print job 접수 결과는 전체 성공, 전체 취소, 전체 실패 중 하나다. page/copy별 성공 여부를 추정하지 않는다.
-- 작업 접수 성공 후 전체 작업의 발행 이력과 자동증가 최종값을 하나의 DB transaction으로 저장한다.
+- copies가 1 이상인 모든 row/copy를 순서가 고정된 `LabelPrintUnit`으로 펼친다. copies가 0인 행은 unit, payload, 자동증가 projection과 이력을 만들지 않는다.
+- 자동증가가 없는 행은 같은 materialize 결과를 재사용할 수 있지만 각 unit은 항상 한 장만 나타낸다. 자동증가가 있는 행은 copy index별 값으로 workbook을 materialize한다.
+- 모든 unit의 materialize·capture와 모든 job payload 생성을 먼저 완료한 뒤 첫 물리 출력 job을 전송한다.
+- unit 순서를 유지하면서 인접 unit의 `(printer, backend, widthMm, heightMm, extraAreaMm, orientation)`이 같을 때만 같은 `LabelPrintJobGroup`으로 묶는다. profile이 바뀌면 새 group을 시작하며 뒤에서 같은 profile이 다시 나와도 앞 group으로 이동시켜 출력 순서를 바꾸지 않는다.
+- PDF group은 같은 물리 page format의 page를 한 PDF document로 만들고 `directPrintPdf`를 한 번 호출한다. EZPL group은 같은 물리 설정의 label command를 한 RAW document payload로 만들고 `sendRaw`를 한 번 호출한다.
+- group을 unit 순서대로 전송한다. 한 group이 `cancelled` 또는 `failed`이면 뒤 group을 전송하지 않는다. 이미 `accepted`된 group의 unit만 발행 완료 대상으로 확정한다.
+- 전송이 끝나거나 중단된 뒤 `accepted` unit의 발행 이력과 자동증가 최종값을 하나의 DB transaction으로 저장한다. 첫 group부터 접수되지 않았다면 DB를 변경하지 않는다.
 - 레거시는 발행 후 현재 선택 행의 미리보기를 다시 만든다.
 
 ### 2.4 검색
@@ -91,7 +92,7 @@
 
 라벨출력 탭을 열 때 위 데이터를 동일 label-size session에서 이미 읽었다면 다시 조회하지 않는다. label size가 바뀌거나 품목 저장·공용라벨 저장이 완료되면 상위 session reload 결과로 출력 목록과 미리보기를 갱신한다.
 
-현재 `LabelSheetPrintOptions`에 없는 오른쪽 여백, signed push, 행별 줄간격과 여러 unit payload는 기존 option/job builder를 공용 확장해 지원한다. 라벨출력 wrapper에서 좌표·줄간격·PDF/EZPL 결합 로직을 따로 만들거나 지원하지 않는 값을 무시하지 않는다.
+현재 `LabelSheetPrintOptions`에 없는 오른쪽 여백, signed push, 행별 줄간격과 여러 unit/job group payload는 기존 option/job builder를 공용 확장해 지원한다. 라벨출력 wrapper에서 좌표·줄간격·PDF/EZPL 결합 로직을 따로 만들거나 지원하지 않는 값을 무시하지 않는다.
 
 ### 3.2 공용 API로 추출할 기능
 
@@ -110,6 +111,8 @@
 4. 실제 출력 dispatcher
    - 현재 `_handleIssuePrintSettings()`의 프린터 확인, DPI, PDF fallback, EZPL raw 출력 분기를 공용 service로 추출한다.
    - UI context와 SnackBar는 호출부가 소유하고 dispatcher는 typed result 또는 exception을 반환한다.
+
+공용 dispatcher를 추출할 때 `RawPrinterWin32.sendRaw()`는 `StartDocPrinter`가 반환한 job ID를 결과에 포함하고 `StartPagePrinter`, `WritePrinter`, `EndPagePrinter`, `EndDocPrinter` 반환값을 모두 검사하도록 확장한다. PDF dispatcher는 `directPrintPdf`의 `true`/`false`/exception을 0절의 기준으로 mapping하고 job ID가 없음을 정상 결과로 표현한다.
 
 ## 4. 화면 구성
 
@@ -190,16 +193,19 @@
 - `leftPushMm`, `topPushMm`: signed 실수 mm. 음수는 왼쪽/위쪽 반대 방향 이동을 의미한다.
 - `lineSpacing`: 정수 percent, 30~300. item override와 session edit가 없을 때 전역 `autoSpacingPercent`를 사용하며 전역 값도 없으면 100으로 계산한다.
 - 소수 mm는 double로 유지하고 dot 변환 시 기존 DPI 기준으로 가장 가까운 정수에 반올림한다. margin은 음수 clamp를 적용하지만 push에는 clamp를 적용하지 않는 signed dot 변환 helper를 사용한다.
+- 총 copies 합계는 1000 이하여야 한다. 각 unit의 DPI 적용 후 RGBA raster 예상량 `widthDots * pageHeightDots * 4`의 합과 최종 payload 예상량을 합친 보수적 예상 working set은 256 MiB 이하여야 한다.
+- payload 생성 후 실제 payload byte 합계가 256 MiB를 넘으면 첫 물리 출력 전에 전체를 중단한다. 이 제한은 UI와 command validation 양쪽에서 적용하며 초과 작업은 여러 번 나누어 발행하도록 안내한다.
 
 ### 5.2 물리 출력 계산
 
-- page 폭은 row `widthMm`, page 높이는 `heightMm + extraAreaMm`이다. `extraAreaMm`은 label content를 늘리지 않고 feed/page 뒤쪽만 연장한다.
-- content 원점은 `x = leftMarginMm + leftPushMm`, `y = topMarginMm + topPushMm`이다.
-- 오른쪽 clip 경계는 `widthMm - rightMarginMm`이다. margin+push로 이동한 content를 임의 재확대하지 않고 clip 영역 밖은 자른다.
-- `leftMarginMm + rightMarginMm < widthMm`이고 page 높이와 clip 영역이 양수여야 한다.
+- 회전 전 logical page 폭은 row `widthMm`, label 영역 높이는 `heightMm`, feed가 포함된 logical page 높이는 `heightMm + extraAreaMm`이다. `extraAreaMm`은 label content를 늘리지 않고 feed/page 뒤쪽만 연장한다.
+- 저장 workbook의 print area는 row `widthMm x heightMm` 출력 bitmap으로 capture한다. 그 뒤 margin이나 push에 맞추기 위해 bitmap을 다시 축소·확대하지 않는다.
+- 회전 전 content 원점은 `x = leftMarginMm + leftPushMm`, `y = topMarginMm + topPushMm`이다. signed push로 원점이 음수가 될 수 있다.
+- 회전 전 label clip rectangle은 `left=0`, `top=0`, `right=widthMm-rightMarginMm`, `bottom=heightMm`이다. content를 원점에 배치한 뒤 이 사각형과 page 밖을 자르며, `extraAreaMm` 영역에는 content를 그리지 않는다.
+- `leftMarginMm + rightMarginMm < widthMm`, page 높이와 clip 영역이 양수이고, 이동한 content rectangle과 label clip rectangle의 교집합이 양수여야 한다. 교집합이 없으면 물리 출력 전에 validation 오류로 처리한다.
 - 유효 줄간격은 `session edited 또는 item useLinefeed 값 > 전역 autoSpacingPercent > 100` 순서로 결정한다.
-- 줄간격은 RTF를 만들지 않고 FortuneSheet private output workbook의 text line/row layout에 적용하는 공용 API 또는 hook으로 구현한다. 공용라벨 자동줄간격도 같은 API를 사용해야 하며 wrapper마다 별도 계산을 두지 않는다.
-- orientation 회전은 위 좌표와 clip을 원본 label 좌표계에서 계산한 다음 현재 출력 engine의 동일한 회전 단계에 적용한다.
+- `fortune_sheet`에 immutable `FortuneOutputLayoutOptions({required int lineSpacingPercent})` 공용 출력 option을 추가하고 preview/capture/painter가 이를 받게 한다. 기본값은 100이며 줄간격 percent는 레거시 `RTFLineSpacer`와 같이 여러 줄 text paragraph의 line height에만 적용한다. row height, font size와 자동 줄바꿈 폭은 바꾸지 않는다. 공용라벨 자동줄간격도 같은 API를 사용하고 wrapper별 별도 계산은 두지 않는다.
+- `horizontal`은 위 logical 좌표와 page 크기를 그대로 사용한다. `vertical`은 margin·push·clip·content를 포함한 완성 logical page 전체를 시계 방향 90도 회전하고 물리 page 폭·높이를 서로 바꾼다. PDF page format, Windows media profile, EZPL raster/native border/barcode가 같은 affine transform을 사용해야 한다.
 
 ### 5.3 `LabelPrintSessionController`
 
@@ -218,10 +224,11 @@
 다음 immutable DTO 또는 동등 구조를 둔다.
 
 - `LabelPrintCommand`: label/customer/market/user identity, printer, preference snapshot, row snapshot, column/content snapshot, saved label workbook snapshot
-- `LabelPrintUnit`: item ID, row index, copy index, materialize에 사용할 column value projection
-- `LabelPrintPayload`: 모든 unit의 PDF pages 또는 EZPL label commands를 순서대로 결합한 단일 spool payload
-- `LabelPrintDispatchResult`: job-level `accepted`/`cancelled`/`failed`, printer/job 정보와 오류
-- `LabelPrintResult`: 전체 요청 행·매수, 접수 여부, DB 저장 결과. unit별 성공·실패 매수는 만들지 않는다.
+- `LabelPrintUnit`: item ID, row index, copy index, materialize에 사용할 column value projection. 한 unit은 정확히 한 장이며 unit-level print option의 copies는 항상 `1`이다.
+- `LabelPrintJobProfile`: printer, PDF/EZPL backend, 회전 적용 후 physical width/height, extra area, orientation
+- `LabelPrintJobGroup`: 순서가 연속되고 profile이 같은 unit과 그 단일 PDF 또는 RAW payload. unit 순서를 바꾸거나 비연속 group을 합치지 않는다.
+- `LabelPrintDispatchResult`: group-level `accepted`/`cancelled`/`failed`, printer와 optional job ID, 오류. PDF job ID는 `null`을 허용한다.
+- `LabelPrintResult`: 전체 요청 행·매수, group별 접수 결과, accepted unit/매수, DB 저장 결과와 aggregate outcome `completed`/`partiallyAccepted`/`cancelled`/`failed`/`dbFailed`. printer가 알려주지 않는 page/copy별 실제 출력 성공은 만들지 않는다.
 
 버튼 클릭 시 command snapshot을 한 번 만들고 출력 도중 화면의 mutable 전역 데이터를 다시 읽지 않는다.
 
@@ -245,7 +252,7 @@
 - `autoInc == false`인 컬럼은 변경하지 않는다.
 - 각 copy는 copy index에 대응하는 값을 렌더한다.
 - 활성 레거시의 최종 DB 상태만 재현하고 copy별 중간 DB update는 재현하지 않는다.
-- 전체 print job이 접수된 경우 `autoIncSave == true`이면 마지막 copy 다음 값을, `autoIncSave == false`이면 마지막으로 출력한 copy 값을 저장한다.
+- 해당 자동증가 column의 unit이 `accepted`된 경우에만 최종값을 저장한다. `autoIncSave == true`이면 마지막 accepted copy 다음 값을, `autoIncSave == false`이면 마지막 accepted copy에 실제 출력한 값을 저장한다.
 - `autoIncUpdate`는 활성 레거시 구현에서 결과에 영향을 주지 않으므로 라벨출력에서는 사용하지 않는다. column 편집 필드는 유지하되 projection/저장 분기에 넣지 않는다.
 - job 취소 또는 접수 실패 시 자동증가 DB 값을 변경하지 않는다.
 - 저장 대상은 `(columnId, itemId)` 정확히 한 행이며 affected row를 검증한다.
@@ -253,7 +260,7 @@
 - 바코드 payload 계산은 기존 `BarcodeDataHelper`, `ItemCodeDataResolver`, date/time helper를 재사용한다.
 - 화면 미리보기는 copy index 0의 projection을 사용하고 DB 값을 변경하지 않는다.
 - 여러 client/PC가 같은 `(columnId, itemId)`를 동시에 발행하는 번호 예약·충돌 방지는 이번 범위에 포함하지 않는다. 같은 앱 instance에서는 출력 busy gate로 중복 발행을 차단한다.
-- DB transaction commit 성공 후 자동증가 대상 content만 `ItemManagerDraftController` working value와 원본 snapshot에 반영한다. 전체 품목 reload로 다른 미저장 편집을 잃지 않는다.
+- `ItemManagerDraftController.applyCommittedColumnContentUpdates(...)` public API를 추가한다. DB transaction commit 성공 후 이 API가 자동증가 대상 `(columnId,itemId)`의 scoped 원본과 working value를 commit 값으로 교체하고 해당 column draft만 정리한다. 다른 품목·컬럼의 draft와 선택은 유지하고 notify는 한 번만 수행한다.
 - commit 결과가 불명확하거나 commit 후 draft 반영에 실패하면 재발행을 차단하고 사용자에게 DB 상태 확인과 session reload가 필요함을 알린다.
 
 ### 6.3 발행 이력 DAO
@@ -261,7 +268,7 @@
 레거시와 같은 발행 이력이 현재 앱에 없으므로 `LabelPrintHistory` model과 `LabelPrintHistoryDAO`를 작성한다.
 
 - 기존 물리 DB의 `BM_RICH_PRINT_LOG`, `BM_RICH_STATUS`, `BM_RICH_STATUS_DATA`만 사용한다.
-- 구현 전에 현재 배포 DB에 레거시 table/column이 존재하는지 읽기 전용으로 확인한다.
+- 앱 session 준비 또는 발행 command preflight에서 현재 배포 DB에 레거시 table/column이 존재하는지 읽기 전용으로 확인한다. 첫 print job 전 확인되지 않으면 발행을 차단한다.
 - object가 없거나 구조가 레거시 계약과 다르면 DDL이나 migration으로 보정하지 말고 작업을 중단해 사용자에게 알린다.
 - 문자열 연결 SQL을 사용하지 않고 parameterized JSON 또는 기존 driver가 지원하는 scalar parameter를 사용한다.
 - `BM_RICH_PRINT_LOG`에는 user/market/customer/brand/label/item/printer, 접수 매수, 출력 컬럼명과 값, form 크기와 margin/push/extra area, item ID를 기록한다.
@@ -270,7 +277,9 @@
 - `BM_RICH_STATUS`도 위와 같은 자동증가 copy/일반 row 단위로 기록하고 `BM_RICH_STATUS_DATA`에는 해당 이력의 동적 컬럼 값을 column ID/name과 함께 기록한다.
 - history ID/order 생성은 customer 범위를 `UPDLOCK, HOLDLOCK`으로 잠근 뒤 수행한다. 자동증가 최종값 update, print log, status parent/detail insert는 하나의 SQL transaction에서 수행한다.
 - 같은 출력 행의 detail은 column order로 저장한다.
-- 관리자/특수 로그인에서 로그를 생략하던 레거시 조건은 현재 `User` 권한 모델에 같은 의미가 확인될 때만 적용한다. 의미가 없으면 임의로 생략 조건을 만들지 않는다.
+- 관리자와 특수 로그인을 포함한 모든 사용자의 accepted unit을 발행 이력에 기록한다. 레거시의 로그 생략 조건은 적용하지 않는다.
+
+이력 집계는 accepted unit만 대상으로 한다. copies가 0인 행, 실패·취소 group의 unit과 실패 이후 전송하지 않은 unit은 print log/status/detail 및 자동증가 update에 포함하지 않는다. 자동증가가 없는 한 row가 여러 accepted group으로 나뉘는 경우에도 같은 command 내에서는 row별 accepted copies 합계 한 건으로 기록한다.
 
 물리 프린터 출력은 SQL transaction으로 rollback할 수 없다. print job 접수 후 DB 저장이 실패하면 `인쇄 작업은 접수되었으나 자동증가 값과 발행 이력을 저장하지 못했습니다.`로 분리해 알리고 자동 재출력하지 않는다. transaction은 가능한 경우 rollback하고 해당 session의 추가 발행을 차단한다.
 
@@ -285,7 +294,7 @@
 - 품목관리 draft가 있으면 출력 materialize는 화면에 표시된 현재 working value를 사용한다.
 - 활성 cell 편집이 남아 있으면 발행 command 전에 commit하고 validation 오류가 있으면 출력하지 않는다.
 - 출력은 품목관리 draft 전체를 DB 저장하지 않는다. 자동증가 저장만 6.2의 명시적 DAO 경계에서 수행한다.
-- 자동증가 transaction commit 후에는 6.2의 대상 content만 draft와 snapshot에 동기화하고 선택 행 미리보기를 다음 발행값 기준으로 다시 만든다.
+- 자동증가 transaction commit 후에는 6.2의 대상 content만 draft와 snapshot에 동기화하고 선택 행 미리보기를 commit된 DB 값 기준으로 다시 만든다. `autoIncSave=true`이면 마지막 accepted copy의 다음 값, `autoIncSave=false`이면 마지막 accepted copy에 출력한 값이 표시된다.
 
 ## 8. workbook materialize
 
@@ -329,20 +338,22 @@
 
 1. table inline edit와 품목관리 pending edit를 확정한다.
 2. 현재 label/customer/market session이 command snapshot과 같은지 확인한다.
-3. 출력 row가 1개 이상이고 총 copies가 1 이상인지 확인한다.
+3. 출력 row가 1개 이상이고 총 copies가 1~1000인지 확인한다. copies가 0인 row는 이후 단계에서 제외한다.
 4. 선택 프린터가 실제 설치 목록에 존재하는지 확인한다.
-5. saved workbook, item/column/content, printer preference의 immutable command를 만든다.
-6. 각 row와 copy에 대해 순서가 고정된 `LabelPrintUnit`을 만든다.
-7. 모든 unit의 자동증가 projection과 workbook materialize를 완료한다. 하나라도 실패하면 아직 물리 출력하지 않은 상태에서 전체를 중단한다.
-8. 모든 unit을 현재 공용 capture/render API로 bitmap과 print area로 만들고 전체 payload 생성을 완료한다. 하나라도 실패하면 전체를 중단한다.
-9. printer profile에 따라 하나의 print job을 전송한다.
-  - Windows raw EZPL 가능: 모든 label의 정밀 좌표 + EZPL border/barcode + raster fallback command를 한 RAW payload로 결합해 `sendRaw` 한 번 호출
-  - file port 또는 raw 불가: 모든 page를 한 PDF로 결합해 `directPrintPdf` 한 번 호출
-10. dispatcher가 `cancelled` 또는 `failed`를 반환하면 DB를 변경하지 않고 종료한다.
-11. `accepted`이면 전체 unit 기준 자동증가 최종값과 발행 이력을 하나의 SQL transaction으로 저장한다.
-12. commit 성공 후 자동증가 대상 draft/snapshot만 동기화하고 선택 행 미리보기를 갱신한다.
+5. 자동증가 update 대상과 발행 이력 DB schema/identity를 읽기 전용으로 preflight한다. 하나라도 불일치하면 아직 물리 출력하지 않은 상태에서 중단한다. 이 preflight와 물리 출력 사이에는 SQL transaction이나 lock을 유지하지 않는다.
+6. saved workbook, item/column/content, printer preference의 immutable command를 만든다.
+7. 각 row와 copy에 대해 순서가 고정되고 copies가 1인 `LabelPrintUnit`을 만든다.
+8. 모든 unit의 자동증가 projection과 workbook materialize를 완료한다. 하나라도 실패하면 전체를 중단한다.
+9. unit의 물리 크기와 printer DPI로 예상 working set이 256 MiB 이하인지 먼저 확인한다. 통과하면 모든 unit을 공용 layout/capture API로 bitmap과 print area로 만들고 순서를 유지한 `LabelPrintJobGroup` 및 payload를 전부 생성한다. 생성된 실제 payload byte 합계도 256 MiB 이하인지 확인하며 하나라도 실패하면 전체를 중단한다. 256 MiB는 `268435456` bytes로 계산한다.
+10. group을 순서대로 dispatcher에 전달한다.
+   - Windows raw EZPL 가능: group unit의 정밀 좌표 + EZPL border/barcode + raster fallback command를 한 RAW payload로 결합하고 각 label의 copies command는 `^P1`로 만든다.
+   - file port 또는 raw 불가: group unit의 같은 physical page format page를 한 PDF로 결합하고 `directPrintPdf`에 해당 group의 명시적 `PdfPageFormat`을 전달한다.
+11. group이 `accepted`이면 다음 group을 전송한다. `cancelled` 또는 `failed`이면 즉시 중단하고 뒤 group은 전송하지 않는다.
+12. accepted unit이 없으면 DB를 변경하지 않고 종료한다.
+13. accepted unit이 있으면 그 unit만 기준으로 자동증가 최종값과 발행 이력을 하나의 SQL transaction으로 저장한다. 이후 group이 실패했더라도 이미 accepted된 unit은 이 transaction에 반영한다.
+14. commit 성공 후 자동증가 대상 draft/snapshot만 동기화하고 선택 행 미리보기를 commit된 DB 값으로 갱신한다.
 
-다중 품목을 위해 OS printer picker나 설정 dialog를 unit마다 열지 않는다. 한 번 선택한 printer와 command snapshot으로 전체 작업을 하나의 spool job으로 실행한다. 중복 `발행` 클릭은 무시한다. spooler 접수 뒤 실제 printer가 일부 page만 출력하는 상황은 앱이 판정하거나 이력을 부분 보정하지 않는다.
+다중 품목을 위해 OS printer picker나 설정 dialog를 group마다 열지 않는다. 한 번 선택한 printer와 command snapshot으로 group을 순차 실행한다. 중복 `발행` 클릭은 무시한다. 출력 API가 accepted를 반환한 뒤 실제 printer가 일부 page만 출력하는 상황은 앱이 판정하거나 이력을 부분 보정하지 않는다.
 
 ## 11. 오류와 취소
 
@@ -350,8 +361,8 @@
 - workbook decode 실패: 발행 버튼을 비활성화하고 라벨 저장 필요 또는 데이터 오류를 표시한다.
 - 프린터 미선택/제거: 설정을 요청하고 출력하지 않는다.
 - materialize/capture/payload 생성 실패: 해당 item/copy/column을 표시하고 물리 출력 전에 전체 중단한다.
-- print job 접수 실패: 전체 실패로 표시하고 DB를 변경하지 않는다. 자동 재시도하지 않는다.
-- print job 취소: 실패가 아니라 전체 미발행으로 처리하고 DB를 변경하지 않는다.
+- 첫 print job 접수 실패·취소: 전체 미발행으로 처리하고 DB를 변경하지 않는다. 자동 재시도하지 않는다.
+- 앞 group 접수 후 다음 group 실패·취소: 뒤 group 전송을 중단하고 이미 접수된 매수와 미접수 매수를 함께 표시한다. accepted unit의 DB 반영은 실행하되 실패 group을 자동 재시도하거나 자동 재출력하지 않는다.
 - 자동증가/history DB 저장 실패: print job 접수 여부와 구분해 표시하고 가능한 rollback 후 오류를 전달한다. 자동 재출력하지 않고 추가 발행을 차단한다.
 - 출력 도중 탭/label size/customer 변경과 화면 종료는 command 완료 전 차단한다.
 
@@ -360,7 +371,7 @@
 실제 이름은 기존 구조에 맞춰 조정할 수 있으나 책임은 다음처럼 분리한다.
 
 - `lib/models/label_print.dart`
-  - row draft, session controller, command/result
+  - row draft, session controller, command/unit/job profile/job group/result
 - `lib/models/label_print_history.dart`
   - history DTO와 DAO
 - `lib/models/label_print_auto_increment.dart`
@@ -371,6 +382,10 @@
   - 품목관리와 라벨출력 공용 workbook materialize
 - `lib/printing/label_print_dispatcher.dart`
   - printer profile, capture, PDF/EZPL dispatch
+- `lib/printing/raw_printer_win32.dart`
+  - RAW API 반환값 검사와 spooler job ID 결과
+- `third_party/fortune_sheet/lib/`
+  - `FortuneOutputLayoutOptions`와 preview/capture/painter 공용 paragraph line-spacing 적용
 - `lib/page_home/label_print_settings_dialog.dart`
   - 공용 preference/printer/validation 로직을 사용하는 라벨출력 전용 설정 UI
 - `lib/home_page_manager.dart`
@@ -386,7 +401,8 @@
 - row 기본값의 item override와 공용 설정 fallback
 - printer preference 변경 시 fallback 출처만 갱신되고 item override/session edit는 유지됨
 - copies 0 허용, 음수/비숫자 거부, 전체 0 발행 차단
-- 물리 설정: margin+signed push 좌표, 오른쪽 clip, extra area, orientation, mm→dot 반올림과 유효 영역 validation
+- copies가 0인 row의 unit/history/자동증가 제외, 총 1000장과 256 MiB 제한
+- 물리 설정: margin+signed push 좌표, 전체 label clip, content 교집합, extra area, orientation의 page swap/좌표 transform, mm→dot 반올림과 유효 영역 validation
 - 줄간격: session/item > global > 100 우선순위와 30~300 범위
 - exact search: trim+대소문자 무시, 품명, `searchPrint` content, 비대상 content, 미체크 품목 제외, 중복 결과 순환
 - 자동증가: 범위, 증가 크기, leading zero, overflow wrap, barcode check digit, time barcode, `autoIncSave`별 마지막 출력값/다음 값과 `autoIncUpdate` 무시
@@ -398,22 +414,29 @@
 - barcode/QR/GS1 payload와 연결 이미지 materialize
 - 품목관리 미리보기와 라벨출력 copy 0 workbook의 동등성
 - 원본 workbook 불변
-- row별 physical size/margin+push/right clip/line spacing/orientation/extra area 반영
-- 여러 row와 copies의 PDF page 수와 단일 `directPrintPdf` 호출
+- row별 physical size/margin+push/label clip/paragraph line spacing/orientation/extra area 반영
+- unit별 copies=1이며 PDF page 수와 EZPL `^P1` label 수가 총 copies와 일치
+- 같은 physical profile의 인접 unit group과 profile 변경 시 순서가 유지된 job 분리
+- group별 명시적 PDF page format과 `directPrintPdf` 호출 수
 - 자동증가 copy별 서로 다른 payload
-- Godex hybrid EZPL의 label size, border, native barcode, bitmap fallback과 단일 RAW payload/`sendRaw` 호출
+- Godex hybrid EZPL의 label size, border, native barcode, bitmap fallback과 group별 RAW payload/`sendRaw` 호출
 - unsupported/file port의 PDF fallback
 - unit materialize 하나가 실패하면 dispatcher가 호출되지 않음
+- 사전 예상량 또는 실제 payload 256 MiB 초과 시 dispatcher가 호출되지 않음
+- 첫 group 실패와 앞 group accepted 후 다음 group 실패의 전송 중단·accepted unit 집계
+- PDF `true`/interactive 취소 `false`/unconfirmed `false`/exception 및 RAW `EndDocPrinter` 결과 mapping
 
 ### 13.3 DAO 테스트
 
 - 기존 item/column/content 조회 DAO 재사용
 - 자동증가 update의 `(columnId,itemId)` parameter와 affected row 검증
 - 자동증가 `autoIncSave` 최종값과 commit 후 draft/snapshot 부분 동기화
+- `applyCommittedColumnContentUpdates`가 대상 scoped 원본/draft만 갱신하고 unrelated draft를 유지함
 - history/status/detail의 자동증가 copy/일반 row 집계, projected/DB 원본 값 mapping과 column order
 - customer history order lock과 자동증가/history 단일 transaction rollback
 - table/column 부재 시 DDL 없이 명시적 오류
 - job 취소/접수 실패 시 history와 자동증가 update가 없음
+- 일부 group accepted 후 실패하면 accepted unit만 하나의 transaction에 반영됨
 - commit 결과 불명확 시 추가 발행 차단
 
 ### 13.4 widget 테스트
@@ -440,10 +463,10 @@
   - 일반 프린터/PDF
   - Godex G500 203dpi
   - 1개 품목 여러 장
-  - 여러 품목 혼합 매수
+  - 여러 품목 혼합 매수와 물리 크기·방향별 여러 spool job
   - 자동증가 포함
-  - 전체 단일 spool job 확인
-  - job 접수 실패와 접수 후 이력 저장 실패 메시지 구분
+  - 같은 물리 profile의 인접 unit은 한 job, profile 변경은 순서가 유지된 별도 job인지 확인
+  - 첫 job 접수 실패, 일부 job 접수 후 실패, 접수 후 이력 저장 실패 메시지 구분
 
 실제 SQL Server와 프린터를 사용할 수 없으면 그 항목은 단위/통합 mock 검증 결과와 함께 `미검증`으로 남긴다.
 
@@ -452,7 +475,7 @@
 1. 품목관리 발행 체크를 controlled state로 올리고 출력 row/session model을 구현한다.
 2. 기존 품목 미리보기 materialize와 읽기 전용 preview를 공용 API로 추출한다.
 3. 라벨출력 화면과 table/search/selection/자동 미리보기를 구현한다.
-4. 프린터 preference/picker/validation 공용 로직, 라벨출력 전용 설정 dialog와 단일 job dispatcher를 구현한다.
+4. 프린터 preference/picker/validation 공용 로직, 라벨출력 전용 설정 dialog와 group dispatcher를 구현한다.
 5. 단일 row·단일 copy 출력부터 연결한다.
 6. 여러 row·copies와 자동증가 copy projection을 연결한다.
 7. 자동증가 저장 DAO와 발행 이력 DAO를 구현한다.
@@ -470,14 +493,15 @@
 - 레거시 검색 대상과 exact-match 의미를 사용하되 검색만으로 물리 출력하지 않는다.
 - 프린터 설정은 공용 preference/printer/validation 로직을 사용하는 라벨출력 전용 dialog이며 매수와 내부 발행 버튼이 없다.
 - 일반 프린터 PDF와 Godex EZPL 경로가 현재 공용 출력 엔진을 통해 동작한다.
-- 여러 품목, 행별 copies, 자동증가 copy별 page/command가 하나의 spool job으로 접수된다.
-- 모든 unit은 출력 전에 materialize·capture되고 job 접수 성공한 전체 작업만 자동증가 저장과 발행 이력에 반영된다.
+- 여러 품목과 행별 copies는 unit 순서를 유지하며 같은 physical profile의 인접 unit끼리 spool job으로 묶이고 profile 변경 시 별도 job으로 접수된다.
+- 모든 unit은 출력 전에 materialize·capture되고, 중간 group 실패 시 뒤 전송을 중단하며 실제 accepted unit만 자동증가 저장과 발행 이력에 반영된다.
 - 자동증가는 `autoIncSave`의 레거시 최종값을 재현하고 commit 후 해당 draft/snapshot만 동기화한다.
-- 행별 margin+signed push, 오른쪽 clip과 행 우선 줄간격 계산이 미리보기와 실제 출력에서 동일하다.
+- 행별 margin+signed push, label clip, page 회전과 paragraph line spacing 계산이 미리보기·PDF·EZPL 실제 출력에서 동일하다.
 - 검색은 발행 목록에서 trim·대소문자 무시 exact 비교로만 동작한다.
 - 기능은 Windows desktop에서만 노출된다.
 - 필요한 model/DAO가 책임별로 작성되고 기존 조회 DAO나 materialize/print 코드를 중복하지 않는다.
 - DB schema/data migration과 레거시 수정이 없다.
+- 총 copies 1000장과 예상/실제 payload 256 MiB 제한을 물리 출력 전에 검증한다.
 - 관련 focused test, `flutter analyze`, 전체 `flutter test`, `git diff --check`가 통과한다.
 
 ## 16. 레거시 및 현재 코드 근거

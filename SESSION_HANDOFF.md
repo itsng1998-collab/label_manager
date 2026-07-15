@@ -1,3 +1,14 @@
+### 완료 (2026-07-15): 라벨출력 작업지시서 2차 권장안 병합
+- 사용자 요청: `doc/label_print_modify.txt` 재검토 권장안을 병합하고 구현 의미가 달라지는 사항은 질문으로 확정한다.
+- 사용자 확정: 혼합 용지 크기·방향은 물리 설정별 여러 spool job으로 분리한다. 중간 job 취소·실패 시 뒤 job 전송을 중단하고 이미 접수된 unit만 자동증가·이력에 한 transaction으로 반영한다.
+- 사용자 확정: PDF는 출력 API `true`, RAW는 `EndDocPrinter` 성공을 접수 성공으로 간주하며 실제 출력 완료와 PDF job ID는 보장하지 않는다.
+- 사용자 확정: 관리자 포함 모든 사용자의 발행 이력을 기록한다. 총 발행매수는 1000장, 예상 raster/payload는 256 MiB를 상한으로 두고 물리 출력 전에 검증한다.
+- `doc/label_print_modify.txt`: 단일 job/전체 성공 계약을 순서 보존 physical profile group과 부분 접수 계약으로 교체했다. unit copies=1, PDF/RAW 결과 mapping, 1000장·256 MiB 제한, 자동증가 commit 값 미리보기와 targeted draft 동기화 API를 명시했다.
+- `doc/label_print_modify.txt`: label clip/content 교집합, 90도 회전 page swap과 공통 transform, `FortuneOutputLayoutOptions` paragraph line spacing, DB/schema preflight, 모든 사용자 이력과 zero-copy 제외를 구체화했다.
+- 중간 검증: 이전 `단일 spool/전체 unit/다음 발행값` 계약 잔존 없음, 두 문서 IDE 진단 오류 없음, `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md` 통과.
+- 최종 검증: 변경 diff와 기존 사용자 dirty 분리 확인, 두 문서 IDE 진단 오류 없음, 이전 단일-job 계약 잔존 없음, `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md` 통과. 문서 변경만 있어 Flutter test/analyze는 실행하지 않았다.
+- stage/commit 대상: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. 기존 사용자 `doc/label_print.txt`, `lib/core/app.dart` 변경은 제외한다.
+
 ### 완료 (2026-07-15): 라벨출력 작업지시서 검토 권장안 병합
 - 사용자 요청: `doc/label_print_modify.txt` 검토에서 확인한 애매점과 권장안을 지시서에 병합하고, 구현 의미를 바꾸는 사항은 질문으로 확정한다.
 - 사용자 확정: 다중 PC 동일 품목 자동증가 동시 발행은 미지원, 모든 row/copy를 전체 단일 인쇄 작업으로 전송, 검색은 발행 목록만 대상, Windows 전용으로 구현한다.
