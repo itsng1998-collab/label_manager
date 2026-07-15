@@ -7,12 +7,29 @@ enum LabelColumnEditMode { normal, reorder, userItemEdit }
 
 class LabelColumnDialogSaveCommand {
   const LabelColumnDialogSaveCommand({
+    required this.labelSizeId,
+    required this.customerId,
     required this.labelColumns,
     required this.customerColumns,
   });
 
+  final int labelSizeId;
+  final int customerId;
   final LabelColumnSaveCommand? labelColumns;
   final CustomerColumnSaveCommand? customerColumns;
+}
+
+class LabelColumnSaveCommittedException implements Exception {
+  const LabelColumnSaveCommittedException(
+    this.message, {
+    this.outcomeUnknown = false,
+  });
+
+  final String message;
+  final bool outcomeUnknown;
+
+  @override
+  String toString() => message;
 }
 
 abstract final class LabelColumnLimits {

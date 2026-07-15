@@ -8,8 +8,8 @@
 
 - 이 문서는 구현할 요구사항을 확정한 작업지시서다. 문서에 없는 위험을 가정해 요구사항을 추가하거나 기존 요구를 더 엄격하게 만들지 않는다.
 - 검토는 현재 문서가 요구한 UI/CRUD를 구현할 수 없는 명백한 모순, 현재 코드 또는 지원 DB와 직접 충돌하는 내용, 잘못된 테이블·컬럼·레거시 의미만 확인한다.
-- 새 하위 시스템, 범용 framework, capability 상태기계, trigger fingerprint·metadata 인증, DDL 경합 방어, 전역/table-wide lock, connection generation cache, journal·checksum, exact-set 검증 체계, commit 결과 reconciliation, 재저장 차단·force reload·자동 복구 상태, 품목 저장·삭제 재설계를 추가하지 않는다.
-- DB 처리는 현재 프로젝트의 transaction 안에서 parameterized CRUD를 실행한다. 오류가 발생하면 예외를 전달하고 가능한 경우 rollback하며 working copy를 유지한다. commit 오류를 별도로 판정하거나 자동 복구하지 않는다.
+- 새 하위 시스템, 범용 framework, capability 상태기계, trigger fingerprint·metadata 인증, DDL 경합 방어, 전역/table-wide lock, connection generation cache, journal·checksum, exact-set 검증 체계, 범용 commit reconciliation·자동 복구 상태, 품목 저장·삭제 재설계를 추가하지 않는다.
+- DB 처리는 현재 프로젝트의 transaction 안에서 parameterized CRUD를 실행한다. 커밋 전 오류는 예외를 전달하고 가능한 경우 rollback하며 working copy를 유지한다. 이 다이얼로그의 커밋 결과 불명확 또는 커밋 후 재조회 실패는 중복 저장을 막기 위해 안내 후 닫는다.
 - 레거시 프로그램이 현재 사용하는 DB schema를 그대로 사용한다. 이 기능을 위해 table, column, index, constraint, view, trigger 또는 stored procedure를 생성·변경·삭제하거나 data migration을 실행하지 않는다.
 - 기존 설치 DB 사이의 선택 column/table 차이는 필요한 object의 존재 여부를 읽기 전용으로 확인한 뒤, 이미 존재하는 object만 참조하는 미리 작성된 SQL 중 하나를 선택해 처리한다. 없는 column을 같은 SQL text의 조건문 안에서 참조하지 않는다.
 - 테스트는 이 문서의 사용자 흐름, validation, CRUD 성공, 중간 오류 rollback만 검증한다. 가상 schema 변경, DDL 동시 실행, 미지원 DB 조합이나 장애 복구 상태를 위한 테스트를 추가하지 않는다.
@@ -36,7 +36,7 @@
 - 레거시 source, 실행 파일, 설정과 공유 DB trigger/schema는 수정하지 않는다.
 - 저장 결과는 레거시가 읽는 기존 `BM_RICH_*`, `BM_GS1_*`, `BM_UPDATE_*` table과 column 의미로만 기록한다. 앱 전용 row, 별도 mapping table 또는 레거시가 해석하지 못하는 식별값을 DB에 남기지 않는다.
 - 항목 편집은 바코드·QR·GS1·이미지의 데이터 의미와 생성 규칙을 소유하고, 라벨 에디터의 객체는 연결할 항목과 위치·크기·회전 같은 시각 표현을 소유한다. 같은 설정을 두 화면에서 독립적으로 중복 저장하지 않는다.
-- DB 저장과 후속 재조회가 성공한 경우에만 화면과 cache를 교체한다. 오류 시 사용자에게 알리고 가능한 rollback 뒤 working copy를 유지한다.
+- DB 저장과 후속 재조회가 성공한 경우에만 화면과 cache를 교체한다. 커밋 전 오류는 가능한 rollback 뒤 working copy를 유지하고, 커밋 후 복구 오류는 저장 여부를 안내한 뒤 재저장을 차단한다.
 
 2. 현재 프로젝트 기준점
 
@@ -341,9 +341,9 @@ dirty는 다음 의미만 구분한다.
 11.2 저장 결과
 
 - dialog는 DAO와 cache를 따로 조작하지 않고 상위 save callback 하나를 호출한다.
-- callback은 사용 항목 transaction과 현재 label size 재조회를 순서대로 실행한다.
+- callback은 사용 항목과 사용자 항목 statement의 통합 transaction과 현재 label size 재조회를 순서대로 실행한다.
 - 성공하면 기존 label size 재조회 경계로 `TColumn.datas`와 관련 화면/cache를 갱신하고 dialog를 닫는다.
-- DB 또는 재조회 오류는 사용자에게 알리고 working copy를 유지한다.
+- DB transaction 전/중 오류는 사용자에게 알리고 working copy를 유지한다. 커밋 완료 후 결과 해석·재조회 실패 또는 커밋 결과 불명확은 별도 안내 후 dialog를 닫아 재저장을 막는다.
 - 활성 transaction은 가능한 경우 rollback하며 실패를 성공으로 처리하거나 자동 재시도하지 않는다.
 
 12. DB 모델과 DAO
@@ -371,13 +371,13 @@ DTO는 immutable하게 만들고 widget 상태나 전역 목록을 직접 참조
 
 12.3 사용자 항목 저장
 
-- insert/update/delete를 parameterized statement로 만들고 `DbClient.transaction()` 한 번으로 실행한다.
+- insert/update/delete를 parameterized statement로 만들고 사용 항목 statement와 같은 `DbClient.transaction()`에서 실행한다.
 - update/delete는 customerId와 custColumnId를 함께 조건으로 사용한다.
 - 필수 update/delete affected row가 1이 아니면 오류를 발생시킨다.
 - 신규/keyword 변경 행이 같은 customer 사전에 새 중복을 만드는지 저장 전에 검사한다.
 - SQL 문자열 보간을 사용하지 않는다.
-- 성공 후 사용자 항목 후보를 재조회한다.
-- 오류는 호출자에게 전달하고 가능한 rollback 뒤 mode와 working copy를 유지한다.
+- 적용 후 사용자 항목 후보는 메모리 working copy를 사용하고, 최종 저장 성공 후 다음 dialog 진입에서 재조회한다.
+- 커밋 전 오류는 호출자에게 전달하고 가능한 rollback 뒤 mode와 working copy를 유지한다.
 
 12.4 사용 항목 저장
 
@@ -404,14 +404,14 @@ DTO는 immutable하게 만들고 widget 상태나 전역 목록을 직접 참조
 
 저장 시작 전 필요한 기존 object의 존재 여부는 `OBJECT_ID`와 `COL_LENGTH` 같은 read-only metadata 조회로 한 번 확인한다. 결과는 SQL variant 선택에만 사용한다. 지원에 필요한 core `BM_RICH_COLUMN` 또는 레거시 column 속성이 없으면 migration을 시도하지 않고 오류를 알리며 저장하지 않는다. schema 확인 SQL과 저장 SQL 어디에도 `CREATE`, `ALTER`, `DROP`, trigger enable/disable 또는 기존 data 보정 DML을 넣지 않는다.
 
-어느 단계에서든 오류가 발생하면 예외를 전달한다. 기존 driver transaction 경로가 가능한 rollback을 수행하고 호출자는 오류를 알린 뒤 working copy를 유지한다. 별도 commit 결과 상태나 복구 체계를 만들지 않는다.
+커밋 전 오류는 예외를 전달하고 기존 driver transaction 경로가 가능한 rollback을 수행하며 working copy를 유지한다. 신규 ID mapping 개수는 SQL transaction 안에서 검증한다. 커밋 후 결과 해석·재조회 실패와 `DbCommitOutcomeUnknown`은 별도 상태로 전달하고, dialog는 재저장을 막기 위해 안내 후 닫는다.
 
 13. 오류와 재진입
 
 - dialog open, 조회와 저장 command의 중복 실행을 막는다.
 - busy 중 닫기, mode 전환, drag/drop과 행 선택을 막는다.
-- DB 연결·SQL·validation·affected row·commit 오류는 진행 표시를 닫고 사용자에게 알린다.
-- 저장 실패 시 dialog와 working copy를 유지하고 cache를 교체하지 않는다.
+- DB 연결·SQL·validation·affected row 오류는 진행 표시를 닫고 사용자에게 알린다.
+- 커밋 전 저장 실패는 dialog와 working copy를 유지하고 cache를 교체하지 않는다. 커밋 결과 불명확 또는 커밋 후 화면 갱신 실패는 중복 저장 방지 안내 후 dialog를 닫는다.
 - 저장 성공 후 widget이 dispose됐으면 setState하지 않는다.
 - 로그에는 operation, labelSizeId, customerId, 변경 개수와 성공/실패만 기록하고 실제 payload는 기록하지 않는다.
 - 로그를 저장 분기나 결과 판정에 사용하지 않는다.
@@ -469,7 +469,7 @@ DTO는 immutable하게 만들고 widget 상태나 전역 목록을 직접 참조
 - GS1 info와 contain 관계 추가·변경·삭제
 - column 삭제 시 직접 소유한 종속행과 status/main 처리
 - 필수 affected row 불일치와 중간 SQL 오류의 전체 rollback
-- 오류 전달 후 working copy와 기존 cache 유지
+- 커밋 전 오류 전달 후 working copy와 기존 cache 유지, 커밋 후 오류의 재저장 차단
 
 15.4 통합
 
@@ -480,7 +480,7 @@ DTO는 immutable하게 만들고 widget 상태나 전역 목록을 직접 참조
 - 연결 바코드는 품목별 값으로 객체 `src`까지 다시 생성하고 고정 바코드는 기존 값·형식·`src`를 유지
 - 연결 이미지는 품목별 BMP를 치환하고 빈 값·파일 없음에서는 template 이미지를 출력하지 않으며, 고정 이미지는 선택 파일을 그대로 유지
 - 저장 후 `TColumn.datas`, 공용라벨 표, 품목 동적 column과 preview 갱신
-- 저장 실패 시 dialog/working copy 유지와 성공 UI 미표시
+- 커밋 전 저장 실패 시 dialog/working copy 유지, 커밋 후 오류 시 안내 후 dialog 종료
 - dirty/busy 상태에서 진입과 저장 차단
 - `flutter analyze`, 관련 test, 전체 `flutter test`, `git diff --check` 통과
 
@@ -513,7 +513,7 @@ DTO는 immutable하게 만들고 widget 상태나 전역 목록을 직접 참조
 - 신규 column ID는 `OUTPUT INSERTED`로 draft key에 정확히 매핑된다.
 - 신규 column은 JSON parameter에서 투영되며 draft의 최종 누락검사 값, 없는 경우의 레거시 `ELEMENT` 기준행과 기존 item의 빈 content를 저장하고 삭제 column은 직접 소유한 종속 데이터를 정리한다.
 - `RICH_EDITABLE`, update content와 status object가 없는 기존 DB에서도 migration 없이 해당 단계만 생략하거나 기존 column용 SQL로 저장한다.
-- 저장 오류는 예외로 전달되고 가능한 rollback 뒤 working copy와 기존 cache가 유지된다.
+- 커밋 전 저장 오류는 예외로 전달되고 가능한 rollback 뒤 working copy와 기존 cache가 유지된다. 커밋 후 오류는 중복 저장을 막기 위해 안내 후 dialog를 닫는다.
 - 저장 성공 후 전체 column 재조회 결과가 공용라벨, 품목관리와 preview에 반영된다.
 - 레거시 source, 실행 환경과 공유 DB schema/trigger는 변경하지 않으며 설치 SQL·DDL·data migration을 실행하지 않는다. 저장 결과는 레거시 프로그램이 기존 table/column 의미로 다시 조회할 수 있다.
 - 관련 model/widget/DAO/integration test와 정적 분석이 통과한다.

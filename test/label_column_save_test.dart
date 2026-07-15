@@ -135,6 +135,8 @@ void main() {
       ).toSaveCommand();
       final statements = LabelColumnSaveDao.buildDialogSaveStatements(
         LabelColumnDialogSaveCommand(
+          labelSizeId: 10,
+          customerId: 7,
           labelColumns: _command(),
           customerColumns: customerCommand,
         ),
@@ -148,6 +150,38 @@ void main() {
       expect(statements.last.params, contains('newColumnsJson'));
     });
 
+    test('rejects dialog command ownership mismatches', () {
+      final customerCommand = CustomerColumnEditSession.fromCandidates(
+        customerId: 7,
+        candidates: const [],
+      ).toSaveCommand();
+
+      expect(
+        () => LabelColumnSaveDao.buildDialogSaveStatements(
+          LabelColumnDialogSaveCommand(
+            labelSizeId: 11,
+            customerId: 7,
+            labelColumns: _command(),
+            customerColumns: null,
+          ),
+          _none,
+        ),
+        throwsStateError,
+      );
+      expect(
+        () => LabelColumnSaveDao.buildDialogSaveStatements(
+          LabelColumnDialogSaveCommand(
+            labelSizeId: 10,
+            customerId: 8,
+            labelColumns: null,
+            customerColumns: customerCommand,
+          ),
+          null,
+        ),
+        throwsStateError,
+      );
+    });
+
     test('uses OUTPUT mapping and never guesses the last inserted rows', () {
       final sql = LabelColumnSaveDao.buildSaveStatement(_command(), _none).sql;
 
@@ -156,6 +190,7 @@ void main() {
         contains('OUTPUT INSERTED.RICH_COLUMN_ID INTO @OneInserted'),
       );
       expect(sql, contains('SELECT DRAFT_KEY, COLUMN_ID FROM @InsertedRows'));
+      expect(sql, contains('Inserted column mapping count mismatch.'));
       expect(sql.toUpperCase(), isNot(contains('SELECTLASTNRECORD')));
       expect(sql.toUpperCase(), isNot(contains('TOP (@ROWCOUNT)')));
       expect(sql.toUpperCase(), isNot(contains('BEGIN TRANSACTION')));

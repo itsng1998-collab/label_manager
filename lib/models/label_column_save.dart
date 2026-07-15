@@ -567,6 +567,8 @@ WHERE M.RICH_LABELSIZE_ID=@LabelSizeId;
 
 IF EXISTS (SELECT DRAFT_KEY FROM @InsertedRows GROUP BY DRAFT_KEY HAVING COUNT(*)<>1)
   THROW 51113, 'Duplicate inserted column mapping.', 1;
+IF (SELECT COUNT(*) FROM @InsertedRows)<>(SELECT COUNT(*) FROM @NewColumns)
+  THROW 51114, 'Inserted column mapping count mismatch.', 1;
 SELECT DRAFT_KEY, COLUMN_ID FROM @InsertedRows ORDER BY DRAFT_KEY;
 ''';
 
@@ -650,10 +652,17 @@ SELECT DRAFT_KEY, COLUMN_ID FROM @InsertedRows ORDER BY DRAFT_KEY;
     final statements = buildDialogSaveStatements(command, capabilities);
     final results = await DbClient.instance.transaction(statements);
     if (labelCommand != null) {
-      decodeSaveResult(
-        results.first,
-        expectedMappingCount: labelCommand.newColumns.length,
-      );
+      try {
+        decodeSaveResult(
+          results.first,
+          expectedMappingCount: labelCommand.newColumns.length,
+        );
+      } catch (error) {
+        throw LabelColumnSaveCommittedException(
+          '저장은 완료됐지만 신규 항목 결과를 확인하지 못했습니다. '
+          '중복 저장을 막기 위해 다이얼로그를 닫고 최신 정보를 다시 불러오세요.\n$error',
+        );
+      }
     }
   }
 
@@ -661,9 +670,15 @@ SELECT DRAFT_KEY, COLUMN_ID FROM @InsertedRows ORDER BY DRAFT_KEY;
     LabelColumnDialogSaveCommand command,
     LabelColumnSchemaCapabilities? capabilities,
   ) {
+    if (command.labelSizeId <= 0 || command.customerId <= 0) {
+      throw ArgumentError('Invalid dialog save context.');
+    }
     final statements = <DbTransactionStatement>[];
     final labelCommand = command.labelColumns;
     if (labelCommand != null) {
+      if (labelCommand.labelSizeId != command.labelSizeId) {
+        throw StateError('Label column save context mismatch.');
+      }
       if (capabilities == null) {
         throw ArgumentError.notNull('capabilities');
       }
@@ -671,6 +686,9 @@ SELECT DRAFT_KEY, COLUMN_ID FROM @InsertedRows ORDER BY DRAFT_KEY;
     }
     final customerCommand = command.customerColumns;
     if (customerCommand != null) {
+      if (customerCommand.customerId != command.customerId) {
+        throw StateError('Customer column save context mismatch.');
+      }
       statements.add(CustomerColumnDAO.buildSaveStatement(customerCommand));
     }
     return List.unmodifiable(statements);

@@ -49,7 +49,6 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
   LabelColumnCandidateSource _candidateSource = LabelColumnCandidateSource.fixed;
   List<FixedColumnType> _fixedTypes = const [];
   List<FixedColumnCandidate> _fixedCandidates = const [];
-  List<CustomerColumnCandidate> _customerCandidates = const [];
   CustomerColumnEditSession? _appliedCustomerSession;
   CustomerColumnEditSession? _customerSession;
   int? _fixedTypeId;
@@ -73,6 +72,10 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
             _session.propertyBaseline!.key,
           ));
   bool get _workspaceEnabled => _normalEnabled && !_propertyPending;
+  bool get _customerEditEnabled =>
+      _workspaceEnabled &&
+      !_loadingCandidates &&
+      _appliedCustomerSession != null;
   bool get _dialogDirty =>
       _session.workingDirty || (_appliedCustomerSession?.isDirty ?? false);
   List<TColumnType> get _columnTypes {
@@ -115,7 +118,6 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
         _fixedTypes = types;
         _fixedTypeId = typeId;
         _fixedCandidates = fixed;
-        _customerCandidates = customer;
         _appliedCustomerSession = CustomerColumnEditSession.fromCandidates(
           customerId: widget.customerId,
           candidates: customer,
@@ -310,14 +312,15 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
   }
 
   void _enterUserEdit() {
-    if (!_workspaceEnabled) return;
+    final appliedSession = _appliedCustomerSession;
+    if (!_workspaceEnabled ||
+        _loadingCandidates ||
+        appliedSession == null) {
+      return;
+    }
     setState(() {
       _session = _session.enterUserItemEdit();
-      _customerSession = _appliedCustomerSession?.beginEdit() ??
-          CustomerColumnEditSession.fromCandidates(
-            customerId: widget.customerId,
-            candidates: _customerCandidates,
-          );
+      _customerSession = appliedSession.beginEdit();
     });
   }
 
@@ -429,9 +432,18 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
       }
       await widget.onSave(
         LabelColumnDialogSaveCommand(
+          labelSizeId: widget.labelSizeId,
+          customerId: widget.customerId,
           labelColumns: labelCommand,
           customerColumns: customerCommand,
         ),
+      );
+      if (mounted) widget.onClose();
+    } on LabelColumnSaveCommittedException catch (error) {
+      if (!mounted) return;
+      await _showMessage(
+        error.outcomeUnknown ? '저장 결과 확인 필요' : '저장 완료',
+        error.message,
       );
       if (mounted) widget.onClose();
     } catch (error) {
@@ -842,7 +854,7 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
                   width: 38,
                   height: 38,
                 ),
-                onPressed: _workspaceEnabled ? _enterUserEdit : null,
+                onPressed: _customerEditEnabled ? _enterUserEdit : null,
                 icon: const Icon(Icons.edit),
               ),
               if (userEdit)

@@ -71,8 +71,10 @@ Future<void> _pumpDialog(
   List<TColumn>? columns,
   Future<void> Function(LabelColumnSaveCommand command)? onSave,
   Future<void> Function(CustomerColumnSaveCommand command)? saveCustomer,
+  Future<void> Function(LabelColumnDialogSaveCommand command)? onDialogSave,
   Future<List<CustomerColumnCandidate>> Function(int customerId)? loadCustomer,
   VoidCallback? onClose,
+  bool settle = true,
 }) async {
   await tester.pumpWidget(
     MaterialApp(
@@ -83,6 +85,10 @@ Future<void> _pumpDialog(
           initialColumns: columns ?? [_column(1, 'BASE_A')],
           canSave: () async => true,
           onSave: (command) async {
+            if (onDialogSave != null) {
+              await onDialogSave(command);
+              return;
+            }
             final labelCommand = command.labelColumns;
             if (labelCommand != null) await onSave?.call(labelCommand);
             final customerCommand = command.customerColumns;
@@ -124,7 +130,11 @@ Future<void> _pumpDialog(
       ),
     ),
   );
-  await tester.pumpAndSettle();
+  if (settle) {
+    await tester.pumpAndSettle();
+  } else {
+    await tester.pump();
+  }
 }
 
 Future<void> _tapVisible(WidgetTester tester, Finder finder) async {
@@ -920,6 +930,101 @@ void main() {
     expect(closed, isTrue);
     expect(saveCount, 0);
   });
+
+  testWidgets('user edit stays disabled until customer candidates load', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1300, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final customerRows = Completer<List<CustomerColumnCandidate>>();
+    await _pumpDialog(
+      tester,
+      loadCustomer: (_) => customerRows.future,
+      settle: false,
+    );
+
+    await _tapVisible(tester, find.text('사용자 항목'));
+    expect(
+      tester
+          .widget<IconButton>(
+            find.byKey(const Key('label-column-user-edit')),
+          )
+          .onPressed,
+      isNull,
+    );
+
+    customerRows.complete(const [
+      CustomerColumnCandidate(
+        id: 11,
+        customerId: 7,
+        columnType: baseType,
+        keyword: 'CUSTOM_A',
+        columnName: '사용자 A',
+      ),
+    ]);
+    await tester.pumpAndSettle();
+    expect(
+      tester
+          .widget<IconButton>(
+            find.byKey(const Key('label-column-user-edit')),
+          )
+          .onPressed,
+      isNotNull,
+    );
+  });
+
+  for (final saveFailure in [
+    (
+      title: '저장 완료',
+      error: const LabelColumnSaveCommittedException('화면 갱신 실패'),
+    ),
+    (
+      title: '저장 결과 확인 필요',
+      error: const LabelColumnSaveCommittedException(
+        '커밋 결과 불명확',
+        outcomeUnknown: true,
+      ),
+    ),
+  ]) {
+    testWidgets('${saveFailure.title} 안내 후 재저장 없이 닫는다', (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1300, 800));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      var saveCount = 0;
+      var closed = false;
+      await _pumpDialog(
+        tester,
+        onDialogSave: (_) async {
+          saveCount += 1;
+          throw saveFailure.error;
+        },
+        onClose: () => closed = true,
+      );
+
+      await tester.enterText(find.byKey(const Key('label-column-name')), '변경');
+    await tester.pump();
+      tester
+          .widget<FilledButton>(
+            find.byKey(const Key('label-column-property-apply')),
+          )
+          .onPressed!();
+      await tester.pump();
+      await _tapVisible(tester, find.byKey(const Key('label-column-main-save')));
+      await tester.pump();
+      await tester.tap(find.widgetWithText(FilledButton, '확인').last);
+      await tester.pump();
+      await tester.pump();
+
+      expect(find.text(saveFailure.title), findsOneWidget);
+      expect(saveCount, 1);
+      expect(closed, isFalse);
+
+      await tester.tap(find.widgetWithText(FilledButton, '확인').last);
+      await tester.pump();
+      await tester.pump();
+      expect(saveCount, 1);
+      expect(closed, isTrue);
+    });
+  }
 
   testWidgets('busy disables commands and 900x600 has no overflow', (tester) async {
     await tester.binding.setSurfaceSize(const Size(900, 600));
