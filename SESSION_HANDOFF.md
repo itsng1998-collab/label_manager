@@ -1,3 +1,20 @@
+### 완료 (2026-07-15): FortuneSheet 다이얼로그 버튼 순서 통일
+- 원본 `fortune_sheet`와 라벨시트에서 사용하는 하단 액션을 `취소` 먼저, `확인` 다음 순서로 통일한다. 우선 이미지·바코드 다이얼로그 좌표를 수정하고 전용 테스트로 hit-test까지 검증한다.
+- 수정 예정: `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`, 관련 FortuneSheet 테스트, `SESSION_HANDOFF.md`. 미검증.
+- 우선 검증: 이미지·바코드 버튼 좌표 테스트와 `third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart`.
+- `fortune_sheet_painter.dart`: 이미지·바코드 전용 버튼 묶음의 기존 위치/간격을 유지하면서 취소를 왼쪽, 확인을 오른쪽으로 변경했다. 전용 다이얼로그 테스트 66개 통과.
+- 같은 반대 순서였던 함수/서식 검색, 행·열 크기, 데이터 유효성, 조건부 서식, 텍스트 분할, 위치 선택·확인 메시지도 취소 먼저 확인 다음으로 통일했다. 하이퍼링크와 라벨시트 고유 다이얼로그는 이미 요청 순서라 유지했다.
+- 관련 좌표 계약을 갱신하고 이미지·바코드의 `취소.left < 확인.left` 회귀 테스트를 추가했다. 다음 검증: canvas/이미지·바코드 focused 테스트.
+- `fortune_barcode_dialog_test.dart` 67개 전체 통과. 테스트 UI가 대형 canvas 파일을 0개로 반환해 패키지 디렉터리에서 `C:\Flutter\bin\flutter.bat test test\fortune_sheet_canvas_test.dart --name "data verification dialog parity constants|split text dialog parity constants|location dialog parity constants|axis size dialog parity constants|formula search dialog parity constants|format search dialog parity constants|condition rule dialog parity helpers"`를 실행한다.
+- 첫 canvas 실행은 대형 테스트 파일 exact replacement의 `$1` 캡처 문자열이 숫자와 결합한 테스트 문법 오류로 실패했다. production 오류는 아니며 손상된 테스트 기대값 36개만 즉시 복구했다. 관련 파일 IDE 진단 없음, `git diff --check` 통과.
+- canvas 좌표 계약 7개 재실행 전체 통과. 변경량은 painter 59/46줄, canvas 좌표 기대값 37/37줄로 제한되어 전체 파일 churn 없음. 다음 검증: `C:\Flutter\bin\flutter.bat test test\label_sheet_toolbar_test.dart`.
+- 루트 `test\label_sheet_toolbar_test.dart` 115개 전체 통과. 남은 FortuneSheet 쌍 중 하이퍼링크/범위 선택과 라벨시트 고유 AlertDialog·인쇄·AI footer는 이미 취소 먼저이며, 확인만 있는 다이얼로그는 변경하지 않았다.
+- 최종 정적 분석 예정: FortuneSheet 패키지와 루트에서 각각 `C:\Flutter\bin\flutter.bat analyze`.
+- FortuneSheet 패키지와 루트 `C:\Flutter\bin\flutter.bat analyze` 모두 이슈 없음. 관련 파일 IDE 진단 없음, `git diff --check` 통과.
+- 테스트 생성물 `third_party/fortune_sheet/build/` 정리 후 관련 4개 파일만 stage/commit한다. unrelated `lib/core/app.dart`, `lib/page_home/label_column_edit_dialog.dart`는 제외한다.
+- `third_party/fortune_sheet/build/` 정리 완료. 기능 stage 대상: painter와 관련 테스트 2개.
+- 기능 커밋: `b9a0e30 시트 다이얼로그 취소 확인 순서 통일`. unrelated 사용자 변경 두 건은 working tree에 유지했다.
+
 ### 완료 (2026-07-15): SQL Server 및 예외 처리 작업 규칙 추가
 - 사용자 요청에 따라 과도한 보완·예외 처리 금지, SQL Server 커밋 오류 전달·가능한 rollback까지만 수행, SQL Server DB 마이그레이션 금지를 영구 작업 규칙과 인수인계에 반영한다.
 - 수정 대상: `SESSION_HANDOFF.md`와 영구 사용자 작업 규칙. 문서 변경이므로 `git diff --check -- SESSION_HANDOFF.md`로 검증한다.
