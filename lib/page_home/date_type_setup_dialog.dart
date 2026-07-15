@@ -128,7 +128,7 @@ class _DateTypeSetupDialogState extends State<DateTypeSetupDialog> {
         onPressed: widget.readOnly
             ? null
             : () => Navigator.of(context).pop(_result()),
-        child: const Text('적용'),
+        child: const Text('저장'),
       ),
     ],
   );
