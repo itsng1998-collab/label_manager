@@ -288,6 +288,31 @@ void main() {
       tester.getSize(find.byKey(const Key('label-column-fixed-type'))).height,
       36,
     );
+    final fixedTypeDropdown = find.descendant(
+      of: find.byKey(const Key('label-column-fixed-type')),
+      matching: find.byType(DropdownMenu<int>),
+    );
+    expect(fixedTypeDropdown, findsOneWidget);
+    final fixedTypeArrow = find.descendant(
+      of: fixedTypeDropdown,
+      matching: find.byIcon(Icons.arrow_drop_down),
+    );
+    expect(fixedTypeArrow, findsNWidgets(2));
+    final visibleArrowIndex = tester.getCenter(fixedTypeArrow.first).dx >
+            tester.getCenter(fixedTypeArrow.last).dx
+        ? 0
+        : 1;
+    final expectedFixedTypeArrowCenter = Offset(
+      tester.getTopRight(fixedTypeDropdown).dx - 16,
+      tester.getCenter(fixedTypeDropdown).dy - 2,
+    );
+    expect(
+      tester.getCenter(fixedTypeArrow.at(visibleArrowIndex)),
+      offsetMoreOrLessEquals(
+        expectedFixedTypeArrowCenter,
+        epsilon: 0.01,
+      ),
+    );
     final dropdownArrow = find.descendant(
       of: typeDropdown,
       matching: find.byIcon(Icons.arrow_drop_down),

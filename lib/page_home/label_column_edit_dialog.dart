@@ -871,6 +871,7 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
               for (final type in _fixedTypes)
                 DropdownMenuEntry(value: type.id, label: type.name),
             ],
+            trailingIconOffset: const Offset(0, -2),
             onChanged: _workspaceEnabled ? _changeFixedType : null,
           )
         else
@@ -1417,6 +1418,7 @@ class _DialogDropdown<T> extends StatelessWidget {
     required this.entries,
     required this.onChanged,
     this.compact = false,
+    this.trailingIconOffset,
   });
 
   final String? label;
@@ -1424,6 +1426,7 @@ class _DialogDropdown<T> extends StatelessWidget {
   final List<DropdownMenuEntry<T>> entries;
   final ValueChanged<T?>? onChanged;
   final bool compact;
+  final Offset? trailingIconOffset;
 
   @override
   Widget build(BuildContext context) {
@@ -1438,8 +1441,8 @@ class _DialogDropdown<T> extends StatelessWidget {
         enableFilter: false,
         enableSearch: false,
         requestFocusOnTap: false,
-        trailingIcon: _dropdownIcon(compact),
-        selectedTrailingIcon: _dropdownIcon(compact),
+        trailingIcon: _dropdownIcon(compact, trailingIconOffset),
+        selectedTrailingIcon: _dropdownIcon(compact, trailingIconOffset),
         menuStyle: const MenuStyle(
           visualDensity: VisualDensity(horizontal: -1, vertical: -3),
           minimumSize: WidgetStatePropertyAll(Size(0, 36)),
@@ -1462,8 +1465,8 @@ class _DialogDropdown<T> extends StatelessWidget {
     );
   }
 
-  Widget _dropdownIcon(bool compact) => Transform.translate(
-    offset: compact ? const Offset(0, -0.5) : Offset.zero,
+  Widget _dropdownIcon(bool compact, Offset? offset) => Transform.translate(
+    offset: offset ?? (compact ? const Offset(0, -0.5) : Offset.zero),
     child: const Icon(Icons.arrow_drop_down, size: 20),
   );
 }
