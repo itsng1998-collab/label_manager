@@ -871,7 +871,6 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
               for (final type in _fixedTypes)
                 DropdownMenuEntry(value: type.id, label: type.name),
             ],
-            centerTrailingIcon: true,
             onChanged: _workspaceEnabled ? _changeFixedType : null,
           )
         else
@@ -1418,7 +1417,6 @@ class _DialogDropdown<T> extends StatelessWidget {
     required this.entries,
     required this.onChanged,
     this.compact = false,
-    this.centerTrailingIcon = false,
   });
 
   final String? label;
@@ -1426,10 +1424,10 @@ class _DialogDropdown<T> extends StatelessWidget {
   final List<DropdownMenuEntry<T>> entries;
   final ValueChanged<T?>? onChanged;
   final bool compact;
-  final bool centerTrailingIcon;
 
   @override
   Widget build(BuildContext context) {
+    final centerTrailingIcon = !compact;
     return LayoutBuilder(
       builder: (context, constraints) => DropdownMenu<T>(
         width: constraints.maxWidth,

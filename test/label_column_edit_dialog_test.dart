@@ -16,6 +16,11 @@ const barcodeColumnType = TColumnType(
   name: '바코드',
   order: 2,
 );
+const qrColumnType = TColumnType(
+  code: TColumnType.TYPE_QR_CODE,
+  name: 'QR 코드',
+  order: 3,
+);
 
 TColumn _column(int id, String keyword, {int order = 1}) {
   return TColumn(
@@ -298,19 +303,22 @@ void main() {
       matching: find.byIcon(Icons.arrow_drop_down),
     );
     expect(fixedTypeArrow, findsNWidgets(2));
-    final centeredTrailingIcon = find.byKey(
-      const Key('dialog-dropdown-centered-trailing-icon'),
+    final fixedTypeCenteredTrailingIcon = find.descendant(
+      of: fixedTypeDropdown,
+      matching: find.byKey(
+        const Key('dialog-dropdown-centered-trailing-icon'),
+      ),
     );
-    expect(centeredTrailingIcon, findsNWidgets(2));
+    expect(fixedTypeCenteredTrailingIcon, findsNWidgets(2));
     for (var index = 0; index < 2; index++) {
       expect(
-        tester.getSize(centeredTrailingIcon.at(index)),
+        tester.getSize(fixedTypeCenteredTrailingIcon.at(index)),
         const Size(32, 36),
       );
       expect(
         tester.getCenter(fixedTypeArrow.at(index)),
         offsetMoreOrLessEquals(
-          tester.getCenter(centeredTrailingIcon.at(index)),
+          tester.getCenter(fixedTypeCenteredTrailingIcon.at(index)),
           epsilon: 0.01,
         ),
       );
@@ -320,10 +328,24 @@ void main() {
       matching: find.byIcon(Icons.arrow_drop_down),
     );
     expect(dropdownArrow, findsNWidgets(2));
+    final propertyTypeCenteredTrailingIcon = find.descendant(
+      of: typeDropdown,
+      matching: find.byKey(
+        const Key('dialog-dropdown-centered-trailing-icon'),
+      ),
+    );
+    expect(propertyTypeCenteredTrailingIcon, findsNWidgets(2));
     for (var index = 0; index < 2; index++) {
       expect(
-        tester.getCenter(dropdownArrow.at(index)).dy,
-        closeTo(tester.getCenter(typeDropdown).dy, 0.01),
+        tester.getSize(propertyTypeCenteredTrailingIcon.at(index)),
+        const Size(32, 36),
+      );
+      expect(
+        tester.getCenter(dropdownArrow.at(index)),
+        offsetMoreOrLessEquals(
+          tester.getCenter(propertyTypeCenteredTrailingIcon.at(index)),
+          epsilon: 0.01,
+        ),
       );
     }
     final keywordField = find.byKey(const Key('label-column-keyword'));
@@ -373,6 +395,17 @@ void main() {
     expect(tester.getSize(barcodeMenuItem.last).height, lessThanOrEqualTo(40));
     await _tapVisible(tester, barcodeMenuItem.last);
     await tester.pumpAndSettle();
+    final barcodeTypeDropdown = find.byType(DropdownMenu<BarcodeType>);
+    expect(barcodeTypeDropdown, findsOneWidget);
+    expect(
+      find.descendant(
+        of: barcodeTypeDropdown,
+        matching: find.byKey(
+          const Key('dialog-dropdown-centered-trailing-icon'),
+        ),
+      ),
+      findsNWidgets(2),
+    );
     await _tapVisible(
       tester,
       find.byKey(const Key('label-column-property-apply')),
@@ -430,6 +463,53 @@ void main() {
       matching: find.byType(EditableText),
     );
     expect(tester.widget<EditableText>(editor).controller.text, '바코드');
+  });
+
+  testWidgets('all QR property dropdown arrows are centered', (tester) async {
+    TColumnType.datas = [baseType, barcodeColumnType, qrColumnType];
+    await tester.binding.setSurfaceSize(const Size(1300, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await _pumpDialog(
+      tester,
+      columns: [
+        _column(1, 'QR_A').copyWith(columnType: qrColumnType),
+      ],
+    );
+
+    final propertyDropdowns = <Finder>[
+      find.byType(DropdownMenu<TColumnType>),
+      find.byType(DropdownMenu<BarcodeType>),
+      find.byType(DropdownMenu<QRCodeCreateType>),
+      find.byType(DropdownMenu<QRTextAlignment>),
+    ];
+    for (final dropdown in propertyDropdowns) {
+      expect(dropdown, findsOneWidget);
+      final arrows = find.descendant(
+        of: dropdown,
+        matching: find.byIcon(Icons.arrow_drop_down),
+      );
+      final centeredTrailingIcons = find.descendant(
+        of: dropdown,
+        matching: find.byKey(
+          const Key('dialog-dropdown-centered-trailing-icon'),
+        ),
+      );
+      expect(arrows, findsNWidgets(2));
+      expect(centeredTrailingIcons, findsNWidgets(2));
+      for (var index = 0; index < 2; index++) {
+        expect(
+          tester.getSize(centeredTrailingIcons.at(index)),
+          const Size(32, 36),
+        );
+        expect(
+          tester.getCenter(arrows.at(index)),
+          offsetMoreOrLessEquals(
+            tester.getCenter(centeredTrailingIcons.at(index)),
+            epsilon: 0.01,
+          ),
+        );
+      }
+    }
   });
 
   testWidgets('adds and removes candidates through shared commands', (tester) async {
