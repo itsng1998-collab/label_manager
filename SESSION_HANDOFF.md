@@ -6,6 +6,10 @@
 - 다음 검증: `C:\Flutter\bin\flutter.bat test test\label_column_edit_dialog_test.dart`, `C:\Flutter\bin\flutter.bat analyze`, `git diff --check`.
 - CLI 전체 widget test 20개 통과, `flutter analyze` 이슈 없음, `git diff --check` 통과. 같은 production 파일의 기존 사용자 `onPressed` 들여쓰기 한 줄과 unrelated `lib/core/app.dart`는 stage에서 제외한다.
 - 선택적 stage 확인: 아이콘 정렬 구현·테스트만 포함하고 기존 사용자 변경은 unstaged로 유지했다. 기능 커밋: `52ae854 고정 항목 분류 아이콘 중앙 정렬`.
+- 재수정 완료: 실기기 이미지에서 기본 DropdownMenu의 `Padding(4) > IconButton` suffix가 여전히 우하단에 치우쳐 보여 offset 보정을 제거했다. 고정 분류에 한해 `decorationBuilder`의 32x36 suffix 안에 아이콘을 직접 `Center` 배치한다.
+- 32x36 suffix와 아이콘 중심 일치 레이아웃 테스트 및 dropdown popup 선택 테스트 통과, 관련 IDE 진단 없음. 다음 검증: `C:\Flutter\bin\flutter.bat test test\label_column_edit_dialog_test.dart`, `C:\Flutter\bin\flutter.bat analyze`, `git diff --check`.
+- 재수정 후 CLI 전체 widget test 20개 통과, `flutter analyze` 이슈 없음, `git diff --check` 통과. 기존 사용자 `onPressed` 들여쓰기 한 줄과 unrelated `lib/core/app.dart`는 stage에서 제외한다.
+- 재수정 커밋: `cdd3b92 분류 드롭다운 아이콘 중앙 배치 보정`. offset 기반 구현을 명시적 32x36 중앙 suffix로 교체했으며 기존 사용자 변경은 unstaged로 유지했다.
 
 ### 완료 (2026-07-15): 사용자 항목 행 드래그 삭제 보정
 - 사용자 항목 설정 모드의 휴지통 tooltip을 `사용자 항목 삭제`로 표시하고, 키워드·항목명 모두 행 단위 drag source로 동작하게 한다.
