@@ -1,3 +1,13 @@
+### 완료 (2026-07-15): 속성 변경 중 다이얼로그 작업 영역 잠금
+- 속성 draft 변경 또는 신규 특수 항목의 초기 적용 대기 중 메인 취소/저장, 사용 항목·명령·고정/사용자 후보 영역과 창 닫기를 비활성화한다.
+- 속성 취소/적용만 상태를 해제하므로 기존 `미적용 속성` 확인 질의와 관련 호출 경로를 제거한다.
+- `_propertyPending`과 `_workspaceEnabled`로 잠금 조건을 통합하고, 세 작업 영역은 `IgnorePointer`와 opacity로 비활성 상태를 표시한다.
+- 다이얼로그 focused 테스트 13개 통과. 다음 검증: `C:\Flutter\bin\flutter.bat analyze`, `C:\Flutter\bin\flutter.bat test`.
+- `C:\Flutter\bin\flutter.bat analyze` 이슈 없음. 다음 검증: `C:\Flutter\bin\flutter.bat test`.
+- 루트 `C:\Flutter\bin\flutter.bat test` 367개 전체 통과. 다음 단계: 테스트 캐시 정리, IDE 진단과 diff 점검, 관련 hunk만 stage/commit.
+- `third_party/fortune_sheet/build/` 정리 완료. 관련 파일 IDE 진단 없음, `git diff --check` 통과. 사용자 `label-column-add` 들여쓰기 변경과 `lib/core/app.dart`는 stage/commit에서 제외한다.
+- 수정 파일: `lib/page_home/label_column_edit_dialog.dart`, `test/label_column_edit_dialog_test.dart` (완료). 기능 커밋: `50ea847 속성 변경 중 다른 작업 영역 잠금`.
+
 ### 완료 (2026-07-15): 속성 라벨 간격과 드롭다운 밀도·아이콘 정렬
 - 모든 outline 속성 입력의 content padding을 조정해 floating label과 값 사이를 띄운다.
 - 테이블 인라인을 제외한 일반 dropdown 높이를 40px에서 36px로 줄인다.
