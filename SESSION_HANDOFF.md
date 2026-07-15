@@ -1,3 +1,8 @@
+### 완료 (2026-07-15): SQL Server 및 예외 처리 작업 규칙 추가
+- 사용자 요청에 따라 과도한 보완·예외 처리 금지, SQL Server 커밋 오류 전달·가능한 rollback까지만 수행, SQL Server DB 마이그레이션 금지를 영구 작업 규칙과 인수인계에 반영한다.
+- 수정 대상: `SESSION_HANDOFF.md`와 영구 사용자 작업 규칙. 문서 변경이므로 `git diff --check -- SESSION_HANDOFF.md`로 검증한다.
+- 영구 사용자 작업 규칙과 `SESSION_HANDOFF.md`의 `작업 규칙` 반영 완료. `git diff --check -- SESSION_HANDOFF.md` 통과. stage/commit 대상은 `SESSION_HANDOFF.md`만이며 unrelated 사용자 변경 두 건은 제외한다.
+
 ### 완료 (2026-07-15): 라벨 저장 잠금·ID 집합 계약 보강
 - GS1 info/contain 잠금 쿼리가 optimizer에서 제거되지 않도록 보조 테이블 ID를 직접 변수에 대입한다.
 - DAO는 original/update/delete/final order의 ID 집합과 label size 소유권을 정확히 검증한다.
@@ -149,6 +154,9 @@
 - 배포파일 작성(`flutter build windows --release`, `inno_setup_installer.ps1`, installer EXE/ZIP 생성 등)은 사용자가 명시적으로 요청할 때만 실행한다. 일반 작업 완료 검증에서는 자동으로 배포 패키징까지 진행하지 않는다.
 - 솔루션 루트 구조나 로컬 패키지 경로를 바꾸면 이 파일에 변경 경로와 검증 명령을 기록한다. Git 상태와 커밋 정보도 함께 갱신한다.
 - 레거시(이전) 프로젝트 참조 경로는 `.tmp\LabelManager`이다. 이전 프로젝트 저장 로직/동작 비교가 필요하면 이 경로를 기준으로 확인한다.
+- 요구 범위를 넘는 과도한 보완이나 예외 처리는 하지 않는다.
+- SQL Server 데이터베이스 처리는 커밋 오류를 에러로 전달하고 가능한 경우 롤백하는 정도로 제한한다.
+- SQL Server 데이터베이스 마이그레이션은 수행하거나 구현하지 않는다.
 - 라벨 시트 저장 포맷을 수정할 때는 `lib/page_label_sheet/label_sheet_save_codec.dart`의 `_labelSheetSaveFeatureKeys`에 항목별 feature key를 추가/정렬해 `labelSheetSaveFormatVersion`과 `labelSheetSaveFeatureVersions`가 자동 산출되도록 유지한다. 새로 지원하는 workbook/sheet/config/cell/cellType/inlineRun JSON 필드는 같은 파일의 allow-list 및 `labelSheetSanitizeWorkbookSaveJson` 경로에 반드시 반영한다. 구/외부 포맷 호환은 `labelSheetMigrateWorkbookSaveJson`과 `labelSheetNormalizeWorkbookForCurrentSaveFormat`에 함께 반영하고, `.lms` 초기 로드/라벨 파일에서 불러오기/`.xlsx` import가 모두 현재 포맷으로 처리되는 테스트를 갱신한다.
 - Godex G500 같은 라벨 프린터에서 정밀한 인쇄가 핵심이면 일반 프린터 경로와 직접 출력 경로를 분리한다. 직접 출력은 처음부터 모든 스타일을 100% EZPL 명령만으로 처리하기보다 `정밀 좌표 엔진 + EZPL 명령 + 셀 bitmap fallback` 구조를 우선한다. 테두리/선/박스와 바코드는 가능한 한 EZPL 명령으로 출력하고, 화면 폰트와 프린터 폰트 차이로 1:1 보장이 어려운 복합 스타일 텍스트/이미지/배경/RTF 계열 셀은 셀 단위 bitmap fallback을 사용해 시각적 일치도를 확보한다.
 
