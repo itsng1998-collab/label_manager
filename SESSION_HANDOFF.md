@@ -10,6 +10,7 @@
 - 독립 재검토 보완: commit finalizer는 `persistenceSucceeded` durable generation 성공 후에만 실행하고, manifest canonicalization은 RFC 8785 JCS로 고정해 number/string/key ordering 해석 차이를 제거했다.
 - 최종 검증: 폐기 표현 검색 0건, 7차 핵심 계약 본문·오류·테스트·완료 조건 연결 19곳, 두 문서 diagnostics 오류 0건, `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md` 통과. 문서만 변경해 Flutter test/analyze는 실행하지 않았다.
 - stage/commit 대상: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. 기존 사용자 `doc/label_print.txt`, `lib/core/app.dart` 변경은 제외한다.
+- 작업지시서 병합 커밋: `c6951b1 라벨출력 지시서 7차 권장안 확정`.
 
 ### 완료 (2026-07-15): 라벨출력 작업지시서 6차 권장안 병합
 - 사용자 요청: `doc/label_print_modify.txt` 재검토 권장안을 병합하고 구현 의미가 달라지는 사항은 질문으로 확정한다.
