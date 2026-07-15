@@ -205,7 +205,7 @@ class CustomerColumnEditSession {
       original: List.unmodifiable(rows),
       working: List.unmodifiable(rows),
       deletedIds: const {},
-      selectedKey: rows.isEmpty ? null : rows.first.key,
+      selectedKey: null,
     );
   }
 
@@ -243,6 +243,11 @@ class CustomerColumnEditSession {
       working: [for (final value in working) value.key == row.key ? row : value],
       selectedKey: row.key,
     );
+  }
+
+  CustomerColumnEditSession select(String key) {
+    if (!working.any((row) => row.key == key)) return this;
+    return _copy(selectedKey: key);
   }
 
   CustomerColumnEditSession remove(String key) {

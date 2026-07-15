@@ -58,53 +58,88 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
   int? _fixedTypeId;
   String? _selectedCandidateKey;
   bool _busy = false;
-  bool _loadingCandidates = true;
-  int _draftSequence = 0;
-  int _propertyRevision = 0;
-
-  bool get _exclusiveMode => _session.mode != LabelColumnEditMode.normal;
-  bool get _normalEnabled => !_busy && !_exclusiveMode;
-  List<TColumnType> get _columnTypes {
-    final configured = TColumnType.datas;
-    if (configured != null && configured.isNotEmpty) return configured;
-    final byCode = <int, TColumnType>{
-      for (final row in widget.initialColumns) row.columnType.code: row.columnType,
-    };
-    byCode.putIfAbsent(
-      TColumnType.TYPE_BASE,
-      () => const TColumnType(code: TColumnType.TYPE_BASE, name: '기본', order: 0),
-    );
-    return byCode.values.toList()..sort((a, b) => a.order.compareTo(b.order));
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _session = LabelColumnEditSession.fromColumns(
-      labelSizeId: widget.labelSizeId,
-      columns: List<TColumn>.unmodifiable(widget.initialColumns),
-    );
-    if (_session.selectedColumn != null) {
-      _session = _session.beginPropertyEdit();
-    }
-    _loadInitialCandidates();
-  }
-
-  Future<void> _loadInitialCandidates() async {
-    try {
-      final types = await widget.loadFixedTypes();
-      if (!mounted) return;
-      final typeId = types.isEmpty ? null : types.first.id;
-      final fixed = typeId == null
-          ? const <FixedColumnCandidate>[]
+                    key: const Key('label-column-used-table'),
+                    rows: _session.workingColumns,
+                    rowNumberWidth: 34,
+                    autoFitColumns: false,
+                    fillLastColumn: true,
+                    selectedIndex: selectedIndex < 0 ? null : selectedIndex,
+                    rowReorderEnabled:
+                        !_busy && _session.mode == LabelColumnEditMode.reorder,
+                    onRowSelected: userEdit
+                        ? null
+                        : (row, index) {
+                            if (_session.mode == LabelColumnEditMode.reorder &&
+                                !_busy) {
+                              setState(
+                                () => _session = _session.reorder(
+                                  row.key,
+                                  index,
+                                ),
+                              );
+                            } else {
+                              _selectColumn(row.key);
+                            }
+                          },
+                    onRowReorder: (fromIndex, toIndex) {
+                      if (_session.mode != LabelColumnEditMode.reorder ||
+                          _busy) {
+                        return;
+                      }
+                      final key = _session.workingColumns[fromIndex].key;
+                      setState(() => _session = _session.reorder(key, toIndex));
+                    },
+                    columns: [
+                      SwipeActionTableColumn(
+                        header: '상태',
+                        initialWidth: 44,
+                        minWidth: 40,
+                        text: (row) => row.isNew ? '신규' : '',
+                      ),
+                      SwipeActionTableColumn(
+                        header: '키워드',
+                        initialWidth: 78,
+                        minWidth: 64,
+                        text: (row) => row.column.keyword,
+                      ),
+                      SwipeActionTableColumn(
+                        header: '항목명',
+                        initialWidth: 72,
+                        minWidth: 60,
+                        text: (row) => row.column.columnName,
+                      ),
+                      SwipeActionTableColumn(
+                        header: '종류',
+                        initialWidth: 68,
+                        minWidth: 56,
+                        text: (row) => row.column.columnType.name,
+                      ),
+                      SwipeActionTableColumn(
+                        header: '제목',
+                        initialWidth: 58,
+                        minWidth: 48,
+                        text: (row) => row.column.title,
+                      ),
+                      SwipeActionTableColumn(
+                        header: '표시',
+                        initialWidth: 42,
+                        minWidth: 38,
+                        text: (row) => row.column.visible ? '예' : '아니오',
+                        cellBuilder: (context, row, width) => SizedBox(
+                          width: width,
+                          child: Center(
+                            child: IgnorePointer(
+                              child: Checkbox(
+                                value: row.column.visible,
+                                onChanged: (_) {},
+                                visualDensity: VisualDensity.compact,
+                              ),
+                            ),
           : await widget.loadFixedCandidates(typeId);
       final customer = await widget.loadCustomerCandidates(widget.customerId);
       if (!mounted) return;
-      setState(() {
-        _fixedTypes = types;
+                    ],
         _fixedTypeId = typeId;
-        _fixedCandidates = fixed;
-        _customerCandidates = customer;
         _loadingCandidates = false;
       });
     } catch (error) {
@@ -311,6 +346,7 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
     if (_busy) return;
     setState(() {
       _customerSession = null;
+      _editingCustomerKey = null;
       _session = _session.exitUserItemEdit();
       if (_session.selectedColumn != null) {
         _session = _session.beginPropertyEdit();
@@ -325,7 +361,10 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
       customerId: widget.customerId,
       columnType: _columnTypes.first,
     );
-    setState(() => _customerSession = _customerSession!.add(row));
+    setState(() {
+      _customerSession = _customerSession!.add(row);
+      _editingCustomerKey = row.key;
+    });
   }
 
   void _updateCustomerRow(CustomerColumnDraft row) {
@@ -335,7 +374,26 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
 
   void _removeCustomerRow(String key) {
     if (_busy || _customerSession == null) return;
-    setState(() => _customerSession = _customerSession!.remove(key));
+    setState(() {
+      _customerSession = _customerSession!.remove(key);
+      if (_editingCustomerKey == key) _editingCustomerKey = null;
+    });
+  }
+
+  void _selectCustomerRow(String key) {
+    if (_busy || _customerSession == null) return;
+    setState(() {
+      _customerSession = _customerSession!.select(key);
+      if (_editingCustomerKey != key) _editingCustomerKey = null;
+    });
+  }
+
+  void _editCustomerRow(String key) {
+    if (_busy || _customerSession == null) return;
+    setState(() {
+      _customerSession = _customerSession!.select(key);
+      _editingCustomerKey = key;
+    });
   }
 
   Future<void> _saveCustomerRows() async {
@@ -366,6 +424,7 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
       setState(() {
         _customerCandidates = reloaded;
         _customerSession = null;
+        _editingCustomerKey = null;
         _session = _session.exitUserItemEdit();
         _busy = false;
         if (_session.selectedColumn != null) {
@@ -548,6 +607,7 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
   }
 
   Widget _buildUsedColumns() {
+    final userEdit = _session.mode == LabelColumnEditMode.userItemEdit;
     final selectedIndex = _session.workingColumns.indexWhere(
       (row) => row.key == _session.selectedColumnKey,
     );
@@ -578,7 +638,11 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
               decoration: BoxDecoration(
                 border: Border.all(color: candidateData.isEmpty ? Colors.transparent : Theme.of(context).colorScheme.primary),
               ),
-              child: SwipeActionTable<LabelColumnDraft>(
+              child: IgnorePointer(
+                ignoring: userEdit,
+                child: Opacity(
+                  opacity: userEdit ? 0.55 : 1,
+                  child: SwipeActionTable<LabelColumnDraft>(
                 key: const Key('label-column-used-table'),
                 rows: _session.workingColumns,
                 rowNumberWidth: 34,
@@ -586,13 +650,15 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
                 fillLastColumn: true,
                 selectedIndex: selectedIndex < 0 ? null : selectedIndex,
                 rowReorderEnabled: !_busy && _session.mode == LabelColumnEditMode.reorder,
-                onRowSelected: (row, index) {
+                onRowSelected: userEdit
+                    ? null
+                    : (row, index) {
                   if (_session.mode == LabelColumnEditMode.reorder && !_busy) {
                     setState(() => _session = _session.reorder(row.key, index));
                   } else {
                     _selectColumn(row.key);
                   }
-                },
+                      },
                 onRowReorder: (fromIndex, toIndex) {
                   if (_session.mode != LabelColumnEditMode.reorder || _busy) return;
                   final key = _session.workingColumns[fromIndex].key;
@@ -622,7 +688,9 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
                       ),
                     ),
                   ),
-                ],
+                    ],
+                  ),
+                ),
               ),
             ),
           ),
@@ -640,12 +708,25 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
   }
 
   Widget _buildCommandRail() {
+    final userEdit = _session.mode == LabelColumnEditMode.userItemEdit;
+    final selectedCustomerKey = _customerSession?.selectedKey;
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        DragTarget<_ColumnDragPayload>(
-          onWillAcceptWithDetails: (_) => _normalEnabled && _session.selectedColumnKey != null,
-          onAcceptWithDetails: (_) => _removeSelectedColumn(),
+        DragTarget<Object>(
+          onWillAcceptWithDetails: (details) => userEdit
+              ? details.data is _CustomerColumnDragPayload && !_busy
+              : details.data is _ColumnDragPayload &&
+                    _normalEnabled &&
+                    _session.selectedColumnKey != null,
+          onAcceptWithDetails: (details) {
+            final data = details.data;
+            if (userEdit && data is _CustomerColumnDragPayload) {
+              _removeCustomerRow(data.key);
+            } else if (data is _ColumnDragPayload) {
+              _removeSelectedColumn();
+            }
+          },
           builder: (context, candidateData, rejectedData) => IconButton(
             key: const Key('label-column-remove'),
             tooltip: '사용 항목 삭제',
@@ -664,9 +745,13 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
                 borderRadius: BorderRadius.circular(6),
               ),
             ),
-            onPressed: _normalEnabled && _session.selectedColumnKey != null
-                ? _removeSelectedColumn
-                : null,
+            onPressed: userEdit
+              ? selectedCustomerKey == null || _busy
+                  ? null
+                  : () => _removeCustomerRow(selectedCustomerKey)
+              : _normalEnabled && _session.selectedColumnKey != null
+              ? _removeSelectedColumn
+              : null,
             icon: const Icon(Icons.delete_outline),
           ),
         ),
@@ -760,6 +845,11 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
                 IconButton(
                   key: const Key('label-column-user-add'),
                   tooltip: '사용자 항목 추가',
+                  iconSize: 22,
+                  constraints: const BoxConstraints.tightFor(
+                    width: 38,
+                    height: 38,
+                  ),
                   onPressed: _busy ? null : _addCustomerRow,
                   icon: const Icon(Icons.add),
                 ),
@@ -856,63 +946,54 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
 
   Widget _buildCustomerEditor() {
     final rows = _customerSession?.working ?? const <CustomerColumnDraft>[];
+    final selectedIndex = rows.indexWhere(
+      (row) => row.key == _customerSession?.selectedKey,
+    );
     return SwipeActionTable<CustomerColumnDraft>(
       key: const Key('label-column-user-editor'),
       rows: rows,
       rowNumberWidth: 34,
       headerHeight: 34,
-      rowHeight: 40,
+      rowHeight: 28,
       autoFitColumns: false,
       fillLastColumn: true,
-      isRowContentInteractive: (_, _) => true,
+      selectedIndex: selectedIndex < 0 ? null : selectedIndex,
+      onRowSelected: (row, _) => _selectCustomerRow(row.key),
+      isRowContentInteractive: (row, _) => row.key == _editingCustomerKey,
       columns: [
         SwipeActionTableColumn(
           header: '키워드',
           initialWidth: 105,
           minWidth: 80,
           text: (row) => row.keyword,
-          cellBuilder: (context, row, width) => SizedBox(
+          cellBuilder: (context, row, width) => _buildCustomerTextCell(
+            row: row,
             width: width,
-            child: TextFormField(
-              key: ValueKey('customer-keyword:${row.key}'),
-              initialValue: row.keyword,
-              enabled: !_busy,
-              style: Theme.of(context).textTheme.bodyMedium,
-              decoration: const InputDecoration(
-                isDense: true,
-                border: InputBorder.none,
-                contentPadding: EdgeInsets.symmetric(horizontal: 6),
-              ),
-              inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp('[A-Za-z0-9]')),
-                LengthLimitingTextInputFormatter(100),
-              ],
-              onChanged: (value) =>
-                  _updateCustomerRow(row.copyWith(keyword: value)),
-            ),
+            value: row.keyword,
+            key: ValueKey('customer-keyword:${row.key}'),
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(RegExp('[A-Za-z0-9]')),
+              LengthLimitingTextInputFormatter(100),
+            ],
+            onChanged: (value) =>
+                _updateCustomerRow(row.copyWith(keyword: value)),
           ),
+          onDoubleTap: (row, _) => _editCustomerRow(row.key),
         ),
         SwipeActionTableColumn(
           header: '항목명',
           initialWidth: 111,
           minWidth: 80,
           text: (row) => row.columnName,
-          cellBuilder: (context, row, width) => SizedBox(
+          cellBuilder: (context, row, width) => _buildCustomerTextCell(
+            row: row,
             width: width,
-            child: TextFormField(
-              key: ValueKey('customer-name:${row.key}'),
-              initialValue: row.columnName,
-              enabled: !_busy,
-              style: Theme.of(context).textTheme.bodyMedium,
-              decoration: const InputDecoration(
-                isDense: true,
-                border: InputBorder.none,
-                contentPadding: EdgeInsets.symmetric(horizontal: 6),
-              ),
-              onChanged: (value) =>
-                  _updateCustomerRow(row.copyWith(columnName: value)),
-            ),
+            value: row.columnName,
+            key: ValueKey('customer-name:${row.key}'),
+            onChanged: (value) =>
+                _updateCustomerRow(row.copyWith(columnName: value)),
           ),
+          onDoubleTap: (row, _) => _editCustomerRow(row.key),
         ),
         SwipeActionTableColumn(
           header: '종류',
@@ -921,41 +1002,93 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
           text: (row) => row.columnType.name,
           cellBuilder: (context, row, width) => SizedBox(
             width: width,
-            child: _DialogDropdown<TColumnType>(
-              value: row.columnType,
-              entries: [
-                for (final type in _columnTypes)
-                  DropdownMenuEntry(value: type, label: type.name),
-              ],
-              onChanged: _busy
-                  ? null
-                  : (value) {
-                      if (value != null) {
-                        _updateCustomerRow(row.copyWith(columnType: value));
-                      }
-                    },
-            ),
-          ),
-        ),
-        SwipeActionTableColumn(
-          header: '',
-          initialWidth: 38,
-          minWidth: 38,
-          text: (_) => '',
-          cellBuilder: (context, row, width) => SizedBox(
-            width: width,
-            child: IconButton(
-              tooltip: '사용자 항목 삭제',
-              iconSize: 18,
-              padding: EdgeInsets.zero,
-              onPressed: _busy ? null : () => _removeCustomerRow(row.key),
-              icon: const Icon(Icons.delete_outline),
-            ),
+            child: row.key == _editingCustomerKey
+                ? _DialogDropdown<TColumnType>(
+                    value: row.columnType,
+                    compact: true,
+                    entries: [
+                      for (final type in _columnTypes)
+                        DropdownMenuEntry(value: type, label: type.name),
+                    ],
+                    onChanged: _busy
+                        ? null
+                        : (value) {
+                            if (value != null) {
+                              _updateCustomerRow(
+                                row.copyWith(columnType: value),
+                              );
+                            }
+                          },
+                  )
+                : Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(row.columnType.name),
+                    ),
+                  ),
           ),
         ),
       ],
     );
   }
+
+  Widget _buildCustomerTextCell({
+    required CustomerColumnDraft row,
+    required double width,
+    required String value,
+    required Key key,
+    required ValueChanged<String> onChanged,
+    List<TextInputFormatter>? inputFormatters,
+  }) {
+    if (row.key == _editingCustomerKey) {
+      return SizedBox(
+        width: width,
+        child: TextFormField(
+          key: key,
+          initialValue: value,
+          enabled: !_busy,
+          style: Theme.of(context).textTheme.bodyMedium,
+          decoration: const InputDecoration(
+            isDense: true,
+            border: InputBorder.none,
+            contentPadding: EdgeInsets.symmetric(horizontal: 6),
+          ),
+          inputFormatters: inputFormatters,
+          onChanged: onChanged,
+        ),
+      );
+    }
+    return Draggable<_CustomerColumnDragPayload>(
+      data: _CustomerColumnDragPayload(row.key),
+      maxSimultaneousDrags: _busy ? 0 : 1,
+      feedback: Material(
+        elevation: 4,
+        child: SizedBox(
+          width: width,
+          height: 28,
+          child: _customerText(value, width),
+        ),
+      ),
+      childWhenDragging: Opacity(
+        opacity: 0.45,
+        child: _customerText(value, width),
+      ),
+      onDragStarted: () => _selectCustomerRow(row.key),
+      child: _customerText(value, width),
+    );
+  }
+
+  Widget _customerText(String value, double width) => SizedBox(
+    width: width,
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 6),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Text(value, maxLines: 1, overflow: TextOverflow.ellipsis),
+      ),
+    ),
+  );
 
   Widget _buildPropertyPanel() {
     final draft = _session.propertyDraft;
@@ -1025,10 +1158,14 @@ class _PropertyFields extends StatelessWidget {
   final bool enabled;
   final ValueChanged<TColumn> onChanged;
 
+  Widget _field(Widget child) => Padding(
+    padding: const EdgeInsets.only(bottom: 8),
+    child: SizedBox(height: 40, child: child),
+  );
+
   Widget _text(String label, String value, ValueChanged<String> changed, {Key? key}) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: TextFormField(
+    return _field(
+      TextFormField(
         key: key,
         initialValue: value,
         enabled: enabled,
@@ -1044,12 +1181,14 @@ class _PropertyFields extends StatelessWidget {
   }
 
   Widget _check(String label, bool value, ValueChanged<bool> changed) {
-    return CheckboxListTile(
-      dense: true,
-      contentPadding: EdgeInsets.zero,
-      title: Text(label),
-      value: value,
-      onChanged: enabled ? (next) => changed(next ?? false) : null,
+    return _field(
+      CheckboxListTile(
+        dense: true,
+        contentPadding: EdgeInsets.zero,
+        title: Text(label),
+        value: value,
+        onChanged: enabled ? (next) => changed(next ?? false) : null,
+      ),
     );
   }
 
@@ -1060,21 +1199,25 @@ class _PropertyFields extends StatelessWidget {
       children: [
         _text('키워드', column.keyword, (value) => onChanged(column.copyWith(keyword: value.trim().toUpperCase())), key: const Key('label-column-keyword')),
         _text('항목명', column.columnName, (value) => onChanged(column.copyWith(columnName: value)), key: const Key('label-column-name')),
-        _DialogDropdown<TColumnType>(
-          key: const Key('label-column-type'),
-          label: '항목 종류',
-          value: columnTypes.where((type) => type.code == column.columnType.code).firstOrNull,
-          entries: [
-            for (final type in columnTypes)
-              DropdownMenuEntry(value: type, label: type.name),
-          ],
-          onChanged: enabled ? (value) { if (value != null) onChanged(_changeType(column, value)); } : null,
+        _field(
+          _DialogDropdown<TColumnType>(
+            key: const Key('label-column-type'),
+            label: '항목 종류',
+            value: columnTypes.where((type) => type.code == column.columnType.code).firstOrNull,
+            entries: [
+              for (final type in columnTypes)
+                DropdownMenuEntry(value: type, label: type.name),
+            ],
+            onChanged: enabled ? (value) { if (value != null) onChanged(_changeType(column, value)); } : null,
+          ),
         ),
-        const SizedBox(height: 8),
         _text('제목', column.title, (value) => onChanged(column.copyWith(title: value))),
         _check('표시', column.visible, (value) => onChanged(column.copyWith(visible: value))),
         _check('누락 키워드 검사', column.useMissingKeywordCheck, (value) => onChanged(column.copyWith(useMissingKeywordCheck: value))),
-        const Divider(),
+        const Padding(
+          padding: EdgeInsets.only(bottom: 8),
+          child: Divider(height: 1),
+        ),
         ..._typeFields(),
       ],
     );
@@ -1106,16 +1249,17 @@ class _PropertyFields extends StatelessWidget {
       case TColumnType.TYPE_QR_CODE:
         return [
           _barcodeDropdown(),
-          _DialogDropdown<QRCodeCreateType>(
-            label: '생성 방식',
-            value: column.qrCodeCreateType,
-            entries: [
-              for (final type in QRCodeCreateType.values)
-                DropdownMenuEntry(value: type, label: type.name),
-            ],
-            onChanged: enabled ? (value) { if (value != null) onChanged(column.copyWith(qrCodeCreateType: value)); } : null,
+          _field(
+            _DialogDropdown<QRCodeCreateType>(
+              label: '생성 방식',
+              value: column.qrCodeCreateType,
+              entries: [
+                for (final type in QRCodeCreateType.values)
+                  DropdownMenuEntry(value: type, label: type.name),
+              ],
+              onChanged: enabled ? (value) { if (value != null) onChanged(column.copyWith(qrCodeCreateType: value)); } : null,
+            ),
           ),
-          const SizedBox(height: 8),
           _check('사용자 정의 data', column.useUserDefineQRData, (value) => onChanged(column.copyWith(useUserDefineQRData: value))),
           _text('QR data', column.userDefineQRData, (value) => onChanged(column.copyWith(userDefineQRData: value))),
           _text('하단 text', column.userDefineQRText, (value) => onChanged(column.copyWith(userDefineQRText: value))),
@@ -1123,16 +1267,17 @@ class _PropertyFields extends StatelessWidget {
           _integer('Pixel size', column.pixelSize, (value) => onChanged(column.copyWith(pixelSize: value))),
           _integer('Scale', column.qrCodeScalePercent, (value) => onChanged(column.copyWith(qrCodeScalePercent: value))),
           _check('하단 text 표시', column.showQRCodeText, (value) => onChanged(column.copyWith(showQRCodeText: value))),
-          _DialogDropdown<QRTextAlignment>(
-            label: '정렬',
-            value: column.qrTextAlignment,
-            entries: [
-              for (final value in QRTextAlignment.values)
-                DropdownMenuEntry(value: value, label: value.name),
-            ],
-            onChanged: enabled ? (value) { if (value != null) onChanged(column.copyWith(qrTextAlignment: value)); } : null,
+          _field(
+            _DialogDropdown<QRTextAlignment>(
+              label: '정렬',
+              value: column.qrTextAlignment,
+              entries: [
+                for (final value in QRTextAlignment.values)
+                  DropdownMenuEntry(value: value, label: value.name),
+              ],
+              onChanged: enabled ? (value) { if (value != null) onChanged(column.copyWith(qrTextAlignment: value)); } : null,
+            ),
           ),
-          const SizedBox(height: 8),
           _text('글꼴', column.qrTextFontName, (value) => onChanged(column.copyWith(qrTextFontName: value))),
           _integer('글꼴 크기', column.qrTextFontSize, (value) => onChanged(column.copyWith(qrTextFontSize: value))),
           ..._autoFields(),
@@ -1179,9 +1324,8 @@ class _PropertyFields extends StatelessWidget {
   ];
 
   Widget _barcodeDropdown() {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: _DialogDropdown<BarcodeType>(
+    return _field(
+      _DialogDropdown<BarcodeType>(
         label: '바코드 종류',
         value: column.barcodeType,
         entries: [
@@ -1216,12 +1360,14 @@ class _DialogDropdown<T> extends StatelessWidget {
     required this.value,
     required this.entries,
     required this.onChanged,
+    this.compact = false,
   });
 
   final String? label;
   final T? value;
   final List<DropdownMenuEntry<T>> entries;
   final ValueChanged<T?>? onChanged;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -1240,11 +1386,11 @@ class _DialogDropdown<T> extends StatelessWidget {
           visualDensity: VisualDensity(horizontal: -1, vertical: -3),
           minimumSize: WidgetStatePropertyAll(Size(0, 36)),
         ),
-        inputDecorationTheme: const InputDecorationTheme(
+        inputDecorationTheme: InputDecorationTheme(
           border: OutlineInputBorder(),
           isDense: true,
           contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-          constraints: BoxConstraints.tightFor(height: 40),
+          constraints: BoxConstraints.tightFor(height: compact ? 28 : 40),
           suffixIconConstraints: BoxConstraints.tightFor(
             width: 32,
             height: 32,
@@ -1305,6 +1451,12 @@ class _ColumnDragPayload {
   const _ColumnDragPayload(this.candidateKey);
 
   final String candidateKey;
+}
+
+class _CustomerColumnDragPayload {
+  const _CustomerColumnDragPayload(this.key);
+
+  final String key;
 }
 
 class _CloseIntent extends Intent {

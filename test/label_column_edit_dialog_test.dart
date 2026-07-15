@@ -250,6 +250,24 @@ void main() {
 
     final typeDropdown = find.byKey(const Key('label-column-type'));
     expect(tester.getSize(typeDropdown).height, 40);
+    final keywordField = find.byKey(const Key('label-column-keyword'));
+    final nameField = find.byKey(const Key('label-column-name'));
+    final titleField = find.widgetWithText(TextFormField, '제목');
+    for (final field in [keywordField, nameField, typeDropdown, titleField]) {
+      expect(tester.getSize(field).height, 40);
+    }
+    expect(
+      tester.getTopLeft(nameField).dy - tester.getBottomLeft(keywordField).dy,
+      8,
+    );
+    expect(
+      tester.getTopLeft(typeDropdown).dy - tester.getBottomLeft(nameField).dy,
+      8,
+    );
+    expect(
+      tester.getTopLeft(titleField).dy - tester.getBottomLeft(typeDropdown).dy,
+      8,
+    );
     final keywordEditor = find.descendant(
       of: find.byKey(const Key('label-column-keyword')),
       matching: find.byType(EditableText),
@@ -503,6 +521,79 @@ void main() {
     expect(loadCount, 2);
     expect(find.text('새 항목'), findsOneWidget);
     expect(find.byKey(const Key('label-column-user-editor')), findsNothing);
+  });
+
+  testWidgets('user rows select, edit on double tap, and delete from the rail', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1300, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await _pumpDialog(tester);
+
+    await _tapVisible(tester, find.text('사용자 항목'));
+    await _tapVisible(tester, find.byKey(const Key('label-column-user-edit')));
+    await tester.pump();
+
+    final userTable = tester.widget(
+      find.byKey(const Key('label-column-user-editor')),
+    ) as dynamic;
+    expect(userTable.rowHeight, 28);
+    expect(userTable.columns.length, 3);
+    expect(
+      tester.widget<IconButton>(find.byKey(const Key('label-column-remove'))).onPressed,
+      isNull,
+    );
+    expect(
+      tester.widget<IconButton>(find.byKey(const Key('label-column-user-add'))).iconSize,
+      22,
+    );
+    expect(
+      find.ancestor(
+        of: find.byKey(const Key('label-column-used-table')),
+        matching: find.byWidgetPredicate(
+          (widget) => widget is IgnorePointer && widget.ignoring,
+        ),
+      ),
+      findsOneWidget,
+    );
+
+    await _tapVisible(tester, find.text('CUSTOM_A'));
+    expect(
+      tester.widget<IconButton>(find.byKey(const Key('label-column-remove'))).onPressed,
+      isNotNull,
+    );
+    expect(
+      find.byKey(const ValueKey('customer-keyword:customer-column:11')),
+      findsNothing,
+    );
+
+    await _tapVisible(tester, find.byKey(const Key('label-column-remove')));
+    expect(find.text('CUSTOM_A'), findsNothing);
+
+    await _tapVisible(tester, find.byKey(const Key('label-column-user-cancel')));
+    await _tapVisible(tester, find.byKey(const Key('label-column-user-edit')));
+    await tester.pump();
+
+    await tester.tap(find.text('CUSTOM_A'));
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.tap(find.text('CUSTOM_A'));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('customer-keyword:customer-column:11')),
+      findsOneWidget,
+    );
+
+    await _tapVisible(tester, find.byKey(const Key('label-column-user-cancel')));
+    await _tapVisible(tester, find.byKey(const Key('label-column-user-edit')));
+    await tester.pump();
+    final source = find.text('CUSTOM_A');
+    final target = find.byKey(const Key('label-column-remove'));
+    await tester.drag(
+      source,
+      tester.getCenter(target) - tester.getCenter(source),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('CUSTOM_A'), findsNothing);
   });
 
   testWidgets('busy disables commands and 900x600 has no overflow', (tester) async {

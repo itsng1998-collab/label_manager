@@ -23,6 +23,16 @@ CustomerColumnCandidate candidate(int id, String keyword) {
 
 void main() {
   group('CustomerColumnEditSession', () {
+    test('selects a customer row explicitly', () {
+      final session = CustomerColumnEditSession.fromCandidates(
+        customerId: 7,
+        candidates: [candidate(1, 'A')],
+      );
+
+      expect(session.selectedKey, isNull);
+      expect(session.select('customer-column:1').selectedKey, 'customer-column:1');
+    });
+
     test('builds independent insert update delete deltas', () {
       var session = CustomerColumnEditSession.fromCandidates(
         customerId: 7,
