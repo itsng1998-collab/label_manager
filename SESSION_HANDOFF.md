@@ -28,6 +28,16 @@
 
 ## 현재 상태
 
+### 완료 (2026-07-15): 사용 항목 표시·종류 열 잔여 폭 배분
+
+- 사용자 요청: 사용 항목 테이블의 표시 열을 헤더/내용에 맞게 줄이고 줄어든 폭 전부를 종류 열에 배분한다.
+- 원인: 표시 열 initial width는 36px로 줄었지만 `fillLastColumn: true` 때문에 남는 폭이 마지막 표시 열에 다시 배분됐다.
+- 수정 `lib/page_home/label_column_edit_dialog.dart`: 종류 열에 `fillRemaining: true`를 지정해 표시 열은 36px로 고정하고 남는 폭은 종류 열이 받도록 했다.
+- 테스트 `test/label_column_edit_dialog_test.dart`: 종류 열 `fillRemaining == true`, 표시 열 `fillRemaining == false` 계약을 추가했다. 다이얼로그 focused 테스트 12개 통과.
+- 사용자 미커밋 변경인 `label-column-add` 버튼 `onPressed` 들여쓰기는 보존하고 stage/commit에서 제외한다. analyze/full test 예정.
+- 전체 analyze 이슈 없음, 전체 test 366개 통과. 테스트 캐시 정리와 IDE 진단/`git diff --check` 후 관련 hunk만 선택적으로 stage/commit 예정.
+- `third_party/fortune_sheet/build/` 정리 완료. 관련 파일 IDE 진단 없음, `git diff --check` 통과. 기능 hunk만 선택 stage했으며 사용자 `label-column-add` 들여쓰기 변경은 제외했다. 기능 커밋: `a2c4c01 사용 항목 표시 폭을 종류 열에 배분`.
+
 ### 완료 (2026-07-15): 라벨 항목 테이블 폭·후보 포커스·dropdown 정렬 보정
 
 - 사용자 요청: 사용 항목 표시 열을 내용에 맞게 줄여 항목명/종류에 배분하고, 후보 행 drag 중 삭제/추가 버튼을 비활성화하며, 모든 dropdown 화살표를 중앙 정렬하고 후보 테이블 focus 중 삭제 버튼을 비활성화한다.
