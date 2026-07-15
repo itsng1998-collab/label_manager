@@ -13,9 +13,10 @@
 - 레거시 소스와 실행 파일은 읽기 전용 참조다. `.tmp/LabelManager`를 수정하지 않는다.
 - 이번 기능은 Windows desktop 전용이다. 다른 platform에는 라벨출력 탭과 발행 command를 노출하지 않는다.
 - 동일 품목의 자동증가 라벨을 여러 client/PC에서 동시에 발행하는 경우는 지원하지 않는다. 앱 instance 내부 중복 발행만 차단하며 server 번호 예약이나 client 간 lock은 구현하지 않는다.
+- Windows PDF 출력은 `printing 5.15.0`의 로컬 fork를 `third_party/printing`에 고정해 사용한다. upstream package cache를 직접 수정하지 않고 원본 license를 유지한다.
 - 배포 build, installer 생성, 원격 push는 별도 요청이 있을 때만 수행한다.
 
-이 문서에서 `출력 작업 접수 성공`은 Windows 출력 API가 해당 print job을 오류 없이 반환했다는 뜻이다. PDF는 `Printing.directPrintPdf()`가 `true`를 반환한 경우, RAW는 `StartDocPrinter`부터 `EndDocPrinter`까지 성공한 경우를 `accepted`로 판정한다. `directPrintPdf()`는 `false`의 원인을 반환하지 않으므로 port 종류와 무관하게 모든 `false`, RAW API 실패와 exception은 `failed`다. `cancelled`는 앱의 발행 cancellation token을 준비 단계의 unit 경계 또는 OS print call을 시작하기 전 group 경계에서 확인한 경우에만 사용한다. active OS print call은 취소하지 않고 반환 결과를 받은 뒤 다음 group 전송을 막는다. 현재 PDF API는 Windows spooler job ID나 실제 queue 등록을 보장하지 않으므로 그 이상을 성공 조건으로 표현하지 않는다. 실제 용지 출력 완료, 용지 부족, API 반환 이후 printer 오류까지 보장하지 않는다. 발행 이력과 자동증가 DB 반영은 이 API 접수 성공을 기준으로 한다.
+이 문서에서 `출력 작업 접수 성공`은 Windows 출력 API가 해당 print job을 오류 없이 반환했다는 뜻이다. PDF는 patched `Printing.directPrintPdf()`가 `true`를 반환한 경우, RAW는 `StartDocPrinter`부터 `EndDocPrinter`까지 성공한 경우를 `accepted`로 판정한다. patched `directPrintPdf()`의 `false`와 error completion, RAW API 실패와 exception은 `failed`다. `cancelled`는 앱의 발행 cancellation token을 준비 단계의 unit 경계 또는 OS print call을 시작하기 전 group 경계에서 확인한 경우에만 사용한다. active OS print call은 취소하지 않고 반환 결과를 받은 뒤 다음 group 전송을 막는다. active call이 5분 안에 완료되지 않거나 `dispatchStarted` manifest를 남긴 채 process가 종료되면 출력 여부를 추측하지 않고 `unknown`으로 판정한다. 현재 PDF API는 Windows spooler job ID나 실제 queue 등록을 보장하지 않으므로 그 이상을 성공 조건으로 표현하지 않는다. 실제 용지 출력 완료, 용지 부족, API 반환 이후 printer 오류까지 보장하지 않는다. 발행 이력과 자동증가 DB 반영은 확정된 API 접수 성공만 기준으로 한다.
 
 ## 1. 구현 목적
 
@@ -62,9 +63,10 @@
 - copies가 1 이상인 모든 row/copy를 순서가 고정된 `LabelPrintUnit`으로 펼친다. copies가 0인 행은 unit, payload, 자동증가 projection과 이력을 만들지 않는다.
 - 자동증가가 없는 행은 같은 materialize 결과를 재사용할 수 있지만 각 unit은 항상 한 장만 나타낸다. 자동증가가 있는 행은 copy index별 값으로 workbook을 materialize한다.
 - 모든 unit의 materialize·capture와 모든 job payload 생성을 먼저 완료한 뒤 첫 물리 출력 job을 전송한다.
-- 각 unit의 회전과 extra area를 반영한 최종 media 크기를 backend canonical 단위로 정규화한 `LabelPhysicalPageSpec`을 만든다. unit 순서를 유지하면서 인접 unit의 PDF `widthTenthMm/heightTenthMm` 또는 EZPL `dpi/widthDots/heightDots/mediaMode` equality가 같을 때만 같은 `LabelPrintJobGroup`으로 묶는다. spec이 바뀌면 새 group을 시작하며 뒤에서 같은 spec이 다시 나와도 앞 group으로 이동시켜 출력 순서를 바꾸지 않는다.
+- 각 unit의 회전과 extra area를 반영한 최종 media 크기를 backend canonical 단위로 정규화한 `LabelPhysicalPageSpec`을 만든다. unit 순서를 유지하면서 인접 unit의 PDF `widthTenthMm/heightTenthMm` 또는 EZPL `dpiX/dpiY/widthDots/heightDots/plainPaper mediaMode` equality가 같을 때만 같은 `LabelPrintJobGroup`으로 묶는다. spec이 바뀌면 새 group을 시작하며 뒤에서 같은 spec이 다시 나와도 앞 group으로 이동시켜 출력 순서를 바꾸지 않는다.
 - PDF group은 같은 물리 page format의 page를 한 PDF document로 만들고 `directPrintPdf`를 한 번 호출한다. EZPL group은 같은 물리 설정의 label command를 한 RAW document payload로 만들고 `sendRaw`를 한 번 호출한다.
 - group을 unit 순서대로 전송한다. group 사이에서 cancellation token이 요청됐거나 한 group이 `failed`이면 뒤 group을 전송하지 않는다. active group 실행 중 취소를 눌러도 해당 OS call은 결과까지 기다리며 `accepted`이면 그 group unit도 발행 완료 대상으로 포함한다.
+- active group이 5분 안에 끝나지 않으면 뒤 group과 DB 반영을 중단하고 recovery manifest를 보존한다. 접수 여부를 확정하기 전에는 같은 label/customer session을 재발행하지 않는다.
 - 전송이 끝나거나 중단된 뒤 `accepted` unit의 발행 이력과 자동증가 최종값을 하나의 DB transaction으로 저장한다. 첫 group부터 접수되지 않았다면 DB를 변경하지 않는다.
 - 레거시는 발행 후 현재 선택 행의 미리보기를 다시 만든다.
 
@@ -114,7 +116,9 @@
 
 공용 dispatcher를 추출할 때 `RawPrinterWin32.sendRaw()`는 `StartDocPrinter`가 반환한 job ID를 결과에 포함하고 `StartPagePrinter`, `WritePrinter`, `EndPagePrinter`, `EndDocPrinter` 반환값을 모두 검사하도록 확장한다. PDF dispatcher는 `directPrintPdf`의 `true`/`false`/exception을 0절의 기준으로 mapping하고 job ID가 없음을 정상 결과로 표현한다.
 
-PDF group은 PDF document 내부 모든 page와 `directPrintPdf(format:)`에 같은 `LabelPdfPhysicalPageSpec.pdfPageFormat`을 사용하고 `dynamicLayout: false`, `usePrinterSettings: false`로 호출한다. Windows plugin은 `CreateDC` 후 driver가 보고한 실제 page와 hardware margin을 `onLayout`에 전달하므로 callback format의 margin은 비교하지 않는다. width/height는 0.1mm로 정규화해 group media와 비교하되 허용 오차는 `max(0.1mm, 25.4/printerDpi mm)`로 한다. 범위 안이면 prebuilt PDF를 그대로 반환하고, 범위를 벗어나면 payload를 재배치하지 않고 `StartDoc` 전 오류로 처리한다. content orientation은 공용 physical transform에서 한 번만 적용하며 dispatcher나 printer setting에서 다시 회전하지 않는다.
+로컬 `printing` fork는 Windows `printPdf`의 `CreateDC` 실패, Dart `onLayout` error, PDF load 실패와 `StartDoc`/`StartPage`/`EndPage`/`EndDoc` 실패를 포함한 모든 종료 경로를 shared exactly-once completion guard로 종결한다. `StartDoc` 성공 뒤 오류는 `AbortDoc`을 호출하고 `onCompleted(false, error)`를 보낸 뒤 native handle/job을 한 번만 정리한다. 성공은 모든 page와 `EndDoc`이 성공한 뒤에만 `onCompleted(true)`로 보낸다. Dart method-channel은 native `printPdf`의 즉시 `0` 반환 시 completer가 아직 완료되지 않은 경우에만 error completion하고 job을 제거해 native error callback과의 경합에서 이중 complete하지 않는다. 이 patch와 error/handle cleanup test가 없으면 라벨출력 PDF dispatcher를 구현하지 않는다.
+
+PDF group은 PDF document 내부 모든 page와 `directPrintPdf(format:)`에 같은 `LabelPdfPhysicalPageSpec.pdfPageFormat`을 사용하고 `dynamicLayout: false`, `usePrinterSettings: false`로 호출한다. Windows plugin은 `CreateDC` 후 driver가 보고한 실제 page와 hardware margin을 `onLayout`에 전달하므로 callback format의 margin은 비교하지 않는다. callback width는 `max(0.1mm, 25.4/dpiX mm)`, height는 `max(0.1mm, 25.4/dpiY mm)` 허용 오차로 canonical group media와 비교한다. 범위 안이면 prebuilt PDF를 그대로 반환하고, 범위를 벗어나면 payload를 재배치하지 않고 callback error를 반환한다. patched plugin은 이를 `StartDoc` 전 failed completion으로 종결해야 한다. content orientation은 공용 physical transform에서 한 번만 적용하며 dispatcher나 printer setting에서 다시 회전하지 않는다.
 
 ## 4. 화면 구성
 
@@ -129,6 +133,7 @@ PDF group은 PDF document 내부 모든 page와 `directPrintPdf(format:)`에 같
 - `발행`은 출력 작업 존재, 전체 매수 합계 1 이상, 선택 프린터 존재, 출력 중 아님 조건에서만 활성화한다.
 - 발행 command가 시작되면 같은 위치의 버튼을 `[발행 취소]`로 바꾼다. 준비 중에는 현재 unit 처리가 끝난 뒤 취소하고, OS print call 실행 중에는 취소 요청 상태를 표시한 채 call 반환 후 다음 group을 보내지 않는다. 중복 취소 요청은 무시한다.
 - 취소를 한 번 요청하면 버튼은 disabled `[취소 요청됨]` 상태가 된다. table, printer settings, tab/label-size/customer context는 dispatch 결과 처리, accepted-unit DB 저장과 artifact cleanup이 모두 끝날 때까지 잠근다.
+- active OS call이 5분을 넘기면 `[출력 상태 확인 필요]`로 표시하고 해당 label session의 편집·재발행을 잠근다. 같은 process에서는 늦은 completion을 계속 기다리며 자동으로 accepted/failed를 확정할 수 있다. process를 재시작한 뒤에도 unresolved manifest가 있으면 command bar에 `[출력 상태 확인]`을 제공한다.
 - Windows가 아닌 platform에서는 이 화면 자체를 구성하지 않는다.
 
 ### 4.2 왼쪽 출력 작업 표
@@ -197,10 +202,12 @@ PDF group은 PDF document 내부 모든 page와 `directPrintPdf(format:)`에 같
 - `leftPushMm`, `topPushMm`: signed 실수 mm. 음수는 왼쪽/위쪽 반대 방향 이동을 의미한다.
 - `lineSpacing`: 정수 percent, 30~300. item override와 session edit가 없을 때 전역 `autoSpacingPercent`를 사용하며 전역 값도 없으면 100으로 계산한다.
 - 소수 mm는 double로 유지하고 dot 변환 시 기존 DPI 기준으로 가장 가까운 정수에 반올림한다. margin은 음수 clamp를 적용하지만 push에는 clamp를 적용하지 않는 signed dot 변환 helper를 사용한다.
-- 총 copies 합계는 1000 이하여야 한다. `LabelPrintMemoryEstimate`는 preparation peak와 dispatch peak를 별도로 계산하고 큰 값을 working set으로 사용한다.
-- PDF preparation peak는 현재 unit의 materialized workbook/decoded RGBA와 PDF group 전체가 `Document.save()`까지 보유하는 모든 PNG bytes/page closure/PDF object, save 중 생성되는 output bytes를 포함한다. PDF unit의 PNG는 group save 전에는 해제된 것으로 계산하지 않는다. RAW preparation peak는 현재 decoded raster와 누적 command builder를 포함한다.
-- dispatch peak는 artifact를 읽은 Dart payload와 method-channel/FFI 또는 `WritePrinter`용 native copy가 동시에 존재하는 비용을 포함한다. estimate가 256 MiB를 넘는 동일 physical page spec group은 여러 spool job으로 자동 chunk 분할하지 않고 첫 물리 출력 전에 거부한다.
-- 완료된 group payload는 메모리에 누적하지 않고 command 전용 임시 directory의 `LabelPrintJobArtifact` 파일로 직렬화한다. 전체 artifact 실제 byte 합계도 256 MiB 이하여야 하며 성공·취소·실패 모두 `finally`에서 삭제한다.
+- 총 copies 합계는 1000 이하여야 한다. `LabelPrintMemoryEstimate`는 overflow-checked integer byte 산식으로 preparation peak와 dispatch peak를 별도로 계산하고 큰 값을 working set으로 사용한다. 이 값은 Dart/native allocator의 정확한 RSS가 아니라 구현이 반드시 동일하게 사용하는 보수적 command budget이다.
+- capture 사전 상한은 `pixelWidth=ceil(sourceWidthMm*dpiX/25.4)`, `pixelHeight=ceil(sourceHeightMm*dpiY/25.4)`, `decodedRgbaBytes=pixelWidth*pixelHeight*4`, `pngUpperBound=decodedRgbaBytes*2+1MiB`로 계산한다. materialized workbook은 canonical save JSON UTF-8 byte length의 8배와 2 MiB를 더한 값을 object/string 상한으로 사용한다.
+- PDF group preparation peak는 command snapshot, 현재 materialized workbook, 현재 decoded RGBA, group 전체 actual PNG bytes, page당 64 KiB의 closure/object budget과 `sum(actualPngBytes)+pageCount*64KiB+1MiB` PDF save-output 상한을 동시에 합산한다. capture 전에는 actual PNG 대신 `pngUpperBound`를 사용하고, capture 후 actual byte로 다시 검사한다. PDF unit의 PNG/page closure는 group save 전에는 해제된 것으로 계산하지 않는다.
+- RAW preparation peak는 command snapshot, 현재 workbook/decoded raster와 누적 command builder의 actual byte length를 합산한다. PDF dispatch peak는 `artifactByteLength*3+maxPageDecodedRgbaBytes+16MiB`로 artifact read buffer, `printing`의 Dart `Uint8List.fromList` clone, method-channel/native vector와 PDFium의 한 page decode/render working budget을 포함한다. RAW dispatch peak는 `artifactByteLength*2+1MiB`로 Dart payload와 `WritePrinter`용 native buffer를 포함한다.
+- 다음 unit/page를 builder에 추가하기 전, PDF `Document.save()` 전, save 직후 actual artifact length와 dispatch 직전에 같은 산식을 검사한다. 어느 시점이든 256 MiB를 넘는 동일 physical page spec group은 여러 spool job으로 자동 chunk 분할하지 않고 첫 물리 출력 전에 거부한다.
+- 완료된 group payload는 메모리에 누적하지 않고 command 전용 directory의 `LabelPrintJobArtifact` 파일로 직렬화한다. 전체 artifact 실제 byte 합계도 256 MiB 이하여야 한다. terminal 성공·취소·확정 실패는 `finally`에서 삭제하고 `unknown`/`pending`/`commitUnknown`은 recovery 완료까지 보존한다.
 - 256 MiB는 `268435456` bytes로 계산한다. 제한은 UI와 command validation 양쪽에서 적용하며 초과 작업은 여러 번 나누어 발행하도록 안내한다.
 
 ### 5.2 물리 출력 계산
@@ -218,9 +225,10 @@ PDF group은 PDF document 내부 모든 page와 `directPrintPdf(format:)`에 같
 - 줄간격을 바꿔도 row/cell 크기, font size와 자동 줄바꿈 폭은 바꾸지 않고 cell clip을 유지한다. 공용라벨 자동줄간격도 같은 API를 사용하고 wrapper별 별도 계산은 두지 않는다.
 - 공용 `LabelPhysicalTransform`이 orientation을 한 번만 적용한다. `horizontal`의 최종 물리 page는 `width=widthMm`, `height=heightMm+extraAreaMm`이다. `vertical`은 extra area를 제외한 label viewport와 content/clip을 시계 방향 90도 회전해 `width=heightMm`, label `height=widthMm`로 만든 뒤 최종 물리 진행 방향 뒤쪽에 `extraAreaMm`을 추가해 page `height=widthMm+extraAreaMm`로 만든다.
 - `vertical`의 회전 전 점 `(x,y)`는 label viewport 높이 `heightMm`을 기준으로 `(heightMm-y,x)`로 변환하고 rectangle은 네 모서리를 변환한 bounding rectangle을 사용한다. horizontal extra strip은 `y=heightMm..heightMm+extraAreaMm`, vertical extra strip은 `y=widthMm..widthMm+extraAreaMm`이며 content를 그리지 않는다.
-- `LabelPhysicalPageSpec`은 sealed 공통 계약이며 backend별 canonical 단위를 섞지 않는다. `LabelPdfPhysicalPageSpec`은 printer identity와 최종 width/height를 Windows 0.1mm 정수로 정규화하고 그 값에서 `PdfPageFormat` point를 산출한다. `LabelEzplPhysicalPageSpec`은 printer identity, printer DPI, 최종 width/height dot과 실제 사용하는 media mode를 보유한다.
-- PDF group equality는 `(printer identity, backend, widthTenthMm, heightTenthMm)`, EZPL group equality는 `(printer identity, backend, dpi, widthDots, heightDots, mediaMode)`만 사용한다. 의미가 불명확한 `driver media settings` catch-all은 두지 않는다.
-- EZPL `^Q`, `^W`, raster 크기와 native border/barcode 좌표는 모두 canonical dot spec에서 산출하고 각 command가 요구하는 단위로 마지막에 한 번만 변환한다. group 비교는 변환 전 dot 값을 사용하며 orientation이나 원본 mm를 driver에서 다시 회전하지 않는다.
+- 발행 시작 시 선택된 `Printer`를 immutable `LabelPrinterSnapshot(printerUrl, printerName, dpiX, dpiY)`으로 만든다. Windows queue의 canonical identity와 실제 dispatch에는 `Printer.url`, 화면·이력에는 `Printer.name`을 사용한다. 기존 name preference는 설치 목록에서 한 번 resolve한 뒤 snapshot으로 바꾸며 group 생성 이후 name으로 printer를 다시 찾지 않는다.
+- `LabelPhysicalPageSpec`은 sealed 공통 계약이며 backend별 canonical 단위를 섞지 않는다. `LabelPdfPhysicalPageSpec`은 printer URL과 최종 width/height를 Windows 0.1mm 정수로 정규화하고 그 값에서 `PdfPageFormat` point를 산출한다. `LabelEzplPhysicalPageSpec`은 printer URL, `dpiX/dpiY`, 최종 width/height dot과 `LabelEzplMediaMode.plainPaper`를 보유한다.
+- PDF group equality는 `(printerUrl, backend, widthTenthMm, heightTenthMm)`, EZPL group equality는 `(printerUrl, backend, dpiX, dpiY, widthDots, heightDots, mediaMode)`만 사용한다. 의미가 불명확한 `driver media settings` catch-all은 두지 않는다.
+- 이번 범위의 EZPL media mode는 현재 engine과 같은 plain paper만 지원하고 `^Q<heightMm>,0,0`으로 출력한다. gap/black-mark mode와 gap/mark 길이 설정은 구현하지 않는다. `^Q`, `^W`, raster 크기와 native border/barcode 좌표는 모두 canonical dot spec에서 산출하고 각 command가 요구하는 단위로 마지막에 한 번만 변환한다. x 좌표는 `dpiX`, y 좌표는 `dpiY`를 사용한다. group 비교는 변환 전 dot 값을 사용하며 orientation이나 원본 mm를 driver에서 다시 회전하지 않는다.
 
 ### 5.3 `LabelPrintSessionController`
 
@@ -239,20 +247,33 @@ PDF group은 PDF document 내부 모든 page와 `directPrintPdf(format:)`에 같
 
 다음 immutable DTO 또는 동등 구조를 둔다.
 
-- `LabelPrintCommand`: label/customer/market/user identity, printer, preference snapshot, row snapshot, column/content snapshot, saved label workbook snapshot
+- `LabelPrinterSnapshot`: canonical `printerUrl`, 표시·이력용 `printerName`, `dpiX`, `dpiY`
+- `LabelPrintCommand`: label/customer/market/user identity, printer snapshot, preference snapshot, row snapshot, column/content snapshot, saved label workbook snapshot
 - `LabelPrintUnit`: item ID, row index, copy index, materialize에 사용할 column value projection. 한 unit은 정확히 한 장이며 unit-level print option의 copies는 항상 `1`이다.
 - `LabelPhysicalPageSpec`: backend별 canonical physical media sealed 계약
-- `LabelPdfPhysicalPageSpec`: printer identity, `widthTenthMm`, `heightTenthMm`, 파생 `PdfPageFormat`
-- `LabelEzplPhysicalPageSpec`: printer identity, DPI, `widthDots`, `heightDots`, 실제 사용하는 media mode
+- `LabelPdfPhysicalPageSpec`: printer URL, `widthTenthMm`, `heightTenthMm`, 파생 `PdfPageFormat`
+- `LabelEzplPhysicalPageSpec`: printer URL, `dpiX`, `dpiY`, `widthDots`, `heightDots`, `LabelEzplMediaMode.plainPaper`
 - `LabelPrintJobGroup`: 순서가 연속되고 physical page spec이 같은 unit. unit 순서를 바꾸거나 비연속 group을 합치지 않는다.
 - `LabelPrintJobArtifact`: group metadata, command 전용 임시 payload file path와 byte length
+- `LabelPrintArtifactManifest`: app-instance/command UUID, owner PID와 process start UTC, command/persistence snapshot, artifact path·length, group별 `prepared`/`dispatchStarted`/`accepted`/`failed`/`unknown`, persistence state와 updated UTC
 - `LabelPrintCancellationController`: idempotent cancel request와 현재 요청 여부. OS print API를 직접 중단하지 않는다.
-- `LabelPrintDispatchResult`: group-level `accepted`/`failed`, printer와 optional job ID, 오류. PDF job ID는 `null`을 허용한다.
-- `LabelPrintDispatchOutcome`: `completed`/`partiallyAccepted`/`cancelled`/`failed`
-- `LabelPrintPersistenceOutcome`: `notRequired`/`succeeded`/`failed`/`commitUnknown`
-- `LabelPrintResult`: 전체 요청 행·매수, group별 접수 결과, accepted unit/매수, dispatch outcome과 persistence outcome. printer가 알려주지 않는 page/copy별 실제 출력 성공은 만들지 않는다.
+- `LabelPrintDispatchResult`: group-level `accepted`/`failed`/`unknown`, printer와 optional job ID, 오류. PDF job ID는 `null`을 허용한다.
+- `LabelPrintDispatchOutcome`: `completed`/`partiallyAccepted`/`cancelled`/`failed`/`unknown`/`partiallyAcceptedUnknown`
+- `LabelPrintPersistenceOutcome`: `notRequired`/`pending`/`succeeded`/`failed`/`commitUnknown`
+- `LabelPrintResult`: 전체 요청 행·매수, group별 접수 결과, accepted unit/매수, dispatch outcome과 persistence outcome, cancel request가 너무 늦었는지 여부. printer가 알려주지 않는 page/copy별 실제 출력 성공은 만들지 않는다.
 
-모든 group이 accepted되면 dispatch는 `completed`다. 취소 요청 또는 group 실패로 뒤 unit이 남았고 accepted unit이 있으면 `partiallyAccepted`, accepted 없이 준비/unit/group 경계에서 취소되면 `cancelled`, accepted 없이 전송·사전 생성 오류가 발생하면 `failed`다. active call이 실패하면 취소 요청 여부와 무관하게 accepted unit 유무에 따라 `failed` 또는 `partiallyAccepted`다. accepted unit이 없으면 persistence는 `notRequired`, transaction commit 성공은 `succeeded`, rollback 가능한 오류는 `failed`, commit 결과를 확정할 수 없으면 `commitUnknown`이다. 두 outcome을 독립적으로 보존해 `partiallyAccepted + failed`와 `partiallyAccepted + commitUnknown`을 표현한다.
+모든 group이 accepted되면 dispatch는 `completed`다. 취소 요청 또는 group 실패로 뒤 unit이 남았고 accepted unit이 있으면 `partiallyAccepted`, accepted 없이 준비/unit/group 경계에서 취소되면 `cancelled`, accepted 없이 전송·사전 생성 오류가 발생하면 `failed`다. active call이 실패하면 취소 요청 여부와 무관하게 accepted unit 유무에 따라 `failed` 또는 `partiallyAccepted`다. 미확정 active group 앞에 accepted unit이 없으면 `unknown`, 있으면 `partiallyAcceptedUnknown`이다. `unknown`이 없고 accepted unit도 없으면 persistence는 `notRequired`, transaction commit 성공은 `succeeded`, rollback 가능한 오류는 `failed`, commit 결과를 확정할 수 없으면 `commitUnknown`이다. `unknown`이 있으면 definitively accepted unit을 포함한 command 전체 persistence는 `pending`으로 보류한다. 두 outcome을 독립적으로 보존해 `partiallyAccepted + failed`, `partiallyAccepted + commitUnknown`과 `partiallyAcceptedUnknown + pending`을 표현한다.
+
+manifest는 command/persistence snapshot과 각 상태를 `<manifest>.part`에 쓰고 flush/close한 뒤 rename하는 방식으로 갱신한다. group dispatch 직전에 `dispatchStarted`, API 결과를 받은 직후 다음 group 전에 `accepted` 또는 `failed`, DB transaction 직전 `persistenceStarted`, commit 직후 `persistenceSucceeded`를 durable하게 기록한다. API 결과와 manifest 갱신 사이에 process가 종료되면 해당 group은 보수적으로 `unknown`, `persistenceStarted` 이후 commit 기록 전 종료되면 `commitUnknown`이다.
+
+startup recovery는 다음과 같이 처리한다.
+
+- 모든 group이 `prepared`이고 dispatch가 시작되지 않은 24시간 이상 된 command는 owner process가 없을 때만 삭제한다.
+- 하나라도 `dispatchStarted`이고 결과가 없으면 `unknown`으로 유지하고 자동 삭제·자동 재출력·자동 DB 반영을 하지 않는다.
+- 같은 process에서 5분 watchdog 후 원래 call이 늦게 반환하면 사용자가 recovery를 확정하기 전까지만 manifest를 accepted/failed로 자동 갱신하고 정상 pipeline을 재개한다.
+- process 재시작 후 `[출력 상태 확인]` dialog에서 printer/group media, unit/item/copy, dispatch 시각을 보여주고 사용자가 group 전체의 `출력됨` 또는 `출력되지 않음`을 확인해야 한다. 일부 page만 출력됐거나 확신할 수 없으면 unresolved로 유지한다.
+- `출력됨`은 해당 unknown group 전체를 accepted, `출력되지 않음`은 failed로 확정한다. 그 후 command 전체의 확정 accepted unit만 한 SQL transaction으로 저장한다. 확인 전에는 같은 label/customer session 재발행과 자동증가 편집을 차단한다.
+- 모든 group 결과가 이미 확정됐지만 persistence 전 process가 종료된 manifest는 저장 transaction을 재개한다. `commitUnknown`은 자동 재실행하지 않고 DB 확인 후 해소한다.
 
 버튼 클릭 시 command snapshot을 한 번 만들고 출력 도중 화면의 mutable 전역 데이터를 다시 읽지 않는다.
 
@@ -368,13 +389,13 @@ PDF group은 PDF document 내부 모든 page와 `directPrintPdf(format:)`에 같
 6. saved workbook, item/column/content, printer preference의 immutable command를 만든다.
 7. 각 row와 copy에 대해 순서가 고정되고 copies가 1인 `LabelPrintUnit`을 만든다.
 8. 모든 unit의 자동증가 projection과 source reference를 확정한다. 값 계산이나 resolver 사전 검증이 하나라도 실패하면 전체를 중단한다.
-9. unit의 source physical bounds, 최종 page spec과 printer DPI로 preparation/dispatch peak working set이 256 MiB 이하인지 먼저 계산한다. 통과하면 `label_manager_label_print_<sessionId>` command 전용 임시 directory를 만들고 unit 순서대로 workbook materialize와 공용 layout/capture를 완료해 같은 physical page spec의 현재 PDF/EZPL group builder에 한 장을 추가한다. cancellation token은 각 unit materialize/capture 전과 artifact save/rename 전 안전 지점에서 확인한다. 요청됐으면 미완성 `.part`와 artifact를 삭제하고 물리 출력 없이 `cancelled + notRequired`로 종료한다. 각 unit 처리 후 workbook과 decoded RGBA는 해제하되 PDF `MemoryImage` PNG/page closure는 group save까지 retained memory로 유지한다. spec이 바뀌거나 마지막 unit이면 builder를 save하고 `<group>.part` file을 flush/close한 뒤 최종 artifact 이름으로 rename한다. rename이 성공한 파일만 `LabelPrintJobArtifact` 목록에 추가한 다음 builder와 retained PNG/page 객체를 해제한다. 누적 artifact 실제 byte 합계가 256 MiB를 넘거나 하나라도 생성에 실패하면 첫 물리 출력 전에 전체를 중단하며, 동일 spec group을 자동 분할하지 않는다. 모든 artifact 생성이 성공해야 10단계로 진행한다.
-10. 각 group dispatch 직전에 cancellation token을 확인하고 요청됐으면 뒤 group을 보내지 않는다. Windows raw EZPL 가능 group은 정밀 좌표 + EZPL border/barcode + raster fallback command를 한 RAW payload로 결합하고 각 label의 copies command를 `^P1`로 만든다. file port 또는 raw 불가 group은 artifact를 읽어 `directPrintPdf(format: group.pageSpec.pdfPageFormat, dynamicLayout: false, usePrinterSettings: false, onLayout: ...)`로 호출한다. PDF 내부 page는 group format을 사용하고 callback width/height는 3.2의 tolerance로 검증하며 callback margin은 equality에 포함하지 않는다.
-11. active OS print call은 cancellation token으로 중단하지 않는다. 반환된 `accepted`/`failed`를 먼저 기록한 뒤 token을 다시 확인한다. `failed`이거나 취소가 요청됐으면 뒤 group 전송을 중단하고, 그렇지 않으면 다음 group으로 진행한다.
-12. accepted unit이 없으면 DB를 변경하지 않고 종료한다.
-13. accepted unit이 있으면 그 unit만 기준으로 자동증가 최종값과 발행 이력을 하나의 SQL transaction으로 저장한다. 이후 group이 실패했더라도 이미 accepted된 unit은 이 transaction에 반영한다.
+9. unit의 source physical bounds, 최종 page spec과 printer `dpiX/dpiY`로 preparation/dispatch peak working set이 256 MiB 이하인지 먼저 계산한다. 통과하면 `label_manager_label_print_<appInstanceUuid>_<commandUuid>` command 전용 directory와 initial manifest를 atomic하게 만들고 unit 순서대로 workbook materialize와 공용 layout/capture를 완료해 같은 physical page spec의 현재 PDF/EZPL group builder에 한 장을 추가한다. cancellation token은 각 unit materialize/capture 전, builder save 전과 save 후 artifact rename 전 안전 지점에서 확인한다. 요청됐으면 미완성 `.part`와 아직 dispatch되지 않은 artifact를 삭제하고 물리 출력 없이 `cancelled + notRequired`로 종료한다. 각 unit 처리 후 workbook과 decoded RGBA는 해제하되 PDF `MemoryImage` PNG/page closure는 group save까지 retained memory로 유지한다. spec이 바뀌거나 마지막 unit이면 builder를 save하고 `<group>.part` file을 flush/close한 뒤 최종 artifact 이름으로 rename한다. rename이 성공한 파일만 manifest와 `LabelPrintJobArtifact` 목록에 추가한 다음 builder와 retained PNG/page 객체를 해제한다. 누적 artifact 실제 byte 합계가 256 MiB를 넘거나 하나라도 생성에 실패하면 첫 물리 출력 전에 전체를 중단하며, 동일 spec group을 자동 분할하지 않는다. 모든 artifact 생성이 성공해야 10단계로 진행한다.
+10. 각 group dispatch 직전에 cancellation token을 확인하고 요청됐으면 뒤 group을 보내지 않는다. manifest에 `dispatchStarted`를 durable하게 기록한 뒤 Windows raw EZPL 가능 group은 정밀 좌표 + EZPL border/barcode + raster fallback command를 한 RAW payload로 결합하고 각 label의 copies command를 `^P1`로 만든다. file port 또는 raw 불가 group은 artifact를 읽어 patched `directPrintPdf(format: group.pageSpec.pdfPageFormat, dynamicLayout: false, usePrinterSettings: false, onLayout: ...)`로 호출한다. PDF 내부 page는 group format을 사용하고 callback width/height는 3.2의 축별 tolerance로 검증하며 callback margin은 equality에 포함하지 않는다.
+11. active OS print call은 cancellation token이나 5분 watchdog으로 중단하지 않는다. 5분 안에 반환되면 `accepted`/`failed`를 manifest에 먼저 기록한 뒤 token을 다시 확인한다. `failed`이거나 취소가 요청됐으면 뒤 group 전송을 중단하고, 그렇지 않으면 다음 group으로 진행한다. 5분을 넘기면 group과 dispatch outcome을 `unknown`으로 기록하고 뒤 group 전송과 DB persistence를 중단하되 원래 completion listener는 유지한다.
+12. unknown group이 있으면 persistence를 `pending`으로 남기고 recovery 상태로 종료한다. unknown이 없고 accepted unit도 없으면 DB를 변경하지 않고 종료한다.
+13. 결과가 모두 확정되고 accepted unit이 있으면 그 unit만 기준으로 자동증가 최종값과 발행 이력을 하나의 SQL transaction으로 저장한다. 이후 group이 실패했더라도 이미 accepted된 unit은 이 transaction에 반영한다.
 14. commit 성공 후 자동증가 대상 draft/snapshot만 동기화하고 선택 행 미리보기를 commit된 DB 값으로 갱신한다.
-15. 성공·취소·실패와 DB 결과에 관계없이 `finally`에서 command 전용 artifact directory를 삭제한다. 앱 session 시작 시 현재 session ID가 아닌 `label_manager_label_print_` prefix directory 중 수정 시각이 24시간 이상 지난 orphan도 삭제한다. 정리 실패는 business 결과를 바꾸지 않고 진단 로그에만 남긴다.
+15. 성공·취소·확정 실패와 persistence 성공/확정 실패는 `finally`에서 command directory를 삭제한다. `unknown`, `partiallyAcceptedUnknown`, `pending`과 `commitUnknown` manifest/artifact는 삭제하지 않는다. 앱 시작 시 `label_manager_label_print_` prefix directory의 owner PID와 process start UTC를 확인하고 owner가 없으며 dispatch가 시작되지 않은 24시간 이상 된 command만 삭제한다. PID만 비교하지 않아 재사용된 PID를 active owner로 오인하지 않게 한다. 정리 실패는 business 결과를 바꾸지 않고 진단 로그에만 남긴다.
 
 다중 품목을 위해 OS printer picker나 설정 dialog를 group마다 열지 않는다. 한 번 선택한 printer와 command snapshot으로 group을 순차 실행한다. 중복 `발행` 클릭은 무시한다. 출력 API가 accepted를 반환한 뒤 실제 printer가 일부 page만 출력하는 상황은 앱이 판정하거나 이력을 부분 보정하지 않는다.
 
@@ -386,9 +407,11 @@ PDF group은 PDF document 내부 모든 page와 `directPrintPdf(format:)`에 같
 - materialize/capture/artifact 생성 또는 256 MiB 검증 실패: 해당 item/copy/column을 표시하고 물리 출력 전에 전체 중단한다.
 - 준비 중 또는 첫 group dispatch 전 취소: `cancelled + notRequired`로 종료하고 DB를 변경하지 않는다. 자동 재시도하지 않는다.
 - active OS print call 중 취소: call을 중단하지 않고 반환 결과를 기록한다. 첫 call이 failed이면 `failed + notRequired`, accepted이면 뒤 group을 중단하고 accepted unit을 저장한다.
+- 마지막 active group 실행 중 취소를 요청했지만 group이 accepted되어 모든 unit이 접수됐으면 dispatch는 `completed`로 유지하고 `마지막 인쇄 작업이 이미 접수되어 취소되지 않았습니다.`를 표시한다.
 - 앞 group 접수 후 다음 group 실패 또는 group 사이 취소: 뒤 group 전송을 중단하고 이미 접수된 매수와 미접수 매수를 함께 표시한다. accepted unit의 DB 반영은 실행하되 실패 group을 자동 재시도하거나 자동 재출력하지 않는다.
+- active call 5분 timeout 또는 process 종료 후 `dispatchStarted`: `unknown/partiallyAcceptedUnknown + pending`으로 표시하고 DB 반영·자동 재출력·artifact 삭제를 하지 않는다. 같은 process의 늦은 completion 또는 startup recovery 확인으로만 해소한다.
 - 자동증가/history DB 저장 실패: print job 접수 여부와 구분해 표시하고 가능한 rollback 후 오류를 전달한다. 자동 재출력하지 않고 추가 발행을 차단한다.
-- 출력 도중 탭/label size/customer 변경과 화면 종료는 DB 결과 처리와 artifact cleanup을 포함한 command 완료 전 차단한다.
+- 출력 도중 탭/label size/customer 변경과 화면 종료는 terminal DB 결과 처리와 artifact cleanup을 포함한 command 완료 전 차단한다. unknown으로 전환되면 다른 기능은 사용할 수 있지만 unresolved manifest의 label/customer session 편집·재발행은 계속 차단한다.
 
 ## 12. 구현 대상 파일 가이드
 
@@ -409,7 +432,7 @@ PDF group은 PDF document 내부 모든 page와 `directPrintPdf(format:)`에 같
 - `lib/printing/label_sheet_print_job.dart`
   - `LabelPhysicalTransform`, saved physical-size source viewport/clip, backend별 physical page spec, group payload builder와 retained-memory estimate 공용화
 - `lib/printing/label_print_artifact_store.dart`
-  - session prefix directory, atomic artifact finalize, command cleanup과 startup orphan cleanup
+  - app-instance/command directory, durable manifest state, owner 확인, terminal cleanup과 startup recovery
 - `lib/printing/raw_printer_win32.dart`
   - RAW API 반환값 검사와 spooler job ID 결과
 - `third_party/fortune_sheet/lib/`
@@ -417,7 +440,11 @@ PDF group은 PDF document 내부 모든 page와 `directPrintPdf(format:)`에 같
 - `lib/page_home/label_print_settings_dialog.dart`
   - 공용 preference/printer/validation 로직을 사용하는 라벨출력 전용 설정 UI
 - `lib/home_page_manager.dart`
-  - tab placeholder 교체, session/checked item 연결, 상위 busy/context gate
+  - tab placeholder 교체, session/checked item 연결, 상위 busy/context gate와 startup recovery scan
+- `third_party/printing/`
+  - resolved `printing 5.15.0` 원본과 license를 보존한 local fork. Windows native completion/error/handle cleanup과 Dart immediate failure completion patch만 최소 변경한다.
+- `pubspec.yaml`, `pubspec.lock`
+  - hosted `printing` 범위를 `third_party/printing` path dependency로 교체하고 fork version을 고정한다.
 
 이미 동등한 소유 파일이 있으면 새 파일을 늘리지 말고 그 파일의 public API로 정리한다.
 
@@ -431,11 +458,13 @@ PDF group은 PDF document 내부 모든 page와 `directPrintPdf(format:)`에 같
 - copies 0 허용, 음수/비숫자 거부, 전체 0 발행 차단
 - copies가 0인 row의 unit/history/자동증가 제외, 총 1000장과 256 MiB 제한
 - 물리 설정: margin+signed push 좌표, 전체 label clip, content 교집합, horizontal/vertical 최종 page 공식, trailing extra area와 backend 단위 반올림
-- PDF 0.1mm와 EZPL dot/DPI/media mode canonical equality는 각각 같은 backend media unit만 동일 group으로 판정
+- printer name preference가 `Printer.url/name/dpiX/dpiY` immutable snapshot으로 확정되고 group은 URL identity를 사용함
+- PDF 0.1mm와 EZPL dot/축별 DPI/plain-paper media mode canonical equality는 각각 같은 backend media unit만 동일 group으로 판정
+- checked integer memory 산식의 각 경계, overflow 거부, 256 MiB 정확 경계 허용과 1 byte 초과 거부
 - 저장 `gridClientWidthMm/gridClientHeightMm`이 source viewport의 유일한 기준이며 누락 시 저장 필요 오류
 - cancellation token의 idempotent 요청과 준비 unit/dispatch group 경계 상태 전이
 - 줄간격: session/item > global > 100 우선순위, 기본값 100과 30~300 범위
-- dispatch outcome과 persistence outcome 조합 및 일부 접수 후 DB 실패/commitUnknown 표현
+- dispatch/persistence outcome 조합, `unknown/partiallyAcceptedUnknown + pending`, 일부 접수 후 DB 실패/commitUnknown과 마지막 group late-cancel completed 표현
 - exact search: trim+대소문자 무시, 품명, `searchPrint` content, 비대상 content, 미체크 품목 제외, 중복 결과 순환
 - 자동증가: 범위, 증가 크기, leading zero, overflow wrap, barcode check digit, time barcode, `autoIncSave`별 마지막 출력값/다음 값과 `autoIncUpdate` 무시
 - copy별 projection이 원본 working value를 변형하지 않음
@@ -455,15 +484,19 @@ PDF group은 PDF document 내부 모든 page와 `directPrintPdf(format:)`에 같
 - unit별 copies=1이며 PDF page 수와 EZPL `^P1` label 수가 총 copies와 일치
 - 정규화된 physical page spec이 같은 인접 unit group과 spec 변경 시 순서가 유지된 job 분리
 - group별 PDF 내부 page와 `directPrintPdf(format:)` 일치, `dynamicLayout/usePrinterSettings=false`와 호출 수
-- Windows PDF callback margin 차이는 허용하고 width/height가 `max(0.1mm, one device pixel)` 안이면 prebuilt payload 반환, 범위 밖이면 native `StartDoc` 전 실패
+- Windows PDF callback margin 차이는 허용하고 width/height가 각각 `max(0.1mm, 25.4/dpiX|dpiY)` 안이면 prebuilt payload 반환, 범위 밖이면 patched completion으로 native `StartDoc` 전 실패
+- local printing fork는 CreateDC/immediate `0`, onLayout exception, PDF load와 StartDoc/StartPage/EndPage/EndDoc 실패마다 shared guard로 exactly-once failed completion을 수행하며 StartDoc 이후 오류의 AbortDoc과 handle/job cleanup 후 성공 EndDoc 뒤에만 true를 반환
 - 자동증가 copy별 서로 다른 payload
 - Godex hybrid EZPL의 label size, border, native barcode, bitmap fallback과 group별 RAW payload/`sendRaw` 호출
 - unsupported/file port의 PDF fallback
 - unit materialize 하나가 실패하면 dispatcher가 호출되지 않음
-- PDF group의 모든 PNG/page closure/PDF object/save output와 Dart/native transfer 중첩을 포함한 peak 또는 실제 artifact 합계 256 MiB 초과 시 dispatcher가 호출되지 않으며 동일-media group을 자동 분할하지 않음
+- capture/workbook/PDF closure·save 상한과 PDF `3A+maxPageRgba+16MiB`/RAW `2A+1MiB` dispatch 산식 중 하나라도 256 MiB 초과 시 dispatcher가 호출되지 않으며 동일-media group을 자동 분할하지 않음
 - unit 순차 materialize/capture 후 workbook/decoded RGBA 해제, PDF PNG는 group save까지 retained됨
-- `.part` flush/close/rename 뒤에만 artifact 목록에 추가되고 모든 종료 경로에서 현재 command directory가 정리됨
-- startup orphan cleanup은 24시간 이상 지난 다른 session prefix directory만 삭제하고 현재 session directory는 보존함
+- artifact와 manifest는 `.part` flush/close/rename 뒤에만 목록·상태가 갱신되고 terminal 종료만 command directory를 정리함
+- app-instance/command UUID 분리, PID+process start UTC owner 확인과 dispatch 전 24시간 orphan만 정리함
+- 5분 watchdog은 underlying call을 취소하지 않고 unknown/pending으로 전환하며 같은 process의 late completion을 accepted/failed로 자동 해소함
+- dispatchStarted process 종료, accepted 후 persistence 전 종료, persistenceStarted 종료를 각각 unknown recovery, persistence 재개, commitUnknown으로 복구함
+- startup 수동 `출력됨/출력되지 않음` 확인, 불확실·일부 출력 unresolved 유지와 확인 전 재발행/DB 반영 차단
 - 첫 group 실패와 앞 group accepted 후 다음 group 실패의 전송 중단·accepted unit 집계
 - PDF `true`/모든 `false`/exception과 RAW `EndDocPrinter` 결과 mapping
 - 준비 unit 전/ artifact finalize 전/첫 group 전 취소는 `cancelled + notRequired`
@@ -480,6 +513,8 @@ PDF group은 PDF document 내부 모든 page와 `directPrintPdf(format:)`에 같
 - table/column 부재 시 DDL 없이 명시적 오류
 - accepted unit이 없을 때 history와 자동증가 update가 없음
 - 일부 group accepted 후 실패하면 accepted unit만 하나의 transaction에 반영됨
+- unknown이 있으면 definitively accepted unit도 보류되고 recovery 확정 후 command 전체 accepted unit을 한 transaction에 반영함
+- accepted manifest의 persistence 재개와 commitUnknown 자동 재실행 금지
 - commit 결과 불명확 시 추가 발행 차단
 
 ### 13.4 widget 테스트
@@ -492,8 +527,9 @@ PDF group은 PDF document 내부 모든 page와 `directPrintPdf(format:)`에 같
 - 검색 영역 표시와 exact-match 선택, 검색만으로 발행되지 않음
 - `[프린터 설정] 프린터명 [발행]` 순서
 - 발행 중 `[발행 취소]`, 요청 후 disabled `[취소 요청됨]` 전환과 중복 요청 차단
+- 5분 timeout의 `[출력 상태 확인 필요]`, startup `[출력 상태 확인]`과 마지막 group late-cancel 완료 안내
 - 라벨출력 전용 설정 dialog에 copies와 내부 발행 버튼이 없고 `[취소] [적용]`만 있음
-- 출력 중 table/settings/context 변경이 DB 결과 처리와 artifact cleanup 완료까지 비활성
+- 출력 중 table/settings/context 변경이 terminal DB 결과 처리와 artifact cleanup 완료까지 비활성이고 unknown session만 recovery 전까지 잠김
 - 900x600 및 일반 desktop viewport에서 overflow/overlap 없음
 - non-Windows에서 라벨출력 tab/command가 노출되지 않음
 
@@ -511,23 +547,26 @@ PDF group은 PDF document 내부 모든 page와 `directPrintPdf(format:)`에 같
   - 자동증가 포함
   - 같은 physical page spec의 인접 unit은 한 job, spec 변경은 순서가 유지된 별도 job인지 확인
   - Windows driver callback media 반올림은 허용되고 실제 다른 media는 오류로 중단되는지 확인
+  - local printing fork가 callback/native 오류에서 hang 없이 false/error completion을 반환하는지 확인
   - 준비 중, group 사이와 active OS call 중 발행 취소의 메시지·후속 group 차단·accepted-unit DB 반영 확인
+  - 5분 watchdog late completion, process 강제 종료 후 unknown recovery와 DB 보류/재개 확인
   - 첫 job 접수 실패, 일부 job 접수 후 실패, 접수 후 이력 저장 실패 메시지 구분
 
 실제 SQL Server와 프린터를 사용할 수 없으면 그 항목은 단위/통합 mock 검증 결과와 함께 `미검증`으로 남긴다.
 
 ## 14. 구현 순서
 
-1. 품목관리 발행 체크를 controlled state로 올리고 출력 row/session model을 구현한다.
-2. 기존 품목 미리보기 materialize와 읽기 전용 preview를 공용 API로 추출한다.
-3. saved workbook physical source viewport, `FortuneOutputLayoutOptions`, `LabelPhysicalTransform`, backend별 physical page spec과 retained-memory estimate를 구현하고 공용 preview/capture/PDF/EZPL builder에 연결한다.
-4. unit 순차 materialize/capture, group builder, atomic artifact lifecycle과 startup orphan cleanup을 구현한다.
-5. 라벨출력 화면과 table/search/selection/자동 미리보기를 구현한다.
-6. 프린터 preference/picker/validation 공용 로직, 라벨출력 전용 설정 dialog, cancellation controller와 PDF callback tolerance를 포함한 group dispatcher를 구현한다.
-7. 단일 row·단일 copy 출력부터 연결한다.
-8. 여러 row·copies와 자동증가 copy projection을 연결한다.
-9. 자동증가 저장 DAO와 발행 이력 DAO를 구현한다.
-10. focused test, analyze, 전체 test, 실제 프린터 수동 검증을 수행한다.
+1. `printing 5.15.0`을 `third_party/printing` local fork/path dependency로 고정하고 Windows/Dart completion patch와 fork test를 먼저 완료한다.
+2. 품목관리 발행 체크를 controlled state로 올리고 출력 row/session model을 구현한다.
+3. 기존 품목 미리보기 materialize와 읽기 전용 preview를 공용 API로 추출한다.
+4. saved workbook physical source viewport, `FortuneOutputLayoutOptions`, `LabelPhysicalTransform`, backend별 physical page spec과 산식 기반 memory estimate를 구현하고 공용 preview/capture/PDF/EZPL builder에 연결한다.
+5. unit 순차 materialize/capture, group builder, durable manifest/artifact lifecycle과 startup recovery를 구현한다.
+6. 라벨출력 화면과 table/search/selection/자동 미리보기·recovery UI를 구현한다.
+7. 프린터 preference/picker/validation 공용 로직, 라벨출력 전용 설정 dialog, cancellation controller와 PDF callback tolerance/5분 watchdog을 포함한 group dispatcher를 구현한다.
+8. 단일 row·단일 copy 출력부터 연결한다.
+9. 여러 row·copies와 자동증가 copy projection을 연결한다.
+10. 자동증가 저장 DAO와 발행 이력 DAO를 구현한다.
+11. focused test, analyze, 전체 test, 실제 프린터 수동 검증을 수행한다.
 
 각 단계는 관련 focused test를 먼저 통과한 뒤 다음 단계로 진행한다.
 
@@ -541,6 +580,7 @@ PDF group은 PDF document 내부 모든 page와 `directPrintPdf(format:)`에 같
 - 레거시 검색 대상과 exact-match 의미를 사용하되 검색만으로 물리 출력하지 않는다.
 - 프린터 설정은 공용 preference/printer/validation 로직을 사용하는 라벨출력 전용 dialog이며 매수와 내부 발행 버튼이 없다.
 - 일반 프린터 PDF와 Godex EZPL 경로가 현재 공용 출력 엔진을 통해 동작한다.
+- local `printing 5.15.0` fork가 Windows native/callback 모든 종료 경로를 exactly-once completion으로 끝내며 PDF dispatcher가 hang하지 않는다.
 - 여러 품목과 행별 copies는 unit 순서를 유지하며 같은 최종 physical page spec의 인접 unit끼리 spool job으로 묶이고 spec 변경 시 별도 job으로 접수된다.
 - 모든 unit은 출력 전에 materialize·capture되고, 동일-media PDF group이 256 MiB를 넘으면 자동 분할하지 않고 거부한다. 중간 group 실패나 취소 요청 시 active OS call 결과를 보존한 뒤 후속 전송을 중단하며 실제 accepted unit만 자동증가 저장과 발행 이력에 반영된다.
 - 자동증가는 `autoIncSave`의 레거시 최종값을 재현하고 commit 후 해당 draft/snapshot만 동기화한다.
@@ -549,9 +589,11 @@ PDF group은 PDF document 내부 모든 page와 `directPrintPdf(format:)`에 같
 - 기능은 Windows desktop에서만 노출된다.
 - 필요한 model/DAO가 책임별로 작성되고 기존 조회 DAO나 materialize/print 코드를 중복하지 않는다.
 - DB schema/data migration과 레거시 수정이 없다.
-- Windows PDF callback의 driver media 반올림은 tolerance로 수용하고 실제 다른 media는 prebuilt PDF를 반환하지 않는다.
+- printer URL/name과 축별 DPI snapshot을 사용하고 Windows PDF callback의 driver media 반올림은 축별 tolerance로 수용하며 실제 다른 media는 patched failed completion으로 끝낸다.
+- Godex EZPL은 plain-paper mode만 지원하며 canonical dot spec과 `^Qx,0,0`/`^W`가 같은 물리 설정에서 파생된다.
 - 발행 중 `[발행 취소]`가 unit/group 경계에서 동작하고 요청 후 중복 클릭과 context 변경을 막으며, active OS call은 중단하지 않는다.
-- 총 copies 1000장, retained PNG/PDF save/native transfer를 포함한 peak working set과 실제 artifact 합계 256 MiB 제한을 물리 출력 전에 검증한다. artifact는 atomic finalize하고 모든 종료 경로와 다음 startup의 stale orphan cleanup에서 정리한다.
+- 마지막 active group 접수 후의 늦은 취소는 completed와 명시적 안내로 끝낸다. 5분 timeout/process 종료는 unknown/pending manifest를 보존하고 확인 전 재발행·DB 반영을 차단한다.
+- 총 copies 1000장과 명시된 capture/workbook/PDF/dispatch 산식의 256 MiB 제한을 물리 출력 전에 검증한다. artifact/manifest는 app-instance/command별 atomic finalize하며 terminal 종료 또는 dispatch 전 orphan만 정리하고 unknown/commitUnknown은 recovery까지 보존한다.
 - 관련 focused test, `flutter analyze`, 전체 `flutter test`, `git diff --check`가 통과한다.
 
 ## 16. 레거시 및 현재 코드 근거

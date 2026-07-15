@@ -1,3 +1,14 @@
+### 완료 (2026-07-15): 라벨출력 작업지시서 5차 권장안 병합
+- 사용자 요청: `doc/label_print_modify.txt` 재검토 권장안을 병합하고 구현 의미가 달라지는 사항은 질문으로 확정한다.
+- 사용자 확정: `printing 5.15.0` Windows plugin을 로컬 fork하고 모든 native/callback 오류 경로가 `onCompleted(false, error)`를 반환하도록 고친다.
+- 사용자 확정: active 출력 중 종료·무응답은 `unknown`으로 기록하고 durable manifest를 보존해 확인 전 재발행을 차단한다.
+- 사용자 확정: active OS print call의 watchdog은 5분이며 underlying call은 취소하지 않고 late completion을 계속 수신한다.
+- `doc/label_print_modify.txt`: local `printing` fork의 shared exactly-once completion, AbortDoc/handle cleanup, callback media failure와 path dependency/구현 순서를 확정했다.
+- `doc/label_print_modify.txt`: `unknown/partiallyAcceptedUnknown + pending`, app-instance/command durable manifest, 5분 watchdog·late completion·startup 수동 확인과 persistence 복구를 명시했다.
+- `doc/label_print_modify.txt`: overflow-safe capture/workbook/PDF/PDFium/dispatch memory 산식, printer URL·축별 DPI snapshot, plain-paper EZPL, terminal-only artifact cleanup과 늦은 취소 완료 안내를 테스트/완료 조건까지 반영했다.
+- 최종 검증: 이전 callback hang/단일 DPI/무조건 artifact 삭제/hosted printing 전제 잔존 없음, 두 문서 IDE 진단 오류 없음, `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md` 통과. 문서 변경만 있어 Flutter test/analyze는 실행하지 않았다.
+- stage/commit 대상: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. 기존 사용자 `doc/label_print.txt`, `lib/core/app.dart` 변경은 제외한다.
+
 ### 완료 (2026-07-15): 라벨출력 작업지시서 4차 권장안 병합
 - 사용자 요청: `doc/label_print_modify.txt` 재검토 권장안을 병합하고 구현 의미가 달라지는 사항은 질문으로 확정한다.
 - 사용자 확정: 동일 physical page spec의 PDF group 예상 peak가 256 MiB를 넘으면 자동 chunk 분할하지 않고 첫 출력 전에 거부한다.
