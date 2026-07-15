@@ -65,6 +65,7 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
   int? _customerScrollToIndex;
   bool _candidateTableDragging = false;
   bool _candidateTableFocused = false;
+  bool _removeDropEating = false;
 
   bool get _exclusiveMode => _session.mode != LabelColumnEditMode.normal;
   bool get _normalEnabled => !_busy && !_exclusiveMode;
@@ -257,14 +258,29 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
   }
 
   Future<void> _removeSelectedColumn() async {
-    if (!_normalEnabled || _session.selectedColumnKey == null) return;
+    final key = _session.selectedColumnKey;
+    if (key == null) return;
+    await _removeColumn(key);
+  }
+
+  Future<void> _removeColumn(String key) async {
+    if (!_normalEnabled) return;
     if (!await _discardPendingProperty() || !mounted) return;
     setState(() {
-      _session = _session.remove(_session.selectedColumnKey!);
+      _session = _session.remove(key);
       if (_session.selectedColumn != null) {
         _session = _session.beginPropertyEdit();
       }
     });
+  }
+
+  Future<void> _acceptUsedColumnDrop(String key) async {
+    if (!_normalEnabled || _removeDropEating) return;
+    setState(() => _removeDropEating = true);
+    await Future<void>.delayed(const Duration(milliseconds: 160));
+    if (!mounted) return;
+    await _removeColumn(key);
+    if (mounted) setState(() => _removeDropEating = false);
   }
 
   Future<void> _enterReorder() async {
@@ -490,7 +506,7 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
   @override
   Widget build(BuildContext context) {
     final screen = MediaQuery.sizeOf(context);
-    final width = (screen.width - 64).clamp(320.0, 1160.0);
+    final width = (screen.width - 56).clamp(320.0, 1168.0);
     final height = (screen.height - 64).clamp(320.0, 720.0);
     final theme = Theme.of(context);
     return Theme(
@@ -523,8 +539,8 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
                 child: SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: SizedBox(
-                    width: constraints.maxWidth < 1020
-                        ? 1020
+                    width: constraints.maxWidth < 1028
+                        ? 1028
                         : constraints.maxWidth,
                     height: constraints.maxHeight,
                     child: Padding(
@@ -622,6 +638,9 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
                 fillLastColumn: true,
                 selectedIndex: selectedIndex < 0 ? null : selectedIndex,
                 rowReorderEnabled: !_busy && _session.mode == LabelColumnEditMode.reorder,
+                rowDragDataBuilder: (row, index) => _normalEnabled
+                    ? _UsedColumnDragPayload(row.key)
+                    : null,
                 onRowSelected: userEdit
                     ? null
                     : (row, index) {
@@ -644,8 +663,8 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
                   SwipeActionTableColumn(header: '제목', initialWidth: 58, minWidth: 48, text: (row) => row.column.title),
                   SwipeActionTableColumn(
                     header: '표시',
-                    initialWidth: 36,
-                    minWidth: 36,
+                    initialWidth: 44,
+                    minWidth: 44,
                     text: (row) => row.column.visible ? '예' : '아니오',
                     cellBuilder: (context, row, width) => SizedBox(
                       width: width,
@@ -689,46 +708,50 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
         DragTarget<Object>(
           onWillAcceptWithDetails: (details) => userEdit
               ? details.data is _CustomerColumnDragPayload && !_busy
-              : details.data is _ColumnDragPayload &&
-                    _normalEnabled &&
-                    _session.selectedColumnKey != null,
+              : details.data is _UsedColumnDragPayload && _normalEnabled,
           onAcceptWithDetails: (details) {
             final data = details.data;
             if (userEdit && data is _CustomerColumnDragPayload) {
               _removeCustomerRow(data.key);
-            } else if (data is _ColumnDragPayload) {
-              _removeSelectedColumn();
+            } else if (data is _UsedColumnDragPayload) {
+              _acceptUsedColumnDrop(data.key);
             }
           },
-          builder: (context, candidateData, rejectedData) => IconButton(
-            key: const Key('label-column-remove'),
-            tooltip: '사용 항목 삭제',
-            iconSize: 22,
-            constraints: const BoxConstraints.tightFor(
-              width: 38,
-              height: 38,
-            ),
-            style: IconButton.styleFrom(
-              foregroundColor: Theme.of(context).colorScheme.error,
-              backgroundColor: Theme.of(context).colorScheme.errorContainer,
-              disabledBackgroundColor: Theme.of(
-                context,
-              ).colorScheme.surfaceContainerHighest,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(6),
+          builder: (context, candidateData, rejectedData) => AnimatedScale(
+            key: const Key('label-column-remove-drop-animation'),
+            scale: _removeDropEating ? 0.72 : 1,
+            duration: const Duration(milliseconds: 140),
+            curve: Curves.easeInBack,
+            child: IconButton(
+              key: const Key('label-column-remove'),
+              tooltip: '사용 항목 삭제',
+              iconSize: 22,
+              constraints: const BoxConstraints.tightFor(
+                width: 38,
+                height: 38,
               ),
+              style: IconButton.styleFrom(
+                foregroundColor: Theme.of(context).colorScheme.error,
+                backgroundColor: Theme.of(context).colorScheme.errorContainer,
+                disabledBackgroundColor: Theme.of(
+                  context,
+                ).colorScheme.surfaceContainerHighest,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(6),
+                ),
+              ),
+              onPressed: userEdit
+                ? selectedCustomerKey == null || _busy
+                    ? null
+                    : () => _removeCustomerRow(selectedCustomerKey)
+                : _normalEnabled &&
+                      !_candidateTableDragging &&
+                      !_candidateTableFocused &&
+                      _session.selectedColumnKey != null
+                ? _removeSelectedColumn
+                : null,
+              icon: const Icon(Icons.delete_outline),
             ),
-            onPressed: userEdit
-              ? selectedCustomerKey == null || _busy
-                  ? null
-                  : () => _removeCustomerRow(selectedCustomerKey)
-              : _normalEnabled &&
-                    !_candidateTableDragging &&
-                    !_candidateTableFocused &&
-                    _session.selectedColumnKey != null
-              ? _removeSelectedColumn
-              : null,
-            icon: const Icon(Icons.delete_outline),
           ),
         ),
         const SizedBox(height: 10),
@@ -1138,7 +1161,7 @@ class _PropertyFields extends StatelessWidget {
   final ValueChanged<TColumn> onChanged;
 
   Widget _field(Widget child) => Padding(
-    padding: const EdgeInsets.only(bottom: 8),
+    padding: const EdgeInsets.only(bottom: 4),
     child: SizedBox(height: 40, child: child),
   );
 
@@ -1194,7 +1217,7 @@ class _PropertyFields extends StatelessWidget {
         _check('표시', column.visible, (value) => onChanged(column.copyWith(visible: value))),
         _check('누락 키워드 검사', column.useMissingKeywordCheck, (value) => onChanged(column.copyWith(useMissingKeywordCheck: value))),
         const Padding(
-          padding: EdgeInsets.only(bottom: 8),
+          padding: EdgeInsets.only(bottom: 4),
           child: Divider(height: 1),
         ),
         ..._typeFields(),
@@ -1441,6 +1464,12 @@ class _ColumnDragPayload {
   const _ColumnDragPayload(this.candidateKey);
 
   final String candidateKey;
+}
+
+class _UsedColumnDragPayload {
+  const _UsedColumnDragPayload(this.key);
+
+  final String key;
 }
 
 class _CustomerColumnDragPayload {

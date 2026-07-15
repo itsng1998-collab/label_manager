@@ -219,7 +219,7 @@ void main() {
     expect(usedTable.fillLastColumn, isTrue);
     expect(
       [for (final column in usedTable.columns) column.initialWidth],
-      [44, 78, 75, 71, 58, 36],
+      [44, 78, 75, 71, 58, 44],
     );
     expect(
       usedTable.columns
@@ -283,15 +283,15 @@ void main() {
     }
     expect(
       tester.getTopLeft(nameField).dy - tester.getBottomLeft(keywordField).dy,
-      8,
+      4,
     );
     expect(
       tester.getTopLeft(typeDropdown).dy - tester.getBottomLeft(nameField).dy,
-      8,
+      4,
     );
     expect(
       tester.getTopLeft(titleField).dy - tester.getBottomLeft(typeDropdown).dy,
-      8,
+      4,
     );
     final keywordEditor = find.descendant(
       of: find.byKey(const Key('label-column-keyword')),
@@ -384,6 +384,38 @@ void main() {
     await _tapVisible(tester, find.byKey(const Key('label-column-remove')));
     await tester.pump();
     expect(usedFixed, findsNothing);
+  });
+
+  testWidgets('used row drop animates before removing the row', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1300, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await _pumpDialog(tester);
+
+    final usedRowTexts = find.descendant(
+      of: find.byKey(const Key('label-column-used-table')),
+      matching: find.text('BASE_A'),
+    );
+    final usedRow = usedRowTexts.first;
+    final remove = find.byKey(const Key('label-column-remove'));
+    await tester.drag(
+      usedRow,
+      tester.getCenter(remove) - tester.getCenter(usedRow),
+    );
+    await tester.pump();
+
+    expect(usedRowTexts, findsWidgets);
+    expect(
+      tester
+          .widget<AnimatedScale>(
+            find.byKey(const Key('label-column-remove-drop-animation')),
+          )
+          .scale,
+      0.72,
+    );
+
+    await tester.pump(const Duration(milliseconds: 160));
+    await tester.pumpAndSettle();
+    expect(usedRowTexts, findsNothing);
   });
 
   testWidgets('candidate focus and drag disable command buttons', (tester) async {
