@@ -769,7 +769,7 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
             curve: Curves.easeInBack,
             child: IconButton(
               key: const Key('label-column-remove'),
-              tooltip: '사용 항목 삭제',
+              tooltip: userEdit ? '사용자 항목 삭제' : '사용 항목 삭제',
               iconSize: 22,
               constraints: const BoxConstraints.tightFor(
                 width: 38,
@@ -1024,6 +1024,10 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
       onRowSelected: (row, _) => _selectCustomerRow(row.key),
       isRowContentInteractive: (row, _) => row.key == _editingCustomerKey,
       isCellContentInteractive: (_, _, columnIndex) => columnIndex == 2,
+      rowDragDataBuilder: (row, _) => _busy || row.key == _editingCustomerKey
+          ? null
+          : _CustomerColumnDragPayload(row.key),
+      onRowDragStarted: (row, _) => _selectCustomerRow(row.key),
       columns: [
         SwipeActionTableColumn(
           header: '키워드',
@@ -1035,6 +1039,7 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
             width: width,
             value: row.keyword,
             key: ValueKey('customer-keyword:${row.key}'),
+            dragKey: ValueKey('customer-keyword-drag:${row.key}'),
             inputFormatters: [
               FilteringTextInputFormatter.allow(RegExp('[A-Za-z0-9]')),
               LengthLimitingTextInputFormatter(100),
@@ -1054,6 +1059,7 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
             width: width,
             value: row.columnName,
             key: ValueKey('customer-name:${row.key}'),
+            dragKey: ValueKey('customer-name-drag:${row.key}'),
             onChanged: (value) =>
                 _updateCustomerRow(row.copyWith(columnName: value)),
           ),
@@ -1092,6 +1098,7 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
     required double width,
     required String value,
     required Key key,
+    required Key dragKey,
     required ValueChanged<String> onChanged,
     List<TextInputFormatter>? inputFormatters,
   }) {
@@ -1113,22 +1120,8 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
         ),
       );
     }
-    return Draggable<_CustomerColumnDragPayload>(
-      data: _CustomerColumnDragPayload(row.key),
-      maxSimultaneousDrags: _busy ? 0 : 1,
-      feedback: Material(
-        elevation: 4,
-        child: SizedBox(
-          width: width,
-          height: 28,
-          child: _customerText(value, width),
-        ),
-      ),
-      childWhenDragging: Opacity(
-        opacity: 0.45,
-        child: _customerText(value, width),
-      ),
-      onDragStarted: () => _selectCustomerRow(row.key),
+    return KeyedSubtree(
+      key: dragKey,
       child: _customerText(value, width),
     );
   }

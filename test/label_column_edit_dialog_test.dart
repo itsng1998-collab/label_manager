@@ -779,6 +779,61 @@ void main() {
     expect(find.text('CUSTOM_A'), findsNothing);
   });
 
+  testWidgets('customer keyword and name drag delete use row feedback', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1300, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await _pumpDialog(tester);
+
+    await _tapVisible(tester, find.text('사용자 항목'));
+    await _tapVisible(tester, find.byKey(const Key('label-column-user-edit')));
+    await tester.pump();
+
+    final remove = find.byKey(const Key('label-column-remove'));
+    expect(tester.widget<IconButton>(remove).tooltip, '사용자 항목 삭제');
+
+    final keyword = find.byKey(
+      const ValueKey('customer-keyword-drag:customer-column:11'),
+    );
+    final keywordDrag = await tester.startGesture(tester.getCenter(keyword));
+    await keywordDrag.moveBy(const Offset(20, 0));
+    await tester.pump();
+
+    final feedback = find.byWidgetPredicate(
+      (widget) => widget is Material && widget.elevation == 4,
+    );
+    expect(feedback, findsOneWidget);
+    expect(
+      find.descendant(of: feedback, matching: find.text('CUSTOM_A')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: feedback, matching: find.text('사용자 A')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: feedback, matching: find.text('기본')),
+      findsWidgets,
+    );
+
+    await keywordDrag.moveTo(tester.getCenter(remove));
+    await keywordDrag.up();
+    await tester.pumpAndSettle();
+    expect(keyword, findsNothing);
+
+    await _tapVisible(tester, find.byKey(const Key('label-column-user-cancel')));
+    await _tapVisible(tester, find.byKey(const Key('label-column-user-edit')));
+    await tester.pump();
+
+    final name = find.byKey(
+      const ValueKey('customer-name-drag:customer-column:11'),
+    );
+    await tester.drag(name, tester.getCenter(remove) - tester.getCenter(name));
+    await tester.pumpAndSettle();
+    expect(name, findsNothing);
+  });
+
   testWidgets('adding a user row scrolls to its inline editor', (tester) async {
     await tester.binding.setSurfaceSize(const Size(1300, 600));
     addTearDown(() => tester.binding.setSurfaceSize(null));
