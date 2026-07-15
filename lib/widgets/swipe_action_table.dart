@@ -100,11 +100,13 @@ class SwipeActionTable<T> extends StatefulWidget {
     this.rowReorderEnabled = false,
     this.dragScrollEnabled = true,
     this.isRowContentInteractive,
+    this.isCellContentInteractive,
     this.canSwipeRow,
     this.rowNumberText,
     this.rowColorBuilder,
     this.rowDragDataBuilder,
     this.onRowDragStarted,
+    this.scrollToIndex,
     this.selectedIndex,
     this.onRowSelected,
     this.onRowReorder,
@@ -126,11 +128,14 @@ class SwipeActionTable<T> extends StatefulWidget {
   final bool rowReorderEnabled;
   final bool dragScrollEnabled;
   final bool Function(T row, int index)? isRowContentInteractive;
+  final bool Function(T row, int rowIndex, int columnIndex)?
+  isCellContentInteractive;
   final bool Function(T row, int index)? canSwipeRow;
   final String Function(T row, int index)? rowNumberText;
   final Color Function(T row, int index, bool selected)? rowColorBuilder;
   final Object? Function(T row, int index)? rowDragDataBuilder;
   final void Function(T row, int index)? onRowDragStarted;
+  final int? scrollToIndex;
   final int? selectedIndex;
   final void Function(T row, int index)? onRowSelected;
   final void Function(int fromIndex, int toIndex)? onRowReorder;
@@ -221,7 +226,27 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
     if ((_rowDropTargetIndex ?? -1) >= widget.rows.length) {
       _rowDropTargetIndex = null;
     }
+    if (widget.scrollToIndex != null &&
+        (oldWidget.scrollToIndex != widget.scrollToIndex ||
+            oldWidget.rows.length != widget.rows.length)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToRow());
+    }
     _syncAutoWidthsIfNeeded();
+  }
+
+  void _scrollToRow() {
+    if (!mounted || !_vScrollBody.hasClients) return;
+    final index = widget.scrollToIndex;
+    if (index == null || index < 0 || index >= widget.rows.length) return;
+    final target = (index * widget.rowHeight).clamp(
+      0.0,
+      _vScrollBody.position.maxScrollExtent,
+    );
+    _vScrollBody.animateTo(
+      target,
+      duration: const Duration(milliseconds: 180),
+      curve: Curves.easeOut,
+    );
   }
 
   @override
@@ -789,10 +814,18 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
     Offset local,
   ) {
     final columnIndex = _columnIndexAt(local.dx, widths);
+    if (columnIndex == null) return;
+    _handleRowPointerDownForColumn(row, rowIndex, columnIndex);
+  }
+
+  void _handleRowPointerDownForColumn(
+    T row,
+    int rowIndex,
+    int columnIndex,
+  ) {
     final now = DateTime.now();
     final lastPointerDownAt = _lastPointerDownAt;
     final isDoubleTap =
-        columnIndex != null &&
         _lastPointerDownRowIndex == rowIndex &&
         _lastPointerDownColumnIndex == columnIndex &&
         lastPointerDownAt != null &&
@@ -971,15 +1004,15 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
           .sublist(0, separatorIndex + 1)
           .fold<double>(0, (sum, width) => sum + width),
     );
+    final hasInteractiveCells = widget.isCellContentInteractive != null;
     final rowSurface = Container(
       decoration: BoxDecoration(
         color: _rowColor(row, index),
         border: const Border(bottom: BorderSide(color: _bodySeparatorColor)),
       ),
       child: Row(
-        children: List.generate(
-          widget.columns.length,
-          (cellIndex) => _buildCell(
+        children: List.generate(widget.columns.length, (cellIndex) {
+          final cell = _buildCell(
             row,
             cellIndex,
             rowWidths,
@@ -995,8 +1028,24 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
                 _openActionIndex = isOpen ? null : index;
               }),
             ),
-          ),
-        ),
+          );
+          if (!hasInteractiveCells ||
+              isRowContentInteractive ||
+              (widget.isCellContentInteractive?.call(
+                    row,
+                    index,
+                    cellIndex,
+                  ) ??
+                  false)) {
+            return cell;
+          }
+          return Listener(
+            behavior: HitTestBehavior.translucent,
+            onPointerDown: (_) =>
+                _handleRowPointerDownForColumn(row, index, cellIndex),
+            child: cell,
+          );
+        }),
       ),
     );
     final rowContent = SizedBox(
@@ -1004,7 +1053,7 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
       height: widget.rowHeight,
       child: Stack(
         children: [
-          if (isRowContentInteractive)
+          if (isRowContentInteractive || hasInteractiveCells)
             rowSurface
           else
             Listener(

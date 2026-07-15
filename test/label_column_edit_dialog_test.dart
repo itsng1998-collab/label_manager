@@ -596,6 +596,88 @@ void main() {
     expect(find.text('CUSTOM_A'), findsNothing);
   });
 
+  testWidgets('adding a user row scrolls to its inline editor', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1300, 600));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await _pumpDialog(
+      tester,
+      loadCustomer: (_) async => [
+        for (var index = 0; index < 20; index++)
+          CustomerColumnCandidate(
+            id: index + 1,
+            customerId: 7,
+            columnType: baseType,
+            keyword: 'CUSTOM_$index',
+            columnName: '사용자 $index',
+          ),
+      ],
+    );
+
+    await _tapVisible(tester, find.text('사용자 항목'));
+    await _tapVisible(tester, find.byKey(const Key('label-column-user-edit')));
+    await _tapVisible(tester, find.byKey(const Key('label-column-user-add')));
+    await tester.pumpAndSettle();
+
+    final tableFinder = find.byKey(const Key('label-column-user-editor'));
+    final table = tester.widget(tableFinder) as dynamic;
+    expect(table.scrollToIndex, 20);
+    final verticalLists = tester.widgetList<ListView>(
+      find.descendant(of: tableFinder, matching: find.byType(ListView)),
+    );
+    expect(
+      verticalLists.any(
+        (list) => list.controller?.hasClients == true &&
+            list.controller!.position.pixels > 0,
+      ),
+      isTrue,
+    );
+  });
+
+  testWidgets('customer type dropdown stays available and saves changes', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1300, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    CustomerColumnSaveCommand? saved;
+    await _pumpDialog(
+      tester,
+      saveCustomer: (command) async => saved = command,
+      loadCustomer: (_) async => const [
+        CustomerColumnCandidate(
+          id: 11,
+          customerId: 7,
+          columnType: baseType,
+          keyword: 'CUSTOMA',
+          columnName: '사용자 A',
+        ),
+      ],
+    );
+
+    await _tapVisible(tester, find.text('사용자 항목'));
+    await _tapVisible(tester, find.byKey(const Key('label-column-user-edit')));
+    await tester.pump();
+
+    final typeDropdown = find.descendant(
+      of: find.byKey(const Key('label-column-user-editor')),
+      matching: find.byType(DropdownMenu<TColumnType>),
+    );
+    expect(typeDropdown, findsOneWidget);
+    await _tapVisible(tester, typeDropdown);
+    await tester.pumpAndSettle();
+    await _tapVisible(
+      tester,
+      find.widgetWithText(MenuItemButton, '바코드').last,
+    );
+    await tester.pumpAndSettle();
+
+    await _tapVisible(tester, find.byKey(const Key('label-column-user-save')));
+    await tester.pump();
+    await _tapVisible(tester, find.widgetWithText(FilledButton, '확인').last);
+    await tester.pumpAndSettle();
+
+    expect(saved?.updatedColumns.single.columnType, barcodeColumnType);
+  });
+
   testWidgets('busy disables commands and 900x600 has no overflow', (tester) async {
     await tester.binding.setSurfaceSize(const Size(900, 600));
     addTearDown(() => tester.binding.setSurfaceSize(null));

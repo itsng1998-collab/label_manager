@@ -923,9 +923,11 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
       rowHeight: 28,
       autoFitColumns: false,
       fillLastColumn: true,
+      scrollToIndex: _editingCustomerKey == null ? null : selectedIndex,
       selectedIndex: selectedIndex < 0 ? null : selectedIndex,
       onRowSelected: (row, _) => _selectCustomerRow(row.key),
       isRowContentInteractive: (row, _) => row.key == _editingCustomerKey,
+      isCellContentInteractive: (_, _, columnIndex) => columnIndex == 2,
       columns: [
         SwipeActionTableColumn(
           header: '키워드',
@@ -968,31 +970,21 @@ class _LabelColumnEditDialogState extends State<LabelColumnEditDialog> {
           text: (row) => row.columnType.name,
           cellBuilder: (context, row, width) => SizedBox(
             width: width,
-            child: row.key == _editingCustomerKey
-                ? _DialogDropdown<TColumnType>(
-                    value: row.columnType,
-                    compact: true,
-                    entries: [
-                      for (final type in _columnTypes)
-                        DropdownMenuEntry(value: type, label: type.name),
-                    ],
-                    onChanged: _busy
-                        ? null
-                        : (value) {
-                            if (value != null) {
-                              _updateCustomerRow(
-                                row.copyWith(columnType: value),
-                              );
-                            }
-                          },
-                  )
-                : Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 6),
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(row.columnType.name),
-                    ),
-                  ),
+            child: _DialogDropdown<TColumnType>(
+              value: row.columnType,
+              compact: true,
+              entries: [
+                for (final type in _columnTypes)
+                  DropdownMenuEntry(value: type, label: type.name),
+              ],
+              onChanged: _busy
+                  ? null
+                  : (value) {
+                      if (value != null) {
+                        _updateCustomerRow(row.copyWith(columnType: value));
+                      }
+                    },
+            ),
           ),
         ),
       ],
