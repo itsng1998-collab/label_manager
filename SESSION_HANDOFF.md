@@ -1,3 +1,12 @@
+### 완료 (2026-07-15): 레거시 기준 라벨출력 작업지시서 재작성
+- 사용자 요청: 두서없는 `doc/label_print.txt`를 레거시 라벨출력과 현재 Flutter 구현에 대조해 실행 가능한 `doc/label_print_modify.txt`로 재작성한다. 필요한 전용 model/DAO도 구현 범위에 포함한다.
+- 레거시 확인: `LabelPrintDlg`/`LabelPrintModel`은 품목관리의 발행 체크 행을 별도 출력 작업 목록으로 구성하고, 행별 매수·라벨 크기·여백·밀기·줄간격을 편집하며 선택 행을 자동 미리보기한다. 자동증가는 매 장별 렌더와 선택적 DB 갱신, 성공 발행 이력 저장까지 포함한다.
+- 현재 구현 확인: `label_print` 탭은 placeholder지만 품목 조회, `ItemCodeDataResolver`, 품목 출력 미리보기 materialize, 공용라벨 프린터 설정/선호도, PDF·EZPL·Windows raw 출력은 존재한다. 공용 API로 추출해 재사용하고 private helper 복제는 금지하는 방향으로 작성한다.
+- `doc/label_print_modify.txt`: 다중 출력 작업 목록, 행별 설정, 자동 미리보기, exact 검색, 공용 프린터 설정·출력 engine 재사용, 자동증가, 성공 발행 이력과 오류 경계를 구현 가능한 순서·완료 조건으로 작성했다.
+- model/DAO 범위: `LabelPrintRowDraft`/session/command/result, 공용 workbook materializer·dispatcher, 자동증가 projection/update DAO, 기존 `BM_RICH_PRINT_LOG`·`BM_RICH_STATUS`·`BM_RICH_STATUS_DATA` 발행 이력 DAO를 명시했다. 기존 조회 DAO를 재사용하며 DB migration/DDL은 금지한다.
+- 레거시 근거·현재 symbol·검색/자동증가/발행 이력·테스트·완료 조건 연결 31곳을 확인했다. 두 문서 IDE 진단 오류 없음, `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md` 통과.
+- stage/commit 대상: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. 기존 사용자 `doc/label_print.txt`, `lib/core/app.dart` 변경은 제외한다.
+
 ### 완료 (2026-07-15): 고정 항목 분류 아이콘 중앙 정렬
 - 라벨 항목 편집의 고정 항목 `분류` DropdownMenu에서 아래 방향 아이콘이 우하단에 치우치는 문제를 수정한다.
 - 수정 예정: `lib/page_home/label_column_edit_dialog.dart`, `test/label_column_edit_dialog_test.dart`, `SESSION_HANDOFF.md`. 우선 고정 항목 분류 아이콘의 중심 좌표 회귀 테스트로 현상을 재현한다. 미검증.

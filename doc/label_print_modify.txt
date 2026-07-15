@@ -1,0 +1,451 @@
+# 라벨출력 탭 구현 작업지시서
+
+## 0. 최우선 원칙
+
+- 이 문서는 `doc/label_print.txt`를 대체하는 구현 기준이다.
+- 동작 기준은 레거시 `.tmp/LabelManager`의 `LabelPrintDlg`, `LabelPrintModel`, `SearchPrintDlg`와 현재 Flutter 앱의 품목관리 미리보기·공용라벨 인쇄 구현이다.
+- 레거시의 데이터 선택, 출력 작업 목록, 매수, 자동증가, 검색 대상, 발행 이력 의미는 유지한다.
+- 화면은 현재 앱의 디자인과 공용 위젯에 맞춘다. MFC SpreadSheet, RichEdit, XPS 미리보기 구현을 그대로 옮기지 않는다.
+- 현재 LabelSheet/FortuneSheet workbook을 유일한 라벨 렌더 원본으로 사용한다. 새 RTF 치환·인쇄 엔진을 만들지 않는다.
+- 보완·예외 처리를 과도하게 추가하지 않는다. 실제 구현에 필요한 model, DAO, 공용 API만 작성한다.
+- SQL은 parameterized query를 사용한다. SQL Server 오류는 사용자에게 전달하고 활성 transaction은 가능한 경우 rollback한다.
+- SQL Server table, column, index, trigger, procedure를 생성·변경·삭제하지 않고 data/schema migration도 구현하지 않는다.
+- 레거시 소스와 실행 파일은 읽기 전용 참조다. `.tmp/LabelManager`를 수정하지 않는다.
+- 배포 build, installer 생성, 원격 push는 별도 요청이 있을 때만 수행한다.
+
+## 1. 구현 목적
+
+- 메인 `라벨출력(F3)` placeholder를 실제 라벨 발행 화면으로 교체한다.
+- 품목관리에서 `발행`이 체크된 품목을 출력 작업 목록으로 가져온다.
+- 출력 작업 행을 선택하면 오른쪽에 해당 품목의 실제 출력 workbook을 자동 표시한다.
+- 행별 발행매수와 레거시 출력 override를 적용해 여러 품목을 한 번에 발행한다.
+- 공용라벨관리의 프린터 설정과 현재 PDF/EZPL 출력 엔진을 공용화해 같은 프린터 선택·여백·방향·추가 영역 설정을 사용한다.
+- 실제 출력에 성공한 품목·매수만 레거시 발행 이력에 기록한다.
+
+## 2. 확인한 레거시 동작
+
+### 2.1 출력 작업 목록
+
+레거시 `CLabelPrintModel::SetPrintDatasByItemTable()`은 품목관리의 `IsCheckToPrint()` 행만 출력 목록으로 가져온다. 출력 목록은 단순 품목 목록이 아니며 다음 값을 가진 별도 작업 목록이다.
+
+1. 발행매수
+2. 라벨크기명
+3. 품명
+4. 출력 폭
+5. 출력 높이
+6. 왼쪽 여백
+7. 오른쪽 여백
+8. 위쪽 여백
+9. 왼쪽 밀기
+10. 위쪽 밀기
+11. 줄간격
+
+행의 기본값은 `BM_ITEM_OF_MARKET` override를 우선하고, override를 사용하지 않으면 현재 라벨크기와 프린터 설정 기본값을 사용한다. 출력 화면에서 수정한 값은 출력 session에만 적용하며 품목관리 원본 설정을 일반 저장하지 않는다.
+
+발행매수 `0`은 개별 행에서 허용한다. 전체 출력 작업의 발행매수 합계가 `0`이면 발행하지 않고 안내한다. 음수와 숫자가 아닌 값은 허용하지 않는다.
+
+### 2.2 선택과 미리보기
+
+- 출력 목록을 만든 뒤 첫 행을 선택한다.
+- 선택 행이 바뀌면 별도 버튼 없이 미리보기를 다시 만든다.
+- 행의 출력 크기·여백·방향 등 미리보기에 영향을 주는 session 값이 바뀌면 같은 행 미리보기를 갱신한다.
+- 레거시의 `미리보기` 버튼은 별도 OS 미리보기 창을 여는 기능이지만, 새 화면은 오른쪽에 항상 실제 출력 미리보기를 표시하므로 배치하지 않는다.
+- 레거시 zoom 20~500%, +/-와 배경 전환은 필수 출력 의미가 아니다. 현재 공용 미리보기의 zoom/pan을 사용하고 중복 zoom control을 만들지 않는다.
+
+### 2.3 발행
+
+- 프린터가 선택되지 않았으면 발행하지 않고 프린터 설정을 요청한다.
+- 자동증가가 없는 행은 같은 렌더 결과를 행의 발행매수만큼 출력한다.
+- 자동증가가 있는 행은 매 장의 값이 다르므로 copy index별로 workbook을 다시 materialize해 한 장씩 출력한다.
+- 성공한 장수만 발행 이력에 기록한다.
+- 레거시는 발행 후 현재 선택 행의 미리보기를 다시 만든다.
+
+### 2.4 검색
+
+레거시 `CSearchPrintDlg` 검색 대상은 다음과 같다.
+
+- 현재 label size의 품명과 입력 문자열이 같은 품목
+- `TColumn.searchPrint == true`인 컬럼의 content와 입력 문자열이 같은 품목
+
+레거시는 검색 성공 즉시 첫 결과를 발행하지만 새 화면에서는 검색이 곧 물리 출력으로 이어지지 않게 한다. 같은 검색 대상과 exact-match 의미를 사용해 출력 목록의 첫 일치 행을 선택하고 미리보기만 갱신한다. 실제 출력은 반드시 사용자가 `발행`을 눌러 실행한다.
+
+## 3. 현재 Flutter 구현과 재사용 경계
+
+### 3.1 그대로 재사용할 데이터
+
+- `ItemOfMarketDAO.selectByItemOfMarketAndLabelSizeId()`
+- `TColumnDAO.selectByLabelSizeId()`
+- `TColumnContentDAO.selectScopedByItemIds()`
+- 현재 label size, customer, market, user session
+- `ItemManagerDraftController`의 현재 품목 working value
+- `LabelPrinterPreferences`
+- `LabelSheetPrintOptions`, `LabelSheetPrintPageMetrics`
+- `RawPrinterWin32`, `PrinterProfile`, PDF/EZPL builder
+
+라벨출력 탭을 열 때 위 데이터를 동일 label-size session에서 이미 읽었다면 다시 조회하지 않는다. label size가 바뀌거나 품목 저장·공용라벨 저장이 완료되면 상위 session reload 결과로 출력 목록과 미리보기를 갱신한다.
+
+### 3.2 공용 API로 추출할 기능
+
+현재 다음 기능은 `home_page_manager.dart` 또는 `label_sheet_workbench.dart`의 private 구현이므로 복사하지 말고 소유 모듈의 공용 API로 추출한다.
+
+1. 품목 출력 workbook materialize
+   - 현재 `_itemOutputPreview()`와 keyword/text/barcode/image replacement helper를 `lib/printing` 또는 `lib/page_home`의 공용 service로 이동한다.
+   - 품목관리 `출력내용 미리보기`와 라벨출력 탭이 같은 함수와 입력 DTO를 사용해야 한다.
+2. 읽기 전용 출력 미리보기
+   - 현재 `_ItemOutputPreviewTab`의 표시 로직을 공용 widget으로 추출한다.
+   - 원본 workbook을 수정하지 않고 매번 private copy를 렌더한다.
+3. 프린터 설정 dialog
+   - `_LabelSheetPrintSettingsDialog`를 공용 widget/controller로 추출한다.
+   - 공용라벨과 라벨출력 화면이 같은 preference key, printer picker, 입력 validation을 사용한다.
+4. 실제 출력 dispatcher
+   - 현재 `_handleIssuePrintSettings()`의 프린터 확인, DPI, PDF fallback, EZPL raw 출력 분기를 공용 service로 추출한다.
+   - UI context와 SnackBar는 호출부가 소유하고 dispatcher는 typed result 또는 exception을 반환한다.
+
+## 4. 화면 구성
+
+### 4.1 전체 레이아웃
+
+- 상단 메인 검색 영역은 `라벨출력` 탭에서도 표시한다.
+- 본문은 왼쪽 출력 작업 표와 오른쪽 미리보기의 2영역으로 구성한다.
+- 넓은 화면에서는 좌우 분할을 사용하고 사용자가 splitter로 폭을 조정할 수 있게 한다.
+- 좁은 화면에서는 표와 미리보기를 겹치지 않게 세로 배치하거나 탭 전환으로 표시한다.
+- 하단 command bar는 전체 폭을 사용하며 왼쪽부터 `[프린터 설정]  선택된 프린터명  [발행]` 순서로 배치한다.
+- 선택된 프린터명은 읽기 전용이며 긴 이름은 말줄임과 tooltip을 제공한다.
+- `발행`은 출력 작업 존재, 전체 매수 합계 1 이상, 선택 프린터 존재, 출력 중 아님 조건에서만 활성화한다.
+
+### 4.2 왼쪽 출력 작업 표
+
+- 품목관리와 같은 `FortuneTable`/공용 table style, row header, 선택 색상, keyboard navigation을 사용한다.
+- `ItemManage` 전체를 재사용해 품목 추가·삭제·Excel·저장 footer까지 노출하지 않는다. 공용 table abstraction 또는 라벨출력 전용 widget을 작성한다.
+- 표 컬럼은 2.1의 레거시 11개 항목을 기본으로 한다.
+- 발행매수와 숫자 override만 inline 편집한다. 라벨크기명과 품명은 읽기 전용이다.
+- 행 선택은 단일 선택이다. 여러 행의 출력 포함 여부는 품목관리의 `발행` 체크 상태가 결정한다.
+- 표에서 바꾼 session 값은 DB에 저장하지 않는다.
+- 품목관리의 발행 체크가 바뀌면 출력 목록을 item ID 안정 key로 동기화한다.
+  - 새 체크 행은 현재 item order 위치에 추가한다.
+  - 체크 해제 행은 출력 목록에서 제거한다.
+  - 남아 있는 행의 사용자가 수정한 session 값과 선택은 유지한다.
+
+### 4.3 오른쪽 미리보기
+
+- 선택 행이 없으면 `발행할 품목을 선택하세요.` 안내를 표시한다.
+- 저장된 공용라벨 workbook이 없으면 빈 미리보기와 저장 필요 안내를 표시한다.
+- 레거시 RTF만 있고 현재 workbook으로 변환되지 않은 라벨은 기존 품목 미리보기와 같은 `라벨을 편집 저장 후 가능합니다.` 안내를 표시한다.
+- 선택 행 또는 출력 설정이 바뀌면 debounce 없이 다음 안정 frame에 미리보기를 갱신한다.
+- 미리보기는 읽기 전용이다. 셀 편집, 저장, 이미지/바코드 삽입, 인쇄 toolbar를 노출하지 않는다.
+- 미리보기 전용 `미리보기` 버튼은 추가하지 않는다.
+
+### 4.4 프린터 설정
+
+- 공용라벨관리 프린터 설정 dialog를 공용화해 사용한다.
+- 라벨출력에서는 매수를 dialog에 두지 않는다. 매수는 출력 작업 행이 소유한다.
+- 공용라벨 dialog의 매수 위치는 라벨출력 variant에서 `추가 영역(mm)`으로 사용한다.
+- 지원 항목은 선택 프린터, 왼쪽/위쪽 여백, 자동 줄간격, 추가 영역, 가로/세로 방향이다.
+- dialog의 `적용`은 preference 저장만 하고 물리 출력하지 않는다.
+- 라벨출력 화면의 하단 `발행`이 실제 출력 command의 유일한 진입점이다.
+
+## 5. 상태와 model
+
+필요 model을 `lib/models/label_print.dart`에 작성한다. 기존 mutable 전역 목록에 라벨출력 전용 상태를 추가하지 않는다.
+
+### 5.1 `LabelPrintRowDraft`
+
+최소 필드:
+
+- stable `itemId`
+- 원본 `ItemOfMarket`
+- `copies`
+- `widthMm`, `heightMm`
+- `leftMarginMm`, `rightMarginMm`, `topMarginMm`
+- `leftPushMm`, `topPushMm`
+- `lineSpacing`
+- 각 값의 item override 사용 여부 또는 이미 resolve된 session 값
+
+생성 규칙:
+
+- copies는 `TColumnType.TYPE_PRINTCOUNT` content가 있으면 그 값을 우선하고, 없으면 `ItemOfMarket.printCount`를 사용한다.
+- item별 label size 사용 시 `labelSizeWidth/labelSizeHeight`, 아니면 현재 공용라벨 physical size를 사용한다.
+- item별 margin 사용 시 item 값을, 아니면 현재 프린터 preference 값을 사용한다.
+- item별 linefeed 사용 시 item 값을, 아니면 공용 설정 값을 사용한다.
+- 모든 숫자 단위는 필드명으로 명시한다. 레거시 정수 단위와 현재 mm/logical pixel을 암묵적으로 섞지 않는다.
+
+### 5.2 `LabelPrintSessionController`
+
+최소 책임:
+
+- checked item ID와 출력 row 동기화
+- item ID 기반 선택 유지
+- row-local copies/size/margin/line-spacing 수정
+- 검색 cursor와 exact-match 선택
+- 총 발행매수 계산
+- 출력 중 편집·중복 발행 차단
+- label size/session 교체 시 이전 출력 row와 selection 폐기
+
+### 5.3 출력 command/result
+
+다음 immutable DTO 또는 동등 구조를 둔다.
+
+- `LabelPrintCommand`: label/customer/market/user identity, printer, preference snapshot, row snapshot, column/content snapshot, saved label workbook snapshot
+- `LabelPrintUnit`: item ID, row index, copy index, materialize에 사용할 column value projection
+- `LabelPrintUnitResult`: success/failure와 실제 출력된 매수
+- `LabelPrintResult`: 전체 요청/성공/실패 매수와 행별 결과
+
+버튼 클릭 시 command snapshot을 한 번 만들고 출력 도중 화면의 mutable 전역 데이터를 다시 읽지 않는다.
+
+## 6. 데이터 조회와 DAO
+
+### 6.1 기존 DAO 재사용
+
+품목 목록, 컬럼 정의와 content 조회를 위해 새 SELECT DAO를 만들지 않는다. 다음 기존 DAO를 사용한다.
+
+- `ItemOfMarketDAO`
+- `TColumnDAO`
+- `TColumnContentDAO`
+
+검색도 현재 label-size session에 모든 대상 품목과 content가 있으므로 메모리에서 수행한다. 검색만을 위한 문자열 조립 SQL이나 `LabelPrintSearchDAO`를 추가하지 않는다.
+
+### 6.2 자동증가 DAO
+
+현재 앱에는 레거시 출력 자동증가 저장 경계가 없으므로 필요하면 `LabelPrintAutoIncrementDAO`를 작성한다.
+
+- 순수 함수가 원본 문자열, 증가 크기, 증가 범위, 앞자리 0 제거, barcode/check-digit/time-barcode 설정, copy index를 받아 출력값과 다음 저장값을 계산한다.
+- `autoInc == false`인 컬럼은 변경하지 않는다.
+- 각 copy는 copy index에 대응하는 값을 렌더한다.
+- `autoIncSave/autoIncUpdate`의 레거시 의미에 따라 마지막 성공 copy 이후의 다음 값을 `BM_RICH_COL_CONTENT`에 저장한다.
+- 저장 대상은 `(columnId, itemId)` 정확히 한 행이며 affected row를 검증한다.
+- 현재 DB에 해당 item/content가 없으면 임의 insert하지 않고 오류로 전달한다.
+- 바코드 payload 계산은 기존 `BarcodeDataHelper`, `ItemCodeDataResolver`, date/time helper를 재사용한다.
+- 화면 미리보기는 copy index 0의 projection을 사용하고 DB 값을 변경하지 않는다.
+
+### 6.3 발행 이력 DAO
+
+레거시와 같은 발행 이력이 현재 앱에 없으므로 `LabelPrintHistory` model과 `LabelPrintHistoryDAO`를 작성한다.
+
+- 기존 물리 DB의 `BM_RICH_PRINT_LOG`, `BM_RICH_STATUS`, `BM_RICH_STATUS_DATA`만 사용한다.
+- 구현 전에 현재 배포 DB에 레거시 table/column이 존재하는지 읽기 전용으로 확인한다.
+- object가 없거나 구조가 레거시 계약과 다르면 DDL이나 migration으로 보정하지 말고 작업을 중단해 사용자에게 알린다.
+- 문자열 연결 SQL을 사용하지 않고 parameterized JSON 또는 기존 driver가 지원하는 scalar parameter를 사용한다.
+- `BM_RICH_PRINT_LOG`에는 user/market/customer/brand/label/item/printer, 성공 매수, 출력 컬럼명과 값, form 크기와 margin/push/extra area, item ID를 기록한다.
+- `BM_RICH_STATUS`에는 성공한 행 단위 발행 상태를 기록하고 `BM_RICH_STATUS_DATA`에는 당시 동적 컬럼 값을 column ID/name과 함께 기록한다.
+- history ID/order 생성과 parent/detail insert는 하나의 SQL transaction에서 수행한다.
+- 같은 출력 행의 detail은 column order로 저장한다.
+- 관리자/특수 로그인에서 로그를 생략하던 레거시 조건은 현재 `User` 권한 모델에 같은 의미가 확인될 때만 적용한다. 의미가 없으면 임의로 생략 조건을 만들지 않는다.
+
+물리 프린터 출력은 SQL transaction으로 rollback할 수 없다. 출력 성공 후 이력 저장이 실패하면 `출력은 완료되었으나 발행 이력을 저장하지 못했습니다.`로 분리해 알리고 자동 재출력하지 않는다.
+
+## 7. 품목관리 발행 체크 연동
+
+현재 `ItemManage`의 `_publishCheckedItemIds`는 widget private 상태다. 이를 출력 탭과 연결하도록 controlled API를 추가한다.
+
+- `ItemManage`에 `publishCheckedItemIds`와 `onPublishCheckedItemIdsChanged` 또는 동등 controller API를 추가한다.
+- 상위 `HomePageManager`가 현재 label-size session의 checked item ID를 소유한다.
+- 품목관리 우클릭 `발행 체크/해제`, 개별 checkbox, 전체 해제가 모두 같은 callback을 통과한다.
+- label size 변경, 품목 삭제, session reload에서 존재하지 않는 item ID를 제거한다.
+- 품목관리 draft가 있으면 출력 materialize는 화면에 표시된 현재 working value를 사용한다.
+- 활성 cell 편집이 남아 있으면 발행 command 전에 commit하고 validation 오류가 있으면 출력하지 않는다.
+- 출력은 품목관리 draft 전체를 DB 저장하지 않는다. 자동증가 저장만 6.2의 명시적 DAO 경계에서 수행한다.
+
+## 8. workbook materialize
+
+### 8.1 source of truth
+
+- 현재 label-size session에 마지막으로 저장·조회된 공용라벨 workbook을 사용한다.
+- 공용라벨 편집 화면의 저장 전 mutable workbook을 몰래 참조하지 않는다.
+- materialize는 항상 workbook private copy를 반환한다.
+
+### 8.2 치환 규칙
+
+품목관리 `출력내용 미리보기`와 완전히 같은 공용 materializer를 사용한다.
+
+- `#ITEMNAME`: 품명
+- `#ELEMENT`: 품목 working value의 주원료/함량 workbook 또는 text
+- `# + TColumn.keyword`: 해당 item의 최종 column value
+- 일반/날짜/시간: 기존 date format과 range 규칙으로 text 치환
+- 바코드/QR/GS1: `ItemCodeDataResolver` 결과를 Fortune barcode object에 적용
+- 연결 이미지: 현재 이미지 파일 resolver 결과를 Fortune image object에 적용하고 값/파일이 없으면 출력 workbook에서 제외
+- 고정 이미지와 고정 바코드: 원본 workbook 값을 유지
+- 라벨에 없는 keyword: 무시
+- resolver 오류: placeholder를 실제 출력하지 말고 해당 출력 unit을 실패 처리해 사용자에게 column/item 정보를 알린다.
+
+미리보기와 실제 발행은 같은 `LabelPrintUnit`과 materializer를 사용해야 한다. 별도 문자열 치환 구현을 두지 않는다.
+
+## 9. 검색 동작
+
+- `itemManagerSearchVisibleForTab()` 또는 상위 검색 표시 규칙에 `label_print`를 추가한다.
+- 검색 문자열은 빈 값이면 실행하지 않는다.
+- item order 순으로 다음 대상을 찾는다.
+- 품명 exact match 또는 `searchPrint == true`인 column content exact match만 대상이다.
+- 현재 품목관리 검색의 active-column `contains` 규칙을 라벨출력 검색에 그대로 사용하지 않는다.
+- 일치 행이 있으면 출력 목록에 포함된 행을 선택하고 오른쪽 미리보기를 갱신한다.
+- DB에는 있으나 발행 체크가 없어 출력 목록에 없는 품목은 자동 출력하거나 몰래 체크하지 않는다. `검색된 품목이 발행 목록에 없습니다.`를 표시한다.
+- 일치 결과가 여러 개면 현재 선택 다음의 첫 행을 선택하고 끝에 도달하면 처음부터 한 번 찾는다.
+- 검색은 물리 출력이나 DB 변경을 실행하지 않는다.
+
+## 10. 실제 출력 pipeline
+
+1. table inline edit와 품목관리 pending edit를 확정한다.
+2. 현재 label/customer/market session이 command snapshot과 같은지 확인한다.
+3. 출력 row가 1개 이상이고 총 copies가 1 이상인지 확인한다.
+4. 선택 프린터가 실제 설치 목록에 존재하는지 확인한다.
+5. saved workbook, item/column/content, printer preference의 immutable command를 만든다.
+6. 각 row와 copy에 대해 `LabelPrintUnit`을 만든다.
+7. 자동증가 projection을 포함해 workbook을 materialize한다.
+8. 현재 공용 capture/render API로 bitmap과 print area를 만든다.
+9. 프린터 profile에 따라 출력한다.
+   - Windows raw EZPL 가능: 정밀 좌표 + EZPL border/barcode + raster fallback
+   - file port 또는 raw 불가: PDF direct print
+10. 성공 unit을 집계한다.
+11. 성공 unit 기준 자동증가 next value와 발행 이력을 SQL transaction으로 저장한다.
+12. 결과를 행별로 표시하고 현재 선택 행 미리보기를 최신 값으로 다시 만든다.
+
+다중 품목을 위해 OS printer picker나 설정 dialog를 unit마다 열지 않는다. 한 번 선택한 printer와 command snapshot으로 전체 작업을 실행한다. 중복 `발행` 클릭은 무시한다.
+
+## 11. 오류와 취소
+
+- 조회 실패: 기존 데이터를 성공처럼 비우지 말고 조회 오류를 표시한다.
+- workbook decode 실패: 발행 버튼을 비활성화하고 라벨 저장 필요 또는 데이터 오류를 표시한다.
+- 프린터 미선택/제거: 설정을 요청하고 출력하지 않는다.
+- materialize 실패: 해당 item/column을 표시하고 물리 출력 전에 중단한다.
+- 물리 출력 실패: 성공한 unit과 실패한 unit을 분리해 표시한다. 자동 재시도하지 않는다.
+- 자동증가/history DB 저장 실패: 물리 출력 성공 여부와 구분해 표시하고 가능한 rollback 후 오류를 전달한다.
+- 출력 도중 탭/label size/customer 변경과 화면 종료는 command 완료 전 차단한다.
+- 취소 가능한 일반 PDF dialog가 취소를 반환하면 실패가 아니라 미발행으로 처리한다.
+
+## 12. 구현 대상 파일 가이드
+
+실제 이름은 기존 구조에 맞춰 조정할 수 있으나 책임은 다음처럼 분리한다.
+
+- `lib/models/label_print.dart`
+  - row draft, session controller, command/result
+- `lib/models/label_print_history.dart`
+  - history DTO와 DAO
+- `lib/models/label_print_auto_increment.dart`
+  - 순수 projection과 필요한 update DAO
+- `lib/page_home/label_print.dart`
+  - 출력 작업 table, preview, footer 조합
+- `lib/printing/label_output_materializer.dart`
+  - 품목관리와 라벨출력 공용 workbook materialize
+- `lib/printing/label_print_dispatcher.dart`
+  - printer profile, capture, PDF/EZPL dispatch
+- `lib/page_label_sheet/label_print_settings_dialog.dart`
+  - 공용 프린터 설정 UI
+- `lib/home_page_manager.dart`
+  - tab placeholder 교체, session/checked item 연결, 상위 busy/context gate
+
+이미 동등한 소유 파일이 있으면 새 파일을 늘리지 말고 그 파일의 public API로 정리한다.
+
+## 13. 테스트
+
+### 13.1 순수 model 테스트
+
+- checked item ID add/remove/reorder와 item ID 선택 유지
+- row 기본값의 item override와 공용 설정 fallback
+- copies 0 허용, 음수/비숫자 거부, 전체 0 발행 차단
+- exact search: 품명, `searchPrint` content, 비대상 content, 중복 결과 순환
+- 자동증가: 범위, 증가 크기, leading zero, overflow wrap, barcode check digit, time barcode, save/update off
+- copy별 projection이 원본 working value를 변형하지 않음
+
+### 13.2 materialize/print job 테스트
+
+- `#ITEMNAME`, `#ELEMENT`, 일반/날짜/시간 치환
+- barcode/QR/GS1 payload와 연결 이미지 materialize
+- 품목관리 미리보기와 라벨출력 copy 0 workbook의 동등성
+- 원본 workbook 불변
+- row별 physical size/margin/orientation/extra area 반영
+- 여러 row와 copies의 PDF page 수
+- 자동증가 copy별 서로 다른 payload
+- Godex hybrid EZPL의 label size, border, native barcode, bitmap fallback
+- unsupported/file port의 PDF fallback
+
+### 13.3 DAO 테스트
+
+- 기존 item/column/content 조회 DAO 재사용
+- 자동증가 update의 `(columnId,itemId)` parameter와 affected row 검증
+- history/status/detail parameter mapping과 column order
+- history parent/detail transaction rollback
+- table/column 부재 시 DDL 없이 명시적 오류
+- 물리 출력 실패 unit이 history와 자동증가 update 대상에서 제외됨
+
+### 13.4 widget 테스트
+
+- `label_print` placeholder 제거와 실제 화면 렌더
+- 품목관리 발행 체크가 출력 목록에 반영됨
+- 첫 출력 행 자동 선택과 선택 변경 미리보기 갱신
+- 표는 품목관리 table style을 사용하지만 편집 command footer는 없음
+- 자동 미리보기이며 별도 `미리보기` 버튼 없음
+- 검색 영역 표시와 exact-match 선택, 검색만으로 발행되지 않음
+- `[프린터 설정] 프린터명 [발행]` 순서
+- 라벨출력 설정 dialog에 copies가 없고 추가 영역이 있음
+- 출력 중 table/settings/발행/context 변경 비활성
+- 900x600 및 일반 desktop viewport에서 overflow/overlap 없음
+
+### 13.5 통합 검증
+
+- `flutter analyze`
+- 관련 focused test
+- 전체 `flutter test`
+- `git diff --check`
+- 실제 Windows 프린터 수동 확인
+  - 일반 프린터/PDF
+  - Godex G500 203dpi
+  - 1개 품목 여러 장
+  - 여러 품목 혼합 매수
+  - 자동증가 포함
+  - 출력 실패와 이력 저장 실패 메시지 구분
+
+실제 SQL Server와 프린터를 사용할 수 없으면 그 항목은 단위/통합 mock 검증 결과와 함께 `미검증`으로 남긴다.
+
+## 14. 구현 순서
+
+1. 품목관리 발행 체크를 controlled state로 올리고 출력 row/session model을 구현한다.
+2. 기존 품목 미리보기 materialize와 읽기 전용 preview를 공용 API로 추출한다.
+3. 라벨출력 화면과 table/search/selection/자동 미리보기를 구현한다.
+4. 프린터 설정 dialog와 출력 dispatcher를 공용화한다.
+5. 단일 row·단일 copy 출력부터 연결한다.
+6. 여러 row·copies와 자동증가 copy projection을 연결한다.
+7. 자동증가 저장 DAO와 발행 이력 DAO를 구현한다.
+8. focused test, analyze, 전체 test, 실제 프린터 수동 검증을 수행한다.
+
+각 단계는 관련 focused test를 먼저 통과한 뒤 다음 단계로 진행한다.
+
+## 15. 완료 조건
+
+- `라벨출력(F3)` 탭이 더 이상 placeholder가 아니다.
+- 품목관리 발행 체크 행만 출력 목록에 나타나고 item ID 기준으로 안정적으로 동기화된다.
+- 행별 매수·크기·여백·밀기·줄간격이 레거시 fallback 규칙으로 초기화되고 출력 session에서 편집된다.
+- 선택 행 미리보기가 자동 표시되며 품목관리 `출력내용 미리보기`와 같은 materializer를 사용한다.
+- 별도 `미리보기` 버튼이 없다.
+- 레거시 검색 대상과 exact-match 의미를 사용하되 검색만으로 물리 출력하지 않는다.
+- 프린터 설정은 공용라벨과 같은 공용 dialog/preference를 사용하고 매수는 행에서만 관리한다.
+- 일반 프린터 PDF와 Godex EZPL 경로가 현재 공용 출력 엔진을 통해 동작한다.
+- 여러 품목, 행별 copies, 자동증가 copy별 출력이 동작한다.
+- 성공한 출력만 자동증가 저장과 발행 이력에 반영된다.
+- 필요한 model/DAO가 책임별로 작성되고 기존 조회 DAO나 materialize/print 코드를 중복하지 않는다.
+- DB schema/data migration과 레거시 수정이 없다.
+- 관련 focused test, `flutter analyze`, 전체 `flutter test`, `git diff --check`가 통과한다.
+
+## 16. 레거시 및 현재 코드 근거
+
+레거시:
+
+- `.tmp/LabelManager/LabelManager/LabelPrintDlg.cpp`
+- `.tmp/LabelManager/LabelManager/LabelPrintDlg.h`
+- `.tmp/LabelManager/LabelManager/LabelPrintModel.cpp`
+- `.tmp/LabelManager/LabelManager/LabelPrintModel.h`
+- `.tmp/LabelManager/LabelManager/SearchPrintDlg.cpp`
+- `.tmp/LabelManager/LabelManagerLib/PrintLog.cpp`
+- `.tmp/LabelManager/LabelManagerLib/StatusPrint.cpp`
+
+현재 Flutter:
+
+- `lib/home_page_manager.dart`
+- `lib/page_home/item_manage.dart`
+- `lib/page_home/item_code_data_resolver.dart`
+- `lib/models/item_of_market.dart`
+- `lib/models/column.dart`
+- `lib/models/column_content.dart`
+- `lib/page_label_sheet/label_sheet_workbench.dart`
+- `lib/printing/label_printer_preferences.dart`
+- `lib/printing/label_sheet_print_job.dart`
+- `lib/printing/printer_profiles.dart`
+- `lib/printing/raw_printer_win32.dart`
