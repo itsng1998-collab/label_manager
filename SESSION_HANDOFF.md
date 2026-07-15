@@ -40,6 +40,7 @@
 - 전체 테스트 `C:\Flutter\bin\flutter.bat test`: 361개 전체 통과.
 - 임시 산출물 `third_party/fortune_sheet/build/` 정리 완료. 최종 Dart 진단 이슈 없음, `git diff --check` 통과.
 - stage/commit 대상: `lib/page_home/label_column_edit_dialog.dart`, `test/label_column_edit_dialog_test.dart`, `SESSION_HANDOFF.md`. unrelated `lib/core/app.dart`는 제외한다.
+- 기능 커밋: `52edbed 라벨 항목 편집 입력과 테이블 셀 통일`.
 
 ### 완료 (2026-07-15): 라벨 항목 편집 dropdown·테이블 폭 보정
 
