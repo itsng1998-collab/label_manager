@@ -10,6 +10,7 @@
 - 최종 검증 예정: 두 문서 diagnostics, 이전 모호 표현/새 핵심 계약 검색, `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md`, 변경 파일/status 확인. 문서만 변경해 Flutter test/analyze는 실행하지 않는다.
 - 최종 검증 완료: 이전 모호 표현 검색 0건, 새 핵심 계약 15개 위치 확인, 두 문서 diagnostics 오류 0건, `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md` 통과. 변경량은 2개 문서 46 insertions/22 deletions이며 Flutter test/analyze는 실행하지 않았다.
 - stage/commit 대상: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. 기존 사용자 `lib/core/app.dart`, `doc/label_print.txt` 변경은 제외한다.
+- 작업지시서 병합 커밋: `a0c7789 라벨출력 지시서 8차 권장안 확정`.
 
 ### 완료 (2026-07-16): 라벨출력 작업지시서 7차 권장안 병합
 - 사용자 요청: `doc/label_print_modify.txt` 재검토 권장안을 병합하고 구현 의미가 달라지는 사항은 즉시 질문해 확정한다.
