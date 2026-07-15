@@ -10,6 +10,11 @@
 - 32x36 suffix와 아이콘 중심 일치 레이아웃 테스트 및 dropdown popup 선택 테스트 통과, 관련 IDE 진단 없음. 다음 검증: `C:\Flutter\bin\flutter.bat test test\label_column_edit_dialog_test.dart`, `C:\Flutter\bin\flutter.bat analyze`, `git diff --check`.
 - 재수정 후 CLI 전체 widget test 20개 통과, `flutter analyze` 이슈 없음, `git diff --check` 통과. 기존 사용자 `onPressed` 들여쓰기 한 줄과 unrelated `lib/core/app.dart`는 stage에서 제외한다.
 - 재수정 커밋: `cdd3b92 분류 드롭다운 아이콘 중앙 배치 보정`. offset 기반 구현을 명시적 32x36 중앙 suffix로 교체했으며 기존 사용자 변경은 unstaged로 유지했다.
+- 후속 완료: 고정 분류뿐 아니라 속성 영역의 `항목 종류`, `바코드 종류`, QR `생성 방식`, `정렬`에도 같은 중앙 suffix를 적용한다. `_DialogDropdown`의 모든 non-compact 인스턴스는 32x36 중앙 suffix를 기본 사용하고 compact 사용자 항목 표만 기존 동작을 유지한다.
+- 기본/바코드 속성 레이아웃 테스트 통과. QR 속성 화면에서 `항목 종류`, `바코드 종류`, `생성 방식`, `정렬`의 suffix 크기와 아이콘 중심 좌표를 모두 검증하는 테스트를 추가했다. 미검증.
+- QR 속성 드롭다운 중앙 정렬 테스트 통과. 다음 검증: `C:\Flutter\bin\flutter.bat test test\label_column_edit_dialog_test.dart`, `C:\Flutter\bin\flutter.bat analyze`, `git diff --check`.
+- 전체 widget test 21개 통과, `flutter analyze`와 IDE 진단 이슈 없음, `git diff --check` 통과. 기존 사용자 `onPressed` 들여쓰기 한 줄과 unrelated `lib/core/app.dart`는 stage에서 제외한다.
+- 기능 커밋: `f9440e0 속성 드롭다운 아이콘 중앙 정렬`. 모든 non-compact `_DialogDropdown`의 중앙 suffix 공용화와 기본/바코드/QR 속성 회귀 테스트만 포함했다.
 
 ### 완료 (2026-07-15): 사용자 항목 행 드래그 삭제 보정
 - 사용자 항목 설정 모드의 휴지통 tooltip을 `사용자 항목 삭제`로 표시하고, 키워드·항목명 모두 행 단위 drag source로 동작하게 한다.
