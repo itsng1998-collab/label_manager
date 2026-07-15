@@ -1,3 +1,12 @@
+### 완료 (2026-07-15): 고정 항목 분류 아이콘 중앙 정렬
+- 라벨 항목 편집의 고정 항목 `분류` DropdownMenu에서 아래 방향 아이콘이 우하단에 치우치는 문제를 수정한다.
+- 수정 예정: `lib/page_home/label_column_edit_dialog.dart`, `test/label_column_edit_dialog_test.dart`, `SESSION_HANDOFF.md`. 우선 고정 항목 분류 아이콘의 중심 좌표 회귀 테스트로 현상을 재현한다. 미검증.
+- `label_column_edit_dialog.dart`: 공용 `_DialogDropdown`에 호출부별 `trailingIconOffset`을 추가하고 고정 항목 분류 아이콘만 가로 중앙을 유지한 채 2px 위로 optical alignment했다. 다른 드롭다운 offset은 유지한다.
+- `label_column_edit_dialog_test.dart`: 숨은 폭 계산용 DropdownMenu와 실제 위젯을 구분해 고정 분류의 표시 아이콘 중심 좌표를 검증한다. 단일 레이아웃 테스트 통과. 전체 테스트 도구가 두 번 `passed=0, failed=0`을 반환해 CLI로 재검증한다.
+- 다음 검증: `C:\Flutter\bin\flutter.bat test test\label_column_edit_dialog_test.dart`, `C:\Flutter\bin\flutter.bat analyze`, `git diff --check`.
+- CLI 전체 widget test 20개 통과, `flutter analyze` 이슈 없음, `git diff --check` 통과. 같은 production 파일의 기존 사용자 `onPressed` 들여쓰기 한 줄과 unrelated `lib/core/app.dart`는 stage에서 제외한다.
+- 선택적 stage 확인: 아이콘 정렬 구현·테스트만 포함하고 기존 사용자 변경은 unstaged로 유지했다. 기능 커밋: `52ae854 고정 항목 분류 아이콘 중앙 정렬`.
+
 ### 완료 (2026-07-15): 사용자 항목 행 드래그 삭제 보정
 - 사용자 항목 설정 모드의 휴지통 tooltip을 `사용자 항목 삭제`로 표시하고, 키워드·항목명 모두 행 단위 drag source로 동작하게 한다.
 - `SwipeActionTable.rowDragDataBuilder` 공용 경로를 사용해 feedback을 셀이 아닌 전체 행으로 통일한다. 수정 예정: `lib/page_home/label_column_edit_dialog.dart`, `test/label_column_edit_dialog_test.dart`, `SESSION_HANDOFF.md`. 미검증.
