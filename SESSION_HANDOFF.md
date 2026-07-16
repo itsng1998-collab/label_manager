@@ -11,6 +11,7 @@
 - 검증 실행 직전: 폐기 표현과 새 계약 연결 검색, 두 문서 diagnostics를 확인했으며 `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md`와 대상 diff를 최종 확인한다.
 - 최종 검증: 이전 포괄 자릿수 `순환`/출처 없는 `실제 commit 값` 표현 0건, 새 item linefeed/1회 감산/commit payload map 계약 16개 핵심 위치 확인, 두 문서 diagnostics 오류 0건, `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md` 통과. 문서만 변경해 Flutter test/analyze는 실행하지 않았다.
 - stage/commit 대상: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. 기존 사용자 `lib/core/app.dart` 변경과 이미 staged된 `doc/label_print.txt`는 제외하고 staged 상태를 보존하기 위해 `git commit --only`를 사용한다.
+- 작업지시서 줄간격·자동증가·commit 결과 계약 커밋: `8a0d7ed 라벨출력 줄간격과 자동증가 계약 명확화`.
 
 ### 완료 (2026-07-16): 라벨출력 미리보기·발행매수·baseline 계약 명확화
 - 사용자 요청: `doc/label_print_modify.txt` 재검토 권장안 3건을 작업지시서에 병합하고 사용자 확인 사항이 있으면 즉시 질문해 확정한다.
