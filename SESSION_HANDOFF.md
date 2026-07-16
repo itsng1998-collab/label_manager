@@ -1,3 +1,15 @@
+### 완료 (2026-07-16): 라벨출력 기본 지시서 권장안 병합
+- 사용자 요청: `doc/label_print_modify.txt` 재검토에서 확인한 기본 구현 권장안을 병합하고 동작 선택 사항은 즉시 질문해 확정한다.
+- 사용자 확정: 세로 방향은 현재 공용 출력 동작대로 page `W x (H+extraArea)`를 유지하고 content만 90도 회전한다.
+- 사용자 확정: 발행 이력은 레거시 조건대로 master key와 최초 관리자 접속 출력을 제외한다.
+- 수정 예정: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. `DbClient.transaction(List<DbTransactionStatement>)`에 맞춘 단일 parameterized SQL batch, PDF bool/format과 RAW `EndDocPrinter` 결과 판정, row 기본값, 최소 물리 좌표, 자동증가 순수 계산, status/detail ID 형식과 공용 print dialog mode를 명시한다. durable recovery/native plugin/job tracking/DB migration은 추가하지 않는다.
+- `doc/label_print_modify.txt` 편집 완료: `TYPE_PRINTCOUNT`와 `useLabelSize/useMargin/useLinefeed` 기본값, configurable 공용 설정 dialog, PDF bool/format과 RAW `EndDocPrinter`, margin+push/clip 및 현재 vertical page 동작을 명시했다.
+- `doc/label_print_modify.txt` DAO 계약 편집 완료: 자동증가 순수 계산 입력과 순환/바코드 재적용, status/detail ID 형식, 관리자 이력 제외, accepted unit JSON parameter 기반 단일 T-SQL batch를 본문과 테스트에 연결했다.
+- 편집 직후 검증: 문서 diagnostics 오류 0건, 새 핵심 계약 13곳 확인, 이전 전용 dialog/불명확 legacy ID/자동증가 helper/방향 표현 검색 0건이다.
+- 독립 재검토: 핵심 계약의 내부 모순·구현 불가능·본문/테스트 누락 0건이다. 연결 이미지 누락은 materialized copy의 해당 image object만 생략하고 원본 workbook은 유지하도록 표현을 보완했다.
+- 최종 검증: 두 문서 diagnostics 오류 0건, 핵심 계약 13곳과 이전 모호 표현 0건 확인, `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md` 통과. 문서만 변경하므로 Flutter test/analyze는 실행하지 않았다.
+- stage/commit 대상: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. 기존 사용자 `lib/core/app.dart`, `doc/label_print.txt` 변경은 제외한다.
+
 ### 완료 (2026-07-16): 라벨출력 작업지시서 기본 구현 중심 정리
 - 사용자 요청: 자동 재검토가 printer/recovery 방어 계약을 과도하게 확장했으므로 `doc/label_print.txt`의 기본 구현 원칙에 맞춰 `doc/label_print_modify.txt`를 다시 정리한다.
 - 최우선 기준: 보완·예외 처리를 과도하게 하지 않고, SQL Server는 parameterized transaction의 오류 전달과 가능한 rollback까지만 수행하며, DB migration/DDL은 구현하지 않는다.

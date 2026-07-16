@@ -45,6 +45,11 @@
 
 행 기본값은 `BM_ITEM_OF_MARKET`의 사용 설정을 우선한다. item override를 사용하지 않는 항목은 현재 라벨크기와 공용 프린터 설정을 사용한다. 출력 화면에서 바꾼 값은 현재 출력 session에만 적용하고 품목관리 원본에 저장하지 않는다.
 
+- 발행매수는 `TYPE_PRINTCOUNT` column content가 있으면 그 값을, 없으면 `ItemOfMarket.printCount`를 사용한다.
+- `useLabelSize == true`이면 item width/height를, 아니면 현재 공용라벨 크기를 사용한다.
+- `useMargin == true`이면 item의 left/right/top margin과 left/top push를, 아니면 공용 프린터 설정의 같은 값을 사용한다.
+- `useLinefeed == true`이면 item linefeed를, 아니면 공용 프린터 설정의 자동 줄간격을 사용한다.
+
 발행매수 `0`은 개별 행에서 허용한다. 전체 매수 합계가 `0`이면 발행하지 않는다. 음수와 정수가 아닌 값은 허용하지 않는다.
 
 ### 2.2 선택과 미리보기
@@ -99,12 +104,14 @@
    - 현재 품목 출력 미리보기 widget을 공용화한다.
    - 원본 workbook을 수정하지 않고 private copy를 렌더한다.
 3. 프린터 설정
-   - 공용라벨 설정의 preference load/save, printer picker, parsing/validation과 field widget을 공용화한다.
+   - 현재 공용라벨 설정 dialog를 configurable한 공용 widget으로 추출하고 preference load/save, printer picker와 parsing/validation을 함께 재사용한다.
+   - 공용라벨 mode는 기존 copies와 내부 발행 버튼을 유지하고, 라벨출력 mode는 이를 숨기며 화면 하단 command bar에서만 발행한다.
    - 라벨출력 설정에는 printer, left/right/top margin, left/top push, 자동 줄간격, 추가 영역과 방향을 표시한다.
    - 공용 preference에 없는 `rightMargin`, `leftPush`, `topPush`는 같은 문자열 저장 방식으로 추가하고 기존 key가 없으면 `0.0`을 사용한다.
 4. 출력 dispatcher
    - 현재 공용라벨의 printer 확인, PDF fallback과 EZPL RAW 분기를 공용 service로 추출한다.
-   - dispatcher는 UI를 직접 표시하지 않고 성공 여부 또는 exception을 반환한다.
+   - dispatcher는 UI를 직접 표시하지 않고 성공 여부 또는 exception을 반환한다. PDF는 `directPrintPdf()` 반환값을 확인하고 group의 page format을 `format`으로 전달한다.
+   - `RawPrinterWin32.sendRaw()`는 기존 API 형태를 유지하되 `EndDocPrinter` 반환값도 확인해 실패하면 exception을 던진다. job ID, `AbortPrinter`와 native plugin 변경은 추가하지 않는다.
 
 ## 4. 화면 구성
 
@@ -136,7 +143,7 @@
 
 ### 4.4 프린터 설정
 
-- 공용 preference와 printer picker를 사용하는 라벨출력 전용 dialog를 둔다.
+- 3.2의 configurable 공용 dialog를 라벨출력 mode로 사용한다. 별도 dialog와 field widget을 중복 작성하지 않는다.
 - 매수는 출력 작업 행이 소유하므로 dialog에 매수와 내부 발행 버튼을 두지 않는다.
 - 하단에는 `[취소] [적용]`만 둔다. `적용`은 설정을 저장하고 현재 fallback 행을 갱신할 뿐 출력하지 않는다.
 - 화면 하단의 `[발행]`만 실제 출력 진입점이다.
@@ -169,8 +176,9 @@
 - 저장 workbook의 `gridClientWidthMm/gridClientHeightMm`를 source viewport로 사용한다. 없으면 라벨 저장을 요청하고 출력하지 않는다.
 - source logical pixel과 mm의 기존 공용 변환을 사용한다.
 - row 크기가 source 크기와 달라도 workbook content를 확대·축소하거나 text를 다시 배치하지 않는다.
-- source를 row label 영역에 1:1로 배치하고 margin과 signed push를 적용한 뒤 label 영역 밖을 clip한다.
-- horizontal/vertical 방향과 extra area는 기존 `LabelSheetPrintOptions`/`LabelSheetPrintPageMetrics` 계산을 공용 확장해 적용한다.
+- source를 row label 영역에 1:1로 배치한다. content 원점은 `(leftMarginMm + leftPushMm, topMarginMm + topPushMm)`이고 push는 음수를 허용한다. 오른쪽 content clip 경계는 `widthMm - rightMarginMm`이며 label 영역과 extra area에는 content가 넘어가지 않게 자른다.
+- horizontal page는 기존처럼 `W x (H + extraArea)`다. 사용자 확정에 따라 vertical도 같은 page 크기를 유지하고 content만 시계 방향 90도로 한 번 회전한다. page width/height를 교환하지 않는다.
+- 위 방향과 extra area 동작은 기존 `LabelSheetPrintOptions`/`LabelSheetPrintPageMetrics`를 공용 확장해 preview, PDF와 EZPL에 동일하게 적용한다.
 - 줄간격은 `FortuneOutputLayoutOptions` 같은 공용 출력 option으로 preview, PDF와 EZPL bitmap fallback에 동일하게 전달한다.
 - DPI는 현재 `RawPrinterWin32.queryPrinterDpi()`와 `PrinterProfile` fallback을 사용한다. 별도 native DPI API를 추가하지 않는다.
 - Godex EZPL은 현재 engine이 지원하는 plain-paper mode와 정밀 좌표/EZPL command/bitmap fallback 구조를 유지한다.
@@ -216,7 +224,7 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 - `# + TColumn.keyword`: 해당 item의 최종 column value
 - 일반/날짜/시간: 기존 format과 range 규칙
 - 바코드/QR/GS1: 기존 `ItemCodeDataResolver` 결과
-- 연결 이미지: 현재 image resolver 결과. 값이나 파일이 없으면 출력 workbook에서 제외
+- 연결 이미지: 현재 image resolver 결과. 값이나 파일이 없으면 materialized copy에서 해당 연결 image object만 생략하고 원본 workbook은 변경하지 않는다.
 - 고정 이미지와 고정 바코드: 원본 workbook 값 유지
 - resolver 오류: placeholder를 출력하지 않고 item/copy/column을 알린 뒤 발행 중단
 
@@ -237,7 +245,7 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 - 선택 printer를 command 시작 시 snapshot하고 출력 도중 다시 선택하지 않는다.
 - Godex RAW가 가능한 group은 기존 EZPL builder와 `RawPrinterWin32.sendRaw()`를 사용한다.
 - file port이거나 RAW를 사용할 수 없는 group은 기존 PDF builder와 `Printing.directPrintPdf()`를 사용한다.
-- PDF document page와 `directPrintPdf(format:)`은 같은 page format을 사용한다.
+- PDF document page와 `directPrintPdf(format:)`은 같은 group page format을 사용하고 반환값을 확인한다.
 - PDF `false`/exception과 RAW exception은 해당 group 실패다.
 - group 실패 후에는 다음 group을 보내지 않는다.
 - OS 출력 call을 앱 cancellation로 강제 중단하지 않는다. call 실행 전 또는 group 사이에 취소를 확인하고, 실행 중 요청된 취소는 call 완료 후 다음 group부터 적용한다.
@@ -251,7 +259,9 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 
 `LabelPrintAutoIncrementDAO` 또는 동등 책임을 둔다.
 
-- 기존 barcode/date/time helper를 사용해 원본값과 copy index에서 출력값과 다음 값을 계산한다.
+- 자동증가는 DB를 변경하지 않는 순수 함수로 계산한다. 원본값, copy index, `autoIncSize`, `autoIncRange`, `autoIncZeroDel`, barcode check digit와 time-barcode 설정을 입력으로 받는다.
+- 증가 대상은 레거시처럼 지정 범위의 숫자 부분이며 `autoIncSize * copyIndex`를 더한다. 범위를 넘으면 해당 자릿수 안에서 순환하고, 앞자리 0 유지/제거와 barcode check digit/time-barcode 재적용도 레거시 순서를 따른다.
+- barcode check digit와 date/time 값 생성은 기존 helper를 재사용한다. 자동증가 계산 자체는 새 공용 순수 함수로 작성한다.
 - `autoInc == false`인 column은 변경하지 않는다.
 - 해당 `(columnId,itemId)`의 accepted unit이 있을 때만 저장한다.
 - accepted unit 중 가장 큰 copy index의 projection을 마지막 값으로 본다.
@@ -269,12 +279,14 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 - `RICH_COLUMNS`, `RICH_PRINT_CELLS`, `RICH_SAVE_IN_DB_CELLS`는 레거시처럼 `주원료` 뒤 column order 값들을 `|`로 연결하고 trailing `|`를 남긴다. 값 안의 `|`도 레거시처럼 escaping하지 않는다.
 - `RICH_PRINT_CELLS`에는 실제 출력 projection, `RICH_SAVE_IN_DB_CELLS`에는 command 시작 시점의 DB 원본값을 기록한다.
 - `BM_RICH_STATUS` order는 같은 customer의 `MAX(RICH_STATUS_ORDER)` 다음 값으로 정하고 고객 이력이 없으면 1부터 시작한다.
-- status ID와 detail ID는 레거시 형식과 column order를 따른다.
+- `RICH_STATUS_ID`는 `<customerId>-<brandId>-<order>`, `RICH_STATUS_DATA_ID`는 `<statusId>D<0-based columnOrderIndex>` 형식을 사용한다.
+- 레거시 조건대로 master key와 최초 관리자 접속의 출력은 print log와 status/detail 이력에서 제외한다. 자동증가 저장은 로그인 유형과 관계없이 accepted unit 기준으로 처리한다.
 - 여러 client/PC의 동시 order 충돌 방지는 이번 범위에 포함하지 않는다.
 
 ### 8.3 transaction과 오류
 
 - accepted unit의 자동증가 update, print log와 status/detail insert를 기존 `DbClient.transaction()` 한 번으로 실행한다.
+- 현재 API는 `List<DbTransactionStatement>`를 transaction 시작 전에 받으므로, accepted unit을 JSON parameter 등으로 전달하는 단일 parameterized T-SQL batch 안에서 customer별 다음 order 계산, status/detail ID 생성과 모든 update/insert를 수행한다. SELECT 결과를 Dart로 가져와 transaction 중간에 뒤 statement를 조립하지 않는다.
 - SQL은 parameterized query를 사용하고 문자열을 직접 이어 붙이지 않는다.
 - 기존 table/column이 없거나 문자열 길이·형식이 맞지 않으면 SQL Server 오류를 그대로 사용자에게 전달한다.
 - transaction 중 오류가 발생하면 가능한 경우 rollback하고 `인쇄 작업은 접수되었으나 자동증가 값과 발행 이력을 저장하지 못했습니다.`를 표시한다.
@@ -331,7 +343,7 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 - `lib/printing/label_output_materializer.dart`: 품목관리와 라벨출력 공용 workbook materialize
 - `lib/printing/label_print_dispatcher.dart`: 공용 PDF/EZPL 분기와 typed result
 - `lib/printing/label_sheet_print_job.dart`: 공용 physical page 계산과 PDF/EZPL group builder 확장
-- `lib/page_home/label_print_settings_dialog.dart`: 공용 preference/printer/validation field를 사용하는 설정 UI
+- `lib/page_home/label_print_settings_dialog.dart` 또는 기존 설정 소유 파일: 공용라벨/라벨출력 mode를 지원하는 configurable 공용 dialog
 - `lib/home_page_manager.dart`: tab placeholder 교체, session/checked item 연결과 출력 busy 소유
 - `lib/printing/label_printer_preferences.dart`: right margin과 signed push preference 추가
 - `third_party/fortune_sheet/lib/`: 공용 줄간격 출력 option이 필요한 최소 painter/capture 확장
@@ -344,6 +356,7 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 
 - checked item add/remove/reorder와 item ID 선택 유지
 - item override > preference fallback > session edit 초기화·유지
+- `TYPE_PRINTCOUNT`와 `useLabelSize/useMargin/useLinefeed`별 item/preference 기본값
 - copies 0 허용, 음수/비정수 거부와 전체 0 발행 차단
 - margin/push/크기/줄간격 validation
 - rightMargin/leftPush/topPush 기존 key 누락 시 `0.0` fallback과 round-trip
@@ -358,9 +371,11 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 - 품목관리 미리보기와 라벨출력 copy index 0 결과 동등성
 - 원본 workbook 불변
 - 저장 source viewport, 1:1 배치, clip, margin+push, 방향, extra area와 줄간격
+- vertical은 page `W x (H+extraArea)`를 유지하고 content만 한 번 회전
 - PDF page 수와 EZPL `^P1` 수가 unit 수와 일치
 - 같은 page spec의 인접 unit은 한 dispatcher call, spec 변경은 순서가 유지된 별도 call
 - PDF true/false/exception과 RAW 성공/exception mapping
+- PDF group format 전달과 RAW `EndDocPrinter` 실패 mapping
 - 첫 group 실패와 일부 group accepted 후 실패의 후속 전송 차단
 - 준비 중/group 사이/active call 중 취소
 
@@ -369,9 +384,11 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 - 기존 item/column/content 조회 DAO 재사용
 - 자동증가 `(columnId,itemId)` update와 affected row 검증
 - `autoIncSave`별 마지막 출력값/다음 값
+- `autoIncSize/autoIncRange/autoIncZeroDel`, 자릿수 순환과 barcode check digit/time-barcode 재적용
 - history/status/detail의 자동증가 copy/일반 row 집계
 - 레거시 `|` wire와 projected/DB 원본 mapping
-- customer status order의 기존 max 다음 값과 첫 값 1
+- 단일 parameterized SQL batch의 customer status order, 첫 값 1과 status/detail ID 형식
+- master key/최초 관리자 이력 제외와 일반 사용자 이력 저장
 - accepted unit이 없을 때 DB 작업 없음
 - 일부 accepted 후 transaction 성공/rollback
 - commit 후 대상 draft/snapshot만 갱신
