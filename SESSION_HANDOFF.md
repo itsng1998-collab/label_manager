@@ -1,3 +1,16 @@
+### 완료 (2026-07-16): 라벨출력 DB 실행·설정·이력 순서 계약 명확화
+- 사용자 요청: `doc/label_print_modify.txt` 재검토 권장안 4건을 작업지시서에 병합하고 사용자 확인 사항이 있으면 즉시 질문해 확정한다.
+- 확정 기준: accepted unit 존재와 실제 persistence 작업 필요 여부를 분리한다. 프린터 설정 적용은 모든 출력 row에서 preference fallback 출처인 field만 갱신한다. 라벨 projection의 `requestedAt`과 DB 이력의 단일 `@historyAt`을 구분하고, status detail ID는 command가 부여한 연속 `detailIndex`를 사용한다.
+- 수정 예정: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. 본문·pipeline·테스트·완료 조건을 함께 정리하며 DB migration, 저장 재시도·재조회, 별도 복구 상태는 추가하지 않는다.
+- `doc/label_print_modify.txt` 편집 완료: `requiresPersistence` 판정과 `User.SYSTEM`의 update-only/no-DB 분기, 모든 row의 field별 preference fallback 갱신, batch 단일 `@historyAt`, `(columnOrder, columnId)` 안정 정렬과 command `detailIndex` 전달을 본문·pipeline·테스트·완료 조건에 연결했다.
+- `SESSION_HANDOFF.md` 편집 완료: 이번 문서 병합의 확정 기준과 파일별 진행 상태를 기록했다.
+- 검증 예정: 두 문서 diagnostics, 이전 모호 표현과 새 계약 검색, `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md`. 문서만 변경하므로 Flutter test/analyze는 실행하지 않는다.
+- 검증 실행 직전: 새 `requiresPersistence`/field별 fallback/`@historyAt`/`detailIndex` 계약과 이전 `현재 fallback 행`/`columnOrderIndex`/accepted unit 무조건 transaction 표현을 검색하고 `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md`를 실행한다.
+- 최종 검증: 이전 `현재 fallback 행`/`columnOrderIndex`/accepted unit 무조건 transaction 표현 0건, 새 계약 16개 위치와 `User.SYSTEM`/안정 정렬 세부 계약 12개 위치 확인, 두 문서 diagnostics 오류 0건, `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md` 통과. 문서만 변경해 Flutter test/analyze는 실행하지 않았다.
+- 독립 재검토: 네 계약의 본문·pipeline·테스트·완료 조건 사이 실제 모순, 구현 불가능성, 빠진 필수 검증 0건이다.
+- 구현 경계 확인: 현재 SQL batch와 `windows_odbc_param_utils_test.dart`가 선언된 `@name` 지역 변수를 보존하므로 batch의 `@historyAt`은 기존 named-parameter 준비 방식과 충돌하지 않는다.
+- stage/commit 대상: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. 기존 사용자 `lib/core/app.dart`, `doc/label_print.txt` 변경은 제외한다.
+
 ### 완료 (2026-07-16): 라벨출력 시각·저장결과·row 수명 명확화
 - 사용자 요청: `doc/label_print_modify.txt` 재검토 권장안 3건을 작업지시서에 병합한다.
 - 확정 기준: command 생성 시 `requestedAt`을 한 번 snapshot해 실제 출력의 모든 날짜·시간/time-barcode 계산에 사용한다. 기존 네 `LabelPrintResult` 상태는 물리 dispatch 전용으로 유지하고 persistence 결과만 최소 typed 값으로 분리한다.

@@ -133,7 +133,7 @@
 - 품목관리 발행 체크가 바뀌면 item ID를 stable key로 목록을 동기화한다.
 - 남아 있는 행의 session edit와 현재 선택은 유지한다.
 - 체크 해제된 item의 row와 session edit는 즉시 폐기한다. 같은 item을 다시 체크하면 이전 edit를 복원하지 않고 item override 또는 preference fallback으로 새 row를 초기화한다.
-- printer 설정 변경 시 item override나 session edit가 없는 fallback 값만 갱신한다.
+- printer 설정 변경 시 현재 출력 목록의 모든 row를 순회하고 각 editable field의 출처가 `preference fallback`인 값만 새 preference로 갱신한다. 같은 row 안에서도 `item override` 또는 `session edited`인 field는 유지한다.
 
 ### 4.3 미리보기
 
@@ -146,7 +146,7 @@
 
 - 3.2의 configurable 공용 dialog를 라벨출력 mode로 사용한다. 별도 dialog와 field widget을 중복 작성하지 않는다.
 - 매수는 출력 작업 행이 소유하므로 dialog에 매수와 내부 발행 버튼을 두지 않는다.
-- 하단에는 `[취소] [적용]`만 둔다. `적용`은 설정을 저장하고 현재 fallback 행을 갱신할 뿐 출력하지 않는다.
+- 하단에는 `[취소] [적용]`만 둔다. `적용`은 설정을 저장하고 현재 출력 목록의 모든 row에서 `preference fallback` 출처인 field만 갱신할 뿐 출력하지 않는다. 현재 선택 행의 미리보기는 즉시 다시 만들고 다른 행은 선택될 때 새 값으로 만든다.
 - 화면 하단의 `[발행]`만 실제 출력 진입점이다.
 
 ## 5. 상태와 model
@@ -194,7 +194,7 @@
 다음 immutable DTO 또는 동등 구조만 둔다.
 
 - `LabelPrinterSnapshot`: 선택된 `Printer`와 표시용 name
-- `LabelPrintCommand`: command 생성 시 한 번 정한 `requestedAt`, label/customer/brand/market/user, printer, `extraAreaMm`과 방향을 포함한 설정, row, column/content와 saved workbook snapshot. brand는 command 생성 시점의 immutable `brandId`와 `brandName`을 가지며 모든 설정 snapshot은 출력 중 변경되지 않는다.
+- `LabelPrintCommand`: command 생성 시 한 번 정한 `requestedAt`, label/customer/brand/market/user, printer, `extraAreaMm`과 방향을 포함한 설정, row, column/content와 saved workbook snapshot. brand는 command 생성 시점의 immutable `brandId`와 `brandName`을 가진다. `TColumn` snapshot은 `(columnOrder, columnId)` 오름차순으로 한 번 정렬하고 0부터 연속인 immutable `detailIndex`를 부여한다. 모든 snapshot은 출력 중 변경되지 않는다.
 - `LabelPrintUnit`: item ID, row index, copy index와 materialize projection. 한 unit은 한 장이다.
 - `LabelPhysicalPageSpec`: PDF 또는 EZPL backend의 최종 page 크기와 필요한 DPI/media 값
 - `LabelPrintJobGroup`: 순서가 연속되고 page spec이 같은 unit 목록
@@ -284,26 +284,28 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 
 - 기존 `BM_RICH_PRINT_LOG`, `BM_RICH_STATUS`, `BM_RICH_STATUS_DATA`만 사용한다.
 - 이 절의 자동증가 행은 현재 label-size의 `TColumn` 중 `autoInc == true`가 하나라도 있을 때의 모든 출력 row다. 자동증가 행은 accepted copy별 `printCount=1`, autoInc column이 하나도 없는 label-size의 일반 행은 accepted copies 합계 한 건으로 기록한다.
-- `RICH_COLUMNS`는 레거시처럼 `주원료` 뒤에 `TColumn`을 column order로 정렬한 column name을 `|`로 연결한다. `RICH_PRINT_CELLS`와 `RICH_SAVE_IN_DB_CELLS`는 같은 위치에 각각 주원료와 column 값을 연결하며 세 문자열 모두 trailing `|`를 남긴다. 이름이나 값 안의 `|`도 레거시처럼 escaping하지 않는다.
+- `RICH_COLUMNS`는 레거시처럼 `주원료` 뒤에 command의 `(columnOrder, columnId)` 순서인 `TColumn` column name을 `|`로 연결한다. `RICH_PRINT_CELLS`와 `RICH_SAVE_IN_DB_CELLS`는 같은 위치에 각각 주원료와 column 값을 연결하며 세 문자열 모두 trailing `|`를 남긴다. 이름이나 값 안의 `|`도 레거시처럼 escaping하지 않는다.
 - `RICH_PRINT_CELLS`에는 해당 accepted unit의 자동증가가 적용된 실제 출력 projection을 기록한다. `RICH_SAVE_IN_DB_CELLS`에는 command 생성 시점에 snapshot한 자동증가 미적용 마지막 저장·조회 DB baseline의 주원료와 column 값을 기록한다.
 - autoInc가 없는 일반 row를 accepted copies 합계 한 parent로 기록할 때 모든 copy는 같은 `requestedAt` projection이므로 그 동일 projection을 `RICH_PRINT_CELLS`에 기록한다.
 - 한 command에서 만들 history parent를 unit의 `(rowIndex, copyIndex)` 순서로 정렬한다. 자동증가 행은 accepted copy마다 해당 unit 순서 key의 parent 하나를 만들고, 일반 행은 accepted copies를 합쳐 가장 작은 accepted copy index의 unit 순서 key에 parent 하나를 둔다.
 - 단일 T-SQL batch에서 같은 customer의 기존 `MAX(RICH_STATUS_ORDER)`를 한 번 구하고 위 history parent 순서의 `ROW_NUMBER()`를 더해 연속 order를 배정한다. 고객 이력이 없으면 1부터 시작한다.
-- `RICH_STATUS_ID`는 `<customerId>-<brandId>-<order>`, `RICH_STATUS_DATA_ID`는 `<statusId>D<0-based columnOrderIndex>` 형식을 사용한다.
-- status detail은 주원료를 제외하고 위와 같이 정렬한 `TColumn`만 순회한다. 각 detail은 해당 위치의 실제 `columnId`, `columnName`과 `RICH_PRINT_CELLS`의 출력 projection 값을 저장하며 첫 TColumn부터 `D0`, `D1` 순서로 ID를 만든다.
+- `RICH_STATUS_ID`는 `<customerId>-<brandId>-<order>`, `RICH_STATUS_DATA_ID`는 `<statusId>D<detailIndex>` 형식을 사용한다. `detailIndex`는 DB의 `RICH_COLUMN_ORDER - 1`이나 SQL 결과 순서가 아니라 command에서 부여한 0 기반 연속 index다.
+- status detail은 주원료를 제외하고 command의 `TColumn` snapshot만 순회한다. 각 detail은 command의 `detailIndex`, 실제 `columnId`, `columnName`과 `RICH_PRINT_CELLS`의 출력 projection 값을 저장하며 첫 TColumn부터 `D0`, `D1` 순서로 ID를 만든다. transaction JSON 입력에도 이 네 값을 명시하고 SQL에서 index나 순서를 재계산하지 않는다.
 - `RICH_BRAND_ID`, `RICH_BRAND_NAME`과 status ID의 brand ID는 command의 immutable brand snapshot만 사용한다. 출력 완료 후 전역 selected brand를 다시 읽거나 brand 조회 SELECT를 추가하지 않는다.
 - 사용자 확정에 따라 현재 Flutter에서 구분 가능한 `User.SYSTEM` 특수 로그인만 print log와 status/detail 이력에서 제외한다. 일반 `SYSTEM_ADMIN_USER` grade 로그인은 이력을 기록한다. 현재 Flutter에 없는 master-key 우회 로그인은 제외 대상으로 간주하지 않으며, 향후 해당 인증 경로를 구현할 때만 명시적인 session boolean을 추가한다. 자동증가 저장은 로그인 유형과 관계없이 accepted unit 기준으로 처리한다.
+- 라벨 내용의 날짜·시간/time-barcode projection은 command의 `requestedAt`을 사용한다. 발행 이력 저장 시각은 이와 분리해 단일 T-SQL batch 시작 시 `GETDATE()`를 한 번 읽은 `@historyAt`을 사용하고, 같은 command의 print log와 status parent 날짜·시간 field는 모두 이 값에서 만든다.
 - 여러 client/PC의 동시 order 충돌 방지는 이번 범위에 포함하지 않는다.
 
 ### 8.3 transaction과 오류
 
-- accepted unit의 자동증가 update, print log와 status/detail insert를 기존 `DbClient.transaction()` 한 번으로 실행한다.
+- `requiresPersistence`는 accepted unit 존재 여부와 별도로 `자동증가 update 대상이 하나 이상이거나 이력 insert 대상이 하나 이상`일 때만 `true`다. `User.SYSTEM`이고 autoInc column이 없는 경우처럼 accepted unit은 있지만 두 대상이 모두 없으면 `false`다.
+- `requiresPersistence == true`일 때만 accepted unit의 자동증가 update, print log와 status/detail insert를 기존 `DbClient.transaction()` 한 번으로 실행한다. `false`이면 DB를 호출하지 않고 persistence를 `notAttempted`로 둔다. `User.SYSTEM`이어도 자동증가 update 대상이 있으면 update만 transaction으로 실행한다.
 - 현재 API는 `List<DbTransactionStatement>`를 transaction 시작 전에 받으므로, 현재 품목 저장과 같은 `jsonEncode` parameter/`OPENJSON` 패턴으로 accepted unit과 자동증가·이력 입력을 전달하는 단일 `DbTransactionStatement`의 parameterized T-SQL batch 안에서 customer별 다음 order 계산, status/detail ID 생성과 모든 update/insert를 수행한다. SELECT 결과를 Dart로 가져와 transaction 중간에 뒤 statement를 조립하지 않는다.
 - SQL은 parameterized query를 사용하고 문자열을 직접 이어 붙이지 않는다.
 - 기존 table/column이 없거나 문자열 길이·형식이 맞지 않으면 SQL Server 오류를 그대로 사용자에게 전달한다.
 - transaction statement 오류는 가능한 경우 rollback하고 `인쇄 작업은 접수되었으나 자동증가 값과 발행 이력을 저장하지 못했습니다.` 뒤에 원본 SQL Server 오류를 함께 표시한다.
 - commit을 시도한 뒤 `DbCommitOutcomeUnknown`이 발생하면 가능한 rollback 시도까지만 수행하고 `인쇄 작업은 접수되었으나 자동증가 값과 발행 이력의 저장 결과를 확인할 수 없습니다.` 뒤에 원본 commit 오류를 함께 표시한다. 이를 저장 성공이나 확정 실패로 치환하지 않으며 DB 재조회·관리자 판정·자동 재시도를 추가하지 않는다.
-- accepted unit이 없으면 persistence는 `notAttempted`, commit 성공은 `succeeded`, statement 오류는 원본 오류를 가진 `failed`, `DbCommitOutcomeUnknown`은 원본 commit 오류를 가진 `outcomeUnknown`으로 반환한다. 이미 accepted된 unit, accepted 매수와 `LabelPrintResult`의 물리 상태는 persistence 결과 때문에 변경하지 않는다.
+- `requiresPersistence == false`이면 persistence는 `notAttempted`, commit 성공은 `succeeded`, statement 오류는 원본 오류를 가진 `failed`, `DbCommitOutcomeUnknown`은 원본 commit 오류를 가진 `outcomeUnknown`으로 반환한다. 이미 accepted된 unit, accepted 매수와 `LabelPrintResult`의 물리 상태는 persistence 결과 때문에 변경하지 않는다.
 - DB 저장 실패 후 물리 출력을 자동 재실행하지 않는다. 별도 DB 재시도 UI, durable recovery 상태와 관리자 commit 판정은 구현하지 않는다.
 - commit 성공 후에는 자동증가 대상 `(columnId,itemId)`의 현재 session snapshot만 commit 값으로 갱신한다. 화면 동기화가 실패하면 DB 성공을 되돌리지 않고 현재 session reload를 안내한다.
 
@@ -331,8 +333,8 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 5. 모든 unit을 같은 `requestedAt`으로 공용 materializer와 print job builder에서 materialize해 group payload를 완성한다. 하나라도 resolver/decode/materialize/build 오류가 있으면 대상 item/copy/column을 표시하고 물리 상태 `failed`, accepted 0, persistence `notAttempted`로 종료하며 어떤 group도 보내지 않는다.
 6. group dispatch 직전에 cancellation을 확인하고 PDF 또는 RAW dispatcher를 순서대로 호출한다.
 7. group이 failed이면 뒤 group을 중단한다. active call 완료 뒤 취소가 확인되면 뒤 group을 중단한다.
-8. accepted unit이 없으면 DB를 변경하지 않고 persistence를 `notAttempted`로 둔다.
-9. accepted unit이 있으면 자동증가와 발행 이력을 한 SQL transaction으로 저장하고 persistence를 `succeeded`/`failed`/`outcomeUnknown`으로 기록한다. 오류를 전달하고 가능한 경우 rollback한다.
+8. accepted unit에서 자동증가 update 대상과 현재 사용자의 이력 insert 대상을 계산해 `requiresPersistence`를 정한다. 둘 다 없으면 DB를 호출하지 않고 persistence를 `notAttempted`로 둔다.
+9. `requiresPersistence == true`이면 필요한 자동증가와 발행 이력만 한 SQL transaction으로 저장하고 persistence를 `succeeded`/`failed`/`outcomeUnknown`으로 기록한다. 오류를 전달하고 가능한 경우 rollback한다.
 10. commit 성공 시 대상 session snapshot과 선택 행 미리보기를 갱신한다.
 11. 결과를 사용자에게 알리고 `finally`에서 busy flag와 UI lock을 해제한다.
 
@@ -388,6 +390,7 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 - label-size에 autoInc column이 하나라도 있을 때 모든 copies 1 이상 row의 copy별 projection
 - 자동증가 copy별 projection과 accepted 최대 copy index의 저장값
 - command `requestedAt` 고정과 날짜·시간/time-barcode projection의 모든 unit 동일 기준 시각 사용
+- 중복·비연속 column order를 `(columnOrder, columnId)`로 안정 정렬하고 0부터 연속인 command `detailIndex` 부여
 - cancellation request와 busy 상태
 - 첫 group 전 취소 `cancelled`, 일부 accepted 후 취소 `partiallyAccepted`, 전부 accepted 후 늦은 취소 `completed` 결과 mapping
 - validation/materialize/build 실패의 `failed`/accepted 0/persistence `notAttempted` mapping
@@ -418,11 +421,15 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 - `autoIncSize/autoIncRange/autoIncZeroDel`, 자릿수 순환과 barcode check digit/time-barcode 재적용
 - autoInc column이 하나라도 있는 label-size의 모든 row는 accepted copy별 history, 하나도 없으면 row별 accepted copies 합계 history
 - `RICH_COLUMNS`의 주원료/column name wire, `RICH_PRINT_CELLS`의 출력 projection, `RICH_SAVE_IN_DB_CELLS`의 자동증가 미적용 command DB baseline wire
-- 주원료를 제외한 TColumn column order별 status detail의 `D0` ID, columnId/name과 출력 projection mapping
+- 주원료를 제외한 command TColumn 순서별 status detail의 `D0` ID, `detailIndex`, columnId/name과 출력 projection mapping
+- 중복·비연속 column order에서도 `(columnOrder, columnId)` 순서와 `D0`, `D1` 연속 ID를 유지하고 SQL이 index를 재계산하지 않음
 - 단일 parameterized SQL batch의 `(rowIndex, copyIndex)` history parent 순서별 연속 customer status order, 첫 값 1과 status/detail ID 형식
+- label projection은 command `requestedAt`, 같은 command의 print log/status parent 저장 시각은 batch의 단일 `@historyAt` 사용
 - command brand snapshot의 ID/name을 status ID와 `RICH_BRAND_ID`/`RICH_BRAND_NAME`에 사용하고 출력 후 전역 brand를 읽지 않음
 - `User.SYSTEM` 이력 제외, 일반 `SYSTEM_ADMIN_USER` grade와 일반 사용자 이력 저장
 - accepted unit이 없을 때 DB 작업 없음
+- `User.SYSTEM`이고 autoInc 대상이 없어 accepted unit만 있을 때 DB 작업 없이 persistence `notAttempted`
+- `User.SYSTEM`이고 autoInc 대상이 있을 때 이력 없이 update transaction만 실행
 - 일부 accepted 후 transaction 성공/rollback
 - statement 저장 실패와 `DbCommitOutcomeUnknown`의 사용자 문구·결과 구분
 - DB 저장 오류가 accepted 매수와 물리 dispatch 상태를 변경하지 않음
@@ -488,6 +495,7 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 - 발행 체크를 해제한 row의 session edit는 폐기되고 재체크하면 현재 item/preference 기본값으로 다시 초기화된다.
 - 행별 매수·크기·여백·밀기·줄간격이 레거시 우선순위로 초기화되고 session에서 편집된다.
 - 출력 row는 item override 또는 preference fallback으로 초기화되고 라벨출력 session edit가 최종값이 되며 품목관리 미저장 draft를 사용하지 않는다.
+- 프린터 설정 적용은 모든 출력 row의 각 field 중 `preference fallback` 출처만 갱신하고 같은 row의 item override/session edit는 유지한다.
 - 선택 행의 실제 출력 미리보기가 자동 표시되고 품목관리와 같은 materializer를 사용한다.
 - 검색은 발행 목록의 레거시 exact 대상만 선택하며 자동 발행하지 않는다.
 - 공용 printer 설정과 현재 hosted `printing`/PDF/EZPL/RAW engine을 재사용한다.
@@ -499,10 +507,12 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 - 실제 출력의 모든 날짜·시간/time-barcode projection은 command의 단일 `requestedAt`을 사용한다.
 - 취소 또는 group 실패 시 active call 결과를 보존하고 뒤 group을 보내지 않는다.
 - 첫 group 전 취소는 `cancelled`, 일부 accepted 후 취소는 `partiallyAccepted`, 모든 unit accepted 후 늦은 취소는 `completed`로 종료한다.
-- accepted unit만 자동증가와 기존 발행 이력 table에 한 transaction으로 저장된다.
+- accepted unit에서 실제 자동증가 update 또는 이력 insert 대상이 있을 때만 필요한 작업을 한 transaction으로 저장하고, 둘 다 없으면 DB를 호출하지 않는다.
 - PDF/RAW API 결과는 group 전체 unit 단위로 accepted/failed에 반영되고 API가 제공하지 않는 page별 결과는 추적하지 않는다.
 - label-size에 autoInc column이 하나라도 있으면 모든 출력 row의 accepted copy별 이력을 저장하고, brand 이력 값은 command snapshot을 사용한다.
 - 발행 이력의 column name, 출력 projection, 자동증가 미적용 DB baseline wire와 status detail column mapping이 레거시 순서를 따른다.
+- command의 `(columnOrder, columnId)` 정렬과 연속 `detailIndex`가 wire/status detail/SQL JSON에서 동일하게 유지되고 SQL은 이를 재계산하지 않는다.
+- 라벨 projection의 `requestedAt`과 발행 이력의 단일 SQL `@historyAt`을 구분한다.
 - SQL 오류를 context와 함께 사용자에게 전달하고 가능한 경우 rollback하며 자동 재출력하지 않는다.
 - 자동증가와 발행 이력은 기존 `jsonEncode` parameter/`OPENJSON` 패턴의 단일 `DbTransactionStatement` batch로 저장한다.
 - commit 결과가 불명확하면 저장 실패로 단정하지 않고 `DbCommitOutcomeUnknown`과 원본 오류를 전달한다.
