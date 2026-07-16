@@ -12,6 +12,7 @@
 - 독립 재검토: 다섯 계약의 본문·DTO·pipeline·오류·테스트·완료 조건 사이 실제 모순, 구현 불가능성, 빠진 필수 검증 0건이다.
 - 최종 검증: 이전 탭 gate `requestedAt`, 통합 source와 고정 통합 오류 문구 0건, 새 계약 23개 위치 확인, spec 검색 1건은 의도한 `backend와 page spec이 같은` 조건이다. 두 문서 diagnostics 오류 0건, `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md` 통과. 변경량은 2개 문서 57 insertions/27 deletions이며 문서만 변경해 Flutter test/analyze는 실행하지 않았다.
 - stage/commit 대상: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. 기존 사용자 `lib/core/app.dart`, `doc/label_print.txt` 변경은 제외한다.
+- 작업지시서 발행 시각·이력 필드 계약 커밋: `04c570a 라벨출력 발행 시각과 이력 필드 계약 명확화`.
 
 ### 완료 (2026-07-16): 라벨출력 DB 실행·설정·이력 순서 계약 명확화
 - 사용자 요청: `doc/label_print_modify.txt` 재검토 권장안 4건을 작업지시서에 병합하고 사용자 확인 사항이 있으면 즉시 질문해 확정한다.
