@@ -223,7 +223,8 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 - 검색 cursor와 exact-match 선택
 - 총 발행매수 계산
 - 현재 앱 instance의 출력 busy와 cancellation request
-- label-size session 교체 시 이전 row와 선택 폐기
+- `labelPrintBusy` 동안 현재 label-size session 또는 `TColumn`/`TColumnContent` baseline을 교체하는 label-size/customer/market/brand 변경과 session reload의 사용자·programmatic 경로를 차단하는 context lock. `[발행 취소]`는 계속 허용한다.
+- busy가 아닐 때 label-size session 교체 시 이전 row와 선택 폐기
 - commit 성공 후 같은 새 `TColumnContentScopedView`를 `ItemManagerDraftController.scopedColumnContents`와 `TColumnContent.datas` 양쪽 baseline에 반영하고 품목관리 row, selection, column draft와 working value 유지
 - `committedAutoIncrementValues`에 command의 안정 정렬 `TColumn` snapshot에서 copies 기준으로 선택된 첫 `TYPE_PRINTCOUNT`의 `(columnId,itemId)` key가 있으면 copies 출처가 `item baseline`인 해당 row만 같은 copies parser로 갱신하고, `session edited` copies와 선택되지 않은 다른 `TYPE_PRINTCOUNT` 값은 유지
 
@@ -239,17 +240,19 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 
 품목관리 `출력내용 미리보기`와 같은 공용 materializer를 사용한다.
 
+공용 materializer 입력에는 한 번 정한 `DateTime referenceAt`을 필수로 둔다. 한 materialize 안의 일반 날짜·시간, 유통기한과 time-barcode resolver는 이 값만 사용하고 각 cell/object에서 `DateTime.now()`를 다시 호출하지 않는다.
+
 - `#ITEMNAME`: 품명
 - `#ELEMENT`: 마지막으로 저장·조회된 품목의 주원료/함량
 - `# + TColumn.keyword`: 해당 item의 마지막 저장·조회 column value
 - 일반/날짜/시간: 기존 format과 range 규칙
-- 실제 출력의 일반 날짜·시간, 유통기한과 time-barcode 계산은 각 unit에서 `DateTime.now()`를 다시 호출하지 않고 command의 같은 `requestedAt`을 사용한다. autoInc가 없는 일반 row의 모든 copy는 동일한 시간 기준 projection을 사용한다.
+- 실제 출력은 공용 materializer의 `referenceAt`에 command의 같은 `requestedAt`을 전달한다. autoInc가 없는 일반 row의 모든 copy는 동일한 시간 기준 projection을 사용한다.
 - 바코드/QR/GS1: 기존 `ItemCodeDataResolver` 결과
 - 연결 이미지: 현재 image resolver 결과. 값이나 파일이 없으면 materialized copy에서 해당 연결 image object만 생략하고 원본 workbook은 변경하지 않는다.
 - 고정 이미지와 고정 바코드: 원본 workbook 값 유지
 - resolver 오류: placeholder를 출력하지 않고 item/copy/column을 알린 뒤 첫 OS call 전에 전체 발행을 중단한다. 해당 unit만 건너뛰거나 앞 group부터 보내지 않는다.
 
-대화형 미리보기는 copies가 0인 선택 행도 copy index 0 projection을 materialize하고, 실제 출력은 copies가 1 이상인 각 unit의 copy index projection을 사용한다.
+대화형 미리보기는 rebuild 시작 시 `previewAt = DateTime.now()`를 한 번 만들고 공용 materializer의 `referenceAt`으로 전달해 copies와 무관하게 선택 행의 copy index 0 projection을 materialize한다. 선택·설정·baseline 변경에 따른 기존 rebuild에서만 새 `previewAt`을 만들고 자동 timer refresh는 추가하지 않는다. 이후 `[발행]` 시에는 새 command `requestedAt`으로 payload를 다시 만들므로 시각 경계를 지난 오래된 미리보기와 실제 출력 값이 달라질 수 있다. 실제 출력은 copies가 1 이상인 각 unit의 copy index projection을 사용한다.
 
 ## 7. 실제 출력
 
@@ -346,10 +349,11 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 - 차단된 요청에서는 label-print 화면 activation, row load, preview/materialize, printer 조회와 command 생성을 시작하지 않는다.
 - 품목 저장이나 변경 취소가 완료되고 `hasActiveEditing == false`, `itemDraftCommandBusy == false`, `ItemManagerDraftController.isDirty == false`가 된 뒤에만 라벨출력 탭 전환을 허용한다.
 - 라벨출력은 기존 item ID의 마지막 저장·조회 baseline만 사용한다. 품목관리 draft 전체를 저장하지 않으며 자동증가 대상만 8.1 경계에서 저장한다.
+- `labelPrintBusy`이면 label-size/customer/market/brand 선택과 session reload 중 현재 label-size session 또는 `TColumn`/`TColumnContent` baseline을 교체하는 작업을 같은 context lock으로 차단한다. 사용자 callback과 programmatic 경로가 우회하지 않으며 자동 저장·reload는 하지 않는다.
 
 ## 10. 발행 pipeline
 
-1. 메모리 busy flag를 원자적으로 설정해 같은 앱 instance의 중복 발행을 막고, 획득 직후 `[발행]` 요청의 현재 시각을 `requestedAt`으로 한 번 정한다. 탭 진입 시각이나 미리보기 생성 시각은 사용하지 않는다.
+1. 메모리 busy flag를 원자적으로 설정해 같은 앱 instance의 중복 발행을 막고 label-size session/baseline 교체 context lock을 함께 건 뒤, `[발행]` 요청의 현재 시각을 `requestedAt`으로 한 번 정한다. 탭 진입 시각이나 미리보기 `previewAt`은 사용하지 않는다.
 2. 현재 UI/session 값을 candidate snapshot으로 읽는다. copies는 모든 row에서 0 이상 정수인지 검증하고 전체 합계가 1 이상인지 확인한다. printer 선택과 저장 workbook을 확인한 뒤 copies가 1 이상인 row에만 크기·margin/push/line spacing, 유효 출력 폭과 source/label clip 교집합의 발행 검증을 적용한다. 실패하면 backend 조회나 command 생성을 하지 않고 물리 상태 `failed`, accepted 0, persistence `notAttempted`로 종료한다. copies가 0인 row의 물리 설정은 다른 row의 발행을 차단하지 않는다.
 3. 검증된 printer의 profile/port로 PDF 또는 EZPL RAW backend를 한 번 정한다. `PrinterLanguage.ezpl`이면서 port가 일반 값 또는 `null`인 경우만 RAW를 선택한다. EZPL의 명시적인 `FILE:`/`PORTPROMPT:` port와 `zpl`/`tspl`/`cpcl`/`rasterOnly` 등 현재 지원하지 않는 profile은 PDF capability fallback으로 처리하고, 포괄적인 `PrinterProfile.canSendRaw`만으로 판정하지 않는다. 앞에서 저장한 `requestedAt`, label/customer/brand/market/user, printer/backend, 설정, row와 마지막 저장·조회 column/content baseline, saved workbook으로 immutable command를 만든다.
 4. copies가 1 이상인 row만 row/copy 순서대로 unit과 자동증가 projection을 만든다. copies가 0인 row는 발행 unit을 만들지 않지만 화면에서 선택하면 별도의 대화형 copy index 0 미리보기 projection을 만들 수 있다.
@@ -358,8 +362,8 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 7. group이 failed이면 뒤 group을 중단한다. active call 완료 뒤 취소가 확인되면 뒤 group을 중단한다.
 8. accepted unit에서 자동증가 update 대상과 현재 사용자의 이력 insert 대상을 계산해 `requiresPersistence`를 정한다. 둘 다 없으면 DB를 호출하지 않고 persistence를 `notAttempted`로 둔다.
 9. `requiresPersistence == true`이면 필요한 자동증가와 발행 이력만 한 SQL transaction으로 저장하고 persistence를 `succeeded`/`failed`/`outcomeUnknown`으로 기록한다. commit 성공이면 DAO가 transaction update payload의 최종 자동증가 저장값 map을 반환하고, 오류이면 원본 오류를 전달하며 가능한 경우 rollback한다.
-10. commit 성공 시 `committedAutoIncrementValues`로 기존 metadata와 무관한 entry를 유지한 새 immutable `TColumnContentScopedView`를 한 번 만들고 `ItemManagerDraftController.scopedColumnContents`와 `TColumnContent.datas` 양쪽에 같은 값을 반영한다. command snapshot에서 copies 기준으로 선택된 첫 `TYPE_PRINTCOUNT` key가 갱신됐으면 `item baseline` 출처 copies만 같은 parser로 갱신한다. row의 `session edited` copies, printer setting snapshot과 품목관리 row/selection/column draft/working value는 유지한다.
-11. 결과를 사용자에게 알리고 `finally`에서 busy flag와 UI lock을 해제한다.
+10. commit 성공 시 context lock으로 유지된 command의 원래 label-size session에서 `committedAutoIncrementValues`로 기존 metadata와 무관한 entry를 유지한 새 immutable `TColumnContentScopedView`를 한 번 만들고 `ItemManagerDraftController.scopedColumnContents`와 `TColumnContent.datas` 양쪽에 같은 값을 반영한다. command snapshot에서 copies 기준으로 선택된 첫 `TYPE_PRINTCOUNT` key가 갱신됐으면 `item baseline` 출처 copies만 같은 parser로 갱신한다. row의 `session edited` copies, printer setting snapshot과 품목관리 row/selection/column draft/working value는 유지한다.
+11. 결과를 사용자에게 알리고 `finally`에서 busy flag, label-size session/baseline context lock과 UI lock을 함께 해제한다.
 
 출력 중 화면의 mutable 전역 데이터를 다시 읽지 않는다. 실패·취소 전에 accepted된 unit은 결과와 DB 저장 대상에 포함하고, failed 또는 보내지 않은 unit은 제외한다.
 
@@ -428,8 +432,9 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 ### 13.2 materialize/print 테스트
 
 - `#ITEMNAME`, `#ELEMENT`, 일반/날짜/시간, barcode/QR/GS1와 연결 이미지 치환
-- 마지막 저장·조회 baseline 기준 품목관리 미리보기와 라벨출력 copy index 0 결과 동등성
+- 마지막 저장·조회 baseline과 같은 주입 `referenceAt` 기준 품목관리 미리보기와 라벨출력 copy index 0 결과 동등성
 - copies가 0인 선택 행도 대화형 copy index 0 미리보기는 materialize하되 발행 unit/projection/payload에는 포함하지 않음
+- 대화형 미리보기 rebuild가 한 `previewAt`을 모든 일반 날짜·시간, 유통기한과 time-barcode에 사용하고 resolver별 `DateTime.now()`를 재호출하지 않으며 자동 timer refresh 없음
 - 여러 copy materialize 중 날짜·시간 경계가 지나도 command `requestedAt` 기준 projection 유지
 - 원본 workbook 불변
 - 저장 source viewport, source physical 크기 1:1 배치, clip, margin+push, 방향과 extra area
@@ -489,6 +494,7 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 - 검색 영역과 exact-match 선택
 - `[프린터 설정] 프린터명 [발행]` 순서
 - 발행 중 취소 button과 중복 발행 차단
+- preflight, active OS call과 persistence 중 label-size/customer/market/brand 사용자·programmatic 변경 또는 session reload가 현재 label-size session/baseline을 교체하지 못하고 `[발행 취소]`는 유지되며 완료 후 context lock 해제
 - 설정 dialog의 항목, `[취소] [적용]`, 내부 발행/매수 없음
 - 줄간격 preference fallback/session edited `null`의 `0` 표시, 빈 값/`0` commit 후 `session edited null` 출처, 명시적 100 유지와 1~29/301 이상/비정수 commit 거부
 - 줄간격이 `session edited null`인 row는 설정 적용 후 유지되고 `preference fallback null`인 row만 새 줄간격으로 갱신
@@ -548,6 +554,7 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 - 줄간격 `null`은 저장 workbook의 기존 cell/inline line-height를 보존하고, non-null percent는 원본 workbook이나 기존 line-height를 변경·누적하지 않은 출력 전용 `percent / 100` effective multiplier로 덮어쓴다. preview/PDF/EZPL bitmap fallback은 같은 option 결과를 사용하고 vector EZPL 요소에는 적용하지 않는다.
 - copies가 0인 row는 copies 형식 외의 물리 설정 validation, 발행 unit/projection/payload materialize/build, 출력, 자동증가와 이력에서 제외되어 다른 유효 row의 발행을 차단하지 않는다.
 - 선택 행의 실제 출력 미리보기가 copies와 무관하게 copy index 0으로 자동 표시되고 품목관리와 같은 materializer를 사용한다.
+- 대화형 미리보기는 rebuild마다 단일 `previewAt`을 공용 materializer에 전달하고 같은 build의 날짜·시간/유통기한/time-barcode 전체가 이를 사용한다. 실제 발행은 별도 command `requestedAt`으로 payload를 다시 만들며 자동 timer refresh는 추가하지 않는다.
 - 검색은 발행 목록의 레거시 exact 대상만 선택하며 자동 발행하지 않는다.
 - 공용 printer 설정과 현재 hosted `printing`/PDF/EZPL/RAW engine을 재사용한다.
 - source physical 크기는 preview/PDF/EZPL에서 확대·축소 없이 유지되고 row 크기는 page와 clip에만 사용된다.
@@ -555,6 +562,7 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 - 유효 출력 폭이 없거나 source가 label clip과 만나지 않으면 물리 출력 전에 차단된다.
 - command-wide resolved backend에서 같은 최종 page spec의 인접 unit은 순서를 유지해 group 출력되고 spec이 다르면 분리된다.
 - 모든 unit의 projection과 materialize/group payload 생성을 첫 OS call 전에 완료하고 하나라도 실패하면 어떤 group도 보내지 않는다.
+- 발행 busy 동안 현재 label-size session 또는 `TColumn`/`TColumnContent` baseline을 교체하는 사용자·programmatic context 변경과 reload를 막고 취소는 허용한다. commit 성공 map은 context lock으로 유지된 원래 command session에 반영하며 `finally`에서 lock을 해제한다.
 - 실제 출력의 모든 날짜·시간/time-barcode projection은 command의 단일 `requestedAt`을 사용한다.
 - 취소 또는 group 실패 시 active call 결과를 보존하고 뒤 group을 보내지 않는다.
 - 첫 group 전 취소는 `cancelled`, 일부 accepted 후 취소는 `partiallyAccepted`, 모든 unit accepted 후 늦은 취소는 `completed`로 종료한다.
