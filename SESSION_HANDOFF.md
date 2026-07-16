@@ -9,6 +9,7 @@
 - 독립 재검토: 세 계약이 본문·pipeline·오류·테스트·완료 조건에 일치하며 실제 모순이나 빠진 검증 계약이 없음을 확인했다.
 - 최종 검증: 새 requestedAt/persistence/row 수명 계약 25곳 확인, 이전 모호한 별도 전달·재체크 복원 계약 0건, `DateTime.now()` 검색 1건은 재호출 금지 문장의 오탐, 두 문서 diagnostics 오류 0건, `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md` 통과. 문서만 변경해 Flutter test/analyze는 실행하지 않았다.
 - stage/commit 대상: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. 기존 사용자 `lib/core/app.dart`, `doc/label_print.txt` 변경은 제외한다.
+- 작업지시서 시각·저장결과·row 수명 커밋: `33e9484 라벨출력 시각과 저장 결과 계약 명확화`.
 
 ### 완료 (2026-07-16): 라벨출력 값·이력·결과 경계 명확화
 - 사용자 요청: `doc/label_print_modify.txt` 재검토 권장안 4건을 작업지시서에 병합한다.
