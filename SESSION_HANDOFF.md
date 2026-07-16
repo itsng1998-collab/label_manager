@@ -1,3 +1,18 @@
+### 완료 (2026-07-16): 라벨출력 셀 부재·baseline 저장소·copies 동기화 명확화
+- 사용자 요청: `doc/label_print_modify.txt` 재검토 권장안 3건을 작업지시서에 병합하고 사용자 확인 사항이 있으면 즉시 질문해 확정한다.
+- 확정 기준: 선택된 첫 `TYPE_PRINTCOUNT` TColumn은 있지만 해당 item의 `TColumnContent` entry가 없으면 빈 셀과 같은 copies `0`으로 처리하며 `ItemOfMarket.printCount`는 TColumn 자체가 없을 때만 사용한다.
+- 확정 기준: commit 성공 후 새 immutable `TColumnContentScopedView`를 한 번 만들고 `ItemManagerDraftController.scopedColumnContents`와 `TColumnContent.datas` 양쪽 baseline을 같은 값으로 교체한다. 품목관리 row/selection/column draft/working value는 유지한다.
+- 확정 기준: commit map에 immutable command의 안정 정렬 `TColumn` snapshot에서 copies 기준으로 선택된 첫 `TYPE_PRINTCOUNT` key가 있으면 copies 출처가 `item baseline`인 현재 row만 새 baseline 값으로 갱신하고 `session edited` copies는 유지한다. 다른 `TYPE_PRINTCOUNT` column은 copies에 반영하지 않는다.
+- 수정 예정: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. 본문·session/pipeline·테스트·완료 조건을 함께 정리하며 DB migration, DB 재조회·retry/recovery, lock, spooler/native 변경은 추가하지 않는다.
+- `doc/label_print_modify.txt` 편집 완료: `TYPE_PRINTCOUNT` entry 미존재의 copies 0 처리, commit 후 controller/static 두 baseline 저장소의 동일 immutable view 반영, 선택된 print-count의 baseline 출처 copies만 갱신하는 계약을 본문·session/pipeline·테스트·완료 조건에 연결했다.
+- `SESSION_HANDOFF.md` 편집 완료: 이번 병합의 확정 기준과 파일별 진행 상태를 기록했다.
+- 검증 예정: 두 문서 diagnostics, entry 미존재 fallback/단일 baseline 참조/commit 후 copies 유지 모호 표현과 새 계약 검색, `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md`. 문서만 변경하므로 Flutter test/analyze는 실행하지 않는다.
+- 독립 재검토: 세 계약의 본문·session controller·pipeline·테스트·완료 조건 사이 실제 모순, 구현 불가능성, 빠진 필수 검증 0건이다.
+- 검증 실행 직전: 폐기 표현과 새 계약 연결 검색, 두 문서 diagnostics를 확인했으며 `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md`와 staged/unstaged 대상 diff를 최종 확인한다.
+- 최종 diff 검토 보완: commit 후 copies 대상 column은 출력 완료 시 전역 `TColumn`을 다시 읽지 않고 immutable command의 안정 정렬 snapshot에서 선택한 첫 `TYPE_PRINTCOUNT`로 고정했다.
+- 최종 검증: entry 미존재 계약 4곳, 두 baseline 저장소 동시 반영 5곳, command snapshot 기준 copies source 동기화 5곳을 확인했고 이전 단일 baseline/현재 전역 기준 표현은 제거했다. 두 문서 diagnostics 오류 0건, `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md` 통과. 문서만 변경해 Flutter test/analyze는 실행하지 않았다.
+- stage/commit 대상: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. 기존 사용자 `lib/core/app.dart` 변경과 이미 staged된 `doc/label_print.txt`는 제외하고 staged 상태를 보존하기 위해 `git commit --only`를 사용한다.
+
 ### 완료 (2026-07-16): 라벨출력 줄간격·자동증가·commit 결과 계약 명확화
 - 사용자 요청: `doc/label_print_modify.txt` 재검토 권장안 3건을 작업지시서에 병합하고 사용자 확인 사항이 있으면 즉시 질문해 확정한다.
 - 확정 기준: `useLinefeed == true`인 item linefeed 저장값 `0`은 runtime의 `item override null`로 변환하고 DB 원본은 변경하지 않는다. 30~300은 유지하며 범위 밖의 0이 아닌 값은 기존 row validation으로 처리한다.

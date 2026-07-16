@@ -45,7 +45,7 @@
 
 행 기본값은 `BM_ITEM_OF_MARKET`의 사용 설정을 우선한다. field별 item baseline/override 또는 label-size/printer preference fallback으로 초기화한 뒤 라벨출력 화면의 session edit가 해당 값의 최종 유효값이 된다. 이 session edit에는 품목관리의 미저장 draft를 포함하지 않으며 품목관리 원본에 저장하지 않는다.
 
-- 현재 label-size의 `TColumn`을 `(columnOrder, columnId)` 오름차순으로 안정 정렬하고, `TYPE_PRINTCOUNT`와 처음 일치하는 column의 마지막 저장·조회 셀을 발행매수 item baseline으로 사용하며 나머지 일치 column은 무시한다. 선택한 셀의 trim한 값이 비어 있으면 레거시 `atoi` 동작과 같이 `0`, 정수 문자열이면 해당 값을 사용하고, 비어 있지 않은 비정수 문자열이면 validation 오류로 처리한다. `TYPE_PRINTCOUNT` TColumn 자체가 없을 때만 `ItemOfMarket.printCount`를 사용한다. copies용 printer preference는 두지 않는다. command의 `TColumn` snapshot도 이 정렬 결과를 사용한다.
+- 현재 label-size의 `TColumn`을 `(columnOrder, columnId)` 오름차순으로 안정 정렬하고, `TYPE_PRINTCOUNT`와 처음 일치하는 column의 마지막 저장·조회 셀을 발행매수 item baseline으로 사용하며 나머지 일치 column은 무시한다. 선택한 column의 해당 item `TColumnContent` entry가 없거나 셀의 trim한 값이 비어 있으면 `TColumnContentScopedView.value()`와 레거시 `atoi` 동작처럼 `0`, 정수 문자열이면 해당 값을 사용하고, 비어 있지 않은 비정수 문자열이면 validation 오류로 처리한다. `TYPE_PRINTCOUNT` TColumn 자체가 없을 때만 `ItemOfMarket.printCount`를 사용한다. entry 미존재를 `ItemOfMarket.printCount` fallback이나 DB row 생성으로 바꾸지 않으며 copies용 printer preference도 두지 않는다. command의 `TColumn` snapshot도 이 정렬 결과를 사용한다.
 - `useLabelSize == true`이면 item width/height의 `item override`, 아니면 현재 공용라벨 크기의 `label-size fallback`을 사용한다.
 - `useMargin == true`이면 item의 left/right/top margin과 left/top push의 `item override`, 아니면 공용 프린터 설정의 같은 field에 대한 `preference fallback`을 사용한다.
 - `useLinefeed == true`이면 item linefeed의 `item override`, 아니면 공용 프린터 설정의 자동 줄간격 `preference fallback`을 사용한다. item linefeed 저장값 `0`은 레거시 renderer와 같이 runtime에서 `null`인 간격조정 없음으로 변환하되 출처는 `item override`로 유지하고 DB 원본은 변경하지 않는다. 30~300은 그대로 사용하며 범위 밖의 0이 아닌 item 값은 row validation 대상으로 둔다.
@@ -224,6 +224,8 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 - 총 발행매수 계산
 - 현재 앱 instance의 출력 busy와 cancellation request
 - label-size session 교체 시 이전 row와 선택 폐기
+- commit 성공 후 같은 새 `TColumnContentScopedView`를 `ItemManagerDraftController.scopedColumnContents`와 `TColumnContent.datas` 양쪽 baseline에 반영하고 품목관리 row, selection, column draft와 working value 유지
+- `committedAutoIncrementValues`에 command의 안정 정렬 `TColumn` snapshot에서 copies 기준으로 선택된 첫 `TYPE_PRINTCOUNT`의 `(columnId,itemId)` key가 있으면 copies 출처가 `item baseline`인 해당 row만 같은 copies parser로 갱신하고, `session edited` copies와 선택되지 않은 다른 `TYPE_PRINTCOUNT` 값은 유지
 
 ## 6. workbook materialize
 
@@ -325,7 +327,8 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 - commit을 시도한 뒤 `DbCommitOutcomeUnknown`이 발생하면 가능한 rollback 시도까지만 수행하고 `인쇄 작업은 접수되었으나 <실제 저장 대상>의 저장 결과를 확인할 수 없습니다.` 뒤에 원본 commit 오류를 함께 표시한다. 이를 저장 성공이나 확정 실패로 치환하지 않으며 DB 재조회·관리자 판정·자동 재시도를 추가하지 않는다.
 - `requiresPersistence == false`이면 persistence는 `notAttempted`, commit 성공은 `succeeded`, statement 오류는 원본 오류를 가진 `failed`, `DbCommitOutcomeUnknown`은 원본 commit 오류를 가진 `outcomeUnknown`으로 반환한다. 이미 accepted된 unit, accepted 매수와 `LabelPrintResult`의 물리 상태는 persistence 결과 때문에 변경하지 않는다.
 - DB 저장 실패 후 물리 출력을 자동 재실행하지 않는다. 별도 DB 재시도 UI, durable recovery 상태와 관리자 commit 판정은 구현하지 않는다.
-- commit 성공 후에는 `committedAutoIncrementValues`의 대상 entry마다 기존 `TColumnContent`의 `colContentId`와 `editable`을 유지하고 `dataString`만 교체한 새 immutable baseline view를 만든다. 현재 label-size의 마지막 저장·조회 `TColumnContent` baseline 참조를 이 view로 교체해 라벨출력 검색·미리보기·다음 command와 품목관리의 저장 baseline이 함께 사용한다. 출력 row의 session edit, printer setting snapshot, 품목관리 draft working value와 대상이 아닌 baseline entry는 유지한다. 화면 동기화가 실패하면 DB 성공을 되돌리지 않고 현재 session reload를 안내한다.
+- commit 성공 후에는 `committedAutoIncrementValues`의 대상 entry마다 기존 `TColumnContent`의 `colContentId`와 `editable`을 유지하고 `dataString`만 교체한 새 immutable `TColumnContentScopedView`를 한 번 만든다. `ItemManagerDraftController.scopedColumnContents`와 `TColumnContent.datas`를 이 view의 같은 값으로 교체해 라벨출력 검색·미리보기·다음 command, 품목 표와 품목관리 저장 baseline이 함께 사용한다. 품목관리 row, selection, column draft와 working value, printer setting snapshot과 대상이 아닌 baseline entry는 유지한다.
+- commit map에 command의 안정 정렬 `TColumn` snapshot에서 copies 기준으로 선택된 첫 `TYPE_PRINTCOUNT`의 `(columnId,itemId)` key가 있으면 copies 출처가 `item baseline`인 현재 출력 row만 새 `dataString`으로 갱신한다. entry 미존재/빈 값 `0`, 0 이상 정수와 비정수·음수 오류는 2.1의 같은 parser/validation을 사용하고 자동 보정하지 않는다. `session edited` copies와 선택되지 않은 다른 `TYPE_PRINTCOUNT` column의 값은 유지한다. 출력 완료 후 전역 `TColumn`을 다시 읽지 않는다. 화면 동기화가 실패하면 DB 성공을 되돌리거나 재조회하지 않고 현재 session reload를 안내한다.
 
 ## 9. 품목관리 발행 체크 연동
 
@@ -354,7 +357,7 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 7. group이 failed이면 뒤 group을 중단한다. active call 완료 뒤 취소가 확인되면 뒤 group을 중단한다.
 8. accepted unit에서 자동증가 update 대상과 현재 사용자의 이력 insert 대상을 계산해 `requiresPersistence`를 정한다. 둘 다 없으면 DB를 호출하지 않고 persistence를 `notAttempted`로 둔다.
 9. `requiresPersistence == true`이면 필요한 자동증가와 발행 이력만 한 SQL transaction으로 저장하고 persistence를 `succeeded`/`failed`/`outcomeUnknown`으로 기록한다. commit 성공이면 DAO가 transaction update payload의 최종 자동증가 저장값 map을 반환하고, 오류이면 원본 오류를 전달하며 가능한 경우 rollback한다.
-10. commit 성공 시 `committedAutoIncrementValues`로 기존 metadata와 무관한 entry를 유지한 새 immutable `TColumnContent` baseline view를 만들고, 이를 사용하는 검색·미리보기·다음 command와 품목관리 저장 baseline을 갱신한다. row session edit, printer setting snapshot과 품목관리 draft working value는 유지한다.
+10. commit 성공 시 `committedAutoIncrementValues`로 기존 metadata와 무관한 entry를 유지한 새 immutable `TColumnContentScopedView`를 한 번 만들고 `ItemManagerDraftController.scopedColumnContents`와 `TColumnContent.datas` 양쪽에 같은 값을 반영한다. command snapshot에서 copies 기준으로 선택된 첫 `TYPE_PRINTCOUNT` key가 갱신됐으면 `item baseline` 출처 copies만 같은 parser로 갱신한다. row의 `session edited` copies, printer setting snapshot과 품목관리 row/selection/column draft/working value는 유지한다.
 11. 결과를 사용자에게 알리고 `finally`에서 busy flag와 UI lock을 해제한다.
 
 출력 중 화면의 mutable 전역 데이터를 다시 읽지 않는다. 실패·취소 전에 accepted된 unit은 결과와 DB 저장 대상에 포함하고, failed 또는 보내지 않은 unit은 제외한다.
@@ -398,7 +401,7 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 - checked item add/remove와 마지막 저장·조회 품목 row 순서에 따른 초기 정렬·reload 재배치 및 item ID 선택/session edit 유지
 - 체크 해제한 row의 session edit 폐기와 같은 item 재체크 시 현재 field별 baseline/fallback 재초기화
 - field별 item baseline/override 또는 label-size/printer preference fallback으로 초기화한 뒤 라벨출력 session edit를 최종 유효값으로 유지하고 품목관리 미저장 draft는 제외
-- `TYPE_PRINTCOUNT` TColumn 없음의 `ItemOfMarket.printCount` fallback, column 존재 시 빈 셀 0/정수 값/비정수 validation 오류, 복수 존재 시 `(columnOrder, columnId)` 정렬의 첫 column 선택과 `useLabelSize/useMargin/useLinefeed`별 item/label-size/printer preference 기본값
+- `TYPE_PRINTCOUNT` TColumn 없음의 `ItemOfMarket.printCount` fallback, column 존재 시 entry 미존재·빈 셀 0/정수 값/비정수 validation 오류, 복수 존재 시 `(columnOrder, columnId)` 정렬의 첫 column 선택과 `useLabelSize/useMargin/useLinefeed`별 item/label-size/printer preference 기본값
 - copies의 item baseline, width/height의 label-size fallback, margin/push/line spacing의 printer preference fallback과 각 session edit 출처 구분
 - preference 전체가 없을 때 printer 미선택, margin/push/extra area 0.0, 줄간격 null, horizontal과 label-size width/height fallback 초기값
 - copies 0 허용, 음수/비정수 거부와 전체 0 발행 차단
@@ -466,8 +469,9 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 - DB 저장 오류가 accepted 매수와 물리 dispatch 상태를 변경하지 않음
 - accepted 없음/commit 성공/statement 오류/commit 결과 불명의 persistence `notAttempted`/`succeeded`/`failed`/`outcomeUnknown` mapping과 원본 오류 보존
 - commit 성공에서만 transaction update payload의 최종 `(columnId,itemId,dataString)` immutable map 반환, 자동증가 update 없음/statement 오류/commit 결과 불명은 빈 map이며 SQL `SELECT`와 DB 재조회 없음
-- commit 후 map의 대상 `TColumnContent.dataString`만 교체한 새 immutable baseline view를 검색·미리보기·다음 command와 품목관리 저장 baseline에 반영하고 기존 `colContentId`/`editable` 유지
-- commit 후에도 출력 row session edit, printer setting snapshot, 품목관리 draft working value와 대상이 아닌 baseline entry 유지
+- commit 후 map의 대상 `TColumnContent.dataString`만 교체한 새 immutable view를 `ItemManagerDraftController.scopedColumnContents`와 `TColumnContent.datas` 양쪽에 반영하고 검색·미리보기·품목 표·다음 command·품목관리 저장 baseline에서 같은 값 사용 및 기존 `colContentId`/`editable` 유지
+- command snapshot에서 copies 기준으로 선택된 첫 `TYPE_PRINTCOUNT` key의 commit 값은 `item baseline` 출처 copies에만 같은 parser로 반영하고 `session edited` copies와 다른 `TYPE_PRINTCOUNT` 값 유지 및 출력 완료 후 전역 `TColumn` 미재조회
+- commit 후에도 printer setting snapshot, 품목관리 row/selection/column draft/working value와 대상이 아닌 baseline entry 유지
 
 ### 13.4 widget 테스트
 
@@ -520,7 +524,7 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 4. 라벨출력 화면, table, 검색, 선택과 자동 미리보기를 구현한다.
 5. 기존 PDF/EZPL dispatcher를 공용 service로 추출하고 단일 row·copy 출력을 연결한다.
 6. 여러 row/copy와 page spec group 출력을 연결한다.
-7. 자동증가와 발행 이력 transaction, commit 성공 payload의 typed map과 현재 label-size의 마지막 저장·조회 `TColumnContent` immutable baseline view 교체를 구현한다.
+7. 자동증가와 발행 이력 transaction, commit 성공 payload의 typed map, 두 `TColumnContent` baseline 저장소의 같은 immutable view 교체와 baseline 출처 copies 동기화를 구현한다.
 8. focused test, analyze, 전체 test와 실제 printer 수동 검증을 수행한다.
 
 각 단계는 관련 focused test를 통과한 뒤 다음 단계로 진행한다.
@@ -534,7 +538,7 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 - 품목관리 발행 체크 행만 출력 목록에 나타나고 item ID 기준으로 동기화된다.
 - 출력 목록은 checked ID set이나 체크 시각이 아니라 현재 label-size session의 마지막 저장·조회 품목 row 순서를 따르고, 순서 reload 후에도 item ID 기반 session edit와 선택을 유지해 재배치된다.
 - 발행 체크를 해제한 row의 session edit는 폐기되고 재체크하면 현재 field별 item baseline/override 또는 label-size와 label-print session의 현재 적용 printer setting snapshot으로 다시 초기화된다.
-- `TYPE_PRINTCOUNT` TColumn이 있으면 `(columnOrder, columnId)` 정렬의 첫 일치 column만 사용해 빈 저장 셀은 0, 정수 문자열은 해당 copies, 비어 있지 않은 비정수는 validation 오류로 처리하고, TColumn 자체가 없을 때만 `ItemOfMarket.printCount`를 사용한다.
+- `TYPE_PRINTCOUNT` TColumn이 있으면 `(columnOrder, columnId)` 정렬의 첫 일치 column만 사용해 entry 미존재·빈 저장 셀은 0, 정수 문자열은 해당 copies, 비어 있지 않은 비정수는 validation 오류로 처리하고, TColumn 자체가 없을 때만 `ItemOfMarket.printCount`를 사용한다.
 - 행별 매수·크기·여백·밀기·줄간격이 레거시 우선순위로 초기화되고 session에서 편집된다.
 - 출력 row는 field별 item baseline/override 또는 label-size/printer preference fallback으로 초기화되고 라벨출력 session edit가 최종값이 되며 품목관리 미저장 draft를 사용하지 않는다.
 - 프린터 설정에서 printer 미선택이면 `[적용]`을 비활성화하고 아무 설정도 저장·갱신하지 않는다. 선택 후 적용하면 session의 printer, margin/push/line spacing, extra area와 방향의 전체 설정 snapshot과 모든 출력 row의 margin/push/line spacing 중 `preference fallback` 출처만 갱신하며 copies, width/height와 같은 row의 item override/label-size fallback/session edit는 유지한다. 이후 추가·재체크 row도 이 session snapshot을 사용하고 command 생성 중 preference를 다시 읽지 않는다.
@@ -566,7 +570,7 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 - SQL 오류 문구는 실제 transaction에 포함된 자동증가 update와 이력 insert 대상만 표시한다.
 - persistence 결과는 `notAttempted`/`succeeded`/`failed`/`outcomeUnknown`으로 구분하고 실패·불명에는 원본 오류를 보존한다.
 - 자동증가는 레거시처럼 `autoIncSize * copyIndex`를 더한 뒤 범위를 넘으면 자릿수 크기를 정확히 한 번만 빼며 modulo, 반복 차감과 새 범위 제한을 추가하지 않는다.
-- commit 성공 후에만 transaction update payload의 최종 자동증가 저장값 map으로 기존 metadata를 보존한 새 immutable `TColumnContent` baseline view를 만들며, SQL 조회 없이 대상 data만 교체하고 row edit, printer setting snapshot, 품목관리 draft working value와 무관한 baseline 값은 유지한다.
+- commit 성공 후에만 transaction update payload의 최종 자동증가 저장값 map으로 기존 metadata를 보존한 새 immutable `TColumnContentScopedView`를 한 번 만들고 `ItemManagerDraftController.scopedColumnContents`와 `TColumnContent.datas` 양쪽에 반영한다. SQL 조회 없이 대상 data만 교체하고 command snapshot에서 copies 기준으로 선택된 첫 `TYPE_PRINTCOUNT`의 `item baseline` copies만 새 값으로 갱신하며, session-edited copies, 다른 print-count 값, printer setting snapshot, 품목관리 row/selection/column draft/working value와 무관한 baseline 값은 유지한다.
 - DB migration, local printing fork, native plugin 개조, durable recovery 기능을 추가하지 않는다.
 - Windows desktop에서만 기능을 노출한다.
 - 관련 focused test, `flutter analyze`, 전체 `flutter test`, `git diff --check`가 통과한다.
