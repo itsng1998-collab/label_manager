@@ -48,7 +48,7 @@
 - 현재 label-size의 `TColumn`을 `(columnOrder, columnId)` 오름차순으로 안정 정렬하고, `TYPE_PRINTCOUNT`와 처음 일치하는 column의 마지막 저장·조회 셀을 발행매수 item baseline으로 사용하며 나머지 일치 column은 무시한다. 선택한 셀의 trim한 값이 비어 있으면 레거시 `atoi` 동작과 같이 `0`, 정수 문자열이면 해당 값을 사용하고, 비어 있지 않은 비정수 문자열이면 validation 오류로 처리한다. `TYPE_PRINTCOUNT` TColumn 자체가 없을 때만 `ItemOfMarket.printCount`를 사용한다. copies용 printer preference는 두지 않는다. command의 `TColumn` snapshot도 이 정렬 결과를 사용한다.
 - `useLabelSize == true`이면 item width/height의 `item override`, 아니면 현재 공용라벨 크기의 `label-size fallback`을 사용한다.
 - `useMargin == true`이면 item의 left/right/top margin과 left/top push의 `item override`, 아니면 공용 프린터 설정의 같은 field에 대한 `preference fallback`을 사용한다.
-- `useLinefeed == true`이면 item linefeed의 `item override`, 아니면 공용 프린터 설정의 자동 줄간격 `preference fallback`을 사용한다.
+- `useLinefeed == true`이면 item linefeed의 `item override`, 아니면 공용 프린터 설정의 자동 줄간격 `preference fallback`을 사용한다. item linefeed 저장값 `0`은 레거시 renderer와 같이 runtime에서 `null`인 간격조정 없음으로 변환하되 출처는 `item override`로 유지하고 DB 원본은 변경하지 않는다. 30~300은 그대로 사용하며 범위 밖의 0이 아닌 item 값은 row validation 대상으로 둔다.
 
 저장된 printer preference 전체가 없거나 저장 printer가 제거되어 설정이 정리된 경우에는 현재 공용 화면과 같이 printer 미선택, margin/push/extra area `0.0`, 줄간격 조정 없음, 방향 `horizontal`을 초기 설정 snapshot으로 사용한다. width/height는 현재 label-size fallback을 사용하며 printer를 자동 선택하지 않는다.
 
@@ -178,7 +178,7 @@
 - `widthMm`, `heightMm`: 양의 정수 mm
 - margin: 0 이상의 실수 mm
 - push: signed 실수 mm
-- 줄간격: `null` 또는 30~300 정수 percent. 공용 preference를 load할 때 `none`과 레거시 fallback `0`은 `null`인 간격조정 없음으로 변환하고, save할 때 `null`은 `none`으로 직렬화한다. command와 공용 출력 option 내부에서는 간격조정 없음을 `null`로 유지하며 명시적인 100은 유효한 100% 조정값으로 보존한다.
+- 줄간격: `null` 또는 30~300 정수 percent. item override 저장값 `0`, 공용 preference의 `none`과 레거시 fallback `0`은 load할 때 `null`인 간격조정 없음으로 변환한다. item `0`의 출처는 `item override`, preference `none`/`0`의 출처는 `preference fallback`으로 유지한다. preference를 save할 때 `null`은 `none`으로 직렬화한다. command와 공용 출력 option 내부에서는 간격조정 없음을 `null`로 유지하며 명시적인 100은 유효한 100% 조정값으로 보존한다.
 - copies가 1 이상인 row만 물리 출력 직전에 `widthMm - rightMarginMm > 0`인지 확인한다. 방향 transform까지 적용한 source physical bounds와 label clip의 교집합이 비면 설정 오류를 표시하고 발행하지 않는다. copies가 0인 row에는 이 물리 발행 검증을 적용하지 않는다.
 
 ### 5.2 물리 출력 계산
@@ -207,7 +207,7 @@
 - `LabelPhysicalPageSpec`: PDF 또는 EZPL backend의 최종 page 크기와 필요한 DPI/media 값
 - `LabelPrintJobGroup`: command-wide resolved backend와 순서가 연속되고 page spec이 같은 unit 목록
 - `LabelPrintDispatchResult`: group과 `accepted`/`failed`, 오류
-- `LabelPrintPersistenceResult`: transient `notAttempted`/`succeeded`/`failed`/`outcomeUnknown`과 원본 오류. 별도 durable state나 복구 상태 machine은 아니다.
+- `LabelPrintPersistenceResult`: transient `notAttempted`/`succeeded`/`failed`/`outcomeUnknown`과 원본 오류. `succeeded`일 때만 transaction update payload의 최종 자동증가 저장값을 immutable `Map<ColumnItemKey, String> committedAutoIncrementValues`로 가지며, 자동증가 update가 없거나 다른 상태이면 빈 map이다. 별도 durable state나 복구 상태 machine은 아니다.
 - `LabelPrintResult`: 요청/accepted 매수, group 결과, persistence 결과와 물리 dispatch 기준 `completed`/`partiallyAccepted`/`cancelled`/`failed`. 자동증가·이력 SQL 실패나 `DbCommitOutcomeUnknown`으로 accepted 매수와 물리 상태를 덮어쓰지 않는다.
 
 process 복구용 manifest, generation, checksum과 별도 persistence state machine은 만들지 않는다.
@@ -280,7 +280,7 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 `LabelPrintAutoIncrementDAO` 또는 동등 책임을 둔다.
 
 - 자동증가는 DB를 변경하지 않는 순수 함수로 계산한다. 마지막으로 저장·조회된 원본값, copy index, `autoIncSize`, `autoIncRange`, `autoIncZeroDel`, barcode check digit와 time-barcode 설정을 입력으로 받는다.
-- 증가 대상은 레거시처럼 지정 범위의 숫자 부분이며 `autoIncSize * copyIndex`를 더한다. 범위를 넘으면 해당 자릿수 안에서 순환하고, 앞자리 0 유지/제거와 barcode check digit/time-barcode 재적용도 레거시 순서를 따른다.
+- 증가 대상은 레거시처럼 지정 범위의 숫자 부분이며 `candidate = originalNumber + autoIncSize * copyIndex`로 계산한다. `candidate >= 10^autoIncRange`이면 레거시 구현대로 `10^autoIncRange`를 정확히 한 번만 빼고 modulo, 반복 차감이나 새 범위 제한은 추가하지 않는다. 앞자리 0 유지/제거와 barcode check digit/time-barcode 재적용도 레거시 순서를 따른다.
 - barcode check digit와 date/time 값 생성은 기존 helper를 재사용한다. 자동증가 계산 자체는 새 공용 순수 함수로 작성한다.
 - `autoInc == false`인 column은 변경하지 않는다.
 - 해당 `(columnId,itemId)`의 accepted unit이 있을 때만 저장한다.
@@ -317,6 +317,7 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 - `requiresPersistence`는 accepted unit 존재 여부와 별도로 `자동증가 update 대상이 하나 이상이거나 이력 insert 대상이 하나 이상`일 때만 `true`다. `User.SYSTEM`이고 autoInc column이 없는 경우처럼 accepted unit은 있지만 두 대상이 모두 없으면 `false`다.
 - `requiresPersistence == true`일 때만 accepted unit의 자동증가 update, print log와 status/detail insert를 기존 `DbClient.transaction()` 한 번으로 실행한다. `false`이면 DB를 호출하지 않고 persistence를 `notAttempted`로 둔다. `User.SYSTEM`이어도 자동증가 update 대상이 있으면 update만 transaction으로 실행한다.
 - 현재 API는 `List<DbTransactionStatement>`를 transaction 시작 전에 받으므로, 현재 품목 저장과 같은 `jsonEncode` parameter/`OPENJSON` 패턴으로 accepted unit과 자동증가·이력 입력을 전달하는 단일 `DbTransactionStatement`의 parameterized T-SQL batch 안에서 customer별 다음 order 계산, status/detail ID 생성과 모든 update/insert를 수행한다. SELECT 결과를 Dart로 가져와 transaction 중간에 뒤 statement를 조립하지 않는다.
+- 자동증가 DAO는 transaction update payload의 최종 `(columnId,itemId,dataString)`을 immutable `Map<ColumnItemKey, String>`으로 준비하고 `DbClient.transaction()`이 commit까지 성공한 뒤에만 persistence result에 그대로 반환한다. 이 값을 얻기 위한 SQL `SELECT`, DB 재조회와 `returnsRows` result parsing은 추가하지 않는다. statement 실패나 `DbCommitOutcomeUnknown`이면 map을 반환하지 않는다.
 - SQL은 parameterized query를 사용하고 문자열을 직접 이어 붙이지 않는다.
 - 기존 table/column이 없거나 문자열 길이·형식이 맞지 않으면 SQL Server 오류를 그대로 사용자에게 전달한다.
 - transaction 입력에 자동증가 update와 이력 insert가 실제 포함되는지의 두 boolean으로 사용자 문구의 대상을 정한다. update-only는 `자동증가 값`, history-only는 `발행 이력`, 둘 다 있으면 `자동증가 값과 발행 이력`을 사용하며 별도 persistence 상태를 추가하지 않는다.
@@ -324,7 +325,7 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 - commit을 시도한 뒤 `DbCommitOutcomeUnknown`이 발생하면 가능한 rollback 시도까지만 수행하고 `인쇄 작업은 접수되었으나 <실제 저장 대상>의 저장 결과를 확인할 수 없습니다.` 뒤에 원본 commit 오류를 함께 표시한다. 이를 저장 성공이나 확정 실패로 치환하지 않으며 DB 재조회·관리자 판정·자동 재시도를 추가하지 않는다.
 - `requiresPersistence == false`이면 persistence는 `notAttempted`, commit 성공은 `succeeded`, statement 오류는 원본 오류를 가진 `failed`, `DbCommitOutcomeUnknown`은 원본 commit 오류를 가진 `outcomeUnknown`으로 반환한다. 이미 accepted된 unit, accepted 매수와 `LabelPrintResult`의 물리 상태는 persistence 결과 때문에 변경하지 않는다.
 - DB 저장 실패 후 물리 출력을 자동 재실행하지 않는다. 별도 DB 재시도 UI, durable recovery 상태와 관리자 commit 판정은 구현하지 않는다.
-- commit 성공 후에는 transaction DAO가 반환한 실제 commit 값으로 현재 label-size의 마지막 저장·조회 `TColumnContent` baseline view에서 자동증가 대상 `(columnId,itemId)` entry만 교체한다. 갱신한 view는 라벨출력 검색·미리보기·다음 command와 품목관리의 저장 baseline이 함께 사용하며, 출력 row의 session edit, printer setting snapshot, 품목관리 draft working value와 대상이 아닌 baseline entry는 유지한다. 화면 동기화가 실패하면 DB 성공을 되돌리지 않고 현재 session reload를 안내한다.
+- commit 성공 후에는 `committedAutoIncrementValues`의 대상 entry마다 기존 `TColumnContent`의 `colContentId`와 `editable`을 유지하고 `dataString`만 교체한 새 immutable baseline view를 만든다. 현재 label-size의 마지막 저장·조회 `TColumnContent` baseline 참조를 이 view로 교체해 라벨출력 검색·미리보기·다음 command와 품목관리의 저장 baseline이 함께 사용한다. 출력 row의 session edit, printer setting snapshot, 품목관리 draft working value와 대상이 아닌 baseline entry는 유지한다. 화면 동기화가 실패하면 DB 성공을 되돌리지 않고 현재 session reload를 안내한다.
 
 ## 9. 품목관리 발행 체크 연동
 
@@ -352,8 +353,8 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 6. group dispatch 직전에 cancellation을 확인하고 PDF 또는 RAW dispatcher를 순서대로 호출한다.
 7. group이 failed이면 뒤 group을 중단한다. active call 완료 뒤 취소가 확인되면 뒤 group을 중단한다.
 8. accepted unit에서 자동증가 update 대상과 현재 사용자의 이력 insert 대상을 계산해 `requiresPersistence`를 정한다. 둘 다 없으면 DB를 호출하지 않고 persistence를 `notAttempted`로 둔다.
-9. `requiresPersistence == true`이면 필요한 자동증가와 발행 이력만 한 SQL transaction으로 저장하고 persistence를 `succeeded`/`failed`/`outcomeUnknown`으로 기록한다. 오류를 전달하고 가능한 경우 rollback한다.
-10. commit 성공 시 DAO의 실제 commit 값으로 현재 label-size의 마지막 저장·조회 `TColumnContent` baseline view에서 대상 `(columnId,itemId)` entry만 교체하고, 이를 사용하는 검색·미리보기·다음 command와 품목관리 저장 baseline을 갱신한다. row session edit, printer setting snapshot과 품목관리 draft working value는 유지한다.
+9. `requiresPersistence == true`이면 필요한 자동증가와 발행 이력만 한 SQL transaction으로 저장하고 persistence를 `succeeded`/`failed`/`outcomeUnknown`으로 기록한다. commit 성공이면 DAO가 transaction update payload의 최종 자동증가 저장값 map을 반환하고, 오류이면 원본 오류를 전달하며 가능한 경우 rollback한다.
+10. commit 성공 시 `committedAutoIncrementValues`로 기존 metadata와 무관한 entry를 유지한 새 immutable `TColumnContent` baseline view를 만들고, 이를 사용하는 검색·미리보기·다음 command와 품목관리 저장 baseline을 갱신한다. row session edit, printer setting snapshot과 품목관리 draft working value는 유지한다.
 11. 결과를 사용자에게 알리고 `finally`에서 busy flag와 UI lock을 해제한다.
 
 출력 중 화면의 mutable 전역 데이터를 다시 읽지 않는다. 실패·취소 전에 accepted된 unit은 결과와 DB 저장 대상에 포함하고, failed 또는 보내지 않은 unit은 제외한다.
@@ -404,6 +405,7 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 - 잘못된 크기·margin/push/clip을 가진 copies 0 row가 정상 copies 1 이상 row의 발행 validation을 차단하지 않음
 - margin/push/크기와 nullable 줄간격 validation, 빈 값/`0` commit의 `session edited null`, 30~300 commit, 범위 밖·비정수 거부와 명시적 100 유지
 - 줄간격 preference load의 `none`/레거시 `0` → `null`, save의 `null` → `none` round-trip과 command/output option 내부 `null` 유지
+- `useLinefeed == true`인 item linefeed `0` → 출처를 유지한 `item override null`, 30~300 유지와 범위 밖의 0이 아닌 값 validation 및 DB 원본 불변
 - `extraAreaMm` 0 이상과 horizontal/vertical 방향 validation, command 생성 후 설정 snapshot 불변
 - 오른쪽 유효 출력 폭 0 이하와 horizontal/vertical source bounds가 label clip 밖에 있는 margin/push 발행 차단
 - rightMargin/leftPush/topPush 기존 key 누락 시 `0.0` fallback과 round-trip
@@ -444,7 +446,7 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 - 기존 item/column/content 조회 DAO 재사용
 - 자동증가 `(columnId,itemId)` update와 affected row 검증
 - `autoIncSave`별 마지막 출력값/다음 값
-- `autoIncSize/autoIncRange/autoIncZeroDel`, 자릿수 순환과 barcode check digit/time-barcode 재적용
+- `autoIncSize/autoIncRange/autoIncZeroDel`, 범위 미초과·한 번 초과·두 번 이상 초과에서 `10^autoIncRange` 1회 감산과 barcode check digit/time-barcode 재적용
 - autoInc column이 하나라도 있는 label-size의 모든 row는 accepted copy별 history, 하나도 없으면 row별 accepted copies 합계 history
 - `RICH_COLUMNS`의 주원료/column name wire, `RICH_PRINT_CELLS`의 출력 projection, `RICH_SAVE_IN_DB_CELLS`의 자동증가 미적용 command DB baseline wire
 - print log의 command user/market/customer/brand/label/printer snapshot, row item/크기/margin/push, history parent count/wire, command `extraAreaMm` field mapping
@@ -463,7 +465,8 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 - update-only/history-only/both 각각의 statement 실패와 commit 결과 불명 문구가 실제 저장 대상만 표시
 - DB 저장 오류가 accepted 매수와 물리 dispatch 상태를 변경하지 않음
 - accepted 없음/commit 성공/statement 오류/commit 결과 불명의 persistence `notAttempted`/`succeeded`/`failed`/`outcomeUnknown` mapping과 원본 오류 보존
-- commit 후 DAO 실제 값으로 현재 label-size의 마지막 저장·조회 `TColumnContent` baseline view에서 자동증가 대상 `(columnId,itemId)` entry만 교체하고 검색·미리보기·다음 command와 품목관리 저장 baseline에 반영
+- commit 성공에서만 transaction update payload의 최종 `(columnId,itemId,dataString)` immutable map 반환, 자동증가 update 없음/statement 오류/commit 결과 불명은 빈 map이며 SQL `SELECT`와 DB 재조회 없음
+- commit 후 map의 대상 `TColumnContent.dataString`만 교체한 새 immutable baseline view를 검색·미리보기·다음 command와 품목관리 저장 baseline에 반영하고 기존 `colContentId`/`editable` 유지
 - commit 후에도 출력 row session edit, printer setting snapshot, 품목관리 draft working value와 대상이 아닌 baseline entry 유지
 
 ### 13.4 widget 테스트
@@ -517,7 +520,7 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 4. 라벨출력 화면, table, 검색, 선택과 자동 미리보기를 구현한다.
 5. 기존 PDF/EZPL dispatcher를 공용 service로 추출하고 단일 row·copy 출력을 연결한다.
 6. 여러 row/copy와 page spec group 출력을 연결한다.
-7. 자동증가와 발행 이력 transaction, commit 후 현재 label-size의 마지막 저장·조회 `TColumnContent` baseline view 동기화를 구현한다.
+7. 자동증가와 발행 이력 transaction, commit 성공 payload의 typed map과 현재 label-size의 마지막 저장·조회 `TColumnContent` immutable baseline view 교체를 구현한다.
 8. focused test, analyze, 전체 test와 실제 printer 수동 검증을 수행한다.
 
 각 단계는 관련 focused test를 통과한 뒤 다음 단계로 진행한다.
@@ -535,7 +538,7 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 - 행별 매수·크기·여백·밀기·줄간격이 레거시 우선순위로 초기화되고 session에서 편집된다.
 - 출력 row는 field별 item baseline/override 또는 label-size/printer preference fallback으로 초기화되고 라벨출력 session edit가 최종값이 되며 품목관리 미저장 draft를 사용하지 않는다.
 - 프린터 설정에서 printer 미선택이면 `[적용]`을 비활성화하고 아무 설정도 저장·갱신하지 않는다. 선택 후 적용하면 session의 printer, margin/push/line spacing, extra area와 방향의 전체 설정 snapshot과 모든 출력 row의 margin/push/line spacing 중 `preference fallback` 출처만 갱신하며 copies, width/height와 같은 row의 item override/label-size fallback/session edit는 유지한다. 이후 추가·재체크 row도 이 session snapshot을 사용하고 command 생성 중 preference를 다시 읽지 않는다.
-- 줄간격 inline UI는 `null`을 `0`으로 표시하고 빈 값/`0`을 `session edited null`로 commit하며, preference의 `none`/레거시 `0`과 내부 `null` round-trip에서 명시적 100을 보존한다.
+- 줄간격 inline UI는 `null`을 `0`으로 표시하고 빈 값/`0`을 `session edited null`로 commit하며, item override 저장값 `0`과 preference의 `none`/레거시 `0`을 출처를 유지한 `null`로 load한다. DB 원본은 변경하지 않고 내부 `null` round-trip에서 명시적 100을 보존한다.
 - copies가 0인 row는 copies 형식 외의 물리 설정 validation, 발행 unit/projection/payload materialize/build, 출력, 자동증가와 이력에서 제외되어 다른 유효 row의 발행을 차단하지 않는다.
 - 선택 행의 실제 출력 미리보기가 copies와 무관하게 copy index 0으로 자동 표시되고 품목관리와 같은 materializer를 사용한다.
 - 검색은 발행 목록의 레거시 exact 대상만 선택하며 자동 발행하지 않는다.
@@ -562,7 +565,8 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 - SQL 저장 실패나 commit 결과 불명은 물리 dispatch 상태와 accepted 매수를 변경하지 않고 별도로 표시한다.
 - SQL 오류 문구는 실제 transaction에 포함된 자동증가 update와 이력 insert 대상만 표시한다.
 - persistence 결과는 `notAttempted`/`succeeded`/`failed`/`outcomeUnknown`으로 구분하고 실패·불명에는 원본 오류를 보존한다.
-- commit 성공 후 DAO 실제 값으로 현재 label-size의 마지막 저장·조회 `TColumnContent` baseline view의 자동증가 대상 entry만 갱신하며 row edit, printer setting snapshot, 품목관리 draft working value와 무관한 baseline 값은 유지한다.
+- 자동증가는 레거시처럼 `autoIncSize * copyIndex`를 더한 뒤 범위를 넘으면 자릿수 크기를 정확히 한 번만 빼며 modulo, 반복 차감과 새 범위 제한을 추가하지 않는다.
+- commit 성공 후에만 transaction update payload의 최종 자동증가 저장값 map으로 기존 metadata를 보존한 새 immutable `TColumnContent` baseline view를 만들며, SQL 조회 없이 대상 data만 교체하고 row edit, printer setting snapshot, 품목관리 draft working value와 무관한 baseline 값은 유지한다.
 - DB migration, local printing fork, native plugin 개조, durable recovery 기능을 추가하지 않는다.
 - Windows desktop에서만 기능을 노출한다.
 - 관련 focused test, `flutter analyze`, 전체 `flutter test`, `git diff --check`가 통과한다.

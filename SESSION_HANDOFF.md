@@ -1,3 +1,17 @@
+### 완료 (2026-07-16): 라벨출력 줄간격·자동증가·commit 결과 계약 명확화
+- 사용자 요청: `doc/label_print_modify.txt` 재검토 권장안 3건을 작업지시서에 병합하고 사용자 확인 사항이 있으면 즉시 질문해 확정한다.
+- 확정 기준: `useLinefeed == true`인 item linefeed 저장값 `0`은 runtime의 `item override null`로 변환하고 DB 원본은 변경하지 않는다. 30~300은 유지하며 범위 밖의 0이 아닌 값은 기존 row validation으로 처리한다.
+- 확정 기준: 자동증가 숫자는 레거시처럼 `candidate >= 10^autoIncRange`이면 `10^autoIncRange`를 정확히 한 번만 빼며 modulo, 반복 차감과 새 범위 제한을 추가하지 않는다.
+- 확정 기준: commit 성공 후 baseline 갱신값은 SQL SELECT/DB 재조회가 아니라 transaction update payload의 최종 `(columnId,itemId,dataString)`을 DAO가 typed immutable map으로 반환한 값이다. `failed`/`outcomeUnknown`은 값을 반환하거나 baseline을 갱신하지 않는다.
+- 수정 예정: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. 본문·DTO·pipeline·테스트·완료 조건을 함께 정리하며 DB migration, 재조회·retry/recovery, lock, spooler/native 변경은 추가하지 않는다.
+- `doc/label_print_modify.txt` 편집 완료: item linefeed `0`의 출처 유지 `null` 정규화, 자동증가 `10^range` 1회 감산, commit 성공 update payload map과 metadata를 보존한 새 immutable `TColumnContent` baseline view 교체를 본문·DTO·pipeline·테스트·완료 조건에 연결했다.
+- `SESSION_HANDOFF.md` 편집 완료: 이번 병합의 확정 기준과 파일별 진행 상태를 기록했다.
+- 검증 예정: 두 문서 diagnostics, 이전 포괄 자릿수 `순환`/출처 없는 `실제 commit 값` 표현과 새 계약 검색, `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md`. 문서만 변경하므로 Flutter test/analyze는 실행하지 않는다.
+- 독립 재검토: 세 계약의 본문·DTO·pipeline·테스트·완료 조건 사이 실제 모순, 구현 불가능성, 빠진 필수 검증 0건이다.
+- 검증 실행 직전: 폐기 표현과 새 계약 연결 검색, 두 문서 diagnostics를 확인했으며 `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md`와 대상 diff를 최종 확인한다.
+- 최종 검증: 이전 포괄 자릿수 `순환`/출처 없는 `실제 commit 값` 표현 0건, 새 item linefeed/1회 감산/commit payload map 계약 16개 핵심 위치 확인, 두 문서 diagnostics 오류 0건, `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md` 통과. 문서만 변경해 Flutter test/analyze는 실행하지 않았다.
+- stage/commit 대상: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. 기존 사용자 `lib/core/app.dart` 변경과 이미 staged된 `doc/label_print.txt`는 제외하고 staged 상태를 보존하기 위해 `git commit --only`를 사용한다.
+
 ### 완료 (2026-07-16): 라벨출력 미리보기·발행매수·baseline 계약 명확화
 - 사용자 요청: `doc/label_print_modify.txt` 재검토 권장안 3건을 작업지시서에 병합하고 사용자 확인 사항이 있으면 즉시 질문해 확정한다.
 - 확정 기준: copies 0 row도 선택 행의 copy index 0 대화형 미리보기 materialize는 허용하되 발행 command의 unit/projection/materialize/build, 출력, 자동증가와 이력에서는 제외한다.
