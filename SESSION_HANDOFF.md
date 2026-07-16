@@ -1,3 +1,18 @@
+### 완료 (2026-07-16): 라벨출력 폭·높이 우선순위와 자동증가 문자열 판정 명확화
+- 사용자 요청: `doc/label_print_modify.txt` 재검토 권장안 2건을 작업지시서에 병합하고 사용자 확인 사항이 있으면 즉시 질문해 확정한다.
+- 확정 기준: printer preference 존재 여부와 무관하게 row width/height는 `useLabelSize == true`이면 item override, 아니면 현재 label-size fallback을 사용한다. preference가 없거나 정리된 상태는 printer와 margin/push/line spacing/extra area/direction 초기값에만 영향을 준다.
+- 사용자 확인 결과: 자동증가 대상 문자열은 숫자 전용 validation을 새로 추가하지 않고 레거시 활성 `AutoIncData()`의 판정을 그대로 재현한다. time-barcode/check digit 제거 뒤 대상 문자열이 정확히 `"0"`이거나 C `atoi` 결과가 0이 아닐 때만 증가 계산·barcode/time-barcode 재적용을 수행하고, `"00"`/`"000"` 또는 `atoi == 0`인 그 밖의 문자열은 원본 projection을 유지한다.
+- 수정 예정: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. 기본값·자동증가·model/DAO 테스트·완료 조건을 정리하며 추가 validation, DB 조회·retry/recovery, migration과 별도 예외 처리는 추가하지 않는다.
+- `doc/label_print_modify.txt` 편집 완료: preference 부재가 row width/height의 `useLabelSize` 우선순위를 바꾸지 않도록 기본값·model 테스트를 통일하고, 활성 레거시 C `atoi` 진입 조건과 미진입 값의 원본 projection·barcode/time-barcode 미재적용·update payload 제외를 자동증가 본문·model/DAO 테스트·완료 조건에 연결했다.
+- `SESSION_HANDOFF.md` 편집 완료: 사용자 선택과 파일별 변경 범위를 기록했다.
+- 검증 예정: 두 문서 diagnostics, `useLabelSize`/preference 부재 우선순위와 `"0"`/`"00"`/C `atoi`/update payload 계약 검색, 독립 재검토, `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md`. 문서만 변경하므로 Flutter test/analyze는 실행하지 않는다.
+- 1차 검증: 두 문서 diagnostics 오류 0건, 폭·높이 계약 5곳과 자동증가 문자열 판정 계약 3곳 확인, `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md` 통과, 독립 재검토 모순·누락 0건이다.
+- diff 후속 정리: 활성 레거시 `atoi`에서 `"1A"`는 index 0부터 변환값으로 재구성되므로 기존 `첫 장 원본값`을 정상 숫자 문자열의 `originalNumber`로 한정하고, 계산 미진입 문자열의 원본 projection 유지와 구분했다.
+- 최종 검증 예정: 두 문서 diagnostics, 정상 숫자/index 0·비숫자 혼합·계산 미진입 표현 검색과 `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md`를 다시 실행한다.
+- 최종 검증: 두 문서 diagnostics 오류 0건, 정상 숫자·비숫자 혼합·계산 미진입 index 0 계약 3곳 확인, `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md` 통과. 독립 재검토의 추가 widget/DAO 테스트 제안은 같은 경계를 이미 13.1 model 테스트와 13.3 DAO 테스트가 나눠 포함하므로 중복 추가하지 않는다. 문서만 변경해 Flutter test/analyze는 실행하지 않았다.
+- stage/commit 대상: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. 기존 사용자 `lib/core/app.dart` 변경은 제외하고 `git commit --only`를 사용한다.
+- 작업지시서 기본값·자동증가 문자열 판정 계약 커밋: `0c20950 라벨출력 기본값과 자동증가 문자열 판정 명확화`.
+
 ### 완료 (2026-07-16): 라벨출력 복수 행 copies 동기화 명확화
 - 사용자 요청: `doc/label_print_modify.txt` 재검토 권장안 1건을 작업지시서에 병합하고 사용자 확인 사항이 있으면 즉시 질문해 확정한다.
 - 확정 기준: commit 성공 후 command의 안정 정렬 `TColumn` snapshot에서 copies 기준 첫 `TYPE_PRINTCOUNT` column을 한 번 선택하고, 원래 label-size session의 현재 출력 row 전체를 item ID 기준으로 순회한다. 각 row의 `(선택 columnId,row.itemId)` key가 `committedAutoIncrementValues`에 있고 copies 출처가 `item baseline`일 때만 같은 parser로 갱신한다.
