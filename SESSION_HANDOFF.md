@@ -8,6 +8,7 @@
 - 편집 직후 검증: 문서 diagnostics 오류 0건. 제거 대상 용어는 4곳의 명시적 제외 문장에만 남았고, hosted `printing`/현재 `RawPrinterWin32`/11개 legacy field/메모리 busy/accepted unit/parameterized transaction/가능한 rollback/DB migration 금지 핵심 계약 24곳을 확인했다.
 - 최종 검증: 두 문서 diagnostics 오류 0건, native patch/JCS/checksum/process recovery/watchdog/commitUnknown/DB 재시도/AbortPrinter/256 MiB/fingerprint/range-lock 구현 계약 검색 0건, `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md` 통과. 변경량은 2개 문서 295 insertions/514 deletions이며 문서만 변경해 Flutter test/analyze는 실행하지 않았다.
 - stage/commit 대상: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. 기존 사용자 `lib/core/app.dart`, `doc/label_print.txt` 변경은 제외한다.
+- 작업지시서 정리 커밋: `83bf139 라벨출력 지시서 기본 구현 중심 정리`.
 
 ### 완료 (2026-07-16): 라벨출력 작업지시서 8차 권장안 병합
 - 사용자 요청: `doc/label_print_modify.txt` 재검토에서 확인한 8개 권장안을 병합하고 구현 의미가 달라지는 사항은 즉시 질문해 확정한다.
