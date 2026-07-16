@@ -10,6 +10,7 @@
 - 검증 예정: 두 문서 diagnostics, 이전 content/checked-order/축약 설정/전체 row 물리 검증 표현과 새 계약 검색, `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md`. 문서만 변경하므로 Flutter test/analyze는 실행하지 않는다.
 - 최종 검증: 이전 content/checked-order/축약 설정/전체 row 물리 검증 표현 0건, 새 계약 14개 핵심 위치 확인, 두 문서 diagnostics 오류 0건, `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md` 통과. 문서만 변경해 Flutter test/analyze는 실행하지 않았다.
 - stage/commit 대상: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. 기존 사용자 `lib/core/app.dart`, `doc/label_print.txt` 변경은 제외한다.
+- 작업지시서 session·순서·validation 계약 커밋: `2ce4b59 라벨출력 세션과 발행 검증 계약 명확화`.
 
 ### 완료 (2026-07-16): 라벨출력 설정 UI·port null 계약 명확화
 - 사용자 요청: `doc/label_print_modify.txt` 재검토 권장안 3건을 작업지시서에 병합하고 사용자 확인 사항이 있으면 즉시 질문해 확정한다.
