@@ -50,7 +50,7 @@
 - `useMargin == true`이면 item의 left/right/top margin과 left/top push의 `item override`, 아니면 공용 프린터 설정의 같은 field에 대한 `preference fallback`을 사용한다.
 - `useLinefeed == true`이면 item linefeed의 `item override`, 아니면 공용 프린터 설정의 자동 줄간격 `preference fallback`을 사용한다. item linefeed 저장값 `0`은 레거시 renderer와 같이 runtime에서 `null`인 간격조정 없음으로 변환하되 출처는 `item override`로 유지하고 DB 원본은 변경하지 않는다. 30~300은 그대로 사용하며 범위 밖의 0이 아닌 item 값은 row validation 대상으로 둔다.
 
-저장된 printer preference 전체가 없거나 저장 printer가 제거되어 설정이 정리된 경우에는 현재 공용 화면과 같이 printer 미선택, margin/push/extra area `0.0`, 줄간격 조정 없음, 방향 `horizontal`을 초기 설정 snapshot으로 사용한다. width/height는 현재 label-size fallback을 사용하며 printer를 자동 선택하지 않는다.
+저장된 printer preference 전체가 없거나 저장 printer가 제거되어 설정이 정리된 경우에는 현재 공용 화면과 같이 printer 미선택, margin/push/extra area `0.0`, 줄간격 조정 없음, 방향 `horizontal`을 초기 설정 snapshot으로 사용하며 printer를 자동 선택하지 않는다. 이 상태도 row width/height 우선순위를 바꾸지 않으므로 `useLabelSize == true`이면 item override, 아니면 현재 label-size fallback을 사용한다.
 
 발행매수 `0`은 개별 행에서 허용한다. 전체 매수 합계가 `0`이면 발행하지 않는다. 음수와 정수가 아닌 값은 허용하지 않는다.
 
@@ -285,8 +285,9 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 `LabelPrintAutoIncrementDAO` 또는 동등 책임을 둔다.
 
 - 자동증가는 DB를 변경하지 않는 순수 함수로 계산한다. 마지막으로 저장·조회된 원본값, 0 기반 copy index, `autoIncSize`, `autoIncRange`, `autoIncZeroDel`, barcode check digit와 time-barcode 설정, 필수 `DateTime referenceAt`을 입력으로 받는다.
-- 증가 대상은 레거시처럼 지정 범위의 숫자 부분이며 `candidate = originalNumber + autoIncSize * copyIndex`로 계산한다. `candidate >= 10^autoIncRange`이면 레거시 구현대로 `10^autoIncRange`를 정확히 한 번만 빼고 modulo, 반복 차감이나 새 범위 제한은 추가하지 않는다. 앞자리 0 유지/제거와 barcode check digit/time-barcode 재적용도 레거시 순서를 따른다.
-- 첫 실제 출력은 `copyIndex == 0`이므로 자동증가 숫자 부분에 원본값을 사용한다. 두 번째 장부터 index마다 `autoIncSize`를 더하며 대화형 copy index 0 미리보기는 첫 실제 출력 projection과 같다.
+- 증가 대상은 레거시처럼 지정 범위 문자열이다. time-barcode suffix와 barcode check digit을 레거시 순서로 제거한 대상 문자열이 정확히 `"0"`이거나 C `atoi` 결과가 `0`이 아닐 때만 활성 `AutoIncData()`와 같은 증가 계산에 진입한다. `"00"`, `"000"` 또는 그 밖에 `atoi == 0`인 문자열은 별도 validation 오류로 바꾸지 않고 원본 projection을 유지하며 barcode check digit/time-barcode도 다시 적용하지 않고 자동증가 update payload에서도 제외한다. `"1A"`처럼 C `atoi` 결과가 `0`이 아닌 문자열은 그 변환값을 `originalNumber`로 사용한다.
+- 증가 계산에 진입하면 `candidate = originalNumber + autoIncSize * copyIndex`로 계산한다. `candidate >= 10^autoIncRange`이면 레거시 구현대로 `10^autoIncRange`를 정확히 한 번만 빼고 modulo, 반복 차감이나 새 범위 제한은 추가하지 않는다. 앞자리 0 유지/제거와 barcode check digit/time-barcode 재적용도 레거시 순서를 따른다.
+- 증가 계산에 진입한 정상 숫자 문자열의 첫 실제 출력은 `copyIndex == 0`이므로 자동증가 숫자 부분에 `originalNumber`를 사용한다. `"1A"`처럼 C `atoi != 0`인 비숫자 혼합 문자열은 index 0부터 그 변환값으로 레거시 형식 재구성을 적용하고, 계산에 진입하지 않은 문자열은 원본 projection을 유지한다. 두 번째 장부터 index마다 `autoIncSize`를 더하며 대화형 copy index 0 미리보기는 첫 실제 출력 projection과 같다.
 - barcode check digit와 date/time 값 생성은 기존 helper를 재사용하되 time-barcode와 날짜·시간 파생값은 주입된 `referenceAt`만 사용한다. 자동증가 계산 자체는 새 공용 순수 함수로 작성하고 내부에서 `DateTime.now()`를 호출하지 않는다.
 - `autoInc == false`인 column은 변경하지 않는다.
 - 해당 `(columnId,itemId)`의 accepted unit이 있을 때만 저장한다.
@@ -409,7 +410,7 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 - field별 item baseline/override 또는 label-size/printer preference fallback으로 초기화한 뒤 라벨출력 session edit를 최종 유효값으로 유지하고 품목관리 미저장 draft는 제외
 - `TYPE_PRINTCOUNT` TColumn 없음의 `ItemOfMarket.printCount` fallback, column 존재 시 entry 미존재·빈 셀 0/정수 값/비정수 validation 오류, 복수 존재 시 `(columnOrder, columnId)` 정렬의 첫 column 선택과 `useLabelSize/useMargin/useLinefeed`별 item/label-size/printer preference 기본값
 - copies의 item baseline, width/height의 label-size fallback, margin/push/line spacing의 printer preference fallback과 각 session edit 출처 구분
-- preference 전체가 없을 때 printer 미선택, margin/push/extra area 0.0, 줄간격 null, horizontal과 label-size width/height fallback 초기값
+- preference 전체가 없을 때 printer 미선택, margin/push/extra area 0.0, 줄간격 null과 horizontal 초기값을 사용하되, row width/height는 `useLabelSize == true`인 item override와 false인 label-size fallback 우선순위를 각각 유지
 - copies 0 허용, 음수/비정수 거부와 전체 0 발행 차단
 - 잘못된 크기·margin/push/clip을 가진 copies 0 row가 정상 copies 1 이상 row의 발행 validation을 차단하지 않음
 - margin/push/크기와 nullable 줄간격 validation, 빈 값/`0` commit의 `session edited null`, 30~300 commit, 범위 밖·비정수 거부와 명시적 100 유지
@@ -424,6 +425,7 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 - label-size에 autoInc column이 하나라도 있을 때 모든 copies 1 이상 row의 copy별 projection
 - 자동증가 copy별 projection과 accepted 최대 copy index의 저장값
 - 원본 100, copies 3, `autoIncSize = 1`에서 0 기반 index `0, 1, 2`의 출력값 `100, 101, 102`, `autoIncSave == false` 저장값 102와 `true`의 index 3 다음 저장값 103
+- 자동증가 대상 문자열 `"0"`은 증가 계산과 update 대상에 포함되고 `"00"`/`"000"`과 C `atoi == 0`인 문자열은 원본 projection과 barcode/time-barcode를 그대로 유지하며 update payload에서 제외되고, `"1A"`처럼 C `atoi != 0`인 문자열은 그 변환값으로 증가하는 활성 레거시 판정
 - 일부 copy만 accepted되면 가장 큰 accepted 0 기반 index `k`의 출력값 또는 `k + 1` 다음 projection을 저장하고 requested 마지막 index를 사용하지 않음
 - command `requestedAt` 고정과 날짜·시간/time-barcode projection의 모든 unit 동일 기준 시각 사용
 - 자동증가 출력 index와 `autoIncSave` 저장용 index `k + 1` projection에 같은 필수 `referenceAt = command.requestedAt`을 사용하고 persistence 중 날짜·시간 경계가 지나도 `DateTime.now()`나 SQL `@historyAt`을 사용하지 않음
@@ -460,9 +462,9 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 - 기존 item/column/content 조회 DAO 재사용
 - 자동증가 update payload의 중복 없는 `(columnId,itemId)` key 수와 update 직후 저장한 `@@ROWCOUNT`가 일치하는지 검증. 같은 key의 여러 accepted copy는 expected 1이고, 복수 key는 key 수를 사용하며 0·일부·예상 초과 affected row는 SQL 오류와 rollback
 - `autoIncSave`별 마지막 출력값/다음 값
-- 0 기반 copy index 범위와 첫 장 원본값, copies 3/원본 100/증가 1의 출력 `100, 101, 102`, `autoIncSave` false/true 저장값 `102`/`103` 및 부분 accepted의 최대 accepted index 기준 저장
+- 0 기반 copy index 범위와 정상 숫자 문자열의 첫 장 `originalNumber`, copies 3/원본 100/증가 1의 출력 `100, 101, 102`, `autoIncSave` false/true 저장값 `102`/`103` 및 부분 accepted의 최대 accepted index 기준 저장
 - time-barcode 자동증가 column에서 실제 출력 index와 `autoIncSave`의 저장용 `k + 1` projection이 모두 command `requestedAt`을 필수 `referenceAt`으로 사용하고 persistence 시각이나 SQL `@historyAt`과 분리됨
-- `autoIncSize/autoIncRange/autoIncZeroDel`, 범위 미초과·한 번 초과·두 번 이상 초과에서 `10^autoIncRange` 1회 감산과 barcode check digit/time-barcode 재적용
+- `autoIncSize/autoIncRange/autoIncZeroDel`, 활성 레거시 `atoi` 진입 조건, 범위 미초과·한 번 초과·두 번 이상 초과에서 `10^autoIncRange` 1회 감산과 계산에 진입한 값의 barcode check digit/time-barcode 재적용
 - autoInc column이 하나라도 있는 label-size의 모든 row는 accepted copy별 history, 하나도 없으면 row별 accepted copies 합계 history
 - `RICH_COLUMNS`의 주원료/column name wire, `RICH_PRINT_CELLS`의 출력 projection, `RICH_SAVE_IN_DB_CELLS`의 자동증가 미적용 command DB baseline wire
 - print log의 command user/market/customer/brand/label/printer snapshot, row item/크기/margin/push, history parent count/wire, command `extraAreaMm` field mapping
@@ -560,7 +562,7 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 - 줄간격 `null`은 저장 workbook의 기존 cell/inline line-height를 보존하고, non-null percent는 원본 workbook이나 기존 line-height를 변경·누적하지 않은 출력 전용 `percent / 100` effective multiplier로 덮어쓴다. preview/PDF/EZPL bitmap fallback은 같은 option 결과를 사용하고 vector EZPL 요소에는 적용하지 않는다.
 - copies가 0인 row는 copies 형식 외의 물리 설정 validation, 발행 unit/projection/payload materialize/build, 출력, 자동증가와 이력에서 제외되어 다른 유효 row의 발행을 차단하지 않는다.
 - 선택 행의 실제 출력 미리보기가 copies와 무관하게 copy index 0으로 자동 표시되고 품목관리와 같은 materializer를 사용한다.
-- 실제 unit의 copy index는 row별 `0 .. copies - 1`이고 대화형 index 0 미리보기는 첫 실제 출력 projection과 같다. 자동증가 첫 장은 원본값이며 `autoIncSave`는 최대 accepted index `k`의 출력값 또는 index `k + 1`의 다음 값을 저장한다.
+- 실제 unit의 copy index는 row별 `0 .. copies - 1`이고 대화형 index 0 미리보기는 첫 실제 출력 projection과 같다. 정상 숫자 문자열의 자동증가 첫 장은 `originalNumber`를 사용하고, C `atoi != 0`인 비숫자 혼합 문자열은 index 0부터 변환값으로 재구성하며, 계산 미진입 문자열은 원본 projection을 유지한다. `autoIncSave`는 최대 accepted index `k`의 출력값 또는 index `k + 1`의 다음 값을 저장한다.
 - 대화형 미리보기는 rebuild마다 단일 `previewAt`을 공용 materializer에 전달하고 같은 build의 날짜·시간/유통기한/time-barcode 전체가 이를 사용한다. 실제 발행은 별도 command `requestedAt`으로 payload를 다시 만들며 자동 timer refresh는 추가하지 않는다.
 - 검색은 발행 목록의 레거시 exact 대상만 선택하며 자동 발행하지 않는다.
 - 공용 printer 설정과 현재 hosted `printing`/PDF/EZPL/RAW engine을 재사용한다.
@@ -589,7 +591,7 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 - SQL 저장 실패나 commit 결과 불명은 물리 dispatch 상태와 accepted 매수를 변경하지 않고 별도로 표시한다.
 - SQL 오류 문구는 실제 transaction에 포함된 자동증가 update와 이력 insert 대상만 표시한다.
 - persistence 결과는 `notAttempted`/`succeeded`/`failed`/`outcomeUnknown`으로 구분하고 실패·불명에는 원본 오류를 보존한다.
-- 자동증가는 레거시처럼 `autoIncSize * copyIndex`를 더한 뒤 범위를 넘으면 자릿수 크기를 정확히 한 번만 빼며 modulo, 반복 차감과 새 범위 제한을 추가하지 않는다.
+- 자동증가는 time-barcode/check digit 제거 뒤 대상 문자열이 정확히 `"0"`이거나 C `atoi != 0`일 때만 레거시처럼 `autoIncSize * copyIndex`를 더하고 update payload에 포함한다. `"00"`/`"000"`과 C `atoi == 0`인 나머지 문자열은 validation이나 재가공 없이 원본 projection을 유지하고 update payload에서 제외한다. 계산값이 범위를 넘으면 자릿수 크기를 정확히 한 번만 빼며 modulo, 반복 차감과 새 범위 제한을 추가하지 않는다.
 - commit 성공 후에만 transaction update payload의 최종 자동증가 저장값 map으로 기존 metadata를 보존한 새 immutable `TColumnContentScopedView`를 한 번 만들고 `ItemManagerDraftController.scopedColumnContents`와 `TColumnContent.datas` 양쪽에 반영한다. SQL 조회 없이 대상 data만 교체하고 command snapshot에서 copies 기준 첫 `TYPE_PRINTCOUNT` column을 한 번 선택한 뒤 현재 출력 row 전체를 item ID 기준으로 순회해 commit map에 대응하는 모든 `item baseline` copies를 새 값으로 각각 갱신하며, session-edited copies, 다른 print-count 값, printer setting snapshot, 품목관리 row/selection/column draft/working value와 무관한 baseline 값은 유지한다.
 - DB migration, local printing fork, native plugin 개조, durable recovery 기능을 추가하지 않는다.
 - Windows desktop에서만 기능을 노출한다.
