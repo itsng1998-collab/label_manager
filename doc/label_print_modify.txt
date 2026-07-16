@@ -193,7 +193,7 @@
 - horizontal page는 기존처럼 `W x (H + extraArea)`다. 사용자 확정에 따라 vertical도 같은 page 크기를 유지하고 content만 시계 방향 90도로 한 번 회전한다. page width/height를 교환하지 않는다.
 - 방향 transform은 backend가 아니라 공용 physical layout이 소유한다. vertical의 시각적 시계 방향 90도는 page 좌상단 기준 source corner가 `TL→TR`, `TR→BR`, `BR→BL`, `BL→TL`로 이동하는 결과다. 회전 결과 bounds의 좌상단을 같은 content 원점에 배치하고 label 영역으로 자른다. preview, PDF와 EZPL은 backend 좌표계에 맞는 angle 부호로 이 결과를 만들며 backend builder에서 다시 회전하지 않는다.
 - 위 방향과 extra area 동작은 기존 `LabelSheetPrintOptions`/`LabelSheetPrintPageMetrics`를 공용 확장해 preview, PDF와 EZPL에 동일하게 적용한다.
-- 줄간격은 `FortuneOutputLayoutOptions` 같은 공용 출력 option으로 preview, PDF와 EZPL bitmap fallback에 동일하게 전달한다.
+- 줄간격은 `FortuneOutputLayoutOptions` 같은 공용 출력 option으로 preview, PDF와 EZPL bitmap fallback에 동일하게 전달한다. `null`이면 저장 workbook에 이미 있는 cell/inline `lineHeight`를 그대로 사용한다. 30~300 percent이면 원본 workbook을 변경하거나 기존 `lineHeight`에 곱하지 않고, style 해석 뒤 실제 출력에 사용할 effective text line-height multiplier를 `percent / 100`으로 덮어쓴다. 따라서 명시적인 100은 1.0 덮어쓰기이고 `null`과 다르다. rich text를 그리지 않는 vector EZPL 요소에는 적용하지 않는다.
 - DPI는 현재 `RawPrinterWin32.queryPrinterDpi()`와 `PrinterProfile` fallback을 사용한다. 별도 native DPI API를 추가하지 않는다.
 - Godex EZPL은 현재 engine이 지원하는 plain-paper mode와 정밀 좌표/EZPL command/bitmap fallback 구조를 유지한다.
 
@@ -289,7 +289,8 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 - accepted unit 중 가장 큰 copy index의 projection을 마지막 값으로 본다.
 - `autoIncSave == true`이면 마지막 accepted copy 다음 값을, `false`이면 마지막 accepted copy에 출력한 값을 저장한다.
 - `autoIncUpdate`는 활성 레거시 출력 결과에 영향을 주지 않으므로 저장 분기에 사용하지 않는다.
-- 대상 row가 없거나 update affected row가 예상과 다르면 SQL 오류로 처리하고 transaction을 rollback한다.
+- 자동증가 update payload는 저장할 최종 값마다 `(columnId,itemId)` key 하나만 가지며 같은 key의 여러 accepted copy는 가장 큰 copy index 기준 최종 값 한 건으로 합친다. 예상 affected row 수는 이 중복 없는 update payload key 수이며 `committedAutoIncrementValues.length`와 같다. accepted unit 수, history parent 수나 autoInc column 출현 횟수와 비교하지 않는다.
+- SQL은 자동증가 update 직후의 `@@ROWCOUNT`를 다음 statement 전에 별도 변수에 저장해 위 예상 key 수와 비교한다. 대상 row가 없거나 일부 key만 갱신되거나 예상보다 많은 row가 갱신되면 원본 SQL 오류로 처리하고 transaction을 rollback한다. 별도 확인 SELECT나 DB 재조회는 하지 않는다.
 - 여러 client/PC의 동시 번호 예약은 구현하지 않는다.
 
 ### 8.2 발행 이력
@@ -431,7 +432,8 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 - copies가 0인 선택 행도 대화형 copy index 0 미리보기는 materialize하되 발행 unit/projection/payload에는 포함하지 않음
 - 여러 copy materialize 중 날짜·시간 경계가 지나도 command `requestedAt` 기준 projection 유지
 - 원본 workbook 불변
-- 저장 source viewport, source physical 크기 1:1 배치, clip, margin+push, 방향, extra area와 줄간격
+- 저장 source viewport, source physical 크기 1:1 배치, clip, margin+push, 방향과 extra area
+- 줄간격 `null`은 기존 workbook cell/inline `lineHeight`를 보존하고, 명시적 100/120 등 non-null percent는 기존 값에 곱하지 않은 1.0/1.2 effective output multiplier로 덮어쓰며 원본 workbook은 불변이고 preview/PDF/EZPL bitmap fallback 결과가 동등함
 - row 크기가 달라도 PDF `BoxFit.fill`과 row 기준 EZPL `copyResize` 없이 source physical 크기를 유지
 - vertical은 page `W x (H+extraArea)`를 유지하고 `TL→TR→BR→BL→TL` corner mapping으로 시계 방향 한 번 회전하며 preview/PDF/EZPL 결과가 동등함
 - PDF page 수와 EZPL `^P1` 수가 unit 수와 일치
@@ -447,7 +449,7 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 ### 13.3 DAO 테스트
 
 - 기존 item/column/content 조회 DAO 재사용
-- 자동증가 `(columnId,itemId)` update와 affected row 검증
+- 자동증가 update payload의 중복 없는 `(columnId,itemId)` key 수와 update 직후 저장한 `@@ROWCOUNT`가 일치하는지 검증. 같은 key의 여러 accepted copy는 expected 1이고, 복수 key는 key 수를 사용하며 0·일부·예상 초과 affected row는 SQL 오류와 rollback
 - `autoIncSave`별 마지막 출력값/다음 값
 - `autoIncSize/autoIncRange/autoIncZeroDel`, 범위 미초과·한 번 초과·두 번 이상 초과에서 `10^autoIncRange` 1회 감산과 barcode check digit/time-barcode 재적용
 - autoInc column이 하나라도 있는 label-size의 모든 row는 accepted copy별 history, 하나도 없으면 row별 accepted copies 합계 history
@@ -520,7 +522,7 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 
 1. 품목관리 발행 체크를 controlled state로 올리고 `FortuneTableEditingController`/`ItemManageController`의 read-only active-edit 상태와 label-print target 전용 gate를 연결한 뒤 출력 row/session model을 구현한다. 기존 공용 context-change gate의 다른 호출부는 변경하지 않는다.
 2. 품목 출력 materializer와 읽기 전용 preview를 공용 API로 추출한다.
-3. right margin/signed push, 1:1 source 배치·공용 방향 transform과 줄간격을 기존 공용 설정·print job에 최소 확장한다.
+3. right margin/signed push, 1:1 source 배치·공용 방향 transform과 기존 workbook line-height를 보존하거나 effective multiplier를 덮어쓰는 줄간격 공용 output option을 기존 공용 설정·print job에 최소 확장한다.
 4. 라벨출력 화면, table, 검색, 선택과 자동 미리보기를 구현한다.
 5. 기존 PDF/EZPL dispatcher를 공용 service로 추출하고 단일 row·copy 출력을 연결한다.
 6. 여러 row/copy와 page spec group 출력을 연결한다.
@@ -543,6 +545,7 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 - 출력 row는 field별 item baseline/override 또는 label-size/printer preference fallback으로 초기화되고 라벨출력 session edit가 최종값이 되며 품목관리 미저장 draft를 사용하지 않는다.
 - 프린터 설정에서 printer 미선택이면 `[적용]`을 비활성화하고 아무 설정도 저장·갱신하지 않는다. 선택 후 적용하면 session의 printer, margin/push/line spacing, extra area와 방향의 전체 설정 snapshot과 모든 출력 row의 margin/push/line spacing 중 `preference fallback` 출처만 갱신하며 copies, width/height와 같은 row의 item override/label-size fallback/session edit는 유지한다. 이후 추가·재체크 row도 이 session snapshot을 사용하고 command 생성 중 preference를 다시 읽지 않는다.
 - 줄간격 inline UI는 `null`을 `0`으로 표시하고 빈 값/`0`을 `session edited null`로 commit하며, item override 저장값 `0`과 preference의 `none`/레거시 `0`을 출처를 유지한 `null`로 load한다. DB 원본은 변경하지 않고 내부 `null` round-trip에서 명시적 100을 보존한다.
+- 줄간격 `null`은 저장 workbook의 기존 cell/inline line-height를 보존하고, non-null percent는 원본 workbook이나 기존 line-height를 변경·누적하지 않은 출력 전용 `percent / 100` effective multiplier로 덮어쓴다. preview/PDF/EZPL bitmap fallback은 같은 option 결과를 사용하고 vector EZPL 요소에는 적용하지 않는다.
 - copies가 0인 row는 copies 형식 외의 물리 설정 validation, 발행 unit/projection/payload materialize/build, 출력, 자동증가와 이력에서 제외되어 다른 유효 row의 발행을 차단하지 않는다.
 - 선택 행의 실제 출력 미리보기가 copies와 무관하게 copy index 0으로 자동 표시되고 품목관리와 같은 materializer를 사용한다.
 - 검색은 발행 목록의 레거시 exact 대상만 선택하며 자동 발행하지 않는다.
@@ -565,6 +568,7 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 - 라벨 projection의 `requestedAt`과 발행 이력의 단일 SQL `@historyAt`을 구분한다.
 - SQL 오류를 context와 함께 사용자에게 전달하고 가능한 경우 rollback하며 자동 재출력하지 않는다.
 - 자동증가와 발행 이력은 기존 `jsonEncode` parameter/`OPENJSON` 패턴의 단일 `DbTransactionStatement` batch로 저장한다.
+- 자동증가 update의 예상 affected row 수는 중복 없는 `(columnId,itemId)` payload key 수이며, update 직후 저장한 `@@ROWCOUNT`가 이 수와 다르면 SQL 오류로 rollback한다. accepted unit/history 수와 비교하거나 확인 SELECT·DB 재조회를 추가하지 않는다.
 - commit 결과가 불명확하면 저장 실패로 단정하지 않고 `DbCommitOutcomeUnknown`과 원본 오류를 전달한다.
 - SQL 저장 실패나 commit 결과 불명은 물리 dispatch 상태와 accepted 매수를 변경하지 않고 별도로 표시한다.
 - SQL 오류 문구는 실제 transaction에 포함된 자동증가 update와 이력 insert 대상만 표시한다.
