@@ -1,3 +1,18 @@
+### 완료 (2026-07-16): 라벨출력 미리보기·발행매수·baseline 계약 명확화
+- 사용자 요청: `doc/label_print_modify.txt` 재검토 권장안 3건을 작업지시서에 병합하고 사용자 확인 사항이 있으면 즉시 질문해 확정한다.
+- 확정 기준: copies 0 row도 선택 행의 copy index 0 대화형 미리보기 materialize는 허용하되 발행 command의 unit/projection/materialize/build, 출력, 자동증가와 이력에서는 제외한다.
+- 확정 기준: 복수 `TYPE_PRINTCOUNT` TColumn은 현재 label-size의 `(columnOrder, columnId)` 안정 정렬 결과 중 첫 번째만 발행매수 baseline으로 사용하고 나머지는 무시하며 command도 같은 정렬 결과를 snapshot한다.
+- 확정 기준: commit 성공 후 자동증가 대상만 갱신하는 snapshot은 현재 label-size의 마지막 저장·조회 `TColumnContent` baseline view이며, DAO commit 값으로 대상 `(columnId,itemId)` entry만 교체한다. row edit, printer setting snapshot, 품목관리 draft working value와 무관한 baseline 값은 유지한다.
+- 수정 예정: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. 본문·pipeline·테스트·완료 조건을 함께 정리하며 DB migration, retry/recovery, lock, spooler/native 변경은 추가하지 않는다.
+- `doc/label_print_modify.txt` 편집 완료: copies 0의 대화형 copy index 0 미리보기와 발행 unit/payload 제외를 분리하고, 복수 `TYPE_PRINTCOUNT`의 stable first 선택, commit 후 `TColumnContent` baseline view 대상 entry 교체를 본문·pipeline·테스트·완료 조건에 연결했다.
+- `SESSION_HANDOFF.md` 편집 완료: 이번 병합의 확정 기준과 파일별 진행 상태를 기록했다.
+- 검증 예정: 두 문서 diagnostics, 이전 포괄 `copies 0 materialize 제외`/모호한 `session snapshot` 표현과 새 계약 검색, `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md`. 문서만 변경하므로 Flutter test/analyze는 실행하지 않는다.
+- 독립 재검토: 세 계약의 본문·pipeline·테스트·완료 조건 사이 실제 모순, 구현 불가능성, 빠진 필수 검증 0건이다.
+- 검증 실행 직전: 폐기 표현과 새 계약 연결 검색, 두 문서 diagnostics를 확인했으며 `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md`와 대상 diff를 최종 확인한다.
+- 최종 diff 검토 보완: row 초기화가 command 생성 전이므로 `TYPE_PRINTCOUNT` 선택은 현재 label-size `TColumn`의 안정 정렬로 수행하고 command가 같은 결과를 snapshot하도록 순환 표현을 제거했다.
+- 최종 검증: 이전 포괄 `copies 0 materialize 제외`와 모호한 commit 후 `session snapshot` 표현 0건, 새 copies 0/복수 `TYPE_PRINTCOUNT`/`TColumnContent` baseline 계약 13개 핵심 위치 확인, 두 문서 diagnostics 오류 0건, `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md` 통과. 문서만 변경해 Flutter test/analyze는 실행하지 않았다.
+- stage/commit 대상: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. 기존 사용자 `lib/core/app.dart`, `doc/label_print.txt` 변경은 제외한다.
+
 ### 완료 (2026-07-16): 라벨출력 session·순서·validation 계약 명확화
 - 사용자 요청: `doc/label_print_modify.txt` 재검토 권장안 5건을 작업지시서에 병합하고 사용자 확인 사항이 있으면 즉시 질문해 확정한다.
 - 확정 기준: label-print session은 현재 적용된 printer, margin/push/line spacing, extra area와 방향의 전체 설정 snapshot을 소유한다. `[적용]` 이후 기존 preference fallback row와 새로 추가·재체크한 row는 이 snapshot을 사용하고 command 생성 중 preference를 다시 읽지 않는다.
