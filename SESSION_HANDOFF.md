@@ -1,3 +1,19 @@
+### 완료 (2026-07-16): 라벨출력 미리보기 시각·발행 중 session 고정
+- 사용자 요청: `doc/label_print_modify.txt` 재검토 권장안 2건을 작업지시서에 병합하고 사용자 확인 사항이 있으면 즉시 질문해 확정한다.
+- 확정 기준: 대화형 미리보기는 rebuild 시작 시 `previewAt = DateTime.now()`를 한 번만 만들고 같은 build의 일반 날짜·시간, 유통기한과 time-barcode 계산 전체에 사용한다. 실제 발행은 기존 command `requestedAt`을 사용하며 자동 timer refresh는 추가하지 않는다.
+- 확정 기준: `labelPrintBusy` 동안 현재 label-size session 또는 `TColumn`/`TColumnContent` baseline을 교체하는 label-size/customer/market/brand 변경과 session reload를 사용자·programmatic 경로 모두 차단한다. `[발행 취소]`는 유지하고 `finally`에서 busy와 context lock을 함께 해제한다.
+- 사용자 확인 사항: 없음. 두 기준은 기존 공용 materializer의 시각 주입과 command/session 불변 계약을 유지하는 최소 확장으로 확정 가능하다.
+- 수정 예정: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. materializer/session/pipeline·model/widget 테스트·완료 조건을 정리하며 timer, generation/durable recovery, DB 재조회·retry, migration과 native 변경은 추가하지 않는다.
+- `doc/label_print_modify.txt` 미리보기 시각 편집 완료: 공용 materializer의 필수 `referenceAt`, rebuild별 단일 `previewAt`, 실제 발행의 command `requestedAt`을 분리하고 timer 없는 rebuild 동작과 시각 경계 테스트를 materialize·pipeline·완료 조건에 연결했다.
+- `doc/label_print_modify.txt` session 고정 편집 완료: `labelPrintBusy` 동안 baseline을 교체하는 상위 context 사용자·programmatic 경로를 막고 취소를 유지하며, 원래 command session에 commit map을 반영한 뒤 `finally`에서 lock을 해제하도록 session·연동·pipeline·widget 테스트·완료 조건에 연결했다.
+- `SESSION_HANDOFF.md` 편집 완료: 이번 병합의 확정 기준과 파일별 진행 상태를 기록했다.
+- 검증 예정: 두 문서 diagnostics, `previewAt/referenceAt/requestedAt`과 busy context lock 계약 검색, 독립 재검토, `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md`. 문서만 변경하므로 Flutter test/analyze는 실행하지 않는다.
+- 독립 재검토: 두 계약의 materializer·session·연동·pipeline·테스트·완료 조건 사이 실제 모순, 구현 불가능성, 빠진 필수 검증 0건이다. autoInc row의 time-barcode 시각 후보는 모든 실제 출력 materializer가 command `requestedAt`을 필수 `referenceAt`으로 받고 기존 테스트가 모든 unit의 동일 시각을 요구하므로 제외했다.
+- 검증 실행 직전: 두 문서 diagnostics 오류 0건, 새 시각 계약 18개 관련 위치와 busy context lock 계약 7곳을 확인했다. 반대 표현 검색 결과는 의도한 `busy가 아닐 때 session 교체`와 `발행 시 previewAt 대신 새 requestedAt 사용`뿐이다. 이제 대상 diff와 `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md`를 최종 확인한다.
+- 최종 검증: 두 문서 diagnostics 오류 0건, 새 시각·context lock 계약 연결 확인, 독립 재검토 문제 0건, `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md` 통과. 문서만 변경해 Flutter test/analyze는 실행하지 않았다.
+- stage/commit 대상: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. 기존 사용자 `lib/core/app.dart` 변경은 제외하고 `git commit --only`를 사용한다.
+- 작업지시서 미리보기 시각·발행 중 session 고정 계약 커밋: `cbace6b 라벨출력 미리보기 시각과 세션 고정`.
+
 ### 완료 (2026-07-16): 라벨출력 지원 profile backend 판정 통일
 - 사용자 요청: `doc/label_print_modify.txt` 재검토 권장안 1건을 작업지시서에 병합하고 사용자 확인 사항이 있으면 즉시 질문해 확정한다.
 - 확정 기준: 현재 RAW 출력 지원 profile은 실제 builder가 있는 `PrinterLanguage.ezpl`뿐이다. EZPL profile이면서 port가 일반 값 또는 `null`이면 RAW, EZPL이라도 명시적인 `FILE:`/`PORTPROMPT:` port이면 PDF, `zpl`/`tspl`/`cpcl`/`rasterOnly` 등 현재 지원하지 않는 profile은 PDF로 정한다.
