@@ -1,3 +1,19 @@
+### 완료 (2026-07-16): 라벨출력 자동증가 저장 시각 고정
+- 사용자 요청: `doc/label_print_modify.txt` 재검토 권장안 1건을 작업지시서에 병합하고 사용자 확인 사항이 있으면 즉시 질문해 확정한다.
+- 확정 기준: 자동증가 순수 projection의 필수 입력에 `DateTime referenceAt`을 두고 실제 출력 index와 `autoIncSave == true`의 저장용 index `k + 1` 모두 command의 단일 `requestedAt`을 사용한다. barcode check digit/time-barcode 재적용 중 `DateTime.now()`를 다시 호출하지 않는다.
+- 확정 기준: SQL 발행 이력 시각 `@historyAt`은 기존처럼 batch 시작 시각으로 분리하며 자동증가 저장 projection의 `referenceAt`으로 사용하지 않는다.
+- 사용자 확인 사항: 없음. 기존 실제 출력·발행 이력 projection의 단일 `command.requestedAt` 계약을 출력 외 저장 projection까지 일관되게 확장하는 최소 기준으로 확정 가능하다.
+- 수정 예정: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. 자동증가 입력·저장값·pipeline·model/DAO 테스트·완료 조건을 정리하며 DB 조회·retry/recovery, migration과 별도 예외 처리는 추가하지 않는다.
+- `doc/label_print_modify.txt` 편집 완료: 공용 materializer/자동증가 순수 projection의 필수 `referenceAt`, 실제 출력과 저장용 `k + 1`의 command `requestedAt`, persistence 현재 시각·SQL `@historyAt` 미사용을 자동증가·이력·pipeline·model/DAO 테스트·완료 조건에 연결했다.
+- `SESSION_HANDOFF.md` 편집 완료: 이번 병합의 확정 기준과 파일별 진행 상태를 기록했다.
+- 검증 예정: 두 문서 diagnostics, 자동증가 `referenceAt`/`requestedAt`과 SQL `@historyAt` 분리 계약 검색, 독립 재검토, `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md`. 문서만 변경하므로 Flutter test/analyze는 실행하지 않는다.
+- 1차 검증: 두 문서 diagnostics 오류 0건, 관련 계약 11곳 확인, `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md` 통과. 이제 전체 diff와 독립 재검토를 진행한다.
+- 독립 재검토: 자동증가 순수 projection 입력, 실제 출력과 저장용 `k + 1`, pipeline·model/DAO 테스트·완료 조건의 `command.requestedAt` 연결 및 SQL `@historyAt` 분리 사이 실제 모순, 구현 불가능성, 빠진 필수 검증 0건이다.
+- 최종 검증 예정: 두 문서 diagnostics와 `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md`를 다시 실행한다.
+- 최종 검증: 두 문서 diagnostics 오류 0건, 자동증가 시각 계약 11곳 확인, 독립 재검토 문제 0건, `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md` 통과. 문서만 변경해 Flutter test/analyze는 실행하지 않았다.
+- stage/commit 대상: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. 기존 사용자 `lib/core/app.dart` 변경은 제외하고 `git commit --only`를 사용한다.
+- 작업지시서 자동증가 저장 시각 계약 커밋: `ad369e5 라벨출력 자동증가 저장 시각 명확화`.
+
 ### 완료 (2026-07-16): 라벨출력 copyIndex 기점 명확화
 - 사용자 요청: `doc/label_print_modify.txt` 재검토 권장안 1건을 작업지시서에 병합하고 사용자 확인 사항이 있으면 즉시 질문해 확정한다.
 - 확정 기준: `LabelPrintUnit.copyIndex`는 레거시처럼 0 기반이다. copies가 `N`이면 `0 <= copyIndex < N`이며 첫 실제 출력 index 0은 원본값, 이후 index마다 `autoIncSize`를 더한다. 대화형 copy index 0 미리보기는 첫 실제 출력 projection과 같다.
