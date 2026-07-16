@@ -1,3 +1,19 @@
+### 완료 (2026-07-16): 라벨출력 줄간격 적용·자동증가 affected row 기준 명확화
+- 사용자 요청: `doc/label_print_modify.txt` 재검토 권장안 2건을 작업지시서에 병합하고 사용자 확인 사항이 있으면 즉시 질문해 확정한다.
+- 확정 기준: 줄간격 `null`은 저장 workbook의 기존 cell/inline line-height를 그대로 사용하고, 30~300 percent는 원본 workbook을 변경하지 않은 출력 layout에서 기존 line-height에 곱하지 않고 effective text line-height multiplier를 `percent / 100`으로 덮어쓴다. 명시적 100은 1.0 덮어쓰기이며 `null`과 구분한다.
+- 확정 기준: 자동증가 update의 예상 affected row 수는 transaction update payload에서 중복 제거된 `(columnId,itemId)` key 수다. 같은 key의 여러 accepted copy는 DB row 한 건으로 세고 accepted unit/history 수와 비교하지 않는다.
+- 사용자 확인 사항: 없음. 두 기준은 레거시 percent 문단 spacing 계산과 기존 JSON payload/`OPENJSON` transaction 구조로 확정 가능하다.
+- 수정 예정: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. 물리 출력·자동증가·DAO/출력 테스트·완료 조건을 함께 정리하며 DB migration, 재조회·retry/recovery, lock, spooler/native 변경은 추가하지 않는다.
+- `doc/label_print_modify.txt` 편집 완료: `null`/non-null 줄간격의 기존 workbook line-height 보존·출력 전용 effective multiplier 덮어쓰기와 preview/PDF/EZPL bitmap fallback 동등성을 물리 출력·테스트·구현 순서·완료 조건에 연결했다.
+- `doc/label_print_modify.txt` 자동증가 계약 편집 완료: 중복 없는 `(columnId,itemId)` payload key 수를 expected affected row로 사용하고 update 직후 `@@ROWCOUNT`를 저장해 0·일부·예상 초과를 SQL 오류/rollback 처리하도록 본문·DAO 테스트·완료 조건에 연결했다.
+- `SESSION_HANDOFF.md` 편집 완료: 이번 병합의 확정 기준과 파일별 진행 상태를 기록했다.
+- 검증 예정: 두 문서 diagnostics, 줄간격 보존/덮어쓰기와 unique key/`@@ROWCOUNT` 계약 검색, `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md`. 문서만 변경하므로 Flutter test/analyze는 실행하지 않는다.
+- 독립 재검토: 두 계약의 본문·테스트·구현 순서·완료 조건 사이 실제 모순, 구현 불가능성, 빠진 필수 검증 0건이다.
+- 검증 실행 직전: 두 문서 diagnostics 오류 0건과 새 줄간격 계약 4곳, unique key/`@@ROWCOUNT` 계약 4곳을 확인했다. 반대 표현 검색 결과는 모두 `기존 lineHeight에 곱하지 않음`과 `accepted unit/history 수와 비교하지 않음`이라는 의도된 금지 문장이다. 이제 대상 diff와 `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md`를 최종 확인한다.
+- 최종 검증: 두 문서 diagnostics 오류 0건, 새 줄간격 계약 4곳과 unique key/`@@ROWCOUNT` 계약 4곳 확인, 독립 재검토 문제 0건, `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md` 통과. 문서만 변경해 Flutter test/analyze는 실행하지 않았다.
+- stage/commit 대상: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. 기존 사용자 `lib/core/app.dart` 변경과 이미 staged된 `doc/label_print.txt`는 제외하고 staged 상태를 보존하기 위해 `git commit --only`를 사용한다.
+- 작업지시서 줄간격 적용·자동증가 affected row 계약 커밋: `55a28c2 라벨출력 줄간격과 갱신 행수 기준 명확화`.
+
 ### 완료 (2026-07-16): 라벨출력 셀 부재·baseline 저장소·copies 동기화 명확화
 - 사용자 요청: `doc/label_print_modify.txt` 재검토 권장안 3건을 작업지시서에 병합하고 사용자 확인 사항이 있으면 즉시 질문해 확정한다.
 - 확정 기준: 선택된 첫 `TYPE_PRINTCOUNT` TColumn은 있지만 해당 item의 `TColumnContent` entry가 없으면 빈 셀과 같은 copies `0`으로 처리하며 `ItemOfMarket.printCount`는 TColumn 자체가 없을 때만 사용한다.
