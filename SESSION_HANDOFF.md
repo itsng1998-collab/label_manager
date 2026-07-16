@@ -9,6 +9,7 @@
 - 독립 재검토: 본문 모순은 없었고 `extraAreaMm`/방향 model validation, 취소 결과 상태, 단일 SQL batch의 테스트·완료 조건 연결 누락만 확인되어 모두 보완했다.
 - 최종 검증: 새 설정/group/취소/SQL/commit 계약 5곳 확인, 이전 `JSON parameter 등`·미분류 취소·commit 결과 불명 저장 실패 단정 등 폐기 표현 0건, 두 문서 diagnostics 오류 0건, `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md` 통과. 문서만 변경해 Flutter test/analyze는 실행하지 않았다.
 - stage/commit 대상: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. 기존 사용자 `lib/core/app.dart`, `doc/label_print.txt` 변경은 제외한다.
+- 작업지시서 결과·저장 계약 커밋: `5181023 라벨출력 결과와 저장 계약 명확화`.
 
 ### 완료 (2026-07-16): 품목 편집 중 라벨출력 전용 gate 구체화
 - 사용자 요청: 품목관리 편집 중 라벨출력 전환 금지 기준의 재검토 권장안을 `doc/label_print_modify.txt`에 병합한다.
