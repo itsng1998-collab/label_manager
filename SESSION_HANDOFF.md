@@ -1,3 +1,16 @@
+### 완료 (2026-07-16): 라벨출력 session·순서·validation 계약 명확화
+- 사용자 요청: `doc/label_print_modify.txt` 재검토 권장안 5건을 작업지시서에 병합하고 사용자 확인 사항이 있으면 즉시 질문해 확정한다.
+- 확정 기준: label-print session은 현재 적용된 printer, margin/push/line spacing, extra area와 방향의 전체 설정 snapshot을 소유한다. `[적용]` 이후 기존 preference fallback row와 새로 추가·재체크한 row는 이 snapshot을 사용하고 command 생성 중 preference를 다시 읽지 않는다.
+- 확정 기준: 출력 목록은 checked ID/체크 순서가 아니라 현재 label-size session의 마지막 저장·조회 품목 row 순서를 필터링해 만든다. 품목 순서 reload 시 item ID 기반 session edit와 선택을 유지하며 재배치한다.
+- 확정 기준: copies는 모든 row에서 검증하되 크기·margin/push/line spacing과 physical clip 발행 검증은 copies 1 이상 row에만 적용한다. `TYPE_PRINTCOUNT` column이 있으면 빈 저장 셀은 레거시대로 0, 정수 문자열은 해당 값, 비어 있지 않은 비정수는 validation 오류이며 column 자체가 없을 때만 `ItemOfMarket.printCount`를 사용한다.
+- 수정 예정: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. 줄간격 inline 표시·commit·출처 유지 widget 검증까지 본문·model/session·pipeline·테스트·완료 조건에 연결한다. DB migration, retry/recovery, spooler/native 변경은 추가하지 않는다.
+- `doc/label_print_modify.txt` 편집 완료: 전체 printer setting session snapshot과 신규·재체크 row 초기화, 저장 품목 row 순서 기반 출력 목록, copies 0 row의 물리 검증 제외, `TYPE_PRINTCOUNT` 빈 값/column 부재 구분, 줄간격 inline widget 검증을 본문·session·pipeline·오류·테스트·완료 조건에 연결했다.
+- `SESSION_HANDOFF.md` 편집 완료: 이번 병합의 확정 기준과 파일별 진행 상태를 기록했다.
+- 독립 재검토: 다섯 계약의 본문·model/session·pipeline·오류·테스트·완료 조건 사이 실제 모순, 구현 불가능성, 빠진 필수 검증 0건이다.
+- 검증 예정: 두 문서 diagnostics, 이전 content/checked-order/축약 설정/전체 row 물리 검증 표현과 새 계약 검색, `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md`. 문서만 변경하므로 Flutter test/analyze는 실행하지 않는다.
+- 최종 검증: 이전 content/checked-order/축약 설정/전체 row 물리 검증 표현 0건, 새 계약 14개 핵심 위치 확인, 두 문서 diagnostics 오류 0건, `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md` 통과. 문서만 변경해 Flutter test/analyze는 실행하지 않았다.
+- stage/commit 대상: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. 기존 사용자 `lib/core/app.dart`, `doc/label_print.txt` 변경은 제외한다.
+
 ### 완료 (2026-07-16): 라벨출력 설정 UI·port null 계약 명확화
 - 사용자 요청: `doc/label_print_modify.txt` 재검토 권장안 3건을 작업지시서에 병합하고 사용자 확인 사항이 있으면 즉시 질문해 확정한다.
 - 확정 기준: 줄간격 inline UI에서 `null`은 `0`으로 표시하고 빈 값/`0` commit은 `session edited null`, 30~300 정수는 명시적 percent로 처리한다. preference는 `none`/레거시 `0`을 `null`로 load하고 `null`을 `none`으로 save한다.
