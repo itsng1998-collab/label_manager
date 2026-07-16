@@ -1,3 +1,18 @@
+### 완료 (2026-07-16): 라벨출력 발행시각·이력필드·group 계약 명확화
+- 사용자 요청: `doc/label_print_modify.txt` 재검토 권장안 5건을 작업지시서에 병합하고 사용자 확인 사항이 있으면 즉시 질문해 확정한다.
+- 확정 기준: `requestedAt`은 탭 진입이 아니라 `[발행]` 요청의 busy 획득 직후 command 생성 시작 시각으로 정한다. row field 출처를 copies/label-size fallback/printer preference fallback별로 구분하고, group key는 resolved backend와 physical page spec 조합으로 통일한다.
+- 수정 예정: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. 기존 세 이력 table의 레거시 insert field를 command/row/history snapshot에 명시적으로 매핑하고 실제 자동증가·이력 실행 조합에 맞는 오류 문구를 사용한다. DB migration, 재조회·재시도, recovery/spooler/native 변경은 추가하지 않는다.
+- `doc/label_print_modify.txt` 편집 완료: 발행 요청 시각의 `requestedAt`, field별 baseline/fallback source, `(resolved backend, physical page spec)` group key, 세 이력 table의 레거시 insert allow-list와 snapshot mapping, update/history 실제 실행 범위별 오류 문구를 본문·pipeline·테스트·완료 조건에 연결했다.
+- `doc/label_print_modify.txt` pipeline 순서 보완: printer profile/port로 backend를 정한 뒤 이를 포함한 immutable command를 만들도록 command 생성과 backend 결정 순서를 통일했다.
+- `doc/label_print_modify.txt` source 표현 보완: row 재초기화·model 테스트·완료 조건에 남은 통합 `item override/preference fallback` 표현을 field별 item baseline/override와 label-size/printer preference fallback으로 통일했다.
+- 최종 diff 검토 보완: 재체크 기본값 관련 테스트·완료 조건의 `item/preference` 축약 표현도 field별 item/label-size/printer preference source로 통일했다.
+- `SESSION_HANDOFF.md` 편집 완료: 이번 병합의 확정 기준과 파일별 진행 상태를 기록했다.
+- 검증 예정: 두 문서 diagnostics, 이전 탭 gate 시각/spec-only group/통합 source·오류 문구 잔존 여부와 새 계약 검색, `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md`. 문서만 변경하므로 Flutter test/analyze는 실행하지 않는다.
+- 검증 실행 직전: 다섯 계약의 본문·pipeline·테스트·완료 조건 독립 검토 후 두 문서 diagnostics, 계약 검색과 `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md`를 최종 실행한다.
+- 독립 재검토: 다섯 계약의 본문·DTO·pipeline·오류·테스트·완료 조건 사이 실제 모순, 구현 불가능성, 빠진 필수 검증 0건이다.
+- 최종 검증: 이전 탭 gate `requestedAt`, 통합 source와 고정 통합 오류 문구 0건, 새 계약 23개 위치 확인, spec 검색 1건은 의도한 `backend와 page spec이 같은` 조건이다. 두 문서 diagnostics 오류 0건, `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md` 통과. 변경량은 2개 문서 57 insertions/27 deletions이며 문서만 변경해 Flutter test/analyze는 실행하지 않았다.
+- stage/commit 대상: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. 기존 사용자 `lib/core/app.dart`, `doc/label_print.txt` 변경은 제외한다.
+
 ### 완료 (2026-07-16): 라벨출력 DB 실행·설정·이력 순서 계약 명확화
 - 사용자 요청: `doc/label_print_modify.txt` 재검토 권장안 4건을 작업지시서에 병합하고 사용자 확인 사항이 있으면 즉시 질문해 확정한다.
 - 확정 기준: accepted unit 존재와 실제 persistence 작업 필요 여부를 분리한다. 프린터 설정 적용은 모든 출력 row에서 preference fallback 출처인 field만 갱신한다. 라벨 projection의 `requestedAt`과 DB 이력의 단일 `@historyAt`을 구분하고, status detail ID는 command가 부여한 연속 `detailIndex`를 사용한다.
