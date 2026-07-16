@@ -10,6 +10,7 @@
 - 독립 재검토: 네 계약의 본문·pipeline·테스트·완료 조건 사이 실제 모순, 구현 불가능성, 빠진 필수 검증 0건이다.
 - 구현 경계 확인: 현재 SQL batch와 `windows_odbc_param_utils_test.dart`가 선언된 `@name` 지역 변수를 보존하므로 batch의 `@historyAt`은 기존 named-parameter 준비 방식과 충돌하지 않는다.
 - stage/commit 대상: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. 기존 사용자 `lib/core/app.dart`, `doc/label_print.txt` 변경은 제외한다.
+- 작업지시서 저장·이력 계약 커밋: `9eb2e94 라벨출력 저장과 이력 순서 계약 명확화`.
 
 ### 완료 (2026-07-16): 라벨출력 시각·저장결과·row 수명 명확화
 - 사용자 요청: `doc/label_print_modify.txt` 재검토 권장안 3건을 작업지시서에 병합한다.
