@@ -1,3 +1,15 @@
+### 완료 (2026-07-16): 라벨출력 값·이력·결과 경계 명확화
+- 사용자 요청: `doc/label_print_modify.txt` 재검토 권장안 4건을 작업지시서에 병합한다.
+- 확정 기준: 출력 row는 item override 또는 preference fallback으로 초기화한 뒤 라벨출력 session edit를 최종값으로 사용하며 품목관리 draft는 포함하지 않는다. 레거시 이력 wire는 column name과 출력/baseline 값을 구분하고 status detail은 주원료를 제외한 TColumn 순서로 생성한다.
+- 수정 예정: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. 기존 네 `LabelPrintResult` 상태는 물리 dispatch 결과로 유지하고 DB 저장 실패/commit 불명은 별도로 전달한다. 모든 unit의 projection/materialize/group payload preflight를 첫 OS call 전에 완료한다. retry/recovery, spooler 추적, native/plugin 변경, DB migration은 추가하지 않는다.
+- `doc/label_print_modify.txt` row 값 계약 편집 완료: item override 또는 preference fallback 초기화 뒤 라벨출력 session edit가 최종 유효값이며 품목관리 미저장 draft는 제외하도록 본문·model test·완료 조건을 통일했다.
+- `doc/label_print_modify.txt` 이력 계약 편집 완료: `RICH_COLUMNS`의 주원료/column name, `RICH_PRINT_CELLS`의 출력 projection, `RICH_SAVE_IN_DB_CELLS`의 자동증가 미적용 baseline을 분리하고 status detail의 D0 기반 columnId/name/data mapping을 명시했다.
+- `doc/label_print_modify.txt` 결과 계약 편집 완료: 기존 네 상태를 물리 dispatch 결과로 한정하고 statement 실패/`DbCommitOutcomeUnknown`은 accepted 매수와 물리 상태를 덮어쓰지 않고 별도로 전달하도록 했다.
+- `doc/label_print_modify.txt` preflight 계약 편집 완료: 모든 unit의 projection/materialize/build/group payload를 첫 OS call 전에 완성하고 하나라도 실패하면 accepted 0으로 어떤 group도 보내지 않도록 pipeline·오류·테스트·완료 조건을 연결했다.
+- 독립 재검토: 네 계약이 본문·pipeline·테스트·완료 조건에 일치하며 실제 모순이나 빠진 검증 계약은 없음을 확인했다. 구현 표현 선택에 불과한 낮은 수준 항목은 추가하지 않았다.
+- 최종 검증: 새 row/wire/detail/result/preflight 계약 9곳 확인, 이전 반대 우선순위·통합 wire·부분 preflight 표현 0건, 두 문서 diagnostics 오류 0건, `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md` 통과. 문서만 변경해 Flutter test/analyze는 실행하지 않았다.
+- stage/commit 대상: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. 기존 사용자 `lib/core/app.dart`, `doc/label_print.txt` 변경은 제외한다.
+
 ### 완료 (2026-07-16): 라벨출력 결과·설정·SQL 계약 명확화
 - 사용자 요청: `doc/label_print_modify.txt` 재검토 권장안을 작업지시서에 병합한다.
 - 확정 기준: `DbCommitOutcomeUnknown`은 저장 실패로 단정하지 않고 원본 오류를 전달한다. PDF/RAW group API 결과는 group 전체 unit의 accepted/failed로 환산하며 page별 spooler 추적은 하지 않는다. 취소 결과는 기존 네 상태로 확정하고 별도 recovery state를 만들지 않는다.
