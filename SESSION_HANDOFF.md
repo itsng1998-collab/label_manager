@@ -8,6 +8,7 @@
 - 독립 재검토 보완: 미구현 코드 자체를 결함으로 보지 않고 실제 표현 위험만 반영했다. label clip을 `[0, width-rightMargin] x [0, height]`로 고정하고 방향별 source bounds와 빈 교집합 판정을 정의했으며, history parent 순서를 `(rowIndex, copyIndex)` key로 확정했다.
 - 최종 검증: 이전 master-key/최초 관리자 제외 및 backend 중복 회전 표현 0건, 새 핵심 계약 8곳 확인, 두 문서 diagnostics 오류 0건, `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md` 통과. 문서만 변경해 Flutter test/analyze는 실행하지 않았다.
 - stage/commit 대상: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. 기존 사용자 `lib/core/app.dart`, `doc/label_print.txt` 변경은 제외한다.
+- 작업지시서 권장안 커밋: `7e2df09 라벨출력 지시서 재검토 권장안 확정`.
 
 ### 완료 (2026-07-16): 라벨출력 기본 지시서 권장안 병합
 - 사용자 요청: `doc/label_print_modify.txt` 재검토에서 확인한 기본 구현 권장안을 병합하고 동작 선택 사항은 즉시 질문해 확정한다.
