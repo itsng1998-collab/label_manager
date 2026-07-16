@@ -1,3 +1,14 @@
+### 완료 (2026-07-16): 라벨출력 작업지시서 기본 구현 중심 정리
+- 사용자 요청: 자동 재검토가 printer/recovery 방어 계약을 과도하게 확장했으므로 `doc/label_print.txt`의 기본 구현 원칙에 맞춰 `doc/label_print_modify.txt`를 다시 정리한다.
+- 최우선 기준: 보완·예외 처리를 과도하게 하지 않고, SQL Server는 parameterized transaction의 오류 전달과 가능한 rollback까지만 수행하며, DB migration/DDL은 구현하지 않는다.
+- 이전 9차 검토 권장안과 manifest 손상/unsupported version 사용자 답변은 병합하지 않는다. durable manifest 자체를 기본 범위에서 제거하므로 해당 선택도 구현 계약에서 제외한다.
+- 수정 예정: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. hosted `printing`과 현재 `RawPrinterWin32`/공용 PDF·EZPL engine을 그대로 사용하고 local fork/native patch/job ID·AbortPrinter, JCS/checksum/generation/PID/watchdog/manual recovery/app-wide durable gate/commitUnknown 관리자 판정, DB fingerprint/schema capability/range lock, 정밀 256 MiB 산식을 제거한다. UI·공용 materialize/preview·레거시 row 설정·그룹 출력·취소·accepted 결과 기준 자동증가/이력·오류 전달/가능한 rollback만 유지한다.
+- `doc/label_print_modify.txt` 전체 재작성 완료: 기존 출력 API 반환 기준의 `accepted`, 메모리 busy/cancellation, 순서 보존 page-spec group, accepted unit 자동증가/이력 단일 transaction과 가능한 rollback을 기본 계약으로 정리했다.
+- `doc/label_print_modify.txt` 과도 계약 제거 완료: local printing fork/native patch, RAW job ID/abort, durable artifact/manifest/checksum/process recovery, timeout/watchdog, app-wide recovery gate, commit 판정/DB 재시도 UI, DB fingerprint/range lock과 정밀 memory 산식을 구현 범위에서 제외했다.
+- 편집 직후 검증: 문서 diagnostics 오류 0건. 제거 대상 용어는 4곳의 명시적 제외 문장에만 남았고, hosted `printing`/현재 `RawPrinterWin32`/11개 legacy field/메모리 busy/accepted unit/parameterized transaction/가능한 rollback/DB migration 금지 핵심 계약 24곳을 확인했다.
+- 최종 검증: 두 문서 diagnostics 오류 0건, native patch/JCS/checksum/process recovery/watchdog/commitUnknown/DB 재시도/AbortPrinter/256 MiB/fingerprint/range-lock 구현 계약 검색 0건, `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md` 통과. 변경량은 2개 문서 295 insertions/514 deletions이며 문서만 변경해 Flutter test/analyze는 실행하지 않았다.
+- stage/commit 대상: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. 기존 사용자 `lib/core/app.dart`, `doc/label_print.txt` 변경은 제외한다.
+
 ### 완료 (2026-07-16): 라벨출력 작업지시서 8차 권장안 병합
 - 사용자 요청: `doc/label_print_modify.txt` 재검토에서 확인한 8개 권장안을 병합하고 구현 의미가 달라지는 사항은 즉시 질문해 확정한다.
 - 사용자 확정: `RICH_COLUMNS`, `RICH_PRINT_CELLS`, `RICH_SAVE_IN_DB_CELLS` 값이나 컬럼명에 `|`가 포함되어도 레거시와 같이 escaping 없이 그대로 저장한다. 새 escaping이나 발행 전 구분자 차단은 추가하지 않는다.
