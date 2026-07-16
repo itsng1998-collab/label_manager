@@ -1,3 +1,15 @@
+### 완료 (2026-07-16): 라벨출력 방향·자동증가·브랜드 계약 확정
+- 사용자 요청: `doc/label_print_modify.txt` 재검토 권장안을 병합하고 사용자 확인 사항은 즉시 질문해 확정한다.
+- 사용자 확정: vertical은 page 좌상단 기준 source corner가 `TL→TR`, `TR→BR`, `BR→BL`, `BL→TL`로 이동하는 시각적 시계 방향 90도로 고정한다. backend별 angle 부호는 이 결과에 맞춘다.
+- 사용자 확정: 현재 label-size의 `TColumn` 중 `autoInc == true`가 하나라도 있으면 copies가 1 이상인 모든 출력 row를 레거시 자동증가 경로로 처리한다. 실제 값 변경과 DB update는 autoInc column에만 적용한다.
+- 수정 예정: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. API angle 대신 corner mapping을 공용 방향 기준으로 명시하고, label-size 전체 자동증가 분류와 copy별 이력, command의 immutable brand ID/name snapshot을 본문·pipeline·테스트·완료 조건에 연결한다. 별도 renderer, DB retry/lock/recovery/migration은 추가하지 않는다.
+- `doc/label_print_modify.txt` 방향 계약 편집 완료: `+math.pi/2` API 기준을 제거하고 page 좌상단 corner mapping을 시각적 시계 방향의 기준으로 확정했으며 backend별 부호와 preview/PDF/EZPL parity 테스트를 연결했다.
+- `doc/label_print_modify.txt` 자동증가·이력 계약 편집 완료: label-size에 autoInc column이 하나라도 있으면 모든 출력 row를 copy별 처리하고, 실제 변경/update는 autoInc column만 수행하도록 본문·DAO 테스트·완료 조건에 명시했다.
+- `doc/label_print_modify.txt` command 계약 편집 완료: immutable brand ID/name snapshot을 추가하고 status ID와 `RICH_BRAND_ID`/`RICH_BRAND_NAME`이 이 값만 사용하도록 pipeline·DAO 테스트에 연결했다.
+- 독립 재검토: 방향·자동증가·brand snapshot 계약의 본문, pipeline, 테스트, 완료 조건 사이 모순·누락 0건이다.
+- 최종 검증: 이전 `rotateBox(+pi/2)`/row별 자동증가/brand 없는 command 표현 0건, 새 핵심 계약 8곳 확인, 두 문서 diagnostics 오류 0건, `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md` 통과. 문서만 변경해 Flutter test/analyze는 실행하지 않았다.
+- stage/commit 대상: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. 기존 사용자 `lib/core/app.dart`, `doc/label_print.txt` 변경은 제외한다.
+
 ### 완료 (2026-07-16): 라벨출력 기본 지시서 재검토 권장안 병합
 - 사용자 요청: `doc/label_print_modify.txt` 재검토 권장안을 병합하고 사용자 확인 사항은 즉시 질문해 확정한다.
 - 사용자 확정: 레거시 관리자 이력 제외는 현재 Flutter에서 구분 가능한 `User.SYSTEM` 특수 로그인에만 적용한다. 일반 `SYSTEM_ADMIN_USER` grade 로그인은 이력을 기록하고, 현재 지원하지 않는 master-key 우회 로그인은 제외 대상으로 간주하지 않는다.

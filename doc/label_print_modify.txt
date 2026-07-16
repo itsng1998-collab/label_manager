@@ -71,7 +71,7 @@
 
 - copies가 1 이상인 row를 row 순서와 copy index 순서의 `LabelPrintUnit`으로 펼친다.
 - copies가 0인 row는 materialize, 출력, 자동증가와 이력에서 제외한다.
-- 자동증가가 있는 row는 copy index별 값으로 materialize한다.
+- 현재 label-size의 `TColumn` 중 `autoInc == true`가 하나라도 있으면 copies가 1 이상인 모든 row를 copy index별 값으로 materialize한다. 실제 값 변경은 `autoInc == true`인 column에만 적용한다.
 - 최종 physical page spec이 같은 인접 unit만 한 print group으로 묶고 unit 순서를 바꾸지 않는다.
 - group을 순서대로 출력하고 한 group이 실패하거나 사용자가 취소를 요청하면 다음 group을 보내지 않는다.
 - 이미 `accepted`된 group의 unit만 자동증가와 이력 저장 대상으로 삼는다.
@@ -181,7 +181,7 @@
 - label clip은 page 좌상단을 `(0, 0)`으로 한 `[0, widthMm - rightMarginMm] x [0, heightMm]` 사각형이며 extra area는 포함하지 않는다. horizontal source bounds는 content 원점에서 `sourceWidthMm x sourceHeightMm`, vertical source bounds는 같은 원점에서 회전 결과인 `sourceHeightMm x sourceWidthMm`다. 두 bounds의 가로 또는 세로 겹침 길이가 0 이하이면 교집합이 빈 것으로 판정한다.
 - 라벨출력 PDF builder는 source physical width/height로 image를 배치하고 row width/height에는 맞추지 않는다. 라벨출력 경로에서 `BoxFit.fill`을 사용하지 않는다. EZPL raster/bitmap fallback도 source physical 크기와 출력 DPI로 dot 크기를 계산하며 row label dot 크기로 `copyResize`하지 않는다. row 크기는 page와 clip에만 사용한다.
 - horizontal page는 기존처럼 `W x (H + extraArea)`다. 사용자 확정에 따라 vertical도 같은 page 크기를 유지하고 content만 시계 방향 90도로 한 번 회전한다. page width/height를 교환하지 않는다.
-- 방향 transform은 backend가 아니라 공용 physical layout이 소유한다. vertical은 현재 PDF `pw.Transform.rotateBox(angle: math.pi / 2)`의 content-box 회전을 기준으로 source를 한 번 회전한 뒤 같은 content 원점에 배치하고 label 영역으로 자른다. preview, PDF와 EZPL은 이 transform 결과를 사용하며 backend builder에서 다시 회전하지 않는다.
+- 방향 transform은 backend가 아니라 공용 physical layout이 소유한다. vertical의 시각적 시계 방향 90도는 page 좌상단 기준 source corner가 `TL→TR`, `TR→BR`, `BR→BL`, `BL→TL`로 이동하는 결과다. 회전 결과 bounds의 좌상단을 같은 content 원점에 배치하고 label 영역으로 자른다. preview, PDF와 EZPL은 backend 좌표계에 맞는 angle 부호로 이 결과를 만들며 backend builder에서 다시 회전하지 않는다.
 - 위 방향과 extra area 동작은 기존 `LabelSheetPrintOptions`/`LabelSheetPrintPageMetrics`를 공용 확장해 preview, PDF와 EZPL에 동일하게 적용한다.
 - 줄간격은 `FortuneOutputLayoutOptions` 같은 공용 출력 option으로 preview, PDF와 EZPL bitmap fallback에 동일하게 전달한다.
 - DPI는 현재 `RawPrinterWin32.queryPrinterDpi()`와 `PrinterProfile` fallback을 사용한다. 별도 native DPI API를 추가하지 않는다.
@@ -192,7 +192,7 @@
 다음 immutable DTO 또는 동등 구조만 둔다.
 
 - `LabelPrinterSnapshot`: 선택된 `Printer`와 표시용 name
-- `LabelPrintCommand`: label/customer/market/user, printer, 설정, row, column/content와 saved workbook snapshot
+- `LabelPrintCommand`: label/customer/brand/market/user, printer, 설정, row, column/content와 saved workbook snapshot. brand는 command 생성 시점의 immutable `brandId`와 `brandName`을 가진다.
 - `LabelPrintUnit`: item ID, row index, copy index와 materialize projection. 한 unit은 한 장이다.
 - `LabelPhysicalPageSpec`: PDF 또는 EZPL backend의 최종 page 크기와 필요한 DPI/media 값
 - `LabelPrintJobGroup`: 순서가 연속되고 page spec이 같은 unit 목록
@@ -279,12 +279,13 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 `LabelPrintHistoryDAO` 또는 동등 책임을 둔다.
 
 - 기존 `BM_RICH_PRINT_LOG`, `BM_RICH_STATUS`, `BM_RICH_STATUS_DATA`만 사용한다.
-- 자동증가 행은 accepted copy별 `printCount=1`, 일반 행은 accepted copies 합계 한 건으로 기록한다.
+- 이 절의 자동증가 행은 현재 label-size의 `TColumn` 중 `autoInc == true`가 하나라도 있을 때의 모든 출력 row다. 자동증가 행은 accepted copy별 `printCount=1`, autoInc column이 하나도 없는 label-size의 일반 행은 accepted copies 합계 한 건으로 기록한다.
 - `RICH_COLUMNS`, `RICH_PRINT_CELLS`, `RICH_SAVE_IN_DB_CELLS`는 레거시처럼 `주원료` 뒤 column order 값들을 `|`로 연결하고 trailing `|`를 남긴다. 값 안의 `|`도 레거시처럼 escaping하지 않는다.
 - `RICH_PRINT_CELLS`에는 실제 출력 projection, `RICH_SAVE_IN_DB_CELLS`에는 command 시작 시점의 DB 원본값을 기록한다.
 - 한 command에서 만들 history parent를 unit의 `(rowIndex, copyIndex)` 순서로 정렬한다. 자동증가 행은 accepted copy마다 해당 unit 순서 key의 parent 하나를 만들고, 일반 행은 accepted copies를 합쳐 가장 작은 accepted copy index의 unit 순서 key에 parent 하나를 둔다.
 - 단일 T-SQL batch에서 같은 customer의 기존 `MAX(RICH_STATUS_ORDER)`를 한 번 구하고 위 history parent 순서의 `ROW_NUMBER()`를 더해 연속 order를 배정한다. 고객 이력이 없으면 1부터 시작한다.
 - `RICH_STATUS_ID`는 `<customerId>-<brandId>-<order>`, `RICH_STATUS_DATA_ID`는 `<statusId>D<0-based columnOrderIndex>` 형식을 사용한다.
+- `RICH_BRAND_ID`, `RICH_BRAND_NAME`과 status ID의 brand ID는 command의 immutable brand snapshot만 사용한다. 출력 완료 후 전역 selected brand를 다시 읽거나 brand 조회 SELECT를 추가하지 않는다.
 - 사용자 확정에 따라 현재 Flutter에서 구분 가능한 `User.SYSTEM` 특수 로그인만 print log와 status/detail 이력에서 제외한다. 일반 `SYSTEM_ADMIN_USER` grade 로그인은 이력을 기록한다. 현재 Flutter에 없는 master-key 우회 로그인은 제외 대상으로 간주하지 않으며, 향후 해당 인증 경로를 구현할 때만 명시적인 session boolean을 추가한다. 자동증가 저장은 로그인 유형과 관계없이 accepted unit 기준으로 처리한다.
 - 여러 client/PC의 동시 order 충돌 방지는 이번 범위에 포함하지 않는다.
 
@@ -311,7 +312,7 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 ## 10. 발행 pipeline
 
 1. 메모리 busy flag를 원자적으로 설정해 같은 앱 instance의 중복 발행을 막는다.
-2. pending cell edit를 확정하고 현재 label/customer/market/user, printer, 설정, row, column/content와 saved workbook을 immutable command로 만든다.
+2. pending cell edit를 확정하고 현재 label/customer/brand/market/user, printer, 설정, row, column/content와 saved workbook을 immutable command로 만든다.
 3. 출력 행 존재, 전체 copies 1 이상, printer 선택, 저장 workbook과 숫자 설정, 유효 출력 폭과 source/label clip 교집합을 검증한다.
 4. row/copy 순서대로 unit과 자동증가 projection을 만든다. resolver 오류가 있으면 출력하지 않는다.
 5. 공용 materializer와 print job builder로 group payload를 만든다.
@@ -368,6 +369,7 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 - rightMargin/leftPush/topPush 기존 key 누락 시 `0.0` fallback과 round-trip
 - exact search와 중복 결과 순환
 - unit 순서, 같은 page spec 인접 group과 spec 변경 분리
+- label-size에 autoInc column이 하나라도 있을 때 모든 copies 1 이상 row의 copy별 projection
 - 자동증가 copy별 projection과 accepted 최대 copy index의 저장값
 - cancellation request와 busy 상태
 
@@ -378,7 +380,7 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 - 원본 workbook 불변
 - 저장 source viewport, source physical 크기 1:1 배치, clip, margin+push, 방향, extra area와 줄간격
 - row 크기가 달라도 PDF `BoxFit.fill`과 row 기준 EZPL `copyResize` 없이 source physical 크기를 유지
-- vertical은 page `W x (H+extraArea)`를 유지하고 공용 transform에서 content만 한 번 회전하며 preview/PDF/EZPL 결과가 동등함
+- vertical은 page `W x (H+extraArea)`를 유지하고 `TL→TR→BR→BL→TL` corner mapping으로 시계 방향 한 번 회전하며 preview/PDF/EZPL 결과가 동등함
 - PDF page 수와 EZPL `^P1` 수가 unit 수와 일치
 - 같은 page spec의 인접 unit은 한 dispatcher call, spec 변경은 순서가 유지된 별도 call
 - PDF true/false/exception과 RAW 성공/exception mapping
@@ -392,9 +394,10 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 - 자동증가 `(columnId,itemId)` update와 affected row 검증
 - `autoIncSave`별 마지막 출력값/다음 값
 - `autoIncSize/autoIncRange/autoIncZeroDel`, 자릿수 순환과 barcode check digit/time-barcode 재적용
-- history/status/detail의 자동증가 copy/일반 row 집계
+- autoInc column이 하나라도 있는 label-size의 모든 row는 accepted copy별 history, 하나도 없으면 row별 accepted copies 합계 history
 - 레거시 `|` wire와 projected/DB 원본 mapping
 - 단일 parameterized SQL batch의 `(rowIndex, copyIndex)` history parent 순서별 연속 customer status order, 첫 값 1과 status/detail ID 형식
+- command brand snapshot의 ID/name을 status ID와 `RICH_BRAND_ID`/`RICH_BRAND_NAME`에 사용하고 출력 후 전역 brand를 읽지 않음
 - `User.SYSTEM` 이력 제외, 일반 `SYSTEM_ADMIN_USER` grade와 일반 사용자 이력 저장
 - accepted unit이 없을 때 DB 작업 없음
 - 일부 accepted 후 transaction 성공/rollback
@@ -452,10 +455,12 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 - 검색은 발행 목록의 레거시 exact 대상만 선택하며 자동 발행하지 않는다.
 - 공용 printer 설정과 현재 hosted `printing`/PDF/EZPL/RAW engine을 재사용한다.
 - source physical 크기는 preview/PDF/EZPL에서 확대·축소 없이 유지되고 row 크기는 page와 clip에만 사용된다.
+- vertical content는 확정한 시계 방향 corner mapping으로 preview/PDF/EZPL에서 동일하게 출력된다.
 - 유효 출력 폭이 없거나 source가 label clip과 만나지 않으면 물리 출력 전에 차단된다.
 - 같은 최종 page spec의 인접 unit은 순서를 유지해 group 출력된다.
 - 취소 또는 group 실패 시 active call 결과를 보존하고 뒤 group을 보내지 않는다.
 - accepted unit만 자동증가와 기존 발행 이력 table에 한 transaction으로 저장된다.
+- label-size에 autoInc column이 하나라도 있으면 모든 출력 row의 accepted copy별 이력을 저장하고, brand 이력 값은 command snapshot을 사용한다.
 - SQL 오류를 context와 함께 사용자에게 전달하고 가능한 경우 rollback하며 자동 재출력하지 않는다.
 - DB migration, local printing fork, native plugin 개조, durable recovery 기능을 추가하지 않는다.
 - Windows desktop에서만 기능을 노출한다.
