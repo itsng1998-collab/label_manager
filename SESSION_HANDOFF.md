@@ -1,3 +1,18 @@
+### 완료 (2026-07-16): 라벨출력 지원 profile backend 판정 통일
+- 사용자 요청: `doc/label_print_modify.txt` 재검토 권장안 1건을 작업지시서에 병합하고 사용자 확인 사항이 있으면 즉시 질문해 확정한다.
+- 확정 기준: 현재 RAW 출력 지원 profile은 실제 builder가 있는 `PrinterLanguage.ezpl`뿐이다. EZPL profile이면서 port가 일반 값 또는 `null`이면 RAW, EZPL이라도 명시적인 `FILE:`/`PORTPROMPT:` port이면 PDF, `zpl`/`tspl`/`cpcl`/`rasterOnly` 등 현재 지원하지 않는 profile은 PDF로 정한다.
+- 확정 기준: 포괄적인 `PrinterProfile.canSendRaw`만으로 backend를 정하지 않으며 RAW build/send 실패 후 PDF 재전송은 하지 않는다.
+- 사용자 확인 사항: 없음. 현재 구현에는 EZPL builder만 있고 다른 printer language는 future placeholder이므로 기존 지원 범위에서 확정 가능하다.
+- 수정 예정: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. dispatcher·snapshot·pipeline·테스트·완료 조건을 통일하며 새 printer language 지원, native/plugin 변경, retry/recovery와 DB 변경은 추가하지 않는다.
+- `doc/label_print_modify.txt` 편집 완료: dispatcher 소유 규칙, `LabelPrinterSnapshot`, dispatch, pipeline, materialize/print 테스트와 완료 조건을 `EZPL + 일반/null port = RAW`, 그 외 profile 또는 EZPL file port = PDF로 통일하고 `canSendRaw` 단독 판정을 금지했다.
+- `SESSION_HANDOFF.md` 편집 완료: 이번 병합의 확정 기준과 파일별 진행 상태를 기록했다.
+- 검증 예정: 두 문서 diagnostics, 이전 `명시적인 file port만` 표현과 새 profile/port/backend 계약 검색, 독립 재검토, `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md`. 문서만 변경하므로 Flutter test/analyze는 실행하지 않는다.
+- 독립 재검토: 새 backend 판정의 3.2·snapshot·dispatch·pipeline·테스트·완료 조건 사이 실제 모순, 구현 불가능성, 빠진 필수 검증 0건이다. 제기된 별도 저장 port와 조회 port 충돌 후보는 현재 `PrinterProfile`에 port 필드가 없고 `queryPrinterPortName()` 결과만 사용하는 코드 구조이므로 제외했다.
+- 검증 실행 직전: 두 문서 diagnostics 오류 0건, 이전 `명시적인 file port만 PDF` 표현 0건, 새 profile/port/backend 계약 6곳을 확인했다. 이제 대상 diff와 `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md`를 최종 확인한다.
+- 최종 검증: 두 문서 diagnostics 오류 0건, 이전 축소 backend 표현 0건, 새 계약 6곳 확인, 독립 재검토 문제 0건, `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md` 통과. 문서만 변경해 Flutter test/analyze는 실행하지 않았다.
+- stage/commit 대상: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. 기존 사용자 `lib/core/app.dart` 변경은 제외하고 `git commit --only`를 사용한다.
+- 작업지시서 지원 profile backend 판정 계약 커밋: `7aff0bb 라벨출력 프린터 지원 판정 명확화`.
+
 ### 완료 (2026-07-16): 라벨출력 줄간격 적용·자동증가 affected row 기준 명확화
 - 사용자 요청: `doc/label_print_modify.txt` 재검토 권장안 2건을 작업지시서에 병합하고 사용자 확인 사항이 있으면 즉시 질문해 확정한다.
 - 확정 기준: 줄간격 `null`은 저장 workbook의 기존 cell/inline line-height를 그대로 사용하고, 30~300 percent는 원본 workbook을 변경하지 않은 출력 layout에서 기존 line-height에 곱하지 않고 effective text line-height multiplier를 `percent / 100`으로 덮어쓴다. 명시적 100은 1.0 덮어쓰기이며 `null`과 구분한다.
