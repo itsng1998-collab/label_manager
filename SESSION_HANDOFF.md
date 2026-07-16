@@ -9,6 +9,7 @@
 - 독립 재검토: 방향·자동증가·brand snapshot 계약의 본문, pipeline, 테스트, 완료 조건 사이 모순·누락 0건이다.
 - 최종 검증: 이전 `rotateBox(+pi/2)`/row별 자동증가/brand 없는 command 표현 0건, 새 핵심 계약 8곳 확인, 두 문서 diagnostics 오류 0건, `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md` 통과. 문서만 변경해 Flutter test/analyze는 실행하지 않았다.
 - stage/commit 대상: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. 기존 사용자 `lib/core/app.dart`, `doc/label_print.txt` 변경은 제외한다.
+- 작업지시서 계약 확정 커밋: `ba2dbab 라벨출력 방향 자동증가 브랜드 계약 확정`.
 
 ### 완료 (2026-07-16): 라벨출력 기본 지시서 재검토 권장안 병합
 - 사용자 요청: `doc/label_print_modify.txt` 재검토 권장안을 병합하고 사용자 확인 사항은 즉시 질문해 확정한다.
