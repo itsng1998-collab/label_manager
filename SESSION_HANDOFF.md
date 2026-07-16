@@ -1,3 +1,19 @@
+### 완료 (2026-07-16): 라벨출력 이력 시각 형식과 projected column wire 명확화
+- 사용자 요청: `doc/label_print_modify.txt` 재검토 권장안 2건을 작업지시서에 병합하고 사용자 확인 사항이 있으면 즉시 질문해 확정한다.
+- 사용자 확인 결과: 같은 단일 SQL `@historyAt`을 사용하되 status `RICH_PRINT_DATE`는 레거시 `yyyy-MM-dd HH:mm:ss.` + `%02d(second * 10)` 문자열을 재현한다. print log `RICH_DATETIME`은 `@historyAt` 직접값, 두 `RICH_DATE_YYYYMMDD`는 style 112를 사용한다.
+- 확정 기준: `RICH_PRINT_CELLS`와 status detail은 unit의 TColumn별 projected data string을 사용한다. 자동증가/check digit/time-barcode와 일반 날짜·시간 projection은 포함하되 QR/GS1 resolver 결과, barcode 표시 text, workbook object metadata와 image `src`는 제외한다.
+- 사용자 확인 사항: 이력 시각 형식은 위와 같이 확정 완료. projected column wire는 레거시 row cell wire와 기존 copy별 projection 계약으로 단일하게 확정 가능하다.
+- 수정 예정: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. DTO·materialize·발행 이력·model/DAO 테스트·완료 조건을 정리하며 DB 조회·retry/recovery, migration과 별도 예외 처리는 추가하지 않는다.
+- `doc/label_print_modify.txt` 편집 완료: unit의 TColumn별 직접 projected data와 renderer 파생 payload를 DTO·materialize·pipeline·이력 wire/status detail·model/DAO 테스트·완료 조건에서 분리하고, 단일 `@historyAt`의 `RICH_DATETIME` 직접값·두 style 112 날짜·레거시 `RICH_PRINT_DATE` suffix를 발행 이력·DAO 테스트·완료 조건에 연결했다.
+- `SESSION_HANDOFF.md` 편집 완료: 사용자 선택과 파일별 변경 범위를 기록했다.
+- 검증 예정: 두 문서 diagnostics, projected TColumn data/renderer 제외 계약과 `@historyAt`/`second * 10` suffix 사례 검색, 독립 재검토, `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md`. 문서만 변경하므로 Flutter test/analyze는 실행하지 않는다.
+- 1차 검증: 두 문서 diagnostics 오류 0건, projected data 계약 8곳과 이력 시각 형식 3곳 확인, `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md` 통과. 독립 재검토에서 DTO·materializer·pipeline·이력·테스트·완료 조건 사이 모순, 빠진 필수 검증과 SQL 제약 위반 0건이다.
+- 최종 검증 예정: 전체 diff 확인 후 두 문서 diagnostics와 `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md`를 다시 실행한다.
+- 최종 diff 확인: 변경은 unit projected TColumn data/renderer payload 분리와 단일 `@historyAt`의 table별 시각 wire에 한정된다. 레거시 `AppendFormat("%02d", second * 1000 / 100)`은 문서의 최소 두 자리 `second * 10`과 일치한다.
+- 최종 검증 결과: 두 문서 diagnostics 오류 0건, `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md` 통과. 문서만 변경해 Flutter test/analyze는 실행하지 않았다.
+- stage/commit 대상: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. 기존 사용자 `lib/core/app.dart` 변경은 제외하고 `git commit --only`를 사용한다.
+- 작업지시서 이력 시각·projected column wire 계약 커밋: `792c6cd 라벨출력 이력 시각과 출력값 wire 명확화`.
+
 ### 완료 (2026-07-16): 라벨출력 SYSTEM 판정과 사용자 이력 mapping 명확화
 - 사용자 요청: `doc/label_print_modify.txt` 재검토 권장안 2건을 작업지시서에 병합하고 사용자 확인 사항이 있으면 즉시 질문해 확정한다.
 - 확정 기준: 이력 제외 대상 `User.SYSTEM`은 로그인 화면과 동일하게 immutable command의 user ID를 `equalsIgnoreCase`로 비교한다. `SYSTEM`/`system`은 모두 제외하고 일반 `SYSTEM_ADMIN_USER` grade는 이력을 기록한다.
