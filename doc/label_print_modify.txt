@@ -111,7 +111,7 @@
    - 라벨출력 설정에는 printer, left/right/top margin, left/top push, 자동 줄간격, 추가 영역과 방향을 표시한다.
    - 공용 preference에 없는 `rightMargin`, `leftPush`, `topPush`는 같은 문자열 저장 방식으로 추가하고 기존 key가 없으면 `0.0`을 사용한다.
 4. 출력 dispatcher
-   - 현재 공용라벨의 printer 확인과 EZPL RAW/PDF 분기를 공용 service로 추출한다. 지원하지 않는 profile 또는 file port를 발행 전에 PDF로 정하는 것만 capability fallback이며 RAW build/send 실패 후 PDF를 다시 보내는 동작은 재사용하지 않는다.
+   - 현재 공용라벨의 printer 확인과 EZPL RAW/PDF 분기를 공용 service로 추출한다. 지원하지 않는 profile 또는 명시적인 `FILE:`/`PORTPROMPT:` port를 발행 전에 PDF로 정하는 것만 capability fallback이며, port 조회 `null`은 file port가 아닌 것으로 본다. RAW build/send 실패 후 PDF를 다시 보내는 동작은 재사용하지 않는다.
    - dispatcher는 UI를 직접 표시하지 않고 성공 여부 또는 exception을 반환한다. PDF는 `directPrintPdf()` 반환값을 확인하고 group의 page format을 `format`으로 전달한다.
    - `RawPrinterWin32.sendRaw()`는 기존 API 형태를 유지하되 `EndDocPrinter` 반환값도 확인해 실패하면 exception을 던진다. job ID, `AbortPrinter`와 native plugin 변경은 추가하지 않는다.
 
@@ -132,10 +132,11 @@
 - 품목관리와 같은 `FortuneTable` 또는 공용 table style을 사용한다.
 - 품목 추가·삭제·Excel·저장 footer는 표시하지 않는다.
 - 발행매수와 숫자 출력 설정만 inline 편집한다. 라벨크기명과 품명은 읽기 전용이다.
+- 줄간격 cell은 `null`을 `0`으로 표시한다. 빈 값 또는 `0` commit은 `session edited null`, 30~300 정수 commit은 해당 `session edited` percent로 저장한다. 1~29, 301 이상과 비정수는 validation 오류로 commit하지 않는다. 명시적인 `100`은 `null`과 구분해 유지한다.
 - 품목관리 발행 체크가 바뀌면 item ID를 stable key로 목록을 동기화한다.
 - 남아 있는 행의 session edit와 현재 선택은 유지한다.
 - 체크 해제된 item의 row와 session edit는 즉시 폐기한다. 같은 item을 다시 체크하면 이전 edit를 복원하지 않고 현재 item baseline/override 또는 label-size/printer preference fallback으로 새 row를 초기화한다.
-- printer 설정 변경 시 현재 출력 목록의 모든 row를 순회하고 margin/push/line spacing 중 출처가 `preference fallback`인 field만 새 preference로 갱신한다. copies, width/height와 같은 row 안의 `item override`, `label-size fallback` 또는 `session edited` field는 유지한다.
+- printer 설정 적용 시 printer, `extraAreaMm`과 방향은 현재 label-print session의 command-wide 설정으로 갱신한다. 동시에 현재 출력 목록의 모든 row를 순회하고 margin/push/line spacing 중 출처가 `preference fallback`인 field만 새 preference로 갱신한다. copies, width/height와 같은 row 안의 `item override`, `label-size fallback` 또는 `session edited` field는 유지한다.
 
 ### 4.3 미리보기
 
@@ -148,7 +149,9 @@
 
 - 3.2의 configurable 공용 dialog를 라벨출력 mode로 사용한다. 별도 dialog와 field widget을 중복 작성하지 않는다.
 - 매수는 출력 작업 행이 소유하므로 dialog에 매수와 내부 발행 버튼을 두지 않는다.
-- 하단에는 `[취소] [적용]`만 둔다. `적용`은 설정을 저장하고 현재 출력 목록의 모든 row에서 margin/push/line spacing의 `preference fallback` field만 갱신할 뿐 출력하지 않는다. 현재 선택 행의 미리보기는 즉시 다시 만들고 다른 행은 선택될 때 새 값으로 만든다.
+- 하단에는 `[취소] [적용]`만 둔다. printer를 선택하지 않았으면 `[적용]`을 비활성화하고 preference 저장, command-wide session 설정 변경과 row 갱신을 하지 않는다.
+- printer를 선택한 뒤 `[적용]`하면 설정을 preference에 저장하고 현재 label-print session의 command-wide printer, `extraAreaMm`과 방향을 갱신한다. row에서는 margin/push/line spacing의 `preference fallback` field만 갱신할 뿐 출력하지 않는다. 현재 선택 행의 미리보기는 갱신한 command-wide 설정과 row 설정을 모두 사용해 즉시 다시 만들고 다른 행은 선택될 때 새 값으로 만든다.
+- `[취소]`는 dialog에서 바꾼 값의 preference 저장, command-wide session 설정 변경과 row 갱신을 모두 하지 않는다.
 - 화면 하단의 `[발행]`만 실제 출력 진입점이다.
 
 ## 5. 상태와 model
@@ -174,7 +177,7 @@
 - `widthMm`, `heightMm`: 양의 정수 mm
 - margin: 0 이상의 실수 mm
 - push: signed 실수 mm
-- 줄간격: `null` 또는 30~300 정수 percent. 공용 preference의 `none`과 레거시 fallback `0`은 `null`인 간격조정 없음으로 변환하고 명시적인 100은 유효한 100% 조정값으로 유지한다.
+- 줄간격: `null` 또는 30~300 정수 percent. 공용 preference를 load할 때 `none`과 레거시 fallback `0`은 `null`인 간격조정 없음으로 변환하고, save할 때 `null`은 `none`으로 직렬화한다. command와 공용 출력 option 내부에서는 간격조정 없음을 `null`로 유지하며 명시적인 100은 유효한 100% 조정값으로 보존한다.
 - 물리 출력 직전에 `widthMm - rightMarginMm > 0`인지 확인한다. 방향 transform까지 적용한 source physical bounds와 label clip의 교집합이 비면 설정 오류를 표시하고 발행하지 않는다.
 
 ### 5.2 물리 출력 계산
@@ -197,7 +200,7 @@
 
 다음 immutable DTO 또는 동등 구조만 둔다.
 
-- `LabelPrinterSnapshot`: 검증된 `Printer`, 표시용 name과 profile/port 확인으로 command 생성 전에 정한 단일 PDF 또는 EZPL RAW backend
+- `LabelPrinterSnapshot`: 검증된 `Printer`, 표시용 name과 profile/port 확인으로 command 생성 전에 정한 단일 PDF 또는 EZPL RAW backend. `queryPrinterPortName() == null`은 현재 `isFilePortName(null) == false` 계약대로 명시적인 file port가 아닌 것으로 판정한다.
 - `LabelPrintCommand`: `[발행]` 요청 시작 시 한 번 정한 `requestedAt`, label/customer/brand/market/user, printer, `extraAreaMm`과 방향을 포함한 설정, row, column/content와 saved workbook snapshot. brand는 command 생성 시점의 immutable `brandId`와 `brandName`을 가진다. `TColumn` snapshot은 `(columnOrder, columnId)` 오름차순으로 한 번 정렬하고 0부터 연속인 immutable `detailIndex`를 부여한다. 모든 snapshot은 출력 중 변경되지 않는다.
 - `LabelPrintUnit`: item ID, row index, copy index와 materialize projection. 한 unit은 한 장이다.
 - `LabelPhysicalPageSpec`: PDF 또는 EZPL backend의 최종 page 크기와 필요한 DPI/media 값
@@ -256,7 +259,7 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 
 - 선택 printer를 command 시작 시 snapshot하고 출력 도중 다시 선택하지 않는다.
 - command backend가 EZPL RAW이면 기존 EZPL builder와 `RawPrinterWin32.sendRaw()`를 사용한다.
-- 지원하지 않는 profile 또는 file port라 command backend가 PDF이면 기존 PDF builder와 `Printing.directPrintPdf()`를 사용한다.
+- 지원하지 않는 profile 또는 명시적인 `FILE:`/`PORTPROMPT:` port라 command backend가 PDF이면 기존 PDF builder와 `Printing.directPrintPdf()`를 사용한다. port 조회 결과가 `null`이면 file port로 간주하지 않으므로 EZPL profile은 RAW backend를 선택한다.
 - PDF document page와 `directPrintPdf(format:)`은 같은 group page format을 사용하고 반환값을 확인한다.
 - PDF는 `directPrintPdf() == true`, RAW는 group의 모든 unit을 담은 한 `sendRaw()` call이 `EndDocPrinter` 확인까지 exception 없이 완료되면 해당 group의 모든 unit을 `accepted`로 본다. PDF `false`/exception 또는 RAW exception이면 해당 group의 모든 unit을 `failed`로 본다. 현재 API가 제공하지 않는 group 내부 page/label별 결과는 추적하지 않는다.
 - EZPL build 오류는 첫 OS call 전 전체 preflight 실패로 처리하고 `sendRaw()` exception은 해당 group 실패로 처리한다. 두 경우 모두 PDF로 다시 만들거나 재전송하지 않는다.
@@ -338,7 +341,7 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 
 1. 메모리 busy flag를 원자적으로 설정해 같은 앱 instance의 중복 발행을 막고, 획득 직후 `[발행]` 요청의 현재 시각을 `requestedAt`으로 한 번 정한다. 탭 진입 시각이나 미리보기 생성 시각은 사용하지 않는다.
 2. 현재 UI/session 값을 candidate snapshot으로 읽고 출력 행 존재, 전체 copies 1 이상, printer 선택, 저장 workbook과 숫자 설정, 유효 출력 폭과 source/label clip 교집합을 command 생성 전에 검증한다. 실패하면 backend 조회나 command 생성을 하지 않고 물리 상태 `failed`, accepted 0, persistence `notAttempted`로 종료한다.
-3. 검증된 printer의 profile/port로 PDF 또는 EZPL RAW backend를 한 번 정하고 앞에서 저장한 `requestedAt`, label/customer/brand/market/user, printer/backend, 설정, row와 마지막 저장·조회 column/content baseline, saved workbook으로 immutable command를 만든다.
+3. 검증된 printer의 profile/port로 PDF 또는 EZPL RAW backend를 한 번 정한다. 명시적인 file port만 PDF capability fallback으로 처리하고 port 조회 결과가 `null`인 EZPL profile은 RAW를 선택한다. 앞에서 저장한 `requestedAt`, label/customer/brand/market/user, printer/backend, 설정, row와 마지막 저장·조회 column/content baseline, saved workbook으로 immutable command를 만든다.
 4. row/copy 순서대로 모든 unit과 자동증가 projection을 만든다.
 5. 모든 unit을 같은 `requestedAt`으로 공용 materializer와 command-wide backend의 print job builder에서 materialize하고 같은 physical page spec별 인접 group payload를 완성한다. 하나라도 resolver/decode/materialize/build 오류가 있으면 대상 item/copy/column을 표시하고 물리 상태 `failed`, accepted 0, persistence `notAttempted`로 종료하며 어떤 group도 보내지 않는다.
 6. group dispatch 직전에 cancellation을 확인하고 PDF 또는 RAW dispatcher를 순서대로 호출한다.
@@ -393,7 +396,8 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 - copies의 item baseline, width/height의 label-size fallback, margin/push/line spacing의 printer preference fallback과 각 session edit 출처 구분
 - preference 전체가 없을 때 printer 미선택, margin/push/extra area 0.0, 줄간격 null, horizontal과 label-size width/height fallback 초기값
 - copies 0 허용, 음수/비정수 거부와 전체 0 발행 차단
-- margin/push/크기와 nullable 줄간격 validation, preference `none`/레거시 `0`의 null 변환 및 명시적 100 유지
+- margin/push/크기와 nullable 줄간격 validation, 빈 값/`0` commit의 `session edited null`, 30~300 commit, 범위 밖·비정수 거부와 명시적 100 유지
+- 줄간격 preference load의 `none`/레거시 `0` → `null`, save의 `null` → `none` round-trip과 command/output option 내부 `null` 유지
 - `extraAreaMm` 0 이상과 horizontal/vertical 방향 validation, command 생성 후 설정 snapshot 불변
 - 오른쪽 유효 출력 폭 0 이하와 horizontal/vertical source bounds가 label clip 밖에 있는 margin/push 발행 차단
 - rightMargin/leftPush/topPush 기존 key 누락 시 `0.0` fallback과 round-trip
@@ -420,7 +424,7 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 - PDF page 수와 EZPL `^P1` 수가 unit 수와 일치
 - command-wide backend에서 같은 page spec의 인접 unit은 한 dispatcher call, spec이 바뀌면 순서가 유지된 별도 call
 - PDF true/false/exception과 RAW 성공/exception mapping
-- unsupported profile/file port의 발행 전 PDF capability fallback과 EZPL build/RAW send 실패 후 PDF 미재전송
+- unsupported profile와 명시적 `FILE:`/`PORTPROMPT:` port의 발행 전 PDF capability fallback, 일반 port/`null`의 EZPL RAW 판정과 EZPL build/RAW send 실패 후 PDF 미재전송
 - PDF/RAW group 결과를 group의 모든 unit accepted 또는 failed로 환산
 - PDF group format 전달과 RAW `EndDocPrinter` 실패 mapping
 - 첫 group 실패와 일부 group accepted 후 실패의 후속 전송 차단
@@ -468,7 +472,9 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 - `[프린터 설정] 프린터명 [발행]` 순서
 - 발행 중 취소 button과 중복 발행 차단
 - 설정 dialog의 항목, `[취소] [적용]`, 내부 발행/매수 없음
-- 설정 적용 시 모든 row에서 margin/push/line spacing의 preference fallback만 갱신하고 copies, label-size fallback과 item/session 값을 유지
+- printer 미선택 시 `[적용]` 비활성화와 preference/command-wide session/row 미변경
+- 설정 적용 시 command-wide printer/extra area/방향을 갱신하고 모든 row에서 margin/push/line spacing의 preference fallback만 갱신하며 copies, label-size fallback과 item/session 값을 유지
+- 설정 적용 후 선택 행 preview가 command-wide 설정과 row 설정을 모두 반영하고 `[취소]` 시 preference/command-wide session/row를 모두 유지
 - preference 전체 없음/저장 printer 제거 시 기존 공용 기본값과 printer 미선택 상태
 - 900x600과 일반 desktop viewport overflow 없음
 - non-Windows에서 tab/command 미노출
@@ -514,7 +520,8 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 - 발행 체크를 해제한 row의 session edit는 폐기되고 재체크하면 현재 field별 item baseline/override 또는 label-size/printer preference fallback으로 다시 초기화된다.
 - 행별 매수·크기·여백·밀기·줄간격이 레거시 우선순위로 초기화되고 session에서 편집된다.
 - 출력 row는 field별 item baseline/override 또는 label-size/printer preference fallback으로 초기화되고 라벨출력 session edit가 최종값이 되며 품목관리 미저장 draft를 사용하지 않는다.
-- 프린터 설정 적용은 모든 출력 row의 margin/push/line spacing 중 `preference fallback` 출처만 갱신하고 copies, width/height와 같은 row의 item override/label-size fallback/session edit는 유지한다.
+- 프린터 설정에서 printer 미선택이면 `[적용]`을 비활성화하고 아무 설정도 저장·갱신하지 않는다. 선택 후 적용하면 command-wide printer/extra area/방향과 모든 출력 row의 margin/push/line spacing 중 `preference fallback` 출처만 갱신하며 copies, width/height와 같은 row의 item override/label-size fallback/session edit는 유지한다.
+- 줄간격 inline UI는 `null`을 `0`으로 표시하고 빈 값/`0`을 `session edited null`로 commit하며, preference의 `none`/레거시 `0`과 내부 `null` round-trip에서 명시적 100을 보존한다.
 - 선택 행의 실제 출력 미리보기가 자동 표시되고 품목관리와 같은 materializer를 사용한다.
 - 검색은 발행 목록의 레거시 exact 대상만 선택하며 자동 발행하지 않는다.
 - 공용 printer 설정과 현재 hosted `printing`/PDF/EZPL/RAW engine을 재사용한다.
@@ -528,7 +535,7 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 - 첫 group 전 취소는 `cancelled`, 일부 accepted 후 취소는 `partiallyAccepted`, 모든 unit accepted 후 늦은 취소는 `completed`로 종료한다.
 - accepted unit에서 실제 자동증가 update 또는 이력 insert 대상이 있을 때만 필요한 작업을 한 transaction으로 저장하고, 둘 다 없으면 DB를 호출하지 않는다.
 - PDF/RAW API 결과는 group 전체 unit 단위로 accepted/failed에 반영되고 API가 제공하지 않는 page별 결과는 추적하지 않는다.
-- unsupported profile/file port만 발행 전 PDF capability fallback으로 처리하고 EZPL build 또는 RAW send 실패 뒤 PDF를 재전송하지 않는다.
+- unsupported profile과 명시적 `FILE:`/`PORTPROMPT:` port만 발행 전 PDF capability fallback으로 처리한다. port 조회 `null`은 file port가 아니므로 EZPL profile은 RAW를 선택하고, EZPL build 또는 RAW send 실패 뒤 PDF를 재전송하지 않는다.
 - label-size에 autoInc column이 하나라도 있으면 모든 출력 row의 accepted copy별 이력을 저장하고, brand 이력 값은 command snapshot을 사용한다.
 - 발행 이력의 column name, 출력 projection, 자동증가 미적용 DB baseline wire와 status detail column mapping이 레거시 순서를 따른다.
 - 기존 세 이력 table은 명시한 레거시 insert field만 command/row/history snapshot에서 채우며 새 schema를 가정하지 않는다.

@@ -1,3 +1,16 @@
+### 완료 (2026-07-16): 라벨출력 설정 UI·port null 계약 명확화
+- 사용자 요청: `doc/label_print_modify.txt` 재검토 권장안 3건을 작업지시서에 병합하고 사용자 확인 사항이 있으면 즉시 질문해 확정한다.
+- 확정 기준: 줄간격 inline UI에서 `null`은 `0`으로 표시하고 빈 값/`0` commit은 `session edited null`, 30~300 정수는 명시적 percent로 처리한다. preference는 `none`/레거시 `0`을 `null`로 load하고 `null`을 `none`으로 save한다.
+- 확정 기준: printer/extra area/방향은 command-wide session 설정이며 `[적용]` 시 갱신한다. printer 미선택이면 `[적용]`을 비활성화하고 저장·row 갱신을 하지 않으며, row에서는 margin/push/line spacing의 `preference fallback`만 갱신한다.
+- 확정 기준: `queryPrinterPortName() == null`은 현재 `isFilePortName(null) == false` 동작대로 명시적 file port가 아닌 것으로 보고 EZPL profile이면 RAW를 선택한다. 이후 RAW 실패는 group 실패이며 PDF로 재전송하지 않는다.
+- 수정 예정: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. 본문·model/command·dispatch·테스트·완료 조건을 함께 정리하며 DB migration, retry/recovery, spooler/native 변경은 추가하지 않는다.
+- `doc/label_print_modify.txt` 편집 완료: 줄간격 cell의 null 표시·commit validation과 preference `none` round-trip, command-wide printer/extra area/방향 적용·취소·미선택 동작, port `null`의 EZPL RAW 판정을 UI/model/DTO/dispatch/pipeline/테스트/완료 조건에 연결했다.
+- `SESSION_HANDOFF.md` 편집 완료: 이번 병합의 확정 기준과 파일별 진행 상태를 기록했다.
+- 검증 예정: 두 문서 diagnostics, 이전 포괄 file port/설정 적용/줄간격 변환 표현과 새 계약 검색, `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md`. 문서만 변경하므로 Flutter test/analyze는 실행하지 않는다.
+- 독립 재검토: 세 계약의 UI/model/DTO/dispatch/pipeline/테스트/완료 조건 사이 실제 모순, 구현 불가능성, 빠진 필수 검증 0건이다.
+- 최종 검증: 이전 포괄 file port/설정 적용/줄간격 변환 표현 0건, 새 계약 17개 위치 확인, 두 문서 diagnostics 오류 0건, `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md` 통과. 문서만 변경해 Flutter test/analyze는 실행하지 않았다.
+- stage/commit 대상: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. 기존 사용자 `lib/core/app.dart`, `doc/label_print.txt` 변경은 제외한다.
+
 ### 완료 (2026-07-16): 라벨출력 preflight·backend·줄간격 기본값 명확화
 - 사용자 요청: `doc/label_print_modify.txt` 재검토 권장안 4건을 작업지시서에 병합하고 사용자 확인 사항이 있으면 즉시 질문해 확정한다.
 - 확정 기준: `[발행]` busy 획득 시 `requestedAt`을 먼저 저장하되 printer와 입력을 검증하고 backend를 정한 뒤 immutable command를 만든다. backend는 command당 하나이며 지원 여부/file port에 따른 발행 전 PDF capability fallback만 허용하고 RAW build/send 실패 후 PDF 재출력은 하지 않는다.
