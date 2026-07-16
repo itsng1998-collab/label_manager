@@ -12,6 +12,7 @@
 - 최종 diff 검토 보완: commit 후 copies 대상 column은 출력 완료 시 전역 `TColumn`을 다시 읽지 않고 immutable command의 안정 정렬 snapshot에서 선택한 첫 `TYPE_PRINTCOUNT`로 고정했다.
 - 최종 검증: entry 미존재 계약 4곳, 두 baseline 저장소 동시 반영 5곳, command snapshot 기준 copies source 동기화 5곳을 확인했고 이전 단일 baseline/현재 전역 기준 표현은 제거했다. 두 문서 diagnostics 오류 0건, `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md` 통과. 문서만 변경해 Flutter test/analyze는 실행하지 않았다.
 - stage/commit 대상: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. 기존 사용자 `lib/core/app.dart` 변경과 이미 staged된 `doc/label_print.txt`는 제외하고 staged 상태를 보존하기 위해 `git commit --only`를 사용한다.
+- 작업지시서 셀 부재·baseline 저장소·copies 동기화 계약 커밋: `8c5819c 라벨출력 기준값 동기화 계약 명확화`.
 
 ### 완료 (2026-07-16): 라벨출력 줄간격·자동증가·commit 결과 계약 명확화
 - 사용자 요청: `doc/label_print_modify.txt` 재검토 권장안 3건을 작업지시서에 병합하고 사용자 확인 사항이 있으면 즉시 질문해 확정한다.
