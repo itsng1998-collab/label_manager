@@ -89,14 +89,14 @@ String itemCodeTokenColumnValue({
   required ItemCodeColumnSpec column,
   required List<ItemCodeColumnSpec> columns,
   required String Function(int columnId) columnValue,
-  DateTime Function()? now,
+  required DateTime referenceAt,
 }) {
   final raw = columnValue(column.columnId);
   if (column.typeCode != TColumnType.TYPE_VALIDDATE) return raw;
   final offset = int.tryParse(raw.trim());
   if (offset == null) return raw;
 
-  final current = (now ?? DateTime.now)();
+  final current = referenceAt;
   var baseDate = DateTime(current.year, current.month, current.day);
   for (final candidate in columns) {
     if (candidate.typeCode != TColumnType.TYPE_MAKEDATE) continue;

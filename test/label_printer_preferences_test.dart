@@ -1,5 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:label_manager/printing/label_printer_preferences.dart';
+import 'package:label_manager/models/label_print.dart';
+import 'package:label_manager/widgets/label_print_settings_dialog.dart';
 import 'package:printing/printing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -27,7 +29,10 @@ void main() {
       const LabelSheetPreferredPrintSettings(
         printerName: 'Godex G500',
         leftMargin: '1.5',
+        rightMargin: '1.75',
         topMargin: '2.5',
+        leftPush: '-0.5',
+        topPush: '0.75',
         autoSpacing: '120',
         extraArea: '3.5',
         orientation: 'vertical',
@@ -43,17 +48,49 @@ void main() {
     expect(loaded, isNotNull);
     expect(loaded!.printerName, 'Godex G500');
     expect(loaded.leftMargin, '1.5');
+    expect(loaded.rightMargin, '1.75');
     expect(loaded.topMargin, '2.5');
+    expect(loaded.leftPush, '-0.5');
+    expect(loaded.topPush, '0.75');
     expect(loaded.autoSpacing, '120');
     expect(loaded.extraArea, '3.5');
     expect(loaded.orientation, 'vertical');
+  });
+
+  test('label print settings snapshot loads all physical fields', () async {
+    SharedPreferences.setMockInitialValues(<String, Object>{
+      labelSheetPreferredPrinterNamePrefsKey: 'Godex G500',
+      labelSheetPreferredPrintLeftMarginPrefsKey: '1.5',
+      labelSheetPreferredPrintRightMarginPrefsKey: '2.5',
+      labelSheetPreferredPrintTopMarginPrefsKey: '3.5',
+      labelSheetPreferredPrintLeftPushPrefsKey: '-1.25',
+      labelSheetPreferredPrintTopPushPrefsKey: '0.75',
+      labelSheetPreferredPrintAutoSpacingPrefsKey: '125',
+      labelSheetPreferredPrintExtraAreaPrefsKey: '4.5',
+      labelSheetPreferredPrintOrientationPrefsKey: 'vertical',
+    });
+
+    final loaded = await loadLabelPrintSettingsSnapshot();
+
+    expect(loaded.printerName, 'Godex G500');
+    expect(loaded.leftMarginMm, 1.5);
+    expect(loaded.rightMarginMm, 2.5);
+    expect(loaded.topMarginMm, 3.5);
+    expect(loaded.leftPushMm, -1.25);
+    expect(loaded.topPushMm, 0.75);
+    expect(loaded.lineSpacingPercent, 125);
+    expect(loaded.extraAreaMm, 4.5);
+    expect(loaded.orientation, LabelPrintOrientation.vertical);
   });
 
   test('missing preferred printer is removed while loading', () async {
     SharedPreferences.setMockInitialValues(<String, Object>{
       labelSheetPreferredPrinterNamePrefsKey: 'Missing Printer',
       labelSheetPreferredPrintLeftMarginPrefsKey: '1.5',
+      labelSheetPreferredPrintRightMarginPrefsKey: '1.75',
       labelSheetPreferredPrintTopMarginPrefsKey: '2.5',
+      labelSheetPreferredPrintLeftPushPrefsKey: '-0.5',
+      labelSheetPreferredPrintTopPushPrefsKey: '0.75',
       labelSheetPreferredPrintAutoSpacingPrefsKey: '120',
       labelSheetPreferredPrintExtraAreaPrefsKey: '3.5',
       labelSheetPreferredPrintOrientationPrefsKey: 'vertical',
@@ -69,7 +106,10 @@ void main() {
     expect(loaded, isNull);
     expect(prefs.getString(labelSheetPreferredPrinterNamePrefsKey), isNull);
     expect(prefs.getString(labelSheetPreferredPrintLeftMarginPrefsKey), isNull);
+    expect(prefs.getString(labelSheetPreferredPrintRightMarginPrefsKey), isNull);
     expect(prefs.getString(labelSheetPreferredPrintTopMarginPrefsKey), isNull);
+    expect(prefs.getString(labelSheetPreferredPrintLeftPushPrefsKey), isNull);
+    expect(prefs.getString(labelSheetPreferredPrintTopPushPrefsKey), isNull);
     expect(prefs.getString(labelSheetPreferredPrintAutoSpacingPrefsKey), isNull);
     expect(prefs.getString(labelSheetPreferredPrintExtraAreaPrefsKey), isNull);
     expect(prefs.getString(labelSheetPreferredPrintOrientationPrefsKey), isNull);

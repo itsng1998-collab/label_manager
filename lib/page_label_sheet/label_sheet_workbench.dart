@@ -20,6 +20,7 @@ import 'package:label_manager/page_label_sheet/label_sheet_rtf_import.dart';
 import 'package:label_manager/page_label_sheet/label_sheet_save_codec.dart';
 import 'package:label_manager/page_label_sheet/label_sheet_xlsx_import.dart';
 import 'package:label_manager/printing/label_sheet_print_job.dart';
+import 'package:label_manager/printing/label_print_dispatcher.dart';
 import 'package:label_manager/printing/label_printer_preferences.dart';
 import 'package:label_manager/printing/printer_profiles.dart';
 import 'package:label_manager/printing/raw_printer_win32.dart';
@@ -1741,6 +1742,7 @@ class LabelSheetWorkbench extends StatefulWidget {
     this.onSheetDialogClosed,
     this.printerListProvider,
     this.imageImportController,
+    this.outputCaptureController,
     this.onWorkbookChanged,
     this.onUserWorkbookChanged,
     this.onUserWorkbookChangedShouldNotify,
@@ -1777,6 +1779,7 @@ class LabelSheetWorkbench extends StatefulWidget {
   final VoidCallback? onSheetDialogClosed;
   final LabelPrinterListProvider? printerListProvider;
   final LabelSheetImageImportController? imageImportController;
+  final LabelSheetOutputCaptureController? outputCaptureController;
   final ValueChanged<FortuneWorkbook>? onWorkbookChanged;
   final ValueChanged<FortuneWorkbook>? onUserWorkbookChanged;
   final bool Function(FortuneWorkbook previous, FortuneWorkbook current)?
@@ -1824,6 +1827,44 @@ class LabelSheetImageImportController {
     if (_state == state) {
       _state = null;
     }
+  }
+}
+
+class LabelSheetOutputCapture {
+  const LabelSheetOutputCapture({
+    required this.pngBytes,
+    required this.sheet,
+    required this.range,
+    required this.sourceWidthMm,
+    required this.sourceHeightMm,
+  });
+
+  final Uint8List pngBytes;
+  final FortuneSheet sheet;
+  final FortuneRange range;
+  final double sourceWidthMm;
+  final double sourceHeightMm;
+}
+
+class LabelSheetOutputCaptureController {
+  _LabelSheetWorkbenchState? _state;
+
+  bool get isAttached => _state != null;
+
+  Future<LabelSheetOutputCapture?> capture({
+    required double dpi,
+    required int? lineSpacingPercent,
+  }) =>
+      _state?._captureOutput(
+        dpi: dpi,
+        lineSpacingPercent: lineSpacingPercent,
+      ) ??
+      Future<LabelSheetOutputCapture?>.value();
+
+  void _attach(_LabelSheetWorkbenchState state) => _state = state;
+
+  void _detach(_LabelSheetWorkbenchState state) {
+    if (_state == state) _state = null;
   }
 }
 
@@ -2004,6 +2045,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     super.initState();
     _isDirty = widget.initialDirty;
     widget.imageImportController?._attach(this);
+    widget.outputCaptureController?._attach(this);
     _zoomFocusNode
       ..addListener(_handleZoomFocusChanged)
       ..onKeyEvent = _handleZoomInputKeyEvent;
@@ -2013,6 +2055,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
   @override
   void dispose() {
     widget.imageImportController?._detach(this);
+    widget.outputCaptureController?._detach(this);
     _removeZoomToolbarFloatingOverlay();
     if (_rtfSnackBarVisible) {
       _rtfSnackBarVisible = false;
@@ -2042,6 +2085,10 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     if (oldWidget.imageImportController != widget.imageImportController) {
       oldWidget.imageImportController?._detach(this);
       widget.imageImportController?._attach(this);
+    }
+    if (oldWidget.outputCaptureController != widget.outputCaptureController) {
+      oldWidget.outputCaptureController?._detach(this);
+      widget.outputCaptureController?._attach(this);
     }
     if (oldWidget.zoomToolbarPlacement != widget.zoomToolbarPlacement &&
         widget.zoomToolbarPlacement !=
@@ -2504,6 +2551,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       return;
     }
 
+
     final options = _currentPrintOptions();
     final dpi = await _printDpiForPrinter(printer);
     final capture = await _controller.captureRangeAsPng(
@@ -2513,6 +2561,9 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       includeCellBorders: true,
       includeRulerGuides: false,
       includeLabelAreaBoundary: false,
+      outputLineHeightMultiplier: options.autoSpacingPercent == null
+          ? null
+          : options.autoSpacingPercent! / 100,
     );
     if (!mounted) {
       return;
@@ -2535,44 +2586,71 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       options: options,
     );
     final profile = detectPrinterProfile(printer);
-    var printed = false;
-    final rawPortName = profile.canSendRaw
+    final rawPortName = Platform.isWindows
       ? await RawPrinterWin32.queryPrinterPortName(printer)
       : null;
     final filePort = RawPrinterWin32.isFilePortName(rawPortName);
-    if (profile.canSendRaw &&
-      profile.language == PrinterLanguage.ezpl &&
-      !filePort) {
-      try {
-        final ezplBytes = await buildLabelSheetHybridEzplBytes(
-          sheet: sheet,
-          range: _labelSheetPrintRange(sheet, physicalSize),
-          fallbackPngBytes: capture.pngBytes,
-          metrics: metrics,
-          options: options,
-        );
-        await RawPrinterWin32.sendRaw(printer, ezplBytes);
-        printed = true;
-      } catch (error) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('EZPL 출력 실패, 일반 인쇄창으로 전환합니다: $error')),
-          );
-        }
-      }
-    }
+    final backend = resolveLabelPrintBackend(
+      language: profile.language,
+      portName: rawPortName,
+    );
     if (filePort && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('파일 포트 프린터는 일반 인쇄로 전환합니다.')),
       );
     }
-    if (printed || !mounted) {
+    if (!mounted) {
       return;
     }
-    await Printing.directPrintPdf(
+    if (backend == LabelPrintBackend.ezplRaw) {
+      final ezplBytes = await buildLabelSheetHybridEzplBytes(
+        sheet: sheet,
+        range: _labelSheetPrintRange(sheet, physicalSize),
+        fallbackPngBytes: capture.pngBytes,
+        metrics: metrics,
+        options: options,
+      );
+      await RawPrinterWin32.sendRaw(printer, ezplBytes);
+      return;
+    }
+    final accepted = await Printing.directPrintPdf(
       printer: printer,
       name: 'ITSnG_Label_${DateTime.now().millisecondsSinceEpoch}',
       onLayout: (_) async => pdfBytes,
+    );
+    if (!accepted) {
+      throw StateError('프린터가 인쇄 요청을 접수하지 않았습니다.');
+    }
+  }
+
+  Future<LabelSheetOutputCapture?> _captureOutput({
+    required double dpi,
+    required int? lineSpacingPercent,
+  }) async {
+    final sheet = _controller.getSheet();
+    final physicalSize = sheet == null
+        ? null
+        : fortuneSheetGridClientPhysicalSize(sheet);
+    if (sheet == null || physicalSize == null) return null;
+    final range = _labelSheetPrintRange(sheet, physicalSize);
+    final capture = await _controller.captureRangeAsPng(
+      range,
+      pixelRatio: dpi / fortuneSheetLogicalPixelsPerInch,
+      includeGridLines: false,
+      includeCellBorders: true,
+      includeRulerGuides: false,
+      includeLabelAreaBoundary: false,
+      outputLineHeightMultiplier: lineSpacingPercent == null
+          ? null
+          : lineSpacingPercent / 100,
+    );
+    if (capture == null) return null;
+    return LabelSheetOutputCapture(
+      pngBytes: capture.pngBytes,
+      sheet: sheet,
+      range: range,
+      sourceWidthMm: physicalSize.widthMm.toDouble(),
+      sourceHeightMm: physicalSize.heightMm.toDouble(),
     );
   }
 

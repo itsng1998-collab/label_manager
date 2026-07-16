@@ -1,3 +1,80 @@
+### 진행 중 (2026-07-16): 라벨출력 작업지시서 구현
+- 사용자 요청: `doc/label_print_modify.txt`와 §14 구현 순서대로 Windows 라벨출력 기능을 구현한다.
+- 구현 원칙: 과도한 보완 없이 기존 공용 API를 확장하고, SQL Server는 원본 오류 전달과 가능한 rollback까지만 사용하며 DB migration·재조회·retry/recovery를 추가하지 않는다. 기존 사용자 `lib/core/app.dart` 변경은 유지하고 stage/commit에서 제외한다.
+- 최종 점검 진행 중: formatter 후 관련 테스트 41건 통과, Dart diagnostics 오류 0건, `git diff --check` 통과. 테스트 산출물 `third_party/fortune_sheet/build`은 삭제했다.
+- 보완 예정: 발행 busy를 label-size/context reload 공용 guard에 포함하고 PDF 출력에 right margin 및 label-height 명시 clip을 적용한다.
+- 보완 편집 완료: `lib/home_page_manager.dart`의 context guard가 label-print busy를 우선 차단하고 강제 label-size reload도 원래 session을 유지한다. `lib/printing/label_sheet_print_job.dart`의 단일/복수 PDF가 공용 `ClipRect`로 right margin과 label-height를 자른다.
+- 보완 검증 완료: 관련 diagnostics 오류 0건, label sheet print job/session focused test 10건 통과.
+- 취소·이력 판정 보완: 첫 OS 호출 전 취소 안내, 모든 unit 접수 후 늦은 취소의 completed 판정, trim 없는 case-insensitive exact `SYSTEM` 이력 제외를 구현하고 focused test를 추가한다.
+- 미리보기 보완 예정: 대화형 label-print preview는 명시적 `previewAt`으로 copy index 0 projected column map을 만들고, 실제 발행 capture는 command `requestedAt`을 materializer 전체에 전달한다.
+- 미리보기 보완 완료: `lib/home_page_manager.dart`가 대화형 copy-0 projected map과 단일 `previewAt`을 사용하고 발행 capture에는 command `requestedAt`을 고정한다. 관련 diagnostics 오류 0건, projection/resolver/pipeline focused test 17건 통과.
+- 전체 검증 예정: 변경 Dart 파일 formatter 후 `flutter analyze`, `flutter test`, `git diff --check`를 실행한다. 실제 Windows 프린터 수동 출력은 자동 검증 범위 밖으로 남긴다.
+- 전체 정적 분석 완료: `flutter analyze` 성공, 73.5초, issues 0건.
+- 전체 테스트 실행 예정: `flutter test`.
+- 전체 테스트 결과: 3409 passed, 8 failed. 실패는 기존 date setup dialog 2건, item order dialog 1건, fortune_sheet golden/interaction 5건이며 실패 항목 개별 재실행에서도 동일하게 재현됐다. 라벨출력 관련 focused test는 통과 상태다.
+- 줄간격 UI 보완 예정: 빈 문자열과 `0`을 `session edited null`, 30~300을 명시 값으로 parsing하고 그 밖의 값은 validation 오류로 유지한다.
+- 줄간격 UI 보완 완료: parser 단위 테스트 6건 통과, diagnostics 오류 0건. 설정 dialog의 줄간격 단위는 `%`로 표시한다.
+- 플랫폼 범위 보완: `label_print` 탭은 `Platform.isWindows`에서만 생성한다.
+- 최종 focused 검증 완료: 라벨출력 model/pipeline/persistence/dispatcher/preferences/print job, FortuneTable, item resolver, RAW printer, fortune_sheet print capture 묶음 92건 통과.
+- 최종 검증 완료: 최신 수정 포함 `flutter analyze` issues 0, `git diff --check` 통과.
+- 임시 산출물 정리 완료: 테스트가 생성한 `third_party/fortune_sheet/build` 삭제.
+- stage/commit 대상: 라벨출력 구현·관련 테스트·fortune_sheet 캡처 API·이 문서. 사용자 변경 `lib/core/app.dart`는 제외한다.
+- 1단계 진행 중: 품목관리 발행 체크 controlled state와 label-print 전용 진입 gate를 구현한다.
+- 첫 수정 예정: `third_party/fortune_sheet/lib/src/fortune_table.dart`, `test/fortune_table_test.dart`. `FortuneTableEditingController.hasActiveEditing`을 editor open 또는 async commit 진행 중에만 true인 read-only 상태로 노출한다.
+- 첫 검증 예정: `flutter test test/fortune_table_test.dart --plain-name "FortuneTable editing controller waits for active commit"`.
+- 편집 완료: `third_party/fortune_sheet/lib/src/fortune_table.dart`의 `FortuneTableEditingController.hasActiveEditing`이 inline editor open 및 `_pendingTextCommit` 수명만 반영하도록 owner getter를 연결했다.
+- 테스트 추가: `test/fortune_table_test.dart`의 기존 editing controller 테스트에 idle/open/async commit/완료 상태 assertion을 추가했다.
+- 검증 완료: `flutter test test/fortune_table_test.dart --plain-name "FortuneTable editing controller waits for active commit"` 성공(1 passed).
+- 다음 수정 예정: `lib/page_home/item_manage.dart`의 `ItemManageController`에 `hasActiveEditing`과 안정 item ID 기반 `publishCheckedItemIds`를 read-only로 노출하고 기존 publish remap 테스트로 검증한다.
+- 편집 완료: `lib/page_home/item_manage.dart`의 `ItemManageController`가 `publishCheckedItemIds`와 `hasActiveEditing`을 read-only로 위임하고, `ItemManage.onPublishCheckedItemIdsChanged`가 checkbox·우클릭 controller 변경의 단일 listener에서 immutable item ID set을 통지한다.
+- 테스트 추가: `test/fortune_table_test.dart`의 publish deletion/remap 테스트가 controller getter, callback 및 draft session 교체 clear를 함께 검증한다.
+- 검증 완료: `flutter test test/fortune_table_test.dart --plain-name "ItemManage remaps publish checks by item id after deletion"` 성공(1 passed).
+- 다음 수정 예정: `lib/home_page_manager.dart`가 checked item ID set을 소유하고 `_blockLabelPrintTabSelection()`을 `label_print` target에만 기존 공용 gate보다 먼저 적용한다.
+- 편집 완료: `lib/home_page_manager.dart`가 `_publishCheckedItemIds`를 session state로 소유하고 label-size session clear/reload 때 초기화하며, `ItemManage` callback으로 immutable set을 동기화한다.
+- 편집 완료: `labelPrintTabSelectionBlocked()`와 `_blockLabelPrintTabSelection()`을 추가해 `label_print` target에서만 active editor·draft command busy·draft dirty를 기존 공용 context gate보다 먼저 판정하고 차단 시 items 탭 복원 및 지정 안내를 사용한다.
+- 테스트 추가: `test/fortune_table_test.dart`에 label-print 전용 gate의 idle 허용과 각 active 상태 차단 조건을 추가했다.
+- 검증 참고: VS Code `runTests`가 새 test와 파일 전체 모두 0건을 반환해 검증으로 인정하지 않았고, diagnostics에서 `setEquals` 미정의 1건을 확인해 기존 `collection`의 `SetEquality<int>`로 수정했다.
+- 검증 실행 예정: `flutter test test/fortune_table_test.dart --plain-name "label print tab gate blocks only active item editing states"`.
+- 검증 완료: `flutter test test/fortune_table_test.dart --plain-name "label print tab gate blocks only active item editing states"` 성공(1 passed).
+- 1단계 다음 수정 예정: 작업지시서 §2·§5의 출력 row/session model과 item ID 기반 checked 목록 동기화 규칙을 별도 model로 구현하고 focused unit test를 추가한다.
+- 편집 완료: `lib/models/label_print.dart`에 field별 `LabelPrintValueSource`, command-wide `LabelPrintSettingsSnapshot`, immutable `LabelPrintRowDraft`, baseline 순서/item ID 선택/edit 보존을 담당하는 `LabelPrintSessionController`를 추가했다.
+- 테스트 추가: `test/label_print_session_test.dart`가 baseline 순서, 남은 row session edit 보존, 체크 해제 후 edit 폐기와 재체크 초기화, item override/fallback 출처를 검증한다.
+- 검증 완료: `flutter test test/label_print_session_test.dart` 성공(2 passed).
+- 다음 수정 예정: `HomePageManager`에 `LabelPrintSessionController`를 연결하고 첫 `TYPE_PRINTCOUNT` column baseline parser를 적용한다.
+- 편집 완료: `lib/models/label_print.dart`의 `resolveLabelPrintCopies()`가 `(order,columnId)` 안정 정렬의 첫 `TYPE_PRINTCOUNT` 저장 cell을 우선하고 column 부재 시에만 `ItemOfMarket.printCount`를 사용한다.
+- 편집 완료: `lib/home_page_manager.dart`가 `LabelPrintSessionController` 생명주기를 소유하고 발행 체크 callback마다 현재 저장 baseline 순서/content로 출력 row를 동기화한다.
+- 검증 완료: `flutter test test/label_print_session_test.dart` 성공(2 passed), 변경된 model/HomePageManager diagnostics 오류 없음.
+- 편집 완료: `lib/page_home/item_manage.dart`가 draft 삭제 시 존재하지 않는 checked item ID를 제거하고 기존 단일 callback으로 상위에 통지한다.
+- 테스트 추가/검증 완료: publish remap 테스트가 체크된 삭제 품목 ID 제거를 포함하며 `flutter test test/fortune_table_test.dart --plain-name "ItemManage remaps publish checks by item id after deletion"` 성공(1 passed).
+- 1단계 완료: controlled 발행 체크, active-edit 상태, label-print target gate, 출력 row/session model이 연결됨.
+- 2단계 진행 중: 품목 미리보기 materializer를 `referenceAt` 필수 공용 API로 추출하고 읽기 전용 preview owner를 준비한다.
+- 편집 완료: `lib/page_home/item_code_data_resolver.dart`의 `itemCodeTokenColumnValue()`가 선택적 clock 대신 필수 `DateTime referenceAt`을 사용한다.
+- 편집 완료: `lib/home_page_manager.dart`의 QR viewer와 item output preview가 rebuild/요청당 `DateTime.now()`를 한 번 캡처해 모든 token projection에 전달한다.
+- 테스트 수정/검증 완료: `test/item_code_data_resolver_test.dart`의 고정 시각 valid-date 테스트가 필수 reference를 사용하며 focused test 성공(1 passed), 관련 diagnostics 오류 없음.
+- 다음 수정 예정: workbook private copy/keyword/image/barcode 함수군을 `lib/printing/label_output_materializer.dart` 공용 API로 추출하고 기존 preview 호출부를 교체한다.
+- 병렬 추출 참고: Explore agent는 편집 없이 제안만 반환해 코드에 반영하지 않았다. helper군은 element rich text/파일 이미지 의존을 유지한 채 단계적으로 이동한다.
+- 편집 완료: `lib/printing/label_printer_preferences.dart`의 공용 설정 DTO/load/save/cleanup에 문자열 `rightMargin`, `leftPush`, `topPush`와 prefs key를 추가했다.
+- 테스트 수정/검증 완료: `test/label_printer_preferences_test.dart`가 신규 설정 round trip과 missing-printer cleanup을 검증하며 전체 6 passed.
+- 편집 완료: `lib/printing/label_sheet_print_job.dart`에 source physical size, right margin, signed push와 `LabelSheetPrintLayout`을 추가했다. page 크기는 방향과 무관하게 유지하고 vertical은 source bounds만 회전하며 PDF는 `BoxFit.fill`을 제거했다.
+- 편집 완료: EZPL raster/hybrid fallback이 row label 크기 대신 source physical size와 DPI로 content bitmap을 만들고 공용 origin/clip을 사용한다. vertical fallback은 bitmap을 시계 방향 회전하며 중복 native overlay는 생성하지 않는다.
+- 테스트 추가/검증 완료: `test/label_sheet_print_job_test.dart`의 source-size/margin/push/right-clip 및 vertical page 유지 테스트 포함 전체 5 passed.
+- 다음 수정 예정: output-only line spacing override를 FortuneSheet render/capture option에 연결한다.
+- 편집 완료: `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`의 `captureRangeAsPng()`에 nullable output line-height multiplier를 추가했다. null은 cell/inline 저장 `lineHeight`를 보존하고 명시 값은 기존 값에 곱하지 않고 덮어쓴다.
+- 편집 완료: `lib/page_label_sheet/label_sheet_workbench.dart`가 print option의 nullable percent를 capture에 multiplier로 전달한다.
+- 테스트 추가/검증 완료: `third_party/fortune_sheet/test/fortune_print_capture_test.dart`의 null/100/200 helper test를 package 내부 CLI로 실행해 1 passed, 관련 diagnostics 오류 없음.
+- 편집 완료: `lib/widgets/label_output_preview.dart`에 materialized workbook 전용 읽기 전용 preview와 barcode warning/error 표시를 추출하고 기존 item output preview가 이를 사용한다.
+- 검증 완료: 기존 private active-sheet와 rich element replacement tests 2 passed, 관련 diagnostics 오류 없음.
+- 편집 완료: `lib/models/label_print.dart` session controller에 immutable row field update, item ID 선택과 trim/case-insensitive exact circular search를 추가했다.
+- 테스트 추가/검증 완료: `test/label_print_session_test.dart` search 순환 포함 전체 3 passed.
+- 편집 완료: `lib/page_home/label_print_page.dart`에 responsive FortuneTable 11열 목록, inline 숫자 validation/edit, 공용 preview 영역과 하단 printer command bar를 추가했다.
+- 편집 완료: `lib/home_page_manager.dart`의 `label_print` placeholder를 실제 `LabelPrintPage`로 교체하고 상단 검색을 품명 및 `searchPrint` 저장 column exact-match로 연결했다.
+- 테스트 수정/검증 완료: top search visibility test 1 passed, HomePageManager/LabelPrintPage diagnostics 오류 없음.
+- 진행 중 제한: `_openLabelPrintSettings`, `_issueLabelPrint`, `_cancelLabelPrint` callback은 다음 slice의 공용 dialog/dispatcher 연결 전 임시 빈 구현이며 완료로 간주하지 않는다.
+- 다음 수정 예정: 공용 print settings dialog를 label-print mode로 확장하고 settings snapshot 적용, 실제 PDF/EZPL dispatcher를 연결한다.
+- 자동증가 수정 예정: `lib/models/label_print_auto_increment.dart`, `test/label_print_auto_increment_test.dart`. 레거시 C `atoi`, 0 기반 copy index, range padding/zero deletion과 1회 overflow 감산을 순수 projection으로 고정한다.
+- 자동증가 편집 완료: `legacyAtoi()`와 `projectLabelAutoIncrement()`를 추가했다. 대상 suffix가 정확히 `"0"`이거나 C `atoi != 0`일 때만 적용하고 나머지는 원본 및 update 제외 상태를 반환하며 필수 `referenceAt` 입력을 유지한다.
+- 자동증가 테스트 추가/검증 완료: `test/label_print_auto_increment_test.dart`의 `"0"`/`"00"`/`"000"`/`"1A"`, whitespace/sign, copy index 0, zero padding 삭제와 1회 overflow 감산 사례 4건이 통과했고 관련 diagnostics 오류가 없다.
+
 ### 완료 (2026-07-16): 라벨출력 이력 시각 형식과 projected column wire 명확화
 - 사용자 요청: `doc/label_print_modify.txt` 재검토 권장안 2건을 작업지시서에 병합하고 사용자 확인 사항이 있으면 즉시 질문해 확정한다.
 - 사용자 확인 결과: 같은 단일 SQL `@historyAt`을 사용하되 status `RICH_PRINT_DATE`는 레거시 `yyyy-MM-dd HH:mm:ss.` + `%02d(second * 10)` 문자열을 재현한다. print log `RICH_DATETIME`은 `@historyAt` 직접값, 두 `RICH_DATE_YYYYMMDD`는 style 112를 사용한다.

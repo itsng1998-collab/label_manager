@@ -81,7 +81,7 @@ void main() {
           column: column,
           columns: columns,
           columnValue: value,
-          now: () => DateTime(2026, 1, 1),
+          referenceAt: DateTime(2026, 1, 1),
         ),
       );
 

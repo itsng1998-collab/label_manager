@@ -127,6 +127,9 @@ class FortuneTableFocusController extends ChangeNotifier {
 class FortuneTableEditingController {
   Object? _owner;
   Future<void> Function()? _commitEditing;
+  bool Function()? _hasActiveEditing;
+
+  bool get hasActiveEditing => _hasActiveEditing?.call() ?? false;
 
   Future<void> commitEditing() async {
     await _commitEditing?.call();
@@ -135,15 +138,18 @@ class FortuneTableEditingController {
   void _attach({
     required Object owner,
     required Future<void> Function() commitEditing,
+    required bool Function() hasActiveEditing,
   }) {
     _owner = owner;
     _commitEditing = commitEditing;
+    _hasActiveEditing = hasActiveEditing;
   }
 
   void _detach(Object owner) {
     if (!identical(_owner, owner)) return;
     _owner = null;
     _commitEditing = null;
+    _hasActiveEditing = null;
   }
 }
 
@@ -301,6 +307,8 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
     widget.editingController?._attach(
       owner: this,
       commitEditing: _commitAndWaitForTextEditing,
+      hasActiveEditing: () =>
+          _editingRowIndex != null || _pendingTextCommit != null,
     );
     _syncCheckboxControllerListeners(<FortuneTableColumn<T>>[]);
     _hScrollBody.addListener(_syncHorizontalFromBody);
@@ -351,6 +359,8 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
       widget.editingController?._attach(
         owner: this,
         commitEditing: _commitAndWaitForTextEditing,
+        hasActiveEditing: () =>
+            _editingRowIndex != null || _pendingTextCommit != null,
       );
     }
     widget.selectionController?.setSelectedRows(

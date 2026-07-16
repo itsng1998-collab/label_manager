@@ -435,6 +435,11 @@ class ItemManagerDraftController extends ChangeNotifier {
       _rows.any((row) => row.rowState == ItemManagerDraftRowState.imported);
   ItemManagerImportViewState? get importViewState => _importViewState;
 
+  void replaceBaselineColumnContents(TColumnContentScopedView value) {
+    scopedColumnContents = value;
+    notifyListeners();
+  }
+
   void discardChanges({
     int? selectedItemId,
     Iterable<String>? selectedRowKeys,

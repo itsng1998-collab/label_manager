@@ -142,12 +142,37 @@ void main() {
     await queue.wait();
   });
 
-  test('item manager search is visible only on the item tab', () {
+  test('top search is visible on item and label print tabs', () {
     expect(itemManagerSearchVisibleForTab('items'), isTrue);
     expect(itemManagerSearchVisibleForTab('common_label'), isFalse);
-    expect(itemManagerSearchVisibleForTab('label_print'), isFalse);
+    expect(itemManagerSearchVisibleForTab('label_print'), isTrue);
     expect(itemManagerSearchVisibleForTab('auto_update'), isFalse);
     expect(itemManagerSearchVisibleForTab(null), isFalse);
+  });
+
+  test('label print tab gate blocks only active item editing states', () {
+    expect(
+      labelPrintTabSelectionBlocked(
+        hasActiveEditing: false,
+        itemDraftCommandBusy: false,
+        itemDraftDirty: false,
+      ),
+      isFalse,
+    );
+    for (final blockedState in const [
+      (true, false, false),
+      (false, true, false),
+      (false, false, true),
+    ]) {
+      expect(
+        labelPrintTabSelectionBlocked(
+          hasActiveEditing: blockedState.$1,
+          itemDraftCommandBusy: blockedState.$2,
+          itemDraftDirty: blockedState.$3,
+        ),
+        isTrue,
+      );
+    }
   });
 
   test('item manager formats single and multiple delete confirmations', () {
@@ -307,12 +332,14 @@ void main() {
         ),
       ),
     );
+    expect(editingController.hasActiveEditing, isFalse);
 
     await tester.tap(find.text('원본'));
     await tester.pump(const Duration(milliseconds: 50));
     await tester.tap(find.text('원본'));
     await tester.pump();
     await tester.enterText(find.byType(EditableText), '수정');
+    expect(editingController.hasActiveEditing, isTrue);
 
     var completed = false;
     final commit = editingController.commitEditing().then((_) {
@@ -321,11 +348,13 @@ void main() {
     await tester.pump();
     expect(completed, isFalse);
     expect(committed, isEmpty);
+    expect(editingController.hasActiveEditing, isTrue);
 
     commitCompleter.complete();
     await commit;
     expect(completed, isTrue);
     expect(committed, '수정');
+    expect(editingController.hasActiveEditing, isFalse);
     await tester.pump(const Duration(milliseconds: 100));
   });
 
@@ -1112,6 +1141,8 @@ void main() {
       scopedColumnContents: TColumnContentScopedView(const {}),
     );
     addTearDown(controller.dispose);
+    final itemManageController = ItemManageController();
+    Set<int> notifiedItemIds = const <int>{};
 
     await tester.pumpWidget(
       MaterialApp(
@@ -1121,6 +1152,10 @@ void main() {
             height: 220,
             child: ItemManage(
               items: const [],
+              controller: itemManageController,
+              onPublishCheckedItemIdsChanged: (value) {
+                notifiedItemIds = value;
+              },
               draftController: controller,
               labelSize: const LabelSize(
                 labelSizeId: 20,
@@ -1138,6 +1173,9 @@ void main() {
       find.byType(FortuneTable<ItemOfMarket>),
     );
     table.columns.first.checkboxController!.setChecked('publish', 0, true);
+    table.columns.first.checkboxController!.setChecked('publish', 1, true);
+    expect(itemManageController.publishCheckedItemIds, const <int>{10, 20});
+    expect(notifiedItemIds, const <int>{10, 20});
     controller.deleteRows(['item:20']);
     await tester.pump();
 
@@ -1146,6 +1184,8 @@ void main() {
     );
     expect(table.rows.single.item.itemId, 10);
     expect(table.columns.first.checkboxValueAt!(table.rows.single, 0), isTrue);
+    expect(itemManageController.publishCheckedItemIds, const <int>{10});
+    expect(notifiedItemIds, const <int>{10});
 
     final refreshedController = ItemManagerDraftController.fromItems(
       items: [first],
@@ -1161,6 +1201,10 @@ void main() {
             height: 220,
             child: ItemManage(
               items: const [],
+              controller: itemManageController,
+              onPublishCheckedItemIdsChanged: (value) {
+                notifiedItemIds = value;
+              },
               draftController: refreshedController,
               labelSize: const LabelSize(
                 labelSizeId: 20,
@@ -1178,6 +1222,8 @@ void main() {
       find.byType(FortuneTable<ItemOfMarket>),
     );
     expect(table.columns.first.checkboxController!.checkedRows('publish'), isEmpty);
+    expect(itemManageController.publishCheckedItemIds, isEmpty);
+    expect(notifiedItemIds, isEmpty);
   });
 
   testWidgets('ItemManage keeps publish selection available in read-only mode', (

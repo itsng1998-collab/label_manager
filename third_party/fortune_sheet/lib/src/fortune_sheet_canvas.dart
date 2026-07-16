@@ -32,6 +32,13 @@ Widget _fortuneEditableTextContextMenuBuilder(
   );
 }
 
+double? fortuneOutputLineHeight(double? stored, double? override) {
+  if (override != null && override.isFinite && override > 0) {
+    return override;
+  }
+  return stored != null && stored.isFinite && stored > 0 ? stored : null;
+}
+
 class _FortuneSelectAllTextIntent extends Intent {
   const _FortuneSelectAllTextIntent();
 }
@@ -2223,6 +2230,7 @@ class FortuneSheetController {
     bool includeCellBorders = true,
     bool includeRulerGuides = false,
     bool includeLabelAreaBoundary = true,
+    double? outputLineHeightMultiplier,
   }) {
     return _state?._captureRangeAsPng(
           range,
@@ -2231,6 +2239,7 @@ class FortuneSheetController {
           includeCellBorders: includeCellBorders,
           includeRulerGuides: includeRulerGuides,
           includeLabelAreaBoundary: includeLabelAreaBoundary,
+          outputLineHeightMultiplier: outputLineHeightMultiplier,
         ) ??
         Future<FortuneSheetCapture?>.value();
   }
@@ -15015,6 +15024,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     bool includeCellBorders = true,
     bool includeRulerGuides = false,
     bool includeLabelAreaBoundary = true,
+    double? outputLineHeightMultiplier,
   }) async {
     final sheet = _workbook.activeSheet;
     final settings = _workbook.settings;
@@ -15233,6 +15243,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
           renderCell,
           fontSize: renderCell.fontSize ?? settings.defaultFontSize,
           textColor: conditionStyle?.textColor,
+          outputLineHeightMultiplier: outputLineHeightMultiplier,
         );
       }
     }
@@ -15289,6 +15300,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     required bool includeCellBorders,
     required bool includeRulerGuides,
     required bool includeLabelAreaBoundary,
+    double? outputLineHeightMultiplier,
   }) async {
     final capture = await _generateScreenshotCapture(
       range,
@@ -15297,6 +15309,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       includeCellBorders: includeCellBorders,
       includeRulerGuides: includeRulerGuides,
       includeLabelAreaBoundary: includeLabelAreaBoundary,
+      outputLineHeightMultiplier: outputLineHeightMultiplier,
     );
     if (capture == null) {
       return null;
@@ -16188,6 +16201,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     FortuneCell cell, {
     required double fontSize,
     Color? textColor,
+    double? outputLineHeightMultiplier,
   }) {
     if (cell.isVerticalText) {
       _drawScreenshotVerticalCellText(
@@ -16217,6 +16231,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
             cell,
             fontSize: fontSize,
             textColor: textColor,
+            outputLineHeightMultiplier: outputLineHeightMultiplier,
           ),
           maxLines: maxLines,
           textAlign: textAlign,
@@ -16252,11 +16267,21 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     FortuneCell cell, {
     required double fontSize,
     Color? textColor,
+    double? outputLineHeightMultiplier,
   }) {
+    final storedCellLineHeight = _screenshotDoubleExtra(
+      cell.extraFields,
+      'lineHeight',
+    );
     final baseStyle = _screenshotTextStyle(
       cell,
       fontSize: fontSize,
       textColor: textColor,
+    ).copyWith(
+      height: fortuneOutputLineHeight(
+        storedCellLineHeight,
+        outputLineHeightMultiplier,
+      ),
     );
     final runs = cell.inlineRuns;
     if (runs == null || runs.isEmpty) {
@@ -16285,10 +16310,24 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
                 : FontStyle.normal,
             decoration: _screenshotInlineTextDecoration(run, cell),
             decorationColor: color,
+            height: fortuneOutputLineHeight(
+              _screenshotDoubleExtra(run.extraFields, 'lineHeight') ??
+                  storedCellLineHeight,
+              outputLineHeightMultiplier,
+            ),
           ),
         );
       }).toList(),
     );
+  }
+
+  double? _screenshotDoubleExtra(
+    Map<String, Object?> extraFields,
+    String key,
+  ) {
+    final value = extraFields[key];
+    if (value is num) return value.toDouble();
+    return double.tryParse('$value');
   }
 
   void _drawScreenshotVerticalCellText(

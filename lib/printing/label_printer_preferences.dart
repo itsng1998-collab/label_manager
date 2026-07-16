@@ -5,8 +5,14 @@ const String labelSheetPreferredPrinterNamePrefsKey =
     'label_sheet_preferred_printer_name';
 const String labelSheetPreferredPrintLeftMarginPrefsKey =
   'label_sheet_preferred_print_left_margin';
+const String labelSheetPreferredPrintRightMarginPrefsKey =
+  'label_sheet_preferred_print_right_margin';
 const String labelSheetPreferredPrintTopMarginPrefsKey =
   'label_sheet_preferred_print_top_margin';
+const String labelSheetPreferredPrintLeftPushPrefsKey =
+  'label_sheet_preferred_print_left_push';
+const String labelSheetPreferredPrintTopPushPrefsKey =
+  'label_sheet_preferred_print_top_push';
 const String labelSheetPreferredPrintAutoSpacingPrefsKey =
   'label_sheet_preferred_print_auto_spacing';
 const String labelSheetPreferredPrintExtraAreaPrefsKey =
@@ -20,7 +26,10 @@ class LabelSheetPreferredPrintSettings {
   const LabelSheetPreferredPrintSettings({
   required this.printerName,
   required this.leftMargin,
+  this.rightMargin = '0.0',
   required this.topMargin,
+  this.leftPush = '0.0',
+  this.topPush = '0.0',
   required this.autoSpacing,
   required this.extraArea,
   required this.orientation,
@@ -28,7 +37,10 @@ class LabelSheetPreferredPrintSettings {
 
   final String printerName;
   final String leftMargin;
+  final String rightMargin;
   final String topMargin;
+  final String leftPush;
+  final String topPush;
   final String autoSpacing;
   final String extraArea;
   final String orientation;
@@ -70,8 +82,14 @@ class LabelPrinterPreferences {
       printerName: savedName,
       leftMargin:
           prefs.getString(labelSheetPreferredPrintLeftMarginPrefsKey) ?? '0.0',
+        rightMargin:
+          prefs.getString(labelSheetPreferredPrintRightMarginPrefsKey) ?? '0.0',
       topMargin:
           prefs.getString(labelSheetPreferredPrintTopMarginPrefsKey) ?? '0.0',
+        leftPush:
+          prefs.getString(labelSheetPreferredPrintLeftPushPrefsKey) ?? '0.0',
+        topPush:
+          prefs.getString(labelSheetPreferredPrintTopPushPrefsKey) ?? '0.0',
       autoSpacing:
           prefs.getString(labelSheetPreferredPrintAutoSpacingPrefsKey) ?? 'none',
       extraArea:
@@ -107,8 +125,20 @@ class LabelPrinterPreferences {
       settings.leftMargin,
     );
     await prefs.setString(
+      labelSheetPreferredPrintRightMarginPrefsKey,
+      settings.rightMargin,
+    );
+    await prefs.setString(
       labelSheetPreferredPrintTopMarginPrefsKey,
       settings.topMargin,
+    );
+    await prefs.setString(
+      labelSheetPreferredPrintLeftPushPrefsKey,
+      settings.leftPush,
+    );
+    await prefs.setString(
+      labelSheetPreferredPrintTopPushPrefsKey,
+      settings.topPush,
     );
     await prefs.setString(
       labelSheetPreferredPrintAutoSpacingPrefsKey,
@@ -198,7 +228,10 @@ class LabelPrinterPreferences {
   ) async {
     await prefs.remove(labelSheetPreferredPrinterNamePrefsKey);
     await prefs.remove(labelSheetPreferredPrintLeftMarginPrefsKey);
+    await prefs.remove(labelSheetPreferredPrintRightMarginPrefsKey);
     await prefs.remove(labelSheetPreferredPrintTopMarginPrefsKey);
+    await prefs.remove(labelSheetPreferredPrintLeftPushPrefsKey);
+    await prefs.remove(labelSheetPreferredPrintTopPushPrefsKey);
     await prefs.remove(labelSheetPreferredPrintAutoSpacingPrefsKey);
     await prefs.remove(labelSheetPreferredPrintExtraAreaPrefsKey);
     await prefs.remove(labelSheetPreferredPrintOrientationPrefsKey);

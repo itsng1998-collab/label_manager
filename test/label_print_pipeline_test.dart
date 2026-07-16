@@ -1,0 +1,109 @@
+import 'package:flutter_test/flutter_test.dart';
+import 'package:label_manager/models/additional_item.dart';
+import 'package:label_manager/models/item.dart';
+import 'package:label_manager/models/item_of_market.dart';
+import 'package:label_manager/models/label_print.dart';
+import 'package:label_manager/models/label_size.dart';
+import 'package:label_manager/printing/label_print_dispatcher.dart';
+import 'package:label_manager/printing/label_print_pipeline.dart';
+
+void main() {
+  test('units exclude zero copies and preserve row and copy order', () {
+    final rows = [
+      _row(10, 2),
+      _row(20, 0),
+      _row(30, 2),
+    ];
+    final units = expandLabelPrintUnits(rows, referenceAt: _referenceAt);
+    expect(
+      units.map((unit) => (unit.row.itemId, unit.rowIndex, unit.copyIndex)),
+      [(10, 0, 0), (10, 0, 1), (30, 2, 0), (30, 2, 1)],
+    );
+  });
+
+  test('grouping combines only adjacent equal physical specs', () {
+    final units = expandLabelPrintUnits(
+      [_row(10, 1), _row(20, 1), _row(30, 1)],
+      referenceAt: _referenceAt,
+    );
+    const first = LabelPhysicalPageSpec(
+      widthMm: 60,
+      heightMm: 40,
+      sourceWidthMm: 50,
+      sourceHeightMm: 30,
+      dpi: 203,
+      backend: LabelPrintBackend.pdf,
+    );
+    const second = LabelPhysicalPageSpec(
+      widthMm: 80,
+      heightMm: 40,
+      sourceWidthMm: 50,
+      sourceHeightMm: 30,
+      dpi: 203,
+      backend: LabelPrintBackend.pdf,
+    );
+    final groups = groupAdjacentLabelPrintUnits(
+      units,
+      (unit) => unit.row.itemId == 20 ? second : first,
+    );
+    expect(groups.map((group) => group.units.length), [1, 1, 1]);
+  });
+}
+
+LabelPrintRowDraft _row(int itemId, int copies) {
+  final source = ItemOfMarket(
+    marketId: 1,
+    item: Item(
+      itemId: itemId,
+      labelSizeId: 1,
+      itemName: '품목 $itemId',
+      labelSizeName: '중형',
+      element: '',
+      elementRTF: '',
+      price: 0,
+      order: itemId,
+    ),
+    additionalItem: AdditionalItem(
+      AdditionalItemId: 0,
+      itemId: itemId,
+      element: '',
+      elementRTF: '',
+      price: 0,
+    ),
+    gdsNo: 0,
+    dateSaleStart: DateTime(2026),
+    dateSaleEnd: DateTime(2026),
+    discountPercent: 0,
+    discountAmount: 0,
+    dateStartDiscount: DateTime(2026),
+    dateEndDiscount: DateTime(2026),
+    useDefineElement: false,
+    rtfText: '',
+    useLinefeed: false,
+    linefeed: 0,
+    useScaleBarcode: false,
+    printCount: copies,
+    useLabelSize: false,
+    labelSizeWidth: 0,
+    labelSizeHeight: 0,
+    useMargin: false,
+    leftMargin: 0,
+    rightMargin: 0,
+    topMargin: 0,
+    leftPush: 0,
+    topPush: 0,
+  );
+  return LabelPrintRowDraft.fromBaseline(
+    item: source,
+    labelSize: const LabelSize(
+      labelSizeId: 1,
+      brandId: 1,
+      labelSizeName: '중형',
+      labelSizeCommon: LabelSizeCommon(width: 60, height: 40, rtf: ''),
+    ),
+    copies: copies,
+    settings: const LabelPrintSettingsSnapshot.empty(),
+  );
+}
+
+final _referenceAt = DateTime(2026, 7, 16, 12, 34, 56);

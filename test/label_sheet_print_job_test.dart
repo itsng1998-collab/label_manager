@@ -8,6 +8,65 @@ import 'package:image/image.dart' as img;
 import 'package:label_manager/printing/label_sheet_print_job.dart';
 
 void main() {
+  test('physical layout keeps source size and applies margin push and clip', () {
+    final layout = LabelSheetPrintLayout.resolve(
+      metrics: const LabelSheetPrintPageMetrics(
+        labelWidthMm: 60,
+        labelHeightMm: 40,
+        sourceWidthMm: 50,
+        sourceHeightMm: 30,
+        dpi: 203,
+      ),
+      options: const LabelSheetPrintOptions(
+        copies: 1,
+        leftMarginMm: 3,
+        rightMarginMm: 5,
+        topMarginMm: 2,
+        leftPushMm: -1,
+        topPushMm: 1,
+        extraAreaMm: 4,
+        autoSpacingPercent: null,
+        orientation: LabelSheetPrintOrientation.horizontal,
+      ),
+    );
+
+    expect(layout.pageWidthMm, 60);
+    expect(layout.pageHeightMm, 44);
+    expect(layout.contentLeftMm, 2);
+    expect(layout.contentTopMm, 3);
+    expect(layout.contentWidthMm, 50);
+    expect(layout.contentHeightMm, 30);
+    expect(layout.clipRightMm, 55);
+    expect(layout.intersectionWidthMm, 50);
+    expect(layout.intersectionHeightMm, 30);
+    expect(layout.hasContentIntersection, isTrue);
+  });
+
+  test('vertical physical layout rotates content without swapping page size', () {
+    final layout = LabelSheetPrintLayout.resolve(
+      metrics: const LabelSheetPrintPageMetrics(
+        labelWidthMm: 60,
+        labelHeightMm: 40,
+        sourceWidthMm: 50,
+        sourceHeightMm: 30,
+        dpi: 203,
+      ),
+      options: const LabelSheetPrintOptions(
+        copies: 1,
+        leftMarginMm: 0,
+        topMarginMm: 0,
+        extraAreaMm: 2,
+        autoSpacingPercent: null,
+        orientation: LabelSheetPrintOrientation.vertical,
+      ),
+    );
+
+    expect(layout.pageWidthMm, 60);
+    expect(layout.pageHeightMm, 42);
+    expect(layout.contentWidthMm, 30);
+    expect(layout.contentHeightMm, 50);
+  });
+
   test('buildLabelSheetEzplRasterBytes emits label size copies and graphics rows', () async {
     final image = img.Image(width: 8, height: 2);
     img.fill(image, color: img.ColorRgb8(255, 255, 255));

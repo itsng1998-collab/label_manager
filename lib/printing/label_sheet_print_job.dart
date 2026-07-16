@@ -11,7 +11,10 @@ class LabelSheetPrintOptions {
   const LabelSheetPrintOptions({
     required this.copies,
     required this.leftMarginMm,
+    this.rightMarginMm = 0,
     required this.topMarginMm,
+    this.leftPushMm = 0,
+    this.topPushMm = 0,
     required this.extraAreaMm,
     required this.autoSpacingPercent,
     required this.orientation,
@@ -19,7 +22,10 @@ class LabelSheetPrintOptions {
 
   final int copies;
   final double leftMarginMm;
+  final double rightMarginMm;
   final double topMarginMm;
+  final double leftPushMm;
+  final double topPushMm;
   final double extraAreaMm;
   final int? autoSpacingPercent;
   final LabelSheetPrintOrientation orientation;
@@ -34,18 +40,139 @@ class LabelSheetPrintPageMetrics {
     required this.labelWidthMm,
     required this.labelHeightMm,
     required this.dpi,
+    this.sourceWidthMm,
+    this.sourceHeightMm,
   });
 
   final int labelWidthMm;
   final int labelHeightMm;
   final double dpi;
+  final double? sourceWidthMm;
+  final double? sourceHeightMm;
 
   double get pageWidthMm => labelWidthMm.toDouble();
+  double get effectiveSourceWidthMm => sourceWidthMm ?? labelWidthMm.toDouble();
+  double get effectiveSourceHeightMm =>
+      sourceHeightMm ?? labelHeightMm.toDouble();
   double pageHeightMm(LabelSheetPrintOptions options) =>
       labelHeightMm + math.max(0, options.extraAreaMm);
 
   int dotsFromMm(num millimeters) =>
       math.max(0, (millimeters * dpi / 25.4).round());
+
+  int signedDotsFromMm(num millimeters) =>
+      (millimeters * dpi / 25.4).round();
+}
+
+class LabelSheetPrintLayout {
+  const LabelSheetPrintLayout({
+    required this.pageWidthMm,
+    required this.pageHeightMm,
+    required this.contentLeftMm,
+    required this.contentTopMm,
+    required this.contentWidthMm,
+    required this.contentHeightMm,
+    required this.clipRightMm,
+  });
+
+  factory LabelSheetPrintLayout.resolve({
+    required LabelSheetPrintPageMetrics metrics,
+    required LabelSheetPrintOptions options,
+  }) {
+    final rotated = options.rotateQuarterTurns;
+    return LabelSheetPrintLayout(
+      pageWidthMm: metrics.pageWidthMm,
+      pageHeightMm: metrics.pageHeightMm(options),
+      contentLeftMm: options.leftMarginMm + options.leftPushMm,
+      contentTopMm: options.topMarginMm + options.topPushMm,
+      contentWidthMm: rotated
+          ? metrics.effectiveSourceHeightMm
+          : metrics.effectiveSourceWidthMm,
+      contentHeightMm: rotated
+          ? metrics.effectiveSourceWidthMm
+          : metrics.effectiveSourceHeightMm,
+      clipRightMm: metrics.pageWidthMm - options.rightMarginMm,
+    );
+  }
+
+  final double pageWidthMm;
+  final double pageHeightMm;
+  final double contentLeftMm;
+  final double contentTopMm;
+  final double contentWidthMm;
+  final double contentHeightMm;
+  final double clipRightMm;
+
+  double get intersectionWidthMm => math.max(
+    0,
+    math.min(contentLeftMm + contentWidthMm, clipRightMm) -
+        math.max(contentLeftMm, 0),
+  );
+
+  double get intersectionHeightMm => math.max(
+    0,
+    math.min(contentTopMm + contentHeightMm, pageHeightMm) -
+        math.max(contentTopMm, 0),
+  );
+
+  bool get hasContentIntersection =>
+      clipRightMm > 0 && intersectionWidthMm > 0 && intersectionHeightMm > 0;
+}
+
+class LabelSheetRenderedPage {
+  const LabelSheetRenderedPage({
+    required this.pngBytes,
+    required this.metrics,
+    required this.options,
+  });
+
+  final Uint8List pngBytes;
+  final LabelSheetPrintPageMetrics metrics;
+  final LabelSheetPrintOptions options;
+}
+
+Future<Uint8List> buildLabelSheetPdfGroupBytes(
+  List<LabelSheetRenderedPage> pages,
+) async {
+  final document = pw.Document();
+  for (final page in pages) {
+    final layout = LabelSheetPrintLayout.resolve(
+      metrics: page.metrics,
+      options: page.options,
+    );
+    final image = pw.MemoryImage(page.pngBytes);
+    document.addPage(
+      pw.Page(
+        pageFormat: PdfPageFormat(
+          _mmToPdfPoints(layout.pageWidthMm),
+          _mmToPdfPoints(layout.pageHeightMm),
+          marginAll: 0,
+        ),
+        build: (_) => _buildPdfPageContent(
+          image: image,
+          metrics: page.metrics,
+          options: page.options,
+        ),
+      ),
+    );
+  }
+  return document.save();
+}
+
+Future<Uint8List> buildLabelSheetEzplGroupBytes(
+  List<LabelSheetRenderedPage> pages,
+) async {
+  final result = BytesBuilder(copy: false);
+  for (final page in pages) {
+    result.add(
+      await buildLabelSheetEzplRasterBytes(
+        pngBytes: page.pngBytes,
+        metrics: page.metrics,
+        options: page.options,
+      ),
+    );
+  }
+  return result.takeBytes();
 }
 
 Future<Uint8List> buildLabelSheetPdfBytes({
@@ -53,14 +180,12 @@ Future<Uint8List> buildLabelSheetPdfBytes({
   required LabelSheetPrintPageMetrics metrics,
   required LabelSheetPrintOptions options,
 }) async {
-  final pageWidthMm = metrics.pageWidthMm;
-  final pageHeightMm = metrics.pageHeightMm(options);
-  final pageWidth = _mmToPdfPoints(pageWidthMm);
-  final pageHeight = _mmToPdfPoints(pageHeightMm);
-  final imageWidth = _mmToPdfPoints(metrics.labelWidthMm);
-  final imageHeight = _mmToPdfPoints(metrics.labelHeightMm);
-  final left = _mmToPdfPoints(options.leftMarginMm);
-  final top = _mmToPdfPoints(options.topMarginMm);
+  final layout = LabelSheetPrintLayout.resolve(
+    metrics: metrics,
+    options: options,
+  );
+  final pageWidth = _mmToPdfPoints(layout.pageWidthMm);
+  final pageHeight = _mmToPdfPoints(layout.pageHeightMm);
   final document = pw.Document();
   final image = pw.MemoryImage(pngBytes);
 
@@ -68,28 +193,58 @@ Future<Uint8List> buildLabelSheetPdfBytes({
     document.addPage(
       pw.Page(
         pageFormat: PdfPageFormat(pageWidth, pageHeight, marginAll: 0),
-        build: (_) => pw.Stack(
-          children: [
-            pw.Positioned(
-              left: left,
-              top: top,
-              child: pw.Transform.rotateBox(
-                angle: options.rotateQuarterTurns ? math.pi / 2 : 0,
-                child: pw.Image(
-                  image,
-                  width: imageWidth,
-                  height: imageHeight,
-                  fit: pw.BoxFit.fill,
-                ),
-              ),
-            ),
-          ],
+        build: (_) => _buildPdfPageContent(
+          image: image,
+          metrics: metrics,
+          options: options,
         ),
       ),
     );
   }
 
   return document.save();
+}
+
+pw.Widget _buildPdfPageContent({
+  required pw.MemoryImage image,
+  required LabelSheetPrintPageMetrics metrics,
+  required LabelSheetPrintOptions options,
+}) {
+  final layout = LabelSheetPrintLayout.resolve(
+    metrics: metrics,
+    options: options,
+  );
+  return pw.Stack(
+    children: [
+      pw.Positioned(
+        left: 0,
+        top: 0,
+        child: pw.SizedBox(
+          width: _mmToPdfPoints(math.max(0, layout.clipRightMm)),
+          height: _mmToPdfPoints(metrics.labelHeightMm),
+          child: pw.ClipRect(
+            child: pw.Stack(
+              children: [
+                pw.Positioned(
+                  left: _mmToPdfPoints(layout.contentLeftMm),
+                  top: _mmToPdfPoints(layout.contentTopMm),
+                  child: pw.Transform.rotateBox(
+                    angle: options.rotateQuarterTurns ? math.pi / 2 : 0,
+                    child: pw.Image(
+                      image,
+                      width: _mmToPdfPoints(metrics.effectiveSourceWidthMm),
+                      height: _mmToPdfPoints(metrics.effectiveSourceHeightMm),
+                      fit: pw.BoxFit.contain,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    ],
+  );
 }
 
 Future<Uint8List> buildLabelSheetEzplRasterBytes({
@@ -102,21 +257,28 @@ Future<Uint8List> buildLabelSheetEzplRasterBytes({
     throw StateError('라벨 이미지를 EZPL 출력 이미지로 변환할 수 없습니다.');
   }
 
+  final layout = LabelSheetPrintLayout.resolve(
+    metrics: metrics,
+    options: options,
+  );
   final labelWidthDots = metrics.dotsFromMm(metrics.labelWidthMm);
-  final labelHeightDots = metrics.dotsFromMm(metrics.labelHeightMm);
   final pageWidthDots = labelWidthDots;
   final pageHeightDots = metrics.dotsFromMm(metrics.pageHeightMm(options));
-  final leftDots = metrics.dotsFromMm(options.leftMarginMm);
-  final topDots = metrics.dotsFromMm(options.topMarginMm);
-  final content = img.copyResize(
-    source,
-    width: labelWidthDots,
-    height: labelHeightDots,
-    interpolation: img.Interpolation.average,
+  final leftDots = metrics.signedDotsFromMm(layout.contentLeftMm);
+  final topDots = metrics.signedDotsFromMm(layout.contentTopMm);
+  final content = _prepareRasterContent(
+    source: source,
+    metrics: metrics,
+    options: options,
   );
   final raster = img.Image(width: pageWidthDots, height: pageHeightDots);
   img.fill(raster, color: img.ColorRgb8(255, 255, 255));
   img.compositeImage(raster, content, dstX: leftDots, dstY: topDots);
+  _clipRasterToLabelArea(
+    raster,
+    metrics: metrics,
+    options: options,
+  );
 
   final bytesPerRow = (pageWidthDots + 7) ~/ 8;
   final commands = BytesBuilder(copy: false)
@@ -157,22 +319,31 @@ Future<Uint8List> buildLabelSheetHybridEzplBytes({
     throw StateError('라벨 이미지를 EZPL 출력 이미지로 변환할 수 없습니다.');
   }
 
+  final layout = LabelSheetPrintLayout.resolve(
+    metrics: metrics,
+    options: options,
+  );
   final labelWidthDots = metrics.dotsFromMm(metrics.labelWidthMm);
-  final labelHeightDots = metrics.dotsFromMm(metrics.labelHeightMm);
   final pageWidthDots = labelWidthDots;
   final pageHeightDots = metrics.dotsFromMm(metrics.pageHeightMm(options));
-  final leftDots = metrics.dotsFromMm(options.leftMarginMm);
-  final topDots = metrics.dotsFromMm(options.topMarginMm);
-  final content = img.copyResize(
-    source,
-    width: labelWidthDots,
-    height: labelHeightDots,
-    interpolation: img.Interpolation.average,
+  final leftDots = metrics.signedDotsFromMm(layout.contentLeftMm);
+  final topDots = metrics.signedDotsFromMm(layout.contentTopMm);
+  final content = _prepareRasterContent(
+    source: source,
+    metrics: metrics,
+    options: options,
   );
-  _clearNativeBarcodeFallbackAreas(content, sheet, metrics);
+  if (!options.rotateQuarterTurns) {
+    _clearNativeBarcodeFallbackAreas(content, sheet, metrics);
+  }
   final raster = img.Image(width: pageWidthDots, height: pageHeightDots);
   img.fill(raster, color: img.ColorRgb8(255, 255, 255));
   img.compositeImage(raster, content, dstX: leftDots, dstY: topDots);
+  _clipRasterToLabelArea(
+    raster,
+    metrics: metrics,
+    options: options,
+  );
 
   final commands = BytesBuilder(copy: false)
     ..add(ascii.encode('^Q${metrics.pageHeightMm(options).round()},0,0\r\n'))
@@ -181,22 +352,76 @@ Future<Uint8List> buildLabelSheetHybridEzplBytes({
     ..add(ascii.encode('^L\r\n'));
 
   _addEzplRasterGraphic(commands, raster);
-  _addHybridSheetBorders(
-    commands,
-    sheet: sheet,
-    range: range,
-    metrics: metrics,
-    options: options,
-  );
-  _addHybridSheetBarcodes(
-    commands,
-    sheet: sheet,
-    metrics: metrics,
-    options: options,
-  );
+  if (!options.rotateQuarterTurns) {
+    _addHybridSheetBorders(
+      commands,
+      sheet: sheet,
+      range: range,
+      metrics: metrics,
+      options: options,
+    );
+    _addHybridSheetBarcodes(
+      commands,
+      sheet: sheet,
+      metrics: metrics,
+      options: options,
+    );
+  }
 
   commands.add(ascii.encode('E\r\n'));
   return commands.takeBytes();
+}
+
+img.Image _prepareRasterContent({
+  required img.Image source,
+  required LabelSheetPrintPageMetrics metrics,
+  required LabelSheetPrintOptions options,
+}) {
+  final oriented = options.rotateQuarterTurns
+      ? img.copyRotate(source, angle: 90)
+      : source;
+  final layout = LabelSheetPrintLayout.resolve(
+    metrics: metrics,
+    options: options,
+  );
+  return img.copyResize(
+    oriented,
+    width: metrics.dotsFromMm(layout.contentWidthMm),
+    height: metrics.dotsFromMm(layout.contentHeightMm),
+    interpolation: img.Interpolation.average,
+  );
+}
+
+void _clipRasterToLabelArea(
+  img.Image raster, {
+  required LabelSheetPrintPageMetrics metrics,
+  required LabelSheetPrintOptions options,
+}) {
+  final white = img.ColorRgb8(255, 255, 255);
+  final clipRight = metrics.signedDotsFromMm(
+    metrics.pageWidthMm - options.rightMarginMm,
+  );
+  if (clipRight < raster.width) {
+    img.fillRect(
+      raster,
+      x1: math.max(0, clipRight),
+      y1: 0,
+      x2: raster.width - 1,
+      y2: raster.height - 1,
+      color: white,
+    );
+  }
+  final labelBottom = metrics.dotsFromMm(metrics.labelHeightMm);
+  if (labelBottom < raster.height) {
+    img.fillRect(
+      raster,
+      x1: 0,
+      y1: labelBottom,
+      x2: raster.width - 1,
+      y2: raster.height - 1,
+      color: white,
+    );
+  }
 }
 
 void _addEzplRasterGraphic(BytesBuilder commands, img.Image raster) {

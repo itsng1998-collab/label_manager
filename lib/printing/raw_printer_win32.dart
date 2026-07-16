@@ -275,7 +275,9 @@ class RawPrinterWin32 {
             throw StateError('EndPagePrinter failed (${GetLastError()})');
           }
         } finally {
-          EndDocPrinter(phPrinter.value);
+          if (EndDocPrinter(phPrinter.value) == 0) {
+            throw StateError('EndDocPrinter failed (${GetLastError()})');
+          }
         }
       } finally {
         calloc.free(docInfo);

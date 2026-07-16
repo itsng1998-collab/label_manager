@@ -48,6 +48,13 @@ bool _hasDarkPixelNear(ByteData pixels, int width, int height, int x, int y) {
 }
 
 void main() {
+  test('output line height preserves stored value unless overridden', () {
+    expect(fortuneOutputLineHeight(1.5, null), 1.5);
+    expect(fortuneOutputLineHeight(1.5, 1), 1);
+    expect(fortuneOutputLineHeight(1.5, 2), 2);
+    expect(fortuneOutputLineHeight(null, null), isNull);
+  });
+
   testWidgets('print capture excludes grid lines ruler guides and boundary', (
     tester,
   ) async {

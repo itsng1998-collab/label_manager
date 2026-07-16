@@ -37,6 +37,13 @@ class ItemManageController {
   ItemManageSearchResult Function(String query)? _search;
   VoidCallback? _resetSearch;
   Future<void> Function()? _commitEditing;
+  Set<int> Function()? _publishCheckedItemIds;
+  bool Function()? _hasActiveEditing;
+
+  Set<int> get publishCheckedItemIds =>
+      Set<int>.unmodifiable(_publishCheckedItemIds?.call() ?? const <int>{});
+
+  bool get hasActiveEditing => _hasActiveEditing?.call() ?? false;
 
   ItemManageSearchResult search(String query) =>
       _search?.call(query) ?? ItemManageSearchResult.unavailable;
@@ -52,11 +59,15 @@ class ItemManageController {
     required ItemManageSearchResult Function(String query) search,
     required VoidCallback resetSearch,
     required Future<void> Function() commitEditing,
+    required Set<int> Function() publishCheckedItemIds,
+    required bool Function() hasActiveEditing,
   }) {
     _owner = owner;
     _search = search;
     _resetSearch = resetSearch;
     _commitEditing = commitEditing;
+    _publishCheckedItemIds = publishCheckedItemIds;
+    _hasActiveEditing = hasActiveEditing;
   }
 
   void _detach(Object owner) {
@@ -65,6 +76,8 @@ class ItemManageController {
     _search = null;
     _resetSearch = null;
     _commitEditing = null;
+    _publishCheckedItemIds = null;
+    _hasActiveEditing = null;
   }
 }
 
@@ -95,6 +108,7 @@ class ItemManage extends StatefulWidget {
   final bool commandBusy;
   final bool canEdit;
   final ItemManageController? controller;
+  final ValueChanged<Set<int>>? onPublishCheckedItemIdsChanged;
   final VoidCallback? onReady;
 
   const ItemManage({
@@ -122,6 +136,7 @@ class ItemManage extends StatefulWidget {
     this.commandBusy = false,
     this.canEdit = true,
     this.controller,
+    this.onPublishCheckedItemIdsChanged,
     this.onReady,
   });
 
@@ -190,6 +205,7 @@ class _ItemManageState extends State<ItemManage> {
       widget.draftController?.addListener(_handleDraftChanged);
       _publishCheckedItemIds.clear();
       _publishCheckboxController.clearColumn(_publishColumnId);
+      _notifyPublishCheckedItemIdsChanged();
     }
     if (oldWidget.controller != widget.controller) {
       oldWidget.controller?._detach(this);
@@ -208,6 +224,17 @@ class _ItemManageState extends State<ItemManage> {
   void _handleDraftChanged() {
     final controller = widget.draftController;
     if (controller != null) {
+      final existingItemIds = <int>{
+        for (final row in controller.rows)
+          if (row.sourceItemId != null) row.sourceItemId!,
+      };
+      final checkedCount = _publishCheckedItemIds.length;
+      _publishCheckedItemIds.removeWhere(
+        (itemId) => !existingItemIds.contains(itemId),
+      );
+      if (_publishCheckedItemIds.length != checkedCount) {
+        _notifyPublishCheckedItemIdsChanged();
+      }
       final indexes = <int>[];
       for (var index = 0; index < controller.rows.length; index += 1) {
         if (controller.selectedRowKeys.contains(
@@ -251,6 +278,13 @@ class _ItemManageState extends State<ItemManage> {
                 : null);
       if (itemId != null) _publishCheckedItemIds.add(itemId);
     }
+    _notifyPublishCheckedItemIdsChanged();
+  }
+
+  void _notifyPublishCheckedItemIdsChanged() {
+    widget.onPublishCheckedItemIdsChanged?.call(
+      Set<int>.unmodifiable(_publishCheckedItemIds),
+    );
   }
 
   void _handleSelectionChanged() {
@@ -301,6 +335,8 @@ class _ItemManageState extends State<ItemManage> {
       search: _search,
       resetSearch: () => _searchStartIndex = 0,
       commitEditing: _editingController.commitEditing,
+      publishCheckedItemIds: () => _publishCheckedItemIds,
+      hasActiveEditing: () => _editingController.hasActiveEditing,
     );
   }
 
