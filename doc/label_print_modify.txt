@@ -86,12 +86,12 @@
 - `TColumnDAO.selectByLabelSizeId()`
 - `TColumnContentDAO.selectScopedByItemIds()`
 - 현재 label size, customer, market, user session
-- `ItemManagerDraftController`의 현재 working value
+- 현재 label-size session에 마지막으로 저장·조회된 `ItemOfMarket`과 `TColumnContent` baseline
 - `LabelPrinterPreferences`
 - `LabelSheetPrintOptions`, `LabelSheetPrintPageMetrics`
 - `RawPrinterWin32`, `PrinterProfile`, 현재 PDF/EZPL builder
 
-현재 label-size session에 이미 읽은 데이터가 있으면 출력 탭에서 같은 SELECT를 반복하지 않는다. label size 변경, 품목 저장, 공용라벨 저장 후에는 상위 session reload 결과로 목록과 미리보기를 갱신한다.
+현재 label-size session에 이미 읽은 데이터가 있으면 출력 탭에서 같은 SELECT를 반복하지 않는다. 품목관리 편집 모드나 미저장 draft가 있으면 라벨출력 탭으로 전환하지 않으므로 command와 materializer는 마지막 저장·조회 baseline만 사용한다. label size 변경, 품목 저장, 공용라벨 저장 후에는 상위 session reload 결과로 목록과 미리보기를 갱신한다.
 
 ### 3.2 공용 API로 추출할 기능
 
@@ -224,8 +224,8 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 품목관리 `출력내용 미리보기`와 같은 공용 materializer를 사용한다.
 
 - `#ITEMNAME`: 품명
-- `#ELEMENT`: 현재 품목 working value의 주원료/함량
-- `# + TColumn.keyword`: 해당 item의 최종 column value
+- `#ELEMENT`: 마지막으로 저장·조회된 품목의 주원료/함량
+- `# + TColumn.keyword`: 해당 item의 마지막 저장·조회 column value
 - 일반/날짜/시간: 기존 format과 range 규칙
 - 바코드/QR/GS1: 기존 `ItemCodeDataResolver` 결과
 - 연결 이미지: 현재 image resolver 결과. 값이나 파일이 없으면 materialized copy에서 해당 연결 image object만 생략하고 원본 workbook은 변경하지 않는다.
@@ -263,7 +263,7 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 
 `LabelPrintAutoIncrementDAO` 또는 동등 책임을 둔다.
 
-- 자동증가는 DB를 변경하지 않는 순수 함수로 계산한다. 원본값, copy index, `autoIncSize`, `autoIncRange`, `autoIncZeroDel`, barcode check digit와 time-barcode 설정을 입력으로 받는다.
+- 자동증가는 DB를 변경하지 않는 순수 함수로 계산한다. 마지막으로 저장·조회된 원본값, copy index, `autoIncSize`, `autoIncRange`, `autoIncZeroDel`, barcode check digit와 time-barcode 설정을 입력으로 받는다.
 - 증가 대상은 레거시처럼 지정 범위의 숫자 부분이며 `autoIncSize * copyIndex`를 더한다. 범위를 넘으면 해당 자릿수 안에서 순환하고, 앞자리 0 유지/제거와 barcode check digit/time-barcode 재적용도 레거시 순서를 따른다.
 - barcode check digit와 date/time 값 생성은 기존 helper를 재사용한다. 자동증가 계산 자체는 새 공용 순수 함수로 작성한다.
 - `autoInc == false`인 column은 변경하지 않는다.
@@ -281,7 +281,7 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 - 기존 `BM_RICH_PRINT_LOG`, `BM_RICH_STATUS`, `BM_RICH_STATUS_DATA`만 사용한다.
 - 이 절의 자동증가 행은 현재 label-size의 `TColumn` 중 `autoInc == true`가 하나라도 있을 때의 모든 출력 row다. 자동증가 행은 accepted copy별 `printCount=1`, autoInc column이 하나도 없는 label-size의 일반 행은 accepted copies 합계 한 건으로 기록한다.
 - `RICH_COLUMNS`, `RICH_PRINT_CELLS`, `RICH_SAVE_IN_DB_CELLS`는 레거시처럼 `주원료` 뒤 column order 값들을 `|`로 연결하고 trailing `|`를 남긴다. 값 안의 `|`도 레거시처럼 escaping하지 않는다.
-- `RICH_PRINT_CELLS`에는 실제 출력 projection, `RICH_SAVE_IN_DB_CELLS`에는 command 시작 시점의 DB 원본값을 기록한다.
+- `RICH_PRINT_CELLS`에는 실제 출력 projection, `RICH_SAVE_IN_DB_CELLS`에는 command가 snapshot한 마지막 저장·조회 DB baseline 값을 기록한다.
 - 한 command에서 만들 history parent를 unit의 `(rowIndex, copyIndex)` 순서로 정렬한다. 자동증가 행은 accepted copy마다 해당 unit 순서 key의 parent 하나를 만들고, 일반 행은 accepted copies를 합쳐 가장 작은 accepted copy index의 unit 순서 key에 parent 하나를 둔다.
 - 단일 T-SQL batch에서 같은 customer의 기존 `MAX(RICH_STATUS_ORDER)`를 한 번 구하고 위 history parent 순서의 `ROW_NUMBER()`를 더해 연속 order를 배정한다. 고객 이력이 없으면 1부터 시작한다.
 - `RICH_STATUS_ID`는 `<customerId>-<brandId>-<order>`, `RICH_STATUS_DATA_ID`는 `<statusId>D<0-based columnOrderIndex>` 형식을 사용한다.
@@ -297,7 +297,7 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 - 기존 table/column이 없거나 문자열 길이·형식이 맞지 않으면 SQL Server 오류를 그대로 사용자에게 전달한다.
 - transaction 중 오류가 발생하면 가능한 경우 rollback하고 `인쇄 작업은 접수되었으나 자동증가 값과 발행 이력을 저장하지 못했습니다.` 뒤에 원본 SQL Server 오류를 함께 표시한다. 기존 `DbClient.transaction()`이 전달하는 statement/commit 오류와 `DbCommitOutcomeUnknown`을 다른 성공이나 일반 오류로 치환하지 않는다.
 - DB 저장 실패 후 물리 출력을 자동 재실행하지 않는다. 별도 DB 재시도 UI, durable recovery 상태와 관리자 commit 판정은 구현하지 않는다.
-- commit 성공 후에는 자동증가 대상 `(columnId,itemId)`의 draft/snapshot만 commit 값으로 갱신한다. 화면 동기화가 실패하면 DB 성공을 되돌리지 않고 현재 session reload를 안내한다.
+- commit 성공 후에는 자동증가 대상 `(columnId,itemId)`의 현재 session snapshot만 commit 값으로 갱신한다. 화면 동기화가 실패하면 DB 성공을 되돌리지 않고 현재 session reload를 안내한다.
 
 ## 9. 품목관리 발행 체크 연동
 
@@ -305,14 +305,16 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 - 상위 `HomePageManager`가 현재 label-size session의 checked item ID를 소유한다.
 - 우클릭 발행 체크, checkbox와 전체 해제가 모두 같은 callback을 사용한다.
 - label size 변경, 품목 삭제와 session reload 때 존재하지 않는 ID를 제거한다.
-- 품목관리 draft가 있으면 materialize는 화면에 표시된 현재 working value를 사용한다.
-- 활성 cell edit는 command 생성 전에 확정하고 validation 오류가 있으면 발행하지 않는다.
-- 출력은 품목관리 draft 전체를 DB 저장하지 않는다. 자동증가 대상만 8.1 경계에서 저장한다.
+- `HomePageManager._onTabSelection()`의 기존 context-change gate를 라벨출력 전환에도 사용한다. `ItemManageController`가 `hasActiveEditing` 또는 동등 read-only 상태를 제공하며, active cell edit, item draft command busy 또는 `ItemManagerDraftController.isDirty == true`이면 선택을 품목관리 탭으로 되돌리고 라벨출력 화면을 열지 않는다. 상태 확인을 위해 active edit를 commit하지 않는다.
+- 마우스 tab 선택, `F3` 단축키와 programmatic tab 선택은 모두 이 gate 하나를 거친다. 별도 진입 경로에서 라벨출력 index를 직접 확정하지 않는다.
+- 차단 시 `품목 편집 내용을 저장하거나 취소한 뒤 라벨출력을 이용해 주세요.`를 표시한다. 자동 저장·자동 취소·draft를 사용한 출력은 하지 않는다.
+- 품목 저장이나 변경 취소가 완료되어 active edit와 `isDirty`가 모두 해소된 뒤에만 라벨출력 탭 전환을 허용한다.
+- 라벨출력은 기존 item ID의 마지막 저장·조회 baseline만 사용한다. 품목관리 draft 전체를 저장하지 않으며 자동증가 대상만 8.1 경계에서 저장한다.
 
 ## 10. 발행 pipeline
 
 1. 메모리 busy flag를 원자적으로 설정해 같은 앱 instance의 중복 발행을 막는다.
-2. pending cell edit를 확정하고 현재 label/customer/brand/market/user, printer, 설정, row, column/content와 saved workbook을 immutable command로 만든다.
+2. 탭 전환 gate를 통과한 현재 label/customer/brand/market/user, printer, 설정, row와 마지막 저장·조회 column/content baseline, saved workbook을 immutable command로 만든다.
 3. 출력 행 존재, 전체 copies 1 이상, printer 선택, 저장 workbook과 숫자 설정, 유효 출력 폭과 source/label clip 교집합을 검증한다.
 4. row/copy 순서대로 unit과 자동증가 projection을 만든다. resolver 오류가 있으면 출력하지 않는다.
 5. 공용 materializer와 print job builder로 group payload를 만든다.
@@ -320,7 +322,7 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 7. group이 failed이면 뒤 group을 중단한다. active call 완료 뒤 취소가 확인되면 뒤 group을 중단한다.
 8. accepted unit이 없으면 DB를 변경하지 않는다.
 9. accepted unit이 있으면 자동증가와 발행 이력을 한 SQL transaction으로 저장한다. 오류를 전달하고 가능한 경우 rollback한다.
-10. commit 성공 시 대상 draft/snapshot과 선택 행 미리보기를 갱신한다.
+10. commit 성공 시 대상 session snapshot과 선택 행 미리보기를 갱신한다.
 11. 결과를 사용자에게 알리고 `finally`에서 busy flag와 UI lock을 해제한다.
 
 출력 중 화면의 mutable 전역 데이터를 다시 읽지 않는다. 실패·취소 전에 accepted된 unit은 결과와 DB 저장 대상에 포함하고, failed 또는 보내지 않은 unit은 제외한다.
@@ -376,7 +378,7 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 ### 13.2 materialize/print 테스트
 
 - `#ITEMNAME`, `#ELEMENT`, 일반/날짜/시간, barcode/QR/GS1와 연결 이미지 치환
-- 품목관리 미리보기와 라벨출력 copy index 0 결과 동등성
+- 마지막 저장·조회 baseline 기준 품목관리 미리보기와 라벨출력 copy index 0 결과 동등성
 - 원본 workbook 불변
 - 저장 source viewport, source physical 크기 1:1 배치, clip, margin+push, 방향, extra area와 줄간격
 - row 크기가 달라도 PDF `BoxFit.fill`과 row 기준 EZPL `copyResize` 없이 source physical 크기를 유지
@@ -395,18 +397,21 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 - `autoIncSave`별 마지막 출력값/다음 값
 - `autoIncSize/autoIncRange/autoIncZeroDel`, 자릿수 순환과 barcode check digit/time-barcode 재적용
 - autoInc column이 하나라도 있는 label-size의 모든 row는 accepted copy별 history, 하나도 없으면 row별 accepted copies 합계 history
-- 레거시 `|` wire와 projected/DB 원본 mapping
+- 레거시 `|` wire와 projected/command DB baseline mapping
 - 단일 parameterized SQL batch의 `(rowIndex, copyIndex)` history parent 순서별 연속 customer status order, 첫 값 1과 status/detail ID 형식
 - command brand snapshot의 ID/name을 status ID와 `RICH_BRAND_ID`/`RICH_BRAND_NAME`에 사용하고 출력 후 전역 brand를 읽지 않음
 - `User.SYSTEM` 이력 제외, 일반 `SYSTEM_ADMIN_USER` grade와 일반 사용자 이력 저장
 - accepted unit이 없을 때 DB 작업 없음
 - 일부 accepted 후 transaction 성공/rollback
-- commit 후 대상 draft/snapshot만 갱신
+- commit 후 자동증가 대상 session snapshot만 갱신
 
 ### 13.4 widget 테스트
 
 - `label_print` placeholder 제거와 실제 화면
 - 품목관리 발행 체크와 출력 목록 동기화
+- 마우스 tab 선택, `F3`, programmatic 선택 각각에서 active cell edit, draft command busy 또는 `isDirty` 라벨출력 전환 차단과 품목관리 탭 유지
+- 차단 안내 후 자동 저장·자동 취소가 발생하지 않고, 저장 또는 변경 취소 완료 후 라벨출력 전환 허용
+- 미저장 draft 값은 검색·미리보기·materialize·출력 command에 포함되지 않음
 - 첫 행 선택, 선택·설정 변경 미리보기
 - 검색 영역과 exact-match 선택
 - `[프린터 설정] 프린터명 [발행]` 순서
@@ -435,13 +440,13 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 
 ## 14. 구현 순서
 
-1. 품목관리 발행 체크를 controlled state로 올리고 출력 row/session model을 구현한다.
+1. 품목관리 발행 체크를 controlled state로 올리고 기존 context-change gate에 active edit/`isDirty` 라벨출력 전환 차단을 연결한 뒤 출력 row/session model을 구현한다.
 2. 품목 출력 materializer와 읽기 전용 preview를 공용 API로 추출한다.
 3. right margin/signed push, 1:1 source 배치·공용 방향 transform과 줄간격을 기존 공용 설정·print job에 최소 확장한다.
 4. 라벨출력 화면, table, 검색, 선택과 자동 미리보기를 구현한다.
 5. 기존 PDF/EZPL dispatcher를 공용 service로 추출하고 단일 row·copy 출력을 연결한다.
 6. 여러 row/copy와 page spec group 출력을 연결한다.
-7. 자동증가와 발행 이력 transaction, commit 후 draft 동기화를 구현한다.
+7. 자동증가와 발행 이력 transaction, commit 후 session snapshot 동기화를 구현한다.
 8. focused test, analyze, 전체 test와 실제 printer 수동 검증을 수행한다.
 
 각 단계는 관련 focused test를 통과한 뒤 다음 단계로 진행한다.
@@ -449,6 +454,8 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 ## 15. 완료 조건
 
 - `라벨출력(F3)` 탭이 실제 화면으로 동작한다.
+- 품목관리 active edit 또는 미저장 draft가 있으면 라벨출력 탭으로 전환하지 않고 저장·취소 안내 후 품목관리 탭을 유지한다.
+- 라벨출력 검색·미리보기·출력은 마지막으로 저장·조회된 품목 baseline만 사용하고 draft working value를 사용하지 않는다.
 - 품목관리 발행 체크 행만 출력 목록에 나타나고 item ID 기준으로 동기화된다.
 - 행별 매수·크기·여백·밀기·줄간격이 레거시 우선순위로 초기화되고 session에서 편집된다.
 - 선택 행의 실제 출력 미리보기가 자동 표시되고 품목관리와 같은 materializer를 사용한다.

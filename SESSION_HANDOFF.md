@@ -1,3 +1,15 @@
+### 완료 (2026-07-16): 품목 편집 중 라벨출력 전환 차단 확정
+- 사용자 확정: 품목관리 편집 모드 또는 미저장 draft가 있으면 라벨출력 탭으로 전환하지 않고, 품목 편집 내용을 저장하거나 취소하도록 안내한다. 라벨출력은 마지막으로 저장·조회된 품목 데이터만 사용한다.
+- 현재 코드 경계: `HomePageManager._onTabSelection()`은 품목관리 밖으로 전환할 때 기존 `_blockItemDraftContextChange()`를 호출하며, 이 gate는 item draft command busy와 `ItemManagerDraftController.isDirty`를 차단하고 품목관리 탭으로 되돌린다.
+- 수정 예정: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. draft working value materialize, pending cell 확정 후 출력, 출력 후 draft 동기화 계약을 제거하고, 기존 context-change gate 기반 탭 차단, 저장·조회 baseline command snapshot, 차단 widget test와 완료 조건으로 교체한다. SQL transaction/rollback 및 DB migration 금지 계약은 변경하지 않는다.
+- `doc/label_print_modify.txt` 데이터·materialize 계약 편집 완료: `ItemManagerDraftController` working value를 출력 데이터 원본에서 제거하고 item/column/자동증가/이력은 마지막 저장·조회 baseline command snapshot만 사용하도록 정리했다.
+- `doc/label_print_modify.txt` 탭·pipeline 계약 편집 완료: active cell edit, item draft command busy 또는 `isDirty`이면 기존 context-change gate로 품목관리 탭을 유지하고 저장·취소 안내를 표시하며, pending edit 자동 확정과 draft 자동 저장·취소를 금지했다.
+- `doc/label_print_modify.txt` 진입 경계 보완 완료: `ItemManageController.hasActiveEditing` 동등 read-only 상태를 사용하고 마우스 tab, `F3`, programmatic 선택이 모두 같은 context-change gate를 거치도록 명시했다.
+- `doc/label_print_modify.txt` 테스트·완료 조건 편집 완료: 편집/dirty별 탭 차단, 저장·취소 후 전환 허용, draft 값의 검색·미리보기·출력 미포함, commit 후 session snapshot 동기화를 연결했다.
+- 독립 재검토: 탭 차단, 저장·조회 baseline, 자동증가 후 session snapshot 계약의 본문·pipeline·테스트·구현 순서·완료 조건 사이 모순·누락 0건이다.
+- 최종 검증: 이전 working draft materialize/pending edit/draft 동기화 표현 0건, 새 gate/baseline 계약 16곳 확인, 두 문서 diagnostics 오류 0건, `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md` 통과. 문서만 변경해 Flutter test/analyze는 실행하지 않았다.
+- stage/commit 대상: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. 기존 사용자 `lib/core/app.dart`, `doc/label_print.txt` 변경은 제외한다.
+
 ### 완료 (2026-07-16): 라벨출력 방향·자동증가·브랜드 계약 확정
 - 사용자 요청: `doc/label_print_modify.txt` 재검토 권장안을 병합하고 사용자 확인 사항은 즉시 질문해 확정한다.
 - 사용자 확정: vertical은 page 좌상단 기준 source corner가 `TL→TR`, `TR→BR`, `BR→BL`, `BL→TL`로 이동하는 시각적 시계 방향 90도로 고정한다. backend별 angle 부호는 이 결과에 맞춘다.
