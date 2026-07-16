@@ -9,6 +9,7 @@
 - 독립 재검토: 핵심 계약의 내부 모순·구현 불가능·본문/테스트 누락 0건이다. 연결 이미지 누락은 materialized copy의 해당 image object만 생략하고 원본 workbook은 유지하도록 표현을 보완했다.
 - 최종 검증: 두 문서 diagnostics 오류 0건, 핵심 계약 13곳과 이전 모호 표현 0건 확인, `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md` 통과. 문서만 변경하므로 Flutter test/analyze는 실행하지 않았다.
 - stage/commit 대상: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. 기존 사용자 `lib/core/app.dart`, `doc/label_print.txt` 변경은 제외한다.
+- 작업지시서 권장안 커밋: `a3ba484 라벨출력 기본 지시서 권장안 확정`.
 
 ### 완료 (2026-07-16): 라벨출력 작업지시서 기본 구현 중심 정리
 - 사용자 요청: 자동 재검토가 printer/recovery 방어 계약을 과도하게 확장했으므로 `doc/label_print.txt`의 기본 구현 원칙에 맞춰 `doc/label_print_modify.txt`를 다시 정리한다.
