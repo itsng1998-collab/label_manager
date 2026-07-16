@@ -305,7 +305,8 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 - 기존 `BM_RICH_PRINT_LOG`, `BM_RICH_STATUS`, `BM_RICH_STATUS_DATA`만 사용한다.
 - `BM_RICH_PRINT_LOG`는 기존 identity를 제외하고 레거시 insert field인 `RICH_USER_ID`, `RICH_USER_NAME`, `RICH_USER_GRADE`, `RICH_MARKET_ID`, `RICH_MARKET_NAME`, `RICH_CUSTOMER_ID`, `RICH_CUSTOMER_NAME`, `RICH_BRAND_NAME`, `RICH_LABELSIZE_NAME`, `RICH_ITEM_NAME`, `RICH_PRINT_COUNT`, `RICH_DATETIME`, `RICH_DATE_YYYYMMDD`, `RICH_PRINTER`, `RICH_COLUMNS`, `RICH_PRINT_CELLS`, `RICH_SAVE_IN_DB_CELLS`, `RICH_FORM_WIDTH`, `RICH_FORM_HEIGHT`, `RICH_PRINT_LEFT_MARGIN`, `RICH_PRINT_RIGHT_MARGIN`, `RICH_PRINT_TOP_MARGIN`, `RICH_PRINT_LEFT_PUSH`, `RICH_PRINT_TOP_PUSH`, `RICH_PRINT_APPENDANT`, `RICH_ITEM_ID`만 insert한다.
 - print log의 user/market/customer/brand/label/printer 값은 immutable command snapshot, item ID/name과 폭·높이·margin/push는 해당 history parent의 row snapshot, `RICH_PRINT_COUNT`와 세 wire 문자열은 해당 history parent, `RICH_PRINT_APPENDANT`는 command `extraAreaMm`에서 가져온다. 새 column을 가정하거나 출력 완료 후 전역 값을 다시 읽지 않는다.
-- `BM_RICH_STATUS`는 `RICH_STATUS_ID`, `RICH_ITEM_ID`, `RICH_MARKET_ID`, `RICH_CUSTOMER_ID`, `RICH_BRAND_ID`, `RICH_LABELSIZE_ID`, `RICH_USER_ID`, `RICH_PRINT_COUNT`, `RICH_PRINT_DATE`, `RICH_PRINT_ITEM_NAME`, `RICH_PRINT_ITEM_ELEMENT`, `RICH_STATUS_ORDER`, `RICH_LABELSIZE_NAME`, `RICH_USER_NAME`, `RICH_USER_GRADE`, `RICH_BRAND_NAME`, `RICH_DATE_YYYYMMDD`만 insert한다. ID/name/count는 같은 command/history parent snapshot을 사용하고 element는 해당 parent의 출력 projection에 포함된 주원료를 사용한다. user grade는 기존 table별 레거시 표현을 따른다.
+- user field는 같은 immutable command user snapshot에서 table별 레거시 wire 값으로 한 번 만든다. print log의 `RICH_USER_ID`는 원본 user ID 문자열, `RICH_USER_GRADE`는 `UserGrade.code` 정수다. status의 `RICH_USER_ID`는 레거시 C `_ttoi(userId)` 정수, `RICH_USER_GRADE`는 `UserGrade.label` 한글 문자열이다. `_ttoi` 호환 변환은 앞 공백과 선택적 부호 뒤의 연속 10진 숫자 prefix만 읽고 숫자가 시작되지 않으면 `0`을 반환하며, 비숫자 ID validation이나 새 DB 조회를 추가하지 않는다.
+- `BM_RICH_STATUS`는 `RICH_STATUS_ID`, `RICH_ITEM_ID`, `RICH_MARKET_ID`, `RICH_CUSTOMER_ID`, `RICH_BRAND_ID`, `RICH_LABELSIZE_ID`, `RICH_USER_ID`, `RICH_PRINT_COUNT`, `RICH_PRINT_DATE`, `RICH_PRINT_ITEM_NAME`, `RICH_PRINT_ITEM_ELEMENT`, `RICH_STATUS_ORDER`, `RICH_LABELSIZE_NAME`, `RICH_USER_NAME`, `RICH_USER_GRADE`, `RICH_BRAND_NAME`, `RICH_DATE_YYYYMMDD`만 insert한다. 위 table별 user wire와 나머지 ID/name/count는 같은 command/history parent snapshot을 사용하고 element는 해당 parent의 출력 projection에 포함된 주원료를 사용한다.
 - `BM_RICH_STATUS_DATA`는 `RICH_STATUS_DATA_ID`, `RICH_COLUMN_ID`, `RICH_STATUS_ID`, `RICH_PRINT_COLUMN_DATA`, `RICH_COLUMN_NAME`만 insert한다.
 - 이 절의 자동증가 행은 현재 label-size의 `TColumn` 중 `autoInc == true`가 하나라도 있을 때의 모든 출력 row다. 자동증가 행은 accepted copy별 `printCount=1`, autoInc column이 하나도 없는 label-size의 일반 행은 accepted copies 합계 한 건으로 기록한다.
 - `RICH_COLUMNS`는 레거시처럼 `주원료` 뒤에 command의 `(columnOrder, columnId)` 순서인 `TColumn` column name을 `|`로 연결한다. `RICH_PRINT_CELLS`와 `RICH_SAVE_IN_DB_CELLS`는 같은 위치에 각각 주원료와 column 값을 연결하며 세 문자열 모두 trailing `|`를 남긴다. 이름이나 값 안의 `|`도 레거시처럼 escaping하지 않는다.
@@ -316,7 +317,7 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 - `RICH_STATUS_ID`는 `<customerId>-<brandId>-<order>`, `RICH_STATUS_DATA_ID`는 `<statusId>D<detailIndex>` 형식을 사용한다. `detailIndex`는 DB의 `RICH_COLUMN_ORDER - 1`이나 SQL 결과 순서가 아니라 command에서 부여한 0 기반 연속 index다.
 - status detail은 주원료를 제외하고 command의 `TColumn` snapshot만 순회한다. 각 detail은 command의 `detailIndex`, 실제 `columnId`, `columnName`과 `RICH_PRINT_CELLS`의 출력 projection 값을 저장하며 첫 TColumn부터 `D0`, `D1` 순서로 ID를 만든다. transaction JSON 입력에도 이 네 값을 명시하고 SQL에서 index나 순서를 재계산하지 않는다.
 - `RICH_BRAND_ID`, `RICH_BRAND_NAME`과 status ID의 brand ID는 command의 immutable brand snapshot만 사용한다. 출력 완료 후 전역 selected brand를 다시 읽거나 brand 조회 SELECT를 추가하지 않는다.
-- 사용자 확정에 따라 현재 Flutter에서 구분 가능한 `User.SYSTEM` 특수 로그인만 print log와 status/detail 이력에서 제외한다. 일반 `SYSTEM_ADMIN_USER` grade 로그인은 이력을 기록한다. 현재 Flutter에 없는 master-key 우회 로그인은 제외 대상으로 간주하지 않으며, 향후 해당 인증 경로를 구현할 때만 명시적인 session boolean을 추가한다. 자동증가 저장은 로그인 유형과 관계없이 accepted unit 기준으로 처리한다.
+- 사용자 확정에 따라 현재 Flutter에서 구분 가능한 `User.SYSTEM` 특수 로그인만 print log와 status/detail 이력에서 제외한다. 이 판정은 로그인 화면과 동일하게 immutable command user ID에 `equalsIgnoreCase(commandUserId, User.SYSTEM)`를 적용하므로 `SYSTEM`과 `system`을 모두 제외한다. 일반 `SYSTEM_ADMIN_USER` grade 로그인은 이력을 기록한다. 현재 Flutter에 없는 master-key 우회 로그인은 제외 대상으로 간주하지 않으며, 향후 해당 인증 경로를 구현할 때만 명시적인 session boolean을 추가한다. 자동증가 저장은 로그인 유형과 관계없이 accepted unit 기준으로 처리한다.
 - 라벨 내용과 자동증가 출력·저장값의 날짜·시간/time-barcode projection은 command의 `requestedAt`을 사용한다. 발행 이력 저장 시각은 이와 분리해 단일 T-SQL batch 시작 시 `GETDATE()`를 한 번 읽은 `@historyAt`을 사용하고, 같은 command의 print log와 status parent 날짜·시간 field는 모두 이 값에서 만든다.
 - 여러 client/PC의 동시 order 충돌 방지는 이번 범위에 포함하지 않는다.
 
@@ -468,13 +469,14 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 - autoInc column이 하나라도 있는 label-size의 모든 row는 accepted copy별 history, 하나도 없으면 row별 accepted copies 합계 history
 - `RICH_COLUMNS`의 주원료/column name wire, `RICH_PRINT_CELLS`의 출력 projection, `RICH_SAVE_IN_DB_CELLS`의 자동증가 미적용 command DB baseline wire
 - print log의 command user/market/customer/brand/label/printer snapshot, row item/크기/margin/push, history parent count/wire, command `extraAreaMm` field mapping
+- 같은 command user snapshot에서 print log의 원본 user ID 문자열/`UserGrade.code`와 status의 C `_ttoi(userId)` 정수/`UserGrade.label`을 각각 생성하고, `"0012"` → print log ID `"0012"`·status ID `12`, `"12A"` → status ID `12`, `"ABC"` → status ID `0`, `MANAGER_USER` → print log grade `2`·status grade `"책임자"` mapping
 - status parent의 command/history parent ID/name/count/order/date field와 출력 projection 주원료 mapping 및 status detail insert field allow-list
 - 주원료를 제외한 command TColumn 순서별 status detail의 `D0` ID, `detailIndex`, columnId/name과 출력 projection mapping
 - 중복·비연속 column order에서도 `(columnOrder, columnId)` 순서와 `D0`, `D1` 연속 ID를 유지하고 SQL이 index를 재계산하지 않음
 - 단일 parameterized SQL batch의 `(rowIndex, copyIndex)` history parent 순서별 연속 customer status order, 첫 값 1과 status/detail ID 형식
 - label projection은 command `requestedAt`, 같은 command의 print log/status parent 저장 시각은 batch의 단일 `@historyAt` 사용
 - command brand snapshot의 ID/name을 status ID와 `RICH_BRAND_ID`/`RICH_BRAND_NAME`에 사용하고 출력 후 전역 brand를 읽지 않음
-- `User.SYSTEM` 이력 제외, 일반 `SYSTEM_ADMIN_USER` grade와 일반 사용자 이력 저장
+- command user ID `SYSTEM`/`system`의 동일한 `equalsIgnoreCase` 이력 제외와 일반 `SYSTEM_ADMIN_USER` grade·일반 사용자 이력 저장
 - accepted unit이 없을 때 DB 작업 없음
 - `User.SYSTEM`이고 autoInc 대상이 없어 accepted unit만 있을 때 DB 작업 없이 persistence `notAttempted`
 - `User.SYSTEM`이고 autoInc 대상이 있을 때 이력 없이 update transaction만 실행
@@ -582,6 +584,7 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 - label-size에 autoInc column이 하나라도 있으면 모든 출력 row의 accepted copy별 이력을 저장하고, brand 이력 값은 command snapshot을 사용한다.
 - 발행 이력의 column name, 출력 projection, 자동증가 미적용 DB baseline wire와 status detail column mapping이 레거시 순서를 따른다.
 - 기존 세 이력 table은 명시한 레거시 insert field만 command/row/history snapshot에서 채우며 새 schema를 가정하지 않는다.
+- `User.SYSTEM` 이력 제외는 로그인과 같은 `equalsIgnoreCase` command user ID 판정을 사용하고, print log에는 원본 user ID 문자열/`UserGrade.code`, status에는 C `_ttoi(userId)` 정수/`UserGrade.label`을 저장한다.
 - command의 `(columnOrder, columnId)` 정렬과 연속 `detailIndex`가 wire/status detail/SQL JSON에서 동일하게 유지되고 SQL은 이를 재계산하지 않는다.
 - 라벨 projection의 `requestedAt`과 발행 이력의 단일 SQL `@historyAt`을 구분한다.
 - SQL 오류를 context와 함께 사용자에게 전달하고 가능한 경우 rollback하며 자동 재출력하지 않는다.
