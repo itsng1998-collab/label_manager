@@ -1,3 +1,16 @@
+### 완료 (2026-07-16): 라벨출력 SYSTEM 판정과 사용자 이력 mapping 명확화
+- 사용자 요청: `doc/label_print_modify.txt` 재검토 권장안 2건을 작업지시서에 병합하고 사용자 확인 사항이 있으면 즉시 질문해 확정한다.
+- 확정 기준: 이력 제외 대상 `User.SYSTEM`은 로그인 화면과 동일하게 immutable command의 user ID를 `equalsIgnoreCase`로 비교한다. `SYSTEM`/`system`은 모두 제외하고 일반 `SYSTEM_ADMIN_USER` grade는 이력을 기록한다.
+- 확정 기준: print log는 command user ID 원본 문자열과 `UserGrade.code`, status는 레거시 C `_ttoi(userId)` 정수와 `UserGrade.label`을 사용한다. `_ttoi`는 앞 공백과 부호 뒤의 연속 10진 숫자 prefix를 변환하고 숫자가 시작되지 않으면 0으로 두며 별도 validation을 추가하지 않는다.
+- 사용자 확인 사항: 없음. 현재 로그인 판정과 레거시 `PrintLog.cpp`/`LabelPrintModel.cpp`/`StatusPrint.cpp`, 현재 `UserGrade.code`/`label`로 단일하게 확정 가능하다.
+- 수정 예정: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. 발행 이력·DAO 테스트·완료 조건을 정리하며 인증 상태, DB 조회·retry/recovery, migration과 별도 예외 처리는 추가하지 않는다.
+- `doc/label_print_modify.txt` 편집 완료: command user ID의 로그인 동일 `equalsIgnoreCase` SYSTEM 판정과 print log 원본 ID/grade code, status C `_ttoi` ID/grade label mapping을 발행 이력·DAO 테스트·완료 조건에 연결했다.
+- `SESSION_HANDOFF.md` 편집 완료: 이번 병합의 확정 근거와 파일별 진행 상태를 기록했다.
+- 검증 예정: 두 문서 diagnostics, `SYSTEM`/`system`과 `equalsIgnoreCase`, print log/status user ID·grade wire 및 `_ttoi` 사례 검색, 독립 재검토, `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md`. 문서만 변경하므로 Flutter test/analyze는 실행하지 않는다.
+- 최종 검증: 두 문서 diagnostics 오류 0건, SYSTEM 대소문자 판정 2곳과 table별 user wire 계약 3곳 확인, 독립 재검토 실제 모순·누락·transaction/SQL 제약 위반 0건, `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md` 통과. 문서만 변경해 Flutter test/analyze는 실행하지 않았다.
+- stage/commit 대상: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. 기존 사용자 `lib/core/app.dart` 변경은 제외하고 `git commit --only`를 사용한다.
+- 작업지시서 SYSTEM 판정·사용자 이력 mapping 계약 커밋: `d6ae840 라벨출력 SYSTEM 판정과 사용자 이력 명확화`.
+
 ### 완료 (2026-07-16): 라벨출력 폭·높이 우선순위와 자동증가 문자열 판정 명확화
 - 사용자 요청: `doc/label_print_modify.txt` 재검토 권장안 2건을 작업지시서에 병합하고 사용자 확인 사항이 있으면 즉시 질문해 확정한다.
 - 확정 기준: printer preference 존재 여부와 무관하게 row width/height는 `useLabelSize == true`이면 item override, 아니면 현재 label-size fallback을 사용한다. preference가 없거나 정리된 상태는 printer와 margin/push/line spacing/extra area/direction 초기값에만 영향을 준다.
