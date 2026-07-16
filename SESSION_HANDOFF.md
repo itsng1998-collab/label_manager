@@ -9,6 +9,7 @@
 - 독립 재검토: 네 계약이 본문·pipeline·테스트·완료 조건에 일치하며 실제 모순이나 빠진 검증 계약은 없음을 확인했다. 구현 표현 선택에 불과한 낮은 수준 항목은 추가하지 않았다.
 - 최종 검증: 새 row/wire/detail/result/preflight 계약 9곳 확인, 이전 반대 우선순위·통합 wire·부분 preflight 표현 0건, 두 문서 diagnostics 오류 0건, `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md` 통과. 문서만 변경해 Flutter test/analyze는 실행하지 않았다.
 - stage/commit 대상: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. 기존 사용자 `lib/core/app.dart`, `doc/label_print.txt` 변경은 제외한다.
+- 작업지시서 값·이력·결과 경계 커밋: `0035073 라벨출력 값과 이력 결과 경계 명확화`.
 
 ### 완료 (2026-07-16): 라벨출력 결과·설정·SQL 계약 명확화
 - 사용자 요청: `doc/label_print_modify.txt` 재검토 권장안을 작업지시서에 병합한다.
