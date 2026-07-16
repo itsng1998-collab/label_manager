@@ -10,6 +10,7 @@
 - 독립 재검토: requestedAt/preflight/command 생성 순서, command-wide backend와 capability fallback, nullable 줄간격, preference 전체 부재 기본값의 본문·DTO·pipeline·오류·테스트·완료 조건 사이 실제 모순과 필수 검증 누락 0건이다.
 - 최종 검증: 이전 runtime PDF fallback/backend 변경 group/줄간격 100 기본/command 선생성 표현 0건, 새 핵심 계약 15개 위치와 command 순서 15개 위치 확인, 두 문서 diagnostics 오류 0건, `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md` 통과. 변경량은 2개 문서 41 insertions/21 deletions이며 문서만 변경해 Flutter test/analyze는 실행하지 않았다.
 - stage/commit 대상: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. 기존 사용자 `lib/core/app.dart`, `doc/label_print.txt` 변경은 제외한다.
+- 작업지시서 preflight·backend 계약 커밋: `2cbbe01 라벨출력 사전검증과 백엔드 계약 명확화`.
 
 ### 완료 (2026-07-16): 라벨출력 발행시각·이력필드·group 계약 명확화
 - 사용자 요청: `doc/label_print_modify.txt` 재검토 권장안 5건을 작업지시서에 병합하고 사용자 확인 사항이 있으면 즉시 질문해 확정한다.
