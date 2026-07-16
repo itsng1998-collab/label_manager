@@ -1,3 +1,14 @@
+### 완료 (2026-07-16): 라벨출력 기본 지시서 재검토 권장안 병합
+- 사용자 요청: `doc/label_print_modify.txt` 재검토 권장안을 병합하고 사용자 확인 사항은 즉시 질문해 확정한다.
+- 사용자 확정: 레거시 관리자 이력 제외는 현재 Flutter에서 구분 가능한 `User.SYSTEM` 특수 로그인에만 적용한다. 일반 `SYSTEM_ADMIN_USER` grade 로그인은 이력을 기록하고, 현재 지원하지 않는 master-key 우회 로그인은 제외 대상으로 간주하지 않는다.
+- 사용자 확정: margin/push 결과 유효 출력 폭이 없거나 source와 label clip의 교집합이 비면 설정 오류로 발행을 차단한다.
+- 수정 예정: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. 1:1 source 물리 크기와 row clip을 PDF/EZPL builder에 명시하고, 공용 방향 transform, 빈 출력 검증, SYSTEM-only 이력 제외, 단일 SQL batch의 연속 status order와 원본 SQL 오류 병기를 본문·테스트·완료 조건에 연결한다. 별도 렌더 엔진, DB lock/retry/recovery/migration은 추가하지 않는다.
+- `doc/label_print_modify.txt` 물리 출력 계약 편집 완료: 라벨출력 PDF `BoxFit.fill`과 row 기준 EZPL `copyResize`를 금지하고 source physical 크기 1:1 배치, 공용 단일 방향 transform, 유효 폭·clip 교집합 사전 검증을 명시했다.
+- `doc/label_print_modify.txt` 저장 계약 편집 완료: accepted history 순서의 `ROW_NUMBER()` 연속 order, `User.SYSTEM`만 이력 제외, transaction context 뒤 원본 SQL Server/commit 오류 병기를 본문과 테스트·완료 조건에 연결했다.
+- 독립 재검토 보완: 미구현 코드 자체를 결함으로 보지 않고 실제 표현 위험만 반영했다. label clip을 `[0, width-rightMargin] x [0, height]`로 고정하고 방향별 source bounds와 빈 교집합 판정을 정의했으며, history parent 순서를 `(rowIndex, copyIndex)` key로 확정했다.
+- 최종 검증: 이전 master-key/최초 관리자 제외 및 backend 중복 회전 표현 0건, 새 핵심 계약 8곳 확인, 두 문서 diagnostics 오류 0건, `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md` 통과. 문서만 변경해 Flutter test/analyze는 실행하지 않았다.
+- stage/commit 대상: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. 기존 사용자 `lib/core/app.dart`, `doc/label_print.txt` 변경은 제외한다.
+
 ### 완료 (2026-07-16): 라벨출력 기본 지시서 권장안 병합
 - 사용자 요청: `doc/label_print_modify.txt` 재검토에서 확인한 기본 구현 권장안을 병합하고 동작 선택 사항은 즉시 질문해 확정한다.
 - 사용자 확정: 세로 방향은 현재 공용 출력 동작대로 page `W x (H+extraArea)`를 유지하고 content만 90도 회전한다.

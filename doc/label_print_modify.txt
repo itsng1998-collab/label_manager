@@ -6,7 +6,7 @@
 - 동작 기준은 레거시 `.tmp/LabelManager`의 라벨출력과 현재 Flutter 앱의 품목관리 미리보기·공용라벨 인쇄 구현이다.
 - 보완·예외 처리를 과도하게 추가하지 않는다. 실제 화면, 출력, 자동증가와 발행 이력에 필요한 model, DAO, 공용 API만 작성한다.
 - 현재 LabelSheet/FortuneSheet workbook을 유일한 렌더 원본으로 사용하고 별도 RTF·문자열 인쇄 엔진을 만들지 않는다.
-- 현재 `pubspec.yaml`의 hosted `printing` package와 기존 `RawPrinterWin32`, PDF/EZPL builder를 사용한다. package local fork, Windows native plugin 개조, spooler job 추적 기능을 이번 작업에 추가하지 않는다.
+- 현재 `pubspec.yaml`의 hosted `printing` package와 기존 `RawPrinterWin32`, PDF/EZPL builder를 공용 확장해 사용한다. 라벨출력의 1:1 물리 배치에 필요한 builder 수정만 허용하고 package local fork, Windows native plugin 개조, spooler job 추적 기능은 이번 작업에 추가하지 않는다.
 - SQL은 parameterized query와 기존 `DbClient.transaction()` 경계를 사용한다. SQL Server 오류는 사용자에게 전달하고 활성 transaction은 가능한 경우 rollback한다.
 - SQL Server table, column, index, trigger, procedure를 생성·변경·삭제하지 않고 data/schema migration도 구현하지 않는다.
 - 출력 journal, checksum, process crash 복구, 관리자 DB 판정, 앱 재시작 후 출력 복원은 이번 범위에 포함하지 않는다.
@@ -170,6 +170,7 @@
 - margin: 0 이상의 실수 mm
 - push: signed 실수 mm
 - 줄간격: 30~300 정수 percent, 값이 없으면 100
+- 물리 출력 직전에 `widthMm - rightMarginMm > 0`인지 확인한다. 방향 transform까지 적용한 source physical bounds와 label clip의 교집합이 비면 설정 오류를 표시하고 발행하지 않는다.
 
 ### 5.2 물리 출력 계산
 
@@ -177,7 +178,10 @@
 - source logical pixel과 mm의 기존 공용 변환을 사용한다.
 - row 크기가 source 크기와 달라도 workbook content를 확대·축소하거나 text를 다시 배치하지 않는다.
 - source를 row label 영역에 1:1로 배치한다. content 원점은 `(leftMarginMm + leftPushMm, topMarginMm + topPushMm)`이고 push는 음수를 허용한다. 오른쪽 content clip 경계는 `widthMm - rightMarginMm`이며 label 영역과 extra area에는 content가 넘어가지 않게 자른다.
+- label clip은 page 좌상단을 `(0, 0)`으로 한 `[0, widthMm - rightMarginMm] x [0, heightMm]` 사각형이며 extra area는 포함하지 않는다. horizontal source bounds는 content 원점에서 `sourceWidthMm x sourceHeightMm`, vertical source bounds는 같은 원점에서 회전 결과인 `sourceHeightMm x sourceWidthMm`다. 두 bounds의 가로 또는 세로 겹침 길이가 0 이하이면 교집합이 빈 것으로 판정한다.
+- 라벨출력 PDF builder는 source physical width/height로 image를 배치하고 row width/height에는 맞추지 않는다. 라벨출력 경로에서 `BoxFit.fill`을 사용하지 않는다. EZPL raster/bitmap fallback도 source physical 크기와 출력 DPI로 dot 크기를 계산하며 row label dot 크기로 `copyResize`하지 않는다. row 크기는 page와 clip에만 사용한다.
 - horizontal page는 기존처럼 `W x (H + extraArea)`다. 사용자 확정에 따라 vertical도 같은 page 크기를 유지하고 content만 시계 방향 90도로 한 번 회전한다. page width/height를 교환하지 않는다.
+- 방향 transform은 backend가 아니라 공용 physical layout이 소유한다. vertical은 현재 PDF `pw.Transform.rotateBox(angle: math.pi / 2)`의 content-box 회전을 기준으로 source를 한 번 회전한 뒤 같은 content 원점에 배치하고 label 영역으로 자른다. preview, PDF와 EZPL은 이 transform 결과를 사용하며 backend builder에서 다시 회전하지 않는다.
 - 위 방향과 extra area 동작은 기존 `LabelSheetPrintOptions`/`LabelSheetPrintPageMetrics`를 공용 확장해 preview, PDF와 EZPL에 동일하게 적용한다.
 - 줄간격은 `FortuneOutputLayoutOptions` 같은 공용 출력 option으로 preview, PDF와 EZPL bitmap fallback에 동일하게 전달한다.
 - DPI는 현재 `RawPrinterWin32.queryPrinterDpi()`와 `PrinterProfile` fallback을 사용한다. 별도 native DPI API를 추가하지 않는다.
@@ -278,9 +282,10 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 - 자동증가 행은 accepted copy별 `printCount=1`, 일반 행은 accepted copies 합계 한 건으로 기록한다.
 - `RICH_COLUMNS`, `RICH_PRINT_CELLS`, `RICH_SAVE_IN_DB_CELLS`는 레거시처럼 `주원료` 뒤 column order 값들을 `|`로 연결하고 trailing `|`를 남긴다. 값 안의 `|`도 레거시처럼 escaping하지 않는다.
 - `RICH_PRINT_CELLS`에는 실제 출력 projection, `RICH_SAVE_IN_DB_CELLS`에는 command 시작 시점의 DB 원본값을 기록한다.
-- `BM_RICH_STATUS` order는 같은 customer의 `MAX(RICH_STATUS_ORDER)` 다음 값으로 정하고 고객 이력이 없으면 1부터 시작한다.
+- 한 command에서 만들 history parent를 unit의 `(rowIndex, copyIndex)` 순서로 정렬한다. 자동증가 행은 accepted copy마다 해당 unit 순서 key의 parent 하나를 만들고, 일반 행은 accepted copies를 합쳐 가장 작은 accepted copy index의 unit 순서 key에 parent 하나를 둔다.
+- 단일 T-SQL batch에서 같은 customer의 기존 `MAX(RICH_STATUS_ORDER)`를 한 번 구하고 위 history parent 순서의 `ROW_NUMBER()`를 더해 연속 order를 배정한다. 고객 이력이 없으면 1부터 시작한다.
 - `RICH_STATUS_ID`는 `<customerId>-<brandId>-<order>`, `RICH_STATUS_DATA_ID`는 `<statusId>D<0-based columnOrderIndex>` 형식을 사용한다.
-- 레거시 조건대로 master key와 최초 관리자 접속의 출력은 print log와 status/detail 이력에서 제외한다. 자동증가 저장은 로그인 유형과 관계없이 accepted unit 기준으로 처리한다.
+- 사용자 확정에 따라 현재 Flutter에서 구분 가능한 `User.SYSTEM` 특수 로그인만 print log와 status/detail 이력에서 제외한다. 일반 `SYSTEM_ADMIN_USER` grade 로그인은 이력을 기록한다. 현재 Flutter에 없는 master-key 우회 로그인은 제외 대상으로 간주하지 않으며, 향후 해당 인증 경로를 구현할 때만 명시적인 session boolean을 추가한다. 자동증가 저장은 로그인 유형과 관계없이 accepted unit 기준으로 처리한다.
 - 여러 client/PC의 동시 order 충돌 방지는 이번 범위에 포함하지 않는다.
 
 ### 8.3 transaction과 오류
@@ -289,7 +294,7 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 - 현재 API는 `List<DbTransactionStatement>`를 transaction 시작 전에 받으므로, accepted unit을 JSON parameter 등으로 전달하는 단일 parameterized T-SQL batch 안에서 customer별 다음 order 계산, status/detail ID 생성과 모든 update/insert를 수행한다. SELECT 결과를 Dart로 가져와 transaction 중간에 뒤 statement를 조립하지 않는다.
 - SQL은 parameterized query를 사용하고 문자열을 직접 이어 붙이지 않는다.
 - 기존 table/column이 없거나 문자열 길이·형식이 맞지 않으면 SQL Server 오류를 그대로 사용자에게 전달한다.
-- transaction 중 오류가 발생하면 가능한 경우 rollback하고 `인쇄 작업은 접수되었으나 자동증가 값과 발행 이력을 저장하지 못했습니다.`를 표시한다.
+- transaction 중 오류가 발생하면 가능한 경우 rollback하고 `인쇄 작업은 접수되었으나 자동증가 값과 발행 이력을 저장하지 못했습니다.` 뒤에 원본 SQL Server 오류를 함께 표시한다. 기존 `DbClient.transaction()`이 전달하는 statement/commit 오류와 `DbCommitOutcomeUnknown`을 다른 성공이나 일반 오류로 치환하지 않는다.
 - DB 저장 실패 후 물리 출력을 자동 재실행하지 않는다. 별도 DB 재시도 UI, durable recovery 상태와 관리자 commit 판정은 구현하지 않는다.
 - commit 성공 후에는 자동증가 대상 `(columnId,itemId)`의 draft/snapshot만 commit 값으로 갱신한다. 화면 동기화가 실패하면 DB 성공을 되돌리지 않고 현재 session reload를 안내한다.
 
@@ -307,7 +312,7 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 
 1. 메모리 busy flag를 원자적으로 설정해 같은 앱 instance의 중복 발행을 막는다.
 2. pending cell edit를 확정하고 현재 label/customer/market/user, printer, 설정, row, column/content와 saved workbook을 immutable command로 만든다.
-3. 출력 행 존재, 전체 copies 1 이상, printer 선택, 저장 workbook과 숫자 설정을 검증한다.
+3. 출력 행 존재, 전체 copies 1 이상, printer 선택, 저장 workbook과 숫자 설정, 유효 출력 폭과 source/label clip 교집합을 검증한다.
 4. row/copy 순서대로 unit과 자동증가 projection을 만든다. resolver 오류가 있으면 출력하지 않는다.
 5. 공용 materializer와 print job builder로 group payload를 만든다.
 6. group dispatch 직전에 cancellation을 확인하고 PDF 또는 RAW dispatcher를 순서대로 호출한다.
@@ -359,6 +364,7 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 - `TYPE_PRINTCOUNT`와 `useLabelSize/useMargin/useLinefeed`별 item/preference 기본값
 - copies 0 허용, 음수/비정수 거부와 전체 0 발행 차단
 - margin/push/크기/줄간격 validation
+- 오른쪽 유효 출력 폭 0 이하와 horizontal/vertical source bounds가 label clip 밖에 있는 margin/push 발행 차단
 - rightMargin/leftPush/topPush 기존 key 누락 시 `0.0` fallback과 round-trip
 - exact search와 중복 결과 순환
 - unit 순서, 같은 page spec 인접 group과 spec 변경 분리
@@ -370,8 +376,9 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 - `#ITEMNAME`, `#ELEMENT`, 일반/날짜/시간, barcode/QR/GS1와 연결 이미지 치환
 - 품목관리 미리보기와 라벨출력 copy index 0 결과 동등성
 - 원본 workbook 불변
-- 저장 source viewport, 1:1 배치, clip, margin+push, 방향, extra area와 줄간격
-- vertical은 page `W x (H+extraArea)`를 유지하고 content만 한 번 회전
+- 저장 source viewport, source physical 크기 1:1 배치, clip, margin+push, 방향, extra area와 줄간격
+- row 크기가 달라도 PDF `BoxFit.fill`과 row 기준 EZPL `copyResize` 없이 source physical 크기를 유지
+- vertical은 page `W x (H+extraArea)`를 유지하고 공용 transform에서 content만 한 번 회전하며 preview/PDF/EZPL 결과가 동등함
 - PDF page 수와 EZPL `^P1` 수가 unit 수와 일치
 - 같은 page spec의 인접 unit은 한 dispatcher call, spec 변경은 순서가 유지된 별도 call
 - PDF true/false/exception과 RAW 성공/exception mapping
@@ -387,8 +394,8 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 - `autoIncSize/autoIncRange/autoIncZeroDel`, 자릿수 순환과 barcode check digit/time-barcode 재적용
 - history/status/detail의 자동증가 copy/일반 row 집계
 - 레거시 `|` wire와 projected/DB 원본 mapping
-- 단일 parameterized SQL batch의 customer status order, 첫 값 1과 status/detail ID 형식
-- master key/최초 관리자 이력 제외와 일반 사용자 이력 저장
+- 단일 parameterized SQL batch의 `(rowIndex, copyIndex)` history parent 순서별 연속 customer status order, 첫 값 1과 status/detail ID 형식
+- `User.SYSTEM` 이력 제외, 일반 `SYSTEM_ADMIN_USER` grade와 일반 사용자 이력 저장
 - accepted unit이 없을 때 DB 작업 없음
 - 일부 accepted 후 transaction 성공/rollback
 - commit 후 대상 draft/snapshot만 갱신
@@ -419,7 +426,7 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
   - 자동증가 copy별 값
   - 준비 중/group 사이/active call 중 취소
   - 첫 group 실패, 일부 group accepted 후 실패
-  - 출력 접수 후 DB 저장 실패의 오류 구분과 rollback
+   - 출력 접수 후 DB 저장 실패의 context·원본 SQL 오류 표시와 rollback
 
 실제 SQL Server나 printer를 사용할 수 없으면 해당 수동 항목만 `미검증`으로 남긴다.
 
@@ -427,7 +434,7 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 
 1. 품목관리 발행 체크를 controlled state로 올리고 출력 row/session model을 구현한다.
 2. 품목 출력 materializer와 읽기 전용 preview를 공용 API로 추출한다.
-3. right margin/signed push와 줄간격을 기존 공용 설정·print job에 최소 확장한다.
+3. right margin/signed push, 1:1 source 배치·공용 방향 transform과 줄간격을 기존 공용 설정·print job에 최소 확장한다.
 4. 라벨출력 화면, table, 검색, 선택과 자동 미리보기를 구현한다.
 5. 기존 PDF/EZPL dispatcher를 공용 service로 추출하고 단일 row·copy 출력을 연결한다.
 6. 여러 row/copy와 page spec group 출력을 연결한다.
@@ -444,10 +451,12 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 - 선택 행의 실제 출력 미리보기가 자동 표시되고 품목관리와 같은 materializer를 사용한다.
 - 검색은 발행 목록의 레거시 exact 대상만 선택하며 자동 발행하지 않는다.
 - 공용 printer 설정과 현재 hosted `printing`/PDF/EZPL/RAW engine을 재사용한다.
+- source physical 크기는 preview/PDF/EZPL에서 확대·축소 없이 유지되고 row 크기는 page와 clip에만 사용된다.
+- 유효 출력 폭이 없거나 source가 label clip과 만나지 않으면 물리 출력 전에 차단된다.
 - 같은 최종 page spec의 인접 unit은 순서를 유지해 group 출력된다.
 - 취소 또는 group 실패 시 active call 결과를 보존하고 뒤 group을 보내지 않는다.
 - accepted unit만 자동증가와 기존 발행 이력 table에 한 transaction으로 저장된다.
-- SQL 오류를 사용자에게 전달하고 가능한 경우 rollback하며 자동 재출력하지 않는다.
+- SQL 오류를 context와 함께 사용자에게 전달하고 가능한 경우 rollback하며 자동 재출력하지 않는다.
 - DB migration, local printing fork, native plugin 개조, durable recovery 기능을 추가하지 않는다.
 - Windows desktop에서만 기능을 노출한다.
 - 관련 focused test, `flutter analyze`, 전체 `flutter test`, `git diff --check`가 통과한다.
