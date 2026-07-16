@@ -10,6 +10,7 @@
 - 독립 재검토: 세 계약의 UI/model/DTO/dispatch/pipeline/테스트/완료 조건 사이 실제 모순, 구현 불가능성, 빠진 필수 검증 0건이다.
 - 최종 검증: 이전 포괄 file port/설정 적용/줄간격 변환 표현 0건, 새 계약 17개 위치 확인, 두 문서 diagnostics 오류 0건, `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md` 통과. 문서만 변경해 Flutter test/analyze는 실행하지 않았다.
 - stage/commit 대상: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. 기존 사용자 `lib/core/app.dart`, `doc/label_print.txt` 변경은 제외한다.
+- 작업지시서 설정 UI·port null 계약 커밋: `93c5fe0 라벨출력 설정 UI와 포트 판정 계약 명확화`.
 
 ### 완료 (2026-07-16): 라벨출력 preflight·backend·줄간격 기본값 명확화
 - 사용자 요청: `doc/label_print_modify.txt` 재검토 권장안 4건을 작업지시서에 병합하고 사용자 확인 사항이 있으면 즉시 질문해 확정한다.
