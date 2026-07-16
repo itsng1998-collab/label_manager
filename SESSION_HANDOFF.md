@@ -1,3 +1,16 @@
+### 완료 (2026-07-16): 라벨출력 preflight·backend·줄간격 기본값 명확화
+- 사용자 요청: `doc/label_print_modify.txt` 재검토 권장안 4건을 작업지시서에 병합하고 사용자 확인 사항이 있으면 즉시 질문해 확정한다.
+- 확정 기준: `[발행]` busy 획득 시 `requestedAt`을 먼저 저장하되 printer와 입력을 검증하고 backend를 정한 뒤 immutable command를 만든다. backend는 command당 하나이며 지원 여부/file port에 따른 발행 전 PDF capability fallback만 허용하고 RAW build/send 실패 후 PDF 재출력은 하지 않는다.
+- 수정 예정: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. 줄간격 `none`/레거시 `0`은 nullable no-adjustment로 유지하고 preference 전체가 없을 때 기존 공용 기본값을 명시한다. retry/recovery, spooler/native 변경과 DB migration은 추가하지 않는다.
+- `doc/label_print_modify.txt` 편집 완료: validation 전 candidate snapshot, 검증된 printer의 command-wide backend, immutable command 생성 순서와 발행 요청 시작 `requestedAt`을 pipeline·DTO·테스트에 통일했다.
+- `doc/label_print_modify.txt` backend 계약 편집 완료: unsupported profile/file port만 발행 전 PDF capability fallback으로 두고 EZPL build/RAW send 실패 후 PDF 미재전송, command-wide backend에서 page spec만으로 group 분리를 본문·테스트·완료 조건에 연결했다.
+- `doc/label_print_modify.txt` 기본값 계약 편집 완료: nullable 줄간격에서 preference `none`/레거시 `0`을 no-adjustment로 보존하고 preference 전체 부재 시 printer 미선택, 0.0 설정, horizontal, label-size 크기 fallback을 명시했다.
+- `SESSION_HANDOFF.md` 편집 완료: 이번 병합의 확정 기준과 파일별 진행 상태를 기록했다.
+- 검증 예정: 두 문서 diagnostics, 이전 runtime PDF fallback/backend 변경 group/줄간격 100 기본/command 선생성 표현과 새 계약 검색, `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md`. 문서만 변경하므로 Flutter test/analyze는 실행하지 않는다.
+- 독립 재검토: requestedAt/preflight/command 생성 순서, command-wide backend와 capability fallback, nullable 줄간격, preference 전체 부재 기본값의 본문·DTO·pipeline·오류·테스트·완료 조건 사이 실제 모순과 필수 검증 누락 0건이다.
+- 최종 검증: 이전 runtime PDF fallback/backend 변경 group/줄간격 100 기본/command 선생성 표현 0건, 새 핵심 계약 15개 위치와 command 순서 15개 위치 확인, 두 문서 diagnostics 오류 0건, `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md` 통과. 변경량은 2개 문서 41 insertions/21 deletions이며 문서만 변경해 Flutter test/analyze는 실행하지 않았다.
+- stage/commit 대상: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. 기존 사용자 `lib/core/app.dart`, `doc/label_print.txt` 변경은 제외한다.
+
 ### 완료 (2026-07-16): 라벨출력 발행시각·이력필드·group 계약 명확화
 - 사용자 요청: `doc/label_print_modify.txt` 재검토 권장안 5건을 작업지시서에 병합하고 사용자 확인 사항이 있으면 즉시 질문해 확정한다.
 - 확정 기준: `requestedAt`은 탭 진입이 아니라 `[발행]` 요청의 busy 획득 직후 command 생성 시작 시각으로 정한다. row field 출처를 copies/label-size fallback/printer preference fallback별로 구분하고, group key는 resolved backend와 physical page spec 조합으로 통일한다.

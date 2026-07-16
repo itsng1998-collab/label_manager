@@ -50,6 +50,8 @@
 - `useMargin == true`이면 item의 left/right/top margin과 left/top push의 `item override`, 아니면 공용 프린터 설정의 같은 field에 대한 `preference fallback`을 사용한다.
 - `useLinefeed == true`이면 item linefeed의 `item override`, 아니면 공용 프린터 설정의 자동 줄간격 `preference fallback`을 사용한다.
 
+저장된 printer preference 전체가 없거나 저장 printer가 제거되어 설정이 정리된 경우에는 현재 공용 화면과 같이 printer 미선택, margin/push/extra area `0.0`, 줄간격 조정 없음, 방향 `horizontal`을 초기 설정 snapshot으로 사용한다. width/height는 현재 label-size fallback을 사용하며 printer를 자동 선택하지 않는다.
+
 발행매수 `0`은 개별 행에서 허용한다. 전체 매수 합계가 `0`이면 발행하지 않는다. 음수와 정수가 아닌 값은 허용하지 않는다.
 
 ### 2.2 선택과 미리보기
@@ -72,7 +74,7 @@
 - copies가 1 이상인 row를 row 순서와 copy index 순서의 `LabelPrintUnit`으로 펼친다.
 - copies가 0인 row는 materialize, 출력, 자동증가와 이력에서 제외한다.
 - 현재 label-size의 `TColumn` 중 `autoInc == true`가 하나라도 있으면 copies가 1 이상인 모든 row를 copy index별 값으로 materialize한다. 실제 값 변경은 `autoInc == true`인 column에만 적용한다.
-- resolved backend와 최종 physical page spec이 모두 같은 인접 unit만 한 print group으로 묶고 unit 순서를 바꾸지 않는다.
+- resolved backend는 command 전체에서 같으며 최종 physical page spec이 같은 인접 unit만 한 print group으로 묶고 unit 순서를 바꾸지 않는다.
 - group을 순서대로 출력하고 한 group이 실패하거나 사용자가 취소를 요청하면 다음 group을 보내지 않는다.
 - 이미 `accepted`된 group의 unit만 자동증가와 이력 저장 대상으로 삼는다.
 
@@ -109,7 +111,7 @@
    - 라벨출력 설정에는 printer, left/right/top margin, left/top push, 자동 줄간격, 추가 영역과 방향을 표시한다.
    - 공용 preference에 없는 `rightMargin`, `leftPush`, `topPush`는 같은 문자열 저장 방식으로 추가하고 기존 key가 없으면 `0.0`을 사용한다.
 4. 출력 dispatcher
-   - 현재 공용라벨의 printer 확인, PDF fallback과 EZPL RAW 분기를 공용 service로 추출한다.
+   - 현재 공용라벨의 printer 확인과 EZPL RAW/PDF 분기를 공용 service로 추출한다. 지원하지 않는 profile 또는 file port를 발행 전에 PDF로 정하는 것만 capability fallback이며 RAW build/send 실패 후 PDF를 다시 보내는 동작은 재사용하지 않는다.
    - dispatcher는 UI를 직접 표시하지 않고 성공 여부 또는 exception을 반환한다. PDF는 `directPrintPdf()` 반환값을 확인하고 group의 page format을 `format`으로 전달한다.
    - `RawPrinterWin32.sendRaw()`는 기존 API 형태를 유지하되 `EndDocPrinter` 반환값도 확인해 실패하면 exception을 던진다. job ID, `AbortPrinter`와 native plugin 변경은 추가하지 않는다.
 
@@ -161,7 +163,7 @@
 - `widthMm`, `heightMm`
 - `leftMarginMm`, `rightMarginMm`, `topMarginMm`
 - `leftPushMm`, `topPushMm`
-- `lineSpacingPercent`
+- nullable `lineSpacingPercent`
 - copies의 `item baseline`/`session edited` 출처
 - width/height의 `item override`/`label-size fallback`/`session edited` 출처
 - margin/push/line spacing의 `item override`/`preference fallback`/`session edited` 출처
@@ -172,7 +174,7 @@
 - `widthMm`, `heightMm`: 양의 정수 mm
 - margin: 0 이상의 실수 mm
 - push: signed 실수 mm
-- 줄간격: 30~300 정수 percent, 값이 없으면 100
+- 줄간격: `null` 또는 30~300 정수 percent. 공용 preference의 `none`과 레거시 fallback `0`은 `null`인 간격조정 없음으로 변환하고 명시적인 100은 유효한 100% 조정값으로 유지한다.
 - 물리 출력 직전에 `widthMm - rightMarginMm > 0`인지 확인한다. 방향 transform까지 적용한 source physical bounds와 label clip의 교집합이 비면 설정 오류를 표시하고 발행하지 않는다.
 
 ### 5.2 물리 출력 계산
@@ -195,11 +197,11 @@
 
 다음 immutable DTO 또는 동등 구조만 둔다.
 
-- `LabelPrinterSnapshot`: 선택된 `Printer`, 표시용 name과 profile/port 확인으로 발행 전에 정한 PDF 또는 EZPL RAW backend
-- `LabelPrintCommand`: command 생성 시 한 번 정한 `requestedAt`, label/customer/brand/market/user, printer, `extraAreaMm`과 방향을 포함한 설정, row, column/content와 saved workbook snapshot. brand는 command 생성 시점의 immutable `brandId`와 `brandName`을 가진다. `TColumn` snapshot은 `(columnOrder, columnId)` 오름차순으로 한 번 정렬하고 0부터 연속인 immutable `detailIndex`를 부여한다. 모든 snapshot은 출력 중 변경되지 않는다.
+- `LabelPrinterSnapshot`: 검증된 `Printer`, 표시용 name과 profile/port 확인으로 command 생성 전에 정한 단일 PDF 또는 EZPL RAW backend
+- `LabelPrintCommand`: `[발행]` 요청 시작 시 한 번 정한 `requestedAt`, label/customer/brand/market/user, printer, `extraAreaMm`과 방향을 포함한 설정, row, column/content와 saved workbook snapshot. brand는 command 생성 시점의 immutable `brandId`와 `brandName`을 가진다. `TColumn` snapshot은 `(columnOrder, columnId)` 오름차순으로 한 번 정렬하고 0부터 연속인 immutable `detailIndex`를 부여한다. 모든 snapshot은 출력 중 변경되지 않는다.
 - `LabelPrintUnit`: item ID, row index, copy index와 materialize projection. 한 unit은 한 장이다.
 - `LabelPhysicalPageSpec`: PDF 또는 EZPL backend의 최종 page 크기와 필요한 DPI/media 값
-- `LabelPrintJobGroup`: 순서가 연속되고 resolved backend와 page spec이 같은 unit 목록
+- `LabelPrintJobGroup`: command-wide resolved backend와 순서가 연속되고 page spec이 같은 unit 목록
 - `LabelPrintDispatchResult`: group과 `accepted`/`failed`, 오류
 - `LabelPrintPersistenceResult`: transient `notAttempted`/`succeeded`/`failed`/`outcomeUnknown`과 원본 오류. 별도 durable state나 복구 상태 machine은 아니다.
 - `LabelPrintResult`: 요청/accepted 매수, group 결과, persistence 결과와 물리 dispatch 기준 `completed`/`partiallyAccepted`/`cancelled`/`failed`. 자동증가·이력 SQL 실패나 `DbCommitOutcomeUnknown`으로 accepted 매수와 물리 상태를 덮어쓰지 않는다.
@@ -246,22 +248,23 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 
 - row 순서와 copy index 순서대로 unit을 만든다.
 - 모든 unit을 공용 materializer와 print job builder로 page payload에 추가하고 오류가 없는지 확인한 뒤에만 첫 group dispatch를 시작한다.
-- backend와 최종 physical page spec이 같은 인접 unit만 한 group으로 묶는다.
+- 한 command의 모든 unit은 `LabelPrinterSnapshot`의 같은 backend를 사용하고 최종 physical page spec이 같은 인접 unit만 한 group으로 묶는다.
 - PDF group은 같은 page format의 multi-page PDF 한 건, EZPL group은 각 label이 `^P1`인 RAW payload 한 건으로 만든다.
-- backend 또는 spec이 바뀌면 새 group을 만들고 뒤에서 같은 key가 다시 나와도 앞 group과 합치지 않는다.
+- spec이 바뀌면 새 group을 만들고 뒤에서 같은 spec이 다시 나와도 앞 group과 합치지 않는다.
 
 ### 7.2 dispatch
 
 - 선택 printer를 command 시작 시 snapshot하고 출력 도중 다시 선택하지 않는다.
-- Godex RAW가 가능한 group은 기존 EZPL builder와 `RawPrinterWin32.sendRaw()`를 사용한다.
-- file port이거나 RAW를 사용할 수 없는 group은 기존 PDF builder와 `Printing.directPrintPdf()`를 사용한다.
+- command backend가 EZPL RAW이면 기존 EZPL builder와 `RawPrinterWin32.sendRaw()`를 사용한다.
+- 지원하지 않는 profile 또는 file port라 command backend가 PDF이면 기존 PDF builder와 `Printing.directPrintPdf()`를 사용한다.
 - PDF document page와 `directPrintPdf(format:)`은 같은 group page format을 사용하고 반환값을 확인한다.
 - PDF는 `directPrintPdf() == true`, RAW는 group의 모든 unit을 담은 한 `sendRaw()` call이 `EndDocPrinter` 확인까지 exception 없이 완료되면 해당 group의 모든 unit을 `accepted`로 본다. PDF `false`/exception 또는 RAW exception이면 해당 group의 모든 unit을 `failed`로 본다. 현재 API가 제공하지 않는 group 내부 page/label별 결과는 추적하지 않는다.
+- EZPL build 오류는 첫 OS call 전 전체 preflight 실패로 처리하고 `sendRaw()` exception은 해당 group 실패로 처리한다. 두 경우 모두 PDF로 다시 만들거나 재전송하지 않는다.
 - group 실패 후에는 다음 group을 보내지 않는다.
 - OS 출력 call을 앱 cancellation로 강제 중단하지 않는다. call 실행 전 또는 group 사이에 취소를 확인하고, 실행 중 요청된 취소는 call 완료 후 다음 group부터 적용한다.
 - 별도 timeout, spooler polling, job ID 추적과 앱 재시작 복구는 구현하지 않는다.
 
-모든 unit을 한 OS print call로 합치지 않는다. 같은 resolved backend와 page spec의 인접 unit만 group으로 묶어 기존 builder가 다룰 수 있는 단위로 순차 실행한다.
+모든 unit을 한 OS print call로 합치지 않는다. command-wide backend에서 같은 page spec의 인접 unit만 group으로 묶어 기존 builder가 다룰 수 있는 단위로 순차 실행한다.
 
 ## 8. 데이터 저장
 
@@ -333,11 +336,11 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 
 ## 10. 발행 pipeline
 
-1. 메모리 busy flag를 원자적으로 설정해 같은 앱 instance의 중복 발행을 막는다.
-2. busy flag 획득 직후 `[발행]` 요청의 현재 시각을 `requestedAt`으로 한 번 정한다. 현재 printer의 profile/port로 PDF 또는 EZPL RAW backend를 정한 뒤 label/customer/brand/market/user, printer/backend, 설정, row와 마지막 저장·조회 column/content baseline, saved workbook을 immutable command로 만든다. 탭 진입 시각이나 미리보기 생성 시각은 사용하지 않는다.
-3. 출력 행 존재, 전체 copies 1 이상, printer 선택, 저장 workbook과 숫자 설정, 유효 출력 폭과 source/label clip 교집합을 검증한다. 실패하면 물리 상태 `failed`, accepted 0, persistence `notAttempted`로 종료한다.
+1. 메모리 busy flag를 원자적으로 설정해 같은 앱 instance의 중복 발행을 막고, 획득 직후 `[발행]` 요청의 현재 시각을 `requestedAt`으로 한 번 정한다. 탭 진입 시각이나 미리보기 생성 시각은 사용하지 않는다.
+2. 현재 UI/session 값을 candidate snapshot으로 읽고 출력 행 존재, 전체 copies 1 이상, printer 선택, 저장 workbook과 숫자 설정, 유효 출력 폭과 source/label clip 교집합을 command 생성 전에 검증한다. 실패하면 backend 조회나 command 생성을 하지 않고 물리 상태 `failed`, accepted 0, persistence `notAttempted`로 종료한다.
+3. 검증된 printer의 profile/port로 PDF 또는 EZPL RAW backend를 한 번 정하고 앞에서 저장한 `requestedAt`, label/customer/brand/market/user, printer/backend, 설정, row와 마지막 저장·조회 column/content baseline, saved workbook으로 immutable command를 만든다.
 4. row/copy 순서대로 모든 unit과 자동증가 projection을 만든다.
-5. 모든 unit을 같은 `requestedAt`으로 공용 materializer와 print job builder에서 materialize하고 `(resolved backend, physical page spec)`별 인접 group payload를 완성한다. 하나라도 resolver/decode/materialize/build 오류가 있으면 대상 item/copy/column을 표시하고 물리 상태 `failed`, accepted 0, persistence `notAttempted`로 종료하며 어떤 group도 보내지 않는다.
+5. 모든 unit을 같은 `requestedAt`으로 공용 materializer와 command-wide backend의 print job builder에서 materialize하고 같은 physical page spec별 인접 group payload를 완성한다. 하나라도 resolver/decode/materialize/build 오류가 있으면 대상 item/copy/column을 표시하고 물리 상태 `failed`, accepted 0, persistence `notAttempted`로 종료하며 어떤 group도 보내지 않는다.
 6. group dispatch 직전에 cancellation을 확인하고 PDF 또는 RAW dispatcher를 순서대로 호출한다.
 7. group이 failed이면 뒤 group을 중단한다. active call 완료 뒤 취소가 확인되면 뒤 group을 중단한다.
 8. accepted unit에서 자동증가 update 대상과 현재 사용자의 이력 insert 대상을 계산해 `requiresPersistence`를 정한다. 둘 다 없으면 DB를 호출하지 않고 persistence를 `notAttempted`로 둔다.
@@ -388,17 +391,18 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 - field별 item baseline/override 또는 label-size/printer preference fallback으로 초기화한 뒤 라벨출력 session edit를 최종 유효값으로 유지하고 품목관리 미저장 draft는 제외
 - `TYPE_PRINTCOUNT`와 `useLabelSize/useMargin/useLinefeed`별 item/label-size/printer preference 기본값
 - copies의 item baseline, width/height의 label-size fallback, margin/push/line spacing의 printer preference fallback과 각 session edit 출처 구분
+- preference 전체가 없을 때 printer 미선택, margin/push/extra area 0.0, 줄간격 null, horizontal과 label-size width/height fallback 초기값
 - copies 0 허용, 음수/비정수 거부와 전체 0 발행 차단
-- margin/push/크기/줄간격 validation
+- margin/push/크기와 nullable 줄간격 validation, preference `none`/레거시 `0`의 null 변환 및 명시적 100 유지
 - `extraAreaMm` 0 이상과 horizontal/vertical 방향 validation, command 생성 후 설정 snapshot 불변
 - 오른쪽 유효 출력 폭 0 이하와 horizontal/vertical source bounds가 label clip 밖에 있는 margin/push 발행 차단
 - rightMargin/leftPush/topPush 기존 key 누락 시 `0.0` fallback과 round-trip
 - exact search와 중복 결과 순환
-- unit 순서, 같은 backend/page spec 인접 group과 backend 또는 spec 변경 분리
+- unit 순서, command-wide backend에서 같은 page spec 인접 group과 spec 변경 분리
 - label-size에 autoInc column이 하나라도 있을 때 모든 copies 1 이상 row의 copy별 projection
 - 자동증가 copy별 projection과 accepted 최대 copy index의 저장값
 - command `requestedAt` 고정과 날짜·시간/time-barcode projection의 모든 unit 동일 기준 시각 사용
-- 라벨출력 탭 진입 후 시간이 지나도 `[발행]` busy 획득 직후 시각을 command `requestedAt`으로 사용
+- 라벨출력 탭 진입 후 시간이 지나도 `[발행]` busy 획득 직후 시각을 command `requestedAt`으로 사용하고 validation/backend 조회 뒤 command를 생성
 - 중복·비연속 column order를 `(columnOrder, columnId)`로 안정 정렬하고 0부터 연속인 command `detailIndex` 부여
 - cancellation request와 busy 상태
 - 첫 group 전 취소 `cancelled`, 일부 accepted 후 취소 `partiallyAccepted`, 전부 accepted 후 늦은 취소 `completed` 결과 mapping
@@ -414,8 +418,9 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 - row 크기가 달라도 PDF `BoxFit.fill`과 row 기준 EZPL `copyResize` 없이 source physical 크기를 유지
 - vertical은 page `W x (H+extraArea)`를 유지하고 `TL→TR→BR→BL→TL` corner mapping으로 시계 방향 한 번 회전하며 preview/PDF/EZPL 결과가 동등함
 - PDF page 수와 EZPL `^P1` 수가 unit 수와 일치
-- 같은 backend/page spec의 인접 unit은 한 dispatcher call, 같은 spec이어도 backend가 다르거나 spec이 바뀌면 순서가 유지된 별도 call
+- command-wide backend에서 같은 page spec의 인접 unit은 한 dispatcher call, spec이 바뀌면 순서가 유지된 별도 call
 - PDF true/false/exception과 RAW 성공/exception mapping
+- unsupported profile/file port의 발행 전 PDF capability fallback과 EZPL build/RAW send 실패 후 PDF 미재전송
 - PDF/RAW group 결과를 group의 모든 unit accepted 또는 failed로 환산
 - PDF group format 전달과 RAW `EndDocPrinter` 실패 mapping
 - 첫 group 실패와 일부 group accepted 후 실패의 후속 전송 차단
@@ -464,6 +469,7 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 - 발행 중 취소 button과 중복 발행 차단
 - 설정 dialog의 항목, `[취소] [적용]`, 내부 발행/매수 없음
 - 설정 적용 시 모든 row에서 margin/push/line spacing의 preference fallback만 갱신하고 copies, label-size fallback과 item/session 값을 유지
+- preference 전체 없음/저장 printer 제거 시 기존 공용 기본값과 printer 미선택 상태
 - 900x600과 일반 desktop viewport overflow 없음
 - non-Windows에서 tab/command 미노출
 
@@ -515,13 +521,14 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 - source physical 크기는 preview/PDF/EZPL에서 확대·축소 없이 유지되고 row 크기는 page와 clip에만 사용된다.
 - vertical content는 확정한 시계 방향 corner mapping으로 preview/PDF/EZPL에서 동일하게 출력된다.
 - 유효 출력 폭이 없거나 source가 label clip과 만나지 않으면 물리 출력 전에 차단된다.
-- 같은 resolved backend와 최종 page spec의 인접 unit은 순서를 유지해 group 출력되고 backend 또는 spec이 다르면 분리된다.
+- command-wide resolved backend에서 같은 최종 page spec의 인접 unit은 순서를 유지해 group 출력되고 spec이 다르면 분리된다.
 - 모든 unit의 projection과 materialize/group payload 생성을 첫 OS call 전에 완료하고 하나라도 실패하면 어떤 group도 보내지 않는다.
 - 실제 출력의 모든 날짜·시간/time-barcode projection은 command의 단일 `requestedAt`을 사용한다.
 - 취소 또는 group 실패 시 active call 결과를 보존하고 뒤 group을 보내지 않는다.
 - 첫 group 전 취소는 `cancelled`, 일부 accepted 후 취소는 `partiallyAccepted`, 모든 unit accepted 후 늦은 취소는 `completed`로 종료한다.
 - accepted unit에서 실제 자동증가 update 또는 이력 insert 대상이 있을 때만 필요한 작업을 한 transaction으로 저장하고, 둘 다 없으면 DB를 호출하지 않는다.
 - PDF/RAW API 결과는 group 전체 unit 단위로 accepted/failed에 반영되고 API가 제공하지 않는 page별 결과는 추적하지 않는다.
+- unsupported profile/file port만 발행 전 PDF capability fallback으로 처리하고 EZPL build 또는 RAW send 실패 뒤 PDF를 재전송하지 않는다.
 - label-size에 autoInc column이 하나라도 있으면 모든 출력 row의 accepted copy별 이력을 저장하고, brand 이력 값은 command snapshot을 사용한다.
 - 발행 이력의 column name, 출력 projection, 자동증가 미적용 DB baseline wire와 status detail column mapping이 레거시 순서를 따른다.
 - 기존 세 이력 table은 명시한 레거시 insert field만 command/row/history snapshot에서 채우며 새 schema를 가정하지 않는다.
