@@ -112,7 +112,7 @@
    - 라벨출력 설정에는 printer, left/right/top margin, left/top push, 자동 줄간격, 추가 영역과 방향을 표시한다.
    - 공용 preference에 없는 `rightMargin`, `leftPush`, `topPush`는 같은 문자열 저장 방식으로 추가하고 기존 key가 없으면 `0.0`을 사용한다.
 4. 출력 dispatcher
-   - 현재 공용라벨의 printer 확인과 EZPL RAW/PDF 분기를 공용 service로 추출한다. 지원하지 않는 profile 또는 명시적인 `FILE:`/`PORTPROMPT:` port를 발행 전에 PDF로 정하는 것만 capability fallback이며, port 조회 `null`은 file port가 아닌 것으로 본다. RAW build/send 실패 후 PDF를 다시 보내는 동작은 재사용하지 않는다.
+   - 현재 공용라벨의 printer 확인과 EZPL RAW/PDF 분기를 공용 service로 추출한다. 현재 RAW 지원 profile은 실제 builder가 있는 `PrinterLanguage.ezpl`뿐이다. EZPL profile이면서 port가 일반 값 또는 조회 결과 `null`이면 RAW, EZPL이라도 명시적인 `FILE:`/`PORTPROMPT:` port이면 PDF, `zpl`/`tspl`/`cpcl`/`rasterOnly` 등 현재 지원하지 않는 profile이면 PDF로 발행 전에 한 번 정한다. 포괄적인 `PrinterProfile.canSendRaw`만으로 backend를 정하지 않는다. 이 profile/file port 판정만 capability fallback이며 RAW build/send 실패 후 PDF를 다시 보내는 동작은 재사용하지 않는다.
    - dispatcher는 UI를 직접 표시하지 않고 성공 여부 또는 exception을 반환한다. PDF는 `directPrintPdf()` 반환값을 확인하고 group의 page format을 `format`으로 전달한다.
    - `RawPrinterWin32.sendRaw()`는 기존 API 형태를 유지하되 `EndDocPrinter` 반환값도 확인해 실패하면 exception을 던진다. job ID, `AbortPrinter`와 native plugin 변경은 추가하지 않는다.
 
@@ -201,7 +201,7 @@
 
 다음 immutable DTO 또는 동등 구조만 둔다.
 
-- `LabelPrinterSnapshot`: 검증된 `Printer`, 표시용 name과 profile/port 확인으로 command 생성 전에 정한 단일 PDF 또는 EZPL RAW backend. `queryPrinterPortName() == null`은 현재 `isFilePortName(null) == false` 계약대로 명시적인 file port가 아닌 것으로 판정한다.
+- `LabelPrinterSnapshot`: 검증된 `Printer`, 표시용 name과 profile/port 확인으로 command 생성 전에 정한 단일 PDF 또는 EZPL RAW backend. `PrinterLanguage.ezpl`과 일반 port 또는 `queryPrinterPortName() == null` 조합만 RAW이고, 명시적인 file port와 현재 지원하지 않는 다른 language는 PDF다. port `null`은 현재 `isFilePortName(null) == false` 계약대로 명시적인 file port가 아닌 것으로 판정하며 `PrinterProfile.canSendRaw`만으로 backend를 정하지 않는다.
 - `LabelPrintCommand`: `[발행]` 요청 시작 시 한 번 정한 `requestedAt`, label/customer/brand/market/user, printer, `extraAreaMm`과 방향을 포함한 설정, row, column/content와 saved workbook snapshot. brand는 command 생성 시점의 immutable `brandId`와 `brandName`을 가진다. `TColumn` snapshot은 `(columnOrder, columnId)` 오름차순으로 한 번 정렬하고 0부터 연속인 immutable `detailIndex`를 부여한다. 모든 snapshot은 출력 중 변경되지 않는다.
 - `LabelPrintUnit`: item ID, row index, copy index와 materialize projection. 한 unit은 한 장이다.
 - `LabelPhysicalPageSpec`: PDF 또는 EZPL backend의 최종 page 크기와 필요한 DPI/media 값
@@ -265,7 +265,7 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 
 - 선택 printer를 command 시작 시 snapshot하고 출력 도중 다시 선택하지 않는다.
 - command backend가 EZPL RAW이면 기존 EZPL builder와 `RawPrinterWin32.sendRaw()`를 사용한다.
-- 지원하지 않는 profile 또는 명시적인 `FILE:`/`PORTPROMPT:` port라 command backend가 PDF이면 기존 PDF builder와 `Printing.directPrintPdf()`를 사용한다. port 조회 결과가 `null`이면 file port로 간주하지 않으므로 EZPL profile은 RAW backend를 선택한다.
+- `zpl`/`tspl`/`cpcl`/`rasterOnly` 등 현재 지원하지 않는 profile 또는 명시적인 `FILE:`/`PORTPROMPT:` port라 command backend가 PDF이면 기존 PDF builder와 `Printing.directPrintPdf()`를 사용한다. port 조회 결과가 `null`이면 file port로 간주하지 않으므로 EZPL profile은 RAW backend를 선택한다.
 - PDF document page와 `directPrintPdf(format:)`은 같은 group page format을 사용하고 반환값을 확인한다.
 - PDF는 `directPrintPdf() == true`, RAW는 group의 모든 unit을 담은 한 `sendRaw()` call이 `EndDocPrinter` 확인까지 exception 없이 완료되면 해당 group의 모든 unit을 `accepted`로 본다. PDF `false`/exception 또는 RAW exception이면 해당 group의 모든 unit을 `failed`로 본다. 현재 API가 제공하지 않는 group 내부 page/label별 결과는 추적하지 않는다.
 - EZPL build 오류는 첫 OS call 전 전체 preflight 실패로 처리하고 `sendRaw()` exception은 해당 group 실패로 처리한다. 두 경우 모두 PDF로 다시 만들거나 재전송하지 않는다.
@@ -351,7 +351,7 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 
 1. 메모리 busy flag를 원자적으로 설정해 같은 앱 instance의 중복 발행을 막고, 획득 직후 `[발행]` 요청의 현재 시각을 `requestedAt`으로 한 번 정한다. 탭 진입 시각이나 미리보기 생성 시각은 사용하지 않는다.
 2. 현재 UI/session 값을 candidate snapshot으로 읽는다. copies는 모든 row에서 0 이상 정수인지 검증하고 전체 합계가 1 이상인지 확인한다. printer 선택과 저장 workbook을 확인한 뒤 copies가 1 이상인 row에만 크기·margin/push/line spacing, 유효 출력 폭과 source/label clip 교집합의 발행 검증을 적용한다. 실패하면 backend 조회나 command 생성을 하지 않고 물리 상태 `failed`, accepted 0, persistence `notAttempted`로 종료한다. copies가 0인 row의 물리 설정은 다른 row의 발행을 차단하지 않는다.
-3. 검증된 printer의 profile/port로 PDF 또는 EZPL RAW backend를 한 번 정한다. 명시적인 file port만 PDF capability fallback으로 처리하고 port 조회 결과가 `null`인 EZPL profile은 RAW를 선택한다. 앞에서 저장한 `requestedAt`, label/customer/brand/market/user, printer/backend, 설정, row와 마지막 저장·조회 column/content baseline, saved workbook으로 immutable command를 만든다.
+3. 검증된 printer의 profile/port로 PDF 또는 EZPL RAW backend를 한 번 정한다. `PrinterLanguage.ezpl`이면서 port가 일반 값 또는 `null`인 경우만 RAW를 선택한다. EZPL의 명시적인 `FILE:`/`PORTPROMPT:` port와 `zpl`/`tspl`/`cpcl`/`rasterOnly` 등 현재 지원하지 않는 profile은 PDF capability fallback으로 처리하고, 포괄적인 `PrinterProfile.canSendRaw`만으로 판정하지 않는다. 앞에서 저장한 `requestedAt`, label/customer/brand/market/user, printer/backend, 설정, row와 마지막 저장·조회 column/content baseline, saved workbook으로 immutable command를 만든다.
 4. copies가 1 이상인 row만 row/copy 순서대로 unit과 자동증가 projection을 만든다. copies가 0인 row는 발행 unit을 만들지 않지만 화면에서 선택하면 별도의 대화형 copy index 0 미리보기 projection을 만들 수 있다.
 5. 모든 unit을 같은 `requestedAt`으로 공용 materializer와 command-wide backend의 print job builder에서 materialize하고 같은 physical page spec별 인접 group payload를 완성한다. 하나라도 resolver/decode/materialize/build 오류가 있으면 대상 item/copy/column을 표시하고 물리 상태 `failed`, accepted 0, persistence `notAttempted`로 종료하며 어떤 group도 보내지 않는다.
 6. group dispatch 직전에 cancellation을 확인하고 PDF 또는 RAW dispatcher를 순서대로 호출한다.
@@ -439,7 +439,7 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 - PDF page 수와 EZPL `^P1` 수가 unit 수와 일치
 - command-wide backend에서 같은 page spec의 인접 unit은 한 dispatcher call, spec이 바뀌면 순서가 유지된 별도 call
 - PDF true/false/exception과 RAW 성공/exception mapping
-- unsupported profile와 명시적 `FILE:`/`PORTPROMPT:` port의 발행 전 PDF capability fallback, 일반 port/`null`의 EZPL RAW 판정과 EZPL build/RAW send 실패 후 PDF 미재전송
+- `zpl`/`tspl`/`cpcl`/`rasterOnly` profile과 EZPL의 명시적 `FILE:`/`PORTPROMPT:` port의 발행 전 PDF capability fallback, 일반 port/`null`의 EZPL RAW 판정, `canSendRaw` 단독 판정 금지와 EZPL build/RAW send 실패 후 PDF 미재전송
 - PDF/RAW group 결과를 group의 모든 unit accepted 또는 failed로 환산
 - PDF group format 전달과 RAW `EndDocPrinter` 실패 mapping
 - 첫 group 실패와 일부 group accepted 후 실패의 후속 전송 차단
@@ -560,7 +560,7 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 - 첫 group 전 취소는 `cancelled`, 일부 accepted 후 취소는 `partiallyAccepted`, 모든 unit accepted 후 늦은 취소는 `completed`로 종료한다.
 - accepted unit에서 실제 자동증가 update 또는 이력 insert 대상이 있을 때만 필요한 작업을 한 transaction으로 저장하고, 둘 다 없으면 DB를 호출하지 않는다.
 - PDF/RAW API 결과는 group 전체 unit 단위로 accepted/failed에 반영되고 API가 제공하지 않는 page별 결과는 추적하지 않는다.
-- unsupported profile과 명시적 `FILE:`/`PORTPROMPT:` port만 발행 전 PDF capability fallback으로 처리한다. port 조회 `null`은 file port가 아니므로 EZPL profile은 RAW를 선택하고, EZPL build 또는 RAW send 실패 뒤 PDF를 재전송하지 않는다.
+- 현재 RAW 지원 profile은 `PrinterLanguage.ezpl`뿐이다. EZPL의 일반 port/`null`만 RAW로 선택하고, EZPL의 명시적 `FILE:`/`PORTPROMPT:` port와 `zpl`/`tspl`/`cpcl`/`rasterOnly` 등 현재 지원하지 않는 profile은 발행 전 PDF capability fallback으로 처리한다. `PrinterProfile.canSendRaw`만으로 판정하거나 EZPL build/RAW send 실패 뒤 PDF를 재전송하지 않는다.
 - label-size에 autoInc column이 하나라도 있으면 모든 출력 row의 accepted copy별 이력을 저장하고, brand 이력 값은 command snapshot을 사용한다.
 - 발행 이력의 column name, 출력 projection, 자동증가 미적용 DB baseline wire와 status detail column mapping이 레거시 순서를 따른다.
 - 기존 세 이력 table은 명시한 레거시 insert field만 command/row/history snapshot에서 채우며 새 schema를 가정하지 않는다.
