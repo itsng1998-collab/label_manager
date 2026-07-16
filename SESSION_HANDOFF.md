@@ -1,3 +1,19 @@
+### 완료 (2026-07-16): 라벨출력 복수 행 copies 동기화 명확화
+- 사용자 요청: `doc/label_print_modify.txt` 재검토 권장안 1건을 작업지시서에 병합하고 사용자 확인 사항이 있으면 즉시 질문해 확정한다.
+- 확정 기준: commit 성공 후 command의 안정 정렬 `TColumn` snapshot에서 copies 기준 첫 `TYPE_PRINTCOUNT` column을 한 번 선택하고, 원래 label-size session의 현재 출력 row 전체를 item ID 기준으로 순회한다. 각 row의 `(선택 columnId,row.itemId)` key가 `committedAutoIncrementValues`에 있고 copies 출처가 `item baseline`일 때만 같은 parser로 갱신한다.
+- 확정 기준: 같은 선택 column ID와 서로 다른 item ID를 가진 복수 key는 대응하는 모든 `item baseline` row에 각각 반영한다. `session edited` copies와 선택되지 않은 다른 `TYPE_PRINTCOUNT` 값은 유지한다.
+- 사용자 확인 사항: 없음. 기존 commit map의 `ColumnItemKey`와 item ID stable row 계약으로 단일하게 확정 가능하다.
+- 수정 예정: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. session·transaction·pipeline·DAO 테스트·완료 조건을 정리하며 DB 조회·retry/recovery, migration과 별도 예외 처리는 추가하지 않는다.
+- `doc/label_print_modify.txt` 편집 완료: command snapshot의 첫 `TYPE_PRINTCOUNT` column 단일 선택, 현재 출력 row 전체의 item ID 순회, 복수 commit key별 모든 `item baseline` copies 갱신을 session·transaction·pipeline·DAO 테스트·완료 조건에 연결했다.
+- `SESSION_HANDOFF.md` 편집 완료: 이번 병합의 확정 기준과 파일별 진행 상태를 기록했다.
+- 검증 예정: 두 문서 diagnostics, 복수 row/item ID 순회와 `session edited` 유지 계약 검색, 독립 재검토, `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md`. 문서만 변경하므로 Flutter test/analyze는 실행하지 않는다.
+- 1차 검증: 두 문서 diagnostics 오류 0건, 복수 행 계약 5곳과 반대 단수 표현 0건 확인, `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md` 통과. 이제 전체 diff와 독립 재검토를 진행한다.
+- 독립 재검토: 첫 `TYPE_PRINTCOUNT` column 단일 선택, 현재 출력 row 전체 item ID 순회, 복수 key별 모든 `item baseline` 갱신, `session edited`·다른 column 유지 사이 실제 모순과 구현 애매함 0건이다. 제기된 복수 item focused test는 `13.3 DAO 테스트`에 이미 같은 시나리오와 유지 조건이 포함되어 추가하지 않는다.
+- 최종 검증 예정: 두 문서 diagnostics와 `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md`를 다시 실행한다.
+- 최종 검증: 두 문서 diagnostics 오류 0건, 복수 행 계약 5곳과 반대 단수 표현 0건 확인, 독립 재검토 실제 문제 0건, `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md` 통과. 문서만 변경해 Flutter test/analyze는 실행하지 않았다.
+- stage/commit 대상: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. 기존 사용자 `lib/core/app.dart` 변경은 제외하고 `git commit --only`를 사용한다.
+- 작업지시서 복수 행 copies 동기화 계약 커밋: `5ae4d16 라벨출력 복수 행 매수 동기화 명확화`.
+
 ### 완료 (2026-07-16): 라벨출력 자동증가 저장 시각 고정
 - 사용자 요청: `doc/label_print_modify.txt` 재검토 권장안 1건을 작업지시서에 병합하고 사용자 확인 사항이 있으면 즉시 질문해 확정한다.
 - 확정 기준: 자동증가 순수 projection의 필수 입력에 `DateTime referenceAt`을 두고 실제 출력 index와 `autoIncSave == true`의 저장용 index `k + 1` 모두 command의 단일 `requestedAt`을 사용한다. barcode check digit/time-barcode 재적용 중 `DateTime.now()`를 다시 호출하지 않는다.
