@@ -1,3 +1,14 @@
+### 완료 (2026-07-16): 품목 편집 중 라벨출력 전용 gate 구체화
+- 사용자 요청: 품목관리 편집 중 라벨출력 전환 금지 기준의 재검토 권장안을 `doc/label_print_modify.txt`에 병합한다.
+- 확정 기준: active cell edit 차단은 `label_print` target에만 적용한다. 기존 `_blockItemDraftContextChange()`의 브랜드·라벨크기·출력 미리보기 등 다른 호출부 동작은 변경하지 않는다.
+- 수정 예정: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. 실제 inline editor open/commit 진행만 active editing으로 정의하고 focus/selection은 제외하며, label-print 초기화 전 target 전용 gate 실행, 차단 시 activation/load/preview/printer/command 부작용 없음과 안내 1회 테스트를 본문·구현 순서·완료 조건에 연결한다. package 수정, 자동 commit/save/cancel, DB recovery/migration은 추가하지 않는다.
+- `doc/label_print_modify.txt` gate 계약 편집 완료: `_blockLabelPrintTabSelection()` 동등 전용 helper가 `label_print` target에서만 active editing/command busy/dirty를 가장 먼저 판정하고, 기존 공용 context-change gate의 다른 호출부는 유지하도록 명시했다.
+- `doc/label_print_modify.txt` active-edit 계약 편집 완료: `FortuneTableEditingController.hasActiveEditing`을 inline editor open 또는 commit 진행으로 한정하고 focus/row selection은 제외하며 `ItemManageController`가 read-only로 위임하도록 했다.
+- `doc/label_print_modify.txt` 차단 결과·테스트 편집 완료: selection 즉시 복원, 안내 1회, label-print activation/row load/preview/printer 조회/command 생성 미실행을 마우스/F3/programmatic 진입과 완료 조건에 연결했다.
+- 독립 재검토: `hasActiveEditing`과 전용 helper가 아직 코드에 없다는 지적은 작업지시서의 구현 대상이므로 결함에서 제외했다. 실제 문구 누락인 전환 해제 조건은 active editing/command busy/dirty 세 상태가 모두 false일 때로 보완했다.
+- 최종 검증: 이전 공용 gate active-edit 확장 표현 0건, 새 target gate/active-edit/부작용 금지/세 상태 해제 계약 4곳 확인, 두 문서 diagnostics 오류 0건, `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md` 통과. 문서만 변경해 Flutter test/analyze는 실행하지 않았다.
+- stage/commit 대상: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. 기존 사용자 `lib/core/app.dart`, `doc/label_print.txt` 변경은 제외한다.
+
 ### 완료 (2026-07-16): 품목 편집 중 라벨출력 전환 차단 확정
 - 사용자 확정: 품목관리 편집 모드 또는 미저장 draft가 있으면 라벨출력 탭으로 전환하지 않고, 품목 편집 내용을 저장하거나 취소하도록 안내한다. 라벨출력은 마지막으로 저장·조회된 품목 데이터만 사용한다.
 - 현재 코드 경계: `HomePageManager._onTabSelection()`은 품목관리 밖으로 전환할 때 기존 `_blockItemDraftContextChange()`를 호출하며, 이 gate는 item draft command busy와 `ItemManagerDraftController.isDirty`를 차단하고 품목관리 탭으로 되돌린다.

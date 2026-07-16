@@ -305,10 +305,12 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 - 상위 `HomePageManager`가 현재 label-size session의 checked item ID를 소유한다.
 - 우클릭 발행 체크, checkbox와 전체 해제가 모두 같은 callback을 사용한다.
 - label size 변경, 품목 삭제와 session reload 때 존재하지 않는 ID를 제거한다.
-- `HomePageManager._onTabSelection()`의 기존 context-change gate를 라벨출력 전환에도 사용한다. `ItemManageController`가 `hasActiveEditing` 또는 동등 read-only 상태를 제공하며, active cell edit, item draft command busy 또는 `ItemManagerDraftController.isDirty == true`이면 선택을 품목관리 탭으로 되돌리고 라벨출력 화면을 열지 않는다. 상태 확인을 위해 active edit를 commit하지 않는다.
-- 마우스 tab 선택, `F3` 단축키와 programmatic tab 선택은 모두 이 gate 하나를 거친다. 별도 진입 경로에서 라벨출력 index를 직접 확정하지 않는다.
-- 차단 시 `품목 편집 내용을 저장하거나 취소한 뒤 라벨출력을 이용해 주세요.`를 표시한다. 자동 저장·자동 취소·draft를 사용한 출력은 하지 않는다.
-- 품목 저장이나 변경 취소가 완료되어 active edit와 `isDirty`가 모두 해소된 뒤에만 라벨출력 탭 전환을 허용한다.
+- 기존 `_blockItemDraftContextChange()`의 브랜드·라벨크기·출력 미리보기 등 다른 호출부 동작은 변경하지 않는다. `HomePageManager._onTabSelection()`에서 target이 `label_print`일 때만 `hasActiveEditing || itemDraftCommandBusy || ItemManagerDraftController.isDirty`를 한 번에 판정하는 `_blockLabelPrintTabSelection()` 또는 동등 전용 helper를 가장 먼저 실행한다.
+- `FortuneTableEditingController`는 inline text editor가 실제로 열려 있거나 editor 값 commit이 진행 중일 때만 `true`인 read-only `hasActiveEditing`을 제공하고 `ItemManageController`가 이를 위임한다. 셀 focus나 row 선택만 있는 상태는 active editing이 아니다. 상태 확인을 위해 `commitEditing()`을 호출하지 않는다.
+- 마우스 tab 선택, `F3` 단축키와 programmatic tab 선택은 모두 이 label-print target gate를 거친다. 별도 진입 경로에서 라벨출력 index를 직접 확정하지 않는다.
+- 차단 시 callback 안에서 즉시 품목관리 tab selection을 복원하고 `품목 편집 내용을 저장하거나 취소한 뒤 라벨출력을 이용해 주세요.`를 한 번만 표시한다. 자동 저장·자동 취소·draft를 사용한 출력은 하지 않는다.
+- 차단된 요청에서는 label-print 화면 activation, row load, preview/materialize, printer 조회와 command 생성을 시작하지 않는다.
+- 품목 저장이나 변경 취소가 완료되고 `hasActiveEditing == false`, `itemDraftCommandBusy == false`, `ItemManagerDraftController.isDirty == false`가 된 뒤에만 라벨출력 탭 전환을 허용한다.
 - 라벨출력은 기존 item ID의 마지막 저장·조회 baseline만 사용한다. 품목관리 draft 전체를 저장하지 않으며 자동증가 대상만 8.1 경계에서 저장한다.
 
 ## 10. 발행 pipeline
@@ -409,8 +411,11 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 
 - `label_print` placeholder 제거와 실제 화면
 - 품목관리 발행 체크와 출력 목록 동기화
+- inline editor open/commit 중에는 `hasActiveEditing == true`, 셀 focus/row 선택만 있으면 `false`
 - 마우스 tab 선택, `F3`, programmatic 선택 각각에서 active cell edit, draft command busy 또는 `isDirty` 라벨출력 전환 차단과 품목관리 탭 유지
-- 차단 안내 후 자동 저장·자동 취소가 발생하지 않고, 저장 또는 변경 취소 완료 후 라벨출력 전환 허용
+- 차단 안내는 요청당 한 번이고 자동 저장·자동 취소가 발생하지 않으며, label-print activation/row load/preview/printer 조회/command 생성이 호출되지 않음
+- 저장 또는 변경 취소 완료 후 active editing/command busy/dirty가 모두 해소되면 라벨출력 전환 허용
+- active-edit 조건 추가가 기존 브랜드·라벨크기·출력 미리보기 context-change 동작을 변경하지 않음
 - 미저장 draft 값은 검색·미리보기·materialize·출력 command에 포함되지 않음
 - 첫 행 선택, 선택·설정 변경 미리보기
 - 검색 영역과 exact-match 선택
@@ -440,7 +445,7 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 
 ## 14. 구현 순서
 
-1. 품목관리 발행 체크를 controlled state로 올리고 기존 context-change gate에 active edit/`isDirty` 라벨출력 전환 차단을 연결한 뒤 출력 row/session model을 구현한다.
+1. 품목관리 발행 체크를 controlled state로 올리고 `FortuneTableEditingController`/`ItemManageController`의 read-only active-edit 상태와 label-print target 전용 gate를 연결한 뒤 출력 row/session model을 구현한다. 기존 공용 context-change gate의 다른 호출부는 변경하지 않는다.
 2. 품목 출력 materializer와 읽기 전용 preview를 공용 API로 추출한다.
 3. right margin/signed push, 1:1 source 배치·공용 방향 transform과 줄간격을 기존 공용 설정·print job에 최소 확장한다.
 4. 라벨출력 화면, table, 검색, 선택과 자동 미리보기를 구현한다.
@@ -454,7 +459,8 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 ## 15. 완료 조건
 
 - `라벨출력(F3)` 탭이 실제 화면으로 동작한다.
-- 품목관리 active edit 또는 미저장 draft가 있으면 라벨출력 탭으로 전환하지 않고 저장·취소 안내 후 품목관리 탭을 유지한다.
+- 품목관리 inline editor open/commit 중, item draft command busy 또는 미저장 draft 상태에서는 어떤 진입 경로로도 라벨출력 탭을 활성화하지 않고 저장·취소 안내 후 품목관리 탭을 유지한다.
+- 차단된 전환은 label-print 화면 activation, 데이터 load, preview, printer 조회와 command 생성을 실행하지 않으며 기존 다른 context-change 동작을 변경하지 않는다.
 - 라벨출력 검색·미리보기·출력은 마지막으로 저장·조회된 품목 baseline만 사용하고 draft working value를 사용하지 않는다.
 - 품목관리 발행 체크 행만 출력 목록에 나타나고 item ID 기준으로 동기화된다.
 - 행별 매수·크기·여백·밀기·줄간격이 레거시 우선순위로 초기화되고 session에서 편집된다.
