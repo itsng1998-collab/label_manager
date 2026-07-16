@@ -1,3 +1,15 @@
+### 완료 (2026-07-16): 라벨출력 시각·저장결과·row 수명 명확화
+- 사용자 요청: `doc/label_print_modify.txt` 재검토 권장안 3건을 작업지시서에 병합한다.
+- 확정 기준: command 생성 시 `requestedAt`을 한 번 snapshot해 실제 출력의 모든 날짜·시간/time-barcode 계산에 사용한다. 기존 네 `LabelPrintResult` 상태는 물리 dispatch 전용으로 유지하고 persistence 결과만 최소 typed 값으로 분리한다.
+- 수정 예정: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. preflight/materialize/build 오류는 기존 `failed`/accepted 0으로 통일하고, 발행 체크 해제 시 해당 row session edit를 폐기한 뒤 재체크하면 기본값으로 새로 초기화한다. retry/recovery, durable state, spooler 추적, native/plugin 변경, DB migration은 추가하지 않는다.
+- `doc/label_print_modify.txt` 시각 계약 편집 완료: `LabelPrintCommand.requestedAt`을 한 번 snapshot하고 실제 출력의 모든 날짜·시간/유통기한/time-barcode 및 일반 row 합산 이력 projection이 같은 기준 시각을 사용하도록 했다.
+- `doc/label_print_modify.txt` 결과 계약 편집 완료: transient `LabelPrintPersistenceResult`의 `notAttempted`/`succeeded`/`failed`/`outcomeUnknown`과 원본 오류를 정의하고, 데이터 조회·validation·materialize/build 실패를 기존 물리 `failed`/accepted 0/`notAttempted`로 통일했다.
+- `doc/label_print_modify.txt` row 수명 계약 편집 완료: 체크 해제 시 해당 row/session edit를 폐기하고 재체크 시 현재 item override 또는 preference fallback으로 새로 초기화하도록 본문·session 연동·테스트·완료 조건을 연결했다.
+- 테스트·완료 조건 편집 완료: 시간 경계에서도 requestedAt projection 유지, persistence mapping/원본 오류 보존, 체크 해제·재체크 초기화를 반영했다.
+- 독립 재검토: 세 계약이 본문·pipeline·오류·테스트·완료 조건에 일치하며 실제 모순이나 빠진 검증 계약이 없음을 확인했다.
+- 최종 검증: 새 requestedAt/persistence/row 수명 계약 25곳 확인, 이전 모호한 별도 전달·재체크 복원 계약 0건, `DateTime.now()` 검색 1건은 재호출 금지 문장의 오탐, 두 문서 diagnostics 오류 0건, `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md` 통과. 문서만 변경해 Flutter test/analyze는 실행하지 않았다.
+- stage/commit 대상: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. 기존 사용자 `lib/core/app.dart`, `doc/label_print.txt` 변경은 제외한다.
+
 ### 완료 (2026-07-16): 라벨출력 값·이력·결과 경계 명확화
 - 사용자 요청: `doc/label_print_modify.txt` 재검토 권장안 4건을 작업지시서에 병합한다.
 - 확정 기준: 출력 row는 item override 또는 preference fallback으로 초기화한 뒤 라벨출력 session edit를 최종값으로 사용하며 품목관리 draft는 포함하지 않는다. 레거시 이력 wire는 column name과 출력/baseline 값을 구분하고 status detail은 주원료를 제외한 TColumn 순서로 생성한다.
