@@ -1,3 +1,15 @@
+### 완료 (2026-07-16): 라벨출력 결과·설정·SQL 계약 명확화
+- 사용자 요청: `doc/label_print_modify.txt` 재검토 권장안을 작업지시서에 병합한다.
+- 확정 기준: `DbCommitOutcomeUnknown`은 저장 실패로 단정하지 않고 원본 오류를 전달한다. PDF/RAW group API 결과는 group 전체 unit의 accepted/failed로 환산하며 page별 spooler 추적은 하지 않는다. 취소 결과는 기존 네 상태로 확정하고 별도 recovery state를 만들지 않는다.
+- 수정 예정: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. `extraAreaMm`/방향을 command snapshot과 기본 validation에 포함하고, transaction 입력은 현재 품목 저장과 같은 JSON parameter/`OPENJSON` 단일 batch로 확정한다. DB migration, retry/reconciliation, native/plugin 변경은 추가하지 않는다.
+- `doc/label_print_modify.txt` 설정 계약 편집 완료: `extraAreaMm >= 0`, horizontal/vertical validation과 command 생성 시 immutable 설정 snapshot을 물리 출력·DTO 기준에 연결했다.
+- `doc/label_print_modify.txt` 결과 계약 편집 완료: PDF/RAW 한 group call의 성공·실패를 group 전체 unit에 환산하고, 첫 전송 전/일부 accepted 후/전부 accepted 후 취소를 각각 `cancelled`/`partiallyAccepted`/`completed`로 확정했다.
+- `doc/label_print_modify.txt` SQL 계약 편집 완료: 기존 `jsonEncode` parameter/`OPENJSON` 단일 statement batch를 사용하며 statement 저장 실패와 `DbCommitOutcomeUnknown`의 사용자 문구를 구분하고 재조회·관리자 판정·자동 재시도를 제외했다.
+- 테스트·완료 조건 편집 완료: group 전체-unit 결과, 취소 상태 mapping, statement 실패/commit 결과 불명 문구를 검증 항목에 반영했다.
+- 독립 재검토: 본문 모순은 없었고 `extraAreaMm`/방향 model validation, 취소 결과 상태, 단일 SQL batch의 테스트·완료 조건 연결 누락만 확인되어 모두 보완했다.
+- 최종 검증: 새 설정/group/취소/SQL/commit 계약 5곳 확인, 이전 `JSON parameter 등`·미분류 취소·commit 결과 불명 저장 실패 단정 등 폐기 표현 0건, 두 문서 diagnostics 오류 0건, `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md` 통과. 문서만 변경해 Flutter test/analyze는 실행하지 않았다.
+- stage/commit 대상: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. 기존 사용자 `lib/core/app.dart`, `doc/label_print.txt` 변경은 제외한다.
+
 ### 완료 (2026-07-16): 품목 편집 중 라벨출력 전용 gate 구체화
 - 사용자 요청: 품목관리 편집 중 라벨출력 전환 금지 기준의 재검토 권장안을 `doc/label_print_modify.txt`에 병합한다.
 - 확정 기준: active cell edit 차단은 `label_print` target에만 적용한다. 기존 `_blockItemDraftContextChange()`의 브랜드·라벨크기·출력 미리보기 등 다른 호출부 동작은 변경하지 않는다.

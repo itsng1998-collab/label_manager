@@ -174,6 +174,7 @@
 
 ### 5.2 물리 출력 계산
 
+- `extraAreaMm`은 0 이상의 실수이고 방향은 `horizontal` 또는 `vertical`만 허용한다. command 생성 전에 검증하고 두 값은 출력 설정 snapshot에 포함해 출력 중 preference나 UI에서 다시 읽지 않는다.
 - 저장 workbook의 `gridClientWidthMm/gridClientHeightMm`를 source viewport로 사용한다. 없으면 라벨 저장을 요청하고 출력하지 않는다.
 - source logical pixel과 mm의 기존 공용 변환을 사용한다.
 - row 크기가 source 크기와 달라도 workbook content를 확대·축소하거나 text를 다시 배치하지 않는다.
@@ -192,7 +193,7 @@
 다음 immutable DTO 또는 동등 구조만 둔다.
 
 - `LabelPrinterSnapshot`: 선택된 `Printer`와 표시용 name
-- `LabelPrintCommand`: label/customer/brand/market/user, printer, 설정, row, column/content와 saved workbook snapshot. brand는 command 생성 시점의 immutable `brandId`와 `brandName`을 가진다.
+- `LabelPrintCommand`: label/customer/brand/market/user, printer, `extraAreaMm`과 방향을 포함한 설정, row, column/content와 saved workbook snapshot. brand는 command 생성 시점의 immutable `brandId`와 `brandName`을 가지며 모든 설정 snapshot은 출력 중 변경되지 않는다.
 - `LabelPrintUnit`: item ID, row index, copy index와 materialize projection. 한 unit은 한 장이다.
 - `LabelPhysicalPageSpec`: PDF 또는 EZPL backend의 최종 page 크기와 필요한 DPI/media 값
 - `LabelPrintJobGroup`: 순서가 연속되고 page spec이 같은 unit 목록
@@ -250,7 +251,7 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 - Godex RAW가 가능한 group은 기존 EZPL builder와 `RawPrinterWin32.sendRaw()`를 사용한다.
 - file port이거나 RAW를 사용할 수 없는 group은 기존 PDF builder와 `Printing.directPrintPdf()`를 사용한다.
 - PDF document page와 `directPrintPdf(format:)`은 같은 group page format을 사용하고 반환값을 확인한다.
-- PDF `false`/exception과 RAW exception은 해당 group 실패다.
+- PDF는 `directPrintPdf() == true`, RAW는 group의 모든 unit을 담은 한 `sendRaw()` call이 `EndDocPrinter` 확인까지 exception 없이 완료되면 해당 group의 모든 unit을 `accepted`로 본다. PDF `false`/exception 또는 RAW exception이면 해당 group의 모든 unit을 `failed`로 본다. 현재 API가 제공하지 않는 group 내부 page/label별 결과는 추적하지 않는다.
 - group 실패 후에는 다음 group을 보내지 않는다.
 - OS 출력 call을 앱 cancellation로 강제 중단하지 않는다. call 실행 전 또는 group 사이에 취소를 확인하고, 실행 중 요청된 취소는 call 완료 후 다음 group부터 적용한다.
 - 별도 timeout, spooler polling, job ID 추적과 앱 재시작 복구는 구현하지 않는다.
@@ -292,10 +293,11 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 ### 8.3 transaction과 오류
 
 - accepted unit의 자동증가 update, print log와 status/detail insert를 기존 `DbClient.transaction()` 한 번으로 실행한다.
-- 현재 API는 `List<DbTransactionStatement>`를 transaction 시작 전에 받으므로, accepted unit을 JSON parameter 등으로 전달하는 단일 parameterized T-SQL batch 안에서 customer별 다음 order 계산, status/detail ID 생성과 모든 update/insert를 수행한다. SELECT 결과를 Dart로 가져와 transaction 중간에 뒤 statement를 조립하지 않는다.
+- 현재 API는 `List<DbTransactionStatement>`를 transaction 시작 전에 받으므로, 현재 품목 저장과 같은 `jsonEncode` parameter/`OPENJSON` 패턴으로 accepted unit과 자동증가·이력 입력을 전달하는 단일 `DbTransactionStatement`의 parameterized T-SQL batch 안에서 customer별 다음 order 계산, status/detail ID 생성과 모든 update/insert를 수행한다. SELECT 결과를 Dart로 가져와 transaction 중간에 뒤 statement를 조립하지 않는다.
 - SQL은 parameterized query를 사용하고 문자열을 직접 이어 붙이지 않는다.
 - 기존 table/column이 없거나 문자열 길이·형식이 맞지 않으면 SQL Server 오류를 그대로 사용자에게 전달한다.
-- transaction 중 오류가 발생하면 가능한 경우 rollback하고 `인쇄 작업은 접수되었으나 자동증가 값과 발행 이력을 저장하지 못했습니다.` 뒤에 원본 SQL Server 오류를 함께 표시한다. 기존 `DbClient.transaction()`이 전달하는 statement/commit 오류와 `DbCommitOutcomeUnknown`을 다른 성공이나 일반 오류로 치환하지 않는다.
+- transaction statement 오류는 가능한 경우 rollback하고 `인쇄 작업은 접수되었으나 자동증가 값과 발행 이력을 저장하지 못했습니다.` 뒤에 원본 SQL Server 오류를 함께 표시한다.
+- commit을 시도한 뒤 `DbCommitOutcomeUnknown`이 발생하면 가능한 rollback 시도까지만 수행하고 `인쇄 작업은 접수되었으나 자동증가 값과 발행 이력의 저장 결과를 확인할 수 없습니다.` 뒤에 원본 commit 오류를 함께 표시한다. 이를 저장 성공이나 확정 실패로 치환하지 않으며 DB 재조회·관리자 판정·자동 재시도를 추가하지 않는다.
 - DB 저장 실패 후 물리 출력을 자동 재실행하지 않는다. 별도 DB 재시도 UI, durable recovery 상태와 관리자 commit 판정은 구현하지 않는다.
 - commit 성공 후에는 자동증가 대상 `(columnId,itemId)`의 현재 session snapshot만 commit 값으로 갱신한다. 화면 동기화가 실패하면 DB 성공을 되돌리지 않고 현재 session reload를 안내한다.
 
@@ -336,9 +338,10 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 - printer 미선택 또는 제거: 설정을 요청하고 출력하지 않는다.
 - 첫 group 실패: `failed`, accepted unit 0으로 종료하고 DB를 변경하지 않는다.
 - 앞 group accepted 후 다음 group 실패: `partiallyAccepted`로 표시하고 accepted unit만 DB에 반영한다.
-- 준비 중 또는 group 사이 취소: 뒤 group을 보내지 않는다.
-- active OS call 중 취소: call을 중단하지 않고 결과를 기다린 뒤 다음 group을 보내지 않는다.
-- 마지막 group이 이미 accepted된 뒤 취소 요청이 확인되면 완료 결과와 함께 이미 접수됐음을 안내한다.
+- 준비 중 또는 첫 group 전 취소: 뒤 group을 보내지 않고 accepted unit 0의 `cancelled`로 종료한다.
+- 일부 group이 accepted된 뒤 group 사이 취소: 뒤 group을 보내지 않고 `partiallyAccepted`로 종료한다.
+- active OS call 중 취소: call을 중단하지 않고 결과를 기다린다. call 결과를 먼저 accepted/failed로 반영하고, 미전송 group이 남아 있으면서 accepted unit이 있으면 `partiallyAccepted`, accepted unit이 없으면 call 실패 여부에 따라 `failed` 또는 `cancelled`로 종료한다.
+- 마지막 group이 이미 accepted되어 미전송 unit이 없는 뒤 취소 요청이 확인되면 `completed`로 종료하고 이미 접수됐음을 안내한다.
 - 자동증가/이력 SQL 실패: 물리 출력 결과와 구분해 표시하고 가능한 rollback만 수행한다.
 - 화면 동기화 실패: DB 저장 성공과 구분해 표시하고 현재 session reload를 안내한다.
 
@@ -369,6 +372,7 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 - `TYPE_PRINTCOUNT`와 `useLabelSize/useMargin/useLinefeed`별 item/preference 기본값
 - copies 0 허용, 음수/비정수 거부와 전체 0 발행 차단
 - margin/push/크기/줄간격 validation
+- `extraAreaMm` 0 이상과 horizontal/vertical 방향 validation, command 생성 후 설정 snapshot 불변
 - 오른쪽 유효 출력 폭 0 이하와 horizontal/vertical source bounds가 label clip 밖에 있는 margin/push 발행 차단
 - rightMargin/leftPush/topPush 기존 key 누락 시 `0.0` fallback과 round-trip
 - exact search와 중복 결과 순환
@@ -376,6 +380,7 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 - label-size에 autoInc column이 하나라도 있을 때 모든 copies 1 이상 row의 copy별 projection
 - 자동증가 copy별 projection과 accepted 최대 copy index의 저장값
 - cancellation request와 busy 상태
+- 첫 group 전 취소 `cancelled`, 일부 accepted 후 취소 `partiallyAccepted`, 전부 accepted 후 늦은 취소 `completed` 결과 mapping
 
 ### 13.2 materialize/print 테스트
 
@@ -388,6 +393,7 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 - PDF page 수와 EZPL `^P1` 수가 unit 수와 일치
 - 같은 page spec의 인접 unit은 한 dispatcher call, spec 변경은 순서가 유지된 별도 call
 - PDF true/false/exception과 RAW 성공/exception mapping
+- PDF/RAW group 결과를 group의 모든 unit accepted 또는 failed로 환산
 - PDF group format 전달과 RAW `EndDocPrinter` 실패 mapping
 - 첫 group 실패와 일부 group accepted 후 실패의 후속 전송 차단
 - 준비 중/group 사이/active call 중 취소
@@ -405,6 +411,7 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 - `User.SYSTEM` 이력 제외, 일반 `SYSTEM_ADMIN_USER` grade와 일반 사용자 이력 저장
 - accepted unit이 없을 때 DB 작업 없음
 - 일부 accepted 후 transaction 성공/rollback
+- statement 저장 실패와 `DbCommitOutcomeUnknown`의 사용자 문구·결과 구분
 - commit 후 자동증가 대상 session snapshot만 갱신
 
 ### 13.4 widget 테스트
@@ -472,9 +479,13 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 - 유효 출력 폭이 없거나 source가 label clip과 만나지 않으면 물리 출력 전에 차단된다.
 - 같은 최종 page spec의 인접 unit은 순서를 유지해 group 출력된다.
 - 취소 또는 group 실패 시 active call 결과를 보존하고 뒤 group을 보내지 않는다.
+- 첫 group 전 취소는 `cancelled`, 일부 accepted 후 취소는 `partiallyAccepted`, 모든 unit accepted 후 늦은 취소는 `completed`로 종료한다.
 - accepted unit만 자동증가와 기존 발행 이력 table에 한 transaction으로 저장된다.
+- PDF/RAW API 결과는 group 전체 unit 단위로 accepted/failed에 반영되고 API가 제공하지 않는 page별 결과는 추적하지 않는다.
 - label-size에 autoInc column이 하나라도 있으면 모든 출력 row의 accepted copy별 이력을 저장하고, brand 이력 값은 command snapshot을 사용한다.
 - SQL 오류를 context와 함께 사용자에게 전달하고 가능한 경우 rollback하며 자동 재출력하지 않는다.
+- 자동증가와 발행 이력은 기존 `jsonEncode` parameter/`OPENJSON` 패턴의 단일 `DbTransactionStatement` batch로 저장한다.
+- commit 결과가 불명확하면 저장 실패로 단정하지 않고 `DbCommitOutcomeUnknown`과 원본 오류를 전달한다.
 - DB migration, local printing fork, native plugin 개조, durable recovery 기능을 추가하지 않는다.
 - Windows desktop에서만 기능을 노출한다.
 - 관련 focused test, `flutter analyze`, 전체 `flutter test`, `git diff --check`가 통과한다.
