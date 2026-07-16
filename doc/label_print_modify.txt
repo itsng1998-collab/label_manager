@@ -203,7 +203,7 @@
 
 - `LabelPrinterSnapshot`: 검증된 `Printer`, 표시용 name과 profile/port 확인으로 command 생성 전에 정한 단일 PDF 또는 EZPL RAW backend. `PrinterLanguage.ezpl`과 일반 port 또는 `queryPrinterPortName() == null` 조합만 RAW이고, 명시적인 file port와 현재 지원하지 않는 다른 language는 PDF다. port `null`은 현재 `isFilePortName(null) == false` 계약대로 명시적인 file port가 아닌 것으로 판정하며 `PrinterProfile.canSendRaw`만으로 backend를 정하지 않는다.
 - `LabelPrintCommand`: `[발행]` 요청 시작 시 한 번 정한 `requestedAt`, label/customer/brand/market/user, printer, `extraAreaMm`과 방향을 포함한 설정, row, column/content와 saved workbook snapshot. brand는 command 생성 시점의 immutable `brandId`와 `brandName`을 가진다. `TColumn` snapshot은 `(columnOrder, columnId)` 오름차순으로 한 번 정렬하고 0부터 연속인 immutable `detailIndex`를 부여한다. 모든 snapshot은 출력 중 변경되지 않는다.
-- `LabelPrintUnit`: item ID, row index, 0 기반 copy index와 materialize projection. copies가 `N`이면 index 범위는 `0 <= copyIndex < N`이고 한 unit은 한 장이다.
+- `LabelPrintUnit`: item ID, row index, 0 기반 copy index와 materialize projection. projection에는 command의 TColumn별 최종 projected data string을 immutable `Map<int, String>` 또는 동등 구조로 가지며 key는 `columnId`다. copies가 `N`이면 index 범위는 `0 <= copyIndex < N`이고 한 unit은 한 장이다.
 - `LabelPhysicalPageSpec`: PDF 또는 EZPL backend의 최종 page 크기와 필요한 DPI/media 값
 - `LabelPrintJobGroup`: command-wide resolved backend와 순서가 연속되고 page spec이 같은 unit 목록
 - `LabelPrintDispatchResult`: group과 `accepted`/`failed`, 오류
@@ -251,6 +251,8 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 - 연결 이미지: 현재 image resolver 결과. 값이나 파일이 없으면 materialized copy에서 해당 연결 image object만 생략하고 원본 workbook은 변경하지 않는다.
 - 고정 이미지와 고정 바코드: 원본 workbook 값 유지
 - resolver 오류: placeholder를 출력하지 않고 item/copy/column을 알린 뒤 첫 OS call 전에 전체 발행을 중단한다. 해당 unit만 건너뛰거나 앞 group부터 보내지 않는다.
+
+각 `LabelPrintUnit`의 projected column data는 command의 TColumn snapshot을 순회해 해당 TColumn 자체의 직접 `#keyword`/출력값에 자동증가/check digit/time-barcode와 일반 날짜·시간 projection까지 적용한 최종 문자열이다. 다른 column을 참조해 만든 QR/GS1 token 값과 resolver 조합 결과, barcode 표시 text, workbook object metadata와 image `src`는 renderer 전용이며 projected column data에 역반영하지 않는다.
 
 대화형 미리보기는 rebuild 시작 시 `previewAt = DateTime.now()`를 한 번 만들고 공용 materializer의 `referenceAt`으로 전달해 copies와 무관하게 선택 행의 copy index 0 projection을 materialize한다. 선택·설정·baseline 변경에 따른 기존 rebuild에서만 새 `previewAt`을 만들고 자동 timer refresh는 추가하지 않는다. 이후 `[발행]` 시에는 새 command `requestedAt`으로 payload를 다시 만들므로 시각 경계를 지난 오래된 미리보기와 실제 출력 값이 달라질 수 있다. 실제 출력은 copies가 1 이상인 각 unit의 copy index projection을 사용한다.
 
@@ -310,15 +312,15 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 - `BM_RICH_STATUS_DATA`는 `RICH_STATUS_DATA_ID`, `RICH_COLUMN_ID`, `RICH_STATUS_ID`, `RICH_PRINT_COLUMN_DATA`, `RICH_COLUMN_NAME`만 insert한다.
 - 이 절의 자동증가 행은 현재 label-size의 `TColumn` 중 `autoInc == true`가 하나라도 있을 때의 모든 출력 row다. 자동증가 행은 accepted copy별 `printCount=1`, autoInc column이 하나도 없는 label-size의 일반 행은 accepted copies 합계 한 건으로 기록한다.
 - `RICH_COLUMNS`는 레거시처럼 `주원료` 뒤에 command의 `(columnOrder, columnId)` 순서인 `TColumn` column name을 `|`로 연결한다. `RICH_PRINT_CELLS`와 `RICH_SAVE_IN_DB_CELLS`는 같은 위치에 각각 주원료와 column 값을 연결하며 세 문자열 모두 trailing `|`를 남긴다. 이름이나 값 안의 `|`도 레거시처럼 escaping하지 않는다.
-- `RICH_PRINT_CELLS`에는 해당 accepted unit의 자동증가가 적용된 실제 출력 projection을 기록한다. `RICH_SAVE_IN_DB_CELLS`에는 command 생성 시점에 snapshot한 자동증가 미적용 마지막 저장·조회 DB baseline의 주원료와 column 값을 기록한다.
+- `RICH_PRINT_CELLS`에는 해당 accepted unit의 주원료와 command TColumn 순서별 projected column data string을 기록한다. QR/GS1 resolver 결과, barcode 표시 text, workbook object metadata와 image `src`를 wire 값으로 바꾸지 않는다. `RICH_SAVE_IN_DB_CELLS`에는 command 생성 시점에 snapshot한 자동증가 미적용 마지막 저장·조회 DB baseline의 주원료와 column 값을 기록한다.
 - autoInc가 없는 일반 row를 accepted copies 합계 한 parent로 기록할 때 모든 copy는 같은 `requestedAt` projection이므로 그 동일 projection을 `RICH_PRINT_CELLS`에 기록한다.
 - 한 command에서 만들 history parent를 unit의 `(rowIndex, copyIndex)` 순서로 정렬한다. 자동증가 행은 accepted copy마다 해당 unit 순서 key의 parent 하나를 만들고, 일반 행은 accepted copies를 합쳐 가장 작은 accepted copy index의 unit 순서 key에 parent 하나를 둔다.
 - 단일 T-SQL batch에서 같은 customer의 기존 `MAX(RICH_STATUS_ORDER)`를 한 번 구하고 위 history parent 순서의 `ROW_NUMBER()`를 더해 연속 order를 배정한다. 고객 이력이 없으면 1부터 시작한다.
 - `RICH_STATUS_ID`는 `<customerId>-<brandId>-<order>`, `RICH_STATUS_DATA_ID`는 `<statusId>D<detailIndex>` 형식을 사용한다. `detailIndex`는 DB의 `RICH_COLUMN_ORDER - 1`이나 SQL 결과 순서가 아니라 command에서 부여한 0 기반 연속 index다.
-- status detail은 주원료를 제외하고 command의 `TColumn` snapshot만 순회한다. 각 detail은 command의 `detailIndex`, 실제 `columnId`, `columnName`과 `RICH_PRINT_CELLS`의 출력 projection 값을 저장하며 첫 TColumn부터 `D0`, `D1` 순서로 ID를 만든다. transaction JSON 입력에도 이 네 값을 명시하고 SQL에서 index나 순서를 재계산하지 않는다.
+- status detail은 주원료를 제외하고 command의 `TColumn` snapshot만 순회한다. 각 detail은 command의 `detailIndex`, 실제 `columnId`, `columnName`과 같은 unit의 projected column data string을 저장하며 첫 TColumn부터 `D0`, `D1` 순서로 ID를 만든다. transaction JSON 입력에도 이 네 값을 명시하고 SQL에서 index나 순서를 재계산하지 않는다.
 - `RICH_BRAND_ID`, `RICH_BRAND_NAME`과 status ID의 brand ID는 command의 immutable brand snapshot만 사용한다. 출력 완료 후 전역 selected brand를 다시 읽거나 brand 조회 SELECT를 추가하지 않는다.
 - 사용자 확정에 따라 현재 Flutter에서 구분 가능한 `User.SYSTEM` 특수 로그인만 print log와 status/detail 이력에서 제외한다. 이 판정은 로그인 화면과 동일하게 immutable command user ID에 `equalsIgnoreCase(commandUserId, User.SYSTEM)`를 적용하므로 `SYSTEM`과 `system`을 모두 제외한다. 일반 `SYSTEM_ADMIN_USER` grade 로그인은 이력을 기록한다. 현재 Flutter에 없는 master-key 우회 로그인은 제외 대상으로 간주하지 않으며, 향후 해당 인증 경로를 구현할 때만 명시적인 session boolean을 추가한다. 자동증가 저장은 로그인 유형과 관계없이 accepted unit 기준으로 처리한다.
-- 라벨 내용과 자동증가 출력·저장값의 날짜·시간/time-barcode projection은 command의 `requestedAt`을 사용한다. 발행 이력 저장 시각은 이와 분리해 단일 T-SQL batch 시작 시 `GETDATE()`를 한 번 읽은 `@historyAt`을 사용하고, 같은 command의 print log와 status parent 날짜·시간 field는 모두 이 값에서 만든다.
+- 라벨 내용과 자동증가 출력·저장값의 날짜·시간/time-barcode projection은 command의 `requestedAt`을 사용한다. 발행 이력 저장 시각은 이와 분리해 단일 T-SQL batch 시작 시 `GETDATE()`를 한 번 읽은 `@historyAt`을 사용한다. print log `RICH_DATETIME`은 `@historyAt` 직접값, print log와 status의 `RICH_DATE_YYYYMMDD`는 모두 `CONVERT(char(8), @historyAt, 112)`를 사용한다. status `RICH_PRINT_DATE`는 사용자 확정에 따라 `CONVERT(char(19), @historyAt, 120) + '.'` 뒤에 `DATEPART(second, @historyAt) * 10`의 10진 문자열을 레거시 `%02d`처럼 최소 두 자리로 왼쪽 0 padding해 붙인다. suffix는 second `0/1/10/59`에서 각각 `00/10/100/590`이며 세 자리 값을 자르지 않는다. 각 history parent에서 `GETDATE()`를 다시 호출하지 않는다.
 - 여러 client/PC의 동시 order 충돌 방지는 이번 범위에 포함하지 않는다.
 
 ### 8.3 transaction과 오류
@@ -359,7 +361,7 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 1. 메모리 busy flag를 원자적으로 설정해 같은 앱 instance의 중복 발행을 막고 label-size session/baseline 교체 context lock을 함께 건 뒤, `[발행]` 요청의 현재 시각을 `requestedAt`으로 한 번 정한다. 탭 진입 시각이나 미리보기 `previewAt`은 사용하지 않는다.
 2. 현재 UI/session 값을 candidate snapshot으로 읽는다. copies는 모든 row에서 0 이상 정수인지 검증하고 전체 합계가 1 이상인지 확인한다. printer 선택과 저장 workbook을 확인한 뒤 copies가 1 이상인 row에만 크기·margin/push/line spacing, 유효 출력 폭과 source/label clip 교집합의 발행 검증을 적용한다. 실패하면 backend 조회나 command 생성을 하지 않고 물리 상태 `failed`, accepted 0, persistence `notAttempted`로 종료한다. copies가 0인 row의 물리 설정은 다른 row의 발행을 차단하지 않는다.
 3. 검증된 printer의 profile/port로 PDF 또는 EZPL RAW backend를 한 번 정한다. `PrinterLanguage.ezpl`이면서 port가 일반 값 또는 `null`인 경우만 RAW를 선택한다. EZPL의 명시적인 `FILE:`/`PORTPROMPT:` port와 `zpl`/`tspl`/`cpcl`/`rasterOnly` 등 현재 지원하지 않는 profile은 PDF capability fallback으로 처리하고, 포괄적인 `PrinterProfile.canSendRaw`만으로 판정하지 않는다. 앞에서 저장한 `requestedAt`, label/customer/brand/market/user, printer/backend, 설정, row와 마지막 저장·조회 column/content baseline, saved workbook으로 immutable command를 만든다.
-4. copies가 `N >= 1`인 row만 row 순서와 `copyIndex = 0 .. N - 1` 순서대로 unit과 자동증가 projection을 만들고 모든 projection의 필수 `referenceAt`에 command `requestedAt`을 전달한다. copies가 0인 row는 발행 unit을 만들지 않지만 화면에서 선택하면 첫 실제 출력과 같은 별도의 대화형 copy index 0 미리보기 projection을 만들 수 있다.
+4. copies가 `N >= 1`인 row만 row 순서와 `copyIndex = 0 .. N - 1` 순서대로 unit과 자동증가 projection을 만들고 모든 projection의 필수 `referenceAt`에 command `requestedAt`을 전달한다. 이때 command TColumn별 projected column data를 unit에 고정하고 renderer 전용 QR/GS1/barcode/image 결과와 분리한다. copies가 0인 row는 발행 unit을 만들지 않지만 화면에서 선택하면 첫 실제 출력과 같은 별도의 대화형 copy index 0 미리보기 projection을 만들 수 있다.
 5. 모든 unit을 같은 `requestedAt`으로 공용 materializer와 command-wide backend의 print job builder에서 materialize하고 같은 physical page spec별 인접 group payload를 완성한다. 하나라도 resolver/decode/materialize/build 오류가 있으면 대상 item/copy/column을 표시하고 물리 상태 `failed`, accepted 0, persistence `notAttempted`로 종료하며 어떤 group도 보내지 않는다.
 6. group dispatch 직전에 cancellation을 확인하고 PDF 또는 RAW dispatcher를 순서대로 호출한다.
 7. group이 failed이면 뒤 group을 중단한다. active call 완료 뒤 취소가 확인되면 뒤 group을 중단한다.
@@ -424,6 +426,7 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 - exact search와 중복 결과 순환
 - unit 순서, command-wide backend에서 같은 page spec 인접 group과 spec 변경 분리
 - label-size에 autoInc column이 하나라도 있을 때 모든 copies 1 이상 row의 copy별 projection
+- unit의 TColumn별 projected column data가 해당 column의 직접 `#keyword`/출력값에 적용된 자동증가/check digit/time-barcode와 일반 날짜·시간 projection을 포함하고, 다른 column을 참조한 QR/GS1 token·resolver 결과, barcode 표시 text, workbook object metadata와 image `src`에 의해 바뀌지 않음
 - 자동증가 copy별 projection과 accepted 최대 copy index의 저장값
 - 원본 100, copies 3, `autoIncSize = 1`에서 0 기반 index `0, 1, 2`의 출력값 `100, 101, 102`, `autoIncSave == false` 저장값 102와 `true`의 index 3 다음 저장값 103
 - 자동증가 대상 문자열 `"0"`은 증가 계산과 update 대상에 포함되고 `"00"`/`"000"`과 C `atoi == 0`인 문자열은 원본 projection과 barcode/time-barcode를 그대로 유지하며 update payload에서 제외되고, `"1A"`처럼 C `atoi != 0`인 문자열은 그 변환값으로 증가하는 활성 레거시 판정
@@ -467,14 +470,15 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 - time-barcode 자동증가 column에서 실제 출력 index와 `autoIncSave`의 저장용 `k + 1` projection이 모두 command `requestedAt`을 필수 `referenceAt`으로 사용하고 persistence 시각이나 SQL `@historyAt`과 분리됨
 - `autoIncSize/autoIncRange/autoIncZeroDel`, 활성 레거시 `atoi` 진입 조건, 범위 미초과·한 번 초과·두 번 이상 초과에서 `10^autoIncRange` 1회 감산과 계산에 진입한 값의 barcode check digit/time-barcode 재적용
 - autoInc column이 하나라도 있는 label-size의 모든 row는 accepted copy별 history, 하나도 없으면 row별 accepted copies 합계 history
-- `RICH_COLUMNS`의 주원료/column name wire, `RICH_PRINT_CELLS`의 출력 projection, `RICH_SAVE_IN_DB_CELLS`의 자동증가 미적용 command DB baseline wire
+- `RICH_COLUMNS`의 주원료/column name wire, `RICH_PRINT_CELLS`의 주원료/projected column data wire, `RICH_SAVE_IN_DB_CELLS`의 자동증가 미적용 command DB baseline wire
+- 사용자 정의 QR/GS1 resolver data와 표시 text가 source projected column data와 다른 경우에도 `RICH_PRINT_CELLS`와 status detail에는 source projected column data를 저장하고 renderer payload와 image `src`는 저장하지 않음
 - print log의 command user/market/customer/brand/label/printer snapshot, row item/크기/margin/push, history parent count/wire, command `extraAreaMm` field mapping
 - 같은 command user snapshot에서 print log의 원본 user ID 문자열/`UserGrade.code`와 status의 C `_ttoi(userId)` 정수/`UserGrade.label`을 각각 생성하고, `"0012"` → print log ID `"0012"`·status ID `12`, `"12A"` → status ID `12`, `"ABC"` → status ID `0`, `MANAGER_USER` → print log grade `2`·status grade `"책임자"` mapping
 - status parent의 command/history parent ID/name/count/order/date field와 출력 projection 주원료 mapping 및 status detail insert field allow-list
 - 주원료를 제외한 command TColumn 순서별 status detail의 `D0` ID, `detailIndex`, columnId/name과 출력 projection mapping
 - 중복·비연속 column order에서도 `(columnOrder, columnId)` 순서와 `D0`, `D1` 연속 ID를 유지하고 SQL이 index를 재계산하지 않음
 - 단일 parameterized SQL batch의 `(rowIndex, copyIndex)` history parent 순서별 연속 customer status order, 첫 값 1과 status/detail ID 형식
-- label projection은 command `requestedAt`, 같은 command의 print log/status parent 저장 시각은 batch의 단일 `@historyAt` 사용
+- label projection은 command `requestedAt`, 같은 command의 print log/status parent 저장 시각은 batch의 단일 `@historyAt` 사용. `RICH_DATETIME` 직접값, 두 `RICH_DATE_YYYYMMDD` style 112와 `RICH_PRINT_DATE`의 레거시 `second * 10` 최소 두 자리 suffix를 second `0/1/10/59`에서 검증
 - command brand snapshot의 ID/name을 status ID와 `RICH_BRAND_ID`/`RICH_BRAND_NAME`에 사용하고 출력 후 전역 brand를 읽지 않음
 - command user ID `SYSTEM`/`system`의 동일한 `equalsIgnoreCase` 이력 제외와 일반 `SYSTEM_ADMIN_USER` grade·일반 사용자 이력 저장
 - accepted unit이 없을 때 DB 작업 없음
@@ -583,10 +587,11 @@ process 복구용 manifest, generation, checksum과 별도 persistence state mac
 - 현재 RAW 지원 profile은 `PrinterLanguage.ezpl`뿐이다. EZPL의 일반 port/`null`만 RAW로 선택하고, EZPL의 명시적 `FILE:`/`PORTPROMPT:` port와 `zpl`/`tspl`/`cpcl`/`rasterOnly` 등 현재 지원하지 않는 profile은 발행 전 PDF capability fallback으로 처리한다. `PrinterProfile.canSendRaw`만으로 판정하거나 EZPL build/RAW send 실패 뒤 PDF를 재전송하지 않는다.
 - label-size에 autoInc column이 하나라도 있으면 모든 출력 row의 accepted copy별 이력을 저장하고, brand 이력 값은 command snapshot을 사용한다.
 - 발행 이력의 column name, 출력 projection, 자동증가 미적용 DB baseline wire와 status detail column mapping이 레거시 순서를 따른다.
+- `RICH_PRINT_CELLS`와 status detail은 unit의 projected TColumn data를 사용하고 QR/GS1/barcode/image renderer 전용 payload를 저장하지 않는다.
 - 기존 세 이력 table은 명시한 레거시 insert field만 command/row/history snapshot에서 채우며 새 schema를 가정하지 않는다.
 - `User.SYSTEM` 이력 제외는 로그인과 같은 `equalsIgnoreCase` command user ID 판정을 사용하고, print log에는 원본 user ID 문자열/`UserGrade.code`, status에는 C `_ttoi(userId)` 정수/`UserGrade.label`을 저장한다.
 - command의 `(columnOrder, columnId)` 정렬과 연속 `detailIndex`가 wire/status detail/SQL JSON에서 동일하게 유지되고 SQL은 이를 재계산하지 않는다.
-- 라벨 projection의 `requestedAt`과 발행 이력의 단일 SQL `@historyAt`을 구분한다.
+- 라벨 projection의 `requestedAt`과 발행 이력의 단일 SQL `@historyAt`을 구분한다. `RICH_DATETIME`은 직접값, 두 `RICH_DATE_YYYYMMDD`는 style 112, `RICH_PRINT_DATE`는 사용자 확정 레거시 `yyyy-MM-dd HH:mm:ss.` + `%02d(second * 10)` 형식을 같은 `@historyAt`에서 만든다.
 - SQL 오류를 context와 함께 사용자에게 전달하고 가능한 경우 rollback하며 자동 재출력하지 않는다.
 - 자동증가와 발행 이력은 기존 `jsonEncode` parameter/`OPENJSON` 패턴의 단일 `DbTransactionStatement` batch로 저장한다.
 - 자동증가 update의 예상 affected row 수는 중복 없는 `(columnId,itemId)` payload key 수이며, update 직후 저장한 `@@ROWCOUNT`가 이 수와 다르면 SQL 오류로 rollback한다. accepted unit/history 수와 비교하거나 확인 SELECT·DB 재조회를 추가하지 않는다.
