@@ -1,3 +1,18 @@
+### 완료 (2026-07-16): 라벨출력 copyIndex 기점 명확화
+- 사용자 요청: `doc/label_print_modify.txt` 재검토 권장안 1건을 작업지시서에 병합하고 사용자 확인 사항이 있으면 즉시 질문해 확정한다.
+- 확정 기준: `LabelPrintUnit.copyIndex`는 레거시처럼 0 기반이다. copies가 `N`이면 `0 <= copyIndex < N`이며 첫 실제 출력 index 0은 원본값, 이후 index마다 `autoIncSize`를 더한다. 대화형 copy index 0 미리보기는 첫 실제 출력 projection과 같다.
+- 확정 기준: 마지막 accepted copy index가 `k`이면 `autoIncSave == false`는 index `k` 출력값, `true`는 index `k + 1` 다음 projection을 저장한다. 부분 accepted도 가장 큰 accepted index에 같은 규칙을 적용한다.
+- 사용자 확인 사항: 없음. 레거시 출력 반복과 다음 값 저장 호출이 각각 `count = 0`과 `count = copies`를 사용하므로 기존 동작으로 확정 가능하다.
+- 수정 예정: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. unit/자동증가/pipeline·model/DAO 테스트·완료 조건을 정리하며 DB 조회·retry/recovery, migration과 별도 예외 처리는 추가하지 않는다.
+- `doc/label_print_modify.txt` 편집 완료: row별 `copyIndex = 0 .. copies - 1`, 첫 장 원본 projection, 최대 accepted index `k`와 `autoIncSave`별 `k`/`k + 1` 저장값을 발행·DTO·자동증가·pipeline·model/DAO 테스트·완료 조건에 연결했다.
+- `SESSION_HANDOFF.md` 편집 완료: 이번 병합의 확정 기준과 파일별 진행 상태를 기록했다.
+- 검증 예정: 두 문서 diagnostics, 0 기반 범위/첫 장 원본/부분 accepted/`k + 1` 저장 계약 검색, 독립 재검토, `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md`. 문서만 변경하므로 Flutter test/analyze는 실행하지 않는다.
+- 독립 재검토: copyIndex 계약의 발행·DTO·자동증가·pipeline·테스트·완료 조건 사이 실제 모순, 구현 불가능성, 빠진 필수 검증 0건이다.
+- 검증 실행 직전: 두 문서 diagnostics 오류 0건, 0 기반 범위 계약 7곳과 첫 장 원본/`k + 1` 저장 계약 6곳을 확인했다. 반대 표현 검색 결과는 `requested 마지막 index를 사용하지 않음`이라는 의도된 금지 문장뿐이다. 이제 대상 diff와 `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md`를 최종 확인한다.
+- 최종 검증: 두 문서 diagnostics 오류 0건, 0 기반/첫 장 원본/부분 accepted/`k + 1` 저장 계약 연결 확인, 독립 재검토 문제 0건, `git diff --check -- doc/label_print_modify.txt SESSION_HANDOFF.md` 통과. 문서만 변경해 Flutter test/analyze는 실행하지 않았다.
+- stage/commit 대상: `doc/label_print_modify.txt`, `SESSION_HANDOFF.md`. 기존 사용자 `lib/core/app.dart` 변경은 제외하고 `git commit --only`를 사용한다.
+- 작업지시서 copyIndex 기점 계약 커밋: `0e5c9f5 라벨출력 복사 인덱스 기준 명확화`.
+
 ### 완료 (2026-07-16): 라벨출력 미리보기 시각·발행 중 session 고정
 - 사용자 요청: `doc/label_print_modify.txt` 재검토 권장안 2건을 작업지시서에 병합하고 사용자 확인 사항이 있으면 즉시 질문해 확정한다.
 - 확정 기준: 대화형 미리보기는 rebuild 시작 시 `previewAt = DateTime.now()`를 한 번만 만들고 같은 build의 일반 날짜·시간, 유통기한과 time-barcode 계산 전체에 사용한다. 실제 발행은 기존 command `requestedAt`을 사용하며 자동 timer refresh는 추가하지 않는다.
