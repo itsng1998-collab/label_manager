@@ -6,6 +6,18 @@
 - ODBC transaction batch는 첫 DML이 0행일 때 `SQL_NO_DATA(100)`을 반환할 수 있으므로 필요하면 batch 첫 줄에 `SET NOCOUNT ON`을 사용하고 명시적 결과 SELECT를 유지한다. `@@ROWCOUNT`와 `@@TRANCOUNT`는 parameter로 치환하지 않는다.
 - SQL 변경 검증 시 focused DAO 테스트에 금지 함수 미사용과 XML wire 계약을 고정하고, 가능한 경우 compatibility 100 실제 서버에서 데이터 변경 없는 read-only/빈 payload/rollback probe를 수행한다. 실제 schema capability가 없으면 gate를 우회하지 않고 제한을 기록한다.
 
+### 완료 (2026-07-17): F1/F2/F3 탭 전환 단축키
+- 사용자 요청: 탭 메뉴가 편집 모드가 아닐 때 F1/F2/F3 키로 품목관리/공용라벨관리/라벨출력 탭을 전환한다.
+- 편집 완료: `lib/home_page_manager.dart`에 `homeTabShortcutValue()`와 `HardwareKeyboard` handler lifecycle을 추가했다. 단독 F1/F2/F3 KeyDown만 품목관리/공용라벨관리/라벨출력에 매핑하며 활성 편집, 수정키 조합, 뒤에 있는 route에서는 처리하지 않는다. 탭 변경은 기존 `_onTabSelection`을 호출한다.
+- 테스트 추가: `test/fortune_table_test.dart`에 F1/F2/F3 매핑과 편집 중/Ctrl 등 수정키/F4 미처리 회귀 테스트를 추가했다.
+- 검증 성공: `flutter test test/fortune_table_test.dart --plain-name "home tab shortcuts map only unmodified F keys outside edit mode"` → 1건 통과.
+- 포맷 완료: Dart formatter로 `lib/home_page_manager.dart`, `test/fortune_table_test.dart`를 포맷했다.
+- 전체 검증 성공: `flutter test test/fortune_table_test.dart` → 46건 통과.
+- 정적 분석 성공: `flutter analyze` → issues 0. 편집한 두 Dart 파일의 VS Code 진단도 errors 0.
+- 최종 diff 검증 성공: 요청 범위 3개 파일의 변경을 검토했고 `git diff --check`가 통과했다.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `lib/home_page_manager.dart`, `test/fortune_table_test.dart`.
+- 사용자 변경 `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
+
 ### 완료 (2026-07-17): 라벨 발행 선택 행 자동 스크롤
 - 사용자 요청: 라벨 발행 중 unit에 맞춰 테이블 행이 자동 선택될 때 해당 행이 보이도록 자동 스크롤한다.
 - 편집 완료: `third_party/fortune_sheet/lib/src/fortune_table.dart`에 `FortuneTableScrollController.revealRow()`를 추가했다. 행이 viewport 밖일 때 기존 `_revealRange`로 필요한 만큼만 수직 이동하며 포커스와 가로 위치는 변경하지 않는다.

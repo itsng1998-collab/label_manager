@@ -9,6 +9,7 @@ import 'package:dropdown_button2/dropdown_button2.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:fortune_sheet/fortune_sheet.dart' as fs;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
 import 'package:pdf/pdf.dart';
 import 'package:printing/printing.dart';
@@ -71,6 +72,21 @@ import 'package:label_manager/widgets/swipe_action_table.dart';
 
 bool itemManagerSearchVisibleForTab(Object? tabValue) =>
   tabValue == 'items' || tabValue == 'label_print';
+
+@visibleForTesting
+Object? homeTabShortcutValue({
+  required LogicalKeyboardKey key,
+  required bool editing,
+  required bool modifierPressed,
+}) {
+  if (editing || modifierPressed) return null;
+  return switch (key) {
+    LogicalKeyboardKey.f1 => 'items',
+    LogicalKeyboardKey.f2 => 'common_label',
+    LogicalKeyboardKey.f3 => 'label_print',
+    _ => null,
+  };
+}
 
 @visibleForTesting
 bool labelPrintTabSelectionBlocked({
@@ -425,6 +441,7 @@ class _HomePageManagerState extends State<HomePageManager> {
     super.initState();
     _currentLabelSize = widget.selectedLabelSize;
     _tabController = _createTabController();
+    HardwareKeyboard.instance.addHandler(_handleTabShortcutKeyEvent);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
       await _loadBrands();
@@ -2147,6 +2164,30 @@ class _HomePageManagerState extends State<HomePageManager> {
     }
   }
 
+  bool _handleTabShortcutKeyEvent(KeyEvent event) {
+    if (event is! KeyDownEvent || ModalRoute.of(context)?.isCurrent != true) {
+      return false;
+    }
+    final keyboard = HardwareKeyboard.instance;
+    final tabValue = homeTabShortcutValue(
+      key: event.logicalKey,
+      editing: _itemManageController.hasActiveEditing,
+      modifierPressed:
+          keyboard.isAltPressed ||
+          keyboard.isControlPressed ||
+          keyboard.isMetaPressed ||
+          keyboard.isShiftPressed,
+    );
+    if (tabValue == null) return false;
+    final index = _tabs.indexWhere((tab) => tab.value == tabValue);
+    if (index < 0) return false;
+    if (_tabController.selectedIndex != index) {
+      _tabController.selectedIndex = index;
+      _onTabSelection(index, _tabs[index]);
+    }
+    return true;
+  }
+
   void _closeLabelColumnEditDialog() {
     _labelColumnEditOverlayEntry?.remove();
     _labelColumnEditOverlayEntry = null;
@@ -3227,6 +3268,7 @@ class _HomePageManagerState extends State<HomePageManager> {
 
   @override
   void dispose() {
+    HardwareKeyboard.instance.removeHandler(_handleTabShortcutKeyEvent);
     final readyCompleter = _itemManagerReadyCompleter;
     if (readyCompleter != null && !readyCompleter.isCompleted) {
       readyCompleter.complete();

@@ -150,6 +150,57 @@ void main() {
     expect(itemManagerSearchVisibleForTab(null), isFalse);
   });
 
+  test('home tab shortcuts map only unmodified F keys outside edit mode', () {
+    expect(
+      homeTabShortcutValue(
+        key: LogicalKeyboardKey.f1,
+        editing: false,
+        modifierPressed: false,
+      ),
+      'items',
+    );
+    expect(
+      homeTabShortcutValue(
+        key: LogicalKeyboardKey.f2,
+        editing: false,
+        modifierPressed: false,
+      ),
+      'common_label',
+    );
+    expect(
+      homeTabShortcutValue(
+        key: LogicalKeyboardKey.f3,
+        editing: false,
+        modifierPressed: false,
+      ),
+      'label_print',
+    );
+    expect(
+      homeTabShortcutValue(
+        key: LogicalKeyboardKey.f2,
+        editing: true,
+        modifierPressed: false,
+      ),
+      isNull,
+    );
+    expect(
+      homeTabShortcutValue(
+        key: LogicalKeyboardKey.f2,
+        editing: false,
+        modifierPressed: true,
+      ),
+      isNull,
+    );
+    expect(
+      homeTabShortcutValue(
+        key: LogicalKeyboardKey.f4,
+        editing: false,
+        modifierPressed: false,
+      ),
+      isNull,
+    );
+  });
+
   test('label print tab gate blocks only active item editing states', () {
     expect(
       labelPrintTabSelectionBlocked(
