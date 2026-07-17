@@ -48,6 +48,7 @@
 - 최종 분석 실행 직전: `flutter analyze`, `git diff --check`, 테스트 생성물 정리, stage 대상 확인. 사용자 변경 `lib/core/app.dart`는 제외한다.
 - 최종 재보완 검증 완료: `flutter analyze` issues 0, `git diff --check` 통과, `third_party/fortune_sheet/build` 삭제.
 - stage/commit 대상: `VerticalPaneSplitter` 공유 및 양쪽 적용, 의미별 설정 재배치, 안정적 preview fingerprint, 라벨출력 통합 zoom 테스트, 이 문서. 사용자 변경 `lib/core/app.dart`는 제외한다.
+- 재보완 구현 커밋 완료: `1608e6f` (`라벨 출력 분할 화면과 설정 배치 보완`). 원격 push는 수행하지 않았다.
 - 1단계 진행 중: 품목관리 발행 체크 controlled state와 label-print 전용 진입 gate를 구현한다.
 - 첫 수정 예정: `third_party/fortune_sheet/lib/src/fortune_table.dart`, `test/fortune_table_test.dart`. `FortuneTableEditingController.hasActiveEditing`을 editor open 또는 async commit 진행 중에만 true인 read-only 상태로 노출한다.
 - 첫 검증 예정: `flutter test test/fortune_table_test.dart --plain-name "FortuneTable editing controller waits for active commit"`.
