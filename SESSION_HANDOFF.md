@@ -106,6 +106,13 @@
 - 최종 발행/설정 검증 완료: `flutter analyze` issues 0, `git diff --check` 통과, 테스트 생성물 없음.
 - stage/commit 대상: 빈 테이블 발행 비활성화, 레거시 자동줄간격 기본값/목록/정규화, 라벨출력 설정 입력박스 y+4, 관련 테스트 및 이 문서. 사용자 변경 `lib/core/app.dart`는 제외한다.
 - 발행/프린터 설정 보완 커밋 완료: `3875606` (`라벨 출력 발행 및 프린터 설정 보완`). 원격 push는 수행하지 않았다.
+- 라벨출력 zoom 세션화 진행: `LabelPrintPage`의 외부 zoom controller 초기값을 150%로 변경하고, 행별 preview workbook의 저장 zoom이 세션 zoom을 덮어쓰지 않도록 한다.
+- zoom 동기화 편집 완료: 외부 `LabelSheetZoomController`가 있는 workbench는 controller 값을 권위값으로 사용해 workbook에 단방향 적용한다. 외부 controller가 없는 공용라벨 workbench는 기존 workbook zoom 동기화를 유지한다.
+- 사용자 변경 순서 수정 완료: 확대/축소 입력 시 외부 controller를 workbench rebuild보다 먼저 갱신해 기존 세션 값으로 복원되는 경로를 제거했다.
+- focused 검증 완료: 저장 zoom 80%/200%인 두 행에서 최초 150%, 사용자 변경 160%, 두 번째 행 및 첫 행 왕복 후 160% 유지 테스트 통과. splitter drag 후 160% 유지 테스트도 통과하고 변경 파일 diagnostics 오류 0건.
+- 전체 관련 검증 예정: 변경 Dart 포맷, 라벨출력 session 및 공용 zoom toolbar 테스트 전체, `flutter analyze`, `git diff --check`, 생성물 정리 및 stage/commit. 사용자 변경 `lib/core/app.dart`는 제외한다.
+- 전체 zoom 검증 완료: 라벨출력 session 및 공용 toolbar 테스트 131건 통과, `flutter analyze` issues 0, `git diff --check` 통과, 테스트 생성물 없음.
+- stage/commit 대상: 라벨출력 기본 zoom 150%, 외부 controller 우선 단방향 동기화, 행 왕복/사용자 zoom 유지 테스트 및 이 문서. 사용자 변경 `lib/core/app.dart`는 제외한다.
 - 1단계 진행 중: 품목관리 발행 체크 controlled state와 label-print 전용 진입 gate를 구현한다.
 - 첫 수정 예정: `third_party/fortune_sheet/lib/src/fortune_table.dart`, `test/fortune_table_test.dart`. `FortuneTableEditingController.hasActiveEditing`을 editor open 또는 async commit 진행 중에만 true인 read-only 상태로 노출한다.
 - 첫 검증 예정: `flutter test test/fortune_table_test.dart --plain-name "FortuneTable editing controller waits for active commit"`.

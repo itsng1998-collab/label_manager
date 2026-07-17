@@ -43,10 +43,13 @@ class LabelPrintPage extends StatefulWidget {
 class _LabelPrintPageState extends State<LabelPrintPage> {
   static const double _splitterWidth = 7;
   static const double _minimumPaneWidth = 280;
+  static const int _defaultPreviewZoomPercent = 150;
 
   final FortuneTableEditingController _editingController =
       FortuneTableEditingController();
-  final LabelSheetZoomController _zoomController = LabelSheetZoomController();
+  final LabelSheetZoomController _zoomController = LabelSheetZoomController(
+    initialPercent: _defaultPreviewZoomPercent,
+  );
   double _tableFraction = 0.6;
 
   @override

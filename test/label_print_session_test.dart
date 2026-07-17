@@ -306,9 +306,10 @@ void main() {
     await tester.pump();
 
     final zoomInput = find.byKey(const ValueKey('label-sheet-zoom-input'));
+    expect(tester.widget<EditableText>(zoomInput).controller.text, '150');
     await tester.tap(find.text('+'));
     await tester.pump();
-    expect(tester.widget<EditableText>(zoomInput).controller.text, '110');
+    expect(tester.widget<EditableText>(zoomInput).controller.text, '160');
     final zoomPositionBeforeDrag = tester.getTopLeft(zoomInput);
 
     await tester.drag(
@@ -317,7 +318,7 @@ void main() {
     );
     await tester.pump();
 
-    expect(tester.widget<EditableText>(zoomInput).controller.text, '110');
+    expect(tester.widget<EditableText>(zoomInput).controller.text, '160');
     expect(tester.getTopLeft(zoomInput), zoomPositionBeforeDrag);
     final zoomToolbar = find.byKey(
       const ValueKey('label-sheet-zoom-toolbar'),
@@ -331,6 +332,72 @@ void main() {
       tester.getTopRight(zoomToolbar).dx,
       closeTo(tester.getTopRight(page).dx - 12, 0.1),
     );
+  });
+
+  testWidgets('label print zoom defaults to 150 and survives row changes', (
+    tester,
+  ) async {
+    final controller = LabelPrintSessionController();
+    addTearDown(controller.dispose);
+    final first = _item(10, '첫 번째', copies: 1);
+    final second = _item(20, '두 번째', copies: 1);
+    controller.syncCheckedItems(
+      baselineItems: [first, second],
+      checkedItemIds: const {10, 20},
+      createRow: createRow,
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: LabelPrintPage(
+            controller: controller,
+            previewBuilder: (row, zoomController) => LabelOutputPreview(
+              workbook: FortuneWorkbook(
+                sheets: [
+                  FortuneSheet(
+                    id: 'sheet-${row.itemId}',
+                    name: '라벨',
+                    zoomRatio: row.itemId == 10 ? 0.8 : 2.0,
+                  ),
+                ],
+              ),
+              hintText: null,
+              identityKey: 'preview:${row.itemId}',
+              imageObjectIds: const [],
+              barcodeObjectIds: const [],
+              zoomToolbarPlacement: LabelSheetZoomToolbarPlacement.hidden,
+              zoomController: zoomController,
+            ),
+            onPrinterSettings: () {},
+            onIssue: () {},
+            onCancelIssue: () {},
+            busy: false,
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    final zoomInput = find.byKey(const ValueKey('label-sheet-zoom-input'));
+    expect(tester.widget<EditableText>(zoomInput).controller.text, '150');
+
+    await tester.tap(find.text('+'));
+    await tester.pump();
+    expect(tester.widget<EditableText>(zoomInput).controller.text, '160');
+
+    controller.selectItem(20);
+    await tester.pump();
+    await tester.pump();
+
+    expect(tester.widget<EditableText>(zoomInput).controller.text, '160');
+
+    controller.selectItem(10);
+    await tester.pump();
+    await tester.pump();
+
+    expect(tester.widget<EditableText>(zoomInput).controller.text, '160');
   });
 
   testWidgets('label output preview accepts external zoom controller', (

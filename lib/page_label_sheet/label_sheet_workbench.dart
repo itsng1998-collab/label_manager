@@ -2199,6 +2199,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
   void initState() {
     super.initState();
     _isDirty = widget.initialDirty;
+    _initializeZoomFromExternalController();
     widget.zoomController?._attach(_setLabelSheetZoomPercent);
     widget.imageImportController?._attach(this);
     widget.outputCaptureController?._attach(this);
@@ -2249,8 +2250,9 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     }
     if (oldWidget.zoomController != widget.zoomController) {
       oldWidget.zoomController?._detach(_setLabelSheetZoomPercent);
+      _initializeZoomFromExternalController();
       widget.zoomController?._attach(_setLabelSheetZoomPercent);
-      _syncExternalZoomController();
+      _controller.setZoomRatio(_zoomPercent / 100);
     }
     if (oldWidget.zoomToolbarPlacement != widget.zoomToolbarPlacement &&
       widget.zoomToolbarPlacement !=
@@ -2264,6 +2266,10 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       labelSheetMinZoomPercent,
       labelSheetMaxZoomPercent,
     );
+    final externalController = widget.zoomController;
+    if (externalController != null && externalController.value != clamped) {
+      externalController.value = clamped;
+    }
     if (_zoomController.text != '$clamped') {
       _zoomController.text = '$clamped';
       _zoomController.selection = TextSelection.collapsed(
@@ -2282,6 +2288,28 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
   }
 
   void _syncLabelSheetZoomPercent(FortuneWorkbook workbook) {
+    final externalController = widget.zoomController;
+    if (externalController != null) {
+      final percent = externalController.value.clamp(
+        labelSheetMinZoomPercent,
+        labelSheetMaxZoomPercent,
+      );
+      _zoomPercent = percent;
+      if (_zoomController.text != '$percent') {
+        _zoomController.text = '$percent';
+        _zoomController.selection = TextSelection.collapsed(
+          offset: _zoomController.text.length,
+        );
+      }
+      if (_labelSheetZoomPercentForWorkbook(workbook) != percent) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && identical(widget.zoomController, externalController)) {
+            _controller.setZoomRatio(percent / 100);
+          }
+        });
+      }
+      return;
+    }
     if (_zoomFocusNode.hasFocus) {
       return;
     }
@@ -2297,6 +2325,20 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       );
     }
     _syncExternalZoomController();
+  }
+
+  void _initializeZoomFromExternalController() {
+    final externalController = widget.zoomController;
+    if (externalController == null) return;
+    final percent = externalController.value.clamp(
+      labelSheetMinZoomPercent,
+      labelSheetMaxZoomPercent,
+    );
+    _zoomPercent = percent;
+    _zoomController.text = '$percent';
+    _zoomController.selection = TextSelection.collapsed(
+      offset: _zoomController.text.length,
+    );
   }
 
   void _syncExternalZoomController() {
