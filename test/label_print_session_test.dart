@@ -1,10 +1,15 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:fortune_sheet/fortune_sheet.dart';
 import 'package:label_manager/models/additional_item.dart';
 import 'package:label_manager/models/item.dart';
 import 'package:label_manager/models/item_of_market.dart';
 import 'package:label_manager/models/label_print.dart';
 import 'package:label_manager/models/label_size.dart';
 import 'package:label_manager/page_home/label_print_page.dart';
+import 'package:label_manager/page_label_sheet/label_sheet_workbench.dart';
+import 'package:label_manager/widgets/label_output_preview.dart';
+import 'package:label_manager/widgets/label_print_settings_dialog.dart';
 
 void main() {
   test('line spacing parser keeps null distinct from explicit 100', () {
@@ -164,6 +169,113 @@ void main() {
     expect(controller.rows[1].leftMarginMm, 1.5);
     expect(controller.rows[1].lineSpacingPercent, isNull);
     expect(controller.settings.printerName, 'Godex G500');
+  });
+
+  testWidgets('issue command stays left and splitter resizes panes', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1200, 700));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final controller = LabelPrintSessionController();
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: LabelPrintPage(
+            controller: controller,
+            previewBuilder: (_) => const SizedBox(),
+            onPrinterSettings: () {},
+            onIssue: () {},
+            onCancelIssue: () {},
+            busy: false,
+          ),
+        ),
+      ),
+    );
+
+    final settingsCenter = tester.getCenter(find.text('프린터 설정'));
+    final issueCenter = tester.getCenter(find.text('발행'));
+    expect(issueCenter.dx, greaterThan(settingsCenter.dx));
+    expect(issueCenter.dx, lessThan(600));
+
+    final splitter = find.byKey(const ValueKey('label-print-splitter'));
+    final before = tester.getCenter(splitter).dx;
+    await tester.drag(splitter, const Offset(120, 0));
+    await tester.pump();
+    expect(tester.getCenter(splitter).dx, closeTo(before + 120, 1));
+  });
+
+  testWidgets('label output preview accepts command bar zoom placement', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: LabelOutputPreview(
+            workbook: FortuneWorkbook(
+              sheets: [FortuneSheet(id: 'sheet', name: '라벨')],
+            ),
+            hintText: null,
+            identityKey: 'label-print-test',
+            imageObjectIds: const [],
+            barcodeObjectIds: const [],
+            zoomToolbarPlacement:
+                LabelSheetZoomToolbarPlacement.labelPrintCommandBarEnd,
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(
+      tester.widget<LabelSheetWorkbench>(find.byType(LabelSheetWorkbench))
+          .zoomToolbarPlacement,
+      LabelSheetZoomToolbarPlacement.labelPrintCommandBarEnd,
+    );
+  });
+
+  testWidgets('printer settings uses common label dialog styling', (
+    tester,
+  ) async {
+    late BuildContext dialogContext;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) {
+            dialogContext = context;
+            return const Scaffold(body: SizedBox());
+          },
+        ),
+      ),
+    );
+
+    final result = showLabelPrintSettingsDialog(
+      context: dialogContext,
+      initial: const LabelPrintSettingsSnapshot(
+        printerName: 'Microsoft Print to PDF',
+        leftMarginMm: 1,
+        rightMarginMm: 2,
+        topMarginMm: 3,
+        leftPushMm: 0,
+        topPushMm: 0,
+        lineSpacingPercent: 100,
+        extraAreaMm: 0,
+        orientation: LabelPrintOrientation.horizontal,
+      ),
+    );
+    await tester.pump();
+
+    expect(
+      find.byKey(const ValueKey('label-print-settings-dialog')),
+      findsOneWidget,
+    );
+    expect(find.text('여백'), findsOneWidget);
+    expect(find.text('출력 조정'), findsOneWidget);
+    expect(find.text('발행 프린터'), findsOneWidget);
+    await tester.tap(find.text('취소'));
+    await tester.pump();
+    expect(await result, isNull);
   });
 }
 

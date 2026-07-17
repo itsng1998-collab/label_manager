@@ -35,8 +35,12 @@ class LabelPrintPage extends StatefulWidget {
 }
 
 class _LabelPrintPageState extends State<LabelPrintPage> {
+  static const double _splitterWidth = 7;
+  static const double _minimumPaneWidth = 280;
+
   final FortuneTableEditingController _editingController =
       FortuneTableEditingController();
+  double _tableFraction = 0.6;
 
   @override
   void initState() {
@@ -96,11 +100,26 @@ class _LabelPrintPageState extends State<LabelPrintPage> {
                   ],
                 );
               }
+              final availableWidth = constraints.maxWidth - _splitterWidth;
+              final minimumFraction = _minimumPaneWidth / availableWidth;
+              final maximumFraction = 1 - minimumFraction;
+              final tableFraction = _tableFraction.clamp(
+                minimumFraction,
+                maximumFraction,
+              );
               return Row(
                 children: [
-                  Expanded(flex: 6, child: table),
-                  const VerticalDivider(width: 1),
-                  Expanded(flex: 4, child: preview),
+                  SizedBox(width: availableWidth * tableFraction, child: table),
+                  _LabelPrintSplitter(
+                    onDragUpdate: (delta) {
+                      setState(() {
+                        _tableFraction = (_tableFraction +
+                                delta / availableWidth)
+                            .clamp(minimumFraction, maximumFraction);
+                      });
+                    },
+                  ),
+                  Expanded(child: preview),
                 ],
               );
             },
@@ -124,7 +143,7 @@ class _LabelPrintPageState extends State<LabelPrintPage> {
             label: const Text('프린터 설정'),
           ),
           const SizedBox(width: 12),
-          Expanded(
+          Flexible(
             child: Tooltip(
               message: widget.controller.settings.printerName ?? '선택된 프린터 없음',
               child: Text(
@@ -134,11 +153,13 @@ class _LabelPrintPageState extends State<LabelPrintPage> {
               ),
             ),
           ),
+          const SizedBox(width: 12),
           FilledButton.icon(
             onPressed: widget.busy ? widget.onCancelIssue : widget.onIssue,
             icon: Icon(widget.busy ? Icons.stop : Icons.print, size: 18),
             label: Text(widget.busy ? '발행 취소' : '발행'),
           ),
+          const Spacer(),
         ],
       ),
     ),
@@ -287,4 +308,26 @@ class _LabelPrintPageState extends State<LabelPrintPage> {
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(content: Text(message)));
   }
+}
+
+class _LabelPrintSplitter extends StatelessWidget {
+  const _LabelPrintSplitter({required this.onDragUpdate});
+
+  final ValueChanged<double> onDragUpdate;
+
+  @override
+  Widget build(BuildContext context) => MouseRegion(
+    cursor: SystemMouseCursors.resizeColumn,
+    child: GestureDetector(
+      key: const ValueKey('label-print-splitter'),
+      behavior: HitTestBehavior.opaque,
+      onHorizontalDragUpdate: (details) => onDragUpdate(details.delta.dx),
+      child: const SizedBox(
+        width: _LabelPrintPageState._splitterWidth,
+        child: Center(
+          child: VerticalDivider(width: 1, thickness: 1),
+        ),
+      ),
+    ),
+  );
 }

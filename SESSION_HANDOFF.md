@@ -20,6 +20,17 @@
 - 임시 산출물 정리 완료: 테스트가 생성한 `third_party/fortune_sheet/build` 삭제.
 - stage/commit 대상: 라벨출력 구현·관련 테스트·fortune_sheet 캡처 API·이 문서. 사용자 변경 `lib/core/app.dart`는 제외한다.
 - 구현 커밋 완료: `897debe` (`라벨 출력 기능 구현`). 원격 push는 수행하지 않았다.
+- 라벨출력 UI 개선 진행 중: `label_print_page.dart`의 발행 버튼/확대 도구 위치와 좌우 splitter, `label_output_preview.dart` 및 `label_sheet_workbench.dart`의 하단 확대 도구 placement, `label_print_settings_dialog.dart`의 공용라벨관리 프린터 설정 스타일 적용 예정.
+- `label_print_page.dart` 편집 완료: 발행 버튼을 프린터 설정/프린터명 다음의 왼쪽 command 묶음으로 이동하고, 최소 pane 폭 280px을 보장하는 좌우 드래그 splitter를 추가했다.
+- `label_sheet_workbench.dart`/`label_output_preview.dart`/`home_page_manager.dart` 편집 완료: 라벨출력 전용 `labelPrintCommandBarEnd` 확대 도구 placement를 추가하고 미리보기 하단 우측 command bar 위치로 전달했다.
+- `label_print_settings_dialog.dart` 편집 완료: 공용라벨관리와 같은 526px 프레임, 그룹 박스, 인셋 입력, 흰색 외곽 버튼 스타일로 변경하고 기존 라벨출력 설정 필드와 결과 계약은 유지했다.
+- `label_print_session_test.dart` 테스트 추가: 발행 버튼 좌측 배치, splitter 120px 이동, 하단 확대 placement 전달, 설정창 스타일/닫기 검증. focused 9건 통과.
+- 최종 UI 검증 예정: 변경 Dart 포맷, 라벨출력 및 공용라벨 프린터 설정/툴바 focused 테스트, `flutter analyze`, `git diff --check`.
+- UI 포맷/focused 검증 완료: 변경 Dart 파일 포맷, `label_print_session_test.dart` + `label_sheet_toolbar_test.dart` + fortune_sheet print capture 128건 통과.
+- 최종 분석 실행 직전: `flutter analyze`, `git diff --check`, 작업 트리/stage 대상 확인. 사용자 변경 `lib/core/app.dart`는 계속 제외한다.
+- 최종 UI 검증 완료: Radio API를 `RadioGroup`으로 정리한 뒤 라벨출력/공용라벨 툴바 테스트 124건 통과, `flutter analyze` issues 0.
+- 실행 화면 검증 제한: VS Code DTD에 연결된 실행 앱이 없어 스크린샷 검증은 미수행. widget 테스트에서 1200x700 배치, splitter 드래그, 설정창 overflow 없음은 검증했다.
+- stage/commit 예정: 라벨출력 UI 관련 6개 Dart 파일, `label_print_session_test.dart`, 이 문서. 사용자 변경 `lib/core/app.dart`는 제외한다.
 - 1단계 진행 중: 품목관리 발행 체크 controlled state와 label-print 전용 진입 gate를 구현한다.
 - 첫 수정 예정: `third_party/fortune_sheet/lib/src/fortune_table.dart`, `test/fortune_table_test.dart`. `FortuneTableEditingController.hasActiveEditing`을 editor open 또는 async commit 진행 중에만 true인 read-only 상태로 노출한다.
 - 첫 검증 예정: `flutter test test/fortune_table_test.dart --plain-name "FortuneTable editing controller waits for active commit"`.

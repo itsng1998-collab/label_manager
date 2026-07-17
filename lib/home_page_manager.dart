@@ -3349,6 +3349,8 @@ class _HomePageManagerState extends State<HomePageManager> {
       outputCaptureController: _labelPrintCaptureController,
       referenceAt: referenceAt,
       projectedColumnValues: projectedColumnValues,
+        zoomToolbarPlacement:
+          LabelSheetZoomToolbarPlacement.labelPrintCommandBarEnd,
     );
   }
 
@@ -5163,6 +5165,8 @@ class _ItemOutputPreviewTab extends StatelessWidget {
     this.outputCaptureController,
     this.referenceAt,
     this.projectedColumnValues,
+    this.zoomToolbarPlacement =
+      LabelSheetZoomToolbarPlacement.previewTabAreaEnd,
   });
 
   final ItemOfMarket item;
@@ -5174,6 +5178,7 @@ class _ItemOutputPreviewTab extends StatelessWidget {
   final LabelSheetOutputCaptureController? outputCaptureController;
   final DateTime? referenceAt;
   final Map<int, String>? projectedColumnValues;
+  final LabelSheetZoomToolbarPlacement zoomToolbarPlacement;
 
   @override
   Widget build(BuildContext context) {
@@ -5195,6 +5200,7 @@ class _ItemOutputPreviewTab extends StatelessWidget {
       imageObjectIds: imageObjectIds,
       barcodeObjectIds: barcodeObjectIds,
       outputCaptureController: outputCaptureController,
+      zoomToolbarPlacement: zoomToolbarPlacement,
     );
   }
 }

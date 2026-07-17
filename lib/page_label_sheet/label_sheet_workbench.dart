@@ -41,6 +41,7 @@ const int labelSheetMaxZoomPercent = 400;
 enum LabelSheetZoomToolbarPlacement {
   sheetToolbarEnd,
   previewTabAreaEnd,
+  labelPrintCommandBarEnd,
   hidden,
 }
 
@@ -2091,8 +2092,10 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       widget.outputCaptureController?._attach(this);
     }
     if (oldWidget.zoomToolbarPlacement != widget.zoomToolbarPlacement &&
-        widget.zoomToolbarPlacement !=
-            LabelSheetZoomToolbarPlacement.previewTabAreaEnd) {
+      widget.zoomToolbarPlacement !=
+        LabelSheetZoomToolbarPlacement.previewTabAreaEnd &&
+      widget.zoomToolbarPlacement !=
+        LabelSheetZoomToolbarPlacement.labelPrintCommandBarEnd) {
       _removeZoomToolbarFloatingOverlay();
     }
   }
@@ -3126,7 +3129,9 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     }
     final inPreviewTabArea =
         widget.zoomToolbarPlacement ==
-        LabelSheetZoomToolbarPlacement.previewTabAreaEnd;
+        LabelSheetZoomToolbarPlacement.previewTabAreaEnd ||
+      widget.zoomToolbarPlacement ==
+        LabelSheetZoomToolbarPlacement.labelPrintCommandBarEnd;
     if (inPreviewTabArea) {
       return const SizedBox.shrink();
     }
@@ -3200,11 +3205,14 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
   }
 
   void _syncZoomToolbarFloatingOverlay() {
-    if (widget.zoomToolbarPlacement !=
-        LabelSheetZoomToolbarPlacement.previewTabAreaEnd) {
+    final placement = widget.zoomToolbarPlacement;
+    if (placement != LabelSheetZoomToolbarPlacement.previewTabAreaEnd &&
+      placement != LabelSheetZoomToolbarPlacement.labelPrintCommandBarEnd) {
       _removeZoomToolbarFloatingOverlay();
       return;
     }
+    final inCommandBar =
+      placement == LabelSheetZoomToolbarPlacement.labelPrintCommandBarEnd;
     final overlay = Overlay.maybeOf(context);
     if (overlay == null) {
       return;
@@ -3219,9 +3227,15 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
         return Positioned.fill(
           child: CompositedTransformFollower(
             link: _zoomToolbarLayerLink,
-            targetAnchor: Alignment.topRight,
-            followerAnchor: Alignment.topRight,
-            offset: const Offset(-12, -34),
+            targetAnchor: inCommandBar
+              ? Alignment.bottomRight
+              : Alignment.topRight,
+            followerAnchor: inCommandBar
+              ? Alignment.topRight
+              : Alignment.topRight,
+            offset: inCommandBar
+              ? const Offset(-12, 10)
+              : const Offset(-12, -34),
             showWhenUnlinked: false,
             child: Align(
               alignment: Alignment.topRight,
