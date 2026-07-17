@@ -72,7 +72,7 @@ Future<LabelPrintSettingsSnapshot?> showLabelPrintSettingsDialog({
         builder: (context, setDialogState) => BlockingModelessDialogFrame(
           title: '프린터 설정',
           width: 526,
-          height: 354,
+          height: 390,
           closeIcon: const LabelSheetPrintDialogCloseIcon(),
           onClose: () => Navigator.of(dialogContext).pop(),
           child: LabelSheetPrintSettingsDialog(

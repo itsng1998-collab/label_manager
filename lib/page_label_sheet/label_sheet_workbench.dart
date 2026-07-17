@@ -4405,40 +4405,68 @@ class LabelSheetPrintSettingsDialog extends StatelessWidget {
             : 'label-sheet-print-settings-dialog',
       ),
       width: 526,
-      height: _hasLabelPrintAdjustments ? 318 : 200,
+      height: _hasLabelPrintAdjustments ? 354 : 200,
       child: Stack(
         children: [
           Positioned(
             left: 20,
             top: 8,
-            width: 300,
+            width: _hasLabelPrintAdjustments ? 484 : 300,
             height: 58,
             child: _PrintDialogGroup(
               title: '여백',
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  const SizedBox(width: 7),
-                  const _PrintDialogCenteredLabel('왼쪽'),
-                  const SizedBox(width: 8),
-                  _PrintDialogShiftedDown(
-                    child: _PrintDialogInput(controller: leftMarginController),
-                  ),
-                  const SizedBox(width: 8),
-                  const _PrintDialogCenteredLabel('mm'),
-                  const SizedBox(width: 24),
-                  const _PrintDialogCenteredLabel('위쪽'),
-                  const SizedBox(width: 8),
-                  _PrintDialogShiftedDown(
-                    child: _PrintDialogInput(controller: topMarginController),
-                  ),
-                  const SizedBox(width: 8),
-                  const _PrintDialogCenteredLabel('mm'),
-                ],
-              ),
+              child: _hasLabelPrintAdjustments
+                  ? Row(
+                      children: [
+                        const SizedBox(width: 10),
+                        const _PrintDialogCenteredLabel('왼쪽'),
+                        const SizedBox(width: 8),
+                        _PrintDialogInput(controller: leftMarginController),
+                        const SizedBox(width: 5),
+                        const _PrintDialogCenteredLabel('mm'),
+                        const SizedBox(width: 24),
+                        const _PrintDialogCenteredLabel('오른쪽'),
+                        const SizedBox(width: 8),
+                        _PrintDialogInput(controller: rightMarginController!),
+                        const SizedBox(width: 5),
+                        const _PrintDialogCenteredLabel('mm'),
+                        const SizedBox(width: 24),
+                        const _PrintDialogCenteredLabel('위쪽'),
+                        const SizedBox(width: 8),
+                        _PrintDialogInput(controller: topMarginController),
+                        const SizedBox(width: 5),
+                        const _PrintDialogCenteredLabel('mm'),
+                      ],
+                    )
+                  : Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        const SizedBox(width: 7),
+                        const _PrintDialogCenteredLabel('왼쪽'),
+                        const SizedBox(width: 8),
+                        _PrintDialogShiftedDown(
+                          child: _PrintDialogInput(
+                            controller: leftMarginController,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        const _PrintDialogCenteredLabel('mm'),
+                        const SizedBox(width: 24),
+                        const _PrintDialogCenteredLabel('위쪽'),
+                        const SizedBox(width: 8),
+                        _PrintDialogShiftedDown(
+                          child: _PrintDialogInput(
+                            controller: topMarginController,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        const _PrintDialogCenteredLabel('mm'),
+                      ],
+                    ),
             ),
           ),
-          Positioned(
+          if (!_hasLabelPrintAdjustments)
+            Positioned(
             left: 336,
             top: 8,
             width: 168,
@@ -4488,21 +4516,21 @@ class LabelSheetPrintSettingsDialog extends StatelessWidget {
               ),
             ),
           ),
-          const Positioned(
+          Positioned(
             left: 24,
-            top: 81,
-            child: Text('발행 프린터', style: sectionStyle),
+            top: _hasLabelPrintAdjustments ? 253 : 81,
+            child: const Text('발행 프린터', style: sectionStyle),
           ),
           Positioned(
             left: 107,
-            top: 74,
+            top: _hasLabelPrintAdjustments ? 246 : 74,
             width: 291,
             height: 30,
             child: _PrintDialogInsetValue(value: selectedPrinterName),
           ),
           Positioned(
             right: 22,
-            top: 74,
+            top: _hasLabelPrintAdjustments ? 246 : 74,
             width: 94,
             height: 30,
             child: _PrintDialogButton(
@@ -4510,47 +4538,49 @@ class LabelSheetPrintSettingsDialog extends StatelessWidget {
               onPressed: onSelectPrinter,
             ),
           ),
-          Positioned(
-            left: 104,
-            top: 116,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                const _PrintDialogCenteredLabel('추가 영역'),
-                const SizedBox(width: 8),
-                _PrintDialogShiftedDown(
-                  child: _PrintDialogInput(controller: extraAreaController),
-                ),
-                const SizedBox(width: 8),
-                const _PrintDialogCenteredLabel('mm'),
-              ],
+          if (!_hasLabelPrintAdjustments)
+            Positioned(
+              left: 104,
+              top: 116,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  const _PrintDialogCenteredLabel('추가 영역'),
+                  const SizedBox(width: 8),
+                  _PrintDialogShiftedDown(
+                    child: _PrintDialogInput(controller: extraAreaController),
+                  ),
+                  const SizedBox(width: 8),
+                  const _PrintDialogCenteredLabel('mm'),
+                ],
+              ),
             ),
-          ),
-          Positioned(
-            left: 322,
-            top: 118,
-            child: Row(
-              children: [
-                _PrintDialogRadio(
-                  label: '가로',
-                  value: 'horizontal',
-                  groupValue: orientation,
-                  onChanged: onOrientationChanged,
-                ),
-                const SizedBox(width: 18),
-                _PrintDialogRadio(
-                  label: '세로',
-                  value: 'vertical',
-                  groupValue: orientation,
-                  onChanged: onOrientationChanged,
-                ),
-              ],
+          if (!_hasLabelPrintAdjustments)
+            Positioned(
+              left: 322,
+              top: 118,
+              child: Row(
+                children: [
+                  _PrintDialogRadio(
+                    label: '가로',
+                    value: 'horizontal',
+                    groupValue: orientation,
+                    onChanged: onOrientationChanged,
+                  ),
+                  const SizedBox(width: 18),
+                  _PrintDialogRadio(
+                    label: '세로',
+                    value: 'vertical',
+                    groupValue: orientation,
+                    onChanged: onOrientationChanged,
+                  ),
+                ],
+              ),
             ),
-          ),
           if (_hasLabelPrintAdjustments)
             Positioned(
               left: 20,
-              top: 145,
+              top: 74,
               width: 484,
               height: 94,
               child: _PrintDialogGroup(
@@ -4561,15 +4591,15 @@ class LabelSheetPrintSettingsDialog extends StatelessWidget {
                     Row(
                       children: [
                         const SizedBox(width: 10),
-                        const _PrintDialogCenteredLabel('오른쪽 여백'),
-                        const SizedBox(width: 6),
-                        _PrintDialogInput(controller: rightMarginController!),
-                        const SizedBox(width: 5),
-                        const _PrintDialogCenteredLabel('mm'),
-                        const SizedBox(width: 24),
                         const _PrintDialogCenteredLabel('왼쪽 밀기'),
                         const SizedBox(width: 6),
                         _PrintDialogInput(controller: leftPushController!),
+                        const SizedBox(width: 5),
+                        const _PrintDialogCenteredLabel('mm'),
+                        const SizedBox(width: 24),
+                        const _PrintDialogCenteredLabel('위쪽 밀기'),
+                        const SizedBox(width: 6),
+                        _PrintDialogInput(controller: topPushController!),
                         const SizedBox(width: 5),
                         const _PrintDialogCenteredLabel('mm'),
                       ],
@@ -4578,9 +4608,9 @@ class LabelSheetPrintSettingsDialog extends StatelessWidget {
                     Row(
                       children: [
                         const SizedBox(width: 10),
-                        const _PrintDialogCenteredLabel('위쪽 밀기'),
+                        const _PrintDialogCenteredLabel('추가 영역'),
                         const SizedBox(width: 6),
-                        _PrintDialogInput(controller: topPushController!),
+                        _PrintDialogInput(controller: extraAreaController),
                         const SizedBox(width: 5),
                         const _PrintDialogCenteredLabel('mm'),
                       ],
@@ -4589,10 +4619,88 @@ class LabelSheetPrintSettingsDialog extends StatelessWidget {
                 ),
               ),
             ),
+          if (_hasLabelPrintAdjustments)
+            Positioned(
+              left: 20,
+              top: 176,
+              width: 300,
+              height: 58,
+              child: _PrintDialogGroup(
+                title: '자동줄간격',
+                child: Row(
+                  children: [
+                    const Spacer(),
+                    SizedBox(
+                      width: _autoSpacingDropdownWidth,
+                      height: _compactDropdownHeight,
+                      child: DropdownButton2<String>(
+                        value: autoSpacing,
+                        isExpanded: true,
+                        underline: const SizedBox.shrink(),
+                        style: labelStyle,
+                        items: autoSpacingItems ?? defaultAutoSpacingItems,
+                        onChanged: onAutoSpacingChanged,
+                        buttonStyleData: const ButtonStyleData(
+                          height: _compactDropdownHeight,
+                          padding: EdgeInsets.zero,
+                        ),
+                        dropdownStyleData: DropdownStyleData(
+                          maxHeight: 260,
+                          useRootNavigator: true,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                        menuItemStyleData: const MenuItemStyleData(
+                          height: _compactDropdownMenuItemHeight,
+                          padding: EdgeInsets.symmetric(horizontal: 8),
+                        ),
+                        iconStyleData: const IconStyleData(
+                          iconSize: 18,
+                          iconEnabledColor: Color(0xff6a6a6a),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 5),
+                    const _PrintDialogCenteredLabel('%'),
+                    const Spacer(),
+                  ],
+                ),
+              ),
+            ),
+          if (_hasLabelPrintAdjustments)
+            Positioned(
+              left: 336,
+              top: 176,
+              width: 168,
+              height: 58,
+              child: _PrintDialogGroup(
+                title: '출력 방향',
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _PrintDialogRadio(
+                      label: '가로',
+                      value: 'horizontal',
+                      groupValue: orientation,
+                      onChanged: onOrientationChanged,
+                    ),
+                    const SizedBox(width: 12),
+                    _PrintDialogRadio(
+                      label: '세로',
+                      value: 'vertical',
+                      groupValue: orientation,
+                      onChanged: onOrientationChanged,
+                    ),
+                  ],
+                ),
+              ),
+            ),
           if (_hasLabelPrintAdjustments && errorText != null)
             Positioned(
               left: 24,
-              top: 246,
+              top: 284,
               child: Text(
                 errorText!,
                 style: TextStyle(

@@ -5195,7 +5195,8 @@ class _ItemOutputPreviewTab extends StatelessWidget {
       workbook: preview.workbook,
       hintText: preview.hintText,
       identityKey:
-          'item-output:${labelSize?.labelSizeId ?? 'none'}:${item.item.itemId}:${projectedColumnValues.hashCode}',
+          'item-output:${labelSize?.labelSizeId ?? 'none'}:${item.item.itemId}:'
+          '${labelOutputPreviewValuesFingerprint(projectedColumnValues)}',
       labelSize: labelSize,
       imageObjectIds: imageObjectIds,
       barcodeObjectIds: barcodeObjectIds,

@@ -40,6 +40,14 @@
 - 최종 후속 검증 완료: 관련 테스트 129건 통과, `flutter analyze` issues 0, `git diff --check` 통과, `third_party/fortune_sheet/build` 삭제.
 - stage/commit 대상: 공유 프린터 설정/zoom 수정 2개 Dart 파일, 관련 테스트 2개, 이 문서. 사용자 변경 `lib/core/app.dart`는 제외한다.
 - 후속 수정 커밋 완료: `dbb270e` (`프린터 설정 UI 공유 및 확대 상태 유지`). 원격 push는 수행하지 않았다.
+- 라벨출력 UI 재보완 진행: 공용라벨 vertical splitter를 `VerticalPaneSplitter` 공유 객체로 추출해 양쪽 화면에 적용했다.
+- 프린터 설정 재배치 완료: 라벨출력 모드 항목을 `여백(왼쪽/오른쪽/위쪽)`, `출력 조정(왼쪽 밀기/위쪽 밀기/추가 영역)`, `자동줄간격`, `출력 방향`, `발행 프린터` 순으로 구성했다. 공용라벨 모드의 기존 배치는 유지한다.
+- zoom 원인 추가 수정 완료: splitter rebuild 때 새 projection `Map.hashCode`가 preview key를 바꾸던 경로를 정렬된 투영 내용 fingerprint로 교체했다. 실제 라벨출력에서 110% 확대 후 splitter 120px drag 뒤 110% 유지 통합 테스트 통과.
+- 최종 재보완 검증 예정: 변경 Dart 포맷, 라벨출력/공용라벨 focused 전체 테스트, `flutter analyze`, `git diff --check`, 생성물 정리.
+- 재보완 포맷/focused 검증 완료: 라벨출력, 공용라벨관리, 공용 프린터 설정, fortune_sheet capture 테스트 137건 통과.
+- 최종 분석 실행 직전: `flutter analyze`, `git diff --check`, 테스트 생성물 정리, stage 대상 확인. 사용자 변경 `lib/core/app.dart`는 제외한다.
+- 최종 재보완 검증 완료: `flutter analyze` issues 0, `git diff --check` 통과, `third_party/fortune_sheet/build` 삭제.
+- stage/commit 대상: `VerticalPaneSplitter` 공유 및 양쪽 적용, 의미별 설정 재배치, 안정적 preview fingerprint, 라벨출력 통합 zoom 테스트, 이 문서. 사용자 변경 `lib/core/app.dart`는 제외한다.
 - 1단계 진행 중: 품목관리 발행 체크 controlled state와 label-print 전용 진입 gate를 구현한다.
 - 첫 수정 예정: `third_party/fortune_sheet/lib/src/fortune_table.dart`, `test/fortune_table_test.dart`. `FortuneTableEditingController.hasActiveEditing`을 editor open 또는 async commit 진행 중에만 true인 read-only 상태로 노출한다.
 - 첫 검증 예정: `flutter test test/fortune_table_test.dart --plain-name "FortuneTable editing controller waits for active commit"`.

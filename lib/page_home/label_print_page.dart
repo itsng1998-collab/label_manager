@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fortune_sheet/fortune_sheet.dart';
 import 'package:label_manager/models/label_print.dart';
+import 'package:label_manager/widgets/vertical_pane_splitter.dart';
 
 int? parseLabelPrintLineSpacing(String text) {
   final normalized = text.trim();
@@ -110,8 +111,10 @@ class _LabelPrintPageState extends State<LabelPrintPage> {
               return Row(
                 children: [
                   SizedBox(width: availableWidth * tableFraction, child: table),
-                  _LabelPrintSplitter(
-                    onDragUpdate: (delta) {
+                  VerticalPaneSplitter(
+                    key: const ValueKey('label-print-splitter'),
+                    width: _splitterWidth,
+                    onDrag: (delta) {
                       setState(() {
                         _tableFraction = (_tableFraction +
                                 delta / availableWidth)
@@ -308,26 +311,4 @@ class _LabelPrintPageState extends State<LabelPrintPage> {
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(content: Text(message)));
   }
-}
-
-class _LabelPrintSplitter extends StatelessWidget {
-  const _LabelPrintSplitter({required this.onDragUpdate});
-
-  final ValueChanged<double> onDragUpdate;
-
-  @override
-  Widget build(BuildContext context) => MouseRegion(
-    cursor: SystemMouseCursors.resizeColumn,
-    child: GestureDetector(
-      key: const ValueKey('label-print-splitter'),
-      behavior: HitTestBehavior.opaque,
-      onHorizontalDragUpdate: (details) => onDragUpdate(details.delta.dx),
-      child: const SizedBox(
-        width: _LabelPrintPageState._splitterWidth,
-        child: Center(
-          child: VerticalDivider(width: 1, thickness: 1),
-        ),
-      ),
-    ),
-  );
 }

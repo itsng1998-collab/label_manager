@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:label_manager/widgets/vertical_pane_splitter.dart';
 import 'package:fortune_sheet/fortune_sheet.dart' hide Rect;
 import 'package:label_manager/models/barcode.dart';
 import 'package:label_manager/models/column_base.dart';
@@ -303,7 +304,7 @@ class _CommonLabelManageState extends State<CommonLabelManage> {
                 ),
               ),
             ),
-            _Splitter(
+            VerticalPaneSplitter(
               width: _handleWidth,
               onDrag: (dx) {
                 setState(() {
@@ -657,49 +658,6 @@ class _HSplitter extends StatelessWidget {
             child: Container(
               width: 36,
               height: 2,
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.outlineVariant,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _Splitter extends StatelessWidget {
-  final double width;
-  final ValueChanged<double> onDrag;
-  const _Splitter({required this.width, required this.onDrag});
-
-  @override
-  Widget build(BuildContext context) {
-    return MouseRegion(
-      cursor: SystemMouseCursors.resizeLeftRight,
-      child: GestureDetector(
-        behavior: HitTestBehavior.translucent,
-        onHorizontalDragUpdate: (d) => onDrag(d.delta.dx),
-        child: Container(
-          width: width,
-          decoration: BoxDecoration(
-            color: Theme.of(
-              context,
-            ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.6),
-            border: Border(
-              left: BorderSide(
-                color: Theme.of(context).colorScheme.outlineVariant,
-              ),
-              right: BorderSide(
-                color: Theme.of(context).colorScheme.outlineVariant,
-              ),
-            ),
-          ),
-          child: Center(
-            child: Container(
-              width: 2,
-              height: 36,
               decoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.outlineVariant,
                 borderRadius: BorderRadius.circular(2),

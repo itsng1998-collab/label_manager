@@ -10,6 +10,7 @@ import 'package:label_manager/page_home/label_print_page.dart';
 import 'package:label_manager/page_label_sheet/label_sheet_workbench.dart';
 import 'package:label_manager/widgets/label_output_preview.dart';
 import 'package:label_manager/widgets/label_print_settings_dialog.dart';
+import 'package:label_manager/widgets/vertical_pane_splitter.dart';
 
 void main() {
   test('line spacing parser keeps null distinct from explicit 100', () {
@@ -19,6 +20,17 @@ void main() {
     expect(() => parseLabelPrintLineSpacing('29'), throwsFormatException);
     expect(() => parseLabelPrintLineSpacing('301'), throwsFormatException);
     expect(() => parseLabelPrintLineSpacing('abc'), throwsFormatException);
+  });
+
+  test('preview projection fingerprint is stable by content', () {
+    expect(
+      labelOutputPreviewValuesFingerprint(const {2: 'B', 1: 'A'}),
+      labelOutputPreviewValuesFingerprint(<int, String>{1: 'A', 2: 'B'}),
+    );
+    expect(
+      labelOutputPreviewValuesFingerprint(const {1: 'A'}),
+      isNot(labelOutputPreviewValuesFingerprint(const {1: 'B'})),
+    );
   });
 
   test('issue lifecycle blocks duplicates and resets cancellation', () {
@@ -200,10 +212,68 @@ void main() {
     expect(issueCenter.dx, lessThan(600));
 
     final splitter = find.byKey(const ValueKey('label-print-splitter'));
+    expect(tester.widget(splitter), isA<VerticalPaneSplitter>());
     final before = tester.getCenter(splitter).dx;
     await tester.drag(splitter, const Offset(120, 0));
     await tester.pump();
     expect(tester.getCenter(splitter).dx, closeTo(before + 120, 1));
+  });
+
+  testWidgets('label print splitter keeps preview zoom', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1200, 700));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final controller = LabelPrintSessionController();
+    addTearDown(controller.dispose);
+    final item = _item(10, '미리보기', copies: 1);
+    controller.syncCheckedItems(
+      baselineItems: [item],
+      checkedItemIds: const {10},
+      createRow: createRow,
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: LabelPrintPage(
+            controller: controller,
+            previewBuilder: (_) {
+              final projected = <int, String>{1: '고정 값'};
+              return LabelOutputPreview(
+                workbook: FortuneWorkbook(
+                  sheets: [FortuneSheet(id: 'sheet', name: '라벨')],
+                ),
+                hintText: null,
+                identityKey:
+                    'preview:${labelOutputPreviewValuesFingerprint(projected)}',
+                imageObjectIds: const [],
+                barcodeObjectIds: const [],
+                zoomToolbarPlacement:
+                    LabelSheetZoomToolbarPlacement.labelPrintCommandBarEnd,
+              );
+            },
+            onPrinterSettings: () {},
+            onIssue: () {},
+            onCancelIssue: () {},
+            busy: false,
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    final zoomInput = find.byKey(const ValueKey('label-sheet-zoom-input'));
+    await tester.tap(find.text('+'));
+    await tester.pump();
+    expect(tester.widget<EditableText>(zoomInput).controller.text, '110');
+
+    await tester.drag(
+      find.byKey(const ValueKey('label-print-splitter')),
+      const Offset(120, 0),
+    );
+    await tester.pump();
+
+    expect(tester.widget<EditableText>(zoomInput).controller.text, '110');
   });
 
   testWidgets('label output preview accepts command bar zoom placement', (
@@ -273,6 +343,8 @@ void main() {
     expect(find.byType(LabelSheetPrintSettingsDialog), findsOneWidget);
     expect(find.text('여백'), findsOneWidget);
     expect(find.text('출력 조정'), findsOneWidget);
+    expect(find.text('자동줄간격'), findsOneWidget);
+    expect(find.text('출력 방향'), findsOneWidget);
     expect(find.text('발행 프린터'), findsOneWidget);
     await tester.tap(find.text('취소'));
     await tester.pump();
