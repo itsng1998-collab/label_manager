@@ -134,6 +134,7 @@
 - 최종 분석 실행 예정: `flutter analyze`, `git diff --check`, 테스트 생성물 및 stage 대상 확인. 사용자 변경 `lib/core/app.dart`는 제외한다.
 - 최종 zoom 깜빡임 검증 완료: `flutter analyze` issues 0, `git diff --check` 통과, 테스트 생성물 없음.
 - stage/commit 대상: 렌더 전 active sheet zoom 정규화, 외부 zoom post-frame 재렌더 제거, 첫 프레임 행 왕복 테스트 및 이 문서. 사용자 변경 `lib/core/app.dart`는 제외한다.
+- 확대율 첫 렌더 고정 커밋 완료: `03bd68b` (`라벨 출력 확대율 첫 렌더 고정`). 원격 push는 수행하지 않았다.
 - 1단계 진행 중: 품목관리 발행 체크 controlled state와 label-print 전용 진입 gate를 구현한다.
 - 첫 수정 예정: `third_party/fortune_sheet/lib/src/fortune_table.dart`, `test/fortune_table_test.dart`. `FortuneTableEditingController.hasActiveEditing`을 editor open 또는 async commit 진행 중에만 true인 read-only 상태로 노출한다.
 - 첫 검증 예정: `flutter test test/fortune_table_test.dart --plain-name "FortuneTable editing controller waits for active commit"`.
