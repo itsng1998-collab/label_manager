@@ -22,6 +22,22 @@ void main() {
     expect(() => parseLabelPrintLineSpacing('abc'), throwsFormatException);
   });
 
+  test('label print settings use legacy line spacing defaults', () {
+    expect(
+      const LabelPrintSettingsSnapshot.empty().lineSpacingPercent,
+      100,
+    );
+    final items = LabelSheetPrintSettingsDialog.buildAutoSpacingItems(
+      minimum: 80,
+      step: 5,
+      includePercent: true,
+    );
+    expect(
+      items.map((item) => item.value),
+      ['none', for (var value = 80; value <= 300; value += 5) '$value'],
+    );
+  });
+
   test('preview projection fingerprint is stable by content', () {
     expect(
       labelOutputPreviewValuesFingerprint(const {2: 'B', 1: 'A'}),
@@ -219,6 +235,33 @@ void main() {
     expect(tester.getCenter(splitter).dx, closeTo(before + 120, 1));
   });
 
+  testWidgets('issue command is disabled when print table is empty', (
+    tester,
+  ) async {
+    final controller = LabelPrintSessionController();
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: LabelPrintPage(
+            controller: controller,
+            previewBuilder: (_, _) => const SizedBox(),
+            onPrinterSettings: () {},
+            onIssue: () {},
+            onCancelIssue: () {},
+            busy: false,
+          ),
+        ),
+      ),
+    );
+
+    final issueButton = tester.widget<FilledButton>(
+      find.ancestor(of: find.text('발행'), matching: find.byType(FilledButton)),
+    );
+    expect(issueButton.onPressed, isNull);
+  });
+
   testWidgets('label print splitter keeps preview zoom', (tester) async {
     await tester.binding.setSurfaceSize(const Size(1200, 700));
     addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -362,6 +405,30 @@ void main() {
     expect(find.text('자동줄간격'), findsOneWidget);
     expect(find.text('출력 방향'), findsOneWidget);
     expect(find.text('발행 프린터'), findsOneWidget);
+    final dialog = find.byKey(const ValueKey('label-print-settings-dialog'));
+    final editableTexts = find.descendant(
+      of: dialog,
+      matching: find.byType(EditableText),
+    );
+    expect(editableTexts, findsNWidgets(6));
+    final shiftedInputs = find.descendant(
+      of: dialog,
+      matching: find.byWidgetPredicate(
+        (widget) =>
+            widget is Transform &&
+            widget.transform.getTranslation().y == 4,
+      ),
+    );
+    expect(shiftedInputs, findsNWidgets(7));
+
+    await tester.tap(find.text('100 %'));
+    await tester.pumpAndSettle();
+    expect(find.text('간격조정 없음'), findsWidgets);
+    expect(find.text('80 %'), findsOneWidget);
+    expect(find.text('85 %'), findsOneWidget);
+    expect(find.text('81 %'), findsNothing);
+    await tester.tap(find.text('100 %').last);
+    await tester.pumpAndSettle();
     await tester.tap(find.text('취소'));
     await tester.pump();
     expect(await result, isNull);

@@ -4575,19 +4575,34 @@ class LabelSheetPrintSettingsDialog extends StatelessWidget {
                         const SizedBox(width: 10),
                         const _PrintDialogCenteredLabel('왼쪽'),
                         const SizedBox(width: 8),
-                        _PrintDialogInput(controller: leftMarginController),
+                        _PrintDialogShiftedDown(
+                          offset: 4,
+                          child: _PrintDialogInput(
+                            controller: leftMarginController,
+                          ),
+                        ),
                         const SizedBox(width: 5),
                         const _PrintDialogCenteredLabel('mm'),
                         const SizedBox(width: 24),
                         const _PrintDialogCenteredLabel('오른쪽'),
                         const SizedBox(width: 8),
-                        _PrintDialogInput(controller: rightMarginController!),
+                        _PrintDialogShiftedDown(
+                          offset: 4,
+                          child: _PrintDialogInput(
+                            controller: rightMarginController!,
+                          ),
+                        ),
                         const SizedBox(width: 5),
                         const _PrintDialogCenteredLabel('mm'),
                         const SizedBox(width: 24),
                         const _PrintDialogCenteredLabel('위쪽'),
                         const SizedBox(width: 8),
-                        _PrintDialogInput(controller: topMarginController),
+                        _PrintDialogShiftedDown(
+                          offset: 4,
+                          child: _PrintDialogInput(
+                            controller: topMarginController,
+                          ),
+                        ),
                         const SizedBox(width: 5),
                         const _PrintDialogCenteredLabel('mm'),
                       ],
@@ -4680,7 +4695,12 @@ class LabelSheetPrintSettingsDialog extends StatelessWidget {
             top: _hasLabelPrintAdjustments ? 246 : 74,
             width: 291,
             height: 30,
-            child: _PrintDialogInsetValue(value: selectedPrinterName),
+            child: _hasLabelPrintAdjustments
+                ? _PrintDialogShiftedDown(
+                    offset: 4,
+                    child: _PrintDialogInsetValue(value: selectedPrinterName),
+                  )
+                : _PrintDialogInsetValue(value: selectedPrinterName),
           ),
           Positioned(
             right: 22,
@@ -4747,13 +4767,23 @@ class LabelSheetPrintSettingsDialog extends StatelessWidget {
                         const SizedBox(width: 10),
                         const _PrintDialogCenteredLabel('왼쪽 밀기'),
                         const SizedBox(width: 6),
-                        _PrintDialogInput(controller: leftPushController!),
+                        _PrintDialogShiftedDown(
+                          offset: 4,
+                          child: _PrintDialogInput(
+                            controller: leftPushController!,
+                          ),
+                        ),
                         const SizedBox(width: 5),
                         const _PrintDialogCenteredLabel('mm'),
                         const SizedBox(width: 24),
                         const _PrintDialogCenteredLabel('위쪽 밀기'),
                         const SizedBox(width: 6),
-                        _PrintDialogInput(controller: topPushController!),
+                        _PrintDialogShiftedDown(
+                          offset: 4,
+                          child: _PrintDialogInput(
+                            controller: topPushController!,
+                          ),
+                        ),
                         const SizedBox(width: 5),
                         const _PrintDialogCenteredLabel('mm'),
                       ],
@@ -4764,7 +4794,12 @@ class LabelSheetPrintSettingsDialog extends StatelessWidget {
                         const SizedBox(width: 10),
                         const _PrintDialogCenteredLabel('추가 영역'),
                         const SizedBox(width: 6),
-                        _PrintDialogInput(controller: extraAreaController),
+                        _PrintDialogShiftedDown(
+                          offset: 4,
+                          child: _PrintDialogInput(
+                            controller: extraAreaController,
+                          ),
+                        ),
                         const SizedBox(width: 5),
                         const _PrintDialogCenteredLabel('mm'),
                       ],
@@ -4816,8 +4851,6 @@ class LabelSheetPrintSettingsDialog extends StatelessWidget {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 5),
-                    const _PrintDialogCenteredLabel('%'),
                     const Spacer(),
                   ],
                 ),
@@ -4928,6 +4961,7 @@ class LabelSheetPrintSettingsDialog extends StatelessWidget {
   static List<DropdownMenuItem<String>> buildAutoSpacingItems({
     required int minimum,
     required int step,
+    bool includePercent = false,
   }) => [
     const DropdownMenuItem(
       value: 'none',
@@ -4936,7 +4970,9 @@ class LabelSheetPrintSettingsDialog extends StatelessWidget {
     for (var value = minimum; value <= 300; value += step)
       DropdownMenuItem(
         value: '$value',
-        child: _PrintDialogDropdownItemLabel('$value'),
+        child: _PrintDialogDropdownItemLabel(
+          includePercent ? '$value %' : '$value',
+        ),
       ),
   ];
 }
@@ -5009,13 +5045,14 @@ class _PrintDialogCenteredLabel extends StatelessWidget {
 }
 
 class _PrintDialogShiftedDown extends StatelessWidget {
-  const _PrintDialogShiftedDown({required this.child});
+  const _PrintDialogShiftedDown({required this.child, this.offset = 3});
 
   final Widget child;
+  final double offset;
 
   @override
   Widget build(BuildContext context) {
-    return Transform.translate(offset: const Offset(0, 3), child: child);
+    return Transform.translate(offset: Offset(0, offset), child: child);
   }
 }
 

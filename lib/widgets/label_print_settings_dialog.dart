@@ -10,6 +10,11 @@ import 'package:printing/printing.dart';
 
 enum LabelPrintSettingsMode { commonLabel, labelPrint }
 
+int? _legacyAutoSpacingPercent(int? value) {
+  if (value == null) return null;
+  return value >= 80 && value <= 300 && (value - 80) % 5 == 0 ? value : 100;
+}
+
 Future<LabelPrintSettingsSnapshot> loadLabelPrintSettingsSnapshot() async {
   final settings = await LabelPrinterPreferences.loadPreferredPrintSettings();
   if (settings == null) return const LabelPrintSettingsSnapshot.empty();
@@ -23,7 +28,10 @@ Future<LabelPrintSettingsSnapshot> loadLabelPrintSettingsSnapshot() async {
     return parsed != null && parsed.isFinite ? parsed : 0;
   }
 
-  final spacing = int.tryParse(settings.autoSpacing.trim());
+  final autoSpacing = settings.autoSpacing.trim();
+  final spacing = autoSpacing == 'none' || autoSpacing == '0'
+      ? null
+      : _legacyAutoSpacingPercent(int.tryParse(autoSpacing)) ?? 100;
   return LabelPrintSettingsSnapshot(
     printerName: settings.printerName,
     leftMarginMm: nonNegative(settings.leftMargin),
@@ -31,8 +39,7 @@ Future<LabelPrintSettingsSnapshot> loadLabelPrintSettingsSnapshot() async {
     topMarginMm: nonNegative(settings.topMargin),
     leftPushMm: signed(settings.leftPush),
     topPushMm: signed(settings.topPush),
-    lineSpacingPercent:
-        spacing != null && spacing >= 30 && spacing <= 300 ? spacing : null,
+    lineSpacingPercent: spacing,
     extraAreaMm: nonNegative(settings.extraArea),
     orientation: settings.orientation == 'vertical'
         ? LabelPrintOrientation.vertical
@@ -53,7 +60,7 @@ Future<LabelPrintSettingsSnapshot?> showLabelPrintSettingsDialog({
   final lineSpacing = TextEditingController(
     text: initial.lineSpacingPercent == null
         ? '0'
-        : '${initial.lineSpacingPercent}',
+        : '${_legacyAutoSpacingPercent(initial.lineSpacingPercent)}',
   );
   final extraArea = TextEditingController(text: '${initial.extraAreaMm}');
   var printerName = initial.printerName ?? '';
@@ -89,8 +96,9 @@ Future<LabelPrintSettingsSnapshot?> showLabelPrintSettingsDialog({
             selectedPrinterName: printerName,
             autoSpacingItems:
                 LabelSheetPrintSettingsDialog.buildAutoSpacingItems(
-                  minimum: 30,
-                  step: 1,
+                  minimum: 80,
+                  step: 5,
+                  includePercent: true,
                 ),
             onAutoSpacingChanged: (value) {
               if (value == null) return;
@@ -150,7 +158,10 @@ Future<LabelPrintSettingsSnapshot?> showLabelPrintSettingsDialog({
                         verticalPush == null ||
                         extra == null ||
                         spacing == null ||
-                        (spacing != 0 && (spacing < 30 || spacing > 300))) {
+                        (spacing != 0 &&
+                          (spacing < 80 ||
+                            spacing > 300 ||
+                            (spacing - 80) % 5 != 0))) {
                       setDialogState(() {
                         errorText = '입력값을 확인해 주세요.';
                       });

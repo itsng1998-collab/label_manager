@@ -94,6 +94,17 @@
 - 실행 검증 제한: workspace DTD와 Flutter Windows 앱이 종료되어 hot restart/실화면 스크린샷은 수행하지 못했다. 다음 앱 실행부터 최신 코드가 적용된다.
 - stage/commit 대상: zoom controller/직접 command bar toolbar, 프린터명 flex 수정, overlay 오수정 제거, 관련 테스트 및 이 문서. 사용자 변경 `lib/core/app.dart`는 제외한다.
 - 우하단 직접 배치 구현 커밋 완료: `41033c2` (`라벨 출력 확대 도구 우하단 직접 배치`). 원격 push는 수행하지 않았다.
+- 라벨출력 발행/설정 보완 진행: 테이블이 비어 있고 busy가 아닐 때 발행 버튼을 비활성화한다. busy 중에는 행 상태와 무관하게 기존 발행 취소 동작을 유지한다.
+- 레거시 자동줄간격 확인: `.tmp/LabelManager/LabelManager/PrintSetupInfoDlg.cpp::InitCbLineFeed()`는 `간격조정 없음` 다음 `80 %`~`300 %`를 5 단위로 구성하고, `MainWindowDlg.cpp::OnPrintConnectSetup()`은 기본값을 100으로 초기화한다.
+- 자동줄간격 편집 완료: 빈 설정 기본값을 100으로 변경하고 목록/표시를 레거시와 동일하게 맞췄다. 저장된 `none/0`은 없음으로 유지하고 레거시 집합 밖의 과거 값은 100으로 정규화하며 dialog validation도 같은 집합만 허용한다.
+- 입력박스 위치 편집 완료: 라벨출력 프린터 설정의 여백 3개, 밀기 2개, 추가 영역, 읽기 전용 프린터명 박스를 모두 기존 위치에서 y+4 이동했다. 공용라벨 모드의 기존 3px 배치는 유지한다.
+- focused 검증 완료: 빈 테이블 발행 비활성화, 레거시 기본값/목록, 7개 입력박스 y+4, 유효 저장값 유지/비레거시 값 정규화 테스트 5건 통과, 변경 파일 diagnostics 오류 0건.
+- 전체 관련 검증 예정: 변경 Dart 포맷, 라벨출력 session/pipeline/preferences 및 공용 프린터 설정 테스트, `flutter analyze`, `git diff --check`, 생성물 정리 및 stage/commit. 사용자 변경 `lib/core/app.dart`는 제외한다.
+- 공유 UI 회귀 수정 완료: 공용라벨 설정은 기존 숫자 항목과 외부 `%` 표시를 유지하고, 라벨출력 설정만 레거시 `값 %` 항목 문자열을 사용하도록 item builder 옵션을 분리했다.
+- 관련 전체 테스트 완료: 라벨출력 session/pipeline/preferences 및 공용 toolbar 테스트 140건 통과.
+- 최종 분석 실행 예정: `flutter analyze`, `git diff --check`, 테스트 생성물 및 stage 대상 확인. 사용자 변경 `lib/core/app.dart`는 제외한다.
+- 최종 발행/설정 검증 완료: `flutter analyze` issues 0, `git diff --check` 통과, 테스트 생성물 없음.
+- stage/commit 대상: 빈 테이블 발행 비활성화, 레거시 자동줄간격 기본값/목록/정규화, 라벨출력 설정 입력박스 y+4, 관련 테스트 및 이 문서. 사용자 변경 `lib/core/app.dart`는 제외한다.
 - 1단계 진행 중: 품목관리 발행 체크 controlled state와 label-print 전용 진입 gate를 구현한다.
 - 첫 수정 예정: `third_party/fortune_sheet/lib/src/fortune_table.dart`, `test/fortune_table_test.dart`. `FortuneTableEditingController.hasActiveEditing`을 editor open 또는 async commit 진행 중에만 true인 read-only 상태로 노출한다.
 - 첫 검증 예정: `flutter test test/fortune_table_test.dart --plain-name "FortuneTable editing controller waits for active commit"`.

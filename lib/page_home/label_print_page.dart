@@ -166,7 +166,11 @@ class _LabelPrintPageState extends State<LabelPrintPage> {
           ),
           const SizedBox(width: 12),
           FilledButton.icon(
-            onPressed: widget.busy ? widget.onCancelIssue : widget.onIssue,
+            onPressed: widget.busy
+                ? widget.onCancelIssue
+                : widget.controller.rows.isEmpty
+                ? null
+                : widget.onIssue,
             icon: Icon(widget.busy ? Icons.stop : Icons.print, size: 18),
             label: Text(widget.busy ? '발행 취소' : '발행'),
           ),

@@ -83,6 +83,17 @@ void main() {
     expect(loaded.orientation, LabelPrintOrientation.vertical);
   });
 
+  test('label print settings normalizes non-legacy auto spacing', () async {
+    SharedPreferences.setMockInitialValues(<String, Object>{
+      labelSheetPreferredPrinterNamePrefsKey: 'Godex G500',
+      labelSheetPreferredPrintAutoSpacingPrefsKey: '123',
+    });
+
+    final loaded = await loadLabelPrintSettingsSnapshot();
+
+    expect(loaded.lineSpacingPercent, 100);
+  });
+
   test('missing preferred printer is removed while loading', () async {
     SharedPreferences.setMockInitialValues(<String, Object>{
       labelSheetPreferredPrinterNamePrefsKey: 'Missing Printer',

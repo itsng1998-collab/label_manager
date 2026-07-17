@@ -65,7 +65,7 @@ class LabelPrintSettingsSnapshot {
         topMarginMm = 0,
         leftPushMm = 0,
         topPushMm = 0,
-        lineSpacingPercent = null,
+        lineSpacingPercent = 100,
         extraAreaMm = 0,
         orientation = LabelPrintOrientation.horizontal;
 
