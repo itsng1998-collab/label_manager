@@ -3248,23 +3248,23 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     }
     _zoomToolbarOverlayEntry = OverlayEntry(
       builder: (context) {
-        return Positioned.fill(
+        return Positioned(
+          left: 0,
+          top: 0,
           child: CompositedTransformFollower(
             link: followerLink,
             targetAnchor: inCommandBar
-              ? Alignment.topRight
+              ? Alignment.centerRight
               : Alignment.topRight,
-            followerAnchor: Alignment.topRight,
+            followerAnchor: inCommandBar
+              ? Alignment.centerRight
+              : Alignment.topRight,
             offset: inCommandBar ? Offset.zero : const Offset(-12, -34),
             showWhenUnlinked: false,
-            child: Align(
-              alignment: Alignment.topRight,
-              widthFactor: 1,
-              heightFactor: 1,
-              child: SizedBox(
-                height: 29,
-                child: _buildZoomToolbarControls(inPreviewTabArea: true),
-              ),
+            child: SizedBox(
+              key: const ValueKey('label-sheet-zoom-toolbar'),
+              height: 29,
+              child: _buildZoomToolbarControls(inPreviewTabArea: true),
             ),
           ),
         );

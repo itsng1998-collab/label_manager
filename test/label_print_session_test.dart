@@ -276,9 +276,17 @@ void main() {
 
     expect(tester.widget<EditableText>(zoomInput).controller.text, '110');
     expect(tester.getTopLeft(zoomInput), zoomPositionBeforeDrag);
+    final zoomToolbar = find.byKey(
+      const ValueKey('label-sheet-zoom-toolbar'),
+    );
+    final zoomAnchor = find.byKey(const ValueKey('label-print-zoom-anchor'));
     expect(
-      tester.getTopRight(zoomInput).dx,
-      lessThan(tester.getCenter(find.byKey(const ValueKey('label-print-zoom-anchor'))).dx),
+      tester.getCenter(zoomToolbar).dy,
+      closeTo(tester.getCenter(zoomAnchor).dy, 0.1),
+    );
+    expect(
+      tester.getTopRight(zoomToolbar).dx,
+      closeTo(tester.getTopRight(zoomAnchor).dx, 0.1),
     );
   });
 
