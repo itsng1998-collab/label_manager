@@ -31,6 +31,7 @@
 - 최종 UI 검증 완료: Radio API를 `RadioGroup`으로 정리한 뒤 라벨출력/공용라벨 툴바 테스트 124건 통과, `flutter analyze` issues 0.
 - 실행 화면 검증 제한: VS Code DTD에 연결된 실행 앱이 없어 스크린샷 검증은 미수행. widget 테스트에서 1200x700 배치, splitter 드래그, 설정창 overflow 없음은 검증했다.
 - stage/commit 예정: 라벨출력 UI 관련 6개 Dart 파일, `label_print_session_test.dart`, 이 문서. 사용자 변경 `lib/core/app.dart`는 제외한다.
+- 라벨출력 UI 개선 커밋 완료: `1238d8e` (`라벨 출력 화면 사용성 개선`). 원격 push는 수행하지 않았다.
 - 1단계 진행 중: 품목관리 발행 체크 controlled state와 label-print 전용 진입 gate를 구현한다.
 - 첫 수정 예정: `third_party/fortune_sheet/lib/src/fortune_table.dart`, `test/fortune_table_test.dart`. `FortuneTableEditingController.hasActiveEditing`을 editor open 또는 async commit 진행 중에만 true인 read-only 상태로 노출한다.
 - 첫 검증 예정: `flutter test test/fortune_table_test.dart --plain-name "FortuneTable editing controller waits for active commit"`.
