@@ -2739,6 +2739,89 @@ void main() {
     expect(tester.widget<EditableText>(zoomInput).controller.text, '110');
   });
 
+  testWidgets('label sheet zoom follows replaced command bar anchor', (
+    tester,
+  ) async {
+    final leftLink = LayerLink();
+    final rightLink = LayerLink();
+    late StateSetter setHostState;
+    var activeLink = leftLink;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: StatefulBuilder(
+            builder: (context, setState) {
+              setHostState = setState;
+              return Stack(
+                children: [
+                  Positioned(
+                    left: 100,
+                    bottom: 12,
+                    child: CompositedTransformTarget(
+                      link: leftLink,
+                      child: const SizedBox(
+                        key: ValueKey('left-zoom-anchor'),
+                        width: 1,
+                        height: 29,
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    right: 12,
+                    bottom: 12,
+                    child: CompositedTransformTarget(
+                      link: rightLink,
+                      child: const SizedBox(
+                        key: ValueKey('right-zoom-anchor'),
+                        width: 1,
+                        height: 29,
+                      ),
+                    ),
+                  ),
+                  Positioned.fill(
+                    child: LabelSheetWorkbench(
+                      initialWorkbook: FortuneWorkbook(
+                        sheets: [FortuneSheet(id: 's1', name: 'Label')],
+                      ),
+                      zoomToolbarPlacement:
+                          LabelSheetZoomToolbarPlacement
+                              .labelPrintCommandBarEnd,
+                      zoomToolbarAnchorLink: activeLink,
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    final toolbar = find.byKey(const ValueKey('label-sheet-zoom-toolbar'));
+    expect(
+      tester.getTopRight(toolbar).dx,
+      closeTo(
+        tester.getTopRight(find.byKey(const ValueKey('left-zoom-anchor'))).dx,
+        0.1,
+      ),
+    );
+
+    setHostState(() => activeLink = rightLink);
+    await tester.pump();
+    await tester.pump();
+
+    expect(
+      tester.getTopRight(toolbar).dx,
+      closeTo(
+        tester.getTopRight(find.byKey(const ValueKey('right-zoom-anchor'))).dx,
+        0.1,
+      ),
+    );
+  });
+
   testWidgets('fortune sheet page loads base64 save payload from label RTF', (
     tester,
   ) async {

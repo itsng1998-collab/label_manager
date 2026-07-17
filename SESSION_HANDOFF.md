@@ -74,6 +74,14 @@
 - 최종 명시적 anchor 검증 완료: `git diff --check` 통과, diagnostics 오류 0, 테스트 생성물 없음.
 - stage/commit 대상: command bar `LayerLink` 명시적 전달 4개 Dart 파일, 실제 builder 경로 회귀 테스트, 이 문서. 사용자 변경 `lib/core/app.dart`는 제외한다.
 - 우측 anchor 연결 구현 커밋 완료: `0b3e783` (`라벨 출력 확대 도구 우측 앵커 연결`). 원격 push는 수행하지 않았다.
+- 실제 이미지 기반 stale overlay 수정 진행: 살아 있는 `OverlayEntry` builder가 생성 당시 미리보기 `LayerLink`를 캡처해 명시적 command bar 링크로 갱신되지 않는 원인을 확인했다.
+- `label_sheet_workbench.dart` 편집 완료: overlay가 사용 중인 링크/placement를 추적하고 값이 달라지면 entry를 제거·재생성하며, hot reload `reassemble()`에서도 기존 entry를 폐기한다.
+- 회귀 테스트 추가: 같은 workbench state에서 command bar `LayerLink`를 왼쪽 target에서 오른쪽 target으로 교체했을 때 확대 도구 우측 좌표가 새 target으로 이동하는 테스트를 추가했다.
+- stale overlay focused 검증 완료: 기존 splitter/zoom 통합 테스트 1건과 신규 anchor 교체/부모 rebuild 테스트 2건 통과, 변경 파일 diagnostics 오류 0건.
+- 실행 앱 갱신 완료: 새 DTD 앱 URI를 연결해 Windows 앱 hot restart 성공. 라벨출력 화면의 로그인 후 수동 위치 확인은 사용자 확인 대상으로 남긴다.
+- 최종 stale overlay 검증 예정: 변경 Dart 포맷, 라벨출력/공용 toolbar 테스트 전체, `flutter analyze`, `git diff --check`, 생성물 정리 및 stage/commit. 사용자 변경 `lib/core/app.dart`는 제외한다.
+- 최종 stale overlay 검증 완료: 라벨출력/공용 toolbar 테스트 128건 통과, `flutter analyze` issues 0, `git diff --check` 통과, 테스트 생성물 없음.
+- stage/commit 대상: stale zoom overlay lifecycle 수정, command bar anchor 교체 회귀 테스트, 이 문서. 사용자 변경 `lib/core/app.dart`는 제외한다.
 - 1단계 진행 중: 품목관리 발행 체크 controlled state와 label-print 전용 진입 gate를 구현한다.
 - 첫 수정 예정: `third_party/fortune_sheet/lib/src/fortune_table.dart`, `test/fortune_table_test.dart`. `FortuneTableEditingController.hasActiveEditing`을 editor open 또는 async commit 진행 중에만 true인 read-only 상태로 노출한다.
 - 첫 검증 예정: `flutter test test/fortune_table_test.dart --plain-name "FortuneTable editing controller waits for active commit"`.

@@ -1899,6 +1899,8 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
   late final FocusNode _zoomFocusNode = FocusNode();
   final LayerLink _zoomToolbarLayerLink = LayerLink();
   OverlayEntry? _zoomToolbarOverlayEntry;
+  LayerLink? _zoomToolbarOverlayLink;
+  LabelSheetZoomToolbarPlacement? _zoomToolbarOverlayPlacement;
   int? _zoomEditOriginalPercent;
   bool _zoomCommitPendingBlur = false;
   late FortuneSheetLocale _locale = _localeForPlatform();
@@ -2101,6 +2103,12 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
         LabelSheetZoomToolbarPlacement.labelPrintCommandBarEnd) {
       _removeZoomToolbarFloatingOverlay();
     }
+  }
+
+  @override
+  void reassemble() {
+    _removeZoomToolbarFloatingOverlay();
+    super.reassemble();
   }
 
   void _setLabelSheetZoomPercent(int percent) {
@@ -3227,9 +3235,16 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     }
     final entry = _zoomToolbarOverlayEntry;
     if (entry != null) {
-      entry.markNeedsBuild();
-      return;
+      if (!identical(_zoomToolbarOverlayLink, followerLink) ||
+        _zoomToolbarOverlayPlacement != placement) {
+        _removeZoomToolbarFloatingOverlay();
+      } else {
+        entry.markNeedsBuild();
+        return;
+      }
     }
+    _zoomToolbarOverlayLink = followerLink;
+    _zoomToolbarOverlayPlacement = placement;
     _zoomToolbarOverlayEntry = OverlayEntry(
       builder: (context) {
         return Positioned(
@@ -3260,6 +3275,8 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
   void _removeZoomToolbarFloatingOverlay() {
     _zoomToolbarOverlayEntry?.remove();
     _zoomToolbarOverlayEntry = null;
+    _zoomToolbarOverlayLink = null;
+    _zoomToolbarOverlayPlacement = null;
   }
 
   Future<_LabelImageImportAction?> _showLabelImageImportDialog({
