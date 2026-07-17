@@ -82,6 +82,7 @@
 - 최종 stale overlay 검증 예정: 변경 Dart 포맷, 라벨출력/공용 toolbar 테스트 전체, `flutter analyze`, `git diff --check`, 생성물 정리 및 stage/commit. 사용자 변경 `lib/core/app.dart`는 제외한다.
 - 최종 stale overlay 검증 완료: 라벨출력/공용 toolbar 테스트 128건 통과, `flutter analyze` issues 0, `git diff --check` 통과, 테스트 생성물 없음.
 - stage/commit 대상: stale zoom overlay lifecycle 수정, command bar anchor 교체 회귀 테스트, 이 문서. 사용자 변경 `lib/core/app.dart`는 제외한다.
+- stale overlay 수정 커밋 완료: `4b3b607` (`라벨 출력 확대 도구 앵커 갱신`). 원격 push는 수행하지 않았다.
 - 1단계 진행 중: 품목관리 발행 체크 controlled state와 label-print 전용 진입 gate를 구현한다.
 - 첫 수정 예정: `third_party/fortune_sheet/lib/src/fortune_table.dart`, `test/fortune_table_test.dart`. `FortuneTableEditingController.hasActiveEditing`을 editor open 또는 async commit 진행 중에만 true인 read-only 상태로 노출한다.
 - 첫 검증 예정: `flutter test test/fortune_table_test.dart --plain-name "FortuneTable editing controller waits for active commit"`.
