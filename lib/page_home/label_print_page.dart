@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fortune_sheet/fortune_sheet.dart';
 import 'package:label_manager/models/label_print.dart';
+import 'package:label_manager/page_label_sheet/label_sheet_workbench.dart';
 import 'package:label_manager/widgets/vertical_pane_splitter.dart';
 
 int? parseLabelPrintLineSpacing(String text) {
@@ -27,7 +28,7 @@ class LabelPrintPage extends StatefulWidget {
   final LabelPrintSessionController controller;
   final Widget Function(
     LabelPrintRowDraft row,
-    LayerLink zoomToolbarAnchorLink,
+    LabelSheetZoomController zoomController,
   )
   previewBuilder;
   final VoidCallback onPrinterSettings;
@@ -45,7 +46,7 @@ class _LabelPrintPageState extends State<LabelPrintPage> {
 
   final FortuneTableEditingController _editingController =
       FortuneTableEditingController();
-  final LayerLink _zoomToolbarAnchorLink = LayerLink();
+  final LabelSheetZoomController _zoomController = LabelSheetZoomController();
   double _tableFraction = 0.6;
 
   @override
@@ -66,6 +67,7 @@ class _LabelPrintPageState extends State<LabelPrintPage> {
   @override
   void dispose() {
     widget.controller.removeListener(_handleChanged);
+    _zoomController.dispose();
     super.dispose();
   }
 
@@ -90,7 +92,7 @@ class _LabelPrintPageState extends State<LabelPrintPage> {
     final selected = selectedIndex < 0 ? null : rows[selectedIndex];
     final preview = selected == null
         ? const Center(child: Text('발행할 품목을 선택하세요.'))
-        : widget.previewBuilder(selected, _zoomToolbarAnchorLink);
+      : widget.previewBuilder(selected, _zoomController);
 
     return Column(
       children: [
@@ -151,7 +153,8 @@ class _LabelPrintPageState extends State<LabelPrintPage> {
             label: const Text('프린터 설정'),
           ),
           const SizedBox(width: 12),
-          Flexible(
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 280),
             child: Tooltip(
               message: widget.controller.settings.printerName ?? '선택된 프린터 없음',
               child: Text(
@@ -168,13 +171,9 @@ class _LabelPrintPageState extends State<LabelPrintPage> {
             label: Text(widget.busy ? '발행 취소' : '발행'),
           ),
           const Spacer(),
-          CompositedTransformTarget(
-            link: _zoomToolbarAnchorLink,
-            child: const SizedBox(
-              key: ValueKey('label-print-zoom-anchor'),
-              width: 1,
-              height: 29,
-            ),
+          LabelSheetZoomToolbar(
+            key: const ValueKey('label-print-zoom-toolbar'),
+            controller: _zoomController,
           ),
         ],
       ),

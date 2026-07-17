@@ -3312,7 +3312,7 @@ class _HomePageManagerState extends State<HomePageManager> {
 
   Widget _buildLabelPrintPreview(
     LabelPrintRowDraft row,
-    LayerLink zoomToolbarAnchorLink,
+    LabelSheetZoomController zoomController,
   ) {
     final columns = TColumn.datas ?? const <TColumn>[];
     final specialColumns = TColumnSpecial.datas ?? const <TColumnBase>[];
@@ -3352,9 +3352,8 @@ class _HomePageManagerState extends State<HomePageManager> {
       outputCaptureController: _labelPrintCaptureController,
       referenceAt: referenceAt,
       projectedColumnValues: projectedColumnValues,
-      zoomToolbarPlacement:
-          LabelSheetZoomToolbarPlacement.labelPrintCommandBarEnd,
-      zoomToolbarAnchorLink: zoomToolbarAnchorLink,
+        zoomToolbarPlacement: LabelSheetZoomToolbarPlacement.hidden,
+        zoomController: zoomController,
     );
   }
 
@@ -5171,7 +5170,7 @@ class _ItemOutputPreviewTab extends StatelessWidget {
     this.projectedColumnValues,
     this.zoomToolbarPlacement =
       LabelSheetZoomToolbarPlacement.previewTabAreaEnd,
-    this.zoomToolbarAnchorLink,
+    this.zoomController,
   });
 
   final ItemOfMarket item;
@@ -5184,7 +5183,7 @@ class _ItemOutputPreviewTab extends StatelessWidget {
   final DateTime? referenceAt;
   final Map<int, String>? projectedColumnValues;
   final LabelSheetZoomToolbarPlacement zoomToolbarPlacement;
-  final LayerLink? zoomToolbarAnchorLink;
+  final LabelSheetZoomController? zoomController;
 
   @override
   Widget build(BuildContext context) {
@@ -5208,7 +5207,7 @@ class _ItemOutputPreviewTab extends StatelessWidget {
       barcodeObjectIds: barcodeObjectIds,
       outputCaptureController: outputCaptureController,
       zoomToolbarPlacement: zoomToolbarPlacement,
-      zoomToolbarAnchorLink: zoomToolbarAnchorLink,
+      zoomController: zoomController,
     );
   }
 }

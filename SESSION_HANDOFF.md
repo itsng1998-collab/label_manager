@@ -83,6 +83,16 @@
 - 최종 stale overlay 검증 완료: 라벨출력/공용 toolbar 테스트 128건 통과, `flutter analyze` issues 0, `git diff --check` 통과, 테스트 생성물 없음.
 - stage/commit 대상: stale zoom overlay lifecycle 수정, command bar anchor 교체 회귀 테스트, 이 문서. 사용자 변경 `lib/core/app.dart`는 제외한다.
 - stale overlay 수정 커밋 완료: `4b3b607` (`라벨 출력 확대 도구 앵커 갱신`). 원격 push는 수행하지 않았다.
+- 첨부 이미지 재분석 후 이전 오수정 제거 진행: 확대 도구가 splitter 아래에 남은 실제 원인은 command bar의 프린터명 `Flexible`과 `Spacer`가 남는 폭을 1:1로 나눠 우측 anchor 자체가 화면 중간에 배치된 것이었다.
+- 이전 오수정 제거 완료: `labelPrintCommandBarEnd`, command bar `LayerLink`, stale overlay link/placement 추적 및 관련 anchor 교체 테스트를 제거했다. preview 영역용 기존 floating overlay는 유지한다.
+- 직접 배치 완료: `LabelSheetZoomController`와 `LabelSheetZoomToolbar`를 공용 API로 추가하고, 라벨출력 하단 command bar가 toolbar를 `Spacer` 다음의 마지막 child로 직접 렌더링한다. workbench는 hidden toolbar 상태에서 controller와 zoom만 동기화한다.
+- command bar 원인 수정 완료: 프린터명 `Flexible`을 최대 280px `ConstrainedBox`로 바꿔 `Spacer`가 남는 폭 전체를 차지하게 했다.
+- 위치/상태 회귀 검증 완료: 확대 도구 우측이 `LabelPrintPage` 전체 우측에서 12px 안쪽이고 하단 bar 중앙에 정렬되며, 110% 확대 후 splitter drag 뒤 위치와 확대율이 유지되는 테스트를 통과했다. 외부 zoom controller 동작 테스트도 통과했다.
+- 관련 테스트 완료: `label_print_session_test.dart`와 `label_sheet_toolbar_test.dart` 전체 128건 통과, 변경 파일 diagnostics 오류 0건.
+- 최종 검증 예정: `flutter analyze`, `git diff --check`, 실행 앱 hot restart, 생성물 정리 및 stage/commit. 사용자 변경 `lib/core/app.dart`는 제외한다.
+- 최종 우하단 직접 배치 검증 완료: `flutter analyze` issues 0, `git diff --check` 통과, 테스트 생성물 없음.
+- 실행 검증 제한: workspace DTD와 Flutter Windows 앱이 종료되어 hot restart/실화면 스크린샷은 수행하지 못했다. 다음 앱 실행부터 최신 코드가 적용된다.
+- stage/commit 대상: zoom controller/직접 command bar toolbar, 프린터명 flex 수정, overlay 오수정 제거, 관련 테스트 및 이 문서. 사용자 변경 `lib/core/app.dart`는 제외한다.
 - 1단계 진행 중: 품목관리 발행 체크 controlled state와 label-print 전용 진입 gate를 구현한다.
 - 첫 수정 예정: `third_party/fortune_sheet/lib/src/fortune_table.dart`, `test/fortune_table_test.dart`. `FortuneTableEditingController.hasActiveEditing`을 editor open 또는 async commit 진행 중에만 true인 read-only 상태로 노출한다.
 - 첫 검증 예정: `flutter test test/fortune_table_test.dart --plain-name "FortuneTable editing controller waits for active commit"`.

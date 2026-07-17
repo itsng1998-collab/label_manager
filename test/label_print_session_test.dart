@@ -236,7 +236,7 @@ void main() {
         home: Scaffold(
           body: LabelPrintPage(
             controller: controller,
-            previewBuilder: (_, zoomToolbarAnchorLink) {
+            previewBuilder: (_, zoomController) {
               final projected = <int, String>{1: '고정 값'};
               return LabelOutputPreview(
                 workbook: FortuneWorkbook(
@@ -247,9 +247,8 @@ void main() {
                     'preview:${labelOutputPreviewValuesFingerprint(projected)}',
                 imageObjectIds: const [],
                 barcodeObjectIds: const [],
-                zoomToolbarPlacement:
-                    LabelSheetZoomToolbarPlacement.labelPrintCommandBarEnd,
-                zoomToolbarAnchorLink: zoomToolbarAnchorLink,
+                zoomToolbarPlacement: LabelSheetZoomToolbarPlacement.hidden,
+                zoomController: zoomController,
               );
             },
             onPrinterSettings: () {},
@@ -280,20 +279,22 @@ void main() {
     final zoomToolbar = find.byKey(
       const ValueKey('label-sheet-zoom-toolbar'),
     );
-    final zoomAnchor = find.byKey(const ValueKey('label-print-zoom-anchor'));
+    final page = find.byType(LabelPrintPage);
     expect(
       tester.getCenter(zoomToolbar).dy,
-      closeTo(tester.getCenter(zoomAnchor).dy, 0.1),
+      closeTo(tester.getBottomRight(page).dy - 24, 0.1),
     );
     expect(
       tester.getTopRight(zoomToolbar).dx,
-      closeTo(tester.getTopRight(zoomAnchor).dx, 0.1),
+      closeTo(tester.getTopRight(page).dx - 12, 0.1),
     );
   });
 
-  testWidgets('label output preview accepts command bar zoom placement', (
+  testWidgets('label output preview accepts external zoom controller', (
     tester,
   ) async {
+    final zoomController = LabelSheetZoomController();
+    addTearDown(zoomController.dispose);
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
@@ -305,8 +306,8 @@ void main() {
             identityKey: 'label-print-test',
             imageObjectIds: const [],
             barcodeObjectIds: const [],
-            zoomToolbarPlacement:
-                LabelSheetZoomToolbarPlacement.labelPrintCommandBarEnd,
+            zoomToolbarPlacement: LabelSheetZoomToolbarPlacement.hidden,
+            zoomController: zoomController,
           ),
         ),
       ),
@@ -315,8 +316,8 @@ void main() {
 
     expect(
       tester.widget<LabelSheetWorkbench>(find.byType(LabelSheetWorkbench))
-          .zoomToolbarPlacement,
-      LabelSheetZoomToolbarPlacement.labelPrintCommandBarEnd,
+          .zoomController,
+      same(zoomController),
     );
   });
 

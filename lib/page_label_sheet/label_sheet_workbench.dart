@@ -38,10 +38,161 @@ const int labelSheetDefaultZoomPercent = 100;
 const int labelSheetMinZoomPercent = 10;
 const int labelSheetMaxZoomPercent = 400;
 
+class LabelSheetZoomController extends ValueNotifier<int> {
+  LabelSheetZoomController({int initialPercent = labelSheetDefaultZoomPercent})
+    : super(
+        initialPercent.clamp(
+          labelSheetMinZoomPercent,
+          labelSheetMaxZoomPercent,
+        ),
+      );
+
+  ValueChanged<int>? _setZoomPercent;
+
+  void setZoomPercent(int percent) {
+    final callback = _setZoomPercent;
+    if (callback != null) {
+      callback(percent);
+      return;
+    }
+    value = percent.clamp(
+      labelSheetMinZoomPercent,
+      labelSheetMaxZoomPercent,
+    );
+  }
+
+  void step(int deltaPercent) => setZoomPercent(value + deltaPercent);
+
+  void _attach(ValueChanged<int> setZoomPercent) {
+    _setZoomPercent = setZoomPercent;
+  }
+
+  void _detach(ValueChanged<int> setZoomPercent) {
+    if (_setZoomPercent == setZoomPercent) {
+      _setZoomPercent = null;
+    }
+  }
+}
+
+class LabelSheetZoomToolbar extends StatefulWidget {
+  const LabelSheetZoomToolbar({super.key, required this.controller});
+
+  final LabelSheetZoomController controller;
+
+  @override
+  State<LabelSheetZoomToolbar> createState() =>
+      _LabelSheetZoomToolbarState();
+}
+
+class _LabelSheetZoomToolbarState extends State<LabelSheetZoomToolbar> {
+  late final TextEditingController _textController = TextEditingController(
+    text: '${widget.controller.value}',
+  );
+  late final FocusNode _focusNode = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    widget.controller.addListener(_handleZoomChanged);
+  }
+
+  @override
+  void didUpdateWidget(covariant LabelSheetZoomToolbar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.controller != widget.controller) {
+      oldWidget.controller.removeListener(_handleZoomChanged);
+      widget.controller.addListener(_handleZoomChanged);
+      _handleZoomChanged();
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.controller.removeListener(_handleZoomChanged);
+    _textController.dispose();
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  void _handleZoomChanged() {
+    final text = '${widget.controller.value}';
+    if (_textController.text == text) return;
+    _textController.value = TextEditingValue(
+      text: text,
+      selection: TextSelection.collapsed(offset: text.length),
+    );
+  }
+
+  void _commit() {
+    widget.controller.setZoomPercent(
+      int.tryParse(_textController.text) ?? labelSheetDefaultZoomPercent,
+    );
+    _focusNode.unfocus();
+  }
+
+  @override
+  Widget build(BuildContext context) => ColoredBox(
+    color: const Color(0xFFF7F8FA),
+    child: Row(
+      key: const ValueKey('label-sheet-zoom-toolbar'),
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _LabelSheetZoomButton(
+          label: '-',
+          onPressed: () => widget.controller.step(-10),
+        ),
+        const SizedBox(width: 4),
+        SizedBox(
+          width: 42,
+          height: 25,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: const Color(0xffffffff),
+              border: Border.all(color: const Color(0xffd4d4d4)),
+              borderRadius: BorderRadius.circular(2),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(5, 6, 5, 4),
+              child: EditableText(
+                key: const ValueKey('label-sheet-zoom-input'),
+                controller: _textController,
+                focusNode: _focusNode,
+                textAlign: TextAlign.right,
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                style: const TextStyle(
+                  fontSize: 13,
+                  height: 1,
+                  color: Color(0xff222222),
+                ),
+                cursorColor: const Color(0xff0188fb),
+                cursorOffset: Offset.zero,
+                backgroundCursorColor: const Color(0x330188fb),
+                maxLines: 1,
+                onSubmitted: (_) => _commit(),
+                onEditingComplete: _commit,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 2),
+        const Text(
+          '%',
+          style: TextStyle(fontSize: 13, color: Color(0xff222222)),
+        ),
+        const SizedBox(width: 4),
+        _LabelSheetZoomButton(
+          label: '+',
+          onPressed: () => widget.controller.step(10),
+        ),
+      ],
+    ),
+  );
+}
+
 enum LabelSheetZoomToolbarPlacement {
   sheetToolbarEnd,
   previewTabAreaEnd,
-  labelPrintCommandBarEnd,
   hidden,
 }
 
@@ -1737,7 +1888,7 @@ class LabelSheetWorkbench extends StatefulWidget {
     this.copyOnlyContextMenu = false,
     this.limitCellActionsToClipboardAndClear = false,
     this.zoomToolbarPlacement = LabelSheetZoomToolbarPlacement.sheetToolbarEnd,
-    this.zoomToolbarAnchorLink,
+    this.zoomController,
     this.onInitialLoadComplete,
     this.onGridRectChanged,
     this.onBeforeSheetDialog,
@@ -1775,7 +1926,7 @@ class LabelSheetWorkbench extends StatefulWidget {
   final bool copyOnlyContextMenu;
   final bool limitCellActionsToClipboardAndClear;
   final LabelSheetZoomToolbarPlacement zoomToolbarPlacement;
-  final LayerLink? zoomToolbarAnchorLink;
+  final LabelSheetZoomController? zoomController;
   final VoidCallback? onInitialLoadComplete;
   final ValueChanged<ui.Rect>? onGridRectChanged;
   final FutureOr<void> Function()? onBeforeSheetDialog;
@@ -1899,8 +2050,6 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
   late final FocusNode _zoomFocusNode = FocusNode();
   final LayerLink _zoomToolbarLayerLink = LayerLink();
   OverlayEntry? _zoomToolbarOverlayEntry;
-  LayerLink? _zoomToolbarOverlayLink;
-  LabelSheetZoomToolbarPlacement? _zoomToolbarOverlayPlacement;
   int? _zoomEditOriginalPercent;
   bool _zoomCommitPendingBlur = false;
   late FortuneSheetLocale _locale = _localeForPlatform();
@@ -2050,6 +2199,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
   void initState() {
     super.initState();
     _isDirty = widget.initialDirty;
+    widget.zoomController?._attach(_setLabelSheetZoomPercent);
     widget.imageImportController?._attach(this);
     widget.outputCaptureController?._attach(this);
     _zoomFocusNode
@@ -2060,6 +2210,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
 
   @override
   void dispose() {
+    widget.zoomController?._detach(_setLabelSheetZoomPercent);
     widget.imageImportController?._detach(this);
     widget.outputCaptureController?._detach(this);
     _removeZoomToolbarFloatingOverlay();
@@ -2096,19 +2247,16 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       oldWidget.outputCaptureController?._detach(this);
       widget.outputCaptureController?._attach(this);
     }
+    if (oldWidget.zoomController != widget.zoomController) {
+      oldWidget.zoomController?._detach(_setLabelSheetZoomPercent);
+      widget.zoomController?._attach(_setLabelSheetZoomPercent);
+      _syncExternalZoomController();
+    }
     if (oldWidget.zoomToolbarPlacement != widget.zoomToolbarPlacement &&
       widget.zoomToolbarPlacement !=
-        LabelSheetZoomToolbarPlacement.previewTabAreaEnd &&
-      widget.zoomToolbarPlacement !=
-        LabelSheetZoomToolbarPlacement.labelPrintCommandBarEnd) {
+        LabelSheetZoomToolbarPlacement.previewTabAreaEnd) {
       _removeZoomToolbarFloatingOverlay();
     }
-  }
-
-  @override
-  void reassemble() {
-    _removeZoomToolbarFloatingOverlay();
-    super.reassemble();
   }
 
   void _setLabelSheetZoomPercent(int percent) {
@@ -2123,12 +2271,14 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       );
     }
     if (_zoomPercent == clamped) {
+      _syncExternalZoomController();
       return;
     }
     setState(() {
       _zoomPercent = clamped;
     });
     _controller.setZoomRatio(clamped / 100);
+    _syncExternalZoomController();
   }
 
   void _syncLabelSheetZoomPercent(FortuneWorkbook workbook) {
@@ -2146,6 +2296,13 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
         offset: _zoomController.text.length,
       );
     }
+    _syncExternalZoomController();
+  }
+
+  void _syncExternalZoomController() {
+    final controller = widget.zoomController;
+    if (controller == null || controller.value == _zoomPercent) return;
+    controller.value = _zoomPercent;
   }
 
   int _labelSheetZoomPercentForWorkbook(FortuneWorkbook workbook) {
@@ -3139,10 +3296,8 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       return const SizedBox.shrink();
     }
     final inPreviewTabArea =
-        widget.zoomToolbarPlacement ==
-        LabelSheetZoomToolbarPlacement.previewTabAreaEnd ||
       widget.zoomToolbarPlacement ==
-        LabelSheetZoomToolbarPlacement.labelPrintCommandBarEnd;
+        LabelSheetZoomToolbarPlacement.previewTabAreaEnd;
     if (inPreviewTabArea) {
       return const SizedBox.shrink();
     }
@@ -3215,17 +3370,9 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     );
   }
 
-  void _syncZoomToolbarFloatingOverlay({LayerLink? commandBarLink}) {
+  void _syncZoomToolbarFloatingOverlay() {
     final placement = widget.zoomToolbarPlacement;
-    if (placement != LabelSheetZoomToolbarPlacement.previewTabAreaEnd &&
-      placement != LabelSheetZoomToolbarPlacement.labelPrintCommandBarEnd) {
-      _removeZoomToolbarFloatingOverlay();
-      return;
-    }
-    final inCommandBar =
-      placement == LabelSheetZoomToolbarPlacement.labelPrintCommandBarEnd;
-    final followerLink = inCommandBar ? commandBarLink : _zoomToolbarLayerLink;
-    if (followerLink == null) {
+    if (placement != LabelSheetZoomToolbarPlacement.previewTabAreaEnd) {
       _removeZoomToolbarFloatingOverlay();
       return;
     }
@@ -3235,30 +3382,19 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     }
     final entry = _zoomToolbarOverlayEntry;
     if (entry != null) {
-      if (!identical(_zoomToolbarOverlayLink, followerLink) ||
-        _zoomToolbarOverlayPlacement != placement) {
-        _removeZoomToolbarFloatingOverlay();
-      } else {
-        entry.markNeedsBuild();
-        return;
-      }
+      entry.markNeedsBuild();
+      return;
     }
-    _zoomToolbarOverlayLink = followerLink;
-    _zoomToolbarOverlayPlacement = placement;
     _zoomToolbarOverlayEntry = OverlayEntry(
       builder: (context) {
         return Positioned(
           left: 0,
           top: 0,
           child: CompositedTransformFollower(
-            link: followerLink,
-            targetAnchor: inCommandBar
-              ? Alignment.centerRight
-              : Alignment.topRight,
-            followerAnchor: inCommandBar
-              ? Alignment.centerRight
-              : Alignment.topRight,
-            offset: inCommandBar ? Offset.zero : const Offset(-12, -34),
+            link: _zoomToolbarLayerLink,
+            targetAnchor: Alignment.topRight,
+            followerAnchor: Alignment.topRight,
+            offset: const Offset(-12, -34),
             showWhenUnlinked: false,
             child: SizedBox(
               key: const ValueKey('label-sheet-zoom-toolbar'),
@@ -3275,8 +3411,6 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
   void _removeZoomToolbarFloatingOverlay() {
     _zoomToolbarOverlayEntry?.remove();
     _zoomToolbarOverlayEntry = null;
-    _zoomToolbarOverlayLink = null;
-    _zoomToolbarOverlayPlacement = null;
   }
 
   Future<_LabelImageImportAction?> _showLabelImageImportDialog({
@@ -3458,9 +3592,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
             );
             WidgetsBinding.instance.addPostFrameCallback((_) {
               if (mounted) {
-                _syncZoomToolbarFloatingOverlay(
-                  commandBarLink: widget.zoomToolbarAnchorLink,
-                );
+                _syncZoomToolbarFloatingOverlay();
               }
             });
             return CompositedTransformTarget(

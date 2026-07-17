@@ -2739,60 +2739,28 @@ void main() {
     expect(tester.widget<EditableText>(zoomInput).controller.text, '110');
   });
 
-  testWidgets('label sheet zoom follows replaced command bar anchor', (
+  testWidgets('external zoom toolbar controls label sheet', (
     tester,
   ) async {
-    final leftLink = LayerLink();
-    final rightLink = LayerLink();
-    late StateSetter setHostState;
-    var activeLink = leftLink;
+    final zoomController = LabelSheetZoomController();
+    addTearDown(zoomController.dispose);
 
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
-          body: StatefulBuilder(
-            builder: (context, setState) {
-              setHostState = setState;
-              return Stack(
-                children: [
-                  Positioned(
-                    left: 100,
-                    bottom: 12,
-                    child: CompositedTransformTarget(
-                      link: leftLink,
-                      child: const SizedBox(
-                        key: ValueKey('left-zoom-anchor'),
-                        width: 1,
-                        height: 29,
-                      ),
-                    ),
+          body: Column(
+            children: [
+              Expanded(
+                child: LabelSheetWorkbench(
+                  initialWorkbook: FortuneWorkbook(
+                    sheets: [FortuneSheet(id: 's1', name: 'Label')],
                   ),
-                  Positioned(
-                    right: 12,
-                    bottom: 12,
-                    child: CompositedTransformTarget(
-                      link: rightLink,
-                      child: const SizedBox(
-                        key: ValueKey('right-zoom-anchor'),
-                        width: 1,
-                        height: 29,
-                      ),
-                    ),
-                  ),
-                  Positioned.fill(
-                    child: LabelSheetWorkbench(
-                      initialWorkbook: FortuneWorkbook(
-                        sheets: [FortuneSheet(id: 's1', name: 'Label')],
-                      ),
-                      zoomToolbarPlacement:
-                          LabelSheetZoomToolbarPlacement
-                              .labelPrintCommandBarEnd,
-                      zoomToolbarAnchorLink: activeLink,
-                    ),
-                  ),
-                ],
-              );
-            },
+                  zoomToolbarPlacement: LabelSheetZoomToolbarPlacement.hidden,
+                  zoomController: zoomController,
+                ),
+              ),
+              LabelSheetZoomToolbar(controller: zoomController),
+            ],
           ),
         ),
       ),
@@ -2800,25 +2768,18 @@ void main() {
     await tester.pump();
     await tester.pump();
 
-    final toolbar = find.byKey(const ValueKey('label-sheet-zoom-toolbar'));
-    expect(
-      tester.getTopRight(toolbar).dx,
-      closeTo(
-        tester.getTopRight(find.byKey(const ValueKey('left-zoom-anchor'))).dx,
-        0.1,
-      ),
-    );
-
-    setHostState(() => activeLink = rightLink);
-    await tester.pump();
+    await tester.tap(find.text('+'));
     await tester.pump();
 
+    expect(zoomController.value, 110);
     expect(
-      tester.getTopRight(toolbar).dx,
-      closeTo(
-        tester.getTopRight(find.byKey(const ValueKey('right-zoom-anchor'))).dx,
-        0.1,
-      ),
+      tester
+          .widget<EditableText>(
+            find.byKey(const ValueKey('label-sheet-zoom-input')),
+          )
+          .controller
+          .text,
+      '110',
     );
   });
 
