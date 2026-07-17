@@ -270,6 +270,7 @@ void main() {
       find.byKey(const ValueKey('label-print-settings-dialog')),
       findsOneWidget,
     );
+    expect(find.byType(LabelSheetPrintSettingsDialog), findsOneWidget);
     expect(find.text('여백'), findsOneWidget);
     expect(find.text('출력 조정'), findsOneWidget);
     expect(find.text('발행 프린터'), findsOneWidget);

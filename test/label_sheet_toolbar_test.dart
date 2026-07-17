@@ -2700,6 +2700,45 @@ void main() {
     expect(tester.widget<EditableText>(zoomInput).controller.text, '150');
   });
 
+  testWidgets('label sheet zoom survives parent layout rebuild', (
+    tester,
+  ) async {
+    late StateSetter setHostState;
+    var width = 520.0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: StatefulBuilder(
+            builder: (context, setState) {
+              setHostState = setState;
+              return SizedBox(
+                width: width,
+                height: 320,
+                child: LabelSheetWorkbench(
+                  initialWorkbook: FortuneWorkbook(
+                    sheets: [FortuneSheet(id: 's1', name: 'Label')],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    final zoomInput = find.byKey(const ValueKey('label-sheet-zoom-input'));
+    await tester.tap(find.text('+'));
+    await tester.pump();
+    expect(tester.widget<EditableText>(zoomInput).controller.text, '110');
+
+    setHostState(() => width = 640);
+    await tester.pump();
+
+    expect(tester.widget<EditableText>(zoomInput).controller.text, '110');
+  });
+
   testWidgets('fortune sheet page loads base64 save payload from label RTF', (
     tester,
   ) async {

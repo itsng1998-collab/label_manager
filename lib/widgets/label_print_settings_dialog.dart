@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:label_manager/models/label_print.dart';
+import 'package:label_manager/page_label_sheet/label_sheet_workbench.dart';
 import 'package:label_manager/printing/label_printer_preferences.dart';
 import 'package:label_manager/printing/raw_printer_win32.dart';
 import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
@@ -56,7 +57,9 @@ Future<LabelPrintSettingsSnapshot?> showLabelPrintSettingsDialog({
   );
   final extraArea = TextEditingController(text: '${initial.extraAreaMm}');
   var printerName = initial.printerName ?? '';
-  var orientation = initial.orientation;
+  var orientation = initial.orientation == LabelPrintOrientation.vertical
+      ? 'vertical'
+      : 'horizontal';
   String? errorText;
 
   try {
@@ -69,21 +72,39 @@ Future<LabelPrintSettingsSnapshot?> showLabelPrintSettingsDialog({
         builder: (context, setDialogState) => BlockingModelessDialogFrame(
           title: '프린터 설정',
           width: 526,
-          height: 348,
+          height: 354,
+          closeIcon: const LabelSheetPrintDialogCloseIcon(),
           onClose: () => Navigator.of(dialogContext).pop(),
-          child: _LabelPrintSettingsDialogContent(
-            leftMargin: leftMargin,
-            rightMargin: rightMargin,
-            topMargin: topMargin,
-            leftPush: leftPush,
-            topPush: topPush,
-            lineSpacing: lineSpacing,
-            extraArea: extraArea,
-            printerName: printerName,
+          child: LabelSheetPrintSettingsDialog(
+            leftMarginController: leftMargin,
+            rightMarginController: rightMargin,
+            topMarginController: topMargin,
+            leftPushController: leftPush,
+            topPushController: topPush,
+            extraAreaController: extraArea,
+            autoSpacing: lineSpacing.text == '0'
+                ? 'none'
+                : lineSpacing.text,
             orientation: orientation,
-            errorText: errorText,
+            selectedPrinterName: printerName,
+            autoSpacingItems:
+                LabelSheetPrintSettingsDialog.buildAutoSpacingItems(
+                  minimum: 30,
+                  step: 1,
+                ),
+            onAutoSpacingChanged: (value) {
+              if (value == null) return;
+              setDialogState(() {
+                lineSpacing.text = value == 'none' ? '0' : value;
+                errorText = null;
+              });
+            },
             onOrientationChanged: (value) {
-              setDialogState(() => orientation = value);
+              if (value == null) return;
+              setDialogState(() {
+                orientation = value;
+                errorText = null;
+              });
             },
             onSelectPrinter: () async {
               final selected = Platform.isWindows
@@ -98,7 +119,8 @@ Future<LabelPrintSettingsSnapshot?> showLabelPrintSettingsDialog({
                 errorText = null;
               });
             },
-            onCancel: () => Navigator.of(dialogContext).pop(),
+            onClose: () => Navigator.of(dialogContext).pop(),
+            errorText: errorText,
             onApply: printerName.isEmpty
                 ? null
                 : () {
@@ -144,7 +166,9 @@ Future<LabelPrintSettingsSnapshot?> showLabelPrintSettingsDialog({
                         topPushMm: verticalPush,
                         lineSpacingPercent: spacing == 0 ? null : spacing,
                         extraAreaMm: extra,
-                        orientation: orientation,
+                        orientation: orientation == 'vertical'
+                          ? LabelPrintOrientation.vertical
+                          : LabelPrintOrientation.horizontal,
                       ),
                     );
                   },
@@ -182,324 +206,3 @@ Future<void> saveLabelPrintSettingsSnapshot(
         : 'horizontal',
   ),
 );
-
-class _LabelPrintSettingsDialogContent extends StatelessWidget {
-  const _LabelPrintSettingsDialogContent({
-    required this.leftMargin,
-    required this.rightMargin,
-    required this.topMargin,
-    required this.leftPush,
-    required this.topPush,
-    required this.lineSpacing,
-    required this.extraArea,
-    required this.printerName,
-    required this.orientation,
-    required this.errorText,
-    required this.onOrientationChanged,
-    required this.onSelectPrinter,
-    required this.onCancel,
-    required this.onApply,
-  });
-
-  final TextEditingController leftMargin;
-  final TextEditingController rightMargin;
-  final TextEditingController topMargin;
-  final TextEditingController leftPush;
-  final TextEditingController topPush;
-  final TextEditingController lineSpacing;
-  final TextEditingController extraArea;
-  final String printerName;
-  final LabelPrintOrientation orientation;
-  final String? errorText;
-  final ValueChanged<LabelPrintOrientation> onOrientationChanged;
-  final VoidCallback onSelectPrinter;
-  final VoidCallback onCancel;
-  final VoidCallback? onApply;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    key: const ValueKey('label-print-settings-dialog'),
-    padding: const EdgeInsets.fromLTRB(20, 8, 19, 12),
-    child: Column(
-      children: [
-        _PrintSettingsGroup(
-          title: '여백',
-          child: Row(
-            children: [
-              _PrintSettingsNumber(label: '왼쪽', controller: leftMargin),
-              const SizedBox(width: 12),
-              _PrintSettingsNumber(label: '오른쪽', controller: rightMargin),
-              const SizedBox(width: 12),
-              _PrintSettingsNumber(label: '위쪽', controller: topMargin),
-            ],
-          ),
-        ),
-        const SizedBox(height: 9),
-        _PrintSettingsGroup(
-          title: '출력 조정',
-          child: Row(
-            children: [
-              _PrintSettingsNumber(label: '왼쪽 밀기', controller: leftPush),
-              const SizedBox(width: 8),
-              _PrintSettingsNumber(label: '위쪽 밀기', controller: topPush),
-              const SizedBox(width: 8),
-              _PrintSettingsNumber(
-                label: '줄간격',
-                controller: lineSpacing,
-                unit: '%',
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            const Text('발행 프린터', style: _PrintSettingsStyles.section),
-            const SizedBox(width: 12),
-            Expanded(child: _PrintSettingsInsetValue(value: printerName)),
-            const SizedBox(width: 8),
-            SizedBox(
-              width: 94,
-              height: 30,
-              child: _PrintSettingsButton(
-                label: '프린터 선택',
-                onPressed: onSelectPrinter,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        Row(
-          children: [
-            _PrintSettingsNumber(label: '추가 영역', controller: extraArea),
-            const Spacer(),
-            RadioGroup<LabelPrintOrientation>(
-              groupValue: orientation,
-              onChanged: (value) {
-                if (value != null) onOrientationChanged(value);
-              },
-              child: Row(
-                children: [
-                  _PrintSettingsRadio(
-                    label: '가로',
-                    value: LabelPrintOrientation.horizontal,
-                    onChanged: onOrientationChanged,
-                  ),
-                  const SizedBox(width: 16),
-                  _PrintSettingsRadio(
-                    label: '세로',
-                    value: LabelPrintOrientation.vertical,
-                    onChanged: onOrientationChanged,
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        SizedBox(
-          height: 24,
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: errorText == null
-                ? null
-                : Text(
-                    errorText!,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Theme.of(context).colorScheme.error,
-                    ),
-                  ),
-          ),
-        ),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            SizedBox(
-              width: 84,
-              height: 30,
-              child: _PrintSettingsButton(
-                label: '취소',
-                onPressed: onCancel,
-              ),
-            ),
-            const SizedBox(width: 5),
-            SizedBox(
-              width: 84,
-              height: 30,
-              child: _PrintSettingsButton(
-                label: '적용',
-                onPressed: onApply,
-              ),
-            ),
-          ],
-        ),
-      ],
-    ),
-  );
-}
-
-abstract final class _PrintSettingsStyles {
-  static const label = TextStyle(fontSize: 13, color: Color(0xff111111));
-  static const section = TextStyle(fontSize: 14, color: Color(0xff111111));
-}
-
-class _PrintSettingsGroup extends StatelessWidget {
-  const _PrintSettingsGroup({required this.title, required this.child});
-
-  final String title;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) => SizedBox(
-    height: 58,
-    child: Stack(
-      clipBehavior: Clip.none,
-      children: [
-        Positioned.fill(
-          top: 6,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10),
-            decoration: BoxDecoration(
-              border: Border.all(color: const Color(0xffd8d8d8)),
-            ),
-            alignment: Alignment.centerLeft,
-            child: child,
-          ),
-        ),
-        Positioned(
-          left: 8,
-          top: -3,
-          child: ColoredBox(
-            color: const Color(0xffece6f0),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              child: Text(title, style: _PrintSettingsStyles.label),
-            ),
-          ),
-        ),
-      ],
-    ),
-  );
-}
-
-class _PrintSettingsNumber extends StatelessWidget {
-  const _PrintSettingsNumber({
-    required this.label,
-    required this.controller,
-    this.unit = 'mm',
-  });
-
-  final String label;
-  final TextEditingController controller;
-  final String unit;
-
-  @override
-  Widget build(BuildContext context) => Row(
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      Text(label, style: _PrintSettingsStyles.label),
-      const SizedBox(width: 6),
-      SizedBox(
-        width: 52,
-        height: 28,
-        child: TextField(
-          controller: controller,
-          keyboardType: const TextInputType.numberWithOptions(
-            decimal: true,
-            signed: true,
-          ),
-          style: _PrintSettingsStyles.label,
-          decoration: const InputDecoration(
-            isDense: true,
-            filled: true,
-            fillColor: Colors.white,
-            contentPadding: EdgeInsets.fromLTRB(5, 2, 5, 3),
-            enabledBorder: OutlineInputBorder(
-              borderSide: BorderSide(color: Color(0xffc7c7c7)),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderSide: BorderSide(color: Color(0xff0067c0), width: 1.2),
-            ),
-          ),
-        ),
-      ),
-      const SizedBox(width: 5),
-      Text(unit, style: _PrintSettingsStyles.label),
-    ],
-  );
-}
-
-class _PrintSettingsInsetValue extends StatelessWidget {
-  const _PrintSettingsInsetValue({required this.value});
-
-  final String value;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    height: 30,
-    padding: const EdgeInsets.symmetric(horizontal: 8),
-    alignment: Alignment.centerLeft,
-    decoration: BoxDecoration(
-      color: Colors.white,
-      border: Border.all(color: const Color(0xffd4d4d4)),
-      borderRadius: BorderRadius.circular(2),
-      boxShadow: const [
-        BoxShadow(color: Color(0x12000000), offset: Offset(0, 1)),
-      ],
-    ),
-    child: Text(
-      value.isEmpty ? '선택된 프린터 없음' : value,
-      overflow: TextOverflow.ellipsis,
-      style: _PrintSettingsStyles.label,
-    ),
-  );
-}
-
-class _PrintSettingsButton extends StatelessWidget {
-  const _PrintSettingsButton({required this.label, required this.onPressed});
-
-  final String label;
-  final VoidCallback? onPressed;
-
-  @override
-  Widget build(BuildContext context) => OutlinedButton(
-    style: OutlinedButton.styleFrom(
-      backgroundColor: Colors.white,
-      foregroundColor: const Color(0xff111111),
-      disabledForegroundColor: const Color(0xff8a8a8a),
-      side: const BorderSide(color: Color(0xffc7c7c7)),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(3)),
-      padding: EdgeInsets.zero,
-      textStyle: _PrintSettingsStyles.label,
-    ),
-    onPressed: onPressed,
-    child: Text(label),
-  );
-}
-
-class _PrintSettingsRadio extends StatelessWidget {
-  const _PrintSettingsRadio({
-    required this.label,
-    required this.value,
-    required this.onChanged,
-  });
-
-  final String label;
-  final LabelPrintOrientation value;
-  final ValueChanged<LabelPrintOrientation> onChanged;
-
-  @override
-  Widget build(BuildContext context) => InkWell(
-    onTap: () => onChanged(value),
-    child: Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Radio<LabelPrintOrientation>(
-          value: value,
-          visualDensity: VisualDensity.compact,
-        ),
-        Text(label, style: _PrintSettingsStyles.label),
-      ],
-    ),
-  );
-}

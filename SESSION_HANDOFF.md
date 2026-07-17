@@ -32,6 +32,13 @@
 - 실행 화면 검증 제한: VS Code DTD에 연결된 실행 앱이 없어 스크린샷 검증은 미수행. widget 테스트에서 1200x700 배치, splitter 드래그, 설정창 overflow 없음은 검증했다.
 - stage/commit 예정: 라벨출력 UI 관련 6개 Dart 파일, `label_print_session_test.dart`, 이 문서. 사용자 변경 `lib/core/app.dart`는 제외한다.
 - 라벨출력 UI 개선 커밋 완료: `1238d8e` (`라벨 출력 화면 사용성 개선`). 원격 push는 수행하지 않았다.
+- 라벨출력 UI 후속 수정 진행 중: 프린터 설정은 공용라벨관리 private UI를 별도 재현해 픽셀 차이가 발생했으므로 공용 본문 자체를 공유 컴포넌트로 승격한다. 라벨출력 고유 필드는 공용 배치 아래 추가 영역으로 둔다.
+- 미리보기 zoom 원인 수정 완료: splitter 부모 rebuild 때 초기 workbook zoom을 매번 재동기화하던 경로를 초기 비동기 workbook 확정 시 1회로 제한했다. 확대/축소, 초기 zoom 반영, 부모 폭 변경 후 zoom 유지 focused 테스트 3건 통과.
+- 공용 프린터 설정 공유 완료: 공용라벨관리의 설정 본문을 `LabelSheetPrintSettingsDialog`와 `LabelSheetPrintDialogCloseIcon`으로 승격해 양쪽 화면이 동일 객체/좌표/스타일 helper를 사용한다. 라벨출력은 공용 상단 배치를 유지하고 오른쪽 여백·왼쪽 밀기·위쪽 밀기만 아래 추가 영역에 배치했다.
+- 후속 UI 테스트 완료: 라벨출력 설정창의 공유 컴포넌트 타입, 공용 설정창 동작, zoom 부모 rebuild 유지, fortune_sheet capture 포함 129건 통과.
+- 최종 후속 검증 예정: `flutter analyze`, `git diff --check`, 테스트 생성물 정리, 사용자 변경 `lib/core/app.dart` 제외 stage/commit.
+- 최종 후속 검증 완료: 관련 테스트 129건 통과, `flutter analyze` issues 0, `git diff --check` 통과, `third_party/fortune_sheet/build` 삭제.
+- stage/commit 대상: 공유 프린터 설정/zoom 수정 2개 Dart 파일, 관련 테스트 2개, 이 문서. 사용자 변경 `lib/core/app.dart`는 제외한다.
 - 1단계 진행 중: 품목관리 발행 체크 controlled state와 label-print 전용 진입 gate를 구현한다.
 - 첫 수정 예정: `third_party/fortune_sheet/lib/src/fortune_table.dart`, `test/fortune_table_test.dart`. `FortuneTableEditingController.hasActiveEditing`을 editor open 또는 async commit 진행 중에만 true인 read-only 상태로 노출한다.
 - 첫 검증 예정: `flutter test test/fortune_table_test.dart --plain-name "FortuneTable editing controller waits for active commit"`.
