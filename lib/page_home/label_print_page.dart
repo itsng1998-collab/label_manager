@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:fortune_sheet/fortune_sheet.dart';
 import 'package:label_manager/models/label_print.dart';
 import 'package:label_manager/page_label_sheet/label_sheet_workbench.dart';
+import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
 import 'package:label_manager/widgets/vertical_pane_splitter.dart';
 
 int? parseLabelPrintLineSpacing(String text) {
@@ -12,6 +13,52 @@ int? parseLabelPrintLineSpacing(String text) {
     throw const FormatException('줄간격은 0 또는 30~300 정수여야 합니다.');
   }
   return value;
+}
+
+class LabelPrintProgressDialog extends StatelessWidget {
+  const LabelPrintProgressDialog({
+    super.key,
+    required this.controller,
+    required this.onCancel,
+  });
+
+  final LabelPrintSessionController controller;
+  final VoidCallback onCancel;
+
+  @override
+  Widget build(BuildContext context) {
+    return BlockingModelessDialogFrame(
+      title: '라벨 발행',
+      width: 360,
+      height: 150,
+      closeEnabled: false,
+      onClose: onCancel,
+      footer: Padding(
+        padding: const EdgeInsets.only(right: 12, bottom: 12),
+        child: Align(
+          alignment: Alignment.centerRight,
+          child: SizedBox(
+            width: 84,
+            height: 30,
+            child: OutlinedButton(
+              onPressed: onCancel,
+              child: const Text('취소'),
+            ),
+          ),
+        ),
+      ),
+      child: AnimatedBuilder(
+        animation: controller,
+        builder: (context, _) => Center(
+          child: Text(
+            '${controller.issueUnitNumber}/${controller.issueTotalUnits}번째를 발행중입니다...',
+            key: const ValueKey('label-print-progress-message'),
+            style: const TextStyle(fontSize: 16),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class LabelPrintPage extends StatefulWidget {

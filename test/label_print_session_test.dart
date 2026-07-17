@@ -8,6 +8,7 @@ import 'package:label_manager/models/label_print.dart';
 import 'package:label_manager/models/label_size.dart';
 import 'package:label_manager/page_home/label_print_page.dart';
 import 'package:label_manager/page_label_sheet/label_sheet_workbench.dart';
+import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
 import 'package:label_manager/widgets/label_output_preview.dart';
 import 'package:label_manager/widgets/label_print_settings_dialog.dart';
 import 'package:label_manager/widgets/vertical_pane_splitter.dart';
@@ -55,11 +56,44 @@ void main() {
     expect(controller.beginIssue(), isTrue);
     expect(controller.busy, isTrue);
     expect(controller.beginIssue(), isFalse);
+    controller.reportIssueUnit(unitNumber: 2, totalUnits: 3);
+    expect(controller.issueUnitNumber, 2);
+    expect(controller.issueTotalUnits, 3);
     controller.requestCancel();
     expect(controller.cancellationRequested, isTrue);
     controller.endIssue();
     expect(controller.busy, isFalse);
     expect(controller.cancellationRequested, isFalse);
+    expect(controller.issueUnitNumber, 0);
+    expect(controller.issueTotalUnits, 0);
+  });
+
+  testWidgets('print progress dialog updates and requests cancellation', (
+    tester,
+  ) async {
+    final controller = LabelPrintSessionController();
+    addTearDown(controller.dispose);
+    controller.beginIssue();
+    controller.reportIssueUnit(unitNumber: 1, totalUnits: 3);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: BlockingModelessDialog(
+          child: LabelPrintProgressDialog(
+            controller: controller,
+            onCancel: controller.requestCancel,
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('1/3번째를 발행중입니다...'), findsOneWidget);
+    controller.reportIssueUnit(unitNumber: 2, totalUnits: 3);
+    await tester.pump();
+    expect(find.text('2/3번째를 발행중입니다...'), findsOneWidget);
+
+    await tester.tap(find.text('취소'));
+    expect(controller.cancellationRequested, isTrue);
   });
 
   const labelSize = LabelSize(

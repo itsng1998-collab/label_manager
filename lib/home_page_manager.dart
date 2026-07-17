@@ -267,6 +267,7 @@ class _HomePageManagerState extends State<HomePageManager> {
   OverlayEntry? _brandSettingsOverlayEntry;
   OverlayEntry? _labelSettingsOverlayEntry;
   OverlayEntry? _labelColumnEditOverlayEntry;
+  OverlayEntry? _labelPrintProgressOverlayEntry;
   // 브랜드 설정 다이얼로그에서 브랜드를 선택한 후 라벨 시트 로드가 완료될 때까지
   // 다이얼로그의 더블클릭을 차단하기 위한 플래그.
   final ValueNotifier<bool> _brandDialogBusyNotifier = ValueNotifier(false);
@@ -3234,6 +3235,7 @@ class _HomePageManagerState extends State<HomePageManager> {
     unawaited(_itemDraftBackup?.close() ?? Future<void>.value());
     _itemDraftController?.removeListener(_handleItemDraftDirtyChanged);
     _itemDraftController?.dispose();
+    _closeLabelPrintProgressDialog();
     _labelPrintSessionController.dispose();
     _rtfPreviewResizeDebounce?.cancel();
     _rtfPreviewResizeFinalizeTimer?.cancel();
@@ -3431,9 +3433,15 @@ class _HomePageManagerState extends State<HomePageManager> {
         throw StateError('전체 발행매수는 1 이상이어야 합니다.');
       }
 
+      _labelPrintSessionController.reportIssueUnit(
+        unitNumber: 1,
+        totalUnits: units.length,
+      );
+      _openLabelPrintProgressDialog();
+
       final captures = <LabelPrintUnit, LabelSheetOutputCapture>{};
       final renderedPages = <LabelPrintUnit, LabelSheetRenderedPage>{};
-      for (final unit in units) {
+      for (var unitIndex = 0; unitIndex < units.length; unitIndex += 1) {
         if (_labelPrintSessionController.cancellationRequested) {
           if (mounted) {
             ScaffoldMessenger.of(context)
@@ -3444,6 +3452,11 @@ class _HomePageManagerState extends State<HomePageManager> {
           }
           return;
         }
+        _labelPrintSessionController.reportIssueUnit(
+          unitNumber: unitIndex + 1,
+          totalUnits: units.length,
+        );
+        final unit = units[unitIndex];
         _labelPrintRenderUnit = unit;
         _labelPrintSessionController.selectItem(unit.row.itemId);
         _labelPrintSessionController.refreshPreview();
@@ -3648,6 +3661,7 @@ class _HomePageManagerState extends State<HomePageManager> {
           ..showSnackBar(SnackBar(content: Text('라벨 발행에 실패했습니다: $error')));
       }
     } finally {
+      _closeLabelPrintProgressDialog();
       _labelPrintRenderUnit = null;
       _labelPrintRenderReferenceAt = null;
       if (originalSelection != null) {
@@ -3658,6 +3672,25 @@ class _HomePageManagerState extends State<HomePageManager> {
   }
 
   void _cancelLabelPrint() => _labelPrintSessionController.requestCancel();
+
+  void _openLabelPrintProgressDialog() {
+    if (_labelPrintProgressOverlayEntry != null) return;
+    final entry = OverlayEntry(
+      builder: (_) => BlockingModelessDialog(
+        child: LabelPrintProgressDialog(
+          controller: _labelPrintSessionController,
+          onCancel: _cancelLabelPrint,
+        ),
+      ),
+    );
+    _labelPrintProgressOverlayEntry = entry;
+    Overlay.of(context, rootOverlay: true).insert(entry);
+  }
+
+  void _closeLabelPrintProgressDialog() {
+    _labelPrintProgressOverlayEntry?.remove();
+    _labelPrintProgressOverlayEntry = null;
+  }
 
   String _labelPrintPersistenceTarget(
     Map<ColumnItemKey, String> values,

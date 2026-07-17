@@ -235,12 +235,16 @@ class LabelPrintSessionController extends ChangeNotifier {
   int? _selectedItemId;
   bool _busy = false;
   bool _cancellationRequested = false;
+  int _issueUnitNumber = 0;
+  int _issueTotalUnits = 0;
 
   List<LabelPrintRowDraft> get rows => List.unmodifiable(_rows);
   int? get selectedItemId => _selectedItemId;
   int get totalCopies => _rows.fold(0, (sum, row) => sum + row.copies);
   bool get busy => _busy;
   bool get cancellationRequested => _cancellationRequested;
+  int get issueUnitNumber => _issueUnitNumber;
+  int get issueTotalUnits => _issueTotalUnits;
 
   void refreshPreview() => notifyListeners();
 
@@ -248,8 +252,17 @@ class LabelPrintSessionController extends ChangeNotifier {
     if (_busy) return false;
     _busy = true;
     _cancellationRequested = false;
+    _issueUnitNumber = 0;
+    _issueTotalUnits = 0;
     notifyListeners();
     return true;
+  }
+
+  void reportIssueUnit({required int unitNumber, required int totalUnits}) {
+    if (!_busy) return;
+    _issueUnitNumber = unitNumber;
+    _issueTotalUnits = totalUnits;
+    notifyListeners();
   }
 
   void requestCancel() {
@@ -262,6 +275,8 @@ class LabelPrintSessionController extends ChangeNotifier {
     if (!_busy && !_cancellationRequested) return;
     _busy = false;
     _cancellationRequested = false;
+    _issueUnitNumber = 0;
+    _issueTotalUnits = 0;
     notifyListeners();
   }
 

@@ -1,3 +1,17 @@
+### 완료 (2026-07-17): 라벨 발행 진행 다이얼로그 및 취소
+- 사용자 요청: 라벨 발행 시작 후 공용 브랜드 설정과 같은 blocking modeless 방식으로 `현재/전체번째를 발행중입니다...`와 취소 버튼을 표시하고, 취소 클릭을 기존 발행 cancellation 경로에 연결한다.
+- 확정 동작: 발행 command 검증과 unit 생성 완료 뒤 root overlay에 `라벨 발행` 다이얼로그를 하나만 열고, 각 unit 렌더 시작 전에 1-based 순번을 갱신한다. 바깥 화면 입력과 닫기 버튼은 차단하고 `취소` 버튼만 허용하며, 종료·실패·취소의 모든 경로에서 overlay를 제거한다. 기존 접수 매수 결과 안내는 유지한다.
+- 수정 예정: `lib/models/label_print.dart`의 진행 상태, `lib/page_home/label_print_page.dart`의 진행 dialog UI, `lib/home_page_manager.dart`의 overlay/발행 loop 연결, `test/label_print_session_test.dart`의 상태·UI·취소 회귀 테스트. 사용자 변경 `lib/core/app.dart`는 제외한다.
+- `lib/models/label_print.dart` 편집 완료: `LabelPrintSessionController`가 현재 unit 순번과 전체 매수를 발행 lifecycle 동안 소유하고 `endIssue()`에서 초기화한다.
+- `lib/page_home/label_print_page.dart` 편집 완료: 공용 `BlockingModelessDialogFrame` 기반 `LabelPrintProgressDialog`가 `현재/전체번째를 발행중입니다...`와 취소 버튼을 표시하며 제목 닫기는 비활성화한다.
+- `lib/home_page_manager.dart` 편집 완료: command 검증 후 root `OverlayEntry`를 열고 각 unit 렌더 직전에 진행 상태를 갱신하며, 취소 버튼을 기존 `requestCancel()`에 연결하고 `finally`/dispose에서 overlay를 제거한다.
+- `test/label_print_session_test.dart` 보강: 진행 상태 lifecycle, `1/3`→`2/3` 문구 갱신과 취소 요청을 검증한다. focused widget 테스트 1건 통과, 관련 파일 diagnostics 오류 0건.
+- 관련 전체 검증 예정: 변경 Dart 포맷 후 `label_print_session_test.dart`, blocking modeless 공용 테스트, `flutter analyze`, `git diff --check`를 실행한다.
+- 변경 Dart 포맷 완료 및 검증 실행 직전: `flutter test test/label_print_session_test.dart test/blocking_modeless_dialog_test.dart`, `flutter analyze`를 실행한다.
+- 관련 전체 검증 완료: 라벨 출력 session 및 blocking modeless 테스트 25건 통과, `flutter analyze` issues 0. 다음으로 `git diff --check`, diagnostics, 생성물과 stage 대상을 확인한다.
+- 최종 점검 완료: `git diff --check` 통과, 관련 파일 diagnostics 오류 0건, `third_party/fortune_sheet/build` 생성물 없음.
+- stage/commit 대상: `lib/models/label_print.dart`, `lib/page_home/label_print_page.dart`, `lib/home_page_manager.dart`, `test/label_print_session_test.dart`, `SESSION_HANDOFF.md`. 사용자 변경 `lib/core/app.dart`는 제외한다.
+
 ### 완료 (2026-07-17): 로그인 완료 후 다이얼로그 잔존 수정
 - 사용자 제출 화면 시각과 일치하는 `.tmp/log/app_2026-07-17_18-10-42.log`에서 `StartupDbHelper.connectToServerDB: Start`가 18:10:43.040과 18:10:43.064에 중복 호출되고 Notice/User 조회도 두 세트로 실행된 것을 확인했다. `HomePage`의 post-frame 초기화와 lifecycle resume가 동시에 진입해 StartupDialog route 두 개를 쌓고, 로그인 성공 시 하나만 pop되어 나머지가 남는 것이 원인이다.
 - `lib/home_page.dart` 편집 완료: `_loginToServerDB()`가 진행 중인 connect+dialog Future를 공유하도록 single-flight를 적용하고, 연결 완료 뒤 이미 로그인된 상태에서는 StartupDialog를 열지 않는다.
