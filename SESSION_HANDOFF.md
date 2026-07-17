@@ -19,6 +19,7 @@
 - 정적 분석 성공: `flutter analyze` → issues 0. 편집한 네 Dart 파일의 VS Code 진단도 errors 0.
 - 최종 diff 검증 성공: 요청 범위 5개 파일의 변경을 검토했고 `git diff --check`가 통과했다.
 - stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/lib/src/fortune_table.dart`, `lib/page_home/label_print_page.dart`, `test/fortune_table_test.dart`, `test/label_print_session_test.dart`.
+- 구현 커밋: `d9e4653` (`라벨 발행 선택 행 자동 스크롤 추가`).
 - 사용자 변경 `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
 
 ### 진행 중 (2026-07-17): SQL Server 2017 SQL 검수 및 발행 저장 호환 수정
