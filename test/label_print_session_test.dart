@@ -338,6 +338,7 @@ void main() {
     tester,
   ) async {
     final controller = LabelPrintSessionController();
+    final captureController = LabelSheetOutputCaptureController();
     addTearDown(controller.dispose);
     final first = _item(10, '첫 번째', copies: 1);
     final second = _item(20, '두 번째', copies: 1);
@@ -359,6 +360,11 @@ void main() {
                     id: 'sheet-${row.itemId}',
                     name: '라벨',
                     zoomRatio: row.itemId == 10 ? 0.8 : 2.0,
+                    cells: {
+                      const FortuneCellCoord(0, 0): FortuneCell(
+                        value: '내용-${row.itemId}',
+                      ),
+                    },
                   ),
                 ],
               ),
@@ -366,6 +372,7 @@ void main() {
               identityKey: 'preview:${row.itemId}',
               imageObjectIds: const [],
               barcodeObjectIds: const [],
+              outputCaptureController: captureController,
               zoomToolbarPlacement: LabelSheetZoomToolbarPlacement.hidden,
               zoomController: zoomController,
             ),
@@ -382,22 +389,51 @@ void main() {
 
     final zoomInput = find.byKey(const ValueKey('label-sheet-zoom-input'));
     expect(tester.widget<EditableText>(zoomInput).controller.text, '150');
+    expect(
+      captureController
+          .debugActiveSheet
+          ?.cells[const FortuneCellCoord(0, 0)]
+          ?.value,
+      '내용-10',
+    );
 
     await tester.tap(find.text('+'));
     await tester.pump();
     expect(tester.widget<EditableText>(zoomInput).controller.text, '160');
 
-    controller.selectItem(20);
+    await tester.tap(find.text('두 번째'));
     await tester.pump();
     await tester.pump();
 
+    expect(
+      find.byKey(const ValueKey('label-print-preview-slot:20')),
+      findsOneWidget,
+    );
     expect(tester.widget<EditableText>(zoomInput).controller.text, '160');
+    expect(
+      captureController
+          .debugActiveSheet
+          ?.cells[const FortuneCellCoord(0, 0)]
+          ?.value,
+      '내용-20',
+    );
 
-    controller.selectItem(10);
+    await tester.tap(find.text('첫 번째'));
     await tester.pump();
     await tester.pump();
 
+    expect(
+      find.byKey(const ValueKey('label-print-preview-slot:10')),
+      findsOneWidget,
+    );
     expect(tester.widget<EditableText>(zoomInput).controller.text, '160');
+    expect(
+      captureController
+          .debugActiveSheet
+          ?.cells[const FortuneCellCoord(0, 0)]
+          ?.value,
+      '내용-10',
+    );
   });
 
   testWidgets('label output preview accepts external zoom controller', (

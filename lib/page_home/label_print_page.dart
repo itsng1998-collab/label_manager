@@ -95,7 +95,10 @@ class _LabelPrintPageState extends State<LabelPrintPage> {
     final selected = selectedIndex < 0 ? null : rows[selectedIndex];
     final preview = selected == null
         ? const Center(child: Text('발행할 품목을 선택하세요.'))
-      : widget.previewBuilder(selected, _zoomController);
+      : KeyedSubtree(
+          key: ValueKey('label-print-preview-slot:${selected.itemId}'),
+          child: widget.previewBuilder(selected, _zoomController),
+        );
 
     return Column(
       children: [

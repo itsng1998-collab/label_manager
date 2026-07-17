@@ -114,6 +114,15 @@
 - 전체 zoom 검증 완료: 라벨출력 session 및 공용 toolbar 테스트 131건 통과, `flutter analyze` issues 0, `git diff --check` 통과, 테스트 생성물 없음.
 - stage/commit 대상: 라벨출력 기본 zoom 150%, 외부 controller 우선 단방향 동기화, 행 왕복/사용자 zoom 유지 테스트 및 이 문서. 사용자 변경 `lib/core/app.dart`는 제외한다.
 - 미리보기 확대율 유지 커밋 완료: `d9bbb9c` (`라벨 출력 미리보기 확대율 유지`). 원격 push는 수행하지 않았다.
+- 라벨출력 행 내용 유지 회귀 수정 진행: zoom controller만 페이지 state로 유지해야 하나 preview 내용 subtree의 교체 경계가 하위 builder key에 의존해 선택 행 내용이 이전 state에 남을 수 있는 경로를 수정한다.
+- preview 소유 경계 편집 완료: `LabelPrintPage`가 선택 `itemId` 기반 `label-print-preview-slot:*` `KeyedSubtree`를 소유해 행 변경 시 미리보기 내용 state를 강제 폐기하고, `LabelSheetZoomController`는 그 바깥 페이지 state에 유지한다.
+- 실제 내용 회귀 테스트 보강: 서로 다른 저장 zoom(80%/200%)과 셀 내용(`내용-10`/`내용-20`)인 두 행을 테이블에서 클릭해 왕복하며 preview slot과 capture source 셀이 선택 행대로 교체되고 zoom 160%만 유지되는지 검증한다.
+- focused 검증 완료: 행 왕복 내용/zoom 및 splitter zoom 테스트, 공용 외부 zoom/부모 rebuild 테스트 4건 통과, 변경 파일 diagnostics 오류 0건.
+- 전체 관련 검증 예정: 변경 Dart 포맷, 라벨출력 session 및 공용 toolbar 테스트 전체, `flutter analyze`, `git diff --check`, 생성물 정리 및 stage/commit. 사용자 변경 `lib/core/app.dart`는 제외한다.
+- 관련 전체 테스트 완료: 라벨출력 session 및 공용 toolbar 테스트 131건 통과.
+- 최종 분석 실행 예정: `flutter analyze`, `git diff --check`, 테스트 생성물 및 stage 대상 확인. 사용자 변경 `lib/core/app.dart`는 제외한다.
+- 최종 행 내용 교체 검증 완료: `flutter analyze` issues 0, `git diff --check` 통과, 테스트 생성물 없음.
+- stage/commit 대상: itemId 기반 preview slot 교체, capture controller 테스트용 현재 sheet 확인, 행 왕복 내용/zoom 회귀 테스트 및 이 문서. 사용자 변경 `lib/core/app.dart`는 제외한다.
 - 1단계 진행 중: 품목관리 발행 체크 controlled state와 label-print 전용 진입 gate를 구현한다.
 - 첫 수정 예정: `third_party/fortune_sheet/lib/src/fortune_table.dart`, `test/fortune_table_test.dart`. `FortuneTableEditingController.hasActiveEditing`을 editor open 또는 async commit 진행 중에만 true인 read-only 상태로 노출한다.
 - 첫 검증 예정: `flutter test test/fortune_table_test.dart --plain-name "FortuneTable editing controller waits for active commit"`.

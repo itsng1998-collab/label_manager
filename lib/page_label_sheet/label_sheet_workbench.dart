@@ -2005,6 +2005,9 @@ class LabelSheetOutputCaptureController {
 
   bool get isAttached => _state != null;
 
+  @visibleForTesting
+  FortuneSheet? get debugActiveSheet => _state?._latestWorkbook.activeSheet;
+
   Future<LabelSheetOutputCapture?> capture({
     required double dpi,
     required int? lineSpacingPercent,
