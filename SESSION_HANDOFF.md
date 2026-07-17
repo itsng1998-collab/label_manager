@@ -39,6 +39,7 @@
 - 최종 후속 검증 예정: `flutter analyze`, `git diff --check`, 테스트 생성물 정리, 사용자 변경 `lib/core/app.dart` 제외 stage/commit.
 - 최종 후속 검증 완료: 관련 테스트 129건 통과, `flutter analyze` issues 0, `git diff --check` 통과, `third_party/fortune_sheet/build` 삭제.
 - stage/commit 대상: 공유 프린터 설정/zoom 수정 2개 Dart 파일, 관련 테스트 2개, 이 문서. 사용자 변경 `lib/core/app.dart`는 제외한다.
+- 후속 수정 커밋 완료: `dbb270e` (`프린터 설정 UI 공유 및 확대 상태 유지`). 원격 push는 수행하지 않았다.
 - 1단계 진행 중: 품목관리 발행 체크 controlled state와 label-print 전용 진입 gate를 구현한다.
 - 첫 수정 예정: `third_party/fortune_sheet/lib/src/fortune_table.dart`, `test/fortune_table_test.dart`. `FortuneTableEditingController.hasActiveEditing`을 editor open 또는 async commit 진행 중에만 true인 read-only 상태로 노출한다.
 - 첫 검증 예정: `flutter test test/fortune_table_test.dart --plain-name "FortuneTable editing controller waits for active commit"`.
