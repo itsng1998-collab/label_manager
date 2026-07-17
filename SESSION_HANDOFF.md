@@ -124,6 +124,16 @@
 - 최종 행 내용 교체 검증 완료: `flutter analyze` issues 0, `git diff --check` 통과, 테스트 생성물 없음.
 - stage/commit 대상: itemId 기반 preview slot 교체, capture controller 테스트용 현재 sheet 확인, 행 왕복 내용/zoom 회귀 테스트 및 이 문서. 사용자 변경 `lib/core/app.dart`는 제외한다.
 - 선택 행 미리보기 갱신 커밋 완료: `bad8359` (`라벨 출력 선택 행 미리보기 갱신`). 원격 push는 수행하지 않았다.
+- 행 선택 zoom 깜빡임 수정 진행: 새 행 workbook이 저장 zoom으로 첫 프레임을 렌더한 뒤 post-frame에서 세션 zoom으로 다시 렌더하던 경로를 제거한다.
+- 첫 렌더 정규화 완료: 외부 zoom controller가 있는 workbench는 fallback base workbook과 비동기 완료 workbook의 active sheet zoom을 FortuneSheet 렌더 전에 현재 선택값으로 치환한다. zoom이 이미 같으면 원본 workbook을 유지한다.
+- post-frame 보정 제거 완료: 외부 controller 경로의 `addPostFrameCallback`/`setZoomRatio` 재확대를 제거해 행 선택 시 확대율 렌더가 한 번만 발생한다. 사용자 zoom 입력은 기존처럼 controller와 현재 sheet에 즉시 적용한다.
+- 첫 프레임 테스트 강화: 최초 `pumpWidget` 직후 150%, 저장 zoom 200% 행 선택의 첫 `pump` 직후 160%, 저장 zoom 80% 행 복귀 첫 `pump` 직후 160%이며 각 시점의 capture 셀 내용은 선택 행과 일치함을 검증했다.
+- focused 검증 완료: 첫 프레임/행 왕복 zoom·내용 테스트, splitter zoom 및 공용 zoom 테스트 통과, 변경 파일 diagnostics 오류 0건.
+- 전체 관련 검증 예정: 변경 Dart 포맷, 라벨출력 session 및 공용 toolbar 테스트 전체, `flutter analyze`, `git diff --check`, 생성물 정리 및 stage/commit. 사용자 변경 `lib/core/app.dart`는 제외한다.
+- 관련 전체 테스트 완료: 라벨출력 session 및 공용 toolbar 테스트 131건 통과.
+- 최종 분석 실행 예정: `flutter analyze`, `git diff --check`, 테스트 생성물 및 stage 대상 확인. 사용자 변경 `lib/core/app.dart`는 제외한다.
+- 최종 zoom 깜빡임 검증 완료: `flutter analyze` issues 0, `git diff --check` 통과, 테스트 생성물 없음.
+- stage/commit 대상: 렌더 전 active sheet zoom 정규화, 외부 zoom post-frame 재렌더 제거, 첫 프레임 행 왕복 테스트 및 이 문서. 사용자 변경 `lib/core/app.dart`는 제외한다.
 - 1단계 진행 중: 품목관리 발행 체크 controlled state와 label-print 전용 진입 gate를 구현한다.
 - 첫 수정 예정: `third_party/fortune_sheet/lib/src/fortune_table.dart`, `test/fortune_table_test.dart`. `FortuneTableEditingController.hasActiveEditing`을 editor open 또는 async commit 진행 중에만 true인 read-only 상태로 노출한다.
 - 첫 검증 예정: `flutter test test/fortune_table_test.dart --plain-name "FortuneTable editing controller waits for active commit"`.

@@ -2073,11 +2073,39 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
   String _printOrientation = 'horizontal';
   String _printSelectedPrinterName = '';
 
-  FortuneWorkbook get _baseWorkbook =>
-      widget.initialWorkbook ??
-      FortuneWorkbook(
-        sheets: [FortuneSheet(id: 'label_sheet_01', name: 'Labels')],
-      );
+  FortuneWorkbook get _baseWorkbook {
+    final workbook =
+        widget.initialWorkbook ??
+        FortuneWorkbook(
+          sheets: [FortuneSheet(id: 'label_sheet_01', name: 'Labels')],
+        );
+    return _workbookWithExternalZoom(workbook);
+  }
+
+  FortuneWorkbook _workbookWithExternalZoom(FortuneWorkbook workbook) {
+    final externalController = widget.zoomController;
+    if (externalController == null || workbook.sheets.isEmpty) {
+      return workbook;
+    }
+    final activeIndex = workbook.activeSheetIndex.clamp(
+      0,
+      workbook.sheets.length - 1,
+    );
+    final zoomRatio =
+        externalController.value.clamp(
+          labelSheetMinZoomPercent,
+          labelSheetMaxZoomPercent,
+        ) /
+        100;
+    if (workbook.sheets[activeIndex].zoomRatio == zoomRatio) {
+      return workbook;
+    }
+    final sheets = [...workbook.sheets];
+    sheets[activeIndex] = sheets[activeIndex].copyWith(
+      zoomRatio: zoomRatio,
+    );
+    return workbook.copyWith(sheets: sheets, activeSheetIndex: activeIndex);
+  }
 
   FortuneSettings _sheetSettings(
     FortuneWorkbook workbook,
@@ -2303,13 +2331,6 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
         _zoomController.selection = TextSelection.collapsed(
           offset: _zoomController.text.length,
         );
-      }
-      if (_labelSheetZoomPercentForWorkbook(workbook) != percent) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted && identical(widget.zoomController, externalController)) {
-            _controller.setZoomRatio(percent / 100);
-          }
-        });
       }
       return;
     }
@@ -3544,7 +3565,9 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
           future: _initialWorkbook,
           initialData: _fallbackWorkbook,
           builder: (context, snapshot) {
-            final workbook = snapshot.data ?? _fallbackWorkbook;
+            final workbook = _workbookWithExternalZoom(
+              snapshot.data ?? _fallbackWorkbook,
+            );
             final sheetSettings = _sheetSettings(workbook);
             if (!_isDirty) {
               _latestWorkbook = workbook.copyWith(settings: sheetSettings);

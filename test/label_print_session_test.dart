@@ -384,11 +384,6 @@ void main() {
         ),
       ),
     );
-    await tester.pump();
-    await tester.pump();
-
-    final zoomInput = find.byKey(const ValueKey('label-sheet-zoom-input'));
-    expect(tester.widget<EditableText>(zoomInput).controller.text, '150');
     expect(
       captureController
           .debugActiveSheet
@@ -396,13 +391,18 @@ void main() {
           ?.value,
       '내용-10',
     );
+    expect(captureController.debugActiveSheet?.zoomRatio, 1.5);
+    await tester.pump();
+    await tester.pump();
+
+    final zoomInput = find.byKey(const ValueKey('label-sheet-zoom-input'));
+    expect(tester.widget<EditableText>(zoomInput).controller.text, '150');
 
     await tester.tap(find.text('+'));
     await tester.pump();
     expect(tester.widget<EditableText>(zoomInput).controller.text, '160');
 
     await tester.tap(find.text('두 번째'));
-    await tester.pump();
     await tester.pump();
 
     expect(
@@ -417,9 +417,10 @@ void main() {
           ?.value,
       '내용-20',
     );
+    expect(captureController.debugActiveSheet?.zoomRatio, 1.6);
+    await tester.pump();
 
     await tester.tap(find.text('첫 번째'));
-    await tester.pump();
     await tester.pump();
 
     expect(
@@ -434,6 +435,8 @@ void main() {
           ?.value,
       '내용-10',
     );
+    expect(captureController.debugActiveSheet?.zoomRatio, 1.6);
+    await tester.pump();
   });
 
   testWidgets('label output preview accepts external zoom controller', (
