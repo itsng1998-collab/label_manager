@@ -1,4 +1,15 @@
+### 상시 작업 규칙: SQL Server 호환성
+- 실제 운영 대상은 `SERVERPROPERTY('ProductVersion')=14.0.1000.169`인 SQL Server 2017이지만, 현재 DB의 `compatibility_level=100`을 모든 SQL 작성·검수의 하한선으로 사용한다. 엔진 버전만 보고 최신 문법을 허용하지 않는다.
+- DB compatibility 변경이나 migration으로 해결하지 않는다. 새 SQL과 수정 SQL은 level 100에서 그대로 실행되어야 하며, DB 설정 변경을 전제로 구현하지 않는다.
+- `OPENJSON`, `JSON_VALUE`, `TRY_CONVERT`, `STRING_SPLIT` 및 compatibility level 100에서 검증되지 않은 신문법을 사용하지 않는다. 구조화된 parameter payload는 XML로 전달하고 `CONVERT(XML, ...)`, `nodes()`, `value()`, `query()`, XML `exist()`와 level 100 문법으로 투영한다.
+- XML payload는 한글, 빈 문자열, null 표현, `&`, `<`, `>`, 따옴표를 손실 없이 구분하고 Dart에서 element/attribute 용도에 맞게 escape한다. 순서, identity, affected-row 검증과 transaction 경계는 기존 계약을 유지한다.
+- ODBC transaction batch는 첫 DML이 0행일 때 `SQL_NO_DATA(100)`을 반환할 수 있으므로 필요하면 batch 첫 줄에 `SET NOCOUNT ON`을 사용하고 명시적 결과 SELECT를 유지한다. `@@ROWCOUNT`와 `@@TRANCOUNT`는 parameter로 치환하지 않는다.
+- SQL 변경 검증 시 focused DAO 테스트에 금지 함수 미사용과 XML wire 계약을 고정하고, 가능한 경우 compatibility 100 실제 서버에서 데이터 변경 없는 read-only/빈 payload/rollback probe를 수행한다. 실제 schema capability가 없으면 gate를 우회하지 않고 제한을 기록한다.
+
 ### 진행 중 (2026-07-17): SQL Server 2017 SQL 검수 및 발행 저장 호환 수정
+- 상시 규칙 기록 완료: 실제 SQL Server 2017 엔진과 DB compatibility level 100의 차이, 금지 함수, XML projection, ODBC `SQL_NO_DATA(100)`, 실제 서버 검증 원칙을 문서 최상단에 고정했다. 저장소 메모에도 같은 기준을 기록한다.
+- 규칙 문서 검증 완료: `git diff --check -- SESSION_HANDOFF.md` 통과. 코드 변경이 없어 Flutter 테스트와 analyze는 실행하지 않는다.
+- stage/commit 대상: `SESSION_HANDOFF.md`만 포함한다. 기존 사용자 변경 `lib/core/app.dart`는 제외한다.
 - 이전 세션 재개 확인: 작업 트리의 `label_print_persistence.dart` XML projection과 `item.dart` 품목 순서 XML projection을 검토했다. 테스트의 `dart:convert` import 조기 제거를 복구한 뒤 `flutter test test/label_print_persistence_test.dart test/item_manager_save_dao_test.dart` 10건이 통과했다.
 - 다음 수정 진행: `item_manager_save.dart`의 target market/deleted item/existing row/new row/column value JSON payload를 compatibility level 100에서 동작하는 XML projection으로 교체하고 기존 transaction 순서와 row-count 검증을 유지한다.
 - `item_manager_save.dart` 편집 완료: 다섯 payload를 XML로 직렬화하고 transaction 시작부의 XML 문서를 table 변수로 한 번 투영해 기존 insert/update/delete/MERGE 및 row-count 검증에 재사용한다. null 날짜, 한글·XML 특수문자, bool `0/1` 계약을 유지한다.
