@@ -10,6 +10,7 @@
 - 상시 규칙 기록 완료: 실제 SQL Server 2017 엔진과 DB compatibility level 100의 차이, 금지 함수, XML projection, ODBC `SQL_NO_DATA(100)`, 실제 서버 검증 원칙을 문서 최상단에 고정했다. 저장소 메모에도 같은 기준을 기록한다.
 - 규칙 문서 검증 완료: `git diff --check -- SESSION_HANDOFF.md` 통과. 코드 변경이 없어 Flutter 테스트와 analyze는 실행하지 않는다.
 - stage/commit 대상: `SESSION_HANDOFF.md`만 포함한다. 기존 사용자 변경 `lib/core/app.dart`는 제외한다.
+- SQL Server 호환 작업 규칙 문서 커밋 완료: `14ce98b` (`SQL Server 호환 작업 규칙 명시`). 저장소 메모 `/memories/repo/editing-notes.md`에도 같은 기준을 기록했으며 원격 push는 수행하지 않았다.
 - 이전 세션 재개 확인: 작업 트리의 `label_print_persistence.dart` XML projection과 `item.dart` 품목 순서 XML projection을 검토했다. 테스트의 `dart:convert` import 조기 제거를 복구한 뒤 `flutter test test/label_print_persistence_test.dart test/item_manager_save_dao_test.dart` 10건이 통과했다.
 - 다음 수정 진행: `item_manager_save.dart`의 target market/deleted item/existing row/new row/column value JSON payload를 compatibility level 100에서 동작하는 XML projection으로 교체하고 기존 transaction 순서와 row-count 검증을 유지한다.
 - `item_manager_save.dart` 편집 완료: 다섯 payload를 XML로 직렬화하고 transaction 시작부의 XML 문서를 table 변수로 한 번 투영해 기존 insert/update/delete/MERGE 및 row-count 검증에 재사용한다. null 날짜, 한글·XML 특수문자, bool `0/1` 계약을 유지한다.
