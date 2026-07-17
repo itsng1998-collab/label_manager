@@ -525,7 +525,22 @@ void main() {
             widget.transform.getTranslation().y == 4,
       ),
     );
-    expect(shiftedInputs, findsNWidgets(7));
+    expect(shiftedInputs, findsNWidgets(6));
+    final printerLabel = find.text('발행 프린터');
+    final printerValue = find.byKey(
+      const ValueKey('label-print-printer-value'),
+    );
+    final printerSelect = find.byKey(
+      const ValueKey('label-print-printer-select'),
+    );
+    expect(
+      tester.getCenter(printerLabel).dy,
+      closeTo(tester.getCenter(printerValue).dy, 0.1),
+    );
+    expect(
+      tester.getCenter(printerSelect).dy,
+      closeTo(tester.getCenter(printerValue).dy, 0.1),
+    );
 
     await tester.tap(find.text('100 %'));
     await tester.pumpAndSettle();

@@ -135,6 +135,14 @@
 - 최종 zoom 깜빡임 검증 완료: `flutter analyze` issues 0, `git diff --check` 통과, 테스트 생성물 없음.
 - stage/commit 대상: 렌더 전 active sheet zoom 정규화, 외부 zoom post-frame 재렌더 제거, 첫 프레임 행 왕복 테스트 및 이 문서. 사용자 변경 `lib/core/app.dart`는 제외한다.
 - 확대율 첫 렌더 고정 커밋 완료: `03bd68b` (`라벨 출력 확대율 첫 렌더 고정`). 원격 push는 수행하지 않았다.
+- 라벨출력 프린터 행 정렬 진행: 첨부 이미지에서 `발행 프린터` 라벨이 프린터명 박스와 `프린터 선택` 버튼보다 위에 배치된 문제를 수정한다.
+- 프린터 행 편집 완료: 라벨출력 모드의 세 요소를 `top: 250`, `height: 30`인 단일 Row로 묶고 중앙 정렬했다. 기존 좌우 위치와 폭은 라벨 71px, 간격 12px, 값 291px, 간격 12px, 버튼 94px로 유지한다. 공용라벨 모드 좌표는 유지한다.
+- focused 검증 완료: 라벨·프린터명 박스·프린터 선택 버튼의 중심 Y가 0.1px 이내로 일치하는 widget 테스트 통과, 변경 파일 diagnostics 오류 0건.
+- 전체 관련 검증 예정: 변경 Dart 포맷, 라벨출력 session 및 공용 printer toolbar 테스트, `flutter analyze`, `git diff --check`, 생성물 정리 및 stage/commit. 사용자 변경 `lib/core/app.dart`는 제외한다.
+- 관련 전체 테스트 완료: 라벨출력 session 및 공용 toolbar 테스트 131건 통과.
+- 최종 분석 실행 예정: `flutter analyze`, `git diff --check`, 테스트 생성물 및 stage 대상 확인. 사용자 변경 `lib/core/app.dart`는 제외한다.
+- 최종 프린터 행 정렬 검증 완료: `flutter analyze` issues 0, `git diff --check` 통과, 테스트 생성물 없음.
+- stage/commit 대상: 라벨출력 프린터 행 단일 Row 중앙 정렬, 중심 좌표 회귀 테스트 및 이 문서. 사용자 변경 `lib/core/app.dart`는 제외한다.
 - 1단계 진행 중: 품목관리 발행 체크 controlled state와 label-print 전용 진입 gate를 구현한다.
 - 첫 수정 예정: `third_party/fortune_sheet/lib/src/fortune_table.dart`, `test/fortune_table_test.dart`. `FortuneTableEditingController.hasActiveEditing`을 editor open 또는 async commit 진행 중에만 true인 read-only 상태로 노출한다.
 - 첫 검증 예정: `flutter test test/fortune_table_test.dart --plain-name "FortuneTable editing controller waits for active commit"`.

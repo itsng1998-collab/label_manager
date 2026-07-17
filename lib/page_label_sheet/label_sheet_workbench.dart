@@ -4753,33 +4753,69 @@ class LabelSheetPrintSettingsDialog extends StatelessWidget {
               ),
             ),
           ),
-          Positioned(
-            left: 24,
-            top: _hasLabelPrintAdjustments ? 253 : 81,
-            child: const Text('발행 프린터', style: sectionStyle),
-          ),
-          Positioned(
-            left: 107,
-            top: _hasLabelPrintAdjustments ? 246 : 74,
-            width: 291,
-            height: 30,
-            child: _hasLabelPrintAdjustments
-                ? _PrintDialogShiftedDown(
-                    offset: 4,
-                    child: _PrintDialogInsetValue(value: selectedPrinterName),
-                  )
-                : _PrintDialogInsetValue(value: selectedPrinterName),
-          ),
-          Positioned(
-            right: 22,
-            top: _hasLabelPrintAdjustments ? 246 : 74,
-            width: 94,
-            height: 30,
-            child: _PrintDialogButton(
-              label: '프린터 선택',
-              onPressed: onSelectPrinter,
+          if (_hasLabelPrintAdjustments)
+            Positioned(
+              left: 24,
+              right: 22,
+              top: 250,
+              height: 30,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  const SizedBox(
+                    width: 71,
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text('발행 프린터', style: sectionStyle),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  SizedBox(
+                    key: const ValueKey('label-print-printer-value'),
+                    width: 291,
+                    height: 30,
+                    child: _PrintDialogInsetValue(
+                      value: selectedPrinterName,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  SizedBox(
+                    key: const ValueKey('label-print-printer-select'),
+                    width: 94,
+                    height: 30,
+                    child: _PrintDialogButton(
+                      label: '프린터 선택',
+                      onPressed: onSelectPrinter,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
+          if (!_hasLabelPrintAdjustments)
+            const Positioned(
+              left: 24,
+              top: 81,
+              child: Text('발행 프린터', style: sectionStyle),
+            ),
+          if (!_hasLabelPrintAdjustments)
+            Positioned(
+              left: 107,
+              top: 74,
+              width: 291,
+              height: 30,
+              child: _PrintDialogInsetValue(value: selectedPrinterName),
+            ),
+          if (!_hasLabelPrintAdjustments)
+            Positioned(
+              right: 22,
+              top: 74,
+              width: 94,
+              height: 30,
+              child: _PrintDialogButton(
+                label: '프린터 선택',
+                onPressed: onSelectPrinter,
+              ),
+            ),
           if (!_hasLabelPrintAdjustments)
             Positioned(
               left: 104,
