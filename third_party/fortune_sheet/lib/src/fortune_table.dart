@@ -153,6 +153,27 @@ class FortuneTableEditingController {
   }
 }
 
+class FortuneTableScrollController {
+  Object? _owner;
+  void Function(int rowIndex)? _revealRow;
+
+  void revealRow(int rowIndex) {
+    if (rowIndex < 0) return;
+    _revealRow?.call(rowIndex);
+  }
+
+  void _attach({required Object owner, required void Function(int) revealRow}) {
+    _owner = owner;
+    _revealRow = revealRow;
+  }
+
+  void _detach(Object owner) {
+    if (!identical(_owner, owner)) return;
+    _owner = null;
+    _revealRow = null;
+  }
+}
+
 class FortuneTableColumn<T> {
   const FortuneTableColumn({
     required this.id,
@@ -204,6 +225,7 @@ class FortuneTable<T> extends StatefulWidget {
     this.selectionController,
     this.focusController,
     this.editingController,
+    this.scrollController,
     this.onRowSelected,
     this.onCellActivated,
     this.onRowSecondaryTapDown,
@@ -225,6 +247,7 @@ class FortuneTable<T> extends StatefulWidget {
   final FortuneTableSelectionController? selectionController;
   final FortuneTableFocusController? focusController;
   final FortuneTableEditingController? editingController;
+  final FortuneTableScrollController? scrollController;
   final void Function(T row, int index)? onRowSelected;
   final void Function(T row, int rowIndex, String columnId)? onCellActivated;
   final void Function(T row, int index, TapDownDetails details)?
@@ -310,6 +333,7 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
       hasActiveEditing: () =>
           _editingRowIndex != null || _pendingTextCommit != null,
     );
+    widget.scrollController?._attach(owner: this, revealRow: _revealRow);
     _syncCheckboxControllerListeners(<FortuneTableColumn<T>>[]);
     _hScrollBody.addListener(_syncHorizontalFromBody);
     _hScrollHeader.addListener(_syncHorizontalFromHeader);
@@ -363,6 +387,10 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
             _editingRowIndex != null || _pendingTextCommit != null,
       );
     }
+    if (oldWidget.scrollController != widget.scrollController) {
+      oldWidget.scrollController?._detach(this);
+      widget.scrollController?._attach(owner: this, revealRow: _revealRow);
+    }
     widget.selectionController?.setSelectedRows(
       widget.selectionController!.selectedRows.where(
         (index) => index < widget.rows.length,
@@ -375,6 +403,7 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
   @override
   void dispose() {
     widget.editingController?._detach(this);
+    widget.scrollController?._detach(this);
     _disposeTextEditor();
     for (final controller in _checkboxControllers) {
       controller.removeListener(_handleCheckboxControllerChanged);
@@ -1215,6 +1244,20 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
         start + _effectiveColumnWidths[columnIndex],
       );
     }
+  }
+
+  void _revealRow(int rowIndex) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || rowIndex >= widget.rows.length) return;
+      if (_vScrollBody.hasClients) {
+        _revealRange(
+          _vScrollBody,
+          rowIndex * widget.rowHeight,
+          (rowIndex + 1) * widget.rowHeight,
+        );
+      }
+    });
+    WidgetsBinding.instance.ensureVisualUpdate();
   }
 
   void _revealRange(ScrollController controller, double start, double end) {

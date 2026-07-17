@@ -94,14 +94,20 @@ class _LabelPrintPageState extends State<LabelPrintPage> {
 
   final FortuneTableEditingController _editingController =
       FortuneTableEditingController();
+  final FortuneTableScrollController _tableScrollController =
+      FortuneTableScrollController();
   final LabelSheetZoomController _zoomController = LabelSheetZoomController(
     initialPercent: _defaultPreviewZoomPercent,
   );
   double _tableFraction = 0.6;
+  int _lastIssueUnitNumber = 0;
+  int? _lastRevealedItemId;
 
   @override
   void initState() {
     super.initState();
+    _lastIssueUnitNumber = widget.controller.issueUnitNumber;
+    _lastRevealedItemId = widget.controller.selectedItemId;
     widget.controller.addListener(_handleChanged);
   }
 
@@ -110,6 +116,8 @@ class _LabelPrintPageState extends State<LabelPrintPage> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.controller != widget.controller) {
       oldWidget.controller.removeListener(_handleChanged);
+      _lastIssueUnitNumber = widget.controller.issueUnitNumber;
+      _lastRevealedItemId = widget.controller.selectedItemId;
       widget.controller.addListener(_handleChanged);
     }
   }
@@ -122,7 +130,25 @@ class _LabelPrintPageState extends State<LabelPrintPage> {
   }
 
   void _handleChanged() {
-    if (mounted) setState(() {});
+    if (!mounted) return;
+    final issueUnitNumber = widget.controller.issueUnitNumber;
+    if (widget.controller.busy && issueUnitNumber != _lastIssueUnitNumber) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || !widget.controller.busy) return;
+        final selectedItemId = widget.controller.selectedItemId;
+        if (selectedItemId == null || selectedItemId == _lastRevealedItemId) {
+          return;
+        }
+        final rowIndex = widget.controller.rows.indexWhere(
+          (row) => row.itemId == selectedItemId,
+        );
+        if (rowIndex < 0) return;
+        _lastRevealedItemId = selectedItemId;
+        _tableScrollController.revealRow(rowIndex);
+      });
+    }
+    _lastIssueUnitNumber = issueUnitNumber;
+    setState(() {});
   }
 
   @override
@@ -137,6 +163,7 @@ class _LabelPrintPageState extends State<LabelPrintPage> {
       autoFitColumns: false,
       selectedIndex: selectedIndex < 0 ? null : selectedIndex,
       editingController: _editingController,
+      scrollController: _tableScrollController,
       onRowSelected: (row, _) => widget.controller.selectItem(row.itemId),
     );
     final selected = selectedIndex < 0 ? null : rows[selectedIndex];

@@ -2067,6 +2067,38 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('FortuneTable scroll controller reveals an offscreen row', (
+    tester,
+  ) async {
+    final controller = FortuneTableScrollController();
+    final rows = List<String>.generate(100, (index) => '행-$index');
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SizedBox(
+          height: 140,
+          child: FortuneTable<String>(
+            rows: rows,
+            columns: [
+              FortuneTableColumn<String>(
+                id: 'name',
+                header: '이름',
+                text: (row) => row,
+              ),
+            ],
+            scrollController: controller,
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('행-80'), findsNothing);
+    controller.revealRow(80);
+    await tester.pump();
+    await tester.pump();
+    expect(find.text('행-80'), findsOneWidget);
+  });
+
   testWidgets('FortuneTable consumes mouse wheel inside a parent scroll view', (
     tester,
   ) async {

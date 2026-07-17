@@ -296,6 +296,48 @@ void main() {
     expect(issueButton.onPressed, isNull);
   });
 
+  testWidgets('issue progress scrolls the selected print row into view', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1200, 500));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final controller = LabelPrintSessionController();
+    addTearDown(controller.dispose);
+    final items = List<ItemOfMarket>.generate(
+      100,
+      (index) => _item(index + 1, '발행행-$index', copies: 1),
+    );
+    controller.syncCheckedItems(
+      baselineItems: items,
+      checkedItemIds: items.map((item) => item.item.itemId).toSet(),
+      createRow: createRow,
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: LabelPrintPage(
+            controller: controller,
+            previewBuilder: (_, _) => const SizedBox(),
+            onPrinterSettings: () {},
+            onIssue: () {},
+            onCancelIssue: () {},
+            busy: false,
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('발행행-80'), findsNothing);
+    controller.beginIssue();
+    controller.reportIssueUnit(unitNumber: 1, totalUnits: 100);
+    controller.selectItem(81);
+    await tester.pump();
+    await tester.pump();
+    await tester.pump();
+    expect(find.text('발행행-80'), findsOneWidget);
+  });
+
   testWidgets('label print splitter keeps preview zoom', (tester) async {
     await tester.binding.setSurfaceSize(const Size(1200, 700));
     addTearDown(() => tester.binding.setSurfaceSize(null));

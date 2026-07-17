@@ -6,6 +6,21 @@
 - ODBC transaction batch는 첫 DML이 0행일 때 `SQL_NO_DATA(100)`을 반환할 수 있으므로 필요하면 batch 첫 줄에 `SET NOCOUNT ON`을 사용하고 명시적 결과 SELECT를 유지한다. `@@ROWCOUNT`와 `@@TRANCOUNT`는 parameter로 치환하지 않는다.
 - SQL 변경 검증 시 focused DAO 테스트에 금지 함수 미사용과 XML wire 계약을 고정하고, 가능한 경우 compatibility 100 실제 서버에서 데이터 변경 없는 read-only/빈 payload/rollback probe를 수행한다. 실제 schema capability가 없으면 gate를 우회하지 않고 제한을 기록한다.
 
+### 완료 (2026-07-17): 라벨 발행 선택 행 자동 스크롤
+- 사용자 요청: 라벨 발행 중 unit에 맞춰 테이블 행이 자동 선택될 때 해당 행이 보이도록 자동 스크롤한다.
+- 편집 완료: `third_party/fortune_sheet/lib/src/fortune_table.dart`에 `FortuneTableScrollController.revealRow()`를 추가했다. 행이 viewport 밖일 때 기존 `_revealRange`로 필요한 만큼만 수직 이동하며 포커스와 가로 위치는 변경하지 않는다.
+- 테스트 추가: `test/fortune_table_test.dart`에 100행 테이블의 offscreen 80번 행 reveal 회귀 테스트를 추가했다.
+- 검증 성공: `flutter test test/fortune_table_test.dart --plain-name "FortuneTable scroll controller reveals an offscreen row"` → 1건 통과.
+- 편집 완료: `lib/page_home/label_print_page.dart`가 발행 진행 번호 변경 후 새 선택 item을 post-frame reveal한다. 동일 item 복사본과 발행 종료 선택 복원은 중복 스크롤하지 않는다.
+- 테스트 추가: `test/label_print_session_test.dart`에 발행 진행 notification → 선택 변경 → offscreen 행 표시 통합 테스트를 추가했다.
+- 검증 성공: `flutter test test/label_print_session_test.dart --plain-name "issue progress scrolls the selected print row into view"` → 1건 통과.
+- 포맷 완료: Dart formatter로 `third_party/fortune_sheet/lib/src/fortune_table.dart`, `lib/page_home/label_print_page.dart`, `test/fortune_table_test.dart`, `test/label_print_session_test.dart`를 포맷했다.
+- 전체 검증 성공: `flutter test test/fortune_table_test.dart test/label_print_session_test.dart` → 61건 통과.
+- 정적 분석 성공: `flutter analyze` → issues 0. 편집한 네 Dart 파일의 VS Code 진단도 errors 0.
+- 최종 diff 검증 성공: 요청 범위 5개 파일의 변경을 검토했고 `git diff --check`가 통과했다.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `third_party/fortune_sheet/lib/src/fortune_table.dart`, `lib/page_home/label_print_page.dart`, `test/fortune_table_test.dart`, `test/label_print_session_test.dart`.
+- 사용자 변경 `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
+
 ### 진행 중 (2026-07-17): SQL Server 2017 SQL 검수 및 발행 저장 호환 수정
 - 상시 규칙 기록 완료: 실제 SQL Server 2017 엔진과 DB compatibility level 100의 차이, 금지 함수, XML projection, ODBC `SQL_NO_DATA(100)`, 실제 서버 검증 원칙을 문서 최상단에 고정했다. 저장소 메모에도 같은 기준을 기록한다.
 - 규칙 문서 검증 완료: `git diff --check -- SESSION_HANDOFF.md` 통과. 코드 변경이 없어 Flutter 테스트와 analyze는 실행하지 않는다.
