@@ -174,19 +174,42 @@ class CustomerColumnSaveCommand {
 
   Map<String, dynamic> toSqlParams() => {
     'customerId': customerId,
-    'originalColumnsJson': jsonEncode([
-      for (final row in originalColumnsById.values) row.toJson(),
-    ]),
-    'newColumnsJson': jsonEncode([
-      for (final row in newColumns) row.toJson(keywordChanged: true),
-    ]),
-    'updatedColumnsJson': jsonEncode([
-      for (final row in updatedColumns)
-        row.toJson(keywordChanged: keywordChangedIds.contains(row.id)),
-    ]),
-    'deletedIdsJson': jsonEncode([for (final id in deletedIds) {'id': id}]),
+    'originalColumnsXml': _customerColumnsXml(originalColumnsById.values),
+    'newColumnsXml': _customerColumnsXml(newColumns),
+    'updatedColumnsXml': _customerColumnsXml(
+      updatedColumns,
+      keywordChangedIds: keywordChangedIds,
+    ),
+    'deletedIdsXml': '<ids>${[
+      for (final id in deletedIds) '<id value="$id" />',
+    ].join()}</ids>',
   };
 }
+
+String _customerColumnsXml(
+  Iterable<CustomerColumnDraft> columns, {
+  Set<int> keywordChangedIds = const {},
+}) {
+  final xml = StringBuffer('<columns>');
+  for (final column in columns) {
+    xml
+      ..write('<column id="${column.id}" type="${column.columnType.code}" ')
+      ..write(
+        'keywordChanged="${keywordChangedIds.contains(column.id) ? 1 : 0}">',
+      )
+      ..write('<key>${_customerColumnXmlText(column.key)}</key>')
+      ..write('<keyword>${_customerColumnXmlText(column.keyword)}</keyword>')
+      ..write(
+        '<columnName>${_customerColumnXmlText(column.columnName)}</columnName>',
+      )
+      ..write('</column>');
+  }
+  return (xml..write('</columns>')).toString();
+}
+
+String _customerColumnXmlText(Object? value) => const HtmlEscape(
+  HtmlEscapeMode.element,
+).convert(value?.toString() ?? '');
 
 class CustomerColumnEditSession {
   CustomerColumnEditSession._({
@@ -388,6 +411,10 @@ WHERE RICH_CUSTOMER_ID=@customerId
   static const saveSql = r'''
 SET NOCOUNT ON;
 
+DECLARE @OriginalColumnsDocument XML = CONVERT(XML, @originalColumnsXml);
+DECLARE @NewColumnsDocument XML = CONVERT(XML, @newColumnsXml);
+DECLARE @UpdatedColumnsDocument XML = CONVERT(XML, @updatedColumnsXml);
+DECLARE @DeletedIdsDocument XML = CONVERT(XML, @deletedIdsXml);
 DECLARE @New TABLE (
   DRAFT_KEY NVARCHAR(100) NOT NULL,
   RICH_TYPE TINYINT NOT NULL,
@@ -410,40 +437,33 @@ DECLARE @Original TABLE (
 );
 
 INSERT INTO @Original
-SELECT RICH_CUST_COLUMN_ID, RICH_TYPE, RICH_KEYWORD, RICH_COLUMN_NAME
-FROM OPENJSON(@originalColumnsJson)
-WITH (
-  RICH_CUST_COLUMN_ID INT '$.id',
-  RICH_TYPE TINYINT '$.type',
-  RICH_KEYWORD NVARCHAR(100) '$.keyword',
-  RICH_COLUMN_NAME NVARCHAR(50) '$.columnName'
-);
+SELECT
+  N.value('@id', 'INT'),
+  N.value('@type', 'TINYINT'),
+  N.value('string((keyword/text())[1])', 'NVARCHAR(100)'),
+  N.value('string((columnName/text())[1])', 'NVARCHAR(50)')
+FROM @OriginalColumnsDocument.nodes('/columns/column') X(N);
 
 INSERT INTO @New
-SELECT DRAFT_KEY, RICH_TYPE, RICH_KEYWORD, RICH_COLUMN_NAME
-FROM OPENJSON(@newColumnsJson)
-WITH (
-  DRAFT_KEY NVARCHAR(100) '$.key',
-  RICH_TYPE TINYINT '$.type',
-  RICH_KEYWORD NVARCHAR(100) '$.keyword',
-  RICH_COLUMN_NAME NVARCHAR(50) '$.columnName'
-);
+SELECT
+  N.value('string((key/text())[1])', 'NVARCHAR(100)'),
+  N.value('@type', 'TINYINT'),
+  N.value('string((keyword/text())[1])', 'NVARCHAR(100)'),
+  N.value('string((columnName/text())[1])', 'NVARCHAR(50)')
+FROM @NewColumnsDocument.nodes('/columns/column') X(N);
 
 INSERT INTO @Updated
-SELECT RICH_CUST_COLUMN_ID, RICH_TYPE, RICH_KEYWORD, RICH_COLUMN_NAME, KEYWORD_CHANGED
-FROM OPENJSON(@updatedColumnsJson)
-WITH (
-  RICH_CUST_COLUMN_ID INT '$.id',
-  RICH_TYPE TINYINT '$.type',
-  RICH_KEYWORD NVARCHAR(100) '$.keyword',
-  RICH_COLUMN_NAME NVARCHAR(50) '$.columnName',
-  KEYWORD_CHANGED BIT '$.keywordChanged'
-);
+SELECT
+  N.value('@id', 'INT'),
+  N.value('@type', 'TINYINT'),
+  N.value('string((keyword/text())[1])', 'NVARCHAR(100)'),
+  N.value('string((columnName/text())[1])', 'NVARCHAR(50)'),
+  N.value('@keywordChanged', 'BIT')
+FROM @UpdatedColumnsDocument.nodes('/columns/column') X(N);
 
 INSERT INTO @Deleted
-SELECT RICH_CUST_COLUMN_ID
-FROM OPENJSON(@deletedIdsJson)
-WITH (RICH_CUST_COLUMN_ID INT '$.id');
+SELECT N.value('@value', 'INT')
+FROM @DeletedIdsDocument.nodes('/ids/id') X(N);
 
 DECLARE @LockedCustomerColumnId INT;
 SELECT @LockedCustomerColumnId=C.RICH_CUST_COLUMN_ID

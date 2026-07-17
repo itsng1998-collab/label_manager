@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:flutter_test/flutter_test.dart';
 import 'package:label_manager/database/drivers/db_driver.dart';
 import 'package:label_manager/models/column_content.dart';
@@ -16,19 +14,23 @@ void main() {
     expect(labelPrintHistoryEnabledForUserId('SYSTEM_ADMIN_USER'), isTrue);
   });
 
-  test('auto increment statement uses one JSON parameter and row count check', () {
+  test('auto increment statement uses XML projection and row count check', () {
     final statement = buildLabelAutoIncrementUpdateStatement({
       first: '002',
       second: '003',
     });
-    final payload = jsonDecode(statement.params['updatesJson']! as String) as List;
+    final payload = statement.params['updatesXml']! as String;
 
     expect(statement.returnsRows, isFalse);
-    expect(payload, [
-      {'columnId': 1, 'itemId': 20, 'dataString': '003'},
-      {'columnId': 2, 'itemId': 10, 'dataString': '002'},
-    ]);
-    expect(statement.sql, contains('FROM OPENJSON(@updatesJson)'));
+    expect(
+      payload,
+      '<updates><update columnId="1" itemId="20"><dataString>003</dataString></update>'
+      '<update columnId="2" itemId="10"><dataString>002</dataString></update></updates>',
+    );
+    expect(statement.params.keys, ['updatesXml', 'historyXml']);
+    expect(statement.sql, contains("@UpdatesDocument.nodes('/updates/update')"));
+    expect(statement.sql, isNot(contains('OPENJSON')));
+    expect(statement.sql, isNot(contains('JSON_VALUE')));
     expect(statement.sql, contains('DECLARE @AffectedRows INT = @@ROWCOUNT'));
     expect(statement.sql, contains('IF @AffectedRows <> @ExpectedRows'));
   });
@@ -56,7 +58,7 @@ void main() {
     expect(result.error, isA<DbCommitOutcomeUnknown>());
   });
 
-  test('history uses one batch clock and explicit detail JSON', () {
+  test('history uses one batch clock and escaped detail XML', () {
     final statement = buildLabelPrintPersistenceStatement(
       historyParents: [
         {
@@ -67,20 +69,23 @@ void main() {
             {
               'detailIndex': 0,
               'columnId': 3,
-              'columnName': '원산지',
-              'dataString': '국산',
+              'columnName': '원산지 & 구분',
+              'dataString': '<국산>',
             },
           ],
         },
       ],
     );
-    final history = jsonDecode(statement.params['historyJson']! as String) as List;
+    final history = statement.params['historyXml']! as String;
 
-    expect(history.single['details'].single['detailIndex'], 0);
+    expect(history, contains('detailIndex="0" columnId="3"'));
+    expect(history, contains('<columnName>원산지 &amp; 구분</columnName>'));
+    expect(history, contains('<dataString>&lt;국산&gt;</dataString>'));
     expect(RegExp(r'GETDATE\(\)').allMatches(statement.sql), hasLength(1));
     expect(statement.sql, contains("CONVERT(char(8), @historyAt, 112)"));
     expect(statement.sql, contains('DATEPART(second, @historyAt) * 10'));
-    expect(statement.sql, contains("OPENJSON(H.payload, '\$.details')"));
+    expect(statement.sql, contains("H.details.nodes('/details/detail')"));
+    expect(statement.sql, isNot(contains('OPENJSON')));
   });
 
   test('history only still runs one transaction without committed values', () async {

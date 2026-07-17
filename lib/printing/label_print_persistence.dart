@@ -263,7 +263,7 @@ DbTransactionStatement buildLabelPrintPersistenceStatement({
   List<Map<String, Object?>> historyParents =
       const <Map<String, Object?>>[],
 }) {
-  final payload = [
+  final updates = [
     for (final entry in values.entries)
       {
         'columnId': entry.key.columnId,
@@ -281,14 +281,102 @@ DbTransactionStatement buildLabelPrintPersistenceStatement({
   return DbTransactionStatement(
     sql: _labelAutoIncrementUpdateSql,
     params: {
-      'updatesJson': jsonEncode(payload),
-      'historyJson': jsonEncode(historyParents),
+      'updatesXml': _labelPrintUpdatesXml(updates),
+      'historyXml': _labelPrintHistoryXml(historyParents),
     },
   );
 }
 
+String _labelPrintUpdatesXml(List<Map<String, Object?>> updates) {
+  final xml = StringBuffer('<updates>');
+  for (final update in updates) {
+    xml
+      ..write('<update columnId="${update['columnId']}" ')
+      ..write('itemId="${update['itemId']}"><dataString>')
+      ..write(_xmlText(update['dataString']))
+      ..write('</dataString></update>');
+  }
+  return (xml..write('</updates>')).toString();
+}
+
+String _labelPrintHistoryXml(List<Map<String, Object?>> parents) {
+  final xml = StringBuffer('<history>');
+  for (final parent in parents) {
+    xml.write('<parent');
+    for (final name in _labelPrintHistoryNumericFields) {
+      xml.write(' $name="${parent[name] ?? 0}"');
+    }
+    xml.write('>');
+    for (final name in _labelPrintHistoryTextFields) {
+      xml
+        ..write('<$name>')
+        ..write(_xmlText(parent[name]))
+        ..write('</$name>');
+    }
+    xml.write('<details>');
+    for (final detail
+        in (parent['details'] as List<Object?>? ?? const <Object?>[])) {
+      final values = detail! as Map<String, Object?>;
+      xml
+        ..write('<detail detailIndex="${values['detailIndex']}" ')
+        ..write('columnId="${values['columnId']}"><columnName>')
+        ..write(_xmlText(values['columnName']))
+        ..write('</columnName><dataString>')
+        ..write(_xmlText(values['dataString']))
+        ..write('</dataString></detail>');
+    }
+    xml.write('</details></parent>');
+  }
+  return (xml..write('</history>')).toString();
+}
+
+String _xmlText(Object? value) => const HtmlEscape(
+  HtmlEscapeMode.element,
+).convert(value?.toString() ?? '');
+
+const _labelPrintHistoryNumericFields = <String>[
+  'parentIndex',
+  'userGradeCode',
+  'statusUserId',
+  'marketId',
+  'customerId',
+  'brandId',
+  'labelSizeId',
+  'itemId',
+  'printCount',
+  'widthMm',
+  'heightMm',
+  'leftMarginMm',
+  'rightMarginMm',
+  'topMarginMm',
+  'leftPushMm',
+  'topPushMm',
+  'extraAreaMm',
+];
+
+const _labelPrintHistoryTextFields = <String>[
+  'userId',
+  'userName',
+  'userGradeLabel',
+  'marketName',
+  'customerName',
+  'brandName',
+  'labelSizeName',
+  'printerName',
+  'itemName',
+  'element',
+  'columnsWire',
+  'printCellsWire',
+  'baselineCellsWire',
+];
+
 const String _labelAutoIncrementUpdateSql = r'''
 SET NOCOUNT ON;
+
+DECLARE @UpdatesDocument XML = CONVERT(XML, @updatesXml);
+DECLARE @HistoryDocument XML = CONVERT(XML, @historyXml);
+IF @UpdatesDocument IS NULL OR @HistoryDocument IS NULL
+  THROW 51000, '라벨 발행 저장 데이터를 해석할 수 없습니다.', 1;
 
 DECLARE @Updates TABLE (
   RICH_COLUMN_ID INT NOT NULL,
@@ -303,11 +391,13 @@ INSERT INTO @Updates (
   RICH_COL_CONTENT_DATA
 )
 SELECT columnId, itemId, dataString
-FROM OPENJSON(@updatesJson) WITH (
-  columnId INT '$.columnId',
-  itemId INT '$.itemId',
-  dataString NVARCHAR(MAX) '$.dataString'
-);
+FROM (
+  SELECT
+    N.value('@columnId', 'INT') AS columnId,
+    N.value('@itemId', 'INT') AS itemId,
+    N.value('string((dataString/text())[1])', 'NVARCHAR(MAX)') AS dataString
+  FROM @UpdatesDocument.nodes('/updates/update') U(N)
+) ParsedUpdates;
 
 UPDATE C
 SET C.RICH_COL_CONTENT_DATA = U.RICH_COL_CONTENT_DATA
@@ -324,21 +414,77 @@ IF @AffectedRows <> @ExpectedRows
 DECLARE @historyAt DATETIME = GETDATE();
 DECLARE @History TABLE (
   parentIndex INT NOT NULL,
+  userId NVARCHAR(30) NOT NULL,
+  userName NVARCHAR(100) NOT NULL,
+  userGradeCode INT NOT NULL,
+  userGradeLabel NVARCHAR(100) NOT NULL,
+  statusUserId INT NOT NULL,
+  marketId INT NOT NULL,
+  marketName NVARCHAR(100) NOT NULL,
   customerId INT NOT NULL,
+  customerName NVARCHAR(100) NOT NULL,
   brandId INT NOT NULL,
-  payload NVARCHAR(MAX) NOT NULL,
+  brandName NVARCHAR(100) NOT NULL,
+  labelSizeId INT NOT NULL,
+  labelSizeName NVARCHAR(100) NOT NULL,
+  printerName NVARCHAR(300) NOT NULL,
+  itemId INT NOT NULL,
+  itemName NVARCHAR(300) NOT NULL,
+  element NVARCHAR(MAX) NOT NULL,
+  printCount INT NOT NULL,
+  columnsWire NVARCHAR(MAX) NOT NULL,
+  printCellsWire NVARCHAR(MAX) NOT NULL,
+  baselineCellsWire NVARCHAR(MAX) NOT NULL,
+  widthMm INT NOT NULL,
+  heightMm INT NOT NULL,
+  leftMarginMm FLOAT NOT NULL,
+  rightMarginMm FLOAT NOT NULL,
+  topMarginMm FLOAT NOT NULL,
+  leftPushMm FLOAT NOT NULL,
+  topPushMm FLOAT NOT NULL,
+  extraAreaMm FLOAT NOT NULL,
+  details XML NOT NULL,
   statusOrder INT NULL,
   statusId NVARCHAR(100) NULL
 );
 
-INSERT INTO @History (parentIndex, customerId, brandId, payload)
-SELECT parentIndex, customerId, brandId, value
-FROM OPENJSON(@historyJson) WITH (
-  parentIndex INT '$.parentIndex',
-  customerId INT '$.customerId',
-  brandId INT '$.brandId',
-  value NVARCHAR(MAX) '$' AS JSON
-);
+INSERT INTO @History (
+  parentIndex, userId, userName, userGradeCode, userGradeLabel, statusUserId,
+  marketId, marketName, customerId, customerName, brandId, brandName,
+  labelSizeId, labelSizeName, printerName, itemId, itemName, element, printCount,
+  columnsWire, printCellsWire, baselineCellsWire, widthMm, heightMm,
+  leftMarginMm, rightMarginMm, topMarginMm, leftPushMm, topPushMm, extraAreaMm,
+  details
+)
+SELECT
+  N.value('@parentIndex', 'INT'),
+  N.value('string((userId/text())[1])', 'NVARCHAR(30)'),
+  N.value('string((userName/text())[1])', 'NVARCHAR(100)'),
+  N.value('@userGradeCode', 'INT'),
+  N.value('string((userGradeLabel/text())[1])', 'NVARCHAR(100)'),
+  N.value('@statusUserId', 'INT'),
+  N.value('@marketId', 'INT'),
+  N.value('string((marketName/text())[1])', 'NVARCHAR(100)'),
+  N.value('@customerId', 'INT'),
+  N.value('string((customerName/text())[1])', 'NVARCHAR(100)'),
+  N.value('@brandId', 'INT'),
+  N.value('string((brandName/text())[1])', 'NVARCHAR(100)'),
+  N.value('@labelSizeId', 'INT'),
+  N.value('string((labelSizeName/text())[1])', 'NVARCHAR(100)'),
+  N.value('string((printerName/text())[1])', 'NVARCHAR(300)'),
+  N.value('@itemId', 'INT'),
+  N.value('string((itemName/text())[1])', 'NVARCHAR(300)'),
+  N.value('string((element/text())[1])', 'NVARCHAR(MAX)'),
+  N.value('@printCount', 'INT'),
+  N.value('string((columnsWire/text())[1])', 'NVARCHAR(MAX)'),
+  N.value('string((printCellsWire/text())[1])', 'NVARCHAR(MAX)'),
+  N.value('string((baselineCellsWire/text())[1])', 'NVARCHAR(MAX)'),
+  N.value('@widthMm', 'INT'), N.value('@heightMm', 'INT'),
+  N.value('@leftMarginMm', 'FLOAT'), N.value('@rightMarginMm', 'FLOAT'),
+  N.value('@topMarginMm', 'FLOAT'), N.value('@leftPushMm', 'FLOAT'),
+  N.value('@topPushMm', 'FLOAT'), N.value('@extraAreaMm', 'FLOAT'),
+  N.query('details')
+FROM @HistoryDocument.nodes('/history/parent') H(N);
 
 ;WITH CustomerBase AS (
   SELECT H.customerId, COALESCE(MAX(S.RICH_STATUS_ORDER), 0) AS baseOrder
@@ -371,30 +517,16 @@ INSERT INTO BM_RICH_PRINT_LOG (
   RICH_ITEM_ID
 )
 SELECT
-  J.userId, J.userName, J.userGradeCode,
-  J.marketId, J.marketName, J.customerId, J.customerName,
-  J.brandName, J.labelSizeName, J.itemName, J.printCount,
-  @historyAt, CONVERT(char(8), @historyAt, 112), J.printerName,
-  J.columnsWire, J.printCellsWire, J.baselineCellsWire,
-  J.widthMm, J.heightMm,
-  J.leftMarginMm, J.rightMarginMm, J.topMarginMm,
-  J.leftPushMm, J.topPushMm, J.extraAreaMm,
-  J.itemId
-FROM @History H
-CROSS APPLY OPENJSON(H.payload) WITH (
-  userId NVARCHAR(30) '$.userId', userName NVARCHAR(100) '$.userName',
-  userGradeCode INT '$.userGradeCode', marketId INT '$.marketId',
-  marketName NVARCHAR(100) '$.marketName', customerId INT '$.customerId',
-  customerName NVARCHAR(100) '$.customerName', brandName NVARCHAR(100) '$.brandName',
-  labelSizeName NVARCHAR(100) '$.labelSizeName', itemName NVARCHAR(300) '$.itemName',
-  printCount INT '$.printCount', printerName NVARCHAR(300) '$.printerName',
-  columnsWire NVARCHAR(MAX) '$.columnsWire', printCellsWire NVARCHAR(MAX) '$.printCellsWire',
-  baselineCellsWire NVARCHAR(MAX) '$.baselineCellsWire', widthMm INT '$.widthMm',
-  heightMm INT '$.heightMm', leftMarginMm FLOAT '$.leftMarginMm',
-  rightMarginMm FLOAT '$.rightMarginMm', topMarginMm FLOAT '$.topMarginMm',
-  leftPushMm FLOAT '$.leftPushMm', topPushMm FLOAT '$.topPushMm',
-  extraAreaMm FLOAT '$.extraAreaMm', itemId INT '$.itemId'
-) J;
+  H.userId, H.userName, H.userGradeCode,
+  H.marketId, H.marketName, H.customerId, H.customerName,
+  H.brandName, H.labelSizeName, H.itemName, H.printCount,
+  @historyAt, CONVERT(char(8), @historyAt, 112), H.printerName,
+  H.columnsWire, H.printCellsWire, H.baselineCellsWire,
+  H.widthMm, H.heightMm,
+  H.leftMarginMm, H.rightMarginMm, H.topMarginMm,
+  H.leftPushMm, H.topPushMm, H.extraAreaMm,
+  H.itemId
+FROM @History H;
 
 INSERT INTO BM_RICH_STATUS (
   RICH_STATUS_ID, RICH_ITEM_ID, RICH_MARKET_ID, RICH_CUSTOMER_ID,
@@ -404,23 +536,15 @@ INSERT INTO BM_RICH_STATUS (
   RICH_BRAND_NAME, RICH_DATE_YYYYMMDD
 )
 SELECT
-  H.statusId, J.itemId, J.marketId, J.customerId,
-  H.brandId, J.labelSizeId, J.statusUserId, J.printCount,
+  H.statusId, H.itemId, H.marketId, H.customerId,
+  H.brandId, H.labelSizeId, H.statusUserId, H.printCount,
   CONVERT(char(19), @historyAt, 120) + N'.' +
     CASE WHEN DATEPART(second, @historyAt) * 10 < 10 THEN N'0' ELSE N'' END +
     CONVERT(NVARCHAR(3), DATEPART(second, @historyAt) * 10),
-  J.itemName, J.element, H.statusOrder, J.labelSizeName,
-  J.userName, J.userGradeLabel, J.brandName,
+  H.itemName, H.element, H.statusOrder, H.labelSizeName,
+  H.userName, H.userGradeLabel, H.brandName,
   CONVERT(char(8), @historyAt, 112)
-FROM @History H
-CROSS APPLY OPENJSON(H.payload) WITH (
-  itemId INT '$.itemId', marketId INT '$.marketId', customerId INT '$.customerId',
-  labelSizeId INT '$.labelSizeId', statusUserId INT '$.statusUserId',
-  printCount INT '$.printCount', itemName NVARCHAR(300) '$.itemName',
-  element NVARCHAR(MAX) '$.element', labelSizeName NVARCHAR(100) '$.labelSizeName',
-  userName NVARCHAR(100) '$.userName', userGradeLabel NVARCHAR(100) '$.userGradeLabel',
-  brandName NVARCHAR(100) '$.brandName'
-) J;
+FROM @History H;
 
 INSERT INTO BM_RICH_STATUS_DATA (
   RICH_STATUS_DATA_ID, RICH_COLUMN_ID, RICH_STATUS_ID,
@@ -430,8 +554,12 @@ SELECT
   CONCAT(H.statusId, N'D', D.detailIndex), D.columnId, H.statusId,
   D.dataString, D.columnName
 FROM @History H
-CROSS APPLY OPENJSON(H.payload, '$.details') WITH (
-  detailIndex INT '$.detailIndex', columnId INT '$.columnId',
-  dataString NVARCHAR(MAX) '$.dataString', columnName NVARCHAR(300) '$.columnName'
+CROSS APPLY H.details.nodes('/details/detail') X(N)
+CROSS APPLY (
+  SELECT
+    N.value('@detailIndex', 'INT') AS detailIndex,
+    N.value('@columnId', 'INT') AS columnId,
+    N.value('string((dataString/text())[1])', 'NVARCHAR(MAX)') AS dataString,
+    N.value('string((columnName/text())[1])', 'NVARCHAR(300)') AS columnName
 ) D;
 ''';

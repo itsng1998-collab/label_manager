@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:flutter_test/flutter_test.dart';
 import 'package:label_manager/models/column_type.dart';
 import 'package:label_manager/models/label_column_candidates.dart';
@@ -84,23 +82,31 @@ void main() {
       expect(invalid.toSaveCommand, throwsFormatException);
     });
 
-    test('save statement binds JSON and validates ownership and row counts', () {
+    test('save statement binds XML and validates ownership and row counts', () {
       final command = CustomerColumnEditSession.fromCandidates(
         customerId: 7,
         candidates: [candidate(1, 'A')],
       ).update(
         CustomerColumnDraft.fromCandidate(candidate(1, 'A')).copyWith(
-          columnName: "작은따옴표's",
+          columnName: "작은따옴표's & 기호",
         ),
       ).toSaveCommand();
 
       final statement = CustomerColumnDAO.buildSaveStatement(command);
-      expect(statement.sql, contains('OPENJSON(@updatedColumnsJson)'));
+      expect(
+        statement.sql,
+        contains("@UpdatedColumnsDocument.nodes('/columns/column')"),
+      );
       expect(statement.sql, contains('RICH_CUSTOMER_ID=@customerId'));
       expect(statement.sql, contains('IF @@ROWCOUNT<>'));
-      expect(statement.sql, isNot(contains("작은따옴표's")));
-      final rows = jsonDecode(statement.params['updatedColumnsJson']! as String) as List;
-      expect((rows.single as Map)['columnName'], "작은따옴표's");
+      expect(statement.sql, isNot(contains("작은따옴표's & 기호")));
+      expect(statement.sql, isNot(contains('OPENJSON')));
+      expect(statement.sql, isNot(contains('JSON_VALUE')));
+      expect(statement.sql, isNot(contains('TRY_CONVERT')));
+      expect(
+        statement.params['updatedColumnsXml'],
+        contains("<columnName>작은따옴표's &amp; 기호</columnName>"),
+      );
     });
 
     test('fixed type query preserves legacy database order', () {

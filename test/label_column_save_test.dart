@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:flutter_test/flutter_test.dart';
 import 'package:label_manager/models/barcode.dart';
 import 'package:label_manager/models/column.dart';
@@ -131,22 +129,31 @@ void main() {
       expect(sql, isNot(contains('DROP ')));
     });
 
-    test('builds one returnsRows JSON scalar transaction statement', () {
+    test('builds one returnsRows XML transaction statement', () {
       final statement = LabelColumnSaveDao.buildSaveStatement(_command(), _none);
 
       expect(statement.returnsRows, isTrue);
-      expect(statement.params.keys, ['commandJson']);
-      final json = jsonDecode(statement.params['commandJson'] as String)
-          as Map<String, dynamic>;
-      expect(json['labelSizeId'], 10);
-      expect(json['originalColumns'], hasLength(2));
-      expect(json['updatedColumns'][0]['changedKeys'], ['name']);
-      expect(json['finalOrder'][1], {
-        'draftKey': 'draft:new',
-        'columnId': null,
-        'order': 2,
-      });
-      expect(statement.sql, contains('OPENJSON(@commandJson'));
+      expect(statement.params.keys, ['commandXml']);
+      final xml = statement.params['commandXml'] as String;
+      expect(xml, startsWith('<command labelSizeId="10">'));
+      expect(
+        RegExp(r'<column section="originalColumns"').allMatches(xml),
+        hasLength(2),
+      );
+      expect(xml, contains('<changedKeys><key value="name" /></changedKeys>'));
+      expect(
+        xml,
+        contains('<entry order="2"><draftKey>draft:new</draftKey></entry>'),
+      );
+      expect(
+        statement.sql,
+        contains("@CommandDocument.nodes('/command/updatedColumns/column')"),
+      );
+      expect(statement.sql, contains('CHANGED_KEYS.exist('));
+      expect(statement.sql, isNot(contains('OPENJSON')));
+      expect(statement.sql, isNot(contains('JSON_VALUE')));
+      expect(statement.sql, isNot(contains('TRY_CONVERT')));
+      expect(statement.sql, isNot(contains('STRING_SPLIT')));
       expect(
         statement.sql,
         contains('Label columns changed after editing started.'),
@@ -177,16 +184,16 @@ void main() {
       );
       expect(
         RegExp(
-          r"RICH_USE_USER_DEFINE_QRDATA BIT '\$.useUserQrData'",
+          r"N\.value\('\(useUserQrData/text\(\)\)\[1\]', 'BIT'\)",
         ).allMatches(originalProjection),
         hasLength(1),
       );
       for (final field in [
-        "RICH_CHECK_YN BIT '\$.check'",
-        "COLUMN_GS1_CODE NVARCHAR(100) '\$.gs1ai'",
-        "COLUMN_GS1_FORMAT_OPTION INT '\$.formatOption'",
-        "CONTAIN_COLUMNS NVARCHAR(MAX) '\$.contains'",
-        "COLUMN_SHOW_GS1CODE BIT '\$.showGs1'",
+        "N.value('(check/text())[1]', 'BIT')",
+        "N.value('string((gs1ai/text())[1])', 'NVARCHAR(100)')",
+        "N.value('(formatOption/text())[1]', 'INT')",
+        "N.value('string((contains/text())[1])', 'NVARCHAR(MAX)')",
+        "N.value('(showGs1/text())[1]', 'BIT')",
       ]) {
         expect(originalProjection, contains(field));
       }
@@ -224,9 +231,9 @@ void main() {
       expect(statements, hasLength(2));
       expect(statements.first.returnsRows, isTrue);
       expect(statements.last.returnsRows, isFalse);
-      expect(statements.first.params, contains('commandJson'));
-      expect(statements.last.params, contains('newColumnsJson'));
-      expect(statements.last.params, contains('originalColumnsJson'));
+      expect(statements.first.params, contains('commandXml'));
+      expect(statements.last.params, contains('newColumnsXml'));
+      expect(statements.last.params, contains('originalColumnsXml'));
       expect(
         statements.last.sql,
         contains('Customer columns changed after editing started.'),

@@ -1,3 +1,36 @@
+### 진행 중 (2026-07-17): SQL Server 2017 SQL 검수 및 발행 저장 호환 수정
+- 이전 세션 재개 확인: 작업 트리의 `label_print_persistence.dart` XML projection과 `item.dart` 품목 순서 XML projection을 검토했다. 테스트의 `dart:convert` import 조기 제거를 복구한 뒤 `flutter test test/label_print_persistence_test.dart test/item_manager_save_dao_test.dart` 10건이 통과했다.
+- 다음 수정 진행: `item_manager_save.dart`의 target market/deleted item/existing row/new row/column value JSON payload를 compatibility level 100에서 동작하는 XML projection으로 교체하고 기존 transaction 순서와 row-count 검증을 유지한다.
+- `item_manager_save.dart` 편집 완료: 다섯 payload를 XML로 직렬화하고 transaction 시작부의 XML 문서를 table 변수로 한 번 투영해 기존 insert/update/delete/MERGE 및 row-count 검증에 재사용한다. null 날짜, 한글·XML 특수문자, bool `0/1` 계약을 유지한다.
+- `item_manager_save_dao_test.dart` 갱신 및 검증 완료: XML parameter 이름/기본값/null 날짜/escape와 JSON 함수 미사용을 검증하며 `flutter test test/item_manager_save_dao_test.dart` 4건이 통과했다.
+- 다음 수정: `label_column_candidates.dart`의 original/new/updated/deleted JSON projection을 XML로 교체한다.
+- `label_column_candidates.dart` 편집 완료: original/new/updated/deleted payload를 XML로 직렬화하고 기존 optimistic snapshot·ownership·중복·affected-row 검증은 동일 table 변수 위에서 유지했다.
+- `label_column_candidates_test.dart` 갱신 및 검증 완료: XML node/escape와 JSON 함수 미사용을 검증하며 `flutter test test/label_column_candidates_test.dart` 5건이 통과했다.
+- 다음 수정: `label_column_save.dart`의 command JSON projection과 내부 `CHANGED_KEYS` JSON 조회를 XML projection으로 교체한다.
+- `label_column_save.dart` 편집 완료: 전체 command를 XML로 직렬화하고 new/updated/deleted/original/final-order를 XQuery로 투영한다. `CHANGED_KEYS`는 XML `.exist()` membership으로 교체했으며 GS1 `contains`도 구조화된 value node로 전달해 compatibility 130의 `STRING_SPLIT`과 `TRY_CONVERT`를 함께 제거했다.
+- `label_column_save_test.dart` 갱신 및 검증 완료: command XML 구조, changed-key membership, original projection, JSON/TRY_CONVERT/STRING_SPLIT 미사용을 검증하며 `flutter test test/label_column_save_test.dart` 14건이 통과했다.
+- 다음 검증: 관련 DAO 테스트 전체, `flutter analyze`, 실제 compatibility 100 서버의 read-only XML projection probe, `git diff --check`를 실행한다.
+- 관련 DAO 묶음 검증 완료: `flutter test test/label_print_persistence_test.dart test/item_manager_save_dao_test.dart test/label_column_candidates_test.dart test/label_column_save_test.dart` 29건이 통과했고, 변경 파일 diagnostics 오류 0건 및 `lib/**`의 `OPENJSON/JSON_VALUE/TRY_CONVERT/STRING_SPLIT` 잔존 0건을 확인했다.
+- 실제 서버 검증 예정: 일회성 테스트로 빈 품목 저장 전체 transaction, 존재하지 않는 고객 ID의 빈 후보 저장 전체 transaction, 라벨 컬럼 command XML의 changed-key/contain-value read-only XQuery를 실행한다. 데이터 변경 payload는 사용하지 않으며 완료 후 테스트 파일을 삭제한다.
+- 실제 서버 1차 검증에서 `item_manager_save.dart` 빈 batch의 첫 DML이 ODBC `SQL_NO_DATA(100)`을 반환했다. SQL 문법 문제가 아니라 해당 batch에만 `SET NOCOUNT ON`이 없던 원인이므로 추가하고 영구 DAO assertion을 보강했다.
+- 실제 compatibility 100 서버 검증 완료: 빈 품목 저장 전체 transaction, 존재하지 않는 고객 ID의 빈 후보 저장 전체 transaction, 한글·`&`를 포함한 라벨 컬럼 changed-key/contain-value read-only XQuery가 성공했다. 데이터 행 변경은 없고 일회성 테스트는 삭제했다. `flutter test test/item_manager_save_dao_test.dart` 4건도 재통과했다.
+- 최종 검증 예정: 변경 Dart 포맷 후 관련 DAO 29건 재실행, `flutter analyze`, `git diff --check`, 생성물 및 stage 대상 확인. 사용자 변경 `lib/core/app.dart`는 제외한다.
+- 변경 Dart 포맷 및 관련 재검증 완료: XML 호환 관련 9개 Dart 파일을 포맷한 뒤 관련 DAO 테스트 29건이 모두 통과했다.
+- 전체 정적 분석 실행 직전: `flutter analyze`를 실행한다.
+- 전체 정적 분석 완료: `flutter analyze` issues 0.
+- 실제 서버 최종 probe 예정: 존재하지 않는 label-size ID의 빈 command로 생성한 라벨 컬럼 전체 SQL을 batch 내부 transaction에서 실행 후 반드시 rollback하고, 전후 관련 row count 0을 확인한다. 완료 후 일회성 테스트를 삭제한다.
+- 실제 서버 최종 probe 제한: capability query가 `hasCoreSchema=false`를 반환해 라벨 컬럼 전체 generated SQL은 실행 전에 기존 schema gate로 차단됐다. core schema가 없는 DB에서 강제 실행하지 않았으며, 앞선 command XML changed-key/contain-value read-only XQuery 성공을 실제 호환 검증으로 유지한다. probe label-size row는 전후 모두 0이고 일회성 테스트는 삭제했다.
+- 최종 검증 완료: 관련 DAO 테스트 29건 통과, `flutter analyze` issues 0, `git diff --check` 통과, 변경 파일 diagnostics 오류 0건, `lib/**` compatibility 130 함수 잔존 0건, 테스트 생성물 없음.
+- stage/commit 대상: `lib/models/item.dart`, `lib/models/item_manager_save.dart`, `lib/models/label_column_candidates.dart`, `lib/models/label_column_save.dart`, `lib/printing/label_print_persistence.dart`, 관련 테스트 4개, 이 문서. 사용자 변경 `lib/core/app.dart`는 제외한다.
+- 사용자 발행 테스트 로그 `.tmp/log/app_2026-07-17_21-04-04.log` 확인: 프린터 접수 뒤 21:05:31 발행 이력/자동증가 transaction에서 SQL Server error 102, `'$.columnId' 근처의 구문이 잘못되었습니다.`가 발생하고 rollback됐다. 새 진행 다이얼로그 오류가 아니라 `OPENJSON ... WITH` parse 실패다.
+- 전체 SQL 정적 검수: SQL Server 2017 엔진 비호환 문법은 발견되지 않았다. 다만 `OPENJSON/JSON_VALUE`를 사용하는 `lib/printing/label_print_persistence.dart`, `lib/models/item.dart`, `lib/models/item_manager_save.dart`, `lib/models/label_column_candidates.dart`, `lib/models/label_column_save.dart`는 database compatibility level 130 이상에 의존한다. 현재 로그 오류는 실제 DB가 해당 JSON 문법을 제공하지 않음을 나타낸다.
+- 수정 예정: 우선 실제 장애 경로인 `label_print_persistence.dart`의 JSON projection을 SQL Server 2017 compatibility level에 의존하지 않는 parameterized XML projection으로 교체하고 자동증가·이력·상세를 기존 단일 transaction statement와 row-count 검증 안에서 유지한다. `test/label_print_persistence_test.dart`에 JSON 함수 미사용 및 XML projection 계약을 추가한다.
+- 잔여 검수 결과: 나머지 JSON 사용 4개 저장 경로도 같은 compatibility 위험이므로 발행 수정 검증 후 범위를 이어서 처리한다. DB compatibility 변경이나 migration은 수행하지 않는다. 사용자 변경 `lib/core/app.dart`는 제외한다.
+- 실제 서버 read-only 검증 완료: `SERVERPROPERTY('ProductVersion')=14.0.1000.169`, 현재 DB `compatibility_level=100`이다. 따라서 `OPENJSON/JSON_VALUE`뿐 아니라 `TRY_CONVERT`도 사용할 수 없다. DB 설정은 변경하지 않았다.
+- `label_print_persistence.dart` 편집 완료: updates/history payload를 XML로 생성하고 SQL에서 `CONVERT(XML, ...)`, `nodes()/value()/query()`로 투영한다. XML 특수문자·한국어·빈 문자열 계약을 테스트에 반영했다.
+- 발행 SQL 실제 서버 검증 완료: XML projection read-only probe와 빈 updates/history를 사용한 persistence 전체 transaction이 compatibility 100 서버에서 성공했고 데이터 변경 없이 `affected: 0`으로 commit됐다. 일회성 probe 테스트는 삭제했다.
+- 다음 편집: `item.dart`, `item_manager_save.dart`, `label_column_candidates.dart`, `label_column_save.dart`의 JSON SQL 입력을 같은 compatibility 100 기준의 XML projection으로 교체한다.
+
 ### 완료 (2026-07-17): 라벨 발행 진행 다이얼로그 및 취소
 - 사용자 요청: 라벨 발행 시작 후 공용 브랜드 설정과 같은 blocking modeless 방식으로 `현재/전체번째를 발행중입니다...`와 취소 버튼을 표시하고, 취소 클릭을 기존 발행 cancellation 경로에 연결한다.
 - 확정 동작: 발행 command 검증과 unit 생성 완료 뒤 root overlay에 `라벨 발행` 다이얼로그를 하나만 열고, 각 unit 렌더 시작 전에 1-based 순번을 갱신한다. 바깥 화면 입력과 닫기 버튼은 차단하고 `취소` 버튼만 허용하며, 종료·실패·취소의 모든 경로에서 overlay를 제거한다. 기존 접수 매수 결과 안내는 유지한다.

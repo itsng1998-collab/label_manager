@@ -214,20 +214,128 @@ class ItemManagerSaveCommand {
   Map<String, dynamic> toSqlParams() {
     validate();
     return {
-      'targetMarketIdsJson': jsonEncode(targetMarketIds),
-      'deletedItemIdsJson': jsonEncode(deletedSourceItemIds),
-      'existingRowsJson': jsonEncode(
-        existingRows.map((row) => row.toJson()).toList(growable: false),
+      'targetMarketIdsXml': _itemManagerIdsXml(
+        'markets',
+        'market',
+        targetMarketIds,
       ),
-      'newRowsJson': jsonEncode(
-        newRows.map((row) => row.toJson()).toList(growable: false),
+      'deletedItemIdsXml': _itemManagerIdsXml(
+        'items',
+        'item',
+        deletedSourceItemIds,
       ),
-      'columnValuesJson': jsonEncode(
-        columnValues.map((value) => value.toJson()).toList(growable: false),
-      ),
+      'existingRowsXml': _itemManagerExistingRowsXml(existingRows),
+      'newRowsXml': _itemManagerNewRowsXml(newRows),
+      'columnValuesXml': _itemManagerColumnValuesXml(columnValues),
     };
   }
 }
+
+String _itemManagerIdsXml(
+  String rootName,
+  String childName,
+  Iterable<int> values,
+) =>
+    '<$rootName>${values.map((value) => '<$childName id="$value" />').join()}</$rootName>';
+
+String _itemManagerExistingRowsXml(
+  Iterable<ItemManagerExistingRowSave> rows,
+) {
+  final xml = StringBuffer('<rows>');
+  for (final row in rows) {
+    xml
+      ..write('<row sourceItemId="${row.sourceItemId}" order="${row.order}">')
+      ..write('<itemName>${_itemManagerXmlText(row.itemName)}</itemName>')
+      ..write(
+        '<elementPlain>${_itemManagerXmlText(row.elementPlain)}</elementPlain>',
+      )
+      ..write(
+        '<elementSheet>${_itemManagerXmlText(row.elementSheet)}</elementSheet>',
+      )
+      ..write('</row>');
+  }
+  return (xml..write('</rows>')).toString();
+}
+
+String _itemManagerNewRowsXml(Iterable<ItemManagerNewRowSave> rows) {
+  final xml = StringBuffer('<rows>');
+  var rowNo = 0;
+  for (final row in rows) {
+    final defaults = row.mappingDefaults;
+    xml
+      ..write('<row rowNo="${++rowNo}" labelSizeId="${row.labelSizeId}" ')
+      ..write('order="${row.order}" gdsNo="${defaults.gdsNo}" ')
+      ..write('discountPercent="${defaults.discountPercent}" ')
+      ..write('discountAmount="${defaults.discountAmount}" ')
+      ..write('useDefineElement="${defaults.useDefineElement ? 1 : 0}" ')
+      ..write('useLinefeed="${defaults.useLinefeed ? 1 : 0}" ')
+      ..write('linefeed="${defaults.linefeed}" ')
+      ..write('useScaleBarcode="${defaults.useScaleBarcode ? 1 : 0}" ')
+      ..write('printCount="${defaults.printCount}" ')
+      ..write('useLabelSize="${defaults.useLabelSize ? 1 : 0}" ')
+      ..write('labelSizeWidth="${defaults.labelSizeWidth}" ')
+      ..write('labelSizeHeight="${defaults.labelSizeHeight}" ')
+      ..write('useMargin="${defaults.useMargin ? 1 : 0}" ')
+      ..write('leftMargin="${defaults.leftMargin}" ')
+      ..write('rightMargin="${defaults.rightMargin}" ')
+      ..write('topMargin="${defaults.topMargin}" ')
+      ..write('leftPush="${defaults.leftPush}" ')
+      ..write('topPush="${defaults.topPush}">')
+      ..write(
+        '<draftRowKey>${_itemManagerXmlText(row.draftRowKey)}</draftRowKey>',
+      )
+      ..write('<itemName>${_itemManagerXmlText(row.itemName)}</itemName>')
+      ..write(
+        '<elementPlain>${_itemManagerXmlText(row.elementPlain)}</elementPlain>',
+      )
+      ..write(
+        '<elementSheet>${_itemManagerXmlText(row.elementSheet)}</elementSheet>',
+      )
+      ..write(
+        '<dateSaleStart>${defaults.dateSaleStart?.toIso8601String() ?? ''}</dateSaleStart>',
+      )
+      ..write(
+        '<dateSaleEnd>${defaults.dateSaleEnd?.toIso8601String() ?? ''}</dateSaleEnd>',
+      )
+      ..write(
+        '<dateStartDiscount>${defaults.dateStartDiscount?.toIso8601String() ?? ''}</dateStartDiscount>',
+      )
+      ..write(
+        '<dateEndDiscount>${defaults.dateEndDiscount?.toIso8601String() ?? ''}</dateEndDiscount>',
+      )
+      ..write('<rtfText>${_itemManagerXmlText(defaults.rtfText)}</rtfText>')
+      ..write('</row>');
+  }
+  return (xml..write('</rows>')).toString();
+}
+
+String _itemManagerColumnValuesXml(
+  Iterable<ItemManagerColumnValueSave> values,
+) {
+  final xml = StringBuffer('<values>');
+  for (final value in values) {
+    xml
+      ..write('<value columnId="${value.columnId}" ')
+      ..write('editable="${value.editable ? 1 : 0}"');
+    if (value.sourceItemId != null) {
+      xml.write(' sourceItemId="${value.sourceItemId}"');
+    }
+    xml
+      ..write('>')
+      ..write(
+        '<draftRowKey>${_itemManagerXmlText(value.draftRowKey)}</draftRowKey>',
+      )
+      ..write(
+        '<dataString>${_itemManagerXmlText(value.dataString)}</dataString>',
+      )
+      ..write('</value>');
+  }
+  return (xml..write('</values>')).toString();
+}
+
+String _itemManagerXmlText(Object? value) => const HtmlEscape(
+  HtmlEscapeMode.element,
+).convert(value?.toString() ?? '');
 
 class ItemManagerSaveResult {
   final Map<String, int> insertedItemIdsByDraftKey;
@@ -237,6 +345,39 @@ class ItemManagerSaveResult {
 
 class ItemManagerSaveDAO extends DAO {
   static const String saveSql = r'''
+    SET NOCOUNT ON;
+
+    DECLARE @TargetMarketsDocument XML = CONVERT(XML, @targetMarketIdsXml);
+    DECLARE @DeletedItemsDocument XML = CONVERT(XML, @deletedItemIdsXml);
+    DECLARE @ExistingRowsDocument XML = CONVERT(XML, @existingRowsXml);
+    DECLARE @NewRowsDocument XML = CONVERT(XML, @newRowsXml);
+    DECLARE @ColumnValuesDocument XML = CONVERT(XML, @columnValuesXml);
+    DECLARE @TargetMarkets TABLE (MARKET_ID INT NOT NULL PRIMARY KEY);
+    DECLARE @DeletedItems TABLE (ITEM_ID INT NOT NULL PRIMARY KEY);
+    DECLARE @ExistingInput TABLE (
+      ITEM_ID INT NOT NULL PRIMARY KEY,
+      ITEM_NAME NVARCHAR(100) NOT NULL,
+      ELEMENT_PLAIN NVARCHAR(MAX) NOT NULL,
+      ELEMENT_SHEET NVARCHAR(MAX) NOT NULL,
+      ITEM_ORDER INT NOT NULL
+    );
+    INSERT INTO @TargetMarkets(MARKET_ID)
+    SELECT N.value('@id', 'INT')
+    FROM @TargetMarketsDocument.nodes('/markets/market') X(N);
+    INSERT INTO @DeletedItems(ITEM_ID)
+    SELECT N.value('@id', 'INT')
+    FROM @DeletedItemsDocument.nodes('/items/item') X(N);
+    INSERT INTO @ExistingInput(
+      ITEM_ID, ITEM_NAME, ELEMENT_PLAIN, ELEMENT_SHEET, ITEM_ORDER
+    )
+    SELECT
+      N.value('@sourceItemId', 'INT'),
+      N.value('string((itemName/text())[1])', 'NVARCHAR(100)'),
+      N.value('string((elementPlain/text())[1])', 'NVARCHAR(MAX)'),
+      N.value('string((elementSheet/text())[1])', 'NVARCHAR(MAX)'),
+      N.value('@order', 'INT')
+    FROM @ExistingRowsDocument.nodes('/rows/row') X(N);
+
     DECLARE @InsertedRows TABLE (
       DRAFT_ROW_KEY NVARCHAR(100) NOT NULL PRIMARY KEY,
       ITEM_ID INT NOT NULL
@@ -274,38 +415,29 @@ class ItemManagerSaveDAO extends DAO {
     );
 
     INSERT INTO @NewInput
-    SELECT CONVERT(INT, [key]) + 1, J.*
-    FROM OPENJSON(@newRowsJson) N
-    CROSS APPLY OPENJSON(N.value) WITH (
-      DRAFT_ROW_KEY NVARCHAR(100) '$.draftRowKey',
-      LABELSIZE_ID INT '$.labelSizeId',
-      ITEM_NAME NVARCHAR(100) '$.itemName',
-      ELEMENT_PLAIN NVARCHAR(MAX) '$.elementPlain',
-      ELEMENT_SHEET NVARCHAR(MAX) '$.elementSheet',
-      ITEM_ORDER INT '$.order',
-      GDS_NO INT '$.gdsNo',
-      SALE_START_DATE DATETIME2 '$.dateSaleStart',
-      SALE_END_DATE DATETIME2 '$.dateSaleEnd',
-      DISCOUNT_PERCENT FLOAT '$.discountPercent',
-      DISCOUNT_AMOUNT INT '$.discountAmount',
-      DISCOUNT_START_DATE DATETIME2 '$.dateStartDiscount',
-      DISCOUNT_END_DATE DATETIME2 '$.dateEndDiscount',
-      USE_DEFINE_ELEMENT BIT '$.useDefineElement',
-      USER_DEFINE_RTF NVARCHAR(MAX) '$.rtfText',
-      USE_LINEFEED BIT '$.useLinefeed',
-      LINEFEED INT '$.linefeed',
-      USE_SCALEBARCODE BIT '$.useScaleBarcode',
-      PRINT_COUNT INT '$.printCount',
-      USE_LABELSIZE BIT '$.useLabelSize',
-      LABELSIZE_WIDTH INT '$.labelSizeWidth',
-      LABELSIZE_HEIGHT INT '$.labelSizeHeight',
-      USE_MARGIN BIT '$.useMargin',
-      LEFT_MARGIN FLOAT '$.leftMargin',
-      RIGHT_MARGIN FLOAT '$.rightMargin',
-      TOP_MARGIN FLOAT '$.topMargin',
-      LEFT_PUSH FLOAT '$.leftPush',
-      TOP_PUSH FLOAT '$.topPush'
-    ) J;
+    SELECT
+      N.value('@rowNo', 'INT'),
+      N.value('string((draftRowKey/text())[1])', 'NVARCHAR(100)'),
+      N.value('@labelSizeId', 'INT'),
+      N.value('string((itemName/text())[1])', 'NVARCHAR(100)'),
+      N.value('string((elementPlain/text())[1])', 'NVARCHAR(MAX)'),
+      N.value('string((elementSheet/text())[1])', 'NVARCHAR(MAX)'),
+      N.value('@order', 'INT'), N.value('@gdsNo', 'INT'),
+      CONVERT(DATETIME2, NULLIF(N.value('string((dateSaleStart/text())[1])', 'NVARCHAR(50)'), N'')),
+      CONVERT(DATETIME2, NULLIF(N.value('string((dateSaleEnd/text())[1])', 'NVARCHAR(50)'), N'')),
+      N.value('@discountPercent', 'FLOAT'), N.value('@discountAmount', 'INT'),
+      CONVERT(DATETIME2, NULLIF(N.value('string((dateStartDiscount/text())[1])', 'NVARCHAR(50)'), N'')),
+      CONVERT(DATETIME2, NULLIF(N.value('string((dateEndDiscount/text())[1])', 'NVARCHAR(50)'), N'')),
+      N.value('@useDefineElement', 'BIT'),
+      N.value('string((rtfText/text())[1])', 'NVARCHAR(MAX)'),
+      N.value('@useLinefeed', 'BIT'), N.value('@linefeed', 'INT'),
+      N.value('@useScaleBarcode', 'BIT'), N.value('@printCount', 'INT'),
+      N.value('@useLabelSize', 'BIT'), N.value('@labelSizeWidth', 'INT'),
+      N.value('@labelSizeHeight', 'INT'), N.value('@useMargin', 'BIT'),
+      N.value('@leftMargin', 'FLOAT'), N.value('@rightMargin', 'FLOAT'),
+      N.value('@topMargin', 'FLOAT'), N.value('@leftPush', 'FLOAT'),
+      N.value('@topPush', 'FLOAT')
+    FROM @NewRowsDocument.nodes('/rows/row') X(N);
 
     UPDATE I SET
       RICH_ITEM_NAME=E.ITEM_NAME,
@@ -313,14 +445,8 @@ class ItemManagerSaveDAO extends DAO {
       RICH_ELEMENT_SHEET=E.ELEMENT_SHEET,
       RICH_ITEM_ORDER=E.ITEM_ORDER
     FROM BM_RICH_ITEM I
-    INNER JOIN OPENJSON(@existingRowsJson) WITH (
-      ITEM_ID INT '$.sourceItemId',
-      ITEM_NAME NVARCHAR(100) '$.itemName',
-      ELEMENT_PLAIN NVARCHAR(MAX) '$.elementPlain',
-      ELEMENT_SHEET NVARCHAR(MAX) '$.elementSheet',
-      ITEM_ORDER INT '$.order'
-    ) E ON I.RICH_ITEM_ID=E.ITEM_ID;
-    IF @@ROWCOUNT <> (SELECT COUNT(*) FROM OPENJSON(@existingRowsJson))
+    INNER JOIN @ExistingInput E ON I.RICH_ITEM_ID=E.ITEM_ID;
+    IF @@ROWCOUNT <> (SELECT COUNT(*) FROM @ExistingInput)
       THROW 51001, 'Existing item update count mismatch.', 1;
 
     DECLARE @RowNo INT = 1;
@@ -378,54 +504,56 @@ class ItemManagerSaveDAO extends DAO {
       N.RIGHT_MARGIN, N.TOP_MARGIN, N.LEFT_PUSH, N.TOP_PUSH
     FROM @InsertedRows I
     INNER JOIN @NewInput N ON N.DRAFT_ROW_KEY=I.DRAFT_ROW_KEY
-    CROSS JOIN OPENJSON(@targetMarketIdsJson) WITH (MARKET_ID INT '$') M;
+    CROSS JOIN @TargetMarkets M;
 
     DELETE C
     FROM BM_RICH_COL_CONTENT C
-    INNER JOIN OPENJSON(@deletedItemIdsJson) WITH (ITEM_ID INT '$') D
+    INNER JOIN @DeletedItems D
       ON C.RICH_ITEM_ID=D.ITEM_ID;
 
     DELETE M
     FROM BM_ITEM_OF_MARKET M
-    INNER JOIN OPENJSON(@deletedItemIdsJson) WITH (ITEM_ID INT '$') D
+    INNER JOIN @DeletedItems D
       ON M.RICH_ITEM_ID=D.ITEM_ID;
 
     DELETE UC
     FROM BM_UPDATE_COL_CONTENT UC
     INNER JOIN BM_UPDATE_ITEM U
       ON UC.RICH_UPDATE_ITEM_ID=U.RICH_UPDATE_ITEM_ID
-    INNER JOIN OPENJSON(@deletedItemIdsJson) WITH (ITEM_ID INT '$') D
+    INNER JOIN @DeletedItems D
       ON U.RICH_ITEM_ID=D.ITEM_ID;
 
     DELETE U
     FROM BM_UPDATE_ITEM U
-    INNER JOIN OPENJSON(@deletedItemIdsJson) WITH (ITEM_ID INT '$') D
+    INNER JOIN @DeletedItems D
       ON U.RICH_ITEM_ID=D.ITEM_ID;
 
     DELETE I
     FROM BM_RICH_ITEM I
-    INNER JOIN OPENJSON(@deletedItemIdsJson) WITH (ITEM_ID INT '$') D
+    INNER JOIN @DeletedItems D
       ON I.RICH_ITEM_ID=D.ITEM_ID;
-    IF @@ROWCOUNT <> (SELECT COUNT(*) FROM OPENJSON(@deletedItemIdsJson))
+    IF @@ROWCOUNT <> (SELECT COUNT(*) FROM @DeletedItems)
       THROW 51005, 'Deleted item count mismatch.', 1;
 
     UPDATE S SET
       RICH_ID_CHANGE_DELETE_DATE=GETDATE(),
       RICH_ITEM_ID=-1
     FROM BM_RICH_STATUS S
-    INNER JOIN OPENJSON(@deletedItemIdsJson) WITH (ITEM_ID INT '$') D
+    INNER JOIN @DeletedItems D
       ON S.RICH_ITEM_ID=D.ITEM_ID;
 
     MERGE BM_RICH_COL_CONTENT AS TARGET
     USING (
       SELECT COALESCE(C.SOURCE_ITEM_ID, I.ITEM_ID) AS ITEM_ID,
         C.COLUMN_ID, C.EDITABLE, C.DATA_STRING
-      FROM OPENJSON(@columnValuesJson) WITH (
-        SOURCE_ITEM_ID INT '$.sourceItemId',
-        DRAFT_ROW_KEY NVARCHAR(100) '$.draftRowKey',
-        COLUMN_ID INT '$.columnId',
-        EDITABLE BIT '$.editable',
-        DATA_STRING NVARCHAR(3000) '$.dataString'
+      FROM (
+        SELECT
+          CONVERT(INT, NULLIF(N.value('string(@sourceItemId)', 'NVARCHAR(20)'), N'')) AS SOURCE_ITEM_ID,
+          N.value('string((draftRowKey/text())[1])', 'NVARCHAR(100)') AS DRAFT_ROW_KEY,
+          N.value('@columnId', 'INT') AS COLUMN_ID,
+          N.value('@editable', 'BIT') AS EDITABLE,
+          N.value('string((dataString/text())[1])', 'NVARCHAR(3000)') AS DATA_STRING
+        FROM @ColumnValuesDocument.nodes('/values/value') X(N)
       ) C
       LEFT JOIN @InsertedRows I ON I.DRAFT_ROW_KEY=C.DRAFT_ROW_KEY
     ) AS SOURCE

@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:flutter_test/flutter_test.dart';
 import 'package:label_manager/models/item.dart';
 import 'package:label_manager/models/item_manager_save.dart';
@@ -25,12 +23,14 @@ void main() {
         ]),
         throwsArgumentError,
       );
-      expect(ItemDAO.UpdateOrdersSql, contains('OPENJSON(@updatesJson)'));
+      expect(ItemDAO.UpdateOrdersSql, contains('CONVERT(XML, @updatesXml)'));
+      expect(ItemDAO.UpdateOrdersSql, contains("nodes('/updates/update')"));
+      expect(ItemDAO.UpdateOrdersSql, isNot(contains('OPENJSON')));
       expect(ItemDAO.UpdateOrdersSql, contains('IF @@ROWCOUNT <>'));
       expect(ItemDAO.UpdateOrdersSql, contains('THROW 51002'));
     });
 
-    test('save command keeps nullable mapping defaults in JSON', () {
+    test('save command keeps nullable mapping defaults in escaped XML', () {
       final command = ItemManagerSaveCommand(
         targetMarketIds: const [9, 10],
         deletedSourceItemIds: const [3],
@@ -38,8 +38,8 @@ void main() {
           ItemManagerNewRowSave(
             draftRowKey: 'draft-1',
             labelSizeId: 4,
-            itemName: '신규 품목',
-            elementPlain: '',
+            itemName: '신규 & 품목',
+            elementPlain: '<원문>',
             elementSheet: '{}',
             order: 1,
           ),
@@ -54,16 +54,27 @@ void main() {
       );
 
       final params = command.toSqlParams();
-      final rows = jsonDecode(params['newRowsJson']! as String) as List;
-      final row = rows.single as Map<String, dynamic>;
-      expect(row['dateSaleStart'], isNull);
-      expect(row['dateSaleEnd'], isNull);
-      expect(row['dateStartDiscount'], isNull);
-      expect(row['dateEndDiscount'], isNull);
-      expect(row['gdsNo'], 0);
-      expect(row['printCount'], 1);
-      expect(row['linefeed'], 100);
-      expect(jsonDecode(params['targetMarketIdsJson']! as String), [9, 10]);
+      final newRows = params['newRowsXml']! as String;
+      expect(params.keys, [
+        'targetMarketIdsXml',
+        'deletedItemIdsXml',
+        'existingRowsXml',
+        'newRowsXml',
+        'columnValuesXml',
+      ]);
+      expect(
+        params['targetMarketIdsXml'],
+        '<markets><market id="9" /><market id="10" /></markets>',
+      );
+      expect(newRows, contains('gdsNo="0"'));
+      expect(newRows, contains('printCount="1"'));
+      expect(newRows, contains('linefeed="100"'));
+      expect(newRows, contains('<dateSaleStart></dateSaleStart>'));
+      expect(newRows, contains('<dateSaleEnd></dateSaleEnd>'));
+      expect(newRows, contains('<dateStartDiscount></dateStartDiscount>'));
+      expect(newRows, contains('<dateEndDiscount></dateEndDiscount>'));
+      expect(newRows, contains('<itemName>신규 &amp; 품목</itemName>'));
+      expect(newRows, contains('<elementPlain>&lt;원문&gt;</elementPlain>'));
     });
 
     test('save command validates row identities before DB access', () {
@@ -100,6 +111,7 @@ void main() {
     });
 
     test('save SQL maps inserted ids and physically deletes legacy rows', () {
+      expect(ItemManagerSaveDAO.saveSql, contains('SET NOCOUNT ON'));
       expect(
         ItemManagerSaveDAO.saveSql,
         contains('OUTPUT INSERTED.RICH_ITEM_ID INTO @CapturedItem'),
@@ -176,7 +188,13 @@ void main() {
         ),
       );
       expect(ItemManagerSaveDAO.saveSql, contains('MERGE BM_RICH_COL_CONTENT'));
-      expect(ItemManagerSaveDAO.saveSql, contains(r"'$.draftRowKey'"));
+      expect(
+        ItemManagerSaveDAO.saveSql,
+        contains("@ColumnValuesDocument.nodes('/values/value')"),
+      );
+      expect(ItemManagerSaveDAO.saveSql, isNot(contains('OPENJSON')));
+      expect(ItemManagerSaveDAO.saveSql, isNot(contains('JSON_VALUE')));
+      expect(ItemManagerSaveDAO.saveSql, isNot(contains('TRY_CONVERT')));
       expect(
         ItemManagerSaveDAO.saveSql,
         contains('Inserted item id mapping count mismatch.'),

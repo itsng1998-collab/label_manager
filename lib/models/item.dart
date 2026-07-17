@@ -1,8 +1,6 @@
 // UTF-8, 한국어 주석
 // ignore_for_file: constant_identifier_names, non_constant_identifier_names
 
-import 'dart:convert';
-
 import 'package:label_manager/core/app.dart';
 import 'package:label_manager/database/db_client.dart';
 import 'package:label_manager/database/drivers/db_driver.dart';
@@ -78,16 +76,16 @@ class ItemDAO extends DAO {
   ''';
 
   static const String UpdateOrdersSql = r'''
+    DECLARE @UpdatesDocument XML = CONVERT(XML, @updatesXml);
     DECLARE @OrderUpdates TABLE (
       ITEM_ID INT NOT NULL PRIMARY KEY,
       ITEM_ORDER INT NOT NULL
     );
     INSERT INTO @OrderUpdates(ITEM_ID, ITEM_ORDER)
-    SELECT ITEM_ID, ITEM_ORDER
-    FROM OPENJSON(@updatesJson) WITH (
-      ITEM_ID INT '$.itemId',
-      ITEM_ORDER INT '$.order'
-    );
+    SELECT
+      N.value('@itemId', 'INT'),
+      N.value('@itemOrder', 'INT')
+    FROM @UpdatesDocument.nodes('/updates/update') X(N);
 
     UPDATE I SET RICH_ITEM_ORDER=U.ITEM_ORDER
     FROM BM_RICH_ITEM I
@@ -166,10 +164,11 @@ class ItemDAO extends DAO {
         DbTransactionStatement(
           sql: UpdateOrdersSql,
           params: {
-            'updatesJson': jsonEncode([
+            'updatesXml': '<updates>${[
               for (final update in updates)
-                {'itemId': update.itemId, 'order': update.order},
-            ]),
+                '<update itemId="${update.itemId}" '
+                    'itemOrder="${update.order}" />',
+            ].join()}</updates>',
           },
         ),
       ]);

@@ -154,8 +154,9 @@ SELECT
     'dateRange': 'RICH_DATERANGE',
   };
 
-  static const String _jsonProjection = '''
-DECLARE @LabelSizeId INT = TRY_CONVERT(INT, JSON_VALUE(@commandJson, '\$.labelSizeId'));
+  static const String _xmlProjection = '''
+DECLARE @CommandDocument XML = CONVERT(XML, @commandXml);
+DECLARE @LabelSizeId INT = @CommandDocument.value('(/command/@labelSizeId)[1]', 'INT');
 IF @LabelSizeId IS NULL OR @LabelSizeId <= 0
   THROW 51100, 'Invalid label size id.', 1;
 
@@ -200,40 +201,42 @@ INSERT @NewColumns (
   RICH_AUTO_INC_UPDATE, RICH_USE_DATERANGE, RICH_DATERANGE, COLUMN_GS1_CODE,
   COLUMN_GS1_FORMAT_OPTION, CONTAIN_COLUMNS, COLUMN_SHOW_GS1CODE
 )
-SELECT * FROM OPENJSON(@commandJson, '\$.newColumns') WITH (
-  DRAFT_KEY NVARCHAR(100) '\$.draftKey', RICH_COLUMN_NAME NVARCHAR(50) '\$.name',
-  RICH_KEYWORD NVARCHAR(100) '\$.keyword', RICH_COLUMN_ORDER INT '\$.order',
-  RICH_TYPE INT '\$.type', RICH_WIDTH INT '\$.width', RICH_HEIGHT INT '\$.height',
-  RICH_BARCODE_TYPE NVARCHAR(23) '\$.barcodeType',
-  RICH_USE_BARCODE_CHECKDIGIT BIT '\$.checkDigit',
-  RICH_SHOW_BARCODE_NUM BIT '\$.showBarcodeNum',
-  RICH_SHOW_QRCODE_TEXT BIT '\$.showQRCodeText',
-  RICH_QRTEXT_ALIGNMENT INT '\$.qrTextAlignment',
-  RICH_USE_USER_DEFINE_QRDATA BIT '\$.useUserQrData',
-  RICH_USER_DEFINE_QRDATA NVARCHAR(3000) '\$.userQrData',
-  RICH_USER_DEFINE_QRTEXT NVARCHAR(200) '\$.userQrText',
-  RICH_PIXELSIZE INT '\$.pixelSize', RICH_TITLE NVARCHAR(20) '\$.title',
-  RICH_VISIBLE BIT '\$.visible', RICH_QRCODE_CREATE_TYPE INT '\$.qrCreateType',
-  RICH_NATRIUM_JOIN_STRING NVARCHAR(200) '\$.natrium',
-  RICH_QRTEXT_FONTSIZE INT '\$.qrTextSize',
-  RICH_QRTEXT_FONTNAME NVARCHAR(50) '\$.qrTextFont',
-  RICH_QRCODE_SCALE INT '\$.qrScale', RICH_TIMEBARCODE_TYPE INT '\$.timeBarcodeType',
-  RICH_AUTO_INC BIT '\$.autoInc', RICH_AUTO_INC_SIZE INT '\$.autoIncSize',
-  RICH_AUTO_INC_RANGE INT '\$.autoIncRange', RICH_AUTO_INC_SAVE BIT '\$.autoIncSave',
-  RICH_SEARCH_PRINT BIT '\$.searchPrint',
-  RICH_USER_DEFINE_BARCODE_TEXT NVARCHAR(200) '\$.barcodeText',
-  RICH_CHECK_YN BIT '\$.check', RICH_AUTO_INC_ZERODEL BIT '\$.autoIncZeroDel',
-  RICH_BARCODE_LINE INT '\$.lineCheck', RICH_BARCODE_LINE_SIZE INT '\$.lineSize',
-  RICH_BARCODE_ROTATE INT '\$.rotate', RICH_AUTO_INC_UPDATE BIT '\$.autoIncUpdate',
-  RICH_USE_DATERANGE BIT '\$.useDateRange', RICH_DATERANGE NVARCHAR(12) '\$.dateRange',
-  COLUMN_GS1_CODE NVARCHAR(100) '\$.gs1ai',
-  COLUMN_GS1_FORMAT_OPTION INT '\$.formatOption',
-  CONTAIN_COLUMNS NVARCHAR(MAX) '\$.contains',
-  COLUMN_SHOW_GS1CODE BIT '\$.showGs1'
-);
+SELECT
+  N.value('string((draftKey/text())[1])', 'NVARCHAR(100)'),
+  N.value('string((name/text())[1])', 'NVARCHAR(50)'),
+  N.value('string((keyword/text())[1])', 'NVARCHAR(100)'),
+  N.value('(order/text())[1]', 'INT'), N.value('(type/text())[1]', 'INT'),
+  N.value('(width/text())[1]', 'INT'), N.value('(height/text())[1]', 'INT'),
+  N.value('string((barcodeType/text())[1])', 'NVARCHAR(23)'),
+  N.value('(checkDigit/text())[1]', 'BIT'), N.value('(showBarcodeNum/text())[1]', 'BIT'),
+  N.value('(showQRCodeText/text())[1]', 'BIT'), N.value('(qrTextAlignment/text())[1]', 'INT'),
+  N.value('(useUserQrData/text())[1]', 'BIT'),
+  N.value('string((userQrData/text())[1])', 'NVARCHAR(3000)'),
+  N.value('string((userQrText/text())[1])', 'NVARCHAR(200)'),
+  N.value('(pixelSize/text())[1]', 'INT'),
+  N.value('string((title/text())[1])', 'NVARCHAR(20)'),
+  N.value('(visible/text())[1]', 'BIT'), N.value('(qrCreateType/text())[1]', 'INT'),
+  N.value('string((natrium/text())[1])', 'NVARCHAR(200)'),
+  N.value('(qrTextSize/text())[1]', 'INT'),
+  N.value('string((qrTextFont/text())[1])', 'NVARCHAR(50)'),
+  N.value('(qrScale/text())[1]', 'INT'), N.value('(timeBarcodeType/text())[1]', 'INT'),
+  N.value('(autoInc/text())[1]', 'BIT'), N.value('(autoIncSize/text())[1]', 'INT'),
+  N.value('(autoIncRange/text())[1]', 'INT'), N.value('(autoIncSave/text())[1]', 'BIT'),
+  N.value('(searchPrint/text())[1]', 'BIT'),
+  N.value('string((barcodeText/text())[1])', 'NVARCHAR(200)'),
+  N.value('(check/text())[1]', 'BIT'), N.value('(autoIncZeroDel/text())[1]', 'BIT'),
+  N.value('(lineCheck/text())[1]', 'INT'), N.value('(lineSize/text())[1]', 'INT'),
+  N.value('(rotate/text())[1]', 'INT'), N.value('(autoIncUpdate/text())[1]', 'BIT'),
+  N.value('(useDateRange/text())[1]', 'BIT'),
+  N.value('string((dateRange/text())[1])', 'NVARCHAR(12)'),
+  N.value('string((gs1ai/text())[1])', 'NVARCHAR(100)'),
+  N.value('(formatOption/text())[1]', 'INT'),
+  N.value('string((contains/text())[1])', 'NVARCHAR(MAX)'),
+  N.value('(showGs1/text())[1]', 'BIT')
+FROM @CommandDocument.nodes('/command/newColumns/column') X(N);
 
 DECLARE @UpdatedColumns TABLE (
-  RICH_COLUMN_ID INT PRIMARY KEY, CHANGED_KEYS NVARCHAR(MAX) NOT NULL,
+  RICH_COLUMN_ID INT PRIMARY KEY, CHANGED_KEYS XML NOT NULL,
   RICH_COLUMN_NAME NVARCHAR(50), RICH_KEYWORD NVARCHAR(100), RICH_COLUMN_ORDER INT,
   RICH_TYPE INT, RICH_WIDTH INT, RICH_HEIGHT INT, RICH_BARCODE_TYPE NVARCHAR(23),
   RICH_USE_BARCODE_CHECKDIGIT BIT, RICH_SHOW_BARCODE_NUM BIT,
@@ -251,35 +254,44 @@ DECLARE @UpdatedColumns TABLE (
   COLUMN_GS1_FORMAT_OPTION INT, CONTAIN_COLUMNS NVARCHAR(MAX), COLUMN_SHOW_GS1CODE BIT
 );
 INSERT @UpdatedColumns
-SELECT * FROM OPENJSON(@commandJson, '\$.updatedColumns') WITH (
-  RICH_COLUMN_ID INT '\$.columnId', CHANGED_KEYS NVARCHAR(MAX) '\$.changedKeys' AS JSON,
-  RICH_COLUMN_NAME NVARCHAR(50) '\$.name', RICH_KEYWORD NVARCHAR(100) '\$.keyword',
-  RICH_COLUMN_ORDER INT '\$.order', RICH_TYPE INT '\$.type', RICH_WIDTH INT '\$.width',
-  RICH_HEIGHT INT '\$.height', RICH_BARCODE_TYPE NVARCHAR(23) '\$.barcodeType',
-  RICH_USE_BARCODE_CHECKDIGIT BIT '\$.checkDigit', RICH_SHOW_BARCODE_NUM BIT '\$.showBarcodeNum',
-  RICH_SHOW_QRCODE_TEXT BIT '\$.showQRCodeText', RICH_QRTEXT_ALIGNMENT INT '\$.qrTextAlignment',
-  RICH_USE_USER_DEFINE_QRDATA BIT '\$.useUserQrData',
-  RICH_USER_DEFINE_QRDATA NVARCHAR(3000) '\$.userQrData',
-  RICH_USER_DEFINE_QRTEXT NVARCHAR(200) '\$.userQrText', RICH_PIXELSIZE INT '\$.pixelSize',
-  RICH_TITLE NVARCHAR(20) '\$.title', RICH_VISIBLE BIT '\$.visible',
-  RICH_QRCODE_CREATE_TYPE INT '\$.qrCreateType',
-  RICH_NATRIUM_JOIN_STRING NVARCHAR(200) '\$.natrium',
-  RICH_QRTEXT_FONTSIZE INT '\$.qrTextSize', RICH_QRTEXT_FONTNAME NVARCHAR(50) '\$.qrTextFont',
-  RICH_QRCODE_SCALE INT '\$.qrScale', RICH_TIMEBARCODE_TYPE INT '\$.timeBarcodeType',
-  RICH_AUTO_INC BIT '\$.autoInc', RICH_AUTO_INC_SIZE INT '\$.autoIncSize',
-  RICH_AUTO_INC_RANGE INT '\$.autoIncRange', RICH_AUTO_INC_SAVE BIT '\$.autoIncSave',
-  RICH_SEARCH_PRINT BIT '\$.searchPrint',
-  RICH_USER_DEFINE_BARCODE_TEXT NVARCHAR(200) '\$.barcodeText', RICH_CHECK_YN BIT '\$.check',
-  RICH_AUTO_INC_ZERODEL BIT '\$.autoIncZeroDel', RICH_BARCODE_LINE INT '\$.lineCheck',
-  RICH_BARCODE_LINE_SIZE INT '\$.lineSize', RICH_BARCODE_ROTATE INT '\$.rotate',
-  RICH_AUTO_INC_UPDATE BIT '\$.autoIncUpdate', RICH_USE_DATERANGE BIT '\$.useDateRange',
-  RICH_DATERANGE NVARCHAR(12) '\$.dateRange', COLUMN_GS1_CODE NVARCHAR(100) '\$.gs1ai',
-  COLUMN_GS1_FORMAT_OPTION INT '\$.formatOption', CONTAIN_COLUMNS NVARCHAR(MAX) '\$.contains',
-  COLUMN_SHOW_GS1CODE BIT '\$.showGs1'
-);
+SELECT
+  N.value('@columnId', 'INT'), N.query('changedKeys'),
+  N.value('string((name/text())[1])', 'NVARCHAR(50)'),
+  N.value('string((keyword/text())[1])', 'NVARCHAR(100)'),
+  N.value('(order/text())[1]', 'INT'), N.value('(type/text())[1]', 'INT'),
+  N.value('(width/text())[1]', 'INT'), N.value('(height/text())[1]', 'INT'),
+  N.value('string((barcodeType/text())[1])', 'NVARCHAR(23)'),
+  N.value('(checkDigit/text())[1]', 'BIT'), N.value('(showBarcodeNum/text())[1]', 'BIT'),
+  N.value('(showQRCodeText/text())[1]', 'BIT'), N.value('(qrTextAlignment/text())[1]', 'INT'),
+  N.value('(useUserQrData/text())[1]', 'BIT'),
+  N.value('string((userQrData/text())[1])', 'NVARCHAR(3000)'),
+  N.value('string((userQrText/text())[1])', 'NVARCHAR(200)'),
+  N.value('(pixelSize/text())[1]', 'INT'),
+  N.value('string((title/text())[1])', 'NVARCHAR(20)'),
+  N.value('(visible/text())[1]', 'BIT'), N.value('(qrCreateType/text())[1]', 'INT'),
+  N.value('string((natrium/text())[1])', 'NVARCHAR(200)'),
+  N.value('(qrTextSize/text())[1]', 'INT'),
+  N.value('string((qrTextFont/text())[1])', 'NVARCHAR(50)'),
+  N.value('(qrScale/text())[1]', 'INT'), N.value('(timeBarcodeType/text())[1]', 'INT'),
+  N.value('(autoInc/text())[1]', 'BIT'), N.value('(autoIncSize/text())[1]', 'INT'),
+  N.value('(autoIncRange/text())[1]', 'INT'), N.value('(autoIncSave/text())[1]', 'BIT'),
+  N.value('(searchPrint/text())[1]', 'BIT'),
+  N.value('string((barcodeText/text())[1])', 'NVARCHAR(200)'),
+  N.value('(check/text())[1]', 'BIT'), N.value('(autoIncZeroDel/text())[1]', 'BIT'),
+  N.value('(lineCheck/text())[1]', 'INT'), N.value('(lineSize/text())[1]', 'INT'),
+  N.value('(rotate/text())[1]', 'INT'), N.value('(autoIncUpdate/text())[1]', 'BIT'),
+  N.value('(useDateRange/text())[1]', 'BIT'),
+  N.value('string((dateRange/text())[1])', 'NVARCHAR(12)'),
+  N.value('string((gs1ai/text())[1])', 'NVARCHAR(100)'),
+  N.value('(formatOption/text())[1]', 'INT'),
+  N.value('string((contains/text())[1])', 'NVARCHAR(MAX)'),
+  N.value('(showGs1/text())[1]', 'BIT')
+FROM @CommandDocument.nodes('/command/updatedColumns/column') X(N);
 
 DECLARE @DeletedColumns TABLE (RICH_COLUMN_ID INT PRIMARY KEY);
-INSERT @DeletedColumns SELECT VALUE FROM OPENJSON(@commandJson, '\$.deletedColumnIds');
+INSERT @DeletedColumns
+SELECT N.value('@value', 'INT')
+FROM @CommandDocument.nodes('/command/deletedColumnIds/id') X(N);
 DECLARE @OriginalColumns TABLE (
   RICH_COLUMN_ID INT PRIMARY KEY,
   RICH_COLUMN_NAME NVARCHAR(50), RICH_KEYWORD NVARCHAR(100), RICH_COLUMN_ORDER INT,
@@ -300,46 +312,68 @@ DECLARE @OriginalColumns TABLE (
   COLUMN_SHOW_GS1CODE BIT
 );
 INSERT @OriginalColumns
-SELECT * FROM OPENJSON(@commandJson, '\$.originalColumns') WITH (
-  RICH_COLUMN_ID INT '\$.columnId', RICH_COLUMN_NAME NVARCHAR(50) '\$.name',
-  RICH_KEYWORD NVARCHAR(100) '\$.keyword', RICH_COLUMN_ORDER INT '\$.order',
-  RICH_TYPE INT '\$.type', RICH_WIDTH INT '\$.width', RICH_HEIGHT INT '\$.height',
-  RICH_BARCODE_TYPE NVARCHAR(23) '\$.barcodeType',
-  RICH_USE_BARCODE_CHECKDIGIT BIT '\$.checkDigit',
-  RICH_SHOW_BARCODE_NUM BIT '\$.showBarcodeNum',
-  RICH_SHOW_QRCODE_TEXT BIT '\$.showQRCodeText',
-  RICH_QRTEXT_ALIGNMENT INT '\$.qrTextAlignment',
-  RICH_USE_USER_DEFINE_QRDATA BIT '\$.useUserQrData',
-  RICH_USER_DEFINE_QRDATA NVARCHAR(3000) '\$.userQrData',
-  RICH_USER_DEFINE_QRTEXT NVARCHAR(200) '\$.userQrText',
-  RICH_PIXELSIZE INT '\$.pixelSize', RICH_TITLE NVARCHAR(20) '\$.title',
-  RICH_VISIBLE BIT '\$.visible', RICH_QRCODE_CREATE_TYPE INT '\$.qrCreateType',
-  RICH_NATRIUM_JOIN_STRING NVARCHAR(200) '\$.natrium',
-  RICH_QRTEXT_FONTSIZE INT '\$.qrTextSize',
-  RICH_QRTEXT_FONTNAME NVARCHAR(50) '\$.qrTextFont',
-  RICH_QRCODE_SCALE INT '\$.qrScale', RICH_TIMEBARCODE_TYPE INT '\$.timeBarcodeType',
-  RICH_AUTO_INC BIT '\$.autoInc', RICH_AUTO_INC_SIZE INT '\$.autoIncSize',
-  RICH_AUTO_INC_RANGE INT '\$.autoIncRange', RICH_AUTO_INC_SAVE BIT '\$.autoIncSave',
-  RICH_SEARCH_PRINT BIT '\$.searchPrint',
-  RICH_USER_DEFINE_BARCODE_TEXT NVARCHAR(200) '\$.barcodeText',
-  RICH_AUTO_INC_ZERODEL BIT '\$.autoIncZeroDel',
-  RICH_BARCODE_LINE INT '\$.lineCheck', RICH_BARCODE_LINE_SIZE INT '\$.lineSize',
-  RICH_BARCODE_ROTATE INT '\$.rotate', RICH_AUTO_INC_UPDATE BIT '\$.autoIncUpdate',
-  RICH_USE_DATERANGE BIT '\$.useDateRange', RICH_DATERANGE NVARCHAR(12) '\$.dateRange',
-  RICH_CHECK_YN BIT '\$.check', COLUMN_GS1_CODE NVARCHAR(100) '\$.gs1ai',
-  COLUMN_GS1_FORMAT_OPTION INT '\$.formatOption',
-  CONTAIN_COLUMNS NVARCHAR(MAX) '\$.contains',
-  COLUMN_SHOW_GS1CODE BIT '\$.showGs1'
-);
+SELECT
+  N.value('@columnId', 'INT'),
+  N.value('string((name/text())[1])', 'NVARCHAR(50)'),
+  N.value('string((keyword/text())[1])', 'NVARCHAR(100)'),
+  N.value('(order/text())[1]', 'INT'), N.value('(type/text())[1]', 'INT'),
+  N.value('(width/text())[1]', 'INT'), N.value('(height/text())[1]', 'INT'),
+  N.value('string((barcodeType/text())[1])', 'NVARCHAR(23)'),
+  N.value('(checkDigit/text())[1]', 'BIT'), N.value('(showBarcodeNum/text())[1]', 'BIT'),
+  N.value('(showQRCodeText/text())[1]', 'BIT'), N.value('(qrTextAlignment/text())[1]', 'INT'),
+  N.value('(useUserQrData/text())[1]', 'BIT'),
+  N.value('string((userQrData/text())[1])', 'NVARCHAR(3000)'),
+  N.value('string((userQrText/text())[1])', 'NVARCHAR(200)'),
+  N.value('(pixelSize/text())[1]', 'INT'),
+  N.value('string((title/text())[1])', 'NVARCHAR(20)'),
+  N.value('(visible/text())[1]', 'BIT'), N.value('(qrCreateType/text())[1]', 'INT'),
+  N.value('string((natrium/text())[1])', 'NVARCHAR(200)'),
+  N.value('(qrTextSize/text())[1]', 'INT'),
+  N.value('string((qrTextFont/text())[1])', 'NVARCHAR(50)'),
+  N.value('(qrScale/text())[1]', 'INT'), N.value('(timeBarcodeType/text())[1]', 'INT'),
+  N.value('(autoInc/text())[1]', 'BIT'), N.value('(autoIncSize/text())[1]', 'INT'),
+  N.value('(autoIncRange/text())[1]', 'INT'), N.value('(autoIncSave/text())[1]', 'BIT'),
+  N.value('(searchPrint/text())[1]', 'BIT'),
+  N.value('string((barcodeText/text())[1])', 'NVARCHAR(200)'),
+  N.value('(autoIncZeroDel/text())[1]', 'BIT'), N.value('(lineCheck/text())[1]', 'INT'),
+  N.value('(lineSize/text())[1]', 'INT'), N.value('(rotate/text())[1]', 'INT'),
+  N.value('(autoIncUpdate/text())[1]', 'BIT'), N.value('(useDateRange/text())[1]', 'BIT'),
+  N.value('string((dateRange/text())[1])', 'NVARCHAR(12)'),
+  N.value('(check/text())[1]', 'BIT'),
+  N.value('string((gs1ai/text())[1])', 'NVARCHAR(100)'),
+  N.value('(formatOption/text())[1]', 'INT'),
+  N.value('string((contains/text())[1])', 'NVARCHAR(MAX)'),
+  N.value('(showGs1/text())[1]', 'BIT')
+FROM @CommandDocument.nodes('/command/originalColumns/column') X(N);
 DECLARE @FinalOrder TABLE (
   DRAFT_KEY NVARCHAR(100), RICH_COLUMN_ID INT, RICH_COLUMN_ORDER INT NOT NULL UNIQUE
 );
 INSERT @FinalOrder
-SELECT DRAFT_KEY, RICH_COLUMN_ID, RICH_COLUMN_ORDER
-FROM OPENJSON(@commandJson, '\$.finalOrder') WITH (
-  DRAFT_KEY NVARCHAR(100) '\$.draftKey', RICH_COLUMN_ID INT '\$.columnId',
-  RICH_COLUMN_ORDER INT '\$.order'
+SELECT
+  N.value('string((draftKey/text())[1])', 'NVARCHAR(100)'),
+  CONVERT(INT, NULLIF(N.value('string(@columnId)', 'NVARCHAR(20)'), N'')),
+  N.value('@order', 'INT')
+FROM @CommandDocument.nodes('/command/finalOrder/entry') X(N);
+
+DECLARE @ContainValues TABLE (
+  DRAFT_KEY NVARCHAR(100) NULL,
+  RICH_COLUMN_ID INT NULL,
+  VALUE NVARCHAR(100) NOT NULL
 );
+INSERT @ContainValues(DRAFT_KEY, RICH_COLUMN_ID, VALUE)
+SELECT
+  C.value('string((draftKey/text())[1])', 'NVARCHAR(100)'),
+  NULL,
+  V.value('string((text())[1])', 'NVARCHAR(100)')
+FROM @CommandDocument.nodes('/command/newColumns/column') X(C)
+CROSS APPLY C.nodes('containValues/value') Y(V);
+INSERT @ContainValues(DRAFT_KEY, RICH_COLUMN_ID, VALUE)
+SELECT
+  NULL,
+  C.value('@columnId', 'INT'),
+  V.value('string((text())[1])', 'NVARCHAR(100)')
+FROM @CommandDocument.nodes('/command/updatedColumns/column') X(C)
+CROSS APPLY C.nodes('containValues/value') Y(V);
 
 DECLARE @LockedColumnId INT;
 SELECT @LockedColumnId=C.RICH_COLUMN_ID
@@ -454,9 +488,8 @@ IF EXISTS (
   FROM BM_RICH_COLUMN C
   JOIN @OriginalColumns O ON O.RICH_COLUMN_ID=C.RICH_COLUMN_ID
   JOIN @UpdatedColumns U ON U.RICH_COLUMN_ID=C.RICH_COLUMN_ID
-  WHERE EXISTS (
-    SELECT 1 FROM OPENJSON(U.CHANGED_KEYS) K WHERE K.VALUE='check'
-  ) AND COALESCE(C.RICH_USE_MISSING_KEYWORD_CHECK, 0)<>COALESCE(O.RICH_CHECK_YN, 0)
+  WHERE U.CHANGED_KEYS.exist('/changedKeys/key[@value="check"]')=1
+    AND COALESCE(C.RICH_USE_MISSING_KEYWORD_CHECK, 0)<>COALESCE(O.RICH_CHECK_YN, 0)
 )
   THROW 51116, 'Main missing-keyword value changed after editing started.', 1;
 '''
@@ -517,9 +550,9 @@ IF (SELECT COUNT(*) FROM @InsertedRows) <> @RowCount
       buffer.writeln('''
 UPDATE C SET ${entry.value}=U.${entry.value}
 FROM BM_RICH_COLUMN C JOIN @UpdatedColumns U ON U.RICH_COLUMN_ID=C.RICH_COLUMN_ID
-WHERE EXISTS (SELECT 1 FROM OPENJSON(U.CHANGED_KEYS) K WHERE K.VALUE='${entry.key}');
+WHERE U.CHANGED_KEYS.exist('/changedKeys/key[@value="${entry.key}"]')=1;
 IF @@ROWCOUNT <> (SELECT COUNT(*) FROM @UpdatedColumns U
-  WHERE EXISTS (SELECT 1 FROM OPENJSON(U.CHANGED_KEYS) K WHERE K.VALUE='${entry.key}'))
+  WHERE U.CHANGED_KEYS.exist('/changedKeys/key[@value="${entry.key}"]')=1)
   THROW 51104, 'Updated column count mismatch.', 1;''');
     }
     return buffer.toString();
@@ -529,9 +562,9 @@ IF @@ROWCOUNT <> (SELECT COUNT(*) FROM @UpdatedColumns U
       ? '''
 UPDATE C SET RICH_USE_MISSING_KEYWORD_CHECK=U.RICH_CHECK_YN
 FROM BM_RICH_COLUMN C JOIN @UpdatedColumns U ON U.RICH_COLUMN_ID=C.RICH_COLUMN_ID
-WHERE EXISTS (SELECT 1 FROM OPENJSON(U.CHANGED_KEYS) K WHERE K.VALUE='check');
+WHERE U.CHANGED_KEYS.exist('/changedKeys/key[@value="check"]')=1;
 IF @@ROWCOUNT <> (SELECT COUNT(*) FROM @UpdatedColumns U
-  WHERE EXISTS (SELECT 1 FROM OPENJSON(U.CHANGED_KEYS) K WHERE K.VALUE='check'))
+  WHERE U.CHANGED_KEYS.exist('/changedKeys/key[@value="check"]')=1)
   THROW 51105, 'Missing-keyword update count mismatch.', 1;
 '''
       : '';
@@ -565,9 +598,8 @@ IF @@ROWCOUNT <> (SELECT COUNT(*) FROM @NewColumns)
 
 MERGE BM_RICH_CHECK_COLUMNS AS T
 USING (
-  SELECT * FROM @UpdatedColumns U WHERE EXISTS (
-    SELECT 1 FROM OPENJSON(U.CHANGED_KEYS) K WHERE K.VALUE IN ('keyword','name','check')
-  )
+  SELECT * FROM @UpdatedColumns U
+  WHERE U.CHANGED_KEYS.exist('/changedKeys/key[@value="keyword" or @value="name" or @value="check"]')=1
 ) S ON T.RICH_LABELSIZE_ID=@LabelSizeId AND T.RICH_COLUMN_ID=S.RICH_COLUMN_ID
 WHEN MATCHED THEN UPDATE SET T.RICH_KEYWORD=S.RICH_KEYWORD,
   T.RICH_COLUMN_NAME=S.RICH_COLUMN_NAME, T.RICH_CHECK_YN=S.RICH_CHECK_YN
@@ -577,9 +609,8 @@ WHEN NOT MATCHED THEN INSERT (
 
 MERGE BM_RICH_COL_MIN AS T
 USING (
-  SELECT * FROM @UpdatedColumns U WHERE EXISTS (
-    SELECT 1 FROM OPENJSON(U.CHANGED_KEYS) K WHERE K.VALUE IN ('keyword','name','order')
-  )
+  SELECT * FROM @UpdatedColumns U
+  WHERE U.CHANGED_KEYS.exist('/changedKeys/key[@value="keyword" or @value="name" or @value="order"]')=1
 ) S ON T.RICH_LABELSIZE_ID=@LabelSizeId AND T.RICH_COLUMN_ID=S.RICH_COLUMN_ID
 WHEN MATCHED THEN UPDATE SET T.RICH_KEYWORD=S.RICH_KEYWORD,
   T.RICH_COLUMN_NAME=S.RICH_COLUMN_NAME, T.RICH_COLUMN_ORDER=S.RICH_COLUMN_ORDER
@@ -628,6 +659,11 @@ WHERE I.RICH_LABELSIZE_ID=@LabelSizeId AND NOT EXISTS (
       : '';
 
   static const String _gs1Sql = '''
+UPDATE V SET RICH_COLUMN_ID=I.COLUMN_ID
+FROM @ContainValues V
+JOIN @InsertedRows I ON I.DRAFT_KEY=V.DRAFT_KEY
+WHERE V.RICH_COLUMN_ID IS NULL;
+
 DECLARE @TouchedColumns TABLE (
   COLUMN_ID INT PRIMARY KEY, RICH_TYPE INT, COLUMN_GS1_CODE NVARCHAR(100),
   COLUMN_GS1_FORMAT_OPTION INT, CONTAIN_COLUMNS NVARCHAR(MAX), COLUMN_SHOW_GS1CODE BIT
@@ -639,10 +675,7 @@ FROM @NewColumns N JOIN @InsertedRows I ON I.DRAFT_KEY=N.DRAFT_KEY
 UNION ALL
 SELECT RICH_COLUMN_ID, RICH_TYPE, COLUMN_GS1_CODE, COLUMN_GS1_FORMAT_OPTION,
   CONTAIN_COLUMNS, COLUMN_SHOW_GS1CODE FROM @UpdatedColumns U
-WHERE EXISTS (
-  SELECT 1 FROM OPENJSON(U.CHANGED_KEYS) K
-  WHERE K.VALUE IN ('type','gs1ai','formatOption','contains','showGs1')
-);
+WHERE U.CHANGED_KEYS.exist('/changedKeys/key[@value="type" or @value="gs1ai" or @value="formatOption" or @value="contains" or @value="showGs1"]')=1;
 
 DELETE G FROM BM_GS1_COLUMN_INFO G JOIN @TouchedColumns T ON T.COLUMN_ID=G.COLUMN_ID
 WHERE T.RICH_TYPE<>${TColumnType.TYPE_GS1_AI};
@@ -662,7 +695,7 @@ JOIN @TouchedColumns T ON T.COLUMN_ID=G.MAIN_COLUMN_ID;
 INSERT BM_GS1_CONTAIN_COLUMN (MAIN_COLUMN_ID, CONTAIN_COLUMN_ID)
 SELECT T.COLUMN_ID, COALESCE(NM.COLUMN_ID, C.RICH_COLUMN_ID)
 FROM @TouchedColumns T
-CROSS APPLY STRING_SPLIT(T.CONTAIN_COLUMNS, '|') S
+JOIN @ContainValues S ON S.RICH_COLUMN_ID=T.COLUMN_ID
 OUTER APPLY (
   SELECT I.COLUMN_ID FROM @InsertedRows I
   JOIN @NewColumns N ON N.DRAFT_KEY=I.DRAFT_KEY
@@ -671,13 +704,15 @@ OUTER APPLY (
 ) NM
 LEFT JOIN BM_RICH_COLUMN C ON C.RICH_LABELSIZE_ID=@LabelSizeId
   AND ((S.VALUE LIKE '#%' AND C.RICH_KEYWORD=SUBSTRING(S.VALUE, 2, 100))
-    OR C.RICH_COLUMN_ID=TRY_CONVERT(INT, S.VALUE))
+    OR C.RICH_COLUMN_ID=CASE
+      WHEN S.VALUE NOT LIKE '%[^0-9]%' AND S.VALUE<>'' THEN CONVERT(INT, S.VALUE)
+      ELSE NULL END)
   AND C.RICH_TYPE=${TColumnType.TYPE_GS1_AI}
 WHERE T.RICH_TYPE=${TColumnType.TYPE_GS1_BARCODE} AND S.VALUE<>''
   AND COALESCE(NM.COLUMN_ID, C.RICH_COLUMN_ID) IS NOT NULL;
 IF EXISTS (
   SELECT T.COLUMN_ID FROM @TouchedColumns T
-  CROSS APPLY STRING_SPLIT(T.CONTAIN_COLUMNS, '|') S
+  JOIN @ContainValues S ON S.RICH_COLUMN_ID=T.COLUMN_ID
   WHERE T.RICH_TYPE=${TColumnType.TYPE_GS1_BARCODE} AND S.VALUE<>''
   GROUP BY T.COLUMN_ID
   HAVING COUNT(*)<>(SELECT COUNT(*) FROM BM_GS1_CONTAIN_COLUMN G
@@ -743,7 +778,7 @@ SELECT DRAFT_KEY, COLUMN_ID FROM @InsertedRows ORDER BY DRAFT_KEY;
     }
     _validateCommand(command);
     final sql = StringBuffer()
-      ..write(_jsonProjection)
+      ..write(_xmlProjection)
       ..write(
         _optionalMainCheckConcurrency(
           capabilities.hasMainMissingKeywordCheck,
@@ -765,7 +800,7 @@ SELECT DRAFT_KEY, COLUMN_ID FROM @InsertedRows ORDER BY DRAFT_KEY;
       ..write(_deleteAndOrderSql);
     return DbTransactionStatement(
       sql: sql.toString(),
-      params: {'commandJson': jsonEncode(_commandJson(command))},
+      params: {'commandXml': _commandXml(command)},
       returnsRows: true,
     );
   }
@@ -890,48 +925,96 @@ SELECT DRAFT_KEY, COLUMN_ID FROM @InsertedRows ORDER BY DRAFT_KEY;
     return List.unmodifiable(statements);
   }
 
-  static Map<String, Object?> _commandJson(LabelColumnSaveCommand command) {
+  static String _commandXml(LabelColumnSaveCommand command) {
     final updatedById = {
       for (final draft in command.updatedColumns) draft.column.columnId: draft,
     };
     final newKeys = {for (final draft in command.newColumns) draft.key};
-    return {
-      'labelSizeId': command.labelSizeId,
-      'originalColumns': [
-        for (final draft in command.originalColumnsById.values)
-          _draftJson(draft),
-      ],
-      'newColumns': [for (final draft in command.newColumns) _draftJson(draft)],
-      'updatedColumns': [
+    final xml = StringBuffer(
+      '<command labelSizeId="${command.labelSizeId}">',
+    );
+    void writeColumns(
+      String name,
+      Iterable<LabelColumnDraft> drafts, {
+      Map<int, Set<String>> changedKeysById = const {},
+    }) {
+      xml.write('<$name>');
+      for (final draft in drafts) {
+        _writeDraftXml(
+          xml,
+          draft,
+          section: name,
+          changedKeys: changedKeysById[draft.column.columnId] ?? const {},
+        );
+      }
+      xml.write('</$name>');
+    }
+
+    writeColumns('originalColumns', command.originalColumnsById.values);
+    writeColumns('newColumns', command.newColumns);
+    writeColumns(
+      'updatedColumns',
+      [
         for (final entry in command.changedKeysByColumnId.entries)
-          {
-            ..._draftJson(updatedById[entry.key]!),
-            'changedKeys': entry.value.toList()..sort(),
-          },
+          updatedById[entry.key]!,
       ],
-      'deletedColumnIds': command.deletedColumnIds.toList()..sort(),
-      'finalOrder': [
-        for (var index = 0; index < command.orderedKeys.length; index += 1)
-          {
-            'draftKey': newKeys.contains(command.orderedKeys[index])
-                ? command.orderedKeys[index]
-                : null,
-            'columnId': newKeys.contains(command.orderedKeys[index])
-              ? null
-              : command.orderedKeys[index].startsWith('column:')
-                ? int.parse(command.orderedKeys[index].substring(7))
-                : null,
-            'order': index + 1,
-          },
-      ],
-    };
+      changedKeysById: command.changedKeysByColumnId,
+    );
+    xml.write('<deletedColumnIds>');
+    for (final id in command.deletedColumnIds.toList()..sort()) {
+      xml.write('<id value="$id" />');
+    }
+    xml.write('</deletedColumnIds><finalOrder>');
+    for (var index = 0; index < command.orderedKeys.length; index += 1) {
+      final key = command.orderedKeys[index];
+      xml.write('<entry order="${index + 1}"');
+      if (!newKeys.contains(key) && key.startsWith('column:')) {
+        xml.write(' columnId="${int.parse(key.substring(7))}"');
+      }
+      xml
+        ..write('><draftKey>')
+        ..write(newKeys.contains(key) ? _labelColumnXmlText(key) : '')
+        ..write('</draftKey></entry>');
+    }
+    return (xml..write('</finalOrder></command>')).toString();
   }
 
-  static Map<String, Object?> _draftJson(LabelColumnDraft draft) => {
-    'draftKey': draft.key,
-    'columnId': draft.column.columnId,
-    ...draft.persistedValues,
-  };
+  static void _writeDraftXml(
+    StringBuffer xml,
+    LabelColumnDraft draft, {
+    required String section,
+    required Set<String> changedKeys,
+  }) {
+    xml.write(
+      '<column section="${_labelColumnXmlAttribute(section)}" '
+      'columnId="${draft.column.columnId}">',
+    );
+    xml.write('<draftKey>${_labelColumnXmlText(draft.key)}</draftKey>');
+    for (final entry in draft.persistedValues.entries) {
+      final value = entry.value is bool ? (entry.value as bool ? 1 : 0) : entry.value;
+      xml.write('<${entry.key}>${_labelColumnXmlText(value)}</${entry.key}>');
+    }
+    xml.write('<containValues>');
+    for (final value in draft.column.containColumns.split('|')) {
+      if (value.isNotEmpty) {
+        xml.write('<value>${_labelColumnXmlText(value)}</value>');
+      }
+    }
+    xml.write('</containValues>');
+    xml.write('<changedKeys>');
+    for (final key in changedKeys.toList()..sort()) {
+      xml.write('<key value="${_labelColumnXmlAttribute(key)}" />');
+    }
+    xml.write('</changedKeys></column>');
+  }
+
+  static String _labelColumnXmlText(Object? value) => const HtmlEscape(
+    HtmlEscapeMode.element,
+  ).convert(value?.toString() ?? '');
+
+  static String _labelColumnXmlAttribute(Object? value) => const HtmlEscape(
+    HtmlEscapeMode.attribute,
+  ).convert(value?.toString() ?? '');
 
   static void _validateCommand(LabelColumnSaveCommand command) {
     if (command.labelSizeId <= 0) {
