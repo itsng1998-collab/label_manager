@@ -196,7 +196,7 @@ void main() {
         home: Scaffold(
           body: LabelPrintPage(
             controller: controller,
-            previewBuilder: (_) => const SizedBox(),
+            previewBuilder: (_, _) => const SizedBox(),
             onPrinterSettings: () {},
             onIssue: () {},
             onCancelIssue: () {},
@@ -236,7 +236,7 @@ void main() {
         home: Scaffold(
           body: LabelPrintPage(
             controller: controller,
-            previewBuilder: (_) {
+            previewBuilder: (_, zoomToolbarAnchorLink) {
               final projected = <int, String>{1: '고정 값'};
               return LabelOutputPreview(
                 workbook: FortuneWorkbook(
@@ -249,6 +249,7 @@ void main() {
                 barcodeObjectIds: const [],
                 zoomToolbarPlacement:
                     LabelSheetZoomToolbarPlacement.labelPrintCommandBarEnd,
+                zoomToolbarAnchorLink: zoomToolbarAnchorLink,
               );
             },
             onPrinterSettings: () {},

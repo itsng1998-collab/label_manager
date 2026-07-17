@@ -24,6 +24,7 @@ class LabelOutputPreview extends StatelessWidget {
     this.outputCaptureController,
     this.zoomToolbarPlacement =
       LabelSheetZoomToolbarPlacement.previewTabAreaEnd,
+    this.zoomToolbarAnchorLink,
   });
 
   final fs.FortuneWorkbook? workbook;
@@ -34,6 +35,7 @@ class LabelOutputPreview extends StatelessWidget {
   final List<String> barcodeObjectIds;
   final LabelSheetOutputCaptureController? outputCaptureController;
   final LabelSheetZoomToolbarPlacement zoomToolbarPlacement;
+  final LayerLink? zoomToolbarAnchorLink;
 
   @override
   Widget build(BuildContext context) {
@@ -64,6 +66,7 @@ class LabelOutputPreview extends StatelessWidget {
             hideStatisticBar: true,
             copyOnlyContextMenu: true,
             zoomToolbarPlacement: zoomToolbarPlacement,
+            zoomToolbarAnchorLink: zoomToolbarAnchorLink,
           ),
         ),
       ],

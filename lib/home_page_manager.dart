@@ -3310,7 +3310,10 @@ class _HomePageManagerState extends State<HomePageManager> {
     if (restart == true) _itemManageController.resetSearch();
   }
 
-  Widget _buildLabelPrintPreview(LabelPrintRowDraft row) {
+  Widget _buildLabelPrintPreview(
+    LabelPrintRowDraft row,
+    LayerLink zoomToolbarAnchorLink,
+  ) {
     final columns = TColumn.datas ?? const <TColumn>[];
     final specialColumns = TColumnSpecial.datas ?? const <TColumnBase>[];
     final renderUnit = _labelPrintRenderUnit?.row.itemId == row.itemId
@@ -3349,8 +3352,9 @@ class _HomePageManagerState extends State<HomePageManager> {
       outputCaptureController: _labelPrintCaptureController,
       referenceAt: referenceAt,
       projectedColumnValues: projectedColumnValues,
-        zoomToolbarPlacement:
+      zoomToolbarPlacement:
           LabelSheetZoomToolbarPlacement.labelPrintCommandBarEnd,
+      zoomToolbarAnchorLink: zoomToolbarAnchorLink,
     );
   }
 
@@ -5167,6 +5171,7 @@ class _ItemOutputPreviewTab extends StatelessWidget {
     this.projectedColumnValues,
     this.zoomToolbarPlacement =
       LabelSheetZoomToolbarPlacement.previewTabAreaEnd,
+    this.zoomToolbarAnchorLink,
   });
 
   final ItemOfMarket item;
@@ -5179,6 +5184,7 @@ class _ItemOutputPreviewTab extends StatelessWidget {
   final DateTime? referenceAt;
   final Map<int, String>? projectedColumnValues;
   final LabelSheetZoomToolbarPlacement zoomToolbarPlacement;
+  final LayerLink? zoomToolbarAnchorLink;
 
   @override
   Widget build(BuildContext context) {
@@ -5202,6 +5208,7 @@ class _ItemOutputPreviewTab extends StatelessWidget {
       barcodeObjectIds: barcodeObjectIds,
       outputCaptureController: outputCaptureController,
       zoomToolbarPlacement: zoomToolbarPlacement,
+      zoomToolbarAnchorLink: zoomToolbarAnchorLink,
     );
   }
 }

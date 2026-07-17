@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:fortune_sheet/fortune_sheet.dart';
 import 'package:label_manager/models/label_print.dart';
-import 'package:label_manager/page_label_sheet/label_sheet_workbench.dart';
 import 'package:label_manager/widgets/vertical_pane_splitter.dart';
 
 int? parseLabelPrintLineSpacing(String text) {
@@ -26,7 +25,11 @@ class LabelPrintPage extends StatefulWidget {
   });
 
   final LabelPrintSessionController controller;
-  final Widget Function(LabelPrintRowDraft row) previewBuilder;
+  final Widget Function(
+    LabelPrintRowDraft row,
+    LayerLink zoomToolbarAnchorLink,
+  )
+  previewBuilder;
   final VoidCallback onPrinterSettings;
   final VoidCallback onIssue;
   final VoidCallback onCancelIssue;
@@ -87,12 +90,10 @@ class _LabelPrintPageState extends State<LabelPrintPage> {
     final selected = selectedIndex < 0 ? null : rows[selectedIndex];
     final preview = selected == null
         ? const Center(child: Text('발행할 품목을 선택하세요.'))
-        : widget.previewBuilder(selected);
+        : widget.previewBuilder(selected, _zoomToolbarAnchorLink);
 
-    return LabelSheetZoomToolbarAnchor(
-      link: _zoomToolbarAnchorLink,
-      child: Column(
-        children: [
+    return Column(
+      children: [
         Expanded(
           child: LayoutBuilder(
             builder: (context, constraints) {
@@ -134,8 +135,7 @@ class _LabelPrintPageState extends State<LabelPrintPage> {
         ),
         const Divider(height: 1),
         _commandBar(),
-        ],
-      ),
+      ],
     );
   }
 

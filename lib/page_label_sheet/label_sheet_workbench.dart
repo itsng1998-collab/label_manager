@@ -45,24 +45,6 @@ enum LabelSheetZoomToolbarPlacement {
   hidden,
 }
 
-class LabelSheetZoomToolbarAnchor extends InheritedWidget {
-  const LabelSheetZoomToolbarAnchor({
-    super.key,
-    required this.link,
-    required super.child,
-  });
-
-  final LayerLink link;
-
-  static LayerLink? maybeLinkOf(BuildContext context) =>
-      context.dependOnInheritedWidgetOfExactType<LabelSheetZoomToolbarAnchor>()
-          ?.link;
-
-  @override
-  bool updateShouldNotify(LabelSheetZoomToolbarAnchor oldWidget) =>
-      link != oldWidget.link;
-}
-
 const int _labelSheetDefaultPhysicalWidthMm = 100;
 const int _labelSheetDefaultPhysicalHeightMm = 100;
 
@@ -1755,6 +1737,7 @@ class LabelSheetWorkbench extends StatefulWidget {
     this.copyOnlyContextMenu = false,
     this.limitCellActionsToClipboardAndClear = false,
     this.zoomToolbarPlacement = LabelSheetZoomToolbarPlacement.sheetToolbarEnd,
+    this.zoomToolbarAnchorLink,
     this.onInitialLoadComplete,
     this.onGridRectChanged,
     this.onBeforeSheetDialog,
@@ -1792,6 +1775,7 @@ class LabelSheetWorkbench extends StatefulWidget {
   final bool copyOnlyContextMenu;
   final bool limitCellActionsToClipboardAndClear;
   final LabelSheetZoomToolbarPlacement zoomToolbarPlacement;
+  final LayerLink? zoomToolbarAnchorLink;
   final VoidCallback? onInitialLoadComplete;
   final ValueChanged<ui.Rect>? onGridRectChanged;
   final FutureOr<void> Function()? onBeforeSheetDialog;
@@ -3358,7 +3342,6 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
 
   @override
   Widget build(BuildContext context) {
-    final commandBarZoomLink = LabelSheetZoomToolbarAnchor.maybeLinkOf(context);
     return LayoutBuilder(
       builder: (context, constraints) {
         return FutureBuilder<FortuneWorkbook>(
@@ -3459,7 +3442,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
             WidgetsBinding.instance.addPostFrameCallback((_) {
               if (mounted) {
                 _syncZoomToolbarFloatingOverlay(
-                  commandBarLink: commandBarZoomLink,
+                  commandBarLink: widget.zoomToolbarAnchorLink,
                 );
               }
             });

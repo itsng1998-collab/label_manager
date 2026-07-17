@@ -65,6 +65,14 @@
 - 최종 우하단 위치 검증 완료: `git diff --check` 통과, diagnostics 오류 0, 테스트 생성물 없음.
 - stage/commit 대상: zoom overlay 실제 크기/우측 중앙 정렬, 좌표 회귀 테스트, 이 문서. 사용자 변경 `lib/core/app.dart`는 제외한다.
 - 우하단 정렬 구현 커밋 완료: `527c2ec` (`라벨 출력 확대 도구 우하단 정렬`). 원격 push는 수행하지 않았다.
+- 사용자 이미지 재확인 후 우하단 anchor 전달 재수정 진행: 실제 앱에서 확대 도구가 splitter 아래에 남아 있어 `InheritedWidget` 탐색을 제거하고 `LabelPrintPage`의 command bar `LayerLink`를 HomePageManager/preview/workbench까지 명시적으로 전달했다. 라벨출력 placement는 전달된 링크가 없으면 미리보기 anchor로 fallback하지 않는다.
+- 명시적 링크 focused 검증 완료: 실제 라벨출력 builder 경로에서 splitter drag 전후 확대율/좌표 및 command bar 우측 anchor 정렬 테스트 2건 통과.
+- 실행 화면 검증 제한: 연결 앱 hot restart는 성공했으나 로그인 화면으로 돌아가 라벨출력 실화면 스크린샷은 미수행.
+- 최종 명시적 anchor 검증 예정: 변경 Dart 포맷, 관련 테스트, `flutter analyze`, `git diff --check`, stage/commit.
+- 명시적 anchor 관련 검증 완료: 라벨출력/공용 toolbar 테스트 127건 통과, `flutter analyze` issues 0.
+- 최종 diff 점검 예정: `git diff --check`, 생성물 및 stage 대상 확인. 사용자 변경 `lib/core/app.dart`는 제외한다.
+- 최종 명시적 anchor 검증 완료: `git diff --check` 통과, diagnostics 오류 0, 테스트 생성물 없음.
+- stage/commit 대상: command bar `LayerLink` 명시적 전달 4개 Dart 파일, 실제 builder 경로 회귀 테스트, 이 문서. 사용자 변경 `lib/core/app.dart`는 제외한다.
 - 1단계 진행 중: 품목관리 발행 체크 controlled state와 label-print 전용 진입 gate를 구현한다.
 - 첫 수정 예정: `third_party/fortune_sheet/lib/src/fortune_table.dart`, `test/fortune_table_test.dart`. `FortuneTableEditingController.hasActiveEditing`을 editor open 또는 async commit 진행 중에만 true인 read-only 상태로 노출한다.
 - 첫 검증 예정: `flutter test test/fortune_table_test.dart --plain-name "FortuneTable editing controller waits for active commit"`.
