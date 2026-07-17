@@ -105,6 +105,7 @@
 - 최종 분석 실행 예정: `flutter analyze`, `git diff --check`, 테스트 생성물 및 stage 대상 확인. 사용자 변경 `lib/core/app.dart`는 제외한다.
 - 최종 발행/설정 검증 완료: `flutter analyze` issues 0, `git diff --check` 통과, 테스트 생성물 없음.
 - stage/commit 대상: 빈 테이블 발행 비활성화, 레거시 자동줄간격 기본값/목록/정규화, 라벨출력 설정 입력박스 y+4, 관련 테스트 및 이 문서. 사용자 변경 `lib/core/app.dart`는 제외한다.
+- 발행/프린터 설정 보완 커밋 완료: `3875606` (`라벨 출력 발행 및 프린터 설정 보완`). 원격 push는 수행하지 않았다.
 - 1단계 진행 중: 품목관리 발행 체크 controlled state와 label-print 전용 진입 gate를 구현한다.
 - 첫 수정 예정: `third_party/fortune_sheet/lib/src/fortune_table.dart`, `test/fortune_table_test.dart`. `FortuneTableEditingController.hasActiveEditing`을 editor open 또는 async commit 진행 중에만 true인 read-only 상태로 노출한다.
 - 첫 검증 예정: `flutter test test/fortune_table_test.dart --plain-name "FortuneTable editing controller waits for active commit"`.
