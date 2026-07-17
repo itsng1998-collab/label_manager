@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fortune_sheet/fortune_sheet.dart';
 import 'package:label_manager/models/label_print.dart';
+import 'package:label_manager/page_label_sheet/label_sheet_workbench.dart';
 import 'package:label_manager/widgets/vertical_pane_splitter.dart';
 
 int? parseLabelPrintLineSpacing(String text) {
@@ -41,6 +42,7 @@ class _LabelPrintPageState extends State<LabelPrintPage> {
 
   final FortuneTableEditingController _editingController =
       FortuneTableEditingController();
+  final LayerLink _zoomToolbarAnchorLink = LayerLink();
   double _tableFraction = 0.6;
 
   @override
@@ -87,8 +89,10 @@ class _LabelPrintPageState extends State<LabelPrintPage> {
         ? const Center(child: Text('발행할 품목을 선택하세요.'))
         : widget.previewBuilder(selected);
 
-    return Column(
-      children: [
+    return LabelSheetZoomToolbarAnchor(
+      link: _zoomToolbarAnchorLink,
+      child: Column(
+        children: [
         Expanded(
           child: LayoutBuilder(
             builder: (context, constraints) {
@@ -130,7 +134,8 @@ class _LabelPrintPageState extends State<LabelPrintPage> {
         ),
         const Divider(height: 1),
         _commandBar(),
-      ],
+        ],
+      ),
     );
   }
 
@@ -163,6 +168,14 @@ class _LabelPrintPageState extends State<LabelPrintPage> {
             label: Text(widget.busy ? '발행 취소' : '발행'),
           ),
           const Spacer(),
+          CompositedTransformTarget(
+            link: _zoomToolbarAnchorLink,
+            child: const SizedBox(
+              key: ValueKey('label-print-zoom-anchor'),
+              width: 1,
+              height: 29,
+            ),
+          ),
         ],
       ),
     ),

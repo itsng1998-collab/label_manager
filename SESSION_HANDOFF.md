@@ -49,6 +49,13 @@
 - 최종 재보완 검증 완료: `flutter analyze` issues 0, `git diff --check` 통과, `third_party/fortune_sheet/build` 삭제.
 - stage/commit 대상: `VerticalPaneSplitter` 공유 및 양쪽 적용, 의미별 설정 재배치, 안정적 preview fingerprint, 라벨출력 통합 zoom 테스트, 이 문서. 사용자 변경 `lib/core/app.dart`는 제외한다.
 - 재보완 구현 커밋 완료: `1608e6f` (`라벨 출력 분할 화면과 설정 배치 보완`). 원격 push는 수행하지 않았다.
+- 라벨출력 확대 도구 위치 고정 진행: 확대 overlay가 미리보기 우측 `LayerLink`를 따라가던 원인을 확인하고, 라벨출력 command bar 우측의 별도 `label-print-zoom-anchor`를 사용하도록 변경했다.
+- 위치 고정 focused 검증 완료: 110% 확대 후 splitter 120px drag 시 확대율 110% 및 zoom 입력의 화면 좌표가 모두 동일한 통합 테스트 1건 통과.
+- 최종 위치 고정 검증 예정: 변경 Dart 포맷, 라벨출력/공용라벨 toolbar 테스트, `flutter analyze`, `git diff --check`, 생성물 정리.
+- 위치 고정 포맷/관련 검증 완료: 라벨출력, 공용라벨관리, 공용 toolbar 테스트 133건 통과.
+- 최종 분석 실행 직전: `flutter analyze`, `git diff --check`, 생성물 및 stage 대상 확인. 사용자 변경 `lib/core/app.dart`는 제외한다.
+- 최종 위치 고정 검증 완료: `flutter analyze` issues 0, `git diff --check` 통과, 테스트 생성물 없음.
+- stage/commit 대상: command bar 고정 zoom anchor 2개 Dart 파일, 위치/확대율 통합 테스트, 이 문서. 사용자 변경 `lib/core/app.dart`는 제외한다.
 - 1단계 진행 중: 품목관리 발행 체크 controlled state와 label-print 전용 진입 gate를 구현한다.
 - 첫 수정 예정: `third_party/fortune_sheet/lib/src/fortune_table.dart`, `test/fortune_table_test.dart`. `FortuneTableEditingController.hasActiveEditing`을 editor open 또는 async commit 진행 중에만 true인 read-only 상태로 노출한다.
 - 첫 검증 예정: `flutter test test/fortune_table_test.dart --plain-name "FortuneTable editing controller waits for active commit"`.

@@ -45,6 +45,24 @@ enum LabelSheetZoomToolbarPlacement {
   hidden,
 }
 
+class LabelSheetZoomToolbarAnchor extends InheritedWidget {
+  const LabelSheetZoomToolbarAnchor({
+    super.key,
+    required this.link,
+    required super.child,
+  });
+
+  final LayerLink link;
+
+  static LayerLink? maybeLinkOf(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<LabelSheetZoomToolbarAnchor>()
+          ?.link;
+
+  @override
+  bool updateShouldNotify(LabelSheetZoomToolbarAnchor oldWidget) =>
+      link != oldWidget.link;
+}
+
 const int _labelSheetDefaultPhysicalWidthMm = 100;
 const int _labelSheetDefaultPhysicalHeightMm = 100;
 
@@ -3205,7 +3223,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     );
   }
 
-  void _syncZoomToolbarFloatingOverlay() {
+  void _syncZoomToolbarFloatingOverlay({LayerLink? commandBarLink}) {
     final placement = widget.zoomToolbarPlacement;
     if (placement != LabelSheetZoomToolbarPlacement.previewTabAreaEnd &&
       placement != LabelSheetZoomToolbarPlacement.labelPrintCommandBarEnd) {
@@ -3214,6 +3232,11 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     }
     final inCommandBar =
       placement == LabelSheetZoomToolbarPlacement.labelPrintCommandBarEnd;
+    final followerLink = inCommandBar ? commandBarLink : _zoomToolbarLayerLink;
+    if (followerLink == null) {
+      _removeZoomToolbarFloatingOverlay();
+      return;
+    }
     final overlay = Overlay.maybeOf(context);
     if (overlay == null) {
       return;
@@ -3227,16 +3250,12 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       builder: (context) {
         return Positioned.fill(
           child: CompositedTransformFollower(
-            link: _zoomToolbarLayerLink,
+            link: followerLink,
             targetAnchor: inCommandBar
-              ? Alignment.bottomRight
-              : Alignment.topRight,
-            followerAnchor: inCommandBar
               ? Alignment.topRight
               : Alignment.topRight,
-            offset: inCommandBar
-              ? const Offset(-12, 10)
-              : const Offset(-12, -34),
+            followerAnchor: Alignment.topRight,
+            offset: inCommandBar ? Offset.zero : const Offset(-12, -34),
             showWhenUnlinked: false,
             child: Align(
               alignment: Alignment.topRight,
@@ -3339,6 +3358,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
 
   @override
   Widget build(BuildContext context) {
+    final commandBarZoomLink = LabelSheetZoomToolbarAnchor.maybeLinkOf(context);
     return LayoutBuilder(
       builder: (context, constraints) {
         return FutureBuilder<FortuneWorkbook>(
@@ -3438,7 +3458,9 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
             );
             WidgetsBinding.instance.addPostFrameCallback((_) {
               if (mounted) {
-                _syncZoomToolbarFloatingOverlay();
+                _syncZoomToolbarFloatingOverlay(
+                  commandBarLink: commandBarZoomLink,
+                );
               }
             });
             return CompositedTransformTarget(

@@ -266,6 +266,7 @@ void main() {
     await tester.tap(find.text('+'));
     await tester.pump();
     expect(tester.widget<EditableText>(zoomInput).controller.text, '110');
+    final zoomPositionBeforeDrag = tester.getTopLeft(zoomInput);
 
     await tester.drag(
       find.byKey(const ValueKey('label-print-splitter')),
@@ -274,6 +275,11 @@ void main() {
     await tester.pump();
 
     expect(tester.widget<EditableText>(zoomInput).controller.text, '110');
+    expect(tester.getTopLeft(zoomInput), zoomPositionBeforeDrag);
+    expect(
+      tester.getTopRight(zoomInput).dx,
+      lessThan(tester.getCenter(find.byKey(const ValueKey('label-print-zoom-anchor'))).dx),
+    );
   });
 
   testWidgets('label output preview accepts command bar zoom placement', (
