@@ -16,6 +16,7 @@
 - 정적 분석 성공: `flutter analyze` → issues 0. 편집한 두 Dart 파일의 VS Code 진단도 errors 0.
 - 최종 diff 검증 성공: 요청 범위 3개 파일의 변경을 검토했고 `git diff --check`가 통과했다.
 - stage/commit 대상: `SESSION_HANDOFF.md`, `lib/home_page_manager.dart`, `test/fortune_table_test.dart`.
+- 구현 커밋: `bb0c69c` (`탭 전환 F키 단축키 추가`).
 - 사용자 변경 `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
 
 ### 완료 (2026-07-17): 라벨 발행 선택 행 자동 스크롤
