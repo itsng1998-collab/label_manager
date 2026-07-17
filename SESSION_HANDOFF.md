@@ -11,6 +11,7 @@
 - 관련 전체 검증 완료: 라벨 출력 session 및 blocking modeless 테스트 25건 통과, `flutter analyze` issues 0. 다음으로 `git diff --check`, diagnostics, 생성물과 stage 대상을 확인한다.
 - 최종 점검 완료: `git diff --check` 통과, 관련 파일 diagnostics 오류 0건, `third_party/fortune_sheet/build` 생성물 없음.
 - stage/commit 대상: `lib/models/label_print.dart`, `lib/page_home/label_print_page.dart`, `lib/home_page_manager.dart`, `test/label_print_session_test.dart`, `SESSION_HANDOFF.md`. 사용자 변경 `lib/core/app.dart`는 제외한다.
+- 라벨 발행 진행 및 취소 다이얼로그 커밋 완료: `4e57bcd` (`라벨 발행 진행 및 취소 다이얼로그 추가`). 원격 push는 수행하지 않았다.
 
 ### 완료 (2026-07-17): 로그인 완료 후 다이얼로그 잔존 수정
 - 사용자 제출 화면 시각과 일치하는 `.tmp/log/app_2026-07-17_18-10-42.log`에서 `StartupDbHelper.connectToServerDB: Start`가 18:10:43.040과 18:10:43.064에 중복 호출되고 Notice/User 조회도 두 세트로 실행된 것을 확인했다. `HomePage`의 post-frame 초기화와 lifecycle resume가 동시에 진입해 StartupDialog route 두 개를 쌓고, 로그인 성공 시 하나만 pop되어 나머지가 남는 것이 원인이다.
