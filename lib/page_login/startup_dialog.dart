@@ -28,6 +28,7 @@ class StartupDialog extends StatefulWidget {
   final VoidCallback onLogin;
   final String? serverName;
   final bool forceNoticeClosed;
+  static Future<void>? _showFuture;
 
   static Future<void> show(
     BuildContext context, {
@@ -35,8 +36,11 @@ class StartupDialog extends StatefulWidget {
     String? serverName,
     bool forceNoticeClosed = false,
   }) async {
+    final pending = _showFuture;
+    if (pending != null) return pending;
     AutoLoginGuard.instance.configure(enabled: isAutoLogin);
-    return showDialog(
+    late final Future<void> future;
+    future = showDialog<void>(
       context: context,
       barrierDismissible: false,
       traversalEdgeBehavior: TraversalEdgeBehavior.closedLoop,
@@ -46,6 +50,14 @@ class StartupDialog extends StatefulWidget {
         forceNoticeClosed: forceNoticeClosed,
       ),
     );
+    _showFuture = future;
+    try {
+      await future;
+    } finally {
+      if (identical(_showFuture, future)) {
+        _showFuture = null;
+      }
+    }
   }
 
   const StartupDialog({

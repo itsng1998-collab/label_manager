@@ -41,6 +41,7 @@ class _HomePageState extends State<HomePage> {
   bool _disconnectCleanupDone = false;
   bool _isExiting = false;
   bool _loggedIn = false;
+  Future<void>? _loginToServerDbFuture;
   bool _itemDraftDirty = false;
   // 선택 상태
   Brand? _selectedBrand;
@@ -76,16 +77,31 @@ class _HomePageState extends State<HomePage> {
 
   // 로그아웃 유입이면 자동 표시하지 않음, 사용자 요청 시(앱바 로그인 아이콘) 열도록 함
   Future<void> _loginToServerDB() async {
+    final pending = _loginToServerDbFuture;
+    if (pending != null) return pending;
+    late final Future<void> future;
+    future = _connectAndShowLogin();
+    _loginToServerDbFuture = future;
+    try {
+      await future;
+    } finally {
+      if (identical(_loginToServerDbFuture, future)) {
+        _loginToServerDbFuture = null;
+      }
+    }
+  }
+
+  Future<void> _connectAndShowLogin() async {
     if (!(await _db.connectToServerDB(context))) {
       return;
     }
-    if (!widget.fromLogout) {
-      _showStartupDialog();
+    if (!widget.fromLogout && !_loggedIn) {
+      await _showStartupDialog();
     }
   }
 
   // 재연결 모달은 전역 오버레이(GlobalReconnectOverlay)가 담당하므로 여기서는 처리하지 않음
-  void _showStartupDialog({bool forceNoticeClosed = false}) async {
+  Future<void> _showStartupDialog({bool forceNoticeClosed = false}) async {
     await StartupDialog.show(
       context,
       onLogin: _onLogin,

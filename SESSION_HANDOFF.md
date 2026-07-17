@@ -1,3 +1,15 @@
+### 진행 중 (2026-07-17): 로그인 완료 후 다이얼로그 잔존 수정
+- 사용자 제출 화면 시각과 일치하는 `.tmp/log/app_2026-07-17_18-10-42.log`에서 `StartupDbHelper.connectToServerDB: Start`가 18:10:43.040과 18:10:43.064에 중복 호출되고 Notice/User 조회도 두 세트로 실행된 것을 확인했다. `HomePage`의 post-frame 초기화와 lifecycle resume가 동시에 진입해 StartupDialog route 두 개를 쌓고, 로그인 성공 시 하나만 pop되어 나머지가 남는 것이 원인이다.
+- `lib/home_page.dart` 편집 완료: `_loginToServerDB()`가 진행 중인 connect+dialog Future를 공유하도록 single-flight를 적용하고, 연결 완료 뒤 이미 로그인된 상태에서는 StartupDialog를 열지 않는다.
+- `lib/page_login/startup_dialog.dart` 편집 완료: `StartupDialog.show()` 동시 요청이 진행 중인 dialog Future를 공유하고 route 종료 시 가드를 해제해 로그아웃 뒤 수동 재로그인을 허용한다.
+- `test/startup_dialog_test.dart` 추가: 동시 show 요청이 route 하나만 만들고 pop 후 다시 표시 가능한지 검증한다.
+- focused 검증 완료: 신규 StartupDialog 회귀 테스트 1건, 기존 `lifecycle_test.dart`/`widget_test.dart` 3건 통과. 변경 파일 diagnostics 오류 0건.
+- 최종 검증 예정: 변경 Dart 포맷, 관련 테스트 재실행, `flutter analyze`, `git diff --check`, 생성물 정리 및 stage/commit. 사용자 변경 `lib/core/app.dart`는 제외한다.
+- 포맷 완료 및 최종 검증 실행 직전: `flutter test test/startup_dialog_test.dart test/lifecycle_test.dart test/widget_test.dart`, `flutter analyze`를 실행한다.
+- 최종 관련 검증 완료: StartupDialog/lifecycle/widget 테스트 4건 통과, `flutter analyze` issues 0. 다음으로 `git diff --check`, 테스트 생성물과 stage 대상을 확인한다.
+- 최종 점검 완료: `git diff --check` 통과, 관련 파일 diagnostics 오류 0건, `third_party/fortune_sheet/build` 생성물 없음.
+- stage/commit 대상: `lib/home_page.dart`, `lib/page_login/startup_dialog.dart`, `test/startup_dialog_test.dart`, `SESSION_HANDOFF.md`. 사용자 변경 `lib/core/app.dart`는 제외한다.
+
 ### 진행 중 (2026-07-16): 라벨출력 작업지시서 구현
 - 사용자 요청: `doc/label_print_modify.txt`와 §14 구현 순서대로 Windows 라벨출력 기능을 구현한다.
 - 구현 원칙: 과도한 보완 없이 기존 공용 API를 확장하고, SQL Server는 원본 오류 전달과 가능한 rollback까지만 사용하며 DB migration·재조회·retry/recovery를 추가하지 않는다. 기존 사용자 `lib/core/app.dart` 변경은 유지하고 stage/commit에서 제외한다.
