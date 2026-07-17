@@ -73,6 +73,7 @@
 - 최종 diff 점검 예정: `git diff --check`, 생성물 및 stage 대상 확인. 사용자 변경 `lib/core/app.dart`는 제외한다.
 - 최종 명시적 anchor 검증 완료: `git diff --check` 통과, diagnostics 오류 0, 테스트 생성물 없음.
 - stage/commit 대상: command bar `LayerLink` 명시적 전달 4개 Dart 파일, 실제 builder 경로 회귀 테스트, 이 문서. 사용자 변경 `lib/core/app.dart`는 제외한다.
+- 우측 anchor 연결 구현 커밋 완료: `0b3e783` (`라벨 출력 확대 도구 우측 앵커 연결`). 원격 push는 수행하지 않았다.
 - 1단계 진행 중: 품목관리 발행 체크 controlled state와 label-print 전용 진입 gate를 구현한다.
 - 첫 수정 예정: `third_party/fortune_sheet/lib/src/fortune_table.dart`, `test/fortune_table_test.dart`. `FortuneTableEditingController.hasActiveEditing`을 editor open 또는 async commit 진행 중에만 true인 read-only 상태로 노출한다.
 - 첫 검증 예정: `flutter test test/fortune_table_test.dart --plain-name "FortuneTable editing controller waits for active commit"`.
