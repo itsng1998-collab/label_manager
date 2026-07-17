@@ -93,6 +93,7 @@
 - 최종 우하단 직접 배치 검증 완료: `flutter analyze` issues 0, `git diff --check` 통과, 테스트 생성물 없음.
 - 실행 검증 제한: workspace DTD와 Flutter Windows 앱이 종료되어 hot restart/실화면 스크린샷은 수행하지 못했다. 다음 앱 실행부터 최신 코드가 적용된다.
 - stage/commit 대상: zoom controller/직접 command bar toolbar, 프린터명 flex 수정, overlay 오수정 제거, 관련 테스트 및 이 문서. 사용자 변경 `lib/core/app.dart`는 제외한다.
+- 우하단 직접 배치 구현 커밋 완료: `41033c2` (`라벨 출력 확대 도구 우하단 직접 배치`). 원격 push는 수행하지 않았다.
 - 1단계 진행 중: 품목관리 발행 체크 controlled state와 label-print 전용 진입 gate를 구현한다.
 - 첫 수정 예정: `third_party/fortune_sheet/lib/src/fortune_table.dart`, `test/fortune_table_test.dart`. `FortuneTableEditingController.hasActiveEditing`을 editor open 또는 async commit 진행 중에만 true인 read-only 상태로 노출한다.
 - 첫 검증 예정: `flutter test test/fortune_table_test.dart --plain-name "FortuneTable editing controller waits for active commit"`.
