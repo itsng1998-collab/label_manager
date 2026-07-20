@@ -12,7 +12,7 @@
 - 권한·ID 계약 보완 완료: 모든 object mutation entry point에 공통 `canEditObjects` guard를 적용하고 selection/copy는 읽기 전용에서도 허용한다. codec/외부 workbook normalize와 신규·복제·paste allocator의 기존/예약 typed ID 충돌 회피를 테스트·완료 조건에 연결했다.
 - zOrder·interaction 계약 보완 완료: 숫자/문자열 비유한 zOrder를 `0.0`으로 canonicalize하고 유한값만으로 next order를 계산한다. Arrow key는 panel list, canvas object, canvas cell과 editable field의 실제 focus별로 소유권을 나눈다.
 - geometry·capture 계약 보완 완료: 기존 image parity를 move X 음수 허용/Y clamp, resize left/top clamp/right/bottom 허용, rotation 무-clamp로 명시했다. endpoint나 중심점이 crop 밖이어도 stroke/path가 교차하는 line/shape를 print-area save와 capture에서 보존한다.
-- 저장 포맷 상시 규칙 병합 완료: `.lms` 초기 로드, 라벨 파일에서 불러오기와 `.xlsx` import가 모두 migrate/normalize의 현재 포맷 경계를 거치도록 구현·진입점별 테스트·완료 조건에 명시했다. XLSX drawing geometry 추론/custom XML round-trip은 기존 확정대로 제외하고 빈 lines/shapes의 current-format normalize만 요구한다.
+- 저장 포맷 상시 규칙 병합 완료: `.lms` 초기 로드, 라벨 파일에서 불러오기와 `.xlsx` import가 모두 migrate/normalize의 현재 포맷 경계를 거치도록 구현·진입점별 테스트·완료 조건에 명시했다. XLSX drawing geometry 추론/custom XML round-trip은 기존 확정대로 제외하고 빈 lines/fortuneShapes의 current-format normalize만 요구한다.
 - 사용자 추가 확정: cross-sheet cut paste의 target에 같은 typed ID가 있으면 target 기존 객체를 유지하고 pasted 객체에 첫 충돌 없는 새 typed ID를 발급한다. 같은 sheet 또는 cross-sheet 비충돌이면 원본 ID를 유지한다.
 - raw·typed mutation 계약 재보완 완료: 중복 ID/비유한 zOrder/decoder 제외 entry가 있는 raw list는 빈 canonical model까지 포함해 재사용하지 않는다. 공유 images/shapes 배열의 조회·수정·삭제·reorder는 bare ID가 아닌 exact typed key와 검증된 source index만 사용한다.
 - clipboard·draft·endpoint 계약 재보완 완료: payload에 source sheet ID를 넣고 sheet별 cut ID 정책을 적용한다. 읽기 전용 copy는 workbook/undo/dirty/change callback을 바꾸지 않는다. property draft는 snapshot revision으로 stale focus-loss를 차단하고 endpoint Shift snap은 `y=0` 상단에서 방향을 유지해 절단한다.
@@ -28,7 +28,12 @@
 - panel UX 보완 완료: 생성 후 이미 열린 dock/overlay만 새 객체 속성으로 전환하고 닫힌 panel을 자동으로 열지 않아 사용자 open/closed 의도를 유지한다. 넓은 화면 toolbar toggle과 좁은 화면 상시 icon으로 재진입한다.
 - 사용자 추가 확정: 구조화 `#ITEM_IMAGE`/`#ITEM_CODE` 연결 ID는 duplicate/copy paste에서 보존하고 내부 typed ID만 새로 발급한다. 구조화 생성 dialog 최초 source는 현행 `연결 안 함`을 유지하고, revision은 package-owned command와 외부 workbook replacement만 추적하며 직접 collection mutation은 지원하지 않는다.
 - clipboard·async 계약 재보완 완료: options가 있는 구조화 host에서는 stale option ID까지 바인딩으로 보존하고 option 없는 host의 editable ID만 재발급한다. barcode panel 적용과 image picker에 owner/revision/request token 및 역순 응답 폐기 테스트를 연결했다.
-- save·EZPL 계약 재보완 완료: absent/빈 lines/shapes는 같은 empty model이고 canonical empty key는 생략한다. Hybrid EZPL은 native 승인 render plan 뒤 승인 객체를 제외한 raster layer를 재합성해 barcode 공백·비채움 rectangle 내부의 하부 pixel을 보존한다.
+- save·EZPL 계약 재보완 완료: absent/빈 lines/fortuneShapes는 같은 empty model이고 canonical empty key는 생략한다. Hybrid EZPL은 native 승인 render plan 뒤 승인 객체를 제외한 raster layer를 재합성해 barcode 공백·비채움 rectangle 내부의 하부 pixel을 보존한다.
+- 사용자 추가 확정: 신규 typed `FortuneShape`의 Dart API는 `FortuneSheet.shapes`를 유지하되 JSON canonical key는 `fortuneShapes`, LabelSheet feature key는 `sheet.fortuneShapes`를 사용한다. 기존 raw overlay `shapes`와 wire를 공유하지 않는다.
+- 저장 호환 계약 보완 완료: legacy raw overlay `shapes` map/list는 신규 typed shape로 decode·migrate하지 않고 `extraFields['shapes']`와 `.lms` 전용 JSON-safe raw pass-through로 보존한다. `fortuneShapes`와 동시 저장·렌더·capture해도 서로 덮어쓰지 않는 codec/sanitizer 회귀 테스트를 추가했다.
+- EZPL 좌표계 계약 보완 완료: raster와 native barcode/line/rectangle/cell-border가 `LabelSheetPrintLayout`의 margin, signed push, right margin과 `pageHeightMm` clip을 포함한 공용 printer transform을 사용한다. native로 right/height clip을 정확히 보장할 수 없으면 bitmap fallback하며 양·음 push와 하단 경계 테스트를 명시했다.
+- 사용자 추가 확정: barcode panel renderer pending 중 save/export/print/capture, undo/redo, sheet 전환, import와 삽입 command를 완료까지 비활성화하고 queue·자동 재실행하지 않는다.
+- host command draft 계약 보완 완료: public `finalizeActiveObjectPropertyDraft()`와 동등한 동기 API를 canonical workbook을 읽거나 교체하는 모든 host/삽입 command 전에 호출한다. valid draft는 먼저 commit하고 invalid draft는 원복·폐기한 뒤 command를 실행하며 focus-loss 지연 callback의 추가 dirty를 막는다.
 - 검증 완료: 두 문서 diagnostics 오류 0건, 필수·잔여 충돌 계약 검색과 전체 diff 검토 완료, `git diff --check -- doc/label_line_panel.txt SESSION_HANDOFF.md` 통과. 문서만 변경해 Flutter test/analyze는 실행하지 않았다.
 - stage/commit 대상: `doc/label_line_panel.txt`, `SESSION_HANDOFF.md`. 기존 사용자 변경 `lib/core/app.dart`는 제외하고 관련 문서만 커밋한다.
 

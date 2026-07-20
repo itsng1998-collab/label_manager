@@ -177,7 +177,7 @@ FortuneShapeKind.ellipse          <-> "ellipse"
       "zOrder": 3.0
     }
   ],
-  "shapes": [
+  "fortuneShapes": [
     {
       "id": "roundRect_1",
       "kind": "roundedRectangle",
@@ -209,42 +209,43 @@ FortuneShapeKind.ellipse          <-> "ellipse"
 - `zOrder`가 없거나 숫자가 아니거나 유한하지 않으면 `0.0`이다. 숫자와 문자열 형태의 `NaN`, `Infinity`, `-Infinity`를 모두 비유한 값으로 처리하고 다음 save에서 canonical `0.0`을 쓴다.
 - 빈 `lines`는 기존 파일과 같은 결과를 만들며 기존 `images` decoding에 영향을 주지 않는다.
 - 지원하지 않는 line extra field는 Fortune model 내부 round-trip에서는 보존할 수 있지만, LabelSheet 저장 sanitizer에서는 allow-list 밖 값을 제거한다.
-- `FortuneSheet`에 immutable `List<FortuneShape> shapes`와 raw shapes metadata를 추가한다.
-- shape JSON의 canonical key는 `shapes`다.
+- `FortuneSheet`에 immutable `List<FortuneShape> shapes`와 raw fortuneShapes metadata를 추가한다.
+- Dart model 이름은 `FortuneSheet.shapes`를 유지하되 신규 typed shape JSON의 canonical key는 사용자가 확정한 `fortuneShapes`다.
 - shape 필수 필드는 `id`, `kind`, `left`, `top`, `width`, `height`다.
 - 필수 필드가 없거나 geometry가 유한한 숫자가 아니거나 width/height가 0 이하이면 해당 shape entry만 무시한다.
 - stroke style/width/color 기본값과 validation은 line과 같다.
 - `fillColor`가 null이면 채우기 없음이며, 유효하지 않은 문자열은 null로 읽는다.
 - `rotationDegrees`, `cornerRadiusMm`가 없거나 유한하지 않으면 각 기본값을 사용한다.
-- 빈 `shapes`는 기존 파일과 같은 결과를 만들며 images/lines decoding에 영향을 주지 않는다.
+- 빈 `fortuneShapes`는 기존 파일과 같은 결과를 만들며 images/lines decoding에 영향을 주지 않는다.
 - 지원하지 않는 shape extra field의 round-trip/sanitizer 경계는 line과 같다.
+- 기존 sheet-level `shapes` map/list는 FortuneSheet raw shape overlay wire이므로 신규 typed shape로 decode하거나 migrate하지 않고 `extraFields['shapes']`에 원형 보존한다. 기존 painter·capture 동작도 유지하며 `fortuneShapes`와 동시에 존재해도 어느 한쪽을 덮어쓰지 않는다. legacy raw overlay는 이번 통합 object 선택·편집·공통 zOrder 대상이 아니며 기존 overlay 렌더 순서를 유지한다.
 - active sheet 안에서 typed key의 같은 kind별 내부 `id`는 유일해야 한다. codec/외부 workbook normalize는 재발급 전에 kind별 모든 원본 ID를 예약하고 공통 source sequence의 첫 `(kind, id)` entry를 유지한다. 후속 중복 entry에는 전체 원본 ID 집합과 이미 발급한 ID를 모두 피해 `{원본 id}__2`, `__3`, ... 형식의 첫 사용 가능한 ID를 결정적으로 발급하며 기존 연결 이미지·바코드 ID metadata는 바꾸지 않는다. 예를 들어 `a, a, a__2`는 `a, a__3, a__2`가 된다.
 
 ### 4.6 LabelSheet save format
 
 다음을 한 변경 단위로 반영한다.
 
-1. `_labelSheetSaveFeatureKeys`의 맨 끝에 `sheet.lines`, 그 다음 `sheet.shapes`를 추가한다. 기존 feature의 version 번호가 바뀌지 않도록 중간에 삽입하지 않는다.
+1. `_labelSheetSaveFeatureKeys`의 맨 끝에 `sheet.lines`, 그 다음 `sheet.fortuneShapes`를 추가한다. 기존 feature의 version 번호가 바뀌지 않도록 중간에 삽입하지 않는다.
 2. `labelSheetSaveFeatureVersions` 자동 version 증가 확인
-3. `_supportedSheetKeys`에 `lines`, `shapes` 추가
+3. `_supportedSheetKeys`에 `lines`, `fortuneShapes`를 추가하고 기존 raw overlay `shapes`도 호환 key로 허용한다. 단 `shapes`는 typed list sanitizer에 연결하지 않고 map/list 및 JSON-safe 하위 값만 재귀 복사하는 전용 raw overlay pass-through로 처리해 `.lms` 재저장에서 보존한다.
 4. `_supportedLineKeys` 추가
 5. `_supportedShapeKeys` 추가
-6. `_sanitizeSheetJson()`에서 `lines`, `shapes` list sanitizer 연결
-7. `labelSheetMigrateWorkbookSaveJson()`에서 feature가 없는 이전 문서를 빈 lines/shapes로 해석
-8. `labelSheetNormalizeWorkbookForCurrentSaveFormat()`과 save normalization에서 lines/shapes 보존
-9. `_currentLabelFileHasContent()`에서 lines/shapes를 라벨 내용으로 인정해 선·도형만 있는 `.lms`도 export할 수 있게 한다.
+6. `_sanitizeSheetJson()`에서 `lines`, `fortuneShapes` list sanitizer와 legacy `shapes` raw overlay pass-through 연결
+7. `labelSheetMigrateWorkbookSaveJson()`에서 feature가 없는 이전 문서를 빈 lines/fortuneShapes model로 해석
+8. `labelSheetNormalizeWorkbookForCurrentSaveFormat()`과 save normalization에서 lines/fortuneShapes 보존
+9. `_currentLabelFileHasContent()`에서 lines/fortuneShapes를 라벨 내용으로 인정해 선·도형만 있는 `.lms`도 export할 수 있게 한다.
 10. `_sheetForPrintAreaSave()`에서 line은 두 endpoint와 stroke padding, shape는 회전된 bounds와 stroke padding으로 기존 image와 같은 print-area 교차·범위 확장·필터링을 수행한다. 저장 객체의 원래 sheet logical 좌표는 바꾸지 않고 row/column 저장 범위만 확장하며, crop-local origin 변환은 capture 단계에서만 수행한다.
 11. sanitizer가 line과 shape의 필수 geometry, kind, stroke, fill, radius, rotation과 zOrder만 남기는 테스트 추가
-12. `.lms` 초기 로드, 라벨 파일에서 불러오기와 `.xlsx` import가 모두 `labelSheetMigrateWorkbookSaveJson()` 및 `labelSheetNormalizeWorkbookForCurrentSaveFormat()`의 현재 포맷 경계를 거치게 하고 진입점별 회귀 테스트를 갱신한다. `.xlsx` import는 line/shape drawing을 추론하지 않고 빈 `lines`/`shapes`를 가진 현재 포맷 workbook으로 normalize한다.
+12. `.lms` 초기 로드, 라벨 파일에서 불러오기와 `.xlsx` import가 모두 `labelSheetMigrateWorkbookSaveJson()` 및 `labelSheetNormalizeWorkbookForCurrentSaveFormat()`의 현재 포맷 경계를 거치게 하고 진입점별 회귀 테스트를 갱신한다. `.xlsx` import는 line/shape drawing이나 legacy raw `shapes`를 typed shape로 추론하지 않고 빈 `lines`/`fortuneShapes` model을 가진 현재 포맷 workbook으로 normalize한다.
 
 allow-list는 다음 key로 고정한다.
 
 - line: `id`, `x1`, `y1`, `x2`, `y2`, `strokeStyle`, `strokeWidthMm`, `strokeColor`, `zOrder`
 - shape: `id`, `kind`, `left`, `top`, `width`, `height`, `rotationDegrees`, `strokeStyle`, `strokeWidthMm`, `strokeColor`, `fillColor`, `cornerRadiusMm`, `zOrder`
 
-- feature version은 `_labelSheetSaveFeatureKeys`의 index/순서에서 파생되는 기존 방식을 유지한다. `sheet.lines`와 `sheet.shapes`를 끝에 순서대로 append해 두 개의 연속된 신규 version을 만들고 기존 key의 version은 바꾸지 않는다.
+- feature version은 `_labelSheetSaveFeatureKeys`의 index/순서에서 파생되는 기존 방식을 유지한다. `sheet.lines`와 `sheet.fortuneShapes`를 끝에 순서대로 append해 두 개의 연속된 신규 version을 만들고 기존 key의 version은 바꾸지 않는다.
 - 이전 version 또는 해당 key가 없는 sheet는 migration/normalize에서 빈 list로 해석한다. sanitizer는 허용 key/type 제거만 담당하고 geometry 기본값/정규화는 normalize가 담당한다.
-- absent `lines`/`shapes`와 빈 list는 decode model에서 같은 empty list다. 기존 images wire 규칙과 같이 canonical encoder는 빈 typed list key를 생략하고, raw empty key를 그대로 재사용해야 하는 경우에만 원래 raw key/value를 보존한다. save/import 테스트는 `"lines": []`/`"shapes": []` key 존재가 아니라 decoded empty model과 반복 encode 안정성을 검증한다.
+- absent `lines`/`fortuneShapes`와 빈 list는 decode model에서 같은 empty list다. 기존 images wire 규칙과 같이 canonical encoder는 빈 typed list key를 생략하고, raw empty key를 그대로 재사용해야 하는 경우에만 원래 raw key/value를 보존한다. save/import 테스트는 `"lines": []`/`"fortuneShapes": []` key 존재가 아니라 decoded empty model과 반복 encode 안정성을 검증한다.
 - codec fallback 또는 canonical normalize가 적용된 entry는 비정상 raw wire를 그대로 재사용하지 않는다. raw list 전체를 재사용하려면 raw entry 수가 canonical model entry 수와 같고 모든 entry의 필수 field, ID, zOrder, stroke style, shape kind, rectangle/ellipse radius와 rotation이 canonical wire여야 한다. 중복 ID 재발급, 비숫자/비유한 zOrder fallback 또는 decoder에서 제외된 entry가 하나라도 있으면 빈 canonical model을 포함해 해당 raw list 전체를 폐기하고 canonical encode한다.
 - 저장할 때마다 zOrder를 임의 재정렬하지 않는다. zOrder 연속값 정규화는 사용자가 layer reorder/앞뒤 이동 command를 실행한 transaction 안에서만 수행한다.
 
@@ -372,6 +373,7 @@ shape[i] = images.length + lines.length + i
 - 채워진 rectangle, roundedRectangle, ellipse는 bitmap fallback을 사용한다.
 - dashed/dotted/dashDot, 임의 각도, 색상 line 또는 native overlay가 공통 zOrder를 깨는 경우 bitmap fallback을 사용한다.
 - native 최적화보다 화면/PDF와 같은 clip·zOrder 결과를 우선한다.
+- raster와 native barcode/line/rectangle/cell-border 후보는 모두 `LabelSheetPrintLayout`의 `contentLeftMm`, `contentTopMm`, `clipRightMm`, `pageHeightMm`을 사용하는 하나의 logical→printer-dot transform을 공유한다. `leftPushMm`/`topPushMm`을 margin과 함께 적용하고 교차 bounds와 native command 좌표도 이 최종 printer 좌표계에서 계산한다. right margin과 label-height clip을 native command로 정확히 보장할 수 없는 후보는 bitmap fallback한다.
 - Hybrid EZPL은 최종 공통 paint order와 실제 교차 bounds로 native/raster render plan을 먼저 확정한 뒤 raster bitmap을 만든다. native 후보보다 위에 그려지는 raster 객체가 후보와 교차하거나 native cell border가 상부 객체와 교차하면 해당 후보를 native 승인하지 않고 공용 capture bitmap에 남긴다. 승인된 native 객체를 제외한 raster layer를 공용 painter로 다시 합성하며 이미 flatten된 PNG의 객체 bounds나 paint mask를 흰색으로 지우지 않는다. 따라서 native barcode의 bar 사이·quiet zone과 비채움 rectangle 내부에는 아래쪽 raster 객체가 그대로 남는다. 후보 판정 전에 barcode/line/rectangle 영역을 제거하지 않는다.
 - cell border는 object zOrder 구성원이 아니라 화면에서 항상 object layer 아래에 있는 cell base layer다. native cell-border command는 이 고정 순서를 보존하거나 상부 객체와 겹치지 않을 때만 사용하고, 그렇지 않으면 border를 capture bitmap에 유지한다.
 - 신규 line/shape와 기존 native barcode는 같은 object 합성 순서 판정에 포함한다. fallback bitmap에서 native 영역을 지우거나 raster 뒤에 native command를 추가하면 겹치는 객체의 공통 zOrder가 바뀌는 경우 해당 barcode/line/shape native 최적화를 사용하지 않고 capture bitmap에 남긴다.
@@ -739,6 +741,8 @@ shape 위치/크기/회전 field는 canvas handle과 같은 geometry commit API�
 - barcode panel `[적용]`은 생성 dialog와 같은 render request coordinator를 사용한다. 요청 시 `sheetId`, exact typed key, workbook/object revision과 request token을 캡처하고 renderer 완료 직전 모두 일치할 때만 원래 exact key에 commit한다. pending 중 selection 변경은 요청을 취소하지 않지만 객체 삭제·교체·ID 변경, undo/redo와 외부 workbook 교체는 token/revision 불일치로 늦은 결과를 폐기한다. null/예외 실패는 workbook을 바꾸지 않고 해당 object draft의 inline 오류로 복구하며 성공 commit은 render/replace, undo, `onChange`, `onOp` 각각 1건이다.
 - 잘못된 중간 입력: workbook 변경 없음
 - panel의 selection 변경·삭제·복제·layer 이동 등 다른 command handler는 focus callback에 의존하지 않고 active field를 먼저 동기적으로 finalize한다. 유효 draft는 commit한 뒤 요청 command를 실행하고, 사용자가 확정한 대로 invalid draft는 원복·폐기한 뒤 workbook 변경 없이 해당 draft만 버리고 요청 command는 계속 실행한다.
+- `.lms` save/export, print/PDF/capture, undo/redo, active sheet 전환, label/XLSX/image import와 이미지·바코드·도형 삽입 toolbar command도 canonical workbook을 읽거나 교체하기 전에 같은 동기 finalize API를 호출한다. 유효 draft는 commit된 최신 workbook snapshot으로 요청 command를 계속하고 invalid draft는 원복·폐기한 뒤 기존 canonical snapshot으로 command를 계속한다. focus-loss callback 순서에 의존하지 않는다.
+- 사용자가 확정한 대로 barcode panel `[적용]` renderer가 pending이면 save/export/print/capture, undo/redo, sheet 전환, import와 모든 삽입 command를 완료까지 비활성화한다. pending command를 queue하거나 자동 재실행하지 않으며 render 성공·실패·stale 폐기로 pending이 끝난 뒤 사용자가 다시 실행한다. 일반 동기 property draft는 이 비활성화 대상이 아니다.
 - object selection 변경: 위 finalize 뒤 유효한 committed 값만 유지하고 invalid draft는 폐기
 - 이미지 파일 선택 취소: 기존 image 유지
 
@@ -821,6 +825,7 @@ FortuneSheet package가 다음과 동등한 read-only 상태를 controller/liste
 - 선택된 단일 object의 typed property snapshot
 - panel command enablement
 - geometry kind별 insertion preset과 도형 insertion mode
+- active object property draft 유무와 barcode property render pending 여부
 
 `LabelSheetWorkbench`가 private canvas state를 직접 읽거나 package 내부 field에 의존하지 않는다.
 
@@ -838,6 +843,7 @@ FortuneSheet package가 다음과 동등한 read-only 상태를 controller/liste
 - update selected shape properties
 - begin/cancel shape insertion
 - focus selected object property editor
+- `finalizeActiveObjectPropertyDraft()` 또는 동등한 동기 command. no draft/valid commit/invalid discard를 처리하며 async render pending은 별도 enablement 상태로 노출한다.
 
 UI widget이 workbook list를 직접 수정하지 않고 controller command가 undo, dirty, selection과 zOrder를 한 경계에서 처리한다.
 
@@ -967,8 +973,8 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 ### 15.2 save codec 테스트
 
 - `sheet.lines` feature version
-- `sheet.shapes` feature version과 feature key append 순서
-- 기존 feature version 불변과 lines→shapes 연속 신규 version
+- `sheet.fortuneShapes` feature version과 feature key append 순서
+- 기존 feature version 불변과 `sheet.lines`→`sheet.fortuneShapes` 연속 신규 version
 - supported line allow-list
 - supported shape allow-list
 - 미지원 line metadata 제거
@@ -978,8 +984,9 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - sanitizer→normalize 반복 실행의 idempotency와 저장 시 zOrder 비정규화
 - 외부 workbook normalize의 중복 typed ID 결정적 재발급과 반복 normalize idempotency
 - `.lms` 초기 로드와 라벨 파일에서 불러오기가 migrate/normalize 뒤 lines/shapes를 보존함
-- `.xlsx` import가 geometry를 추론하지 않고 빈 lines/shapes를 가진 현재 save format으로 normalize됨
-- absent/빈 lines/shapes의 동일 empty model decode, canonical empty key 생략과 반복 encode 안정성
+- `.xlsx` import가 geometry 또는 legacy raw `shapes`를 추론하지 않고 빈 lines/fortuneShapes model을 가진 현재 save format으로 normalize됨
+- absent/빈 lines/fortuneShapes의 동일 empty model decode, canonical empty key 생략과 반복 encode 안정성
+- 기존 raw overlay `shapes` map/list의 FortuneSheet codec 원형 round-trip·기존 painter/capture 유지와 동시 `fortuneShapes` 무충돌
 - `.lms` export/import round-trip
 - 선·도형만 있는 `.lms`의 export 활성화와 round-trip
 - print-area 경계를 교차하는 line의 stroke padding 및 회전 shape bounds 확장·필터링
@@ -1082,6 +1089,9 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - row double-click/Enter 속성 focus
 - text field focus 중 Delete가 객체를 삭제하지 않음
 - panel command 전 active field 동기 finalize: 유효 draft commit 후 command, invalid draft 원복 후 command 실행
+- 유효/invalid property draft 직후 save/export/print/capture가 각각 최신 committed 값/기존 canonical 값만 사용하고 command 뒤 지연 focus-loss가 추가 dirty를 만들지 않음
+- 유효/invalid property draft 직후 undo/redo·sheet 전환·label/XLSX/image import·이미지/바코드/도형 삽입 command가 같은 finalize 순서를 사용함
+- barcode panel renderer pending 중 save/export/print/capture·undo/redo·sheet 전환·import·삽입 command 비활성화, queue/자동 재실행 없음과 성공·실패·stale 종료 뒤 재활성화
 - panel list/canvas active object/canvas cell/editable field focus별 Arrow key 소유권
 - 기존 image/barcode edit dialog command가 panel edit로 전환
 - barcode panel `[적용]` pending 중 selection 변경 뒤 원래 exact key/revision commit, 객체 삭제·교체·ID 변경·undo/redo·외부 교체 뒤 늦은 결과 폐기와 null/예외 inline 실패
@@ -1116,6 +1126,7 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - solid axis-aligned EZPL native 조건
 - unfilled solid black rectangle EZPL native 조건
 - native coordinate/stroke의 최소 1 dot과 0.5 dot 오차 제한
+- nonzero signed left/top push와 right margin 및 `pageHeightMm` 하단 경계에서 raster/native barcode·line·rectangle·border의 공용 transform 좌표 일치, right/height native clip 불가 후보의 bitmap fallback
 - native 가능 barcode의 앞·뒤에 line/shape가 있을 때 공통 object zOrder를 보존하고, 순서가 바뀌는 native barcode 최적화는 bitmap fallback
 - native 후보 line/rectangle의 앞·뒤에 raster image/barcode/shape가 있을 때 공통 object zOrder를 보존하고, 여러 native geometry 사이의 상대 순서도 paint order와 일치
 - `raster → native 후보 → 상부 raster`로 교차하는 세 객체에서 후보를 bitmap fallback하고 native 승인 전에는 fallback PNG 영역을 제거하지 않음
@@ -1141,7 +1152,7 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 ## 16. 구현 순서
 
 1. 공통 stroke style, `FortuneLine`, `FortuneShape`, shape kind, `FortuneSheet.lines/shapes`와 codec을 추가하고 model/codec 테스트를 통과시킨다.
-2. LabelSheet의 `sheet.lines`, `sheet.shapes` feature key, sanitizer, migration/normalize, label content 판정, print-area save와 save 테스트를 추가한다.
+2. LabelSheet의 `sheet.lines`, `sheet.fortuneShapes` feature key, sanitizer, migration/normalize, label content 판정, print-area save와 save 테스트를 추가하고 legacy raw overlay `shapes`와 분리한다.
 3. typed object key/ref, exact-key resolver/mutation, 중복 ID normalize/allocator와 finite zOrder 정렬·정규화 helper를 추가한다.
 4. line/shape 공용 geometry/stroke helper와 화면/capture painter를 추가한다.
 5. toolbar shape combo, geometry kind별 stroke/fill/radius preset과 transient gesture draft 기반 line/shape drag 생성을 추가한다.
@@ -1171,7 +1182,7 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - 비유한 zOrder는 `0.0`으로 canonicalize되고 공통 정렬과 다음 객체 zOrder는 유한값만 사용한다.
 - 기존 image/barcode의 비숫자·비유한 extraFields zOrder도 `0.0`으로 canonicalize되고 비정상 raw를 재사용하지 않는다.
 - ID/zOrder canonicalization 또는 invalid entry 제외가 발생한 raw list는 재사용하지 않고 canonical wire로 저장된다.
-- absent/빈 lines/shapes는 같은 empty model이며 canonical encoder는 raw empty key 보존 조건이 아니면 빈 typed list key를 생략한다.
+- absent/빈 lines/fortuneShapes는 같은 empty model이며 canonical encoder는 raw empty key 보존 조건이 아니면 빈 typed list key를 생략한다. legacy raw overlay `shapes`는 typed shape로 해석하지 않고 FortuneSheet codec에서 원형 보존한다.
 - dotted/dashDot의 dot은 보이는 지름 `1w`인 원형 mark이고 인접 mark의 보이는 edge 사이 gap은 `2w`다.
 - 폐쇄 도형의 pattern phase는 kind별 고정 local 시작점에서 유지된다. seam은 첫 mark와 보이는 edge gap `2w`를 유지하며 terminal dash는 exclusion 경계까지만 clip되고 완전한 원형 dot이 들어가지 않으면 해당 dot을 생략한다.
 - rectangle/roundedRectangle/ellipse의 bounds·회전·stroke·fill·radius·zOrder가 저장 후 동일하게 복원된다.
@@ -1201,6 +1212,8 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - image/barcode 생성 후 panel이 이미 열려 있을 때만 새 속성으로 전환하고 dock/overlay를 자동으로 열어 사용자 open/closed 의도를 바꾸지 않는다. 닫힌 panel은 넓은 화면의 객체/레이어 toolbar toggle 또는 좁은 화면의 상시 icon으로 다시 열 수 있다.
 - image picker와 barcode 생성/panel render의 늦은 async 결과는 request token과 owner/revision을 통과할 때만 draft 또는 workbook에 반영된다.
 - popup `[삽입]`과 panel command는 focused field를 동기적으로 finalize하며 invalid popup 입력은 삽입을 막고 invalid panel draft는 원복한 뒤 요청 command를 실행한다.
+- save/export/print/capture, undo/redo, sheet 전환, import와 모든 삽입 command는 active property draft를 동기 finalize한 최신 canonical snapshot을 사용한다. valid draft는 먼저 commit하고 invalid draft는 폐기한 뒤 command를 실행하며 지연 focus-loss가 추가 commit을 만들지 않는다.
+- barcode panel renderer pending 중에는 canonical workbook을 읽거나 교체하는 host/삽입 command를 비활성화하고 queue하거나 자동 재실행하지 않는다.
 - panel splitter가 260~420px 범위와 sheet 최소 폭을 지키며 drag 후 workbook/selection/zoom이 유지된다.
 - 좁은 workbench에서 dock이 겹치지 않고 overlay fallback으로 접근 가능하다.
 - width 변화에 따른 자동 접기와 사용자의 dock open/closed 의도가 서로 덮어쓰지 않는다.
@@ -1210,12 +1223,13 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - cut paste는 원래 geometry와 image/barcode 연결 ID를 유지한다. copy paste와 clipboard 독립 duplicate는 `(+12,+12)` offset과 새 typed ID를 사용하되 구조화 option 연결 ID는 보존하고 option 없는 host의 editable 연결 ID만 재발급한다.
 - stale cut payload는 source history 변경 시 무효화되고 성공한 cut paste 뒤 소비되며, 성공한 duplicate/paste는 새 객체만 선택하고 frontmost를 active로 둔다.
 - capture/PDF/EZPL에 line/shapes가 포함되고 editor handle/panel이 출력되지 않는다.
-- `sheet.lines`, `sheet.shapes` feature key, allow-list, migration과 테스트가 함께 갱신된다.
+- `sheet.lines`, `sheet.fortuneShapes` feature key, allow-list, migration과 테스트가 함께 갱신되고 기존 raw overlay `shapes` wire는 유지된다.
 - `.lms` 초기 로드, 라벨 파일에서 불러오기와 `.xlsx` import가 모두 현재 save format migrate/normalize 경계를 거치며, XLSX drawing은 line/shape로 추론하지 않는다.
 - 선·도형만 있는 `.lms`를 export할 수 있고 print-area 교차 geometry가 stroke와 회전을 포함한 bounds로 보존된다.
 - print-area save는 geometry를 crop-local로 옮기지 않고 원래 sheet logical 좌표와 교차 객체를 보존하며 row/column 범위만 조정한다.
 - endpoint/중심점이 crop 밖이어도 실제 stroke/path가 교차하는 line/shape는 print-area save와 capture에서 보존된다.
 - EZPL native barcode/line/rectangle과 raster 객체가 겹쳐도 화면의 공통 object zOrder를 바꾸지 않고 native geometry끼리의 상대 순서도 유지하며, native cell border는 항상 상부 객체 아래인 base-layer 순서를 유지한다.
+- EZPL raster와 모든 native 후보는 signed push·margin·right/height clip을 포함한 같은 `LabelSheetPrintLayout` printer transform을 사용한다.
 - Hybrid EZPL은 native 승인 render plan을 먼저 확정하고 승인 객체를 제외한 raster layer를 다시 합성해 하부 pixel을 보존하며 flatten된 fallback PNG를 지우지 않는다.
 - 관련 focused test와 기존 image/barcode/save/print 회귀 테스트가 통과한다.
 - `flutter analyze` issues 0, 변경 파일 diagnostics 오류 0, `git diff --check` 통과다.
@@ -1224,6 +1238,7 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 ## 18. 구현 전 재확인하지 않아도 되는 확정값
 
 - 최초 지원 geometry 객체: 직선, 사각형, 둥근 사각형, 타원
+- typed shape Dart model/wire key: `FortuneSheet.shapes` / `fortuneShapes`, 기존 raw overlay `shapes`와 분리
 - 선 종류: 실선, 파선, 점선, 일점쇄선
 - 기본 두께: style별 0.5mm
 - 두께 범위: 0.1~10.0mm, 입력 단위 0.1mm
@@ -1255,6 +1270,7 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - 이미지·바코드 생성 위치: toolbar command 시점의 active sheet/선택 merge anchor에 고정
 - 이미지·바코드 생성 후 panel: 이미 열린 panel만 새 속성으로 전환, 닫힌 dock/overlay 자동 open 금지
 - 바코드 renderer 진행 중: 입력·확인·닫기·취소·Escape 비활성화, 중복 submit 금지
+- 바코드 panel renderer 진행 중: save/export/print/capture·undo/redo·sheet 전환·import·삽입 command 비활성화, queue/자동 재실행 금지
 - 기존 객체 속성 편집: 통합 panel
 - 다중 선택 1차 범위: layer 조정, 삭제, 복제, clipboard
 - 화살표·자유선·polyline·polygon·gradient/pattern/image fill·다중 geometry 정렬: 제외
