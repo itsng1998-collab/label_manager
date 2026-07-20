@@ -6,6 +6,19 @@
 - ODBC transaction batch는 첫 DML이 0행일 때 `SQL_NO_DATA(100)`을 반환할 수 있으므로 필요하면 batch 첫 줄에 `SET NOCOUNT ON`을 사용하고 명시적 결과 SELECT를 유지한다. `@@ROWCOUNT`와 `@@TRANCOUNT`는 parameter로 치환하지 않는다.
 - SQL 변경 검증 시 focused DAO 테스트에 금지 함수 미사용과 XML wire 계약을 고정하고, 가능한 경우 compatibility 100 실제 서버에서 데이터 변경 없는 read-only/빈 payload/rollback probe를 수행한다. 실제 schema capability가 없으면 gate를 우회하지 않고 제한을 기록한다.
 
+### 완료 (2026-07-20): 선·도형 통합 지시서 발행 API·회전·시트 revision 보완
+- 사용자 요청: 최신 `doc/label_line_panel.txt`를 실제 코드에 다시 대조해 모호하거나 빠진 구현 계약을 권장안으로 병합하고, 사용자 확인이 필요한 사항은 즉시 확정한다.
+- 추가 사용자 확인 불필요: 기존 다중 발행 host, 바코드 편집 dialog와 FortuneSheet controlled-widget 흐름으로 동작을 결정할 수 있어 호환 권장안으로 바로 확정했다.
+- 다중 발행 API 보완 완료: PDF unit은 기존 `capture()`를 유지하고 EZPL unit은 active 시점에 app-facing `LabelSheetOutputCaptureController.captureHybridEzpl(metrics, options, lineSpacingPercent)`만 호출한다. 결과는 bytes, 동일 immutable canonical sheet/range snapshot과 resolved metrics/page spec을 제공하며 item-code 오류 검사와 grouping이 마지막 live controller를 재사용하지 않도록 했다.
+- Hybrid 소유권·순서 보완 완료: FortuneSheet package는 exact object/canonical border-edge plan과 filtered capture까지만 소유하고 app 인쇄 타입/EZPL encoder를 import하지 않는다. workbench가 canonical snapshot→행·열 source 크기/resolved layout 확정→plan→filtered capture→app-owned native encoding 순서를 조정하며 입력 source 크기가 null이고 range 크기가 label 크기와 다른 테스트를 추가했다.
+- barcode rotation 보완 완료: panel이 기존 `extraFields['rotation']`을 사용하고 유한 legacy 값은 동일 시각 회전의 `0 <= value < 360` 값으로 표시·적용한다. 비숫자·`NaN`·무한대는 `0` fallback하며 renderer request, replacement metadata, 저장·capture에 같은 canonical 값을 전달한다.
+- per-sheet revision 보완 완료: package-owned sheet별 canonical revision과 workbook 전역 단조 증가 history-lineage generation을 추가했다. public command/batch의 canonical before/after 경계에서 변경 sheet마다 정확히 한 번 증가하고 no-op/UI-only/다른 sheet 변경은 유지하며, undo/redo·실제 외부 replacement는 변경 sheet revision과 전역 lineage를 각각 한 번 증가시킨다.
+- controlled echo 경계 보완 완료: package `onChange`가 방출한 동일 canonical revision/workbook의 새 부모 인스턴스는 acknowledgment로 처리해 revision, cut token, selection/transient state를 유지한다. 현재 canonical snapshot과 다른 host 입력만 실제 외부 replacement로 판정해 stale cut payload를 무효화한다.
+- cut token 보완 완료: `(sourceSheetId, cut 직후 per-sheet canonical revision, history-lineage generation)`을 사용한다. source sheet cell/object mutation은 무효화하고 다른 sheet 편집·단순 전환은 유지하며, revision 값이 복원돼도 lineage 변경 뒤 stale payload가 다시 유효해지지 않는 테스트를 명시했다.
+- 독립 재검토 완료: 1차 검토의 controlled echo, package/app 의존 방향, legacy rotation, revision transaction 지적을 모두 병합했다. 2차 검토의 source 크기 확정 순서 모순도 plan 전에 canonical range metrics로 resolved layout을 확정하도록 해소했고 잔여 구현 차단 문제는 없다.
+- 검증 완료: `doc/label_line_panel.txt`와 `SESSION_HANDOFF.md` diagnostics 오류 0건, 신규 계약 및 상충 표현 검색, 독립 재검토 2회, `git diff --check`를 수행했다. 문서만 변경했으므로 Flutter test/analyze는 실행하지 않았다.
+- stage/commit 대상: `doc/label_line_panel.txt`, `SESSION_HANDOFF.md`만 포함한다. 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
+
 ### 완료 (2026-07-20): 선·도형 통합 지시서 권한·ID·경계 계약 재보완
 - 사용자 요청: 최신 `doc/label_line_panel.txt`의 보호, ID, zOrder, focus, clamp와 capture 경계 검토 권장안을 지시서에 병합한다.
 - 사용자 확정: object mutation 권한은 객체가 cell range에 귀속되지 않는 현재 구조에 맞춰 workbook `allowEdit`만 사용하고 cell protection은 적용하지 않는다. 같은 sheet/typed kind의 중복 내부 ID는 첫 source-sequence entry를 유지하고 후속 entry에 충돌 없는 `{id}__2`, `__3`, ... ID를 결정적으로 재발급한다.
