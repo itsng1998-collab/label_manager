@@ -19,6 +19,10 @@
 - 사용자 추가 확정: cut paste는 원래 geometry를 유지한다. copy paste와 clipboard 독립 duplicate만 기존 image parity의 logical `(+12,+12)` offset을 적용한다.
 - clipboard 수명·복제 계약 보완 완료: cut token은 source sheet revision과 undo/redo·외부 교체용 history-lineage generation으로 판정하며 source sheet 변경에서만 무효화한다. 성공한 cut paste는 payload를 소비하고 실패 시 유지한다. duplicate는 clipboard를 보존하고 typed/연결 ID를 새로 발급한다.
 - 공통 객체 계약 보완 완료: image/barcode까지 finite zOrder canonical save/raw 판정을 적용하고, property revision 증가 경계와 duplicate/paste 성공 선택을 고정했다. shape body move는 음수 X·right/bottom 초과를 허용하고 저장 top만 clamp한다.
+- 사용자 추가 확정: 삽입 중 오른쪽 클릭은 draft와 삽입 모드를 먼저 취소한 뒤 같은 위치의 기존 context menu를 표시한다. panel 속성 draft가 invalid인 상태에서 선택 변경·삭제·복제 등 command가 요청되면 draft를 원복·폐기한 뒤 command를 실행한다.
+- 삽입·draft 계약 재보완 완료: 삽입 primary pointer가 object/cell hit-test보다 우선하고 취소된 pointer-up은 commit하지 않는다. transient draft는 owner workbook identity/history generation과 sheet ID를 캡처하며 sheet 변경·undo/redo·외부 workbook 교체에서 폐기한다.
+- auto-scroll·field finalize 계약 재보완 완료: 존재하지 않는 image 전용 helper 대신 공용 `_autoScrollOffsetForDrag()`의 next offset으로 logical pointer를 다시 계산하고 pointer move event 기반 동작만 사용한다. popup `[삽입]`과 panel command는 focused field를 동기 finalize하며 invalid popup 입력은 삽입을 차단한다.
+- ID·저장·stroke 계약 재보완 완료: 중복 normalize 전에 kind별 모든 원본 ID를 예약해 `a, a, a__2`를 `a, a__3, a__2`로 보존하고 신규 allocator는 최소 빈 양의 suffix를 사용한다. print-area save는 원래 sheet logical 좌표를 유지하며 closed shape pattern은 kind별 고정 시작점·방향, seam의 보이는 edge gap `2w`, terminal dash clip과 불완전 dot 생략을 사용한다.
 - 검증 완료: 두 문서 diagnostics 오류 0건, 필수·잔여 충돌 계약 검색과 전체 diff 검토 완료, `git diff --check -- doc/label_line_panel.txt SESSION_HANDOFF.md` 통과. 문서만 변경해 Flutter test/analyze는 실행하지 않았다.
 - stage/commit 대상: `doc/label_line_panel.txt`, `SESSION_HANDOFF.md`. 기존 사용자 변경 `lib/core/app.dart`는 제외하고 관련 문서만 커밋한다.
 
