@@ -230,8 +230,9 @@ FortuneShapeKind.ellipse          <-> "ellipse"
 6. `_sanitizeSheetJson()`에서 `lines`, `shapes` list sanitizer 연결
 7. `labelSheetMigrateWorkbookSaveJson()`에서 feature가 없는 이전 문서를 빈 lines/shapes로 해석
 8. `labelSheetNormalizeWorkbookForCurrentSaveFormat()`과 save normalization에서 lines/shapes 보존
-9. `.lms`와 `.xlsx` metadata export/import에서 lines/shapes를 보존한다. 외부 XLSX drawing을 앱 shape로 추론하는 것은 범위 밖이지만, 앱이 내보낸 workbook metadata는 다시 가져올 때 그대로 복원한다.
-10. sanitizer가 line과 shape의 필수 geometry, kind, stroke, fill, radius, rotation과 zOrder만 남기는 테스트 추가
+9. `_currentLabelFileHasContent()`에서 lines/shapes를 라벨 내용으로 인정해 선·도형만 있는 `.lms`도 export할 수 있게 한다.
+10. `_sheetForPrintAreaSave()`에서 line은 두 endpoint와 stroke padding, shape는 회전된 bounds와 stroke padding으로 기존 image와 같은 print-area 교차·범위 확장·필터링을 수행한다.
+11. sanitizer가 line과 shape의 필수 geometry, kind, stroke, fill, radius, rotation과 zOrder만 남기는 테스트 추가
 
 allow-list는 다음 key로 고정한다.
 
@@ -240,9 +241,11 @@ allow-list는 다음 key로 고정한다.
 
 - feature version은 `_labelSheetSaveFeatureKeys`의 index/순서에서 파생되는 기존 방식을 유지한다. `sheet.lines`와 `sheet.shapes`를 끝에 순서대로 append해 두 개의 연속된 신규 version을 만들고 기존 key의 version은 바꾸지 않는다.
 - 이전 version 또는 해당 key가 없는 sheet는 migration/normalize에서 빈 list로 해석한다. sanitizer는 허용 key/type 제거만 담당하고 geometry 기본값/정규화는 normalize가 담당한다.
+- codec fallback 또는 canonical normalize가 적용된 entry는 비정상 raw wire를 그대로 재사용하지 않는다. raw list 전체를 재사용하는 최적화를 유지하는 경우에도 각 entry의 stroke style, shape kind, rectangle/ellipse radius와 rotation 등 canonical wire 여부를 먼저 확인한다.
 - 저장할 때마다 zOrder를 임의 재정렬하지 않는다. zOrder 연속값 정규화는 사용자가 layer reorder/앞뒤 이동 command를 실행한 transaction 안에서만 수행한다.
 
 기존 `sheet.images`, `image` legacy alias와 `rawImagesKey` 동작은 변경하지 않는다.
+일반 workbook XLSX exporter와 line/shape custom XML schema를 새로 만드는 것은 이번 범위가 아니다. `.xlsx` import는 외부 drawing을 line/shape로 추론하지 않으며 이번 완료 조건은 `.lms` round-trip으로 한정한다.
 
 ## 5. 공통 객체 참조와 Z-Order
 
@@ -358,6 +361,7 @@ shape[i] = images.length + lines.length + i
 - 채워진 rectangle, roundedRectangle, ellipse는 bitmap fallback을 사용한다.
 - dashed/dotted/dashDot, 임의 각도, 색상 line 또는 native overlay가 공통 zOrder를 깨는 경우 bitmap fallback을 사용한다.
 - native 최적화보다 화면/PDF와 같은 clip·zOrder 결과를 우선한다.
+- 신규 line/shape뿐 아니라 기존 native barcode와 cell-border overlay도 같은 합성 순서 판정에 포함한다. fallback bitmap에서 native 영역을 지우거나 raster 뒤에 native command를 추가하면 겹치는 객체의 공통 zOrder가 바뀌는 경우 해당 barcode/border/line/shape native 최적화를 사용하지 않고 capture bitmap에 남긴다.
 - bitmap fallback은 공용 capture의 line/shapes를 다시 별도 overlay하지 않는다.
 - selection handle, ID label과 editor highlight는 EZPL에 포함하지 않는다.
 - native 후보도 label clip 안의 logical 좌표와 mm 두께를 printer dots로 변환한 값이 모두 유효하고 stroke가 최소 1 dot이어야 한다. dot 정수화 뒤 되돌린 좌표/두께가 0.5 dot보다 크게 달라지면 bitmap fallback을 사용한다.
@@ -817,6 +821,7 @@ UI widget이 workbook list를 직접 수정하지 않고 controller command가 u
 - property field commit 1회
 - 다중 layer command 1회
 - 선택 묶음 reorder drag 1회
+- 다중 cut 1회
 - 다중 delete/duplicate/paste 1회
 
 pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다.
@@ -835,7 +840,7 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - image/barcode-only 기존 clipboard 동작을 유지한다.
 - line/shape-only와 mixed selection을 내부 clipboard payload로 지원한다.
 - payload는 typed object kind와 각 model JSON을 구분한다.
-- paste는 새 typed ID를 만들고 모든 pasted object를 현재 최대 zOrder 뒤에 원래 상대 순서로 추가한다.
+- copy/duplicate paste는 새 typed ID를 만들고 모든 pasted object를 현재 최대 zOrder 뒤에 원래 상대 순서로 추가한다.
 - copy paste offset은 기존 이미지 동작과 같은 logical delta를 사용한다.
 - cut paste는 기존 panel 계약대로 원본 typed ID를 유지하고, copy/duplicate paste는 새 typed ID를 만든다.
 
@@ -910,7 +915,9 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - save normalize 뒤 lines/shapes 유지
 - sanitizer→normalize 반복 실행의 idempotency와 저장 시 zOrder 비정규화
 - `.lms` export/import round-trip
-- 앱의 `.xlsx` metadata export/import line/shape round-trip. 외부 XLSX drawing을 앱 geometry로 추론하지 않음
+- 선·도형만 있는 `.lms`의 export 활성화와 round-trip
+- print-area 경계를 교차하는 line의 stroke padding 및 회전 shape bounds 확장·필터링
+- unknown stroke, 범위 밖 stroke width, 잘못된 stroke/fill color의 기본값 canonical 재저장과 rectangle/ellipse radius `0.0`, rotation canonical 재저장
 
 ### 15.3 geometry/painter 테스트
 
@@ -952,7 +959,8 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - pointer move 여러 번이어도 undo 1건
 - line 선택 handle 2개와 zoom 고정 크기
 - shape resize handle 8개와 rotation handle 1개의 zoom 고정 크기
-- Delete/duplicate/copy/paste
+- Delete/duplicate/copy/cut/paste
+- mixed image/barcode/line/shape cut은 즉시 삭제와 undo 1건, cut paste는 원본 typed ID 유지와 별도 undo 1건, copy/duplicate paste는 새 typed ID 발급
 
 ### 15.5 panel 테스트
 
@@ -993,6 +1001,7 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - solid axis-aligned EZPL native 조건
 - unfilled solid black rectangle EZPL native 조건
 - native coordinate/stroke의 최소 1 dot과 0.5 dot 오차 제한
+- native 가능 barcode의 앞·뒤에 line/shape가 있을 때 공통 zOrder를 보존하고, 순서가 바뀌는 native barcode/cell-border 최적화는 bitmap fallback
 - dashed/diagonal/color line bitmap fallback
 - filled rectangle/roundedRectangle/ellipse bitmap fallback
 - fallback 후 line/shape 중복 overlay 없음
@@ -1013,7 +1022,7 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 ## 16. 구현 순서
 
 1. 공통 stroke style, `FortuneLine`, `FortuneShape`, shape kind, `FortuneSheet.lines/shapes`와 codec을 추가하고 model/codec 테스트를 통과시킨다.
-2. LabelSheet의 `sheet.lines`, `sheet.shapes` feature key, sanitizer, migration/normalize와 save 테스트를 추가한다.
+2. LabelSheet의 `sheet.lines`, `sheet.shapes` feature key, sanitizer, migration/normalize, label content 판정, print-area save와 save 테스트를 추가한다.
 3. typed object key/ref와 공통 zOrder 정렬·정규화 helper를 추가한다.
 4. line/shape 공용 geometry/stroke helper와 화면/capture painter를 추가한다.
 5. toolbar shape combo, geometry kind별 stroke/fill/radius preset과 line/shape drag 생성을 추가한다.
@@ -1051,6 +1060,8 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - panel 폭·열림·selection 변경이 workbook dirty/undo를 만들지 않는다.
 - capture/PDF/EZPL에 line/shapes가 포함되고 editor handle/panel이 출력되지 않는다.
 - `sheet.lines`, `sheet.shapes` feature key, allow-list, migration과 테스트가 함께 갱신된다.
+- 선·도형만 있는 `.lms`를 export할 수 있고 print-area 교차 geometry가 stroke와 회전을 포함한 bounds로 보존된다.
+- EZPL native barcode/cell-border와 신규 객체가 겹쳐도 화면의 공통 zOrder를 바꾸지 않는다.
 - 관련 focused test와 기존 image/barcode/save/print 회귀 테스트가 통과한다.
 - `flutter analyze` issues 0, 변경 파일 diagnostics 오류 0, `git diff --check` 통과다.
 - 사용자 변경 `lib/core/app.dart`와 unrelated dirty 파일은 stage/commit하지 않는다.

@@ -6,6 +6,18 @@
 - ODBC transaction batch는 첫 DML이 0행일 때 `SQL_NO_DATA(100)`을 반환할 수 있으므로 필요하면 batch 첫 줄에 `SET NOCOUNT ON`을 사용하고 명시적 결과 SELECT를 유지한다. `@@ROWCOUNT`와 `@@TRANCOUNT`는 parameter로 치환하지 않는다.
 - SQL 변경 검증 시 focused DAO 테스트에 금지 함수 미사용과 XML wire 계약을 고정하고, 가능한 경우 compatibility 100 실제 서버에서 데이터 변경 없는 read-only/빈 payload/rollback probe를 수행한다. 실제 schema capability가 없으면 gate를 우회하지 않고 제한을 기록한다.
 
+### 완료 (2026-07-20): 선·도형 통합 지시서 저장·출력 계약 보완
+- 사용자 요청: `doc/label_line_panel.txt`를 현재 구현에 대조해 확인한 문제와 권장안을 과도한 예외 처리 없이 지시서에 병합한다.
+- 사용자 확정: 일반 workbook XLSX exporter와 line/shape custom XML schema는 이번 범위에서 제외한다. 실제 라벨 저장 포맷인 `.lms` round-trip만 완료 조건으로 유지하고 외부 XLSX drawing을 geometry로 추론하지 않는다.
+- 저장 계약 보완 완료: 선·도형만 있는 라벨의 export 활성화, endpoint/stroke 및 회전 bounds를 반영한 print-area 확장·필터링을 save format과 테스트·구현 순서·완료 조건에 연결했다.
+- codec 계약 보완 완료: unknown stroke와 kind별 radius/rotation canonical normalize가 적용된 entry는 비정상 raw wire를 그대로 재사용하지 않으며 canonical 재저장 테스트를 요구한다.
+- EZPL 계약 보완 완료: 신규 geometry뿐 아니라 기존 native barcode/cell-border까지 공통 zOrder 판정에 포함하고, bitmap 영역 제거나 후행 native command가 순서를 바꾸면 해당 최적화를 쓰지 않도록 명시했다.
+- clipboard 계약 보완 완료: copy/duplicate paste만 새 typed ID를 만들고 cut paste는 기존 ID를 유지하며 다중 cut 1회를 undo 1건으로 고정했다.
+- 1차 검증 완료: `git diff --check -- doc/label_line_panel.txt` 통과, 문서 diagnostics 오류 0건, XLSX 제외 및 저장/EZPL/canonical/cut 필수 계약 검색 완료.
+- 독립 재검토 보완 완료: invalid stroke width/color/fill raw의 canonical 재저장과 mixed typed cut 즉시 삭제/undo, paste ID 유지/별도 undo를 직접 검증하는 테스트를 추가했다. 그 밖의 저장 범위, XLSX 제외와 EZPL 합성 계약에는 구현 모순이 없다.
+- 최종 검증 완료: 두 문서 diagnostics 오류 0건, 저장/EZPL/canonical/cut 필수 계약 검색 및 독립 재검토 완료, `git diff --check -- doc/label_line_panel.txt SESSION_HANDOFF.md` 통과. 문서만 변경해 Flutter test/analyze는 실행하지 않았다.
+- stage/commit 대상: `doc/label_line_panel.txt`, `SESSION_HANDOFF.md`. 기존 사용자 변경 `lib/core/app.dart`는 제외하고 관련 문서만 커밋한다.
+
 ### 완료 (2026-07-20): 자동품목갱신 탭 구현 지시서
 - 사용자 요청: 레거시 자동품목갱신 탭의 동작을 기준으로 현행 Flutter 품목관리 UI·플로팅창·취소/저장·SQLite 원복·편집 잠금을 재사용하는 `doc/automatic_item_update.txt` 구현 지시서를 작성한다.
 - 레거시 확인 범위: 미적용 품목 DB 조회, 번호/품목명/갱신날짜/라벨항목 컬럼, 팝업메뉴 활성 조건과 구현 여부, 품목 맨 끝 추가와 서버 기준 다음 날 기본 날짜, 삭제, 저장 transaction, F5/새로 고침의 미저장 변경 폐기 후 재조회 동작을 확인한다.
