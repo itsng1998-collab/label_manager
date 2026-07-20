@@ -6,6 +6,15 @@
 - ODBC transaction batch는 첫 DML이 0행일 때 `SQL_NO_DATA(100)`을 반환할 수 있으므로 필요하면 batch 첫 줄에 `SET NOCOUNT ON`을 사용하고 명시적 결과 SELECT를 유지한다. `@@ROWCOUNT`와 `@@TRANCOUNT`는 parameter로 치환하지 않는다.
 - SQL 변경 검증 시 focused DAO 테스트에 금지 함수 미사용과 XML wire 계약을 고정하고, 가능한 경우 compatibility 100 실제 서버에서 데이터 변경 없는 read-only/빈 payload/rollback probe를 수행한다. 실제 schema capability가 없으면 gate를 우회하지 않고 제한을 기록한다.
 
+### 완료 (2026-07-20): 선·도형 통합 지시서 권한·ID·경계 계약 재보완
+- 사용자 요청: 최신 `doc/label_line_panel.txt`의 보호, ID, zOrder, focus, clamp와 capture 경계 검토 권장안을 지시서에 병합한다.
+- 사용자 확정: object mutation 권한은 객체가 cell range에 귀속되지 않는 현재 구조에 맞춰 workbook `allowEdit`만 사용하고 cell protection은 적용하지 않는다. 같은 sheet/typed kind의 중복 내부 ID는 첫 source-sequence entry를 유지하고 후속 entry에 충돌 없는 `{id}__2`, `__3`, ... ID를 결정적으로 재발급한다.
+- 권한·ID 계약 보완 완료: 모든 object mutation entry point에 공통 `canEditObjects` guard를 적용하고 selection/copy는 읽기 전용에서도 허용한다. codec/외부 workbook normalize와 신규·복제·paste allocator의 기존/예약 typed ID 충돌 회피를 테스트·완료 조건에 연결했다.
+- zOrder·interaction 계약 보완 완료: 숫자/문자열 비유한 zOrder를 `0.0`으로 canonicalize하고 유한값만으로 next order를 계산한다. Arrow key는 panel list, canvas object, canvas cell과 editable field의 실제 focus별로 소유권을 나눈다.
+- geometry·capture 계약 보완 완료: 기존 image parity를 move X 음수 허용/Y clamp, resize left/top clamp/right/bottom 허용, rotation 무-clamp로 명시했다. endpoint나 중심점이 crop 밖이어도 stroke/path가 교차하는 line/shape를 print-area save와 capture에서 보존한다.
+- 검증 완료: 두 문서 diagnostics 오류 0건, 필수·잔여 충돌 계약 검색과 전체 diff 검토 완료, `git diff --check -- doc/label_line_panel.txt SESSION_HANDOFF.md` 통과. 문서만 변경해 Flutter test/analyze는 실행하지 않았다.
+- stage/commit 대상: `doc/label_line_panel.txt`, `SESSION_HANDOFF.md`. 기존 사용자 변경 `lib/core/app.dart`는 제외하고 관련 문서만 커밋한다.
+
 ### 완료 (2026-07-20): 선·도형 통합 지시서 저장·출력 계약 보완
 - 사용자 요청: `doc/label_line_panel.txt`를 현재 구현에 대조해 확인한 문제와 권장안을 과도한 예외 처리 없이 지시서에 병합한다.
 - 사용자 확정: 일반 workbook XLSX exporter와 line/shape custom XML schema는 이번 범위에서 제외한다. 실제 라벨 저장 포맷인 `.lms` round-trip만 완료 조건으로 유지하고 외부 XLSX drawing을 geometry로 추론하지 않는다.

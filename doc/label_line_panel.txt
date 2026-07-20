@@ -9,6 +9,7 @@
 - 직선과 폐쇄 도형의 화면 렌더, PNG capture, PDF와 EZPL 출력은 같은 geometry/style 해석을 사용한다. 미리보기와 실물 출력에 서로 다른 테두리 패턴·두께·채우기·Z-Order를 만들지 않는다.
 - 기존 이미지·바코드 생성 다이얼로그는 유지한다. 기존 객체의 일상적인 속성 편집만 오른쪽 객체 패널로 옮기고, 이미지 파일 선택은 panel button으로 실행하며 자르기처럼 별도 작업면이 필요한 기능은 기존 전용 다이얼로그를 유지한다.
 - 현재 레이어 패널의 다중 선택, 키보드 명령, 복사·붙여넣기와 Z-Order 이동 동작을 퇴행시키지 않는다.
+- 객체는 특정 cell range에 귀속되지 않으므로 모든 object mutation의 공통 권한은 workbook `allowEdit`만 사용한다. 현재 cell selection의 protection/locked 상태로 객체 명령 허용 여부를 바꾸지 않는다.
 - workbook 변경만 dirty/undo 대상이다. 패널 열림 상태, 패널 폭, splitter drag와 내부 스크롤은 workbook에 저장하지 않고 dirty 또는 undo를 만들지 않는다.
 - `labelSheetSaveFeatureVersions`, sanitizer allow-list, migration과 저장 회귀 테스트를 함께 변경한다. 저장 기능 키나 allow-list 중 하나만 수정하지 않는다.
 - DB schema, SQL, DAO와 데이터 migration은 이번 작업 범위가 아니다.
@@ -205,7 +206,7 @@ FortuneShapeKind.ellipse          <-> "ellipse"
 - `strokeStyle` 기본값은 `solid`다.
 - `strokeWidthMm` 기본값은 `0.5`, 유효 범위는 `0.1 <= value <= 10.0`이다. decode 값이 없거나 유한하지 않거나 범위 밖이면 clamp하지 않고 `0.5`를 사용한다.
 - `strokeColor` 기본값은 `#000000`이다. decode 문자열을 현재 Fortune color parser가 처리하지 못하면 `#000000`을 사용한다.
-- `zOrder`가 없거나 숫자가 아니면 `0.0`이다.
+- `zOrder`가 없거나 숫자가 아니거나 유한하지 않으면 `0.0`이다. 숫자와 문자열 형태의 `NaN`, `Infinity`, `-Infinity`를 모두 비유한 값으로 처리하고 다음 save에서 canonical `0.0`을 쓴다.
 - 빈 `lines`는 기존 파일과 같은 결과를 만들며 기존 `images` decoding에 영향을 주지 않는다.
 - 지원하지 않는 line extra field는 Fortune model 내부 round-trip에서는 보존할 수 있지만, LabelSheet 저장 sanitizer에서는 allow-list 밖 값을 제거한다.
 - `FortuneSheet`에 immutable `List<FortuneShape> shapes`와 raw shapes metadata를 추가한다.
@@ -217,6 +218,7 @@ FortuneShapeKind.ellipse          <-> "ellipse"
 - `rotationDegrees`, `cornerRadiusMm`가 없거나 유한하지 않으면 각 기본값을 사용한다.
 - 빈 `shapes`는 기존 파일과 같은 결과를 만들며 images/lines decoding에 영향을 주지 않는다.
 - 지원하지 않는 shape extra field의 round-trip/sanitizer 경계는 line과 같다.
+- active sheet 안에서 typed key의 같은 kind별 내부 `id`는 유일해야 한다. codec/외부 workbook normalize는 공통 source sequence의 첫 `(kind, id)` entry를 유지하고 후속 중복 entry에 `{원본 id}__2`, `__3`, ... 형식의 첫 사용 가능한 ID를 결정적으로 발급한다. 해당 suffix가 이미 있으면 건너뛰며 기존 연결 이미지·바코드 ID metadata는 바꾸지 않는다.
 
 ### 4.6 LabelSheet save format
 
@@ -287,7 +289,7 @@ line[i]  = images.length + i
 shape[i] = images.length + lines.length + i
 ```
 
-배열 내부 순서는 zOrder 변경 때문에 재배열하지 않는다. 새 객체는 images/lines/shapes 전체의 유한한 최대 zOrder + 1을 받으므로 정상 편집 후 tie에 의존하지 않는다. 객체가 하나도 없거나 유효한 zOrder가 없으면 `1.0`을 사용한다.
+배열 내부 순서는 zOrder 변경 때문에 재배열하지 않는다. 공통 accessor는 비유한 숫자/문자열 zOrder를 `0.0`으로 반환하고 최대값 계산은 유한값만 사용한다. 새 객체는 images/lines/shapes 전체의 유한한 최대 zOrder + 1을 받으므로 정상 편집 후 tie에 의존하지 않는다. 객체가 하나도 없거나 유효한 zOrder가 없으면 `1.0`을 사용한다.
 
 레이어 순서 변경 후에는 이미지·바코드·직선·폐쇄 도형을 뒤에서 앞으로 순회해 `1.0, 2.0, ...` 연속 zOrder로 정규화한다. 저장 배열 자체를 Z-Order 목적으로 재배열하지 않고 각 typed model의 원래 배열 소유권을 유지한다.
 
@@ -297,6 +299,7 @@ shape[i] = images.length + lines.length + i
 - 기존 image 전용 호출부가 실제로 image만 필요하면 `fortuneImagesInPaintOrder()`를 유지한다.
 - paint, hit-test, layer panel, copy/paste와 출력처럼 모든 객체 순서가 필요한 경로는 새 공통 helper를 사용한다.
 - 이미지/바코드 새 삽입과 복제의 `_nextImageZOrder()`는 직선과 shapes까지 보는 `_nextObjectZOrder()`로 교체한다.
+- 신규 삽입·복제·copy paste의 내부 ID allocator는 active sheet의 모든 typed key와 같은 command transaction에서 예약한 ID를 함께 확인하고 충돌이 없어질 때까지 발급한다. cut paste는 원본 entry가 제거된 기존 계약에서 원본 ID를 유지한다.
 
 ## 6. 직선·폐쇄 도형 렌더와 출력
 
@@ -347,6 +350,7 @@ shape[i] = images.length + lines.length + i
 - 같은 zOrder tie는 5.2의 source sequence를 사용한다.
 - zoom과 devicePixelRatio가 바뀌어도 물리 두께 의미를 유지한다.
 - viewport 밖 line/shape는 회전을 반영한 bounds와 stroke padding으로 culling한다.
+- capture/print-area 교차 판정은 endpoint 포함 여부가 아니라 stroke를 포함한 실제 line segment/path와 crop rect의 교차를 사용한다. 양 endpoint가 crop 반대편 밖에 있거나 중심선은 밖이지만 stroke가 닿는 line, 회전 전 bounds는 밖이지만 회전 path가 닿는 shape를 제거하지 않는다.
 - 선택 강조는 원본 stroke/fill을 덮지 않고 바깥쪽 highlight로 표시한다.
 
 ### 6.5 capture와 PDF
@@ -514,7 +518,7 @@ x2 += dx, y2 += dy
 - drag 시작 시 undo 기준 snapshot을 한 번 기록하고 pointer up에서 commit한다.
 - keyboard arrow는 기존 객체 미세 이동 단위를 사용한다.
 - Shift+arrow는 기존 객체 큰 이동 단위를 사용한다.
-- 이동 bounds/clamp 정책은 기존 이미지 객체 정책과 통일한다.
+- 기존 이미지 parity에 맞춰 move는 X 음수를 허용하고 전체 geometry의 최소 Y가 `0`보다 작아지지 않게 delta Y만 clamp한다. line은 두 endpoint에 같은 보정 delta를 적용한다.
 
 ### 8.4 끝점 이동
 
@@ -535,6 +539,7 @@ x2 += dx, y2 += dy
 - rotation handle drag는 bounds center 기준 angle을 변경한다.
 - rotation 중 Shift는 15도 단위로 snap한다.
 - roundedRectangle radius는 resize 후에도 mm 값을 유지하되 렌더 effective radius는 짧은 변 절반으로 clamp한다.
+- 기존 이미지 parity에 맞춰 shape resize는 left/top만 `0`으로 clamp하고 right/bottom 초과는 허용한다. rotation은 회전된 시각 bounds를 추가 clamp하지 않는다.
 - move/resize/rotate 각각 pointer drag 전체가 undo 1건이다.
 
 ### 8.6 선택 규칙
@@ -646,7 +651,7 @@ shape 위치/크기/회전 field는 canvas handle과 같은 geometry commit API�
 - panel의 X/Y, endpoint, width/height와 read-only line length는 기존 이미지 dialog와 같이 physical-size가 있는 시트에서는 `mm`, 없으면 `px`로 표시하고 모든 field에 현재 단위 suffix를 표시한다.
 - panel commit은 공용 logical pixel↔mm helper로 표시값을 logical coordinate로 변환하며, 단위 전환 때문에 별도 raw geometry metadata를 추가하지 않는다.
 
-- X/Y는 기존 이미지 이동 bounds/clamp 정책을 사용한다.
+- X/Y field는 move와 같은 정책으로 음수 X를 허용하고 Y만 `0` 이상으로 제한한다. width/height field는 resize와 같이 left/top만 clamp하며 right/bottom 초과는 허용한다. rotation field는 회전 bounds를 clamp하지 않는다.
 - width/height는 양수만 허용하며 현재 zoom에서 3px 미만이 되는 값은 commit하지 않는다.
 - rotation 입력은 유한한 degree만 허용하고 commit 시 `0 <= value < 360`으로 정규화한다.
 - corner radius 입력은 `0.0~50.0 mm`를 허용하며 저장값은 유지하고 화면 effective radius만 현재 짧은 변 절반으로 clamp한다.
@@ -810,7 +815,14 @@ FortuneSheet package가 다음과 동등한 read-only 상태를 controller/liste
 
 UI widget이 workbook list를 직접 수정하지 않고 controller command가 undo, dirty, selection과 zOrder를 한 경계에서 처리한다.
 
-### 12.3 panel widget 소유권
+### 12.3 object mutation 권한
+
+- `canEditObjects == workbook.settings.allowEdit`를 package 공용 상태/guard로 사용한다.
+- 생성, property commit, move/resize/rotation, delete, duplicate, cut/paste, layer reorder와 앞/뒤 이동을 포함한 모든 mutation entry point가 같은 guard를 통과한다.
+- object selection, panel open/close와 copy clipboard payload 생성처럼 workbook을 바꾸지 않는 동작은 `allowEdit == false`에서도 허용한다. cut과 paste는 workbook을 바꾸므로 비활성화한다.
+- 현재 cell selection의 `_canEditRange()`를 object command 권한에 사용하지 않는다. 읽기 전용 cell을 선택했는지에 따라 같은 객체 command enablement가 바뀌면 안 된다.
+
+### 12.4 panel widget 소유권
 
 - typed object model, selection state, property validation과 command는 FortuneSheet package가 소유한다.
 - 공용 object panel widget도 가능한 한 FortuneSheet package에 두어 다른 FortuneSheet host에서 재사용할 수 있게 한다.
@@ -862,6 +874,8 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - canvas shortcut과 text field shortcut이 충돌하지 않는다.
 - editable field가 focus된 동안 Delete/Backspace는 객체를 삭제하지 않는다.
 - panel list focus에서 Delete, Ctrl+D, Ctrl+C/X/V, Ctrl+Up/Down/Home/End는 기존 layer shortcut을 유지한다.
+- panel list focus의 일반 Arrow Up/Down은 row navigation, canvas focus와 active object가 있으면 Arrow/Shift+Arrow는 geometry 이동, canvas focus에 active object가 없으면 기존 cell navigation을 수행한다. editable field focus에서는 arrow를 caret/input이 소유한다.
+- dock/overlay panel의 open 여부가 아니라 실제 `FocusNode`를 기준으로 keyboard command 소유권을 결정한다.
 - Escape 우선순위는 property draft 취소 → popup/overlay 닫기 → shape insertion 취소 → canvas focus 복귀 순서다.
 
 ## 14. 구현 대상 파일 가이드
@@ -913,6 +927,8 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - 기존 images-only workbook 무변경 round-trip
 - images, lines와 shapes 동시 저장
 - raw metadata preservation 경계
+- 같은 typed kind의 중복 ID 첫 source-sequence entry 유지, 이미 사용된 suffix를 건너뛴 후속 `{id}__2`, `__3` 결정적 재발급과 연결 ID metadata 유지
+- 숫자/문자열 `NaN`, `Infinity`, `-Infinity` zOrder의 `0.0` canonical decode/save와 stable tie
 
 ### 15.2 save codec 테스트
 
@@ -926,6 +942,7 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - lines/shapes 없는 이전 format migration
 - save normalize 뒤 lines/shapes 유지
 - sanitizer→normalize 반복 실행의 idempotency와 저장 시 zOrder 비정규화
+- 외부 workbook normalize의 중복 typed ID 결정적 재발급과 반복 normalize idempotency
 - `.lms` export/import round-trip
 - 선·도형만 있는 `.lms`의 export 활성화와 round-trip
 - print-area 경계를 교차하는 line의 stroke padding 및 회전 shape bounds 확장·필터링
@@ -977,6 +994,9 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - shape resize handle 8개와 rotation handle 1개의 zoom 고정 크기
 - Delete/duplicate/copy/cut/paste
 - mixed image/barcode/line/shape cut은 즉시 삭제와 undo 1건, cut paste는 원본 typed ID 유지와 별도 undo 1건, copy/duplicate paste는 새 typed ID 발급
+- 신규/복제/paste allocator의 기존 typed ID와 같은 transaction 예약 ID 충돌 회피
+- object mutation은 `allowEdit == false`에서 모두 차단되고 panel selection/copy는 허용됨
+- 보호/locked cell selection이 object mutation enablement를 바꾸지 않고 `allowEdit == true`이면 동일하게 동작함
 
 ### 15.5 panel 테스트
 
@@ -995,6 +1015,7 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - selected block 내부 순서 유지
 - row double-click/Enter 속성 focus
 - text field focus 중 Delete가 객체를 삭제하지 않음
+- panel list/canvas active object/canvas cell/editable field focus별 Arrow key 소유권
 - 기존 image/barcode edit dialog command가 panel edit로 전환
 - 신규 image/barcode 생성 dialog는 유지
 
@@ -1016,7 +1037,9 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 
 - capture PNG에 line/shapes 포함, 모든 editor handle/panel 제외
 - crop origin이 있는 capture의 endpoint 위치
+- 양 endpoint가 crop 반대편 밖인 교차 line과 중심선은 밖이지만 stroke만 crop에 닿는 line의 보존/pixel 결과
 - crop origin과 회전이 있는 shape 위치
+- 회전 전 bounds는 crop 밖이지만 회전 path가 crop과 교차하는 shape의 보존/pixel 결과
 - image/barcode/line/shape zOrder pixel 결과
 - PDF capture와 화면 style 일치
 - solid axis-aligned EZPL native 조건
@@ -1046,7 +1069,7 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 
 1. 공통 stroke style, `FortuneLine`, `FortuneShape`, shape kind, `FortuneSheet.lines/shapes`와 codec을 추가하고 model/codec 테스트를 통과시킨다.
 2. LabelSheet의 `sheet.lines`, `sheet.shapes` feature key, sanitizer, migration/normalize, label content 판정, print-area save와 save 테스트를 추가한다.
-3. typed object key/ref와 공통 zOrder 정렬·정규화 helper를 추가한다.
+3. typed object key/ref, 중복 ID normalize/allocator와 finite zOrder 정렬·정규화 helper를 추가한다.
 4. line/shape 공용 geometry/stroke helper와 화면/capture painter를 추가한다.
 5. toolbar shape combo, geometry kind별 stroke/fill/radius preset과 transient gesture draft 기반 line/shape drag 생성을 추가한다.
 6. line hit-test, 단일 선택, 본체 이동, endpoint handle과 keyboard 이동을 추가한다.
@@ -1070,17 +1093,22 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 
 - 기존 images-only 라벨 파일이 이전과 같은 이미지·바코드로 열린다.
 - line 4종과 두께·색상·좌표·zOrder가 저장 후 동일하게 복원된다.
+- 같은 sheet/kind의 중복 내부 ID는 첫 entry를 유지하고 후속 entry에 결정적인 충돌 없는 ID를 발급하며 연결 ID metadata는 유지된다.
+- 비유한 zOrder는 `0.0`으로 canonicalize되고 공통 정렬과 다음 객체 zOrder는 유한값만 사용한다.
 - dotted/dashDot의 dot은 보이는 지름 `1w`인 원형 mark이고 인접 mark의 보이는 edge 사이 gap은 `2w`다.
 - rectangle/roundedRectangle/ellipse의 bounds·회전·stroke·fill·radius·zOrder가 저장 후 동일하게 복원된다.
 - 통합 shape toolbar가 image 앞에 있고 geometry kind별 style/width/color/fill/radius preset으로 생성된다.
 - line 본체와 endpoint hit-test가 얇은 선에서도 안정적으로 동작한다.
 - line body 이동, endpoint 이동, Shift snap과 keyboard 이동이 undo 1건 단위로 동작한다.
 - 폐쇄 도형 내부/테두리 hit-test, move, 8방향 resize, rotation과 modifier snap이 undo 1건 단위로 동작한다.
+- object mutation은 모두 `allowEdit` 공통 guard를 사용하며 현재 cell selection protection에 따라 허용 여부가 달라지지 않는다.
+- move/resize/rotation과 panel geometry commit은 X 음수 허용, Y/left/top clamp, right/bottom 허용과 rotation 무-clamp의 기존 이미지 parity를 따른다.
 - line 생성/move/endpoint, shape 생성/move/resize/rotation과 기존 image/barcode move/resize/rotation은 pointer move 중 workbook을 바꾸지 않고 pointer up에서 `onChange`/`onOp`와 undo를 각각 1회만 만든다. dirty는 clean 상태의 첫 commit에서만 true callback 1회, 이미 dirty인 후속 commit에서는 추가 callback 0회다.
 - 이미지·바코드·직선·폐쇄 도형이 같은 zOrder로 paint, hit-test, layer list, capture와 출력된다.
 - active sheet 변경 시 object selection을 해제하고, 같은 sheet의 undo/redo와 외부 workbook 교체 뒤에는 현재 sheet에 존재하는 typed key만 남는다. selection 자체는 dirty/undo 대상이 아니다.
 - 단일 선택은 타입별 속성, 다중 선택은 layer 조정 UI를 표시한다.
 - geometry 속성은 physical-size sheet에서 mm, 그 외에는 px로 표시하며 commit 뒤 model 좌표는 logical coordinate를 유지한다.
+- panel list, canvas object, canvas cell과 editable field의 Arrow key 동작은 실제 focus에 따라 분리된다.
 - 기존 image/barcode 생성 dialog는 유지되고 기존 객체 편집은 panel 공용 validation/commit을 사용한다.
 - panel splitter가 260~420px 범위와 sheet 최소 폭을 지키며 drag 후 workbook/selection/zoom이 유지된다.
 - 좁은 workbench에서 dock이 겹치지 않고 overlay fallback으로 접근 가능하다.
@@ -1089,6 +1117,7 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - capture/PDF/EZPL에 line/shapes가 포함되고 editor handle/panel이 출력되지 않는다.
 - `sheet.lines`, `sheet.shapes` feature key, allow-list, migration과 테스트가 함께 갱신된다.
 - 선·도형만 있는 `.lms`를 export할 수 있고 print-area 교차 geometry가 stroke와 회전을 포함한 bounds로 보존된다.
+- endpoint/중심점이 crop 밖이어도 실제 stroke/path가 교차하는 line/shape는 print-area save와 capture에서 보존된다.
 - EZPL native barcode/line/rectangle과 raster 객체가 겹쳐도 화면의 공통 object zOrder를 바꾸지 않고 native geometry끼리의 상대 순서도 유지하며, native cell border는 항상 상부 객체 아래인 base-layer 순서를 유지한다.
 - 관련 focused test와 기존 image/barcode/save/print 회귀 테스트가 통과한다.
 - `flutter analyze` issues 0, 변경 파일 diagnostics 오류 0, `git diff --check` 통과다.
