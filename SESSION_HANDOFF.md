@@ -12,6 +12,7 @@
 - 권한·ID 계약 보완 완료: 모든 object mutation entry point에 공통 `canEditObjects` guard를 적용하고 selection/copy는 읽기 전용에서도 허용한다. codec/외부 workbook normalize와 신규·복제·paste allocator의 기존/예약 typed ID 충돌 회피를 테스트·완료 조건에 연결했다.
 - zOrder·interaction 계약 보완 완료: 숫자/문자열 비유한 zOrder를 `0.0`으로 canonicalize하고 유한값만으로 next order를 계산한다. Arrow key는 panel list, canvas object, canvas cell과 editable field의 실제 focus별로 소유권을 나눈다.
 - geometry·capture 계약 보완 완료: 기존 image parity를 move X 음수 허용/Y clamp, resize left/top clamp/right/bottom 허용, rotation 무-clamp로 명시했다. endpoint나 중심점이 crop 밖이어도 stroke/path가 교차하는 line/shape를 print-area save와 capture에서 보존한다.
+- 저장 포맷 상시 규칙 병합 완료: `.lms` 초기 로드, 라벨 파일에서 불러오기와 `.xlsx` import가 모두 migrate/normalize의 현재 포맷 경계를 거치도록 구현·진입점별 테스트·완료 조건에 명시했다. XLSX drawing geometry 추론/custom XML round-trip은 기존 확정대로 제외하고 빈 lines/shapes의 current-format normalize만 요구한다.
 - 검증 완료: 두 문서 diagnostics 오류 0건, 필수·잔여 충돌 계약 검색과 전체 diff 검토 완료, `git diff --check -- doc/label_line_panel.txt SESSION_HANDOFF.md` 통과. 문서만 변경해 Flutter test/analyze는 실행하지 않았다.
 - stage/commit 대상: `doc/label_line_panel.txt`, `SESSION_HANDOFF.md`. 기존 사용자 변경 `lib/core/app.dart`는 제외하고 관련 문서만 커밋한다.
 

@@ -235,6 +235,7 @@ FortuneShapeKind.ellipse          <-> "ellipse"
 9. `_currentLabelFileHasContent()`에서 lines/shapes를 라벨 내용으로 인정해 선·도형만 있는 `.lms`도 export할 수 있게 한다.
 10. `_sheetForPrintAreaSave()`에서 line은 두 endpoint와 stroke padding, shape는 회전된 bounds와 stroke padding으로 기존 image와 같은 print-area 교차·범위 확장·필터링을 수행한다.
 11. sanitizer가 line과 shape의 필수 geometry, kind, stroke, fill, radius, rotation과 zOrder만 남기는 테스트 추가
+12. `.lms` 초기 로드, 라벨 파일에서 불러오기와 `.xlsx` import가 모두 `labelSheetMigrateWorkbookSaveJson()` 및 `labelSheetNormalizeWorkbookForCurrentSaveFormat()`의 현재 포맷 경계를 거치게 하고 진입점별 회귀 테스트를 갱신한다. `.xlsx` import는 line/shape drawing을 추론하지 않고 빈 `lines`/`shapes`를 가진 현재 포맷 workbook으로 normalize한다.
 
 allow-list는 다음 key로 고정한다.
 
@@ -943,6 +944,8 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - save normalize 뒤 lines/shapes 유지
 - sanitizer→normalize 반복 실행의 idempotency와 저장 시 zOrder 비정규화
 - 외부 workbook normalize의 중복 typed ID 결정적 재발급과 반복 normalize idempotency
+- `.lms` 초기 로드와 라벨 파일에서 불러오기가 migrate/normalize 뒤 lines/shapes를 보존함
+- `.xlsx` import가 geometry를 추론하지 않고 빈 lines/shapes를 가진 현재 save format으로 normalize됨
 - `.lms` export/import round-trip
 - 선·도형만 있는 `.lms`의 export 활성화와 round-trip
 - print-area 경계를 교차하는 line의 stroke padding 및 회전 shape bounds 확장·필터링
@@ -1116,6 +1119,7 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - panel 폭·열림·selection 변경이 workbook dirty/undo를 만들지 않는다.
 - capture/PDF/EZPL에 line/shapes가 포함되고 editor handle/panel이 출력되지 않는다.
 - `sheet.lines`, `sheet.shapes` feature key, allow-list, migration과 테스트가 함께 갱신된다.
+- `.lms` 초기 로드, 라벨 파일에서 불러오기와 `.xlsx` import가 모두 현재 save format migrate/normalize 경계를 거치며, XLSX drawing은 line/shape로 추론하지 않는다.
 - 선·도형만 있는 `.lms`를 export할 수 있고 print-area 교차 geometry가 stroke와 회전을 포함한 bounds로 보존된다.
 - endpoint/중심점이 crop 밖이어도 실제 stroke/path가 교차하는 line/shape는 print-area save와 capture에서 보존된다.
 - EZPL native barcode/line/rectangle과 raster 객체가 겹쳐도 화면의 공통 object zOrder를 바꾸지 않고 native geometry끼리의 상대 순서도 유지하며, native cell border는 항상 상부 객체 아래인 base-layer 순서를 유지한다.
