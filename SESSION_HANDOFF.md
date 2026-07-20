@@ -17,6 +17,7 @@
 - 독립 재검토 보완 완료: 새로 고침은 임시 DB 조회 성공 전 기존 controller/SQLite를 보존하도록 순서를 고쳤다. 기존 DAO 병행 유지, `update:`/`auto-draft:` row key, staged→added key 안정성, client key→identity 연결, server-date session snapshot, 품목/자동갱신별 context guard, active editor F5와 legacy no-op 메뉴 동작을 구체화했다.
 - 최종 검증 완료: 두 문서 diagnostics 오류 0건, 17개 장 구조와 필수/금지 계약 검색 완료, 추적 문서 `git diff --check` 및 신규 문서 `/dev/null` 비교 whitespace 검사 통과. 문서만 변경해 Flutter test/analyze는 실행하지 않았다.
 - stage/commit 대상: `doc/automatic_item_update.txt`, `SESSION_HANDOFF.md`. 기존 사용자 변경 `lib/core/app.dart`는 제외하고 `git commit --only`를 사용한다.
+- 구현 지시서 커밋 완료: `09c87b4` (`자동품목갱신 탭 구현 지시서 작성`). 원격 push는 수행하지 않았다.
 - 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
 
 ### 완료 (2026-07-20): 선 객체 및 통합 객체 패널 구현 지시서
