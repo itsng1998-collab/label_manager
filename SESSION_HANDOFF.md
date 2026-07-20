@@ -6,6 +6,16 @@
 - ODBC transaction batch는 첫 DML이 0행일 때 `SQL_NO_DATA(100)`을 반환할 수 있으므로 필요하면 batch 첫 줄에 `SET NOCOUNT ON`을 사용하고 명시적 결과 SELECT를 유지한다. `@@ROWCOUNT`와 `@@TRANCOUNT`는 parameter로 치환하지 않는다.
 - SQL 변경 검증 시 focused DAO 테스트에 금지 함수 미사용과 XML wire 계약을 고정하고, 가능한 경우 compatibility 100 실제 서버에서 데이터 변경 없는 read-only/빈 payload/rollback probe를 수행한다. 실제 schema capability가 없으면 gate를 우회하지 않고 제한을 기록한다.
 
+### 완료 (2026-07-21): 선·도형 지시서 callback·controller 원자성 보완
+- 사용자 요청: 최신 `doc/label_line_panel.txt`를 실제 구현에 다시 대조한 권장안을 병합하고 공개 동작 선택은 즉시 확정한다.
+- 사용자 확정: 실제 외부 workbook replacement는 synthetic `FortuneOp`를 만들지 않고 내부 상태 확정 뒤 `onChange`→controller/listenable만 통지하며 `onOp`는 호출하지 않는다. 실제 op가 있는 command/undo/redo만 `onChange`→`onOp`→listener 순서를 사용한다.
+- controller 교체 보완 완료: new controller의 attach 가능 여부를 old detach 전에 검증하고 실패하면 old/new 기존 owner를 유지한다. 성공한 실제 controller를 별도 추적해 dispose와 후속 교체에 사용하며 detach 뒤 rollback은 하지 않는다.
+- public state 보완 완료: immutable snapshot과 public listenable 진입점, detached active/property/draft null·selection/object refs empty·command/pending false 기본값을 고정했다. host가 listener와 최종 dispose를 소유하고 dispose 전 detached controller 재attach를 허용한다.
+- 테스트 계약 보완 완료: 외부 replacement `onOp` 0회, 최초/교체 중복 attach, 실패 뒤 owner·listener 불변, 실패 뒤 정상 C 교체와 별도 X dispose, attach/detach lifecycle 통지와 detached getter를 판별하도록 분리했다.
+- 독립 재검토 완료: 최초 fixture의 dispose 뒤 후속 교체 순서 모순을 발견해 dispose 분기와 C 교체 분기를 별도 fixture로 나눴고, 이후 구현 차단 모순이나 필수 테스트 누락은 없다.
+- 검증 완료: `doc/label_line_panel.txt` diagnostics 오류 0건, callback/controller 필수·상충 계약 검색과 `git diff --check` 통과. 문서만 변경했으므로 Flutter test/analyze는 실행하지 않았다.
+- stage/commit 대상: `doc/label_line_panel.txt`, `SESSION_HANDOFF.md`만 포함한다. 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
+
 ### 완료 (2026-07-21): 선·도형 지시서 pending·controller·overlay lifecycle 보완
 - 사용자 요청: 최신 `doc/label_line_panel.txt`의 구현 모호점을 다시 검토한 권장안을 병합하고 공개 동작 선택은 즉시 질문해 확정한다.
 - 사용자 확정: barcode A render pending 중 B는 선택·조회만 허용하고 B property 편집은 차단한다. 하나의 `FortuneSheetController`는 mounted canvas 하나에만 attach하며 중복 attach는 `StateError`로 거부한다. narrow overlay가 열린 동안 active object toolbar는 숨긴다.
