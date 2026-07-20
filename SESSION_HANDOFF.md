@@ -39,6 +39,11 @@
 - clipboard 계약 재보완 완료: mixed object copy/cut은 versioned opaque system clipboard marker를 기록하고 paste 직전 exact match일 때만 내부 payload를 사용한다. 불일치는 stale object paste 없이 기존 cell/text paste로 넘기며 clipboard marker를 model/구조화 연결-ID 판정 metadata와 분리했다.
 - codec·pending 경계 재보완 완료: line/shape raw list는 geometry·stroke/fill/radius를 포함한 모든 canonical field가 유효할 때만 전체 재사용한다. barcode panel render pending 중 selection은 일반 field finalize의 예외로 원래 exact-key draft/request를 유지하며 selection UI만 바꾼다.
 - 독립 재검토 보완 완료: 정상 sibling과 비정상 entry를 함께 둔 raw-list 전체 폐기, 구조화 duplicate/paste 뒤 신규 marker metadata 부재, pending selection finalize 예외를 판별 테스트에 추가했다.
+- 사용자 추가 확정: linked image의 panel 파일 교체는 연결 ID와 `left/top/width/height/rotation` 및 기타 metadata를 유지하고 `src`·`originWidth`·`originHeight`만 바꾼다. 연결 해제는 명시적 `연결 안 함`에서만 수행한다.
+- panel 연결 계약 재보완 완료: option 목록에서 빠진 기존 non-empty image/barcode ID도 linked 상태로 보존하고 source/ID 미변경 commit에서 유지한다. stale barcode ID가 unrelated `[적용]`으로 소실되지 않도록 테스트·완료 조건에 연결했다.
+- Hybrid capture 계약 재보완 완료: EZPL host의 선행 일반 capture를 금지하고 coordinator가 exact typed object/canonical physical border-edge plan 확정→filtered capture→동일 plan native command 생성 전체를 소유한다. 임시 workbook mutation·전체 border 제외·사후 pixel 삭제 없이 같은 ID의 다른 kind와 border 방향/alias 판별 테스트를 추가했다.
+- undo·색상 wire 계약 재보완 완료: drag 시작 snapshot은 gesture-local로만 보관하고 실제 canonical 변경 commit 직전에 push하며 cancel/owner 불일치/최소 크기/왕복 no-op에서 redo까지 유지한다. line/shape 색상은 정확한 6자리 hex만 대문자 canonical로 허용하고 공용 parser의 다른 문법·alpha는 fallback 후 raw list 전체를 재사용하지 않는다.
+- 최종 독립 재검토 완료: exact typed-key plan, 방향 포함 border edge, linked image 변경 범위, redo 보존, lowercase/mixed-case color raw 폐기까지 추가 문제 없음으로 확인했다.
 - 검증 완료: 두 문서 diagnostics 오류 0건, 필수·잔여 충돌 계약 검색과 전체 diff 검토 완료, `git diff --check -- doc/label_line_panel.txt SESSION_HANDOFF.md` 통과. 문서만 변경해 Flutter test/analyze는 실행하지 않았다.
 - stage/commit 대상: `doc/label_line_panel.txt`, `SESSION_HANDOFF.md`. 기존 사용자 변경 `lib/core/app.dart`는 제외하고 관련 문서만 커밋한다.
 
