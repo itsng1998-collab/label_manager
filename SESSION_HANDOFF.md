@@ -6,6 +6,19 @@
 - ODBC transaction batch는 첫 DML이 0행일 때 `SQL_NO_DATA(100)`을 반환할 수 있으므로 필요하면 batch 첫 줄에 `SET NOCOUNT ON`을 사용하고 명시적 결과 SELECT를 유지한다. `@@ROWCOUNT`와 `@@TRANCOUNT`는 parameter로 치환하지 않는다.
 - SQL 변경 검증 시 focused DAO 테스트에 금지 함수 미사용과 XML wire 계약을 고정하고, 가능한 경우 compatibility 100 실제 서버에서 데이터 변경 없는 read-only/빈 payload/rollback probe를 수행한다. 실제 schema capability가 없으면 gate를 우회하지 않고 제한을 기록한다.
 
+### 완료 (2026-07-20): 자동품목갱신 탭 구현 지시서
+- 사용자 요청: 레거시 자동품목갱신 탭의 동작을 기준으로 현행 Flutter 품목관리 UI·플로팅창·취소/저장·SQLite 원복·편집 잠금을 재사용하는 `doc/automatic_item_update.txt` 구현 지시서를 작성한다.
+- 레거시 확인 범위: 미적용 품목 DB 조회, 번호/품목명/갱신날짜/라벨항목 컬럼, 팝업메뉴 활성 조건과 구현 여부, 품목 맨 끝 추가와 서버 기준 다음 날 기본 날짜, 삭제, 저장 transaction, F5/새로 고침의 미저장 변경 폐기 후 재조회 동작을 확인한다.
+- 구현 원칙: 과도한 보완·예외 처리를 추가하지 않고 SQL Server 오류는 원본 전달과 가능한 rollback까지만 수행하며 DB migration은 하지 않는다. 레거시에서 빈 동작인 메뉴를 임의 구현하지 않는다.
+- 수정 예정: `doc/automatic_item_update.txt`, `SESSION_HANDOFF.md`. 문서만 변경하므로 Flutter 코드 테스트는 실행하지 않고 문서 diagnostics, 필수 계약 검색, 독립 재검토와 `git diff --check`를 수행한다.
+- `doc/automatic_item_update.txt` 작성 완료: 레거시 기준 조회/컬럼/날짜/메뉴/저장/새로 고침, 현행 품목관리 UI 재사용 경계, 자동갱신 전용 draft와 SQLite before-image, inline source table의 arrow·drag/drop·staging·취소/적용, context 잠금, compatibility 100 transaction, 테스트·구현 순서·완료 조건을 16개 장으로 명시했다.
+- 확정 동작: source는 별도 DB 조회 없이 품목관리 loaded rows를 사용하고 품목명 한 컬럼만 표시한다. 추가 행은 target 맨 끝에 붙고 서버 다음 날을 기본 날짜로 사용한다. 추가 mode 동안 기본 취소/저장을 비활성화하며 적용 후 전체 draft 취소는 SQLite snapshot으로 원복한다.
+- 메뉴 계약: 레거시 handler가 비어 있는 `블럭선택 날짜입력`, `품목찾기`는 메뉴와 활성 조건만 유지하고 임의 기능을 추가하지 않는다. 하단 `새로 고침`과 F5는 미저장 draft/backup 폐기 후 서버 최신 미적용 목록을 재조회한다.
+- 독립 재검토 보완 완료: 새로 고침은 임시 DB 조회 성공 전 기존 controller/SQLite를 보존하도록 순서를 고쳤다. 기존 DAO 병행 유지, `update:`/`auto-draft:` row key, staged→added key 안정성, client key→identity 연결, server-date session snapshot, 품목/자동갱신별 context guard, active editor F5와 legacy no-op 메뉴 동작을 구체화했다.
+- 최종 검증 완료: 두 문서 diagnostics 오류 0건, 17개 장 구조와 필수/금지 계약 검색 완료, 추적 문서 `git diff --check` 및 신규 문서 `/dev/null` 비교 whitespace 검사 통과. 문서만 변경해 Flutter test/analyze는 실행하지 않았다.
+- stage/commit 대상: `doc/automatic_item_update.txt`, `SESSION_HANDOFF.md`. 기존 사용자 변경 `lib/core/app.dart`는 제외하고 `git commit --only`를 사용한다.
+- 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
+
 ### 완료 (2026-07-20): 선 객체 및 통합 객체 패널 구현 지시서
 - 사용자 요청: 실제 코드는 수정하지 않고 검토한 내용을 바탕으로 `doc/label_line_panel.txt` 구현 지시서를 작성한다.
 - 확정 범위: 직선 객체의 저장·렌더·출력, 툴바 선 종류/두께 콤보, 끝점 선택·이동 핸들, 이미지·바코드·선 공통 Z-Order와 레이어 선택, 단일 선택 속성/다중 선택 레이어 조정 패널, 시트와 패널 사이 가변 splitter를 포함한다.

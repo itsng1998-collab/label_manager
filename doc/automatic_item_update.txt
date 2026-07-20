@@ -1,0 +1,654 @@
+# 자동품목갱신 탭 구현 작업지시서
+
+## 0. 문서 목적과 최우선 원칙
+
+- 이 문서는 현재 placeholder인 `자동품목갱신` 탭을 레거시 LabelManager의 자동품목갱신 동작을 기준으로 구현하기 위한 계약이다.
+- 레거시의 조회 대상, 컬럼 의미, 편집 범위, 팝업메뉴, 품목 추가 위치, 날짜 검증, 저장 순서와 새로 고침 의미를 유지한다.
+- UI는 현행 품목관리의 테이블과 `주원료 및 함량`, `출력내용미리보기` 플로팅창을 사용한다. 레거시 화면을 별도 스타일로 복제하지 않는다.
+- 자동품목갱신 데이터와 편집 상태는 품목관리 데이터와 섞지 않는다. 공용 UI와 검증 가능한 helper는 재사용하되 자동품목갱신 전용 model, controller, backup store와 DAO가 상태를 소유한다.
+- 과도한 방어 코드, retry, 자동 복구, 임의 fallback, 추측성 데이터 보정과 레거시에 없던 업무 규칙을 추가하지 않는다.
+- SQL Server 오류는 호출자에게 원본 원인을 보존해 전달한다. transaction 안에서 오류가 발생하면 가능한 경우 rollback하고 종료한다. 재시도하거나 일부 성공을 정상으로 처리하지 않는다.
+- SQL Server DB schema 생성, 컬럼 추가, index 추가, compatibility 변경과 데이터 migration은 수행하지 않는다.
+- 운영 DB의 `compatibility_level=100`을 SQL 문법 하한선으로 사용한다. 구조화된 batch parameter가 필요하면 JSON SQL 함수가 아니라 기존 프로젝트의 escaped XML projection 패턴을 사용한다.
+- 저장 성공 전에는 화면 draft와 SQLite 백업을 지우지 않는다. commit 실패 시 편집 상태를 그대로 유지해 사용자가 다시 저장하거나 취소할 수 있게 한다.
+- 구현 중 확인되지 않은 레거시 동작을 임의로 확장하지 않는다. 특히 레거시에서 command handler가 비어 있는 메뉴는 이름과 활성 조건만 재현하고 신규 업무 동작을 만들지 않는다.
+- 배포 build, installer 생성과 원격 push는 별도 요청이 있을 때만 수행한다.
+
+## 1. 레거시 기준 동작
+
+### 1.1 확인한 레거시 코드
+
+- 화면과 입력: `.tmp/LabelManager/LabelManager/UpdateItemDlg.cpp`, `UpdateItemDlg.h`
+- 품목 추가: `.tmp/LabelManager/LabelManager/UpdateItemAddDlg.cpp`, `UpdateItemAddDlg.h`
+- controller/model: `.tmp/LabelManager/LabelManager/UpdateItemModel.cpp`, `UpdateItemModel.h`
+- 조회·저장 table: `.tmp/LabelManager/LabelManagerLib/UpdateItemTable.cpp`, `UpdateItemTable.h`
+- 관련 row/model/DAO: `.tmp/LabelManager/LabelManagerLib/UpdateItem*.h`와 해당 DAO 구현
+- 팝업메뉴 리소스: `.tmp/LabelManager/LabelManager/LabelManager.rc`의 `IDR_UPDATE_ITEM_MENU`
+
+### 1.2 조회 기준
+
+- 현재 선택된 라벨크기가 자동품목갱신 조회 기준이다.
+- `BM_UPDATE_ITEM`에서 해당 라벨크기이면서 아직 적용되지 않은 행만 조회한다.
+- 자동갱신 컬럼 content도 같은 라벨크기의 미적용 행 범위만 조회한다.
+- 화면 진입, 라벨크기 변경, 명시적 새로 고침에서 DB를 다시 조회한다.
+- 품목관리의 일반 품목 목록과 자동품목갱신 대상 목록은 서로 다른 목록이다.
+
+### 1.3 레거시 테이블 컬럼
+
+왼쪽부터 다음 순서를 유지한다.
+
+1. `번호`
+   - 화면 표시용 1-based 행번호다.
+   - 편집할 수 없다.
+2. `품목명`
+   - 원본 품목의 이름이다.
+   - 편집할 수 없다.
+3. `갱신날짜`
+   - `yyyyMMdd` 형식이다.
+   - 편집할 수 있다.
+4. 현재 라벨크기의 라벨항목 컬럼들
+   - 품목관리와 같은 컬럼 정의 순서로 표시한다.
+   - 값을 편집할 수 있다.
+
+- 행 선택 시 해당 행의 주원료와 출력내용미리보기를 갱신한다.
+- 갱신날짜 또는 일반 라벨항목이 바뀌면 해당 행을 modified로 표시하고 출력 RTF/미리보기 materialization을 무효화한 뒤 다시 계산한다.
+
+### 1.4 레거시 팝업메뉴
+
+메뉴 순서와 문구는 다음과 같다.
+
+1. `자동갱신 품목추가`
+2. `품목삭제`
+3. `블럭선택 품목삭제`
+4. `블럭선택 날짜입력`
+5. `품목찾기`
+
+확인된 활성 조건은 다음과 같다.
+
+- `자동갱신 품목추가`: 레거시에서는 항상 활성이다. 현행에서는 편집 권한이 있고 command busy가 아니며 추가 모드가 아닐 때 활성화한다.
+- `품목삭제`: 유효한 데이터 행을 우클릭했을 때만 활성화한다.
+- `블럭선택 품목삭제`: 유효한 데이터 행을 우클릭했고 선택 블럭에 행이 있을 때만 활성화한다.
+- `블럭선택 날짜입력`: 레거시 메뉴에는 활성 상태로 존재하지만 handler가 비어 있다.
+- `품목찾기`: 유효한 컬럼 위치에서 연 경우 활성화되지만 레거시 handler가 비어 있다.
+
+`블럭선택 날짜입력`과 `품목찾기`는 레거시와 같이 메뉴를 표시하고 위 활성 조건을 적용하되 선택해도 데이터 변경을 만들지 않는다. 별도 다이얼로그, 일괄 날짜 입력 또는 검색 기능을 추측해 구현하지 않는다. 이후 실제 업무 규칙이 별도로 확정될 때 독립 작업으로 구현한다.
+
+### 1.5 레거시 품목 추가 의미
+
+- 원본 목록은 현재 라벨크기의 품목관리 품목 목록이다.
+- 선택된 원본 품목의 item, 품목명과 라벨항목 값을 복사한다.
+- 추가 행은 현재 선택 위치가 아니라 자동품목갱신 대상 목록의 맨 끝에 선택 순서대로 붙인다.
+- 신규 행의 기본 갱신날짜는 PC 날짜가 아니라 서버 현재 날짜의 다음 날이다.
+- 신규 행의 제조일자·제조시한 계열 컬럼은 레거시의 `SetMakeDateCellByRow`, `SetMakeTimeCellByRow`와 같은 현재 일시 초기화 규칙을 적용한다.
+- 레거시 코드에는 명시적인 중복 제외 규칙이 없다. 같은 품목이 이미 대상에 있는지를 근거 없이 자동 필터링하거나 합치지 않는다.
+
+### 1.6 레거시 삭제 의미
+
+- `품목삭제`는 우클릭한 한 행을 삭제한다.
+- `블럭선택 품목삭제`는 선택된 시작 행부터 끝 행까지 삭제한다.
+- DB에 존재하는 행은 저장 시 삭제할 ID로 기록하고 화면 draft에서 제거한다.
+- 아직 저장하지 않은 신규 행은 화면 draft에서만 제거한다.
+- 삭제 뒤에는 다음 행을 선택하고, 마지막 행을 삭제한 경우 이전 행을 선택한다. 전체 행이 없어지면 선택과 플로팅창 내용을 비운다.
+
+### 1.7 레거시 날짜 검증
+
+- 입력 형식은 정확히 `yyyyMMdd`다.
+- 서버의 오늘 날짜보다 큰 날짜만 허용한다. 오늘 날짜는 허용하지 않는다.
+- 형식이 잘못되거나 오늘 이전 날짜이면 편집 전 값으로 되돌리고 오류를 표시한다.
+- 저장 직전 모든 행의 갱신날짜가 유효한지 다시 검사한다.
+- PC 로컬 시간으로 대체하지 않는다.
+
+### 1.8 레거시 새로 고침
+
+- 화면 버튼과 `F5`가 같은 `Refresh()`를 호출한다.
+- 현재 메모리 변경을 폐기하고 미적용 자동품목갱신 행과 컬럼 content를 DB에서 다시 조회한다.
+- 레거시는 저장하지 않은 변경에 대한 별도 확인 없이 새로 고친다.
+- 이 기능은 서버 최신 미적용 목록을 다시 읽는 유효 기능이므로 현행 팝업메뉴 하단에 추가한다.
+
+## 2. 현행 구현 기준과 재사용 경계
+
+### 2.1 현재 상태
+
+- `lib/home_page_manager.dart`의 tab value `auto_update`는 `_PlaceholderTab`으로 등록돼 있다.
+- `lib/models/update_item.dart`에는 기본 `UpdateItem`과 불완전한 조회 DAO만 있다.
+- 자동품목갱신 전용 table widget, draft controller, SQLite backup, 저장 command와 DAO 테스트는 아직 없다.
+- 기존 `UpdateItemDAO.selectByCustomerIdByUpdateItemOrder()`는 parameter와 SQL 조건이 맞지 않으므로 그대로 화면 조회 API로 사용하지 않는다. 레거시 기준인 `labelSizeId + isApply=false` 계약으로 신규 조회 API를 추가한다.
+- 기존 메서드는 이번 기능 구현만을 이유로 즉시 삭제하지 않는다. 전체 사용처 검색 결과가 없을 때만 별도 정리 대상으로 다루고, 사용처가 있으면 신규 API로 명시적으로 전환한 뒤 제거한다. 자동품목갱신 구현과 무관한 호출 계약을 함께 바꾸지 않는다.
+
+### 2.2 반드시 재사용할 현행 UI와 동작
+
+- 품목관리 테이블의 `FortuneTable` 기반 컬럼/선택/포커스/우클릭 메뉴 스타일을 재사용한다.
+- `lib/page_home/item_manage.dart`의 command footer 높이, 여백과 우하단 `취소`/`저장` 배치를 재사용한다.
+- `lib/page_home/preview_floating_window.dart`의 `PreviewFloatingWindow`를 사용한다.
+- 품목관리와 같은 `주원료 및 함량`, `출력내용미리보기` 탭/내용/편집 동작을 제공한다.
+- 품목관리의 RTF 비동기 decode, label sheet preview materialization과 floating window 이동·resize·닫기 동작을 공용 helper/component로 추출해 재사용한다.
+- 품목관리의 `ItemManagerDraftController`, `ItemManagerDraftBackupStore`에 자동갱신 필드를 억지로 넣지 않는다. 공용화가 실제 중복을 줄이는 작은 helper 수준이면 추출하고, row/controller/store는 별도로 둔다.
+
+### 2.3 자동품목갱신 전용 소유권
+
+다음 상태는 자동품목갱신 전용 controller가 소유한다.
+
+- 서버에서 읽은 baseline 행과 컬럼 content
+- 현재 draft 행과 표시 순서
+- existing/modified/added/deleted 상태
+- 선택 행 key와 anchor row key
+- 갱신날짜
+- 주원료 plain text와 RTF
+- 라벨항목 cell 값
+- 삭제할 기존 update item ID
+- dirty 여부
+- 품목 추가 mode와 그 mode 안의 staged additions
+
+품목관리 controller를 자동품목갱신 데이터의 저장소로 사용하지 않는다. 품목 추가 mode의 원본 목록을 읽는 용도로만 품목관리의 현재 loaded rows를 참조한다.
+
+## 3. 화면 구성
+
+### 3.1 기본 화면
+
+- 자동품목갱신 탭 전체를 `AutoItemUpdatePage` 같은 독립 widget으로 구현한다.
+- 기본 화면은 품목관리와 동일하게 대상 테이블이 가용 영역을 채운다.
+- 우하단 command footer에 `취소`, `저장`을 둔다.
+- 데이터 조회 중과 저장 중에는 품목관리와 같은 busy 표시를 사용한다.
+- 선택 행이 없으면 주원료/미리보기 플로팅창은 내용을 표시하지 않거나 숨긴다.
+
+### 3.2 대상 테이블
+
+- 컬럼은 §1.3 순서를 따른다.
+- 행 key는 신규/기존 행을 안정적으로 구분해야 한다. 기존 행은 `updateItemId`, 신규 행은 session-local draft ID를 사용한다.
+- row key 문자열은 기존 행 `update:<updateItemId>`, 신규/staged 행 `auto-draft:<sessionSequence>` 형식으로 고정한다. `sessionSequence`는 controller 안에서 증가하는 정수이며 DB에 저장하지 않는다.
+- staged 행이 inline `적용`으로 added 행이 되어도 row key를 바꾸지 않는다. 저장 SQL payload에는 이 row key를 client correlation key로 함께 보내고 DB identity와 연결한다.
+- 여러 행 선택과 연속 블럭 선택은 품목관리 테이블의 선택 controller 동작을 따른다.
+- `번호`, `품목명`은 read-only다.
+- `갱신날짜`와 라벨항목은 편집 권한이 있고 busy가 아닐 때 편집할 수 있다.
+- 셀 편집 commit 직전에 해당 원본 값을 SQLite에 한 번만 capture한다.
+- 주원료 편집 commit 직전에 해당 행의 plain/RTF 원본을 SQLite에 한 번만 capture한다.
+- 행 선택과 셀 focus를 구분한다. 주원료와 미리보기는 anchor 행을 기준으로 표시한다.
+
+### 3.3 플로팅창
+
+- 품목관리에서 사용하는 하나의 floating window 안에 `주원료 및 함량`, `출력내용미리보기` 탭을 둔다.
+- 주원료 편집은 자동품목갱신 draft의 `element`, `elementRTF`를 변경한다.
+- 출력내용미리보기는 자동품목갱신 draft의 현재 item/cell/element 값을 사용한다.
+- 선택 행 변경, 셀 변경, 주원료 변경 후 미리보기를 갱신한다.
+- 창의 초기 크기, 최소 크기, 테이블 옆 정렬, 이동·resize와 사용자가 닫은 상태 처리는 품목관리와 같게 한다.
+- 자동품목갱신 탭이 아닌 탭을 표시할 때 이 플로팅창을 숨긴다.
+
+### 3.4 우하단 취소/저장
+
+- controller가 dirty이고 편집 권한이 있으며 busy가 아닐 때만 `취소`, `저장`을 활성화한다.
+- clean 상태에서는 두 버튼을 비활성화한다.
+- 품목 추가 mode가 열려 있는 동안에는 dirty 여부와 관계없이 기본 footer의 `취소`, `저장`을 비활성화한다.
+- 저장 중과 취소 복원 중에는 중복 command를 막고 busy 표시를 한다.
+
+## 4. 편집 중 다른 작업 차단
+
+### 4.1 차단 조건
+
+다음 중 하나이면 자동품목갱신 context 변경을 차단한다.
+
+- 자동품목갱신 controller가 dirty다.
+- 셀 또는 주원료 editor가 active다.
+- 품목 추가 mode가 열려 있다.
+- 조회, 저장, 취소 또는 적용 command가 busy다.
+
+### 4.2 차단 대상
+
+- 브랜드 선택 변경
+- 라벨크기 선택 변경
+- 고객/마켓 등 현재 dataset을 바꾸는 선택
+- 다른 home tab 선택
+- 단축키에 의한 tab 선택
+- 현재 controller를 교체하거나 재조회하는 command
+
+- 차단 시 품목관리와 같은 방식으로 현재 편집을 저장하거나 취소한 뒤 변경하라는 안내를 표시한다.
+- 단순 플로팅창 이동, resize, 내부 탭 전환은 context 변경이 아니므로 차단하지 않는다.
+- 기존 품목관리 전용 `_itemDraftContextChangeBlocked`의 의미를 바꾸지 않는다.
+- 자동품목갱신 전용 `_autoItemUpdateContextChangeBlocked`를 두고, 브랜드·라벨크기처럼 어느 tab에서도 공통 dataset을 교체하는 경로는 두 값을 합친 `_homeDataContextChangeBlocked`를 사용한다.
+- tab 선택은 현재 떠나는 tab의 guard만 검사한다. 품목관리에서 나갈 때는 item draft를, 자동품목갱신에서 나갈 때는 auto-update draft를 검사한다. label-print busy 같은 기존 전역 차단 조건은 공용 guard에 그대로 유지한다.
+- 현재 controller를 암묵적으로 교체하거나 재조회하는 command도 차단한다. 사용자가 명시적으로 선택한 §5의 `새로 고침`은 이 항목의 예외이며 §5.2 lifecycle을 따른다.
+
+## 5. 팝업메뉴 구현
+
+### 5.1 메뉴 구성
+
+대상 테이블 우클릭 메뉴를 다음 순서로 구성한다.
+
+1. `자동갱신 품목추가`
+2. `품목삭제`
+3. `블럭선택 품목삭제`
+4. `블럭선택 날짜입력`
+5. `품목찾기`
+6. 구분선
+7. `새로 고침`
+
+- 품목관리와 같은 row height, padding, no-animation popup과 중복 opening guard를 사용한다.
+- 메뉴를 열기 전에 우클릭한 데이터 행을 anchor로 선택한다. 기존 다중 선택 블럭 안을 우클릭한 경우에는 블럭을 유지한다.
+- 빈 테이블 영역에서도 메뉴를 열 수 있지만 행이 필요한 command는 비활성화한다.
+
+### 5.2 메뉴별 동작
+
+#### 자동갱신 품목추가
+
+- §6의 inline 품목 추가 mode로 전환한다.
+- 별도 품목 선택 dialog를 열지 않는다.
+
+#### 품목삭제
+
+- 우클릭한 한 행만 draft에서 삭제한다.
+- 기존 DB 행이면 삭제 전 row/cell 전체를 SQLite에 capture하고 삭제 ID를 controller에 기록한다.
+- 신규 행이면 해당 staged/draft 행만 제거한다.
+
+#### 블럭선택 품목삭제
+
+- 선택 블럭의 모든 행을 한 command로 삭제한다.
+- 삭제 전 기존 행과 관련 cell 전체를 SQLite에 capture한다.
+- 삭제 뒤 선택 위치는 §1.6을 따른다.
+
+#### 블럭선택 날짜입력
+
+- 레거시 handler가 비어 있으므로 command를 선택해도 데이터를 변경하지 않는다.
+- 임의의 날짜 dialog나 일괄 입력 logic을 만들지 않는다.
+- 선택하면 popup만 닫는다. toast, 오류, dirty 변경과 업무 로그를 만들지 않는다.
+
+#### 품목찾기
+
+- 레거시 handler가 비어 있으므로 command를 선택해도 데이터를 변경하지 않는다.
+- 현행 상단 검색 UI를 자동으로 호출하는 별도 의미를 부여하지 않는다.
+- 선택하면 popup만 닫는다. toast, 오류, dirty 변경과 업무 로그를 만들지 않는다.
+
+#### 새로 고침
+
+- active cell/RTF editor를 먼저 정상 commit 또는 종료한다.
+- 현재 라벨크기의 미적용 자동품목갱신 데이터와 컬럼 content를 SQL Server에서 임시 결과로 다시 조회한다. 조회 중에는 기존 controller와 SQLite backup을 유지한다.
+- 조회 성공 시에만 기존 draft, 삭제 목록, staged additions와 SQLite backup을 폐기하고 새 baseline/controller를 설치한 뒤 선택과 플로팅창을 초기화한다.
+- 조회 실패 시 오류를 전달하고 기존 화면/controller/SQLite backup을 그대로 유지한다. 성공하기 전에 기존 controller를 dispose하거나 backup을 clear하지 않는다.
+- 레거시와 같이 dirty 확인 dialog는 추가하지 않는다. 이 command가 저장하지 않은 변경을 버린다는 의미를 테스트와 코드명에 명확히 남긴다.
+- `F5`도 popup과 같은 refresh command를 호출하되 cell/RTF editor가 active이면 상위 shortcut handler가 가로채지 않는다. 사용자가 편집을 commit/종료한 뒤 table focus에서 누른 F5만 refresh한다.
+
+## 6. `자동갱신 품목추가` inline mode
+
+### 6.1 진입과 전체 배치
+
+- 별도의 modal/modeless dialog를 만들지 않는다.
+- 대상 테이블 왼쪽에 원본 품목 테이블을 나타내고 기존 대상 테이블은 오른쪽에 유지한다.
+- 두 테이블 사이에 오른쪽 방향 icon button을 둔다. 텍스트 화살표 대신 프로젝트의 icon library에서 해당 아이콘을 사용하고 tooltip을 제공한다.
+- 원본 영역은 대상 영역 안의 중첩 card로 만들지 않는다. 좌우 pane와 가운데 command rail로 구성한다.
+- source pane 최소 폭은 240px, target pane 최소 폭은 480px, 가운데 command rail은 48px로 시작한다. 기존 앱의 table header/scrollbar 실측에서 더 큰 최소값이 필요하면 widget test에 그 값을 고정한다.
+- 가용 폭이 합계보다 작으면 mode 영역 안에 수평 overflow/scroll을 제공하고 두 table을 세로로 쌓거나 dialog로 바꾸지 않는다.
+- mode가 열려 있는 전체 기간 동안 기본 우하단 `취소`, `저장`과 대상 popup command를 비활성화한다. source 선택, arrow/drag 추가와 source 하단 `취소`/`적용`만 허용한다.
+
+### 6.2 원본 품목 테이블 데이터
+
+- 원본은 현재 라벨크기로 이미 조회된 품목관리 `ItemManagerDraftController.rows`의 표시 순서를 사용한다.
+- 자동품목갱신 탭 진입 전에 품목관리 draft가 dirty이면 tab 변경 자체가 차단되므로 원본은 clean dataset이다.
+- 원본 목록을 얻기 위해 SQL Server를 다시 조회하지 않는다.
+- DB의 다른 snapshot과 현재 품목관리 controller를 임의 merge하지 않는다.
+- source row에는 안정적인 `itemId`를 유지한다.
+- 화면 컬럼은 `품목명` 하나만 표시한다. 선택 표시를 위한 table 자체의 row selection UI는 허용하지만 별도 업무 컬럼은 추가하지 않는다.
+- 단일 선택과 다중 행 선택을 지원한다.
+
+### 6.3 오른쪽 방향 버튼 추가
+
+- 원본 테이블에서 선택된 행이 없으면 버튼을 비활성화한다.
+- 선택된 행이 있으면 선택 순서 또는 원본 표시 순서가 안정적으로 유지되도록 한 번에 추가한다.
+- 추가 위치는 대상 목록 맨 끝이다. 우클릭 행이나 현재 target selection 중간에 삽입하지 않는다.
+- 추가된 행은 즉시 오른쪽 대상 테이블에 staged 상태로 표시한다.
+- 신규 행 기본값은 §1.5를 따른다.
+- 추가 후 마지막으로 추가된 첫 행 또는 추가 묶음의 첫 행을 target anchor로 선택한다.
+
+### 6.4 drag and drop 추가
+
+- 원본 행을 drag하면 선택된 원본 행 묶음을 payload로 사용한다. drag 시작 행이 기존 선택에 포함되지 않으면 그 행 하나를 payload로 사용한다.
+- 대상 테이블의 행 또는 빈 영역 위에 drop하면 오른쪽 방향 버튼과 동일한 add command를 호출한다.
+- drop 위치와 관계없이 대상 목록 맨 끝에 추가한다.
+- 가운데/행 사이 삽입 indicator를 표시해 중간 삽입으로 오해하게 하지 않는다. target 전체를 append drop zone으로 표시한다.
+- target에서 source로의 drag, target 자체 reorder와 외부 drag는 지원하지 않는다.
+- drag와 버튼 추가가 서로 다른 validation/default logic을 갖지 않도록 controller의 단일 `stageAppendItems` command를 사용한다.
+
+### 6.5 중복과 원본 변경
+
+- 레거시에 명시적인 중복 제거가 없으므로 이미 target에 같은 itemId가 있어도 자동 제외, 병합 또는 경고를 추가하지 않는다.
+- 같은 source를 mode 안에서 여러 번 추가하는 것도 별도 업무 규칙이 확정되지 않은 상태에서 차단하지 않는다.
+- 원본 품목 행의 값은 mode 진입 시점 snapshot으로 사용한다. mode 도중 품목관리 데이터를 다시 조회하지 않는다.
+- 다른 사용자의 서버 변경을 실시간 동기화하지 않는다. 자동품목갱신의 명시적 새로 고침 또는 다음 dataset 조회에서 반영한다.
+
+### 6.6 원본 목록 하단 취소/적용
+
+- 원본 테이블 하단에 `취소`, `적용` 버튼을 둔다.
+- staged addition이 없으면 `적용`을 비활성화한다.
+- `취소`를 누르면 추가 작업을 취소할지 확인한다.
+- 확인하면 이 mode에서 만든 staged additions만 모두 제거하고 mode 진입 전 자동품목갱신 draft로 돌아간다.
+- `적용`을 누르면 선택 품목을 자동품목갱신 draft에 적용할지 확인한다.
+- 확인하면 staged additions를 정식 added rows로 전환하고 mode를 닫는다.
+- 확인 dialog는 프로젝트의 공용 blocking modeless 확인 UI를 사용한다. 별도 품목 선택 dialog를 만드는 것이 아니다.
+- 확인을 거부하면 mode와 staged additions를 그대로 유지한다.
+- mode가 닫히면 기본 우하단 `취소`, `저장` 활성 조건을 다시 계산한다. 적용 후에는 draft가 dirty이므로 두 버튼이 활성화된다.
+- 적용 시 added row keys를 SQLite backup에 기록한다. 이후 기본 `취소`는 이 행들을 제거해 mode 진입 전이 아니라 서버 baseline으로 전체 원복한다.
+
+## 7. 자동품목갱신 draft model
+
+### 7.1 row model
+
+`AutoItemUpdateDraftRow`는 최소 다음 값을 가진다.
+
+- `String rowKey`
+- `int? sourceUpdateItemId`
+- `int sourceItemId`
+- `String itemName`
+- `int labelSizeId`
+- `DateTime applyDate`
+- `String element`
+- `String elementRtf`
+- `int price` 또는 실제 schema가 요구하는 기존 값
+- `bool isApply`
+- 원본 품목/마켓과 preview materialization에 필요한 식별값
+- `existing`, `modified`, `added` 상태
+- baseline 비교 또는 dirty 판정에 필요한 원본 snapshot
+
+- `rowKey` 형식과 staged→added 안정성은 §3.2를 따른다. 저장 성공 후 새 controller를 만들 때만 DB에서 발급된 `updateItemId` 기반 key로 교체한다.
+- `isApply` 조회값은 이 화면에서 항상 false여야 하며 사용자가 직접 편집하지 않는다.
+- 기존 schema의 `RICH_IS_APPLY` numeric/bit 표현에 맞춰 조회·저장 wire 값은 `0`을 사용한다. 문자열 boolean이나 새 enum 컬럼을 만들지 않는다.
+- DB/schema에 없는 필드는 새로 만들지 않는다. 실제 legacy DAO와 운영 schema를 확인해 이름을 맞춘다.
+
+### 7.2 cell model
+
+- 자동갱신 라벨항목 cell은 `(columnId, rowKey)` 또는 `(columnId, sourceUpdateItemId/draftId)`로 식별한다.
+- content ID가 있는 기존 값, 신규 값, editable 여부와 data string을 보존한다.
+- 품목관리의 `TColumnContent`를 그대로 전역 static list로 공유하지 않는다. 자동갱신 전용 content model 또는 명시적 scoped view를 사용한다.
+
+### 7.3 controller command
+
+최소 command는 다음 책임을 가진다.
+
+- baseline에서 controller 생성
+- 갱신날짜 변경
+- cell 변경
+- 주원료 plain/RTF 변경
+- 한 행 삭제
+- 선택 블럭 삭제
+- 추가 mode 시작/취소/적용
+- source items append staging
+- selection/anchor 변경
+- SQLite snapshot으로 원복
+- 저장 command 생성
+- 저장 성공 후 새 baseline 확정
+
+- widget이 row list를 직접 mutate하지 않는다.
+- dirty는 row/cell 변경, 추가, 삭제 중 하나라도 있으면 true다.
+- 선택, 플로팅창 위치, mode 내부 source selection만으로 dirty를 만들지 않는다.
+
+## 8. SQLite 취소 원복
+
+### 8.1 기본 원칙
+
+- 품목관리의 `ItemManagerDraftBackupStore`와 같은 before-image 방식을 자동품목갱신에도 구현한다.
+- 일반 JSON 임시 파일이나 SQL Server 재조회로 `취소`를 구현하지 않는다.
+- 자동품목갱신 전용 `AutoItemUpdateDraftBackupStore`를 둔다. table 이름과 snapshot type은 자동품목갱신 의미를 드러내야 한다.
+- 기본 위치는 앱 지원 디렉터리 아래 별도 `automatic_item_update_drafts` 디렉터리로 한다.
+- 파일 key에는 최소 user ID, customer ID, brand ID, labelSize ID와 현재 market ID를 포함해 다른 dataset과 충돌하지 않게 한다.
+- session 시작 시 이전 임시 파일을 재사용하는 crash recovery는 이번 범위가 아니다. 현재 edit session의 취소 원복에만 사용한다.
+- 같은 key의 이전 crash 파일이 있으면 새 session `start()`가 table을 초기화해 재사용하지 않는다. 별도 TTL, background cleaner 또는 전체 directory 순회는 추가하지 않는다.
+
+### 8.2 capture 대상
+
+- 변경 전 갱신날짜
+- 변경 전 주원료 plain/RTF
+- 변경 전 cell content
+- 삭제 전 기존 row 전체
+- 삭제 전 row의 전체 cell content
+- 추가된 row keys
+- baseline 선택 row keys와 anchor
+- 전체 import 기능이 이번 화면에 없으므로 품목관리의 `fullImport` mode를 근거 없이 추가하지 않는다.
+
+### 8.3 capture 시점
+
+- 동일 값의 첫 변경 직전에 한 번만 저장한다.
+- 여러 번 편집해도 최초 baseline before-image를 덮어쓰지 않는다.
+- 기존 행 삭제 전에는 row와 관련 cells를 한 transaction으로 capture한다.
+- inline 추가 mode의 staged additions는 `적용` 전까지 backup 대상이 아니다.
+- inline `적용` 시 정식 added row key를 기록한다.
+
+### 8.4 기본 취소
+
+1. active editor를 flush한다.
+2. 변경 내용을 취소할지 확인한다.
+3. SQLite snapshot을 읽는다.
+4. controller의 변경 날짜, element, cells, 삭제 행, 추가 행과 baseline selection을 원복한다.
+5. 화면과 플로팅창을 복원된 anchor에 맞춘다.
+6. 원복 성공 후 SQLite DB/WAL/SHM 파일을 삭제한다.
+
+- snapshot 읽기 또는 restore가 실패하면 오류를 표시하고 현재 controller와 backup을 유지한다.
+- 취소를 SQL Server 재조회로 대체하지 않는다.
+- 원복 성공 후 controller는 clean이어야 하고 우하단 버튼은 비활성화돼야 한다.
+
+## 9. SQL Server 조회
+
+### 9.1 조회 API
+
+명시적으로 다음 범위를 조회한다.
+
+- 현재 `labelSizeId`
+- `RICH_IS_APPLY = 0`
+- 레거시의 `RICH_UPDATE_ITEM_ORDER` 순서
+- 연결된 원본 item의 품목명
+- 자동갱신 row의 element/element RTF, price, apply date
+- 해당 update item들의 `BM_UPDATE_COL_CONTENT`
+- 현재 라벨크기의 column/special column 정의
+
+- 메서드 이름과 parameter가 실제 SQL 조건을 그대로 드러내게 한다. 현재의 customerId 명칭을 유지하면서 parameter를 사용하지 않는 API는 제거하거나 사용처가 없는지 확인 후 교체한다.
+- null/빈 문자열 의미는 기존 DAO mapping 계약을 따른다. `DateTime.now()`로 잘못된 DB 날짜를 조용히 대체하지 않는다. 필수 날짜가 잘못됐으면 조회 오류로 전달한다.
+
+### 9.2 서버 날짜
+
+- 신규 행 기본 갱신날짜와 날짜 validation은 같은 서버 현재 날짜 source를 사용한다.
+- 화면 진입 또는 새로 고침 성공 시 서버 날짜를 한 번 얻어 controller의 dataset session snapshot으로 보관한다.
+- 신규 행의 다음 날 기본값, 셀 편집 validation과 저장 전 validation은 모두 이 snapshot을 사용한다. 행 추가 때마다 서버 날짜 query를 반복하지 않는다.
+- 새로 고침 성공 시 snapshot을 새 서버 날짜로 교체한다. session 중 자정 자동 감지나 timer 보정은 추가하지 않는다.
+- 서로 다른 command에서 PC 날짜와 서버 날짜를 섞지 않는다.
+
+## 10. SQL Server 저장
+
+### 10.1 저장 전 검증
+
+- active editor를 flush한다.
+- 모든 row의 갱신날짜가 `yyyyMMdd`로 표현 가능하고 서버 오늘보다 큰지 확인한다.
+- 필수 식별값과 현재 라벨크기가 일치하는지 확인한다.
+- 레거시에 없는 대규모 사전 조회, 중복 자동 정리 또는 자동 merge를 추가하지 않는다.
+
+### 10.2 transaction 순서
+
+레거시 `CUpdateItemTable::SaveToDB()` 순서를 유지해 한 transaction에서 처리한다.
+
+1. 삭제 대상 update item의 `BM_UPDATE_COL_CONTENT` 삭제
+2. 삭제 대상 `BM_UPDATE_ITEM` 삭제
+3. 변경된 기존 `BM_UPDATE_ITEM` row update
+4. 변경된 기존 `BM_UPDATE_COL_CONTENT` update
+5. 신규 `BM_UPDATE_ITEM` insert
+6. 신규 insert ID를 client row key와 안정적으로 연결
+7. 신규 `BM_UPDATE_COL_CONTENT` insert
+8. commit
+
+- 신규 XML payload에 `rowKey`를 client correlation key로 넣고, `MERGE ... ON 1=0`의 `OUTPUT source.rowKey, inserted.RICH_UPDATE_ITEM_ID INTO @InsertedRows`처럼 correlation key와 identity를 한 statement에서 table variable에 기록한다. 실제 schema 컬럼명에 맞추되 `SELECT LAST N`의 동시성 취약성을 그대로 복제하지 않는다.
+- 구조화 payload는 escaped XML과 `CONVERT(XML, ...)`, `nodes()`, `value()`를 사용한다.
+- `SET NOCOUNT ON`과 명시적 결과 SELECT로 ODBC의 첫 0-row DML `SQL_NO_DATA(100)` 문제를 피한다.
+- 요청 row 수와 affected row 수가 다르면 오류를 발생시켜 전체 rollback한다.
+- `@@ROWCOUNT`, `@@TRANCOUNT`를 named parameter로 치환하지 않는다.
+
+### 10.3 오류와 commit 처리
+
+- transaction 시작 뒤 오류가 나면 가능한 경우 rollback한다.
+- rollback 오류가 있더라도 최초 저장/commit 오류를 잃지 않게 전달한다.
+- commit 오류도 저장 실패로 전달하고 가능한 경우 rollback한다.
+- retry, 재연결, 재조회 후 자동 재적용, 부분 성공 처리를 추가하지 않는다.
+- 실패 시 controller dirty와 SQLite backup을 유지한다.
+- 성공한 경우에만 SQLite backup을 삭제하고 저장 결과 또는 단일 재조회 결과로 clean baseline을 만든다.
+- DB migration이나 missing table 자동 생성은 하지 않는다. 필요한 기존 table/schema가 없으면 DB 오류를 그대로 전달한다.
+
+## 11. 저장·취소·새로 고침의 구분
+
+세 command의 의미를 섞지 않는다.
+
+- `저장`: draft 변경을 SQL Server에 transaction으로 반영한다. 성공 후 backup을 삭제한다.
+- `취소`: SQL Server를 조회하지 않고 SQLite before-image로 현재 session의 변경을 원복한다.
+- `새로 고침`: 현재 draft와 backup을 폐기하고 SQL Server의 최신 미적용 목록을 다시 조회한다.
+
+- 저장 실패 뒤 자동으로 새로 고침하지 않는다.
+- 취소 실패 뒤 자동으로 SQL Server를 조회하지 않는다.
+- 새로 고침 조회 실패 뒤 빈 화면으로 교체하지 않는다.
+
+## 12. 제안 파일과 symbol 경계
+
+구현자는 실제 코드 구조를 확인해 이름을 조정할 수 있으나 책임 경계는 유지한다.
+
+### 12.1 신규 파일 후보
+
+- `lib/page_home/automatic_item_update_page.dart`
+  - 대상 table, inline source table, command footer와 context menu
+- `lib/models/automatic_item_update_draft.dart`
+  - row/cell/controller/save command
+- `lib/models/automatic_item_update_draft_backup.dart`
+  - SQLite before-image store와 snapshot
+- `test/automatic_item_update_draft_test.dart`
+- `test/automatic_item_update_draft_backup_test.dart`
+- `test/automatic_item_update_page_test.dart`
+- `test/automatic_item_update_dao_test.dart`
+
+### 12.2 수정 파일 후보
+
+- `lib/home_page_manager.dart`
+  - placeholder 교체, 조회 lifecycle, floating window, 저장/취소/refresh, context guard
+- `lib/models/update_item.dart`
+  - strict row mapping, label-size 미적용 조회, save DAO
+- 품목관리 preview UI 소유 파일
+  - 주원료/미리보기 공용 component 추출이 실제로 필요할 때만 수정
+- `test/fortune_table_test.dart`
+  - 공용 table API를 확장하는 경우에만 회귀 테스트 추가
+
+### 12.3 금지하는 결합
+
+- 자동품목갱신 row를 `ItemManagerDraftController.rows`에 넣지 않는다.
+- 자동품목갱신 content를 `TColumnContent.datas` 전역 값으로 덮어쓰지 않는다.
+- 품목 추가 source 목록을 얻기 위해 별도 SQL query를 중복 실행하지 않는다.
+- SQLite backup에 SQL Server 저장 logic을 넣지 않는다.
+- UI widget에서 SQL 문자열을 실행하지 않는다.
+- 로그 함수에 업무 logic이나 fallback을 넣지 않는다.
+
+## 13. 테스트 요구사항
+
+### 13.1 controller 단위 테스트
+
+- baseline row/cell 생성과 clean 상태
+- 날짜/cell/element 변경 시 dirty와 modified 상태
+- 최초 before-image capture callback 시점
+- 한 행 삭제와 블럭 삭제
+- 기존 행과 신규 행 삭제 차이
+- inline staged additions는 적용 전 dirty/backup에 반영되지 않음
+- inline 적용 후 맨 끝 순서, 다음 날 기본 날짜와 added 상태
+- inline 취소가 mode 진입 전 draft를 보존
+- 같은 source를 여러 번 추가할 때 임의 중복 제거하지 않음
+- restore snapshot 후 clean 상태와 selection 복원
+
+### 13.2 SQLite backup 테스트
+
+- 임시 directory와 `sqflite_common_ffi`를 사용한다.
+- 날짜, element plain/RTF, cell before-image round-trip
+- 동일 key를 여러 번 capture해도 최초 값 유지
+- 삭제 row/cells round-trip
+- added row key round-trip
+- clear/close 기본 동작이 SQLite/WAL/SHM 파일 삭제
+- restore 실패 시 파일을 먼저 삭제하지 않음
+- 품목관리 backup DB와 경로/key 충돌 없음
+
+### 13.3 widget 테스트
+
+- placeholder 대신 자동품목갱신 table 표시
+- 컬럼 순서와 read-only/editable 범위
+- 선택 행에 따라 주원료/미리보기 child 갱신
+- dirty일 때만 우하단 취소/저장 활성
+- 추가 mode에서 기본 취소/저장 비활성
+- source table은 품목명 한 컬럼만 표시
+- arrow button selection append
+- source row drag/drop append
+- drop 위치와 무관하게 맨 끝 추가
+- inline 취소/적용 확인과 footer 재활성
+- 팝업메뉴 순서, 구분선과 활성 조건
+- 빈 영역에서는 삭제 command 비활성
+- `블럭선택 날짜입력`, `품목찾기` 선택이 데이터를 바꾸지 않음
+- 새로 고침과 F5가 같은 command 호출
+- dirty/active edit/add mode/busy에서 브랜드·라벨·tab 변경 차단
+
+### 13.4 DAO 테스트
+
+- 조회 SQL이 labelSize ID와 `isApply=0`을 실제 parameter로 사용
+- `RICH_UPDATE_ITEM_ORDER` 정렬
+- update item과 update column content mapping
+- delete → update → insert 순서
+- 신규 parent ID와 child content 연결
+- affected-row mismatch 오류
+- commit 오류 전달과 rollback 시도
+- compatibility level 100 금지 함수 미사용
+- XML payload의 한글, 빈 문자열, null, `&`, `<`, `>`, 따옴표 보존
+- SQL에 DB 생성/ALTER/migration 문이 없음
+
+### 13.5 실제 서버 probe
+
+- 실제 운영 호환 schema를 사용할 수 있을 때만 데이터 변경 없는 빈 payload 또는 강제 rollback probe를 수행한다.
+- schema capability가 없으면 gate를 우회하거나 table을 만들지 않는다.
+- 실제 데이터 저장/삭제 검증은 사용자가 명시적으로 승인한 테스트 dataset에서만 수행한다.
+
+## 14. 구현 순서
+
+1. 레거시 DAO/table schema와 운영 DB의 기존 컬럼을 읽기 전용으로 대조한다.
+2. `UpdateItem` mapping의 잘못된 기본값과 조회 parameter 계약을 정리하고 focused DAO 조회 테스트를 만든다.
+3. 자동품목갱신 row/cell/draft controller와 단위 테스트를 구현한다.
+4. 자동품목갱신 SQLite before-image store와 restore 테스트를 구현한다.
+5. 자동품목갱신 기본 table과 우하단 취소/저장 footer를 구현한다.
+6. 품목관리 주원료/미리보기 UI를 필요한 최소 공용 component로 추출해 자동품목갱신에 연결한다.
+7. 팝업메뉴와 삭제 command를 구현한다.
+8. inline 품목 추가 mode, arrow append, drag/drop, 취소/적용 확인을 구현한다.
+9. label-size 미적용 조회와 새로 고침/F5를 연결한다.
+10. compatibility 100 저장 transaction과 DAO 테스트를 구현한다.
+11. 우하단 취소/저장과 SQLite restore/clear를 연결한다.
+12. 브랜드·라벨·tab context guard에 자동품목갱신 상태를 연결한다.
+13. 관련 focused 테스트, `flutter analyze`, `git diff --check`를 실행한다.
+14. 실제 Windows 화면에서 테이블 편집, floating window, drag/drop과 팝업메뉴 위치를 확인한다.
+
+- 각 단계에서 focused 테스트를 먼저 통과시킨 뒤 다음 단계로 진행한다.
+- DAO와 draft를 만들기 전에 화면에 임시 local state로 업무 logic을 넣지 않는다.
+- 전체 기능을 한 파일에 구현한 뒤 나중에 분리하는 방식은 사용하지 않는다.
+
+## 15. 완료 조건
+
+다음을 모두 만족해야 구현 완료다.
+
+- `자동품목갱신` 탭에서 현재 라벨크기의 미적용 행이 레거시 컬럼 순서로 표시된다.
+- 갱신날짜, 라벨항목과 주원료를 편집하고 출력내용미리보기에서 현재 draft를 확인할 수 있다.
+- 갱신날짜는 서버 오늘보다 큰 `yyyyMMdd`만 허용한다.
+- 레거시 팝업메뉴 문구·순서·활성 조건과 구현된 command 동작이 유지된다.
+- 빈 레거시 command에는 신규 업무 동작이 추가되지 않는다.
+- `자동갱신 품목추가`가 별도 선택 dialog 없이 왼쪽 source table, arrow button과 drag/drop으로 동작한다.
+- source는 품목관리의 현재 loaded rows를 사용하고 품목명 한 컬럼만 표시한다.
+- 추가 행은 항상 target 맨 끝에 붙고 서버 다음 날을 기본 갱신날짜로 가진다.
+- inline mode의 취소/적용이 확인 후 동작하고 mode 동안 기본 취소/저장은 비활성화된다.
+- 기본 취소는 SQLite before-image로 날짜, 주원료, cells, 추가와 삭제를 모두 원복한다.
+- 저장은 단일 SQL Server transaction이며 commit 오류를 전달하고 가능한 rollback까지만 수행한다.
+- DB migration, schema 자동 생성, retry와 자동 merge가 없다.
+- dirty/active editor/add mode/busy 동안 브랜드, 라벨과 다른 tab 선택이 차단된다.
+- 팝업메뉴 하단 `새로 고침`과 F5가 미저장 draft를 폐기하고 서버 최신 미적용 목록을 재조회한다.
+- 저장 실패, 취소 실패와 새로 고침 실패가 각각 현재 편집 상태를 불필요하게 잃지 않는다.
+- 관련 focused 테스트와 `flutter analyze`가 통과하고 기존 품목관리 동작이 퇴행하지 않는다.
+
+## 16. 범위 제외
+
+- SQL Server DB migration과 compatibility 변경
+- 자동갱신 table/schema가 없는 환경을 위한 local 대체 저장
+- 저장 retry, offline queue와 crash recovery
+- 다중 사용자 동시 편집 merge UI
+- 레거시에 없는 품목 중복 제거/합치기 규칙
+- 대상 행 중간 삽입과 순서 drag reorder
+- 레거시에서 비어 있는 `블럭선택 날짜입력`, `품목찾기`의 신규 업무 구현
+- 자동갱신 적용 실행 daemon/service 자체
+- 품목관리 원본 데이터의 편집
+- 별도 품목 선택 dialog
+- DB 조회를 추가로 수행하는 source 품목 목록
+- 앱 재시작 후 미저장 자동품목갱신 draft 복구
