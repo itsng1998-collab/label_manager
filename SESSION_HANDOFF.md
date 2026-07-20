@@ -17,6 +17,7 @@
 - 독립 재검토: agent가 현재 코드에 신규 model/key/helper가 아직 없다는 점을 구현 모순으로 분류했으나 문서 구현 순서 1~3의 명시적 신규 작업과 일치한다. 실제 선행 구현 누락은 없으며 위 저장 version·panel 전환 모호점만 보완했다.
 - 최종 검증 완료: untracked 새 문서를 `/dev/null`과 비교한 whitespace 검사와 전체 `git diff --check` 통과, 두 문서 diagnostics 오류 0건, 전체 diff와 필수/제외 계약 검색 완료. 문서만 변경해 Flutter test/analyze는 실행하지 않았다.
 - stage/commit 대상: `doc/label_line_panel.txt`, `SESSION_HANDOFF.md`. 기존 사용자 변경 `lib/core/app.dart`는 제외하고 `git commit --only`를 사용한다.
+- 구현 지시서 커밋 완료: `fbab06c` (`선 객체 및 통합 패널 구현 지시서 작성`). 원격 push는 수행하지 않았다.
 - 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
 
 ### 완료 (2026-07-17): F1/F2/F3 탭 전환 단축키
