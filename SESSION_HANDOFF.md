@@ -46,6 +46,7 @@
 - 독립 재검토 보완 완료: line/shape allow-list, 두 연속 save feature version, sanitizer/normalize 책임, 저장 시 zOrder 비정규화, images→lines→shapes source sequence 계산식, workbench-memory preset과 one-shot 생성, rotation handle 20px, shape 숫자 field 정규화, fill-none 경계 hit 공식과 EZPL 0.5-dot native 제한을 구체화했다.
 - 최종 검증 완료: `doc/label_line_panel.txt`와 `SESSION_HANDOFF.md` diagnostics 오류 0, shape 저장/toolbar/panel/geometry/capture/EZPL/테스트 필수 계약 104건 확인, 선 전용 제외 검색의 실제 잔여 0건, `git diff --check` 통과다. 문서만 변경해 Flutter test/analyze는 실행하지 않았다.
 - stage/commit 대상: `doc/label_line_panel.txt`, `SESSION_HANDOFF.md`만 포함한다. 기존 사용자 변경 `lib/core/app.dart`는 제외한다.
+- 구현 지시서 커밋 완료: `16ca2d9` (`선 및 폐쇄 도형 통합 구현 지시서 개정`). 원격 push는 수행하지 않았다.
 - 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
 
 ### 완료 (2026-07-17): F1/F2/F3 탭 전환 단축키
