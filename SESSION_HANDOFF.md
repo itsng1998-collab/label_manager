@@ -6,6 +6,16 @@
 - ODBC transaction batch는 첫 DML이 0행일 때 `SQL_NO_DATA(100)`을 반환할 수 있으므로 필요하면 batch 첫 줄에 `SET NOCOUNT ON`을 사용하고 명시적 결과 SELECT를 유지한다. `@@ROWCOUNT`와 `@@TRANCOUNT`는 parameter로 치환하지 않는다.
 - SQL 변경 검증 시 focused DAO 테스트에 금지 함수 미사용과 XML wire 계약을 고정하고, 가능한 경우 compatibility 100 실제 서버에서 데이터 변경 없는 read-only/빈 payload/rollback probe를 수행한다. 실제 schema capability가 없으면 gate를 우회하지 않고 제한을 기록한다.
 
+### 완료 (2026-07-21): 선·도형 지시서 pending·controller·overlay lifecycle 보완
+- 사용자 요청: 최신 `doc/label_line_panel.txt`의 구현 모호점을 다시 검토한 권장안을 병합하고 공개 동작 선택은 즉시 질문해 확정한다.
+- 사용자 확정: barcode A render pending 중 B는 선택·조회만 허용하고 B property 편집은 차단한다. 하나의 `FortuneSheetController`는 mounted canvas 하나에만 attach하며 중복 attach는 `StateError`로 거부한다. narrow overlay가 열린 동안 active object toolbar는 숨긴다.
+- pending 보완 완료: request/draft/error를 `(sheetId, exact barcode key)`에 보존하고 `activePropertyDraft`는 현재 selection projection으로 제한했다. B form에 A 오류를 노출하지 않으며 UI와 controller command 양쪽의 B property mutation·새 draft 시작을 차단하는 테스트를 추가했다.
+- controller 보완 완료: host-owned controller/listener 수명, old detach→new attach 교체, 늦은 old-owner detach 보호, detach 기본 getter와 lifecycle listenable 1회를 명시했다. detach가 `onChange`/`onOp`, workbook/revision/undo를 바꾸지 않는 판별 테스트도 추가했다.
+- overlay 보완 완료: narrow overlay open 중 active toolbar paint/hit-test를 제거하고 overlay pointer/scroll의 canvas 전달을 막았다. dock mode에서는 legacy floating panel paint/hit-test를 비활성화한다.
+- 독립 재검토 완료: 세 정책에 구현 차단 모순은 없다. detach/canonical callback 구분과 controller API pending 우회 차단 fixture, §18 핵심 조건 누락을 찾아 모두 보완했다.
+- 검증 완료: `doc/label_line_panel.txt` diagnostics 오류 0건, 상충·필수 계약 검색과 `git diff --check` 통과. 문서만 변경했으므로 Flutter test/analyze는 실행하지 않았다.
+- stage/commit 대상: `doc/label_line_panel.txt`, `SESSION_HANDOFF.md`만 포함한다. 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
+
 ### 완료 (2026-07-20): 선·도형 지시서 transaction·Hybrid transform 경계 보완
 - 사용자 요청: 최신 `doc/label_line_panel.txt`를 실제 구현에 다시 대조한 권장안을 병합하고 공개 동작 선택은 즉시 확정한다.
 - 사용자 확정: canonical transaction은 내부 model/undo/revision/selection/draft를 먼저 확정하고 기존 `onChange`→`onOp` callback 완료 뒤 controller/listenable이 최종 snapshot을 한 번 통지한다.
