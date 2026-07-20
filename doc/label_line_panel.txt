@@ -696,7 +696,14 @@ shape 위치/크기/회전 field는 canvas handle과 같은 geometry commit API�
 ### 10.1 생성과 편집 분리
 
 - toolbar의 이미지/바코드 삽입은 기존 생성 dialog를 유지한다.
-- 생성 완료 후 새 객체를 단일 선택하고 panel이 dock 가능한 폭이면 panel 속성을 표시한다.
+- 이미지·바코드 삽입 command의 enablement와 확인 시 권한 검사는 다른 object mutation과 같이 workbook `allowEdit`만 사용한다. 선택 cell/merge anchor는 생성 위치 계산에만 사용하며 해당 cell의 protection/locked 상태로 삽입을 차단하지 않는다.
+- toolbar command 시점의 workbook identity/history generation, active sheet ID와 선택 cell의 merge anchor를 생성 dialog owner로 캡처한다. dialog 조작 중 cell selection이 바뀌어도 삽입 위치를 바꾸지 않으며 active sheet 변경, undo/redo 또는 외부 workbook 교체가 발생하면 미commit dialog를 닫고 입력을 폐기한다. 확인 시 owner가 일치할 때만 캡처한 anchor의 왼쪽 위에 생성한다.
+- 이미지 dialog는 기존 연결 이미지/고정 이미지 source 선택을 유지한다. 모든 source는 finite 양수 폭/높이가 필요하다. `imageObjectOptions`가 있으면 연결 source는 non-empty value를 가진 현재 option, `연결 안 함` 고정 source는 성공한 파일 선택이 추가로 필요하다. option이 없는 범용 host는 `imageObjectIds`를 포함한 effective ID 목록에서 dialog가 선택한 non-empty legacy ID를 연결 metadata에 기록하고 목록이 비었을 때만 기존 자동 ID를 발급한다. 파일 없는 모든 연결 source의 `src`는 ID가 legacy/자동인지와 무관하게 기존 1px placeholder를 사용한다. 파일 선택 성공 시 원본 aspect ratio를 유지한 기존 초기 크기를 채우며 file picker 취소는 dialog와 현재 입력을 유지한다.
+- 바코드 dialog는 유효한 format, finite 폭/높이 `>= 0`, finite `moduleScale > 0`과 `barHeight > 0`이 필요하다. 폭 또는 높이 `0`은 기존 renderer 결과 크기를 사용하는 auto-size 의미로 유지하고 음수·비유한 값과 구분한다. `barcodeObjectOptions`의 연결 source는 non-empty value를 가진 현재 option이어야 한다. effective format은 option의 non-empty `formatId`가 있으면 등록 목록 포함 여부와 무관하게 해당 custom ID를 허용하고, `formatLabel`이 비어 있으면 ID를 label로 사용한다. option format ID가 비어 있으면 dialog의 현재 등록 format을 사용한다. renderer data는 effective format이 QR/Data Matrix 계열이면 `ITEM`, 그 외에는 `123456789012` placeholder를 사용한다. `연결 안 함`과 option이 없는 host는 공백이 아닌 직접 data가 필요하며, option이 없는 host는 `barcodeObjectIds`를 포함한 effective ID 목록의 현재 non-empty legacy ID를 연결 metadata에 기록하고 목록이 비었을 때만 자동 `#BARCODE*` ID를 사용한다.
+- 바코드 `[확인]`은 입력 snapshot, 증가하는 request token과 dialog owner를 캡처해 renderer를 한 번만 호출한다. 진행 중에는 모든 입력·확인·닫기·취소와 Escape를 비활성화해 중복 submit과 완료 전 dialog 종료를 막는다. active sheet 변경, undo/redo, 외부 workbook 교체는 pending dialog를 닫고 request token을 무효화한다. renderer 완료 직후 생성 transaction 전에 `mounted`, 최신 request token, dialog open, workbook identity/history generation, owner sheet ID와 `allowEdit`를 다시 확인한다. owner/token/dialog가 달라 이미 취소된 늦은 결과는 아무 상태도 바꾸지 않고 폐기한다. 같은 request/dialog지만 `allowEdit`가 false가 된 경우에는 dialog를 닫고 pending 입력을 폐기한 뒤 결과를 조용히 버려 disabled dialog를 남기지 않는다. renderer가 null을 반환하거나 Future가 예외를 던지면 둘 다 같은 생성 실패로 처리해 dialog와 입력을 유지하고 `바코드를 생성하지 못했습니다.` inline 오류를 표시한 뒤 control을 다시 활성화한다.
+- 생성 성공은 새 내부 typed ID와 전체 object 기준 최상단 zOrder를 할당하고 기존 다중 선택을 해제해 새 typed key만 active 단일 선택으로 만드는 하나의 command다. 구조화된 연결 option은 검증된 option value, option 없는 host는 dialog의 selected effective legacy/자동 ID를 연결 metadata에 기록하고 `연결 안 함` source만 연결 metadata를 기록하지 않는다. 최종 객체의 rotation을 적용한 visual paint bounds가 viewport 안에 전부 보이지 않으면 zoom을 바꾸지 않고 bounds를 포함하는 최소 거리만 scroll한다. selection highlight, handle과 바코드 ID label overlay는 reveal bounds에서 제외하며, visual bounds가 viewport보다 큰 축은 회전된 bounds의 left/top edge를 viewport의 해당 축 시작에 맞춰 최대 영역을 보인다. undo, `onChange`, `onOp`는 각각 1건이고 clean workbook의 dirty 전환은 1회다.
+- 생성 후 dock/overlay panel을 강제로 열지 않는다. panel이 이미 열려 있으면 새 객체 속성으로 전환하고, 닫혀 있으면 `userWantsDockOpen`과 좁은 화면의 overlay closed 상태를 유지한다. 새 active 객체의 toolbar/context menu로 후속 편집에 진입하며, 좁은 화면의 상시 객체/레이어 icon과 넓은 화면의 panel 상태와 무관하게 표시되는 기존 객체/레이어 toolbar toggle로 panel을 다시 열 수 있어야 한다.
+- dialog 취소와 이미지 file picker 취소, validation 실패 및 barcode renderer 실패는 workbook, selection, panel open 상태, undo, dirty, `onChange`, `onOp`를 바꾸지 않는다.
 - 기존 객체의 일반 편집은 panel로 이전한다.
 - 이미지 파일 교체는 panel의 파일 선택 button을 사용한다.
 - 이미지 crop처럼 별도 canvas가 필요한 기능은 panel button에서 기존 전용 dialog를 열 수 있다.
@@ -711,6 +718,7 @@ shape 위치/크기/회전 field는 canvas handle과 같은 geometry commit API�
 - barcode format 선택과 renderer request 생성
 - barcode body metadata 계산
 - image/barcode replacement commit
+- 생성 dialog owner 검증, anchor logical 위치 계산과 생성 성공 selection/reveal transaction
 
 이 로직을 FortuneSheet package 내부의 공용 draft/validation/commit API로 추출하고 생성 dialog와 panel이 같은 API를 사용한다.
 
@@ -766,6 +774,7 @@ nextPanelWidth = currentPanelWidth - delta.dx
 
 - 넓은 화면의 최초 기본 상태는 open이다.
 - header에 접기 icon을 제공한다.
+- 기존 객체/레이어 toolbar toggle은 dock open/closed와 무관하게 표시하고, 닫힌 dock에서 실행하면 `userWantsDockOpen = true`로 바꾸면서 마지막 폭으로 다시 연다.
 - 접기와 다시 열기는 마지막 폭을 보존한다.
 - splitter double-click은 기본 300px로 복원한다.
 - panel 폭은 `SharedPreferences`의 LabelSheet UI 전용 key에 저장하고 다음 workbench에서 복원한다. 저장값도 현재 local constraint로 다시 clamp하며 workbook save JSON에 넣지 않는다.
@@ -1008,6 +1017,13 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - auto-scroll 중 next offset 기준 logical pointer 재계산과 scroll delta가 반영된 preview, pointer 정지 시 timer scroll 없음
 - active sheet 변경·undo/redo·외부 workbook 교체 중 transient draft 폐기와 owner 불일치 pointer-up no-op
 - popup 숫자 입력 직후 `[삽입]`이 유효한 최신 preset을 사용하고 invalid 입력에서는 popup 유지·삽입 차단
+- image/barcode toolbar command 시점의 owner sheet/merge anchor 고정, dialog 중 cell selection 변경의 위치 불변과 sheet 변경·undo/redo·외부 교체 취소
+- image/barcode 삽입이 `allowEdit`만 사용하고 선택 anchor의 protection/locked 상태에는 영향받지 않음
+- image source 공통 finite 양수 크기, 구조화 연결 option/고정 파일별 확인 활성 조건, option 없는 host의 legacy/자동 ID와 모든 연결 source의 placeholder 분리, file picker 취소 시 dialog·입력 유지와 유효 파일 선택 시 aspect ratio 기반 초기 크기
+- barcode 구조화 연결 option/직접 data별 확인 활성 조건, finite 크기 `>= 0`과 `0` auto-size, 양수 module scale/bar height 경계
+- barcode 연결 option의 custom format ID 허용·빈 label의 ID fallback·format별 placeholder와 직접 data 조건, renderer 진행 중 입력·확인·닫기·취소·Escape 비활성화 및 중복 submit 차단, pending 중 sheet 변경·undo/redo·외부 교체 뒤 늦은 결과 무상태 폐기와 `allowEdit` 해제 시 dialog 종료, renderer null/예외 실패의 동일 inline 오류·dialog 입력 유지
+- image/barcode 생성 성공의 새 typed ID, 구조화 option/legacy effective ID/연결 안 함별 metadata, 공통 최상단 zOrder·새 객체 단일 선택·회전 visual bounds 기준 최소 reveal·overlay 제외·oversize left/top 정렬과 undo/`onChange`/`onOp`/dirty 횟수
+- image/barcode 생성 취소·validation 실패·renderer 실패의 workbook/selection/panel/undo/dirty/change callback 불변
 - body drag가 두 endpoint를 같은 delta로 이동
 - endpoint drag와 Shift snap
 - endpoint drag의 Y 상단 clamp와 Shift snap 방향을 유지한 `y=0` 교점 절단
@@ -1057,6 +1073,8 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - panel list/canvas active object/canvas cell/editable field focus별 Arrow key 소유권
 - 기존 image/barcode edit dialog command가 panel edit로 전환
 - 신규 image/barcode 생성 dialog는 유지
+- image/barcode 생성 후 이미 열린 panel만 새 속성으로 전환하고 dock/overlay closed 사용자 의도를 유지함
+- 넓은 화면에서 닫힌 panel에도 객체/레이어 toolbar toggle이 표시되고 마지막 폭으로 다시 열며, 좁은 화면에서는 상시 icon으로 overlay를 엶
 
 ### 15.6 splitter/responsive 테스트
 
@@ -1160,6 +1178,9 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - geometry 속성은 physical-size sheet에서 mm, 그 외에는 px로 표시하며 commit 뒤 model 좌표는 logical coordinate를 유지한다.
 - panel list, canvas object, canvas cell과 editable field의 Arrow key 동작은 실제 focus에 따라 분리된다.
 - 기존 image/barcode 생성 dialog는 유지되고 기존 객체 편집은 panel 공용 validation/commit을 사용한다.
+- image/barcode 생성 dialog는 command 시점 owner sheet와 merge anchor에 삽입하고 stale owner에서는 생성하지 않는다. source별 필수 입력이 유효할 때만 확인할 수 있고 barcode 크기 `0`은 auto-size로 유지한다. barcode renderer pending 중 중복 submit과 dialog 종료를 막고 완료 직전 request token·owner·`allowEdit`가 달라진 늦은 결과는 폐기하며 null/예외 실패는 같은 inline 오류와 입력 유지로 복구한다.
+- image/barcode 생성 성공은 새 객체를 공통 최상단에 추가해 단일 선택하고 source에 맞는 연결 metadata와 필요한 최소 reveal, undo/change/dirty 1회 경계를 지키며, 실패·취소·stale async 결과는 canonical/UI selection 상태를 바꾸지 않는다.
+- image/barcode 생성 후 panel이 이미 열려 있을 때만 새 속성으로 전환하고 dock/overlay를 자동으로 열어 사용자 open/closed 의도를 바꾸지 않는다. 닫힌 panel은 넓은 화면의 객체/레이어 toolbar toggle 또는 좁은 화면의 상시 icon으로 다시 열 수 있다.
 - popup `[삽입]`과 panel command는 focused field를 동기적으로 finalize하며 invalid popup 입력은 삽입을 막고 invalid panel draft는 원복한 뒤 요청 command를 실행한다.
 - panel splitter가 260~420px 범위와 sheet 최소 폭을 지키며 drag 후 workbook/selection/zoom이 유지된다.
 - 좁은 workbench에서 dock이 겹치지 않고 overlay fallback으로 접근 가능하다.
@@ -1207,6 +1228,9 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - sheet 최소 폭: 480px
 - dock 최소 local width: 760px
 - 신규 이미지·바코드 생성 dialog: 유지
+- 이미지·바코드 생성 위치: toolbar command 시점의 active sheet/선택 merge anchor에 고정
+- 이미지·바코드 생성 후 panel: 이미 열린 panel만 새 속성으로 전환, 닫힌 dock/overlay 자동 open 금지
+- 바코드 renderer 진행 중: 입력·확인·닫기·취소·Escape 비활성화, 중복 submit 금지
 - 기존 객체 속성 편집: 통합 panel
 - 다중 선택 1차 범위: layer 조정, 삭제, 복제, clipboard
 - 화살표·자유선·polyline·polygon·gradient/pattern/image fill·다중 geometry 정렬: 제외

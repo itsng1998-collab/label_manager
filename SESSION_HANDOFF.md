@@ -23,6 +23,9 @@
 - 삽입·draft 계약 재보완 완료: 삽입 primary pointer가 object/cell hit-test보다 우선하고 취소된 pointer-up은 commit하지 않는다. transient draft는 owner workbook identity/history generation과 sheet ID를 캡처하며 sheet 변경·undo/redo·외부 workbook 교체에서 폐기한다.
 - auto-scroll·field finalize 계약 재보완 완료: 존재하지 않는 image 전용 helper 대신 공용 `_autoScrollOffsetForDrag()`의 next offset으로 logical pointer를 다시 계산하고 pointer move event 기반 동작만 사용한다. popup `[삽입]`과 panel command는 focused field를 동기 finalize하며 invalid popup 입력은 삽입을 차단한다.
 - ID·저장·stroke 계약 재보완 완료: 중복 normalize 전에 kind별 모든 원본 ID를 예약해 `a, a, a__2`를 `a, a__3, a__2`로 보존하고 신규 allocator는 최소 빈 양의 suffix를 사용한다. print-area save는 원래 sheet logical 좌표를 유지하며 closed shape pattern은 kind별 고정 시작점·방향, seam의 보이는 edge gap `2w`, terminal dash clip과 불완전 dot 생략을 사용한다.
+- 이미지·바코드 삽입 UX 보완 완료: 기존 생성 dialog는 유지하되 toolbar command 시점의 workbook/sheet/merge anchor를 owner로 고정하고 `allowEdit`만 권한으로 사용한다. source별 확인 조건·연결 metadata·placeholder, 바코드 크기 `0` auto-size, structured custom format과 legacy effective ID 호환을 명시했다.
+- 비동기·완료 UX 보완 완료: 바코드 renderer pending 중 입력·확인·닫기·취소·Escape와 중복 submit을 막고 완료 직전 request token·owner·권한을 재검증한다. null/예외 실패를 동일 복구하며 성공은 공통 최상단·새 객체 단일 선택·회전 visual bounds 최소 reveal과 undo/change/dirty 1회로 처리한다.
+- panel UX 보완 완료: 생성 후 이미 열린 dock/overlay만 새 객체 속성으로 전환하고 닫힌 panel을 자동으로 열지 않아 사용자 open/closed 의도를 유지한다. 넓은 화면 toolbar toggle과 좁은 화면 상시 icon으로 재진입한다.
 - 검증 완료: 두 문서 diagnostics 오류 0건, 필수·잔여 충돌 계약 검색과 전체 diff 검토 완료, `git diff --check -- doc/label_line_panel.txt SESSION_HANDOFF.md` 통과. 문서만 변경해 Flutter test/analyze는 실행하지 않았다.
 - stage/commit 대상: `doc/label_line_panel.txt`, `SESSION_HANDOFF.md`. 기존 사용자 변경 `lib/core/app.dart`는 제외하고 관련 문서만 커밋한다.
 
