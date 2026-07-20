@@ -6,6 +6,18 @@
 - ODBC transaction batch는 첫 DML이 0행일 때 `SQL_NO_DATA(100)`을 반환할 수 있으므로 필요하면 batch 첫 줄에 `SET NOCOUNT ON`을 사용하고 명시적 결과 SELECT를 유지한다. `@@ROWCOUNT`와 `@@TRANCOUNT`는 parameter로 치환하지 않는다.
 - SQL 변경 검증 시 focused DAO 테스트에 금지 함수 미사용과 XML wire 계약을 고정하고, 가능한 경우 compatibility 100 실제 서버에서 데이터 변경 없는 read-only/빈 payload/rollback probe를 수행한다. 실제 schema capability가 없으면 gate를 우회하지 않고 제한을 기록한다.
 
+### 완료 (2026-07-20): 선·도형 통합 지시서 저장·연결·clipboard 경계 보완
+- 사용자 요청: 최신 `doc/label_line_panel.txt`를 실제 구현과 다시 대조한 권장안을 병합하고 정책 확인이 필요한 항목은 즉시 질문해 확정한다.
+- 사용자 확정: typed line JSON canonical key는 `lines`를 유지하고 `lines`/`fortuneShapes`는 typed model/raw metadata가 단독 소유한다. linked image의 `연결 안 함` 전환은 현행 dialog와 같이 성공한 새 파일 선택을 필수로 한다.
+- codec 보완 완료: `lines`/`fortuneShapes`를 `_unhandledSheetFields()` handled key로 분리해 `extraFields` 이중 소유와 stale raw 덮어쓰기를 막았다. line/shape ID는 trim 후 non-empty JSON string만 허용하며 다른 타입·빈 entry를 제외하고 trim/중복 정규화 시 raw list를 재사용하지 않는다.
+- images 호환 보완 완료: `images`/`image` alias와 `rawImagesKey` 선택은 유지하되 ID/zOrder canonicalization이 필요한 raw list는 canonical encode한다. legacy `image`와 두 alias 동시 입력의 우선순위·stale key 제거 테스트를 명시했다.
+- image/line 보완 완료: linked image 해제는 새 파일 성공 뒤에만 commit하고 파일이 없으면 기존 상태를 유지한다. line 생성은 화면 3px 최소를 유지하되 생성 후 endpoint drag/panel commit은 zero-length만 거부해 짧은 기존 line을 보존하며 non-1 zoom 경계 테스트를 추가했다.
+- barcode pending 보완 완료: 같은 exact key의 panel `[적용]`만 latest-wins로 허용하고 새 token이 이전 요청을 stale·blocking 제외한다. A→B/B→A 완료 순서 모두에서 최신 요청만 commit·blocking 해제하며 다른 key 동시 적용은 차단한다.
+- clipboard 보완 완료: Ctrl/Meta+V는 clipboard를 한 번 읽는 async coordinator가 marker 일치 object paste 또는 불일치 cell/text paste 중 하나만 실행한다. copy payload 활성화와 cut 삭제는 marker 기록 성공 뒤에만 수행하고 `Completer` 기반 지연·성공·실패 테스트로 완료 전 불변성과 transaction 1회를 고정했다.
+- 독립 재검토 완료: 최초 8개 후보 중 실제 문제와 정책 항목을 분리해 병합했다. 최종 재검토의 async cut, image alias, barcode 양방향 완료 순서와 zoom 판별 테스트까지 추가했고 잔여 구현 차단 문제는 없다.
+- 검증 완료: `doc/label_line_panel.txt` diagnostics 오류 0건, 상충/필수 계약 검색과 `git diff --check`를 통과했다. 문서만 변경했으므로 Flutter test/analyze는 실행하지 않았다.
+- stage/commit 대상: `doc/label_line_panel.txt`, `SESSION_HANDOFF.md`만 포함한다. 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
+
 ### 완료 (2026-07-20): 선·도형 통합 지시서 발행 API·회전·시트 revision 보완
 - 사용자 요청: 최신 `doc/label_line_panel.txt`를 실제 코드에 다시 대조해 모호하거나 빠진 구현 계약을 권장안으로 병합하고, 사용자 확인이 필요한 사항은 즉시 확정한다.
 - 추가 사용자 확인 불필요: 기존 다중 발행 host, 바코드 편집 dialog와 FortuneSheet controlled-widget 흐름으로 동작을 결정할 수 있어 호환 권장안으로 바로 확정했다.
