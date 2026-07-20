@@ -6,6 +6,17 @@
 - ODBC transaction batch는 첫 DML이 0행일 때 `SQL_NO_DATA(100)`을 반환할 수 있으므로 필요하면 batch 첫 줄에 `SET NOCOUNT ON`을 사용하고 명시적 결과 SELECT를 유지한다. `@@ROWCOUNT`와 `@@TRANCOUNT`는 parameter로 치환하지 않는다.
 - SQL 변경 검증 시 focused DAO 테스트에 금지 함수 미사용과 XML wire 계약을 고정하고, 가능한 경우 compatibility 100 실제 서버에서 데이터 변경 없는 read-only/빈 payload/rollback probe를 수행한다. 실제 schema capability가 없으면 gate를 우회하지 않고 제한을 기록한다.
 
+### 완료 (2026-07-20): 선·도형 지시서 geometry·저장·panel 경계 보완
+- 사용자 요청: 최신 `doc/label_line_panel.txt`를 실제 save/workbench/FortuneSheet 구현에 다시 대조하고 권장안을 병합하며 정책 확인 사항은 즉시 확정한다.
+- 사용자 확정: wide/narrow 전환은 dock/overlay를 자동으로 열거나 focus를 옮기지 않는다. layer row drop은 행 위 절반 `before`, 아래 절반 `after`를 사용한다. 회전 resize가 상단 경계를 넘으면 opposite world anchor를 유지하고 local extent를 `top == 0`인 최대 projection으로 제한한다.
+- 저장 경계 보완 완료: manifest feature가 누락돼도 payload의 `lines`/`fortuneShapes`를 보존하고 key 자체 부재만 empty model로 해석한다. FortuneSheet codec이 canonicalization/raw 재사용 판정을, LabelSheet sanitizer가 JSON-safe allow-list 필터를 소유하도록 분리했다. `.lms` decoder의 단일 migrate→sanitize→decode와 `.xlsx` raw parser 뒤 workbench normalize 경계를 명시했다.
+- print-area 보완 완료: 원래 logical rect에서 line/fill 없는 shape의 stroked path와 채움 shape의 회전 fill 영역·outline 교차 exact key를 먼저 확정한다. 회전 AABB/stroke padding은 후보 탐색과 row/column 확장에만 사용하고 확장 bounds의 이웃 객체는 추가하지 않는다.
+- geometry 보완 완료: 회전 shape resize를 초기 center 기준 local 축에서 계산하고 opposite world anchor를 고정하며 edge 교차 시 handle side를 반전한다. shape/image/barcode resize는 음수 X를 허용하고 top만 clamp한다. interaction 화면 px는 Flutter logical pixel이며 DPR은 capture raster에만 사용한다.
+- panel 보완 완료: layer drag는 kind 포함 exact target key와 before/after side를 저장하고 선택 묶음 제거 뒤 target을 재조회한다. panel controller, property draft, selection과 field controller는 dock/overlay presentation보다 상위에서 유지해 responsive 전환만으로 finalize·commit·dispose하지 않는다.
+- 독립 재검토 보완 완료: 채움 shape 내부 print-area, 회전 resize의 top 경계, 같은 ID·다른 kind layer drop, DPR 1/2/3 실제 pointer 경로 판별 테스트를 본문·테스트·완료 조건·확정값에 연결했고 잔여 구현 차단 문제는 없다.
+- 검증 완료: `doc/label_line_panel.txt` diagnostics 오류 0건, 필수·상충 계약 검색과 `git diff --check` 통과. 문서만 변경했으므로 Flutter test/analyze는 실행하지 않았다.
+- stage/commit 대상: `doc/label_line_panel.txt`, `SESSION_HANDOFF.md`만 포함한다. 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
+
 ### 완료 (2026-07-20): 선·도형 통합 지시서 저장·연결·clipboard 경계 보완
 - 사용자 요청: 최신 `doc/label_line_panel.txt`를 실제 구현과 다시 대조한 권장안을 병합하고 정책 확인이 필요한 항목은 즉시 질문해 확정한다.
 - 사용자 확정: typed line JSON canonical key는 `lines`를 유지하고 `lines`/`fortuneShapes`는 typed model/raw metadata가 단독 소유한다. linked image의 `연결 안 함` 전환은 현행 dialog와 같이 성공한 새 파일 선택을 필수로 한다.
