@@ -26,6 +26,9 @@
 - 이미지·바코드 삽입 UX 보완 완료: 기존 생성 dialog는 유지하되 toolbar command 시점의 workbook/sheet/merge anchor를 owner로 고정하고 `allowEdit`만 권한으로 사용한다. source별 확인 조건·연결 metadata·placeholder, 바코드 크기 `0` auto-size, structured custom format과 legacy effective ID 호환을 명시했다.
 - 비동기·완료 UX 보완 완료: 바코드 renderer pending 중 입력·확인·닫기·취소·Escape와 중복 submit을 막고 완료 직전 request token·owner·권한을 재검증한다. null/예외 실패를 동일 복구하며 성공은 공통 최상단·새 객체 단일 선택·회전 visual bounds 최소 reveal과 undo/change/dirty 1회로 처리한다.
 - panel UX 보완 완료: 생성 후 이미 열린 dock/overlay만 새 객체 속성으로 전환하고 닫힌 panel을 자동으로 열지 않아 사용자 open/closed 의도를 유지한다. 넓은 화면 toolbar toggle과 좁은 화면 상시 icon으로 재진입한다.
+- 사용자 추가 확정: 구조화 `#ITEM_IMAGE`/`#ITEM_CODE` 연결 ID는 duplicate/copy paste에서 보존하고 내부 typed ID만 새로 발급한다. 구조화 생성 dialog 최초 source는 현행 `연결 안 함`을 유지하고, revision은 package-owned command와 외부 workbook replacement만 추적하며 직접 collection mutation은 지원하지 않는다.
+- clipboard·async 계약 재보완 완료: options가 있는 구조화 host에서는 stale option ID까지 바인딩으로 보존하고 option 없는 host의 editable ID만 재발급한다. barcode panel 적용과 image picker에 owner/revision/request token 및 역순 응답 폐기 테스트를 연결했다.
+- save·EZPL 계약 재보완 완료: absent/빈 lines/shapes는 같은 empty model이고 canonical empty key는 생략한다. Hybrid EZPL은 native 승인 render plan 뒤 승인 객체를 제외한 raster layer를 재합성해 barcode 공백·비채움 rectangle 내부의 하부 pixel을 보존한다.
 - 검증 완료: 두 문서 diagnostics 오류 0건, 필수·잔여 충돌 계약 검색과 전체 diff 검토 완료, `git diff --check -- doc/label_line_panel.txt SESSION_HANDOFF.md` 통과. 문서만 변경해 Flutter test/analyze는 실행하지 않았다.
 - stage/commit 대상: `doc/label_line_panel.txt`, `SESSION_HANDOFF.md`. 기존 사용자 변경 `lib/core/app.dart`는 제외하고 관련 문서만 커밋한다.
 
