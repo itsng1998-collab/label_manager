@@ -34,6 +34,20 @@
 - 구현 지시서 커밋 완료: `fbab06c` (`선 객체 및 통합 패널 구현 지시서 작성`). 원격 push는 수행하지 않았다.
 - 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
 
+### 완료 (2026-07-20): 선·사각형·둥근 사각형·타원 통합 지시서 개정
+- 사용자 요청: 선 전용 `doc/label_line_panel.txt`에 사각형, 둥근 사각형과 타원 구현을 추가하고 툴바·popup·객체 패널·저장·출력·테스트 계약을 하나로 병합 정리한다.
+- 확정 설계: endpoint 기반 직선은 `FortuneLine`/`sheet.lines`, bounds 기반 폐쇄 도형은 `FortuneShape`/`sheet.shapes`로 분리 저장한다. 런타임 typed object key/ref, Z-Order, 선택, clipboard, 패널과 출력은 공통 API로 통합한다.
+- UI 확정: 기존 `[선▼]`을 `[도형▼]` 통합 콤보로 교체하고 popup 첫 행에서 직선/사각형/둥근 사각형/타원을 선택한다. 직선은 선 속성만, 폐쇄 도형은 테두리·채우기, 둥근 사각형은 모서리 반경을 추가 표시한다.
+- 수정 예정: `doc/label_line_panel.txt`, `SESSION_HANDOFF.md`. 문서만 변경하므로 Flutter test/analyze는 실행하지 않고 문서 diagnostics, 필수/제외 계약 검색, 독립 재검토와 `git diff --check`를 수행한다.
+- `doc/label_line_panel.txt` 병합 편집 완료: `FortuneShape`/`sheet.shapes`, rectangle/roundedRectangle/ellipse bounds·rotation·stroke·fill·radius, 공통 Z-Order, path/hit-test, 8방향 resize·rotation handle, capture/PDF/EZPL fallback과 관련 테스트/완료 조건을 기존 line 계약에 통합했다.
+- 툴바·popup 확정: `[도형▼] [이미지] [바코드]` 순서, popup 첫 행 4종 icon segmented control, kind별 stroke/fill/radius field와 하단 `[삽입]`을 사용한다. toolbar 본체는 마지막 preset으로 바로 생성한다.
+- context menu 확정: active 객체는 타입별 편집 → 복제/삭제 → layer 이동 순서로 객체 패널에 focus한다. 빈 canvas에는 geometry 삽입 메뉴를 추가하지 않고 toolbar를 단일 삽입 진입점으로 유지한다.
+- interaction 확정: line endpoint 2개, shape resize 8개+rotation 1개를 사용한다. fill 없는 shape는 stroke tolerance만 hit 처리해 빈 내부에서 뒤 객체/cell 선택을 막지 않는다.
+- 독립 재검토 보완 완료: line/shape allow-list, 두 연속 save feature version, sanitizer/normalize 책임, 저장 시 zOrder 비정규화, images→lines→shapes source sequence 계산식, workbench-memory preset과 one-shot 생성, rotation handle 20px, shape 숫자 field 정규화, fill-none 경계 hit 공식과 EZPL 0.5-dot native 제한을 구체화했다.
+- 최종 검증 완료: `doc/label_line_panel.txt`와 `SESSION_HANDOFF.md` diagnostics 오류 0, shape 저장/toolbar/panel/geometry/capture/EZPL/테스트 필수 계약 104건 확인, 선 전용 제외 검색의 실제 잔여 0건, `git diff --check` 통과다. 문서만 변경해 Flutter test/analyze는 실행하지 않았다.
+- stage/commit 대상: `doc/label_line_panel.txt`, `SESSION_HANDOFF.md`만 포함한다. 기존 사용자 변경 `lib/core/app.dart`는 제외한다.
+- 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
+
 ### 완료 (2026-07-17): F1/F2/F3 탭 전환 단축키
 - 사용자 요청: 탭 메뉴가 편집 모드가 아닐 때 F1/F2/F3 키로 품목관리/공용라벨관리/라벨출력 탭을 전환한다.
 - 편집 완료: `lib/home_page_manager.dart`에 `homeTabShortcutValue()`와 `HardwareKeyboard` handler lifecycle을 추가했다. 단독 F1/F2/F3 KeyDown만 품목관리/공용라벨관리/라벨출력에 매핑하며 활성 편집, 수정키 조합, 뒤에 있는 route에서는 처리하지 않는다. 탭 변경은 기존 `_onTabSelection`을 호출한다.
