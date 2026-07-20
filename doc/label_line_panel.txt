@@ -1,0 +1,851 @@
+# 라벨 시트 선 객체 및 통합 객체 패널 구현 작업지시서
+
+## 0. 최우선 원칙
+
+- 이 문서는 현재 FortuneSheet 기반 라벨 시트에 직선 객체를 추가하고, 기존 이미지·바코드 레이어 패널을 단일 선택 속성 편집과 다중 선택 레이어 조정을 함께 제공하는 통합 객체 패널로 확장하는 구현 기준이다.
+- 기존 `FortuneImage`, `FortuneSheet.images`, 저장된 `sheet.images` JSON의 의미와 호환성을 유지한다. 이미지·바코드를 새 배열로 마이그레이션하거나 기존 저장 파일을 일괄 변환하지 않는다.
+- 선 객체는 별도 typed model인 `FortuneLine`과 `FortuneSheet.lines`로 저장한다. 이미지로 rasterize해 저장하거나 `FortuneImage.extraFields`에 선 geometry를 억지로 넣지 않는다.
+- 이미지·바코드·선의 선택, Z-Order, 레이어 목록과 공통 명령은 런타임 공통 객체 참조로 통합한다. 공통 참조는 저장 포맷이 아니며 각 typed model의 소유권을 없애지 않는다.
+- 선의 화면 렌더, PNG capture, PDF와 EZPL 출력은 같은 geometry/style 해석을 사용한다. 미리보기와 실물 출력에 서로 다른 선 패턴·두께·Z-Order를 만들지 않는다.
+- 기존 이미지·바코드 생성 다이얼로그는 유지한다. 기존 객체의 일상적인 속성 편집만 오른쪽 객체 패널로 옮기고, 이미지 파일 선택은 panel button으로 실행하며 자르기처럼 별도 작업면이 필요한 기능은 기존 전용 다이얼로그를 유지한다.
+- 현재 레이어 패널의 다중 선택, 키보드 명령, 복사·붙여넣기와 Z-Order 이동 동작을 퇴행시키지 않는다.
+- workbook 변경만 dirty/undo 대상이다. 패널 열림 상태, 패널 폭, splitter drag와 내부 스크롤은 workbook에 저장하지 않고 dirty 또는 undo를 만들지 않는다.
+- `labelSheetSaveFeatureVersions`, sanitizer allow-list, migration과 저장 회귀 테스트를 함께 변경한다. 저장 기능 키나 allow-list 중 하나만 수정하지 않는다.
+- DB schema, SQL, DAO와 데이터 migration은 이번 작업 범위가 아니다.
+- 배포 build, installer 생성과 원격 push는 별도 요청이 있을 때만 수행한다.
+
+## 1. 구현 목적
+
+1. 라벨 시트 툴바에 선 종류·두께를 함께 선택하는 선 삽입 콤보를 추가한다.
+2. 시트에서 시작점과 끝점을 드래그해 직선 객체를 생성한다.
+3. 선 본체 선택·이동과 두 끝점 핸들 편집을 지원한다.
+4. 이미지·바코드·선을 하나의 paint/hit-test/layer 순서로 관리한다.
+5. 기존 부유 레이어 패널을 시트 오른쪽의 통합 객체 패널로 확장한다.
+6. 객체 하나를 선택하면 해당 타입의 속성을 표시하고, 여러 객체를 선택하면 공통 레이어 조정 명령을 표시한다.
+7. 시트와 패널 사이에 공용 `VerticalPaneSplitter`를 두어 사용자가 패널 폭을 조절할 수 있게 한다.
+8. 선이 저장·복원, 라벨 미리보기, PNG capture, PDF와 EZPL 출력에 같은 모습으로 포함되게 한다.
+
+## 2. 이번 범위와 제외 범위
+
+### 2.1 포함 범위
+
+- 직선 `line`
+- 선 스타일 `solid`, `dashed`, `dotted`, `dashDot`
+- 선 두께와 색상
+- 시작점·끝점 geometry
+- 선 생성, 선택, 이동, 끝점 조정, 삭제, 복제, 복사·붙여넣기
+- 이미지·바코드·선의 공통 Z-Order
+- 레이어 목록의 단일/다중/범위 선택과 선택 묶음 순서 이동
+- 단일 선택 속성 패널
+- 다중 선택 레이어 조정 패널
+- 시트/패널 splitter, 접기와 좁은 화면 fallback
+- 저장 codec/sanitizer/migration
+- 화면·capture·출력
+- undo/redo와 dirty 연동
+
+### 2.2 제외 범위
+
+- 사각형, 둥근 사각형, 타원, 자유선, polyline
+- 화살표 시작·끝 장식
+- 이중선
+- 선 채우기
+- 여러 선의 그룹 resize 또는 그룹 회전
+- 다중 선택 정렬·간격 균등·같은 크기 명령
+- 객체 잠금·숨김
+- 사용자 정의 dash array
+- SVG/PDF 객체 import
+- DB 저장 포맷 변경 또는 migration
+
+후속 도형 객체는 이번 공통 객체 참조와 패널 API를 재사용할 수 있어야 하지만, 이번 구현에서 사용하지 않는 추상 타입이나 도형 renderer를 미리 만들지 않는다.
+
+## 3. 현재 코드 기준과 재사용 경계
+
+### 3.1 현재 객체 모델
+
+- 이미지와 바코드는 모두 `FortuneSheet.images`의 `FortuneImage`다.
+- 바코드는 `FortuneImage.extraFields['fortuneBarcode'] == true`로 구분한다.
+- 이미지 연결 ID는 `fortuneImageObjectIdExtraKey`, 바코드 연결 ID는 `fortuneBarcodeObjectIdExtraKey`를 사용한다.
+- 공통 레이어 값은 `fortuneSheetObjectZOrderExtraKey == 'zOrder'`다.
+- 기존 `fortuneImagesInPaintOrder()`는 이미지 배열 안에서만 정렬한다.
+
+### 3.2 현재 레이어 패널
+
+- 현재 패널은 폭 220px, 최대 8행의 부유 패널이다.
+- 이미지·바코드 행, 다중 선택, 행 drag reorder, 삭제·복제·앞/뒤 이동과 키보드 명령이 이미 있다.
+- 행 더블클릭 또는 Enter는 기존 이미지/바코드 편집 다이얼로그를 연다.
+- 새 패널은 이 기능을 제거하지 않고 typed object 목록으로 일반화한다.
+
+### 3.3 공용 splitter
+
+- `lib/widgets/vertical_pane_splitter.dart`의 `VerticalPaneSplitter`를 재사용한다.
+- 공용라벨관리와 라벨출력에서 이미 사용하는 시각 스타일과 좌우 resize cursor를 유지한다.
+- 이 기능에 필요한 더블클릭 기본 폭 초기화 callback을 기존 사용처에 영향을 주지 않는 optional property로 확장한다. 키보드 resize와 활성 색상은 접근성 검토에서 필요할 때 같은 방식으로 추가한다.
+
+## 4. 선 저장 model과 JSON 포맷
+
+### 4.1 `FortuneLine`
+
+최소 model은 다음 값을 가진다.
+
+- `String id`
+- `double x1`
+- `double y1`
+- `double x2`
+- `double y2`
+- `FortuneLineStrokeStyle strokeStyle`
+- `double strokeWidthMm`
+- `String strokeColor`
+- `double zOrder`
+- codec round-trip에 필요한 raw value/hasRaw 또는 기존 model과 동등한 metadata 보존 구조
+- 향후 호환을 위한 `Map<String, Object?> extraFields`
+
+`x1/y1/x2/y2`는 이미지의 `left/top/width/height`와 같은 시트 logical coordinate다. `strokeWidthMm`만 출력 물리 두께를 명시적으로 소유하며 화면에서는 기존 FortuneSheet logical pixel↔mm 변환 helper로 변환한다.
+
+`strokeColor`는 현재 FortuneSheet 색상 parser가 처리하는 `#RRGGBB` 문자열을 사용한다. 이번 범위에서는 alpha를 지원하지 않고 기본값은 `#000000`이다.
+
+### 4.2 enum과 wire 값
+
+```text
+FortuneLineStrokeStyle.solid   <-> "solid"
+FortuneLineStrokeStyle.dashed  <-> "dashed"
+FortuneLineStrokeStyle.dotted  <-> "dotted"
+FortuneLineStrokeStyle.dashDot <-> "dashDot"
+```
+
+알 수 없는 wire 값은 선 객체 전체를 버리지 않고 `solid`로 읽는다. 다음 save에서 현재 지원 wire로 정규화한다.
+
+### 4.3 JSON 예시
+
+```json
+{
+  "lines": [
+    {
+      "id": "line_1",
+      "x1": 20.0,
+      "y1": 30.0,
+      "x2": 180.0,
+      "y2": 30.0,
+      "strokeStyle": "dashed",
+      "strokeWidthMm": 0.5,
+      "strokeColor": "#000000",
+      "zOrder": 3.0
+    }
+  ]
+}
+```
+
+### 4.4 codec 규칙
+
+- `FortuneSheet`에 immutable `List<FortuneLine> lines`와 raw lines metadata를 추가한다.
+- sheet JSON의 canonical key는 `lines`다.
+- 필수 필드는 `id`, `x1`, `y1`, `x2`, `y2`다.
+- 필수 필드가 없거나 좌표가 유한한 숫자가 아니면 해당 line entry만 무시한다.
+- `strokeStyle` 기본값은 `solid`다.
+- `strokeWidthMm` 기본값은 `0.5`, 유효 범위는 `0.1 <= value <= 10.0`이다. decode 값이 없거나 유한하지 않거나 범위 밖이면 clamp하지 않고 `0.5`를 사용한다.
+- `strokeColor` 기본값은 `#000000`이다. decode 문자열을 현재 Fortune color parser가 처리하지 못하면 `#000000`을 사용한다.
+- `zOrder`가 없거나 숫자가 아니면 `0.0`이다.
+- 빈 `lines`는 기존 파일과 같은 결과를 만들며 기존 `images` decoding에 영향을 주지 않는다.
+- 지원하지 않는 line extra field는 Fortune model 내부 round-trip에서는 보존할 수 있지만, LabelSheet 저장 sanitizer에서는 allow-list 밖 값을 제거한다.
+
+### 4.5 LabelSheet save format
+
+다음을 한 변경 단위로 반영한다.
+
+1. `_labelSheetSaveFeatureKeys`의 맨 끝에 `sheet.lines` 추가. 기존 feature의 version 번호가 바뀌지 않도록 중간에 삽입하지 않는다.
+2. `labelSheetSaveFeatureVersions` 자동 version 증가 확인
+3. `_supportedSheetKeys`에 `lines` 추가
+4. `_supportedLineKeys` 추가
+5. `_sanitizeSheetJson()`에서 `lines` list sanitizer 연결
+6. `labelSheetMigrateWorkbookSaveJson()`에서 feature가 없는 이전 문서를 빈 lines로 해석
+7. `labelSheetNormalizeWorkbookForCurrentSaveFormat()`과 save normalization에서 lines 보존
+8. `.lms`와 `.xlsx` metadata export/import에서 lines를 보존한다. XLSX drawing을 새 line으로 추론하는 것은 범위 밖이지만, 앱이 내보낸 workbook metadata의 `lines`는 다시 가져올 때 그대로 복원한다.
+9. sanitizer가 필수 line 필드, style, width, color와 zOrder만 남기는 테스트 추가
+
+기존 `sheet.images`, `image` legacy alias와 `rawImagesKey` 동작은 변경하지 않는다.
+
+## 5. 공통 객체 참조와 Z-Order
+
+### 5.1 런타임 공통 타입
+
+저장 model과 별도로 다음과 동등한 typed key/view를 둔다.
+
+```text
+FortuneSheetObjectKind.image
+FortuneSheetObjectKind.barcode
+FortuneSheetObjectKind.line
+
+FortuneSheetObjectKey(kind, id)
+FortuneSheetObjectRef(key, zOrder, sourceIndex)
+```
+
+- image와 barcode는 같은 `FortuneImage` 저장 model을 참조하지만 kind는 metadata로 구분한다.
+- line은 `FortuneLine`을 참조한다.
+- 선택 상태는 bare `String id`가 아니라 typed key를 사용한다.
+- 서로 다른 타입의 같은 문자열 ID가 있어도 선택 충돌이 없어야 한다.
+- 새 ID는 기존 prefix를 유지하고 선은 `line_*` prefix를 사용한다.
+
+### 5.2 공통 정렬
+
+공통 paint order는 다음 순서로 안정 정렬한다.
+
+1. `zOrder` 오름차순
+2. 같은 zOrder이면 source sequence 오름차순
+
+source sequence는 legacy 호환을 위해 기존 `images` 배열 순서를 먼저 사용하고 그 뒤 `lines` 배열 순서를 사용한다. 새 객체는 모든 타입의 현재 최대 zOrder + 1을 받으므로 정상 편집 후 tie에 의존하지 않는다.
+
+레이어 순서 변경 후에는 이미지·바코드·선을 뒤에서 앞으로 순회해 `1.0, 2.0, ...` 연속 zOrder로 정규화한다. 저장 배열 자체를 Z-Order 목적으로 재배열하지 않고 각 typed model의 원래 배열 소유권을 유지한다.
+
+### 5.3 기존 helper 호환
+
+- 새 `fortuneSheetObjectsInPaintOrder()` 또는 동등 공용 helper가 image/barcode/line을 모두 반환한다.
+- 기존 image 전용 호출부가 실제로 image만 필요하면 `fortuneImagesInPaintOrder()`를 유지한다.
+- paint, hit-test, layer panel, copy/paste와 출력처럼 모든 객체 순서가 필요한 경로는 새 공통 helper를 사용한다.
+- 이미지/바코드 새 삽입과 복제의 `_nextImageZOrder()`는 line까지 보는 `_nextObjectZOrder()`로 교체한다.
+
+## 6. 선 렌더와 출력
+
+### 6.1 공용 geometry/style helper
+
+화면 painter, capture와 출력이 다음 공용 계산을 사용한다.
+
+- logical 시작점/끝점
+- mm 두께의 logical pixel 변환
+- style별 dash segment 생성
+- 선분 bounds
+- point-to-segment 거리
+- endpoint handle 위치
+- Shift angle snap
+
+화면용 선택 강조, endpoint handle과 hit tolerance는 editor overlay이며 capture와 출력에 포함하지 않는다.
+
+### 6.2 선 스타일 패턴
+
+패턴은 stroke width를 기준으로 계산한다.
+
+- `solid`: 연속선
+- `dashed`: dash `4w`, gap `2w`
+- `dotted`: round cap dot `1w`, gap `2w`
+- `dashDot`: dash `4w`, gap `2w`, dot `1w`, gap `2w`
+
+여기서 `w`는 현재 출력 좌표계로 변환된 stroke width다. 길이가 패턴보다 짧아도 시작점에서 첫 segment를 그린다. dotted만 round cap을 사용하고 나머지는 butt cap을 기본으로 한다.
+
+### 6.3 화면 렌더
+
+- line은 셀 위 객체 layer에서 image/barcode와 공통 zOrder 순서로 그린다.
+- 같은 zOrder tie는 5.2의 source sequence를 사용한다.
+- zoom과 devicePixelRatio가 바뀌어도 물리 두께 의미를 유지한다.
+- viewport 밖 line은 bounds와 stroke padding으로 culling한다.
+- 선택 강조는 원본 선 색상을 덮지 않고 바깥쪽 highlight로 표시한다.
+
+### 6.4 capture와 PDF
+
+- `captureRangeAsPng()`, screenshot, print capture에 line을 포함한다.
+- crop/origin 변환 뒤에도 화면과 같은 좌표·스타일·zOrder를 사용한다.
+- panel, splitter, 선택 highlight와 endpoint handle은 포함하지 않는다.
+- PDF 경로는 capture bitmap을 쓰는 경우 해당 결과를 그대로 사용한다. 별도 line layout을 중복 작성하지 않는다.
+
+### 6.5 EZPL
+
+- solid이고 수평/수직인 검정 line은 기존 EZPL rectangle/border command로 정확히 표현할 수 있을 때만 native command를 사용할 수 있다.
+- dashed/dotted/dashDot, 임의 각도, 색상 line 또는 native overlay가 공통 zOrder를 깨는 경우 bitmap fallback을 사용한다.
+- native 최적화보다 화면/PDF와 같은 clip·zOrder 결과를 우선한다.
+- bitmap fallback은 공용 capture의 line을 다시 별도 overlay하지 않는다.
+- selection handle, ID label과 editor highlight는 EZPL에 포함하지 않는다.
+
+## 7. 툴바와 선 생성
+
+### 7.1 배치
+
+라벨 시트 전용 툴바의 객체 삽입 영역을 다음 순서로 구성한다.
+
+```text
+[가로 정렬] [세로 정렬] [줄 바꿈] [회전] | [선▼] [이미지] [바코드]
+```
+
+`fortuneToolbarLinePopupKey` 또는 동등 command를 `fortuneToolbarImageCommand` 바로 앞에 추가한다. 선 도구를 셀 `border` popup과 합치지 않는다.
+
+### 7.2 콤보 버튼
+
+- 기존 Fortune toolbar combo icon 폭과 arrow hit area를 재사용한다.
+- 본체 클릭은 현재 line insertion preset으로 선 생성 모드에 진입한다.
+- 화살표 클릭은 선 종류·두께 popup을 연다.
+- 아이콘은 현재 preset의 style을 표시한다. 너무 두꺼운 값도 아이콘 layout을 바꾸지 않도록 preview 두께를 clamp한다.
+- tooltip은 `선 삽입: {종류}, {두께} mm` 형식이다.
+- toolbar overflow와 More popup에서도 같은 command가 동작해야 한다.
+
+### 7.3 popup
+
+기존 border style submenu의 선 미리보기 + inline width editor 시각 문법을 재사용한다.
+
+확정 크기:
+
+- 폭 176px
+- 행 높이 28px
+- 선 미리보기 88px
+- 두께 입력 42px
+- 오른쪽 `mm` suffix
+
+행 순서:
+
+1. 실선
+2. 파선
+3. 점선
+4. 일점쇄선
+
+각 style은 workbench session의 insertion preset 두께를 별도로 기억한다. 최초 값은 모두 `0.5 mm`다. 저장 line에서는 style과 width를 독립 필드로 저장하며 `solid-0.5` 같은 조합 enum을 만들지 않는다.
+
+- 행의 선 preview 영역 클릭: style 선택 후 popup을 닫고 생성 모드 진입
+- 숫자 입력 클릭: popup 유지, 해당 style width 편집
+- Enter 또는 focus loss: width commit
+- Escape: 입력 원복 또는 popup 닫기
+- 유효 범위 `0.1~10.0 mm`, 증감 단위 `0.1 mm`
+- 잘못된 입력은 preset을 변경하지 않고 기존 inline validation 표시를 사용한다.
+- line color는 popup 하단 color swatch에서 현재 line insertion color를 선택하며 기본은 검정이다. 기존 color picker를 재사용한다.
+
+toolbar popup은 삽입 preset을 편집한다. 이미 선택된 line의 속성 변경은 오른쪽 속성 패널이 담당하며 toolbar popup 선택으로 기존 line을 뜻하지 않게 변경하지 않는다.
+
+### 7.4 생성 interaction
+
+1. 선 도구 본체 또는 popup style을 선택한다.
+2. cursor를 crosshair로 바꾼다.
+3. grid/object viewport 안 pointer down 위치를 시작점으로 잡는다.
+4. drag 중 현재 preset으로 preview line을 그린다.
+5. pointer up에서 길이가 최소 생성 거리 이상이면 line 한 개를 commit한다.
+6. 생성된 line을 단일 선택하고 선 생성 모드를 끝낸다.
+
+- 최소 생성 거리는 화면 기준 3px이다.
+- click만 하고 유효 길이가 없으면 객체를 만들지 않는다.
+- Escape, 오른쪽 클릭 또는 다른 toolbar command는 생성 모드를 취소한다.
+- Shift drag는 시작점 기준 가장 가까운 `0°/45°/90°` 계열 각도로 snap한다.
+- 생성 중 auto-scroll은 기존 이미지 drag auto-scroll helper를 재사용하되 별도 scroll 구현을 복제하지 않는다.
+- pointer up 한 번에 undo snapshot 1개와 dirty 변경 1회를 만든다.
+
+## 8. 선 선택·이동·끝점 핸들
+
+### 8.1 hit-test
+
+line hit-test는 point-to-segment 거리로 판정한다.
+
+```text
+hitTolerance = max(5 screen px, displayStrokeWidth / 2 + 3 screen px)
+```
+
+- zoom과 무관하게 최소 화면 클릭 범위 5px을 보장한다.
+- endpoint handle이 line body보다 먼저 hit된다.
+- 객체가 겹치면 공통 paint order의 역순, 즉 가장 높은 zOrder부터 판정한다.
+- 선택되지 않은 line도 얇은 실제 stroke만으로 클릭을 요구하지 않는다.
+
+### 8.2 단일 선택 표시
+
+```text
+●━━━━━━━━━━━━━━━━●
+start              end
+```
+
+- 시작점과 끝점에 화면 기준 8x8px handle을 표시한다.
+- zoom에 따라 handle 자체 크기를 확대·축소하지 않는다.
+- line은 두 점이 방향과 길이를 이미 표현하므로 별도 회전 handle을 두지 않는다.
+- bounding rectangle의 8개 resize handle을 line에 적용하지 않는다.
+
+### 8.3 본체 이동
+
+line body drag는 두 점에 같은 delta를 적용한다.
+
+```text
+x1 += dx, y1 += dy
+x2 += dx, y2 += dy
+```
+
+- 길이와 각도를 유지한다.
+- drag 시작 시 undo 기준 snapshot을 한 번 기록하고 pointer up에서 commit한다.
+- keyboard arrow는 기존 객체 미세 이동 단위를 사용한다.
+- Shift+arrow는 기존 객체 큰 이동 단위를 사용한다.
+- 이동 bounds/clamp 정책은 기존 이미지 객체 정책과 통일한다.
+
+### 8.4 끝점 이동
+
+- start handle drag는 `x1/y1`만 변경한다.
+- end handle drag는 `x2/y2`만 변경한다.
+- Shift drag는 반대 endpoint 기준 45도 단위로 snap한다.
+- endpoint가 서로 교차하거나 방향이 뒤집혀도 허용한다.
+- drag 완료 결과 길이가 0이면 원래 geometry로 복원한다.
+- 끝점 drag 전체는 undo 1건이다.
+
+### 8.5 선택 규칙
+
+- 일반 클릭: 단일 객체 선택
+- Ctrl/Meta 클릭: 객체 선택 toggle
+- Shift 클릭: 레이어 목록의 active anchor 기준 범위 선택은 panel에서만 적용한다.
+- 빈 grid 클릭: 객체 선택 해제 후 기존 cell selection 동작
+- 다중 선택 상태에서는 개별 endpoint handle을 표시하지 않는다.
+- 이번 범위에서 다중 geometry resize/rotation은 하지 않는다.
+- 다중 선택의 삭제·복제·copy/cut/paste와 layer 이동은 지원한다.
+
+## 9. 통합 객체 패널
+
+### 9.1 구조
+
+기존 부유 이미지 레이어 패널을 다음 dock형 객체 패널로 승격한다.
+
+```text
+┌─ 객체 ─────────────────┐
+│ [삭제][복제][맨앞][앞][뒤][맨뒤] │
+│ 바코드  #EAN13          │
+│ 이미지  #LOGO           │
+│ 선      line_1          │
+├────────────────────────┤
+│ 선택 상태별 내용         │
+└────────────────────────┘
+```
+
+- 상단은 모든 object의 front-to-back 레이어 목록이다.
+- 하단은 선택 상태별 속성 또는 레이어 조정 영역이다.
+- card 중첩 없이 한 패널 안에서 header/list/divider/content로 구성한다.
+- 레이어 목록과 속성 영역은 각각 필요한 경우 독립 scroll한다.
+- 목록 행은 object type, 연결 ID 또는 object ID를 표시한다.
+- 기존 `_imageLayerPanelOpen` 기반 220px 부유 패널은 넓은 화면에서 중복 표시하지 않고 dock panel 상태로 대체한다. 기존 draw/hit-test 함수는 narrow overlay adapter로 재사용하거나 제거하며 dock panel과 동시에 두 레이어 패널을 만들지 않는다.
+
+### 9.2 목록 순서와 선택 동기화
+
+- 목록은 가장 앞 객체가 위에 오도록 공통 paint order를 reverse해 표시한다.
+- canvas 객체 선택은 panel row 선택과 즉시 동기화한다.
+- panel row 선택은 canvas selection과 handle을 즉시 갱신한다.
+- 단일 선택 active key와 selected key set을 분리한다.
+- Shift 범위 선택, Ctrl/Meta toggle, Ctrl+A, keyboard navigation을 기존 panel 동작과 같게 유지한다.
+- 선택된 여러 행의 drag reorder는 선택 묶음의 내부 상대 순서를 유지한다.
+- 선택 묶음이 아닌 행 위로 drop하면 전체 공통 zOrder를 연속값으로 다시 매긴다.
+
+### 9.3 선택 없음
+
+- 레이어 목록은 계속 표시한다.
+- 하단 속성 영역에는 편집 control을 표시하지 않는다.
+- 사용법을 설명하는 장문 안내는 넣지 않는다.
+
+### 9.4 단일 선택
+
+객체 하나를 선택하면 타입별 속성 editor를 표시한다.
+
+이미지:
+
+- read-only 내부 object ID와 editable 연결 이미지 ID
+- 파일 교체
+- 폭/높이
+- 비율 유지
+- 회전
+- 자르기 진입
+
+바코드:
+
+- read-only 내부 object ID와 editable 연결 바코드 ID
+- format
+- data text
+- 폭/높이
+- module scale/bar height
+- leading/trailing text
+- human-readable text 표시
+- text font/size
+- template barcode format 유지
+
+선:
+
+- read-only 내부 object ID
+- style
+- width mm
+- color
+- start X/Y
+- end X/Y
+- read-only length/angle 표시
+
+`zOrder` 숫자를 직접 입력하는 field는 두지 않는다. 목록 drag와 layer command만 사용한다.
+
+### 9.5 다중 선택
+
+2개 이상 선택하면 타입별 속성 form을 숨기고 다음 공통 명령만 표시한다.
+
+- 선택 개수
+- 삭제
+- 복제
+- 맨 앞으로
+- 앞으로
+- 뒤로
+- 맨 뒤로
+- 선택 묶음 drag reorder
+
+이번 범위에서는 왼쪽/가운데/오른쪽 맞춤, 위/중앙/아래 맞춤, 간격 균등과 같은 geometry 정렬을 추가하지 않는다.
+
+### 9.6 기존 active object toolbar와 context menu
+
+- 기존 canvas active image toolbar를 active object toolbar로 일반화하고 이미지·바코드·선 단일 선택에서 삭제·복제·레이어 이동을 동일하게 제공한다.
+- `이미지 편집`/`바코드 편집` command는 기존 객체에 대해 별도 dialog를 열지 않고 객체 패널을 열고 해당 속성 영역에 focus한다.
+- line context menu에는 `선 편집`, 삭제·복제·레이어 이동을 제공한다.
+- 레이어 row double-click 또는 Enter는 단일 선택이면 첫 편집 가능한 속성에 focus한다.
+- 다중 선택이면 layer action 영역에 focus한다.
+
+## 10. 이미지·바코드 속성 패널 이전
+
+### 10.1 생성과 편집 분리
+
+- toolbar의 이미지/바코드 삽입은 기존 생성 dialog를 유지한다.
+- 생성 완료 후 새 객체를 단일 선택하고 panel이 dock 가능한 폭이면 panel 속성을 표시한다.
+- 기존 객체의 일반 편집은 panel로 이전한다.
+- 이미지 파일 교체는 panel의 파일 선택 button을 사용한다.
+- 이미지 crop처럼 별도 canvas가 필요한 기능은 panel button에서 기존 전용 dialog를 열 수 있다.
+
+### 10.2 중복 구현 금지
+
+기존 dialog와 새 panel이 다음 로직을 각각 구현하지 않는다.
+
+- object connection ID validation
+- width/height/rotation parsing
+- aspect ratio 계산
+- barcode format 선택과 renderer request 생성
+- barcode body metadata 계산
+- image/barcode replacement commit
+
+이 로직을 FortuneSheet package 내부의 공용 draft/validation/commit API로 추출하고 생성 dialog와 panel이 같은 API를 사용한다.
+
+### 10.3 commit 규칙
+
+- 숫자 field: Enter 또는 focus loss에서 validation 후 commit
+- spinner/drag: 조작 중 preview, 종료 시 undo 1건
+- style/color/select field: 선택 시 즉시 commit, undo 1건
+- barcode text/format과 렌더 결과를 바꾸는 묶음: panel의 `[적용]`에서 한 번 render/commit
+- 잘못된 중간 입력: workbook 변경 없음
+- object selection 변경: 유효한 committed 값만 유지하고 invalid draft는 폐기
+- 이미지 파일 선택 취소: 기존 image 유지
+
+## 11. 시트/패널 splitter와 반응형 동작
+
+### 11.1 dock layout
+
+`LabelSheetWorkbench`의 편집 화면을 다음 Row로 구성한다.
+
+```text
+Expanded(FortuneSheet) | VerticalPaneSplitter | SizedBox(ObjectPanel)
+```
+
+확정값:
+
+- splitter width: 8px
+- panel 기본 폭: 300px
+- panel 최소 폭: 260px
+- panel 최대 폭: 420px
+- sheet 최소 폭: 480px
+- dock 최소 전체 폭: 760px
+
+panel이 오른쪽에 있으므로 drag 계산은 다음과 같다.
+
+```text
+nextPanelWidth = currentPanelWidth - delta.dx
+```
+
+`nextPanelWidth`는 현재 workbench의 실제 local constraint로 clamp한다. 공용라벨관리 바깥 splitter가 있더라도 전체 window 폭이 아니라 workbench에 배정된 폭을 사용한다.
+
+### 11.2 좁은 화면
+
+- local width가 760px 미만이면 dock panel을 자동 접는다.
+- 접힌 상태에서는 object 선택 여부와 무관하게 항상 보이는 32px 이하의 객체/레이어 icon button으로 overlay panel을 열 수 있다. 기존 active-image toolbar의 toggle command도 같은 open command를 호출한다.
+- overlay panel은 시트를 영구 축소하지 않고 현재 220px보다 넓은 최대 300px 범위에서 viewport 안에 맞춘다.
+- 다시 760px 이상이 되면 마지막 dock panel 폭으로 복원한다.
+- 좁은 화면에서 속성 form이 화면 밖으로 나가지 않도록 panel 내부를 scroll한다.
+
+### 11.3 panel open/close와 폭 저장
+
+- 넓은 화면의 최초 기본 상태는 open이다.
+- header에 접기 icon을 제공한다.
+- 접기와 다시 열기는 마지막 폭을 보존한다.
+- splitter double-click은 기본 300px로 복원한다.
+- panel 폭은 `SharedPreferences`의 LabelSheet UI 전용 key에 저장하고 다음 workbench에서 복원한다. 저장값도 현재 local constraint로 다시 clamp하며 workbook save JSON에 넣지 않는다.
+- panel open/closed 상태는 현재 workbench session에서만 유지하고 라벨 파일에 저장하지 않는다.
+
+### 11.4 resize 안정성
+
+splitter drag가 다음 상태를 초기화하면 안 된다.
+
+- workbook
+- active sheet
+- cell selection
+- selected object keys
+- zoom
+- sheet scroll
+- undo/redo stack
+- panel property draft
+
+FortuneSheet child key를 panel width에 연결하지 않는다. 부모 constraint만 바꾸고 기존 state를 유지한다.
+
+- drag 시작 시 열린 toolbar popup과 object tooltip을 닫는다.
+- drag 중 grid viewport와 scrollbar를 현재 width로 layout한다.
+- `onGridRectChanged`는 post-frame에 새 global rect를 통지한다.
+- panel resize는 dirty와 undo를 만들지 않는다.
+
+## 12. controller와 package API
+
+### 12.1 상태 노출
+
+FortuneSheet package가 다음과 동등한 read-only 상태를 controller/listenable로 노출한다.
+
+- 현재 active object key
+- selected object key set
+- front-to-back object refs
+- 선택된 단일 object의 typed property snapshot
+- panel command enablement
+- line insertion preset/mode
+
+`LabelSheetWorkbench`가 private canvas state를 직접 읽거나 package 내부 field에 의존하지 않는다.
+
+### 12.2 command API
+
+다음과 동등한 command를 public controller 또는 package-owned panel controller로 제공한다.
+
+- select/toggle/range/selectAll object
+- delete/duplicate/copy/cut/paste selected objects
+- bringToFront/bringForward/sendBackward/sendToBack
+- reorder selected object block
+- update selected image properties
+- update selected barcode properties
+- update selected line properties
+- begin/cancel line insertion
+- focus selected object property editor
+
+UI widget이 workbook list를 직접 수정하지 않고 controller command가 undo, dirty, selection과 zOrder를 한 경계에서 처리한다.
+
+### 12.3 panel widget 소유권
+
+- typed object model, selection state, property validation과 command는 FortuneSheet package가 소유한다.
+- 공용 object panel widget도 가능한 한 FortuneSheet package에 두어 다른 FortuneSheet host에서 재사용할 수 있게 한다.
+- app의 `LabelSheetWorkbench`는 dock/overlay 배치, splitter, responsive threshold와 UI preference만 소유한다.
+- 이미지 import file picker와 Label Manager object option 입력은 기존 callback/API를 통해 package panel에 주입한다.
+
+## 13. undo, dirty, clipboard와 focus
+
+### 13.1 undo/dirty 단위
+
+다음은 workbook change 1건이다.
+
+- line 생성 1개
+- line 본체 drag 1회
+- endpoint drag 1회
+- property field commit 1회
+- 다중 layer command 1회
+- 선택 묶음 reorder drag 1회
+- 다중 delete/duplicate/paste 1회
+
+pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다.
+
+다음은 workbook change가 아니다.
+
+- 선택 변경
+- panel open/close
+- panel width 변경
+- panel/list scroll
+- property field focus
+- toolbar popup open/close
+
+### 13.2 clipboard
+
+- image/barcode-only 기존 clipboard 동작을 유지한다.
+- line-only와 mixed selection을 내부 clipboard payload로 지원한다.
+- payload는 typed object kind와 각 model JSON을 구분한다.
+- paste는 새 typed ID를 만들고 모든 pasted object를 현재 최대 zOrder 뒤에 원래 상대 순서로 추가한다.
+- copy paste offset은 기존 이미지 동작과 같은 logical delta를 사용한다.
+- cut paste는 기존 panel 계약대로 원본 typed ID를 유지하고, copy/duplicate paste는 새 typed ID를 만든다.
+
+### 13.3 focus와 keyboard
+
+- panel이 열린 동안 Tab은 layer list와 현재 속성 form 안에서 예측 가능한 순서로 이동한다.
+- canvas shortcut과 text field shortcut이 충돌하지 않는다.
+- editable field가 focus된 동안 Delete/Backspace는 객체를 삭제하지 않는다.
+- panel list focus에서 Delete, Ctrl+D, Ctrl+C/X/V, Ctrl+Up/Down/Home/End는 기존 layer shortcut을 유지한다.
+- Escape 우선순위는 property draft 취소 → popup/overlay 닫기 → line insertion 취소 → canvas focus 복귀 순서다.
+
+## 14. 구현 대상 파일 가이드
+
+실제 이름은 현재 소유 모듈에 맞추되 다음 범위를 우선한다.
+
+### FortuneSheet package
+
+- `third_party/fortune_sheet/lib/src/fortune_sheet_model.dart`
+  - `FortuneLine`, line style, `FortuneSheet.lines`
+- `third_party/fortune_sheet/lib/src/fortune_sheet_codec.dart`
+  - lines decode/encode/raw round-trip
+- `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`
+  - line painter, 공통 object ordering, hit-test helper, toolbar icon/popup, panel drawing helper
+- `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`
+  - insertion, selection, drag, endpoint, undo, controller command 연결
+- `third_party/fortune_sheet/lib/src/fortune_sheet_app.dart` 또는 public export
+  - object panel/controller configuration
+- 필요하면 새 `fortune_sheet_object_panel.dart`
+  - dock/overlay에서 재사용하는 widget property form
+
+### Label Manager app
+
+- `lib/page_label_sheet/label_sheet_save_codec.dart`
+  - feature key, allow-list, sanitizer, migration, normalize
+- `lib/page_label_sheet/label_sheet_workbench.dart`
+  - toolbar item, object panel 주입, dock/overlay layout, splitter와 preference
+- `lib/widgets/vertical_pane_splitter.dart`
+  - optional reset/accessibility callback만 필요한 경우 확장
+- `lib/printing/label_sheet_print_job.dart`
+  - EZPL native 가능 조건과 bitmap fallback 확인
+- `lib/page_label_sheet/label_sheet_page.dart`
+  - 기존 callback으로 충분하면 변경하지 않는다.
+
+기존 `lib/core/app.dart` 사용자 변경은 이 작업과 무관하면 수정하지 않는다.
+
+## 15. 테스트
+
+### 15.1 model/codec 테스트
+
+- line 4 style encode/decode
+- logical endpoints, width mm, color, zOrder round-trip
+- 필수 field 누락 entry만 제외
+- unknown style의 solid fallback
+- width 누락 기본값과 범위 validation
+- 기존 images-only workbook 무변경 round-trip
+- images와 lines 동시 저장
+- raw metadata preservation 경계
+
+### 15.2 save codec 테스트
+
+- `sheet.lines` feature version
+- supported line allow-list
+- 미지원 line metadata 제거
+- lines 없는 이전 format migration
+- save normalize 뒤 lines 유지
+- `.lms` export/import round-trip
+- 앱의 `.xlsx` metadata export/import line round-trip. 외부 XLSX drawing을 line으로 추론하지 않음
+
+### 15.3 geometry/painter 테스트
+
+- solid/dashed/dotted/dashDot segment
+- horizontal/vertical/diagonal bounds
+- mm→logical width
+- point-to-segment hit tolerance
+- endpoint 우선 hit
+- 45도 Shift snap
+- 같은 zOrder stable tie
+- image/barcode/line 공통 paint order
+- viewport culling
+
+### 15.4 interaction widget 테스트
+
+- toolbar 객체 그룹 순서가 line/image/barcode
+- combo body와 arrow hit 분리
+- style별 width 입력과 validation
+- line drag 생성과 click-only 취소
+- Escape 생성 취소
+- body drag가 두 endpoint를 같은 delta로 이동
+- endpoint drag와 Shift snap
+- pointer move 여러 번이어도 undo 1건
+- line 선택 handle 2개와 zoom 고정 크기
+- Delete/duplicate/copy/paste
+
+### 15.5 panel 테스트
+
+- image/barcode/line front-to-back 목록
+- canvas↔panel 선택 동기화
+- 단일 image/barcode/line 속성 form 전환
+- 다중 선택에서 속성 form 숨김과 layer action 표시
+- Shift 범위/Ctrl toggle/Ctrl+A
+- mixed selection delete/duplicate/reorder
+- selected block 내부 순서 유지
+- row double-click/Enter 속성 focus
+- text field focus 중 Delete가 객체를 삭제하지 않음
+- 기존 image/barcode edit dialog command가 panel edit로 전환
+- 신규 image/barcode 생성 dialog는 유지
+
+### 15.6 splitter/responsive 테스트
+
+- 기본 panel 300px
+- 120px drag 후 panel과 sheet 폭 변화
+- panel 260~420px clamp와 sheet 최소 480px
+- splitter drag 뒤 workbook/selection/zoom 유지
+- double-click 기본 폭 복원
+- 저장된 panel 폭의 SharedPreferences round-trip과 local constraint 재-clamp
+- 760px 미만 dock 접기와 overlay fallback
+- 다시 넓어질 때 마지막 dock 폭 복원
+- panel 폭 변경이 dirty/undo를 만들지 않음
+- 공용라벨관리 바깥 splitter와 중첩된 실제 builder 경로
+
+### 15.7 capture/출력 테스트
+
+- capture PNG에 line 포함, handle/panel 제외
+- crop origin이 있는 capture의 endpoint 위치
+- image/barcode/line zOrder pixel 결과
+- PDF capture와 화면 style 일치
+- solid axis-aligned EZPL native 조건
+- dashed/diagonal/color line bitmap fallback
+- fallback 후 line 중복 overlay 없음
+- 출력 clip 밖 선 제거
+
+### 15.8 회귀 검증
+
+최소 다음 기존 테스트를 함께 실행한다.
+
+- `test/label_sheet_toolbar_test.dart`
+- `third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart`
+- `third_party/fortune_sheet/test/fortune_print_capture_test.dart`
+- `test/label_sheet_print_job_test.dart`
+- save codec/migration/import 관련 기존 테스트
+
+큰 `fortune_sheet_canvas_test.dart` 전체를 불필요하게 포맷하거나 대량 수정하지 않는다. 새 interaction은 작은 focused test 파일로 분리한다.
+
+## 16. 구현 순서
+
+1. `FortuneLine`, style enum, `FortuneSheet.lines`와 codec을 추가하고 model/codec 테스트를 통과시킨다.
+2. LabelSheet feature key, sanitizer, migration/normalize와 save 테스트를 추가한다.
+3. typed object key/ref와 공통 zOrder 정렬·정규화 helper를 추가한다.
+4. line 공용 geometry/style helper와 화면/capture painter를 추가한다.
+5. toolbar line combo, style별 width/color preset과 line drag 생성을 추가한다.
+6. line hit-test, 단일 선택, 본체 이동, endpoint handle과 keyboard 이동을 추가한다.
+7. 기존 image layer selection state를 typed object selection으로 일반화하고 기존 회귀 테스트를 통과시킨다.
+8. 공통 object layer list와 단일/다중 선택 상태를 package controller로 노출한다.
+9. dock형 object panel을 만들고 기존 layer action을 연결한다.
+10. line property form을 연결한다.
+11. 기존 image/barcode 편집 validation/commit을 공용 API로 추출하고 panel form을 연결한다. 생성 dialog는 같은 API를 사용하도록 유지한다.
+12. `LabelSheetWorkbench`에 splitter, panel width clamp, 접기와 narrow overlay fallback을 연결한다.
+13. mixed clipboard/reorder와 모든 object zOrder insertion 경로를 마무리한다.
+14. PDF/EZPL 출력 경로와 zOrder/fallback을 검증한다.
+15. 관련 focused test, 기존 회귀 test, `flutter analyze`, diagnostics와 `git diff --check`를 실행한다.
+16. 테스트 생성물과 임시 파일을 정리한 뒤 요청 범위 파일만 stage/commit한다.
+
+각 단계는 첫 작은 변경 직후 해당 focused test를 실행한다. model/codec이 검증되기 전에 panel UI부터 만들거나, 공통 ordering이 검증되기 전에 기존 image layer 코드를 대량 교체하지 않는다.
+
+## 17. 완료 조건
+
+다음을 모두 만족해야 완료다.
+
+- 기존 images-only 라벨 파일이 이전과 같은 이미지·바코드로 열린다.
+- line 4종과 두께·색상·좌표·zOrder가 저장 후 동일하게 복원된다.
+- line toolbar가 객체 삽입 그룹에서 image 앞에 있고 style/width/color preset으로 생성된다.
+- line 본체와 endpoint hit-test가 얇은 선에서도 안정적으로 동작한다.
+- line body 이동, endpoint 이동, Shift snap과 keyboard 이동이 undo 1건 단위로 동작한다.
+- 이미지·바코드·선이 같은 zOrder로 paint, hit-test, layer list, capture와 출력된다.
+- 단일 선택은 타입별 속성, 다중 선택은 layer 조정 UI를 표시한다.
+- 기존 image/barcode 생성 dialog는 유지되고 기존 객체 편집은 panel 공용 validation/commit을 사용한다.
+- panel splitter가 260~420px 범위와 sheet 최소 폭을 지키며 drag 후 workbook/selection/zoom이 유지된다.
+- 좁은 workbench에서 dock이 겹치지 않고 overlay fallback으로 접근 가능하다.
+- panel 폭·열림·selection 변경이 workbook dirty/undo를 만들지 않는다.
+- capture/PDF/EZPL에 line이 포함되고 editor handle/panel이 출력되지 않는다.
+- save feature key, allow-list, migration과 테스트가 함께 갱신된다.
+- 관련 focused test와 기존 image/barcode/save/print 회귀 테스트가 통과한다.
+- `flutter analyze` issues 0, 변경 파일 diagnostics 오류 0, `git diff --check` 통과다.
+- 사용자 변경 `lib/core/app.dart`와 unrelated dirty 파일은 stage/commit하지 않는다.
+
+## 18. 구현 전 재확인하지 않아도 되는 확정값
+
+- 최초 지원 객체: 직선만
+- 선 종류: 실선, 파선, 점선, 일점쇄선
+- 기본 두께: style별 0.5mm
+- 두께 범위: 0.1~10.0mm, 입력 단위 0.1mm
+- 기본 색상: 검정
+- line handle: 시작점/끝점 2개, 화면 기준 8px
+- line angle snap: Shift 45도 단위
+- toolbar 위치: 객체 그룹의 이미지 바로 앞
+- panel 기본/최소/최대 폭: 300/260/420px
+- sheet 최소 폭: 480px
+- dock 최소 local width: 760px
+- 신규 이미지·바코드 생성 dialog: 유지
+- 기존 객체 속성 편집: 통합 panel
+- 다중 선택 1차 범위: layer 조정, 삭제, 복제, clipboard
+- 사각형·타원·화살표·자유선·다중 geometry 정렬: 제외

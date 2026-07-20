@@ -6,6 +6,19 @@
 - ODBC transaction batch는 첫 DML이 0행일 때 `SQL_NO_DATA(100)`을 반환할 수 있으므로 필요하면 batch 첫 줄에 `SET NOCOUNT ON`을 사용하고 명시적 결과 SELECT를 유지한다. `@@ROWCOUNT`와 `@@TRANCOUNT`는 parameter로 치환하지 않는다.
 - SQL 변경 검증 시 focused DAO 테스트에 금지 함수 미사용과 XML wire 계약을 고정하고, 가능한 경우 compatibility 100 실제 서버에서 데이터 변경 없는 read-only/빈 payload/rollback probe를 수행한다. 실제 schema capability가 없으면 gate를 우회하지 않고 제한을 기록한다.
 
+### 완료 (2026-07-20): 선 객체 및 통합 객체 패널 구현 지시서
+- 사용자 요청: 실제 코드는 수정하지 않고 검토한 내용을 바탕으로 `doc/label_line_panel.txt` 구현 지시서를 작성한다.
+- 확정 범위: 직선 객체의 저장·렌더·출력, 툴바 선 종류/두께 콤보, 끝점 선택·이동 핸들, 이미지·바코드·선 공통 Z-Order와 레이어 선택, 단일 선택 속성/다중 선택 레이어 조정 패널, 시트와 패널 사이 가변 splitter를 포함한다.
+- 설계 기준: 기존 `FortuneImage`와 `sheet.images` 호환성을 유지하고 새 `FortuneLine`/`sheet.lines`를 추가한다. 저장 객체를 억지로 하나의 배열로 마이그레이션하지 않고 런타임 공통 객체 참조로 선택·정렬·패널 동작을 통합한다.
+- 수정 예정: `doc/label_line_panel.txt`, `SESSION_HANDOFF.md`. 문서만 변경하므로 Flutter test/analyze는 실행하지 않고 문서 계약 검색, diagnostics, `git diff --check`와 독립 재검토를 수행한다.
+- `doc/label_line_panel.txt` 작성 완료: 범위/제외, `FortuneLine` JSON과 save feature/sanitizer/migration, 공통 typed object key와 Z-Order, 화면·capture·EZPL, 선 툴바/생성/끝점 핸들, 단일 속성·다중 레이어 패널, splitter 반응형 배치, controller API, undo/clipboard, 테스트·구현 순서·완료 조건을 18개 장으로 명시했다.
+- 저장 호환 보완 완료: `sheet.lines` feature key를 목록 끝에 추가해 기존 version을 유지하고, 비정상 두께 decode 기본값, 앱 XLSX metadata round-trip, 기존 부유 패널의 dock/overlay 전환, panel 폭 SharedPreferences와 collapsed 진입점을 확정했다.
+- 1차 검증 완료: 새 문서와 이 문서 diagnostics 오류 0건, 추적 파일 `git diff --check` 통과, 필수 save/model/Z-Order/capture/EZPL/splitter/dirty 계약 검색 완료.
+- 독립 재검토: agent가 현재 코드에 신규 model/key/helper가 아직 없다는 점을 구현 모순으로 분류했으나 문서 구현 순서 1~3의 명시적 신규 작업과 일치한다. 실제 선행 구현 누락은 없으며 위 저장 version·panel 전환 모호점만 보완했다.
+- 최종 검증 완료: untracked 새 문서를 `/dev/null`과 비교한 whitespace 검사와 전체 `git diff --check` 통과, 두 문서 diagnostics 오류 0건, 전체 diff와 필수/제외 계약 검색 완료. 문서만 변경해 Flutter test/analyze는 실행하지 않았다.
+- stage/commit 대상: `doc/label_line_panel.txt`, `SESSION_HANDOFF.md`. 기존 사용자 변경 `lib/core/app.dart`는 제외하고 `git commit --only`를 사용한다.
+- 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
+
 ### 완료 (2026-07-17): F1/F2/F3 탭 전환 단축키
 - 사용자 요청: 탭 메뉴가 편집 모드가 아닐 때 F1/F2/F3 키로 품목관리/공용라벨관리/라벨출력 탭을 전환한다.
 - 편집 완료: `lib/home_page_manager.dart`에 `homeTabShortcutValue()`와 `HardwareKeyboard` handler lifecycle을 추가했다. 단독 F1/F2/F3 KeyDown만 품목관리/공용라벨관리/라벨출력에 매핑하며 활성 편집, 수정키 조합, 뒤에 있는 route에서는 처리하지 않는다. 탭 변경은 기존 `_onTabSelection`을 호출한다.
