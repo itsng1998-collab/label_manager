@@ -34,6 +34,11 @@
 - EZPL 좌표계 계약 보완 완료: raster와 native barcode/line/rectangle/cell-border가 `LabelSheetPrintLayout`의 margin, signed push, right margin과 `pageHeightMm` clip을 포함한 공용 printer transform을 사용한다. native로 right/height clip을 정확히 보장할 수 없으면 bitmap fallback하며 양·음 push와 하단 경계 테스트를 명시했다.
 - 사용자 추가 확정: barcode panel renderer pending 중 save/export/print/capture, undo/redo, sheet 전환, import와 삽입 command를 완료까지 비활성화하고 queue·자동 재실행하지 않는다.
 - host command draft 계약 보완 완료: public `finalizeActiveObjectPropertyDraft()`와 동등한 동기 API를 canonical workbook을 읽거나 교체하는 모든 host/삽입 command 전에 호출한다. valid draft는 먼저 commit하고 invalid draft는 원복·폐기한 뒤 command를 실행하며 focus-loss 지연 callback의 추가 dirty를 막는다.
+- 사용자 추가 확정: 세로 방향 Hybrid EZPL은 barcode/line/rectangle/cell-border native command를 모두 bitmap fallback하고 세로 native 회전 좌표식은 이번 범위에서 제외한다. barcode panel renderer pending 중 property draft 취소 Escape도 완료까지 비활성화한다.
+- EZPL clip 계약 재보완 완료: `clipBottomMm = labelHeightMm`을 콘텐츠 하단으로 추가하고 extra area를 포함한 `pageHeightMm`은 매체 높이와 `^Q`에만 사용한다. signed push/right clip과 함께 raster/native 공용 transform 및 extra-area 누출 방지 테스트에 연결했다.
+- clipboard 계약 재보완 완료: mixed object copy/cut은 versioned opaque system clipboard marker를 기록하고 paste 직전 exact match일 때만 내부 payload를 사용한다. 불일치는 stale object paste 없이 기존 cell/text paste로 넘기며 clipboard marker를 model/구조화 연결-ID 판정 metadata와 분리했다.
+- codec·pending 경계 재보완 완료: line/shape raw list는 geometry·stroke/fill/radius를 포함한 모든 canonical field가 유효할 때만 전체 재사용한다. barcode panel render pending 중 selection은 일반 field finalize의 예외로 원래 exact-key draft/request를 유지하며 selection UI만 바꾼다.
+- 독립 재검토 보완 완료: 정상 sibling과 비정상 entry를 함께 둔 raw-list 전체 폐기, 구조화 duplicate/paste 뒤 신규 marker metadata 부재, pending selection finalize 예외를 판별 테스트에 추가했다.
 - 검증 완료: 두 문서 diagnostics 오류 0건, 필수·잔여 충돌 계약 검색과 전체 diff 검토 완료, `git diff --check -- doc/label_line_panel.txt SESSION_HANDOFF.md` 통과. 문서만 변경해 Flutter test/analyze는 실행하지 않았다.
 - stage/commit 대상: `doc/label_line_panel.txt`, `SESSION_HANDOFF.md`. 기존 사용자 변경 `lib/core/app.dart`는 제외하고 관련 문서만 커밋한다.
 
