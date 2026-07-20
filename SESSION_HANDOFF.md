@@ -6,6 +6,16 @@
 - ODBC transaction batch는 첫 DML이 0행일 때 `SQL_NO_DATA(100)`을 반환할 수 있으므로 필요하면 batch 첫 줄에 `SET NOCOUNT ON`을 사용하고 명시적 결과 SELECT를 유지한다. `@@ROWCOUNT`와 `@@TRANCOUNT`는 parameter로 치환하지 않는다.
 - SQL 변경 검증 시 focused DAO 테스트에 금지 함수 미사용과 XML wire 계약을 고정하고, 가능한 경우 compatibility 100 실제 서버에서 데이터 변경 없는 read-only/빈 payload/rollback probe를 수행한다. 실제 schema capability가 없으면 gate를 우회하지 않고 제한을 기록한다.
 
+### 완료 (2026-07-20): 선·도형 지시서 transaction·Hybrid transform 경계 보완
+- 사용자 요청: 최신 `doc/label_line_panel.txt`를 실제 구현에 다시 대조한 권장안을 병합하고 공개 동작 선택은 즉시 확정한다.
+- 사용자 확정: canonical transaction은 내부 model/undo/revision/selection/draft를 먼저 확정하고 기존 `onChange`→`onOp` callback 완료 뒤 controller/listenable이 최종 snapshot을 한 번 통지한다.
+- transaction 보완 완료: `onChange` 진입 시 controller getter가 새 revision·undo 상태와 정리된 selection/draft를 반환하고 no-op/stale async 결과는 callback/listener를 통지하지 않도록 본문·테스트·완료 조건·확정값에 연결했다.
+- save 보완 완료: legacy raw `shapes` strict clone은 migration 공용 clone과 typed map cast 전에 raw `Object?`를 검사한다. 실제 String key, finite num, valid null과 현재 재귀 경로 identity cycle을 구분하며 shared acyclic descendant를 정상 보존하는 테스트를 추가했다.
+- Hybrid 보완 완료: app resolved layout이 source bounds/scale/content origin/right-bottom clip/orientation/native 허용을 가진 package-neutral immutable transform DTO를 한 번 만들고 plan, filtered capture와 native encoder가 동일 instance를 공유한다. `clipBottomMm == labelHeightMm`, extra area 제외, vertical native false와 package import 방향을 테스트한다.
+- 독립 재검토 완료: 최초 세 계약의 구현 차단 모순은 없고 strict clone의 shared acyclic alias 판별 fixture만 추가 보완했다.
+- 검증 완료: `doc/label_line_panel.txt` diagnostics 오류 0건, 필수·상충 계약 검색과 `git diff --check` 통과. 문서만 변경했으므로 Flutter test/analyze는 실행하지 않았다.
+- stage/commit 대상: `doc/label_line_panel.txt`, `SESSION_HANDOFF.md`만 포함한다. 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
+
 ### 완료 (2026-07-20): 선·도형 지시서 async clipboard·raw overlay 경계 보완
 - 사용자 요청: 최신 `doc/label_line_panel.txt`의 구현 모호점 검토 권장안을 병합하고 사용자 확인이 필요한 정책은 즉시 확정한다.
 - 사용자 확정: legacy raw `shapes`에 JSON-safe가 아닌 descendant가 하나라도 있으면 부분 가지치기 없이 해당 overlay 전체만 제외하고 나머지 workbook 저장을 계속한다. clipboard read 대기 중 같은 시트의 selection이 바뀌면 호출 시점 또는 새 위치에 붙이지 않고 object/cell-text paste를 모두 취소한다.

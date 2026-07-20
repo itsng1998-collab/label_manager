@@ -248,6 +248,7 @@ allow-list는 다음 key로 고정한다.
 - feature map은 migration 이력/capability 판정에만 사용한다. 이전 version이나 feature 누락만으로 payload의 `lines`/`fortuneShapes`를 지우지 않으며 해당 payload key 자체가 없는 sheet만 decode model에서 빈 list로 해석한다.
 - LabelSheet sanitizer는 JSON-safe 구조, supported key/type와 allow-list 필터만 담당한다. geometry fallback, ID trim/중복 재발급, 색상·회전 canonicalization과 raw-list 재사용 판정은 FortuneSheet decode/encode codec이 소유한다. `labelSheetNormalizeWorkbookForCurrentSaveFormat()`은 별도 canonicalizer가 아니라 실제 encode→migrate→sanitize→decode 진입점이다.
 - legacy raw `shapes` sanitizer는 성공 시 원래 JSON-safe 구조를 그대로 복사하고 invalid descendant가 있으면 overlay 전체를 omit한다. 일부 map entry/list item만 제거하거나 `null`로 바꾼 결과를 raw 보존으로 취급하지 않는다.
+- legacy raw `shapes`는 migration의 일반 deep clone이나 `Map<String, Object?>.from` cast보다 먼저 원본 `Object?` 상태에서 분리해 strict clone한다. strict clone은 `({bool valid, Object? value})`처럼 유효 여부와 `null` 값을 구분하고, map key의 실제 `String` 타입과 finite num을 변환 전에 검사하며 현재 재귀 경로의 object identity set으로 cycle을 판정한다. 성공한 값만 일반 sheet payload에 다시 넣고 실패한 key는 omit하므로, 공용 clone의 key 문자열화·cast 예외·cycle 재귀가 먼저 발생하면 안 된다.
 - absent `lines`/`fortuneShapes`와 빈 list는 decode model에서 같은 empty list다. 기존 images wire 규칙과 같이 canonical encoder는 빈 typed list key를 생략하고, raw empty key를 그대로 재사용해야 하는 경우에만 원래 raw key/value를 보존한다. save/import 테스트는 `"lines": []`/`"fortuneShapes": []` key 존재가 아니라 decoded empty model과 반복 encode 안정성을 검증한다.
 - codec fallback 또는 canonical normalize가 적용된 entry는 비정상 raw wire를 그대로 재사용하지 않는다. raw list 전체를 재사용하려면 raw entry 수가 canonical model entry 수와 같고 각 entry의 모든 canonical field가 fallback/normalize 없이 유효한 wire여야 한다. 여기에는 필수 field와 ID, geometry의 유한한 JSON number·양수 bounds, zOrder, stroke style, `strokeWidthMm` 범위, `strokeColor`/`fillColor`, shape kind, rotation과 kind별 `cornerRadiusMm`이 포함된다. 중복 ID 재발급, 비숫자/비유한 값 fallback, invalid color/style/range fallback 또는 decoder에서 제외된 entry가 하나라도 있으면 빈 canonical model을 포함해 해당 raw list 전체를 폐기하고 canonical encode한다.
 - 저장할 때마다 zOrder를 임의 재정렬하지 않는다. zOrder 연속값 정규화는 사용자가 layer reorder/앞뒤 이동 command를 실행한 transaction 안에서만 수행한다.
@@ -378,6 +379,7 @@ shape[i] = images.length + lines.length + i
 - native 최적화보다 화면/PDF와 같은 clip·zOrder 결과를 우선한다.
 - `LabelSheetPrintLayout`에 콘텐츠 하단 경계 `clipBottomMm = metrics.labelHeightMm`을 명시한다. `pageHeightMm = labelHeightMm + extraAreaMm`은 매체 높이와 EZPL `^Q`에만 사용하고 raster/native 후보의 하단 교차·clip에는 사용하지 않는다.
 - raster와 native barcode/line/rectangle/cell-border 후보는 모두 `LabelSheetPrintLayout`의 `contentLeftMm`, `contentTopMm`, `clipRightMm`, `clipBottomMm`을 사용하는 하나의 logical→printer-dot transform을 공유한다. `leftPushMm`/`topPushMm`을 margin과 함께 적용하고 교차 bounds와 native command 좌표도 이 최종 printer 좌표계에서 계산한다. right margin과 label-height clip을 native command로 정확히 보장할 수 없는 후보는 bitmap fallback한다.
+- app의 resolved `LabelSheetPrintLayout`은 FortuneSheet package-owned immutable `FortunePrintTransform` 또는 동등한 app-neutral DTO를 정확히 한 번 만든다. DTO는 canonical logical source bounds/크기, DPI 또는 mm→dot scale, printer content origin, `clipRightMm`, `clipBottomMm`, orientation과 native 허용 여부를 소유하며 app의 `LabelSheetPrint*` 타입이나 encoder 타입을 참조하지 않는다. `clipBottomMm`은 `labelHeightMm`이고 extra area를 포함하지 않으며 vertical orientation은 native 허용 false다. plan, filtered capture와 app-owned native encoder는 이 동일 DTO 인스턴스를 공유하고 각자 margin/push/clip/회전 transform을 다시 계산하지 않는다.
 - 사용자가 확정한 대로 `orientation == vertical`에서는 barcode/line/rectangle/cell-border를 포함한 모든 native 후보를 승인하지 않고 bitmap fallback한다. raster의 기존 90도 회전 결과를 그대로 사용하며 세로 native 회전 좌표식은 이번 범위에 추가하지 않는다.
 - Hybrid EZPL output coordinator가 controller와 canonical sheet/range snapshot에서 행·열 metrics 기반 source width/height를 먼저 확정하고, 그 값과 options로 resolved metrics/layout을 만든다. 이후 최종 공통 paint order와 실제 교차 bounds로 native/raster render plan을 확정하고 filtered print capture를 요청한 뒤 같은 plan으로 native command를 생성한다. plan, capture와 encoder는 모두 이 immutable canonical snapshot과 resolved layout을 공유한다. EZPL 호출부는 coordinator보다 먼저 일반 `captureRangeAsPng()`을 실행하거나 이미 flatten된 전체 PNG를 plan 입력으로 넘기지 않는다. plan은 승인된 exact `FortuneSheetObjectKey` 집합과 승인된 canonical cell-border edge key 집합을 소유하고, 동일한 immutable plan을 FortuneSheet filtered print capture와 native command 생성에 전달한다. filtered capture는 승인 집합만 공용 painter에서 생략하고 workbook/sheet/revision/undo를 바꾸지 않으며, 승인되지 않은 객체와 border는 bitmap에 유지한다. 이미 flatten된 PNG의 객체 bounds나 paint mask를 흰색으로 지우거나 임시 workbook mutation·전체 border 제외로 plan을 구현하지 않는다. 따라서 native barcode의 bar 사이·quiet zone과 비채움 rectangle 내부에는 아래쪽 raster 객체가 그대로 남는다.
 - cell-border edge key는 물리 edge 기준으로 canonicalize한다. vertical edge는 `(row, boundaryColumn)`, horizontal edge는 `(boundaryRow, column)`을 사용해 cell `(row, column)`의 left/right를 각각 vertical `(row, column)`/`(row, column + 1)`, top/bottom을 horizontal `(row, column)`/`(row + 1, column)`로 매핑한다. 따라서 인접 cell의 right/left 또는 bottom/top이 같은 물리 edge를 나타내면 같은 key이며 plan·filtered capture·native command가 모두 이 key를 사용한다.
@@ -612,6 +614,7 @@ x2 += dx, y2 += dy
 - object selection 자체는 undo history에 넣지 않는다. workbook 복원 뒤 존재하는 기존 선택만 유지하고 정리된 active/selected snapshot을 controller/listenable로 한 번 통지한다.
 - property draft는 생성 시점의 `sheetId`, typed object key와 workbook/object revision을 함께 보관한다. workbook revision은 성공한 canonical workbook mutation, undo/redo 복원과 실제 외부 workbook 교체마다 정확히 한 번 증가하고 selection, panel, splitter와 scroll 변경에서는 유지한다. object revision은 exact typed key의 model 교체·삭제·ID 변경 때 증가한다. package는 별도로 sheet ID별 canonical revision과 workbook 전역의 단조 증가 history-lineage generation을 소유한다. per-sheet revision은 해당 sheet의 cell/object canonical mutation transaction마다 정확히 한 번 증가시키고 다른 sheet 편집·단순 sheet 전환·selection·panel·splitter·scroll 변경에서는 유지한다. undo/redo와 실제 외부 workbook replacement는 canonical before/after가 달라진 sheet revision을 각각 한 번 증가시키고 history-lineage generation도 한 번 증가시켜 전체 cut token을 무효화하므로 sheet revision 값이 우연히 같아도 유효성을 복원하지 않는다. draft commit/focus-loss는 캡처한 sheet/key/revision이 모두 일치할 때만 허용한다. 불일치하면 미commit draft를 폐기하고 현재 typed property snapshot으로 controller를 다시 구성하며, splitter resize처럼 canonical snapshot이 바뀌지 않는 layout 변경에서는 draft를 유지한다.
 - revision은 FortuneSheet package가 소유한 command/commit API와 host의 실제 외부 workbook replacement 경계만 추적한다. transaction은 public command/batch 진입 전후의 canonical snapshot 비교가 끝나는 경계이며, 내부 `_replace*` helper별로 증가시키지 않는다. canonical no-op은 증가하지 않고 한 command가 여러 내부 교체 또는 같은 sheet의 cell/object를 함께 바꿔도 해당 sheet revision은 한 번만 증가한다. package가 `onChange`로 방출한 동일 canonical revision/workbook을 부모가 새 인스턴스로 되돌려 주는 controlled-widget echo는 acknowledgment이며 외부 replacement가 아니므로 workbook/per-sheet revision과 history lineage를 바꾸거나 transient/cut 상태를 초기화하지 않는다. 현재 package canonical snapshot과 다른 host 입력만 실제 외부 replacement다. 기존 mutable collection API를 이번 범위에서 breaking change로 바꾸지 않으며 `images`/`lines`/`shapes` collection을 직접 변경하는 것은 지원되는 mutation 경로가 아니다. panel, canvas, dialog와 controller의 object 변경은 모두 package-owned command를 거쳐 revision을 우회하지 않는다.
+- 성공한 canonical transaction의 관측 순서는 `canonical model commit → undo/redo stack·workbook/object/per-sheet revision·history lineage 확정 → selection/property draft/transient state 정리 → package read-only state snapshot 확정 → onChange → onOp → controller/listenable 단일 통지`로 고정한다. `onChange` 진입 시 controller getter는 이미 새 revision과 정리된 selection/undo 상태를 반환하고, 기존 호환성을 위해 `onChange`가 항상 `onOp`보다 먼저다. 사용자가 확정한 대로 listener는 두 callback이 끝난 최종 snapshot만 한 번 관측한다. undo/redo와 실제 external replacement도 같은 관측 순서를 사용하며 canonical no-op과 stale async 결과는 어느 callback/listener도 통지하지 않는다.
 - Shift 범위 선택, Ctrl/Meta toggle, Ctrl+A, keyboard navigation을 기존 panel 동작과 같게 유지한다.
 - 선택된 여러 행의 drag reorder는 선택 묶음의 내부 상대 순서를 유지한다.
 - 사용자가 확정한 대로 drag target은 `(target exact key, before|after)`로 캡처하고 행의 위쪽 절반은 `before`, 아래쪽 절반은 `after` drop indicator를 표시한다. 선택 묶음을 원래 front-to-back 목록에서 제거한 뒤 target exact key를 다시 찾아 해당 side에 삽입하므로 원본 숫자 index를 그대로 재사용하지 않는다. target이 삭제되거나 owner/revision이 달라지면 reorder를 commit하지 않는다.
@@ -1023,6 +1026,7 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - absent/빈 lines/fortuneShapes의 동일 empty model decode, canonical empty key 생략과 반복 encode 안정성
 - 기존 raw overlay `shapes` map/list의 FortuneSheet codec 원형 round-trip·기존 painter/capture 유지와 동시 `fortuneShapes` 무충돌
 - legacy raw `shapes`의 `null`/bool/String/finite num과 String-key map/list는 구조 그대로 round-trip하고, 비문자열 map key·비유한 num·지원하지 않는 객체 또는 cycle descendant가 하나라도 있으면 해당 `shapes` key 전체만 omit한 뒤 나머지 workbook `jsonEncode`와 `.lms` round-trip은 성공함
+- 비문자열 map key·self cycle fixture가 migration 공용 clone/`Map<String, Object?>.from`보다 먼저 strict 검사되어 key 문자열화·cast 예외·stack overflow 없이 legacy `shapes` 전체 omit 결과로 끝나고, 유효한 `null` leaf는 invalid sentinel로 오인하지 않음. 동일 map/list 인스턴스를 두 형제 경로가 공유하지만 back-edge는 없는 fixture는 전역 visited가 아니라 현재 재귀 경로 identity만 검사해 두 위치 모두 정상 clone·round-trip함
 - `.lms` export/import round-trip
 - 선·도형만 있는 `.lms`의 export 활성화와 round-trip
 - 원래 print-area logical rect와 line/fill 없는 shape의 실제 stroked path 또는 채움 shape의 회전 fill 영역·outline이 교차·경계 접촉하는 exact key만 먼저 확정하고 padded bounds로 row/column을 확장하며, AABB 모서리만 겹치는 shape와 확장 bounds에서 새로 만난 이웃 객체는 제외함
@@ -1130,6 +1134,7 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - undo/redo, 외부 workbook 교체, 객체 삭제·ID 정규화 뒤 stale property draft 폐기와 이전 revision focus-loss no-op, splitter resize에서는 draft 유지
 - package-owned canonical command/undo/redo/실제 외부 교체의 workbook revision 정확히 1회 증가, exact object 교체·삭제·ID 변경 command의 object revision 정확히 1회 증가, 변경된 sheet의 cell/object transaction별 per-sheet revision 정확히 1회 증가와 다른 sheet·UI-only 변경에서 해당 sheet revision 불변
 - 같은 sheet를 여러 내부 helper로 바꾸는 단일/batch command의 per-sheet revision 1회 증가, canonical no-op 0회, 여러 sheet를 바꾸는 command와 undo/redo의 변경 sheet별 1회 증가, 전역 history-lineage generation의 undo/redo·실제 외부 교체당 1회 증가
+- canonical command/undo/redo/실제 외부 replacement에서 callback recorder가 `onChange`→`onOp`→controller/listenable 1회 순서를 기록하고, `onChange` 안의 controller getter부터 새 workbook/object/per-sheet revision·undo 상태와 정리된 selection/draft를 반환함. no-op/stale async 결과는 세 통지 모두 0회
 - shape body move와 copy paste/duplicate offset의 음수 X 허용, top `0` clamp, right/bottom 초과 허용과 회전 시각 bounds 무-clamp
 - object A 선택→workbook 편집→object B 선택→undo에서 존재하는 B 선택은 유지하고 selection 변경 자체는 dirty/undo를 만들지 않음
 - physical-size sheet의 X/Y/endpoint/width/height/length `mm` 표시·logical 양방향 변환과 physical metadata 없는 sheet의 `px` 표시·logical 값 유지
@@ -1204,6 +1209,7 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - 다중 발행 PDF backend는 unit별 기존 `capture()`만 호출하고 Hybrid API를 호출하지 않으며, EZPL backend는 각 unit이 active일 때 `captureHybridEzpl()`만 호출해 일반 PNG 선행 capture 없이 unit별 bytes와 동일 canonical sheet/range snapshot을 저장함
 - 서로 다른 데이터의 연속 EZPL unit에서 각 반환 snapshot의 item-code 오류를 해당 unit 이름/copy index로 검사하고, grouping은 저장된 unit별 bytes를 순서대로 연결하며 마지막 live controller로 이전 unit을 다시 capture하지 않음
 - Hybrid facade가 입력 source 크기 null이고 canonical range 크기가 label 크기와 다른 경우에도 range의 행·열 metrics로 source width/height와 resolved metrics/layout을 plan 전에 확정하며 plan/filtered capture/native encoder가 같은 transform을 사용해 group page spec과 layout 검사를 구성함. FortuneSheet package import graph에는 app `LabelSheetPrint*` 타입과 EZPL encoder가 없음
+- app resolved layout이 logical source bounds, DPI/mm→dot scale, content origin, right/bottom clip, orientation/native 허용을 가진 package-neutral immutable transform DTO를 한 번 만들고 plan/filtered capture/native encoder에 동일 instance를 전달함. `clipBottomMm == labelHeightMm`, extra area 제외와 vertical native false를 검증하며 package DTO/import graph에는 app `LabelSheetPrint*`/encoder 타입이 없음
 - cell base-layer border가 상부 객체와 겹칠 때 native border를 사용하지 않고 bitmap의 고정 순서를 보존
 - dashed/diagonal/color line bitmap fallback
 - filled rectangle/roundedRectangle/ellipse bitmap fallback
@@ -1225,20 +1231,20 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 ## 16. 구현 순서
 
 1. 공통 stroke style, `FortuneLine`, `FortuneShape`, shape kind, `FortuneSheet.lines/shapes`와 codec을 추가한다. `lines`/`fortuneShapes`의 typed 단독 소유, ID wire validation과 images raw 재사용 경계를 포함한 model/codec 테스트를 통과시킨다.
-2. LabelSheet의 `sheet.lines`, `sheet.fortuneShapes` feature key, sanitizer, migration/normalize, label content 판정과 save 테스트를 추가하고 legacy raw overlay `shapes`와 분리한다. legacy `shapes`는 JSON-safe 구조만 원형 복사하고 invalid descendant가 있으면 overlay 전체만 omit한다. 원래 print-area rect에서 exact geometry key를 확정한 뒤 padded bounds로 범위만 확장하는 print-area save를 연결한다.
+2. LabelSheet의 `sheet.lines`, `sheet.fortuneShapes` feature key, sanitizer, migration/normalize, label content 판정과 save 테스트를 추가하고 legacy raw overlay `shapes`와 분리한다. legacy `shapes`는 일반 clone/cast 전 raw `Object?` strict clone으로 JSON-safe 구조만 원형 복사하고 invalid descendant가 있으면 overlay 전체만 omit한다. 원래 print-area rect에서 exact geometry key를 확정한 뒤 padded bounds로 범위만 확장하는 print-area save를 연결한다.
 3. typed object key/ref, exact-key resolver/mutation, 중복 ID normalize/allocator와 finite zOrder 정렬·정규화 helper를 추가한다.
 4. line/shape 공용 geometry/stroke helper와 화면/capture painter를 추가한다.
 5. toolbar shape combo, geometry kind별 stroke/fill/radius preset과 transient gesture draft 기반 line/shape drag 생성을 추가한다.
 6. line hit-test, 단일 선택, 본체 이동, endpoint handle과 keyboard 이동을 추가한다.
 7. shape hit-test, 본체 이동, local-axis 8방향 resize와 opposite world anchor 고정, rotation handle과 keyboard 이동을 추가한다.
 8. 기존 image layer selection state를 typed object selection으로 일반화하고 기존 image/barcode geometry drag도 transient gesture commit 경계로 전환한 뒤 기존 회귀 테스트를 통과시킨다.
-9. 공통 object layer list와 단일/다중 선택 상태를 package controller로 노출한다.
+9. 공통 object layer list와 단일/다중 선택 상태를 package controller로 노출하고 canonical commit→revision/undo/selection 확정→`onChange`→`onOp`→listenable 단일 통지 순서를 연결한다.
 10. dock형 object panel을 만들고 exact target key+before/after drag reorder를 포함한 기존 layer action을 연결한다.
 11. line/shape property form과 타입별 context menu를 연결한다.
 12. 기존 image/barcode 편집 validation/commit, linked image 해제의 새 파일 필수 조건, panel image picker의 exact-key owner/token 검증과 barcode rotation/latest-request render/metadata 보존을 공용 API로 추출하고 panel form을 연결한다. 생성 dialog는 같은 API를 사용하도록 유지한다.
 13. `LabelSheetWorkbench`에 splitter, panel width clamp, 접기와 narrow overlay fallback을 연결한다. panel controller/draft를 presentation보다 상위에 유지하고 경계 전환의 자동 open/focus 이동을 막는다.
 14. clipboard 단일 async paste coordinator의 호출 시점 target owner snapshot, marker 기록 성공 뒤 source owner/model을 재검증하는 cut transaction, mixed clipboard/reorder, package-owned per-sheet revision과 모든 object zOrder insertion 경로를 마무리한다.
-15. 일반 capture/PDF 동작을 유지한 채 Hybrid EZPL coordinator의 immutable render plan, canonical physical cell-border edge key와 exact object/edge filtered print capture API를 추가한다. `LabelSheetOutputCaptureController`의 app-facing Hybrid unit API를 연결하고 다중 발행 EZPL host의 선행 일반 capture를 제거한 뒤 coordinator 단일 진입점에서 plan 확정→filtered capture→동일 plan의 native command 생성 순서와 zOrder/fallback을 검증한다.
+15. 일반 capture/PDF 동작을 유지한 채 Hybrid EZPL coordinator의 package-neutral immutable transform DTO/render plan, canonical physical cell-border edge key와 exact object/edge filtered print capture API를 추가한다. app resolved layout에서 transform DTO를 한 번 만들고 `LabelSheetOutputCaptureController`의 app-facing Hybrid unit API를 연결한다. 다중 발행 EZPL host의 선행 일반 capture를 제거한 뒤 coordinator 단일 진입점에서 plan 확정→같은 transform/plan의 filtered capture→native command 생성 순서와 zOrder/fallback을 검증한다.
 16. 관련 focused test, 기존 회귀 test, `flutter analyze`, diagnostics와 `git diff --check`를 실행한다.
 17. 테스트 생성물과 임시 파일을 정리한 뒤 요청 범위 파일만 stage/commit한다.
 
@@ -1258,6 +1264,7 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - ID/zOrder canonicalization, geometry·stroke/fill/radius fallback 또는 invalid entry 제외가 발생한 raw list는 재사용하지 않고 모든 canonical field의 유효한 wire로 저장된다. line/shape 색상은 6자리 hex만 대문자 `#RRGGBB`로 canonicalize하고 다른 공용 parser 문법과 alpha는 허용하지 않는다.
 - absent/빈 lines/fortuneShapes는 같은 empty model이며 canonical encoder는 raw empty key 보존 조건이 아니면 빈 typed list key를 생략한다. legacy raw overlay `shapes`는 typed shape로 해석하지 않고 FortuneSheet codec에서 원형 보존한다.
 - legacy raw `shapes`는 JSON-safe leaf와 String-key map/list일 때만 원형 보존하고 invalid descendant가 하나라도 있으면 부분 변형 없이 해당 overlay 전체만 제외해 나머지 workbook 저장을 계속한다.
+- legacy raw `shapes` strict clone은 일반 migration clone/cast 전에 원본 key 타입·finite value·cycle을 검사하고 유효 `null`과 invalid를 별도 결과로 구분한다.
 - manifest feature 누락은 payload에 존재하는 lines/fortuneShapes를 제거하지 않고 payload key 자체의 부재만 empty model로 해석한다. FortuneSheet codec은 canonicalization을, LabelSheet sanitizer는 구조/allow-list 필터를 소유한다.
 - dotted/dashDot의 dot은 보이는 지름 `1w`인 원형 mark이고 인접 mark의 보이는 edge 사이 gap은 `2w`다.
 - 폐쇄 도형의 pattern phase는 kind별 고정 local 시작점에서 유지된다. seam은 첫 mark와 보이는 edge gap `2w`를 유지하며 terminal dash는 exclusion 경계까지만 clip되고 완전한 원형 dot이 들어가지 않으면 해당 dot을 생략한다.
@@ -1283,6 +1290,7 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - canonical snapshot 변경 뒤 stale property draft는 commit되지 않고, splitter layout 변경에서는 현재 draft가 유지된다.
 - workbook/object/per-sheet revision은 각 소유 canonical 변경에서 transaction당 정확히 한 번 증가하고 UI-only 변경에서는 유지된다.
 - workbook/object/per-sheet revision은 package-owned command와 실제 외부 workbook replacement 경계에서만 관리하며 직접 object collection mutation은 지원 경로가 아니다. 동일 canonical `onChange` 부모 echo는 acknowledgment로 카운터와 transient state를 유지하고, undo/redo·실제 외부 replacement는 전역 history lineage를 바꿔 이전 cut token을 되살리지 않는다.
+- canonical command/undo/redo/실제 외부 replacement는 내부 model·undo/revision·selection/draft 상태를 먼저 확정하고 기존 `onChange`→`onOp` 뒤 controller/listenable을 최종 snapshot으로 정확히 한 번 통지한다. `onChange` 진입 시 controller getter가 이미 새 canonical 상태를 반환한다.
 - 단일 선택은 타입별 속성, 다중 선택은 layer 조정 UI를 표시한다.
 - geometry 속성은 physical-size sheet에서 mm, 그 외에는 px로 표시하며 commit 뒤 model 좌표는 logical coordinate를 유지한다.
 - panel list, canvas object, canvas cell과 editable field의 Arrow key 동작은 실제 focus에 따라 분리된다.
@@ -1319,6 +1327,7 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - endpoint/중심점이 crop 밖이어도 실제 stroke/path가 교차하는 line/shape는 print-area save와 capture에서 보존된다.
 - EZPL native barcode/line/rectangle과 raster 객체가 겹쳐도 화면의 공통 object zOrder를 바꾸지 않고 native geometry끼리의 상대 순서도 유지하며, native cell border는 항상 상부 객체 아래인 base-layer 순서를 유지한다.
 - EZPL raster와 모든 native 후보는 signed push·margin·right clip과 `clipBottomMm == labelHeightMm`을 포함한 같은 `LabelSheetPrintLayout` printer transform을 사용하고 extra area를 콘텐츠 영역으로 사용하지 않는다. 세로 방향은 모든 native 후보를 bitmap fallback한다.
+- app resolved layout은 app 타입에 의존하지 않는 immutable print transform DTO를 한 번 생성하고 plan, filtered capture와 native encoder가 동일 인스턴스를 공유해 source bounds·scale·origin·clip·orientation을 중복 계산하지 않는다.
 - Hybrid EZPL coordinator는 exact object key와 cell-border edge 승인 집합을 가진 하나의 immutable render plan을 filtered print capture와 native command 생성에 공유한다. capture는 workbook을 mutation하거나 flatten된 fallback PNG를 지우지 않고 승인 집합만 painter에서 생략해 하부 pixel을 보존한다.
 - 다중 발행의 PDF unit은 기존 일반 capture를 사용하고 EZPL unit은 active 시점의 app-facing `captureHybridEzpl()` 결과를 저장한다. 각 Hybrid 결과의 canonical sheet snapshot으로 오류를 검사하고 resolved metrics/page spec으로 grouping하며 unit별 bytes를 연결만 한다. FortuneSheet package는 plan/filtered capture까지만 소유하고 app 인쇄 타입/encoder에 의존하지 않는다.
 - 관련 focused test와 기존 image/barcode/save/print 회귀 테스트가 통과한다.
@@ -1331,6 +1340,7 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - typed shape Dart model/wire key: `FortuneSheet.shapes` / `fortuneShapes`, 기존 raw overlay `shapes`와 분리
 - typed line Dart model/wire key: `FortuneSheet.lines` / `lines`, 기존 unknown raw와 분리하지 않고 typed model이 단독 소유
 - legacy raw overlay `shapes`: JSON-safe leaf(`null`/bool/String/finite num)와 String-key map/list만 원형 보존, invalid descendant가 하나라도 있으면 해당 overlay 전체만 omit하고 나머지 저장 계속
+- legacy raw `shapes` 검사 순서: migration 일반 clone/typed map cast 전 raw `Object?` strict clone, 실제 String key·finite num·cycle 검사와 valid `null` 분리
 - line/shape 내부 ID wire: trim 후 non-empty JSON string만 허용, 다른 타입·빈/공백 entry 제외
 - 선 종류: 실선, 파선, 점선, 일점쇄선
 - 기본 두께: style별 0.5mm
@@ -1368,6 +1378,7 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - layer row drop: 위 절반 before/아래 절반 after, 선택 묶음 제거 뒤 target exact key 재조회
 - workbook/object/per-sheet revision 지원 범위: package-owned command와 실제 외부 workbook replacement 경계, 직접 collection mutation은 지원하지 않음
 - controlled workbook echo: package가 방출한 동일 canonical revision/workbook의 새 인스턴스는 acknowledgment로 처리해 revision/history lineage/transient state 유지
+- canonical transaction 관측 순서: model/undo/revision/selection/draft 확정 → `onChange` → `onOp` → controller/listenable 최종 snapshot 1회
 - cut token revision: `(sourceSheetId, cut 직후 per-sheet canonical revision, history-lineage generation)`, 다른 sheet 편집·단순 전환은 유지, source sheet cell/object mutation과 undo/redo·외부 replacement는 무효화
 - 이미지·바코드 생성 위치: toolbar command 시점의 active sheet/선택 merge anchor에 고정
 - 이미지·바코드 생성 후 panel: 이미 열린 panel만 새 속성으로 전환, 닫힌 dock/overlay 자동 open 금지
@@ -1381,6 +1392,7 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - 바코드 panel rotation: `extraFields['rotation']`의 유한값은 동일 시각 회전의 `0 <= value < 360` canonical 값으로 표시·무변경 적용하고 비숫자·`NaN`·무한대는 `0`, 유한 입력만 render/metadata/capture에 공통 반영
 - EZPL 세로 방향: barcode/line/rectangle/cell-border를 모두 bitmap fallback, 세로 native 회전 좌표식 제외
 - EZPL 하단 콘텐츠 clip: `clipBottomMm = labelHeightMm`, `pageHeightMm`은 extra area를 포함한 매체 높이/`^Q` 전용
+- Hybrid print transform: package-neutral immutable DTO를 app resolved layout에서 한 번 생성하고 plan/filtered capture/native encoder가 동일 instance 공유
 - Hybrid EZPL 합성: host는 일반 PNG를 먼저 capture하지 않고 output coordinator 단일 API를 호출하며, coordinator가 exact object/canonical physical border-edge 승인 plan을 먼저 확정하고 같은 immutable plan을 filtered print capture와 native command 생성에 공유, 임시 workbook mutation·전체 border 제외·사후 pixel 삭제 금지
 - 다중 발행 Hybrid API: EZPL unit이 active일 때 `LabelSheetOutputCaptureController.captureHybridEzpl(metrics, options, lineSpacingPercent)`로 bytes, 동일 canonical sheet/range snapshot과 source 크기가 반영된 resolved metrics/page spec을 저장하고 grouping은 unit별 bytes만 연결, PDF는 기존 `capture()` 유지
 - object clipboard: versioned opaque system clipboard marker가 내부 payload marker와 일치할 때만 object paste, 불일치는 같은 단일-read coordinator에서 기존 cell/text paste 1회 실행
