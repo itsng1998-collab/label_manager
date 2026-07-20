@@ -318,16 +318,18 @@ shape[i] = images.length + lines.length + i
 
 화면용 선택 강조, endpoint/resize/rotation handle과 hit tolerance는 editor overlay이며 capture와 출력에 포함하지 않는다.
 
+생성·이동·resize·회전 drag 중 geometry는 canonical workbook을 pointer move마다 바꾸지 않고 canvas의 transient gesture draft로 표시한다. pointer up에서 유효한 최종 geometry를 workbook에 한 번 commit하고 `onChange`/`onOp`와 undo snapshot을 각각 1회만 만든다. clean workbook이면 이 첫 commit에서 dirty를 true로 한 번 전환하고, 이미 dirty이면 추가 dirty callback을 만들지 않는다. Escape, pointer cancel 또는 최소 크기 미달은 draft를 폐기하고 workbook notification을 만들지 않는다. 기존 이미지·바코드 move/resize/rotation도 같은 공용 geometry gesture API로 전환해 동일한 notification 경계를 적용한다.
+
 ### 6.2 선 스타일 패턴
 
 패턴은 stroke width를 기준으로 계산한다.
 
 - `solid`: 연속선
 - `dashed`: dash `4w`, gap `2w`
-- `dotted`: round cap dot `1w`, gap `2w`
-- `dashDot`: dash `4w`, gap `2w`, dot `1w`, gap `2w`
+- `dotted`: 보이는 지름 `1w`인 원형 dot, 보이는 edge 사이 gap `2w`
+- `dashDot`: butt-cap dash `4w`, 보이는 edge 사이 gap `2w`, 보이는 지름 `1w`인 원형 dot, 보이는 edge 사이 gap `2w`
 
-여기서 `w`는 현재 출력 좌표계로 변환된 stroke width다. 길이가 패턴보다 짧아도 시작점에서 첫 segment를 그린다. dotted만 round cap을 사용하고 나머지는 butt cap을 기본으로 한다.
+여기서 `w`는 현재 출력 좌표계로 변환된 stroke width다. 원형 dot은 centerline 길이 0의 round-cap mark로 그려 실제 보이는 지름이 `w`가 되게 하며 dotted와 dashDot의 dot에 같은 helper를 사용한다. dash segment는 butt cap을 사용한다. gap은 인접한 dash/dot의 보이는 edge 사이 거리이고, 길이가 패턴보다 짧아도 시작점에서 첫 segment 또는 dot을 그린다.
 
 ### 6.3 폐쇄 도형 path와 채우기
 
@@ -361,7 +363,8 @@ shape[i] = images.length + lines.length + i
 - 채워진 rectangle, roundedRectangle, ellipse는 bitmap fallback을 사용한다.
 - dashed/dotted/dashDot, 임의 각도, 색상 line 또는 native overlay가 공통 zOrder를 깨는 경우 bitmap fallback을 사용한다.
 - native 최적화보다 화면/PDF와 같은 clip·zOrder 결과를 우선한다.
-- 신규 line/shape뿐 아니라 기존 native barcode와 cell-border overlay도 같은 합성 순서 판정에 포함한다. fallback bitmap에서 native 영역을 지우거나 raster 뒤에 native command를 추가하면 겹치는 객체의 공통 zOrder가 바뀌는 경우 해당 barcode/border/line/shape native 최적화를 사용하지 않고 capture bitmap에 남긴다.
+- cell border는 object zOrder 구성원이 아니라 화면에서 항상 object layer 아래에 있는 cell base layer다. native cell-border command는 이 고정 순서를 보존하거나 상부 객체와 겹치지 않을 때만 사용하고, 그렇지 않으면 border를 capture bitmap에 유지한다.
+- 신규 line/shape와 기존 native barcode는 같은 object 합성 순서 판정에 포함한다. fallback bitmap에서 native 영역을 지우거나 raster 뒤에 native command를 추가하면 겹치는 객체의 공통 zOrder가 바뀌는 경우 해당 barcode/line/shape native 최적화를 사용하지 않고 capture bitmap에 남긴다.
 - bitmap fallback은 공용 capture의 line/shapes를 다시 별도 overlay하지 않는다.
 - selection handle, ID label과 editor highlight는 EZPL에 포함하지 않는다.
 - native 후보도 label clip 안의 logical 좌표와 mm 두께를 printer dots로 변환한 값이 모두 유효하고 stroke가 최소 1 dot이어야 한다. dot 정수화 뒤 되돌린 좌표/두께가 0.5 dot보다 크게 달라지면 bitmap fallback을 사용한다.
@@ -456,7 +459,7 @@ toolbar popup은 삽입 preset만 편집한다. 이미 선택된 객체의 속�
 - rectangle/roundedRectangle에서 Shift drag는 정사각형, ellipse에서 Shift drag는 원을 만든다.
 - 왼쪽/위쪽 방향 drag도 허용하고 pointer up에서 positive width/height bounds로 정규화한다.
 - 생성 중 auto-scroll은 기존 이미지 drag auto-scroll helper를 재사용하되 별도 scroll 구현을 복제하지 않는다.
-- pointer up 한 번에 undo snapshot 1개와 dirty 변경 1회를 만든다.
+- pointer up 한 번에 canonical workbook commit과 undo snapshot을 각각 1개 만든다. clean 상태이면 dirty를 true로 한 번 전환하고 이미 dirty이면 추가 dirty callback을 만들지 않는다.
 - 생성 모드는 객체 하나를 성공적으로 commit하면 종료하는 one-shot 방식이다. 같은 kind를 다시 만들려면 toolbar 본체 또는 popup `[삽입]`을 다시 실행하며 마지막 preset은 유지한다.
 
 ## 8. 직선·폐쇄 도형 선택과 geometry 편집
@@ -577,6 +580,9 @@ x2 += dx, y2 += dy
 - canvas 객체 선택은 panel row 선택과 즉시 동기화한다.
 - panel row 선택은 canvas selection과 handle을 즉시 갱신한다.
 - 단일 선택 active key와 selected key set을 분리한다.
+- active sheet 변경 시 객체 선택은 해제한다. `FortuneSheetObjectKey(kind, id)`에 sheet ID를 추가하거나 workbook 전체 ID 유일성을 가정하지 않으므로, 다른 sheet의 같은 kind/id 객체로 선택을 넘기지 않는다.
+- 같은 active sheet의 undo/redo와 외부 workbook 교체 뒤 selected key set을 현재 active sheet object key와 교집합으로 정리한다. active key가 더 이상 존재하지 않으면 남은 selected key 중 front-to-back 첫 key를 active로 정하고, 남은 선택이 없으면 null로 둔다.
+- object selection 자체는 undo history에 넣지 않는다. workbook 복원 뒤 존재하는 기존 선택만 유지하고 정리된 active/selected snapshot을 controller/listenable로 한 번 통지한다.
 - Shift 범위 선택, Ctrl/Meta toggle, Ctrl+A, keyboard navigation을 기존 panel 동작과 같게 유지한다.
 - 선택된 여러 행의 drag reorder는 선택 묶음의 내부 상대 순서를 유지한다.
 - 선택 묶음이 아닌 행 위로 drop하면 전체 공통 zOrder를 연속값으로 다시 매긴다.
@@ -635,6 +641,10 @@ x2 += dx, y2 += dy
 - 둥근 사각형만 corner radius mm
 
 shape 위치/크기/회전 field는 canvas handle과 같은 geometry commit API를 사용한다. 타원과 사각형에는 corner radius field를 표시하지 않는다.
+
+- geometry model의 X/Y, endpoint와 width/height는 항상 logical coordinate로 유지한다.
+- panel의 X/Y, endpoint, width/height와 read-only line length는 기존 이미지 dialog와 같이 physical-size가 있는 시트에서는 `mm`, 없으면 `px`로 표시하고 모든 field에 현재 단위 suffix를 표시한다.
+- panel commit은 공용 logical pixel↔mm helper로 표시값을 logical coordinate로 변환하며, 단위 전환 때문에 별도 raw geometry metadata를 추가하지 않는다.
 
 - X/Y는 기존 이미지 이동 bounds/clamp 정책을 사용한다.
 - width/height는 양수만 허용하며 현재 zoom에서 3px 미만이 되는 값은 commit하지 않는다.
@@ -734,7 +744,8 @@ nextPanelWidth = currentPanelWidth - delta.dx
 - local width가 760px 미만이면 dock panel을 자동 접는다.
 - 접힌 상태에서는 object 선택 여부와 무관하게 항상 보이는 32px 이하의 객체/레이어 icon button으로 overlay panel을 열 수 있다. 기존 active-image toolbar의 toggle command도 같은 open command를 호출한다.
 - overlay panel은 시트를 영구 축소하지 않고 현재 220px보다 넓은 최대 300px 범위에서 viewport 안에 맞춘다.
-- 다시 760px 이상이 되면 마지막 dock panel 폭으로 복원한다.
+- `userWantsDockOpen`, 현재 local width로 dock 가능한지 나타내는 `dockEligible`, 좁은 화면의 `overlayOpen` 상태를 분리한다. 자동 접기가 사용자의 open/closed 의도를 덮어쓰지 않는다.
+- 다시 760px 이상이 되면 마지막 dock panel 폭을 복원하되 dock 표시 여부는 `userWantsDockOpen`을 유지한다. 사용자가 넓은 화면에서 닫은 panel을 width 왕복만으로 다시 열지 않는다.
 - 좁은 화면에서 속성 form이 화면 밖으로 나가지 않도록 panel 내부를 scroll한다.
 
 ### 11.3 panel open/close와 폭 저장
@@ -745,6 +756,7 @@ nextPanelWidth = currentPanelWidth - delta.dx
 - splitter double-click은 기본 300px로 복원한다.
 - panel 폭은 `SharedPreferences`의 LabelSheet UI 전용 key에 저장하고 다음 workbench에서 복원한다. 저장값도 현재 local constraint로 다시 clamp하며 workbook save JSON에 넣지 않는다.
 - panel open/closed 상태는 현재 workbench session에서만 유지하고 라벨 파일에 저장하지 않는다.
+- narrow overlay open/closed는 dock 사용자 의도와 별개이며 overlay를 닫아도 `userWantsDockOpen`을 바꾸지 않는다.
 
 ### 11.4 resize 안정성
 
@@ -922,6 +934,7 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 ### 15.3 geometry/painter 테스트
 
 - solid/dashed/dotted/dashDot segment
+- dotted/dashDot의 지름 `1w` 원형 dot과 보이는 edge 기준 `2w` gap
 - horizontal/vertical/diagonal bounds
 - mm→logical width
 - point-to-segment hit tolerance
@@ -957,6 +970,9 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - shape body move, 8방향 resize와 rotation
 - shape resize/rotation 중 Shift modifier
 - pointer move 여러 번이어도 undo 1건
+- line 생성/move/endpoint, shape 생성/move/resize/rotation과 기존 image/barcode move/resize/rotation의 pointer move 중 workbook notification 0회, pointer up commit에서 `onChange`/`onOp`와 undo 각 1회
+- clean 상태의 첫 drag commit은 dirty true callback 1회, 이미 dirty인 다음 commit은 추가 dirty callback 0회
+- drag cancel과 최소 크기 미달은 workbook notification/undo/dirty 0회
 - line 선택 handle 2개와 zoom 고정 크기
 - shape resize handle 8개와 rotation handle 1개의 zoom 고정 크기
 - Delete/duplicate/copy/cut/paste
@@ -966,6 +982,10 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 
 - image/barcode/line/rectangle/roundedRectangle/ellipse front-to-back 목록
 - canvas↔panel 선택 동기화
+- active sheet 변경 시 object selection 해제, 같은 typed ID가 다른 sheet에 있어도 선택을 이전하지 않음
+- 같은 sheet의 undo/redo와 외부 workbook 교체 뒤 stale typed key 제거 및 정리된 selection notification 1회
+- object A 선택→workbook 편집→object B 선택→undo에서 존재하는 B 선택은 유지하고 selection 변경 자체는 dirty/undo를 만들지 않음
+- physical-size sheet의 X/Y/endpoint/width/height/length `mm` 표시·logical 양방향 변환과 physical metadata 없는 sheet의 `px` 표시·logical 값 유지
 - 단일 image/barcode/line/shape 속성 form 전환
 - rectangle/ellipse에는 radius field가 없고 roundedRectangle에만 표시
 - active object context menu의 타입별 편집 문구와 command 순서
@@ -987,7 +1007,8 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - double-click 기본 폭 복원
 - 저장된 panel 폭의 SharedPreferences round-trip과 local constraint 재-clamp
 - 760px 미만 dock 접기와 overlay fallback
-- 다시 넓어질 때 마지막 dock 폭 복원
+- 다시 넓어질 때 마지막 dock 폭과 사용자 open/closed 의도 복원
+- narrow overlay open/close가 dock 사용자 의도를 변경하지 않음
 - panel 폭 변경이 dirty/undo를 만들지 않음
 - 공용라벨관리 바깥 splitter와 중첩된 실제 builder 경로
 
@@ -1001,7 +1022,9 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - solid axis-aligned EZPL native 조건
 - unfilled solid black rectangle EZPL native 조건
 - native coordinate/stroke의 최소 1 dot과 0.5 dot 오차 제한
-- native 가능 barcode의 앞·뒤에 line/shape가 있을 때 공통 zOrder를 보존하고, 순서가 바뀌는 native barcode/cell-border 최적화는 bitmap fallback
+- native 가능 barcode의 앞·뒤에 line/shape가 있을 때 공통 object zOrder를 보존하고, 순서가 바뀌는 native barcode 최적화는 bitmap fallback
+- native 후보 line/rectangle의 앞·뒤에 raster image/barcode/shape가 있을 때 공통 object zOrder를 보존하고, 여러 native geometry 사이의 상대 순서도 paint order와 일치
+- cell base-layer border가 상부 객체와 겹칠 때 native border를 사용하지 않고 bitmap의 고정 순서를 보존
 - dashed/diagonal/color line bitmap fallback
 - filled rectangle/roundedRectangle/ellipse bitmap fallback
 - fallback 후 line/shape 중복 overlay 없음
@@ -1025,10 +1048,10 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 2. LabelSheet의 `sheet.lines`, `sheet.shapes` feature key, sanitizer, migration/normalize, label content 판정, print-area save와 save 테스트를 추가한다.
 3. typed object key/ref와 공통 zOrder 정렬·정규화 helper를 추가한다.
 4. line/shape 공용 geometry/stroke helper와 화면/capture painter를 추가한다.
-5. toolbar shape combo, geometry kind별 stroke/fill/radius preset과 line/shape drag 생성을 추가한다.
+5. toolbar shape combo, geometry kind별 stroke/fill/radius preset과 transient gesture draft 기반 line/shape drag 생성을 추가한다.
 6. line hit-test, 단일 선택, 본체 이동, endpoint handle과 keyboard 이동을 추가한다.
 7. shape hit-test, 본체 이동, 8방향 resize, rotation handle과 keyboard 이동을 추가한다.
-8. 기존 image layer selection state를 typed object selection으로 일반화하고 기존 회귀 테스트를 통과시킨다.
+8. 기존 image layer selection state를 typed object selection으로 일반화하고 기존 image/barcode geometry drag도 transient gesture commit 경계로 전환한 뒤 기존 회귀 테스트를 통과시킨다.
 9. 공통 object layer list와 단일/다중 선택 상태를 package controller로 노출한다.
 10. dock형 object panel을 만들고 기존 layer action을 연결한다.
 11. line/shape property form과 타입별 context menu를 연결한다.
@@ -1047,21 +1070,26 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 
 - 기존 images-only 라벨 파일이 이전과 같은 이미지·바코드로 열린다.
 - line 4종과 두께·색상·좌표·zOrder가 저장 후 동일하게 복원된다.
+- dotted/dashDot의 dot은 보이는 지름 `1w`인 원형 mark이고 인접 mark의 보이는 edge 사이 gap은 `2w`다.
 - rectangle/roundedRectangle/ellipse의 bounds·회전·stroke·fill·radius·zOrder가 저장 후 동일하게 복원된다.
 - 통합 shape toolbar가 image 앞에 있고 geometry kind별 style/width/color/fill/radius preset으로 생성된다.
 - line 본체와 endpoint hit-test가 얇은 선에서도 안정적으로 동작한다.
 - line body 이동, endpoint 이동, Shift snap과 keyboard 이동이 undo 1건 단위로 동작한다.
 - 폐쇄 도형 내부/테두리 hit-test, move, 8방향 resize, rotation과 modifier snap이 undo 1건 단위로 동작한다.
+- line 생성/move/endpoint, shape 생성/move/resize/rotation과 기존 image/barcode move/resize/rotation은 pointer move 중 workbook을 바꾸지 않고 pointer up에서 `onChange`/`onOp`와 undo를 각각 1회만 만든다. dirty는 clean 상태의 첫 commit에서만 true callback 1회, 이미 dirty인 후속 commit에서는 추가 callback 0회다.
 - 이미지·바코드·직선·폐쇄 도형이 같은 zOrder로 paint, hit-test, layer list, capture와 출력된다.
+- active sheet 변경 시 object selection을 해제하고, 같은 sheet의 undo/redo와 외부 workbook 교체 뒤에는 현재 sheet에 존재하는 typed key만 남는다. selection 자체는 dirty/undo 대상이 아니다.
 - 단일 선택은 타입별 속성, 다중 선택은 layer 조정 UI를 표시한다.
+- geometry 속성은 physical-size sheet에서 mm, 그 외에는 px로 표시하며 commit 뒤 model 좌표는 logical coordinate를 유지한다.
 - 기존 image/barcode 생성 dialog는 유지되고 기존 객체 편집은 panel 공용 validation/commit을 사용한다.
 - panel splitter가 260~420px 범위와 sheet 최소 폭을 지키며 drag 후 workbook/selection/zoom이 유지된다.
 - 좁은 workbench에서 dock이 겹치지 않고 overlay fallback으로 접근 가능하다.
+- width 변화에 따른 자동 접기와 사용자의 dock open/closed 의도가 서로 덮어쓰지 않는다.
 - panel 폭·열림·selection 변경이 workbook dirty/undo를 만들지 않는다.
 - capture/PDF/EZPL에 line/shapes가 포함되고 editor handle/panel이 출력되지 않는다.
 - `sheet.lines`, `sheet.shapes` feature key, allow-list, migration과 테스트가 함께 갱신된다.
 - 선·도형만 있는 `.lms`를 export할 수 있고 print-area 교차 geometry가 stroke와 회전을 포함한 bounds로 보존된다.
-- EZPL native barcode/cell-border와 신규 객체가 겹쳐도 화면의 공통 zOrder를 바꾸지 않는다.
+- EZPL native barcode/line/rectangle과 raster 객체가 겹쳐도 화면의 공통 object zOrder를 바꾸지 않고 native geometry끼리의 상대 순서도 유지하며, native cell border는 항상 상부 객체 아래인 base-layer 순서를 유지한다.
 - 관련 focused test와 기존 image/barcode/save/print 회귀 테스트가 통과한다.
 - `flutter analyze` issues 0, 변경 파일 diagnostics 오류 0, `git diff --check` 통과다.
 - 사용자 변경 `lib/core/app.dart`와 unrelated dirty 파일은 stage/commit하지 않는다.

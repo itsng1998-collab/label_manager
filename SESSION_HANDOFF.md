@@ -18,6 +18,18 @@
 - 최종 검증 완료: 두 문서 diagnostics 오류 0건, 저장/EZPL/canonical/cut 필수 계약 검색 및 독립 재검토 완료, `git diff --check -- doc/label_line_panel.txt SESSION_HANDOFF.md` 통과. 문서만 변경해 Flutter test/analyze는 실행하지 않았다.
 - stage/commit 대상: `doc/label_line_panel.txt`, `SESSION_HANDOFF.md`. 기존 사용자 변경 `lib/core/app.dart`는 제외하고 관련 문서만 커밋한다.
 
+### 완료 (2026-07-20): 선·도형 통합 지시서 interaction 계약 재보완
+- 사용자 요청: 최신 `doc/label_line_panel.txt`를 다시 실제 코드와 대조해 확인한 문제와 권장안을 지시서에 병합한다.
+- 사용자 확정: dotted와 dashDot의 dot은 centerline 길이 0의 round-cap mark로 그려 보이는 지름이 stroke width `1w`인 원형 점을 사용한다. gap은 인접 mark의 보이는 edge 사이 `2w`다.
+- drag 계약 보완 완료: line/shape와 기존 image/barcode geometry drag는 transient gesture draft를 사용하고 pointer move 중 workbook을 바꾸지 않으며 pointer up에서 `onChange`/`onOp`와 undo를 각각 1회만 만든다. dirty는 clean 상태의 첫 commit에서만 true로 전환한다.
+- 출력 계약 보완 완료: cell border는 object zOrder가 아닌 cell base layer로 분리하고, native border는 상부 객체 아래 순서를 지킬 때만 사용한다. native barcode/line/rectangle과 raster 객체의 앞뒤 순서가 바뀌면 bitmap fallback한다.
+- selection 계약 보완 완료: active sheet 변경 시 object selection을 해제하고 같은 sheet의 undo/redo·외부 workbook 교체에서는 현재 object key와 교집합으로 정리한다. selection 자체는 dirty/undo 대상이 아니다.
+- panel 계약 보완 완료: geometry model은 logical coordinate를 유지하고 physical-size sheet에서는 mm, 그 외에는 px로 표시·변환한다. `userWantsDockOpen`, `dockEligible`, `overlayOpen`을 분리해 자동 접기가 사용자 의도를 덮어쓰지 않는다.
+- 테스트 계약 보완 완료: drag notification/dirty/cancel, 기존 image/barcode drag, sheet 전환·undo selection, mm/px 양방향 변환, native geometry와 raster object 순서, base-layer border fallback을 추가했다.
+- 독립 재검토 보완 완료: 타입별 drag 범위를 line 생성/move/endpoint, shape 생성/move/resize/rotation, image/barcode move/resize/rotation으로 분리하고 `onChange`/`onOp`/undo·dirty callback 횟수, native geometry/raster 순서와 원형 dot 규격을 완료 조건까지 연결했다.
+- 최종 검증 완료: 두 문서 diagnostics 오류 0건, 필수 및 잔여 충돌 계약 검색, 두 차례 독립 재검토와 전체 diff 확인 완료, `git diff --check -- doc/label_line_panel.txt SESSION_HANDOFF.md` 통과. 문서만 변경해 Flutter test/analyze는 실행하지 않았다.
+- stage/commit 대상: `doc/label_line_panel.txt`, `SESSION_HANDOFF.md`. 기존 사용자 변경 `lib/core/app.dart`는 제외하고 관련 문서만 커밋한다.
+
 ### 완료 (2026-07-20): 자동품목갱신 탭 구현 지시서
 - 사용자 요청: 레거시 자동품목갱신 탭의 동작을 기준으로 현행 Flutter 품목관리 UI·플로팅창·취소/저장·SQLite 원복·편집 잠금을 재사용하는 `doc/automatic_item_update.txt` 구현 지시서를 작성한다.
 - 레거시 확인 범위: 미적용 품목 DB 조회, 번호/품목명/갱신날짜/라벨항목 컬럼, 팝업메뉴 활성 조건과 구현 여부, 품목 맨 끝 추가와 서버 기준 다음 날 기본 날짜, 삭제, 저장 transaction, F5/새로 고침의 미저장 변경 폐기 후 재조회 동작을 확인한다.
