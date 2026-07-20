@@ -16,6 +16,9 @@
 - 사용자 추가 확정: cross-sheet cut paste의 target에 같은 typed ID가 있으면 target 기존 객체를 유지하고 pasted 객체에 첫 충돌 없는 새 typed ID를 발급한다. 같은 sheet 또는 cross-sheet 비충돌이면 원본 ID를 유지한다.
 - raw·typed mutation 계약 재보완 완료: 중복 ID/비유한 zOrder/decoder 제외 entry가 있는 raw list는 빈 canonical model까지 포함해 재사용하지 않는다. 공유 images/shapes 배열의 조회·수정·삭제·reorder는 bare ID가 아닌 exact typed key와 검증된 source index만 사용한다.
 - clipboard·draft·endpoint 계약 재보완 완료: payload에 source sheet ID를 넣고 sheet별 cut ID 정책을 적용한다. 읽기 전용 copy는 workbook/undo/dirty/change callback을 바꾸지 않는다. property draft는 snapshot revision으로 stale focus-loss를 차단하고 endpoint Shift snap은 `y=0` 상단에서 방향을 유지해 절단한다.
+- 사용자 추가 확정: cut paste는 원래 geometry를 유지한다. copy paste와 clipboard 독립 duplicate만 기존 image parity의 logical `(+12,+12)` offset을 적용한다.
+- clipboard 수명·복제 계약 보완 완료: cut token은 source sheet revision과 undo/redo·외부 교체용 history-lineage generation으로 판정하며 source sheet 변경에서만 무효화한다. 성공한 cut paste는 payload를 소비하고 실패 시 유지한다. duplicate는 clipboard를 보존하고 typed/연결 ID를 새로 발급한다.
+- 공통 객체 계약 보완 완료: image/barcode까지 finite zOrder canonical save/raw 판정을 적용하고, property revision 증가 경계와 duplicate/paste 성공 선택을 고정했다. shape body move는 음수 X·right/bottom 초과를 허용하고 저장 top만 clamp한다.
 - 검증 완료: 두 문서 diagnostics 오류 0건, 필수·잔여 충돌 계약 검색과 전체 diff 검토 완료, `git diff --check -- doc/label_line_panel.txt SESSION_HANDOFF.md` 통과. 문서만 변경해 Flutter test/analyze는 실행하지 않았다.
 - stage/commit 대상: `doc/label_line_panel.txt`, `SESSION_HANDOFF.md`. 기존 사용자 변경 `lib/core/app.dart`는 제외하고 관련 문서만 커밋한다.
 

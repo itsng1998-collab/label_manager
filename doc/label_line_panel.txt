@@ -291,7 +291,7 @@ line[i]  = images.length + i
 shape[i] = images.length + lines.length + i
 ```
 
-배열 내부 순서는 zOrder 변경 때문에 재배열하지 않는다. 공통 accessor는 비유한 숫자/문자열 zOrder를 `0.0`으로 반환하고 최대값 계산은 유한값만 사용한다. 새 객체는 images/lines/shapes 전체의 유한한 최대 zOrder + 1을 받으므로 정상 편집 후 tie에 의존하지 않는다. 객체가 하나도 없거나 유효한 zOrder가 없으면 `1.0`을 사용한다.
+배열 내부 순서는 zOrder 변경 때문에 재배열하지 않는다. 공통 accessor와 canonical save는 image/barcode의 `extraFields.zOrder`와 line/shape의 zOrder 모두에서 비숫자·비유한 값을 `0.0`으로 처리하고 최대값 계산은 유한값만 사용한다. 기존 image/barcode raw 재사용 여부도 같은 canonical 판정에 포함한다. 새 객체는 images/lines/shapes 전체의 유한한 최대 zOrder + 1을 받으므로 정상 편집 후 tie에 의존하지 않는다. 객체가 하나도 없거나 유효한 zOrder가 없으면 `1.0`을 사용한다.
 
 레이어 순서 변경 후에는 이미지·바코드·직선·폐쇄 도형을 뒤에서 앞으로 순회해 `1.0, 2.0, ...` 연속 zOrder로 정규화한다. 저장 배열 자체를 Z-Order 목적으로 재배열하지 않고 각 typed model의 원래 배열 소유권을 유지한다.
 
@@ -535,6 +535,7 @@ x2 += dx, y2 += dy
 ### 8.5 폐쇄 도형 이동·resize·회전
 
 - shape body drag는 left/top에 같은 delta를 적용하고 width/height/rotation을 유지한다.
+- shape body move는 음수 X를 허용하고 저장 bounds의 top만 `0` 이상으로 clamp한다. 회전된 시각 bounds는 추가 clamp하지 않으며 canvas drag, keyboard move와 panel X/Y commit이 같은 규칙을 사용한다.
 - resize는 반대편 anchor를 고정하고 선택 handle 방향에 맞춰 bounds를 변경한다.
 - 모서리 resize에서 Shift를 누르면 현재 aspect ratio를 유지한다. 정사각형/원으로 강제하는 것은 생성 중 Shift에만 적용한다.
 - edge가 반대 anchor를 넘어가면 bounds와 active handle 방향을 정규화한다.
@@ -591,7 +592,7 @@ x2 += dx, y2 += dy
 - active sheet 변경 시 객체 선택은 해제한다. `FortuneSheetObjectKey(kind, id)`에 sheet ID를 추가하거나 workbook 전체 ID 유일성을 가정하지 않으므로, 다른 sheet의 같은 kind/id 객체로 선택을 넘기지 않는다.
 - 같은 active sheet의 undo/redo와 외부 workbook 교체 뒤 selected key set을 현재 active sheet object key와 교집합으로 정리한다. active key가 더 이상 존재하지 않으면 남은 selected key 중 front-to-back 첫 key를 active로 정하고, 남은 선택이 없으면 null로 둔다.
 - object selection 자체는 undo history에 넣지 않는다. workbook 복원 뒤 존재하는 기존 선택만 유지하고 정리된 active/selected snapshot을 controller/listenable로 한 번 통지한다.
-- property draft는 생성 시점의 `sheetId`, typed object key와 workbook/object revision을 함께 보관한다. undo/redo, 외부 workbook 교체, 선택 객체 삭제·ID 정규화처럼 canonical snapshot이 바뀌면 미commit draft를 폐기하고 현재 typed property snapshot으로 controller를 다시 구성한다. 이전 revision의 focus-loss callback은 no-op이며, splitter resize처럼 canonical snapshot이 바뀌지 않는 layout 변경에서는 draft를 유지한다.
+- property draft는 생성 시점의 `sheetId`, typed object key와 workbook/object revision을 함께 보관한다. workbook revision은 성공한 canonical workbook mutation, undo/redo 복원과 외부 workbook 교체마다 정확히 한 번 증가하고 selection, panel, splitter와 scroll 변경에서는 유지한다. object revision은 exact typed key의 model 교체·삭제·ID 변경 때 증가한다. draft commit/focus-loss는 캡처한 sheet/key/revision이 모두 일치할 때만 허용한다. 불일치하면 미commit draft를 폐기하고 현재 typed property snapshot으로 controller를 다시 구성하며, splitter resize처럼 canonical snapshot이 바뀌지 않는 layout 변경에서는 draft를 유지한다.
 - Shift 범위 선택, Ctrl/Meta toggle, Ctrl+A, keyboard navigation을 기존 panel 동작과 같게 유지한다.
 - 선택된 여러 행의 drag reorder는 선택 묶음의 내부 상대 순서를 유지한다.
 - 선택 묶음이 아닌 행 위로 drop하면 전체 공통 zOrder를 연속값으로 다시 매긴다.
@@ -868,10 +869,14 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 
 - image/barcode-only 기존 clipboard 동작을 유지한다.
 - line/shape-only와 mixed selection을 내부 clipboard payload로 지원한다.
-- payload는 source sheet ID, typed object kind와 각 model JSON을 구분한다.
-- copy/duplicate paste는 새 typed ID를 만들고 모든 pasted object를 현재 최대 zOrder 뒤에 원래 상대 순서로 추가한다.
-- copy paste offset은 기존 이미지 동작과 같은 logical delta를 사용한다.
-- cut paste는 source sheet와 target sheet가 같으면 원본 typed ID를 유지한다. 다른 sheet이면 target의 typed key와 같은 transaction 예약 ID를 검사하며, 충돌이 없으면 원본 ID를 유지하고 충돌하면 target 기존 객체를 보존한 채 pasted 객체에 첫 충돌 없는 새 typed ID를 발급한다. mixed selection도 객체별로 같은 규칙을 적용하고 paste 전체는 undo 1건이다.
+- payload는 source sheet ID, cut transaction/revision token, typed object kind와 각 model JSON을 구분한다.
+- copy paste는 새 typed ID를 만들고 모든 pasted object를 현재 최대 zOrder 뒤에 원래 상대 순서로 추가한다. image/barcode는 내부 typed ID뿐 아니라 editable 연결 이미지·바코드 ID도 active sheet의 기존 값과 transaction 예약값을 피해 새로 발급한다.
+- duplicate는 clipboard를 읽거나 변경하지 않는 독립 command다. 선택 객체를 즉시 한 번 복제해 새 typed ID와 최상단 zOrder를 주고 image/barcode 연결 ID도 새로 발급하며, 전체 command는 undo 1건이다.
+- copy paste와 duplicate는 기존 이미지 동작과 같은 logical `(+12, +12)` offset을 사용한다. line은 두 endpoint, shape/image/barcode는 left/top에 같은 delta를 적용하고 Y 상단 clamp를 적용한다.
+- cut paste는 사용자가 확정한 대로 geometry offset 없이 원래 위치를 유지하고 image/barcode 연결 ID도 보존한다. source sheet와 target sheet가 같으면 cut token이 유효하고 source typed key가 현재 부재할 때만 원본 typed ID를 유지한다. 다른 sheet이면 target의 typed key와 같은 transaction 예약 ID를 검사하며, 충돌이 없으면 원본 ID를 유지하고 충돌하면 target 기존 객체를 보존한 채 pasted 객체에 첫 충돌 없는 새 typed ID를 발급한다. 단순 ID 일치만으로 현재 target 객체를 제거하지 않는다.
+- cut token은 source sheet ID, cut commit 직후의 source sheet revision과 undo/redo·외부 workbook 교체 때만 바뀌는 history-lineage generation으로 구성한다. 단순 sheet 전환과 다른 sheet의 후속 편집은 token을 바꾸거나 payload를 무효화하지 않는다. source sheet의 후속 canonical mutation 또는 history-lineage generation 변경으로 token이 달라지면 내부 cut payload를 무효화한다. 성공한 cut paste는 payload를 즉시 소비하고, 권한·형식·target 충돌 검증 등으로 workbook을 바꾸지 못한 paste는 payload를 유지한다.
+- mixed selection도 객체별 ID/연결 ID/offset 규칙을 적용한다. 성공한 paste 전체는 undo 1건이다.
+- 성공한 duplicate/paste는 새 객체 전체만 selected set으로 만들고 그중 frontmost를 active key로 지정한다. copy와 실패한 paste는 기존 선택을 유지하며 undo/redo 뒤에는 §9.2의 typed-key 교집합 정리를 적용한다.
 
 ### 13.3 focus와 keyboard
 
@@ -934,6 +939,7 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - raw metadata preservation 경계
 - 같은 typed kind의 중복 ID 첫 source-sequence entry 유지, 이미 사용된 suffix를 건너뛴 후속 `{id}__2`, `__3` 결정적 재발급과 연결 ID metadata 유지
 - 숫자/문자열 `NaN`, `Infinity`, `-Infinity` zOrder의 `0.0` canonical decode/save와 stable tie
+- 기존 image/barcode `extraFields.zOrder`의 비숫자·비유한 값 `0.0` canonical save와 raw 비재사용
 - 중복 ID 재발급, 비숫자/비유한 zOrder, decoder 제외 entry와 빈 canonical model에서 비정상 raw list를 재사용하지 않고 canonical encode
 
 ### 15.2 save codec 테스트
@@ -1002,10 +1008,15 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - line 선택 handle 2개와 zoom 고정 크기
 - shape resize handle 8개와 rotation handle 1개의 zoom 고정 크기
 - Delete/duplicate/copy/cut/paste
-- mixed image/barcode/line/shape cut은 즉시 삭제와 undo 1건, paste는 별도 undo 1건, copy/duplicate paste는 새 typed ID 발급
+- mixed image/barcode/line/shape cut은 즉시 삭제와 undo 1건, paste는 별도 undo 1건, copy paste와 독립 duplicate는 새 typed ID 발급
 - 신규/복제/paste allocator의 기존 typed ID와 같은 transaction 예약 ID 충돌 회피
+- duplicate가 기존 clipboard를 유지하면서 새 typed ID·연결 ID·최상단 zOrder·`(+12,+12)` offset을 적용하고 undo 1건 생성
+- copy paste의 새 typed ID·연결 ID·`(+12,+12)` offset과 cut paste의 원래 geometry·연결 ID 유지
+- image/barcode copy paste·duplicate 연결 ID allocator가 active sheet의 기존 연결 ID와 mixed transaction 예약 ID 충돌을 모두 회피
 - 같은 ID의 image/barcode 및 rectangle/roundedRectangle/ellipse를 exact typed key로 각각 조회·수정·삭제·reorder
 - same-sheet cut paste의 원본 ID 유지, cross-sheet 비충돌 유지와 충돌 시 target 보존·pasted ID 재발급
+- cut→undo/redo·외부 workbook 교체·source sheet 후속 canonical mutation 뒤 stale cut payload 무효화, 단순 sheet 전환과 다른 sheet 편집 뒤 유지, 성공 paste 뒤 소비와 실패 paste 뒤 유지
+- duplicate/paste 성공 뒤 새 객체만 선택·frontmost active, copy/실패 paste의 기존 선택 유지
 - object mutation은 `allowEdit == false`에서 모두 차단되고 panel selection/copy는 허용됨
 - `allowEdit == false` object copy 전후 workbook JSON 불변과 undo/dirty/`onChange`/`onOp` 0회
 - 보호/locked cell selection이 object mutation enablement를 바꾸지 않고 `allowEdit == true`이면 동일하게 동작함
@@ -1017,6 +1028,8 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - active sheet 변경 시 object selection 해제, 같은 typed ID가 다른 sheet에 있어도 선택을 이전하지 않음
 - 같은 sheet의 undo/redo와 외부 workbook 교체 뒤 stale typed key 제거 및 정리된 selection notification 1회
 - undo/redo, 외부 workbook 교체, 객체 삭제·ID 정규화 뒤 stale property draft 폐기와 이전 revision focus-loss no-op, splitter resize에서는 draft 유지
+- canonical mutation/undo/redo/외부 교체의 workbook revision 정확히 1회 증가, exact object 교체·삭제·ID 변경의 object revision 정확히 1회 증가와 UI-only 변경의 revision 불변
+- shape body move와 copy paste/duplicate offset의 음수 X 허용, top `0` clamp, right/bottom 초과 허용과 회전 시각 bounds 무-clamp
 - object A 선택→workbook 편집→object B 선택→undo에서 존재하는 B 선택은 유지하고 selection 변경 자체는 dirty/undo를 만들지 않음
 - physical-size sheet의 X/Y/endpoint/width/height/length `mm` 표시·logical 양방향 변환과 physical metadata 없는 sheet의 `px` 표시·logical 값 유지
 - 단일 image/barcode/line/shape 속성 form 전환
@@ -1108,6 +1121,7 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - line 4종과 두께·색상·좌표·zOrder가 저장 후 동일하게 복원된다.
 - 같은 sheet/kind의 중복 내부 ID는 첫 entry를 유지하고 후속 entry에 결정적인 충돌 없는 ID를 발급하며 연결 ID metadata는 유지된다.
 - 비유한 zOrder는 `0.0`으로 canonicalize되고 공통 정렬과 다음 객체 zOrder는 유한값만 사용한다.
+- 기존 image/barcode의 비숫자·비유한 extraFields zOrder도 `0.0`으로 canonicalize되고 비정상 raw를 재사용하지 않는다.
 - ID/zOrder canonicalization 또는 invalid entry 제외가 발생한 raw list는 재사용하지 않고 canonical wire로 저장된다.
 - dotted/dashDot의 dot은 보이는 지름 `1w`인 원형 mark이고 인접 mark의 보이는 edge 사이 gap은 `2w`다.
 - rectangle/roundedRectangle/ellipse의 bounds·회전·stroke·fill·radius·zOrder가 저장 후 동일하게 복원된다.
@@ -1118,11 +1132,13 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - 폐쇄 도형 내부/테두리 hit-test, move, 8방향 resize, rotation과 modifier snap이 undo 1건 단위로 동작한다.
 - object mutation은 모두 `allowEdit` 공통 guard를 사용하며 현재 cell selection protection에 따라 허용 여부가 달라지지 않는다.
 - move/resize/rotation과 panel geometry commit은 X 음수 허용, Y/left/top clamp, right/bottom 허용과 rotation 무-clamp의 기존 이미지 parity를 따른다.
+- shape body move는 음수 X와 right/bottom 초과를 허용하고 저장 top만 `0` 이상으로 clamp하며 회전된 시각 bounds를 추가 clamp하지 않는다.
 - line 생성/move/endpoint, shape 생성/move/resize/rotation과 기존 image/barcode move/resize/rotation은 pointer move 중 workbook을 바꾸지 않고 pointer up에서 `onChange`/`onOp`와 undo를 각각 1회만 만든다. dirty는 clean 상태의 첫 commit에서만 true callback 1회, 이미 dirty인 후속 commit에서는 추가 callback 0회다.
 - 이미지·바코드·직선·폐쇄 도형이 같은 zOrder로 paint, hit-test, layer list, capture와 출력된다.
 - 공유 배열의 같은 문자열 ID 객체도 exact typed key로 격리되어 조회·편집·삭제·reorder된다.
 - active sheet 변경 시 object selection을 해제하고, 같은 sheet의 undo/redo와 외부 workbook 교체 뒤에는 현재 sheet에 존재하는 typed key만 남는다. selection 자체는 dirty/undo 대상이 아니다.
 - canonical snapshot 변경 뒤 stale property draft는 commit되지 않고, splitter layout 변경에서는 현재 draft가 유지된다.
+- workbook/object revision은 canonical 변경에만 증가하고 UI-only 변경에서는 유지된다.
 - 단일 선택은 타입별 속성, 다중 선택은 layer 조정 UI를 표시한다.
 - geometry 속성은 physical-size sheet에서 mm, 그 외에는 px로 표시하며 commit 뒤 model 좌표는 logical coordinate를 유지한다.
 - panel list, canvas object, canvas cell과 editable field의 Arrow key 동작은 실제 focus에 따라 분리된다.
@@ -1133,6 +1149,8 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - panel 폭·열림·selection 변경이 workbook dirty/undo를 만들지 않는다.
 - 읽기 전용 object copy는 clipboard/UI state만 바꾸고 workbook JSON, undo, dirty와 change callback을 바꾸지 않는다.
 - same-sheet cut paste는 원본 typed ID를 유지하며 cross-sheet 충돌은 target 객체를 보존하고 pasted 객체 ID를 재발급한다.
+- cut paste는 원래 geometry와 image/barcode 연결 ID를 유지하고, copy paste와 clipboard 독립 duplicate만 `(+12,+12)` offset과 새 연결 ID를 사용한다.
+- stale cut payload는 source history 변경 시 무효화되고 성공한 cut paste 뒤 소비되며, 성공한 duplicate/paste는 새 객체만 선택하고 frontmost를 active로 둔다.
 - capture/PDF/EZPL에 line/shapes가 포함되고 editor handle/panel이 출력되지 않는다.
 - `sheet.lines`, `sheet.shapes` feature key, allow-list, migration과 테스트가 함께 갱신된다.
 - `.lms` 초기 로드, 라벨 파일에서 불러오기와 `.xlsx` import가 모두 현재 save format migrate/normalize 경계를 거치며, XLSX drawing은 line/shape로 추론하지 않는다.
