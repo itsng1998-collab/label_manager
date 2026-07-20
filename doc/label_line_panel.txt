@@ -228,7 +228,7 @@ FortuneShapeKind.ellipse          <-> "ellipse"
 
 1. `_labelSheetSaveFeatureKeys`의 맨 끝에 `sheet.lines`, 그 다음 `sheet.fortuneShapes`를 추가한다. 기존 feature의 version 번호가 바뀌지 않도록 중간에 삽입하지 않는다.
 2. `labelSheetSaveFeatureVersions` 자동 version 증가 확인
-3. `_supportedSheetKeys`에 `lines`, `fortuneShapes`를 추가하고 기존 raw overlay `shapes`도 호환 key로 허용한다. 단 `shapes`는 typed list sanitizer에 연결하지 않고 map/list 및 JSON-safe 하위 값만 재귀 복사하는 전용 raw overlay pass-through로 처리해 `.lms` 재저장에서 보존한다.
+3. `_supportedSheetKeys`에 `lines`, `fortuneShapes`를 추가하고 기존 raw overlay `shapes`도 호환 key로 허용한다. 단 `shapes`는 typed list sanitizer에 연결하지 않고 전용 raw overlay pass-through로 처리한다. JSON-safe leaf는 `null`, `bool`, `String`, finite `num`만 허용하고 map은 `String` key, list/map descendant는 같은 규칙을 재귀 적용한다. cycle, 비문자열 map key, 비유한 숫자나 그 밖의 객체가 하나라도 있으면 사용자가 확정한 대로 부분 가지치기·문자열 변환 없이 해당 sheet의 legacy `shapes` 값 전체만 제외하고 나머지 sheet/workbook 저장은 계속한다.
 4. `_supportedLineKeys` 추가
 5. `_supportedShapeKeys` 추가
 6. `_sanitizeSheetJson()`에서 `lines`, `fortuneShapes` list sanitizer와 legacy `shapes` raw overlay pass-through 연결
@@ -247,6 +247,7 @@ allow-list는 다음 key로 고정한다.
 - feature version은 `_labelSheetSaveFeatureKeys`의 index/순서에서 파생되는 기존 방식을 유지한다. `sheet.lines`와 `sheet.fortuneShapes`를 끝에 순서대로 append해 두 개의 연속된 신규 version을 만들고 기존 key의 version은 바꾸지 않는다.
 - feature map은 migration 이력/capability 판정에만 사용한다. 이전 version이나 feature 누락만으로 payload의 `lines`/`fortuneShapes`를 지우지 않으며 해당 payload key 자체가 없는 sheet만 decode model에서 빈 list로 해석한다.
 - LabelSheet sanitizer는 JSON-safe 구조, supported key/type와 allow-list 필터만 담당한다. geometry fallback, ID trim/중복 재발급, 색상·회전 canonicalization과 raw-list 재사용 판정은 FortuneSheet decode/encode codec이 소유한다. `labelSheetNormalizeWorkbookForCurrentSaveFormat()`은 별도 canonicalizer가 아니라 실제 encode→migrate→sanitize→decode 진입점이다.
+- legacy raw `shapes` sanitizer는 성공 시 원래 JSON-safe 구조를 그대로 복사하고 invalid descendant가 있으면 overlay 전체를 omit한다. 일부 map entry/list item만 제거하거나 `null`로 바꾼 결과를 raw 보존으로 취급하지 않는다.
 - absent `lines`/`fortuneShapes`와 빈 list는 decode model에서 같은 empty list다. 기존 images wire 규칙과 같이 canonical encoder는 빈 typed list key를 생략하고, raw empty key를 그대로 재사용해야 하는 경우에만 원래 raw key/value를 보존한다. save/import 테스트는 `"lines": []`/`"fortuneShapes": []` key 존재가 아니라 decoded empty model과 반복 encode 안정성을 검증한다.
 - codec fallback 또는 canonical normalize가 적용된 entry는 비정상 raw wire를 그대로 재사용하지 않는다. raw list 전체를 재사용하려면 raw entry 수가 canonical model entry 수와 같고 각 entry의 모든 canonical field가 fallback/normalize 없이 유효한 wire여야 한다. 여기에는 필수 field와 ID, geometry의 유한한 JSON number·양수 bounds, zOrder, stroke style, `strokeWidthMm` 범위, `strokeColor`/`fillColor`, shape kind, rotation과 kind별 `cornerRadiusMm`이 포함된다. 중복 ID 재발급, 비숫자/비유한 값 fallback, invalid color/style/range fallback 또는 decoder에서 제외된 entry가 하나라도 있으면 빈 canonical model을 포함해 해당 raw list 전체를 폐기하고 canonical encode한다.
 - 저장할 때마다 zOrder를 임의 재정렬하지 않는다. zOrder 연속값 정규화는 사용자가 layer reorder/앞뒤 이동 command를 실행한 transaction 안에서만 수행한다.
@@ -727,6 +728,7 @@ shape 위치/크기/회전 field는 canvas handle과 같은 geometry commit API�
 - dialog 취소와 이미지 file picker 취소, validation 실패 및 barcode renderer 실패는 workbook, selection, panel open 상태, undo, dirty, `onChange`, `onOp`를 바꾸지 않는다.
 - 기존 객체의 일반 편집은 panel로 이전한다.
 - 이미지 파일 교체는 panel의 파일 선택 button을 사용한다.
+- panel 이미지 파일 교체도 호출 시 `sheetId`, image exact typed key, workbook identity/history generation, per-sheet/object revision과 증가하는 picker token을 캡처한다. picker 대기 중 selection 변경은 허용하되 성공 결과는 원래 exact key에만 귀속한다. 반환 직전 owner/revision/token과 `allowEdit`를 다시 확인하고 원 객체 삭제·교체·ID 변경, undo/redo·외부 workbook 교체 또는 더 최신 picker 호출 뒤의 결과는 decoded resource를 정리하고 workbook/draft/selection을 바꾸지 않는다. 현재 active image로 대상을 바꾸거나 같은 ID의 새 객체에 적용하지 않는다.
 - 이미지 crop처럼 별도 canvas가 필요한 기능은 panel button에서 기존 전용 dialog를 열 수 있다.
 
 ### 10.2 중복 구현 금지
@@ -794,7 +796,7 @@ nextPanelWidth = currentPanelWidth - delta.dx
 - 접힌 상태에서는 object 선택 여부와 무관하게 항상 보이는 32px 이하의 객체/레이어 icon button으로 overlay panel을 열 수 있다. 기존 active-image toolbar의 toggle command도 같은 open command를 호출한다.
 - overlay panel은 시트를 영구 축소하지 않고 현재 220px보다 넓은 최대 300px 범위에서 viewport 안에 맞춘다.
 - `userWantsDockOpen`, 현재 local width로 dock 가능한지 나타내는 `dockEligible`, 좁은 화면의 `overlayOpen` 상태를 분리한다. 자동 접기가 사용자의 open/closed 의도를 덮어쓰지 않는다.
-- panel controller, active property draft, selection과 field controller는 dock/overlay presentation widget보다 상위에서 소유해 760px 경계 전환으로 dispose·재생성하지 않는다. 사용자가 확정한 대로 wide→narrow에서 overlay를 자동으로 열거나 focus를 옮기지 않고, narrow→wide에서도 dock을 자동으로 열거나 field focus를 이전하지 않는다. 경계 전환 자체는 draft를 finalize·commit·폐기하지 않으며 기존 `userWantsDockOpen`, `overlayOpen`과 실제 FocusNode 소유권을 유지한다.
+- panel controller, active property draft, selection과 field controller는 dock/overlay presentation widget보다 상위에서 소유해 760px 경계 전환으로 dispose·재생성하지 않는다. 사용자가 확정한 대로 wide→narrow에서 overlay open command를 발생시키거나 focus를 옮기지 않고, narrow→wide에서도 dock open command/callback을 발생시키거나 field focus를 이전하지 않는다. 경계 전환 자체는 draft를 finalize·commit·폐기하거나 `userWantsDockOpen`/`overlayOpen`을 변경하지 않으며 실제 FocusNode 소유권을 유지한다. 단 narrow 진입 전 보존된 `userWantsDockOpen == true`이면 wide layout 복귀 시 dock이 다시 표시되고 false이면 숨김을 유지하는 것은 새 open command가 아니라 기존 사용자 의도의 presentation 복원이다.
 - 다시 760px 이상이 되면 마지막 dock panel 폭을 복원하되 dock 표시 여부는 `userWantsDockOpen`을 유지한다. 사용자가 넓은 화면에서 닫은 panel을 width 왕복만으로 다시 열지 않는다.
 - 좁은 화면에서 속성 form이 화면 밖으로 나가지 않도록 panel 내부를 scroll한다.
 
@@ -921,7 +923,8 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - payload는 source sheet ID, cut transaction/revision token, typed object kind와 각 model JSON을 구분한다.
 - object copy/cut은 payload version이 포함된 opaque clipboard marker를 `Clipboard.kTextPlain`에 기록한다. paste 직전에 현재 system clipboard text가 payload와 함께 저장한 marker와 정확히 일치할 때만 내부 object payload를 사용한다. 다르면 object paste는 workbook·selection·payload를 바꾸지 않고 no-op한 뒤 기존 cell/text paste 경로에 제어를 넘긴다. 이 marker는 clipboard 소유권 판정 전용이며 아래 구조화 연결 ID 판정 금지 marker와 무관하다.
 - Ctrl/Meta+V는 system clipboard를 정확히 한 번 읽는 async paste coordinator가 소유한다. marker가 일치하면 object paste만 실행하고, 불일치하면 같은 clipboard data를 기존 cell/text paste API에 전달해 정확히 한 번 실행한다. key event를 먼저 소비한 뒤 별도 handler로 되돌려 보내거나 object/cell paste를 동시에 시작하지 않는다.
-- object copy는 clipboard marker 기록이 성공한 뒤 내부 payload를 활성화한다. object cut은 marker 기록 성공을 기다린 뒤에만 source 삭제, undo/dirty/change transaction과 내부 payload 활성화를 수행한다. clipboard 기록 실패·예외에서는 workbook, selection, 내부 payload, undo, dirty와 callback을 바꾸지 않는다.
+- paste key event를 소비할 때 target workbook identity/history generation, active sheet ID와 기존 cell/text fallback에 필요한 selection snapshot을 캡처한다. 사용자가 확정한 대로 clipboard read 완료 뒤 target owner 또는 selection이 달라졌으면 object paste와 fallback cell/text paste를 모두 실행하지 않는다. marker 판정과 선택된 한 paste 경로는 캡처한 target snapshot이 여전히 현재 값과 일치할 때만 이를 사용하며 완료 시점의 새 active sheet/selection을 추종하지 않는다.
+- object copy는 clipboard marker 기록이 성공한 뒤 내부 payload를 활성화한다. object cut은 호출 시 source workbook identity/history generation, sheet ID, per-sheet revision, exact typed key 집합과 각 canonical source model을 캡처하고 marker 기록 성공을 기다린다. 성공 후 삭제 직전에 같은 owner/revision, 모든 exact key가 같은 canonical model을 가리키는지와 `allowEdit`를 다시 확인한 경우에만 source 삭제, undo/dirty/change transaction과 내부 payload 활성화를 수행한다. 대기 중 selection/panel 상태만 바뀌고 source model이 같으면 계속하며, source mutation·삭제·교체·ID 변경, undo/redo·외부 workbook 교체 또는 권한 변경이면 marker가 기록됐더라도 삭제와 내부 payload 활성화 없이 종료한다. clipboard 기록 실패·예외에서도 workbook, selection, 내부 payload, undo, dirty와 callback을 바꾸지 않는다.
 - copy paste는 새 typed ID를 만들고 모든 pasted object를 현재 최대 zOrder 뒤에 원래 상대 순서로 추가한다. 해당 kind의 host `imageObjectOptions`/`barcodeObjectOptions`가 비어 있지 않은 구조화 mode에서는 현재 option 목록에서 빠진 stale 연결 ID도 기존 데이터 바인딩으로 보존한다. 해당 kind의 options가 비어 있는 host에서만 legacy/자동 editable 연결 ID를 active sheet의 기존 값과 transaction 예약값을 피해 새로 발급한다. 별도 저장 marker를 추가하거나 ID prefix로 구조화 여부를 추론하지 않는다.
 - duplicate는 clipboard를 읽거나 변경하지 않는 독립 command다. 선택 객체를 즉시 한 번 복제해 새 typed ID와 최상단 zOrder를 주고, 현재 kind host가 구조화 mode이면 stale 값을 포함한 연결 ID를 보존하며 options가 비어 있는 host의 editable 연결 ID만 새로 발급한다. 전체 command는 undo 1건이다.
 - copy paste와 duplicate는 기존 이미지 동작과 같은 logical `(+12, +12)` offset을 사용한다. line은 두 endpoint, shape/image/barcode는 left/top에 같은 delta를 적용하고 Y 상단 clamp를 적용한다.
@@ -1019,6 +1022,7 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - `.xlsx` raw parser 계약은 유지하고 LabelSheet workbench 적용 경계에서만 normalize하며 geometry 또는 legacy raw `shapes`를 추론하지 않고 빈 lines/fortuneShapes model을 가진 현재 save format이 됨
 - absent/빈 lines/fortuneShapes의 동일 empty model decode, canonical empty key 생략과 반복 encode 안정성
 - 기존 raw overlay `shapes` map/list의 FortuneSheet codec 원형 round-trip·기존 painter/capture 유지와 동시 `fortuneShapes` 무충돌
+- legacy raw `shapes`의 `null`/bool/String/finite num과 String-key map/list는 구조 그대로 round-trip하고, 비문자열 map key·비유한 num·지원하지 않는 객체 또는 cycle descendant가 하나라도 있으면 해당 `shapes` key 전체만 omit한 뒤 나머지 workbook `jsonEncode`와 `.lms` round-trip은 성공함
 - `.lms` export/import round-trip
 - 선·도형만 있는 `.lms`의 export 활성화와 round-trip
 - 원래 print-area logical rect와 line/fill 없는 shape의 실제 stroked path 또는 채움 shape의 회전 fill 영역·outline이 교차·경계 접촉하는 exact key만 먼저 확정하고 padded bounds로 row/column을 확장하며, AABB 모서리만 겹치는 shape와 확장 bounds에서 새로 만난 이웃 객체는 제외함
@@ -1095,13 +1099,15 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - line 선택 handle 2개와 zoom 고정 크기
 - shape resize handle 8개와 rotation handle 1개의 zoom 고정 크기
 - Delete/duplicate/copy/cut/paste
-- mixed image/barcode/line/shape cut은 clipboard marker 기록 성공 뒤 삭제와 undo 1건, paste는 별도 undo 1건, copy paste와 독립 duplicate는 새 typed ID 발급
+- mixed image/barcode/line/shape cut은 clipboard marker 기록 성공과 source owner/revision/exact model/권한 재검증 뒤에만 삭제와 undo 1건, paste는 별도 undo 1건, copy paste와 독립 duplicate는 새 typed ID 발급
 - 신규/복제/paste allocator의 기존 typed ID와 같은 transaction 예약 ID 충돌 회피
 - duplicate가 기존 clipboard를 유지하면서 새 typed ID·최상단 zOrder·`(+12,+12)` offset을 적용하고 구조화 연결 ID는 보존, editable 연결 ID는 재발급하며 undo 1건 생성
 - copy paste의 새 typed ID·`(+12,+12)` offset, 구조화 연결 ID 보존·editable 연결 ID 재발급과 cut paste의 원래 geometry·연결 ID 유지
 - object copy/cut marker가 현재 system clipboard와 일치할 때만 mixed payload를 paste하고, 이후 외부 text copy로 marker가 달라지면 stale object paste를 하지 않고 기존 cell/text paste 경로에 제어를 넘김
 - Ctrl/Meta+V coordinator가 clipboard를 한 번만 읽고 marker 일치 시 object paste, 불일치 시 같은 data의 기존 cell/text paste를 각각 정확히 한 번만 실행함
 - `Completer` 기반 clipboard marker 기록 테스트에서 Future 완료 전 workbook/selection/payload/undo/dirty/callback 불변, 성공 완료 뒤 copy payload 활성화 또는 cut 삭제 transaction 정확히 1회, 실패·예외 완료 뒤 완전한 no-op
+- `Completer` 기반 cut 대기 중 단순 selection/panel 변경은 원 source exact models가 같으면 성공 후 삭제하고, source mutation·삭제·교체·ID 변경·권한 해제·undo/redo·외부 교체는 marker 성공 뒤에도 삭제/payload/undo/dirty/callback 없는 no-op
+- `Completer` 기반 paste clipboard read 중 active sheet/selection 또는 workbook history owner가 바뀌면 object와 fallback cell/text paste가 모두 0회이고, owner가 유지되면 marker 일치/불일치 경로가 호출 시점 sheet·selection snapshot에 정확히 1회 적용됨
 - 구조화 image/barcode duplicate·copy paste 뒤 직렬화 model에 구조화 여부를 판별하는 신규 extraFields marker가 없고 ID prefix를 판정에 사용하지 않으며, system clipboard marker는 model JSON에 저장되지 않음
 - image/barcode copy paste·duplicate의 option 없는 editable 연결 ID allocator가 active sheet의 기존 연결 ID와 mixed transaction 예약 ID 충돌을 모두 회피
 - 같은 ID의 image/barcode 및 rectangle/roundedRectangle/ellipse를 exact typed key로 각각 조회·수정·삭제·reorder
@@ -1147,6 +1153,7 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - option 목록에 없는 non-empty image/barcode 연결 ID를 panel open과 연결 ID/source 미변경 commit에서 보존함. barcode는 명시적 `연결 안 함`에서 metadata를 제거하고 linked image는 아래 새 파일 필수 조건을 따름
 - linked image의 `연결 안 함`은 새 파일 선택 성공 때만 commit되고 파일이 없으면 validation과 기존 linked image/metadata를 유지함
 - stale ID linked image의 파일 교체가 연결 ID와 `left/top/width/height/rotation` 및 기타 metadata를 유지한 채 `src`·`originWidth`·`originHeight`만 바꾸고, 고정 image의 파일 교체는 연결 metadata를 새로 만들지 않음
+- panel image picker pending 중 selection을 다른 image로 바꿔도 성공 결과는 호출 시점 exact image에만 적용되고, 원 객체 삭제·교체·ID 변경·권한 해제·undo/redo·외부 교체와 A 뒤 B picker 역순 완료에서는 stale resource 정리와 workbook/draft/selection no-op
 - 기존 회전 바코드의 panel open이 rotation metadata의 동등한 canonical 값을 표시하고 무변경 `[적용]`은 같은 시각 회전을 render request/replacement에 보존하며, `-90`/`360`/`450`은 `270`/`0`/`90`으로 정규화되고 비숫자·`NaN`·무한대는 `0` fallback, 변경 적용은 유한값 검증 뒤 저장·capture에 반영됨
 - barcode panel `[적용]` pending 중 selection 변경 뒤 원래 exact key/revision commit, 객체 삭제·교체·ID 변경·undo/redo·외부 교체 뒤 늦은 결과 폐기와 null/예외 inline 실패
 - 같은 barcode object의 panel 적용 A pending 중 B를 시작하면 A가 즉시 stale·blocking 제외됨. B→A 완료에서는 B만 commit·blocking 해제하고 후속 A는 no-op이며, A→B 완료에서는 선행 A가 pending/UI/workbook/undo/callback과 blocking을 바꾸지 않고 B 완료에서만 commit·blocking 해제함. 다른 barcode key의 동시 적용은 차단함
@@ -1163,8 +1170,8 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - double-click 기본 폭 복원
 - 저장된 panel 폭의 SharedPreferences round-trip과 local constraint 재-clamp
 - 760px 미만 dock 접기와 overlay fallback
-- wide↔narrow 경계 왕복에서 panel controller/property draft/selection/field controller identity 유지, draft finalize 0회, overlay/dock 자동 open과 focus 이동 0회
-- 다시 넓어질 때 마지막 dock 폭과 사용자 open/closed 의도 복원
+- wide↔narrow 경계 왕복에서 panel controller/property draft/selection/field controller identity 유지, draft finalize 0회, `userWantsDockOpen`/`overlayOpen` 변경과 overlay/dock open command/callback 및 focus 이동 0회
+- 다시 넓어질 때 마지막 dock 폭을 복원하고 기존 `userWantsDockOpen == true`이면 dock 표시, false이면 숨김을 유지하되 새 open command/callback은 발생하지 않음
 - narrow overlay open/close가 dock 사용자 의도를 변경하지 않음
 - panel 폭 변경이 dirty/undo를 만들지 않음
 - 공용라벨관리 바깥 splitter와 중첩된 실제 builder 경로
@@ -1218,7 +1225,7 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 ## 16. 구현 순서
 
 1. 공통 stroke style, `FortuneLine`, `FortuneShape`, shape kind, `FortuneSheet.lines/shapes`와 codec을 추가한다. `lines`/`fortuneShapes`의 typed 단독 소유, ID wire validation과 images raw 재사용 경계를 포함한 model/codec 테스트를 통과시킨다.
-2. LabelSheet의 `sheet.lines`, `sheet.fortuneShapes` feature key, sanitizer, migration/normalize, label content 판정과 save 테스트를 추가하고 legacy raw overlay `shapes`와 분리한다. 원래 print-area rect에서 exact geometry key를 확정한 뒤 padded bounds로 범위만 확장하는 print-area save를 연결한다.
+2. LabelSheet의 `sheet.lines`, `sheet.fortuneShapes` feature key, sanitizer, migration/normalize, label content 판정과 save 테스트를 추가하고 legacy raw overlay `shapes`와 분리한다. legacy `shapes`는 JSON-safe 구조만 원형 복사하고 invalid descendant가 있으면 overlay 전체만 omit한다. 원래 print-area rect에서 exact geometry key를 확정한 뒤 padded bounds로 범위만 확장하는 print-area save를 연결한다.
 3. typed object key/ref, exact-key resolver/mutation, 중복 ID normalize/allocator와 finite zOrder 정렬·정규화 helper를 추가한다.
 4. line/shape 공용 geometry/stroke helper와 화면/capture painter를 추가한다.
 5. toolbar shape combo, geometry kind별 stroke/fill/radius preset과 transient gesture draft 기반 line/shape drag 생성을 추가한다.
@@ -1228,9 +1235,9 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 9. 공통 object layer list와 단일/다중 선택 상태를 package controller로 노출한다.
 10. dock형 object panel을 만들고 exact target key+before/after drag reorder를 포함한 기존 layer action을 연결한다.
 11. line/shape property form과 타입별 context menu를 연결한다.
-12. 기존 image/barcode 편집 validation/commit, linked image 해제의 새 파일 필수 조건과 barcode rotation/latest-request render/metadata 보존을 공용 API로 추출하고 panel form을 연결한다. 생성 dialog는 같은 API를 사용하도록 유지한다.
+12. 기존 image/barcode 편집 validation/commit, linked image 해제의 새 파일 필수 조건, panel image picker의 exact-key owner/token 검증과 barcode rotation/latest-request render/metadata 보존을 공용 API로 추출하고 panel form을 연결한다. 생성 dialog는 같은 API를 사용하도록 유지한다.
 13. `LabelSheetWorkbench`에 splitter, panel width clamp, 접기와 narrow overlay fallback을 연결한다. panel controller/draft를 presentation보다 상위에 유지하고 경계 전환의 자동 open/focus 이동을 막는다.
-14. clipboard 단일 async paste coordinator와 marker 기록 성공 뒤 cut transaction, mixed clipboard/reorder, package-owned per-sheet revision과 모든 object zOrder insertion 경로를 마무리한다.
+14. clipboard 단일 async paste coordinator의 호출 시점 target owner snapshot, marker 기록 성공 뒤 source owner/model을 재검증하는 cut transaction, mixed clipboard/reorder, package-owned per-sheet revision과 모든 object zOrder insertion 경로를 마무리한다.
 15. 일반 capture/PDF 동작을 유지한 채 Hybrid EZPL coordinator의 immutable render plan, canonical physical cell-border edge key와 exact object/edge filtered print capture API를 추가한다. `LabelSheetOutputCaptureController`의 app-facing Hybrid unit API를 연결하고 다중 발행 EZPL host의 선행 일반 capture를 제거한 뒤 coordinator 단일 진입점에서 plan 확정→filtered capture→동일 plan의 native command 생성 순서와 zOrder/fallback을 검증한다.
 16. 관련 focused test, 기존 회귀 test, `flutter analyze`, diagnostics와 `git diff --check`를 실행한다.
 17. 테스트 생성물과 임시 파일을 정리한 뒤 요청 범위 파일만 stage/commit한다.
@@ -1250,6 +1257,7 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - 기존 image/barcode의 비숫자·비유한 extraFields zOrder도 `0.0`으로 canonicalize되고 비정상 raw를 재사용하지 않는다.
 - ID/zOrder canonicalization, geometry·stroke/fill/radius fallback 또는 invalid entry 제외가 발생한 raw list는 재사용하지 않고 모든 canonical field의 유효한 wire로 저장된다. line/shape 색상은 6자리 hex만 대문자 `#RRGGBB`로 canonicalize하고 다른 공용 parser 문법과 alpha는 허용하지 않는다.
 - absent/빈 lines/fortuneShapes는 같은 empty model이며 canonical encoder는 raw empty key 보존 조건이 아니면 빈 typed list key를 생략한다. legacy raw overlay `shapes`는 typed shape로 해석하지 않고 FortuneSheet codec에서 원형 보존한다.
+- legacy raw `shapes`는 JSON-safe leaf와 String-key map/list일 때만 원형 보존하고 invalid descendant가 하나라도 있으면 부분 변형 없이 해당 overlay 전체만 제외해 나머지 workbook 저장을 계속한다.
 - manifest feature 누락은 payload에 존재하는 lines/fortuneShapes를 제거하지 않고 payload key 자체의 부재만 empty model로 해석한다. FortuneSheet codec은 canonicalization을, LabelSheet sanitizer는 구조/allow-list 필터를 소유한다.
 - dotted/dashDot의 dot은 보이는 지름 `1w`인 원형 mark이고 인접 mark의 보이는 edge 사이 gap은 `2w`다.
 - 폐쇄 도형의 pattern phase는 kind별 고정 local 시작점에서 유지된다. seam은 첫 mark와 보이는 edge gap `2w`를 유지하며 terminal dash는 exclusion 경계까지만 clip되고 완전한 원형 dot이 들어가지 않으면 해당 dot을 생략한다.
@@ -1283,6 +1291,7 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - image/barcode 생성 성공은 새 객체를 공통 최상단에 추가해 단일 선택하고 source에 맞는 연결 metadata와 필요한 최소 reveal, undo/change/dirty 1회 경계를 지키며, 실패·취소·stale async 결과는 canonical/UI selection 상태를 바꾸지 않는다.
 - image/barcode 생성 후 panel이 이미 열려 있을 때만 새 속성으로 전환하고 dock/overlay를 자동으로 열어 사용자 open/closed 의도를 바꾸지 않는다. 닫힌 panel은 넓은 화면의 객체/레이어 toolbar toggle 또는 좁은 화면의 상시 icon으로 다시 열 수 있다.
 - image picker와 barcode 생성/panel render의 늦은 async 결과는 request token과 owner/revision을 통과할 때만 draft 또는 workbook에 반영된다.
+- panel image picker는 selection 변경과 무관하게 호출 시점 exact image에만 귀속하고 원 객체/owner/revision/권한 또는 최신 token이 달라진 늦은 결과를 폐기한다.
 - panel은 option 목록에서 사라진 기존 image/barcode 연결 ID를 linked 상태로 보존한다. linked image의 `연결 안 함`은 새 파일 선택 성공 때만 metadata를 제거하고 파일이 없으면 기존 상태를 유지한다. linked image 파일 교체는 연결 ID와 배치 geometry·기타 metadata를 유지하고 `src`·원본 크기 metadata만 교체한다.
 - barcode panel은 기존 유한 rotation의 동일한 시각 회전을 canonical 값으로 표시·보존하고 비정상 legacy 값은 `0` fallback하며, 유한한 입력을 `0 <= value < 360`으로 정규화해 renderer request, replacement metadata와 capture에 동일하게 반영한다.
 - popup `[삽입]`과 panel command는 focused field를 동기적으로 finalize하며 invalid popup 입력은 삽입을 막고 invalid panel draft는 원복한 뒤 요청 command를 실행한다.
@@ -1290,12 +1299,13 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - barcode panel renderer pending 중에는 canonical workbook을 읽거나 교체하는 host/삽입 command와 property draft 취소 Escape를 비활성화하고 queue하거나 자동 재실행하지 않는다. selection 변경 뒤에도 request·draft·inline 오류는 원래 exact typed key에 귀속한다.
 - panel splitter가 260~420px 범위와 sheet 최소 폭을 지키며 drag 후 workbook/selection/zoom이 유지된다.
 - 좁은 workbench에서 dock이 겹치지 않고 overlay fallback으로 접근 가능하다.
-- wide/narrow 경계 전환은 panel controller, property draft와 selection을 유지하고 draft를 finalize하지 않으며 overlay/dock을 자동으로 열거나 field focus를 옮기지 않는다.
+- wide/narrow 경계 전환은 panel controller, property draft와 selection을 유지하고 draft를 finalize하거나 open 상태를 변경하지 않으며 overlay/dock open command/callback 또는 field focus 이동을 만들지 않는다. wide 복귀 시 dock 표시는 보존된 `userWantsDockOpen` 값만 반영한다.
 - width 변화에 따른 자동 접기와 사용자의 dock open/closed 의도가 서로 덮어쓰지 않는다.
 - panel 폭·열림·selection 변경이 workbook dirty/undo를 만들지 않는다.
 - 읽기 전용 object copy는 clipboard/UI state만 바꾸고 workbook JSON, undo, dirty와 change callback을 바꾸지 않는다.
 - object paste는 현재 system clipboard의 versioned opaque marker가 내부 payload marker와 일치할 때만 실행되고, 불일치하면 stale object payload를 적용하지 않은 채 기존 cell/text paste 경로를 유지한다.
-- object paste coordinator는 clipboard를 한 번 읽고 object 또는 기존 cell/text paste 중 하나만 실행한다. copy/cut payload 활성화와 cut 삭제는 marker 기록 성공 뒤에만 수행하고 기록 실패는 완전한 no-op이다.
+- object paste coordinator는 clipboard를 한 번 읽고 호출 시점 target owner/selection이 유지될 때만 object 또는 기존 cell/text paste 중 하나를 실행한다. target owner가 달라지면 두 경로 모두 no-op이다. copy/cut payload 활성화와 cut 삭제는 marker 기록 성공 뒤에만 수행하고 기록 실패는 완전한 no-op이다.
+- async cut은 marker 기록 성공 후 호출 시점 source owner/revision/exact canonical models와 권한이 모두 유지될 때만 삭제와 payload 활성화를 commit하고, selection/panel 변경 외의 source 변경에서는 완전한 no-op이다.
 - same-sheet cut paste는 원본 typed ID를 유지하며 cross-sheet 충돌은 target 객체를 보존하고 pasted 객체 ID를 재발급한다.
 - cut paste는 원래 geometry와 image/barcode 연결 ID를 유지한다. copy paste와 clipboard 독립 duplicate는 `(+12,+12)` offset과 새 typed ID를 사용하되 구조화 option 연결 ID는 보존하고 option 없는 host의 editable 연결 ID만 재발급한다.
 - stale cut payload는 source history 변경 시 무효화되고 성공한 cut paste 뒤 소비되며, 성공한 duplicate/paste는 새 객체만 선택하고 frontmost를 active로 둔다.
@@ -1320,6 +1330,7 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - 최초 지원 geometry 객체: 직선, 사각형, 둥근 사각형, 타원
 - typed shape Dart model/wire key: `FortuneSheet.shapes` / `fortuneShapes`, 기존 raw overlay `shapes`와 분리
 - typed line Dart model/wire key: `FortuneSheet.lines` / `lines`, 기존 unknown raw와 분리하지 않고 typed model이 단독 소유
+- legacy raw overlay `shapes`: JSON-safe leaf(`null`/bool/String/finite num)와 String-key map/list만 원형 보존, invalid descendant가 하나라도 있으면 해당 overlay 전체만 omit하고 나머지 저장 계속
 - line/shape 내부 ID wire: trim 후 non-empty JSON string만 허용, 다른 타입·빈/공백 entry 제외
 - 선 종류: 실선, 파선, 점선, 일점쇄선
 - 기본 두께: style별 0.5mm
@@ -1349,7 +1360,7 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - panel 기본/최소/최대 폭: 300/260/420px
 - sheet 최소 폭: 480px
 - dock 최소 local width: 760px
-- dock/overlay 경계 전환: panel controller/draft 유지, 자동 open·focus 이전 없음
+- dock/overlay 경계 전환: panel controller/draft와 open state 유지, open command/callback·focus 이전 없음, wide 복귀 표시는 기존 `userWantsDockOpen` 반영
 - 신규 이미지·바코드 생성 dialog: 유지
 - 구조화 option이 있는 이미지·바코드 생성 dialog 최초 source: `연결 안 함`
 - 구조화 options가 있는 host의 image/barcode 연결 ID duplicate/copy paste: stale option ID까지 같은 데이터 바인딩으로 보존, 내부 typed ID만 재발급
@@ -1363,6 +1374,7 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - 기존 image/barcode panel 연결 상태: stale non-empty ID도 linked로 보존. barcode는 명시적 `연결 안 함`에서 metadata 제거, linked image는 성공한 새 파일과 함께 해제
 - linked image 연결 해제: 성공한 새 파일 선택 필수, 파일 없이는 validation 후 기존 linked 상태 유지
 - linked image 파일 교체: 연결 ID와 `left/top/width/height/rotation`·기타 metadata 유지, `src`·`originWidth`·`originHeight`만 교체
+- panel image picker 귀속: 호출 시점 sheet/exact image/revision/token 고정, selection 변경은 허용하고 stale owner·객체·권한·token 결과는 폐기
 - 바코드 renderer 진행 중: 입력·확인·닫기·취소·Escape 비활성화, 중복 submit 금지
 - 바코드 panel renderer 진행 중: save/export/print/capture·undo/redo·sheet 전환·import·삽입 command와 property draft 취소 Escape 비활성화, selection 변경은 허용, queue/자동 재실행 금지
 - 바코드 panel 중첩 적용: 같은 exact key만 latest-wins 허용, 새 token이 이전 요청을 stale·blocking 제외하고 다른 key 동시 적용은 차단
@@ -1371,7 +1383,9 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - EZPL 하단 콘텐츠 clip: `clipBottomMm = labelHeightMm`, `pageHeightMm`은 extra area를 포함한 매체 높이/`^Q` 전용
 - Hybrid EZPL 합성: host는 일반 PNG를 먼저 capture하지 않고 output coordinator 단일 API를 호출하며, coordinator가 exact object/canonical physical border-edge 승인 plan을 먼저 확정하고 같은 immutable plan을 filtered print capture와 native command 생성에 공유, 임시 workbook mutation·전체 border 제외·사후 pixel 삭제 금지
 - 다중 발행 Hybrid API: EZPL unit이 active일 때 `LabelSheetOutputCaptureController.captureHybridEzpl(metrics, options, lineSpacingPercent)`로 bytes, 동일 canonical sheet/range snapshot과 source 크기가 반영된 resolved metrics/page spec을 저장하고 grouping은 unit별 bytes만 연결, PDF는 기존 `capture()` 유지
-- object clipboard: versioned opaque system clipboard marker가 내부 payload marker와 일치할 때만 object paste, 불일치는 같은 단일-read coordinator에서 기존 cell/text paste 1회 실행, cut 삭제는 marker 기록 성공 뒤 수행
+- object clipboard: versioned opaque system clipboard marker가 내부 payload marker와 일치할 때만 object paste, 불일치는 같은 단일-read coordinator에서 기존 cell/text paste 1회 실행
+- async paste target: key event 호출 시점 workbook/history/sheet/selection을 캡처하고 clipboard read 뒤 owner 또는 selection 변경 시 object와 cell/text paste 모두 no-op
+- async cut source: 호출 시점 workbook/history/sheet/revision/exact canonical models에 고정, marker 기록 성공 후 source·권한 재검증을 통과할 때만 삭제/payload 활성화
 - 기존 객체 속성 편집: 통합 panel
 - 다중 선택 1차 범위: layer 조정, 삭제, 복제, clipboard
 - 화살표·자유선·polyline·polygon·gradient/pattern/image fill·다중 geometry 정렬: 제외

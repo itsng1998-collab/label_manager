@@ -6,6 +6,16 @@
 - ODBC transaction batch는 첫 DML이 0행일 때 `SQL_NO_DATA(100)`을 반환할 수 있으므로 필요하면 batch 첫 줄에 `SET NOCOUNT ON`을 사용하고 명시적 결과 SELECT를 유지한다. `@@ROWCOUNT`와 `@@TRANCOUNT`는 parameter로 치환하지 않는다.
 - SQL 변경 검증 시 focused DAO 테스트에 금지 함수 미사용과 XML wire 계약을 고정하고, 가능한 경우 compatibility 100 실제 서버에서 데이터 변경 없는 read-only/빈 payload/rollback probe를 수행한다. 실제 schema capability가 없으면 gate를 우회하지 않고 제한을 기록한다.
 
+### 완료 (2026-07-20): 선·도형 지시서 async clipboard·raw overlay 경계 보완
+- 사용자 요청: 최신 `doc/label_line_panel.txt`의 구현 모호점 검토 권장안을 병합하고 사용자 확인이 필요한 정책은 즉시 확정한다.
+- 사용자 확정: legacy raw `shapes`에 JSON-safe가 아닌 descendant가 하나라도 있으면 부분 가지치기 없이 해당 overlay 전체만 제외하고 나머지 workbook 저장을 계속한다. clipboard read 대기 중 같은 시트의 selection이 바뀌면 호출 시점 또는 새 위치에 붙이지 않고 object/cell-text paste를 모두 취소한다.
+- sanitizer 보완 완료: JSON-safe leaf를 `null`/bool/String/finite num, container를 String-key map/list로 고정했다. 비문자열 key·비유한 num·지원하지 않는 객체·cycle은 `shapes` 전체 omit과 나머지 `.lms` round-trip 성공으로 테스트한다.
+- clipboard 보완 완료: cut 호출 시 source workbook/history/sheet/revision/exact canonical models를 캡처하고 marker 기록 성공 뒤 owner/model/`allowEdit`를 재검증해야 삭제·payload 활성화를 commit한다. paste는 key event 시점 target owner/sheet/selection을 캡처하고 clipboard 완료 전 owner 또는 selection 변경 시 object와 fallback paste 모두 no-op이다.
+- panel·responsive 보완 완료: panel image picker는 selection 변경과 무관하게 호출 시점 exact image에만 귀속하고 stale owner/revision/권한/token 결과를 폐기한다. responsive 경계 전환은 open command/callback을 만들지 않되 wide 복귀 표시는 보존된 `userWantsDockOpen` 값을 반영한다고 명확히 구분했다.
+- 독립 재검토 완료: 최초 paste selection snapshot 문구와 stale-no-op 테스트의 충돌을 발견해 사용자 확정대로 no-op으로 통일했다. 본문·테스트·구현 순서·완료 조건·§18의 잔여 구현 차단 모순은 없다.
+- 검증 완료: `doc/label_line_panel.txt` diagnostics 오류 0건, 필수·상충 계약 검색과 `git diff --check` 통과. 문서만 변경했으므로 Flutter test/analyze는 실행하지 않았다.
+- stage/commit 대상: `doc/label_line_panel.txt`, `SESSION_HANDOFF.md`만 포함한다. 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
+
 ### 완료 (2026-07-20): 선·도형 지시서 geometry·저장·panel 경계 보완
 - 사용자 요청: 최신 `doc/label_line_panel.txt`를 실제 save/workbench/FortuneSheet 구현에 다시 대조하고 권장안을 병합하며 정책 확인 사항은 즉시 확정한다.
 - 사용자 확정: wide/narrow 전환은 dock/overlay를 자동으로 열거나 focus를 옮기지 않는다. layer row drop은 행 위 절반 `before`, 아래 절반 `after`를 사용한다. 회전 resize가 상단 경계를 넘으면 opposite world anchor를 유지하고 local extent를 `top == 0`인 최대 projection으로 제한한다.
