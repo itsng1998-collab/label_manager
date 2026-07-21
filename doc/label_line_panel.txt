@@ -331,7 +331,7 @@ shape[i] = images.length + lines.length + i
 
 화면용 선택 강조, endpoint/resize/rotation handle과 hit tolerance는 editor overlay이며 capture와 출력에 포함하지 않는다.
 
-생성·이동·resize·회전 drag 중 geometry는 canonical workbook을 pointer move마다 바꾸지 않고 canvas의 transient gesture draft로 표시한다. draft는 시작 시 workbook identity/history generation과 owner sheet ID를 캡처한다. active sheet 변경, undo/redo 또는 외부 workbook 교체 전에 draft를 폐기하고, pointer up에서도 owner가 현재 workbook/sheet와 모두 일치할 때만 commit한다. 유효한 pointer up은 최종 geometry를 workbook에 한 번 commit하고 `onChange`/`onOp`와 undo snapshot을 각각 1회만 만든다. clean workbook이면 이 첫 commit에서 dirty를 true로 한 번 전환하고, 이미 dirty이면 추가 dirty callback을 만들지 않는다. Escape, pointer cancel, owner 변경 또는 최소 크기 미달은 draft를 폐기하고 workbook notification을 만들지 않는다. 기존 이미지·바코드 move/resize/rotation도 같은 공용 geometry gesture API로 전환해 동일한 notification 경계를 적용한다.
+생성·이동·resize·회전 drag 중 geometry는 canonical workbook을 pointer move마다 바꾸지 않고 canvas의 transient gesture draft로 표시한다. draft는 시작 시 workbook identity/history generation과 owner sheet ID를 캡처한다. active sheet 변경, undo/redo 또는 외부 workbook 교체 전에 draft를 폐기하고, pointer up에서도 owner가 현재 workbook/sheet와 모두 일치할 때만 commit한다. 유효한 pointer up은 최종 geometry를 workbook에 한 번 commit하고 `onChange`/`onOp`와 undo snapshot을 각각 1회만 만든다. clean workbook이면 이 첫 commit에서 dirty를 true로 한 번 전환하고, 이미 dirty이면 추가 dirty callback을 만들지 않는다. Escape, pointer cancel, owner 변경 또는 최소 크기 미달은 draft를 폐기하고 workbook notification을 만들지 않는다. 생성 gesture에서 pointer cancel과 최소 크기 미달은 같은 owner의 재시도를 위해 insertion mode를 유지하지만, active sheet 변경·undo/redo·외부 workbook 교체처럼 owner가 무효화되면 draft와 insertion mode를 함께 종료한다. 기존 이미지·바코드 move/resize/rotation도 같은 공용 geometry gesture API로 전환해 동일한 notification 경계를 적용한다.
 
 ### 6.2 선 스타일 패턴
 
@@ -481,8 +481,10 @@ toolbar popup은 삽입 preset만 편집한다. 이미 선택된 객체의 속�
 - 왼쪽/위쪽 방향 drag도 허용하고 pointer up에서 positive width/height bounds로 정규화한다.
 - 삽입 모드의 primary pointer는 grid/object viewport에서 기존 object handle/body와 cell hit-test보다 먼저 처리한다. pointer down 시 기존 object/cell selection은 유지하지만 move/resize/cell selection을 시작하지 않는다.
 - 생성 중 auto-scroll은 실제 공용 `_autoScrollOffsetForDrag()` 또는 동등 helper를 재사용한다. 각 pointer move에서 반환된 next scroll offset을 적용하고 그 offset을 `scrollOverride`로 사용해 pointer의 sheet logical 좌표를 다시 계산하여 transient geometry가 scroll delta를 포함하게 한다. 현재 drag 패턴과 같이 pointer move event가 있을 때만 한 step scroll하며 pointer 정지 중 timer 기반 연속 scroll은 이번 범위에 추가하지 않는다.
+- 사용자가 확정한 대로 viewport 안에서 시작한 생성 gesture의 pointer up은 viewport 밖이어도 실제 `PointerUpEvent.localPosition`을 마지막 pointer move까지 적용된 현재 scroll offset으로 sheet logical 좌표화해 최종 geometry를 다시 계산한다. pointer up 자체는 auto-scroll step을 추가하지 않는다. 왼쪽 밖 release의 음수 X와 오른쪽·아래쪽 밖 release의 right/bottom 초과는 허용하고, 위쪽 밖 release는 기존 생성 geometry 정책대로 line endpoint 또는 shape top이 `0`보다 작지 않도록 보정한 뒤 최소 크기를 판정한다. Shift line 생성은 `release logical 좌표 계산 → 45도 snap → snap된 ray가 위쪽 경계를 넘으면 같은 방향의 y=0 교점까지 단축 → 최소 길이 판정` 순서를 사용해 endpoint Y만 clamp하여 snap 방향을 깨지 않는다. 마지막 preview 위치를 대신 commit하거나 viewport 경계 clamp·gesture 취소로 바꾸지 않는다.
 - pointer up 한 번에 canonical workbook commit과 undo snapshot을 각각 1개 만든다. clean 상태이면 dirty를 true로 한 번 전환하고 이미 dirty이면 추가 dirty callback을 만들지 않는다.
 - 생성 모드는 객체 하나를 성공적으로 commit하면 종료하는 one-shot 방식이다. 같은 kind를 다시 만들려면 toolbar 본체 또는 popup `[삽입]`을 다시 실행하며 마지막 preset은 유지한다.
+- 최소 크기 미달과 pointer cancel은 현재 draft만 폐기하고 crosshair/insertion mode를 유지해 같은 owner에서 toolbar 재선택 없이 다음 primary drag를 허용한다. active sheet 변경·undo/redo·외부 workbook 교체는 draft와 insertion mode를 함께 종료하고 cursor를 일반 상태로 복원하며, 이전 pointer sequence의 후속 move/up은 no-op이다. 성공 commit, Escape, 오른쪽 클릭과 다른 toolbar command의 기존 종료 규칙은 유지한다.
 
 ## 8. 직선·폐쇄 도형 선택과 geometry 편집
 
@@ -1089,7 +1091,9 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - 삽입 모드 primary pointer의 object/cell hit-test 우선 처리와 기존 selection 유지
 - 삽입 중 오른쪽 클릭의 draft 취소 후 기존 context menu 표시, 다른 toolbar command의 취소 후 command 실행과 후속 pointer-up no-op
 - auto-scroll 중 next offset 기준 logical pointer 재계산과 scroll delta가 반영된 preview, pointer 정지 시 timer scroll 없음
-- active sheet 변경·undo/redo·외부 workbook 교체 중 transient draft 폐기와 owner 불일치 pointer-up no-op
+- viewport 안 pointer down 뒤 왼쪽 밖 pointer up은 실제 release 좌표의 음수 X, 위쪽 밖은 Y/top `0` 보정, 오른쪽·아래쪽 밖은 right/bottom 초과 geometry를 저장함. Shift line을 위쪽 밖에서 놓으면 release 좌표 snap 뒤 같은 45도 방향의 `y=0` 교점까지 단축한 결과로 최소 길이를 판정함. 마지막 move와 up 위치가 다른 fixture에서 up 위치가 최종 geometry에 반영되고, edge auto-scroll 뒤 밖에서 up해도 추가 scroll step 없이 이미 적용된 current offset을 사용하며 undo/`onChange`/`onOp`는 각각 1회임
+- 최소 크기 미달과 pointer cancel은 workbook/undo/dirty/callback 불변인 채 draft만 폐기하고 crosshair/insertion mode를 유지해 toolbar 재선택 없는 다음 유효 drag가 성공함
+- active sheet 변경·undo/redo·외부 workbook 교체는 transient draft와 insertion mode를 종료하고 cursor를 복원하며 owner 불일치 후속 move/up을 no-op으로 처리함. owner 변경 뒤 첫 primary click은 삽입이 아니라 정상 object/cell hit-test를 수행함
 - popup 숫자 입력 직후 `[삽입]`이 유효한 최신 preset을 사용하고 invalid 입력에서는 popup 유지·삽입 차단
 - image/barcode toolbar command 시점의 owner sheet/merge anchor 고정, dialog 중 cell selection 변경의 위치 불변과 sheet 변경·undo/redo·외부 교체 취소
 - image/barcode 삽입이 `allowEdit`만 사용하고 선택 anchor의 protection/locked 상태에는 영향받지 않음
@@ -1310,7 +1314,7 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - line 생성/move/endpoint, shape 생성/move/resize/rotation과 기존 image/barcode move/resize/rotation은 pointer move 중 workbook을 바꾸지 않고 pointer up에서 `onChange`/`onOp`와 undo를 각각 1회만 만든다. 변경 전 history snapshot은 drag draft에만 보관해 유효 commit 직전에 push하고 cancel·owner 불일치·최소 크기 미달에서는 폐기한다. dirty는 clean 상태의 첫 commit에서만 true callback 1회, 이미 dirty인 후속 commit에서는 추가 callback 0회다.
 - drag 중 이동했더라도 pointer-up의 최종 canonical geometry가 시작 snapshot과 같으면 no-op이며 undo/dirty/change callback을 만들지 않는다.
 - transient geometry draft는 owner workbook/sheet에서만 commit되고 active sheet 변경·undo/redo·외부 workbook 교체와 취소된 pointer sequence에서는 폐기된다.
-- 삽입 모드는 object/cell hit-test보다 우선하며 오른쪽 클릭은 취소 후 기존 context menu를 열고, auto-scroll preview는 next scroll offset 기준 logical 좌표를 사용한다.
+- 삽입 모드는 object/cell hit-test보다 우선하며 오른쪽 클릭은 취소 후 기존 context menu를 열고, auto-scroll preview는 next scroll offset 기준 logical 좌표를 사용한다. viewport 밖 pointer up은 추가 scroll 없이 현재 offset으로 실제 release 좌표를 최종 geometry에 반영하며, 최소 크기 미달/pointer cancel은 모드를 유지하고 owner 변경은 draft와 모드를 함께 종료한다.
 - 이미지·바코드·직선·폐쇄 도형이 같은 zOrder로 paint, hit-test, layer list, capture와 출력된다.
 - 공유 배열의 같은 문자열 ID 객체도 exact typed key로 격리되어 조회·편집·삭제·reorder된다.
 - active sheet 변경 시 object selection을 해제하고, 같은 sheet의 undo/redo와 외부 workbook 교체 뒤에는 현재 sheet에 존재하는 typed key만 남는다. selection 자체는 dirty/undo 대상이 아니다.
@@ -1401,6 +1405,8 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - geometry drag undo: 시작 시 변경 전 snapshot을 gesture draft에만 보관, 유효 pointer-up commit 직전에만 stack push, cancel/owner 불일치/최소 크기 미달은 폐기
 - interaction 화면 px: Flutter logical pixel, `logicalExtent * effectiveZoom` 판정, DPR 제외
 - 생성 auto-scroll: pointer move event 기반 공용 helper 재사용, next scroll offset으로 logical pointer 재계산, timer 연속 scroll 제외
+- viewport 밖 생성 release: 실제 pointer-up local 위치를 현재 scroll로 logical 변환, up 시 추가 auto-scroll 없음, 음수 X·right/bottom 초과 허용과 Y/top `0` 보정
+- 생성 실패 후 mode: 최소 크기 미달·pointer cancel은 같은 owner 재시도를 위해 유지, active sheet 변경·undo/redo·외부 workbook 교체는 draft와 mode 종료 및 stale pointer sequence no-op
 - 빈 canvas context menu에는 geometry 삽입 command를 추가하지 않음
 - print-area save: geometry 원래 sheet logical 좌표 유지, row/column 저장 범위만 조정
 - print-area object 선별: 원래 logical rect와 stroked path 또는 채움 shape fill 영역이 교차하는 exact key를 먼저 확정, padded bounds는 범위 확장에만 사용

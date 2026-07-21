@@ -6,6 +6,15 @@
 - ODBC transaction batch는 첫 DML이 0행일 때 `SQL_NO_DATA(100)`을 반환할 수 있으므로 필요하면 batch 첫 줄에 `SET NOCOUNT ON`을 사용하고 명시적 결과 SELECT를 유지한다. `@@ROWCOUNT`와 `@@TRANCOUNT`는 parameter로 치환하지 않는다.
 - SQL 변경 검증 시 focused DAO 테스트에 금지 함수 미사용과 XML wire 계약을 고정하고, 가능한 경우 compatibility 100 실제 서버에서 데이터 변경 없는 read-only/빈 payload/rollback probe를 수행한다. 실제 schema capability가 없으면 gate를 우회하지 않고 제한을 기록한다.
 
+### 완료 (2026-07-21): 선·도형 지시서 삽입 release·mode 수명 보완
+- 사용자 요청: 최신 `doc/label_line_panel.txt` 재검토에서 확인한 삽입 gesture 권장안을 병합하고 사용자 확인이 필요한 동작은 즉시 확정한다.
+- 사용자 확정: viewport 안에서 시작해 밖에서 놓은 생성 gesture는 마지막 preview가 아니라 실제 pointer-up 위치를 현재 scroll 기준 logical 좌표로 변환해 최종 geometry를 만든다. pointer-up 자체는 auto-scroll을 추가하지 않는다.
+- 사용자 확정: 최소 크기 미달과 pointer cancel은 같은 owner에서 재시도하도록 insertion mode를 유지하고, active sheet 변경·undo/redo·외부 workbook 교체는 draft와 mode를 함께 종료한다.
+- release 경계 보완 완료: 왼쪽 밖은 음수 X, 오른쪽·아래쪽 밖은 right/bottom 초과를 허용하고 위쪽 밖은 Y/top `0` 정책을 적용한다. Shift line은 release logical 좌표→45도 snap→같은 방향의 `y=0` 교점 단축→최소 길이 판정 순서로 처리한다. 마지막 move와 release가 다르면 release 좌표가 최종 결과이며 성공 transaction은 undo/change/op 각 1회다.
+- mode 수명 보완 완료: 재시도 가능한 실패는 draft만 폐기하고 crosshair를 유지한다. owner 무효화는 cursor를 복원하고 이전 sequence의 후속 move/up을 no-op으로 만들며 다음 primary click은 정상 object/cell hit-test로 돌린다.
+- 테스트 계약 보완 완료: viewport 네 방향 밖 release와 위쪽 밖 Shift line 방향 보존, edge auto-scroll 뒤 추가 step 없음, 최소 크기/pointer cancel 후 재시도와 owner 변경 후 mode 종료·stale event no-op을 판별한다.
+- stage/commit 대상: `doc/label_line_panel.txt`, `SESSION_HANDOFF.md`만 포함한다. 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
+
 ### 완료 (2026-07-21): 선·도형 지시서 clipboard write 경쟁 보완
 - 사용자 요청: 최신 `doc/label_line_panel.txt` 재검토에서 확인한 clipboard 권장안을 과도한 예외 처리 없이 병합하고 필요한 사용자 정책 선택은 즉시 확정한다.
 - 사용자 확정: 최신 copy/cut B가 실패하고 stale A의 OS write가 성공했으면 A를 채택하거나 payload를 비활성화하지 않고, 요청 전 활성 object payload와 대응 system marker 쌍을 OS clipboard까지 복원한다.
