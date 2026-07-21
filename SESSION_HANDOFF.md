@@ -1,3 +1,11 @@
+### 완료 (2026-07-21): 선·도형 지시서 zOrder 삽입 headroom·raw 재사용 경계 보완
+- 사용자 요청: 최신 재검토에서 확인한 극단 유한 zOrder의 신규 삽입/duplicate/copy paste 순서와 재기준화 시 codec raw-list 재사용 권장안을 지시서에 병합한다.
+- 추가 사용자 확인 불필요: 새 객체는 공통 최상단에서 원본 상대 paint order를 유지해야 하고 canonical zOrder는 finite여야 한다는 기존 계약으로 결과가 결정된다. 삽입 실패/no-op 같은 새 UX를 추가하지 않고 같은 command transaction 내부 복구로 통일했다.
+- headroom 보완 완료: 단일/batch 예정 zOrder 전체가 finite·엄격 증가인지 먼저 검증하고, `max + 1 == max` 또는 overflow이면 기존 공통 paint order를 `1.0..N.0`으로 재기준화한 뒤 새 객체를 `N+1.0..`에 배정한다. 이는 reorder-only 정규화 규칙의 삽입 transaction 예외이며 별도 undo/callback이나 저장 배열 재배열을 만들지 않는다.
+- codec 보완 완료: headroom 재기준화는 decoder fallback이 아니라 typed canonical zOrder를 바꾸는 command mutation이다. 실제 변경 객체를 포함하는 images/lines/fortuneShapes 각 kind별 raw list 전체만 폐기해 canonical encode하고, 변경 객체가 없는 kind의 재사용 가능한 raw list는 보존한다.
+- 테스트·구현 순서·완료 조건·확정값에 `double.maxFinite`, `max + 1 == max`, mixed duplicate/copy paste batch, 상대 paint order/frontmost active, history/callback 1회와 kind별 raw 폐기 fixture를 연결했다.
+- stage/commit 대상: `doc/label_line_panel.txt`, `SESSION_HANDOFF.md`만 포함한다. 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
+
 ### 완료 (2026-07-21): 선·도형 지시서 capture detach·dialog owner·finalize 실패 경계 보완
 - 사용자 요청: 최신 재검토에서 확인한 진행 중 일반 capture의 detach/dispose 결과, screenshot dialog owner identity와 property finalize 뒤 capture 실패 history 권장안을 지시서에 병합한다.
 - 추가 사용자 확인 불필요: 기존 immutable invocation snapshot, canvas-owned screenshot UI와 property finalize 독립 transaction 원칙으로 결과가 결정되며 새 UX 선택을 추가하지 않았다.

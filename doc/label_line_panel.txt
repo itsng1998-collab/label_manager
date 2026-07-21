@@ -253,7 +253,7 @@ allow-list는 다음 key로 고정한다.
 - legacy raw `shapes`는 migration의 일반 deep clone이나 `Map<String, Object?>.from` cast보다 먼저 원본 `Object?` 상태에서 분리해 strict clone한다. strict clone은 `({bool valid, Object? value})`처럼 유효 여부와 `null` 값을 구분하고, map key의 실제 `String` 타입과 finite num을 변환 전에 검사하며 현재 재귀 경로의 object identity set으로 cycle을 판정한다. 성공한 값만 일반 sheet payload에 다시 넣고 실패한 key는 omit하므로, 공용 clone의 key 문자열화·cast 예외·cycle 재귀가 먼저 발생하면 안 된다.
 - absent `lines`/`fortuneShapes`와 빈 list는 decode model에서 같은 empty list다. 기존 images wire 규칙과 같이 canonical encoder는 빈 typed list key를 생략하고, raw empty key를 그대로 재사용해야 하는 경우에만 원래 raw key/value를 보존한다. save/import 테스트는 `"lines": []`/`"fortuneShapes": []` key 존재가 아니라 decoded empty model과 반복 encode 안정성을 검증한다.
 - codec fallback 또는 canonical normalize가 적용된 entry는 비정상 raw wire를 그대로 재사용하지 않는다. raw list 전체를 재사용하려면 raw entry 수가 canonical model entry 수와 같고 각 entry의 모든 canonical field가 fallback/normalize 없이 유효한 wire여야 한다. 여기에는 필수 field와 ID, geometry의 유한한 JSON number·양수 bounds, zOrder, stroke style, `strokeWidthMm` 범위, `strokeColor`/`fillColor`, shape kind, rotation과 kind별 `cornerRadiusMm`이 포함된다. 중복 ID 재발급, 비숫자/비유한 값 fallback, invalid color/style/range fallback 또는 decoder에서 제외된 entry가 하나라도 있으면 빈 canonical model을 포함해 해당 raw list 전체를 폐기하고 canonical encode한다.
-- 저장할 때마다 zOrder를 임의 재정렬하지 않는다. zOrder 연속값 정규화는 사용자가 layer reorder/앞뒤 이동 command를 실행해 실제 front-to-back exact-key 순서가 달라진 transaction 안에서만 수행한다.
+- 저장할 때마다 zOrder를 임의 재정렬하지 않는다. zOrder 연속값 정규화는 사용자가 layer reorder/앞뒤 이동 command를 실행해 실제 front-to-back exact-key 순서가 달라진 transaction 안에서만 수행한다. 단 §5.2의 신규 삽입 headroom 검증이 실패한 경우에는 해당 삽입 transaction 안의 공통 zOrder 재기준화만 명시적 예외다. 이 재기준화는 decoder fallback이 아니라 command가 기존 typed 객체의 canonical zOrder를 변경하는 mutation이며, zOrder가 실제로 바뀐 객체를 포함하는 images/lines/fortuneShapes 각 kind별 raw list 전체는 재사용하지 않고 canonical encode한다.
 
 기존 `sheet.images`, `image` legacy alias 선택과 `rawImagesKey` 동작은 변경하지 않는다. 단 image/barcode ID 또는 zOrder canonicalization이 필요한 raw images list는 재사용하지 않고 canonical encode하며, images-only 무변경 round-trip은 모든 canonical field가 이미 유효한 raw wire에 한정한다.
 일반 workbook XLSX exporter와 line/shape custom XML schema를 새로 만드는 것은 이번 범위가 아니다. `.xlsx` import는 외부 drawing을 line/shape로 추론하지 않으며 이번 완료 조건은 `.lms` round-trip으로 한정한다.
@@ -299,7 +299,7 @@ line[i]  = images.length + i
 shape[i] = images.length + lines.length + i
 ```
 
-배열 내부 순서는 zOrder 변경 때문에 재배열하지 않는다. 공통 accessor와 canonical save는 image/barcode의 `extraFields.zOrder`와 line/shape의 zOrder 모두에서 비숫자·비유한 값을 `0.0`으로 처리하고 최대값 계산은 유한값만 사용한다. 기존 image/barcode raw 재사용 여부도 같은 canonical 판정에 포함한다. 새 객체는 images/lines/shapes 전체의 유한한 최대 zOrder + 1을 받으므로 정상 편집 후 tie에 의존하지 않는다. 객체가 하나도 없거나 유효한 zOrder가 없으면 `1.0`을 사용한다.
+배열 내부 순서는 zOrder 변경 때문에 재배열하지 않는다. 공통 accessor와 canonical save는 image/barcode의 `extraFields.zOrder`와 line/shape의 zOrder 모두에서 비숫자·비유한 값을 `0.0`으로 처리하고 최대값 계산은 유한값만 사용한다. 기존 image/barcode raw 재사용 여부도 같은 canonical 판정에 포함한다. 새 객체는 images/lines/shapes 전체의 유한한 최대 zOrder + 1을 받으므로 정상 편집 후 tie에 의존하지 않는다. 객체가 하나도 없거나 유효한 zOrder가 없으면 `1.0`을 사용한다. 단일 생성과 duplicate/copy paste batch는 배정할 모든 값이 finite이고 직전 값보다 엄격히 큰지 transaction 전에 검증한다. 부동소수점 정밀도 때문에 `max + 1 == max`가 되거나 batch의 어느 증가값도 finite·엄격 증가 조건을 만족하지 못하면, 같은 삽입 transaction 안에서 기존 전체 공통 paint order를 `1.0, 2.0, ... N.0`으로 먼저 재기준화하고 새 객체를 그 상대 순서대로 `N + 1.0, N + 2.0, ...`에 배정한다. 이 headroom 복구는 별도 undo/callback을 만들지 않고 삽입 command의 undo 1건에 포함하며, 저장 배열 순서는 바꾸지 않는다.
 
 레이어 순서 변경 후에는 이미지·바코드·직선·폐쇄 도형을 뒤에서 앞으로 순회해 `1.0, 2.0, ...` 연속 zOrder로 정규화한다. 저장 배열 자체를 Z-Order 목적으로 재배열하지 않고 각 typed model의 원래 배열 소유권을 유지한다.
 
@@ -1173,6 +1173,7 @@ pointer move event와 property text 입력의 각 문자 변경마다 undo snaps
 - mixed image/barcode/line/shape cut은 clipboard marker 기록 성공과 source owner/revision/exact model/권한 재검증 뒤에만 삭제와 undo 1건, paste는 별도 undo 1건, copy paste와 독립 duplicate는 새 typed ID 발급
 - mixed internal payload가 canonical typed model deep clone으로 source 후속 mutation과 독립되고 package-owned extra metadata를 보존하며, stale raw-list wire와 LabelSheet save sanitizer가 paste model을 덮어쓰지 않음. 지원하지 않는 payload version/kind는 workbook/selection/payload/undo/dirty/callback을 바꾸지 않음
 - 신규/복제/paste allocator의 기존 typed ID와 같은 transaction 예약 ID 충돌 회피
+- `double.maxFinite`와 `max + 1 == max`인 큰 유한 zOrder fixture에서 단일 생성과 mixed duplicate/copy paste batch가 삽입 transaction 안에서 기존 공통 paint order를 `1.0..N.0`으로 재기준화하고 새 객체에 엄격히 증가하는 `N+1.0..`을 배정하며, 상대 paint order·frontmost active·undo/callback 1회와 저장 배열 순서를 유지함. zOrder가 바뀐 객체를 포함한 images/lines/fortuneShapes raw list만 전체 폐기해 canonical encode하고 변경 객체가 없는 kind의 재사용 가능 raw list는 보존함
 - duplicate가 기존 clipboard를 유지하면서 새 typed ID·최상단 zOrder·`(+12,+12)` offset을 적용하고 구조화 연결 ID는 보존, editable 연결 ID는 재발급하며 undo 1건 생성. 선택 입력 순서와 kind별 저장 배열 순서를 공통 paint order와 다르게 둔 mixed image/barcode/line/shape 및 same-zOrder tie fixture에서도 source를 공통 back-to-front 순서로 복제해 상대 paint order를 유지하고 마지막 frontmost 복제본을 active로 지정함
 - copy paste의 새 typed ID·`(+12,+12)` offset, 구조화 연결 ID 보존·editable 연결 ID 재발급과 cut paste의 원래 geometry·연결 ID 유지
 - object copy/cut marker가 현재 system clipboard와 일치할 때만 mixed payload를 paste하고, 이후 외부 text copy로 marker가 달라지면 stale object paste를 하지 않고 기존 cell/text paste 경로에 제어를 넘김
@@ -1354,7 +1355,7 @@ pointer move event와 property text 입력의 각 문자 변경마다 undo snaps
 
 1. 공통 stroke style, `FortuneLine`, `FortuneShape`, shape kind, optional-empty `FortuneSheet.lines/shapes`와 codec을 추가한다. 무관한 `copyWith`의 typed/raw 보존과 typed list 교체 시 stale raw 폐기, `lines`/`fortuneShapes`의 typed 단독 소유, ID wire validation과 images raw 재사용 경계를 포함한 model/codec 테스트를 통과시킨다.
 2. LabelSheet의 `sheet.lines`, `sheet.fortuneShapes` feature key, sanitizer, migration/normalize, label content 판정과 save 테스트를 추가하고 legacy raw overlay `shapes`와 분리한다. legacy `shapes`는 일반 clone/cast 전 raw `Object?` strict clone으로 JSON-safe 구조만 원형 복사하고 invalid descendant가 있으면 overlay 전체만 omit한다. 원래 print-area rect에서 exact geometry key를 확정한 뒤 padded bounds로 범위만 확장하는 print-area save를 연결한다.
-3. typed object key/ref, exact-key resolver/mutation, 중복 ID normalize/allocator와 finite zOrder 정렬·정규화 helper를 추가한다.
+3. typed object key/ref, exact-key resolver/mutation, 중복 ID normalize/allocator와 finite zOrder 정렬·정규화 helper를 추가한다. 신규 단일/batch 삽입은 모든 예정 zOrder의 finite·엄격 증가를 검증하고 실패 시 같은 transaction 안에서 기존 공통 순서를 `1.0..N.0`으로 재기준화한 뒤 삽입값을 배정하며, 변경 객체가 있는 kind별 raw list 폐기를 함께 처리한다.
 4. line/shape 공용 geometry/stroke helper와 화면/capture painter를 추가한다. 짧은 closed pattern의 첫 mark 우선·no-wrap·후속 seam exclusion과 typed 공통 object layer 뒤의 legacy raw overlay 합성 순서를 같은 painter/capture helper에서 고정한다.
 5. toolbar shape combo, geometry kind별 stroke/fill/radius preset과 transient gesture draft 기반 line/shape drag 생성을 추가한다.
 6. line hit-test, 단일 선택, 본체 이동, endpoint handle과 keyboard 이동을 추가한다. object arrow는 수용한 KeyDown/KeyRepeat별 독립 command로 연결하고 KeyUp 및 clamp no-op에서 transaction을 만들지 않는다.
@@ -1384,6 +1385,7 @@ pointer move event와 property text 입력의 각 문자 변경마다 undo snaps
 - 중복 ID normalize는 kind별 모든 원본 ID를 선예약해 뒤의 정상 원본 ID를 선점하지 않고, 신규 allocator는 kind prefix별 가장 작은 빈 양의 suffix를 사용한다.
 - 비유한 zOrder는 `0.0`으로 canonicalize되고 공통 정렬과 다음 객체 zOrder는 유한값만 사용한다.
 - 기존 image/barcode의 비숫자·비유한 extraFields zOrder도 `0.0`으로 canonicalize되고 비정상 raw를 재사용하지 않는다.
+- 유한 최대 zOrder가 너무 커 신규 단일/batch 삽입값을 finite·엄격 증가로 만들 수 없으면 같은 삽입 transaction에서 기존 공통 paint order를 `1.0..N.0`으로 재기준화한 뒤 `N+1.0..`을 배정한다. 변경 객체를 포함한 kind별 raw list는 command mutation으로 폐기하고, 별도 undo/callback이나 저장 배열 재배열은 만들지 않는다.
 - ID/zOrder canonicalization, geometry·stroke/fill/radius fallback 또는 invalid entry 제외가 발생한 raw list는 재사용하지 않고 모든 canonical field의 유효한 wire로 저장된다. line/shape 색상은 6자리 hex만 대문자 `#RRGGBB`로 canonicalize하고 다른 공용 parser 문법과 alpha는 허용하지 않는다.
 - absent/빈 lines/fortuneShapes는 같은 empty model이며 canonical encoder는 raw empty key 보존 조건이 아니면 빈 typed list key를 생략한다. legacy raw overlay `shapes`는 typed shape로 해석하지 않고 FortuneSheet codec에서 원형 보존한다.
 - legacy raw `shapes`는 JSON-safe leaf와 String-key map/list일 때만 원형 보존하고 invalid descendant가 하나라도 있으면 부분 변형 없이 해당 overlay 전체만 제외해 나머지 workbook 저장을 계속한다.
@@ -1416,6 +1418,7 @@ pointer move event와 property text 입력의 각 문자 변경마다 undo snaps
 - 이미지·바코드·직선·폐쇄 도형이 같은 zOrder로 paint, hit-test, layer list, capture와 출력된다. legacy raw overlay는 이 typed 공통 순서와 hit-test에 참여하지 않고 화면과 capture에서 typed layer 뒤에 그리며 raw `zIndex`는 legacy overlay 내부 순서만 정한다.
 - 공유 배열의 같은 문자열 ID 객체도 exact typed key로 격리되어 조회·편집·삭제·reorder된다.
 - layer reorder는 계산된 front-to-back exact-key 순서가 실제로 달라질 때만 transaction과 zOrder 연속값 정규화를 수행한다. 동일 순서와 selected-set 내부 target drop은 기존 zOrder의 비연속·동일값 tie까지 보존하는 canonical no-op이다.
+- 단일 생성과 duplicate/copy paste batch의 예정 zOrder는 모두 finite이고 엄격히 증가해야 한다. 기존 유한 최대값에서 이를 만들 수 없으면 해당 삽입 transaction 안에서만 전체 공통 paint order를 `1.0..N.0`으로 재기준화한 뒤 `N+1.0..`을 배정하고, 별도 history/callback이나 저장 배열 재배열 없이 변경 객체가 속한 kind별 raw list만 canonical encode한다.
 - active sheet 변경 시 object selection을 해제하고, 같은 sheet의 undo/redo와 외부 workbook 교체 뒤에는 현재 sheet에 존재하는 typed key만 남는다. selection 자체는 dirty/undo 대상이 아니다.
 - active sheet 변경은 layer-list와 property scroll offset을 각각 `0`으로 초기화하고 sheet별 panel scroll을 복원하지 않는다. 같은 sheet의 rebuild와 dock↔overlay 전환에서는 controller identity와 유효 offset을 유지하고 새 extent를 넘는 값만 clamp하며 scroll 상태는 canonical callback/history/revision을 바꾸지 않는다.
 - 모든 selection snapshot은 selected empty/active null 동치와 non-empty selected의 active 포함을 지킨다. active toggle 해제 뒤에는 남은 front-to-back 첫 selected key를 active로 정하고 마지막 하나의 toggle은 단일 선택을 유지한다.
@@ -1578,6 +1581,7 @@ pointer move event와 property text 입력의 각 문자 변경마다 undo snaps
 - internal object payload: package canonical typed model deep clone, 필요 시 versioned package typed-object codec, LabelSheet save sanitizer/raw-list wire 미사용
 - object clipboard write 경쟁: 성공 여부와 무관한 copy/cut 호출 순서 latest-wins, stale 완료의 source/internal state no-op, 최신 성공 시 해당 요청의 system marker·활성 payload 일치, 최신 실패 시 요청 전 안정된 payload·대응 marker OS 복원과 stale 요청 재활성화 금지
 - mixed duplicate 순서: 공통 back-to-front paint order에서 selected exact key만 필터링, 같은 상대 순서의 연속 최상단 zOrder와 마지막 frontmost active
+- zOrder 삽입 headroom: 단일/batch 예정값이 finite·엄격 증가하지 않으면 같은 삽입 transaction에서 기존 공통 paint order를 `1.0..N.0`으로 재기준화하고 새 객체를 `N+1.0..`에 배정, 변경 객체를 포함한 kind별 raw list 전체만 폐기하며 별도 undo/callback·배열 재배열 없음
 - property draft 후 command undo: valid finalize와 후속 mutation은 독립 transaction/undo, read-only command는 finalize만, invalid/no-draft finalize는 transaction 없음
 - property spinner/drag: update는 owner-bound transient preview와 canonical notification 0회, 유효 변경 end만 transaction/undo 1회, 명시적 command는 기존 finalize 규칙, `allowEdit` 하강은 commit 없는 폐기 우선, 시작값 왕복·cancel·stale owner/end는 canonical no-op
 - async paste target: key event 호출 시점 workbook/history/sheet/selection을 캡처하고 clipboard read 뒤 owner 또는 selection 변경 시 object와 cell/text paste 모두 no-op
