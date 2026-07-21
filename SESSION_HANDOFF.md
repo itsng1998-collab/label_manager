@@ -1,3 +1,10 @@
+### 완료 (2026-07-21): 선·도형 지시서 최초 clipboard 안정 상태 복원 보완
+- 사용자 요청: 최신 재검토에서 확인한 object copy/cut latest-wins coordinator의 최초 요청 실패 시 외부 clipboard 복원 권장안을 지시서에 병합한다.
+- 추가 사용자 확인 불필요: 최신 요청 실패를 요청 전 안정 상태로 되돌리는 기존 원자성 계약의 payload/marker 없는 base case다. 복원 범위는 coordinator가 덮어쓰는 `Clipboard.kTextPlain`의 기존 text/부재로 한정하고 다른 clipboard format 전체 복원 책임은 추가하지 않았다.
+- clipboard 보완 완료: pending sequence 최초 시작에서 실제 system text가 저장 marker와 일치할 때만 안정된 object payload/marker 쌍을 snapshot하고, 불일치하거나 쌍이 없으면 기존 `kTextPlain` text/null 부재를 snapshot한다. marker write 실패·예외뿐 아니라 marker 성공 뒤 최신 cut source/권한 재검증 실패도 최신 요청 미commit으로 처리한다. 모든 stale/coordinator write가 정리되면 유효했던 기존 쌍을 복원하거나 최초 외부 text/null 부재를 재확정하고 내부 payload를 비활성으로 유지한다. null 직접 기록을 지원하지 않는 플랫폼은 write 직렬화 등으로 부재를 덮어쓰지 않는 동등 구현을 허용했다.
+- 테스트·완료 조건·확정값에 실제 marker가 일치한 기존 쌍, marker가 불일치하는 외부 text `T`와 null text 각각에서 stale A 성공/최신 B 실패·예외의 양쪽 완료 순서, marker 성공 뒤 cut 재검증 실패의 최종 clipboard, 내부 payload 활성/비활성과 workbook/selection/history/callback 불변을 연결했다.
+- stage/commit 대상: `doc/label_line_panel.txt`, `SESSION_HANDOFF.md`만 포함한다. 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
+
 ### 완료 (2026-07-21): 선·도형 지시서 hidden focus·property Escape 결과 보완
 - 사용자 요청: 최신 잔여 interaction 검토에서 확인한 실제 hidden panel의 비가시 editor keyboard 소유권과 일반 property draft Escape 결과 권장안을 지시서에 병합한다.
 - 사용자 확정: responsive 자동 접기와 wide dock close로 panel이 `hidden`이 될 때 focused property editor/list의 keyboard 소유권을 canvas로 넘긴다. draft 문자열·inline error·transient preview는 보존하고 focus-loss finalize는 실행하지 않는다. narrow overlay의 명시적 Escape/backdrop close는 기존 open trigger→직전 focus→canvas fallback 복원을 유지한다.
