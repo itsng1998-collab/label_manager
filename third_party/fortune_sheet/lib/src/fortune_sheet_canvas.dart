@@ -206,6 +206,59 @@ class FortuneObjectConnectionOption {
   final bool? showHumanReadableText;
 }
 
+class FortuneObjectConnectionChoice {
+  const FortuneObjectConnectionChoice({
+    required this.value,
+    required this.label,
+    this.stale = false,
+  });
+
+  final String value;
+  final String label;
+  final bool stale;
+}
+
+List<FortuneObjectConnectionChoice> fortuneObjectConnectionChoices({
+  required List<FortuneObjectConnectionOption> options,
+  required List<String> legacyIds,
+  required String currentValue,
+}) {
+  final choices = <FortuneObjectConnectionChoice>[
+    const FortuneObjectConnectionChoice(value: '', label: '연결 안 함'),
+  ];
+  final seen = <String>{''};
+  for (final option in options) {
+    final value = option.value.trim();
+    if (value.isEmpty || !seen.add(value.toLowerCase())) {
+      continue;
+    }
+    choices.add(
+      FortuneObjectConnectionChoice(
+        value: value,
+        label: option.label.trim().isEmpty ? value : option.label.trim(),
+      ),
+    );
+  }
+  for (final raw in legacyIds) {
+    final value = raw.trim();
+    if (value.isEmpty || !seen.add(value.toLowerCase())) {
+      continue;
+    }
+    choices.add(FortuneObjectConnectionChoice(value: value, label: value));
+  }
+  final current = currentValue.trim();
+  if (current.isNotEmpty && seen.add(current.toLowerCase())) {
+    choices.add(
+      FortuneObjectConnectionChoice(
+        value: current,
+        label: '연결 끊김 ($current)',
+        stale: true,
+      ),
+    );
+  }
+  return List<FortuneObjectConnectionChoice>.unmodifiable(choices);
+}
+
 enum FortuneObjectConnectionMode { legacy, structured }
 
 class FortuneBarcodeRequest {

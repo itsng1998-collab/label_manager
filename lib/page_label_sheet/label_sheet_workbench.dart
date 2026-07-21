@@ -3814,6 +3814,10 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
                     width: dockPanelWidth,
                     child: FortuneObjectLayerPanel(
                       controller: _controller,
+                      imageObjectOptions: widget.imageObjectOptions,
+                      barcodeObjectOptions: widget.barcodeObjectOptions,
+                      imageObjectIds: widget.imageObjectIds,
+                      barcodeObjectIds: widget.barcodeObjectIds,
                       onClose: _closeObjectPanel,
                     ),
                   ),
@@ -3837,6 +3841,10 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
                     width: overlayPanelWidth,
                     child: FortuneObjectLayerPanel(
                       controller: _controller,
+                      imageObjectOptions: widget.imageObjectOptions,
+                      barcodeObjectOptions: widget.barcodeObjectOptions,
+                      imageObjectIds: widget.imageObjectIds,
+                      barcodeObjectIds: widget.barcodeObjectIds,
                       onClose: _closeObjectPanel,
                     ),
                   ),

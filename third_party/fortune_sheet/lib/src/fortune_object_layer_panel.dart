@@ -11,10 +11,18 @@ class FortuneObjectLayerPanel extends StatefulWidget {
   const FortuneObjectLayerPanel({
     super.key,
     required this.controller,
+    this.imageObjectOptions = const <FortuneObjectConnectionOption>[],
+    this.barcodeObjectOptions = const <FortuneObjectConnectionOption>[],
+    this.imageObjectIds = const <String>[],
+    this.barcodeObjectIds = const <String>[],
     this.onClose,
   });
 
   final FortuneSheetController controller;
+  final List<FortuneObjectConnectionOption> imageObjectOptions;
+  final List<FortuneObjectConnectionOption> barcodeObjectOptions;
+  final List<String> imageObjectIds;
+  final List<String> barcodeObjectIds;
   final VoidCallback? onClose;
 
   @override
@@ -217,6 +225,10 @@ class _FortuneObjectLayerPanelState extends State<FortuneObjectLayerPanel> {
                           snapshot: snapshot,
                           controller: widget.controller,
                           scrollController: _propertyScrollController,
+                          imageObjectOptions: widget.imageObjectOptions,
+                          barcodeObjectOptions: widget.barcodeObjectOptions,
+                          imageObjectIds: widget.imageObjectIds,
+                          barcodeObjectIds: widget.barcodeObjectIds,
                         ),
                 ),
               ],
@@ -414,11 +426,19 @@ class _ObjectPropertyEditor extends StatefulWidget {
     required this.snapshot,
     required this.controller,
     required this.scrollController,
+    required this.imageObjectOptions,
+    required this.barcodeObjectOptions,
+    required this.imageObjectIds,
+    required this.barcodeObjectIds,
   });
 
   final FortuneObjectSelectionSnapshot snapshot;
   final FortuneSheetController controller;
   final ScrollController scrollController;
+  final List<FortuneObjectConnectionOption> imageObjectOptions;
+  final List<FortuneObjectConnectionOption> barcodeObjectOptions;
+  final List<String> imageObjectIds;
+  final List<String> barcodeObjectIds;
 
   @override
   State<_ObjectPropertyEditor> createState() => _ObjectPropertyEditorState();
@@ -745,7 +765,7 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
     ];
     if (image != null) {
       fields.addAll([
-        _field('연결 ID', 'connectionId'),
+        _connectionField(),
         _field('X', 'left', suffix: unit),
         _field('Y', 'top', suffix: unit),
         _field(
@@ -929,6 +949,40 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
       style: const TextStyle(fontSize: 13),
       onChanged: onChanged,
       onSubmitted: (_) => _apply(),
+    );
+  }
+
+  Widget _connectionField() {
+    final barcode = widget.snapshot.activeKey!.kind ==
+        FortuneSheetObjectKind.barcode;
+    final current = _fields['connectionId']!.text.trim();
+    final choices = fortuneObjectConnectionChoices(
+      options: barcode
+          ? widget.barcodeObjectOptions
+          : widget.imageObjectOptions,
+      legacyIds: barcode ? widget.barcodeObjectIds : widget.imageObjectIds,
+      currentValue: current,
+    );
+    return DropdownButtonFormField<String>(
+      key: const ValueKey('fortune-object-property-connectionId'),
+      initialValue: current,
+      decoration: const InputDecoration(labelText: '연결 ID'),
+      items: choices
+          .map(
+            (choice) => DropdownMenuItem<String>(
+              value: choice.value,
+              child: Text(
+                choice.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          )
+          .toList(growable: false),
+      onChanged: (value) {
+        _fields['connectionId']!.text = value ?? '';
+        setState(() => _error = null);
+      },
     );
   }
 

@@ -16,6 +16,27 @@ const _testPngBase64 =
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=';
 
 void main() {
+  test('connection choices dedupe options and mark stale current values', () {
+    final choices = fortuneObjectConnectionChoices(
+      options: const [
+        FortuneObjectConnectionOption(value: ' Logo ', label: '회사 로고'),
+        FortuneObjectConnectionOption(value: 'logo', label: '중복'),
+      ],
+      legacyIds: const [' LOGO ', 'Legacy'],
+      currentValue: 'Missing',
+    );
+
+    expect(choices.map((choice) => choice.value), [
+      '',
+      'Logo',
+      'Legacy',
+      'Missing',
+    ]);
+    expect(choices[1].label, '회사 로고');
+    expect(choices.last.label, '연결 끊김 (Missing)');
+    expect(choices.last.stale, isTrue);
+  });
+
   testWidgets('controller publishes immutable exact object selection snapshots', (
     tester,
   ) async {
@@ -980,7 +1001,10 @@ void main() {
             SizedBox(
               width: 300,
               height: 2000,
-              child: FortuneObjectLayerPanel(controller: controller),
+              child: FortuneObjectLayerPanel(
+                controller: controller,
+                imageObjectIds: const ['NEW'],
+              ),
             ),
           ],
         ),
@@ -989,10 +1013,12 @@ void main() {
 
     await tester.tap(find.text('이미지 image_1'));
     await tester.pump();
-    await tester.enterText(
-      find.byKey(const ValueKey('fortune-object-property-connectionId')),
-      'NEW',
-    );
+    tester
+        .widget<DropdownButtonFormField<String>>(
+          find.byKey(const ValueKey('fortune-object-property-connectionId')),
+        )
+        .onChanged!('NEW');
+    await tester.pump();
     await tester.enterText(
       find.byKey(const ValueKey('fortune-object-property-top')),
       '-5',
