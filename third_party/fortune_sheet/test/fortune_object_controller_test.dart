@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'dart:convert';
 import 'dart:ui';
 import 'dart:ui' as ui;
 
@@ -9,6 +11,9 @@ import 'package:fortune_sheet/src/fortune_sheet_canvas.dart';
 import 'package:fortune_sheet/src/fortune_sheet_model.dart';
 import 'package:fortune_sheet/src/fortune_object_layer_panel.dart';
 import 'package:fortune_sheet/src/fortune_sheet_painter.dart';
+
+const _testPngBase64 =
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=';
 
 void main() {
   testWidgets('controller publishes immutable exact object selection snapshots', (
@@ -442,6 +447,173 @@ void main() {
     expect(shape.cornerRadiusMm, 0);
   });
 
+  testWidgets('controller commits image properties atomically', (tester) async {
+    tester.view.physicalSize = const Size(900, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    final controller = FortuneSheetController();
+    final workbook = FortuneWorkbook(
+      settings: const FortuneSettings(
+        showToolbar: false,
+        showFormulaBar: false,
+      ),
+      sheets: [
+        FortuneSheet(
+          id: 's1',
+          name: 'Sheet1',
+          images: const [
+            FortuneImage(
+              id: 'image_1',
+              src: 'data:image/png;base64,AA==',
+              left: 20,
+              top: 30,
+              width: 80,
+              height: 40,
+              extraFields: {
+                fortuneImageObjectIdExtraKey: 'OLD',
+                'crop': {'left': 0.1},
+              },
+            ),
+          ],
+        ),
+      ],
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SizedBox(
+          width: 900,
+          height: 700,
+          child: FortuneSheetCanvas(
+            workbook: workbook,
+            controller: controller,
+          ),
+        ),
+      ),
+    );
+
+    const key = FortuneSheetObjectKey(
+      FortuneSheetObjectKind.image,
+      'image_1',
+    );
+    controller.selectObject(key);
+    controller.updateSelectedImage(
+      left: -5,
+      top: -3,
+      width: 120,
+      height: 60,
+      rotationDegrees: -45,
+      connectionId: ' NEW ',
+    );
+    await tester.pump();
+
+    final image = controller.objectSelection.activeImage!;
+    expect((image.left, image.top, image.width, image.height), (-5, 0, 120, 60));
+    expect(image.extraFields['rotation'], 315);
+    expect(image.extraFields[fortuneImageObjectIdExtraKey], 'NEW');
+    expect(image.extraFields['crop'], {'left': 0.1});
+
+    controller.updateSelectedImage(width: 1);
+    controller.handleUndo();
+    await tester.pump();
+    final restored = controller.objectSelection.activeImage!;
+    expect((restored.left, restored.top, restored.width, restored.height), (
+      20,
+      30,
+      80,
+      40,
+    ));
+    expect(restored.extraFields[fortuneImageObjectIdExtraKey], 'OLD');
+    expect(restored.extraFields['crop'], {'left': 0.1});
+  });
+
+  testWidgets('controller replaces image file only for the captured owner', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    final controller = FortuneSheetController();
+    final picker = Completer<FortuneImagePickResult?>();
+    final workbook = FortuneWorkbook(
+      settings: const FortuneSettings(
+        showToolbar: false,
+        showFormulaBar: false,
+      ),
+      sheets: [
+        FortuneSheet(
+          id: 's1',
+          name: 'Sheet1',
+          images: const [
+            FortuneImage(
+              id: 'image_1',
+              src: 'old-src',
+              left: 20,
+              top: 30,
+              width: 80,
+              height: 40,
+              extraFields: {
+                fortuneImageObjectIdExtraKey: 'LOGO',
+                'rotation': 90,
+                'crop': {'left': 0.1},
+              },
+            ),
+          ],
+        ),
+      ],
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SizedBox(
+          width: 900,
+          height: 700,
+          child: FortuneSheetCanvas(
+            workbook: workbook,
+            controller: controller,
+            imagePicker: () => picker.future,
+          ),
+        ),
+      ),
+    );
+    const key = FortuneSheetObjectKey(
+      FortuneSheetObjectKind.image,
+      'image_1',
+    );
+    controller.selectObject(key);
+    expect(controller.objectSelection.activeImage?.id, 'image_1');
+    final replacement = controller.replaceSelectedImageFile();
+    final replaced = await tester.runAsync(() async {
+      picker.complete(
+        FortuneImagePickResult(
+          bytes: base64Decode(_testPngBase64),
+          fileName: 'new.png',
+          mimeType: 'image/png',
+          width: 1,
+          height: 1,
+        ),
+      );
+      return replacement;
+    });
+    expect(replaced, isTrue);
+    await tester.pump();
+
+    final image = controller.objectSelection.activeImage!;
+    expect(image.src, 'data:image/png;base64,$_testPngBase64');
+    expect((image.left, image.top, image.width, image.height), (20, 30, 80, 40));
+    expect(image.extraFields[fortuneImageObjectIdExtraKey], 'LOGO');
+    expect(image.extraFields['rotation'], 90);
+    expect(image.extraFields['crop'], {'left': 0.1});
+    expect((image.extraFields['originWidth'], image.extraFields['originHeight']), (
+      1,
+      1,
+    ));
+  });
+
   testWidgets('structured duplicate preserves connection id with no options', (
     tester,
   ) async {
@@ -634,6 +806,96 @@ void main() {
     expect(shape.top, 0);
     expect(shape.rotationDegrees, 45);
     expect(shape.fillColor, isNull);
+  });
+
+  testWidgets('object layer panel applies selected image properties', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 2000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    final controller = FortuneSheetController();
+    final workbook = FortuneWorkbook(
+      settings: const FortuneSettings(
+        showToolbar: false,
+        showFormulaBar: false,
+      ),
+      sheets: [
+        FortuneSheet(
+          id: 's1',
+          name: 'Sheet1',
+          images: const [
+            FortuneImage(
+              id: 'image_1',
+              src: 'data:image/png;base64,AA==',
+              left: 20,
+              top: 30,
+              width: 80,
+              height: 40,
+              extraFields: {
+                fortuneImageObjectIdExtraKey: 'OLD',
+                'crop': {'left': 0.1},
+              },
+            ),
+          ],
+        ),
+      ],
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Row(
+          children: [
+            SizedBox(
+              width: 600,
+              height: 2000,
+              child: FortuneSheetCanvas(
+                workbook: workbook,
+                controller: controller,
+              ),
+            ),
+            SizedBox(
+              width: 300,
+              height: 2000,
+              child: FortuneObjectLayerPanel(controller: controller),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('이미지 image_1'));
+    await tester.pump();
+    await tester.enterText(
+      find.byKey(const ValueKey('fortune-object-property-connectionId')),
+      'NEW',
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey('fortune-object-property-top')),
+      '-5',
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey('fortune-object-property-width')),
+      '120',
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey('fortune-object-property-rotation')),
+      '405',
+    );
+    tester
+        .widget<FilledButton>(
+          find.byKey(const ValueKey('fortune-object-property-apply')),
+        )
+        .onPressed!();
+    await tester.pump();
+
+    final image = controller.objectSelection.activeImage!;
+    expect((image.top, image.width, image.height), (0, 120, 60));
+    expect(image.extraFields['rotation'], 45);
+    expect(image.extraFields[fortuneImageObjectIdExtraKey], 'NEW');
+    expect(image.extraFields['crop'], {'left': 0.1});
   });
 
   testWidgets('object layer rows drag selected objects by exact drop side', (

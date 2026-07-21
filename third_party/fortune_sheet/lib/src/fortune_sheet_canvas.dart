@@ -1164,6 +1164,28 @@ class FortuneSheetController extends ChangeNotifier {
     _state?._duplicateSelectedObjectsFromController();
   }
 
+  void updateSelectedImage({
+    double? left,
+    double? top,
+    double? width,
+    double? height,
+    double? rotationDegrees,
+    Object? connectionId = _fortuneUnspecifiedObjectProperty,
+  }) {
+    _state?._updateSelectedImageFromController(
+      left: left,
+      top: top,
+      width: width,
+      height: height,
+      rotationDegrees: rotationDegrees,
+      connectionId: connectionId,
+    );
+  }
+
+  Future<bool> replaceSelectedImageFile() async {
+    return await _state?._replaceSelectedImageFileFromController() ?? false;
+  }
+
   void updateSelectedLine({
     double? x1,
     double? y1,
@@ -2625,6 +2647,7 @@ class _EditorInlineHistorySnapshot {
 class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   late FortuneObjectConnectionMode _imageObjectConnectionMode;
   late FortuneObjectConnectionMode _barcodeObjectConnectionMode;
+  int _panelImagePickerToken = 0;
   static const int _maxUndoSnapshots = 100;
   static const String _sheetCornerTooltipText = '마우스 우클릭 - 라벨 크기 조정';
   static const Map<String, int> _fillChineseDigits = {
@@ -26184,6 +26207,152 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     });
   }
 
+  void _updateSelectedImageFromController({
+    double? left,
+    double? top,
+    double? width,
+    double? height,
+    double? rotationDegrees,
+    Object? connectionId = _fortuneUnspecifiedObjectProperty,
+  }) {
+    final key = _objectSelectionSnapshot(attached: true).activeKey;
+    if (!_workbook.settings.allowEdit ||
+        key == null ||
+        key.kind != FortuneSheetObjectKind.image &&
+            key.kind != FortuneSheetObjectKind.barcode) {
+      return;
+    }
+    final sheet = _workbook.activeSheet;
+    final sourceIndex = sheet.images.indexWhere((image) {
+      return image.id == key.id && fortuneImageObjectKind(image) == key.kind;
+    });
+    if (sourceIndex < 0) {
+      return;
+    }
+    final source = sheet.images[sourceIndex];
+    final nextLeft = left ?? source.left;
+    final nextTop = math.max(0.0, top ?? source.top);
+    final nextWidth = width ?? source.width;
+    final nextHeight = height ?? source.height;
+    final nextRotation = _normalizeObjectRotation(
+      rotationDegrees ?? _imageRotationDegrees(source.extraFields['rotation']),
+    );
+    final zoom = sheet.zoomRatio > 0 && sheet.zoomRatio.isFinite
+        ? sheet.zoomRatio
+        : 1.0;
+    if (![nextLeft, nextTop, nextWidth, nextHeight, nextRotation]
+            .every((value) => value.isFinite) ||
+        nextWidth <= 0 ||
+        nextHeight <= 0 ||
+        nextWidth * zoom < 3 ||
+        nextHeight * zoom < 3) {
+      return;
+    }
+    final extraFields = <String, Object?>{
+      ...source.extraFields,
+      'rotation': nextRotation,
+    };
+    if (!identical(connectionId, _fortuneUnspecifiedObjectProperty)) {
+      final metadataKey = key.kind == FortuneSheetObjectKind.barcode
+          ? fortuneBarcodeObjectIdExtraKey
+          : fortuneImageObjectIdExtraKey;
+      final value = (connectionId as String?)?.trim() ?? '';
+      if (value.isEmpty) {
+        extraFields.remove(metadataKey);
+      } else {
+        extraFields[metadataKey] = value;
+      }
+    }
+    final usesMillimeters = fortuneSheetGridClientPhysicalSize(sheet) != null;
+    if (usesMillimeters) {
+      extraFields['widthMm'] = fortuneLogicalPixelsToMillimeters(nextWidth);
+      extraFields['heightMm'] = fortuneLogicalPixelsToMillimeters(nextHeight);
+    } else {
+      extraFields.remove('widthMm');
+      extraFields.remove('heightMm');
+    }
+    final next = source.copyWith(
+      left: nextLeft,
+      top: nextTop,
+      width: nextWidth,
+      height: nextHeight,
+      extraFields: extraFields,
+    );
+    if (_sameSnapshotImage(source, next)) {
+      return;
+    }
+    final images = [...sheet.images]..[sourceIndex] = next;
+    final sheets = [..._workbook.sheets];
+    _recordUndoSnapshot();
+    sheets[_workbook.activeSheetIndex] = sheet.copyWith(images: images);
+    setState(() {
+      _workbook = _workbook.copyWith(sheets: sheets);
+      _closeTransientMenus();
+    });
+  }
+
+  Future<bool> _replaceSelectedImageFileFromController() async {
+    final picker = widget.imagePicker;
+    final snapshot = _objectSelectionSnapshot(attached: true);
+    final key = snapshot.activeKey;
+    final source = snapshot.activeImage;
+    if (!_workbook.settings.allowEdit ||
+        picker == null ||
+        key == null ||
+        key.kind != FortuneSheetObjectKind.image ||
+        source == null) {
+      return false;
+    }
+    final ownerSheetId = snapshot.sheetId;
+    final token = ++_panelImagePickerToken;
+    FortuneImagePickResult? picked;
+    try {
+      picked = await picker();
+    } on Object {
+      return false;
+    }
+    if (!mounted || picked == null || token != _panelImagePickerToken) {
+      return false;
+    }
+    final src = _bytesDataUri(picked.bytes, picked.mimeType);
+    final decoded = await _decodeImageBytes(picked.bytes);
+    if (!mounted || token != _panelImagePickerToken) {
+      decoded?.dispose();
+      return false;
+    }
+    final sheet = _workbook.activeSheet;
+    final sourceIndex = sheet.images.indexWhere((image) {
+      return image.id == key.id &&
+          fortuneImageObjectKind(image) == key.kind &&
+          _sameSnapshotImage(image, source);
+    });
+    if (!_workbook.settings.allowEdit ||
+        sheet.id != ownerSheetId ||
+        sourceIndex < 0) {
+      decoded?.dispose();
+      return false;
+    }
+    final extraFields = <String, Object?>{
+      ...source.extraFields,
+      'originWidth': picked.width ?? decoded?.width ?? source.width,
+      'originHeight': picked.height ?? decoded?.height ?? source.height,
+    };
+    final next = source.copyWith(src: src, extraFields: extraFields);
+    final images = [...sheet.images]..[sourceIndex] = next;
+    final sheets = [..._workbook.sheets];
+    _recordUndoSnapshot();
+    sheets[_workbook.activeSheetIndex] = sheet.copyWith(images: images);
+    setState(() {
+      if (decoded != null) {
+        _decodedImages[src]?.dispose();
+        _decodedImages[src] = decoded;
+      }
+      _workbook = _workbook.copyWith(sheets: sheets);
+      _closeTransientMenus();
+    });
+    return true;
+  }
+
   void _updateSelectedShapeFromController({
     double? left,
     double? top,
@@ -32527,15 +32696,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   }
 
   bool _objectMapEquals(Map<String, Object?> left, Map<String, Object?> right) {
-    if (left.length != right.length) {
-      return false;
-    }
-    for (final entry in left.entries) {
-      if (!right.containsKey(entry.key) || right[entry.key] != entry.value) {
-        return false;
-      }
-    }
-    return true;
+    return _objectTreesEqual(left, right);
   }
 
   FortuneFrozenPane? _columnFreezeForIndex(

@@ -16,8 +16,11 @@
 - `FortuneObjectConnectionMode`를 Canvas/App configuration에 추가했다. nullable 호환 default는 mounted owner에서 최초 options로 한 번만 해석하고 explicit mode 변경만 반영한다. LabelSheet Workbench는 image/barcode 모두 structured를 명시하며 생성 dialog, stale label, linked/fixed mode, duplicate가 options 0건에서도 structured 의미를 유지한다.
 - line/shape context menu를 exact typed target으로 일반화했다. 타입별 첫 편집 항목은 객체 패널을 열고, 복제·삭제·맨앞/앞/뒤/맨뒤는 기존 공통 controller transaction을 재사용한다.
 - active image toolbar layout/hit-test를 active object toolbar로 일반화했다. 단일 line/shape도 타입별 편집, 삭제·복제와 공통 레이어 이동을 표시하며 paint-order 경계에서 이동 command를 비활성화한다.
-- 검증: package object controller 8건, 루트 toolbar/Workbench 117건 통과. 루트와 `third_party/fortune_sheet` `flutter analyze`, 변경 파일 diagnostics와 `git diff --check` 모두 clean이다.
-- 다음 순서: image/barcode panel form·async owner → mixed clipboard → capture/Hybrid EZPL. `lib/core/app.dart` 사용자 변경과 `third_party/fortune_sheet/build/` 생성물은 계속 수정·stage·commit에서 제외한다.
+- image panel에 read-only internal ID, editable 연결 ID, X/Y/폭/높이/회전, 기본 활성 비율 잠금과 파일 교체를 추가했다. geometry/connection 변경은 controller transaction/undo 1건이며 crop 등 비대상 metadata를 보존한다.
+- panel image picker는 Canvas의 picker와 decoded cache를 재사용하고 sheet/exact image/canonical snapshot/token owner가 유효할 때만 src와 origin size를 교체한다. preview decode cache 실패는 유효한 canonical data URI commit을 막지 않는다.
+- nested crop metadata가 deep-copy snapshot에서 달라진 것으로 오인되던 공통 map equality를 recursive metadata equality로 수정했다.
+- 검증: package object controller 11건, 루트 toolbar/Workbench 117건 통과. 루트와 `third_party/fortune_sheet` `flutter analyze`, 변경 파일 diagnostics와 `git diff --check` 모두 clean이다.
+- 다음 순서: barcode panel form·async renderer owner → mixed clipboard → capture/Hybrid EZPL. `lib/core/app.dart` 사용자 변경과 `third_party/fortune_sheet/build/` 생성물은 계속 수정·stage·commit에서 제외한다.
 
 ### 완료 (2026-07-21): 선·도형 지시서 재검토 6건 병합
 - 사용자 요청: 최신 구현 대조에서 확인한 structured-empty 잔여 분기, 읽기 전용 객체 권한, barcode pending 이탈, output owner 공개 조정 경계, image picker 오류 귀속과 panel 폭 write 실패 의미를 권장안으로 병합한다.

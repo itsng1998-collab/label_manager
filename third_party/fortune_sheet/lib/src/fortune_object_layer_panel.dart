@@ -353,6 +353,10 @@ class _ObjectLayerRow extends StatelessWidget {
 }
 
 String _propertySnapshotIdentity(FortuneObjectSelectionSnapshot snapshot) {
+  final image = snapshot.activeImage;
+  if (image != null) {
+    return '${snapshot.sheetId}|${image.id}|${image.left}|${image.top}|${image.width}|${image.height}|${image.extraFields['rotation']}|${image.extraFields[fortuneImageObjectIdExtraKey]}|${image.extraFields[fortuneBarcodeObjectIdExtraKey]}';
+  }
   final line = snapshot.activeLine;
   if (line != null) {
     return '${snapshot.sheetId}|${line.id}|${line.x1}|${line.y1}|${line.x2}|${line.y2}|${line.strokeStyle}|${line.strokeWidthMm}|${line.strokeColor}';
@@ -424,6 +428,10 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
   final Map<String, TextEditingController> _fields = {};
   FortuneStrokeStyle _strokeStyle = FortuneStrokeStyle.solid;
   bool _noFill = false;
+  bool _imageAspectLocked = true;
+  double? _imageAspectRatio;
+  String? _lastImageSizeField;
+  bool _imagePickerPending = false;
   String? _error;
 
   @override
@@ -441,9 +449,27 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
   }
 
   void _initializeFields() {
+    final image = widget.snapshot.activeImage;
     final line = widget.snapshot.activeLine;
     final shape = widget.snapshot.activeShape;
-    if (line != null) {
+    if (image != null) {
+      if (image.width.isFinite &&
+          image.height.isFinite &&
+          image.width > 0 &&
+          image.height > 0) {
+        _imageAspectRatio = image.width / image.height;
+      }
+      _setGeometryField('left', image.left);
+      _setGeometryField('top', image.top);
+      _setGeometryField('width', image.width);
+      _setGeometryField('height', image.height);
+      _setField('rotation', _imageRotation(image));
+      final metadataKey = widget.snapshot.activeKey!.kind ==
+              FortuneSheetObjectKind.barcode
+          ? fortuneBarcodeObjectIdExtraKey
+          : fortuneImageObjectIdExtraKey;
+      _setField('connectionId', image.extraFields[metadataKey] ?? '');
+    } else if (line != null) {
       _strokeStyle = line.strokeStyle;
       _setGeometryField('x1', line.x1);
       _setGeometryField('y1', line.y1);
@@ -492,8 +518,49 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
   }
 
   void _apply() {
+    final image = widget.snapshot.activeImage;
     final line = widget.snapshot.activeLine;
     final shape = widget.snapshot.activeShape;
+    if (image != null) {
+      final left = _number('left', geometry: true);
+      final top = _number('top', geometry: true);
+      var width = _number('width', geometry: true);
+      var height = _number('height', geometry: true);
+      final rotation = _number('rotation');
+      if ([left, top, width, height, rotation].contains(null)) {
+        setState(() => _error = '유효한 이미지 값을 입력하세요.');
+        return;
+      }
+      final aspectRatio = _imageAspectRatio;
+      if (_imageAspectLocked && aspectRatio != null) {
+        if (_lastImageSizeField == 'width') {
+          height = width! / aspectRatio;
+        } else if (_lastImageSizeField == 'height') {
+          width = height! * aspectRatio;
+        }
+      }
+      final connectionId = _fields['connectionId']?.text.trim() ?? '';
+      if (widget.snapshot.activeKey!.kind == FortuneSheetObjectKind.image &&
+          connectionId.isEmpty &&
+          image.extraFields[fortuneImageObjectIdExtraKey]
+                  ?.toString()
+                  .trim()
+                  .isNotEmpty ==
+              true) {
+        setState(() => _error = '연결을 해제하려면 이미지 파일을 선택하세요.');
+        return;
+      }
+      widget.controller.updateSelectedImage(
+        left: left,
+        top: top,
+        width: width,
+        height: height,
+        rotationDegrees: rotation,
+        connectionId: connectionId,
+      );
+      setState(() => _error = null);
+      return;
+    }
     final strokeWidth = _number('strokeWidth');
     final strokeColor = _fields['strokeColor']?.text.trim();
     if (strokeWidth == null || strokeColor == null) {
@@ -547,11 +614,26 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
     setState(() => _error = null);
   }
 
+  Future<void> _replaceImageFile() async {
+    if (_imagePickerPending) {
+      return;
+    }
+    setState(() {
+      _imagePickerPending = true;
+      _error = null;
+    });
+    await widget.controller.replaceSelectedImageFile();
+    if (mounted) {
+      setState(() => _imagePickerPending = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final image = widget.snapshot.activeImage;
     final line = widget.snapshot.activeLine;
     final shape = widget.snapshot.activeShape;
-    if (line == null && shape == null) {
+    if (image == null && line == null && shape == null) {
       return const SizedBox.shrink();
     }
     final unit = widget.snapshot.geometryUsesMillimeters ? 'mm' : 'px';
@@ -563,7 +645,49 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
       const SizedBox(height: 10),
       _ReadOnlyProperty(label: '개체 ID', value: widget.snapshot.activeKey!.id),
     ];
-    if (line != null) {
+    if (image != null) {
+      fields.addAll([
+        _field('연결 ID', 'connectionId'),
+        _field('X', 'left', suffix: unit),
+        _field('Y', 'top', suffix: unit),
+        _field(
+          '폭',
+          'width',
+          suffix: unit,
+          onChanged: (_) => _lastImageSizeField = 'width',
+        ),
+        _field(
+          '높이',
+          'height',
+          suffix: unit,
+          onChanged: (_) => _lastImageSizeField = 'height',
+        ),
+        if (widget.snapshot.activeKey!.kind == FortuneSheetObjectKind.image)
+          CheckboxListTile(
+            key: const ValueKey('fortune-object-property-aspect-lock'),
+            contentPadding: EdgeInsets.zero,
+            dense: true,
+            title: const Text('비율 유지', style: TextStyle(fontSize: 13)),
+            value: _imageAspectLocked,
+            onChanged: (value) {
+              setState(() => _imageAspectLocked = value ?? true);
+            },
+          ),
+        if (widget.snapshot.activeKey!.kind == FortuneSheetObjectKind.image)
+          OutlinedButton.icon(
+            key: const ValueKey('fortune-object-property-replace-file'),
+            onPressed: _imagePickerPending ? null : _replaceImageFile,
+            icon: _imagePickerPending
+                ? const SizedBox.square(
+                    dimension: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.folder_open, size: 17),
+            label: const Text('파일 교체'),
+          ),
+        _field('회전', 'rotation', suffix: '°'),
+      ]);
+    } else if (line != null) {
       fields.addAll([
         _field('시작 X', 'x1', suffix: unit),
         _field('시작 Y', 'y1', suffix: unit),
@@ -587,8 +711,9 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
         _field('회전', 'rotation', suffix: '°'),
       ]);
     }
-    fields.addAll([
-      DropdownButtonFormField<FortuneStrokeStyle>(
+    if (image == null) {
+      fields.addAll([
+        DropdownButtonFormField<FortuneStrokeStyle>(
         initialValue: _strokeStyle,
         decoration: const InputDecoration(labelText: '테두리 스타일'),
         items: FortuneStrokeStyle.values
@@ -606,8 +731,9 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
         },
       ),
       _field('테두리 폭', 'strokeWidth', suffix: 'mm'),
-      _field('테두리 색상', 'strokeColor'),
-    ]);
+        _field('테두리 색상', 'strokeColor'),
+      ]);
+    }
     if (shape != null) {
       fields.addAll([
         CheckboxListTile(
@@ -646,12 +772,18 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
     );
   }
 
-  Widget _field(String label, String name, {String? suffix}) {
+  Widget _field(
+    String label,
+    String name, {
+    String? suffix,
+    ValueChanged<String>? onChanged,
+  }) {
     return TextField(
       key: ValueKey('fortune-object-property-$name'),
       controller: _fields[name],
       decoration: InputDecoration(labelText: label, suffixText: suffix),
       style: const TextStyle(fontSize: 13),
+      onChanged: onChanged,
       onSubmitted: (_) => _apply(),
     );
   }
@@ -668,6 +800,12 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
   double _lineAngle(FortuneLine line) {
     final degrees = math.atan2(line.y2 - line.y1, line.x2 - line.x1) * 180 / math.pi;
     return degrees < 0 ? degrees + 360 : degrees;
+  }
+
+  double _imageRotation(FortuneImage image) {
+    final raw = image.extraFields['rotation'];
+    final value = raw is num ? raw.toDouble() : double.tryParse('$raw');
+    return value != null && value.isFinite ? value : 0;
   }
 }
 
