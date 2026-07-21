@@ -6,6 +6,17 @@
 - ODBC transaction batch는 첫 DML이 0행일 때 `SQL_NO_DATA(100)`을 반환할 수 있으므로 필요하면 batch 첫 줄에 `SET NOCOUNT ON`을 사용하고 명시적 결과 SELECT를 유지한다. `@@ROWCOUNT`와 `@@TRANCOUNT`는 parameter로 치환하지 않는다.
 - SQL 변경 검증 시 focused DAO 테스트에 금지 함수 미사용과 XML wire 계약을 고정하고, 가능한 경우 compatibility 100 실제 서버에서 데이터 변경 없는 read-only/빈 payload/rollback probe를 수행한다. 실제 schema capability가 없으면 gate를 우회하지 않고 제한을 기록한다.
 
+### 완료 (2026-07-21): 선·도형 지시서 model·clipboard·snapshot 경계 보완
+- 사용자 요청: 최신 `doc/label_line_panel.txt` 재검토 권장안을 과도한 예외 처리 없이 병합하고 필요한 공개 동작 선택은 즉시 확정한다.
+- 추가 사용자 확인 불필요: 신규 선택 없이 기존 public model 호환, package clipboard 소유권, workbook change 단위와 immutable Hybrid snapshot 원칙을 구체화했다.
+- model API 보완 완료: `FortuneSheet.lines/shapes` 생성자는 optional-empty로 기존 호출을 유지한다. 무관한 `copyWith`는 typed/raw/`hasRaw*`를 deep clone해 보존하고 typed list 교체 시 함께 제공하지 않은 stale raw를 폐기한다.
+- clipboard 보완 완료: internal payload는 package canonical typed model deep clone이며 필요할 때만 versioned package codec을 사용한다. LabelSheet save sanitizer와 raw-list wire는 clipboard에 사용하지 않고 system clipboard에는 opaque marker만 기록한다.
+- transaction 보완 완료: valid draft finalize와 후속 mutation은 독립 transaction/undo, read-only command는 finalize만, invalid/no-draft finalize는 transaction 없음으로 고정하고 undo 복원 순서와 no-draft 통지 0회 테스트를 추가했다.
+- Hybrid 보완 완료: plan 확정 뒤 live workbook이 바뀌어도 filtered capture/native encoder/반환 결과는 최초 canonical snapshot을 끝까지 사용하고 완료 시점 live canvas를 다시 읽지 않는다.
+- 독립 재검토 완료: generic command 결과 enum, 별도 stale-capture 취소 체계와 panel 소유권 재설계는 과도하거나 기존 계약으로 충분해 제외했다. 최종 검토에서 no-draft 빈 transaction 판별 fixture만 추가했고 잔여 구현 차단 모순은 없다.
+- 검증 완료: `doc/label_line_panel.txt` diagnostics 오류 0건, 신규 계약 검색과 `git diff --check` 통과. 문서만 변경했으므로 Flutter test/analyze는 실행하지 않았다.
+- stage/commit 대상: `doc/label_line_panel.txt`, `SESSION_HANDOFF.md`만 포함한다. 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
+
 ### 완료 (2026-07-21): 선·도형 지시서 callback·controller 원자성 보완
 - 사용자 요청: 최신 `doc/label_line_panel.txt`를 실제 구현에 다시 대조한 권장안을 병합하고 공개 동작 선택은 즉시 확정한다.
 - 사용자 확정: 실제 외부 workbook replacement는 synthetic `FortuneOp`를 만들지 않고 내부 상태 확정 뒤 `onChange`→controller/listenable만 통지하며 `onOp`는 호출하지 않는다. 실제 op가 있는 command/undo/redo만 `onChange`→`onOp`→listener 순서를 사용한다.
