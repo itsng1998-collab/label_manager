@@ -252,7 +252,7 @@ allow-list는 다음 key로 고정한다.
 - legacy raw `shapes`는 migration의 일반 deep clone이나 `Map<String, Object?>.from` cast보다 먼저 원본 `Object?` 상태에서 분리해 strict clone한다. strict clone은 `({bool valid, Object? value})`처럼 유효 여부와 `null` 값을 구분하고, map key의 실제 `String` 타입과 finite num을 변환 전에 검사하며 현재 재귀 경로의 object identity set으로 cycle을 판정한다. 성공한 값만 일반 sheet payload에 다시 넣고 실패한 key는 omit하므로, 공용 clone의 key 문자열화·cast 예외·cycle 재귀가 먼저 발생하면 안 된다.
 - absent `lines`/`fortuneShapes`와 빈 list는 decode model에서 같은 empty list다. 기존 images wire 규칙과 같이 canonical encoder는 빈 typed list key를 생략하고, raw empty key를 그대로 재사용해야 하는 경우에만 원래 raw key/value를 보존한다. save/import 테스트는 `"lines": []`/`"fortuneShapes": []` key 존재가 아니라 decoded empty model과 반복 encode 안정성을 검증한다.
 - codec fallback 또는 canonical normalize가 적용된 entry는 비정상 raw wire를 그대로 재사용하지 않는다. raw list 전체를 재사용하려면 raw entry 수가 canonical model entry 수와 같고 각 entry의 모든 canonical field가 fallback/normalize 없이 유효한 wire여야 한다. 여기에는 필수 field와 ID, geometry의 유한한 JSON number·양수 bounds, zOrder, stroke style, `strokeWidthMm` 범위, `strokeColor`/`fillColor`, shape kind, rotation과 kind별 `cornerRadiusMm`이 포함된다. 중복 ID 재발급, 비숫자/비유한 값 fallback, invalid color/style/range fallback 또는 decoder에서 제외된 entry가 하나라도 있으면 빈 canonical model을 포함해 해당 raw list 전체를 폐기하고 canonical encode한다.
-- 저장할 때마다 zOrder를 임의 재정렬하지 않는다. zOrder 연속값 정규화는 사용자가 layer reorder/앞뒤 이동 command를 실행한 transaction 안에서만 수행한다.
+- 저장할 때마다 zOrder를 임의 재정렬하지 않는다. zOrder 연속값 정규화는 사용자가 layer reorder/앞뒤 이동 command를 실행해 실제 front-to-back exact-key 순서가 달라진 transaction 안에서만 수행한다.
 
 기존 `sheet.images`, `image` legacy alias 선택과 `rawImagesKey` 동작은 변경하지 않는다. 단 image/barcode ID 또는 zOrder canonicalization이 필요한 raw images list는 재사용하지 않고 canonical encode하며, images-only 무변경 round-trip은 모든 canonical field가 이미 유효한 raw wire에 한정한다.
 일반 workbook XLSX exporter와 line/shape custom XML schema를 새로 만드는 것은 이번 범위가 아니다. `.xlsx` import는 외부 drawing을 line/shape로 추론하지 않으며 이번 완료 조건은 `.lms` round-trip으로 한정한다.
@@ -625,8 +625,8 @@ x2 += dx, y2 += dy
 - 성공한 canonical transaction의 내부 확정 순서는 `canonical model commit → undo/redo stack·workbook/object/per-sheet revision·history lineage 확정 → selection/property draft/transient state 정리 → package read-only state snapshot 확정`으로 고정한다. 실제 `FortuneOp`가 있는 package command와 undo/redo는 그 뒤 `onChange → onOp → controller/listenable 단일 통지` 순서를 사용한다. `onChange` 진입 시 controller getter는 이미 새 revision과 정리된 selection/undo 상태를 반환하고, 기존 호환성을 위해 `onChange`가 항상 `onOp`보다 먼저다. 사용자가 확정한 대로 실제 외부 workbook replacement는 synthetic `FortuneOp`를 만들지 않고 같은 내부 상태 확정 뒤 `onChange → controller/listenable 단일 통지`만 사용하며 `onOp`는 0회다. canonical no-op과 stale async 결과는 어느 callback/listener도 통지하지 않는다.
 - Shift 범위 선택, Ctrl/Meta toggle, Ctrl+A, keyboard navigation을 기존 panel 동작과 같게 유지한다.
 - 선택된 여러 행의 drag reorder는 선택 묶음의 내부 상대 순서를 유지한다.
-- 사용자가 확정한 대로 drag target은 `(target exact key, before|after)`로 캡처하고 행의 위쪽 절반은 `before`, 아래쪽 절반은 `after` drop indicator를 표시한다. 선택 묶음을 원래 front-to-back 목록에서 제거한 뒤 target exact key를 다시 찾아 해당 side에 삽입하므로 원본 숫자 index를 그대로 재사용하지 않는다. target이 삭제되거나 owner/revision이 달라지면 reorder를 commit하지 않는다.
-- 유효한 drop 뒤 선택 묶음의 내부 상대 순서를 유지하고 전체 공통 zOrder를 연속값으로 다시 매긴다.
+- 사용자가 확정한 대로 drag target은 `(target exact key, before|after)`로 캡처하고 행의 위쪽 절반은 `before`, 아래쪽 절반은 `after` drop indicator를 표시한다. target이 selected set 구성원이면 before/after 어느 쪽도 선택 묶음 내부 순서를 바꾸지 않는 no-op indicator로 취급하고 commit하지 않는다. 그 밖에는 선택 묶음을 원래 front-to-back 목록에서 제거한 뒤 target exact key를 다시 찾아 해당 side에 삽입하므로 원본 숫자 index를 그대로 재사용하지 않는다. target이 삭제되거나 owner/revision이 달라지면 reorder를 commit하지 않는다. preview와 pointer-up은 같은 projected exact-key 배열 helper를 사용해 indicator와 commit 결과가 어긋나지 않게 한다.
+- 선택 묶음을 제거하고 target exact key의 지정 side에 삽입해 계산한 front-to-back `FortuneSheetObjectKey(kind, id)` 배열을 원래 배열과 비교한다. 배열이 같으면 기존 zOrder의 연속성·중복 여부와 무관하게 값을 정규화하지 않고 workbook/undo/redo/dirty/revision과 `onChange`/`onOp`/controller-listenable을 모두 유지하는 no-op이다. 배열이 실제로 달라진 drop만 유효한 reorder transaction이며 선택 묶음의 내부 상대 순서를 유지한 채 전체 공통 zOrder를 연속값으로 다시 매기고 undo와 canonical callback을 각각 한 번 만든다.
 
 ### 9.3 선택 없음
 
@@ -1186,8 +1186,9 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - Shift 범위/Ctrl toggle/Ctrl+A
 - mixed selection delete/duplicate/reorder
 - selected block 내부 순서 유지
-- layer drag가 행 위/아래 절반의 before/after indicator대로 이동하고 위·아래 방향 모두 선택 묶음 제거 뒤 target exact key를 재조회하며 stale target/owner에서는 undo·dirty·callback 없는 no-op
+- layer drag가 행 위/아래 절반의 before/after indicator대로 이동하고 위·아래 방향 모두 선택 묶음 제거 뒤 target exact key를 재조회하며 stale target/owner에서는 undo·dirty·callback 없는 no-op. selected-set 내부 target은 before/after 모두 no-op indicator이고 preview와 pointer-up이 같은 projected exact-key 배열을 사용함
 - 같은 ID의 image/line이 인접한 목록에서 kind를 포함한 exact target의 before/after drop만 이동하고 동명 sibling 순서에는 영향이 없음
+- 비연속 또는 동일 zOrder tie를 가진 단일·다중 선택을 원래와 같은 exact-key 순서가 되는 before/after 위치나 selected-set 내부 target에 drop하면 zOrder와 workbook JSON·undo/redo·dirty·revision·callback/listenable이 모두 불변이고, 실제 순서가 달라지는 인접 drop에서만 연속 zOrder 정규화와 undo/callback이 각각 1회 발생함. 같은 문자열 ID의 다른 kind가 selected block에 섞여도 exact key로 판정함
 - row double-click/Enter 속성 focus
 - property wrapper가 아니라 실제 하위 `EditableText` focus에서 Ctrl/Meta+A/C/X/V는 text edit/clipboard에만 작용하고 Ctrl/Meta+D/Up/Down/Home/End, 일반 Up/Down/Home/End와 Delete/Backspace는 객체 duplicate/reorder/delete/navigation을 실행하지 않음. layer list focus에서는 §13.3에 열거한 Delete와 Ctrl/Meta+A/C/X/V/D/Up/Down/Home/End object command를 정확히 1회 실행하고 일반 Up/Down은 row navigation만 수행하며, dock/overlay open 상태만으로 결과가 바뀌지 않음
 - canvas/list/property field pointer-down 뒤 실제 focus별 shortcut 소유권, dock 단순 open의 focus 불변, narrow overlay 명시적 open의 list focus와 단순 close의 유효 trigger 복원·trigger 무효/직전 focus 유효 시 직전 focus 복원·둘 다 무효 시 canvas fallback, focus를 가져가지 않은 popup close의 focus 불변 및 edit command의 대상 property field focus
@@ -1344,6 +1345,7 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - 삽입 모드는 object/cell hit-test보다 우선하며 오른쪽 클릭은 취소 후 기존 context menu를 열고, auto-scroll preview는 next scroll offset 기준 logical 좌표를 사용한다. viewport 밖 pointer up은 추가 scroll 없이 현재 offset으로 실제 release 좌표를 최종 geometry에 반영하며, 최소 크기 미달/pointer cancel은 모드를 유지하고 owner 변경은 draft와 모드를 함께 종료한다.
 - 이미지·바코드·직선·폐쇄 도형이 같은 zOrder로 paint, hit-test, layer list, capture와 출력된다.
 - 공유 배열의 같은 문자열 ID 객체도 exact typed key로 격리되어 조회·편집·삭제·reorder된다.
+- layer reorder는 계산된 front-to-back exact-key 순서가 실제로 달라질 때만 transaction과 zOrder 연속값 정규화를 수행한다. 동일 순서와 selected-set 내부 target drop은 기존 zOrder의 비연속·동일값 tie까지 보존하는 canonical no-op이다.
 - active sheet 변경 시 object selection을 해제하고, 같은 sheet의 undo/redo와 외부 workbook 교체 뒤에는 현재 sheet에 존재하는 typed key만 남는다. selection 자체는 dirty/undo 대상이 아니다.
 - canonical snapshot 변경 뒤 stale property draft는 commit되지 않고, splitter layout 변경에서는 현재 draft가 유지된다.
 - workbook/object/per-sheet revision은 각 소유 canonical 변경에서 transaction당 정확히 한 번 증가하고 UI-only 변경에서는 유지된다.

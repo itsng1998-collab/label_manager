@@ -1,3 +1,10 @@
+### 완료 (2026-07-21): 선·도형 지시서 layer reorder no-op 보완
+- 사용자 요청: 최신 `doc/label_line_panel.txt` 재검토에서 확인한 동일 순서 layer drop의 zOrder 정규화 모호점을 권장안으로 병합하고 필요한 정책을 즉시 확정한다.
+- 추가 사용자 확인 불필요: 기존 canonical no-op 원칙에 따라 계산된 front-to-back exact-key 순서가 같은 drop은 reorder transaction이 아니며 비연속 zOrder도 원형 보존하는 것으로 구체화했다.
+- reorder 보완 완료: 선택 묶음 제거와 exact target/side 재삽입 뒤 기존·projected `FortuneSheetObjectKey(kind, id)` 배열을 비교한다. 실제 순서 변경에서만 공통 zOrder를 연속값으로 정규화하고 undo/callback을 각각 한 번 만들며, 동일 순서와 selected-set 내부 target은 기존 zOrder의 비연속·동일값 tie까지 보존하고 workbook/history/revision/callback/listenable이 모두 불변인 no-op이다. preview와 pointer-up은 같은 projection helper를 사용한다.
+- 테스트 계약 보완 완료: 비연속·동일 zOrder의 단일·다중 선택과 같은 문자열 ID의 다른 kind fixture에서 동일 순서/selected-target drop의 JSON/zOrder/history/notification 불변, preview/commit 일치와 실제 순서 변경의 transaction 1회를 판별한다.
+- stage/commit 대상: `doc/label_line_panel.txt`, `SESSION_HANDOFF.md`만 포함한다. 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
+
 ### 완료 (2026-07-21): 선·도형 지시서 focus·Escape·context menu 보완
 - 사용자 요청: 최신 `doc/label_line_panel.txt` 재검토에서 확인한 focus ownership, Escape 처리 단위, 다중 선택 secondary click과 invalid blur 권장안을 병합하고 필요한 정책을 즉시 확정한다.
 - 사용자 확정: narrow object overlay를 명시적으로 열면 layer list focus로 이동하고 단순 close는 유효한 trigger/직전 focus로 복원한다. selected set 구성원을 secondary click하면 묶음을 유지하고 clicked key만 active로 바꾼다. 일반 focus loss의 invalid 입력은 문자열과 inline 오류를 유지한다.
