@@ -1,3 +1,12 @@
+### 완료 (2026-07-21): 선·도형 지시서 integration trust·validation 경계 보완
+- 사용자 요청: 최신 `doc/label_line_panel.txt` 재검토에서 확인한 연결 후보, `initialWorkbook` 신뢰 경계와 package별 검증 게이트 권장안을 병합하고 필요한 정책은 즉시 확정한다.
+- 추가 사용자 확인 불필요: 현재 생성 dialog의 effective ID 호환 동작, Workbench 호출 경로별 decode/normalize 책임과 루트/벤더의 독립 `pubspec.yaml`로 결과를 결정했다. structured options authoritative 전환이나 모든 typed workbook의 save normalize 같은 호환 변경은 추가하지 않았다.
+- 연결 후보 보완 완료: image/barcode panel은 options·legacy IDs·현재 선택 객체/draft 값을 trim하고 대소문자 무시 중복 제거해 합치며 option 미일치 값을 `연결 끊김`으로 한 번만 표시한다. 이미지 생성 dialog 전용 active-sheet ID 확장은 별도 adapter로 유지한다. 신규 structured source는 option 일치를 요구하지만 panel의 unchanged stale ID/source는 metadata를 보존하는 편집 호환 분기로 구분했다.
+- trust boundary 보완 완료: `LabelSheetWorkbench.initialWorkbook`은 호출 경로가 필요한 migration/normalization을 끝낸 trusted typed workbook이며 Workbench가 다시 migrate/sanitize/normalize하지 않는다. `.lms` decoder 결과, 적용 경계에서 한 번 normalize한 `.xlsx` 결과와 app-owned typed workbook의 경로별 metadata 보존을 결과 fixture로 판별한다.
+- 검증 게이트 보완 완료: 루트 app과 `third_party/fortune_sheet`에서 변경 범위 focused/regression test와 `flutter analyze`를 각각 실행하도록 구현 순서와 완료 조건을 분리했다. 변경 파일 diagnostics와 `git diff --check`는 보조 게이트로 유지한다.
+- 테스트 계약 보완 완료: options/legacy/current의 trim·case-insensitive dedupe와 option label 우선, stale 표시·무변경 metadata 보존, image panel의 active-sheet ID 비유입, Workbench 비재정규화를 명시했다.
+- stage/commit 대상: `doc/label_line_panel.txt`, `SESSION_HANDOFF.md`만 포함한다. 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
+
 ### 완료 (2026-07-21): 선·도형 지시서 narrow overlay transient 보완
 - 사용자 요청: 최신 `doc/label_line_panel.txt` 재검토에서 확인한 narrow object overlay와 기존 popup/context menu 합성 모호점을 권장안으로 병합하고 필요한 정책을 즉시 확정한다.
 - 사용자 확정: 좁은 화면에서 object overlay를 명시적으로 열면 기존 toolbar/shape popup, submenu/dropdown/color picker, object/cell/editor context menu와 tooltip/hover transient를 먼저 닫고 overlay만 연다.

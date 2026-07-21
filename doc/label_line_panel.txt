@@ -239,6 +239,7 @@ FortuneShapeKind.ellipse          <-> "ellipse"
 10. `_sheetForPrintAreaSave()`는 확장 전 원래 print-area logical `Rect`를 별도로 유지한다. 공용 geometry helper로 line과 fill 없는 shape는 실제 stroked path, fill이 있는 폐쇄 shape는 회전된 fill path 영역과 stroked outline 중 하나가 원래 rect와 교차하거나 경계에 접촉하는 exact typed key를 먼저 확정한다. patterned line과 fill 없는 patterned shape의 최종 exact key 판정에서 실제 stroked path는 raster pixel이나 anti-alias 결과가 아니라 공용 pattern helper가 canonical phase로 생성한 dash segment와 원형 dot의 기하학적 painted footprint다. 원래 rect가 gap만 교차하면 제외하고 mark 외곽에 접촉하면 포함한다. 채움 shape는 outline의 gap만 교차하더라도 회전된 fill 영역이 교차하면 포함한다. 회전 bounds와 연속 stroke envelope/padding은 후보 탐색, viewport/capture 조기 culling과 확정 객체의 row/column 범위 확장에만 보수적으로 사용하며 gap만 viewport에 걸렸다는 이유로 객체를 조기 cull하지 않는다. 최종 line/shape 목록은 확장 bounds로 다시 판정하지 않고 확정 key 집합을 사용한다. 저장 객체의 원래 sheet logical 좌표는 바꾸지 않으며 crop-local origin 변환은 capture 단계에서만 수행한다. 이 painted-mark 판정은 print-area exact key 선별에만 적용하고 §8.1의 전체 centerline hit-test에는 적용하지 않는다.
 11. sanitizer가 line과 shape의 필수 geometry, kind, stroke, fill, radius, rotation과 zOrder만 남기는 테스트 추가
 12. `.lms` 초기 로드와 라벨 파일에서 불러오기는 `labelSheetDecodeWorkbookSaveBytes()` 내부의 migrate→sanitize→decode만 한 번 사용하고 다시 normalize하지 않는다. `.xlsx` parser는 범용 raw `FortuneWorkbook` 반환 계약을 유지하며 `LabelSheetWorkbench` 적용 경계에서만 `labelSheetNormalizeWorkbookForCurrentSaveFormat()`을 호출한다. `.xlsx` import는 line/shape drawing이나 legacy raw `shapes`를 typed shape로 추론하지 않고 빈 `lines`/`fortuneShapes` model을 가진 현재 포맷 workbook으로 normalize한다.
+13. `LabelSheetWorkbench.initialWorkbook`은 해당 호출 경로에서 필요한 migration/normalization을 이미 완료한 trusted typed workbook 진입점이다. Workbench 생성자는 이를 다시 migrate, sanitize하거나 save-format normalize하지 않는다. `.lms` 호출자는 decoder 결과를 그대로 전달하고 `.xlsx` 호출자는 raw parser 결과를 Workbench 적용 경계에서 정확히 한 번 normalize해 전달한다. app이 직접 생성하거나 다른 adapter가 만든 workbook도 그 호출 경로의 기존 준비 계약을 완료한 뒤 전달하며, 모든 typed workbook에 LabelSheet save allow-list normalize를 새로 강제하지 않는다.
 
 allow-list는 다음 key로 고정한다.
 
@@ -643,6 +644,7 @@ x2 += dx, y2 += dy
 이미지:
 
 - read-only 내부 object ID와 editable 연결 이미지 ID
+- 연결 후보의 trim·대소문자 무시 중복 제거와 label 판정은 기존 이미지 생성 dialog의 effective ID helper 규칙을 재사용한다. panel 입력은 non-empty `imageObjectOptions.value`, legacy `imageObjectIds`와 현재 선택 객체/property draft의 연결 ID로 한정한다. option과 일치하지 않는 non-empty legacy/current 값은 `연결 끊김 (<label 또는 ID>)`으로 한 번만 표시하고 신규 option처럼 재해석하지 않는다. 기존 생성 dialog만 사용하는 active sheet 전체 image ID 확장은 별도 adapter로 유지하고 panel 후보에는 넣지 않는다.
 - 현재 연결 metadata가 non-empty이면 option 목록에 없는 stale ID도 linked 상태로 표시·보존한다. 사용자가 source를 명시적으로 `연결 안 함`으로 바꾸고 새 파일 선택에 성공했을 때만 연결 metadata를 제거한다. 파일 없이 해제를 적용하면 validation을 표시하고 기존 linked image와 metadata를 유지한다.
 - 파일 교체. 사용자가 확정한 대로 linked 상태에서는 연결 ID를 유지하고 `src`, `originWidth`, `originHeight`만 새 fallback/preview 파일 값으로 교체한다. `left/top/width/height/rotation`과 그 밖의 metadata는 유지하며 고정 이미지 전환은 파일 선택의 부수 효과로 수행하지 않고 `연결 안 함` 선택으로만 수행한다.
 - 폭/높이
@@ -653,6 +655,7 @@ x2 += dx, y2 += dy
 바코드:
 
 - read-only 내부 object ID와 editable 연결 바코드 ID
+- 연결 후보의 trim·대소문자 무시 중복 제거와 label 판정은 기존 바코드 생성 dialog의 effective ID helper 규칙을 재사용한다. panel 입력은 non-empty `barcodeObjectOptions.value`, legacy `barcodeObjectIds`와 현재 선택 객체/property draft의 연결 ID로 한정한다. option과 일치하지 않는 non-empty legacy/current 값은 `연결 끊김 (<label 또는 ID>)`으로 한 번만 표시하고 신규 option처럼 재해석하지 않는다.
 - 현재 연결 metadata가 non-empty이면 option 목록에 없는 stale ID도 linked 상태로 표시하고, 연결 ID/source를 사용자가 바꾸지 않은 `[적용]`은 해당 ID를 보존한다. `연결 안 함`을 명시적으로 선택할 때만 연결 metadata를 제거한다.
 - format
 - data text
@@ -1056,6 +1059,7 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - 외부 workbook normalize의 중복 typed ID 결정적 재발급과 반복 normalize idempotency
 - `.lms` 초기 로드와 라벨 파일에서 불러오기가 decoder 내부 migrate→sanitize→decode를 한 번만 거쳐 lines/shapes와 허용 raw metadata를 보존함
 - `.xlsx` raw parser 계약은 유지하고 LabelSheet workbench 적용 경계에서만 normalize하며 geometry 또는 legacy raw `shapes`를 추론하지 않고 빈 lines/fortuneShapes model을 가진 현재 save format이 됨
+- `.lms` decoder 결과, 한 번 normalize한 `.xlsx` 결과와 app-owned typed workbook을 각각 `LabelSheetWorkbench.initialWorkbook`으로 전달했을 때 Workbench가 추가 migrate/sanitize/normalize하지 않음. save allow-list 밖이지만 해당 typed 호출 경로가 보존하는 식별 가능한 metadata marker와 raw 보존 결과로 중복 변환 부재를 판별하고 normalize 함수 호출 횟수 자체에 결합하지 않음
 - absent/빈 lines/fortuneShapes의 동일 empty model decode, canonical empty key 생략과 반복 encode 안정성
 - 기존 raw overlay `shapes` map/list의 FortuneSheet codec 원형 round-trip·기존 painter/capture 유지와 동시 `fortuneShapes` 무충돌
 - legacy raw `shapes`의 `null`/bool/String/finite num과 String-key map/list는 구조 그대로 round-trip하고, 비문자열 map key·비유한 num·지원하지 않는 객체 또는 cycle descendant가 하나라도 있으면 해당 `shapes` key 전체만 omit한 뒤 나머지 workbook `jsonEncode`와 `.lms` round-trip은 성공함
@@ -1191,6 +1195,9 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - 정확히 두 자리 mm 또는 px로 round-trip되지 않는 canonical logical geometry를 반올림해 표시한 뒤 문자열을 수정하지 않은 Enter와 focus loss 각각에서 원래 geometry를 유지하고 workbook/undo/dirty/revision·`onChange`/`onOp`/listenable이 모두 0회임
 - X/Y, line start/end X/Y, width/height, rotation과 corner radius 각각의 `NaN`/`Infinity`/`-Infinity`, 그리고 입력은 유한하지만 단위 변환 결과가 비유한 값이 되는 큰 수를 거부해 workbook/undo/dirty/revision/callback을 바꾸지 않음. `25.4 mm == 96 logical px` 변환과 finite 값의 기존 음수 X, Y clamp, 양수 크기, 회전 정규화 정책은 유지함
 - 단일 image/barcode/line/shape 속성 form 전환
+- image와 barcode 각각에서 options·legacy IDs·현재 선택 객체/property draft 값의 앞뒤 공백을 제거하고 대소문자만 다른 값은 option label을 사용하는 한 행으로 합치며, option 미일치 current/draft는 `연결 끊김`으로 정확히 한 번 표시함
+- option 미일치 image/barcode 연결 ID/source를 수정하지 않은 panel commit은 원 metadata를 보존하고 명시적 option/`연결 안 함` 선택만 해당 source validation/commit을 실행함. 신규 structured 생성 dialog는 기존대로 현재 option 일치를 요구함
+- image panel 후보에는 생성 dialog 전용인 active sheet의 다른 image 연결 ID가 유입되지 않으며, 생성 dialog의 기존 effective ID 목록은 그대로 유지됨
 - rectangle/ellipse에는 radius field가 없고 roundedRectangle에만 표시
 - active object context menu의 타입별 편집 문구와 command 순서. `allowEdit == false`에서도 secondary click selection과 menu 표시는 유지하되 기존 mutation 항목은 모두 disabled이고 실행 guard를 우회할 수 없으며 신규 copy 항목은 없고 Ctrl/Meta+C object copy만 허용됨
 - 다중 selected set의 구성원 secondary click은 set을 유지하고 clicked exact key만 active로 바꾸며 menu object command가 묶음 전체에 적용됨. 선택 밖 객체는 단일 선택으로 교체되고 빈 canvas secondary click은 object selection을 유지한 채 cell context menu만 열며 primary click은 기존대로 object selection을 해제함
@@ -1313,11 +1320,11 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 9. 공통 object layer list와 단일/다중 선택 상태를 immutable snapshot/public listenable이 있는 exclusive-attach package controller로 노출한다. controller 교체는 new attach 가능 여부를 먼저 검증하고 실제 owner를 추적하며, 실제 op transaction의 `onChange`→`onOp`→listenable과 외부 replacement의 `onChange`→listenable 통지 순서를 각각 연결한다.
 10. dock형 object panel을 만들고 exact target key+before/after drag reorder를 포함한 기존 layer action을 연결한다.
 11. line/shape property form과 타입별 context menu를 연결한다.
-12. 기존 image/barcode 편집 validation/commit, linked image 해제의 새 파일 필수 조건, panel image picker의 exact-key owner/token 검증과 exact-key barcode pending draft/error·rotation/latest-request render/metadata 보존을 공용 API로 추출하고 panel form을 연결한다. 생성 dialog는 같은 API를 사용하도록 유지한다.
+12. 기존 image/barcode effective 연결값의 trim/case-insensitive 병합·label 판정과 공통 source validation/commit, linked image 해제의 새 파일 필수 조건, panel image picker의 exact-key owner/token 검증과 exact-key barcode pending draft/error·rotation/latest-request render/metadata 보존을 공용 API로 추출하고 panel form을 연결한다. panel 후보 입력은 options·legacy IDs·현재 선택 객체/draft 값으로 한정하고 이미지 생성 dialog의 active-sheet ID 확장은 별도 adapter로 유지한다. panel UI 목록 instance나 dialog presentation까지 공유할 필요는 없다. 신규 structured source를 선택하는 생성 dialog는 현재 option 일치를 계속 요구하지만, panel은 기존 객체의 option 미일치 ID/source를 사용자가 바꾸지 않은 commit에서 보존하는 명시적 편집 호환 분기를 사용한다.
 13. `LabelSheetWorkbench`에 splitter, panel width clamp, 접기와 narrow overlay fallback을 연결한다. panel controller/draft를 presentation보다 상위에 유지하고 경계 전환의 자동 open/focus 이동을 막으며 narrow overlay가 열린 동안 active object toolbar를 paint/hit-test하지 않는다.
 14. clipboard 단일 async paste coordinator의 호출 시점 target owner snapshot, 호출 순서 latest-wins인 copy/cut marker write coordinator와 marker 기록 성공 뒤 source owner/model을 재검증하는 cut transaction, canonical typed deep-clone mixed payload, reorder, package-owned per-sheet revision과 모든 object zOrder insertion 경로를 마무리한다.
 15. 일반 capture/PDF 동작을 유지한 채 Hybrid EZPL coordinator의 package-neutral immutable transform DTO/native 후보·최종 render plan, canonical physical cell-border edge key와 exact object/edge filtered print capture API를 추가한다. app resolved layout에서 transform DTO를 한 번 만들고 `LabelSheetOutputCaptureController`의 app-facing Hybrid unit API를 연결한다. 다중 발행 EZPL host의 선행 일반 capture를 제거한 뒤 coordinator 단일 진입점에서 package 후보→app EZPL preflight descriptor→package 최종 plan→최초 canonical snapshot 기준 filtered capture→승인 descriptor native command 생성 순서와 실패 후보의 bitmap 유지, zOrder/fallback을 검증한다.
-16. 관련 focused test, 기존 회귀 test, `flutter analyze`, diagnostics와 `git diff --check`를 실행한다.
+16. 루트 app package와 `third_party/fortune_sheet` package에서 변경 범위의 focused test와 기존 회귀 test를 각각 실행하고, 두 package context의 `flutter analyze`를 모두 실행한다. 변경 파일 diagnostics와 `git diff --check`도 실행한다.
 17. 테스트 생성물과 임시 파일을 정리한 뒤 요청 범위 파일만 stage/commit한다.
 
 각 단계는 첫 작은 변경 직후 해당 focused test를 실행한다. model/codec이 검증되기 전에 panel UI부터 만들거나, 공통 ordering이 검증되기 전에 기존 image layer 코드를 대량 교체하지 않는다.
@@ -1389,6 +1396,7 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - image/barcode 생성 후 panel이 이미 열려 있을 때만 새 속성으로 전환하고 dock/overlay를 자동으로 열어 사용자 open/closed 의도를 바꾸지 않는다. 닫힌 panel은 넓은 화면의 객체/레이어 toolbar toggle 또는 좁은 화면의 상시 icon으로 다시 열 수 있다.
 - image picker와 barcode 생성/panel render의 늦은 async 결과는 request token과 owner/revision을 통과할 때만 draft 또는 workbook에 반영된다.
 - panel image picker는 selection 변경과 무관하게 호출 시점 exact image에만 귀속하고 원 객체/owner/revision/권한 또는 최신 token이 달라진 늦은 결과를 폐기한다.
+- image/barcode panel 연결 후보는 options, legacy IDs와 현재 선택 객체/draft 값을 trim·대소문자 무시 중복 제거해 합친다. option 미일치 non-empty 값은 `연결 끊김`으로 한 번만 표시하고 연결을 수정하지 않은 적용은 원 metadata를 보존한다. 이미지 생성 dialog 전용 active-sheet ID 확장은 panel에 유입되지 않는다. 공통 source 상태의 validation/commit은 일치하되, 신규 structured source는 option 일치를 요구하고 기존 객체의 unchanged stale ID는 panel 편집 호환 분기로 보존한다.
 - panel은 option 목록에서 사라진 기존 image/barcode 연결 ID를 linked 상태로 보존한다. linked image의 `연결 안 함`은 새 파일 선택 성공 때만 metadata를 제거하고 파일이 없으면 기존 상태를 유지한다. linked image 파일 교체는 연결 ID와 배치 geometry·기타 metadata를 유지하고 `src`·원본 크기 metadata만 교체한다.
 - barcode panel은 기존 유한 rotation의 동일한 시각 회전을 canonical 값으로 표시·보존하고 비정상 legacy 값은 `0` fallback하며, 유한한 입력을 `0 <= value < 360`으로 정규화해 renderer request, replacement metadata와 capture에 동일하게 반영한다.
 - popup `[삽입]`과 panel command는 focused field를 동기적으로 finalize하며 invalid popup 입력은 삽입을 막고 invalid panel draft는 원복한 뒤 요청 command를 실행한다.
@@ -1416,6 +1424,7 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - `sheet.lines`, `sheet.fortuneShapes` feature key, allow-list, migration과 테스트가 함께 갱신되고 기존 raw overlay `shapes` wire는 유지된다.
 - `.lms` 초기 로드, 라벨 파일에서 불러오기와 `.xlsx` import가 모두 현재 save format migrate/normalize 경계를 거치며, XLSX drawing은 line/shape로 추론하지 않는다.
 - `.lms`는 decoder 내부 migrate→sanitize→decode를 한 번만 사용하고 `.xlsx` raw parser는 LabelSheet 적용 경계에서만 normalize한다.
+- `LabelSheetWorkbench.initialWorkbook`은 호출 경로가 필요한 준비를 끝낸 trusted typed workbook이며 Workbench 생성자가 다시 migrate/sanitize/normalize하지 않는다. `.lms` decoder 결과, 한 번 normalize한 `.xlsx` parser 결과와 app-owned typed workbook의 경로별 metadata가 중복 변환 없이 보존된다.
 - 선·도형만 있는 `.lms`를 export할 수 있고 print-area 교차 geometry가 stroke와 회전을 포함한 bounds로 보존된다.
 - print-area save는 geometry를 crop-local로 옮기지 않고 원래 sheet logical 좌표와 교차 객체를 보존하며 row/column 범위만 조정한다.
 - print-area save는 원래 logical rect와 line/fill 없는 shape의 실제 stroked path 또는 채움 shape의 회전 fill 영역·outline이 교차·경계 접촉하는 exact object key를 먼저 확정한다. patterned stroke는 canonical phase의 기하학적 dash/dot painted footprint로 판정해 gap-only 교차를 제외하고, 연속 envelope/padded bounds는 후보 culling과 범위 확장에만 사용하며 확장 범위의 이웃 객체를 추가하지 않는다.
@@ -1427,8 +1436,8 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - Hybrid EZPL coordinator는 exact object key와 cell-border edge 승인 집합을 가진 하나의 immutable render plan을 filtered print capture와 native command 생성에 공유한다. capture는 workbook을 mutation하거나 flatten된 fallback PNG를 지우지 않고 승인 집합만 painter에서 생략해 하부 pixel을 보존한다.
 - Hybrid plan 확정 뒤 live workbook이 바뀌어도 filtered capture와 native encoding은 plan이 소유한 최초 immutable canonical snapshot을 끝까지 사용하고 완료 시점 live canvas를 다시 읽지 않는다.
 - 다중 발행의 PDF unit은 기존 일반 capture를 사용하고 EZPL unit은 active 시점의 app-facing `captureHybridEzpl()` 결과를 저장한다. 각 Hybrid 결과의 canonical sheet snapshot으로 오류를 검사하고 resolved metrics/page spec으로 grouping하며 unit별 bytes를 연결만 한다. FortuneSheet package는 plan/filtered capture까지만 소유하고 app 인쇄 타입/encoder에 의존하지 않는다.
-- 관련 focused test와 기존 image/barcode/save/print 회귀 테스트가 통과한다.
-- `flutter analyze` issues 0, 변경 파일 diagnostics 오류 0, `git diff --check` 통과다.
+- 루트 app package와 `third_party/fortune_sheet` package에서 각 변경 범위의 focused test와 기존 image/barcode/save/print 회귀 테스트가 통과한다.
+- 루트 app package와 `third_party/fortune_sheet` package에서 각각 실행한 `flutter analyze` issues 0, 변경 파일 diagnostics 오류 0, `git diff --check` 통과다.
 - 사용자 변경 `lib/core/app.dart`와 unrelated dirty 파일은 stage/commit하지 않는다.
 
 ## 18. 구현 전 재확인하지 않아도 되는 확정값
