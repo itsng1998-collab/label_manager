@@ -236,7 +236,7 @@ FortuneShapeKind.ellipse          <-> "ellipse"
 7. `labelSheetMigrateWorkbookSaveJson()`에서 payload에 존재하는 `lines`/`fortuneShapes`는 manifest version/feature 누락과 무관하게 보존하고, payload key 자체가 없는 이전 문서만 codec의 빈 model로 해석
 8. `labelSheetNormalizeWorkbookForCurrentSaveFormat()`의 encode→migrate→sanitize→decode 경계에서 lines/fortuneShapes 보존
 9. `_currentLabelFileHasContent()`에서 lines/fortuneShapes를 라벨 내용으로 인정해 선·도형만 있는 `.lms`도 export할 수 있게 한다.
-10. `_sheetForPrintAreaSave()`는 확장 전 원래 print-area logical `Rect`를 별도로 유지한다. 공용 geometry helper로 line과 fill 없는 shape는 실제 stroked path, fill이 있는 폐쇄 shape는 회전된 fill path 영역과 stroked outline 중 하나가 원래 rect와 교차하거나 경계에 접촉하는 exact typed key를 먼저 확정한다. 회전 bounds와 stroke padding은 후보 탐색과 확정 객체의 row/column 범위 확장에만 사용한다. 최종 line/shape 목록은 확장 bounds로 다시 판정하지 않고 확정 key 집합을 사용한다. 저장 객체의 원래 sheet logical 좌표는 바꾸지 않으며 crop-local origin 변환은 capture 단계에서만 수행한다.
+10. `_sheetForPrintAreaSave()`는 확장 전 원래 print-area logical `Rect`를 별도로 유지한다. 공용 geometry helper로 line과 fill 없는 shape는 실제 stroked path, fill이 있는 폐쇄 shape는 회전된 fill path 영역과 stroked outline 중 하나가 원래 rect와 교차하거나 경계에 접촉하는 exact typed key를 먼저 확정한다. patterned line과 fill 없는 patterned shape의 최종 exact key 판정에서 실제 stroked path는 raster pixel이나 anti-alias 결과가 아니라 공용 pattern helper가 canonical phase로 생성한 dash segment와 원형 dot의 기하학적 painted footprint다. 원래 rect가 gap만 교차하면 제외하고 mark 외곽에 접촉하면 포함한다. 채움 shape는 outline의 gap만 교차하더라도 회전된 fill 영역이 교차하면 포함한다. 회전 bounds와 연속 stroke envelope/padding은 후보 탐색, viewport/capture 조기 culling과 확정 객체의 row/column 범위 확장에만 보수적으로 사용하며 gap만 viewport에 걸렸다는 이유로 객체를 조기 cull하지 않는다. 최종 line/shape 목록은 확장 bounds로 다시 판정하지 않고 확정 key 집합을 사용한다. 저장 객체의 원래 sheet logical 좌표는 바꾸지 않으며 crop-local origin 변환은 capture 단계에서만 수행한다. 이 painted-mark 판정은 print-area exact key 선별에만 적용하고 §8.1의 전체 centerline hit-test에는 적용하지 않는다.
 11. sanitizer가 line과 shape의 필수 geometry, kind, stroke, fill, radius, rotation과 zOrder만 남기는 테스트 추가
 12. `.lms` 초기 로드와 라벨 파일에서 불러오기는 `labelSheetDecodeWorkbookSaveBytes()` 내부의 migrate→sanitize→decode만 한 번 사용하고 다시 normalize하지 않는다. `.xlsx` parser는 범용 raw `FortuneWorkbook` 반환 계약을 유지하며 `LabelSheetWorkbench` 적용 경계에서만 `labelSheetNormalizeWorkbookForCurrentSaveFormat()`을 호출한다. `.xlsx` import는 line/shape drawing이나 legacy raw `shapes`를 typed shape로 추론하지 않고 빈 `lines`/`fortuneShapes` model을 가진 현재 포맷 workbook으로 normalize한다.
 
@@ -365,7 +365,7 @@ open line의 pattern offset `0`은 저장된 canonical `x1/y1`에 고정한다. 
 - 같은 zOrder tie는 5.2의 source sequence를 사용한다.
 - zoom과 devicePixelRatio가 바뀌어도 물리 두께 의미를 유지한다.
 - viewport 밖 line/shape는 회전을 반영한 bounds와 stroke padding으로 culling한다.
-- capture/print-area 교차 판정은 endpoint 포함 여부가 아니라 stroke를 포함한 실제 line segment/path와 crop rect의 교차를 사용한다. 양 endpoint가 crop 반대편 밖에 있거나 중심선은 밖이지만 stroke가 닿는 line, 회전 전 bounds는 밖이지만 회전 path가 닿는 shape를 제거하지 않는다.
+- capture object inclusion과 print-area 후보 culling은 endpoint 포함 여부가 아니라 연속 stroke envelope를 포함한 실제 line segment/path와 crop rect의 교차를 사용한다. 양 endpoint가 crop 반대편 밖에 있거나 중심선은 밖이지만 stroke가 닿는 line, 회전 전 bounds는 밖이지만 회전 path가 닿는 shape를 제거하지 않는다. print-area의 최종 exact-key 확정만 §4.6에 따라 patterned stroke의 canonical painted mark footprint를 사용해 gap-only 교차를 제외한다.
 - 선택 강조는 원본 stroke/fill을 덮지 않고 바깥쪽 highlight로 표시한다.
 
 ### 6.5 capture와 PDF
@@ -386,13 +386,14 @@ open line의 pattern offset `0`은 저장된 canonical `x1/y1`에 고정한다. 
 - raster와 native barcode/line/rectangle/cell-border 후보는 모두 `LabelSheetPrintLayout`의 `contentLeftMm`, `contentTopMm`, `clipRightMm`, `clipBottomMm`을 사용하는 하나의 logical→printer-dot transform을 공유한다. `leftPushMm`/`topPushMm`을 margin과 함께 적용하고 교차 bounds와 native command 좌표도 이 최종 printer 좌표계에서 계산한다. right margin과 label-height clip을 native command로 정확히 보장할 수 없는 후보는 bitmap fallback한다.
 - app의 resolved `LabelSheetPrintLayout`은 FortuneSheet package-owned immutable `FortunePrintTransform` 또는 동등한 app-neutral DTO를 정확히 한 번 만든다. DTO는 canonical logical source bounds/크기, DPI 또는 mm→dot scale, printer content origin, `clipRightMm`, `clipBottomMm`, orientation과 native 허용 여부를 소유하며 app의 `LabelSheetPrint*` 타입이나 encoder 타입을 참조하지 않는다. `clipBottomMm`은 `labelHeightMm`이고 extra area를 포함하지 않으며 vertical orientation은 native 허용 false다. plan, filtered capture와 app-owned native encoder는 이 동일 DTO 인스턴스를 공유하고 각자 margin/push/clip/회전 transform을 다시 계산하지 않는다.
 - 사용자가 확정한 대로 `orientation == vertical`에서는 barcode/line/rectangle/cell-border를 포함한 모든 native 후보를 승인하지 않고 bitmap fallback한다. raster의 기존 90도 회전 결과를 그대로 사용하며 세로 native 회전 좌표식은 이번 범위에 추가하지 않는다.
-- Hybrid EZPL output coordinator가 controller와 canonical sheet/range snapshot에서 행·열 metrics 기반 source width/height를 먼저 확정하고, 그 값과 options로 resolved metrics/layout을 만든다. 이후 최종 공통 paint order와 실제 교차 bounds로 native/raster render plan을 확정하고 filtered print capture를 요청한 뒤 같은 plan으로 native command를 생성한다. plan, capture와 encoder는 모두 이 immutable canonical snapshot과 resolved layout을 공유한다. EZPL 호출부는 coordinator보다 먼저 일반 `captureRangeAsPng()`을 실행하거나 이미 flatten된 전체 PNG를 plan 입력으로 넘기지 않는다. plan은 승인된 exact `FortuneSheetObjectKey` 집합과 승인된 canonical cell-border edge key 집합을 소유하고, 동일한 immutable plan을 FortuneSheet filtered print capture와 native command 생성에 전달한다. filtered capture는 승인 집합만 공용 painter에서 생략하고 workbook/sheet/revision/undo를 바꾸지 않으며, 승인되지 않은 객체와 border는 bitmap에 유지한다. 이미 flatten된 PNG의 객체 bounds나 paint mask를 흰색으로 지우거나 임시 workbook mutation·전체 border 제외로 plan을 구현하지 않는다. 따라서 native barcode의 bar 사이·quiet zone과 비채움 rectangle 내부에는 아래쪽 raster 객체가 그대로 남는다.
+- Hybrid EZPL output coordinator가 controller와 canonical sheet/range snapshot에서 행·열 metrics 기반 source width/height를 먼저 확정하고, 그 값과 options로 resolved metrics/layout을 만든다. FortuneSheet package는 이 snapshot/transform 안에서 unique한 stable candidate token이 exact object/edge key를 소유하고 공통 paint order·실제 교차 footprint를 함께 가진 app-neutral native 후보를 계산한다. app은 filtered capture 전에 각 후보를 EZPL command 규칙으로 preflight해 정수 parameter와 그 parameter가 만들 최종 painted footprint를 가진 app-owned immutable native descriptor를 만들고, 통과한 descriptor마다 package-owned app-neutral approval record `(candidateToken, predictedPaintedFootprint)`로 projection한다. package 최종 plan API는 app descriptor나 command parameter를 참조하지 않고 candidate 목록의 token→exact key binding과 approval record만 받아 공통 zOrder/fallback 판정을 적용하며 승인 candidate token과 exact key 집합을 가진 immutable render plan을 만든다. unknown 또는 중복 candidate token approval은 해당 token을 미승인 처리해 bitmap에 유지한다. coordinator는 그 plan으로 filtered print capture를 요청하고, plan의 승인 token으로 원래 app descriptor를 필터링해 app-owned encoder에 전달한다. preflight 실패 또는 최종 plan 미승인 후보는 bitmap에 유지되며 filtered capture 뒤에 새 native 실패/fallback 판정을 하지 않는다. plan, descriptor, capture와 encoder는 모두 같은 immutable canonical snapshot과 resolved layout/transform을 공유한다. EZPL 호출부는 coordinator보다 먼저 일반 `captureRangeAsPng()`을 실행하거나 이미 flatten된 전체 PNG를 plan 입력으로 넘기지 않는다. 최종 plan은 승인된 exact `FortuneSheetObjectKey` 집합과 승인된 canonical cell-border edge key 집합을 소유하고, 동일한 plan을 FortuneSheet filtered print capture와 native command 생성에 전달한다. filtered capture는 승인 집합만 공용 painter에서 생략하고 workbook/sheet/revision/undo를 바꾸지 않으며, 승인되지 않은 객체와 border는 bitmap에 유지한다. 이미 flatten된 PNG의 객체 bounds나 paint mask를 흰색으로 지우거나 임시 workbook mutation·전체 border 제외로 plan을 구현하지 않는다. 따라서 native barcode의 bar 사이·quiet zone과 비채움 rectangle 내부에는 아래쪽 raster 객체가 그대로 남는다.
 - cell-border edge key는 물리 edge 기준으로 canonicalize한다. vertical edge는 `(row, boundaryColumn)`, horizontal edge는 `(boundaryRow, column)`을 사용해 cell `(row, column)`의 left/right를 각각 vertical `(row, column)`/`(row, column + 1)`, top/bottom을 horizontal `(row, column)`/`(row + 1, column)`로 매핑한다. 따라서 인접 cell의 right/left 또는 bottom/top이 같은 물리 edge를 나타내면 같은 key이며 plan·filtered capture·native command가 모두 이 key를 사용한다.
 - cell border는 object zOrder 구성원이 아니라 화면에서 항상 object layer 아래에 있는 cell base layer다. native cell-border command는 이 고정 순서를 보존하거나 상부 객체와 겹치지 않을 때만 사용하고, 그렇지 않으면 border를 capture bitmap에 유지한다.
 - 신규 line/shape와 기존 native barcode는 같은 object 합성 순서 판정에 포함한다. fallback bitmap에서 native 영역을 지우거나 raster 뒤에 native command를 추가하면 겹치는 객체의 공통 zOrder가 바뀌는 경우 해당 barcode/line/shape native 최적화를 사용하지 않고 capture bitmap에 남긴다.
 - bitmap fallback은 공용 capture의 line/shapes를 다시 별도 overlay하지 않는다.
 - selection handle, ID label과 editor highlight는 EZPL에 포함하지 않는다.
-- native 후보도 label clip 안의 logical 좌표와 mm 두께를 printer dots로 변환한 값이 모두 유효하고 stroke가 최소 1 dot이어야 한다. dot 정수화 뒤 되돌린 좌표/두께가 0.5 dot보다 크게 달라지면 bitmap fallback을 사용한다.
+- native 후보도 label clip 안의 logical 좌표와 mm 두께를 printer dots로 변환한 값이 모두 유효하고 stroke가 최소 1 dot이어야 한다. 비교 기준인 목표 physical painted footprint는 model bounds나 centerline bounds를 임의로 재해석하지 않고 공용 geometry/painter가 만드는 stroke cap을 포함한 최종 외곽을 동일 transform으로 printer-dot 좌표에 옮긴 값이다. EZPL `R`처럼 좌상단/우하단 painted edge를 표현하는 line/rectangle/cell-border command는 이 최종 signed 비정수 printer-dot edge를 각각 Dart `round()`로 정수화하고, command가 extent를 요구하면 정수화된 반대 edge의 차이로 파생해 source extent를 별도로 반올림하지 않는다. 음수 half를 포함해 Dart `round()` 의미를 그대로 사용한다. preflight는 command 제약, clip과 최소 stroke를 적용한 정수 parameter가 실제로 만들 predicted painted edge와 stroke를 목표 비정수 footprint에 각각 대조하고 정확히 0.5 dot은 허용하되 하나라도 0.5 dot보다 크게 달라지면 bitmap fallback한다. 양쪽 edge가 각각 허용 범위면 파생 extent 오차에 별도의 0.5 dot 제한을 다시 적용하지 않는다.
+- barcode처럼 정수 module width, module count, quiet zone과 command 규칙이 bounds를 간접 결정하는 native command에는 edge 차이를 width parameter로 강제하지 않는다. command가 실제 소유하는 parameter를 정수화한 뒤 그 값과 command 규칙으로 결정론적으로 계산한 최종 painted bounds/height를 목표 physical bounds와 edge별로 대조하고 0.5 dot 초과 시 bitmap fallback한다. 목표 bounds에 맞추기 위해 module 또는 quiet-zone 규칙을 변형하지 않는다.
 
 ## 7. 통합 도형 툴바와 생성
 
@@ -882,9 +883,9 @@ controller는 host가 package 내부 state를 직접 읽지 않도록 immutable 
 - begin/cancel shape insertion
 - focus selected object property editor
 - `finalizeActiveObjectPropertyDraft()` 또는 동등한 동기 command. no draft/valid commit/invalid discard를 처리하며 async render pending은 별도 enablement 상태로 노출한다.
-- FortuneSheet package는 canonical sheet/range/layout snapshot에서 exact object key와 canonical cell-border edge key의 immutable Hybrid 승인 plan을 만드는 API와, 그 plan을 받아 승인된 key만 생략하는 filtered print capture API를 소유한다. 일반 `captureRangeAsPng()`의 화면/PDF 동작은 바꾸지 않고 workbook을 mutation하지 않으며 app의 `LabelSheetPrint*` 타입이나 EZPL encoder를 import하지 않는다.
-- app의 `LabelSheetWorkbench`/output controller가 package plan API→같은 plan의 filtered capture→app-owned EZPL encoder/native command 생성 순서를 조정한다. 기존 PDF/preview capture entry point와 분리하고 package 의존 방향을 역전시키지 않는다.
-- app-facing `LabelSheetOutputCaptureController.captureHybridEzpl(...)` 또는 동등 API. 입력은 source 크기가 아직 없을 수 있는 `LabelSheetPrintPageMetrics`, `LabelSheetPrintOptions`와 `lineSpacingPercent`를 포함한다. unit이 active인 동안 property draft finalize→canonical sheet/range snapshot→range의 행·열 metrics로 source width/height와 resolved metrics/layout 확정→plan→filtered capture→native command를 한 번에 수행하고 EZPL bytes, 오류 검사에 사용할 동일 immutable canonical sheet/range snapshot과 그 resolved metrics/page spec을 반환한다. private `FortuneSheetController`를 app host에 노출하지 않는다.
+- FortuneSheet package는 canonical sheet/range/layout snapshot에서 exact key를 내부 binding으로 소유하는 unique stable candidate token의 app-neutral native 후보를 만드는 API, app descriptor를 package-owned `(candidateToken, predictedPaintedFootprint)` approval record로 projection한 목록을 받아 immutable Hybrid 최종 plan을 만드는 API와, 그 plan을 받아 승인된 key만 생략하는 filtered print capture API를 소유한다. package API는 app descriptor/command parameter를 참조하지 않고 일반 `captureRangeAsPng()`의 화면/PDF 동작을 바꾸거나 workbook을 mutation하지 않으며 app의 `LabelSheetPrint*` 타입이나 EZPL encoder를 import하지 않는다.
+- app의 `LabelSheetWorkbench`/output controller가 package 후보 생성→app-owned EZPL preflight descriptor 확정→package 최종 plan→같은 plan의 filtered capture→승인 descriptor native command encode 순서를 조정한다. 기존 PDF/preview capture entry point와 분리하고 package 의존 방향을 역전시키지 않는다.
+- app-facing `LabelSheetOutputCaptureController.captureHybridEzpl(...)` 또는 동등 API. 입력은 source 크기가 아직 없을 수 있는 `LabelSheetPrintPageMetrics`, `LabelSheetPrintOptions`와 `lineSpacingPercent`를 포함한다. unit이 active인 동안 property draft finalize→canonical sheet/range snapshot→range의 행·열 metrics로 source width/height와 resolved metrics/layout 확정→native 후보/preflight descriptor→최종 plan→filtered capture→승인 descriptor native command를 한 번에 수행하고 EZPL bytes, 오류 검사에 사용할 동일 immutable canonical sheet/range snapshot과 그 resolved metrics/page spec을 반환한다. private `FortuneSheetController`를 app host에 노출하지 않는다.
 
 다중 라벨 발행은 backend를 확정한 뒤 unit별 active 상태에서 PDF backend만 기존 `capture()` 결과를 저장하고, EZPL backend는 `captureHybridEzpl()` 결과를 즉시 저장한다. EZPL unit을 일반 PNG로 먼저 capture하거나 모든 unit 렌더가 끝난 뒤 마지막 live controller와 과거 snapshot을 조합하지 않는다. item-code 오류 검사는 각 반환 결과의 canonical sheet snapshot에서 기존과 동일하게 수행하고, grouping 단계는 이미 생성된 unit별 PDF page 또는 EZPL bytes를 인접 group payload에 연결만 한다.
 
@@ -1049,6 +1050,7 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - `.lms` export/import round-trip
 - 선·도형만 있는 `.lms`의 export 활성화와 round-trip
 - 원래 print-area logical rect와 line/fill 없는 shape의 실제 stroked path 또는 채움 shape의 회전 fill 영역·outline이 교차·경계 접촉하는 exact key만 먼저 확정하고 padded bounds로 row/column을 확장하며, AABB 모서리만 겹치는 shape와 확장 bounds에서 새로 만난 이웃 객체는 제외함
+- dashed/dotted/dashDot line과 fill 없는 patterned shape의 print-area exact key는 canonical phase의 실제 dash/dot painted footprint가 원래 rect와 교차·경계 접촉할 때만 포함하고 gap-only 교차는 제외함. 채움 shape는 fill 교차로 포함하며 viewport/capture 후보 culling은 연속 stroke envelope로 보수적으로 유지함
 - print-area가 회전된 채움 shape 내부에 완전히 포함되고 outline과 만나지 않아도 해당 shape를 포함함
 - print-area save가 line/shape의 원래 sheet logical 좌표를 유지하고 저장 row/column 범위만 확장함
 - unknown stroke, 범위 밖 stroke width, 잘못된 stroke/fill color의 기본값 canonical 재저장과 rectangle/ellipse radius `0.0`, rotation canonical 재저장
@@ -1061,6 +1063,7 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - mm→logical width
 - zoom `0.5/1/2`와 capture pixelRatio `1/2/3`에서 `strokeWidthMm`의 screen/capture raster 두께가 각 scale을 정확히 한 번 적용하고, 203/300 DPI raster와 native dot 두께가 정수화 전 같은 mm→dot 값이며 정수화 오차 `0.5 dot` 이내임
 - point-to-segment hit tolerance
+- dashed/dotted/dashDot의 실제 gap 중앙도 patterned mark가 아니라 전체 canonical centerline의 point-to-segment tolerance로 line body hit가 되고 뒤 객체/cell로 통과하지 않음
 - endpoint 우선 hit
 - 45도 Shift snap
 - rectangle/roundedRectangle/ellipse path와 내부 hit
@@ -1227,18 +1230,22 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - PDF capture와 화면 style 일치
 - solid axis-aligned EZPL native 조건
 - unfilled solid black rectangle EZPL native 조건
-- native coordinate/stroke의 최소 1 dot과 0.5 dot 오차 제한
+- native coordinate/stroke의 최소 1 dot과 0.5 dot 오차 제한. 양수·음수 half를 포함한 signed left/top/right/bottom edge를 각각 Dart `round()`하고 R 계열 extent는 정수화된 반대 edge 차이로 파생하며, edge별 정확히 0.5 dot은 허용하고 command 제약·clip·최소 stroke 뒤 하나라도 초과하면 fallback함
+- module 기반 native barcode는 정수화한 command parameter와 module count/quiet zone 규칙으로 최종 painted bounds를 계산해 목표 edge/height와 비교하고, edge 차이를 module width로 강제하거나 module/quiet-zone 규칙을 변형하지 않음
 - nonzero signed left/top push와 right margin 및 `clipBottomMm == labelHeightMm` 하단 경계에서 raster/native barcode·line·rectangle·border의 공용 transform 좌표 일치, right/height native clip 불가 후보의 bitmap fallback
 - `extraAreaMm > 0`이어도 label-height 아래 매체 영역에 raster/native 콘텐츠가 없고 `pageHeightMm`은 `^Q` 매체 높이에만 반영됨
 - 세로 방향에서는 barcode/line/rectangle/cell-border native command가 생성되지 않고 회전된 공용 bitmap만 출력됨
 - native 가능 barcode의 앞·뒤에 line/shape가 있을 때 공통 object zOrder를 보존하고, 순서가 바뀌는 native barcode 최적화는 bitmap fallback
 - native 후보 line/rectangle의 앞·뒤에 raster image/barcode/shape가 있을 때 공통 object zOrder를 보존하고, 여러 native geometry 사이의 상대 순서도 paint order와 일치
 - `raster → native 후보 → 상부 raster`로 교차하는 세 객체에서 후보를 bitmap fallback하고 native 승인 전에는 fallback PNG 영역을 제거하지 않음
+- app preflight descriptor 생성에 성공한 후보가 package 최종 zOrder 판정에서 탈락하면 filtered bitmap에 객체 전체가 유지되고 해당 candidate token의 descriptor는 encoder에 전달되지 않음
+- approval record의 unknown 또는 중복 candidate token은 최종 plan에서 미승인되어 어떤 exact key도 bitmap에서 생략하지 않고 descriptor도 encoder에 전달하지 않으며, package 후보의 token→exact key binding은 app이 덮어쓰지 못함
 - 승인된 native barcode의 bar 사이·quiet zone과 비채움 rectangle 내부에서 아래 raster pixel을 보존하고 flatten된 PNG의 bounds/mask를 흰색으로 지우지 않음
 - 하나의 immutable Hybrid render plan이 filtered print capture와 native command 생성에 동일하게 전달되고 exact object key/cell-border edge 승인 집합만 bitmap에서 생략됨
+- native preflight에서 edge/stroke가 정확히 0.5 dot이면 descriptor와 최종 plan에 승인되고, command 제약·clip·최소 stroke 또는 barcode module/quiet-zone predicted bounds 중 하나라도 0.5 dot을 초과하면 최종 plan에서 제외되어 filtered bitmap에 객체 전체가 유지되고 native command는 0개임
 - plan 확정 뒤 async filtered capture 완료 전 live workbook mutation·undo·active sheet 변경이 발생해도 filtered bitmap/native bytes와 반환 sheet/range는 plan이 소유한 최초 canonical snapshot 기준이며 완료 시점 live canvas를 다시 읽지 않고 새 workbook/revision/undo에 영향이 없음
 - image/barcode/line/shape에 같은 문자열 ID를 준 fixture에서 한 exact typed key만 승인하면 해당 객체만 filtered capture에서 빠지고 native command에 포함되며 다른 kind의 같은 ID 객체는 bitmap에 유지됨
-- EZPL host가 선행 일반 capture 없이 Hybrid coordinator 하나를 호출하고 coordinator 내부 순서가 canonical snapshot→source 크기/resolved layout 확정→plan 생성→filtered capture→동일 plan native command 생성임
+- EZPL host가 선행 일반 capture 없이 Hybrid coordinator 하나를 호출하고 coordinator 내부 순서가 canonical snapshot→source 크기/resolved layout 확정→package native 후보→app preflight descriptor→package 최종 plan→filtered capture→승인 descriptor native command 생성임
 - 인접 cell의 right/left 및 bottom/top alias가 같은 canonical physical edge key로 합쳐지고 한 edge 승인 시 filtered capture와 native command에서 정확히 한 번만 제외·출력됨
 - 숫자 좌표가 같은 vertical `(row, boundaryColumn)`과 horizontal `(boundaryRow, column)` edge를 동시에 두어 방향을 포함한 서로 다른 key로 독립 승인·제외·출력함
 - filtered print capture 전후 workbook JSON·revision·undo/dirty/callback 불변, 일반 capture/PDF 결과 불변과 임시 workbook mutation·전체 border 제외·사후 흰색 pixel 삭제 미사용
@@ -1280,7 +1287,7 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 12. 기존 image/barcode 편집 validation/commit, linked image 해제의 새 파일 필수 조건, panel image picker의 exact-key owner/token 검증과 exact-key barcode pending draft/error·rotation/latest-request render/metadata 보존을 공용 API로 추출하고 panel form을 연결한다. 생성 dialog는 같은 API를 사용하도록 유지한다.
 13. `LabelSheetWorkbench`에 splitter, panel width clamp, 접기와 narrow overlay fallback을 연결한다. panel controller/draft를 presentation보다 상위에 유지하고 경계 전환의 자동 open/focus 이동을 막으며 narrow overlay가 열린 동안 active object toolbar를 paint/hit-test하지 않는다.
 14. clipboard 단일 async paste coordinator의 호출 시점 target owner snapshot, 호출 순서 latest-wins인 copy/cut marker write coordinator와 marker 기록 성공 뒤 source owner/model을 재검증하는 cut transaction, canonical typed deep-clone mixed payload, reorder, package-owned per-sheet revision과 모든 object zOrder insertion 경로를 마무리한다.
-15. 일반 capture/PDF 동작을 유지한 채 Hybrid EZPL coordinator의 package-neutral immutable transform DTO/render plan, canonical physical cell-border edge key와 exact object/edge filtered print capture API를 추가한다. app resolved layout에서 transform DTO를 한 번 만들고 `LabelSheetOutputCaptureController`의 app-facing Hybrid unit API를 연결한다. 다중 발행 EZPL host의 선행 일반 capture를 제거한 뒤 coordinator 단일 진입점에서 plan 확정→최초 canonical snapshot 기준 filtered capture→같은 transform/plan의 native command 생성 순서와 zOrder/fallback을 검증한다.
+15. 일반 capture/PDF 동작을 유지한 채 Hybrid EZPL coordinator의 package-neutral immutable transform DTO/native 후보·최종 render plan, canonical physical cell-border edge key와 exact object/edge filtered print capture API를 추가한다. app resolved layout에서 transform DTO를 한 번 만들고 `LabelSheetOutputCaptureController`의 app-facing Hybrid unit API를 연결한다. 다중 발행 EZPL host의 선행 일반 capture를 제거한 뒤 coordinator 단일 진입점에서 package 후보→app EZPL preflight descriptor→package 최종 plan→최초 canonical snapshot 기준 filtered capture→승인 descriptor native command 생성 순서와 실패 후보의 bitmap 유지, zOrder/fallback을 검증한다.
 16. 관련 focused test, 기존 회귀 test, `flutter analyze`, diagnostics와 `git diff --check`를 실행한다.
 17. 테스트 생성물과 임시 파일을 정리한 뒤 요청 범위 파일만 stage/commit한다.
 
@@ -1370,11 +1377,12 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - `.lms`는 decoder 내부 migrate→sanitize→decode를 한 번만 사용하고 `.xlsx` raw parser는 LabelSheet 적용 경계에서만 normalize한다.
 - 선·도형만 있는 `.lms`를 export할 수 있고 print-area 교차 geometry가 stroke와 회전을 포함한 bounds로 보존된다.
 - print-area save는 geometry를 crop-local로 옮기지 않고 원래 sheet logical 좌표와 교차 객체를 보존하며 row/column 범위만 조정한다.
-- print-area save는 원래 logical rect와 line/fill 없는 shape의 실제 stroked path 또는 채움 shape의 회전 fill 영역·outline이 교차·경계 접촉하는 exact object key를 먼저 확정하고, padded bounds는 범위 확장에만 사용하며 확장 범위의 이웃 객체를 추가하지 않는다.
+- print-area save는 원래 logical rect와 line/fill 없는 shape의 실제 stroked path 또는 채움 shape의 회전 fill 영역·outline이 교차·경계 접촉하는 exact object key를 먼저 확정한다. patterned stroke는 canonical phase의 기하학적 dash/dot painted footprint로 판정해 gap-only 교차를 제외하고, 연속 envelope/padded bounds는 후보 culling과 범위 확장에만 사용하며 확장 범위의 이웃 객체를 추가하지 않는다.
 - endpoint/중심점이 crop 밖이어도 실제 stroke/path가 교차하는 line/shape는 print-area save와 capture에서 보존된다.
 - EZPL native barcode/line/rectangle과 raster 객체가 겹쳐도 화면의 공통 object zOrder를 바꾸지 않고 native geometry끼리의 상대 순서도 유지하며, native cell border는 항상 상부 객체 아래인 base-layer 순서를 유지한다.
 - EZPL raster와 모든 native 후보는 signed push·margin·right clip과 `clipBottomMm == labelHeightMm`을 포함한 같은 `LabelSheetPrintLayout` printer transform을 사용하고 extra area를 콘텐츠 영역으로 사용하지 않는다. 세로 방향은 모든 native 후보를 bitmap fallback한다.
 - app resolved layout은 app 타입에 의존하지 않는 immutable print transform DTO를 한 번 생성하고 plan, filtered capture와 native encoder가 동일 인스턴스를 공유해 source bounds·scale·origin·clip·orientation을 중복 계산하지 않는다.
+- Hybrid coordinator는 package app-neutral 후보→app command-specific preflight descriptor→package 최종 plan을 filtered capture 전에 완료하고, preflight/최종 plan 미승인 key는 bitmap에 유지한다. filtered capture 뒤에는 새 native 실패/fallback 판정을 하지 않고 승인 descriptor만 encode한다.
 - Hybrid EZPL coordinator는 exact object key와 cell-border edge 승인 집합을 가진 하나의 immutable render plan을 filtered print capture와 native command 생성에 공유한다. capture는 workbook을 mutation하거나 flatten된 fallback PNG를 지우지 않고 승인 집합만 painter에서 생략해 하부 pixel을 보존한다.
 - Hybrid plan 확정 뒤 live workbook이 바뀌어도 filtered capture와 native encoding은 plan이 소유한 최초 immutable canonical snapshot을 끝까지 사용하고 완료 시점 live canvas를 다시 읽지 않는다.
 - 다중 발행의 PDF unit은 기존 일반 capture를 사용하고 EZPL unit은 active 시점의 app-facing `captureHybridEzpl()` 결과를 저장한다. 각 Hybrid 결과의 canonical sheet snapshot으로 오류를 검사하고 resolved metrics/page spec으로 grouping하며 unit별 bytes를 연결만 한다. FortuneSheet package는 plan/filtered capture까지만 소유하고 app 인쇄 타입/encoder에 의존하지 않는다.
@@ -1418,6 +1426,7 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - 빈 canvas context menu에는 geometry 삽입 command를 추가하지 않음
 - print-area save: geometry 원래 sheet logical 좌표 유지, row/column 저장 범위만 조정
 - print-area object 선별: 원래 logical rect와 stroked path 또는 채움 shape fill 영역이 교차하는 exact key를 먼저 확정, padded bounds는 범위 확장에만 사용
+- print-area patterned stroke 선별: canonical phase의 실제 dash/dot painted footprint 교차·경계 접촉만 포함하고 gap-only 교차 제외, viewport/candidate culling은 연속 envelope 유지
 - panel 기본/최소/최대 폭: 300/260/420px
 - sheet 최소 폭: 480px
 - dock 최소 local width: 760px
@@ -1448,7 +1457,8 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - EZPL 세로 방향: barcode/line/rectangle/cell-border를 모두 bitmap fallback, 세로 native 회전 좌표식 제외
 - EZPL 하단 콘텐츠 clip: `clipBottomMm = labelHeightMm`, `pageHeightMm`은 extra area를 포함한 매체 높이/`^Q` 전용
 - Hybrid print transform: package-neutral immutable DTO를 app resolved layout에서 한 번 생성하고 plan/filtered capture/native encoder가 동일 instance 공유
-- Hybrid EZPL 합성: host는 일반 PNG를 먼저 capture하지 않고 output coordinator 단일 API를 호출하며, coordinator가 exact object/canonical physical border-edge 승인 plan을 먼저 확정하고 같은 immutable plan을 filtered print capture와 native command 생성에 공유, 임시 workbook mutation·전체 border 제외·사후 pixel 삭제 금지
+- native dot 정수화: edge를 직접 소유하는 geometry는 최종 signed physical edge별 Dart `round()`와 정수 edge 차이 extent, module 기반 barcode는 command parameter로 결정한 painted bounds 검증, 최종 edge/stroke별 정확히 0.5 dot 허용·초과 fallback
+- Hybrid EZPL 합성: host는 일반 PNG를 먼저 capture하지 않고 output coordinator 단일 API를 호출하며, package 후보→app command preflight descriptor→package exact object/canonical physical border-edge 최종 plan을 filtered capture 전에 확정하고 같은 immutable plan/descriptor를 capture와 native encode에 공유, 미승인 key bitmap 유지와 임시 workbook mutation·전체 border 제외·사후 pixel 삭제 금지
 - Hybrid async snapshot: plan 확정 뒤 live workbook 변경과 무관하게 최초 canonical snapshot을 filtered capture/native encoder/반환 결과가 끝까지 공유하고 live canvas 재조회 금지
 - 다중 발행 Hybrid API: EZPL unit이 active일 때 `LabelSheetOutputCaptureController.captureHybridEzpl(metrics, options, lineSpacingPercent)`로 bytes, 동일 canonical sheet/range snapshot과 source 크기가 반영된 resolved metrics/page spec을 저장하고 grouping은 unit별 bytes만 연결, PDF는 기존 `capture()` 유지
 - object clipboard: versioned opaque system clipboard marker가 내부 payload marker와 일치할 때만 object paste, 불일치는 같은 단일-read coordinator에서 기존 cell/text paste 1회 실행

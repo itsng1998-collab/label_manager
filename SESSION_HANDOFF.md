@@ -1,3 +1,14 @@
+### 완료 (2026-07-21): 선·도형 지시서 print-area pattern·native preflight 보완
+- 사용자 요청: 최신 `doc/label_line_panel.txt` 재검토의 print-area patterned stroke와 native dot 정수화 권장안을 병합하고 필요한 정책을 즉시 확정한다.
+- 사용자 확정: 원래 print-area가 dashed/dotted/dashDot의 빈 gap만 교차하면 해당 객체를 저장 대상 exact key에서 제외한다. canonical phase의 실제 dash/dot 기하학적 painted footprint가 교차·경계 접촉할 때만 포함하며 채움 shape는 fill 교차로 포함한다.
+- print-area 보완 완료: painted-mark 판정은 `_sheetForPrintAreaSave()` 최종 exact key에만 적용한다. 후보 탐색·viewport/capture culling·범위 확장은 연속 stroke envelope로 보수적으로 유지하고 §8.1 hit-test는 patterned gap에서도 전체 centerline tolerance를 사용한다.
+- native rounding 보완 완료: 공용 painter의 목표 physical painted footprint를 기준으로 signed edge를 각각 Dart `round()`하고 R 계열 extent는 정수 edge 차이로 파생한다. 최종 predicted edge/stroke별 정확히 0.5 dot은 허용하고 초과하면 fallback하며 module barcode는 command module/count/quiet-zone 규칙으로 bounds를 계산해 module 규칙을 변형하지 않는다.
+- Hybrid 원자성 보완 완료: package-issued unique candidate token이 exact key binding을 소유하고 app은 command-specific descriptor와 `(candidateToken, predictedPaintedFootprint)` approval record만 만든다. package 최종 zOrder/fallback plan 뒤 filtered capture를 실행하고 승인 token descriptor만 encode하며 preflight/plan 미승인 후보는 bitmap에 유지한다. unknown/duplicate token은 미승인이고 capture 뒤 새 fallback 판정은 금지한다.
+- 테스트 계약 보완 완료: gap-only 저장 제외·mark 접촉/fill 포함·gap centerline hit, signed half/edge/stroke·module barcode predicted bounds, preflight 실패와 preflight 성공 뒤 zOrder 탈락의 bitmap 유지·encoder 미전달을 판별한다.
+- 독립 재검토 완료: 최초 문구의 capture/print-area 범위 충돌, encoder 판정이 filtered capture보다 늦는 객체 누락, app descriptor/package 의존 역전과 token/key 이중 식별을 발견해 각각 범위 분리, preflight→최종 plan 순서, app-neutral approval record와 단일 package token binding으로 보정했다. 최종 구현 차단 모순이나 필수 테스트 누락은 없다.
+- 검증 완료: `doc/label_line_panel.txt` diagnostics 오류 0건, 필수 계약 검색과 `git diff --check` 통과. 문서만 변경했으므로 Flutter test/analyze는 실행하지 않았다.
+- stage/commit 대상: `doc/label_line_panel.txt`, `SESSION_HANDOFF.md`만 포함한다. 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
+
 ### 완료 (2026-07-21): 선·도형 지시서 stroke scale·open pattern phase 보완
 - 사용자 요청: 최신 `doc/label_line_panel.txt` 재검토에서 확인한 stroke 두께와 open line crop phase 권장안을 병합하고 사용자 확인이 필요한 사항은 즉시 확정한다.
 - 추가 사용자 확인 불필요: 96-PPI logical 변환과 canonical start/end 방향이라는 기존 계약을 경로별로 구체화했으며 새로운 제품 정책 선택은 없다. endpoint 교환은 start/end 방향 변경이므로 새 `x1/y1` phase를 사용하는 것으로 기존 의미를 유지한다.
