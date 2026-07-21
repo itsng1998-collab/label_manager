@@ -1,3 +1,10 @@
+### 완료 (2026-07-21): 선·도형 지시서 object interaction 우선순위 보완
+- 사용자 요청: 최신 `doc/label_line_panel.txt` 재검토에서 확인한 handle/body hit 우선순위, mixed overlap cycle, 다중 선택 body drag와 Ctrl/Meta pointer 권장안을 병합하고 필요한 정책을 즉시 확정한다.
+- 추가 사용자 확인 불필요: 기존 이미지 handle·Tab cycle parity와 문서의 다중 geometry 제외/selection toggle 범위로 결과를 결정했으며 group move나 마지막-pointer cycle 같은 신규 UX는 추가하지 않았다.
+- interaction 보완 완료: 단일 active handle→공통 역 paint-order body→cell/grid hit 순서, canvas focus의 active geometry 중심 기반 mixed-object `Tab`/`Shift+Tab`, 다중 selected member body의 단일 선택 축소·단일 이동, Ctrl/Meta body/handle pointer-down toggle 1회·geometry no-op과 insertion mode 선점을 명시했다. Selection 변경은 controller/listenable 1회, canonical callback 0회로 분리했다.
+- 테스트 계약 보완 완료: 상위 body와 하위 active handle 중첩, image/barcode/line/shape 양방향 cycle과 fill 없는 active shape, canvas/panel/editor Tab ownership, 다중 선택 click/drag, Ctrl/Meta threshold 미만/초과/cancel과 insertion mode에서 geometry/history/canonical notification 불변을 판별한다.
+- stage/commit 대상: `doc/label_line_panel.txt`, `SESSION_HANDOFF.md`만 포함한다. 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
+
 ### 완료 (2026-07-21): 선·도형 지시서 layer reorder no-op 보완
 - 사용자 요청: 최신 `doc/label_line_panel.txt` 재검토에서 확인한 동일 순서 layer drop의 zOrder 정규화 모호점을 권장안으로 병합하고 필요한 정책을 즉시 확정한다.
 - 추가 사용자 확인 불필요: 기존 canonical no-op 원칙에 따라 계산된 front-to-back exact-key 순서가 같은 drop은 reorder transaction이 아니며 비연속 zOrder도 원형 보존하는 것으로 구체화했다.

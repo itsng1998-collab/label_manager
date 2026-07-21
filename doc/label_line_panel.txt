@@ -503,7 +503,7 @@ hitTolerance = max(5 screen px, displayStrokeWidth / 2 + 3 screen px)
 
 - zoom과 무관하게 최소 화면 클릭 범위 5px을 보장한다.
 - endpoint handle이 line body보다 먼저 hit된다.
-- 객체가 겹치면 공통 paint order의 역순, 즉 가장 높은 zOrder부터 판정한다.
+- pointer hit-test는 삽입 모드가 아닐 때 `단일 active 객체에 현재 표시된 endpoint/resize/rotation handle → 공통 paint order 역순의 object body → cell/grid` 순서로 판정한다. active 객체 handle은 더 높은 zOrder 객체 body와 겹쳐도 먼저 hit되며, handle을 벗어난 위치의 body끼리는 가장 높은 zOrder부터 판정한다. 다중 선택에서는 개별 handle을 표시하지 않으므로 이 handle 우선 branch도 없다.
 - 선택되지 않은 line도 얇은 실제 stroke만으로 클릭을 요구하지 않는다.
 - shape hit-test는 회전을 역변환한 local point를 사용한다.
 - fill이 있는 rectangle/roundedRectangle/ellipse는 내부를 body hit로 인정한다.
@@ -577,12 +577,14 @@ x2 += dx, y2 += dy
 ### 8.6 선택 규칙
 
 - 일반 클릭: 단일 객체 선택
-- Ctrl/Meta 클릭: 객체 선택 toggle
+- 삽입 모드가 아닐 때 Ctrl/Meta+primary pointer가 object body 또는 표시된 handle에 적중하면 해당 pointer sequence 전체를 객체 선택 toggle이 소유한다. 기존 canvas pointer selection parity대로 pointer down에서 exact key toggle을 정확히 한 번 확정하고 controller/listenable에 selection snapshot을 한 번 통지한다. 후속 pointer 이동이 drag threshold를 넘거나 pointer cancel이 도착해도 toggle을 반복·원복하지 않고 body move나 endpoint/resize/rotation draft를 시작하지 않으며 geometry, workbook, undo/redo, dirty, revision과 `onChange`/`onOp` canonical callback을 바꾸지 않는다. 삽입 모드에서는 §7.4의 primary pointer 선점이 modifier보다 먼저여서 Ctrl/Meta가 눌려도 selection을 toggle하지 않고 기존 selection을 유지한 채 insertion sequence를 시작한다.
 - Shift 클릭: 레이어 목록의 active anchor 기준 범위 선택은 panel에서만 적용한다.
 - 빈 grid 클릭: 객체 선택 해제 후 기존 cell selection 동작
 - 다중 선택 상태에서는 개별 endpoint/resize/rotation handle을 표시하지 않는다.
 - 이번 범위에서 다중 geometry resize/rotation은 하지 않는다.
 - 다중 선택의 삭제·복제·copy/cut/paste와 layer 이동은 지원한다.
+- panel 또는 modifier로 만든 다중 selected set의 구성원 body를 canvas에서 modifier 없이 primary down하면 그 exact key 하나로 selection을 축소하고 active로 지정한 뒤 해당 객체만 단일 body move한다. group move는 이번 범위에 추가하지 않으며 pointer 이동 없는 click은 selection만 바꾸고 geometry transaction을 만들지 않는다. Shift 단독 body drag도 canvas 범위 선택이 아니라 같은 단일 선택·move이고, Shift geometry 제약은 endpoint/resize/rotation drag가 시작된 뒤에만 각 기존 snap/aspect 규칙으로 사용한다.
+- 기존 `Tab`/`Shift+Tab` 겹친 이미지 순환은 canvas focus에서만 공통 object selection으로 일반화한다. probe는 마지막 pointer 위치가 아니라 active 객체의 geometry 중심을 사용한다. line은 endpoint 중점, image/barcode와 shape는 bounds 중심이며, probe에서 공통 body hit-test되는 객체를 공통 paint order로 순환한다. fill 없는 shape처럼 자기 중심이 body hit가 아니어도 현재 active exact key는 후보에 명시적으로 포함한다. `Tab`은 기존 이미지 순환 방향, `Shift+Tab`은 반대 방향을 유지하고 pointer 위치 변화에 의존하지 않는다. 후보가 둘 미만이면 기존 cell Tab navigation으로 넘긴다. panel list/property editor focus에서는 §13.3의 traversal이 소유하고 object cycle을 실행하지 않는다. 순환은 selection/UI만 바꾸므로 selection이 실제 변경되면 controller/listenable을 한 번 통지하되 workbook/undo/dirty/revision과 `onChange`/`onOp` canonical callback을 만들지 않는다.
 
 ## 9. 통합 객체 패널
 
@@ -1072,6 +1074,7 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - point-to-segment hit tolerance
 - dashed/dotted/dashDot의 실제 gap 중앙도 patterned mark가 아니라 전체 canonical centerline의 point-to-segment tolerance로 line body hit가 되고 뒤 객체/cell로 통과하지 않음
 - endpoint 우선 hit
+- 낮은 zOrder active object의 표시 handle과 높은 zOrder body가 겹치면 handle이 우선하고 handle 밖에서는 높은 body가 우선함
 - 45도 Shift snap
 - rectangle/roundedRectangle/ellipse path와 내부 hit
 - shape rotation 역변환 hit-test
@@ -1135,6 +1138,9 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - redo가 존재하는 상태에서 drag cancel·owner 불일치·최소 크기 미달·왕복 no-op을 각각 실행해도 redo stack이 유지되고 기존 redo가 같은 canonical 결과로 실행됨
 - line 선택 handle 2개와 zoom 고정 크기
 - shape resize handle 8개와 rotation handle 1개의 zoom 고정 크기
+- canvas focus에서 image/barcode/line/shape가 active geometry 중심에 겹치면 `Tab`/`Shift+Tab`이 공통 paint order의 기존/반대 방향으로 순환하고 selection listenable만 1회 통지함. fill 없는 active shape도 후보에 유지되고 마지막 pointer 위치 변경은 결과에 영향이 없으며 후보 1개에서는 기존 cell Tab으로 넘김. 같은 fixture의 panel list/property editor focus와 invalid draft Tab은 object cycle 없이 기존 focus traversal/focus-loss 계약을 유지함
+- panel에서 mixed 다중 선택 뒤 selected member body를 modifier 없이 click/drag하면 그 exact key 단일 선택으로 축소되고 click-only는 geometry/undo no-op, drag는 해당 객체만 undo 1건으로 이동하며 나머지 selected object geometry는 불변임
+- 삽입 모드 밖에서 Ctrl/Meta+primary가 object body 또는 handle에 적중하면 pointer down에서 selection toggle과 controller/listenable을 정확히 1회 만들고 threshold 미만 up·threshold 초과 up·pointer cancel 모두 selection을 반복/원복하지 않으며 move/endpoint/resize/rotation draft와 workbook/undo/redo/dirty/revision·`onChange`/`onOp`를 만들지 않음. 삽입 모드에서는 같은 입력도 selection toggle 없이 기존 selection을 유지하고 insertion이 선점함
 - Delete/duplicate/copy/cut/paste
 - mixed image/barcode/line/shape cut은 clipboard marker 기록 성공과 source owner/revision/exact model/권한 재검증 뒤에만 삭제와 undo 1건, paste는 별도 undo 1건, copy paste와 독립 duplicate는 새 typed ID 발급
 - mixed internal payload가 canonical typed model deep clone으로 source 후속 mutation과 독립되고 package-owned extra metadata를 보존하며, stale raw-list wire와 LabelSheet save sanitizer가 paste model을 덮어쓰지 않음. 지원하지 않는 payload version/kind는 workbook/selection/payload/undo/dirty/callback을 바꾸지 않음
@@ -1330,6 +1336,8 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - rectangle/roundedRectangle/ellipse의 bounds·회전·stroke·fill·radius·zOrder가 저장 후 동일하게 복원된다.
 - 통합 shape toolbar가 image 앞에 있고 geometry kind별 style/width/color/fill/radius preset으로 생성된다.
 - line 본체와 endpoint hit-test가 얇은 선에서도 안정적으로 동작한다.
+- 단일 active object의 표시 handle은 상위 zOrder object body보다 먼저 hit되고, body끼리는 공통 paint order 역순을 따른다.
+- 기존 겹친 이미지 `Tab`/`Shift+Tab` selection은 canvas focus에서 image/barcode/line/shape 공통 paint order와 active geometry 중심 probe로 일반화하며 selection listenable만 통지하고 workbook transaction을 만들지 않는다. panel/editor focus의 Tab은 기존 traversal이 소유한다.
 - line body 이동, endpoint 이동, Shift snap과 keyboard 이동이 undo 1건 단위로 동작한다.
 - line 생성은 화면 기준 3px 최소를 지키고 생성 후 endpoint drag와 panel commit은 zero-length만 거부해 0보다 큰 짧은 기존 line을 보존한다.
 - endpoint 이동은 Y 상단 경계를 지키며 Shift snap이 상단과 교차해도 45도 방향을 유지한다.
@@ -1339,6 +1347,7 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - object mutation은 모두 `allowEdit` 공통 guard를 사용하며 현재 cell selection protection에 따라 허용 여부가 달라지지 않는다.
 - move/resize/rotation과 panel geometry commit은 X 음수 허용, Y/left/top clamp, right/bottom 허용과 rotation 무-clamp의 기존 이미지 parity를 따른다.
 - shape body move는 음수 X와 right/bottom 초과를 허용하고 저장 top만 `0` 이상으로 clamp하며 회전된 시각 bounds를 추가 clamp하지 않는다.
+- 다중 selected set의 canvas body interaction은 modifier 없는 hit 객체 하나로 selection을 축소해 해당 객체만 이동하고 group move를 만들지 않는다. 삽입 모드 밖의 Ctrl/Meta+primary body/handle sequence는 pointer down에서 selection toggle을 한 번 수행하고 geometry drag를 시작하지 않으며, insertion mode primary pointer가 이 modifier branch보다 우선한다.
 - line 생성/move/endpoint, shape 생성/move/resize/rotation과 기존 image/barcode move/resize/rotation은 pointer move 중 workbook을 바꾸지 않고 pointer up에서 `onChange`/`onOp`와 undo를 각각 1회만 만든다. 변경 전 history snapshot은 drag draft에만 보관해 유효 commit 직전에 push하고 cancel·owner 불일치·최소 크기 미달에서는 폐기한다. dirty는 clean 상태의 첫 commit에서만 true callback 1회, 이미 dirty인 후속 commit에서는 추가 callback 0회다.
 - drag 중 이동했더라도 pointer-up의 최종 canonical geometry가 시작 snapshot과 같으면 no-op이며 undo/dirty/change callback을 만들지 않는다.
 - transient geometry draft는 owner workbook/sheet에서만 commit되고 active sheet 변경·undo/redo·외부 workbook 교체와 취소된 pointer sequence에서는 폐기된다.
