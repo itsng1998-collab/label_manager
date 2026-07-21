@@ -1,3 +1,11 @@
+### 완료 (2026-07-21): 선·도형 지시서 object selection·stroke footprint 보완
+- 사용자 요청: 최신 잔여 검토의 다중 context-menu 편집, Tab 객체 순환, 기존 image/barcode 내부 ID와 line/shape stroke footprint 권장안을 지시서에 병합한다.
+- 사용자 확정: solid 직선은 Flutter 기본 `StrokeCap.butt`, solid rectangle은 `StrokeJoin.miter`와 miter limit `4.0`을 사용한다. roundedRectangle/ellipse는 연속 접선 path를 stroke하고 화면·capture·native가 같은 최종 외곽을 사용한다.
+- selection 보완 완료: selected member secondary click은 묶음을 유지하되 `편집` 실행만 target exact key 단일 selected/active/anchor로 축소해 속성 form을 focus한다. canvas `Tab`/`Shift+Tab` 성공은 next exact key 하나로 selected/active/anchor를 함께 교체하며 두 경로 모두 일반 selection draft-finalize 뒤 cycle/선택 전환 자체는 canonical/history no-op이다.
+- legacy ID 보완 완료: 기존 image/barcode 내부 ID는 현행 decoder의 non-null 문자열 표현과 공백·대소문자·빈 문자열을 유지한다. 같은 kind의 정확히 동일한 decoded ID만 전체 후보 선예약 뒤 결정적으로 재발급하고, 변경 시 raw images list를 canonical encode하되 연결 ID metadata를 보존한다.
+- 테스트·완료 조건·확정값에 context edit 단일 전환, Tab selected/active/anchor 일치, legacy image ID fixture와 butt/miter centerline footprint를 연결했다.
+- stage/commit 대상: `doc/label_line_panel.txt`, `SESSION_HANDOFF.md`만 포함한다. 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
+
 ### 완료 (2026-07-21): 선·도형 지시서 shape preset·image 비율 유지 보완
 - 사용자 요청: 최신 잔여 검토에서 확인한 활성 shape insertion 중 같은 combo 조작, popup radius commit과 image panel 비율 유지 권장안을 지시서에 병합한다.
 - 추가 사용자 확인 불필요: 기존 one-shot insertion/다른 command 취소 규칙, 공통 숫자 field commit과 기존 image dialog의 기본 비율 잠금 parity로 결과가 결정된다. 활성 insertion snapshot을 popup에서 암묵 변경하거나 파일 교체로 배치 geometry를 바꾸는 새 동작은 추가하지 않았다.

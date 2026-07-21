@@ -222,6 +222,7 @@ FortuneShapeKind.ellipse          <-> "ellipse"
 - 지원하지 않는 shape extra field의 round-trip/sanitizer 경계는 line과 같다.
 - 기존 sheet-level `shapes` map/list는 FortuneSheet raw shape overlay wire이므로 신규 typed shape로 decode하거나 migrate하지 않고 `extraFields['shapes']`에 원형 보존한다. 기존 painter·capture 동작도 유지하며 `fortuneShapes`와 동시에 존재해도 어느 한쪽을 덮어쓰지 않는다. 화면 합성은 `cell base → image/barcode/line/fortuneShape typed 공통 object layer → legacy raw overlay → editor UI overlay`, 모든 capture 합성은 editor UI를 제외한 `cell base → typed 공통 object layer → legacy raw overlay` 순서로 고정한다. legacy raw overlay는 이번 통합 object 선택·편집·공통 zOrder·typed hit-test 대상이 아니며 raw `zIndex`는 legacy overlay끼리의 기존 순서에만 사용한다.
 - active sheet 안에서 typed key의 같은 kind별 내부 `id`는 유일해야 한다. codec/외부 workbook normalize는 재발급 전에 kind별 모든 원본 ID를 예약하고 공통 source sequence의 첫 `(kind, id)` entry를 유지한다. 후속 중복 entry에는 전체 원본 ID 집합과 이미 발급한 ID를 모두 피해 `{원본 id}__2`, `__3`, ... 형식의 첫 사용 가능한 ID를 결정적으로 발급하며 기존 연결 이미지·바코드 ID metadata는 바꾸지 않는다. 예를 들어 `a, a, a__2`는 `a, a__3, a__2`가 된다.
+- 위 ID 유일성에서 신규 line/shape는 앞의 string-only·trim 규칙을 적용하지만 기존 image/barcode 내부 ID는 images-only 파일 호환을 위해 현행 image decoder의 non-null 문자열 표현을 그대로 canonical 후보로 사용한다. 숫자·bool의 기존 문자열 변환, 앞뒤 공백·대소문자와 빈 문자열을 새로 trim·제외·변경하지 않는다. 변환 뒤 정확히 같은 문자열이고 같은 typed kind인 ID끼리만 중복으로 판정하며, 전체 기존 후보 문자열을 먼저 예약한 뒤 source sequence의 첫 entry를 유지하고 후속 중복에 같은 `__2`, `__3`, ... helper를 적용한다. ID를 재발급한 경우에만 해당 raw images list를 재사용하지 않고 기존 `rawImagesKey`로 canonical encode하며 연결 이미지·바코드 ID metadata는 원형 보존한다.
 
 ### 4.6 LabelSheet save format
 
@@ -346,6 +347,8 @@ shape[i] = images.length + lines.length + i
 - `dashDot`: butt-cap dash `4w`, 보이는 edge 사이 gap `2w`, 보이는 지름 `1w`인 원형 dot, 보이는 edge 사이 gap `2w`
 
 여기서 `w`는 현재 출력 좌표계로 변환된 stroke width다. 원형 dot은 centerline 길이 0의 round-cap mark로 그려 실제 보이는 지름이 `w`가 되게 하며 dotted와 dashDot의 dot에 같은 helper를 사용한다. dash segment는 butt cap을 사용한다. gap은 인접한 dash/dot의 보이는 edge 사이 거리이고, 길이가 패턴보다 짧아도 시작점에서 첫 segment 또는 dot을 그린다.
+
+사용자가 확정한 Flutter 기본 stroke 정책을 공용 painter와 geometry footprint에 명시적으로 고정한다. line의 canonical endpoint와 shape의 `left/top/width/height`는 stroke centerline/path bounds이고 stroke는 path 중앙에 정렬한다. solid open line과 patterned dash segment는 `StrokeCap.butt`를 사용한다. solid rectangle은 `StrokeJoin.miter`와 miter limit `4.0`을 사용하고 limit을 넘는 모서리는 Flutter의 bevel fallback을 따른다. roundedRectangle과 ellipse는 각 round-rect/ellipse path의 연속 접선을 그대로 stroke하며 별도 모서리를 합성하지 않는다. 화면, capture/PDF bitmap, print-area 교차, culling과 EZPL preflight가 모두 이 cap/join을 적용한 최종 stroke 외곽을 사용하고 model bounds를 visual outer bounds로 다시 해석하거나 path를 `w/2` inset하지 않는다.
 
 open line의 pattern offset `0`은 저장된 canonical `x1/y1`에 고정한다. pattern은 canonical logical 좌표의 `wL`을 기준으로 `(x1, y1)`에서 `(x2, y2)` 방향의 전체 centerline에 생성한 것과 같은 phase를 사용하고, geometry/output transform 뒤 viewport/capture/print crop으로 clip한다. crop 교차점이나 crop-local origin에서 pattern을 다시 시작하지 않는다. 구현은 crop 밖의 모든 mark를 실제로 열거할 필요가 없으며 canonical `x1/y1`부터 visible/clip interval 시작점까지의 centerline 거리를 pattern period로 modulo해 첫 visible mark를 구한 뒤 필요한 구간만 생성할 수 있다. `x1/y1`과 `x2/y2`를 교환하면 start/end 방향이 바뀐 것이므로 새 canonical `x1/y1`에서 phase를 시작한다. 화면, 일반 capture, PDF bitmap과 EZPL bitmap fallback은 이 공용 pattern helper와 phase를 사용한다.
 
@@ -591,7 +594,7 @@ x2 += dx, y2 += dy
 - 이번 범위에서 다중 geometry resize/rotation은 하지 않는다.
 - 다중 선택의 삭제·복제·copy/cut/paste와 layer 이동은 지원한다.
 - panel 또는 modifier로 만든 다중 selected set의 구성원 body를 canvas에서 modifier 없이 primary down하면 그 exact key 하나로 selection을 축소하고 active로 지정한 뒤 해당 객체만 단일 body move한다. group move는 이번 범위에 추가하지 않으며 pointer 이동 없는 click은 selection만 바꾸고 geometry transaction을 만들지 않는다. Shift 단독 body drag도 canvas 범위 선택이 아니라 같은 단일 선택·move이고, Shift geometry 제약은 endpoint/resize/rotation drag가 시작된 뒤에만 각 기존 snap/aspect 규칙으로 사용한다.
-- 기존 `Tab`/`Shift+Tab` 겹친 이미지 순환은 canvas focus에서만 공통 object selection으로 일반화한다. probe는 마지막 pointer 위치가 아니라 active 객체의 geometry 중심을 사용한다. line은 endpoint 중점, image/barcode와 shape는 bounds 중심이며, probe에서 공통 body hit-test되는 객체를 공통 paint order로 순환한다. fill 없는 shape처럼 자기 중심이 body hit가 아니어도 현재 active exact key는 후보에 명시적으로 포함한다. `Tab`은 기존 이미지 순환 방향, `Shift+Tab`은 반대 방향을 유지하고 pointer 위치 변화에 의존하지 않는다. 후보가 둘 미만이면 기존 cell Tab navigation으로 넘긴다. panel list/property editor focus에서는 §13.3의 traversal이 소유하고 object cycle을 실행하지 않는다. 순환은 selection/UI만 바꾸므로 selection이 실제 변경되면 controller/listenable을 한 번 통지하되 workbook/undo/dirty/revision과 `onChange`/`onOp` canonical callback을 만들지 않는다.
+- 기존 `Tab`/`Shift+Tab` 겹친 이미지 순환은 canvas focus에서만 공통 object selection으로 일반화한다. probe는 마지막 pointer 위치가 아니라 active 객체의 geometry 중심을 사용한다. line은 endpoint 중점, image/barcode와 shape는 bounds 중심이며, probe에서 공통 body hit-test되는 객체를 공통 paint order로 순환한다. fill 없는 shape처럼 자기 중심이 body hit가 아니어도 현재 active exact key는 후보에 명시적으로 포함한다. `Tab`은 기존 이미지 순환 방향, `Shift+Tab`은 반대 방향을 유지하고 pointer 위치 변화에 의존하지 않는다. 후보가 둘 미만이면 기존 cell Tab navigation으로 넘긴다. panel list/property editor focus에서는 §13.3의 traversal이 소유하고 object cycle을 실행하지 않는다. 성공한 순환은 일반 object selection 변경의 draft-finalize 규칙을 먼저 적용한 뒤 next exact key 하나로 selected set을 교체하고 active key와 selection anchor도 모두 그 key로 정한다. 순환 자체는 selection/UI만 바꾸므로 draft finalize로 생긴 독립 transaction 외에는 workbook/undo/dirty/revision과 `onChange`/`onOp` canonical callback을 만들지 않고 최종 selection snapshot을 controller/listenable로 한 번 통지한다.
 
 ## 9. 통합 객체 패널
 
@@ -734,6 +737,7 @@ shape 위치/크기/회전 field는 canvas handle과 같은 geometry commit API�
 - active object context menu 첫 항목은 타입에 따라 `선 편집`, `사각형 편집`, `둥근 사각형 편집`, `타원 편집`으로 표시하고 객체 패널의 해당 속성 영역에 focus한다.
 - 편집 다음에 구분선을 두고 `복제`, `삭제`, 다시 구분선 뒤 `맨 앞으로`, `앞으로`, `뒤로`, `맨 뒤로` 순서로 배치한다.
 - secondary click 대상이 현재 selected set에 포함되면 다중 선택을 유지하고 해당 exact typed key를 active와 selection anchor로 바꾼다. context menu의 복제·삭제·layer command는 유지된 selected set 전체에 적용한다. 선택 밖 객체를 secondary click하면 그 객체 하나로 선택을 교체하고 같은 key를 anchor로 정한다.
+- 다중 selected set 구성원에서 연 context menu의 `편집` command만 위 묶음 command 규칙의 예외다. command 실행 시 일반 object selection 변경의 draft-finalize 규칙을 먼저 적용하고 context target exact key 하나로 selected set을 축소해 active와 selection anchor를 같은 key로 정한 뒤 해당 단일 속성 form을 표시·focus한다. 이 선택 전환 자체는 workbook/undo/dirty/revision과 canonical callback을 만들지 않는다. 우클릭만 했거나 복제·삭제·layer command를 실행한 경우에는 다중 선택을 그대로 유지한다.
 - `allowEdit == false`에서도 같은 secondary click selection 규칙으로 기존 object context menu를 연다. 편집·복제·삭제와 layer command는 기존 순서 그대로 disabled 표시하고 각 command 진입점의 `allowEdit` guard도 유지한다. object copy 항목을 context menu에 새로 추가하지 않으며 읽기 전용 object copy는 기존 Ctrl/Meta+C와 controller command로 허용한다.
 - 빈 canvas secondary click은 object selected set과 active key를 유지한 채 기존 cell context menu를 열며 menu command는 cell에만 적용한다. 이후 object keyboard command는 유지된 실제 focus와 active key 규칙을 따른다. 빈 canvas primary click의 기존 object selection 해제 규칙은 바꾸지 않는다.
 - 빈 canvas context menu에는 직선/도형 삽입 항목을 새로 추가하지 않는다. 신규 삽입의 단일 진입점은 §7의 `[도형▼]` toolbar이며 기존 cell context menu를 확장하지 않는다.
@@ -1051,6 +1055,7 @@ pointer move event와 property text 입력의 각 문자 변경마다 undo snaps
 - unknown shape kind entry 제외
 - width 누락 기본값과 범위 validation
 - canonical field가 유효한 기존 images-only workbook의 무변경 round-trip과 image/barcode ID·zOrder canonicalization이 필요한 raw images list의 비재사용
+- 기존 image/barcode 내부 ID는 현행 decoder의 non-null 문자열 표현과 공백·대소문자·빈 문자열을 유지하고 같은 kind의 정확히 동일한 decoded ID만 전체 후보 선예약 뒤 결정적으로 재발급함. 숫자 `1`과 문자열 `"1"`은 중복이고 `" 1 "`은 별개이며 ID 재발급 시 raw images list만 canonical encode하고 연결 ID metadata는 보존함
 - legacy `image` key의 ID/zOrder canonicalization 뒤에도 `rawImagesKey == 'image'`를 유지해 `image`로만 출력하고, `images`/`image`가 동시에 있으면 기존 우선순위대로 `images`만 소유·출력하며 stale `image`가 `extraFields`나 결과에 남지 않음
 - images, lines와 shapes 동시 저장
 - raw metadata preservation 경계
@@ -1095,6 +1100,7 @@ pointer move event와 property text 입력의 각 문자 변경마다 undo snaps
 ### 15.3 geometry/painter 테스트
 
 - solid/dashed/dotted/dashDot segment
+- line/shape model bounds가 stroke centerline/path bounds이고 solid open line은 butt cap, solid rectangle은 miter join·miter limit `4.0`과 초과 시 bevel fallback을 사용함. roundedRectangle/ellipse는 연속 접선 path를 stroke하며 화면/capture/print-area/culling/native preflight의 최종 외곽이 동일함
 - dotted/dashDot의 지름 `1w` 원형 dot과 보이는 edge 기준 `2w` gap
 - horizontal/vertical/diagonal bounds
 - mm→logical width
@@ -1171,7 +1177,7 @@ pointer move event와 property text 입력의 각 문자 변경마다 undo snaps
 - redo가 존재하는 상태에서 drag cancel·owner 불일치·최소 크기 미달·왕복 no-op을 각각 실행해도 redo stack이 유지되고 기존 redo가 같은 canonical 결과로 실행됨
 - line 선택 handle 2개와 zoom 고정 크기
 - shape resize handle 8개와 rotation handle 1개의 zoom 고정 크기
-- canvas focus에서 image/barcode/line/shape가 active geometry 중심에 겹치면 `Tab`/`Shift+Tab`이 공통 paint order의 기존/반대 방향으로 순환하고 selection listenable만 1회 통지함. fill 없는 active shape도 후보에 유지되고 마지막 pointer 위치 변경은 결과에 영향이 없으며 후보 1개에서는 기존 cell Tab으로 넘김. 같은 fixture의 panel list/property editor focus와 invalid draft Tab은 object cycle 없이 기존 focus traversal/focus-loss 계약을 유지함
+- canvas focus에서 image/barcode/line/shape가 active geometry 중심에 겹치면 `Tab`/`Shift+Tab`이 공통 paint order의 기존/반대 방향으로 순환하고 next exact key 하나로 selected/active/anchor를 함께 교체해 selection snapshot을 1회 통지함. fill 없는 active shape도 후보에 유지되고 마지막 pointer 위치 변경은 결과에 영향이 없으며 후보 1개에서는 기존 cell Tab으로 넘김. cycle 전 valid/invalid/no property draft는 일반 selection finalize 결과를 따르고 cycle 자체는 canonical transaction을 만들지 않으며, 같은 fixture의 panel list/property editor focus와 invalid draft Tab은 object cycle 없이 기존 focus traversal/focus-loss 계약을 유지함
 - panel에서 mixed 다중 선택 뒤 selected member body를 modifier 없이 click/drag하면 그 exact key 단일 선택으로 축소되고 click-only는 geometry/undo no-op, drag는 해당 객체만 undo 1건으로 이동하며 나머지 selected object geometry는 불변임
 - 삽입 모드 밖에서 Ctrl/Meta+primary가 object body 또는 handle에 적중하면 pointer down에서 selection toggle과 controller/listenable을 정확히 1회 만들고 threshold 미만 up·threshold 초과 up·pointer cancel 모두 selection을 반복/원복하지 않으며 move/endpoint/resize/rotation draft와 workbook/undo/redo/dirty/revision·`onChange`/`onOp`를 만들지 않음. 삽입 모드에서는 같은 입력도 selection toggle 없이 기존 selection을 유지하고 insertion이 선점함
 - Delete/duplicate/copy/cut/paste
@@ -1231,6 +1237,7 @@ pointer move event와 property text 입력의 각 문자 변경마다 undo snaps
 - image panel 후보에는 생성 dialog 전용인 active sheet의 다른 image 연결 ID가 유입되지 않으며, 생성 dialog의 기존 effective ID 목록은 그대로 유지됨
 - rectangle/ellipse에는 radius field가 없고 roundedRectangle에만 표시
 - active object context menu의 타입별 편집 문구와 command 순서. `allowEdit == false`에서도 secondary click selection과 menu 표시는 유지하되 기존 mutation 항목은 모두 disabled이고 실행 guard를 우회할 수 없으며 신규 copy 항목은 없고 Ctrl/Meta+C object copy만 허용됨
+- selected member의 secondary click은 다중 선택을 유지하지만 context-menu `편집` 실행만 target exact key 단일 selected/active/anchor로 축소한 뒤 속성 form을 focus하고, 복제·삭제·layer command는 기존 selected set 전체를 유지함. 편집 선택 전환 자체는 canonical/history no-op임
 - 다중 selected set의 구성원 secondary click은 set을 유지하고 clicked exact key만 active로 바꾸며 menu object command가 묶음 전체에 적용됨. 선택 밖 객체는 단일 선택으로 교체되고 빈 canvas secondary click은 object selection을 유지한 채 cell context menu만 열며 primary click은 기존대로 object selection을 해제함
 - 다중 선택에서 속성 form 숨김과 layer action 표시
 - 모든 selection 진입점에서 empty selected/null active 동치와 non-empty selected의 active 포함 불변식. `{A, B}`/active B에서 Ctrl/Meta+pointer B는 `{A}`/active A, 마지막 `{A}`에서 Ctrl/Meta+pointer A는 `{A}`/active A를 유지하고 후속 Delete/Copy가 같은 selected set에 적용됨
@@ -1395,6 +1402,7 @@ pointer move event와 property text 입력의 각 문자 변경마다 undo snaps
 - line 4종과 두께·색상·좌표·zOrder가 저장 후 동일하게 복원된다.
 - `lines`/`fortuneShapes`는 typed model/raw metadata가 단독 소유하고 `extraFields`와 이중 소유하지 않는다. line/shape ID는 trim 후 non-empty JSON string만 허용하고 다른 타입·빈 ID entry는 제외한다.
 - 같은 sheet/kind의 중복 내부 ID는 첫 entry를 유지하고 후속 entry에 결정적인 충돌 없는 ID를 발급하며 연결 ID metadata는 유지된다.
+- 기존 image/barcode 내부 ID는 현행 decoder의 non-null 문자열 표현을 유지하고 같은 kind의 정확히 동일한 decoded 문자열만 중복 재발급한다. line/shape의 string-only·trim 규칙을 기존 image에 확대하지 않으며 ID 변경이 발생한 raw images list만 canonical encode한다.
 - 중복 ID normalize는 kind별 모든 원본 ID를 선예약해 뒤의 정상 원본 ID를 선점하지 않고, 신규 allocator는 kind prefix별 가장 작은 빈 양의 suffix를 사용한다.
 - 비유한 zOrder는 `0.0`으로 canonicalize되고 공통 정렬과 다음 객체 zOrder는 유한값만 사용한다.
 - 기존 image/barcode의 비숫자·비유한 extraFields zOrder도 `0.0`으로 canonicalize되고 비정상 raw를 재사용하지 않는다.
@@ -1405,6 +1413,7 @@ pointer move event와 property text 입력의 각 문자 변경마다 undo snaps
 - legacy raw `shapes` strict clone은 일반 migration clone/cast 전에 원본 key 타입·finite value·cycle을 검사하고 유효 `null`과 invalid를 별도 결과로 구분한다.
 - manifest feature 누락은 payload에 존재하는 lines/fortuneShapes를 제거하지 않고 payload key 자체의 부재만 empty model로 해석한다. FortuneSheet codec은 canonicalization을, LabelSheet sanitizer는 구조/allow-list 필터를 소유한다.
 - dotted/dashDot의 dot은 보이는 지름 `1w`인 원형 mark이고 인접 mark의 보이는 edge 사이 gap은 `2w`다.
+- line endpoint와 shape bounds는 stroke centerline/path bounds이고 stroke는 중앙 정렬한다. solid open line은 butt cap, solid rectangle은 miter join과 miter limit `4.0`을 사용하며 roundedRectangle/ellipse는 연속 접선 path를 stroke한다. 모든 raster/capture/native footprint는 같은 최종 stroke 외곽을 사용한다.
 - `strokeWidthMm`은 96-PPI logical 두께로 한 번 변환되고 screen zoom과 capture/output pixel ratio는 각 소유 경로에서 한 번만 적용된다. screen/capture paint에 DPR을 중복 적용하지 않으며 raster와 native printer는 같은 mm→dot 물리 두께를 사용한다.
 - open line의 pattern phase는 canonical `x1/y1`에서 `x2/y2` 방향으로 유지된다. 전체 centerline에 pattern을 만든 뒤 crop하며 crop 교차점 또는 crop-local origin에서 다시 시작하지 않고, endpoint를 교환하면 새 start 기준 phase를 사용한다.
 - 폐쇄 도형의 pattern phase는 kind별 고정 local 시작점에서 유지된다. 짧은 path는 seam보다 offset `0`의 첫 mark를 우선하되 wrap하지 않고 첫 dot은 지름 전체가 들어갈 때만, 첫 dash는 남은 양의 길이까지만 그린다. 둘레가 실제 첫 mark 길이와 `2w`의 합 이상일 때만 첫 mark 이후 seam gap `2w`를 보장하고, 더 짧으면 첫 mark를 유지한 채 후속 terminal mark를 생략한다.
@@ -1413,7 +1422,7 @@ pointer move event와 property text 입력의 각 문자 변경마다 undo snaps
 - 활성 shape insertion에서 같은 combo 화살표는 현재 draft/mode를 취소하고 popup만 열며, popup 조작 뒤 `[삽입]` 또는 본체 클릭만 최신 preset으로 새 insertion mode를 시작한다. popup width/radius의 Enter/focus loss는 유효한 UI-only committed preset만 갱신하고 canonical workbook/history를 바꾸지 않는다.
 - line 본체와 endpoint hit-test가 얇은 선에서도 안정적으로 동작한다.
 - 단일 active object의 표시 handle은 상위 zOrder object body보다 먼저 hit되고, body끼리는 공통 paint order 역순을 따른다.
-- 기존 겹친 이미지 `Tab`/`Shift+Tab` selection은 canvas focus에서 image/barcode/line/shape 공통 paint order와 active geometry 중심 probe로 일반화하며 selection listenable만 통지하고 workbook transaction을 만들지 않는다. panel/editor focus의 Tab은 기존 traversal이 소유한다.
+- 기존 겹친 이미지 `Tab`/`Shift+Tab` selection은 canvas focus에서 image/barcode/line/shape 공통 paint order와 active geometry 중심 probe로 일반화하며 next exact key 하나로 selected/active/anchor를 함께 교체한다. cycle 자체는 selection listenable만 통지하고 workbook transaction을 만들지 않으며 panel/editor focus의 Tab은 기존 traversal이 소유한다.
 - line body 이동과 endpoint 이동은 pointer gesture별, keyboard 이동은 수용한 KeyDown/KeyRepeat별 undo 1건 단위로 동작한다. KeyUp은 반복 이동을 합치지 않고 clamp로 실제 변화가 없는 key event는 no-op이다.
 - line 생성은 화면 기준 3px 최소를 지키고 생성 후 endpoint drag와 panel commit은 zero-length만 거부해 0보다 큰 짧은 기존 line을 보존한다.
 - endpoint 이동은 Y 상단 경계를 지키며 Shift snap이 상단과 교차해도 45도 방향을 유지한다.
@@ -1454,6 +1463,7 @@ pointer move event와 property text 입력의 각 문자 변경마다 undo snaps
 - canvas/list/property pointer가 각 실제 focus를 소유하고 dock 단순 open은 focus를 유지한다. narrow overlay를 명시적으로 열면 list focus로 이동하며 단순 close는 유효한 trigger/직전 focus 또는 canvas fallback으로 복원한다. focus를 가져가지 않은 popup close는 focus를 바꾸지 않고 edit command만 대상 field로 이동한다.
 - Escape는 property draft, transient popup/context menu/overlay, insertion, canvas focus 순서에서 한 번에 적용 가능한 branch의 시각적 최상위 transient 하나만 처리하며 context menu close는 selection을 유지한다. 일반 property draft의 첫 Escape는 exact-key 입력을 현재 canonical 표시 문자열로 원복하고 inline error와 transient preview를 제거하며 editor focus와 panel presentation을 유지한 canonical/history no-op이고, 종료된 draft의 지연 callback/end도 no-op이다. shape preset의 focused width/radius editor에 미확정 문자열이나 validation이 있으면 popup branch보다 먼저 해당 입력만 committed preset으로 원복하고 popup/focus를 유지한 채 handled로 종료한다. 그 밖에는 같은 branch에 중첩된 submenu/dropdown을 닫은 다음 Escape가 상위 popup/overlay를 닫고, barcode pending 중에는 draft 취소 branch만 건너뛴다.
 - selected set 구성원을 secondary click하면 set을 유지하고 clicked key만 active로 바꾸며 object menu command는 묶음에 적용한다. 선택 밖 객체는 단일 선택으로 교체하고 빈 canvas secondary click은 object selection을 유지한 채 cell menu만 열며 primary click의 기존 selection 해제는 유지한다.
+- selected set 구성원 context menu의 `편집`만 target exact key 단일 selected/active/anchor로 축소한 뒤 속성 form을 focus하며, 우클릭 자체와 복제·삭제·layer command는 다중 선택을 유지한다.
 - 읽기 전용 secondary click도 object selection과 기존 menu 표시를 유지하되 mutation 항목을 disabled로 표시하고 command guard를 유지한다. copy menu 항목은 추가하지 않고 Ctrl/Meta+C object copy와 read-only property text의 선택·Ctrl/Meta+A/C만 허용한다.
 - panel-list focus의 Ctrl/Meta+A는 공통 front-to-back 전체 객체를 선택하고 frontmost key를 active와 selection anchor로 정한다.
 - 일반 focus loss의 invalid property 입력은 문자열과 inline 오류를 유지하고 canonical workbook을 바꾸지 않으며 새 대상 focus 이동을 허용하고 원래 field로 강제 복귀하지 않는다. 명시적 command finalize는 invalid draft를 원복·폐기하며 이후 같은 draft의 지연 Enter/focus-loss는 완전한 no-op이다.
@@ -1522,8 +1532,10 @@ pointer move event와 property text 입력의 각 문자 변경마다 undo snaps
 - legacy raw `shapes` 검사 순서: migration 일반 clone/typed map cast 전 raw `Object?` strict clone, 실제 String key·finite num·cycle 검사와 valid `null` 분리
 - legacy raw overlay 합성 순서: 화면은 typed 공통 object layer 뒤·editor UI overlay 앞, capture는 typed layer 뒤에서 종료하고 editor UI 제외. raw `zIndex`는 legacy overlay끼리만 적용하고 typed zOrder/hit-test에는 미참여하며 겹치는 typed native 후보는 bitmap fallback
 - line/shape 내부 ID wire: trim 후 non-empty JSON string만 허용, 다른 타입·빈/공백 entry 제외
+- 기존 image/barcode 내부 ID: 현행 decoder의 non-null 문자열 표현·공백·대소문자·빈 문자열 유지, 같은 kind의 정확히 동일한 decoded ID만 전체 후보 선예약 뒤 `__2`, `__3` 재발급, 변경 시 raw images list canonical encode와 연결 ID metadata 보존
 - FortuneSheet lines/shapes public API: 생성자 optional-empty, 무관한 `copyWith`는 typed/raw/`hasRaw*` deep-clone 보존, typed list 교체 시 별도 제공하지 않은 stale raw 폐기
 - 선 종류: 실선, 파선, 점선, 일점쇄선
+- stroke geometry: endpoint와 shape bounds는 centerline/path bounds, 중앙 정렬. solid line butt cap, solid rectangle miter join·miter limit 4.0(초과 시 bevel fallback), roundedRectangle/ellipse는 연속 접선 path, 화면/capture/native가 같은 최종 외곽 사용
 - 기본 두께: style별 0.5mm
 - 두께 범위: 0.1~10.0mm, 입력 단위 0.1mm
 - 기본 stroke 색상: 검정
@@ -1551,6 +1563,8 @@ pointer move event와 property text 입력의 각 문자 변경마다 undo snaps
 - settings-only `allowEdit` true→false: canonical replacement가 아니며 새 permission만 수용, 일반 draft/error commit 없이 폐기·callback identity 종료, pending cut/paste/picker/renderer 무효화와 pending copy 유지, mutation dialog와 style/color/insertion popup의 표준 focus 복원 후 즉시 닫기, 열린 object menu의 focus scope/Escape 소유권 유지와 disabled 재구성, selection/active key/panel open과 canonical content·workbook identity/history lineage·undo/dirty/revision 유지, canonical callback 0회와 최종 read-only controller/listenable 1회. false→true도 폐기 상태 복원 없이 mutation enablement snapshot listener 1회와 canonical callback 0회
 - read-only object context menu: secondary click selection과 기존 menu 유지, mutation 항목 disabled+실행 guard 유지, 신규 copy 항목 없음, Ctrl/Meta+C object copy와 property text selection·Ctrl/Meta+A/C 허용
 - panel-list Ctrl/Meta+A: 공통 front-to-back 전체 객체 선택, frontmost active와 selection anchor
+- canvas Tab/Shift+Tab object cycle: next exact key 단일 selected/active/anchor, cycle 자체 canonical/history no-op와 selection snapshot 1회
+- 다중 object context menu 편집: secondary click은 묶음 유지, `편집` 실행만 target exact key 단일 selected/active/anchor로 축소 후 속성 focus, 다른 object menu command는 묶음 유지
 - geometry drag undo: 시작 시 변경 전 snapshot을 gesture draft에만 보관, 유효 pointer-up commit 직전에만 stack push, cancel/owner 불일치/최소 크기 미달은 폐기
 - object keyboard 이동 undo: canvas focus의 수용한 KeyDown/각 KeyRepeat별 실제 변경 transaction 1회, KeyUp과 clamp no-op은 transaction 0회
 - interaction 화면 px: Flutter logical pixel, `logicalExtent * effectiveZoom` 판정, DPR 제외
