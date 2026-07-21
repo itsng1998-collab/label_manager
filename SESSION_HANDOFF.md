@@ -1,3 +1,11 @@
+### 완료 (2026-07-21): 선·도형 지시서 focus·Escape·context menu 보완
+- 사용자 요청: 최신 `doc/label_line_panel.txt` 재검토에서 확인한 focus ownership, Escape 처리 단위, 다중 선택 secondary click과 invalid blur 권장안을 병합하고 필요한 정책을 즉시 확정한다.
+- 사용자 확정: narrow object overlay를 명시적으로 열면 layer list focus로 이동하고 단순 close는 유효한 trigger/직전 focus로 복원한다. selected set 구성원을 secondary click하면 묶음을 유지하고 clicked key만 active로 바꾼다. 일반 focus loss의 invalid 입력은 문자열과 inline 오류를 유지한다.
+- focus·Escape 보완 완료: canvas/list/property pointer별 실제 focus, dock 단순 open의 focus 불변, overlay/popup close의 trigger→직전 유효 focus→canvas fallback 복원을 명시했다. Escape 한 번은 property draft→popup/context menu/overlay→insertion→canvas focus 중 최상위 적용 branch의 시각적 최상위 transient 하나만 처리하며 barcode pending은 draft 취소만 건너뛴다.
+- selection·draft 보완 완료: 선택 내부/외부/빈 canvas secondary click의 selected set·active key·menu 적용 범위를 고정했다. 일반 invalid blur는 새 대상 focus 이동을 허용하고 원래 field로 강제 복귀하지 않는 canonical no-op으로 입력/error를 유지하며, 명시적 command finalize 뒤 지연된 같은 draft callback은 draft/error를 되살리지 않는 완전한 no-op이다.
+- 테스트 계약 보완 완료: focus별 shortcut과 overlay 복원, 단계별 Escape, secondary click 선택 범위, invalid blur 유지와 command finalize 뒤 undo/dirty/revision/callback/listenable 0회를 판별한다.
+- stage/commit 대상: `doc/label_line_panel.txt`, `SESSION_HANDOFF.md`만 포함한다. 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
+
 ### 완료 (2026-07-21): 선·도형 지시서 barcode pending 객체 명령 보완
 - 사용자 요청: 최신 `doc/label_line_panel.txt` 재검토에서 확인한 barcode panel render pending 중 객체 명령 범위를 권장안으로 병합하고 필요한 정책을 즉시 확정한다.
 - 사용자 확정: pending 중 object selection·read-only property 조회·copy만 허용한다. delete/duplicate/cut/paste, layer reorder·앞뒤 이동, canvas/keyboard/panel geometry, property commit·새 draft·새 `[적용]`과 그 밖의 canonical mutation은 모두 차단한다.

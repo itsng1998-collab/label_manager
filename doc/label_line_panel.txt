@@ -720,6 +720,8 @@ shape 위치/크기/회전 field는 canvas handle과 같은 geometry commit API�
 - `이미지 편집`/`바코드 편집` command는 기존 객체에 대해 별도 dialog를 열지 않고 객체 패널을 열고 해당 속성 영역에 focus한다.
 - active object context menu 첫 항목은 타입에 따라 `선 편집`, `사각형 편집`, `둥근 사각형 편집`, `타원 편집`으로 표시하고 객체 패널의 해당 속성 영역에 focus한다.
 - 편집 다음에 구분선을 두고 `복제`, `삭제`, 다시 구분선 뒤 `맨 앞으로`, `앞으로`, `뒤로`, `맨 뒤로` 순서로 배치한다.
+- secondary click 대상이 현재 selected set에 포함되면 다중 선택을 유지하고 해당 exact typed key만 active로 바꾼다. context menu의 복제·삭제·layer command는 유지된 selected set 전체에 적용한다. 선택 밖 객체를 secondary click하면 그 객체 하나로 선택을 교체한다.
+- 빈 canvas secondary click은 object selected set과 active key를 유지한 채 기존 cell context menu를 열며 menu command는 cell에만 적용한다. 이후 object keyboard command는 유지된 실제 focus와 active key 규칙을 따른다. 빈 canvas primary click의 기존 object selection 해제 규칙은 바꾸지 않는다.
 - 빈 canvas context menu에는 직선/도형 삽입 항목을 새로 추가하지 않는다. 신규 삽입의 단일 진입점은 §7의 `[도형▼]` toolbar이며 기존 cell context menu를 확장하지 않는다.
 - 레이어 row double-click 또는 Enter는 단일 선택이면 첫 편집 가능한 속성에 focus한다.
 - 다중 선택이면 layer action 영역에 focus한다.
@@ -764,6 +766,7 @@ shape 위치/크기/회전 field는 canvas handle과 같은 geometry commit API�
 
 - 숫자 field: Enter 또는 focus loss에서 validation 후 commit
 - 숫자 field의 초기 표시 문자열과 사용자 편집 여부를 draft가 보존한다. 반올림된 초기 문자열을 수정하지 않은 Enter/focus loss는 validation용 역변환이나 canonical write를 하지 않는 no-op이며, 사용자가 실제 변경한 문자열만 parse·단위 변환·finite 검증 뒤 commit한다.
+- 일반 Tab·다른 field 클릭·canvas 클릭에 따른 focus loss에서 변경 문자열이 invalid이면 workbook을 바꾸거나 focus를 강제로 되찾지 않고 해당 exact key draft의 입력 문자열과 inline 오류를 유지한다. 명시적 command가 요청된 경우에만 아래 동기 finalize 규칙에 따라 invalid draft를 원복·폐기한 뒤 command를 계속한다.
 - spinner/drag: 조작 중 preview, 종료 시 undo 1건
 - style/color/select field: 선택 시 즉시 commit, undo 1건
 - position/size/rotation/radius text field: Enter 또는 focus loss의 유효한 commit 1회당 undo 1건
@@ -774,6 +777,7 @@ shape 위치/크기/회전 field는 canvas handle과 같은 geometry commit API�
 - 잘못된 중간 입력: workbook 변경 없음
 - panel의 selection 변경·삭제·복제·layer 이동 등 다른 command handler는 focus callback에 의존하지 않고 active field를 먼저 동기적으로 finalize한다. 유효 draft는 commit한 뒤 요청 command를 실행하고, 사용자가 확정한 대로 invalid draft는 원복·폐기한 뒤 workbook 변경 없이 해당 draft만 버리고 요청 command는 계속 실행한다. 단 barcode panel renderer pending guard는 draft finalize보다 먼저 실행한다. 허용된 selection 변경은 원래 exact typed-key draft/request를 commit·폐기하지 않고 selection UI만 바꾸며, 허용된 copy는 draft를 finalize하지 않고 현재 canonical selected object snapshot으로 기존 latest-wins clipboard write를 실행한다. 그 밖의 차단 command는 유효·invalid draft 모두 commit·폐기·원복하지 않는 완전한 no-op이다.
 - `.lms` save/export, print/PDF/capture, undo/redo, active sheet 전환, label/XLSX/image import와 이미지·바코드·도형 삽입 toolbar command도 canonical workbook을 읽거나 교체하기 전에 같은 동기 finalize API를 호출한다. 유효 draft는 commit된 최신 workbook snapshot으로 요청 command를 계속하고 invalid draft는 원복·폐기한 뒤 기존 canonical snapshot으로 command를 계속한다. focus-loss callback 순서에 의존하지 않는다.
+- 동기 finalize가 valid/invalid draft를 commit 또는 폐기하면 해당 draft identity의 callback 자격도 함께 종료한다. 그 뒤 같은 draft에서 지연 도착한 Enter·focus-loss callback은 draft나 inline 오류를 다시 만들지 않고 workbook/undo/dirty/revision과 callback/listenable을 모두 유지하는 no-op이다. 이를 위해 별도 전역 generation을 추가할 필요는 없으며 기존 owner exact key·revision·request/draft token 중 현재 구조에 맞는 identity를 사용한다.
 - 사용자가 확정한 대로 barcode panel `[적용]` renderer가 pending이면 save/export/print/capture, undo/redo, sheet 전환, import와 모든 삽입 command 및 property draft를 취소하는 Escape branch를 완료까지 비활성화한다. pending command를 queue하거나 자동 재실행하지 않으며 render 성공·실패·stale 폐기로 pending이 끝난 뒤 사용자가 다시 실행한다. selection 변경은 허용하고 request·draft·inline 오류 상태는 원래 exact typed key에 귀속한다. 일반 동기 property draft는 이 비활성화 대상이 아니다.
 - object selection 변경: 위 finalize 뒤 유효한 committed 값만 유지하고 invalid draft는 폐기
 - 이미지 파일 선택 취소: 기존 image 유지
@@ -964,7 +968,9 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - panel list focus에서 Delete, Ctrl+D, Ctrl+C/X/V, Ctrl+Up/Down/Home/End는 기존 layer shortcut을 유지한다.
 - panel list focus의 일반 Arrow Up/Down은 row navigation, canvas focus와 active object가 있으면 Arrow/Shift+Arrow는 geometry 이동, canvas focus에 active object가 없으면 기존 cell navigation을 수행한다. editable field focus에서는 arrow를 caret/input이 소유한다.
 - dock/overlay panel의 open 여부가 아니라 실제 `FocusNode`를 기준으로 keyboard command 소유권을 결정한다. layer shortcut은 layer list focus, geometry shortcut은 canvas focus일 때만 실행한다.
-- Escape 우선순위는 property draft 취소 → popup/overlay 닫기 → shape insertion 취소 → canvas focus 복귀 순서다. 단 barcode panel renderer pending 중에는 request와 원래 exact typed-key draft/error 상태를 유지하기 위해 property draft 취소 branch를 실행하지 않는다.
+- canvas primary pointer-down은 canvas focus, layer row/action pointer-down은 layer list focus, property field pointer-down은 실제 하위 editor focus를 소유한다. 넓은 화면 dock을 단순히 열거나 닫는 command는 기존 focus를 옮기지 않는다.
+- 사용자가 좁은 화면 object overlay를 명시적으로 열면 layer list에 focus한다. 단순 close는 아직 mounted·attached인 open trigger 또는 직전 유효 focus로 복원하고 복원 대상이 없으면 canvas focus로 fallback한다. popup이 내부 editor 등으로 focus를 실제 이동한 경우에도 단순 close는 같은 규칙으로 복원하되, focus를 가져가지 않은 toolbar popup close는 기존 focus를 바꾸지 않는다. 편집 command는 close 복원 대신 대상 property field로 focus한다.
+- Escape 우선순위는 property draft 취소 → popup/overlay 닫기 → shape insertion 취소 → canvas focus 복귀 순서다. 한 번의 Escape는 가장 높은 적용 가능 branch에서 시각적으로 최상위인 transient 하나만 처리하고 즉시 handled로 종료하며 다음 Escape가 같은 branch의 상위 container 또는 다음 branch를 처리한다. 예를 들어 dropdown/submenu가 toolbar popup이나 object overlay 위에 열렸으면 dropdown/submenu만 먼저 닫는다. popup/overlay branch에는 toolbar popup과 하위 submenu, object/cell/editor context menu, color/dropdown popup과 좁은 화면 object overlay를 포함하고 context menu close는 selection을 바꾸지 않는다. 단 barcode panel renderer pending 중에는 request와 원래 exact typed-key draft/error 상태를 유지하기 위해 property draft 취소 branch를 건너뛰고 허용되는 다음 branch를 처리한다.
 
 ## 14. 구현 대상 파일 가이드
 
@@ -1175,6 +1181,7 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - 단일 image/barcode/line/shape 속성 form 전환
 - rectangle/ellipse에는 radius field가 없고 roundedRectangle에만 표시
 - active object context menu의 타입별 편집 문구와 command 순서
+- 다중 selected set의 구성원 secondary click은 set을 유지하고 clicked exact key만 active로 바꾸며 menu object command가 묶음 전체에 적용됨. 선택 밖 객체는 단일 선택으로 교체되고 빈 canvas secondary click은 object selection을 유지한 채 cell context menu만 열며 primary click은 기존대로 object selection을 해제함
 - 다중 선택에서 속성 form 숨김과 layer action 표시
 - Shift 범위/Ctrl toggle/Ctrl+A
 - mixed selection delete/duplicate/reorder
@@ -1183,7 +1190,10 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - 같은 ID의 image/line이 인접한 목록에서 kind를 포함한 exact target의 before/after drop만 이동하고 동명 sibling 순서에는 영향이 없음
 - row double-click/Enter 속성 focus
 - property wrapper가 아니라 실제 하위 `EditableText` focus에서 Ctrl/Meta+A/C/X/V는 text edit/clipboard에만 작용하고 Ctrl/Meta+D/Up/Down/Home/End, 일반 Up/Down/Home/End와 Delete/Backspace는 객체 duplicate/reorder/delete/navigation을 실행하지 않음. layer list focus에서는 §13.3에 열거한 Delete와 Ctrl/Meta+A/C/X/V/D/Up/Down/Home/End object command를 정확히 1회 실행하고 일반 Up/Down은 row navigation만 수행하며, dock/overlay open 상태만으로 결과가 바뀌지 않음
+- canvas/list/property field pointer-down 뒤 실제 focus별 shortcut 소유권, dock 단순 open의 focus 불변, narrow overlay 명시적 open의 list focus와 단순 close의 유효 trigger 복원·trigger 무효/직전 focus 유효 시 직전 focus 복원·둘 다 무효 시 canvas fallback, focus를 가져가지 않은 popup close의 focus 불변 및 edit command의 대상 property field focus
+- property draft·dropdown/submenu·context menu/toolbar popup·narrow overlay·shape insertion이 중첩된 상태에서 Escape를 반복하면 우선순위 branch의 시각적 최상위 transient 하나씩만 처리하고 context menu close selection은 불변이며, barcode pending은 draft 취소를 건너뛰고 허용되는 최상위 transient 하나만 처리함
 - panel command 전 active field 동기 finalize: 유효 draft commit 후 command, invalid draft 원복 후 command 실행
+- invalid 변경 입력의 일반 Tab·다른 field/canvas 클릭 focus loss는 새 대상 focus 이동을 허용하고 원래 field로 강제 복귀하지 않으면서 입력 문자열과 inline 오류를 유지하고 workbook을 바꾸지 않으며, 이후 명시적 command finalize는 원복·폐기하고 지연된 같은 draft Enter/focus-loss가 draft/error를 되살리거나 undo·dirty·revision·callback/listenable을 만들지 않음
 - 유효 property draft finalize 뒤 delete/duplicate/reorder는 property commit과 후속 mutation이 독립 canonical transaction/undo라 undo depth가 2 증가하고 첫 undo는 후속 command, 두 번째 undo는 property commit을 복원함. 유효 draft 뒤 read-only capture는 property undo 1건만 만들고 invalid draft 뒤 mutation은 후속 command undo 1건만 만듦
 - property draft가 없는 상태의 finalize는 transaction/undo/dirty와 `onChange`/`onOp`/listenable을 모두 0회로 유지하고, 이어지는 read-only command는 그대로 no-op이며 mutation command는 해당 mutation transaction만 1건 만듦
 - 유효/invalid property draft 직후 save/export/print/capture가 각각 최신 committed 값/기존 canonical 값만 사용하고 command 뒤 지연 focus-loss가 추가 dirty를 만들지 않음
@@ -1345,6 +1355,10 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - geometry 속성은 physical-size sheet에서 mm, 그 외에는 px로 표시하며 commit 뒤 model 좌표는 logical coordinate를 유지한다.
 - 반올림된 geometry 초기 표시 문자열을 사용자가 수정하지 않은 Enter/focus loss는 원래 canonical logical 값을 유지하는 no-op이고, 변경 입력은 단위 변환 뒤 모든 geometry field의 finite 검증을 통과한 경우에만 기존 range·clamp·정규화 정책으로 commit된다.
 - panel list, canvas object, canvas cell과 editable field의 keyboard 동작은 실제 focus에 따라 분리된다. editable focus의 text/unsupported key를 object command로 재해석하지 않고 layer command는 layer list, geometry command는 canvas focus에서만 실행한다.
+- canvas/list/property pointer가 각 실제 focus를 소유하고 dock 단순 open은 focus를 유지한다. narrow overlay를 명시적으로 열면 list focus로 이동하며 단순 close는 유효한 trigger/직전 focus 또는 canvas fallback으로 복원한다. focus를 가져가지 않은 popup close는 focus를 바꾸지 않고 edit command만 대상 field로 이동한다.
+- Escape는 property draft, transient popup/context menu/overlay, insertion, canvas focus 순서에서 한 번에 적용 가능한 branch의 시각적 최상위 transient 하나만 처리하며 context menu close는 selection을 유지한다. 같은 branch에 중첩된 submenu/dropdown을 닫은 다음 Escape가 상위 popup/overlay를 닫고, barcode pending 중에는 draft 취소 branch만 건너뛴다.
+- selected set 구성원을 secondary click하면 set을 유지하고 clicked key만 active로 바꾸며 object menu command는 묶음에 적용한다. 선택 밖 객체는 단일 선택으로 교체하고 빈 canvas secondary click은 object selection을 유지한 채 cell menu만 열며 primary click의 기존 selection 해제는 유지한다.
+- 일반 focus loss의 invalid property 입력은 문자열과 inline 오류를 유지하고 canonical workbook을 바꾸지 않으며 새 대상 focus 이동을 허용하고 원래 field로 강제 복귀하지 않는다. 명시적 command finalize는 invalid draft를 원복·폐기하며 이후 같은 draft의 지연 Enter/focus-loss는 완전한 no-op이다.
 - 기존 image/barcode 생성 dialog는 유지되고 기존 객체 편집은 panel 공용 validation/commit을 사용한다.
 - image/barcode 생성 dialog는 command 시점 owner sheet와 merge anchor에 삽입하고 stale owner에서는 생성하지 않는다. source별 필수 입력이 유효할 때만 확인할 수 있고 barcode 크기 `0`은 auto-size로 유지한다. barcode renderer pending 중 중복 submit과 dialog 종료를 막고 완료 직전 request token·owner·`allowEdit`가 달라진 늦은 결과는 폐기하며 null/예외 실패는 같은 inline 오류와 입력 유지로 복구한다.
 - image/barcode 생성 성공은 새 객체를 공통 최상단에 추가해 단일 선택하고 source에 맞는 연결 metadata와 필요한 최소 reveal, undo/change/dirty 1회 경계를 지키며, 실패·취소·stale async 결과는 canonical/UI selection 상태를 바꾸지 않는다.
