@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:fortune_sheet/fortune_sheet.dart';
 import 'package:image/image.dart' as img;
@@ -73,6 +74,7 @@ class LabelSheetPrintLayout {
     required this.contentWidthMm,
     required this.contentHeightMm,
     required this.clipRightMm,
+    required this.clipBottomMm,
   });
 
   factory LabelSheetPrintLayout.resolve({
@@ -92,6 +94,7 @@ class LabelSheetPrintLayout {
           ? metrics.effectiveSourceWidthMm
           : metrics.effectiveSourceHeightMm,
       clipRightMm: metrics.pageWidthMm - options.rightMarginMm,
+      clipBottomMm: metrics.labelHeightMm.toDouble(),
     );
   }
 
@@ -102,6 +105,7 @@ class LabelSheetPrintLayout {
   final double contentWidthMm;
   final double contentHeightMm;
   final double clipRightMm;
+  final double clipBottomMm;
 
   double get intersectionWidthMm => math.max(
     0,
@@ -111,7 +115,7 @@ class LabelSheetPrintLayout {
 
   double get intersectionHeightMm => math.max(
     0,
-    math.min(contentTopMm + contentHeightMm, pageHeightMm) -
+    math.min(contentTopMm + contentHeightMm, clipBottomMm) -
         math.max(contentTopMm, 0),
   );
 
@@ -129,6 +133,134 @@ class LabelSheetRenderedPage {
   final Uint8List pngBytes;
   final LabelSheetPrintPageMetrics metrics;
   final LabelSheetPrintOptions options;
+}
+
+class LabelSheetEzplNativeDescriptor {
+  const LabelSheetEzplNativeDescriptor({
+    required this.candidateToken,
+    required this.command,
+    required this.predictedPaintedFootprint,
+  });
+
+  final String candidateToken;
+  final String command;
+  final ui.Rect predictedPaintedFootprint;
+
+  FortuneNativeCandidateApproval get approval =>
+      FortuneNativeCandidateApproval(
+        candidateToken: candidateToken,
+        predictedPaintedFootprint: predictedPaintedFootprint,
+      );
+}
+
+List<LabelSheetEzplNativeDescriptor> preflightLabelSheetEzplCandidates({
+  required FortuneSheet sheet,
+  required FortunePrintTransform transform,
+  required Iterable<FortuneNativeCandidate> candidates,
+}) {
+  final descriptors = <LabelSheetEzplNativeDescriptor>[];
+  for (final candidate in candidates) {
+    if (candidate.kind == FortuneNativeCandidateKind.barcode) {
+      continue;
+    }
+    final strokeWidthMm = switch (candidate.kind) {
+      FortuneNativeCandidateKind.line => sheet.lines
+          .where((line) => line.id == candidate.objectKey.id)
+          .map((line) => line.strokeWidthMm)
+          .firstOrNull,
+      FortuneNativeCandidateKind.rectangle => sheet.shapes
+          .where((shape) {
+            return shape.id == candidate.objectKey.id &&
+                fortuneShapeObjectKind(shape) == candidate.objectKey.kind;
+          })
+          .map((shape) => shape.strokeWidthMm)
+          .firstOrNull,
+      FortuneNativeCandidateKind.barcode => null,
+    };
+    if (strokeWidthMm == null) continue;
+    final strokeDots = math.max(
+      1,
+      (strokeWidthMm * transform.dotsPerMillimeter).round(),
+    );
+    final target = candidate.printerPaintedFootprint;
+    final left = target.left.round();
+    final top = target.top.round();
+    final right = target.right.round();
+    final bottom = target.bottom.round();
+    if (left < 0 || top < 0 || right <= left || bottom <= top) {
+      continue;
+    }
+    final predicted = ui.Rect.fromLTRB(
+      left.toDouble(),
+      top.toDouble(),
+      right.toDouble(),
+      bottom.toDouble(),
+    );
+    descriptors.add(
+      LabelSheetEzplNativeDescriptor(
+        candidateToken: candidate.token,
+        command: 'R$left,$top,$right,$bottom,$strokeDots,$strokeDots\r\n',
+        predictedPaintedFootprint: predicted,
+      ),
+    );
+  }
+  return List.unmodifiable(descriptors);
+}
+
+Future<Uint8List> buildLabelSheetPlannedHybridEzplBytes({
+  required Uint8List filteredPngBytes,
+  required LabelSheetPrintPageMetrics metrics,
+  required LabelSheetPrintOptions options,
+  required FortuneHybridRenderPlan plan,
+  required Iterable<LabelSheetEzplNativeDescriptor> descriptors,
+}) async {
+  final source = img.decodePng(filteredPngBytes);
+  if (source == null) {
+    throw StateError('라벨 이미지를 EZPL 출력 이미지로 변환할 수 없습니다.');
+  }
+  final descriptorByToken = <String, LabelSheetEzplNativeDescriptor>{};
+  for (final descriptor in descriptors) {
+    if (!plan.approvedCandidateTokens.contains(descriptor.candidateToken) ||
+        descriptorByToken.containsKey(descriptor.candidateToken)) {
+      continue;
+    }
+    descriptorByToken[descriptor.candidateToken] = descriptor;
+  }
+  final layout = LabelSheetPrintLayout.resolve(
+    metrics: metrics,
+    options: options,
+  );
+  final raster = img.Image(
+    width: metrics.dotsFromMm(metrics.pageWidthMm),
+    height: metrics.dotsFromMm(metrics.pageHeightMm(options)),
+  );
+  img.fill(raster, color: img.ColorRgb8(255, 255, 255));
+  final content = _prepareRasterContent(
+    source: source,
+    metrics: metrics,
+    options: options,
+  );
+  img.compositeImage(
+    raster,
+    content,
+    dstX: metrics.signedDotsFromMm(layout.contentLeftMm),
+    dstY: metrics.signedDotsFromMm(layout.contentTopMm),
+  );
+  _clipRasterToLabelArea(raster, metrics: metrics, options: options);
+  final commands = BytesBuilder(copy: false)
+    ..add(ascii.encode('^Q${metrics.pageHeightMm(options).round()},0,0\r\n'))
+    ..add(ascii.encode('^W ${metrics.pageWidthMm.round()}\r\n'))
+    ..add(ascii.encode('^P${options.copies}\r\n'))
+    ..add(ascii.encode('^L\r\n'));
+  _addEzplRasterGraphic(commands, raster);
+  for (final candidate in plan.candidates) {
+    final descriptor = descriptorByToken[candidate.token];
+    if (descriptor != null) {
+      commands.add(ascii.encode(descriptor.command));
+    }
+  }
+  commands.add(ascii.encode('E\r\n'));
+  return commands.takeBytes();
 }
 
 Future<Uint8List> buildLabelSheetPdfGroupBytes(

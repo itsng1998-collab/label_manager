@@ -3481,8 +3481,9 @@ class _HomePageManagerState extends State<HomePageManager> {
       );
       _openLabelPrintProgressDialog();
 
-      final captures = <LabelPrintUnit, LabelSheetOutputCapture>{};
       final renderedPages = <LabelPrintUnit, LabelSheetRenderedPage>{};
+      final hybridCaptures = <LabelPrintUnit, LabelSheetHybridEzplCapture>{};
+      final resolvedMetrics = <LabelPrintUnit, LabelSheetPrintPageMetrics>{};
       for (var unitIndex = 0; unitIndex < units.length; unitIndex += 1) {
         if (_labelPrintSessionController.cancellationRequested) {
           if (mounted) {
@@ -3504,16 +3505,52 @@ class _HomePageManagerState extends State<HomePageManager> {
         _labelPrintSessionController.refreshPreview();
         await WidgetsBinding.instance.endOfFrame;
         await WidgetsBinding.instance.endOfFrame;
-        final capture = await _labelPrintCaptureController.capture(
-          dpi: dpi,
-          lineSpacingPercent: unit.row.lineSpacingPercent,
-        );
-        if (capture == null) {
-          throw StateError(
-            '${unit.row.item.item.itemName} 라벨 이미지를 생성할 수 없습니다.',
+        final options = _labelPrintOptions(unit.row, settings);
+        late final fs.FortuneSheet capturedSheet;
+        late final LabelSheetPrintPageMetrics metrics;
+        if (backend == LabelPrintBackend.pdf) {
+          final capture = await _labelPrintCaptureController.capture(
+            dpi: dpi,
+            lineSpacingPercent: unit.row.lineSpacingPercent,
           );
+          if (capture == null) {
+            throw StateError(
+              '${unit.row.item.item.itemName} 라벨 이미지를 생성할 수 없습니다.',
+            );
+          }
+          capturedSheet = capture.sheet;
+          metrics = LabelSheetPrintPageMetrics(
+            labelWidthMm: unit.row.widthMm,
+            labelHeightMm: unit.row.heightMm,
+            sourceWidthMm: capture.sourceWidthMm,
+            sourceHeightMm: capture.sourceHeightMm,
+            dpi: dpi,
+          );
+          renderedPages[unit] = LabelSheetRenderedPage(
+            pngBytes: capture.pngBytes,
+            metrics: metrics,
+            options: options,
+          );
+        } else {
+          final hybrid = await _labelPrintCaptureController.captureHybridEzpl(
+            metrics: LabelSheetPrintPageMetrics(
+              labelWidthMm: unit.row.widthMm,
+              labelHeightMm: unit.row.heightMm,
+              dpi: dpi,
+            ),
+            options: options,
+            lineSpacingPercent: unit.row.lineSpacingPercent,
+          );
+          if (hybrid == null) {
+            throw StateError(
+              '${unit.row.item.item.itemName} 라벨 이미지를 생성할 수 없습니다.',
+            );
+          }
+          capturedSheet = hybrid.sheet;
+          metrics = hybrid.metrics;
+          hybridCaptures[unit] = hybrid;
         }
-        final errors = capture.sheet.images
+        final errors = capturedSheet.images
             .map((image) => image.extraFields['itemCodeError']?.toString().trim())
             .whereType<String>()
             .where((message) => message.isNotEmpty)
@@ -3523,14 +3560,6 @@ class _HomePageManagerState extends State<HomePageManager> {
             '${unit.row.item.item.itemName} ${unit.copyIndex + 1}번째 라벨: ${errors.first}',
           );
         }
-        final metrics = LabelSheetPrintPageMetrics(
-          labelWidthMm: unit.row.widthMm,
-          labelHeightMm: unit.row.heightMm,
-          sourceWidthMm: capture.sourceWidthMm,
-          sourceHeightMm: capture.sourceHeightMm,
-          dpi: dpi,
-        );
-        final options = _labelPrintOptions(unit.row, settings);
         if (!LabelSheetPrintLayout.resolve(
           metrics: metrics,
           options: options,
@@ -3539,23 +3568,18 @@ class _HomePageManagerState extends State<HomePageManager> {
             '${unit.row.item.item.itemName}의 출력 영역과 라벨 영역이 겹치지 않습니다.',
           );
         }
-        captures[unit] = capture;
-        renderedPages[unit] = LabelSheetRenderedPage(
-          pngBytes: capture.pngBytes,
-          metrics: metrics,
-          options: options,
-        );
+        resolvedMetrics[unit] = metrics;
       }
 
       final groups = groupAdjacentLabelPrintUnits(
         units,
         (unit) {
-          final page = renderedPages[unit]!;
+          final metrics = resolvedMetrics[unit]!;
           return LabelPhysicalPageSpec(
             widthMm: unit.row.widthMm,
             heightMm: unit.row.heightMm,
-            sourceWidthMm: page.metrics.effectiveSourceWidthMm,
-            sourceHeightMm: page.metrics.effectiveSourceHeightMm,
+            sourceWidthMm: metrics.effectiveSourceWidthMm,
+            sourceHeightMm: metrics.effectiveSourceHeightMm,
             dpi: dpi,
             backend: backend,
           );
@@ -3570,17 +3594,7 @@ class _HomePageManagerState extends State<HomePageManager> {
         } else {
           final bytes = BytesBuilder(copy: false);
           for (final unit in group.units) {
-            final page = renderedPages[unit]!;
-            final capture = captures[unit]!;
-            bytes.add(
-              await buildLabelSheetHybridEzplBytes(
-                sheet: capture.sheet,
-                range: capture.range,
-                fallbackPngBytes: capture.pngBytes,
-                metrics: page.metrics,
-                options: page.options,
-              ),
-            );
+            bytes.add(hybridCaptures[unit]!.bytes);
           }
           payloads[group] = bytes.takeBytes();
         }

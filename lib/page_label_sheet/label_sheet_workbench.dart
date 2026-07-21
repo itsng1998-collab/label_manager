@@ -2004,6 +2004,22 @@ class LabelSheetOutputCapture {
   final double sourceHeightMm;
 }
 
+class LabelSheetHybridEzplCapture {
+  const LabelSheetHybridEzplCapture({
+    required this.bytes,
+    required this.sheet,
+    required this.range,
+    required this.metrics,
+    required this.plan,
+  });
+
+  final Uint8List bytes;
+  final FortuneSheet sheet;
+  final FortuneRange range;
+  final LabelSheetPrintPageMetrics metrics;
+  final FortuneHybridRenderPlan plan;
+}
+
 class LabelSheetOutputCaptureController {
   _LabelSheetWorkbenchState? _state;
 
@@ -2021,6 +2037,18 @@ class LabelSheetOutputCaptureController {
         lineSpacingPercent: lineSpacingPercent,
       ) ??
       Future<LabelSheetOutputCapture?>.value();
+
+  Future<LabelSheetHybridEzplCapture?> captureHybridEzpl({
+    required LabelSheetPrintPageMetrics metrics,
+    required LabelSheetPrintOptions options,
+    required int? lineSpacingPercent,
+  }) =>
+      _state?._captureHybridEzpl(
+        metrics: metrics,
+        options: options,
+        lineSpacingPercent: lineSpacingPercent,
+      ) ??
+      Future<LabelSheetHybridEzplCapture?>.value();
 
   void _attach(_LabelSheetWorkbenchState state) => _state = state;
 
@@ -2847,6 +2875,43 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
 
     final options = _currentPrintOptions();
     final dpi = await _printDpiForPrinter(printer);
+    final metrics = LabelSheetPrintPageMetrics(
+      labelWidthMm: physicalSize.widthMm,
+      labelHeightMm: physicalSize.heightMm,
+      dpi: dpi,
+    );
+    final profile = detectPrinterProfile(printer);
+    final rawPortName = Platform.isWindows
+        ? await RawPrinterWin32.queryPrinterPortName(printer)
+        : null;
+    final filePort = RawPrinterWin32.isFilePortName(rawPortName);
+    final backend = resolveLabelPrintBackend(
+      language: profile.language,
+      portName: rawPortName,
+    );
+    if (filePort && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('파일 포트 프린터는 일반 인쇄로 전환합니다.')),
+      );
+    }
+    if (!mounted) return;
+    if (backend == LabelPrintBackend.ezplRaw) {
+      final hybrid = await _captureHybridEzpl(
+        metrics: metrics,
+        options: options,
+        lineSpacingPercent: options.autoSpacingPercent,
+      );
+      if (hybrid == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('라벨 이미지를 생성할 수 없습니다.')),
+          );
+        }
+        return;
+      }
+      await RawPrinterWin32.sendRaw(printer, hybrid.bytes);
+      return;
+    }
     final capture = await _controller.captureRangeAsPng(
       _labelSheetPrintRange(sheet, physicalSize),
       pixelRatio: dpi / fortuneSheetLogicalPixelsPerInch,
@@ -2868,42 +2933,12 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       return;
     }
 
-    final metrics = LabelSheetPrintPageMetrics(
-      labelWidthMm: physicalSize.widthMm,
-      labelHeightMm: physicalSize.heightMm,
-      dpi: dpi,
-    );
     final pdfBytes = await buildLabelSheetPdfBytes(
       pngBytes: capture.pngBytes,
       metrics: metrics,
       options: options,
     );
-    final profile = detectPrinterProfile(printer);
-    final rawPortName = Platform.isWindows
-      ? await RawPrinterWin32.queryPrinterPortName(printer)
-      : null;
-    final filePort = RawPrinterWin32.isFilePortName(rawPortName);
-    final backend = resolveLabelPrintBackend(
-      language: profile.language,
-      portName: rawPortName,
-    );
-    if (filePort && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('파일 포트 프린터는 일반 인쇄로 전환합니다.')),
-      );
-    }
     if (!mounted) {
-      return;
-    }
-    if (backend == LabelPrintBackend.ezplRaw) {
-      final ezplBytes = await buildLabelSheetHybridEzplBytes(
-        sheet: sheet,
-        range: _labelSheetPrintRange(sheet, physicalSize),
-        fallbackPngBytes: capture.pngBytes,
-        metrics: metrics,
-        options: options,
-      );
-      await RawPrinterWin32.sendRaw(printer, ezplBytes);
       return;
     }
     final accepted = await Printing.directPrintPdf(
@@ -2948,6 +2983,99 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       sourceHeightMm: fortuneLogicalPixelsToMillimeters(
         capture.logicalSize.height,
       ),
+    );
+  }
+
+  Future<LabelSheetHybridEzplCapture?> _captureHybridEzpl({
+    required LabelSheetPrintPageMetrics metrics,
+    required LabelSheetPrintOptions options,
+    required int? lineSpacingPercent,
+  }) async {
+    if (_controller.barcodePropertyRenderPending) return null;
+    final sheet = _controller.getSheet();
+    final settings = _controller.settingsSnapshot;
+    final physicalSize = sheet == null
+        ? null
+        : fortuneSheetGridClientPhysicalSize(sheet);
+    if (sheet == null || settings == null || physicalSize == null) return null;
+    final requestedRange = _labelSheetPrintRange(sheet, physicalSize);
+    final sheetMetrics = sheet.metrics(settings);
+    final rowStart = math.min(requestedRange.rowStart, requestedRange.rowEnd);
+    final rowEnd = math.max(requestedRange.rowStart, requestedRange.rowEnd);
+    final columnStart = math.min(
+      requestedRange.columnStart,
+      requestedRange.columnEnd,
+    );
+    final columnEnd = math.max(
+      requestedRange.columnStart,
+      requestedRange.columnEnd,
+    );
+    final sourceBounds = ui.Rect.fromLTRB(
+      sheetMetrics.columnStart(columnStart),
+      sheetMetrics.rowStart(rowStart),
+      sheetMetrics.columnEnd(columnEnd),
+      sheetMetrics.rowEnd(rowEnd),
+    );
+    final resolvedMetrics = LabelSheetPrintPageMetrics(
+      labelWidthMm: metrics.labelWidthMm,
+      labelHeightMm: metrics.labelHeightMm,
+      dpi: metrics.dpi,
+      sourceWidthMm: fortuneLogicalPixelsToMillimeters(sourceBounds.width),
+      sourceHeightMm: fortuneLogicalPixelsToMillimeters(sourceBounds.height),
+    );
+    final layout = LabelSheetPrintLayout.resolve(
+      metrics: resolvedMetrics,
+      options: options,
+    );
+    final transform = FortunePrintTransform(
+      sourceLogicalBounds: sourceBounds,
+      dpi: resolvedMetrics.dpi,
+      contentLeftMm: layout.contentLeftMm,
+      contentTopMm: layout.contentTopMm,
+      clipRightMm: layout.clipRightMm,
+      clipBottomMm: layout.clipBottomMm,
+      nativeAllowed: !options.rotateQuarterTurns,
+    );
+    final candidates = fortuneBuildNativeCandidates(
+      sheet: sheet,
+      transform: transform,
+    );
+    final descriptors = preflightLabelSheetEzplCandidates(
+      sheet: sheet,
+      transform: transform,
+      candidates: candidates,
+    );
+    final plan = fortuneFinalizeHybridRenderPlan(
+      settings: settings,
+      sheet: sheet,
+      range: requestedRange,
+      transform: transform,
+      candidates: candidates,
+      approvals: descriptors.map((descriptor) => descriptor.approval),
+    );
+    final capture = await _controller.captureHybridPlanAsPng(
+      plan,
+      pixelRatio:
+          resolvedMetrics.dpi / fortuneSheetLogicalPixelsPerInch,
+      includeCellBorders: true,
+      outputLineHeightMultiplier: lineSpacingPercent == null
+          ? null
+          : lineSpacingPercent / 100,
+    );
+    if (capture == null) return null;
+    final bytes = await buildLabelSheetPlannedHybridEzplBytes(
+      filteredPngBytes: capture.pngBytes,
+      metrics: resolvedMetrics,
+      options: options,
+      plan: plan,
+      descriptors: descriptors,
+    );
+    return LabelSheetHybridEzplCapture(
+      bytes: bytes,
+      sheet: capture.sheet,
+      range: capture.range,
+      metrics: resolvedMetrics,
+      plan: plan,
     );
   }
 

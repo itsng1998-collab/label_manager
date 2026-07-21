@@ -37,6 +37,7 @@ void main() {
     expect(layout.contentWidthMm, 50);
     expect(layout.contentHeightMm, 30);
     expect(layout.clipRightMm, 55);
+    expect(layout.clipBottomMm, 40);
     expect(layout.intersectionWidthMm, 50);
     expect(layout.intersectionHeightMm, 30);
     expect(layout.hasContentIntersection, isTrue);
@@ -101,6 +102,85 @@ void main() {
     expect(text, contains('^L'));
     expect(text, contains('~G'));
     expect(bytes.where((byte) => byte == 0x47).length, greaterThanOrEqualTo(3));
+    expect(text, endsWith('E\r\n'));
+  });
+
+  test('planned Hybrid output encodes only package-approved descriptors', () async {
+    final sheet = fs.FortuneSheet(
+      id: 's1',
+      name: 'Sheet1',
+      rowCount: 2,
+      columnCount: 2,
+      lines: const [
+        fs.FortuneLine(
+          id: 'line_1',
+          x1: 2,
+          y1: 10,
+          x2: 18,
+          y2: 10,
+          strokeWidthMm: 1,
+        ),
+      ],
+    );
+    const transform = fs.FortunePrintTransform(
+      sourceLogicalBounds: Rect.fromLTWH(0, 0, 40, 40),
+      dpi: 96,
+      contentLeftMm: 0,
+      contentTopMm: 0,
+      clipRightMm: 20,
+      clipBottomMm: 20,
+      nativeAllowed: true,
+    );
+    final candidates = fs.fortuneBuildNativeCandidates(
+      sheet: sheet,
+      transform: transform,
+    );
+    final descriptors = preflightLabelSheetEzplCandidates(
+      sheet: sheet,
+      transform: transform,
+      candidates: candidates,
+    );
+    final plan = fs.fortuneFinalizeHybridRenderPlan(
+      settings: const fs.FortuneSettings(
+        defaultRowHeight: 20,
+        defaultColWidth: 20,
+      ),
+      sheet: sheet,
+      range: const fs.FortuneRange(
+        rowStart: 0,
+        rowEnd: 1,
+        columnStart: 0,
+        columnEnd: 1,
+      ),
+      transform: transform,
+      candidates: candidates,
+      approvals: descriptors.map((descriptor) => descriptor.approval),
+    );
+    final image = img.Image(width: 40, height: 40);
+    img.fill(image, color: img.ColorRgb8(255, 255, 255));
+    final bytes = await buildLabelSheetPlannedHybridEzplBytes(
+      filteredPngBytes: Uint8List.fromList(img.encodePng(image)),
+      metrics: const LabelSheetPrintPageMetrics(
+        labelWidthMm: 20,
+        labelHeightMm: 20,
+        sourceWidthMm: 10.5833333333,
+        sourceHeightMm: 10.5833333333,
+        dpi: 96,
+      ),
+      options: const LabelSheetPrintOptions(
+        copies: 1,
+        leftMarginMm: 0,
+        topMarginMm: 0,
+        extraAreaMm: 0,
+        autoSpacingPercent: null,
+        orientation: LabelSheetPrintOrientation.horizontal,
+      ),
+      plan: plan,
+      descriptors: descriptors,
+    );
+    final text = ascii.decode(bytes, allowInvalid: true);
+    expect(plan.approvedCandidateTokens, hasLength(1));
+    expect(text, contains(descriptors.single.command));
     expect(text, endsWith('E\r\n'));
   });
 

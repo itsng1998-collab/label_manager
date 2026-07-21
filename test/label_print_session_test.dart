@@ -8,10 +8,12 @@ import 'package:label_manager/models/label_print.dart';
 import 'package:label_manager/models/label_size.dart';
 import 'package:label_manager/page_home/label_print_page.dart';
 import 'package:label_manager/page_label_sheet/label_sheet_workbench.dart';
+import 'package:label_manager/printing/label_sheet_print_job.dart';
 import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
 import 'package:label_manager/widgets/label_output_preview.dart';
 import 'package:label_manager/widgets/label_print_settings_dialog.dart';
 import 'package:label_manager/widgets/vertical_pane_splitter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   test('line spacing parser keeps null distinct from explicit 100', () {
@@ -413,6 +415,7 @@ void main() {
   testWidgets('label print zoom defaults to 150 and survives row changes', (
     tester,
   ) async {
+    SharedPreferences.setMockInitialValues({});
     final controller = LabelPrintSessionController();
     final captureController = LabelSheetOutputCaptureController();
     addTearDown(controller.dispose);
@@ -470,6 +473,29 @@ void main() {
     expect(captureController.debugActiveSheet?.zoomRatio, 1.5);
     await tester.pump();
     await tester.pump();
+    final hybrid = await tester.runAsync(
+      () => captureController.captureHybridEzpl(
+        metrics: const LabelSheetPrintPageMetrics(
+          labelWidthMm: 60,
+          labelHeightMm: 40,
+          dpi: 96,
+        ),
+        options: const LabelSheetPrintOptions(
+          copies: 1,
+          leftMarginMm: 0,
+          topMarginMm: 0,
+          extraAreaMm: 0,
+          autoSpacingPercent: null,
+          orientation: LabelSheetPrintOrientation.horizontal,
+        ),
+        lineSpacingPercent: null,
+      ),
+    );
+    expect(hybrid, isNotNull);
+    expect(hybrid!.bytes, isNotEmpty);
+    expect(hybrid.metrics.sourceWidthMm, isNotNull);
+    expect(hybrid.metrics.sourceHeightMm, isNotNull);
+    expect(hybrid.sheet.id, 'sheet-10');
 
     final zoomInput = find.byKey(const ValueKey('label-sheet-zoom-input'));
     expect(tester.widget<EditableText>(zoomInput).controller.text, '150');

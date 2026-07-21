@@ -1473,6 +1473,8 @@ class FortuneSheetController extends ChangeNotifier {
     return _state?._getSheet(id: id, index: index);
   }
 
+  FortuneSettings? get settingsSnapshot => _state?._workbook.settings;
+
   Map<String, Object?>? getSheetWithLatestCelldata({String? id, int? index}) {
     return _state?._getSheetWithLatestCelldata(id: id, index: index);
   }
