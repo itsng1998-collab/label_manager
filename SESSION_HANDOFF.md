@@ -1,3 +1,10 @@
+### 완료 (2026-07-21): 선·도형 지시서 잔여 계약 5건 보완
+- 사용자 요청: 최신 재검토에서 구현 결과가 갈리는 structured-empty 연결 mode, 회전 shape panel 크기 의미, panel 폭 저장 순서, 최초 controller attach 순서와 output capture owner 정책의 권장안을 지시서에 병합한다.
+- 사용자 확정: `LabelSheetOutputCaptureController`는 배타적 attach를 사용하고 unit/preview owner 전환은 host의 명시적 expected-old→new 교체 API로 수행한다. 일반 중복 attach는 `StateError`이며 stale old detach가 새 owner를 해제하지 않는다.
+- 연결·geometry 보완: image/barcode는 options 개수와 분리된 명시적 `legacy`/`structured` mode를 사용해 structured-empty에서도 생성/panel/duplicate/copy paste 정책을 유지한다. shape panel width/height는 canonical `left/top/rotation`을 고정하고 해당 extent만 변경한다.
+- lifecycle·저장 보완: FortuneSheetController는 초기 canonical snapshot 완성 뒤 최초 attach 통지 1회를 만든다. panel 폭 preference write는 generation-only 방식이 아니라 호출 순서 단일 queue로 직렬화해 최종 저장값을 보장한다. output capture는 명시적 owner 교체 전후에도 이미 시작한 immutable capture를 완료한다.
+- 본문·대표 테스트·구현 순서·완료 조건·확정값을 함께 갱신했다. stage/commit 대상은 `doc/label_line_panel.txt`, `SESSION_HANDOFF.md`만이며 기존 사용자 변경 `lib/core/app.dart`는 제외한다.
+
 ### 완료 (2026-07-21): 선·도형 지시서 clipboard paste 순서 보완
 - 사용자 요청: 최신 재검토에서 확인한 빠른 object copy/cut 직후 paste의 비동기 순서 권장안을 지시서에 병합한다.
 - 추가 사용자 확인 불필요: `Ctrl/Meta+C`·`Ctrl/Meta+X` 직후 `Ctrl/Meta+V`는 정상적인 연속 명령이며, 기존 latest-wins marker coordinator와 단일-read paste 계약상 이전 clipboard를 조기에 읽어 뜻하지 않은 cell/text fallback을 실행하는 결과는 허용하지 않는 편이 일관된다.
