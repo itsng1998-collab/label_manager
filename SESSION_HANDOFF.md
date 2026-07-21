@@ -1,3 +1,14 @@
+### 완료 (2026-07-21): 선·도형 지시서 barcode pending 객체 명령 보완
+- 사용자 요청: 최신 `doc/label_line_panel.txt` 재검토에서 확인한 barcode panel render pending 중 객체 명령 범위를 권장안으로 병합하고 필요한 정책을 즉시 확정한다.
+- 사용자 확정: pending 중 object selection·read-only property 조회·copy만 허용한다. delete/duplicate/cut/paste, layer reorder·앞뒤 이동, canvas/keyboard/panel geometry, property commit·새 draft·새 `[적용]`과 그 밖의 canonical mutation은 모두 차단한다.
+- command guard 보완 완료: pending guard를 draft finalize보다 먼저 적용한다. 허용 selection/copy는 원 exact-key draft/request를 finalize하지 않고, 차단 command는 valid/invalid draft와 workbook·selection·clipboard/history/revision/callback을 바꾸지 않는 완전한 no-op이다. queue·자동 재실행 없이 pending 종료 뒤 사용자가 다시 실행한 command만 처리한다.
+- copy 경계 보완 완료: pending 중 copy는 현재 canonical selected object snapshot으로 기존 latest-wins clipboard coordinator를 정상 실행해 internal/system marker·payload를 갱신한다. 차단 command에만 clipboard 불변을 적용한다.
+- 중첩 적용 정리 완료: 기존 같은-key pending 중 새 `[적용]` latest-wins 계약은 사용자 확정과 충돌해 제거했다. 같은/다른 key 모두 UI submit과 controller render command를 차단하고 현재 request token·draft·blocking을 완료까지 유지한다.
+- 테스트 계약 보완 완료: A/B selection·조회·copy 허용과 keyed state 유지, pending copy 경쟁의 latest-wins, valid/invalid draft가 있는 모든 mutation의 guard-before-finalize no-op, 같은/다른 key Apply 차단과 pending 종료 뒤 수동 재실행을 판별한다.
+- 독립 재검토 완료: 최초 병합에서 same-key 중첩 적용 충돌, 차단 command가 finalize로 draft를 commit할 수 있는 순서 문제와 허용 copy 효과의 테스트 누락을 발견해 모두 보정했다. 최종 구현 차단 모순이나 필수 테스트 누락은 없다.
+- 검증 완료: `doc/label_line_panel.txt` diagnostics 오류 0건, 필수/상충 계약 검색과 `git diff --check` 통과. 문서만 변경했으므로 Flutter test/analyze는 실행하지 않았다.
+- stage/commit 대상: `doc/label_line_panel.txt`, `SESSION_HANDOFF.md`만 포함한다. 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
+
 ### 완료 (2026-07-21): 선·도형 지시서 print-area pattern·native preflight 보완
 - 사용자 요청: 최신 `doc/label_line_panel.txt` 재검토의 print-area patterned stroke와 native dot 정수화 권장안을 병합하고 필요한 정책을 즉시 확정한다.
 - 사용자 확정: 원래 print-area가 dashed/dotted/dashDot의 빈 gap만 교차하면 해당 객체를 저장 대상 exact key에서 제외한다. canonical phase의 실제 dash/dot 기하학적 painted footprint가 교차·경계 접촉할 때만 포함하며 채움 shape는 fill 교차로 포함한다.

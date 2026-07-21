@@ -769,10 +769,10 @@ shape 위치/크기/회전 field는 canvas handle과 같은 geometry commit API�
 - position/size/rotation/radius text field: Enter 또는 focus loss의 유효한 commit 1회당 undo 1건
 - barcode text/format과 렌더 결과를 바꾸는 묶음: panel의 `[적용]`에서 한 번 render/commit
 - barcode panel `[적용]`은 생성 dialog와 같은 render request coordinator를 사용한다. 요청 시 `sheetId`, exact typed key, workbook/object revision과 request token을 캡처하고 renderer 완료 직전 모두 일치할 때만 원래 exact key에 commit한다. pending 중 selection 변경은 요청을 취소하지 않지만 객체 삭제·교체·ID 변경, undo/redo와 외부 workbook 교체는 token/revision 불일치로 늦은 결과를 폐기한다. null/예외 실패는 workbook을 바꾸지 않고 해당 object draft의 inline 오류로 복구하며 성공 commit은 render/replace, undo, `onChange`, `onOp` 각각 1건이다.
-- 같은 exact barcode key에서 pending 중 새 `[적용]`을 시작할 수 있고 최신 request token 하나만 active pending이다. B 시작 즉시 이전 A는 stale이 되어 command blocking에 기여하지 않으며 B의 성공·실패·stale 종료에서 blocking을 해제한다. 나중에 도착한 A는 pending/UI/workbook/undo/callback을 바꾸지 않는다. 다른 barcode key의 동시 `[적용]`은 이번 범위에서 허용하지 않는다.
-- barcode pending request/draft/inline error는 `(sheetId, exact barcode key)`에 귀속하고 controller의 `activePropertyDraft`는 현재 active selection key에 대한 projection으로만 노출한다. 사용자가 확정한 대로 A가 pending인 동안 B의 선택·조회는 허용하지만 B를 포함한 다른 객체의 property mutation과 새 property draft 시작은 비활성화한다. delete/duplicate/reorder처럼 property 외 canonical command는 아래 기존 pending command 차단 범위를 따르며 A 상태를 B form에 표시하거나 B draft로 대체하지 않는다. A가 현재 selection이 아니면 A의 inline error를 panel에 표시하지 않고, pending 실패 뒤 A를 다시 선택하면 key에 보존된 error/draft를 표시한다. 성공 또는 명시적 draft 폐기 시 해당 key 상태를 제거한다.
+- barcode panel `[적용]` pending 중에는 같은 exact key와 다른 key 모두 새 `[적용]`을 시작할 수 없다. UI submit과 public/controller render command를 함께 차단하고 현재 request token 하나만 pending을 소유하며, 완료 뒤 사용자가 다시 실행한 요청만 새 token으로 시작한다.
+- barcode pending request/draft/inline error는 `(sheetId, exact barcode key)`에 귀속하고 controller의 `activePropertyDraft`는 현재 active selection key에 대한 projection으로만 노출한다. 사용자가 확정한 대로 A가 pending인 동안 object selection, read-only property 조회와 copy만 허용한다. delete/duplicate/cut/paste, layer reorder·앞뒤 이동, canvas·keyboard·panel geometry 변경, 모든 property commit·새 property draft와 그 밖의 canonical workbook mutation은 UI enablement와 public/controller command 진입점 양쪽에서 차단한다. 차단된 command는 queue하거나 pending 종료 뒤 자동 재실행하지 않으며 workbook, selection, internal/system clipboard payload·marker, undo/redo, dirty, revision과 `onChange`/`onOp`/controller-listenable을 바꾸지 않는다. copy는 canonical workbook을 바꾸지 않으므로 기존 latest-wins clipboard write coordinator로 실행할 수 있다. A 상태를 B form에 표시하거나 B draft로 대체하지 않고, A가 현재 selection이 아니면 A의 inline error를 panel에 표시하지 않는다. pending 실패 뒤 A를 다시 선택하면 key에 보존된 error/draft를 표시하며 성공 또는 명시적 draft 폐기 시 해당 key 상태를 제거한다.
 - 잘못된 중간 입력: workbook 변경 없음
-- panel의 selection 변경·삭제·복제·layer 이동 등 다른 command handler는 focus callback에 의존하지 않고 active field를 먼저 동기적으로 finalize한다. 유효 draft는 commit한 뒤 요청 command를 실행하고, 사용자가 확정한 대로 invalid draft는 원복·폐기한 뒤 workbook 변경 없이 해당 draft만 버리고 요청 command는 계속 실행한다. 단 barcode panel renderer pending 중 selection 변경은 이 finalize 규칙의 예외로, 원래 exact typed-key draft/request를 commit·폐기하지 않고 selection UI만 바꾼다.
+- panel의 selection 변경·삭제·복제·layer 이동 등 다른 command handler는 focus callback에 의존하지 않고 active field를 먼저 동기적으로 finalize한다. 유효 draft는 commit한 뒤 요청 command를 실행하고, 사용자가 확정한 대로 invalid draft는 원복·폐기한 뒤 workbook 변경 없이 해당 draft만 버리고 요청 command는 계속 실행한다. 단 barcode panel renderer pending guard는 draft finalize보다 먼저 실행한다. 허용된 selection 변경은 원래 exact typed-key draft/request를 commit·폐기하지 않고 selection UI만 바꾸며, 허용된 copy는 draft를 finalize하지 않고 현재 canonical selected object snapshot으로 기존 latest-wins clipboard write를 실행한다. 그 밖의 차단 command는 유효·invalid draft 모두 commit·폐기·원복하지 않는 완전한 no-op이다.
 - `.lms` save/export, print/PDF/capture, undo/redo, active sheet 전환, label/XLSX/image import와 이미지·바코드·도형 삽입 toolbar command도 canonical workbook을 읽거나 교체하기 전에 같은 동기 finalize API를 호출한다. 유효 draft는 commit된 최신 workbook snapshot으로 요청 command를 계속하고 invalid draft는 원복·폐기한 뒤 기존 canonical snapshot으로 command를 계속한다. focus-loss callback 순서에 의존하지 않는다.
 - 사용자가 확정한 대로 barcode panel `[적용]` renderer가 pending이면 save/export/print/capture, undo/redo, sheet 전환, import와 모든 삽입 command 및 property draft를 취소하는 Escape branch를 완료까지 비활성화한다. pending command를 queue하거나 자동 재실행하지 않으며 render 성공·실패·stale 폐기로 pending이 끝난 뒤 사용자가 다시 실행한다. selection 변경은 허용하고 request·draft·inline 오류 상태는 원래 exact typed key에 귀속한다. 일반 동기 property draft는 이 비활성화 대상이 아니다.
 - object selection 변경: 위 finalize 뒤 유효한 committed 값만 유지하고 invalid draft는 폐기
@@ -858,6 +858,7 @@ FortuneSheet package가 다음과 동등한 read-only 상태를 controller/liste
 - front-to-back object refs
 - 선택된 단일 object의 typed property snapshot
 - panel command enablement
+- barcode property render pending 중 selection·조회·copy만 true이고 canonical mutation command는 false인 enablement
 - geometry kind별 insertion preset과 도형 insertion mode
 - active object property draft 유무와 barcode property render pending 여부
 - sheet ID별 package-owned canonical revision과 workbook 전역 history-lineage generation
@@ -1188,6 +1189,7 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - 유효/invalid property draft 직후 save/export/print/capture가 각각 최신 committed 값/기존 canonical 값만 사용하고 command 뒤 지연 focus-loss가 추가 dirty를 만들지 않음
 - 유효/invalid property draft 직후 undo/redo·sheet 전환·label/XLSX/image import·이미지/바코드/도형 삽입 command가 같은 finalize 순서를 사용함
 - barcode panel renderer pending 중 save/export/print/capture·undo/redo·sheet 전환·import·삽입 command와 property draft 취소 Escape 비활성화, queue/자동 재실행 없음과 성공·실패·stale 종료 뒤 재활성화
+- barcode A pending 중 A/B selection·read-only property 조회와 copy는 허용하고 A의 keyed request/draft/error를 유지함. copy는 현재 canonical selected object snapshot으로 internal/system marker·payload를 갱신하며 동시 copy가 기존 latest-wins를 유지함. delete/duplicate/cut/paste, reorder·앞뒤 이동, canvas/keyboard/panel geometry, 새 `[적용]` 및 모든 property mutation은 draft finalize 전에 UI와 controller 양쪽에서 차단되어 유효·invalid draft와 workbook/selection/clipboard payload·marker/undo/redo/dirty/revision/callback/listenable이 불변이고, 성공·실패·stale 종료 뒤에도 자동 실행되지 않으며 사용자가 다시 실행한 command만 정상 동작함
 - panel list/canvas active object/canvas cell/editable field focus별 Arrow key 소유권
 - 기존 image/barcode edit dialog command가 panel edit로 전환
 - option 목록에 없는 non-empty image/barcode 연결 ID를 panel open과 연결 ID/source 미변경 commit에서 보존함. barcode는 명시적 `연결 안 함`에서 metadata를 제거하고 linked image는 아래 새 파일 필수 조건을 따름
@@ -1198,7 +1200,7 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - barcode panel `[적용]` pending 중 selection 변경 뒤 원래 exact key/revision commit, 객체 삭제·교체·ID 변경·undo/redo·외부 교체 뒤 늦은 결과 폐기와 null/예외 inline 실패
 - barcode A pending 중 B 선택은 허용하고 active property snapshot은 B를 표시하지만 B property control·새 draft 시작은 disabled이며 A keyed draft/request/error는 유지됨. A 실패 중 B가 active이면 error를 B form에 표시하지 않고 A 재선택 시 표시하며 성공/명시적 폐기 뒤 A keyed 상태를 제거함
 - barcode A pending 중 B를 선택한 뒤 controller의 B property update/begin-draft command를 직접 호출해도 workbook/draft/undo/dirty와 `onChange`/`onOp`/listenable이 모두 불변이어서 UI enablement 우회 mutation이 차단됨
-- 같은 barcode object의 panel 적용 A pending 중 B를 시작하면 A가 즉시 stale·blocking 제외됨. B→A 완료에서는 B만 commit·blocking 해제하고 후속 A는 no-op이며, A→B 완료에서는 선행 A가 pending/UI/workbook/undo/callback과 blocking을 바꾸지 않고 B 완료에서만 commit·blocking 해제함. 다른 barcode key의 동시 적용은 차단함
+- barcode panel 적용 pending 중 같은/다른 exact key의 UI submit과 controller render command가 모두 no-op이고 기존 request token·draft·blocking을 유지하며, 완료 뒤 사용자가 다시 실행한 요청만 새 token으로 시작함
 - 신규 image/barcode 생성 dialog는 유지
 - image/barcode 생성 후 이미 열린 panel만 새 속성으로 전환하고 dock/overlay closed 사용자 의도를 유지함
 - 넓은 화면에서 닫힌 panel에도 객체/레이어 toolbar toggle이 표시되고 마지막 폭으로 다시 열며, 좁은 화면에서는 상시 icon으로 overlay를 엶
@@ -1355,7 +1357,7 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - 유효 property draft finalize commit과 이어지는 workbook mutation command는 각각 독립 canonical transaction/undo다. read-only command는 finalize transaction만 만들고 invalid/no-draft finalize는 transaction을 만들지 않는다.
 - save/export/print/capture, undo/redo, sheet 전환, import와 모든 삽입 command는 active property draft를 동기 finalize한 최신 canonical snapshot을 사용한다. valid draft는 먼저 commit하고 invalid draft는 폐기한 뒤 command를 실행하며 지연 focus-loss가 추가 commit을 만들지 않는다.
 - barcode panel renderer pending 중에는 canonical workbook을 읽거나 교체하는 host/삽입 command와 property draft 취소 Escape를 비활성화하고 queue하거나 자동 재실행하지 않는다. selection 변경 뒤에도 request·draft·inline 오류는 원래 exact typed key에 귀속한다.
-- barcode A pending 중 다른 객체 B의 선택·조회는 허용하지만 property mutation과 새 draft 시작은 비활성화한다. active draft는 현재 selection projection이고 A의 pending draft/error는 exact key별로 보존해 B form에 표시하지 않는다.
+- barcode A pending 중 object selection·read-only property 조회·copy만 허용하고 delete/duplicate/cut/paste, layer reorder·앞뒤 이동, geometry/property 변경·새 `[적용]`과 그 밖의 canonical mutation은 UI/controller 양쪽에서 draft finalize 전에 차단한다. 차단 command는 draft/workbook·selection·clipboard/history/revision/callback을 바꾸거나 자동 재실행되지 않는다. 허용 copy는 현재 canonical selection으로 기존 latest-wins marker/payload를 정상 갱신한다. active draft는 현재 selection projection이고 A의 pending draft/error는 exact key별로 보존해 B form에 표시하지 않는다.
 - panel splitter가 260~420px 범위와 sheet 최소 폭을 지키며 drag 후 workbook/selection/zoom이 유지된다.
 - 좁은 workbench에서 dock이 겹치지 않고 overlay fallback으로 접근 가능하다.
 - wide/narrow 경계 전환은 panel controller, property draft와 selection을 유지하고 draft를 finalize하거나 open 상태를 변경하지 않으며 overlay/dock open command/callback 또는 field focus 이동을 만들지 않는다. wide 복귀 시 dock 표시는 보존된 `userWantsDockOpen` 값만 반영한다.
@@ -1451,8 +1453,7 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - panel image picker 귀속: 호출 시점 sheet/exact image/revision/token 고정, selection 변경은 허용하고 stale owner·객체·권한·token 결과는 폐기
 - 바코드 renderer 진행 중: 입력·확인·닫기·취소·Escape 비활성화, 중복 submit 금지
 - 바코드 panel renderer 진행 중: save/export/print/capture·undo/redo·sheet 전환·import·삽입 command와 property draft 취소 Escape 비활성화, selection 변경은 허용, queue/자동 재실행 금지
-- 바코드 panel pending 중 다른 객체: 선택·조회만 허용, UI/controller property mutation·새 draft 차단, `activePropertyDraft`는 현재 selection projection, request/draft/error는 원 exact key에 보존하고 다른 form에 노출 금지
-- 바코드 panel 중첩 적용: 같은 exact key만 latest-wins 허용, 새 token이 이전 요청을 stale·blocking 제외하고 다른 key 동시 적용은 차단
+- 바코드 panel pending 중 객체 명령: selection·read-only 조회·copy만 허용하고 copy는 현재 canonical selection으로 existing latest-wins clipboard marker/payload 갱신. delete/duplicate/cut/paste·reorder/앞뒤 이동·geometry/property·같은/다른 key 새 `[적용]` 등 canonical mutation은 draft finalize 전에 UI/controller 양쪽에서 완전한 no-op이며 draft/workbook/selection/clipboard/history/revision/callback 불변, queue·자동 재실행 금지. `activePropertyDraft`는 현재 selection projection, request/draft/error는 원 exact key에 보존하고 다른 form에 노출 금지
 - 바코드 panel rotation: `extraFields['rotation']`의 유한값은 동일 시각 회전의 `0 <= value < 360` canonical 값으로 표시·무변경 적용하고 비숫자·`NaN`·무한대는 `0`, 유한 입력만 render/metadata/capture에 공통 반영
 - EZPL 세로 방향: barcode/line/rectangle/cell-border를 모두 bitmap fallback, 세로 native 회전 좌표식 제외
 - EZPL 하단 콘텐츠 clip: `clipBottomMm = labelHeightMm`, `pageHeightMm`은 extra area를 포함한 매체 높이/`^Q` 전용
