@@ -1,3 +1,13 @@
+### 완료 (2026-07-21): 선·도형 지시서 stroke scale·open pattern phase 보완
+- 사용자 요청: 최신 `doc/label_line_panel.txt` 재검토에서 확인한 stroke 두께와 open line crop phase 권장안을 병합하고 사용자 확인이 필요한 사항은 즉시 확정한다.
+- 추가 사용자 확인 불필요: 96-PPI logical 변환과 canonical start/end 방향이라는 기존 계약을 경로별로 구체화했으며 새로운 제품 정책 선택은 없다. endpoint 교환은 start/end 방향 변경이므로 새 `x1/y1` phase를 사용하는 것으로 기존 의미를 유지한다.
+- stroke scale 보완 완료: `wL = strokeWidthMm * 96 / 25.4`, 최종 화면 두께 `wL * effectiveZoom`, capture raster `wL * pixelRatio`, printer `strokeWidthMm * DPI / 25.4`를 고정했다. canvas zoom과 좌표 선변환은 함께 사용하지 않고 zoom·DPR을 각각 한 번만 적용하며 raster/native가 같은 물리 두께를 사용한다.
+- open pattern 보완 완료: canonical `x1/y1`에서 전체 centerline에 생성한 것과 같은 phase를 geometry/output transform 뒤 clip까지 유지한다. crop 교차점/local origin에서 재시작하지 않으며 먼 crop 밖 mark를 모두 열거하지 않고 start부터 visible interval까지 거리를 pattern period로 modulo하는 동등 최적화를 허용한다.
+- 테스트 계약 보완 완료: zoom/pixelRatio/DPI별 stroke 두께 단일 적용과 raster/native dot 오차, crop 밖 endpoint·다른 crop origin·endpoint 교환 및 zoom/pixelRatio 교차 조합의 dash/dot/gap phase를 판별한다.
+- 독립 재검토 완료: 최초 문구의 화면 zoom 소유권과 전체 mark 열거 가능성을 발견해 최종 화면 두께와 `Paint.strokeWidth`를 분리하고 modulo 최적화 경계를 추가했다. mixed duplicate/copy-paste 상대 순서는 기존 공통 ordering helper 계약으로 충분해 변경하지 않았다.
+- 검증 완료: `doc/label_line_panel.txt` diagnostics 오류 0건, 필수 계약 검색과 `git diff --check` 통과. 문서만 변경했으므로 Flutter test/analyze는 실행하지 않았다.
+- stage/commit 대상: `doc/label_line_panel.txt`, `SESSION_HANDOFF.md`만 포함한다. 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
+
 ### 상시 작업 규칙: SQL Server 호환성
 - 실제 운영 대상은 `SERVERPROPERTY('ProductVersion')=14.0.1000.169`인 SQL Server 2017이지만, 현재 DB의 `compatibility_level=100`을 모든 SQL 작성·검수의 하한선으로 사용한다. 엔진 버전만 보고 최신 문법을 허용하지 않는다.
 - DB compatibility 변경이나 migration으로 해결하지 않는다. 새 SQL과 수정 SQL은 level 100에서 그대로 실행되어야 하며, DB 설정 변경을 전제로 구현하지 않는다.
