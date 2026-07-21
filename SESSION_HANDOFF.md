@@ -1,3 +1,12 @@
+### 완료 (2026-07-21): 선·도형 지시서 host option·panel scroll 수명 보완
+- 사용자 요청: 최신 `doc/label_line_panel.txt` 재검토에서 확인한 panel draft 중 host option update와 active sheet 전환의 panel scroll 수명 권장안을 병합하고 필요한 정책은 즉시 확정한다.
+- 사용자 확정: 사용자가 새 연결 ID를 선택한 뒤 commit 전에 해당 option이 사라지면 새 stale 값으로 적용하지 않고 `연결 끊김` validation으로 적용을 거부한다. 기존 canonical 연결을 바꾸지 않은 상태에서 option이 사라진 경우만 원 ID/metadata를 보존한다.
+- option update 보완 완료: draft 문자열·identity·수정 여부는 유지하고 후보 label/effective metadata는 최신 options로 재해석한다. 변경 여부는 touched 이력이 아니라 최종 effective source/ID와 draft 시작 canonical 값으로 비교해 `A→B→A`도 unchanged로 처리한다. 같은 ID의 최신 metadata는 다음 commit에 사용하고, changed-missing은 image commit/barcode render를 시작하지 않는 no-op validation이다. options update 자체는 canonical transaction/draft 재생성을 만들지 않는다.
+- async snapshot 보완 완료: barcode Apply는 validation을 통과한 effective option metadata와 renderer callback을 immutable input snapshot으로 캡처한다. pending 중 options 변경·삭제나 renderer instance 교체는 시작한 요청을 무효화하지 않고, 완료 뒤 새 Apply부터 최신 configuration을 사용한다. callback identity는 rebuild generation으로 사용하지 않는다.
+- panel scroll 수명 보완 완료: layer/property scroll controller는 session 동안 유지하되 active sheet 변경에서 두 offset을 `0`으로 초기화하고 sheet별 offset map은 추가하지 않는다. hidden/detach와 같은 frame의 responsive rebuild에서도 pending reset을 다음 attach까지 보존해 유지/clamp보다 우선한다. 같은 sheet rebuild와 dock↔overlay 전환에서만 identity/offset을 유지하고 새 extent를 넘는 값만 clamp한다. 모든 scroll 변화는 UI-only다.
+- 테스트 계약 보완 완료: latest metadata, unchanged stale, changed-missing 거부, pending request snapshot, active sheet reset과 responsive 유지/clamp를 판별한다.
+- stage/commit 대상: `doc/label_line_panel.txt`, `SESSION_HANDOFF.md`만 포함한다. 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
+
 ### 완료 (2026-07-21): 선·도형 지시서 object panel presentation bridge 보완
 - 사용자 요청: 최신 `doc/label_line_panel.txt` 재검토에서 확인한 package-owned toolbar/panel과 Workbench-owned dock/overlay 상태의 연결 경계를 권장안으로 병합하고 필요한 정책은 즉시 확정한다.
 - 추가 사용자 확인 불필요: package가 panel widget/controller/toolbar를, Workbench가 dock/overlay 배치·responsive·open 의도를 소유한다는 기존 정책에서 결과를 결정했다. package가 Workbench 상태를 추정하는 toggle이나 공유 writable bool은 추가하지 않았다.
