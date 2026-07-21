@@ -3527,6 +3527,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   bool _formatPainterDragging = false;
   bool _formatPainterPersistent = false;
   final Map<String, ui.Image> _decodedImages = <String, ui.Image>{};
+  final Map<ui.Image, int> _captureImageLeaseCounts = <ui.Image, int>{};
+  final Set<ui.Image> _captureImagesPendingDispose = <ui.Image>{};
   final Set<String> _imageDecodeInProgress = <String>{};
   bool? _lastDialogVisibilityNotified;
 
@@ -6893,7 +6895,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       controller.dispose();
     }
     for (final image in _decodedImages.values) {
-      image.dispose();
+      _disposeDecodedImage(image);
     }
     _disposeImageInsertDecodedImage();
     _decodedImages.clear();
@@ -15687,6 +15689,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     final sheet = _workbook.activeSheet;
     final settings = _workbook.settings;
     final decodedImages = Map<String, ui.Image>.from(_decodedImages);
+    _retainCaptureImages(decodedImages.values);
+    try {
     final metrics = sheet.metrics(settings);
     final range = _normalizeCaptureRange(requestedRange, metrics);
     if (range == null) {
@@ -15969,6 +15973,38 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         (captureHeight * devicePixelRatio).ceilToDouble(),
       ),
     );
+    } finally {
+      _releaseCaptureImages(decodedImages.values);
+    }
+  }
+
+  void _retainCaptureImages(Iterable<ui.Image> images) {
+    for (final image in images.toSet()) {
+      _captureImageLeaseCounts[image] =
+          (_captureImageLeaseCounts[image] ?? 0) + 1;
+    }
+  }
+
+  void _releaseCaptureImages(Iterable<ui.Image> images) {
+    for (final image in images.toSet()) {
+      final remaining = (_captureImageLeaseCounts[image] ?? 1) - 1;
+      if (remaining > 0) {
+        _captureImageLeaseCounts[image] = remaining;
+        continue;
+      }
+      _captureImageLeaseCounts.remove(image);
+      if (_captureImagesPendingDispose.remove(image)) {
+        image.dispose();
+      }
+    }
+  }
+
+  void _disposeDecodedImage(ui.Image image) {
+    if ((_captureImageLeaseCounts[image] ?? 0) > 0) {
+      _captureImagesPendingDispose.add(image);
+      return;
+    }
+    image.dispose();
   }
 
   FortuneRange? _normalizeCaptureRange(
@@ -23992,7 +24028,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     final sheets = [..._workbook.sheets];
     _recordUndoSnapshot();
     final previousDecoded = _decodedImages[src];
-    previousDecoded?.dispose();
+    if (previousDecoded != null) {
+      _disposeDecodedImage(previousDecoded);
+    }
     final decoded = _imageInsertDecodedImage;
     if (decoded != null) {
       _decodedImages[src] = decoded;
@@ -27110,7 +27148,10 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     setState(() {
       _panelImagePickerErrorKeys.remove(key);
       if (decoded != null) {
-        _decodedImages[src]?.dispose();
+        final previous = _decodedImages[src];
+        if (previous != null) {
+          _disposeDecodedImage(previous);
+        }
         _decodedImages[src] = decoded;
       }
       _workbook = _workbook.copyWith(sheets: sheets);

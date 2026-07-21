@@ -434,4 +434,63 @@ void main() {
     expect(_hasDarkPixelNear(pixels!, capture!.pixelSize.width.toInt(), capture.pixelSize.height.toInt(), 10, 10), isTrue);
     expect(_isBlack(pixels, capture.pixelSize.width.toInt(), 29, 29), isTrue);
   });
+
+  testWidgets('started image capture survives canvas detach', (tester) async {
+    tester.view.physicalSize = const Size(240, 180);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    final controller = FortuneSheetController();
+    final workbook = FortuneWorkbook(
+      settings: const FortuneSettings(
+        defaultRowHeight: 20,
+        defaultColWidth: 20,
+      ),
+      sheets: [
+        FortuneSheet(
+          id: 's1',
+          name: 'Sheet1',
+          rowCount: 2,
+          columnCount: 2,
+          images: const [
+            FortuneImage(
+              id: 'image_1',
+              src: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=',
+              left: 5,
+              top: 5,
+              width: 20,
+              height: 20,
+            ),
+          ],
+        ),
+      ],
+    );
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: FortuneSheetCanvas(
+          workbook: workbook,
+          controller: controller,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final captureFuture = controller.captureRangeAsPng(
+      const FortuneRange(
+        rowStart: 0,
+        rowEnd: 1,
+        columnStart: 0,
+        columnEnd: 1,
+      ),
+      includeGridLines: false,
+      includeCellBorders: false,
+      includeLabelAreaBoundary: false,
+    );
+    await tester.pumpWidget(const SizedBox.shrink());
+    final capture = await tester.runAsync(() => captureFuture);
+    expect(capture, isNotNull);
+    expect(capture!.pngBytes, isNotEmpty);
+  });
 }

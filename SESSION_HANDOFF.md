@@ -33,8 +33,9 @@
 - image picker cancellation과 failure를 구분한다. 유효 latest picker 예외는 exact typed key별 controller projection에 남아 panel inline 오류로 표시되고, 같은 key의 다음 요청 시작/성공은 이전 오류를 지운다. stale owner/token completion은 오류를 남기지 않는다.
 - object clipboard baseline은 empty clipboard와 platform read failure를 구분한다. 성공적으로 읽힌 null baseline은 Flutter 공개 API의 empty text로 동등 복원해 stale marker를 제거하고, read failure에서는 사용자 OS clipboard를 건드리지 않는다.
 - 일반 capture는 요청 range의 정렬된 inclusive 범위와 호출 시점 sheet metrics bounds의 교집합을 사용하며 완전히 밖인 요청은 `null`이다. capture는 호출 시점 sheet/settings/decoded-resource availability를 고정해 live workbook을 다시 읽지 않고, image/barcode/line/shape를 화면과 같은 typed paint order와 공용 line/shape geometry/stroke helper로 그린 뒤 legacy raw overlay를 합성한다.
+- capture가 사용하는 decoded `ui.Image`는 identity별 lease를 획득하고 성공/`null`/예외의 `finally`에서 정확히 해제한다. image cache 교체와 canvas dispose는 active lease가 있으면 실제 dispose를 defer하므로 시작한 capture는 controller/canvas detach 뒤에도 최초 snapshot으로 완료된다.
 - 검증: package object controller 15건과 대표 undo/redo 3건 통과. mixed copy/cut/paste, cut→undo stale paste 차단, same/cross-sheet cut의 ID/geometry, `Completer` 기반 stale A 성공→최신 B 성공과 stale C 성공→최신 D 예외 안정 marker 복원, marker 불일치 external text의 clipboard read 1회/cell fallback 1회, layer list Ctrl+C/V 실제 key-event test를 포함한다. 루트와 `third_party/fortune_sheet` `flutter analyze`, 변경 파일 diagnostics와 `git diff --check` 모두 clean이다.
-- 다음 순서: capture image resource lease → package Hybrid plan/filtered capture → app Hybrid coordinator. `lib/core/app.dart` 사용자 변경과 `third_party/fortune_sheet/build/` 생성물은 계속 수정·stage·commit에서 제외한다.
+- 다음 순서: package Hybrid plan/filtered capture → app Hybrid coordinator. `lib/core/app.dart` 사용자 변경과 `third_party/fortune_sheet/build/` 생성물은 계속 수정·stage·commit에서 제외한다.
 
 ### 완료 (2026-07-21): 선·도형 지시서 재검토 6건 병합
 - 사용자 요청: 최신 구현 대조에서 확인한 structured-empty 잔여 분기, 읽기 전용 객체 권한, barcode pending 이탈, output owner 공개 조정 경계, image picker 오류 귀속과 panel 폭 write 실패 의미를 권장안으로 병합한다.
