@@ -22,8 +22,9 @@
 - barcode panel에 연결 ID, X/Y/폭/높이/회전과 format/data/module scale/bar height/leading·trailing text/human-readable text·font/template-format controls를 추가했다.
 - barcode `[적용]`은 exact key별 latest request token과 sheet/canonical image owner를 캡처하고 renderer 입력 snapshot을 한 번 호출한다. 유효 완료만 raster, geometry와 legacy metadata를 undo 1건으로 교체하며 unknown metadata를 보존한다.
 - 공용 connection choices helper와 panel dropdown을 추가했다. structured options label을 우선하고 options/legacy/current를 trim·대소문자 무시 중복 제거하며 unmatched current는 `연결 끊김`으로 보존한다. Workbench dock/overlay가 기존 options/legacy IDs를 panel에 전달한다.
-- 검증: package object controller 13건, 루트 toolbar/Workbench 117건 통과. 루트와 `third_party/fortune_sheet` `flutter analyze`, 변경 파일 diagnostics와 `git diff --check` 모두 clean이다.
-- 다음 순서: image/barcode async stale/error/pending 세부 수명 → mixed clipboard → capture/Hybrid EZPL. `lib/core/app.dart` 사용자 변경과 `third_party/fortune_sheet/build/` 생성물은 계속 수정·stage·commit에서 제외한다.
+- 같은 barcode exact key의 renderer request는 keyed latest-only token을 사용한다. 최신 완료가 pending entry를 정리하고 이전 stale 완료는 현재 상태를 바꾸지 않는다. pending 동안 controller property/duplicate/layer/reorder/undo·redo mutation은 no-op이고 selection/조회는 유지한다.
+- 검증: package object controller 14건, 루트 toolbar/Workbench 117건 통과. 루트와 `third_party/fortune_sheet` `flutter analyze`, 변경 파일 diagnostics와 `git diff --check` 모두 clean이다.
+- 다음 순서: barcode pending 공통 command enablement와 image async error 세부 수명 → mixed clipboard → capture/Hybrid EZPL. `lib/core/app.dart` 사용자 변경과 `third_party/fortune_sheet/build/` 생성물은 계속 수정·stage·commit에서 제외한다.
 
 ### 완료 (2026-07-21): 선·도형 지시서 재검토 6건 병합
 - 사용자 요청: 최신 구현 대조에서 확인한 structured-empty 잔여 분기, 읽기 전용 객체 권한, barcode pending 이탈, output owner 공개 조정 경계, image picker 오류 귀속과 panel 폭 write 실패 의미를 권장안으로 병합한다.

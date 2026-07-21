@@ -1192,6 +1192,8 @@ class FortuneSheetController extends ChangeNotifier {
 
   bool get isAttached => _state != null;
   FortuneObjectSelectionSnapshot get objectSelection => _objectSelection;
+  bool get barcodePropertyRenderPending =>
+      _state?._panelBarcodeRequestTokens.isNotEmpty ?? false;
 
   void selectObject(FortuneSheetObjectKey key) {
     _state?._selectObjectFromController(key);
@@ -1210,10 +1212,12 @@ class FortuneSheetController extends ChangeNotifier {
   }
 
   void deleteSelectedObjects() {
+    if (barcodePropertyRenderPending) return;
     _state?._deleteSelectedObjectsFromController();
   }
 
   void duplicateSelectedObjects() {
+    if (barcodePropertyRenderPending) return;
     _state?._duplicateSelectedObjectsFromController();
   }
 
@@ -1225,6 +1229,7 @@ class FortuneSheetController extends ChangeNotifier {
     double? rotationDegrees,
     Object? connectionId = _fortuneUnspecifiedObjectProperty,
   }) {
+    if (barcodePropertyRenderPending) return;
     _state?._updateSelectedImageFromController(
       left: left,
       top: top,
@@ -1287,6 +1292,7 @@ class FortuneSheetController extends ChangeNotifier {
     double? strokeWidthMm,
     String? strokeColor,
   }) {
+    if (barcodePropertyRenderPending) return;
     _state?._updateSelectedLineFromController(
       x1: x1,
       y1: y1,
@@ -1310,6 +1316,7 @@ class FortuneSheetController extends ChangeNotifier {
     Object? fillColor = _fortuneUnspecifiedObjectProperty,
     double? cornerRadiusMm,
   }) {
+    if (barcodePropertyRenderPending) return;
     _state?._updateSelectedShapeFromController(
       left: left,
       top: top,
@@ -1325,18 +1332,22 @@ class FortuneSheetController extends ChangeNotifier {
   }
 
   void bringSelectedObjectsToFront() {
+    if (barcodePropertyRenderPending) return;
     _state?._moveSelectedObjectsToBoundary(front: true);
   }
 
   void bringSelectedObjectsForward() {
+    if (barcodePropertyRenderPending) return;
     _state?._moveSelectedObjectsOneStep(front: true);
   }
 
   void sendSelectedObjectsBackward() {
+    if (barcodePropertyRenderPending) return;
     _state?._moveSelectedObjectsOneStep(front: false);
   }
 
   void sendSelectedObjectsToBack() {
+    if (barcodePropertyRenderPending) return;
     _state?._moveSelectedObjectsToBoundary(front: false);
   }
 
@@ -1344,14 +1355,17 @@ class FortuneSheetController extends ChangeNotifier {
     FortuneSheetObjectKey target,
     FortuneObjectDropSide side,
   ) {
+    if (barcodePropertyRenderPending) return;
     _state?._reorderSelectedObjects(target, side);
   }
 
   void handleUndo() {
+    if (barcodePropertyRenderPending) return;
     _state?._undoWorkbookChange();
   }
 
   void handleRedo() {
+    if (barcodePropertyRenderPending) return;
     _state?._redoWorkbookChange();
   }
 
@@ -26521,7 +26535,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     if (!mounted ||
         result == null ||
         _panelBarcodeRequestTokens[key] != token) {
-      return false;
+      return _finishPanelBarcodeRequest(key, token, false);
     }
     final sheet = _workbook.activeSheet;
     final sourceIndex = sheet.images.indexWhere((image) {
@@ -26532,7 +26546,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     if (!_workbook.settings.allowEdit ||
         sheet.id != ownerSheetId ||
         sourceIndex < 0) {
-      return false;
+      return _finishPanelBarcodeRequest(key, token, false);
     }
     final imageWidth = width > 0
         ? width
@@ -26541,7 +26555,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         ? height
         : (result.pixelHeight ?? source.height).toDouble();
     if (![imageWidth, imageHeight].every((value) => value.isFinite && value > 0)) {
-      return false;
+      return _finishPanelBarcodeRequest(key, token, false);
     }
     final format = widget.barcodeFormats
         .where((option) => option.id == formatId.trim())
@@ -26599,7 +26613,18 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       _workbook = _workbook.copyWith(sheets: sheets);
       _closeTransientMenus();
     });
-    return true;
+    return _finishPanelBarcodeRequest(key, token, true);
+  }
+
+  bool _finishPanelBarcodeRequest(
+    FortuneSheetObjectKey key,
+    int token,
+    bool result,
+  ) {
+    if (_panelBarcodeRequestTokens[key] == token) {
+      _panelBarcodeRequestTokens.remove(key);
+    }
+    return result;
   }
 
   void _updateSelectedShapeFromController({

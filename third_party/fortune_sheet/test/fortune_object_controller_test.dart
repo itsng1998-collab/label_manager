@@ -756,6 +756,105 @@ void main() {
     expect(image.extraFields['barcodeText'], 'OLD-TEXT');
   });
 
+  testWidgets('barcode property render keeps only the latest request', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    final controller = FortuneSheetController();
+    final renders = <Completer<FortuneBarcodeRenderResult?>>[];
+    final workbook = FortuneWorkbook(
+      settings: const FortuneSettings(showToolbar: false, showFormulaBar: false),
+      sheets: [
+        FortuneSheet(
+          id: 's1',
+          name: 'Sheet1',
+          images: const [
+            FortuneImage(
+              id: 'barcode_1',
+              src: 'old-src',
+              left: 20,
+              top: 30,
+              width: 80,
+              height: 40,
+              extraFields: {'fortuneBarcode': true, 'barcodeText': 'OLD'},
+            ),
+          ],
+        ),
+      ],
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SizedBox(
+          width: 900,
+          height: 700,
+          child: FortuneSheetCanvas(
+            workbook: workbook,
+            controller: controller,
+            barcodeRenderer: (_) {
+              final completer = Completer<FortuneBarcodeRenderResult?>();
+              renders.add(completer);
+              return completer.future;
+            },
+          ),
+        ),
+      ),
+    );
+    controller.selectObject(
+      const FortuneSheetObjectKey(
+        FortuneSheetObjectKind.barcode,
+        'barcode_1',
+      ),
+    );
+
+    Future<bool> render(String text) => controller.renderSelectedBarcode(
+      text: text,
+      formatId: 'CODE128',
+      left: 20,
+      top: 30,
+      width: 80,
+      height: 40,
+      rotationDegrees: 0,
+      moduleScale: 3,
+      barHeight: 10,
+      leadingText: '',
+      trailingText: '',
+      showHumanReadableText: false,
+      humanReadableFontFamily: null,
+      humanReadableFontSize: 14,
+      connectionId: '',
+      preserveTemplateFormat: false,
+    );
+
+    final first = render('FIRST');
+    final second = render('SECOND');
+    expect(controller.barcodePropertyRenderPending, isTrue);
+    controller.updateSelectedImage(top: 99);
+    controller.duplicateSelectedObjects();
+    controller.handleUndo();
+    expect(controller.objectSelection.activeImage?.top, 30);
+    renders[1].complete(
+      FortuneBarcodeRenderResult(bytes: base64Decode(_testPngBase64)),
+    );
+    expect(await second, isTrue);
+    expect(controller.barcodePropertyRenderPending, isFalse);
+    renders[0].complete(
+      FortuneBarcodeRenderResult(bytes: base64Decode(_testPngBase64)),
+    );
+    expect(await first, isFalse);
+    expect(controller.barcodePropertyRenderPending, isFalse);
+    await tester.pump();
+
+    expect(
+      controller.objectSelection.activeImage?.extraFields['barcodeText'],
+      'SECOND',
+    );
+  });
+
   testWidgets('structured duplicate preserves connection id with no options', (
     tester,
   ) async {
