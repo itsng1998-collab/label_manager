@@ -15676,7 +15676,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   }
 
   Future<_FortuneScreenshotCapture?> _generateScreenshotCapture(
-    FortuneRange range, {
+    FortuneRange requestedRange, {
     double? pixelRatio,
     bool includeGridLines = true,
     bool includeCellBorders = true,
@@ -15686,7 +15686,12 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   }) async {
     final sheet = _workbook.activeSheet;
     final settings = _workbook.settings;
+    final decodedImages = Map<String, ui.Image>.from(_decodedImages);
     final metrics = sheet.metrics(settings);
+    final range = _normalizeCaptureRange(requestedRange, metrics);
+    if (range == null) {
+      return null;
+    }
     final borderCompute = FortuneBorderCompute.compute(sheet);
     final conditionStyles = _screenshotConditionStyles(sheet);
     double rowTop(int row) => row <= 0 ? 0 : metrics.visibleDataRows[row - 1];
@@ -15906,16 +15911,31 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       }
     }
 
-    _drawScreenshotImages(canvas, bounds, originX: originX, originY: originY);
+    _drawScreenshotTypedObjects(
+      canvas,
+      sheet,
+      decodedImages,
+      bounds,
+      originX: originX,
+      originY: originY,
+    );
     _drawScreenshotRawShapeOverlays(
       canvas,
+      sheet,
       bounds,
       originX: originX,
       originY: originY,
     );
 
     if (includeRulerGuides) {
-      _drawScreenshotRulerGuides(canvas, bounds, metrics, originX, originY);
+      _drawScreenshotRulerGuides(
+        canvas,
+        sheet,
+        bounds,
+        metrics,
+        originX,
+        originY,
+      );
     }
 
     if (includeLabelAreaBoundary) {
@@ -15948,6 +15968,33 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         (captureWidth * devicePixelRatio).ceilToDouble(),
         (captureHeight * devicePixelRatio).ceilToDouble(),
       ),
+    );
+  }
+
+  FortuneRange? _normalizeCaptureRange(
+    FortuneRange requested,
+    FortuneSheetMetrics metrics,
+  ) {
+    final maxRow = metrics.visibleDataRows.length - 1;
+    final maxColumn = metrics.visibleDataColumns.length - 1;
+    if (maxRow < 0 || maxColumn < 0) {
+      return null;
+    }
+    final rowStart = math.min(requested.rowStart, requested.rowEnd);
+    final rowEnd = math.max(requested.rowStart, requested.rowEnd);
+    final columnStart = math.min(requested.columnStart, requested.columnEnd);
+    final columnEnd = math.max(requested.columnStart, requested.columnEnd);
+    if (rowEnd < 0 ||
+        rowStart > maxRow ||
+        columnEnd < 0 ||
+        columnStart > maxColumn) {
+      return null;
+    }
+    return FortuneRange(
+      rowStart: math.max(0, rowStart),
+      rowEnd: math.min(maxRow, rowEnd),
+      columnStart: math.max(0, columnStart),
+      columnEnd: math.min(maxColumn, columnEnd),
     );
   }
 
@@ -18291,19 +18338,43 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     );
   }
 
-  void _drawScreenshotImages(
+  void _drawScreenshotTypedObjects(
     Canvas canvas,
+    FortuneSheet sheet,
+    Map<String, ui.Image> decodedImages,
     Rect bounds, {
     required double originX,
     required double originY,
   }) {
-    final images = _workbook.activeSheet.images;
-    if (images.isEmpty) {
+    if (sheet.images.isEmpty && sheet.lines.isEmpty && sheet.shapes.isEmpty) {
       return;
     }
     canvas.save();
     canvas.clipRect(bounds, doAntiAlias: false);
-    for (final image in images) {
+    final offset = Offset(-originX, -originY);
+    for (final object in fortuneSheetObjectsInPaintOrder(sheet)) {
+      if (object.key.kind == FortuneSheetObjectKind.line) {
+        fortuneDrawLineObject(
+          canvas,
+          sheet.lines[object.sourceIndex - sheet.images.length],
+          bounds,
+          offset: offset,
+        );
+        continue;
+      }
+      if (object.key.kind == FortuneSheetObjectKind.rectangle ||
+          object.key.kind == FortuneSheetObjectKind.roundedRectangle ||
+          object.key.kind == FortuneSheetObjectKind.ellipse) {
+        fortuneDrawShapeObject(
+          canvas,
+          sheet.shapes[
+              object.sourceIndex - sheet.images.length - sheet.lines.length],
+          bounds,
+          offset: offset,
+        );
+        continue;
+      }
+      final image = sheet.images[object.sourceIndex];
       final rect = Rect.fromLTWH(
         image.left - originX,
         image.top - originY,
@@ -18313,7 +18384,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       if (!rect.overlaps(bounds)) {
         continue;
       }
-      final decoded = _decodedImages[image.src];
+      final decoded = decodedImages[image.src];
       if (decoded == null) {
         _drawScreenshotImagePlaceholder(canvas, rect, image);
       } else {
@@ -18325,11 +18396,12 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
 
   void _drawScreenshotRawShapeOverlays(
     Canvas canvas,
+    FortuneSheet sheet,
     Rect bounds, {
     required double originX,
     required double originY,
   }) {
-    final overlays = fortuneRawShapeOverlays(_workbook.activeSheet);
+    final overlays = fortuneRawShapeOverlays(sheet);
     if (overlays.isEmpty) {
       return;
     }
@@ -18344,12 +18416,13 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
 
   void _drawScreenshotRulerGuides(
     Canvas canvas,
+    FortuneSheet sheet,
     Rect bounds,
     FortuneSheetMetrics metrics,
     double originX,
     double originY,
   ) {
-    final guides = _sheetRulerGuides(_workbook.activeSheet);
+    final guides = _sheetRulerGuides(sheet);
     if (guides.isEmpty) {
       return;
     }

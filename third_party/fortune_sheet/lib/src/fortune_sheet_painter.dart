@@ -44852,6 +44852,144 @@ List<FortuneSheetObjectRef> fortuneSheetObjectsInPaintOrder(
   return objects;
 }
 
+void fortuneDrawLineObject(
+  Canvas canvas,
+  FortuneLine line,
+  Rect clip, {
+  Offset offset = Offset.zero,
+  double scale = 1,
+}) {
+  final start = offset + Offset(line.x1 * scale, line.y1 * scale);
+  final end = offset + Offset(line.x2 * scale, line.y2 * scale);
+  final strokeWidth =
+      fortuneMillimetersToLogicalPixels(line.strokeWidthMm) * scale;
+  if (!Rect.fromPoints(start, end).inflate(strokeWidth / 2).overlaps(clip)) {
+    return;
+  }
+  fortuneDrawObjectStroke(
+    canvas,
+    Path()
+      ..moveTo(start.dx, start.dy)
+      ..lineTo(end.dx, end.dy),
+    line.strokeStyle,
+    strokeWidth,
+    fortuneObjectColor(line.strokeColor),
+  );
+}
+
+void fortuneDrawShapeObject(
+  Canvas canvas,
+  FortuneShape shape,
+  Rect clip, {
+  Offset offset = Offset.zero,
+  double scale = 1,
+}) {
+  final rect = Rect.fromLTWH(
+    offset.dx + shape.left * scale,
+    offset.dy + shape.top * scale,
+    shape.width * scale,
+    shape.height * scale,
+  );
+  final strokeWidth =
+      fortuneMillimetersToLogicalPixels(shape.strokeWidthMm) * scale;
+  if (!rect.inflate(strokeWidth / 2).overlaps(clip)) {
+    return;
+  }
+  canvas.save();
+  canvas.translate(rect.center.dx, rect.center.dy);
+  canvas.rotate(shape.rotationDegrees * math.pi / 180);
+  canvas.translate(-rect.center.dx, -rect.center.dy);
+  final path = Path();
+  switch (shape.kind) {
+    case FortuneShapeKind.rectangle:
+      path.addRect(rect);
+    case FortuneShapeKind.roundedRectangle:
+      final radius = math.min(
+        fortuneMillimetersToLogicalPixels(shape.cornerRadiusMm) * scale,
+        math.min(rect.width, rect.height) / 2,
+      );
+      path.addRRect(RRect.fromRectAndRadius(rect, Radius.circular(radius)));
+    case FortuneShapeKind.ellipse:
+      path.addOval(rect);
+  }
+  if (shape.fillColor case final fillColor?) {
+    canvas.drawPath(path, Paint()..color = fortuneObjectColor(fillColor));
+  }
+  fortuneDrawObjectStroke(
+    canvas,
+    path,
+    shape.strokeStyle,
+    strokeWidth,
+    fortuneObjectColor(shape.strokeColor),
+  );
+  canvas.restore();
+}
+
+void fortuneDrawObjectStroke(
+  Canvas canvas,
+  Path path,
+  FortuneStrokeStyle style,
+  double strokeWidth,
+  Color color,
+) {
+  final paint = Paint()
+    ..color = color
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = strokeWidth
+    ..strokeCap = style == FortuneStrokeStyle.solid
+        ? StrokeCap.butt
+        : StrokeCap.round
+    ..strokeJoin = StrokeJoin.miter
+    ..strokeMiterLimit = 4;
+  if (style == FortuneStrokeStyle.solid) {
+    canvas.drawPath(path, paint);
+    return;
+  }
+  final marks = switch (style) {
+    FortuneStrokeStyle.dashed => <double>[4 * strokeWidth, 2 * strokeWidth],
+    FortuneStrokeStyle.dotted => <double>[0, 3 * strokeWidth],
+    FortuneStrokeStyle.dashDot => <double>[
+      4 * strokeWidth,
+      2 * strokeWidth,
+      0,
+      3 * strokeWidth,
+    ],
+    FortuneStrokeStyle.solid => const <double>[],
+  };
+  for (final metric in path.computeMetrics()) {
+    var distance = 0.0;
+    var markIndex = 0;
+    while (distance <= metric.length) {
+      final markLength = marks[markIndex % marks.length];
+      final gapLength = marks[(markIndex + 1) % marks.length];
+      if (markLength == 0) {
+        final tangent = metric.getTangentForOffset(distance);
+        if (tangent != null) {
+          canvas.drawCircle(
+            tangent.position,
+            strokeWidth / 2,
+            Paint()..color = color,
+          );
+        }
+      } else {
+        canvas.drawPath(
+          metric.extractPath(
+            distance,
+            math.min(metric.length, distance + markLength),
+          ),
+          paint,
+        );
+      }
+      distance += markLength + gapLength;
+      markIndex += 2;
+    }
+  }
+}
+
+Color fortuneObjectColor(String value) {
+  return Color(0xff000000 | int.parse(value.substring(1), radix: 16));
+}
+
 FortuneSheetObjectKey? fortuneSheetObjectKeyAtLogicalPosition(
   FortuneSheet sheet,
   Offset position, {
@@ -77009,30 +77147,15 @@ class FortuneSheetPainter extends CustomPainter {
     FortuneSettings settings,
     double zoomRatio,
   ) {
-    final start = Offset(
-      _sheetDataLeft(settings) + line.x1 * zoomRatio - scrollOffset.dx,
-      _sheetDataTop(settings) + line.y1 * zoomRatio - scrollOffset.dy,
-    );
-    final end = Offset(
-      _sheetDataLeft(settings) + line.x2 * zoomRatio - scrollOffset.dx,
-      _sheetDataTop(settings) + line.y2 * zoomRatio - scrollOffset.dy,
-    );
-    final strokeWidth = fortuneMillimetersToLogicalPixels(
-      line.strokeWidthMm,
-    ) * zoomRatio;
-    final bounds = Rect.fromPoints(start, end).inflate(strokeWidth / 2);
-    if (!bounds.overlaps(clip)) {
-      return;
-    }
-    final path = Path()
-      ..moveTo(start.dx, start.dy)
-      ..lineTo(end.dx, end.dy);
-    _drawFortuneStroke(
+    fortuneDrawLineObject(
       canvas,
-      path,
-      line.strokeStyle,
-      strokeWidth,
-      _fortuneObjectColor(line.strokeColor),
+      line,
+      clip,
+      offset: Offset(
+        _sheetDataLeft(settings) - scrollOffset.dx,
+        _sheetDataTop(settings) - scrollOffset.dy,
+      ),
+      scale: zoomRatio,
     );
   }
 
@@ -77043,50 +77166,16 @@ class FortuneSheetPainter extends CustomPainter {
     FortuneSettings settings,
     double zoomRatio,
   ) {
-    final rect = Rect.fromLTWH(
-      _sheetDataLeft(settings) + shape.left * zoomRatio - scrollOffset.dx,
-      _sheetDataTop(settings) + shape.top * zoomRatio - scrollOffset.dy,
-      shape.width * zoomRatio,
-      shape.height * zoomRatio,
-    );
-    final strokeWidth = fortuneMillimetersToLogicalPixels(
-      shape.strokeWidthMm,
-    ) * zoomRatio;
-    final cullingBounds = rect.inflate(strokeWidth / 2);
-    if (!cullingBounds.overlaps(clip)) {
-      return;
-    }
-    canvas.save();
-    canvas.translate(rect.center.dx, rect.center.dy);
-    canvas.rotate(shape.rotationDegrees * math.pi / 180);
-    canvas.translate(-rect.center.dx, -rect.center.dy);
-    final path = Path();
-    switch (shape.kind) {
-      case FortuneShapeKind.rectangle:
-        path.addRect(rect);
-      case FortuneShapeKind.roundedRectangle:
-        final radius = math.min(
-          fortuneMillimetersToLogicalPixels(shape.cornerRadiusMm) * zoomRatio,
-          math.min(rect.width, rect.height) / 2,
-        );
-        path.addRRect(
-          RRect.fromRectAndRadius(rect, Radius.circular(radius)),
-        );
-      case FortuneShapeKind.ellipse:
-        path.addOval(rect);
-    }
-    final fillColor = shape.fillColor;
-    if (fillColor != null) {
-      canvas.drawPath(path, Paint()..color = _fortuneObjectColor(fillColor));
-    }
-    _drawFortuneStroke(
+    fortuneDrawShapeObject(
       canvas,
-      path,
-      shape.strokeStyle,
-      strokeWidth,
-      _fortuneObjectColor(shape.strokeColor),
+      shape,
+      clip,
+      offset: Offset(
+        _sheetDataLeft(settings) - scrollOffset.dx,
+        _sheetDataTop(settings) - scrollOffset.dy,
+      ),
+      scale: zoomRatio,
     );
-    canvas.restore();
   }
 
   void _drawActiveTypedObjectSelection(
@@ -77195,64 +77284,6 @@ class FortuneSheetPainter extends CustomPainter {
     canvas.drawLine(topMiddleScreen, rotationScreen, outline);
     canvas.drawCircle(rotationScreen, 4, handleFill);
     canvas.drawCircle(rotationScreen, 4, outline);
-  }
-
-  void _drawFortuneStroke(
-    Canvas canvas,
-    Path path,
-    FortuneStrokeStyle style,
-    double strokeWidth,
-    Color color,
-  ) {
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = strokeWidth
-      ..strokeCap = style == FortuneStrokeStyle.solid
-          ? StrokeCap.butt
-          : StrokeCap.round
-      ..strokeJoin = StrokeJoin.miter
-      ..strokeMiterLimit = 4;
-    if (style == FortuneStrokeStyle.solid) {
-      canvas.drawPath(path, paint);
-      return;
-    }
-    final marks = switch (style) {
-      FortuneStrokeStyle.dashed => <double>[4 * strokeWidth, 2 * strokeWidth],
-      FortuneStrokeStyle.dotted => <double>[0, 3 * strokeWidth],
-      FortuneStrokeStyle.dashDot => <double>[
-        4 * strokeWidth,
-        2 * strokeWidth,
-        0,
-        3 * strokeWidth,
-      ],
-      FortuneStrokeStyle.solid => const <double>[],
-    };
-    for (final metric in path.computeMetrics()) {
-      var distance = 0.0;
-      var markIndex = 0;
-      while (distance <= metric.length) {
-        final markLength = marks[markIndex % marks.length];
-        final gapLength = marks[(markIndex + 1) % marks.length];
-        if (markLength == 0) {
-          final tangent = metric.getTangentForOffset(distance);
-          if (tangent != null) {
-            canvas.drawCircle(tangent.position, strokeWidth / 2, Paint()..color = color);
-          }
-        } else {
-          canvas.drawPath(
-            metric.extractPath(distance, math.min(metric.length, distance + markLength)),
-            paint,
-          );
-        }
-        distance += markLength + gapLength;
-        markIndex += 2;
-      }
-    }
-  }
-
-  Color _fortuneObjectColor(String value) {
-    return Color(0xff000000 | int.parse(value.substring(1), radix: 16));
   }
 
   void _drawRawShapeOverlays(

@@ -142,6 +142,28 @@ void main() {
     expect(capture, isNotNull);
     expect(capture!.pixelSize.width, greaterThan(20));
     expect(capture.pixelSize.height, greaterThan(20));
+    final reversedCapture = await tester.runAsync(
+      () => controller.captureRangeAsPng(
+        const FortuneRange(
+          rowStart: 1,
+          rowEnd: 0,
+          columnStart: 1,
+          columnEnd: 0,
+        ),
+      ),
+    );
+    expect(reversedCapture?.logicalSize, capture.logicalSize);
+    final outsideCapture = await tester.runAsync(
+      () => controller.captureRangeAsPng(
+        const FortuneRange(
+          rowStart: 5,
+          rowEnd: 6,
+          columnStart: 5,
+          columnEnd: 6,
+        ),
+      ),
+    );
+    expect(outsideCapture, isNull);
 
     final pixels = await tester.runAsync(() => _decodeRawRgba(capture.pngBytes));
     expect(pixels, isNotNull);
@@ -336,5 +358,80 @@ void main() {
 
     expect(_hasDarkPixelNear(pixels!, width, height, width - 1, height ~/ 2), isTrue);
     expect(_hasDarkPixelNear(pixels, width, height, width ~/ 2, height - 1), isTrue);
+  });
+
+  testWidgets('print capture includes typed lines and shapes', (tester) async {
+    tester.view.physicalSize = const Size(240, 180);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    final controller = FortuneSheetController();
+    final workbook = FortuneWorkbook(
+      settings: const FortuneSettings(
+        defaultRowHeight: 20,
+        defaultColWidth: 20,
+      ),
+      sheets: [
+        FortuneSheet(
+          id: 's1',
+          name: 'Sheet1',
+          rowCount: 2,
+          columnCount: 2,
+          lines: [
+            FortuneLine(
+              id: 'line_1',
+              x1: 2,
+              y1: 10,
+              x2: 18,
+              y2: 10,
+              strokeWidthMm: 1,
+            ),
+          ],
+          shapes: [
+            FortuneShape(
+              id: 'shape_1',
+              kind: FortuneShapeKind.rectangle,
+              left: 24,
+              top: 24,
+              width: 10,
+              height: 10,
+              fillColor: '#000000',
+            ),
+          ],
+        ),
+      ],
+    );
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: SizedBox(
+          width: 240,
+          height: 180,
+          child: FortuneSheetCanvas(
+            workbook: workbook,
+            controller: controller,
+          ),
+        ),
+      ),
+    );
+    final capture = await tester.runAsync(
+      () => controller.captureRangeAsPng(
+        const FortuneRange(
+          rowStart: 0,
+          rowEnd: 1,
+          columnStart: 0,
+          columnEnd: 1,
+        ),
+        includeGridLines: false,
+        includeCellBorders: false,
+        includeLabelAreaBoundary: false,
+      ),
+    );
+    expect(capture, isNotNull);
+    final pixels = await tester.runAsync(() => _decodeRawRgba(capture!.pngBytes));
+    expect(_hasDarkPixelNear(pixels!, capture!.pixelSize.width.toInt(), capture.pixelSize.height.toInt(), 10, 10), isTrue);
+    expect(_isBlack(pixels, capture.pixelSize.width.toInt(), 29, 29), isTrue);
   });
 }
