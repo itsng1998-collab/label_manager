@@ -2290,6 +2290,7 @@ const String fortuneToolbarRectangleCommand = 'rectangle';
 const String fortuneToolbarRoundedRectangleCommand = 'rounded-rectangle';
 const String fortuneToolbarEllipseCommand = 'ellipse';
 const String fortuneToolbarShapeInsertCommand = 'shape-insert';
+const String fortuneToolbarObjectPanelCommand = 'object-panel';
 const List<String> fortuneToolbarShapePopupCommands = [
   fortuneToolbarRectangleCommand,
   fortuneToolbarRoundedRectangleCommand,
@@ -2569,6 +2570,7 @@ const List<String> fortuneToolbarImmediateCommands = [
   fortuneToolbarBarcodeCommand,
   fortuneToolbarLineCommand,
   fortuneToolbarShapeCommand,
+  fortuneToolbarObjectPanelCommand,
   fortuneToolbarRectangleCommand,
   fortuneToolbarRoundedRectangleCommand,
   fortuneToolbarEllipseCommand,
@@ -43421,6 +43423,7 @@ const Map<String, String> fortuneToolbarTooltipLabels = {
   fortuneToolbarRoundedRectangleCommand: 'Insert rounded rectangle',
   fortuneToolbarEllipseCommand: 'Insert ellipse',
   fortuneToolbarShapeInsertCommand: 'Insert',
+  fortuneToolbarObjectPanelCommand: 'Objects',
   fortuneToolbarCommentCommand: 'Comment',
   fortuneToolbarQuickFormulaPopupKey: 'Auto SUM',
   fortuneToolbarDataVerificationCommand: 'Data verification',
@@ -44792,9 +44795,23 @@ FortuneSheetObjectKey? fortuneSheetObjectKeyAtLogicalPosition(
   Offset position, {
   double zoomRatio = 1,
 }) {
+  final keys = fortuneSheetObjectKeysAtLogicalPosition(
+    sheet,
+    position,
+    zoomRatio: zoomRatio,
+  );
+  return keys.isEmpty ? null : keys.last;
+}
+
+List<FortuneSheetObjectKey> fortuneSheetObjectKeysAtLogicalPosition(
+  FortuneSheet sheet,
+  Offset position, {
+  double zoomRatio = 1,
+}) {
   final effectiveZoom = zoomRatio > 0 && zoomRatio.isFinite ? zoomRatio : 1.0;
   final objects = fortuneSheetObjectsInPaintOrder(sheet);
-  for (final object in objects.reversed) {
+  final keys = <FortuneSheetObjectKey>[];
+  for (final object in objects) {
     if (object.sourceIndex < sheet.images.length) {
       final image = sheet.images[object.sourceIndex];
       if (Rect.fromLTWH(
@@ -44803,7 +44820,7 @@ FortuneSheetObjectKey? fortuneSheetObjectKeyAtLogicalPosition(
         image.width,
         image.height,
       ).contains(position)) {
-        return object.key;
+        keys.add(object.key);
       }
       continue;
     }
@@ -44823,7 +44840,7 @@ FortuneSheetObjectKey? fortuneSheetObjectKeyAtLogicalPosition(
             Offset(line.x2, line.y2),
           ) <=
           tolerance) {
-        return object.key;
+        keys.add(object.key);
       }
       continue;
     }
@@ -44837,10 +44854,10 @@ FortuneSheetObjectKey? fortuneSheetObjectKeyAtLogicalPosition(
     final inside = fortuneShapeContainsLocalPosition(shape, local);
     if (shape.fillColor != null && inside ||
         fortuneDistanceToShapeBoundary(shape, local) <= tolerance) {
-      return object.key;
+      keys.add(object.key);
     }
   }
-  return null;
+  return keys;
 }
 
 double fortuneDistanceToLineSegment(Offset point, Offset start, Offset end) {

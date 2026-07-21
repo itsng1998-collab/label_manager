@@ -5,10 +5,18 @@ class VerticalPaneSplitter extends StatelessWidget {
     super.key,
     required this.width,
     required this.onDrag,
+    this.onDragStart,
+    this.onDragEnd,
+    this.onDragCancel,
+    this.onDoubleTap,
   });
 
   final double width;
   final ValueChanged<double> onDrag;
+  final VoidCallback? onDragStart;
+  final VoidCallback? onDragEnd;
+  final VoidCallback? onDragCancel;
+  final VoidCallback? onDoubleTap;
 
   @override
   Widget build(BuildContext context) {
@@ -16,7 +24,11 @@ class VerticalPaneSplitter extends StatelessWidget {
       cursor: SystemMouseCursors.resizeLeftRight,
       child: GestureDetector(
         behavior: HitTestBehavior.translucent,
+        onHorizontalDragStart: (_) => onDragStart?.call(),
         onHorizontalDragUpdate: (details) => onDrag(details.delta.dx),
+        onHorizontalDragEnd: (_) => onDragEnd?.call(),
+        onHorizontalDragCancel: onDragCancel,
+        onDoubleTap: onDoubleTap,
         child: Container(
           width: width,
           decoration: BoxDecoration(

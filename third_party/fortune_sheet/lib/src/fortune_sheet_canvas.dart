@@ -31,6 +31,7 @@ Widget _fortuneEditableTextContextMenuBuilder(
     editableTextState: editableTextState,
   );
 }
+enum FortuneObjectDropSide { before, after }
 
 double? fortuneOutputLineHeight(double? stored, double? override) {
   if (override != null && override.isFinite && override > 0) {
@@ -1069,10 +1070,74 @@ class FortuneImagePickResult {
   final int? height;
 }
 
-class FortuneSheetController {
+class FortuneObjectSelectionSnapshot {
+  FortuneObjectSelectionSnapshot({
+    required this.attached,
+    this.sheetId,
+    this.activeKey,
+    Iterable<FortuneSheetObjectKey> selectedKeys = const [],
+    Iterable<FortuneSheetObjectRef> objects = const [],
+  }) : selectedKeys = Set<FortuneSheetObjectKey>.unmodifiable(selectedKeys),
+      objects = List<FortuneSheetObjectRef>.unmodifiable(objects);
+
+  final bool attached;
+  final String? sheetId;
+  final FortuneSheetObjectKey? activeKey;
+  final Set<FortuneSheetObjectKey> selectedKeys;
+  final List<FortuneSheetObjectRef> objects;
+}
+
+class FortuneSheetController extends ChangeNotifier {
   _FortuneSheetCanvasState? _state;
+  bool _disposed = false;
+  FortuneObjectSelectionSnapshot _objectSelection =
+      FortuneObjectSelectionSnapshot(attached: false);
 
   bool get isAttached => _state != null;
+  FortuneObjectSelectionSnapshot get objectSelection => _objectSelection;
+
+  void selectObject(FortuneSheetObjectKey key) {
+    _state?._selectObjectFromController(key);
+  }
+
+  void toggleObject(FortuneSheetObjectKey key) {
+    _state?._toggleObjectFromController(key);
+  }
+
+  void selectObjectRange(FortuneSheetObjectKey key) {
+    _state?._selectObjectRangeFromController(key);
+  }
+
+  void selectAllObjects() {
+    _state?._selectAllObjectsFromController();
+  }
+
+  void deleteSelectedObjects() {
+    _state?._deleteSelectedObjectsFromController();
+  }
+
+  void bringSelectedObjectsToFront() {
+    _state?._moveSelectedObjectsToBoundary(front: true);
+  }
+
+  void bringSelectedObjectsForward() {
+    _state?._moveSelectedObjectsOneStep(front: true);
+  }
+
+  void sendSelectedObjectsBackward() {
+    _state?._moveSelectedObjectsOneStep(front: false);
+  }
+
+  void sendSelectedObjectsToBack() {
+    _state?._moveSelectedObjectsToBoundary(front: false);
+  }
+
+  void reorderSelectedObjects(
+    FortuneSheetObjectKey target,
+    FortuneObjectDropSide side,
+  ) {
+    _state?._reorderSelectedObjects(target, side);
+  }
 
   void handleUndo() {
     _state?._undoWorkbookChange();
@@ -2245,13 +2310,39 @@ class FortuneSheetController {
   }
 
   void _attach(_FortuneSheetCanvasState state) {
+    _validateAttach(state);
     _state = state;
+    _setObjectSelection(state._objectSelectionSnapshot(attached: true));
+  }
+
+  void _validateAttach(_FortuneSheetCanvasState state) {
+    if (_disposed) {
+      throw StateError('Cannot attach a disposed FortuneSheetController.');
+    }
+    if (_state != null && _state != state) {
+      throw StateError('FortuneSheetController is already attached.');
+    }
   }
 
   void _detach(_FortuneSheetCanvasState state) {
     if (_state == state) {
       _state = null;
+      _setObjectSelection(FortuneObjectSelectionSnapshot(attached: false));
     }
+  }
+
+  void _setObjectSelection(FortuneObjectSelectionSnapshot snapshot) {
+    _objectSelection = snapshot;
+    notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    if (_state != null) {
+      throw StateError('Detach FortuneSheetController before disposing it.');
+    }
+    _disposed = true;
+    super.dispose();
   }
 }
 
@@ -2375,6 +2466,7 @@ class FortuneSheetCanvas extends StatefulWidget {
     this.barcodeObjectOptions = const <FortuneObjectConnectionOption>[],
     this.onChange,
     this.onOp,
+    this.onOpenObjectPanel,
     this.locale = const FortuneSheetLocale(),
     super.key,
   });
@@ -2393,6 +2485,7 @@ class FortuneSheetCanvas extends StatefulWidget {
   final List<FortuneObjectConnectionOption> barcodeObjectOptions;
   final ValueChanged<FortuneWorkbook>? onChange;
   final FortuneOpCallback? onOp;
+  final VoidCallback? onOpenObjectPanel;
   final FortuneSheetLocale locale;
 
   @override
@@ -2867,6 +2960,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   bool _sheetCornerTooltipDismissedUntilExit = false;
   String? _activeImageId;
   FortuneSheetObjectKey? _activeObjectKey;
+    Set<FortuneSheetObjectKey> _selectedObjectKeys = <FortuneSheetObjectKey>{};
+    FortuneSheetObjectKey? _objectSelectionAnchorKey;
   FortuneSheetObjectKey? _typedObjectMoveKey;
   Offset? _typedObjectMoveStart;
   FortuneLine? _typedObjectMoveInitialLine;
@@ -3157,7 +3252,6 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   @override
   void initState() {
     super.initState();
-    widget.controller?._attach(this);
     _workbook = _effectiveWorkbook(widget.workbook);
     selection = _selectionFromSheet(_workbook.activeSheet);
     _editorController.addListener(_handleEditorValueChanged);
@@ -3177,6 +3271,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       node.addListener(_handleContextMenuInlineInputFocusChanged);
     }
     _recalculateWorkbookFormulas();
+    widget.controller?._attach(this);
     _loadAvailableFontFamilies();
     _scheduleImageDecodes();
     _notifyWorkbookChangedAfterFrame();
@@ -3567,7 +3662,18 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     final previousWorkbook = _cloneWorkbook(_workbook);
     final previousSheetId = _workbook.activeSheet.id;
     final previousSelection = selection;
-    super.setState(fn);
+    final previousObjectSelection = _objectSelectionSnapshot(attached: true);
+    super.setState(() {
+      fn();
+      if (previousSheetId != _workbook.activeSheet.id) {
+        _selectedObjectKeys = <FortuneSheetObjectKey>{};
+        _objectSelectionAnchorKey = null;
+        _activeObjectKey = null;
+        _activeImageId = null;
+        _selectedImageIds = <String>{};
+      }
+      _reconcileObjectSelectionState();
+    });
     if (_workbookJsonChanged(previousWorkbook, _workbook)) {
       _queueOrNotifyWorkbookChanged(
         _workbook,
@@ -3577,6 +3683,10 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     if (previousSheetId != _workbook.activeSheet.id ||
         !_sameSelection(previousSelection, selection)) {
       _queueOrNotifySelectionChanged(previousSheetId, previousSelection);
+    }
+    final nextObjectSelection = _objectSelectionSnapshot(attached: true);
+    if (!_sameObjectSelection(previousObjectSelection, nextObjectSelection)) {
+      widget.controller?._setObjectSelection(nextObjectSelection);
     }
   }
 
@@ -3688,6 +3798,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   void didUpdateWidget(covariant FortuneSheetCanvas oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.controller != widget.controller) {
+      widget.controller?._validateAttach(this);
       oldWidget.controller?._detach(this);
       widget.controller?._attach(this);
     }
@@ -7399,6 +7510,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       if ((event.buttons & kSecondaryMouseButton) != 0 && image != null) {
         final menuItems = _contextMenuItemsForImage(image);
         setState(() {
+          _activeObjectKey = null;
           _activeImageId = imageId;
           _selectedImageIds = <String>{imageId};
           _contextMenuImageId = imageId;
@@ -14947,6 +15059,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         break;
       case fortuneToolbarLineCommand:
         _activateGeometryInsertionMode();
+        break;
+      case fortuneToolbarObjectPanelCommand:
+        widget.onOpenObjectPanel?.call();
         break;
       case fortuneToolbarRectangleCommand:
         _activateGeometryInsertionMode(FortuneShapeKind.rectangle);
@@ -25421,6 +25536,384 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     _typedObjectMoveOwnerSheetId = null;
   }
 
+  FortuneObjectSelectionSnapshot _objectSelectionSnapshot({
+    required bool attached,
+  }) {
+    final objects = fortuneSheetObjectsInPaintOrder(_workbook.activeSheet);
+    final objectKeys = objects.map((object) => object.key).toSet();
+    final typedKey = _activeObjectKey;
+    if (typedKey != null) {
+      final selectedKeys = _selectedObjectKeys.contains(typedKey)
+          ? _selectedObjectKeys.intersection(objectKeys)
+          : <FortuneSheetObjectKey>{typedKey};
+      return FortuneObjectSelectionSnapshot(
+        attached: attached,
+        sheetId: _workbook.activeSheet.id,
+        activeKey: typedKey,
+        selectedKeys: selectedKeys,
+        objects: objects,
+      );
+    }
+    final imageKeys = <FortuneSheetObjectKey>{};
+    FortuneSheetObjectKey? activeImageKey;
+    for (final image in _workbook.activeSheet.images) {
+      if (!_selectedImageIds.contains(image.id) && image.id != _activeImageId) {
+        continue;
+      }
+      final key = FortuneSheetObjectKey(fortuneImageObjectKind(image), image.id);
+      if (_selectedImageIds.contains(image.id)) {
+        imageKeys.add(key);
+      }
+      if (image.id == _activeImageId) {
+        activeImageKey = key;
+        imageKeys.add(key);
+      }
+    }
+    return FortuneObjectSelectionSnapshot(
+      attached: attached,
+      sheetId: _workbook.activeSheet.id,
+      activeKey: activeImageKey,
+      selectedKeys:
+          _selectedObjectKeys.contains(activeImageKey) && activeImageKey != null
+          ? _selectedObjectKeys.intersection(objectKeys)
+          : imageKeys,
+      objects: objects,
+    );
+  }
+
+  List<FortuneSheetObjectKey> _objectKeysFrontToBack() {
+    return fortuneSheetObjectsInPaintOrder(
+      _workbook.activeSheet,
+    ).reversed.map((object) => object.key).toList(growable: false);
+  }
+
+  void _applyExactObjectSelection(
+    Set<FortuneSheetObjectKey> selectedKeys,
+    FortuneSheetObjectKey? activeKey, {
+    FortuneSheetObjectKey? anchorKey,
+  }) {
+    final existingOrder = _objectKeysFrontToBack();
+    final existing = existingOrder.toSet();
+    final nextSelected = selectedKeys.intersection(existing);
+    var nextActive = activeKey;
+    if (nextSelected.isEmpty) {
+      nextActive = null;
+    } else if (nextActive == null || !nextSelected.contains(nextActive)) {
+      nextActive = existingOrder.firstWhere(nextSelected.contains);
+    }
+    _selectedObjectKeys = nextSelected;
+    _objectSelectionAnchorKey = anchorKey != null && existing.contains(anchorKey)
+        ? anchorKey
+        : nextActive;
+    if (nextActive == null) {
+      _activeObjectKey = null;
+      _activeImageId = null;
+      _selectedImageIds = <String>{};
+      return;
+    }
+    _selectedImageIds = nextSelected
+        .where(
+          (key) =>
+              key.kind == FortuneSheetObjectKind.image ||
+              key.kind == FortuneSheetObjectKind.barcode,
+        )
+        .map((key) => key.id)
+        .toSet();
+    if (nextActive.kind == FortuneSheetObjectKind.image ||
+        nextActive.kind == FortuneSheetObjectKind.barcode) {
+      _activeObjectKey = null;
+      _activeImageId = nextActive.id;
+      _selectedImageIds.add(nextActive.id);
+    } else {
+      _activeObjectKey = nextActive;
+      _activeImageId = null;
+    }
+  }
+
+  void _selectObjectFromController(FortuneSheetObjectKey key) {
+    final exists = fortuneSheetObjectsInPaintOrder(
+      _workbook.activeSheet,
+    ).any((object) => object.key == key);
+    if (!exists) {
+      return;
+    }
+    setState(() {
+      _applyExactObjectSelection(<FortuneSheetObjectKey>{key}, key);
+      _closeTransientMenus();
+    });
+  }
+
+  void _toggleObjectFromController(FortuneSheetObjectKey key) {
+    final order = _objectKeysFrontToBack();
+    if (!order.contains(key)) {
+      return;
+    }
+    setState(() {
+      final selected = {..._objectSelectionSnapshot(attached: true).selectedKeys};
+      if (selected.contains(key)) {
+        if (selected.length > 1) {
+          selected.remove(key);
+        }
+      } else {
+        selected.add(key);
+      }
+      final active = selected.contains(key)
+          ? key
+          : order.firstWhere(selected.contains);
+      _applyExactObjectSelection(selected, active, anchorKey: key);
+      _closeTransientMenus();
+    });
+  }
+
+  void _selectObjectRangeFromController(FortuneSheetObjectKey key) {
+    final order = _objectKeysFrontToBack();
+    final anchor = _objectSelectionAnchorKey;
+    final anchorIndex = anchor == null ? -1 : order.indexOf(anchor);
+    final targetIndex = order.indexOf(key);
+    if (targetIndex < 0) {
+      return;
+    }
+    if (anchorIndex < 0) {
+      _selectObjectFromController(key);
+      return;
+    }
+    final start = math.min(anchorIndex, targetIndex);
+    final end = math.max(anchorIndex, targetIndex);
+    setState(() {
+      _applyExactObjectSelection(
+        order.sublist(start, end + 1).toSet(),
+        key,
+        anchorKey: anchor,
+      );
+      _closeTransientMenus();
+    });
+  }
+
+  void _selectAllObjectsFromController() {
+    final order = _objectKeysFrontToBack();
+    if (order.isEmpty) {
+      return;
+    }
+    setState(() {
+      _applyExactObjectSelection(order.toSet(), order.first);
+      _closeTransientMenus();
+    });
+  }
+
+  void _moveSelectedObjectsToBoundary({required bool front}) {
+    final order = _objectKeysFrontToBack();
+    final selected = _objectSelectionSnapshot(attached: true).selectedKeys;
+    if (selected.isEmpty) {
+      return;
+    }
+    final moving = order.where(selected.contains).toList(growable: false);
+    final remaining = order.where((key) => !selected.contains(key)).toList();
+    _commitObjectLayerOrder(
+      front
+          ? <FortuneSheetObjectKey>[...moving, ...remaining]
+          : [...remaining, ...moving],
+    );
+  }
+
+  void _moveSelectedObjectsOneStep({required bool front}) {
+    final order = _objectKeysFrontToBack();
+    final selected = _objectSelectionSnapshot(attached: true).selectedKeys;
+    if (selected.isEmpty || selected.length == order.length) {
+      return;
+    }
+    final next = [...order];
+    if (front) {
+      for (var index = 1; index < next.length; index += 1) {
+        if (selected.contains(next[index]) &&
+            !selected.contains(next[index - 1])) {
+          final item = next.removeAt(index);
+          next.insert(index - 1, item);
+        }
+      }
+    } else {
+      for (var index = next.length - 2; index >= 0; index -= 1) {
+        if (selected.contains(next[index]) &&
+            !selected.contains(next[index + 1])) {
+          final item = next.removeAt(index);
+          next.insert(index + 1, item);
+        }
+      }
+    }
+    _commitObjectLayerOrder(next);
+  }
+
+  void _reorderSelectedObjects(
+    FortuneSheetObjectKey target,
+    FortuneObjectDropSide side,
+  ) {
+    final order = _objectKeysFrontToBack();
+    final selected = _objectSelectionSnapshot(attached: true).selectedKeys;
+    if (selected.isEmpty || selected.contains(target)) {
+      return;
+    }
+    final moving = order.where(selected.contains).toList(growable: false);
+    final projected = order.where((key) => !selected.contains(key)).toList();
+    final targetIndex = projected.indexOf(target);
+    if (targetIndex < 0) {
+      return;
+    }
+    projected.insertAll(
+      targetIndex + (side == FortuneObjectDropSide.after ? 1 : 0),
+      moving,
+    );
+    _commitObjectLayerOrder(projected);
+  }
+
+  void _commitObjectLayerOrder(List<FortuneSheetObjectKey> frontToBack) {
+    if (!_workbook.settings.allowEdit) {
+      return;
+    }
+    final current = _objectKeysFrontToBack();
+    if (current.length != frontToBack.length ||
+        current.asMap().entries.every(
+          (entry) => entry.value == frontToBack[entry.key],
+        )) {
+      return;
+    }
+    final zOrders = <FortuneSheetObjectKey, double>{};
+    final backToFront = frontToBack.reversed.toList(growable: false);
+    for (var index = 0; index < backToFront.length; index += 1) {
+      zOrders[backToFront[index]] = index + 1.0;
+    }
+    final sheet = _workbook.activeSheet;
+    final sheets = [..._workbook.sheets];
+    _recordUndoSnapshot();
+    sheets[_workbook.activeSheetIndex] = sheet.copyWith(
+      images: sheet.images.map((image) {
+        final key = FortuneSheetObjectKey(
+          fortuneImageObjectKind(image),
+          image.id,
+        );
+        return image.copyWith(
+          extraFields: <String, Object?>{
+            ...image.extraFields,
+            fortuneSheetObjectZOrderExtraKey: zOrders[key],
+          },
+        );
+      }).toList(growable: false),
+      lines: sheet.lines.map((line) {
+        final key = FortuneSheetObjectKey(
+          FortuneSheetObjectKind.line,
+          line.id,
+        );
+        return line.copyWith(zOrder: zOrders[key]);
+      }).toList(growable: false),
+      shapes: sheet.shapes.map((shape) {
+        final key = FortuneSheetObjectKey(fortuneShapeObjectKind(shape), shape.id);
+        return shape.copyWith(zOrder: zOrders[key]);
+      }).toList(growable: false),
+    );
+    setState(() {
+      _workbook = _workbook.copyWith(sheets: sheets);
+      _closeTransientMenus();
+    });
+  }
+
+  void _deleteSelectedObjectsFromController() {
+    if (!_workbook.settings.allowEdit) {
+      return;
+    }
+    final snapshot = _objectSelectionSnapshot(attached: true);
+    final selected = snapshot.selectedKeys;
+    final active = snapshot.activeKey;
+    if (selected.isEmpty || active == null) {
+      return;
+    }
+    final frontToBack = _objectKeysFrontToBack();
+    final activeIndex = frontToBack.indexOf(active);
+    final sheet = _workbook.activeSheet;
+    final nextImages = sheet.images.where((image) {
+      final key = FortuneSheetObjectKey(fortuneImageObjectKind(image), image.id);
+      return !selected.contains(key);
+    }).toList(growable: false);
+    final nextLines = sheet.lines.where((line) {
+      return !selected.contains(
+        FortuneSheetObjectKey(FortuneSheetObjectKind.line, line.id),
+      );
+    }).toList(growable: false);
+    final nextShapes = sheet.shapes.where((shape) {
+      return !selected.contains(
+        FortuneSheetObjectKey(fortuneShapeObjectKind(shape), shape.id),
+      );
+    }).toList(growable: false);
+    final remaining = frontToBack
+        .where((key) => !selected.contains(key))
+        .toList(growable: false);
+    final sheets = [..._workbook.sheets];
+    _recordUndoSnapshot();
+    sheets[_workbook.activeSheetIndex] = sheet.copyWith(
+      images: nextImages,
+      lines: nextLines,
+      shapes: nextShapes,
+    );
+    setState(() {
+      _workbook = _workbook.copyWith(sheets: sheets);
+      if (remaining.isEmpty) {
+        _applyExactObjectSelection(<FortuneSheetObjectKey>{}, null);
+      } else {
+        final nextIndex = math.min(math.max(activeIndex, 0), remaining.length - 1);
+        final nextKey = remaining[nextIndex];
+        _applyExactObjectSelection(
+          <FortuneSheetObjectKey>{nextKey},
+          nextKey,
+        );
+      }
+      _cancelTypedObjectMoveState();
+      _closeTransientMenus();
+    });
+  }
+
+  void _reconcileObjectSelectionState() {
+    final existingKeys = fortuneSheetObjectsInPaintOrder(
+      _workbook.activeSheet,
+    ).map((object) => object.key).toSet();
+    _selectedObjectKeys = _selectedObjectKeys.intersection(existingKeys);
+    if (_objectSelectionAnchorKey != null &&
+        !existingKeys.contains(_objectSelectionAnchorKey)) {
+      _objectSelectionAnchorKey = null;
+    }
+    if (_activeObjectKey != null &&
+        !existingKeys.contains(_activeObjectKey)) {
+      _activeObjectKey = null;
+    }
+    final existingImageIds = _workbook.activeSheet.images
+        .map((image) => image.id)
+        .toSet();
+    _selectedImageIds = _selectedImageIds.intersection(existingImageIds);
+    if (_activeImageId != null && !existingImageIds.contains(_activeImageId)) {
+      _activeImageId = null;
+    }
+    if (_activeObjectKey != null) {
+      _activeImageId = null;
+      _selectedImageIds = <String>{};
+    } else if (_activeImageId != null) {
+      _selectedImageIds = <String>{..._selectedImageIds, _activeImageId!};
+    }
+  }
+
+  bool _sameObjectSelection(
+    FortuneObjectSelectionSnapshot left,
+    FortuneObjectSelectionSnapshot right,
+  ) {
+    return left.attached == right.attached &&
+      left.sheetId == right.sheetId &&
+        left.activeKey == right.activeKey &&
+        left.selectedKeys.length == right.selectedKeys.length &&
+      left.selectedKeys.containsAll(right.selectedKeys) &&
+      left.objects.length == right.objects.length &&
+      left.objects.asMap().entries.every((entry) {
+        final other = right.objects[entry.key];
+        return entry.value.key == other.key &&
+          entry.value.zOrder == other.zOrder &&
+          entry.value.sourceIndex == other.sourceIndex;
+      });
+  }
+
   bool _commitLineInsertion(Offset local) {
     final start = _lineInsertionStart;
     if (start == null) {
@@ -25837,35 +26330,76 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     return null;
   }
 
-  bool _cycleActiveImageSelection({required bool reverse}) {
-    final imageId = _activeImageId;
-    final current = imageId == null ? null : _imageById(imageId);
-    if (current == null) {
+  bool _cycleActiveObjectSelection({required bool reverse}) {
+    final currentKey = _activeObjectKey ?? _activeImageObjectKey;
+    if (currentKey == null) {
       return false;
     }
-    final settings = _workbook.settings;
-    final center = _imageRect(current, settings).center;
-    final candidates = [
-      for (final image in fortuneImagesInPaintOrder(
-        _workbook.activeSheet.images,
-      ))
-        if (_imageRect(image, settings).contains(center)) image,
-    ];
+    final center = _objectLogicalCenter(currentKey);
+    if (center == null) {
+      return false;
+    }
+    final candidates = fortuneSheetObjectKeysAtLogicalPosition(
+      _workbook.activeSheet,
+      center,
+      zoomRatio: _workbook.activeSheet.zoomRatio,
+    );
     if (candidates.length < 2) {
       return false;
     }
-    final currentIndex = candidates.indexWhere((image) => image.id == imageId);
+    final currentIndex = candidates.indexOf(currentKey);
     if (currentIndex < 0) {
       return false;
     }
     final nextIndex = reverse
         ? (currentIndex + 1) % candidates.length
         : (currentIndex - 1 + candidates.length) % candidates.length;
+    final nextKey = candidates[nextIndex];
     setState(() {
-      _activeImageId = candidates[nextIndex].id;
+      if (nextKey.kind == FortuneSheetObjectKind.image ||
+          nextKey.kind == FortuneSheetObjectKind.barcode) {
+        _activeObjectKey = null;
+        _activeImageId = nextKey.id;
+        _selectedImageIds = <String>{nextKey.id};
+      } else {
+        _activeObjectKey = nextKey;
+        _activeImageId = null;
+        _selectedImageIds = <String>{};
+      }
       _closeTransientMenus();
     });
     return true;
+  }
+
+  FortuneSheetObjectKey? get _activeImageObjectKey {
+    final imageId = _activeImageId;
+    final image = imageId == null ? null : _imageById(imageId);
+    return image == null
+        ? null
+        : FortuneSheetObjectKey(fortuneImageObjectKind(image), image.id);
+  }
+
+  Offset? _objectLogicalCenter(FortuneSheetObjectKey key) {
+    final sheet = _workbook.activeSheet;
+    if (key.kind == FortuneSheetObjectKind.image ||
+        key.kind == FortuneSheetObjectKind.barcode) {
+      final image = sheet.images.where((item) => item.id == key.id).firstOrNull;
+      return image == null
+          ? null
+          : Offset(image.left + image.width / 2, image.top + image.height / 2);
+    }
+    if (key.kind == FortuneSheetObjectKind.line) {
+      final line = sheet.lines.where((item) => item.id == key.id).firstOrNull;
+      return line == null
+          ? null
+          : Offset((line.x1 + line.x2) / 2, (line.y1 + line.y2) / 2);
+    }
+    final shape = sheet.shapes.where((item) {
+      return item.id == key.id && fortuneShapeObjectKind(item) == key.kind;
+    }).firstOrNull;
+    return shape == null
+        ? null
+        : Offset(shape.left + shape.width / 2, shape.top + shape.height / 2);
   }
 
   String? _activeImageToolbarCommandAt(Offset local, FortuneSettings settings) {
@@ -34144,7 +34678,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       return;
     }
     if (event.logicalKey == LogicalKeyboardKey.tab &&
-        _cycleActiveImageSelection(
+        _cycleActiveObjectSelection(
           reverse: HardwareKeyboard.instance.isShiftPressed,
         )) {
       return;
@@ -34166,6 +34700,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         event.logicalKey == LogicalKeyboardKey.backspace;
     if (isDeleteKey && _workbook.settings.limitCellActionsToClipboardAndClear) {
       _clearSelection();
+      return;
+    }
+    if (isDeleteKey && _deleteActiveTypedObject()) {
       return;
     }
     if (isDeleteKey && _deleteActiveImage()) {
@@ -34726,6 +35263,40 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     }
     setState(() {
       _workbook = _workbook.copyWith(sheets: sheets);
+      _closeTransientMenus();
+    });
+    return true;
+  }
+
+  bool _deleteActiveTypedObject() {
+    final key = _activeObjectKey;
+    if (key == null || !_workbook.settings.allowEdit) {
+      return false;
+    }
+    final sheet = _workbook.activeSheet;
+    final nextLines = key.kind == FortuneSheetObjectKind.line
+        ? sheet.lines.where((line) => line.id != key.id).toList(growable: false)
+        : sheet.lines;
+    final nextShapes = key.kind == FortuneSheetObjectKind.line
+        ? sheet.shapes
+        : sheet.shapes.where((shape) {
+            return shape.id != key.id ||
+                fortuneShapeObjectKind(shape) != key.kind;
+          }).toList(growable: false);
+    if (nextLines.length == sheet.lines.length &&
+        nextShapes.length == sheet.shapes.length) {
+      return false;
+    }
+    final sheets = [..._workbook.sheets];
+    _recordUndoSnapshot();
+    sheets[_workbook.activeSheetIndex] = sheet.copyWith(
+      lines: nextLines,
+      shapes: nextShapes,
+    );
+    setState(() {
+      _workbook = _workbook.copyWith(sheets: sheets);
+      _activeObjectKey = null;
+      _cancelTypedObjectMoveState();
       _closeTransientMenus();
     });
     return true;

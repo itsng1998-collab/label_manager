@@ -27,6 +27,7 @@ import 'package:label_manager/printing/raw_printer_win32.dart';
 import 'package:label_manager/utils/log_context.dart';
 import 'package:label_manager/utils/on_messages.dart';
 import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
+import 'package:label_manager/widgets/vertical_pane_splitter.dart';
 import 'package:path/path.dart' as p;
 import 'package:printing/printing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -238,6 +239,7 @@ const List<String> labelSheetToolbarItems = [
   fortuneToolbarBarcodeCommand,
   fortuneToolbarLineCommand,
   fortuneToolbarShapeCommand,
+  fortuneToolbarObjectPanelCommand,
 ];
 
 const Map<String, int> _labelSheetBarcodeFormatValues = {
@@ -2069,6 +2071,13 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
   bool _initialWorkbookOpsSettled = false;
   bool _initialZoomSynced = false;
   bool _printSettingsDialogOpen = false;
+  static const String _objectPanelWidthPreferenceKey =
+      'label_sheet_object_panel_width';
+  bool _userWantsObjectDockOpen = true;
+  bool _objectOverlayOpen = false;
+  bool _objectDockEligible = true;
+  double _objectPanelWidth = 300;
+  double? _objectPanelDragStartWidth;
   BuildContext? _printSettingsDialogContext;
   VoidCallback? _rebuildPrintSettingsDialog;
   String _printAutoSpacing = 'none';
@@ -2160,6 +2169,50 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     );
   }
 
+  void _openObjectPanel() {
+    if (_objectDockEligible && _userWantsObjectDockOpen ||
+        !_objectDockEligible && _objectOverlayOpen) {
+      return;
+    }
+    setState(() {
+      if (_objectDockEligible) {
+        _userWantsObjectDockOpen = true;
+      } else {
+        _objectOverlayOpen = true;
+      }
+    });
+  }
+
+  void _closeObjectPanel() {
+    if (_objectDockEligible && !_userWantsObjectDockOpen ||
+        !_objectDockEligible && !_objectOverlayOpen) {
+      return;
+    }
+    setState(() {
+      if (_objectDockEligible) {
+        _userWantsObjectDockOpen = false;
+      } else {
+        _objectOverlayOpen = false;
+      }
+    });
+  }
+
+  Future<void> _loadObjectPanelWidth() async {
+    final prefs = await SharedPreferences.getInstance();
+    final width = prefs.getDouble(_objectPanelWidthPreferenceKey);
+    if (!mounted || width == null || _objectPanelDragStartWidth != null) {
+      return;
+    }
+    setState(() {
+      _objectPanelWidth = width.clamp(260.0, 420.0);
+    });
+  }
+
+  Future<void> _saveObjectPanelWidth() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_objectPanelWidthPreferenceKey, _objectPanelWidth);
+  }
+
   void _notifyGridRectChanged(
     Size size,
     FortuneWorkbook workbook,
@@ -2240,6 +2293,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       ..addListener(_handleZoomFocusChanged)
       ..onKeyEvent = _handleZoomInputKeyEvent;
     WidgetsBinding.instance.addObserver(this);
+    unawaited(_loadObjectPanelWidth());
   }
 
   @override
@@ -3646,6 +3700,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
                 });
                 widget.onDirtyChanged?.call(true);
               },
+              onOpenObjectPanel: _openObjectPanel,
               locale: _locale,
               barcodeRenderer: labelSheetBarcodeRenderer,
               barcodeFormats: labelSheetBarcodeFormats,
@@ -3657,8 +3712,30 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
               showFormulaBar: false,
               showSheetTabs: false,
             );
+            _objectDockEligible = constraints.maxWidth >= 760;
+            final maximumDockPanelWidth = math.min(
+              420.0,
+              constraints.maxWidth - 480 - 8,
+            );
+            final dockPanelWidth = _objectPanelWidth.clamp(
+              260.0,
+              math.max(260.0, maximumDockPanelWidth),
+            ).toDouble();
+            final dockObjectPanel =
+                _objectDockEligible && _userWantsObjectDockOpen;
+            final overlayObjectPanel =
+                !_objectDockEligible && _objectOverlayOpen;
+            final overlayPanelWidth = math.min(300.0, constraints.maxWidth);
+            final sheetViewportSize = Size(
+              math.max(
+                0,
+                constraints.maxWidth -
+                    (dockObjectPanel ? dockPanelWidth + 8 : 0),
+              ),
+              constraints.maxHeight,
+            );
             _notifyGridRectChanged(
-              constraints.biggest,
+              sheetViewportSize,
               workbook,
               sheetSettings,
             );
@@ -3667,7 +3744,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
                 _syncZoomToolbarFloatingOverlay();
               }
             });
-            return CompositedTransformTarget(
+            final sheetSurface = CompositedTransformTarget(
               link: _zoomToolbarLayerLink,
               child: Stack(
                 fit: StackFit.expand,
@@ -3686,6 +3763,83 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
                 ],
               ),
             );
+            if (dockObjectPanel) {
+              return Row(
+                children: [
+                  Expanded(child: sheetSurface),
+                  VerticalPaneSplitter(
+                    width: 8,
+                    onDragStart: () {
+                      _objectPanelDragStartWidth = _objectPanelWidth;
+                    },
+                    onDrag: (delta) {
+                      setState(() {
+                        _objectPanelWidth = (_objectPanelWidth - delta).clamp(
+                          260.0,
+                          math.max(260.0, maximumDockPanelWidth),
+                        );
+                      });
+                    },
+                    onDragEnd: () {
+                      final startWidth = _objectPanelDragStartWidth;
+                      _objectPanelDragStartWidth = null;
+                      if (startWidth != null && startWidth != _objectPanelWidth) {
+                        unawaited(_saveObjectPanelWidth());
+                      }
+                    },
+                    onDragCancel: () {
+                      final startWidth = _objectPanelDragStartWidth;
+                      _objectPanelDragStartWidth = null;
+                      if (startWidth != null) {
+                        setState(() {
+                          _objectPanelWidth = startWidth;
+                        });
+                      }
+                    },
+                    onDoubleTap: () {
+                      setState(() {
+                        _objectPanelWidth = 300.0.clamp(
+                          260.0,
+                          math.max(260.0, maximumDockPanelWidth),
+                        );
+                      });
+                      unawaited(_saveObjectPanelWidth());
+                    },
+                  ),
+                  SizedBox(
+                    width: dockPanelWidth,
+                    child: FortuneObjectLayerPanel(
+                      controller: _controller,
+                      onClose: _closeObjectPanel,
+                    ),
+                  ),
+                ],
+              );
+            }
+            if (overlayObjectPanel) {
+              return Stack(
+                fit: StackFit.expand,
+                children: [
+                  sheetSurface,
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: _closeObjectPanel,
+                    child: const ColoredBox(color: Color(0x33000000)),
+                  ),
+                  Positioned(
+                    top: 0,
+                    right: 0,
+                    bottom: 0,
+                    width: overlayPanelWidth,
+                    child: FortuneObjectLayerPanel(
+                      controller: _controller,
+                      onClose: _closeObjectPanel,
+                    ),
+                  ),
+                ],
+              );
+            }
+            return sheetSurface;
           },
         );
       },
