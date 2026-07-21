@@ -1,3 +1,12 @@
+### 완료 (2026-07-21): 선·도형 지시서 selection anchor·후속 선택 보완
+- 사용자 요청: 최신 `doc/label_line_panel.txt` 재검토에서 확인한 active/selected 불변식, Shift 범위 anchor와 delete/cut 후속 선택 권장안을 병합하고 필요한 정책은 즉시 확정한다.
+- 추가 사용자 확인 불필요: 기존 panel의 마지막 선택 toggle 유지, pointer 복합 modifier 우선순위, Ctrl+A frontmost 선택과 delete의 표시 index clamp 동작을 기준으로 통일했다. additive range 같은 신규 UX는 추가하지 않고 keyboard Ctrl/Meta layer command chord도 유지했다.
+- selection 불변식 보완 완료: 모든 진입점에서 selected empty/active null 동치와 non-empty selected의 active 포함을 공용 helper가 보장한다. active toggle 해제 뒤에는 남은 front-to-back 첫 selected key를 active로 정하고 마지막 하나는 기존대로 단일 재선택한다.
+- range anchor 보완 완료: panel pointer/keyboard가 exact typed anchor를 공유하고 연속 Shift 동안 유지한다. Ctrl/Meta pointer toggle, Ctrl+A, secondary click과 새 후속 단일 선택의 anchor 갱신, reorder 유지·삭제 fallback을 명시했다. pointer `Shift+Ctrl/Meta`는 Shift를 우선하되 keyboard Ctrl/Meta+D/Up/Down/Home/End command chord는 range로 재해석하지 않는다.
+- delete/cut 보완 완료: delete는 command 직전, async cut은 호출 시점 active exact key와 front-to-back 표시 index를 사용해 제거 뒤 같은 index·마지막·empty 순으로 동일한 후속 단일 선택과 anchor를 만든다. cut 실패·stale 결과는 source와 현재 selection을 유지한다.
+- 테스트 계약 보완 완료: active toggle 불변식과 후속 command 대상, pointer/keyboard 연속 Shift, pointer 복합 modifier와 keyboard command 소유권, Ctrl+A·secondary click·reorder anchor, 첫/중간/마지막·mixed delete/cut과 async 실패·stale 결과를 판별한다.
+- stage/commit 대상: `doc/label_line_panel.txt`, `SESSION_HANDOFF.md`만 포함한다. 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
+
 ### 완료 (2026-07-21): 선·도형 지시서 integration trust·validation 경계 보완
 - 사용자 요청: 최신 `doc/label_line_panel.txt` 재검토에서 확인한 연결 후보, `initialWorkbook` 신뢰 경계와 package별 검증 게이트 권장안을 병합하고 필요한 정책은 즉시 확정한다.
 - 추가 사용자 확인 불필요: 현재 생성 dialog의 effective ID 호환 동작, Workbench 호출 경로별 decode/normalize 책임과 루트/벤더의 독립 `pubspec.yaml`로 결과를 결정했다. structured options authoritative 전환이나 모든 typed workbook의 save normalize 같은 호환 변경은 추가하지 않았다.
