@@ -220,7 +220,7 @@ FortuneShapeKind.ellipse          <-> "ellipse"
 - `rotationDegrees`, `cornerRadiusMm`가 없거나 유한하지 않으면 각 기본값을 사용한다.
 - 빈 `fortuneShapes`는 기존 파일과 같은 결과를 만들며 images/lines decoding에 영향을 주지 않는다.
 - 지원하지 않는 shape extra field의 round-trip/sanitizer 경계는 line과 같다.
-- 기존 sheet-level `shapes` map/list는 FortuneSheet raw shape overlay wire이므로 신규 typed shape로 decode하거나 migrate하지 않고 `extraFields['shapes']`에 원형 보존한다. 기존 painter·capture 동작도 유지하며 `fortuneShapes`와 동시에 존재해도 어느 한쪽을 덮어쓰지 않는다. legacy raw overlay는 이번 통합 object 선택·편집·공통 zOrder 대상이 아니며 기존 overlay 렌더 순서를 유지한다.
+- 기존 sheet-level `shapes` map/list는 FortuneSheet raw shape overlay wire이므로 신규 typed shape로 decode하거나 migrate하지 않고 `extraFields['shapes']`에 원형 보존한다. 기존 painter·capture 동작도 유지하며 `fortuneShapes`와 동시에 존재해도 어느 한쪽을 덮어쓰지 않는다. 화면 합성은 `cell base → image/barcode/line/fortuneShape typed 공통 object layer → legacy raw overlay → editor UI overlay`, 모든 capture 합성은 editor UI를 제외한 `cell base → typed 공통 object layer → legacy raw overlay` 순서로 고정한다. legacy raw overlay는 이번 통합 object 선택·편집·공통 zOrder·typed hit-test 대상이 아니며 raw `zIndex`는 legacy overlay끼리의 기존 순서에만 사용한다.
 - active sheet 안에서 typed key의 같은 kind별 내부 `id`는 유일해야 한다. codec/외부 workbook normalize는 재발급 전에 kind별 모든 원본 ID를 예약하고 공통 source sequence의 첫 `(kind, id)` entry를 유지한다. 후속 중복 entry에는 전체 원본 ID 집합과 이미 발급한 ID를 모두 피해 `{원본 id}__2`, `__3`, ... 형식의 첫 사용 가능한 ID를 결정적으로 발급하며 기존 연결 이미지·바코드 ID metadata는 바꾸지 않는다. 예를 들어 `a, a, a__2`는 `a, a__3, a__2`가 된다.
 
 ### 4.6 LabelSheet save format
@@ -358,7 +358,7 @@ open line의 pattern offset `0`은 저장된 canonical `x1/y1`에 고정한다. 
 - `fillColor == null`이면 내부를 칠하지 않는다.
 - rotation은 bounds center를 기준으로 path 전체에 적용한다.
 - stroke pattern은 line과 같은 공용 `FortuneStrokeStyle` segment/path effect를 사용한다.
-- closed pattern phase는 회전 전 local path의 고정 시작점에 둔다. rectangle은 왼쪽 위, roundedRectangle은 위쪽 직선의 왼쪽 tangent, ellipse는 위쪽 중앙에서 시계 방향으로 진행한다. 첫 mark의 보이는 시작 edge를 path offset `0`에 두고 rotation은 path와 pattern을 함께 변환하며 phase를 다시 시작하지 않는다. seam 직전에는 첫 mark와의 보이는 edge 기준 gap `2w`를 위한 `[perimeter - 2w, perimeter)` exclusion 구간을 둔다. terminal butt-cap dash가 이 구간에 들어가면 양의 길이가 남는 범위에서 `perimeter - 2w`까지만 자르고, 지름 `1w` 원형 dot 전체가 exclusion 구간 전에 들어가지 않으면 부분 원을 그리지 않고 해당 terminal dot을 생략한다. 잔여 길이는 전체 gap에 재분배하지 않는다.
+- closed pattern phase는 회전 전 local path의 고정 시작점에 둔다. rectangle은 왼쪽 위, roundedRectangle은 위쪽 직선의 왼쪽 tangent, ellipse는 위쪽 중앙에서 시계 방향으로 진행한다. 첫 mark의 보이는 시작 edge를 path offset `0`에 두고 rotation은 path와 pattern을 함께 변환하며 phase를 다시 시작하지 않는다. 사용자가 확정한 대로 짧은 폐쇄 path는 seam gap보다 첫 mark를 우선한다. offset `0`의 첫 mark는 최대 한 번만 만들고 path 끝에서 wrap하지 않으며, 첫 dot은 지름 `1w` 전체가 path에 들어갈 때만 그리고 첫 dash는 남은 양의 path 길이까지만 자른다. seam 직전의 첫 mark와 보이는 edge 기준 gap `2w`를 위한 exclusion은 첫 mark 이후의 terminal mark에만 적용한다. 둘레가 실제 첫 mark 길이와 `2w`를 합한 값 이상일 때는 `[perimeter - 2w, perimeter)` exclusion으로 seam gap을 보장하고, 그보다 짧으면 달성 불가능한 seam gap을 위해 첫 mark를 제거하지 않은 채 후속 terminal mark만 생략한다. terminal butt-cap dash가 exclusion에 들어가면 양의 길이가 남는 범위에서 경계까지만 자르고, 지름 `1w` 원형 dot 전체가 exclusion 전에 들어가지 않으면 부분 원을 그리지 않고 해당 terminal dot을 생략한다. 잔여 길이는 전체 gap에 재분배하지 않는다.
 
 ### 6.4 화면 렌더
 
@@ -391,6 +391,7 @@ open line의 pattern offset `0`은 저장된 canonical `x1/y1`에 고정한다. 
 - cell-border edge key는 물리 edge 기준으로 canonicalize한다. vertical edge는 `(row, boundaryColumn)`, horizontal edge는 `(boundaryRow, column)`을 사용해 cell `(row, column)`의 left/right를 각각 vertical `(row, column)`/`(row, column + 1)`, top/bottom을 horizontal `(row, column)`/`(row + 1, column)`로 매핑한다. 따라서 인접 cell의 right/left 또는 bottom/top이 같은 물리 edge를 나타내면 같은 key이며 plan·filtered capture·native command가 모두 이 key를 사용한다.
 - cell border는 object zOrder 구성원이 아니라 화면에서 항상 object layer 아래에 있는 cell base layer다. native cell-border command는 이 고정 순서를 보존하거나 상부 객체와 겹치지 않을 때만 사용하고, 그렇지 않으면 border를 capture bitmap에 유지한다.
 - 신규 line/shape와 기존 native barcode는 같은 object 합성 순서 판정에 포함한다. fallback bitmap에서 native 영역을 지우거나 raster 뒤에 native command를 추가하면 겹치는 객체의 공통 zOrder가 바뀌는 경우 해당 barcode/line/shape native 최적화를 사용하지 않고 capture bitmap에 남긴다.
+- typed native 후보가 legacy raw overlay의 실제 painted bounds와 겹치면 typed 뒤에 있어야 할 raw overlay를 native command가 덮어 순서를 바꾸므로 해당 후보는 bitmap fallback한다. legacy raw overlay 자체를 native 후보나 filtered capture 제외 집합에 넣지 않는다.
 - bitmap fallback은 공용 capture의 line/shapes를 다시 별도 overlay하지 않는다.
 - selection handle, ID label과 editor highlight는 EZPL에 포함하지 않는다.
 - native 후보도 label clip 안의 logical 좌표와 mm 두께를 printer dots로 변환한 값이 모두 유효하고 stroke가 최소 1 dot이어야 한다. 비교 기준인 목표 physical painted footprint는 model bounds나 centerline bounds를 임의로 재해석하지 않고 공용 geometry/painter가 만드는 stroke cap을 포함한 최종 외곽을 동일 transform으로 printer-dot 좌표에 옮긴 값이다. EZPL `R`처럼 좌상단/우하단 painted edge를 표현하는 line/rectangle/cell-border command는 이 최종 signed 비정수 printer-dot edge를 각각 Dart `round()`로 정수화하고, command가 extent를 요구하면 정수화된 반대 edge의 차이로 파생해 source extent를 별도로 반올림하지 않는다. 음수 half를 포함해 Dart `round()` 의미를 그대로 사용한다. preflight는 command 제약, clip과 최소 stroke를 적용한 정수 parameter가 실제로 만들 predicted painted edge와 stroke를 목표 비정수 footprint에 각각 대조하고 정확히 0.5 dot은 허용하되 하나라도 0.5 dot보다 크게 달라지면 bitmap fallback한다. 양쪽 edge가 각각 허용 범위면 파생 extent 오차에 별도의 0.5 dot 제한을 다시 적용하지 않는다.
@@ -774,7 +775,7 @@ shape 위치/크기/회전 field는 canvas handle과 같은 geometry commit API�
 - 숫자 field: Enter 또는 focus loss에서 validation 후 commit
 - 숫자 field의 초기 표시 문자열과 사용자 편집 여부를 draft가 보존한다. 반올림된 초기 문자열을 수정하지 않은 Enter/focus loss는 validation용 역변환이나 canonical write를 하지 않는 no-op이며, 사용자가 실제 변경한 문자열만 parse·단위 변환·finite 검증 뒤 commit한다.
 - 일반 Tab·다른 field 클릭·canvas 클릭에 따른 focus loss에서 변경 문자열이 invalid이면 workbook을 바꾸거나 focus를 강제로 되찾지 않고 해당 exact key draft의 입력 문자열과 inline 오류를 유지한다. 명시적 command가 요청된 경우에만 아래 동기 finalize 규칙에 따라 invalid draft를 원복·폐기한 뒤 command를 계속한다.
-- spinner/drag: 조작 중 preview, 종료 시 undo 1건
+- spinner/drag: start에서 exact key의 canonical 시작값과 workbook/sheet/object revision owner를 캡처하고 update는 property-local transient preview만 갱신한다. update 중 canonical workbook, undo/redo, dirty, revision, `onChange`/`onOp`와 canonical controller snapshot/listenable은 불변이다. end는 owner가 유지되고 유효한 최종값이 시작값과 다를 때만 canonical transaction과 undo를 각각 1건 만들며 시작값으로 왕복한 end는 no-op이다. 조작 중 selection 변경이나 다른 명시적 command는 현재 유효 preview를 active property draft로 동기 finalize한 뒤 기존 command를 실행하고, invalid preview는 기존 규칙대로 원복·폐기한다. settings-only `allowEdit` true→false는 이 finalize보다 우선해 preview를 commit 없이 폐기하고 read-only snapshot만 기존 규칙대로 한 번 통지한다. cancel, canonical owner/revision 불일치와 finalize·폐기 뒤 도착한 stale end는 preview만 폐기하고 추가 canonical notification을 만들지 않는다.
 - style/color/select field: 선택 시 즉시 commit, undo 1건
 - position/size/rotation/radius text field: Enter 또는 focus loss의 유효한 commit 1회당 undo 1건
 - barcode text/format과 렌더 결과를 바꾸는 묶음: panel의 `[적용]`에서 한 번 render/commit
@@ -1108,10 +1109,11 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - shape/image/barcode resize의 음수 left 허용, top `0` clamp와 right/bottom 초과 허용
 - 같은 logical 좌표/zoom에서 DPR 1/2/3 실제 pointer event로 line 생성 2.9/3.1px 경계, 8px handle과 body tolerance 결과가 동일해 interaction 경로가 Flutter logical px와 effective zoom만 사용함
 - `x1/y1`이 crop 밖이거나 양 endpoint가 crop 반대편 밖인 dashed/dotted/dashDot open line에서 전체 render를 crop한 결과와 서로 다른 crop origin의 직접 capture/PDF/EZPL bitmap fallback 결과가 같은 canonical start phase를 유지하고, endpoint 교환은 새 start phase를 사용함. effectiveZoom `0.5/1/2`와 pixelRatio `1/2/3`의 대표 교차 조합에서도 dash/dot/gap 길이와 phase scale을 각각 한 번만 적용함
-- rectangle 왼쪽 위, roundedRectangle 위쪽 직선의 왼쪽 tangent 및 ellipse 위쪽 중앙에 고정된 closed-pattern phase, rotation 후 phase 유지, seam `2w` exclusion에서 terminal dash clip과 불완전 dot 생략
+- rectangle 왼쪽 위, roundedRectangle 위쪽 직선의 왼쪽 tangent 및 ellipse 위쪽 중앙에 고정된 closed-pattern phase, rotation 후 phase 유지, seam `2w` exclusion에서 terminal dash clip과 불완전 dot 생략. dot의 perimeter `<1w`, `=1w`, `3w-ε`, `=3w`와 dash의 `<4w`, `=4w`, `6w-ε`, `=6w` 경계에서 첫 mark 우선, 첫 dot 전체 포함 조건, 첫 dash 양의 길이 clip, wrap 부재, 충분한 둘레의 seam gap과 짧은 둘레의 후속 terminal mark 억제를 판별함
 - 같은 zOrder stable tie
 - images→lines→shapes source sequence offset 계산
 - image/barcode/line/shape 공통 paint order
+- 같은 위치의 image, selected typed line/shape와 legacy raw overlay가 화면에서 typed→raw→selection highlight, PNG capture에서 typed→raw와 editor UI 제외 순서를 유지하고 raw `zIndex`는 legacy overlay끼리만 정렬함. Hybrid EZPL에서는 raw overlay와 실제 painted bounds가 겹치는 typed native 후보를 bitmap fallback해 같은 순서를 유지함
 - viewport culling
 
 ### 15.4 interaction widget 테스트
@@ -1232,6 +1234,7 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - invalid 변경 입력의 일반 Tab·다른 field/canvas 클릭 focus loss는 새 대상 focus 이동을 허용하고 원래 field로 강제 복귀하지 않으면서 입력 문자열과 inline 오류를 유지하고 workbook을 바꾸지 않으며, 이후 명시적 command finalize는 원복·폐기하고 지연된 같은 draft Enter/focus-loss가 draft/error를 되살리거나 undo·dirty·revision·callback/listenable을 만들지 않음
 - 유효 property draft finalize 뒤 delete/duplicate/reorder는 property commit과 후속 mutation이 독립 canonical transaction/undo라 undo depth가 2 증가하고 첫 undo는 후속 command, 두 번째 undo는 property commit을 복원함. 유효 draft 뒤 read-only capture는 property undo 1건만 만들고 invalid draft 뒤 mutation은 후속 command undo 1건만 만듦
 - property draft가 없는 상태의 finalize는 transaction/undo/dirty와 `onChange`/`onOp`/listenable을 모두 0회로 유지하고, 이어지는 read-only command는 그대로 no-op이며 mutation command는 해당 mutation transaction만 1건 만듦
+- property spinner/drag의 `start→여러 update→end`는 update 중 canonical 상태·notification 0회와 유효한 최종 변경 transaction/undo 1회를 만들고, `start→update→시작값 왕복→end`, cancel과 조작 중 owner/revision 변경은 preview만 폐기해 workbook/undo/dirty/revision/`onChange`/`onOp`/canonical listenable 0회임. update 중 selection 변경/명시적 command는 유효 preview finalize 또는 invalid preview 폐기 뒤 기존 command를 실행하고 stale end는 no-op이며, update 중 `allowEdit` false는 preview commit 없이 permission snapshot listener 1회만 만들고 stale end의 추가 통지는 0회임
 - 유효/invalid property draft 직후 save/export/print/capture가 각각 최신 committed 값/기존 canonical 값만 사용하고 command 뒤 지연 focus-loss가 추가 dirty를 만들지 않음
 - 유효/invalid property draft 직후 undo/redo·sheet 전환·label/XLSX/image import·이미지/바코드/도형 삽입 command가 같은 finalize 순서를 사용함
 - barcode panel renderer pending 중 save/export/print/capture·undo/redo·sheet 전환·import·삽입 command와 property draft 취소 Escape 비활성화, queue/자동 재실행 없음과 성공·실패·stale 종료 뒤 재활성화
@@ -1338,14 +1341,14 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 1. 공통 stroke style, `FortuneLine`, `FortuneShape`, shape kind, optional-empty `FortuneSheet.lines/shapes`와 codec을 추가한다. 무관한 `copyWith`의 typed/raw 보존과 typed list 교체 시 stale raw 폐기, `lines`/`fortuneShapes`의 typed 단독 소유, ID wire validation과 images raw 재사용 경계를 포함한 model/codec 테스트를 통과시킨다.
 2. LabelSheet의 `sheet.lines`, `sheet.fortuneShapes` feature key, sanitizer, migration/normalize, label content 판정과 save 테스트를 추가하고 legacy raw overlay `shapes`와 분리한다. legacy `shapes`는 일반 clone/cast 전 raw `Object?` strict clone으로 JSON-safe 구조만 원형 복사하고 invalid descendant가 있으면 overlay 전체만 omit한다. 원래 print-area rect에서 exact geometry key를 확정한 뒤 padded bounds로 범위만 확장하는 print-area save를 연결한다.
 3. typed object key/ref, exact-key resolver/mutation, 중복 ID normalize/allocator와 finite zOrder 정렬·정규화 helper를 추가한다.
-4. line/shape 공용 geometry/stroke helper와 화면/capture painter를 추가한다.
+4. line/shape 공용 geometry/stroke helper와 화면/capture painter를 추가한다. 짧은 closed pattern의 첫 mark 우선·no-wrap·후속 seam exclusion과 typed 공통 object layer 뒤의 legacy raw overlay 합성 순서를 같은 painter/capture helper에서 고정한다.
 5. toolbar shape combo, geometry kind별 stroke/fill/radius preset과 transient gesture draft 기반 line/shape drag 생성을 추가한다.
 6. line hit-test, 단일 선택, 본체 이동, endpoint handle과 keyboard 이동을 추가한다.
 7. shape hit-test, 본체 이동, local-axis 8방향 resize와 opposite world anchor 고정, rotation handle과 keyboard 이동을 추가한다.
 8. 기존 image layer selection state를 typed object selection으로 일반화하고 기존 image/barcode geometry drag도 transient gesture commit 경계로 전환한 뒤 기존 회귀 테스트를 통과시킨다.
 9. 공통 object layer list와 단일/다중 선택 상태를 immutable snapshot/public listenable이 있는 exclusive-attach package controller로 노출한다. active/selected 불변식, pointer/keyboard 공용 exact-key range anchor와 delete/successful-cut 후속 선택 helper를 먼저 연결한다. controller 교체는 new attach 가능 여부를 먼저 검증하고 실제 owner를 추적하며, 실제 op transaction의 `onChange`→`onOp`→listenable과 외부 replacement의 `onChange`→listenable 통지 순서를 각각 연결한다.
 10. dock형 object panel을 만들고 exact target key+before/after drag reorder를 포함한 기존 layer action을 연결한다.
-11. line/shape property form과 타입별 context menu를 연결한다.
+11. line/shape property form과 타입별 context menu를 연결한다. property spinner/drag는 owner를 캡처한 transient preview와 end의 변경값 1회 commit 경계를 사용하고 왕복·cancel·stale owner를 canonical no-op으로 처리한다.
 12. 기존 image/barcode effective 연결값의 trim/case-insensitive 병합·label 판정과 공통 source validation/commit, linked image 해제의 새 파일 필수 조건, panel image picker의 exact-key owner/token 검증과 exact-key barcode pending draft/error·rotation/latest-request render/metadata 보존을 공용 API로 추출하고 panel form을 연결한다. panel 후보 입력은 options·legacy IDs·현재 선택 객체/draft 값으로 한정하고 이미지 생성 dialog의 active-sheet ID 확장은 별도 adapter로 유지한다. panel UI 목록 instance나 dialog presentation까지 공유할 필요는 없다. 신규 structured source를 선택하는 생성 dialog는 현재 option 일치를 계속 요구하지만, panel은 기존 객체의 option 미일치 ID/source를 사용자가 바꾸지 않은 commit에서 보존하는 명시적 편집 호환 분기를 사용한다. host option update는 draft 문자열/identity를 유지하면서 최신 metadata, unchanged canonical stale 보존과 changed-missing validation을 구분하고, barcode Apply는 validation을 통과한 effective metadata와 renderer를 request snapshot에 고정한다.
 13. package widget의 app-neutral `open`/`close` presentation request와 Workbench가 되돌리는 immutable `hidden`/`dock`/`overlay` snapshot을 먼저 연결한다. 그 위에 `LabelSheetWorkbench`의 splitter, panel width clamp, 접기와 narrow overlay fallback을 연결한다. panel controller/draft를 presentation보다 상위에 유지하고 동일 snapshot·경계 전환의 request echo와 자동 open/focus 이동을 막으며 dock에서는 legacy floating panel, narrow overlay에서는 active object toolbar를 paint/hit-test하지 않는다.
 14. clipboard 단일 async paste coordinator의 호출 시점 target owner snapshot, 호출 순서 latest-wins인 copy/cut marker write coordinator와 marker 기록 성공 뒤 source owner/model을 재검증하는 cut transaction, canonical typed deep-clone mixed payload, reorder, package-owned per-sheet revision과 모든 object zOrder insertion 경로를 마무리한다.
@@ -1375,7 +1378,7 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - dotted/dashDot의 dot은 보이는 지름 `1w`인 원형 mark이고 인접 mark의 보이는 edge 사이 gap은 `2w`다.
 - `strokeWidthMm`은 96-PPI logical 두께로 한 번 변환되고 screen zoom과 capture/output pixel ratio는 각 소유 경로에서 한 번만 적용된다. screen/capture paint에 DPR을 중복 적용하지 않으며 raster와 native printer는 같은 mm→dot 물리 두께를 사용한다.
 - open line의 pattern phase는 canonical `x1/y1`에서 `x2/y2` 방향으로 유지된다. 전체 centerline에 pattern을 만든 뒤 crop하며 crop 교차점 또는 crop-local origin에서 다시 시작하지 않고, endpoint를 교환하면 새 start 기준 phase를 사용한다.
-- 폐쇄 도형의 pattern phase는 kind별 고정 local 시작점에서 유지된다. seam은 첫 mark와 보이는 edge gap `2w`를 유지하며 terminal dash는 exclusion 경계까지만 clip되고 완전한 원형 dot이 들어가지 않으면 해당 dot을 생략한다.
+- 폐쇄 도형의 pattern phase는 kind별 고정 local 시작점에서 유지된다. 짧은 path는 seam보다 offset `0`의 첫 mark를 우선하되 wrap하지 않고 첫 dot은 지름 전체가 들어갈 때만, 첫 dash는 남은 양의 길이까지만 그린다. 둘레가 실제 첫 mark 길이와 `2w`의 합 이상일 때만 첫 mark 이후 seam gap `2w`를 보장하고, 더 짧으면 첫 mark를 유지한 채 후속 terminal mark를 생략한다.
 - rectangle/roundedRectangle/ellipse의 bounds·회전·stroke·fill·radius·zOrder가 저장 후 동일하게 복원된다.
 - 통합 shape toolbar가 image 앞에 있고 geometry kind별 style/width/color/fill/radius preset으로 생성된다.
 - line 본체와 endpoint hit-test가 얇은 선에서도 안정적으로 동작한다.
@@ -1396,7 +1399,7 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - drag 중 이동했더라도 pointer-up의 최종 canonical geometry가 시작 snapshot과 같으면 no-op이며 undo/dirty/change callback을 만들지 않는다.
 - transient geometry draft는 owner workbook/sheet에서만 commit되고 active sheet 변경·undo/redo·외부 workbook 교체와 취소된 pointer sequence에서는 폐기된다.
 - 삽입 모드는 object/cell hit-test보다 우선하며 오른쪽 클릭은 취소 후 기존 context menu를 열고, auto-scroll preview는 next scroll offset 기준 logical 좌표를 사용한다. viewport 밖 pointer up은 추가 scroll 없이 현재 offset으로 실제 release 좌표를 최종 geometry에 반영하며, 최소 크기 미달/pointer cancel은 모드를 유지하고 owner 변경은 draft와 모드를 함께 종료한다.
-- 이미지·바코드·직선·폐쇄 도형이 같은 zOrder로 paint, hit-test, layer list, capture와 출력된다.
+- 이미지·바코드·직선·폐쇄 도형이 같은 zOrder로 paint, hit-test, layer list, capture와 출력된다. legacy raw overlay는 이 typed 공통 순서와 hit-test에 참여하지 않고 화면과 capture에서 typed layer 뒤에 그리며 raw `zIndex`는 legacy overlay 내부 순서만 정한다.
 - 공유 배열의 같은 문자열 ID 객체도 exact typed key로 격리되어 조회·편집·삭제·reorder된다.
 - layer reorder는 계산된 front-to-back exact-key 순서가 실제로 달라질 때만 transaction과 zOrder 연속값 정규화를 수행한다. 동일 순서와 selected-set 내부 target drop은 기존 zOrder의 비연속·동일값 tie까지 보존하는 canonical no-op이다.
 - active sheet 변경 시 object selection을 해제하고, 같은 sheet의 undo/redo와 외부 workbook 교체 뒤에는 현재 sheet에 존재하는 typed key만 남는다. selection 자체는 dirty/undo 대상이 아니다.
@@ -1413,6 +1416,7 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - 단일 선택은 타입별 속성, 다중 선택은 layer 조정 UI를 표시한다.
 - geometry 속성은 physical-size sheet에서 mm, 그 외에는 px로 표시하며 commit 뒤 model 좌표는 logical coordinate를 유지한다.
 - 반올림된 geometry 초기 표시 문자열을 사용자가 수정하지 않은 Enter/focus loss는 원래 canonical logical 값을 유지하는 no-op이고, 변경 입력은 단위 변환 뒤 모든 geometry field의 finite 검증을 통과한 경우에만 기존 range·clamp·정규화 정책으로 commit된다.
+- property spinner/drag update는 owner-bound transient preview만 바꾸고 canonical workbook/history/revision/callback/listenable을 유지한다. 유효한 변경값 end만 transaction/undo 1회이며 시작값 왕복 end, cancel과 owner/revision 불일치는 canonical no-op이다. 조작 중 명시적 command는 기존 property finalize 규칙을 사용하고 `allowEdit` 하강은 commit 없는 폐기와 permission snapshot 통지를 우선하며 이후 stale end는 no-op이다.
 - panel list, canvas object, canvas cell과 editable field의 keyboard 동작은 실제 focus에 따라 분리된다. editable focus의 text/unsupported key를 object command로 재해석하지 않고 layer command는 layer list, geometry command는 canvas focus에서만 실행한다.
 - canvas/list/property pointer가 각 실제 focus를 소유하고 dock 단순 open은 focus를 유지한다. narrow overlay를 명시적으로 열면 list focus로 이동하며 단순 close는 유효한 trigger/직전 focus 또는 canvas fallback으로 복원한다. focus를 가져가지 않은 popup close는 focus를 바꾸지 않고 edit command만 대상 field로 이동한다.
 - Escape는 property draft, transient popup/context menu/overlay, insertion, canvas focus 순서에서 한 번에 적용 가능한 branch의 시각적 최상위 transient 하나만 처리하며 context menu close는 selection을 유지한다. 같은 branch에 중첩된 submenu/dropdown을 닫은 다음 Escape가 상위 popup/overlay를 닫고, barcode pending 중에는 draft 취소 branch만 건너뛴다.
@@ -1479,6 +1483,7 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - typed line Dart model/wire key: `FortuneSheet.lines` / `lines`, 기존 unknown raw와 분리하지 않고 typed model이 단독 소유
 - legacy raw overlay `shapes`: JSON-safe leaf(`null`/bool/String/finite num)와 String-key map/list만 원형 보존, invalid descendant가 하나라도 있으면 해당 overlay 전체만 omit하고 나머지 저장 계속
 - legacy raw `shapes` 검사 순서: migration 일반 clone/typed map cast 전 raw `Object?` strict clone, 실제 String key·finite num·cycle 검사와 valid `null` 분리
+- legacy raw overlay 합성 순서: 화면은 typed 공통 object layer 뒤·editor UI overlay 앞, capture는 typed layer 뒤에서 종료하고 editor UI 제외. raw `zIndex`는 legacy overlay끼리만 적용하고 typed zOrder/hit-test에는 미참여하며 겹치는 typed native 후보는 bitmap fallback
 - line/shape 내부 ID wire: trim 후 non-empty JSON string만 허용, 다른 타입·빈/공백 entry 제외
 - FortuneSheet lines/shapes public API: 생성자 optional-empty, 무관한 `copyWith`는 typed/raw/`hasRaw*` deep-clone 보존, typed list 교체 시 별도 제공하지 않은 stale raw 폐기
 - 선 종류: 실선, 파선, 점선, 일점쇄선
@@ -1487,6 +1492,7 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - 기본 stroke 색상: 검정
 - line/shape 색상 wire: 정확한 6자리 hex만 허용하고 대문자 `#RRGGBB`로 canonicalize, `#RGB`·alpha hex·`rgb()`·`rgba()` 제외
 - 폐쇄 도형 기본 fill: 없음
+- 짧은 폐쇄 pattern: seam보다 offset `0` 첫 mark 우선, no-wrap, 첫 dot은 지름 전체 포함 시만 표시하고 첫 dash는 남은 양의 길이 clip. 둘레가 실제 첫 mark 길이+`2w` 이상일 때만 seam gap 보장, 미만이면 첫 mark 유지와 후속 terminal mark 생략
 - 둥근 사각형 기본 radius: 2.0mm, 입력 범위 0.0~50.0mm
 - line handle: 시작점/끝점 2개, 화면 기준 8px
 - line angle snap: Shift 45도 단위
@@ -1550,6 +1556,7 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - internal object payload: package canonical typed model deep clone, 필요 시 versioned package typed-object codec, LabelSheet save sanitizer/raw-list wire 미사용
 - object clipboard write 경쟁: 성공 여부와 무관한 copy/cut 호출 순서 latest-wins, stale 완료의 source/internal state no-op, 최신 성공 시 해당 요청의 system marker·활성 payload 일치, 최신 실패 시 요청 전 안정된 payload·대응 marker OS 복원과 stale 요청 재활성화 금지
 - property draft 후 command undo: valid finalize와 후속 mutation은 독립 transaction/undo, read-only command는 finalize만, invalid/no-draft finalize는 transaction 없음
+- property spinner/drag: update는 owner-bound transient preview와 canonical notification 0회, 유효 변경 end만 transaction/undo 1회, 명시적 command는 기존 finalize 규칙, `allowEdit` 하강은 commit 없는 폐기 우선, 시작값 왕복·cancel·stale owner/end는 canonical no-op
 - async paste target: key event 호출 시점 workbook/history/sheet/selection을 캡처하고 clipboard read 뒤 owner 또는 selection 변경 시 object와 cell/text paste 모두 no-op
 - async cut source: 호출 시점 workbook/history/sheet/revision/exact canonical models에 고정, marker 기록 성공 후 source·권한 재검증을 통과할 때만 삭제/payload 활성화
 - 기존 객체 속성 편집: 통합 panel
