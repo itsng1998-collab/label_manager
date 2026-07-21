@@ -967,6 +967,33 @@ void main() {
             ),
           ],
         ),
+        FortuneSheet(
+          id: 's2',
+          name: 'Sheet2',
+          images: const [
+            FortuneImage(
+              id: 'image_1',
+              src: 'data:image/png;base64,AA==',
+              left: 100,
+              top: 100,
+              width: 20,
+              height: 20,
+            ),
+          ],
+          lines: const [
+            FortuneLine(id: 'line_1', x1: 100, y1: 100, x2: 120, y2: 120),
+          ],
+          shapes: const [
+            FortuneShape(
+              id: 'rect_1',
+              kind: FortuneShapeKind.rectangle,
+              left: 100,
+              top: 100,
+              width: 20,
+              height: 20,
+            ),
+          ],
+        ),
       ],
     );
     await tester.pumpWidget(
@@ -1091,6 +1118,21 @@ void main() {
     expect(painter().workbook.activeSheet.images, hasLength(imageCount));
     expect(painter().workbook.activeSheet.lines, hasLength(lineCount));
     expect(painter().workbook.activeSheet.shapes, hasLength(shapeCount));
+
+    controller.selectAllObjects();
+    expect(await controller.cutSelectedObjects(), isTrue);
+    controller.activateSheet(id: 's2');
+    await tester.pump();
+    expect(await controller.pasteObjects(), isTrue);
+    await tester.pump();
+    final crossSheet = painter().workbook.activeSheet;
+    expect(crossSheet.id, 's2');
+    expect(crossSheet.images.first.id, 'image_1');
+    expect((crossSheet.images.first.left, crossSheet.images.first.top), (100, 100));
+    expect(crossSheet.images.map((image) => image.id).toSet(), hasLength(imageCount + 1));
+    expect(crossSheet.lines.map((line) => line.id).toSet(), hasLength(lineCount + 1));
+    expect(crossSheet.shapes.map((shape) => shape.id).toSet(), hasLength(shapeCount + 1));
+    expect((crossSheet.images[1].left, crossSheet.images[1].top), (10, 20));
   });
 
   testWidgets('structured duplicate preserves connection id with no options', (
