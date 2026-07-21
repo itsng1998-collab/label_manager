@@ -1,3 +1,12 @@
+### 완료 (2026-07-21): 선·도형 지시서 capture detach·dialog owner·finalize 실패 경계 보완
+- 사용자 요청: 최신 재검토에서 확인한 진행 중 일반 capture의 detach/dispose 결과, screenshot dialog owner identity와 property finalize 뒤 capture 실패 history 권장안을 지시서에 병합한다.
+- 추가 사용자 확인 불필요: 기존 immutable invocation snapshot, canvas-owned screenshot UI와 property finalize 독립 transaction 원칙으로 결과가 결정되며 새 UX 선택을 추가하지 않았다.
+- capture detach 보완 완료: input/resource 사용권을 획득한 Future는 이후 FortuneSheetController 교체·detach, canvas dispose와 Workbench/output controller detach를 새 cancel/`null` 사유로 사용하지 않고 최초 snapshot의 원래 성공·`null`·예외로 완료한다. UI 적용만 owner/token으로 막고 cache resource 실제 dispose는 진행 중 lease 해제 뒤 수행한다.
+- screenshot owner 보완 완료: owner는 mounted FortuneSheet canvas-instance lifecycle이고 같은 canvas의 controller 교체·workbook/sheet/range 변경은 owner를 바꾸지 않는다. close/reopen은 open token이, canvas dispose는 owner epoch가 stale 결과를 배제한다.
+- finalize 실패 보완 완료: valid property finalize commit은 후속 read-only capture의 성공·`null`·예외·detach와 독립해 undo/revision/callback/최초 clean dirty를 유지하고 자동 rollback하지 않는다. invalid/no-draft와 capture 단계 자체는 추가 history 변경이 없다.
+- 테스트·구현 순서·완료 조건·확정값에 controller/canvas/Workbench detach Future, lease-aware dispose, canvas owner와 capture 실패별 finalize fixture를 연결했다.
+- stage/commit 대상: `doc/label_line_panel.txt`, `SESSION_HANDOFF.md`만 포함한다. 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
+
 ### 완료 (2026-07-21): 선·도형 지시서 일반 capture 입력·range·dialog 수명 보완
 - 사용자 요청: 최신 재검토에서 확인한 일반 capture snapshot 깊이, normalized range, package 결과 경계, screenshot dialog async 수명과 keyboard undo 문구 권장안을 지시서에 병합한다.
 - 사용자 확정: capture range는 row/column start/end를 정렬한 원본 inclusive range와 호출 시점 sheet metrics bounds의 교집합을 사용하고, 교집합이 없으면 `null`을 반환한다. endpoint별 saturating clamp로 완전히 밖인 요청을 가장자리 cell로 축약하지 않는다. merge는 자동 확장하지 않으며 screenshot partial-merge 검증은 normalized range에 적용한다.
