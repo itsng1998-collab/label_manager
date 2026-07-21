@@ -6,6 +6,14 @@
 - ODBC transaction batch는 첫 DML이 0행일 때 `SQL_NO_DATA(100)`을 반환할 수 있으므로 필요하면 batch 첫 줄에 `SET NOCOUNT ON`을 사용하고 명시적 결과 SELECT를 유지한다. `@@ROWCOUNT`와 `@@TRANCOUNT`는 parameter로 치환하지 않는다.
 - SQL 변경 검증 시 focused DAO 테스트에 금지 함수 미사용과 XML wire 계약을 고정하고, 가능한 경우 compatibility 100 실제 서버에서 데이터 변경 없는 read-only/빈 payload/rollback probe를 수행한다. 실제 schema capability가 없으면 gate를 우회하지 않고 제한을 기록한다.
 
+### 완료 (2026-07-21): 선·도형 지시서 focus·geometry 입력 경계 보완
+- 사용자 요청: 최신 `doc/label_line_panel.txt` 재검토에서 확인한 권장안을 과도한 예외 처리 없이 병합하고 필요한 사용자 정책 선택은 즉시 확정한다.
+- 추가 사용자 확인 불필요: 실제 `FocusNode` 기반 command 소유권과 canonical no-op/finite validation이라는 기존 원칙을 구체화했으며 새로운 공개 정책 선택은 없다.
+- focus 보완 완료: editable 또는 하위 editor focus에서 text editing key와 미지원 Ctrl/Meta·navigation·delete key를 object command로 재해석하지 않는다. layer command는 layer list focus, geometry command는 canvas focus에서만 실행하고 panel open 상태는 소유권 판정에 사용하지 않는다.
+- geometry 보완 완료: 반올림한 초기 mm/px 문자열을 사용자가 수정하지 않은 Enter/focus loss는 원래 canonical logical 값을 유지하는 완전한 no-op이다. 변경 입력은 parse·단위 변환 뒤 X/Y, 모든 line endpoint, width/height, rotation과 radius의 finite를 공통 검증하고 기존 clamp·range·정규화 정책을 적용한다.
+- 테스트 계약 보완 완료: 실제 하위 `EditableText` focus의 text shortcut, layer focus의 열거된 object command와 일반 row navigation을 분리하고 dock/overlay 상태 독립성을 검증한다. 비 round-trip mm/px 표시의 무편집 Enter·focus-loss no-op, 모든 geometry field의 `NaN`/무한대·변환 overflow 거부, `25.4 mm == 96 logical px`와 기존 finite 정책 유지를 판별한다.
+- stage/commit 대상: `doc/label_line_panel.txt`, `SESSION_HANDOFF.md`만 포함한다. 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
+
 ### 완료 (2026-07-21): 선·도형 지시서 model·clipboard·snapshot 경계 보완
 - 사용자 요청: 최신 `doc/label_line_panel.txt` 재검토 권장안을 과도한 예외 처리 없이 병합하고 필요한 공개 동작 선택은 즉시 확정한다.
 - 추가 사용자 확인 불필요: 신규 선택 없이 기존 public model 호환, package clipboard 소유권, workbook change 단위와 immutable Hybrid snapshot 원칙을 구체화했다.

@@ -682,6 +682,8 @@ shape 위치/크기/회전 field는 canvas handle과 같은 geometry commit API�
 - geometry model의 X/Y, endpoint와 width/height는 항상 logical coordinate로 유지한다.
 - panel의 X/Y, endpoint, width/height와 read-only line length는 기존 이미지 dialog와 같이 physical-size가 있는 시트에서는 `mm`, 없으면 `px`로 표시하고 모든 field에 현재 단위 suffix를 표시한다.
 - panel commit은 공용 logical pixel↔mm helper로 표시값을 logical coordinate로 변환하며, 단위 전환 때문에 별도 raw geometry metadata를 추가하지 않는다.
+- field를 열 때 반올림한 mm/px 초기 표시 문자열을 사용자가 변경하지 않은 채 Enter 또는 focus loss가 발생하면 표시 문자열을 logical coordinate로 역변환하지 않고 원래 canonical geometry를 유지한다. 이 무편집 경로와 역변환 결과가 기존 canonical 값과 같은 경로는 commit·undo·dirty·revision·callback/listenable이 없는 no-op이다.
+- 모든 geometry text field는 parse와 단위 변환 뒤 X/Y, line start/end X/Y, width/height, rotation과 corner radius가 모두 finite인지 공용 geometry commit 경계에서 먼저 검증한다. 입력 자체가 유한해도 단위 변환 결과가 비유한 값이면 거부하고, finite 검증을 통과한 값에만 아래의 기존 range·clamp·정규화 정책을 적용한다.
 
 - X/Y field는 move와 같은 정책으로 음수 X를 허용하고 Y만 `0` 이상으로 제한한다. width/height field도 resize와 같이 `left` 음수를 허용하고 `top`만 `0` 이상으로 clamp하며 right/bottom 초과는 허용한다. rotation field는 회전 bounds를 clamp하지 않는다.
 - width/height는 양수만 허용하며 현재 zoom에서 3px 미만이 되는 값은 commit하지 않는다.
@@ -754,6 +756,7 @@ shape 위치/크기/회전 field는 canvas handle과 같은 geometry commit API�
 ### 10.3 commit 규칙
 
 - 숫자 field: Enter 또는 focus loss에서 validation 후 commit
+- 숫자 field의 초기 표시 문자열과 사용자 편집 여부를 draft가 보존한다. 반올림된 초기 문자열을 수정하지 않은 Enter/focus loss는 validation용 역변환이나 canonical write를 하지 않는 no-op이며, 사용자가 실제 변경한 문자열만 parse·단위 변환·finite 검증 뒤 commit한다.
 - spinner/drag: 조작 중 preview, 종료 시 undo 1건
 - style/color/select field: 선택 시 즉시 commit, undo 1건
 - position/size/rotation/radius text field: Enter 또는 focus loss의 유효한 commit 1회당 undo 1건
@@ -948,10 +951,10 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 
 - panel이 열린 동안 Tab은 layer list와 현재 속성 form 안에서 예측 가능한 순서로 이동한다.
 - canvas shortcut과 text field shortcut이 충돌하지 않는다.
-- editable field가 focus된 동안 Delete/Backspace는 객체를 삭제하지 않는다.
+- editable field 또는 그 하위 editor가 focus된 동안 Ctrl/Meta+A/C/X/V/D, Ctrl/Meta+Up/Down/Home/End, 일반 Up/Down/Home/End와 Delete/Backspace를 object command로 전달하지 않는다. editable이 지원하는 키는 text selection/edit/clipboard/navigation이 소유하고, 지원하지 않는 키도 panel이 열렸다는 이유만으로 duplicate/reorder/delete 같은 object command로 재해석하지 않는다.
 - panel list focus에서 Delete, Ctrl+D, Ctrl+C/X/V, Ctrl+Up/Down/Home/End는 기존 layer shortcut을 유지한다.
 - panel list focus의 일반 Arrow Up/Down은 row navigation, canvas focus와 active object가 있으면 Arrow/Shift+Arrow는 geometry 이동, canvas focus에 active object가 없으면 기존 cell navigation을 수행한다. editable field focus에서는 arrow를 caret/input이 소유한다.
-- dock/overlay panel의 open 여부가 아니라 실제 `FocusNode`를 기준으로 keyboard command 소유권을 결정한다.
+- dock/overlay panel의 open 여부가 아니라 실제 `FocusNode`를 기준으로 keyboard command 소유권을 결정한다. layer shortcut은 layer list focus, geometry shortcut은 canvas focus일 때만 실행한다.
 - Escape 우선순위는 property draft 취소 → popup/overlay 닫기 → shape insertion 취소 → canvas focus 복귀 순서다. 단 barcode panel renderer pending 중에는 request와 원래 exact typed-key draft/error 상태를 유지하기 위해 property draft 취소 branch를 실행하지 않는다.
 
 ## 14. 구현 대상 파일 가이드
@@ -1151,6 +1154,8 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - shape body move와 copy paste/duplicate offset의 음수 X 허용, top `0` clamp, right/bottom 초과 허용과 회전 시각 bounds 무-clamp
 - object A 선택→workbook 편집→object B 선택→undo에서 존재하는 B 선택은 유지하고 selection 변경 자체는 dirty/undo를 만들지 않음
 - physical-size sheet의 X/Y/endpoint/width/height/length `mm` 표시·logical 양방향 변환과 physical metadata 없는 sheet의 `px` 표시·logical 값 유지
+- 정확히 두 자리 mm 또는 px로 round-trip되지 않는 canonical logical geometry를 반올림해 표시한 뒤 문자열을 수정하지 않은 Enter와 focus loss 각각에서 원래 geometry를 유지하고 workbook/undo/dirty/revision·`onChange`/`onOp`/listenable이 모두 0회임
+- X/Y, line start/end X/Y, width/height, rotation과 corner radius 각각의 `NaN`/`Infinity`/`-Infinity`, 그리고 입력은 유한하지만 단위 변환 결과가 비유한 값이 되는 큰 수를 거부해 workbook/undo/dirty/revision/callback을 바꾸지 않음. `25.4 mm == 96 logical px` 변환과 finite 값의 기존 음수 X, Y clamp, 양수 크기, 회전 정규화 정책은 유지함
 - 단일 image/barcode/line/shape 속성 form 전환
 - rectangle/ellipse에는 radius field가 없고 roundedRectangle에만 표시
 - active object context menu의 타입별 편집 문구와 command 순서
@@ -1161,7 +1166,7 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - layer drag가 행 위/아래 절반의 before/after indicator대로 이동하고 위·아래 방향 모두 선택 묶음 제거 뒤 target exact key를 재조회하며 stale target/owner에서는 undo·dirty·callback 없는 no-op
 - 같은 ID의 image/line이 인접한 목록에서 kind를 포함한 exact target의 before/after drop만 이동하고 동명 sibling 순서에는 영향이 없음
 - row double-click/Enter 속성 focus
-- text field focus 중 Delete가 객체를 삭제하지 않음
+- property wrapper가 아니라 실제 하위 `EditableText` focus에서 Ctrl/Meta+A/C/X/V는 text edit/clipboard에만 작용하고 Ctrl/Meta+D/Up/Down/Home/End, 일반 Up/Down/Home/End와 Delete/Backspace는 객체 duplicate/reorder/delete/navigation을 실행하지 않음. layer list focus에서는 §13.3에 열거한 Delete와 Ctrl/Meta+A/C/X/V/D/Up/Down/Home/End object command를 정확히 1회 실행하고 일반 Up/Down은 row navigation만 수행하며, dock/overlay open 상태만으로 결과가 바뀌지 않음
 - panel command 전 active field 동기 finalize: 유효 draft commit 후 command, invalid draft 원복 후 command 실행
 - 유효 property draft finalize 뒤 delete/duplicate/reorder는 property commit과 후속 mutation이 독립 canonical transaction/undo라 undo depth가 2 증가하고 첫 undo는 후속 command, 두 번째 undo는 property commit을 복원함. 유효 draft 뒤 read-only capture는 property undo 1건만 만들고 invalid draft 뒤 mutation은 후속 command undo 1건만 만듦
 - property draft가 없는 상태의 finalize는 transaction/undo/dirty와 `onChange`/`onOp`/listenable을 모두 0회로 유지하고, 이어지는 read-only command는 그대로 no-op이며 mutation command는 해당 mutation transaction만 1건 만듦
@@ -1315,7 +1320,8 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - controller는 immutable snapshot과 public listenable을 제공한다. host가 listener와 controller 수명을 소유하며 정상 attach/detach는 lifecycle snapshot을 각각 한 번 통지하고 canonical callback은 발생시키지 않는다. detached getter는 active/property/draft null, selection/object refs empty, command/pending false를 반환하고 dispose되지 않은 controller는 재attach할 수 있다.
 - 단일 선택은 타입별 속성, 다중 선택은 layer 조정 UI를 표시한다.
 - geometry 속성은 physical-size sheet에서 mm, 그 외에는 px로 표시하며 commit 뒤 model 좌표는 logical coordinate를 유지한다.
-- panel list, canvas object, canvas cell과 editable field의 Arrow key 동작은 실제 focus에 따라 분리된다.
+- 반올림된 geometry 초기 표시 문자열을 사용자가 수정하지 않은 Enter/focus loss는 원래 canonical logical 값을 유지하는 no-op이고, 변경 입력은 단위 변환 뒤 모든 geometry field의 finite 검증을 통과한 경우에만 기존 range·clamp·정규화 정책으로 commit된다.
+- panel list, canvas object, canvas cell과 editable field의 keyboard 동작은 실제 focus에 따라 분리된다. editable focus의 text/unsupported key를 object command로 재해석하지 않고 layer command는 layer list, geometry command는 canvas focus에서만 실행한다.
 - 기존 image/barcode 생성 dialog는 유지되고 기존 객체 편집은 panel 공용 validation/commit을 사용한다.
 - image/barcode 생성 dialog는 command 시점 owner sheet와 merge anchor에 삽입하고 stale owner에서는 생성하지 않는다. source별 필수 입력이 유효할 때만 확인할 수 있고 barcode 크기 `0`은 auto-size로 유지한다. barcode renderer pending 중 중복 submit과 dialog 종료를 막고 완료 직전 request token·owner·`allowEdit`가 달라진 늦은 결과는 폐기하며 null/예외 실패는 같은 inline 오류와 입력 유지로 복구한다.
 - image/barcode 생성 성공은 새 객체를 공통 최상단에 추가해 단일 선택하고 source에 맞는 연결 metadata와 필요한 최소 reveal, undo/change/dirty 1회 경계를 지키며, 실패·취소·stale async 결과는 canonical/UI selection 상태를 바꾸지 않는다.
