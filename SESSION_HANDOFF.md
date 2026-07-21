@@ -1,3 +1,12 @@
+### 완료 (2026-07-21): 선·도형 지시서 panel picker sheet owner·overlay 폭·async 오류 수명 보완
+- 사용자 요청: 최신 잔여 검토에서 확인한 panel image picker의 active sheet 전환, narrow overlay 폭, picker/renderer async 오류 수명과 panel-list `Ctrl/Meta+A` 목록 권장안을 지시서에 병합한다.
+- 추가 사용자 확인 불필요: active sheet 기반 panel 소유권, viewport 내부 배치, 동일 owner 재시도와 이미 확정된 전체 선택 규칙으로 결과가 결정된다. 비활성 sheet 수정, overlay overflow, stale 오류 덮어쓰기 같은 새 동작은 허용하지 않았다.
+- panel picker 보완 완료: 같은 sheet의 selection 변경은 기존대로 허용하지만 active sheet 변경은 token을 즉시 무효화한다. 늦은 성공·예외는 resource 정리 외 no-op이며 비활성 sheet에 commit하거나 오류를 표시하지 않는다.
+- overlay·shortcut 보완 완료: narrow overlay 폭은 dock 저장 폭과 분리해 `min(300px, horizontal safe inset 제외 실제 배치 가능 viewport 폭)`으로 고정하고 220px 이하에서도 overflow 없이 축소한다. §13.3 panel-list shortcut에 `Ctrl/Meta+A` 전체 객체 선택과 frontmost active/anchor를 명시했다.
+- async 오류 수명 보완 완료: 같은 exact owner의 새 관련 입력·새 요청 시작·성공은 이전 picker/renderer 실패 오류를 제거하고 새 실패는 교체한다. stale 완료는 현재 owner의 오류를 제거하거나 되살리지 않는다.
+- 테스트·완료 조건·확정값에 active sheet 전환 중 panel picker, 220px 이하/중간/300px 이상 overlay viewport, 새 입력·재요청·성공·stale 완료 오류 수명과 panel-list `Ctrl/Meta+A`를 연결했다.
+- stage/commit 대상: `doc/label_line_panel.txt`, `SESSION_HANDOFF.md`만 포함한다. 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
+
 ### 완료 (2026-07-21): 선·도형 지시서 image picker·clipboard read 예외 보완
 - 사용자 요청: 최신 잔여 비동기 검토에서 확인한 image picker/file read/decode와 object paste clipboard read 예외 권장안을 지시서에 병합한다.
 - 추가 사용자 확인 불필요: 기존 async owner/token과 실패의 비파괴 원칙으로 결과가 결정된다. 예외를 취소로 숨기거나 dialog를 닫는 새 UX 대신 유효 owner에는 현재 입력과 명시적 inline 실패를 유지하고 stale owner는 기존과 같은 resource 정리 no-op으로 통일했다.
