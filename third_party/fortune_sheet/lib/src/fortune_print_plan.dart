@@ -1,10 +1,35 @@
 import 'dart:math' as math;
 import 'dart:ui';
 
+import 'fortune_border_compute.dart';
 import 'fortune_sheet_model.dart' hide Rect;
 import 'fortune_sheet_painter.dart';
 
-enum FortuneNativeCandidateKind { barcode, line, rectangle }
+enum FortuneNativeCandidateKind { barcode, line, rectangle, cellBorder }
+
+enum FortuneCellBorderEdgeAxis { vertical, horizontal }
+
+class FortuneCellBorderEdgeKey {
+  const FortuneCellBorderEdgeKey({
+    required this.axis,
+    required this.row,
+    required this.column,
+  });
+
+  final FortuneCellBorderEdgeAxis axis;
+  final int row;
+  final int column;
+
+  @override
+  bool operator ==(Object other) =>
+      other is FortuneCellBorderEdgeKey &&
+      axis == other.axis &&
+      row == other.row &&
+      column == other.column;
+
+  @override
+  int get hashCode => Object.hash(axis, row, column);
+}
 
 class FortunePrintTransform {
   const FortunePrintTransform({
@@ -54,14 +79,16 @@ class FortuneNativeCandidate {
   const FortuneNativeCandidate({
     required this.token,
     required this.kind,
-    required this.objectKey,
+    this.objectKey,
+    this.cellBorderEdgeKey,
     required this.logicalPaintedFootprint,
     required this.printerPaintedFootprint,
   });
 
   final String token;
   final FortuneNativeCandidateKind kind;
-  final FortuneSheetObjectKey objectKey;
+  final FortuneSheetObjectKey? objectKey;
+  final FortuneCellBorderEdgeKey? cellBorderEdgeKey;
   final Rect logicalPaintedFootprint;
   final Rect printerPaintedFootprint;
 }
@@ -85,9 +112,13 @@ class FortuneHybridRenderPlan {
     required Iterable<FortuneNativeCandidate> candidates,
     required Iterable<String> approvedCandidateTokens,
     required Iterable<FortuneSheetObjectKey> approvedObjectKeys,
+    required Iterable<FortuneCellBorderEdgeKey> approvedCellBorderEdgeKeys,
   }) : candidates = List.unmodifiable(candidates),
        approvedCandidateTokens = Set.unmodifiable(approvedCandidateTokens),
-       approvedObjectKeys = Set.unmodifiable(approvedObjectKeys);
+       approvedObjectKeys = Set.unmodifiable(approvedObjectKeys),
+       approvedCellBorderEdgeKeys = Set.unmodifiable(
+         approvedCellBorderEdgeKeys,
+       );
 
   final FortuneSheet sheet;
   final FortuneSettings settings;
@@ -96,10 +127,13 @@ class FortuneHybridRenderPlan {
   final List<FortuneNativeCandidate> candidates;
   final Set<String> approvedCandidateTokens;
   final Set<FortuneSheetObjectKey> approvedObjectKeys;
+  final Set<FortuneCellBorderEdgeKey> approvedCellBorderEdgeKeys;
 }
 
 List<FortuneNativeCandidate> fortuneBuildNativeCandidates({
+  required FortuneSettings settings,
   required FortuneSheet sheet,
+  required FortuneRange range,
   required FortunePrintTransform transform,
 }) {
   if (!transform.nativeAllowed || !transform.dpi.isFinite || transform.dpi <= 0) {
@@ -137,6 +171,15 @@ List<FortuneNativeCandidate> fortuneBuildNativeCandidates({
       ),
     );
   }
+  candidates.addAll(
+    _buildCellBorderCandidates(
+      settings: settings,
+      sheet: sheet,
+      range: range,
+      transform: transform,
+      objectFootprints: footprints,
+    ),
+  );
   return List.unmodifiable(candidates);
 }
 
@@ -164,6 +207,7 @@ FortuneHybridRenderPlan fortuneFinalizeHybridRenderPlan({
   }
   final approvedTokens = <String>{};
   final approvedKeys = <FortuneSheetObjectKey>{};
+  final approvedEdgeKeys = <FortuneCellBorderEdgeKey>{};
   for (final entry in candidatesByToken.entries) {
     if (approvalCounts[entry.key] != 1) continue;
     final approval = approvalByToken[entry.key]!;
@@ -175,7 +219,12 @@ FortuneHybridRenderPlan fortuneFinalizeHybridRenderPlan({
       continue;
     }
     approvedTokens.add(entry.key);
-    approvedKeys.add(entry.value.objectKey);
+    if (entry.value.objectKey case final objectKey?) {
+      approvedKeys.add(objectKey);
+    }
+    if (entry.value.cellBorderEdgeKey case final edgeKey?) {
+      approvedEdgeKeys.add(edgeKey);
+    }
   }
   return FortuneHybridRenderPlan(
     settings: settings,
@@ -185,7 +234,119 @@ FortuneHybridRenderPlan fortuneFinalizeHybridRenderPlan({
     candidates: candidateList,
     approvedCandidateTokens: approvedTokens,
     approvedObjectKeys: approvedKeys,
+    approvedCellBorderEdgeKeys: approvedEdgeKeys,
   );
+}
+
+List<FortuneNativeCandidate> _buildCellBorderCandidates({
+  required FortuneSettings settings,
+  required FortuneSheet sheet,
+  required FortuneRange range,
+  required FortunePrintTransform transform,
+  required List<Rect> objectFootprints,
+}) {
+  final metrics = sheet.metrics(settings);
+  final borders = FortuneBorderCompute.computeRange(sheet, range);
+  final edges = <
+    FortuneCellBorderEdgeKey,
+    ({FortuneBorderSide side, Rect footprint})
+  >{};
+
+  void addEdge({
+    required FortuneCellBorderEdgeKey key,
+    required FortuneBorderSide? side,
+    required Offset start,
+    required Offset end,
+  }) {
+    if (side == null ||
+        side.style != 1 ||
+      side.color.toARGB32() != 0xff000000) {
+      return;
+    }
+    final halfStroke = (side.strokeWidth ?? 1) / 2;
+    final footprint = start.dy == end.dy
+        ? Rect.fromLTRB(start.dx, start.dy - halfStroke, end.dx, end.dy + halfStroke)
+        : Rect.fromLTRB(start.dx - halfStroke, start.dy, end.dx + halfStroke, end.dy);
+    edges.putIfAbsent(key, () => (side: side, footprint: footprint));
+  }
+
+  for (final entry in borders.entries) {
+    final row = entry.key.row;
+    final column = entry.key.column;
+    final left = metrics.columnStart(column);
+    final right = metrics.columnEnd(column);
+    final top = metrics.rowStart(row);
+    final bottom = metrics.rowEnd(row);
+    addEdge(
+      key: FortuneCellBorderEdgeKey(
+        axis: FortuneCellBorderEdgeAxis.horizontal,
+        row: row,
+        column: column,
+      ),
+      side: entry.value.top,
+      start: Offset(left, top),
+      end: Offset(right, top),
+    );
+    addEdge(
+      key: FortuneCellBorderEdgeKey(
+        axis: FortuneCellBorderEdgeAxis.vertical,
+        row: row,
+        column: column + 1,
+      ),
+      side: entry.value.right,
+      start: Offset(right, top),
+      end: Offset(right, bottom),
+    );
+    addEdge(
+      key: FortuneCellBorderEdgeKey(
+        axis: FortuneCellBorderEdgeAxis.horizontal,
+        row: row + 1,
+        column: column,
+      ),
+      side: entry.value.bottom,
+      start: Offset(left, bottom),
+      end: Offset(right, bottom),
+    );
+    addEdge(
+      key: FortuneCellBorderEdgeKey(
+        axis: FortuneCellBorderEdgeAxis.vertical,
+        row: row,
+        column: column,
+      ),
+      side: entry.value.left,
+      start: Offset(left, top),
+      end: Offset(left, bottom),
+    );
+  }
+
+  final candidates = <FortuneNativeCandidate>[];
+  var index = 0;
+  for (final entry in edges.entries) {
+    final logicalFootprint = entry.value.footprint;
+    if (objectFootprints.any((object) => object.overlaps(logicalFootprint))) {
+      continue;
+    }
+    final printerFootprint = transform.logicalRectToPrinterDots(
+      logicalFootprint,
+    );
+    if (!_sameRect(
+      printerFootprint.intersect(transform.printerClipDots),
+      printerFootprint,
+    )) {
+      continue;
+    }
+    candidates.add(
+      FortuneNativeCandidate(
+        token: 'border:${entry.key.axis.name}:${entry.key.row}:'
+            '${entry.key.column}:${index++}',
+        kind: FortuneNativeCandidateKind.cellBorder,
+        cellBorderEdgeKey: entry.key,
+        logicalPaintedFootprint: logicalFootprint,
+        printerPaintedFootprint: printerFootprint,
+      ),
+    );
+  }
+  return candidates;
 }
 
 FortuneNativeCandidateKind? _nativeKind(
@@ -224,6 +385,22 @@ Rect _objectPaintedFootprint(
 ) {
   if (object.sourceIndex < sheet.images.length) {
     final image = sheet.images[object.sourceIndex];
+    if (object.key.kind == FortuneSheetObjectKind.barcode) {
+      final bodyTop = _extraDouble(
+        image.extraFields[fortuneBarcodeBodyTopExtraKey],
+        0,
+      );
+      final bodyHeight = _extraDouble(
+        image.extraFields[fortuneBarcodeBodyHeightExtraKey],
+        image.height,
+      );
+      return Rect.fromLTWH(
+        image.left,
+        image.top + bodyTop,
+        image.width,
+        bodyHeight,
+      );
+    }
     return Rect.fromLTWH(image.left, image.top, image.width, image.height);
   }
   final lineIndex = object.sourceIndex - sheet.images.length;
@@ -251,6 +428,12 @@ Rect _objectPaintedFootprint(
     width: rotatedWidth,
     height: rotatedHeight,
   ).inflate(halfStroke);
+}
+
+double _extraDouble(Object? value, double fallback) {
+  if (value is num) return value.toDouble();
+  if (value is String) return double.tryParse(value.trim()) ?? fallback;
+  return fallback;
 }
 
 bool _sameRect(Rect left, Rect right) => _rectWithinTolerance(left, right, 1e-9);

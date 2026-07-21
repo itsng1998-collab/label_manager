@@ -15714,6 +15714,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     FortuneSheet? sheetOverride,
     FortuneSettings? settingsOverride,
     Set<FortuneSheetObjectKey> omittedObjectKeys = const {},
+    Set<FortuneCellBorderEdgeKey> omittedCellBorderEdgeKeys = const {},
   }) async {
     final sheet = sheetOverride ?? _workbook.activeSheet;
     final settings = settingsOverride ?? _workbook.settings;
@@ -15844,6 +15845,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         originY: originY,
         borderCompute: borderCompute,
         clipBounds: bounds,
+        omittedEdgeKeys: omittedCellBorderEdgeKeys,
       );
     }
 
@@ -16114,6 +16116,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       sheetOverride: plan.sheet,
       settingsOverride: plan.settings,
       omittedObjectKeys: plan.approvedObjectKeys,
+      omittedCellBorderEdgeKeys: plan.approvedCellBorderEdgeKeys,
     );
     if (capture == null) return null;
     capture.image.dispose();
@@ -18636,6 +18639,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     required double originY,
     required Map<FortuneCellCoord, FortuneCellBorders> borderCompute,
     required Rect clipBounds,
+    required Set<FortuneCellBorderEdgeKey> omittedEdgeKeys,
   }) {
     final drawnMergedBorders = <FortuneCellCoord>{};
     final segments = <_ScreenshotBorderLineSegment>[];
@@ -18698,6 +18702,11 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
           slashSegments,
           rect,
           borders,
+          rowStart: row,
+          rowEnd: rectRowEnd,
+          columnStart: column,
+          columnEnd: rectColumnEnd,
+          omittedEdgeKeys: omittedEdgeKeys,
         );
       }
     }
@@ -18791,9 +18800,38 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     List<_ScreenshotBorderLineSegment> segments,
     List<_ScreenshotBorderLineSegment> slashSegments,
     Rect rect,
-    FortuneCellBorders borders,
-  ) {
-    if (borders.top case final side?) {
+    FortuneCellBorders borders, {
+    required int rowStart,
+    required int rowEnd,
+    required int columnStart,
+    required int columnEnd,
+    required Set<FortuneCellBorderEdgeKey> omittedEdgeKeys,
+  }) {
+    bool omitsHorizontal(int boundaryRow) => Iterable<int>.generate(
+      columnEnd - columnStart + 1,
+      (offset) => columnStart + offset,
+    ).every(
+      (column) => omittedEdgeKeys.contains(
+        FortuneCellBorderEdgeKey(
+          axis: FortuneCellBorderEdgeAxis.horizontal,
+          row: boundaryRow,
+          column: column,
+        ),
+      ),
+    );
+    bool omitsVertical(int boundaryColumn) => Iterable<int>.generate(
+      rowEnd - rowStart + 1,
+      (offset) => rowStart + offset,
+    ).every(
+      (row) => omittedEdgeKeys.contains(
+        FortuneCellBorderEdgeKey(
+          axis: FortuneCellBorderEdgeAxis.vertical,
+          row: row,
+          column: boundaryColumn,
+        ),
+      ),
+    );
+    if (borders.top case final side? when !omitsHorizontal(rowStart)) {
       segments.add(
         _ScreenshotBorderLineSegment(
           side: side,
@@ -18803,7 +18841,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         ),
       );
     }
-    if (borders.right case final side?) {
+    if (borders.right case final side? when !omitsVertical(columnEnd + 1)) {
       segments.add(
         _ScreenshotBorderLineSegment(
           side: side,
@@ -18813,7 +18851,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         ),
       );
     }
-    if (borders.bottom case final side?) {
+    if (borders.bottom case final side? when !omitsHorizontal(rowEnd + 1)) {
       segments.add(
         _ScreenshotBorderLineSegment(
           side: side,
@@ -18823,7 +18861,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         ),
       );
     }
-    if (borders.left case final side?) {
+    if (borders.left case final side? when !omitsVertical(columnStart)) {
       segments.add(
         _ScreenshotBorderLineSegment(
           side: side,

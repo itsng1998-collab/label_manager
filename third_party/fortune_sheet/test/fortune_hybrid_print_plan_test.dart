@@ -71,7 +71,9 @@ void main() {
 
   test('duplicate candidate approvals remain raster fallback', () {
     final candidate = fortuneBuildNativeCandidates(
+      settings: settings,
       sheet: sheet,
+      range: range,
       transform: transform,
     ).single;
     final approval = FortuneNativeCandidateApproval(
@@ -88,6 +90,112 @@ void main() {
     );
     expect(plan.approvedCandidateTokens, isEmpty);
     expect(plan.approvedObjectKeys, isEmpty);
+  });
+
+  test('adjacent border aliases share one physical edge candidate', () {
+    final borderSheet = FortuneSheet(
+      id: 'border',
+      name: 'Border',
+      rowCount: 1,
+      columnCount: 2,
+      borderInfo: const [
+        FortuneBorderInfo(
+          rangeType: 'range',
+          borderType: 'border-right',
+          color: Color(0xff000000),
+          style: 1,
+          ranges: [
+            FortuneRange(
+              rowStart: 0,
+              rowEnd: 0,
+              columnStart: 0,
+              columnEnd: 0,
+            ),
+          ],
+        ),
+        FortuneBorderInfo(
+          rangeType: 'range',
+          borderType: 'border-left',
+          color: Color(0xff000000),
+          style: 1,
+          ranges: [
+            FortuneRange(
+              rowStart: 0,
+              rowEnd: 0,
+              columnStart: 1,
+              columnEnd: 1,
+            ),
+          ],
+        ),
+      ],
+    );
+    final candidates = fortuneBuildNativeCandidates(
+      settings: settings,
+      sheet: borderSheet,
+      range: const FortuneRange(
+        rowStart: 0,
+        rowEnd: 0,
+        columnStart: 0,
+        columnEnd: 1,
+      ),
+      transform: transform,
+    ).where((candidate) => candidate.kind == FortuneNativeCandidateKind.cellBorder);
+
+    expect(candidates, hasLength(1));
+    expect(
+      candidates.single.cellBorderEdgeKey,
+      const FortuneCellBorderEdgeKey(
+        axis: FortuneCellBorderEdgeAxis.vertical,
+        row: 0,
+        column: 1,
+      ),
+    );
+  });
+
+  test('border under a typed object remains raster fallback', () {
+    final overlapSheet = FortuneSheet(
+      id: 'overlap',
+      name: 'Overlap',
+      rowCount: 1,
+      columnCount: 1,
+      lines: const [
+        FortuneLine(id: 'line', x1: 2, y1: 20, x2: 18, y2: 20),
+      ],
+      borderInfo: const [
+        FortuneBorderInfo(
+          rangeType: 'range',
+          borderType: 'border-bottom',
+          color: Color(0xff000000),
+          style: 1,
+          ranges: [
+            FortuneRange(
+              rowStart: 0,
+              rowEnd: 0,
+              columnStart: 0,
+              columnEnd: 0,
+            ),
+          ],
+        ),
+      ],
+    );
+    final candidates = fortuneBuildNativeCandidates(
+      settings: settings,
+      sheet: overlapSheet,
+      range: const FortuneRange(
+        rowStart: 0,
+        rowEnd: 0,
+        columnStart: 0,
+        columnEnd: 0,
+      ),
+      transform: transform,
+    );
+
+    expect(
+      candidates.where(
+        (candidate) => candidate.kind == FortuneNativeCandidateKind.cellBorder,
+      ),
+      isEmpty,
+    );
   });
 
   testWidgets('filtered capture omits only approved exact typed key', (
@@ -110,7 +218,9 @@ void main() {
       ),
     );
     final candidate = fortuneBuildNativeCandidates(
+      settings: settings,
       sheet: sheet,
+      range: range,
       transform: transform,
     ).single;
     final plan = fortuneFinalizeHybridRenderPlan(
@@ -136,5 +246,83 @@ void main() {
     expect(_isWhite(pixels, width, 29, 29), isFalse);
     expect(capture.sheet, same(sheet));
     expect(capture.range.rowEnd, 1);
+  });
+
+  testWidgets('filtered capture omits an approved physical border edge', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(240, 180);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    final borderSheet = FortuneSheet(
+      id: 'border-capture',
+      name: 'Border capture',
+      rowCount: 1,
+      columnCount: 2,
+      borderInfo: const [
+        FortuneBorderInfo(
+          rangeType: 'range',
+          borderType: 'border-right',
+          color: Color(0xff000000),
+          style: 1,
+          ranges: [
+            FortuneRange(
+              rowStart: 0,
+              rowEnd: 0,
+              columnStart: 0,
+              columnEnd: 0,
+            ),
+          ],
+        ),
+      ],
+    );
+    final controller = FortuneSheetController();
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: FortuneSheetCanvas(
+          workbook: FortuneWorkbook(
+            settings: settings,
+            sheets: [borderSheet],
+          ),
+          controller: controller,
+        ),
+      ),
+    );
+    const borderRange = FortuneRange(
+      rowStart: 0,
+      rowEnd: 0,
+      columnStart: 0,
+      columnEnd: 1,
+    );
+    final candidate = fortuneBuildNativeCandidates(
+      settings: settings,
+      sheet: borderSheet,
+      range: borderRange,
+      transform: transform,
+    ).single;
+    final plan = fortuneFinalizeHybridRenderPlan(
+      settings: settings,
+      sheet: borderSheet,
+      range: borderRange,
+      transform: transform,
+      candidates: [candidate],
+      approvals: [
+        FortuneNativeCandidateApproval(
+          candidateToken: candidate.token,
+          predictedPaintedFootprint: candidate.printerPaintedFootprint,
+        ),
+      ],
+    );
+
+    final capture = await tester.runAsync(
+      () => controller.captureHybridPlanAsPng(plan),
+    );
+    expect(capture, isNotNull);
+    final pixels = await tester.runAsync(() => _decodeRawRgba(capture!.pngBytes));
+    expect(_isWhite(pixels!, capture!.pixelSize.width.toInt(), 20, 10), isTrue);
   });
 }

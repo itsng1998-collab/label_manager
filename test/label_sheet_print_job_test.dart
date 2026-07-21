@@ -121,6 +121,22 @@ void main() {
           strokeWidthMm: 1,
         ),
       ],
+      borderInfo: const [
+        fs.FortuneBorderInfo(
+          rangeType: 'range',
+          borderType: 'border-right',
+          color: Color(0xff000000),
+          style: 1,
+          ranges: [
+            fs.FortuneRange(
+              rowStart: 0,
+              rowEnd: 0,
+              columnStart: 0,
+              columnEnd: 0,
+            ),
+          ],
+        ),
+      ],
     );
     const transform = fs.FortunePrintTransform(
       sourceLogicalBounds: Rect.fromLTWH(0, 0, 40, 40),
@@ -132,7 +148,17 @@ void main() {
       nativeAllowed: true,
     );
     final candidates = fs.fortuneBuildNativeCandidates(
+      settings: const fs.FortuneSettings(
+        defaultRowHeight: 20,
+        defaultColWidth: 20,
+      ),
       sheet: sheet,
+      range: const fs.FortuneRange(
+        rowStart: 0,
+        rowEnd: 0,
+        columnStart: 0,
+        columnEnd: 0,
+      ),
       transform: transform,
     );
     final descriptors = preflightLabelSheetEzplCandidates(
@@ -179,9 +205,85 @@ void main() {
       descriptors: descriptors,
     );
     final text = ascii.decode(bytes, allowInvalid: true);
-    expect(plan.approvedCandidateTokens, hasLength(1));
-    expect(text, contains(descriptors.single.command));
+    expect(plan.approvedCandidateTokens, hasLength(2));
+    for (final descriptor in descriptors) {
+      expect(text, contains(descriptor.command));
+    }
     expect(text, endsWith('E\r\n'));
+  });
+
+  test('barcode preflight approves only an exact deterministic footprint', () {
+    fs.FortuneSheet barcodeSheet(double width) => fs.FortuneSheet(
+      id: 'barcode',
+      name: 'Barcode',
+      rowCount: 1,
+      columnCount: 1,
+      images: [
+        fs.FortuneImage(
+          id: 'barcode-1',
+          src: '',
+          left: 2,
+          top: 3,
+          width: width,
+          height: 10,
+          extraFields: const {
+            'fortuneBarcode': true,
+            'barcodeText': 'A',
+            'barcodeFormatId': 'code128',
+            'barcodeModuleScale': 1,
+            'barcodeBarHeight': 10,
+            'barcodeShowText': false,
+            'barcodeBodyTop': 0,
+            'barcodeBodyHeight': 10,
+          },
+        ),
+      ],
+    );
+    const settings = fs.FortuneSettings(
+      defaultRowHeight: 20,
+      defaultColWidth: 100,
+    );
+    const range = fs.FortuneRange(
+      rowStart: 0,
+      rowEnd: 0,
+      columnStart: 0,
+      columnEnd: 0,
+    );
+    const transform = fs.FortunePrintTransform(
+      sourceLogicalBounds: Rect.fromLTWH(0, 0, 100, 20),
+      dpi: 96,
+      contentLeftMm: 0,
+      contentTopMm: 0,
+      clipRightMm: 30,
+      clipBottomMm: 10,
+      nativeAllowed: true,
+    );
+
+    fs.FortuneHybridRenderPlan buildPlan(double width) {
+      final sheet = barcodeSheet(width);
+      final candidates = fs.fortuneBuildNativeCandidates(
+        settings: settings,
+        sheet: sheet,
+        range: range,
+        transform: transform,
+      );
+      final descriptors = preflightLabelSheetEzplCandidates(
+        sheet: sheet,
+        transform: transform,
+        candidates: candidates,
+      );
+      return fs.fortuneFinalizeHybridRenderPlan(
+        settings: settings,
+        sheet: sheet,
+        range: range,
+        transform: transform,
+        candidates: candidates,
+        approvals: descriptors.map((descriptor) => descriptor.approval),
+      );
+    }
+
+    expect(buildPlan(46).approvedCandidateTokens, hasLength(1));
+    expect(buildPlan(47).approvedCandidateTokens, isEmpty);
   });
 
   test('buildLabelSheetPdfBytes creates one page per copy', () async {
@@ -210,80 +312,4 @@ void main() {
     expect(ascii.decode(bytes.take(4).toList()), '%PDF');
   });
 
-  test('buildLabelSheetHybridEzplBytes emits native borders and barcodes', () async {
-    final image = img.Image(width: 40, height: 20);
-    img.fill(image, color: img.ColorRgb8(255, 255, 255));
-    final pngBytes = Uint8List.fromList(img.encodePng(image));
-
-    final sheet = fs.FortuneSheet(
-      id: 's1',
-      name: 'Sheet1',
-      rowCount: 1,
-      columnCount: 1,
-      rowHeights: const {0: fs.fortuneSheetLogicalPixelsPerInch / 25.4 * 10},
-      columnWidths: const {0: fs.fortuneSheetLogicalPixelsPerInch / 25.4 * 20},
-      borderInfo: const [
-        fs.FortuneBorderInfo(
-          rangeType: 'range',
-          borderType: 'border-all',
-          color: Color(0xff000000),
-          style: 1,
-          ranges: [
-            fs.FortuneRange(rowStart: 0, rowEnd: 0, columnStart: 0, columnEnd: 0),
-          ],
-        ),
-      ],
-      images: const [
-        fs.FortuneImage(
-          id: 'barcode-1',
-          src: '',
-          left: 0,
-          top: 0,
-          width: fs.fortuneSheetLogicalPixelsPerInch / 25.4 * 20,
-          height: fs.fortuneSheetLogicalPixelsPerInch / 25.4 * 10,
-          extraFields: {
-            'fortuneBarcode': true,
-            'barcodeText': '123456',
-            'barcodeFormatId': 'code128',
-            'barcodeModuleScale': 2,
-            'barcodeBarHeight': fs.fortuneSheetLogicalPixelsPerInch / 25.4 * 8,
-            'barcodeShowText': false,
-          },
-        ),
-      ],
-    );
-
-    final bytes = await buildLabelSheetHybridEzplBytes(
-      sheet: sheet,
-      range: const fs.FortuneRange(
-        rowStart: 0,
-        rowEnd: 0,
-        columnStart: 0,
-        columnEnd: 0,
-      ),
-      fallbackPngBytes: pngBytes,
-      metrics: const LabelSheetPrintPageMetrics(
-        labelWidthMm: 20,
-        labelHeightMm: 10,
-        dpi: 25.4,
-      ),
-      options: const LabelSheetPrintOptions(
-        copies: 1,
-        leftMarginMm: 1,
-        topMarginMm: 2,
-        extraAreaMm: 0,
-        autoSpacingPercent: null,
-        orientation: LabelSheetPrintOrientation.horizontal,
-      ),
-    );
-
-    final text = ascii.decode(
-      bytes.where((byte) => byte == 0x0d || byte == 0x0a || byte >= 0x20).toList(),
-      allowInvalid: true,
-    );
-    expect(text, contains('~G'));
-    expect(text, contains('R1,2,21,3,1,1'));
-    expect(text, contains('BQ1,2,2,5,8,0,0,123456'));
-    expect(text, endsWith('E\r\n'));
-  });
 }

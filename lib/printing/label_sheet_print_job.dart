@@ -161,21 +161,33 @@ List<LabelSheetEzplNativeDescriptor> preflightLabelSheetEzplCandidates({
   final descriptors = <LabelSheetEzplNativeDescriptor>[];
   for (final candidate in candidates) {
     if (candidate.kind == FortuneNativeCandidateKind.barcode) {
+      final descriptor = _preflightEzplBarcodeCandidate(
+        sheet: sheet,
+        transform: transform,
+        candidate: candidate,
+      );
+      if (descriptor != null) descriptors.add(descriptor);
       continue;
     }
     final strokeWidthMm = switch (candidate.kind) {
       FortuneNativeCandidateKind.line => sheet.lines
-          .where((line) => line.id == candidate.objectKey.id)
+          .where((line) => line.id == candidate.objectKey!.id)
           .map((line) => line.strokeWidthMm)
           .firstOrNull,
       FortuneNativeCandidateKind.rectangle => sheet.shapes
           .where((shape) {
-            return shape.id == candidate.objectKey.id &&
-                fortuneShapeObjectKind(shape) == candidate.objectKey.kind;
+            return shape.id == candidate.objectKey!.id &&
+                fortuneShapeObjectKind(shape) == candidate.objectKey!.kind;
           })
           .map((shape) => shape.strokeWidthMm)
           .firstOrNull,
       FortuneNativeCandidateKind.barcode => null,
+      FortuneNativeCandidateKind.cellBorder =>
+        math.min(
+              candidate.printerPaintedFootprint.width,
+              candidate.printerPaintedFootprint.height,
+            ) /
+            transform.dotsPerMillimeter,
     };
     if (strokeWidthMm == null) continue;
     final strokeDots = math.max(
@@ -205,6 +217,88 @@ List<LabelSheetEzplNativeDescriptor> preflightLabelSheetEzplCandidates({
     );
   }
   return List.unmodifiable(descriptors);
+}
+
+LabelSheetEzplNativeDescriptor? _preflightEzplBarcodeCandidate({
+  required FortuneSheet sheet,
+  required FortunePrintTransform transform,
+  required FortuneNativeCandidate candidate,
+}) {
+  final key = candidate.objectKey;
+  if (key == null) return null;
+  final image = sheet.images
+      .where((image) => image.id == key.id && image.extraFields['fortuneBarcode'] == true)
+      .firstOrNull;
+  if (image == null || image.extraFields['barcodeShowText'] == true) return null;
+  if (_metadataDouble(image.extraFields['rotation'], 0).abs() > 0.001) {
+    return null;
+  }
+  final text = image.extraFields['barcodeText']?.toString().trim() ?? '';
+  final format = image.extraFields['barcodeFormatId']?.toString() ?? '';
+  final command = _ezplBarcodeCommandForFormat(format);
+  final narrow = math.max(
+    1,
+    _metadataDouble(image.extraFields['barcodeModuleScale'], 2).round(),
+  );
+  final wide = math.max(narrow + 1, (narrow * 2.5).round());
+  final width = _ezplBarcodePaintedWidth(
+    format: format,
+    text: text,
+    narrow: narrow,
+    wide: wide,
+  );
+  if (command == null || width == null || text.isEmpty) return null;
+  final height = math.max(
+    8,
+    (_metadataDouble(
+          image.extraFields['barcodeBarHeight'],
+          image.height,
+        ) *
+        transform.dotsPerLogicalPixel).round(),
+  );
+  final target = candidate.printerPaintedFootprint;
+  final left = target.left.round();
+  final top = target.top.round();
+  final predicted = ui.Rect.fromLTWH(
+    left.toDouble(),
+    top.toDouble(),
+    width.toDouble(),
+    height.toDouble(),
+  );
+  return LabelSheetEzplNativeDescriptor(
+    candidateToken: candidate.token,
+    command: '$command$left,$top,$narrow,$wide,$height,0,0,'
+        '${_escapeEzplText(text)}\r\n',
+    predictedPaintedFootprint: predicted,
+  );
+}
+
+int? _ezplBarcodePaintedWidth({
+  required String format,
+  required String text,
+  required int narrow,
+  required int wide,
+}) {
+  final normalized = format.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+  if (normalized.contains('ean13')) {
+    return RegExp(r'^\d{12,13}$').hasMatch(text) ? 95 * narrow : null;
+  }
+  if (normalized.contains('ean8')) {
+    return RegExp(r'^\d{7,8}$').hasMatch(text) ? 67 * narrow : null;
+  }
+  if (normalized.contains('code128')) {
+    if (!text.codeUnits.every((code) => code >= 32 && code <= 126)) return null;
+    final dataCodewords = RegExp(r'^\d+$').hasMatch(text) && text.length.isEven
+        ? text.length ~/ 2
+        : text.length;
+    return (11 * (dataCodewords + 2) + 13) * narrow;
+  }
+  if (normalized.contains('code39')) {
+    if (!RegExp(r'^[0-9A-Z .\-$/+%]+$').hasMatch(text)) return null;
+    final symbols = text.length + 2;
+    return symbols * (3 * wide + 6 * narrow) + (symbols - 1) * narrow;
+  }
+  return null;
 }
 
 Future<Uint8List> buildLabelSheetPlannedHybridEzplBytes({
@@ -439,71 +533,6 @@ Future<Uint8List> buildLabelSheetEzplRasterBytes({
   return commands.takeBytes();
 }
 
-Future<Uint8List> buildLabelSheetHybridEzplBytes({
-  required FortuneSheet sheet,
-  required FortuneRange range,
-  required Uint8List fallbackPngBytes,
-  required LabelSheetPrintPageMetrics metrics,
-  required LabelSheetPrintOptions options,
-}) async {
-  final source = img.decodePng(fallbackPngBytes);
-  if (source == null) {
-    throw StateError('라벨 이미지를 EZPL 출력 이미지로 변환할 수 없습니다.');
-  }
-
-  final layout = LabelSheetPrintLayout.resolve(
-    metrics: metrics,
-    options: options,
-  );
-  final labelWidthDots = metrics.dotsFromMm(metrics.labelWidthMm);
-  final pageWidthDots = labelWidthDots;
-  final pageHeightDots = metrics.dotsFromMm(metrics.pageHeightMm(options));
-  final leftDots = metrics.signedDotsFromMm(layout.contentLeftMm);
-  final topDots = metrics.signedDotsFromMm(layout.contentTopMm);
-  final content = _prepareRasterContent(
-    source: source,
-    metrics: metrics,
-    options: options,
-  );
-  if (!options.rotateQuarterTurns) {
-    _clearNativeBarcodeFallbackAreas(content, sheet, metrics);
-  }
-  final raster = img.Image(width: pageWidthDots, height: pageHeightDots);
-  img.fill(raster, color: img.ColorRgb8(255, 255, 255));
-  img.compositeImage(raster, content, dstX: leftDots, dstY: topDots);
-  _clipRasterToLabelArea(
-    raster,
-    metrics: metrics,
-    options: options,
-  );
-
-  final commands = BytesBuilder(copy: false)
-    ..add(ascii.encode('^Q${metrics.pageHeightMm(options).round()},0,0\r\n'))
-    ..add(ascii.encode('^W ${metrics.pageWidthMm.round()}\r\n'))
-    ..add(ascii.encode('^P${options.copies}\r\n'))
-    ..add(ascii.encode('^L\r\n'));
-
-  _addEzplRasterGraphic(commands, raster);
-  if (!options.rotateQuarterTurns) {
-    _addHybridSheetBorders(
-      commands,
-      sheet: sheet,
-      range: range,
-      metrics: metrics,
-      options: options,
-    );
-    _addHybridSheetBarcodes(
-      commands,
-      sheet: sheet,
-      metrics: metrics,
-      options: options,
-    );
-  }
-
-  commands.add(ascii.encode('E\r\n'));
-  return commands.takeBytes();
-}
-
 img.Image _prepareRasterContent({
   required img.Image source,
   required LabelSheetPrintPageMetrics metrics,
@@ -577,208 +606,6 @@ void _addEzplRasterGraphic(BytesBuilder commands, img.Image raster) {
   }
 }
 
-void _addHybridSheetBorders(
-  BytesBuilder commands, {
-  required FortuneSheet sheet,
-  required FortuneRange range,
-  required LabelSheetPrintPageMetrics metrics,
-  required LabelSheetPrintOptions options,
-}) {
-  final sheetMetrics = sheet.metrics(defaultSettings);
-  final borders = FortuneBorderCompute.computeRange(sheet, range);
-  for (final entry in borders.entries) {
-    final coord = entry.key;
-    final cellBorders = entry.value;
-    final left = _logicalToDots(
-      sheetMetrics.columnStart(coord.column),
-      metrics,
-      offsetMm: options.leftMarginMm,
-    );
-    final right = _logicalToDots(
-      sheetMetrics.columnEnd(coord.column),
-      metrics,
-      offsetMm: options.leftMarginMm,
-    );
-    final top = _logicalToDots(
-      sheetMetrics.rowStart(coord.row),
-      metrics,
-      offsetMm: options.topMarginMm,
-    );
-    final bottom = _logicalToDots(
-      sheetMetrics.rowEnd(coord.row),
-      metrics,
-      offsetMm: options.topMarginMm,
-    );
-    _addEzplBorderLine(commands, left, top, right, top, cellBorders.top, metrics);
-    _addEzplBorderLine(
-      commands,
-      right,
-      top,
-      right,
-      bottom,
-      cellBorders.right,
-      metrics,
-    );
-    _addEzplBorderLine(
-      commands,
-      left,
-      bottom,
-      right,
-      bottom,
-      cellBorders.bottom,
-      metrics,
-    );
-    _addEzplBorderLine(
-      commands,
-      left,
-      top,
-      left,
-      bottom,
-      cellBorders.left,
-      metrics,
-    );
-  }
-}
-
-void _addEzplBorderLine(
-  BytesBuilder commands,
-  int x1,
-  int y1,
-  int x2,
-  int y2,
-  FortuneBorderSide? side,
-  LabelSheetPrintPageMetrics metrics,
-) {
-  if (side == null || side.style == 0) {
-    return;
-  }
-  final width = _borderStrokeDots(side, metrics);
-  final left = math.min(x1, x2);
-  final top = math.min(y1, y2);
-  final boxWidth = math.max(width, (x2 - x1).abs());
-  final boxHeight = math.max(width, (y2 - y1).abs());
-  commands.add(
-    ascii.encode('R$left,$top,${left + boxWidth},${top + boxHeight},$width,$width\r\n'),
-  );
-}
-
-int _borderStrokeDots(
-  FortuneBorderSide side,
-  LabelSheetPrintPageMetrics metrics,
-) {
-  final logicalWidth = side.strokeWidth ?? _borderStyleLogicalWidth(side.style);
-  final mm = fortuneLogicalPixelsToMillimeters(logicalWidth);
-  return math.max(1, metrics.dotsFromMm(mm));
-}
-
-double _borderStyleLogicalWidth(int style) {
-  switch (style) {
-    case 2:
-    case 3:
-      return 2;
-    case 4:
-    case 5:
-      return 3;
-    default:
-      return 1;
-  }
-}
-
-void _addHybridSheetBarcodes(
-  BytesBuilder commands, {
-  required FortuneSheet sheet,
-  required LabelSheetPrintPageMetrics metrics,
-  required LabelSheetPrintOptions options,
-}) {
-  for (final image in sheet.images) {
-    if (image.extraFields['fortuneBarcode'] != true) {
-      continue;
-    }
-    final text = image.extraFields['barcodeText']?.toString().trim() ?? '';
-    if (text.isEmpty) {
-      continue;
-    }
-    final format = image.extraFields['barcodeFormatId']?.toString() ?? '';
-    final command = _ezplBarcodeCommandForFormat(format);
-    if (command == null) {
-      continue;
-    }
-    final rotation = _metadataDouble(image.extraFields['rotation'], 0);
-    if (rotation.abs() > 0.001) {
-      continue;
-    }
-    final x = _logicalToDots(image.left, metrics, offsetMm: options.leftMarginMm);
-    final y = _logicalToDots(image.top, metrics, offsetMm: options.topMarginMm);
-    final narrow = math.max(
-      1,
-      _metadataDouble(image.extraFields['barcodeModuleScale'], 2).round(),
-    );
-    final wide = math.max(narrow + 1, (narrow * 2.5).round());
-    final height = math.max(
-      8,
-      metrics.dotsFromMm(
-        fortuneLogicalPixelsToMillimeters(
-          _metadataDouble(image.extraFields['barcodeBarHeight'], image.height),
-        ),
-      ),
-    );
-    final humanReadable = image.extraFields['barcodeShowText'] == true ? '1' : '0';
-    final escaped = _escapeEzplText(text);
-    commands.add(
-      ascii.encode('$command$x,$y,$narrow,$wide,$height,0,$humanReadable,$escaped\r\n'),
-    );
-  }
-}
-
-void _clearNativeBarcodeFallbackAreas(
-  img.Image content,
-  FortuneSheet sheet,
-  LabelSheetPrintPageMetrics metrics,
-) {
-  for (final image in sheet.images) {
-    if (!_canRenderNativeBarcode(image)) {
-      continue;
-    }
-    final left = _logicalToDots(image.left, metrics).clamp(0, content.width);
-    final top = _logicalToDots(image.top, metrics).clamp(0, content.height);
-    final right = _logicalToDots(
-      image.left + image.width,
-      metrics,
-    ).clamp(0, content.width);
-    final bottom = _logicalToDots(
-      image.top + image.height,
-      metrics,
-    ).clamp(0, content.height);
-    if (right <= left || bottom <= top) {
-      continue;
-    }
-    img.fillRect(
-      content,
-      x1: left,
-      y1: top,
-      x2: right - 1,
-      y2: bottom - 1,
-      color: img.ColorRgb8(255, 255, 255),
-    );
-  }
-}
-
-bool _canRenderNativeBarcode(FortuneImage image) {
-  if (image.extraFields['fortuneBarcode'] != true) {
-    return false;
-  }
-  final text = image.extraFields['barcodeText']?.toString().trim() ?? '';
-  if (text.isEmpty) {
-    return false;
-  }
-  final format = image.extraFields['barcodeFormatId']?.toString() ?? '';
-  if (_ezplBarcodeCommandForFormat(format) == null) {
-    return false;
-  }
-  final rotation = _metadataDouble(image.extraFields['rotation'], 0);
-  return rotation.abs() <= 0.001;
-}
-
 String? _ezplBarcodeCommandForFormat(String format) {
   final normalized = format.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
   if (normalized.contains('code128')) {
@@ -804,16 +631,6 @@ double _metadataDouble(Object? value, double fallback) {
     return double.tryParse(value.trim()) ?? fallback;
   }
   return fallback;
-}
-
-int _logicalToDots(
-  num logicalPixels,
-  LabelSheetPrintPageMetrics metrics, {
-  double offsetMm = 0,
-}) {
-  return metrics.dotsFromMm(
-    offsetMm + fortuneLogicalPixelsToMillimeters(logicalPixels),
-  );
 }
 
 String _escapeEzplText(String value) {

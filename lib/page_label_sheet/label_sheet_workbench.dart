@@ -3037,7 +3037,9 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       nativeAllowed: !options.rotateQuarterTurns,
     );
     final candidates = fortuneBuildNativeCandidates(
+      settings: settings,
       sheet: sheet,
+      range: requestedRange,
       transform: transform,
     );
     final descriptors = preflightLabelSheetEzplCandidates(
