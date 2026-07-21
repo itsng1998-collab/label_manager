@@ -6,6 +6,14 @@
 - ODBC transaction batch는 첫 DML이 0행일 때 `SQL_NO_DATA(100)`을 반환할 수 있으므로 필요하면 batch 첫 줄에 `SET NOCOUNT ON`을 사용하고 명시적 결과 SELECT를 유지한다. `@@ROWCOUNT`와 `@@TRANCOUNT`는 parameter로 치환하지 않는다.
 - SQL 변경 검증 시 focused DAO 테스트에 금지 함수 미사용과 XML wire 계약을 고정하고, 가능한 경우 compatibility 100 실제 서버에서 데이터 변경 없는 read-only/빈 payload/rollback probe를 수행한다. 실제 schema capability가 없으면 gate를 우회하지 않고 제한을 기록한다.
 
+### 완료 (2026-07-21): 선·도형 지시서 clipboard write 경쟁 보완
+- 사용자 요청: 최신 `doc/label_line_panel.txt` 재검토에서 확인한 clipboard 권장안을 과도한 예외 처리 없이 병합하고 필요한 사용자 정책 선택은 즉시 확정한다.
+- 사용자 확정: 최신 copy/cut B가 실패하고 stale A의 OS write가 성공했으면 A를 채택하거나 payload를 비활성화하지 않고, 요청 전 활성 object payload와 대응 system marker 쌍을 OS clipboard까지 복원한다.
+- clipboard write 보완 완료: 동시에 시작된 copy/cut은 성공 여부와 무관하게 호출 순서상 최신 요청만 commit 자격을 갖는 latest-wins coordinator가 소유한다. stale 완료는 source 삭제·selection·내부 payload·undo/dirty/revision·callback/listenable을 바꾸지 않고, 최신 성공 시 system marker와 활성 payload가 그 요청에 일치하도록 write 직렬화 또는 marker 재확정까지 책임진다.
+- 실패 경계 보완 완료: 최신 write가 실패하면 이전 stale 요청을 되살리거나 stale cut source를 삭제하지 않고 요청 전 안정된 payload·대응 marker 쌍과 workbook을 복원한다.
+- 테스트 계약 보완 완료: A cut→B copy와 A copy→B cut의 A→B/B→A 완료 순서, stale source no-op, 최신 성공의 marker/payload 일치와 `P/M(P)` 상태에서 B 실패→A OS write 성공 뒤 `P/M(P)` 복원을 `Completer`로 판별한다.
+- stage/commit 대상: `doc/label_line_panel.txt`, `SESSION_HANDOFF.md`만 포함한다. 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
+
 ### 완료 (2026-07-21): 선·도형 지시서 focus·geometry 입력 경계 보완
 - 사용자 요청: 최신 `doc/label_line_panel.txt` 재검토에서 확인한 권장안을 과도한 예외 처리 없이 병합하고 필요한 사용자 정책 선택은 즉시 확정한다.
 - 추가 사용자 확인 불필요: 실제 `FocusNode` 기반 command 소유권과 canonical no-op/finite validation이라는 기존 원칙을 구체화했으며 새로운 공개 정책 선택은 없다.
