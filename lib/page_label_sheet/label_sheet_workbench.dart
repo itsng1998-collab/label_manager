@@ -236,6 +236,7 @@ const List<String> labelSheetToolbarItems = [
   '|',
   fortuneToolbarImageCommand,
   fortuneToolbarBarcodeCommand,
+  fortuneToolbarLineCommand,
 ];
 
 const Map<String, int> _labelSheetBarcodeFormatValues = {
@@ -3090,6 +3091,8 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     return sheet.cells.isNotEmpty ||
         sheet.borderInfo.isNotEmpty ||
         sheet.images.isNotEmpty ||
+      sheet.lines.isNotEmpty ||
+      sheet.shapes.isNotEmpty ||
         sheet.dataVerification.isNotEmpty ||
         sheet.hyperlinks.isNotEmpty;
   }

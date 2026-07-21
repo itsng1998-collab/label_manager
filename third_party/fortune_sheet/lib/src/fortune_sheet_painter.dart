@@ -2284,6 +2284,7 @@ const String fortuneToolbarClearFilterCommand = 'filter-clear';
 const String fortuneToolbarDataVerificationCommand = 'dataVerification';
 const String fortuneToolbarImageCommand = 'image';
 const String fortuneToolbarBarcodeCommand = 'barcode';
+const String fortuneToolbarLineCommand = 'line';
 const String fortuneContextEditImageCommand = 'edit-image';
 const String fortuneContextEditBarcodeCommand = 'edit-barcode';
 const String fortuneContextToggleLayerPanelCommand = 'toggle-layer-panel';
@@ -2554,6 +2555,7 @@ const List<String> fortuneToolbarImmediateCommands = [
   fortuneToolbarDataVerificationCommand,
   fortuneToolbarImageCommand,
   fortuneToolbarBarcodeCommand,
+  fortuneToolbarLineCommand,
   fortuneToolbarSplitColumnCommand,
   fortuneToolbarScreenshotCommand,
   fortuneToolbarSearchCommand,
@@ -43397,6 +43399,7 @@ const Map<String, String> fortuneToolbarTooltipLabels = {
   fortuneToolbarLinkCommand: 'Insert link',
   fortuneToolbarImageCommand: 'Insert image',
   fortuneToolbarBarcodeCommand: 'Insert barcode',
+  fortuneToolbarLineCommand: 'Insert line',
   fortuneToolbarCommentCommand: 'Comment',
   fortuneToolbarQuickFormulaPopupKey: 'Auto SUM',
   fortuneToolbarDataVerificationCommand: 'Data verification',
@@ -44280,6 +44283,56 @@ const double fortuneImageLayerPanelScrollbarMargin = 4.0;
 const double fortuneImageLayerPanelTypeWidth = 34.0;
 const double fortuneImageLayerPanelTypeGap = 6.0;
 const int fortuneImageLayerPanelMaxVisibleRows = 8;
+
+enum FortuneSheetObjectKind {
+  image,
+  barcode,
+  line,
+  rectangle,
+  roundedRectangle,
+  ellipse,
+}
+
+class FortuneSheetObjectKey {
+  const FortuneSheetObjectKey(this.kind, this.id);
+
+  final FortuneSheetObjectKind kind;
+  final String id;
+
+  @override
+  bool operator ==(Object other) {
+    return other is FortuneSheetObjectKey &&
+        other.kind == kind &&
+        other.id == id;
+  }
+
+  @override
+  int get hashCode => Object.hash(kind, id);
+}
+
+class FortuneSheetObjectRef {
+  const FortuneSheetObjectRef({
+    required this.key,
+    required this.zOrder,
+    required this.sourceIndex,
+  });
+
+  final FortuneSheetObjectKey key;
+  final double zOrder;
+  final int sourceIndex;
+}
+
+class FortuneObjectInsertionPlan {
+  const FortuneObjectInsertionPlan({
+    required this.sheet,
+    required this.zOrders,
+    required this.rebased,
+  });
+
+  final FortuneSheet sheet;
+  final List<double> zOrders;
+  final bool rebased;
+}
 const List<String> fortuneImageLayerPanelActionCommands = <String>[
   fortuneContextDeleteImageCommand,
   fortuneContextDuplicateImageCommand,
@@ -44636,12 +44689,198 @@ class FortuneBarcodeObjectIdLabelMetrics {
 double fortuneImageZOrder(FortuneImage image) {
   final raw = image.extraFields[fortuneSheetObjectZOrderExtraKey];
   if (raw is num) {
-    return raw.toDouble();
+    final value = raw.toDouble();
+    return value.isFinite ? value : 0;
   }
   if (raw is String) {
-    return double.tryParse(raw.trim()) ?? 0;
+    final value = double.tryParse(raw.trim());
+    return value != null && value.isFinite ? value : 0;
   }
   return 0;
+}
+
+FortuneSheetObjectKind fortuneImageObjectKind(FortuneImage image) {
+  return image.extraFields['fortuneBarcode'] == true
+      ? FortuneSheetObjectKind.barcode
+      : FortuneSheetObjectKind.image;
+}
+
+String fortuneImageObjectInternalId(FortuneImage image) {
+  final key = fortuneImageObjectKind(image) == FortuneSheetObjectKind.barcode
+      ? fortuneBarcodeObjectIdExtraKey
+      : fortuneImageObjectIdExtraKey;
+  return '${image.extraFields[key] ?? image.id}';
+}
+
+FortuneSheetObjectKind fortuneShapeObjectKind(FortuneShape shape) {
+  return switch (shape.kind) {
+    FortuneShapeKind.rectangle => FortuneSheetObjectKind.rectangle,
+    FortuneShapeKind.roundedRectangle =>
+      FortuneSheetObjectKind.roundedRectangle,
+    FortuneShapeKind.ellipse => FortuneSheetObjectKind.ellipse,
+  };
+}
+
+List<FortuneSheetObjectRef> fortuneSheetObjectsInPaintOrder(
+  FortuneSheet sheet,
+) {
+  final objects = <FortuneSheetObjectRef>[
+    for (var index = 0; index < sheet.images.length; index += 1)
+      FortuneSheetObjectRef(
+        key: FortuneSheetObjectKey(
+          fortuneImageObjectKind(sheet.images[index]),
+          fortuneImageObjectInternalId(sheet.images[index]),
+        ),
+        zOrder: fortuneImageZOrder(sheet.images[index]),
+        sourceIndex: index,
+      ),
+    for (var index = 0; index < sheet.lines.length; index += 1)
+      FortuneSheetObjectRef(
+        key: FortuneSheetObjectKey(
+          FortuneSheetObjectKind.line,
+          sheet.lines[index].id,
+        ),
+        zOrder: sheet.lines[index].zOrder.isFinite
+            ? sheet.lines[index].zOrder
+            : 0,
+        sourceIndex: sheet.images.length + index,
+      ),
+    for (var index = 0; index < sheet.shapes.length; index += 1)
+      FortuneSheetObjectRef(
+        key: FortuneSheetObjectKey(
+          fortuneShapeObjectKind(sheet.shapes[index]),
+          sheet.shapes[index].id,
+        ),
+        zOrder: sheet.shapes[index].zOrder.isFinite
+            ? sheet.shapes[index].zOrder
+            : 0,
+        sourceIndex: sheet.images.length + sheet.lines.length + index,
+      ),
+  ];
+  objects.sort((left, right) {
+    final order = left.zOrder.compareTo(right.zOrder);
+    return order != 0
+        ? order
+        : left.sourceIndex.compareTo(right.sourceIndex);
+  });
+  return objects;
+}
+
+String fortuneAllocateObjectId(
+  FortuneSheetObjectKind kind,
+  Iterable<FortuneSheetObjectKey> existing, {
+  Iterable<String> reserved = const <String>[],
+}) {
+  final prefix = switch (kind) {
+    FortuneSheetObjectKind.image => 'image',
+    FortuneSheetObjectKind.barcode => 'barcode',
+    FortuneSheetObjectKind.line => 'line',
+    FortuneSheetObjectKind.rectangle => 'rect',
+    FortuneSheetObjectKind.roundedRectangle => 'roundRect',
+    FortuneSheetObjectKind.ellipse => 'ellipse',
+  };
+  final used = <String>{
+    for (final key in existing)
+      if (key.kind == kind) key.id,
+    ...reserved,
+  };
+  var suffix = 1;
+  while (used.contains('${prefix}_$suffix')) {
+    suffix += 1;
+  }
+  return '${prefix}_$suffix';
+}
+
+FortuneObjectInsertionPlan fortuneReserveObjectZOrders(
+  FortuneSheet sheet,
+  int count,
+) {
+  if (count < 0) {
+    throw ArgumentError.value(count, 'count', 'must not be negative');
+  }
+  if (count == 0) {
+    return FortuneObjectInsertionPlan(
+      sheet: sheet,
+      zOrders: const <double>[],
+      rebased: false,
+    );
+  }
+  final objects = fortuneSheetObjectsInPaintOrder(sheet);
+  final maximum = objects.isEmpty ? 0.0 : objects.last.zOrder;
+  final reserved = <double>[];
+  var previous = maximum;
+  var hasHeadroom = true;
+  for (var index = 0; index < count; index += 1) {
+    final next = previous + 1;
+    if (!next.isFinite || next <= previous) {
+      hasHeadroom = false;
+      break;
+    }
+    reserved.add(next);
+    previous = next;
+  }
+  if (hasHeadroom) {
+    return FortuneObjectInsertionPlan(
+      sheet: sheet,
+      zOrders: List<double>.unmodifiable(reserved),
+      rebased: false,
+    );
+  }
+
+  final nextImages = sheet.images.map((image) => image.copyWith()).toList();
+  final nextLines = sheet.lines.map((line) => line.copyWith()).toList();
+  final nextShapes = sheet.shapes.map((shape) => shape.copyWith()).toList();
+  var imagesChanged = false;
+  var linesChanged = false;
+  var shapesChanged = false;
+  for (var index = 0; index < objects.length; index += 1) {
+    final object = objects[index];
+    final nextZOrder = index + 1.0;
+    if (object.sourceIndex < sheet.images.length) {
+      final sourceIndex = object.sourceIndex;
+      if (fortuneImageZOrder(nextImages[sourceIndex]) != nextZOrder) {
+        final image = nextImages[sourceIndex];
+        nextImages[sourceIndex] = image.copyWith(
+          extraFields: <String, Object?>{
+            ...image.extraFields,
+            fortuneSheetObjectZOrderExtraKey: nextZOrder,
+          },
+        );
+        imagesChanged = true;
+      }
+      continue;
+    }
+    final lineIndex = object.sourceIndex - sheet.images.length;
+    if (lineIndex < sheet.lines.length) {
+      if (nextLines[lineIndex].zOrder != nextZOrder) {
+        nextLines[lineIndex] = nextLines[lineIndex].copyWith(
+          zOrder: nextZOrder,
+        );
+        linesChanged = true;
+      }
+      continue;
+    }
+    final shapeIndex = lineIndex - sheet.lines.length;
+    if (nextShapes[shapeIndex].zOrder != nextZOrder) {
+      nextShapes[shapeIndex] = nextShapes[shapeIndex].copyWith(
+        zOrder: nextZOrder,
+      );
+      shapesChanged = true;
+    }
+  }
+  final rebasedSheet = sheet.copyWith(
+    images: imagesChanged ? nextImages : null,
+    lines: linesChanged ? nextLines : null,
+    shapes: shapesChanged ? nextShapes : null,
+  );
+  final firstInserted = objects.length + 1.0;
+  return FortuneObjectInsertionPlan(
+    sheet: rebasedSheet,
+    zOrders: List<double>.unmodifiable([
+      for (var index = 0; index < count; index += 1) firstInserted + index,
+    ]),
+    rebased: true,
+  );
 }
 
 List<FortuneImage> fortuneImagesInPaintOrder(List<FortuneImage> images) {
@@ -61821,6 +62060,7 @@ class FortuneSheetPainter extends CustomPainter {
     this.hoveredColumnHeaderIndex,
     this.hoveredRowHeaderIndex,
     this.activeImageId,
+    this.lineInsertionDraft,
     this.selectedImageIds = const <String>{},
     this.activeImageToolbarHoveredCommand,
     this.activeImageToolbarTooltipPosition,
@@ -62041,6 +62281,7 @@ class FortuneSheetPainter extends CustomPainter {
   final int? hoveredColumnHeaderIndex;
   final int? hoveredRowHeaderIndex;
   final String? activeImageId;
+  final FortuneLine? lineInsertionDraft;
   final Set<String> selectedImageIds;
   final String? activeImageToolbarHoveredCommand;
   final Offset? activeImageToolbarTooltipPosition;
@@ -63038,10 +63279,26 @@ class FortuneSheetPainter extends CustomPainter {
     _drawCells(canvas, size, settings, metrics);
     _drawFrozenCells(canvas, size, settings, metrics);
     _drawSheetScrollbars(canvas, size, settings, metrics);
-    _drawImages(canvas, size, settings);
+    _drawTypedObjects(canvas, size, settings);
+    _drawRawShapeOverlays(canvas, size, settings);
+    final draft = lineInsertionDraft;
+    if (draft != null) {
+      final clip = Rect.fromLTWH(
+        _sheetDataLeft(settings),
+        _sheetDataTop(settings),
+        math.max(0, size.width - _sheetDataLeft(settings)),
+        math.max(0, size.height - _sheetDataTop(settings)),
+      );
+      final zoomRatio = workbook.activeSheet.zoomRatio <= 0
+          ? 1.0
+          : workbook.activeSheet.zoomRatio;
+      canvas.save();
+      canvas.clipRect(clip);
+      _drawFortuneLine(canvas, draft, clip, settings, zoomRatio);
+      canvas.restore();
+    }
     _drawActiveImageToolbar(canvas, size, settings);
     _drawImageLayerPanel(canvas, size, settings);
-    _drawRawShapeOverlays(canvas, size, settings);
     _drawVisibleComments(canvas, size, settings, metrics);
     if (showCellSelection) {
       _drawSelection(canvas, size, settings, metrics);
@@ -76361,9 +76618,9 @@ class FortuneSheetPainter extends CustomPainter {
     return (range.rowStart + 1, range.rowEnd);
   }
 
-  void _drawImages(Canvas canvas, Size size, FortuneSettings settings) {
+  void _drawTypedObjects(Canvas canvas, Size size, FortuneSettings settings) {
     final sheet = workbook.activeSheet;
-    if (sheet.images.isEmpty) {
+    if (sheet.images.isEmpty && sheet.lines.isEmpty && sheet.shapes.isEmpty) {
       return;
     }
     final clip = Rect.fromLTWH(
@@ -76375,7 +76632,22 @@ class FortuneSheetPainter extends CustomPainter {
     canvas.save();
     canvas.clipRect(clip);
     final zoomRatio = sheet.zoomRatio <= 0 ? 1.0 : sheet.zoomRatio;
-    for (final image in fortuneImagesInPaintOrder(sheet.images)) {
+    for (final object in fortuneSheetObjectsInPaintOrder(sheet)) {
+      if (object.key.kind == FortuneSheetObjectKind.line) {
+        final line = sheet.lines[object.sourceIndex - sheet.images.length];
+        _drawFortuneLine(canvas, line, clip, settings, zoomRatio);
+        continue;
+      }
+      if (object.key.kind == FortuneSheetObjectKind.rectangle ||
+          object.key.kind == FortuneSheetObjectKind.roundedRectangle ||
+          object.key.kind == FortuneSheetObjectKind.ellipse) {
+        final shape = sheet.shapes[
+          object.sourceIndex - sheet.images.length - sheet.lines.length
+        ];
+        _drawFortuneShape(canvas, shape, clip, settings, zoomRatio);
+        continue;
+      }
+      final image = sheet.images[object.sourceIndex];
       final rect = Rect.fromLTWH(
         _sheetDataLeft(settings) + image.left * zoomRatio - scrollOffset.dx,
         _sheetDataTop(settings) + image.top * zoomRatio - scrollOffset.dy,
@@ -76413,6 +76685,151 @@ class FortuneSheetPainter extends CustomPainter {
       }
     }
     canvas.restore();
+  }
+
+  void _drawFortuneLine(
+    Canvas canvas,
+    FortuneLine line,
+    Rect clip,
+    FortuneSettings settings,
+    double zoomRatio,
+  ) {
+    final start = Offset(
+      _sheetDataLeft(settings) + line.x1 * zoomRatio - scrollOffset.dx,
+      _sheetDataTop(settings) + line.y1 * zoomRatio - scrollOffset.dy,
+    );
+    final end = Offset(
+      _sheetDataLeft(settings) + line.x2 * zoomRatio - scrollOffset.dx,
+      _sheetDataTop(settings) + line.y2 * zoomRatio - scrollOffset.dy,
+    );
+    final strokeWidth = fortuneMillimetersToLogicalPixels(
+      line.strokeWidthMm,
+    ) * zoomRatio;
+    final bounds = Rect.fromPoints(start, end).inflate(strokeWidth / 2);
+    if (!bounds.overlaps(clip)) {
+      return;
+    }
+    final path = Path()
+      ..moveTo(start.dx, start.dy)
+      ..lineTo(end.dx, end.dy);
+    _drawFortuneStroke(
+      canvas,
+      path,
+      line.strokeStyle,
+      strokeWidth,
+      _fortuneObjectColor(line.strokeColor),
+    );
+  }
+
+  void _drawFortuneShape(
+    Canvas canvas,
+    FortuneShape shape,
+    Rect clip,
+    FortuneSettings settings,
+    double zoomRatio,
+  ) {
+    final rect = Rect.fromLTWH(
+      _sheetDataLeft(settings) + shape.left * zoomRatio - scrollOffset.dx,
+      _sheetDataTop(settings) + shape.top * zoomRatio - scrollOffset.dy,
+      shape.width * zoomRatio,
+      shape.height * zoomRatio,
+    );
+    final strokeWidth = fortuneMillimetersToLogicalPixels(
+      shape.strokeWidthMm,
+    ) * zoomRatio;
+    final cullingBounds = rect.inflate(strokeWidth / 2);
+    if (!cullingBounds.overlaps(clip)) {
+      return;
+    }
+    canvas.save();
+    canvas.translate(rect.center.dx, rect.center.dy);
+    canvas.rotate(shape.rotationDegrees * math.pi / 180);
+    canvas.translate(-rect.center.dx, -rect.center.dy);
+    final path = Path();
+    switch (shape.kind) {
+      case FortuneShapeKind.rectangle:
+        path.addRect(rect);
+      case FortuneShapeKind.roundedRectangle:
+        final radius = math.min(
+          fortuneMillimetersToLogicalPixels(shape.cornerRadiusMm) * zoomRatio,
+          math.min(rect.width, rect.height) / 2,
+        );
+        path.addRRect(
+          RRect.fromRectAndRadius(rect, Radius.circular(radius)),
+        );
+      case FortuneShapeKind.ellipse:
+        path.addOval(rect);
+    }
+    final fillColor = shape.fillColor;
+    if (fillColor != null) {
+      canvas.drawPath(path, Paint()..color = _fortuneObjectColor(fillColor));
+    }
+    _drawFortuneStroke(
+      canvas,
+      path,
+      shape.strokeStyle,
+      strokeWidth,
+      _fortuneObjectColor(shape.strokeColor),
+    );
+    canvas.restore();
+  }
+
+  void _drawFortuneStroke(
+    Canvas canvas,
+    Path path,
+    FortuneStrokeStyle style,
+    double strokeWidth,
+    Color color,
+  ) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth
+      ..strokeCap = style == FortuneStrokeStyle.solid
+          ? StrokeCap.butt
+          : StrokeCap.round
+      ..strokeJoin = StrokeJoin.miter
+      ..strokeMiterLimit = 4;
+    if (style == FortuneStrokeStyle.solid) {
+      canvas.drawPath(path, paint);
+      return;
+    }
+    final marks = switch (style) {
+      FortuneStrokeStyle.dashed => <double>[4 * strokeWidth, 2 * strokeWidth],
+      FortuneStrokeStyle.dotted => <double>[0, 3 * strokeWidth],
+      FortuneStrokeStyle.dashDot => <double>[
+        4 * strokeWidth,
+        2 * strokeWidth,
+        0,
+        3 * strokeWidth,
+      ],
+      FortuneStrokeStyle.solid => const <double>[],
+    };
+    for (final metric in path.computeMetrics()) {
+      var distance = 0.0;
+      var markIndex = 0;
+      while (distance <= metric.length) {
+        final markLength = marks[markIndex % marks.length];
+        final gapLength = marks[(markIndex + 1) % marks.length];
+        if (markLength == 0) {
+          final tangent = metric.getTangentForOffset(distance);
+          if (tangent != null) {
+            canvas.drawCircle(tangent.position, strokeWidth / 2, Paint()..color = color);
+          }
+        } else {
+          canvas.drawPath(
+            metric.extractPath(distance, math.min(metric.length, distance + markLength)),
+            paint,
+          );
+        }
+        distance += markLength + gapLength;
+        markIndex += 2;
+      }
+    }
+  }
+
+  Color _fortuneObjectColor(String value) {
+    return Color(0xff000000 | int.parse(value.substring(1), radix: 16));
   }
 
   void _drawRawShapeOverlays(

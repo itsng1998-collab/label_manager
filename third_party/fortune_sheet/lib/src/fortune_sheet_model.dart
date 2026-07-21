@@ -27144,6 +27144,12 @@ class FortuneSheet {
     Object? rawImages,
     this.hasRawImages = false,
     this.rawImagesKey = 'images',
+    List<FortuneLine>? lines,
+    Object? rawLines,
+    this.hasRawLines = false,
+    List<FortuneShape>? shapes,
+    Object? rawFortuneShapes,
+    this.hasRawFortuneShapes = false,
     Map<String, Object?>? dataVerification,
     Object? rawDataVerification,
     this.hasRawDataVerification = false,
@@ -27242,6 +27248,10 @@ class FortuneSheet {
        rawBorderInfo = cloneFortuneMetadata(rawBorderInfo),
        images = (images ?? []).map((image) => image.copyWith()).toList(),
        rawImages = cloneFortuneMetadata(rawImages),
+      lines = (lines ?? []).map((line) => line.copyWith()).toList(),
+      rawLines = cloneFortuneMetadata(rawLines),
+      shapes = (shapes ?? []).map((shape) => shape.copyWith()).toList(),
+      rawFortuneShapes = cloneFortuneMetadata(rawFortuneShapes),
        dataVerification = _cloneStringObjectMap(dataVerification),
        rawDataVerification = cloneFortuneMetadata(rawDataVerification),
        filter = _cloneStringObjectMap(filter),
@@ -27330,6 +27340,12 @@ class FortuneSheet {
   final Object? rawImages;
   final bool hasRawImages;
   final String rawImagesKey;
+  final List<FortuneLine> lines;
+  final Object? rawLines;
+  final bool hasRawLines;
+  final List<FortuneShape> shapes;
+  final Object? rawFortuneShapes;
+  final bool hasRawFortuneShapes;
   final Map<String, Object?> dataVerification;
   final Object? rawDataVerification;
   final bool hasRawDataVerification;
@@ -28908,6 +28924,12 @@ class FortuneSheet {
     Object? rawImages = _sentinel,
     bool? hasRawImages,
     String? rawImagesKey,
+    List<FortuneLine>? lines,
+    Object? rawLines = _sentinel,
+    bool? hasRawLines,
+    List<FortuneShape>? shapes,
+    Object? rawFortuneShapes = _sentinel,
+    bool? hasRawFortuneShapes,
     Map<String, Object?>? dataVerification,
     Object? rawDataVerification = _sentinel,
     bool? hasRawDataVerification,
@@ -29245,6 +29267,36 @@ class FortuneSheet {
                     : false
               : true),
       rawImagesKey: rawImagesKey ?? this.rawImagesKey,
+        lines: lines == null
+          ? this.lines.map((line) => line.copyWith()).toList()
+          : lines.map((line) => line.copyWith()).toList(),
+        rawLines: rawLines == _sentinel
+          ? lines == null
+            ? cloneFortuneMetadata(this.rawLines)
+            : null
+          : cloneFortuneMetadata(rawLines),
+        hasRawLines:
+          hasRawLines ??
+          (rawLines == _sentinel
+            ? lines == null
+              ? this.hasRawLines
+              : false
+            : true),
+        shapes: shapes == null
+          ? this.shapes.map((shape) => shape.copyWith()).toList()
+          : shapes.map((shape) => shape.copyWith()).toList(),
+        rawFortuneShapes: rawFortuneShapes == _sentinel
+          ? shapes == null
+            ? cloneFortuneMetadata(this.rawFortuneShapes)
+            : null
+          : cloneFortuneMetadata(rawFortuneShapes),
+        hasRawFortuneShapes:
+          hasRawFortuneShapes ??
+          (rawFortuneShapes == _sentinel
+            ? shapes == null
+              ? this.hasRawFortuneShapes
+              : false
+            : true),
       dataVerification:
           dataVerification ?? _cloneStringObjectMap(this.dataVerification),
       rawDataVerification: rawDataVerification == _sentinel
@@ -33826,6 +33878,136 @@ class FortuneInlineTextRun {
           : _cloneStringObjectMap(
               Map<String, Object?>.from(extraFields as Map),
             ),
+    );
+  }
+}
+
+enum FortuneStrokeStyle { solid, dashed, dotted, dashDot }
+
+enum FortuneShapeKind { rectangle, roundedRectangle, ellipse }
+
+class FortuneLine {
+  const FortuneLine({
+    required this.id,
+    required this.x1,
+    required this.y1,
+    required this.x2,
+    required this.y2,
+    this.strokeStyle = FortuneStrokeStyle.solid,
+    this.strokeWidthMm = 0.5,
+    this.strokeColor = '#000000',
+    this.zOrder = 0,
+    this.extraFields = const <String, Object?>{},
+  });
+
+  final String id;
+  final double x1;
+  final double y1;
+  final double x2;
+  final double y2;
+  final FortuneStrokeStyle strokeStyle;
+  final double strokeWidthMm;
+  final String strokeColor;
+  final double zOrder;
+  final Map<String, Object?> extraFields;
+
+  FortuneLine copyWith({
+    String? id,
+    double? x1,
+    double? y1,
+    double? x2,
+    double? y2,
+    FortuneStrokeStyle? strokeStyle,
+    double? strokeWidthMm,
+    String? strokeColor,
+    double? zOrder,
+    Map<String, Object?>? extraFields,
+  }) {
+    return FortuneLine(
+      id: id ?? this.id,
+      x1: x1 ?? this.x1,
+      y1: y1 ?? this.y1,
+      x2: x2 ?? this.x2,
+      y2: y2 ?? this.y2,
+      strokeStyle: strokeStyle ?? this.strokeStyle,
+      strokeWidthMm: strokeWidthMm ?? this.strokeWidthMm,
+      strokeColor: strokeColor ?? this.strokeColor,
+      zOrder: zOrder ?? this.zOrder,
+      extraFields: extraFields == null
+          ? _cloneStringObjectMap(this.extraFields)
+          : _cloneStringObjectMap(extraFields),
+    );
+  }
+}
+
+class FortuneShape {
+  const FortuneShape({
+    required this.id,
+    required this.kind,
+    required this.left,
+    required this.top,
+    required this.width,
+    required this.height,
+    this.rotationDegrees = 0,
+    this.strokeStyle = FortuneStrokeStyle.solid,
+    this.strokeWidthMm = 0.5,
+    this.strokeColor = '#000000',
+    this.fillColor,
+    this.cornerRadiusMm = 0,
+    this.zOrder = 0,
+    this.extraFields = const <String, Object?>{},
+  });
+
+  final String id;
+  final FortuneShapeKind kind;
+  final double left;
+  final double top;
+  final double width;
+  final double height;
+  final double rotationDegrees;
+  final FortuneStrokeStyle strokeStyle;
+  final double strokeWidthMm;
+  final String strokeColor;
+  final String? fillColor;
+  final double cornerRadiusMm;
+  final double zOrder;
+  final Map<String, Object?> extraFields;
+
+  FortuneShape copyWith({
+    String? id,
+    FortuneShapeKind? kind,
+    double? left,
+    double? top,
+    double? width,
+    double? height,
+    double? rotationDegrees,
+    FortuneStrokeStyle? strokeStyle,
+    double? strokeWidthMm,
+    String? strokeColor,
+    Object? fillColor = _sentinel,
+    double? cornerRadiusMm,
+    double? zOrder,
+    Map<String, Object?>? extraFields,
+  }) {
+    return FortuneShape(
+      id: id ?? this.id,
+      kind: kind ?? this.kind,
+      left: left ?? this.left,
+      top: top ?? this.top,
+      width: width ?? this.width,
+      height: height ?? this.height,
+      rotationDegrees: rotationDegrees ?? this.rotationDegrees,
+      strokeStyle: strokeStyle ?? this.strokeStyle,
+      strokeWidthMm: strokeWidthMm ?? this.strokeWidthMm,
+      strokeColor: strokeColor ?? this.strokeColor,
+      fillColor: fillColor == _sentinel
+          ? this.fillColor
+          : _nullableStringArg(fillColor),
+      cornerRadiusMm: cornerRadiusMm ?? this.cornerRadiusMm,
+      zOrder: zOrder ?? this.zOrder,
+      extraFields: extraFields == null
+          ? _cloneStringObjectMap(this.extraFields)
+          : _cloneStringObjectMap(extraFields),
     );
   }
 }

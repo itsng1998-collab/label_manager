@@ -1,0 +1,238 @@
+import 'package:flutter_test/flutter_test.dart';
+import 'package:fortune_sheet/fortune_sheet.dart';
+import 'package:label_manager/page_label_sheet/label_sheet_save_codec.dart';
+
+void main() {
+  test('label save features append lines and fortune shapes', () {
+    final lineVersion = labelSheetSaveFeatureVersions['sheet.lines'];
+    final shapeVersion =
+        labelSheetSaveFeatureVersions['sheet.fortuneShapes'];
+
+    expect(lineVersion, isNotNull);
+    expect(shapeVersion, lineVersion! + 1);
+    expect(shapeVersion, labelSheetSaveFormatVersion);
+  });
+
+  test('label save sanitizer keeps only typed object allow-list fields', () {
+    final sanitized = labelSheetSanitizeWorkbookSaveJson({
+      'data': [
+        {
+          'id': 's1',
+          'name': 'Objects',
+          'lines': [
+            {
+              'id': 'line_1',
+              'x1': 1,
+              'y1': 2,
+              'x2': 3,
+              'y2': 4,
+              'strokeStyle': 'solid',
+              'strokeWidthMm': 0.5,
+              'strokeColor': '#000000',
+              'zOrder': 1,
+              'unsupported': true,
+            },
+          ],
+          'fortuneShapes': [
+            {
+              'id': 'shape_1',
+              'kind': 'ellipse',
+              'left': 1,
+              'top': 2,
+              'width': 3,
+              'height': 4,
+              'rotationDegrees': 0,
+              'strokeStyle': 'dashed',
+              'strokeWidthMm': 0.5,
+              'strokeColor': '#000000',
+              'fillColor': null,
+              'cornerRadiusMm': 0,
+              'zOrder': 2,
+              'unsupported': true,
+            },
+          ],
+        },
+      ],
+    });
+    final sheet = (sanitized['data']! as List).single as Map;
+    final line = (sheet['lines']! as List).single as Map;
+    final shape = (sheet['fortuneShapes']! as List).single as Map;
+
+    expect(line, isNot(contains('unsupported')));
+    expect(shape, isNot(contains('unsupported')));
+    expect(line['strokeStyle'], 'solid');
+    expect(shape['kind'], 'ellipse');
+  });
+
+  test('manifest feature absence does not remove typed object payload', () {
+    final migrated = labelSheetMigrateWorkbookSaveJson(
+      {
+        'data': [
+          {
+            'id': 's1',
+            'name': 'Objects',
+            'lines': [
+              {
+                'id': 'line_1',
+                'x1': 1,
+                'y1': 2,
+                'x2': 3,
+                'y2': 4,
+              },
+            ],
+            'fortuneShapes': [
+              {
+                'id': 'shape_1',
+                'kind': 'rectangle',
+                'left': 1,
+                'top': 2,
+                'width': 3,
+                'height': 4,
+              },
+            ],
+          },
+        ],
+      },
+      manifest: const {'version': 1, 'features': <String, Object?>{}},
+    );
+    final sheet = (migrated['data']! as List).single as Map;
+
+    expect(sheet['lines'], isA<List>());
+    expect(sheet['fortuneShapes'], isA<List>());
+  });
+
+  test('legacy shapes strict clone omits only invalid overlay', () {
+    final cycle = <Object?>[];
+    cycle.add(cycle);
+    final invalid = labelSheetSanitizeWorkbookSaveJson({
+      'data': [
+        {
+          'id': 's1',
+          'name': 'Invalid overlay',
+          'shapes': {
+            'validSibling': true,
+            'cycle': cycle,
+          },
+          'lines': <Object?>[],
+        },
+      ],
+    });
+    final invalidSheet = (invalid['data']! as List).single as Map;
+
+    expect(invalidSheet, isNot(contains('shapes')));
+    expect(invalidSheet['lines'], isEmpty);
+
+    final shared = <String, Object?>{
+      'label': 'shared',
+      'value': null,
+    };
+    final valid = labelSheetSanitizeWorkbookSaveJson({
+      'data': [
+        {
+          'id': 's2',
+          'name': 'Valid overlay',
+          'shapes': {
+            'first': shared,
+            'second': shared,
+          },
+        },
+      ],
+    });
+    final validSheet = (valid['data']! as List).single as Map;
+
+    expect(validSheet['shapes'], {
+      'first': {'label': 'shared', 'value': null},
+      'second': {'label': 'shared', 'value': null},
+    });
+  });
+
+  test('save normalization retains typed line and shape models', () {
+    final normalized = labelSheetNormalizeWorkbookForCurrentSaveFormat(
+      FortuneWorkbook(
+        sheets: [
+          FortuneSheet(
+            id: 's1',
+            name: 'Objects',
+            lines: const [
+              FortuneLine(id: 'line_1', x1: 1, y1: 2, x2: 3, y2: 4),
+            ],
+            shapes: const [
+              FortuneShape(
+                id: 'shape_1',
+                kind: FortuneShapeKind.rectangle,
+                left: 1,
+                top: 2,
+                width: 3,
+                height: 4,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+
+    expect(normalized.activeSheet.lines.single.id, 'line_1');
+    expect(normalized.activeSheet.shapes.single.id, 'shape_1');
+  });
+
+  test('print area keeps intersecting typed geometry and expands its bounds', () {
+    final workbook = FortuneWorkbook(
+      sheets: [
+        FortuneSheet(
+          id: 's1',
+          name: 'Objects',
+          rowHeights: const {0: 20, 1: 20, 2: 20, 3: 20, 4: 20},
+          columnWidths: const {0: 20, 1: 20, 2: 20, 3: 20, 4: 20},
+          lines: const [
+            FortuneLine(
+              id: 'crossing-line',
+              x1: 10,
+              y1: 10,
+              x2: 70,
+              y2: 10,
+            ),
+            FortuneLine(
+              id: 'outside-line',
+              x1: 80,
+              y1: 80,
+              x2: 100,
+              y2: 100,
+              strokeStyle: FortuneStrokeStyle.dashed,
+            ),
+          ],
+          shapes: const [
+            FortuneShape(
+              id: 'containing-fill',
+              kind: FortuneShapeKind.rectangle,
+              left: -10,
+              top: -10,
+              width: 80,
+              height: 80,
+              fillColor: '#FFFFFF',
+              rotationDegrees: 15,
+            ),
+            FortuneShape(
+              id: 'outside-shape',
+              kind: FortuneShapeKind.ellipse,
+              left: 90,
+              top: 90,
+              width: 10,
+              height: 10,
+            ),
+          ],
+          extraFields: const {
+            fortuneSheetGridClientWidthMmKey: 10,
+            fortuneSheetGridClientHeightMmKey: 10,
+          },
+        ),
+      ],
+    );
+
+    final saved = labelSheetWorkbookForPrintAreaSave(workbook).activeSheet;
+
+    expect(saved.lines.map((line) => line.id), ['crossing-line']);
+    expect(saved.shapes.map((shape) => shape.id), ['containing-fill']);
+    expect(saved.columnCount, greaterThan(2));
+    expect(saved.rowCount, greaterThan(2));
+  });
+}

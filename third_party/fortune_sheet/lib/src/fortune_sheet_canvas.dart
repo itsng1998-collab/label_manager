@@ -2890,6 +2890,11 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   Offset? _imageMoveStart;
   FortuneImage? _imageMoveInitial;
   bool _imageMoveSnapshotRecorded = false;
+  bool _lineInsertionMode = false;
+  Offset? _lineInsertionStart;
+  Offset? _lineInsertionEnd;
+  FortuneWorkbook? _lineInsertionOwnerWorkbook;
+  String? _lineInsertionOwnerSheetId;
   FortuneCellCoord? _commentBoxMoveCoord;
   Offset? _commentBoxMoveStart;
   Offset? _commentBoxMoveInitialTopLeft;
@@ -7013,6 +7018,12 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       return;
     }
 
+    if (_lineInsertionMode &&
+        (event.buttons & kPrimaryButton) != 0 &&
+        _startLineInsertion(local, settings)) {
+      return;
+    }
+
     final activeImageHandle = _imageResizeSideAt(local, settings);
     if (activeImageHandle != null) {
       _commitEditing();
@@ -7115,6 +7126,13 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
 
     if (event.kind == PointerDeviceKind.mouse &&
         (event.buttons & kSecondaryMouseButton) != 0) {
+      if (_lineInsertionMode) {
+        setState(() {
+          _lineInsertionMode = false;
+          _cancelLineInsertionDraftState();
+          _setMouseCursor(SystemMouseCursors.basic);
+        });
+      }
       _commitEditing();
       _commitSheetRename();
       final contextSelection = _cellCoordAtLocal(local, settings, metrics);
@@ -9089,6 +9107,10 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     if (toolbarKey == null && toolbarComboArrowKey == null) {
       return false;
     }
+    if (_lineInsertionMode && toolbarKey != fortuneToolbarLineCommand) {
+      _lineInsertionMode = false;
+      _cancelLineInsertionDraftState();
+    }
     if (toolbarComboArrowKey != null) {
       if (_editingCoord != null) {
         _rememberInlineToolbarSelectionRange();
@@ -9731,6 +9753,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     }
     if (_toolbarPopupEventContains(event.localPosition)) {
       _updateToolbarPopupEventHover(event.localPosition);
+      return;
+    }
+    if (_updateLineInsertion(event.localPosition)) {
       return;
     }
     if (_editorDragSelectionPointer != null ||
@@ -10718,6 +10743,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     if (_commitSheetRulerGuideDrag()) {
       return;
     }
+    if (_commitLineInsertion(event.localPosition)) {
+      return;
+    }
     if (_commitImageResize()) {
       return;
     }
@@ -10807,6 +10835,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     _cancelDataVerificationDialogRangeSelection();
     _cancelImageResize();
     _cancelImageMove();
+    _cancelLineInsertionDraft();
     _cancelCommentBoxResize();
     _cancelCommentBoxMove();
     _setHoveredComment(null);
@@ -14831,6 +14860,18 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         break;
       case fortuneToolbarBarcodeCommand:
         _showBarcodeInsertDialog();
+        break;
+      case fortuneToolbarLineCommand:
+        setState(() {
+          _lineInsertionMode = !_lineInsertionMode;
+          _cancelLineInsertionDraftState();
+          _closeTransientMenus();
+          _setMouseCursor(
+            _lineInsertionMode
+                ? SystemMouseCursors.precise
+                : SystemMouseCursors.basic,
+          );
+        });
         break;
       case fortuneToolbarSplitColumnCommand:
         _showSplitTextDialog();
@@ -23228,10 +23269,12 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     final imageHeight = usesMillimeters
         ? fortuneMillimetersToLogicalPixels(heightValue)
         : heightValue;
+    final insertionPlan = fortuneReserveObjectZOrders(activeSheet, 1);
+    final insertionSheet = insertionPlan.sheet;
     final extraFields = <String, Object?>{
       'originWidth': _imageInsertOriginalWidthPx,
       'originHeight': _imageInsertOriginalHeightPx,
-      fortuneSheetObjectZOrderExtraKey: _nextImageZOrder(activeSheet),
+      fortuneSheetObjectZOrderExtraKey: insertionPlan.zOrders.single,
       'rotation': rotation,
     };
     if (linked) {
@@ -23241,7 +23284,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       extraFields['widthMm'] = widthValue;
       extraFields['heightMm'] = heightValue;
     }
-    final images = List<FortuneImage>.from(activeSheet.images)
+    final images = List<FortuneImage>.from(insertionSheet.images)
       ..add(
         FortuneImage(
           id: imageId,
@@ -23262,7 +23305,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       _decodedImages[src] = decoded;
       _imageInsertDecodedImage = null;
     }
-    sheets[_workbook.activeSheetIndex] = activeSheet.copyWith(images: images);
+    sheets[_workbook.activeSheetIndex] = insertionSheet.copyWith(
+      images: images,
+    );
     setState(() {
       _workbook = _workbook.copyWith(sheets: sheets);
       _activeImageId = imageId;
@@ -24260,10 +24305,14 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     final editingImage = editingImageId == null
         ? null
         : _imageById(editingImageId);
+    final insertionPlan = editingImageId == null
+      ? fortuneReserveObjectZOrders(activeSheet, 1)
+      : null;
+    final insertionSheet = insertionPlan?.sheet ?? activeSheet;
     final extraFields = <String, Object?>{
       'fortuneBarcode': true,
-      fortuneSheetObjectZOrderExtraKey: _barcodeEditingImageId == null
-          ? _nextImageZOrder(activeSheet)
+      fortuneSheetObjectZOrderExtraKey: editingImageId == null
+        ? insertionPlan!.zOrders.single
           : (editingImage?.extraFields[fortuneSheetObjectZOrderExtraKey] ?? 0),
       'barcodeText': text,
       'barcodeFormatId': format.id,
@@ -24347,16 +24396,16 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         _barcodeErrorText = null;
       });
     } else {
-      final anchor = activeSheet.mergeAnchorFor(
+      final anchor = insertionSheet.mergeAnchorFor(
         FortuneCellCoord(selection.row, selection.column),
       );
-      if (!_canEditCell(activeSheet, anchor)) {
+      if (!_canEditCell(insertionSheet, anchor)) {
         _focusNode.requestFocus();
         return;
       }
-      final metrics = activeSheet.metrics(_workbook.settings);
+      final metrics = insertionSheet.metrics(_workbook.settings);
       final imageId = _newImageId();
-      final images = List<FortuneImage>.from(activeSheet.images)
+      final images = List<FortuneImage>.from(insertionSheet.images)
         ..add(
           FortuneImage(
             id: imageId,
@@ -24369,7 +24418,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
           ),
         );
       final sheets = [..._workbook.sheets];
-      sheets[_workbook.activeSheetIndex] = activeSheet.copyWith(images: images);
+      sheets[_workbook.activeSheetIndex] = insertionSheet.copyWith(
+        images: images,
+      );
       setState(() {
         _workbook = _workbook.copyWith(sheets: sheets);
         _activeImageId = imageId;
@@ -24930,6 +24981,166 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       image.width * zoomRatio,
       image.height * zoomRatio,
     );
+  }
+
+  Offset? _lineInsertionLogicalPosition(
+    Offset local,
+    FortuneSettings settings,
+  ) {
+    final sheetTop =
+        settings.effectiveToolbarHeight + settings.effectiveFormulaBarHeight;
+    final dataLeft = _sheetDataLeft(settings);
+    final dataTop = sheetTop + _sheetDataTop(settings);
+    if (local.dx < dataLeft || local.dy < dataTop) {
+      return null;
+    }
+    final zoom = _workbook.activeSheet.zoomRatio <= 0
+        ? 1.0
+        : _workbook.activeSheet.zoomRatio;
+    return Offset(
+      (local.dx - dataLeft + scrollOffset.dx) / zoom,
+      (local.dy - dataTop + scrollOffset.dy) / zoom,
+    );
+  }
+
+  bool _startLineInsertion(Offset local, FortuneSettings settings) {
+    if (!_workbook.settings.allowEdit) {
+      return false;
+    }
+    final logical = _lineInsertionLogicalPosition(local, settings);
+    if (logical == null) {
+      return false;
+    }
+    setState(() {
+      _lineInsertionStart = logical;
+      _lineInsertionEnd = logical;
+      _lineInsertionOwnerWorkbook = _workbook;
+      _lineInsertionOwnerSheetId = _workbook.activeSheet.id;
+      _setMouseCursor(SystemMouseCursors.precise);
+    });
+    return true;
+  }
+
+  bool _updateLineInsertion(Offset local) {
+    final start = _lineInsertionStart;
+    if (start == null) {
+      return false;
+    }
+    final logical = _lineInsertionLogicalPosition(local, _workbook.settings);
+    if (logical == null) {
+      return true;
+    }
+    setState(() {
+      _lineInsertionEnd = _snappedLineInsertionEnd(start, logical);
+    });
+    return true;
+  }
+
+  Offset _snappedLineInsertionEnd(Offset start, Offset end) {
+    if (!HardwareKeyboard.instance.isShiftPressed) {
+      return end;
+    }
+    final delta = end - start;
+    final distance = delta.distance;
+    if (distance == 0) {
+      return end;
+    }
+    final angle = math.atan2(delta.dy, delta.dx);
+    final snapped = (angle / (math.pi / 4)).round() * math.pi / 4;
+    final candidate = start + Offset(math.cos(snapped), math.sin(snapped)) * distance;
+    if (candidate.dy >= 0) {
+      return candidate;
+    }
+    final direction = candidate - start;
+    if (direction.dy >= 0) {
+      return candidate;
+    }
+    final scale = -start.dy / direction.dy;
+    return start + direction * scale;
+  }
+
+  FortuneLine? get _lineInsertionDraft {
+    final start = _lineInsertionStart;
+    final end = _lineInsertionEnd;
+    if (start == null || end == null) {
+      return null;
+    }
+    return FortuneLine(
+      id: '__line_insertion_draft__',
+      x1: start.dx,
+      y1: start.dy,
+      x2: end.dx,
+      y2: end.dy,
+    );
+  }
+
+  bool _commitLineInsertion(Offset local) {
+    final start = _lineInsertionStart;
+    if (start == null) {
+      return false;
+    }
+    final ownerValid = identical(_lineInsertionOwnerWorkbook, _workbook) &&
+        _lineInsertionOwnerSheetId == _workbook.activeSheet.id;
+    final release = _lineInsertionLogicalPosition(local, _workbook.settings);
+    final end = release == null
+        ? _lineInsertionEnd
+        : _snappedLineInsertionEnd(start, release);
+    if (!ownerValid || end == null) {
+      setState(() {
+        _lineInsertionMode = false;
+        _cancelLineInsertionDraftState();
+      });
+      return true;
+    }
+    final zoom = _workbook.activeSheet.zoomRatio <= 0
+        ? 1.0
+        : _workbook.activeSheet.zoomRatio;
+    if ((end - start).distance * zoom < 3) {
+      setState(_cancelLineInsertionDraftState);
+      return true;
+    }
+    final activeSheet = _workbook.activeSheet;
+    final insertionPlan = fortuneReserveObjectZOrders(activeSheet, 1);
+    final existing = fortuneSheetObjectsInPaintOrder(insertionPlan.sheet)
+        .map((object) => object.key);
+    final id = fortuneAllocateObjectId(FortuneSheetObjectKind.line, existing);
+    final lines = List<FortuneLine>.from(insertionPlan.sheet.lines)
+      ..add(
+        FortuneLine(
+          id: id,
+          x1: start.dx,
+          y1: start.dy,
+          x2: end.dx,
+          y2: end.dy,
+          zOrder: insertionPlan.zOrders.single,
+        ),
+      );
+    final sheets = [..._workbook.sheets];
+    _recordUndoSnapshot();
+    sheets[_workbook.activeSheetIndex] = insertionPlan.sheet.copyWith(
+      lines: lines,
+    );
+    setState(() {
+      _workbook = _workbook.copyWith(sheets: sheets);
+      _lineInsertionMode = false;
+      _cancelLineInsertionDraftState();
+      _setMouseCursor(SystemMouseCursors.basic);
+    });
+    return true;
+  }
+
+  void _cancelLineInsertionDraft() {
+    if (_lineInsertionStart == null) {
+      return;
+    }
+    setState(_cancelLineInsertionDraftState);
+  }
+
+  void _cancelLineInsertionDraftState() {
+    _lineInsertionStart = null;
+    _lineInsertionEnd = null;
+    _lineInsertionOwnerWorkbook = null;
+    _lineInsertionOwnerSheetId = null;
   }
 
   FortuneCellCoord _imageAnchorCoord(
@@ -32975,6 +33186,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         HardwareKeyboard.instance.isMetaPressed;
     return _isImageLayerPanelKey(event.logicalKey) ||
         _isImageLayerPanelCommandKeyEvent(event) ||
+      (_lineInsertionMode &&
+        event.logicalKey == LogicalKeyboardKey.escape) ||
         event.logicalKey == LogicalKeyboardKey.tab ||
         _isSelectionNavigationKey(event.logicalKey) ||
         (isShortcutPressed && _isSelectionNavigationKey(event.logicalKey));
@@ -32987,6 +33200,15 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       return;
     }
     if (_inlineMenuNumberEditorFocused) {
+      return;
+    }
+    if (_lineInsertionMode &&
+        event.logicalKey == LogicalKeyboardKey.escape) {
+      setState(() {
+        _lineInsertionMode = false;
+        _cancelLineInsertionDraftState();
+        _setMouseCursor(SystemMouseCursors.basic);
+      });
       return;
     }
     if (_imageInsertDialogOpen) {
@@ -45374,6 +45596,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
                 hoveredColumnHeaderIndex: _hoveredColumnHeaderIndex,
                 hoveredRowHeaderIndex: _hoveredRowHeaderIndex,
                 activeImageId: _activeImageId,
+                lineInsertionDraft: _lineInsertionDraft,
                 selectedImageIds: _selectedImageIds,
                 activeImageToolbarHoveredCommand:
                     _activeImageToolbarHoveredCommand,

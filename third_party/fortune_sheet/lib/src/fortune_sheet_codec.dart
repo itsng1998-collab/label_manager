@@ -551,6 +551,12 @@ class FortuneSheetCodec {
       rawImages: cloneFortuneMetadata(rawImages),
       hasRawImages: json.containsKey(rawImagesKey),
       rawImagesKey: rawImagesKey,
+      lines: _lines(json['lines']),
+      rawLines: cloneFortuneMetadata(json['lines']),
+      hasRawLines: json.containsKey('lines'),
+      shapes: _fortuneShapes(json['fortuneShapes']),
+      rawFortuneShapes: cloneFortuneMetadata(json['fortuneShapes']),
+      hasRawFortuneShapes: json.containsKey('fortuneShapes'),
       dataVerification: _objectMap(json['dataVerification']),
       rawDataVerification: cloneFortuneMetadata(json['dataVerification']),
       hasRawDataVerification: json.containsKey('dataVerification'),
@@ -838,6 +844,29 @@ class FortuneSheetCodec {
         ),
       if (sheet.images.isEmpty && sheet.hasRawImages)
         sheet.rawImagesKey: cloneFortuneMetadata(sheet.rawImages),
+      if (sheet.lines.isNotEmpty)
+        'lines': _rawOrLinesToJson(
+          values: sheet.lines,
+          raw: sheet.rawLines,
+          hasRaw: sheet.hasRawLines,
+        ),
+      if (sheet.lines.isEmpty &&
+          sheet.hasRawLines &&
+          _canonicalLineListEquals(sheet.rawLines, sheet.lines))
+        'lines': cloneFortuneMetadata(sheet.rawLines),
+      if (sheet.shapes.isNotEmpty)
+        'fortuneShapes': _rawOrFortuneShapesToJson(
+          values: sheet.shapes,
+          raw: sheet.rawFortuneShapes,
+          hasRaw: sheet.hasRawFortuneShapes,
+        ),
+      if (sheet.shapes.isEmpty &&
+          sheet.hasRawFortuneShapes &&
+          _canonicalFortuneShapeListEquals(
+            sheet.rawFortuneShapes,
+            sheet.shapes,
+          ))
+        'fortuneShapes': cloneFortuneMetadata(sheet.rawFortuneShapes),
       if (sheet.dataVerification.isNotEmpty)
         'dataVerification': _stringObjectMapToJson(sheet.dataVerification),
       if (sheet.dataVerification.isEmpty && sheet.hasRawDataVerification)
@@ -915,6 +944,8 @@ class FortuneSheetCodec {
       'id',
       'images',
       'image',
+      'lines',
+      'fortuneShapes',
       'zoomRatio',
       'column',
       'row',
@@ -2315,6 +2346,407 @@ class FortuneSheetCodec {
 
   static int _colorChannel(double value) {
     return (value * 255).round().clamp(0, 255).toInt();
+  }
+
+  static final RegExp _objectColorPattern = RegExp(r'^#[0-9A-Fa-f]{6}$');
+
+  static List<FortuneLine> _lines(Object? raw) {
+    if (raw is! List) {
+      return const [];
+    }
+    final decoded = <FortuneLine>[];
+    final reservedIds = <String>{};
+    for (final item in raw) {
+      if (item is! Map || item['id'] is! String) {
+        continue;
+      }
+      final id = (item['id'] as String).trim();
+      if (id.isNotEmpty) {
+        reservedIds.add(id);
+      }
+    }
+    final usedIds = <String>{};
+    for (final item in raw) {
+      if (item is! Map) {
+        continue;
+      }
+      final map = Map<String, Object?>.from(item);
+      final rawId = map['id'];
+      final x1 = _finiteJsonNumber(map['x1']);
+      final y1 = _finiteJsonNumber(map['y1']);
+      final x2 = _finiteJsonNumber(map['x2']);
+      final y2 = _finiteJsonNumber(map['y2']);
+      if (rawId is! String ||
+          rawId.trim().isEmpty ||
+          x1 == null ||
+          y1 == null ||
+          x2 == null ||
+          y2 == null) {
+        continue;
+      }
+      final baseId = rawId.trim();
+      final id = _claimObjectId(baseId, reservedIds, usedIds);
+      decoded.add(
+        FortuneLine(
+          id: id,
+          x1: x1,
+          y1: y1,
+          x2: x2,
+          y2: y2,
+          strokeStyle: _strokeStyle(map['strokeStyle']),
+          strokeWidthMm: _strokeWidth(map['strokeWidthMm']),
+          strokeColor: _strokeColor(map['strokeColor']),
+          zOrder: _finiteJsonNumber(map['zOrder']) ?? 0,
+          extraFields: _unhandledFields(map, const {
+            'id',
+            'x1',
+            'y1',
+            'x2',
+            'y2',
+            'strokeStyle',
+            'strokeWidthMm',
+            'strokeColor',
+            'zOrder',
+          }),
+        ),
+      );
+    }
+    return decoded;
+  }
+
+  static List<FortuneShape> _fortuneShapes(Object? raw) {
+    if (raw is! List) {
+      return const [];
+    }
+    final reservedByKind = <FortuneShapeKind, Set<String>>{};
+    for (final item in raw) {
+      if (item is! Map || item['id'] is! String) {
+        continue;
+      }
+      final kind = _shapeKind(item['kind']);
+      final id = (item['id'] as String).trim();
+      if (kind != null && id.isNotEmpty) {
+        (reservedByKind[kind] ??= <String>{}).add(id);
+      }
+    }
+    final usedByKind = <FortuneShapeKind, Set<String>>{};
+    final decoded = <FortuneShape>[];
+    for (final item in raw) {
+      if (item is! Map) {
+        continue;
+      }
+      final map = Map<String, Object?>.from(item);
+      final rawId = map['id'];
+      final kind = _shapeKind(map['kind']);
+      final left = _finiteJsonNumber(map['left']);
+      final top = _finiteJsonNumber(map['top']);
+      final width = _finiteJsonNumber(map['width']);
+      final height = _finiteJsonNumber(map['height']);
+      if (rawId is! String ||
+          rawId.trim().isEmpty ||
+          kind == null ||
+          left == null ||
+          top == null ||
+          width == null ||
+          width <= 0 ||
+          height == null ||
+          height <= 0) {
+        continue;
+      }
+      final id = _claimObjectId(
+        rawId.trim(),
+        reservedByKind[kind]!,
+        usedByKind[kind] ??= <String>{},
+      );
+      final rotation = _finiteJsonNumber(map['rotationDegrees']);
+      final normalizedRotation = rotation == null
+          ? 0.0
+          : (rotation % 360 + 360) % 360;
+      decoded.add(
+        FortuneShape(
+          id: id,
+          kind: kind,
+          left: left,
+          top: top,
+          width: width,
+          height: height,
+          rotationDegrees: normalizedRotation,
+          strokeStyle: _strokeStyle(map['strokeStyle']),
+          strokeWidthMm: _strokeWidth(map['strokeWidthMm']),
+          strokeColor: _strokeColor(map['strokeColor']),
+          fillColor: _fillColor(map['fillColor']),
+          cornerRadiusMm: _cornerRadius(kind, map['cornerRadiusMm']),
+          zOrder: _finiteJsonNumber(map['zOrder']) ?? 0,
+          extraFields: _unhandledFields(map, const {
+            'id',
+            'kind',
+            'left',
+            'top',
+            'width',
+            'height',
+            'rotationDegrees',
+            'strokeStyle',
+            'strokeWidthMm',
+            'strokeColor',
+            'fillColor',
+            'cornerRadiusMm',
+            'zOrder',
+          }),
+        ),
+      );
+    }
+    return decoded;
+  }
+
+  static double? _finiteJsonNumber(Object? value) {
+    if (value is! num) {
+      return null;
+    }
+    final result = value.toDouble();
+    return result.isFinite ? result : null;
+  }
+
+  static String _claimObjectId(
+    String baseId,
+    Set<String> reservedIds,
+    Set<String> usedIds,
+  ) {
+    if (usedIds.add(baseId)) {
+      return baseId;
+    }
+    var suffix = 2;
+    while (reservedIds.contains('${baseId}__$suffix') ||
+        usedIds.contains('${baseId}__$suffix')) {
+      suffix += 1;
+    }
+    final id = '${baseId}__$suffix';
+    usedIds.add(id);
+    return id;
+  }
+
+  static FortuneStrokeStyle _strokeStyle(Object? value) {
+    return switch (value) {
+      'dashed' => FortuneStrokeStyle.dashed,
+      'dotted' => FortuneStrokeStyle.dotted,
+      'dashDot' => FortuneStrokeStyle.dashDot,
+      _ => FortuneStrokeStyle.solid,
+    };
+  }
+
+  static String _strokeStyleWire(FortuneStrokeStyle value) => value.name;
+
+  static FortuneShapeKind? _shapeKind(Object? value) {
+    return switch (value) {
+      'rectangle' => FortuneShapeKind.rectangle,
+      'roundedRectangle' => FortuneShapeKind.roundedRectangle,
+      'ellipse' => FortuneShapeKind.ellipse,
+      _ => null,
+    };
+  }
+
+  static double _strokeWidth(Object? value) {
+    final width = _finiteJsonNumber(value);
+    return width != null && width >= 0.1 && width <= 10 ? width : 0.5;
+  }
+
+  static String _strokeColor(Object? value) {
+    if (value is! String || !_objectColorPattern.hasMatch(value)) {
+      return '#000000';
+    }
+    return value.toUpperCase();
+  }
+
+  static String? _fillColor(Object? value) {
+    if (value is! String || !_objectColorPattern.hasMatch(value)) {
+      return null;
+    }
+    return value.toUpperCase();
+  }
+
+  static double _cornerRadius(FortuneShapeKind kind, Object? value) {
+    if (kind != FortuneShapeKind.roundedRectangle) {
+      return 0;
+    }
+    final radius = _finiteJsonNumber(value);
+    return radius != null && radius >= 0 && radius <= 50 ? radius : 2;
+  }
+
+  static Map<String, Object?> _lineToJson(FortuneLine line) {
+    return {
+      for (final entry in line.extraFields.entries)
+        entry.key: cloneFortuneMetadata(entry.value),
+      'id': line.id,
+      'x1': _jsonNumber(line.x1),
+      'y1': _jsonNumber(line.y1),
+      'x2': _jsonNumber(line.x2),
+      'y2': _jsonNumber(line.y2),
+      'strokeStyle': _strokeStyleWire(line.strokeStyle),
+      'strokeWidthMm': _jsonNumber(line.strokeWidthMm),
+      'strokeColor': line.strokeColor,
+      'zOrder': _jsonNumber(line.zOrder),
+    };
+  }
+
+  static Map<String, Object?> _fortuneShapeToJson(FortuneShape shape) {
+    return {
+      for (final entry in shape.extraFields.entries)
+        entry.key: cloneFortuneMetadata(entry.value),
+      'id': shape.id,
+      'kind': shape.kind.name,
+      'left': _jsonNumber(shape.left),
+      'top': _jsonNumber(shape.top),
+      'width': _jsonNumber(shape.width),
+      'height': _jsonNumber(shape.height),
+      'rotationDegrees': _jsonNumber(shape.rotationDegrees),
+      'strokeStyle': _strokeStyleWire(shape.strokeStyle),
+      'strokeWidthMm': _jsonNumber(shape.strokeWidthMm),
+      'strokeColor': shape.strokeColor,
+      'fillColor': shape.fillColor,
+      'cornerRadiusMm': _jsonNumber(shape.cornerRadiusMm),
+      'zOrder': _jsonNumber(shape.zOrder),
+    };
+  }
+
+  static Object _rawOrLinesToJson({
+    required List<FortuneLine> values,
+    required Object? raw,
+    required bool hasRaw,
+  }) {
+    if (hasRaw && _canonicalLineListEquals(raw, values)) {
+      return cloneFortuneMetadata(raw)!;
+    }
+    return [for (final line in values) _lineToJson(line)];
+  }
+
+  static Object _rawOrFortuneShapesToJson({
+    required List<FortuneShape> values,
+    required Object? raw,
+    required bool hasRaw,
+  }) {
+    if (hasRaw && _canonicalFortuneShapeListEquals(raw, values)) {
+      return cloneFortuneMetadata(raw)!;
+    }
+    return [for (final shape in values) _fortuneShapeToJson(shape)];
+  }
+
+  static bool _canonicalLineListEquals(
+    Object? raw,
+    List<FortuneLine> values,
+  ) {
+    if (raw is! List || raw.length != values.length) {
+      return false;
+    }
+    for (var index = 0; index < raw.length; index += 1) {
+      final item = raw[index];
+      if (item is! Map) {
+        return false;
+      }
+      final map = Map<String, Object?>.from(item);
+      if (!_canonicalLineEntry(map) ||
+          !_lineEquals(_lines([map]).single, values[index])) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  static bool _canonicalFortuneShapeListEquals(
+    Object? raw,
+    List<FortuneShape> values,
+  ) {
+    if (raw is! List || raw.length != values.length) {
+      return false;
+    }
+    for (var index = 0; index < raw.length; index += 1) {
+      final item = raw[index];
+      if (item is! Map) {
+        return false;
+      }
+      final map = Map<String, Object?>.from(item);
+      if (!_canonicalFortuneShapeEntry(map) ||
+          !_fortuneShapeEquals(_fortuneShapes([map]).single, values[index])) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  static bool _canonicalLineEntry(Map<String, Object?> map) {
+    return map['id'] is String &&
+        (map['id'] as String).isNotEmpty &&
+        (map['id'] as String).trim() == map['id'] &&
+        _finiteJsonNumber(map['x1']) != null &&
+        _finiteJsonNumber(map['y1']) != null &&
+        _finiteJsonNumber(map['x2']) != null &&
+        _finiteJsonNumber(map['y2']) != null &&
+        FortuneStrokeStyle.values.any((style) => style.name == map['strokeStyle']) &&
+        _finiteJsonNumber(map['strokeWidthMm']) != null &&
+        _strokeWidth(map['strokeWidthMm']) == _finiteJsonNumber(map['strokeWidthMm']) &&
+        map['strokeColor'] is String &&
+        _strokeColor(map['strokeColor']) == map['strokeColor'] &&
+        _finiteJsonNumber(map['zOrder']) != null;
+  }
+
+  static bool _canonicalFortuneShapeEntry(Map<String, Object?> map) {
+    final kind = _shapeKind(map['kind']);
+    final width = _finiteJsonNumber(map['width']);
+    final height = _finiteJsonNumber(map['height']);
+    final rotation = _finiteJsonNumber(map['rotationDegrees']);
+    final radius = _finiteJsonNumber(map['cornerRadiusMm']);
+    return map['id'] is String &&
+        (map['id'] as String).isNotEmpty &&
+        (map['id'] as String).trim() == map['id'] &&
+        kind != null &&
+        _finiteJsonNumber(map['left']) != null &&
+        _finiteJsonNumber(map['top']) != null &&
+        width != null &&
+        width > 0 &&
+        height != null &&
+        height > 0 &&
+        rotation != null &&
+        rotation >= 0 &&
+        rotation < 360 &&
+        FortuneStrokeStyle.values.any((style) => style.name == map['strokeStyle']) &&
+        _finiteJsonNumber(map['strokeWidthMm']) != null &&
+        _strokeWidth(map['strokeWidthMm']) == _finiteJsonNumber(map['strokeWidthMm']) &&
+        map['strokeColor'] is String &&
+        _strokeColor(map['strokeColor']) == map['strokeColor'] &&
+        (map['fillColor'] == null ||
+            map['fillColor'] is String &&
+                _fillColor(map['fillColor']) == map['fillColor']) &&
+        radius != null &&
+        _cornerRadius(kind, radius) == radius &&
+        _finiteJsonNumber(map['zOrder']) != null;
+  }
+
+  static bool _lineEquals(FortuneLine left, FortuneLine right) {
+    return left.id == right.id &&
+        left.x1 == right.x1 &&
+        left.y1 == right.y1 &&
+        left.x2 == right.x2 &&
+        left.y2 == right.y2 &&
+        left.strokeStyle == right.strokeStyle &&
+        left.strokeWidthMm == right.strokeWidthMm &&
+        left.strokeColor == right.strokeColor &&
+        left.zOrder == right.zOrder &&
+        _metadataEquals(left.extraFields, right.extraFields);
+  }
+
+  static bool _fortuneShapeEquals(FortuneShape left, FortuneShape right) {
+    return left.id == right.id &&
+        left.kind == right.kind &&
+        left.left == right.left &&
+        left.top == right.top &&
+        left.width == right.width &&
+        left.height == right.height &&
+        left.rotationDegrees == right.rotationDegrees &&
+        left.strokeStyle == right.strokeStyle &&
+        left.strokeWidthMm == right.strokeWidthMm &&
+        left.strokeColor == right.strokeColor &&
+        left.fillColor == right.fillColor &&
+        left.cornerRadiusMm == right.cornerRadiusMm &&
+        left.zOrder == right.zOrder &&
+        _metadataEquals(left.extraFields, right.extraFields);
   }
 
   static List<FortuneImage> _images(Object? raw) {

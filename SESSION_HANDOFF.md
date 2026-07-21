@@ -1,3 +1,12 @@
+### 진행 중 (2026-07-22): 선·도형 모델·저장·렌더·solid line 생성
+- `FortuneLine`/`FortuneShape` typed model과 `lines`/`fortuneShapes` codec, raw metadata 수명, invalid wire canonicalization, 중복 ID normalize를 구현했다. LabelSheet feature manifest/sanitizer와 legacy raw `shapes` strict clone도 연결했다.
+- `FortuneSheetObjectKey`/ref 공통 paint order, kind별 ID allocator, finite zOrder와 삽입 headroom 재기준화 helper를 구현했다. `double.maxFinite`에서 기존 공통 순서를 `1..N`으로 재기준화하고 실제 값이 바뀐 kind의 raw list만 폐기한다.
+- 화면 painter가 image/barcode/line/shape typed 공통 zOrder 뒤 legacy raw overlay, 그 뒤 editor overlay 순서로 합성한다. line 4종 pattern과 rectangle/roundedRectangle/ellipse fill/stroke/rotation의 기본 렌더가 연결됐다.
+- LabelSheet print-area save가 line/shape painted footprint로 교차 객체를 선별하고 stroke/rotation bounds로 row/column 범위를 확장한다. line/shape만 있는 파일도 content로 인정한다.
+- LabelSheet toolbar에 solid line command를 추가했다. one-shot insertion mode, editor-only drag preview, 화면 3px 최소 길이, Shift 45도 snap, finite topmost zOrder/ID 예약, undo 1회 commit, 짧은 drag·pointer cancel 재시도와 Escape/right-click/다른 toolbar command 취소를 구현했다.
+- 검증: package codec/order/insertion focused 9건, painter 전체 757건, 루트 save focused 6건 통과. 변경 파일 diagnostics와 `git diff --check`도 통과했다.
+- 다음 순서: shape combo/preset과 rectangle/roundedRectangle/ellipse one-shot 생성 → line/shape hit-test·typed selection → endpoint/resize/rotation gesture → controller/panel/Workbench presentation → mixed clipboard/async output/Hybrid EZPL. `lib/core/app.dart` 사용자 변경은 계속 수정·stage·commit에서 제외한다.
+
 ### 완료 (2026-07-21): 선·도형 지시서 재검토 6건 병합
 - 사용자 요청: 최신 구현 대조에서 확인한 structured-empty 잔여 분기, 읽기 전용 객체 권한, barcode pending 이탈, output owner 공개 조정 경계, image picker 오류 귀속과 panel 폭 write 실패 의미를 권장안으로 병합한다.
 - 사용자 확정: panel 폭 preference write 실패는 best-effort로 처리한다. 화면 폭은 유지하고 자동 retry·dispose 보관 없이 queue를 계속하며 마지막 성공 write를 저장값으로 사용하고, 이후 성공한 사용자 write가 갱신한다.

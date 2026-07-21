@@ -70,6 +70,7 @@ class FortuneToolbarIconPainter {
     'eraser',
     'link',
     'image',
+    'line',
     'import-image',
     'save',
     'barcode',
@@ -316,6 +317,9 @@ class FortuneToolbarIconPainter {
         break;
       case 'image':
         _image(canvas, paint);
+        break;
+      case 'line':
+        _line(canvas, paint, const Offset(4, 18), const Offset(20, 6));
         break;
       case 'import-image':
         _importImage(canvas, paint);

@@ -1,8 +1,11 @@
 import 'dart:convert';
+import 'dart:collection';
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:archive/archive.dart';
 import 'package:fortune_sheet/fortune_sheet.dart';
+import 'package:vector_math/vector_math_64.dart' show Matrix4;
 
 const String labelSheetSaveFormat = 'label-manager.sheet';
 final int labelSheetSaveFormatVersion = _labelSheetSaveFeatureKeys.length;
@@ -32,6 +35,8 @@ const List<String> _labelSheetSaveFeatureKeys = [
   'sheet.frozen',
   'sheet.labelMetadata',
   'sheet.images.preserveTemplateBarcodeFormat',
+  'sheet.lines',
+  'sheet.fortuneShapes',
 ];
 
 const Set<String> _supportedWorkbookKeys = {
@@ -72,6 +77,9 @@ const Set<String> _supportedSheetKeys = {
   'id',
   'images',
   'image',
+  'lines',
+  'fortuneShapes',
+  'shapes',
   'zoomRatio',
   'column',
   'row',
@@ -214,6 +222,34 @@ const Set<String> _supportedImageKeys = {
   fortuneBarcodeIdLabelPrintExcludedExtraKey,
 };
 
+const Set<String> _supportedLineKeys = {
+  'id',
+  'x1',
+  'y1',
+  'x2',
+  'y2',
+  'strokeStyle',
+  'strokeWidthMm',
+  'strokeColor',
+  'zOrder',
+};
+
+const Set<String> _supportedFortuneShapeKeys = {
+  'id',
+  'kind',
+  'left',
+  'top',
+  'width',
+  'height',
+  'rotationDegrees',
+  'strokeStyle',
+  'strokeWidthMm',
+  'strokeColor',
+  'fillColor',
+  'cornerRadiusMm',
+  'zOrder',
+};
+
 const Set<String> _supportedImageCropKeys = {
   'width',
   'height',
@@ -266,6 +302,8 @@ FortuneSheet _sheetForPrintAreaSave(FortuneSheet sheet) {
   bounds = _expandBoundsForCells(sheet, printBounds, bounds);
   bounds = _expandBoundsForBorders(sheet, printBounds, bounds);
   bounds = _expandBoundsForImages(sheet, printBounds, bounds);
+  final typedObjects = _typedObjectsForPrintArea(sheet, printBounds, bounds);
+  bounds = typedObjects.bounds;
   return sheet.copyWith(
     rowCount: bounds.maxRow + 1,
     columnCount: bounds.maxColumn + 1,
@@ -298,6 +336,8 @@ FortuneSheet _sheetForPrintAreaSave(FortuneSheet sheet) {
       for (final image in sheet.images)
         if (_imageIntersectsBounds(sheet, image, bounds)) image.copyWith(),
     ],
+    lines: typedObjects.lines,
+    shapes: typedObjects.shapes,
     dataVerification: _coordKeyMapWithin(sheet.dataVerification, bounds),
     filter: _coordKeyMapWithin(sheet.filter, bounds),
     hyperlinks: _coordKeyMapWithin(sheet.hyperlinks, bounds),
@@ -371,6 +411,275 @@ _LabelSheetSaveBounds _expandBoundsForImages(
     );
   }
   return next;
+}
+
+({
+  _LabelSheetSaveBounds bounds,
+  List<FortuneLine> lines,
+  List<FortuneShape> shapes,
+})
+_typedObjectsForPrintArea(
+  FortuneSheet sheet,
+  _LabelSheetSaveBounds printBounds,
+  _LabelSheetSaveBounds currentBounds,
+) {
+  final printRect = _logicalRectForBounds(sheet, printBounds);
+  var nextBounds = currentBounds;
+  final lines = <FortuneLine>[];
+  final shapes = <FortuneShape>[];
+  for (final line in sheet.lines) {
+      final path = ui.Path()
+      ..moveTo(line.x1, line.y1)
+      ..lineTo(line.x2, line.y2);
+    final strokeWidth = fortuneMillimetersToLogicalPixels(line.strokeWidthMm);
+    if (!_strokePathIntersectsRect(
+      path,
+      line.strokeStyle,
+      strokeWidth,
+      printRect,
+    )) {
+      continue;
+    }
+    lines.add(line.copyWith());
+    nextBounds = _expandBoundsForLogicalRect(
+      sheet,
+      nextBounds,
+      path.getBounds().inflate(strokeWidth / 2),
+    );
+  }
+  for (final shape in sheet.shapes) {
+    final path = _fortuneShapeLogicalPath(shape);
+    final strokeWidth = fortuneMillimetersToLogicalPixels(
+      shape.strokeWidthMm,
+    );
+    final fillIntersects = shape.fillColor != null &&
+        _filledPathIntersectsRect(path, printRect);
+    final strokeIntersects = _strokePathIntersectsRect(
+      path,
+      shape.strokeStyle,
+      strokeWidth,
+      printRect,
+    );
+    if (!fillIntersects && !strokeIntersects) {
+      continue;
+    }
+    shapes.add(shape.copyWith());
+    nextBounds = _expandBoundsForLogicalRect(
+      sheet,
+      nextBounds,
+      path.getBounds().inflate(strokeWidth / 2),
+    );
+  }
+  return (bounds: nextBounds, lines: lines, shapes: shapes);
+}
+
+ui.Rect _logicalRectForBounds(
+  FortuneSheet sheet,
+  _LabelSheetSaveBounds bounds,
+) {
+  return ui.Rect.fromLTWH(
+    0,
+    0,
+    _spanLength(
+      0,
+      bounds.maxColumn + 1,
+      lengthForIndex: (column) => _columnWidth(sheet, column),
+    ),
+    _spanLength(
+      0,
+      bounds.maxRow + 1,
+      lengthForIndex: (row) => _rowHeight(sheet, row),
+    ),
+  );
+}
+
+_LabelSheetSaveBounds _expandBoundsForLogicalRect(
+  FortuneSheet sheet,
+  _LabelSheetSaveBounds bounds,
+  ui.Rect rect,
+) {
+  return bounds.expandTo(
+    row: _lastIndexForPosition(
+      math.max(0, rect.bottom),
+      lengthForIndex: (row) => _rowHeight(sheet, row),
+    ),
+    column: _lastIndexForPosition(
+      math.max(0, rect.right),
+      lengthForIndex: (column) => _columnWidth(sheet, column),
+    ),
+  );
+}
+
+ui.Path _fortuneShapeLogicalPath(FortuneShape shape) {
+  final rect = ui.Rect.fromLTWH(
+    shape.left,
+    shape.top,
+    shape.width,
+    shape.height,
+  );
+  final path = ui.Path();
+  switch (shape.kind) {
+    case FortuneShapeKind.rectangle:
+      path.addRect(rect);
+    case FortuneShapeKind.roundedRectangle:
+      final radius = math.min(
+        fortuneMillimetersToLogicalPixels(shape.cornerRadiusMm),
+        math.min(rect.width, rect.height) / 2,
+      );
+      path.addRRect(
+        ui.RRect.fromRectAndRadius(rect, ui.Radius.circular(radius)),
+      );
+    case FortuneShapeKind.ellipse:
+      path.addOval(rect);
+  }
+  if (shape.rotationDegrees == 0) {
+    return path;
+  }
+  final transform = Matrix4.identity()
+    ..translateByDouble(rect.center.dx, rect.center.dy, 0, 1)
+    ..rotateZ(shape.rotationDegrees * math.pi / 180)
+    ..translateByDouble(-rect.center.dx, -rect.center.dy, 0, 1);
+  return path.transform(transform.storage);
+}
+
+bool _filledPathIntersectsRect(ui.Path path, ui.Rect rect) {
+  if (!path.getBounds().overlaps(rect)) {
+    return false;
+  }
+  if (path.contains(rect.topLeft) ||
+      path.contains(rect.topRight) ||
+      path.contains(rect.bottomLeft) ||
+      path.contains(rect.bottomRight) ||
+      path.contains(rect.center)) {
+    return true;
+  }
+  for (final metric in path.computeMetrics()) {
+    const samples = 64;
+    ui.Offset? previous;
+    for (var index = 0; index <= samples; index += 1) {
+      final tangent = metric.getTangentForOffset(
+        metric.length * index / samples,
+      );
+      if (tangent == null) {
+        continue;
+      }
+      if (rect.contains(tangent.position) ||
+          previous != null && _segmentIntersectsRect(previous, tangent.position, rect)) {
+        return true;
+      }
+      previous = tangent.position;
+    }
+  }
+  return false;
+}
+
+bool _strokePathIntersectsRect(
+  ui.Path path,
+  FortuneStrokeStyle style,
+  double strokeWidth,
+  ui.Rect rect,
+) {
+  if (!path.getBounds().inflate(strokeWidth / 2).overlaps(rect)) {
+    return false;
+  }
+  for (final metric in path.computeMetrics()) {
+    if (style == FortuneStrokeStyle.solid) {
+      if (_pathMetricIntervalIntersectsRect(
+        metric,
+        0,
+        metric.length,
+        rect.inflate(strokeWidth / 2),
+      )) {
+        return true;
+      }
+      continue;
+    }
+    final pattern = switch (style) {
+      FortuneStrokeStyle.dashed => <double>[4 * strokeWidth, 2 * strokeWidth],
+      FortuneStrokeStyle.dotted => <double>[0, 3 * strokeWidth],
+      FortuneStrokeStyle.dashDot => <double>[
+        4 * strokeWidth,
+        2 * strokeWidth,
+        0,
+        3 * strokeWidth,
+      ],
+      FortuneStrokeStyle.solid => const <double>[],
+    };
+    var distance = 0.0;
+    var index = 0;
+    while (distance <= metric.length) {
+      final markLength = pattern[index % pattern.length];
+      final gapLength = pattern[(index + 1) % pattern.length];
+      if (markLength == 0) {
+        final tangent = metric.getTangentForOffset(distance);
+        if (tangent != null &&
+            rect.inflate(strokeWidth / 2).contains(tangent.position)) {
+          return true;
+        }
+      } else if (_pathMetricIntervalIntersectsRect(
+        metric,
+        distance,
+        math.min(metric.length, distance + markLength),
+        rect.inflate(strokeWidth / 2),
+      )) {
+        return true;
+      }
+      distance += markLength + gapLength;
+      index += 2;
+    }
+  }
+  return false;
+}
+
+bool _pathMetricIntervalIntersectsRect(
+  ui.PathMetric metric,
+  double start,
+  double end,
+  ui.Rect rect,
+) {
+  final length = math.max(0, end - start);
+  final samples = math.max(1, (length / 2).ceil());
+  ui.Offset? previous;
+  for (var index = 0; index <= samples; index += 1) {
+    final tangent = metric.getTangentForOffset(start + length * index / samples);
+    if (tangent == null) {
+      continue;
+    }
+    if (rect.contains(tangent.position) ||
+        previous != null && _segmentIntersectsRect(previous, tangent.position, rect)) {
+      return true;
+    }
+    previous = tangent.position;
+  }
+  return false;
+}
+
+bool _segmentIntersectsRect(ui.Offset start, ui.Offset end, ui.Rect rect) {
+  if (rect.contains(start) || rect.contains(end)) {
+    return true;
+  }
+  return _segmentsIntersect(start, end, rect.topLeft, rect.topRight) ||
+      _segmentsIntersect(start, end, rect.topRight, rect.bottomRight) ||
+      _segmentsIntersect(start, end, rect.bottomRight, rect.bottomLeft) ||
+      _segmentsIntersect(start, end, rect.bottomLeft, rect.topLeft);
+}
+
+bool _segmentsIntersect(
+  ui.Offset a,
+  ui.Offset b,
+  ui.Offset c,
+  ui.Offset d,
+) {
+  double cross(ui.Offset first, ui.Offset second, ui.Offset third) {
+    return (second.dx - first.dx) * (third.dy - first.dy) -
+        (second.dy - first.dy) * (third.dx - first.dx);
+  }
+
+  final abC = cross(a, b, c);
+  final abD = cross(a, b, d);
+  final cdA = cross(c, d, a);
+  final cdB = cross(c, d, b);
+  return abC * abD <= 0 && cdA * cdB <= 0;
 }
 
 _LabelSheetSaveBounds _estimatedCellTextExtent(
@@ -752,8 +1061,13 @@ Map<String, Object?> _cloneStringObjectMap(Map<String, Object?> value) {
 }
 
 Map<String, Object?> _sanitizeSheetJson(Map<String, Object?> json) {
-  return _sanitizeMap(
-    json,
+  final hasLegacyShapes = json.containsKey('shapes');
+  final legacyShapes = hasLegacyShapes
+      ? _strictCloneLegacyShapes(json['shapes'], HashSet<Object>.identity())
+      : (valid: false, value: null);
+  final source = Map<String, Object?>.from(json)..remove('shapes');
+  final sanitized = _sanitizeMap(
+    source,
     _supportedSheetKeys,
     valueSanitizer: (key, value) {
       return switch (key) {
@@ -763,10 +1077,90 @@ Map<String, Object?> _sanitizeSheetJson(Map<String, Object?> json) {
         'celldata' when value is List => _sanitizeCelldata(value),
         'data' when value is List => _sanitizeMatrixData(value),
         'images' || 'image' when value is List => _sanitizeImages(value),
+        'lines' when value is List => _sanitizeObjectList(
+          value,
+          _supportedLineKeys,
+        ),
+        'fortuneShapes' when value is List => _sanitizeObjectList(
+          value,
+          _supportedFortuneShapeKeys,
+        ),
         _ => _cloneSupportedSaveValue(value),
       };
     },
   );
+  if (hasLegacyShapes && legacyShapes.valid) {
+    sanitized['shapes'] = legacyShapes.value;
+  }
+  return sanitized;
+}
+
+List<Object?> _sanitizeObjectList(
+  List<Object?> raw,
+  Set<String> supportedKeys,
+) {
+  return [
+    for (final item in raw)
+      if (item is Map)
+        _sanitizeMap(
+          Map<String, Object?>.from(item),
+          supportedKeys,
+        ),
+  ];
+}
+
+({bool valid, Object? value}) _strictCloneLegacyShapes(
+  Object? value,
+  Set<Object> currentPath,
+) {
+  if (value == null || value is bool || value is String) {
+    return (valid: true, value: value);
+  }
+  if (value is num) {
+    return value.isFinite
+        ? (valid: true, value: value)
+        : (valid: false, value: null);
+  }
+  if (value is Map) {
+    if (!currentPath.add(value)) {
+      return (valid: false, value: null);
+    }
+    try {
+      final result = <String, Object?>{};
+      for (final entry in value.entries) {
+        if (entry.key is! String) {
+          return (valid: false, value: null);
+        }
+        final child = _strictCloneLegacyShapes(entry.value, currentPath);
+        if (!child.valid) {
+          return (valid: false, value: null);
+        }
+        result[entry.key as String] = child.value;
+      }
+      return (valid: true, value: result);
+    } finally {
+      currentPath.remove(value);
+    }
+  }
+  if (value is List) {
+    if (!currentPath.add(value)) {
+      return (valid: false, value: null);
+    }
+    try {
+      final result = <Object?>[];
+      for (final item in value) {
+        final child = _strictCloneLegacyShapes(item, currentPath);
+        if (!child.valid) {
+          return (valid: false, value: null);
+        }
+        result.add(child.value);
+      }
+      return (valid: true, value: result);
+    } finally {
+      currentPath.remove(value);
+    }
+  }
+  return (valid: false, value: null);
 }
 
 List<Object?> _sanitizeImages(List<Object?> raw) {
