@@ -891,12 +891,20 @@ void main() {
     tester,
   ) async {
     String? clipboardText;
+    var delayClipboardWrites = false;
+    final clipboardWrites = <Completer<void>>[];
     tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
       SystemChannels.platform,
       (call) async {
         switch (call.method) {
           case 'Clipboard.setData':
-            clipboardText = (call.arguments as Map<Object?, Object?>)['text'] as String?;
+            final text = (call.arguments as Map<Object?, Object?>)['text'] as String?;
+            if (delayClipboardWrites) {
+              final completer = Completer<void>();
+              clipboardWrites.add(completer);
+              await completer.future;
+            }
+            clipboardText = text;
             return null;
           case 'Clipboard.getData':
             return <String, Object?>{'text': clipboardText};
@@ -1023,6 +1031,35 @@ void main() {
     expect(restored.shapes.single.id, 'rect_1');
     expect((restored.shapes.single.left, restored.shapes.single.top), (30, 40));
     expect(await controller.pasteObjects(), isFalse);
+
+    delayClipboardWrites = true;
+    final firstCopy = controller.copySelectedObjects();
+    final secondCopy = controller.copySelectedObjects();
+    await tester.pump();
+    expect(clipboardWrites, hasLength(1));
+    clipboardWrites[0].complete();
+    expect(await firstCopy, isFalse);
+    await tester.pump();
+    expect(clipboardWrites, hasLength(2));
+    clipboardWrites[1].complete();
+    expect(await secondCopy, isTrue);
+    final stableMarker = clipboardText;
+
+    final staleCopy = controller.copySelectedObjects();
+    final failingCopy = controller.copySelectedObjects();
+    await tester.pump();
+    expect(clipboardWrites, hasLength(3));
+    clipboardWrites[2].complete();
+    expect(await staleCopy, isFalse);
+    await tester.pump();
+    expect(clipboardWrites, hasLength(4));
+    delayClipboardWrites = false;
+    clipboardWrites[3].completeError(
+      PlatformException(code: 'clipboard-write-failed'),
+    );
+    expect(await failingCopy, isFalse);
+    expect(clipboardText, stableMarker);
+    expect(await controller.pasteObjects(), isTrue);
   });
 
   testWidgets('structured duplicate preserves connection id with no options', (

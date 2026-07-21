@@ -1185,6 +1185,25 @@ class _FortuneObjectClipboardPayload {
   final bool isCut;
 }
 
+class _FortuneObjectClipboardBaseline {
+  const _FortuneObjectClipboardBaseline({required this.text, this.payload});
+
+  final String? text;
+  final _FortuneObjectClipboardPayload? payload;
+}
+
+class _FortuneObjectClipboardWriteLease {
+  const _FortuneObjectClipboardWriteLease({
+    required this.baseline,
+    required this.release,
+    required this.wroteMarker,
+  });
+
+  final _FortuneObjectClipboardBaseline baseline;
+  final void Function() release;
+  final bool wroteMarker;
+}
+
 class FortuneObjectSelectionSnapshot {
   FortuneObjectSelectionSnapshot({
     required this.attached,
@@ -2798,6 +2817,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   final Map<FortuneSheetObjectKey, int> _panelBarcodeRequestTokens = {};
   int _objectClipboardSequence = 0;
   _FortuneObjectClipboardPayload? _objectClipboardPayload;
+  Future<void> _objectClipboardGate = Future<void>.value();
+  Future<_FortuneObjectClipboardBaseline>? _objectClipboardBaseline;
+  int _objectClipboardPendingWrites = 0;
   static const int _maxUndoSnapshots = 100;
   static const String _sheetCornerTooltipText = '마우스 우클릭 - 라벨 크기 조정';
   static const Map<String, int> _fillChineseDigits = {
@@ -26346,18 +26368,24 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     }
     final sequence = ++_objectClipboardSequence;
     final marker = 'fortune-sheet:objects:v1:$sequence';
-    try {
-      await Clipboard.setData(ClipboardData(text: marker));
-    } on Object {
+    final lease = await _beginObjectClipboardWrite(marker);
+    if (!lease.wroteMarker) {
+      if (sequence == _objectClipboardSequence) {
+        await _restoreObjectClipboardBaseline(lease.baseline);
+      }
+      lease.release();
       return false;
     }
     if (!mounted || sequence != _objectClipboardSequence) {
+      lease.release();
       return false;
     }
     if (cut) {
       final current = _workbook.activeSheet;
       if (current.id != sheet.id ||
           entries.any((entry) => !_objectClipboardEntryMatchesSheet(entry, current))) {
+        await _restoreObjectClipboardBaseline(lease.baseline);
+        lease.release();
         return false;
       }
       final selected = entries.map((entry) => entry.key).toSet();
@@ -26409,21 +26437,116 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     );
     _clearCopiedCellClipboardState();
     _clearCopiedImageLayerPanelClipboardState();
+    lease.release();
     return true;
   }
 
+  Future<_FortuneObjectClipboardWriteLease> _beginObjectClipboardWrite(
+    String marker,
+  ) async {
+    if (_objectClipboardPendingWrites++ == 0) {
+      _objectClipboardBaseline = _captureObjectClipboardBaseline();
+    }
+    final previous = _objectClipboardGate;
+    final completer = Completer<void>();
+    _objectClipboardGate = completer.future;
+    await previous;
+    final baseline = await _objectClipboardBaseline!;
+    var wroteMarker = false;
+    try {
+      await Clipboard.setData(ClipboardData(text: marker));
+      wroteMarker = true;
+    } on Object {
+      wroteMarker = false;
+    }
+    var released = false;
+    return _FortuneObjectClipboardWriteLease(
+      baseline: baseline,
+      wroteMarker: wroteMarker,
+      release: () {
+        if (released) return;
+        released = true;
+        _objectClipboardPendingWrites -= 1;
+        if (_objectClipboardPendingWrites == 0) {
+          _objectClipboardBaseline = null;
+        }
+        completer.complete();
+      },
+    );
+  }
+
+  Future<_FortuneObjectClipboardBaseline>
+  _captureObjectClipboardBaseline() async {
+    String? text;
+    try {
+      text = (await Clipboard.getData(Clipboard.kTextPlain))?.text;
+    } on Object {
+      text = null;
+    }
+    final payload = _objectClipboardPayload;
+    return _FortuneObjectClipboardBaseline(
+      text: text,
+      payload: payload != null && payload.marker == text ? payload : null,
+    );
+  }
+
+  Future<void> _restoreObjectClipboardBaseline(
+    _FortuneObjectClipboardBaseline baseline,
+  ) async {
+    _objectClipboardPayload = baseline.payload;
+    final text = baseline.text;
+    if (text == null) return;
+    try {
+      await Clipboard.setData(ClipboardData(text: text));
+    } on Object {
+      _objectClipboardPayload = null;
+    }
+  }
+
+  Future<void Function()> _acquireObjectClipboardGate() async {
+    final previous = _objectClipboardGate;
+    final completer = Completer<void>();
+    _objectClipboardGate = completer.future;
+    await previous;
+    var released = false;
+    return () {
+      if (released) return;
+      released = true;
+      completer.complete();
+    };
+  }
+
   Future<bool> _pasteObjectsFromClipboard() async {
+    final release = await _acquireObjectClipboardGate();
+    try {
+      return await _pasteObjectsFromStableClipboard();
+    } finally {
+      release();
+    }
+  }
+
+  Future<bool> _pasteObjectsFromStableClipboard() async {
     final payload = _objectClipboardPayload;
     if (!_workbook.settings.allowEdit || payload == null) {
       return false;
     }
+    final targetWorkbook = _workbook;
+    final targetSheetId = _workbook.activeSheet.id;
+    final targetSelection = _objectSelectionSnapshot(attached: true);
     ClipboardData? data;
     try {
       data = await Clipboard.getData(Clipboard.kTextPlain);
     } on Object {
       return false;
     }
-    if (!mounted || data?.text != payload.marker) {
+    if (!mounted ||
+        !identical(_workbook, targetWorkbook) ||
+        _workbook.activeSheet.id != targetSheetId ||
+        !_sameObjectSelection(
+          targetSelection,
+          _objectSelectionSnapshot(attached: true),
+        ) ||
+        data?.text != payload.marker) {
       return false;
     }
     final originalSheet = _workbook.activeSheet;
