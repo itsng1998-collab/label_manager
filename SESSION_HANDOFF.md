@@ -1,3 +1,10 @@
+### 완료 (2026-07-21): 선·도형 지시서 clipboard paste 순서 보완
+- 사용자 요청: 최신 재검토에서 확인한 빠른 object copy/cut 직후 paste의 비동기 순서 권장안을 지시서에 병합한다.
+- 추가 사용자 확인 불필요: `Ctrl/Meta+C`·`Ctrl/Meta+X` 직후 `Ctrl/Meta+V`는 정상적인 연속 명령이며, 기존 latest-wins marker coordinator와 단일-read paste 계약상 이전 clipboard를 조기에 읽어 뜻하지 않은 cell/text fallback을 실행하는 결과는 허용하지 않는 편이 일관된다.
+- clipboard 순서 보완 완료: copy/cut marker write와 paste를 같은 호출 순서 경계에 두고 paste 전에 접수된 최신 요청의 성공 활성화 또는 실패 안정 clipboard 복원 뒤 target snapshot과 단일 clipboard read를 수행한다. 성공한 선행 cut의 삭제·후속 selection/revision은 stale가 아니라 정상 선행 상태로 사용하고 paste 뒤 요청은 해당 read를 앞지르지 않는다.
+- 본문·interaction 테스트·구현 순서·완료 조건·확정값에 pending copy/cut 성공·실패·예외와 paste routing 결과를 연결했다.
+- stage/commit 대상: `doc/label_line_panel.txt`, `SESSION_HANDOFF.md`만 포함한다. 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
+
 ### 완료 (2026-07-21): 선·도형 지시서 sheet anchor·연결 검증 보완
 - 사용자 요청: 최신 재검토에서 확인한 active sheet selection anchor, 좌표 clamp 완료조건 모순과 toolbar/property/barcode 연결 검증 권장안을 지시서에 병합한다.
 - 추가 사용자 확인 불필요: active sheet 변경의 기존 object selection 해제 의미와 exact key에 sheet ID가 없는 구조상 anchor도 함께 비워야 stale range를 막을 수 있다. 좌표 정책은 본문의 기존 image parity로 이미 `X/left 음수 허용, Y/top만 0 이상 clamp`로 확정되어 있고, 나머지는 새 기능이 아니라 명시된 구현 연결을 대표 fixture로 검증하는 보강이다.
