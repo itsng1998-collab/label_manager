@@ -1193,9 +1193,14 @@ class _FortuneObjectClipboardPayload {
 }
 
 class _FortuneObjectClipboardBaseline {
-  const _FortuneObjectClipboardBaseline({required this.text, this.payload});
+  const _FortuneObjectClipboardBaseline({
+    required this.text,
+    required this.textReadSucceeded,
+    this.payload,
+  });
 
   final String? text;
+  final bool textReadSucceeded;
   final _FortuneObjectClipboardPayload? payload;
 }
 
@@ -26563,14 +26568,17 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   Future<_FortuneObjectClipboardBaseline>
   _captureObjectClipboardBaseline() async {
     String? text;
+    var textReadSucceeded = false;
     try {
       text = (await Clipboard.getData(Clipboard.kTextPlain))?.text;
+      textReadSucceeded = true;
     } on Object {
       text = null;
     }
     final payload = _objectClipboardPayload;
     return _FortuneObjectClipboardBaseline(
       text: text,
+      textReadSucceeded: textReadSucceeded,
       payload: payload != null && payload.marker == text ? payload : null,
     );
   }
@@ -26579,10 +26587,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     _FortuneObjectClipboardBaseline baseline,
   ) async {
     _objectClipboardPayload = baseline.payload;
-    final text = baseline.text;
-    if (text == null) return;
+    if (!baseline.textReadSucceeded) return;
     try {
-      await Clipboard.setData(ClipboardData(text: text));
+      await Clipboard.setData(ClipboardData(text: baseline.text ?? ''));
     } on Object {
       _objectClipboardPayload = null;
     }

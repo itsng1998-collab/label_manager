@@ -898,6 +898,7 @@ void main() {
   ) async {
     String? clipboardText;
     var delayClipboardWrites = false;
+    var failNextClipboardWrite = false;
     final clipboardWrites = <Completer<void>>[];
     var clipboardReads = 0;
     tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
@@ -907,6 +908,10 @@ void main() {
           case 'Clipboard.setData':
             final text =
                 (call.arguments as Map<Object?, Object?>)['text'] as String?;
+            if (failNextClipboardWrite) {
+              failNextClipboardWrite = false;
+              throw PlatformException(code: 'clipboard-write-failed');
+            }
             if (delayClipboardWrites) {
               final completer = Completer<void>();
               clipboardWrites.add(completer);
@@ -916,7 +921,9 @@ void main() {
             return null;
           case 'Clipboard.getData':
             clipboardReads += 1;
-            return <String, Object?>{'text': clipboardText};
+            return clipboardText == null
+                ? null
+                : <String, Object?>{'text': clipboardText};
         }
         return null;
       },
@@ -1104,6 +1111,19 @@ void main() {
     expect(await failingCopy, isFalse);
     expect(clipboardText, stableMarker);
     expect(await controller.pasteObjects(), isTrue);
+
+    clipboardText = null;
+    delayClipboardWrites = true;
+    final nullBaselineStaleCopy = controller.copySelectedObjects();
+    final nullBaselineFailingCopy = controller.copySelectedObjects();
+    await tester.pump();
+    expect(clipboardWrites, hasLength(5));
+    delayClipboardWrites = false;
+    failNextClipboardWrite = true;
+    clipboardWrites[4].complete();
+    expect(await nullBaselineStaleCopy, isFalse);
+    expect(await nullBaselineFailingCopy, isFalse);
+    expect(clipboardText, isEmpty);
 
     clipboardText = 'external cell text';
     final readsBeforeFallback = clipboardReads;
