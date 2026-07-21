@@ -822,6 +822,10 @@ nextPanelWidth = currentPanelWidth - delta.dx
 - 사용자가 확정한 대로 narrow overlay가 열린 동안 active object toolbar는 paint와 hit-test에서 모두 숨긴다. overlay rect 안의 pointer/scroll은 overlay가 소유하고 canvas object/cell hit-test로 전달하지 않는다. overlay가 닫히면 active object toolbar를 다시 표시하며, dock mode에서는 legacy floating layer panel의 paint와 hit-test를 모두 비활성화해 panel chrome을 중복 생성하지 않는다.
 - overlay panel은 시트를 영구 축소하지 않고 현재 220px보다 넓은 최대 300px 범위에서 viewport 안에 맞춘다.
 - `userWantsDockOpen`, 현재 local width로 dock 가능한지 나타내는 `dockEligible`, 좁은 화면의 `overlayOpen` 상태를 분리한다. 자동 접기가 사용자의 open/closed 의도를 덮어쓰지 않는다.
+- package-owned toolbar/panel은 Workbench-owned `userWantsDockOpen`/`dockEligible`/`overlayOpen`을 직접 읽거나 바꾸지 않는다. package→Workbench의 app-neutral `open`/`close` presentation request와 Workbench→package의 immutable `hidden`/`dock`/`overlay` presentation snapshot 또는 동등한 controlled widget 계약으로 연결한다. package가 실제 표시 상태를 소유하지 않으므로 `toggle` request나 별도 writable open bool을 두지 않는다.
+- toolbar와 속성 focus/edit command는 `open`, panel header 접기와 overlay의 Escape/backdrop close는 `close`만 요청한다. 일반 open과 edit open은 action을 늘리지 않고 request의 optional exact property-focus intent 또는 동등 metadata로 구분한다. Workbench는 `hidden + open`을 현재 local width에 따라 dock 또는 overlay로 한 번 적용하고, 이미 `dock`/`overlay`인 일반 open과 이미 `hidden`인 close는 state·focus·callback을 바꾸지 않는 no-op으로 처리한다. `dock`/`overlay + close`는 해당 presentation만 한 번 닫으며 narrow overlay close는 `userWantsDockOpen`을 바꾸지 않는다.
+- package는 숨겨진 panel의 edit open에서 exact target field focus intent를 snapshot 적용 전까지 보존하고 실제 `dock`/`overlay` snapshot을 받은 뒤 대상 field가 mounted·attached이고 같은 command target일 때 정확히 한 번 focus한 후 intent를 소비한다. narrow edit open은 일반 open의 중간 layer-list focus를 실행하지 않고 최종 property field만 focus한다. panel이 이미 보이면 presentation request/state 변경 없이 대상 field를 즉시 focus한다. 다른 selection/target 변경, close, owner detach 또는 Workbench dispose는 pending intent를 폐기하며 동일 snapshot 재주입이 focus를 반복하지 않는다.
+- Workbench가 적용한 presentation snapshot은 package의 paint/hit-test와 panel chrome 선택에만 사용하고 snapshot 적용이나 동일 값 재주입은 request callback을 되쏘지 않는다. wide/narrow 경계 전환도 request를 발생시키지 않는다. presentation request/snapshot은 canonical object controller snapshot과 분리된 UI configuration이며 workbook, undo/redo, dirty, revision, `onChange`/`onOp`와 object controller/listenable을 바꾸지 않는다.
 - panel controller, active property draft, selection과 field controller는 dock/overlay presentation widget보다 상위에서 소유해 760px 경계 전환으로 dispose·재생성하지 않는다. 사용자가 확정한 대로 wide→narrow에서 overlay open command를 발생시키거나 focus를 옮기지 않고, narrow→wide에서도 dock open command/callback을 발생시키거나 field focus를 이전하지 않는다. 경계 전환 자체는 draft를 finalize·commit·폐기하거나 `userWantsDockOpen`/`overlayOpen`을 변경하지 않으며 실제 FocusNode 소유권을 유지한다. 단 narrow 진입 전 보존된 `userWantsDockOpen == true`이면 wide layout 복귀 시 dock이 다시 표시되고 false이면 숨김을 유지하는 것은 새 open command가 아니라 기존 사용자 의도의 presentation 복원이다.
 - 다시 760px 이상이 되면 마지막 dock panel 폭을 복원하되 dock 표시 여부는 `userWantsDockOpen`을 유지한다. 사용자가 넓은 화면에서 닫은 panel을 width 왕복만으로 다시 열지 않는다.
 - 좁은 화면에서 속성 form이 화면 밖으로 나가지 않도록 panel 내부를 scroll한다.
@@ -882,6 +886,8 @@ controller는 host가 package 내부 state를 직접 읽지 않도록 immutable 
 
 `LabelSheetWorkbench`가 private canvas state를 직접 읽거나 package 내부 field에 의존하지 않는다.
 
+object panel presentation은 위 canonical controller snapshot에 넣지 않고 FortuneSheet widget/configuration의 immutable `hidden`/`dock`/`overlay` 입력과 app-neutral `open`/`close` request callback 또는 동등 API로 분리한다. open request는 필요할 때 package가 소유하는 exact property-focus intent를 metadata로 전달할 수 있지만 Workbench가 raw FocusNode를 소유하거나 직접 focus하지 않는다. package toolbar·panel·keyboard handler는 사용자 입력 하나당 request를 최대 한 번만 발생시키고 내부 legacy floating-panel bool을 함께 토글하지 않는다. Workbench dispose나 해당 FortuneSheet owner detach 뒤 도착한 request는 state와 focus를 바꾸지 않는 no-op이다.
+
 ### 12.2 command API
 
 다음과 동등한 command를 public controller 또는 package-owned panel controller로 제공한다.
@@ -919,6 +925,7 @@ UI widget이 workbook list를 직접 수정하지 않고 controller command가 u
 - typed object model, selection state, property validation과 command는 FortuneSheet package가 소유한다.
 - 공용 object panel widget도 가능한 한 FortuneSheet package에 두어 다른 FortuneSheet host에서 재사용할 수 있게 한다.
 - app의 `LabelSheetWorkbench`는 dock/overlay 배치, splitter, responsive threshold와 UI preference만 소유한다.
+- Workbench는 package의 `open`/`close` request를 현재 local width와 사용자 dock 의도에 따라 적용하고 최종 `hidden`/`dock`/`overlay` snapshot을 package widget에 되돌린다. package는 이 snapshot으로 dock mode의 legacy floating panel과 overlay mode의 active object toolbar paint/hit-test를 억제하되 snapshot 변경만으로 새 request나 focus 이동을 만들지 않는다.
 - 이미지 import file picker와 Label Manager object option 입력은 기존 callback/API를 통해 package panel에 주입한다.
 
 ## 13. undo, dirty, clipboard와 focus
@@ -1242,6 +1249,7 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - 신규 image/barcode 생성 dialog는 유지
 - image/barcode 생성 후 이미 열린 panel만 새 속성으로 전환하고 dock/overlay closed 사용자 의도를 유지함
 - 넓은 화면에서 닫힌 panel에도 객체/레이어 toolbar toggle이 표시되고 마지막 폭으로 다시 열며, 좁은 화면에서는 상시 icon으로 overlay를 엶
+- package toolbar/edit command의 open request와 panel header·overlay Escape/backdrop의 close request가 사용자 입력당 최대 1회이고, Workbench의 `hidden`/`dock`/`overlay` snapshot 적용은 request를 되쏘거나 package 내부 floating-panel bool을 별도로 바꾸지 않음. 숨겨진 panel의 edit open은 optional exact property-focus intent를 snapshot 적용 뒤 한 번 소비함
 
 ### 15.6 splitter/responsive 테스트
 
@@ -1256,6 +1264,9 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - 한 splitter pointer gesture에서 optional start가 첫 update 전에 1회, update가 여러 회, end 또는 cancel이 1회 호출되고 double-click은 drag callback 없이 reset만 1회 호출됨. start 정리는 열린 toolbar popup/object tooltip만 닫고 property draft와 canonical callback을 유지하며 기존 공용라벨관리·라벨출력 호출부는 callback 미지정 상태로 종전 drag 동작을 유지함
 - 760px 미만 dock 접기와 overlay fallback
 - wide↔narrow 경계 왕복에서 panel controller/property draft/selection/field controller identity 유지, draft finalize 0회, `userWantsDockOpen`/`overlayOpen` 변경과 overlay/dock open command/callback 및 focus 이동 0회
+- `hidden + open`은 local width에 따라 dock/overlay 한 상태만 열고, 이미 열린 presentation의 open과 hidden의 close는 state/focus/request 0회이며 dock/overlay의 close는 한 번만 hidden으로 전환함. 동일 presentation snapshot 재주입과 width 경계 전환은 request callback, canonical callback과 object controller/listenable 0회임
+- 숨겨진 panel의 toolbar/context-menu edit는 wide/narrow 각각 open request 1회→visible snapshot 적용→대상 property field focus 1회 순서이고, narrow edit open은 layer-list 중간 focus 0회임. 이미 보이는 panel의 edit는 presentation request/state 변경 없이 field focus만 1회이며, 동일 snapshot 재주입·selection/target 변경·close·detach/dispose 뒤 pending intent는 추가 focus 0회임
+- package owner detach 또는 Workbench dispose 뒤 늦은 presentation request는 state/focus no-op이고, wide dock open/close는 기존 focus를 유지하며 narrow overlay open/close만 기존 layer-list focus와 trigger→직전 focus→canvas 복원 규칙을 정확히 한 번 사용함
 - 다시 넓어질 때 마지막 dock 폭을 복원하고 기존 `userWantsDockOpen == true`이면 dock 표시, false이면 숨김을 유지하되 새 open command/callback은 발생하지 않음
 - narrow overlay open/close가 dock 사용자 의도를 변경하지 않음
 - shape preset popup·submenu/dropdown/color picker와 object/cell/editor context menu 각각이 열린 상태에서 narrow overlay를 열면 기존 transient와 tooltip/hover가 command·draft finalize 없이 닫히고 overlay만 남음. valid property draft와 invalid 입력 문자열·inline error·draft identity는 focus-loss callback 억제로 유지되고 지연 callback도 no-op이며 selection/workbook/undo/dirty/revision·canonical callback은 불변, 중간 focus 복원 없이 layer list focus 1회, 겹친 좌표 pointer/scroll은 overlay만 수신함. 일반 draft가 있으면 첫 Escape는 기존 우선순위대로 draft만 취소하고 다음 Escape가 overlay를 닫으며 draft가 없으면 첫 Escape가 overlay를 닫음. barcode renderer pending draft는 기존 예외대로 취소 branch를 건너뛰므로 첫 Escape가 overlay를 닫고 keyed request/draft/error를 유지함
@@ -1331,7 +1342,7 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 10. dock형 object panel을 만들고 exact target key+before/after drag reorder를 포함한 기존 layer action을 연결한다.
 11. line/shape property form과 타입별 context menu를 연결한다.
 12. 기존 image/barcode effective 연결값의 trim/case-insensitive 병합·label 판정과 공통 source validation/commit, linked image 해제의 새 파일 필수 조건, panel image picker의 exact-key owner/token 검증과 exact-key barcode pending draft/error·rotation/latest-request render/metadata 보존을 공용 API로 추출하고 panel form을 연결한다. panel 후보 입력은 options·legacy IDs·현재 선택 객체/draft 값으로 한정하고 이미지 생성 dialog의 active-sheet ID 확장은 별도 adapter로 유지한다. panel UI 목록 instance나 dialog presentation까지 공유할 필요는 없다. 신규 structured source를 선택하는 생성 dialog는 현재 option 일치를 계속 요구하지만, panel은 기존 객체의 option 미일치 ID/source를 사용자가 바꾸지 않은 commit에서 보존하는 명시적 편집 호환 분기를 사용한다.
-13. `LabelSheetWorkbench`에 splitter, panel width clamp, 접기와 narrow overlay fallback을 연결한다. panel controller/draft를 presentation보다 상위에 유지하고 경계 전환의 자동 open/focus 이동을 막으며 narrow overlay가 열린 동안 active object toolbar를 paint/hit-test하지 않는다.
+13. package widget의 app-neutral `open`/`close` presentation request와 Workbench가 되돌리는 immutable `hidden`/`dock`/`overlay` snapshot을 먼저 연결한다. 그 위에 `LabelSheetWorkbench`의 splitter, panel width clamp, 접기와 narrow overlay fallback을 연결한다. panel controller/draft를 presentation보다 상위에 유지하고 동일 snapshot·경계 전환의 request echo와 자동 open/focus 이동을 막으며 dock에서는 legacy floating panel, narrow overlay에서는 active object toolbar를 paint/hit-test하지 않는다.
 14. clipboard 단일 async paste coordinator의 호출 시점 target owner snapshot, 호출 순서 latest-wins인 copy/cut marker write coordinator와 marker 기록 성공 뒤 source owner/model을 재검증하는 cut transaction, canonical typed deep-clone mixed payload, reorder, package-owned per-sheet revision과 모든 object zOrder insertion 경로를 마무리한다.
 15. 일반 capture/PDF 동작을 유지한 채 Hybrid EZPL coordinator의 package-neutral immutable transform DTO/native 후보·최종 render plan, canonical physical cell-border edge key와 exact object/edge filtered print capture API를 추가한다. app resolved layout에서 transform DTO를 한 번 만들고 `LabelSheetOutputCaptureController`의 app-facing Hybrid unit API를 연결한다. 다중 발행 EZPL host의 선행 일반 capture를 제거한 뒤 coordinator 단일 진입점에서 package 후보→app EZPL preflight descriptor→package 최종 plan→최초 canonical snapshot 기준 filtered capture→승인 descriptor native command 생성 순서와 실패 후보의 bitmap 유지, zOrder/fallback을 검증한다.
 16. 루트 app package와 `third_party/fortune_sheet` package에서 변경 범위의 focused test와 기존 회귀 test를 각각 실행하고, 두 package context의 `flutter analyze`를 모두 실행한다. 변경 파일 diagnostics와 `git diff --check`도 실행한다.
@@ -1407,6 +1418,7 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - image/barcode 생성 dialog는 command 시점 owner sheet와 merge anchor에 삽입하고 stale owner에서는 생성하지 않는다. source별 필수 입력이 유효할 때만 확인할 수 있고 barcode 크기 `0`은 auto-size로 유지한다. barcode renderer pending 중 중복 submit과 dialog 종료를 막고 완료 직전 request token·owner·`allowEdit`가 달라진 늦은 결과는 폐기하며 null/예외 실패는 같은 inline 오류와 입력 유지로 복구한다.
 - image/barcode 생성 성공은 새 객체를 공통 최상단에 추가해 단일 선택하고 source에 맞는 연결 metadata와 필요한 최소 reveal, undo/change/dirty 1회 경계를 지키며, 실패·취소·stale async 결과는 canonical/UI selection 상태를 바꾸지 않는다.
 - image/barcode 생성 후 panel이 이미 열려 있을 때만 새 속성으로 전환하고 dock/overlay를 자동으로 열어 사용자 open/closed 의도를 바꾸지 않는다. 닫힌 panel은 넓은 화면의 객체/레이어 toolbar toggle 또는 좁은 화면의 상시 icon으로 다시 열 수 있다.
+- object panel presentation은 package의 app-neutral open/close request와 Workbench의 controlled `hidden`/`dock`/`overlay` snapshot으로 연결된다. toolbar/edit는 open, header와 overlay Escape/backdrop은 close만 요청하고 package가 내부 toggle 상태를 별도로 소유하지 않는다. edit open의 optional exact property-focus intent는 panel이 실제 표시된 뒤 package가 한 번 소비하고, 이미 표시된 edit는 presentation 변경 없이 즉시 field focus한다. 일반 open/close의 동일/이미 적용된 request와 snapshot echo, width 경계 전환은 state·focus·canonical callback·object controller listener를 만들지 않으며 detach/dispose 뒤 늦은 request도 no-op이다.
 - image picker와 barcode 생성/panel render의 늦은 async 결과는 request token과 owner/revision을 통과할 때만 draft 또는 workbook에 반영된다.
 - panel image picker는 selection 변경과 무관하게 호출 시점 exact image에만 귀속하고 원 객체/owner/revision/권한 또는 최신 token이 달라진 늦은 결과를 폐기한다.
 - image/barcode panel 연결 후보는 options, legacy IDs와 현재 선택 객체/draft 값을 trim·대소문자 무시 중복 제거해 합친다. option 미일치 non-empty 값은 `연결 끊김`으로 한 번만 표시하고 연결을 수정하지 않은 적용은 원 metadata를 보존한다. 이미지 생성 dialog 전용 active-sheet ID 확장은 panel에 유입되지 않는다. 공통 source 상태의 validation/commit은 일치하되, 신규 structured source는 option 일치를 요구하고 기존 객체의 unchanged stale ID는 panel 편집 호환 분기로 보존한다.

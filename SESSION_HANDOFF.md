@@ -1,3 +1,11 @@
+### 완료 (2026-07-21): 선·도형 지시서 object panel presentation bridge 보완
+- 사용자 요청: 최신 `doc/label_line_panel.txt` 재검토에서 확인한 package-owned toolbar/panel과 Workbench-owned dock/overlay 상태의 연결 경계를 권장안으로 병합하고 필요한 정책은 즉시 확정한다.
+- 추가 사용자 확인 불필요: package가 panel widget/controller/toolbar를, Workbench가 dock/overlay 배치·responsive·open 의도를 소유한다는 기존 정책에서 결과를 결정했다. package가 Workbench 상태를 추정하는 toggle이나 공유 writable bool은 추가하지 않았다.
+- presentation bridge 보완 완료: package→Workbench app-neutral `open`/`close` request와 Workbench→package immutable `hidden`/`dock`/`overlay` snapshot을 canonical object controller와 분리했다. toolbar/edit는 open, header와 overlay Escape/backdrop은 close만 요청하며 Workbench가 local width와 사용자 의도로 최종 상태를 적용한다. 숨겨진 panel의 edit open은 optional exact property-focus intent를 전달하고 package가 visible snapshot 뒤 한 번 소비하며, 이미 표시된 edit는 presentation 변경 없이 즉시 field focus한다.
+- echo·수명 보완 완료: 이미 적용된 open/close와 동일 snapshot 재주입, wide/narrow 경계 전환은 request·focus·canonical callback·object controller listener를 만들지 않는다. owner detach/Workbench dispose 뒤 늦은 request도 no-op이고, package는 snapshot으로 dock의 legacy floating panel과 overlay의 active toolbar paint/hit-test만 억제한다.
+- 테스트 계약 보완 완료: request 횟수와 idempotency, wide/narrow 상태 적용, header/Escape/backdrop close, snapshot non-echo, focus 유지·복원, detach/dispose와 legacy chrome 억제를 판별한다.
+- stage/commit 대상: `doc/label_line_panel.txt`, `SESSION_HANDOFF.md`만 포함한다. 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
+
 ### 완료 (2026-07-21): 선·도형 지시서 crop 범위·splitter preference 수명 보완
 - 사용자 요청: 최신 `doc/label_line_panel.txt` 재검토에서 확인한 crop UI 사실성, panel 폭 preference 비동기 수명과 splitter drag-start 경계 권장안을 병합하고 필요한 정책은 즉시 확정한다.
 - 사용자 확정: 현재 코드에 재사용할 crop 전용 dialog가 없으므로 이미지 crop UI와 panel crop button은 이번 구현 범위에서 제외한다. 기존 crop metadata는 일반 panel 편집·파일 교체·복제·clipboard·codec round-trip에서 원형 보존하고 canvas crop mode/전용 작업면은 후속 범위로 둔다.
