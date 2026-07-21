@@ -1,3 +1,11 @@
+### 완료 (2026-07-21): 선·도형 지시서 narrow overlay transient 보완
+- 사용자 요청: 최신 `doc/label_line_panel.txt` 재검토에서 확인한 narrow object overlay와 기존 popup/context menu 합성 모호점을 권장안으로 병합하고 필요한 정책을 즉시 확정한다.
+- 사용자 확정: 좁은 화면에서 object overlay를 명시적으로 열면 기존 toolbar/shape popup, submenu/dropdown/color picker, object/cell/editor context menu와 tooltip/hover transient를 먼저 닫고 overlay만 연다.
+- presentation 전환 보완 완료: 기존 transient는 command 실행 없이 닫고 개별 close focus 복원을 생략한 뒤 layer list에 정확히 한 번 focus한다. 전환 원인의 focus-loss callback을 억제해 valid/invalid property draft와 insertion draft를 commit·폐기하지 않으며 selection, canonical workbook, history/revision/callback과 barcode pending keyed request/draft/error를 유지한다.
+- 입력·Escape 보완 완료: overlay가 열린 동안 active toolbar와 기존 transient의 paint/hit-test를 제거하고 overlay가 pointer/scroll을 단독 소유한다. Escape는 기존 일반 property draft→overlay→insertion 우선순위를 유지해 일반 draft가 있으면 먼저 취소하고 다음 Escape가 overlay를 닫는다. barcode renderer pending은 기존 예외대로 draft 취소를 건너뛰어 첫 Escape가 overlay를 닫고 keyed request/draft/error를 유지한다.
+- 테스트 계약 보완 완료: 각 popup/context menu가 열린 상태, valid/invalid property draft, insertion draft와 barcode pending fixture에서 transient 종료·지연 focus-loss no-op·layer list focus 1회·overlay 단독 입력·단계별 Escape와 canonical 상태 불변을 판별한다.
+- stage/commit 대상: `doc/label_line_panel.txt`, `SESSION_HANDOFF.md`만 포함한다. 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
+
 ### 완료 (2026-07-21): 선·도형 지시서 property lifecycle·read-only 전환 보완
 - 사용자 요청: 최신 `doc/label_line_panel.txt` 재검토에서 확인한 `allowEdit` 하강, 일반 selection finalize와 read-only context menu 권장안을 병합하고 필요한 정책을 즉시 확정한다.
 - 사용자 확정: `allowEdit` true→false에서 일반 property draft/error는 commit 없이 폐기하고, mutation dialog와 style/color/insertion popup은 즉시 닫는다. read-only object secondary click은 기존 context menu를 열되 mutation 항목을 disabled로 표시하고 copy 메뉴는 새로 추가하지 않는다.

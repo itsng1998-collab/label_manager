@@ -816,6 +816,7 @@ nextPanelWidth = currentPanelWidth - delta.dx
 
 - local width가 760px 미만이면 dock panel을 자동 접는다.
 - 접힌 상태에서는 object 선택 여부와 무관하게 항상 보이는 32px 이하의 객체/레이어 icon button으로 overlay panel을 열 수 있다. 기존 active-image toolbar의 toggle command도 같은 open command를 호출한다.
+- 사용자가 확정한 대로 명시적 narrow overlay open command는 먼저 열린 toolbar/shape preset popup과 그 submenu·dropdown·color picker, object/cell/editor context menu, tooltip·hover transient를 command 실행 없이 닫고 overlay만 연다. 닫히는 transient의 focused editor나 insertion/property draft를 commit·finalize·취소하지 않고 selection, canonical workbook, undo/redo, dirty, revision과 canonical callback을 유지한다. 이 presentation 전환 동안 기존 property editor의 focus-loss callback 자격을 일시 억제해 valid draft가 commit되거나 invalid draft/error가 폐기되지 않게 하고, 각 transient close의 중간 focus 복원을 실행하지 않은 채 최종 layer list에 정확히 한 번 focus한 뒤 억제를 해제한다. 지연 도착한 전환 원인의 focus-loss callback도 해당 draft를 바꾸지 않는다. barcode renderer pending도 이 presentation 정리를 막지 않으며 원래 exact-key request/draft/inline error는 유지한다.
 - 사용자가 확정한 대로 narrow overlay가 열린 동안 active object toolbar는 paint와 hit-test에서 모두 숨긴다. overlay rect 안의 pointer/scroll은 overlay가 소유하고 canvas object/cell hit-test로 전달하지 않는다. overlay가 닫히면 active object toolbar를 다시 표시하며, dock mode에서는 legacy floating layer panel의 paint와 hit-test를 모두 비활성화해 panel chrome을 중복 생성하지 않는다.
 - overlay panel은 시트를 영구 축소하지 않고 현재 220px보다 넓은 최대 300px 범위에서 viewport 안에 맞춘다.
 - `userWantsDockOpen`, 현재 local width로 dock 가능한지 나타내는 `dockEligible`, 좁은 화면의 `overlayOpen` 상태를 분리한다. 자동 접기가 사용자의 open/closed 의도를 덮어쓰지 않는다.
@@ -974,7 +975,7 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - panel list focus의 일반 Arrow Up/Down은 row navigation, canvas focus와 active object가 있으면 Arrow/Shift+Arrow는 geometry 이동, canvas focus에 active object가 없으면 기존 cell navigation을 수행한다. editable field focus에서는 arrow를 caret/input이 소유한다.
 - dock/overlay panel의 open 여부가 아니라 실제 `FocusNode`를 기준으로 keyboard command 소유권을 결정한다. layer shortcut은 layer list focus, geometry shortcut은 canvas focus일 때만 실행한다.
 - canvas primary pointer-down은 canvas focus, layer row/action pointer-down은 layer list focus, property field pointer-down은 실제 하위 editor focus를 소유한다. 넓은 화면 dock을 단순히 열거나 닫는 command는 기존 focus를 옮기지 않는다.
-- 사용자가 좁은 화면 object overlay를 명시적으로 열면 layer list에 focus한다. 단순 close는 아직 mounted·attached인 open trigger 또는 직전 유효 focus로 복원하고 복원 대상이 없으면 canvas focus로 fallback한다. popup이 내부 editor 등으로 focus를 실제 이동한 경우에도 단순 close는 같은 규칙으로 복원하되, focus를 가져가지 않은 toolbar popup close는 기존 focus를 바꾸지 않는다. 편집 command는 close 복원 대신 대상 property field로 focus한다.
+- 사용자가 좁은 화면 object overlay를 명시적으로 열면 §11.2의 기존 transient를 실행 없이 닫되 개별 close focus 복원은 생략하고 layer list에 정확히 한 번 focus한다. 단순 overlay close는 아직 mounted·attached인 open trigger 또는 overlay open 직전의 유효 focus로 복원하고 복원 대상이 없으면 canvas focus로 fallback한다. 일반 popup이 내부 editor 등으로 focus를 실제 이동한 경우의 단순 close는 같은 규칙으로 복원하되, focus를 가져가지 않은 toolbar popup close는 기존 focus를 바꾸지 않는다. 편집 command는 close 복원 대신 대상 property field로 focus한다.
 - Escape 우선순위는 property draft 취소 → popup/overlay 닫기 → shape insertion 취소 → canvas focus 복귀 순서다. 한 번의 Escape는 가장 높은 적용 가능 branch에서 시각적으로 최상위인 transient 하나만 처리하고 즉시 handled로 종료하며 다음 Escape가 같은 branch의 상위 container 또는 다음 branch를 처리한다. 예를 들어 dropdown/submenu가 toolbar popup이나 object overlay 위에 열렸으면 dropdown/submenu만 먼저 닫는다. popup/overlay branch에는 toolbar popup과 하위 submenu, object/cell/editor context menu, color/dropdown popup과 좁은 화면 object overlay를 포함하고 context menu close는 selection을 바꾸지 않는다. 단 barcode panel renderer pending 중에는 request와 원래 exact typed-key draft/error 상태를 유지하기 위해 property draft 취소 branch를 건너뛰고 허용되는 다음 branch를 처리한다.
 
 ## 14. 구현 대상 파일 가이드
@@ -1240,6 +1241,9 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - wide↔narrow 경계 왕복에서 panel controller/property draft/selection/field controller identity 유지, draft finalize 0회, `userWantsDockOpen`/`overlayOpen` 변경과 overlay/dock open command/callback 및 focus 이동 0회
 - 다시 넓어질 때 마지막 dock 폭을 복원하고 기존 `userWantsDockOpen == true`이면 dock 표시, false이면 숨김을 유지하되 새 open command/callback은 발생하지 않음
 - narrow overlay open/close가 dock 사용자 의도를 변경하지 않음
+- shape preset popup·submenu/dropdown/color picker와 object/cell/editor context menu 각각이 열린 상태에서 narrow overlay를 열면 기존 transient와 tooltip/hover가 command·draft finalize 없이 닫히고 overlay만 남음. valid property draft와 invalid 입력 문자열·inline error·draft identity는 focus-loss callback 억제로 유지되고 지연 callback도 no-op이며 selection/workbook/undo/dirty/revision·canonical callback은 불변, 중간 focus 복원 없이 layer list focus 1회, 겹친 좌표 pointer/scroll은 overlay만 수신함. 일반 draft가 있으면 첫 Escape는 기존 우선순위대로 draft만 취소하고 다음 Escape가 overlay를 닫으며 draft가 없으면 첫 Escape가 overlay를 닫음. barcode renderer pending draft는 기존 예외대로 취소 branch를 건너뛰므로 첫 Escape가 overlay를 닫고 keyed request/draft/error를 유지함
+- insertion mode/draft 중 narrow overlay open은 현재 preset과 insertion identity를 유지하고, draft가 없을 때 첫 Escape로 overlay만 닫은 뒤 다음 Escape가 insertion을 취소함
+- barcode renderer pending 중 같은 overlay open이 기존 presentation transient만 닫고 원 exact-key request/draft/inline error와 pending guard를 유지하며 layer list에 focus함
 - narrow overlay open 동안 active object toolbar paint/hit-test 0회와 overlay rect pointer/scroll의 canvas 미전달, overlay close 뒤 toolbar 복원, dock mode의 legacy floating panel paint/hit-test 0회
 - panel 폭 변경이 dirty/undo를 만들지 않음
 - 공용라벨관리 바깥 splitter와 중첩된 실제 builder 경로
@@ -1396,6 +1400,7 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - 좁은 workbench에서 dock이 겹치지 않고 overlay fallback으로 접근 가능하다.
 - wide/narrow 경계 전환은 panel controller, property draft와 selection을 유지하고 draft를 finalize하거나 open 상태를 변경하지 않으며 overlay/dock open command/callback 또는 field focus 이동을 만들지 않는다. wide 복귀 시 dock 표시는 보존된 `userWantsDockOpen` 값만 반영한다.
 - narrow overlay open 동안 active object toolbar를 숨기고 overlay 입력을 canvas에 전달하지 않으며 dock mode에서는 legacy floating panel의 paint/hit-test를 비활성화한다.
+- 명시적 narrow overlay open은 기존 toolbar/shape preset popup·submenu/dropdown/color picker, object/cell/editor context menu와 tooltip/hover를 실행 없이 닫고 개별 focus 복원을 생략한 뒤 layer list에 한 번만 focus한다. 전환 원인의 focus-loss callback을 억제해 기존 valid/invalid property draft와 insertion draft, barcode pending keyed 상태, selection과 canonical/history 상태를 유지하며 overlay가 paint/hit-test의 유일한 presentation transient owner가 된다. Escape는 기존 전역 우선순위를 유지해 일반 property draft가 있으면 먼저 취소하고 다음 Escape가 overlay를 닫으며, 일반 draft가 없으면 overlay를 닫은 다음 Escape가 insertion을 취소한다. barcode renderer pending에서는 기존대로 draft 취소 branch를 건너뛰어 첫 Escape가 overlay를 닫고 keyed request/draft/error를 유지한다.
 - width 변화에 따른 자동 접기와 사용자의 dock open/closed 의도가 서로 덮어쓰지 않는다.
 - panel 폭·열림·selection 변경이 workbook dirty/undo를 만들지 않는다.
 - 읽기 전용 object copy는 clipboard/UI state만 바꾸고 workbook JSON, undo, dirty와 change callback을 바꾸지 않는다.
@@ -1471,6 +1476,7 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - dock 최소 local width: 760px
 - dock/overlay 경계 전환: panel controller/draft와 open state 유지, open command/callback·focus 이전 없음, wide 복귀 표시는 기존 `userWantsDockOpen` 반영
 - narrow overlay chrome: open 동안 active object toolbar 숨김·hit-test 제외, overlay 입력 canvas 미전달, dock mode legacy floating panel 비활성화
+- 명시적 narrow overlay open: 기존 popup/submenu/dropdown/color picker와 object/cell/editor context menu·tooltip/hover를 command 실행·draft finalize 없이 닫고 전환 focus-loss callback을 억제한 채 중간 focus 복원 없이 layer list focus 1회, valid/invalid property draft·insertion draft와 selection/canonical/history·barcode pending keyed 상태 유지, overlay 단독 paint/hit-test. Escape는 일반 property draft→overlay→insertion 우선순위이며 barcode pending은 draft 취소를 건너뛰고 overlay부터 닫음
 - 신규 이미지·바코드 생성 dialog: 유지
 - 구조화 option이 있는 이미지·바코드 생성 dialog 최초 source: `연결 안 함`
 - 구조화 options가 있는 host의 image/barcode 연결 ID duplicate/copy paste: stale option ID까지 같은 데이터 바인딩으로 보존, 내부 typed ID만 재발급
