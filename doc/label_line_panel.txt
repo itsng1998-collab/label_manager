@@ -369,7 +369,7 @@ open line의 pattern offset `0`은 저장된 canonical `x1/y1`에 고정한다. 
 - 같은 zOrder tie는 5.2의 source sequence를 사용한다.
 - zoom과 devicePixelRatio가 바뀌어도 물리 두께 의미를 유지한다.
 - viewport 밖 line/shape는 회전을 반영한 bounds와 stroke padding으로 culling한다.
-- capture object inclusion과 print-area 후보 culling은 endpoint 포함 여부가 아니라 연속 stroke envelope를 포함한 실제 line segment/path와 crop rect의 교차를 사용한다. 양 endpoint가 crop 반대편 밖에 있거나 중심선은 밖이지만 stroke가 닿는 line, 회전 전 bounds는 밖이지만 회전 path가 닿는 shape를 제거하지 않는다. print-area의 최종 exact-key 확정만 §4.6에 따라 patterned stroke의 canonical painted mark footprint를 사용해 gap-only 교차를 제외한다.
+- capture object inclusion과 print-area 후보 culling은 endpoint 포함 여부가 아니라 실제 painted footprint와 crop rect의 교차를 사용한다. line과 fill 없는 shape는 연속 stroke envelope를 포함한 실제 segment/path, fill이 있는 폐쇄 shape는 회전된 fill 영역 또는 stroked outline 중 하나라도 crop과 교차·경계 접촉하면 포함한다. 따라서 양 endpoint가 crop 반대편 밖에 있거나 중심선은 밖이지만 stroke가 닿는 line, 회전 전 bounds는 밖이지만 회전 path가 닿는 shape와 crop이 fill 내부에 완전히 들어가 outline과 만나지 않는 shape를 제거하지 않는다. 일반 capture와 print-area 후보 culling은 같은 공용 painted-footprint 교차 helper를 사용하되 print-area의 최종 exact-key 확정만 §4.6에 따라 patterned stroke의 canonical painted mark footprint를 사용해 gap-only 교차를 제외한다.
 - 선택 강조는 원본 stroke/fill을 덮지 않고 바깥쪽 highlight로 표시한다.
 
 ### 6.5 capture와 PDF
@@ -514,6 +514,7 @@ hitTolerance = max(5 screen px, displayStrokeWidth / 2 + 3 screen px)
 - zoom과 무관하게 최소 화면 클릭 범위 5px을 보장한다.
 - endpoint handle이 line body보다 먼저 hit된다.
 - pointer hit-test는 삽입 모드가 아닐 때 `단일 active 객체에 현재 표시된 endpoint/resize/rotation handle → 공통 paint order 역순의 object body → cell/grid` 순서로 판정한다. active 객체 handle은 더 높은 zOrder 객체 body와 겹쳐도 먼저 hit되며, handle을 벗어난 위치의 body끼리는 가장 높은 zOrder부터 판정한다. 다중 선택에서는 개별 handle을 표시하지 않으므로 이 handle 우선 branch도 없다.
+- 표시된 active-object handle의 8px hit 영역이 둘 이상 겹치면 pointer와 각 handle 중심의 화면 logical pixel 거리가 가장 짧은 handle을 선택한다. 거리가 정확히 같으면 사용자가 확정한 기존 image parity 순서인 `rotation → 좌상 → 상중 → 우상 → 좌중 → 우중 → 좌하 → 하중 → 우하`를 사용하며 line은 `start → end` 순서다. rotation이 실제로 표시되지 않는 line과 각 객체에 존재하지 않는 handle은 순서에서 건너뛴다. hover cursor와 pointer-down drag 시작은 같은 공용 handle 선택 helper를 사용해 표시 cursor와 실제 조작 대상이 달라지지 않게 한다.
 - 선택되지 않은 line도 얇은 실제 stroke만으로 클릭을 요구하지 않는다.
 - shape hit-test는 회전을 역변환한 local point를 사용한다.
 - fill이 있는 rectangle/roundedRectangle/ellipse는 내부를 body hit로 인정한다.
@@ -794,7 +795,8 @@ shape 위치/크기/회전 field는 canvas handle과 같은 geometry commit API�
 - barcode pending request/draft/inline error는 `(sheetId, exact barcode key)`에 귀속하고 controller의 `activePropertyDraft`는 현재 active selection key에 대한 projection으로만 노출한다. 사용자가 확정한 대로 A가 pending인 동안 object selection, read-only property 조회와 copy만 허용한다. delete/duplicate/cut/paste, layer reorder·앞뒤 이동, canvas·keyboard·panel geometry 변경, 모든 property commit·새 property draft와 그 밖의 canonical workbook mutation은 UI enablement와 public/controller command 진입점 양쪽에서 차단한다. 차단된 command는 queue하거나 pending 종료 뒤 자동 재실행하지 않으며 workbook, selection, internal/system clipboard payload·marker, undo/redo, dirty, revision과 `onChange`/`onOp`/controller-listenable을 바꾸지 않는다. copy는 canonical workbook을 바꾸지 않으므로 기존 latest-wins clipboard write coordinator로 실행할 수 있다. A 상태를 B form에 표시하거나 B draft로 대체하지 않고, A가 현재 selection이 아니면 A의 inline error를 panel에 표시하지 않는다. pending 실패 뒤 A를 다시 선택하면 key에 보존된 error/draft를 표시하며 성공 또는 명시적 draft 폐기 시 해당 key 상태를 제거한다.
 - 잘못된 중간 입력: workbook 변경 없음
 - panel의 일반 selection 변경·삭제·복제·layer 이동 등 다른 command handler는 focus callback에 의존하지 않고 active field를 먼저 동기적으로 finalize한다. 유효 draft는 canonical commit을 완료한 뒤 요청 command를 실행하고, 사용자가 확정한 대로 invalid draft는 원복·폐기한 뒤 workbook 변경 없이 해당 draft만 버리고 요청 command는 계속 실행한다. 일반 object selection 변경도 이 순서에 따라 old exact key의 valid draft commit 또는 invalid draft 폐기를 끝낸 뒤 새 selection과 active key를 적용한다. valid draft commit은 독립 canonical transaction의 `onChange`→`onOp`→controller/listenable 1회 뒤 selection-only controller/listenable 1회를 추가해 listener 총 2회이고, invalid/no-draft에서 실제 selection만 바뀌면 canonical callback 없이 controller/listenable 1회다. 단 barcode panel renderer pending guard는 draft finalize보다 먼저 실행하며, 이 pending 중 허용된 selection 변경만 원래 `(sheetId, exact typed key)`의 draft/request/inline error를 commit·폐기하지 않고 selection UI와 controller/listenable을 1회 바꾸는 예외다. 허용된 copy는 draft를 finalize하지 않고 현재 canonical selected object snapshot으로 기존 latest-wins clipboard write를 실행한다. 그 밖의 차단 command는 유효·invalid draft 모두 commit·폐기·원복하지 않는 완전한 no-op이다.
-- `.lms` save/export, print/PDF/capture, undo/redo, active sheet 전환, label/XLSX/image import와 이미지·바코드·도형 삽입 toolbar command도 canonical workbook을 읽거나 교체하기 전에 같은 동기 finalize API를 호출한다. 유효 draft는 commit된 최신 workbook snapshot으로 요청 command를 계속하고 invalid draft는 원복·폐기한 뒤 기존 canonical snapshot으로 command를 계속한다. focus-loss callback 순서에 의존하지 않는다.
+- `.lms` save/export, print/PDF/capture, undo/redo, active sheet 전환, label/XLSX/image import와 이미지·바코드·도형 삽입 toolbar command도 canonical workbook을 읽거나 교체하기 전에 같은 동기 finalize API를 호출한다. LabelSheet 편집 owner를 닫거나 다른 label/workbook으로 교체하는 기존 페이지 close/navigation 진입점도 owner detach와 dirty 판정보다 먼저 이 API를 동기 호출한다. 유효 draft는 commit된 최신 workbook snapshot으로 요청 command와 기존 dirty/save-confirm 흐름을 계속하고 invalid draft는 원복·폐기한 뒤 기존 canonical snapshot과 dirty 상태로 계속한다. 이 규칙은 LabelSheet owner 경계에 한정하며 앱 전역 navigation 정책을 새로 정의하지 않고 focus-loss callback 순서에 의존하지 않는다.
+- command enablement는 command 진입 후 위 동기 finalize가 만들 결과와 일치해야 한다. 기존 save 권한·callback·busy 조건을 충족하는 clean workbook에서 active draft가 유효하고 canonical 변경을 만들 수 있으면 save를 활성화하며 invalid 또는 canonical no-op draft만으로는 활성화하지 않는다. 다른 dirty 변경으로 save가 이미 활성화된 상태의 invalid draft는 실행 시 위 규칙대로 폐기하고 기존 canonical workbook을 저장한다. canonical 변경을 만들 valid draft가 있으면 Undo를 활성화하고, 그 finalize transaction이 기존 redo stack을 폐기하므로 Redo를 비활성화한다. invalid/no-op/no-draft는 기존 history enablement를 유지한다. barcode renderer pending의 더 강한 command 차단은 이 projection보다 우선한다.
 - 유효 property draft finalize transaction은 뒤따르는 read-only save/export/print/capture 결과와 독립이다. finalize가 성공하면 후속 capture의 성공·`null`·예외 또는 owner/controller detach와 관계없이 해당 commit, undo 1건, revision, `onChange`/`onOp`와 최초 clean 상태의 dirty 전환을 유지하고 자동 undo/rollback하지 않는다. invalid draft 폐기와 no-draft finalize는 기존대로 transaction/undo/dirty를 만들지 않으며 후속 capture 단계 자체도 workbook/history를 추가로 바꾸지 않는다.
 - 동기 finalize가 valid/invalid draft를 commit 또는 폐기하면 해당 draft identity의 callback 자격도 함께 종료한다. 그 뒤 같은 draft에서 지연 도착한 Enter·focus-loss callback은 draft나 inline 오류를 다시 만들지 않고 workbook/undo/dirty/revision과 callback/listenable을 모두 유지하는 no-op이다. 이를 위해 별도 전역 generation을 추가할 필요는 없으며 기존 owner exact key·revision·request/draft token 중 현재 구조에 맞는 identity를 사용한다.
 - 사용자가 확정한 대로 barcode panel `[적용]` renderer가 pending이면 save/export/print/capture, undo/redo, sheet 전환, import와 모든 삽입 command 및 property draft를 취소하는 Escape branch를 완료까지 비활성화한다. pending command를 queue하거나 자동 재실행하지 않으며 render 성공·실패·stale 폐기로 pending이 끝난 뒤 사용자가 다시 실행한다. selection 변경은 허용하고 request·draft·inline 오류 상태는 원래 exact typed key에 귀속한다. 일반 동기 property draft는 이 비활성화 대상이 아니다.
@@ -889,6 +891,7 @@ FortuneSheet package가 다음과 동등한 read-only 상태를 controller/liste
 - front-to-back object refs
 - 선택된 단일 object의 typed property snapshot
 - panel command enablement
+- save/Undo/Redo enablement는 active property draft를 동기 finalize했을 때의 projected canonical/history 상태와 일치하며 invalid·canonical no-op draft만으로 바뀌지 않음
 - barcode property render pending 중 selection·조회·copy만 true이고 canonical mutation command는 false인 enablement
 - geometry kind별 insertion preset과 도형 insertion mode
 - active object property draft 유무와 barcode property render pending 여부
@@ -1177,6 +1180,7 @@ pointer move event와 property text 입력의 각 문자 변경마다 undo snaps
 - redo가 존재하는 상태에서 drag cancel·owner 불일치·최소 크기 미달·왕복 no-op을 각각 실행해도 redo stack이 유지되고 기존 redo가 같은 canonical 결과로 실행됨
 - line 선택 handle 2개와 zoom 고정 크기
 - shape resize handle 8개와 rotation handle 1개의 zoom 고정 크기
+- 길이 8px 미만 line과 화면 3px까지 축소한 shape에서 여러 handle hit 영역이 겹쳐도 최근접 중심 handle을 선택하고 정확한 동률은 line `start → end`, shape `rotation → 좌상 → 상중 → 우상 → 좌중 → 우중 → 좌하 → 하중 → 우하` 순서이며 hover cursor와 pointer-down 대상이 일치함
 - canvas focus에서 image/barcode/line/shape가 active geometry 중심에 겹치면 `Tab`/`Shift+Tab`이 공통 paint order의 기존/반대 방향으로 순환하고 next exact key 하나로 selected/active/anchor를 함께 교체해 selection snapshot을 1회 통지함. fill 없는 active shape도 후보에 유지되고 마지막 pointer 위치 변경은 결과에 영향이 없으며 후보 1개에서는 기존 cell Tab으로 넘김. cycle 전 valid/invalid/no property draft는 일반 selection finalize 결과를 따르고 cycle 자체는 canonical transaction을 만들지 않으며, 같은 fixture의 panel list/property editor focus와 invalid draft Tab은 object cycle 없이 기존 focus traversal/focus-loss 계약을 유지함
 - panel에서 mixed 다중 선택 뒤 selected member body를 modifier 없이 click/drag하면 그 exact key 단일 선택으로 축소되고 click-only는 geometry/undo no-op, drag는 해당 객체만 undo 1건으로 이동하며 나머지 selected object geometry는 불변임
 - 삽입 모드 밖에서 Ctrl/Meta+primary가 object body 또는 handle에 적중하면 pointer down에서 selection toggle과 controller/listenable을 정확히 1회 만들고 threshold 미만 up·threshold 초과 up·pointer cancel 모두 selection을 반복/원복하지 않으며 move/endpoint/resize/rotation draft와 workbook/undo/redo/dirty/revision·`onChange`/`onOp`를 만들지 않음. 삽입 모드에서는 같은 입력도 selection toggle 없이 기존 selection을 유지하고 insertion이 선점함
@@ -1262,6 +1266,9 @@ pointer move event와 property text 입력의 각 문자 변경마다 undo snaps
 - property draft가 없는 상태의 finalize는 transaction/undo/dirty와 `onChange`/`onOp`/listenable을 모두 0회로 유지하고, 이어지는 read-only command는 그대로 no-op이며 mutation command는 해당 mutation transaction만 1건 만듦
 - property spinner/drag의 `start→여러 update→end`는 update 중 canonical 상태·notification 0회와 유효한 최종 변경 transaction/undo 1회를 만들고, `start→update→시작값 왕복→end`, cancel과 조작 중 owner/revision 변경은 preview만 폐기해 workbook/undo/dirty/revision/`onChange`/`onOp`/canonical listenable 0회임. update 중 selection 변경/명시적 command는 유효 preview finalize 또는 invalid preview 폐기 뒤 기존 command를 실행하고 stale end는 no-op이며, update 중 `allowEdit` false는 preview commit 없이 permission snapshot listener 1회만 만들고 stale end의 추가 통지는 0회임
 - 유효/invalid property draft 직후 save/export/print/capture가 각각 최신 committed 값/기존 canonical 값만 사용하고 command 뒤 지연 focus-loss가 추가 dirty를 만들지 않음
+- clean workbook의 canonical 변경 valid draft는 기존 save 조건을 충족할 때 save를 활성화하고 invalid/canonical no-op draft만으로는 활성화하지 않음. 다른 dirty 변경으로 활성화된 save에서 invalid draft는 폐기 후 기존 canonical workbook을 저장함
+- valid draft가 새 transaction을 만들 수 있으면 현재 undo stack이 비어도 Undo가 활성이고 Redo는 비활성이며, invalid/canonical no-op/no-draft는 기존 history enablement를 유지함. 실행 결과도 같은 projected finalize 상태와 일치함
+- LabelSheet owner의 기존 close/navigation·label/workbook 교체가 dirty 판정 전에 valid/invalid draft를 동기 finalize해 valid draft는 dirty/save-confirm 대상이 되고 invalid draft는 폐기한 기존 dirty 상태로 계속하며, owner detach 뒤 focus-loss가 상태를 되살리지 않음
 - 유효/invalid property draft 직후 undo/redo·sheet 전환·label/XLSX/image import·이미지/바코드/도형 삽입 command가 같은 finalize 순서를 사용함
 - barcode panel renderer pending 중 save/export/print/capture·undo/redo·sheet 전환·import·삽입 command와 property draft 취소 Escape 비활성화, queue/자동 재실행 없음과 성공·실패·stale 종료 뒤 재활성화
 - barcode A pending 중 A/B selection·read-only property 조회와 copy는 허용하고 A의 keyed request/draft/error를 유지함. copy는 현재 canonical selected object snapshot으로 internal/system marker·payload를 갱신하며 동시 copy가 기존 latest-wins를 유지함. delete/duplicate/cut/paste, reorder·앞뒤 이동, canvas/keyboard/panel geometry, 새 `[적용]` 및 모든 property mutation은 draft finalize 전에 UI와 controller 양쪽에서 차단되어 유효·invalid draft와 workbook/selection/clipboard payload·marker/undo/redo/dirty/revision/callback/listenable이 불변이고, 성공·실패·stale 종료 뒤에도 자동 실행되지 않으며 사용자가 다시 실행한 command만 정상 동작함
@@ -1326,6 +1333,7 @@ pointer move event와 property text 입력의 각 문자 변경마다 undo snaps
 - 양 endpoint가 crop 반대편 밖인 교차 line과 중심선은 밖이지만 stroke만 crop에 닿는 line의 보존/pixel 결과
 - crop origin과 회전이 있는 shape 위치
 - 회전 전 bounds는 crop 밖이지만 회전 path가 crop과 교차하는 shape의 보존/pixel 결과
+- capture crop이 큰 채움 rectangle/roundedRectangle/ellipse의 회전된 fill 내부에 완전히 들어가 stroked outline과 만나지 않아도 해당 fill pixel이 PNG/PDF에 포함되고, fill 없는 동일 geometry는 outline이 교차하지 않으면 제외됨
 - image/barcode/line/shape zOrder pixel 결과
 - PDF capture와 화면 style 일치
 - solid axis-aligned EZPL native 조건
@@ -1422,6 +1430,7 @@ pointer move event와 property text 입력의 각 문자 변경마다 undo snaps
 - 활성 shape insertion에서 같은 combo 화살표는 현재 draft/mode를 취소하고 popup만 열며, popup 조작 뒤 `[삽입]` 또는 본체 클릭만 최신 preset으로 새 insertion mode를 시작한다. popup width/radius의 Enter/focus loss는 유효한 UI-only committed preset만 갱신하고 canonical workbook/history를 바꾸지 않는다.
 - line 본체와 endpoint hit-test가 얇은 선에서도 안정적으로 동작한다.
 - 단일 active object의 표시 handle은 상위 zOrder object body보다 먼저 hit되고, body끼리는 공통 paint order 역순을 따른다.
+- 여러 표시 handle의 hit 영역이 겹치면 pointer에서 화면상 중심 거리가 가장 짧은 handle을 선택하고, 정확한 동률은 line `start → end`, shape `rotation → 좌상 → 상중 → 우상 → 좌중 → 우중 → 좌하 → 하중 → 우하`의 기존 image parity 순서를 사용하며 hover cursor와 drag 시작이 같은 결과를 사용한다.
 - 기존 겹친 이미지 `Tab`/`Shift+Tab` selection은 canvas focus에서 image/barcode/line/shape 공통 paint order와 active geometry 중심 probe로 일반화하며 next exact key 하나로 selected/active/anchor를 함께 교체한다. cycle 자체는 selection listenable만 통지하고 workbook transaction을 만들지 않으며 panel/editor focus의 Tab은 기존 traversal이 소유한다.
 - line body 이동과 endpoint 이동은 pointer gesture별, keyboard 이동은 수용한 KeyDown/KeyRepeat별 undo 1건 단위로 동작한다. KeyUp은 반복 이동을 합치지 않고 clamp로 실제 변화가 없는 key event는 no-op이다.
 - line 생성은 화면 기준 3px 최소를 지키고 생성 후 endpoint drag와 panel commit은 zero-length만 거부해 0보다 큰 짧은 기존 line을 보존한다.
@@ -1481,7 +1490,8 @@ pointer move event와 property text 입력의 각 문자 변경마다 undo snaps
 - barcode panel은 기존 유한 rotation의 동일한 시각 회전을 canonical 값으로 표시·보존하고 비정상 legacy 값은 `0` fallback하며, 유한한 입력을 `0 <= value < 360`으로 정규화해 renderer request, replacement metadata와 capture에 동일하게 반영한다.
 - popup `[삽입]`과 panel command는 focused field를 동기적으로 finalize하며 invalid popup 입력은 삽입을 막고 invalid panel draft는 원복한 뒤 요청 command를 실행한다.
 - 유효 property draft finalize commit과 이어지는 workbook mutation command는 각각 독립 canonical transaction/undo다. read-only command는 finalize transaction만 만들고 invalid/no-draft finalize는 transaction을 만들지 않는다.
-- save/export/print/capture, undo/redo, sheet 전환, import와 모든 삽입 command는 active property draft를 동기 finalize한 최신 canonical snapshot을 사용한다. valid draft는 먼저 commit하고 invalid draft는 폐기한 뒤 command를 실행하며 지연 focus-loss가 추가 commit을 만들지 않는다.
+- save/export/print/capture, undo/redo, sheet 전환, import와 모든 삽입 command는 active property draft를 동기 finalize한 최신 canonical snapshot을 사용한다. LabelSheet owner를 닫거나 label/workbook을 교체하는 기존 close/navigation도 dirty 판정 전에 같은 finalize를 수행한다. valid draft는 먼저 commit하고 invalid draft는 폐기한 뒤 command를 실행하며 지연 focus-loss가 추가 commit을 만들지 않는다.
+- clean workbook에서 canonical 변경을 만들 valid draft는 기존 save 조건을 충족할 때 save를 활성화하고 invalid/canonical no-op draft만으로는 활성화하지 않는다. valid draft가 새 history transaction을 만들 수 있으면 Undo는 활성, Redo는 비활성이며 invalid/no-op/no-draft는 기존 history enablement를 유지하고 barcode renderer pending 차단이 우선한다.
 - barcode panel renderer pending 중에는 canonical workbook을 읽거나 교체하는 host/삽입 command와 property draft 취소 Escape를 비활성화하고 queue하거나 자동 재실행하지 않는다. selection 변경 뒤에도 request·draft·inline 오류는 원래 exact typed key에 귀속한다.
 - barcode A pending 중 object selection·read-only property 조회·copy만 허용하고 delete/duplicate/cut/paste, layer reorder·앞뒤 이동, geometry/property 변경·새 `[적용]`과 그 밖의 canonical mutation은 UI/controller 양쪽에서 draft finalize 전에 차단한다. 차단 command는 draft/workbook·selection·clipboard/history/revision/callback을 바꾸거나 자동 재실행되지 않는다. 허용 copy는 현재 canonical selection으로 기존 latest-wins marker/payload를 정상 갱신한다. active draft는 현재 selection projection이고 A의 pending draft/error는 exact key별로 보존해 B form에 표시하지 않는다.
 - panel splitter가 260~420px 범위와 sheet 최소 폭을 지키며 drag 후 workbook/selection/zoom이 유지된다.
@@ -1500,7 +1510,7 @@ pointer move event와 property text 입력의 각 문자 변경마다 undo snaps
 - same-sheet cut paste는 원본 typed ID를 유지하며 cross-sheet 충돌은 target 객체를 보존하고 pasted 객체 ID를 재발급한다.
 - cut paste는 원래 geometry와 image/barcode 연결 ID를 유지한다. copy paste와 clipboard 독립 duplicate는 `(+12,+12)` offset과 새 typed ID를 사용하되 구조화 option 연결 ID는 보존하고 option 없는 host의 editable 연결 ID만 재발급한다.
 - stale cut payload는 source history 변경 시 무효화되고 성공한 cut paste 뒤 소비된다. mixed duplicate는 선택 source를 공통 back-to-front paint order로 투영해 그 상대 순서대로 최상단에 추가하고, 성공한 duplicate/paste는 새 객체만 선택하며 마지막 frontmost 복제/붙여넣기 객체를 active로 둔다.
-- capture/PDF/EZPL에 line/shapes가 포함되고 editor handle/panel이 출력되지 않는다.
+- capture/PDF/EZPL에 line/shapes가 포함되고 editor handle/panel이 출력되지 않는다. 일반 capture는 fill shape의 회전 fill 영역 또는 stroked outline이 crop과 교차하면 포함하므로 crop이 fill 내부에 완전히 들어가 outline과 만나지 않아도 채움이 보존된다.
 - 일반 screenshot/PNG/PDF capture는 finalize 직후 start/end를 정렬한 원본 range와 호출 시점 sheet metrics bounds의 교집합을 inclusive normalized range로 사용하고 교집합이 없으면 `null`이며 merge를 자동 확장하지 않는다. canonical settings/sheet/range/source metrics와 painter가 사용할 nested metadata 및 render resource availability를 같은 capture-owned input/result로 끝까지 사용해 비동기 raster/encoding 중 live mutation·decode/cache 교체·undo/redo·sheet 전환을 추종하지 않는다. input/resource 획득 뒤 controller 교체·detach, canvas dispose 또는 Workbench/output controller detach도 Future의 새 취소·`null` 사유가 아니고 최초 snapshot의 원래 결과로 완료한다. Workbench/PDF는 별도 live 값과 PNG를 조합하지 않으며 coordinator는 모든 종료 경로에서 input resource 사용권을 정확히 한 번 해제하고 실제 cache dispose는 진행 중 lease 이후로 미룬다.
 - screenshot dialog owner는 mounted canvas instance lifecycle이며 같은 canvas의 controller 교체, workbook/sheet/range 변경은 owner를 바꾸지 않는다. open별 token으로 동일 range의 stale 결과도 배제하고 모든 close 경로에서 token과 표시 resource를 공용 정리한다. canvas dispose는 owner를 무효화하며 null·예외는 같은 비파괴 실패 상태이고 stale/표시 image는 각각 정확히 한 번 정리된다.
 - capture 전 valid property finalize는 후속 read-only capture와 독립 transaction이므로 capture 성공·`null`·예외·detach에도 commit/undo/revision/callback/dirty를 유지하고 자동 rollback하지 않는다. invalid/no-draft finalize와 capture 단계 자체는 추가 workbook/history 변경을 만들지 않는다.
@@ -1544,6 +1554,7 @@ pointer move event와 property text 입력의 각 문자 변경마다 undo snaps
 - 짧은 폐쇄 pattern: seam보다 offset `0` 첫 mark 우선, no-wrap, 첫 dot은 지름 전체 포함 시만 표시하고 첫 dash는 남은 양의 길이 clip. 둘레가 실제 첫 mark 길이+`2w` 이상일 때만 seam gap 보장, 미만이면 첫 mark 유지와 후속 terminal mark 생략
 - 둥근 사각형 기본 radius: 2.0mm, 입력 범위 0.0~50.0mm. decode 누락·비숫자·비유한·범위 밖은 clamp 없이 2.0 fallback, rectangle/ellipse는 0.0 canonical이며 실제 fallback/normalize 때만 raw fortuneShapes list 비재사용
 - line handle: 시작점/끝점 2개, 화면 기준 8px
+- 겹친 handle 선택: pointer와 화면상 중심 거리가 가장 짧은 handle, 정확한 동률은 line `start → end`, shape는 기존 image parity `rotation → 좌상 → 상중 → 우상 → 좌중 → 우중 → 좌하 → 하중 → 우하`, hover/drag 공용 helper
 - line angle snap: Shift 45도 단위
 - line read-only angle: 화면 좌표 오른쪽 0도·아래쪽 90도인 시계 방향 `[0, 360)`, endpoint 교환 시 180도 변경, zero-length는 숫자 angle 없음
 - shape handle: resize 8개 + rotation 1개, 화면 기준 8px
@@ -1559,6 +1570,9 @@ pointer move event와 property text 입력의 각 문자 변경마다 undo snaps
 - popup width/radius Enter·focus loss: focused field validation 뒤 UI-only committed preset 반영, invalid 입력/validation 유지, canonical workbook·undo·dirty·revision·callback/listenable 0회
 - popup preset 숫자 Escape: dirty/validation 첫 Escape는 committed preset 문자열 원복·validation 제거 후 popup/focus 유지, 다음 Escape가 하위 popup 또는 shape popup 하나만 닫음
 - panel command 중 invalid property draft: 원복·폐기 후 요청 command 실행
+- save enablement: 기존 save 조건을 충족하면서 clean workbook의 active draft가 유효한 canonical 변경을 만들 수 있으면 활성, invalid/canonical no-op draft만으로는 비활성
+- Undo/Redo enablement: canonical 변경 valid draft는 Undo 활성·Redo 비활성, invalid/no-op/no-draft는 기존 history 상태 유지, barcode renderer pending 차단 우선
+- LabelSheet close/navigation: owner detach 또는 label/workbook 교체의 dirty 판정 전에 active draft 동기 finalize, valid는 commit 후 기존 save-confirm 적용, invalid는 폐기 후 기존 dirty 상태 적용
 - 일반 object selection 중 property draft: old exact key를 먼저 finalize하고 valid commit listener 뒤 selection listener까지 총 2회, invalid/no-draft는 selection listener 1회. barcode renderer pending selection만 원 exact-key draft/request/error 유지
 - settings-only `allowEdit` true→false: canonical replacement가 아니며 새 permission만 수용, 일반 draft/error commit 없이 폐기·callback identity 종료, pending cut/paste/picker/renderer 무효화와 pending copy 유지, mutation dialog와 style/color/insertion popup의 표준 focus 복원 후 즉시 닫기, 열린 object menu의 focus scope/Escape 소유권 유지와 disabled 재구성, selection/active key/panel open과 canonical content·workbook identity/history lineage·undo/dirty/revision 유지, canonical callback 0회와 최종 read-only controller/listenable 1회. false→true도 폐기 상태 복원 없이 mutation enablement snapshot listener 1회와 canonical callback 0회
 - read-only object context menu: secondary click selection과 기존 menu 유지, mutation 항목 disabled+실행 guard 유지, 신규 copy 항목 없음, Ctrl/Meta+C object copy와 property text selection·Ctrl/Meta+A/C 허용

@@ -1,3 +1,11 @@
+### 완료 (2026-07-21): 선·도형 지시서 draft command·capture handle 보완
+- 사용자 요청: 최신 잔여 검토의 save/Undo/Redo enablement, LabelSheet owner close/navigation draft finalize, 채움 도형 capture inclusion과 겹친 handle 선택 권장안을 지시서에 병합한다.
+- 사용자 확정: 여러 handle 중심 거리가 정확히 같으면 기존 image parity를 유지해 line은 `start → end`, shape는 `rotation → 좌상 → 상중 → 우상 → 좌중 → 우중 → 좌하 → 하중 → 우하` 순서로 선택한다. 그 외 항목은 기존 동기 draft finalize, dirty/history와 painted-footprint 계약으로 결과가 결정되어 추가 확인이 필요하지 않았다.
+- command 보완 완료: clean workbook의 canonical 변경 valid draft는 기존 save 조건 안에서 save를 활성화하고 invalid/canonical no-op draft만으로는 활성화하지 않는다. valid draft가 새 transaction을 만들 수 있으면 Undo 활성·Redo 비활성으로 실제 finalize 결과를 투영하며 barcode pending 차단을 우선한다. 기존 LabelSheet owner close/navigation·label/workbook 교체는 dirty 판정과 detach 전에 draft를 finalize해 valid commit은 기존 save-confirm 대상, invalid 폐기는 기존 dirty 상태로 계속한다.
+- capture·interaction 보완 완료: 일반 capture와 print-area 후보 culling은 fill shape의 회전 fill 영역 또는 stroked outline 교차를 공용 painted-footprint helper로 판정해 crop이 fill 내부에 완전히 들어가는 경우도 보존한다. 겹친 handle은 최근접 화면 중심을 선택하고 exact tie는 확정 순서를 사용하며 hover와 drag 시작이 같은 helper를 공유한다.
+- 본문·controller 상태·interaction/command/capture 테스트·완료 조건·확정값에 위 결과를 연결했다.
+- stage/commit 대상: `doc/label_line_panel.txt`, `SESSION_HANDOFF.md`만 포함한다. 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
+
 ### 완료 (2026-07-21): 선·도형 지시서 object selection·stroke footprint 보완
 - 사용자 요청: 최신 잔여 검토의 다중 context-menu 편집, Tab 객체 순환, 기존 image/barcode 내부 ID와 line/shape stroke footprint 권장안을 지시서에 병합한다.
 - 사용자 확정: solid 직선은 Flutter 기본 `StrokeCap.butt`, solid rectangle은 `StrokeJoin.miter`와 miter limit `4.0`을 사용한다. roundedRectangle/ellipse는 연속 접선 path를 stroke하고 화면·capture·native가 같은 최종 외곽을 사용한다.
