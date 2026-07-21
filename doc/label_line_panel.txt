@@ -418,6 +418,7 @@ open line의 pattern offset `0`은 저장된 canonical `x1/y1`에 고정한다. 
 - 기존 Fortune toolbar combo icon 폭과 arrow hit area를 재사용한다.
 - 본체 클릭은 마지막으로 선택한 geometry kind와 insertion preset으로 생성 모드에 진입한다.
 - 화살표 클릭은 geometry kind와 style popup을 연다.
+- 이미 같은 shape combo의 insertion mode가 활성화된 상태에서 화살표를 클릭하면 현재 gesture draft와 insertion mode를 먼저 취소하고, 취소된 pointer sequence의 후속 move/up 자격을 종료한 뒤 popup만 연다. 기존 kind별 committed preset은 유지한다. popup의 kind/style/preset 조작만으로 insertion mode를 다시 시작하거나 취소 전에 캡처한 insertion snapshot을 갱신하지 않으며, 이후 `[삽입]` 또는 toolbar 본체 클릭이 그때의 최신 preset snapshot으로 새 one-shot insertion mode를 시작한다.
 - 아이콘은 현재 preset의 직선/사각형/둥근 사각형/타원 kind를 표시한다. stroke가 너무 두꺼워도 icon layout을 바꾸지 않도록 preview 두께를 clamp한다.
 - tooltip은 `도형 삽입: {도형}, {테두리 종류}, {두께} mm` 형식이다.
 - toolbar overflow와 More popup에서도 같은 command가 동작해야 한다.
@@ -465,7 +466,7 @@ popup 배치:
 - toolbar 본체 클릭: popup을 열지 않고 현재 preset으로 생성 모드 진입
 - 테두리 종류/색상/채우기 선택: popup 유지, preset 갱신
 - 숫자 입력 클릭: popup 유지, width 또는 radius 편집
-- Enter 또는 focus loss: width commit
+- Enter 또는 focus loss: 현재 focused width/radius editor를 validation한 뒤 유효하면 해당 committed preset에 반영하고, 유효하지 않으면 preset을 바꾸지 않은 채 입력 문자열과 inline validation을 유지한다. 유효 commit도 workbench-session의 UI-only preset 변경이므로 workbook/undo/redo/dirty/revision과 canonical callback/listenable을 만들지 않는다.
 - focused width/radius editor에 마지막 committed preset과 다른 미확정 문자열 또는 inline validation이 있으면 첫 Escape는 editor 문자열을 마지막 committed preset으로 원복하고 validation을 제거하되 popup과 editor focus를 유지한다. preset·workbook·insertion mode는 바꾸지 않고 해당 key event를 handled로 종료한다. 미확정 입력이 없는 다음 Escape는 §13.3의 한 번에 최상위 transient 하나 규칙으로 하위 popup이 있으면 그것만, 없으면 shape popup을 닫는다.
 - 유효 범위 `0.1~10.0 mm`, 증감 단위 `0.1 mm`
 - radius 유효 범위 `0.0~50.0 mm`, 증감 단위 `0.1 mm`
@@ -654,7 +655,7 @@ x2 += dx, y2 += dy
 - 현재 연결 metadata가 non-empty이면 option 목록에 없는 stale ID도 linked 상태로 표시·보존한다. 사용자가 source를 명시적으로 `연결 안 함`으로 바꾸고 새 파일 선택에 성공했을 때만 연결 metadata를 제거한다. 파일 없이 해제를 적용하면 validation을 표시하고 기존 linked image와 metadata를 유지한다.
 - 파일 교체. 사용자가 확정한 대로 linked 상태에서는 연결 ID를 유지하고 `src`, `originWidth`, `originHeight`만 새 fallback/preview 파일 값으로 교체한다. `left/top/width/height/rotation`과 그 밖의 metadata는 유지하며 고정 이미지 전환은 파일 선택의 부수 효과로 수행하지 않고 `연결 안 함` 선택으로만 수행한다.
 - 폭/높이
-- 비율 유지
+- 비율 유지. exact image가 새로 active selection이 될 때 기본값은 활성이고 그 시점의 유한한 양수 canonical `width / height`를 잠금 기준 비율로 캡처한다. 이 잠금 값과 기준은 revision-bound 숫자 field draft와 분리된 exact-selection UI 상태다. 잠금 중 폭 commit은 같은 비율의 높이를, 높이 commit은 같은 비율의 폭을 함께 계산하며 두 canonical field를 하나의 property transaction과 undo 1건으로 commit한다. 역산 결과까지 finite·양수와 기존 최소 크기 validation을 모두 통과해야 하며 한 축이라도 실패하면 두 축 모두 commit하지 않는다. 연동 결과가 시작 geometry와 같으면 canonical no-op이다. 같은 exact key에 대한 package-owned 성공 property transaction이 object revision을 바꿔 숫자 field draft를 새 canonical snapshot으로 재구성해도 잠금 UI 상태와 기준은 이관한다. 일반 rebuild, dock↔overlay 전환과 panel hidden/visible 전환도 이를 유지한다. 파일 교체 역시 기존 계약대로 `width/height`를 유지하고 잠금 값·기준을 이관하므로 새 `originWidth/originHeight`로 기준을 바꾸거나 geometry를 자동 조정하지 않는다. exact selection/active sheet 변경, 객체 삭제·ID 변경, undo/redo 또는 실제 외부 workbook 교체로 이전 exact owner 자격이 끝나면 해당 상태를 폐기하고, 다음 exact image selection에서 활성·새 canonical geometry 기준으로 초기화한다. 객체별 잠금 상태를 별도로 저장하거나 나중에 복원하지 않는다.
 - 회전
 
 바코드:
@@ -1142,6 +1143,8 @@ pointer move event와 property text 입력의 각 문자 변경마다 undo snaps
 - 최소 크기 미달과 pointer cancel은 workbook/undo/dirty/callback 불변인 채 draft만 폐기하고 crosshair/insertion mode를 유지해 toolbar 재선택 없는 다음 유효 drag가 성공함
 - active sheet 변경·undo/redo·외부 workbook 교체는 transient draft와 insertion mode를 종료하고 cursor를 복원하며 owner 불일치 후속 move/up을 no-op으로 처리함. owner 변경 뒤 첫 primary click은 삽입이 아니라 정상 object/cell hit-test를 수행함
 - popup 숫자 입력 직후 `[삽입]`이 유효한 최신 preset을 사용하고 invalid 입력에서는 popup 유지·삽입 차단
+- 활성 shape insertion 중 같은 combo 화살표를 누르면 draft/mode와 이전 pointer sequence를 취소하고 기존 committed preset을 유지한 popup만 열며, popup preset 조작만으로 insertion을 재개하지 않고 이후 `[삽입]`/본체 클릭이 최신 preset으로 새 mode를 시작함
+- popup width와 radius 각각에서 변경한 유효 문자열의 Enter/focus loss는 해당 UI-only committed preset만 갱신하고 workbook/undo/redo/dirty/revision/canonical callback/listenable은 불변이며, invalid 문자열은 preset 불변·입력/inline validation 유지임
 - popup width/radius editor의 dirty valid 문자열과 invalid 문자열·inline validation에서 첫 Escape는 마지막 committed preset 문자열로 원복하고 validation을 제거하면서 popup/focus를 유지하며 preset·workbook·insertion mode를 바꾸지 않음. 다음 Escape는 열린 하위 popup 또는 shape popup 하나만 닫음
 - image/barcode toolbar command 시점의 owner sheet/merge anchor 고정, dialog 중 cell selection 변경의 위치 불변과 sheet 변경·undo/redo·외부 교체 취소
 - image/barcode 삽입이 `allowEdit`만 사용하고 선택 anchor의 protection/locked 상태에는 영향받지 않음
@@ -1222,6 +1225,7 @@ pointer move event와 property text 입력의 각 문자 변경마다 undo snaps
 - 정확히 두 자리 mm 또는 px로 round-trip되지 않는 canonical logical geometry를 반올림해 표시한 뒤 문자열을 수정하지 않은 Enter와 focus loss 각각에서 원래 geometry를 유지하고 workbook/undo/dirty/revision·`onChange`/`onOp`/listenable이 모두 0회임
 - X/Y, line start/end X/Y, width/height, rotation과 corner radius 각각의 `NaN`/`Infinity`/`-Infinity`, 그리고 입력은 유한하지만 단위 변환 결과가 비유한 값이 되는 큰 수를 거부해 workbook/undo/dirty/revision/callback을 바꾸지 않음. `25.4 mm == 96 logical px` 변환과 finite 값의 기존 음수 X, Y clamp, 양수 크기, 회전 정규화 정책은 유지함
 - 단일 image/barcode/line/shape 속성 form 전환
+- image exact selection 시작 시 비율 유지를 활성화하고 canonical `width / height`를 기준으로 캡처함. 잠금 상태의 폭/높이 각 commit은 반대 축을 연동해 두 field를 transaction/undo 1건으로 변경하고 역산된 한 축이 invalid이면 양쪽 모두 유지함. revision-bound field draft와 분리된 잠금 UI 상태는 같은 exact key의 성공 property/file commit과 rebuild·dock↔overlay·hidden 전환에서 이관하고, selection/active sheet 변경·삭제·ID 변경·undo/redo·실제 외부 교체에서 폐기한 뒤 다음 image selection의 새 geometry로 초기화함. 파일 교체는 배치 `width/height`와 기존 잠금 기준을 유지하고 origin 비율로 자동 resize하지 않음
 - image와 barcode 각각에서 options·legacy IDs·현재 선택 객체/property draft 값의 앞뒤 공백을 제거하고 대소문자만 다른 값은 option label을 사용하는 한 행으로 합치며, option 미일치 current/draft는 `연결 끊김`으로 정확히 한 번 표시함
 - option 미일치 image/barcode 연결 ID/source를 수정하지 않은 panel commit은 원 metadata를 보존하고 명시적 option/`연결 안 함` 선택만 해당 source validation/commit을 실행함. 신규 structured 생성 dialog는 기존대로 현재 option 일치를 요구함
 - image panel 후보에는 생성 dialog 전용인 active sheet의 다른 image 연결 ID가 유입되지 않으며, 생성 dialog의 기존 effective ID 목록은 그대로 유지됨
@@ -1406,6 +1410,7 @@ pointer move event와 property text 입력의 각 문자 변경마다 undo snaps
 - 폐쇄 도형의 pattern phase는 kind별 고정 local 시작점에서 유지된다. 짧은 path는 seam보다 offset `0`의 첫 mark를 우선하되 wrap하지 않고 첫 dot은 지름 전체가 들어갈 때만, 첫 dash는 남은 양의 길이까지만 그린다. 둘레가 실제 첫 mark 길이와 `2w`의 합 이상일 때만 첫 mark 이후 seam gap `2w`를 보장하고, 더 짧으면 첫 mark를 유지한 채 후속 terminal mark를 생략한다.
 - rectangle/roundedRectangle/ellipse의 bounds·회전·stroke·fill·radius·zOrder가 저장 후 동일하게 복원된다.
 - 통합 shape toolbar가 image 앞에 있고 geometry kind별 style/width/color/fill/radius preset으로 생성된다.
+- 활성 shape insertion에서 같은 combo 화살표는 현재 draft/mode를 취소하고 popup만 열며, popup 조작 뒤 `[삽입]` 또는 본체 클릭만 최신 preset으로 새 insertion mode를 시작한다. popup width/radius의 Enter/focus loss는 유효한 UI-only committed preset만 갱신하고 canonical workbook/history를 바꾸지 않는다.
 - line 본체와 endpoint hit-test가 얇은 선에서도 안정적으로 동작한다.
 - 단일 active object의 표시 handle은 상위 zOrder object body보다 먼저 hit되고, body끼리는 공통 paint order 역순을 따른다.
 - 기존 겹친 이미지 `Tab`/`Shift+Tab` selection은 canvas focus에서 image/barcode/line/shape 공통 paint order와 active geometry 중심 probe로 일반화하며 selection listenable만 통지하고 workbook transaction을 만들지 않는다. panel/editor focus의 Tab은 기존 traversal이 소유한다.
@@ -1440,6 +1445,7 @@ pointer move event와 property text 입력의 각 문자 변경마다 undo snaps
 - `FortuneSheetController` lifecycle은 `alive-detached`/`alive-attached`/`disposed`이고 mounted canvas 하나에만 attach된다. 중복 attach와 disposed attach는 `StateError`이며 controller 교체는 new controller가 `alive-detached`인지 먼저 검증해 실패 시 old/new 기존 owner를 유지하고, 성공 시에만 실제 owner 기준 old detach→new attach를 수행한다.
 - controller는 immutable snapshot과 public listenable을 제공한다. host가 listener와 controller 수명을 소유하며 정상 attach/detach는 lifecycle snapshot을 각각 한 번 통지하고 canonical callback은 발생시키지 않는다. alive-detached getter는 active/property/draft null, selection/object refs empty, command/pending false를 반환하고 canvas-dependent command는 no-op, 조회/capture는 absent 결과다. host는 detach 뒤에만 terminal dispose하며 attached dispose는 `StateError`, dispose 자체의 추가 통지는 0회이고 disposed getter는 detached terminal snapshot이며 재attach·command/listener 사용은 지원하지 않는다.
 - 단일 선택은 타입별 속성, 다중 선택은 layer 조정 UI를 표시한다.
+- image 비율 유지는 exact selection 시작 시 활성이고 그 시점의 canonical `width / height`를 기준으로 한다. 잠금 중 한 축 commit은 연동된 두 축을 하나의 transaction/undo로 처리한다. 잠금 UI 상태는 revision-bound field draft와 분리해 같은 exact key의 성공 property/file commit과 presentation rebuild에 이관하고 selection/active sheet 변경·삭제·ID 변경·undo/redo·실제 외부 교체에서 폐기한 뒤 다음 image selection의 새 geometry 기준으로 초기화한다.
 - geometry 속성은 physical-size sheet에서 mm, 그 외에는 px로 표시하며 commit 뒤 model 좌표는 logical coordinate를 유지한다.
 - line read-only angle은 화면 좌표계의 오른쪽 `0°`, 아래쪽 `90°`인 시계 방향 `[0, 360)`이며 endpoint 교환은 `180°`를 더하고 zero-length는 숫자 angle을 표시하지 않는다.
 - 반올림된 geometry 초기 표시 문자열을 사용자가 수정하지 않은 Enter/focus loss는 원래 canonical logical 값을 유지하는 no-op이고, 변경 입력은 단위 변환 뒤 모든 geometry field의 finite 검증을 통과한 경우에만 기존 range·clamp·정규화 정책으로 commit된다.
@@ -1536,7 +1542,9 @@ pointer move event와 property text 입력의 각 문자 변경마다 undo snaps
 - toolbar: `[도형▼] [이미지] [바코드]`, 객체 그룹의 이미지 바로 앞
 - popup 첫 행: 직선/사각형/둥근 사각형/타원 icon segmented control
 - 삽입 중 오른쪽 클릭: draft/삽입 모드 취소 후 같은 위치의 기존 context menu 표시
+- 활성 shape insertion 중 같은 combo 화살표: draft/mode와 이전 pointer sequence 취소 후 committed preset을 유지한 popup만 표시, popup 조작은 mode를 시작하지 않고 `[삽입]`/본체 클릭이 최신 preset으로 새 mode 시작
 - popup `[삽입]`: focused preset field가 유효하면 commit 후 삽입, invalid이면 popup 유지·삽입 차단
+- popup width/radius Enter·focus loss: focused field validation 뒤 UI-only committed preset 반영, invalid 입력/validation 유지, canonical workbook·undo·dirty·revision·callback/listenable 0회
 - popup preset 숫자 Escape: dirty/validation 첫 Escape는 committed preset 문자열 원복·validation 제거 후 popup/focus 유지, 다음 Escape가 하위 popup 또는 shape popup 하나만 닫음
 - panel command 중 invalid property draft: 원복·폐기 후 요청 command 실행
 - 일반 object selection 중 property draft: old exact key를 먼저 finalize하고 valid commit listener 뒤 selection listener까지 총 2회, invalid/no-draft는 selection listener 1회. barcode renderer pending selection만 원 exact-key draft/request/error 유지
@@ -1561,6 +1569,7 @@ pointer move event와 property text 입력의 각 문자 변경마다 undo snaps
 - narrow overlay chrome: open 동안 active object toolbar 숨김·hit-test 제외, overlay 입력 canvas 미전달, dock mode legacy floating panel 비활성화
 - 명시적 narrow overlay open: 기존 popup/submenu/dropdown/color picker와 object/cell/editor context menu·tooltip/hover를 command 실행·draft finalize 없이 닫고 전환 focus-loss callback을 억제한 채 중간 focus 복원 없이 layer list focus 1회, valid/invalid property draft·insertion draft와 selection/canonical/history·barcode pending keyed 상태 유지, overlay 단독 paint/hit-test. Escape는 일반 property draft→overlay→insertion 우선순위이며 barcode pending은 draft 취소를 건너뛰고 overlay부터 닫음
 - 신규 이미지·바코드 생성 dialog: 유지
+- image panel 비율 유지: exact selection 시작 시 기본 활성, 기준은 현재 canonical `width / height`, 한 축 변경의 연동 geometry는 transaction/undo 1건. revision-bound field draft와 분리된 UI 상태로서 같은 exact key의 성공 property/file commit과 rebuild/presentation 전환에는 이관하고 selection/active sheet 변경·삭제·ID 변경·undo/redo·실제 외부 교체에는 폐기 후 다음 selection의 새 geometry로 재초기화
 - 구조화 option이 있는 이미지·바코드 생성 dialog 최초 source: `연결 안 함`
 - 구조화 options가 있는 host의 image/barcode 연결 ID duplicate/copy paste: stale option ID까지 같은 데이터 바인딩으로 보존, 내부 typed ID만 재발급
 - option 없는 host의 editable 연결 ID duplicate/copy paste: active sheet 충돌을 피해 재발급

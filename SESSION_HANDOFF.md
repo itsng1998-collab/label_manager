@@ -1,3 +1,11 @@
+### 완료 (2026-07-21): 선·도형 지시서 shape preset·image 비율 유지 보완
+- 사용자 요청: 최신 잔여 검토에서 확인한 활성 shape insertion 중 같은 combo 조작, popup radius commit과 image panel 비율 유지 권장안을 지시서에 병합한다.
+- 추가 사용자 확인 불필요: 기존 one-shot insertion/다른 command 취소 규칙, 공통 숫자 field commit과 기존 image dialog의 기본 비율 잠금 parity로 결과가 결정된다. 활성 insertion snapshot을 popup에서 암묵 변경하거나 파일 교체로 배치 geometry를 바꾸는 새 동작은 추가하지 않았다.
+- shape popup 보완 완료: 활성 insertion 중 같은 combo 화살표는 현재 draft/mode와 이전 pointer sequence를 취소하고 committed preset을 유지한 popup만 연다. popup 조작은 mode를 시작하지 않고 이후 `[삽입]`/본체 클릭이 최신 snapshot으로 새 mode를 시작한다. width/radius Enter·focus loss는 focused field를 검증해 UI-only preset만 commit하고 invalid 입력/오류는 유지한다.
+- image 비율 보완 완료: exact image selection 시작 시 잠금을 활성화하고 현재 canonical `width / height`를 기준으로 캡처한다. 한 축 변경의 연동 geometry는 transaction/undo 1건이다. 잠금은 revision-bound field draft와 분리된 exact-selection UI 상태로 두어 같은 key의 성공 property/file commit과 rebuild/presentation 전환에는 이관하고, selection/active sheet 변경·삭제·ID 변경·undo/redo·실제 외부 교체에서는 폐기 후 다음 selection의 새 geometry로 초기화한다.
+- interaction/property 테스트·완료 조건·확정값에 같은 combo 취소/재진입, width/radius UI-only commit, 비율 연동의 원자성·수명·파일 교체 결과를 연결했다.
+- stage/commit 대상: `doc/label_line_panel.txt`, `SESSION_HANDOFF.md`만 포함한다. 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
+
 ### 완료 (2026-07-21): 선·도형 지시서 panel picker sheet owner·overlay 폭·async 오류 수명 보완
 - 사용자 요청: 최신 잔여 검토에서 확인한 panel image picker의 active sheet 전환, narrow overlay 폭, picker/renderer async 오류 수명과 panel-list `Ctrl/Meta+A` 목록 권장안을 지시서에 병합한다.
 - 추가 사용자 확인 불필요: active sheet 기반 panel 소유권, viewport 내부 배치, 동일 owner 재시도와 이미 확정된 전체 선택 규칙으로 결과가 결정된다. 비활성 sheet 수정, overlay overflow, stale 오류 덮어쓰기 같은 새 동작은 허용하지 않았다.
