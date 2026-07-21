@@ -2866,6 +2866,17 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   bool _sheetCornerTooltipActive = false;
   bool _sheetCornerTooltipDismissedUntilExit = false;
   String? _activeImageId;
+  FortuneSheetObjectKey? _activeObjectKey;
+  FortuneSheetObjectKey? _typedObjectMoveKey;
+  Offset? _typedObjectMoveStart;
+  FortuneLine? _typedObjectMoveInitialLine;
+  int? _typedLineEndpointIndex;
+  FortuneShape? _typedObjectMoveInitialShape;
+  String? _typedShapeHandle;
+  FortuneLine? _typedObjectMoveLineDraft;
+  FortuneShape? _typedObjectMoveShapeDraft;
+  FortuneWorkbook? _typedObjectMoveOwnerWorkbook;
+  String? _typedObjectMoveOwnerSheetId;
   Set<String> _selectedImageIds = <String>{};
   bool _imageLayerPanelOpen = false;
   double _imageLayerPanelScrollOffset = 0;
@@ -2891,6 +2902,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   FortuneImage? _imageMoveInitial;
   bool _imageMoveSnapshotRecorded = false;
   bool _lineInsertionMode = false;
+  FortuneShapeKind? _shapeInsertionKind;
+  FortuneShapeKind _shapePresetKind = FortuneShapeKind.rectangle;
   Offset? _lineInsertionStart;
   Offset? _lineInsertionEnd;
   FortuneWorkbook? _lineInsertionOwnerWorkbook;
@@ -7129,6 +7142,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       if (_lineInsertionMode) {
         setState(() {
           _lineInsertionMode = false;
+          _shapeInsertionKind = null;
           _cancelLineInsertionDraftState();
           _setMouseCursor(SystemMouseCursors.basic);
         });
@@ -7322,7 +7336,62 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       return;
     }
 
+    final lineEndpoint = _activeLineEndpointAt(local, settings);
+    if (lineEndpoint != null) {
+      final logical = _lineInsertionLogicalPosition(local, settings);
+      if (logical != null) {
+        _startTypedObjectMove(
+          lineEndpoint.$1,
+          logical,
+          lineEndpointIndex: lineEndpoint.$2,
+        );
+        return;
+      }
+    }
+
+    final shapeHandle = _activeShapeHandleAt(local, settings);
+    if (shapeHandle != null) {
+      final logical = _lineInsertionLogicalPosition(local, settings);
+      if (logical != null) {
+        _startTypedObjectMove(
+          shapeHandle.$1,
+          logical,
+          shapeHandle: shapeHandle.$2,
+        );
+        return;
+      }
+    }
+
     final imageId = _imageIdAt(local, settings);
+    final logicalObjectPosition = _lineInsertionLogicalPosition(
+      local,
+      settings,
+    );
+    final typedObjectKey = logicalObjectPosition == null
+        ? null
+        : fortuneSheetObjectKeyAtLogicalPosition(
+            _workbook.activeSheet,
+            logicalObjectPosition,
+            zoomRatio: _workbook.activeSheet.zoomRatio,
+          );
+    if (typedObjectKey != null &&
+        typedObjectKey.kind != FortuneSheetObjectKind.image &&
+        typedObjectKey.kind != FortuneSheetObjectKind.barcode) {
+      _commitEditing();
+      _commitSheetRename();
+      setState(() {
+        _activeObjectKey = typedObjectKey;
+        _activeImageId = null;
+        _selectedImageIds = <String>{};
+        contextMenuAt = null;
+        _contextMenuImageId = null;
+      });
+      if ((event.buttons & kPrimaryButton) != 0 &&
+          logicalObjectPosition != null) {
+        _startTypedObjectMove(typedObjectKey, logicalObjectPosition);
+      }
+      return;
+    }
     if (imageId != null) {
       _commitEditing();
       _commitSheetRename();
@@ -7348,6 +7417,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       }
       _startImageMove(imageId, local);
       setState(() {
+        _activeObjectKey = null;
         _activeImageId = imageId;
         _selectedImageIds = <String>{imageId};
         _contextMenuImageId = null;
@@ -9107,8 +9177,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     if (toolbarKey == null && toolbarComboArrowKey == null) {
       return false;
     }
-    if (_lineInsertionMode && toolbarKey != fortuneToolbarLineCommand) {
+    if (_lineInsertionMode && !_isGeometryInsertionCommand(toolbarKey)) {
       _lineInsertionMode = false;
+      _shapeInsertionKind = null;
       _cancelLineInsertionDraftState();
     }
     if (toolbarComboArrowKey != null) {
@@ -9736,6 +9807,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   }
 
   void _handlePointerMove(PointerMoveEvent event) {
+    if (_updateTypedObjectMove(event.localPosition)) {
+      return;
+    }
     if (_updateDialogCloseHover(event.localPosition)) {
       return;
     }
@@ -10743,6 +10817,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     if (_commitSheetRulerGuideDrag()) {
       return;
     }
+    if (_commitTypedObjectMove(event.localPosition)) {
+      return;
+    }
     if (_commitLineInsertion(event.localPosition)) {
       return;
     }
@@ -10835,6 +10912,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     _cancelDataVerificationDialogRangeSelection();
     _cancelImageResize();
     _cancelImageMove();
+    _cancelTypedObjectMove();
     _cancelLineInsertionDraft();
     _cancelCommentBoxResize();
     _cancelCommentBoxMove();
@@ -14057,6 +14135,12 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
 
   String? _toolbarComboPrimaryCommand(String key) {
     return switch (key) {
+      fortuneToolbarShapeCommand => switch (_shapePresetKind) {
+        FortuneShapeKind.rectangle => fortuneToolbarRectangleCommand,
+        FortuneShapeKind.roundedRectangle =>
+          fortuneToolbarRoundedRectangleCommand,
+        FortuneShapeKind.ellipse => fortuneToolbarEllipseCommand,
+      },
       fortuneToolbarFormatCommand => fortuneToolbarFormatAutomaticCommand,
       fortuneToolbarFontPopupKey => fortuneToolbarFontTimesCommand,
       fortuneToolbarFontSizePopupKey => fortuneToolbarFontSize10Command,
@@ -14862,16 +14946,16 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         _showBarcodeInsertDialog();
         break;
       case fortuneToolbarLineCommand:
-        setState(() {
-          _lineInsertionMode = !_lineInsertionMode;
-          _cancelLineInsertionDraftState();
-          _closeTransientMenus();
-          _setMouseCursor(
-            _lineInsertionMode
-                ? SystemMouseCursors.precise
-                : SystemMouseCursors.basic,
-          );
-        });
+        _activateGeometryInsertionMode();
+        break;
+      case fortuneToolbarRectangleCommand:
+        _activateGeometryInsertionMode(FortuneShapeKind.rectangle);
+        break;
+      case fortuneToolbarRoundedRectangleCommand:
+        _activateGeometryInsertionMode(FortuneShapeKind.roundedRectangle);
+        break;
+      case fortuneToolbarEllipseCommand:
+        _activateGeometryInsertionMode(FortuneShapeKind.ellipse);
         break;
       case fortuneToolbarSplitColumnCommand:
         _showSplitTextDialog();
@@ -14941,6 +15025,28 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         }
       }
       _closeTransientMenus();
+    });
+  }
+
+  bool _isGeometryInsertionCommand(String? command) {
+    return command == fortuneToolbarLineCommand ||
+        command == fortuneToolbarRectangleCommand ||
+        command == fortuneToolbarRoundedRectangleCommand ||
+        command == fortuneToolbarEllipseCommand;
+  }
+
+  void _activateGeometryInsertionMode([FortuneShapeKind? shapeKind]) {
+    final sameMode = _lineInsertionMode && _shapeInsertionKind == shapeKind;
+    setState(() {
+      _lineInsertionMode = !sameMode;
+      _shapeInsertionKind = _lineInsertionMode ? shapeKind : null;
+      _cancelLineInsertionDraftState();
+      _closeTransientMenus();
+      _setMouseCursor(
+        _lineInsertionMode
+            ? SystemMouseCursors.precise
+            : SystemMouseCursors.basic,
+      );
     });
   }
 
@@ -25026,14 +25132,32 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     if (start == null) {
       return false;
     }
-    final logical = _lineInsertionLogicalPosition(local, _workbook.settings);
-    if (logical == null) {
-      return true;
-    }
+    final logical = _typedObjectMoveLogicalPosition(local, _workbook.settings);
     setState(() {
-      _lineInsertionEnd = _snappedLineInsertionEnd(start, logical);
+      _lineInsertionEnd = _constrainedGeometryInsertionEnd(start, logical);
     });
     return true;
+  }
+
+  Offset _constrainedGeometryInsertionEnd(Offset start, Offset end) {
+    if (_shapeInsertionKind == null) {
+      return _snappedLineInsertionEnd(start, end);
+    }
+    var delta = end - start;
+    if (HardwareKeyboard.instance.isShiftPressed) {
+      final extent = math.max(delta.dx.abs(), delta.dy.abs());
+      delta = Offset(
+        delta.dx < 0 ? -extent : extent,
+        delta.dy < 0 ? -extent : extent,
+      );
+      if (start.dy + delta.dy < 0 && delta.dy < 0) {
+        final limited = start.dy;
+        delta = Offset(delta.dx < 0 ? -limited : limited, -limited);
+      }
+    } else if (start.dy + delta.dy < 0) {
+      delta = Offset(delta.dx, -start.dy);
+    }
+    return start + delta;
   }
 
   Offset _snappedLineInsertionEnd(Offset start, Offset end) {
@@ -25062,7 +25186,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   FortuneLine? get _lineInsertionDraft {
     final start = _lineInsertionStart;
     final end = _lineInsertionEnd;
-    if (start == null || end == null) {
+    if (start == null || end == null || _shapeInsertionKind != null) {
       return null;
     }
     return FortuneLine(
@@ -25072,6 +25196,229 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       x2: end.dx,
       y2: end.dy,
     );
+  }
+
+  FortuneShape? get _shapeInsertionDraft {
+    final start = _lineInsertionStart;
+    final end = _lineInsertionEnd;
+    final kind = _shapeInsertionKind;
+    if (start == null || end == null || kind == null) {
+      return null;
+    }
+    final rect = Rect.fromPoints(start, end);
+    return FortuneShape(
+      id: '__shape_insertion_draft__',
+      kind: kind,
+      left: rect.left,
+      top: rect.top,
+      width: rect.width,
+      height: rect.height,
+    );
+  }
+
+  void _startTypedObjectMove(
+    FortuneSheetObjectKey key,
+    Offset logicalPosition, {
+    int? lineEndpointIndex,
+    String? shapeHandle,
+  }) {
+    final sheet = _workbook.activeSheet;
+    FortuneLine? line;
+    FortuneShape? shape;
+    if (key.kind == FortuneSheetObjectKind.line) {
+      for (final candidate in sheet.lines) {
+        if (candidate.id == key.id) {
+          line = candidate;
+          break;
+        }
+      }
+    } else {
+      for (final candidate in sheet.shapes) {
+        if (candidate.id == key.id &&
+            fortuneShapeObjectKind(candidate) == key.kind) {
+          shape = candidate;
+          break;
+        }
+      }
+    }
+    if (line == null && shape == null) {
+      return;
+    }
+    setState(() {
+      _typedObjectMoveKey = key;
+      _typedObjectMoveStart = logicalPosition;
+      _typedObjectMoveInitialLine = line;
+      _typedLineEndpointIndex = lineEndpointIndex;
+      _typedObjectMoveInitialShape = shape;
+      _typedShapeHandle = shapeHandle;
+      _typedObjectMoveLineDraft = line;
+      _typedObjectMoveShapeDraft = shape;
+      _typedObjectMoveOwnerWorkbook = _workbook;
+      _typedObjectMoveOwnerSheetId = sheet.id;
+      _setMouseCursor(SystemMouseCursors.move);
+    });
+  }
+
+  bool _updateTypedObjectMove(Offset local) {
+    final start = _typedObjectMoveStart;
+    if (start == null) {
+      return false;
+    }
+    final logical = _lineInsertionLogicalPosition(local, _workbook.settings);
+    if (logical == null) {
+      return true;
+    }
+    var delta = logical - start;
+    final line = _typedObjectMoveInitialLine;
+    final shape = _typedObjectMoveInitialShape;
+    if (line != null) {
+      final endpointIndex = _typedLineEndpointIndex;
+      if (endpointIndex != null) {
+        final fixed = endpointIndex == 0
+            ? Offset(line.x2, line.y2)
+            : Offset(line.x1, line.y1);
+        var endpoint = logical;
+        if (HardwareKeyboard.instance.isShiftPressed) {
+          endpoint = _snappedLineInsertionEnd(fixed, endpoint);
+        } else if (endpoint.dy < 0) {
+          endpoint = Offset(endpoint.dx, 0);
+        }
+        _typedObjectMoveLineDraft = endpointIndex == 0
+            ? line.copyWith(x1: endpoint.dx, y1: endpoint.dy)
+            : line.copyWith(x2: endpoint.dx, y2: endpoint.dy);
+        setState(() {});
+        return true;
+      }
+      final minimumY = math.min(line.y1, line.y2);
+      if (minimumY + delta.dy < 0) {
+        delta = Offset(delta.dx, -minimumY);
+      }
+    } else if (shape != null) {
+      final handle = _typedShapeHandle;
+      if (handle != null) {
+        final draft = handle == 'rotation'
+            ? _rotatedShapeDraft(shape, logical)
+            : _resizedShapeDraft(shape, logical, handle);
+        setState(() {
+          _typedObjectMoveShapeDraft = draft;
+        });
+        return true;
+      }
+      if (shape.top + delta.dy < 0) {
+        delta = Offset(delta.dx, -shape.top);
+      }
+    }
+    setState(() {
+      if (line != null) {
+        _typedObjectMoveLineDraft = line.copyWith(
+          x1: line.x1 + delta.dx,
+          y1: line.y1 + delta.dy,
+          x2: line.x2 + delta.dx,
+          y2: line.y2 + delta.dy,
+        );
+      } else if (shape != null) {
+        _typedObjectMoveShapeDraft = shape.copyWith(
+          left: shape.left + delta.dx,
+          top: shape.top + delta.dy,
+        );
+      }
+    });
+    return true;
+  }
+
+  Offset _typedObjectMoveLogicalPosition(
+    Offset local,
+    FortuneSettings settings,
+  ) {
+    final sheetTop =
+        settings.effectiveToolbarHeight + settings.effectiveFormulaBarHeight;
+    final zoom = _workbook.activeSheet.zoomRatio <= 0
+        ? 1.0
+        : _workbook.activeSheet.zoomRatio;
+    return Offset(
+      (local.dx - _sheetDataLeft(settings) + scrollOffset.dx) / zoom,
+      (local.dy - sheetTop - _sheetDataTop(settings) + scrollOffset.dy) / zoom,
+    );
+  }
+
+  bool _commitTypedObjectMove(Offset local) {
+    final key = _typedObjectMoveKey;
+    if (key == null) {
+      return false;
+    }
+    _updateTypedObjectMove(local);
+    final ownerValid = identical(_typedObjectMoveOwnerWorkbook, _workbook) &&
+        _typedObjectMoveOwnerSheetId == _workbook.activeSheet.id;
+    final initialLine = _typedObjectMoveInitialLine;
+    final nextLine = _typedObjectMoveLineDraft;
+    final initialShape = _typedObjectMoveInitialShape;
+    final nextShape = _typedObjectMoveShapeDraft;
+    final changed = initialLine != null && nextLine != null
+        ? initialLine.x1 != nextLine.x1 ||
+              initialLine.y1 != nextLine.y1 ||
+              initialLine.x2 != nextLine.x2 ||
+              initialLine.y2 != nextLine.y2
+        : initialShape != null && nextShape != null
+          ? initialShape.left != nextShape.left ||
+            initialShape.top != nextShape.top ||
+            initialShape.width != nextShape.width ||
+            initialShape.height != nextShape.height ||
+            initialShape.rotationDegrees != nextShape.rotationDegrees
+        : false;
+      final validLine = nextLine == null ||
+        nextLine.x1 != nextLine.x2 ||
+        nextLine.y1 != nextLine.y2;
+      final zoom = _workbook.activeSheet.zoomRatio <= 0
+        ? 1.0
+        : _workbook.activeSheet.zoomRatio;
+      final validShape = nextShape == null ||
+        (nextShape.width * zoom >= 3 && nextShape.height * zoom >= 3);
+      if (!ownerValid || !changed || !validLine || !validShape) {
+      setState(_cancelTypedObjectMoveState);
+      return true;
+    }
+    final sheet = _workbook.activeSheet;
+    final sheets = [..._workbook.sheets];
+    _recordUndoSnapshot();
+    if (nextLine != null) {
+      final lines = sheet.lines.map((line) {
+        return line.id == key.id ? nextLine : line.copyWith();
+      }).toList(growable: false);
+      sheets[_workbook.activeSheetIndex] = sheet.copyWith(lines: lines);
+    } else if (nextShape != null) {
+      final shapes = sheet.shapes.map((shape) {
+        return shape.id == key.id && fortuneShapeObjectKind(shape) == key.kind
+            ? nextShape
+            : shape.copyWith();
+      }).toList(growable: false);
+      sheets[_workbook.activeSheetIndex] = sheet.copyWith(shapes: shapes);
+    }
+    setState(() {
+      _workbook = _workbook.copyWith(sheets: sheets);
+      _cancelTypedObjectMoveState();
+      _setMouseCursor(SystemMouseCursors.basic);
+    });
+    return true;
+  }
+
+  void _cancelTypedObjectMove() {
+    if (_typedObjectMoveKey == null) {
+      return;
+    }
+    setState(_cancelTypedObjectMoveState);
+  }
+
+  void _cancelTypedObjectMoveState() {
+    _typedObjectMoveKey = null;
+    _typedObjectMoveStart = null;
+    _typedObjectMoveInitialLine = null;
+    _typedLineEndpointIndex = null;
+    _typedObjectMoveInitialShape = null;
+    _typedShapeHandle = null;
+    _typedObjectMoveLineDraft = null;
+    _typedObjectMoveShapeDraft = null;
+    _typedObjectMoveOwnerWorkbook = null;
+    _typedObjectMoveOwnerSheetId = null;
   }
 
   bool _commitLineInsertion(Offset local) {
@@ -25084,10 +25431,11 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     final release = _lineInsertionLogicalPosition(local, _workbook.settings);
     final end = release == null
         ? _lineInsertionEnd
-        : _snappedLineInsertionEnd(start, release);
+        : _constrainedGeometryInsertionEnd(start, release);
     if (!ownerValid || end == null) {
       setState(() {
         _lineInsertionMode = false;
+        _shapeInsertionKind = null;
         _cancelLineInsertionDraftState();
       });
       return true;
@@ -25095,7 +25443,12 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     final zoom = _workbook.activeSheet.zoomRatio <= 0
         ? 1.0
         : _workbook.activeSheet.zoomRatio;
-    if ((end - start).distance * zoom < 3) {
+    final shapeKind = _shapeInsertionKind;
+    final shapeRect = Rect.fromPoints(start, end);
+    final tooSmall = shapeKind == null
+      ? (end - start).distance * zoom < 3
+      : shapeRect.width * zoom < 3 || shapeRect.height * zoom < 3;
+    if (tooSmall) {
       setState(_cancelLineInsertionDraftState);
       return true;
     }
@@ -25103,9 +25456,19 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     final insertionPlan = fortuneReserveObjectZOrders(activeSheet, 1);
     final existing = fortuneSheetObjectsInPaintOrder(insertionPlan.sheet)
         .map((object) => object.key);
-    final id = fortuneAllocateObjectId(FortuneSheetObjectKind.line, existing);
-    final lines = List<FortuneLine>.from(insertionPlan.sheet.lines)
-      ..add(
+    final objectKind = shapeKind == null
+        ? FortuneSheetObjectKind.line
+        : switch (shapeKind) {
+            FortuneShapeKind.rectangle => FortuneSheetObjectKind.rectangle,
+            FortuneShapeKind.roundedRectangle =>
+              FortuneSheetObjectKind.roundedRectangle,
+            FortuneShapeKind.ellipse => FortuneSheetObjectKind.ellipse,
+          };
+    final id = fortuneAllocateObjectId(objectKind, existing);
+    final lines = List<FortuneLine>.from(insertionPlan.sheet.lines);
+    final shapes = List<FortuneShape>.from(insertionPlan.sheet.shapes);
+    if (shapeKind == null) {
+      lines.add(
         FortuneLine(
           id: id,
           x1: start.dx,
@@ -25115,14 +25478,29 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
           zOrder: insertionPlan.zOrders.single,
         ),
       );
+    } else {
+      shapes.add(
+        FortuneShape(
+          id: id,
+          kind: shapeKind,
+          left: shapeRect.left,
+          top: shapeRect.top,
+          width: shapeRect.width,
+          height: shapeRect.height,
+          zOrder: insertionPlan.zOrders.single,
+        ),
+      );
+    }
     final sheets = [..._workbook.sheets];
     _recordUndoSnapshot();
     sheets[_workbook.activeSheetIndex] = insertionPlan.sheet.copyWith(
-      lines: lines,
+      lines: shapeKind == null ? lines : null,
+      shapes: shapeKind == null ? null : shapes,
     );
     setState(() {
       _workbook = _workbook.copyWith(sheets: sheets);
       _lineInsertionMode = false;
+      _shapeInsertionKind = null;
       _cancelLineInsertionDraftState();
       _setMouseCursor(SystemMouseCursors.basic);
     });
@@ -25141,6 +25519,226 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     _lineInsertionEnd = null;
     _lineInsertionOwnerWorkbook = null;
     _lineInsertionOwnerSheetId = null;
+  }
+
+  (FortuneSheetObjectKey, int)? _activeLineEndpointAt(
+    Offset local,
+    FortuneSettings settings,
+  ) {
+    final key = _activeObjectKey;
+    if (key == null || key.kind != FortuneSheetObjectKind.line) {
+      return null;
+    }
+    FortuneLine? line;
+    for (final candidate in _workbook.activeSheet.lines) {
+      if (candidate.id == key.id) {
+        line = candidate;
+        break;
+      }
+    }
+    if (line == null) {
+      return null;
+    }
+    final sheetTop =
+      settings.effectiveToolbarHeight + settings.effectiveFormulaBarHeight;
+    final zoom = _workbook.activeSheet.zoomRatio <= 0
+        ? 1.0
+        : _workbook.activeSheet.zoomRatio;
+    Offset screen(double x, double y) {
+      return Offset(
+        _sheetDataLeft(settings) + x * zoom - scrollOffset.dx,
+        sheetTop + _sheetDataTop(settings) + y * zoom - scrollOffset.dy,
+      );
+    }
+    final centers = [screen(line.x1, line.y1), screen(line.x2, line.y2)];
+    for (var index = 0; index < centers.length; index += 1) {
+      final delta = local - centers[index];
+      if (delta.dx.abs() <= 4 && delta.dy.abs() <= 4) {
+        return (key, index);
+      }
+    }
+    return null;
+  }
+
+  (FortuneSheetObjectKey, String)? _activeShapeHandleAt(
+    Offset local,
+    FortuneSettings settings,
+  ) {
+    final key = _activeObjectKey;
+    if (key == null ||
+        (key.kind != FortuneSheetObjectKind.rectangle &&
+            key.kind != FortuneSheetObjectKind.roundedRectangle &&
+            key.kind != FortuneSheetObjectKind.ellipse)) {
+      return null;
+    }
+    final shape = _workbook.activeSheet.shapes.where((candidate) {
+      return candidate.id == key.id &&
+          fortuneShapeObjectKind(candidate) == key.kind;
+    }).firstOrNull;
+    if (shape == null) {
+      return null;
+    }
+    final zoom = _workbook.activeSheet.zoomRatio <= 0
+        ? 1.0
+        : _workbook.activeSheet.zoomRatio;
+    final sheetTop =
+        settings.effectiveToolbarHeight + settings.effectiveFormulaBarHeight;
+    Offset screen(Offset logical) {
+      return Offset(
+        _sheetDataLeft(settings) + logical.dx * zoom - scrollOffset.dx,
+        sheetTop +
+            _sheetDataTop(settings) +
+            logical.dy * zoom -
+            scrollOffset.dy,
+      );
+    }
+    final center = Offset(
+      shape.left + shape.width / 2,
+      shape.top + shape.height / 2,
+    );
+    final angle = shape.rotationDegrees * math.pi / 180;
+    Offset rotated(Offset point) => center + _rotateOffset(point - center, angle);
+    final left = shape.left;
+    final top = shape.top;
+    final right = left + shape.width;
+    final bottom = top + shape.height;
+    final middleX = (left + right) / 2;
+    final middleY = (top + bottom) / 2;
+    final candidates = <(String, Offset)>[
+      ('rotation', rotated(Offset(middleX, top - 20 / zoom))),
+      ('nw', rotated(Offset(left, top))),
+      ('n', rotated(Offset(middleX, top))),
+      ('ne', rotated(Offset(right, top))),
+      ('w', rotated(Offset(left, middleY))),
+      ('e', rotated(Offset(right, middleY))),
+      ('sw', rotated(Offset(left, bottom))),
+      ('s', rotated(Offset(middleX, bottom))),
+      ('se', rotated(Offset(right, bottom))),
+    ];
+    (String, double)? nearest;
+    for (final candidate in candidates) {
+      final distance = (local - screen(candidate.$2)).distance;
+      if (distance <= 4 && (nearest == null || distance < nearest.$2)) {
+        nearest = (candidate.$1, distance);
+      }
+    }
+    return nearest == null ? null : (key, nearest.$1);
+  }
+
+  FortuneShape _rotatedShapeDraft(FortuneShape shape, Offset pointer) {
+    final center = Offset(
+      shape.left + shape.width / 2,
+      shape.top + shape.height / 2,
+    );
+    final delta = pointer - center;
+    if (delta == Offset.zero) {
+      return shape;
+    }
+    var degrees = math.atan2(delta.dy, delta.dx) * 180 / math.pi + 90;
+    if (HardwareKeyboard.instance.isShiftPressed) {
+      degrees = (degrees / 15).round() * 15;
+    }
+    degrees %= 360;
+    if (degrees < 0) {
+      degrees += 360;
+    }
+    return shape.copyWith(rotationDegrees: degrees);
+  }
+
+  FortuneShape _resizedShapeDraft(
+    FortuneShape shape,
+    Offset pointer,
+    String handle,
+  ) {
+    final horizontal = handle.contains('w')
+        ? -1
+        : handle.contains('e')
+        ? 1
+        : 0;
+    final vertical = handle.startsWith('n')
+        ? -1
+        : handle.startsWith('s')
+        ? 1
+        : 0;
+    final angle = shape.rotationDegrees * math.pi / 180;
+    final center = Offset(
+      shape.left + shape.width / 2,
+      shape.top + shape.height / 2,
+    );
+    final oppositeLocal = Offset(
+      horizontal == 0 ? 0 : -horizontal * shape.width / 2,
+      vertical == 0 ? 0 : -vertical * shape.height / 2,
+    );
+    final anchor = center + _rotateOffset(oppositeLocal, angle);
+
+    FortuneShape candidateAt(Offset worldPointer) {
+      var local = _rotateOffset(worldPointer - anchor, -angle);
+      if (horizontal == 0) {
+        local = Offset(0, local.dy);
+      }
+      if (vertical == 0) {
+        local = Offset(local.dx, 0);
+      }
+      if (horizontal != 0 &&
+          vertical != 0 &&
+          HardwareKeyboard.instance.isShiftPressed) {
+        final ratio = shape.width / shape.height;
+        if (local.dx.abs() / shape.width >=
+            local.dy.abs() / shape.height) {
+          local = Offset(
+            local.dx,
+            (local.dy < 0 ? -1 : 1) * local.dx.abs() / ratio,
+          );
+        } else {
+          local = Offset(
+            (local.dx < 0 ? -1 : 1) * local.dy.abs() * ratio,
+            local.dy,
+          );
+        }
+      }
+      final width = horizontal == 0 ? shape.width : local.dx.abs();
+      final height = vertical == 0 ? shape.height : local.dy.abs();
+      final centerFromAnchor = Offset(
+        horizontal == 0 ? 0 : local.dx / 2,
+        vertical == 0 ? 0 : local.dy / 2,
+      );
+      final nextCenter = anchor + _rotateOffset(centerFromAnchor, angle);
+      return shape.copyWith(
+        left: nextCenter.dx - width / 2,
+        top: nextCenter.dy - height / 2,
+        width: width,
+        height: height,
+      );
+    }
+
+    var candidate = candidateAt(pointer);
+    if (candidate.top >= 0) {
+      return candidate;
+    }
+    final start = _typedObjectMoveStart;
+    if (start == null) {
+      return shape;
+    }
+    var low = 0.0;
+    var high = 1.0;
+    for (var iteration = 0; iteration < 40; iteration += 1) {
+      final middle = (low + high) / 2;
+      final probe = candidateAt(Offset.lerp(start, pointer, middle)!);
+      if (probe.top >= 0) {
+        low = middle;
+        candidate = probe;
+      } else {
+        high = middle;
+      }
+    }
+    return candidate.copyWith(top: candidate.top.abs() < 1e-8 ? 0 : candidate.top);
+  }
+
+  Offset _rotateOffset(Offset offset, double angle) {
+    return Offset(
+      offset.dx * math.cos(angle) - offset.dy * math.sin(angle),
+      offset.dx * math.sin(angle) + offset.dy * math.cos(angle),
+    );
   }
 
   FortuneCellCoord _imageAnchorCoord(
@@ -27530,6 +28128,26 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   void _activateToolbarPopupCommand(String command) {
     if (command == 'modal') {
       return;
+    }
+    if (toolbarPopupKey == fortuneToolbarShapeCommand) {
+      final kind = switch (command) {
+        fortuneToolbarRectangleCommand => FortuneShapeKind.rectangle,
+        fortuneToolbarRoundedRectangleCommand =>
+          FortuneShapeKind.roundedRectangle,
+        fortuneToolbarEllipseCommand => FortuneShapeKind.ellipse,
+        _ => null,
+      };
+      if (kind != null) {
+        setState(() {
+          _shapePresetKind = kind;
+          _toolbarPopupHoveredIndex = null;
+        });
+        return;
+      }
+      if (command == fortuneToolbarShapeInsertCommand) {
+        _activateGeometryInsertionMode(_shapePresetKind);
+        return;
+      }
     }
     if (_applyInlineToolbarFormatCommand(command)) {
       return;
@@ -33206,6 +33824,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         event.logicalKey == LogicalKeyboardKey.escape) {
       setState(() {
         _lineInsertionMode = false;
+        _shapeInsertionKind = null;
         _cancelLineInsertionDraftState();
         _setMouseCursor(SystemMouseCursors.basic);
       });
@@ -33514,6 +34133,10 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         return;
       }
       unawaited(_pasteClipboardToSelection());
+      return;
+    }
+    if (!isShortcutPressed &&
+        _moveActiveTypedObjectWithArrow(event.logicalKey)) {
       return;
     }
     if (isShortcutPressed &&
@@ -34017,6 +34640,92 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         _writeSelectionRange(movedRange, movedFocus);
       }
       _ensureSelectionTargetVisible(sheet, row: movedRow, column: movedColumn);
+      _closeTransientMenus();
+    });
+    return true;
+  }
+
+  bool _moveActiveTypedObjectWithArrow(LogicalKeyboardKey key) {
+    final objectKey = _activeObjectKey;
+    if (objectKey == null || !_workbook.settings.allowEdit) {
+      return false;
+    }
+    final direction = switch (key) {
+      LogicalKeyboardKey.arrowUp => const Offset(0, -1),
+      LogicalKeyboardKey.arrowDown => const Offset(0, 1),
+      LogicalKeyboardKey.arrowLeft => const Offset(-1, 0),
+      LogicalKeyboardKey.arrowRight => const Offset(1, 0),
+      _ => null,
+    };
+    if (direction == null) {
+      return false;
+    }
+    final distance = HardwareKeyboard.instance.isShiftPressed ? 10.0 : 1.0;
+    var delta = direction * distance;
+    final sheet = _workbook.activeSheet;
+    FortuneLine? nextLine;
+    FortuneShape? nextShape;
+    if (objectKey.kind == FortuneSheetObjectKind.line) {
+      final line = sheet.lines.where((item) => item.id == objectKey.id).firstOrNull;
+      if (line == null) {
+        return false;
+      }
+      final minimumY = math.min(line.y1, line.y2);
+      if (minimumY + delta.dy < 0) {
+        delta = Offset(delta.dx, -minimumY);
+      }
+      if (delta == Offset.zero) {
+        return true;
+      }
+      nextLine = line.copyWith(
+        x1: line.x1 + delta.dx,
+        y1: line.y1 + delta.dy,
+        x2: line.x2 + delta.dx,
+        y2: line.y2 + delta.dy,
+      );
+    } else if (objectKey.kind == FortuneSheetObjectKind.rectangle ||
+        objectKey.kind == FortuneSheetObjectKind.roundedRectangle ||
+        objectKey.kind == FortuneSheetObjectKind.ellipse) {
+      final shape = sheet.shapes.where((item) {
+        return item.id == objectKey.id &&
+            fortuneShapeObjectKind(item) == objectKey.kind;
+      }).firstOrNull;
+      if (shape == null) {
+        return false;
+      }
+      if (shape.top + delta.dy < 0) {
+        delta = Offset(delta.dx, -shape.top);
+      }
+      if (delta == Offset.zero) {
+        return true;
+      }
+      nextShape = shape.copyWith(
+        left: shape.left + delta.dx,
+        top: shape.top + delta.dy,
+      );
+    } else {
+      return false;
+    }
+    final sheets = [..._workbook.sheets];
+    _recordUndoSnapshot();
+    if (nextLine != null) {
+      sheets[_workbook.activeSheetIndex] = sheet.copyWith(
+        lines: sheet.lines.map((line) {
+          return line.id == objectKey.id ? nextLine! : line.copyWith();
+        }).toList(growable: false),
+      );
+    } else {
+      sheets[_workbook.activeSheetIndex] = sheet.copyWith(
+        shapes: sheet.shapes.map((shape) {
+          return shape.id == objectKey.id &&
+                  fortuneShapeObjectKind(shape) == objectKey.kind
+              ? nextShape!
+              : shape.copyWith();
+        }).toList(growable: false),
+      );
+    }
+    setState(() {
+      _workbook = _workbook.copyWith(sheets: sheets);
       _closeTransientMenus();
     });
     return true;
@@ -45596,7 +46305,12 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
                 hoveredColumnHeaderIndex: _hoveredColumnHeaderIndex,
                 hoveredRowHeaderIndex: _hoveredRowHeaderIndex,
                 activeImageId: _activeImageId,
+                activeObjectKey: _activeObjectKey,
+                objectGestureDraftKey: _typedObjectMoveKey,
+                objectGestureLineDraft: _typedObjectMoveLineDraft,
+                objectGestureShapeDraft: _typedObjectMoveShapeDraft,
                 lineInsertionDraft: _lineInsertionDraft,
+                shapeInsertionDraft: _shapeInsertionDraft,
                 selectedImageIds: _selectedImageIds,
                 activeImageToolbarHoveredCommand:
                     _activeImageToolbarHoveredCommand,

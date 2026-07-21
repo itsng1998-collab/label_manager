@@ -237,6 +237,7 @@ const List<String> labelSheetToolbarItems = [
   fortuneToolbarImageCommand,
   fortuneToolbarBarcodeCommand,
   fortuneToolbarLineCommand,
+  fortuneToolbarShapeCommand,
 ];
 
 const Map<String, int> _labelSheetBarcodeFormatValues = {

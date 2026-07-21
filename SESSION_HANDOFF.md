@@ -1,11 +1,13 @@
-### 진행 중 (2026-07-22): 선·도형 모델·저장·렌더·solid line 생성
+### 진행 중 (2026-07-22): 선·도형 생성·typed selection·geometry gesture
 - `FortuneLine`/`FortuneShape` typed model과 `lines`/`fortuneShapes` codec, raw metadata 수명, invalid wire canonicalization, 중복 ID normalize를 구현했다. LabelSheet feature manifest/sanitizer와 legacy raw `shapes` strict clone도 연결했다.
 - `FortuneSheetObjectKey`/ref 공통 paint order, kind별 ID allocator, finite zOrder와 삽입 headroom 재기준화 helper를 구현했다. `double.maxFinite`에서 기존 공통 순서를 `1..N`으로 재기준화하고 실제 값이 바뀐 kind의 raw list만 폐기한다.
 - 화면 painter가 image/barcode/line/shape typed 공통 zOrder 뒤 legacy raw overlay, 그 뒤 editor overlay 순서로 합성한다. line 4종 pattern과 rectangle/roundedRectangle/ellipse fill/stroke/rotation의 기본 렌더가 연결됐다.
 - LabelSheet print-area save가 line/shape painted footprint로 교차 객체를 선별하고 stroke/rotation bounds로 row/column 범위를 확장한다. line/shape만 있는 파일도 content로 인정한다.
-- LabelSheet toolbar에 solid line command를 추가했다. one-shot insertion mode, editor-only drag preview, 화면 3px 최소 길이, Shift 45도 snap, finite topmost zOrder/ID 예약, undo 1회 commit, 짧은 drag·pointer cancel 재시도와 Escape/right-click/다른 toolbar command 취소를 구현했다.
-- 검증: package codec/order/insertion focused 9건, painter 전체 757건, 루트 save focused 6건 통과. 변경 파일 diagnostics와 `git diff --check`도 통과했다.
-- 다음 순서: shape combo/preset과 rectangle/roundedRectangle/ellipse one-shot 생성 → line/shape hit-test·typed selection → endpoint/resize/rotation gesture → controller/panel/Workbench presentation → mixed clipboard/async output/Hybrid EZPL. `lib/core/app.dart` 사용자 변경은 계속 수정·stage·commit에서 제외한다.
+- LabelSheet toolbar에 line command와 단일 shape combo를 추가했다. combo 본체는 committed geometry preset으로 one-shot insertion을 시작하고 popup geometry/preset command 기반을 연결했다. line/shape editor-only drag preview, 화면 3px 최소 크기, Shift line 45도 snap, finite topmost zOrder/ID 예약, undo 1회 commit과 취소 경계를 구현했다.
+- line/shape 공통 body hit-test와 exact typed active selection, selection handle overlay를 구현했다. body move는 canonical workbook을 pointer move 중 바꾸지 않고 pointer up에서 1회 commit하며 X/left 음수 허용, Y/top 상단 clamp를 적용한다.
+- line endpoint 2개와 shape local-axis resize 8개/rotation handle의 transient draft를 구현했다. endpoint Shift 45도 snap·상단 교점 절단·zero-length 원복, shape opposite world anchor·Shift aspect·상단 연속 경로 제한·3px 최소 commit, rotation Shift 15도 snap을 연결했다. active line/shape arrow 이동은 KeyDown/KeyRepeat별 transaction이며 Shift는 10px, 상단 clamp no-op은 history를 만들지 않는다.
+- 검증: package geometry/order focused 12건, 루트 toolbar 117건, 이전 painter 전체 757건과 루트 save focused 6건 통과. 루트와 `third_party/fortune_sheet` `flutter analyze` 모두 clean이다.
+- 다음 순서: 기존 image-only active/selected/Tab/delete 상태를 `FortuneSheetObjectKey` 기반 단일/다중 selection으로 일반화하고 controller immutable snapshot/listenable/lifecycle 연결 → layer panel/property/context menu → connection mode와 clipboard → capture/Hybrid EZPL. `lib/core/app.dart` 사용자 변경과 `third_party/fortune_sheet/build/` 생성물은 계속 수정·stage·commit에서 제외한다.
 
 ### 완료 (2026-07-21): 선·도형 지시서 재검토 6건 병합
 - 사용자 요청: 최신 구현 대조에서 확인한 structured-empty 잔여 분기, 읽기 전용 객체 권한, barcode pending 이탈, output owner 공개 조정 경계, image picker 오류 귀속과 panel 폭 write 실패 의미를 권장안으로 병합한다.

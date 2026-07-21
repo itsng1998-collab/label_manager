@@ -2285,6 +2285,18 @@ const String fortuneToolbarDataVerificationCommand = 'dataVerification';
 const String fortuneToolbarImageCommand = 'image';
 const String fortuneToolbarBarcodeCommand = 'barcode';
 const String fortuneToolbarLineCommand = 'line';
+const String fortuneToolbarShapeCommand = 'shape';
+const String fortuneToolbarRectangleCommand = 'rectangle';
+const String fortuneToolbarRoundedRectangleCommand = 'rounded-rectangle';
+const String fortuneToolbarEllipseCommand = 'ellipse';
+const String fortuneToolbarShapeInsertCommand = 'shape-insert';
+const List<String> fortuneToolbarShapePopupCommands = [
+  fortuneToolbarRectangleCommand,
+  fortuneToolbarRoundedRectangleCommand,
+  fortuneToolbarEllipseCommand,
+  '|',
+  fortuneToolbarShapeInsertCommand,
+];
 const String fortuneContextEditImageCommand = 'edit-image';
 const String fortuneContextEditBarcodeCommand = 'edit-barcode';
 const String fortuneContextToggleLayerPanelCommand = 'toggle-layer-panel';
@@ -2556,6 +2568,10 @@ const List<String> fortuneToolbarImmediateCommands = [
   fortuneToolbarImageCommand,
   fortuneToolbarBarcodeCommand,
   fortuneToolbarLineCommand,
+  fortuneToolbarShapeCommand,
+  fortuneToolbarRectangleCommand,
+  fortuneToolbarRoundedRectangleCommand,
+  fortuneToolbarEllipseCommand,
   fortuneToolbarSplitColumnCommand,
   fortuneToolbarScreenshotCommand,
   fortuneToolbarSearchCommand,
@@ -43400,6 +43416,11 @@ const Map<String, String> fortuneToolbarTooltipLabels = {
   fortuneToolbarImageCommand: 'Insert image',
   fortuneToolbarBarcodeCommand: 'Insert barcode',
   fortuneToolbarLineCommand: 'Insert line',
+  fortuneToolbarShapeCommand: 'Insert shape',
+  fortuneToolbarRectangleCommand: 'Insert rectangle',
+  fortuneToolbarRoundedRectangleCommand: 'Insert rounded rectangle',
+  fortuneToolbarEllipseCommand: 'Insert ellipse',
+  fortuneToolbarShapeInsertCommand: 'Insert',
   fortuneToolbarCommentCommand: 'Comment',
   fortuneToolbarQuickFormulaPopupKey: 'Auto SUM',
   fortuneToolbarDataVerificationCommand: 'Data verification',
@@ -44764,6 +44785,183 @@ List<FortuneSheetObjectRef> fortuneSheetObjectsInPaintOrder(
         : left.sourceIndex.compareTo(right.sourceIndex);
   });
   return objects;
+}
+
+FortuneSheetObjectKey? fortuneSheetObjectKeyAtLogicalPosition(
+  FortuneSheet sheet,
+  Offset position, {
+  double zoomRatio = 1,
+}) {
+  final effectiveZoom = zoomRatio > 0 && zoomRatio.isFinite ? zoomRatio : 1.0;
+  final objects = fortuneSheetObjectsInPaintOrder(sheet);
+  for (final object in objects.reversed) {
+    if (object.sourceIndex < sheet.images.length) {
+      final image = sheet.images[object.sourceIndex];
+      if (Rect.fromLTWH(
+        image.left,
+        image.top,
+        image.width,
+        image.height,
+      ).contains(position)) {
+        return object.key;
+      }
+      continue;
+    }
+    final lineIndex = object.sourceIndex - sheet.images.length;
+    if (lineIndex < sheet.lines.length) {
+      final line = sheet.lines[lineIndex];
+      final strokeWidth = fortuneMillimetersToLogicalPixels(
+        line.strokeWidthMm,
+      );
+      final tolerance = math.max(
+        5 / effectiveZoom,
+        strokeWidth / 2 + 3 / effectiveZoom,
+      );
+      if (fortuneDistanceToLineSegment(
+            position,
+            Offset(line.x1, line.y1),
+            Offset(line.x2, line.y2),
+          ) <=
+          tolerance) {
+        return object.key;
+      }
+      continue;
+    }
+    final shape = sheet.shapes[lineIndex - sheet.lines.length];
+    final local = fortuneShapeLocalPosition(shape, position);
+    final strokeWidth = fortuneMillimetersToLogicalPixels(shape.strokeWidthMm);
+    final tolerance = math.max(
+      5 / effectiveZoom,
+      strokeWidth / 2 + 3 / effectiveZoom,
+    );
+    final inside = fortuneShapeContainsLocalPosition(shape, local);
+    if (shape.fillColor != null && inside ||
+        fortuneDistanceToShapeBoundary(shape, local) <= tolerance) {
+      return object.key;
+    }
+  }
+  return null;
+}
+
+double fortuneDistanceToLineSegment(Offset point, Offset start, Offset end) {
+  final segment = end - start;
+  final lengthSquared = segment.dx * segment.dx + segment.dy * segment.dy;
+  if (lengthSquared == 0) {
+    return (point - start).distance;
+  }
+  final relative = point - start;
+  final projection = ((relative.dx * segment.dx + relative.dy * segment.dy) /
+          lengthSquared)
+      .clamp(0.0, 1.0);
+  final nearest = start + segment * projection;
+  return (point - nearest).distance;
+}
+
+Offset fortuneShapeLocalPosition(FortuneShape shape, Offset position) {
+  if (shape.rotationDegrees == 0) {
+    return position;
+  }
+  final center = Offset(
+    shape.left + shape.width / 2,
+    shape.top + shape.height / 2,
+  );
+  final angle = -shape.rotationDegrees * math.pi / 180;
+  final delta = position - center;
+  return center +
+      Offset(
+        delta.dx * math.cos(angle) - delta.dy * math.sin(angle),
+        delta.dx * math.sin(angle) + delta.dy * math.cos(angle),
+      );
+}
+
+bool fortuneShapeContainsLocalPosition(
+  FortuneShape shape,
+  Offset position,
+) {
+  final rect = Rect.fromLTWH(
+    shape.left,
+    shape.top,
+    shape.width,
+    shape.height,
+  );
+  switch (shape.kind) {
+    case FortuneShapeKind.rectangle:
+      return rect.contains(position);
+    case FortuneShapeKind.roundedRectangle:
+      final radius = math.min(
+        fortuneMillimetersToLogicalPixels(shape.cornerRadiusMm),
+        math.min(shape.width, shape.height) / 2,
+      );
+      return RRect.fromRectAndRadius(
+        rect,
+        Radius.circular(radius),
+      ).contains(position);
+    case FortuneShapeKind.ellipse:
+      final radiusX = shape.width / 2;
+      final radiusY = shape.height / 2;
+      if (radiusX <= 0 || radiusY <= 0) {
+        return false;
+      }
+      final center = rect.center;
+      final dx = (position.dx - center.dx) / radiusX;
+      final dy = (position.dy - center.dy) / radiusY;
+      return dx * dx + dy * dy <= 1;
+  }
+}
+
+double fortuneDistanceToShapeBoundary(
+  FortuneShape shape,
+  Offset position,
+) {
+  final rect = Rect.fromLTWH(
+    shape.left,
+    shape.top,
+    shape.width,
+    shape.height,
+  );
+  if (shape.kind == FortuneShapeKind.rectangle) {
+    final horizontal = position.dx.clamp(rect.left, rect.right);
+    final vertical = position.dy.clamp(rect.top, rect.bottom);
+    if (rect.contains(position)) {
+      return math.min(
+        math.min(position.dx - rect.left, rect.right - position.dx),
+        math.min(position.dy - rect.top, rect.bottom - position.dy),
+      );
+    }
+    return math.min(
+      (position - Offset(horizontal, rect.top)).distance,
+      math.min(
+        (position - Offset(horizontal, rect.bottom)).distance,
+        math.min(
+          (position - Offset(rect.left, vertical)).distance,
+          (position - Offset(rect.right, vertical)).distance,
+        ),
+      ),
+    );
+  }
+  final path = Path();
+  if (shape.kind == FortuneShapeKind.roundedRectangle) {
+    final radius = math.min(
+      fortuneMillimetersToLogicalPixels(shape.cornerRadiusMm),
+      math.min(shape.width, shape.height) / 2,
+    );
+    path.addRRect(RRect.fromRectAndRadius(rect, Radius.circular(radius)));
+  } else {
+    path.addOval(rect);
+  }
+  var minimum = double.infinity;
+  for (final metric in path.computeMetrics()) {
+    final samples = math.max(24, (metric.length / 2).ceil());
+    for (var index = 0; index <= samples; index += 1) {
+      final tangent = metric.getTangentForOffset(
+        metric.length * index / samples,
+      );
+      if (tangent != null) {
+        minimum = math.min(minimum, (position - tangent.position).distance);
+      }
+    }
+  }
+  return minimum;
 }
 
 String fortuneAllocateObjectId(
@@ -61375,6 +61573,7 @@ const Map<String, List<String>> fortuneToolbarPopupItems = {
   fortuneToolbarQuickFormulaPopupKey: fortuneToolbarFormulaPopupCommands,
   fortuneToolbarLocationConditionCommand: fortuneToolbarLocationPopupCommands,
   fortuneToolbarConditionFormatPopupKey: fortuneConditionFormatTopLevelItems,
+  fortuneToolbarShapeCommand: fortuneToolbarShapePopupCommands,
 };
 
 const List<String> fortuneToolbarLocationPopupCommands = [
@@ -62060,7 +62259,12 @@ class FortuneSheetPainter extends CustomPainter {
     this.hoveredColumnHeaderIndex,
     this.hoveredRowHeaderIndex,
     this.activeImageId,
+    this.activeObjectKey,
+    this.objectGestureDraftKey,
+    this.objectGestureLineDraft,
+    this.objectGestureShapeDraft,
     this.lineInsertionDraft,
+    this.shapeInsertionDraft,
     this.selectedImageIds = const <String>{},
     this.activeImageToolbarHoveredCommand,
     this.activeImageToolbarTooltipPosition,
@@ -62281,7 +62485,12 @@ class FortuneSheetPainter extends CustomPainter {
   final int? hoveredColumnHeaderIndex;
   final int? hoveredRowHeaderIndex;
   final String? activeImageId;
+  final FortuneSheetObjectKey? activeObjectKey;
+  final FortuneSheetObjectKey? objectGestureDraftKey;
+  final FortuneLine? objectGestureLineDraft;
+  final FortuneShape? objectGestureShapeDraft;
   final FortuneLine? lineInsertionDraft;
+  final FortuneShape? shapeInsertionDraft;
   final Set<String> selectedImageIds;
   final String? activeImageToolbarHoveredCommand;
   final Offset? activeImageToolbarTooltipPosition;
@@ -63282,7 +63491,8 @@ class FortuneSheetPainter extends CustomPainter {
     _drawTypedObjects(canvas, size, settings);
     _drawRawShapeOverlays(canvas, size, settings);
     final draft = lineInsertionDraft;
-    if (draft != null) {
+    final shapeDraft = shapeInsertionDraft;
+    if (draft != null || shapeDraft != null) {
       final clip = Rect.fromLTWH(
         _sheetDataLeft(settings),
         _sheetDataTop(settings),
@@ -63294,9 +63504,15 @@ class FortuneSheetPainter extends CustomPainter {
           : workbook.activeSheet.zoomRatio;
       canvas.save();
       canvas.clipRect(clip);
-      _drawFortuneLine(canvas, draft, clip, settings, zoomRatio);
+      if (draft != null) {
+        _drawFortuneLine(canvas, draft, clip, settings, zoomRatio);
+      }
+      if (shapeDraft != null) {
+        _drawFortuneShape(canvas, shapeDraft, clip, settings, zoomRatio);
+      }
       canvas.restore();
     }
+    _drawActiveTypedObjectSelection(canvas, size, settings);
     _drawActiveImageToolbar(canvas, size, settings);
     _drawImageLayerPanel(canvas, size, settings);
     _drawVisibleComments(canvas, size, settings, metrics);
@@ -76633,6 +76849,26 @@ class FortuneSheetPainter extends CustomPainter {
     canvas.clipRect(clip);
     final zoomRatio = sheet.zoomRatio <= 0 ? 1.0 : sheet.zoomRatio;
     for (final object in fortuneSheetObjectsInPaintOrder(sheet)) {
+      if (object.key == objectGestureDraftKey) {
+        if (objectGestureLineDraft != null) {
+          _drawFortuneLine(
+            canvas,
+            objectGestureLineDraft!,
+            clip,
+            settings,
+            zoomRatio,
+          );
+        } else if (objectGestureShapeDraft != null) {
+          _drawFortuneShape(
+            canvas,
+            objectGestureShapeDraft!,
+            clip,
+            settings,
+            zoomRatio,
+          );
+        }
+        continue;
+      }
       if (object.key.kind == FortuneSheetObjectKind.line) {
         final line = sheet.lines[object.sourceIndex - sheet.images.length];
         _drawFortuneLine(canvas, line, clip, settings, zoomRatio);
@@ -76772,6 +77008,114 @@ class FortuneSheetPainter extends CustomPainter {
       _fortuneObjectColor(shape.strokeColor),
     );
     canvas.restore();
+  }
+
+  void _drawActiveTypedObjectSelection(
+    Canvas canvas,
+    Size size,
+    FortuneSettings settings,
+  ) {
+    final key = activeObjectKey;
+    if (key == null) {
+      return;
+    }
+    final sheet = workbook.activeSheet;
+    final zoom = sheet.zoomRatio <= 0 ? 1.0 : sheet.zoomRatio;
+    Offset screenPosition(Offset logical) {
+      return Offset(
+        _sheetDataLeft(settings) + logical.dx * zoom - scrollOffset.dx,
+        _sheetDataTop(settings) + logical.dy * zoom - scrollOffset.dy,
+      );
+    }
+
+    const selectionColor = Color(0xff2f80ed);
+    final outline = Paint()
+      ..color = selectionColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1;
+    final handleFill = Paint()
+      ..color = const Color(0xffffffff)
+      ..style = PaintingStyle.fill;
+    void handle(Offset center) {
+      final rect = Rect.fromCenter(center: center, width: 8, height: 8);
+      canvas.drawRect(rect, handleFill);
+      canvas.drawRect(rect, outline);
+    }
+
+    if (key.kind == FortuneSheetObjectKind.line) {
+      final line = objectGestureDraftKey == key && objectGestureLineDraft != null
+          ? objectGestureLineDraft
+          : sheet.lines.where((candidate) => candidate.id == key.id).firstOrNull;
+      if (line == null) {
+        return;
+      }
+      final start = screenPosition(Offset(line.x1, line.y1));
+      final end = screenPosition(Offset(line.x2, line.y2));
+      canvas.drawLine(start, end, outline);
+      handle(start);
+      handle(end);
+      return;
+    }
+    final shape = objectGestureDraftKey == key && objectGestureShapeDraft != null
+        ? objectGestureShapeDraft
+        : sheet.shapes.where((candidate) {
+            return candidate.id == key.id &&
+                fortuneShapeObjectKind(candidate) == key.kind;
+          }).firstOrNull;
+    if (shape == null) {
+      return;
+    }
+    final center = Offset(
+      shape.left + shape.width / 2,
+      shape.top + shape.height / 2,
+    );
+    final angle = shape.rotationDegrees * math.pi / 180;
+    Offset rotate(Offset point) {
+      final delta = point - center;
+      return center + Offset(
+        delta.dx * math.cos(angle) - delta.dy * math.sin(angle),
+        delta.dx * math.sin(angle) + delta.dy * math.cos(angle),
+      );
+    }
+
+    final left = shape.left;
+    final top = shape.top;
+    final right = shape.left + shape.width;
+    final bottom = shape.top + shape.height;
+    final middleX = (left + right) / 2;
+    final middleY = (top + bottom) / 2;
+    final logicalHandles = <Offset>[
+      Offset(left, top),
+      Offset(middleX, top),
+      Offset(right, top),
+      Offset(left, middleY),
+      Offset(right, middleY),
+      Offset(left, bottom),
+      Offset(middleX, bottom),
+      Offset(right, bottom),
+    ].map(rotate).toList(growable: false);
+    final corners = [
+      logicalHandles[0],
+      logicalHandles[2],
+      logicalHandles[7],
+      logicalHandles[5],
+    ].map(screenPosition).toList(growable: false);
+    final outlinePath = Path()..moveTo(corners.first.dx, corners.first.dy);
+    for (final corner in corners.skip(1)) {
+      outlinePath.lineTo(corner.dx, corner.dy);
+    }
+    outlinePath.close();
+    canvas.drawPath(outlinePath, outline);
+    for (final position in logicalHandles) {
+      handle(screenPosition(position));
+    }
+    final topMiddle = logicalHandles[1];
+    final outward = rotate(Offset(middleX, top - 20 / zoom));
+    final topMiddleScreen = screenPosition(topMiddle);
+    final rotationScreen = screenPosition(outward);
+    canvas.drawLine(topMiddleScreen, rotationScreen, outline);
+    canvas.drawCircle(rotationScreen, 4, handleFill);
+    canvas.drawCircle(rotationScreen, 4, outline);
   }
 
   void _drawFortuneStroke(

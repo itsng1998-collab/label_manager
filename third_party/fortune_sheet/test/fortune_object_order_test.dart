@@ -207,4 +207,85 @@ void main() {
     expect(fortuneImageZOrder(plan.sheet.images.single), 1);
     expect(plan.sheet.lines.single.zOrder, 2);
   });
+
+  test('typed object hit test returns the frontmost exact key', () {
+    final sheet = FortuneSheet(
+      id: 's1',
+      name: 'Objects',
+      lines: const [
+        FortuneLine(id: 'same', x1: 0, y1: 10, x2: 30, y2: 10, zOrder: 1),
+      ],
+      shapes: const [
+        FortuneShape(
+          id: 'same',
+          kind: FortuneShapeKind.rectangle,
+          left: 0,
+          top: 0,
+          width: 30,
+          height: 20,
+          fillColor: '#FFFFFF',
+          zOrder: 2,
+        ),
+      ],
+    );
+
+    expect(
+      fortuneSheetObjectKeyAtLogicalPosition(sheet, const Offset(15, 10)),
+      const FortuneSheetObjectKey(FortuneSheetObjectKind.rectangle, 'same'),
+    );
+  });
+
+  test('empty shape interior passes through to a lower object', () {
+    final sheet = FortuneSheet(
+      id: 's1',
+      name: 'Objects',
+      lines: const [
+        FortuneLine(id: 'line_1', x1: 0, y1: 10, x2: 30, y2: 10, zOrder: 1),
+      ],
+      shapes: const [
+        FortuneShape(
+          id: 'rect_1',
+          kind: FortuneShapeKind.rectangle,
+          left: 0,
+          top: 0,
+          width: 30,
+          height: 20,
+          zOrder: 2,
+        ),
+      ],
+    );
+
+    expect(
+      fortuneSheetObjectKeyAtLogicalPosition(sheet, const Offset(15, 10)),
+      const FortuneSheetObjectKey(FortuneSheetObjectKind.line, 'line_1'),
+    );
+  });
+
+  test('rotated filled shape hit test uses inverse rotation', () {
+    final sheet = FortuneSheet(
+      id: 's1',
+      name: 'Objects',
+      shapes: const [
+        FortuneShape(
+          id: 'rect_1',
+          kind: FortuneShapeKind.rectangle,
+          left: 0,
+          top: 0,
+          width: 20,
+          height: 10,
+          rotationDegrees: 90,
+          fillColor: '#FFFFFF',
+        ),
+      ],
+    );
+
+    expect(
+      fortuneSheetObjectKeyAtLogicalPosition(sheet, const Offset(10, 12)),
+      const FortuneSheetObjectKey(FortuneSheetObjectKind.rectangle, 'rect_1'),
+    );
+    expect(
+      fortuneSheetObjectKeyAtLogicalPosition(sheet, const Offset(25, 5)),
+      isNull,
+    );
+  });
 }

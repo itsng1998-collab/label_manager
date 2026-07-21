@@ -71,6 +71,10 @@ class FortuneToolbarIconPainter {
     'link',
     'image',
     'line',
+    'shape',
+    'rectangle',
+    'rounded-rectangle',
+    'ellipse',
     'import-image',
     'save',
     'barcode',
@@ -108,6 +112,7 @@ class FortuneToolbarIconPainter {
     'comment',
     'quick-formula',
     'locationCondition',
+    'shape',
   };
 
   static void draw(
@@ -320,6 +325,24 @@ class FortuneToolbarIconPainter {
         break;
       case 'line':
         _line(canvas, paint, const Offset(4, 18), const Offset(20, 6));
+        break;
+      case 'shape':
+        canvas.drawRect(const Rect.fromLTWH(4, 5, 16, 14), paint);
+        break;
+      case 'rectangle':
+        canvas.drawRect(const Rect.fromLTWH(4, 5, 16, 14), paint);
+        break;
+      case 'rounded-rectangle':
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(
+            const Rect.fromLTWH(4, 5, 16, 14),
+            const Radius.circular(3),
+          ),
+          paint,
+        );
+        break;
+      case 'ellipse':
+        canvas.drawOval(const Rect.fromLTWH(4, 5, 16, 14), paint);
         break;
       case 'import-image':
         _importImage(canvas, paint);
