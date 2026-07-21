@@ -1,3 +1,10 @@
+### 완료 (2026-07-21): 선·도형 지시서 재검토 6건 병합
+- 사용자 요청: 최신 구현 대조에서 확인한 structured-empty 잔여 분기, 읽기 전용 객체 권한, barcode pending 이탈, output owner 공개 조정 경계, image picker 오류 귀속과 panel 폭 write 실패 의미를 권장안으로 병합한다.
+- 사용자 확정: panel 폭 preference write 실패는 best-effort로 처리한다. 화면 폭은 유지하고 자동 retry·dispose 보관 없이 queue를 계속하며 마지막 성공 write를 저장값으로 사용하고, 이후 성공한 사용자 write가 갱신한다.
+- 연결·권한 보완: 생성/duplicate/copy paste를 options 개수가 아닌 명시적 connection mode로 통일해 structured-empty도 `연결 안 함` 시작과 연결 ID 보존을 유지한다. Workbench의 명시적 객체 편집 입력을 effective `settings.allowEdit`에 반영하고 읽기 전용 item/output preview는 false를 전달한다.
+- async·owner 보완: barcode panel pending 중 LabelSheet close/navigation·label/workbook 교체를 finalize/dirty 판정 전에 차단한다. image picker request/error를 exact image key에 귀속해 다른 form에서 숨긴다. output controller owner 교체는 private State가 아닌 공개 opaque token/capture delegate coordinator로 host가 수행한다.
+- 본문·대표 테스트·구현 순서·완료 조건·확정값을 함께 갱신했다. stage/commit 대상은 `doc/label_line_panel.txt`, `SESSION_HANDOFF.md`만이며 기존 사용자 변경 `lib/core/app.dart`는 제외한다.
+
 ### 완료 (2026-07-21): 선·도형 지시서 잔여 계약 5건 보완
 - 사용자 요청: 최신 재검토에서 구현 결과가 갈리는 structured-empty 연결 mode, 회전 shape panel 크기 의미, panel 폭 저장 순서, 최초 controller attach 순서와 output capture owner 정책의 권장안을 지시서에 병합한다.
 - 사용자 확정: `LabelSheetOutputCaptureController`는 배타적 attach를 사용하고 unit/preview owner 전환은 host의 명시적 expected-old→new 교체 API로 수행한다. 일반 중복 attach는 `StateError`이며 stale old detach가 새 owner를 해제하지 않는다.
