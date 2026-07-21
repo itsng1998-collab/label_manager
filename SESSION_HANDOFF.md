@@ -1,3 +1,11 @@
+### 완료 (2026-07-21): 선·도형 지시서 생성 상단 보정·회전 resize projection 보완
+- 사용자 요청: 최신 geometry 재검토에서 확인한 위쪽 밖 shape 생성 보정 순서와 회전 shape 비-Shift corner 상단 경계 projection 권장안을 지시서에 병합한다.
+- 추가 사용자 확인 불필요: 기존 pointer-down anchor, Shift aspect/snap, opposite world anchor와 rotation 우선 정책으로 결과가 결정된다. bounds 평행 이동, aspect 파괴나 임의의 최근접 projection 같은 새 UX 선택은 추가하지 않았다.
+- 생성 보완 완료: non-Shift shape는 release logical Y를 0으로 제한한 뒤 start와 정규화하고, Shift 정사각형/원은 aspect 제약 뒤 start anchor와 drag 방향을 유지하면서 top 0까지 양축 extent를 함께 단축한 다음 정규화·최소 크기 판정을 수행한다. bounds 전체 평행 이동은 금지했다.
+- resize 보완 완료: drag 시작 signed local extent `p0`에서 현재 unconstrained `p1`까지의 선형 경로를 side crossing별로 나누고, `p0`에서 연속해 저장 top이 0 이상인 최대 `t`를 적용한다. edge/non-Shift corner/Shift corner의 opposite world anchor·rotation·aspect를 유지하며 축별 clamp, 최근접 직교 projection과 경계 밖 구간을 건너뛴 재진입을 금지했다.
+- 테스트·완료 조건·확정값에 위쪽 밖 non-Shift/Shift shape 생성과 30/45/90도 edge/non-Shift corner/Shift corner resize의 결정적 경로를 연결했다.
+- stage/commit 대상: `doc/label_line_panel.txt`, `SESSION_HANDOFF.md`만 포함한다. 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
+
 ### 완료 (2026-07-21): 선·도형 지시서 controller dispose·detached command 경계 보완
 - 사용자 요청: 최신 재검토에서 확인한 `FortuneSheetController` 최종 dispose 상태와 detached public command 결과 권장안을 지시서에 병합한다.
 - 추가 사용자 확인 불필요: 기존 exclusive attach, nullable `_state` 위임의 detached no-op/absent 결과와 host-owned controller 수명 원칙을 유지했다. attached controller를 암묵 detach하거나 detached command를 예외로 바꾸는 새 동작은 추가하지 않았다.
