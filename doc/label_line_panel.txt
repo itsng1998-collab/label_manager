@@ -372,6 +372,7 @@ open line의 pattern offset `0`은 저장된 canonical `x1/y1`에 고정한다. 
 ### 6.5 capture와 PDF
 
 - `captureRangeAsPng()`, screenshot, print capture에 line과 shapes를 포함한다.
+- 일반 screenshot, `captureRangeAsPng()`와 PDF용 capture는 active property draft finalize 직후 호출 시점의 canonical workbook settings, active sheet와 normalized range를 한 번 snapshot한다. cell, image/barcode/line/shape와 legacy raw overlay painter, 반환 sheet/range와 source metrics는 모두 이 동일 snapshot만 사용한다. rasterization·`toImage()`·PNG encoding 대기 중 live workbook mutation, undo/redo 또는 active sheet 변경이 발생해도 capture를 취소하거나 live canvas를 다시 읽지 않으며, capture 완료는 live workbook, selection, revision, undo/redo와 callback을 바꾸지 않는다.
 - crop/origin 변환 뒤에도 화면과 같은 좌표·스타일·zOrder를 사용한다.
 - panel, splitter, 선택 highlight와 endpoint/resize/rotation handle은 포함하지 않는다.
 - PDF 경로는 capture bitmap을 쓰는 경우 해당 결과를 그대로 사용한다. 별도 line/shape layout을 중복 작성하지 않는다.
@@ -543,8 +544,8 @@ x2 += dx, y2 += dy
 
 - 길이와 각도를 유지한다.
 - drag 시작 시 변경 전 `_WorkbookHistorySnapshot` 또는 동등 snapshot을 gesture draft 내부에 로컬로 한 번 캡처하되 undo stack에는 아직 push하지 않는다. owner가 유효하고 geometry가 실제 변경된 pointer up commit 직전에 이 snapshot만 stack에 push하며 cancel·owner 불일치·최소 크기 미달에서는 폐기한다.
-- keyboard arrow는 기존 객체 미세 이동 단위를 사용한다.
-- Shift+arrow는 기존 객체 큰 이동 단위를 사용한다.
+- keyboard arrow는 기존 객체 미세 이동 단위를 사용한다. canvas focus에서 수용한 `KeyDownEvent`와 각 `KeyRepeatEvent`는 독립 이동 command이며 geometry가 실제 변경될 때마다 workbook transaction, undo, `onChange`, `onOp`를 각각 1건 만든다. `KeyUpEvent`는 앞선 반복을 합치거나 새 commit을 만들지 않으며, 상단 clamp 등으로 geometry가 바뀌지 않은 down/repeat도 canonical no-op이다.
+- Shift+arrow는 같은 이벤트별 transaction 경계에서 기존 객체 큰 이동 단위를 사용한다.
 - 기존 이미지 parity에 맞춰 move는 X 음수를 허용하고 전체 geometry의 최소 Y가 `0`보다 작아지지 않게 delta Y만 clamp한다. line은 두 endpoint에 같은 보정 delta를 적용한다.
 
 ### 8.4 끝점 이동
@@ -974,7 +975,7 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - object delete와 source 재검증까지 성공한 object cut은 같은 후속 선택 helper를 사용한다. delete는 command 직전, async cut은 호출 시 캡처한 active exact key의 front-to-back 표시 index를 제거 뒤 남은 목록에 적용해 같은 index를 우선 단일 선택하며, index가 범위를 넘으면 마지막 key를 선택하고 남은 객체가 없으면 active key와 selected set을 비운다. 새 후속 단일 선택 key를 selection anchor로 갱신한다. async cut 대기 중 다른 selection으로 이동했더라도 성공 commit은 호출 시 index를 사용하고, 실패·stale 결과는 source와 현재 selection을 모두 유지한다.
 - object copy/cut marker write는 호출 순서 기준 latest-wins인 하나의 coordinator가 소유한다. 새 copy/cut이 시작되면 이전 pending 요청은 stale이고, 성공 여부와 무관하게 호출 순서상 최신 요청만 commit 자격을 가진다. 이전 요청의 늦은 성공·실패는 source 삭제, selection, 내부 payload, undo/dirty/revision과 callback/listenable을 바꾸지 않는다. 최신 요청이 성공하면 모든 pending write가 정리된 최종 system clipboard marker와 활성 내부 payload는 그 최신 요청 하나에 대응해야 하며, stale OS write가 나중에 완료돼 marker만 과거 요청으로 되돌아가지 않도록 write 직렬화 또는 최신 marker 재확정까지 coordinator가 책임진다. 사용자가 확정한 대로 최신 요청이 실패하면 이전 stale 요청을 다시 활성화하거나 그 cut source를 삭제하지 않고 요청 시작 전의 안정된 활성 payload와 대응 system marker 쌍을 OS clipboard까지 복원하며 workbook도 유지한다.
 - copy paste는 새 typed ID를 만들고 모든 pasted object를 현재 최대 zOrder 뒤에 원래 상대 순서로 추가한다. 해당 kind의 host `imageObjectOptions`/`barcodeObjectOptions`가 비어 있지 않은 구조화 mode에서는 현재 option 목록에서 빠진 stale 연결 ID도 기존 데이터 바인딩으로 보존한다. 해당 kind의 options가 비어 있는 host에서만 legacy/자동 editable 연결 ID를 active sheet의 기존 값과 transaction 예약값을 피해 새로 발급한다. 별도 저장 marker를 추가하거나 ID prefix로 구조화 여부를 추론하지 않는다.
-- duplicate는 clipboard를 읽거나 변경하지 않는 독립 command다. 선택 객체를 즉시 한 번 복제해 새 typed ID와 최상단 zOrder를 주고, 현재 kind host가 구조화 mode이면 stale 값을 포함한 연결 ID를 보존하며 options가 비어 있는 host의 editable 연결 ID만 새로 발급한다. 전체 command는 undo 1건이다.
+- duplicate는 clipboard를 읽거나 변경하지 않는 독립 command다. mixed 선택 source는 selected set의 삽입 순서나 kind별 저장 배열 순서가 아니라 공통 back-to-front `fortuneSheetObjectsInPaintOrder()`에서 exact selected key만 필터링해 얻는다. 선택 객체를 이 순서대로 즉시 한 번씩 복제해 새 typed ID와 연속된 최상단 zOrder를 주고 복제본끼리 원본의 상대 paint order를 유지하며, 마지막 frontmost 복제본을 active key로 지정한다. 현재 kind host가 구조화 mode이면 stale 값을 포함한 연결 ID를 보존하며 options가 비어 있는 host의 editable 연결 ID만 새로 발급한다. 전체 command는 undo 1건이다.
 - copy paste와 duplicate는 기존 이미지 동작과 같은 logical `(+12, +12)` offset을 사용한다. line은 두 endpoint, shape/image/barcode는 left/top에 같은 delta를 적용하고 Y 상단 clamp를 적용한다.
 - cut paste는 사용자가 확정한 대로 geometry offset 없이 원래 위치를 유지하고 image/barcode 연결 ID도 보존한다. source sheet와 target sheet가 같으면 cut token이 유효하고 source typed key가 현재 부재할 때만 원본 typed ID를 유지한다. 다른 sheet이면 target의 typed key와 같은 transaction 예약 ID를 검사하며, 충돌이 없으면 원본 ID를 유지하고 충돌하면 target 기존 객체를 보존한 채 pasted 객체에 첫 충돌 없는 새 typed ID를 발급한다. 단순 ID 일치만으로 현재 target 객체를 제거하지 않는다.
 - cut token은 source sheet ID, cut commit 직후 package-owned per-sheet canonical revision과 undo/redo·외부 workbook 교체 때 바뀌는 history-lineage generation으로 구성한다. cut 삭제 transaction이 source sheet revision을 한 번 증가시킨 뒤 그 값을 캡처한다. 단순 sheet 전환과 다른 sheet의 후속 편집은 token을 바꾸거나 payload를 무효화하지 않는다. source sheet의 후속 cell/object canonical mutation 또는 history-lineage generation 변경으로 token이 달라지면 내부 cut payload를 무효화한다. 성공한 cut paste는 payload를 즉시 소비하고, 권한·형식·target 충돌 검증 등으로 workbook을 바꾸지 못한 paste는 payload를 유지한다.
@@ -1147,6 +1148,7 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - image/barcode 생성 성공의 새 typed ID, 구조화 option/legacy effective ID/연결 안 함별 metadata, 공통 최상단 zOrder·새 객체 단일 선택·회전 visual bounds 기준 최소 reveal·overlay 제외·oversize left/top 정렬과 undo/`onChange`/`onOp`/dirty 횟수
 - image/barcode 생성 취소·validation 실패·renderer 실패의 workbook/selection/panel/undo/dirty/change callback 불변
 - body drag가 두 endpoint를 같은 delta로 이동
+- canvas focus에서 `ArrowRight KeyDown → KeyRepeat ×2 → KeyUp`은 미세 이동 3 step, undo/`onChange`/`onOp` 각 3건을 만들고 KeyUp 추가 commit은 0회이며 undo마다 1 step씩 복원함. Shift 조합은 같은 이벤트별 경계에서 큰 이동 단위를 사용하고 clamp로 실제 변화 없는 down/repeat은 transaction 0회임
 - endpoint drag와 Shift snap
 - endpoint drag의 Y 상단 clamp와 Shift snap 방향을 유지한 `y=0` 교점 절단
 - zoom `0.5`와 `2.0`에서 line 생성은 화면 2.9px를 거부하고 3.1px를 허용하며, 생성 후 endpoint drag/panel commit은 같은 zoom에서 화면 3px 미만이어도 logical 길이가 0보다 크면 보존하고 정확히 0만 원복함
@@ -1167,7 +1169,7 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - mixed image/barcode/line/shape cut은 clipboard marker 기록 성공과 source owner/revision/exact model/권한 재검증 뒤에만 삭제와 undo 1건, paste는 별도 undo 1건, copy paste와 독립 duplicate는 새 typed ID 발급
 - mixed internal payload가 canonical typed model deep clone으로 source 후속 mutation과 독립되고 package-owned extra metadata를 보존하며, stale raw-list wire와 LabelSheet save sanitizer가 paste model을 덮어쓰지 않음. 지원하지 않는 payload version/kind는 workbook/selection/payload/undo/dirty/callback을 바꾸지 않음
 - 신규/복제/paste allocator의 기존 typed ID와 같은 transaction 예약 ID 충돌 회피
-- duplicate가 기존 clipboard를 유지하면서 새 typed ID·최상단 zOrder·`(+12,+12)` offset을 적용하고 구조화 연결 ID는 보존, editable 연결 ID는 재발급하며 undo 1건 생성
+- duplicate가 기존 clipboard를 유지하면서 새 typed ID·최상단 zOrder·`(+12,+12)` offset을 적용하고 구조화 연결 ID는 보존, editable 연결 ID는 재발급하며 undo 1건 생성. 선택 입력 순서와 kind별 저장 배열 순서를 공통 paint order와 다르게 둔 mixed image/barcode/line/shape 및 same-zOrder tie fixture에서도 source를 공통 back-to-front 순서로 복제해 상대 paint order를 유지하고 마지막 frontmost 복제본을 active로 지정함
 - copy paste의 새 typed ID·`(+12,+12)` offset, 구조화 연결 ID 보존·editable 연결 ID 재발급과 cut paste의 원래 geometry·연결 ID 유지
 - object copy/cut marker가 현재 system clipboard와 일치할 때만 mixed payload를 paste하고, 이후 외부 text copy로 marker가 달라지면 stale object paste를 하지 않고 기존 cell/text paste 경로에 제어를 넘김
 - Ctrl/Meta+V coordinator가 clipboard를 한 번만 읽고 marker 일치 시 object paste, 불일치 시 같은 data의 기존 cell/text paste를 각각 정확히 한 번만 실행함
@@ -1287,6 +1289,7 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 ### 15.7 capture/출력 테스트
 
 - capture PNG에 line/shapes 포함, 모든 editor handle/panel 제외
+- 일반 capture의 raster/PNG 완료를 지연한 뒤 호출 시점 sheet A/range의 cell/object를 변경하거나 undo·active sheet B 전환을 실행해도 PNG, 반환 sheet/range와 PDF source metrics가 최초 canonical snapshot 기준이고 capture 완료가 live workbook/history/revision/callback을 바꾸지 않음
 - crop origin이 있는 capture의 endpoint 위치
 - 양 endpoint가 crop 반대편 밖인 교차 line과 중심선은 밖이지만 stroke만 crop에 닿는 line의 보존/pixel 결과
 - crop origin과 회전이 있는 shape 위치
@@ -1343,7 +1346,7 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 3. typed object key/ref, exact-key resolver/mutation, 중복 ID normalize/allocator와 finite zOrder 정렬·정규화 helper를 추가한다.
 4. line/shape 공용 geometry/stroke helper와 화면/capture painter를 추가한다. 짧은 closed pattern의 첫 mark 우선·no-wrap·후속 seam exclusion과 typed 공통 object layer 뒤의 legacy raw overlay 합성 순서를 같은 painter/capture helper에서 고정한다.
 5. toolbar shape combo, geometry kind별 stroke/fill/radius preset과 transient gesture draft 기반 line/shape drag 생성을 추가한다.
-6. line hit-test, 단일 선택, 본체 이동, endpoint handle과 keyboard 이동을 추가한다.
+6. line hit-test, 단일 선택, 본체 이동, endpoint handle과 keyboard 이동을 추가한다. object arrow는 수용한 KeyDown/KeyRepeat별 독립 command로 연결하고 KeyUp 및 clamp no-op에서 transaction을 만들지 않는다.
 7. shape hit-test, 본체 이동, local-axis 8방향 resize와 opposite world anchor 고정, rotation handle과 keyboard 이동을 추가한다.
 8. 기존 image layer selection state를 typed object selection으로 일반화하고 기존 image/barcode geometry drag도 transient gesture commit 경계로 전환한 뒤 기존 회귀 테스트를 통과시킨다.
 9. 공통 object layer list와 단일/다중 선택 상태를 immutable snapshot/public listenable이 있는 exclusive-attach package controller로 노출한다. active/selected 불변식, pointer/keyboard 공용 exact-key range anchor와 delete/successful-cut 후속 선택 helper를 먼저 연결한다. controller 교체는 new attach 가능 여부를 먼저 검증하고 실제 owner를 추적하며, 실제 op transaction의 `onChange`→`onOp`→listenable과 외부 replacement의 `onChange`→listenable 통지 순서를 각각 연결한다.
@@ -1351,8 +1354,8 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 11. line/shape property form과 타입별 context menu를 연결한다. property spinner/drag는 owner를 캡처한 transient preview와 end의 변경값 1회 commit 경계를 사용하고 왕복·cancel·stale owner를 canonical no-op으로 처리한다.
 12. 기존 image/barcode effective 연결값의 trim/case-insensitive 병합·label 판정과 공통 source validation/commit, linked image 해제의 새 파일 필수 조건, panel image picker의 exact-key owner/token 검증과 exact-key barcode pending draft/error·rotation/latest-request render/metadata 보존을 공용 API로 추출하고 panel form을 연결한다. panel 후보 입력은 options·legacy IDs·현재 선택 객체/draft 값으로 한정하고 이미지 생성 dialog의 active-sheet ID 확장은 별도 adapter로 유지한다. panel UI 목록 instance나 dialog presentation까지 공유할 필요는 없다. 신규 structured source를 선택하는 생성 dialog는 현재 option 일치를 계속 요구하지만, panel은 기존 객체의 option 미일치 ID/source를 사용자가 바꾸지 않은 commit에서 보존하는 명시적 편집 호환 분기를 사용한다. host option update는 draft 문자열/identity를 유지하면서 최신 metadata, unchanged canonical stale 보존과 changed-missing validation을 구분하고, barcode Apply는 validation을 통과한 effective metadata와 renderer를 request snapshot에 고정한다.
 13. package widget의 app-neutral `open`/`close` presentation request와 Workbench가 되돌리는 immutable `hidden`/`dock`/`overlay` snapshot을 먼저 연결한다. 그 위에 `LabelSheetWorkbench`의 splitter, panel width clamp, 접기와 narrow overlay fallback을 연결한다. panel controller/draft를 presentation보다 상위에 유지하고 동일 snapshot·경계 전환의 request echo와 자동 open/focus 이동을 막으며 dock에서는 legacy floating panel, narrow overlay에서는 active object toolbar를 paint/hit-test하지 않는다.
-14. clipboard 단일 async paste coordinator의 호출 시점 target owner snapshot, 호출 순서 latest-wins인 copy/cut marker write coordinator와 marker 기록 성공 뒤 source owner/model을 재검증하는 cut transaction, canonical typed deep-clone mixed payload, reorder, package-owned per-sheet revision과 모든 object zOrder insertion 경로를 마무리한다.
-15. 일반 capture/PDF 동작을 유지한 채 Hybrid EZPL coordinator의 package-neutral immutable transform DTO/native 후보·최종 render plan, canonical physical cell-border edge key와 exact object/edge filtered print capture API를 추가한다. app resolved layout에서 transform DTO를 한 번 만들고 `LabelSheetOutputCaptureController`의 app-facing Hybrid unit API를 연결한다. 다중 발행 EZPL host의 선행 일반 capture를 제거한 뒤 coordinator 단일 진입점에서 package 후보→app EZPL preflight descriptor→package 최종 plan→최초 canonical snapshot 기준 filtered capture→승인 descriptor native command 생성 순서와 실패 후보의 bitmap 유지, zOrder/fallback을 검증한다.
+14. clipboard 단일 async paste coordinator의 호출 시점 target owner snapshot, 호출 순서 latest-wins인 copy/cut marker write coordinator와 marker 기록 성공 뒤 source owner/model을 재검증하는 cut transaction, canonical typed deep-clone mixed payload, reorder, package-owned per-sheet revision과 모든 object zOrder insertion 경로를 마무리한다. mixed duplicate도 같은 공통 back-to-front paint-order source projection으로 복제본 상대 순서와 frontmost active를 정한다.
+15. 일반 screenshot/PNG/PDF capture가 호출 시점 canonical settings/sheet/range snapshot만 painter와 반환 metadata에 사용하도록 먼저 고정한 뒤 Hybrid EZPL coordinator의 package-neutral immutable transform DTO/native 후보·최종 render plan, canonical physical cell-border edge key와 exact object/edge filtered print capture API를 추가한다. app resolved layout에서 transform DTO를 한 번 만들고 `LabelSheetOutputCaptureController`의 app-facing Hybrid unit API를 연결한다. 다중 발행 EZPL host의 선행 일반 capture를 제거한 뒤 coordinator 단일 진입점에서 package 후보→app EZPL preflight descriptor→package 최종 plan→최초 canonical snapshot 기준 filtered capture→승인 descriptor native command 생성 순서와 실패 후보의 bitmap 유지, zOrder/fallback을 검증한다.
 16. 루트 app package와 `third_party/fortune_sheet` package에서 변경 범위의 focused test와 기존 회귀 test를 각각 실행하고, 두 package context의 `flutter analyze`를 모두 실행한다. 변경 파일 diagnostics와 `git diff --check`도 실행한다.
 17. 테스트 생성물과 임시 파일을 정리한 뒤 요청 범위 파일만 stage/commit한다.
 
@@ -1384,7 +1387,7 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - line 본체와 endpoint hit-test가 얇은 선에서도 안정적으로 동작한다.
 - 단일 active object의 표시 handle은 상위 zOrder object body보다 먼저 hit되고, body끼리는 공통 paint order 역순을 따른다.
 - 기존 겹친 이미지 `Tab`/`Shift+Tab` selection은 canvas focus에서 image/barcode/line/shape 공통 paint order와 active geometry 중심 probe로 일반화하며 selection listenable만 통지하고 workbook transaction을 만들지 않는다. panel/editor focus의 Tab은 기존 traversal이 소유한다.
-- line body 이동, endpoint 이동, Shift snap과 keyboard 이동이 undo 1건 단위로 동작한다.
+- line body 이동과 endpoint 이동은 pointer gesture별, keyboard 이동은 수용한 KeyDown/KeyRepeat별 undo 1건 단위로 동작한다. KeyUp은 반복 이동을 합치지 않고 clamp로 실제 변화가 없는 key event는 no-op이다.
 - line 생성은 화면 기준 3px 최소를 지키고 생성 후 endpoint drag와 panel commit은 zero-length만 거부해 0보다 큰 짧은 기존 line을 보존한다.
 - endpoint 이동은 Y 상단 경계를 지키며 Shift snap이 상단과 교차해도 45도 방향을 유지한다.
 - 폐쇄 도형 내부/테두리 hit-test, move, 8방향 resize, rotation과 modifier snap이 undo 1건 단위로 동작한다.
@@ -1455,8 +1458,9 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - async cut은 marker 기록 성공 후 호출 시점 source owner/revision/exact canonical models와 권한이 모두 유지될 때만 삭제와 payload 활성화를 commit하고, selection/panel 변경 외의 source 변경에서는 완전한 no-op이다.
 - same-sheet cut paste는 원본 typed ID를 유지하며 cross-sheet 충돌은 target 객체를 보존하고 pasted 객체 ID를 재발급한다.
 - cut paste는 원래 geometry와 image/barcode 연결 ID를 유지한다. copy paste와 clipboard 독립 duplicate는 `(+12,+12)` offset과 새 typed ID를 사용하되 구조화 option 연결 ID는 보존하고 option 없는 host의 editable 연결 ID만 재발급한다.
-- stale cut payload는 source history 변경 시 무효화되고 성공한 cut paste 뒤 소비되며, 성공한 duplicate/paste는 새 객체만 선택하고 frontmost를 active로 둔다.
+- stale cut payload는 source history 변경 시 무효화되고 성공한 cut paste 뒤 소비된다. mixed duplicate는 선택 source를 공통 back-to-front paint order로 투영해 그 상대 순서대로 최상단에 추가하고, 성공한 duplicate/paste는 새 객체만 선택하며 마지막 frontmost 복제/붙여넣기 객체를 active로 둔다.
 - capture/PDF/EZPL에 line/shapes가 포함되고 editor handle/panel이 출력되지 않는다.
+- 일반 screenshot/PNG/PDF capture는 finalize 직후 호출 시점의 canonical settings/sheet/normalized range snapshot으로 끝까지 완료하고 비동기 raster/encoding 중 live mutation·undo/redo·sheet 전환을 추종하거나 capture 자체로 live state를 바꾸지 않는다. 반환 sheet/range와 source metrics도 같은 snapshot을 사용한다.
 - `sheet.lines`, `sheet.fortuneShapes` feature key, allow-list, migration과 테스트가 함께 갱신되고 기존 raw overlay `shapes` wire는 유지된다.
 - `.lms` 초기 로드, 라벨 파일에서 불러오기와 `.xlsx` import가 모두 현재 save format migrate/normalize 경계를 거치며, XLSX drawing은 line/shape로 추론하지 않는다.
 - `.lms`는 decoder 내부 migrate→sanitize→decode를 한 번만 사용하고 `.xlsx` raw parser는 LabelSheet 적용 경계에서만 normalize한다.
@@ -1510,6 +1514,7 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - settings-only `allowEdit` true→false: canonical replacement가 아니며 새 permission만 수용, 일반 draft/error commit 없이 폐기·callback identity 종료, pending cut/paste/picker/renderer 무효화와 pending copy 유지, mutation dialog와 style/color/insertion popup의 표준 focus 복원 후 즉시 닫기, 열린 object menu의 focus scope/Escape 소유권 유지와 disabled 재구성, selection/active key/panel open과 canonical content·workbook identity/history lineage·undo/dirty/revision 유지, canonical callback 0회와 최종 read-only controller/listenable 1회. false→true도 폐기 상태 복원 없이 mutation enablement snapshot listener 1회와 canonical callback 0회
 - read-only object context menu: secondary click selection과 기존 menu 유지, mutation 항목 disabled+실행 guard 유지, 신규 copy 항목 없음, Ctrl/Meta+C object copy와 property text selection·Ctrl/Meta+A/C 허용
 - geometry drag undo: 시작 시 변경 전 snapshot을 gesture draft에만 보관, 유효 pointer-up commit 직전에만 stack push, cancel/owner 불일치/최소 크기 미달은 폐기
+- object keyboard 이동 undo: canvas focus의 수용한 KeyDown/각 KeyRepeat별 실제 변경 transaction 1회, KeyUp과 clamp no-op은 transaction 0회
 - interaction 화면 px: Flutter logical pixel, `logicalExtent * effectiveZoom` 판정, DPR 제외
 - 생성 auto-scroll: pointer move event 기반 공용 helper 재사용, next scroll offset으로 logical pointer 재계산, timer 연속 scroll 제외
 - viewport 밖 생성 release: 실제 pointer-up local 위치를 현재 scroll로 logical 변환, up 시 추가 auto-scroll 없음, 음수 X·right/bottom 초과 허용과 Y/top `0` 보정
@@ -1552,9 +1557,11 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - Hybrid EZPL 합성: host는 일반 PNG를 먼저 capture하지 않고 output coordinator 단일 API를 호출하며, package 후보→app command preflight descriptor→package exact object/canonical physical border-edge 최종 plan을 filtered capture 전에 확정하고 같은 immutable plan/descriptor를 capture와 native encode에 공유, 미승인 key bitmap 유지와 임시 workbook mutation·전체 border 제외·사후 pixel 삭제 금지
 - Hybrid async snapshot: plan 확정 뒤 live workbook 변경과 무관하게 최초 canonical snapshot을 filtered capture/native encoder/반환 결과가 끝까지 공유하고 live canvas 재조회 금지
 - 다중 발행 Hybrid API: EZPL unit이 active일 때 `LabelSheetOutputCaptureController.captureHybridEzpl(metrics, options, lineSpacingPercent)`로 bytes, 동일 canonical sheet/range snapshot과 source 크기가 반영된 resolved metrics/page spec을 저장하고 grouping은 unit별 bytes만 연결, PDF는 기존 `capture()` 유지
+- 일반 capture async snapshot: property finalize 직후 호출 시점 canonical settings/sheet/normalized range를 screenshot/PNG/PDF painter·반환 sheet/range·source metrics가 공유하고 완료 전 live mutation·undo/redo·sheet 전환을 재조회하거나 취소 사유로 사용하지 않음
 - object clipboard: versioned opaque system clipboard marker가 내부 payload marker와 일치할 때만 object paste, 불일치는 같은 단일-read coordinator에서 기존 cell/text paste 1회 실행
 - internal object payload: package canonical typed model deep clone, 필요 시 versioned package typed-object codec, LabelSheet save sanitizer/raw-list wire 미사용
 - object clipboard write 경쟁: 성공 여부와 무관한 copy/cut 호출 순서 latest-wins, stale 완료의 source/internal state no-op, 최신 성공 시 해당 요청의 system marker·활성 payload 일치, 최신 실패 시 요청 전 안정된 payload·대응 marker OS 복원과 stale 요청 재활성화 금지
+- mixed duplicate 순서: 공통 back-to-front paint order에서 selected exact key만 필터링, 같은 상대 순서의 연속 최상단 zOrder와 마지막 frontmost active
 - property draft 후 command undo: valid finalize와 후속 mutation은 독립 transaction/undo, read-only command는 finalize만, invalid/no-draft finalize는 transaction 없음
 - property spinner/drag: update는 owner-bound transient preview와 canonical notification 0회, 유효 변경 end만 transaction/undo 1회, 명시적 command는 기존 finalize 규칙, `allowEdit` 하강은 commit 없는 폐기 우선, 시작값 왕복·cancel·stale owner/end는 canonical no-op
 - async paste target: key event 호출 시점 workbook/history/sheet/selection을 캡처하고 clipboard read 뒤 owner 또는 selection 변경 시 object와 cell/text paste 모두 no-op

@@ -1,3 +1,12 @@
+### 완료 (2026-07-21): 선·도형 지시서 key repeat·mixed duplicate·일반 capture snapshot 보완
+- 사용자 요청: 최신 `doc/label_line_panel.txt` 재검토에서 확인한 object keyboard 반복 이동, mixed duplicate source 순서와 일반 PNG/PDF capture 비동기 snapshot 권장안을 병합한다.
+- 추가 사용자 확인 불필요: 현재 KeyDown/KeyRepeat 처리, image-only duplicate의 paint-order 순회와 Hybrid에 이미 확정된 immutable output 원칙을 일반화했으며 key-hold grouping이나 live-state 추종 같은 새 동작은 추가하지 않았다.
+- keyboard 보완 완료: canvas focus의 수용한 KeyDown과 각 KeyRepeat은 실제 geometry 변경 시 독립 transaction/undo/callback 1회이고 KeyUp과 clamp no-op은 transaction 0회다.
+- duplicate 보완 완료: mixed source는 공통 back-to-front paint order에서 selected exact key만 필터링하고 같은 상대 순서의 연속 최상단 zOrder로 복제하며 마지막 frontmost 복제본을 active로 둔다.
+- capture 보완 완료: 일반 screenshot/PNG/PDF는 property finalize 직후 호출 시점 canonical settings/sheet/normalized range snapshot을 painter, 반환 sheet/range와 source metrics가 공유한다. 비동기 raster/encoding 중 live mutation·undo/redo·sheet 전환을 추종하거나 취소하지 않고 capture 완료도 live state를 바꾸지 않는다.
+- 테스트 계약 보완 완료: KeyDown+Repeat별 undo, mixed same-zOrder/선택 순서 교란 duplicate, 지연 capture 중 live mutation·undo·sheet 전환을 판별한다.
+- stage/commit 대상: `doc/label_line_panel.txt`, `SESSION_HANDOFF.md`만 포함한다. 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
+
 ### 완료 (2026-07-21): 선·도형 지시서 legacy overlay·closed pattern·property spinner 보완
 - 사용자 요청: 최신 `doc/label_line_panel.txt` 재검토에서 확인한 legacy raw overlay 합성 순서, 짧은 폐쇄 pattern과 property spinner/drag 수명 권장안을 병합하고 필요한 정책을 즉시 확정한다.
 - 사용자 확정: 폐쇄 도형 둘레가 짧아 첫 mark와 seam `2w` gap을 함께 만족할 수 없으면 첫 mark를 우선한다. offset `0`의 첫 mark는 wrap 없이 한 번만 만들고, 첫 dot은 지름 전체가 들어갈 때만 표시하며 seam exclusion은 후속 terminal mark에만 적용한다.
