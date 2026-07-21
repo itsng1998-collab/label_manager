@@ -1,3 +1,11 @@
+### 완료 (2026-07-21): 선·도형 지시서 crop 범위·splitter preference 수명 보완
+- 사용자 요청: 최신 `doc/label_line_panel.txt` 재검토에서 확인한 crop UI 사실성, panel 폭 preference 비동기 수명과 splitter drag-start 경계 권장안을 병합하고 필요한 정책은 즉시 확정한다.
+- 사용자 확정: 현재 코드에 재사용할 crop 전용 dialog가 없으므로 이미지 crop UI와 panel crop button은 이번 구현 범위에서 제외한다. 기존 crop metadata는 일반 panel 편집·파일 교체·복제·clipboard·codec round-trip에서 원형 보존하고 canvas crop mode/전용 작업면은 후속 범위로 둔다.
+- preference 수명 보완 완료: workbench당 load 1회, load 전 기본 300px local clamp, load 뒤 선행 사용자 drag/reset 우선, generation·mounted 검증과 적용 시 local re-clamp를 명시했다. drag update는 write하지 않고 시작 폭과 다른 최종 폭이 남은 end와 double-click reset에서만 1회 저장하며 cancel은 시작 폭으로 복원하고 저장하지 않는다. save 실패는 화면 폭을 rollback하지 않고 연속 save는 완료 순서와 무관하게 마지막 사용자 폭을 남긴다.
+- splitter API 경계 보완 완료: 공용 splitter의 기존 update API를 유지하면서 optional start/end/cancel/double-click lifecycle 또는 동등 경계를 owner에 제공한다. Workbench는 start에서 popup/tooltip만 정확히 한 번 닫고 draft/canonical 상태를 유지하며 end에서 preference를 한 번 저장한다. 기존 공용라벨관리·라벨출력 호출부는 callback 미지정 상태로 종전 동작을 유지한다.
+- 테스트 계약 보완 완료: crop command 부재와 metadata 보존, 지연 load 대 사용자 입력 경쟁, drag update/end/cancel/reset write 횟수, 역순 save·실패·dispose, gesture callback 순서와 기존 호출부 호환을 판별한다.
+- stage/commit 대상: `doc/label_line_panel.txt`, `SESSION_HANDOFF.md`만 포함한다. 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
+
 ### 완료 (2026-07-21): 선·도형 지시서 selection anchor·후속 선택 보완
 - 사용자 요청: 최신 `doc/label_line_panel.txt` 재검토에서 확인한 active/selected 불변식, Shift 범위 anchor와 delete/cut 후속 선택 권장안을 병합하고 필요한 정책은 즉시 확정한다.
 - 추가 사용자 확인 불필요: 기존 panel의 마지막 선택 toggle 유지, pointer 복합 modifier 우선순위, Ctrl+A frontmost 선택과 delete의 표시 index clamp 동작을 기준으로 통일했다. additive range 같은 신규 UX는 추가하지 않고 keyboard Ctrl/Meta layer command chord도 유지했다.

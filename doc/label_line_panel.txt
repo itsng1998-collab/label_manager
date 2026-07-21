@@ -7,7 +7,7 @@
 - endpoint 기반 직선은 `FortuneLine`과 `FortuneSheet.lines`, bounds 기반 사각형·둥근 사각형·타원은 `FortuneShape`와 `FortuneSheet.shapes`로 분리 저장한다. 이미지로 rasterize해 저장하거나 `FortuneImage.extraFields`에 geometry를 억지로 넣지 않는다.
 - 이미지·바코드·직선·폐쇄 도형의 선택, Z-Order, 레이어 목록과 공통 명령은 런타임 공통 객체 참조로 통합한다. 공통 참조는 저장 포맷이 아니며 각 typed model의 소유권을 없애지 않는다.
 - 직선과 폐쇄 도형의 화면 렌더, PNG capture, PDF와 EZPL 출력은 같은 geometry/style 해석을 사용한다. 미리보기와 실물 출력에 서로 다른 테두리 패턴·두께·채우기·Z-Order를 만들지 않는다.
-- 기존 이미지·바코드 생성 다이얼로그는 유지한다. 기존 객체의 일상적인 속성 편집만 오른쪽 객체 패널로 옮기고, 이미지 파일 선택은 panel button으로 실행하며 자르기처럼 별도 작업면이 필요한 기능은 기존 전용 다이얼로그를 유지한다.
+- 기존 이미지·바코드 생성 다이얼로그는 유지한다. 기존 객체의 일상적인 속성 편집만 오른쪽 객체 패널로 옮기고 이미지 파일 선택은 panel button으로 실행한다. 현재 전용 작업면이 없는 이미지 crop UI는 이번 범위에서 제외하고 기존 crop metadata만 보존한다.
 - 현재 레이어 패널의 다중 선택, 키보드 명령, 복사·붙여넣기와 Z-Order 이동 동작을 퇴행시키지 않는다.
 - 객체는 특정 cell range에 귀속되지 않으므로 모든 object mutation의 공통 권한은 workbook `allowEdit`만 사용한다. 현재 cell selection의 protection/locked 상태로 객체 명령 허용 여부를 바꾸지 않는다.
 - workbook 변경만 dirty/undo 대상이다. 패널 열림 상태, 패널 폭, splitter drag와 내부 스크롤은 workbook에 저장하지 않고 dirty 또는 undo를 만들지 않는다.
@@ -650,7 +650,6 @@ x2 += dx, y2 += dy
 - 폭/높이
 - 비율 유지
 - 회전
-- 자르기 진입
 
 바코드:
 
@@ -750,7 +749,7 @@ shape 위치/크기/회전 field는 canvas handle과 같은 geometry commit API�
 - 기존 객체의 일반 편집은 panel로 이전한다.
 - 이미지 파일 교체는 panel의 파일 선택 button을 사용한다.
 - panel 이미지 파일 교체도 호출 시 `sheetId`, image exact typed key, workbook identity/history generation, per-sheet/object revision과 증가하는 picker token을 캡처한다. picker 대기 중 selection 변경은 허용하되 성공 결과는 원래 exact key에만 귀속한다. 반환 직전 owner/revision/token과 `allowEdit`를 다시 확인하고 원 객체 삭제·교체·ID 변경, undo/redo·외부 workbook 교체 또는 더 최신 picker 호출 뒤의 결과는 decoded resource를 정리하고 workbook/draft/selection을 바꾸지 않는다. 현재 active image로 대상을 바꾸거나 같은 ID의 새 객체에 적용하지 않는다.
-- 이미지 crop처럼 별도 canvas가 필요한 기능은 panel button에서 기존 전용 dialog를 열 수 있다.
+- 이미지 crop UI는 이번 구현 범위에서 제외하고 panel에 crop button이나 존재하지 않는 전용 dialog 진입점을 추가하지 않는다. 기존 image의 `extraFields['crop']`과 관련 metadata는 panel의 일반 속성 편집·파일 교체·복제·clipboard round-trip·codec save/load에서 원형 보존하며, crop UI가 없다는 이유로 제거·초기화하거나 좌표를 재계산하지 않는다. canvas crop mode 또는 전용 작업면은 후속 범위다.
 
 ### 10.2 중복 구현 금지
 
@@ -835,6 +834,8 @@ nextPanelWidth = currentPanelWidth - delta.dx
 - 접기와 다시 열기는 마지막 폭을 보존한다.
 - splitter double-click은 기본 300px로 복원한다.
 - panel 폭은 `SharedPreferences`의 LabelSheet UI 전용 key에 저장하고 다음 workbench에서 복원한다. 저장값도 현재 local constraint로 다시 clamp하며 workbook save JSON에 넣지 않는다.
+- preference load는 workbench 수명당 한 번 시작하고 완료 전에는 기본 300px을 현재 local constraint로 clamp해 사용한다. load 시작 뒤 사용자가 splitter drag를 시작하거나 double-click reset을 실행했으면 그 사용자 값을 우선하고 늦은 load 결과를 폐기한다. load 결과는 같은 workbench load generation이고 아직 사용자가 폭을 바꾸지 않았으며 `mounted`일 때만 현재 local constraint로 clamp해 적용한다.
+- splitter drag update는 메모리의 panel 폭과 layout만 즉시 갱신하고 preference write를 만들지 않는다. drag 시작 폭과 다른 최종 panel 폭이 남은 end에서만 최종 폭을 한 번 저장하고, delta 없는 start→end와 원래 폭으로 왕복한 drag는 저장하지 않는다. cancel은 preview 폭을 drag 시작 폭으로 복원하고 저장하지 않는다. double-click reset은 300px을 현재 local constraint로 clamp해 적용한 뒤 한 번 저장한다. 저장 실패나 widget dispose는 현재 화면 폭을 rollback하지 않으며 dispose 뒤 state를 갱신하지 않는다. 연속 gesture/reset 저장은 직렬화하거나 증가하는 save generation을 사용해 완료 순서와 무관하게 마지막 사용자 폭이 최종 preference 값이 되게 한다.
 - panel open/closed 상태는 현재 workbench session에서만 유지하고 라벨 파일에 저장하지 않는다.
 - narrow overlay open/closed는 dock 사용자 의도와 별개이며 overlay를 닫아도 `userWantsDockOpen`을 바꾸지 않는다.
 
@@ -853,7 +854,8 @@ splitter drag가 다음 상태를 초기화하면 안 된다.
 
 FortuneSheet child key를 panel width에 연결하지 않는다. 부모 constraint만 바꾸고 기존 state를 유지한다.
 
-- drag 시작 시 열린 toolbar popup과 object tooltip을 닫는다.
+- 공용 `VerticalPaneSplitter`는 기존 `onDrag` update를 유지하면서 optional drag start, drag end, drag cancel과 double-click callback 또는 동등한 gesture lifecycle을 owner에 노출한다. 기존 공용라벨관리·라벨출력 호출부가 새 callback을 지정하지 않아도 현재 drag 동작을 유지한다.
+- Workbench는 drag start를 gesture당 정확히 한 번 받아 열린 toolbar popup과 object tooltip을 command 실행·property draft finalize 없이 첫 update 전에 닫는다. 여러 update가 start 정리를 반복하지 않으며, end는 위 조건에 맞을 때 preference 저장을 한 번 요청하고 cancel은 시작 폭 복원만 수행한다. double-click은 drag callback을 만들지 않고 기본 폭 reset만 한 번 실행한다.
 - drag 중 grid viewport와 scrollbar를 현재 width로 layout한다.
 - `onGridRectChanged`는 post-frame에 새 global rect를 통지한다.
 - panel resize는 dirty와 undo를 만들지 않는다.
@@ -1227,6 +1229,7 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - barcode A pending 중 A/B selection·read-only property 조회와 copy는 허용하고 A의 keyed request/draft/error를 유지함. copy는 현재 canonical selected object snapshot으로 internal/system marker·payload를 갱신하며 동시 copy가 기존 latest-wins를 유지함. delete/duplicate/cut/paste, reorder·앞뒤 이동, canvas/keyboard/panel geometry, 새 `[적용]` 및 모든 property mutation은 draft finalize 전에 UI와 controller 양쪽에서 차단되어 유효·invalid draft와 workbook/selection/clipboard payload·marker/undo/redo/dirty/revision/callback/listenable이 불변이고, 성공·실패·stale 종료 뒤에도 자동 실행되지 않으며 사용자가 다시 실행한 command만 정상 동작함
 - panel list/canvas active object/canvas cell/editable field focus별 Arrow key 소유권
 - 기존 image/barcode edit dialog command가 panel edit로 전환
+- image panel에는 이번 범위의 crop command가 없고, 기존 crop metadata가 일반 panel 편집·파일 교체·복제·clipboard·codec round-trip에서 제거·초기화·재계산 없이 보존됨
 - option 목록에 없는 non-empty image/barcode 연결 ID를 panel open과 연결 ID/source 미변경 commit에서 보존함. barcode는 명시적 `연결 안 함`에서 metadata를 제거하고 linked image는 아래 새 파일 필수 조건을 따름
 - linked image의 `연결 안 함`은 새 파일 선택 성공 때만 commit되고 파일이 없으면 validation과 기존 linked image/metadata를 유지함
 - stale ID linked image의 파일 교체가 연결 ID와 `left/top/width/height/rotation` 및 기타 metadata를 유지한 채 `src`·`originWidth`·`originHeight`만 바꾸고, 고정 image의 파일 교체는 연결 metadata를 새로 만들지 않음
@@ -1248,6 +1251,9 @@ pointer move나 text input의 각 key마다 undo snapshot을 만들지 않는다
 - splitter drag 뒤 workbook/selection/zoom 유지
 - double-click 기본 폭 복원
 - 저장된 panel 폭의 SharedPreferences round-trip과 local constraint 재-clamp
+- 동일 workbench의 rebuild와 local constraint 변경에도 preference load는 수명당 정확히 1회이고, load가 완료되기 전 drag/reset을 실행하면 늦은 load가 사용자 폭을 덮어쓰지 않으며 load가 먼저 완료되면 저장 폭을 현재 local constraint로 clamp해 적용함. dispose 뒤 load 완료는 state를 바꾸지 않음
+- 여러 drag update는 preference write 0회이고 실제 폭 변화가 남은 drag end에서 최종 폭 write 1회, delta 없이 start→end하거나 원래 폭으로 왕복한 drag는 0회임. update 뒤 cancel은 panel을 drag 시작 폭으로 복원하고 write 0회, double-click reset은 1회임. 연속 gesture/reset save가 역순 완료돼도 다음 workbench는 마지막 사용자 폭을 복원하고 save 실패는 현재 폭을 rollback하지 않음
+- 한 splitter pointer gesture에서 optional start가 첫 update 전에 1회, update가 여러 회, end 또는 cancel이 1회 호출되고 double-click은 drag callback 없이 reset만 1회 호출됨. start 정리는 열린 toolbar popup/object tooltip만 닫고 property draft와 canonical callback을 유지하며 기존 공용라벨관리·라벨출력 호출부는 callback 미지정 상태로 종전 drag 동작을 유지함
 - 760px 미만 dock 접기와 overlay fallback
 - wide↔narrow 경계 왕복에서 panel controller/property draft/selection/field controller identity 유지, draft finalize 0회, `userWantsDockOpen`/`overlayOpen` 변경과 overlay/dock open command/callback 및 focus 이동 0회
 - 다시 넓어질 때 마지막 dock 폭을 복원하고 기존 `userWantsDockOpen == true`이면 dock 표시, false이면 숨김을 유지하되 새 open command/callback은 발생하지 않음
