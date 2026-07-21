@@ -1,3 +1,14 @@
+### 완료 (2026-07-21): 선·도형 지시서 property lifecycle·read-only 전환 보완
+- 사용자 요청: 최신 `doc/label_line_panel.txt` 재검토에서 확인한 `allowEdit` 하강, 일반 selection finalize와 read-only context menu 권장안을 병합하고 필요한 정책을 즉시 확정한다.
+- 사용자 확정: `allowEdit` true→false에서 일반 property draft/error는 commit 없이 폐기하고, mutation dialog와 style/color/insertion popup은 즉시 닫는다. read-only object secondary click은 기존 context menu를 열되 mutation 항목을 disabled로 표시하고 copy 메뉴는 새로 추가하지 않는다.
+- permission lifecycle 보완 완료: settings-only `allowEdit` 변경을 canonical 외부 workbook replacement와 분리했다. 권한 하강은 barcode pending/Escape 차단보다 우선하며 canonical content·workbook identity/history lineage·undo/dirty/revision과 canonical callback을 유지하고 selection·active key·panel open 상태의 최종 read-only snapshot만 listener 1회 통지한다. 폐기한 draft/UI/request는 권한 복구 시 되살리지 않는다.
+- async·focus 보완 완료: pending cut/paste/image picker/barcode renderer 등 mutation async는 무효화하되 pending copy는 latest-wins marker/payload 일치를 유지하며 완료한다. mutation dialog/popup close는 기존 focus 복원을 사용하고, 열린 object menu는 focus scope와 Escape 소유권을 유지한 채 disabled 상태로 재구성해 stale action도 command guard에서 차단한다.
+- selection lifecycle 보완 완료: 일반 selection은 old exact-key draft finalize 뒤 적용한다. valid draft는 committed canonical 값·old selection·draft 없음 listener 뒤 같은 canonical 값·new selection listener까지 총 2회, invalid/no-draft는 selection listener 1회, 동일 selection은 0회다. barcode renderer pending selection만 원 exact-key draft/request/error를 유지하는 예외다.
+- read-only interaction 보완 완료: 기존 object menu 순서와 항목을 유지해 mutation만 disabled 처리하고 신규 copy 항목은 추가하지 않는다. Ctrl/Meta+C object copy와 read-only property text의 pointer selection·Ctrl/Meta+A/C를 허용하며 값 변경·cut/paste는 차단한다.
+- 테스트 계약 보완 완료: settings-only false→true 재허용은 폐기 상태를 복원하지 않고 mutation enablement snapshot만 listener 1회 갱신하며 canonical callback은 0회다. 열린 menu disabled 재구성의 focus/Escape 유지와 일반 selection 진입점별 listener snapshot도 판별한다.
+- 검증 대상: 두 문서 diagnostics, 상충 계약 검색, 독립 재검토와 `git diff --check`. 문서만 변경하므로 Flutter test/analyze는 실행하지 않는다.
+- stage/commit 대상: `doc/label_line_panel.txt`, `SESSION_HANDOFF.md`만 포함한다. 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
+
 ### 완료 (2026-07-21): 선·도형 지시서 object interaction 우선순위 보완
 - 사용자 요청: 최신 `doc/label_line_panel.txt` 재검토에서 확인한 handle/body hit 우선순위, mixed overlap cycle, 다중 선택 body drag와 Ctrl/Meta pointer 권장안을 병합하고 필요한 정책을 즉시 확정한다.
 - 추가 사용자 확인 불필요: 기존 이미지 handle·Tab cycle parity와 문서의 다중 geometry 제외/selection toggle 범위로 결과를 결정했으며 group move나 마지막-pointer cycle 같은 신규 UX는 추가하지 않았다.
