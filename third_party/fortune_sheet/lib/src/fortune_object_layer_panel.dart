@@ -31,6 +31,9 @@ class FortuneObjectLayerPanel extends StatefulWidget {
 }
 
 class _FortuneObjectLayerPanelState extends State<FortuneObjectLayerPanel> {
+  final FocusNode _layerFocusNode = FocusNode(
+    debugLabel: 'Fortune object layer list',
+  );
   final ScrollController _layerScrollController = ScrollController();
   final ScrollController _propertyScrollController = ScrollController();
   String? _sheetId;
@@ -39,6 +42,7 @@ class _FortuneObjectLayerPanelState extends State<FortuneObjectLayerPanel> {
 
   @override
   void dispose() {
+    _layerFocusNode.dispose();
     _layerScrollController.dispose();
     _propertyScrollController.dispose();
     super.dispose();
@@ -162,53 +166,58 @@ class _FortuneObjectLayerPanelState extends State<FortuneObjectLayerPanel> {
                           ),
                         ),
                       )
-                    : ListView.builder(
-                      controller: _layerScrollController,
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        itemCount: objects.length,
-                        itemExtent: 38,
-                        itemBuilder: (context, index) {
-                          final object = objects[index];
-                          final selected = snapshot.selectedKeys.contains(
-                            object.key,
-                          );
-                          return _ObjectLayerRow(
-                            object: object,
-                            selected: selected,
-                            selectedKeys: snapshot.selectedKeys,
-                            dropSide: _dropTargetKey == object.key
-                                ? _dropSide
-                                : null,
-                            onTap: () => _selectRow(object.key),
-                            onDragStarted: () {
-                              if (!selected) {
-                                widget.controller.selectObject(object.key);
-                              }
-                            },
-                            onHover: (side) {
-                              if (snapshot.selectedKeys.contains(object.key)) {
-                                side = null;
-                              }
-                              if (_dropTargetKey != object.key ||
-                                  _dropSide != side) {
-                                setState(() {
-                                  _dropTargetKey = object.key;
-                                  _dropSide = side;
-                                });
-                              }
-                            },
-                            onLeave: () => _clearDropIndicator(object.key),
-                            onAccept: (side) {
-                              _clearDropIndicator(object.key);
-                              if (side != null) {
-                                widget.controller.reorderSelectedObjects(
-                                  object.key,
-                                  side,
-                                );
-                              }
-                            },
-                          );
-                        },
+                    : Focus(
+                        focusNode: _layerFocusNode,
+                        onKeyEvent: _handleLayerKeyEvent,
+                        child: ListView.builder(
+                          controller: _layerScrollController,
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          itemCount: objects.length,
+                          itemExtent: 38,
+                          itemBuilder: (context, index) {
+                            final object = objects[index];
+                            final selected = snapshot.selectedKeys.contains(
+                              object.key,
+                            );
+                            return _ObjectLayerRow(
+                              object: object,
+                              selected: selected,
+                              selectedKeys: snapshot.selectedKeys,
+                              dropSide: _dropTargetKey == object.key
+                                  ? _dropSide
+                                  : null,
+                              onTap: () => _selectRow(object.key),
+                              onDragStarted: () {
+                                _layerFocusNode.requestFocus();
+                                if (!selected) {
+                                  widget.controller.selectObject(object.key);
+                                }
+                              },
+                              onHover: (side) {
+                                if (snapshot.selectedKeys.contains(object.key)) {
+                                  side = null;
+                                }
+                                if (_dropTargetKey != object.key ||
+                                    _dropSide != side) {
+                                  setState(() {
+                                    _dropTargetKey = object.key;
+                                    _dropSide = side;
+                                  });
+                                }
+                              },
+                              onLeave: () => _clearDropIndicator(object.key),
+                              onAccept: (side) {
+                                _clearDropIndicator(object.key);
+                                if (side != null) {
+                                  widget.controller.reorderSelectedObjects(
+                                    object.key,
+                                    side,
+                                  );
+                                }
+                              },
+                            );
+                          },
+                        ),
                       ),
               ),
               if (snapshot.activeKey != null) ...[
@@ -240,6 +249,7 @@ class _FortuneObjectLayerPanelState extends State<FortuneObjectLayerPanel> {
   }
 
   void _selectRow(FortuneSheetObjectKey key) {
+    _layerFocusNode.requestFocus();
     if (HardwareKeyboard.instance.isShiftPressed) {
       widget.controller.selectObjectRange(key);
     } else if (HardwareKeyboard.instance.isControlPressed ||
@@ -248,6 +258,71 @@ class _FortuneObjectLayerPanelState extends State<FortuneObjectLayerPanel> {
     } else {
       widget.controller.selectObject(key);
     }
+  }
+
+  KeyEventResult _handleLayerKeyEvent(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent) {
+      return KeyEventResult.ignored;
+    }
+    final control = HardwareKeyboard.instance.isControlPressed ||
+        HardwareKeyboard.instance.isMetaPressed;
+    final key = event.logicalKey;
+    if (control) {
+      if (key == LogicalKeyboardKey.keyA) {
+        widget.controller.selectAllObjects();
+      } else if (key == LogicalKeyboardKey.keyC) {
+        widget.controller.copySelectedObjects();
+      } else if (key == LogicalKeyboardKey.keyX) {
+        widget.controller.cutSelectedObjects();
+      } else if (key == LogicalKeyboardKey.keyV) {
+        widget.controller.pasteObjects();
+      } else if (key == LogicalKeyboardKey.keyD) {
+        widget.controller.duplicateSelectedObjects();
+      } else if (key == LogicalKeyboardKey.arrowUp) {
+        widget.controller.bringSelectedObjectsForward();
+      } else if (key == LogicalKeyboardKey.arrowDown) {
+        widget.controller.sendSelectedObjectsBackward();
+      } else if (key == LogicalKeyboardKey.home) {
+        widget.controller.bringSelectedObjectsToFront();
+      } else if (key == LogicalKeyboardKey.end) {
+        widget.controller.sendSelectedObjectsToBack();
+      } else {
+        return KeyEventResult.ignored;
+      }
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.delete ||
+        key == LogicalKeyboardKey.backspace) {
+      widget.controller.deleteSelectedObjects();
+      return KeyEventResult.handled;
+    }
+    if (key != LogicalKeyboardKey.arrowUp &&
+        key != LogicalKeyboardKey.arrowDown &&
+        key != LogicalKeyboardKey.home &&
+        key != LogicalKeyboardKey.end) {
+      return KeyEventResult.ignored;
+    }
+    final objects = widget.controller.objectSelection.objects.reversed
+        .map((object) => object.key)
+        .toList(growable: false);
+    if (objects.isEmpty) {
+      return KeyEventResult.handled;
+    }
+    final active = widget.controller.objectSelection.activeKey;
+    final currentIndex = active == null ? 0 : math.max(0, objects.indexOf(active));
+    final nextIndex = key == LogicalKeyboardKey.home
+        ? 0
+        : key == LogicalKeyboardKey.end
+        ? objects.length - 1
+        : key == LogicalKeyboardKey.arrowUp
+        ? math.max(0, currentIndex - 1)
+        : math.min(objects.length - 1, currentIndex + 1);
+    if (HardwareKeyboard.instance.isShiftPressed) {
+      widget.controller.selectObjectRange(objects[nextIndex]);
+    } else {
+      widget.controller.selectObject(objects[nextIndex]);
+    }
+    return KeyEventResult.handled;
   }
 
   void _clearDropIndicator(FortuneSheetObjectKey key) {

@@ -208,9 +208,27 @@ void main() {
   testWidgets('object layer panel selects and deletes mixed typed objects', (
     tester,
   ) async {
+    String? clipboardText;
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (call) async {
+        if (call.method == 'Clipboard.setData') {
+          clipboardText = (call.arguments as Map<Object?, Object?>)['text'] as String?;
+          return null;
+        }
+        if (call.method == 'Clipboard.getData') {
+          return <String, Object?>{'text': clipboardText};
+        }
+        return null;
+      },
+    );
     tester.view.physicalSize = const Size(900, 700);
     tester.view.devicePixelRatio = 1;
     addTearDown(() {
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        null,
+      );
       tester.view.resetPhysicalSize();
       tester.view.resetDevicePixelRatio();
     });
@@ -339,6 +357,20 @@ void main() {
     expect(find.text('이미지 image_1'), findsOneWidget);
     expect(controller.objectSelection.selectedKeys, {
       const FortuneSheetObjectKey(FortuneSheetObjectKind.image, 'image_1'),
+    });
+
+    await tester.tap(find.text('이미지 image_1'));
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyC);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pump();
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyV);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pump();
+    expect(find.text('이미지 image_2'), findsOneWidget);
+    expect(controller.objectSelection.selectedKeys, {
+      const FortuneSheetObjectKey(FortuneSheetObjectKind.image, 'image_2'),
     });
 
     await tester.pumpWidget(const SizedBox.shrink());
@@ -853,6 +885,144 @@ void main() {
       controller.objectSelection.activeImage?.extraFields['barcodeText'],
       'SECOND',
     );
+  });
+
+  testWidgets('controller copies cuts and pastes mixed selected objects', (
+    tester,
+  ) async {
+    String? clipboardText;
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (call) async {
+        switch (call.method) {
+          case 'Clipboard.setData':
+            clipboardText = (call.arguments as Map<Object?, Object?>)['text'] as String?;
+            return null;
+          case 'Clipboard.getData':
+            return <String, Object?>{'text': clipboardText};
+        }
+        return null;
+      },
+    );
+    tester.view.physicalSize = const Size(900, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        null,
+      );
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    final controller = FortuneSheetController();
+    final workbook = FortuneWorkbook(
+      settings: const FortuneSettings(showToolbar: false, showFormulaBar: false),
+      sheets: [
+        FortuneSheet(
+          id: 's1',
+          name: 'Sheet1',
+          images: const [
+            FortuneImage(
+              id: 'image_1',
+              src: 'data:image/png;base64,AA==',
+              left: 10,
+              top: 20,
+              width: 30,
+              height: 40,
+              extraFields: {
+                fortuneImageObjectIdExtraKey: 'LOGO',
+                fortuneSheetObjectZOrderExtraKey: 1.0,
+              },
+            ),
+          ],
+          lines: const [
+            FortuneLine(
+              id: 'line_1',
+              x1: 20,
+              y1: 30,
+              x2: 50,
+              y2: 60,
+              zOrder: 2,
+            ),
+          ],
+          shapes: const [
+            FortuneShape(
+              id: 'rect_1',
+              kind: FortuneShapeKind.rectangle,
+              left: 30,
+              top: 40,
+              width: 50,
+              height: 60,
+              zOrder: 3,
+            ),
+          ],
+        ),
+      ],
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SizedBox(
+          width: 900,
+          height: 700,
+          child: FortuneSheetCanvas(
+            workbook: workbook,
+            controller: controller,
+            imageObjectConnectionMode: FortuneObjectConnectionMode.structured,
+          ),
+        ),
+      ),
+    );
+    controller.selectAllObjects();
+    expect(await controller.copySelectedObjects(), isTrue);
+    expect(await controller.pasteObjects(), isTrue);
+    await tester.pump();
+
+    final snapshot = controller.objectSelection;
+    expect(snapshot.selectedKeys, hasLength(3));
+    expect(snapshot.selectedKeys.map((key) => key.kind).toSet(), {
+      FortuneSheetObjectKind.image,
+      FortuneSheetObjectKind.line,
+      FortuneSheetObjectKind.rectangle,
+    });
+    FortuneSheetPainter painter() => tester
+      .widgetList<CustomPaint>(find.byType(CustomPaint))
+      .map((paint) => paint.painter)
+      .whereType<FortuneSheetPainter>()
+      .single;
+    final sheet = painter().workbook.activeSheet;
+    expect(sheet.images, hasLength(2));
+    expect(sheet.lines, hasLength(2));
+    expect(sheet.shapes, hasLength(2));
+    expect((sheet.images.last.left, sheet.images.last.top), (22, 32));
+    expect(sheet.images.last.extraFields[fortuneImageObjectIdExtraKey], 'LOGO');
+    expect(
+      (sheet.lines.last.x1, sheet.lines.last.y1, sheet.lines.last.x2, sheet.lines.last.y2),
+      (32, 42, 62, 72),
+    );
+    expect((sheet.shapes.last.left, sheet.shapes.last.top), (42, 52));
+
+    controller.handleUndo();
+    await tester.pump();
+    expect(painter().workbook.activeSheet.images, hasLength(1));
+    expect(painter().workbook.activeSheet.lines, hasLength(1));
+    expect(painter().workbook.activeSheet.shapes, hasLength(1));
+
+    controller.selectAllObjects();
+    expect(await controller.cutSelectedObjects(), isTrue);
+    await tester.pump();
+    expect(painter().workbook.activeSheet.images, isEmpty);
+    expect(painter().workbook.activeSheet.lines, isEmpty);
+    expect(painter().workbook.activeSheet.shapes, isEmpty);
+    expect(await controller.pasteObjects(), isTrue);
+    await tester.pump();
+    final restored = painter().workbook.activeSheet;
+    expect(restored.images.single.id, 'image_1');
+    expect((restored.images.single.left, restored.images.single.top), (10, 20));
+    expect(restored.lines.single.id, 'line_1');
+    expect((restored.lines.single.x1, restored.lines.single.y1), (20, 30));
+    expect(restored.shapes.single.id, 'rect_1');
+    expect((restored.shapes.single.left, restored.shapes.single.top), (30, 40));
+    expect(await controller.pasteObjects(), isFalse);
   });
 
   testWidgets('structured duplicate preserves connection id with no options', (

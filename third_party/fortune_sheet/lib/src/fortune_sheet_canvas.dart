@@ -1159,6 +1159,32 @@ class FortuneImagePickResult {
   final int? height;
 }
 
+class _FortuneObjectClipboardEntry {
+  const _FortuneObjectClipboardEntry({
+    required this.key,
+    this.image,
+    this.line,
+    this.shape,
+  });
+
+  final FortuneSheetObjectKey key;
+  final FortuneImage? image;
+  final FortuneLine? line;
+  final FortuneShape? shape;
+}
+
+class _FortuneObjectClipboardPayload {
+  const _FortuneObjectClipboardPayload({
+    required this.marker,
+    required this.entries,
+    this.isCut = false,
+  });
+
+  final String marker;
+  final List<_FortuneObjectClipboardEntry> entries;
+  final bool isCut;
+}
+
 class FortuneObjectSelectionSnapshot {
   FortuneObjectSelectionSnapshot({
     required this.attached,
@@ -1219,6 +1245,20 @@ class FortuneSheetController extends ChangeNotifier {
   void duplicateSelectedObjects() {
     if (barcodePropertyRenderPending) return;
     _state?._duplicateSelectedObjectsFromController();
+  }
+
+  Future<bool> copySelectedObjects() async {
+    return await _state?._copySelectedObjectsToClipboard() ?? false;
+  }
+
+  Future<bool> cutSelectedObjects() async {
+    if (barcodePropertyRenderPending) return false;
+    return await _state?._copySelectedObjectsToClipboard(cut: true) ?? false;
+  }
+
+  Future<bool> pasteObjects() async {
+    if (barcodePropertyRenderPending) return false;
+    return await _state?._pasteObjectsFromClipboard() ?? false;
   }
 
   void updateSelectedImage({
@@ -2756,6 +2796,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   int _panelImagePickerToken = 0;
   int _panelBarcodeRequestSequence = 0;
   final Map<FortuneSheetObjectKey, int> _panelBarcodeRequestTokens = {};
+  int _objectClipboardSequence = 0;
+  _FortuneObjectClipboardPayload? _objectClipboardPayload;
   static const int _maxUndoSnapshots = 100;
   static const String _sheetCornerTooltipText = '마우스 우클릭 - 라벨 크기 조정';
   static const Map<String, int> _fillChineseDigits = {
@@ -26257,6 +26299,278 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       );
       _closeTransientMenus();
     });
+  }
+
+  Future<bool> _copySelectedObjectsToClipboard({bool cut = false}) async {
+    if (cut && !_workbook.settings.allowEdit) {
+      return false;
+    }
+    final snapshot = _objectSelectionSnapshot(attached: true);
+    if (snapshot.selectedKeys.isEmpty) {
+      return false;
+    }
+    final sheet = _workbook.activeSheet;
+    final entries = <_FortuneObjectClipboardEntry>[];
+    for (final object in fortuneSheetObjectsInPaintOrder(sheet)) {
+      if (!snapshot.selectedKeys.contains(object.key)) {
+        continue;
+      }
+      if (object.sourceIndex < sheet.images.length) {
+        entries.add(
+          _FortuneObjectClipboardEntry(
+            key: object.key,
+            image: sheet.images[object.sourceIndex].copyWith(),
+          ),
+        );
+        continue;
+      }
+      final lineIndex = object.sourceIndex - sheet.images.length;
+      if (lineIndex < sheet.lines.length) {
+        entries.add(
+          _FortuneObjectClipboardEntry(
+            key: object.key,
+            line: sheet.lines[lineIndex].copyWith(),
+          ),
+        );
+        continue;
+      }
+      entries.add(
+        _FortuneObjectClipboardEntry(
+          key: object.key,
+          shape: sheet.shapes[lineIndex - sheet.lines.length].copyWith(),
+        ),
+      );
+    }
+    if (entries.isEmpty) {
+      return false;
+    }
+    final sequence = ++_objectClipboardSequence;
+    final marker = 'fortune-sheet:objects:v1:$sequence';
+    try {
+      await Clipboard.setData(ClipboardData(text: marker));
+    } on Object {
+      return false;
+    }
+    if (!mounted || sequence != _objectClipboardSequence) {
+      return false;
+    }
+    if (cut) {
+      final current = _workbook.activeSheet;
+      if (current.id != sheet.id ||
+          entries.any((entry) => !_objectClipboardEntryMatchesSheet(entry, current))) {
+        return false;
+      }
+      final selected = entries.map((entry) => entry.key).toSet();
+      final frontToBack = _objectKeysFrontToBack();
+      final activeIndex = snapshot.activeKey == null
+          ? 0
+          : frontToBack.indexOf(snapshot.activeKey!);
+      final remaining = frontToBack
+          .where((key) => !selected.contains(key))
+          .toList(growable: false);
+      final sheets = [..._workbook.sheets];
+      _recordUndoSnapshot();
+      sheets[_workbook.activeSheetIndex] = current.copyWith(
+        images: current.images.where((image) {
+          return !selected.contains(
+            FortuneSheetObjectKey(fortuneImageObjectKind(image), image.id),
+          );
+        }).toList(growable: false),
+        lines: current.lines.where((line) {
+          return !selected.contains(
+            FortuneSheetObjectKey(FortuneSheetObjectKind.line, line.id),
+          );
+        }).toList(growable: false),
+        shapes: current.shapes.where((shape) {
+          return !selected.contains(
+            FortuneSheetObjectKey(fortuneShapeObjectKind(shape), shape.id),
+          );
+        }).toList(growable: false),
+      );
+      setState(() {
+        _workbook = _workbook.copyWith(sheets: sheets);
+        if (remaining.isEmpty) {
+          _applyExactObjectSelection(<FortuneSheetObjectKey>{}, null);
+        } else {
+          final nextIndex = math.min(
+            math.max(activeIndex, 0),
+            remaining.length - 1,
+          );
+          final nextKey = remaining[nextIndex];
+          _applyExactObjectSelection(<FortuneSheetObjectKey>{nextKey}, nextKey);
+        }
+        _closeTransientMenus();
+      });
+    }
+    _objectClipboardPayload = _FortuneObjectClipboardPayload(
+      marker: marker,
+      entries: List<_FortuneObjectClipboardEntry>.unmodifiable(entries),
+      isCut: cut,
+    );
+    _clearCopiedCellClipboardState();
+    _clearCopiedImageLayerPanelClipboardState();
+    return true;
+  }
+
+  Future<bool> _pasteObjectsFromClipboard() async {
+    final payload = _objectClipboardPayload;
+    if (!_workbook.settings.allowEdit || payload == null) {
+      return false;
+    }
+    ClipboardData? data;
+    try {
+      data = await Clipboard.getData(Clipboard.kTextPlain);
+    } on Object {
+      return false;
+    }
+    if (!mounted || data?.text != payload.marker) {
+      return false;
+    }
+    final originalSheet = _workbook.activeSheet;
+    final insertionPlan = fortuneReserveObjectZOrders(
+      originalSheet,
+      payload.entries.length,
+    );
+    final sheet = insertionPlan.sheet;
+    final existingKeys = fortuneSheetObjectsInPaintOrder(
+      sheet,
+    ).map((object) => object.key).toList();
+    final reservedIds = <FortuneSheetObjectKind, Set<String>>{};
+    final reservedImageObjectIds = <String>{};
+    final reservedBarcodeObjectIds = <String>{};
+    final images = <FortuneImage>[];
+    final lines = <FortuneLine>[];
+    final shapes = <FortuneShape>[];
+    final keys = <FortuneSheetObjectKey>[];
+    for (var index = 0; index < payload.entries.length; index += 1) {
+      final entry = payload.entries[index];
+      final reserved = reservedIds.putIfAbsent(entry.key.kind, () => <String>{});
+      final originalIdAvailable = payload.isCut &&
+          !existingKeys.contains(entry.key) &&
+          !reserved.contains(entry.key.id);
+      final id = originalIdAvailable
+          ? entry.key.id
+          : fortuneAllocateObjectId(
+              entry.key.kind,
+              existingKeys,
+              reserved: reserved,
+            );
+      reserved.add(id);
+      keys.add(FortuneSheetObjectKey(entry.key.kind, id));
+      final zOrder = insertionPlan.zOrders[index];
+      final image = entry.image;
+      if (image != null) {
+        final extraFields = <String, Object?>{
+          ...image.extraFields,
+          fortuneSheetObjectZOrderExtraKey: zOrder,
+        };
+        if (entry.key.kind == FortuneSheetObjectKind.barcode &&
+            _barcodeObjectConnectionMode == FortuneObjectConnectionMode.legacy) {
+          final objectId = _nextBarcodeObjectId(
+            reserved: reservedBarcodeObjectIds,
+          );
+          reservedBarcodeObjectIds.add(objectId);
+          extraFields[fortuneBarcodeObjectIdExtraKey] = objectId;
+        } else if (entry.key.kind == FortuneSheetObjectKind.image &&
+            _imageObjectConnectionMode == FortuneObjectConnectionMode.legacy) {
+          final objectId = _nextImageObjectId(
+            reserved: reservedImageObjectIds,
+          );
+          reservedImageObjectIds.add(objectId);
+          extraFields[fortuneImageObjectIdExtraKey] = objectId;
+        }
+        images.add(
+          image.copyWith(
+            id: id,
+            left: image.left + (payload.isCut ? 0 : 12),
+            top: math.max(0.0, image.top + (payload.isCut ? 0 : 12)),
+            extraFields: extraFields,
+          ),
+        );
+      } else if (entry.line != null) {
+        final line = entry.line!;
+        lines.add(
+          line.copyWith(
+            id: id,
+            x1: line.x1 + (payload.isCut ? 0 : 12),
+            y1: math.max(0.0, line.y1 + (payload.isCut ? 0 : 12)),
+            x2: line.x2 + (payload.isCut ? 0 : 12),
+            y2: math.max(0.0, line.y2 + (payload.isCut ? 0 : 12)),
+            zOrder: zOrder,
+          ),
+        );
+      } else {
+        final shape = entry.shape!;
+        shapes.add(
+          shape.copyWith(
+            id: id,
+            left: shape.left + (payload.isCut ? 0 : 12),
+            top: math.max(0.0, shape.top + (payload.isCut ? 0 : 12)),
+            zOrder: zOrder,
+          ),
+        );
+      }
+    }
+    final sheets = [..._workbook.sheets];
+    _recordUndoSnapshot();
+    sheets[_workbook.activeSheetIndex] = sheet.copyWith(
+      images: <FortuneImage>[...sheet.images, ...images],
+      lines: <FortuneLine>[...sheet.lines, ...lines],
+      shapes: <FortuneShape>[...sheet.shapes, ...shapes],
+    );
+    setState(() {
+      _workbook = _workbook.copyWith(sheets: sheets);
+      _applyExactObjectSelection(keys.toSet(), keys.last, anchorKey: keys.last);
+      _closeTransientMenus();
+    });
+    for (final image in images) {
+      _decodeImageIfNeeded(image.src);
+    }
+    if (payload.isCut && identical(_objectClipboardPayload, payload)) {
+      _objectClipboardPayload = null;
+    }
+    return true;
+  }
+
+  bool _objectClipboardEntryMatchesSheet(
+    _FortuneObjectClipboardEntry entry,
+    FortuneSheet sheet,
+  ) {
+    final image = entry.image;
+    if (image != null) {
+      final index = sheet.images.indexWhere((candidate) {
+        return candidate.id == entry.key.id &&
+            fortuneImageObjectKind(candidate) == entry.key.kind;
+      });
+        if (index < 0) return false;
+        final candidate = sheet.images[index];
+        return candidate.id == image.id &&
+          candidate.src == image.src &&
+          candidate.left == image.left &&
+          _objectTreesEqual(candidate.rawLeft, image.rawLeft) &&
+          candidate.hasRawLeft == image.hasRawLeft &&
+          candidate.top == image.top &&
+          _objectTreesEqual(candidate.rawTop, image.rawTop) &&
+          candidate.hasRawTop == image.hasRawTop &&
+          candidate.width == image.width &&
+          _objectTreesEqual(candidate.rawWidth, image.rawWidth) &&
+          candidate.hasRawWidth == image.hasRawWidth &&
+          candidate.height == image.height &&
+          _objectTreesEqual(candidate.rawHeight, image.rawHeight) &&
+          candidate.hasRawHeight == image.hasRawHeight &&
+          _objectMapEquals(candidate.extraFields, image.extraFields);
+    }
+    final line = entry.line;
+    if (line != null) {
+      final index = sheet.lines.indexWhere((candidate) => candidate.id == entry.key.id);
+      return index >= 0 && _sameSnapshotLine(sheet.lines[index], line);
+    }
+    final shape = entry.shape!;
+    final index = sheet.shapes.indexWhere((candidate) {
+      return candidate.id == entry.key.id &&
+          fortuneShapeObjectKind(candidate) == entry.key.kind;
+    });
+    return index >= 0 && _sameSnapshotShape(sheet.shapes[index], shape);
   }
 
   void _updateSelectedLineFromController({
