@@ -2739,6 +2739,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   bool _contextMenuIsEditor = false;
   TextRange? _editorContextMenuSelectionRange;
   String? _contextMenuImageId;
+  FortuneSheetObjectKey? _contextMenuObjectKey;
   bool _editorClipboardHasPasteText = false;
   int? _contextMenuHoveredIndex;
   Offset? sheetTabMenuAt;
@@ -7279,16 +7280,29 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     if (activeImageToolbarCommand != null) {
       _commitEditing();
       _commitSheetRename();
-      if (!fortuneActiveImageToolbarItemEnabled(
-        _workbook.activeSheet.images,
-        _activeImageId,
-        activeImageToolbarCommand,
-      )) {
+      final activeObjectKey = _activeObjectKey;
+      final enabled = activeObjectKey == null
+          ? fortuneActiveImageToolbarItemEnabled(
+              _workbook.activeSheet.images,
+              _activeImageId,
+              activeImageToolbarCommand,
+            )
+          : fortuneActiveTypedObjectToolbarItemEnabled(
+              _workbook.activeSheet,
+              activeObjectKey,
+              activeImageToolbarCommand,
+            );
+      if (!enabled) {
         setState(() {
           contextMenuAt = null;
           _contextMenuImageId = null;
+          _contextMenuObjectKey = null;
         });
         return;
+      }
+      _contextMenuObjectKey = activeObjectKey;
+      if (activeObjectKey != null) {
+        _contextMenuImageId = null;
       }
       _activateContextMenuCommand(activeImageToolbarCommand);
       return;
@@ -7410,6 +7424,23 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         setState(_closeTransientMenus);
         return;
       }
+      final logicalObjectPosition = _lineInsertionLogicalPosition(
+        local,
+        settings,
+      );
+      final typedObjectKey = logicalObjectPosition == null
+          ? null
+          : fortuneSheetObjectKeyAtLogicalPosition(
+              _workbook.activeSheet,
+              logicalObjectPosition,
+              zoomRatio: _workbook.activeSheet.zoomRatio,
+            );
+      if (typedObjectKey != null &&
+          typedObjectKey.kind != FortuneSheetObjectKind.image &&
+          typedObjectKey.kind != FortuneSheetObjectKind.barcode) {
+        _openTypedObjectContextMenu(typedObjectKey, local);
+        return;
+      }
       final imageId = _imageIdAt(local, settings);
       final previousSelectionSave = cloneFortuneMetadata(
         _workbook.activeSheet.selectionSave,
@@ -7425,6 +7456,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
             _activeImageId = imageId;
             _selectedImageIds = <String>{imageId};
             _contextMenuImageId = imageId;
+            _contextMenuObjectKey = null;
             contextMenuAt = _contextMenuOrigin(local, menuItems);
             _contextMenuHoveredIndex = null;
             _contextMenuIsHeader = false;
@@ -7606,12 +7638,17 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         typedObjectKey.kind != FortuneSheetObjectKind.barcode) {
       _commitEditing();
       _commitSheetRename();
+      if ((event.buttons & kSecondaryMouseButton) != 0) {
+        _openTypedObjectContextMenu(typedObjectKey, local);
+        return;
+      }
       setState(() {
         _activeObjectKey = typedObjectKey;
         _activeImageId = null;
         _selectedImageIds = <String>{};
         contextMenuAt = null;
         _contextMenuImageId = null;
+        _contextMenuObjectKey = null;
       });
       if ((event.buttons & kPrimaryButton) != 0 &&
           logicalObjectPosition != null) {
@@ -7630,6 +7667,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
           _activeImageId = imageId;
           _selectedImageIds = <String>{imageId};
           _contextMenuImageId = imageId;
+          _contextMenuObjectKey = null;
           contextMenuAt = _contextMenuOrigin(local, menuItems);
           _contextMenuHoveredIndex = null;
           _contextMenuIsHeader = false;
@@ -26864,14 +26902,26 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     final imageId = _activeImageId;
     final image = imageId == null ? null : _imageById(imageId);
     final size = context.size;
-    if (image == null || size == null) {
+    if (size == null) {
       return null;
     }
-    final items = fortuneActiveImageToolbarItems(image);
-    final imageRect = _imageRect(image, settings);
+    final key = _activeObjectKey;
+    final items = image != null
+        ? fortuneActiveImageToolbarItems(image)
+        : key == null
+        ? const <String>[]
+        : fortuneActiveTypedObjectToolbarItems(key);
+    final objectRect = image != null
+        ? _imageRect(image, settings)
+        : key == null
+        ? null
+        : _typedObjectScreenRect(key, settings);
+    if (items.isEmpty || objectRect == null) {
+      return null;
+    }
     for (final item in items) {
       final rect = fortuneActiveImageToolbarItemRect(
-        imageRect,
+        objectRect,
         size,
         item,
         items,
@@ -26881,6 +26931,46 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       }
     }
     return null;
+  }
+
+  Rect? _typedObjectScreenRect(
+    FortuneSheetObjectKey key,
+    FortuneSettings settings,
+  ) {
+    final sheet = _workbook.activeSheet;
+    final zoom = sheet.zoomRatio > 0 ? sheet.zoomRatio : 1.0;
+    final left = _sheetDataLeft(settings) - scrollOffset.dx;
+    final top = settings.effectiveToolbarHeight +
+        settings.effectiveFormulaBarHeight +
+        _sheetDataTop(settings) -
+        scrollOffset.dy;
+    Rect screenRect(Rect logical) => Rect.fromLTWH(
+      left + logical.left * zoom,
+      top + logical.top * zoom,
+      math.max(1, logical.width * zoom),
+      math.max(1, logical.height * zoom),
+    );
+    if (key.kind == FortuneSheetObjectKind.line) {
+      final line = sheet.lines.where((item) => item.id == key.id).firstOrNull;
+      return line == null
+          ? null
+          : screenRect(
+              Rect.fromLTRB(
+                math.min(line.x1, line.x2),
+                math.min(line.y1, line.y2),
+                math.max(line.x1, line.x2),
+                math.max(line.y1, line.y2),
+              ),
+            );
+    }
+    final shape = sheet.shapes.where((item) {
+      return item.id == key.id && fortuneShapeObjectKind(item) == key.kind;
+    }).firstOrNull;
+    return shape == null
+        ? null
+        : screenRect(
+            Rect.fromLTWH(shape.left, shape.top, shape.width, shape.height),
+          );
   }
 
   String? _imageLayerPanelImageIdAt(Offset local, FortuneSettings settings) {
@@ -33050,6 +33140,10 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   }
 
   List<String> get _activeContextMenuItems {
+    final objectKey = _contextMenuObjectKey;
+    if (objectKey != null) {
+      return _contextMenuItemsForTypedObject(objectKey);
+    }
     final image = _contextMenuImageId == null
         ? null
         : _imageById(_contextMenuImageId!);
@@ -33078,6 +33172,51 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       fortuneContextBringToFrontCommand,
       fortuneContextSendToBackCommand,
     ];
+  }
+
+  List<String> _contextMenuItemsForTypedObject(FortuneSheetObjectKey key) {
+    final editCommand = switch (key.kind) {
+      FortuneSheetObjectKind.line => fortuneContextEditLineCommand,
+      FortuneSheetObjectKind.rectangle => fortuneContextEditRectangleCommand,
+      FortuneSheetObjectKind.roundedRectangle =>
+        fortuneContextEditRoundedRectangleCommand,
+      FortuneSheetObjectKind.ellipse => fortuneContextEditEllipseCommand,
+      FortuneSheetObjectKind.image => fortuneContextEditImageCommand,
+      FortuneSheetObjectKind.barcode => fortuneContextEditBarcodeCommand,
+    };
+    return <String>[
+      editCommand,
+      '|',
+      fortuneContextDuplicateImageCommand,
+      fortuneContextDeleteImageCommand,
+      '|',
+      fortuneContextBringToFrontCommand,
+      fortuneContextBringForwardCommand,
+      fortuneContextSendBackwardCommand,
+      fortuneContextSendToBackCommand,
+    ];
+  }
+
+  void _openTypedObjectContextMenu(
+    FortuneSheetObjectKey key,
+    Offset local,
+  ) {
+    final menuItems = _contextMenuItemsForTypedObject(key);
+    setState(() {
+      _applyExactObjectSelection(<FortuneSheetObjectKey>{key}, key);
+      _contextMenuObjectKey = key;
+      _contextMenuImageId = null;
+      contextMenuAt = _contextMenuOrigin(local, menuItems);
+      _contextMenuHoveredIndex = null;
+      _contextMenuIsHeader = false;
+      _contextMenuIsEditor = false;
+      sheetTabMenuAt = null;
+      hiddenSheetListAt = null;
+      dataVerificationDropdownCoord = null;
+      filterDropdownColumn = null;
+      _sheetTabMenuSheetIndex = null;
+      toolbarPopupKey = null;
+    });
   }
 
   List<String> get _sheetTabMenuItems => fortuneSheetTabRenderableMenuItems(
@@ -33430,20 +33569,49 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         _showContextImageEditDialog();
       case fortuneContextEditBarcodeCommand:
         _showContextBarcodeEditDialog();
+      case fortuneContextEditLineCommand:
+      case fortuneContextEditRectangleCommand:
+      case fortuneContextEditRoundedRectangleCommand:
+      case fortuneContextEditEllipseCommand:
+        _openTypedObjectPropertyPanel();
       case fortuneContextDuplicateImageCommand:
-        _duplicateContextImage();
+        if (_contextMenuObjectKey != null) {
+          _duplicateSelectedObjectsFromController();
+        } else {
+          _duplicateContextImage();
+        }
       case fortuneContextDeleteImageCommand:
-        _deleteActiveImage();
+        if (_contextMenuObjectKey != null) {
+          _deleteSelectedObjectsFromController();
+        } else {
+          _deleteActiveImage();
+        }
       case fortuneContextToggleLayerPanelCommand:
         _toggleImageLayerPanel();
       case fortuneContextBringForwardCommand:
-        _moveContextImageLayer(command);
+        if (_contextMenuObjectKey != null) {
+          _moveSelectedObjectsOneStep(front: true);
+        } else {
+          _moveContextImageLayer(command);
+        }
       case fortuneContextSendBackwardCommand:
-        _moveContextImageLayer(command);
+        if (_contextMenuObjectKey != null) {
+          _moveSelectedObjectsOneStep(front: false);
+        } else {
+          _moveContextImageLayer(command);
+        }
       case fortuneContextBringToFrontCommand:
-        _moveContextImageLayer(command);
+        if (_contextMenuObjectKey != null) {
+          _moveSelectedObjectsToBoundary(front: true);
+        } else {
+          _moveContextImageLayer(command);
+        }
       case fortuneContextSendToBackCommand:
-        _moveContextImageLayer(command);
+        if (_contextMenuObjectKey != null) {
+          _moveSelectedObjectsToBoundary(front: false);
+        } else {
+          _moveContextImageLayer(command);
+        }
       case fortuneToolbarLinkCommand:
         _toggleSelectedCellHyperlinkMetadata();
       case fortuneContextDataCommand:
@@ -33461,6 +33629,11 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
           _closeTransientMenus();
         });
     }
+  }
+
+  void _openTypedObjectPropertyPanel() {
+    setState(_closeTransientMenus);
+    widget.onOpenObjectPanel?.call();
   }
 
   void _showContextImageEditDialog() {
@@ -40924,6 +41097,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     _contextMenuIsEditor = false;
     _editorContextMenuSelectionRange = null;
     _contextMenuImageId = null;
+    _contextMenuObjectKey = null;
     _editorContextMenuOpeningPointer = null;
     _contextMenuPreviousSelectionSave = null;
     _contextMenuPreviousSelectionRange = null;

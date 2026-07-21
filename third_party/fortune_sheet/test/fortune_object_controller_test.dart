@@ -1,4 +1,8 @@
+import 'dart:ui';
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fortune_sheet/src/fortune_sheet_canvas.dart';
@@ -724,5 +728,169 @@ void main() {
       const FortuneSheetObjectKey(FortuneSheetObjectKind.rectangle, 'rect_1'),
       const FortuneSheetObjectKey(FortuneSheetObjectKind.rectangle, 'rect_2'),
     ]);
+  });
+
+  testWidgets('shape context menu opens the selected property panel', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    var panelOpenRequests = 0;
+    final workbook = FortuneWorkbook(
+      settings: const FortuneSettings(
+        showToolbar: false,
+        showFormulaBar: false,
+      ),
+      sheets: [
+        FortuneSheet(
+          id: 's1',
+          name: 'Sheet1',
+          shapes: const [
+            FortuneShape(
+              id: 'rect_1',
+              kind: FortuneShapeKind.rectangle,
+              left: 100,
+              top: 50,
+              width: 80,
+              height: 30,
+              fillColor: '#FFFFFF',
+            ),
+          ],
+        ),
+      ],
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SizedBox(
+          width: 900,
+          height: 700,
+          child: FortuneSheetCanvas(
+            workbook: workbook,
+            onOpenObjectPanel: () => panelOpenRequests += 1,
+          ),
+        ),
+      ),
+    );
+
+    FortuneSheetPainter painter() {
+      return tester
+          .widgetList<CustomPaint>(find.byType(CustomPaint))
+          .map((paint) => paint.painter)
+          .whereType<FortuneSheetPainter>()
+          .single;
+    }
+
+    final canvasTopLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
+    await tester.sendEventToBinding(
+      PointerDownEvent(
+        position: canvasTopLeft + const Offset(186, 85),
+        buttons: kSecondaryMouseButton,
+        kind: PointerDeviceKind.mouse,
+      ),
+    );
+    await tester.pump();
+
+    expect(painter().contextMenuItems, [
+      fortuneContextEditRectangleCommand,
+      '|',
+      fortuneContextDuplicateImageCommand,
+      fortuneContextDeleteImageCommand,
+      '|',
+      fortuneContextBringToFrontCommand,
+      fortuneContextBringForwardCommand,
+      fortuneContextSendBackwardCommand,
+      fortuneContextSendToBackCommand,
+    ]);
+    final editRect = fortuneContextMenuItemRect(
+      painter().contextMenuAt!,
+      fortuneContextEditRectangleCommand,
+      painter().contextMenuItems,
+    )!;
+    await tester.tapAt(canvasTopLeft + editRect.center);
+    await tester.pump();
+
+    expect(panelOpenRequests, 1);
+    expect(painter().contextMenuAt, isNull);
+  });
+
+  testWidgets('shape active toolbar opens the selected property panel', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    var panelOpenRequests = 0;
+    final workbook = FortuneWorkbook(
+      settings: const FortuneSettings(
+        showToolbar: false,
+        showFormulaBar: false,
+      ),
+      sheets: [
+        FortuneSheet(
+          id: 's1',
+          name: 'Sheet1',
+          shapes: const [
+            FortuneShape(
+              id: 'rect_1',
+              kind: FortuneShapeKind.rectangle,
+              left: 100,
+              top: 50,
+              width: 80,
+              height: 30,
+              fillColor: '#FFFFFF',
+            ),
+          ],
+        ),
+      ],
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SizedBox(
+          width: 900,
+          height: 700,
+          child: FortuneSheetCanvas(
+            workbook: workbook,
+            onOpenObjectPanel: () => panelOpenRequests += 1,
+          ),
+        ),
+      ),
+    );
+
+    FortuneSheetPainter painter() {
+      return tester
+          .widgetList<CustomPaint>(find.byType(CustomPaint))
+          .map((paint) => paint.painter)
+          .whereType<FortuneSheetPainter>()
+          .single;
+    }
+
+    final canvasTopLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
+    await tester.tapAt(canvasTopLeft + const Offset(186, 85));
+    await tester.pump();
+
+    const key = FortuneSheetObjectKey(
+      FortuneSheetObjectKind.rectangle,
+      'rect_1',
+    );
+    expect(painter().activeObjectKey, key);
+    final items = fortuneActiveTypedObjectToolbarItems(key);
+    final editRect = fortuneActiveImageToolbarItemRect(
+      ui.Rect.fromLTWH(146, 70, 80, 30),
+      const Size(900, 700),
+      fortuneContextEditRectangleCommand,
+      items,
+    )!;
+    await tester.tapAt(canvasTopLeft + editRect.center);
+    await tester.pump();
+
+    expect(panelOpenRequests, 1);
+    expect(painter().activeObjectKey, key);
   });
 }

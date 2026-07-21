@@ -916,6 +916,10 @@ class FortuneSheetLocale {
       'label-sheet-import-image': 'Import label image',
       'edit-image': 'Edit image',
       'edit-barcode': 'Edit barcode',
+      'edit-line': 'Edit line',
+      'edit-rectangle': 'Edit rectangle',
+      'edit-rounded-rectangle': 'Edit rounded rectangle',
+      'edit-ellipse': 'Edit ellipse',
       'toggle-layer-panel': 'Layers',
       'delete-image': 'Delete',
       'duplicate-image': 'Duplicate',
@@ -1689,6 +1693,10 @@ class FortuneSheetLocale {
       'label-sheet-import-image': '라벨 이미지 가져오기',
       'edit-image': '이미지 수정',
       'edit-barcode': '바코드 수정',
+      'edit-line': '선 편집',
+      'edit-rectangle': '사각형 편집',
+      'edit-rounded-rectangle': '둥근 사각형 편집',
+      'edit-ellipse': '타원 편집',
       'toggle-layer-panel': '레이어',
       'delete-image': '삭제',
       'duplicate-image': '복제',
@@ -2300,6 +2308,11 @@ const List<String> fortuneToolbarShapePopupCommands = [
 ];
 const String fortuneContextEditImageCommand = 'edit-image';
 const String fortuneContextEditBarcodeCommand = 'edit-barcode';
+const String fortuneContextEditLineCommand = 'edit-line';
+const String fortuneContextEditRectangleCommand = 'edit-rectangle';
+const String fortuneContextEditRoundedRectangleCommand =
+  'edit-rounded-rectangle';
+const String fortuneContextEditEllipseCommand = 'edit-ellipse';
 const String fortuneContextToggleLayerPanelCommand = 'toggle-layer-panel';
 const String fortuneContextDeleteImageCommand = 'delete-image';
 const String fortuneContextDuplicateImageCommand = 'duplicate-image';
@@ -42590,6 +42603,10 @@ bool fortuneContextMenuItemIsRenderedByUpstream(String item) {
     fortuneContextImportLabelImageCommand ||
     fortuneContextEditImageCommand ||
     fortuneContextEditBarcodeCommand ||
+    fortuneContextEditLineCommand ||
+    fortuneContextEditRectangleCommand ||
+    fortuneContextEditRoundedRectangleCommand ||
+    fortuneContextEditEllipseCommand ||
     fortuneContextDeleteImageCommand ||
     fortuneContextDuplicateImageCommand ||
     fortuneContextBringForwardCommand ||
@@ -44440,6 +44457,54 @@ List<String> fortuneActiveImageToolbarItems(FortuneImage image) {
     fortuneContextBringToFrontCommand,
     fortuneContextSendToBackCommand,
   ];
+}
+
+List<String> fortuneActiveTypedObjectToolbarItems(
+  FortuneSheetObjectKey key,
+) {
+  final editCommand = switch (key.kind) {
+    FortuneSheetObjectKind.line => fortuneContextEditLineCommand,
+    FortuneSheetObjectKind.rectangle => fortuneContextEditRectangleCommand,
+    FortuneSheetObjectKind.roundedRectangle =>
+      fortuneContextEditRoundedRectangleCommand,
+    FortuneSheetObjectKind.ellipse => fortuneContextEditEllipseCommand,
+    FortuneSheetObjectKind.image => fortuneContextEditImageCommand,
+    FortuneSheetObjectKind.barcode => fortuneContextEditBarcodeCommand,
+  };
+  return <String>[
+    editCommand,
+    fortuneContextDeleteImageCommand,
+    fortuneContextDuplicateImageCommand,
+    fortuneContextBringForwardCommand,
+    fortuneContextSendBackwardCommand,
+    fortuneContextBringToFrontCommand,
+    fortuneContextSendToBackCommand,
+  ];
+}
+
+bool fortuneActiveTypedObjectToolbarItemEnabled(
+  FortuneSheet sheet,
+  FortuneSheetObjectKey key,
+  String command,
+) {
+  final objects = fortuneSheetObjectsInPaintOrder(sheet);
+  final index = objects.indexWhere((object) => object.key == key);
+  if (index < 0) {
+    return false;
+  }
+  return switch (command) {
+    fortuneContextEditLineCommand ||
+    fortuneContextEditRectangleCommand ||
+    fortuneContextEditRoundedRectangleCommand ||
+    fortuneContextEditEllipseCommand ||
+    fortuneContextDeleteImageCommand ||
+    fortuneContextDuplicateImageCommand => true,
+    fortuneContextBringForwardCommand || fortuneContextBringToFrontCommand =>
+      index < objects.length - 1,
+    fortuneContextSendBackwardCommand || fortuneContextSendToBackCommand =>
+      index > 0,
+    _ => false,
+  };
 }
 
 bool fortuneActiveImageToolbarItemEnabled(
@@ -77310,7 +77375,8 @@ class FortuneSheetPainter extends CustomPainter {
     FortuneSettings settings,
   ) {
     final imageId = activeImageId;
-    if (imageId == null || contextMenuAt != null) {
+    final objectKey = activeObjectKey;
+    if ((imageId == null && objectKey == null) || contextMenuAt != null) {
       return;
     }
     final sheet = workbook.activeSheet;
@@ -77318,36 +77384,70 @@ class FortuneSheetPainter extends CustomPainter {
       (image) => image?.id == imageId,
       orElse: () => null,
     );
-    if (image == null) {
+    final zoomRatio = sheet.zoomRatio <= 0 ? 1.0 : sheet.zoomRatio;
+    Rect screenRect(Rect logical) => Rect.fromLTWH(
+      _sheetDataLeft(settings) + logical.left * zoomRatio - scrollOffset.dx,
+      _sheetDataTop(settings) + logical.top * zoomRatio - scrollOffset.dy,
+      math.max(1, logical.width * zoomRatio),
+      math.max(1, logical.height * zoomRatio),
+    );
+    Rect? objectRect;
+    if (image != null) {
+      objectRect = screenRect(
+        Rect.fromLTWH(image.left, image.top, image.width, image.height),
+      );
+    } else if (objectKey?.kind == FortuneSheetObjectKind.line) {
+      final line = sheet.lines
+          .where((item) => item.id == objectKey!.id)
+          .firstOrNull;
+      if (line != null) {
+        objectRect = screenRect(
+          Rect.fromLTRB(
+            math.min(line.x1, line.x2),
+            math.min(line.y1, line.y2),
+            math.max(line.x1, line.x2),
+            math.max(line.y1, line.y2),
+          ),
+        );
+      }
+    } else if (objectKey != null) {
+      final shape = sheet.shapes.where((item) {
+        return item.id == objectKey.id &&
+            fortuneShapeObjectKind(item) == objectKey.kind;
+      }).firstOrNull;
+      if (shape != null) {
+        objectRect = screenRect(
+          Rect.fromLTWH(shape.left, shape.top, shape.width, shape.height),
+        );
+      }
+    }
+    if (objectRect == null) {
       return;
     }
-    final zoomRatio = sheet.zoomRatio <= 0 ? 1.0 : sheet.zoomRatio;
-    final imageRect = Rect.fromLTWH(
-      _sheetDataLeft(settings) + image.left * zoomRatio - scrollOffset.dx,
-      _sheetDataTop(settings) + image.top * zoomRatio - scrollOffset.dy,
-      image.width * zoomRatio,
-      image.height * zoomRatio,
-    );
     final clip = Rect.fromLTWH(
       _sheetDataLeft(settings),
       _sheetDataTop(settings),
       math.max(0, size.width - _sheetDataLeft(settings)),
       math.max(0, size.height - _sheetDataTop(settings)),
     );
-    if (!imageRect.overlaps(clip)) {
+    if (!objectRect.overlaps(clip)) {
       return;
     }
-    final items = fortuneActiveImageToolbarItems(image);
-    final toolbar = fortuneActiveImageToolbarRect(imageRect, size);
+    final items = image != null
+        ? fortuneActiveImageToolbarItems(image)
+        : fortuneActiveTypedObjectToolbarItems(objectKey!);
+    final toolbar = fortuneActiveImageToolbarRect(objectRect, size);
     _drawShadowBox(canvas, toolbar, radius: 4, border: const Color(0xffd4d4d4));
     final itemWidth = toolbar.width / items.length;
     for (var index = 0; index < items.length; index += 1) {
       final item = items[index];
-      final enabled = fortuneActiveImageToolbarItemEnabled(
-        sheet.images,
-        activeImageId,
-        item,
-      );
+      final enabled = image != null
+          ? fortuneActiveImageToolbarItemEnabled(
+              sheet.images,
+              activeImageId,
+              item,
+            )
+          : fortuneActiveTypedObjectToolbarItemEnabled(sheet, objectKey!, item);
       final rect = Rect.fromLTWH(
         toolbar.left + itemWidth * index,
         toolbar.top,
@@ -77381,7 +77481,9 @@ class FortuneSheetPainter extends CustomPainter {
   void _drawActiveImageToolbarTooltip(Canvas canvas, Size size) {
     final command = activeImageToolbarHoveredCommand;
     final position = activeImageToolbarTooltipPosition;
-    if (activeImageId == null || command == null || position == null) {
+    if ((activeImageId == null && activeObjectKey == null) ||
+      command == null ||
+      position == null) {
       return;
     }
     final text = _activeImageToolbarTooltipLabel(command);
