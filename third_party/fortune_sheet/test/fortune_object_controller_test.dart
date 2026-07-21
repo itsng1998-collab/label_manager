@@ -539,6 +539,7 @@ void main() {
       tester.view.resetDevicePixelRatio();
     });
     final controller = FortuneSheetController();
+
     final picker = Completer<FortuneImagePickResult?>();
     final workbook = FortuneWorkbook(
       settings: const FortuneSettings(
@@ -612,6 +613,126 @@ void main() {
       1,
       1,
     ));
+  });
+
+  testWidgets('controller renders selected barcode properties atomically', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    final controller = FortuneSheetController();
+    FortuneBarcodeRequest? request;
+    final workbook = FortuneWorkbook(
+      settings: const FortuneSettings(
+        showToolbar: false,
+        showFormulaBar: false,
+      ),
+      sheets: [
+        FortuneSheet(
+          id: 's1',
+          name: 'Sheet1',
+          images: const [
+            FortuneImage(
+              id: 'barcode_1',
+              src: 'old-src',
+              left: 20,
+              top: 30,
+              width: 80,
+              height: 40,
+              extraFields: {
+                'fortuneBarcode': true,
+                fortuneBarcodeObjectIdExtraKey: 'OLD',
+                'barcodeText': 'OLD-TEXT',
+                'custom': {'keep': true},
+              },
+            ),
+          ],
+        ),
+      ],
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SizedBox(
+          width: 900,
+          height: 700,
+          child: FortuneSheetCanvas(
+            workbook: workbook,
+            controller: controller,
+            barcodeFormats: const [
+              FortuneBarcodeFormatOption(id: 'CODE128', label: 'Code 128'),
+            ],
+            barcodeRenderer: (value) async {
+              request = value;
+              return FortuneBarcodeRenderResult(
+                bytes: base64Decode(_testPngBase64),
+                pixelWidth: 120,
+                pixelHeight: 60,
+                bodyTop: 2,
+                bodyHeight: 44,
+              );
+            },
+          ),
+        ),
+      ),
+    );
+    controller.selectObject(
+      const FortuneSheetObjectKey(
+        FortuneSheetObjectKind.barcode,
+        'barcode_1',
+      ),
+    );
+    final rendered = await controller.renderSelectedBarcode(
+      text: '12345',
+      formatId: 'CODE128',
+      left: -5,
+      top: -3,
+      width: 120,
+      height: 60,
+      rotationDegrees: 405,
+      moduleScale: 4,
+      barHeight: 22,
+      leadingText: 'L',
+      trailingText: 'R',
+      showHumanReadableText: true,
+      humanReadableFontFamily: 'Pretendard',
+      humanReadableFontSize: 16,
+      connectionId: ' NEW ',
+      preserveTemplateFormat: true,
+    );
+    await tester.pump();
+
+    expect(rendered, isTrue);
+    expect((request?.text, request?.formatId, request?.rotation), (
+      '12345',
+      'CODE128',
+      45,
+    ));
+    expect((request?.moduleScale, request?.barHeight), (4, 22));
+    expect((request?.leadingText, request?.trailingText), ('L', 'R'));
+    expect(request?.showHumanReadableText, isTrue);
+    expect(request?.humanReadableFontFamily, 'Pretendard');
+    expect(request?.humanReadableFontSize, 16);
+
+    var image = controller.objectSelection.activeImage!;
+    expect((image.left, image.top, image.width, image.height), (-5, 0, 120, 60));
+    expect(image.extraFields[fortuneBarcodeObjectIdExtraKey], 'NEW');
+    expect(image.extraFields['barcodeFormatLabel'], 'Code 128');
+    expect(image.extraFields['preserveTemplateBarcodeFormat'], isTrue);
+    expect(image.extraFields['custom'], {'keep': true});
+    expect(
+      image.extraFields[fortuneBarcodeBodyRatioExtraKey],
+      closeTo(44 / 60, 0.0001),
+    );
+
+    controller.handleUndo();
+    await tester.pump();
+    image = controller.objectSelection.activeImage!;
+    expect((image.left, image.top, image.width, image.height), (20, 30, 80, 40));
+    expect(image.extraFields['barcodeText'], 'OLD-TEXT');
   });
 
   testWidgets('structured duplicate preserves connection id with no options', (

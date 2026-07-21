@@ -432,6 +432,9 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
   double? _imageAspectRatio;
   String? _lastImageSizeField;
   bool _imagePickerPending = false;
+  bool _barcodeRenderPending = false;
+  bool _barcodeShowText = false;
+  bool _barcodePreserveTemplateFormat = false;
   String? _error;
 
   @override
@@ -469,6 +472,23 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
           ? fortuneBarcodeObjectIdExtraKey
           : fortuneImageObjectIdExtraKey;
       _setField('connectionId', image.extraFields[metadataKey] ?? '');
+      if (widget.snapshot.activeKey!.kind == FortuneSheetObjectKind.barcode) {
+        final extra = image.extraFields;
+        _setField('barcodeText', extra['barcodeText'] ?? '');
+        _setField('barcodeFormatId', extra['barcodeFormatId'] ?? '');
+        _setField('moduleScale', extra['barcodeModuleScale'] ?? 3.0);
+        _setField('barHeight', extra['barcodeBarHeight'] ?? 10.0);
+        _setField('leadingText', extra['barcodeLeadingText'] ?? '');
+        _setField('trailingText', extra['barcodeTrailingText'] ?? '');
+        _setField(
+          'fontFamily',
+          extra['barcodeHumanReadableFontFamily'] ?? '',
+        );
+        _setField('fontSize', extra['barcodeHumanReadableFontSize'] ?? 14.0);
+        _barcodeShowText = extra['barcodeShowText'] == true;
+        _barcodePreserveTemplateFormat =
+            extra['preserveTemplateBarcodeFormat'] == true;
+      }
     } else if (line != null) {
       _strokeStyle = line.strokeStyle;
       _setGeometryField('x1', line.x1);
@@ -550,6 +570,35 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
         setState(() => _error = '연결을 해제하려면 이미지 파일을 선택하세요.');
         return;
       }
+      if (widget.snapshot.activeKey!.kind == FortuneSheetObjectKind.barcode) {
+        final moduleScale = _number('moduleScale');
+        final barHeight = _number('barHeight');
+        final fontSize = _number('fontSize');
+        final text = _fields['barcodeText']?.text ?? '';
+        final formatId = _fields['barcodeFormatId']?.text ?? '';
+        if (moduleScale == null ||
+            barHeight == null ||
+            fontSize == null ||
+            text.trim().isEmpty ||
+            formatId.trim().isEmpty) {
+          setState(() => _error = '바코드 입력값을 확인하세요.');
+          return;
+        }
+        _renderBarcode(
+          text: text,
+          formatId: formatId,
+          left: left!,
+          top: top!,
+          width: width!,
+          height: height!,
+          rotation: rotation!,
+          moduleScale: moduleScale,
+          barHeight: barHeight,
+          fontSize: fontSize,
+          connectionId: connectionId,
+        );
+        return;
+      }
       widget.controller.updateSelectedImage(
         left: left,
         top: top,
@@ -612,6 +661,55 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
       );
     }
     setState(() => _error = null);
+  }
+
+  Future<void> _renderBarcode({
+    required String text,
+    required String formatId,
+    required double left,
+    required double top,
+    required double width,
+    required double height,
+    required double rotation,
+    required double moduleScale,
+    required double barHeight,
+    required double fontSize,
+    required String connectionId,
+  }) async {
+    if (_barcodeRenderPending) {
+      return;
+    }
+    setState(() {
+      _barcodeRenderPending = true;
+      _error = null;
+    });
+    final rendered = await widget.controller.renderSelectedBarcode(
+      text: text,
+      formatId: formatId,
+      left: left,
+      top: top,
+      width: width,
+      height: height,
+      rotationDegrees: rotation,
+      moduleScale: moduleScale,
+      barHeight: barHeight,
+      leadingText: _fields['leadingText']?.text ?? '',
+      trailingText: _fields['trailingText']?.text ?? '',
+      showHumanReadableText: _barcodeShowText,
+      humanReadableFontFamily:
+          _fields['fontFamily']?.text.trim().isNotEmpty == true
+          ? _fields['fontFamily']!.text.trim()
+          : null,
+      humanReadableFontSize: fontSize,
+      connectionId: connectionId,
+      preserveTemplateFormat: _barcodePreserveTemplateFormat,
+    );
+    if (mounted) {
+      setState(() {
+        _barcodeRenderPending = false;
+        _error = rendered ? null : '바코드를 생성하지 못했습니다.';
+      });
+    }
   }
 
   Future<void> _replaceImageFile() async {
@@ -686,6 +784,47 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
             label: const Text('파일 교체'),
           ),
         _field('회전', 'rotation', suffix: '°'),
+        if (widget.snapshot.activeKey!.kind == FortuneSheetObjectKind.barcode)
+          ...[
+            _field('형식', 'barcodeFormatId'),
+            _field('데이터', 'barcodeText'),
+            _field('모듈 배율', 'moduleScale'),
+            _field('바 높이', 'barHeight'),
+            _field('앞쪽 텍스트', 'leadingText'),
+            _field('뒤쪽 텍스트', 'trailingText'),
+            CheckboxListTile(
+              key: const ValueKey('fortune-object-property-barcode-show-text'),
+              contentPadding: EdgeInsets.zero,
+              dense: true,
+              title: const Text(
+                '사람이 읽는 텍스트 표시',
+                style: TextStyle(fontSize: 13),
+              ),
+              value: _barcodeShowText,
+              onChanged: (value) {
+                setState(() => _barcodeShowText = value ?? false);
+              },
+            ),
+            _field('텍스트 글꼴', 'fontFamily'),
+            _field('텍스트 크기', 'fontSize'),
+            CheckboxListTile(
+              key: const ValueKey(
+                'fortune-object-property-barcode-preserve-template',
+              ),
+              contentPadding: EdgeInsets.zero,
+              dense: true,
+              title: const Text(
+                '템플릿 바코드 형식 유지',
+                style: TextStyle(fontSize: 13),
+              ),
+              value: _barcodePreserveTemplateFormat,
+              onChanged: (value) {
+                setState(() {
+                  _barcodePreserveTemplateFormat = value ?? false;
+                });
+              },
+            ),
+          ],
       ]);
     } else if (line != null) {
       fields.addAll([
@@ -761,8 +900,13 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
       const SizedBox(height: 10),
       FilledButton(
         key: const ValueKey('fortune-object-property-apply'),
-        onPressed: _apply,
-        child: const Text('적용'),
+        onPressed: _barcodeRenderPending ? null : _apply,
+        child: _barcodeRenderPending
+            ? const SizedBox.square(
+                dimension: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : const Text('적용'),
       ),
     ]);
     return ListView(

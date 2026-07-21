@@ -1186,6 +1186,45 @@ class FortuneSheetController extends ChangeNotifier {
     return await _state?._replaceSelectedImageFileFromController() ?? false;
   }
 
+  Future<bool> renderSelectedBarcode({
+    required String text,
+    required String formatId,
+    required double left,
+    required double top,
+    required double width,
+    required double height,
+    required double rotationDegrees,
+    required double moduleScale,
+    required double barHeight,
+    required String leadingText,
+    required String trailingText,
+    required bool showHumanReadableText,
+    required String? humanReadableFontFamily,
+    required double humanReadableFontSize,
+    required String connectionId,
+    required bool preserveTemplateFormat,
+  }) async {
+    return await _state?._renderSelectedBarcodeFromController(
+          text: text,
+          formatId: formatId,
+          left: left,
+          top: top,
+          width: width,
+          height: height,
+          rotationDegrees: rotationDegrees,
+          moduleScale: moduleScale,
+          barHeight: barHeight,
+          leadingText: leadingText,
+          trailingText: trailingText,
+          showHumanReadableText: showHumanReadableText,
+          humanReadableFontFamily: humanReadableFontFamily,
+          humanReadableFontSize: humanReadableFontSize,
+          connectionId: connectionId,
+          preserveTemplateFormat: preserveTemplateFormat,
+        ) ??
+        false;
+  }
+
   void updateSelectedLine({
     double? x1,
     double? y1,
@@ -2648,6 +2687,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   late FortuneObjectConnectionMode _imageObjectConnectionMode;
   late FortuneObjectConnectionMode _barcodeObjectConnectionMode;
   int _panelImagePickerToken = 0;
+  int _panelBarcodeRequestSequence = 0;
+  final Map<FortuneSheetObjectKey, int> _panelBarcodeRequestTokens = {};
   static const int _maxUndoSnapshots = 100;
   static const String _sheetCornerTooltipText = '마우스 우클릭 - 라벨 크기 조정';
   static const Map<String, int> _fillChineseDigits = {
@@ -26347,6 +26388,161 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         _decodedImages[src]?.dispose();
         _decodedImages[src] = decoded;
       }
+      _workbook = _workbook.copyWith(sheets: sheets);
+      _closeTransientMenus();
+    });
+    return true;
+  }
+
+  Future<bool> _renderSelectedBarcodeFromController({
+    required String text,
+    required String formatId,
+    required double left,
+    required double top,
+    required double width,
+    required double height,
+    required double rotationDegrees,
+    required double moduleScale,
+    required double barHeight,
+    required String leadingText,
+    required String trailingText,
+    required bool showHumanReadableText,
+    required String? humanReadableFontFamily,
+    required double humanReadableFontSize,
+    required String connectionId,
+    required bool preserveTemplateFormat,
+  }) async {
+    final renderer = widget.barcodeRenderer;
+    final snapshot = _objectSelectionSnapshot(attached: true);
+    final key = snapshot.activeKey;
+    final source = snapshot.activeImage;
+    final canonicalRotation = _normalizeObjectRotation(rotationDegrees);
+    if (!_workbook.settings.allowEdit ||
+        renderer == null ||
+        key == null ||
+        key.kind != FortuneSheetObjectKind.barcode ||
+        source == null ||
+        text.trim().isEmpty ||
+        formatId.trim().isEmpty ||
+        ![
+          width,
+          height,
+          left,
+          top,
+          canonicalRotation,
+          moduleScale,
+          barHeight,
+          humanReadableFontSize,
+        ].every((value) => value.isFinite) ||
+        width < 0 ||
+        height < 0 ||
+        moduleScale <= 0 ||
+        barHeight <= 0 ||
+        humanReadableFontSize <= 0) {
+      return false;
+    }
+    final ownerSheetId = snapshot.sheetId;
+    final token = ++_panelBarcodeRequestSequence;
+    _panelBarcodeRequestTokens[key] = token;
+    FortuneBarcodeRenderResult? result;
+    try {
+      result = await renderer(
+        FortuneBarcodeRequest(
+          text: text.trim(),
+          formatId: formatId.trim(),
+          width: width,
+          height: height,
+          rotation: canonicalRotation,
+          moduleScale: moduleScale,
+          barHeight: barHeight,
+          leadingText: leadingText,
+          trailingText: trailingText,
+          showHumanReadableText: showHumanReadableText,
+          humanReadableFontFamily: humanReadableFontFamily,
+          humanReadableFontSize: humanReadableFontSize,
+        ),
+      );
+    } on Object {
+      result = null;
+    }
+    if (!mounted ||
+        result == null ||
+        _panelBarcodeRequestTokens[key] != token) {
+      return false;
+    }
+    final sheet = _workbook.activeSheet;
+    final sourceIndex = sheet.images.indexWhere((image) {
+      return image.id == key.id &&
+          fortuneImageObjectKind(image) == key.kind &&
+          _sameSnapshotImage(image, source);
+    });
+    if (!_workbook.settings.allowEdit ||
+        sheet.id != ownerSheetId ||
+        sourceIndex < 0) {
+      return false;
+    }
+    final imageWidth = width > 0
+        ? width
+        : (result.pixelWidth ?? source.width).toDouble();
+    final imageHeight = height > 0
+        ? height
+        : (result.pixelHeight ?? source.height).toDouble();
+    if (![imageWidth, imageHeight].every((value) => value.isFinite && value > 0)) {
+      return false;
+    }
+    final format = widget.barcodeFormats
+        .where((option) => option.id == formatId.trim())
+        .firstOrNull;
+    final extraFields = <String, Object?>{
+      ...source.extraFields,
+      'fortuneBarcode': true,
+      'barcodeText': text.trim(),
+      'barcodeFormatId': formatId.trim(),
+      'barcodeFormatLabel': format?.label ??
+          source.extraFields['barcodeFormatLabel'] ??
+          formatId.trim(),
+      'originWidth': result.pixelWidth ?? imageWidth,
+      'originHeight': result.pixelHeight ?? imageHeight,
+      'rotation': canonicalRotation,
+      'barcodeModuleScale': moduleScale,
+      'barcodeBarHeight': barHeight,
+      'barcodeLeadingText': leadingText,
+      'barcodeTrailingText': trailingText,
+      'barcodeShowText': showHumanReadableText,
+      'barcodeHumanReadableFontFamily': humanReadableFontFamily,
+      'barcodeHumanReadableFontSize': humanReadableFontSize,
+      'preserveTemplateBarcodeFormat': preserveTemplateFormat,
+      fortuneBarcodeBodyTopExtraKey: (result.bodyTop ?? 0).toDouble(),
+      fortuneBarcodeBodyHeightExtraKey:
+          (result.bodyHeight ?? result.pixelHeight ?? imageHeight).toDouble(),
+      fortuneBarcodeIdLabelPrintExcludedExtraKey: true,
+    };
+    if (connectionId.trim().isEmpty) {
+      extraFields.remove(fortuneBarcodeObjectIdExtraKey);
+    } else {
+      extraFields[fortuneBarcodeObjectIdExtraKey] = connectionId.trim();
+    }
+    final bodyHeight = extraFields[fortuneBarcodeBodyHeightExtraKey] as double;
+    extraFields[fortuneBarcodeBodyRatioExtraKey] =
+        (bodyHeight / imageHeight).clamp(0.0, 1.0);
+    if (fortuneSheetGridClientPhysicalSize(sheet) != null) {
+      extraFields['widthMm'] = fortuneLogicalPixelsToMillimeters(imageWidth);
+      extraFields['heightMm'] = fortuneLogicalPixelsToMillimeters(imageHeight);
+    }
+    final src = _bytesDataUri(result.bytes, result.mimeType);
+    final next = source.copyWith(
+      src: src,
+      left: left,
+      top: math.max(0.0, top),
+      width: imageWidth,
+      height: imageHeight,
+      extraFields: extraFields,
+    );
+    final images = [...sheet.images]..[sourceIndex] = next;
+    final sheets = [..._workbook.sheets];
+    _recordUndoSnapshot();
+    sheets[_workbook.activeSheetIndex] = sheet.copyWith(images: images);
+    setState(() {
       _workbook = _workbook.copyWith(sheets: sheets);
       _closeTransientMenus();
     });
