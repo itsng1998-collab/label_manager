@@ -893,6 +893,7 @@ void main() {
     String? clipboardText;
     var delayClipboardWrites = false;
     final clipboardWrites = <Completer<void>>[];
+    var clipboardReads = 0;
     tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
       SystemChannels.platform,
       (call) async {
@@ -907,6 +908,7 @@ void main() {
             clipboardText = text;
             return null;
           case 'Clipboard.getData':
+            clipboardReads += 1;
             return <String, Object?>{'text': clipboardText};
         }
         return null;
@@ -1060,6 +1062,20 @@ void main() {
     expect(await failingCopy, isFalse);
     expect(clipboardText, stableMarker);
     expect(await controller.pasteObjects(), isTrue);
+
+    clipboardText = 'external cell text';
+    final readsBeforeFallback = clipboardReads;
+    expect(await controller.pasteObjects(), isFalse);
+    await tester.pump();
+    expect(clipboardReads, readsBeforeFallback + 1);
+    expect(
+      painter()
+          .workbook
+          .activeSheet
+          .cells[const FortuneCellCoord(0, 0)]
+          ?.value,
+      'external cell text',
+    );
   });
 
   testWidgets('structured duplicate preserves connection id with no options', (

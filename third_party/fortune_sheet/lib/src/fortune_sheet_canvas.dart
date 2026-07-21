@@ -26527,12 +26527,16 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
 
   Future<bool> _pasteObjectsFromStableClipboard() async {
     final payload = _objectClipboardPayload;
-    if (!_workbook.settings.allowEdit || payload == null) {
+    if (!_workbook.settings.allowEdit) {
       return false;
     }
     final targetWorkbook = _workbook;
     final targetSheetId = _workbook.activeSheet.id;
     final targetSelection = _objectSelectionSnapshot(attached: true);
+    final targetRanges = _rawSelectionRanges(_workbook.activeSheet);
+    if (targetRanges.isEmpty) {
+      targetRanges.add(_currentSelectionRange(_workbook.activeSheet));
+    }
     ClipboardData? data;
     try {
       data = await Clipboard.getData(Clipboard.kTextPlain);
@@ -26545,8 +26549,26 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         !_sameObjectSelection(
           targetSelection,
           _objectSelectionSnapshot(attached: true),
-        ) ||
-        data?.text != payload.marker) {
+        )) {
+      return false;
+    }
+    final currentRanges = _rawSelectionRanges(_workbook.activeSheet);
+    if (currentRanges.isEmpty) {
+      currentRanges.add(_currentSelectionRange(_workbook.activeSheet));
+    }
+    if (currentRanges.length != targetRanges.length ||
+        !currentRanges.asMap().entries.every(
+          (entry) => _sameRange(entry.value, targetRanges[entry.key]),
+        )) {
+      return false;
+    }
+    final text = data?.text;
+    if (text == null) return false;
+    if (payload == null && text.startsWith('fortune-sheet:objects:v1:')) {
+      return false;
+    }
+    if (payload == null || text != payload.marker) {
+      _pasteTextAtSelection(text);
       return false;
     }
     final originalSheet = _workbook.activeSheet;
