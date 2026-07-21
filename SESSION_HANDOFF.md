@@ -1,3 +1,12 @@
+### 완료 (2026-07-21): 선·도형 지시서 radius decode·preset Escape·line angle 보완
+- 사용자 요청: 최신 재검토에서 확인한 범위 밖 roundedRectangle radius decode, shape preset 숫자 editor Escape와 line read-only angle 권장안을 지시서에 병합한다.
+- 추가 사용자 확인 불필요: 기존 codec 기본값/fallback, Escape의 한 번에 최상위 transient 하나, shape rotation의 화면 좌표 시계 방향 정책으로 결과가 결정된다. clamp나 popup 동시 닫기, 별도 수학 좌표계 같은 새 UX는 추가하지 않았다.
+- codec 보완 완료: roundedRectangle radius의 누락·비숫자·비유한·0~50 범위 밖 값은 clamp 없이 `2.0`으로 fallback하고 rectangle/ellipse의 `0.0` 아닌 값은 `0.0`으로 canonicalize하며 이처럼 실제 fallback/normalize가 발생한 raw fortuneShapes list를 재사용하지 않는다. rectangle/ellipse의 이미 유효한 숫자 `0.0`은 다른 canonical field도 유효하면 raw 재사용이 가능하다.
+- interaction 보완 완료: focused preset width/radius editor의 미확정 문자열 또는 validation은 첫 Escape에서 committed preset 문자열로 원복·정리하고 popup/focus를 유지한다. 다음 Escape가 하위 popup 또는 shape popup 하나를 닫으며 preset/workbook/insertion mode는 원복 key event에서 불변이다.
+- 표시 보완 완료: line angle은 화면 좌표의 오른쪽 0도·아래쪽 90도인 시계 방향 `[0, 360)`이고 endpoint 교환 시 180도 바뀌며 zero-length는 숫자 angle 없음으로 표시한다.
+- model/codec·interaction/property 테스트와 완료 조건에 세 계약을 연결했다.
+- stage/commit 대상: `doc/label_line_panel.txt`, `SESSION_HANDOFF.md`만 포함한다. 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
+
 ### 완료 (2026-07-21): 선·도형 지시서 생성 상단 보정·회전 resize projection 보완
 - 사용자 요청: 최신 geometry 재검토에서 확인한 위쪽 밖 shape 생성 보정 순서와 회전 shape 비-Shift corner 상단 경계 projection 권장안을 지시서에 병합한다.
 - 추가 사용자 확인 불필요: 기존 pointer-down anchor, Shift aspect/snap, opposite world anchor와 rotation 우선 정책으로 결과가 결정된다. bounds 평행 이동, aspect 파괴나 임의의 최근접 projection 같은 새 UX 선택은 추가하지 않았다.

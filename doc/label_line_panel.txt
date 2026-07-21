@@ -217,7 +217,7 @@ FortuneShapeKind.ellipse          <-> "ellipse"
 - 필수 필드가 없거나 geometry가 유한한 숫자가 아니거나 width/height가 0 이하이면 해당 shape entry만 무시한다.
 - stroke style/width/color 기본값과 validation은 line과 같다.
 - `fillColor`가 null이면 채우기 없음이며, 전용 `#RRGGBB` wire가 아닌 문자열은 공용 parser의 처리 가능 여부와 무관하게 null로 읽는다.
-- `rotationDegrees`, `cornerRadiusMm`가 없거나 유한하지 않으면 각 기본값을 사용한다.
+- `rotationDegrees`가 없거나 유한하지 않으면 기본값 `0.0`을 사용한다. roundedRectangle의 `cornerRadiusMm`가 없거나 숫자가 아니거나 유한하지 않거나 `0.0~50.0` 범위 밖이면 clamp하지 않고 기본값 `2.0`을 사용한다. rectangle/ellipse의 `cornerRadiusMm`는 입력값과 관계없이 `0.0`으로 canonicalize한다. 이미 유효한 숫자 `0.0`이면 radius normalize가 발생하지 않아 다른 canonical field도 모두 유효한 raw list는 재사용할 수 있고, 그 밖의 radius fallback/normalize가 발생하면 해당 raw fortuneShapes list는 재사용하지 않는다.
 - 빈 `fortuneShapes`는 기존 파일과 같은 결과를 만들며 images/lines decoding에 영향을 주지 않는다.
 - 지원하지 않는 shape extra field의 round-trip/sanitizer 경계는 line과 같다.
 - 기존 sheet-level `shapes` map/list는 FortuneSheet raw shape overlay wire이므로 신규 typed shape로 decode하거나 migrate하지 않고 `extraFields['shapes']`에 원형 보존한다. 기존 painter·capture 동작도 유지하며 `fortuneShapes`와 동시에 존재해도 어느 한쪽을 덮어쓰지 않는다. 화면 합성은 `cell base → image/barcode/line/fortuneShape typed 공통 object layer → legacy raw overlay → editor UI overlay`, 모든 capture 합성은 editor UI를 제외한 `cell base → typed 공통 object layer → legacy raw overlay` 순서로 고정한다. legacy raw overlay는 이번 통합 object 선택·편집·공통 zOrder·typed hit-test 대상이 아니며 raw `zIndex`는 legacy overlay끼리의 기존 순서에만 사용한다.
@@ -466,7 +466,7 @@ popup 배치:
 - 테두리 종류/색상/채우기 선택: popup 유지, preset 갱신
 - 숫자 입력 클릭: popup 유지, width 또는 radius 편집
 - Enter 또는 focus loss: width commit
-- Escape: 입력 원복 또는 popup 닫기
+- focused width/radius editor에 마지막 committed preset과 다른 미확정 문자열 또는 inline validation이 있으면 첫 Escape는 editor 문자열을 마지막 committed preset으로 원복하고 validation을 제거하되 popup과 editor focus를 유지한다. preset·workbook·insertion mode는 바꾸지 않고 해당 key event를 handled로 종료한다. 미확정 입력이 없는 다음 Escape는 §13.3의 한 번에 최상위 transient 하나 규칙으로 하위 popup이 있으면 그것만, 없으면 shape popup을 닫는다.
 - 유효 범위 `0.1~10.0 mm`, 증감 단위 `0.1 mm`
 - radius 유효 범위 `0.0~50.0 mm`, 증감 단위 `0.1 mm`
 - 잘못된 입력은 preset을 변경하지 않고 기존 inline validation 표시를 사용한다.
@@ -699,6 +699,7 @@ shape 위치/크기/회전 field는 canvas handle과 같은 geometry commit API�
 
 - geometry model의 X/Y, endpoint와 width/height는 항상 logical coordinate로 유지한다.
 - panel의 X/Y, endpoint, width/height와 read-only line length는 기존 이미지 dialog와 같이 physical-size가 있는 시트에서는 `mm`, 없으면 `px`로 표시하고 모든 field에 현재 단위 suffix를 표시한다.
+- read-only line angle은 화면 좌표계에서 `atan2(y2 - y1, x2 - x1)`을 degree로 변환해 오른쪽을 `0°`, 아래쪽을 `90°`로 하는 시계 방향 `0 <= angle < 360` 값으로 표시한다. endpoint를 교환하면 방향이 바뀌므로 표시 angle도 `180°` 바뀐다. 두 endpoint가 같은 zero-length line은 임의의 `0°`를 만들지 않고 숫자 angle 없음으로 표시한다. 표시 소수 자릿수는 기존 숫자 field formatting을 따른다.
 - panel commit은 공용 logical pixel↔mm helper로 표시값을 logical coordinate로 변환하며, 단위 전환 때문에 별도 raw geometry metadata를 추가하지 않는다.
 - field를 열 때 반올림한 mm/px 초기 표시 문자열을 사용자가 변경하지 않은 채 Enter 또는 focus loss가 발생하면 표시 문자열을 logical coordinate로 역변환하지 않고 원래 canonical geometry를 유지한다. 이 무편집 경로와 역변환 결과가 기존 canonical 값과 같은 경로는 commit·undo·dirty·revision·callback/listenable이 없는 no-op이다.
 - 모든 geometry text field는 parse와 단위 변환 뒤 X/Y, line start/end X/Y, width/height, rotation과 corner radius가 모두 finite인지 공용 geometry commit 경계에서 먼저 검증한다. 입력 자체가 유한해도 단위 변환 결과가 비유한 값이면 거부하고, finite 검증을 통과한 값에만 아래의 기존 range·clamp·정규화 정책을 적용한다.
@@ -1057,7 +1058,7 @@ pointer move event와 property text 입력의 각 문자 변경마다 undo snaps
 - 숫자/문자열 `NaN`, `Infinity`, `-Infinity` zOrder의 `0.0` canonical decode/save와 stable tie
 - 기존 image/barcode `extraFields.zOrder`의 비숫자·비유한 값 `0.0` canonical save와 raw 비재사용
 - 중복 ID 재발급, 비숫자/비유한 zOrder, decoder 제외 entry와 빈 canonical model에서 비정상 raw list를 재사용하지 않고 canonical encode
-- 정상 sibling과 geometry·stroke width/style/color·fill·rotation·kind별 radius 중 하나가 비정상인 entry를 함께 둔 각 2-entry fixture에서 fallback된 entry뿐 아니라 raw list 전체를 폐기하고 두 entry 모두 canonical encode
+- 정상 sibling과 geometry·stroke width/style/color·fill·rotation·kind별 radius 중 하나가 비정상인 entry를 함께 둔 각 2-entry fixture에서 fallback된 entry뿐 아니라 raw list 전체를 폐기하고 두 entry 모두 canonical encode. roundedRectangle radius의 누락·비숫자·비유한·`-1`·`50` 초과는 clamp 없이 `2.0`, rectangle/ellipse의 `0.0` 아닌 radius는 `0.0`으로 canonicalize하며 이미 유효한 숫자 `0.0`만 있는 raw list는 다른 field도 유효하면 재사용 가능함
 - line/shape 색상은 정확한 6자리 hex만 대문자 `#RRGGBB`로 canonicalize하고 `#RGB`, 8자리 alpha hex, `rgb()`/`rgba()`는 stroke `#000000`·fill null로 fallback한 뒤 raw list를 재사용하지 않음
 - 정상 sibling과 lowercase/mixed-case `#aAbBcC` entry를 함께 둔 raw list도 uppercase canonicalization이 발생하므로 전체 raw list를 폐기하고 두 entry 모두 canonical encode
 
@@ -1088,7 +1089,7 @@ pointer move event와 property text 입력의 각 문자 변경마다 undo snaps
 - dashed/dotted/dashDot line과 fill 없는 patterned shape의 print-area exact key는 canonical phase의 실제 dash/dot painted footprint가 원래 rect와 교차·경계 접촉할 때만 포함하고 gap-only 교차는 제외함. 채움 shape는 fill 교차로 포함하며 viewport/capture 후보 culling은 연속 stroke envelope로 보수적으로 유지함
 - print-area가 회전된 채움 shape 내부에 완전히 포함되고 outline과 만나지 않아도 해당 shape를 포함함
 - print-area save가 line/shape의 원래 sheet logical 좌표를 유지하고 저장 row/column 범위만 확장함
-- unknown stroke, 범위 밖 stroke width, 잘못된 stroke/fill color의 기본값 canonical 재저장과 rectangle/ellipse radius `0.0`, rotation canonical 재저장
+- unknown stroke, 범위 밖 stroke width, 잘못된 stroke/fill color의 기본값 canonical 재저장과 roundedRectangle의 범위 밖 radius `2.0` fallback, rectangle/ellipse radius `0.0`, rotation canonical 재저장
 
 ### 15.3 geometry/painter 테스트
 
@@ -1141,6 +1142,7 @@ pointer move event와 property text 입력의 각 문자 변경마다 undo snaps
 - 최소 크기 미달과 pointer cancel은 workbook/undo/dirty/callback 불변인 채 draft만 폐기하고 crosshair/insertion mode를 유지해 toolbar 재선택 없는 다음 유효 drag가 성공함
 - active sheet 변경·undo/redo·외부 workbook 교체는 transient draft와 insertion mode를 종료하고 cursor를 복원하며 owner 불일치 후속 move/up을 no-op으로 처리함. owner 변경 뒤 첫 primary click은 삽입이 아니라 정상 object/cell hit-test를 수행함
 - popup 숫자 입력 직후 `[삽입]`이 유효한 최신 preset을 사용하고 invalid 입력에서는 popup 유지·삽입 차단
+- popup width/radius editor의 dirty valid 문자열과 invalid 문자열·inline validation에서 첫 Escape는 마지막 committed preset 문자열로 원복하고 validation을 제거하면서 popup/focus를 유지하며 preset·workbook·insertion mode를 바꾸지 않음. 다음 Escape는 열린 하위 popup 또는 shape popup 하나만 닫음
 - image/barcode toolbar command 시점의 owner sheet/merge anchor 고정, dialog 중 cell selection 변경의 위치 불변과 sheet 변경·undo/redo·외부 교체 취소
 - image/barcode 삽입이 `allowEdit`만 사용하고 선택 anchor의 protection/locked 상태에는 영향받지 않음
 - image source 공통 finite 양수 크기, 구조화 연결 option/고정 파일별 확인 활성 조건, option 없는 host의 legacy/자동 ID와 모든 연결 source의 placeholder 분리, file picker 취소 시 dialog·입력 유지와 유효 파일 선택 시 aspect ratio 기반 초기 크기
@@ -1214,6 +1216,7 @@ pointer move event와 property text 입력의 각 문자 변경마다 undo snaps
 - shape body move와 copy paste/duplicate offset의 음수 X 허용, top `0` clamp, right/bottom 초과 허용과 회전 시각 bounds 무-clamp
 - object A 선택→workbook 편집→object B 선택→undo에서 존재하는 B 선택은 유지하고 selection 변경 자체는 dirty/undo를 만들지 않음
 - physical-size sheet의 X/Y/endpoint/width/height/length `mm` 표시·logical 양방향 변환과 physical metadata 없는 sheet의 `px` 표시·logical 값 유지
+- line angle은 오른쪽 `0°`, 아래쪽 `90°`인 화면 좌표계 시계 방향 `[0, 360)`로 표시하고 위/왼쪽/endpoint 교환 결과와 zero-length의 숫자 angle 없음 표시를 검증함
 - 정확히 두 자리 mm 또는 px로 round-trip되지 않는 canonical logical geometry를 반올림해 표시한 뒤 문자열을 수정하지 않은 Enter와 focus loss 각각에서 원래 geometry를 유지하고 workbook/undo/dirty/revision·`onChange`/`onOp`/listenable이 모두 0회임
 - X/Y, line start/end X/Y, width/height, rotation과 corner radius 각각의 `NaN`/`Infinity`/`-Infinity`, 그리고 입력은 유한하지만 단위 변환 결과가 비유한 값이 되는 큰 수를 거부해 workbook/undo/dirty/revision/callback을 바꾸지 않음. `25.4 mm == 96 logical px` 변환과 finite 값의 기존 음수 X, Y clamp, 양수 크기, 회전 정규화 정책은 유지함
 - 단일 image/barcode/line/shape 속성 form 전환
@@ -1387,7 +1390,7 @@ pointer move event와 property text 입력의 각 문자 변경마다 undo snaps
 - 비유한 zOrder는 `0.0`으로 canonicalize되고 공통 정렬과 다음 객체 zOrder는 유한값만 사용한다.
 - 기존 image/barcode의 비숫자·비유한 extraFields zOrder도 `0.0`으로 canonicalize되고 비정상 raw를 재사용하지 않는다.
 - 유한 최대 zOrder가 너무 커 신규 단일/batch 삽입값을 finite·엄격 증가로 만들 수 없으면 같은 삽입 transaction에서 기존 공통 paint order를 `1.0..N.0`으로 재기준화한 뒤 `N+1.0..`을 배정한다. 변경 객체를 포함한 kind별 raw list는 command mutation으로 폐기하고, 별도 undo/callback이나 저장 배열 재배열은 만들지 않는다.
-- ID/zOrder canonicalization, geometry·stroke/fill/radius fallback 또는 invalid entry 제외가 발생한 raw list는 재사용하지 않고 모든 canonical field의 유효한 wire로 저장된다. line/shape 색상은 6자리 hex만 대문자 `#RRGGBB`로 canonicalize하고 다른 공용 parser 문법과 alpha는 허용하지 않는다.
+- ID/zOrder canonicalization, geometry·stroke/fill/radius fallback 또는 invalid entry 제외가 발생한 raw list는 재사용하지 않고 모든 canonical field의 유효한 wire로 저장된다. roundedRectangle의 누락·비숫자·비유한·범위 밖 radius는 clamp 없이 `2.0`, rectangle/ellipse의 `0.0` 아닌 radius는 `0.0`으로 canonicalize한다. rectangle/ellipse의 이미 유효한 숫자 `0.0`은 normalize가 아니므로 다른 canonical field도 모두 유효하면 raw list 재사용을 허용한다. line/shape 색상은 6자리 hex만 대문자 `#RRGGBB`로 canonicalize하고 다른 공용 parser 문법과 alpha는 허용하지 않는다.
 - absent/빈 lines/fortuneShapes는 같은 empty model이며 canonical encoder는 raw empty key 보존 조건이 아니면 빈 typed list key를 생략한다. legacy raw overlay `shapes`는 typed shape로 해석하지 않고 FortuneSheet codec에서 원형 보존한다.
 - legacy raw `shapes`는 JSON-safe leaf와 String-key map/list일 때만 원형 보존하고 invalid descendant가 하나라도 있으면 부분 변형 없이 해당 overlay 전체만 제외해 나머지 workbook 저장을 계속한다.
 - legacy raw `shapes` strict clone은 일반 migration clone/cast 전에 원본 key 타입·finite value·cycle을 검사하고 유효 `null`과 invalid를 별도 결과로 구분한다.
@@ -1433,11 +1436,12 @@ pointer move event와 property text 입력의 각 문자 변경마다 undo snaps
 - controller는 immutable snapshot과 public listenable을 제공한다. host가 listener와 controller 수명을 소유하며 정상 attach/detach는 lifecycle snapshot을 각각 한 번 통지하고 canonical callback은 발생시키지 않는다. alive-detached getter는 active/property/draft null, selection/object refs empty, command/pending false를 반환하고 canvas-dependent command는 no-op, 조회/capture는 absent 결과다. host는 detach 뒤에만 terminal dispose하며 attached dispose는 `StateError`, dispose 자체의 추가 통지는 0회이고 disposed getter는 detached terminal snapshot이며 재attach·command/listener 사용은 지원하지 않는다.
 - 단일 선택은 타입별 속성, 다중 선택은 layer 조정 UI를 표시한다.
 - geometry 속성은 physical-size sheet에서 mm, 그 외에는 px로 표시하며 commit 뒤 model 좌표는 logical coordinate를 유지한다.
+- line read-only angle은 화면 좌표계의 오른쪽 `0°`, 아래쪽 `90°`인 시계 방향 `[0, 360)`이며 endpoint 교환은 `180°`를 더하고 zero-length는 숫자 angle을 표시하지 않는다.
 - 반올림된 geometry 초기 표시 문자열을 사용자가 수정하지 않은 Enter/focus loss는 원래 canonical logical 값을 유지하는 no-op이고, 변경 입력은 단위 변환 뒤 모든 geometry field의 finite 검증을 통과한 경우에만 기존 range·clamp·정규화 정책으로 commit된다.
 - property spinner/drag update는 owner-bound transient preview만 바꾸고 canonical workbook/history/revision/callback/listenable을 유지한다. 유효한 변경값 end만 transaction/undo 1회이며 시작값 왕복 end, cancel과 owner/revision 불일치는 canonical no-op이다. 조작 중 명시적 command는 기존 property finalize 규칙을 사용하고 `allowEdit` 하강은 commit 없는 폐기와 permission snapshot 통지를 우선하며 이후 stale end는 no-op이다.
 - panel list, canvas object, canvas cell과 editable field의 keyboard 동작은 실제 focus에 따라 분리된다. editable focus의 text/unsupported key를 object command로 재해석하지 않고 layer command는 layer list, geometry command는 canvas focus에서만 실행한다.
 - canvas/list/property pointer가 각 실제 focus를 소유하고 dock 단순 open은 focus를 유지한다. narrow overlay를 명시적으로 열면 list focus로 이동하며 단순 close는 유효한 trigger/직전 focus 또는 canvas fallback으로 복원한다. focus를 가져가지 않은 popup close는 focus를 바꾸지 않고 edit command만 대상 field로 이동한다.
-- Escape는 property draft, transient popup/context menu/overlay, insertion, canvas focus 순서에서 한 번에 적용 가능한 branch의 시각적 최상위 transient 하나만 처리하며 context menu close는 selection을 유지한다. 같은 branch에 중첩된 submenu/dropdown을 닫은 다음 Escape가 상위 popup/overlay를 닫고, barcode pending 중에는 draft 취소 branch만 건너뛴다.
+- Escape는 property draft, transient popup/context menu/overlay, insertion, canvas focus 순서에서 한 번에 적용 가능한 branch의 시각적 최상위 transient 하나만 처리하며 context menu close는 selection을 유지한다. shape preset의 focused width/radius editor에 미확정 문자열이나 validation이 있으면 popup branch보다 먼저 해당 입력만 committed preset으로 원복하고 popup/focus를 유지한 채 handled로 종료한다. 그 밖에는 같은 branch에 중첩된 submenu/dropdown을 닫은 다음 Escape가 상위 popup/overlay를 닫고, barcode pending 중에는 draft 취소 branch만 건너뛴다.
 - selected set 구성원을 secondary click하면 set을 유지하고 clicked key만 active로 바꾸며 object menu command는 묶음에 적용한다. 선택 밖 객체는 단일 선택으로 교체하고 빈 canvas secondary click은 object selection을 유지한 채 cell menu만 열며 primary click의 기존 selection 해제는 유지한다.
 - 읽기 전용 secondary click도 object selection과 기존 menu 표시를 유지하되 mutation 항목을 disabled로 표시하고 command guard를 유지한다. copy menu 항목은 추가하지 않고 Ctrl/Meta+C object copy와 read-only property text의 선택·Ctrl/Meta+A/C만 허용한다.
 - 일반 focus loss의 invalid property 입력은 문자열과 inline 오류를 유지하고 canonical workbook을 바꾸지 않으며 새 대상 focus 이동을 허용하고 원래 field로 강제 복귀하지 않는다. 명시적 command finalize는 invalid draft를 원복·폐기하며 이후 같은 draft의 지연 Enter/focus-loss는 완전한 no-op이다.
@@ -1514,9 +1518,10 @@ pointer move event와 property text 입력의 각 문자 변경마다 undo snaps
 - line/shape 색상 wire: 정확한 6자리 hex만 허용하고 대문자 `#RRGGBB`로 canonicalize, `#RGB`·alpha hex·`rgb()`·`rgba()` 제외
 - 폐쇄 도형 기본 fill: 없음
 - 짧은 폐쇄 pattern: seam보다 offset `0` 첫 mark 우선, no-wrap, 첫 dot은 지름 전체 포함 시만 표시하고 첫 dash는 남은 양의 길이 clip. 둘레가 실제 첫 mark 길이+`2w` 이상일 때만 seam gap 보장, 미만이면 첫 mark 유지와 후속 terminal mark 생략
-- 둥근 사각형 기본 radius: 2.0mm, 입력 범위 0.0~50.0mm
+- 둥근 사각형 기본 radius: 2.0mm, 입력 범위 0.0~50.0mm. decode 누락·비숫자·비유한·범위 밖은 clamp 없이 2.0 fallback, rectangle/ellipse는 0.0 canonical이며 실제 fallback/normalize 때만 raw fortuneShapes list 비재사용
 - line handle: 시작점/끝점 2개, 화면 기준 8px
 - line angle snap: Shift 45도 단위
+- line read-only angle: 화면 좌표 오른쪽 0도·아래쪽 90도인 시계 방향 `[0, 360)`, endpoint 교환 시 180도 변경, zero-length는 숫자 angle 없음
 - shape handle: resize 8개 + rotation 1개, 화면 기준 8px
 - shape 생성 Shift: 사각형/둥근 사각형은 정사각형, 타원은 원
 - shape resize Shift: 현재 aspect ratio 유지
@@ -1526,6 +1531,7 @@ pointer move event와 property text 입력의 각 문자 변경마다 undo snaps
 - popup 첫 행: 직선/사각형/둥근 사각형/타원 icon segmented control
 - 삽입 중 오른쪽 클릭: draft/삽입 모드 취소 후 같은 위치의 기존 context menu 표시
 - popup `[삽입]`: focused preset field가 유효하면 commit 후 삽입, invalid이면 popup 유지·삽입 차단
+- popup preset 숫자 Escape: dirty/validation 첫 Escape는 committed preset 문자열 원복·validation 제거 후 popup/focus 유지, 다음 Escape가 하위 popup 또는 shape popup 하나만 닫음
 - panel command 중 invalid property draft: 원복·폐기 후 요청 command 실행
 - 일반 object selection 중 property draft: old exact key를 먼저 finalize하고 valid commit listener 뒤 selection listener까지 총 2회, invalid/no-draft는 selection listener 1회. barcode renderer pending selection만 원 exact-key draft/request/error 유지
 - settings-only `allowEdit` true→false: canonical replacement가 아니며 새 permission만 수용, 일반 draft/error commit 없이 폐기·callback identity 종료, pending cut/paste/picker/renderer 무효화와 pending copy 유지, mutation dialog와 style/color/insertion popup의 표준 focus 복원 후 즉시 닫기, 열린 object menu의 focus scope/Escape 소유권 유지와 disabled 재구성, selection/active key/panel open과 canonical content·workbook identity/history lineage·undo/dirty/revision 유지, canonical callback 0회와 최종 read-only controller/listenable 1회. false→true도 폐기 상태 복원 없이 mutation enablement snapshot listener 1회와 canonical callback 0회
