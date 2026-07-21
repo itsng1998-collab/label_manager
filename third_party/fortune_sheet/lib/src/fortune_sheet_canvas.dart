@@ -33,6 +33,40 @@ Widget _fortuneEditableTextContextMenuBuilder(
 }
 enum FortuneObjectDropSide { before, after }
 
+const Object _fortuneUnspecifiedObjectProperty = Object();
+final RegExp _fortuneObjectColorPattern = RegExp(r'^#[0-9A-Fa-f]{6}$');
+
+double _normalizeObjectRotation(double degrees) {
+  if (!degrees.isFinite) {
+    return degrees;
+  }
+  final normalized = degrees % 360;
+  return normalized < 0 ? normalized + 360 : normalized;
+}
+
+bool _sameFortuneLineProperty(FortuneLine left, FortuneLine right) {
+  return left.x1 == right.x1 &&
+      left.y1 == right.y1 &&
+      left.x2 == right.x2 &&
+      left.y2 == right.y2 &&
+      left.strokeStyle == right.strokeStyle &&
+      left.strokeWidthMm == right.strokeWidthMm &&
+      left.strokeColor == right.strokeColor;
+}
+
+bool _sameFortuneShapeProperty(FortuneShape left, FortuneShape right) {
+  return left.left == right.left &&
+      left.top == right.top &&
+      left.width == right.width &&
+      left.height == right.height &&
+      left.rotationDegrees == right.rotationDegrees &&
+      left.strokeStyle == right.strokeStyle &&
+      left.strokeWidthMm == right.strokeWidthMm &&
+      left.strokeColor == right.strokeColor &&
+      left.fillColor == right.fillColor &&
+      left.cornerRadiusMm == right.cornerRadiusMm;
+}
+
 double? fortuneOutputLineHeight(double? stored, double? override) {
   if (override != null && override.isFinite && override > 0) {
     return override;
@@ -171,6 +205,8 @@ class FortuneObjectConnectionOption {
   final String? formatLabel;
   final bool? showHumanReadableText;
 }
+
+enum FortuneObjectConnectionMode { legacy, structured }
 
 class FortuneBarcodeRequest {
   const FortuneBarcodeRequest({
@@ -1077,6 +1113,10 @@ class FortuneObjectSelectionSnapshot {
     this.activeKey,
     Iterable<FortuneSheetObjectKey> selectedKeys = const [],
     Iterable<FortuneSheetObjectRef> objects = const [],
+    this.activeImage,
+    this.activeLine,
+    this.activeShape,
+    this.geometryUsesMillimeters = false,
   }) : selectedKeys = Set<FortuneSheetObjectKey>.unmodifiable(selectedKeys),
       objects = List<FortuneSheetObjectRef>.unmodifiable(objects);
 
@@ -1085,6 +1125,10 @@ class FortuneObjectSelectionSnapshot {
   final FortuneSheetObjectKey? activeKey;
   final Set<FortuneSheetObjectKey> selectedKeys;
   final List<FortuneSheetObjectRef> objects;
+  final FortuneImage? activeImage;
+  final FortuneLine? activeLine;
+  final FortuneShape? activeShape;
+  final bool geometryUsesMillimeters;
 }
 
 class FortuneSheetController extends ChangeNotifier {
@@ -1114,6 +1158,56 @@ class FortuneSheetController extends ChangeNotifier {
 
   void deleteSelectedObjects() {
     _state?._deleteSelectedObjectsFromController();
+  }
+
+  void duplicateSelectedObjects() {
+    _state?._duplicateSelectedObjectsFromController();
+  }
+
+  void updateSelectedLine({
+    double? x1,
+    double? y1,
+    double? x2,
+    double? y2,
+    FortuneStrokeStyle? strokeStyle,
+    double? strokeWidthMm,
+    String? strokeColor,
+  }) {
+    _state?._updateSelectedLineFromController(
+      x1: x1,
+      y1: y1,
+      x2: x2,
+      y2: y2,
+      strokeStyle: strokeStyle,
+      strokeWidthMm: strokeWidthMm,
+      strokeColor: strokeColor,
+    );
+  }
+
+  void updateSelectedShape({
+    double? left,
+    double? top,
+    double? width,
+    double? height,
+    double? rotationDegrees,
+    FortuneStrokeStyle? strokeStyle,
+    double? strokeWidthMm,
+    String? strokeColor,
+    Object? fillColor = _fortuneUnspecifiedObjectProperty,
+    double? cornerRadiusMm,
+  }) {
+    _state?._updateSelectedShapeFromController(
+      left: left,
+      top: top,
+      width: width,
+      height: height,
+      rotationDegrees: rotationDegrees,
+      strokeStyle: strokeStyle,
+      strokeWidthMm: strokeWidthMm,
+      strokeColor: strokeColor,
+      fillColor: fillColor,
+      cornerRadiusMm: cornerRadiusMm,
+    );
   }
 
   void bringSelectedObjectsToFront() {
@@ -2464,6 +2558,8 @@ class FortuneSheetCanvas extends StatefulWidget {
     this.barcodeObjectIds = const <String>[],
     this.imageObjectOptions = const <FortuneObjectConnectionOption>[],
     this.barcodeObjectOptions = const <FortuneObjectConnectionOption>[],
+    this.imageObjectConnectionMode,
+    this.barcodeObjectConnectionMode,
     this.onChange,
     this.onOp,
     this.onOpenObjectPanel,
@@ -2483,6 +2579,8 @@ class FortuneSheetCanvas extends StatefulWidget {
   final List<String> barcodeObjectIds;
   final List<FortuneObjectConnectionOption> imageObjectOptions;
   final List<FortuneObjectConnectionOption> barcodeObjectOptions;
+  final FortuneObjectConnectionMode? imageObjectConnectionMode;
+  final FortuneObjectConnectionMode? barcodeObjectConnectionMode;
   final ValueChanged<FortuneWorkbook>? onChange;
   final FortuneOpCallback? onOp;
   final VoidCallback? onOpenObjectPanel;
@@ -2525,6 +2623,8 @@ class _EditorInlineHistorySnapshot {
 }
 
 class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
+  late FortuneObjectConnectionMode _imageObjectConnectionMode;
+  late FortuneObjectConnectionMode _barcodeObjectConnectionMode;
   static const int _maxUndoSnapshots = 100;
   static const String _sheetCornerTooltipText = '마우스 우클릭 - 라벨 크기 조정';
   static const Map<String, int> _fillChineseDigits = {
@@ -3252,6 +3352,16 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   @override
   void initState() {
     super.initState();
+    _imageObjectConnectionMode =
+      widget.imageObjectConnectionMode ??
+      (widget.imageObjectOptions.isNotEmpty
+        ? FortuneObjectConnectionMode.structured
+        : FortuneObjectConnectionMode.legacy);
+    _barcodeObjectConnectionMode =
+      widget.barcodeObjectConnectionMode ??
+      (widget.barcodeObjectOptions.isNotEmpty
+        ? FortuneObjectConnectionMode.structured
+        : FortuneObjectConnectionMode.legacy);
     _workbook = _effectiveWorkbook(widget.workbook);
     selection = _selectionFromSheet(_workbook.activeSheet);
     _editorController.addListener(_handleEditorValueChanged);
@@ -3797,6 +3907,12 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   @override
   void didUpdateWidget(covariant FortuneSheetCanvas oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (widget.imageObjectConnectionMode != null) {
+      _imageObjectConnectionMode = widget.imageObjectConnectionMode!;
+    }
+    if (widget.barcodeObjectConnectionMode != null) {
+      _barcodeObjectConnectionMode = widget.barcodeObjectConnectionMode!;
+    }
     if (oldWidget.controller != widget.controller) {
       widget.controller?._validateAttach(this);
       oldWidget.controller?._detach(this);
@@ -23315,7 +23431,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       _imageInsertOriginalWidthPx = null;
       _imageInsertOriginalHeightPx = null;
       _setImageObjectIdSelection(
-        widget.imageObjectOptions.isEmpty
+        _imageObjectConnectionMode == FortuneObjectConnectionMode.legacy
         ? defaultObjectId
         : _fortuneUnlinkedObjectValue,
       );
@@ -23327,10 +23443,12 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       _imageInsertPressedControl = null;
       _toolbarHoveredKey = null;
       _toolbarHoveredComboArrowKey = null;
-        _imageInsertWidthController.text = widget.imageObjectOptions.isEmpty
+        _imageInsertWidthController.text =
+            _imageObjectConnectionMode == FortuneObjectConnectionMode.legacy
           ? ''
           : '30';
-        _imageInsertHeightController.text = widget.imageObjectOptions.isEmpty
+        _imageInsertHeightController.text =
+            _imageObjectConnectionMode == FortuneObjectConnectionMode.legacy
           ? ''
           : '30';
       _imageInsertRotationController.text = '0';
@@ -23365,7 +23483,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         image.extraFields[fortuneImageObjectIdExtraKey]?.toString().trim().isNotEmpty ==
                 true
             ? image.extraFields[fortuneImageObjectIdExtraKey]!.toString()
-            : widget.imageObjectOptions.isEmpty
+            : _imageObjectConnectionMode == FortuneObjectConnectionMode.legacy
             ? image.id
             : _fortuneUnlinkedObjectValue,
       );
@@ -23658,12 +23776,12 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   List<String> get _effectiveImageObjectIds {
     final result = <String>[];
     final seen = <String>{};
-    if (widget.imageObjectOptions.isNotEmpty) {
+    if (_imageObjectConnectionMode == FortuneObjectConnectionMode.structured) {
       result.add(_fortuneUnlinkedObjectValue);
       seen.add(_fortuneUnlinkedObjectValue);
     }
     final defaultObjectId = _imageInsertDefaultObjectId?.trim() ?? '';
-    if (widget.imageObjectOptions.isEmpty &&
+    if (_imageObjectConnectionMode == FortuneObjectConnectionMode.legacy &&
       _imageInsertDialogOpen &&
       defaultObjectId.isNotEmpty) {
       if (seen.add(defaultObjectId.toLowerCase())) {
@@ -23712,7 +23830,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         return option.label;
       }
     }
-    return widget.imageObjectOptions.isEmpty ? value : '연결 끊김 ($value)';
+    return _imageObjectConnectionMode == FortuneObjectConnectionMode.legacy
+      ? value
+      : '연결 끊김 ($value)';
   }
 
   String _nextImageObjectId({Set<String> reserved = const <String>{}}) {
@@ -23789,11 +23909,12 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   }
 
   bool get _imageUsesLinkedObject =>
-      widget.imageObjectOptions.isEmpty ||
+      _imageObjectConnectionMode == FortuneObjectConnectionMode.legacy ||
       _imageObjectIdController.text.trim() != _fortuneUnlinkedObjectValue;
 
-    bool get _imageUsesStructuredLinkedObject =>
-      widget.imageObjectOptions.isNotEmpty && _imageUsesLinkedObject;
+  bool get _imageUsesStructuredLinkedObject =>
+      _imageObjectConnectionMode == FortuneObjectConnectionMode.structured &&
+      _imageUsesLinkedObject;
 
   double _initialImageObjectIdMenuScrollOffset() {
     final options = _effectiveImageObjectIds;
@@ -23843,7 +23964,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   List<String> get _effectiveBarcodeObjectIds {
     final result = <String>[];
     final seen = <String>{};
-    if (widget.barcodeObjectOptions.isNotEmpty) {
+    if (_barcodeObjectConnectionMode ==
+      FortuneObjectConnectionMode.structured) {
       result.add(_fortuneUnlinkedObjectValue);
       seen.add(_fortuneUnlinkedObjectValue);
     }
@@ -23879,7 +24001,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         return option.label;
       }
     }
-    return widget.barcodeObjectOptions.isEmpty ? value : '연결 끊김 ($value)';
+    return _barcodeObjectConnectionMode == FortuneObjectConnectionMode.legacy
+      ? value
+      : '연결 끊김 ($value)';
   }
 
   int _barcodeObjectIdIndexForValue(String value) {
@@ -24333,7 +24457,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         extra[fortuneBarcodeObjectIdExtraKey]?.toString().trim().isNotEmpty ==
                 true
             ? extra[fortuneBarcodeObjectIdExtraKey]!.toString()
-            : widget.barcodeObjectOptions.isEmpty
+            : _barcodeObjectConnectionMode ==
+              FortuneObjectConnectionMode.legacy
             ? image.id
             : _fortuneUnlinkedObjectValue,
       );
@@ -24423,7 +24548,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     }
     final linkedOption = _selectedBarcodeObjectOption;
     final storesObjectConnection =
-      linkedOption != null || widget.barcodeObjectOptions.isEmpty;
+      linkedOption != null ||
+      _barcodeObjectConnectionMode == FortuneObjectConnectionMode.legacy;
     final text = linkedOption == null
       ? _barcodeTextController.text.trim()
       : _barcodePlaceholderText(linkedOption.formatId);
@@ -25543,6 +25669,22 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     final objectKeys = objects.map((object) => object.key).toSet();
     final typedKey = _activeObjectKey;
     if (typedKey != null) {
+      final activeLine = typedKey.kind == FortuneSheetObjectKind.line
+          ? _workbook.activeSheet.lines
+            .where((line) => line.id == typedKey.id)
+            .firstOrNull
+            ?.copyWith()
+          : null;
+      final activeShape = typedKey.kind == FortuneSheetObjectKind.line
+          ? null
+          : _workbook.activeSheet.shapes
+            .where(
+          (shape) =>
+              shape.id == typedKey.id &&
+              fortuneShapeObjectKind(shape) == typedKey.kind,
+            )
+            .firstOrNull
+            ?.copyWith();
       final selectedKeys = _selectedObjectKeys.contains(typedKey)
           ? _selectedObjectKeys.intersection(objectKeys)
           : <FortuneSheetObjectKey>{typedKey};
@@ -25552,6 +25694,10 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         activeKey: typedKey,
         selectedKeys: selectedKeys,
         objects: objects,
+        activeLine: activeLine,
+        activeShape: activeShape,
+        geometryUsesMillimeters:
+          fortuneSheetGridClientPhysicalSize(_workbook.activeSheet) != null,
       );
     }
     final imageKeys = <FortuneSheetObjectKey>{};
@@ -25578,7 +25724,20 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
           ? _selectedObjectKeys.intersection(objectKeys)
           : imageKeys,
       objects: objects,
+      activeImage: _activeImageSnapshot(activeImageKey),
+      geometryUsesMillimeters:
+          fortuneSheetGridClientPhysicalSize(_workbook.activeSheet) != null,
     );
+  }
+
+  FortuneImage? _activeImageSnapshot(FortuneSheetObjectKey? key) {
+    if (key == null) {
+      return null;
+    }
+    return _workbook.activeSheet.images
+        .where((image) => image.id == key.id)
+        .firstOrNull
+        ?.copyWith();
   }
 
   List<FortuneSheetObjectKey> _objectKeysFrontToBack() {
@@ -25814,6 +25973,264 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     });
   }
 
+  void _duplicateSelectedObjectsFromController() {
+    if (!_workbook.settings.allowEdit) {
+      return;
+    }
+    final selected = _objectSelectionSnapshot(attached: true).selectedKeys;
+    if (selected.isEmpty) {
+      return;
+    }
+    final originalSheet = _workbook.activeSheet;
+    final sources = fortuneSheetObjectsInPaintOrder(
+      originalSheet,
+    ).where((object) => selected.contains(object.key)).toList(growable: false);
+    if (sources.isEmpty) {
+      return;
+    }
+    final insertionPlan = fortuneReserveObjectZOrders(
+      originalSheet,
+      sources.length,
+    );
+    final sheet = insertionPlan.sheet;
+    final existingKeys = fortuneSheetObjectsInPaintOrder(
+      sheet,
+    ).map((object) => object.key).toList();
+    final reservedIds = <FortuneSheetObjectKind, Set<String>>{};
+    final reservedImageObjectIds = <String>{};
+    final reservedBarcodeObjectIds = <String>{};
+    final duplicateImages = <FortuneImage>[];
+    final duplicateLines = <FortuneLine>[];
+    final duplicateShapes = <FortuneShape>[];
+    final duplicateKeys = <FortuneSheetObjectKey>[];
+    for (var index = 0; index < sources.length; index += 1) {
+      final source = sources[index];
+      final reserved = reservedIds.putIfAbsent(source.key.kind, () => <String>{});
+      final id = fortuneAllocateObjectId(
+        source.key.kind,
+        existingKeys,
+        reserved: reserved,
+      );
+      reserved.add(id);
+      final duplicateKey = FortuneSheetObjectKey(source.key.kind, id);
+      duplicateKeys.add(duplicateKey);
+      final zOrder = insertionPlan.zOrders[index];
+      if (source.sourceIndex < sheet.images.length) {
+        final image = sheet.images[source.sourceIndex];
+        final extraFields = <String, Object?>{
+          ...image.extraFields,
+          fortuneSheetObjectZOrderExtraKey: zOrder,
+        };
+        if (source.key.kind == FortuneSheetObjectKind.barcode &&
+          _barcodeObjectConnectionMode ==
+            FortuneObjectConnectionMode.legacy) {
+          final objectId = _nextBarcodeObjectId(
+            reserved: reservedBarcodeObjectIds,
+          );
+          reservedBarcodeObjectIds.add(objectId);
+          extraFields[fortuneBarcodeObjectIdExtraKey] = objectId;
+        } else if (source.key.kind == FortuneSheetObjectKind.image &&
+          _imageObjectConnectionMode == FortuneObjectConnectionMode.legacy) {
+          final objectId = _nextImageObjectId(
+            reserved: reservedImageObjectIds,
+          );
+          reservedImageObjectIds.add(objectId);
+          extraFields[fortuneImageObjectIdExtraKey] = objectId;
+        }
+        duplicateImages.add(
+          image.copyWith(
+            id: id,
+            left: image.left + 12,
+            top: math.max(0.0, image.top + 12),
+            extraFields: extraFields,
+          ),
+        );
+        continue;
+      }
+      final lineIndex = source.sourceIndex - sheet.images.length;
+      if (lineIndex < sheet.lines.length) {
+        final line = sheet.lines[lineIndex];
+        duplicateLines.add(
+          line.copyWith(
+            id: id,
+            x1: line.x1 + 12,
+            y1: math.max(0.0, line.y1 + 12),
+            x2: line.x2 + 12,
+            y2: math.max(0.0, line.y2 + 12),
+            zOrder: zOrder,
+          ),
+        );
+        continue;
+      }
+      final shape = sheet.shapes[lineIndex - sheet.lines.length];
+      duplicateShapes.add(
+        shape.copyWith(
+          id: id,
+          left: shape.left + 12,
+          top: math.max(0.0, shape.top + 12),
+          zOrder: zOrder,
+        ),
+      );
+    }
+    final sheets = [..._workbook.sheets];
+    _recordUndoSnapshot();
+    sheets[_workbook.activeSheetIndex] = sheet.copyWith(
+      images: <FortuneImage>[...sheet.images, ...duplicateImages],
+      lines: <FortuneLine>[...sheet.lines, ...duplicateLines],
+      shapes: <FortuneShape>[...sheet.shapes, ...duplicateShapes],
+    );
+    setState(() {
+      _workbook = _workbook.copyWith(sheets: sheets);
+      _applyExactObjectSelection(
+        duplicateKeys.toSet(),
+        duplicateKeys.last,
+        anchorKey: duplicateKeys.last,
+      );
+      _closeTransientMenus();
+    });
+  }
+
+  void _updateSelectedLineFromController({
+    double? x1,
+    double? y1,
+    double? x2,
+    double? y2,
+    FortuneStrokeStyle? strokeStyle,
+    double? strokeWidthMm,
+    String? strokeColor,
+  }) {
+    final key = _objectSelectionSnapshot(attached: true).activeKey;
+    if (!_workbook.settings.allowEdit ||
+        key == null ||
+        key.kind != FortuneSheetObjectKind.line) {
+      return;
+    }
+    final sheet = _workbook.activeSheet;
+    final sourceIndex = sheet.lines.indexWhere((line) => line.id == key.id);
+    if (sourceIndex < 0) {
+      return;
+    }
+    final source = sheet.lines[sourceIndex];
+    final nextX1 = x1 ?? source.x1;
+    final nextY1 = math.max(0.0, y1 ?? source.y1);
+    final nextX2 = x2 ?? source.x2;
+    final nextY2 = math.max(0.0, y2 ?? source.y2);
+    final nextWidth = strokeWidthMm ?? source.strokeWidthMm;
+    final nextColor = strokeColor ?? source.strokeColor;
+    if (![nextX1, nextY1, nextX2, nextY2, nextWidth].every((value) => value.isFinite) ||
+        nextWidth < 0.1 ||
+        nextWidth > 10 ||
+        !_fortuneObjectColorPattern.hasMatch(nextColor) ||
+        nextX1 == nextX2 && nextY1 == nextY2) {
+      return;
+    }
+    final next = source.copyWith(
+      x1: nextX1,
+      y1: nextY1,
+      x2: nextX2,
+      y2: nextY2,
+      strokeStyle: strokeStyle ?? source.strokeStyle,
+      strokeWidthMm: nextWidth,
+      strokeColor: nextColor.toUpperCase(),
+    );
+    if (_sameFortuneLineProperty(source, next)) {
+      return;
+    }
+    final lines = [...sheet.lines]..[sourceIndex] = next;
+    final sheets = [..._workbook.sheets];
+    _recordUndoSnapshot();
+    sheets[_workbook.activeSheetIndex] = sheet.copyWith(lines: lines);
+    setState(() {
+      _workbook = _workbook.copyWith(sheets: sheets);
+      _closeTransientMenus();
+    });
+  }
+
+  void _updateSelectedShapeFromController({
+    double? left,
+    double? top,
+    double? width,
+    double? height,
+    double? rotationDegrees,
+    FortuneStrokeStyle? strokeStyle,
+    double? strokeWidthMm,
+    String? strokeColor,
+    Object? fillColor = _fortuneUnspecifiedObjectProperty,
+    double? cornerRadiusMm,
+  }) {
+    final key = _objectSelectionSnapshot(attached: true).activeKey;
+    if (!_workbook.settings.allowEdit ||
+        key == null ||
+        key.kind == FortuneSheetObjectKind.line ||
+        key.kind == FortuneSheetObjectKind.image ||
+        key.kind == FortuneSheetObjectKind.barcode) {
+      return;
+    }
+    final sheet = _workbook.activeSheet;
+    final sourceIndex = sheet.shapes.indexWhere(
+      (shape) => shape.id == key.id && fortuneShapeObjectKind(shape) == key.kind,
+    );
+    if (sourceIndex < 0) {
+      return;
+    }
+    final source = sheet.shapes[sourceIndex];
+    final nextLeft = left ?? source.left;
+    final nextTop = math.max(0.0, top ?? source.top);
+    final nextWidth = width ?? source.width;
+    final nextHeight = height ?? source.height;
+    final nextRotation = _normalizeObjectRotation(
+      rotationDegrees ?? source.rotationDegrees,
+    );
+    final nextStrokeWidth = strokeWidthMm ?? source.strokeWidthMm;
+    final nextStrokeColor = strokeColor ?? source.strokeColor;
+    final nextFillColor = identical(fillColor, _fortuneUnspecifiedObjectProperty)
+        ? source.fillColor
+        : fillColor as String?;
+    final nextRadius = cornerRadiusMm ?? source.cornerRadiusMm;
+    final zoom = sheet.zoomRatio > 0 && sheet.zoomRatio.isFinite
+        ? sheet.zoomRatio
+        : 1.0;
+    if (![nextLeft, nextTop, nextWidth, nextHeight, nextRotation, nextStrokeWidth, nextRadius]
+            .every((value) => value.isFinite) ||
+        nextWidth <= 0 ||
+        nextHeight <= 0 ||
+        nextWidth * zoom < 3 ||
+        nextHeight * zoom < 3 ||
+        nextStrokeWidth < 0.1 ||
+        nextStrokeWidth > 10 ||
+        !_fortuneObjectColorPattern.hasMatch(nextStrokeColor) ||
+        nextFillColor != null && !_fortuneObjectColorPattern.hasMatch(nextFillColor) ||
+        nextRadius < 0 ||
+        nextRadius > 50) {
+      return;
+    }
+    final next = source.copyWith(
+      left: nextLeft,
+      top: nextTop,
+      width: nextWidth,
+      height: nextHeight,
+      rotationDegrees: nextRotation,
+      strokeStyle: strokeStyle ?? source.strokeStyle,
+      strokeWidthMm: nextStrokeWidth,
+      strokeColor: nextStrokeColor.toUpperCase(),
+      fillColor: nextFillColor?.toUpperCase(),
+      cornerRadiusMm: source.kind == FortuneShapeKind.roundedRectangle
+          ? nextRadius
+          : 0.0,
+    );
+    if (_sameFortuneShapeProperty(source, next)) {
+      return;
+    }
+    final shapes = [...sheet.shapes]..[sourceIndex] = next;
+    final sheets = [..._workbook.sheets];
+    _recordUndoSnapshot();
+    sheets[_workbook.activeSheetIndex] = sheet.copyWith(shapes: shapes);
+    setState(() {
+      _workbook = _workbook.copyWith(sheets: sheets);
+      _closeTransientMenus();
+    });
+  }
+
   void _deleteSelectedObjectsFromController() {
     if (!_workbook.settings.allowEdit) {
       return;
@@ -25905,6 +26322,10 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         left.activeKey == right.activeKey &&
         left.selectedKeys.length == right.selectedKeys.length &&
       left.selectedKeys.containsAll(right.selectedKeys) &&
+      _sameSnapshotImage(left.activeImage, right.activeImage) &&
+      _sameSnapshotLine(left.activeLine, right.activeLine) &&
+      _sameSnapshotShape(left.activeShape, right.activeShape) &&
+      left.geometryUsesMillimeters == right.geometryUsesMillimeters &&
       left.objects.length == right.objects.length &&
       left.objects.asMap().entries.every((entry) {
         final other = right.objects[entry.key];
@@ -25912,6 +26333,40 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
           entry.value.zOrder == other.zOrder &&
           entry.value.sourceIndex == other.sourceIndex;
       });
+  }
+
+  bool _sameSnapshotImage(FortuneImage? left, FortuneImage? right) {
+    if (left == null || right == null) {
+      return left == null && right == null;
+    }
+    return left.id == right.id &&
+        left.src == right.src &&
+        left.left == right.left &&
+        left.top == right.top &&
+        left.width == right.width &&
+        left.height == right.height &&
+        _objectMapEquals(left.extraFields, right.extraFields);
+  }
+
+  bool _sameSnapshotLine(FortuneLine? left, FortuneLine? right) {
+    if (left == null || right == null) {
+      return left == null && right == null;
+    }
+    return left.id == right.id &&
+        left.zOrder == right.zOrder &&
+        _sameFortuneLineProperty(left, right) &&
+        _objectMapEquals(left.extraFields, right.extraFields);
+  }
+
+  bool _sameSnapshotShape(FortuneShape? left, FortuneShape? right) {
+    if (left == null || right == null) {
+      return left == null && right == null;
+    }
+    return left.id == right.id &&
+        left.kind == right.kind &&
+        left.zOrder == right.zOrder &&
+        _sameFortuneShapeProperty(left, right) &&
+        _objectMapEquals(left.extraFields, right.extraFields);
   }
 
   bool _commitLineInsertion(Offset local) {
@@ -38738,11 +39193,11 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         return 'object-id-$index';
       }
     }
-    if (widget.imageObjectOptions.isNotEmpty &&
+    if (_imageObjectConnectionMode == FortuneObjectConnectionMode.structured &&
         fortuneImageLinkedModeRect(rect).contains(local)) {
       return 'image-mode-linked';
     }
-    if (widget.imageObjectOptions.isNotEmpty &&
+    if (_imageObjectConnectionMode == FortuneObjectConnectionMode.structured &&
         fortuneImageFixedModeRect(rect).contains(local)) {
       return 'image-mode-fixed';
     }
@@ -46714,7 +47169,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
                 imageInsertFileName: _imageInsertFileName,
                 imageInsertHasFile: _imageInsertPickResult != null,
                 imageLinked: _imageUsesStructuredLinkedObject,
-                imageModeAvailable: widget.imageObjectOptions.isNotEmpty,
+                imageModeAvailable:
+                  _imageObjectConnectionMode ==
+                  FortuneObjectConnectionMode.structured,
                 imageObjectId: _imageObjectLabel(_selectedImageObjectId),
                 imageObjectIdOptions: [
                   for (final value in _effectiveImageObjectIds)

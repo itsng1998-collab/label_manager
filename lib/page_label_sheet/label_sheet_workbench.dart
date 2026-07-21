@@ -3708,6 +3708,10 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
               barcodeObjectIds: widget.barcodeObjectIds,
               imageObjectOptions: widget.imageObjectOptions,
               barcodeObjectOptions: widget.barcodeObjectOptions,
+                imageObjectConnectionMode:
+                  FortuneObjectConnectionMode.structured,
+                barcodeObjectConnectionMode:
+                  FortuneObjectConnectionMode.structured,
               gridClientSize: _gridClientSize,
               showFormulaBar: false,
               showSheetTabs: false,

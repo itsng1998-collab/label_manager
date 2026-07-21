@@ -21,6 +21,8 @@ class FortuneSheetApp extends StatefulWidget {
     this.barcodeObjectIds = const <String>[],
     this.imageObjectOptions = const <FortuneObjectConnectionOption>[],
     this.barcodeObjectOptions = const <FortuneObjectConnectionOption>[],
+    this.imageObjectConnectionMode,
+    this.barcodeObjectConnectionMode,
     this.onChange,
     this.onOp,
     this.onOpenObjectPanel,
@@ -41,6 +43,8 @@ class FortuneSheetApp extends StatefulWidget {
   final List<String> barcodeObjectIds;
   final List<FortuneObjectConnectionOption> imageObjectOptions;
   final List<FortuneObjectConnectionOption> barcodeObjectOptions;
+  final FortuneObjectConnectionMode? imageObjectConnectionMode;
+  final FortuneObjectConnectionMode? barcodeObjectConnectionMode;
   final ValueChanged<FortuneWorkbook>? onChange;
   final FortuneOpCallback? onOp;
   final VoidCallback? onOpenObjectPanel;
@@ -160,6 +164,8 @@ class _FortuneSheetAppState extends State<FortuneSheetApp> {
         barcodeObjectIds: widget.barcodeObjectIds,
         imageObjectOptions: widget.imageObjectOptions,
         barcodeObjectOptions: widget.barcodeObjectOptions,
+        imageObjectConnectionMode: widget.imageObjectConnectionMode,
+        barcodeObjectConnectionMode: widget.barcodeObjectConnectionMode,
         onChange: widget.workbook == null
             ? _handleWorkbookChanged
             : widget.onChange,

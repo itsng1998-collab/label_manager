@@ -59,7 +59,12 @@ void main() {
       FortuneSheetObjectKind.line,
       FortuneSheetObjectKind.rectangle,
     ]);
-    expect(objects.map((object) => object.key.id), everyElement('same'));
+    expect(objects.map((object) => object.key.id), [
+      'image-storage',
+      'barcode-storage',
+      'same',
+      'same',
+    ]);
     expect(objects.map((object) => object.sourceIndex), [0, 1, 2, 3]);
     expect(objects.map((object) => object.key).toSet(), hasLength(4));
   });

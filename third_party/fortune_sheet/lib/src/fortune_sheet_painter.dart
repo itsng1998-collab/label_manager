@@ -44730,10 +44730,7 @@ FortuneSheetObjectKind fortuneImageObjectKind(FortuneImage image) {
 }
 
 String fortuneImageObjectInternalId(FortuneImage image) {
-  final key = fortuneImageObjectKind(image) == FortuneSheetObjectKind.barcode
-      ? fortuneBarcodeObjectIdExtraKey
-      : fortuneImageObjectIdExtraKey;
-  return '${image.extraFields[key] ?? image.id}';
+  return image.id;
 }
 
 FortuneSheetObjectKind fortuneShapeObjectKind(FortuneShape shape) {

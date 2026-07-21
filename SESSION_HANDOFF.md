@@ -1,4 +1,4 @@
-### 진행 중 (2026-07-22): 공통 object controller·layer panel·responsive dock
+### 진행 중 (2026-07-22): 통합 object panel·property command·connection mode
 - `FortuneLine`/`FortuneShape` typed model과 `lines`/`fortuneShapes` codec, raw metadata 수명, invalid wire canonicalization, 중복 ID normalize를 구현했다. LabelSheet feature manifest/sanitizer와 legacy raw `shapes` strict clone도 연결했다.
 - `FortuneSheetObjectKey`/ref 공통 paint order, kind별 ID allocator, finite zOrder와 삽입 headroom 재기준화 helper를 구현했다. `double.maxFinite`에서 기존 공통 순서를 `1..N`으로 재기준화하고 실제 값이 바뀐 kind의 raw list만 폐기한다.
 - 화면 painter가 image/barcode/line/shape typed 공통 zOrder 뒤 legacy raw overlay, 그 뒤 editor overlay 순서로 합성한다. line 4종 pattern과 rectangle/roundedRectangle/ellipse fill/stroke/rotation의 기본 렌더가 연결됐다.
@@ -9,8 +9,13 @@
 - `FortuneSheetController`에 exclusive attach/detach, immutable `FortuneObjectSelectionSnapshot`, mixed image/shape Tab cycle과 exact-key select/toggle/range/select-all/delete/layer command를 연결했다. selected-empty/active-null 불변식, active sheet 전환 reset, delete 후 front-to-back 표시 index 기반 후속 선택을 적용했다.
 - package-owned `FortuneObjectLayerPanel`을 추가했다. front-to-back mixed object 목록, Ctrl/Meta toggle, Shift range, batch delete와 맨앞/앞/뒤/맨뒤 command를 controller snapshot/listenable로 구동하며 Overlay가 없는 embed host에서도 안전하게 렌더한다.
 - package toolbar `object-panel` command는 app-neutral open request만 방출한다. LabelSheet Workbench는 wide 기본-open dock 의도와 narrow overlay 상태를 분리하고 760px threshold, overlay backdrop close, 8px `VerticalPaneSplitter`, 260~420px panel clamp, 480px sheet 최소 폭, 300px double-click reset과 SharedPreferences 폭 저장을 소유한다.
-- 검증: package controller/geometry/order focused 14건, 루트 toolbar/Workbench 117건 통과. 루트와 `third_party/fortune_sheet` `flutter analyze` 모두 clean이고 `git diff --check`도 clean이다.
-- 다음 순서: layer drag reorder/duplicate와 active toolbar/context menu → line/shape property snapshot/form/commit → image/barcode connection mode·panel form → mixed clipboard → capture/Hybrid EZPL. `lib/core/app.dart` 사용자 변경과 `third_party/fortune_sheet/build/` 생성물은 계속 수정·stage·commit에서 제외한다.
+- image/barcode typed exact key가 editable 연결 ID가 아니라 immutable `FortuneImage.id`를 사용하도록 공통 paint-order projection을 수정했다. mixed duplicate는 신규 internal ID로 선택되고 legacy mode에서만 연결 ID를 재발급한다.
+- object panel에 mixed duplicate와 선택 묶음 pointer drag reorder를 연결했다. 행 위/아래 절반을 exact `(target key, before|after)`로 계산하고 selected target은 no-op indicator/commit으로 처리한다.
+- immutable selection snapshot에 active image/line/shape deep copy와 geometry display unit을 추가했다. line/shape property command는 finite/range/minimum validation, Y/top clamp, rotation canonicalization, nullable fill과 semantic no-op을 적용하고 transaction/undo 1건으로 commit한다. snapshot equality도 active canonical property를 비교해 panel/controller listener가 stale model을 유지하지 않는다.
+- package-owned panel은 session-owned layer/property scroll을 분리하고 active sheet 변경에서만 offset을 초기화한다. 단일 line/shape form은 read-only internal ID, geometry/style/color/fill/radius와 line length/angle을 표시하고 `[적용]` 한 번에 canonical command 한 건을 호출한다. 다중 선택에서는 개수와 공통 명령만 표시한다.
+- `FortuneObjectConnectionMode`를 Canvas/App configuration에 추가했다. nullable 호환 default는 mounted owner에서 최초 options로 한 번만 해석하고 explicit mode 변경만 반영한다. LabelSheet Workbench는 image/barcode 모두 structured를 명시하며 생성 dialog, stale label, linked/fixed mode, duplicate가 options 0건에서도 structured 의미를 유지한다.
+- 검증: package controller/order 13건, 루트 toolbar/Workbench 117건 통과. 루트와 `third_party/fortune_sheet` `flutter analyze` 모두 clean이다.
+- 다음 순서: active object toolbar/context menu → image/barcode panel form·async owner → mixed clipboard → capture/Hybrid EZPL. `lib/core/app.dart` 사용자 변경과 `third_party/fortune_sheet/build/` 생성물은 계속 수정·stage·commit에서 제외한다.
 
 ### 완료 (2026-07-21): 선·도형 지시서 재검토 6건 병합
 - 사용자 요청: 최신 구현 대조에서 확인한 structured-empty 잔여 분기, 읽기 전용 객체 권한, barcode pending 이탈, output owner 공개 조정 경계, image picker 오류 귀속과 panel 폭 write 실패 의미를 권장안으로 병합한다.
