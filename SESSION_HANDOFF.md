@@ -1,3 +1,12 @@
+### 완료 (2026-07-21): 선·도형 지시서 일반 capture 입력·range·dialog 수명 보완
+- 사용자 요청: 최신 재검토에서 확인한 일반 capture snapshot 깊이, normalized range, package 결과 경계, screenshot dialog async 수명과 keyboard undo 문구 권장안을 지시서에 병합한다.
+- 사용자 확정: capture range는 row/column start/end를 정렬한 원본 inclusive range와 호출 시점 sheet metrics bounds의 교집합을 사용하고, 교집합이 없으면 `null`을 반환한다. endpoint별 saturating clamp로 완전히 밖인 요청을 가장자리 cell로 축약하지 않는다. merge는 자동 확장하지 않으며 screenshot partial-merge 검증은 normalized range에 적용한다.
+- capture input 보완 완료: property finalize 뒤 canonical settings/sheet/range/source metrics, nested painter metadata와 호출 시점 decoded resource availability를 package-owned immutable input/result로 고정한다. 구현에 무조건적인 전체 deep clone은 강제하지 않되 painter와 Workbench/PDF의 live workbook/cache 재조회 및 별도 snapshot 조합은 금지한다. coordinator가 성공·`null`·예외·owner detach의 `finally`에서 input resource 사용권을 정확히 한 번 해제하고 screenshot 결과 image dispose와 분리한다.
+- screenshot dialog 보완 완료: open별 owner/token latest-only, 동일 range close/reopen stale 결과 제외, 모든 close의 공용 token·표시 image 정리와 null·예외의 동일 비파괴 실패 상태를 확정했다.
+- keyboard 문구 보완 완료: pointer move/property text 문자별 undo 금지와 §8.3 object KeyDown/각 KeyRepeat별 독립 transaction의 예외 관계를 명시했다.
+- 테스트·구현 순서·완료 조건·확정값에 range clamp/null, resource availability, package 결과 일치와 dialog 역순 완료 fixture를 연결했다.
+- stage/commit 대상: `doc/label_line_panel.txt`, `SESSION_HANDOFF.md`만 포함한다. 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
+
 ### 완료 (2026-07-21): 선·도형 지시서 key repeat·mixed duplicate·일반 capture snapshot 보완
 - 사용자 요청: 최신 `doc/label_line_panel.txt` 재검토에서 확인한 object keyboard 반복 이동, mixed duplicate source 순서와 일반 PNG/PDF capture 비동기 snapshot 권장안을 병합한다.
 - 추가 사용자 확인 불필요: 현재 KeyDown/KeyRepeat 처리, image-only duplicate의 paint-order 순회와 Hybrid에 이미 확정된 immutable output 원칙을 일반화했으며 key-hold grouping이나 live-state 추종 같은 새 동작은 추가하지 않았다.
