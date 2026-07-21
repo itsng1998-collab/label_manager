@@ -12,7 +12,7 @@ int labelOutputPreviewValuesFingerprint(Map<int, String>? values) {
   );
 }
 
-class LabelOutputPreview extends StatelessWidget {
+class LabelOutputPreview extends StatefulWidget {
   const LabelOutputPreview({
     super.key,
     required this.workbook,
@@ -38,10 +38,36 @@ class LabelOutputPreview extends StatelessWidget {
   final LabelSheetZoomController? zoomController;
 
   @override
+  State<LabelOutputPreview> createState() => _LabelOutputPreviewState();
+}
+
+class _LabelOutputPreviewState extends State<LabelOutputPreview> {
+  @override
+  void didUpdateWidget(covariant LabelOutputPreview oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.outputCaptureController == widget.outputCaptureController &&
+        oldWidget.identityKey != widget.identityKey) {
+      widget.outputCaptureController?.replaceAttachedOwner(
+        expectedOwnerToken: oldWidget.identityKey,
+        newOwnerToken: widget.identityKey,
+      );
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final hint = hintText;
+    final captureController = widget.outputCaptureController;
+    final attachedOwnerToken = captureController?.attachedOwnerToken;
+    if (attachedOwnerToken != null &&
+        attachedOwnerToken != widget.identityKey) {
+      captureController!.replaceAttachedOwner(
+        expectedOwnerToken: attachedOwnerToken,
+        newOwnerToken: widget.identityKey,
+      );
+    }
+    final hint = widget.hintText;
     if (hint != null) return _LabelOutputPreviewHint(hint);
-    final value = workbook;
+    final value = widget.workbook;
     if (value == null) {
       return const _LabelOutputPreviewHint('현재 공용라벨 시트가 없습니다.');
     }
@@ -52,12 +78,13 @@ class LabelOutputPreview extends StatelessWidget {
           _LabelOutputPreviewMessages(messages: messages),
         Expanded(
           child: LabelSheetWorkbench(
-            key: ValueKey(identityKey),
+            key: ValueKey(widget.identityKey),
             initialWorkbook: value,
-            labelSize: labelSize,
-            imageObjectIds: imageObjectIds,
-            barcodeObjectIds: barcodeObjectIds,
-            outputCaptureController: outputCaptureController,
+            labelSize: widget.labelSize,
+            imageObjectIds: widget.imageObjectIds,
+            barcodeObjectIds: widget.barcodeObjectIds,
+            outputCaptureController: widget.outputCaptureController,
+            outputCaptureOwnerToken: widget.identityKey,
             hideToolbar: true,
             hideRowColumnHeaderLabels: true,
             hideSelectionHighlight: true,
@@ -65,8 +92,8 @@ class LabelOutputPreview extends StatelessWidget {
             disableSheetRulerGuideInteraction: true,
             hideStatisticBar: true,
             copyOnlyContextMenu: true,
-            zoomToolbarPlacement: zoomToolbarPlacement,
-            zoomController: zoomController,
+            zoomToolbarPlacement: widget.zoomToolbarPlacement,
+            zoomController: widget.zoomController,
           ),
         ),
       ],

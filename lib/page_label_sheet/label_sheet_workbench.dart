@@ -1900,6 +1900,7 @@ class LabelSheetWorkbench extends StatefulWidget {
     this.printerListProvider,
     this.imageImportController,
     this.outputCaptureController,
+    this.outputCaptureOwnerToken,
     this.onWorkbookChanged,
     this.onUserWorkbookChanged,
     this.onUserWorkbookChangedShouldNotify,
@@ -1938,6 +1939,7 @@ class LabelSheetWorkbench extends StatefulWidget {
   final LabelPrinterListProvider? printerListProvider;
   final LabelSheetImageImportController? imageImportController;
   final LabelSheetOutputCaptureController? outputCaptureController;
+  final Object? outputCaptureOwnerToken;
   final ValueChanged<FortuneWorkbook>? onWorkbookChanged;
   final ValueChanged<FortuneWorkbook>? onUserWorkbookChanged;
   final bool Function(FortuneWorkbook previous, FortuneWorkbook current)?
@@ -2022,8 +2024,11 @@ class LabelSheetHybridEzplCapture {
 
 class LabelSheetOutputCaptureController {
   _LabelSheetWorkbenchState? _state;
+  Object? _ownerToken;
+  Object? _replacementOwnerToken;
 
   bool get isAttached => _state != null;
+  Object? get attachedOwnerToken => _ownerToken;
 
   @visibleForTesting
   FortuneSheet? get debugActiveSheet => _state?._latestWorkbook.activeSheet;
@@ -2050,10 +2055,37 @@ class LabelSheetOutputCaptureController {
       ) ??
       Future<LabelSheetHybridEzplCapture?>.value();
 
-  void _attach(_LabelSheetWorkbenchState state) => _state = state;
+  void replaceAttachedOwner({
+    required Object expectedOwnerToken,
+    required Object newOwnerToken,
+  }) {
+    if (_state == null || _ownerToken != expectedOwnerToken) {
+      throw StateError('The expected output capture owner is not attached.');
+    }
+    _replacementOwnerToken = newOwnerToken;
+  }
+
+  void _attach(_LabelSheetWorkbenchState state, Object ownerToken) {
+    _validateAttach(state, ownerToken);
+    _state = state;
+    _ownerToken = ownerToken;
+    _replacementOwnerToken = null;
+  }
+
+  void _validateAttach(_LabelSheetWorkbenchState state, Object ownerToken) {
+    if (_state != null &&
+        _state != state &&
+        _replacementOwnerToken != ownerToken) {
+      throw StateError('LabelSheetOutputCaptureController is already attached.');
+    }
+  }
 
   void _detach(_LabelSheetWorkbenchState state) {
-    if (_state == state) _state = null;
+    if (_state == state) {
+      _state = null;
+      _ownerToken = null;
+      _replacementOwnerToken = null;
+    }
   }
 }
 
@@ -2316,7 +2348,10 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     _initializeZoomFromExternalController();
     widget.zoomController?._attach(_setLabelSheetZoomPercent);
     widget.imageImportController?._attach(this);
-    widget.outputCaptureController?._attach(this);
+    widget.outputCaptureController?._attach(
+      this,
+      widget.outputCaptureOwnerToken ?? this,
+    );
     _zoomFocusNode
       ..addListener(_handleZoomFocusChanged)
       ..onKeyEvent = _handleZoomInputKeyEvent;
@@ -2355,13 +2390,25 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
   @override
   void didUpdateWidget(covariant LabelSheetWorkbench oldWidget) {
     super.didUpdateWidget(oldWidget);
+    final outputCaptureOwnerChanged =
+        oldWidget.outputCaptureController != widget.outputCaptureController ||
+        oldWidget.outputCaptureOwnerToken != widget.outputCaptureOwnerToken;
+    if (outputCaptureOwnerChanged) {
+      widget.outputCaptureController?._validateAttach(
+        this,
+        widget.outputCaptureOwnerToken ?? this,
+      );
+    }
     if (oldWidget.imageImportController != widget.imageImportController) {
       oldWidget.imageImportController?._detach(this);
       widget.imageImportController?._attach(this);
     }
-    if (oldWidget.outputCaptureController != widget.outputCaptureController) {
+    if (outputCaptureOwnerChanged) {
       oldWidget.outputCaptureController?._detach(this);
-      widget.outputCaptureController?._attach(this);
+      widget.outputCaptureController?._attach(
+        this,
+        widget.outputCaptureOwnerToken ?? this,
+      );
     }
     if (oldWidget.zoomController != widget.zoomController) {
       oldWidget.zoomController?._detach(_setLabelSheetZoomPercent);

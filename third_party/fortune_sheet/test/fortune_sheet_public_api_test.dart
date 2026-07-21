@@ -28572,6 +28572,49 @@ void main() {
     expect(secondController.isAttached, isFalse);
   });
 
+  testWidgets('replacement controller first observes replacement workbook', (
+    tester,
+  ) async {
+    final firstController = FortuneSheetController();
+    final secondController = FortuneSheetController();
+    final firstWorkbook = FortuneWorkbook(
+      sheets: [FortuneSheet(id: 'first', name: 'First')],
+    );
+    final secondWorkbook = FortuneWorkbook(
+      sheets: [FortuneSheet(id: 'second', name: 'Second')],
+    );
+    await tester.pumpWidget(
+      SizedBox(
+        width: 320,
+        height: 240,
+        child: FortuneSheetApp(
+          workbook: firstWorkbook,
+          controller: firstController,
+        ),
+      ),
+    );
+    final observedSheetIds = <String?>[];
+    secondController.addListener(() {
+      if (!secondController.isAttached) return;
+      observedSheetIds.add(secondController.objectSelection.sheetId);
+      expect(secondController.getSheet(id: 'second'), isNotNull);
+      expect(secondController.getSheet(id: 'first'), isNull);
+    });
+
+    await tester.pumpWidget(
+      SizedBox(
+        width: 320,
+        height: 240,
+        child: FortuneSheetApp(
+          workbook: secondWorkbook,
+          controller: secondController,
+        ),
+      ),
+    );
+
+    expect(observedSheetIds, ['second']);
+  });
+
   testWidgets('FortuneSheetController resizes grid client area', (
     tester,
   ) async {

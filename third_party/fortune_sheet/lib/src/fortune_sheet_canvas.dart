@@ -4163,16 +4163,15 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   @override
   void didUpdateWidget(covariant FortuneSheetCanvas oldWidget) {
     super.didUpdateWidget(oldWidget);
+    final controllerChanged = oldWidget.controller != widget.controller;
+    if (controllerChanged) {
+      widget.controller?._validateAttach(this);
+    }
     if (widget.imageObjectConnectionMode != null) {
       _imageObjectConnectionMode = widget.imageObjectConnectionMode!;
     }
     if (widget.barcodeObjectConnectionMode != null) {
       _barcodeObjectConnectionMode = widget.barcodeObjectConnectionMode!;
-    }
-    if (oldWidget.controller != widget.controller) {
-      widget.controller?._validateAttach(this);
-      oldWidget.controller?._detach(this);
-      widget.controller?._attach(this);
     }
     final workbookChanged = oldWidget.workbook != widget.workbook;
     final settingsChanged =
@@ -4185,6 +4184,10 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         (oldWidget.settings ?? oldWidget.workbook.settings)
             .afterSelectionChange;
     if (!workbookChanged && !settingsChanged) {
+      if (controllerChanged) {
+        oldWidget.controller?._detach(this);
+        widget.controller?._attach(this);
+      }
       if (onChangeAttached) {
         _notifyWorkbookChangedAfterFrame();
       }
@@ -4209,6 +4212,10 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         ..clear()
         ..addEntries(_workbook.sheets.map((sheet) => MapEntry(sheet.id, 0)));
       _resetTransientStateForWorkbookChange();
+    }
+    if (controllerChanged) {
+      oldWidget.controller?._detach(this);
+      widget.controller?._attach(this);
     }
     _notifyWorkbookChangedAfterFrame();
     if (workbookChanged ||

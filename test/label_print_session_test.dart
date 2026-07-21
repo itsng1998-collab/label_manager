@@ -541,6 +541,42 @@ void main() {
     await tester.pump();
   });
 
+  testWidgets('output capture controller rejects a second attached owner', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    final captureController = LabelSheetOutputCaptureController();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Row(
+          children: [
+            Expanded(
+              child: LabelSheetWorkbench(
+                initialWorkbook: FortuneWorkbook(
+                  sheets: [FortuneSheet(id: 'first', name: 'First')],
+                ),
+                outputCaptureController: captureController,
+              ),
+            ),
+            Expanded(
+              child: LabelSheetWorkbench(
+                initialWorkbook: FortuneWorkbook(
+                  sheets: [FortuneSheet(id: 'second', name: 'Second')],
+                ),
+                outputCaptureController: captureController,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    final error = tester.takeException();
+    expect(error, isA<StateError>());
+    expect(captureController.isAttached, isTrue);
+    expect(captureController.debugActiveSheet?.id, 'first');
+  });
+
   testWidgets('label output preview accepts external zoom controller', (
     tester,
   ) async {
