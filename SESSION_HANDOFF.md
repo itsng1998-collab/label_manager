@@ -1,3 +1,11 @@
+### 완료 (2026-07-21): 선·도형 지시서 controller dispose·detached command 경계 보완
+- 사용자 요청: 최신 재검토에서 확인한 `FortuneSheetController` 최종 dispose 상태와 detached public command 결과 권장안을 지시서에 병합한다.
+- 추가 사용자 확인 불필요: 기존 exclusive attach, nullable `_state` 위임의 detached no-op/absent 결과와 host-owned controller 수명 원칙을 유지했다. attached controller를 암묵 detach하거나 detached command를 예외로 바꾸는 새 동작은 추가하지 않았다.
+- lifecycle 보완 완료: controller 상태를 `alive-detached`/`alive-attached`/`disposed`로 고정했다. 교체할 new controller가 alive-detached인지 old detach 전에 검증하고 중복/disposed attach와 attached dispose는 `StateError`로 거부해 기존 owner를 유지한다. host는 canvas detach 뒤에만 terminal dispose하며 dispose 자체는 추가 lifecycle/canonical 통지를 만들지 않는다.
+- detached API 보완 완료: alive-detached의 canvas-dependent mutation command는 no-op, nullable/collection 조회와 capture는 absent/`Future<null>` 결과다. disposed getter는 마지막 live state가 아닌 detached terminal snapshot이고 재attach·command/listener 사용은 지원하지 않으며 pure codec/helper는 이 규칙에서 제외한다.
+- 테스트·구현 순서·완료 조건·확정값에 disposed controller 교체 선검증, attached/detached dispose, detached command·조회·capture와 callback/listener 횟수를 연결했다.
+- stage/commit 대상: `doc/label_line_panel.txt`, `SESSION_HANDOFF.md`만 포함한다. 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
+
 ### 완료 (2026-07-21): 선·도형 지시서 zOrder 삽입 headroom·raw 재사용 경계 보완
 - 사용자 요청: 최신 재검토에서 확인한 극단 유한 zOrder의 신규 삽입/duplicate/copy paste 순서와 재기준화 시 codec raw-list 재사용 권장안을 지시서에 병합한다.
 - 추가 사용자 확인 불필요: 새 객체는 공통 최상단에서 원본 상대 paint order를 유지해야 하고 canonical zOrder는 finite여야 한다는 기존 계약으로 결과가 결정된다. 삽입 실패/no-op 같은 새 UX를 추가하지 않고 같은 command transaction 내부 복구로 통일했다.
