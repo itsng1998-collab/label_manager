@@ -1076,6 +1076,21 @@ void main() {
           ?.value,
       'external cell text',
     );
+
+    controller.selectAllObjects();
+    expect(await controller.cutSelectedObjects(), isTrue);
+    await tester.pump();
+    controller.handleUndo();
+    await tester.pump();
+    final restoredAfterUndo = painter().workbook.activeSheet;
+    final imageCount = restoredAfterUndo.images.length;
+    final lineCount = restoredAfterUndo.lines.length;
+    final shapeCount = restoredAfterUndo.shapes.length;
+    expect(await controller.pasteObjects(), isFalse);
+    await tester.pump();
+    expect(painter().workbook.activeSheet.images, hasLength(imageCount));
+    expect(painter().workbook.activeSheet.lines, hasLength(lineCount));
+    expect(painter().workbook.activeSheet.shapes, hasLength(shapeCount));
   });
 
   testWidgets('structured duplicate preserves connection id with no options', (

@@ -1178,11 +1178,17 @@ class _FortuneObjectClipboardPayload {
     required this.marker,
     required this.entries,
     this.isCut = false,
+    this.sourceSheetId,
+    this.sourceSheetRevision,
+    this.historyGeneration,
   });
 
   final String marker;
   final List<_FortuneObjectClipboardEntry> entries;
   final bool isCut;
+  final String? sourceSheetId;
+  final int? sourceSheetRevision;
+  final int? historyGeneration;
 }
 
 class _FortuneObjectClipboardBaseline {
@@ -2820,6 +2826,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   Future<void> _objectClipboardGate = Future<void>.value();
   Future<_FortuneObjectClipboardBaseline>? _objectClipboardBaseline;
   int _objectClipboardPendingWrites = 0;
+  final Map<String, int> _sheetCanonicalRevisions = <String, int>{};
+  int _historyLineageGeneration = 0;
   static const int _maxUndoSnapshots = 100;
   static const String _sheetCornerTooltipText = '마우스 우클릭 - 라벨 크기 조정';
   static const Map<String, int> _fillChineseDigits = {
@@ -3559,6 +3567,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         ? FortuneObjectConnectionMode.structured
         : FortuneObjectConnectionMode.legacy);
     _workbook = _effectiveWorkbook(widget.workbook);
+    _sheetCanonicalRevisions.addEntries(
+      _workbook.sheets.map((sheet) => MapEntry(sheet.id, 0)),
+    );
     selection = _selectionFromSheet(_workbook.activeSheet);
     _editorController.addListener(_handleEditorValueChanged);
     _focusNode.addListener(_handleSheetFocusChanged);
@@ -4131,13 +4142,21 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       return;
     }
 
-    _workbook = workbookChanged
-        ? _effectiveWorkbook(widget.workbook)
-        : _workbook.copyWith(settings: _effectiveSettings(widget.workbook));
+    final incomingWorkbook = workbookChanged
+      ? _effectiveWorkbook(widget.workbook)
+      : null;
+    final canonicalWorkbookChanged = incomingWorkbook != null &&
+      _workbookJsonChanged(_workbook, incomingWorkbook);
+    _workbook = incomingWorkbook ??
+      _workbook.copyWith(settings: _effectiveSettings(widget.workbook));
     _recalculateWorkbookFormulas();
     _loadAvailableFontFamilies();
     _scheduleImageDecodes();
-    if (workbookChanged) {
+    if (canonicalWorkbookChanged) {
+      _historyLineageGeneration += 1;
+      _sheetCanonicalRevisions
+      ..clear()
+      ..addEntries(_workbook.sheets.map((sheet) => MapEntry(sheet.id, 0)));
       _resetTransientStateForWorkbookChange();
     }
     _notifyWorkbookChangedAfterFrame();
@@ -5118,6 +5137,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       }
       _batchedUndoSnapshotRecorded = true;
     }
+    final sheetId = _workbook.activeSheet.id;
+    _sheetCanonicalRevisions[sheetId] =
+        (_sheetCanonicalRevisions[sheetId] ?? 0) + 1;
     final redoOps = _cloneFortuneOps(_pendingOnOpOps);
     _pushUndoSnapshot(
       _WorkbookHistorySnapshot(
@@ -5292,6 +5314,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       return;
     }
     final snapshot = _undoStack.removeLast();
+    _historyLineageGeneration += 1;
     setState(() {
       _redoStack.add(
         _WorkbookHistorySnapshot(
@@ -5313,6 +5336,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       return;
     }
     final snapshot = _redoStack.removeLast();
+    _historyLineageGeneration += 1;
     setState(() {
       _undoStack.add(
         _WorkbookHistorySnapshot(
@@ -26434,6 +26458,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       marker: marker,
       entries: List<_FortuneObjectClipboardEntry>.unmodifiable(entries),
       isCut: cut,
+      sourceSheetId: cut ? sheet.id : null,
+      sourceSheetRevision: cut ? _sheetCanonicalRevisions[sheet.id] : null,
+      historyGeneration: cut ? _historyLineageGeneration : null,
     );
     _clearCopiedCellClipboardState();
     _clearCopiedImageLayerPanelClipboardState();
@@ -26569,6 +26596,16 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     }
     if (payload == null || text != payload.marker) {
       _pasteTextAtSelection(text);
+      return false;
+    }
+    if (payload.isCut &&
+        (payload.historyGeneration != _historyLineageGeneration ||
+            payload.sourceSheetId == null ||
+            payload.sourceSheetRevision !=
+                _sheetCanonicalRevisions[payload.sourceSheetId])) {
+      if (identical(_objectClipboardPayload, payload)) {
+        _objectClipboardPayload = null;
+      }
       return false;
     }
     final originalSheet = _workbook.activeSheet;
