@@ -1,3 +1,11 @@
+### 완료 (2026-07-21): 선·도형 지시서 sheet anchor·연결 검증 보완
+- 사용자 요청: 최신 재검토에서 확인한 active sheet selection anchor, 좌표 clamp 완료조건 모순과 toolbar/property/barcode 연결 검증 권장안을 지시서에 병합한다.
+- 추가 사용자 확인 불필요: active sheet 변경의 기존 object selection 해제 의미와 exact key에 sheet ID가 없는 구조상 anchor도 함께 비워야 stale range를 막을 수 있다. 좌표 정책은 본문의 기존 image parity로 이미 `X/left 음수 허용, Y/top만 0 이상 clamp`로 확정되어 있고, 나머지는 새 기능이 아니라 명시된 구현 연결을 대표 fixture로 검증하는 보강이다.
+- selection·좌표 보완 완료: active sheet 변경은 selected/active와 `selectionAnchorKey`를 같은 UI-state 정리에서 비우고 새 sheet의 첫 단일 선택 또는 Ctrl/Meta toggle이 새 anchor를 만든다. 완료조건의 모순된 `Y/left/top clamp`를 `X/left 음수 허용, Y/top만 0 이상 clamp, right/bottom 초과 허용`으로 교정했다.
+- 검증 보완 완료: 제한 폭 More의 shape popup/insertion dispatch, heterogeneous active object toolbar의 typed delete/duplicate/layer command, line/shape 대표 endpoint·stroke·fill·radius·rotation valid commit과 undo/callback, barcode panel 전체 legacy field의 renderer input/replacement metadata·연결 ID/template format 보존을 최소 종단 간 fixture로 추가했다.
+- 본문·interaction/property 테스트·완료 조건·확정값에 위 결과를 연결했다.
+- stage/commit 대상: `doc/label_line_panel.txt`, `SESSION_HANDOFF.md`만 포함한다. 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
+
 ### 완료 (2026-07-21): 선·도형 지시서 draft command·capture handle 보완
 - 사용자 요청: 최신 잔여 검토의 save/Undo/Redo enablement, LabelSheet owner close/navigation draft finalize, 채움 도형 capture inclusion과 겹친 handle 선택 권장안을 지시서에 병합한다.
 - 사용자 확정: 여러 handle 중심 거리가 정확히 같으면 기존 image parity를 유지해 line은 `start → end`, shape는 `rotation → 좌상 → 상중 → 우상 → 좌중 → 우중 → 좌하 → 하중 → 우하` 순서로 선택한다. 그 외 항목은 기존 동기 draft finalize, dirty/history와 painted-footprint 계약으로 결과가 결정되어 추가 확인이 필요하지 않았다.
