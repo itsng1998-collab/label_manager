@@ -1,3 +1,11 @@
+### 완료 (2026-07-21): 선·도형 지시서 hidden focus·property Escape 결과 보완
+- 사용자 요청: 최신 잔여 interaction 검토에서 확인한 실제 hidden panel의 비가시 editor keyboard 소유권과 일반 property draft Escape 결과 권장안을 지시서에 병합한다.
+- 사용자 확정: responsive 자동 접기와 wide dock close로 panel이 `hidden`이 될 때 focused property editor/list의 keyboard 소유권을 canvas로 넘긴다. draft 문자열·inline error·transient preview는 보존하고 focus-loss finalize는 실행하지 않는다. narrow overlay의 명시적 Escape/backdrop close는 기존 open trigger→직전 focus→canvas fallback 복원을 유지한다.
+- hidden focus 보완 완료: panel controller/draft/selection/field controller identity와 open 의도는 유지하면서 responsive 자동 접기와 wide dock close의 panel editor/list focus만 canvas로 정확히 한 번 이동한다. 이미 canvas/외부 focus이거나 visible dock↔overlay 전환이면 focus를 유지하고, 다시 표시돼도 explicit edit-open intent 없이는 editor/list에 자동 재focus하지 않는다. narrow overlay 명시적 close는 canvas 강제 이동의 예외로 기존 focus 복원을 적용했다.
+- Escape 보완 완료: 일반 property draft의 첫 Escape는 exact-key 입력 문자열을 현재 canonical 표시 문자열로 원복하고 inline error와 spinner/drag preview를 제거하며 editor focus와 panel presentation을 유지한다. workbook/selection/history/callback/listenable은 불변이고 종료된 draft의 지연 Enter·focus-loss·spinner/drag end는 no-op이며 다음 Escape가 다음 transient branch를 처리한다. barcode renderer pending의 draft 취소 건너뛰기는 유지했다.
+- 테스트·완료 조건·확정값에 hidden 전환 focus 횟수, draft/error/preview 보존, 재표시 무재focus와 text/spinner Escape 원복·지연 callback no-op을 연결했다.
+- stage/commit 대상: `doc/label_line_panel.txt`, `SESSION_HANDOFF.md`만 포함한다. 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
+
 ### 완료 (2026-07-21): 선·도형 지시서 radius decode·preset Escape·line angle 보완
 - 사용자 요청: 최신 재검토에서 확인한 범위 밖 roundedRectangle radius decode, shape preset 숫자 editor Escape와 line read-only angle 권장안을 지시서에 병합한다.
 - 추가 사용자 확인 불필요: 기존 codec 기본값/fallback, Escape의 한 번에 최상위 transient 하나, shape rotation의 화면 좌표 시계 방향 정책으로 결과가 결정된다. clamp나 popup 동시 닫기, 별도 수학 좌표계 같은 새 UX는 추가하지 않았다.
