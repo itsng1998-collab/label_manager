@@ -1,3 +1,11 @@
+### 완료 (2026-07-21): 선·도형 지시서 image picker·clipboard read 예외 보완
+- 사용자 요청: 최신 잔여 비동기 검토에서 확인한 image picker/file read/decode와 object paste clipboard read 예외 권장안을 지시서에 병합한다.
+- 추가 사용자 확인 불필요: 기존 async owner/token과 실패의 비파괴 원칙으로 결과가 결정된다. 예외를 취소로 숨기거나 dialog를 닫는 새 UX 대신 유효 owner에는 현재 입력과 명시적 inline 실패를 유지하고 stale owner는 기존과 같은 resource 정리 no-op으로 통일했다.
+- image picker 보완 완료: 생성 dialog와 panel 이미지 교체의 picker 호출·파일 읽기·decode 예외는 Future 밖으로 전파하지 않는다. 생성 dialog는 mounted/dialog open과 owner/token이 유효할 때, panel 교체는 owner/revision/token과 `allowEdit`가 유효할 때 각각 현재 입력을 유지하고 `이미지를 불러오지 못했습니다.` inline 오류를 표시한다. 각 경로에서 stale이면 생성된 resource 정리 외 canonical/UI 상태를 바꾸지 않는다.
+- clipboard read 보완 완료: object paste coordinator의 단일 `Clipboard.getData(Clipboard.kTextPlain)` 예외는 object와 fallback cell/text paste를 모두 실행하지 않고 Future를 정상 종료한다. workbook/selection/internal payload/history/dirty/revision/callback/listenable은 불변이다.
+- 테스트·완료 조건·확정값에 생성/panel picker·read·decode의 유효/stale 예외와 clipboard read 예외의 paste 호출 0회·상태 불변을 연결했다.
+- stage/commit 대상: `doc/label_line_panel.txt`, `SESSION_HANDOFF.md`만 포함한다. 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
+
 ### 완료 (2026-07-21): 선·도형 지시서 최초 clipboard 안정 상태 복원 보완
 - 사용자 요청: 최신 재검토에서 확인한 object copy/cut latest-wins coordinator의 최초 요청 실패 시 외부 clipboard 복원 권장안을 지시서에 병합한다.
 - 추가 사용자 확인 불필요: 최신 요청 실패를 요청 전 안정 상태로 되돌리는 기존 원자성 계약의 payload/marker 없는 base case다. 복원 범위는 coordinator가 덮어쓰는 `Clipboard.kTextPlain`의 기존 text/부재로 한정하고 다른 clipboard format 전체 복원 책임은 추가하지 않았다.
