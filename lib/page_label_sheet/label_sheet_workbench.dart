@@ -2940,10 +2940,14 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     if (capture == null) return null;
     return LabelSheetOutputCapture(
       pngBytes: capture.pngBytes,
-      sheet: sheet,
-      range: range,
-      sourceWidthMm: physicalSize.widthMm.toDouble(),
-      sourceHeightMm: physicalSize.heightMm.toDouble(),
+      sheet: capture.sheet,
+      range: capture.range,
+      sourceWidthMm: fortuneLogicalPixelsToMillimeters(
+        capture.logicalSize.width,
+      ),
+      sourceHeightMm: fortuneLogicalPixelsToMillimeters(
+        capture.logicalSize.height,
+      ),
     );
   }
 

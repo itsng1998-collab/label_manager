@@ -17,6 +17,7 @@ import 'package:flutter/widgets.dart';
 
 import 'fortune_border_compute.dart';
 import 'fortune_debug_log.dart';
+import 'fortune_print_plan.dart';
 import 'fortune_sheet_codec.dart';
 import 'fortune_sheet_model.dart' hide Image, Rect;
 import 'fortune_sheet_painter.dart';
@@ -2612,6 +2613,21 @@ class FortuneSheetController extends ChangeNotifier {
         Future<FortuneSheetCapture?>.value();
   }
 
+  Future<FortuneSheetCapture?> captureHybridPlanAsPng(
+    FortuneHybridRenderPlan plan, {
+    double pixelRatio = 1,
+    bool includeCellBorders = true,
+    double? outputLineHeightMultiplier,
+  }) {
+    return _state?._captureHybridPlanAsPng(
+          plan,
+          pixelRatio: pixelRatio,
+          includeCellBorders: includeCellBorders,
+          outputLineHeightMultiplier: outputLineHeightMultiplier,
+        ) ??
+        Future<FortuneSheetCapture?>.value();
+  }
+
   void _attach(_FortuneSheetCanvasState state) {
     _validateAttach(state);
     _state = state;
@@ -2658,11 +2674,15 @@ class FortuneSheetCapture {
     required this.pngBytes,
     required this.logicalSize,
     required this.pixelSize,
+    required this.sheet,
+    required this.range,
   });
 
   final Uint8List pngBytes;
   final Size logicalSize;
   final Size pixelSize;
+  final FortuneSheet sheet;
+  final FortuneRange range;
 }
 
 class _FortuneScreenshotCapture {
@@ -2672,6 +2692,8 @@ class _FortuneScreenshotCapture {
     required this.pngBytes,
     required this.logicalSize,
     required this.pixelSize,
+    required this.sheet,
+    required this.range,
   });
 
   final String dataUrl;
@@ -2679,6 +2701,8 @@ class _FortuneScreenshotCapture {
   final Uint8List pngBytes;
   final Size logicalSize;
   final Size pixelSize;
+  final FortuneSheet sheet;
+  final FortuneRange range;
 }
 
 class _FortuneScreenshotConditionStyle {
@@ -15685,9 +15709,12 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     bool includeRulerGuides = false,
     bool includeLabelAreaBoundary = true,
     double? outputLineHeightMultiplier,
+    FortuneSheet? sheetOverride,
+    FortuneSettings? settingsOverride,
+    Set<FortuneSheetObjectKey> omittedObjectKeys = const {},
   }) async {
-    final sheet = _workbook.activeSheet;
-    final settings = _workbook.settings;
+    final sheet = sheetOverride ?? _workbook.activeSheet;
+    final settings = settingsOverride ?? _workbook.settings;
     final decodedImages = Map<String, ui.Image>.from(_decodedImages);
     _retainCaptureImages(decodedImages.values);
     try {
@@ -15920,6 +15947,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       sheet,
       decodedImages,
       bounds,
+      omittedObjectKeys: omittedObjectKeys,
       originX: originX,
       originY: originY,
     );
@@ -15972,6 +16000,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         (captureWidth * devicePixelRatio).ceilToDouble(),
         (captureHeight * devicePixelRatio).ceilToDouble(),
       ),
+      sheet: sheet,
+      range: range,
     );
     } finally {
       _releaseCaptureImages(decodedImages.values);
@@ -16060,6 +16090,37 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       pngBytes: capture.pngBytes,
       logicalSize: capture.logicalSize,
       pixelSize: capture.pixelSize,
+      sheet: capture.sheet,
+      range: capture.range,
+    );
+  }
+
+  Future<FortuneSheetCapture?> _captureHybridPlanAsPng(
+    FortuneHybridRenderPlan plan, {
+    required double pixelRatio,
+    required bool includeCellBorders,
+    double? outputLineHeightMultiplier,
+  }) async {
+    final capture = await _generateScreenshotCapture(
+      plan.range,
+      pixelRatio: math.max(0.01, pixelRatio),
+      includeGridLines: false,
+      includeCellBorders: includeCellBorders,
+      includeRulerGuides: false,
+      includeLabelAreaBoundary: false,
+      outputLineHeightMultiplier: outputLineHeightMultiplier,
+      sheetOverride: plan.sheet,
+      settingsOverride: plan.settings,
+      omittedObjectKeys: plan.approvedObjectKeys,
+    );
+    if (capture == null) return null;
+    capture.image.dispose();
+    return FortuneSheetCapture(
+      pngBytes: capture.pngBytes,
+      logicalSize: capture.logicalSize,
+      pixelSize: capture.pixelSize,
+      sheet: capture.sheet,
+      range: capture.range,
     );
   }
 
@@ -18379,6 +18440,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     FortuneSheet sheet,
     Map<String, ui.Image> decodedImages,
     Rect bounds, {
+    Set<FortuneSheetObjectKey> omittedObjectKeys = const {},
     required double originX,
     required double originY,
   }) {
@@ -18389,6 +18451,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     canvas.clipRect(bounds, doAntiAlias: false);
     final offset = Offset(-originX, -originY);
     for (final object in fortuneSheetObjectsInPaintOrder(sheet)) {
+      if (omittedObjectKeys.contains(object.key)) {
+        continue;
+      }
       if (object.key.kind == FortuneSheetObjectKind.line) {
         fortuneDrawLineObject(
           canvas,
