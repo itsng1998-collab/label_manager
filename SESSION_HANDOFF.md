@@ -30,8 +30,9 @@
 - package-owned per-sheet canonical revision을 공통 `_recordUndoSnapshot()` transaction 경계에서 한 번 증가시키고 undo/redo·실제 canonical 외부 workbook replacement는 history-lineage generation을 증가시킨다. cut payload는 삭제 transaction 직후 source sheet revision/history token을 캡처하며 stale token paste는 payload를 무효화하고 no-op한다. canonical JSON이 같은 parent echo는 외부 replacement로 처리하지 않아 token/transient state를 유지한다.
 - cross-sheet cut paste는 source revision token을 sheet 전환과 무관하게 유지한다. target에 같은 typed ID가 있으면 target 객체를 보존하고 pasted 객체에 충돌 없는 ID를 발급하며 geometry/연결 ID는 cut 원본을 유지한다.
 - controller의 `objectMutationEnabled` projection을 package-owned panel top actions, drag reorder와 property Apply에 연결했다. barcode pending token map의 empty↔non-empty 전환은 command-state listener notification을 한 번씩 만들며, typed duplicate/delete/reorder/앞뒤/맨앞뒤 private canonical 진입점에도 pending guard를 두어 context/active toolbar/keyboard의 controller 우회 경로를 차단한다.
+- image picker cancellation과 failure를 구분한다. 유효 latest picker 예외는 exact typed key별 controller projection에 남아 panel inline 오류로 표시되고, 같은 key의 다음 요청 시작/성공은 이전 오류를 지운다. stale owner/token completion은 오류를 남기지 않는다.
 - 검증: package object controller 15건과 대표 undo/redo 3건 통과. mixed copy/cut/paste, cut→undo stale paste 차단, same/cross-sheet cut의 ID/geometry, `Completer` 기반 stale A 성공→최신 B 성공과 stale C 성공→최신 D 예외 안정 marker 복원, marker 불일치 external text의 clipboard read 1회/cell fallback 1회, layer list Ctrl+C/V 실제 key-event test를 포함한다. 루트와 `third_party/fortune_sheet` `flutter analyze`, 변경 파일 diagnostics와 `git diff --check` 모두 clean이다.
-- 다음 순서: object clipboard null baseline 동등 복원과 image async error 세부 수명 → capture/Hybrid EZPL. `lib/core/app.dart` 사용자 변경과 `third_party/fortune_sheet/build/` 생성물은 계속 수정·stage·commit에서 제외한다.
+- 다음 순서: object clipboard null baseline 동등 복원 → capture/Hybrid EZPL. `lib/core/app.dart` 사용자 변경과 `third_party/fortune_sheet/build/` 생성물은 계속 수정·stage·commit에서 제외한다.
 
 ### 완료 (2026-07-21): 선·도형 지시서 재검토 6건 병합
 - 사용자 요청: 최신 구현 대조에서 확인한 structured-empty 잔여 분기, 읽기 전용 객체 권한, barcode pending 이탈, output owner 공개 조정 경계, image picker 오류 귀속과 panel 폭 write 실패 의미를 권장안으로 병합한다.

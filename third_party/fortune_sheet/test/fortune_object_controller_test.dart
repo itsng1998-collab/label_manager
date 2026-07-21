@@ -13,7 +13,7 @@ import 'package:fortune_sheet/src/fortune_object_layer_panel.dart';
 import 'package:fortune_sheet/src/fortune_sheet_painter.dart';
 
 const _testPngBase64 =
-  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=';
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=';
 
 void main() {
   test('connection choices dedupe options and mark stale current values', () {
@@ -37,173 +37,174 @@ void main() {
     expect(choices.last.stale, isTrue);
   });
 
-  testWidgets('controller publishes immutable exact object selection snapshots', (
-    tester,
-  ) async {
-    tester.view.physicalSize = const Size(900, 700);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
-    final controller = FortuneSheetController();
-    var notifications = 0;
-    controller.addListener(() => notifications += 1);
-    final workbook = FortuneWorkbook(
-      settings: const FortuneSettings(
-        showToolbar: false,
-        showFormulaBar: false,
-      ),
-      sheets: [
-        FortuneSheet(
-          id: 's1',
-          name: 'Sheet1',
-          images: const [
-            FortuneImage(
-              id: 'image_1',
-              src: 'data:image/png;base64,',
-              left: 120,
-              top: 50,
-              width: 40,
-              height: 30,
-              extraFields: {'zOrder': 2.0},
-            ),
-          ],
-          shapes: const [
-            FortuneShape(
-              id: 'rect_1',
-              kind: FortuneShapeKind.rectangle,
-              left: 100,
-              top: 50,
-              width: 80,
-              height: 30,
-              fillColor: '#FFFFFF',
-            ),
-          ],
+  testWidgets(
+    'controller publishes immutable exact object selection snapshots',
+    (tester) async {
+      tester.view.physicalSize = const Size(900, 700);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+      final controller = FortuneSheetController();
+      var notifications = 0;
+      controller.addListener(() => notifications += 1);
+      final workbook = FortuneWorkbook(
+        settings: const FortuneSettings(
+          showToolbar: false,
+          showFormulaBar: false,
         ),
-      ],
-    );
+        sheets: [
+          FortuneSheet(
+            id: 's1',
+            name: 'Sheet1',
+            images: const [
+              FortuneImage(
+                id: 'image_1',
+                src: 'data:image/png;base64,',
+                left: 120,
+                top: 50,
+                width: 40,
+                height: 30,
+                extraFields: {'zOrder': 2.0},
+              ),
+            ],
+            shapes: const [
+              FortuneShape(
+                id: 'rect_1',
+                kind: FortuneShapeKind.rectangle,
+                left: 100,
+                top: 50,
+                width: 80,
+                height: 30,
+                fillColor: '#FFFFFF',
+              ),
+            ],
+          ),
+        ],
+      );
 
-    await tester.pumpWidget(
-      MaterialApp(
-        home: SizedBox(
-          width: 900,
-          height: 700,
-          child: FortuneSheetCanvas(
-            workbook: workbook,
-            controller: controller,
+      await tester.pumpWidget(
+        MaterialApp(
+          home: SizedBox(
+            width: 900,
+            height: 700,
+            child: FortuneSheetCanvas(
+              workbook: workbook,
+              controller: controller,
+            ),
           ),
         ),
-      ),
-    );
+      );
 
-    FortuneSheetPainter painter() {
-      return tester
-          .widgetList<CustomPaint>(
-            find.descendant(
-              of: find.byType(FortuneSheetCanvas),
-              matching: find.byType(CustomPaint),
-            ),
-          )
-          .map((paint) => paint.painter)
-          .whereType<FortuneSheetPainter>()
-          .single;
-    }
+      FortuneSheetPainter painter() {
+        return tester
+            .widgetList<CustomPaint>(
+              find.descendant(
+                of: find.byType(FortuneSheetCanvas),
+                matching: find.byType(CustomPaint),
+              ),
+            )
+            .map((paint) => paint.painter)
+            .whereType<FortuneSheetPainter>()
+            .single;
+      }
 
-    expect(notifications, 1);
-    expect(controller.objectSelection.attached, isTrue);
-    expect(controller.objectSelection.activeKey, isNull);
-    expect(controller.objectSelection.selectedKeys, isEmpty);
-    expect(() => controller.dispose(), throwsStateError);
+      expect(notifications, 1);
+      expect(controller.objectSelection.attached, isTrue);
+      expect(controller.objectSelection.activeKey, isNull);
+      expect(controller.objectSelection.selectedKeys, isEmpty);
+      expect(() => controller.dispose(), throwsStateError);
 
-    final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
-    await tester.tapAt(topLeft + const Offset(156, 85));
-    await tester.pump();
+      final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
+      await tester.tapAt(topLeft + const Offset(156, 85));
+      await tester.pump();
 
-    const key = FortuneSheetObjectKey(
-      FortuneSheetObjectKind.rectangle,
-      'rect_1',
-    );
-    expect(notifications, 2);
-    expect(controller.objectSelection.activeKey, key);
-    expect(controller.objectSelection.selectedKeys, {key});
-    expect(
-      () => controller.objectSelection.selectedKeys.add(key),
-      throwsUnsupportedError,
-    );
+      const key = FortuneSheetObjectKey(
+        FortuneSheetObjectKind.rectangle,
+        'rect_1',
+      );
+      expect(notifications, 2);
+      expect(controller.objectSelection.activeKey, key);
+      expect(controller.objectSelection.selectedKeys, {key});
+      expect(
+        () => controller.objectSelection.selectedKeys.add(key),
+        throwsUnsupportedError,
+      );
 
-    await tester.tapAt(topLeft + const Offset(186, 85));
-    await tester.pump();
+      await tester.tapAt(topLeft + const Offset(186, 85));
+      await tester.pump();
 
-    const imageKey = FortuneSheetObjectKey(
-      FortuneSheetObjectKind.image,
-      'image_1',
-    );
-    expect(notifications, 3);
-    expect(controller.objectSelection.activeKey, imageKey);
-    expect(controller.objectSelection.selectedKeys, {imageKey});
-    expect(controller.objectSelection.objects.map((object) => object.key), [
-      key,
-      imageKey,
-    ]);
-    expect(
-      () => controller.objectSelection.objects.clear(),
-      throwsUnsupportedError,
-    );
+      const imageKey = FortuneSheetObjectKey(
+        FortuneSheetObjectKind.image,
+        'image_1',
+      );
+      expect(notifications, 3);
+      expect(controller.objectSelection.activeKey, imageKey);
+      expect(controller.objectSelection.selectedKeys, {imageKey});
+      expect(controller.objectSelection.objects.map((object) => object.key), [
+        key,
+        imageKey,
+      ]);
+      expect(
+        () => controller.objectSelection.objects.clear(),
+        throwsUnsupportedError,
+      );
 
-    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
-    await tester.pump();
-    expect(notifications, 4);
-    expect(controller.objectSelection.activeKey, key);
-    expect(controller.objectSelection.selectedKeys, {key});
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pump();
+      expect(notifications, 4);
+      expect(controller.objectSelection.activeKey, key);
+      expect(controller.objectSelection.selectedKeys, {key});
 
-    await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
-    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
-    await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
-    await tester.pump();
-    expect(notifications, 5);
-    expect(controller.objectSelection.activeKey, imageKey);
-    expect(controller.objectSelection.selectedKeys, {imageKey});
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+      await tester.pump();
+      expect(notifications, 5);
+      expect(controller.objectSelection.activeKey, imageKey);
+      expect(controller.objectSelection.selectedKeys, {imageKey});
 
-    controller.selectObject(key);
-    await tester.pump();
-    expect(notifications, 6);
-    expect(controller.objectSelection.activeKey, key);
+      controller.selectObject(key);
+      await tester.pump();
+      expect(notifications, 6);
+      expect(controller.objectSelection.activeKey, key);
 
-    controller.sendSelectedObjectsToBack();
-    await tester.pump();
-    expect(notifications, 6);
+      controller.sendSelectedObjectsToBack();
+      await tester.pump();
+      expect(notifications, 6);
 
-    controller.bringSelectedObjectsToFront();
-    await tester.pump();
-    expect(notifications, 7);
-    expect(controller.objectSelection.objects.map((object) => object.key), [
-      imageKey,
-      key,
-    ]);
+      controller.bringSelectedObjectsToFront();
+      await tester.pump();
+      expect(notifications, 7);
+      expect(controller.objectSelection.objects.map((object) => object.key), [
+        imageKey,
+        key,
+      ]);
 
-    controller.sendSelectedObjectsToBack();
-    await tester.pump();
-    expect(notifications, 8);
-    expect(controller.objectSelection.objects.map((object) => object.key), [
-      key,
-      imageKey,
-    ]);
+      controller.sendSelectedObjectsToBack();
+      await tester.pump();
+      expect(notifications, 8);
+      expect(controller.objectSelection.objects.map((object) => object.key), [
+        key,
+        imageKey,
+      ]);
 
-    controller.deleteSelectedObjects();
-    await tester.pump();
-    expect(notifications, 9);
-    expect(controller.objectSelection.activeKey, imageKey);
-    expect(controller.objectSelection.selectedKeys, {imageKey});
-    expect(painter().workbook.activeSheet.shapes, isEmpty);
-    expect(painter().workbook.activeSheet.images, hasLength(1));
+      controller.deleteSelectedObjects();
+      await tester.pump();
+      expect(notifications, 9);
+      expect(controller.objectSelection.activeKey, imageKey);
+      expect(controller.objectSelection.selectedKeys, {imageKey});
+      expect(painter().workbook.activeSheet.shapes, isEmpty);
+      expect(painter().workbook.activeSheet.images, hasLength(1));
 
-    await tester.pumpWidget(const SizedBox.shrink());
-    expect(notifications, 10);
-    expect(controller.objectSelection.attached, isFalse);
-    expect(controller.objectSelection.activeKey, isNull);
-    controller.dispose();
-  });
+      await tester.pumpWidget(const SizedBox.shrink());
+      expect(notifications, 10);
+      expect(controller.objectSelection.attached, isFalse);
+      expect(controller.objectSelection.activeKey, isNull);
+      controller.dispose();
+    },
+  );
 
   testWidgets('object layer panel selects and deletes mixed typed objects', (
     tester,
@@ -213,7 +214,8 @@ void main() {
       SystemChannels.platform,
       (call) async {
         if (call.method == 'Clipboard.setData') {
-          clipboardText = (call.arguments as Map<Object?, Object?>)['text'] as String?;
+          clipboardText =
+              (call.arguments as Map<Object?, Object?>)['text'] as String?;
           return null;
         }
         if (call.method == 'Clipboard.getData') {
@@ -295,10 +297,7 @@ void main() {
     await tester.pump();
     expect(
       controller.objectSelection.activeKey,
-      const FortuneSheetObjectKey(
-        FortuneSheetObjectKind.rectangle,
-        'rect_1',
-      ),
+      const FortuneSheetObjectKey(FortuneSheetObjectKind.rectangle, 'rect_1'),
     );
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
@@ -306,10 +305,7 @@ void main() {
     await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
     await tester.pump();
     expect(controller.objectSelection.selectedKeys, {
-      const FortuneSheetObjectKey(
-        FortuneSheetObjectKind.rectangle,
-        'rect_1',
-      ),
+      const FortuneSheetObjectKey(FortuneSheetObjectKind.rectangle, 'rect_1'),
       const FortuneSheetObjectKey(FortuneSheetObjectKind.image, 'image_1'),
     });
 
@@ -339,10 +335,7 @@ void main() {
           .map((object) => object.key)
           .toList(growable: false),
       [
-        const FortuneSheetObjectKey(
-          FortuneSheetObjectKind.rectangle,
-          'rect_1',
-        ),
+        const FortuneSheetObjectKey(FortuneSheetObjectKind.rectangle, 'rect_1'),
         const FortuneSheetObjectKey(FortuneSheetObjectKind.image, 'image_1'),
         duplicateShapeKey,
         duplicateImageKey,
@@ -418,10 +411,7 @@ void main() {
         home: SizedBox(
           width: 900,
           height: 700,
-          child: FortuneSheetCanvas(
-            workbook: workbook,
-            controller: controller,
-          ),
+          child: FortuneSheetCanvas(workbook: workbook, controller: controller),
         ),
       ),
     );
@@ -539,18 +529,12 @@ void main() {
         home: SizedBox(
           width: 900,
           height: 700,
-          child: FortuneSheetCanvas(
-            workbook: workbook,
-            controller: controller,
-          ),
+          child: FortuneSheetCanvas(workbook: workbook, controller: controller),
         ),
       ),
     );
 
-    const key = FortuneSheetObjectKey(
-      FortuneSheetObjectKind.image,
-      'image_1',
-    );
+    const key = FortuneSheetObjectKey(FortuneSheetObjectKind.image, 'image_1');
     controller.selectObject(key);
     controller.updateSelectedImage(
       left: -5,
@@ -563,7 +547,10 @@ void main() {
     await tester.pump();
 
     final image = controller.objectSelection.activeImage!;
-    expect((image.left, image.top, image.width, image.height), (-5, 0, 120, 60));
+    expect(
+      (image.left, image.top, image.width, image.height),
+      (-5, 0, 120, 60),
+    );
     expect(image.extraFields['rotation'], 315);
     expect(image.extraFields[fortuneImageObjectIdExtraKey], 'NEW');
     expect(image.extraFields['crop'], {'left': 0.1});
@@ -572,12 +559,10 @@ void main() {
     controller.handleUndo();
     await tester.pump();
     final restored = controller.objectSelection.activeImage!;
-    expect((restored.left, restored.top, restored.width, restored.height), (
-      20,
-      30,
-      80,
-      40,
-    ));
+    expect(
+      (restored.left, restored.top, restored.width, restored.height),
+      (20, 30, 80, 40),
+    );
     expect(restored.extraFields[fortuneImageObjectIdExtraKey], 'OLD');
     expect(restored.extraFields['crop'], {'left': 0.1});
   });
@@ -594,6 +579,8 @@ void main() {
     final controller = FortuneSheetController();
 
     final picker = Completer<FortuneImagePickResult?>();
+    var pickerCalls = 0;
+    var throwPickerError = true;
     final workbook = FortuneWorkbook(
       settings: const FortuneSettings(
         showToolbar: false,
@@ -629,15 +616,16 @@ void main() {
           child: FortuneSheetCanvas(
             workbook: workbook,
             controller: controller,
-            imagePicker: () => picker.future,
+            imagePicker: () {
+              if (pickerCalls++ == 0) return picker.future;
+              if (throwPickerError) throw StateError('picker failed');
+              return Future<FortuneImagePickResult?>.value();
+            },
           ),
         ),
       ),
     );
-    const key = FortuneSheetObjectKey(
-      FortuneSheetObjectKind.image,
-      'image_1',
-    );
+    const key = FortuneSheetObjectKey(FortuneSheetObjectKind.image, 'image_1');
     controller.selectObject(key);
     expect(controller.objectSelection.activeImage?.id, 'image_1');
     final replacement = controller.replaceSelectedImageFile();
@@ -658,14 +646,22 @@ void main() {
 
     final image = controller.objectSelection.activeImage!;
     expect(image.src, 'data:image/png;base64,$_testPngBase64');
-    expect((image.left, image.top, image.width, image.height), (20, 30, 80, 40));
+    expect(
+      (image.left, image.top, image.width, image.height),
+      (20, 30, 80, 40),
+    );
     expect(image.extraFields[fortuneImageObjectIdExtraKey], 'LOGO');
     expect(image.extraFields['rotation'], 90);
     expect(image.extraFields['crop'], {'left': 0.1});
-    expect((image.extraFields['originWidth'], image.extraFields['originHeight']), (
-      1,
-      1,
-    ));
+    expect(
+      (image.extraFields['originWidth'], image.extraFields['originHeight']),
+      (1, 1),
+    );
+    expect(await controller.replaceSelectedImageFile(), isFalse);
+    expect(controller.activeImagePickerFailed, isTrue);
+    throwPickerError = false;
+    expect(await controller.replaceSelectedImageFile(), isFalse);
+    expect(controller.activeImagePickerFailed, isFalse);
   });
 
   testWidgets('controller renders selected barcode properties atomically', (
@@ -733,10 +729,7 @@ void main() {
       ),
     );
     controller.selectObject(
-      const FortuneSheetObjectKey(
-        FortuneSheetObjectKind.barcode,
-        'barcode_1',
-      ),
+      const FortuneSheetObjectKey(FortuneSheetObjectKind.barcode, 'barcode_1'),
     );
     final rendered = await controller.renderSelectedBarcode(
       text: '12345',
@@ -759,11 +752,10 @@ void main() {
     await tester.pump();
 
     expect(rendered, isTrue);
-    expect((request?.text, request?.formatId, request?.rotation), (
-      '12345',
-      'CODE128',
-      45,
-    ));
+    expect(
+      (request?.text, request?.formatId, request?.rotation),
+      ('12345', 'CODE128', 45),
+    );
     expect((request?.moduleScale, request?.barHeight), (4, 22));
     expect((request?.leadingText, request?.trailingText), ('L', 'R'));
     expect(request?.showHumanReadableText, isTrue);
@@ -771,7 +763,10 @@ void main() {
     expect(request?.humanReadableFontSize, 16);
 
     var image = controller.objectSelection.activeImage!;
-    expect((image.left, image.top, image.width, image.height), (-5, 0, 120, 60));
+    expect(
+      (image.left, image.top, image.width, image.height),
+      (-5, 0, 120, 60),
+    );
     expect(image.extraFields[fortuneBarcodeObjectIdExtraKey], 'NEW');
     expect(image.extraFields['barcodeFormatLabel'], 'Code 128');
     expect(image.extraFields['preserveTemplateBarcodeFormat'], isTrue);
@@ -784,7 +779,10 @@ void main() {
     controller.handleUndo();
     await tester.pump();
     image = controller.objectSelection.activeImage!;
-    expect((image.left, image.top, image.width, image.height), (20, 30, 80, 40));
+    expect(
+      (image.left, image.top, image.width, image.height),
+      (20, 30, 80, 40),
+    );
     expect(image.extraFields['barcodeText'], 'OLD-TEXT');
   });
 
@@ -804,7 +802,10 @@ void main() {
     });
     final renders = <Completer<FortuneBarcodeRenderResult?>>[];
     final workbook = FortuneWorkbook(
-      settings: const FortuneSettings(showToolbar: false, showFormulaBar: false),
+      settings: const FortuneSettings(
+        showToolbar: false,
+        showFormulaBar: false,
+      ),
       sheets: [
         FortuneSheet(
           id: 's1',
@@ -841,10 +842,7 @@ void main() {
       ),
     );
     controller.selectObject(
-      const FortuneSheetObjectKey(
-        FortuneSheetObjectKind.barcode,
-        'barcode_1',
-      ),
+      const FortuneSheetObjectKey(FortuneSheetObjectKind.barcode, 'barcode_1'),
     );
 
     Future<bool> render(String text) => controller.renderSelectedBarcode(
@@ -907,7 +905,8 @@ void main() {
       (call) async {
         switch (call.method) {
           case 'Clipboard.setData':
-            final text = (call.arguments as Map<Object?, Object?>)['text'] as String?;
+            final text =
+                (call.arguments as Map<Object?, Object?>)['text'] as String?;
             if (delayClipboardWrites) {
               final completer = Completer<void>();
               clipboardWrites.add(completer);
@@ -934,7 +933,10 @@ void main() {
     });
     final controller = FortuneSheetController();
     final workbook = FortuneWorkbook(
-      settings: const FortuneSettings(showToolbar: false, showFormulaBar: false),
+      settings: const FortuneSettings(
+        showToolbar: false,
+        showFormulaBar: false,
+      ),
       sheets: [
         FortuneSheet(
           id: 's1',
@@ -1030,10 +1032,10 @@ void main() {
       FortuneSheetObjectKind.rectangle,
     });
     FortuneSheetPainter painter() => tester
-      .widgetList<CustomPaint>(find.byType(CustomPaint))
-      .map((paint) => paint.painter)
-      .whereType<FortuneSheetPainter>()
-      .single;
+        .widgetList<CustomPaint>(find.byType(CustomPaint))
+        .map((paint) => paint.painter)
+        .whereType<FortuneSheetPainter>()
+        .single;
     final sheet = painter().workbook.activeSheet;
     expect(sheet.images, hasLength(2));
     expect(sheet.lines, hasLength(2));
@@ -1041,7 +1043,12 @@ void main() {
     expect((sheet.images.last.left, sheet.images.last.top), (22, 32));
     expect(sheet.images.last.extraFields[fortuneImageObjectIdExtraKey], 'LOGO');
     expect(
-      (sheet.lines.last.x1, sheet.lines.last.y1, sheet.lines.last.x2, sheet.lines.last.y2),
+      (
+        sheet.lines.last.x1,
+        sheet.lines.last.y1,
+        sheet.lines.last.x2,
+        sheet.lines.last.y2,
+      ),
       (32, 42, 62, 72),
     );
     expect((sheet.shapes.last.left, sheet.shapes.last.top), (42, 52));
@@ -1104,11 +1111,7 @@ void main() {
     await tester.pump();
     expect(clipboardReads, readsBeforeFallback + 1);
     expect(
-      painter()
-          .workbook
-          .activeSheet
-          .cells[const FortuneCellCoord(0, 0)]
-          ?.value,
+      painter().workbook.activeSheet.cells[const FortuneCellCoord(0, 0)]?.value,
       'external cell text',
     );
 
@@ -1136,10 +1139,22 @@ void main() {
     final crossSheet = painter().workbook.activeSheet;
     expect(crossSheet.id, 's2');
     expect(crossSheet.images.first.id, 'image_1');
-    expect((crossSheet.images.first.left, crossSheet.images.first.top), (100, 100));
-    expect(crossSheet.images.map((image) => image.id).toSet(), hasLength(imageCount + 1));
-    expect(crossSheet.lines.map((line) => line.id).toSet(), hasLength(lineCount + 1));
-    expect(crossSheet.shapes.map((shape) => shape.id).toSet(), hasLength(shapeCount + 1));
+    expect(
+      (crossSheet.images.first.left, crossSheet.images.first.top),
+      (100, 100),
+    );
+    expect(
+      crossSheet.images.map((image) => image.id).toSet(),
+      hasLength(imageCount + 1),
+    );
+    expect(
+      crossSheet.lines.map((line) => line.id).toSet(),
+      hasLength(lineCount + 1),
+    );
+    expect(
+      crossSheet.shapes.map((shape) => shape.id).toSet(),
+      hasLength(shapeCount + 1),
+    );
     expect((crossSheet.images[1].left, crossSheet.images[1].top), (10, 20));
   });
 
@@ -1202,7 +1217,7 @@ void main() {
         .single;
     expect(painter.workbook.activeSheet.images, hasLength(2));
     expect(
-        painter
+      painter
           .workbook
           .activeSheet
           .images

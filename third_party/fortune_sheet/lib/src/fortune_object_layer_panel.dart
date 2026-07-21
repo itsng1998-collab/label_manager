@@ -195,7 +195,9 @@ class _FortuneObjectLayerPanelState extends State<FortuneObjectLayerPanel> {
                                 }
                               },
                               onHover: (side) {
-                                if (snapshot.selectedKeys.contains(object.key)) {
+                                if (snapshot.selectedKeys.contains(
+                                  object.key,
+                                )) {
                                   side = null;
                                 }
                                 if (_dropTargetKey != object.key ||
@@ -265,7 +267,8 @@ class _FortuneObjectLayerPanelState extends State<FortuneObjectLayerPanel> {
     if (event is! KeyDownEvent) {
       return KeyEventResult.ignored;
     }
-    final control = HardwareKeyboard.instance.isControlPressed ||
+    final control =
+        HardwareKeyboard.instance.isControlPressed ||
         HardwareKeyboard.instance.isMetaPressed;
     final key = event.logicalKey;
     if (control) {
@@ -310,7 +313,9 @@ class _FortuneObjectLayerPanelState extends State<FortuneObjectLayerPanel> {
       return KeyEventResult.handled;
     }
     final active = widget.controller.objectSelection.activeKey;
-    final currentIndex = active == null ? 0 : math.max(0, objects.indexOf(active));
+    final currentIndex = active == null
+        ? 0
+        : math.max(0, objects.indexOf(active));
     final nextIndex = key == LogicalKeyboardKey.home
         ? 0
         : key == LogicalKeyboardKey.end
@@ -362,7 +367,9 @@ class _ObjectLayerRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final row = InkWell(
-      key: ValueKey('fortune-object-row-${object.key.kind.name}-${object.key.id}'),
+      key: ValueKey(
+        'fortune-object-row-${object.key.kind.name}-${object.key.id}',
+      ),
       onTap: onTap,
       child: DecoratedBox(
         decoration: BoxDecoration(
@@ -396,7 +403,11 @@ class _ObjectLayerRow extends StatelessWidget {
                   style: const TextStyle(fontSize: 13),
                 ),
               ),
-              const Icon(Icons.drag_indicator, size: 17, color: Color(0xff80868b)),
+              const Icon(
+                Icons.drag_indicator,
+                size: 17,
+                color: Color(0xff80868b),
+              ),
             ],
           ),
         ),
@@ -563,8 +574,8 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
       _setGeometryField('width', image.width);
       _setGeometryField('height', image.height);
       _setField('rotation', _imageRotation(image));
-      final metadataKey = widget.snapshot.activeKey!.kind ==
-              FortuneSheetObjectKind.barcode
+      final metadataKey =
+          widget.snapshot.activeKey!.kind == FortuneSheetObjectKind.barcode
           ? fortuneBarcodeObjectIdExtraKey
           : fortuneImageObjectIdExtraKey;
       _setField('connectionId', image.extraFields[metadataKey] ?? '');
@@ -576,10 +587,7 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
         _setField('barHeight', extra['barcodeBarHeight'] ?? 10.0);
         _setField('leadingText', extra['barcodeLeadingText'] ?? '');
         _setField('trailingText', extra['barcodeTrailingText'] ?? '');
-        _setField(
-          'fontFamily',
-          extra['barcodeHumanReadableFontFamily'] ?? '',
-        );
+        _setField('fontFamily', extra['barcodeHumanReadableFontFamily'] ?? '');
         _setField('fontSize', extra['barcodeHumanReadableFontSize'] ?? 14.0);
         _barcodeShowText = extra['barcodeShowText'] == true;
         _barcodePreserveTemplateFormat =
@@ -818,7 +826,12 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
     });
     await widget.controller.replaceSelectedImageFile();
     if (mounted) {
-      setState(() => _imagePickerPending = false);
+      setState(() {
+        _imagePickerPending = false;
+        _error = widget.controller.activeImagePickerFailed
+            ? '이미지를 불러오지 못했습니다.'
+            : null;
+      });
     }
   }
 
@@ -880,47 +893,41 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
             label: const Text('파일 교체'),
           ),
         _field('회전', 'rotation', suffix: '°'),
-        if (widget.snapshot.activeKey!.kind == FortuneSheetObjectKind.barcode)
-          ...[
-            _field('형식', 'barcodeFormatId'),
-            _field('데이터', 'barcodeText'),
-            _field('모듈 배율', 'moduleScale'),
-            _field('바 높이', 'barHeight'),
-            _field('앞쪽 텍스트', 'leadingText'),
-            _field('뒤쪽 텍스트', 'trailingText'),
-            CheckboxListTile(
-              key: const ValueKey('fortune-object-property-barcode-show-text'),
-              contentPadding: EdgeInsets.zero,
-              dense: true,
-              title: const Text(
-                '사람이 읽는 텍스트 표시',
-                style: TextStyle(fontSize: 13),
-              ),
-              value: _barcodeShowText,
-              onChanged: (value) {
-                setState(() => _barcodeShowText = value ?? false);
-              },
+        if (widget.snapshot.activeKey!.kind ==
+            FortuneSheetObjectKind.barcode) ...[
+          _field('형식', 'barcodeFormatId'),
+          _field('데이터', 'barcodeText'),
+          _field('모듈 배율', 'moduleScale'),
+          _field('바 높이', 'barHeight'),
+          _field('앞쪽 텍스트', 'leadingText'),
+          _field('뒤쪽 텍스트', 'trailingText'),
+          CheckboxListTile(
+            key: const ValueKey('fortune-object-property-barcode-show-text'),
+            contentPadding: EdgeInsets.zero,
+            dense: true,
+            title: const Text('사람이 읽는 텍스트 표시', style: TextStyle(fontSize: 13)),
+            value: _barcodeShowText,
+            onChanged: (value) {
+              setState(() => _barcodeShowText = value ?? false);
+            },
+          ),
+          _field('텍스트 글꼴', 'fontFamily'),
+          _field('텍스트 크기', 'fontSize'),
+          CheckboxListTile(
+            key: const ValueKey(
+              'fortune-object-property-barcode-preserve-template',
             ),
-            _field('텍스트 글꼴', 'fontFamily'),
-            _field('텍스트 크기', 'fontSize'),
-            CheckboxListTile(
-              key: const ValueKey(
-                'fortune-object-property-barcode-preserve-template',
-              ),
-              contentPadding: EdgeInsets.zero,
-              dense: true,
-              title: const Text(
-                '템플릿 바코드 형식 유지',
-                style: TextStyle(fontSize: 13),
-              ),
-              value: _barcodePreserveTemplateFormat,
-              onChanged: (value) {
-                setState(() {
-                  _barcodePreserveTemplateFormat = value ?? false;
-                });
-              },
-            ),
-          ],
+            contentPadding: EdgeInsets.zero,
+            dense: true,
+            title: const Text('템플릿 바코드 형식 유지', style: TextStyle(fontSize: 13)),
+            value: _barcodePreserveTemplateFormat,
+            onChanged: (value) {
+              setState(() {
+                _barcodePreserveTemplateFormat = value ?? false;
+              });
+            },
+          ),
+        ],
       ]);
     } else if (line != null) {
       fields.addAll([
@@ -949,23 +956,23 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
     if (image == null) {
       fields.addAll([
         DropdownButtonFormField<FortuneStrokeStyle>(
-        initialValue: _strokeStyle,
-        decoration: const InputDecoration(labelText: '테두리 스타일'),
-        items: FortuneStrokeStyle.values
-            .map(
-              (style) => DropdownMenuItem(
-                value: style,
-                child: Text(_strokeStyleLabel(style)),
-              ),
-            )
-            .toList(growable: false),
-        onChanged: (value) {
-          if (value != null) {
-            setState(() => _strokeStyle = value);
-          }
-        },
-      ),
-      _field('테두리 폭', 'strokeWidth', suffix: 'mm'),
+          initialValue: _strokeStyle,
+          decoration: const InputDecoration(labelText: '테두리 스타일'),
+          items: FortuneStrokeStyle.values
+              .map(
+                (style) => DropdownMenuItem(
+                  value: style,
+                  child: Text(_strokeStyleLabel(style)),
+                ),
+              )
+              .toList(growable: false),
+          onChanged: (value) {
+            if (value != null) {
+              setState(() => _strokeStyle = value);
+            }
+          },
+        ),
+        _field('테두리 폭', 'strokeWidth', suffix: 'mm'),
         _field('테두리 색상', 'strokeColor'),
       ]);
     }
@@ -1032,8 +1039,8 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
   }
 
   Widget _connectionField() {
-    final barcode = widget.snapshot.activeKey!.kind ==
-        FortuneSheetObjectKind.barcode;
+    final barcode =
+        widget.snapshot.activeKey!.kind == FortuneSheetObjectKind.barcode;
     final current = _fields['connectionId']!.text.trim();
     final choices = fortuneObjectConnectionChoices(
       options: barcode
@@ -1075,7 +1082,8 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
   }
 
   double _lineAngle(FortuneLine line) {
-    final degrees = math.atan2(line.y2 - line.y1, line.x2 - line.x1) * 180 / math.pi;
+    final degrees =
+        math.atan2(line.y2 - line.y1, line.x2 - line.x1) * 180 / math.pi;
     return degrees < 0 ? degrees + 360 : degrees;
   }
 

@@ -31,6 +31,7 @@ Widget _fortuneEditableTextContextMenuBuilder(
     editableTextState: editableTextState,
   );
 }
+
 enum FortuneObjectDropSide { before, after }
 
 const Object _fortuneUnspecifiedObjectProperty = Object();
@@ -176,7 +177,7 @@ typedef FortuneBarcodeRenderer =
 
 const String _fortuneUnlinkedObjectValue = '__fortune_unlinked__';
 const String _fortuneLinkedImagePlaceholder =
-  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=';
+    'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=';
 
 class FortuneBarcodeFormatOption {
   const FortuneBarcodeFormatOption({
@@ -1222,7 +1223,7 @@ class FortuneObjectSelectionSnapshot {
     this.activeShape,
     this.geometryUsesMillimeters = false,
   }) : selectedKeys = Set<FortuneSheetObjectKey>.unmodifiable(selectedKeys),
-      objects = List<FortuneSheetObjectRef>.unmodifiable(objects);
+       objects = List<FortuneSheetObjectRef>.unmodifiable(objects);
 
   final bool attached;
   final String? sheetId;
@@ -1245,9 +1246,16 @@ class FortuneSheetController extends ChangeNotifier {
   FortuneObjectSelectionSnapshot get objectSelection => _objectSelection;
   bool get barcodePropertyRenderPending =>
       _state?._panelBarcodeRequestTokens.isNotEmpty ?? false;
-    bool get objectMutationEnabled =>
+  bool get objectMutationEnabled =>
       _state?._workbook.settings.allowEdit == true &&
       !barcodePropertyRenderPending;
+  bool get activeImagePickerFailed {
+    final state = _state;
+    final key = _objectSelection.activeKey;
+    return state != null &&
+        key != null &&
+        state._panelImagePickerErrorKeys.contains(key);
+  }
 
   void selectObject(FortuneSheetObjectKey key) {
     _state?._selectObjectFromController(key);
@@ -2826,6 +2834,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   late FortuneObjectConnectionMode _imageObjectConnectionMode;
   late FortuneObjectConnectionMode _barcodeObjectConnectionMode;
   int _panelImagePickerToken = 0;
+  final Set<FortuneSheetObjectKey> _panelImagePickerErrorKeys = {};
   int _panelBarcodeRequestSequence = 0;
   final Map<FortuneSheetObjectKey, int> _panelBarcodeRequestTokens = {};
   int _objectClipboardSequence = 0;
@@ -3271,8 +3280,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   bool _sheetCornerTooltipDismissedUntilExit = false;
   String? _activeImageId;
   FortuneSheetObjectKey? _activeObjectKey;
-    Set<FortuneSheetObjectKey> _selectedObjectKeys = <FortuneSheetObjectKey>{};
-    FortuneSheetObjectKey? _objectSelectionAnchorKey;
+  Set<FortuneSheetObjectKey> _selectedObjectKeys = <FortuneSheetObjectKey>{};
+  FortuneSheetObjectKey? _objectSelectionAnchorKey;
   FortuneSheetObjectKey? _typedObjectMoveKey;
   Offset? _typedObjectMoveStart;
   FortuneLine? _typedObjectMoveInitialLine;
@@ -3564,15 +3573,15 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   void initState() {
     super.initState();
     _imageObjectConnectionMode =
-      widget.imageObjectConnectionMode ??
-      (widget.imageObjectOptions.isNotEmpty
-        ? FortuneObjectConnectionMode.structured
-        : FortuneObjectConnectionMode.legacy);
+        widget.imageObjectConnectionMode ??
+        (widget.imageObjectOptions.isNotEmpty
+            ? FortuneObjectConnectionMode.structured
+            : FortuneObjectConnectionMode.legacy);
     _barcodeObjectConnectionMode =
-      widget.barcodeObjectConnectionMode ??
-      (widget.barcodeObjectOptions.isNotEmpty
-        ? FortuneObjectConnectionMode.structured
-        : FortuneObjectConnectionMode.legacy);
+        widget.barcodeObjectConnectionMode ??
+        (widget.barcodeObjectOptions.isNotEmpty
+            ? FortuneObjectConnectionMode.structured
+            : FortuneObjectConnectionMode.legacy);
     _workbook = _effectiveWorkbook(widget.workbook);
     _sheetCanonicalRevisions.addEntries(
       _workbook.sheets.map((sheet) => MapEntry(sheet.id, 0)),
@@ -4150,20 +4159,22 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     }
 
     final incomingWorkbook = workbookChanged
-      ? _effectiveWorkbook(widget.workbook)
-      : null;
-    final canonicalWorkbookChanged = incomingWorkbook != null &&
-      _workbookJsonChanged(_workbook, incomingWorkbook);
-    _workbook = incomingWorkbook ??
-      _workbook.copyWith(settings: _effectiveSettings(widget.workbook));
+        ? _effectiveWorkbook(widget.workbook)
+        : null;
+    final canonicalWorkbookChanged =
+        incomingWorkbook != null &&
+        _workbookJsonChanged(_workbook, incomingWorkbook);
+    _workbook =
+        incomingWorkbook ??
+        _workbook.copyWith(settings: _effectiveSettings(widget.workbook));
     _recalculateWorkbookFormulas();
     _loadAvailableFontFamilies();
     _scheduleImageDecodes();
     if (canonicalWorkbookChanged) {
       _historyLineageGeneration += 1;
       _sheetCanonicalRevisions
-      ..clear()
-      ..addEntries(_workbook.sheets.map((sheet) => MapEntry(sheet.id, 0)));
+        ..clear()
+        ..addEntries(_workbook.sheets.map((sheet) => MapEntry(sheet.id, 0)));
       _resetTransientStateForWorkbookChange();
     }
     _notifyWorkbookChangedAfterFrame();
@@ -16915,16 +16926,17 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       cell.extraFields,
       'lineHeight',
     );
-    final baseStyle = _screenshotTextStyle(
-      cell,
-      fontSize: fontSize,
-      textColor: textColor,
-    ).copyWith(
-      height: fortuneOutputLineHeight(
-        storedCellLineHeight,
-        outputLineHeightMultiplier,
-      ),
-    );
+    final baseStyle =
+        _screenshotTextStyle(
+          cell,
+          fontSize: fontSize,
+          textColor: textColor,
+        ).copyWith(
+          height: fortuneOutputLineHeight(
+            storedCellLineHeight,
+            outputLineHeightMultiplier,
+          ),
+        );
     final runs = cell.inlineRuns;
     if (runs == null || runs.isEmpty) {
       return TextSpan(text: cell.renderedText, style: baseStyle);
@@ -16963,10 +16975,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     );
   }
 
-  double? _screenshotDoubleExtra(
-    Map<String, Object?> extraFields,
-    String key,
-  ) {
+  double? _screenshotDoubleExtra(Map<String, Object?> extraFields, String key) {
     final value = extraFields[key];
     if (value is num) return value.toDouble();
     return double.tryParse('$value');
@@ -23696,8 +23705,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       _imageInsertOriginalHeightPx = null;
       _setImageObjectIdSelection(
         _imageObjectConnectionMode == FortuneObjectConnectionMode.legacy
-        ? defaultObjectId
-        : _fortuneUnlinkedObjectValue,
+            ? defaultObjectId
+            : _fortuneUnlinkedObjectValue,
       );
       _imageObjectIdMenuOpen = false;
       _imageObjectIdMenuHoveredIndex = null;
@@ -23707,12 +23716,12 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       _imageInsertPressedControl = null;
       _toolbarHoveredKey = null;
       _toolbarHoveredComboArrowKey = null;
-        _imageInsertWidthController.text =
-            _imageObjectConnectionMode == FortuneObjectConnectionMode.legacy
+      _imageInsertWidthController.text =
+          _imageObjectConnectionMode == FortuneObjectConnectionMode.legacy
           ? ''
           : '30';
-        _imageInsertHeightController.text =
-            _imageObjectConnectionMode == FortuneObjectConnectionMode.legacy
+      _imageInsertHeightController.text =
+          _imageObjectConnectionMode == FortuneObjectConnectionMode.legacy
           ? ''
           : '30';
       _imageInsertRotationController.text = '0';
@@ -23744,7 +23753,10 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       _imageInsertOriginalWidthPx = widthValue;
       _imageInsertOriginalHeightPx = heightValue;
       _setImageObjectIdSelection(
-        image.extraFields[fortuneImageObjectIdExtraKey]?.toString().trim().isNotEmpty ==
+        image.extraFields[fortuneImageObjectIdExtraKey]
+                    ?.toString()
+                    .trim()
+                    .isNotEmpty ==
                 true
             ? image.extraFields[fortuneImageObjectIdExtraKey]!.toString()
             : _imageObjectConnectionMode == FortuneObjectConnectionMode.legacy
@@ -23862,8 +23874,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     final left = metrics.columnStart(anchor.column);
     final top = metrics.rowStart(anchor.row);
     final src = picked == null
-      ? _fortuneLinkedImagePlaceholder
-      : _imageDataUri(picked);
+        ? _fortuneLinkedImagePlaceholder
+        : _imageDataUri(picked);
     final imageId = _newImageId();
     final usesMillimeters = _imageInsertUsesMillimeters;
     final imageWidth = usesMillimeters
@@ -23937,10 +23949,12 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     }
     final objectId = _imageObjectIdController.text.trim();
     final linked = _imageUsesLinkedObject;
-    final wasLinked = current.extraFields[fortuneImageObjectIdExtraKey]
-        ?.toString()
-        .trim()
-        .isNotEmpty == true;
+    final wasLinked =
+        current.extraFields[fortuneImageObjectIdExtraKey]
+            ?.toString()
+            .trim()
+            .isNotEmpty ==
+        true;
     if (linked && objectId.isEmpty) {
       _imageObjectIdFocusNode.requestFocus();
       return;
@@ -24046,8 +24060,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     }
     final defaultObjectId = _imageInsertDefaultObjectId?.trim() ?? '';
     if (_imageObjectConnectionMode == FortuneObjectConnectionMode.legacy &&
-      _imageInsertDialogOpen &&
-      defaultObjectId.isNotEmpty) {
+        _imageInsertDialogOpen &&
+        defaultObjectId.isNotEmpty) {
       if (seen.add(defaultObjectId.toLowerCase())) {
         result.add(defaultObjectId);
       }
@@ -24095,8 +24109,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       }
     }
     return _imageObjectConnectionMode == FortuneObjectConnectionMode.legacy
-      ? value
-      : '연결 끊김 ($value)';
+        ? value
+        : '연결 끊김 ($value)';
   }
 
   String _nextImageObjectId({Set<String> reserved = const <String>{}}) {
@@ -24229,7 +24243,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     final result = <String>[];
     final seen = <String>{};
     if (_barcodeObjectConnectionMode ==
-      FortuneObjectConnectionMode.structured) {
+        FortuneObjectConnectionMode.structured) {
       result.add(_fortuneUnlinkedObjectValue);
       seen.add(_fortuneUnlinkedObjectValue);
     }
@@ -24266,8 +24280,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       }
     }
     return _barcodeObjectConnectionMode == FortuneObjectConnectionMode.legacy
-      ? value
-      : '연결 끊김 ($value)';
+        ? value
+        : '연결 끊김 ($value)';
   }
 
   int _barcodeObjectIdIndexForValue(String value) {
@@ -24315,10 +24329,11 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   }
 
   bool get _barcodeIsTwoDimensional {
-    final id = (_barcodeUsesLinkedObject && !_barcodePreserveTemplateFormat
-            ? _selectedBarcodeObjectOption?.formatId
-            : _selectedBarcodeFormat.id)
-        ?.toLowerCase();
+    final id =
+        (_barcodeUsesLinkedObject && !_barcodePreserveTemplateFormat
+                ? _selectedBarcodeObjectOption?.formatId
+                : _selectedBarcodeFormat.id)
+            ?.toLowerCase();
     return id?.contains('qr') == true || id?.contains('matrix') == true;
   }
 
@@ -24636,7 +24651,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
 
   bool get _barcodeCanConfirm =>
       _barcodeObjectIdController.text.trim().isNotEmpty &&
-      (_barcodeUsesLinkedObject || _barcodeTextController.text.trim().isNotEmpty);
+      (_barcodeUsesLinkedObject ||
+          _barcodeTextController.text.trim().isNotEmpty);
 
   void _showBarcodeInsertDialog() {
     final sheet = _workbook.activeSheet;
@@ -24721,8 +24737,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         extra[fortuneBarcodeObjectIdExtraKey]?.toString().trim().isNotEmpty ==
                 true
             ? extra[fortuneBarcodeObjectIdExtraKey]!.toString()
-            : _barcodeObjectConnectionMode ==
-              FortuneObjectConnectionMode.legacy
+            : _barcodeObjectConnectionMode == FortuneObjectConnectionMode.legacy
             ? image.id
             : _fortuneUnlinkedObjectValue,
       );
@@ -24745,7 +24760,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       _barcodeTextFontSizeMenuHoveredIndex = null;
       _barcodeTextFontSizeMenuScrollOffset = 0;
       _barcodeShowHumanReadableText = extra['barcodeShowText'] == true;
-        _barcodePreserveTemplateFormat =
+      _barcodePreserveTemplateFormat =
           extra['preserveTemplateBarcodeFormat'] == true;
       _barcodeHoveredControl = null;
       _barcodePressedControl = null;
@@ -24812,11 +24827,11 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     }
     final linkedOption = _selectedBarcodeObjectOption;
     final storesObjectConnection =
-      linkedOption != null ||
-      _barcodeObjectConnectionMode == FortuneObjectConnectionMode.legacy;
+        linkedOption != null ||
+        _barcodeObjectConnectionMode == FortuneObjectConnectionMode.legacy;
     final text = linkedOption == null
-      ? _barcodeTextController.text.trim()
-      : _barcodePlaceholderText(linkedOption.formatId);
+        ? _barcodeTextController.text.trim()
+        : _barcodePlaceholderText(linkedOption.formatId);
     final objectId = _barcodeObjectIdController.text.trim();
     final widthValue = double.tryParse(_barcodeWidthController.text.trim());
     final heightValue = double.tryParse(_barcodeHeightController.text.trim());
@@ -24858,13 +24873,13 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         ? fortuneMillimetersToLogicalPixels(barHeightValue)
         : barHeightValue;
     final format = linkedOption != null && !_barcodePreserveTemplateFormat
-      ? _barcodeFormatOptionForMetadata(
-        linkedOption.formatId,
-        linkedOption.formatLabel,
-        )
-      : _selectedBarcodeFormat;
-    final showHumanReadableText = linkedOption?.showHumanReadableText ??
-      _barcodeShowHumanReadableText;
+        ? _barcodeFormatOptionForMetadata(
+            linkedOption.formatId,
+            linkedOption.formatLabel,
+          )
+        : _selectedBarcodeFormat;
+    final showHumanReadableText =
+        linkedOption?.showHumanReadableText ?? _barcodeShowHumanReadableText;
     fortuneSheetDebugLog(
       'barcode commit editingImageId=$_barcodeEditingImageId '
       'format=${format.id}/${format.label} formatChanged=$_barcodeFormatChanged '
@@ -24917,13 +24932,13 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         ? null
         : _imageById(editingImageId);
     final insertionPlan = editingImageId == null
-      ? fortuneReserveObjectZOrders(activeSheet, 1)
-      : null;
+        ? fortuneReserveObjectZOrders(activeSheet, 1)
+        : null;
     final insertionSheet = insertionPlan?.sheet ?? activeSheet;
     final extraFields = <String, Object?>{
       'fortuneBarcode': true,
       fortuneSheetObjectZOrderExtraKey: editingImageId == null
-        ? insertionPlan!.zOrders.single
+          ? insertionPlan!.zOrders.single
           : (editingImage?.extraFields[fortuneSheetObjectZOrderExtraKey] ?? 0),
       'barcodeText': text,
       'barcodeFormatId': format.id,
@@ -24938,7 +24953,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       'barcodeShowText': showHumanReadableText,
       'barcodeHumanReadableFontFamily': _selectedBarcodeTextFontFamily,
       'barcodeHumanReadableFontSize': _barcodeHumanReadableFontSize,
-        'preserveTemplateBarcodeFormat': linkedOption != null
+      'preserveTemplateBarcodeFormat': linkedOption != null
           ? _barcodePreserveTemplateFormat
           : editingImage?.extraFields['preserveTemplateBarcodeFormat'] == true,
       fortuneBarcodeBodyTopExtraKey: renderedBodyTop,
@@ -25440,8 +25455,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
           selected.formatId,
           selected.formatLabel,
         ).clamp(0, _effectiveBarcodeFormats.length - 1);
-        _barcodeShowHumanReadableText =
-            selected.showHumanReadableText ?? false;
+        _barcodeShowHumanReadableText = selected.showHumanReadableText ?? false;
       }
       _barcodeObjectIdMenuOpen = false;
       _barcodeObjectIdMenuHoveredIndex = null;
@@ -25676,7 +25690,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     }
     final angle = math.atan2(delta.dy, delta.dx);
     final snapped = (angle / (math.pi / 4)).round() * math.pi / 4;
-    final candidate = start + Offset(math.cos(snapped), math.sin(snapped)) * distance;
+    final candidate =
+        start + Offset(math.cos(snapped), math.sin(snapped)) * distance;
     if (candidate.dy >= 0) {
       return candidate;
     }
@@ -25852,7 +25867,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       return false;
     }
     _updateTypedObjectMove(local);
-    final ownerValid = identical(_typedObjectMoveOwnerWorkbook, _workbook) &&
+    final ownerValid =
+        identical(_typedObjectMoveOwnerWorkbook, _workbook) &&
         _typedObjectMoveOwnerSheetId == _workbook.activeSheet.id;
     final initialLine = _typedObjectMoveInitialLine;
     final nextLine = _typedObjectMoveLineDraft;
@@ -25864,21 +25880,23 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
               initialLine.x2 != nextLine.x2 ||
               initialLine.y2 != nextLine.y2
         : initialShape != null && nextShape != null
-          ? initialShape.left != nextShape.left ||
-            initialShape.top != nextShape.top ||
-            initialShape.width != nextShape.width ||
-            initialShape.height != nextShape.height ||
-            initialShape.rotationDegrees != nextShape.rotationDegrees
+        ? initialShape.left != nextShape.left ||
+              initialShape.top != nextShape.top ||
+              initialShape.width != nextShape.width ||
+              initialShape.height != nextShape.height ||
+              initialShape.rotationDegrees != nextShape.rotationDegrees
         : false;
-      final validLine = nextLine == null ||
+    final validLine =
+        nextLine == null ||
         nextLine.x1 != nextLine.x2 ||
         nextLine.y1 != nextLine.y2;
-      final zoom = _workbook.activeSheet.zoomRatio <= 0
+    final zoom = _workbook.activeSheet.zoomRatio <= 0
         ? 1.0
         : _workbook.activeSheet.zoomRatio;
-      final validShape = nextShape == null ||
+    final validShape =
+        nextShape == null ||
         (nextShape.width * zoom >= 3 && nextShape.height * zoom >= 3);
-      if (!ownerValid || !changed || !validLine || !validShape) {
+    if (!ownerValid || !changed || !validLine || !validShape) {
       setState(_cancelTypedObjectMoveState);
       return true;
     }
@@ -25886,16 +25904,21 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     final sheets = [..._workbook.sheets];
     _recordUndoSnapshot();
     if (nextLine != null) {
-      final lines = sheet.lines.map((line) {
-        return line.id == key.id ? nextLine : line.copyWith();
-      }).toList(growable: false);
+      final lines = sheet.lines
+          .map((line) {
+            return line.id == key.id ? nextLine : line.copyWith();
+          })
+          .toList(growable: false);
       sheets[_workbook.activeSheetIndex] = sheet.copyWith(lines: lines);
     } else if (nextShape != null) {
-      final shapes = sheet.shapes.map((shape) {
-        return shape.id == key.id && fortuneShapeObjectKind(shape) == key.kind
-            ? nextShape
-            : shape.copyWith();
-      }).toList(growable: false);
+      final shapes = sheet.shapes
+          .map((shape) {
+            return shape.id == key.id &&
+                    fortuneShapeObjectKind(shape) == key.kind
+                ? nextShape
+                : shape.copyWith();
+          })
+          .toList(growable: false);
       sheets[_workbook.activeSheetIndex] = sheet.copyWith(shapes: shapes);
     }
     setState(() {
@@ -25935,20 +25958,20 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     if (typedKey != null) {
       final activeLine = typedKey.kind == FortuneSheetObjectKind.line
           ? _workbook.activeSheet.lines
-            .where((line) => line.id == typedKey.id)
-            .firstOrNull
-            ?.copyWith()
+                .where((line) => line.id == typedKey.id)
+                .firstOrNull
+                ?.copyWith()
           : null;
       final activeShape = typedKey.kind == FortuneSheetObjectKind.line
           ? null
           : _workbook.activeSheet.shapes
-            .where(
-          (shape) =>
-              shape.id == typedKey.id &&
-              fortuneShapeObjectKind(shape) == typedKey.kind,
-            )
-            .firstOrNull
-            ?.copyWith();
+                .where(
+                  (shape) =>
+                      shape.id == typedKey.id &&
+                      fortuneShapeObjectKind(shape) == typedKey.kind,
+                )
+                .firstOrNull
+                ?.copyWith();
       final selectedKeys = _selectedObjectKeys.contains(typedKey)
           ? _selectedObjectKeys.intersection(objectKeys)
           : <FortuneSheetObjectKey>{typedKey};
@@ -25961,7 +25984,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         activeLine: activeLine,
         activeShape: activeShape,
         geometryUsesMillimeters:
-          fortuneSheetGridClientPhysicalSize(_workbook.activeSheet) != null,
+            fortuneSheetGridClientPhysicalSize(_workbook.activeSheet) != null,
       );
     }
     final imageKeys = <FortuneSheetObjectKey>{};
@@ -25970,7 +25993,10 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       if (!_selectedImageIds.contains(image.id) && image.id != _activeImageId) {
         continue;
       }
-      final key = FortuneSheetObjectKey(fortuneImageObjectKind(image), image.id);
+      final key = FortuneSheetObjectKey(
+        fortuneImageObjectKind(image),
+        image.id,
+      );
       if (_selectedImageIds.contains(image.id)) {
         imageKeys.add(key);
       }
@@ -26025,7 +26051,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       nextActive = existingOrder.firstWhere(nextSelected.contains);
     }
     _selectedObjectKeys = nextSelected;
-    _objectSelectionAnchorKey = anchorKey != null && existing.contains(anchorKey)
+    _objectSelectionAnchorKey =
+        anchorKey != null && existing.contains(anchorKey)
         ? anchorKey
         : nextActive;
     if (nextActive == null) {
@@ -26072,7 +26099,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       return;
     }
     setState(() {
-      final selected = {..._objectSelectionSnapshot(attached: true).selectedKeys};
+      final selected = {
+        ..._objectSelectionSnapshot(attached: true).selectedKeys,
+      };
       if (selected.contains(key)) {
         if (selected.length > 1) {
           selected.remove(key);
@@ -26210,29 +26239,38 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     final sheets = [..._workbook.sheets];
     _recordUndoSnapshot();
     sheets[_workbook.activeSheetIndex] = sheet.copyWith(
-      images: sheet.images.map((image) {
-        final key = FortuneSheetObjectKey(
-          fortuneImageObjectKind(image),
-          image.id,
-        );
-        return image.copyWith(
-          extraFields: <String, Object?>{
-            ...image.extraFields,
-            fortuneSheetObjectZOrderExtraKey: zOrders[key],
-          },
-        );
-      }).toList(growable: false),
-      lines: sheet.lines.map((line) {
-        final key = FortuneSheetObjectKey(
-          FortuneSheetObjectKind.line,
-          line.id,
-        );
-        return line.copyWith(zOrder: zOrders[key]);
-      }).toList(growable: false),
-      shapes: sheet.shapes.map((shape) {
-        final key = FortuneSheetObjectKey(fortuneShapeObjectKind(shape), shape.id);
-        return shape.copyWith(zOrder: zOrders[key]);
-      }).toList(growable: false),
+      images: sheet.images
+          .map((image) {
+            final key = FortuneSheetObjectKey(
+              fortuneImageObjectKind(image),
+              image.id,
+            );
+            return image.copyWith(
+              extraFields: <String, Object?>{
+                ...image.extraFields,
+                fortuneSheetObjectZOrderExtraKey: zOrders[key],
+              },
+            );
+          })
+          .toList(growable: false),
+      lines: sheet.lines
+          .map((line) {
+            final key = FortuneSheetObjectKey(
+              FortuneSheetObjectKind.line,
+              line.id,
+            );
+            return line.copyWith(zOrder: zOrders[key]);
+          })
+          .toList(growable: false),
+      shapes: sheet.shapes
+          .map((shape) {
+            final key = FortuneSheetObjectKey(
+              fortuneShapeObjectKind(shape),
+              shape.id,
+            );
+            return shape.copyWith(zOrder: zOrders[key]);
+          })
+          .toList(growable: false),
     );
     setState(() {
       _workbook = _workbook.copyWith(sheets: sheets);
@@ -26273,7 +26311,10 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     final duplicateKeys = <FortuneSheetObjectKey>[];
     for (var index = 0; index < sources.length; index += 1) {
       final source = sources[index];
-      final reserved = reservedIds.putIfAbsent(source.key.kind, () => <String>{});
+      final reserved = reservedIds.putIfAbsent(
+        source.key.kind,
+        () => <String>{},
+      );
       final id = fortuneAllocateObjectId(
         source.key.kind,
         existingKeys,
@@ -26290,18 +26331,16 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
           fortuneSheetObjectZOrderExtraKey: zOrder,
         };
         if (source.key.kind == FortuneSheetObjectKind.barcode &&
-          _barcodeObjectConnectionMode ==
-            FortuneObjectConnectionMode.legacy) {
+            _barcodeObjectConnectionMode ==
+                FortuneObjectConnectionMode.legacy) {
           final objectId = _nextBarcodeObjectId(
             reserved: reservedBarcodeObjectIds,
           );
           reservedBarcodeObjectIds.add(objectId);
           extraFields[fortuneBarcodeObjectIdExtraKey] = objectId;
         } else if (source.key.kind == FortuneSheetObjectKind.image &&
-          _imageObjectConnectionMode == FortuneObjectConnectionMode.legacy) {
-          final objectId = _nextImageObjectId(
-            reserved: reservedImageObjectIds,
-          );
+            _imageObjectConnectionMode == FortuneObjectConnectionMode.legacy) {
+          final objectId = _nextImageObjectId(reserved: reservedImageObjectIds);
           reservedImageObjectIds.add(objectId);
           extraFields[fortuneImageObjectIdExtraKey] = objectId;
         }
@@ -26418,7 +26457,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     if (cut) {
       final current = _workbook.activeSheet;
       if (current.id != sheet.id ||
-          entries.any((entry) => !_objectClipboardEntryMatchesSheet(entry, current))) {
+          entries.any(
+            (entry) => !_objectClipboardEntryMatchesSheet(entry, current),
+          )) {
         await _restoreObjectClipboardBaseline(lease.baseline);
         lease.release();
         return false;
@@ -26434,21 +26475,27 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       final sheets = [..._workbook.sheets];
       _recordUndoSnapshot();
       sheets[_workbook.activeSheetIndex] = current.copyWith(
-        images: current.images.where((image) {
-          return !selected.contains(
-            FortuneSheetObjectKey(fortuneImageObjectKind(image), image.id),
-          );
-        }).toList(growable: false),
-        lines: current.lines.where((line) {
-          return !selected.contains(
-            FortuneSheetObjectKey(FortuneSheetObjectKind.line, line.id),
-          );
-        }).toList(growable: false),
-        shapes: current.shapes.where((shape) {
-          return !selected.contains(
-            FortuneSheetObjectKey(fortuneShapeObjectKind(shape), shape.id),
-          );
-        }).toList(growable: false),
+        images: current.images
+            .where((image) {
+              return !selected.contains(
+                FortuneSheetObjectKey(fortuneImageObjectKind(image), image.id),
+              );
+            })
+            .toList(growable: false),
+        lines: current.lines
+            .where((line) {
+              return !selected.contains(
+                FortuneSheetObjectKey(FortuneSheetObjectKind.line, line.id),
+              );
+            })
+            .toList(growable: false),
+        shapes: current.shapes
+            .where((shape) {
+              return !selected.contains(
+                FortuneSheetObjectKey(fortuneShapeObjectKind(shape), shape.id),
+              );
+            })
+            .toList(growable: false),
       );
       setState(() {
         _workbook = _workbook.copyWith(sheets: sheets);
@@ -26637,8 +26684,12 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     final keys = <FortuneSheetObjectKey>[];
     for (var index = 0; index < payload.entries.length; index += 1) {
       final entry = payload.entries[index];
-      final reserved = reservedIds.putIfAbsent(entry.key.kind, () => <String>{});
-      final originalIdAvailable = payload.isCut &&
+      final reserved = reservedIds.putIfAbsent(
+        entry.key.kind,
+        () => <String>{},
+      );
+      final originalIdAvailable =
+          payload.isCut &&
           !existingKeys.contains(entry.key) &&
           !reserved.contains(entry.key.id);
       final id = originalIdAvailable
@@ -26658,7 +26709,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
           fortuneSheetObjectZOrderExtraKey: zOrder,
         };
         if (entry.key.kind == FortuneSheetObjectKind.barcode &&
-            _barcodeObjectConnectionMode == FortuneObjectConnectionMode.legacy) {
+            _barcodeObjectConnectionMode ==
+                FortuneObjectConnectionMode.legacy) {
           final objectId = _nextBarcodeObjectId(
             reserved: reservedBarcodeObjectIds,
           );
@@ -26666,9 +26718,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
           extraFields[fortuneBarcodeObjectIdExtraKey] = objectId;
         } else if (entry.key.kind == FortuneSheetObjectKind.image &&
             _imageObjectConnectionMode == FortuneObjectConnectionMode.legacy) {
-          final objectId = _nextImageObjectId(
-            reserved: reservedImageObjectIds,
-          );
+          final objectId = _nextImageObjectId(reserved: reservedImageObjectIds);
           reservedImageObjectIds.add(objectId);
           extraFields[fortuneImageObjectIdExtraKey] = objectId;
         }
@@ -26735,9 +26785,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         return candidate.id == entry.key.id &&
             fortuneImageObjectKind(candidate) == entry.key.kind;
       });
-        if (index < 0) return false;
-        final candidate = sheet.images[index];
-        return candidate.id == image.id &&
+      if (index < 0) return false;
+      final candidate = sheet.images[index];
+      return candidate.id == image.id &&
           candidate.src == image.src &&
           candidate.left == image.left &&
           _objectTreesEqual(candidate.rawLeft, image.rawLeft) &&
@@ -26755,7 +26805,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     }
     final line = entry.line;
     if (line != null) {
-      final index = sheet.lines.indexWhere((candidate) => candidate.id == entry.key.id);
+      final index = sheet.lines.indexWhere(
+        (candidate) => candidate.id == entry.key.id,
+      );
       return index >= 0 && _sameSnapshotLine(sheet.lines[index], line);
     }
     final shape = entry.shape!;
@@ -26793,7 +26845,13 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     final nextY2 = math.max(0.0, y2 ?? source.y2);
     final nextWidth = strokeWidthMm ?? source.strokeWidthMm;
     final nextColor = strokeColor ?? source.strokeColor;
-    if (![nextX1, nextY1, nextX2, nextY2, nextWidth].every((value) => value.isFinite) ||
+    if (![
+          nextX1,
+          nextY1,
+          nextX2,
+          nextY2,
+          nextWidth,
+        ].every((value) => value.isFinite) ||
         nextWidth < 0.1 ||
         nextWidth > 10 ||
         !_fortuneObjectColorPattern.hasMatch(nextColor) ||
@@ -26855,8 +26913,13 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     final zoom = sheet.zoomRatio > 0 && sheet.zoomRatio.isFinite
         ? sheet.zoomRatio
         : 1.0;
-    if (![nextLeft, nextTop, nextWidth, nextHeight, nextRotation]
-            .every((value) => value.isFinite) ||
+    if (![
+          nextLeft,
+          nextTop,
+          nextWidth,
+          nextHeight,
+          nextRotation,
+        ].every((value) => value.isFinite) ||
         nextWidth <= 0 ||
         nextHeight <= 0 ||
         nextWidth * zoom < 3 ||
@@ -26920,10 +26983,17 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     }
     final ownerSheetId = snapshot.sheetId;
     final token = ++_panelImagePickerToken;
+    if (_panelImagePickerErrorKeys.remove(key)) {
+      widget.controller?._notifyCommandStateChanged();
+    }
     FortuneImagePickResult? picked;
     try {
       picked = await picker();
     } on Object {
+      if (mounted && token == _panelImagePickerToken) {
+        _panelImagePickerErrorKeys.add(key);
+        widget.controller?._notifyCommandStateChanged();
+      }
       return false;
     }
     if (!mounted || picked == null || token != _panelImagePickerToken) {
@@ -26958,6 +27028,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     _recordUndoSnapshot();
     sheets[_workbook.activeSheetIndex] = sheet.copyWith(images: images);
     setState(() {
+      _panelImagePickerErrorKeys.remove(key);
       if (decoded != null) {
         _decodedImages[src]?.dispose();
         _decodedImages[src] = decoded;
@@ -27065,7 +27136,10 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     final imageHeight = height > 0
         ? height
         : (result.pixelHeight ?? source.height).toDouble();
-    if (![imageWidth, imageHeight].every((value) => value.isFinite && value > 0)) {
+    if (![
+      imageWidth,
+      imageHeight,
+    ].every((value) => value.isFinite && value > 0)) {
       return _finishPanelBarcodeRequest(key, token, false);
     }
     final format = widget.barcodeFormats
@@ -27076,7 +27150,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       'fortuneBarcode': true,
       'barcodeText': text.trim(),
       'barcodeFormatId': formatId.trim(),
-      'barcodeFormatLabel': format?.label ??
+      'barcodeFormatLabel':
+          format?.label ??
           source.extraFields['barcodeFormatLabel'] ??
           formatId.trim(),
       'originWidth': result.pixelWidth ?? imageWidth,
@@ -27101,8 +27176,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       extraFields[fortuneBarcodeObjectIdExtraKey] = connectionId.trim();
     }
     final bodyHeight = extraFields[fortuneBarcodeBodyHeightExtraKey] as double;
-    extraFields[fortuneBarcodeBodyRatioExtraKey] =
-        (bodyHeight / imageHeight).clamp(0.0, 1.0);
+    extraFields[fortuneBarcodeBodyRatioExtraKey] = (bodyHeight / imageHeight)
+        .clamp(0.0, 1.0);
     if (fortuneSheetGridClientPhysicalSize(sheet) != null) {
       extraFields['widthMm'] = fortuneLogicalPixelsToMillimeters(imageWidth);
       extraFields['heightMm'] = fortuneLogicalPixelsToMillimeters(imageHeight);
@@ -27163,7 +27238,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     }
     final sheet = _workbook.activeSheet;
     final sourceIndex = sheet.shapes.indexWhere(
-      (shape) => shape.id == key.id && fortuneShapeObjectKind(shape) == key.kind,
+      (shape) =>
+          shape.id == key.id && fortuneShapeObjectKind(shape) == key.kind,
     );
     if (sourceIndex < 0) {
       return;
@@ -27178,15 +27254,23 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     );
     final nextStrokeWidth = strokeWidthMm ?? source.strokeWidthMm;
     final nextStrokeColor = strokeColor ?? source.strokeColor;
-    final nextFillColor = identical(fillColor, _fortuneUnspecifiedObjectProperty)
+    final nextFillColor =
+        identical(fillColor, _fortuneUnspecifiedObjectProperty)
         ? source.fillColor
         : fillColor as String?;
     final nextRadius = cornerRadiusMm ?? source.cornerRadiusMm;
     final zoom = sheet.zoomRatio > 0 && sheet.zoomRatio.isFinite
         ? sheet.zoomRatio
         : 1.0;
-    if (![nextLeft, nextTop, nextWidth, nextHeight, nextRotation, nextStrokeWidth, nextRadius]
-            .every((value) => value.isFinite) ||
+    if (![
+          nextLeft,
+          nextTop,
+          nextWidth,
+          nextHeight,
+          nextRotation,
+          nextStrokeWidth,
+          nextRadius,
+        ].every((value) => value.isFinite) ||
         nextWidth <= 0 ||
         nextHeight <= 0 ||
         nextWidth * zoom < 3 ||
@@ -27194,7 +27278,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         nextStrokeWidth < 0.1 ||
         nextStrokeWidth > 10 ||
         !_fortuneObjectColorPattern.hasMatch(nextStrokeColor) ||
-        nextFillColor != null && !_fortuneObjectColorPattern.hasMatch(nextFillColor) ||
+        nextFillColor != null &&
+            !_fortuneObjectColorPattern.hasMatch(nextFillColor) ||
         nextRadius < 0 ||
         nextRadius > 50) {
       return;
@@ -27240,20 +27325,29 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     final frontToBack = _objectKeysFrontToBack();
     final activeIndex = frontToBack.indexOf(active);
     final sheet = _workbook.activeSheet;
-    final nextImages = sheet.images.where((image) {
-      final key = FortuneSheetObjectKey(fortuneImageObjectKind(image), image.id);
-      return !selected.contains(key);
-    }).toList(growable: false);
-    final nextLines = sheet.lines.where((line) {
-      return !selected.contains(
-        FortuneSheetObjectKey(FortuneSheetObjectKind.line, line.id),
-      );
-    }).toList(growable: false);
-    final nextShapes = sheet.shapes.where((shape) {
-      return !selected.contains(
-        FortuneSheetObjectKey(fortuneShapeObjectKind(shape), shape.id),
-      );
-    }).toList(growable: false);
+    final nextImages = sheet.images
+        .where((image) {
+          final key = FortuneSheetObjectKey(
+            fortuneImageObjectKind(image),
+            image.id,
+          );
+          return !selected.contains(key);
+        })
+        .toList(growable: false);
+    final nextLines = sheet.lines
+        .where((line) {
+          return !selected.contains(
+            FortuneSheetObjectKey(FortuneSheetObjectKind.line, line.id),
+          );
+        })
+        .toList(growable: false);
+    final nextShapes = sheet.shapes
+        .where((shape) {
+          return !selected.contains(
+            FortuneSheetObjectKey(fortuneShapeObjectKind(shape), shape.id),
+          );
+        })
+        .toList(growable: false);
     final remaining = frontToBack
         .where((key) => !selected.contains(key))
         .toList(growable: false);
@@ -27269,12 +27363,12 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       if (remaining.isEmpty) {
         _applyExactObjectSelection(<FortuneSheetObjectKey>{}, null);
       } else {
-        final nextIndex = math.min(math.max(activeIndex, 0), remaining.length - 1);
-        final nextKey = remaining[nextIndex];
-        _applyExactObjectSelection(
-          <FortuneSheetObjectKey>{nextKey},
-          nextKey,
+        final nextIndex = math.min(
+          math.max(activeIndex, 0),
+          remaining.length - 1,
         );
+        final nextKey = remaining[nextIndex];
+        _applyExactObjectSelection(<FortuneSheetObjectKey>{nextKey}, nextKey);
       }
       _cancelTypedObjectMoveState();
       _closeTransientMenus();
@@ -27290,8 +27384,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         !existingKeys.contains(_objectSelectionAnchorKey)) {
       _objectSelectionAnchorKey = null;
     }
-    if (_activeObjectKey != null &&
-        !existingKeys.contains(_activeObjectKey)) {
+    if (_activeObjectKey != null && !existingKeys.contains(_activeObjectKey)) {
       _activeObjectKey = null;
     }
     final existingImageIds = _workbook.activeSheet.images
@@ -27314,21 +27407,21 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     FortuneObjectSelectionSnapshot right,
   ) {
     return left.attached == right.attached &&
-      left.sheetId == right.sheetId &&
+        left.sheetId == right.sheetId &&
         left.activeKey == right.activeKey &&
         left.selectedKeys.length == right.selectedKeys.length &&
-      left.selectedKeys.containsAll(right.selectedKeys) &&
-      _sameSnapshotImage(left.activeImage, right.activeImage) &&
-      _sameSnapshotLine(left.activeLine, right.activeLine) &&
-      _sameSnapshotShape(left.activeShape, right.activeShape) &&
-      left.geometryUsesMillimeters == right.geometryUsesMillimeters &&
-      left.objects.length == right.objects.length &&
-      left.objects.asMap().entries.every((entry) {
-        final other = right.objects[entry.key];
-        return entry.value.key == other.key &&
-          entry.value.zOrder == other.zOrder &&
-          entry.value.sourceIndex == other.sourceIndex;
-      });
+        left.selectedKeys.containsAll(right.selectedKeys) &&
+        _sameSnapshotImage(left.activeImage, right.activeImage) &&
+        _sameSnapshotLine(left.activeLine, right.activeLine) &&
+        _sameSnapshotShape(left.activeShape, right.activeShape) &&
+        left.geometryUsesMillimeters == right.geometryUsesMillimeters &&
+        left.objects.length == right.objects.length &&
+        left.objects.asMap().entries.every((entry) {
+          final other = right.objects[entry.key];
+          return entry.value.key == other.key &&
+              entry.value.zOrder == other.zOrder &&
+              entry.value.sourceIndex == other.sourceIndex;
+        });
   }
 
   bool _sameSnapshotImage(FortuneImage? left, FortuneImage? right) {
@@ -27370,7 +27463,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     if (start == null) {
       return false;
     }
-    final ownerValid = identical(_lineInsertionOwnerWorkbook, _workbook) &&
+    final ownerValid =
+        identical(_lineInsertionOwnerWorkbook, _workbook) &&
         _lineInsertionOwnerSheetId == _workbook.activeSheet.id;
     final release = _lineInsertionLogicalPosition(local, _workbook.settings);
     final end = release == null
@@ -27390,16 +27484,17 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     final shapeKind = _shapeInsertionKind;
     final shapeRect = Rect.fromPoints(start, end);
     final tooSmall = shapeKind == null
-      ? (end - start).distance * zoom < 3
-      : shapeRect.width * zoom < 3 || shapeRect.height * zoom < 3;
+        ? (end - start).distance * zoom < 3
+        : shapeRect.width * zoom < 3 || shapeRect.height * zoom < 3;
     if (tooSmall) {
       setState(_cancelLineInsertionDraftState);
       return true;
     }
     final activeSheet = _workbook.activeSheet;
     final insertionPlan = fortuneReserveObjectZOrders(activeSheet, 1);
-    final existing = fortuneSheetObjectsInPaintOrder(insertionPlan.sheet)
-        .map((object) => object.key);
+    final existing = fortuneSheetObjectsInPaintOrder(
+      insertionPlan.sheet,
+    ).map((object) => object.key);
     final objectKind = shapeKind == null
         ? FortuneSheetObjectKind.line
         : switch (shapeKind) {
@@ -27484,7 +27579,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       return null;
     }
     final sheetTop =
-      settings.effectiveToolbarHeight + settings.effectiveFormulaBarHeight;
+        settings.effectiveToolbarHeight + settings.effectiveFormulaBarHeight;
     final zoom = _workbook.activeSheet.zoomRatio <= 0
         ? 1.0
         : _workbook.activeSheet.zoomRatio;
@@ -27494,6 +27589,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         sheetTop + _sheetDataTop(settings) + y * zoom - scrollOffset.dy,
       );
     }
+
     final centers = [screen(line.x1, line.y1), screen(line.x2, line.y2)];
     for (var index = 0; index < centers.length; index += 1) {
       final delta = local - centers[index];
@@ -27536,12 +27632,14 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
             scrollOffset.dy,
       );
     }
+
     final center = Offset(
       shape.left + shape.width / 2,
       shape.top + shape.height / 2,
     );
     final angle = shape.rotationDegrees * math.pi / 180;
-    Offset rotated(Offset point) => center + _rotateOffset(point - center, angle);
+    Offset rotated(Offset point) =>
+        center + _rotateOffset(point - center, angle);
     final left = shape.left;
     final top = shape.top;
     final right = left + shape.width;
@@ -27627,8 +27725,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
           vertical != 0 &&
           HardwareKeyboard.instance.isShiftPressed) {
         final ratio = shape.width / shape.height;
-        if (local.dx.abs() / shape.width >=
-            local.dy.abs() / shape.height) {
+        if (local.dx.abs() / shape.width >= local.dy.abs() / shape.height) {
           local = Offset(
             local.dx,
             (local.dy < 0 ? -1 : 1) * local.dx.abs() / ratio,
@@ -27675,7 +27772,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         high = middle;
       }
     }
-    return candidate.copyWith(top: candidate.top.abs() < 1e-8 ? 0 : candidate.top);
+    return candidate.copyWith(
+      top: candidate.top.abs() < 1e-8 ? 0 : candidate.top,
+    );
   }
 
   Offset _rotateOffset(Offset offset, double angle) {
@@ -27898,7 +27997,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     final sheet = _workbook.activeSheet;
     final zoom = sheet.zoomRatio > 0 ? sheet.zoomRatio : 1.0;
     final left = _sheetDataLeft(settings) - scrollOffset.dx;
-    final top = settings.effectiveToolbarHeight +
+    final top =
+        settings.effectiveToolbarHeight +
         settings.effectiveFormulaBarHeight +
         _sheetDataTop(settings) -
         scrollOffset.dy;
@@ -34147,10 +34247,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     ];
   }
 
-  void _openTypedObjectContextMenu(
-    FortuneSheetObjectKey key,
-    Offset local,
-  ) {
+  void _openTypedObjectContextMenu(FortuneSheetObjectKey key, Offset local) {
     final menuItems = _contextMenuItemsForTypedObject(key);
     setState(() {
       _applyExactObjectSelection(<FortuneSheetObjectKey>{key}, key);
@@ -35916,8 +36013,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         HardwareKeyboard.instance.isMetaPressed;
     return _isImageLayerPanelKey(event.logicalKey) ||
         _isImageLayerPanelCommandKeyEvent(event) ||
-      (_lineInsertionMode &&
-        event.logicalKey == LogicalKeyboardKey.escape) ||
+        (_lineInsertionMode && event.logicalKey == LogicalKeyboardKey.escape) ||
         event.logicalKey == LogicalKeyboardKey.tab ||
         _isSelectionNavigationKey(event.logicalKey) ||
         (isShortcutPressed && _isSelectionNavigationKey(event.logicalKey));
@@ -35932,8 +36028,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     if (_inlineMenuNumberEditorFocused) {
       return;
     }
-    if (_lineInsertionMode &&
-        event.logicalKey == LogicalKeyboardKey.escape) {
+    if (_lineInsertionMode && event.logicalKey == LogicalKeyboardKey.escape) {
       setState(() {
         _lineInsertionMode = false;
         _shapeInsertionKind = null;
@@ -36781,7 +36876,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     FortuneLine? nextLine;
     FortuneShape? nextShape;
     if (objectKey.kind == FortuneSheetObjectKind.line) {
-      final line = sheet.lines.where((item) => item.id == objectKey.id).firstOrNull;
+      final line = sheet.lines
+          .where((item) => item.id == objectKey.id)
+          .firstOrNull;
       if (line == null) {
         return false;
       }
@@ -36825,18 +36922,22 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     _recordUndoSnapshot();
     if (nextLine != null) {
       sheets[_workbook.activeSheetIndex] = sheet.copyWith(
-        lines: sheet.lines.map((line) {
-          return line.id == objectKey.id ? nextLine! : line.copyWith();
-        }).toList(growable: false),
+        lines: sheet.lines
+            .map((line) {
+              return line.id == objectKey.id ? nextLine! : line.copyWith();
+            })
+            .toList(growable: false),
       );
     } else {
       sheets[_workbook.activeSheetIndex] = sheet.copyWith(
-        shapes: sheet.shapes.map((shape) {
-          return shape.id == objectKey.id &&
-                  fortuneShapeObjectKind(shape) == objectKey.kind
-              ? nextShape!
-              : shape.copyWith();
-        }).toList(growable: false),
+        shapes: sheet.shapes
+            .map((shape) {
+              return shape.id == objectKey.id &&
+                      fortuneShapeObjectKind(shape) == objectKey.kind
+                  ? nextShape!
+                  : shape.copyWith();
+            })
+            .toList(growable: false),
       );
     }
     setState(() {
@@ -36857,10 +36958,12 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         : sheet.lines;
     final nextShapes = key.kind == FortuneSheetObjectKind.line
         ? sheet.shapes
-        : sheet.shapes.where((shape) {
-            return shape.id != key.id ||
-                fortuneShapeObjectKind(shape) != key.kind;
-          }).toList(growable: false);
+        : sheet.shapes
+              .where((shape) {
+                return shape.id != key.id ||
+                    fortuneShapeObjectKind(shape) != key.kind;
+              })
+              .toList(growable: false);
     if (nextLines.length == sheet.lines.length &&
         nextShapes.length == sheet.shapes.length) {
       return false;
@@ -40328,7 +40431,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       return 'object-id';
     }
     if (!_imageUsesStructuredLinkedObject &&
-      fortuneImageInsertFileButtonRect(rect).contains(local)) {
+        fortuneImageInsertFileButtonRect(rect).contains(local)) {
       return 'file';
     }
     if (fortuneImageInsertWidthInputRect(rect).contains(local)) {
@@ -40347,7 +40450,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       return 'rotate';
     }
     if ((_imageInsertIsEditing ||
-        _imageInsertPickResult != null ||
+            _imageInsertPickResult != null ||
             _imageUsesStructuredLinkedObject) &&
         fortuneImageInsertConfirmButtonRect(rect).contains(local)) {
       return 'confirm';
@@ -47297,7 +47400,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     return Positioned.fill(
       child: Stack(
         children: [
-            if (!_barcodeUsesLinkedObject &&
+          if (!_barcodeUsesLinkedObject &&
               !_barcodeFormatMenuIntersects(size, textRect))
             _buildBarcodeDialogInput(
               key: const ValueKey('fortune-barcode-text-input'),
@@ -47315,7 +47418,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
               controller: _barcodeWidthController,
               focusNode: _barcodeWidthFocusNode,
             ),
-            if (_barcodeIsTwoDimensional &&
+          if (_barcodeIsTwoDimensional &&
               !_barcodeFormatMenuIntersects(size, moduleScaleRect))
             _buildBarcodeDialogInput(
               key: const ValueKey('fortune-barcode-module-scale-input'),
@@ -47324,7 +47427,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
               controller: _barcodeModuleScaleController,
               focusNode: _barcodeModuleScaleFocusNode,
             ),
-            if (!_barcodeIsTwoDimensional &&
+          if (!_barcodeIsTwoDimensional &&
               !_barcodeFormatMenuIntersects(size, barHeightRect))
             _buildBarcodeDialogInput(
               key: const ValueKey('fortune-barcode-bar-height-input'),
@@ -47350,7 +47453,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
               focusNode: _barcodeRotationFocusNode,
               signed: true,
             ),
-            if (!_barcodeIsTwoDimensional &&
+          if (!_barcodeIsTwoDimensional &&
               !_barcodeFormatMenuIntersects(size, leadingQuietZoneRect))
             _buildBarcodeDialogInput(
               key: const ValueKey('fortune-barcode-leading-quiet-zone-input'),
@@ -47360,7 +47463,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
               focusNode: _barcodeLeadingQuietZoneFocusNode,
               keyboardType: TextInputType.text,
             ),
-            if (!_barcodeIsTwoDimensional &&
+          if (!_barcodeIsTwoDimensional &&
               !_barcodeFormatMenuIntersects(size, trailingQuietZoneRect))
             _buildBarcodeDialogInput(
               key: const ValueKey('fortune-barcode-trailing-quiet-zone-input'),
@@ -48294,8 +48397,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
                 imageInsertHasFile: _imageInsertPickResult != null,
                 imageLinked: _imageUsesStructuredLinkedObject,
                 imageModeAvailable:
-                  _imageObjectConnectionMode ==
-                  FortuneObjectConnectionMode.structured,
+                    _imageObjectConnectionMode ==
+                    FortuneObjectConnectionMode.structured,
                 imageObjectId: _imageObjectLabel(_selectedImageObjectId),
                 imageObjectIdOptions: [
                   for (final value in _effectiveImageObjectIds)
@@ -48312,9 +48415,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
                 barcodeDialogOpen: _barcodeDialogOpen,
                 barcodeEditing: _barcodeIsEditing,
                 barcodeCanConfirm: _barcodeCanConfirm,
-                barcodeObjectId: _barcodeObjectLabel(
-                  _selectedBarcodeObjectId,
-                ),
+                barcodeObjectId: _barcodeObjectLabel(_selectedBarcodeObjectId),
                 barcodeObjectIdOptions: [
                   for (final value in _effectiveBarcodeObjectIds)
                     _barcodeObjectLabel(value),
@@ -48326,19 +48427,16 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
                 barcodeObjectIdMenuScrollOffset:
                     _barcodeObjectIdMenuScrollOffset,
                 barcodeLinked: _barcodeUsesLinkedObject,
-                barcodeValueLabel: _barcodeUsesLinkedObject
-                  ? '연결된 항목 값'
-                  : '',
-                barcodePreserveTemplateFormat:
-                  _barcodePreserveTemplateFormat,
+                barcodeValueLabel: _barcodeUsesLinkedObject ? '연결된 항목 값' : '',
+                barcodePreserveTemplateFormat: _barcodePreserveTemplateFormat,
                 barcodeTwoDimensional: _barcodeIsTwoDimensional,
-                barcodeFormatLabel: _barcodeUsesLinkedObject &&
-                    !_barcodePreserveTemplateFormat
-                  ? _barcodeFormatOptionForMetadata(
-                    _selectedBarcodeObjectOption?.formatId,
-                    _selectedBarcodeObjectOption?.formatLabel,
-                    ).label
-                  : _selectedBarcodeFormat.label,
+                barcodeFormatLabel:
+                    _barcodeUsesLinkedObject && !_barcodePreserveTemplateFormat
+                    ? _barcodeFormatOptionForMetadata(
+                        _selectedBarcodeObjectOption?.formatId,
+                        _selectedBarcodeObjectOption?.formatLabel,
+                      ).label
+                    : _selectedBarcodeFormat.label,
                 barcodeFormatOptions: [
                   for (final format in _effectiveBarcodeFormats) format.label,
                 ],
