@@ -798,6 +798,10 @@ void main() {
       tester.view.resetDevicePixelRatio();
     });
     final controller = FortuneSheetController();
+    final mutationEnablement = <bool>[];
+    controller.addListener(() {
+      mutationEnablement.add(controller.objectMutationEnabled);
+    });
     final renders = <Completer<FortuneBarcodeRenderResult?>>[];
     final workbook = FortuneWorkbook(
       settings: const FortuneSettings(showToolbar: false, showFormulaBar: false),
@@ -865,6 +869,8 @@ void main() {
     final first = render('FIRST');
     final second = render('SECOND');
     expect(controller.barcodePropertyRenderPending, isTrue);
+    expect(controller.objectMutationEnabled, isFalse);
+    expect(mutationEnablement, contains(false));
     controller.updateSelectedImage(top: 99);
     controller.duplicateSelectedObjects();
     controller.handleUndo();
@@ -874,6 +880,8 @@ void main() {
     );
     expect(await second, isTrue);
     expect(controller.barcodePropertyRenderPending, isFalse);
+    expect(controller.objectMutationEnabled, isTrue);
+    expect(mutationEnablement.last, isTrue);
     renders[0].complete(
       FortuneBarcodeRenderResult(bytes: base64Decode(_testPngBase64)),
     );

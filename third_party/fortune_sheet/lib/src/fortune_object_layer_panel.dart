@@ -72,6 +72,7 @@ class _FortuneObjectLayerPanelState extends State<FortuneObjectLayerPanel> {
       animation: widget.controller,
       builder: (context, child) {
         final snapshot = widget.controller.objectSelection;
+        final canMutate = widget.controller.objectMutationEnabled;
         _resetScrollForSheet(snapshot.sheetId);
         final objects = snapshot.objects.reversed.toList(growable: false);
         return Material(
@@ -111,42 +112,42 @@ class _FortuneObjectLayerPanelState extends State<FortuneObjectLayerPanel> {
                     _PanelAction(
                       tooltip: '선택한 개체 삭제',
                       icon: Icons.delete_outline,
-                      onPressed: snapshot.activeKey == null
+                      onPressed: snapshot.activeKey == null || !canMutate
                           ? null
                           : widget.controller.deleteSelectedObjects,
                     ),
                     _PanelAction(
                       tooltip: '선택한 개체 복제',
                       icon: Icons.copy,
-                      onPressed: snapshot.activeKey == null
+                      onPressed: snapshot.activeKey == null || !canMutate
                           ? null
                           : widget.controller.duplicateSelectedObjects,
                     ),
                     _PanelAction(
                       tooltip: '맨 앞으로',
                       icon: Icons.vertical_align_top,
-                      onPressed: snapshot.activeKey == null
+                      onPressed: snapshot.activeKey == null || !canMutate
                           ? null
                           : widget.controller.bringSelectedObjectsToFront,
                     ),
                     _PanelAction(
                       tooltip: '앞으로',
                       icon: Icons.keyboard_arrow_up,
-                      onPressed: snapshot.activeKey == null
+                      onPressed: snapshot.activeKey == null || !canMutate
                           ? null
                           : widget.controller.bringSelectedObjectsForward,
                     ),
                     _PanelAction(
                       tooltip: '뒤로',
                       icon: Icons.keyboard_arrow_down,
-                      onPressed: snapshot.activeKey == null
+                      onPressed: snapshot.activeKey == null || !canMutate
                           ? null
                           : widget.controller.sendSelectedObjectsBackward,
                     ),
                     _PanelAction(
                       tooltip: '맨 뒤로',
                       icon: Icons.vertical_align_bottom,
-                      onPressed: snapshot.activeKey == null
+                      onPressed: snapshot.activeKey == null || !canMutate
                           ? null
                           : widget.controller.sendSelectedObjectsToBack,
                     ),
@@ -208,7 +209,7 @@ class _FortuneObjectLayerPanelState extends State<FortuneObjectLayerPanel> {
                               onLeave: () => _clearDropIndicator(object.key),
                               onAccept: (side) {
                                 _clearDropIndicator(object.key);
-                                if (side != null) {
+                                if (side != null && canMutate) {
                                   widget.controller.reorderSelectedObjects(
                                     object.key,
                                     side,
@@ -995,7 +996,10 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
       const SizedBox(height: 10),
       FilledButton(
         key: const ValueKey('fortune-object-property-apply'),
-        onPressed: _barcodeRenderPending ? null : _apply,
+        onPressed:
+            _barcodeRenderPending || !widget.controller.objectMutationEnabled
+            ? null
+            : _apply,
         child: _barcodeRenderPending
             ? const SizedBox.square(
                 dimension: 18,

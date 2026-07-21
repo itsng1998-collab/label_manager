@@ -1245,6 +1245,9 @@ class FortuneSheetController extends ChangeNotifier {
   FortuneObjectSelectionSnapshot get objectSelection => _objectSelection;
   bool get barcodePropertyRenderPending =>
       _state?._panelBarcodeRequestTokens.isNotEmpty ?? false;
+    bool get objectMutationEnabled =>
+      _state?._workbook.settings.allowEdit == true &&
+      !barcodePropertyRenderPending;
 
   void selectObject(FortuneSheetObjectKey key) {
     _state?._selectObjectFromController(key);
@@ -2620,6 +2623,10 @@ class FortuneSheetController extends ChangeNotifier {
 
   void _setObjectSelection(FortuneObjectSelectionSnapshot snapshot) {
     _objectSelection = snapshot;
+    notifyListeners();
+  }
+
+  void _notifyCommandStateChanged() {
     notifyListeners();
   }
 
@@ -26117,6 +26124,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   }
 
   void _moveSelectedObjectsToBoundary({required bool front}) {
+    if (_panelBarcodeRequestTokens.isNotEmpty) return;
     final order = _objectKeysFrontToBack();
     final selected = _objectSelectionSnapshot(attached: true).selectedKeys;
     if (selected.isEmpty) {
@@ -26132,6 +26140,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   }
 
   void _moveSelectedObjectsOneStep({required bool front}) {
+    if (_panelBarcodeRequestTokens.isNotEmpty) return;
     final order = _objectKeysFrontToBack();
     final selected = _objectSelectionSnapshot(attached: true).selectedKeys;
     if (selected.isEmpty || selected.length == order.length) {
@@ -26162,6 +26171,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     FortuneSheetObjectKey target,
     FortuneObjectDropSide side,
   ) {
+    if (_panelBarcodeRequestTokens.isNotEmpty) return;
     final order = _objectKeysFrontToBack();
     final selected = _objectSelectionSnapshot(attached: true).selectedKeys;
     if (selected.isEmpty || selected.contains(target)) {
@@ -26231,6 +26241,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   }
 
   void _duplicateSelectedObjectsFromController() {
+    if (_panelBarcodeRequestTokens.isNotEmpty) return;
     if (!_workbook.settings.allowEdit) {
       return;
     }
@@ -27006,7 +27017,11 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     }
     final ownerSheetId = snapshot.sheetId;
     final token = ++_panelBarcodeRequestSequence;
+    final pendingWasEmpty = _panelBarcodeRequestTokens.isEmpty;
     _panelBarcodeRequestTokens[key] = token;
+    if (pendingWasEmpty) {
+      widget.controller?._notifyCommandStateChanged();
+    }
     FortuneBarcodeRenderResult? result;
     try {
       result = await renderer(
@@ -27119,6 +27134,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   ) {
     if (_panelBarcodeRequestTokens[key] == token) {
       _panelBarcodeRequestTokens.remove(key);
+      if (_panelBarcodeRequestTokens.isEmpty) {
+        widget.controller?._notifyCommandStateChanged();
+      }
     }
     return result;
   }
@@ -27209,6 +27227,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   }
 
   void _deleteSelectedObjectsFromController() {
+    if (_panelBarcodeRequestTokens.isNotEmpty) return;
     if (!_workbook.settings.allowEdit) {
       return;
     }
