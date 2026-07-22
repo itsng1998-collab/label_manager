@@ -1290,9 +1290,10 @@ class FortuneSheetController extends ChangeNotifier {
       !barcodePropertyRenderPending &&
       !projectedCanonicalChange &&
       (_state?._redoStack.isNotEmpty ?? false);
+    bool get objectEditingAllowed =>
+      _state?._workbook.settings.allowEdit == true;
   bool get objectMutationEnabled =>
-      _state?._workbook.settings.allowEdit == true &&
-      !barcodePropertyRenderPending;
+      objectEditingAllowed && !barcodePropertyRenderPending;
 
   bool isSelectedObjectCommandEnabled(String command) {
     final state = _state;
@@ -4441,6 +4442,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
             .afterSelectionChange;
     final previousAllowEdit =
       (oldWidget.settings ?? oldWidget.workbook.settings).allowEdit;
+    final allowEditChanged =
+      previousAllowEdit !=
+      (widget.settings ?? widget.workbook.settings).allowEdit;
     if (!workbookChanged && !settingsChanged) {
       if (controllerChanged) {
         oldWidget.controller?._detach(this);
@@ -4478,7 +4482,11 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       oldWidget.controller?._detach(this);
       widget.controller?._attach(this);
     }
-    _notifyWorkbookChangedAfterFrame();
+    if (!workbookChanged && allowEditChanged) {
+      widget.controller?._notifyCommandStateChanged();
+    } else {
+      _notifyWorkbookChangedAfterFrame();
+    }
     if (workbookChanged ||
         previousSelectionHook != _workbook.settings.afterSelectionChange) {
       _notifySelectionChangedAfterFrame();

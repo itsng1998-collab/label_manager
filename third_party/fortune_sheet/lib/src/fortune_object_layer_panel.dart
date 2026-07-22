@@ -7,6 +7,45 @@ import 'fortune_sheet_canvas.dart';
 import 'fortune_sheet_model.dart';
 import 'fortune_sheet_painter.dart';
 
+typedef _BarcodePropertyOwner = ({
+  String sheetId,
+  FortuneSheetObjectKey key,
+});
+
+class _BarcodePropertyDraftState {
+  const _BarcodePropertyDraftState({
+    required this.fields,
+    required this.showText,
+    required this.preserveTemplateFormat,
+    required this.pending,
+    this.error,
+  });
+
+  final Map<String, String> fields;
+  final bool showText;
+  final bool preserveTemplateFormat;
+  final bool pending;
+  final String? error;
+
+  _BarcodePropertyDraftState copyWith({
+    Map<String, String>? fields,
+    bool? showText,
+    bool? preserveTemplateFormat,
+    bool? pending,
+    String? error,
+    bool clearError = false,
+  }) {
+    return _BarcodePropertyDraftState(
+      fields: fields ?? this.fields,
+      showText: showText ?? this.showText,
+      preserveTemplateFormat:
+          preserveTemplateFormat ?? this.preserveTemplateFormat,
+      pending: pending ?? this.pending,
+      error: clearError ? null : error ?? this.error,
+    );
+  }
+}
+
 class FortuneObjectLayerPanel extends StatefulWidget {
   const FortuneObjectLayerPanel({
     super.key,
@@ -52,11 +91,34 @@ class _FortuneObjectLayerPanelState extends State<FortuneObjectLayerPanel> {
   FortuneSheetObjectKey? _dropTargetKey;
   FortuneObjectDropSide? _dropSide;
   int _consumedLayerFocusGeneration = 0;
+  final Map<_BarcodePropertyOwner, _BarcodePropertyDraftState>
+  _barcodePropertyDrafts = {};
+  late bool _objectEditingAllowed;
+
+  @override
+  void initState() {
+    super.initState();
+    _objectEditingAllowed = widget.controller.objectEditingAllowed;
+    widget.controller.addListener(_handleControllerChanged);
+  }
 
   @override
   void didUpdateWidget(covariant FortuneObjectLayerPanel oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.controller != widget.controller) {
+      oldWidget.controller.removeListener(_handleControllerChanged);
+      _objectEditingAllowed = widget.controller.objectEditingAllowed;
+      widget.controller.addListener(_handleControllerChanged);
+    }
     _scheduleLayerFocus();
+  }
+
+  void _handleControllerChanged() {
+    final objectEditingAllowed = widget.controller.objectEditingAllowed;
+    if (_objectEditingAllowed && !objectEditingAllowed) {
+      _barcodePropertyDrafts.clear();
+    }
+    _objectEditingAllowed = objectEditingAllowed;
   }
 
   void _scheduleLayerFocus() {
@@ -78,6 +140,7 @@ class _FortuneObjectLayerPanelState extends State<FortuneObjectLayerPanel> {
 
   @override
   void dispose() {
+    widget.controller.removeListener(_handleControllerChanged);
     _layerFocusNode.dispose();
     _layerScrollController.dispose();
     _propertyScrollController.dispose();
@@ -314,6 +377,31 @@ class _FortuneObjectLayerPanelState extends State<FortuneObjectLayerPanel> {
                                 widget.propertyFocusObjectKey,
                             propertyFocusGeneration:
                                 widget.propertyFocusGeneration,
+                            barcodeDraft: snapshot.sheetId == null
+                                ? null
+                                : _barcodePropertyDrafts[(
+                                    sheetId: snapshot.sheetId!,
+                                    key: snapshot.activeKey!,
+                                  )],
+                            onBarcodeDraftChanged: (draft) {
+                              final sheetId = snapshot.sheetId;
+                              final key = snapshot.activeKey;
+                              if (sheetId == null || key == null) return;
+                              _barcodePropertyDrafts[(
+                                    sheetId: sheetId,
+                                    key: key,
+                                  )] =
+                                  draft;
+                            },
+                            onBarcodeDraftRemoved: () {
+                              final sheetId = snapshot.sheetId;
+                              final key = snapshot.activeKey;
+                              if (sheetId == null || key == null) return;
+                              _barcodePropertyDrafts.remove((
+                                sheetId: sheetId,
+                                key: key,
+                              ));
+                            },
                           ),
                         ),
                 ),
@@ -611,6 +699,9 @@ class _ObjectPropertyEditor extends StatefulWidget {
     required this.propertyFocusSheetId,
     required this.propertyFocusObjectKey,
     required this.propertyFocusGeneration,
+    required this.barcodeDraft,
+    required this.onBarcodeDraftChanged,
+    required this.onBarcodeDraftRemoved,
   });
 
   final FortuneObjectSelectionSnapshot snapshot;
@@ -625,6 +716,9 @@ class _ObjectPropertyEditor extends StatefulWidget {
   final String? propertyFocusSheetId;
   final FortuneSheetObjectKey? propertyFocusObjectKey;
   final int propertyFocusGeneration;
+  final _BarcodePropertyDraftState? barcodeDraft;
+  final ValueChanged<_BarcodePropertyDraftState> onBarcodeDraftChanged;
+  final VoidCallback onBarcodeDraftRemoved;
 
   @override
   State<_ObjectPropertyEditor> createState() => _ObjectPropertyEditorState();
@@ -683,8 +777,10 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
     _initialFieldText.clear();
     _strokeStyle = FortuneStrokeStyle.solid;
     _noFill = false;
+    _barcodeRenderPending = false;
     _barcodeShowText = false;
     _barcodePreserveTemplateFormat = false;
+    _error = null;
     _initializeFields();
     if (preserveImageAspect) {
       _imageAspectLocked = imageAspectLocked;
@@ -694,7 +790,6 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
     }
     _lastImageSizeField = null;
     _draftFinalized = false;
-    _error = null;
     _installFieldListeners();
     _schedulePropertyFocus();
   }
@@ -751,6 +846,7 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
 
   void _markPropertyDraft() {
     _draftFinalized = false;
+    _storeBarcodeDraft();
     widget.controller.registerActiveObjectPropertyDraft(
       owner: _draftOwner,
       key: widget.snapshot.activeKey!,
@@ -876,6 +972,7 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
     }
     _fields.clear();
     _initialFieldText.clear();
+    widget.onBarcodeDraftRemoved();
     _initializeFields();
     _installFieldListeners();
     if (mounted) setState(() => _error = null);
@@ -915,6 +1012,19 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
         _barcodeShowText = extra['barcodeShowText'] == true;
         _barcodePreserveTemplateFormat =
             extra['preserveTemplateBarcodeFormat'] == true;
+        final draft = widget.barcodeDraft;
+        if (draft != null) {
+          for (final entry in draft.fields.entries) {
+            final controller = _fields[entry.key];
+            if (controller != null) {
+              controller.text = entry.value;
+            }
+          }
+          _barcodeShowText = draft.showText;
+          _barcodePreserveTemplateFormat = draft.preserveTemplateFormat;
+          _barcodeRenderPending = draft.pending;
+          _error = draft.error;
+        }
       }
     } else if (line != null) {
       _strokeStyle = line.strokeStyle;
@@ -1124,6 +1234,13 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
       _barcodeRenderPending = true;
       _error = null;
     });
+    final requestDraft = _barcodeDraftState(
+      pending: true,
+      clearError: true,
+    );
+    final onDraftChanged = widget.onBarcodeDraftChanged;
+    final onDraftRemoved = widget.onBarcodeDraftRemoved;
+    onDraftChanged(requestDraft);
     final rendered = await widget.controller.renderSelectedBarcode(
       text: text,
       formatId: formatId,
@@ -1145,12 +1262,55 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
       connectionId: connectionId,
       preserveTemplateFormat: _barcodePreserveTemplateFormat,
     );
+    if (rendered) {
+      onDraftRemoved();
+    } else {
+      onDraftChanged(
+        requestDraft.copyWith(
+          pending: false,
+          error: '바코드를 생성하지 못했습니다.',
+        ),
+      );
+    }
     if (mounted) {
       setState(() {
         _barcodeRenderPending = false;
         _error = rendered ? null : '바코드를 생성하지 못했습니다.';
       });
     }
+  }
+
+  void _storeBarcodeDraft({
+    bool? pending,
+    String? error,
+    bool clearError = false,
+  }) {
+    if (widget.snapshot.activeKey?.kind != FortuneSheetObjectKind.barcode) {
+      return;
+    }
+    widget.onBarcodeDraftChanged(
+      _barcodeDraftState(
+        pending: pending,
+        error: error,
+        clearError: clearError,
+      ),
+    );
+  }
+
+  _BarcodePropertyDraftState _barcodeDraftState({
+    bool? pending,
+    String? error,
+    bool clearError = false,
+  }) {
+    return _BarcodePropertyDraftState(
+      fields: {
+        for (final entry in _fields.entries) entry.key: entry.value.text,
+      },
+      showText: _barcodeShowText,
+      preserveTemplateFormat: _barcodePreserveTemplateFormat,
+      pending: pending ?? _barcodeRenderPending,
+      error: clearError ? null : error ?? _error,
+    );
   }
 
   Future<void> _replaceImageFile() async {

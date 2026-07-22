@@ -1,3 +1,11 @@
+### 완료 (2026-07-22): 선·도형 지시서 8차 재감사 권장안 수정
+- barcode property pending draft/error를 panel 상위 State의 exact `(sheetId, FortuneSheetObjectKey)` 저장소로 이전했다. selection 전환 중 renderer 실패가 완료되어도 요청 시점 owner의 입력 문자열·toggle·inline 오류를 복원하며 성공·명시 discard·`allowEdit` 하강에서 제거한다.
+- settings-only `allowEdit` 양방향 전환을 canonical workbook 변경 알림과 분리했다. true→false는 active mutation state와 keyed barcode draft를 폐기하고 false→true는 복원 없이 새 권한을 적용하며, 두 전환 모두 `onChange` 0회와 controller command-state listener 1회를 보장한다.
+- screen image/barcode culling을 center-rotated bounds로 바꾸고 decoded bitmap과 decoded-null placeholder, active selection border·resize/rotation handle을 같은 center rotation transform으로 통합했다. barcode object ID label은 기존 자체 transform을 유지해 정확히 한 번만 회전한다.
+- 직접 회귀를 추가했다: barcode A pending→B 선택→A 실패→A 재선택 draft/error 복원, settings-only `allowEdit` 양방향 callback/listener 횟수, 원 rect는 viewport 밖이지만 rotated bounds가 안에 들어오는 decoded-null placeholder 픽셀.
+- 검증: object controller 38건, painter 761건 통과. root와 `third_party/fortune_sheet`의 `flutter analyze` 모두 issues 0이며 `git diff --check` clean이다.
+- 사용자 변경 `lib/core/app.dart`와 `third_party/*/build/` 생성물은 수정·stage·commit에서 제외한다.
+
 ### 완료 (2026-07-22): 선·도형 지시서 7차 재감사 권장안 수정
 - settings-only `allowEdit` 하강을 object mutation lifecycle 경계로 처리했다. active property/insertion/dialog draft를 commit 없이 폐기하고 picker/barcode/cut async 자격을 generation으로 무효화하되 selection, canonical workbook과 history는 유지한다. cut은 clipboard marker 완료 뒤 권한과 generation을 다시 확인한다.
 - barcode renderer pending 중 selection/toggle/range/select-all은 property draft finalize를 시도하지 않고 조회·선택만 수행한다. mutation/history command의 pending 차단은 유지한다. property editor identity에는 barcode raster와 실제 편집 canonical metadata를 포함해 Apply/Undo 뒤 stale form 재사용을 막았다.

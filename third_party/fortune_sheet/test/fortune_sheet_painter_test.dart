@@ -64767,6 +64767,53 @@ void main() {
     );
   });
 
+  test('rotated image culling draws a decoded-null placeholder', () async {
+    final workbook = FortuneWorkbook(
+      settings: const FortuneSettings(
+        showToolbar: false,
+        showFormulaBar: false,
+      ),
+      sheets: [
+        FortuneSheet(
+          id: 's1',
+          name: 'Sheet1',
+          images: const [
+            FortuneImage(
+              id: 'rotated-placeholder',
+              src: 'missing-image',
+              left: -30,
+              top: 0,
+              width: 20,
+              height: 100,
+              extraFields: {'rotation': 90},
+            ),
+          ],
+        ),
+      ],
+    );
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+    FortuneSheetPainter(
+      workbook: workbook,
+      selection: const FortuneSelection(row: 10, column: 10),
+      scrollOffset: Offset.zero,
+      sheetTabScrollOffset: 0,
+      textDirection: TextDirection.ltr,
+    ).paint(canvas, const Size(160, 140));
+    final image = await recorder.endRecording().toImage(160, 140);
+    final bytes = (await image.toByteData(format: ui.ImageByteFormat.rawRgba))!;
+
+    expect(
+      _countPixels(
+        bytes,
+        image.width,
+        const Rect.fromLTRB(46, 60, 76, 80),
+        (red, green, blue) => red > 210 && green > 220 && blue > 240,
+      ),
+      greaterThan(100),
+    );
+  });
+
   test('typed object culling includes exact clip boundary contact', () async {
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);

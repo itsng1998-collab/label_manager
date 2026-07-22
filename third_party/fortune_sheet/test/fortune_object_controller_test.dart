@@ -1909,6 +1909,146 @@ void main() {
     );
   });
 
+  testWidgets(
+    'barcode property draft and error survive selection changes by object key',
+    (tester) async {
+      tester.view.physicalSize = const Size(1000, 1200);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+      final controller = FortuneSheetController();
+      final render = Completer<FortuneBarcodeRenderResult?>();
+      final workbook = FortuneWorkbook(
+        settings: const FortuneSettings(
+          showToolbar: false,
+          showFormulaBar: false,
+        ),
+        sheets: [
+          FortuneSheet(
+            id: 's1',
+            name: 'Sheet1',
+            images: const [
+              FortuneImage(
+                id: 'barcode_a',
+                src: 'old-a',
+                left: 20,
+                top: 30,
+                width: 80,
+                height: 40,
+                extraFields: {
+                  'fortuneBarcode': true,
+                  'barcodeText': 'OLD-A',
+                  'barcodeFormatId': 'CODE128',
+                },
+              ),
+              FortuneImage(
+                id: 'barcode_b',
+                src: 'old-b',
+                left: 120,
+                top: 30,
+                width: 80,
+                height: 40,
+                extraFields: {
+                  'fortuneBarcode': true,
+                  'barcodeText': 'OLD-B',
+                  'barcodeFormatId': 'CODE128',
+                },
+              ),
+            ],
+          ),
+        ],
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Row(
+            children: [
+              SizedBox(
+                width: 700,
+                height: 1200,
+                child: FortuneSheetCanvas(
+                  workbook: workbook,
+                  controller: controller,
+                  barcodeFormats: const [
+                    FortuneBarcodeFormatOption(
+                      id: 'CODE128',
+                      label: 'Code 128',
+                    ),
+                  ],
+                  barcodeRenderer: (_) => render.future,
+                ),
+              ),
+              SizedBox(
+                width: 300,
+                height: 1200,
+                child: FortuneObjectLayerPanel(controller: controller),
+              ),
+            ],
+          ),
+        ),
+      );
+      controller.selectObject(
+        const FortuneSheetObjectKey(
+          FortuneSheetObjectKind.barcode,
+          'barcode_a',
+        ),
+      );
+      await tester.pump();
+      await tester.enterText(
+        find.byKey(const ValueKey('fortune-object-property-barcodeText')),
+        'DRAFT-A',
+      );
+      final propertyList = find.byType(ListView).last;
+      await tester.drag(propertyList, const Offset(0, -900));
+      await tester.pump();
+      tester
+          .widget<FilledButton>(
+            find.byKey(const ValueKey('fortune-object-property-apply')),
+          )
+          .onPressed!();
+      await tester.pump();
+
+      controller.selectObject(
+        const FortuneSheetObjectKey(
+          FortuneSheetObjectKind.barcode,
+          'barcode_b',
+        ),
+      );
+      await tester.pump();
+      render.complete(null);
+      while (controller.barcodePropertyRenderPending) {
+        await tester.pump();
+      }
+      await tester.pump();
+      controller.selectObject(
+        const FortuneSheetObjectKey(
+          FortuneSheetObjectKind.barcode,
+          'barcode_a',
+        ),
+      );
+      await tester.pump();
+
+      await tester.drag(propertyList, const Offset(0, 900));
+      await tester.pump();
+
+      expect(
+        tester
+            .widget<TextField>(
+              find.byKey(
+                const ValueKey('fortune-object-property-barcodeText'),
+              ),
+            )
+            .controller
+            ?.text,
+        'DRAFT-A',
+      );
+      await tester.drag(propertyList, const Offset(0, -900));
+      await tester.pump();
+      expect(find.text('바코드를 생성하지 못했습니다.'), findsOneWidget);
+    },
+  );
+
   testWidgets('allowEdit downgrade invalidates a pending barcode render', (
     tester,
   ) async {
@@ -2007,6 +2147,58 @@ void main() {
     );
     expect(controller.projectedCanUndo, isFalse);
   });
+
+  testWidgets(
+    'settings-only allowEdit changes notify command state without onChange',
+    (tester) async {
+      final controller = FortuneSheetController();
+      var settings = const FortuneSettings(
+        showToolbar: false,
+        showFormulaBar: false,
+      );
+      var controllerNotifications = 0;
+      var workbookChanges = 0;
+      controller.addListener(() => controllerNotifications += 1);
+      late StateSetter updateHost;
+      final workbook = FortuneWorkbook(
+        settings: settings,
+        sheets: [FortuneSheet(id: 's1', name: 'Sheet1')],
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: StatefulBuilder(
+            builder: (context, setState) {
+              updateHost = setState;
+              return FortuneSheetCanvas(
+                workbook: workbook,
+                settings: settings,
+                controller: controller,
+                onChange: (_) => workbookChanges += 1,
+              );
+            },
+          ),
+        ),
+      );
+      await tester.pump();
+      controllerNotifications = 0;
+      workbookChanges = 0;
+
+      updateHost(() {
+        settings = settings.copyWith(allowEdit: false);
+      });
+      await tester.pump();
+      expect(workbookChanges, 0);
+      expect(controllerNotifications, 1);
+
+      controllerNotifications = 0;
+      updateHost(() {
+        settings = settings.copyWith(allowEdit: true);
+      });
+      await tester.pump();
+      expect(workbookChanges, 0);
+      expect(controllerNotifications, 1);
+    },
+  );
 
   testWidgets('controller copies cuts and pastes mixed selected objects', (
     tester,

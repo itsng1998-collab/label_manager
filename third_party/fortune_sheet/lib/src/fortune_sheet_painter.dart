@@ -77216,6 +77216,12 @@ class FortuneSheetPainter extends CustomPainter {
         image.width * zoomRatio,
         image.height * zoomRatio,
       );
+      final rotation = _imageRotationDegrees(image.extraFields['rotation']);
+      final paintedBounds = fortuneRotatedRectBounds(
+        rect,
+        rect.center,
+        rotation,
+      );
       if (_rectTouchesPreviewBoundary(rect, settings)) {
         _fortuneSheetRulerTrace(
           '${sheet.id}:preview-image-edge:${image.id}:${rect.left}:${rect.top}',
@@ -77227,23 +77233,33 @@ class FortuneSheetPainter extends CustomPainter {
               ' extraKeys=${image.extraFields.keys.join(',')}',
         );
       }
-      if (!rect.overlaps(clip)) {
+      if (!paintedBounds.overlaps(clip)) {
         continue;
       }
       final decoded = decodedImages[image.src];
       if (decoded == null) {
-        _drawImagePlaceholder(canvas, rect, image);
+        _drawImagePlaceholder(
+          canvas,
+          rect,
+          image,
+          rotationDegrees: rotation,
+        );
       } else {
         _drawImageBitmap(
           canvas,
           rect,
           decoded,
-          rotationDegrees: _imageRotationDegrees(image.extraFields['rotation']),
+          rotationDegrees: rotation,
         );
       }
       _drawBarcodeObjectIdLabel(canvas, rect, image);
       if (image.id == activeImageId) {
-        _drawActiveImageSelection(canvas, rect, clip);
+        _drawActiveImageSelection(
+          canvas,
+          rect,
+          clip,
+          rotationDegrees: rotation,
+        );
       }
     }
     canvas.restore();
@@ -77464,10 +77480,20 @@ class FortuneSheetPainter extends CustomPainter {
     );
   }
 
-  void _drawActiveImageSelection(Canvas canvas, Rect rect, Rect clip) {
-    if (!rect.overlaps(clip)) {
+  void _drawActiveImageSelection(
+    Canvas canvas,
+    Rect rect,
+    Rect clip, {
+    double rotationDegrees = 0,
+  }) {
+    if (!fortuneRotatedRectBounds(
+      rect,
+      rect.center,
+      rotationDegrees,
+    ).overlaps(clip)) {
       return;
     }
+    _drawWithImageRotation(canvas, rect, rotationDegrees, () {
     const activeBlue = Color(0xff0188fb);
     const borderWidth = 2.0;
     const handleOuterSize = 10.0;
@@ -77512,6 +77538,7 @@ class FortuneSheetPainter extends CustomPainter {
       canvas.drawCircle(center, handleRadius, handlePaint);
       canvas.drawCircle(center, handleRadius - borderWidth / 2, handleBorder);
     }
+    });
   }
 
   void _drawActiveImageToolbar(
@@ -77923,22 +77950,33 @@ class FortuneSheetPainter extends CustomPainter {
     ui.Image image, {
     double rotationDegrees = 0,
   }) {
+    _drawWithImageRotation(canvas, rect, rotationDegrees, () {
+      canvas.drawImageRect(
+        image,
+        Rect.fromLTWH(0, 0, image.width.toDouble(), image.height.toDouble()),
+        rect,
+        Paint()..filterQuality = FilterQuality.medium,
+      );
+    });
+  }
+
+  void _drawWithImageRotation(
+    Canvas canvas,
+    Rect rect,
+    double rotationDegrees,
+    VoidCallback draw,
+  ) {
     final normalizedRotation = rotationDegrees % 360;
-    if (normalizedRotation != 0) {
-      canvas.save();
-      canvas.translate(rect.center.dx, rect.center.dy);
-      canvas.rotate(normalizedRotation * math.pi / 180);
-      canvas.translate(-rect.center.dx, -rect.center.dy);
+    if (normalizedRotation == 0) {
+      draw();
+      return;
     }
-    canvas.drawImageRect(
-      image,
-      Rect.fromLTWH(0, 0, image.width.toDouble(), image.height.toDouble()),
-      rect,
-      Paint()..filterQuality = FilterQuality.medium,
-    );
-    if (normalizedRotation != 0) {
-      canvas.restore();
-    }
+    canvas.save();
+    canvas.translate(rect.center.dx, rect.center.dy);
+    canvas.rotate(normalizedRotation * math.pi / 180);
+    canvas.translate(-rect.center.dx, -rect.center.dy);
+    draw();
+    canvas.restore();
   }
 
   void _drawBarcodeObjectIdLabel(Canvas canvas, Rect rect, FortuneImage image) {
@@ -78005,7 +78043,13 @@ class FortuneSheetPainter extends CustomPainter {
     return 0;
   }
 
-  void _drawImagePlaceholder(Canvas canvas, Rect rect, FortuneImage image) {
+  void _drawImagePlaceholder(
+    Canvas canvas,
+    Rect rect,
+    FortuneImage image, {
+    double rotationDegrees = 0,
+  }) {
+    _drawWithImageRotation(canvas, rect, rotationDegrees, () {
     canvas.drawRect(rect, Paint()..color = const Color(0xffffffff));
     canvas.drawRect(rect, Paint()..color = const Color(0xffe8f0fe));
     canvas.drawRect(
@@ -78048,6 +78092,7 @@ class FortuneSheetPainter extends CustomPainter {
         align: TextAlign.center,
       );
     }
+    });
   }
 
   void _drawVisibleComments(
