@@ -13,6 +13,8 @@ import 'package:flutter/widgets.dart'
         FocusNode,
         Row,
         SizedBox,
+        StatefulBuilder,
+        StateSetter,
         TextDirection,
         ValueKey,
         Widget;
@@ -29702,6 +29704,309 @@ void main() {
         .single;
     expect(resized.left, closeTo(-40, 0.5));
     expect(resized.width, closeTo(180, 0.5));
+  });
+
+  testWidgets('FortuneSheetApp moves same-id barcode by exact typed key', (
+    tester,
+  ) async {
+    final controller = FortuneSheetController();
+    final workbook = FortuneWorkbook(
+      sheets: [
+        FortuneSheet(
+          id: 'same-id-image-sheet',
+          name: 'SameIdImage',
+          images: const [
+            FortuneImage(
+              id: 'shared-id',
+              src: 'image.png',
+              left: 20,
+              top: 70,
+              width: 120,
+              height: 80,
+            ),
+            FortuneImage(
+              id: 'shared-id',
+              src: 'barcode.png',
+              left: 220,
+              top: 70,
+              width: 120,
+              height: 80,
+              extraFields: {'fortuneBarcode': true},
+            ),
+          ],
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      _fortuneSheetPublicApiTestHost(
+        SizedBox(
+          width: 800,
+          height: 500,
+          child: FortuneSheetApp(
+            workbook: workbook,
+            controller: controller,
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final painter = _fortuneSheetPainter(tester);
+    final settings = painter.workbook.settings;
+    final canvasTopLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
+    final barcodeCenter = Offset(
+      settings.rowHeaderWidth + 280,
+      settings.effectiveToolbarHeight +
+          settings.effectiveFormulaBarHeight +
+          settings.columnHeaderHeight +
+          110,
+    );
+    final gesture = await tester.startGesture(
+      canvasTopLeft + barcodeCenter,
+      kind: ui.PointerDeviceKind.mouse,
+    );
+    await gesture.moveBy(const Offset(40, 20));
+    await gesture.up();
+    await tester.pump();
+
+    final images = controller.getSheet(id: 'same-id-image-sheet')!.images;
+    final image = images.singleWhere(
+      (item) => fortuneImageObjectKind(item) == FortuneSheetObjectKind.image,
+    );
+    final barcode = images.singleWhere(
+      (item) => fortuneImageObjectKind(item) == FortuneSheetObjectKind.barcode,
+    );
+    expect((image.left, image.top), (20, 70));
+    expect((barcode.left, barcode.top), (260, 90));
+  });
+
+  testWidgets('FortuneSheetApp keeps image gesture through canonical echo', (
+    tester,
+  ) async {
+    final controller = FortuneSheetController();
+    var workbook = FortuneWorkbook(
+      sheets: [
+        FortuneSheet(
+          id: 'image-echo-sheet',
+          name: 'ImageEcho',
+          images: const [
+            FortuneImage(
+              id: 'echo-image',
+              src: 'missing.png',
+              left: 80,
+              top: 70,
+              width: 120,
+              height: 80,
+            ),
+          ],
+        ),
+      ],
+    );
+    late StateSetter updateHost;
+    await tester.pumpWidget(
+      _fortuneSheetPublicApiTestHost(
+        StatefulBuilder(
+          builder: (context, setState) {
+            updateHost = setState;
+            return SizedBox(
+              width: 800,
+              height: 500,
+              child: FortuneSheetApp(
+                workbook: workbook,
+                controller: controller,
+                onChange: (next) {
+                  workbook = next;
+                },
+              ),
+            );
+          },
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final painter = _fortuneSheetPainter(tester);
+    final settings = painter.workbook.settings;
+    final canvasTopLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
+    final center = Offset(
+      settings.rowHeaderWidth + 140,
+      settings.effectiveToolbarHeight +
+          settings.effectiveFormulaBarHeight +
+          settings.columnHeaderHeight +
+          110,
+    );
+    final gesture = await tester.startGesture(
+      canvasTopLeft + center,
+      kind: ui.PointerDeviceKind.mouse,
+    );
+    await gesture.moveBy(const Offset(40, 20));
+    await tester.pump();
+    final canonicalBeforeEcho = _fortuneSheetPainter(tester).workbook;
+    updateHost(() {
+      workbook = FortuneSheetCodec.workbookFromJson(
+        FortuneSheetCodec.workbookToJson(canonicalBeforeEcho),
+        settings: canonicalBeforeEcho.settings,
+      );
+    });
+    await tester.pump();
+    await gesture.up();
+    await tester.pump();
+
+    final moved = controller.getSheet(id: 'image-echo-sheet')!.images.single;
+    expect((moved.left, moved.top), (120, 90));
+    expect(controller.projectedCanUndo, isTrue);
+  });
+
+  testWidgets('FortuneSheetApp preserves small image on resize handle click', (
+    tester,
+  ) async {
+    final controller = FortuneSheetController();
+    final workbook = FortuneWorkbook(
+      sheets: [
+        FortuneSheet(
+          id: 'small-image-sheet',
+          name: 'SmallImage',
+          images: const [
+            FortuneImage(
+              id: 'small-image',
+              src: 'missing.png',
+              left: 80,
+              top: 70,
+              width: 40,
+              height: 30,
+            ),
+          ],
+        ),
+      ],
+    );
+    await tester.pumpWidget(
+      _fortuneSheetPublicApiTestHost(
+        SizedBox(
+          width: 800,
+          height: 500,
+          child: FortuneSheetApp(
+            workbook: workbook,
+            controller: controller,
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final painter = _fortuneSheetPainter(tester);
+    final settings = painter.workbook.settings;
+    final canvasTopLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
+    final rect = ui.Rect.fromLTWH(
+      settings.rowHeaderWidth + 80,
+      settings.effectiveToolbarHeight +
+          settings.effectiveFormulaBarHeight +
+          settings.columnHeaderHeight +
+          70,
+      40,
+      30,
+    );
+    await tester.tapAt(canvasTopLeft + rect.center);
+    await tester.pump();
+    await tester.tapAt(
+      canvasTopLeft + Offset(rect.right + 1, rect.center.dy),
+    );
+    await tester.pump();
+
+    final image = controller.getSheet(id: 'small-image-sheet')!.images.single;
+    expect((image.left, image.top, image.width, image.height), (80, 70, 40, 30));
+    expect(controller.projectedCanUndo, isFalse);
+  });
+
+  testWidgets('FortuneSheetApp keeps rotated resize anchor at top boundary', (
+    tester,
+  ) async {
+    final controller = FortuneSheetController();
+    final workbook = FortuneWorkbook(
+      sheets: [
+        FortuneSheet(
+          id: 'rotated-top-boundary-sheet',
+          name: 'RotatedTopBoundary',
+          images: const [
+            FortuneImage(
+              id: 'rotated-top-image',
+              src: 'missing.png',
+              left: 80,
+              top: 10,
+              width: 120,
+              height: 80,
+              extraFields: {'rotation': 90},
+            ),
+          ],
+        ),
+      ],
+    );
+    await tester.pumpWidget(
+      _fortuneSheetPublicApiTestHost(
+        SizedBox(
+          width: 800,
+          height: 500,
+          child: FortuneSheetApp(
+            workbook: workbook,
+            controller: controller,
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final painter = _fortuneSheetPainter(tester);
+    final settings = painter.workbook.settings;
+    final canvasTopLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
+    final rect = ui.Rect.fromLTWH(
+      settings.rowHeaderWidth + 80,
+      settings.effectiveToolbarHeight +
+          settings.effectiveFormulaBarHeight +
+          settings.columnHeaderHeight +
+          10,
+      120,
+      80,
+    );
+    await tester.tapAt(canvasTopLeft + rect.center);
+    await tester.pump();
+    final localLeft = Offset(rect.left - 1, rect.center.dy);
+    final handle = fortuneRotatePositionAround(localLeft, rect.center, 90);
+    final gesture = await tester.startGesture(
+      canvasTopLeft + handle,
+      kind: ui.PointerDeviceKind.mouse,
+    );
+    await gesture.moveBy(const Offset(0, -80));
+    await gesture.up();
+    await tester.pump();
+
+    final resized = controller
+        .getSheet(id: 'rotated-top-boundary-sheet')!
+        .images
+        .single;
+    final initialOpposite = fortuneRotatePositionAround(
+      Offset(rect.right, rect.center.dy),
+      rect.center,
+      90,
+    );
+    final resizedCenter = Offset(
+      settings.rowHeaderWidth + resized.left + resized.width / 2,
+      settings.effectiveToolbarHeight +
+          settings.effectiveFormulaBarHeight +
+          settings.columnHeaderHeight +
+          resized.top +
+          resized.height / 2,
+    );
+    final resizedOpposite = fortuneRotatePositionAround(
+      Offset(
+        settings.rowHeaderWidth + resized.left + resized.width,
+        resizedCenter.dy,
+      ),
+      resizedCenter,
+      90,
+    );
+    expect(resized.top, closeTo(0, 0.01));
+    expect(resizedOpposite.dx, closeTo(initialOpposite.dx, 0.01));
+    expect(resizedOpposite.dy, closeTo(initialOpposite.dy, 0.01));
   });
 
   testWidgets('FortuneSheetApp edits selected image from right click dialog', (

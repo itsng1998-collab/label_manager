@@ -1,3 +1,11 @@
+### 완료 (2026-07-22): 선·도형 지시서 11차 재감사 권장안 수정
+- image/barcode gesture의 hit-test, transient draft, replacement와 painter active chrome을 immutable `FortuneSheetObjectKey(kind, id)`로 연결했다. 같은 내부 ID의 image와 barcode가 공존해도 exact 객체만 이동·resize·선택 렌더되며 secondary-click도 공용 typed context 경로를 사용한다.
+- geometry gesture owner를 Dart workbook 객체 identity가 아니라 package-owned history-lineage generation과 sheet ID로 검증한다. canonical JSON이 같은 controlled echo는 진행 중 draft와 transaction을 유지하고 실제 외부 replacement·Undo·Redo는 generation 증가로 stale commit을 차단한다.
+- legacy minimum보다 작은 image/barcode는 resize pointer delta가 0인 축의 기존 extent를 보존해 handle click만으로 확대되지 않는다. 회전 resize의 top 경계는 pointer 진행 경로에서 마지막 유효 지점을 이분 탐색해 opposite world anchor를 유지한다.
+- 직접 회귀를 추가했다: same-ID barcode exact move, canonical echo 중 image gesture commit, 작은 legacy image handle no-op, 90도 회전 resize top-boundary opposite anchor. 네 테스트는 direct Flutter runner에서 각각 통과했다.
+- 검증: object controller 39건, painter 760건 통과. public API 전체는 141건 통과/기존 stale image right-click dialog expectation 2건 실패이며 신규 실패는 없다. root와 `third_party/fortune_sheet`의 `flutter analyze` 모두 issues 0, `git diff --check` clean이다.
+- 사용자 변경 `lib/core/app.dart`와 `third_party/*/build/` 생성물은 수정·stage·commit에서 제외한다.
+
 ### 완료 (2026-07-22): 선·도형 지시서 10차 재감사 권장안 수정
 - 기존 image/barcode move·resize·rotation을 canonical pointer-move mutation에서 transient image gesture draft로 전환했다. pointer move는 painter draft만 갱신하고 유효한 pointer-up에서 owner workbook/sheet를 재검증한 뒤 undo와 canonical workbook을 각각 한 번만 변경한다. no-op, pointer cancel, 외부 replacement와 `allowEdit` 하강은 commit 없이 draft를 폐기한다.
 - 회전 image/barcode resize는 시작·현재 pointer를 객체 중심 기준 역회전해 local 축 delta를 계산하고, 크기 변화의 local center shift를 다시 world 좌표로 회전해 opposite anchor를 고정한다. 기존 X=0 clamp를 제거해 음수 left를 허용하고 top만 0 이상으로 유지한다.

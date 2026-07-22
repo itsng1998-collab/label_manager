@@ -3608,7 +3608,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   String? _typedShapeHandle;
   FortuneLine? _typedObjectMoveLineDraft;
   FortuneShape? _typedObjectMoveShapeDraft;
-  FortuneWorkbook? _typedObjectMoveOwnerWorkbook;
+  int? _typedObjectMoveOwnerHistoryGeneration;
   String? _typedObjectMoveOwnerSheetId;
   Set<String> _selectedImageIds = <String>{};
   bool _imageLayerPanelOpen = false;
@@ -3631,7 +3631,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   Offset? _imageResizeStart;
   FortuneImage? _imageResizeInitial;
   FortuneImage? _imageGestureDraft;
-  FortuneWorkbook? _imageGestureOwnerWorkbook;
+  FortuneSheetObjectKey? _imageGestureDraftKey;
+  int? _imageGestureOwnerHistoryGeneration;
   String? _imageGestureOwnerSheetId;
   Offset? _imageMoveStart;
   FortuneImage? _imageMoveInitial;
@@ -3640,7 +3641,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   FortuneShapeKind _shapePresetKind = FortuneShapeKind.rectangle;
   Offset? _lineInsertionStart;
   Offset? _lineInsertionEnd;
-  FortuneWorkbook? _lineInsertionOwnerWorkbook;
+  int? _lineInsertionOwnerHistoryGeneration;
   String? _lineInsertionOwnerSheetId;
   FortuneCellCoord? _commentBoxMoveCoord;
   Offset? _commentBoxMoveStart;
@@ -4520,9 +4521,11 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
             ),
           ),
         );
-    _workbook =
-        incomingWorkbook ??
-        _workbook.copyWith(settings: _effectiveSettings(widget.workbook));
+    if (canonicalWorkbookChanged) {
+      _workbook = incomingWorkbook;
+    } else if (settingsChanged || allowEditChanged) {
+      _workbook = _workbook.copyWith(settings: incomingSettings);
+    }
     if (previousAllowEdit && !_workbook.settings.allowEdit) {
       _discardObjectMutationStateForPermissionChange();
     }
@@ -8110,44 +8113,15 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         _openTypedObjectContextMenu(typedObjectKey, local);
         return;
       }
-      final imageId = _imageIdAt(local, settings);
+      final imageKey = _imageKeyAt(local, settings);
       final previousSelectionSave = cloneFortuneMetadata(
         _workbook.activeSheet.selectionSave,
       );
       final previousSelectionRange = cloneFortuneMetadata(
         _workbook.activeSheet.selectionRange,
       );
-      if (imageId != null) {
-        final image = _imageById(imageId);
-        if (image != null) {
-          final menuItems = _contextMenuItemsForImage(image);
-          setState(() {
-            final key = FortuneSheetObjectKey(
-              fortuneImageObjectKind(image),
-              image.id,
-            );
-            final selected = _objectSelectionSnapshot(
-              attached: true,
-            ).selectedKeys;
-            _applyExactObjectSelection(
-              selected.contains(key) ? selected : <FortuneSheetObjectKey>{key},
-              key,
-              anchorKey: key,
-            );
-            _contextMenuImageId = imageId;
-            _contextMenuObjectKey = null;
-            contextMenuAt = _contextMenuOrigin(local, menuItems);
-            _contextMenuHoveredIndex = null;
-            _contextMenuIsHeader = false;
-            _contextMenuIsEditor = false;
-            sheetTabMenuAt = null;
-            hiddenSheetListAt = null;
-            dataVerificationDropdownCoord = null;
-            filterDropdownColumn = null;
-            _sheetTabMenuSheetIndex = null;
-            toolbarPopupKey = null;
-          });
-        }
+      if (imageKey != null) {
+        _openTypedObjectContextMenu(imageKey, local);
         return;
       }
       final headerContextRange = headerSelection == null
@@ -8318,7 +8292,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       }
     }
 
-    final imageId = _imageIdAt(local, settings);
+    final imageKey = _imageKeyAt(local, settings);
     final logicalObjectPosition = _lineInsertionLogicalPosition(
       local,
       settings,
@@ -8359,26 +8333,24 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       }
       return;
     }
-    if (imageId != null) {
+    if (imageKey != null) {
       _commitEditing();
       _commitSheetRename();
-      final image = _imageById(imageId);
+      final image = _imageByKey(imageKey);
       if ((event.buttons & kSecondaryMouseButton) != 0 && image != null) {
         final menuItems = _contextMenuItemsForImage(image);
         setState(() {
-          final key = FortuneSheetObjectKey(
-            fortuneImageObjectKind(image),
-            image.id,
-          );
           final selected = _objectSelectionSnapshot(
             attached: true,
           ).selectedKeys;
           _applyExactObjectSelection(
-            selected.contains(key) ? selected : <FortuneSheetObjectKey>{key},
-            key,
-            anchorKey: key,
+            selected.contains(imageKey)
+                ? selected
+                : <FortuneSheetObjectKey>{imageKey},
+            imageKey,
+            anchorKey: imageKey,
           );
-          _contextMenuImageId = imageId;
+          _contextMenuImageId = imageKey.id;
           _contextMenuObjectKey = null;
           contextMenuAt = _contextMenuOrigin(local, menuItems);
           _contextMenuHoveredIndex = null;
@@ -8393,21 +8365,15 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         });
         return;
       }
-      final key = image == null
-          ? null
-          : FortuneSheetObjectKey(fortuneImageObjectKind(image), image.id);
       if ((event.buttons & kPrimaryButton) != 0 &&
-          key != null &&
           (HardwareKeyboard.instance.isControlPressed ||
               HardwareKeyboard.instance.isMetaPressed)) {
-        _toggleObjectFromController(key);
+        _toggleObjectFromController(imageKey);
         return;
       }
-      _startImageMove(imageId, local);
+      _startImageMove(imageKey, local);
       setState(() {
-        if (key != null) {
-          _applyExactObjectSelection(<FortuneSheetObjectKey>{key}, key);
-        }
+        _applyExactObjectSelection(<FortuneSheetObjectKey>{imageKey}, imageKey);
         _contextMenuImageId = null;
         contextMenuAt = null;
         sheetTabMenuAt = null;
@@ -24747,7 +24713,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     }
     _recordUndoSnapshot();
     _replaceImage(
-      current.id,
+      FortuneSheetObjectKey(fortuneImageObjectKind(current), current.id),
       current.copyWith(
         src: picked == null ? current.src : _imageDataUri(picked),
         width: imageWidth,
@@ -25726,7 +25692,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         return;
       }
       _replaceImage(
-        editingImageId,
+        FortuneSheetObjectKey(FortuneSheetObjectKind.barcode, editingImageId),
         current.copyWith(
           src: src,
           width: imageWidth,
@@ -26394,7 +26360,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     setState(() {
       _lineInsertionStart = logical;
       _lineInsertionEnd = logical;
-      _lineInsertionOwnerWorkbook = _workbook;
+      _lineInsertionOwnerHistoryGeneration = _historyLineageGeneration;
       _lineInsertionOwnerSheetId = _workbook.activeSheet.id;
       _setMouseCursor(SystemMouseCursors.precise);
     });
@@ -26539,7 +26505,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       _typedShapeHandle = shapeHandle;
       _typedObjectMoveLineDraft = line;
       _typedObjectMoveShapeDraft = shape;
-      _typedObjectMoveOwnerWorkbook = _workbook;
+      _typedObjectMoveOwnerHistoryGeneration = _historyLineageGeneration;
       _typedObjectMoveOwnerSheetId = sheet.id;
       _setMouseCursor(SystemMouseCursors.move);
     });
@@ -26623,7 +26589,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     }
     _updateTypedObjectMove(local);
     final ownerValid =
-        identical(_typedObjectMoveOwnerWorkbook, _workbook) &&
+      _typedObjectMoveOwnerHistoryGeneration == _historyLineageGeneration &&
         _typedObjectMoveOwnerSheetId == _workbook.activeSheet.id;
     final initialLine = _typedObjectMoveInitialLine;
     final nextLine = _typedObjectMoveLineDraft;
@@ -26700,7 +26666,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     _typedShapeHandle = null;
     _typedObjectMoveLineDraft = null;
     _typedObjectMoveShapeDraft = null;
-    _typedObjectMoveOwnerWorkbook = null;
+    _typedObjectMoveOwnerHistoryGeneration = null;
     _typedObjectMoveOwnerSheetId = null;
   }
 
@@ -28281,7 +28247,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       return false;
     }
     final ownerValid =
-        identical(_lineInsertionOwnerWorkbook, _workbook) &&
+      _lineInsertionOwnerHistoryGeneration == _historyLineageGeneration &&
         _lineInsertionOwnerSheetId == _workbook.activeSheet.id;
     final release = _lineInsertionLogicalPositionUnrestricted(
       local,
@@ -28374,7 +28340,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   void _cancelLineInsertionDraftState() {
     _lineInsertionStart = null;
     _lineInsertionEnd = null;
-    _lineInsertionOwnerWorkbook = null;
+    _lineInsertionOwnerHistoryGeneration = null;
     _lineInsertionOwnerSheetId = null;
   }
 
@@ -28745,7 +28711,19 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     return null;
   }
 
-  String? _imageIdAt(Offset local, FortuneSettings settings) {
+  FortuneImage? _imageByKey(FortuneSheetObjectKey key) {
+    for (final image in _workbook.activeSheet.images) {
+      if (image.id == key.id && fortuneImageObjectKind(image) == key.kind) {
+        return image;
+      }
+    }
+    return null;
+  }
+
+  FortuneSheetObjectKey? _imageKeyAt(
+    Offset local,
+    FortuneSettings settings,
+  ) {
     final images = fortuneImagesInPaintOrder(_workbook.activeSheet.images);
     for (var index = images.length - 1; index >= 0; index -= 1) {
       final image = images[index];
@@ -28756,7 +28734,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         -fortuneImageRotationDegrees(image),
       );
       if (rect.contains(position)) {
-        return image.id;
+        return FortuneSheetObjectKey(fortuneImageObjectKind(image), image.id);
       }
     }
     return null;
@@ -28796,17 +28774,30 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
 
   FortuneSheetObjectKey? get _activeImageObjectKey {
     final imageId = _activeImageId;
-    final image = imageId == null ? null : _imageById(imageId);
-    return image == null
-        ? null
-        : FortuneSheetObjectKey(fortuneImageObjectKind(image), image.id);
+    if (imageId == null) {
+      return null;
+    }
+    final anchor = _objectSelectionAnchorKey;
+    if (anchor != null &&
+        anchor.id == imageId &&
+        (anchor.kind == FortuneSheetObjectKind.image ||
+            anchor.kind == FortuneSheetObjectKind.barcode)) {
+      return anchor;
+    }
+    return _selectedObjectKeys.where((key) {
+      return key.id == imageId &&
+          (key.kind == FortuneSheetObjectKind.image ||
+              key.kind == FortuneSheetObjectKind.barcode);
+    }).firstOrNull;
   }
 
   Offset? _objectLogicalCenter(FortuneSheetObjectKey key) {
     final sheet = _workbook.activeSheet;
     if (key.kind == FortuneSheetObjectKind.image ||
         key.kind == FortuneSheetObjectKind.barcode) {
-      final image = sheet.images.where((item) => item.id == key.id).firstOrNull;
+      final image = sheet.images.where((item) {
+        return item.id == key.id && fortuneImageObjectKind(item) == key.kind;
+      }).firstOrNull;
       return image == null
           ? null
           : Offset(image.left + image.width / 2, image.top + image.height / 2);
@@ -29779,7 +29770,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   }
 
   String? _imageResizeSideAt(Offset local, FortuneSettings settings) {
-    final active = _activeImageId == null ? null : _imageById(_activeImageId!);
+    final activeKey = _activeImageObjectKey;
+    final active = activeKey == null ? null : _imageByKey(activeKey);
     if (active == null) {
       return null;
     }
@@ -29819,7 +29811,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       return;
     }
     final side = _imageResizeSideAt(local, _workbook.settings);
-    if (side == null && _imageIdAt(local, _workbook.settings) != null) {
+    if (side == null && _imageKeyAt(local, _workbook.settings) != null) {
       _setMouseCursor(SystemMouseCursors.move);
       return;
     }
@@ -29877,7 +29869,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     if (!_workbook.settings.allowEdit) {
       return;
     }
-    final active = _activeImageId == null ? null : _imageById(_activeImageId!);
+    final activeKey = _activeImageObjectKey;
+    final active = activeKey == null ? null : _imageByKey(activeKey);
     if (active == null) {
       return;
     }
@@ -29886,7 +29879,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       _imageResizeStart = local;
       _imageResizeInitial = active;
       _imageGestureDraft = active;
-      _imageGestureOwnerWorkbook = _workbook;
+      _imageGestureDraftKey = activeKey;
+      _imageGestureOwnerHistoryGeneration = _historyLineageGeneration;
       _imageGestureOwnerSheetId = _workbook.activeSheet.id;
       contextMenuAt = null;
       sheetTabMenuAt = null;
@@ -29926,63 +29920,76 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         : _workbook.activeSheet.zoomRatio;
     const minWidth = 90.0;
     const minHeight = 60.0;
-    var left = initial.left;
-    var top = initial.top;
-    var width = initial.width;
-    var height = initial.height;
-    if (side.contains('l')) {
-      final right = initial.left + initial.width;
-      final modelDx = dx / zoomRatio;
-      if (width - modelDx < minWidth) {
-        left += width - minWidth;
-      } else {
-        left += modelDx;
-      }
-      width = math.max(minWidth, right - left);
-    }
-    if (side.contains('r')) {
-      width = math.max(minWidth, width + dx / zoomRatio);
-    }
-    if (side.contains('t')) {
-      final bottom = initial.top + initial.height;
-      final modelDy = dy / zoomRatio;
-      if (height - modelDy < minHeight) {
-        top += height - minHeight;
-      } else {
-        top += modelDy;
-      }
-      if (top < 0) {
-        top = 0;
-      }
-      height = math.max(minHeight, bottom - top);
-    }
-    if (side.contains('b')) {
-      height = math.max(minHeight, height + dy / zoomRatio);
-    }
-
-    final localCenterShift = Offset(
-      side.contains('l')
-          ? -(width - initial.width) / 2
-          : side.contains('r')
-          ? (width - initial.width) / 2
-          : 0,
-      side.contains('t')
-          ? -(height - initial.height) / 2
-          : side.contains('b')
-          ? (height - initial.height) / 2
-          : 0,
-    );
-    final worldCenterShift = _rotateOffset(
-      localCenterShift,
-      rotation * math.pi / 180,
-    );
     final initialCenter = Offset(
       initial.left + initial.width / 2,
       initial.top + initial.height / 2,
     );
-    final nextCenter = initialCenter + worldCenterShift;
-    left = nextCenter.dx - width / 2;
-    top = math.max(0, nextCenter.dy - height / 2);
+    final angle = rotation * math.pi / 180;
+
+    ({double left, double top, double width, double height}) candidateAt(
+      double progress,
+    ) {
+      final modelDx = dx * progress / zoomRatio;
+      final modelDy = dy * progress / zoomRatio;
+      final width = side.contains('l')
+          ? modelDx == 0
+            ? initial.width
+            : math.max(minWidth, initial.width - modelDx)
+          : side.contains('r')
+          ? modelDx == 0
+            ? initial.width
+            : math.max(minWidth, initial.width + modelDx)
+          : initial.width;
+      final height = side.contains('t')
+          ? modelDy == 0
+            ? initial.height
+            : math.max(minHeight, initial.height - modelDy)
+          : side.contains('b')
+          ? modelDy == 0
+            ? initial.height
+            : math.max(minHeight, initial.height + modelDy)
+          : initial.height;
+      final localCenterShift = Offset(
+        side.contains('l')
+            ? -(width - initial.width) / 2
+            : side.contains('r')
+            ? (width - initial.width) / 2
+            : 0,
+        side.contains('t')
+            ? -(height - initial.height) / 2
+            : side.contains('b')
+            ? (height - initial.height) / 2
+            : 0,
+      );
+      final nextCenter =
+          initialCenter + _rotateOffset(localCenterShift, angle);
+      return (
+        left: nextCenter.dx - width / 2,
+        top: nextCenter.dy - height / 2,
+        width: width,
+        height: height,
+      );
+    }
+
+    var candidate = candidateAt(1);
+    if (candidate.top < 0 && initial.top >= 0) {
+      var low = 0.0;
+      var high = 1.0;
+      for (var iteration = 0; iteration < 40; iteration += 1) {
+        final middle = (low + high) / 2;
+        final probe = candidateAt(middle);
+        if (probe.top >= 0) {
+          low = middle;
+          candidate = probe;
+        } else {
+          high = middle;
+        }
+      }
+    }
+    final left = candidate.left;
+    final top = candidate.top.abs() < 1e-8 ? 0.0 : candidate.top;
+    final width = candidate.width;
+    final height = candidate.height;
 
     final changed =
         left != initial.left ||
@@ -30068,20 +30075,21 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     return fortuneImageRotationValue(value);
   }
 
-  void _startImageMove(String imageId, Offset local) {
+  void _startImageMove(FortuneSheetObjectKey imageKey, Offset local) {
     if (!_workbook.settings.allowEdit) {
       return;
     }
-    final active = _imageById(imageId);
+    final active = _imageByKey(imageKey);
     if (active == null) {
       return;
     }
     setState(() {
-      _activeImageId = imageId;
+      _activeImageId = imageKey.id;
       _imageMoveStart = local;
       _imageMoveInitial = active;
       _imageGestureDraft = active;
-      _imageGestureOwnerWorkbook = _workbook;
+      _imageGestureDraftKey = imageKey;
+      _imageGestureOwnerHistoryGeneration = _historyLineageGeneration;
       _imageGestureOwnerSheetId = _workbook.activeSheet.id;
       contextMenuAt = null;
       sheetTabMenuAt = null;
@@ -30114,11 +30122,14 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     return true;
   }
 
-  void _replaceImage(String id, FortuneImage image) {
+  void _replaceImage(FortuneSheetObjectKey key, FortuneImage image) {
     final sheet = _workbook.activeSheet;
     final images = [
       for (final existing in sheet.images)
-        if (existing.id == id) image else existing,
+        if (existing.id == key.id && fortuneImageObjectKind(existing) == key.kind)
+          image
+        else
+          existing,
     ];
     final sheets = [..._workbook.sheets];
     sheets[_workbook.activeSheetIndex] = sheet.copyWith(images: images);
@@ -30271,12 +30282,14 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   void _commitImageGesture() {
     final initial = _imageResizeInitial ?? _imageMoveInitial;
     final draft = _imageGestureDraft;
+    final draftKey = _imageGestureDraftKey;
     final ownerValid =
-        identical(_imageGestureOwnerWorkbook, _workbook) &&
+      _imageGestureOwnerHistoryGeneration == _historyLineageGeneration &&
         _imageGestureOwnerSheetId == _workbook.activeSheet.id;
     final changed =
         initial != null &&
         draft != null &&
+        draftKey != null &&
         (initial.left != draft.left ||
             initial.top != draft.top ||
             initial.width != draft.width ||
@@ -30288,7 +30301,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       return;
     }
     _recordUndoSnapshot();
-    _replaceImage(draft.id, draft);
+    _replaceImage(draftKey, draft);
     setState(_cancelImageGestureState);
   }
 
@@ -30312,14 +30325,16 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     _imageMoveStart = null;
     _imageMoveInitial = null;
     _imageGestureDraft = null;
-    _imageGestureOwnerWorkbook = null;
+    _imageGestureDraftKey = null;
+    _imageGestureOwnerHistoryGeneration = null;
     _imageGestureOwnerSheetId = null;
   }
 
   void _clearImageGestureOwnerIfIdle() {
     if (_imageResizeSide == null && _imageMoveStart == null) {
       _imageGestureDraft = null;
-      _imageGestureOwnerWorkbook = null;
+      _imageGestureDraftKey = null;
+      _imageGestureOwnerHistoryGeneration = null;
       _imageGestureOwnerSheetId = null;
     }
   }
@@ -49674,6 +49689,12 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
                         _selectedObjectKeys.length != 1
                     ? null
                     : _activeImageId,
+                  activeImageKey:
+                    widget.objectPanelPresentation ==
+                        FortuneObjectPanelPresentation.overlay ||
+                      _selectedObjectKeys.length != 1
+                    ? null
+                    : _activeImageObjectKey,
                 activeObjectKey:
                     widget.objectPanelPresentation ==
                             FortuneObjectPanelPresentation.overlay ||
@@ -49684,6 +49705,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
                 objectGestureLineDraft: _typedObjectMoveLineDraft,
                 objectGestureShapeDraft: _typedObjectMoveShapeDraft,
                 objectGestureImageDraft: _imageGestureDraft,
+                objectGestureImageDraftKey: _imageGestureDraftKey,
                 lineInsertionDraft: _lineInsertionDraft,
                 shapeInsertionDraft: _shapeInsertionDraft,
                 selectedImageIds: _selectedImageIds,

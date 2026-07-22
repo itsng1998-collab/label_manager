@@ -62592,11 +62592,13 @@ class FortuneSheetPainter extends CustomPainter {
     this.hoveredColumnHeaderIndex,
     this.hoveredRowHeaderIndex,
     this.activeImageId,
+    this.activeImageKey,
     this.activeObjectKey,
     this.objectGestureDraftKey,
     this.objectGestureLineDraft,
     this.objectGestureShapeDraft,
     this.objectGestureImageDraft,
+    this.objectGestureImageDraftKey,
     this.lineInsertionDraft,
     this.shapeInsertionDraft,
     this.selectedImageIds = const <String>{},
@@ -62819,11 +62821,13 @@ class FortuneSheetPainter extends CustomPainter {
   final int? hoveredColumnHeaderIndex;
   final int? hoveredRowHeaderIndex;
   final String? activeImageId;
+  final FortuneSheetObjectKey? activeImageKey;
   final FortuneSheetObjectKey? activeObjectKey;
   final FortuneSheetObjectKey? objectGestureDraftKey;
   final FortuneLine? objectGestureLineDraft;
   final FortuneShape? objectGestureShapeDraft;
   final FortuneImage? objectGestureImageDraft;
+  final FortuneSheetObjectKey? objectGestureImageDraftKey;
   final FortuneLine? lineInsertionDraft;
   final FortuneShape? shapeInsertionDraft;
   final Set<String> selectedImageIds;
@@ -77218,7 +77222,7 @@ class FortuneSheetPainter extends CustomPainter {
         continue;
       }
         final canonicalImage = sheet.images[object.sourceIndex];
-        final image = canonicalImage.id == objectGestureImageDraft?.id
+        final image = object.key == objectGestureImageDraftKey
           ? objectGestureImageDraft!
           : canonicalImage;
       final rect = Rect.fromLTWH(
@@ -77264,7 +77268,7 @@ class FortuneSheetPainter extends CustomPainter {
         );
       }
       _drawBarcodeObjectIdLabel(canvas, rect, image);
-      if (image.id == activeImageId) {
+      if (object.key == activeImageKey) {
         _drawActiveImageSelection(
           canvas,
           rect,
@@ -78657,6 +78661,7 @@ class FortuneSheetPainter extends CustomPainter {
         oldDelegate.hoveredRowHeaderIndex != hoveredRowHeaderIndex ||
         oldDelegate.activeImageId != activeImageId ||
         oldDelegate.objectGestureImageDraft != objectGestureImageDraft ||
+        oldDelegate.objectGestureImageDraftKey != objectGestureImageDraftKey ||
         oldDelegate.activeImageToolbarHoveredCommand !=
             activeImageToolbarHoveredCommand ||
         oldDelegate.activeImageToolbarTooltipPosition !=
