@@ -64767,6 +64767,13 @@ void main() {
     );
   });
 
+  test('image rotation parser rejects non-finite legacy values', () {
+    expect(fortuneImageRotationValue('NaN'), 0);
+    expect(fortuneImageRotationValue('Infinity'), 0);
+    expect(fortuneImageRotationValue(double.negativeInfinity), 0);
+    expect(fortuneImageRotationValue('90'), 90);
+  });
+
   test('rotated image culling draws a decoded-null placeholder', () async {
     final workbook = FortuneWorkbook(
       settings: const FortuneSettings(

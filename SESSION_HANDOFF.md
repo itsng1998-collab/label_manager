@@ -1,3 +1,12 @@
+### 완료 (2026-07-22): 선·도형 지시서 9차 재감사 권장안 수정
+- 회전된 image/barcode selection handle 중심을 객체 중심 회전 좌표로 변환해 painter 표시와 hover/pointer-down hit-test를 일치시켰다. 이미 90도 회전된 rotation handle에서 후속 drag가 정상 시작된다.
+- barcode panel renderer 내부 결과를 `success/failure/stale`로 구분했다. public bool API 호환은 유지하며 실제 실패만 exact-key draft/error를 저장하고 permission/token 무효화 stale 완료는 local/keyed 상태를 바꾸지 않는다.
+- 같은 exact barcode key의 새 관련 입력은 공통 draft listener에서 이전 renderer 오류를 제거한다. `allowEdit` 하강은 pending Apply 입력과 keyed 상태를 canonical snapshot으로 폐기하며 늦은 완료가 되살리지 않는다.
+- settings-only `allowEdit` 분기를 workbook identity가 아니라 동일 incoming settings 기준 canonical content 비교로 판정해, 내용이 같은 새 workbook 인스턴스와 권한 변경이 함께 와도 `onChange` 0회와 controller listener 1회를 유지한다.
+- image/barcode rotation parsing을 finite 공용 helper로 통합해 legacy `NaN`/`Infinity`를 `0`으로 처리하고 culling, paint, hit-test와 drag가 같은 값을 사용한다.
+- 검증: object controller 39건, painter 762건, 회전 image handle 직접 테스트 1건 통과. root와 `third_party/fortune_sheet`의 `flutter analyze` 모두 issues 0이며 `git diff --check` clean이다.
+- 사용자 변경 `lib/core/app.dart`와 `third_party/*/build/` 생성물은 수정·stage·commit에서 제외한다.
+
 ### 완료 (2026-07-22): 선·도형 지시서 8차 재감사 권장안 수정
 - barcode property pending draft/error를 panel 상위 State의 exact `(sheetId, FortuneSheetObjectKey)` 저장소로 이전했다. selection 전환 중 renderer 실패가 완료되어도 요청 시점 owner의 입력 문자열·toggle·inline 오류를 복원하며 성공·명시 discard·`allowEdit` 하강에서 제거한다.
 - settings-only `allowEdit` 양방향 전환을 canonical workbook 변경 알림과 분리했다. true→false는 active mutation state와 keyed barcode draft를 폐기하고 false→true는 복원 없이 새 권한을 적용하며, 두 전환 모두 `onChange` 0회와 controller command-state listener 1회를 보장한다.

@@ -29515,6 +29515,26 @@ void main() {
     expect(rotated.width, image.width);
     expect(rotated.height, image.height);
     expect(rotated.extraFields['rotation'], closeTo(90, 0.5));
+
+    final rotatedHandle = fortuneRotatePositionAround(
+      rotationHandle,
+      imageRect.center,
+      90,
+    );
+    final belowCenter = imageRect.center + const Offset(0, 80);
+    final secondGesture = await tester.startGesture(
+      topLeft + rotatedHandle,
+      kind: ui.PointerDeviceKind.mouse,
+    );
+    await secondGesture.moveTo(topLeft + belowCenter);
+    await tester.pump();
+    await secondGesture.up();
+    await tester.pump();
+
+    expect(
+      painter().workbook.activeSheet.images.single.extraFields['rotation'],
+      closeTo(180, 0.5),
+    );
   });
 
   testWidgets('FortuneSheetApp edits selected image from right click dialog', (

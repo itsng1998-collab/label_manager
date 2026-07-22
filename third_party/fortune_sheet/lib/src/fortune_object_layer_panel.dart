@@ -94,6 +94,7 @@ class _FortuneObjectLayerPanelState extends State<FortuneObjectLayerPanel> {
   final Map<_BarcodePropertyOwner, _BarcodePropertyDraftState>
   _barcodePropertyDrafts = {};
   late bool _objectEditingAllowed;
+  int _permissionDiscardGeneration = 0;
 
   @override
   void initState() {
@@ -117,6 +118,7 @@ class _FortuneObjectLayerPanelState extends State<FortuneObjectLayerPanel> {
     final objectEditingAllowed = widget.controller.objectEditingAllowed;
     if (_objectEditingAllowed && !objectEditingAllowed) {
       _barcodePropertyDrafts.clear();
+      _permissionDiscardGeneration += 1;
     }
     _objectEditingAllowed = objectEditingAllowed;
   }
@@ -361,7 +363,8 @@ class _FortuneObjectLayerPanelState extends State<FortuneObjectLayerPanel> {
                           onKeyEvent: _handlePropertyKeyEvent,
                           child: _ObjectPropertyEditor(
                             key: ValueKey(
-                              '${snapshot.sheetId}|${snapshot.activeKey}',
+                              '${snapshot.sheetId}|${snapshot.activeKey}|'
+                              '$_permissionDiscardGeneration',
                             ),
                             snapshot: snapshot,
                             controller: widget.controller,
@@ -846,7 +849,12 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
 
   void _markPropertyDraft() {
     _draftFinalized = false;
-    _storeBarcodeDraft();
+    if (widget.snapshot.activeKey?.kind == FortuneSheetObjectKind.barcode) {
+      if (_error != null && mounted) {
+        setState(() => _error = null);
+      }
+      _storeBarcodeDraft(clearError: true);
+    }
     widget.controller.registerActiveObjectPropertyDraft(
       owner: _draftOwner,
       key: widget.snapshot.activeKey!,
@@ -1241,7 +1249,7 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
     final onDraftChanged = widget.onBarcodeDraftChanged;
     final onDraftRemoved = widget.onBarcodeDraftRemoved;
     onDraftChanged(requestDraft);
-    final rendered = await widget.controller.renderSelectedBarcode(
+    final outcome = await widget.controller.renderSelectedBarcodeOutcome(
       text: text,
       formatId: formatId,
       left: left,
@@ -1262,9 +1270,9 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
       connectionId: connectionId,
       preserveTemplateFormat: _barcodePreserveTemplateFormat,
     );
-    if (rendered) {
+    if (outcome == FortuneBarcodePropertyRenderOutcome.success) {
       onDraftRemoved();
-    } else {
+    } else if (outcome == FortuneBarcodePropertyRenderOutcome.failure) {
       onDraftChanged(
         requestDraft.copyWith(
           pending: false,
@@ -1275,7 +1283,11 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
     if (mounted) {
       setState(() {
         _barcodeRenderPending = false;
-        _error = rendered ? null : '바코드를 생성하지 못했습니다.';
+        if (outcome != FortuneBarcodePropertyRenderOutcome.stale) {
+          _error = outcome == FortuneBarcodePropertyRenderOutcome.success
+              ? null
+              : '바코드를 생성하지 못했습니다.';
+        }
       });
     }
   }

@@ -45131,10 +45131,16 @@ List<FortuneSheetObjectKey> fortuneSheetObjectKeysAtLogicalPosition(
 }
 
 double fortuneImageRotationDegrees(FortuneImage image) {
-  final value = image.extraFields['rotation'];
-  if (value is num) return value.toDouble();
-  if (value is String) return double.tryParse(value.trim()) ?? 0;
-  return 0;
+  return fortuneImageRotationValue(image.extraFields['rotation']);
+}
+
+double fortuneImageRotationValue(Object? value) {
+  final parsed = switch (value) {
+    num() => value.toDouble(),
+    String() => double.tryParse(value.trim()),
+    _ => null,
+  };
+  return parsed?.isFinite == true ? parsed! : 0;
 }
 
 Offset fortuneRotatePositionAround(
@@ -78034,13 +78040,7 @@ class FortuneSheetPainter extends CustomPainter {
   }
 
   double _imageRotationDegrees(Object? value) {
-    if (value is num) {
-      return value.toDouble();
-    }
-    if (value is String) {
-      return double.tryParse(value.trim()) ?? 0;
-    }
-    return 0;
+    return fortuneImageRotationValue(value);
   }
 
   void _drawImagePlaceholder(

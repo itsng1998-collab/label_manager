@@ -313,6 +313,8 @@ class FortuneBarcodeRenderResult {
   final int? bodyHeight;
 }
 
+enum FortuneBarcodePropertyRenderOutcome { success, failure, stale }
+
 Map<String, Object?> fortuneImageResizeExtraFieldsForMetadata(
   FortuneImage initial, {
   required double width,
@@ -1506,6 +1508,45 @@ class FortuneSheetController extends ChangeNotifier {
     required String connectionId,
     required bool preserveTemplateFormat,
   }) async {
+    return await renderSelectedBarcodeOutcome(
+          text: text,
+          formatId: formatId,
+          left: left,
+          top: top,
+          width: width,
+          height: height,
+          rotationDegrees: rotationDegrees,
+          moduleScale: moduleScale,
+          barHeight: barHeight,
+          leadingText: leadingText,
+          trailingText: trailingText,
+          showHumanReadableText: showHumanReadableText,
+          humanReadableFontFamily: humanReadableFontFamily,
+          humanReadableFontSize: humanReadableFontSize,
+          connectionId: connectionId,
+          preserveTemplateFormat: preserveTemplateFormat,
+        ) ==
+          FortuneBarcodePropertyRenderOutcome.success;
+  }
+
+        Future<FortuneBarcodePropertyRenderOutcome> renderSelectedBarcodeOutcome({
+    required String text,
+    required String formatId,
+    required double left,
+    required double top,
+    required double width,
+    required double height,
+    required double rotationDegrees,
+    required double moduleScale,
+    required double barHeight,
+    required String leadingText,
+    required String trailingText,
+    required bool showHumanReadableText,
+    required String? humanReadableFontFamily,
+    required double humanReadableFontSize,
+    required String connectionId,
+    required bool preserveTemplateFormat,
+  }) async {
     return await _state?._renderSelectedBarcodeFromController(
           text: text,
           formatId: formatId,
@@ -1524,7 +1565,7 @@ class FortuneSheetController extends ChangeNotifier {
           connectionId: connectionId,
           preserveTemplateFormat: preserveTemplateFormat,
         ) ??
-        false;
+        FortuneBarcodePropertyRenderOutcome.stale;
   }
 
   void updateSelectedLine({
@@ -4461,7 +4502,10 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         : null;
     final canonicalWorkbookChanged =
         incomingWorkbook != null &&
-        _workbookJsonChanged(_workbook, incomingWorkbook);
+        _workbookJsonChanged(
+          _workbook.copyWith(settings: incomingWorkbook.settings),
+          incomingWorkbook,
+        );
     _workbook =
         incomingWorkbook ??
         _workbook.copyWith(settings: _effectiveSettings(widget.workbook));
@@ -4482,7 +4526,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       oldWidget.controller?._detach(this);
       widget.controller?._attach(this);
     }
-    if (!workbookChanged && allowEditChanged) {
+    if (!canonicalWorkbookChanged && allowEditChanged) {
       widget.controller?._notifyCommandStateChanged();
     } else {
       _notifyWorkbookChangedAfterFrame();
@@ -27766,7 +27810,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     return true;
   }
 
-  Future<bool> _renderSelectedBarcodeFromController({
+  Future<FortuneBarcodePropertyRenderOutcome>
+  _renderSelectedBarcodeFromController({
     required String text,
     required String formatId,
     required double left,
@@ -27785,7 +27830,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     required bool preserveTemplateFormat,
   }) async {
     if (_panelBarcodeRequestTokens.isNotEmpty) {
-      return false;
+      return FortuneBarcodePropertyRenderOutcome.stale;
     }
     final renderer = widget.barcodeRenderer;
     final snapshot = _objectSelectionSnapshot(attached: true);
@@ -27814,7 +27859,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         moduleScale <= 0 ||
         barHeight <= 0 ||
         humanReadableFontSize <= 0) {
-      return false;
+      return FortuneBarcodePropertyRenderOutcome.failure;
     }
     final ownerSheetId = snapshot.sheetId;
     final token = ++_panelBarcodeRequestSequence;
@@ -27844,10 +27889,19 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     } on Object {
       result = null;
     }
-    if (!mounted ||
-        result == null ||
-        _panelBarcodeRequestTokens[key] != token) {
-      return _finishPanelBarcodeRequest(key, token, false);
+    if (!mounted || _panelBarcodeRequestTokens[key] != token) {
+      return _finishPanelBarcodeRequest(
+        key,
+        token,
+        FortuneBarcodePropertyRenderOutcome.stale,
+      );
+    }
+    if (result == null) {
+      return _finishPanelBarcodeRequest(
+        key,
+        token,
+        FortuneBarcodePropertyRenderOutcome.failure,
+      );
     }
     final sheet = _workbook.activeSheet;
     final sourceIndex = sheet.images.indexWhere((image) {
@@ -27858,7 +27912,11 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     if (!_workbook.settings.allowEdit ||
         sheet.id != ownerSheetId ||
         sourceIndex < 0) {
-      return _finishPanelBarcodeRequest(key, token, false);
+      return _finishPanelBarcodeRequest(
+        key,
+        token,
+        FortuneBarcodePropertyRenderOutcome.stale,
+      );
     }
     final imageWidth = width > 0
         ? width
@@ -27870,7 +27928,11 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       imageWidth,
       imageHeight,
     ].every((value) => value.isFinite && value > 0)) {
-      return _finishPanelBarcodeRequest(key, token, false);
+      return _finishPanelBarcodeRequest(
+        key,
+        token,
+        FortuneBarcodePropertyRenderOutcome.failure,
+      );
     }
     final format = widget.barcodeFormats
         .where((option) => option.id == formatId.trim())
@@ -27929,13 +27991,17 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       _workbook = _workbook.copyWith(sheets: sheets);
       _closeTransientMenus();
     });
-    return _finishPanelBarcodeRequest(key, token, true);
+    return _finishPanelBarcodeRequest(
+      key,
+      token,
+      FortuneBarcodePropertyRenderOutcome.success,
+    );
   }
 
-  bool _finishPanelBarcodeRequest(
+  FortuneBarcodePropertyRenderOutcome _finishPanelBarcodeRequest(
     FortuneSheetObjectKey key,
     int token,
-    bool result,
+    FortuneBarcodePropertyRenderOutcome result,
   ) {
     if (_panelBarcodeRequestTokens[key] == token) {
       _panelBarcodeRequestTokens.remove(key);
@@ -29700,8 +29766,14 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       return null;
     }
     final rect = _imageRect(active, settings);
+    final rotation = fortuneImageRotationDegrees(active);
+    Offset rotated(Offset center) => fortuneRotatePositionAround(
+      center,
+      rect.center,
+      rotation,
+    );
     if (Rect.fromCenter(
-      center: _imageRotationHandleCenter(rect),
+      center: rotated(_imageRotationHandleCenter(rect)),
       width: 14,
       height: 14,
     ).contains(local)) {
@@ -29709,7 +29781,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     }
     for (final entry in _imageResizeHandleCenters(rect).entries) {
       if (Rect.fromCenter(
-        center: entry.value,
+        center: rotated(entry.value),
         width: 12,
         height: 12,
       ).contains(local)) {
@@ -29950,13 +30022,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   }
 
   double _imageRotationDegrees(Object? value) {
-    if (value is num) {
-      return value.toDouble();
-    }
-    if (value is String) {
-      return double.tryParse(value.trim()) ?? 0;
-    }
-    return 0;
+    return fortuneImageRotationValue(value);
   }
 
   void _startImageMove(String imageId, Offset local) {

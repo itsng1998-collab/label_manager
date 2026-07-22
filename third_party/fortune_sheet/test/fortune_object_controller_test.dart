@@ -2046,6 +2046,132 @@ void main() {
       await tester.drag(propertyList, const Offset(0, -900));
       await tester.pump();
       expect(find.text('바코드를 생성하지 못했습니다.'), findsOneWidget);
+
+      await tester.drag(propertyList, const Offset(0, 900));
+      await tester.pump();
+      await tester.enterText(
+        find.byKey(const ValueKey('fortune-object-property-barcodeText')),
+        'DRAFT-A-REVISED',
+      );
+      await tester.pump();
+      expect(find.text('바코드를 생성하지 못했습니다.'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'allowEdit downgrade keeps stale barcode completion discarded in panel',
+    (tester) async {
+      tester.view.physicalSize = const Size(1000, 1200);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+      final controller = FortuneSheetController();
+      final render = Completer<FortuneBarcodeRenderResult?>();
+      var settings = const FortuneSettings(
+        showToolbar: false,
+        showFormulaBar: false,
+      );
+      late StateSetter updateHost;
+      final workbook = FortuneWorkbook(
+        settings: settings,
+        sheets: [
+          FortuneSheet(
+            id: 's1',
+            name: 'Sheet1',
+            images: const [
+              FortuneImage(
+                id: 'barcode_1',
+                src: 'old-src',
+                left: 20,
+                top: 30,
+                width: 80,
+                height: 40,
+                extraFields: {
+                  'fortuneBarcode': true,
+                  'barcodeText': 'OLD',
+                  'barcodeFormatId': 'CODE128',
+                },
+              ),
+            ],
+          ),
+        ],
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: StatefulBuilder(
+            builder: (context, setState) {
+              updateHost = setState;
+              return Row(
+                children: [
+                  SizedBox(
+                    width: 700,
+                    height: 1200,
+                    child: FortuneSheetCanvas(
+                      workbook: workbook,
+                      settings: settings,
+                      controller: controller,
+                      barcodeRenderer: (_) => render.future,
+                    ),
+                  ),
+                  SizedBox(
+                    width: 300,
+                    height: 1200,
+                    child: FortuneObjectLayerPanel(controller: controller),
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+      );
+      controller.selectObject(
+        const FortuneSheetObjectKey(
+          FortuneSheetObjectKind.barcode,
+          'barcode_1',
+        ),
+      );
+      await tester.pump();
+      await tester.enterText(
+        find.byKey(const ValueKey('fortune-object-property-barcodeText')),
+        'DISCARDED',
+      );
+      final propertyList = find.byType(ListView).last;
+      await tester.drag(propertyList, const Offset(0, -900));
+      await tester.pump();
+      tester
+          .widget<FilledButton>(
+            find.byKey(const ValueKey('fortune-object-property-apply')),
+          )
+          .onPressed!();
+      await tester.pump();
+
+      updateHost(() {
+        settings = settings.copyWith(allowEdit: false);
+      });
+      await tester.pump();
+      render.complete(null);
+      await tester.pump();
+      updateHost(() {
+        settings = settings.copyWith(allowEdit: true);
+      });
+      await tester.pump();
+      await tester.drag(propertyList, const Offset(0, 900));
+      await tester.pump();
+
+      expect(
+        tester
+            .widget<TextField>(
+              find.byKey(
+                const ValueKey('fortune-object-property-barcodeText'),
+              ),
+            )
+            .controller
+            ?.text,
+        'OLD',
+      );
+      expect(find.text('바코드를 생성하지 못했습니다.'), findsNothing);
     },
   );
 
@@ -2160,7 +2286,7 @@ void main() {
       var workbookChanges = 0;
       controller.addListener(() => controllerNotifications += 1);
       late StateSetter updateHost;
-      final workbook = FortuneWorkbook(
+      var workbook = FortuneWorkbook(
         settings: settings,
         sheets: [FortuneSheet(id: 's1', name: 'Sheet1')],
       );
@@ -2193,6 +2319,15 @@ void main() {
       controllerNotifications = 0;
       updateHost(() {
         settings = settings.copyWith(allowEdit: true);
+      });
+      await tester.pump();
+      expect(workbookChanges, 0);
+      expect(controllerNotifications, 1);
+
+      controllerNotifications = 0;
+      updateHost(() {
+        workbook = workbook.copyWith();
+        settings = settings.copyWith(allowEdit: false);
       });
       await tester.pump();
       expect(workbookChanges, 0);
