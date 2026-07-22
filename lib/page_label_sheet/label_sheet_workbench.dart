@@ -2179,8 +2179,11 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
   String? _objectPropertyFocusSheetId;
   FortuneSheetObjectKey? _objectPropertyFocusObjectKey;
   int _objectPropertyFocusGeneration = 0;
+  int _objectLayerFocusGeneration = 0;
   FortuneObjectPanelPresentation? _lastObjectPanelPresentation;
   int _objectPanelFocusHandoffGeneration = 0;
+  FocusNode? _objectOverlayPreviousFocus;
+  bool _objectPanelExplicitClosePending = false;
   double? _objectPanelDragStartWidth;
   bool _objectPanelWidthChangedByUser = false;
   Future<void> _objectPanelWidthWriteQueue = Future<void>.value();
@@ -2277,6 +2280,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
   }
 
   void _openObjectPanel() {
+    if (!mounted) return;
     if (_objectDockEligible && _userWantsObjectDockOpen ||
         !_objectDockEligible && _objectOverlayOpen) {
       return;
@@ -2285,12 +2289,15 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       if (_objectDockEligible) {
         _userWantsObjectDockOpen = true;
       } else {
+        _objectOverlayPreviousFocus = FocusManager.instance.primaryFocus;
         _objectOverlayOpen = true;
+        _objectLayerFocusGeneration += 1;
       }
     });
   }
 
   void _handleObjectPanelOpenRequest(FortuneObjectPanelOpenRequest request) {
+    if (!mounted) return;
     setState(() {
       _objectPropertyFocusField = request.propertyField;
       _objectPropertyFocusSheetId = request.sheetId;
@@ -2299,6 +2306,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       if (_objectDockEligible) {
         _userWantsObjectDockOpen = true;
       } else {
+        _objectOverlayPreviousFocus ??= FocusManager.instance.primaryFocus;
         _objectOverlayOpen = true;
       }
     });
@@ -2312,6 +2320,25 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     if (presentation != FortuneObjectPanelPresentation.hidden ||
         previous == null ||
         previous == FortuneObjectPanelPresentation.hidden) {
+      return;
+    }
+    if (_objectPanelExplicitClosePending) {
+      _objectPanelExplicitClosePending = false;
+      final generation = ++_objectPanelFocusHandoffGeneration;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || generation != _objectPanelFocusHandoffGeneration) {
+          return;
+        }
+        final previousFocus = _objectOverlayPreviousFocus;
+        _objectOverlayPreviousFocus = null;
+        if (previousFocus != null &&
+            previousFocus.canRequestFocus &&
+            previousFocus.context != null) {
+          previousFocus.requestFocus();
+        } else {
+          _controller.focusCanvas();
+        }
+      });
       return;
     }
     final generation = ++_objectPanelFocusHandoffGeneration;
@@ -2335,14 +2362,20 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
   }
 
   void _closeObjectPanel() {
+    if (!mounted) return;
     if (_objectDockEligible && !_userWantsObjectDockOpen ||
         !_objectDockEligible && !_objectOverlayOpen) {
       return;
     }
     setState(() {
+      _objectPropertyFocusField = null;
+      _objectPropertyFocusSheetId = null;
+      _objectPropertyFocusObjectKey = null;
+      _objectPropertyFocusGeneration += 1;
       if (_objectDockEligible) {
         _userWantsObjectDockOpen = false;
       } else {
+        _objectPanelExplicitClosePending = true;
         _objectOverlayOpen = false;
       }
     });
@@ -2463,6 +2496,9 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
 
   @override
   void dispose() {
+    _objectPropertyFocusGeneration += 1;
+    _objectPanelFocusHandoffGeneration += 1;
+    _objectOverlayPreviousFocus = null;
     _controller.removeListener(_handleControllerCommandStateChanged);
     final controller = _controller;
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -3970,12 +4006,12 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
             );
             _maximumDockPanelWidth = maximumDockPanelWidth;
             final objectPanelPresentation = _objectDockEligible
-              ? _userWantsObjectDockOpen
-                  ? FortuneObjectPanelPresentation.dock
-                  : FortuneObjectPanelPresentation.hidden
-              : _objectOverlayOpen
-              ? FortuneObjectPanelPresentation.overlay
-              : FortuneObjectPanelPresentation.hidden;
+                ? _userWantsObjectDockOpen
+                      ? FortuneObjectPanelPresentation.dock
+                      : FortuneObjectPanelPresentation.hidden
+                : _objectOverlayOpen
+                ? FortuneObjectPanelPresentation.overlay
+                : FortuneObjectPanelPresentation.hidden;
             _syncObjectPanelFocusHandoff(objectPanelPresentation);
             final sheet = FortuneSheetApp(
               workbook: workbook,
@@ -4024,7 +4060,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
                 widget.onDirtyChanged?.call(true);
               },
               onOpenObjectPanel: _openObjectPanel,
-                onOpenObjectPanelRequest: _handleObjectPanelOpenRequest,
+              onOpenObjectPanelRequest: _handleObjectPanelOpenRequest,
               objectPanelPresentation: objectPanelPresentation,
               locale: _locale,
               barcodeRenderer:
@@ -4056,6 +4092,8 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
               imageObjectIds: widget.imageObjectIds,
               barcodeObjectIds: widget.barcodeObjectIds,
               onClose: _closeObjectPanel,
+              presentation: objectPanelPresentation,
+              layerFocusGeneration: _objectLayerFocusGeneration,
               propertyFocusField: _objectPropertyFocusField,
               propertyFocusSheetId: _objectPropertyFocusSheetId,
               propertyFocusObjectKey: _objectPropertyFocusObjectKey,

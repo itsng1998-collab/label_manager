@@ -17,10 +17,10 @@ const _testPngBase64 =
 
 FortuneSheetPainter fortuneSheetPainter(WidgetTester tester) {
   return tester
-    .widgetList<CustomPaint>(find.byType(CustomPaint))
-    .map((paint) => paint.painter)
-    .whereType<FortuneSheetPainter>()
-    .single;
+      .widgetList<CustomPaint>(find.byType(CustomPaint))
+      .map((paint) => paint.painter)
+      .whereType<FortuneSheetPainter>()
+      .single;
 }
 
 void main() {
@@ -1149,13 +1149,7 @@ void main() {
                     ),
                   ],
                   lines: const [
-                    FortuneLine(
-                      id: 'line_1',
-                      x1: 100,
-                      y1: 20,
-                      x2: 140,
-                      y2: 20,
-                    ),
+                    FortuneLine(id: 'line_1', x1: 100, y1: 20, x2: 140, y2: 20),
                   ],
                 ),
               ],
@@ -1430,10 +1424,7 @@ void main() {
 
     await pump(FortuneObjectPanelPresentation.hidden);
     controller.selectObject(
-      const FortuneSheetObjectKey(
-        FortuneSheetObjectKind.rectangle,
-        'shape_1',
-      ),
+      const FortuneSheetObjectKey(FortuneSheetObjectKind.rectangle, 'shape_1'),
     );
     await tester.pump();
     expect(fortuneSheetPainter(tester).activeObjectKey, isNotNull);
@@ -1441,6 +1432,155 @@ void main() {
     await pump(FortuneObjectPanelPresentation.overlay);
     expect(fortuneSheetPainter(tester).activeObjectKey, isNull);
     expect(controller.objectSelection.activeKey, isNotNull);
+  });
+
+  testWidgets('dock presentation closes the legacy image layer panel', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    final controller = FortuneSheetController();
+    var presentation = FortuneObjectPanelPresentation.hidden;
+    final workbook = FortuneWorkbook(
+      sheets: [
+        FortuneSheet(
+          id: 's1',
+          name: 'Sheet1',
+          images: const [
+            FortuneImage(
+              id: 'image_1',
+              src: 'image',
+              left: 20,
+              top: 20,
+              width: 40,
+              height: 30,
+            ),
+          ],
+        ),
+      ],
+    );
+    Future<void> pump() => tester.pumpWidget(
+      MaterialApp(
+        home: SizedBox(
+          width: 900,
+          height: 700,
+          child: FortuneSheetCanvas(
+            controller: controller,
+            workbook: workbook,
+            objectPanelPresentation: presentation,
+          ),
+        ),
+      ),
+    );
+    await pump();
+    controller.selectObject(
+      const FortuneSheetObjectKey(FortuneSheetObjectKind.image, 'image_1'),
+    );
+    await tester.pump();
+    final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
+    final painter = fortuneSheetPainter(tester);
+    final imageRect = ui.Rect.fromLTWH(46 + 20, 20 + 20, 40, 30);
+    final toggleRect = fortuneActiveImageToolbarItemRect(
+      imageRect,
+      const Size(900, 700),
+      fortuneContextToggleLayerPanelCommand,
+      fortuneActiveImageToolbarItems(
+        painter.workbook.activeSheet.images.single,
+      ),
+    )!;
+    await tester.tapAt(topLeft + toggleRect.center);
+    await tester.pump();
+    expect(fortuneSheetPainter(tester).imageLayerPanelOpen, isTrue);
+
+    presentation = FortuneObjectPanelPresentation.dock;
+    await pump();
+
+    expect(fortuneSheetPainter(tester).imageLayerPanelOpen, isFalse);
+  });
+
+  testWidgets('multiple selection suppresses active object toolbar', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    final controller = FortuneSheetController();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SizedBox(
+          width: 900,
+          height: 700,
+          child: FortuneSheetCanvas(
+            controller: controller,
+            workbook: FortuneWorkbook(
+              settings: const FortuneSettings(
+                showToolbar: false,
+                showFormulaBar: false,
+              ),
+              sheets: [
+                FortuneSheet(
+                  id: 's1',
+                  name: 'Sheet1',
+                  lines: const [
+                    FortuneLine(id: 'a', x1: 20, y1: 20, x2: 40, y2: 20),
+                    FortuneLine(id: 'b', x1: 20, y1: 40, x2: 40, y2: 40),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    controller.selectObject(
+      const FortuneSheetObjectKey(FortuneSheetObjectKind.line, 'a'),
+    );
+    controller.toggleObject(
+      const FortuneSheetObjectKey(FortuneSheetObjectKind.line, 'b'),
+    );
+    await tester.pump();
+
+    expect(fortuneSheetPainter(tester).activeObjectKey, isNull);
+  });
+
+  test('selected object layer enablement uses the whole selected set', () {
+    final sheet = FortuneSheet(
+      id: 's1',
+      name: 'Sheet1',
+      lines: const [
+        FortuneLine(id: 'front', x1: 0, y1: 0, x2: 10, y2: 0, zOrder: 3),
+        FortuneLine(id: 'middle', x1: 0, y1: 10, x2: 10, y2: 10, zOrder: 2),
+        FortuneLine(id: 'back', x1: 0, y1: 20, x2: 10, y2: 20, zOrder: 1),
+      ],
+    );
+    final selected = <FortuneSheetObjectKey>{
+      const FortuneSheetObjectKey(FortuneSheetObjectKind.line, 'front'),
+      const FortuneSheetObjectKey(FortuneSheetObjectKind.line, 'back'),
+    };
+
+    expect(
+      fortuneSelectedObjectCommandEnabled(
+        sheet,
+        selected,
+        fortuneContextBringForwardCommand,
+      ),
+      isTrue,
+    );
+    expect(
+      fortuneSelectedObjectCommandEnabled(
+        sheet,
+        selected,
+        fortuneContextBringToFrontCommand,
+      ),
+      isTrue,
+    );
   });
 
   testWidgets('public capture finalizes active property draft first', (
@@ -2467,37 +2607,25 @@ void main() {
     expect(controller.projectedCanRedo, isFalse);
 
     controller.selectObject(
-      const FortuneSheetObjectKey(
-        FortuneSheetObjectKind.rectangle,
-        'shape_2',
-      ),
+      const FortuneSheetObjectKey(FortuneSheetObjectKind.rectangle, 'shape_2'),
     );
     await tester.pump();
     expect(controller.hasActiveObjectPropertyDraft, isFalse);
     expect(controller.objectSelection.activeShape!.id, 'shape_2');
     controller.selectObject(
-      const FortuneSheetObjectKey(
-        FortuneSheetObjectKind.rectangle,
-        'shape_1',
-      ),
+      const FortuneSheetObjectKey(FortuneSheetObjectKind.rectangle, 'shape_1'),
     );
     await tester.pump();
     expect(controller.objectSelection.activeShape!.width, 80);
     await tester.enterText(widthField, 'invalid');
     controller.selectObject(
-      const FortuneSheetObjectKey(
-        FortuneSheetObjectKind.rectangle,
-        'shape_2',
-      ),
+      const FortuneSheetObjectKey(FortuneSheetObjectKind.rectangle, 'shape_2'),
     );
     await tester.pump();
     expect(controller.hasActiveObjectPropertyDraft, isFalse);
     expect(controller.objectSelection.activeShape!.id, 'shape_2');
     controller.selectObject(
-      const FortuneSheetObjectKey(
-        FortuneSheetObjectKind.rectangle,
-        'shape_1',
-      ),
+      const FortuneSheetObjectKey(FortuneSheetObjectKind.rectangle, 'shape_1'),
     );
     await tester.pump();
     expect(controller.objectSelection.activeShape!.width, 80);
@@ -2793,10 +2921,7 @@ void main() {
     expect(panelOpenRequest?.sheetId, 's1');
     expect(
       panelOpenRequest?.objectKey,
-      const FortuneSheetObjectKey(
-        FortuneSheetObjectKind.rectangle,
-        'rect_1',
-      ),
+      const FortuneSheetObjectKey(FortuneSheetObjectKind.rectangle, 'rect_1'),
     );
     expect(painter().contextMenuAt, isNull);
   });

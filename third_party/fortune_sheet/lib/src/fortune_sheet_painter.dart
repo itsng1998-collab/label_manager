@@ -44485,9 +44485,9 @@ List<String> fortuneActiveTypedObjectToolbarItems(FortuneSheetObjectKey key) {
 bool fortuneActiveTypedObjectToolbarItemEnabled(
   FortuneSheet sheet,
   FortuneSheetObjectKey key,
-  String command,
-  {bool allowEdit = true,}
-) {
+  String command, {
+  bool allowEdit = true,
+}) {
   if (!allowEdit) return false;
   final objects = fortuneSheetObjectsInPaintOrder(sheet);
   final index = objects.indexWhere((object) => object.key == key);
@@ -44509,12 +44509,82 @@ bool fortuneActiveTypedObjectToolbarItemEnabled(
   };
 }
 
+bool fortuneSelectedObjectCommandEnabled(
+  FortuneSheet sheet,
+  Set<FortuneSheetObjectKey> selectedKeys,
+  String command, {
+  bool allowEdit = true,
+}) {
+  if (!allowEdit || selectedKeys.isEmpty) return false;
+  final order = fortuneSheetObjectsInPaintOrder(
+    sheet,
+  ).reversed.map((object) => object.key).toList(growable: false);
+  final selected = selectedKeys.intersection(order.toSet());
+  if (selected.isEmpty) return false;
+  if (command == fortuneContextDeleteImageCommand ||
+      command == fortuneContextDuplicateImageCommand) {
+    return true;
+  }
+  if (!fortuneImageLayerPanelActionCommands.contains(command)) return false;
+  final moving = order.where(selected.contains).toList(growable: false);
+  final remaining = order.where((key) => !selected.contains(key)).toList();
+  final projected = switch (command) {
+    fortuneContextBringToFrontCommand => <FortuneSheetObjectKey>[
+      ...moving,
+      ...remaining,
+    ],
+    fortuneContextSendToBackCommand => <FortuneSheetObjectKey>[
+      ...remaining,
+      ...moving,
+    ],
+    fortuneContextBringForwardCommand => _fortuneMoveSelectedOneStep(
+      order,
+      selected,
+      front: true,
+    ),
+    fortuneContextSendBackwardCommand => _fortuneMoveSelectedOneStep(
+      order,
+      selected,
+      front: false,
+    ),
+    _ => order,
+  };
+  return order.length != projected.length ||
+      order.asMap().entries.any((entry) => entry.value != projected[entry.key]);
+}
+
+List<FortuneSheetObjectKey> _fortuneMoveSelectedOneStep(
+  List<FortuneSheetObjectKey> order,
+  Set<FortuneSheetObjectKey> selected, {
+  required bool front,
+}) {
+  final projected = [...order];
+  if (front) {
+    for (var index = 1; index < projected.length; index += 1) {
+      if (selected.contains(projected[index]) &&
+          !selected.contains(projected[index - 1])) {
+        final item = projected.removeAt(index);
+        projected.insert(index - 1, item);
+      }
+    }
+  } else {
+    for (var index = projected.length - 2; index >= 0; index -= 1) {
+      if (selected.contains(projected[index]) &&
+          !selected.contains(projected[index + 1])) {
+        final item = projected.removeAt(index);
+        projected.insert(index + 1, item);
+      }
+    }
+  }
+  return projected;
+}
+
 bool fortuneActiveImageToolbarItemEnabled(
   List<FortuneImage> images,
   String? activeImageId,
-  String command,
-  {bool allowEdit = true,}
-) {
+  String command, {
+  bool allowEdit = true,
+}) {
   if (!allowEdit && command != fortuneContextToggleLayerPanelCommand) {
     return false;
   }
@@ -44910,10 +44980,7 @@ void fortuneDrawShapeObject(
   final strokePadding = shape.kind == FortuneShapeKind.rectangle
       ? strokeWidth / math.sqrt2
       : strokeWidth / 2;
-  if (!_rectsIntersectInclusively(
-    rotatedBounds.inflate(strokePadding),
-    clip,
-  )) {
+  if (!_rectsIntersectInclusively(rotatedBounds.inflate(strokePadding), clip)) {
     return;
   }
   canvas.save();
@@ -77610,12 +77677,14 @@ class FortuneSheetPainter extends CustomPainter {
         command,
         fortuneImageLayerPanelActionGlyph(command),
         top,
-        enabled: fortuneImageLayerPanelActionEnabled(
-          workbook.activeSheet.images,
-          activeImageId,
-          command,
-          selectedImageIds: selectedImageIds,
-        ),
+        enabled:
+            workbook.settings.allowEdit &&
+            fortuneImageLayerPanelActionEnabled(
+              workbook.activeSheet.images,
+              activeImageId,
+              command,
+              selectedImageIds: selectedImageIds,
+            ),
       );
     }
     final scrollOffset = fortuneImageLayerPanelClampScrollOffset(

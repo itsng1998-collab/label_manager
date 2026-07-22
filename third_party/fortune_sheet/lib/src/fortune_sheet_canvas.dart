@@ -1294,6 +1294,17 @@ class FortuneSheetController extends ChangeNotifier {
       _state?._workbook.settings.allowEdit == true &&
       !barcodePropertyRenderPending;
 
+  bool isSelectedObjectCommandEnabled(String command) {
+    final state = _state;
+    if (state == null || barcodePropertyRenderPending) return false;
+    return fortuneSelectedObjectCommandEnabled(
+      state._workbook.activeSheet,
+      _objectSelection.selectedKeys,
+      command,
+      allowEdit: state._workbook.settings.allowEdit,
+    );
+  }
+
   void focusCanvas() {
     if (_disposed) return;
     _state?._focusNode.requestFocus();
@@ -1359,6 +1370,11 @@ class FortuneSheetController extends ChangeNotifier {
     return finalizeActiveObjectPropertyDraft();
   }
 
+  bool _prepareObjectMutationCommand() {
+    if (!objectMutationEnabled) return false;
+    return finalizeActiveObjectPropertyDraft();
+  }
+
   void _clearActivePropertyDraft({required bool notify}) {
     _activePropertyDraftOwner = null;
     _activePropertyDraftKey = null;
@@ -1389,12 +1405,12 @@ class FortuneSheetController extends ChangeNotifier {
   }
 
   void deleteSelectedObjects() {
-    if (!_prepareCanonicalCommand()) return;
+    if (!_prepareObjectMutationCommand()) return;
     _state?._deleteSelectedObjectsFromController();
   }
 
   void duplicateSelectedObjects() {
-    if (!_prepareCanonicalCommand()) return;
+    if (!_prepareObjectMutationCommand()) return;
     _state?._duplicateSelectedObjectsFromController();
   }
 
@@ -1403,12 +1419,12 @@ class FortuneSheetController extends ChangeNotifier {
   }
 
   Future<bool> cutSelectedObjects() async {
-    if (!_prepareCanonicalCommand()) return false;
+    if (!_prepareObjectMutationCommand()) return false;
     return await _state?._copySelectedObjectsToClipboard(cut: true) ?? false;
   }
 
   Future<bool> pasteObjects() async {
-    if (!_prepareCanonicalCommand()) return false;
+    if (!_prepareObjectMutationCommand()) return false;
     return await _state?._pasteObjectsFromClipboard() ?? false;
   }
 
@@ -1590,22 +1606,22 @@ class FortuneSheetController extends ChangeNotifier {
       false;
 
   void bringSelectedObjectsToFront() {
-    if (!_prepareCanonicalCommand()) return;
+    if (!_prepareObjectMutationCommand()) return;
     _state?._moveSelectedObjectsToBoundary(front: true);
   }
 
   void bringSelectedObjectsForward() {
-    if (!_prepareCanonicalCommand()) return;
+    if (!_prepareObjectMutationCommand()) return;
     _state?._moveSelectedObjectsOneStep(front: true);
   }
 
   void sendSelectedObjectsBackward() {
-    if (!_prepareCanonicalCommand()) return;
+    if (!_prepareObjectMutationCommand()) return;
     _state?._moveSelectedObjectsOneStep(front: false);
   }
 
   void sendSelectedObjectsToBack() {
-    if (!_prepareCanonicalCommand()) return;
+    if (!_prepareObjectMutationCommand()) return;
     _state?._moveSelectedObjectsToBoundary(front: false);
   }
 
@@ -1613,7 +1629,7 @@ class FortuneSheetController extends ChangeNotifier {
     FortuneSheetObjectKey target,
     FortuneObjectDropSide side,
   ) {
-    if (!_prepareCanonicalCommand()) return;
+    if (!_prepareObjectMutationCommand()) return;
     _state?._reorderSelectedObjects(target, side);
   }
 
@@ -4375,6 +4391,16 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   @override
   void didUpdateWidget(covariant FortuneSheetCanvas oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.objectPanelPresentation !=
+            FortuneObjectPanelPresentation.dock &&
+        widget.objectPanelPresentation == FortuneObjectPanelPresentation.dock) {
+      _imageLayerPanelOpen = false;
+      _imageLayerPanelScrollOffset = 0;
+      _cancelImageLayerPanelScrollbarDrag();
+      _cancelImageLayerPanelRowDrag();
+      _imageLayerPanelHoveredActionCommand = null;
+      _imageLayerPanelTooltipPosition = null;
+    }
     final controllerChanged = oldWidget.controller != widget.controller;
     if (controllerChanged) {
       widget.controller?._validateAttach(this);
@@ -7860,12 +7886,13 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     if (layerPanelCommand != null) {
       _commitEditing();
       _commitSheetRename();
-      if (!fortuneImageLayerPanelActionEnabled(
-        _workbook.activeSheet.images,
-        _activeImageId,
-        layerPanelCommand,
-        selectedImageIds: _selectedImageIds,
-      )) {
+      if (!_workbook.settings.allowEdit ||
+          !fortuneImageLayerPanelActionEnabled(
+            _workbook.activeSheet.images,
+            _activeImageId,
+            layerPanelCommand,
+            selectedImageIds: _selectedImageIds,
+          )) {
         setState(() {
           contextMenuAt = null;
           _contextMenuImageId = null;
@@ -29264,7 +29291,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   }
 
   bool _handleImageLayerPanelCommandKeyEvent(KeyEvent event) {
-    if (!_isImageLayerPanelCommandKeyEvent(event)) {
+    if (!_isImageLayerPanelCommandKeyEvent(event) ||
+        !_workbook.settings.allowEdit) {
       return false;
     }
     switch (event.logicalKey) {
@@ -29999,10 +30027,16 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     sheets[_workbook.activeSheetIndex] = sheet.copyWith(images: images);
     setState(() {
       _workbook = _workbook.copyWith(sheets: sheets);
-      _activeImageId = nextActiveImageId;
-      _selectedImageIds = nextActiveImageId == null
-          ? <String>{}
-          : <String>{nextActiveImageId};
+      final nextKey = nextActiveImageId == null
+          ? null
+          : FortuneSheetObjectKey(
+              fortuneImageObjectKind(_imageById(nextActiveImageId)!),
+              nextActiveImageId,
+            );
+      _applyExactObjectSelection(
+        nextKey == null ? <FortuneSheetObjectKey>{} : {nextKey},
+        nextKey,
+      );
       _cancelImageResize();
       _cancelImageMove();
       _cancelImageLayerPanelScrollbarDrag();
@@ -34781,10 +34815,11 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       return <String>{
         ...readOnlyObjectCommands,
         for (final command in fortuneImageLayerPanelActionCommands)
-          if (!fortuneActiveTypedObjectToolbarItemEnabled(
+          if (!fortuneSelectedObjectCommandEnabled(
             _workbook.activeSheet,
-            objectKey,
+            _objectSelectionSnapshot(attached: true).selectedKeys,
             command,
+            allowEdit: _workbook.settings.allowEdit,
           ))
             command,
         ...?_workbook.settings.contextMenuDisabledItemsBuilder?.call(),
@@ -35548,6 +35583,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     String command, {
     bool keepLayerPanelOpen = false,
   }) {
+    if (!_workbook.settings.allowEdit) return;
     final imageId = _contextMenuImageId ?? _activeImageId;
     final sheet = _workbook.activeSheet;
     final ordered = fortuneImagesInPaintOrder(sheet.images);
@@ -49388,12 +49424,14 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
                 hoveredRowHeaderIndex: _hoveredRowHeaderIndex,
                 activeImageId:
                     widget.objectPanelPresentation ==
-                        FortuneObjectPanelPresentation.overlay
+                            FortuneObjectPanelPresentation.overlay ||
+                        _selectedObjectKeys.length != 1
                     ? null
                     : _activeImageId,
                 activeObjectKey:
                     widget.objectPanelPresentation ==
-                        FortuneObjectPanelPresentation.overlay
+                            FortuneObjectPanelPresentation.overlay ||
+                        _selectedObjectKeys.length != 1
                     ? null
                     : _activeObjectKey,
                 objectGestureDraftKey: _typedObjectMoveKey,
@@ -49406,7 +49444,11 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
                     _activeImageToolbarHoveredCommand,
                 activeImageToolbarTooltipPosition:
                     _activeImageToolbarTooltipPosition,
-                imageLayerPanelOpen: _imageLayerPanelOpen,
+                imageLayerPanelOpen:
+                    widget.objectPanelPresentation ==
+                        FortuneObjectPanelPresentation.dock
+                    ? false
+                    : _imageLayerPanelOpen,
                 imageLayerPanelScrollOffset: _imageLayerPanelScrollOffset,
                 imageLayerPanelDraggingImageId: _imageLayerPanelRowDragging
                     ? _imageLayerPanelRowDragImageId

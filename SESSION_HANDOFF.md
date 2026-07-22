@@ -1,3 +1,13 @@
+### 완료 (2026-07-22): 선·도형 지시서 6차 재감사 권장안 수정
+- legacy image layer panel의 pointer/keyboard/final move와 typed object public/private mutation 경계에 `allowEdit` 최종 guard를 적용했다. selection/copy/조회는 읽기 전용에서도 유지하며 Undo/Redo 일반 준비 경계와 object mutation 권한 경계를 분리했다.
+- narrow overlay 일반 열기는 layer list에 focus intent를 전달하고 열기 직전 외부 focus를 저장한다. 명시적 닫기에서 이전 focus를 복원하며 property field 요청은 중간 layer focus 없이 exact field로 이동한다. hidden/close/dispose generation은 예약된 post-frame property focus를 무효화한다.
+- controller의 selected-set layer command enablement를 실제 front-to-back reorder projection과 동일한 helper로 통합했다. context menu와 package panel이 active key가 아니라 선택 묶음 전체의 실제 이동 가능 여부를 표시한다.
+- 다중 선택에서는 active floating toolbar paint/hit-test를 억제한다. dock presentation 진입 시 legacy floating layer panel과 scroll/drag/hover transient를 닫아 painter, pointer, hover, keyboard routing을 함께 비활성화한다.
+- legacy image layer panel 삭제 후 fallback selection을 공통 exact object selection 경계로 갱신해 통합 selected key와 legacy active image가 원자적으로 일치하도록 보정했다.
+- 직접 회귀를 추가했다: 다중 toolbar 억제, selected-set layer enablement, narrow layer focus/이전 focus 복원, close 전 property focus 취소, read-only legacy layer mutation no-op, dock legacy panel 종료.
+- 검증: vendor object/barcode/Hybrid suite 107건, root toolbar suite 129건 통과. root와 `third_party/fortune_sheet`의 `flutter analyze` 모두 issues 0이다.
+- 사용자 변경 `lib/core/app.dart`와 `third_party/*/build/` 생성물은 수정·stage·commit에서 제외한다.
+
 ### 완료 (2026-07-22): 선·도형 지시서 5차 재감사 수정
 - image/barcode secondary-click을 typed object context 경로로 통합해 mixed selection의 duplicate/delete/layer command, draft finalize, `allowEdit` 권한과 exact active/anchor 처리를 line/shape와 동일하게 적용했다. 통합 과정에서 드러난 typed context layer boundary 누락도 공통 paint-order enablement helper로 보완했다.
 - canvas Arrow/Shift+Arrow가 active image/barcode geometry를 1px/10px 이동하고 top을 0으로 제한하며 실제 변화에만 undo transaction을 만든다.

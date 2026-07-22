@@ -16,6 +16,8 @@ class FortuneObjectLayerPanel extends StatefulWidget {
     this.imageObjectIds = const <String>[],
     this.barcodeObjectIds = const <String>[],
     this.onClose,
+    this.presentation = FortuneObjectPanelPresentation.hidden,
+    this.layerFocusGeneration = 0,
     this.propertyFocusField,
     this.propertyFocusSheetId,
     this.propertyFocusObjectKey,
@@ -28,6 +30,8 @@ class FortuneObjectLayerPanel extends StatefulWidget {
   final List<String> imageObjectIds;
   final List<String> barcodeObjectIds;
   final VoidCallback? onClose;
+  final FortuneObjectPanelPresentation presentation;
+  final int layerFocusGeneration;
   final String? propertyFocusField;
   final String? propertyFocusSheetId;
   final FortuneSheetObjectKey? propertyFocusObjectKey;
@@ -47,6 +51,30 @@ class _FortuneObjectLayerPanelState extends State<FortuneObjectLayerPanel> {
   String? _sheetId;
   FortuneSheetObjectKey? _dropTargetKey;
   FortuneObjectDropSide? _dropSide;
+  int _consumedLayerFocusGeneration = 0;
+
+  @override
+  void didUpdateWidget(covariant FortuneObjectLayerPanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _scheduleLayerFocus();
+  }
+
+  void _scheduleLayerFocus() {
+    final generation = widget.layerFocusGeneration;
+    if (generation <= _consumedLayerFocusGeneration ||
+        widget.presentation == FortuneObjectPanelPresentation.hidden) {
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted ||
+          widget.layerFocusGeneration != generation ||
+          widget.presentation == FortuneObjectPanelPresentation.hidden) {
+        return;
+      }
+      _consumedLayerFocusGeneration = generation;
+      _layerFocusNode.requestFocus();
+    });
+  }
 
   @override
   void dispose() {
@@ -139,7 +167,10 @@ class _FortuneObjectLayerPanelState extends State<FortuneObjectLayerPanel> {
                       child: _PanelAction(
                         tooltip: '맨 앞으로',
                         icon: Icons.vertical_align_top,
-                        onPressed: snapshot.activeKey == null || !canMutate
+                        onPressed:
+                            !widget.controller.isSelectedObjectCommandEnabled(
+                              fortuneContextBringToFrontCommand,
+                            )
                             ? null
                             : widget.controller.bringSelectedObjectsToFront,
                       ),
@@ -148,7 +179,10 @@ class _FortuneObjectLayerPanelState extends State<FortuneObjectLayerPanel> {
                       child: _PanelAction(
                         tooltip: '앞으로',
                         icon: Icons.keyboard_arrow_up,
-                        onPressed: snapshot.activeKey == null || !canMutate
+                        onPressed:
+                            !widget.controller.isSelectedObjectCommandEnabled(
+                              fortuneContextBringForwardCommand,
+                            )
                             ? null
                             : widget.controller.bringSelectedObjectsForward,
                       ),
@@ -157,7 +191,10 @@ class _FortuneObjectLayerPanelState extends State<FortuneObjectLayerPanel> {
                       child: _PanelAction(
                         tooltip: '뒤로',
                         icon: Icons.keyboard_arrow_down,
-                        onPressed: snapshot.activeKey == null || !canMutate
+                        onPressed:
+                            !widget.controller.isSelectedObjectCommandEnabled(
+                              fortuneContextSendBackwardCommand,
+                            )
                             ? null
                             : widget.controller.sendSelectedObjectsBackward,
                       ),
@@ -166,7 +203,10 @@ class _FortuneObjectLayerPanelState extends State<FortuneObjectLayerPanel> {
                       child: _PanelAction(
                         tooltip: '맨 뒤로',
                         icon: Icons.vertical_align_bottom,
-                        onPressed: snapshot.activeKey == null || !canMutate
+                        onPressed:
+                            !widget.controller.isSelectedObjectCommandEnabled(
+                              fortuneContextSendToBackCommand,
+                            )
                             ? null
                             : widget.controller.sendSelectedObjectsToBack,
                       ),
@@ -267,13 +307,13 @@ class _FortuneObjectLayerPanelState extends State<FortuneObjectLayerPanel> {
                             barcodeObjectOptions: widget.barcodeObjectOptions,
                             imageObjectIds: widget.imageObjectIds,
                             barcodeObjectIds: widget.barcodeObjectIds,
+                            presentation: widget.presentation,
                             propertyFocusField: widget.propertyFocusField,
-                            propertyFocusSheetId:
-                              widget.propertyFocusSheetId,
+                            propertyFocusSheetId: widget.propertyFocusSheetId,
                             propertyFocusObjectKey:
-                              widget.propertyFocusObjectKey,
+                                widget.propertyFocusObjectKey,
                             propertyFocusGeneration:
-                              widget.propertyFocusGeneration,
+                                widget.propertyFocusGeneration,
                           ),
                         ),
                 ),
@@ -565,6 +605,7 @@ class _ObjectPropertyEditor extends StatefulWidget {
     required this.barcodeObjectOptions,
     required this.imageObjectIds,
     required this.barcodeObjectIds,
+    required this.presentation,
     required this.propertyFocusField,
     required this.propertyFocusSheetId,
     required this.propertyFocusObjectKey,
@@ -578,6 +619,7 @@ class _ObjectPropertyEditor extends StatefulWidget {
   final List<FortuneObjectConnectionOption> barcodeObjectOptions;
   final List<String> imageObjectIds;
   final List<String> barcodeObjectIds;
+  final FortuneObjectPanelPresentation presentation;
   final String? propertyFocusField;
   final String? propertyFocusSheetId;
   final FortuneSheetObjectKey? propertyFocusObjectKey;
@@ -604,6 +646,7 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
   String? _error;
   bool _draftFinalized = false;
   int _consumedFocusGeneration = 0;
+  int _scheduledFocusGeneration = 0;
 
   @override
   void initState() {
@@ -658,19 +701,31 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
   void _schedulePropertyFocus() {
     final field = widget.propertyFocusField;
     final generation = widget.propertyFocusGeneration;
-    if (field == null || generation <= _consumedFocusGeneration) return;
-    _consumedFocusGeneration = generation;
+    if (field == null ||
+        generation <= _consumedFocusGeneration ||
+        generation == _scheduledFocusGeneration ||
+        widget.presentation == FortuneObjectPanelPresentation.hidden) {
+      return;
+    }
+    _scheduledFocusGeneration = generation;
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scheduledFocusGeneration == generation) {
+        _scheduledFocusGeneration = 0;
+      }
       if (!mounted ||
           widget.propertyFocusGeneration != generation ||
+          widget.presentation == FortuneObjectPanelPresentation.hidden ||
           widget.snapshot.sheetId != widget.propertyFocusSheetId ||
           widget.snapshot.activeKey != widget.propertyFocusObjectKey) {
         return;
       }
-      _fieldFocusNodes.putIfAbsent(
-        field,
-        () => FocusNode(debugLabel: 'Fortune object property $field'),
-      ).requestFocus();
+      _consumedFocusGeneration = generation;
+      _fieldFocusNodes
+          .putIfAbsent(
+            field,
+            () => FocusNode(debugLabel: 'Fortune object property $field'),
+          )
+          .requestFocus();
     });
   }
 
@@ -1168,8 +1223,8 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
           OutlinedButton.icon(
             key: const ValueKey('fortune-object-property-replace-file'),
             onPressed: _imagePickerPending || !canMutate
-              ? null
-              : _replaceImageFile,
+                ? null
+                : _replaceImageFile,
             icon: _imagePickerPending
                 ? const SizedBox.square(
                     dimension: 16,
@@ -1340,9 +1395,9 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
       ),
       decoration: InputDecoration(labelText: label, suffixText: suffix),
       style: const TextStyle(fontSize: 13),
-        readOnly: !widget.controller.objectMutationEnabled,
+      readOnly: !widget.controller.objectMutationEnabled,
       onChanged: onChanged,
-        onSubmitted: widget.controller.objectMutationEnabled
+      onSubmitted: widget.controller.objectMutationEnabled
           ? (_) => _apply()
           : null,
     );
@@ -1433,10 +1488,7 @@ class _ReadOnlyProperty extends StatelessWidget {
             ),
           ),
           Expanded(
-            child: SelectableText(
-              value,
-              style: const TextStyle(fontSize: 13),
-            ),
+            child: SelectableText(value, style: const TextStyle(fontSize: 13)),
           ),
         ],
       ),

@@ -1665,6 +1665,105 @@ void main() {
     );
   });
 
+  testWidgets('read-only image layer panel cannot move an image', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    const settings = FortuneSettings(allowEdit: false);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SizedBox(
+          width: 900,
+          height: 700,
+          child: FortuneSheetCanvas(
+            workbook: FortuneWorkbook(
+              settings: settings,
+              sheets: [
+                FortuneSheet(
+                  id: 's1',
+                  name: 'Sheet1',
+                  images: const [
+                    FortuneImage(
+                      id: 'front',
+                      src: 'image',
+                      left: 0,
+                      top: 0,
+                      width: 50,
+                      height: 50,
+                      extraFields: {fortuneSheetObjectZOrderExtraKey: 2},
+                    ),
+                    FortuneImage(
+                      id: 'back',
+                      src: 'image',
+                      left: 80,
+                      top: 0,
+                      width: 50,
+                      height: 50,
+                      extraFields: {fortuneSheetObjectZOrderExtraKey: 1},
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    FortuneSheetPainter painter() => tester
+        .widgetList<CustomPaint>(find.byType(CustomPaint))
+        .map((paint) => paint.painter)
+        .whereType<FortuneSheetPainter>()
+        .single;
+    final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
+    final imageRect = Rect.fromLTWH(
+      settings.rowHeaderWidth,
+      settings.effectiveToolbarHeight +
+          settings.effectiveFormulaBarHeight +
+          settings.columnHeaderHeight,
+      50,
+      50,
+    );
+    await tester.tapAt(topLeft + imageRect.center);
+    await tester.pump();
+    final image = painter().workbook.activeSheet.images.first;
+    final toggleRect = fortuneActiveImageToolbarItemRect(
+      imageRect,
+      const Size(900, 700),
+      fortuneContextToggleLayerPanelCommand,
+      fortuneActiveImageToolbarItems(image),
+    )!;
+    await tester.tapAt(topLeft + toggleRect.center);
+    await tester.pump();
+    final panelTop =
+        settings.effectiveToolbarHeight +
+        settings.effectiveFormulaBarHeight +
+        settings.columnHeaderHeight +
+        fortuneImageLayerPanelMargin;
+    final moveRect = fortuneImageLayerPanelActionRect(
+      const Size(900, 700),
+      2,
+      fortuneContextSendBackwardCommand,
+      top: panelTop,
+    )!;
+    await tester.tapAt(topLeft + moveRect.center);
+    await tester.pump();
+
+    expect(
+      painter()
+          .workbook
+          .activeSheet
+          .images
+          .first
+          .extraFields[fortuneSheetObjectZOrderExtraKey],
+      2,
+    );
+  });
+
   testWidgets('image layer panel action moves selected rows as a group', (
     tester,
   ) async {
