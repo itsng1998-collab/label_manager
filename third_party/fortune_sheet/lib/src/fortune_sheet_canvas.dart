@@ -35,6 +35,8 @@ Widget _fortuneEditableTextContextMenuBuilder(
 
 enum FortuneObjectDropSide { before, after }
 
+enum FortunePropertyDraftProjection { invalid, noChange, change }
+
 const Object _fortuneUnspecifiedObjectProperty = Object();
 final RegExp _fortuneObjectColorPattern = RegExp(r'^#[0-9A-Fa-f]{6}$');
 
@@ -1249,6 +1251,7 @@ class FortuneSheetController extends ChangeNotifier {
   FortuneSheetObjectKey? _activePropertyDraftKey;
   bool Function()? _finalizeActivePropertyDraft;
   VoidCallback? _discardActivePropertyDraft;
+  FortunePropertyDraftProjection Function()? _projectActivePropertyDraft;
   FortuneObjectSelectionSnapshot _objectSelection =
       FortuneObjectSelectionSnapshot(attached: false);
 
@@ -1256,8 +1259,21 @@ class FortuneSheetController extends ChangeNotifier {
   FortuneObjectSelectionSnapshot get objectSelection => _objectSelection;
   FortuneSheetObjectKey? get activePropertyDraftKey => _activePropertyDraftKey;
   bool get hasActiveObjectPropertyDraft => _activePropertyDraftOwner != null;
+    FortunePropertyDraftProjection get activePropertyDraftProjection =>
+      _projectActivePropertyDraft?.call() ??
+      FortunePropertyDraftProjection.noChange;
   bool get barcodePropertyRenderPending =>
       _state?._panelBarcodeRequestTokens.isNotEmpty ?? false;
+    bool get projectedCanonicalChange =>
+      !barcodePropertyRenderPending &&
+      activePropertyDraftProjection == FortunePropertyDraftProjection.change;
+    bool get projectedCanUndo =>
+      !barcodePropertyRenderPending &&
+      (projectedCanonicalChange || (_state?._undoStack.isNotEmpty ?? false));
+    bool get projectedCanRedo =>
+      !barcodePropertyRenderPending &&
+      !projectedCanonicalChange &&
+      (_state?._redoStack.isNotEmpty ?? false);
   bool get objectMutationEnabled =>
       _state?._workbook.settings.allowEdit == true &&
       !barcodePropertyRenderPending;
@@ -1274,13 +1290,14 @@ class FortuneSheetController extends ChangeNotifier {
     required FortuneSheetObjectKey key,
     required bool Function() finalize,
     required VoidCallback discard,
+    required FortunePropertyDraftProjection Function() project,
   }) {
-    final changed = _activePropertyDraftOwner != owner;
     _activePropertyDraftOwner = owner;
     _activePropertyDraftKey = key;
     _finalizeActivePropertyDraft = finalize;
     _discardActivePropertyDraft = discard;
-    if (changed) notifyListeners();
+    _projectActivePropertyDraft = project;
+    notifyListeners();
   }
 
   void unregisterActiveObjectPropertyDraft(Object owner) {
@@ -1311,6 +1328,7 @@ class FortuneSheetController extends ChangeNotifier {
     _activePropertyDraftKey = null;
     _finalizeActivePropertyDraft = null;
     _discardActivePropertyDraft = null;
+    _projectActivePropertyDraft = null;
     if (notify) notifyListeners();
   }
 
@@ -1372,6 +1390,25 @@ class FortuneSheetController extends ChangeNotifier {
       connectionId: connectionId,
     );
   }
+
+  bool wouldUpdateSelectedImage({
+    double? left,
+    double? top,
+    double? width,
+    double? height,
+    double? rotationDegrees,
+    Object? connectionId = _fortuneUnspecifiedObjectProperty,
+  }) =>
+      _state?._updateSelectedImageFromController(
+        left: left,
+        top: top,
+        width: width,
+        height: height,
+        rotationDegrees: rotationDegrees,
+        connectionId: connectionId,
+        commit: false,
+      ) ??
+      false;
 
   Future<bool> replaceSelectedImageFile() async {
     return await _state?._replaceSelectedImageFileFromController() ?? false;
@@ -1437,6 +1474,27 @@ class FortuneSheetController extends ChangeNotifier {
     );
   }
 
+  bool wouldUpdateSelectedLine({
+    double? x1,
+    double? y1,
+    double? x2,
+    double? y2,
+    FortuneStrokeStyle? strokeStyle,
+    double? strokeWidthMm,
+    String? strokeColor,
+  }) =>
+      _state?._updateSelectedLineFromController(
+        x1: x1,
+        y1: y1,
+        x2: x2,
+        y2: y2,
+        strokeStyle: strokeStyle,
+        strokeWidthMm: strokeWidthMm,
+        strokeColor: strokeColor,
+        commit: false,
+      ) ??
+      false;
+
   void updateSelectedShape({
     double? left,
     double? top,
@@ -1463,6 +1521,33 @@ class FortuneSheetController extends ChangeNotifier {
       cornerRadiusMm: cornerRadiusMm,
     );
   }
+
+  bool wouldUpdateSelectedShape({
+    double? left,
+    double? top,
+    double? width,
+    double? height,
+    double? rotationDegrees,
+    FortuneStrokeStyle? strokeStyle,
+    double? strokeWidthMm,
+    String? strokeColor,
+    Object? fillColor = _fortuneUnspecifiedObjectProperty,
+    double? cornerRadiusMm,
+  }) =>
+      _state?._updateSelectedShapeFromController(
+        left: left,
+        top: top,
+        width: width,
+        height: height,
+        rotationDegrees: rotationDegrees,
+        strokeStyle: strokeStyle,
+        strokeWidthMm: strokeWidthMm,
+        strokeColor: strokeColor,
+        fillColor: fillColor,
+        cornerRadiusMm: cornerRadiusMm,
+        commit: false,
+      ) ??
+      false;
 
   void bringSelectedObjectsToFront() {
     if (!_prepareCanonicalCommand()) return;
@@ -14852,12 +14937,19 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     return fortuneToolbarEditCommands.contains(key);
   }
 
+  bool _prepareActivePropertyCommand() {
+    if (_panelBarcodeRequestTokens.isNotEmpty) return false;
+    return widget.controller?.finalizeActiveObjectPropertyDraft() ?? true;
+  }
+
   void _activateToolbarEditCommand(String key, {bool isDoubleClick = false}) {
     switch (key) {
       case fortuneToolbarUndoCommand:
+        if (!_prepareActivePropertyCommand()) return;
         _undoWorkbookChange();
         break;
       case fortuneToolbarRedoCommand:
+        if (!_prepareActivePropertyCommand()) return;
         _redoWorkbookChange();
         break;
       case fortuneToolbarFormatPainterCommand:
@@ -15541,6 +15633,11 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   }
 
   void _activateToolbarImmediateCommand(String key) {
+    if (key != fortuneToolbarObjectPanelCommand &&
+        key != fortuneToolbarSearchCommand &&
+        !_prepareActivePropertyCommand()) {
+      return;
+    }
     switch (key) {
       case fortuneToolbarCurrencyFormatCommand:
       case fortuneToolbarPercentageFormatCommand:
@@ -27129,7 +27226,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     return index >= 0 && _sameSnapshotShape(sheet.shapes[index], shape);
   }
 
-  void _updateSelectedLineFromController({
+  bool _updateSelectedLineFromController({
     double? x1,
     double? y1,
     double? x2,
@@ -27137,17 +27234,18 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     FortuneStrokeStyle? strokeStyle,
     double? strokeWidthMm,
     String? strokeColor,
+    bool commit = true,
   }) {
     final key = _objectSelectionSnapshot(attached: true).activeKey;
     if (!_workbook.settings.allowEdit ||
         key == null ||
         key.kind != FortuneSheetObjectKind.line) {
-      return;
+      return false;
     }
     final sheet = _workbook.activeSheet;
     final sourceIndex = sheet.lines.indexWhere((line) => line.id == key.id);
     if (sourceIndex < 0) {
-      return;
+      return false;
     }
     final source = sheet.lines[sourceIndex];
     final nextX1 = x1 ?? source.x1;
@@ -27167,7 +27265,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         nextWidth > 10 ||
         !_fortuneObjectColorPattern.hasMatch(nextColor) ||
         nextX1 == nextX2 && nextY1 == nextY2) {
-      return;
+      return false;
     }
     final next = source.copyWith(
       x1: nextX1,
@@ -27179,8 +27277,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       strokeColor: nextColor.toUpperCase(),
     );
     if (_sameFortuneLineProperty(source, next)) {
-      return;
+      return false;
     }
+    if (!commit) return true;
     final lines = [...sheet.lines]..[sourceIndex] = next;
     final sheets = [..._workbook.sheets];
     _recordUndoSnapshot();
@@ -27189,29 +27288,31 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       _workbook = _workbook.copyWith(sheets: sheets);
       _closeTransientMenus();
     });
+    return true;
   }
 
-  void _updateSelectedImageFromController({
+  bool _updateSelectedImageFromController({
     double? left,
     double? top,
     double? width,
     double? height,
     double? rotationDegrees,
     Object? connectionId = _fortuneUnspecifiedObjectProperty,
+    bool commit = true,
   }) {
     final key = _objectSelectionSnapshot(attached: true).activeKey;
     if (!_workbook.settings.allowEdit ||
         key == null ||
         key.kind != FortuneSheetObjectKind.image &&
             key.kind != FortuneSheetObjectKind.barcode) {
-      return;
+      return false;
     }
     final sheet = _workbook.activeSheet;
     final sourceIndex = sheet.images.indexWhere((image) {
       return image.id == key.id && fortuneImageObjectKind(image) == key.kind;
     });
     if (sourceIndex < 0) {
-      return;
+      return false;
     }
     final source = sheet.images[sourceIndex];
     final nextLeft = left ?? source.left;
@@ -27235,7 +27336,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         nextHeight <= 0 ||
         nextWidth * zoom < 3 ||
         nextHeight * zoom < 3) {
-      return;
+      return false;
     }
     final extraFields = <String, Object?>{
       ...source.extraFields,
@@ -27268,8 +27369,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       extraFields: extraFields,
     );
     if (_sameSnapshotImage(source, next)) {
-      return;
+      return false;
     }
+    if (!commit) return true;
     final images = [...sheet.images]..[sourceIndex] = next;
     final sheets = [..._workbook.sheets];
     _recordUndoSnapshot();
@@ -27278,6 +27380,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       _workbook = _workbook.copyWith(sheets: sheets);
       _closeTransientMenus();
     });
+    return true;
   }
 
   Future<bool> _replaceSelectedImageFileFromController() async {
@@ -27530,7 +27633,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     return result;
   }
 
-  void _updateSelectedShapeFromController({
+  bool _updateSelectedShapeFromController({
     double? left,
     double? top,
     double? width,
@@ -27541,6 +27644,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     String? strokeColor,
     Object? fillColor = _fortuneUnspecifiedObjectProperty,
     double? cornerRadiusMm,
+    bool commit = true,
   }) {
     final key = _objectSelectionSnapshot(attached: true).activeKey;
     if (!_workbook.settings.allowEdit ||
@@ -27548,7 +27652,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         key.kind == FortuneSheetObjectKind.line ||
         key.kind == FortuneSheetObjectKind.image ||
         key.kind == FortuneSheetObjectKind.barcode) {
-      return;
+      return false;
     }
     final sheet = _workbook.activeSheet;
     final sourceIndex = sheet.shapes.indexWhere(
@@ -27556,7 +27660,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
           shape.id == key.id && fortuneShapeObjectKind(shape) == key.kind,
     );
     if (sourceIndex < 0) {
-      return;
+      return false;
     }
     final source = sheet.shapes[sourceIndex];
     final nextLeft = left ?? source.left;
@@ -27596,7 +27700,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
             !_fortuneObjectColorPattern.hasMatch(nextFillColor) ||
         nextRadius < 0 ||
         nextRadius > 50) {
-      return;
+      return false;
     }
     final next = source.copyWith(
       left: nextLeft,
@@ -27613,8 +27717,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
           : 0.0,
     );
     if (_sameFortuneShapeProperty(source, next)) {
-      return;
+      return false;
     }
+    if (!commit) return true;
     final shapes = [...sheet.shapes]..[sourceIndex] = next;
     final sheets = [..._workbook.sheets];
     _recordUndoSnapshot();
@@ -27623,6 +27728,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       _workbook = _workbook.copyWith(sheets: sheets);
       _closeTransientMenus();
     });
+    return true;
   }
 
   void _deleteSelectedObjectsFromController() {
@@ -36637,14 +36743,17 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     if (isShortcutPressed &&
         HardwareKeyboard.instance.isShiftPressed &&
         event.logicalKey == LogicalKeyboardKey.keyZ) {
+      if (!_prepareActivePropertyCommand()) return;
       _redoWorkbookChange();
       return;
     }
     if (isShortcutPressed && event.logicalKey == LogicalKeyboardKey.keyZ) {
+      if (!_prepareActivePropertyCommand()) return;
       _undoWorkbookChange();
       return;
     }
     if (isShortcutPressed && event.logicalKey == LogicalKeyboardKey.keyY) {
+      if (!_prepareActivePropertyCommand()) return;
       _redoWorkbookChange();
       return;
     }

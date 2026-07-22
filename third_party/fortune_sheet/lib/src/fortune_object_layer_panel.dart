@@ -537,6 +537,7 @@ class _ObjectPropertyEditor extends StatefulWidget {
 class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
   final Object _draftOwner = Object();
   final Map<String, TextEditingController> _fields = {};
+  final Map<String, String> _initialFieldText = {};
   FortuneStrokeStyle _strokeStyle = FortuneStrokeStyle.solid;
   bool _noFill = false;
   bool _imageAspectLocked = true;
@@ -579,7 +580,111 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
       key: widget.snapshot.activeKey!,
       finalize: () => _apply(forCommand: true),
       discard: _discardPropertyDraft,
+      project: _projectPropertyDraft,
     );
+  }
+
+  FortunePropertyDraftProjection _projectPropertyDraft() {
+    if (_fieldsMatchInitialText()) {
+      return FortunePropertyDraftProjection.noChange;
+    }
+    final image = widget.snapshot.activeImage;
+    final line = widget.snapshot.activeLine;
+    final shape = widget.snapshot.activeShape;
+    if (image != null) {
+      final left = _number('left', geometry: true);
+      final top = _number('top', geometry: true);
+      var width = _number('width', geometry: true);
+      var height = _number('height', geometry: true);
+      final rotation = _number('rotation');
+      if ([left, top, width, height, rotation].contains(null)) {
+        return FortunePropertyDraftProjection.invalid;
+      }
+      final aspectRatio = _imageAspectRatio;
+      if (_imageAspectLocked && aspectRatio != null) {
+        if (_lastImageSizeField == 'width') {
+          height = width! / aspectRatio;
+        } else if (_lastImageSizeField == 'height') {
+          width = height! * aspectRatio;
+        }
+      }
+      final connectionId = _fields['connectionId']?.text.trim() ?? '';
+      if (widget.snapshot.activeKey!.kind == FortuneSheetObjectKind.barcode) {
+        return FortunePropertyDraftProjection.invalid;
+      }
+      if (connectionId.isEmpty &&
+          image.extraFields[fortuneImageObjectIdExtraKey]
+                  ?.toString()
+                  .trim()
+                  .isNotEmpty ==
+              true) {
+        return FortunePropertyDraftProjection.invalid;
+      }
+      return widget.controller.wouldUpdateSelectedImage(
+            left: left,
+            top: top,
+            width: width,
+            height: height,
+            rotationDegrees: rotation,
+            connectionId: connectionId,
+          )
+          ? FortunePropertyDraftProjection.change
+          : FortunePropertyDraftProjection.noChange;
+    }
+
+    final strokeWidth = _number('strokeWidth');
+    final strokeColor = _fields['strokeColor']?.text.trim();
+    if (strokeWidth == null || strokeColor == null) {
+      return FortunePropertyDraftProjection.invalid;
+    }
+    if (line != null) {
+      final x1 = _number('x1', geometry: true);
+      final y1 = _number('y1', geometry: true);
+      final x2 = _number('x2', geometry: true);
+      final y2 = _number('y2', geometry: true);
+      if ([x1, y1, x2, y2].contains(null)) {
+        return FortunePropertyDraftProjection.invalid;
+      }
+      return widget.controller.wouldUpdateSelectedLine(
+            x1: x1,
+            y1: y1,
+            x2: x2,
+            y2: y2,
+            strokeStyle: _strokeStyle,
+            strokeWidthMm: strokeWidth,
+            strokeColor: strokeColor,
+          )
+          ? FortunePropertyDraftProjection.change
+          : FortunePropertyDraftProjection.noChange;
+    }
+    if (shape != null) {
+      final left = _number('left', geometry: true);
+      final top = _number('top', geometry: true);
+      final width = _number('width', geometry: true);
+      final height = _number('height', geometry: true);
+      final rotation = _number('rotation');
+      final radius = shape.kind == FortuneShapeKind.roundedRectangle
+          ? _number('cornerRadius')
+          : 0.0;
+      if ([left, top, width, height, rotation, radius].contains(null)) {
+        return FortunePropertyDraftProjection.invalid;
+      }
+      return widget.controller.wouldUpdateSelectedShape(
+            left: left,
+            top: top,
+            width: width,
+            height: height,
+            rotationDegrees: rotation,
+            strokeStyle: _strokeStyle,
+            strokeWidthMm: strokeWidth,
+            strokeColor: strokeColor,
+            fillColor: _noFill ? null : _fields['fillColor']?.text.trim(),
+            cornerRadiusMm: radius,
+          )
+          ? FortunePropertyDraftProjection.change
+          : FortunePropertyDraftProjection.noChange;
+    }
+    return FortunePropertyDraftProjection.invalid;
   }
 
   void _completePropertyDraft() {
@@ -594,6 +699,7 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
       controller.dispose();
     }
     _fields.clear();
+    _initialFieldText.clear();
     _initializeFields();
     _installFieldListeners();
     if (mounted) setState(() => _error = null);
@@ -667,10 +773,14 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
   }
 
   void _setField(String name, Object value) {
-    _fields[name] = TextEditingController(
-      text: value is double ? _formatNumber(value) : '$value',
-    );
+    final text = value is double ? _formatNumber(value) : '$value';
+    _initialFieldText[name] = text;
+    _fields[name] = TextEditingController(text: text);
   }
+
+  bool _fieldsMatchInitialText() => _fields.entries.every(
+    (entry) => _initialFieldText[entry.key] == entry.value.text,
+  );
 
   double? _number(String name, {bool geometry = false}) {
     final value = double.tryParse(_fields[name]?.text.trim() ?? '');
@@ -684,6 +794,10 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
 
   bool _apply({bool forCommand = false}) {
     if (_draftFinalized && !forCommand) return false;
+    if (_fieldsMatchInitialText()) {
+      _completePropertyDraft();
+      return true;
+    }
     final image = widget.snapshot.activeImage;
     final line = widget.snapshot.activeLine;
     final shape = widget.snapshot.activeShape;

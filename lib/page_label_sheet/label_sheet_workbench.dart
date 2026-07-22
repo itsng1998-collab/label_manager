@@ -1899,6 +1899,7 @@ class LabelSheetWorkbench extends StatefulWidget {
     this.onSheetDialogClosed,
     this.printerListProvider,
     this.imageImportController,
+    this.editingLifecycleController,
     this.outputCaptureController,
     this.outputCaptureOwnerToken,
     this.onWorkbookChanged,
@@ -1938,6 +1939,7 @@ class LabelSheetWorkbench extends StatefulWidget {
   final VoidCallback? onSheetDialogClosed;
   final LabelPrinterListProvider? printerListProvider;
   final LabelSheetImageImportController? imageImportController;
+  final LabelSheetEditingLifecycleController? editingLifecycleController;
   final LabelSheetOutputCaptureController? outputCaptureController;
   final Object? outputCaptureOwnerToken;
   final ValueChanged<FortuneWorkbook>? onWorkbookChanged;
@@ -1957,6 +1959,31 @@ class LabelSheetWorkbench extends StatefulWidget {
 }
 
 enum LabelSheetSaveResult { applied, notApplied }
+
+class LabelSheetEditingLifecycleController {
+  _LabelSheetWorkbenchState? _state;
+
+  bool get isAttached => _state != null;
+  bool get barcodePropertyRenderPending =>
+      _state?._controller.barcodePropertyRenderPending ?? false;
+
+  bool prepareForOwnerReplacement() {
+    final state = _state;
+    if (state == null) return true;
+    return state._controller.finalizeActiveObjectPropertyDraft();
+  }
+
+  void _attach(_LabelSheetWorkbenchState state) {
+    if (_state != null && _state != state) {
+      throw StateError('LabelSheetEditingLifecycleController is already attached.');
+    }
+    _state = state;
+  }
+
+  void _detach(_LabelSheetWorkbenchState state) {
+    if (_state == state) _state = null;
+  }
+}
 
 class LabelSheetImageImportController {
   _LabelSheetWorkbenchState? _state;
@@ -2124,6 +2151,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
   FortuneWorkbook? _workbookBeforeLastChange;
   int _zoomPercent = labelSheetDefaultZoomPercent;
   bool _isDirty = false;
+  bool _controllerRebuildScheduled = false;
   bool _rtfSnackBarVisible = false;
   int _rtfSnackBarGeneration = 0;
   bool _rtfImportMarkedDirty = false;
@@ -2189,7 +2217,9 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     contextMenuDisabledItemsBuilder: _labelFileContextMenuDisabledItems,
     onPrint: _handlePrint,
     onDialogVisibilityChanged: _handleFortuneDialogVisibilityChanged,
-    saveEnabled: _isDirty,
+    saveEnabled:
+      (_isDirty || _controller.projectedCanonicalChange) &&
+      !_controller.barcodePropertyRenderPending,
     importImageTooltip: _labelSheetImportImageTooltip(),
     hideToolbar: widget.hideToolbar,
     saveTooltip: _labelSheetSaveTooltip(),
@@ -2345,9 +2375,11 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
   void initState() {
     super.initState();
     _isDirty = widget.initialDirty;
+    _controller.addListener(_handleControllerCommandStateChanged);
     _initializeZoomFromExternalController();
     widget.zoomController?._attach(_setLabelSheetZoomPercent);
     widget.imageImportController?._attach(this);
+    widget.editingLifecycleController?._attach(this);
     widget.outputCaptureController?._attach(
       this,
       widget.outputCaptureOwnerToken ?? this,
@@ -2361,8 +2393,10 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
 
   @override
   void dispose() {
+    _controller.removeListener(_handleControllerCommandStateChanged);
     widget.zoomController?._detach(_setLabelSheetZoomPercent);
     widget.imageImportController?._detach(this);
+    widget.editingLifecycleController?._detach(this);
     widget.outputCaptureController?._detach(this);
     _removeZoomToolbarFloatingOverlay();
     if (_rtfSnackBarVisible) {
@@ -2387,6 +2421,15 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     super.dispose();
   }
 
+  void _handleControllerCommandStateChanged() {
+    if (!mounted || _controllerRebuildScheduled) return;
+    _controllerRebuildScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _controllerRebuildScheduled = false;
+      if (mounted) setState(() {});
+    });
+  }
+
   @override
   void didUpdateWidget(covariant LabelSheetWorkbench oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -2402,6 +2445,11 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     if (oldWidget.imageImportController != widget.imageImportController) {
       oldWidget.imageImportController?._detach(this);
       widget.imageImportController?._attach(this);
+    }
+    if (oldWidget.editingLifecycleController !=
+        widget.editingLifecycleController) {
+      oldWidget.editingLifecycleController?._detach(this);
+      widget.editingLifecycleController?._attach(this);
     }
     if (outputCaptureOwnerChanged) {
       oldWidget.outputCaptureController?._detach(this);

@@ -236,6 +236,9 @@ class _HomePageManagerState extends State<HomePageManager> {
   PreviewFloatingWindow? _commonLabelPreviewWindow;
   final LabelSheetImageImportController _commonLabelImageImportController =
       LabelSheetImageImportController();
+    final LabelSheetEditingLifecycleController
+    _commonLabelEditingLifecycleController =
+      LabelSheetEditingLifecycleController();
   Timer? _rtfPreviewResizeDebounce;
   Timer? _rtfPreviewResizeFinalizeTimer;
   List<Brand> _brands = const <Brand>[];
@@ -830,6 +833,19 @@ class _HomePageManagerState extends State<HomePageManager> {
         ItemManagerDebugLog.event(
           'sessionLoad',
           'blockedByLabelPrint',
+          trace: trace,
+        );
+        return false;
+      }
+
+        if ((forceReload ||
+            labelSize?.labelSizeId != _currentLabelSize?.labelSizeId) &&
+          !_commonLabelEditingLifecycleController
+              .prepareForOwnerReplacement()) {
+        widget.onLabelSizeChanged(_currentLabelSize);
+        ItemManagerDebugLog.event(
+          'sessionLoad',
+          'blockedByLabelSheetRender',
           trace: trace,
         );
         return false;
@@ -2491,6 +2507,8 @@ class _HomePageManagerState extends State<HomePageManager> {
                   onBeforeSheetDialog: _handleCommonLabelSheetDialogOpening,
                   onSheetDialogClosed: _handleCommonLabelSheetDialogClosed,
                   imageImportController: _commonLabelImageImportController,
+                    editingLifecycleController:
+                      _commonLabelEditingLifecycleController,
                   onSheetDirtyChanged: (dirty) {
                     final currentLabelSizeId =
                         _effectiveLabelSize?.labelSizeId;

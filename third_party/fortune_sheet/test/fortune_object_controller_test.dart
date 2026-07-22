@@ -869,6 +869,8 @@ void main() {
     final second = render('SECOND');
     expect(controller.barcodePropertyRenderPending, isTrue);
     expect(controller.objectMutationEnabled, isFalse);
+    expect(controller.projectedCanUndo, isFalse);
+    expect(controller.projectedCanRedo, isFalse);
     expect(mutationEnablement, contains(false));
     controller.updateSelectedImage(top: 99);
     controller.duplicateSelectedObjects();
@@ -1535,13 +1537,26 @@ void main() {
     );
     await tester.enterText(widthField, '75');
     expect(controller.hasActiveObjectPropertyDraft, isTrue);
+    expect(
+      controller.activePropertyDraftProjection,
+      FortunePropertyDraftProjection.change,
+    );
+    expect(controller.projectedCanUndo, isTrue);
+    expect(controller.projectedCanRedo, isFalse);
 
     expect(controller.finalizeActiveObjectPropertyDraft(), isTrue);
     await tester.pump();
     expect(controller.objectSelection.activeShape!.width, 75);
     expect(controller.hasActiveObjectPropertyDraft, isFalse);
+    expect(controller.projectedCanUndo, isTrue);
 
     await tester.enterText(widthField, 'invalid');
+    expect(
+      controller.activePropertyDraftProjection,
+      FortunePropertyDraftProjection.invalid,
+    );
+    expect(controller.projectedCanUndo, isTrue);
+    expect(controller.projectedCanRedo, isFalse);
     expect(controller.finalizeActiveObjectPropertyDraft(), isTrue);
     await tester.pump();
     expect(controller.objectSelection.activeShape!.width, 75);
@@ -1550,6 +1565,16 @@ void main() {
       '75',
     );
     expect(controller.hasActiveObjectPropertyDraft, isFalse);
+
+    controller.handleUndo();
+    await tester.pump();
+    expect(controller.objectSelection.activeShape!.width, 40);
+    expect(controller.projectedCanUndo, isFalse);
+    expect(controller.projectedCanRedo, isTrue);
+
+    await tester.enterText(widthField, '80');
+    expect(controller.projectedCanUndo, isTrue);
+    expect(controller.projectedCanRedo, isFalse);
   });
 
   testWidgets('object layer rows drag selected objects by exact drop side', (

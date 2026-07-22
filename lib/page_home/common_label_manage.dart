@@ -200,6 +200,7 @@ class CommonLabelManage extends StatefulWidget {
   final FutureOr<void> Function()? onBeforeSheetDialog;
   final VoidCallback? onSheetDialogClosed;
   final LabelSheetImageImportController? imageImportController;
+  final LabelSheetEditingLifecycleController? editingLifecycleController;
   final ValueChanged<bool>? onSheetDirtyChanged;
   final VoidCallback? onColumnEditRequested;
   const CommonLabelManage({
@@ -211,6 +212,7 @@ class CommonLabelManage extends StatefulWidget {
     this.onBeforeSheetDialog,
     this.onSheetDialogClosed,
     this.imageImportController,
+    this.editingLifecycleController,
     this.onSheetDirtyChanged,
     this.onColumnEditRequested,
   });
@@ -299,6 +301,8 @@ class _CommonLabelManageState extends State<CommonLabelManage> {
                     onBeforeSheetDialog: widget.onBeforeSheetDialog,
                     onSheetDialogClosed: widget.onSheetDialogClosed,
                     imageImportController: widget.imageImportController,
+                    editingLifecycleController:
+                      widget.editingLifecycleController,
                     onDirtyChanged: widget.onSheetDirtyChanged,
                   ),
                 ),

@@ -2061,6 +2061,130 @@ void main() {
     );
   });
 
+  testWidgets('label sheet save projects active property draft changes', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SizedBox(
+          width: 1100,
+          height: 700,
+          child: LabelSheetWorkbench(
+            initialWorkbook: FortuneWorkbook(
+              sheets: [
+                FortuneSheet(
+                  id: 's1',
+                  name: 'Label',
+                  shapes: const [
+                    FortuneShape(
+                      id: 'shape_1',
+                      kind: FortuneShapeKind.rectangle,
+                      left: 10,
+                      top: 10,
+                      width: 40,
+                      height: 20,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            onSave: (_, _, _) => LabelSheetSaveResult.applied,
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+    await tester.tap(find.text('사각형 shape_1'));
+    await tester.pump();
+
+    final widthField = find.byKey(
+      const ValueKey('fortune-object-property-width'),
+    );
+    final originalText = tester.widget<TextField>(widthField).controller!.text;
+
+    bool saveDisabled() => tester
+        .widget<FortuneSheetApp>(find.byType(FortuneSheetApp))
+        .settings!
+        .customToolbarItems
+        .singleWhere((item) => item.key == labelSheetSaveToolbarCommand)
+        .disabled;
+
+    expect(saveDisabled(), isTrue);
+    await tester.enterText(widthField, '75');
+    await tester.pump();
+    await tester.pump();
+    expect(saveDisabled(), isFalse);
+
+    await tester.enterText(widthField, 'invalid');
+    await tester.pump();
+    await tester.pump();
+    expect(saveDisabled(), isTrue);
+
+    await tester.enterText(widthField, originalText);
+    await tester.pump();
+    await tester.pump();
+    expect(saveDisabled(), isTrue);
+  });
+
+  testWidgets('label sheet owner replacement finalizes property draft', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    final lifecycle = LabelSheetEditingLifecycleController();
+    FortuneWorkbook? changedWorkbook;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SizedBox(
+          width: 1100,
+          height: 700,
+          child: LabelSheetWorkbench(
+            editingLifecycleController: lifecycle,
+            initialWorkbook: FortuneWorkbook(
+              sheets: [
+                FortuneSheet(
+                  id: 's1',
+                  name: 'Label',
+                  shapes: const [
+                    FortuneShape(
+                      id: 'shape_1',
+                      kind: FortuneShapeKind.rectangle,
+                      left: 10,
+                      top: 10,
+                      width: 40,
+                      height: 20,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            onWorkbookChanged: (workbook) => changedWorkbook = workbook,
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+    expect(lifecycle.isAttached, isTrue);
+    await tester.tap(find.text('사각형 shape_1'));
+    await tester.pump();
+    await tester.enterText(
+      find.byKey(const ValueKey('fortune-object-property-width')),
+      '75',
+    );
+
+    expect(lifecycle.prepareForOwnerReplacement(), isTrue);
+    await tester.pump();
+    expect(
+      changedWorkbook!.sheets.single.shapes.single.width,
+      fortuneMillimetersToLogicalPixels(75),
+    );
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    expect(lifecycle.isAttached, isFalse);
+  });
+
   testWidgets('label sheet zoom toolbar placement can move or hide controls', (
     tester,
   ) async {
