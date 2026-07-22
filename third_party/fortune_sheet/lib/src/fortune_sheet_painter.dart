@@ -77561,16 +77561,18 @@ class FortuneSheetPainter extends CustomPainter {
     Size size,
     FortuneSettings settings,
   ) {
-    final imageId = activeImageId;
-    final objectKey = activeObjectKey;
-    if ((imageId == null && objectKey == null) || contextMenuAt != null) {
+    final objectKey = activeObjectKey ?? activeImageKey;
+    if (objectKey == null || contextMenuAt != null) {
       return;
     }
     final sheet = workbook.activeSheet;
-    final image = sheet.images.cast<FortuneImage?>().firstWhere(
-      (image) => image?.id == imageId,
-      orElse: () => null,
-    );
+    final image = objectKey.kind == FortuneSheetObjectKind.image ||
+            objectKey.kind == FortuneSheetObjectKind.barcode
+        ? sheet.images.where((image) {
+            return image.id == objectKey.id &&
+                fortuneImageObjectKind(image) == objectKey.kind;
+          }).firstOrNull
+        : null;
     final zoomRatio = sheet.zoomRatio <= 0 ? 1.0 : sheet.zoomRatio;
     Rect screenRect(Rect logical) => Rect.fromLTWH(
       _sheetDataLeft(settings) + logical.left * zoomRatio - scrollOffset.dx,
@@ -77583,9 +77585,9 @@ class FortuneSheetPainter extends CustomPainter {
       objectRect = screenRect(
         Rect.fromLTWH(image.left, image.top, image.width, image.height),
       );
-    } else if (objectKey?.kind == FortuneSheetObjectKind.line) {
+    } else if (objectKey.kind == FortuneSheetObjectKind.line) {
       final line = sheet.lines
-          .where((item) => item.id == objectKey!.id)
+          .where((item) => item.id == objectKey.id)
           .firstOrNull;
       if (line != null) {
         objectRect = screenRect(
@@ -77597,7 +77599,7 @@ class FortuneSheetPainter extends CustomPainter {
           ),
         );
       }
-    } else if (objectKey != null) {
+    } else {
       final shape = sheet.shapes.where((item) {
         return item.id == objectKey.id &&
             fortuneShapeObjectKind(item) == objectKey.kind;
@@ -77621,8 +77623,8 @@ class FortuneSheetPainter extends CustomPainter {
       return;
     }
     final items = image != null
-        ? fortuneActiveImageToolbarItems(image)
-        : fortuneActiveTypedObjectToolbarItems(objectKey!);
+      ? fortuneActiveImageToolbarItems(image)
+      : fortuneActiveTypedObjectToolbarItems(objectKey);
     final toolbar = fortuneActiveImageToolbarRect(objectRect, size);
     _drawShadowBox(canvas, toolbar, radius: 4, border: const Color(0xffd4d4d4));
     final itemWidth = toolbar.width / items.length;
@@ -77631,13 +77633,13 @@ class FortuneSheetPainter extends CustomPainter {
       final enabled = image != null
           ? fortuneActiveImageToolbarItemEnabled(
               sheet.images,
-              activeImageId,
+              image.id,
               item,
               allowEdit: workbook.settings.allowEdit,
             )
           : fortuneActiveTypedObjectToolbarItemEnabled(
               sheet,
-              objectKey!,
+              objectKey,
               item,
               allowEdit: workbook.settings.allowEdit,
             );

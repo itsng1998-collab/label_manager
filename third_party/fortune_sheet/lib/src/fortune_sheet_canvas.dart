@@ -7955,20 +7955,22 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     if (activeImageToolbarCommand != null) {
       _commitEditing();
       _commitSheetRename();
-      final activeObjectKey = _activeObjectKey;
-      final enabled = activeObjectKey == null
+      final activeKey = _activeObjectKey ?? _activeImageObjectKey;
+      final activeImage = activeKey == null ? null : _imageByKey(activeKey);
+      final enabled = activeImage != null
           ? fortuneActiveImageToolbarItemEnabled(
               _workbook.activeSheet.images,
-              _activeImageId,
+              activeImage.id,
               activeImageToolbarCommand,
               allowEdit: _workbook.settings.allowEdit,
             )
-          : fortuneActiveTypedObjectToolbarItemEnabled(
-              _workbook.activeSheet,
-              activeObjectKey,
-              activeImageToolbarCommand,
-              allowEdit: _workbook.settings.allowEdit,
-            );
+          : activeKey != null &&
+                fortuneActiveTypedObjectToolbarItemEnabled(
+                  _workbook.activeSheet,
+                  activeKey,
+                  activeImageToolbarCommand,
+                  allowEdit: _workbook.settings.allowEdit,
+                );
       if (!enabled) {
         setState(() {
           contextMenuAt = null;
@@ -7977,10 +7979,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         });
         return;
       }
-      _contextMenuObjectKey = activeObjectKey;
-      if (activeObjectKey != null) {
-        _contextMenuImageId = null;
-      }
+      _contextMenuObjectKey = activeKey;
+      _contextMenuImageId = null;
       _activateContextMenuCommand(activeImageToolbarCommand);
       return;
     }
@@ -26708,23 +26708,14 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
             fortuneSheetGridClientPhysicalSize(_workbook.activeSheet) != null,
       );
     }
-    final imageKeys = <FortuneSheetObjectKey>{};
-    FortuneSheetObjectKey? activeImageKey;
-    for (final image in _workbook.activeSheet.images) {
-      if (!_selectedImageIds.contains(image.id) && image.id != _activeImageId) {
-        continue;
-      }
-      final key = FortuneSheetObjectKey(
-        fortuneImageObjectKind(image),
-        image.id,
-      );
-      if (_selectedImageIds.contains(image.id)) {
-        imageKeys.add(key);
-      }
-      if (image.id == _activeImageId) {
-        activeImageKey = key;
-        imageKeys.add(key);
-      }
+    final activeImageKey = _activeImageObjectKey;
+    final imageKeys = _selectedObjectKeys.where((key) {
+      return objectKeys.contains(key) &&
+          (key.kind == FortuneSheetObjectKind.image ||
+              key.kind == FortuneSheetObjectKind.barcode);
+    }).toSet();
+    if (activeImageKey != null) {
+      imageKeys.add(activeImageKey);
     }
     return FortuneObjectSelectionSnapshot(
       attached: attached,
@@ -26746,7 +26737,10 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       return null;
     }
     return _workbook.activeSheet.images
-        .where((image) => image.id == key.id)
+      .where(
+        (image) =>
+          image.id == key.id && fortuneImageObjectKind(image) == key.kind,
+      )
         .firstOrNull
         ?.copyWith();
   }
@@ -27820,12 +27814,14 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     final snapshot = _objectSelectionSnapshot(attached: true);
     final key = snapshot.activeKey;
     final source = snapshot.activeImage;
+    final ownerSheetId = snapshot.sheetId;
     final canonicalRotation = _normalizeObjectRotation(rotationDegrees);
     if (!_workbook.settings.allowEdit ||
         renderer == null ||
         key == null ||
         key.kind != FortuneSheetObjectKind.barcode ||
         source == null ||
+        ownerSheetId == null ||
         text.trim().isEmpty ||
         formatId.trim().isEmpty ||
         ![
@@ -27845,7 +27841,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         humanReadableFontSize <= 0) {
       return FortuneBarcodePropertyRenderOutcome.failure;
     }
-    final ownerSheetId = snapshot.sheetId;
+    final ownerHistoryGeneration = _historyLineageGeneration;
+    final ownerSheetRevision = _sheetCanonicalRevisions[ownerSheetId] ?? 0;
     final token = ++_panelBarcodeRequestSequence;
     final pendingWasEmpty = _panelBarcodeRequestTokens.isEmpty;
     _panelBarcodeRequestTokens[key] = token;
@@ -27895,6 +27892,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     });
     if (!_workbook.settings.allowEdit ||
         sheet.id != ownerSheetId ||
+      _historyLineageGeneration != ownerHistoryGeneration ||
+      (_sheetCanonicalRevisions[ownerSheetId] ?? 0) != ownerSheetRevision ||
         sourceIndex < 0) {
       return _finishPanelBarcodeRequest(
         key,
@@ -28784,11 +28783,20 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
             anchor.kind == FortuneSheetObjectKind.barcode)) {
       return anchor;
     }
-    return _selectedObjectKeys.where((key) {
+    final selectedKey = _selectedObjectKeys.where((key) {
       return key.id == imageId &&
           (key.kind == FortuneSheetObjectKind.image ||
               key.kind == FortuneSheetObjectKind.barcode);
     }).firstOrNull;
+    if (selectedKey != null) {
+      return selectedKey;
+    }
+    final matches = _workbook.activeSheet.images
+        .where((image) => image.id == imageId)
+        .toList(growable: false);
+    return matches.length == 1
+        ? FortuneSheetObjectKey(fortuneImageObjectKind(matches.single), imageId)
+        : null;
   }
 
   Offset? _objectLogicalCenter(FortuneSheetObjectKey key) {
@@ -28822,18 +28830,18 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
             FortuneObjectPanelPresentation.overlay) {
       return null;
     }
-    final imageId = _activeImageId;
-    final image = imageId == null ? null : _imageById(imageId);
+    final imageKey = _activeImageObjectKey;
+    final image = imageKey == null ? null : _imageByKey(imageKey);
     final size = context.size;
     if (size == null) {
       return null;
     }
-    final key = _activeObjectKey;
+    final key = _activeObjectKey ?? imageKey;
     final items = image != null
-        ? fortuneActiveImageToolbarItems(image)
-        : key == null
-        ? const <String>[]
-        : fortuneActiveTypedObjectToolbarItems(key);
+      ? fortuneActiveImageToolbarItems(image)
+      : key == null
+      ? const <String>[]
+      : fortuneActiveTypedObjectToolbarItems(key);
     final objectRect = image != null
         ? _imageRect(image, settings)
         : key == null
@@ -29513,14 +29521,17 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       return;
     }
     final sheet = _workbook.activeSheet;
-    if (cut && !_canEditRange(sheet, _currentSelectionRange(sheet))) {
+    if (cut && !_workbook.settings.allowEdit) {
       setState(_closeTransientMenus);
       return;
     }
-    final selectedIds = _imageLayerPanelActionImageIds();
+    final selectedKeys = _imageLayerPanelActionImageKeys();
     final sources = [
       for (final image in fortuneImagesInPaintOrder(sheet.images))
-        if (selectedIds.contains(image.id)) image,
+        if (selectedKeys.contains(
+          FortuneSheetObjectKey(fortuneImageObjectKind(image), image.id),
+        ))
+          image,
     ];
     if (sources.isEmpty) {
       return;
@@ -29584,7 +29595,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       return;
     }
     final sheet = _workbook.activeSheet;
-    if (!_canEditRange(sheet, _currentSelectionRange(sheet))) {
+    if (!_workbook.settings.allowEdit) {
       setState(_closeTransientMenus);
       return;
     }
@@ -30139,18 +30150,20 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   }
 
   bool _deleteActiveImage() {
-    final activeImageId = _activeImageId;
-    if (activeImageId == null) {
+    final activeImageKey = _activeImageObjectKey;
+    if (activeImageKey == null) {
       return false;
     }
     final sheet = _workbook.activeSheet;
-    if (!_canEditRange(sheet, _currentSelectionRange(sheet))) {
+    if (!_workbook.settings.allowEdit) {
       setState(_closeTransientMenus);
       return true;
     }
     final images = [
       for (final image in sheet.images)
-        if (image.id != activeImageId) image,
+        if (image.id != activeImageKey.id ||
+            fortuneImageObjectKind(image) != activeImageKey.kind)
+          image,
     ];
     if (images.length == sheet.images.length) {
       setState(() {
@@ -30189,16 +30202,19 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       return false;
     }
     final sheet = _workbook.activeSheet;
-    if (!_canEditRange(sheet, _currentSelectionRange(sheet))) {
+    if (!_workbook.settings.allowEdit) {
       setState(_closeTransientMenus);
       return true;
     }
     final items = fortuneImageLayerPanelItems(sheet.images);
     final currentIndex = items.indexWhere((image) => image.id == activeImageId);
-    final selectedIds = _imageLayerPanelActionImageIds();
+    final selectedKeys = _imageLayerPanelActionImageKeys();
     final images = [
       for (final image in sheet.images)
-        if (!selectedIds.contains(image.id)) image,
+        if (!selectedKeys.contains(
+          FortuneSheetObjectKey(fortuneImageObjectKind(image), image.id),
+        ))
+          image,
     ];
     if (images.length == sheet.images.length) {
       return true;
@@ -30242,23 +30258,29 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     return true;
   }
 
-  Set<String> _imageLayerPanelActionImageIds() {
-    final activeImageId = _activeImageId;
-    if (activeImageId == null) {
-      return const <String>{};
+  Set<FortuneSheetObjectKey> _imageLayerPanelActionImageKeys() {
+    final activeKey = _activeImageObjectKey;
+    if (activeKey == null) {
+      return const <FortuneSheetObjectKey>{};
     }
-    final existingIds = {
-      for (final image in _workbook.activeSheet.images) image.id,
+    final existingKeys = {
+      for (final image in _workbook.activeSheet.images)
+        FortuneSheetObjectKey(fortuneImageObjectKind(image), image.id),
     };
-    if (_imageLayerPanelOpen && _selectedImageIds.contains(activeImageId)) {
-      final selectedIds = _selectedImageIds.intersection(existingIds);
-      if (selectedIds.isNotEmpty) {
-        return selectedIds;
+    if (_imageLayerPanelOpen && _selectedImageIds.contains(activeKey.id)) {
+      final panelSelectedKeys = existingKeys.where((key) {
+        if (!_selectedImageIds.contains(key.id)) {
+          return false;
+        }
+        return key.id != activeKey.id || key.kind == activeKey.kind;
+      }).toSet();
+      if (panelSelectedKeys.isNotEmpty) {
+        return panelSelectedKeys;
       }
     }
-    return existingIds.contains(activeImageId)
-        ? <String>{activeImageId}
-        : const <String>{};
+    return existingKeys.contains(activeKey)
+        ? <FortuneSheetObjectKey>{activeKey}
+        : const <FortuneSheetObjectKey>{};
   }
 
   bool _commitImageResize(Offset local) {
@@ -35944,20 +35966,33 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   void _duplicateContextImage({bool keepLayerPanelOpen = false}) {
     final sourceId = _contextMenuImageId ?? _activeImageId;
     final sheet = _workbook.activeSheet;
-    final selectedIds = keepLayerPanelOpen
-        ? _imageLayerPanelActionImageIds()
+    final selectedKeys = keepLayerPanelOpen
+        ? _imageLayerPanelActionImageKeys()
+        : _contextMenuObjectKey != null
+        ? <FortuneSheetObjectKey>{_contextMenuObjectKey!}
         : sourceId == null
-        ? const <String>{}
-        : <String>{sourceId};
+        ? const <FortuneSheetObjectKey>{}
+        : _workbook.activeSheet.images
+              .where((image) => image.id == sourceId)
+              .map(
+                (image) => FortuneSheetObjectKey(
+                  fortuneImageObjectKind(image),
+                  image.id,
+                ),
+              )
+              .toSet();
     final sources = [
       for (final image in fortuneImagesInPaintOrder(sheet.images))
-        if (selectedIds.contains(image.id)) image,
+        if (selectedKeys.contains(
+          FortuneSheetObjectKey(fortuneImageObjectKind(image), image.id),
+        ))
+          image,
     ];
     if (sources.isEmpty) {
       setState(_closeTransientMenus);
       return;
     }
-    if (!_canEditRange(sheet, _currentSelectionRange(sheet))) {
+    if (!_workbook.settings.allowEdit) {
       setState(_closeTransientMenus);
       return;
     }
@@ -37443,6 +37478,10 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         event.logicalKey == LogicalKeyboardKey.backspace;
     if (isDeleteKey && _workbook.settings.limitCellActionsToClipboardAndClear) {
       _clearSelection();
+      return;
+    }
+    if (isDeleteKey && _activeImageObjectKey != null) {
+      _deleteSelectedObjectsFromController();
       return;
     }
     if (isDeleteKey && _deleteActiveTypedObject()) {

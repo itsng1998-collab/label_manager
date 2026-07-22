@@ -29320,7 +29320,7 @@ void main() {
   );
 
   testWidgets(
-    'FortuneSheetApp opens image edit dialog from adjusted sheet image right click',
+    'FortuneSheetApp requests image property panel from adjusted sheet',
     (tester) async {
       tester.view.physicalSize = const Size(1688, 600);
       tester.view.devicePixelRatio = 1;
@@ -29340,6 +29340,7 @@ void main() {
       }
 
       final controller = FortuneSheetController();
+      FortuneObjectPanelOpenRequest? panelRequest;
 
       await tester.pumpWidget(
         _fortuneSheetPublicApiTestHost(
@@ -29349,6 +29350,7 @@ void main() {
             child: FortuneSheetApp(
               controller: controller,
               imagePicker: imagePicker,
+              onOpenObjectPanelRequest: (request) => panelRequest = request,
             ),
           ),
         ),
@@ -29402,9 +29404,13 @@ void main() {
         painter(),
         command: fortuneContextEditImageCommand,
       );
-      expect(painter().imageInsertDialogOpen, isTrue);
-      expect(painter().imageInsertEditing, isTrue);
-      expect(painter().imageInsertUnitLabel, 'mm');
+      expect(panelRequest?.sheetId, painter().workbook.activeSheet.id);
+      expect(
+        panelRequest?.objectKey,
+        FortuneSheetObjectKey(FortuneSheetObjectKind.image, inserted.id),
+      );
+      expect(panelRequest?.propertyField, 'connectionId');
+      expect(painter().imageInsertDialogOpen, isFalse);
     },
   );
 
@@ -29781,6 +29787,79 @@ void main() {
     expect((barcode.left, barcode.top), (260, 90));
   });
 
+  testWidgets(
+    'FortuneSheetApp deletes exact barcode while selected cell is locked',
+    (tester) async {
+    final controller = FortuneSheetController();
+    final workbook = FortuneWorkbook(
+      sheets: [
+        FortuneSheet(
+          id: 'same-id-delete-sheet',
+          name: 'SameIdDelete',
+          cells: {
+            FortuneCellCoord(0, 0): FortuneCell(locked: true),
+          },
+          images: const [
+            FortuneImage(
+              id: 'shared-id',
+              src: 'image.png',
+              left: 20,
+              top: 70,
+              width: 120,
+              height: 80,
+            ),
+            FortuneImage(
+              id: 'shared-id',
+              src: 'barcode.png',
+              left: 220,
+              top: 70,
+              width: 120,
+              height: 80,
+              extraFields: {'fortuneBarcode': true},
+            ),
+          ],
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      _fortuneSheetPublicApiTestHost(
+        SizedBox(
+          width: 800,
+          height: 500,
+          child: FortuneSheetApp(
+            workbook: workbook,
+            controller: controller,
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final painter = _fortuneSheetPainter(tester);
+    final settings = painter.workbook.settings;
+    final canvasTopLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
+    final barcodeCenter = Offset(
+      settings.rowHeaderWidth + 280,
+      settings.effectiveToolbarHeight +
+          settings.effectiveFormulaBarHeight +
+          settings.columnHeaderHeight +
+          110,
+    );
+    await tester.tapAt(canvasTopLeft + barcodeCenter);
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.delete);
+    await tester.pump();
+
+    final images = controller.getSheet(id: 'same-id-delete-sheet')!.images;
+    expect(images, hasLength(1));
+    expect(
+      fortuneImageObjectKind(images.single),
+      FortuneSheetObjectKind.image,
+    );
+    },
+  );
+
   testWidgets('FortuneSheetApp keeps image gesture through canonical echo', (
     tester,
   ) async {
@@ -30009,7 +30088,7 @@ void main() {
     expect(resizedOpposite.dy, closeTo(initialOpposite.dy, 0.01));
   });
 
-  testWidgets('FortuneSheetApp edits selected image from right click dialog', (
+  testWidgets('FortuneSheetApp requests selected image property panel', (
     tester,
   ) async {
     final workbook = FortuneWorkbook(
@@ -30032,12 +30111,16 @@ void main() {
       ],
     );
 
+    FortuneObjectPanelOpenRequest? panelRequest;
     await tester.pumpWidget(
       _fortuneSheetPublicApiTestHost(
         SizedBox(
           width: 800,
           height: 500,
-          child: FortuneSheetApp(workbook: workbook),
+          child: FortuneSheetApp(
+            workbook: workbook,
+            onOpenObjectPanelRequest: (request) => panelRequest = request,
+          ),
         ),
       ),
     );
@@ -30080,63 +30163,16 @@ void main() {
       painter(),
       command: fortuneContextEditImageCommand,
     );
-    expect(painter().imageInsertDialogOpen, isTrue);
-    expect(painter().imageInsertEditing, isTrue);
-    expect(painter().imageInsertHasFile, isFalse);
-
-    final canvasSize = tester.getSize(find.byType(FortuneSheetCanvas));
-    final insertRect = fortuneImageInsertDialogRect(canvasSize);
-    final editRect = fortuneImageInsertDialogRect(canvasSize, editing: true);
-    expect(editRect.height, lessThan(insertRect.height));
+    expect(panelRequest?.sheetId, 'image-edit-sheet');
     expect(
-      fortuneImageInsertWidthInputRect(editRect).top,
-      lessThan(fortuneImageInsertWidthInputRect(insertRect).top),
+      panelRequest?.objectKey,
+      const FortuneSheetObjectKey(
+        FortuneSheetObjectKind.image,
+        'editable-image',
+      ),
     );
-
-    final widthInput = find.byKey(
-      const ValueKey('fortune-image-insert-width-input'),
-    );
-    final heightInput = find.byKey(
-      const ValueKey('fortune-image-insert-height-input'),
-    );
-    final rotationInput = find.byKey(
-      const ValueKey('fortune-image-insert-rotation-input'),
-    );
-    final widthField = find.descendant(
-      of: widthInput,
-      matching: find.byType(EditableText),
-    );
-    final heightField = find.descendant(
-      of: heightInput,
-      matching: find.byType(EditableText),
-    );
-    final rotationField = find.descendant(
-      of: rotationInput,
-      matching: find.byType(EditableText),
-    );
-
-    expect(tester.widget<EditableText>(widthField).controller.text, '120');
-    expect(tester.widget<EditableText>(heightField).controller.text, '80');
-    expect(tester.widget<EditableText>(rotationField).controller.text, '30');
-
-    await tester.enterText(widthField, '150');
-    await tester.enterText(heightField, '90');
-    await tester.enterText(rotationField, '45');
-    await tester.pump();
-    expect(tester.widget<EditableText>(widthField).controller.text, '135');
-    expect(tester.widget<EditableText>(heightField).controller.text, '90');
-    expect(tester.widget<EditableText>(rotationField).controller.text, '45');
-    await tester.tapAt(
-      topLeft + fortuneImageInsertConfirmButtonRect(editRect).center,
-    );
-    await tester.pumpAndSettle();
-
+    expect(panelRequest?.propertyField, 'connectionId');
     expect(painter().imageInsertDialogOpen, isFalse);
-    final edited = painter().workbook.activeSheet.images.single;
-    expect(edited.width, 135);
-    expect(edited.height, 90);
-    expect(edited.extraFields['rotation'], 45);
-    expect(edited.src, 'missing.png');
   });
 
   testWidgets('FortuneSheetApp preserves fallback settings after edits', (

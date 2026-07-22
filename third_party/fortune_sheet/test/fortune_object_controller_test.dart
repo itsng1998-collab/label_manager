@@ -2274,6 +2274,96 @@ void main() {
     expect(controller.projectedCanUndo, isFalse);
   });
 
+  testWidgets('external workbook replacement invalidates barcode render', (
+    tester,
+  ) async {
+    final controller = FortuneSheetController();
+    final render = Completer<FortuneBarcodeRenderResult?>();
+    var workbook = FortuneWorkbook(
+      settings: const FortuneSettings(
+        showToolbar: false,
+        showFormulaBar: false,
+      ),
+      sheets: [
+        FortuneSheet(
+          id: 's1',
+          name: 'Sheet1',
+          images: const [
+            FortuneImage(
+              id: 'barcode_1',
+              src: 'old-src',
+              left: 20,
+              top: 30,
+              width: 80,
+              height: 40,
+              extraFields: {'fortuneBarcode': true, 'barcodeText': 'OLD'},
+            ),
+          ],
+        ),
+      ],
+    );
+    late StateSetter updateHost;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: StatefulBuilder(
+          builder: (context, setState) {
+            updateHost = setState;
+            return FortuneSheetCanvas(
+              workbook: workbook,
+              controller: controller,
+              barcodeRenderer: (_) => render.future,
+            );
+          },
+        ),
+      ),
+    );
+
+    controller.selectObject(
+      const FortuneSheetObjectKey(
+        FortuneSheetObjectKind.barcode,
+        'barcode_1',
+      ),
+    );
+    final pending = controller.renderSelectedBarcode(
+      text: 'NEW',
+      formatId: 'CODE128',
+      left: 20,
+      top: 30,
+      width: 80,
+      height: 40,
+      rotationDegrees: 0,
+      moduleScale: 3,
+      barHeight: 10,
+      leadingText: '',
+      trailingText: '',
+      showHumanReadableText: false,
+      humanReadableFontFamily: null,
+      humanReadableFontSize: 14,
+      connectionId: '',
+      preserveTemplateFormat: false,
+    );
+    expect(controller.barcodePropertyRenderPending, isTrue);
+
+    updateHost(() {
+      workbook = workbook.copyWith(
+        sheets: [workbook.activeSheet.copyWith(name: 'External')],
+      );
+    });
+    await tester.pump();
+    render.complete(
+      FortuneBarcodeRenderResult(bytes: base64Decode(_testPngBase64)),
+    );
+
+    expect(await pending, isFalse);
+    expect(controller.barcodePropertyRenderPending, isFalse);
+    expect(controller.getSheet(id: 's1')!.name, 'External');
+    expect(
+      controller.getSheet(id: 's1')!.images.single.extraFields['barcodeText'],
+      'OLD',
+    );
+    expect(controller.projectedCanUndo, isFalse);
+  });
+
   testWidgets(
     'settings-only allowEdit changes notify command state without onChange',
     (tester) async {

@@ -1,3 +1,11 @@
+### 완료 (2026-07-22): 선·도형 지시서 12차 재감사 권장안 수정
+- image/barcode selection snapshot, property model, active toolbar hit/paint/dispatch, keyboard Delete와 legacy layer-panel action 대상을 `FortuneSheetObjectKey(kind, id)`로 연결했다. 같은 ID의 image와 barcode가 공존해도 선택한 typed 객체만 조회·삭제·복제되며 unique legacy ID만 안전하게 typed key로 복원한다.
+- 객체 cut/paste/delete/duplicate 권한을 현재 cell/range protection에서 분리하고 workbook `allowEdit`만 사용하도록 통일했다. 선택 cell이 locked여도 object mutation은 허용되며 `allowEdit == false`에서는 기존처럼 차단된다.
+- barcode renderer가 요청 시 history-lineage generation과 per-sheet canonical revision을 캡처한다. 같은 sheet/key/source 값을 가진 외부 workbook replacement 뒤 늦은 완료도 stale 처리되어 canonical workbook과 undo history를 변경하지 않는다.
+- image 우클릭 편집 public API 테스트 2건을 현재 object property panel 계약으로 갱신했다. exact sheet ID, typed object key, `connectionId` focus field와 legacy dialog 미표시를 검증해 기존 baseline 실패를 제거했다.
+- 직접 회귀를 추가했다: locked cell 위 same-ID barcode exact Delete, 동일 source 외부 replacement 뒤 barcode ABA 완료 거부. 최종 검증은 public API 144건, object controller 40건, painter 760건, legacy layer panel/barcode 62건, label save/print 6건 모두 통과했다. root와 `third_party/fortune_sheet`의 `flutter analyze` 모두 issues 0이며 `git diff --check` clean이다.
+- 사용자 변경 `lib/core/app.dart`와 `third_party/*/build/` 생성물은 수정·stage·commit에서 제외한다.
+
 ### 완료 (2026-07-22): 선·도형 지시서 11차 재감사 권장안 수정
 - image/barcode gesture의 hit-test, transient draft, replacement와 painter active chrome을 immutable `FortuneSheetObjectKey(kind, id)`로 연결했다. 같은 내부 ID의 image와 barcode가 공존해도 exact 객체만 이동·resize·선택 렌더되며 secondary-click도 공용 typed context 경로를 사용한다.
 - geometry gesture owner를 Dart workbook 객체 identity가 아니라 package-owned history-lineage generation과 sheet ID로 검증한다. canonical JSON이 같은 controlled echo는 진행 중 draft와 transaction을 유지하고 실제 외부 replacement·Undo·Redo는 generation 증가로 stale commit을 차단한다.
