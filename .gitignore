@@ -39,6 +39,7 @@ migrate_working_dir/
 **/ios/Runner/GeneratedPluginRegistrant.h
 **/ios/Runner/GeneratedPluginRegistrant.m
 /build/
+**/build/
 /coverage/
 /installer/
 /version.txt
