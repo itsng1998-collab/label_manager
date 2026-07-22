@@ -2813,6 +2813,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
   }
 
   void _handlePrint() {
+    if (!_controller.finalizeActiveObjectPropertyDraft()) return;
     unawaited(_openPrintSettingsDialog());
   }
 
@@ -3002,6 +3003,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     required double dpi,
     required int? lineSpacingPercent,
   }) async {
+    if (!_controller.finalizeActiveObjectPropertyDraft()) return null;
     final sheet = _controller.getSheet();
     final physicalSize = sheet == null
         ? null
@@ -3038,7 +3040,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     required LabelSheetPrintOptions options,
     required int? lineSpacingPercent,
   }) async {
-    if (_controller.barcodePropertyRenderPending) return null;
+    if (!_controller.finalizeActiveObjectPropertyDraft()) return null;
     final sheet = _controller.getSheet();
     final settings = _controller.settingsSnapshot;
     final physicalSize = sheet == null
@@ -3262,6 +3264,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
 
   Future<void> _handleSave() async {
     fortuneSheetDebugLog('label sheet save toolbar click');
+    if (!_controller.finalizeActiveObjectPropertyDraft()) return;
     final callback = widget.onSave;
     if (callback == null) {
       return;
@@ -3335,6 +3338,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
 
   Future<void> _handleExportLabelFile() async {
     fortuneSheetDebugLog('label sheet export label file context click');
+    if (!_controller.finalizeActiveObjectPropertyDraft()) return;
     if (!_currentLabelFileHasContent()) {
       return;
     }
@@ -3373,6 +3377,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
 
   Future<void> _handleImportLabelFile() async {
     fortuneSheetDebugLog('label sheet import label file context click');
+    if (!_controller.finalizeActiveObjectPropertyDraft()) return;
     debugLog('label sheet import picker open', skipFrames: 1);
     const labelFileGroup = XTypeGroup(
       label: 'Label Manager Sheet / Excel Workbook',
@@ -3454,6 +3459,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     bool updateImportDirectory = true,
     String? successMessage,
   }) async {
+    if (!_controller.finalizeActiveObjectPropertyDraft()) return;
     if (importedWorkbook.sheets.isEmpty) {
       if (!mounted) {
         return;

@@ -1998,6 +1998,69 @@ void main() {
     expect(saveItem.disabled, isTrue);
   });
 
+  testWidgets('label sheet save finalizes the active object property draft', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    String? savedPayload;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SizedBox(
+          width: 1100,
+          height: 700,
+          child: LabelSheetWorkbench(
+            initialDirty: true,
+            initialWorkbook: FortuneWorkbook(
+              sheets: [
+                FortuneSheet(
+                  id: 's1',
+                  name: 'Label',
+                  shapes: const [
+                    FortuneShape(
+                      id: 'shape_1',
+                      kind: FortuneShapeKind.rectangle,
+                      left: 10,
+                      top: 10,
+                      width: 40,
+                      height: 20,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            onSave: (_, _, payload) {
+              savedPayload = payload;
+              return LabelSheetSaveResult.applied;
+            },
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+    await tester.tap(find.text('사각형 shape_1'));
+    await tester.pump();
+    await tester.enterText(
+      find.byKey(const ValueKey('fortune-object-property-width')),
+      '75',
+    );
+    final sheetApp = tester.widget<FortuneSheetApp>(
+      find.byType(FortuneSheetApp),
+    );
+    final saveItem = sheetApp.settings!.customToolbarItems.singleWhere(
+      (item) => item.key == labelSheetSaveToolbarCommand,
+    );
+    saveItem.onClick!(saveItem);
+    await tester.pump();
+    await tester.pump();
+
+    expect(savedPayload, isNotNull);
+    expect(
+      labelSheetDecodeWorkbookSave(savedPayload!).sheets.single.shapes.single.width,
+      fortuneMillimetersToLogicalPixels(75),
+    );
+  });
+
   testWidgets('label sheet zoom toolbar placement can move or hide controls', (
     tester,
   ) async {

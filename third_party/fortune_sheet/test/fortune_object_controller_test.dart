@@ -822,6 +822,7 @@ void main() {
             ),
           ],
         ),
+        FortuneSheet(id: 's2', name: 'Sheet2'),
       ],
     );
     await tester.pumpWidget(
@@ -872,7 +873,15 @@ void main() {
     controller.updateSelectedImage(top: 99);
     controller.duplicateSelectedObjects();
     controller.handleUndo();
+    controller.setCellValue(0, 0, 'blocked');
+    controller.addSheet(id: 's3', name: 'Blocked');
+    controller.activateSheet(id: 's2');
+    controller.setZoomRatio(2);
     expect(controller.objectSelection.activeImage?.top, 30);
+    expect(controller.getSheet(id: 's1')!.cells, isEmpty);
+    expect(controller.getSheet(id: 's3'), isNull);
+    expect(controller.objectSelection.sheetId, 's1');
+    expect(controller.getSheet(id: 's1')!.zoomRatio, 1);
     renders[1].complete(
       FortuneBarcodeRenderResult(bytes: base64Decode(_testPngBase64)),
     );
@@ -1465,6 +1474,82 @@ void main() {
     expect(image.extraFields['rotation'], 45);
     expect(image.extraFields[fortuneImageObjectIdExtraKey], 'NEW');
     expect(image.extraFields['crop'], {'left': 0.1});
+  });
+
+  testWidgets('controller finalizes or discards the active property draft', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 1200);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    final controller = FortuneSheetController();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Row(
+          children: [
+            SizedBox(
+              width: 600,
+              height: 1200,
+              child: FortuneSheetCanvas(
+                workbook: FortuneWorkbook(
+                  settings: const FortuneSettings(
+                    showToolbar: false,
+                    showFormulaBar: false,
+                  ),
+                  sheets: [
+                    FortuneSheet(
+                      id: 's1',
+                      name: 'Sheet1',
+                      shapes: const [
+                        FortuneShape(
+                          id: 'shape_1',
+                          kind: FortuneShapeKind.rectangle,
+                          left: 10,
+                          top: 10,
+                          width: 40,
+                          height: 20,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                controller: controller,
+              ),
+            ),
+            SizedBox(
+              width: 300,
+              height: 1200,
+              child: FortuneObjectLayerPanel(controller: controller),
+            ),
+          ],
+        ),
+      ),
+    );
+    await tester.tap(find.text('사각형 shape_1'));
+    await tester.pump();
+    final widthField = find.byKey(
+      const ValueKey('fortune-object-property-width'),
+    );
+    await tester.enterText(widthField, '75');
+    expect(controller.hasActiveObjectPropertyDraft, isTrue);
+
+    expect(controller.finalizeActiveObjectPropertyDraft(), isTrue);
+    await tester.pump();
+    expect(controller.objectSelection.activeShape!.width, 75);
+    expect(controller.hasActiveObjectPropertyDraft, isFalse);
+
+    await tester.enterText(widthField, 'invalid');
+    expect(controller.finalizeActiveObjectPropertyDraft(), isTrue);
+    await tester.pump();
+    expect(controller.objectSelection.activeShape!.width, 75);
+    expect(
+      tester.widget<TextField>(widthField).controller!.text,
+      '75',
+    );
+    expect(controller.hasActiveObjectPropertyDraft, isFalse);
   });
 
   testWidgets('object layer rows drag selected objects by exact drop side', (

@@ -253,6 +253,9 @@ class _FortuneObjectLayerPanelState extends State<FortuneObjectLayerPanel> {
 
   void _selectRow(FortuneSheetObjectKey key) {
     _layerFocusNode.requestFocus();
+    if (!widget.controller.barcodePropertyRenderPending) {
+      widget.controller.finalizeActiveObjectPropertyDraft();
+    }
     if (HardwareKeyboard.instance.isShiftPressed) {
       widget.controller.selectObjectRange(key);
     } else if (HardwareKeyboard.instance.isControlPressed ||
@@ -532,6 +535,7 @@ class _ObjectPropertyEditor extends StatefulWidget {
 }
 
 class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
+  final Object _draftOwner = Object();
   final Map<String, TextEditingController> _fields = {};
   FortuneStrokeStyle _strokeStyle = FortuneStrokeStyle.solid;
   bool _noFill = false;
@@ -543,19 +547,56 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
   bool _barcodeShowText = false;
   bool _barcodePreserveTemplateFormat = false;
   String? _error;
+  bool _draftFinalized = false;
 
   @override
   void initState() {
     super.initState();
     _initializeFields();
+    _installFieldListeners();
   }
 
   @override
   void dispose() {
+    widget.controller.unregisterActiveObjectPropertyDraft(_draftOwner);
     for (final controller in _fields.values) {
+      controller.removeListener(_markPropertyDraft);
       controller.dispose();
     }
     super.dispose();
+  }
+
+  void _installFieldListeners() {
+    for (final controller in _fields.values) {
+      controller.addListener(_markPropertyDraft);
+    }
+  }
+
+  void _markPropertyDraft() {
+    _draftFinalized = false;
+    widget.controller.registerActiveObjectPropertyDraft(
+      owner: _draftOwner,
+      key: widget.snapshot.activeKey!,
+      finalize: () => _apply(forCommand: true),
+      discard: _discardPropertyDraft,
+    );
+  }
+
+  void _completePropertyDraft() {
+    _draftFinalized = true;
+    widget.controller.unregisterActiveObjectPropertyDraft(_draftOwner);
+  }
+
+  void _discardPropertyDraft() {
+    _draftFinalized = true;
+    for (final controller in _fields.values) {
+      controller.removeListener(_markPropertyDraft);
+      controller.dispose();
+    }
+    _fields.clear();
+    _initializeFields();
+    _installFieldListeners();
+    if (mounted) setState(() => _error = null);
   }
 
   void _initializeFields() {
@@ -641,7 +682,8 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
         : value;
   }
 
-  void _apply() {
+  bool _apply({bool forCommand = false}) {
+    if (_draftFinalized && !forCommand) return false;
     final image = widget.snapshot.activeImage;
     final line = widget.snapshot.activeLine;
     final shape = widget.snapshot.activeShape;
@@ -653,7 +695,7 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
       final rotation = _number('rotation');
       if ([left, top, width, height, rotation].contains(null)) {
         setState(() => _error = '유효한 이미지 값을 입력하세요.');
-        return;
+        return false;
       }
       final aspectRatio = _imageAspectRatio;
       if (_imageAspectLocked && aspectRatio != null) {
@@ -672,7 +714,7 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
                   .isNotEmpty ==
               true) {
         setState(() => _error = '연결을 해제하려면 이미지 파일을 선택하세요.');
-        return;
+        return false;
       }
       if (widget.snapshot.activeKey!.kind == FortuneSheetObjectKind.barcode) {
         final moduleScale = _number('moduleScale');
@@ -686,8 +728,9 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
             text.trim().isEmpty ||
             formatId.trim().isEmpty) {
           setState(() => _error = '바코드 입력값을 확인하세요.');
-          return;
+          return false;
         }
+        if (forCommand) return false;
         _renderBarcode(
           text: text,
           formatId: formatId,
@@ -701,7 +744,8 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
           fontSize: fontSize,
           connectionId: connectionId,
         );
-        return;
+        _completePropertyDraft();
+        return true;
       }
       widget.controller.updateSelectedImage(
         left: left,
@@ -712,13 +756,14 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
         connectionId: connectionId,
       );
       setState(() => _error = null);
-      return;
+      _completePropertyDraft();
+      return true;
     }
     final strokeWidth = _number('strokeWidth');
     final strokeColor = _fields['strokeColor']?.text.trim();
     if (strokeWidth == null || strokeColor == null) {
       setState(() => _error = '유효한 숫자와 색상을 입력하세요.');
-      return;
+      return false;
     }
     if (line != null) {
       final x1 = _number('x1', geometry: true);
@@ -727,7 +772,7 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
       final y2 = _number('y2', geometry: true);
       if ([x1, y1, x2, y2].contains(null)) {
         setState(() => _error = '유효한 좌표를 입력하세요.');
-        return;
+        return false;
       }
       widget.controller.updateSelectedLine(
         x1: x1,
@@ -749,7 +794,7 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
           : 0.0;
       if ([left, top, width, height, rotation, radius].contains(null)) {
         setState(() => _error = '유효한 도형 값을 입력하세요.');
-        return;
+        return false;
       }
       widget.controller.updateSelectedShape(
         left: left,
@@ -765,6 +810,8 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
       );
     }
     setState(() => _error = null);
+    _completePropertyDraft();
+    return true;
   }
 
   Future<void> _renderBarcode({
@@ -909,6 +956,7 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
             value: _barcodeShowText,
             onChanged: (value) {
               setState(() => _barcodeShowText = value ?? false);
+              _markPropertyDraft();
             },
           ),
           _field('텍스트 글꼴', 'fontFamily'),
@@ -925,6 +973,7 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
               setState(() {
                 _barcodePreserveTemplateFormat = value ?? false;
               });
+              _markPropertyDraft();
             },
           ),
         ],
@@ -969,6 +1018,7 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
           onChanged: (value) {
             if (value != null) {
               setState(() => _strokeStyle = value);
+              _markPropertyDraft();
             }
           },
         ),
@@ -984,7 +1034,10 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
           dense: true,
           title: const Text('채우기 없음', style: TextStyle(fontSize: 13)),
           value: _noFill,
-          onChanged: (value) => setState(() => _noFill = value ?? false),
+          onChanged: (value) {
+            setState(() => _noFill = value ?? false);
+            _markPropertyDraft();
+          },
         ),
         if (!_noFill) _field('채우기 색상', 'fillColor'),
         if (shape.kind == FortuneShapeKind.roundedRectangle)

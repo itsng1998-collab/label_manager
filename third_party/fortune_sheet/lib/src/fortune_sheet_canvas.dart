@@ -1245,11 +1245,17 @@ class FortuneObjectSelectionSnapshot {
 class FortuneSheetController extends ChangeNotifier {
   _FortuneSheetCanvasState? _state;
   bool _disposed = false;
+  Object? _activePropertyDraftOwner;
+  FortuneSheetObjectKey? _activePropertyDraftKey;
+  bool Function()? _finalizeActivePropertyDraft;
+  VoidCallback? _discardActivePropertyDraft;
   FortuneObjectSelectionSnapshot _objectSelection =
       FortuneObjectSelectionSnapshot(attached: false);
 
   bool get isAttached => _state != null;
   FortuneObjectSelectionSnapshot get objectSelection => _objectSelection;
+  FortuneSheetObjectKey? get activePropertyDraftKey => _activePropertyDraftKey;
+  bool get hasActiveObjectPropertyDraft => _activePropertyDraftOwner != null;
   bool get barcodePropertyRenderPending =>
       _state?._panelBarcodeRequestTokens.isNotEmpty ?? false;
   bool get objectMutationEnabled =>
@@ -1261,6 +1267,51 @@ class FortuneSheetController extends ChangeNotifier {
     return state != null &&
         key != null &&
         state._panelImagePickerErrorKeys.contains(key);
+  }
+
+  void registerActiveObjectPropertyDraft({
+    required Object owner,
+    required FortuneSheetObjectKey key,
+    required bool Function() finalize,
+    required VoidCallback discard,
+  }) {
+    final changed = _activePropertyDraftOwner != owner;
+    _activePropertyDraftOwner = owner;
+    _activePropertyDraftKey = key;
+    _finalizeActivePropertyDraft = finalize;
+    _discardActivePropertyDraft = discard;
+    if (changed) notifyListeners();
+  }
+
+  void unregisterActiveObjectPropertyDraft(Object owner) {
+    if (_activePropertyDraftOwner != owner) return;
+    _clearActivePropertyDraft(notify: true);
+  }
+
+  bool finalizeActiveObjectPropertyDraft() {
+    if (barcodePropertyRenderPending) return false;
+    final owner = _activePropertyDraftOwner;
+    final finalize = _finalizeActivePropertyDraft;
+    final discard = _discardActivePropertyDraft;
+    if (owner == null || finalize == null || discard == null) return true;
+    _clearActivePropertyDraft(notify: false);
+    final committed = finalize();
+    if (!committed) discard();
+    notifyListeners();
+    return true;
+  }
+
+  bool _prepareCanonicalCommand() {
+    if (barcodePropertyRenderPending) return false;
+    return finalizeActiveObjectPropertyDraft();
+  }
+
+  void _clearActivePropertyDraft({required bool notify}) {
+    _activePropertyDraftOwner = null;
+    _activePropertyDraftKey = null;
+    _finalizeActivePropertyDraft = null;
+    _discardActivePropertyDraft = null;
+    if (notify) notifyListeners();
   }
 
   void selectObject(FortuneSheetObjectKey key) {
@@ -1280,12 +1331,12 @@ class FortuneSheetController extends ChangeNotifier {
   }
 
   void deleteSelectedObjects() {
-    if (barcodePropertyRenderPending) return;
+    if (!_prepareCanonicalCommand()) return;
     _state?._deleteSelectedObjectsFromController();
   }
 
   void duplicateSelectedObjects() {
-    if (barcodePropertyRenderPending) return;
+    if (!_prepareCanonicalCommand()) return;
     _state?._duplicateSelectedObjectsFromController();
   }
 
@@ -1294,12 +1345,12 @@ class FortuneSheetController extends ChangeNotifier {
   }
 
   Future<bool> cutSelectedObjects() async {
-    if (barcodePropertyRenderPending) return false;
+    if (!_prepareCanonicalCommand()) return false;
     return await _state?._copySelectedObjectsToClipboard(cut: true) ?? false;
   }
 
   Future<bool> pasteObjects() async {
-    if (barcodePropertyRenderPending) return false;
+    if (!_prepareCanonicalCommand()) return false;
     return await _state?._pasteObjectsFromClipboard() ?? false;
   }
 
@@ -1414,22 +1465,22 @@ class FortuneSheetController extends ChangeNotifier {
   }
 
   void bringSelectedObjectsToFront() {
-    if (barcodePropertyRenderPending) return;
+    if (!_prepareCanonicalCommand()) return;
     _state?._moveSelectedObjectsToBoundary(front: true);
   }
 
   void bringSelectedObjectsForward() {
-    if (barcodePropertyRenderPending) return;
+    if (!_prepareCanonicalCommand()) return;
     _state?._moveSelectedObjectsOneStep(front: true);
   }
 
   void sendSelectedObjectsBackward() {
-    if (barcodePropertyRenderPending) return;
+    if (!_prepareCanonicalCommand()) return;
     _state?._moveSelectedObjectsOneStep(front: false);
   }
 
   void sendSelectedObjectsToBack() {
-    if (barcodePropertyRenderPending) return;
+    if (!_prepareCanonicalCommand()) return;
     _state?._moveSelectedObjectsToBoundary(front: false);
   }
 
@@ -1437,17 +1488,17 @@ class FortuneSheetController extends ChangeNotifier {
     FortuneSheetObjectKey target,
     FortuneObjectDropSide side,
   ) {
-    if (barcodePropertyRenderPending) return;
+    if (!_prepareCanonicalCommand()) return;
     _state?._reorderSelectedObjects(target, side);
   }
 
   void handleUndo() {
-    if (barcodePropertyRenderPending) return;
+    if (!_prepareCanonicalCommand()) return;
     _state?._undoWorkbookChange();
   }
 
   void handleRedo() {
-    if (barcodePropertyRenderPending) return;
+    if (!_prepareCanonicalCommand()) return;
     _state?._redoWorkbookChange();
   }
 
@@ -1673,10 +1724,12 @@ class FortuneSheetController extends ChangeNotifier {
     String? id,
     int? index,
   }) {
+    if (!_prepareCanonicalCommand()) return;
     _state?._setControllerCellValue(row, column, value, id: id, index: index);
   }
 
   void clearCell(int row, int column, {String? id, int? index}) {
+    if (!_prepareCanonicalCommand()) return;
     _state?._clearControllerCell(row, column, id: id, index: index);
   }
 
@@ -1688,6 +1741,7 @@ class FortuneSheetController extends ChangeNotifier {
     String? id,
     int? index,
   }) {
+    if (!_prepareCanonicalCommand()) return;
     _state?._setControllerCellFormat(
       row,
       column,
@@ -1704,6 +1758,7 @@ class FortuneSheetController extends ChangeNotifier {
     String? id,
     int? index,
   }) {
+    if (!_prepareCanonicalCommand()) return;
     _state?._setControllerCellValuesByRange(data, range, id: id, index: index);
   }
 
@@ -1714,6 +1769,7 @@ class FortuneSheetController extends ChangeNotifier {
     String? id,
     int? index,
   }) {
+    if (!_prepareCanonicalCommand()) return;
     _state?._setControllerCellFormatByRange(
       attr,
       value,
@@ -1736,6 +1792,7 @@ class FortuneSheetController extends ChangeNotifier {
     FortuneRange applyRange,
     String direction,
   ) {
+    if (!_prepareCanonicalCommand()) return null;
     return _state?._autoFillControllerCell(copyRange, applyRange, direction);
   }
 
@@ -1745,6 +1802,7 @@ class FortuneSheetController extends ChangeNotifier {
     String? id,
     int? index,
   }) {
+    if (!_prepareCanonicalCommand()) return;
     _state?._setControllerRowHeight(
       rowInfo,
       custom: custom,
@@ -1759,6 +1817,7 @@ class FortuneSheetController extends ChangeNotifier {
     String? id,
     int? index,
   }) {
+    if (!_prepareCanonicalCommand()) return;
     _state?._setControllerColumnWidth(
       columnInfo,
       custom: custom,
@@ -1768,10 +1827,12 @@ class FortuneSheetController extends ChangeNotifier {
   }
 
   void hideRowOrColumn(Iterable<int> rowColInfo, String type) {
+    if (!_prepareCanonicalCommand()) return;
     _state?._hideControllerRowOrColumn(rowColInfo, type);
   }
 
   void showRowOrColumn(Iterable<int> rowColInfo, String type) {
+    if (!_prepareCanonicalCommand()) return;
     _state?._showControllerRowOrColumn(rowColInfo, type);
   }
 
@@ -1781,10 +1842,12 @@ class FortuneSheetController extends ChangeNotifier {
     String? id,
     int? index,
   }) {
+    if (!_prepareCanonicalCommand()) return;
     _state?._mergeControllerCells(ranges, type, id: id, index: index);
   }
 
   void cancelMerge(Iterable<FortuneRange> ranges, {String? id, int? index}) {
+    if (!_prepareCanonicalCommand()) return;
     _state?._cancelControllerMerge(ranges, id: id, index: index);
   }
 
@@ -1795,6 +1858,7 @@ class FortuneSheetController extends ChangeNotifier {
     String? id,
     int? index,
   }) {
+    if (!_prepareCanonicalCommand()) return;
     _state?._freezeControllerSheet(
       type,
       row: row,
@@ -1812,6 +1876,7 @@ class FortuneSheetController extends ChangeNotifier {
     String? id,
     int? sheetIndex,
   }) {
+    if (!_prepareCanonicalCommand()) return;
     _state?._insertControllerRowOrColumn(
       type,
       index,
@@ -1829,6 +1894,7 @@ class FortuneSheetController extends ChangeNotifier {
     String? id,
     int? sheetIndex,
   }) {
+    if (!_prepareCanonicalCommand()) return;
     _state?._deleteControllerRowOrColumn(
       type,
       start,
@@ -1839,14 +1905,17 @@ class FortuneSheetController extends ChangeNotifier {
   }
 
   void activateSheet({String? id, int? index}) {
+    if (!_prepareCanonicalCommand()) return;
     _state?._activateControllerSheet(id: id, index: index);
   }
 
   void setSheetName(String name, {String? id, int? index}) {
+    if (!_prepareCanonicalCommand()) return;
     _state?._setControllerSheetName(name, id: id, index: index);
   }
 
   void setSheetOrder(Map<String, int> orderList) {
+    if (!_prepareCanonicalCommand()) return;
     _state?._setControllerSheetOrder(orderList);
   }
 
@@ -1857,6 +1926,7 @@ class FortuneSheetController extends ChangeNotifier {
     int? columnCount,
     FortuneSheet? sheet,
   }) {
+    if (!_prepareCanonicalCommand()) return;
     _state?._addControllerSheet(
       id: id,
       name: name,
@@ -1867,10 +1937,12 @@ class FortuneSheetController extends ChangeNotifier {
   }
 
   void deleteSheet({String? id, int? index}) {
+    if (!_prepareCanonicalCommand()) return;
     _state?._deleteControllerSheet(id: id, index: index);
   }
 
   void clearSheet({String? id, int? index, int? rowCount, int? columnCount}) {
+    if (!_prepareCanonicalCommand()) return;
     _state?._clearControllerSheet(
       id: id,
       index: index,
@@ -1885,6 +1957,7 @@ class FortuneSheetController extends ChangeNotifier {
     String? id,
     int? index,
   }) {
+    if (!_prepareCanonicalCommand()) return;
     _state?._resizeControllerSheetGridClientArea(
       widthMm,
       heightMm,
@@ -1894,18 +1967,22 @@ class FortuneSheetController extends ChangeNotifier {
   }
 
   void copySheet({String? id, int? index, String? newSheetId}) {
+    if (!_prepareCanonicalCommand()) return;
     _state?._copyControllerSheet(id: id, index: index, newSheetId: newSheetId);
   }
 
   void hideSheet({String? id, int? index}) {
+    if (!_prepareCanonicalCommand()) return;
     _state?._hideControllerSheet(id: id, index: index);
   }
 
   void showSheet({String? id, int? index}) {
+    if (!_prepareCanonicalCommand()) return;
     _state?._showControllerSheet(id: id, index: index);
   }
 
   void updateSheet(List<FortuneSheet> data) {
+    if (!_prepareCanonicalCommand()) return;
     _state?._updateControllerSheet(data);
   }
 
@@ -1914,14 +1991,17 @@ class FortuneSheetController extends ChangeNotifier {
   }
 
   void setZoomRatio(double zoomRatio, {String? id, int? index}) {
+    if (!_prepareCanonicalCommand()) return;
     _state?._setControllerZoomRatio(zoomRatio, id: id, index: index);
   }
 
   void applyOp(Iterable<FortuneOp> ops) {
+    if (!_prepareCanonicalCommand()) return;
     _state?._applyControllerOps(ops);
   }
 
   void batchCallApis(Iterable<ApiCall> apiCalls) {
+    if (!_prepareCanonicalCommand()) return;
     final state = _state;
     if (state == null) {
       for (final apiCall in apiCalls) {
@@ -2648,6 +2728,7 @@ class FortuneSheetController extends ChangeNotifier {
   void _detach(_FortuneSheetCanvasState state) {
     if (_state == state) {
       _state = null;
+      _clearActivePropertyDraft(notify: false);
       _setObjectSelection(FortuneObjectSelectionSnapshot(attached: false));
     }
   }
