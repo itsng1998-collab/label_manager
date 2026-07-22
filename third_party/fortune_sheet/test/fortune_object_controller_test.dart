@@ -2332,6 +2332,16 @@ void main() {
       await tester.pump();
       expect(workbookChanges, 0);
       expect(controllerNotifications, 1);
+
+      controllerNotifications = 0;
+      updateHost(() {
+        settings = settings.copyWith(
+          allowEdit: true,
+          showSheetTabs: false,
+        );
+      });
+      await tester.pump();
+      expect(workbookChanges, 1);
     },
   );
 

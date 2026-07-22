@@ -1,3 +1,12 @@
+### 완료 (2026-07-22): 선·도형 지시서 10차 재감사 권장안 수정
+- 기존 image/barcode move·resize·rotation을 canonical pointer-move mutation에서 transient image gesture draft로 전환했다. pointer move는 painter draft만 갱신하고 유효한 pointer-up에서 owner workbook/sheet를 재검증한 뒤 undo와 canonical workbook을 각각 한 번만 변경한다. no-op, pointer cancel, 외부 replacement와 `allowEdit` 하강은 commit 없이 draft를 폐기한다.
+- 회전 image/barcode resize는 시작·현재 pointer를 객체 중심 기준 역회전해 local 축 delta를 계산하고, 크기 변화의 local center shift를 다시 world 좌표로 회전해 opposite anchor를 고정한다. 기존 X=0 clamp를 제거해 음수 left를 허용하고 top만 0 이상으로 유지한다.
+- settings-only permission 판정은 incoming settings 전체가 아니라 `allowEdit` 하나만 canonical 비교에서 제외한다. 순수 `allowEdit` 전환은 기존 callback 0회/controller notification 1회를 유지하고, 같은 host update에 다른 settings 변경이 포함되면 canonical `onChange`를 유지한다.
+- 직접 회귀를 추가했다: rotation drag 중 canonical/undo 불변과 pointer-up commit, 90도 `rm` resize의 local width/opposite anchor, image resize의 음수 left, `allowEdit`와 다른 settings 동시 변경 callback.
+- 검증: 신규 focused 4건, object controller 전체 39건, painter 전체 760건 통과. root와 `third_party/fortune_sheet`의 `flutter analyze` 모두 issues 0이다.
+- public API 전체는 137건 통과/2건 실패다. 실패한 기존 image right-click dialog 테스트 2건은 HEAD에서도 context edit가 object property panel request로 이전된 현재 계약과 불일치하는 stale expectation이며 이번 변경 경로와 무관하다.
+- 사용자 변경 `lib/core/app.dart`와 `third_party/*/build/` 생성물은 수정·stage·commit에서 제외한다.
+
 ### 완료 (2026-07-22): 선·도형 지시서 9차 재감사 권장안 수정
 - 회전된 image/barcode selection handle 중심을 객체 중심 회전 좌표로 변환해 painter 표시와 hover/pointer-down hit-test를 일치시켰다. 이미 90도 회전된 rotation handle에서 후속 drag가 정상 시작된다.
 - barcode panel renderer 내부 결과를 `success/failure/stale`로 구분했다. public bool API 호환은 유지하며 실제 실패만 exact-key draft/error를 저장하고 permission/token 무효화 stale 완료는 local/keyed 상태를 바꾸지 않는다.

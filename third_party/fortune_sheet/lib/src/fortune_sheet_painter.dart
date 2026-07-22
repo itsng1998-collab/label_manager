@@ -62596,6 +62596,7 @@ class FortuneSheetPainter extends CustomPainter {
     this.objectGestureDraftKey,
     this.objectGestureLineDraft,
     this.objectGestureShapeDraft,
+    this.objectGestureImageDraft,
     this.lineInsertionDraft,
     this.shapeInsertionDraft,
     this.selectedImageIds = const <String>{},
@@ -62822,6 +62823,7 @@ class FortuneSheetPainter extends CustomPainter {
   final FortuneSheetObjectKey? objectGestureDraftKey;
   final FortuneLine? objectGestureLineDraft;
   final FortuneShape? objectGestureShapeDraft;
+  final FortuneImage? objectGestureImageDraft;
   final FortuneLine? lineInsertionDraft;
   final FortuneShape? shapeInsertionDraft;
   final Set<String> selectedImageIds;
@@ -77215,7 +77217,10 @@ class FortuneSheetPainter extends CustomPainter {
         _drawFortuneShape(canvas, shape, clip, settings, zoomRatio);
         continue;
       }
-      final image = sheet.images[object.sourceIndex];
+        final canonicalImage = sheet.images[object.sourceIndex];
+        final image = canonicalImage.id == objectGestureImageDraft?.id
+          ? objectGestureImageDraft!
+          : canonicalImage;
       final rect = Rect.fromLTWH(
         _sheetDataLeft(settings) + image.left * zoomRatio - scrollOffset.dx,
         _sheetDataTop(settings) + image.top * zoomRatio - scrollOffset.dy,
@@ -78651,6 +78656,7 @@ class FortuneSheetPainter extends CustomPainter {
         oldDelegate.hoveredColumnHeaderIndex != hoveredColumnHeaderIndex ||
         oldDelegate.hoveredRowHeaderIndex != hoveredRowHeaderIndex ||
         oldDelegate.activeImageId != activeImageId ||
+        oldDelegate.objectGestureImageDraft != objectGestureImageDraft ||
         oldDelegate.activeImageToolbarHoveredCommand !=
             activeImageToolbarHoveredCommand ||
         oldDelegate.activeImageToolbarTooltipPosition !=

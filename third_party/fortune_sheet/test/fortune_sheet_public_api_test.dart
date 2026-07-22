@@ -29444,6 +29444,7 @@ void main() {
   testWidgets('FortuneSheetApp rotates selected image from rotation handle', (
     tester,
   ) async {
+    final controller = FortuneSheetController();
     final workbook = FortuneWorkbook(
       sheets: [
         FortuneSheet(
@@ -29468,7 +29469,10 @@ void main() {
         SizedBox(
           width: 800,
           height: 500,
-          child: FortuneSheetApp(workbook: workbook),
+          child: FortuneSheetApp(
+            workbook: workbook,
+            controller: controller,
+          ),
         ),
       ),
     );
@@ -29506,6 +29510,14 @@ void main() {
     );
     await rotationGesture.moveTo(topLeft + rightOfCenter);
     await tester.pump();
+    expect(
+      controller.getSheet(id: 'image-rotation-sheet')!
+          .images
+          .single
+          .extraFields['rotation'],
+      isNull,
+    );
+    expect(controller.projectedCanUndo, isFalse);
     await rotationGesture.up();
     await tester.pump();
 
@@ -29535,6 +29547,161 @@ void main() {
       painter().workbook.activeSheet.images.single.extraFields['rotation'],
       closeTo(180, 0.5),
     );
+  });
+
+  testWidgets('FortuneSheetApp resizes rotated image on its local axis', (
+    tester,
+  ) async {
+    final controller = FortuneSheetController();
+    final workbook = FortuneWorkbook(
+      sheets: [
+        FortuneSheet(
+          id: 'rotated-image-resize-sheet',
+          name: 'RotatedImageResize',
+          images: const [
+            FortuneImage(
+              id: 'rotated-image',
+              src: 'missing.png',
+              left: 80,
+              top: 70,
+              width: 120,
+              height: 80,
+              extraFields: {'rotation': 90},
+            ),
+          ],
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      _fortuneSheetPublicApiTestHost(
+        SizedBox(
+          width: 800,
+          height: 500,
+          child: FortuneSheetApp(
+            workbook: workbook,
+            controller: controller,
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    FortuneSheetPainter painter() => _fortuneSheetPainter(tester);
+    final settings = painter().workbook.settings;
+    final image = painter().workbook.activeSheet.images.single;
+    final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
+    final imageRect = ui.Rect.fromLTWH(
+      settings.rowHeaderWidth + image.left,
+      settings.effectiveToolbarHeight +
+          settings.effectiveFormulaBarHeight +
+          settings.columnHeaderHeight +
+          image.top,
+      image.width,
+      image.height,
+    );
+    await tester.tapAt(topLeft + imageRect.center);
+    await tester.pump();
+
+    final localRightHandle = Offset(imageRect.right + 5, imageRect.center.dy);
+    final rotatedRightHandle = fortuneRotatePositionAround(
+      localRightHandle,
+      imageRect.center,
+      90,
+    );
+    final gesture = await tester.startGesture(
+      topLeft + rotatedRightHandle,
+      kind: ui.PointerDeviceKind.mouse,
+    );
+    await gesture.moveBy(const Offset(0, 40));
+    await tester.pump();
+    expect(
+      controller.getSheet(id: 'rotated-image-resize-sheet')!.images.single.width,
+      120,
+    );
+    expect(controller.projectedCanUndo, isFalse);
+    await gesture.up();
+    await tester.pump();
+
+    final resized = controller
+        .getSheet(id: 'rotated-image-resize-sheet')!
+        .images
+        .single;
+    expect(resized.left, closeTo(60, 0.5));
+    expect(resized.top, closeTo(90, 0.5));
+    expect(resized.width, closeTo(160, 0.5));
+    expect(resized.height, 80);
+    expect(controller.projectedCanUndo, isTrue);
+  });
+
+  testWidgets('FortuneSheetApp allows negative image left while resizing', (
+    tester,
+  ) async {
+    final controller = FortuneSheetController();
+    final workbook = FortuneWorkbook(
+      sheets: [
+        FortuneSheet(
+          id: 'negative-image-left-sheet',
+          name: 'NegativeImageLeft',
+          images: const [
+            FortuneImage(
+              id: 'negative-left-image',
+              src: 'missing.png',
+              left: 20,
+              top: 70,
+              width: 120,
+              height: 80,
+            ),
+          ],
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      _fortuneSheetPublicApiTestHost(
+        SizedBox(
+          width: 800,
+          height: 500,
+          child: FortuneSheetApp(
+            workbook: workbook,
+            controller: controller,
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final painter = _fortuneSheetPainter(tester);
+    final settings = painter.workbook.settings;
+    final image = painter.workbook.activeSheet.images.single;
+    final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
+    final imageRect = ui.Rect.fromLTWH(
+      settings.rowHeaderWidth + image.left,
+      settings.effectiveToolbarHeight +
+          settings.effectiveFormulaBarHeight +
+          settings.columnHeaderHeight +
+          image.top,
+      image.width,
+      image.height,
+    );
+    await tester.tapAt(topLeft + imageRect.center);
+    await tester.pump();
+
+    final leftHandle = Offset(imageRect.left - 5, imageRect.center.dy);
+    final gesture = await tester.startGesture(
+      topLeft + leftHandle,
+      kind: ui.PointerDeviceKind.mouse,
+    );
+    await gesture.moveBy(const Offset(-60, 0));
+    await gesture.up();
+    await tester.pump();
+
+    final resized = controller
+        .getSheet(id: 'negative-image-left-sheet')!
+        .images
+        .single;
+    expect(resized.left, closeTo(-40, 0.5));
+    expect(resized.width, closeTo(180, 0.5));
   });
 
   testWidgets('FortuneSheetApp edits selected image from right click dialog', (
