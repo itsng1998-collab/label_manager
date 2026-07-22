@@ -1577,6 +1577,113 @@ void main() {
     expect(controller.projectedCanRedo, isFalse);
   });
 
+  testWidgets('property Escape discards draft and ignores delayed submit', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 1200);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    final controller = FortuneSheetController();
+    var changeCount = 0;
+    var opCount = 0;
+    final listenerStates = <String>[];
+    controller.addListener(() {
+      listenerStates.add(
+        '${controller.hasActiveObjectPropertyDraft}/'
+        '${controller.activePropertyDraftProjection}',
+      );
+    });
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Row(
+          children: [
+            SizedBox(
+              width: 600,
+              height: 1200,
+              child: FortuneSheetCanvas(
+                workbook: FortuneWorkbook(
+                  settings: const FortuneSettings(
+                    showToolbar: false,
+                    showFormulaBar: false,
+                  ),
+                  sheets: [
+                    FortuneSheet(
+                      id: 's1',
+                      name: 'Sheet1',
+                      shapes: const [
+                        FortuneShape(
+                          id: 'shape_1',
+                          kind: FortuneShapeKind.rectangle,
+                          left: 10,
+                          top: 10,
+                          width: 40,
+                          height: 20,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                controller: controller,
+                onChange: (_) => changeCount += 1,
+                onOp: (_) => opCount += 1,
+              ),
+            ),
+            SizedBox(
+              width: 300,
+              height: 1200,
+              child: FortuneObjectLayerPanel(controller: controller),
+            ),
+          ],
+        ),
+      ),
+    );
+    await tester.tap(find.text('사각형 shape_1'));
+    await tester.pump();
+    final widthField = find.byKey(
+      const ValueKey('fortune-object-property-width'),
+    );
+
+    await tester.enterText(widthField, '80');
+    await tester.pump();
+    changeCount = 0;
+    opCount = 0;
+    listenerStates.clear();
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+    expect(tester.widget<TextField>(widthField).controller!.text, '40');
+    expect(controller.hasActiveObjectPropertyDraft, isFalse);
+    expect(controller.objectSelection.activeShape!.width, 40);
+    expect(controller.projectedCanUndo, isFalse);
+    expect(changeCount, 0);
+    expect(opCount, 0);
+    expect(listenerStates, isEmpty);
+
+    await tester.enterText(widthField, 'invalid');
+  await tester.pump();
+    final delayedSubmit = tester.widget<TextField>(widthField).onSubmitted!;
+  listenerStates.clear();
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+    expect(tester.widget<TextField>(widthField).controller!.text, '40');
+    final editable = tester.widget<EditableText>(
+      find.descendant(of: widthField, matching: find.byType(EditableText)),
+    );
+    expect(editable.focusNode.hasFocus, isTrue);
+
+    delayedSubmit('invalid');
+    await tester.pump();
+    expect(tester.widget<TextField>(widthField).controller!.text, '40');
+    expect(controller.hasActiveObjectPropertyDraft, isFalse);
+    expect(controller.objectSelection.activeShape!.width, 40);
+    expect(controller.projectedCanUndo, isFalse);
+    expect(changeCount, 0);
+    expect(opCount, 0);
+    expect(listenerStates, isEmpty);
+  });
+
   testWidgets('object layer rows drag selected objects by exact drop side', (
     tester,
   ) async {
@@ -1726,13 +1833,12 @@ void main() {
     }
 
     final canvasTopLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
-    await tester.sendEventToBinding(
-      PointerDownEvent(
-        position: canvasTopLeft + const Offset(186, 85),
-        buttons: kSecondaryMouseButton,
-        kind: PointerDeviceKind.mouse,
-      ),
+    final contextGesture = await tester.startGesture(
+      canvasTopLeft + const Offset(186, 85),
+      kind: PointerDeviceKind.mouse,
+      buttons: kSecondaryMouseButton,
     );
+    await contextGesture.up();
     await tester.pump();
 
     expect(painter().contextMenuItems, [
@@ -1756,6 +1862,98 @@ void main() {
 
     expect(panelOpenRequests, 1);
     expect(painter().contextMenuAt, isNull);
+  });
+
+  testWidgets('shape context duplicate finalizes property draft first', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    final controller = FortuneSheetController();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Row(
+          children: [
+            SizedBox(
+              width: 600,
+              height: 700,
+              child: FortuneSheetCanvas(
+                workbook: FortuneWorkbook(
+                  settings: const FortuneSettings(
+                    showToolbar: false,
+                    showFormulaBar: false,
+                  ),
+                  sheets: [
+                    FortuneSheet(
+                      id: 's1',
+                      name: 'Sheet1',
+                      shapes: const [
+                        FortuneShape(
+                          id: 'rect_1',
+                          kind: FortuneShapeKind.rectangle,
+                          left: 100,
+                          top: 50,
+                          width: 80,
+                          height: 30,
+                          fillColor: '#FFFFFF',
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                controller: controller,
+              ),
+            ),
+            SizedBox(
+              width: 300,
+              height: 700,
+              child: FortuneObjectLayerPanel(controller: controller),
+            ),
+          ],
+        ),
+      ),
+    );
+    await tester.tap(find.text('사각형 rect_1'));
+    await tester.pump();
+    await tester.enterText(
+      find.byKey(const ValueKey('fortune-object-property-width')),
+      '90',
+    );
+
+    FortuneSheetPainter painter() => tester
+        .widgetList<CustomPaint>(find.byType(CustomPaint))
+        .map((paint) => paint.painter)
+        .whereType<FortuneSheetPainter>()
+        .single;
+
+    final canvasTopLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
+    await tester.sendEventToBinding(
+      PointerDownEvent(
+        position: canvasTopLeft + const Offset(186, 85),
+        buttons: kSecondaryMouseButton,
+        kind: PointerDeviceKind.mouse,
+      ),
+    );
+    await tester.pump();
+    final duplicateRect = fortuneContextMenuItemRect(
+      painter().contextMenuAt!,
+      fortuneContextDuplicateImageCommand,
+      painter().contextMenuItems,
+    )!;
+    await tester.tapAt(canvasTopLeft + duplicateRect.center);
+    await tester.pump();
+
+    expect(controller.getSheet()!.shapes.map((shape) => shape.width), [90, 90]);
+    controller.handleUndo();
+    await tester.pump();
+    expect(controller.getSheet()!.shapes.map((shape) => shape.width), [90]);
+    controller.handleUndo();
+    await tester.pump();
+    expect(controller.getSheet()!.shapes.map((shape) => shape.width), [80]);
   });
 
   testWidgets('shape active toolbar opens the selected property panel', (

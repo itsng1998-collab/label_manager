@@ -1,3 +1,13 @@
+### 완료 (2026-07-22): 선·도형 지시서 잔여 구현 및 독립 감사
+- OOM 직전 남아 있던 barcode property render pending owner replacement 통합 test와 시작된 output capture의 Workbench detach 생존 test를 복구해 통과시켰다. Workbench에는 테스트 가능한 `barcodeRenderer` 주입점을 추가했다.
+- property editor Escape는 exact active draft를 canonical 문자열로 폐기하고 종료된 delayed submit을 무시한다. typed context edit/duplicate/delete/layer command는 property draft finalize와 barcode pending gate를 공통으로 거치며, finalize 전 context command identity를 보존한다.
+- active line endpoint/shape resize·rotation handle hit-test를 active object toolbar보다 우선하도록 고쳤다. 회전 Shift corner resize는 local side/aspect crossing별 open interval을 검사해 상단 경계 밖 구간을 건너뛴 재진입을 차단한다.
+- narrow object overlay는 좌우 8px safe inset을 제외한 가용 폭에서 300px cap을 적용하고, 220px 이하에서도 최소 폭 강제 없이 축소한다. panel action row를 균등 분할해 200px에서도 overflow하지 않으며 hidden↔overlay가 같은 Stack 구조를 유지해 controller 재attach를 만들지 않는다.
+- typed dashed/dashDot stroke mark는 butt cap을 사용하고 path metric 종점은 반복에서 제외해 closed contour seam 중복 mark를 막는다. dotted mark의 별도 원 렌더는 유지한다.
+- focused 검증 9건 통과: barcode pending owner replacement, capture detach survival, property Escape/delayed submit, typed context duplicate finalize, handle/shape selection, Shift top-boundary re-entry, narrow overlay 2건, patterned stroke pixel test.
+- 독립 지시서 감사 결과 반증 가능한 잔여 behavioral gap은 0건이다. 다음 작업은 새 요구나 실제 사용자 재현이 생길 때 시작한다.
+- `lib/core/app.dart`의 사용자 변경과 `third_party/fortune_sheet/build/` 생성물은 수정·stage·commit에서 제외한다.
+
 ### 진행 중 (2026-07-22): 통합 object panel·property command·connection mode
 - `FortuneLine`/`FortuneShape` typed model과 `lines`/`fortuneShapes` codec, raw metadata 수명, invalid wire canonicalization, 중복 ID normalize를 구현했다. LabelSheet feature manifest/sanitizer와 legacy raw `shapes` strict clone도 연결했다.
 - `FortuneSheetObjectKey`/ref 공통 paint order, kind별 ID allocator, finite zOrder와 삽입 headroom 재기준화 helper를 구현했다. `double.maxFinite`에서 기존 공통 순서를 `1..N`으로 재기준화하고 실제 값이 바뀐 kind의 raw list만 폐기한다.

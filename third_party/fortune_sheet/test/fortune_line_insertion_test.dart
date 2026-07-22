@@ -356,6 +356,83 @@ void main() {
     expect(resized.rotationDegrees, closeTo(90, 1e-8));
   });
 
+  testWidgets('Shift shape resize stops before top-boundary re-entry', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SizedBox(
+          width: 900,
+          height: 700,
+          child: FortuneSheetCanvas(
+            workbook: FortuneWorkbook(
+              settings: const FortuneSettings(
+                showToolbar: false,
+                showFormulaBar: false,
+              ),
+              sheets: [
+                FortuneSheet(
+                  id: 's1',
+                  name: 'Sheet1',
+                  shapes: const [
+                    FortuneShape(
+                      id: 'rect_1',
+                      kind: FortuneShapeKind.rectangle,
+                      left: 500,
+                      top: 10,
+                      width: 100,
+                      height: 40,
+                      fillColor: '#FFFFFF',
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    FortuneSheetPainter painter() => tester
+        .widgetList<CustomPaint>(find.byType(CustomPaint))
+        .map((paint) => paint.painter)
+        .whereType<FortuneSheetPainter>()
+        .single;
+
+    final canvasTopLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
+    await tester.tapAt(canvasTopLeft + const Offset(596, 50));
+    await tester.pump();
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+    final resize = await tester.startGesture(
+      canvasTopLeft + const Offset(546, 30),
+      kind: PointerDeviceKind.mouse,
+      buttons: kPrimaryButton,
+    );
+    await resize.moveTo(canvasTopLeft + const Offset(146, 70));
+    await tester.pump();
+
+    final draft = painter().objectGestureShapeDraft!;
+    expect(draft.left, closeTo(475, 1e-6));
+    expect(draft.top, closeTo(0, 1e-6));
+    expect(draft.width, closeTo(125, 1e-6));
+    expect(draft.height, closeTo(50, 1e-6));
+
+    await resize.up();
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.pump();
+    final committed = painter().workbook.activeSheet.shapes.single;
+    expect(committed.left, closeTo(475, 1e-6));
+    expect(committed.top, closeTo(0, 1e-6));
+    expect(committed.width, closeTo(125, 1e-6));
+    expect(committed.height, closeTo(50, 1e-6));
+  });
+
   testWidgets('active line endpoint drag is transient and commits one endpoint', (
     tester,
   ) async {

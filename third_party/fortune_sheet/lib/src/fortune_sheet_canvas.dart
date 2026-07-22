@@ -1318,6 +1318,16 @@ class FortuneSheetController extends ChangeNotifier {
     return true;
   }
 
+  bool discardActiveObjectPropertyDraft() {
+    if (barcodePropertyRenderPending) return false;
+    final owner = _activePropertyDraftOwner;
+    final discard = _discardActivePropertyDraft;
+    if (owner == null || discard == null) return false;
+    _clearActivePropertyDraft(notify: false);
+    discard();
+    return true;
+  }
+
   bool _prepareCanonicalCommand() {
     if (barcodePropertyRenderPending) return false;
     return finalizeActiveObjectPropertyDraft();
@@ -7714,6 +7724,36 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       _commitSheetRename();
       _startImageResize(activeImageHandle, local);
       return;
+    }
+
+    final activeLineEndpoint = _activeLineEndpointAt(local, settings);
+    if (activeLineEndpoint != null) {
+      final logical = _lineInsertionLogicalPosition(local, settings);
+      if (logical != null) {
+        _commitEditing();
+        _commitSheetRename();
+        _startTypedObjectMove(
+          activeLineEndpoint.$1,
+          logical,
+          lineEndpointIndex: activeLineEndpoint.$2,
+        );
+        return;
+      }
+    }
+
+    final activeShapeHandle = _activeShapeHandleAt(local, settings);
+    if (activeShapeHandle != null) {
+      final logical = _lineInsertionLogicalPosition(local, settings);
+      if (logical != null) {
+        _commitEditing();
+        _commitSheetRename();
+        _startTypedObjectMove(
+          activeShapeHandle.$1,
+          logical,
+          shapeHandle: activeShapeHandle.$2,
+        );
+        return;
+      }
     }
 
     final activeImageToolbarCommand = _activeImageToolbarCommandAt(
@@ -28172,29 +28212,79 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       );
     }
 
-    var candidate = candidateAt(pointer);
-    if (candidate.top >= 0) {
-      return candidate;
-    }
     final start = _typedObjectMoveStart;
     if (start == null) {
       return shape;
     }
-    var low = 0.0;
-    var high = 1.0;
-    for (var iteration = 0; iteration < 40; iteration += 1) {
-      final middle = (low + high) / 2;
-      final probe = candidateAt(Offset.lerp(start, pointer, middle)!);
-      if (probe.top >= 0) {
-        low = middle;
-        candidate = probe;
-      } else {
-        high = middle;
+
+    Offset unconstrainedLocalAt(Offset worldPointer) {
+      final local = _rotateOffset(worldPointer - anchor, -angle);
+      return Offset(
+        horizontal == 0 ? 0 : local.dx,
+        vertical == 0 ? 0 : local.dy,
+      );
+    }
+
+    final startLocal = unconstrainedLocalAt(start);
+    final endLocal = unconstrainedLocalAt(pointer);
+    final breakpoints = <double>{0, 1};
+
+    void addLinearRoot(double startValue, double endValue) {
+      final delta = endValue - startValue;
+      if (delta == 0) return;
+      final root = -startValue / delta;
+      if (root > 0 && root < 1 && root.isFinite) {
+        breakpoints.add(root);
       }
     }
-    return candidate.copyWith(
-      top: candidate.top.abs() < 1e-8 ? 0 : candidate.top,
-    );
+
+    addLinearRoot(startLocal.dx, endLocal.dx);
+    addLinearRoot(startLocal.dy, endLocal.dy);
+    if (horizontal != 0 &&
+        vertical != 0 &&
+        HardwareKeyboard.instance.isShiftPressed) {
+      addLinearRoot(
+        startLocal.dx / shape.width - startLocal.dy / shape.height,
+        endLocal.dx / shape.width - endLocal.dy / shape.height,
+      );
+      addLinearRoot(
+        startLocal.dx / shape.width + startLocal.dy / shape.height,
+        endLocal.dx / shape.width + endLocal.dy / shape.height,
+      );
+    }
+
+    final orderedBreakpoints = breakpoints.toList()..sort();
+    var lastValid = candidateAt(start);
+    if (lastValid.top < 0) return shape;
+    for (var index = 1; index < orderedBreakpoints.length; index += 1) {
+      final startT = orderedBreakpoints[index - 1];
+      final endT = orderedBreakpoints[index];
+        final intervalEndT = endT - (endT - startT) * 1e-9;
+      final intervalEnd = candidateAt(
+        Offset.lerp(start, pointer, intervalEndT)!,
+      );
+      if (intervalEnd.top < 0) {
+        var low = startT;
+        var high = intervalEndT;
+        for (var iteration = 0; iteration < 40; iteration += 1) {
+          final middle = (low + high) / 2;
+          final probe = candidateAt(Offset.lerp(start, pointer, middle)!);
+          if (probe.top >= 0) {
+            low = middle;
+            lastValid = probe;
+          } else {
+            high = middle;
+          }
+        }
+        return lastValid.copyWith(
+          top: lastValid.top.abs() < 1e-8 ? 0 : lastValid.top,
+        );
+      }
+      final endpoint = candidateAt(Offset.lerp(start, pointer, endT)!);
+      if (endpoint.top < 0) return lastValid;
+      lastValid = endpoint;
+    }
+    return lastValid;
   }
 
   Offset _rotateOffset(Offset offset, double angle) {
@@ -34963,6 +35053,27 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       }
       return;
     }
+    final typedObjectCommand = _contextMenuObjectKey != null &&
+        switch (command) {
+          fortuneContextEditImageCommand ||
+          fortuneContextEditBarcodeCommand ||
+          fortuneContextEditLineCommand ||
+          fortuneContextEditRectangleCommand ||
+          fortuneContextEditRoundedRectangleCommand ||
+          fortuneContextEditEllipseCommand ||
+          fortuneContextDuplicateImageCommand ||
+          fortuneContextDeleteImageCommand ||
+          fortuneContextBringForwardCommand ||
+          fortuneContextSendBackwardCommand ||
+          fortuneContextBringToFrontCommand ||
+          fortuneContextSendToBackCommand => true,
+          _ => false,
+        };
+    if (typedObjectCommand &&
+        (_panelBarcodeRequestTokens.isNotEmpty ||
+            !(widget.controller?.finalizeActiveObjectPropertyDraft() ?? true))) {
+      return;
+    }
     switch (command) {
       case fortuneContextCopyCommand:
         _copySelectionToClipboard();
@@ -35042,13 +35153,13 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       case fortuneContextEditEllipseCommand:
         _openTypedObjectPropertyPanel();
       case fortuneContextDuplicateImageCommand:
-        if (_contextMenuObjectKey != null) {
+        if (typedObjectCommand) {
           _duplicateSelectedObjectsFromController();
         } else {
           _duplicateContextImage();
         }
       case fortuneContextDeleteImageCommand:
-        if (_contextMenuObjectKey != null) {
+        if (typedObjectCommand) {
           _deleteSelectedObjectsFromController();
         } else {
           _deleteActiveImage();
@@ -35056,25 +35167,25 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       case fortuneContextToggleLayerPanelCommand:
         _toggleImageLayerPanel();
       case fortuneContextBringForwardCommand:
-        if (_contextMenuObjectKey != null) {
+        if (typedObjectCommand) {
           _moveSelectedObjectsOneStep(front: true);
         } else {
           _moveContextImageLayer(command);
         }
       case fortuneContextSendBackwardCommand:
-        if (_contextMenuObjectKey != null) {
+        if (typedObjectCommand) {
           _moveSelectedObjectsOneStep(front: false);
         } else {
           _moveContextImageLayer(command);
         }
       case fortuneContextBringToFrontCommand:
-        if (_contextMenuObjectKey != null) {
+        if (typedObjectCommand) {
           _moveSelectedObjectsToBoundary(front: true);
         } else {
           _moveContextImageLayer(command);
         }
       case fortuneContextSendToBackCommand:
-        if (_contextMenuObjectKey != null) {
+        if (typedObjectCommand) {
           _moveSelectedObjectsToBoundary(front: false);
         } else {
           _moveContextImageLayer(command);

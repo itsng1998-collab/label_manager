@@ -44936,9 +44936,7 @@ void fortuneDrawObjectStroke(
     ..color = color
     ..style = PaintingStyle.stroke
     ..strokeWidth = strokeWidth
-    ..strokeCap = style == FortuneStrokeStyle.solid
-        ? StrokeCap.butt
-        : StrokeCap.round
+    ..strokeCap = StrokeCap.butt
     ..strokeJoin = StrokeJoin.miter
     ..strokeMiterLimit = 4;
   if (style == FortuneStrokeStyle.solid) {
@@ -44959,7 +44957,7 @@ void fortuneDrawObjectStroke(
   for (final metric in path.computeMetrics()) {
     var distance = 0.0;
     var markIndex = 0;
-    while (distance <= metric.length) {
+    while (distance < metric.length) {
       final markLength = marks[markIndex % marks.length];
       final gapLength = marks[(markIndex + 1) % marks.length];
       if (markLength == 0) {

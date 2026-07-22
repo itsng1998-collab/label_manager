@@ -109,47 +109,59 @@ class _FortuneObjectLayerPanelState extends State<FortuneObjectLayerPanel> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    _PanelAction(
-                      tooltip: '선택한 개체 삭제',
-                      icon: Icons.delete_outline,
-                      onPressed: snapshot.activeKey == null || !canMutate
-                          ? null
-                          : widget.controller.deleteSelectedObjects,
+                    Expanded(
+                      child: _PanelAction(
+                        tooltip: '선택한 개체 삭제',
+                        icon: Icons.delete_outline,
+                        onPressed: snapshot.activeKey == null || !canMutate
+                            ? null
+                            : widget.controller.deleteSelectedObjects,
+                      ),
                     ),
-                    _PanelAction(
-                      tooltip: '선택한 개체 복제',
-                      icon: Icons.copy,
-                      onPressed: snapshot.activeKey == null || !canMutate
-                          ? null
-                          : widget.controller.duplicateSelectedObjects,
+                    Expanded(
+                      child: _PanelAction(
+                        tooltip: '선택한 개체 복제',
+                        icon: Icons.copy,
+                        onPressed: snapshot.activeKey == null || !canMutate
+                            ? null
+                            : widget.controller.duplicateSelectedObjects,
+                      ),
                     ),
-                    _PanelAction(
-                      tooltip: '맨 앞으로',
-                      icon: Icons.vertical_align_top,
-                      onPressed: snapshot.activeKey == null || !canMutate
-                          ? null
-                          : widget.controller.bringSelectedObjectsToFront,
+                    Expanded(
+                      child: _PanelAction(
+                        tooltip: '맨 앞으로',
+                        icon: Icons.vertical_align_top,
+                        onPressed: snapshot.activeKey == null || !canMutate
+                            ? null
+                            : widget.controller.bringSelectedObjectsToFront,
+                      ),
                     ),
-                    _PanelAction(
-                      tooltip: '앞으로',
-                      icon: Icons.keyboard_arrow_up,
-                      onPressed: snapshot.activeKey == null || !canMutate
-                          ? null
-                          : widget.controller.bringSelectedObjectsForward,
+                    Expanded(
+                      child: _PanelAction(
+                        tooltip: '앞으로',
+                        icon: Icons.keyboard_arrow_up,
+                        onPressed: snapshot.activeKey == null || !canMutate
+                            ? null
+                            : widget.controller.bringSelectedObjectsForward,
+                      ),
                     ),
-                    _PanelAction(
-                      tooltip: '뒤로',
-                      icon: Icons.keyboard_arrow_down,
-                      onPressed: snapshot.activeKey == null || !canMutate
-                          ? null
-                          : widget.controller.sendSelectedObjectsBackward,
+                    Expanded(
+                      child: _PanelAction(
+                        tooltip: '뒤로',
+                        icon: Icons.keyboard_arrow_down,
+                        onPressed: snapshot.activeKey == null || !canMutate
+                            ? null
+                            : widget.controller.sendSelectedObjectsBackward,
+                      ),
                     ),
-                    _PanelAction(
-                      tooltip: '맨 뒤로',
-                      icon: Icons.vertical_align_bottom,
-                      onPressed: snapshot.activeKey == null || !canMutate
-                          ? null
-                          : widget.controller.sendSelectedObjectsToBack,
+                    Expanded(
+                      child: _PanelAction(
+                        tooltip: '맨 뒤로',
+                        icon: Icons.vertical_align_bottom,
+                        onPressed: snapshot.activeKey == null || !canMutate
+                            ? null
+                            : widget.controller.sendSelectedObjectsToBack,
+                      ),
                     ),
                   ],
                 ),
@@ -232,15 +244,19 @@ class _FortuneObjectLayerPanelState extends State<FortuneObjectLayerPanel> {
                           count: snapshot.selectedKeys.length,
                           controller: widget.controller,
                         )
-                      : _ObjectPropertyEditor(
-                          key: ValueKey(_propertySnapshotIdentity(snapshot)),
-                          snapshot: snapshot,
-                          controller: widget.controller,
-                          scrollController: _propertyScrollController,
-                          imageObjectOptions: widget.imageObjectOptions,
-                          barcodeObjectOptions: widget.barcodeObjectOptions,
-                          imageObjectIds: widget.imageObjectIds,
-                          barcodeObjectIds: widget.barcodeObjectIds,
+                      : Focus(
+                          canRequestFocus: false,
+                          onKeyEvent: _handlePropertyKeyEvent,
+                          child: _ObjectPropertyEditor(
+                            key: ValueKey(_propertySnapshotIdentity(snapshot)),
+                            snapshot: snapshot,
+                            controller: widget.controller,
+                            scrollController: _propertyScrollController,
+                            imageObjectOptions: widget.imageObjectOptions,
+                            barcodeObjectOptions: widget.barcodeObjectOptions,
+                            imageObjectIds: widget.imageObjectIds,
+                            barcodeObjectIds: widget.barcodeObjectIds,
+                          ),
                         ),
                 ),
               ],
@@ -264,6 +280,15 @@ class _FortuneObjectLayerPanelState extends State<FortuneObjectLayerPanel> {
     } else {
       widget.controller.selectObject(key);
     }
+  }
+
+  KeyEventResult _handlePropertyKeyEvent(FocusNode node, KeyEvent event) {
+    if (event is KeyDownEvent &&
+        event.logicalKey == LogicalKeyboardKey.escape &&
+        widget.controller.discardActiveObjectPropertyDraft()) {
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
   }
 
   KeyEventResult _handleLayerKeyEvent(FocusNode node, KeyEvent event) {

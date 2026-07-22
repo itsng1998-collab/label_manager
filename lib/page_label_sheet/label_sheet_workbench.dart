@@ -1898,6 +1898,7 @@ class LabelSheetWorkbench extends StatefulWidget {
     this.onBeforeSheetDialog,
     this.onSheetDialogClosed,
     this.printerListProvider,
+    this.barcodeRenderer,
     this.imageImportController,
     this.editingLifecycleController,
     this.outputCaptureController,
@@ -1938,6 +1939,7 @@ class LabelSheetWorkbench extends StatefulWidget {
   final FutureOr<void> Function()? onBeforeSheetDialog;
   final VoidCallback? onSheetDialogClosed;
   final LabelPrinterListProvider? printerListProvider;
+  final FortuneBarcodeRenderer? barcodeRenderer;
   final LabelSheetImageImportController? imageImportController;
   final LabelSheetEditingLifecycleController? editingLifecycleController;
   final LabelSheetOutputCaptureController? outputCaptureController;
@@ -3937,15 +3939,16 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
               },
               onOpenObjectPanel: _openObjectPanel,
               locale: _locale,
-              barcodeRenderer: labelSheetBarcodeRenderer,
+              barcodeRenderer:
+                  widget.barcodeRenderer ?? labelSheetBarcodeRenderer,
               barcodeFormats: labelSheetBarcodeFormats,
               imageObjectIds: widget.imageObjectIds,
               barcodeObjectIds: widget.barcodeObjectIds,
               imageObjectOptions: widget.imageObjectOptions,
               barcodeObjectOptions: widget.barcodeObjectOptions,
-                imageObjectConnectionMode:
+              imageObjectConnectionMode:
                   FortuneObjectConnectionMode.structured,
-                barcodeObjectConnectionMode:
+              barcodeObjectConnectionMode:
                   FortuneObjectConnectionMode.structured,
               gridClientSize: _gridClientSize,
               showFormulaBar: false,
@@ -3964,7 +3967,11 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
                 _objectDockEligible && _userWantsObjectDockOpen;
             final overlayObjectPanel =
                 !_objectDockEligible && _objectOverlayOpen;
-            final overlayPanelWidth = math.min(300.0, constraints.maxWidth);
+            const overlayHorizontalInset = 8.0;
+            final overlayPanelWidth = math.min(
+              300.0,
+              math.max(0.0, constraints.maxWidth - overlayHorizontalInset * 2),
+            );
             final sheetViewportSize = Size(
               math.max(
                 0,
@@ -4059,11 +4066,11 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
                 ],
               );
             }
-            if (overlayObjectPanel) {
-              return Stack(
-                fit: StackFit.expand,
-                children: [
-                  sheetSurface,
+            return Stack(
+              fit: StackFit.expand,
+              children: [
+                sheetSurface,
+                if (overlayObjectPanel) ...[
                   GestureDetector(
                     behavior: HitTestBehavior.opaque,
                     onTap: _closeObjectPanel,
@@ -4071,7 +4078,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
                   ),
                   Positioned(
                     top: 0,
-                    right: 0,
+                    right: overlayHorizontalInset,
                     bottom: 0,
                     width: overlayPanelWidth,
                     child: FortuneObjectLayerPanel(
@@ -4084,9 +4091,8 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
                     ),
                   ),
                 ],
-              );
-            }
-            return sheetSurface;
+              ],
+            );
           },
         );
       },

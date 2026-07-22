@@ -183,6 +183,29 @@ void _drawPreviewEdgeOverdraw(
 }
 
 void main() {
+  test('typed dashed stroke uses butt caps at the first mark', () async {
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+    fortuneDrawObjectStroke(
+      canvas,
+      Path()
+        ..moveTo(20, 20)
+        ..lineTo(60, 20),
+      FortuneStrokeStyle.dashed,
+      4,
+      const Color(0xff000000),
+    );
+    final image = await recorder.endRecording().toImage(80, 40);
+    final bytes = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+    image.dispose();
+    expect(bytes, isNotNull);
+
+    int alphaAt(int x, int y) => bytes!.getUint8((y * 80 + x) * 4 + 3);
+    expect(alphaAt(18, 20), 0);
+    expect(alphaAt(19, 20), 0);
+    expect(alphaAt(20, 20), greaterThan(0));
+  });
+
   test('formula search parameter public helper exposes display labels', () {
     const requiredParameter = FortuneFormulaSearchParameter(
       name: 'value',

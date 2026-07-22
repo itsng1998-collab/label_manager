@@ -2185,6 +2185,82 @@ void main() {
     expect(lifecycle.isAttached, isFalse);
   });
 
+  testWidgets('label sheet owner replacement blocks barcode render pending', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1100, 1800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    SharedPreferences.setMockInitialValues({});
+    final lifecycle = LabelSheetEditingLifecycleController();
+    final render = Completer<FortuneBarcodeRenderResult?>();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SizedBox(
+          width: 1100,
+          height: 1800,
+          child: LabelSheetWorkbench(
+            editingLifecycleController: lifecycle,
+            barcodeRenderer: (_) => render.future,
+            initialWorkbook: FortuneWorkbook(
+              sheets: [
+                FortuneSheet(
+                  id: 's1',
+                  name: 'Label',
+                  images: const [
+                    FortuneImage(
+                      id: 'barcode_1',
+                      src: 'old-src',
+                      left: 20,
+                      top: 30,
+                      width: 80,
+                      height: 40,
+                      extraFields: {
+                        'fortuneBarcode': true,
+                        'barcodeText': 'OLD',
+                        'barcodeFormatId': 'code128',
+                      },
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+    await tester.tap(find.text('바코드 barcode_1'));
+    await tester.pump();
+    await tester.enterText(
+      find.byKey(const ValueKey('fortune-object-property-barcodeText')),
+      'NEW',
+    );
+    final propertyList = find.ancestor(
+      of: find.byKey(const ValueKey('fortune-object-property-connectionId')),
+      matching: find.byType(ListView),
+    );
+    await tester.drag(propertyList, const Offset(0, -1200));
+    await tester.pump();
+    tester
+        .widget<FilledButton>(
+          find.byKey(const ValueKey('fortune-object-property-apply')),
+        )
+        .onPressed!();
+    await tester.pump();
+
+    expect(lifecycle.barcodePropertyRenderPending, isTrue);
+    expect(lifecycle.prepareForOwnerReplacement(), isFalse);
+
+    render.complete(null);
+    await tester.pump();
+    await tester.pump();
+    expect(lifecycle.barcodePropertyRenderPending, isFalse);
+    expect(lifecycle.prepareForOwnerReplacement(), isTrue);
+  });
+
   testWidgets('label sheet zoom toolbar placement can move or hide controls', (
     tester,
   ) async {
@@ -2924,6 +3000,74 @@ void main() {
     await tester.pump();
 
     expect(tester.widget<EditableText>(zoomInput).controller.text, '110');
+  });
+
+  testWidgets('narrow object overlay caps at 300 within safe insets', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Align(
+            alignment: Alignment.topLeft,
+            child: SizedBox(
+              width: 320,
+              height: 320,
+              child: LabelSheetWorkbench(
+                initialWorkbook: FortuneWorkbook(
+                  sheets: [FortuneSheet(id: 's1', name: 'Label')],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+    tester
+        .widget<FortuneSheetApp>(find.byType(FortuneSheetApp))
+        .onOpenObjectPanel!();
+    await tester.pump();
+
+    final rect = tester.getRect(find.byType(FortuneObjectLayerPanel));
+    expect(rect.left, 12);
+    expect(rect.right, 312);
+    expect(rect.width, 300);
+  });
+
+  testWidgets('narrow object overlay shrinks below 220 without overflow', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Align(
+            alignment: Alignment.topLeft,
+            child: SizedBox(
+              width: 216,
+              height: 320,
+              child: LabelSheetWorkbench(
+                initialWorkbook: FortuneWorkbook(
+                  sheets: [FortuneSheet(id: 's1', name: 'Label')],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+    tester
+        .widget<FortuneSheetApp>(find.byType(FortuneSheetApp))
+        .onOpenObjectPanel!();
+    await tester.pump();
+
+    final rect = tester.getRect(find.byType(FortuneObjectLayerPanel));
+    expect(rect.left, 8);
+    expect(rect.right, 208);
+    expect(rect.width, 200);
   });
 
   testWidgets('external zoom toolbar controls label sheet', (

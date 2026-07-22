@@ -577,6 +577,48 @@ void main() {
     expect(captureController.debugActiveSheet?.id, 'first');
   });
 
+  testWidgets('started output capture survives workbench detach', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    final captureController = LabelSheetOutputCaptureController();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LabelSheetWorkbench(
+          initialWorkbook: FortuneWorkbook(
+            sheets: [
+              FortuneSheet(
+                id: 'captured',
+                name: 'Captured',
+                cells: {
+                  const FortuneCellCoord(0, 0): const FortuneCell(
+                    value: 'snapshot',
+                  ),
+                },
+              ),
+            ],
+          ),
+          outputCaptureController: captureController,
+          outputCaptureOwnerToken: 'capture-owner',
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    final captureFuture = captureController.capture(
+      dpi: 96,
+      lineSpacingPercent: null,
+    );
+    await tester.pumpWidget(const SizedBox.shrink());
+    expect(captureController.isAttached, isFalse);
+
+    final capture = await tester.runAsync(() => captureFuture);
+    expect(capture, isNotNull);
+    expect(capture!.sheet.id, 'captured');
+    expect(capture.pngBytes, isNotEmpty);
+  });
+
   testWidgets('label output preview accepts external zoom controller', (
     tester,
   ) async {
