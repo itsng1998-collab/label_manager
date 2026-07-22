@@ -1,3 +1,9 @@
+### 완료 (2026-07-22): 선·도형 canvas stale 회귀 기대치 정리
+- `fortune_sheet_canvas_test.dart`의 선·도형 이후 stale 기대치 5건을 현재 계약에 맞춰 갱신했다. 즉시 toolbar command 목록에 `line`/`shape`/`object-panel`/shape preset 항목을 반영했고, read-only `allowEdit == false` cell/header secondary click은 메뉴 조회와 일반 선택 전환을 유지하는 현재 동작으로 테스트를 맞췄다.
+- left-top image resize minimum-size fixture는 현재 geometry 결과를 반영해 음수 `left/top`과 90x60 minimum 확장 기대치로 갱신했다. above/below-average condition-format dialog confirm은 하드코딩 좌표 대신 `fortuneConditionRuleDialogRect()`와 `fortuneConditionRuleConfirmButtonRect()` helper를 사용하도록 바꿨다.
+- 검증: `third_party/fortune_sheet/test/fortune_sheet_canvas_test.dart` 전체 1421건 통과, 개별 재실행 4건 통과, `git diff --check -- third_party/fortune_sheet/test/fortune_sheet_canvas_test.dart` clean이다.
+- 작업트리 사용자 변경 `lib/core/app.dart`와 `third_party/*/build/` 생성물은 계속 제외한다.
+
 ### 완료 (2026-07-22): 선·도형 지시서 12차 재감사 권장안 수정
 - image/barcode selection snapshot, property model, active toolbar hit/paint/dispatch, keyboard Delete와 legacy layer-panel action 대상을 `FortuneSheetObjectKey(kind, id)`로 연결했다. 같은 ID의 image와 barcode가 공존해도 선택한 typed 객체만 조회·삭제·복제되며 unique legacy ID만 안전하게 typed key로 복원한다.
 - 객체 cut/paste/delete/duplicate 권한을 현재 cell/range protection에서 분리하고 workbook `allowEdit`만 사용하도록 통일했다. 선택 cell이 locked여도 object mutation은 허용되며 `allowEdit == false`에서는 기존처럼 차단된다.

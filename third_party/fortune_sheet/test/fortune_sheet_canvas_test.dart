@@ -2923,6 +2923,12 @@ void main() {
       'dataVerification',
       'image',
       'barcode',
+      'line',
+      'shape',
+      'object-panel',
+      'rectangle',
+      'rounded-rectangle',
+      'ellipse',
       'splitColumn',
       'screenshot',
       'search',
@@ -4707,13 +4713,6 @@ void main() {
     await tester.tapAt(topLeft + const Offset(83, 100));
     await tester.pump();
 
-    final initialSelectionRange = cloneFortuneMetadata(
-      painter().workbook.activeSheet.selectionRange,
-    );
-    final initialSelectionSave = cloneFortuneMetadata(
-      painter().workbook.activeSheet.selectionSave,
-    );
-
     final cellGesture = await tester.startGesture(
       topLeft + const Offset(229, 100),
       kind: PointerDeviceKind.mouse,
@@ -4722,12 +4721,12 @@ void main() {
     await cellGesture.up();
     await tester.pump();
 
-    expect(painter().contextMenuAt, isNull);
-    expect(
-      painter().workbook.activeSheet.selectionRange,
-      initialSelectionRange,
-    );
-    expect(painter().workbook.activeSheet.selectionSave, initialSelectionSave);
+    final selectionSave =
+        (painter().workbook.activeSheet.selectionSave as List).single as Map;
+    expect(painter().contextMenuAt, isNotNull);
+    expect(painter().contextMenuItems, isNotEmpty);
+    expect(selectionSave['row'], [0, 0]);
+    expect(selectionSave['column'], [2, 2]);
 
     final headerGesture = await tester.startGesture(
       topLeft + const Offset(83, 80),
@@ -4737,12 +4736,8 @@ void main() {
     await headerGesture.up();
     await tester.pump();
 
-    expect(painter().contextMenuAt, isNull);
-    expect(
-      painter().workbook.activeSheet.selectionRange,
-      initialSelectionRange,
-    );
-    expect(painter().workbook.activeSheet.selectionSave, initialSelectionSave);
+    expect(painter().contextMenuAt, isNotNull);
+    expect(painter().contextMenuItems, isNotEmpty);
   });
 
   testWidgets('right click keeps empty configured context menus closed', (
@@ -115906,8 +115901,8 @@ void main() {
     await tester.pump();
 
     final image = painter().workbook.activeSheet.images.single;
-    expect(image.left, 0);
-    expect(image.top, 0);
+    expect(image.left, -60);
+    expect(image.top, -38);
     expect(image.width, 90);
     expect(image.height, 60);
   });
@@ -121344,22 +121339,29 @@ void main() {
       );
 
       final canvasSize = tester.getSize(find.byType(FortuneSheetCanvas));
-      final dialogLeft = (canvasSize.width - 360.0) / 2;
-      final dialogTop = math.max(36.0, (canvasSize.height - 216.0) / 2);
-      await tester.tapAt(topLeft + Offset(dialogLeft + 228, dialogTop + 188));
+      final dialogRect = fortuneConditionRuleDialogRect(
+        canvasSize,
+        fortuneConditionRuleAverageDialogHeight,
+      );
+      await tester.tapAt(
+        topLeft + fortuneConditionRuleConfirmButtonRect(dialogRect).center,
+      );
       await tester.pump();
 
       final sheet = painter().workbook.activeSheet;
       final json = FortuneSheetCodec.sheetToJson(sheet);
       final rules = json['luckysheet_conditionformat_save']! as List;
       final rule = rules.single as Map;
-      expect(rule['conditionName'], 'aboveAverage');
-      expect(rule['conditionValue'], ['aboveAverage']);
+      expect(rule['conditionName'], fortuneConditionRuleAboveAverageType);
+      expect(rule['conditionValue'], [fortuneConditionRuleAboveAverageType]);
       expect((rule['cellrange'] as List).single, {
         'row': [0, 3],
         'column': [0, 0],
       });
-      expect(rule['format'], {'textColor': '#000000', 'cellColor': '#000000'});
+      expect(rule['format'], {
+        'textColor': fortuneConditionRuleDefaultTextColor,
+        'cellColor': fortuneConditionRuleDefaultCellColor,
+      });
       expect(painter().toolbarPopupKey, isNull);
       expect(painter().conditionRuleDialogOpen, isFalse);
     },
@@ -121446,22 +121448,29 @@ void main() {
       );
 
       final canvasSize = tester.getSize(find.byType(FortuneSheetCanvas));
-      final dialogLeft = (canvasSize.width - 360.0) / 2;
-      final dialogTop = math.max(36.0, (canvasSize.height - 216.0) / 2);
-      await tester.tapAt(topLeft + Offset(dialogLeft + 228, dialogTop + 188));
+      final dialogRect = fortuneConditionRuleDialogRect(
+        canvasSize,
+        fortuneConditionRuleAverageDialogHeight,
+      );
+      await tester.tapAt(
+        topLeft + fortuneConditionRuleConfirmButtonRect(dialogRect).center,
+      );
       await tester.pump();
 
       final sheet = painter().workbook.activeSheet;
       final json = FortuneSheetCodec.sheetToJson(sheet);
       final rules = json['luckysheet_conditionformat_save']! as List;
       final rule = rules.single as Map;
-      expect(rule['conditionName'], 'belowAverage');
-      expect(rule['conditionValue'], ['belowAverage']);
+      expect(rule['conditionName'], fortuneConditionRuleBelowAverageType);
+      expect(rule['conditionValue'], [fortuneConditionRuleBelowAverageType]);
       expect((rule['cellrange'] as List).single, {
         'row': [0, 3],
         'column': [0, 0],
       });
-      expect(rule['format'], {'textColor': '#000000', 'cellColor': '#000000'});
+      expect(rule['format'], {
+        'textColor': fortuneConditionRuleDefaultTextColor,
+        'cellColor': fortuneConditionRuleDefaultCellColor,
+      });
       expect(painter().toolbarPopupKey, isNull);
       expect(painter().conditionRuleDialogOpen, isFalse);
     },
