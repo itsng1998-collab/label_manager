@@ -248,7 +248,9 @@ class _FortuneObjectLayerPanelState extends State<FortuneObjectLayerPanel> {
                           canRequestFocus: false,
                           onKeyEvent: _handlePropertyKeyEvent,
                           child: _ObjectPropertyEditor(
-                            key: ValueKey(_propertySnapshotIdentity(snapshot)),
+                            key: ValueKey(
+                              '${snapshot.sheetId}|${snapshot.activeKey}',
+                            ),
                             snapshot: snapshot,
                             controller: widget.controller,
                             scrollController: _propertyScrollController,
@@ -579,6 +581,42 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
   void initState() {
     super.initState();
     _initializeFields();
+    _installFieldListeners();
+  }
+
+  @override
+  void didUpdateWidget(covariant _ObjectPropertyEditor oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (_propertySnapshotIdentity(oldWidget.snapshot) ==
+        _propertySnapshotIdentity(widget.snapshot)) {
+      return;
+    }
+    final preserveImageAspect =
+        oldWidget.snapshot.activeKey == widget.snapshot.activeKey &&
+        oldWidget.snapshot.activeImage != null &&
+        widget.snapshot.activeImage != null;
+    final imageAspectLocked = _imageAspectLocked;
+    final imageAspectRatio = _imageAspectRatio;
+    for (final controller in _fields.values) {
+      controller.removeListener(_markPropertyDraft);
+      controller.dispose();
+    }
+    _fields.clear();
+    _initialFieldText.clear();
+    _strokeStyle = FortuneStrokeStyle.solid;
+    _noFill = false;
+    _barcodeShowText = false;
+    _barcodePreserveTemplateFormat = false;
+    _initializeFields();
+    if (preserveImageAspect) {
+      _imageAspectLocked = imageAspectLocked;
+      if (imageAspectLocked) {
+        _imageAspectRatio = imageAspectRatio;
+      }
+    }
+    _lastImageSizeField = null;
+    _draftFinalized = false;
+    _error = null;
     _installFieldListeners();
   }
 

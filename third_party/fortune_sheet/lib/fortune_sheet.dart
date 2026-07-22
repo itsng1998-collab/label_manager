@@ -7,6 +7,7 @@ export 'src/fortune_sheet_canvas.dart';
 export 'src/fortune_sheet_codec.dart';
 export 'src/fortune_sheet_model.dart';
 export 'src/fortune_object_layer_panel.dart';
+export 'src/fortune_object_stroke_pattern.dart';
 export 'src/fortune_print_plan.dart';
 export 'src/fortune_sheet_painter.dart';
 export 'src/fortune_system_fonts.dart';

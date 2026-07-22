@@ -302,7 +302,11 @@ FortuneSheet _sheetForPrintAreaSave(FortuneSheet sheet) {
   bounds = _expandBoundsForCells(sheet, printBounds, bounds);
   bounds = _expandBoundsForBorders(sheet, printBounds, bounds);
   bounds = _expandBoundsForImages(sheet, printBounds, bounds);
-  final typedObjects = _typedObjectsForPrintArea(sheet, printBounds, bounds);
+  final typedObjects = _typedObjectsForPrintArea(
+    sheet,
+    ui.Rect.fromLTWH(0, 0, logicalSize.width, logicalSize.height),
+    bounds,
+  );
   bounds = typedObjects.bounds;
   return sheet.copyWith(
     rowCount: bounds.maxRow + 1,
@@ -420,20 +424,20 @@ _LabelSheetSaveBounds _expandBoundsForImages(
 })
 _typedObjectsForPrintArea(
   FortuneSheet sheet,
-  _LabelSheetSaveBounds printBounds,
+  ui.Rect printRect,
   _LabelSheetSaveBounds currentBounds,
 ) {
-  final printRect = _logicalRectForBounds(sheet, printBounds);
   var nextBounds = currentBounds;
   final lines = <FortuneLine>[];
   final shapes = <FortuneShape>[];
   for (final line in sheet.lines) {
-      final path = ui.Path()
+    final path = ui.Path()
       ..moveTo(line.x1, line.y1)
       ..lineTo(line.x2, line.y2);
     final strokeWidth = fortuneMillimetersToLogicalPixels(line.strokeWidthMm);
-    if (!_strokePathIntersectsRect(
-      path,
+    if (!_strokeLineIntersectsRect(
+      ui.Offset(line.x1, line.y1),
+      ui.Offset(line.x2, line.y2),
       line.strokeStyle,
       strokeWidth,
       printRect,
@@ -449,17 +453,23 @@ _typedObjectsForPrintArea(
   }
   for (final shape in sheet.shapes) {
     final path = _fortuneShapeLogicalPath(shape);
-    final strokeWidth = fortuneMillimetersToLogicalPixels(
-      shape.strokeWidthMm,
-    );
-    final fillIntersects = shape.fillColor != null &&
-        _filledPathIntersectsRect(path, printRect);
-    final strokeIntersects = _strokePathIntersectsRect(
-      path,
-      shape.strokeStyle,
-      strokeWidth,
-      printRect,
-    );
+    final strokeWidth = fortuneMillimetersToLogicalPixels(shape.strokeWidthMm);
+    final fillIntersects =
+        shape.fillColor != null && _filledShapeIntersectsRect(shape, printRect);
+    final strokeIntersects = shape.strokeStyle == FortuneStrokeStyle.solid
+        ? _solidShapeStrokeIntersectsRect(shape, path, strokeWidth, printRect)
+        : _strokePathIntersectsRect(
+                path,
+                shape.strokeStyle,
+                strokeWidth,
+                printRect,
+              ) ||
+              shape.kind == FortuneShapeKind.rectangle &&
+                  _patternedRectangleMiterIntersectsRect(
+                    shape,
+                    strokeWidth,
+                    printRect,
+                  );
     if (!fillIntersects && !strokeIntersects) {
       continue;
     }
@@ -467,30 +477,14 @@ _typedObjectsForPrintArea(
     nextBounds = _expandBoundsForLogicalRect(
       sheet,
       nextBounds,
-      path.getBounds().inflate(strokeWidth / 2),
+      path.getBounds().inflate(
+        shape.kind == FortuneShapeKind.rectangle
+            ? strokeWidth / math.sqrt2
+            : strokeWidth / 2,
+      ),
     );
   }
   return (bounds: nextBounds, lines: lines, shapes: shapes);
-}
-
-ui.Rect _logicalRectForBounds(
-  FortuneSheet sheet,
-  _LabelSheetSaveBounds bounds,
-) {
-  return ui.Rect.fromLTWH(
-    0,
-    0,
-    _spanLength(
-      0,
-      bounds.maxColumn + 1,
-      lengthForIndex: (column) => _columnWidth(sheet, column),
-    ),
-    _spanLength(
-      0,
-      bounds.maxRow + 1,
-      lengthForIndex: (row) => _rowHeight(sheet, row),
-    ),
-  );
 }
 
 _LabelSheetSaveBounds _expandBoundsForLogicalRect(
@@ -542,32 +536,206 @@ ui.Path _fortuneShapeLogicalPath(FortuneShape shape) {
   return path.transform(transform.storage);
 }
 
-bool _filledPathIntersectsRect(ui.Path path, ui.Rect rect) {
-  if (!path.getBounds().overlaps(rect)) {
+bool _filledShapeIntersectsRect(FortuneShape shape, ui.Rect printRect) {
+  final shapeRect = ui.Rect.fromLTWH(
+    shape.left,
+    shape.top,
+    shape.width,
+    shape.height,
+  );
+  final pathBounds = _fortuneShapeLogicalPath(shape).getBounds();
+  if (!_rectsIntersectOrTouch(pathBounds, printRect)) {
     return false;
   }
-  if (path.contains(rect.topLeft) ||
-      path.contains(rect.topRight) ||
-      path.contains(rect.bottomLeft) ||
-      path.contains(rect.bottomRight) ||
-      path.contains(rect.center)) {
-    return true;
+
+  final radians = -shape.rotationDegrees * math.pi / 180;
+  final cosine = math.cos(radians);
+  final sine = math.sin(radians);
+  final center = shapeRect.center;
+  ui.Offset toShapeLocal(ui.Offset point) {
+    final dx = point.dx - center.dx;
+    final dy = point.dy - center.dy;
+    return ui.Offset(
+      center.dx + dx * cosine - dy * sine,
+      center.dy + dx * sine + dy * cosine,
+    );
   }
-  for (final metric in path.computeMetrics()) {
-    const samples = 64;
-    ui.Offset? previous;
-    for (var index = 0; index <= samples; index += 1) {
-      final tangent = metric.getTangentForOffset(
-        metric.length * index / samples,
+
+  final printPolygon = <ui.Offset>[
+    toShapeLocal(printRect.topLeft),
+    toShapeLocal(printRect.topRight),
+    toShapeLocal(printRect.bottomRight),
+    toShapeLocal(printRect.bottomLeft),
+  ];
+  switch (shape.kind) {
+    case FortuneShapeKind.rectangle:
+      return _polygonDistanceSquaredToRect(printPolygon, shapeRect) == 0;
+    case FortuneShapeKind.roundedRectangle:
+      final radius = math.min(
+        fortuneMillimetersToLogicalPixels(shape.cornerRadiusMm),
+        math.min(shapeRect.width, shapeRect.height) / 2,
       );
-      if (tangent == null) {
-        continue;
+      final core = ui.Rect.fromLTRB(
+        shapeRect.left + radius,
+        shapeRect.top + radius,
+        shapeRect.right - radius,
+        shapeRect.bottom - radius,
+      );
+      return _polygonDistanceSquaredToRect(printPolygon, core) <=
+          radius * radius;
+    case FortuneShapeKind.ellipse:
+      final radiusX = shapeRect.width / 2;
+      final radiusY = shapeRect.height / 2;
+      final normalizedPolygon = printPolygon
+          .map(
+            (point) => ui.Offset(
+              (point.dx - center.dx) / radiusX,
+              (point.dy - center.dy) / radiusY,
+            ),
+          )
+          .toList(growable: false);
+      return _pointInConvexPolygon(ui.Offset.zero, normalizedPolygon) ||
+          _minimumDistanceSquaredToPolygon(ui.Offset.zero, normalizedPolygon) <=
+              1;
+  }
+}
+
+double _polygonDistanceSquaredToRect(List<ui.Offset> polygon, ui.Rect rect) {
+  final rectPolygon = <ui.Offset>[
+    rect.topLeft,
+    rect.topRight,
+    rect.bottomRight,
+    rect.bottomLeft,
+  ];
+  if (polygon.any(rect.contains) ||
+      rectPolygon.any((point) => _pointInConvexPolygon(point, polygon))) {
+    return 0;
+  }
+  var minimum = double.infinity;
+  for (var index = 0; index < polygon.length; index += 1) {
+    final start = polygon[index];
+    final end = polygon[(index + 1) % polygon.length];
+    for (var rectIndex = 0; rectIndex < rectPolygon.length; rectIndex += 1) {
+      final rectStart = rectPolygon[rectIndex];
+      final rectEnd = rectPolygon[(rectIndex + 1) % rectPolygon.length];
+      if (_segmentsIntersect(start, end, rectStart, rectEnd)) {
+        return 0;
       }
-      if (rect.contains(tangent.position) ||
-          previous != null && _segmentIntersectsRect(previous, tangent.position, rect)) {
-        return true;
-      }
-      previous = tangent.position;
+      minimum = math.min(
+        minimum,
+        math.min(
+          _pointToSegmentDistanceSquared(start, rectStart, rectEnd),
+          _pointToSegmentDistanceSquared(rectStart, start, end),
+        ),
+      );
+    }
+  }
+  return minimum;
+}
+
+bool _pointInConvexPolygon(ui.Offset point, List<ui.Offset> polygon) {
+  var hasPositive = false;
+  var hasNegative = false;
+  for (var index = 0; index < polygon.length; index += 1) {
+    final start = polygon[index];
+    final end = polygon[(index + 1) % polygon.length];
+    final cross =
+        (end.dx - start.dx) * (point.dy - start.dy) -
+        (end.dy - start.dy) * (point.dx - start.dx);
+    hasPositive = hasPositive || cross > 0;
+    hasNegative = hasNegative || cross < 0;
+    if (hasPositive && hasNegative) {
+      return false;
+    }
+  }
+  return true;
+}
+
+double _minimumDistanceSquaredToPolygon(
+  ui.Offset point,
+  List<ui.Offset> polygon,
+) {
+  var minimum = double.infinity;
+  for (var index = 0; index < polygon.length; index += 1) {
+    minimum = math.min(
+      minimum,
+      _pointToSegmentDistanceSquared(
+        point,
+        polygon[index],
+        polygon[(index + 1) % polygon.length],
+      ),
+    );
+  }
+  return minimum;
+}
+
+double _pointToSegmentDistanceSquared(
+  ui.Offset point,
+  ui.Offset start,
+  ui.Offset end,
+) {
+  final delta = end - start;
+  final lengthSquared = delta.dx * delta.dx + delta.dy * delta.dy;
+  if (lengthSquared == 0) {
+    return (point - start).distanceSquared;
+  }
+  final projection =
+      ((point.dx - start.dx) * delta.dx + (point.dy - start.dy) * delta.dy) /
+      lengthSquared;
+  final closest = start + delta * projection.clamp(0.0, 1.0);
+  return (point - closest).distanceSquared;
+}
+
+bool _strokeLineIntersectsRect(
+  ui.Offset start,
+  ui.Offset end,
+  FortuneStrokeStyle style,
+  double strokeWidth,
+  ui.Rect rect,
+) {
+  final delta = end - start;
+  final length = delta.distance;
+  if (length == 0) {
+    return false;
+  }
+  final direction = delta / length;
+  final normal = ui.Offset(-direction.dy, direction.dx) * (strokeWidth / 2);
+
+  bool markIntersects(double markStart, double markEnd) {
+    final markStartPoint = start + direction * markStart;
+    final markEndPoint = start + direction * markEnd;
+    final polygon = <ui.Offset>[
+      markStartPoint + normal,
+      markEndPoint + normal,
+      markEndPoint - normal,
+      markStartPoint - normal,
+    ];
+    return _polygonDistanceSquaredToRect(polygon, rect) == 0;
+  }
+
+  if (style == FortuneStrokeStyle.solid) {
+    return markIntersects(0, length);
+  }
+  final marks = fortuneObjectStrokeMarks(
+    style: style,
+    strokeWidth: strokeWidth,
+    pathLength: length,
+    closed: false,
+  );
+  for (final mark in marks) {
+    switch (mark) {
+      case FortuneObjectStrokeDot(:final center):
+        if (_circleIntersectsRect(
+          start + direction * center,
+          strokeWidth / 2,
+          rect,
+        )) {
+          return true;
+        }
+      case FortuneObjectStrokeDash(:final start, :final end):
+        if (markIntersects(start, end)) {
+          return true;
+        }
     }
   }
   return false;
@@ -579,107 +747,308 @@ bool _strokePathIntersectsRect(
   double strokeWidth,
   ui.Rect rect,
 ) {
-  if (!path.getBounds().inflate(strokeWidth / 2).overlaps(rect)) {
+  if (!_rectsIntersectOrTouch(
+    path.getBounds().inflate(strokeWidth / 2),
+    rect,
+  )) {
     return false;
   }
   for (final metric in path.computeMetrics()) {
     if (style == FortuneStrokeStyle.solid) {
-      if (_pathMetricIntervalIntersectsRect(
+      if (_pathMetricStrokeIntersectsRect(
         metric,
         0,
         metric.length,
-        rect.inflate(strokeWidth / 2),
+        rect,
+        strokeWidth / 2,
       )) {
         return true;
       }
       continue;
     }
-    final pattern = switch (style) {
-      FortuneStrokeStyle.dashed => <double>[4 * strokeWidth, 2 * strokeWidth],
-      FortuneStrokeStyle.dotted => <double>[0, 3 * strokeWidth],
-      FortuneStrokeStyle.dashDot => <double>[
-        4 * strokeWidth,
-        2 * strokeWidth,
-        0,
-        3 * strokeWidth,
-      ],
-      FortuneStrokeStyle.solid => const <double>[],
-    };
-    var distance = 0.0;
-    var index = 0;
-    while (distance <= metric.length) {
-      final markLength = pattern[index % pattern.length];
-      final gapLength = pattern[(index + 1) % pattern.length];
-      if (markLength == 0) {
-        final tangent = metric.getTangentForOffset(distance);
-        if (tangent != null &&
-            rect.inflate(strokeWidth / 2).contains(tangent.position)) {
-          return true;
-        }
-      } else if (_pathMetricIntervalIntersectsRect(
-        metric,
-        distance,
-        math.min(metric.length, distance + markLength),
-        rect.inflate(strokeWidth / 2),
-      )) {
-        return true;
+    final marks = fortuneObjectStrokeMarks(
+      style: style,
+      strokeWidth: strokeWidth,
+      pathLength: metric.length,
+      closed: metric.isClosed,
+    );
+    for (final mark in marks) {
+      switch (mark) {
+        case FortuneObjectStrokeDot(:final center):
+          final tangent = metric.getTangentForOffset(center);
+          if (tangent != null &&
+              _circleIntersectsRect(tangent.position, strokeWidth / 2, rect)) {
+            return true;
+          }
+        case FortuneObjectStrokeDash(:final start, :final end):
+          if (_pathMetricStrokeIntersectsRect(
+            metric,
+            start,
+            end,
+            rect,
+            strokeWidth / 2,
+          )) {
+            return true;
+          }
       }
-      distance += markLength + gapLength;
-      index += 2;
     }
   }
   return false;
 }
 
-bool _pathMetricIntervalIntersectsRect(
+bool _solidShapeStrokeIntersectsRect(
+  FortuneShape shape,
+  ui.Path path,
+  double strokeWidth,
+  ui.Rect printRect,
+) {
+  if (shape.kind != FortuneShapeKind.rectangle) {
+    return _strokePathIntersectsRect(
+      path,
+      FortuneStrokeStyle.solid,
+      strokeWidth,
+      printRect,
+    );
+  }
+  final center = ui.Offset(
+    shape.left + shape.width / 2,
+    shape.top + shape.height / 2,
+  );
+  final radians = shape.rotationDegrees * math.pi / 180;
+  final cosine = math.cos(radians);
+  final sine = math.sin(radians);
+  ui.Offset rotate(ui.Offset point) {
+    final delta = point - center;
+    return center +
+        ui.Offset(
+          delta.dx * cosine - delta.dy * sine,
+          delta.dx * sine + delta.dy * cosine,
+        );
+  }
+
+  List<ui.Offset> polygonFor(ui.Rect rect) => [
+    rotate(rect.topLeft),
+    rotate(rect.topRight),
+    rotate(rect.bottomRight),
+    rotate(rect.bottomLeft),
+  ];
+
+  final radius = strokeWidth / 2;
+  final centerlineRect = ui.Rect.fromLTWH(
+    shape.left,
+    shape.top,
+    shape.width,
+    shape.height,
+  );
+  final outer = polygonFor(centerlineRect.inflate(radius));
+  if (_polygonDistanceSquaredToRect(outer, printRect) != 0) {
+    return false;
+  }
+  if (shape.width <= strokeWidth || shape.height <= strokeWidth) {
+    return true;
+  }
+  final inner = polygonFor(centerlineRect.deflate(radius));
+  return ![
+    printRect.topLeft,
+    printRect.topRight,
+    printRect.bottomRight,
+    printRect.bottomLeft,
+  ].every((point) => _pointStrictlyInConvexPolygon(point, inner));
+}
+
+bool _patternedRectangleMiterIntersectsRect(
+  FortuneShape shape,
+  double strokeWidth,
+  ui.Rect printRect,
+) {
+  final width = shape.width;
+  final height = shape.height;
+  final perimeter = 2 * (width + height);
+  final marks = fortuneObjectStrokeMarks(
+    style: shape.strokeStyle,
+    strokeWidth: strokeWidth,
+    pathLength: perimeter,
+    closed: true,
+  );
+  final radius = strokeWidth / 2;
+  final center = ui.Offset(shape.left + width / 2, shape.top + height / 2);
+  final radians = shape.rotationDegrees * math.pi / 180;
+  final cosine = math.cos(radians);
+  final sine = math.sin(radians);
+  ui.Offset rotate(ui.Offset point) {
+    final delta = point - center;
+    return center +
+        ui.Offset(
+          delta.dx * cosine - delta.dy * sine,
+          delta.dx * sine + delta.dy * cosine,
+        );
+  }
+
+  final corners = <({double offset, List<ui.Offset> triangle})>[
+    (
+      offset: width,
+      triangle: [
+        ui.Offset(shape.left + width, shape.top - radius),
+        ui.Offset(shape.left + width + radius, shape.top - radius),
+        ui.Offset(shape.left + width + radius, shape.top),
+      ],
+    ),
+    (
+      offset: width + height,
+      triangle: [
+        ui.Offset(shape.left + width + radius, shape.top + height),
+        ui.Offset(shape.left + width + radius, shape.top + height + radius),
+        ui.Offset(shape.left + width, shape.top + height + radius),
+      ],
+    ),
+    (
+      offset: 2 * width + height,
+      triangle: [
+        ui.Offset(shape.left, shape.top + height + radius),
+        ui.Offset(shape.left - radius, shape.top + height + radius),
+        ui.Offset(shape.left - radius, shape.top + height),
+      ],
+    ),
+  ];
+  for (final corner in corners) {
+    final covered = marks.any(
+      (mark) => switch (mark) {
+        FortuneObjectStrokeDash(:final start, :final end) =>
+          start < corner.offset && end > corner.offset,
+        FortuneObjectStrokeDot() => false,
+      },
+    );
+    if (covered &&
+        _polygonDistanceSquaredToRect(
+              corner.triangle.map(rotate).toList(growable: false),
+              printRect,
+            ) ==
+            0) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool _pointStrictlyInConvexPolygon(ui.Offset point, List<ui.Offset> polygon) {
+  var sign = 0;
+  for (var index = 0; index < polygon.length; index += 1) {
+    final start = polygon[index];
+    final end = polygon[(index + 1) % polygon.length];
+    final cross =
+        (end.dx - start.dx) * (point.dy - start.dy) -
+        (end.dy - start.dy) * (point.dx - start.dx);
+    if (cross == 0) {
+      return false;
+    }
+    final currentSign = cross > 0 ? 1 : -1;
+    sign = sign == 0 ? currentSign : sign;
+    if (sign != currentSign) {
+      return false;
+    }
+  }
+  return true;
+}
+
+bool _rectsIntersectOrTouch(ui.Rect first, ui.Rect second) {
+  return first.left <= second.right &&
+      first.right >= second.left &&
+      first.top <= second.bottom &&
+      first.bottom >= second.top;
+}
+
+bool _circleIntersectsRect(ui.Offset center, double radius, ui.Rect rect) {
+  final closestX = center.dx.clamp(rect.left, rect.right);
+  final closestY = center.dy.clamp(rect.top, rect.bottom);
+  final dx = center.dx - closestX;
+  final dy = center.dy - closestY;
+  return dx * dx + dy * dy <= radius * radius;
+}
+
+bool _pathMetricStrokeIntersectsRect(
   ui.PathMetric metric,
   double start,
   double end,
   ui.Rect rect,
+  double radius,
 ) {
-  final length = math.max(0, end - start);
-  final samples = math.max(1, (length / 2).ceil());
-  ui.Offset? previous;
-  for (var index = 0; index <= samples; index += 1) {
-    final tangent = metric.getTangentForOffset(start + length * index / samples);
-    if (tangent == null) {
-      continue;
+  const minimumInterval = 1e-7;
+  const maximumDepth = 48;
+
+  bool intersects(double intervalStart, double intervalEnd, int depth) {
+    final intervalPath = metric.extractPath(intervalStart, intervalEnd);
+    final bounds = intervalPath.getBounds();
+    if (_rectDistanceSquared(bounds, rect) > radius * radius) {
+      return false;
     }
-    if (rect.contains(tangent.position) ||
-        previous != null && _segmentIntersectsRect(previous, tangent.position, rect)) {
+    if (_rectsIntersectOrTouch(bounds, rect)) {
       return true;
     }
-    previous = tangent.position;
+    if (depth >= maximumDepth ||
+        intervalEnd - intervalStart <= minimumInterval) {
+      final startTangent = metric.getTangentForOffset(intervalStart);
+      final endTangent = metric.getTangentForOffset(intervalEnd);
+      if (startTangent == null || endTangent == null) {
+        return false;
+      }
+      final startNormal = ui.Offset(
+        -startTangent.vector.dy,
+        startTangent.vector.dx,
+      );
+      final endNormal = ui.Offset(-endTangent.vector.dy, endTangent.vector.dx);
+      final footprint = <ui.Offset>[
+        startTangent.position + startNormal * radius,
+        endTangent.position + endNormal * radius,
+        endTangent.position - endNormal * radius,
+        startTangent.position - startNormal * radius,
+      ];
+      return _polygonDistanceSquaredToRect(footprint, rect) == 0;
+    }
+    final middle = (intervalStart + intervalEnd) / 2;
+    return intersects(intervalStart, middle, depth + 1) ||
+        intersects(middle, intervalEnd, depth + 1);
   }
-  return false;
+
+  return intersects(start, end, 0);
 }
 
-bool _segmentIntersectsRect(ui.Offset start, ui.Offset end, ui.Rect rect) {
-  if (rect.contains(start) || rect.contains(end)) {
-    return true;
-  }
-  return _segmentsIntersect(start, end, rect.topLeft, rect.topRight) ||
-      _segmentsIntersect(start, end, rect.topRight, rect.bottomRight) ||
-      _segmentsIntersect(start, end, rect.bottomRight, rect.bottomLeft) ||
-      _segmentsIntersect(start, end, rect.bottomLeft, rect.topLeft);
+double _rectDistanceSquared(ui.Rect first, ui.Rect second) {
+  final dx = math.max(
+    0.0,
+    math.max(first.left - second.right, second.left - first.right),
+  );
+  final dy = math.max(
+    0.0,
+    math.max(first.top - second.bottom, second.top - first.bottom),
+  );
+  return dx * dx + dy * dy;
 }
 
-bool _segmentsIntersect(
-  ui.Offset a,
-  ui.Offset b,
-  ui.Offset c,
-  ui.Offset d,
-) {
+bool _segmentsIntersect(ui.Offset a, ui.Offset b, ui.Offset c, ui.Offset d) {
   double cross(ui.Offset first, ui.Offset second, ui.Offset third) {
     return (second.dx - first.dx) * (third.dy - first.dy) -
         (second.dy - first.dy) * (third.dx - first.dx);
+  }
+
+  bool onSegment(ui.Offset start, ui.Offset point, ui.Offset end) {
+    return point.dx >= math.min(start.dx, end.dx) &&
+        point.dx <= math.max(start.dx, end.dx) &&
+        point.dy >= math.min(start.dy, end.dy) &&
+        point.dy <= math.max(start.dy, end.dy);
   }
 
   final abC = cross(a, b, c);
   final abD = cross(a, b, d);
   final cdA = cross(c, d, a);
   final cdB = cross(c, d, b);
-  return abC * abD <= 0 && cdA * cdB <= 0;
+  if ((abC > 0 && abD < 0 || abC < 0 && abD > 0) &&
+      (cdA > 0 && cdB < 0 || cdA < 0 && cdB > 0)) {
+    return true;
+  }
+  return abC == 0 && onSegment(a, c, b) ||
+      abD == 0 && onSegment(a, d, b) ||
+      cdA == 0 && onSegment(c, a, d) ||
+      cdB == 0 && onSegment(c, b, d);
 }
 
 _LabelSheetSaveBounds _estimatedCellTextExtent(
@@ -1102,10 +1471,7 @@ List<Object?> _sanitizeObjectList(
   return [
     for (final item in raw)
       if (item is Map)
-        _sanitizeMap(
-          Map<String, Object?>.from(item),
-          supportedKeys,
-        ),
+        _sanitizeMap(Map<String, Object?>.from(item), supportedKeys),
   ];
 }
 

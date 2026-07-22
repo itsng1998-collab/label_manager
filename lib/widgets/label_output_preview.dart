@@ -92,6 +92,7 @@ class _LabelOutputPreviewState extends State<LabelOutputPreview> {
             disableSheetRulerGuideInteraction: true,
             hideStatisticBar: true,
             copyOnlyContextMenu: true,
+            canEditObjects: false,
             zoomToolbarPlacement: widget.zoomToolbarPlacement,
             zoomController: widget.zoomController,
           ),

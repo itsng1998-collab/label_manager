@@ -786,7 +786,7 @@ void main() {
     expect(image.extraFields['barcodeText'], 'OLD-TEXT');
   });
 
-  testWidgets('barcode property render keeps only the latest request', (
+  testWidgets('barcode property render blocks a second pending request', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(900, 700);
@@ -867,6 +867,8 @@ void main() {
 
     final first = render('FIRST');
     final second = render('SECOND');
+    expect(await second, isFalse);
+    expect(renders, hasLength(1));
     expect(controller.barcodePropertyRenderPending, isTrue);
     expect(controller.objectMutationEnabled, isFalse);
     expect(controller.projectedCanUndo, isFalse);
@@ -884,23 +886,18 @@ void main() {
     expect(controller.getSheet(id: 's3'), isNull);
     expect(controller.objectSelection.sheetId, 's1');
     expect(controller.getSheet(id: 's1')!.zoomRatio, 1);
-    renders[1].complete(
-      FortuneBarcodeRenderResult(bytes: base64Decode(_testPngBase64)),
-    );
-    expect(await second, isTrue);
-    expect(controller.barcodePropertyRenderPending, isFalse);
-    expect(controller.objectMutationEnabled, isTrue);
-    expect(mutationEnablement.last, isTrue);
     renders[0].complete(
       FortuneBarcodeRenderResult(bytes: base64Decode(_testPngBase64)),
     );
-    expect(await first, isFalse);
+    expect(await first, isTrue);
     expect(controller.barcodePropertyRenderPending, isFalse);
+    expect(controller.objectMutationEnabled, isTrue);
+    expect(mutationEnablement.last, isTrue);
     await tester.pump();
 
     expect(
       controller.objectSelection.activeImage?.extraFields['barcodeText'],
-      'SECOND',
+      'FIRST',
     );
   });
 
@@ -1446,6 +1443,10 @@ void main() {
 
     await tester.tap(find.text('이미지 image_1'));
     await tester.pump();
+    await tester.tap(
+      find.byKey(const ValueKey('fortune-object-property-aspect-lock')),
+    );
+    await tester.pump();
     tester
         .widget<DropdownButtonFormField<String>>(
           find.byKey(const ValueKey('fortune-object-property-connectionId')),
@@ -1472,10 +1473,40 @@ void main() {
     await tester.pump();
 
     final image = controller.objectSelection.activeImage!;
-    expect((image.top, image.width, image.height), (0, 120, 60));
+    expect((image.top, image.width, image.height), (0, 120, 40));
     expect(image.extraFields['rotation'], 45);
     expect(image.extraFields[fortuneImageObjectIdExtraKey], 'NEW');
     expect(image.extraFields['crop'], {'left': 0.1});
+    expect(
+      tester
+          .widget<CheckboxListTile>(
+            find.byKey(const ValueKey('fortune-object-property-aspect-lock')),
+          )
+          .value,
+      isFalse,
+    );
+
+    await tester.tap(
+      find.byKey(const ValueKey('fortune-object-property-aspect-lock')),
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey('fortune-object-property-width')),
+      '150',
+    );
+    tester
+        .widget<FilledButton>(
+          find.byKey(const ValueKey('fortune-object-property-apply')),
+        )
+        .onPressed!();
+    await tester.pump();
+
+    expect(
+      (
+        controller.objectSelection.activeImage!.width,
+        controller.objectSelection.activeImage!.height,
+      ),
+      (150, 50),
+    );
   });
 
   testWidgets('controller finalizes or discards the active property draft', (
@@ -1560,10 +1591,7 @@ void main() {
     expect(controller.finalizeActiveObjectPropertyDraft(), isTrue);
     await tester.pump();
     expect(controller.objectSelection.activeShape!.width, 75);
-    expect(
-      tester.widget<TextField>(widthField).controller!.text,
-      '75',
-    );
+    expect(tester.widget<TextField>(widthField).controller!.text, '75');
     expect(controller.hasActiveObjectPropertyDraft, isFalse);
 
     controller.handleUndo();
@@ -1662,9 +1690,9 @@ void main() {
     expect(listenerStates, isEmpty);
 
     await tester.enterText(widthField, 'invalid');
-  await tester.pump();
+    await tester.pump();
     final delayedSubmit = tester.widget<TextField>(widthField).onSubmitted!;
-  listenerStates.clear();
+    listenerStates.clear();
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await tester.pump();
     expect(tester.widget<TextField>(widthField).controller!.text, '40');

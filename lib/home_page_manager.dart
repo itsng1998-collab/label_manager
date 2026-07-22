@@ -5174,6 +5174,7 @@ class _ItemElementPreviewTab extends StatelessWidget {
       disableSheetRulerGuideInteraction: true,
       hideStatisticBar: true,
       limitCellActionsToClipboardAndClear: true,
+      canEditObjects: canEdit,
       zoomToolbarPlacement: LabelSheetZoomToolbarPlacement.previewTabAreaEnd,
       onUserWorkbookChanged: canEdit ? onWorkbookChanged : null,
       onUserWorkbookChangedShouldNotify: canEdit

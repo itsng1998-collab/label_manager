@@ -31,6 +31,7 @@ import 'package:label_manager/page_label_sheet/label_sheet_save_codec.dart';
 import 'package:label_manager/page_label_sheet/label_sheet_workbench.dart';
 import 'package:label_manager/utils/on_messages.dart';
 import 'package:label_manager/printing/label_printer_preferences.dart';
+import 'package:label_manager/widgets/vertical_pane_splitter.dart';
 import 'package:path/path.dart' as p;
 import 'package:printing/printing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -191,7 +192,10 @@ Offset _floatingResizeGripPoint(WidgetTester tester, String key) {
 
 void main() {
   test('item manager load progress does not expire during slow DB work', () {
-    expect(itemManagerLoadProgressDuration, greaterThan(const Duration(hours: 1)));
+    expect(
+      itemManagerLoadProgressDuration,
+      greaterThan(const Duration(hours: 1)),
+    );
   });
 
   test('common label dirty callback is scoped to its label session', () {
@@ -218,44 +222,45 @@ void main() {
     );
   });
 
-  testWidgets('item manager load failure closes progress and shows warning dialog', (
-    tester,
-  ) async {
-    late BuildContext scaffoldContext;
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: Builder(
-            builder: (context) {
-              scaffoldContext = context;
-              return const SizedBox();
-            },
+  testWidgets(
+    'item manager load failure closes progress and shows warning dialog',
+    (tester) async {
+      late BuildContext scaffoldContext;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) {
+                scaffoldContext = context;
+                return const SizedBox();
+              },
+            ),
           ),
         ),
-      ),
-    );
+      );
 
-    showSnackBar(
-      scaffoldContext,
-      '브랜드 데이터를 불러오고 있습니다...',
-      type: SnackBarType.inProgress,
-      duration: itemManagerLoadProgressDuration,
-    );
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
-    unawaited(showItemManagerLoadFailureDialog(scaffoldContext));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 500));
+      showSnackBar(
+        scaffoldContext,
+        '브랜드 데이터를 불러오고 있습니다...',
+        type: SnackBarType.inProgress,
+        duration: itemManagerLoadProgressDuration,
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      unawaited(showItemManagerLoadFailureDialog(scaffoldContext));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
 
-    expect(find.byType(AlertDialog), findsOneWidget);
-    expect(find.text('품목 조회 오류'), findsOneWidget);
-    expect(find.text(itemManagerLoadFailureMessage), findsOneWidget);
-    expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(find.byType(AlertDialog), findsOneWidget);
+      expect(find.text('품목 조회 오류'), findsOneWidget);
+      expect(find.text(itemManagerLoadFailureMessage), findsOneWidget);
+      expect(find.byType(CircularProgressIndicator), findsNothing);
 
-    await tester.tap(find.text('확인'));
-    await tester.pumpAndSettle();
-    expect(find.byType(AlertDialog), findsNothing);
-  });
+      await tester.tap(find.text('확인'));
+      await tester.pumpAndSettle();
+      expect(find.byType(AlertDialog), findsNothing);
+    },
+  );
 
   testWidgets('dirty item draft blocks header dropdown menus', (tester) async {
     tester.view.physicalSize = const Size(1400, 500);
@@ -382,49 +387,52 @@ void main() {
     expect(invalidPreview.hintText, '* 저장된 라벨에 문제가 있습니다.');
   });
 
-  test('item output preview collects barcode messages and error placeholder', () {
-    final workbook = FortuneWorkbook(
-      sheets: [
-        FortuneSheet(
-          id: 's1',
-          name: 'Label',
-          images: const [
-            FortuneImage(
-              id: 'warning',
-              src: 'data:image/png;base64,AAA=',
-              left: 0,
-              top: 0,
-              width: 10,
-              height: 10,
-              extraFields: {'itemCodeWarning': '대체 형식을 사용합니다.'},
-            ),
-            FortuneImage(
-              id: 'error',
-              src: 'data:image/png;base64,AAA=',
-              left: 10,
-              top: 0,
-              width: 10,
-              height: 10,
-              extraFields: {
-                'itemCodeWarning': '대체 형식을 사용합니다.',
-                'itemCodeError': '바코드를 표시할 수 없습니다.',
-              },
-            ),
-          ],
-        ),
-      ],
-    );
+  test(
+    'item output preview collects barcode messages and error placeholder',
+    () {
+      final workbook = FortuneWorkbook(
+        sheets: [
+          FortuneSheet(
+            id: 's1',
+            name: 'Label',
+            images: const [
+              FortuneImage(
+                id: 'warning',
+                src: 'data:image/png;base64,AAA=',
+                left: 0,
+                top: 0,
+                width: 10,
+                height: 10,
+                extraFields: {'itemCodeWarning': '대체 형식을 사용합니다.'},
+              ),
+              FortuneImage(
+                id: 'error',
+                src: 'data:image/png;base64,AAA=',
+                left: 10,
+                top: 0,
+                width: 10,
+                height: 10,
+                extraFields: {
+                  'itemCodeWarning': '대체 형식을 사용합니다.',
+                  'itemCodeError': '바코드를 표시할 수 없습니다.',
+                },
+              ),
+            ],
+          ),
+        ],
+      );
 
-    final messages = debugItemCodePreviewMessagesForTesting(workbook);
-    expect(messages, [
-      (text: '대체 형식을 사용합니다.', error: false),
-      (text: '바코드를 표시할 수 없습니다.', error: true),
-    ]);
-    expect(
-      debugItemCodeErrorPlaceholderForTesting(),
-      startsWith('data:image/svg+xml;base64,'),
-    );
-  });
+      final messages = debugItemCodePreviewMessagesForTesting(workbook);
+      expect(messages, [
+        (text: '대체 형식을 사용합니다.', error: false),
+        (text: '바코드를 표시할 수 없습니다.', error: true),
+      ]);
+      expect(
+        debugItemCodeErrorPlaceholderForTesting(),
+        startsWith('data:image/svg+xml;base64,'),
+      );
+    },
+  );
 
   test(
     'item output preview creates fallback sheet for empty saved workbook',
@@ -475,7 +483,9 @@ void main() {
               const FortuneCellCoord(0, 0): const FortuneCell(
                 value: '#ITEMNAME',
               ),
-              const FortuneCellCoord(0, 1): const FortuneCell(value: '#ELEMENT'),
+              const FortuneCellCoord(0, 1): const FortuneCell(
+                value: '#ELEMENT',
+              ),
             },
           ),
         ],
@@ -629,9 +639,7 @@ void main() {
           id: 'item_element',
           name: '주원료 및 함량',
           status: 1,
-          cells: {
-            const FortuneCellCoord(0, 0): const FortuneCell(value: '원료'),
-          },
+          cells: {const FortuneCellCoord(0, 0): const FortuneCell(value: '원료')},
         ),
       ],
     );
@@ -733,9 +741,9 @@ void main() {
     expect(committedPlain, '저장 버튼 없는 변경');
     expect(committedPayload, isNotNull);
     expect(
-      labelSheetDecodeWorkbookSave(committedPayload!).sheets.first.cells.values
-          .single
-          .value,
+      labelSheetDecodeWorkbookSave(
+        committedPayload!,
+      ).sheets.first.cells.values.single.value,
       '저장 버튼 없는 변경',
     );
   });
@@ -997,6 +1005,17 @@ void main() {
     expect(
       items.where((item) => item == labelSheetSaveToolbarCommand),
       hasLength(1),
+    );
+  });
+
+  test('label sheet settings can disable object mutations explicitly', () {
+    expect(labelSheetSettings(const FortuneSettings()).allowEdit, isTrue);
+    expect(
+      labelSheetSettings(
+        const FortuneSettings(),
+        canEditObjects: false,
+      ).allowEdit,
+      isFalse,
     );
   });
 
@@ -2056,7 +2075,9 @@ void main() {
 
     expect(savedPayload, isNotNull);
     expect(
-      labelSheetDecodeWorkbookSave(savedPayload!).sheets.single.shapes.single.width,
+      labelSheetDecodeWorkbookSave(
+        savedPayload!,
+      ).sheets.single.shapes.single.width,
       fortuneMillimetersToLogicalPixels(75),
     );
   });
@@ -3025,12 +3046,21 @@ void main() {
     );
     await tester.pump();
     await tester.pump();
+    final hiddenPanel = find.byType(
+      FortuneObjectLayerPanel,
+      skipOffstage: false,
+    );
+    final panelState = tester.state(hiddenPanel);
     tester
         .widget<FortuneSheetApp>(find.byType(FortuneSheetApp))
         .onOpenObjectPanel!();
     await tester.pump();
 
     final rect = tester.getRect(find.byType(FortuneObjectLayerPanel));
+    expect(
+      tester.state(find.byType(FortuneObjectLayerPanel)),
+      same(panelState),
+    );
     expect(rect.left, 12);
     expect(rect.right, 312);
     expect(rect.width, 300);
@@ -3070,9 +3100,84 @@ void main() {
     expect(rect.width, 200);
   });
 
-  testWidgets('external zoom toolbar controls label sheet', (
+  testWidgets('object panel width persists drag then reset in order', (
     tester,
   ) async {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 1000,
+            height: 500,
+            child: LabelSheetWorkbench(
+              initialWorkbook: FortuneWorkbook(
+                sheets: [FortuneSheet(id: 's1', name: 'Label')],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final splitter = find.byType(VerticalPaneSplitter);
+    await tester.drag(splitter, const Offset(-120, 0));
+    await tester.pumpAndSettle();
+    var preferences = await SharedPreferences.getInstance();
+    final draggedWidth = tester
+        .getSize(find.byType(FortuneObjectLayerPanel))
+        .width;
+    expect(draggedWidth, isNot(300));
+    expect(
+      preferences.getDouble('label_sheet_object_panel_width'),
+      draggedWidth,
+    );
+
+    final splitterCenter = tester.getCenter(splitter);
+    await tester.tapAt(splitterCenter);
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.tapAt(splitterCenter);
+    await tester.pumpAndSettle();
+    preferences = await SharedPreferences.getInstance();
+    expect(preferences.getDouble('label_sheet_object_panel_width'), 300);
+  });
+
+  testWidgets('constrained object panel starts drag from its visible width', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues(<String, Object>{
+      'label_sheet_object_panel_width': 420.0,
+    });
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 800,
+            height: 500,
+            child: LabelSheetWorkbench(
+              initialWorkbook: FortuneWorkbook(
+                sheets: [FortuneSheet(id: 's1', name: 'Label')],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final panel = find.byType(FortuneObjectLayerPanel);
+    expect(tester.getSize(panel).width, 312);
+
+    await tester.drag(find.byType(VerticalPaneSplitter), const Offset(30, 0));
+    await tester.pumpAndSettle();
+
+    expect(tester.getSize(panel).width, 302);
+    final preferences = await SharedPreferences.getInstance();
+    expect(preferences.getDouble('label_sheet_object_panel_width'), 302);
+  });
+
+  testWidgets('external zoom toolbar controls label sheet', (tester) async {
     final zoomController = LabelSheetZoomController();
     addTearDown(zoomController.dispose);
 
@@ -3169,7 +3274,10 @@ void main() {
   ) async {
     var readyCount = 0;
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(labelSheetNativeOpenXmlChannel, (_) async => null);
+        .setMockMethodCallHandler(
+          labelSheetNativeOpenXmlChannel,
+          (_) async => null,
+        );
     addTearDown(
       () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(labelSheetNativeOpenXmlChannel, null),
@@ -3312,59 +3420,62 @@ void main() {
     expect(missing, ['가격']);
   });
 
-  test('item output excludes unresolved linked images but keeps fixed images', () {
-    const fixedImage = FortuneImage(
-      id: 'fixed',
-      src: 'data:image/png;base64,AA==',
-      left: 0,
-      top: 0,
-      width: 10,
-      height: 10,
-    );
-    final workbook = FortuneWorkbook(
-      sheets: [
-        FortuneSheet(
-          id: 's1',
-          name: 'Images',
-          images: const [
-            FortuneImage(
-              id: 'empty-linked',
-              src: 'data:image/png;base64,AA==',
-              left: 0,
-              top: 0,
-              width: 10,
-              height: 10,
-              extraFields: {fortuneImageObjectIdExtraKey: '#EMPTY_IMAGE'},
-            ),
-            FortuneImage(
-              id: 'missing-linked',
-              src: 'data:image/png;base64,AA==',
-              left: 0,
-              top: 0,
-              width: 10,
-              height: 10,
-              extraFields: {fortuneImageObjectIdExtraKey: '#MISSING_IMAGE'},
-            ),
-            fixedImage,
-          ],
-        ),
-      ],
-    );
+  test(
+    'item output excludes unresolved linked images but keeps fixed images',
+    () {
+      const fixedImage = FortuneImage(
+        id: 'fixed',
+        src: 'data:image/png;base64,AA==',
+        left: 0,
+        top: 0,
+        width: 10,
+        height: 10,
+      );
+      final workbook = FortuneWorkbook(
+        sheets: [
+          FortuneSheet(
+            id: 's1',
+            name: 'Images',
+            images: const [
+              FortuneImage(
+                id: 'empty-linked',
+                src: 'data:image/png;base64,AA==',
+                left: 0,
+                top: 0,
+                width: 10,
+                height: 10,
+                extraFields: {fortuneImageObjectIdExtraKey: '#EMPTY_IMAGE'},
+              ),
+              FortuneImage(
+                id: 'missing-linked',
+                src: 'data:image/png;base64,AA==',
+                left: 0,
+                top: 0,
+                width: 10,
+                height: 10,
+                extraFields: {fortuneImageObjectIdExtraKey: '#MISSING_IMAGE'},
+              ),
+              fixedImage,
+            ],
+          ),
+        ],
+      );
 
-    final materialized = debugMaterializeItemImagesForTesting(workbook, {
-      '#EMPTY_IMAGE': '',
-      '#MISSING_IMAGE': '__label_manager_missing_image__',
-    });
+      final materialized = debugMaterializeItemImagesForTesting(workbook, {
+        '#EMPTY_IMAGE': '',
+        '#MISSING_IMAGE': '__label_manager_missing_image__',
+      });
 
-    final images = materialized.sheets.single.images;
-    expect(images, hasLength(1));
-    expect(images.single.id, fixedImage.id);
-    expect(images.single.src, fixedImage.src);
-    expect(
-      images.single.extraFields.containsKey(fortuneImageObjectIdExtraKey),
-      isFalse,
-    );
-  });
+      final images = materialized.sheets.single.images;
+      expect(images, hasLength(1));
+      expect(images.single.id, fixedImage.id);
+      expect(images.single.src, fixedImage.src);
+      expect(
+        images.single.extraFields.containsKey(fortuneImageObjectIdExtraKey),
+        isFalse,
+      );
+    },
+  );
 
   test('Gemini model menu includes supported model choices', () {
     final modelIds = labelSheetGeminiModels

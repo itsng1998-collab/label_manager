@@ -1,3 +1,13 @@
+### 완료 (2026-07-22): 선·도형 지시서 최종 준수 감사 및 수정
+- 읽기 전용 host가 객체 mutation 권한까지 차단하도록 `canEditObjects`를 Workbench/settings에 명시 전달하고 item/output preview 호출부를 연결했다. barcode property render는 exact key별 latest-wins가 아니라 전역 단일 pending 동안 추가 요청을 거부한다.
+- dock/overlay/hidden presentation이 GlobalKey 기반 동일 object panel State를 유지해 draft/property·layer scroll이 보존된다. 같은 image commit 뒤 aspect lock 상태를 유지하되 잠금 해제 중 바뀐 치수를 새 ratio basis로 반영한다.
+- object panel 폭은 late preference load가 사용자 변경을 덮지 않고 write queue가 호출 순서를 보장한다. constraint로 줄어든 표시 폭을 첫 drag 기준으로 동기화해 no-op clamp 저장을 제거했다.
+- print-area exact key 판정은 마지막 포함 셀 전체가 아니라 원래 물리 logical rect를 사용한다. fill rectangle/rrect/ellipse는 회전 local convex geometry로, straight line은 butt-cap polygon으로, curved stroke는 path 구간과 crop 사이 유클리드 footprint로 판정한다. rectangle miter와 회전 bounds도 painter/culling/save bounds에 반영했다.
+- `fortuneObjectStrokeMarks()` 공용 helper를 추가해 화면 painter와 print-area가 동일 canonical phase를 사용한다. dotted terminal phantom dot을 제거하고 dashDot의 보이는 edge gap `2w`, closed contour terminal seam exclusion, 짧은 first-mark 우선과 style별 seam threshold를 적용했다.
+- 직접 회귀를 추가했다: read-only permission, global barcode pending, panel State/scroll/draft, image ratio basis, preference load/write/constraint drag, physical print rect, boundary touch, rotated fill/curve, butt cap, rounded corner, solid/patterned miter, terminal dot, pattern phase/seam, rotated painter culling.
+- 최종 관련 회귀 950건 통과. 루트와 `third_party/fortune_sheet`의 `flutter analyze` 모두 issues 0, `git diff --check` clean이다.
+- 사용자 변경 `lib/core/app.dart`와 `third_party/*/build/` 생성물은 수정·stage·commit에서 제외한다.
+
 ### 완료 (2026-07-22): 선·도형 지시서 잔여 구현 및 독립 감사
 - OOM 직전 남아 있던 barcode property render pending owner replacement 통합 test와 시작된 output capture의 Workbench detach 생존 test를 복구해 통과시켰다. Workbench에는 테스트 가능한 `barcodeRenderer` 주입점을 추가했다.
 - property editor Escape는 exact active draft를 canonical 문자열로 폐기하고 종료된 delayed submit을 무시한다. typed context edit/duplicate/delete/layer command는 property draft finalize와 barcode pending gate를 공통으로 거치며, finalize 전 context command identity를 보존한다.

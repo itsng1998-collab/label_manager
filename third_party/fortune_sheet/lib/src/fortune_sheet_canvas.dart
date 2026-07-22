@@ -27514,6 +27514,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     required String connectionId,
     required bool preserveTemplateFormat,
   }) async {
+    if (_panelBarcodeRequestTokens.isNotEmpty) {
+      return false;
+    }
     final renderer = widget.barcodeRenderer;
     final snapshot = _objectSelectionSnapshot(attached: true);
     final key = snapshot.activeKey;

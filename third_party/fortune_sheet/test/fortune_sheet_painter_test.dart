@@ -652,9 +652,7 @@ void main() {
       size.width.toInt(),
       size.height.toInt(),
     );
-    final bytes = (await image.toByteData(
-      format: ui.ImageByteFormat.rawRgba,
-    ))!;
+    final bytes = (await image.toByteData(format: ui.ImageByteFormat.rawRgba))!;
     final settings = workbook.settings;
     final headerLeft = settings.rowHeaderWidth;
     final headerTop = settings.columnHeaderHeight;
@@ -674,7 +672,12 @@ void main() {
       _countPixels(
         bytes,
         image.width,
-        Rect.fromLTWH(headerLeft + 2, dataTop - 2, dataLeft - headerLeft - 4, 4),
+        Rect.fromLTWH(
+          headerLeft + 2,
+          dataTop - 2,
+          dataLeft - headerLeft - 4,
+          4,
+        ),
         _isFreezeHandlePixel,
       ),
       0,
@@ -64731,5 +64734,36 @@ void main() {
     }
     expect(greenFillPixels, greaterThan(20));
     expect(redFillPixels, lessThan(greenFillPixels));
+  });
+
+  test('rotated shape culling uses transformed bounds', () async {
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+    fortuneDrawShapeObject(
+      canvas,
+      const FortuneShape(
+        id: 'rotated-visible',
+        kind: FortuneShapeKind.rectangle,
+        left: 0,
+        top: 100,
+        width: 100,
+        height: 10,
+        rotationDegrees: 90,
+        fillColor: '#FF0000',
+      ),
+      const Rect.fromLTRB(48, 60, 52, 70),
+    );
+    final image = await recorder.endRecording().toImage(180, 180);
+    final bytes = (await image.toByteData(format: ui.ImageByteFormat.rawRgba))!;
+
+    expect(
+      _countPixels(
+        bytes,
+        image.width,
+        const Rect.fromLTRB(48, 60, 52, 70),
+        _isRedPixel,
+      ),
+      greaterThan(20),
+    );
   });
 }

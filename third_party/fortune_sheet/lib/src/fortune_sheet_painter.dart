@@ -7,6 +7,7 @@ import 'package:flutter/widgets.dart';
 
 import 'fortune_border_compute.dart';
 import 'fortune_formula.dart';
+import 'fortune_object_stroke_pattern.dart';
 import 'fortune_sheet_codec.dart';
 
 import 'fortune_sheet_model.dart' hide Image, Rect;
@@ -2311,7 +2312,7 @@ const String fortuneContextEditBarcodeCommand = 'edit-barcode';
 const String fortuneContextEditLineCommand = 'edit-line';
 const String fortuneContextEditRectangleCommand = 'edit-rectangle';
 const String fortuneContextEditRoundedRectangleCommand =
-  'edit-rounded-rectangle';
+    'edit-rounded-rectangle';
 const String fortuneContextEditEllipseCommand = 'edit-ellipse';
 const String fortuneContextToggleLayerPanelCommand = 'toggle-layer-panel';
 const String fortuneContextDeleteImageCommand = 'delete-image';
@@ -44374,6 +44375,7 @@ class FortuneObjectInsertionPlan {
   final List<double> zOrders;
   final bool rebased;
 }
+
 const List<String> fortuneImageLayerPanelActionCommands = <String>[
   fortuneContextDeleteImageCommand,
   fortuneContextDuplicateImageCommand,
@@ -44459,9 +44461,7 @@ List<String> fortuneActiveImageToolbarItems(FortuneImage image) {
   ];
 }
 
-List<String> fortuneActiveTypedObjectToolbarItems(
-  FortuneSheetObjectKey key,
-) {
+List<String> fortuneActiveTypedObjectToolbarItems(FortuneSheetObjectKey key) {
   final editCommand = switch (key.kind) {
     FortuneSheetObjectKind.line => fortuneContextEditLineCommand,
     FortuneSheetObjectKind.rectangle => fortuneContextEditRectangleCommand,
@@ -44499,10 +44499,10 @@ bool fortuneActiveTypedObjectToolbarItemEnabled(
     fortuneContextEditEllipseCommand ||
     fortuneContextDeleteImageCommand ||
     fortuneContextDuplicateImageCommand => true,
-    fortuneContextBringForwardCommand || fortuneContextBringToFrontCommand =>
-      index < objects.length - 1,
-    fortuneContextSendBackwardCommand || fortuneContextSendToBackCommand =>
-      index > 0,
+    fortuneContextBringForwardCommand ||
+    fortuneContextBringToFrontCommand => index < objects.length - 1,
+    fortuneContextSendBackwardCommand ||
+    fortuneContextSendToBackCommand => index > 0,
     _ => false,
   };
 }
@@ -44845,9 +44845,7 @@ List<FortuneSheetObjectRef> fortuneSheetObjectsInPaintOrder(
   ];
   objects.sort((left, right) {
     final order = left.zOrder.compareTo(right.zOrder);
-    return order != 0
-        ? order
-        : left.sourceIndex.compareTo(right.sourceIndex);
+    return order != 0 ? order : left.sourceIndex.compareTo(right.sourceIndex);
   });
   return objects;
 }
@@ -44892,12 +44890,23 @@ void fortuneDrawShapeObject(
   );
   final strokeWidth =
       fortuneMillimetersToLogicalPixels(shape.strokeWidthMm) * scale;
-  if (!rect.inflate(strokeWidth / 2).overlaps(clip)) {
+  final radians = shape.rotationDegrees * math.pi / 180;
+  final cosine = math.cos(radians).abs();
+  final sine = math.sin(radians).abs();
+  final rotatedBounds = Rect.fromCenter(
+    center: rect.center,
+    width: rect.width * cosine + rect.height * sine,
+    height: rect.width * sine + rect.height * cosine,
+  );
+  final strokePadding = shape.kind == FortuneShapeKind.rectangle
+      ? strokeWidth / math.sqrt2
+      : strokeWidth / 2;
+  if (!rotatedBounds.inflate(strokePadding).overlaps(clip)) {
     return;
   }
   canvas.save();
   canvas.translate(rect.center.dx, rect.center.dy);
-  canvas.rotate(shape.rotationDegrees * math.pi / 180);
+  canvas.rotate(radians);
   canvas.translate(-rect.center.dx, -rect.center.dy);
   final path = Path();
   switch (shape.kind) {
@@ -44943,43 +44952,27 @@ void fortuneDrawObjectStroke(
     canvas.drawPath(path, paint);
     return;
   }
-  final marks = switch (style) {
-    FortuneStrokeStyle.dashed => <double>[4 * strokeWidth, 2 * strokeWidth],
-    FortuneStrokeStyle.dotted => <double>[0, 3 * strokeWidth],
-    FortuneStrokeStyle.dashDot => <double>[
-      4 * strokeWidth,
-      2 * strokeWidth,
-      0,
-      3 * strokeWidth,
-    ],
-    FortuneStrokeStyle.solid => const <double>[],
-  };
   for (final metric in path.computeMetrics()) {
-    var distance = 0.0;
-    var markIndex = 0;
-    while (distance < metric.length) {
-      final markLength = marks[markIndex % marks.length];
-      final gapLength = marks[(markIndex + 1) % marks.length];
-      if (markLength == 0) {
-        final tangent = metric.getTangentForOffset(distance);
-        if (tangent != null) {
-          canvas.drawCircle(
-            tangent.position,
-            strokeWidth / 2,
-            Paint()..color = color,
-          );
-        }
-      } else {
-        canvas.drawPath(
-          metric.extractPath(
-            distance,
-            math.min(metric.length, distance + markLength),
-          ),
-          paint,
-        );
+    final marks = fortuneObjectStrokeMarks(
+      style: style,
+      strokeWidth: strokeWidth,
+      pathLength: metric.length,
+      closed: metric.isClosed,
+    );
+    for (final mark in marks) {
+      switch (mark) {
+        case FortuneObjectStrokeDot(:final center):
+          final tangent = metric.getTangentForOffset(center);
+          if (tangent != null) {
+            canvas.drawCircle(
+              tangent.position,
+              strokeWidth / 2,
+              Paint()..color = color,
+            );
+          }
+        case FortuneObjectStrokeDash(:final start, :final end):
+          canvas.drawPath(metric.extractPath(start, end), paint);
       }
-      distance += markLength + gapLength;
-      markIndex += 2;
     }
   }
 }
@@ -45025,9 +45018,7 @@ List<FortuneSheetObjectKey> fortuneSheetObjectKeysAtLogicalPosition(
     final lineIndex = object.sourceIndex - sheet.images.length;
     if (lineIndex < sheet.lines.length) {
       final line = sheet.lines[lineIndex];
-      final strokeWidth = fortuneMillimetersToLogicalPixels(
-        line.strokeWidthMm,
-      );
+      final strokeWidth = fortuneMillimetersToLogicalPixels(line.strokeWidthMm);
       final tolerance = math.max(
         5 / effectiveZoom,
         strokeWidth / 2 + 3 / effectiveZoom,
@@ -45065,9 +45056,9 @@ double fortuneDistanceToLineSegment(Offset point, Offset start, Offset end) {
     return (point - start).distance;
   }
   final relative = point - start;
-  final projection = ((relative.dx * segment.dx + relative.dy * segment.dy) /
-          lengthSquared)
-      .clamp(0.0, 1.0);
+  final projection =
+      ((relative.dx * segment.dx + relative.dy * segment.dy) / lengthSquared)
+          .clamp(0.0, 1.0);
   final nearest = start + segment * projection;
   return (point - nearest).distance;
 }
@@ -45089,16 +45080,8 @@ Offset fortuneShapeLocalPosition(FortuneShape shape, Offset position) {
       );
 }
 
-bool fortuneShapeContainsLocalPosition(
-  FortuneShape shape,
-  Offset position,
-) {
-  final rect = Rect.fromLTWH(
-    shape.left,
-    shape.top,
-    shape.width,
-    shape.height,
-  );
+bool fortuneShapeContainsLocalPosition(FortuneShape shape, Offset position) {
+  final rect = Rect.fromLTWH(shape.left, shape.top, shape.width, shape.height);
   switch (shape.kind) {
     case FortuneShapeKind.rectangle:
       return rect.contains(position);
@@ -45124,16 +45107,8 @@ bool fortuneShapeContainsLocalPosition(
   }
 }
 
-double fortuneDistanceToShapeBoundary(
-  FortuneShape shape,
-  Offset position,
-) {
-  final rect = Rect.fromLTWH(
-    shape.left,
-    shape.top,
-    shape.width,
-    shape.height,
-  );
+double fortuneDistanceToShapeBoundary(FortuneShape shape, Offset position) {
+  final rect = Rect.fromLTWH(shape.left, shape.top, shape.width, shape.height);
   if (shape.kind == FortuneShapeKind.rectangle) {
     final horizontal = position.dx.clamp(rect.left, rect.right);
     final vertical = position.dy.clamp(rect.top, rect.bottom);
@@ -69626,9 +69601,7 @@ class FortuneSheetPainter extends CustomPainter {
     if (!imageInsertDialogOpen) {
       return;
     }
-    final rect = fortuneImageInsertDialogRect(
-      size,
-    );
+    final rect = fortuneImageInsertDialogRect(size);
     canvas.drawRect(
       Offset.zero & size,
       Paint()..color = const Color(0x1a000000),
@@ -69904,7 +69877,11 @@ class FortuneSheetPainter extends CustomPainter {
         fontSize: 12,
         color: const Color(0xff222222),
       );
-      _drawComboArrow(canvas, textFontCombo.right - 18, textFontCombo.center.dy);
+      _drawComboArrow(
+        canvas,
+        textFontCombo.right - 18,
+        textFontCombo.center.dy,
+      );
       _drawInputShell(canvas, textFontSizeCombo);
       _drawText(
         canvas,
@@ -69946,11 +69923,7 @@ class FortuneSheetPainter extends CustomPainter {
     }
     if (barcodeLinked) {
       final preserveCheckbox = fortuneBarcodePreserveFormatCheckboxRect(rect);
-      _drawCheckbox(
-        canvas,
-        preserveCheckbox,
-        barcodePreserveTemplateFormat,
-      );
+      _drawCheckbox(canvas, preserveCheckbox, barcodePreserveTemplateFormat);
       _drawText(
         canvas,
         '이 라벨에서 형식 고정',
@@ -77092,9 +77065,10 @@ class FortuneSheetPainter extends CustomPainter {
       if (object.key.kind == FortuneSheetObjectKind.rectangle ||
           object.key.kind == FortuneSheetObjectKind.roundedRectangle ||
           object.key.kind == FortuneSheetObjectKind.ellipse) {
-        final shape = sheet.shapes[
-          object.sourceIndex - sheet.images.length - sheet.lines.length
-        ];
+        final shape =
+            sheet.shapes[object.sourceIndex -
+                sheet.images.length -
+                sheet.lines.length];
         _drawFortuneShape(canvas, shape, clip, settings, zoomRatio);
         continue;
       }
@@ -77209,9 +77183,12 @@ class FortuneSheetPainter extends CustomPainter {
     }
 
     if (key.kind == FortuneSheetObjectKind.line) {
-      final line = objectGestureDraftKey == key && objectGestureLineDraft != null
+      final line =
+          objectGestureDraftKey == key && objectGestureLineDraft != null
           ? objectGestureLineDraft
-          : sheet.lines.where((candidate) => candidate.id == key.id).firstOrNull;
+          : sheet.lines
+                .where((candidate) => candidate.id == key.id)
+                .firstOrNull;
       if (line == null) {
         return;
       }
@@ -77222,7 +77199,8 @@ class FortuneSheetPainter extends CustomPainter {
       handle(end);
       return;
     }
-    final shape = objectGestureDraftKey == key && objectGestureShapeDraft != null
+    final shape =
+        objectGestureDraftKey == key && objectGestureShapeDraft != null
         ? objectGestureShapeDraft
         : sheet.shapes.where((candidate) {
             return candidate.id == key.id &&
@@ -77238,10 +77216,11 @@ class FortuneSheetPainter extends CustomPainter {
     final angle = shape.rotationDegrees * math.pi / 180;
     Offset rotate(Offset point) {
       final delta = point - center;
-      return center + Offset(
-        delta.dx * math.cos(angle) - delta.dy * math.sin(angle),
-        delta.dx * math.sin(angle) + delta.dy * math.cos(angle),
-      );
+      return center +
+          Offset(
+            delta.dx * math.cos(angle) - delta.dy * math.sin(angle),
+            delta.dx * math.sin(angle) + delta.dy * math.cos(angle),
+          );
     }
 
     final left = shape.left;
@@ -77511,8 +77490,8 @@ class FortuneSheetPainter extends CustomPainter {
     final command = activeImageToolbarHoveredCommand;
     final position = activeImageToolbarTooltipPosition;
     if ((activeImageId == null && activeObjectKey == null) ||
-      command == null ||
-      position == null) {
+        command == null ||
+        position == null) {
       return;
     }
     final text = _activeImageToolbarTooltipLabel(command);

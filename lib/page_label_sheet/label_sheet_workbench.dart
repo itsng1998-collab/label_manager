@@ -56,10 +56,7 @@ class LabelSheetZoomController extends ValueNotifier<int> {
       callback(percent);
       return;
     }
-    value = percent.clamp(
-      labelSheetMinZoomPercent,
-      labelSheetMaxZoomPercent,
-    );
+    value = percent.clamp(labelSheetMinZoomPercent, labelSheetMaxZoomPercent);
   }
 
   void step(int deltaPercent) => setZoomPercent(value + deltaPercent);
@@ -81,8 +78,7 @@ class LabelSheetZoomToolbar extends StatefulWidget {
   final LabelSheetZoomController controller;
 
   @override
-  State<LabelSheetZoomToolbar> createState() =>
-      _LabelSheetZoomToolbarState();
+  State<LabelSheetZoomToolbar> createState() => _LabelSheetZoomToolbarState();
 }
 
 class _LabelSheetZoomToolbarState extends State<LabelSheetZoomToolbar> {
@@ -1772,9 +1768,11 @@ FortuneSettings labelSheetSettings(
   bool hideStatisticBar = false,
   bool copyOnlyContextMenu = false,
   bool limitCellActionsToClipboardAndClear = false,
+  bool? canEditObjects,
 }) {
   final resolvedToolbarItems = toolbarItems ?? labelSheetToolbarItems;
   return base.copyWith(
+    allowEdit: canEditObjects,
     showToolbar: !hideToolbar,
     copyOnlyContextMenu: copyOnlyContextMenu,
     limitCellActionsToClipboardAndClear: limitCellActionsToClipboardAndClear,
@@ -1891,6 +1889,7 @@ class LabelSheetWorkbench extends StatefulWidget {
     this.hideStatisticBar = false,
     this.copyOnlyContextMenu = false,
     this.limitCellActionsToClipboardAndClear = false,
+    this.canEditObjects = true,
     this.zoomToolbarPlacement = LabelSheetZoomToolbarPlacement.sheetToolbarEnd,
     this.zoomController,
     this.onInitialLoadComplete,
@@ -1932,6 +1931,7 @@ class LabelSheetWorkbench extends StatefulWidget {
   final bool hideStatisticBar;
   final bool copyOnlyContextMenu;
   final bool limitCellActionsToClipboardAndClear;
+  final bool canEditObjects;
   final LabelSheetZoomToolbarPlacement zoomToolbarPlacement;
   final LabelSheetZoomController? zoomController;
   final VoidCallback? onInitialLoadComplete;
@@ -1977,7 +1977,9 @@ class LabelSheetEditingLifecycleController {
 
   void _attach(_LabelSheetWorkbenchState state) {
     if (_state != null && _state != state) {
-      throw StateError('LabelSheetEditingLifecycleController is already attached.');
+      throw StateError(
+        'LabelSheetEditingLifecycleController is already attached.',
+      );
     }
     _state = state;
   }
@@ -2105,7 +2107,9 @@ class LabelSheetOutputCaptureController {
     if (_state != null &&
         _state != state &&
         _replacementOwnerToken != ownerToken) {
-      throw StateError('LabelSheetOutputCaptureController is already attached.');
+      throw StateError(
+        'LabelSheetOutputCaptureController is already attached.',
+      );
     }
   }
 
@@ -2132,6 +2136,9 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
         labelRtf: widget.labelRtf,
       );
   late final FortuneSheetController _controller = FortuneSheetController();
+  final GlobalKey _objectPanelKey = GlobalKey(
+    debugLabel: 'Label sheet object panel',
+  );
   late final TextEditingController _zoomController = TextEditingController(
     text: '$labelSheetDefaultZoomPercent',
   );
@@ -2168,6 +2175,8 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
   bool _objectDockEligible = true;
   double _objectPanelWidth = 300;
   double? _objectPanelDragStartWidth;
+  bool _objectPanelWidthChangedByUser = false;
+  Future<void> _objectPanelWidthWriteQueue = Future<void>.value();
   BuildContext? _printSettingsDialogContext;
   VoidCallback? _rebuildPrintSettingsDialog;
   String _printAutoSpacing = 'none';
@@ -2202,9 +2211,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       return workbook;
     }
     final sheets = [...workbook.sheets];
-    sheets[activeIndex] = sheets[activeIndex].copyWith(
-      zoomRatio: zoomRatio,
-    );
+    sheets[activeIndex] = sheets[activeIndex].copyWith(zoomRatio: zoomRatio);
     return workbook.copyWith(sheets: sheets, activeSheetIndex: activeIndex);
   }
 
@@ -2220,8 +2227,8 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     onPrint: _handlePrint,
     onDialogVisibilityChanged: _handleFortuneDialogVisibilityChanged,
     saveEnabled:
-      (_isDirty || _controller.projectedCanonicalChange) &&
-      !_controller.barcodePropertyRenderPending,
+        (_isDirty || _controller.projectedCanonicalChange) &&
+        !_controller.barcodePropertyRenderPending,
     importImageTooltip: _labelSheetImportImageTooltip(),
     hideToolbar: widget.hideToolbar,
     saveTooltip: _labelSheetSaveTooltip(),
@@ -2239,6 +2246,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     copyOnlyContextMenu: widget.copyOnlyContextMenu,
     limitCellActionsToClipboardAndClear:
         widget.limitCellActionsToClipboardAndClear,
+    canEditObjects: widget.canEditObjects,
   );
 
   FortuneSheetGridClientPhysicalSize? get _gridClientSize {
@@ -2292,7 +2300,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
   Future<void> _loadObjectPanelWidth() async {
     final prefs = await SharedPreferences.getInstance();
     final width = prefs.getDouble(_objectPanelWidthPreferenceKey);
-    if (!mounted || width == null || _objectPanelDragStartWidth != null) {
+    if (!mounted || width == null || _objectPanelWidthChangedByUser) {
       return;
     }
     setState(() {
@@ -2300,9 +2308,15 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     });
   }
 
-  Future<void> _saveObjectPanelWidth() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setDouble(_objectPanelWidthPreferenceKey, _objectPanelWidth);
+  void _queueObjectPanelWidthSave(double width) {
+    _objectPanelWidthWriteQueue = _objectPanelWidthWriteQueue.then((_) async {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setDouble(_objectPanelWidthPreferenceKey, width);
+      } on Object {
+        // Preference persistence is best effort; later writes must continue.
+      }
+    });
   }
 
   void _notifyGridRectChanged(
@@ -2467,8 +2481,8 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       _controller.setZoomRatio(_zoomPercent / 100);
     }
     if (oldWidget.zoomToolbarPlacement != widget.zoomToolbarPlacement &&
-      widget.zoomToolbarPlacement !=
-        LabelSheetZoomToolbarPlacement.previewTabAreaEnd) {
+        widget.zoomToolbarPlacement !=
+            LabelSheetZoomToolbarPlacement.previewTabAreaEnd) {
       _removeZoomToolbarFloatingOverlay();
     }
   }
@@ -2970,7 +2984,6 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       return;
     }
 
-
     final options = _currentPrintOptions();
     final dpi = await _printDpiForPrinter(printer);
     final metrics = LabelSheetPrintPageMetrics(
@@ -2988,9 +3001,9 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       portName: rawPortName,
     );
     if (filePort && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('파일 포트 프린터는 일반 인쇄로 전환합니다.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('파일 포트 프린터는 일반 인쇄로 전환합니다.')));
     }
     if (!mounted) return;
     if (backend == LabelPrintBackend.ezplRaw) {
@@ -3001,9 +3014,9 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       );
       if (hybrid == null) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('라벨 이미지를 생성할 수 없습니다.')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('라벨 이미지를 생성할 수 없습니다.')));
         }
         return;
       }
@@ -3156,8 +3169,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     );
     final capture = await _controller.captureHybridPlanAsPng(
       plan,
-      pixelRatio:
-          resolvedMetrics.dpi / fortuneSheetLogicalPixelsPerInch,
+      pixelRatio: resolvedMetrics.dpi / fortuneSheetLogicalPixelsPerInch,
       includeCellBorders: true,
       outputLineHeightMultiplier: lineSpacingPercent == null
           ? null
@@ -3380,8 +3392,8 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     return sheet.cells.isNotEmpty ||
         sheet.borderInfo.isNotEmpty ||
         sheet.images.isNotEmpty ||
-      sheet.lines.isNotEmpty ||
-      sheet.shapes.isNotEmpty ||
+        sheet.lines.isNotEmpty ||
+        sheet.shapes.isNotEmpty ||
         sheet.dataVerification.isNotEmpty ||
         sheet.hyperlinks.isNotEmpty;
   }
@@ -3657,7 +3669,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       return const SizedBox.shrink();
     }
     final inPreviewTabArea =
-      widget.zoomToolbarPlacement ==
+        widget.zoomToolbarPlacement ==
         LabelSheetZoomToolbarPlacement.previewTabAreaEnd;
     if (inPreviewTabArea) {
       return const SizedBox.shrink();
@@ -3946,8 +3958,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
               barcodeObjectIds: widget.barcodeObjectIds,
               imageObjectOptions: widget.imageObjectOptions,
               barcodeObjectOptions: widget.barcodeObjectOptions,
-              imageObjectConnectionMode:
-                  FortuneObjectConnectionMode.structured,
+              imageObjectConnectionMode: FortuneObjectConnectionMode.structured,
               barcodeObjectConnectionMode:
                   FortuneObjectConnectionMode.structured,
               gridClientSize: _gridClientSize,
@@ -3959,14 +3970,22 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
               420.0,
               constraints.maxWidth - 480 - 8,
             );
-            final dockPanelWidth = _objectPanelWidth.clamp(
-              260.0,
-              math.max(260.0, maximumDockPanelWidth),
-            ).toDouble();
+            final dockPanelWidth = _objectPanelWidth
+                .clamp(260.0, math.max(260.0, maximumDockPanelWidth))
+                .toDouble();
             final dockObjectPanel =
                 _objectDockEligible && _userWantsObjectDockOpen;
             final overlayObjectPanel =
                 !_objectDockEligible && _objectOverlayOpen;
+            final objectPanel = FortuneObjectLayerPanel(
+              key: _objectPanelKey,
+              controller: _controller,
+              imageObjectOptions: widget.imageObjectOptions,
+              barcodeObjectOptions: widget.barcodeObjectOptions,
+              imageObjectIds: widget.imageObjectIds,
+              barcodeObjectIds: widget.barcodeObjectIds,
+              onClose: _closeObjectPanel,
+            );
             const overlayHorizontalInset = 8.0;
             final overlayPanelWidth = math.min(
               300.0,
@@ -3980,11 +3999,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
               ),
               constraints.maxHeight,
             );
-            _notifyGridRectChanged(
-              sheetViewportSize,
-              workbook,
-              sheetSettings,
-            );
+            _notifyGridRectChanged(sheetViewportSize, workbook, sheetSettings);
             WidgetsBinding.instance.addPostFrameCallback((_) {
               if (mounted) {
                 _syncZoomToolbarFloatingOverlay();
@@ -4016,7 +4031,9 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
                   VerticalPaneSplitter(
                     width: 8,
                     onDragStart: () {
-                      _objectPanelDragStartWidth = _objectPanelWidth;
+                      _objectPanelWidthChangedByUser = true;
+                      _objectPanelWidth = dockPanelWidth;
+                      _objectPanelDragStartWidth = dockPanelWidth;
                     },
                     onDrag: (delta) {
                       setState(() {
@@ -4029,8 +4046,9 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
                     onDragEnd: () {
                       final startWidth = _objectPanelDragStartWidth;
                       _objectPanelDragStartWidth = null;
-                      if (startWidth != null && startWidth != _objectPanelWidth) {
-                        unawaited(_saveObjectPanelWidth());
+                      if (startWidth != null &&
+                          startWidth != _objectPanelWidth) {
+                        _queueObjectPanelWidthSave(_objectPanelWidth);
                       }
                     },
                     onDragCancel: () {
@@ -4043,26 +4061,17 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
                       }
                     },
                     onDoubleTap: () {
+                      _objectPanelWidthChangedByUser = true;
                       setState(() {
                         _objectPanelWidth = 300.0.clamp(
                           260.0,
                           math.max(260.0, maximumDockPanelWidth),
                         );
                       });
-                      unawaited(_saveObjectPanelWidth());
+                      _queueObjectPanelWidthSave(_objectPanelWidth);
                     },
                   ),
-                  SizedBox(
-                    width: dockPanelWidth,
-                    child: FortuneObjectLayerPanel(
-                      controller: _controller,
-                      imageObjectOptions: widget.imageObjectOptions,
-                      barcodeObjectOptions: widget.barcodeObjectOptions,
-                      imageObjectIds: widget.imageObjectIds,
-                      barcodeObjectIds: widget.barcodeObjectIds,
-                      onClose: _closeObjectPanel,
-                    ),
-                  ),
+                  SizedBox(width: dockPanelWidth, child: objectPanel),
                 ],
               );
             }
@@ -4070,27 +4079,22 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
               fit: StackFit.expand,
               children: [
                 sheetSurface,
-                if (overlayObjectPanel) ...[
+                if (overlayObjectPanel)
                   GestureDetector(
                     behavior: HitTestBehavior.opaque,
                     onTap: _closeObjectPanel,
                     child: const ColoredBox(color: Color(0x33000000)),
                   ),
-                  Positioned(
-                    top: 0,
-                    right: overlayHorizontalInset,
-                    bottom: 0,
-                    width: overlayPanelWidth,
-                    child: FortuneObjectLayerPanel(
-                      controller: _controller,
-                      imageObjectOptions: widget.imageObjectOptions,
-                      barcodeObjectOptions: widget.barcodeObjectOptions,
-                      imageObjectIds: widget.imageObjectIds,
-                      barcodeObjectIds: widget.barcodeObjectIds,
-                      onClose: _closeObjectPanel,
-                    ),
+                Positioned(
+                  top: 0,
+                  right: overlayHorizontalInset,
+                  bottom: 0,
+                  width: overlayPanelWidth,
+                  child: Offstage(
+                    offstage: !overlayObjectPanel,
+                    child: objectPanel,
                   ),
-                ],
+                ),
               ],
             );
           },
@@ -5115,55 +5119,55 @@ class LabelSheetPrintSettingsDialog extends StatelessWidget {
           ),
           if (!_hasLabelPrintAdjustments)
             Positioned(
-            left: 336,
-            top: 8,
-            width: 168,
-            height: 58,
-            child: _PrintDialogGroup(
-              title: '자동줄간격',
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  const Spacer(),
-                  SizedBox(
-                    width: _autoSpacingDropdownWidth,
-                    height: _compactDropdownHeight,
-                    child: DropdownButton2<String>(
-                      value: autoSpacing,
-                      isExpanded: true,
-                      underline: const SizedBox.shrink(),
-                      style: labelStyle,
-                      items: autoSpacingItems ?? defaultAutoSpacingItems,
-                      onChanged: onAutoSpacingChanged,
-                      buttonStyleData: const ButtonStyleData(
-                        height: _compactDropdownHeight,
-                        padding: EdgeInsets.zero,
-                      ),
-                      dropdownStyleData: DropdownStyleData(
-                        maxHeight: 260,
-                        useRootNavigator: true,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(2),
+              left: 336,
+              top: 8,
+              width: 168,
+              height: 58,
+              child: _PrintDialogGroup(
+                title: '자동줄간격',
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    const Spacer(),
+                    SizedBox(
+                      width: _autoSpacingDropdownWidth,
+                      height: _compactDropdownHeight,
+                      child: DropdownButton2<String>(
+                        value: autoSpacing,
+                        isExpanded: true,
+                        underline: const SizedBox.shrink(),
+                        style: labelStyle,
+                        items: autoSpacingItems ?? defaultAutoSpacingItems,
+                        onChanged: onAutoSpacingChanged,
+                        buttonStyleData: const ButtonStyleData(
+                          height: _compactDropdownHeight,
+                          padding: EdgeInsets.zero,
+                        ),
+                        dropdownStyleData: DropdownStyleData(
+                          maxHeight: 260,
+                          useRootNavigator: true,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                        menuItemStyleData: const MenuItemStyleData(
+                          height: _compactDropdownMenuItemHeight,
+                          padding: EdgeInsets.symmetric(horizontal: 8),
+                        ),
+                        iconStyleData: const IconStyleData(
+                          iconSize: 18,
+                          iconEnabledColor: Color(0xff6a6a6a),
                         ),
                       ),
-                      menuItemStyleData: const MenuItemStyleData(
-                        height: _compactDropdownMenuItemHeight,
-                        padding: EdgeInsets.symmetric(horizontal: 8),
-                      ),
-                      iconStyleData: const IconStyleData(
-                        iconSize: 18,
-                        iconEnabledColor: Color(0xff6a6a6a),
-                      ),
                     ),
-                  ),
-                  const SizedBox(width: 5),
-                  const _PrintDialogCenteredLabel('%'),
-                  const Spacer(),
-                ],
+                    const SizedBox(width: 5),
+                    const _PrintDialogCenteredLabel('%'),
+                    const Spacer(),
+                  ],
+                ),
               ),
             ),
-          ),
           if (_hasLabelPrintAdjustments)
             Positioned(
               left: 24,
@@ -5185,9 +5189,7 @@ class LabelSheetPrintSettingsDialog extends StatelessWidget {
                     key: const ValueKey('label-print-printer-value'),
                     width: 291,
                     height: 30,
-                    child: _PrintDialogInsetValue(
-                      value: selectedPrinterName,
-                    ),
+                    child: _PrintDialogInsetValue(value: selectedPrinterName),
                   ),
                   const SizedBox(width: 12),
                   SizedBox(
@@ -5462,10 +5464,7 @@ class LabelSheetPrintSettingsDialog extends StatelessWidget {
 
   static const labelStyle = TextStyle(fontSize: 13, color: Color(0xff111111));
 
-  static const sectionStyle = TextStyle(
-    fontSize: 14,
-    color: Color(0xff111111),
-  );
+  static const sectionStyle = TextStyle(fontSize: 14, color: Color(0xff111111));
   static const double _compactDropdownHeight = 28;
   static const double _compactDropdownMenuItemHeight = 28;
   static const double _autoSpacingDropdownWidth = 117;
