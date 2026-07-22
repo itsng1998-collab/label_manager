@@ -2285,6 +2285,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
         !_objectDockEligible && _objectOverlayOpen) {
       return;
     }
+    _controller.dismissObjectPanelPresentationTransients();
     setState(() {
       if (_objectDockEligible) {
         _userWantsObjectDockOpen = true;
@@ -4144,6 +4145,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
                   VerticalPaneSplitter(
                     width: 8,
                     onDragStart: () {
+                      _controller.dismissObjectPanelPresentationTransients();
                       _objectPanelWidthChangedByUser = true;
                       _objectPanelWidth = dockPanelWidth;
                       _objectPanelDragStartWidth = dockPanelWidth;

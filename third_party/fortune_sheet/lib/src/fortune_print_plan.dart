@@ -392,6 +392,12 @@ Rect _objectPaintedFootprint(
 ) {
   if (object.sourceIndex < sheet.images.length) {
     final image = sheet.images[object.sourceIndex];
+    final imageRect = Rect.fromLTWH(
+      image.left,
+      image.top,
+      image.width,
+      image.height,
+    );
     if (object.key.kind == FortuneSheetObjectKind.barcode) {
       final bodyTop = _extraDouble(
         image.extraFields[fortuneBarcodeBodyTopExtraKey],
@@ -401,14 +407,23 @@ Rect _objectPaintedFootprint(
         image.extraFields[fortuneBarcodeBodyHeightExtraKey],
         image.height,
       );
-      return Rect.fromLTWH(
+      final bodyRect = Rect.fromLTWH(
         image.left,
         image.top + bodyTop,
         image.width,
         bodyHeight,
       );
+      return fortuneRotatedRectBounds(
+        bodyRect,
+        imageRect.center,
+        fortuneImageRotationDegrees(image),
+      );
     }
-    return Rect.fromLTWH(image.left, image.top, image.width, image.height);
+    return fortuneRotatedRectBounds(
+      imageRect,
+      imageRect.center,
+      fortuneImageRotationDegrees(image),
+    );
   }
   final lineIndex = object.sourceIndex - sheet.images.length;
   if (lineIndex < sheet.lines.length) {

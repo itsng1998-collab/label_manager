@@ -242,6 +242,76 @@ void main() {
     expect(candidates, isEmpty);
   });
 
+  test('rotated barcode footprint blocks an overlapped lower native line', () {
+    final overlapSheet = FortuneSheet(
+      id: 'rotated-barcode-overlap',
+      name: 'Rotated barcode overlap',
+      rowCount: 5,
+      columnCount: 5,
+      images: const [
+        FortuneImage(
+          id: 'barcode_1',
+          src: 'barcode',
+          left: 40,
+          top: 45,
+          width: 20,
+          height: 10,
+          extraFields: {
+            'fortuneBarcode': true,
+            fortuneSheetObjectZOrderExtraKey: 1,
+            'rotation': 90,
+            fortuneBarcodeBodyTopExtraKey: 0,
+            fortuneBarcodeBodyHeightExtraKey: 10,
+          },
+        ),
+      ],
+      lines: const [
+        FortuneLine(
+          id: 'native-line',
+          x1: 48,
+          y1: 40,
+          x2: 52,
+          y2: 40,
+          strokeWidthMm: 0.1,
+          zOrder: 0,
+        ),
+      ],
+    );
+
+    final candidates = fortuneBuildNativeCandidates(
+      settings: settings,
+      sheet: overlapSheet,
+      range: const FortuneRange(
+        rowStart: 0,
+        rowEnd: 4,
+        columnStart: 0,
+        columnEnd: 4,
+      ),
+      transform: const FortunePrintTransform(
+        sourceLogicalBounds: ui.Rect.fromLTWH(0, 0, 100, 100),
+        dpi: 203,
+        contentLeftMm: 0,
+        contentTopMm: 0,
+        clipRightMm: 100,
+        clipBottomMm: 100,
+        nativeAllowed: true,
+      ),
+    );
+
+    expect(
+      candidates.where(
+        (candidate) => candidate.kind == FortuneNativeCandidateKind.line,
+      ),
+      isEmpty,
+    );
+    expect(
+      candidates.where(
+        (candidate) => candidate.kind == FortuneNativeCandidateKind.barcode,
+      ),
+      hasLength(1),
+    );
+  });
+
   test('adjacent border aliases share one physical edge candidate', () {
     final borderSheet = FortuneSheet(
       id: 'border',

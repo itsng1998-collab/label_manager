@@ -293,4 +293,31 @@ void main() {
       isNull,
     );
   });
+
+  test('rotated image hit test uses inverse rotation', () {
+    final sheet = FortuneSheet(
+      id: 's1',
+      name: 'Objects',
+      images: const [
+        FortuneImage(
+          id: 'image_1',
+          src: 'image',
+          left: 0,
+          top: 0,
+          width: 20,
+          height: 10,
+          extraFields: {'rotation': 90},
+        ),
+      ],
+    );
+
+    expect(
+      fortuneSheetObjectKeyAtLogicalPosition(sheet, const Offset(10, 12)),
+      const FortuneSheetObjectKey(FortuneSheetObjectKind.image, 'image_1'),
+    );
+    expect(
+      fortuneSheetObjectKeyAtLogicalPosition(sheet, const Offset(2, 2)),
+      isNull,
+    );
+  });
 }

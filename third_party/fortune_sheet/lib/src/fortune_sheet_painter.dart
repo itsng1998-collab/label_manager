@@ -45091,12 +45091,7 @@ List<FortuneSheetObjectKey> fortuneSheetObjectKeysAtLogicalPosition(
   for (final object in objects) {
     if (object.sourceIndex < sheet.images.length) {
       final image = sheet.images[object.sourceIndex];
-      if (Rect.fromLTWH(
-        image.left,
-        image.top,
-        image.width,
-        image.height,
-      ).contains(position)) {
+      if (fortuneImageContainsLogicalPosition(image, position)) {
         keys.add(object.key);
       }
       continue;
@@ -45133,6 +45128,62 @@ List<FortuneSheetObjectKey> fortuneSheetObjectKeysAtLogicalPosition(
     }
   }
   return keys;
+}
+
+double fortuneImageRotationDegrees(FortuneImage image) {
+  final value = image.extraFields['rotation'];
+  if (value is num) return value.toDouble();
+  if (value is String) return double.tryParse(value.trim()) ?? 0;
+  return 0;
+}
+
+Offset fortuneRotatePositionAround(
+  Offset position,
+  Offset center,
+  double rotationDegrees,
+) {
+  final radians = rotationDegrees * math.pi / 180;
+  final cosine = math.cos(radians);
+  final sine = math.sin(radians);
+  final relative = position - center;
+  return center +
+      Offset(
+        relative.dx * cosine - relative.dy * sine,
+        relative.dx * sine + relative.dy * cosine,
+      );
+}
+
+Rect fortuneRotatedRectBounds(
+  Rect rect,
+  Offset center,
+  double rotationDegrees,
+) {
+  if (!rotationDegrees.isFinite || rotationDegrees % 360 == 0) return rect;
+  final corners = <Offset>[
+    rect.topLeft,
+    rect.topRight,
+    rect.bottomRight,
+    rect.bottomLeft,
+  ].map((corner) => fortuneRotatePositionAround(corner, center, rotationDegrees));
+  return Rect.fromLTRB(
+    corners.map((corner) => corner.dx).reduce(math.min),
+    corners.map((corner) => corner.dy).reduce(math.min),
+    corners.map((corner) => corner.dx).reduce(math.max),
+    corners.map((corner) => corner.dy).reduce(math.max),
+  );
+}
+
+bool fortuneImageContainsLogicalPosition(
+  FortuneImage image,
+  Offset position,
+) {
+  final rect = Rect.fromLTWH(image.left, image.top, image.width, image.height);
+  final local = fortuneRotatePositionAround(
+    position,
+    rect.center,
+    -fortuneImageRotationDegrees(image),
+  );
+  return rect.contains(local);
 }
 
 double fortuneDistanceToLineSegment(Offset point, Offset start, Offset end) {

@@ -179,6 +179,62 @@ void main() {
     expect(painter().workbook.activeSheet.lines, hasLength(1));
   });
 
+  testWidgets('line insertion keeps the actual release outside data bounds', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    final workbook = FortuneWorkbook(
+      settings: const FortuneSettings(
+        toolbarItems: [fortuneToolbarLineCommand],
+      ),
+      sheets: [FortuneSheet(id: 's1', name: 'Sheet1')],
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SizedBox(
+          width: 900,
+          height: 700,
+          child: FortuneSheetCanvas(workbook: workbook),
+        ),
+      ),
+    );
+
+    FortuneSheetPainter painter() => tester
+        .widgetList<CustomPaint>(
+          find.descendant(
+            of: find.byType(FortuneSheetCanvas),
+            matching: find.byType(CustomPaint),
+          ),
+        )
+        .map((paint) => paint.painter)
+        .whereType<FortuneSheetPainter>()
+        .single;
+
+    final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
+    await tester.tapAt(
+      topLeft +
+          _toolbarItemCenter(
+            fortuneToolbarLineCommand,
+            width: 900,
+            items: workbook.settings.toolbarItems,
+          ),
+    );
+    await tester.pump();
+    await tester.dragFrom(
+      topLeft + const Offset(100, 120),
+      const Offset(-90, 0),
+    );
+    await tester.pump();
+
+    final line = painter().workbook.activeSheet.lines.single;
+    expect(line.x2, lessThan(0));
+  });
+
   testWidgets('shape combo primary drag inserts the committed preset', (
     tester,
   ) async {

@@ -1310,6 +1310,11 @@ class FortuneSheetController extends ChangeNotifier {
     _state?._focusNode.requestFocus();
   }
 
+  void dismissObjectPanelPresentationTransients() {
+    if (_disposed) return;
+    _state?._dismissObjectPanelPresentationTransients();
+  }
+
   bool get activeImagePickerFailed {
     final state = _state;
     final key = _objectSelection.activeKey;
@@ -1365,6 +1370,14 @@ class FortuneSheetController extends ChangeNotifier {
     return true;
   }
 
+  void _discardActiveObjectPropertyDraftForPermissionChange() {
+    final owner = _activePropertyDraftOwner;
+    final discard = _discardActivePropertyDraft;
+    if (owner == null || discard == null) return;
+    _clearActivePropertyDraft(notify: false);
+    discard();
+  }
+
   bool _prepareCanonicalCommand() {
     if (barcodePropertyRenderPending) return false;
     return finalizeActiveObjectPropertyDraft();
@@ -1385,23 +1398,27 @@ class FortuneSheetController extends ChangeNotifier {
   }
 
   void selectObject(FortuneSheetObjectKey key) {
-    if (!finalizeActiveObjectPropertyDraft()) return;
+    if (!_prepareObjectSelectionCommand()) return;
     _state?._selectObjectFromController(key);
   }
 
   void toggleObject(FortuneSheetObjectKey key) {
-    if (!finalizeActiveObjectPropertyDraft()) return;
+    if (!_prepareObjectSelectionCommand()) return;
     _state?._toggleObjectFromController(key);
   }
 
   void selectObjectRange(FortuneSheetObjectKey key) {
-    if (!finalizeActiveObjectPropertyDraft()) return;
+    if (!_prepareObjectSelectionCommand()) return;
     _state?._selectObjectRangeFromController(key);
   }
 
   void selectAllObjects() {
-    if (!finalizeActiveObjectPropertyDraft()) return;
+    if (!_prepareObjectSelectionCommand()) return;
     _state?._selectAllObjectsFromController();
+  }
+
+  bool _prepareObjectSelectionCommand() {
+    return barcodePropertyRenderPending || finalizeActiveObjectPropertyDraft();
   }
 
   void deleteSelectedObjects() {
@@ -3096,6 +3113,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   int _panelBarcodeRequestSequence = 0;
   final Map<FortuneSheetObjectKey, int> _panelBarcodeRequestTokens = {};
   int _objectClipboardSequence = 0;
+  int _objectMutationPermissionGeneration = 0;
   _FortuneObjectClipboardPayload? _objectClipboardPayload;
   Future<void> _objectClipboardGate = Future<void>.value();
   Future<_FortuneObjectClipboardBaseline>? _objectClipboardBaseline;
@@ -4421,6 +4439,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     final previousSelectionHook =
         (oldWidget.settings ?? oldWidget.workbook.settings)
             .afterSelectionChange;
+    final previousAllowEdit =
+      (oldWidget.settings ?? oldWidget.workbook.settings).allowEdit;
     if (!workbookChanged && !settingsChanged) {
       if (controllerChanged) {
         oldWidget.controller?._detach(this);
@@ -4441,6 +4461,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     _workbook =
         incomingWorkbook ??
         _workbook.copyWith(settings: _effectiveSettings(widget.workbook));
+    if (previousAllowEdit && !_workbook.settings.allowEdit) {
+      _discardObjectMutationStateForPermissionChange();
+    }
     _recalculateWorkbookFormulas();
     _loadAvailableFontFamilies();
     _scheduleImageDecodes();
@@ -4460,6 +4483,19 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         previousSelectionHook != _workbook.settings.afterSelectionChange) {
       _notifySelectionChangedAfterFrame();
     }
+  }
+
+  void _discardObjectMutationStateForPermissionChange() {
+    _objectMutationPermissionGeneration += 1;
+    _panelImagePickerToken += 1;
+    _panelBarcodeRequestTokens.clear();
+    widget.controller?._discardActiveObjectPropertyDraftForPermissionChange();
+    _lineInsertionMode = false;
+    _shapeInsertionKind = null;
+    _cancelLineInsertionDraftState();
+    _imageInsertDialogOpen = false;
+    _barcodeDialogOpen = false;
+    toolbarPopupKey = null;
   }
 
   FortuneSettings _effectiveSettings(FortuneWorkbook workbook) {
@@ -18893,15 +18929,21 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         image.width,
         image.height,
       );
-      if (!rect.overlaps(bounds)) {
+      final rotation = fortuneImageRotationDegrees(image);
+      if (!fortuneRotatedRectBounds(rect, rect.center, rotation).overlaps(bounds)) {
         continue;
       }
+      canvas.save();
+      canvas.translate(rect.center.dx, rect.center.dy);
+      canvas.rotate(rotation * math.pi / 180);
+      canvas.translate(-rect.center.dx, -rect.center.dy);
       final decoded = decodedImages[image.src];
       if (decoded == null) {
         _drawScreenshotImagePlaceholder(canvas, rect, image);
       } else {
         _drawScreenshotImageBitmap(canvas, rect, decoded);
       }
+      canvas.restore();
     }
     canvas.restore();
   }
@@ -26249,12 +26291,25 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     if (local.dx < dataLeft || local.dy < dataTop) {
       return null;
     }
+    return _lineInsertionLogicalPositionUnrestricted(local, settings);
+  }
+
+  Offset _lineInsertionLogicalPositionUnrestricted(
+    Offset local,
+    FortuneSettings settings, {
+    Offset? effectiveScrollOffset,
+  }) {
+    final sheetTop =
+        settings.effectiveToolbarHeight + settings.effectiveFormulaBarHeight;
+    final dataLeft = _sheetDataLeft(settings);
+    final dataTop = sheetTop + _sheetDataTop(settings);
     final zoom = _workbook.activeSheet.zoomRatio <= 0
         ? 1.0
         : _workbook.activeSheet.zoomRatio;
+    final offset = effectiveScrollOffset ?? scrollOffset;
     return Offset(
-      (local.dx - dataLeft + scrollOffset.dx) / zoom,
-      (local.dy - dataTop + scrollOffset.dy) / zoom,
+      (local.dx - dataLeft + offset.dx) / zoom,
+      (local.dy - dataTop + offset.dy) / zoom,
     );
   }
 
@@ -26281,8 +26336,16 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     if (start == null) {
       return false;
     }
-    final logical = _typedObjectMoveLogicalPosition(local, _workbook.settings);
+    final settings = _workbook.settings;
+    final metrics = _workbook.activeSheet.metrics(settings);
+    final nextScrollOffset = _autoScrollOffsetForDrag(local, settings, metrics);
+    final logical = _lineInsertionLogicalPositionUnrestricted(
+      local,
+      settings,
+      effectiveScrollOffset: nextScrollOffset,
+    );
     setState(() {
+      scrollOffset = nextScrollOffset;
       _lineInsertionEnd = _constrainedGeometryInsertionEnd(start, logical);
     });
     return true;
@@ -26477,21 +26540,6 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       }
     });
     return true;
-  }
-
-  Offset _typedObjectMoveLogicalPosition(
-    Offset local,
-    FortuneSettings settings,
-  ) {
-    final sheetTop =
-        settings.effectiveToolbarHeight + settings.effectiveFormulaBarHeight;
-    final zoom = _workbook.activeSheet.zoomRatio <= 0
-        ? 1.0
-        : _workbook.activeSheet.zoomRatio;
-    return Offset(
-      (local.dx - _sheetDataLeft(settings) + scrollOffset.dx) / zoom,
-      (local.dy - sheetTop - _sheetDataTop(settings) + scrollOffset.dy) / zoom,
-    );
   }
 
   bool _commitTypedObjectMove(Offset local) {
@@ -27081,6 +27129,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       return false;
     }
     final sequence = ++_objectClipboardSequence;
+    final permissionGeneration = _objectMutationPermissionGeneration;
     final marker = 'fortune-sheet:objects:v1:$sequence';
     final lease = await _beginObjectClipboardWrite(marker);
     if (!lease.wroteMarker) {
@@ -27096,7 +27145,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     }
     if (cut) {
       final current = _workbook.activeSheet;
-      if (current.id != sheet.id ||
+      if (!_workbook.settings.allowEdit ||
+          permissionGeneration != _objectMutationPermissionGeneration ||
+          current.id != sheet.id ||
           entries.any(
             (entry) => !_objectClipboardEntryMatchesSheet(entry, current),
           )) {
@@ -28140,11 +28191,12 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     final ownerValid =
         identical(_lineInsertionOwnerWorkbook, _workbook) &&
         _lineInsertionOwnerSheetId == _workbook.activeSheet.id;
-    final release = _lineInsertionLogicalPosition(local, _workbook.settings);
-    final end = release == null
-        ? _lineInsertionEnd
-        : _constrainedGeometryInsertionEnd(start, release);
-    if (!ownerValid || end == null) {
+    final release = _lineInsertionLogicalPositionUnrestricted(
+      local,
+      _workbook.settings,
+    );
+    final end = _constrainedGeometryInsertionEnd(start, release);
+    if (!ownerValid) {
       setState(() {
         _lineInsertionMode = false;
         _shapeInsertionKind = null;
@@ -28605,7 +28657,13 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     final images = fortuneImagesInPaintOrder(_workbook.activeSheet.images);
     for (var index = images.length - 1; index >= 0; index -= 1) {
       final image = images[index];
-      if (_imageRect(image, settings).contains(local)) {
+      final rect = _imageRect(image, settings);
+      final position = fortuneRotatePositionAround(
+        local,
+        rect.center,
+        -fortuneImageRotationDegrees(image),
+      );
+      if (rect.contains(position)) {
         return image.id;
       }
     }
@@ -43065,6 +43123,32 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     _clearScreenshotCapture();
     _searchDialogOpen = false;
     _conditionRuleDialogOpen = false;
+  }
+
+  void _dismissObjectPanelPresentationTransients() {
+    ContextMenuController.removeAny();
+    setState(() {
+      contextMenuAt = null;
+      _contextMenuIsHeader = false;
+      _contextMenuIsEditor = false;
+      _editorContextMenuSelectionRange = null;
+      _contextMenuImageId = null;
+      _contextMenuObjectKey = null;
+      _editorContextMenuOpeningPointer = null;
+      _contextMenuPreviousSelectionSave = null;
+      _contextMenuPreviousSelectionRange = null;
+      toolbarPopupKey = null;
+      _toolbarPopupHoveredIndex = null;
+      _toolbarPopupHoveredScrollButtonDirection = null;
+      _toolbarPopupPressedScrollButtonDirection = null;
+      _toolbarBorderSubmenuKey = null;
+      _formatMoreSubmenuOpen = false;
+      _conditionFormatSubmenuKey = null;
+      _toolbarHoveredKey = null;
+      _toolbarHoveredComboArrowKey = null;
+      _activeImageToolbarTooltipPosition = null;
+      _imageLayerPanelTooltipPosition = null;
+    });
   }
 
   bool _hasOpenTransientMenu() {

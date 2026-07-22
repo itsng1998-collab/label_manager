@@ -540,7 +540,8 @@ class _ObjectLayerRow extends StatelessWidget {
 String _propertySnapshotIdentity(FortuneObjectSelectionSnapshot snapshot) {
   final image = snapshot.activeImage;
   if (image != null) {
-    return '${snapshot.sheetId}|${image.id}|${image.left}|${image.top}|${image.width}|${image.height}|${image.extraFields['rotation']}|${image.extraFields[fortuneImageObjectIdExtraKey]}|${image.extraFields[fortuneBarcodeObjectIdExtraKey]}';
+    final fields = image.extraFields;
+    return '${snapshot.sheetId}|${image.id}|${image.src}|${image.left}|${image.top}|${image.width}|${image.height}|${fields['rotation']}|${fields[fortuneImageObjectIdExtraKey]}|${fields[fortuneBarcodeObjectIdExtraKey]}|${fields['barcodeText']}|${fields['barcodeFormatId']}|${fields['barcodeFormatLabel']}|${fields['barcodeModuleScale']}|${fields['barcodeBarHeight']}|${fields['barcodeLeadingText']}|${fields['barcodeTrailingText']}|${fields['barcodeShowText']}|${fields['barcodeHumanReadableFontFamily']}|${fields['barcodeHumanReadableFontSize']}|${fields['preserveTemplateBarcodeFormat']}';
   }
   final line = snapshot.activeLine;
   if (line != null) {

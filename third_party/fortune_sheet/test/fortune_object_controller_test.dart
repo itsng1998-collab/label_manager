@@ -1815,6 +1815,9 @@ void main() {
               extraFields: {'fortuneBarcode': true, 'barcodeText': 'OLD'},
             ),
           ],
+          lines: const [
+            FortuneLine(id: 'line_1', x1: 10, y1: 10, x2: 30, y2: 10),
+          ],
         ),
         FortuneSheet(id: 's2', name: 'Sheet2'),
       ],
@@ -1868,6 +1871,13 @@ void main() {
     expect(controller.projectedCanUndo, isFalse);
     expect(controller.projectedCanRedo, isFalse);
     expect(mutationEnablement, contains(false));
+    controller.selectObject(
+      const FortuneSheetObjectKey(FortuneSheetObjectKind.line, 'line_1'),
+    );
+    expect(
+      controller.objectSelection.activeKey,
+      const FortuneSheetObjectKey(FortuneSheetObjectKind.line, 'line_1'),
+    );
     controller.updateSelectedImage(top: 99);
     controller.duplicateSelectedObjects();
     controller.handleUndo();
@@ -1875,7 +1885,7 @@ void main() {
     controller.addSheet(id: 's3', name: 'Blocked');
     controller.activateSheet(id: 's2');
     controller.setZoomRatio(2);
-    expect(controller.objectSelection.activeImage?.top, 30);
+    expect(controller.getSheet(id: 's1')!.images.single.top, 30);
     expect(controller.getSheet(id: 's1')!.cells, isEmpty);
     expect(controller.getSheet(id: 's3'), isNull);
     expect(controller.objectSelection.sheetId, 's1');
@@ -1890,9 +1900,112 @@ void main() {
     await tester.pump();
 
     expect(
-      controller.objectSelection.activeImage?.extraFields['barcodeText'],
+      controller
+          .getSheet(id: 's1')!
+          .images
+          .single
+          .extraFields['barcodeText'],
       'FIRST',
     );
+  });
+
+  testWidgets('allowEdit downgrade invalidates a pending barcode render', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    final controller = FortuneSheetController();
+    final render = Completer<FortuneBarcodeRenderResult?>();
+    var settings = const FortuneSettings(
+      showToolbar: false,
+      showFormulaBar: false,
+    );
+    late StateSetter updateHost;
+    final workbook = FortuneWorkbook(
+      settings: settings,
+      sheets: [
+        FortuneSheet(
+          id: 's1',
+          name: 'Sheet1',
+          images: const [
+            FortuneImage(
+              id: 'barcode_1',
+              src: 'old-src',
+              left: 20,
+              top: 30,
+              width: 80,
+              height: 40,
+              extraFields: {'fortuneBarcode': true, 'barcodeText': 'OLD'},
+            ),
+          ],
+        ),
+      ],
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: StatefulBuilder(
+          builder: (context, setState) {
+            updateHost = setState;
+            return SizedBox(
+              width: 900,
+              height: 700,
+              child: FortuneSheetCanvas(
+                workbook: workbook,
+                settings: settings,
+                controller: controller,
+                barcodeRenderer: (_) => render.future,
+              ),
+            );
+          },
+        ),
+      ),
+    );
+    controller.selectObject(
+      const FortuneSheetObjectKey(FortuneSheetObjectKind.barcode, 'barcode_1'),
+    );
+    final pending = controller.renderSelectedBarcode(
+      text: 'NEW',
+      formatId: 'CODE128',
+      left: 20,
+      top: 30,
+      width: 80,
+      height: 40,
+      rotationDegrees: 0,
+      moduleScale: 3,
+      barHeight: 10,
+      leadingText: '',
+      trailingText: '',
+      showHumanReadableText: false,
+      humanReadableFontFamily: null,
+      humanReadableFontSize: 14,
+      connectionId: '',
+      preserveTemplateFormat: false,
+    );
+    expect(controller.barcodePropertyRenderPending, isTrue);
+
+    updateHost(() {
+      settings = settings.copyWith(allowEdit: false);
+    });
+    await tester.pump();
+    updateHost(() {
+      settings = settings.copyWith(allowEdit: true);
+    });
+    await tester.pump();
+    render.complete(
+      FortuneBarcodeRenderResult(bytes: base64Decode(_testPngBase64)),
+    );
+
+    expect(await pending, isFalse);
+    expect(controller.barcodePropertyRenderPending, isFalse);
+    expect(
+      controller.getSheet(id: 's1')!.images.single.extraFields['barcodeText'],
+      'OLD',
+    );
+    expect(controller.projectedCanUndo, isFalse);
   });
 
   testWidgets('controller copies cuts and pastes mixed selected objects', (

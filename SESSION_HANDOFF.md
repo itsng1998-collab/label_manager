@@ -1,3 +1,13 @@
+### 완료 (2026-07-22): 선·도형 지시서 7차 재감사 권장안 수정
+- settings-only `allowEdit` 하강을 object mutation lifecycle 경계로 처리했다. active property/insertion/dialog draft를 commit 없이 폐기하고 picker/barcode/cut async 자격을 generation으로 무효화하되 selection, canonical workbook과 history는 유지한다. cut은 clipboard marker 완료 뒤 권한과 generation을 다시 확인한다.
+- barcode renderer pending 중 selection/toggle/range/select-all은 property draft finalize를 시도하지 않고 조회·선택만 수행한다. mutation/history command의 pending 차단은 유지한다. property editor identity에는 barcode raster와 실제 편집 canonical metadata를 포함해 Apply/Undo 뒤 stale form 재사용을 막았다.
+- image/barcode의 중심 회전 geometry를 공용 helper로 통합했다. logical hit-test는 pointer를 역회전하고 screenshot capture는 화면과 같은 transform으로 bitmap/placeholder를 그리며 Hybrid image/barcode footprint도 회전 bounds를 사용한다.
+- line/shape insertion의 시작점 검증과 update/release 좌표 변환을 분리했다. move에서 기존 공용 drag auto-scroll offset을 먼저 적용하고 pointer-up은 데이터 영역 밖에서도 실제 release 좌표로 최종 geometry를 계산한다.
+- object panel presentation 전용 UI-only transient close API를 추가했다. overlay/dock open과 splitter drag start가 context/toolbar popup·hover·tooltip만 닫고 property/insertion draft와 canonical state는 건드리지 않는다.
+- 직접 회귀를 추가했다: `allowEdit` false→true 왕복 뒤 stale barcode 결과 거부, barcode pending 중 다른 typed object 선택, 회전 image hit-test, 회전 barcode의 Hybrid 하위 native line 차단, 데이터 영역 밖 insertion release 좌표.
+- 최종 검증: vendor focused suite 132건, root focused suite 135건 통과. root와 `third_party/fortune_sheet`의 `flutter analyze` 모두 issues 0이며 `git diff --check` clean이다.
+- 사용자 변경 `lib/core/app.dart`와 `third_party/*/build/` 생성물은 수정·stage·commit에서 제외한다.
+
 ### 완료 (2026-07-22): 선·도형 지시서 6차 재감사 권장안 수정
 - legacy image layer panel의 pointer/keyboard/final move와 typed object public/private mutation 경계에 `allowEdit` 최종 guard를 적용했다. selection/copy/조회는 읽기 전용에서도 유지하며 Undo/Redo 일반 준비 경계와 object mutation 권한 경계를 분리했다.
 - narrow overlay 일반 열기는 layer list에 focus intent를 전달하고 열기 직전 외부 focus를 저장한다. 명시적 닫기에서 이전 focus를 복원하며 property field 요청은 중간 layer focus 없이 exact field로 이동한다. hidden/close/dispose generation은 예약된 post-frame property focus를 무효화한다.
