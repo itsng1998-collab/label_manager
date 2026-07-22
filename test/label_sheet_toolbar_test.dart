@@ -3100,6 +3100,63 @@ void main() {
     expect(rect.width, 200);
   });
 
+  testWidgets('closing object overlay returns property focus to canvas', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 600,
+            height: 500,
+            child: LabelSheetWorkbench(
+              initialWorkbook: FortuneWorkbook(
+                sheets: [
+                  FortuneSheet(
+                    id: 's1',
+                    name: 'Label',
+                    lines: const [
+                      FortuneLine(id: 'line_1', x1: 20, y1: 20, x2: 80, y2: 20),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    final sheetApp = tester.widget<FortuneSheetApp>(
+      find.byType(FortuneSheetApp),
+    );
+    sheetApp.controller!.selectObject(
+      const FortuneSheetObjectKey(FortuneSheetObjectKind.line, 'line_1'),
+    );
+    sheetApp.onOpenObjectPanel!();
+    await tester.pump();
+    final propertyField = find.byKey(
+      const ValueKey('fortune-object-property-x1'),
+    );
+    await tester.tap(propertyField);
+    await tester.pump();
+    expect(
+      _primaryFocusIsInside(tester, find.byType(FortuneObjectLayerPanel)),
+      isTrue,
+    );
+
+    await tester.tap(find.byTooltip('닫기'));
+    await tester.pump();
+    await tester.pump();
+
+    expect(
+      _primaryFocusIsInside(tester, find.byType(FortuneSheetCanvas)),
+      isTrue,
+    );
+  });
+
   testWidgets('object panel width persists drag then reset in order', (
     tester,
   ) async {

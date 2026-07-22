@@ -1,3 +1,14 @@
+### 완료 (2026-07-22): 선·도형 지시서 5차 재감사 수정
+- image/barcode secondary-click을 typed object context 경로로 통합해 mixed selection의 duplicate/delete/layer command, draft finalize, `allowEdit` 권한과 exact active/anchor 처리를 line/shape와 동일하게 적용했다. 통합 과정에서 드러난 typed context layer boundary 누락도 공통 paint-order enablement helper로 보완했다.
+- canvas Arrow/Shift+Arrow가 active image/barcode geometry를 1px/10px 이동하고 top을 0으로 제한하며 실제 변화에만 undo transaction을 만든다.
+- property panel open request에 exact `sheetId`와 typed `objectKey` owner를 추가했다. Workbench가 field/generation과 함께 전달하고 panel post-frame focus가 현재 sheet/active key까지 일치할 때만 실행된다. image/barcode `connectionId` dropdown에도 실제 FocusNode를 연결했다.
+- object panel이 visible에서 hidden으로 바뀔 때 panel 내부 keyboard focus만 canvas로 넘기고 draft/controller State는 유지한다. Workbench 소유 controller는 canvas detach 뒤 post-frame에 terminal dispose한다.
+- 읽기 전용 다중 선택 duplicate/delete 버튼과 active object mutation toolbar의 paint/hit-test를 비활성화했다. image layer-panel toggle 같은 조회 동작은 유지한다.
+- 기존 image/barcode context edit가 object property panel로 이전된 계약에 맞춰 image 테스트를 exact panel request로 전환하고 typed 공통 메뉴 그룹/순서를 반영했다. 더 이상 사용자 경로에서 도달하지 않는 legacy barcode edit dialog 내부 테스트 6건은 명시 skip했으며, barcode property 저장 계약은 object panel 회귀가 대체한다.
+- 직접 회귀를 추가했다: mixed image+line context delete, active image arrow/undo, exact panel request owner, read-only multi-selection actions, read-only image toolbar, overlay close focus handoff, typed image context layer boundary.
+- 검증: vendor object/barcode/Hybrid 활성 테스트 103건 통과(legacy 6건 skip), root toolbar suite 127건 통과, root와 `third_party/fortune_sheet` `flutter analyze` issues 0, `git diff --check` clean이다.
+- 사용자 변경 `lib/core/app.dart`와 `third_party/*/build/` 생성물은 수정·stage·commit에서 제외한다.
+
 ### 완료 (2026-07-22): 선·도형 지시서 4차 재감사 수정
 - 이미지·바코드 기존 객체의 context/active toolbar 편집을 기존 dialog에서 object property panel request로 이전했다. structured request가 있으면 legacy open callback을 중복 호출하지 않으며 image/barcode는 `connectionId`, line은 `x1`, shape는 `left` focus intent를 전달한다.
 - 다중 selected member의 context `편집`은 draft finalize 뒤 context exact key 하나로 selected/active/anchor를 축소한다. 우클릭만 하거나 묶음 command를 실행하는 기존 다중 선택 보존은 유지한다. 빈 canvas secondary click은 image/barcode를 포함한 object selection을 더 이상 지우지 않는다.

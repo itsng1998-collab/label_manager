@@ -44486,7 +44486,9 @@ bool fortuneActiveTypedObjectToolbarItemEnabled(
   FortuneSheet sheet,
   FortuneSheetObjectKey key,
   String command,
+  {bool allowEdit = true,}
 ) {
+  if (!allowEdit) return false;
   final objects = fortuneSheetObjectsInPaintOrder(sheet);
   final index = objects.indexWhere((object) => object.key == key);
   if (index < 0) {
@@ -44511,7 +44513,11 @@ bool fortuneActiveImageToolbarItemEnabled(
   List<FortuneImage> images,
   String? activeImageId,
   String command,
+  {bool allowEdit = true,}
 ) {
+  if (!allowEdit && command != fortuneContextToggleLayerPanelCommand) {
+    return false;
+  }
   return switch (command) {
     fortuneContextEditImageCommand ||
     fortuneContextEditBarcodeCommand ||
@@ -77467,8 +77473,14 @@ class FortuneSheetPainter extends CustomPainter {
               sheet.images,
               activeImageId,
               item,
+              allowEdit: workbook.settings.allowEdit,
             )
-          : fortuneActiveTypedObjectToolbarItemEnabled(sheet, objectKey!, item);
+          : fortuneActiveTypedObjectToolbarItemEnabled(
+              sheet,
+              objectKey!,
+              item,
+              allowEdit: workbook.settings.allowEdit,
+            );
       final rect = Rect.fromLTWH(
         toolbar.left + itemWidth * index,
         toolbar.top,

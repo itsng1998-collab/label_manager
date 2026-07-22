@@ -1247,8 +1247,14 @@ class FortuneObjectSelectionSnapshot {
 enum FortuneObjectPanelPresentation { hidden, dock, overlay }
 
 class FortuneObjectPanelOpenRequest {
-  const FortuneObjectPanelOpenRequest({this.propertyField});
+  const FortuneObjectPanelOpenRequest({
+    required this.sheetId,
+    required this.objectKey,
+    this.propertyField,
+  });
 
+  final String sheetId;
+  final FortuneSheetObjectKey objectKey;
   final String? propertyField;
 }
 
@@ -1267,26 +1273,32 @@ class FortuneSheetController extends ChangeNotifier {
   FortuneObjectSelectionSnapshot get objectSelection => _objectSelection;
   FortuneSheetObjectKey? get activePropertyDraftKey => _activePropertyDraftKey;
   bool get hasActiveObjectPropertyDraft => _activePropertyDraftOwner != null;
-    FortunePropertyDraftProjection get activePropertyDraftProjection =>
+  FortunePropertyDraftProjection get activePropertyDraftProjection =>
       _state == null
       ? FortunePropertyDraftProjection.noChange
       : _projectActivePropertyDraft?.call() ??
             FortunePropertyDraftProjection.noChange;
   bool get barcodePropertyRenderPending =>
       _state?._panelBarcodeRequestTokens.isNotEmpty ?? false;
-    bool get projectedCanonicalChange =>
+  bool get projectedCanonicalChange =>
       !barcodePropertyRenderPending &&
       activePropertyDraftProjection == FortunePropertyDraftProjection.change;
-    bool get projectedCanUndo =>
+  bool get projectedCanUndo =>
       !barcodePropertyRenderPending &&
       (projectedCanonicalChange || (_state?._undoStack.isNotEmpty ?? false));
-    bool get projectedCanRedo =>
+  bool get projectedCanRedo =>
       !barcodePropertyRenderPending &&
       !projectedCanonicalChange &&
       (_state?._redoStack.isNotEmpty ?? false);
   bool get objectMutationEnabled =>
       _state?._workbook.settings.allowEdit == true &&
       !barcodePropertyRenderPending;
+
+  void focusCanvas() {
+    if (_disposed) return;
+    _state?._focusNode.requestFocus();
+  }
+
   bool get activeImagePickerFailed {
     final state = _state;
     final key = _objectSelection.activeKey;
@@ -3019,8 +3031,7 @@ class FortuneSheetCanvas extends StatefulWidget {
   final ValueChanged<FortuneWorkbook>? onChange;
   final FortuneOpCallback? onOp;
   final VoidCallback? onOpenObjectPanel;
-  final ValueChanged<FortuneObjectPanelOpenRequest>?
-  onOpenObjectPanelRequest;
+  final ValueChanged<FortuneObjectPanelOpenRequest>? onOpenObjectPanelRequest;
   final FortuneObjectPanelPresentation objectPanelPresentation;
   final FortuneSheetLocale locale;
 
@@ -7815,11 +7826,13 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
               _workbook.activeSheet.images,
               _activeImageId,
               activeImageToolbarCommand,
+              allowEdit: _workbook.settings.allowEdit,
             )
           : fortuneActiveTypedObjectToolbarItemEnabled(
               _workbook.activeSheet,
               activeObjectKey,
               activeImageToolbarCommand,
+              allowEdit: _workbook.settings.allowEdit,
             );
       if (!enabled) {
         setState(() {
@@ -7960,9 +7973,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
               logicalObjectPosition,
               zoomRatio: _workbook.activeSheet.zoomRatio,
             );
-      if (typedObjectKey != null &&
-          typedObjectKey.kind != FortuneSheetObjectKind.image &&
-          typedObjectKey.kind != FortuneSheetObjectKind.barcode) {
+      if (typedObjectKey != null) {
         _openTypedObjectContextMenu(typedObjectKey, local);
         return;
       }
@@ -8202,10 +8213,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         return;
       }
       setState(() {
-        _applyExactObjectSelection(
-          <FortuneSheetObjectKey>{typedObjectKey},
+        _applyExactObjectSelection(<FortuneSheetObjectKey>{
           typedObjectKey,
-        );
+        }, typedObjectKey);
         contextMenuAt = null;
         _contextMenuImageId = null;
         _contextMenuObjectKey = null;
@@ -8250,7 +8260,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         });
         return;
       }
-        final key = image == null
+      final key = image == null
           ? null
           : FortuneSheetObjectKey(fortuneImageObjectKind(image), image.id);
       if ((event.buttons & kPrimaryButton) != 0 &&
@@ -16053,294 +16063,297 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     final decodedImages = Map<String, ui.Image>.from(_decodedImages);
     _retainCaptureImages(decodedImages.values);
     try {
-    final metrics = sheet.metrics(settings);
-    final range = _normalizeCaptureRange(requestedRange, metrics);
-    if (range == null) {
-      return null;
-    }
-    final borderCompute = FortuneBorderCompute.compute(sheet);
-    final conditionStyles = _screenshotConditionStyles(sheet);
-    double rowTop(int row) => row <= 0 ? 0 : metrics.visibleDataRows[row - 1];
-    double rowBottom(int row) => metrics.visibleDataRows[row];
-    double columnLeft(int column) =>
-        column <= 0 ? 0 : metrics.visibleDataColumns[column - 1];
-    double columnRight(int column) => metrics.visibleDataColumns[column];
-
-    final originX = columnLeft(range.columnStart);
-    final originY = rowTop(range.rowStart);
-    final captureWidth = math.max(1.0, columnRight(range.columnEnd) - originX);
-    final captureHeight = math.max(1.0, rowBottom(range.rowEnd) - originY);
-    final devicePixelRatio =
-        pixelRatio ??
-        (settings.devicePixelRatio > 0
-            ? settings.devicePixelRatio
-            : View.of(context).devicePixelRatio);
-    final bounds = Rect.fromLTWH(0, 0, captureWidth, captureHeight);
-    final recorder = ui.PictureRecorder();
-    final canvas = Canvas(recorder);
-    canvas.scale(devicePixelRatio);
-    canvas.drawRect(bounds, Paint()..color = const Color(0xffffffff));
-
-    for (var row = range.rowStart; row <= range.rowEnd; row += 1) {
-      if (sheet.hiddenRows.contains(row)) {
-        continue;
+      final metrics = sheet.metrics(settings);
+      final range = _normalizeCaptureRange(requestedRange, metrics);
+      if (range == null) {
+        return null;
       }
-      final top = rowTop(row) - originY;
-      final bottom = rowBottom(row) - originY;
-      if (bottom <= top) {
-        continue;
-      }
-      for (
-        var column = range.columnStart;
-        column <= range.columnEnd;
-        column += 1
-      ) {
-        if (sheet.hiddenColumns.contains(column)) {
-          continue;
-        }
-        final coord = FortuneCellCoord(row, column);
-        final anchor = sheet.mergeAnchorFor(coord);
-        if (anchor != coord) {
-          continue;
-        }
-        final cell = sheet.cells[anchor];
-        final merge = cell?.merge;
-        final rectRowEnd = merge == null
-            ? row
-            : math.min(range.rowEnd, merge.row + merge.rowSpan - 1);
-        final rectColumnEnd = merge == null
-            ? column
-            : math.min(range.columnEnd, merge.column + merge.columnSpan - 1);
-        final left = columnLeft(column) - originX;
-        final right = columnRight(rectColumnEnd) - originX;
-        if (right <= left) {
-          continue;
-        }
-        final rect = Rect.fromLTRB(
-          left,
-          top,
-          right,
-          rowBottom(rectRowEnd) - originY,
-        );
-        final conditionStyle = conditionStyles[anchor];
-        final background = conditionStyle?.cellColor ?? cell?.background;
-        if (background != null) {
-          canvas.drawRect(rect, Paint()..color = background);
-        }
-        if (conditionStyle?.dataBar case final dataBar?) {
-          _drawScreenshotConditionDataBar(canvas, rect, dataBar);
-        }
-        if (cell?.sparkline != null) {
-          _drawScreenshotCellSparkline(canvas, rect, cell!);
-        }
-        final dataVerification = _screenshotDataVerificationForCoord(
-          sheet,
-          anchor,
-        );
-        if (_screenshotDataVerificationFails(
-          sheet,
-          anchor,
-          cell,
-          dataVerification,
-        )) {
-          _drawScreenshotDataVerificationFailureIndicator(canvas, rect);
-        }
-        if (cell?.comment != null) {
-          _drawScreenshotCommentIndicator(canvas, rect);
-        }
-        if (_showsScreenshotQuotePrefixIndicator(cell)) {
-          _drawScreenshotQuotePrefixIndicator(canvas, rect);
-        }
-        if (dataVerification != null &&
-            dataVerification['type'] != 'checkbox') {
-          _drawScreenshotDataVerificationMarker(canvas, rect);
-        }
-        if (includeGridLines && sheet.showGridLines) {
-          canvas.drawRect(
-            rect,
-            Paint()
-              ..style = PaintingStyle.stroke
-              ..strokeWidth = 1
-              ..color = const Color(0xffdfdfdf),
-          );
-        }
-      }
-    }
+      final borderCompute = FortuneBorderCompute.compute(sheet);
+      final conditionStyles = _screenshotConditionStyles(sheet);
+      double rowTop(int row) => row <= 0 ? 0 : metrics.visibleDataRows[row - 1];
+      double rowBottom(int row) => metrics.visibleDataRows[row];
+      double columnLeft(int column) =>
+          column <= 0 ? 0 : metrics.visibleDataColumns[column - 1];
+      double columnRight(int column) => metrics.visibleDataColumns[column];
 
-    if (includeCellBorders) {
-      _drawScreenshotRangeCellBorders(
-        canvas,
-        sheet,
-        metrics,
-        range,
-        originX: originX,
-        originY: originY,
-        borderCompute: borderCompute,
-        clipBounds: bounds,
-        omittedEdgeKeys: omittedCellBorderEdgeKeys,
+      final originX = columnLeft(range.columnStart);
+      final originY = rowTop(range.rowStart);
+      final captureWidth = math.max(
+        1.0,
+        columnRight(range.columnEnd) - originX,
       );
-    }
+      final captureHeight = math.max(1.0, rowBottom(range.rowEnd) - originY);
+      final devicePixelRatio =
+          pixelRatio ??
+          (settings.devicePixelRatio > 0
+              ? settings.devicePixelRatio
+              : View.of(context).devicePixelRatio);
+      final bounds = Rect.fromLTWH(0, 0, captureWidth, captureHeight);
+      final recorder = ui.PictureRecorder();
+      final canvas = Canvas(recorder);
+      canvas.scale(devicePixelRatio);
+      canvas.drawRect(bounds, Paint()..color = const Color(0xffffffff));
 
-    for (var row = range.rowStart; row <= range.rowEnd; row += 1) {
-      if (sheet.hiddenRows.contains(row)) {
-        continue;
-      }
-      final top = rowTop(row) - originY;
-      final bottom = rowBottom(row) - originY;
-      if (bottom <= top) {
-        continue;
-      }
-      for (
-        var column = range.columnStart;
-        column <= range.columnEnd;
-        column += 1
-      ) {
-        if (sheet.hiddenColumns.contains(column)) {
+      for (var row = range.rowStart; row <= range.rowEnd; row += 1) {
+        if (sheet.hiddenRows.contains(row)) {
           continue;
         }
-        final coord = FortuneCellCoord(row, column);
-        final anchor = sheet.mergeAnchorFor(coord);
-        if (anchor != coord) {
+        final top = rowTop(row) - originY;
+        final bottom = rowBottom(row) - originY;
+        if (bottom <= top) {
           continue;
         }
-        final cell = sheet.cells[anchor];
-        final merge = cell?.merge;
-        final rectRowEnd = merge == null
-            ? row
-            : math.min(range.rowEnd, merge.row + merge.rowSpan - 1);
-        final rectColumnEnd = merge == null
-            ? column
-            : math.min(range.columnEnd, merge.column + merge.columnSpan - 1);
-        final left = columnLeft(column) - originX;
-        final right = columnRight(rectColumnEnd) - originX;
-        if (right <= left) {
-          continue;
-        }
-        final rect = Rect.fromLTRB(
-          left,
-          top,
-          right,
-          rowBottom(rectRowEnd) - originY,
-        );
-        final dataVerification = _screenshotDataVerificationForCoord(
-          sheet,
-          anchor,
-        );
-        if (dataVerification != null &&
-            dataVerification['type'] == 'checkbox') {
-          _drawScreenshotDataVerificationCheckbox(
-            canvas,
-            rect,
+        for (
+          var column = range.columnStart;
+          column <= range.columnEnd;
+          column += 1
+        ) {
+          if (sheet.hiddenColumns.contains(column)) {
+            continue;
+          }
+          final coord = FortuneCellCoord(row, column);
+          final anchor = sheet.mergeAnchorFor(coord);
+          if (anchor != coord) {
+            continue;
+          }
+          final cell = sheet.cells[anchor];
+          final merge = cell?.merge;
+          final rectRowEnd = merge == null
+              ? row
+              : math.min(range.rowEnd, merge.row + merge.rowSpan - 1);
+          final rectColumnEnd = merge == null
+              ? column
+              : math.min(range.columnEnd, merge.column + merge.columnSpan - 1);
+          final left = columnLeft(column) - originX;
+          final right = columnRight(rectColumnEnd) - originX;
+          if (right <= left) {
+            continue;
+          }
+          final rect = Rect.fromLTRB(
+            left,
+            top,
+            right,
+            rowBottom(rectRowEnd) - originY,
+          );
+          final conditionStyle = conditionStyles[anchor];
+          final background = conditionStyle?.cellColor ?? cell?.background;
+          if (background != null) {
+            canvas.drawRect(rect, Paint()..color = background);
+          }
+          if (conditionStyle?.dataBar case final dataBar?) {
+            _drawScreenshotConditionDataBar(canvas, rect, dataBar);
+          }
+          if (cell?.sparkline != null) {
+            _drawScreenshotCellSparkline(canvas, rect, cell!);
+          }
+          final dataVerification = _screenshotDataVerificationForCoord(
+            sheet,
+            anchor,
+          );
+          if (_screenshotDataVerificationFails(
+            sheet,
+            anchor,
             cell,
             dataVerification,
-            settings,
-          );
-          continue;
+          )) {
+            _drawScreenshotDataVerificationFailureIndicator(canvas, rect);
+          }
+          if (cell?.comment != null) {
+            _drawScreenshotCommentIndicator(canvas, rect);
+          }
+          if (_showsScreenshotQuotePrefixIndicator(cell)) {
+            _drawScreenshotQuotePrefixIndicator(canvas, rect);
+          }
+          if (dataVerification != null &&
+              dataVerification['type'] != 'checkbox') {
+            _drawScreenshotDataVerificationMarker(canvas, rect);
+          }
+          if (includeGridLines && sheet.showGridLines) {
+            canvas.drawRect(
+              rect,
+              Paint()
+                ..style = PaintingStyle.stroke
+                ..strokeWidth = 1
+                ..color = const Color(0xffdfdfdf),
+            );
+          }
         }
-        final renderCell = _screenshotCellWithDynamicArrayComputeText(
-          sheet,
-          anchor,
-          cell,
-        );
-        final text = renderCell?.renderedText ?? '';
-        if (text.isEmpty) {
-          continue;
-        }
-        final conditionStyle = conditionStyles[anchor];
-        if (conditionStyle?.icon case final icon?) {
-          _drawScreenshotConditionIcon(canvas, rect, icon);
-        }
-        final baseTextRect = _screenshotCellTextRect(
-          sheet: sheet,
-          metrics: metrics,
-          settings: settings,
-          row: anchor.row,
-          column: anchor.column,
-          cell: renderCell!,
-          cellRect: rect,
-          originX: originX,
-        );
-        final textRect = conditionStyle?.icon == null
-            ? baseTextRect
-            : Rect.fromLTRB(
-                math.min(baseTextRect.left + 14, baseTextRect.right),
-                baseTextRect.top,
-                baseTextRect.right,
-                baseTextRect.bottom,
-              );
-        _drawScreenshotCellText(
+      }
+
+      if (includeCellBorders) {
+        _drawScreenshotRangeCellBorders(
           canvas,
-          textRect.deflate(2),
-          renderCell,
-          settings: settings,
-          fontSize: renderCell.fontSize ?? settings.defaultFontSize,
-          textColor: conditionStyle?.textColor,
-          outputLineHeightMultiplier: outputLineHeightMultiplier,
+          sheet,
+          metrics,
+          range,
+          originX: originX,
+          originY: originY,
+          borderCompute: borderCompute,
+          clipBounds: bounds,
+          omittedEdgeKeys: omittedCellBorderEdgeKeys,
         );
       }
-    }
 
-    _drawScreenshotTypedObjects(
-      canvas,
-      sheet,
-      decodedImages,
-      bounds,
-      omittedObjectKeys: omittedObjectKeys,
-      originX: originX,
-      originY: originY,
-    );
-    _drawScreenshotRawShapeOverlays(
-      canvas,
-      sheet,
-      bounds,
-      originX: originX,
-      originY: originY,
-    );
+      for (var row = range.rowStart; row <= range.rowEnd; row += 1) {
+        if (sheet.hiddenRows.contains(row)) {
+          continue;
+        }
+        final top = rowTop(row) - originY;
+        final bottom = rowBottom(row) - originY;
+        if (bottom <= top) {
+          continue;
+        }
+        for (
+          var column = range.columnStart;
+          column <= range.columnEnd;
+          column += 1
+        ) {
+          if (sheet.hiddenColumns.contains(column)) {
+            continue;
+          }
+          final coord = FortuneCellCoord(row, column);
+          final anchor = sheet.mergeAnchorFor(coord);
+          if (anchor != coord) {
+            continue;
+          }
+          final cell = sheet.cells[anchor];
+          final merge = cell?.merge;
+          final rectRowEnd = merge == null
+              ? row
+              : math.min(range.rowEnd, merge.row + merge.rowSpan - 1);
+          final rectColumnEnd = merge == null
+              ? column
+              : math.min(range.columnEnd, merge.column + merge.columnSpan - 1);
+          final left = columnLeft(column) - originX;
+          final right = columnRight(rectColumnEnd) - originX;
+          if (right <= left) {
+            continue;
+          }
+          final rect = Rect.fromLTRB(
+            left,
+            top,
+            right,
+            rowBottom(rectRowEnd) - originY,
+          );
+          final dataVerification = _screenshotDataVerificationForCoord(
+            sheet,
+            anchor,
+          );
+          if (dataVerification != null &&
+              dataVerification['type'] == 'checkbox') {
+            _drawScreenshotDataVerificationCheckbox(
+              canvas,
+              rect,
+              cell,
+              dataVerification,
+              settings,
+            );
+            continue;
+          }
+          final renderCell = _screenshotCellWithDynamicArrayComputeText(
+            sheet,
+            anchor,
+            cell,
+          );
+          final text = renderCell?.renderedText ?? '';
+          if (text.isEmpty) {
+            continue;
+          }
+          final conditionStyle = conditionStyles[anchor];
+          if (conditionStyle?.icon case final icon?) {
+            _drawScreenshotConditionIcon(canvas, rect, icon);
+          }
+          final baseTextRect = _screenshotCellTextRect(
+            sheet: sheet,
+            metrics: metrics,
+            settings: settings,
+            row: anchor.row,
+            column: anchor.column,
+            cell: renderCell!,
+            cellRect: rect,
+            originX: originX,
+          );
+          final textRect = conditionStyle?.icon == null
+              ? baseTextRect
+              : Rect.fromLTRB(
+                  math.min(baseTextRect.left + 14, baseTextRect.right),
+                  baseTextRect.top,
+                  baseTextRect.right,
+                  baseTextRect.bottom,
+                );
+          _drawScreenshotCellText(
+            canvas,
+            textRect.deflate(2),
+            renderCell,
+            settings: settings,
+            fontSize: renderCell.fontSize ?? settings.defaultFontSize,
+            textColor: conditionStyle?.textColor,
+            outputLineHeightMultiplier: outputLineHeightMultiplier,
+          );
+        }
+      }
 
-    if (includeRulerGuides) {
-      _drawScreenshotRulerGuides(
+      _drawScreenshotTypedObjects(
+        canvas,
+        sheet,
+        decodedImages,
+        bounds,
+        omittedObjectKeys: omittedObjectKeys,
+        originX: originX,
+        originY: originY,
+      );
+      _drawScreenshotRawShapeOverlays(
         canvas,
         sheet,
         bounds,
-        metrics,
-        originX,
-        originY,
+        originX: originX,
+        originY: originY,
       );
-    }
 
-    if (includeLabelAreaBoundary) {
-      final borderPaint = Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2
-        ..color = const Color(0xffdfdfdf);
-      canvas.drawLine(bounds.topLeft, bounds.bottomLeft, borderPaint);
-      canvas.drawLine(bounds.topLeft, bounds.topRight, borderPaint);
-    }
+      if (includeRulerGuides) {
+        _drawScreenshotRulerGuides(
+          canvas,
+          sheet,
+          bounds,
+          metrics,
+          originX,
+          originY,
+        );
+      }
 
-    final picture = recorder.endRecording();
-    final image = await picture.toImage(
-      (captureWidth * devicePixelRatio).ceil(),
-      (captureHeight * devicePixelRatio).ceil(),
-    );
-    picture.dispose();
-    final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
-    if (bytes == null) {
-      image.dispose();
-      return null;
-    }
-    final pngBytes = bytes.buffer.asUint8List();
-    return _FortuneScreenshotCapture(
-      dataUrl: 'data:image/png;base64,${base64Encode(pngBytes)}',
-      image: image,
-      pngBytes: Uint8List.fromList(pngBytes),
-      logicalSize: Size(captureWidth, captureHeight),
-      pixelSize: Size(
-        (captureWidth * devicePixelRatio).ceilToDouble(),
-        (captureHeight * devicePixelRatio).ceilToDouble(),
-      ),
-      sheet: sheet,
-      range: range,
-    );
+      if (includeLabelAreaBoundary) {
+        final borderPaint = Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2
+          ..color = const Color(0xffdfdfdf);
+        canvas.drawLine(bounds.topLeft, bounds.bottomLeft, borderPaint);
+        canvas.drawLine(bounds.topLeft, bounds.topRight, borderPaint);
+      }
+
+      final picture = recorder.endRecording();
+      final image = await picture.toImage(
+        (captureWidth * devicePixelRatio).ceil(),
+        (captureHeight * devicePixelRatio).ceil(),
+      );
+      picture.dispose();
+      final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+      if (bytes == null) {
+        image.dispose();
+        return null;
+      }
+      final pngBytes = bytes.buffer.asUint8List();
+      return _FortuneScreenshotCapture(
+        dataUrl: 'data:image/png;base64,${base64Encode(pngBytes)}',
+        image: image,
+        pngBytes: Uint8List.fromList(pngBytes),
+        logicalSize: Size(captureWidth, captureHeight),
+        pixelSize: Size(
+          (captureWidth * devicePixelRatio).ceilToDouble(),
+          (captureHeight * devicePixelRatio).ceilToDouble(),
+        ),
+        sheet: sheet,
+        range: range,
+      );
     } finally {
       _releaseCaptureImages(decodedImages.values);
     }
@@ -18838,8 +18851,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
           object.key.kind == FortuneSheetObjectKind.ellipse) {
         fortuneDrawShapeObject(
           canvas,
-          sheet.shapes[
-              object.sourceIndex - sheet.images.length - sheet.lines.length],
+          sheet.shapes[object.sourceIndex -
+              sheet.images.length -
+              sheet.lines.length],
           bounds,
           offset: offset,
         );
@@ -19172,30 +19186,32 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     required int columnEnd,
     required Set<FortuneCellBorderEdgeKey> omittedEdgeKeys,
   }) {
-    bool omitsHorizontal(int boundaryRow) => Iterable<int>.generate(
-      columnEnd - columnStart + 1,
-      (offset) => columnStart + offset,
-    ).every(
-      (column) => omittedEdgeKeys.contains(
-        FortuneCellBorderEdgeKey(
-          axis: FortuneCellBorderEdgeAxis.horizontal,
-          row: boundaryRow,
-          column: column,
-        ),
-      ),
-    );
-    bool omitsVertical(int boundaryColumn) => Iterable<int>.generate(
-      rowEnd - rowStart + 1,
-      (offset) => rowStart + offset,
-    ).every(
-      (row) => omittedEdgeKeys.contains(
-        FortuneCellBorderEdgeKey(
-          axis: FortuneCellBorderEdgeAxis.vertical,
-          row: row,
-          column: boundaryColumn,
-        ),
-      ),
-    );
+    bool omitsHorizontal(int boundaryRow) =>
+        Iterable<int>.generate(
+          columnEnd - columnStart + 1,
+          (offset) => columnStart + offset,
+        ).every(
+          (column) => omittedEdgeKeys.contains(
+            FortuneCellBorderEdgeKey(
+              axis: FortuneCellBorderEdgeAxis.horizontal,
+              row: boundaryRow,
+              column: column,
+            ),
+          ),
+        );
+    bool omitsVertical(int boundaryColumn) =>
+        Iterable<int>.generate(
+          rowEnd - rowStart + 1,
+          (offset) => rowStart + offset,
+        ).every(
+          (row) => omittedEdgeKeys.contains(
+            FortuneCellBorderEdgeKey(
+              axis: FortuneCellBorderEdgeAxis.vertical,
+              row: row,
+              column: boundaryColumn,
+            ),
+          ),
+        );
     if (borders.top case final side? when !omitsHorizontal(rowStart)) {
       segments.add(
         _ScreenshotBorderLineSegment(
@@ -27604,8 +27620,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
           _workbook.settings.allowEdit &&
           _workbook.activeSheet.id == ownerSheetId &&
           _historyLineageGeneration == ownerHistoryGeneration &&
-          (_sheetCanonicalRevisions[ownerSheetId] ?? 0) ==
-              ownerSheetRevision &&
+          (_sheetCanonicalRevisions[ownerSheetId] ?? 0) == ownerSheetRevision &&
           _workbook.activeSheet.images.any(
             (image) =>
                 image.id == key.id &&
@@ -27634,8 +27649,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     });
     if (!_workbook.settings.allowEdit ||
         sheet.id != ownerSheetId ||
-      _historyLineageGeneration != ownerHistoryGeneration ||
-      (_sheetCanonicalRevisions[ownerSheetId] ?? 0) != ownerSheetRevision ||
+        _historyLineageGeneration != ownerHistoryGeneration ||
+        (_sheetCanonicalRevisions[ownerSheetId] ?? 0) != ownerSheetRevision ||
         sourceIndex < 0) {
       decoded?.dispose();
       return false;
@@ -28439,7 +28454,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     for (var index = 1; index < orderedBreakpoints.length; index += 1) {
       final startT = orderedBreakpoints[index - 1];
       final endT = orderedBreakpoints[index];
-        final intervalEndT = endT - (endT - startT) * 1e-9;
+      final intervalEndT = endT - (endT - startT) * 1e-9;
       final intervalEnd = candidateAt(
         Offset.lerp(start, pointer, intervalEndT)!,
       );
@@ -34743,11 +34758,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   Set<String> get _activeContextMenuDisabledItems {
     final objectMenuOpen =
         _contextMenuObjectKey != null || _contextMenuImageId != null;
-    final readOnlyObjectCommands = !_workbook.settings.allowEdit &&
-            objectMenuOpen
-        ? _activeContextMenuItems
-              .where(_isObjectMutationContextCommand)
-              .toSet()
+    final readOnlyObjectCommands =
+        !_workbook.settings.allowEdit && objectMenuOpen
+        ? _activeContextMenuItems.where(_isObjectMutationContextCommand).toSet()
         : const <String>{};
     final imageId = _contextMenuImageId;
     if (!_contextMenuIsEditor && imageId != null) {
@@ -34757,6 +34770,20 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
           if (!fortuneImageLayerPanelActionEnabled(
             _workbook.activeSheet.images,
             imageId,
+            command,
+          ))
+            command,
+        ...?_workbook.settings.contextMenuDisabledItemsBuilder?.call(),
+      };
+    }
+    final objectKey = _contextMenuObjectKey;
+    if (!_contextMenuIsEditor && objectKey != null) {
+      return <String>{
+        ...readOnlyObjectCommands,
+        for (final command in fortuneImageLayerPanelActionCommands)
+          if (!fortuneActiveTypedObjectToolbarItemEnabled(
+            _workbook.activeSheet,
+            objectKey,
             command,
           ))
             command,
@@ -35264,7 +35291,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         _isObjectMutationContextCommand(command)) {
       return;
     }
-    final typedObjectCommand = _contextMenuObjectKey != null &&
+    final typedObjectCommand =
+        _contextMenuObjectKey != null &&
         switch (command) {
           fortuneContextEditImageCommand ||
           fortuneContextEditBarcodeCommand ||
@@ -35282,7 +35310,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         };
     if (typedObjectCommand &&
         (_panelBarcodeRequestTokens.isNotEmpty ||
-            !(widget.controller?.finalizeActiveObjectPropertyDraft() ?? true))) {
+            !(widget.controller?.finalizeActiveObjectPropertyDraft() ??
+                true))) {
       return;
     }
     switch (command) {
@@ -35419,20 +35448,21 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   }
 
   void _openContextObjectPropertyPanel() {
-    final contextKey = _contextMenuObjectKey ??
+    final contextKey =
+        _contextMenuObjectKey ??
         (_contextMenuImageId == null
             ? null
             : _workbook.activeSheet.images
-                .where((image) => image.id == _contextMenuImageId)
-                .map(
-                  (image) => FortuneSheetObjectKey(
-                    fortuneImageObjectKind(image),
-                    image.id,
-                  ),
-                )
-                .firstOrNull);
-    final targetKey = contextKey ??
-        _objectSelectionSnapshot(attached: true).activeKey;
+                  .where((image) => image.id == _contextMenuImageId)
+                  .map(
+                    (image) => FortuneSheetObjectKey(
+                      fortuneImageObjectKind(image),
+                      image.id,
+                    ),
+                  )
+                  .firstOrNull);
+    final targetKey =
+        contextKey ?? _objectSelectionSnapshot(attached: true).activeKey;
     if (targetKey == null) {
       setState(_closeTransientMenus);
       return;
@@ -35446,8 +35476,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       _closeTransientMenus();
     });
     final field = switch (targetKey.kind) {
-      FortuneSheetObjectKind.image || FortuneSheetObjectKind.barcode =>
-        'connectionId',
+      FortuneSheetObjectKind.image ||
+      FortuneSheetObjectKind.barcode => 'connectionId',
       FortuneSheetObjectKind.line => 'x1',
       FortuneSheetObjectKind.rectangle ||
       FortuneSheetObjectKind.roundedRectangle ||
@@ -35455,7 +35485,13 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     };
     final request = widget.onOpenObjectPanelRequest;
     if (request != null) {
-      request(FortuneObjectPanelOpenRequest(propertyField: field));
+      request(
+        FortuneObjectPanelOpenRequest(
+          sheetId: _workbook.activeSheet.id,
+          objectKey: targetKey,
+          propertyField: field,
+        ),
+      );
     } else {
       widget.onOpenObjectPanel?.call();
     }
@@ -37619,7 +37655,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   }
 
   bool _moveActiveTypedObjectWithArrow(LogicalKeyboardKey key) {
-    final objectKey = _activeObjectKey;
+    final objectKey = _objectSelectionSnapshot(attached: true).activeKey;
     if (objectKey == null || !_workbook.settings.allowEdit) {
       return false;
     }
@@ -37636,9 +37672,29 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     final distance = HardwareKeyboard.instance.isShiftPressed ? 10.0 : 1.0;
     var delta = direction * distance;
     final sheet = _workbook.activeSheet;
+    FortuneImage? nextImage;
     FortuneLine? nextLine;
     FortuneShape? nextShape;
-    if (objectKey.kind == FortuneSheetObjectKind.line) {
+    if (objectKey.kind == FortuneSheetObjectKind.image ||
+        objectKey.kind == FortuneSheetObjectKind.barcode) {
+      final image = sheet.images.where((item) {
+        return item.id == objectKey.id &&
+            fortuneImageObjectKind(item) == objectKey.kind;
+      }).firstOrNull;
+      if (image == null) {
+        return false;
+      }
+      if (image.top + delta.dy < 0) {
+        delta = Offset(delta.dx, -image.top);
+      }
+      if (delta == Offset.zero) {
+        return true;
+      }
+      nextImage = image.copyWith(
+        left: image.left + delta.dx,
+        top: image.top + delta.dy,
+      );
+    } else if (objectKey.kind == FortuneSheetObjectKind.line) {
       final line = sheet.lines
           .where((item) => item.id == objectKey.id)
           .firstOrNull;
@@ -37683,7 +37739,18 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     }
     final sheets = [..._workbook.sheets];
     _recordUndoSnapshot();
-    if (nextLine != null) {
+    if (nextImage != null) {
+      sheets[_workbook.activeSheetIndex] = sheet.copyWith(
+        images: sheet.images
+            .map((image) {
+              return image.id == objectKey.id &&
+                      fortuneImageObjectKind(image) == objectKey.kind
+                  ? nextImage!
+                  : image.copyWith();
+            })
+            .toList(growable: false),
+      );
+    } else if (nextLine != null) {
       sheets[_workbook.activeSheetIndex] = sheet.copyWith(
         lines: sheet.lines
             .map((line) {
@@ -49320,15 +49387,15 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
                 hoveredColumnHeaderIndex: _hoveredColumnHeaderIndex,
                 hoveredRowHeaderIndex: _hoveredRowHeaderIndex,
                 activeImageId:
-                  widget.objectPanelPresentation ==
-                    FortuneObjectPanelPresentation.overlay
-                  ? null
-                  : _activeImageId,
+                    widget.objectPanelPresentation ==
+                        FortuneObjectPanelPresentation.overlay
+                    ? null
+                    : _activeImageId,
                 activeObjectKey:
-                  widget.objectPanelPresentation ==
-                    FortuneObjectPanelPresentation.overlay
-                  ? null
-                  : _activeObjectKey,
+                    widget.objectPanelPresentation ==
+                        FortuneObjectPanelPresentation.overlay
+                    ? null
+                    : _activeObjectKey,
                 objectGestureDraftKey: _typedObjectMoveKey,
                 objectGestureLineDraft: _typedObjectMoveLineDraft,
                 objectGestureShapeDraft: _typedObjectMoveShapeDraft,

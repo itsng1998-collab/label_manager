@@ -1112,6 +1112,142 @@ void main() {
     expect(controller.objectSelection.selectedKeys, {key});
   });
 
+  testWidgets('image context delete applies to the mixed selected set', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    final controller = FortuneSheetController();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SizedBox(
+          width: 900,
+          height: 700,
+          child: FortuneSheetCanvas(
+            controller: controller,
+            workbook: FortuneWorkbook(
+              settings: const FortuneSettings(
+                showToolbar: false,
+                showFormulaBar: false,
+              ),
+              sheets: [
+                FortuneSheet(
+                  id: 's1',
+                  name: 'Sheet1',
+                  images: const [
+                    FortuneImage(
+                      id: 'image_1',
+                      src: 'image',
+                      left: 20,
+                      top: 20,
+                      width: 40,
+                      height: 30,
+                    ),
+                  ],
+                  lines: const [
+                    FortuneLine(
+                      id: 'line_1',
+                      x1: 100,
+                      y1: 20,
+                      x2: 140,
+                      y2: 20,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    const imageKey = FortuneSheetObjectKey(
+      FortuneSheetObjectKind.image,
+      'image_1',
+    );
+    const lineKey = FortuneSheetObjectKey(
+      FortuneSheetObjectKind.line,
+      'line_1',
+    );
+    controller.selectObject(lineKey);
+    controller.toggleObject(imageKey);
+    await tester.pump();
+
+    final canvasTopLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
+    final gesture = await tester.startGesture(
+      canvasTopLeft + const Offset(46 + 40, 20 + 35),
+      kind: PointerDeviceKind.mouse,
+      buttons: kSecondaryMouseButton,
+    );
+    await gesture.up();
+    await tester.pump();
+    final painter = fortuneSheetPainter(tester);
+    final deleteRect = fortuneContextMenuItemRect(
+      painter.contextMenuAt!,
+      fortuneContextDeleteImageCommand,
+      painter.contextMenuItems,
+    )!;
+    await tester.tapAt(canvasTopLeft + deleteRect.center);
+    await tester.pump();
+
+    expect(controller.objectSelection.objects, isEmpty);
+  });
+
+  testWidgets('canvas arrow moves an active image', (tester) async {
+    tester.view.physicalSize = const Size(900, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    final controller = FortuneSheetController();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SizedBox(
+          width: 900,
+          height: 700,
+          child: FortuneSheetCanvas(
+            controller: controller,
+            workbook: FortuneWorkbook(
+              settings: const FortuneSettings(
+                showToolbar: false,
+                showFormulaBar: false,
+              ),
+              sheets: [
+                FortuneSheet(
+                  id: 's1',
+                  name: 'Sheet1',
+                  images: const [
+                    FortuneImage(
+                      id: 'image_1',
+                      src: 'image',
+                      left: 20,
+                      top: 20,
+                      width: 40,
+                      height: 30,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    const key = FortuneSheetObjectKey(FortuneSheetObjectKind.image, 'image_1');
+    controller.selectObject(key);
+    controller.focusCanvas();
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+    await tester.pump();
+
+    expect(controller.objectSelection.activeImage!.left, 21);
+    expect(controller.projectedCanUndo, isTrue);
+  });
+
   testWidgets('read-only property controls stay selectable and immutable', (
     tester,
   ) async {
@@ -1179,6 +1315,68 @@ void main() {
     );
     expect(find.text('-'), findsOneWidget);
     expect(find.byType(SelectableText), findsWidgets);
+  });
+
+  testWidgets('read-only multiple selection actions are disabled', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    final controller = FortuneSheetController();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Row(
+          children: [
+            SizedBox(
+              width: 600,
+              height: 900,
+              child: FortuneSheetCanvas(
+                controller: controller,
+                workbook: FortuneWorkbook(
+                  settings: const FortuneSettings(
+                    allowEdit: false,
+                    showToolbar: false,
+                    showFormulaBar: false,
+                  ),
+                  sheets: [
+                    FortuneSheet(
+                      id: 's1',
+                      name: 'Sheet1',
+                      lines: const [
+                        FortuneLine(id: 'a', x1: 20, y1: 20, x2: 40, y2: 20),
+                        FortuneLine(id: 'b', x1: 20, y1: 40, x2: 40, y2: 40),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            SizedBox(
+              width: 300,
+              height: 900,
+              child: FortuneObjectLayerPanel(controller: controller),
+            ),
+          ],
+        ),
+      ),
+    );
+    controller.selectObject(
+      const FortuneSheetObjectKey(FortuneSheetObjectKind.line, 'a'),
+    );
+    controller.toggleObject(
+      const FortuneSheetObjectKey(FortuneSheetObjectKind.line, 'b'),
+    );
+    await tester.pump();
+
+    for (final button in tester.widgetList<OutlinedButton>(
+      find.byType(OutlinedButton),
+    )) {
+      expect(button.onPressed, isNull);
+    }
   });
 
   testWidgets('overlay presentation suppresses active object toolbar', (
@@ -2592,6 +2790,14 @@ void main() {
 
     expect(panelOpenRequests, 0);
     expect(panelOpenRequest?.propertyField, 'left');
+    expect(panelOpenRequest?.sheetId, 's1');
+    expect(
+      panelOpenRequest?.objectKey,
+      const FortuneSheetObjectKey(
+        FortuneSheetObjectKind.rectangle,
+        'rect_1',
+      ),
+    );
     expect(painter().contextMenuAt, isNull);
   });
 
@@ -2659,6 +2865,11 @@ void main() {
 
     expect(panelRequests, hasLength(1));
     expect(panelRequests.single.propertyField, 'connectionId');
+    expect(panelRequests.single.sheetId, 's1');
+    expect(
+      panelRequests.single.objectKey,
+      const FortuneSheetObjectKey(FortuneSheetObjectKind.image, 'image_1'),
+    );
     expect(legacyRequests, 0);
     expect(painter.imageInsertDialogOpen, isFalse);
   });

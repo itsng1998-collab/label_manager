@@ -17,6 +17,8 @@ class FortuneObjectLayerPanel extends StatefulWidget {
     this.barcodeObjectIds = const <String>[],
     this.onClose,
     this.propertyFocusField,
+    this.propertyFocusSheetId,
+    this.propertyFocusObjectKey,
     this.propertyFocusGeneration = 0,
   });
 
@@ -27,6 +29,8 @@ class FortuneObjectLayerPanel extends StatefulWidget {
   final List<String> barcodeObjectIds;
   final VoidCallback? onClose;
   final String? propertyFocusField;
+  final String? propertyFocusSheetId;
+  final FortuneSheetObjectKey? propertyFocusObjectKey;
   final int propertyFocusGeneration;
 
   @override
@@ -247,6 +251,7 @@ class _FortuneObjectLayerPanelState extends State<FortuneObjectLayerPanel> {
                       ? _MultipleSelectionPanel(
                           count: snapshot.selectedKeys.length,
                           controller: widget.controller,
+                          canMutate: canMutate,
                         )
                       : Focus(
                           canRequestFocus: false,
@@ -263,6 +268,10 @@ class _FortuneObjectLayerPanelState extends State<FortuneObjectLayerPanel> {
                             imageObjectIds: widget.imageObjectIds,
                             barcodeObjectIds: widget.barcodeObjectIds,
                             propertyFocusField: widget.propertyFocusField,
+                            propertyFocusSheetId:
+                              widget.propertyFocusSheetId,
+                            propertyFocusObjectKey:
+                              widget.propertyFocusObjectKey,
                             propertyFocusGeneration:
                               widget.propertyFocusGeneration,
                           ),
@@ -508,10 +517,12 @@ class _MultipleSelectionPanel extends StatelessWidget {
   const _MultipleSelectionPanel({
     required this.count,
     required this.controller,
+    required this.canMutate,
   });
 
   final int count;
   final FortuneSheetController controller;
+  final bool canMutate;
 
   @override
   Widget build(BuildContext context) {
@@ -528,12 +539,12 @@ class _MultipleSelectionPanel extends StatelessWidget {
           runSpacing: 4,
           children: [
             OutlinedButton.icon(
-              onPressed: controller.duplicateSelectedObjects,
+              onPressed: canMutate ? controller.duplicateSelectedObjects : null,
               icon: const Icon(Icons.copy, size: 17),
               label: const Text('복제'),
             ),
             OutlinedButton.icon(
-              onPressed: controller.deleteSelectedObjects,
+              onPressed: canMutate ? controller.deleteSelectedObjects : null,
               icon: const Icon(Icons.delete_outline, size: 17),
               label: const Text('삭제'),
             ),
@@ -555,6 +566,8 @@ class _ObjectPropertyEditor extends StatefulWidget {
     required this.imageObjectIds,
     required this.barcodeObjectIds,
     required this.propertyFocusField,
+    required this.propertyFocusSheetId,
+    required this.propertyFocusObjectKey,
     required this.propertyFocusGeneration,
   });
 
@@ -566,6 +579,8 @@ class _ObjectPropertyEditor extends StatefulWidget {
   final List<String> imageObjectIds;
   final List<String> barcodeObjectIds;
   final String? propertyFocusField;
+  final String? propertyFocusSheetId;
+  final FortuneSheetObjectKey? propertyFocusObjectKey;
   final int propertyFocusGeneration;
 
   @override
@@ -646,7 +661,12 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
     if (field == null || generation <= _consumedFocusGeneration) return;
     _consumedFocusGeneration = generation;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || widget.propertyFocusGeneration != generation) return;
+      if (!mounted ||
+          widget.propertyFocusGeneration != generation ||
+          widget.snapshot.sheetId != widget.propertyFocusSheetId ||
+          widget.snapshot.activeKey != widget.propertyFocusObjectKey) {
+        return;
+      }
       _fieldFocusNodes.putIfAbsent(
         field,
         () => FocusNode(debugLabel: 'Fortune object property $field'),
@@ -1341,6 +1361,10 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
     );
     return DropdownButtonFormField<String>(
       key: const ValueKey('fortune-object-property-connectionId'),
+      focusNode: _fieldFocusNodes.putIfAbsent(
+        'connectionId',
+        () => FocusNode(debugLabel: 'Fortune object property connectionId'),
+      ),
       initialValue: current,
       decoration: const InputDecoration(labelText: '연결 ID'),
       items: choices
