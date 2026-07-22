@@ -1244,6 +1244,14 @@ class FortuneObjectSelectionSnapshot {
   final bool geometryUsesMillimeters;
 }
 
+enum FortuneObjectPanelPresentation { hidden, dock, overlay }
+
+class FortuneObjectPanelOpenRequest {
+  const FortuneObjectPanelOpenRequest({this.propertyField});
+
+  final String? propertyField;
+}
+
 class FortuneSheetController extends ChangeNotifier {
   _FortuneSheetCanvasState? _state;
   bool _disposed = false;
@@ -1260,8 +1268,10 @@ class FortuneSheetController extends ChangeNotifier {
   FortuneSheetObjectKey? get activePropertyDraftKey => _activePropertyDraftKey;
   bool get hasActiveObjectPropertyDraft => _activePropertyDraftOwner != null;
     FortunePropertyDraftProjection get activePropertyDraftProjection =>
-      _projectActivePropertyDraft?.call() ??
-      FortunePropertyDraftProjection.noChange;
+      _state == null
+      ? FortunePropertyDraftProjection.noChange
+      : _projectActivePropertyDraft?.call() ??
+            FortunePropertyDraftProjection.noChange;
   bool get barcodePropertyRenderPending =>
       _state?._panelBarcodeRequestTokens.isNotEmpty ?? false;
     bool get projectedCanonicalChange =>
@@ -1292,6 +1302,7 @@ class FortuneSheetController extends ChangeNotifier {
     required VoidCallback discard,
     required FortunePropertyDraftProjection Function() project,
   }) {
+    if (_disposed || _state == null) return;
     _activePropertyDraftOwner = owner;
     _activePropertyDraftKey = key;
     _finalizeActivePropertyDraft = finalize;
@@ -2982,6 +2993,8 @@ class FortuneSheetCanvas extends StatefulWidget {
     this.onChange,
     this.onOp,
     this.onOpenObjectPanel,
+    this.onOpenObjectPanelRequest,
+    this.objectPanelPresentation = FortuneObjectPanelPresentation.hidden,
     this.locale = const FortuneSheetLocale(),
     super.key,
   });
@@ -3003,6 +3016,9 @@ class FortuneSheetCanvas extends StatefulWidget {
   final ValueChanged<FortuneWorkbook>? onChange;
   final FortuneOpCallback? onOp;
   final VoidCallback? onOpenObjectPanel;
+  final ValueChanged<FortuneObjectPanelOpenRequest>?
+  onOpenObjectPanelRequest;
+  final FortuneObjectPanelPresentation objectPanelPresentation;
   final FortuneSheetLocale locale;
 
   @override
@@ -7726,6 +7742,14 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
 
     final activeImageHandle = _imageResizeSideAt(local, settings);
     if (activeImageHandle != null) {
+      final activeImageKey = _activeImageObjectKey;
+      if ((event.buttons & kPrimaryButton) != 0 &&
+          activeImageKey != null &&
+          (HardwareKeyboard.instance.isControlPressed ||
+              HardwareKeyboard.instance.isMetaPressed)) {
+        _toggleObjectFromController(activeImageKey);
+        return;
+      }
       _commitEditing();
       _commitSheetRename();
       _startImageResize(activeImageHandle, local);
@@ -7950,8 +7974,18 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         if (image != null) {
           final menuItems = _contextMenuItemsForImage(image);
           setState(() {
-            _activeImageId = imageId;
-            _selectedImageIds = <String>{imageId};
+            final key = FortuneSheetObjectKey(
+              fortuneImageObjectKind(image),
+              image.id,
+            );
+            final selected = _objectSelectionSnapshot(
+              attached: true,
+            ).selectedKeys;
+            _applyExactObjectSelection(
+              selected.contains(key) ? selected : <FortuneSheetObjectKey>{key},
+              key,
+              anchorKey: key,
+            );
             _contextMenuImageId = imageId;
             _contextMenuObjectKey = null;
             contextMenuAt = _contextMenuOrigin(local, menuItems);
@@ -8086,6 +8120,14 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
 
     final imageHandle = _imageResizeSideAt(local, settings);
     if (imageHandle != null) {
+      final activeImageKey = _activeImageObjectKey;
+      if ((event.buttons & kPrimaryButton) != 0 &&
+          activeImageKey != null &&
+          (HardwareKeyboard.instance.isControlPressed ||
+              HardwareKeyboard.instance.isMetaPressed)) {
+        _toggleObjectFromController(activeImageKey);
+        return;
+      }
       _commitEditing();
       _commitSheetRename();
       _startImageResize(imageHandle, local);
@@ -8158,9 +8200,10 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         return;
       }
       setState(() {
-        _activeObjectKey = typedObjectKey;
-        _activeImageId = null;
-        _selectedImageIds = <String>{};
+        _applyExactObjectSelection(
+          <FortuneSheetObjectKey>{typedObjectKey},
+          typedObjectKey,
+        );
         contextMenuAt = null;
         _contextMenuImageId = null;
         _contextMenuObjectKey = null;
@@ -8178,9 +8221,18 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       if ((event.buttons & kSecondaryMouseButton) != 0 && image != null) {
         final menuItems = _contextMenuItemsForImage(image);
         setState(() {
-          _activeObjectKey = null;
-          _activeImageId = imageId;
-          _selectedImageIds = <String>{imageId};
+          final key = FortuneSheetObjectKey(
+            fortuneImageObjectKind(image),
+            image.id,
+          );
+          final selected = _objectSelectionSnapshot(
+            attached: true,
+          ).selectedKeys;
+          _applyExactObjectSelection(
+            selected.contains(key) ? selected : <FortuneSheetObjectKey>{key},
+            key,
+            anchorKey: key,
+          );
           _contextMenuImageId = imageId;
           _contextMenuObjectKey = null;
           contextMenuAt = _contextMenuOrigin(local, menuItems);
@@ -8196,11 +8248,21 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         });
         return;
       }
+        final key = image == null
+          ? null
+          : FortuneSheetObjectKey(fortuneImageObjectKind(image), image.id);
+      if ((event.buttons & kPrimaryButton) != 0 &&
+          key != null &&
+          (HardwareKeyboard.instance.isControlPressed ||
+              HardwareKeyboard.instance.isMetaPressed)) {
+        _toggleObjectFromController(key);
+        return;
+      }
       _startImageMove(imageId, local);
       setState(() {
-        _activeObjectKey = null;
-        _activeImageId = imageId;
-        _selectedImageIds = <String>{imageId};
+        if (key != null) {
+          _applyExactObjectSelection(<FortuneSheetObjectKey>{key}, key);
+        }
         _contextMenuImageId = null;
         contextMenuAt = null;
         sheetTabMenuAt = null;
@@ -15925,6 +15987,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   }
 
   void _showScreenshotDialog() {
+    if (!(widget.controller?.finalizeActiveObjectPropertyDraft() ?? true)) {
+      return;
+    }
     final sheet = _workbook.activeSheet;
     final ranges = _rawSelectionRanges(sheet);
     if (ranges.length > 1) {
@@ -16344,6 +16409,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     required bool includeLabelAreaBoundary,
     double? outputLineHeightMultiplier,
   }) async {
+    if (!(widget.controller?.finalizeActiveObjectPropertyDraft() ?? true)) {
+      return null;
+    }
     final capture = await _generateScreenshotCapture(
       range,
       pixelRatio: math.max(0.01, pixelRatio),
@@ -26632,7 +26700,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         selected.add(key);
       }
       if (selected.isEmpty) {
-        _applyExactObjectSelection(const <FortuneSheetObjectKey>{}, null);
+        _applyExactObjectSelection(<FortuneSheetObjectKey>{key}, key);
         _closeTransientMenus();
         return;
       }
@@ -27517,6 +27585,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       return false;
     }
     final ownerSheetId = snapshot.sheetId;
+    final ownerHistoryGeneration = _historyLineageGeneration;
+    final ownerSheetRevision = _sheetCanonicalRevisions[ownerSheetId] ?? 0;
     final token = ++_panelImagePickerToken;
     if (_panelImagePickerErrorKeys.remove(key)) {
       widget.controller?._notifyCommandStateChanged();
@@ -27548,6 +27618,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     });
     if (!_workbook.settings.allowEdit ||
         sheet.id != ownerSheetId ||
+      _historyLineageGeneration != ownerHistoryGeneration ||
+      (_sheetCanonicalRevisions[ownerSheetId] ?? 0) != ownerSheetRevision ||
         sourceIndex < 0) {
       decoded?.dispose();
       return false;
@@ -28508,16 +28580,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         : (currentIndex - 1 + candidates.length) % candidates.length;
     final nextKey = candidates[nextIndex];
     setState(() {
-      if (nextKey.kind == FortuneSheetObjectKind.image ||
-          nextKey.kind == FortuneSheetObjectKind.barcode) {
-        _activeObjectKey = null;
-        _activeImageId = nextKey.id;
-        _selectedImageIds = <String>{nextKey.id};
-      } else {
-        _activeObjectKey = nextKey;
-        _activeImageId = null;
-        _selectedImageIds = <String>{};
-      }
+      _applyExactObjectSelection(<FortuneSheetObjectKey>{nextKey}, nextKey);
       _closeTransientMenus();
     });
     return true;
@@ -28555,7 +28618,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   }
 
   String? _activeImageToolbarCommandAt(Offset local, FortuneSettings settings) {
-    if (contextMenuAt != null) {
+    if (contextMenuAt != null ||
+        widget.objectPanelPresentation ==
+            FortuneObjectPanelPresentation.overlay) {
       return null;
     }
     final imageId = _activeImageId;
@@ -34660,9 +34725,18 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   }
 
   Set<String> get _activeContextMenuDisabledItems {
+    final objectMenuOpen =
+        _contextMenuObjectKey != null || _contextMenuImageId != null;
+    final readOnlyObjectCommands = !_workbook.settings.allowEdit &&
+            objectMenuOpen
+        ? _activeContextMenuItems
+              .where(_isObjectMutationContextCommand)
+              .toSet()
+        : const <String>{};
     final imageId = _contextMenuImageId;
     if (!_contextMenuIsEditor && imageId != null) {
       return <String>{
+        ...readOnlyObjectCommands,
         for (final command in fortuneImageLayerPanelActionCommands)
           if (!fortuneImageLayerPanelActionEnabled(
             _workbook.activeSheet.images,
@@ -34675,6 +34749,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     }
     if (!_contextMenuIsEditor) {
       return <String>{
+        ...readOnlyObjectCommands,
         if (!_canSplitSelectedCellColumn())
           fortuneContextSplitCellColumnCommand,
         ...?_workbook.settings.contextMenuDisabledItemsBuilder?.call(),
@@ -34687,6 +34762,24 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       if (_editorContextMenuSelectionRange == null)
         fortuneEditorContextSubscriptCommand,
       if (!_editorClipboardHasPasteText) fortuneContextPasteCommand,
+    };
+  }
+
+  bool _isObjectMutationContextCommand(String command) {
+    return switch (command) {
+      fortuneContextEditImageCommand ||
+      fortuneContextEditBarcodeCommand ||
+      fortuneContextEditLineCommand ||
+      fortuneContextEditRectangleCommand ||
+      fortuneContextEditRoundedRectangleCommand ||
+      fortuneContextEditEllipseCommand ||
+      fortuneContextDuplicateImageCommand ||
+      fortuneContextDeleteImageCommand ||
+      fortuneContextBringForwardCommand ||
+      fortuneContextSendBackwardCommand ||
+      fortuneContextBringToFrontCommand ||
+      fortuneContextSendToBackCommand => true,
+      _ => false,
     };
   }
 
@@ -34852,7 +34945,12 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   void _openTypedObjectContextMenu(FortuneSheetObjectKey key, Offset local) {
     final menuItems = _contextMenuItemsForTypedObject(key);
     setState(() {
-      _applyExactObjectSelection(<FortuneSheetObjectKey>{key}, key);
+      final selected = _objectSelectionSnapshot(attached: true).selectedKeys;
+      _applyExactObjectSelection(
+        selected.contains(key) ? selected : <FortuneSheetObjectKey>{key},
+        key,
+        anchorKey: key,
+      );
       _contextMenuObjectKey = key;
       _contextMenuImageId = null;
       contextMenuAt = _contextMenuOrigin(local, menuItems);
@@ -35145,6 +35243,11 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       }
       return;
     }
+    if (!_workbook.settings.allowEdit &&
+        (_contextMenuObjectKey != null || _contextMenuImageId != null) &&
+        _isObjectMutationContextCommand(command)) {
+      return;
+    }
     final typedObjectCommand = _contextMenuObjectKey != null &&
         switch (command) {
           fortuneContextEditImageCommand ||
@@ -35303,6 +35406,16 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
 
   void _openTypedObjectPropertyPanel() {
     setState(_closeTransientMenus);
+    final field = switch (_contextMenuObjectKey?.kind ?? _activeObjectKey?.kind) {
+      FortuneSheetObjectKind.line => 'x1',
+      FortuneSheetObjectKind.rectangle ||
+      FortuneSheetObjectKind.roundedRectangle ||
+      FortuneSheetObjectKind.ellipse => 'left',
+      _ => null,
+    };
+    widget.onOpenObjectPanelRequest?.call(
+      FortuneObjectPanelOpenRequest(propertyField: field),
+    );
     widget.onOpenObjectPanel?.call();
   }
 
@@ -49184,8 +49297,16 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
                     _conditionFormatHoveredSubmenuIndex,
                 hoveredColumnHeaderIndex: _hoveredColumnHeaderIndex,
                 hoveredRowHeaderIndex: _hoveredRowHeaderIndex,
-                activeImageId: _activeImageId,
-                activeObjectKey: _activeObjectKey,
+                activeImageId:
+                  widget.objectPanelPresentation ==
+                    FortuneObjectPanelPresentation.overlay
+                  ? null
+                  : _activeImageId,
+                activeObjectKey:
+                  widget.objectPanelPresentation ==
+                    FortuneObjectPanelPresentation.overlay
+                  ? null
+                  : _activeObjectKey,
                 objectGestureDraftKey: _typedObjectMoveKey,
                 objectGestureLineDraft: _typedObjectMoveLineDraft,
                 objectGestureShapeDraft: _typedObjectMoveShapeDraft,

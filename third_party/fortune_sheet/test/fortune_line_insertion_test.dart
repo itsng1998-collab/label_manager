@@ -601,7 +601,10 @@ void main() {
     await tester.tapAt(topLeft + const Offset(96, 70));
     await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
     await tester.pump();
-    expect(painter().activeObjectKey, isNull);
+    expect(
+      painter().activeObjectKey,
+      const FortuneSheetObjectKey(FortuneSheetObjectKind.line, 'line_1'),
+    );
     expect(painter().objectGestureLineDraft, isNull);
     expect(FortuneSheetCodec.workbookToJson(painter().workbook), before);
   });

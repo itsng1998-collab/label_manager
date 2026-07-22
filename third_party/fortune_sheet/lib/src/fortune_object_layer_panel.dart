@@ -16,6 +16,8 @@ class FortuneObjectLayerPanel extends StatefulWidget {
     this.imageObjectIds = const <String>[],
     this.barcodeObjectIds = const <String>[],
     this.onClose,
+    this.propertyFocusField,
+    this.propertyFocusGeneration = 0,
   });
 
   final FortuneSheetController controller;
@@ -24,6 +26,8 @@ class FortuneObjectLayerPanel extends StatefulWidget {
   final List<String> imageObjectIds;
   final List<String> barcodeObjectIds;
   final VoidCallback? onClose;
+  final String? propertyFocusField;
+  final int propertyFocusGeneration;
 
   @override
   State<FortuneObjectLayerPanel> createState() =>
@@ -258,6 +262,9 @@ class _FortuneObjectLayerPanelState extends State<FortuneObjectLayerPanel> {
                             barcodeObjectOptions: widget.barcodeObjectOptions,
                             imageObjectIds: widget.imageObjectIds,
                             barcodeObjectIds: widget.barcodeObjectIds,
+                            propertyFocusField: widget.propertyFocusField,
+                            propertyFocusGeneration:
+                              widget.propertyFocusGeneration,
                           ),
                         ),
                 ),
@@ -547,6 +554,8 @@ class _ObjectPropertyEditor extends StatefulWidget {
     required this.barcodeObjectOptions,
     required this.imageObjectIds,
     required this.barcodeObjectIds,
+    required this.propertyFocusField,
+    required this.propertyFocusGeneration,
   });
 
   final FortuneObjectSelectionSnapshot snapshot;
@@ -556,6 +565,8 @@ class _ObjectPropertyEditor extends StatefulWidget {
   final List<FortuneObjectConnectionOption> barcodeObjectOptions;
   final List<String> imageObjectIds;
   final List<String> barcodeObjectIds;
+  final String? propertyFocusField;
+  final int propertyFocusGeneration;
 
   @override
   State<_ObjectPropertyEditor> createState() => _ObjectPropertyEditorState();
@@ -564,6 +575,7 @@ class _ObjectPropertyEditor extends StatefulWidget {
 class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
   final Object _draftOwner = Object();
   final Map<String, TextEditingController> _fields = {};
+  final Map<String, FocusNode> _fieldFocusNodes = {};
   final Map<String, String> _initialFieldText = {};
   FortuneStrokeStyle _strokeStyle = FortuneStrokeStyle.solid;
   bool _noFill = false;
@@ -576,12 +588,14 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
   bool _barcodePreserveTemplateFormat = false;
   String? _error;
   bool _draftFinalized = false;
+  int _consumedFocusGeneration = 0;
 
   @override
   void initState() {
     super.initState();
     _initializeFields();
     _installFieldListeners();
+    _schedulePropertyFocus();
   }
 
   @override
@@ -589,6 +603,7 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
     super.didUpdateWidget(oldWidget);
     if (_propertySnapshotIdentity(oldWidget.snapshot) ==
         _propertySnapshotIdentity(widget.snapshot)) {
+      _schedulePropertyFocus();
       return;
     }
     final preserveImageAspect =
@@ -601,6 +616,10 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
       controller.removeListener(_markPropertyDraft);
       controller.dispose();
     }
+    for (final focusNode in _fieldFocusNodes.values) {
+      focusNode.dispose();
+    }
+    _fieldFocusNodes.clear();
     _fields.clear();
     _initialFieldText.clear();
     _strokeStyle = FortuneStrokeStyle.solid;
@@ -618,6 +637,21 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
     _draftFinalized = false;
     _error = null;
     _installFieldListeners();
+    _schedulePropertyFocus();
+  }
+
+  void _schedulePropertyFocus() {
+    final field = widget.propertyFocusField;
+    final generation = widget.propertyFocusGeneration;
+    if (field == null || generation <= _consumedFocusGeneration) return;
+    _consumedFocusGeneration = generation;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || widget.propertyFocusGeneration != generation) return;
+      _fieldFocusNodes.putIfAbsent(
+        field,
+        () => FocusNode(debugLabel: 'Fortune object property $field'),
+      ).requestFocus();
+    });
   }
 
   @override
@@ -626,6 +660,9 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
     for (final controller in _fields.values) {
       controller.removeListener(_markPropertyDraft);
       controller.dispose();
+    }
+    for (final focusNode in _fieldFocusNodes.values) {
+      focusNode.dispose();
     }
     super.dispose();
   }
@@ -1261,6 +1298,10 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
     return TextField(
       key: ValueKey('fortune-object-property-$name'),
       controller: _fields[name],
+      focusNode: _fieldFocusNodes.putIfAbsent(
+        name,
+        () => FocusNode(debugLabel: 'Fortune object property $name'),
+      ),
       decoration: InputDecoration(labelText: label, suffixText: suffix),
       style: const TextStyle(fontSize: 13),
       onChanged: onChanged,

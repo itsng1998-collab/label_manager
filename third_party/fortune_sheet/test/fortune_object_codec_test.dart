@@ -84,6 +84,45 @@ void main() {
     expect(((json['fortuneShapes'] as List).single as Map)['zOrder'], 0);
   });
 
+  test('typed shape encoder canonicalizes direct model geometry and style', () {
+    final json = FortuneSheetCodec.sheetToJson(
+      FortuneSheet(
+        id: 'sheet-1',
+        name: 'Objects',
+        shapes: const [
+          FortuneShape(
+            id: 'shape_1',
+            kind: FortuneShapeKind.roundedRectangle,
+            left: 30,
+            top: 20,
+            width: -20,
+            height: -10,
+            rotationDegrees: 405,
+            strokeWidthMm: 99,
+            strokeColor: 'invalid',
+            fillColor: 'invalid',
+            cornerRadiusMm: 99,
+          ),
+        ],
+      ),
+    );
+    final encoded = (json['fortuneShapes'] as List).single as Map;
+
+    expect(encoded['left'], 10);
+    expect(encoded['top'], 10);
+    expect(encoded['width'], 20);
+    expect(encoded['height'], 10);
+    expect(encoded['rotationDegrees'], 45);
+    expect(encoded['strokeWidthMm'], 0.5);
+    expect(encoded['strokeColor'], '#000000');
+    expect(encoded['fillColor'], isNull);
+    expect(encoded['cornerRadiusMm'], 2);
+    expect(
+      FortuneSheetCodec.sheetFromJson(json).shapes.single.width,
+      20,
+    );
+  });
+
   test('object codec canonicalizes invalid values and reserved duplicate ids', () {
     final sheet = FortuneSheetCodec.sheetFromJson({
       'id': 'sheet-1',

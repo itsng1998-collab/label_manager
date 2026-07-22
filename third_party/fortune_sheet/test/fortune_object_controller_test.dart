@@ -15,6 +15,14 @@ import 'package:fortune_sheet/src/fortune_sheet_painter.dart';
 const _testPngBase64 =
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=';
 
+FortuneSheetPainter fortuneSheetPainter(WidgetTester tester) {
+  return tester
+    .widgetList<CustomPaint>(find.byType(CustomPaint))
+    .map((paint) => paint.painter)
+    .whereType<FortuneSheetPainter>()
+    .single;
+}
+
 void main() {
   test('connection choices dedupe options and mark stale current values', () {
     final choices = fortuneObjectConnectionChoices(
@@ -662,6 +670,447 @@ void main() {
     throwPickerError = false;
     expect(await controller.replaceSelectedImageFile(), isFalse);
     expect(controller.activeImagePickerFailed, isFalse);
+  });
+
+  testWidgets('image picker rejects an undo redo ABA owner', (tester) async {
+    tester.view.physicalSize = const Size(900, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    final controller = FortuneSheetController();
+    final picker = Completer<FortuneImagePickResult?>();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SizedBox(
+          width: 900,
+          height: 700,
+          child: FortuneSheetCanvas(
+            controller: controller,
+            imagePicker: () => picker.future,
+            workbook: FortuneWorkbook(
+              settings: const FortuneSettings(
+                showToolbar: false,
+                showFormulaBar: false,
+              ),
+              sheets: [
+                FortuneSheet(
+                  id: 's1',
+                  name: 'Sheet1',
+                  images: const [
+                    FortuneImage(
+                      id: 'image_1',
+                      src: 'old-src',
+                      left: 20,
+                      top: 30,
+                      width: 80,
+                      height: 40,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    const key = FortuneSheetObjectKey(FortuneSheetObjectKind.image, 'image_1');
+    controller.selectObject(key);
+    controller.updateSelectedImage(left: 40);
+    await tester.pump();
+    final replacement = controller.replaceSelectedImageFile();
+
+    controller.handleUndo();
+    await tester.pump();
+    controller.handleRedo();
+    await tester.pump();
+    final result = await tester.runAsync(() async {
+      picker.complete(
+        FortuneImagePickResult(
+          bytes: base64Decode(_testPngBase64),
+          fileName: 'new.png',
+          mimeType: 'image/png',
+        ),
+      );
+      return replacement;
+    });
+
+    expect(result, isFalse);
+    expect(controller.objectSelection.activeImage!.src, 'old-src');
+  });
+
+  test('detached controller rejects property draft registration', () {
+    final controller = FortuneSheetController();
+    controller.registerActiveObjectPropertyDraft(
+      owner: Object(),
+      key: const FortuneSheetObjectKey(
+        FortuneSheetObjectKind.rectangle,
+        'shape_1',
+      ),
+      finalize: () => true,
+      discard: () {},
+      project: () => FortunePropertyDraftProjection.change,
+    );
+
+    expect(controller.hasActiveObjectPropertyDraft, isFalse);
+    expect(controller.activePropertyDraftKey, isNull);
+    expect(
+      controller.activePropertyDraftProjection,
+      FortunePropertyDraftProjection.noChange,
+    );
+    expect(controller.projectedCanUndo, isFalse);
+  });
+
+  testWidgets('image modifier body and handle toggle without geometry draft', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    final controller = FortuneSheetController();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SizedBox(
+          width: 900,
+          height: 700,
+          child: FortuneSheetCanvas(
+            controller: controller,
+            workbook: FortuneWorkbook(
+              settings: const FortuneSettings(
+                showToolbar: false,
+                showFormulaBar: false,
+              ),
+              sheets: [
+                FortuneSheet(
+                  id: 's1',
+                  name: 'Sheet1',
+                  images: const [
+                    FortuneImage(
+                      id: 'image_1',
+                      src: '',
+                      left: 20,
+                      top: 30,
+                      width: 80,
+                      height: 40,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    const key = FortuneSheetObjectKey(FortuneSheetObjectKind.image, 'image_1');
+    controller.selectObject(key);
+    await tester.pump();
+    final canvasTopLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
+    const imageBody = Offset(46 + 60, 20 + 30 + 20);
+    const imageHandle = Offset(46 + 20 + 80, 20 + 30 + 40);
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.tapAt(canvasTopLeft + imageBody);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pump();
+    expect(controller.objectSelection.activeKey, key);
+    expect(controller.objectSelection.activeImage!.left, 20);
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    final gesture = await tester.startGesture(
+      canvasTopLeft + imageHandle,
+      kind: PointerDeviceKind.mouse,
+    );
+    await gesture.moveBy(const Offset(20, 20));
+    await gesture.up();
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pump();
+    final image = controller.objectSelection.activeImage!;
+    expect(controller.objectSelection.activeKey, key);
+    expect((image.width, image.height), (80, 40));
+  });
+
+  testWidgets('selected member context menu preserves multi selection', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    final controller = FortuneSheetController();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SizedBox(
+          width: 900,
+          height: 700,
+          child: FortuneSheetCanvas(
+            controller: controller,
+            workbook: FortuneWorkbook(
+              settings: const FortuneSettings(
+                showToolbar: false,
+                showFormulaBar: false,
+              ),
+              sheets: [
+                FortuneSheet(
+                  id: 's1',
+                  name: 'Sheet1',
+                  shapes: const [
+                    FortuneShape(
+                      id: 'a',
+                      kind: FortuneShapeKind.rectangle,
+                      left: 20,
+                      top: 20,
+                      width: 40,
+                      height: 30,
+                      fillColor: '#FFFFFF',
+                    ),
+                    FortuneShape(
+                      id: 'b',
+                      kind: FortuneShapeKind.rectangle,
+                      left: 80,
+                      top: 20,
+                      width: 40,
+                      height: 30,
+                      fillColor: '#FFFFFF',
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    const a = FortuneSheetObjectKey(FortuneSheetObjectKind.rectangle, 'a');
+    const b = FortuneSheetObjectKey(FortuneSheetObjectKind.rectangle, 'b');
+    controller.selectObject(a);
+    controller.toggleObject(b);
+    await tester.pump();
+    final canvasTopLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
+    final gesture = await tester.startGesture(
+      canvasTopLeft + const Offset(46 + 100, 20 + 35),
+      kind: PointerDeviceKind.mouse,
+      buttons: kSecondaryMouseButton,
+    );
+    await gesture.up();
+    await tester.pump();
+
+    expect(controller.objectSelection.selectedKeys, {a, b});
+    expect(controller.objectSelection.activeKey, b);
+  });
+
+  testWidgets('read-only object menu disables mutation commands', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    final controller = FortuneSheetController();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SizedBox(
+          width: 900,
+          height: 700,
+          child: FortuneSheetCanvas(
+            controller: controller,
+            workbook: FortuneWorkbook(
+              settings: const FortuneSettings(
+                allowEdit: false,
+                showToolbar: false,
+                showFormulaBar: false,
+              ),
+              sheets: [
+                FortuneSheet(
+                  id: 's1',
+                  name: 'Sheet1',
+                  shapes: const [
+                    FortuneShape(
+                      id: 'shape_1',
+                      kind: FortuneShapeKind.rectangle,
+                      left: 20,
+                      top: 20,
+                      width: 40,
+                      height: 30,
+                      fillColor: '#FFFFFF',
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    final canvasTopLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
+    final gesture = await tester.startGesture(
+      canvasTopLeft + const Offset(46 + 40, 20 + 35),
+      kind: PointerDeviceKind.mouse,
+      buttons: kSecondaryMouseButton,
+    );
+    await gesture.up();
+    await tester.pump();
+    final painter = fortuneSheetPainter(tester);
+
+    expect(painter.contextMenuAt, isNotNull);
+    expect(
+      painter.contextMenuDisabledItems,
+      containsAll(<String>{
+        fortuneContextEditRectangleCommand,
+        fortuneContextDuplicateImageCommand,
+        fortuneContextDeleteImageCommand,
+        fortuneContextBringToFrontCommand,
+        fortuneContextBringForwardCommand,
+        fortuneContextSendBackwardCommand,
+        fortuneContextSendToBackCommand,
+      }),
+    );
+  });
+
+  testWidgets('overlay presentation suppresses active object toolbar', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    final controller = FortuneSheetController();
+    final workbook = FortuneWorkbook(
+      settings: const FortuneSettings(
+        showToolbar: false,
+        showFormulaBar: false,
+      ),
+      sheets: [
+        FortuneSheet(
+          id: 's1',
+          name: 'Sheet1',
+          shapes: const [
+            FortuneShape(
+              id: 'shape_1',
+              kind: FortuneShapeKind.rectangle,
+              left: 20,
+              top: 20,
+              width: 40,
+              height: 30,
+              fillColor: '#FFFFFF',
+            ),
+          ],
+        ),
+      ],
+    );
+    Future<void> pump(FortuneObjectPanelPresentation presentation) {
+      return tester.pumpWidget(
+        MaterialApp(
+          home: SizedBox(
+            width: 900,
+            height: 700,
+            child: FortuneSheetCanvas(
+              controller: controller,
+              workbook: workbook,
+              objectPanelPresentation: presentation,
+            ),
+          ),
+        ),
+      );
+    }
+
+    await pump(FortuneObjectPanelPresentation.hidden);
+    controller.selectObject(
+      const FortuneSheetObjectKey(
+        FortuneSheetObjectKind.rectangle,
+        'shape_1',
+      ),
+    );
+    await tester.pump();
+    expect(fortuneSheetPainter(tester).activeObjectKey, isNotNull);
+
+    await pump(FortuneObjectPanelPresentation.overlay);
+    expect(fortuneSheetPainter(tester).activeObjectKey, isNull);
+    expect(controller.objectSelection.activeKey, isNotNull);
+  });
+
+  testWidgets('public capture finalizes active property draft first', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 1200);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    final controller = FortuneSheetController();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Row(
+          children: [
+            SizedBox(
+              width: 600,
+              height: 1200,
+              child: FortuneSheetCanvas(
+                controller: controller,
+                workbook: FortuneWorkbook(
+                  settings: const FortuneSettings(
+                    showToolbar: false,
+                    showFormulaBar: false,
+                  ),
+                  sheets: [
+                    FortuneSheet(
+                      id: 's1',
+                      name: 'Sheet1',
+                      shapes: const [
+                        FortuneShape(
+                          id: 'shape_1',
+                          kind: FortuneShapeKind.rectangle,
+                          left: 10,
+                          top: 10,
+                          width: 40,
+                          height: 20,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            SizedBox(
+              width: 300,
+              height: 1200,
+              child: FortuneObjectLayerPanel(controller: controller),
+            ),
+          ],
+        ),
+      ),
+    );
+    await tester.tap(find.text('사각형 shape_1'));
+    await tester.pump();
+    await tester.enterText(
+      find.byKey(const ValueKey('fortune-object-property-width')),
+      '75',
+    );
+
+    final capture = await tester.runAsync(
+      () => controller.captureRangeAsPng(
+        const FortuneRange(
+          rowStart: 0,
+          rowEnd: 0,
+          columnStart: 0,
+          columnEnd: 0,
+        ),
+      ),
+    );
+
+    expect(capture, isNotNull);
+    expect(capture!.sheet.shapes.single.width, 75);
+    expect(controller.hasActiveObjectPropertyDraft, isFalse);
   });
 
   testWidgets('controller renders selected barcode properties atomically', (
@@ -1860,6 +2309,7 @@ void main() {
       tester.view.resetDevicePixelRatio();
     });
     var panelOpenRequests = 0;
+    FortuneObjectPanelOpenRequest? panelOpenRequest;
     final workbook = FortuneWorkbook(
       settings: const FortuneSettings(
         showToolbar: false,
@@ -1891,6 +2341,7 @@ void main() {
           child: FortuneSheetCanvas(
             workbook: workbook,
             onOpenObjectPanel: () => panelOpenRequests += 1,
+            onOpenObjectPanelRequest: (request) => panelOpenRequest = request,
           ),
         ),
       ),
@@ -1933,6 +2384,7 @@ void main() {
     await tester.pump();
 
     expect(panelOpenRequests, 1);
+    expect(panelOpenRequest?.propertyField, 'left');
     expect(painter().contextMenuAt, isNull);
   });
 

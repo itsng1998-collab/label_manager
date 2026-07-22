@@ -188,6 +188,60 @@ void main() {
     expect(candidates, isEmpty);
   });
 
+  test('raw line round-cap footprint blocks overlapping native candidate', () {
+    final overlapSheet = FortuneSheet(
+      id: 'raw-line-overlap',
+      name: 'Raw line overlap',
+      rowCount: 5,
+      columnCount: 5,
+      lines: const [
+        FortuneLine(
+          id: 'native-line',
+          x1: 15,
+          y1: 18,
+          x2: 19,
+          y2: 18,
+          strokeWidthMm: 0.1,
+        ),
+      ],
+      extraFields: const {
+        'shapes': [
+          {
+            'type': 'line',
+            'left': 20,
+            'top': 20,
+            'width': 10,
+            'height': 0,
+            'strokeColor': '#000000',
+            'strokeWidth': 10,
+          },
+        ],
+      },
+    );
+
+    final candidates = fortuneBuildNativeCandidates(
+      settings: settings,
+      sheet: overlapSheet,
+      range: const FortuneRange(
+        rowStart: 0,
+        rowEnd: 4,
+        columnStart: 0,
+        columnEnd: 4,
+      ),
+      transform: const FortunePrintTransform(
+        sourceLogicalBounds: ui.Rect.fromLTWH(0, 0, 100, 100),
+        dpi: 203,
+        contentLeftMm: 0,
+        contentTopMm: 0,
+        clipRightMm: 100,
+        clipBottomMm: 100,
+        nativeAllowed: true,
+      ),
+    );
+
+    expect(candidates, isEmpty);
+  });
+
   test('adjacent border aliases share one physical edge candidate', () {
     final borderSheet = FortuneSheet(
       id: 'border',

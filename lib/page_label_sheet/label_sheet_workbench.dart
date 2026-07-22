@@ -2174,6 +2174,9 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
   bool _objectOverlayOpen = false;
   bool _objectDockEligible = true;
   double _objectPanelWidth = 300;
+  double _maximumDockPanelWidth = 420;
+  String? _objectPropertyFocusField;
+  int _objectPropertyFocusGeneration = 0;
   double? _objectPanelDragStartWidth;
   bool _objectPanelWidthChangedByUser = false;
   Future<void> _objectPanelWidthWriteQueue = Future<void>.value();
@@ -2283,6 +2286,18 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     });
   }
 
+  void _handleObjectPanelOpenRequest(FortuneObjectPanelOpenRequest request) {
+    setState(() {
+      _objectPropertyFocusField = request.propertyField;
+      _objectPropertyFocusGeneration += 1;
+      if (_objectDockEligible) {
+        _userWantsObjectDockOpen = true;
+      } else {
+        _objectOverlayOpen = true;
+      }
+    });
+  }
+
   void _closeObjectPanel() {
     if (_objectDockEligible && !_userWantsObjectDockOpen ||
         !_objectDockEligible && !_objectOverlayOpen) {
@@ -2304,7 +2319,10 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
       return;
     }
     setState(() {
-      _objectPanelWidth = width.clamp(260.0, 420.0);
+      _objectPanelWidth = width.clamp(
+        260.0,
+        math.max(260.0, _maximumDockPanelWidth),
+      );
     });
   }
 
@@ -3903,6 +3921,12 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
                 rtfImported: _workbookHasRtfImportSource(workbook),
               );
             }
+            _objectDockEligible = constraints.maxWidth >= 760;
+            final maximumDockPanelWidth = math.min(
+              420.0,
+              constraints.maxWidth - 480 - 8,
+            );
+            _maximumDockPanelWidth = maximumDockPanelWidth;
             final sheet = FortuneSheetApp(
               workbook: workbook,
               settings: sheetSettings,
@@ -3950,6 +3974,14 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
                 widget.onDirtyChanged?.call(true);
               },
               onOpenObjectPanel: _openObjectPanel,
+                onOpenObjectPanelRequest: _handleObjectPanelOpenRequest,
+                objectPanelPresentation: _objectDockEligible
+                  ? _userWantsObjectDockOpen
+                    ? FortuneObjectPanelPresentation.dock
+                    : FortuneObjectPanelPresentation.hidden
+                  : _objectOverlayOpen
+                  ? FortuneObjectPanelPresentation.overlay
+                  : FortuneObjectPanelPresentation.hidden,
               locale: _locale,
               barcodeRenderer:
                   widget.barcodeRenderer ?? labelSheetBarcodeRenderer,
@@ -3964,11 +3996,6 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
               gridClientSize: _gridClientSize,
               showFormulaBar: false,
               showSheetTabs: false,
-            );
-            _objectDockEligible = constraints.maxWidth >= 760;
-            final maximumDockPanelWidth = math.min(
-              420.0,
-              constraints.maxWidth - 480 - 8,
             );
             final dockPanelWidth = _objectPanelWidth
                 .clamp(260.0, math.max(260.0, maximumDockPanelWidth))
@@ -3985,6 +4012,8 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
               imageObjectIds: widget.imageObjectIds,
               barcodeObjectIds: widget.barcodeObjectIds,
               onClose: _closeObjectPanel,
+              propertyFocusField: _objectPropertyFocusField,
+              propertyFocusGeneration: _objectPropertyFocusGeneration,
             );
             const overlayHorizontalInset = 8.0;
             final overlayPanelWidth = math.min(

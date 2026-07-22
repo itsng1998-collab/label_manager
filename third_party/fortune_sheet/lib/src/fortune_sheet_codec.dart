@@ -2588,21 +2588,36 @@ class FortuneSheetCodec {
   }
 
   static Map<String, Object?> _fortuneShapeToJson(FortuneShape shape) {
+    final rawWidth = shape.width.isFinite ? shape.width : 1.0;
+    final rawHeight = shape.height.isFinite ? shape.height : 1.0;
+    final width = rawWidth.abs();
+    final height = rawHeight.abs();
+    final left = shape.left.isFinite
+      ? shape.left + math.min(0, rawWidth)
+      : 0.0;
+    final top = shape.top.isFinite
+      ? shape.top + math.min(0, rawHeight)
+      : 0.0;
+    final rotation = shape.rotationDegrees.isFinite
+      ? (shape.rotationDegrees % 360 + 360) % 360
+      : 0.0;
     return {
       for (final entry in shape.extraFields.entries)
         entry.key: cloneFortuneMetadata(entry.value),
       'id': shape.id,
       'kind': shape.kind.name,
-      'left': _jsonNumber(shape.left),
-      'top': _jsonNumber(shape.top),
-      'width': _jsonNumber(shape.width),
-      'height': _jsonNumber(shape.height),
-      'rotationDegrees': _jsonNumber(shape.rotationDegrees),
+      'left': _jsonNumber(left),
+      'top': _jsonNumber(top),
+      'width': _jsonNumber(width > 0 ? width : 1),
+      'height': _jsonNumber(height > 0 ? height : 1),
+      'rotationDegrees': _jsonNumber(rotation),
       'strokeStyle': _strokeStyleWire(shape.strokeStyle),
-      'strokeWidthMm': _jsonNumber(shape.strokeWidthMm),
-      'strokeColor': shape.strokeColor,
-      'fillColor': shape.fillColor,
-      'cornerRadiusMm': _jsonNumber(shape.cornerRadiusMm),
+      'strokeWidthMm': _jsonNumber(_strokeWidth(shape.strokeWidthMm)),
+      'strokeColor': _strokeColor(shape.strokeColor),
+      'fillColor': _fillColor(shape.fillColor),
+      'cornerRadiusMm': _jsonNumber(
+        _cornerRadius(shape.kind, shape.cornerRadiusMm),
+      ),
       'zOrder': _jsonNumber(shape.zOrder.isFinite ? shape.zOrder : 0),
     };
   }

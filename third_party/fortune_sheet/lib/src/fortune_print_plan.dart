@@ -144,7 +144,11 @@ List<FortuneNativeCandidate> fortuneBuildNativeCandidates({
     for (final object in objects) _objectPaintedFootprint(sheet, object),
   ];
   final rawFootprints = fortuneRawShapeOverlays(sheet)
-      .map((overlay) => overlay.rect)
+      .map((overlay) {
+        if (overlay.kind != 'line') return overlay.rect;
+        final strokeRadius = math.max(1, overlay.strokeWidth) / 2;
+        return overlay.rect.inflate(strokeRadius);
+      })
       .toList(growable: false);
   final candidates = <FortuneNativeCandidate>[];
   for (var index = 0; index < objects.length; index += 1) {

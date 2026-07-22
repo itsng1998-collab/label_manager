@@ -1,3 +1,14 @@
+### 완료 (2026-07-22): 선·도형 지시서 3차 재감사 수정
+- 직전 기록의 “마지막 단일 Ctrl/Meta toggle은 빈 선택으로 해제”는 지시서와 반대인 회귀였다. 마지막 단일 선택은 exact key를 유지하고, image body/resize handle도 pointer sequence 시작 전에 공용 selection toggle을 사용한다. canvas 단일 선택·Tab 순환·selected member 우클릭은 공용 exact-selection helper로 active/selected/anchor를 함께 갱신하며 다중 선택을 보존한다.
+- 읽기 전용 object context menu는 조회를 허용하되 edit/duplicate/delete/layer mutation 항목을 disabled projection과 command guard 양쪽에서 차단한다.
+- typed shape encoder는 직접 생성 model의 음수 geometry를 같은 bounds의 양수 width/height로 옮기고 rotation/style/color/radius/non-finite 값을 decoder와 같은 canonical 규칙으로 저장한다. Hybrid raw overlap은 rect/ellipse의 inside stroke는 기존 rect를 유지하고, 실제로 bounds 밖에 그려지는 raw line round-cap만 half stroke footprint로 확장한다.
+- image picker는 요청 시 history-lineage generation과 per-sheet canonical revision을 캡처해 Undo→Redo ABA 뒤 stale 결과를 거부한다. live public PNG capture와 toolbar screenshot은 canonical snapshot 전에 active property draft를 finalize한다. detached/disposed controller의 property draft 등록은 no-op이고 terminal projection은 no-change다.
+- package에 immutable `FortuneObjectPanelPresentation(hidden/dock/overlay)`과 typed open request를 추가했다. Workbench가 현재 layout snapshot과 exact property field focus generation을 전달하며 narrow overlay에서는 active object toolbar paint/hit-test를 억제한다. property editor가 focus intent를 한 번만 소비하고 FocusNode 수명을 소유한다.
+- panel 폭 preference load는 완료 시점의 현재 local maximum dock width로 clamp한다. layout eligibility와 presentation snapshot은 같은 frame constraint를 사용한다.
+- 직접 회귀를 추가했다: 마지막 단일 toggle 유지, image modifier body/handle no-geometry, 다중 우클릭 selection 유지, read-only menu disabled, overlay toolbar 억제, typed edit focus request, image picker ABA, detached draft, public capture finalize, direct shape encode canonicalization, raw line Hybrid overlap.
+- 검증: 관련 vendor 4개 suite 47건 통과, object controller 단독 25건 통과, root object panel preference 1건 통과, root `flutter analyze` issues 0, `git diff --check` clean이다.
+- 사용자 변경 `lib/core/app.dart`와 `third_party/*/build/` 생성물은 수정·stage·commit에서 제외한다.
+
 ### 완료 (2026-07-22): 선·도형 지시서 2차 재감사 수정
 - controller public object selection은 active property draft를 먼저 finalize한다. valid change는 commit, invalid는 canonical 표시값 복원 뒤 새 selection snapshot을 발행한다.
 - typed line/shape pointer mutation은 gesture 시작과 commit 양쪽에서 `allowEdit`를 확인한다. 읽기 전용 우클릭은 selection을 바꾸지 않고 context menu 조회를 허용하며 mutation 항목을 비활성화한다.
