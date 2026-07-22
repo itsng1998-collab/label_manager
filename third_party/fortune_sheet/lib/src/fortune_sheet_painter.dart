@@ -44861,7 +44861,10 @@ void fortuneDrawLineObject(
   final end = offset + Offset(line.x2 * scale, line.y2 * scale);
   final strokeWidth =
       fortuneMillimetersToLogicalPixels(line.strokeWidthMm) * scale;
-  if (!Rect.fromPoints(start, end).inflate(strokeWidth / 2).overlaps(clip)) {
+  if (!_rectsIntersectInclusively(
+    Rect.fromPoints(start, end).inflate(strokeWidth / 2),
+    clip,
+  )) {
     return;
   }
   fortuneDrawObjectStroke(
@@ -44901,7 +44904,10 @@ void fortuneDrawShapeObject(
   final strokePadding = shape.kind == FortuneShapeKind.rectangle
       ? strokeWidth / math.sqrt2
       : strokeWidth / 2;
-  if (!rotatedBounds.inflate(strokePadding).overlaps(clip)) {
+  if (!_rectsIntersectInclusively(
+    rotatedBounds.inflate(strokePadding),
+    clip,
+  )) {
     return;
   }
   canvas.save();
@@ -44932,6 +44938,13 @@ void fortuneDrawShapeObject(
     fortuneObjectColor(shape.strokeColor),
   );
   canvas.restore();
+}
+
+bool _rectsIntersectInclusively(Rect left, Rect right) {
+  return left.left <= right.right &&
+      left.right >= right.left &&
+      left.top <= right.bottom &&
+      left.bottom >= right.top;
 }
 
 void fortuneDrawObjectStroke(

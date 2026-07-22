@@ -64766,4 +64766,58 @@ void main() {
       greaterThan(20),
     );
   });
+
+  test('typed object culling includes exact clip boundary contact', () async {
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+    final strokeWidthMm = fortuneLogicalPixelsToMillimeters(2);
+    fortuneDrawLineObject(
+      canvas,
+      FortuneLine(
+        id: 'boundary-line',
+        x1: 10,
+        y1: 9,
+        x2: 40,
+        y2: 9,
+        strokeWidthMm: strokeWidthMm,
+        strokeColor: '#FF0000',
+      ),
+      const Rect.fromLTRB(0, 10, 60, 30),
+    );
+    fortuneDrawShapeObject(
+      canvas,
+      FortuneShape(
+        id: 'boundary-shape',
+        kind: FortuneShapeKind.rectangle,
+        left: 49,
+        top: 15,
+        width: 10,
+        height: 10,
+        strokeWidthMm: strokeWidthMm,
+        strokeColor: '#FF0000',
+      ),
+      const Rect.fromLTRB(60, 10, 80, 30),
+    );
+    final image = await recorder.endRecording().toImage(80, 40);
+    final bytes = (await image.toByteData(format: ui.ImageByteFormat.rawRgba))!;
+
+    expect(
+      _countPixels(
+        bytes,
+        image.width,
+        const Rect.fromLTRB(10, 8, 41, 11),
+        _isRedPixel,
+      ),
+      greaterThan(20),
+    );
+    expect(
+      _countPixels(
+        bytes,
+        image.width,
+        const Rect.fromLTRB(48, 14, 61, 27),
+        _isRedPixel,
+      ),
+      greaterThan(20),
+    );
+  });
 }

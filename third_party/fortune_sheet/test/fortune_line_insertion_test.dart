@@ -542,4 +542,121 @@ void main() {
     keyboardMoved = painter().workbook.activeSheet.lines.single;
     expect((keyboardMoved.y1, keyboardMoved.y2), (10, 90));
   });
+
+  testWidgets('read-only line drag and modifier handle toggle do not mutate', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    final workbook = FortuneWorkbook(
+      settings: const FortuneSettings(
+        allowEdit: false,
+        showToolbar: false,
+        showFormulaBar: false,
+      ),
+      sheets: [
+        FortuneSheet(
+          id: 's1',
+          name: 'Sheet1',
+          lines: const [
+            FortuneLine(id: 'line_1', x1: 50, y1: 50, x2: 90, y2: 80),
+          ],
+        ),
+      ],
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SizedBox(
+          width: 900,
+          height: 700,
+          child: FortuneSheetCanvas(workbook: workbook),
+        ),
+      ),
+    );
+    FortuneSheetPainter painter() => tester
+        .widgetList<CustomPaint>(find.byType(CustomPaint))
+        .map((paint) => paint.painter)
+        .whereType<FortuneSheetPainter>()
+        .single;
+    final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
+    await tester.tapAt(topLeft + const Offset(116, 85));
+    await tester.pump();
+    final before = FortuneSheetCodec.workbookToJson(painter().workbook);
+
+    await tester.dragFrom(
+      topLeft + const Offset(96, 70),
+      const Offset(20, 20),
+      kind: PointerDeviceKind.mouse,
+    );
+    await tester.pump();
+
+    expect(FortuneSheetCodec.workbookToJson(painter().workbook), before);
+    expect(painter().objectGestureLineDraft, isNull);
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.tapAt(topLeft + const Offset(96, 70));
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pump();
+    expect(painter().activeObjectKey, isNull);
+    expect(painter().objectGestureLineDraft, isNull);
+    expect(FortuneSheetCodec.workbookToJson(painter().workbook), before);
+  });
+
+  testWidgets('overlapping line endpoints drag the nearest endpoint', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    final workbook = FortuneWorkbook(
+      settings: const FortuneSettings(
+        showToolbar: false,
+        showFormulaBar: false,
+      ),
+      sheets: [
+        FortuneSheet(
+          id: 's1',
+          name: 'Sheet1',
+          lines: const [
+            FortuneLine(id: 'line_1', x1: 50, y1: 50, x2: 54, y2: 50),
+          ],
+        ),
+      ],
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SizedBox(
+          width: 900,
+          height: 700,
+          child: FortuneSheetCanvas(workbook: workbook),
+        ),
+      ),
+    );
+    FortuneSheetPainter painter() => tester
+        .widgetList<CustomPaint>(find.byType(CustomPaint))
+        .map((paint) => paint.painter)
+        .whereType<FortuneSheetPainter>()
+        .single;
+    final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
+    await tester.tapAt(topLeft + const Offset(98, 70));
+    await tester.pump();
+
+    await tester.dragFrom(
+      topLeft + const Offset(100, 70),
+      const Offset(20, 10),
+      kind: PointerDeviceKind.mouse,
+    );
+    await tester.pump();
+
+    final line = painter().workbook.activeSheet.lines.single;
+    expect((line.x1, line.y1), (50, 50));
+    expect((line.x2, line.y2), (74, 60));
+  });
 }

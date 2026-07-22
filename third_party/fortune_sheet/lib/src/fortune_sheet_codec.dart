@@ -2583,7 +2583,7 @@ class FortuneSheetCodec {
       'strokeStyle': _strokeStyleWire(line.strokeStyle),
       'strokeWidthMm': _jsonNumber(line.strokeWidthMm),
       'strokeColor': line.strokeColor,
-      'zOrder': _jsonNumber(line.zOrder),
+      'zOrder': _jsonNumber(line.zOrder.isFinite ? line.zOrder : 0),
     };
   }
 
@@ -2603,7 +2603,7 @@ class FortuneSheetCodec {
       'strokeColor': shape.strokeColor,
       'fillColor': shape.fillColor,
       'cornerRadiusMm': _jsonNumber(shape.cornerRadiusMm),
-      'zOrder': _jsonNumber(shape.zOrder),
+      'zOrder': _jsonNumber(shape.zOrder.isFinite ? shape.zOrder : 0),
     };
   }
 

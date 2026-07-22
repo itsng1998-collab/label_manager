@@ -1343,18 +1343,22 @@ class FortuneSheetController extends ChangeNotifier {
   }
 
   void selectObject(FortuneSheetObjectKey key) {
+    if (!finalizeActiveObjectPropertyDraft()) return;
     _state?._selectObjectFromController(key);
   }
 
   void toggleObject(FortuneSheetObjectKey key) {
+    if (!finalizeActiveObjectPropertyDraft()) return;
     _state?._toggleObjectFromController(key);
   }
 
   void selectObjectRange(FortuneSheetObjectKey key) {
+    if (!finalizeActiveObjectPropertyDraft()) return;
     _state?._selectObjectRangeFromController(key);
   }
 
   void selectAllObjects() {
+    if (!finalizeActiveObjectPropertyDraft()) return;
     _state?._selectAllObjectsFromController();
   }
 
@@ -3703,6 +3707,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   FortuneRange? _pendingSplitTextRange;
   bool _screenshotDialogOpen = false;
   FortuneRange? _screenshotRange;
+  int _screenshotDialogGeneration = 0;
   String? _screenshotImageDataUrl;
   ui.Image? _screenshotImage;
   bool _searchDialogOpen = false;
@@ -4467,6 +4472,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     _pendingSplitTextRange = null;
     _screenshotDialogOpen = false;
     _screenshotRange = null;
+    _screenshotDialogGeneration += 1;
     _clearScreenshotCapture();
     _searchDialogOpen = false;
     _searchResults = const <FortuneSearchResultView>[];
@@ -7728,6 +7734,12 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
 
     final activeLineEndpoint = _activeLineEndpointAt(local, settings);
     if (activeLineEndpoint != null) {
+      if ((event.buttons & kPrimaryButton) != 0 &&
+          (HardwareKeyboard.instance.isControlPressed ||
+              HardwareKeyboard.instance.isMetaPressed)) {
+        _toggleObjectFromController(activeLineEndpoint.$1);
+        return;
+      }
       final logical = _lineInsertionLogicalPosition(local, settings);
       if (logical != null) {
         _commitEditing();
@@ -7743,6 +7755,12 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
 
     final activeShapeHandle = _activeShapeHandleAt(local, settings);
     if (activeShapeHandle != null) {
+      if ((event.buttons & kPrimaryButton) != 0 &&
+          (HardwareKeyboard.instance.isControlPressed ||
+              HardwareKeyboard.instance.isMetaPressed)) {
+        _toggleObjectFromController(activeShapeHandle.$1);
+        return;
+      }
       final logical = _lineInsertionLogicalPosition(local, settings);
       if (logical != null) {
         _commitEditing();
@@ -7901,10 +7919,6 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
           _sheetTabMenuSheetIndex = sheetIndex;
           toolbarPopupKey = null;
         });
-        return;
-      }
-      if (!_workbook.settings.allowEdit) {
-        setState(_closeTransientMenus);
         return;
       }
       final logicalObjectPosition = _lineInsertionLogicalPosition(
@@ -8080,6 +8094,12 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
 
     final lineEndpoint = _activeLineEndpointAt(local, settings);
     if (lineEndpoint != null) {
+      if ((event.buttons & kPrimaryButton) != 0 &&
+          (HardwareKeyboard.instance.isControlPressed ||
+              HardwareKeyboard.instance.isMetaPressed)) {
+        _toggleObjectFromController(lineEndpoint.$1);
+        return;
+      }
       final logical = _lineInsertionLogicalPosition(local, settings);
       if (logical != null) {
         _startTypedObjectMove(
@@ -8093,6 +8113,12 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
 
     final shapeHandle = _activeShapeHandleAt(local, settings);
     if (shapeHandle != null) {
+      if ((event.buttons & kPrimaryButton) != 0 &&
+          (HardwareKeyboard.instance.isControlPressed ||
+              HardwareKeyboard.instance.isMetaPressed)) {
+        _toggleObjectFromController(shapeHandle.$1);
+        return;
+      }
       final logical = _lineInsertionLogicalPosition(local, settings);
       if (logical != null) {
         _startTypedObjectMove(
@@ -8123,6 +8149,12 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       _commitSheetRename();
       if ((event.buttons & kSecondaryMouseButton) != 0) {
         _openTypedObjectContextMenu(typedObjectKey, local);
+        return;
+      }
+      if ((event.buttons & kPrimaryButton) != 0 &&
+          (HardwareKeyboard.instance.isControlPressed ||
+              HardwareKeyboard.instance.isMetaPressed)) {
+        _toggleObjectFromController(typedObjectKey);
         return;
       }
       setState(() {
@@ -15906,18 +15938,26 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       _showLocationMessageDialog(widget.locale.screenshotTipHasMerge);
       return;
     }
+    final generation = _screenshotDialogGeneration + 1;
     setState(() {
       _closeTransientMenus();
       _screenshotDialogOpen = true;
       _screenshotRange = range;
+      _screenshotDialogGeneration = generation;
       _clearScreenshotCapture();
     });
-    unawaited(_updateScreenshotImageDataUrl(range));
+    unawaited(_updateScreenshotImageDataUrl(range, generation));
   }
 
-  Future<void> _updateScreenshotImageDataUrl(FortuneRange range) async {
+  Future<void> _updateScreenshotImageDataUrl(
+    FortuneRange range,
+    int generation,
+  ) async {
     final capture = await _generateScreenshotCapture(range);
-    if (!mounted || !_screenshotDialogOpen || _screenshotRange != range) {
+    if (!mounted ||
+        !_screenshotDialogOpen ||
+        _screenshotRange != range ||
+        _screenshotDialogGeneration != generation) {
       capture?.image.dispose();
       return;
     }
@@ -16126,6 +16166,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
             rect,
             cell,
             dataVerification,
+            settings,
           );
           continue;
         }
@@ -16164,6 +16205,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
           canvas,
           textRect.deflate(2),
           renderCell,
+          settings: settings,
           fontSize: renderCell.fontSize ?? settings.defaultFontSize,
           textColor: conditionStyle?.textColor,
           outputLineHeightMultiplier: outputLineHeightMultiplier,
@@ -16356,6 +16398,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
 
   TextStyle _screenshotTextStyle(
     FortuneCell cell, {
+    required FortuneSettings settings,
     required double fontSize,
     Color? textColor,
   }) {
@@ -16363,7 +16406,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     return TextStyle(
       color: color,
       fontSize: fontSize,
-      fontFamily: _resolvedCellFontFamily(cell),
+      fontFamily: _resolvedCellFontFamily(cell, settings: settings),
       fontWeight: cell.bold ? FontWeight.w700 : FontWeight.w400,
       fontStyle: cell.italic ? FontStyle.italic : FontStyle.normal,
       decoration: _screenshotTextDecoration(cell),
@@ -17231,6 +17274,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     Canvas canvas,
     Rect rect,
     FortuneCell cell, {
+    required FortuneSettings settings,
     required double fontSize,
     Color? textColor,
     double? outputLineHeightMultiplier,
@@ -17240,6 +17284,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         canvas,
         rect,
         cell,
+        settings: settings,
         fontSize: fontSize,
         textColor: textColor,
       );
@@ -17261,6 +17306,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         TextPainter(
           text: _screenshotCellTextSpan(
             cell,
+            settings: settings,
             fontSize: fontSize,
             textColor: textColor,
             outputLineHeightMultiplier: outputLineHeightMultiplier,
@@ -17297,6 +17343,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
 
   TextSpan _screenshotCellTextSpan(
     FortuneCell cell, {
+    required FortuneSettings settings,
     required double fontSize,
     Color? textColor,
     double? outputLineHeightMultiplier,
@@ -17308,6 +17355,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     final baseStyle =
         _screenshotTextStyle(
           cell,
+          settings: settings,
           fontSize: fontSize,
           textColor: textColor,
         ).copyWith(
@@ -17364,6 +17412,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     Canvas canvas,
     Rect rect,
     FortuneCell cell, {
+    required FortuneSettings settings,
     required double fontSize,
     Color? textColor,
   }) {
@@ -17371,7 +17420,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     final style = TextStyle(
       color: color,
       fontSize: fontSize,
-      fontFamily: _resolvedCellFontFamily(cell),
+      fontFamily: _resolvedCellFontFamily(cell, settings: settings),
       fontWeight: cell.bold ? FontWeight.w700 : FontWeight.w400,
       fontStyle: cell.italic ? FontStyle.italic : FontStyle.normal,
       decoration: _screenshotTextDecoration(cell),
@@ -17379,6 +17428,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     );
     final spans = _screenshotVerticalTextSpans(
       cell,
+      settings: settings,
       fallbackStyle: style,
       forceBaseColor:
           textColor != null || _screenshotIsRedNegativeNumberFormat(cell),
@@ -17415,6 +17465,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
 
   List<TextSpan> _screenshotVerticalTextSpans(
     FortuneCell cell, {
+    required FortuneSettings settings,
     required TextStyle fallbackStyle,
     bool forceBaseColor = false,
   }) {
@@ -17436,7 +17487,11 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         color: color,
         backgroundColor: _screenshotInlineRunBackgroundColor(run),
         fontSize: run.fontSize ?? fallbackStyle.fontSize,
-        fontFamily: _resolvedRunFontFamily(run.fontFamily, cell),
+        fontFamily: _resolvedRunFontFamily(
+          run.fontFamily,
+          cell,
+          settings: settings,
+        ),
         fontWeight: (run.bold ?? cell.bold) ? FontWeight.w700 : FontWeight.w400,
         fontStyle: (run.italic ?? cell.italic)
             ? FontStyle.italic
@@ -17464,18 +17519,25 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     return FortuneSheetCodec.parseColor('$raw');
   }
 
-  String _resolvedCellFontFamily(FortuneCell cell) {
+  String _resolvedCellFontFamily(
+    FortuneCell cell, {
+    FortuneSettings? settings,
+  }) {
     return fortuneResolveFontFamily(
       cell.fontFamily,
-      _workbook.settings.fontFamilies,
+      (settings ?? _workbook.settings).fontFamilies,
     );
   }
 
-  String _resolvedRunFontFamily(String? raw, FortuneCell fallback) {
+  String _resolvedRunFontFamily(
+    String? raw,
+    FortuneCell fallback, {
+    FortuneSettings? settings,
+  }) {
     return fortuneResolveFontFamily(
       raw,
-      _workbook.settings.fontFamilies,
-      fallback: _resolvedCellFontFamily(fallback),
+      (settings ?? _workbook.settings).fontFamilies,
+      fallback: _resolvedCellFontFamily(fallback, settings: settings),
     );
   }
 
@@ -17510,6 +17572,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     }
     final textWidth = _screenshotMeasureTextWidth(
       cell,
+      settings: settings,
       fontSize: cell.fontSize ?? settings.defaultFontSize,
     );
     if (textWidth <= cellRect.width - 4) {
@@ -17578,10 +17641,15 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
 
   double _screenshotMeasureTextWidth(
     FortuneCell cell, {
+    required FortuneSettings settings,
     required double fontSize,
   }) {
     final painter = TextPainter(
-      text: _screenshotCellTextSpan(cell, fontSize: fontSize),
+      text: _screenshotCellTextSpan(
+        cell,
+        settings: settings,
+        fontSize: fontSize,
+      ),
       textDirection: TextDirection.ltr,
       maxLines: 1,
     )..layout();
@@ -18611,13 +18679,14 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     Rect rect,
     FortuneCell? cell,
     Map dataVerification,
+    FortuneSettings settings,
   ) {
     if (rect.width < 14 || rect.height < 12) {
       return;
     }
     final text = cell?.renderedText ?? '';
     final foreground = cell?.foreground ?? const Color(0xff000000);
-    final fontSize = cell?.fontSize ?? _workbook.settings.defaultFontSize;
+    final fontSize = cell?.fontSize ?? settings.defaultFontSize;
     final checkboxTop = rect.center.dy - 5;
     final checkboxLeft = switch (cell?.normalizedHorizontalAlign) {
       '0' => rect.center.dx - (text.isEmpty ? 5 : 28),
@@ -18649,6 +18718,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       text: text,
       style: _screenshotTextStyle(
         cell!,
+        settings: settings,
         fontSize: fontSize,
         textColor: foreground,
       ),
@@ -19385,6 +19455,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       setState(() {
         _screenshotDialogOpen = false;
         _screenshotRange = null;
+        _screenshotDialogGeneration += 1;
         _clearScreenshotCapture();
       });
       _focusNode.requestFocus();
@@ -26188,6 +26259,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     int? lineEndpointIndex,
     String? shapeHandle,
   }) {
+    if (!_workbook.settings.allowEdit) {
+      return;
+    }
     final sheet = _workbook.activeSheet;
     FortuneLine? line;
     FortuneShape? shape;
@@ -26311,6 +26385,10 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     final key = _typedObjectMoveKey;
     if (key == null) {
       return false;
+    }
+    if (!_workbook.settings.allowEdit) {
+      setState(_cancelTypedObjectMoveState);
+      return true;
     }
     _updateTypedObjectMove(local);
     final ownerValid =
@@ -26549,11 +26627,14 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         ..._objectSelectionSnapshot(attached: true).selectedKeys,
       };
       if (selected.contains(key)) {
-        if (selected.length > 1) {
-          selected.remove(key);
-        }
+        selected.remove(key);
       } else {
         selected.add(key);
+      }
+      if (selected.isEmpty) {
+        _applyExactObjectSelection(const <FortuneSheetObjectKey>{}, null);
+        _closeTransientMenus();
+        return;
       }
       final active = selected.contains(key)
           ? key
@@ -28054,11 +28135,19 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     }
 
     final centers = [screen(line.x1, line.y1), screen(line.x2, line.y2)];
+    final hits = <({int index, double distanceSquared})>[];
     for (var index = 0; index < centers.length; index += 1) {
       final delta = local - centers[index];
       if (delta.dx.abs() <= 4 && delta.dy.abs() <= 4) {
-        return (key, index);
+        hits.add((index: index, distanceSquared: delta.distanceSquared));
       }
+    }
+    if (hits.isNotEmpty) {
+      hits.sort((left, right) {
+        final distance = left.distanceSquared.compareTo(right.distanceSquared);
+        return distance != 0 ? distance : left.index.compareTo(right.index);
+      });
+      return (key, hits.first.index);
     }
     return null;
   }
@@ -36752,6 +36841,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         setState(() {
           _screenshotDialogOpen = false;
           _screenshotRange = null;
+          _screenshotDialogGeneration += 1;
+          _clearScreenshotCapture();
         });
       }
       return;
@@ -42732,6 +42823,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     _locationMessageDialogText = null;
     _screenshotDialogOpen = false;
     _screenshotRange = null;
+    _screenshotDialogGeneration += 1;
+    _clearScreenshotCapture();
     _searchDialogOpen = false;
     _conditionRuleDialogOpen = false;
   }

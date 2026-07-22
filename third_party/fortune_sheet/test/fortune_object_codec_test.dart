@@ -51,6 +51,39 @@ void main() {
     expect(sheet.extraFields, isNot(contains('fortuneShapes')));
   });
 
+  test('typed object encoder canonicalizes non-finite z-order', () {
+    final json = FortuneSheetCodec.sheetToJson(
+      FortuneSheet(
+        id: 'sheet-1',
+        name: 'Objects',
+        lines: const [
+          FortuneLine(
+            id: 'line_1',
+            x1: 0,
+            y1: 0,
+            x2: 10,
+            y2: 0,
+            zOrder: double.nan,
+          ),
+        ],
+        shapes: const [
+          FortuneShape(
+            id: 'shape_1',
+            kind: FortuneShapeKind.rectangle,
+            left: 0,
+            top: 0,
+            width: 10,
+            height: 10,
+            zOrder: double.infinity,
+          ),
+        ],
+      ),
+    );
+
+    expect(((json['lines'] as List).single as Map)['zOrder'], 0);
+    expect(((json['fortuneShapes'] as List).single as Map)['zOrder'], 0);
+  });
+
   test('object codec canonicalizes invalid values and reserved duplicate ids', () {
     final sheet = FortuneSheetCodec.sheetFromJson({
       'id': 'sheet-1',

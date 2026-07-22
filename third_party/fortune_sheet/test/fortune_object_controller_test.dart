@@ -1545,6 +1545,14 @@ void main() {
                           width: 40,
                           height: 20,
                         ),
+                        FortuneShape(
+                          id: 'shape_2',
+                          kind: FortuneShapeKind.rectangle,
+                          left: 70,
+                          top: 10,
+                          width: 30,
+                          height: 20,
+                        ),
                       ],
                     ),
                   ],
@@ -1603,6 +1611,42 @@ void main() {
     await tester.enterText(widthField, '80');
     expect(controller.projectedCanUndo, isTrue);
     expect(controller.projectedCanRedo, isFalse);
+
+    controller.selectObject(
+      const FortuneSheetObjectKey(
+        FortuneSheetObjectKind.rectangle,
+        'shape_2',
+      ),
+    );
+    await tester.pump();
+    expect(controller.hasActiveObjectPropertyDraft, isFalse);
+    expect(controller.objectSelection.activeShape!.id, 'shape_2');
+    controller.selectObject(
+      const FortuneSheetObjectKey(
+        FortuneSheetObjectKind.rectangle,
+        'shape_1',
+      ),
+    );
+    await tester.pump();
+    expect(controller.objectSelection.activeShape!.width, 80);
+    await tester.enterText(widthField, 'invalid');
+    controller.selectObject(
+      const FortuneSheetObjectKey(
+        FortuneSheetObjectKind.rectangle,
+        'shape_2',
+      ),
+    );
+    await tester.pump();
+    expect(controller.hasActiveObjectPropertyDraft, isFalse);
+    expect(controller.objectSelection.activeShape!.id, 'shape_2');
+    controller.selectObject(
+      const FortuneSheetObjectKey(
+        FortuneSheetObjectKind.rectangle,
+        'shape_1',
+      ),
+    );
+    await tester.pump();
+    expect(controller.objectSelection.activeShape!.width, 80);
   });
 
   testWidgets('property Escape discards draft and ignores delayed submit', (

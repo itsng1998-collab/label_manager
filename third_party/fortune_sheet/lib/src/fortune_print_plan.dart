@@ -408,26 +408,48 @@ Rect _objectPaintedFootprint(
     final line = sheet.lines[lineIndex];
     final halfStroke =
         fortuneMillimetersToLogicalPixels(line.strokeWidthMm) / 2;
-    return Rect.fromPoints(
-      Offset(line.x1, line.y1),
-      Offset(line.x2, line.y2),
-    ).inflate(halfStroke);
+    final dx = line.x2 - line.x1;
+    final dy = line.y2 - line.y1;
+    final length = math.sqrt(dx * dx + dy * dy);
+    if (length == 0) {
+      return Rect.fromLTWH(line.x1, line.y1, 0, 0);
+    }
+    final xPadding = halfStroke * dy.abs() / length;
+    final yPadding = halfStroke * dx.abs() / length;
+    return Rect.fromLTRB(
+      math.min(line.x1, line.x2) - xPadding,
+      math.min(line.y1, line.y2) - yPadding,
+      math.max(line.x1, line.x2) + xPadding,
+      math.max(line.y1, line.y2) + yPadding,
+    );
   }
   final shape = sheet.shapes[lineIndex - sheet.lines.length];
   final halfStroke =
       fortuneMillimetersToLogicalPixels(shape.strokeWidthMm) / 2;
   final rect = Rect.fromLTWH(shape.left, shape.top, shape.width, shape.height);
-  if (shape.rotationDegrees % 360 == 0) return rect.inflate(halfStroke);
+    final strokeBounds = shape.kind == FortuneShapeKind.rectangle
+      ? rect.inflate(halfStroke)
+      : rect;
+    if (shape.rotationDegrees % 360 == 0) {
+    return shape.kind == FortuneShapeKind.rectangle
+      ? strokeBounds
+      : rect.inflate(halfStroke);
+    }
   final radians = shape.rotationDegrees * math.pi / 180;
   final rotatedWidth =
-      rect.width * math.cos(radians).abs() + rect.height * math.sin(radians).abs();
+      strokeBounds.width * math.cos(radians).abs() +
+      strokeBounds.height * math.sin(radians).abs();
   final rotatedHeight =
-      rect.width * math.sin(radians).abs() + rect.height * math.cos(radians).abs();
-  return Rect.fromCenter(
+      strokeBounds.width * math.sin(radians).abs() +
+      strokeBounds.height * math.cos(radians).abs();
+    final rotatedBounds = Rect.fromCenter(
     center: rect.center,
     width: rotatedWidth,
     height: rotatedHeight,
-  ).inflate(halfStroke);
+    );
+    return shape.kind == FortuneShapeKind.rectangle
+      ? rotatedBounds
+      : rotatedBounds.inflate(halfStroke);
 }
 
 double _extraDouble(Object? value, double fallback) {

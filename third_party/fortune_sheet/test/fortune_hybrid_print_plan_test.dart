@@ -21,6 +21,16 @@ bool _isWhite(ByteData pixels, int width, int x, int y) {
       pixels.getUint8(offset + 2) > 245;
 }
 
+int _countNonWhitePixels(ByteData pixels, int width, ui.Rect rect) {
+  var count = 0;
+  for (var y = rect.top.floor(); y < rect.bottom.ceil(); y += 1) {
+    for (var x = rect.left.floor(); x < rect.right.ceil(); x += 1) {
+      if (!_isWhite(pixels, width, x, y)) count += 1;
+    }
+  }
+  return count;
+}
+
 void main() {
   const settings = FortuneSettings(
     defaultRowHeight: 20,
@@ -90,6 +100,92 @@ void main() {
     );
     expect(plan.approvedCandidateTokens, isEmpty);
     expect(plan.approvedObjectKeys, isEmpty);
+  });
+
+  test('native line footprint preserves butt endpoints', () {
+    final lineSheet = FortuneSheet(
+      id: 'line',
+      name: 'Line',
+      rowCount: 2,
+      columnCount: 2,
+      lines: const [
+        FortuneLine(
+          id: 'line_1',
+          x1: 10,
+          y1: 20,
+          x2: 30,
+          y2: 20,
+          strokeWidthMm: 1,
+        ),
+      ],
+    );
+
+    final candidate = fortuneBuildNativeCandidates(
+      settings: settings,
+      sheet: lineSheet,
+      range: range,
+      transform: transform,
+    ).single;
+
+    expect(candidate.logicalPaintedFootprint.left, 10);
+    expect(candidate.logicalPaintedFootprint.right, 30);
+  });
+
+  test('rotated rectangle miter blocks a lower native line candidate', () {
+    final strokeWidthMm = fortuneLogicalPixelsToMillimeters(10);
+    final overlapSheet = FortuneSheet(
+      id: 'miter-overlap',
+      name: 'Miter overlap',
+      rowCount: 5,
+      columnCount: 5,
+      lines: const [
+        FortuneLine(
+          id: 'native-line',
+          x1: 28.9,
+          y1: 50,
+          x2: 30,
+          y2: 50,
+          strokeWidthMm: 0.1,
+          zOrder: 0,
+        ),
+      ],
+      shapes: [
+        FortuneShape(
+          id: 'upper-rectangle',
+          kind: FortuneShapeKind.rectangle,
+          left: 40,
+          top: 40,
+          width: 20,
+          height: 20,
+          rotationDegrees: 45,
+          strokeWidthMm: strokeWidthMm,
+          zOrder: 1,
+        ),
+      ],
+    );
+    const overlapTransform = FortunePrintTransform(
+      sourceLogicalBounds: ui.Rect.fromLTWH(0, 0, 100, 100),
+      dpi: 203,
+      contentLeftMm: 0,
+      contentTopMm: 0,
+      clipRightMm: 100,
+      clipBottomMm: 100,
+      nativeAllowed: true,
+    );
+
+    final candidates = fortuneBuildNativeCandidates(
+      settings: settings,
+      sheet: overlapSheet,
+      range: const FortuneRange(
+        rowStart: 0,
+        rowEnd: 4,
+        columnStart: 0,
+        columnEnd: 4,
+      ),
+      transform: overlapTransform,
+    );
+
+    expect(candidates, isEmpty);
   });
 
   test('adjacent border aliases share one physical edge candidate', () {
@@ -246,6 +342,117 @@ void main() {
     expect(_isWhite(pixels, width, 29, 29), isFalse);
     expect(capture.sheet, same(sheet));
     expect(capture.range.rowEnd, 1);
+  });
+
+  testWidgets('hybrid capture uses snapshot settings for checkbox text', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(240, 180);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    const liveSettings = FortuneSettings(
+      defaultRowHeight: 40,
+      defaultColWidth: 100,
+      defaultFontSize: 4,
+    );
+    const snapshotSettings = FortuneSettings(
+      defaultRowHeight: 40,
+      defaultColWidth: 100,
+      defaultFontSize: 12,
+    );
+    final captureSheet = FortuneSheet(
+      id: 'snapshot',
+      name: 'Snapshot',
+      rowCount: 1,
+      columnCount: 1,
+      defaultRowHeight: 40,
+      defaultColWidth: 100,
+      cells: {
+        const FortuneCellCoord(0, 0): const FortuneCell(
+          value: 'Wide',
+          foreground: Color(0xff0000ff),
+        ),
+      },
+      dataVerification: const {
+        '0_0': {'type': 'checkbox', 'checked': true},
+      },
+    );
+    const captureRange = FortuneRange(
+      rowStart: 0,
+      rowEnd: 0,
+      columnStart: 0,
+      columnEnd: 0,
+    );
+    const captureTransform = FortunePrintTransform(
+      sourceLogicalBounds: ui.Rect.fromLTWH(0, 0, 100, 40),
+      dpi: 203,
+      contentLeftMm: 0,
+      contentTopMm: 0,
+      clipRightMm: 100,
+      clipBottomMm: 100,
+      nativeAllowed: true,
+    );
+    final controller = FortuneSheetController();
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: FortuneSheetCanvas(
+          workbook: FortuneWorkbook(
+            settings: liveSettings,
+            sheets: [captureSheet],
+          ),
+          controller: controller,
+        ),
+      ),
+    );
+    final plan = fortuneFinalizeHybridRenderPlan(
+      settings: snapshotSettings,
+      sheet: captureSheet,
+      range: captureRange,
+      transform: captureTransform,
+      candidates: const [],
+      approvals: const [],
+    );
+    final liveSizePlan = fortuneFinalizeHybridRenderPlan(
+      settings: liveSettings,
+      sheet: captureSheet,
+      range: captureRange,
+      transform: captureTransform,
+      candidates: const [],
+      approvals: const [],
+    );
+
+    final capture = await tester.runAsync(
+      () => controller.captureHybridPlanAsPng(plan, pixelRatio: 1),
+    );
+    final liveSizeCapture = await tester.runAsync(
+      () => controller.captureHybridPlanAsPng(liveSizePlan, pixelRatio: 1),
+    );
+    expect(capture, isNotNull);
+    expect(liveSizeCapture, isNotNull);
+    final pixels = await tester.runAsync(() => _decodeRawRgba(capture!.pngBytes));
+    final liveSizePixels = await tester.runAsync(
+      () => _decodeRawRgba(liveSizeCapture!.pngBytes),
+    );
+    const labelRect = ui.Rect.fromLTWH(14, 0, 80, 40);
+    expect(
+      _countNonWhitePixels(
+        pixels!,
+        capture!.pixelSize.width.toInt(),
+        labelRect,
+      ),
+      greaterThan(
+        _countNonWhitePixels(
+              liveSizePixels!,
+              liveSizeCapture!.pixelSize.width.toInt(),
+              labelRect,
+            ) +
+            8,
+      ),
+    );
   });
 
   testWidgets('filtered capture omits an approved physical border edge', (

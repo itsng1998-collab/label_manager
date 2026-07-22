@@ -1,3 +1,15 @@
+### 완료 (2026-07-22): 선·도형 지시서 2차 재감사 수정
+- controller public object selection은 active property draft를 먼저 finalize한다. valid change는 commit, invalid는 canonical 표시값 복원 뒤 새 selection snapshot을 발행한다.
+- typed line/shape pointer mutation은 gesture 시작과 commit 양쪽에서 `allowEdit`를 확인한다. 읽기 전용 우클릭은 selection을 바꾸지 않고 context menu 조회를 허용하며 mutation 항목을 비활성화한다.
+- Ctrl/Meta body/handle pointer는 geometry drag보다 selection toggle을 우선하고 마지막 단일 선택도 빈 선택으로 해제한다. 겹친 line endpoint는 hit radius 안에서 실제 포인터에 가장 가까운 endpoint를 선택하고 동률은 start를 우선한다.
+- 직접 생성된 line/shape의 non-finite zOrder도 encoder에서 `0`으로 canonicalize해 JSON-safe 저장을 보장한다.
+- Hybrid native footprint는 nonzero line의 butt-cap 방향 길이를 endpoint에 고정하고 법선 방향만 half stroke를 확장한다. rectangle은 local centerline rect를 half stroke로 확장한 뒤 회전 AABB를 계산해 miter tip overlap과 native command 크기를 일치시킨다.
+- screenshot dialog는 open generation token을 사용해 같은 range의 close/reopen에서도 이전 async capture가 새 preview를 덮지 못한다. Hybrid capture의 checkbox/default text/font family/inline run/폭 측정은 live workbook이 아니라 plan의 settings snapshot을 끝까지 사용한다.
+- typed line/shape painter culling은 exact clip boundary 접촉을 포함한다.
+- 직접 관련 5개 테스트 파일 798건, screenshot canvas 묶음 306건, Hybrid focused 8건, interaction/controller 26건이 통과했다. 루트와 `third_party/fortune_sheet`의 `flutter analyze` 모두 issues 0이며 `git diff --check` clean이다.
+- package 전체 실행은 3,059 pass/14 fail이었고 canvas 단독 순차 실행은 1,400여 건 중 4 fail이었다. JSON reporter로 분류한 4건은 새 기본 object toolbar 목록을 반영하지 않은 stale expectation 1건, 새 read-only context menu 조회 계약을 반영하지 않은 stale expectation 1건, 이번 변경과 무관한 기존 above/below-average condition-format null fixture 2건이다. 대형 `fortune_sheet_canvas_test.dart`는 `apply_patch`가 세 번 stack overflow해 stale expectation 갱신을 안전하게 적용하지 못했다.
+- 사용자 변경 `lib/core/app.dart`와 `third_party/*/build/` 생성물은 수정·stage·commit에서 제외한다.
+
 ### 완료 (2026-07-22): 선·도형 지시서 최종 준수 감사 및 수정
 - 읽기 전용 host가 객체 mutation 권한까지 차단하도록 `canEditObjects`를 Workbench/settings에 명시 전달하고 item/output preview 호출부를 연결했다. barcode property render는 exact key별 latest-wins가 아니라 전역 단일 pending 동안 추가 요청을 거부한다.
 - dock/overlay/hidden presentation이 GlobalKey 기반 동일 object panel State를 유지해 draft/property·layer scroll이 보존된다. 같은 image commit 뒤 aspect lock 상태를 유지하되 잠금 해제 중 바뀐 치수를 새 ratio basis로 반영한다.
