@@ -182,6 +182,7 @@ List<FortuneNativeCandidate> fortuneBuildNativeCandidates({
       range: range,
       transform: transform,
       objectFootprints: footprints,
+      rawOverlayFootprints: rawFootprints,
     ),
   );
   return List.unmodifiable(candidates);
@@ -248,6 +249,7 @@ List<FortuneNativeCandidate> _buildCellBorderCandidates({
   required FortuneRange range,
   required FortunePrintTransform transform,
   required List<Rect> objectFootprints,
+  required List<Rect> rawOverlayFootprints,
 }) {
   final metrics = sheet.metrics(settings);
   final borders = FortuneBorderCompute.computeRange(sheet, range);
@@ -327,7 +329,8 @@ List<FortuneNativeCandidate> _buildCellBorderCandidates({
   var index = 0;
   for (final entry in edges.entries) {
     final logicalFootprint = entry.value.footprint;
-    if (objectFootprints.any((object) => object.overlaps(logicalFootprint))) {
+    if (objectFootprints.any((object) => object.overlaps(logicalFootprint)) ||
+        rawOverlayFootprints.any((raw) => raw.overlaps(logicalFootprint))) {
       continue;
     }
     final printerFootprint = transform.logicalRectToPrinterDots(

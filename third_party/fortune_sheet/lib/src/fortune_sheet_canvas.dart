@@ -1292,7 +1292,10 @@ class FortuneSheetController extends ChangeNotifier {
     final key = _objectSelection.activeKey;
     return state != null &&
         key != null &&
-        state._panelImagePickerErrorKeys.contains(key);
+        state._panelImagePickerErrorKeys.contains((
+          sheetId: _objectSelection.sheetId!,
+          key: key,
+        ));
   }
 
   void registerActiveObjectPropertyDraft({
@@ -3061,7 +3064,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   late FortuneObjectConnectionMode _imageObjectConnectionMode;
   late FortuneObjectConnectionMode _barcodeObjectConnectionMode;
   int _panelImagePickerToken = 0;
-  final Set<FortuneSheetObjectKey> _panelImagePickerErrorKeys = {};
+  final Set<({String sheetId, FortuneSheetObjectKey key})>
+  _panelImagePickerErrorKeys = {};
   int _panelBarcodeRequestSequence = 0;
   final Map<FortuneSheetObjectKey, int> _panelBarcodeRequestTokens = {};
   int _objectClipboardSequence = 0;
@@ -8053,8 +8057,6 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         filterDropdownColumn = null;
         _sheetTabMenuSheetIndex = null;
         toolbarPopupKey = null;
-        _activeImageId = null;
-        _selectedImageIds = <String>{};
       });
       return;
     }
@@ -27577,26 +27579,40 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     final snapshot = _objectSelectionSnapshot(attached: true);
     final key = snapshot.activeKey;
     final source = snapshot.activeImage;
+    final ownerSheetId = snapshot.sheetId;
     if (!_workbook.settings.allowEdit ||
         picker == null ||
         key == null ||
         key.kind != FortuneSheetObjectKind.image ||
-        source == null) {
+        source == null ||
+        ownerSheetId == null) {
       return false;
     }
-    final ownerSheetId = snapshot.sheetId;
     final ownerHistoryGeneration = _historyLineageGeneration;
     final ownerSheetRevision = _sheetCanonicalRevisions[ownerSheetId] ?? 0;
+    final errorOwner = (sheetId: ownerSheetId, key: key);
     final token = ++_panelImagePickerToken;
-    if (_panelImagePickerErrorKeys.remove(key)) {
+    if (_panelImagePickerErrorKeys.remove(errorOwner)) {
       widget.controller?._notifyCommandStateChanged();
     }
     FortuneImagePickResult? picked;
     try {
       picked = await picker();
     } on Object {
-      if (mounted && token == _panelImagePickerToken) {
-        _panelImagePickerErrorKeys.add(key);
+      if (mounted &&
+          token == _panelImagePickerToken &&
+          _workbook.settings.allowEdit &&
+          _workbook.activeSheet.id == ownerSheetId &&
+          _historyLineageGeneration == ownerHistoryGeneration &&
+          (_sheetCanonicalRevisions[ownerSheetId] ?? 0) ==
+              ownerSheetRevision &&
+          _workbook.activeSheet.images.any(
+            (image) =>
+                image.id == key.id &&
+                fortuneImageObjectKind(image) == key.kind &&
+                _sameSnapshotImage(image, source),
+          )) {
+        _panelImagePickerErrorKeys.add(errorOwner);
         widget.controller?._notifyCommandStateChanged();
       }
       return false;
@@ -27635,7 +27651,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     _recordUndoSnapshot();
     sheets[_workbook.activeSheetIndex] = sheet.copyWith(images: images);
     setState(() {
-      _panelImagePickerErrorKeys.remove(key);
+      _panelImagePickerErrorKeys.remove(errorOwner);
       if (decoded != null) {
         final previous = _decodedImages[src];
         if (previous != null) {
@@ -35339,14 +35355,12 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       case fortuneToolbarBarcodeCommand:
         _showBarcodeInsertDialog();
       case fortuneContextEditImageCommand:
-        _showContextImageEditDialog();
       case fortuneContextEditBarcodeCommand:
-        _showContextBarcodeEditDialog();
       case fortuneContextEditLineCommand:
       case fortuneContextEditRectangleCommand:
       case fortuneContextEditRoundedRectangleCommand:
       case fortuneContextEditEllipseCommand:
-        _openTypedObjectPropertyPanel();
+        _openContextObjectPropertyPanel();
       case fortuneContextDuplicateImageCommand:
         if (typedObjectCommand) {
           _duplicateSelectedObjectsFromController();
@@ -35404,39 +35418,47 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     }
   }
 
-  void _openTypedObjectPropertyPanel() {
-    setState(_closeTransientMenus);
-    final field = switch (_contextMenuObjectKey?.kind ?? _activeObjectKey?.kind) {
+  void _openContextObjectPropertyPanel() {
+    final contextKey = _contextMenuObjectKey ??
+        (_contextMenuImageId == null
+            ? null
+            : _workbook.activeSheet.images
+                .where((image) => image.id == _contextMenuImageId)
+                .map(
+                  (image) => FortuneSheetObjectKey(
+                    fortuneImageObjectKind(image),
+                    image.id,
+                  ),
+                )
+                .firstOrNull);
+    final targetKey = contextKey ??
+        _objectSelectionSnapshot(attached: true).activeKey;
+    if (targetKey == null) {
+      setState(_closeTransientMenus);
+      return;
+    }
+    setState(() {
+      _applyExactObjectSelection(
+        <FortuneSheetObjectKey>{targetKey},
+        targetKey,
+        anchorKey: targetKey,
+      );
+      _closeTransientMenus();
+    });
+    final field = switch (targetKey.kind) {
+      FortuneSheetObjectKind.image || FortuneSheetObjectKind.barcode =>
+        'connectionId',
       FortuneSheetObjectKind.line => 'x1',
       FortuneSheetObjectKind.rectangle ||
       FortuneSheetObjectKind.roundedRectangle ||
       FortuneSheetObjectKind.ellipse => 'left',
-      _ => null,
     };
-    widget.onOpenObjectPanelRequest?.call(
-      FortuneObjectPanelOpenRequest(propertyField: field),
-    );
-    widget.onOpenObjectPanel?.call();
-  }
-
-  void _showContextImageEditDialog() {
-    final imageId = _contextMenuImageId ?? _activeImageId;
-    final image = imageId == null ? null : _imageById(imageId);
-    if (image == null) {
-      setState(_closeTransientMenus);
-      return;
+    final request = widget.onOpenObjectPanelRequest;
+    if (request != null) {
+      request(FortuneObjectPanelOpenRequest(propertyField: field));
+    } else {
+      widget.onOpenObjectPanel?.call();
     }
-    _showImageEditDialog(image);
-  }
-
-  void _showContextBarcodeEditDialog() {
-    final imageId = _contextMenuImageId ?? _activeImageId;
-    final image = imageId == null ? null : _imageById(imageId);
-    if (image == null) {
-      setState(_closeTransientMenus);
-      return;
-    }
-    _showBarcodeEditDialog(image);
   }
 
   void _toggleImageLayerPanel() {

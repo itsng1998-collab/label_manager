@@ -1101,6 +1101,7 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
     final image = widget.snapshot.activeImage;
     final line = widget.snapshot.activeLine;
     final shape = widget.snapshot.activeShape;
+    final canMutate = widget.controller.objectMutationEnabled;
     if (image == null && line == null && shape == null) {
       return const SizedBox.shrink();
     }
@@ -1137,14 +1138,18 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
             dense: true,
             title: const Text('비율 유지', style: TextStyle(fontSize: 13)),
             value: _imageAspectLocked,
-            onChanged: (value) {
-              setState(() => _imageAspectLocked = value ?? true);
-            },
+            onChanged: canMutate
+                ? (value) {
+                    setState(() => _imageAspectLocked = value ?? true);
+                  }
+                : null,
           ),
         if (widget.snapshot.activeKey!.kind == FortuneSheetObjectKind.image)
           OutlinedButton.icon(
             key: const ValueKey('fortune-object-property-replace-file'),
-            onPressed: _imagePickerPending ? null : _replaceImageFile,
+            onPressed: _imagePickerPending || !canMutate
+              ? null
+              : _replaceImageFile,
             icon: _imagePickerPending
                 ? const SizedBox.square(
                     dimension: 16,
@@ -1168,10 +1173,12 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
             dense: true,
             title: const Text('사람이 읽는 텍스트 표시', style: TextStyle(fontSize: 13)),
             value: _barcodeShowText,
-            onChanged: (value) {
-              setState(() => _barcodeShowText = value ?? false);
-              _markPropertyDraft();
-            },
+            onChanged: canMutate
+                ? (value) {
+                    setState(() => _barcodeShowText = value ?? false);
+                    _markPropertyDraft();
+                  }
+                : null,
           ),
           _field('텍스트 글꼴', 'fontFamily'),
           _field('텍스트 크기', 'fontSize'),
@@ -1183,12 +1190,14 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
             dense: true,
             title: const Text('템플릿 바코드 형식 유지', style: TextStyle(fontSize: 13)),
             value: _barcodePreserveTemplateFormat,
-            onChanged: (value) {
-              setState(() {
-                _barcodePreserveTemplateFormat = value ?? false;
-              });
-              _markPropertyDraft();
-            },
+            onChanged: canMutate
+                ? (value) {
+                    setState(() {
+                      _barcodePreserveTemplateFormat = value ?? false;
+                    });
+                    _markPropertyDraft();
+                  }
+                : null,
           ),
         ],
       ]);
@@ -1204,7 +1213,10 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
         ),
         _ReadOnlyProperty(
           label: '각도',
-          value: '${_formatNumber(_lineAngle(line))}°',
+          value: switch (_lineAngle(line)) {
+            final angle? => '${_formatNumber(angle)}°',
+            null => '-',
+          },
         ),
       ]);
     } else if (shape != null) {
@@ -1229,12 +1241,14 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
                 ),
               )
               .toList(growable: false),
-          onChanged: (value) {
-            if (value != null) {
-              setState(() => _strokeStyle = value);
-              _markPropertyDraft();
-            }
-          },
+          onChanged: canMutate
+              ? (value) {
+                  if (value != null) {
+                    setState(() => _strokeStyle = value);
+                    _markPropertyDraft();
+                  }
+                }
+              : null,
         ),
         _field('테두리 폭', 'strokeWidth', suffix: 'mm'),
         _field('테두리 색상', 'strokeColor'),
@@ -1248,10 +1262,12 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
           dense: true,
           title: const Text('채우기 없음', style: TextStyle(fontSize: 13)),
           value: _noFill,
-          onChanged: (value) {
-            setState(() => _noFill = value ?? false);
-            _markPropertyDraft();
-          },
+          onChanged: canMutate
+              ? (value) {
+                  setState(() => _noFill = value ?? false);
+                  _markPropertyDraft();
+                }
+              : null,
         ),
         if (!_noFill) _field('채우기 색상', 'fillColor'),
         if (shape.kind == FortuneShapeKind.roundedRectangle)
@@ -1304,8 +1320,11 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
       ),
       decoration: InputDecoration(labelText: label, suffixText: suffix),
       style: const TextStyle(fontSize: 13),
+        readOnly: !widget.controller.objectMutationEnabled,
       onChanged: onChanged,
-      onSubmitted: (_) => _apply(),
+        onSubmitted: widget.controller.objectMutationEnabled
+          ? (_) => _apply()
+          : null,
     );
   }
 
@@ -1336,10 +1355,12 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
             ),
           )
           .toList(growable: false),
-      onChanged: (value) {
-        _fields['connectionId']!.text = value ?? '';
-        setState(() => _error = null);
-      },
+      onChanged: widget.controller.objectMutationEnabled
+          ? (value) {
+              _fields['connectionId']!.text = value ?? '';
+              setState(() => _error = null);
+            }
+          : null,
     );
   }
 
@@ -1352,7 +1373,10 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
         : logical;
   }
 
-  double _lineAngle(FortuneLine line) {
+  double? _lineAngle(FortuneLine line) {
+    if (line.x1 == line.x2 && line.y1 == line.y2) {
+      return null;
+    }
     final degrees =
         math.atan2(line.y2 - line.y1, line.x2 - line.x1) * 180 / math.pi;
     return degrees < 0 ? degrees + 360 : degrees;
@@ -1384,7 +1408,12 @@ class _ReadOnlyProperty extends StatelessWidget {
               style: const TextStyle(color: Color(0xff5f6368), fontSize: 12),
             ),
           ),
-          Expanded(child: Text(value, style: const TextStyle(fontSize: 13))),
+          Expanded(
+            child: SelectableText(
+              value,
+              style: const TextStyle(fontSize: 13),
+            ),
+          ),
         ],
       ),
     );

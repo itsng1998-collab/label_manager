@@ -348,6 +348,62 @@ void main() {
     );
   });
 
+  test('border under a raw overlay remains raster fallback', () {
+    final overlapSheet = FortuneSheet(
+      id: 'raw-overlap',
+      name: 'Raw overlap',
+      rowCount: 1,
+      columnCount: 1,
+      borderInfo: const [
+        FortuneBorderInfo(
+          rangeType: 'range',
+          borderType: 'border-bottom',
+          color: Color(0xff000000),
+          style: 1,
+          ranges: [
+            FortuneRange(
+              rowStart: 0,
+              rowEnd: 0,
+              columnStart: 0,
+              columnEnd: 0,
+            ),
+          ],
+        ),
+      ],
+      extraFields: const {
+        'shapes': [
+          {
+            'type': 'rect',
+            'left': 2,
+            'top': 18,
+            'width': 16,
+            'height': 4,
+            'fillColor': '#FFFFFF',
+          },
+        ],
+      },
+    );
+
+    final candidates = fortuneBuildNativeCandidates(
+      settings: settings,
+      sheet: overlapSheet,
+      range: const FortuneRange(
+        rowStart: 0,
+        rowEnd: 0,
+        columnStart: 0,
+        columnEnd: 0,
+      ),
+      transform: transform,
+    );
+
+    expect(
+      candidates.where(
+        (candidate) => candidate.kind == FortuneNativeCandidateKind.cellBorder,
+      ),
+      isEmpty,
+    );
+  });
+
   testWidgets('filtered capture omits only approved exact typed key', (
     tester,
   ) async {

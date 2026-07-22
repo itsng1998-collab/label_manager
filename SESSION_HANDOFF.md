@@ -1,3 +1,14 @@
+### 완료 (2026-07-22): 선·도형 지시서 4차 재감사 수정
+- 이미지·바코드 기존 객체의 context/active toolbar 편집을 기존 dialog에서 object property panel request로 이전했다. structured request가 있으면 legacy open callback을 중복 호출하지 않으며 image/barcode는 `connectionId`, line은 `x1`, shape는 `left` focus intent를 전달한다.
+- 다중 selected member의 context `편집`은 draft finalize 뒤 context exact key 하나로 selected/active/anchor를 축소한다. 우클릭만 하거나 묶음 command를 실행하는 기존 다중 선택 보존은 유지한다. 빈 canvas secondary click은 image/barcode를 포함한 object selection을 더 이상 지우지 않는다.
+- `allowEdit == false` property form의 text field를 selectable read-only로 바꾸고 dropdown/checkbox/file replacement를 비활성화했다. read-only ID/length/angle은 `SelectableText`이며 zero-length line angle은 임의의 `0°` 대신 `-`로 표시한다.
+- panel image picker 실패 owner를 `(sheetId, exact typed key)`로 저장하고 예외 완료에도 token, allowEdit, history lineage, per-sheet revision과 canonical source를 재검증한다. active sheet 변경 뒤 늦은 실패는 다른 sheet의 같은 key에 오류를 표시하지 않는다.
+- Hybrid native cell-border 후보도 legacy raw overlay의 실제 painted footprint와 겹치면 bitmap fallback해 `cell base → raw overlay` 합성 순서를 보존한다.
+- 직접 회귀를 추가했다: 다중 context edit singleton, image edit panel request 1회/dialog 미표시, 빈 canvas image selection 유지, read-only selectable form/zero-length angle, sheet 전환 뒤 stale picker 예외, raw overlay 아래 cell-border fallback.
+- 검증: object controller + Hybrid suite 39건 통과, `third_party/fortune_sheet` `flutter analyze` issues 0, 변경 파일 `git diff --check` clean이다.
+- 기존 대형 `fortune_sheet_canvas_test.dart`에는 새 toolbar 항목과 read-only context-menu 조회 계약을 반영하지 않은 stale expectation 2건이 남아 있다. `apply_patch`가 단일 소규모 변경에도 stack overflow해 이번 세션에서 안전하게 갱신하지 못했다. 같은 suite의 기존 conditional-format null fixture 2건도 이번 변경과 무관하게 남아 있다.
+- 사용자 변경 `lib/core/app.dart`와 `third_party/*/build/` 생성물은 수정·stage·commit에서 제외한다.
+
 ### 완료 (2026-07-22): 선·도형 지시서 3차 재감사 수정
 - 직전 기록의 “마지막 단일 Ctrl/Meta toggle은 빈 선택으로 해제”는 지시서와 반대인 회귀였다. 마지막 단일 선택은 exact key를 유지하고, image body/resize handle도 pointer sequence 시작 전에 공용 selection toggle을 사용한다. canvas 단일 선택·Tab 순환·selected member 우클릭은 공용 exact-selection helper로 active/selected/anchor를 함께 갱신하며 다중 선택을 보존한다.
 - 읽기 전용 object context menu는 조회를 허용하되 edit/duplicate/delete/layer mutation 항목을 disabled projection과 command guard 양쪽에서 차단한다.
