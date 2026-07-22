@@ -115902,7 +115902,7 @@ void main() {
 
     final image = painter().workbook.activeSheet.images.single;
     expect(image.left, -60);
-    expect(image.top, -38);
+    expect(image.top, 0);
     expect(image.width, 90);
     expect(image.height, 60);
   });

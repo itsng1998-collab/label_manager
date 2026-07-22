@@ -29982,23 +29982,37 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       );
     }
 
-    var candidate = candidateAt(1);
-    if (candidate.top < 0 && initial.top >= 0) {
+    final endpoint = candidateAt(1);
+    var candidate = endpoint;
+    if (endpoint.top < 0 && initial.top >= 0) {
+      candidate = candidateAt(0);
       var low = 0.0;
       var high = 1.0;
+      var advanced = false;
       for (var iteration = 0; iteration < 40; iteration += 1) {
         final middle = (low + high) / 2;
         final probe = candidateAt(middle);
         if (probe.top >= 0) {
           low = middle;
           candidate = probe;
+          advanced = true;
         } else {
           high = middle;
         }
       }
+      if (!advanced) {
+        candidate = (
+          left: endpoint.left,
+          top: 0.0,
+          width: endpoint.width,
+          height: endpoint.height,
+        );
+      }
     }
     final left = candidate.left;
-    final top = candidate.top.abs() < 1e-8 ? 0.0 : candidate.top;
+    final top = candidate.top < 0 && initial.top >= 0
+        ? 0.0
+        : (candidate.top.abs() < 1e-8 ? 0.0 : candidate.top);
     final width = candidate.width;
     final height = candidate.height;
 
