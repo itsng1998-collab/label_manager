@@ -1,3 +1,8 @@
+### 완료 (2026-07-22): 선·도형 고통합 조항 재감사
+- 작업지시서 `doc/label_line_panel.txt` 기준으로 zOrder 재기준화와 async object clipboard coordinator만 별도로 다시 점검했다. `fortuneReserveObjectZOrders()`의 headroom 실패 시 공통 zOrder 재기준화, 변경 kind별 raw list 폐기 범위, duplicate/copy paste의 공용 삽입 경로가 문서 계약과 일치한다.
+- object clipboard는 marker write latest-wins, baseline payload/text 복원, 단일 paste gate, target workbook/sheet/selection snapshot 재검증, same-sheet cut paste 원위치 유지와 cross-sheet 충돌 시 ID 재발급까지 현재 구현과 회귀 테스트가 맞물려 있다.
+- 검증: `third_party/fortune_sheet/test/fortune_object_order_test.dart`, `third_party/fortune_sheet/test/fortune_object_controller_test.dart` 48건 통과. 이번 범위에서는 추가 구현 불일치를 찾지 못했다.
+
 ### 완료 (2026-07-22): 선·도형 canvas stale 회귀 기대치 정리
 - `fortune_sheet_canvas_test.dart`의 선·도형 이후 stale 기대치 5건을 현재 계약에 맞춰 갱신했다. 즉시 toolbar command 목록에 `line`/`shape`/`object-panel`/shape preset 항목을 반영했고, read-only `allowEdit == false` cell/header secondary click은 메뉴 조회와 일반 선택 전환을 유지하는 현재 동작으로 테스트를 맞췄다.
 - 이후 문서 재감사에서 image resize의 저장 `top` clamp 누락을 확인해 canvas 구현을 수정했고, left-top image resize minimum-size fixture는 음수 `left`, `top == 0`, 90x60 minimum 확장 기대치로 다시 바로잡았다. above/below-average condition-format dialog confirm은 하드코딩 좌표 대신 `fortuneConditionRuleDialogRect()`와 `fortuneConditionRuleConfirmButtonRect()` helper를 사용하도록 바꿨다.
