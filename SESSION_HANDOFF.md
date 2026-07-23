@@ -1,3 +1,20 @@
+### 완료 (2026-07-23): 개체 1px·삽입 active·둥근 사각형 보정
+- 사용자 요청: 셀 테두리 1과 선 1의 화면 두께를 일치시키고, 선·도형 삽입 완료/취소 전까지 toolbar 버튼 active 효과를 유지하며, 둥근 사각형 삽입 형태를 보정한다.
+- 원인 확인: 새 선·도형 기본 stroke가 `0.5 mm`라 속성 패널/렌더링에서 `1.89 px`였고, 선 path는 셀 테두리의 반 픽셀 정렬을 사용하지 않았다. geometry mode는 painter에 active key를 전달하지 않았다. 둥근 사각형은 draft/최종 모두 `cornerRadiusMm=0`으로 생성됐다.
+- `third_party/fortune_sheet/lib/src/fortune_sheet_model.dart`: 선·도형 기본 stroke를 정확히 1 logical px에 해당하는 mm로 변경하고, 짧은 변 20%의 둥근 사각형 기본 반경 helper 추가 완료.
+- `third_party/fortune_sheet/lib/src/fortune_sheet_codec.dart`: 누락·비정상 stroke fallback을 새 1px 기본값으로 통일 완료.
+- `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`: 수평·수직 선을 셀 테두리와 같은 반 픽셀 축에 정렬하고, `toolbarActiveKeys`를 active 배경 렌더 및 repaint 조건에 반영 완료.
+- `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`: geometry mode 동안 선 또는 도형 toolbar active key를 전달하고, 둥근 사각형 draft/최종 생성에 동일 기본 반경 적용 완료.
+- 테스트 갱신: geometry cursor/active/생성 해제/둥근 반경/1px 기본값, codec fallback, 속성 패널 1px 표시, toolbar active 픽셀, 셀 테두리 기준 raster 열을 검증한다.
+- focused 검증 완료: geometry 11개, 1px raster 1개, geometry·codec·개체 속성·toolbar 묶음 117개, 선 생성 기본 1px/active 해제 1개 통과.
+- 확대 검증 완료: root `test/label_sheet_toolbar_test.dart` 140개 통과.
+- package 분석: `cd third_party/fortune_sheet; flutter analyze` → 새 오류 없음, 기존 `fortune_sheet_canvas.dart` 미사용 경고 10개.
+- root 분석: `flutter analyze` → 새 오류 없음, 위 기존 경고 10개 + 기존 테스트 미사용 변수 경고 1개.
+- 최종 검사 완료: 변경 파일 진단 0개, `git diff --check` 통과.
+- 기능 커밋: `7cf7a08` (`도형 삽입 상태와 기본 렌더링 보정`).
+- 인수인계 문서는 위 기능 커밋 해시 반영 후 별도 커밋.
+- 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
+
 ### 완료 (2026-07-23): 도형 종류 선택 즉시 삽입
 - 사용자 요청: 도형 삽입 dropdown에서 종류 선택 후 별도 `삽입` 메뉴를 다시 누르는 절차를 제거하고, 종류 선택 즉시 십자 커서와 삽입 모드를 활성화한다.
 - 원인 확인: 개별 도형 toolbar command는 즉시 `_activateGeometryInsertionMode`를 호출하지만, 도형 popup 분기는 `_shapePresetKind`만 저장하고 별도 `shape-insert` command를 기다렸다.
