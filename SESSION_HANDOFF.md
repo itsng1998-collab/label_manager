@@ -9,6 +9,7 @@
 - 검증 완료: `cd third_party/fortune_sheet && flutter test test/fortune_line_insertion_test.dart test/fortune_toolbar_icons_test.dart` 전체 70개 통과.
 - 검증 완료: `flutter test test/label_sheet_toolbar_test.dart` root 라벨 시트 toolbar 전체 142개 통과, 수정 Dart 파일 analyzer 오류 없음.
 - stage/commit 대상: `lib/page_label_sheet/label_sheet_workbench.dart`, `third_party/fortune_sheet/lib/src/fortune_sheet_app.dart`, `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`, `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`, `third_party/fortune_sheet/test/fortune_object_controller_test.dart`, `third_party/fortune_sheet/test/fortune_toolbar_icons_test.dart`, `test/label_sheet_toolbar_test.dart`, `SESSION_HANDOFF.md`.
+- 로컬 커밋: `3c150e9` (`개체 패널 토글과 도형 메뉴 아이콘 추가`).
 - 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
 
 ### 완료 (2026-07-23): 도형/개체 toolbar 아이콘 축소
