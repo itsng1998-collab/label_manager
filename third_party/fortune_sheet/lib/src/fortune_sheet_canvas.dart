@@ -30186,10 +30186,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
           _shapePresetKind = kind;
           _toolbarPopupHoveredIndex = null;
         });
-        return;
-      }
-      if (command == fortuneToolbarShapeInsertCommand) {
-        _activateGeometryInsertionMode(_shapePresetKind);
+        _activateGeometryInsertionMode(kind);
         return;
       }
     }

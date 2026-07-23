@@ -1774,7 +1774,6 @@ class FortuneSheetLocale {
       fortuneToolbarRectangleCommand: '사각형 삽입',
       fortuneToolbarRoundedRectangleCommand: '둥근 사각형 삽입',
       fortuneToolbarEllipseCommand: '타원 삽입',
-      fortuneToolbarShapeInsertCommand: '삽입',
       fortuneToolbarObjectPanelCommand: '개체',
       fortuneToolbarCommentCommand: '댓글',
       fortuneToolbarQuickFormulaPopupKey: '자동 합계',
@@ -1822,7 +1821,6 @@ class FortuneSheetLocale {
       fortuneToolbarRectangleCommand: '사각형',
       fortuneToolbarRoundedRectangleCommand: '둥근 사각형',
       fortuneToolbarEllipseCommand: '타원',
-      fortuneToolbarShapeInsertCommand: '삽입',
       fortuneToolbarRotateNoneCommand: '없음',
       fortuneToolbarRotateUpCommand: '위로 기울이기',
       fortuneToolbarRotateDownCommand: '아래로 기울이기',
@@ -2322,14 +2320,11 @@ const String fortuneToolbarShapeCommand = 'shape';
 const String fortuneToolbarRectangleCommand = 'rectangle';
 const String fortuneToolbarRoundedRectangleCommand = 'rounded-rectangle';
 const String fortuneToolbarEllipseCommand = 'ellipse';
-const String fortuneToolbarShapeInsertCommand = 'shape-insert';
 const String fortuneToolbarObjectPanelCommand = 'object-panel';
 const List<String> fortuneToolbarShapePopupCommands = [
   fortuneToolbarRectangleCommand,
   fortuneToolbarRoundedRectangleCommand,
   fortuneToolbarEllipseCommand,
-  '|',
-  fortuneToolbarShapeInsertCommand,
 ];
 const String fortuneContextEditImageCommand = 'edit-image';
 const String fortuneContextEditBarcodeCommand = 'edit-barcode';
@@ -43464,7 +43459,6 @@ const Map<String, String> fortuneToolbarTooltipLabels = {
   fortuneToolbarRectangleCommand: 'Insert rectangle',
   fortuneToolbarRoundedRectangleCommand: 'Insert rounded rectangle',
   fortuneToolbarEllipseCommand: 'Insert ellipse',
-  fortuneToolbarShapeInsertCommand: 'Insert',
   fortuneToolbarObjectPanelCommand: 'Objects',
   fortuneToolbarCommentCommand: 'Comment',
   fortuneToolbarQuickFormulaPopupKey: 'Auto SUM',
@@ -62336,7 +62330,6 @@ const Map<String, String> fortuneToolbarPopupLabels = {
   fortuneToolbarRectangleCommand: 'Rectangle',
   fortuneToolbarRoundedRectangleCommand: 'Rounded rectangle',
   fortuneToolbarEllipseCommand: 'Ellipse',
-  fortuneToolbarShapeInsertCommand: 'Insert',
   fortuneToolbarRotateNoneCommand: 'None',
   fortuneToolbarRotateUpCommand: 'Tilt Up',
   fortuneToolbarRotateDownCommand: 'Tilt Down',

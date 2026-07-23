@@ -1,4 +1,5 @@
 import 'dart:ui';
+import 'dart:ui' as ui show Rect;
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -17,6 +18,19 @@ Offset _toolbarItemCenter(
   for (final entry in fortuneVisibleToolbarItemRects(width, items: items)) {
     if (entry.key == key) {
       return entry.value.center;
+    }
+  }
+  fail('toolbar item not found: $key');
+}
+
+ui.Rect _toolbarItemRect(
+  String key, {
+  required double width,
+  required List<String> items,
+}) {
+  for (final entry in fortuneVisibleToolbarItemRects(width, items: items)) {
+    if (entry.key == key) {
+      return entry.value;
     }
   }
   fail('toolbar item not found: $key');
@@ -109,6 +123,101 @@ void main() {
     await tester.pump();
     expect(cursor(), SystemMouseCursors.basic);
     await mouse.removePointer();
+  });
+
+  testWidgets('shape popup selection immediately starts insertion', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    const toolbarItems = [fortuneToolbarShapeCommand];
+    final workbook = FortuneWorkbook(
+      settings: const FortuneSettings(toolbarItems: toolbarItems),
+      sheets: [FortuneSheet(id: 's1', name: 'Sheet1')],
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SizedBox(
+          width: 900,
+          height: 700,
+          child: FortuneSheetCanvas(workbook: workbook),
+        ),
+      ),
+    );
+
+    FortuneSheetPainter painter() => tester
+        .widgetList<CustomPaint>(
+          find.descendant(
+            of: find.byType(FortuneSheetCanvas),
+            matching: find.byType(CustomPaint),
+          ),
+        )
+        .map((paint) => paint.painter)
+        .whereType<FortuneSheetPainter>()
+        .single;
+    MouseCursor cursor() => tester
+        .widget<MouseRegion>(
+          find.descendant(
+            of: find.byType(FortuneSheetCanvas),
+            matching: find.byType(MouseRegion),
+          ).first,
+        )
+        .cursor;
+
+    expect(fortuneToolbarShapePopupCommands, [
+      fortuneToolbarRectangleCommand,
+      fortuneToolbarRoundedRectangleCommand,
+      fortuneToolbarEllipseCommand,
+    ]);
+    final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
+    final toolbarRect = _toolbarItemRect(
+      fortuneToolbarShapeCommand,
+      width: 900,
+      items: toolbarItems,
+    );
+    await tester.tapAt(
+      topLeft + fortuneToolbarComboArrowRect(toolbarRect).center,
+    );
+    await tester.pump();
+    final popupWidth = fortuneToolbarPopupWidthFor(
+      fortuneToolbarShapeCommand,
+    );
+    final popupLeft = fortuneToolbarPopupLeftFor(
+      key: fortuneToolbarShapeCommand,
+      itemRect: toolbarRect,
+      viewportWidth: 900,
+      popupWidth: popupWidth,
+    );
+    final roundedRectangleIndex = fortuneToolbarShapePopupCommands.indexOf(
+      fortuneToolbarRoundedRectangleCommand,
+    );
+    await tester.tapAt(
+      topLeft +
+          Offset(
+            popupLeft + popupWidth / 2,
+            fortuneToolbarPopupTop +
+                fortuneToolbarPopupContentTopPaddingFor(
+                  fortuneToolbarShapeCommand,
+                ) +
+                fortuneToolbarPopupRowHeightFor(fortuneToolbarShapeCommand) *
+                    (roundedRectangleIndex + 0.5),
+          ),
+    );
+    await tester.pump();
+
+    expect(cursor(), SystemMouseCursors.precise);
+    await tester.dragFrom(
+      topLeft + const Offset(150, 150),
+      const Offset(50, 30),
+    );
+    await tester.pump();
+    expect(painter().workbook.activeSheet.shapes.single.kind,
+        FortuneShapeKind.roundedRectangle);
+    expect(cursor(), SystemMouseCursors.basic);
   });
 
   testWidgets('line toolbar drag inserts one topmost line and exits mode', (

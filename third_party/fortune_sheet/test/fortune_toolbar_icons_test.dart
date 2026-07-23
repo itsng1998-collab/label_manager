@@ -824,7 +824,6 @@ void main() {
       '둥근 사각형 삽입',
     );
     expect(locale.toolbarTooltipLabels[fortuneToolbarEllipseCommand], '타원 삽입');
-    expect(locale.toolbarTooltipLabels[fortuneToolbarShapeInsertCommand], '삽입');
     expect(locale.toolbarTooltipLabels[fortuneToolbarObjectPanelCommand], '개체');
     expect(
       locale.toolbarPopupLabels[fortuneToolbarCreateFilterCommand],
@@ -1014,7 +1013,6 @@ void main() {
             fortuneToolbarRectangleCommand,
             fortuneToolbarRoundedRectangleCommand,
             fortuneToolbarEllipseCommand,
-            fortuneToolbarShapeInsertCommand,
             fortuneToolbarObjectPanelCommand,
           });
     final popupCommands = {
