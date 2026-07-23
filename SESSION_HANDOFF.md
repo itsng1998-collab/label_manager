@@ -8,6 +8,7 @@
 - 검증 완료: `cd third_party/fortune_sheet && flutter test test/fortune_toolbar_icons_test.dart` 전체 58개 통과.
 - 검증 완료: `flutter test test/label_sheet_toolbar_test.dart` root 라벨 시트 toolbar 통합 테스트 전체 141개 통과, 수정 Dart 파일 analyzer 오류 없음.
 - stage/commit 대상: `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`, `third_party/fortune_sheet/lib/src/fortune_toolbar_icons.dart`, `third_party/fortune_sheet/test/fortune_toolbar_icons_test.dart`, `SESSION_HANDOFF.md`.
+- 로컬 커밋: `60ea9ab` (`도형과 개체 툴바 아이콘 크기 조정`).
 - 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
 
 ### 완료 (2026-07-23): 라벨 변경 시 editing lifecycle 중복 attach 수정
