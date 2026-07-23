@@ -24,6 +24,7 @@
   - `git diff --check`: 성공.
   - 편집 파일 VS Code diagnostics: 오류 없음.
 - stage/commit 대상: `SESSION_HANDOFF.md`, `fortune_object_layer_panel.dart`, `fortune_sheet_canvas.dart`, `fortune_sheet_painter.dart`, `fortune_object_controller_test.dart`, `fortune_toolbar_icons_test.dart`.
+- 기능 커밋: `cc5e88d` (`개체 패널 조정과 선택 동작 개선`).
 - 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
 
 ### 완료 (2026-07-23): 개체 패널 구분선 픽셀 정렬
