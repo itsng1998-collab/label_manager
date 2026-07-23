@@ -7,6 +7,7 @@
 - 검증 완료: 신규 keyed owner 교체 테스트 통과(1/1). 기존 draft 확정/barcode render 대기 테스트를 포함한 lifecycle 테스트 3개 통과.
 - 검증 완료: `flutter test test/label_sheet_toolbar_test.dart` 전체 141개 통과, 수정 Dart 파일 analyzer 오류 없음.
 - stage/commit 대상: `lib/page_label_sheet/label_sheet_workbench.dart`, `test/label_sheet_toolbar_test.dart`, `SESSION_HANDOFF.md`.
+- 로컬 커밋: `f2d28f7` (`라벨 변경 lifecycle 소유권 오류 수정`).
 - 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
 
 ### 완료 (2026-07-23): 개체 패널 layout mutation 및 toolbar active 보정
