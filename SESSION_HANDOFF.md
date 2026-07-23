@@ -1,3 +1,19 @@
+### 완료 (2026-07-23): 도형 종류 선택 즉시 삽입
+- 사용자 요청: 도형 삽입 dropdown에서 종류 선택 후 별도 `삽입` 메뉴를 다시 누르는 절차를 제거하고, 종류 선택 즉시 십자 커서와 삽입 모드를 활성화한다.
+- 원인 확인: 개별 도형 toolbar command는 즉시 `_activateGeometryInsertionMode`를 호출하지만, 도형 popup 분기는 `_shapePresetKind`만 저장하고 별도 `shape-insert` command를 기다렸다.
+- `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`: 도형 종류 popup command가 preset 저장 직후 `_activateGeometryInsertionMode(kind)`를 호출하도록 완료.
+- `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`: popup에서 구분선과 `삽입` 항목을 제거하고 폐기된 `shape-insert` command/한국어·영어 label을 정리 완료.
+- `third_party/fortune_sheet/test/fortune_line_insertion_test.dart`: dropdown에서 둥근 사각형을 한 번 선택한 직후 십자 cursor와 실제 둥근 사각형 생성을 검증 완료.
+- `third_party/fortune_sheet/test/fortune_toolbar_icons_test.dart`: 폐기된 command의 locale/known-command 기대값 제거 완료.
+- focused 검증 완료: 신규 dropdown UX 테스트 1개, geometry 삽입 11개, toolbar icon/label 계약 55개 통과. 변경 Dart 파일 진단 0개.
+- 확대 검증 완료: package geometry/toolbar 계약 66개, root 라벨 시트 toolbar 통합 140개 모두 통과.
+- package 분석: `cd third_party/fortune_sheet; flutter analyze` → 새 오류 없음, 기존 `fortune_sheet_canvas.dart` 미사용 경고 10개.
+- root 분석: `flutter analyze` → 새 오류 없음, 위 기존 경고 10개 + 기존 테스트 미사용 변수 경고 1개.
+- 최종 검사 완료: 변경 Dart 파일 진단 0개, 폐기된 `shape-insert` 잔여 참조 0건, `git diff --check` 통과.
+- 기능 커밋: `1f3137c` (`도형 종류 선택 시 즉시 삽입 모드 활성화`).
+- 인수인계 문서는 위 기능 커밋 해시 반영 후 별도 커밋.
+- 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
+
 ### 완료 (2026-07-23): 선·도형 삽입 모드 십자 커서 유지
 - 사용자 요청: 선뿐 아니라 사각형·둥근 사각형·타원 도구 선택 후에도 개체 생성 또는 `Esc` 취소 전까지 셀 위 십자 커서를 확실히 유지한다.
 - 원인 확인: geometry 삽입 모드는 유지되지만 pointer hover/move의 이미지·셀 hover 경로가 `_mouseCursor`를 `basic`으로 덮어썼다.
