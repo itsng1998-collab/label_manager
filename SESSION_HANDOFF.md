@@ -21,6 +21,7 @@
   - `git diff --check`: 성공.
   - 편집 파일 VS Code diagnostics: 오류 없음.
 - stage/commit 대상: `SESSION_HANDOFF.md`, object panel/canvas/painter 3개, object controller/barcode dialog/typed visibility test 3개.
+- 기능 커밋: `023e6b0` (`이미지 바코드 표시와 개체 패널 조정 개선`).
 - 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
 
 ### 완료 (2026-07-23): 개체 패널 UX·선택·한글화 보완
