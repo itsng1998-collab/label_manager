@@ -1,3 +1,15 @@
+### 완료 (2026-07-23): 클린 빌드 후 Git 변경 정리
+- 수정 예정 파일/목적: `.gitignore`에 머신별 SDK 경로 파일 `third_party/mssql_connection/android/local.properties`를 추가하고, 파일은 로컬에 유지한 채 Git 인덱스에서만 제거한다.
+- 편집 완료: `.gitignore`에 위 exact 경로를 추가했고 `git rm --cached` 후에도 로컬 파일 존재를 확인했다. `git check-ignore -v --no-index`가 새 규칙을 반환한다.
+- 확인 결과: root/벤더 `pubspec.lock` 변경은 현재 dependency constraint에서 `flutter pub get --offline`으로 재현되는 정상 resolution 결과다. 자동 상품 변경 소스 후속 수정은 별도 focused test/analyze로 검증한 뒤 커밋한다.
+- 검증 결과: `flutter test test/automatic_item_update_page_test.dart test/automatic_item_update_draft_test.dart` 19건 전체 통과.
+- 검증 실행 예정: `flutter analyze lib/home_page_manager.dart lib/models/automatic_item_update_draft.dart lib/page_home/automatic_item_update_page.dart test/automatic_item_update_page_test.dart`.
+- 1차 analyze 결과: 자동 상품 변경 기능 내부 dead null fallback 2건, 미사용 local/helper 2건으로 실패했다. `columnValue()`의 non-null 계약에 맞춰 fallback을 제거하고 미사용 선언 2개를 삭제했으며 같은 명령을 재실행한다.
+- 2차 analyze 결과: 동일 touched Dart 파일 4개 `No issues found`. dead-code 정리 후 `flutter test test/automatic_item_update_page_test.dart test/automatic_item_update_draft_test.dart`를 최종 재실행한다.
+- 최종 검증: 위 focused test 19건 전체 통과, `git diff --check` 확인 후 커밋한다.
+- stage/commit 대상: `.gitignore`, `SESSION_HANDOFF.md`, 자동 상품 변경 후속 소스/테스트 4개, root/벤더 `pubspec.lock`, 벤더 `android/local.properties` 추적 삭제. 빌드 산출물은 ignore 상태를 유지한다.
+- 사용자 변경 `lib/core/app.dart`의 `isShowLogo = false`는 이번 자동 상품 변경 후속 커밋과 분리해 유지한다.
+
 ### 완료 (2026-07-23): object panel explicit close focus contract 최종 보정
 - host narrow open button은 overlay를 열 때 더 이상 자기 자신으로 focus를 선점하지 않는다. overlay open 전의 실제 focus를 유지한 채 package transient 정리와 layer list focus만 실행하고, explicit close 때만 host open trigger를 우선 복원한다.
 - `FortuneObjectPanelOpenRequest`에 app-neutral `closeFocusTarget` metadata를 추가했다. canvas-owned generic open/edit request는 `canvas`를 전달하고, host button/open-default 경로는 기존 `previousFocus`를 유지한다. 이를 통해 좁은 화면 overlay explicit close가 open trigger 우선, 그 외 canvas-owned trigger는 canvas 우선 복원 규칙을 따르도록 맞췄다.

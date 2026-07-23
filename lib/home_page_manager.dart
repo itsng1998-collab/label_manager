@@ -747,7 +747,7 @@ class _HomePageManagerState extends State<HomePageManager> {
         _itemDraftLoadedBrandId == brandId &&
         _itemDraftLoadedLabelSizeId == labelSizeId &&
         _itemDraftLoadedMarketId == currentMarketId;
-    if (!sourceReady || controller == null || currentMarketId == null || labelSizeId == null) {
+    if (!sourceReady) {
       return const [];
     }
     final columns = TColumn.datas ?? const <TColumn>[];
@@ -4701,7 +4701,7 @@ class _HomePageManagerState extends State<HomePageManager> {
     }
     return {
       for (final column in TColumn.datas ?? const <TColumn>[])
-        column.columnId: controller.columnValue(row, column.columnId) ?? '',
+        column.columnId: controller.columnValue(row, column.columnId),
     };
   }
 

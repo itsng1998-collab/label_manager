@@ -254,8 +254,6 @@ class _AutoItemUpdatePageState extends State<AutoItemUpdatePage> {
   }
 
   Widget _buildSourcePane() {
-    final canStage =
-        widget.sourceReady && !widget.commandBusy && _selectedSourceItemIds.isNotEmpty;
     final controller = widget.draftController;
     final canApply =
         widget.sourceReady && !widget.commandBusy && controller?.hasStagedRows == true;
@@ -499,7 +497,7 @@ class _AutoItemUpdatePageState extends State<AutoItemUpdatePage> {
           setState(() {});
         }
       },
-      builder: (context, _, __) => DecoratedBox(
+      builder: (context, _, _) => DecoratedBox(
         decoration: BoxDecoration(
           border: Border.all(
             color: _targetDropActive ? const Color(0xFF007ACC) : Colors.transparent,
@@ -704,7 +702,7 @@ class _AutoItemUpdatePageState extends State<AutoItemUpdatePage> {
         text: (row) => formatAutoItemUpdateDate(row.applyDate),
         initialWidth: 120,
         minWidth: 110,
-        isTextEditable: (_, __) => widget.canEdit && !widget.commandBusy,
+        isTextEditable: (_, _) => widget.canEdit && !widget.commandBusy,
         onTextCommitted: _commitApplyDate,
       ),
       for (final column in widget.columns)
@@ -715,7 +713,7 @@ class _AutoItemUpdatePageState extends State<AutoItemUpdatePage> {
               widget.draftController?.columnValue(row, column.columnId) ?? '',
           initialWidth: 130,
           minWidth: 100,
-          isTextEditable: (_, __) => widget.canEdit && !widget.commandBusy,
+          isTextEditable: (_, _) => widget.canEdit && !widget.commandBusy,
           onTextCommitted: (row, _, value) => _commitCellValue(
             row,
             column.columnId,
@@ -836,8 +834,6 @@ class _AutoItemUpdateSourceDragPayload {
   final Set<int> itemIds;
   final int anchorIndex;
 }
-
-String _sourceItemNameText(AutoItemUpdateSourceSeed row) => row.itemName;
 
 String _rowNumberText(AutoItemUpdateDraftRow row) =>
     '${row.originalIndex + 1}';

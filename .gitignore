@@ -46,6 +46,7 @@ migrate_working_dir/
 third_party/mssql_connection/**/Flutter/Generated.xcconfig
 third_party/mssql_connection/**/Flutter/flutter_export_environment.sh
 third_party/mssql_connection/**/Flutter/ephemeral/
+third_party/mssql_connection/android/local.properties
 third_party/native/*
 !third_party/native/*.zip
 !third_party/native/README.md

@@ -6,7 +6,6 @@ import 'package:label_manager/models/automatic_item_update_draft.dart';
 import 'package:label_manager/models/barcode.dart';
 import 'package:label_manager/models/column.dart';
 import 'package:label_manager/models/column_type.dart';
-import 'package:label_manager/models/item_manager_draft.dart';
 import 'package:label_manager/models/update_item.dart';
 import 'package:label_manager/page_home/automatic_item_update_page.dart';
 import 'package:label_manager/widgets/swipe_action_table.dart';
