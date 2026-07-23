@@ -379,7 +379,14 @@ void main() {
       rowCount: 1,
       columnCount: 1,
       lines: const [
-        FortuneLine(id: 'line', x1: 2, y1: 20, x2: 18, y2: 20),
+        FortuneLine(
+          id: 'line',
+          x1: 2,
+          y1: 20,
+          x2: 18,
+          y2: 20,
+          strokeWidthMm: 0.5,
+        ),
       ],
       borderInfo: const [
         FortuneBorderInfo(

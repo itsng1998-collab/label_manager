@@ -44983,8 +44983,7 @@ void fortuneDrawLineObject(
 }) {
   var start = offset + Offset(line.x1 * scale, line.y1 * scale);
   var end = offset + Offset(line.x2 * scale, line.y2 * scale);
-  final strokeWidth =
-      fortuneMillimetersToLogicalPixels(line.strokeWidthMm) * scale;
+  final strokeWidth = fortuneMillimetersToLogicalPixels(line.strokeWidthMm);
   (start, end) = fortuneAlignAxisAlignedObjectLine(start, end);
   if (!_rectsIntersectInclusively(
     Rect.fromPoints(start, end).inflate(strokeWidth / 2),
@@ -45029,8 +45028,7 @@ void fortuneDrawShapeObject(
     shape.width * scale,
     shape.height * scale,
   );
-  final strokeWidth =
-      fortuneMillimetersToLogicalPixels(shape.strokeWidthMm) * scale;
+  final strokeWidth = fortuneMillimetersToLogicalPixels(shape.strokeWidthMm);
   final radians = shape.rotationDegrees * math.pi / 180;
   final cosine = math.cos(radians).abs();
   final sine = math.sin(radians).abs();

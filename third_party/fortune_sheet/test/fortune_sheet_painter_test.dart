@@ -64961,4 +64961,98 @@ void main() {
     }
     expect(lineColumns, {115});
   });
+
+  test('one pixel cell line and rounded shape use the same raster width', () async {
+    final workbook = FortuneWorkbook(
+      settings: const FortuneSettings(
+        showToolbar: false,
+        showFormulaBar: false,
+      ),
+      sheets: [
+        FortuneSheet(
+          id: 's1',
+          name: 'Sheet1',
+          showGridLines: false,
+          zoomRatio: 2,
+          defaultColWidth: 40,
+          defaultRowHeight: 40,
+          cells: {FortuneCellCoord(0, 0): FortuneCell(value: '')},
+          borderInfo: const [
+            FortuneBorderInfo(
+              rangeType: 'range',
+              borderType: fortuneToolbarBorderAllCommand,
+              color: Color(0xff000000),
+              style: 1,
+              strokeWidth: 1,
+              ranges: [
+                FortuneRange(
+                  rowStart: 0,
+                  rowEnd: 0,
+                  columnStart: 0,
+                  columnEnd: 0,
+                ),
+              ],
+            ),
+          ],
+          lines: const [
+            FortuneLine(
+              id: 'line_1',
+              x1: 60,
+              y1: 5,
+              x2: 60,
+              y2: 35,
+            ),
+          ],
+          shapes: [
+            FortuneShape(
+              id: 'rounded_1',
+              kind: FortuneShapeKind.roundedRectangle,
+              left: 90,
+              top: 5,
+              width: 30,
+              height: 30,
+              cornerRadiusMm: fortuneLogicalPixelsToMillimeters(5),
+            ),
+          ],
+        ),
+      ],
+    );
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+    FortuneSheetPainter(
+      workbook: workbook,
+      selection: const FortuneSelection(row: 10, column: 10),
+      scrollOffset: Offset.zero,
+      sheetTabScrollOffset: 0,
+      textDirection: TextDirection.ltr,
+    ).paint(canvas, const Size(320, 120));
+    final image = await recorder.endRecording().toImage(320, 120);
+    final bytes = (await image.toByteData(format: ui.ImageByteFormat.rawRgba))!;
+
+    Set<int> blackColumns(int left, int right) {
+      final columns = <int>{};
+      for (var y = 45; y < 55; y += 1) {
+        for (var x = left; x < right; x += 1) {
+          final offset = (y * image.width + x) * 4;
+          if (bytes.getUint8(offset) < 50 &&
+              bytes.getUint8(offset + 1) < 50 &&
+              bytes.getUint8(offset + 2) < 50) {
+            columns.add(x);
+          }
+        }
+      }
+      return columns;
+    }
+
+    final cellBorderColumns = blackColumns(122, 130);
+    final lineColumns = blackColumns(162, 170);
+    final roundedShapeColumns = blackColumns(222, 230);
+    expect(
+      cellBorderColumns,
+      isNotEmpty,
+      reason: 'cell=$cellBorderColumns line=$lineColumns shape=$roundedShapeColumns',
+    );
+    expect(lineColumns.length, cellBorderColumns.length);
+    expect(roundedShapeColumns.length, cellBorderColumns.length);
+  });
 }
