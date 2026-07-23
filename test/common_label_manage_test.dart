@@ -154,7 +154,7 @@ void main() {
 
     expect(options, hasLength(1));
     expect(options.single.value, '#ITEM_IMAGE');
-    expect(options.single.label, '품목 이미지 (#ITEM_IMAGE) · 이미지');
+    expect(options.single.label, '품목 이미지 (#ITEM_IMAGE)');
   });
 
   test('required keywords include only missing-keyword checked columns', () {

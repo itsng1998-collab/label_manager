@@ -146,7 +146,7 @@ List<FortuneObjectConnectionOption> commonLabelImageObjectOptionsFromColumns(
     result.add(
       FortuneObjectConnectionOption(
         value: objectId,
-        label: '$name ($objectId) · 이미지',
+        label: '$name ($objectId)',
       ),
     );
   }
