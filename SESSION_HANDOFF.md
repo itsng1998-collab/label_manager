@@ -1,3 +1,22 @@
+### 완료 (2026-07-23): 이미지·바코드 최소 크기 및 1px 선 두께 보정
+- 사용자 요청: 이미지·바코드 개체를 핸들로 더 작게 조정하지 못하는 제한을 확인·수정하고, 셀 테두리 `1`과 선 개체 `1px`의 화면 두께를 맞춘다.
+- 원인 확인: 이미지와 바코드가 공유하는 `onImageResize`에 최소 너비 `90`, 높이 `60` logical px가 초기 코드부터 하드코딩되어 있었다. 선 개체 추가 전 커밋에도 동일 제한이 있어 선 추가로 생긴 회귀는 아니다.
+- 구현 진행: 공용 `onImageResize`와 실제 회전 대응 canvas 핸들 resize의 최소 크기를 모두 모델 기준 `1 logical px`로 낮췄다. object solid stroke는 셀 테두리와 같은 비안티앨리어싱 raster 방식으로 변경했다. 모델/JSON/출력의 `strokeWidthMm` 저장 계약은 유지한다.
+- 최초 focused 결과: 1px 선 raster 테스트 통과. canvas 테스트가 별도 `90/60` 제한을 찾아 실패하여 실제 핸들 경로에도 동일 수정 후 재검증 중.
+- `third_party/fortune_sheet/lib/src/fortune_sheet_model.dart`: 공용 `onImageResize` 최소 크기 `1×1 logical px` 적용 완료.
+- `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`: 실제 회전 대응 이미지·바코드 핸들 resize 최소 크기 `1×1 logical px` 적용 완료.
+- `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`: object stroke paint의 anti-alias를 셀 테두리와 동일하게 해제 완료.
+- 테스트 추가·수정: canvas의 바코드 metadata 포함 1px 축소/좌상단 경계 확대, public API 1px clamp, painter 단일 raster 열 검증.
+- focused 검증 완료: canvas resize 2개, public API 1개, painter 1개 모두 통과. 변경 파일 VS Code 진단 0개.
+- 대형 canvas/painter 테스트 파일은 저장소 규칙에 따라 전체 포맷을 실행하지 않고 작은 변경 범위 스타일을 유지한다.
+- 확대 검증 완료: package `flutter test test/fortune_object_controller_test.dart` → 45개 통과, 기존 object clip painter 테스트 통과, root `flutter test test/label_sheet_toolbar_test.dart` → 140개 통과.
+- package 분석: `cd third_party/fortune_sheet; flutter analyze` → 새 오류 없음, 기존 `fortune_sheet_canvas.dart` 미사용 경고 10개.
+- root 분석: `flutter analyze` → 새 오류 없음, 위 기존 경고 10개 + 기존 테스트 미사용 변수 경고 1개.
+- 최종 진단 및 형식 검사: 변경 파일 VS Code 오류 0개, `git diff --check` 통과, 대형 파일 포맷 churn 없음.
+- 기능 커밋: `b5a38b7` (`개체 크기 조정과 1픽셀 선 두께 보정`).
+- 인수인계 문서는 위 기능 커밋 해시 반영 후 별도 커밋.
+- 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
+
 ### 완료 (2026-07-23): 개체 테두리 폭 UI 단위를 시트와 통일
 - 사용자 요청: 분석 결과에 따라 라벨 시트의 모든 개체에서 테두리 두께 입력 단위를 시트와 동일하게 맞춘다.
 - `third_party/fortune_sheet/lib/src/fortune_object_layer_panel.dart`: 선·사각형·둥근 사각형·타원의 공통 `strokeWidth` UI를 logical px로 표시·입력하고 적용 시 mm로 변환하도록 완료. 모델/저장/렌더링/직접 출력의 `strokeWidthMm`는 유지한다. 이미지·바코드는 테두리 폭 속성이 없어 대상이 아니다.
