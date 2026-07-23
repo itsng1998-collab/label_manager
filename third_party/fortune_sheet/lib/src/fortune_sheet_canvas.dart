@@ -178,7 +178,7 @@ typedef FortuneImagePicker = Future<FortuneImagePickResult?> Function();
 typedef FortuneBarcodeRenderer =
     Future<FortuneBarcodeRenderResult?> Function(FortuneBarcodeRequest request);
 
-const String _fortuneUnlinkedObjectValue = '__fortune_unlinked__';
+const String _fortuneUnlinkedObjectValue = '__unlinked__';
 const String _fortuneLinkedImagePlaceholder =
     'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=';
 
