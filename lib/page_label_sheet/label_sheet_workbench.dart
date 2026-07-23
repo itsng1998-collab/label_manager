@@ -2178,7 +2178,6 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
   bool _objectOverlayOpen = false;
   bool _objectDockEligible = true;
   double _objectPanelWidth = 300;
-  double _maximumDockPanelWidth = 420;
   String? _objectPropertyFocusField;
   String? _objectPropertyFocusSheetId;
   FortuneSheetObjectKey? _objectPropertyFocusObjectKey;
@@ -4136,7 +4135,6 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
               420.0,
               constraints.maxWidth - 480 - 8,
             );
-            _maximumDockPanelWidth = maximumDockPanelWidth;
             final objectPanelPresentation = _objectDockEligible
                 ? _userWantsObjectDockOpen
                       ? FortuneObjectPanelPresentation.dock
@@ -4223,6 +4221,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
               barcodeObjectOptions: widget.barcodeObjectOptions,
               imageObjectIds: widget.imageObjectIds,
               barcodeObjectIds: widget.barcodeObjectIds,
+              headerHeight: sheetSettings.toolbarHeight,
               onClose: _closeObjectPanel,
               presentation: objectPanelPresentation,
               layerFocusGeneration: _objectLayerFocusGeneration,

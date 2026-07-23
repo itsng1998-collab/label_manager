@@ -1,3 +1,15 @@
+### 완료 (2026-07-23): 개체 속성 패널 헤더와 시트 툴바 높이 통일
+- 수정 예정 파일/목적: `FortuneObjectLayerPanel`에 configurable `headerHeight`를 추가하고 `LabelSheetWorkbench`가 현재 `sheetSettings.toolbarHeight`를 전달한다. root toolbar widget test가 실제 헤더 렌더 높이를 검증한다.
+- 편집 완료: 패널 기본 헤더 높이를 package 기본 툴바와 같은 41px로 변경하고, Workbench에서는 실제 툴바 설정값을 전달한다. 헤더에 `fortune-object-panel-header` key를 추가했다.
+- 테스트 추가: custom toolbar height 47px에서 개체 패널 헤더 렌더 높이도 47px인지 검증한다.
+- focused 검증: `flutter test test/label_sheet_toolbar_test.dart --plain-name "object panel header matches sheet toolbar height"` 포맷 전/후 모두 통과.
+- package 분석: `third_party/fortune_sheet`의 패널 파일 `No issues found`.
+- root 1차 분석: Workbench에 기존 선언·대입만 남은 `_maximumDockPanelWidth` dead field 경고 1건으로 실패했다. 동작에서 읽지 않는 필드와 대입을 제거했으며 같은 분석을 재실행한다.
+- root 2차 분석: Workbench와 toolbar test `No issues found`.
+- 최종 검증: `fortune_object_controller_test.dart` 42건, `label_sheet_toolbar_test.dart` 140건 전체 통과. `git diff --check` 확인 후 커밋한다.
+- stage/commit 대상: `third_party/fortune_sheet/lib/src/fortune_object_layer_panel.dart`, `lib/page_label_sheet/label_sheet_workbench.dart`, `test/label_sheet_toolbar_test.dart`, `SESSION_HANDOFF.md`.
+- 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
+
 ### 완료 (2026-07-23): 운영 DB 자동품목갱신 조회 복구
 - 사용자 제출 로그 `.tmp/log/app_2026-07-23_13-41-04.log`에서 `UpdateItemDAO.selectPendingByLabelSizeId`가 운영 DB에 없는 `BM_UPDATE_ITEM.RICH_UPDATE_ITEM_ORDER`를 참조해 SQL Server `42S22/native 207`로 실패하는 것을 확인했다. 같은 연결의 `SELECT 1`은 성공해 네트워크 오류가 아니다.
 - 레거시 `.tmp/LabelManager/LabelManagerLib/UpdateItem.cpp`와 `UpdateItemOfMarket.cpp`는 해당 order 컬럼을 읽거나 쓰지 않는다. 신규 ID 조회만 `RICH_UPDATE_ITEM_ID`를 사용한다.

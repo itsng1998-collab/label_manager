@@ -3119,6 +3119,37 @@ void main() {
     expect(tester.widget<EditableText>(zoomInput).controller.text, '110');
   });
 
+  testWidgets('object panel header matches sheet toolbar height', (
+    tester,
+  ) async {
+    const toolbarHeight = 47.0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 1000,
+            height: 450,
+            child: LabelSheetWorkbench(
+              initialWorkbook: FortuneWorkbook(
+                settings: const FortuneSettings(toolbarHeight: toolbarHeight),
+                sheets: [FortuneSheet(id: 's1', name: 'Label')],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    expect(
+      tester.getSize(
+        find.byKey(const ValueKey('fortune-object-panel-header')),
+      ).height,
+      toolbarHeight,
+    );
+  });
+
   testWidgets('narrow object overlay caps at 300 within safe insets', (
     tester,
   ) async {

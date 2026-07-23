@@ -54,6 +54,7 @@ class FortuneObjectLayerPanel extends StatefulWidget {
     this.barcodeObjectOptions = const <FortuneObjectConnectionOption>[],
     this.imageObjectIds = const <String>[],
     this.barcodeObjectIds = const <String>[],
+    this.headerHeight = 41,
     this.onClose,
     this.presentation = FortuneObjectPanelPresentation.hidden,
     this.layerFocusGeneration = 0,
@@ -68,6 +69,7 @@ class FortuneObjectLayerPanel extends StatefulWidget {
   final List<FortuneObjectConnectionOption> barcodeObjectOptions;
   final List<String> imageObjectIds;
   final List<String> barcodeObjectIds;
+  final double headerHeight;
   final VoidCallback? onClose;
   final FortuneObjectPanelPresentation presentation;
   final int layerFocusGeneration;
@@ -182,7 +184,8 @@ class _FortuneObjectLayerPanelState extends State<FortuneObjectLayerPanel> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               SizedBox(
-                height: 44,
+                key: const ValueKey('fortune-object-panel-header'),
+                height: widget.headerHeight,
                 child: Row(
                   children: [
                     const SizedBox(width: 14),
