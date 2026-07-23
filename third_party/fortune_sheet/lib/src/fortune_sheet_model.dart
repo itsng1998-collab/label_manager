@@ -10944,8 +10944,8 @@ Map<String, Object?>? onImageResize(
   num height = parsedHeight;
   final dx = pageX - startX;
   final dy = pageY - startY;
-  final minHeight = 60 * zoomRatio;
-  final minWidth = 1.5 * 60 * zoomRatio;
+  final minHeight = 1 * zoomRatio;
+  final minWidth = 1 * zoomRatio;
   if (const {'lm', 'lt', 'lb'}.contains(side)) {
     if (width - dx < minWidth) {
       left += width - minWidth;

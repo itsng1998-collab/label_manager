@@ -13501,6 +13501,26 @@ void main() {
         'backgroundSize': '160px 110px',
       },
     );
+    final smallResizeStart = onImageResizeStart(
+      pageX: 100,
+      pageY: 100,
+      resizingSide: 'rb',
+      position: const {'left': 10, 'top': 12, 'width': 20, 'height': 12},
+    );
+    expect(
+      onImageResize(
+        smallResizeStart?['globalCacheImage'] as Map<String, Object?>,
+        pageX: 50,
+        pageY: 50,
+      ),
+      {
+        'left': 10,
+        'top': 12,
+        'width': 1.0,
+        'height': 1.0,
+        'backgroundSize': '1px 1px',
+      },
+    );
     final leftImageResizeStart = onImageResizeStart(
       pageX: 100,
       pageY: 100,
@@ -13518,7 +13538,7 @@ void main() {
         'top': 12,
         'width': 230.0,
         'height': 60,
-        'backgroundSize': '230.0px 60px',
+        'backgroundSize': '230.0px 60.0px',
       },
     );
     final topImageResizeStart = onImageResizeStart(

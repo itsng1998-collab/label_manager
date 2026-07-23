@@ -115751,7 +115751,7 @@ void main() {
     expect(image.height, 1080);
   });
 
-  testWidgets('small image resize clamps to upstream minimum width', (
+  testWidgets('image and barcode resize clamp to one logical pixel', (
     tester,
   ) async {
     await prepareFortuneSheetView(tester, const Size(900, 600), devicePixelRatio: 1);
@@ -115769,6 +115769,7 @@ void main() {
               top: 0,
               width: 20,
               height: 12,
+              extraFields: const {'fortuneBarcode': true},
             ),
           ],
         ),
@@ -115798,10 +115799,10 @@ void main() {
     expect(painter().activeImageId, 'img1');
 
     final gesture = await tester.startGesture(
-      topLeft + const Offset(imageLeft + 21, imageTop + 6),
+      topLeft + const Offset(imageLeft + 21, imageTop + 13),
       kind: PointerDeviceKind.mouse,
     );
-    await gesture.moveBy(const Offset(-30, 0));
+    await gesture.moveBy(const Offset(-30, -30));
     await tester.pump();
     await gesture.up();
     await tester.pump();
@@ -115809,11 +115810,11 @@ void main() {
     final image = painter().workbook.activeSheet.images.single;
     expect(image.left, 0);
     expect(image.top, 0);
-    expect(image.width, 90);
-    expect(image.height, 12);
+    expect(image.width, 1);
+    expect(image.height, 1);
   });
 
-  testWidgets('left top image resize clamps to upstream minimum size', (
+  testWidgets('left top image resize keeps expanded dimensions', (
     tester,
   ) async {
     await prepareFortuneSheetView(tester, const Size(900, 600), devicePixelRatio: 1);
@@ -115869,10 +115870,10 @@ void main() {
     await tester.pump();
 
     final image = painter().workbook.activeSheet.images.single;
-    expect(image.left, -60);
+    expect(image.left, closeTo(0, 0.000001));
     expect(image.top, 0);
-    expect(image.width, 90);
-    expect(image.height, 60);
+    expect(image.width, closeTo(30, 0.000001));
+    expect(image.height, closeTo(22, 0.000001));
   });
 
   testWidgets('active image drags to a new position and supports undo', (

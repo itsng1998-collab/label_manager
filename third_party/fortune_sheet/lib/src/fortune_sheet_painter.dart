@@ -45087,7 +45087,8 @@ void fortuneDrawObjectStroke(
     ..strokeWidth = strokeWidth
     ..strokeCap = StrokeCap.butt
     ..strokeJoin = StrokeJoin.miter
-    ..strokeMiterLimit = 4;
+    ..strokeMiterLimit = 4
+    ..isAntiAlias = false;
   if (style == FortuneStrokeStyle.solid) {
     canvas.drawPath(path, paint);
     return;
@@ -45107,7 +45108,9 @@ void fortuneDrawObjectStroke(
             canvas.drawCircle(
               tangent.position,
               strokeWidth / 2,
-              Paint()..color = color,
+              Paint()
+                ..color = color
+                ..isAntiAlias = false,
             );
           }
         case FortuneObjectStrokeDash(:final start, :final end):

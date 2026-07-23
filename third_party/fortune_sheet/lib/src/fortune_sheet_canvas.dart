@@ -28886,8 +28886,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     final zoomRatio = _workbook.activeSheet.zoomRatio <= 0
         ? 1.0
         : _workbook.activeSheet.zoomRatio;
-    const minWidth = 90.0;
-    const minHeight = 60.0;
+    const minWidth = 1.0;
+    const minHeight = 1.0;
     final initialCenter = Offset(
       initial.left + initial.width / 2,
       initial.top + initial.height / 2,

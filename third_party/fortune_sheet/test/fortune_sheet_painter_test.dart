@@ -64874,4 +64874,35 @@ void main() {
       greaterThan(20),
     );
   });
+
+  test('one pixel object line raster matches cell border thickness', () async {
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+    fortuneDrawLineObject(
+      canvas,
+      FortuneLine(
+        id: 'one-pixel-line',
+        x1: 10,
+        y1: 4,
+        x2: 10,
+        y2: 16,
+        strokeWidthMm: fortuneLogicalPixelsToMillimeters(1),
+        strokeColor: '#FF0000',
+      ),
+      const Rect.fromLTWH(0, 0, 20, 20),
+    );
+    final image = await recorder.endRecording().toImage(20, 20);
+    final bytes = (await image.toByteData(format: ui.ImageByteFormat.rawRgba))!;
+
+    final paintedColumns = <int>{};
+    for (var y = 0; y < image.height; y += 1) {
+      for (var x = 0; x < image.width; x += 1) {
+        final offset = (y * image.width + x) * 4;
+        if (bytes.getUint8(offset + 3) > 0) {
+          paintedColumns.add(x);
+        }
+      }
+    }
+    expect(paintedColumns, hasLength(1));
+  });
 }
