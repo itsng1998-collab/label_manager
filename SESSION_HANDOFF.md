@@ -1,3 +1,19 @@
+### 완료 (2026-07-23): 이미지 연결항목 초기 표시 통일
+- 사용자 요청: 이미지 삽입 다이얼로그의 연결항목 초기값과 dropdown의 미연결 문구를 바코드 삽입 다이얼로그와 같은 `연결 안함`으로 통일한다.
+- 원인 확인: structured 이미지 다이얼로그는 내부 sentinel `__unlinked__`를 `EditableText` controller로 직접 표시했고, 메뉴 label helper는 `연결 안 함`을 사용했다. 바코드는 label projection을 사용해 sentinel이 노출되지 않았다.
+- 구현 예정: structured 이미지 연결항목은 선택 전용 label을 painter에서 표시하고 editable overlay를 만들지 않는다. 공용/이미지/바코드 미연결 label을 `연결 안함`으로 통일한다.
+- `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`: structured 이미지 연결항목의 sentinel `EditableText` overlay를 제거하고 공용/이미지/바코드 미연결 label을 `연결 안함`으로 통일 완료.
+- `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`: structured 이미지 연결항목의 선택 label을 닫힌 dropdown에 직접 표시하도록 완료.
+- `third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart`: 초기값·메뉴 첫 항목 `연결 안함` 및 sentinel overlay 미생성 회귀 검증 추가.
+- focused 검증 완료: structured 이미지 삽입 1개, 이미지·바코드 다이얼로그 33개, 개체 패널 45개 모두 통과. 변경 파일 VS Code 진단 0개.
+- 확대 검증 완료: root `flutter test test/label_sheet_toolbar_test.dart` → 140개 통과.
+- package 분석: `cd third_party/fortune_sheet; flutter analyze` → 새 오류 없음, 기존 `fortune_sheet_canvas.dart` 미사용 경고 10개.
+- root 분석: `flutter analyze` → 새 오류 없음, 위 기존 경고 10개 + 기존 테스트 미사용 변수 경고 1개.
+- 최종 진단 및 형식 검사: 변경 파일 VS Code 오류 0개, `git diff --check` 통과.
+- 기능 커밋: `fff0e91` (`이미지 연결항목 초기 표시 통일`).
+- 인수인계 문서는 위 기능 커밋 해시 반영 후 별도 커밋.
+- 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
+
 ### 완료 (2026-07-23): 이미지·바코드 최소 크기 및 1px 선 두께 보정
 - 사용자 요청: 이미지·바코드 개체를 핸들로 더 작게 조정하지 못하는 제한을 확인·수정하고, 셀 테두리 `1`과 선 개체 `1px`의 화면 두께를 맞춘다.
 - 원인 확인: 이미지와 바코드가 공유하는 `onImageResize`에 최소 너비 `90`, 높이 `60` logical px가 초기 코드부터 하드코딩되어 있었다. 선 개체 추가 전 커밋에도 동일 제한이 있어 선 추가로 생긴 회귀는 아니다.
