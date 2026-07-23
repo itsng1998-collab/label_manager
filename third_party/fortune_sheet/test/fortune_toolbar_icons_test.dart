@@ -92,6 +92,25 @@ void main() {
     expect(active.b, lessThan(inactive.b));
   });
 
+  test('shape and object panel toolbar icons are two pixels smaller', () {
+    expect(
+      fortuneToolbarIconSizeFor(fortuneToolbarShapeCommand),
+      fortuneToolbarIconSize - 2,
+    );
+    expect(
+      fortuneToolbarIconSizeFor(fortuneToolbarObjectPanelCommand),
+      fortuneToolbarIconSize - 2,
+    );
+    expect(
+      fortuneToolbarIconSizeFor(fortuneToolbarLineCommand),
+      fortuneToolbarIconSize,
+    );
+  });
+
+  test('object panel icon contains two inner horizontal lines', () async {
+    expect(await _toolbarIconVerticalInkRuns('object-panel', x: 12), 4);
+  });
+
   test('upstream kebab-case toolbar icon aliases are supported', () {
     const aliases = {
       'condition-format': 'conditionFormat',
@@ -2779,6 +2798,30 @@ Future<ui.Rect> _toolbarIconBounds(String iconId) async {
     right + 1.0,
     bottom + 1.0,
   );
+}
+
+Future<int> _toolbarIconVerticalInkRuns(String iconId, {required int x}) async {
+  final recorder = ui.PictureRecorder();
+  final canvas = ui.Canvas(recorder);
+  FortuneToolbarIconPainter.draw(
+    canvas,
+    iconId,
+    ui.Rect.fromLTWH(0, 0, 24, 24),
+  );
+  final image = await recorder.endRecording().toImage(24, 24);
+  final data = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+  image.dispose();
+  final bytes = data!.buffer.asUint8List();
+  var runs = 0;
+  var previousHasInk = false;
+  for (var y = 0; y < 24; y += 1) {
+    final hasInk = bytes[(y * 24 + x) * 4 + 3] != 0;
+    if (hasInk && !previousHasInk) {
+      runs += 1;
+    }
+    previousHasInk = hasInk;
+  }
+  return runs;
 }
 
 Future<int> _imageSignature(ui.Image image) async {

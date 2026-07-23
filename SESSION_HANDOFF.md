@@ -1,3 +1,15 @@
+### 완료 (2026-07-23): 도형/개체 toolbar 아이콘 축소
+- 사용자 요청: 라벨 시트 toolbar의 도형 삽입/개체 버튼 아이콘을 각각 2px 줄이고, 개체 아이콘 내부 가로줄을 3개에서 2개로 변경한다.
+- 확인: 도형은 icon combo 분기, 개체는 일반 glyph 분기에서 각각 24x24 rect로 `FortuneToolbarIconPainter`를 호출한다. 개체 아이콘은 외곽 사각형과 y=9/13/17의 내부선 3개로 구성된다.
+- 편집 완료: `fortuneToolbarIconSizeFor`를 추가해 도형/개체 command만 중앙 기준 22x22, 나머지 아이콘은 기존 24x24를 유지한다. combo와 일반 glyph drawing 경로 모두 동일 기준을 사용한다.
+- 편집 완료: 개체 아이콘 내부선을 y=10/15의 두 줄로 변경했다.
+- 테스트 추가: 두 command가 기본 icon size보다 2px 작은지, 개체 아이콘 중심축 raster 잉크 구간이 `외곽 2 + 내부 2 = 4`인지 검증한다.
+- 검증 완료: 신규 icon size/raster 테스트 각각 통과.
+- 검증 완료: `cd third_party/fortune_sheet && flutter test test/fortune_toolbar_icons_test.dart` 전체 58개 통과.
+- 검증 완료: `flutter test test/label_sheet_toolbar_test.dart` root 라벨 시트 toolbar 통합 테스트 전체 141개 통과, 수정 Dart 파일 analyzer 오류 없음.
+- stage/commit 대상: `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`, `third_party/fortune_sheet/lib/src/fortune_toolbar_icons.dart`, `third_party/fortune_sheet/test/fortune_toolbar_icons_test.dart`, `SESSION_HANDOFF.md`.
+- 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
+
 ### 완료 (2026-07-23): 라벨 변경 시 editing lifecycle 중복 attach 수정
 - 사용자 재현: 라벨 변경 시 `Bad state: LabelSheetEditingLifecycleController is already attached.` 오류 화면 발생.
 - 로그 확인: `.tmp/log/app_2026-07-23_17-35-03.log`에서 새 `LabelSheetWorkbench.initState()`의 `_attach` 중 예외. 라벨 변경으로 key가 달라진 이전 workbench는 같은 build에서 `deactivate`되지만 `dispose`는 프레임 종료까지 지연된다.

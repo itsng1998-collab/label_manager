@@ -2646,6 +2646,14 @@ const double fortuneToolbarButtonHeight = 28.0;
 const double fortuneToolbarComboArrowAreaWidth = 14.0;
 const double fortuneToolbarComboArrowIconWidth = 10.0;
 const double fortuneToolbarComboArrowIconHeight = 24.0;
+const double fortuneToolbarIconSize = 24.0;
+const double fortuneToolbarReducedIconSize = 22.0;
+
+double fortuneToolbarIconSizeFor(String item) =>
+  item == fortuneToolbarShapeCommand ||
+    item == fortuneToolbarObjectPanelCommand
+  ? fortuneToolbarReducedIconSize
+  : fortuneToolbarIconSize;
 const double fortuneToolbarFormatComboAdvance = 86.0;
 const double fortuneToolbarFontComboAdvance = 134.0;
 const double fortuneToolbarFontSizeComboAdvance = 44.0;
@@ -63050,10 +63058,15 @@ class FortuneSheetPainter extends CustomPainter {
       if (useTextCombo) {
         _drawToolbarTextCombo(canvas, item, rect);
       } else if (useIconCombo) {
+        final iconSize = fortuneToolbarIconSizeFor(item);
         FortuneToolbarIconPainter.draw(
           canvas,
           item,
-          Rect.fromLTWH(rect.left + 2, rect.top + 2, 24, 24),
+          Rect.fromCenter(
+            center: Offset(rect.left + 14, rect.top + 14),
+            width: iconSize,
+            height: iconSize,
+          ),
           currency: settings.currency,
           accentColor: switch (item) {
             fortuneToolbarFontColorPopupKey => toolbarFontColorIndicator,
@@ -73119,10 +73132,11 @@ class FortuneSheetPainter extends CustomPainter {
   }
 
   void _drawToolbarGlyph(Canvas canvas, String item, Offset center) {
+    final iconSize = fortuneToolbarIconSizeFor(item);
     FortuneToolbarIconPainter.draw(
       canvas,
       item,
-      Rect.fromCenter(center: center, width: 24, height: 24),
+      Rect.fromCenter(center: center, width: iconSize, height: iconSize),
       currency: workbook.settings.currency,
     );
   }

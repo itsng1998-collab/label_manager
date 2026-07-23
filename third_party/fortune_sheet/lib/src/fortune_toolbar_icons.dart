@@ -332,9 +332,8 @@ class FortuneToolbarIconPainter {
         break;
       case 'object-panel':
         canvas.drawRect(const Rect.fromLTWH(4, 5, 16, 14), paint);
-        _line(canvas, paint, const Offset(8, 9), const Offset(17, 9));
-        _line(canvas, paint, const Offset(8, 13), const Offset(17, 13));
-        _line(canvas, paint, const Offset(8, 17), const Offset(17, 17));
+        _line(canvas, paint, const Offset(8, 10), const Offset(17, 10));
+        _line(canvas, paint, const Offset(8, 15), const Offset(17, 15));
         break;
       case 'rectangle':
         canvas.drawRect(const Rect.fromLTWH(4, 5, 16, 14), paint);
