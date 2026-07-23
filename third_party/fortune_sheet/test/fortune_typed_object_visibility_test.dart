@@ -5,6 +5,36 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:fortune_sheet/fortune_sheet.dart';
 
 void main() {
+  test('physical label clamps inserted object fully inside its bounds', () {
+    final sheet = FortuneSheet(
+      id: 's1',
+      name: 'Sheet1',
+      extraFields: const {
+        fortuneSheetGridClientWidthMmKey: 80,
+        fortuneSheetGridClientHeightMmKey: 60,
+      },
+    );
+    final labelSize = fortuneSheetGridClientLogicalSize(sheet)!;
+    final position = fortuneClampObjectInsertionPosition(
+      sheet,
+      anchor: const Offset(465, 211),
+      objectSize: const Size(120, 60),
+    );
+
+    expect(position.dx, closeTo(labelSize.width - 120, 0.001));
+    expect(position.dy, closeTo(labelSize.height - 60, 0.001));
+  });
+
+  test('regular sheet preserves selected cell insertion position', () {
+    final position = fortuneClampObjectInsertionPosition(
+      FortuneSheet(id: 's1', name: 'Sheet1'),
+      anchor: const Offset(465, 211),
+      objectSize: const Size(120, 60),
+    );
+
+    expect(position, const Offset(465, 211));
+  });
+
   test('mixed image barcode and line objects remain visible', () async {
     final workbook = FortuneWorkbook(
       settings: const FortuneSettings(

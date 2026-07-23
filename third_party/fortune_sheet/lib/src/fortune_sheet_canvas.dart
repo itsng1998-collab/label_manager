@@ -178,6 +178,22 @@ typedef FortuneImagePicker = Future<FortuneImagePickResult?> Function();
 typedef FortuneBarcodeRenderer =
     Future<FortuneBarcodeRenderResult?> Function(FortuneBarcodeRequest request);
 
+@visibleForTesting
+Offset fortuneClampObjectInsertionPosition(
+  FortuneSheet sheet, {
+  required Offset anchor,
+  required Size objectSize,
+}) {
+  final labelSize = fortuneSheetGridClientLogicalSize(sheet);
+  if (labelSize == null) {
+    return anchor;
+  }
+  return Offset(
+    anchor.dx.clamp(0, math.max(0, labelSize.width - objectSize.width)),
+    anchor.dy.clamp(0, math.max(0, labelSize.height - objectSize.height)),
+  );
+}
+
 const String _fortuneUnlinkedObjectValue = '__unlinked__';
 const String _fortuneLinkedImagePlaceholder =
     'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=';
@@ -24449,8 +24465,6 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       return;
     }
     final metrics = activeSheet.metrics(_workbook.settings);
-    final left = metrics.columnStart(anchor.column);
-    final top = metrics.rowStart(anchor.row);
     final src = picked == null
         ? _fortuneLinkedImagePlaceholder
         : _imageDataUri(picked);
@@ -24462,6 +24476,14 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     final imageHeight = usesMillimeters
         ? fortuneMillimetersToLogicalPixels(heightValue)
         : heightValue;
+    final insertionPosition = fortuneClampObjectInsertionPosition(
+      activeSheet,
+      anchor: Offset(
+        metrics.columnStart(anchor.column),
+        metrics.rowStart(anchor.row),
+      ),
+      objectSize: Size(imageWidth, imageHeight),
+    );
     final insertionPlan = fortuneReserveObjectZOrders(activeSheet, 1);
     final insertionSheet = insertionPlan.sheet;
     final extraFields = <String, Object?>{
@@ -24482,8 +24504,8 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         FortuneImage(
           id: imageId,
           src: src,
-          left: left,
-          top: top,
+          left: insertionPosition.dx,
+          top: insertionPosition.dy,
           width: imageWidth,
           height: imageHeight,
           extraFields: extraFields,
@@ -25639,13 +25661,21 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       }
       final metrics = insertionSheet.metrics(_workbook.settings);
       final imageId = _newImageId();
+      final insertionPosition = fortuneClampObjectInsertionPosition(
+        insertionSheet,
+        anchor: Offset(
+          metrics.columnStart(anchor.column),
+          metrics.rowStart(anchor.row),
+        ),
+        objectSize: Size(imageWidth, imageHeight),
+      );
       final images = List<FortuneImage>.from(insertionSheet.images)
         ..add(
           FortuneImage(
             id: imageId,
             src: src,
-            left: metrics.columnStart(anchor.column),
-            top: metrics.rowStart(anchor.row),
+            left: insertionPosition.dx,
+            top: insertionPosition.dy,
             width: imageWidth,
             height: imageHeight,
             extraFields: extraFields,

@@ -1,3 +1,18 @@
+### 완료 (2026-07-23): 이미지·바코드 삽입 좌표를 라벨 내부로 제한
+- 원인 확정: 현재 라벨은 `80×60mm`인데 신규 이미지/바코드는 선택 셀의 `columnStart/rowStart`를 그대로 사용한다. 첨부 속성의 `X=123.031mm`, `Y=55.827mm`처럼 선택 셀이 물리 라벨 밖이면 개체는 생성되어 목록에 나타나지만 canvas clip 밖이라 보이지 않는다. 선/도형은 시트 포인터 위치에 생성되어 차이가 난다.
+- 수정 예정: 물리 라벨에서는 개체 전체가 들어오도록 anchor를 `0..(labelSize-objectSize)`로 clamp하고, 일반 시트는 기존 좌표를 유지한다. 이미지/바코드 신규 삽입 두 경로에 같은 helper를 적용한다.
+- 편집 완료: `fortuneClampObjectInsertionPosition()`을 추가하고 이미지/바코드 신규 삽입의 선택 셀 anchor에 적용했다. 개체가 라벨보다 큰 축은 0에 배치한다.
+- focused 검증 완료: 물리 80×60mm 경계 clamp, 일반 시트 좌표 보존, mixed object 가시성 3건 성공.
+- 검증 예정: pure coordinate test, barcode/image 관련 package 회귀, root toolbar 회귀, package/root analyze, `git diff --check`.
+- 전체 검증 결과:
+  - package typed visibility/barcode dialog/object controller: 성공 80건.
+  - root `label_sheet_toolbar_test.dart`: 성공 140건.
+  - package/root `flutter analyze`: 새 오류 없음. 기존 canvas 미사용 경고 10건과 root test 미사용 지역변수 1건 때문에 exit 1(범위 외, 수정하지 않음).
+  - `git diff --check`: 성공.
+  - 편집 파일 VS Code diagnostics: 오류 없음.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `fortune_sheet_canvas.dart`, `fortune_typed_object_visibility_test.dart`.
+- 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
+
 ### 완료 (2026-07-23): 이미지·바코드 가시성 및 개체 패널 보정
 - 사용자 요청: 삽입 이미지/바코드 가시성 복구, 바코드 신규 기본 크기 복원, 위/아래 splitter 1:1 drag, 이미지 회전/파일 교체 사이 5px 간격.
 - 원인/수정:
