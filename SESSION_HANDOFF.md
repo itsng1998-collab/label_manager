@@ -9,6 +9,7 @@
 - 검증 완료: object panel 회귀 테스트 2개(`narrow object overlay caps...`, `narrow-start workbench preserves...`) 통과(2/2).
 - 검증 완료: `flutter test test/label_sheet_toolbar_test.dart` 전체 140개 통과, 수정 Dart 파일 analyzer 오류 없음.
 - stage/commit 대상: `lib/page_label_sheet/label_sheet_workbench.dart`, `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`, `test/label_sheet_toolbar_test.dart`, `SESSION_HANDOFF.md`.
+- 로컬 커밋: `9732970` (`개체 패널 표시 오류와 활성 상태 수정`).
 - 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
 
 ### 완료 (2026-07-23): 셀 테두리와 비선택 개체 raster 직접 비교
