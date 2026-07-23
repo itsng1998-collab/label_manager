@@ -10662,6 +10662,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     if (_updateLineInsertion(event.localPosition)) {
       return;
     }
+    if (_keepGeometryInsertionCursor(event.localPosition)) {
+      return;
+    }
     if (_editorDragSelectionPointer != null ||
         (_editingCoord != null &&
             _editingRect()?.contains(event.localPosition) == true)) {
@@ -10753,6 +10756,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       return;
     }
     if (_updateContextMenuHover(event.localPosition)) {
+      return;
+    }
+    if (_keepGeometryInsertionCursor(event.localPosition)) {
       return;
     }
     _updateImageResizeCursor(event.localPosition);
@@ -26168,6 +26174,15 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       return null;
     }
     return _lineInsertionLogicalPositionUnrestricted(local, settings);
+  }
+
+  bool _keepGeometryInsertionCursor(Offset local) {
+    if (!_lineInsertionMode ||
+        _lineInsertionLogicalPosition(local, _workbook.settings) == null) {
+      return false;
+    }
+    _setMouseCursor(SystemMouseCursors.precise);
+    return true;
   }
 
   Offset _lineInsertionLogicalPositionUnrestricted(

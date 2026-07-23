@@ -23,6 +23,94 @@ Offset _toolbarItemCenter(
 }
 
 void main() {
+  testWidgets('line and shape tools keep precise cursor until used or escaped', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    final workbook = FortuneWorkbook(
+      settings: const FortuneSettings(
+        toolbarItems: [
+          fortuneToolbarLineCommand,
+          fortuneToolbarRectangleCommand,
+          fortuneToolbarRoundedRectangleCommand,
+          fortuneToolbarEllipseCommand,
+        ],
+      ),
+      sheets: [FortuneSheet(id: 's1', name: 'Sheet1')],
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SizedBox(
+          width: 900,
+          height: 700,
+          child: FortuneSheetCanvas(workbook: workbook),
+        ),
+      ),
+    );
+
+    MouseCursor cursor() => tester
+        .widget<MouseRegion>(
+          find.descendant(
+            of: find.byType(FortuneSheetCanvas),
+            matching: find.byType(MouseRegion),
+          ).first,
+        )
+        .cursor;
+    final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await mouse.addPointer(location: topLeft + const Offset(120, 120));
+
+    for (final command in [
+      fortuneToolbarLineCommand,
+      fortuneToolbarRectangleCommand,
+      fortuneToolbarRoundedRectangleCommand,
+      fortuneToolbarEllipseCommand,
+    ]) {
+      await tester.tapAt(
+        topLeft +
+            _toolbarItemCenter(
+              command,
+              width: 900,
+              items: workbook.settings.toolbarItems,
+            ),
+      );
+      await tester.pump();
+      await mouse.moveTo(topLeft + const Offset(150, 150));
+      await tester.pump();
+      expect(cursor(), SystemMouseCursors.precise);
+
+      await mouse.moveTo(topLeft + const Offset(220, 180));
+      await tester.pump();
+      expect(cursor(), SystemMouseCursors.precise);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pump();
+      expect(cursor(), SystemMouseCursors.basic);
+    }
+
+    await tester.tapAt(
+      topLeft +
+          _toolbarItemCenter(
+            fortuneToolbarEllipseCommand,
+            width: 900,
+            items: workbook.settings.toolbarItems,
+          ),
+    );
+    await tester.pump();
+    await tester.dragFrom(
+      topLeft + const Offset(150, 150),
+      const Offset(50, 30),
+    );
+    await tester.pump();
+    expect(cursor(), SystemMouseCursors.basic);
+    await mouse.removePointer();
+  });
+
   testWidgets('line toolbar drag inserts one topmost line and exits mode', (
     tester,
   ) async {
