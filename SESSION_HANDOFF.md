@@ -1,3 +1,18 @@
+### 완료 (2026-07-23): 개체 테두리 폭 UI 단위를 시트와 통일
+- 사용자 요청: 분석 결과에 따라 라벨 시트의 모든 개체에서 테두리 두께 입력 단위를 시트와 동일하게 맞춘다.
+- `third_party/fortune_sheet/lib/src/fortune_object_layer_panel.dart`: 선·사각형·둥근 사각형·타원의 공통 `strokeWidth` UI를 logical px로 표시·입력하고 적용 시 mm로 변환하도록 완료. 모델/저장/렌더링/직접 출력의 `strokeWidthMm`는 유지한다. 이미지·바코드는 테두리 폭 속성이 없어 대상이 아니다.
+- `third_party/fortune_sheet/test/fortune_object_controller_test.dart`: 선 `2px` 및 도형 `3px` 입력의 mm 저장 계약과 `px` suffix 회귀 검증 추가.
+- focused 검증 완료: `cd third_party/fortune_sheet; flutter test test/fortune_object_controller_test.dart` → 45개 통과.
+- 포맷 완료: 위 Dart 구현/테스트 파일 2개.
+- 포맷 후 focused 재검증: `cd third_party/fortune_sheet; flutter test test/fortune_object_controller_test.dart` → 45개 통과.
+- root 회귀 검증: `flutter test test/label_sheet_toolbar_test.dart` → 140개 통과.
+- package 분석: `cd third_party/fortune_sheet; flutter analyze` → 새 오류 없음, 기존 `fortune_sheet_canvas.dart` 미사용 경고 10개.
+- root 분석: `flutter analyze` → 새 오류 없음, 위 기존 경고 10개 + 기존 테스트 미사용 변수 경고 1개.
+- 진단 및 형식 검사: 변경 파일 VS Code 오류 0개, `git diff --check` 통과.
+- 기능 커밋: `f6fbbf9` (`개체 테두리 폭 단위를 시트와 통일`).
+- 인수인계 문서는 위 기능 커밋 해시 반영 후 별도 커밋.
+- 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
+
 ### 완료 (2026-07-23): 이미지 속성 간격 및 선 각도 편집
 - 사용자 요청: 이미지 회전 영역과 파일 교체 버튼 사이를 기존보다 5px 더 띄우고, 선 속성에서 각도를 입력·수정할 수 있게 한다.
 - 구현 예정: 이미지 파일 교체 top padding을 5px에서 10px로 변경한다. 선 각도는 시작점과 현재 길이를 유지한 채 끝점을 회전시키고 기존 좌표 기반 draft/apply/undo 경로를 재사용한다.
