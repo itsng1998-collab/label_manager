@@ -434,7 +434,7 @@
 
 - 현재 `labelSizeId`
 - `RICH_IS_APPLY = 0`
-- 레거시의 `RICH_UPDATE_ITEM_ORDER` 순서
+- 운영 schema에 존재하는 `RICH_UPDATE_ITEM_ID` 오름차순
 - 연결된 원본 item의 품목명
 - 자동갱신 row의 element/element RTF, price, apply date
 - 해당 update item들의 `BM_UPDATE_COL_CONTENT`
@@ -588,7 +588,7 @@
 ### 13.4 DAO 테스트
 
 - 조회 SQL이 labelSize ID와 `isApply=0`을 실제 parameter로 사용
-- `RICH_UPDATE_ITEM_ORDER` 정렬
+- update item과 column content 조회가 존재하지 않는 `RICH_UPDATE_ITEM_ORDER`를 참조하지 않고 `RICH_UPDATE_ITEM_ID` 오름차순을 사용
 - update item과 update column content mapping
 - delete → update → insert 순서
 - 신규 parent ID와 child content 연결

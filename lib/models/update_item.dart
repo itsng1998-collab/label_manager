@@ -119,7 +119,7 @@ class UpdateItemDAO extends DAO {
 
 
   static const String OrderSqlByUpdateItemrder = '''
-	  ORDER BY RICH_UpdateItem_ORDER ASC
+	  ORDER BY P1.RICH_UPDATE_ITEM_ID ASC
   ''';
 
   static const String SelectPendingByLabelSizeIdSql = '''
@@ -138,7 +138,7 @@ class UpdateItemDAO extends DAO {
       ON P1.RICH_ITEM_ID=P2.RICH_ITEM_ID
     WHERE P1.RICH_LABELSIZE_ID=@labelSizeId
       AND P1.RICH_IS_APPLY=@isApply
-    ORDER BY P1.RICH_UPDATE_ITEM_ORDER ASC, P1.RICH_UPDATE_ITEM_ID ASC
+    ORDER BY P1.RICH_UPDATE_ITEM_ID ASC
   ''';
 
   static const String SelectServerTodaySql = '''

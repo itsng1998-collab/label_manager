@@ -1,3 +1,18 @@
+### 완료 (2026-07-23): 운영 DB 자동품목갱신 조회 복구
+- 사용자 제출 로그 `.tmp/log/app_2026-07-23_13-41-04.log`에서 `UpdateItemDAO.selectPendingByLabelSizeId`가 운영 DB에 없는 `BM_UPDATE_ITEM.RICH_UPDATE_ITEM_ORDER`를 참조해 SQL Server `42S22/native 207`로 실패하는 것을 확인했다. 같은 연결의 `SELECT 1`은 성공해 네트워크 오류가 아니다.
+- 레거시 `.tmp/LabelManager/LabelManagerLib/UpdateItem.cpp`와 `UpdateItemOfMarket.cpp`는 해당 order 컬럼을 읽거나 쓰지 않는다. 신규 ID 조회만 `RICH_UPDATE_ITEM_ID`를 사용한다.
+- 수정 예정 파일/목적: `lib/models/update_item.dart`와 column content DAO에서 존재하지 않는 order 컬럼을 제거하고 `RICH_UPDATE_ITEM_ID ASC`로 parent/content 순서를 일치시킨다. DAO 회귀 테스트와 `doc/automatic_item_update.txt`의 잘못된 스키마 전제를 함께 갱신한다.
+- 1차 편집 완료: parent pending query와 기존 public order SQL fragment를 `P1.RICH_UPDATE_ITEM_ID ASC`로 변경하고, 존재하지 않는 컬럼이 SQL에 재진입하지 않는 회귀 단언을 추가했다.
+- 1차 검증: `test/automatic_item_update_dao_test.dart` 4건 통과.
+- 2차 편집 완료: column content query도 `U.RICH_UPDATE_ITEM_ID ASC, R.RICH_COLUMN_ORDER ASC, R.RICH_COLUMN_ID ASC`로 통일하고 회귀 단언 및 지시서의 잘못된 schema 전제를 갱신했다.
+- 2차 검증: `test/automatic_item_update_dao_test.dart`, `test/automatic_item_update_column_content_test.dart` 6건 전체 통과. 수정 Dart 4개 포맷 완료.
+- 잔존 검색: `lib/` 실행 SQL에는 `RICH_UPDATE_ITEM_ORDER`가 없고, `test/`의 부정 단언과 `doc/`의 금지 설명에만 남는다.
+- 정적 분석: touched Dart 파일 4개 `No issues found`.
+- 최종 검증: `flutter test test/automatic_item_update_dao_test.dart test/automatic_item_update_column_content_test.dart test/automatic_item_update_draft_test.dart test/automatic_item_update_page_test.dart` 25건 전체 통과, `git diff --check` clean.
+- 실제 서버 재조회는 제출 로그의 앱 연결이 종료되어 미검증이다. 다음 앱 실행에서 같은 labelSize 조회 시 `RICH_UPDATE_ITEM_ID` 정렬 SQL과 `sessionLoad completed`를 로그로 확인한다.
+- stage/commit 대상: `lib/models/update_item.dart`, `lib/models/update_item_column_content.dart`, 대응 DAO 테스트 2개, `doc/automatic_item_update.txt`, `SESSION_HANDOFF.md`.
+- 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
+
 ### 완료 (2026-07-23): 클린 빌드 후 Git 변경 정리
 - 수정 예정 파일/목적: `.gitignore`에 머신별 SDK 경로 파일 `third_party/mssql_connection/android/local.properties`를 추가하고, 파일은 로컬에 유지한 채 Git 인덱스에서만 제거한다.
 - 편집 완료: `.gitignore`에 위 exact 경로를 추가했고 `git rm --cached` 후에도 로컬 파일 존재를 확인했다. `git check-ignore -v --no-index`가 새 규칙을 반환한다.

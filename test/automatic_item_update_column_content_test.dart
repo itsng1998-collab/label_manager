@@ -28,7 +28,11 @@ void main() {
       );
       expect(
         UpdateItemColumnContentDAO.selectPendingByLabelSizeIdSql,
-        contains('ORDER BY U.RICH_UPDATE_ITEM_ORDER ASC'),
+        contains('ORDER BY U.RICH_UPDATE_ITEM_ID ASC'),
+      );
+      expect(
+        UpdateItemColumnContentDAO.selectPendingByLabelSizeIdSql,
+        isNot(contains('RICH_UPDATE_ITEM_ORDER')),
       );
     });
   });

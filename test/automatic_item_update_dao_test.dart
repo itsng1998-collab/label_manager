@@ -42,7 +42,14 @@ void main() {
     test('pending query SQL filters by label size and unapplied rows', () {
       expect(UpdateItemDAO.SelectPendingByLabelSizeIdSql, contains('P1.RICH_LABELSIZE_ID=@labelSizeId'));
       expect(UpdateItemDAO.SelectPendingByLabelSizeIdSql, contains('P1.RICH_IS_APPLY=@isApply'));
-      expect(UpdateItemDAO.SelectPendingByLabelSizeIdSql, contains('ORDER BY P1.RICH_UPDATE_ITEM_ORDER ASC'));
+      expect(
+        UpdateItemDAO.SelectPendingByLabelSizeIdSql,
+        contains('ORDER BY P1.RICH_UPDATE_ITEM_ID ASC'),
+      );
+      expect(
+        UpdateItemDAO.SelectPendingByLabelSizeIdSql,
+        isNot(contains('RICH_UPDATE_ITEM_ORDER')),
+      );
       expect(UpdateItemDAO.pendingByLabelSizeParams(4), {
         'labelSizeId': 4,
         'isApply': 0,
