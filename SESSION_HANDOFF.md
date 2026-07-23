@@ -11,6 +11,7 @@
   - `git diff --check`: 성공.
   - 편집 파일 VS Code diagnostics: 오류 없음.
 - stage/commit 대상: `SESSION_HANDOFF.md`, `fortune_sheet_canvas.dart`, `fortune_typed_object_visibility_test.dart`.
+- 기능 커밋: `f68e6c8` (`이미지 바코드 삽입 위치를 라벨 내부로 제한`).
 - 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
 
 ### 완료 (2026-07-23): 이미지·바코드 가시성 및 개체 패널 보정
