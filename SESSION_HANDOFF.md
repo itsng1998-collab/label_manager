@@ -7,6 +7,7 @@
 - 정적 분석: root Workbench/test와 package panel 파일 모두 `No issues found`.
 - 최종 검증: `fortune_object_controller_test.dart` 42건, `label_sheet_toolbar_test.dart` 140건 전체 통과. `git diff --check` 확인 후 커밋한다.
 - stage/commit 대상: `third_party/fortune_sheet/lib/src/fortune_object_layer_panel.dart`, `lib/page_label_sheet/label_sheet_workbench.dart`, `test/label_sheet_toolbar_test.dart`, `SESSION_HANDOFF.md`.
+- 기능 커밋: `81cb217` (`개체 패널 구분선을 시트 경계에 픽셀 정렬`).
 - 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
 
 ### 완료 (2026-07-23): 개체 속성 패널 헤더와 시트 툴바 높이 통일
