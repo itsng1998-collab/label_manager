@@ -1,3 +1,18 @@
+### 완료 (2026-07-23): 셀 테두리와 비선택 개체 raster 직접 비교
+- 사용자 재확인: 선택 표시를 제거한 상태에서도 1px 선·둥근 사각형이 셀의 검은 1px 테두리보다 굵게 보인다.
+- 원인 확정: zoom 200%에서 셀 테두리는 화면 1px을 유지하지만 개체 stroke는 `zoomRatio`가 곱해져 선·도형이 2px로 렌더링됐다.
+- 구현: 선·도형 geometry는 zoom하되 stroke 폭은 셀 테두리와 같은 화면 px 기준으로 유지한다. 동일 painter zoom 200% 장면에서 셀·선·둥근 사각형 raster 폭을 직접 비교한다.
+- `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`: 화면 선·도형 stroke에서 `zoomRatio` 배율을 제거해 확대/축소와 무관하게 셀 테두리와 같은 px 폭을 유지하도록 완료.
+- `third_party/fortune_sheet/test/fortune_sheet_painter_test.dart`: zoom 200%에서 셀 검은 1px 테두리, 비선택 선, 둥근 사각형 변이 모두 동일한 raster 열 수인지 검증 완료.
+- `third_party/fortune_sheet/test/fortune_hybrid_print_plan_test.dart`: 과거 기본 0.5mm에 의존하던 border overlap fixture에 stroke를 명시해 기본 1px 계약과 분리 완료.
+- focused 검증 완료: zoom 200% 셀·선·둥근 사각형 raster 비교, 선택 선 raster 비교 통과.
+- 확대 검증 완료: geometry·개체 속성·하이브리드 출력 67개, root 라벨 시트 통합 140개 통과.
+- package/root 분석: 새 오류 없음. 기존 미사용 경고 package 10개/root 11개만 유지.
+- 최종 검사 완료: 변경 파일 진단 0개, `git diff --check` 통과.
+- 기능 커밋: `86de880` (`확대 시 개체 선 두께를 셀 기준으로 유지`).
+- 인수인계 문서는 위 기능 커밋 해시 반영 후 별도 커밋.
+- 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
+
 ### 완료 (2026-07-23): 개체 1px·삽입 active·둥근 사각형 보정
 - 사용자 요청: 셀 테두리 1과 선 1의 화면 두께를 일치시키고, 선·도형 삽입 완료/취소 전까지 toolbar 버튼 active 효과를 유지하며, 둥근 사각형 삽입 형태를 보정한다.
 - 원인 확인: 새 선·도형 기본 stroke가 `0.5 mm`라 속성 패널/렌더링에서 `1.89 px`였고, 선 path는 셀 테두리의 반 픽셀 정렬을 사용하지 않았다. geometry mode는 painter에 active key를 전달하지 않았다. 둥근 사각형은 draft/최종 모두 `cornerRadiusMm=0`으로 생성됐다.
