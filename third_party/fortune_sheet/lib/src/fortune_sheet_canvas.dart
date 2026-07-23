@@ -244,7 +244,7 @@ List<FortuneObjectConnectionChoice> fortuneObjectConnectionChoices({
   required String currentValue,
 }) {
   final choices = <FortuneObjectConnectionChoice>[
-    const FortuneObjectConnectionChoice(value: '', label: '연결 안 함'),
+    const FortuneObjectConnectionChoice(value: '', label: '연결 안함'),
   ];
   final seen = <String>{''};
   for (final option in options) {
@@ -24620,7 +24620,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   }
 
   String _imageObjectLabel(String value) {
-    if (value == _fortuneUnlinkedObjectValue) return '연결 안 함';
+    if (value == _fortuneUnlinkedObjectValue) return '연결 안함';
     final normalized = value.trim().toLowerCase();
     for (final option in widget.imageObjectOptions) {
       if (option.value.trim().toLowerCase() == normalized) {
@@ -24796,7 +24796,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   }
 
   String _barcodeObjectLabel(String value) {
-    if (value == _fortuneUnlinkedObjectValue) return '연결 안 함';
+    if (value == _fortuneUnlinkedObjectValue) return '연결 안함';
     final normalized = value.trim().toLowerCase();
     for (final option in widget.barcodeObjectOptions) {
       if (option.value.trim().toLowerCase() == normalized) {
@@ -47347,15 +47347,16 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     return Positioned.fill(
       child: Stack(
         children: [
-          _buildImageInsertDialogInput(
-            key: const ValueKey('fortune-image-object-id-input'),
-            editableKey: _imageObjectIdEditableKey,
-            rect: objectIdRect,
-            controller: _imageObjectIdController,
-            focusNode: _imageObjectIdFocusNode,
-            keyboardType: TextInputType.text,
-            rightInset: 24,
-          ),
+          if (_imageObjectConnectionMode == FortuneObjectConnectionMode.legacy)
+            _buildImageInsertDialogInput(
+              key: const ValueKey('fortune-image-object-id-input'),
+              editableKey: _imageObjectIdEditableKey,
+              rect: objectIdRect,
+              controller: _imageObjectIdController,
+              focusNode: _imageObjectIdFocusNode,
+              keyboardType: TextInputType.text,
+              rightInset: 24,
+            ),
           if (!_imageObjectIdMenuIntersects(size, widthRect))
             _buildImageInsertDialogInput(
               key: const ValueKey('fortune-image-insert-width-input'),

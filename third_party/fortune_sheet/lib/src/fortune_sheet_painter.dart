@@ -69806,6 +69806,15 @@ class FortuneSheetPainter extends CustomPainter {
     drawLabel('연결 항목', objectIdInput.top + 4);
     _drawInputShell(canvas, objectIdInput);
     _drawComboArrow(canvas, objectIdInput.right - 18, objectIdInput.center.dy);
+    if (imageModeAvailable) {
+      _drawText(
+        canvas,
+        imageObjectId,
+        objectIdInput.deflate(8),
+        fontSize: 12,
+        color: const Color(0xff222222),
+      );
+    }
 
     final fileButton = fortuneImageInsertFileButtonRect(rect);
     if (imageLinked) {

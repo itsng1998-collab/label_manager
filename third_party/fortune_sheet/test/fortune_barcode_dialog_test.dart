@@ -3003,6 +3003,12 @@ void main() {
     );
     await tester.pump();
     final rect = fortuneImageInsertDialogRect(const Size(900, 700));
+    expect(painter().imageObjectId, '연결 안함');
+    expect(painter().imageObjectIdOptions.first, '연결 안함');
+    expect(
+      find.byKey(const ValueKey('fortune-image-object-id-input')),
+      findsNothing,
+    );
     await tester.tapAt(
       topLeft +
           fortuneImageObjectIdInputRect(rect).centerRight -
