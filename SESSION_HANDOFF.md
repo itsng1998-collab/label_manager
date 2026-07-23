@@ -1,3 +1,16 @@
+### 완료 (2026-07-23): 모든 개체 명령 UI를 우클릭 메뉴로 통일
+- 사용자 요청: 이미지 선택 시 회전 핸들을 가리는 캔버스 개체 툴바를 모든 개체에서 제거하고 우클릭 popup으로 통일한다.
+- 명령 비교: 툴바의 공통 명령(편집, 복제, 삭제, 맨앞, 앞으로, 뒤로, 맨뒤)은 typed object 우클릭 메뉴에 모두 존재한다. 이미지 툴바 전용 `레이어`는 현재 host의 `개체` 패널과 중복되어 popup에 추가하지 않는다.
+- 편집 완료: painter의 개체 툴바/tooltip draw 호출과 canvas의 click/hover hit-test를 제거했다. 이미지 fallback 우클릭도 `_openTypedObjectContextMenu()`로 통일해 이미지·바코드·선·도형이 같은 메뉴 순서와 다중 선택 enable 규칙을 사용한다.
+- 테스트 편집 완료: 기존 floating toolbar 테스트를 legacy toolbar 좌표 비간섭, 이미지 우클릭 8개 명령 완비, 우클릭 편집의 개체 속성 패널 요청 테스트로 전환했다.
+- focused 검증: `fortune_object_controller_test.dart` 44개, `fortune_barcode_dialog_test.dart` 33개 모두 통과.
+- 첫 전체 package 검증: `flutter test`에서 3079개 중 4개 실패. 구 계약인 `active image selection renders toolbar controls` 픽셀 테스트를 발견해 툴바 상태 부재 테스트로 전환했다. 나머지 실패 이름은 verbose 출력이 잘려 재검증한다.
+- 전체 package 재검증: `flutter test --reporter compact`에서 3080개 중 3개 실패. 실패 카운트는 병렬 실행에서만 발생했고 exception 출력은 잘렸으나, 파일을 분리해 재실행한 결과 canvas 1417개와 나머지 package 1048개(소형 971 + object 44 + barcode 33)가 모두 통과해 재현되지 않았다.
+- 최종 검증: focused 77개, package canvas 1417개, 나머지 package 1048개, root `label_sheet_toolbar_test.dart` 140개 모두 통과. package analyze는 기존 warning 10개만 남고 root analyze는 기존 warning 11개만 남았다. diagnostics 및 `git diff --check` 통과.
+- 전체 package 병렬 실행의 3건은 모든 파일 격리 실행에서 재현되지 않아 기존 병렬 flaky로 분류했다.
+- 기능 커밋: `4cd3c1c` (`개체 명령을 우클릭 메뉴로 통일`).
+- 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
+
 ### 완료 (2026-07-23): 이미지·바코드 삽입 좌표를 라벨 내부로 제한
 - 원인 확정: 현재 라벨은 `80×60mm`인데 신규 이미지/바코드는 선택 셀의 `columnStart/rowStart`를 그대로 사용한다. 첨부 속성의 `X=123.031mm`, `Y=55.827mm`처럼 선택 셀이 물리 라벨 밖이면 개체는 생성되어 목록에 나타나지만 canvas clip 밖이라 보이지 않는다. 선/도형은 시트 포인터 위치에 생성되어 차이가 난다.
 - 수정 예정: 물리 라벨에서는 개체 전체가 들어오도록 anchor를 `0..(labelSize-objectSize)`로 clamp하고, 일반 시트는 기존 좌표를 유지한다. 이미지/바코드 신규 삽입 두 경로에 같은 helper를 적용한다.
