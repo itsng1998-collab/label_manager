@@ -1,3 +1,16 @@
+### 완료 (2026-07-23): 이미지 연결 후보 형식 문구 제거
+- 사용자 요청: 이미지 연결 dropdown 후보는 모두 이미지 항목이므로 표시 label 뒤의 중복 문구 `· 이미지`를 제거한다.
+- 구현 예정: 앱의 이미지 연결 option label만 `항목명 (#KEYWORD)`로 변경하고 내부 저장값 `#KEYWORD`와 연결 동작은 유지한다.
+- `lib/page_home/common_label_manage.dart`: 이미지 option label을 `항목명 (#KEYWORD)`로 변경 완료.
+- `test/common_label_manage_test.dart`: 이미지 후보 label과 내부 `#KEYWORD` 값 계약 갱신.
+- focused 검증 완료: `common_label_manage_test.dart` 6개 통과.
+- 확대 검증 완료: root `flutter test test/label_sheet_toolbar_test.dart` → 140개 통과.
+- root 분석: `flutter analyze` → 새 오류 없음, 기존 미사용 경고 11개.
+- 최종 진단 및 형식 검사: 변경 파일 VS Code 오류 0개, `git diff --check` 통과.
+- 기능 커밋: `08175ca` (`이미지 연결 후보의 중복 형식 문구 제거`).
+- 인수인계 문서는 위 기능 커밋 해시 반영 후 별도 커밋.
+- 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
+
 ### 완료 (2026-07-23): 이미지 연결항목 초기 표시 통일
 - 사용자 요청: 이미지 삽입 다이얼로그의 연결항목 초기값과 dropdown의 미연결 문구를 바코드 삽입 다이얼로그와 같은 `연결 안함`으로 통일한다.
 - 원인 확인: structured 이미지 다이얼로그는 내부 sentinel `__unlinked__`를 `EditableText` controller로 직접 표시했고, 메뉴 label helper는 `연결 안 함`을 사용했다. 바코드는 label projection을 사용해 sentinel이 노출되지 않았다.
