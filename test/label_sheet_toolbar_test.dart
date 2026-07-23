@@ -14,7 +14,10 @@ import 'package:http/testing.dart';
 import 'package:image/image.dart' as imglib;
 import 'package:label_manager/home_page_manager.dart';
 import 'package:label_manager/models/additional_item.dart';
+import 'package:label_manager/models/barcode.dart';
 import 'package:label_manager/models/brand.dart';
+import 'package:label_manager/models/column.dart';
+import 'package:label_manager/models/column_type.dart';
 import 'package:label_manager/models/item.dart';
 import 'package:label_manager/models/item_of_market.dart';
 import 'package:label_manager/models/label_size.dart';
@@ -132,6 +135,56 @@ LabelSize _testLabelSizeWithFormData(String formData) {
     brandId: 1,
     labelSizeName: '테스트 라벨',
     labelSizeCommon: LabelSizeCommon(width: 100, height: 80, rtf: formData),
+  );
+}
+
+TColumn _testColumn(int id, String keyword) {
+  const type = TColumnType(code: TColumnType.TYPE_BASE, name: '기본', order: 1);
+  return TColumn(
+    columnType: type,
+    keyword: keyword,
+    columnName: keyword,
+    useMissingKeywordCheck: false,
+    columnId: id,
+    labelSizeId: 20,
+    order: 1,
+    width: 0,
+    height: 0,
+    barcodeType: BarcodeType.Code128,
+    useBarcodeCheckDigit: false,
+    showBarcodeNum: false,
+    showQRCodeText: false,
+    qrTextAlignment: QRTextAlignment.ALIGN_LEFT,
+    useUserDefineQRData: false,
+    userDefineQRData: '',
+    userDefineQRText: '',
+    pixelSize: 0,
+    title: '',
+    visible: false,
+    qrCodeCreateType: QRCodeCreateType.QRCODE_TYPE_PLAIN_TEXT,
+    natriumJoinString: '',
+    qrTextFontSize: 10,
+    qrTextFontName: '',
+    qrCodeScalePercent: 100,
+    timeBarcodeType: 0,
+    autoInc: false,
+    autoIncSize: 0,
+    autoIncSave: false,
+    autoIncRange: 0,
+    autoIncZeroDel: false,
+    autoIncUpdate: false,
+    searchPrint: false,
+    userDefineBarcodeText: '',
+    lineCheck: 0,
+    lineSize: 0,
+    gs1ai: '01',
+    formatOption: -1,
+    useGS1Code: false,
+    containColumns: '',
+    showGS1Code: false,
+    rotate: 0,
+    useDateRange: false,
+    dateRange: '',
   );
 }
 
@@ -584,6 +637,41 @@ void main() {
       isTrue,
     );
     expect(runs.any((run) => run.text == '설탕' && run.italic == true), isTrue);
+  });
+
+  test('item output preview prefers projected column values over shared content', () {
+    final previousColumns = TColumn.datas;
+    TColumn.datas = [_testColumn(7, 'EXP')];
+    addTearDown(() {
+      TColumn.datas = previousColumns;
+    });
+
+    final encoded = labelSheetEncodeWorkbookSave(
+      FortuneWorkbook(
+        sheets: [
+          FortuneSheet(
+            id: 'common_01',
+            name: '출력 시트',
+            cells: {
+              const FortuneCellCoord(0, 0): const FortuneCell(value: '#EXP'),
+            },
+          ),
+        ],
+      ),
+    );
+
+    final preview = debugItemOutputPreviewForTesting(
+      labelSize: _testLabelSizeWithFormData(encoded),
+      item: _testItemOfMarket(),
+      elementText: '원재료 편집',
+      projectedColumnValues: const {7: '2026-07-08'},
+    );
+
+    expect(preview.hintText, isNull);
+    expect(
+      preview.workbook!.sheets.single.cells[const FortuneCellCoord(0, 0)]?.renderedText,
+      '2026-07-08',
+    );
   });
 
   testWidgets('item element hides formula bar and opens editor on double tap', (

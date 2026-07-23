@@ -94,7 +94,7 @@
 
 - 입력 형식은 정확히 `yyyyMMdd`다.
 - 서버의 오늘 날짜보다 큰 날짜만 허용한다. 오늘 날짜는 허용하지 않는다.
-- 형식이 잘못되거나 오늘 이전 날짜이면 편집 전 값으로 되돌리고 오류를 표시한다.
+- 형식이 잘못되거나 오늘 날짜 이하이면 편집 전 값으로 되돌리고 오류를 표시한다.
 - 저장 직전 모든 행의 갱신날짜가 유효한지 다시 검사한다.
 - PC 로컬 시간으로 대체하지 않는다.
 
@@ -130,7 +130,7 @@
 
 - 서버에서 읽은 baseline 행과 컬럼 content
 - 현재 draft 행과 표시 순서
-- existing/modified/added/deleted 상태
+- existing/modified/added/staged 상태
 - 선택 행 key와 anchor row key
 - 갱신날짜
 - 주원료 plain text와 RTF
@@ -200,7 +200,8 @@
 - 단축키에 의한 tab 선택
 - 현재 controller를 교체하거나 재조회하는 command
 
-- 차단 시 품목관리와 같은 방식으로 현재 편집을 저장하거나 취소한 뒤 변경하라는 안내를 표시한다.
+- dirty, active editor 또는 품목 추가 mode 때문에 차단된 경우에는 품목관리와 같은 방식으로 현재 편집을 저장하거나 취소한 뒤 변경하라는 안내를 표시한다.
+- 조회, 저장, 취소 또는 적용 command가 busy여서 차단된 경우에는 저장/취소 안내 대신 현재 처리 중이므로 완료 후 다시 시도하라는 의미의 안내를 표시한다. busy 상태를 저장/취소로 즉시 해제할 수 있는 것처럼 오해시키지 않는다.
 - 단순 플로팅창 이동, resize, 내부 탭 전환은 context 변경이 아니므로 차단하지 않는다.
 - 기존 품목관리 전용 `_itemDraftContextChangeBlocked`의 의미를 바꾸지 않는다.
 - 자동품목갱신 전용 `_autoItemUpdateContextChangeBlocked`를 두고, 브랜드·라벨크기처럼 어느 tab에서도 공통 dataset을 교체하는 경로는 두 값을 합친 `_homeDataContextChangeBlocked`를 사용한다.
@@ -236,7 +237,7 @@
 
 - 우클릭한 한 행만 draft에서 삭제한다.
 - 기존 DB 행이면 삭제 전 row/cell 전체를 SQLite에 capture하고 삭제 ID를 controller에 기록한다.
-- 신규 행이면 해당 staged/draft 행만 제거한다.
+- 신규 added row이면 해당 draft 행만 제거한다. inline 품목 추가 mode 안의 staged row 제거는 이 popup command가 아니라 §6.6의 mode 내부 `취소`/`적용` 흐름에서만 처리한다.
 
 #### 블럭선택 품목삭제
 
@@ -259,6 +260,7 @@
 #### 새로 고침
 
 - active cell/RTF editor를 먼저 정상 commit 또는 종료한다.
+- active editor flush 결과 invalid 날짜 또는 invalid 주원료 draft/error가 남아 있으면 새로 고침을 진행하지 않고 현재 editor와 오류 상태를 유지한다.
 - 현재 라벨크기의 미적용 자동품목갱신 데이터와 컬럼 content를 SQL Server에서 임시 결과로 다시 조회한다. 조회 중에는 기존 controller와 SQLite backup을 유지한다.
 - 조회 성공 시에만 기존 draft, 삭제 목록, staged additions와 SQLite backup을 폐기하고 새 baseline/controller를 설치한 뒤 선택과 플로팅창을 초기화한다.
 - 조회 실패 시 오류를 전달하고 기존 화면/controller/SQLite backup을 그대로 유지한다. 성공하기 전에 기존 controller를 dispose하거나 backup을 clear하지 않는다.
@@ -282,6 +284,7 @@
 - 원본은 현재 라벨크기로 이미 조회된 품목관리 `ItemManagerDraftController.rows`의 표시 순서를 사용한다.
 - 자동품목갱신 탭 진입 전에 품목관리 draft가 dirty이면 tab 변경 자체가 차단되므로 원본은 clean dataset이다.
 - 원본 목록을 얻기 위해 SQL Server를 다시 조회하지 않는다.
+- 현재 dataset의 품목관리 rows가 아직 준비되지 않았거나 현재 라벨크기와 일치하는 source snapshot이 아직 없으면 품목 추가 mode를 열어도 source pane은 비편집 준비 중 상태만 표시하고 source 선택, arrow 추가, drag 추가와 `적용`을 비활성화한다. 이전 브랜드/마켓/라벨크기의 rows를 재사용하지 않는다.
 - DB의 다른 snapshot과 현재 품목관리 controller를 임의 merge하지 않는다.
 - source row에는 안정적인 `itemId`를 유지한다.
 - 화면 컬럼은 `품목명` 하나만 표시한다. 선택 표시를 위한 table 자체의 row selection UI는 허용하지만 별도 업무 컬럼은 추가하지 않는다.
@@ -290,11 +293,11 @@
 ### 6.3 오른쪽 방향 버튼 추가
 
 - 원본 테이블에서 선택된 행이 없으면 버튼을 비활성화한다.
-- 선택된 행이 있으면 선택 순서 또는 원본 표시 순서가 안정적으로 유지되도록 한 번에 추가한다.
+- 선택된 행이 있으면 선택된 source rows를 원본 테이블의 현재 표시 순서대로 한 번에 추가한다.
 - 추가 위치는 대상 목록 맨 끝이다. 우클릭 행이나 현재 target selection 중간에 삽입하지 않는다.
 - 추가된 행은 즉시 오른쪽 대상 테이블에 staged 상태로 표시한다.
 - 신규 행 기본값은 §1.5를 따른다.
-- 추가 후 마지막으로 추가된 첫 행 또는 추가 묶음의 첫 행을 target anchor로 선택한다.
+- 추가 후 방금 append한 묶음의 첫 행을 target anchor로 선택한다.
 
 ### 6.4 drag and drop 추가
 
@@ -319,7 +322,7 @@
 - `취소`를 누르면 추가 작업을 취소할지 확인한다.
 - 확인하면 이 mode에서 만든 staged additions만 모두 제거하고 mode 진입 전 자동품목갱신 draft로 돌아간다.
 - `적용`을 누르면 선택 품목을 자동품목갱신 draft에 적용할지 확인한다.
-- 확인하면 staged additions를 정식 added rows로 전환하고 mode를 닫는다.
+- 확인하면 staged additions를 정식 added rows로 전환하고 mode를 닫는다. staged row는 이 시점 전까지는 mode-local 임시 상태일 뿐 baseline dirty와 SQLite backup에는 반영되지 않는다.
 - 확인 dialog는 프로젝트의 공용 blocking modeless 확인 UI를 사용한다. 별도 품목 선택 dialog를 만드는 것이 아니다.
 - 확인을 거부하면 mode와 staged additions를 그대로 유지한다.
 - mode가 닫히면 기본 우하단 `취소`, `저장` 활성 조건을 다시 계산한다. 적용 후에는 draft가 dirty이므로 두 버튼이 활성화된다.
@@ -342,10 +345,11 @@
 - `int price` 또는 실제 schema가 요구하는 기존 값
 - `bool isApply`
 - 원본 품목/마켓과 preview materialization에 필요한 식별값
-- `existing`, `modified`, `added` 상태
+- `existing`, `modified`, `added`, `staged` 상태
 - baseline 비교 또는 dirty 판정에 필요한 원본 snapshot
 
 - `rowKey` 형식과 staged→added 안정성은 §3.2를 따른다. 저장 성공 후 새 controller를 만들 때만 DB에서 발급된 `updateItemId` 기반 key로 교체한다.
+- `staged`는 inline 품목 추가 mode 동안에만 존재하는 임시 row 상태다. target table에는 즉시 표시되지만 기본 footer의 dirty 계산과 SQLite before-image capture 대상에는 포함하지 않고, `적용` 확인 후에만 `added`로 전환한다.
 - `isApply` 조회값은 이 화면에서 항상 false여야 하며 사용자가 직접 편집하지 않는다.
 - 기존 schema의 `RICH_IS_APPLY` numeric/bit 표현에 맞춰 조회·저장 wire 값은 `0`을 사용한다. 문자열 boolean이나 새 enum 컬럼을 만들지 않는다.
 - DB/schema에 없는 필드는 새로 만들지 않는다. 실제 legacy DAO와 운영 schema를 확인해 이름을 맞춘다.
@@ -374,7 +378,7 @@
 - 저장 성공 후 새 baseline 확정
 
 - widget이 row list를 직접 mutate하지 않는다.
-- dirty는 row/cell 변경, 추가, 삭제 중 하나라도 있으면 true다.
+- dirty는 row/cell 변경, 삭제 또는 `적용`이 끝난 added row가 하나라도 있으면 true다. inline mode 안의 staged additions만으로는 dirty가 되지 않는다.
 - 선택, 플로팅창 위치, mode 내부 source selection만으로 dirty를 만들지 않는다.
 
 ## 8. SQLite 취소 원복
@@ -411,6 +415,7 @@
 ### 8.4 기본 취소
 
 1. active editor를 flush한다.
+  - flush 결과 invalid 날짜 또는 invalid 주원료 draft/error가 남아 있으면 취소를 진행하지 않고 현재 editor와 오류 상태를 유지한다.
 2. 변경 내용을 취소할지 확인한다.
 3. SQLite snapshot을 읽는다.
 4. controller의 변경 날짜, element, cells, 삭제 행, 추가 행과 baseline selection을 원복한다.
@@ -451,6 +456,7 @@
 ### 10.1 저장 전 검증
 
 - active editor를 flush한다.
+- flush 결과 invalid 날짜 또는 invalid 주원료 draft/error가 남아 있으면 저장을 진행하지 않고 현재 editor와 오류 상태를 유지한다.
 - 모든 row의 갱신날짜가 `yyyyMMdd`로 표현 가능하고 서버 오늘보다 큰지 확인한다.
 - 필수 식별값과 현재 라벨크기가 일치하는지 확인한다.
 - 레거시에 없는 대규모 사전 조회, 중복 자동 정리 또는 자동 merge를 추가하지 않는다.
@@ -567,6 +573,7 @@
 - dirty일 때만 우하단 취소/저장 활성
 - 추가 mode에서 기본 취소/저장 비활성
 - source table은 품목명 한 컬럼만 표시
+- source snapshot이 아직 준비되지 않았을 때 이전 dataset을 재사용하지 않고 source 추가 command가 비활성화됨
 - arrow button selection append
 - source row drag/drop append
 - drop 위치와 무관하게 맨 끝 추가
@@ -576,6 +583,7 @@
 - `블럭선택 날짜입력`, `품목찾기` 선택이 데이터를 바꾸지 않음
 - 새로 고침과 F5가 같은 command 호출
 - dirty/active edit/add mode/busy에서 브랜드·라벨·tab 변경 차단
+- dirty/editor/add mode 차단 안내와 busy 차단 안내를 구분해 표시함
 
 ### 13.4 DAO 테스트
 
