@@ -8,6 +8,7 @@
 - root 2차 분석: Workbench와 toolbar test `No issues found`.
 - 최종 검증: `fortune_object_controller_test.dart` 42건, `label_sheet_toolbar_test.dart` 140건 전체 통과. `git diff --check` 확인 후 커밋한다.
 - stage/commit 대상: `third_party/fortune_sheet/lib/src/fortune_object_layer_panel.dart`, `lib/page_label_sheet/label_sheet_workbench.dart`, `test/label_sheet_toolbar_test.dart`, `SESSION_HANDOFF.md`.
+- 기능 커밋: `6a504fb` (`개체 패널 헤더 높이를 시트 툴바와 통일`).
 - 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
 
 ### 완료 (2026-07-23): 운영 DB 자동품목갱신 조회 복구
