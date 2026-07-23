@@ -378,6 +378,99 @@ void main() {
     controller.dispose();
   });
 
+  testWidgets('object layer panel reorders selected objects', (tester) async {
+    tester.view.physicalSize = const Size(900, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    final controller = FortuneSheetController();
+    final workbook = FortuneWorkbook(
+      settings: const FortuneSettings(
+        showToolbar: false,
+        showFormulaBar: false,
+      ),
+      sheets: [
+        FortuneSheet(
+          id: 's1',
+          name: 'Sheet1',
+          images: const [
+            FortuneImage(
+              id: 'image_1',
+              src: 'data:image/png;base64,',
+              left: 20,
+              top: 20,
+              width: 30,
+              height: 30,
+              extraFields: {fortuneSheetObjectZOrderExtraKey: 1.0},
+            ),
+            FortuneImage(
+              id: 'image_2',
+              src: 'data:image/png;base64,',
+              left: 60,
+              top: 20,
+              width: 30,
+              height: 30,
+              extraFields: {fortuneSheetObjectZOrderExtraKey: 2.0},
+            ),
+          ],
+        ),
+      ],
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Row(
+          children: [
+            SizedBox(
+              width: 600,
+              height: 700,
+              child: FortuneSheetCanvas(
+                workbook: workbook,
+                controller: controller,
+              ),
+            ),
+            SizedBox(
+              width: 300,
+              height: 700,
+              child: FortuneObjectLayerPanel(controller: controller),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('이미지 image_1'));
+    await tester.pump();
+    expect(
+      controller.objectSelection.activeKey,
+      const FortuneSheetObjectKey(FortuneSheetObjectKind.image, 'image_1'),
+    );
+
+    await tester.tap(find.byTooltip('맨 앞으로'));
+    await tester.pump();
+    expect(
+      controller.objectSelection.objects.map((object) => object.key),
+      [
+        const FortuneSheetObjectKey(FortuneSheetObjectKind.image, 'image_2'),
+        const FortuneSheetObjectKey(FortuneSheetObjectKind.image, 'image_1'),
+      ],
+    );
+
+    await tester.tap(find.byTooltip('맨 뒤로'));
+    await tester.pump();
+    expect(
+      controller.objectSelection.objects.map((object) => object.key),
+      [
+        const FortuneSheetObjectKey(FortuneSheetObjectKind.image, 'image_1'),
+        const FortuneSheetObjectKey(FortuneSheetObjectKind.image, 'image_2'),
+      ],
+    );
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    controller.dispose();
+  });
+
   testWidgets('controller commits line and shape properties atomically', (
     tester,
   ) async {
@@ -1434,7 +1527,7 @@ void main() {
     expect(controller.objectSelection.activeKey, isNotNull);
   });
 
-  testWidgets('dock presentation closes the legacy image layer panel', (
+  testWidgets('active image toolbar requests generic object panel open', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(900, 700);
@@ -1444,7 +1537,7 @@ void main() {
       tester.view.resetDevicePixelRatio();
     });
     final controller = FortuneSheetController();
-    var presentation = FortuneObjectPanelPresentation.hidden;
+    final panelRequests = <FortuneObjectPanelOpenRequest>[];
     final workbook = FortuneWorkbook(
       sheets: [
         FortuneSheet(
@@ -1463,7 +1556,7 @@ void main() {
         ),
       ],
     );
-    Future<void> pump() => tester.pumpWidget(
+    await tester.pumpWidget(
       MaterialApp(
         home: SizedBox(
           width: 900,
@@ -1471,12 +1564,11 @@ void main() {
           child: FortuneSheetCanvas(
             controller: controller,
             workbook: workbook,
-            objectPanelPresentation: presentation,
+            onOpenObjectPanelRequest: panelRequests.add,
           ),
         ),
       ),
     );
-    await pump();
     controller.selectObject(
       const FortuneSheetObjectKey(FortuneSheetObjectKind.image, 'image_1'),
     );
@@ -1494,13 +1586,80 @@ void main() {
     )!;
     await tester.tapAt(topLeft + toggleRect.center);
     await tester.pump();
-    expect(fortuneSheetPainter(tester).imageLayerPanelOpen, isTrue);
 
-    presentation = FortuneObjectPanelPresentation.dock;
-    await pump();
-
-    expect(fortuneSheetPainter(tester).imageLayerPanelOpen, isFalse);
+    expect(panelRequests, hasLength(1));
+    expect(panelRequests.single.sheetId, 's1');
+    expect(
+      panelRequests.single.objectKey,
+      const FortuneSheetObjectKey(FortuneSheetObjectKind.image, 'image_1'),
+    );
+    expect(panelRequests.single.propertyField, isNull);
   });
+
+  testWidgets(
+    'active image toolbar object panel command is no-op without host request callback',
+    (tester) async {
+      tester.view.physicalSize = const Size(900, 700);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+      final controller = FortuneSheetController();
+      final workbook = FortuneWorkbook(
+        settings: const FortuneSettings(
+          showToolbar: false,
+          showFormulaBar: false,
+        ),
+        sheets: [
+          FortuneSheet(
+            id: 's1',
+            name: 'Sheet1',
+            images: const [
+              FortuneImage(
+                id: 'image_1',
+                src: 'image',
+                left: 20,
+                top: 20,
+                width: 40,
+                height: 30,
+              ),
+            ],
+          ),
+        ],
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: SizedBox(
+            width: 900,
+            height: 700,
+            child: FortuneSheetCanvas(
+              controller: controller,
+              workbook: workbook,
+            ),
+          ),
+        ),
+      );
+      controller.selectObject(
+        const FortuneSheetObjectKey(FortuneSheetObjectKind.image, 'image_1'),
+      );
+      await tester.pump();
+      final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
+      final painter = fortuneSheetPainter(tester);
+      final imageRect = ui.Rect.fromLTWH(46 + 20, 20 + 20, 40, 30);
+      final toggleRect = fortuneActiveImageToolbarItemRect(
+        imageRect,
+        const Size(900, 700),
+        fortuneContextToggleLayerPanelCommand,
+        fortuneActiveImageToolbarItems(
+          painter.workbook.activeSheet.images.single,
+        ),
+      )!;
+      await tester.tapAt(topLeft + toggleRect.center);
+      await tester.pump();
+
+    },
+  );
 
   testWidgets('multiple selection suppresses active object toolbar', (
     tester,
@@ -3381,7 +3540,6 @@ void main() {
       tester.view.resetPhysicalSize();
       tester.view.resetDevicePixelRatio();
     });
-    var panelOpenRequests = 0;
     FortuneObjectPanelOpenRequest? panelOpenRequest;
     final workbook = FortuneWorkbook(
       settings: const FortuneSettings(
@@ -3413,7 +3571,6 @@ void main() {
           height: 700,
           child: FortuneSheetCanvas(
             workbook: workbook,
-            onOpenObjectPanel: () => panelOpenRequests += 1,
             onOpenObjectPanelRequest: (request) => panelOpenRequest = request,
           ),
         ),
@@ -3456,7 +3613,6 @@ void main() {
     await tester.tapAt(canvasTopLeft + editRect.center);
     await tester.pump();
 
-    expect(panelOpenRequests, 0);
     expect(panelOpenRequest?.propertyField, 'left');
     expect(panelOpenRequest?.sheetId, 's1');
     expect(
@@ -3475,7 +3631,6 @@ void main() {
       tester.view.resetPhysicalSize();
       tester.view.resetDevicePixelRatio();
     });
-    var legacyRequests = 0;
     final panelRequests = <FortuneObjectPanelOpenRequest>[];
     await tester.pumpWidget(
       MaterialApp(
@@ -3505,7 +3660,6 @@ void main() {
                 ),
               ],
             ),
-            onOpenObjectPanel: () => legacyRequests += 1,
             onOpenObjectPanelRequest: panelRequests.add,
           ),
         ),
@@ -3535,7 +3689,6 @@ void main() {
       panelRequests.single.objectKey,
       const FortuneSheetObjectKey(FortuneSheetObjectKind.image, 'image_1'),
     );
-    expect(legacyRequests, 0);
     expect(painter.imageInsertDialogOpen, isFalse);
   });
 
@@ -3631,7 +3784,9 @@ void main() {
     expect(controller.getSheet()!.shapes.map((shape) => shape.width), [80]);
   });
 
-  testWidgets('shape active toolbar opens the selected property panel', (
+  testWidgets(
+    'shape active toolbar edit is no-op without request callback',
+    (
     tester,
   ) async {
     tester.view.physicalSize = const Size(900, 700);
@@ -3640,7 +3795,6 @@ void main() {
       tester.view.resetPhysicalSize();
       tester.view.resetDevicePixelRatio();
     });
-    var panelOpenRequests = 0;
     final workbook = FortuneWorkbook(
       settings: const FortuneSettings(
         showToolbar: false,
@@ -3671,7 +3825,6 @@ void main() {
           height: 700,
           child: FortuneSheetCanvas(
             workbook: workbook,
-            onOpenObjectPanel: () => panelOpenRequests += 1,
           ),
         ),
       ),
@@ -3704,7 +3857,6 @@ void main() {
     await tester.tapAt(canvasTopLeft + editRect.center);
     await tester.pump();
 
-    expect(panelOpenRequests, 1);
     expect(painter().activeObjectKey, key);
   });
 }

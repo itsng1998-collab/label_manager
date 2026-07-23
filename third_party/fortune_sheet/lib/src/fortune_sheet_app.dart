@@ -25,7 +25,6 @@ class FortuneSheetApp extends StatefulWidget {
     this.barcodeObjectConnectionMode,
     this.onChange,
     this.onOp,
-    this.onOpenObjectPanel,
     this.onOpenObjectPanelRequest,
     this.objectPanelPresentation = FortuneObjectPanelPresentation.hidden,
     this.locale = const FortuneSheetLocale(),
@@ -49,7 +48,6 @@ class FortuneSheetApp extends StatefulWidget {
   final FortuneObjectConnectionMode? barcodeObjectConnectionMode;
   final ValueChanged<FortuneWorkbook>? onChange;
   final FortuneOpCallback? onOp;
-  final VoidCallback? onOpenObjectPanel;
   final ValueChanged<FortuneObjectPanelOpenRequest>?
   onOpenObjectPanelRequest;
   final FortuneObjectPanelPresentation objectPanelPresentation;
@@ -175,7 +173,6 @@ class _FortuneSheetAppState extends State<FortuneSheetApp> {
             ? _handleWorkbookChanged
             : widget.onChange,
         onOp: widget.onOp,
-        onOpenObjectPanel: widget.onOpenObjectPanel,
         onOpenObjectPanelRequest: widget.onOpenObjectPanelRequest,
         objectPanelPresentation: widget.objectPanelPresentation,
         locale: widget.locale,

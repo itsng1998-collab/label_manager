@@ -2407,7 +2407,15 @@ void main() {
             height: 360,
             child: LabelSheetWorkbench(
               initialWorkbook: FortuneWorkbook(
-                sheets: [FortuneSheet(id: 's1', name: 'Label')],
+                sheets: [
+                  FortuneSheet(
+                    id: 's1',
+                    name: 'Label',
+                    lines: const [
+                      FortuneLine(id: 'line_1', x1: 20, y1: 20, x2: 80, y2: 20),
+                    ],
+                  ),
+                ],
               ),
             ),
           ),
@@ -3053,7 +3061,13 @@ void main() {
     final panelState = tester.state(hiddenPanel);
     tester
         .widget<FortuneSheetApp>(find.byType(FortuneSheetApp))
-        .onOpenObjectPanel!();
+        .onOpenObjectPanelRequest!(
+          const FortuneObjectPanelOpenRequest(
+            sheetId: 's1',
+            objectKey: null,
+            propertyField: null,
+          ),
+        );
     await tester.pump();
 
     final rect = tester.getRect(find.byType(FortuneObjectLayerPanel));
@@ -3091,7 +3105,13 @@ void main() {
     await tester.pump();
     tester
         .widget<FortuneSheetApp>(find.byType(FortuneSheetApp))
-        .onOpenObjectPanel!();
+        .onOpenObjectPanelRequest!(
+          const FortuneObjectPanelOpenRequest(
+            sheetId: 's1',
+            objectKey: null,
+            propertyField: null,
+          ),
+        );
     await tester.pump();
 
     final rect = tester.getRect(find.byType(FortuneObjectLayerPanel));
@@ -3135,7 +3155,13 @@ void main() {
     sheetApp.controller!.selectObject(
       const FortuneSheetObjectKey(FortuneSheetObjectKind.line, 'line_1'),
     );
-    sheetApp.onOpenObjectPanel!();
+    sheetApp.onOpenObjectPanelRequest!(
+      const FortuneObjectPanelOpenRequest(
+        sheetId: 's1',
+        objectKey: null,
+        propertyField: null,
+      ),
+    );
     await tester.pump();
     final propertyField = find.byKey(
       const ValueKey('fortune-object-property-x1'),
@@ -3207,7 +3233,13 @@ void main() {
     sheetApp.controller!.selectObject(
       const FortuneSheetObjectKey(FortuneSheetObjectKind.line, 'line_1'),
     );
-    sheetApp.onOpenObjectPanel!();
+    sheetApp.onOpenObjectPanelRequest!(
+      const FortuneObjectPanelOpenRequest(
+        sheetId: 's1',
+        objectKey: null,
+        propertyField: null,
+      ),
+    );
     await tester.pump();
     await tester.pump();
 
@@ -3222,6 +3254,67 @@ void main() {
     await tester.pump();
 
     expect(externalFocus.hasFocus, isTrue);
+  });
+
+  testWidgets('narrow object overlay close restores host open trigger first', (
+    tester,
+  ) async {
+    final externalFocus = FocusNode();
+    addTearDown(externalFocus.dispose);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Column(
+            children: [
+              TextField(focusNode: externalFocus),
+              SizedBox(
+                width: 600,
+                height: 450,
+                child: LabelSheetWorkbench(
+                  initialWorkbook: FortuneWorkbook(
+                    sheets: [
+                      FortuneSheet(
+                        id: 's1',
+                        name: 'Label',
+                        lines: const [
+                          FortuneLine(
+                            id: 'line_1',
+                            x1: 20,
+                            y1: 20,
+                            x2: 80,
+                            y2: 20,
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    externalFocus.requestFocus();
+    await tester.pump();
+    await tester.tap(find.byTooltip('개체 패널 열기'));
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.byType(FortuneObjectLayerPanel), findsOneWidget);
+    expect(externalFocus.hasFocus, isFalse);
+
+    await tester.tap(find.byTooltip('닫기'));
+    await tester.pumpAndSettle();
+
+    final openButtonFocus = tester.widget<IconButton>(
+      find.widgetWithIcon(IconButton, Icons.layers_outlined),
+    ).focusNode!;
+    expect(openButtonFocus.hasFocus, isTrue);
+    expect(externalFocus.hasFocus, isFalse);
   });
 
   testWidgets('closing overlay cancels pending property focus', (tester) async {
@@ -3288,6 +3381,540 @@ void main() {
 
     expect(find.byType(FortuneObjectLayerPanel), findsNothing);
     expect(externalFocus.hasFocus, isTrue);
+  });
+
+  testWidgets(
+    'narrow edit overlay close restores the latest trigger focus after prior dock close',
+    (tester) async {
+      final originalFocus = FocusNode();
+      final latestTriggerFocus = FocusNode();
+      var workbenchWidth = 600.0;
+      late StateSetter setHostState;
+      addTearDown(originalFocus.dispose);
+      addTearDown(latestTriggerFocus.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: StatefulBuilder(
+              builder: (context, setState) {
+                setHostState = setState;
+                return Column(
+                  children: [
+                    TextButton(
+                      focusNode: originalFocus,
+                      onPressed: () {},
+                      child: const Text('original trigger'),
+                    ),
+                    TextButton(
+                      focusNode: latestTriggerFocus,
+                      onPressed: () {},
+                      child: const Text('latest trigger'),
+                    ),
+                    SizedBox(
+                      width: workbenchWidth,
+                      height: 450,
+                      child: LabelSheetWorkbench(
+                        initialWorkbook: FortuneWorkbook(
+                          sheets: [
+                            FortuneSheet(
+                              id: 's1',
+                              name: 'Label',
+                              lines: const [
+                                FortuneLine(
+                                  id: 'line_1',
+                                  x1: 20,
+                                  y1: 20,
+                                  x2: 80,
+                                  y2: 20,
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump();
+
+      final workbench = find.byType(LabelSheetWorkbench);
+      final sheetAppFinder = find.byType(FortuneSheetApp);
+      FortuneSheetApp sheetApp() => tester.widget<FortuneSheetApp>(sheetAppFinder);
+
+      sheetApp().controller!.selectObject(
+        const FortuneSheetObjectKey(FortuneSheetObjectKind.line, 'line_1'),
+      );
+
+      originalFocus.requestFocus();
+      await tester.pump();
+      sheetApp().onOpenObjectPanelRequest!(
+        const FortuneObjectPanelOpenRequest(
+          sheetId: 's1',
+          objectKey: null,
+          propertyField: null,
+        ),
+      );
+      await tester.pump();
+      await tester.pump();
+
+      setHostState(() {
+        workbenchWidth = 1000;
+      });
+      await tester.pump();
+      await tester.pump();
+
+      await tester.tap(find.byTooltip('닫기'));
+      await tester.pump();
+      await tester.pump();
+
+      setHostState(() {
+        workbenchWidth = 500;
+      });
+      await tester.pumpAndSettle();
+
+      expect(find.byType(VerticalPaneSplitter), findsNothing);
+
+      latestTriggerFocus.requestFocus();
+      await tester.pump();
+
+      sheetApp().onOpenObjectPanelRequest!(
+        const FortuneObjectPanelOpenRequest(
+          sheetId: 's1',
+          objectKey: FortuneSheetObjectKey(FortuneSheetObjectKind.line, 'line_1'),
+          propertyField: 'x1',
+        ),
+      );
+      await tester.pump();
+      await tester.pump();
+
+      expect(find.descendant(of: workbench, matching: find.byType(FortuneObjectLayerPanel)), findsOneWidget);
+      await tester.tap(find.byTooltip('닫기'));
+      await tester.pumpAndSettle();
+
+      expect(latestTriggerFocus.hasFocus, isTrue);
+      expect(originalFocus.hasFocus, isFalse);
+    },
+  );
+
+  testWidgets('generic object panel request opens overlay and focuses layer list', (
+    tester,
+  ) async {
+    final externalFocus = FocusNode();
+    addTearDown(externalFocus.dispose);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Column(
+            children: [
+              TextField(focusNode: externalFocus),
+              SizedBox(
+                width: 600,
+                height: 450,
+                child: LabelSheetWorkbench(
+                  initialWorkbook: FortuneWorkbook(
+                    sheets: [
+                      FortuneSheet(
+                        id: 's1',
+                        name: 'Label',
+                        lines: const [
+                          FortuneLine(
+                            id: 'line_1',
+                            x1: 20,
+                            y1: 20,
+                            x2: 80,
+                            y2: 20,
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+    externalFocus.requestFocus();
+    await tester.pump();
+
+    final sheetApp = tester.widget<FortuneSheetApp>(
+      find.byType(FortuneSheetApp),
+    );
+    sheetApp.controller!.selectObject(
+      const FortuneSheetObjectKey(FortuneSheetObjectKind.line, 'line_1'),
+    );
+    await tester.pump();
+    sheetApp.onOpenObjectPanelRequest!(
+      const FortuneObjectPanelOpenRequest(
+        sheetId: 's1',
+        objectKey: null,
+        propertyField: null,
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.byType(FortuneObjectLayerPanel), findsOneWidget);
+    expect(
+      _primaryFocusIsInside(tester, find.byType(FortuneObjectLayerPanel)),
+      isTrue,
+    );
+  });
+
+  testWidgets('wide dock generic open request is no-op when panel is already open', (
+    tester,
+  ) async {
+    final externalFocus = FocusNode();
+    addTearDown(externalFocus.dispose);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Column(
+            children: [
+              TextField(focusNode: externalFocus),
+              SizedBox(
+                width: 1000,
+                height: 450,
+                child: LabelSheetWorkbench(
+                  initialWorkbook: FortuneWorkbook(
+                    sheets: [
+                      FortuneSheet(
+                        id: 's1',
+                        name: 'Label',
+                        lines: const [
+                          FortuneLine(
+                            id: 'line_1',
+                            x1: 20,
+                            y1: 20,
+                            x2: 80,
+                            y2: 20,
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    final sheetApp = tester.widget<FortuneSheetApp>(
+      find.byType(FortuneSheetApp),
+    );
+    sheetApp.controller!.selectObject(
+      const FortuneSheetObjectKey(FortuneSheetObjectKind.line, 'line_1'),
+    );
+    await tester.pump();
+
+    externalFocus.requestFocus();
+    await tester.pump();
+
+    expect(find.byType(VerticalPaneSplitter), findsOneWidget);
+    expect(externalFocus.hasFocus, isTrue);
+
+    sheetApp.onOpenObjectPanelRequest!(
+      const FortuneObjectPanelOpenRequest(
+        sheetId: 's1',
+        objectKey: null,
+        propertyField: null,
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    expect(externalFocus.hasFocus, isTrue);
+    expect(
+      _primaryFocusIsInside(tester, find.byType(FortuneObjectLayerPanel)),
+      isFalse,
+    );
+  });
+
+  testWidgets('narrow overlay generic open request is no-op while property field is focused', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 600,
+            height: 500,
+            child: LabelSheetWorkbench(
+              initialWorkbook: FortuneWorkbook(
+                sheets: [
+                  FortuneSheet(
+                    id: 's1',
+                    name: 'Label',
+                    lines: const [
+                      FortuneLine(id: 'line_1', x1: 20, y1: 20, x2: 80, y2: 20),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    final sheetApp = tester.widget<FortuneSheetApp>(
+      find.byType(FortuneSheetApp),
+    );
+    sheetApp.controller!.selectObject(
+      const FortuneSheetObjectKey(FortuneSheetObjectKind.line, 'line_1'),
+    );
+    await tester.pump();
+
+    sheetApp.onOpenObjectPanelRequest!(
+      const FortuneObjectPanelOpenRequest(
+        sheetId: 's1',
+        objectKey: null,
+        propertyField: null,
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    final propertyField = find.byKey(
+      const ValueKey('fortune-object-property-x1'),
+    );
+    await tester.tap(propertyField);
+    await tester.pump();
+
+    final fieldFocusNode = tester.widget<TextField>(propertyField).focusNode!;
+    expect(fieldFocusNode.hasFocus, isTrue);
+
+    sheetApp.onOpenObjectPanelRequest!(
+      const FortuneObjectPanelOpenRequest(
+        sheetId: 's1',
+        objectKey: null,
+        propertyField: null,
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    expect(fieldFocusNode.hasFocus, isTrue);
+    expect(find.byType(FortuneObjectLayerPanel), findsOneWidget);
+  });
+
+  testWidgets('wide dock close request is no-op when panel is already hidden', (
+    tester,
+  ) async {
+    final externalFocus = FocusNode();
+    addTearDown(externalFocus.dispose);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Column(
+            children: [
+              TextField(focusNode: externalFocus),
+              SizedBox(
+                width: 1000,
+                height: 450,
+                child: LabelSheetWorkbench(
+                  initialWorkbook: FortuneWorkbook(
+                    sheets: [
+                      FortuneSheet(
+                        id: 's1',
+                        name: 'Label',
+                        lines: const [
+                          FortuneLine(
+                            id: 'line_1',
+                            x1: 20,
+                            y1: 20,
+                            x2: 80,
+                            y2: 20,
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    externalFocus.requestFocus();
+    await tester.pump();
+
+    await tester.tap(find.byTooltip('닫기'));
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.byType(VerticalPaneSplitter), findsNothing);
+    expect(externalFocus.hasFocus, isTrue);
+
+    final hiddenPanel = tester.widget<FortuneObjectLayerPanel>(
+      find.byType(FortuneObjectLayerPanel, skipOffstage: false),
+    );
+    hiddenPanel.onClose!.call();
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.byType(VerticalPaneSplitter), findsNothing);
+    expect(find.byType(FortuneObjectLayerPanel), findsNothing);
+    expect(externalFocus.hasFocus, isTrue);
+  });
+
+  testWidgets('narrow overlay close request is no-op when panel is already hidden', (
+    tester,
+  ) async {
+    final externalFocus = FocusNode();
+    addTearDown(externalFocus.dispose);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Column(
+            children: [
+              TextField(focusNode: externalFocus),
+              SizedBox(
+                width: 600,
+                height: 450,
+                child: LabelSheetWorkbench(
+                  initialWorkbook: FortuneWorkbook(
+                    sheets: [
+                      FortuneSheet(
+                        id: 's1',
+                        name: 'Label',
+                        lines: const [
+                          FortuneLine(
+                            id: 'line_1',
+                            x1: 20,
+                            y1: 20,
+                            x2: 80,
+                            y2: 20,
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    externalFocus.requestFocus();
+    await tester.pump();
+
+    tester.widget<FortuneSheetApp>(find.byType(FortuneSheetApp))
+        .onOpenObjectPanelRequest!(
+          const FortuneObjectPanelOpenRequest(
+            sheetId: 's1',
+            objectKey: null,
+            propertyField: null,
+          ),
+        );
+    await tester.pump();
+    await tester.pump();
+
+    await tester.tap(find.byTooltip('닫기'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(FortuneObjectLayerPanel), findsNothing);
+    expect(externalFocus.hasFocus, isTrue);
+
+    final hiddenPanel = tester.widget<FortuneObjectLayerPanel>(
+      find.byType(FortuneObjectLayerPanel, skipOffstage: false),
+    );
+    hiddenPanel.onClose!.call();
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.byType(FortuneObjectLayerPanel), findsNothing);
+    expect(externalFocus.hasFocus, isTrue);
+  });
+
+  testWidgets('canvas-owned open request restores canvas on overlay close', (
+    tester,
+  ) async {
+    final externalFocus = FocusNode();
+    addTearDown(externalFocus.dispose);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Column(
+            children: [
+              TextField(focusNode: externalFocus),
+              SizedBox(
+                width: 600,
+                height: 450,
+                child: LabelSheetWorkbench(
+                  initialWorkbook: FortuneWorkbook(
+                    sheets: [
+                      FortuneSheet(
+                        id: 's1',
+                        name: 'Label',
+                        lines: const [
+                          FortuneLine(
+                            id: 'line_1',
+                            x1: 20,
+                            y1: 20,
+                            x2: 80,
+                            y2: 20,
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+    externalFocus.requestFocus();
+    await tester.pump();
+
+    tester.widget<FortuneSheetApp>(find.byType(FortuneSheetApp))
+        .onOpenObjectPanelRequest!(
+          const FortuneObjectPanelOpenRequest(
+            sheetId: 's1',
+            objectKey: null,
+            propertyField: null,
+            closeFocusTarget: FortuneObjectPanelCloseFocusTarget.canvas,
+          ),
+        );
+    await tester.pump();
+    await tester.pump();
+
+    await tester.tap(find.byTooltip('닫기'));
+    await tester.pumpAndSettle();
+
+    expect(
+      _primaryFocusIsInside(tester, find.byType(FortuneSheetCanvas)),
+      isTrue,
+    );
+    expect(externalFocus.hasFocus, isFalse);
   });
 
   testWidgets('object panel width persists drag then reset in order', (
@@ -3365,6 +3992,54 @@ void main() {
     expect(tester.getSize(panel).width, 302);
     final preferences = await SharedPreferences.getInstance();
     expect(preferences.getDouble('label_sheet_object_panel_width'), 302);
+  });
+
+  testWidgets('narrow-start workbench preserves saved dock width for wide restore', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues(<String, Object>{
+      'label_sheet_object_panel_width': 420.0,
+    });
+    await tester.binding.setSurfaceSize(const Size(1200, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    var width = 600.0;
+    late StateSetter setHostState;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: StatefulBuilder(
+            builder: (context, setState) {
+              setHostState = setState;
+              return Align(
+                alignment: Alignment.topLeft,
+                child: SizedBox(
+                  width: width,
+                  height: 500,
+                  child: LabelSheetWorkbench(
+                    initialWorkbook: FortuneWorkbook(
+                      sheets: [FortuneSheet(id: 's1', name: 'Label')],
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(VerticalPaneSplitter), findsNothing);
+    expect(find.byTooltip('개체 패널 열기'), findsOneWidget);
+
+    setHostState(() {
+      width = 1000;
+    });
+    await tester.pumpAndSettle();
+
+    expect(find.byType(VerticalPaneSplitter), findsOneWidget);
+    expect(tester.getSize(find.byType(FortuneObjectLayerPanel)).width, 420);
   });
 
   testWidgets('external zoom toolbar controls label sheet', (tester) async {

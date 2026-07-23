@@ -77,6 +77,19 @@ bool _stringSetEquals(Set<String> left, Set<String> right) {
   return left.containsAll(right);
 }
 
+bool _objectKeySetEquals(
+  Set<FortuneSheetObjectKey> left,
+  Set<FortuneSheetObjectKey> right,
+) {
+  if (identical(left, right)) {
+    return true;
+  }
+  if (left.length != right.length) {
+    return false;
+  }
+  return left.containsAll(right);
+}
+
 bool _fortuneSheetGuideListEquals(
   List<FortuneSheetGuide> left,
   List<FortuneSheetGuide> right,
@@ -44414,25 +44427,55 @@ bool fortuneImageLayerPanelActionEnabled(
   String? activeImageId,
   String command, {
   Set<String> selectedImageIds = const <String>{},
+  FortuneSheetObjectKey? activeImageKey,
+  Set<FortuneSheetObjectKey> selectedImageKeys = const <FortuneSheetObjectKey>{},
 }) {
-  if (activeImageId == null || images.isEmpty) {
+  if (images.isEmpty) {
     return false;
   }
   final ordered = fortuneImagesInPaintOrder(images);
-  final currentIndex = ordered.indexWhere((image) => image.id == activeImageId);
+  final activeKey = activeImageKey ??
+      (activeImageId == null
+          ? null
+          : ordered
+                .where((image) => image.id == activeImageId)
+                .map(
+                  (image) => FortuneSheetObjectKey(
+                    fortuneImageObjectKind(image),
+                    image.id,
+                  ),
+                )
+                .firstOrNull);
+  if (activeKey == null) {
+    return false;
+  }
+  final currentIndex = ordered.indexWhere(
+    (image) => image.id == activeKey.id && fortuneImageObjectKind(image) == activeKey.kind,
+  );
   if (currentIndex < 0) {
     return false;
   }
-  final existingIds = {for (final image in ordered) image.id};
-  final actionIds = selectedImageIds.contains(activeImageId)
-      ? selectedImageIds.intersection(existingIds)
-      : <String>{activeImageId};
-  if (actionIds.isEmpty) {
+  final existingKeys = {
+    for (final image in ordered)
+      FortuneSheetObjectKey(fortuneImageObjectKind(image), image.id),
+  };
+  final actionKeys = selectedImageKeys.contains(activeKey)
+      ? selectedImageKeys.intersection(existingKeys)
+      : selectedImageIds.contains(activeKey.id)
+      ? existingKeys.where((key) => selectedImageIds.contains(key.id)).toSet()
+      : <FortuneSheetObjectKey>{activeKey};
+  if (actionKeys.isEmpty) {
     return false;
   }
   final selectedIndexes = <int>[
     for (var index = 0; index < ordered.length; index += 1)
-      if (actionIds.contains(ordered[index].id)) index,
+      if (actionKeys.contains(
+        FortuneSheetObjectKey(
+          fortuneImageObjectKind(ordered[index]),
+          ordered[index].id,
+        ),
+      ))
+        index,
   ];
   final selectedCount = selectedIndexes.length;
   return switch (command) {
@@ -62593,6 +62636,7 @@ class FortuneSheetPainter extends CustomPainter {
     this.hoveredRowHeaderIndex,
     this.activeImageId,
     this.activeImageKey,
+    this.selectedImageKeys = const <FortuneSheetObjectKey>{},
     this.activeObjectKey,
     this.objectGestureDraftKey,
     this.objectGestureLineDraft,
@@ -62604,12 +62648,6 @@ class FortuneSheetPainter extends CustomPainter {
     this.selectedImageIds = const <String>{},
     this.activeImageToolbarHoveredCommand,
     this.activeImageToolbarTooltipPosition,
-    this.imageLayerPanelOpen = false,
-    this.imageLayerPanelScrollOffset = 0,
-    this.imageLayerPanelDraggingImageId,
-    this.imageLayerPanelDragTargetIndex,
-    this.imageLayerPanelHoveredActionCommand,
-    this.imageLayerPanelTooltipPosition,
     this.decodedImages = const <String, ui.Image>{},
     this.zoomMenuOpen = false,
     this.sheetFocused = true,
@@ -62822,6 +62860,7 @@ class FortuneSheetPainter extends CustomPainter {
   final int? hoveredRowHeaderIndex;
   final String? activeImageId;
   final FortuneSheetObjectKey? activeImageKey;
+  final Set<FortuneSheetObjectKey> selectedImageKeys;
   final FortuneSheetObjectKey? activeObjectKey;
   final FortuneSheetObjectKey? objectGestureDraftKey;
   final FortuneLine? objectGestureLineDraft;
@@ -62833,12 +62872,6 @@ class FortuneSheetPainter extends CustomPainter {
   final Set<String> selectedImageIds;
   final String? activeImageToolbarHoveredCommand;
   final Offset? activeImageToolbarTooltipPosition;
-  final bool imageLayerPanelOpen;
-  final double imageLayerPanelScrollOffset;
-  final String? imageLayerPanelDraggingImageId;
-  final int? imageLayerPanelDragTargetIndex;
-  final String? imageLayerPanelHoveredActionCommand;
-  final Offset? imageLayerPanelTooltipPosition;
   final Map<String, ui.Image> decodedImages;
   final TextDirection textDirection;
   final bool zoomMenuOpen;
@@ -62916,7 +62949,6 @@ class FortuneSheetPainter extends CustomPainter {
     _drawFormulaSearchHint(canvas, size);
     _drawFormatSearchDialog(canvas, size);
     _drawActiveImageToolbarTooltip(canvas, size);
-    _drawImageLayerPanelActionTooltip(canvas, size);
   }
 
   void _drawToolbar(Canvas canvas, Size size, FortuneSettings settings) {
@@ -63853,7 +63885,6 @@ class FortuneSheetPainter extends CustomPainter {
     }
     _drawActiveTypedObjectSelection(canvas, size, settings);
     _drawActiveImageToolbar(canvas, size, settings);
-    _drawImageLayerPanel(canvas, size, settings);
     _drawVisibleComments(canvas, size, settings, metrics);
     if (showCellSelection) {
       _drawSelection(canvas, size, settings, metrics);
@@ -63864,6 +63895,52 @@ class FortuneSheetPainter extends CustomPainter {
     _drawFreezeDragLine(canvas, size);
     _drawResizeDragLine(canvas, size);
     _drawPreviewBoundaryFinalOverlay(canvas, size, settings);
+  }
+
+  void _drawSheetRulerTooltip(Canvas canvas, Size size) {
+    final text = sheetRulerTooltipText;
+    final position = sheetRulerTooltipPosition;
+    if (text == null || text.isEmpty || position == null) {
+      return;
+    }
+    final textPainter = TextPainter(
+      text: TextSpan(
+        text: text,
+        style: const TextStyle(
+          color: fortuneToolbarTooltipTextColor,
+          fontSize: fortuneToolbarTooltipFontSize,
+          fontFamily: 'Arial',
+        ),
+      ),
+      textDirection: textDirection,
+      maxLines: 1,
+    )..layout(maxWidth: fortuneToolbarTooltipMaxWidth);
+    final width = math.min(
+      fortuneToolbarTooltipMaxWidth,
+      textPainter.width + fortuneToolbarTooltipPaddingHorizontal * 2,
+    );
+    final height =
+        textPainter.height + fortuneToolbarTooltipPaddingVertical * 2;
+    final left = math.min(
+      math.max(2.0, position.dx + 10),
+      math.max(2.0, size.width - width - 2),
+    );
+    final top = math.min(
+      math.max(2.0, position.dy + 10),
+      math.max(2.0, size.height - height - 2),
+    );
+    final rect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(left, top, width, height),
+      const Radius.circular(4),
+    );
+    canvas.drawRRect(rect, Paint()..color = const Color(0xcc202124));
+    textPainter.paint(
+      canvas,
+      Offset(
+        left + fortuneToolbarTooltipPaddingHorizontal,
+        top + fortuneToolbarTooltipPaddingVertical,
+      ),
+    );
   }
 
   Rect? _sheetRulerDataRect(
@@ -64399,94 +64476,6 @@ class FortuneSheetPainter extends CustomPainter {
       }
     }
     canvas.restore();
-  }
-
-  void _drawSheetRulerTooltip(Canvas canvas, Size size) {
-    final text = sheetRulerTooltipText;
-    final position = sheetRulerTooltipPosition;
-    if (!sheetRulerVisible || text == null || position == null) {
-      return;
-    }
-    final textPainter = TextPainter(
-      text: TextSpan(
-        text: text,
-        style: const TextStyle(
-          color: Color(0xffffffff),
-          fontSize: 11,
-          fontFamily: 'Arial',
-        ),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout();
-    final width = textPainter.width + 14;
-    final height = textPainter.height + 8;
-    final left = math.min(
-      math.max(2.0, position.dx + fortuneSheetRulerTooltipOffset),
-      math.max(2.0, size.width - width - 2),
-    );
-    final top = math.min(
-      math.max(2.0, position.dy + fortuneSheetRulerTooltipOffset),
-      math.max(2.0, size.height - height - 2),
-    );
-    final rect = RRect.fromRectAndRadius(
-      Rect.fromLTWH(left, top, width, height),
-      const Radius.circular(3),
-    );
-    canvas.drawRRect(rect, Paint()..color = const Color(0xcc202124));
-    textPainter.paint(canvas, Offset(left + 7, top + 4));
-  }
-
-  void _drawImageLayerPanelActionTooltip(Canvas canvas, Size size) {
-    final command = imageLayerPanelHoveredActionCommand;
-    final position = imageLayerPanelTooltipPosition;
-    if (!imageLayerPanelOpen || command == null || position == null) {
-      return;
-    }
-    final text = fortuneImageLayerPanelActionTooltip(command);
-    if (text.isEmpty) {
-      return;
-    }
-    final textPainter = TextPainter(
-      text: TextSpan(
-        text: text,
-        style: const TextStyle(
-          color: fortuneToolbarTooltipTextColor,
-          fontSize: fortuneToolbarTooltipFontSize,
-          fontFamily: 'Arial',
-        ),
-      ),
-      textDirection: textDirection,
-      maxLines: 1,
-    )..layout(maxWidth: fortuneToolbarTooltipMaxWidth);
-    final width = math.min(
-      fortuneToolbarTooltipMaxWidth,
-      textPainter.width + fortuneToolbarTooltipPaddingHorizontal * 2,
-    );
-    final height =
-        textPainter.height + fortuneToolbarTooltipPaddingVertical * 2;
-    final left = math.min(
-      math.max(2.0, position.dx + 10),
-      math.max(2.0, size.width - width - 2),
-    );
-    final top = math.min(
-      math.max(2.0, position.dy + 12),
-      math.max(2.0, size.height - height - 2),
-    );
-    final rect = RRect.fromRectAndRadius(
-      Rect.fromLTWH(left, top, width, height),
-      const Radius.circular(3),
-    );
-    canvas.drawRRect(
-      rect,
-      Paint()..color = fortuneToolbarTooltipBackgroundColor,
-    );
-    textPainter.paint(
-      canvas,
-      Offset(
-        left + fortuneToolbarTooltipPaddingHorizontal,
-        top + fortuneToolbarTooltipPaddingVertical,
-      ),
-    );
   }
 
   ({double dataWidth, double dataHeight, bool vertical, bool horizontal})
@@ -77561,6 +77550,9 @@ class FortuneSheetPainter extends CustomPainter {
     Size size,
     FortuneSettings settings,
   ) {
+    if (selectedImageKeys.length > 1) {
+      return;
+    }
     final objectKey = activeObjectKey ?? activeImageKey;
     if (objectKey == null || contextMenuAt != null) {
       return;
@@ -77725,239 +77717,6 @@ class FortuneSheetPainter extends CustomPainter {
         left + fortuneToolbarTooltipPaddingHorizontal,
         top + fortuneToolbarTooltipPaddingVertical,
       ),
-    );
-  }
-
-  void _drawImageLayerPanel(
-    Canvas canvas,
-    Size size,
-    FortuneSettings settings,
-  ) {
-    if (!imageLayerPanelOpen) {
-      return;
-    }
-    final items = fortuneImageLayerPanelItems(workbook.activeSheet.images);
-    if (items.isEmpty) {
-      return;
-    }
-    final top =
-        settings.effectiveToolbarHeight +
-        settings.effectiveFormulaBarHeight +
-        settings.columnHeaderHeight +
-        fortuneImageLayerPanelMargin;
-    final panel = fortuneImageLayerPanelRect(size, items.length, top: top);
-    _drawShadowBox(canvas, panel, radius: 4, border: const Color(0xffd4d4d4));
-    final actionWidth =
-        fortuneImageLayerPanelActionCommands.length *
-            fortuneImageLayerPanelActionSize +
-        math.max(0, fortuneImageLayerPanelActionCommands.length - 1) * 4;
-    _drawText(
-      canvas,
-      _contextMenuLabel(fortuneContextToggleLayerPanelCommand),
-      Rect.fromLTWH(
-        panel.left + 10,
-        panel.top,
-        math.max(0, panel.width - actionWidth - 28),
-        fortuneImageLayerPanelHeaderHeight,
-      ),
-      fontSize: 12,
-      fontWeight: FontWeight.w700,
-      color: const Color(0xff202124),
-    );
-    for (final command in fortuneImageLayerPanelActionCommands) {
-      _drawImageLayerPanelAction(
-        canvas,
-        size,
-        items.length,
-        command,
-        fortuneImageLayerPanelActionGlyph(command),
-        top,
-        enabled:
-            workbook.settings.allowEdit &&
-            fortuneImageLayerPanelActionEnabled(
-              workbook.activeSheet.images,
-              activeImageId,
-              command,
-              selectedImageIds: selectedImageIds,
-            ),
-      );
-    }
-    final scrollOffset = fortuneImageLayerPanelClampScrollOffset(
-      items.length,
-      imageLayerPanelScrollOffset,
-    );
-    for (var index = 0; index < items.length; index += 1) {
-      final item = items[index];
-      final row = fortuneImageLayerPanelItemRect(
-        size,
-        items.length,
-        index,
-        top: top,
-        scrollOffset: scrollOffset,
-      );
-      if (row == null) {
-        continue;
-      }
-      final isDragging = item.id == imageLayerPanelDraggingImageId;
-      if (isDragging) {
-        canvas.drawRect(row, Paint()..color = const Color(0xffd2e3fc));
-      } else if (item.id == activeImageId ||
-          selectedImageIds.contains(item.id)) {
-        canvas.drawRect(row, Paint()..color = const Color(0xffe8f0fe));
-      }
-      canvas.drawRect(
-        Rect.fromLTWH(row.left + 10, row.top, 1, row.height),
-        Paint()..color = const Color(0xffe8eaed),
-      );
-      final typeRect = fortuneImageLayerPanelTypeRect(row);
-      final isBarcode = item.extraFields['fortuneBarcode'] == true;
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(typeRect, const Radius.circular(3)),
-        Paint()
-          ..color = isBarcode
-              ? const Color(0xffe6f4ea)
-              : const Color(0xffe8f0fe),
-      );
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(typeRect, const Radius.circular(3)),
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 1
-          ..color = isBarcode
-              ? const Color(0xff34a853)
-              : const Color(0xff1a73e8),
-      );
-      _drawText(
-        canvas,
-        fortuneImageLayerPanelTypeLabel(item),
-        typeRect,
-        fontSize: 9,
-        fontWeight: FontWeight.w700,
-        color: isBarcode ? const Color(0xff137333) : const Color(0xff174ea6),
-        align: TextAlign.center,
-      );
-      _drawText(
-        canvas,
-        fortuneImageLayerPanelLabel(item),
-        fortuneImageLayerPanelLabelRect(row),
-        fontSize: 11,
-        color: const Color(0xff202124),
-      );
-      if (isDragging) {
-        canvas.drawRRect(
-          RRect.fromRectAndRadius(row.deflate(1), const Radius.circular(3)),
-          Paint()
-            ..color = const Color(0xff1a73e8)
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = 1.5,
-        );
-      }
-    }
-    _drawImageLayerPanelDragTarget(
-      canvas,
-      size,
-      items.length,
-      scrollOffset,
-      top,
-    );
-    _drawImageLayerPanelScrollbar(
-      canvas,
-      size,
-      items.length,
-      scrollOffset,
-      top,
-    );
-  }
-
-  void _drawImageLayerPanelDragTarget(
-    Canvas canvas,
-    Size size,
-    int itemCount,
-    double scrollOffset,
-    double top,
-  ) {
-    final targetIndex = imageLayerPanelDragTargetIndex;
-    if (imageLayerPanelDraggingImageId == null || targetIndex == null) {
-      return;
-    }
-    final row = fortuneImageLayerPanelItemRect(
-      size,
-      itemCount,
-      targetIndex,
-      top: top,
-      scrollOffset: scrollOffset,
-    );
-    if (row == null) {
-      return;
-    }
-    final line = Rect.fromLTWH(row.left + 12, row.top, row.width - 24, 2);
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(line, const Radius.circular(1)),
-      Paint()..color = const Color(0xff1a73e8),
-    );
-  }
-
-  void _drawImageLayerPanelScrollbar(
-    Canvas canvas,
-    Size size,
-    int itemCount,
-    double scrollOffset,
-    double top,
-  ) {
-    final thumb = fortuneImageLayerPanelScrollbarThumbRect(
-      size,
-      itemCount,
-      scrollOffset,
-      top: top,
-    );
-    if (thumb == null) {
-      return;
-    }
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(thumb, const Radius.circular(2)),
-      Paint()..color = const Color(0xff9aa0a6),
-    );
-  }
-
-  void _drawImageLayerPanelAction(
-    Canvas canvas,
-    Size size,
-    int itemCount,
-    String command,
-    String label,
-    double top, {
-    required bool enabled,
-  }) {
-    final rect = fortuneImageLayerPanelActionRect(
-      size,
-      itemCount,
-      command,
-      top: top,
-    );
-    if (rect == null) {
-      return;
-    }
-    final paint = Paint()
-      ..color = enabled ? const Color(0xfff8f9fa) : const Color(0xfff1f3f4);
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(rect, const Radius.circular(4)),
-      paint,
-    );
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(rect, const Radius.circular(4)),
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1
-        ..color = enabled ? const Color(0xffdadce0) : const Color(0xffe8eaed),
-    );
-    _drawText(
-      canvas,
-      label,
-      rect,
-      fontSize: 13,
-      fontWeight: FontWeight.w700,
-      color: enabled ? const Color(0xff202124) : const Color(0xff9aa0a6),
-      align: TextAlign.center,
     );
   }
 
@@ -78662,23 +78421,17 @@ class FortuneSheetPainter extends CustomPainter {
         oldDelegate.hoveredColumnHeaderIndex != hoveredColumnHeaderIndex ||
         oldDelegate.hoveredRowHeaderIndex != hoveredRowHeaderIndex ||
         oldDelegate.activeImageId != activeImageId ||
+        oldDelegate.activeImageKey != activeImageKey ||
+        !_objectKeySetEquals(
+          oldDelegate.selectedImageKeys,
+          selectedImageKeys,
+        ) ||
         oldDelegate.objectGestureImageDraft != objectGestureImageDraft ||
         oldDelegate.objectGestureImageDraftKey != objectGestureImageDraftKey ||
         oldDelegate.activeImageToolbarHoveredCommand !=
             activeImageToolbarHoveredCommand ||
         oldDelegate.activeImageToolbarTooltipPosition !=
             activeImageToolbarTooltipPosition ||
-        oldDelegate.imageLayerPanelOpen != imageLayerPanelOpen ||
-        oldDelegate.imageLayerPanelScrollOffset !=
-            imageLayerPanelScrollOffset ||
-        oldDelegate.imageLayerPanelDraggingImageId !=
-            imageLayerPanelDraggingImageId ||
-        oldDelegate.imageLayerPanelDragTargetIndex !=
-            imageLayerPanelDragTargetIndex ||
-        oldDelegate.imageLayerPanelHoveredActionCommand !=
-            imageLayerPanelHoveredActionCommand ||
-        oldDelegate.imageLayerPanelTooltipPosition !=
-            imageLayerPanelTooltipPosition ||
         oldDelegate.decodedImages != decodedImages ||
         oldDelegate.zoomMenuOpen != zoomMenuOpen ||
         oldDelegate.sheetFocused != sheetFocused ||
