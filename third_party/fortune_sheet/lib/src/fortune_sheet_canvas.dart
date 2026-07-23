@@ -26323,21 +26323,31 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     );
   }
 
-  Set<String> get _activeGeometryToolbarKeys {
-    if (!_lineInsertionMode) return const <String>{};
-    final kind = _shapeInsertionKind;
-    if (kind == null) return const {fortuneToolbarLineCommand};
-    if (_workbook.settings.toolbarItems.contains(fortuneToolbarShapeCommand)) {
-      return const {fortuneToolbarShapeCommand};
+  Set<String> get _activeToolbarKeys {
+    final keys = <String>{};
+    if (widget.objectPanelPresentation !=
+        FortuneObjectPanelPresentation.hidden) {
+      keys.add(fortuneToolbarObjectPanelCommand);
     }
-    return {
-      switch (kind) {
-        FortuneShapeKind.rectangle => fortuneToolbarRectangleCommand,
-        FortuneShapeKind.roundedRectangle =>
-          fortuneToolbarRoundedRectangleCommand,
-        FortuneShapeKind.ellipse => fortuneToolbarEllipseCommand,
-      },
-    };
+    if (!_lineInsertionMode) return keys;
+    final kind = _shapeInsertionKind;
+    if (kind == null) {
+      keys.add(fortuneToolbarLineCommand);
+    } else if (_workbook.settings.toolbarItems.contains(
+      fortuneToolbarShapeCommand,
+    )) {
+      keys.add(fortuneToolbarShapeCommand);
+    } else {
+      keys.add(
+        switch (kind) {
+          FortuneShapeKind.rectangle => fortuneToolbarRectangleCommand,
+          FortuneShapeKind.roundedRectangle =>
+            fortuneToolbarRoundedRectangleCommand,
+          FortuneShapeKind.ellipse => fortuneToolbarEllipseCommand,
+        },
+      );
+    }
+    return keys;
   }
 
   void _startTypedObjectMove(
@@ -48510,7 +48520,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
                     _toolbarPopupPressedScrollButtonDirection,
                 toolbarHoveredKey: _toolbarHoveredKey,
                 toolbarHoveredComboArrowKey: _toolbarHoveredComboArrowKey,
-                toolbarActiveKeys: _activeGeometryToolbarKeys,
+                toolbarActiveKeys: _activeToolbarKeys,
                 toolbarComboLabelOverrides: _currentToolbarComboLabels(),
                 toolbarFontColorIndicator: _toolbarRecentTextColor,
                 toolbarBackgroundColorIndicator: _toolbarRecentBackgroundColor,

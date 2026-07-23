@@ -1,3 +1,16 @@
+### 완료 (2026-07-23): 개체 패널 layout mutation 및 toolbar active 보정
+- 사용자 요청: 개체 패널 표시 시 발생하는 `_RenderLayoutBuilder` mutation 오류를 수정하고, 패널이 표시되는 동안 toolbar 개체 버튼에 눌림 효과를 적용한다.
+- 로그 확인: `.tmp/log/app_2026-07-23_17-23-16.log`에서 `label_sheet_workbench.dart:4356`의 overlay 패널 `Positioned` 활성화 중 `OverlayPortal` subtree가 `LayoutBuilder.performLayout` 안에서 attach되어 `markNeedsLayout` assertion 발생.
+- 원인 가설: focus 판별용 `_objectPanelKey`가 전체 `FortuneObjectLayerPanel` subtree를 GlobalKey 재활성화해 내부 dropdown `OverlayPortal`까지 layout 중 attach한다.
+- 편집 완료: `label_sheet_workbench.dart`에서 전체 패널 subtree의 GlobalKey를 제거하고 패널 전용 `FocusScopeNode`로 focus handoff를 유지해 responsive 재배치 시 내부 `OverlayPortal` element가 layout 중 재활성화되지 않게 했다.
+- 편집 완료: `fortune_sheet_canvas.dart`의 toolbar active key 계산에 object panel presentation을 반영해 dock/overlay 표시 중 `object-panel` 버튼이 active 배경을 사용한다.
+- 테스트 추가: `label_sheet_toolbar_test.dart`의 narrow overlay 테스트에 open/close active key와 `takeException()` 검증, width 복원 테스트에 wide→narrow 재배치 layout exception 회귀 검증을 추가했다.
+- 검증 완료: `narrow object overlay caps at 300 within safe insets` 통과(1/1), 편집 파일 Dart analyzer 오류 없음.
+- 검증 완료: object panel 회귀 테스트 2개(`narrow object overlay caps...`, `narrow-start workbench preserves...`) 통과(2/2).
+- 검증 완료: `flutter test test/label_sheet_toolbar_test.dart` 전체 140개 통과, 수정 Dart 파일 analyzer 오류 없음.
+- stage/commit 대상: `lib/page_label_sheet/label_sheet_workbench.dart`, `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`, `test/label_sheet_toolbar_test.dart`, `SESSION_HANDOFF.md`.
+- 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
+
 ### 완료 (2026-07-23): 셀 테두리와 비선택 개체 raster 직접 비교
 - 사용자 재확인: 선택 표시를 제거한 상태에서도 1px 선·둥근 사각형이 셀의 검은 1px 테두리보다 굵게 보인다.
 - 원인 확정: zoom 200%에서 셀 테두리는 화면 1px을 유지하지만 개체 stroke는 `zoomRatio`가 곱해져 선·도형이 2px로 렌더링됐다.

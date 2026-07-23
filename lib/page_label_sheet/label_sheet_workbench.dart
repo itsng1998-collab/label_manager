@@ -2136,8 +2136,8 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
         labelRtf: widget.labelRtf,
       );
   late final FortuneSheetController _controller = FortuneSheetController();
-  final GlobalKey _objectPanelKey = GlobalKey(
-    debugLabel: 'Label sheet object panel',
+  final FocusScopeNode _objectPanelFocusScopeNode = FocusScopeNode(
+    debugLabel: 'Label sheet object panel focus scope',
   );
   late final TextEditingController _zoomController = TextEditingController(
     text: '$labelSheetDefaultZoomPercent',
@@ -2392,22 +2392,11 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     final generation = ++_objectPanelFocusHandoffGeneration;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || generation != _objectPanelFocusHandoffGeneration) return;
-      final panelContext = _objectPanelKey.currentContext;
-      final focusContext = FocusManager.instance.primaryFocus?.context;
       _objectOverlayTriggerFocus = null;
       _objectOverlayPreviousFocus = null;
       _objectOverlayCloseFocusTarget =
           FortuneObjectPanelCloseFocusTarget.previousFocus;
-      if (panelContext == null || focusContext == null) return;
-      var focusInsidePanel = focusContext == panelContext;
-      focusContext.visitAncestorElements((element) {
-        if (element == panelContext) {
-          focusInsidePanel = true;
-          return false;
-        }
-        return true;
-      });
-      if (focusInsidePanel) {
+      if (_objectPanelFocusScopeNode.hasFocus) {
         _controller.focusCanvas();
       }
     });
@@ -2657,6 +2646,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
     _printTopMarginController.dispose();
     _printExtraAreaController.dispose();
     _printCopiesController.dispose();
+    _objectPanelFocusScopeNode.dispose();
     _objectOverlayOpenButtonFocusNode.dispose();
     _zoomFocusNode.removeListener(_handleZoomFocusChanged);
     _zoomFocusNode.dispose();
@@ -4214,22 +4204,24 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
                 _objectDockEligible && _userWantsObjectDockOpen;
             final overlayObjectPanel =
                 !_objectDockEligible && _objectOverlayOpen;
-            final objectPanel = FortuneObjectLayerPanel(
-              key: _objectPanelKey,
-              controller: _controller,
-              imageObjectOptions: widget.imageObjectOptions,
-              barcodeObjectOptions: widget.barcodeObjectOptions,
-              imageObjectIds: widget.imageObjectIds,
-              barcodeObjectIds: widget.barcodeObjectIds,
-              headerHeight: sheetSettings.toolbarHeight,
-              actionToolbarHeight: sheetSettings.columnHeaderHeight * 2,
-              onClose: _closeObjectPanel,
-              presentation: objectPanelPresentation,
-              layerFocusGeneration: _objectLayerFocusGeneration,
-              propertyFocusField: _objectPropertyFocusField,
-              propertyFocusSheetId: _objectPropertyFocusSheetId,
-              propertyFocusObjectKey: _objectPropertyFocusObjectKey,
-              propertyFocusGeneration: _objectPropertyFocusGeneration,
+            final objectPanel = FocusScope(
+              node: _objectPanelFocusScopeNode,
+              child: FortuneObjectLayerPanel(
+                controller: _controller,
+                imageObjectOptions: widget.imageObjectOptions,
+                barcodeObjectOptions: widget.barcodeObjectOptions,
+                imageObjectIds: widget.imageObjectIds,
+                barcodeObjectIds: widget.barcodeObjectIds,
+                headerHeight: sheetSettings.toolbarHeight,
+                actionToolbarHeight: sheetSettings.columnHeaderHeight * 2,
+                onClose: _closeObjectPanel,
+                presentation: objectPanelPresentation,
+                layerFocusGeneration: _objectLayerFocusGeneration,
+                propertyFocusField: _objectPropertyFocusField,
+                propertyFocusSheetId: _objectPropertyFocusSheetId,
+                propertyFocusObjectKey: _objectPropertyFocusObjectKey,
+                propertyFocusGeneration: _objectPropertyFocusGeneration,
+              ),
             );
             const overlayHorizontalInset = 8.0;
             final overlayPanelWidth = math.min(

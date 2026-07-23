@@ -3202,6 +3202,16 @@ void main() {
     await tester.pump();
 
     final rect = tester.getRect(find.byType(FortuneObjectLayerPanel));
+    final sheetPainter = tester
+        .widgetList<CustomPaint>(find.byType(CustomPaint))
+        .map((paint) => paint.painter)
+        .whereType<FortuneSheetPainter>()
+        .single;
+    expect(tester.takeException(), isNull);
+    expect(
+      sheetPainter.toolbarActiveKeys,
+      contains(fortuneToolbarObjectPanelCommand),
+    );
     expect(
       tester.state(find.byType(FortuneObjectLayerPanel)),
       same(panelState),
@@ -3209,6 +3219,19 @@ void main() {
     expect(rect.left, 12);
     expect(rect.right, 312);
     expect(rect.width, 300);
+
+    await tester.tap(find.byTooltip('닫기'));
+    await tester.pumpAndSettle();
+
+    final closedSheetPainter = tester
+        .widgetList<CustomPaint>(find.byType(CustomPaint))
+        .map((paint) => paint.painter)
+        .whereType<FortuneSheetPainter>()
+        .single;
+    expect(
+      closedSheetPainter.toolbarActiveKeys,
+      isNot(contains(fortuneToolbarObjectPanelCommand)),
+    );
   });
 
   testWidgets('narrow object overlay shrinks below 220 without overflow', (
@@ -4171,6 +4194,15 @@ void main() {
 
     expect(find.byType(VerticalPaneSplitter), findsOneWidget);
     expect(tester.getSize(find.byType(FortuneObjectLayerPanel)).width, 420);
+
+    setHostState(() {
+      width = 600;
+    });
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.byType(VerticalPaneSplitter), findsNothing);
+    expect(find.byTooltip('개체 패널 열기'), findsOneWidget);
   });
 
   testWidgets('external zoom toolbar controls label sheet', (tester) async {
