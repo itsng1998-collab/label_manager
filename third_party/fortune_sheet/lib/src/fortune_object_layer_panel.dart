@@ -55,6 +55,7 @@ class FortuneObjectLayerPanel extends StatefulWidget {
     this.imageObjectIds = const <String>[],
     this.barcodeObjectIds = const <String>[],
     this.headerHeight = 41,
+    this.actionToolbarHeight = 40,
     this.onClose,
     this.presentation = FortuneObjectPanelPresentation.hidden,
     this.layerFocusGeneration = 0,
@@ -70,6 +71,7 @@ class FortuneObjectLayerPanel extends StatefulWidget {
   final List<String> imageObjectIds;
   final List<String> barcodeObjectIds;
   final double headerHeight;
+  final double actionToolbarHeight;
   final VoidCallback? onClose;
   final FortuneObjectPanelPresentation presentation;
   final int layerFocusGeneration;
@@ -183,9 +185,14 @@ class _FortuneObjectLayerPanelState extends State<FortuneObjectLayerPanel> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              SizedBox(
+              Container(
                 key: const ValueKey('fortune-object-panel-header'),
                 height: widget.headerHeight,
+                decoration: BoxDecoration(
+                  border: Border(
+                    bottom: Divider.createBorderSide(context),
+                  ),
+                ),
                 child: Row(
                   children: [
                     const SizedBox(width: 14),
@@ -207,9 +214,14 @@ class _FortuneObjectLayerPanelState extends State<FortuneObjectLayerPanel> {
                   ],
                 ),
               ),
-              const Divider(height: 1),
-              SizedBox(
-                height: 40,
+              Container(
+                key: const ValueKey('fortune-object-panel-action-toolbar'),
+                height: widget.actionToolbarHeight,
+                decoration: BoxDecoration(
+                  border: Border(
+                    bottom: Divider.createBorderSide(context),
+                  ),
+                ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -282,7 +294,6 @@ class _FortuneObjectLayerPanelState extends State<FortuneObjectLayerPanel> {
                   ],
                 ),
               ),
-              const Divider(height: 1),
               Flexible(
                 flex: 3,
                 child: objects.isEmpty

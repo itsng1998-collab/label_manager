@@ -4222,6 +4222,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
               imageObjectIds: widget.imageObjectIds,
               barcodeObjectIds: widget.barcodeObjectIds,
               headerHeight: sheetSettings.toolbarHeight,
+              actionToolbarHeight: sheetSettings.columnHeaderHeight * 2,
               onClose: _closeObjectPanel,
               presentation: objectPanelPresentation,
               layerFocusGeneration: _objectLayerFocusGeneration,

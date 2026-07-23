@@ -1,3 +1,14 @@
+### 완료 (2026-07-23): 개체 패널 구분선 픽셀 정렬
+- 사용자 제출 이미지 기준으로 패널 타이틀/액션 툴바 구분선이 인접 시트의 동일 경계보다 아래로 밀리는 원인을 확인했다. 기존 패널은 `41px content + 1px Divider`, 이어서 `40px content + 1px Divider`라 시트 경계 대비 1px, 2px가 누적됐다.
+- 수정 예정 파일/목적: 패널의 별도 Divider를 각 높이 영역 내부 bottom border로 바꾸고, 타이틀은 `sheetSettings.toolbarHeight`, 액션 툴바는 시트의 ruler+column header와 같은 `sheetSettings.columnHeaderHeight * 2`를 사용한다.
+- 편집 완료: `FortuneObjectLayerPanel`에 `actionToolbarHeight`를 추가하고 두 경계선을 영역 내부 border로 변경했다. Workbench가 두 높이를 실제 sheet settings에서 전달한다.
+- 테스트 보강: custom toolbar 47px/column header 23px에서 패널 title bottom과 action toolbar bottom이 시트 기준 Y=47/Y=93에 정확히 일치하는지 측정한다.
+- focused 검증: 픽셀 경계 테스트 포맷 전/후 모두 통과.
+- 정적 분석: root Workbench/test와 package panel 파일 모두 `No issues found`.
+- 최종 검증: `fortune_object_controller_test.dart` 42건, `label_sheet_toolbar_test.dart` 140건 전체 통과. `git diff --check` 확인 후 커밋한다.
+- stage/commit 대상: `third_party/fortune_sheet/lib/src/fortune_object_layer_panel.dart`, `lib/page_label_sheet/label_sheet_workbench.dart`, `test/label_sheet_toolbar_test.dart`, `SESSION_HANDOFF.md`.
+- 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
+
 ### 완료 (2026-07-23): 개체 속성 패널 헤더와 시트 툴바 높이 통일
 - 수정 예정 파일/목적: `FortuneObjectLayerPanel`에 configurable `headerHeight`를 추가하고 `LabelSheetWorkbench`가 현재 `sheetSettings.toolbarHeight`를 전달한다. root toolbar widget test가 실제 헤더 렌더 높이를 검증한다.
 - 편집 완료: 패널 기본 헤더 높이를 package 기본 툴바와 같은 41px로 변경하고, Workbench에서는 실제 툴바 설정값을 전달한다. 헤더에 `fortune-object-panel-header` key를 추가했다.

@@ -3119,10 +3119,11 @@ void main() {
     expect(tester.widget<EditableText>(zoomInput).controller.text, '110');
   });
 
-  testWidgets('object panel header matches sheet toolbar height', (
+  testWidgets('object panel separators align with sheet header boundaries', (
     tester,
   ) async {
     const toolbarHeight = 47.0;
+    const columnHeaderHeight = 23.0;
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
@@ -3131,7 +3132,10 @@ void main() {
             height: 450,
             child: LabelSheetWorkbench(
               initialWorkbook: FortuneWorkbook(
-                settings: const FortuneSettings(toolbarHeight: toolbarHeight),
+                settings: const FortuneSettings(
+                  toolbarHeight: toolbarHeight,
+                  columnHeaderHeight: columnHeaderHeight,
+                ),
                 sheets: [FortuneSheet(id: 's1', name: 'Label')],
               ),
             ),
@@ -3142,11 +3146,19 @@ void main() {
     await tester.pump();
     await tester.pump();
 
+    final sheetRect = tester.getRect(find.byType(FortuneSheetApp));
+    final titleRect = tester.getRect(
+      find.byKey(const ValueKey('fortune-object-panel-header')),
+    );
+    final toolbarRect = tester.getRect(
+      find.byKey(const ValueKey('fortune-object-panel-action-toolbar')),
+    );
+    expect(titleRect.top, sheetRect.top);
+    expect(titleRect.bottom, sheetRect.top + toolbarHeight);
+    expect(toolbarRect.top, titleRect.bottom);
     expect(
-      tester.getSize(
-        find.byKey(const ValueKey('fortune-object-panel-header')),
-      ).height,
-      toolbarHeight,
+      toolbarRect.bottom,
+      sheetRect.top + toolbarHeight + columnHeaderHeight * 2,
     );
   });
 
