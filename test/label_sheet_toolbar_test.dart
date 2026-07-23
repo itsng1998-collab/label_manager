@@ -2145,7 +2145,7 @@ void main() {
     );
     await tester.pump();
     await tester.pump();
-    await tester.tap(find.text('사각형 shape_1'));
+    await tester.tap(find.text('사각형 1'));
     await tester.pump();
     await tester.enterText(
       find.byKey(const ValueKey('fortune-object-property-width')),
@@ -2205,7 +2205,7 @@ void main() {
     );
     await tester.pump();
     await tester.pump();
-    await tester.tap(find.text('사각형 shape_1'));
+    await tester.tap(find.text('사각형 1'));
     await tester.pump();
 
     final widthField = find.byKey(
@@ -2276,7 +2276,7 @@ void main() {
     await tester.pump();
     await tester.pump();
     expect(lifecycle.isAttached, isTrue);
-    await tester.tap(find.text('사각형 shape_1'));
+    await tester.tap(find.text('사각형 1'));
     await tester.pump();
     await tester.enterText(
       find.byKey(const ValueKey('fortune-object-property-width')),
@@ -2376,7 +2376,7 @@ void main() {
     );
     await tester.pump();
     await tester.pump();
-    await tester.tap(find.text('바코드 barcode_1'));
+    await tester.tap(find.text('바코드 1'));
     await tester.pump();
     await tester.enterText(
       find.byKey(const ValueKey('fortune-object-property-barcodeText')),

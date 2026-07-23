@@ -183,6 +183,7 @@ class _FortuneObjectLayerPanelState extends State<FortuneObjectLayerPanel> {
         final canMutate = widget.controller.objectMutationEnabled;
         _resetScrollForSheet(snapshot.sheetId);
         final objects = snapshot.objects.reversed.toList(growable: false);
+        final objectDisplayNames = _objectDisplayNames(snapshot.objects);
         return Material(
           color: const Color(0xfff8f9fa),
           child: Column(
@@ -353,6 +354,8 @@ class _FortuneObjectLayerPanelState extends State<FortuneObjectLayerPanel> {
                                           .contains(object.key);
                                       return _ObjectLayerRow(
                                         object: object,
+                                        displayName:
+                                            objectDisplayNames[object.key]!,
                                         selected: selected,
                                         selectedKeys: snapshot.selectedKeys,
                                         dropSide:
@@ -439,6 +442,8 @@ class _FortuneObjectLayerPanelState extends State<FortuneObjectLayerPanel> {
                                         '$_permissionDiscardGeneration',
                                       ),
                                       snapshot: snapshot,
+                                        displayName:
+                                          objectDisplayNames[snapshot.activeKey]!,
                                       controller: widget.controller,
                                       scrollController:
                                           _propertyScrollController,
@@ -653,6 +658,7 @@ class _ObjectPanelSplitter extends StatelessWidget {
 class _ObjectLayerRow extends StatelessWidget {
   const _ObjectLayerRow({
     required this.object,
+    required this.displayName,
     required this.selected,
     required this.selectedKeys,
     required this.dropSide,
@@ -664,6 +670,7 @@ class _ObjectLayerRow extends StatelessWidget {
   });
 
   final FortuneSheetObjectRef object;
+  final String displayName;
   final bool selected;
   final Set<FortuneSheetObjectKey> selectedKeys;
   final FortuneObjectDropSide? dropSide;
@@ -706,7 +713,7 @@ class _ObjectLayerRow extends StatelessWidget {
               const SizedBox(width: 9),
               Expanded(
                 child: Text(
-                  '${_objectKindLabel(object.key.kind)} ${object.key.id}',
+                  displayName,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(fontSize: 13),
@@ -823,6 +830,7 @@ class _ObjectPropertyEditor extends StatefulWidget {
   const _ObjectPropertyEditor({
     super.key,
     required this.snapshot,
+    required this.displayName,
     required this.controller,
     required this.scrollController,
     required this.imageObjectOptions,
@@ -840,6 +848,7 @@ class _ObjectPropertyEditor extends StatefulWidget {
   });
 
   final FortuneObjectSelectionSnapshot snapshot;
+  final String displayName;
   final FortuneSheetController controller;
   final ScrollController scrollController;
   final List<FortuneObjectConnectionOption> imageObjectOptions;
@@ -1503,9 +1512,19 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
     }
     final unit = widget.snapshot.geometryUsesMillimeters ? 'mm' : 'px';
     final fields = <Widget>[
-      Text(
-        '${_objectKindLabel(widget.snapshot.activeKey!.kind)} 속성',
-        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+      Text.rich(
+        key: const ValueKey('fortune-object-property-title'),
+        TextSpan(
+          children: [
+            TextSpan(
+              text:
+                  '${_objectKindLabel(widget.snapshot.activeKey!.kind)} 속성 ',
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+            TextSpan(text: '(${widget.displayName})'),
+          ],
+        ),
+        style: const TextStyle(fontSize: 13),
       ),
       const SizedBox(height: 10),
     ];
@@ -1898,4 +1917,37 @@ String _objectKindLabel(FortuneSheetObjectKind kind) {
     FortuneSheetObjectKind.roundedRectangle => '둥근 사각형',
     FortuneSheetObjectKind.ellipse => '타원',
   };
+}
+
+Map<FortuneSheetObjectKey, String> _objectDisplayNames(
+  List<FortuneSheetObjectRef> objects,
+) {
+  final result = <FortuneSheetObjectKey, String>{};
+  final usedIndexes = <FortuneSheetObjectKind, Set<int>>{};
+  final pending = <FortuneSheetObjectRef>[];
+  final trailingIndex = RegExp(r'(\d+)$');
+  for (final object in objects) {
+    final match = trailingIndex.firstMatch(object.key.id);
+    final index = match == null ? null : int.tryParse(match.group(1)!);
+    final used = usedIndexes.putIfAbsent(object.key.kind, () => <int>{});
+    if (index == null || index <= 0 || !used.add(index)) {
+      pending.add(object);
+      continue;
+    }
+    result[object.key] = '${_objectKindLabel(object.key.kind)} $index';
+  }
+  pending.sort((left, right) {
+    final kindOrder = left.key.kind.index.compareTo(right.key.kind.index);
+    return kindOrder != 0 ? kindOrder : left.key.id.compareTo(right.key.id);
+  });
+  for (final object in pending) {
+    final used = usedIndexes[object.key.kind]!;
+    var index = 1;
+    while (used.contains(index)) {
+      index += 1;
+    }
+    used.add(index);
+    result[object.key] = '${_objectKindLabel(object.key.kind)} $index';
+  }
+  return result;
 }

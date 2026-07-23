@@ -115,6 +115,17 @@ void main() {
     expect(await _shapePopupRowsWithIconInk(), 3);
   });
 
+  test('shape popup spacing matches other icon menus', () {
+    expect(
+      fortuneToolbarPopupRowHeightFor(fortuneToolbarShapeCommand),
+      fortuneToolbarHorizontalAlignPopupRowHeight,
+    );
+    expect(
+      fortuneToolbarPopupContentTopPaddingFor(fortuneToolbarShapeCommand),
+      fortuneToolbarHorizontalAlignPopupContentTopPadding,
+    );
+  });
+
   test('upstream kebab-case toolbar icon aliases are supported', () {
     const aliases = {
       'condition-format': 'conditionFormat',

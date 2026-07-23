@@ -1,3 +1,17 @@
+### 완료 (2026-07-23): 도형 popup 간격 및 개체 표시명 정리
+- 사용자 요청: 도형 삽입 dropdown 항목 간격을 다른 icon dropdown과 맞추고, 개체 패널 목록은 raw 내부 ID 대신 인덱스만 붙이며, 속성 제목을 `종류 속성 (표시명)`으로 표시하되 괄호 부분은 일반 굵기로 한다.
+- 원인 확인: shape popup은 24px 아이콘을 추가한 뒤에도 text-only 기본 row 26px/top padding 8px을 사용했고, 다른 icon menu는 row 40px/top padding 10px이다. 개체 목록은 `${종류} ${raw ID}`, 속성 제목은 종류만 출력한다.
+- 편집 완료: shape popup을 다른 icon menu와 동일한 row 40px/content top padding 10px로 맞췄다.
+- 편집 완료: 개체 raw ID의 trailing 숫자를 종류별 인덱스로 사용하는 공용 표시명을 목록과 속성 editor에 전달한다. suffix가 없거나 중복이면 같은 종류의 미사용 번호를 할당한다.
+- 편집 완료: 속성 제목을 `종류 속성 (종류 인덱스)` RichText로 변경하고 prefix만 semibold, 괄호 표시명은 normal weight로 렌더한다.
+- 테스트 갱신/추가: raw ID 미표시, 복제 suffix 인덱스, 속성 제목 문자열/각 span 굵기, shape popup과 다른 icon menu의 row/top padding 일치를 검증한다.
+- 검증 완료: 개체 목록/복제/속성 제목 집중 테스트 및 shape popup spacing 테스트 통과, 수정 Dart 파일 analyzer 오류 없음.
+- 검증 완료: `cd third_party/fortune_sheet && flutter test test/fortune_object_controller_test.dart test/fortune_toolbar_icons_test.dart` 전체 106개 통과.
+- 검증 완료: `cd third_party/fortune_sheet && flutter test test/fortune_line_insertion_test.dart` 전체 11개 통과.
+- 검증 완료: `flutter test test/label_sheet_toolbar_test.dart` root 전체 142개 통과, 수정 Dart 파일 analyzer 오류 없음.
+- stage/commit 대상: `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`, `third_party/fortune_sheet/lib/src/fortune_object_layer_panel.dart`, `third_party/fortune_sheet/test/fortune_object_controller_test.dart`, `third_party/fortune_sheet/test/fortune_toolbar_icons_test.dart`, `test/label_sheet_toolbar_test.dart`, `SESSION_HANDOFF.md`.
+- 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
+
 ### 완료 (2026-07-23): 개체 toolbar toggle 및 도형 popup 아이콘
 - 사용자 요청: active 상태의 개체 toolbar 버튼을 다시 누르면 패널을 숨기고 active를 해제한다. 도형 삽입 dropdown 각 라벨 오른쪽에 개체 패널과 같은 종류 아이콘을 다른 icon menu 스타일로 표시한다.
 - 확인: 개체 command는 presentation과 무관하게 open request만 호출한다. 도형 popup은 generic text-only row이며, 다른 icon menu는 라벨 왼쪽 정렬 + 오른쪽 12px inset의 24x24 아이콘을 사용한다.

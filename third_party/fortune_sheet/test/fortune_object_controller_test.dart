@@ -298,18 +298,27 @@ void main() {
       ),
     );
 
-    expect(find.text('이미지 image_1'), findsOneWidget);
-    expect(find.text('사각형 rect_1'), findsOneWidget);
+    expect(find.text('이미지 1'), findsOneWidget);
+    expect(find.text('사각형 1'), findsOneWidget);
+    expect(find.text('이미지 image_1'), findsNothing);
+    expect(find.text('사각형 rect_1'), findsNothing);
 
-    await tester.tap(find.text('사각형 rect_1'));
+    await tester.tap(find.text('사각형 1'));
     await tester.pump();
+    final propertyTitle = tester.widget<Text>(
+      find.byKey(const ValueKey('fortune-object-property-title')),
+    );
+    final titleSpan = propertyTitle.textSpan! as TextSpan;
+    expect(titleSpan.toPlainText(), '사각형 속성 (사각형 1)');
+    expect(titleSpan.children![0].style!.fontWeight, FontWeight.w600);
+    expect(titleSpan.children![1].style?.fontWeight, isNull);
     expect(
       controller.objectSelection.activeKey,
       const FortuneSheetObjectKey(FortuneSheetObjectKind.rectangle, 'rect_1'),
     );
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
-    await tester.tap(find.text('이미지 image_1'));
+    await tester.tap(find.text('이미지 1'));
     await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
     await tester.pump();
     expect(controller.objectSelection.selectedKeys, {
@@ -331,8 +340,8 @@ void main() {
       FortuneSheetObjectKind.rectangle,
       'rect_2',
     );
-    expect(find.text('이미지 image_2'), findsOneWidget);
-    expect(find.text('사각형 rect_2'), findsOneWidget);
+    expect(find.text('이미지 2'), findsOneWidget);
+    expect(find.text('사각형 2'), findsOneWidget);
     expect(controller.objectSelection.selectedKeys, {
       duplicateImageKey,
       duplicateShapeKey,
@@ -352,15 +361,15 @@ void main() {
 
     await tester.tap(find.byTooltip('선택한 개체 삭제'));
     await tester.pump();
-    expect(find.text('사각형 rect_2'), findsNothing);
-    expect(find.text('이미지 image_2'), findsNothing);
-    expect(find.text('사각형 rect_1'), findsOneWidget);
-    expect(find.text('이미지 image_1'), findsOneWidget);
+    expect(find.text('사각형 2'), findsNothing);
+    expect(find.text('이미지 2'), findsNothing);
+    expect(find.text('사각형 1'), findsOneWidget);
+    expect(find.text('이미지 1'), findsOneWidget);
     expect(controller.objectSelection.selectedKeys, {
       const FortuneSheetObjectKey(FortuneSheetObjectKind.image, 'image_1'),
     });
 
-    await tester.tap(find.text('이미지 image_1'));
+    await tester.tap(find.text('이미지 1'));
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
     await tester.sendKeyEvent(LogicalKeyboardKey.keyC);
     await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
@@ -369,7 +378,7 @@ void main() {
     await tester.sendKeyEvent(LogicalKeyboardKey.keyV);
     await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
     await tester.pump();
-    expect(find.text('이미지 image_2'), findsOneWidget);
+    expect(find.text('이미지 2'), findsOneWidget);
     expect(controller.objectSelection.selectedKeys, {
       const FortuneSheetObjectKey(FortuneSheetObjectKind.image, 'image_2'),
     });
@@ -432,7 +441,7 @@ void main() {
       ),
     );
 
-    await tester.tap(find.text('이미지 image_1'));
+    await tester.tap(find.text('이미지 1'));
     await tester.pump();
 
     expect(find.text('개체 ID'), findsNothing);
@@ -644,7 +653,7 @@ void main() {
       ),
     );
 
-    await tester.tap(find.text('이미지 image_1'));
+    await tester.tap(find.text('이미지 1'));
     await tester.pump();
     expect(
       controller.objectSelection.activeKey,
@@ -2141,7 +2150,7 @@ void main() {
         ),
       ),
     );
-    await tester.tap(find.text('사각형 shape_1'));
+    await tester.tap(find.text('사각형 1'));
     await tester.pump();
     await tester.enterText(
       find.byKey(const ValueKey('fortune-object-property-width')),
@@ -3350,7 +3359,7 @@ void main() {
       ),
     );
 
-    await tester.tap(find.text('둥근 사각형 round_1'));
+    await tester.tap(find.text('둥근 사각형 1'));
     await tester.pump();
     await tester.enterText(
       find.byKey(const ValueKey('fortune-object-property-top')),
@@ -3490,7 +3499,7 @@ void main() {
       ),
     );
 
-    await tester.tap(find.text('이미지 image_1'));
+    await tester.tap(find.text('이미지 1'));
     await tester.pump();
     await tester.tap(
       find.byKey(const ValueKey('fortune-object-property-aspect-lock')),
@@ -3618,7 +3627,7 @@ void main() {
         ),
       ),
     );
-    await tester.tap(find.text('사각형 shape_1'));
+    await tester.tap(find.text('사각형 1'));
     await tester.pump();
     final widthField = find.byKey(
       const ValueKey('fortune-object-property-width'),
@@ -3749,7 +3758,7 @@ void main() {
         ),
       ),
     );
-    await tester.tap(find.text('사각형 shape_1'));
+    await tester.tap(find.text('사각형 1'));
     await tester.pump();
     final widthField = find.byKey(
       const ValueKey('fortune-object-property-width'),
@@ -4101,7 +4110,7 @@ void main() {
         ),
       ),
     );
-    await tester.tap(find.text('사각형 rect_1'));
+    await tester.tap(find.text('사각형 1'));
     await tester.pump();
     await tester.enterText(
       find.byKey(const ValueKey('fortune-object-property-width')),

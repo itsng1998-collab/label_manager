@@ -2724,6 +2724,8 @@ const double fortuneToolbarShapePopupIconRightPadding = 12.0;
 const double fortuneToolbarShapePopupIconTopPadding = 8.0;
 const double fortuneToolbarShapePopupIconSize = 24.0;
 const double fortuneToolbarShapePopupIconTextGap = 4.0;
+const double fortuneToolbarShapePopupContentTopPadding = 10.0;
+const double fortuneToolbarShapePopupRowHeight = 40.0;
 const double fortuneToolbarFormatPopupDividerHeight =
     fortuneToolbarMenuDividerHeight;
 const double fortuneToolbarFormatPopupExampleWidth = 92.0;
@@ -43984,6 +43986,9 @@ double fortuneToolbarPopupVerticalPaddingFor(String key) {
 }
 
 double fortuneToolbarPopupContentTopPaddingFor(String key) {
+  if (key == fortuneToolbarShapeCommand) {
+    return fortuneToolbarShapePopupContentTopPadding;
+  }
   if (key == fortuneToolbarFilterCommand) {
     return fortuneToolbarFilterPopupContentTopPadding;
   }
@@ -44023,6 +44028,9 @@ double fortuneToolbarPopupContentTopPaddingFor(String key) {
 }
 
 double fortuneToolbarPopupRowHeightFor(String key) {
+  if (key == fortuneToolbarShapeCommand) {
+    return fortuneToolbarShapePopupRowHeight;
+  }
   if (key == fortuneToolbarFilterCommand) {
     return fortuneToolbarFilterPopupRowHeight;
   }
