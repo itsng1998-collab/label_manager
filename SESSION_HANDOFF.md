@@ -1,3 +1,14 @@
+### 완료 (2026-07-23): 이미지 속성 간격 및 선 각도 편집
+- 사용자 요청: 이미지 회전 영역과 파일 교체 버튼 사이를 기존보다 5px 더 띄우고, 선 속성에서 각도를 입력·수정할 수 있게 한다.
+- 구현 예정: 이미지 파일 교체 top padding을 5px에서 10px로 변경한다. 선 각도는 시작점과 현재 길이를 유지한 채 끝점을 회전시키고 기존 좌표 기반 draft/apply/undo 경로를 재사용한다.
+- `fortune_object_layer_panel.dart` 편집 완료: 이미지 파일 교체 top padding을 10px로 변경하고, 선 `angle` 필드와 `_updateLineEndFromAngle()`을 추가해 각도 변경 시 현재 시작점·길이를 유지하며 끝점 draft를 갱신한다. projection/apply에서 각도 유효성도 검사한다.
+- `fortune_object_controller_test.dart` 편집 완료: 이미지 속성 간격 10px 및 수평 30px 선을 90°로 변경할 때 끝점이 `(20, 50)`이 되고 undo가 생성되는 계약을 추가했다.
+- focused 검증: `fortune_object_controller_test.dart` 45개 통과.
+- 최종 검증: `fortune_object_controller_test.dart` 45개와 root `label_sheet_toolbar_test.dart` 140개 통과. package/root analyze는 기존 warning 10/11개만 남았고 편집 파일 diagnostics 및 `git diff --check` 통과.
+- stage/commit 대상: `fortune_object_layer_panel.dart`, `fortune_object_controller_test.dart`. 인수인계 문서는 기능 커밋 해시 반영 후 별도 커밋한다.
+- 기능 커밋: `1e9385b` (`이미지 속성 간격과 선 각도 편집 개선`).
+- 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
+
 ### 완료 (2026-07-23): 모든 개체 명령 UI를 우클릭 메뉴로 통일
 - 사용자 요청: 이미지 선택 시 회전 핸들을 가리는 캔버스 개체 툴바를 모든 개체에서 제거하고 우클릭 popup으로 통일한다.
 - 명령 비교: 툴바의 공통 명령(편집, 복제, 삭제, 맨앞, 앞으로, 뒤로, 맨뒤)은 typed object 우클릭 메뉴에 모두 존재한다. 이미지 툴바 전용 `레이어`는 현재 host의 `개체` 패널과 중복되어 popup에 추가하지 않는다.
