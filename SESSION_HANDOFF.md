@@ -8,6 +8,7 @@
 - 2차 analyze 결과: 동일 touched Dart 파일 4개 `No issues found`. dead-code 정리 후 `flutter test test/automatic_item_update_page_test.dart test/automatic_item_update_draft_test.dart`를 최종 재실행한다.
 - 최종 검증: 위 focused test 19건 전체 통과, `git diff --check` 확인 후 커밋한다.
 - stage/commit 대상: `.gitignore`, `SESSION_HANDOFF.md`, 자동 상품 변경 후속 소스/테스트 4개, root/벤더 `pubspec.lock`, 벤더 `android/local.properties` 추적 삭제. 빌드 산출물은 ignore 상태를 유지한다.
+- 기능 커밋: `6cb64a5` (`자동품목갱신 후속 정리 및 로컬 설정 제외`).
 - 사용자 변경 `lib/core/app.dart`의 `isShowLogo = false`는 이번 자동 상품 변경 후속 커밋과 분리해 유지한다.
 
 ### 완료 (2026-07-23): object panel explicit close focus contract 최종 보정
