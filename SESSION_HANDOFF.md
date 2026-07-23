@@ -10,6 +10,7 @@
 - 검증 완료: `cd third_party/fortune_sheet && flutter test test/fortune_line_insertion_test.dart` 전체 11개 통과.
 - 검증 완료: `flutter test test/label_sheet_toolbar_test.dart` root 전체 142개 통과, 수정 Dart 파일 analyzer 오류 없음.
 - stage/commit 대상: `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`, `third_party/fortune_sheet/lib/src/fortune_object_layer_panel.dart`, `third_party/fortune_sheet/test/fortune_object_controller_test.dart`, `third_party/fortune_sheet/test/fortune_toolbar_icons_test.dart`, `test/label_sheet_toolbar_test.dart`, `SESSION_HANDOFF.md`.
+- 로컬 커밋: `2832428` (`도형 메뉴 간격과 개체 표시명 수정`).
 - 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
 
 ### 완료 (2026-07-23): 개체 toolbar toggle 및 도형 popup 아이콘
