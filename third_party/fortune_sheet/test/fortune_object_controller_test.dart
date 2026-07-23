@@ -1681,7 +1681,7 @@ void main() {
     await tester.enterText(angleField, '90');
     await tester.drag(find.byType(ListView).last, const Offset(0, -600));
     await tester.pump();
-    expect(tester.widget<TextField>(strokeWidthField).controller?.text, '1.89');
+    expect(tester.widget<TextField>(strokeWidthField).controller?.text, '1');
     expect(
       tester.widget<TextField>(strokeWidthField).decoration?.suffixText,
       'px',
@@ -3345,7 +3345,7 @@ void main() {
     expect(propertyText('width'), '60');
     expect(propertyText('height'), '40');
     expect(propertyText('rotation'), '405');
-    expect(propertyText('strokeWidth'), '1.89');
+    expect(propertyText('strokeWidth'), '1');
     final strokeWidthField = find.byKey(
       const ValueKey('fortune-object-property-strokeWidth'),
     );

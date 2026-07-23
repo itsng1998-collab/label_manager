@@ -82,6 +82,16 @@ void main() {
     expect(fallbackSignature, yenSignature);
   });
 
+  test('toolbar active key paints the pressed background', () async {
+    final inactive = await _toolbarItemBackgroundPixel(active: false);
+    final active = await _toolbarItemBackgroundPixel(active: true);
+
+    expect(active, isNot(inactive));
+    expect(active.r, lessThan(inactive.r));
+    expect(active.g, lessThan(inactive.g));
+    expect(active.b, lessThan(inactive.b));
+  });
+
   test('upstream kebab-case toolbar icon aliases are supported', () {
     const aliases = {
       'condition-format': 'conditionFormat',
@@ -2666,6 +2676,44 @@ Future<int> _toolbarCurrencySignature({required String currency}) async {
   final signature = await _imageSignature(image);
   image.dispose();
   return signature;
+}
+
+Future<ui.Color> _toolbarItemBackgroundPixel({required bool active}) async {
+  const toolbarItems = [fortuneToolbarLineCommand];
+  const size = ui.Size(160, 80);
+  final recorder = ui.PictureRecorder();
+  final canvas = ui.Canvas(recorder);
+  FortuneSheetPainter(
+    workbook: FortuneWorkbook(
+      sheets: [FortuneSheet(id: 'sheet1', name: 'Sheet1')],
+      settings: const FortuneSettings(toolbarItems: toolbarItems),
+    ),
+    selection: const FortuneSelection(row: 0, column: 0),
+    scrollOffset: Offset.zero,
+    sheetTabScrollOffset: 0,
+    textDirection: TextDirection.ltr,
+    toolbarActiveKeys: active ? const {fortuneToolbarLineCommand} : const {},
+  ).paint(canvas, size);
+  final image = await recorder.endRecording().toImage(
+    size.width.toInt(),
+    size.height.toInt(),
+  );
+  final data = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+  final rect = fortuneVisibleToolbarItemRects(
+    size.width,
+    items: toolbarItems,
+  ).single.value;
+  final x = (rect.right - 3).floor();
+  final y = rect.center.dy.floor();
+  final offset = (y * image.width + x) * 4;
+  final color = ui.Color.fromARGB(
+    data!.getUint8(offset + 3),
+    data.getUint8(offset),
+    data.getUint8(offset + 1),
+    data.getUint8(offset + 2),
+  );
+  image.dispose();
+  return color;
 }
 
 Future<Set<int>> _toolbarIconColors(String iconId) async {

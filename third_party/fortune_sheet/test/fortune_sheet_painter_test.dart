@@ -64904,5 +64904,6 @@ void main() {
       }
     }
     expect(paintedColumns, hasLength(1));
+    expect(paintedColumns, {9});
   });
 }

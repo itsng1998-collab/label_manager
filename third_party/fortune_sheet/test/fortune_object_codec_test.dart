@@ -113,7 +113,7 @@ void main() {
     expect(encoded['width'], 20);
     expect(encoded['height'], 10);
     expect(encoded['rotationDegrees'], 45);
-    expect(encoded['strokeWidthMm'], 0.5);
+    expect(encoded['strokeWidthMm'], fortuneDefaultObjectStrokeWidthMm);
     expect(encoded['strokeColor'], '#000000');
     expect(encoded['fillColor'], isNull);
     expect(encoded['cornerRadiusMm'], 2);
@@ -183,7 +183,10 @@ void main() {
 
     expect(sheet.lines.map((line) => line.id), ['line', 'line__3', 'line__2']);
     expect(sheet.lines.first.strokeStyle, FortuneStrokeStyle.solid);
-    expect(sheet.lines.first.strokeWidthMm, 0.5);
+    expect(
+      sheet.lines.first.strokeWidthMm,
+      fortuneDefaultObjectStrokeWidthMm,
+    );
     expect(sheet.lines.first.strokeColor, '#AABBCC');
     expect(sheet.lines.first.zOrder, 0);
     expect(sheet.shapes.single.rotationDegrees, 45);
@@ -195,7 +198,7 @@ void main() {
     final shape = (json['fortuneShapes']! as List).single as Map;
     expect(firstLine['id'], 'line');
     expect(firstLine['strokeStyle'], 'solid');
-    expect(firstLine['strokeWidthMm'], 0.5);
+    expect(firstLine['strokeWidthMm'], fortuneDefaultObjectStrokeWidthMm);
     expect(firstLine['strokeColor'], '#AABBCC');
     expect(firstLine['zOrder'], 0);
     expect(shape['rotationDegrees'], 45);

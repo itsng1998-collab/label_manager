@@ -12255,6 +12255,9 @@ const String fortuneSheetGridClientHeightMmKey = 'gridClientHeightMm';
 const String fortuneSheetRulerVisibleKey = 'rulerVisible';
 const String fortuneSheetRulerGuidesKey = 'rulerGuides';
 const double fortuneSheetLogicalPixelsPerInch = 96;
+const double fortuneDefaultObjectStrokeWidthMm =
+  25.4 / fortuneSheetLogicalPixelsPerInch;
+const double fortuneDefaultRoundedRectangleRadiusRatio = 0.2;
 
 double fortuneMillimetersToLogicalPixels(num millimeters) {
   return millimeters * fortuneSheetLogicalPixelsPerInch / 25.4;
@@ -12262,6 +12265,13 @@ double fortuneMillimetersToLogicalPixels(num millimeters) {
 
 double fortuneLogicalPixelsToMillimeters(num logicalPixels) {
   return logicalPixels * 25.4 / fortuneSheetLogicalPixelsPerInch;
+}
+
+double fortuneDefaultRoundedRectangleRadiusMm(double width, double height) {
+  return fortuneLogicalPixelsToMillimeters(
+    math.min(width.abs(), height.abs()) *
+        fortuneDefaultRoundedRectangleRadiusRatio,
+  );
 }
 
 double fortuneMillimetersToPixels(num millimeters, num dpi) {
@@ -33895,7 +33905,7 @@ class FortuneLine {
     required this.x2,
     required this.y2,
     this.strokeStyle = FortuneStrokeStyle.solid,
-    this.strokeWidthMm = 0.5,
+    this.strokeWidthMm = fortuneDefaultObjectStrokeWidthMm,
     this.strokeColor = '#000000',
     this.zOrder = 0,
     this.extraFields = const <String, Object?>{},
@@ -33951,7 +33961,7 @@ class FortuneShape {
     required this.height,
     this.rotationDegrees = 0,
     this.strokeStyle = FortuneStrokeStyle.solid,
-    this.strokeWidthMm = 0.5,
+    this.strokeWidthMm = fortuneDefaultObjectStrokeWidthMm,
     this.strokeColor = '#000000',
     this.fillColor,
     this.cornerRadiusMm = 0,

@@ -2546,7 +2546,9 @@ class FortuneSheetCodec {
 
   static double _strokeWidth(Object? value) {
     final width = _finiteJsonNumber(value);
-    return width != null && width >= 0.1 && width <= 10 ? width : 0.5;
+    return width != null && width >= 0.1 && width <= 10
+      ? width
+      : fortuneDefaultObjectStrokeWidthMm;
   }
 
   static String _strokeColor(Object? value) {

@@ -26317,7 +26317,27 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       top: rect.top,
       width: rect.width,
       height: rect.height,
+      cornerRadiusMm: kind == FortuneShapeKind.roundedRectangle
+          ? fortuneDefaultRoundedRectangleRadiusMm(rect.width, rect.height)
+          : 0,
     );
+  }
+
+  Set<String> get _activeGeometryToolbarKeys {
+    if (!_lineInsertionMode) return const <String>{};
+    final kind = _shapeInsertionKind;
+    if (kind == null) return const {fortuneToolbarLineCommand};
+    if (_workbook.settings.toolbarItems.contains(fortuneToolbarShapeCommand)) {
+      return const {fortuneToolbarShapeCommand};
+    }
+    return {
+      switch (kind) {
+        FortuneShapeKind.rectangle => fortuneToolbarRectangleCommand,
+        FortuneShapeKind.roundedRectangle =>
+          fortuneToolbarRoundedRectangleCommand,
+        FortuneShapeKind.ellipse => fortuneToolbarEllipseCommand,
+      },
+    };
   }
 
   void _startTypedObjectMove(
@@ -28164,6 +28184,12 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
           top: shapeRect.top,
           width: shapeRect.width,
           height: shapeRect.height,
+          cornerRadiusMm: shapeKind == FortuneShapeKind.roundedRectangle
+              ? fortuneDefaultRoundedRectangleRadiusMm(
+                  shapeRect.width,
+                  shapeRect.height,
+                )
+              : 0,
           zOrder: insertionPlan.zOrders.single,
         ),
       );
@@ -48484,6 +48510,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
                     _toolbarPopupPressedScrollButtonDirection,
                 toolbarHoveredKey: _toolbarHoveredKey,
                 toolbarHoveredComboArrowKey: _toolbarHoveredComboArrowKey,
+                toolbarActiveKeys: _activeGeometryToolbarKeys,
                 toolbarComboLabelOverrides: _currentToolbarComboLabels(),
                 toolbarFontColorIndicator: _toolbarRecentTextColor,
                 toolbarBackgroundColorIndicator: _toolbarRecentBackgroundColor,

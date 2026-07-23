@@ -44981,10 +44981,17 @@ void fortuneDrawLineObject(
   Offset offset = Offset.zero,
   double scale = 1,
 }) {
-  final start = offset + Offset(line.x1 * scale, line.y1 * scale);
-  final end = offset + Offset(line.x2 * scale, line.y2 * scale);
+  var start = offset + Offset(line.x1 * scale, line.y1 * scale);
+  var end = offset + Offset(line.x2 * scale, line.y2 * scale);
   final strokeWidth =
       fortuneMillimetersToLogicalPixels(line.strokeWidthMm) * scale;
+  if (start.dy == end.dy) {
+    start = start.translate(0, -0.5);
+    end = end.translate(0, -0.5);
+  } else if (start.dx == end.dx) {
+    start = start.translate(-0.5, 0);
+    end = end.translate(-0.5, 0);
+  }
   if (!_rectsIntersectInclusively(
     Rect.fromPoints(start, end).inflate(strokeWidth / 2),
     clip,
@@ -62495,6 +62502,7 @@ class FortuneSheetPainter extends CustomPainter {
     this.toolbarPopupPressedScrollButtonDirection,
     this.toolbarHoveredKey,
     this.toolbarHoveredComboArrowKey,
+    this.toolbarActiveKeys = const <String>{},
     this.toolbarComboLabelOverrides = const <String, String>{},
     this.toolbarFontColorIndicator,
     this.toolbarBackgroundColorIndicator,
@@ -62717,6 +62725,7 @@ class FortuneSheetPainter extends CustomPainter {
   final String? toolbarPopupPressedScrollButtonDirection;
   final String? toolbarHoveredKey;
   final String? toolbarHoveredComboArrowKey;
+  final Set<String> toolbarActiveKeys;
   final Map<String, String> toolbarComboLabelOverrides;
   final Color? toolbarFontColorIndicator;
   final Color? toolbarBackgroundColorIndicator;
@@ -63003,7 +63012,7 @@ class FortuneSheetPainter extends CustomPainter {
       final rect = fortuneToolbarItemRectAt(x, item, width: size.width);
       final hovered = toolbarHoveredKey == item;
       final arrowHovered = toolbarHoveredComboArrowKey == item;
-      final active = toolbarPopupKey == item;
+      final active = toolbarPopupKey == item || toolbarActiveKeys.contains(item);
       final customToolbarItem = customToolbarItems[item];
       final disabled = customToolbarItem?.disabled == true;
       if (!disabled && (hovered || active)) {
@@ -78256,6 +78265,7 @@ class FortuneSheetPainter extends CustomPainter {
         oldDelegate.toolbarHoveredKey != toolbarHoveredKey ||
         oldDelegate.toolbarHoveredComboArrowKey !=
             toolbarHoveredComboArrowKey ||
+        !_stringSetEquals(oldDelegate.toolbarActiveKeys, toolbarActiveKeys) ||
         !_stringListEquals(
           oldDelegate.workbook.settings.fontFamilies,
           workbook.settings.fontFamilies,

@@ -75,6 +75,16 @@ void main() {
           ).first,
         )
         .cursor;
+    FortuneSheetPainter painter() => tester
+        .widgetList<CustomPaint>(
+          find.descendant(
+            of: find.byType(FortuneSheetCanvas),
+            matching: find.byType(CustomPaint),
+          ),
+        )
+        .map((paint) => paint.painter)
+        .whereType<FortuneSheetPainter>()
+        .single;
     final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
     final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
     await mouse.addPointer(location: topLeft + const Offset(120, 120));
@@ -97,6 +107,7 @@ void main() {
       await mouse.moveTo(topLeft + const Offset(150, 150));
       await tester.pump();
       expect(cursor(), SystemMouseCursors.precise);
+      expect(painter().toolbarActiveKeys, contains(command));
 
       await mouse.moveTo(topLeft + const Offset(220, 180));
       await tester.pump();
@@ -105,6 +116,7 @@ void main() {
       await tester.sendKeyEvent(LogicalKeyboardKey.escape);
       await tester.pump();
       expect(cursor(), SystemMouseCursors.basic);
+      expect(painter().toolbarActiveKeys, isEmpty);
     }
 
     await tester.tapAt(
@@ -210,14 +222,21 @@ void main() {
     await tester.pump();
 
     expect(cursor(), SystemMouseCursors.precise);
+    expect(painter().toolbarActiveKeys, {fortuneToolbarShapeCommand});
     await tester.dragFrom(
       topLeft + const Offset(150, 150),
       const Offset(50, 30),
     );
     await tester.pump();
-    expect(painter().workbook.activeSheet.shapes.single.kind,
-        FortuneShapeKind.roundedRectangle);
+    final shape = painter().workbook.activeSheet.shapes.single;
+    expect(shape.kind, FortuneShapeKind.roundedRectangle);
+    expect(shape.cornerRadiusMm, closeTo(fortuneLogicalPixelsToMillimeters(6), 1e-9));
+    expect(
+      fortuneMillimetersToLogicalPixels(shape.strokeWidthMm),
+      closeTo(1, 1e-9),
+    );
     expect(cursor(), SystemMouseCursors.basic);
+    expect(painter().toolbarActiveKeys, isEmpty);
   });
 
   testWidgets('line toolbar drag inserts one topmost line and exits mode', (
@@ -295,6 +314,11 @@ void main() {
     expect(line.zOrder, 5);
     expect(line.x2, greaterThan(line.x1));
     expect(line.y2, greaterThan(line.y1));
+    expect(
+      fortuneMillimetersToLogicalPixels(line.strokeWidthMm),
+      closeTo(1, 1e-9),
+    );
+    expect(painter().toolbarActiveKeys, isEmpty);
 
     await tester.dragFrom(topLeft + const Offset(120, 140), const Offset(60, 30));
     await tester.pump();
