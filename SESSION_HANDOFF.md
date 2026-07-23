@@ -1,3 +1,28 @@
+### 완료 (2026-07-23): 이미지·바코드 가시성 및 개체 패널 보정
+- 사용자 요청: 삽입 이미지/바코드 가시성 복구, 바코드 신규 기본 크기 복원, 위/아래 splitter 1:1 drag, 이미지 회전/파일 교체 사이 5px 간격.
+- 원인/수정:
+  - 신규 바코드 폭/높이가 최초 snapshot부터 `0/0`으로 초기화되어 renderer 결과에 의존했다. 기존 package renderer fallback 및 테스트 계약인 logical `120×60`으로 복원하고, 초기 controller 설정 중 비율 유지 listener가 값을 덮지 않도록 pair update로 처리했다. 물리 라벨에서는 같은 크기인 `31.75×15.875mm`로 표시된다. module scale 3, bar height 10, rotation 0 등 나머지 기본값은 기존 계약과 같아 유지했다.
+  - typed object painter에서 image/barcode kind를 명시하고 image draft 선택을 null-safe 분기로 정리해 line/shape 통합 paint-order에서 canonical 또는 draft bitmap 경로를 보장했다.
+  - splitter는 event delta 누적 대신 drag 시작 높이와 global Y의 절대 차이를 적용해 포인터 이동량과 pane 이동량을 1:1로 맞췄다.
+  - 이미지 `회전`과 `파일 교체` 사이에 top padding 5px을 추가했다.
+- focused 검증 완료:
+  - barcode 신규 renderer 요청: width 120, height 60 성공.
+  - mixed image/barcode/line painter: 세 개체 모두 non-white pixel 생성 성공.
+  - splitter: 포인터 총 80px 이동에 pane 80px 이동 성공.
+  - 이미지 회전/파일 교체 간격: 5px 성공.
+- 전체 검증 실행 예정:
+  - package `fortune_object_controller_test.dart`, `fortune_barcode_dialog_test.dart`, `fortune_typed_object_visibility_test.dart`
+  - root `label_sheet_toolbar_test.dart`
+  - package/root `flutter analyze`, `git diff --check`
+- 전체 검증 결과:
+  - package object controller/barcode dialog/typed visibility: 성공 78건.
+  - root `label_sheet_toolbar_test.dart`: 성공 140건.
+  - package/root `flutter analyze`: 새 오류 없음. 기존 `fortune_sheet_canvas.dart` 미사용 경고 10건과 root test 미사용 지역변수 1건 때문에 각각 exit 1(범위 외, 수정하지 않음).
+  - `git diff --check`: 성공.
+  - 편집 파일 VS Code diagnostics: 오류 없음.
+- stage/commit 대상: `SESSION_HANDOFF.md`, object panel/canvas/painter 3개, object controller/barcode dialog/typed visibility test 3개.
+- 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
+
 ### 완료 (2026-07-23): 개체 패널 UX·선택·한글화 보완
 - 사용자 요청: 목록/속성 사이 드래그 splitter, 속성의 내부 개체 ID 제거, 이미지 회전/파일 교체 순서 변경, 셀 선택 시 모든 typed object 선택 해제, 신규 선/도형/개체 툴바 한국어 추가.
 - 패널 편집 완료: 기존 고정 `Flexible 3:2`를 8px 수평 splitter와 session-owned `_layerPaneHeight`로 교체했다. 양쪽 pane 최소 80px을 유지하며 드래그 높이는 선택 전환 후에도 보존한다.

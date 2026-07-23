@@ -445,8 +445,8 @@ void main() {
     await tester.drag(find.byType(ListView).last, const Offset(0, -600));
     await tester.pump();
     expect(
-      tester.getTopLeft(rotation).dy,
-      lessThan(tester.getTopLeft(replacement).dy),
+      tester.getTopLeft(replacement).dy - tester.getBottomLeft(rotation).dy,
+      closeTo(5, 0.25),
     );
 
     final layerPane = find.byKey(
@@ -456,9 +456,15 @@ void main() {
       const ValueKey('fortune-object-panel-splitter'),
     );
     final initialHeight = tester.getSize(layerPane).height;
-    await tester.drag(splitter, const Offset(0, 60));
+    final gesture = await tester.startGesture(tester.getCenter(splitter));
+    await gesture.moveBy(const Offset(0, 20));
     await tester.pump();
-    expect(tester.getSize(layerPane).height, greaterThan(initialHeight + 30));
+    final dragStartHeight = tester.getSize(layerPane).height;
+    await gesture.moveBy(const Offset(0, 60));
+    await tester.pump();
+    expect(dragStartHeight, closeTo(initialHeight + 20, 0.1));
+    expect(tester.getSize(layerPane).height, closeTo(initialHeight + 80, 0.1));
+    await gesture.up();
 
     await tester.pumpWidget(const SizedBox.shrink());
     controller.dispose();

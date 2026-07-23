@@ -96,6 +96,8 @@ class _FortuneObjectLayerPanelState extends State<FortuneObjectLayerPanel> {
   FortuneObjectDropSide? _dropSide;
   int _consumedLayerFocusGeneration = 0;
   double? _layerPaneHeight;
+  double? _layerPaneDragStartHeight;
+  double? _layerPaneDragStartGlobalY;
   final Map<_BarcodePropertyOwner, _BarcodePropertyDraftState>
   _barcodePropertyDrafts = {};
   late bool _objectEditingAllowed;
@@ -400,9 +402,19 @@ class _FortuneObjectLayerPanelState extends State<FortuneObjectLayerPanel> {
                         if (hasProperties) ...[
                           _ObjectPanelSplitter(
                             height: splitterHeight,
-                            onDrag: (delta) {
+                            onDragStart: (globalY) {
+                              _layerPaneDragStartHeight = layerHeight;
+                              _layerPaneDragStartGlobalY = globalY;
+                            },
+                            onDrag: (globalY) {
+                              final startHeight = _layerPaneDragStartHeight;
+                              final startGlobalY = _layerPaneDragStartGlobalY;
+                              if (startHeight == null || startGlobalY == null) {
+                                return;
+                              }
                               setState(() {
-                                _layerPaneHeight = (layerHeight + delta)
+                                _layerPaneHeight =
+                                    (startHeight + globalY - startGlobalY)
                                     .clamp(
                                       minimumPaneHeight,
                                       maximumLayerHeight,
@@ -593,9 +605,14 @@ class _FortuneObjectLayerPanelState extends State<FortuneObjectLayerPanel> {
 }
 
 class _ObjectPanelSplitter extends StatelessWidget {
-  const _ObjectPanelSplitter({required this.height, required this.onDrag});
+  const _ObjectPanelSplitter({
+    required this.height,
+    required this.onDragStart,
+    required this.onDrag,
+  });
 
   final double height;
+  final ValueChanged<double> onDragStart;
   final ValueChanged<double> onDrag;
 
   @override
@@ -606,7 +623,9 @@ class _ObjectPanelSplitter extends StatelessWidget {
       child: GestureDetector(
         key: const ValueKey('fortune-object-panel-splitter'),
         behavior: HitTestBehavior.translucent,
-        onVerticalDragUpdate: (details) => onDrag(details.delta.dy),
+        onVerticalDragStart: (details) =>
+          onDragStart(details.globalPosition.dy),
+        onVerticalDragUpdate: (details) => onDrag(details.globalPosition.dy),
         child: Container(
           height: height,
           decoration: BoxDecoration(
@@ -1506,18 +1525,21 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
           ),
         _field('회전', 'rotation', suffix: '°'),
         if (widget.snapshot.activeKey!.kind == FortuneSheetObjectKind.image)
-          OutlinedButton.icon(
-            key: const ValueKey('fortune-object-property-replace-file'),
-            onPressed: _imagePickerPending || !canMutate
-                ? null
-                : _replaceImageFile,
-            icon: _imagePickerPending
-                ? const SizedBox.square(
-                    dimension: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.folder_open, size: 17),
-            label: const Text('파일 교체'),
+          Padding(
+            padding: const EdgeInsets.only(top: 5),
+            child: OutlinedButton.icon(
+              key: const ValueKey('fortune-object-property-replace-file'),
+              onPressed: _imagePickerPending || !canMutate
+                  ? null
+                  : _replaceImageFile,
+              icon: _imagePickerPending
+                  ? const SizedBox.square(
+                      dimension: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.folder_open, size: 17),
+              label: const Text('파일 교체'),
+            ),
           ),
         if (widget.snapshot.activeKey!.kind ==
             FortuneSheetObjectKind.barcode) ...[

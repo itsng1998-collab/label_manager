@@ -77225,8 +77225,13 @@ class FortuneSheetPainter extends CustomPainter {
         _drawFortuneShape(canvas, shape, clip, settings, zoomRatio);
         continue;
       }
-        final canonicalImage = sheet.images[object.sourceIndex];
-        final image = object.key == objectGestureImageDraftKey
+      if (object.key.kind != FortuneSheetObjectKind.image &&
+          object.key.kind != FortuneSheetObjectKind.barcode) {
+        continue;
+      }
+      final canonicalImage = sheet.images[object.sourceIndex];
+      final image = object.key == objectGestureImageDraftKey &&
+              objectGestureImageDraft != null
           ? objectGestureImageDraft!
           : canonicalImage;
       final rect = Rect.fromLTWH(

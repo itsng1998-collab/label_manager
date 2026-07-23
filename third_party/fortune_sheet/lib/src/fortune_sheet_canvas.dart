@@ -25293,8 +25293,20 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       _setImageInsertControllerText(_barcodeTextController, '');
       _setImageInsertControllerText(_barcodeModuleScaleController, '3');
       _setImageInsertControllerText(_barcodeBarHeightController, '10');
-      _setImageInsertControllerText(_barcodeWidthController, '0');
-      _setImageInsertControllerText(_barcodeHeightController, '0');
+      _barcodeUpdatingPair = true;
+      _setImageInsertControllerText(
+        _barcodeWidthController,
+        _formatImageInsertNumber(
+          _barcodeUsesMillimeters ? _logicalPixelsToMillimeters(120) : 120,
+        ),
+      );
+      _setImageInsertControllerText(
+        _barcodeHeightController,
+        _formatImageInsertNumber(
+          _barcodeUsesMillimeters ? _logicalPixelsToMillimeters(60) : 60,
+        ),
+      );
+      _barcodeUpdatingPair = false;
       _setImageInsertControllerText(_barcodeRotationController, '0');
       _setImageInsertControllerText(_barcodeLeadingQuietZoneController, '');
       _setImageInsertControllerText(_barcodeTrailingQuietZoneController, '');

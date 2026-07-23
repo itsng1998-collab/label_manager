@@ -1876,6 +1876,7 @@ void main() {
     });
 
     var renderCount = 0;
+    FortuneBarcodeRequest? capturedRequest;
     final workbook = FortuneWorkbook(
       settings: const FortuneSettings(
         toolbarItems: [fortuneToolbarBarcodeCommand],
@@ -1898,6 +1899,7 @@ void main() {
                   ],
                   barcodeRenderer: (request) async {
                     renderCount += 1;
+                    capturedRequest = request;
                     return FortuneBarcodeRenderResult(
                       bytes: _transparentPng,
                       pixelWidth: 120,
@@ -1969,6 +1971,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(renderCount, 1);
+    expect(capturedRequest?.width, 120);
+    expect(capturedRequest?.height, 60);
     expect(painter().barcodeDialogOpen, isFalse);
   });
 
