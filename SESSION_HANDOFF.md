@@ -1,3 +1,16 @@
+### 완료 (2026-07-23): 개체 toolbar toggle 및 도형 popup 아이콘
+- 사용자 요청: active 상태의 개체 toolbar 버튼을 다시 누르면 패널을 숨기고 active를 해제한다. 도형 삽입 dropdown 각 라벨 오른쪽에 개체 패널과 같은 종류 아이콘을 다른 icon menu 스타일로 표시한다.
+- 확인: 개체 command는 presentation과 무관하게 open request만 호출한다. 도형 popup은 generic text-only row이며, 다른 icon menu는 라벨 왼쪽 정렬 + 오른쪽 12px inset의 24x24 아이콘을 사용한다.
+- 편집 완료: 명시적인 close callback을 `FortuneSheetApp`→`FortuneSheetCanvas`에 추가해 hidden이면 open, dock/overlay이면 close를 요청하며 workbench의 `_closeObjectPanel`에 연결했다.
+- 편집 완료: shape popup 라벨 오른쪽에 다른 icon menu와 같은 12px inset/24x24 배치로 `Icons.crop_square`, `Icons.rounded_corner`, `Icons.circle_outlined`를 그린다.
+- 테스트 추가: canvas 실제 toolbar 클릭의 open/close callback toggle, shape popup 세 row 오른쪽 icon raster, workbench App callback wiring의 dock/active toggle을 검증한다.
+- 검증 완료: 신규 canvas toggle 테스트와 shape popup raster 테스트 통과.
+- 검증 완료: workbench App callback wiring으로 dock panel/active close→open 전환 테스트 통과, 수정 Dart 파일 analyzer 오류 없음.
+- 검증 완료: `cd third_party/fortune_sheet && flutter test test/fortune_line_insertion_test.dart test/fortune_toolbar_icons_test.dart` 전체 70개 통과.
+- 검증 완료: `flutter test test/label_sheet_toolbar_test.dart` root 라벨 시트 toolbar 전체 142개 통과, 수정 Dart 파일 analyzer 오류 없음.
+- stage/commit 대상: `lib/page_label_sheet/label_sheet_workbench.dart`, `third_party/fortune_sheet/lib/src/fortune_sheet_app.dart`, `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`, `third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart`, `third_party/fortune_sheet/test/fortune_object_controller_test.dart`, `third_party/fortune_sheet/test/fortune_toolbar_icons_test.dart`, `test/label_sheet_toolbar_test.dart`, `SESSION_HANDOFF.md`.
+- 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
+
 ### 완료 (2026-07-23): 도형/개체 toolbar 아이콘 축소
 - 사용자 요청: 라벨 시트 toolbar의 도형 삽입/개체 버튼 아이콘을 각각 2px 줄이고, 개체 아이콘 내부 가로줄을 3개에서 2개로 변경한다.
 - 확인: 도형은 icon combo 분기, 개체는 일반 glyph 분기에서 각각 24x24 rect로 `FortuneToolbarIconPainter`를 호출한다. 개체 아이콘은 외곽 사각형과 y=9/13/17의 내부선 3개로 구성된다.

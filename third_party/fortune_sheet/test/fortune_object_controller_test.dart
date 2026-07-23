@@ -1827,6 +1827,57 @@ void main() {
     expect(controller.objectSelection.activeKey, isNotNull);
   });
 
+  testWidgets('object panel toolbar button toggles open and close requests', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    var openRequests = 0;
+    var closeRequests = 0;
+    const toolbarItems = [fortuneToolbarObjectPanelCommand];
+    final workbook = FortuneWorkbook(
+      settings: const FortuneSettings(toolbarItems: toolbarItems),
+      sheets: [FortuneSheet(id: 's1', name: 'Sheet1')],
+    );
+
+    Future<void> pump(FortuneObjectPanelPresentation presentation) =>
+        tester.pumpWidget(
+          MaterialApp(
+            home: SizedBox(
+              width: 900,
+              height: 700,
+              child: FortuneSheetCanvas(
+                workbook: workbook,
+                objectPanelPresentation: presentation,
+                onOpenObjectPanelRequest: (_) => openRequests += 1,
+                onCloseObjectPanelRequest: () => closeRequests += 1,
+              ),
+            ),
+          ),
+        );
+
+    final toolbarRect = fortuneVisibleToolbarItemRects(
+      900,
+      items: toolbarItems,
+    ).single.value;
+    await pump(FortuneObjectPanelPresentation.hidden);
+    final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
+    await tester.tapAt(topLeft + toolbarRect.center);
+    await tester.pump();
+    expect(openRequests, 1);
+    expect(closeRequests, 0);
+
+    await pump(FortuneObjectPanelPresentation.overlay);
+    await tester.tapAt(topLeft + toolbarRect.center);
+    await tester.pump();
+    expect(openRequests, 1);
+    expect(closeRequests, 1);
+  });
+
   testWidgets('selected image has no active object toolbar hit target', (
     tester,
   ) async {

@@ -2719,6 +2719,11 @@ const double fortuneToolbarFilterPopupIconRightPadding = 12.0;
 const double fortuneToolbarFilterPopupIconTopPadding = 8.0;
 const double fortuneToolbarFilterPopupIconSize = 24.0;
 const double fortuneToolbarFilterPopupIconTextGap = 0.0;
+const double fortuneToolbarShapePopupTextLeftPadding = 12.0;
+const double fortuneToolbarShapePopupIconRightPadding = 12.0;
+const double fortuneToolbarShapePopupIconTopPadding = 8.0;
+const double fortuneToolbarShapePopupIconSize = 24.0;
+const double fortuneToolbarShapePopupIconTextGap = 4.0;
 const double fortuneToolbarFormatPopupDividerHeight =
     fortuneToolbarMenuDividerHeight;
 const double fortuneToolbarFormatPopupExampleWidth = 92.0;
@@ -68047,6 +68052,23 @@ class FortuneSheetPainter extends CustomPainter {
           Rect.fromLTWH(row.left + 34, row.top, row.width - 40, row.height),
           fontSize: 12,
         );
+      } else if (toolbarPopupKey == fortuneToolbarShapeCommand) {
+        _drawText(
+          canvas,
+          label,
+          Rect.fromLTWH(
+            row.left + fortuneToolbarShapePopupTextLeftPadding,
+            row.top,
+            row.width -
+                fortuneToolbarShapePopupTextLeftPadding -
+                fortuneToolbarShapePopupIconRightPadding -
+                fortuneToolbarShapePopupIconSize -
+                fortuneToolbarShapePopupIconTextGap,
+            row.height,
+          ),
+          fontSize: 12,
+        );
+        _drawToolbarShapePopupIcon(canvas, row, options[i]);
       } else {
         _drawText(
           canvas,
@@ -68125,6 +68147,39 @@ class FortuneSheetPainter extends CustomPainter {
         maxScrollOffset,
       );
     }
+  }
+
+  void _drawToolbarShapePopupIcon(Canvas canvas, Rect row, String command) {
+    final icon = switch (command) {
+      fortuneToolbarRectangleCommand => Icons.crop_square,
+      fortuneToolbarRoundedRectangleCommand => Icons.rounded_corner,
+      fortuneToolbarEllipseCommand => Icons.circle_outlined,
+      _ => null,
+    };
+    if (icon == null) return;
+    final rect = Rect.fromLTWH(
+      row.right -
+          fortuneToolbarShapePopupIconRightPadding -
+          fortuneToolbarShapePopupIconSize,
+      row.top + fortuneToolbarShapePopupIconTopPadding,
+      fortuneToolbarShapePopupIconSize,
+      fortuneToolbarShapePopupIconSize,
+    );
+    final painter = TextPainter(
+      text: TextSpan(
+        text: String.fromCharCode(icon.codePoint),
+        style: TextStyle(
+          color: FortuneToolbarIconPainter.iconColor,
+          fontFamily: icon.fontFamily,
+          package: icon.fontPackage,
+          fontSize: fortuneToolbarShapePopupIconSize,
+          height: 1,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    );
+    painter.layout();
+    painter.paint(canvas, rect.center - painter.size.center(Offset.zero));
   }
 
   void _drawToolbarPopupScrollIndicators(

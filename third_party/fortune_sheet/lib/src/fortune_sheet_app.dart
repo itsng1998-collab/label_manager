@@ -26,6 +26,7 @@ class FortuneSheetApp extends StatefulWidget {
     this.onChange,
     this.onOp,
     this.onOpenObjectPanelRequest,
+    this.onCloseObjectPanelRequest,
     this.objectPanelPresentation = FortuneObjectPanelPresentation.hidden,
     this.locale = const FortuneSheetLocale(),
     super.key,
@@ -50,6 +51,7 @@ class FortuneSheetApp extends StatefulWidget {
   final FortuneOpCallback? onOp;
   final ValueChanged<FortuneObjectPanelOpenRequest>?
   onOpenObjectPanelRequest;
+  final VoidCallback? onCloseObjectPanelRequest;
   final FortuneObjectPanelPresentation objectPanelPresentation;
   final FortuneSheetLocale locale;
 
@@ -174,6 +176,7 @@ class _FortuneSheetAppState extends State<FortuneSheetApp> {
             : widget.onChange,
         onOp: widget.onOp,
         onOpenObjectPanelRequest: widget.onOpenObjectPanelRequest,
+        onCloseObjectPanelRequest: widget.onCloseObjectPanelRequest,
         objectPanelPresentation: widget.objectPanelPresentation,
         locale: widget.locale,
       ),

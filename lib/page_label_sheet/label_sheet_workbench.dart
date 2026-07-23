@@ -4193,6 +4193,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
                 widget.onDirtyChanged?.call(true);
               },
               onOpenObjectPanelRequest: _handleObjectPanelOpenRequest,
+              onCloseObjectPanelRequest: _closeObjectPanel,
               objectPanelPresentation: objectPanelPresentation,
               locale: _locale,
               barcodeRenderer:

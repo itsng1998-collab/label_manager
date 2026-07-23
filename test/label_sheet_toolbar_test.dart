@@ -3197,6 +3197,62 @@ void main() {
     );
   });
 
+  testWidgets('object panel callbacks toggle dock panel and active state', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 1000,
+            height: 450,
+            child: LabelSheetWorkbench(
+              initialWorkbook: FortuneWorkbook(
+                sheets: [FortuneSheet(id: 's1', name: 'Label')],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.byType(FortuneObjectLayerPanel), findsOneWidget);
+    expect(
+      _currentFortunePainter(tester).toolbarActiveKeys,
+      contains(fortuneToolbarObjectPanelCommand),
+    );
+
+    tester
+      .widget<FortuneSheetApp>(find.byType(FortuneSheetApp))
+      .onCloseObjectPanelRequest!();
+    await tester.pumpAndSettle();
+
+    expect(find.byType(FortuneObjectLayerPanel), findsNothing);
+    expect(
+      _currentFortunePainter(tester).toolbarActiveKeys,
+      isNot(contains(fortuneToolbarObjectPanelCommand)),
+    );
+
+    tester
+        .widget<FortuneSheetApp>(find.byType(FortuneSheetApp))
+        .onOpenObjectPanelRequest!(
+          const FortuneObjectPanelOpenRequest(
+            sheetId: 's1',
+            objectKey: null,
+            propertyField: null,
+          ),
+        );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(FortuneObjectLayerPanel), findsOneWidget);
+    expect(
+      _currentFortunePainter(tester).toolbarActiveKeys,
+      contains(fortuneToolbarObjectPanelCommand),
+    );
+  });
+
   testWidgets('narrow object overlay caps at 300 within safe insets', (
     tester,
   ) async {

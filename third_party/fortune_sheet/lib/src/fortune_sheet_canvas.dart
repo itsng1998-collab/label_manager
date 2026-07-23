@@ -3103,6 +3103,7 @@ class FortuneSheetCanvas extends StatefulWidget {
     this.onChange,
     this.onOp,
     this.onOpenObjectPanelRequest,
+    this.onCloseObjectPanelRequest,
     this.objectPanelPresentation = FortuneObjectPanelPresentation.hidden,
     this.locale = const FortuneSheetLocale(),
     super.key,
@@ -3125,6 +3126,7 @@ class FortuneSheetCanvas extends StatefulWidget {
   final ValueChanged<FortuneWorkbook>? onChange;
   final FortuneOpCallback? onOp;
   final ValueChanged<FortuneObjectPanelOpenRequest>? onOpenObjectPanelRequest;
+  final VoidCallback? onCloseObjectPanelRequest;
   final FortuneObjectPanelPresentation objectPanelPresentation;
   final FortuneSheetLocale locale;
 
@@ -34742,6 +34744,11 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   }
 
   void _toggleImageLayerPanel() {
+    if (widget.objectPanelPresentation !=
+        FortuneObjectPanelPresentation.hidden) {
+      widget.onCloseObjectPanelRequest?.call();
+      return;
+    }
     final request = widget.onOpenObjectPanelRequest;
     if (request != null) {
       request(

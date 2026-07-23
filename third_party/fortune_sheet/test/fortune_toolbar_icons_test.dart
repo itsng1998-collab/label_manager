@@ -111,6 +111,10 @@ void main() {
     expect(await _toolbarIconVerticalInkRuns('object-panel', x: 12), 4);
   });
 
+  test('shape popup renders matching icons at each row right edge', () async {
+    expect(await _shapePopupRowsWithIconInk(), 3);
+  });
+
   test('upstream kebab-case toolbar icon aliases are supported', () {
     const aliases = {
       'condition-format': 'conditionFormat',
@@ -2822,6 +2826,84 @@ Future<int> _toolbarIconVerticalInkRuns(String iconId, {required int x}) async {
     previousHasInk = hasInk;
   }
   return runs;
+}
+
+Future<int> _shapePopupRowsWithIconInk() async {
+  const size = ui.Size(320, 220);
+  const toolbarItems = [fortuneToolbarShapeCommand];
+  final recorder = ui.PictureRecorder();
+  final canvas = ui.Canvas(recorder);
+  FortuneSheetPainter(
+    workbook: FortuneWorkbook(
+      sheets: [FortuneSheet(id: 'sheet1', name: 'Sheet1')],
+      settings: const FortuneSettings(toolbarItems: toolbarItems),
+    ),
+    selection: const FortuneSelection(row: 0, column: 0),
+    scrollOffset: Offset.zero,
+    sheetTabScrollOffset: 0,
+    textDirection: TextDirection.ltr,
+    toolbarPopupKey: fortuneToolbarShapeCommand,
+  ).paint(canvas, size);
+  final image = await recorder.endRecording().toImage(
+    size.width.toInt(),
+    size.height.toInt(),
+  );
+  final data = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+  image.dispose();
+  final bytes = data!.buffer.asUint8List();
+  final itemRect = fortuneVisibleToolbarItemRects(
+    size.width,
+    items: toolbarItems,
+  ).single.value;
+  final popupWidth = fortuneToolbarPopupWidthFor(
+    fortuneToolbarShapeCommand,
+  );
+  final popupLeft = fortuneToolbarPopupLeftFor(
+    key: fortuneToolbarShapeCommand,
+    itemRect: itemRect,
+    viewportWidth: size.width,
+    popupWidth: popupWidth,
+  );
+  final rowHeight = fortuneToolbarPopupRowHeightFor(
+    fortuneToolbarShapeCommand,
+  );
+  final firstRowTop =
+      fortuneToolbarPopupTop +
+      fortuneToolbarPopupContentTopPaddingFor(fortuneToolbarShapeCommand);
+  final iconArgb = FortuneToolbarIconPainter.iconColor.toARGB32();
+  final iconRed = (iconArgb >> 16) & 0xff;
+  final iconGreen = (iconArgb >> 8) & 0xff;
+  final iconBlue = iconArgb & 0xff;
+  var rowsWithInk = 0;
+  for (var row = 0; row < fortuneToolbarShapePopupCommands.length; row += 1) {
+    final left = (popupLeft +
+            popupWidth -
+            fortuneToolbarShapePopupIconRightPadding -
+            fortuneToolbarShapePopupIconSize)
+        .floor();
+    final top = (firstRowTop +
+            row * rowHeight +
+            fortuneToolbarShapePopupIconTopPadding)
+        .floor();
+    var hasInk = false;
+    for (var y = top;
+        y < top + fortuneToolbarShapePopupIconSize && !hasInk;
+        y += 1) {
+      for (var x = left;
+          x < left + fortuneToolbarShapePopupIconSize;
+          x += 1) {
+        final offset = (y * image.width + x) * 4;
+        if (bytes[offset] == iconRed &&
+          bytes[offset + 1] == iconGreen &&
+          bytes[offset + 2] == iconBlue) {
+          hasInk = true;
+          break;
+        }
+      }
+    }
+    if (hasInk) rowsWithInk += 1;
+  }
+  return rowsWithInk;
 }
 
 Future<int> _imageSignature(ui.Image image) async {
