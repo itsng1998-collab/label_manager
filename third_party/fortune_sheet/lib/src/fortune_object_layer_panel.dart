@@ -95,6 +95,7 @@ class _FortuneObjectLayerPanelState extends State<FortuneObjectLayerPanel> {
   FortuneSheetObjectKey? _dropTargetKey;
   FortuneObjectDropSide? _dropSide;
   int _consumedLayerFocusGeneration = 0;
+  double? _layerPaneHeight;
   final Map<_BarcodePropertyOwner, _BarcodePropertyDraftState>
   _barcodePropertyDrafts = {};
   late bool _objectEditingAllowed;
@@ -294,135 +295,194 @@ class _FortuneObjectLayerPanelState extends State<FortuneObjectLayerPanel> {
                   ],
                 ),
               ),
-              Flexible(
-                flex: 3,
-                child: objects.isEmpty
-                    ? const Center(
-                        child: Text(
-                          '개체 없음',
-                          style: TextStyle(
-                            color: Color(0xff6b7280),
-                            fontSize: 13,
+              Expanded(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    const splitterHeight = 8.0;
+                    final hasProperties = snapshot.activeKey != null;
+                    final availableHeight = constraints.maxHeight;
+                    final minimumPaneHeight = math.min(
+                      80.0,
+                      math.max(0, (availableHeight - splitterHeight) / 2),
+                    );
+                    final maximumLayerHeight = math.max(
+                      minimumPaneHeight,
+                      availableHeight - splitterHeight - minimumPaneHeight,
+                    );
+                    final layerHeight = !hasProperties
+                        ? availableHeight
+                        : (_layerPaneHeight ??
+                                  (availableHeight - splitterHeight) * 0.6)
+                              .clamp(
+                                minimumPaneHeight,
+                                maximumLayerHeight,
+                              )
+                              .toDouble();
+                    return Column(
+                      children: [
+                        SizedBox(
+                          key: const ValueKey(
+                            'fortune-object-panel-layer-pane',
                           ),
+                          height: layerHeight,
+                          child: objects.isEmpty
+                              ? const Center(
+                                  child: Text(
+                                    '개체 없음',
+                                    style: TextStyle(
+                                      color: Color(0xff6b7280),
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                )
+                              : Focus(
+                                  focusNode: _layerFocusNode,
+                                  onKeyEvent: _handleLayerKeyEvent,
+                                  child: ListView.builder(
+                                    controller: _layerScrollController,
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 4,
+                                    ),
+                                    itemCount: objects.length,
+                                    itemExtent: 38,
+                                    itemBuilder: (context, index) {
+                                      final object = objects[index];
+                                      final selected = snapshot.selectedKeys
+                                          .contains(object.key);
+                                      return _ObjectLayerRow(
+                                        object: object,
+                                        selected: selected,
+                                        selectedKeys: snapshot.selectedKeys,
+                                        dropSide:
+                                            _dropTargetKey == object.key
+                                            ? _dropSide
+                                            : null,
+                                        onTap: () => _selectRow(object.key),
+                                        onDragStarted: () {
+                                          _layerFocusNode.requestFocus();
+                                          if (!selected) {
+                                            widget.controller.selectObject(
+                                              object.key,
+                                            );
+                                          }
+                                        },
+                                        onHover: (side) {
+                                          if (snapshot.selectedKeys.contains(
+                                            object.key,
+                                          )) {
+                                            side = null;
+                                          }
+                                          if (_dropTargetKey != object.key ||
+                                              _dropSide != side) {
+                                            setState(() {
+                                              _dropTargetKey = object.key;
+                                              _dropSide = side;
+                                            });
+                                          }
+                                        },
+                                        onLeave: () =>
+                                            _clearDropIndicator(object.key),
+                                        onAccept: (side) {
+                                          _clearDropIndicator(object.key);
+                                          if (side != null && canMutate) {
+                                            widget.controller
+                                                .reorderSelectedObjects(
+                                                  object.key,
+                                                  side,
+                                                );
+                                          }
+                                        },
+                                      );
+                                    },
+                                  ),
+                                ),
                         ),
-                      )
-                    : Focus(
-                        focusNode: _layerFocusNode,
-                        onKeyEvent: _handleLayerKeyEvent,
-                        child: ListView.builder(
-                          controller: _layerScrollController,
-                          padding: const EdgeInsets.symmetric(vertical: 4),
-                          itemCount: objects.length,
-                          itemExtent: 38,
-                          itemBuilder: (context, index) {
-                            final object = objects[index];
-                            final selected = snapshot.selectedKeys.contains(
-                              object.key,
-                            );
-                            return _ObjectLayerRow(
-                              object: object,
-                              selected: selected,
-                              selectedKeys: snapshot.selectedKeys,
-                              dropSide: _dropTargetKey == object.key
-                                  ? _dropSide
-                                  : null,
-                              onTap: () => _selectRow(object.key),
-                              onDragStarted: () {
-                                _layerFocusNode.requestFocus();
-                                if (!selected) {
-                                  widget.controller.selectObject(object.key);
-                                }
-                              },
-                              onHover: (side) {
-                                if (snapshot.selectedKeys.contains(
-                                  object.key,
-                                )) {
-                                  side = null;
-                                }
-                                if (_dropTargetKey != object.key ||
-                                    _dropSide != side) {
-                                  setState(() {
-                                    _dropTargetKey = object.key;
-                                    _dropSide = side;
-                                  });
-                                }
-                              },
-                              onLeave: () => _clearDropIndicator(object.key),
-                              onAccept: (side) {
-                                _clearDropIndicator(object.key);
-                                if (side != null && canMutate) {
-                                  widget.controller.reorderSelectedObjects(
-                                    object.key,
-                                    side,
-                                  );
-                                }
-                              },
-                            );
-                          },
-                        ),
-                      ),
-              ),
-              if (snapshot.activeKey != null) ...[
-                const Divider(height: 1),
-                Flexible(
-                  flex: 2,
-                  child: snapshot.selectedKeys.length > 1
-                      ? _MultipleSelectionPanel(
-                          count: snapshot.selectedKeys.length,
-                          controller: widget.controller,
-                          canMutate: canMutate,
-                        )
-                      : Focus(
-                          canRequestFocus: false,
-                          onKeyEvent: _handlePropertyKeyEvent,
-                          child: _ObjectPropertyEditor(
-                            key: ValueKey(
-                              '${snapshot.sheetId}|${snapshot.activeKey}|'
-                              '$_permissionDiscardGeneration',
-                            ),
-                            snapshot: snapshot,
-                            controller: widget.controller,
-                            scrollController: _propertyScrollController,
-                            imageObjectOptions: widget.imageObjectOptions,
-                            barcodeObjectOptions: widget.barcodeObjectOptions,
-                            imageObjectIds: widget.imageObjectIds,
-                            barcodeObjectIds: widget.barcodeObjectIds,
-                            presentation: widget.presentation,
-                            propertyFocusField: widget.propertyFocusField,
-                            propertyFocusSheetId: widget.propertyFocusSheetId,
-                            propertyFocusObjectKey:
-                                widget.propertyFocusObjectKey,
-                            propertyFocusGeneration:
-                                widget.propertyFocusGeneration,
-                            barcodeDraft: snapshot.sheetId == null
-                                ? null
-                                : _barcodePropertyDrafts[(
-                                    sheetId: snapshot.sheetId!,
-                                    key: snapshot.activeKey!,
-                                  )],
-                            onBarcodeDraftChanged: (draft) {
-                              final sheetId = snapshot.sheetId;
-                              final key = snapshot.activeKey;
-                              if (sheetId == null || key == null) return;
-                              _barcodePropertyDrafts[(
-                                    sheetId: sheetId,
-                                    key: key,
-                                  )] =
-                                  draft;
-                            },
-                            onBarcodeDraftRemoved: () {
-                              final sheetId = snapshot.sheetId;
-                              final key = snapshot.activeKey;
-                              if (sheetId == null || key == null) return;
-                              _barcodePropertyDrafts.remove((
-                                sheetId: sheetId,
-                                key: key,
-                              ));
+                        if (hasProperties) ...[
+                          _ObjectPanelSplitter(
+                            height: splitterHeight,
+                            onDrag: (delta) {
+                              setState(() {
+                                _layerPaneHeight = (layerHeight + delta)
+                                    .clamp(
+                                      minimumPaneHeight,
+                                      maximumLayerHeight,
+                                    )
+                                    .toDouble();
+                              });
                             },
                           ),
-                        ),
+                          Expanded(
+                            child: snapshot.selectedKeys.length > 1
+                                ? _MultipleSelectionPanel(
+                                    count: snapshot.selectedKeys.length,
+                                    controller: widget.controller,
+                                    canMutate: canMutate,
+                                  )
+                                : Focus(
+                                    canRequestFocus: false,
+                                    onKeyEvent: _handlePropertyKeyEvent,
+                                    child: _ObjectPropertyEditor(
+                                      key: ValueKey(
+                                        '${snapshot.sheetId}|${snapshot.activeKey}|'
+                                        '$_permissionDiscardGeneration',
+                                      ),
+                                      snapshot: snapshot,
+                                      controller: widget.controller,
+                                      scrollController:
+                                          _propertyScrollController,
+                                      imageObjectOptions:
+                                          widget.imageObjectOptions,
+                                      barcodeObjectOptions:
+                                          widget.barcodeObjectOptions,
+                                      imageObjectIds: widget.imageObjectIds,
+                                      barcodeObjectIds: widget.barcodeObjectIds,
+                                      presentation: widget.presentation,
+                                      propertyFocusField:
+                                          widget.propertyFocusField,
+                                      propertyFocusSheetId:
+                                          widget.propertyFocusSheetId,
+                                      propertyFocusObjectKey:
+                                          widget.propertyFocusObjectKey,
+                                      propertyFocusGeneration:
+                                          widget.propertyFocusGeneration,
+                                      barcodeDraft: snapshot.sheetId == null
+                                          ? null
+                                          : _barcodePropertyDrafts[(
+                                              sheetId: snapshot.sheetId!,
+                                              key: snapshot.activeKey!,
+                                            )],
+                                      onBarcodeDraftChanged: (draft) {
+                                        final sheetId = snapshot.sheetId;
+                                        final key = snapshot.activeKey;
+                                        if (sheetId == null || key == null) {
+                                          return;
+                                        }
+                                        _barcodePropertyDrafts[(
+                                              sheetId: sheetId,
+                                              key: key,
+                                            )] =
+                                            draft;
+                                      },
+                                      onBarcodeDraftRemoved: () {
+                                        final sheetId = snapshot.sheetId;
+                                        final key = snapshot.activeKey;
+                                        if (sheetId == null || key == null) {
+                                          return;
+                                        }
+                                        _barcodePropertyDrafts.remove((
+                                          sheetId: sheetId,
+                                          key: key,
+                                        ));
+                                      },
+                                    ),
+                                  ),
+                          ),
+                        ],
+                      ],
+                    );
+                  },
                 ),
-              ],
+              ),
             ],
           ),
         );
@@ -529,6 +589,45 @@ class _FortuneObjectLayerPanelState extends State<FortuneObjectLayerPanel> {
         _dropSide = null;
       });
     }
+  }
+}
+
+class _ObjectPanelSplitter extends StatelessWidget {
+  const _ObjectPanelSplitter({required this.height, required this.onDrag});
+
+  final double height;
+  final ValueChanged<double> onDrag;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return MouseRegion(
+      cursor: SystemMouseCursors.resizeUpDown,
+      child: GestureDetector(
+        key: const ValueKey('fortune-object-panel-splitter'),
+        behavior: HitTestBehavior.translucent,
+        onVerticalDragUpdate: (details) => onDrag(details.delta.dy),
+        child: Container(
+          height: height,
+          decoration: BoxDecoration(
+            color: colors.surfaceContainerHighest.withValues(alpha: 0.6),
+            border: Border(
+              top: BorderSide(color: colors.outlineVariant),
+              bottom: BorderSide(color: colors.outlineVariant),
+            ),
+          ),
+          alignment: Alignment.center,
+          child: Container(
+            width: 36,
+            height: 2,
+            decoration: BoxDecoration(
+              color: colors.outlineVariant,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -1374,7 +1473,6 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
         style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
       ),
       const SizedBox(height: 10),
-      _ReadOnlyProperty(label: '개체 ID', value: widget.snapshot.activeKey!.id),
     ];
     if (image != null) {
       fields.addAll([
@@ -1406,6 +1504,7 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
                   }
                 : null,
           ),
+        _field('회전', 'rotation', suffix: '°'),
         if (widget.snapshot.activeKey!.kind == FortuneSheetObjectKind.image)
           OutlinedButton.icon(
             key: const ValueKey('fortune-object-property-replace-file'),
@@ -1420,7 +1519,6 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
                 : const Icon(Icons.folder_open, size: 17),
             label: const Text('파일 교체'),
           ),
-        _field('회전', 'rotation', suffix: '°'),
         if (widget.snapshot.activeKey!.kind ==
             FortuneSheetObjectKind.barcode) ...[
           _field('형식', 'barcodeFormatId'),

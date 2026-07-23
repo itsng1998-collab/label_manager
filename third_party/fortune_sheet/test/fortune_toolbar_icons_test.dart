@@ -502,6 +502,10 @@ void main() {
       'barcode': 'Insert barcode',
       'edit-image': 'Edit image',
       'edit-barcode': 'Edit barcode',
+      'edit-line': 'Edit line',
+      'edit-rectangle': 'Edit rectangle',
+      'edit-rounded-rectangle': 'Edit rounded rectangle',
+      'edit-ellipse': 'Edit ellipse',
       'toggle-layer-panel': 'Layers',
       'delete-image': 'Delete',
       'duplicate-image': 'Duplicate',
@@ -642,6 +646,10 @@ void main() {
       fortuneContextImportLabelImageCommand,
       fortuneContextEditImageCommand,
       fortuneContextEditBarcodeCommand,
+      fortuneContextEditLineCommand,
+      fortuneContextEditRectangleCommand,
+      fortuneContextEditRoundedRectangleCommand,
+      fortuneContextEditEllipseCommand,
       fortuneContextToggleLayerPanelCommand,
       fortuneContextDeleteImageCommand,
       fortuneContextDuplicateImageCommand,
@@ -733,7 +741,15 @@ void main() {
   test('toolbar command groups reference known toolbar commands', () {
     final toolbarCommands =
         fortuneToolbarItems.where((item) => item != '|').toSet()
-          ..add(fortuneToolbarBarcodeCommand);
+          ..addAll({
+            fortuneToolbarBarcodeCommand,
+            fortuneToolbarLineCommand,
+            fortuneToolbarShapeCommand,
+            fortuneToolbarObjectPanelCommand,
+            fortuneToolbarRectangleCommand,
+            fortuneToolbarRoundedRectangleCommand,
+            fortuneToolbarEllipseCommand,
+          });
     final groupedToolbarCommands = <String, List<String>>{
       'edit': fortuneToolbarEditCommands,
       'style': fortuneToolbarStyleCommands,
@@ -797,6 +813,19 @@ void main() {
       locale.toolbarTooltipLabels[fortuneToolbarDataVerificationCommand],
       '데이터 유효성',
     );
+    expect(locale.toolbarTooltipLabels[fortuneToolbarLineCommand], '선 삽입');
+    expect(locale.toolbarTooltipLabels[fortuneToolbarShapeCommand], '도형 삽입');
+    expect(
+      locale.toolbarTooltipLabels[fortuneToolbarRectangleCommand],
+      '사각형 삽입',
+    );
+    expect(
+      locale.toolbarTooltipLabels[fortuneToolbarRoundedRectangleCommand],
+      '둥근 사각형 삽입',
+    );
+    expect(locale.toolbarTooltipLabels[fortuneToolbarEllipseCommand], '타원 삽입');
+    expect(locale.toolbarTooltipLabels[fortuneToolbarShapeInsertCommand], '삽입');
+    expect(locale.toolbarTooltipLabels[fortuneToolbarObjectPanelCommand], '개체');
     expect(
       locale.toolbarPopupLabels[fortuneToolbarCreateFilterCommand],
       '필터 만들기',
@@ -978,7 +1007,16 @@ void main() {
     final toolbarCommands =
         fortuneToolbarItems.where((item) => item != '|').toSet()
           ..add(fortuneToolbarMorePopupKey)
-          ..add(fortuneToolbarBarcodeCommand);
+          ..addAll({
+            fortuneToolbarBarcodeCommand,
+            fortuneToolbarLineCommand,
+            fortuneToolbarShapeCommand,
+            fortuneToolbarRectangleCommand,
+            fortuneToolbarRoundedRectangleCommand,
+            fortuneToolbarEllipseCommand,
+            fortuneToolbarShapeInsertCommand,
+            fortuneToolbarObjectPanelCommand,
+          });
     final popupCommands = {
       for (final items in fortuneToolbarPopupItems.values)
         ...items.where((item) => item != '|'),
@@ -1015,7 +1053,8 @@ void main() {
   test('toolbar popup maps are reachable from toolbar items', () {
     final toolbarCommands = fortuneToolbarItems
         .where((item) => item != '|')
-        .toSet();
+        .toSet()
+      ..add(fortuneToolbarShapeCommand);
 
     expect(
       fortuneToolbarPopupItems.keys.toSet().difference(toolbarCommands),

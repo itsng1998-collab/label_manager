@@ -1,3 +1,31 @@
+### 완료 (2026-07-23): 개체 패널 UX·선택·한글화 보완
+- 사용자 요청: 목록/속성 사이 드래그 splitter, 속성의 내부 개체 ID 제거, 이미지 회전/파일 교체 순서 변경, 셀 선택 시 모든 typed object 선택 해제, 신규 선/도형/개체 툴바 한국어 추가.
+- 패널 편집 완료: 기존 고정 `Flexible 3:2`를 8px 수평 splitter와 session-owned `_layerPaneHeight`로 교체했다. 양쪽 pane 최소 80px을 유지하며 드래그 높이는 선택 전환 후에도 보존한다.
+- 속성 편집 완료: 공통 `개체 ID` 표시를 제거하고 이미지 속성에서 `회전` 다음에 `파일 교체`가 오도록 순서를 변경했다.
+- 셀 선택 편집 완료: `_clearObjectSelectionForCellSelection()`으로 exact key/anchor/active 및 legacy image 선택을 함께 초기화하고 Shift/Ctrl/일반 셀 선택 분기에 적용했다.
+- 한글화 편집 완료: 신규 선/도형/사각형/둥근 사각형/타원/삽입/개체 panel toolbar tooltip 7개를 Korean locale에 추가했다.
+- toolbar popup 편집 완료: 도형 popup의 사각형/둥근 사각형/타원/삽입 기본·한국어 label을 추가해 command ID 노출을 막았다. 이전 추가 command를 locale/command 정합성 테스트 기준에도 반영했다.
+- 테스트 추가: splitter drag/ID 부재/이미지 순서, 이미지·바코드·선·도형 셀 선택 해제, 신규 한국어 tooltip 7개를 회귀 검증한다.
+- focused 검증 완료:
+  - `object panel splitter resizes panes and hides internal id`: 성공 1건.
+  - `cell selection clears every typed object selection`: 성공 1건.
+  - `korean locale localizes toolbar UI labels`: 성공 1건.
+  - `fortune_toolbar_icons_test.dart`: 성공 55건.
+- 전체 검증 실행 예정:
+  - package `flutter test test/fortune_object_controller_test.dart test/fortune_toolbar_icons_test.dart`
+  - root `flutter test test/label_sheet_toolbar_test.dart`
+  - package/root `flutter analyze`
+  - `git diff --check`
+- 전체 검증 결과:
+  - package `fortune_object_controller_test.dart`: 성공 44건.
+  - package `fortune_toolbar_icons_test.dart`: 성공 55건.
+  - root `label_sheet_toolbar_test.dart`: 성공 140건.
+  - package/root `flutter analyze`: 새 오류 없음. 기존 `fortune_sheet_canvas.dart` legacy 미사용 경고 10건과 root test 미사용 지역변수 1건 때문에 각각 exit 1(범위 외, 수정하지 않음).
+  - `git diff --check`: 성공.
+  - 편집 파일 VS Code diagnostics: 오류 없음.
+- stage/commit 대상: `SESSION_HANDOFF.md`, `fortune_object_layer_panel.dart`, `fortune_sheet_canvas.dart`, `fortune_sheet_painter.dart`, `fortune_object_controller_test.dart`, `fortune_toolbar_icons_test.dart`.
+- 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
+
 ### 완료 (2026-07-23): 개체 패널 구분선 픽셀 정렬
 - 사용자 제출 이미지 기준으로 패널 타이틀/액션 툴바 구분선이 인접 시트의 동일 경계보다 아래로 밀리는 원인을 확인했다. 기존 패널은 `41px content + 1px Divider`, 이어서 `40px content + 1px Divider`라 시트 경계 대비 1px, 2px가 누적됐다.
 - 수정 예정 파일/목적: 패널의 별도 Divider를 각 높이 영역 내부 bottom border로 바꾸고, 타이틀은 `sheetSettings.toolbarHeight`, 액션 툴바는 시트의 ruler+column header와 같은 `sheetSettings.columnHeaderHeight * 2`를 사용한다.

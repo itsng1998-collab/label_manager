@@ -378,6 +378,204 @@ void main() {
     controller.dispose();
   });
 
+  testWidgets('object panel splitter resizes panes and hides internal id', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    final controller = FortuneSheetController();
+    final workbook = FortuneWorkbook(
+      settings: const FortuneSettings(
+        showToolbar: false,
+        showFormulaBar: false,
+      ),
+      sheets: [
+        FortuneSheet(
+          id: 's1',
+          name: 'Sheet1',
+          images: const [
+            FortuneImage(
+              id: 'image_1',
+              src: 'data:image/png;base64,',
+              left: 20,
+              top: 20,
+              width: 30,
+              height: 30,
+            ),
+          ],
+        ),
+      ],
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Row(
+          children: [
+            SizedBox(
+              width: 600,
+              height: 700,
+              child: FortuneSheetCanvas(
+                workbook: workbook,
+                controller: controller,
+              ),
+            ),
+            SizedBox(
+              width: 300,
+              height: 700,
+              child: FortuneObjectLayerPanel(controller: controller),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('이미지 image_1'));
+    await tester.pump();
+
+    expect(find.text('개체 ID'), findsNothing);
+    final rotation = find.byKey(
+      const ValueKey('fortune-object-property-rotation'),
+    );
+    final replacement = find.byKey(
+      const ValueKey('fortune-object-property-replace-file'),
+    );
+    await tester.drag(find.byType(ListView).last, const Offset(0, -600));
+    await tester.pump();
+    expect(
+      tester.getTopLeft(rotation).dy,
+      lessThan(tester.getTopLeft(replacement).dy),
+    );
+
+    final layerPane = find.byKey(
+      const ValueKey('fortune-object-panel-layer-pane'),
+    );
+    final splitter = find.byKey(
+      const ValueKey('fortune-object-panel-splitter'),
+    );
+    final initialHeight = tester.getSize(layerPane).height;
+    await tester.drag(splitter, const Offset(0, 60));
+    await tester.pump();
+    expect(tester.getSize(layerPane).height, greaterThan(initialHeight + 30));
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    controller.dispose();
+  });
+
+  testWidgets('cell selection clears every typed object selection', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    final controller = FortuneSheetController();
+    final workbook = FortuneWorkbook(
+      settings: const FortuneSettings(
+        showToolbar: false,
+        showFormulaBar: false,
+      ),
+      sheets: [
+        FortuneSheet(
+          id: 's1',
+          name: 'Sheet1',
+          images: const [
+            FortuneImage(
+              id: 'image_1',
+              src: 'data:image/png;base64,',
+              left: 400,
+              top: 400,
+              width: 30,
+              height: 30,
+            ),
+            FortuneImage(
+              id: 'barcode_1',
+              src: 'data:image/png;base64,',
+              left: 440,
+              top: 400,
+              width: 30,
+              height: 30,
+              extraFields: {'fortuneBarcode': true},
+            ),
+          ],
+          lines: const [
+            FortuneLine(id: 'line_1', x1: 400, y1: 450, x2: 430, y2: 450),
+          ],
+          shapes: const [
+            FortuneShape(
+              id: 'rect_1',
+              kind: FortuneShapeKind.rectangle,
+              left: 440,
+              top: 450,
+              width: 30,
+              height: 30,
+            ),
+          ],
+        ),
+      ],
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SizedBox(
+          width: 900,
+          height: 700,
+          child: FortuneSheetCanvas(workbook: workbook, controller: controller),
+        ),
+      ),
+    );
+
+    const imageKey = FortuneSheetObjectKey(
+      FortuneSheetObjectKind.image,
+      'image_1',
+    );
+    controller.selectObject(imageKey);
+    await tester.pump();
+    await tester.tapAt(const Offset(100, 200));
+    await tester.pump();
+    expect(controller.objectSelection.selectedKeys, isEmpty);
+
+    const lineKey = FortuneSheetObjectKey(
+      FortuneSheetObjectKind.line,
+      'line_1',
+    );
+    controller.selectObject(lineKey);
+    await tester.pump();
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.tapAt(const Offset(120, 220));
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.pump();
+    expect(controller.objectSelection.selectedKeys, isEmpty);
+
+    const rectangleKey = FortuneSheetObjectKey(
+      FortuneSheetObjectKind.rectangle,
+      'rect_1',
+    );
+    controller.selectObject(rectangleKey);
+    await tester.pump();
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.tapAt(const Offset(140, 240));
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pump();
+    expect(controller.objectSelection.selectedKeys, isEmpty);
+
+    const barcodeKey = FortuneSheetObjectKey(
+      FortuneSheetObjectKind.barcode,
+      'barcode_1',
+    );
+    controller.selectObject(barcodeKey);
+    await tester.pump();
+    await tester.tapAt(const Offset(160, 260));
+    await tester.pump();
+    expect(controller.objectSelection.selectedKeys, isEmpty);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    controller.dispose();
+  });
+
   testWidgets('object layer panel reorders selected objects', (tester) async {
     tester.view.physicalSize = const Size(900, 700);
     tester.view.devicePixelRatio = 1;

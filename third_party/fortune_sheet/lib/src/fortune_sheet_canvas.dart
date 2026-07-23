@@ -8419,7 +8419,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         filterDropdownColumn = null;
         _sheetTabMenuSheetIndex = null;
         toolbarPopupKey = null;
-        _activeImageId = null;
+        _clearObjectSelectionForCellSelection();
       });
       _selectionDragAnchor = null;
       _selectionDragging = false;
@@ -8443,7 +8443,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         filterDropdownColumn = null;
         _sheetTabMenuSheetIndex = null;
         toolbarPopupKey = null;
-        _activeImageId = null;
+        _clearObjectSelectionForCellSelection();
       });
       _selectionDragAnchor = null;
       _selectionDragging = false;
@@ -8466,7 +8466,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       filterDropdownColumn = null;
       _sheetTabMenuSheetIndex = null;
       toolbarPopupKey = null;
-      _activeImageId = null;
+      _clearObjectSelectionForCellSelection();
     });
     _selectionDragAnchor = anchor;
     _selectionDragging = false;
@@ -8482,6 +8482,14 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     if (isDoubleTap || _workbook.settings.singleClickCellEdit) {
       _startEditing(anchor);
     }
+  }
+
+  void _clearObjectSelectionForCellSelection() {
+    _selectedObjectKeys = <FortuneSheetObjectKey>{};
+    _objectSelectionAnchorKey = null;
+    _activeObjectKey = null;
+    _activeImageId = null;
+    _selectedImageIds = <String>{};
   }
 
   FortuneCellCoord? _cellCoordAtLocal(
