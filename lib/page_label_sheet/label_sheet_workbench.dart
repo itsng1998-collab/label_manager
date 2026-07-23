@@ -2613,6 +2613,18 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
   }
 
   @override
+  void deactivate() {
+    widget.editingLifecycleController?._detach(this);
+    super.deactivate();
+  }
+
+  @override
+  void activate() {
+    super.activate();
+    widget.editingLifecycleController?._attach(this);
+  }
+
+  @override
   void dispose() {
     _objectPropertyFocusGeneration += 1;
     _objectPanelFocusHandoffGeneration += 1;

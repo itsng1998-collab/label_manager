@@ -1,3 +1,14 @@
+### 완료 (2026-07-23): 라벨 변경 시 editing lifecycle 중복 attach 수정
+- 사용자 재현: 라벨 변경 시 `Bad state: LabelSheetEditingLifecycleController is already attached.` 오류 화면 발생.
+- 로그 확인: `.tmp/log/app_2026-07-23_17-35-03.log`에서 새 `LabelSheetWorkbench.initState()`의 `_attach` 중 예외. 라벨 변경으로 key가 달라진 이전 workbench는 같은 build에서 `deactivate`되지만 `dispose`는 프레임 종료까지 지연된다.
+- 원인 확정: editing lifecycle controller 소유권이 widget tree 활성 기간이 아니라 `initState`~`dispose` 기간에 묶여 새 owner mount 시 이전 owner가 아직 attached 상태다.
+- 편집 완료: workbench `deactivate`에서 editing lifecycle controller를 detach하고 `activate`에서 재attach해 엄격한 단일 owner 검사를 유지하면서 활성 widget owner에 소유권을 맞췄다.
+- 테스트 추가: 동일 controller를 사용하는 keyed workbench를 한 pump에서 교체하고 예외 없음, 새 owner attached, 제거 후 detached를 검증한다.
+- 검증 완료: 신규 keyed owner 교체 테스트 통과(1/1). 기존 draft 확정/barcode render 대기 테스트를 포함한 lifecycle 테스트 3개 통과.
+- 검증 완료: `flutter test test/label_sheet_toolbar_test.dart` 전체 141개 통과, 수정 Dart 파일 analyzer 오류 없음.
+- stage/commit 대상: `lib/page_label_sheet/label_sheet_workbench.dart`, `test/label_sheet_toolbar_test.dart`, `SESSION_HANDOFF.md`.
+- 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
+
 ### 완료 (2026-07-23): 개체 패널 layout mutation 및 toolbar active 보정
 - 사용자 요청: 개체 패널 표시 시 발생하는 `_RenderLayoutBuilder` mutation 오류를 수정하고, 패널이 표시되는 동안 toolbar 개체 버튼에 눌림 효과를 적용한다.
 - 로그 확인: `.tmp/log/app_2026-07-23_17-23-16.log`에서 `label_sheet_workbench.dart:4356`의 overlay 패널 `Positioned` 활성화 중 `OverlayPortal` subtree가 `LayoutBuilder.performLayout` 안에서 attach되어 `markNeedsLayout` assertion 발생.

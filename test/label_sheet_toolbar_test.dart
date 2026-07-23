@@ -2294,6 +2294,41 @@ void main() {
     expect(lifecycle.isAttached, isFalse);
   });
 
+  testWidgets('keyed label sheet owner replacement transfers lifecycle', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    final lifecycle = LabelSheetEditingLifecycleController();
+
+    Widget buildSheet(String labelId) => MaterialApp(
+      home: SizedBox(
+        width: 1100,
+        height: 700,
+        child: LabelSheetWorkbench(
+          key: ValueKey(labelId),
+          editingLifecycleController: lifecycle,
+          initialWorkbook: FortuneWorkbook(
+            sheets: [FortuneSheet(id: labelId, name: 'Label')],
+          ),
+        ),
+      ),
+    );
+
+    await tester.pumpWidget(buildSheet('label_1'));
+    await tester.pump();
+    expect(lifecycle.isAttached, isTrue);
+
+    expect(lifecycle.prepareForOwnerReplacement(), isTrue);
+    await tester.pumpWidget(buildSheet('label_2'));
+    await tester.pump();
+
+    expect(tester.takeException(), isNull);
+    expect(lifecycle.isAttached, isTrue);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    expect(lifecycle.isAttached, isFalse);
+  });
+
   testWidgets('label sheet owner replacement blocks barcode render pending', (
     tester,
   ) async {
