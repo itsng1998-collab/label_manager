@@ -44985,13 +44985,7 @@ void fortuneDrawLineObject(
   var end = offset + Offset(line.x2 * scale, line.y2 * scale);
   final strokeWidth =
       fortuneMillimetersToLogicalPixels(line.strokeWidthMm) * scale;
-  if (start.dy == end.dy) {
-    start = start.translate(0, -0.5);
-    end = end.translate(0, -0.5);
-  } else if (start.dx == end.dx) {
-    start = start.translate(-0.5, 0);
-    end = end.translate(-0.5, 0);
-  }
+  (start, end) = fortuneAlignAxisAlignedObjectLine(start, end);
   if (!_rectsIntersectInclusively(
     Rect.fromPoints(start, end).inflate(strokeWidth / 2),
     clip,
@@ -45007,6 +45001,19 @@ void fortuneDrawLineObject(
     strokeWidth,
     fortuneObjectColor(line.strokeColor),
   );
+}
+
+(Offset, Offset) fortuneAlignAxisAlignedObjectLine(
+  Offset start,
+  Offset end,
+) {
+  if (start.dy == end.dy) {
+    return (start.translate(0, -0.5), end.translate(0, -0.5));
+  }
+  if (start.dx == end.dx) {
+    return (start.translate(-0.5, 0), end.translate(-0.5, 0));
+  }
+  return (start, end);
 }
 
 void fortuneDrawShapeObject(
@@ -77361,7 +77368,9 @@ class FortuneSheetPainter extends CustomPainter {
     final outline = Paint()
       ..color = selectionColor
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1;
+      ..strokeWidth = 1
+      ..strokeCap = StrokeCap.butt
+      ..isAntiAlias = false;
     final handleFill = Paint()
       ..color = const Color(0xffffffff)
       ..style = PaintingStyle.fill;
@@ -77381,8 +77390,9 @@ class FortuneSheetPainter extends CustomPainter {
       if (line == null) {
         return;
       }
-      final start = screenPosition(Offset(line.x1, line.y1));
-      final end = screenPosition(Offset(line.x2, line.y2));
+      var start = screenPosition(Offset(line.x1, line.y1));
+      var end = screenPosition(Offset(line.x2, line.y2));
+      (start, end) = fortuneAlignAxisAlignedObjectLine(start, end);
       canvas.drawLine(start, end, outline);
       handle(start);
       handle(end);

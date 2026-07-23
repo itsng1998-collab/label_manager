@@ -64906,4 +64906,59 @@ void main() {
     expect(paintedColumns, hasLength(1));
     expect(paintedColumns, {9});
   });
+
+  test('selected one pixel line stays on the cell border raster column', () async {
+    final workbook = FortuneWorkbook(
+      settings: const FortuneSettings(
+        showToolbar: false,
+        showFormulaBar: false,
+      ),
+      sheets: [
+        FortuneSheet(
+          id: 's1',
+          name: 'Sheet1',
+          lines: const [
+            FortuneLine(
+              id: 'line_1',
+              x1: 70,
+              y1: 10,
+              x2: 70,
+              y2: 30,
+            ),
+          ],
+        ),
+      ],
+    );
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+    FortuneSheetPainter(
+      workbook: workbook,
+      selection: const FortuneSelection(row: 10, column: 10),
+      scrollOffset: Offset.zero,
+      sheetTabScrollOffset: 0,
+      textDirection: TextDirection.ltr,
+      activeObjectKey: const FortuneSheetObjectKey(
+        FortuneSheetObjectKind.line,
+        'line_1',
+      ),
+    ).paint(canvas, const Size(160, 100));
+    final image = await recorder.endRecording().toImage(160, 100);
+    final bytes = (await image.toByteData(format: ui.ImageByteFormat.rawRgba))!;
+
+    final lineColumns = <int>{};
+    for (var y = 35; y < 45; y += 1) {
+      for (var x = 112; x < 120; x += 1) {
+        final offset = (y * image.width + x) * 4;
+        final red = bytes.getUint8(offset);
+        final green = bytes.getUint8(offset + 1);
+        final blue = bytes.getUint8(offset + 2);
+        final isBlack = red < 50 && green < 50 && blue < 50;
+        final isSelectionBlue = red < 80 && green > 90 && blue > 180;
+        if (isBlack || isSelectionBlue) {
+          lineColumns.add(x);
+        }
+      }
+    }
+    expect(lineColumns, {115});
+  });
 }
