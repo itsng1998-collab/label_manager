@@ -1,3 +1,18 @@
+### 완료 (2026-07-23): 선·도형 삽입 모드 십자 커서 유지
+- 사용자 요청: 선뿐 아니라 사각형·둥근 사각형·타원 도구 선택 후에도 개체 생성 또는 `Esc` 취소 전까지 셀 위 십자 커서를 확실히 유지한다.
+- 원인 확인: geometry 삽입 모드는 유지되지만 pointer hover/move의 이미지·셀 hover 경로가 `_mouseCursor`를 `basic`으로 덮어썼다.
+- 구현 예정: 전체 geometry 삽입 모드에서 셀 데이터 영역 cursor를 `precise`로 최우선 처리하고, 실제 생성 완료 및 `Esc` 취소의 기존 mode 종료는 유지한다.
+- `third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart`: pointer move/hover에서 활성 geometry 삽입 모드의 셀 데이터 영역 cursor를 `precise`로 우선 유지하도록 완료.
+- `third_party/fortune_sheet/test/fortune_line_insertion_test.dart`: 선·사각형·둥근 사각형·타원 모두 셀 위 cursor 유지, `Esc` 취소, 실제 타원 생성 후 기본 cursor 복귀 검증 추가.
+- focused 검증 완료: 전체 geometry cursor 테스트 1개 통과.
+- 확대 검증 완료: package 선·도형 삽입 10개, 개체 controller 45개, root 라벨 시트 통합 140개 모두 통과.
+- package 분석: `cd third_party/fortune_sheet; flutter analyze` → 새 오류 없음, 기존 `fortune_sheet_canvas.dart` 미사용 경고 10개.
+- root 분석: `flutter analyze` → 새 오류 없음, 위 기존 경고 10개 + 기존 테스트 미사용 변수 경고 1개.
+- 최종 진단 및 형식 검사: 변경 파일 VS Code 오류 0개, `git diff --check` 통과.
+- 기능 커밋: `02ccdc9` (`선과 도형 삽입 중 십자 커서 유지`).
+- 인수인계 문서는 위 기능 커밋 해시 반영 후 별도 커밋.
+- 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
+
 ### 완료 (2026-07-23): 이미지 연결 후보 형식 문구 제거
 - 사용자 요청: 이미지 연결 dropdown 후보는 모두 이미지 항목이므로 표시 label 뒤의 중복 문구 `· 이미지`를 제거한다.
 - 구현 예정: 앱의 이미지 연결 option label만 `항목명 (#KEYWORD)`로 변경하고 내부 저장값 `#KEYWORD`와 연결 동작은 유지한다.
