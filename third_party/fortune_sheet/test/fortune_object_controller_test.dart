@@ -1674,10 +1674,19 @@ void main() {
     final angleField = find.byKey(
       const ValueKey('fortune-object-property-angle'),
     );
+    final strokeWidthField = find.byKey(
+      const ValueKey('fortune-object-property-strokeWidth'),
+    );
     expect(tester.widget<TextField>(angleField).controller?.text, '0');
     await tester.enterText(angleField, '90');
     await tester.drag(find.byType(ListView).last, const Offset(0, -600));
     await tester.pump();
+    expect(tester.widget<TextField>(strokeWidthField).controller?.text, '1.89');
+    expect(
+      tester.widget<TextField>(strokeWidthField).decoration?.suffixText,
+      'px',
+    );
+    await tester.enterText(strokeWidthField, '2');
     await tester.tap(
       find.byKey(const ValueKey('fortune-object-property-apply')),
     );
@@ -1688,6 +1697,10 @@ void main() {
     expect(line.y1, 20);
     expect(line.x2, closeTo(20, 0.0001));
     expect(line.y2, closeTo(50, 0.0001));
+    expect(
+      line.strokeWidthMm,
+      closeTo(fortuneLogicalPixelsToMillimeters(2), 0.000001),
+    );
     expect(controller.projectedCanUndo, isTrue);
   });
 
@@ -3332,7 +3345,12 @@ void main() {
     expect(propertyText('width'), '60');
     expect(propertyText('height'), '40');
     expect(propertyText('rotation'), '405');
-    expect(propertyText('strokeWidth'), '0.5');
+    expect(propertyText('strokeWidth'), '1.89');
+    final strokeWidthField = find.byKey(
+      const ValueKey('fortune-object-property-strokeWidth'),
+    );
+    expect(tester.widget<TextField>(strokeWidthField).decoration?.suffixText, 'px');
+    await tester.enterText(strokeWidthField, '3');
     expect(propertyText('strokeColor'), '#000000');
     expect(propertyText('cornerRadius'), '0');
     expect(
@@ -3353,6 +3371,10 @@ void main() {
     final shape = controller.objectSelection.activeShape!;
     expect(shape.top, 0);
     expect(shape.rotationDegrees, 45);
+    expect(
+      shape.strokeWidthMm,
+      closeTo(fortuneLogicalPixelsToMillimeters(3), 0.000001),
+    );
     expect(shape.fillColor, isNull);
   });
 

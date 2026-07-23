@@ -1044,7 +1044,7 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
           : FortunePropertyDraftProjection.noChange;
     }
 
-    final strokeWidth = _number('strokeWidth');
+    final strokeWidth = _strokeWidthMillimeters();
     final strokeColor = _fields['strokeColor']?.text.trim();
     if (strokeWidth == null || strokeColor == null) {
       return FortunePropertyDraftProjection.invalid;
@@ -1174,7 +1174,10 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
       _setGeometryField('x2', line.x2);
       _setGeometryField('y2', line.y2);
       _setField('angle', _lineAngle(line) ?? 0.0);
-      _setField('strokeWidth', line.strokeWidthMm);
+      _setField(
+        'strokeWidth',
+        fortuneMillimetersToLogicalPixels(line.strokeWidthMm),
+      );
       _setField('strokeColor', line.strokeColor);
     } else if (shape != null) {
       _strokeStyle = shape.strokeStyle;
@@ -1184,7 +1187,10 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
       _setGeometryField('width', shape.width);
       _setGeometryField('height', shape.height);
       _setField('rotation', shape.rotationDegrees);
-      _setField('strokeWidth', shape.strokeWidthMm);
+      _setField(
+        'strokeWidth',
+        fortuneMillimetersToLogicalPixels(shape.strokeWidthMm),
+      );
       _setField('strokeColor', shape.strokeColor);
       _setField('fillColor', shape.fillColor ?? '#FFFFFF');
       if (shape.kind == FortuneShapeKind.roundedRectangle) {
@@ -1218,6 +1224,13 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
     return geometry && widget.snapshot.geometryUsesMillimeters
         ? fortuneMillimetersToLogicalPixels(value)
         : value;
+  }
+
+  double? _strokeWidthMillimeters() {
+    final logicalPixels = _number('strokeWidth');
+    return logicalPixels == null
+        ? null
+        : fortuneLogicalPixelsToMillimeters(logicalPixels);
   }
 
   bool _apply({bool forCommand = false}) {
@@ -1301,7 +1314,7 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
       _completePropertyDraft();
       return true;
     }
-    final strokeWidth = _number('strokeWidth');
+    final strokeWidth = _strokeWidthMillimeters();
     final strokeColor = _fields['strokeColor']?.text.trim();
     if (strokeWidth == null || strokeColor == null) {
       setState(() => _error = '유효한 숫자와 색상을 입력하세요.');
@@ -1634,7 +1647,7 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
                 }
               : null,
         ),
-        _field('테두리 폭', 'strokeWidth', suffix: 'mm'),
+        _field('테두리 폭', 'strokeWidth', suffix: 'px'),
         _field('테두리 색상', 'strokeColor'),
       ]);
     }
