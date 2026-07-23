@@ -115192,12 +115192,11 @@ void main() {
     expect(painter().activeImageId, 'img2');
   });
 
-  testWidgets('active image selection renders toolbar controls', (
+  testWidgets('active image selection does not render object toolbar', (
     tester,
   ) async {
     await prepareFortuneSheetView(tester, const Size(900, 600), devicePixelRatio: 1);
 
-    final repaintKey = GlobalKey();
     final workbook = FortuneWorkbook(
       sheets: [
         FortuneSheet(
@@ -115220,13 +115219,10 @@ void main() {
     await tester.pumpWidget(
       Directionality(
         textDirection: TextDirection.ltr,
-        child: RepaintBoundary(
-          key: repaintKey,
-          child: SizedBox(
-            width: 900,
-            height: 360,
-            child: FortuneSheetCanvas(workbook: workbook),
-          ),
+        child: SizedBox(
+          width: 900,
+          height: 360,
+          child: FortuneSheetCanvas(workbook: workbook),
         ),
       ),
     );
@@ -115246,36 +115242,8 @@ void main() {
     await tester.pump();
 
     expect(painter().activeImageId, 'img1');
-
-    final boundary =
-        repaintKey.currentContext!.findRenderObject()! as RenderRepaintBoundary;
-    final image = await boundary.toImage(pixelRatio: 1);
-    final pixels = await tester.runAsync(
-      () => image.toByteData(format: ui.ImageByteFormat.rawRgba),
-    );
-    expect(pixels, isNotNull);
-
-    final toolbarRect = fortuneActiveImageToolbarRect(
-      Rect.fromLTWH(imageLeft, imageTop, 80, 50),
-      const Size(900, 360),
-    );
-    var toolbarGrayPixels = 0;
-    for (var y = toolbarRect.top.round(); y < toolbarRect.bottom.round(); y += 1) {
-      for (var x = toolbarRect.left.round(); x < toolbarRect.right.round(); x += 1) {
-        final offset = (y * image.width + x) * 4;
-        final red = pixels!.getUint8(offset);
-        final green = pixels.getUint8(offset + 1);
-        final blue = pixels.getUint8(offset + 2);
-        final maxChannel = math.max(red, math.max(green, blue));
-        final minChannel = math.min(red, math.min(green, blue));
-        if (maxChannel >= 70 &&
-            maxChannel <= 170 &&
-            maxChannel - minChannel <= 24) {
-          toolbarGrayPixels += 1;
-        }
-      }
-    }
-    expect(toolbarGrayPixels, greaterThan(10));
+    expect(painter().activeImageToolbarHoveredCommand, isNull);
+    expect(painter().activeImageToolbarTooltipPosition, isNull);
   });
 
   testWidgets('active image does not expose control button aria labels', (

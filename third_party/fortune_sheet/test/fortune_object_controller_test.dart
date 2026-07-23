@@ -1731,7 +1731,7 @@ void main() {
     expect(controller.objectSelection.activeKey, isNotNull);
   });
 
-  testWidgets('active image toolbar requests generic object panel open', (
+  testWidgets('selected image has no active object toolbar hit target', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(900, 700);
@@ -1791,17 +1791,11 @@ void main() {
     await tester.tapAt(topLeft + toggleRect.center);
     await tester.pump();
 
-    expect(panelRequests, hasLength(1));
-    expect(panelRequests.single.sheetId, 's1');
-    expect(
-      panelRequests.single.objectKey,
-      const FortuneSheetObjectKey(FortuneSheetObjectKind.image, 'image_1'),
-    );
-    expect(panelRequests.single.propertyField, isNull);
+    expect(panelRequests, isEmpty);
   });
 
   testWidgets(
-    'active image toolbar object panel command is no-op without host request callback',
+    'image right click exposes all object commands',
     (tester) async {
       tester.view.physicalSize = const Size(900, 700);
       tester.view.devicePixelRatio = 1;
@@ -1844,28 +1838,30 @@ void main() {
           ),
         ),
       );
-      controller.selectObject(
-        const FortuneSheetObjectKey(FortuneSheetObjectKind.image, 'image_1'),
-      );
-      await tester.pump();
       final topLeft = tester.getTopLeft(find.byType(FortuneSheetCanvas));
-      final painter = fortuneSheetPainter(tester);
-      final imageRect = ui.Rect.fromLTWH(46 + 20, 20 + 20, 40, 30);
-      final toggleRect = fortuneActiveImageToolbarItemRect(
-        imageRect,
-        const Size(900, 700),
-        fortuneContextToggleLayerPanelCommand,
-        fortuneActiveImageToolbarItems(
-          painter.workbook.activeSheet.images.single,
-        ),
-      )!;
-      await tester.tapAt(topLeft + toggleRect.center);
+      final contextGesture = await tester.startGesture(
+        topLeft + const Offset(86, 55),
+        kind: PointerDeviceKind.mouse,
+        buttons: kSecondaryMouseButton,
+      );
+      await contextGesture.up();
       await tester.pump();
 
+      expect(fortuneSheetPainter(tester).contextMenuItems, [
+        fortuneContextEditImageCommand,
+        '|',
+        fortuneContextDuplicateImageCommand,
+        fortuneContextDeleteImageCommand,
+        '|',
+        fortuneContextBringToFrontCommand,
+        fortuneContextBringForwardCommand,
+        fortuneContextSendBackwardCommand,
+        fortuneContextSendToBackCommand,
+      ]);
     },
   );
 
-  testWidgets('multiple selection suppresses active object toolbar', (
+  testWidgets('multiple object selection remains active without toolbar', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(900, 700);
@@ -4051,14 +4047,14 @@ void main() {
       'rect_1',
     );
     expect(painter().activeObjectKey, key);
-    final items = fortuneActiveTypedObjectToolbarItems(key);
-    final editRect = fortuneActiveImageToolbarItemRect(
+    final legacyToolbarItems = fortuneActiveTypedObjectToolbarItems(key);
+    final legacyEditRect = fortuneActiveImageToolbarItemRect(
       ui.Rect.fromLTWH(146, 70, 80, 30),
       const Size(900, 700),
       fortuneContextEditRectangleCommand,
-      items,
+      legacyToolbarItems,
     )!;
-    await tester.tapAt(canvasTopLeft + editRect.center);
+    await tester.tapAt(canvasTopLeft + legacyEditRect.center);
     await tester.pump();
 
     expect(painter().activeObjectKey, key);

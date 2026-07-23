@@ -62963,7 +62963,6 @@ class FortuneSheetPainter extends CustomPainter {
     _drawFormulaSearchDialog(canvas, size);
     _drawFormulaSearchHint(canvas, size);
     _drawFormatSearchDialog(canvas, size);
-    _drawActiveImageToolbarTooltip(canvas, size);
   }
 
   void _drawToolbar(Canvas canvas, Size size, FortuneSettings settings) {
@@ -63899,7 +63898,6 @@ class FortuneSheetPainter extends CustomPainter {
       canvas.restore();
     }
     _drawActiveTypedObjectSelection(canvas, size, settings);
-    _drawActiveImageToolbar(canvas, size, settings);
     _drawVisibleComments(canvas, size, settings, metrics);
     if (showCellSelection) {
       _drawSelection(canvas, size, settings, metrics);
@@ -77565,6 +77563,7 @@ class FortuneSheetPainter extends CustomPainter {
     });
   }
 
+  // ignore: unused_element
   void _drawActiveImageToolbar(
     Canvas canvas,
     Size size,
@@ -77685,6 +77684,7 @@ class FortuneSheetPainter extends CustomPainter {
     return _contextMenuLabel(command);
   }
 
+  // ignore: unused_element
   void _drawActiveImageToolbarTooltip(Canvas canvas, Size size) {
     final command = activeImageToolbarHoveredCommand;
     final position = activeImageToolbarTooltipPosition;
@@ -78448,10 +78448,6 @@ class FortuneSheetPainter extends CustomPainter {
         ) ||
         oldDelegate.objectGestureImageDraft != objectGestureImageDraft ||
         oldDelegate.objectGestureImageDraftKey != objectGestureImageDraftKey ||
-        oldDelegate.activeImageToolbarHoveredCommand !=
-            activeImageToolbarHoveredCommand ||
-        oldDelegate.activeImageToolbarTooltipPosition !=
-            activeImageToolbarTooltipPosition ||
         oldDelegate.decodedImages != decodedImages ||
         oldDelegate.zoomMenuOpen != zoomMenuOpen ||
         oldDelegate.sheetFocused != sheetFocused ||

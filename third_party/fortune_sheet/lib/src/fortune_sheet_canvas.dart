@@ -3629,8 +3629,6 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   int? _typedObjectMoveOwnerHistoryGeneration;
   String? _typedObjectMoveOwnerSheetId;
   Set<String> _selectedImageIds = <String>{};
-  String? _activeImageToolbarHoveredCommand;
-  Offset? _activeImageToolbarTooltipPosition;
   String? _imageResizeSide;
   Offset? _imageResizeStart;
   FortuneImage? _imageResizeInitial;
@@ -7942,43 +7940,6 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       }
     }
 
-    final activeImageToolbarCommand = _activeImageToolbarCommandAt(
-      local,
-      settings,
-    );
-    if (activeImageToolbarCommand != null) {
-      _commitEditing();
-      _commitSheetRename();
-      final activeKey = _activeObjectKey ?? _activeImageObjectKey;
-      final activeImage = activeKey == null ? null : _imageByKey(activeKey);
-      final enabled = activeImage != null
-          ? fortuneActiveImageToolbarItemEnabled(
-              _workbook.activeSheet.images,
-              activeImage.id,
-              activeImageToolbarCommand,
-              allowEdit: _workbook.settings.allowEdit,
-            )
-          : activeKey != null &&
-                fortuneActiveTypedObjectToolbarItemEnabled(
-                  _workbook.activeSheet,
-                  activeKey,
-                  activeImageToolbarCommand,
-                  allowEdit: _workbook.settings.allowEdit,
-                );
-      if (!enabled) {
-        setState(() {
-          contextMenuAt = null;
-          _contextMenuImageId = null;
-          _contextMenuObjectKey = null;
-        });
-        return;
-      }
-      _contextMenuObjectKey = activeKey;
-      _contextMenuImageId = null;
-      _activateContextMenuCommand(activeImageToolbarCommand);
-      return;
-    }
-
     if (_isOutsideActiveSheetEventArea(local, settings)) {
       if (_hasOpenTransientMenu()) {
         setState(_closeTransientMenus);
@@ -8272,31 +8233,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       _commitSheetRename();
       final image = _imageByKey(imageKey);
       if ((event.buttons & kSecondaryMouseButton) != 0 && image != null) {
-        final menuItems = _contextMenuItemsForImage(image);
-        setState(() {
-          final selected = _objectSelectionSnapshot(
-            attached: true,
-          ).selectedKeys;
-          _applyExactObjectSelection(
-            selected.contains(imageKey)
-                ? selected
-                : <FortuneSheetObjectKey>{imageKey},
-            imageKey,
-            anchorKey: imageKey,
-          );
-          _contextMenuImageId = imageKey.id;
-          _contextMenuObjectKey = null;
-          contextMenuAt = _contextMenuOrigin(local, menuItems);
-          _contextMenuHoveredIndex = null;
-          _contextMenuIsHeader = false;
-          _contextMenuIsEditor = false;
-          sheetTabMenuAt = null;
-          hiddenSheetListAt = null;
-          dataVerificationDropdownCoord = null;
-          filterDropdownColumn = null;
-          _sheetTabMenuSheetIndex = null;
-          toolbarPopupKey = null;
-        });
+        _openTypedObjectContextMenu(imageKey, local);
         return;
       }
       if ((event.buttons & kPrimaryButton) != 0 &&
@@ -10818,9 +10755,6 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     if (_updateContextMenuHover(event.localPosition)) {
       return;
     }
-    if (_updateActiveImageToolbarHover(event.localPosition)) {
-      return;
-    }
     _updateImageResizeCursor(event.localPosition);
     _updateRawChartHover(event);
     _updateSheetTabOptionsHover(event.localPosition);
@@ -11031,30 +10965,6 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
           ? SystemMouseCursors.basic
           : SystemMouseCursors.click,
     );
-    return true;
-  }
-
-  bool _updateActiveImageToolbarHover(Offset local) {
-    final command = _activeImageToolbarCommandAt(local, _workbook.settings);
-    if (command == null) {
-      if (_activeImageToolbarHoveredCommand != null ||
-          _activeImageToolbarTooltipPosition != null) {
-        setState(() {
-          _activeImageToolbarHoveredCommand = null;
-          _activeImageToolbarTooltipPosition = null;
-        });
-      }
-      return false;
-    }
-    if (_activeImageToolbarHoveredCommand != command ||
-        _activeImageToolbarTooltipPosition != local ||
-        _mouseCursor != SystemMouseCursors.click) {
-      setState(() {
-        _activeImageToolbarHoveredCommand = command;
-        _activeImageToolbarTooltipPosition = local;
-        _mouseCursor = SystemMouseCursors.click;
-      });
-    }
     return true;
   }
 
@@ -28754,46 +28664,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         : Offset(shape.left + shape.width / 2, shape.top + shape.height / 2);
   }
 
-  String? _activeImageToolbarCommandAt(Offset local, FortuneSettings settings) {
-    if (contextMenuAt != null ||
-        widget.objectPanelPresentation ==
-            FortuneObjectPanelPresentation.overlay) {
-      return null;
-    }
-    final imageKey = _activeImageObjectKey;
-    final image = imageKey == null ? null : _imageByKey(imageKey);
-    final size = context.size;
-    if (size == null) {
-      return null;
-    }
-    final key = _activeObjectKey ?? imageKey;
-    final items = image != null
-      ? fortuneActiveImageToolbarItems(image)
-      : key == null
-      ? const <String>[]
-      : fortuneActiveTypedObjectToolbarItems(key);
-    final objectRect = image != null
-        ? _imageRect(image, settings)
-        : key == null
-        ? null
-        : _typedObjectScreenRect(key, settings);
-    if (items.isEmpty || objectRect == null) {
-      return null;
-    }
-    for (final item in items) {
-      final rect = fortuneActiveImageToolbarItemRect(
-        objectRect,
-        size,
-        item,
-        items,
-      );
-      if (rect != null && rect.contains(local)) {
-        return item;
-      }
-    }
-    return null;
-  }
-
+  // ignore: unused_element
   Rect? _typedObjectScreenRect(
     FortuneSheetObjectKey key,
     FortuneSettings settings,
@@ -42432,7 +42303,6 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       _conditionFormatSubmenuKey = null;
       _toolbarHoveredKey = null;
       _toolbarHoveredComboArrowKey = null;
-      _activeImageToolbarTooltipPosition = null;
     });
   }
 
@@ -48821,10 +48691,6 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
                 lineInsertionDraft: _lineInsertionDraft,
                 shapeInsertionDraft: _shapeInsertionDraft,
                 selectedImageIds: _selectedImageIds,
-                activeImageToolbarHoveredCommand:
-                    _activeImageToolbarHoveredCommand,
-                activeImageToolbarTooltipPosition:
-                    _activeImageToolbarTooltipPosition,
                 decodedImages: Map<String, ui.Image>.unmodifiable(
                   _decodedImages,
                 ),

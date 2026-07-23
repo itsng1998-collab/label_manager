@@ -1169,7 +1169,7 @@ void main() {
     );
   });
 
-  testWidgets('image floating toolbar disabled action and hover tooltip', (
+  testWidgets('legacy image toolbar area has no hover or action', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(900, 700);
@@ -1264,14 +1264,8 @@ void main() {
     );
     await tester.pump();
 
-    expect(
-      painter().activeImageToolbarHoveredCommand,
-      fortuneContextDuplicateImageCommand,
-    );
-    expect(
-      painter().activeImageToolbarTooltipPosition,
-      duplicateCenter - topLeft,
-    );
+    expect(painter().activeImageToolbarHoveredCommand, isNull);
+    expect(painter().activeImageToolbarTooltipPosition, isNull);
 
     await tester.sendEventToBinding(
       PointerHoverEvent(position: topLeft + const Offset(20, 20)),
@@ -1306,7 +1300,7 @@ void main() {
     );
   });
 
-  testWidgets('image floating toolbar object panel command is no-op without host callback', (
+  testWidgets('legacy image toolbar panel area does not execute a command', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(900, 700);
@@ -1399,8 +1393,8 @@ void main() {
     await tester.tapAt(topLeft + layerButtonRect!.center);
     await tester.pump();
 
-    expect(painter().activeImageId, 'front');
-    expect(painter().selectedImageIds, {'front'});
+    expect(painter().activeImageId, isNull);
+    expect(painter().selectedImageIds, isEmpty);
   });
 
   testWidgets('barcode context menu duplicate copies barcode metadata', (
@@ -1510,7 +1504,7 @@ void main() {
     expect(duplicate.extraFields['barcodeText'], '12345');
   });
 
-  testWidgets('image floating toolbar requests generic object panel open for selected image', (
+  testWidgets('image context edit requests generic object panel open', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(900, 700);
@@ -1579,24 +1573,22 @@ void main() {
       40,
       40,
     );
-    await tester.tapAt(topLeft + image1Rect.center);
+    final contextGesture = await tester.startGesture(
+      topLeft + image1Rect.center,
+      kind: PointerDeviceKind.mouse,
+      buttons: kSecondaryMouseButton,
+    );
+    await contextGesture.up();
     await tester.pump();
 
     expect(painter().activeImageId, 'image1');
-
-    final image = painter().workbook.activeSheet.images.firstWhere(
-      (image) => image.id == 'image1',
-    );
-    final toolbarItems = fortuneActiveImageToolbarItems(image);
-    final layerButtonRect = fortuneActiveImageToolbarItemRect(
-      image1Rect,
-      const Size(900, 700),
-      fortuneContextToggleLayerPanelCommand,
-      toolbarItems,
-    );
-    expect(layerButtonRect, isNotNull);
-
-    await tester.tapAt(topLeft + layerButtonRect!.center);
+    expect(painter().contextMenuItems, _imageObjectContextMenuItems);
+    final editRect = fortuneContextMenuItemRect(
+      painter().contextMenuAt!,
+      fortuneContextEditImageCommand,
+      painter().contextMenuItems,
+    )!;
+    await tester.tapAt(topLeft + editRect.center);
     await tester.pump();
 
     expect(panelRequest?.sheetId, 's1');
@@ -1604,7 +1596,7 @@ void main() {
       panelRequest?.objectKey,
       const FortuneSheetObjectKey(FortuneSheetObjectKind.image, 'image1'),
     );
-    expect(panelRequest?.propertyField, isNull);
+    expect(panelRequest?.propertyField, 'connectionId');
   });
 
   testWidgets('tab cycles overlapping image selection', (tester) async {
