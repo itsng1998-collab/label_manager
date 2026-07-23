@@ -11,6 +11,7 @@
 - 최종 검증: `flutter test test/automatic_item_update_dao_test.dart test/automatic_item_update_column_content_test.dart test/automatic_item_update_draft_test.dart test/automatic_item_update_page_test.dart` 25건 전체 통과, `git diff --check` clean.
 - 실제 서버 재조회는 제출 로그의 앱 연결이 종료되어 미검증이다. 다음 앱 실행에서 같은 labelSize 조회 시 `RICH_UPDATE_ITEM_ID` 정렬 SQL과 `sessionLoad completed`를 로그로 확인한다.
 - stage/commit 대상: `lib/models/update_item.dart`, `lib/models/update_item_column_content.dart`, 대응 DAO 테스트 2개, `doc/automatic_item_update.txt`, `SESSION_HANDOFF.md`.
+- 기능 커밋: `e6941df` (`자동품목갱신 운영 DB 조회 오류 수정`).
 - 기존 사용자 변경 `lib/core/app.dart`는 수정·stage·commit에서 제외한다.
 
 ### 완료 (2026-07-23): 클린 빌드 후 Git 변경 정리
