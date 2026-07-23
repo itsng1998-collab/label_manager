@@ -1054,7 +1054,8 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
       final y1 = _number('y1', geometry: true);
       final x2 = _number('x2', geometry: true);
       final y2 = _number('y2', geometry: true);
-      if ([x1, y1, x2, y2].contains(null)) {
+      final angle = _number('angle');
+      if ([x1, y1, x2, y2, angle].contains(null)) {
         return FortunePropertyDraftProjection.invalid;
       }
       return widget.controller.wouldUpdateSelectedLine(
@@ -1172,6 +1173,7 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
       _setGeometryField('y1', line.y1);
       _setGeometryField('x2', line.x2);
       _setGeometryField('y2', line.y2);
+      _setField('angle', _lineAngle(line) ?? 0.0);
       _setField('strokeWidth', line.strokeWidthMm);
       _setField('strokeColor', line.strokeColor);
     } else if (shape != null) {
@@ -1310,7 +1312,8 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
       final y1 = _number('y1', geometry: true);
       final x2 = _number('x2', geometry: true);
       final y2 = _number('y2', geometry: true);
-      if ([x1, y1, x2, y2].contains(null)) {
+      final angle = _number('angle');
+      if ([x1, y1, x2, y2, angle].contains(null)) {
         setState(() => _error = '유효한 좌표를 입력하세요.');
         return false;
       }
@@ -1526,7 +1529,7 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
         _field('회전', 'rotation', suffix: '°'),
         if (widget.snapshot.activeKey!.kind == FortuneSheetObjectKind.image)
           Padding(
-            padding: const EdgeInsets.only(top: 5),
+            padding: const EdgeInsets.only(top: 10),
             child: OutlinedButton.icon(
               key: const ValueKey('fortune-object-property-replace-file'),
               onPressed: _imagePickerPending || !canMutate
@@ -1589,16 +1592,15 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
         _field('시작 Y', 'y1', suffix: unit),
         _field('끝 X', 'x2', suffix: unit),
         _field('끝 Y', 'y2', suffix: unit),
+        _field(
+          '각도',
+          'angle',
+          suffix: '°',
+          onChanged: (_) => _updateLineEndFromAngle(),
+        ),
         _ReadOnlyProperty(
           label: '길이',
           value: '${_formatNumber(_displayLength(line))} $unit',
-        ),
-        _ReadOnlyProperty(
-          label: '각도',
-          value: switch (_lineAngle(line)) {
-            final angle? => '${_formatNumber(angle)}°',
-            null => '-',
-          },
         ),
       ]);
     } else if (shape != null) {
@@ -1757,6 +1759,30 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
     return widget.snapshot.geometryUsesMillimeters
         ? fortuneLogicalPixelsToMillimeters(logical)
         : logical;
+  }
+
+  void _updateLineEndFromAngle() {
+    final x1 = _number('x1', geometry: true);
+    final y1 = _number('y1', geometry: true);
+    final x2 = _number('x2', geometry: true);
+    final y2 = _number('y2', geometry: true);
+    final angle = _number('angle');
+    if ([x1, y1, x2, y2, angle].contains(null)) {
+      return;
+    }
+    final length = math.sqrt(
+      math.pow(x2! - x1!, 2) + math.pow(y2! - y1!, 2),
+    );
+    final radians = angle! * math.pi / 180;
+    _setGeometryFieldText('x2', x1 + length * math.cos(radians));
+    _setGeometryFieldText('y2', y1 + length * math.sin(radians));
+  }
+
+  void _setGeometryFieldText(String name, double logicalValue) {
+    final value = widget.snapshot.geometryUsesMillimeters
+        ? fortuneLogicalPixelsToMillimeters(logicalValue)
+        : logicalValue;
+    _fields[name]!.text = _formatNumber(value);
   }
 
   double? _lineAngle(FortuneLine line) {

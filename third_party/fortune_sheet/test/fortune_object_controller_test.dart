@@ -446,7 +446,7 @@ void main() {
     await tester.pump();
     expect(
       tester.getTopLeft(replacement).dy - tester.getBottomLeft(rotation).dy,
-      closeTo(5, 0.25),
+      closeTo(10, 0.5),
     );
 
     final layerPane = find.byKey(
@@ -1604,8 +1604,91 @@ void main() {
           .readOnly,
       isTrue,
     );
-    expect(find.text('-'), findsOneWidget);
+    expect(
+      tester
+          .widget<TextField>(
+            find.byKey(const ValueKey('fortune-object-property-angle')),
+          )
+          .readOnly,
+      isTrue,
+    );
     expect(find.byType(SelectableText), findsWidgets);
+  });
+
+  testWidgets('line angle property rotates endpoint while preserving length', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    final controller = FortuneSheetController();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Row(
+          children: [
+            SizedBox(
+              width: 600,
+              height: 900,
+              child: FortuneSheetCanvas(
+                controller: controller,
+                workbook: FortuneWorkbook(
+                  settings: const FortuneSettings(
+                    showToolbar: false,
+                    showFormulaBar: false,
+                  ),
+                  sheets: [
+                    FortuneSheet(
+                      id: 's1',
+                      name: 'Sheet1',
+                      lines: const [
+                        FortuneLine(
+                          id: 'line_1',
+                          x1: 20,
+                          y1: 20,
+                          x2: 50,
+                          y2: 20,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            SizedBox(
+              width: 300,
+              height: 900,
+              child: FortuneObjectLayerPanel(controller: controller),
+            ),
+          ],
+        ),
+      ),
+    );
+    controller.selectObject(
+      const FortuneSheetObjectKey(FortuneSheetObjectKind.line, 'line_1'),
+    );
+    await tester.pump();
+
+    final angleField = find.byKey(
+      const ValueKey('fortune-object-property-angle'),
+    );
+    expect(tester.widget<TextField>(angleField).controller?.text, '0');
+    await tester.enterText(angleField, '90');
+    await tester.drag(find.byType(ListView).last, const Offset(0, -600));
+    await tester.pump();
+    await tester.tap(
+      find.byKey(const ValueKey('fortune-object-property-apply')),
+    );
+    await tester.pump();
+
+    final line = controller.objectSelection.activeLine!;
+    expect(line.x1, 20);
+    expect(line.y1, 20);
+    expect(line.x2, closeTo(20, 0.0001));
+    expect(line.y2, closeTo(50, 0.0001));
+    expect(controller.projectedCanUndo, isTrue);
   });
 
   testWidgets('read-only multiple selection actions are disabled', (
