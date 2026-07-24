@@ -1468,6 +1468,8 @@ class _HomePageManagerState extends State<HomePageManager> {
       _scaleOutputSessionController.updateConnectInfo(
         await DbScaleConnectInfoHelper.loadConnectInfo(),
       );
+      _syncLabelPrintRows();
+      _syncScaleOutputRows();
       _selectInitialItemOfMarket();
       debugLog(
         'loaded labelSizeId=${labelSize.labelSizeId}, '

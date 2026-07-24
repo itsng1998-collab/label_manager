@@ -3,14 +3,15 @@
 - 이 파일에는 현재 상태, 최근 완료 항목, 검증, 다음 액션만 기록한다.
 
 ## 현재 상태
-- 최근 저울출력 관련 작업은 모두 커밋 완료 상태다.
+- 탭메뉴 저울출력 처음 진입시 빈 테이블 문제는 원인 확인과 수정, focused 검증까지 완료했고 커밋만 남아 있다.
 - 최신 관련 커밋:
 - `882447d` Adjust scale output preview controls
 - `a22c006` Move scale output DB out of workspace
 - `6344d28` Fix scale output table reload behavior
-- 현재 작업트리의 범위 밖 변경은 [lib/core/app.dart](lib/core/app.dart) 1건만 남아 있다.
+- 현재 작업트리에는 이번 탭메뉴 저울출력 처음 진입시 수정과 범위 밖 사용자 변경 [lib/core/app.dart](lib/core/app.dart)가 있다.
 
 ## 최근 완료 항목
+- 탭메뉴 저울출력 처음 진입시 라벨/품목 로드 직후 `_syncScaleOutputRows()`가 호출되지 않아 테이블 rows가 비어 있던 문제를 수정했다.
 - 저울출력 테이블이 baseline 전체 품목을 기본 표시하도록 수정했고, 발행은 선택 품목 기준으로 정리했다.
 - 저울출력 테이블 우클릭 메뉴를 추가했고, 레거시처럼 `전체내용 다시가져오기`와 비활성 `선택내용 다시가져오기`를 적용했다.
 - 저울출력 로컬 DB를 디버그에서도 작업폴더 밖 지원 디렉터리로 저장하게 바꾸고, 생성 DB 파일은 [.gitignore](.gitignore)로 제외했다.
@@ -19,6 +20,7 @@
 ## 최근 검증
 - `flutter test test/scale_output_test.dart` 통과.
 - `flutter test test/db_scale_connect_info_test.dart` 통과.
+- `lib/home_page_manager.dart` analyzer 오류 없음 확인.
 - 저울출력 관련 수정 파일 analyzer 오류 없음 확인.
 
 ## 다음 작업 시작점
