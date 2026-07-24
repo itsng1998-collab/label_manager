@@ -5,13 +5,15 @@
 ## 현재 상태
 - 탭메뉴 저울출력 처음 진입시 빈 테이블 수정 이후, 라벨 load와 저울출력 row 생성을 분리하는 lazy sync 전환까지 완료했고 커밋만 남아 있다.
 - SQL 관련 후속 작업에서 히스토리를 확인해 대상 버전 호환 구문만 쓰도록 [SESSION_RULES.md](SESSION_RULES.md)에 상시 규칙을 추가했다.
+- [SESSION_RULES.md](SESSION_RULES.md)의 로그 규칙 문구를 관측/진단 전용 의미로 더 명확하게 정리했고 커밋만 남아 있다.
 - 최신 관련 커밋:
 - `882447d` Adjust scale output preview controls
 - `a22c006` Move scale output DB out of workspace
 - `6344d28` Fix scale output table reload behavior
-- 현재 작업트리에는 이번 저울출력 lazy sync 수정과 범위 밖 사용자 변경 [lib/core/app.dart](lib/core/app.dart)가 있다.
+- 현재 작업트리에는 이번 규칙 문서 수정과 범위 밖 사용자 변경 [lib/core/app.dart](lib/core/app.dart)가 있다.
 
 ## 최근 완료 항목
+- [SESSION_RULES.md](SESSION_RULES.md)의 `로그 파일에는 비즈니스 로직을 넣지 않는다` 문구를 로그 기록/파싱은 관측과 진단만 담당하고 업무 판단·상태 변경·저장·재시도는 직접 수행하지 않는다는 의미로 구체화했다.
 - 탭메뉴 저울출력 처음 진입시 라벨/품목 로드 직후 `_syncScaleOutputRows()`가 호출되지 않아 테이블 rows가 비어 있던 문제를 수정했다.
 - 라벨 변경 시 저울출력 rows를 즉시 만들지 않고, 저울출력 탭이 실제로 선택될 때만 sync하도록 바꿨다.
 - git history의 `963e22e`, `14ce98b`, `9288f62` 흐름을 근거로 SQL Server 2017 호환 구문 사용 원칙을 상시 규칙으로 승격했다.
