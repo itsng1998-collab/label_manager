@@ -301,6 +301,7 @@ class _HomePageManagerState extends State<HomePageManager> {
   AutoItemUpdateDraftController? _autoItemUpdateDraftController;
   Set<int> _publishCheckedItemIds = const <int>{};
   bool _scaleOutputShowAllRows = true;
+  bool _scaleOutputRowsDirty = true;
   List<int> _itemDraftTargetMarketIds = const [];
   int? _itemDraftLoadedCustomerId;
   int? _itemDraftLoadedBrandId;
@@ -1358,6 +1359,7 @@ class _HomePageManagerState extends State<HomePageManager> {
         ItemOfMarket.datas = <ItemOfMarket>[];
         _publishCheckedItemIds = const <int>{};
         _scaleOutputShowAllRows = true;
+        _scaleOutputRowsDirty = true;
         _selectedItemOfMarket = null;
         _selectedItemIndex = null;
         _itemPreviewClosedByUser = false;
@@ -1451,6 +1453,7 @@ class _HomePageManagerState extends State<HomePageManager> {
       ItemOfMarket.datas = items;
       _publishCheckedItemIds = const <int>{};
       _scaleOutputShowAllRows = true;
+      _scaleOutputRowsDirty = true;
       widget.onLabelSizeChanged(labelSize);
       _itemDraftController = nextController;
       _itemDraftController!.addListener(_handleItemDraftDirtyChanged);
@@ -1469,7 +1472,6 @@ class _HomePageManagerState extends State<HomePageManager> {
         await DbScaleConnectInfoHelper.loadConnectInfo(),
       );
       _syncLabelPrintRows();
-      _syncScaleOutputRows();
       _selectInitialItemOfMarket();
       debugLog(
         'loaded labelSizeId=${labelSize.labelSizeId}, '
@@ -2555,6 +2557,9 @@ class _HomePageManagerState extends State<HomePageManager> {
         return;
       }
       _showRtfPreviewWindow();
+    } else if (selectedTab?.value == 'scale_output') {
+      _ensureScaleOutputRowsSynced();
+      _hideFloatingWindows();
     } else {
       _hideFloatingWindows();
     }
@@ -2614,6 +2619,9 @@ class _HomePageManagerState extends State<HomePageManager> {
         return;
       }
       _showRtfPreviewWindow();
+    } else if (tab?.value == 'scale_output') {
+      _ensureScaleOutputRowsSynced();
+      _hideFloatingWindows();
     } else {
       _hideFloatingWindows();
     }
@@ -2994,7 +3002,10 @@ class _HomePageManagerState extends State<HomePageManager> {
       _publishCheckedItemIds = Set<int>.unmodifiable(itemIds);
     });
     _syncLabelPrintRows();
-    _syncScaleOutputRows();
+    _scaleOutputRowsDirty = true;
+    if (_selectedTabValue() == 'scale_output') {
+      _ensureScaleOutputRowsSynced();
+    }
   }
 
   void _syncLabelPrintRows() {
@@ -3024,6 +3035,14 @@ class _HomePageManagerState extends State<HomePageManager> {
         settings: _labelPrintSessionController.settings,
       ),
     );
+  }
+
+  void _ensureScaleOutputRowsSynced() {
+    if (!_scaleOutputRowsDirty) {
+      return;
+    }
+    _syncScaleOutputRows();
+    _scaleOutputRowsDirty = false;
   }
 
   void _syncScaleOutputRows() {
@@ -3080,7 +3099,9 @@ class _HomePageManagerState extends State<HomePageManager> {
         _scaleOutputShowAllRows = true;
       });
     }
+    _scaleOutputRowsDirty = true;
     _syncScaleOutputRows();
+    _scaleOutputRowsDirty = false;
   }
 
   void _reloadScaleOutputSelectedRows() {
@@ -3089,7 +3110,9 @@ class _HomePageManagerState extends State<HomePageManager> {
         _scaleOutputShowAllRows = false;
       });
     }
+    _scaleOutputRowsDirty = true;
     _syncScaleOutputRows();
+    _scaleOutputRowsDirty = false;
   }
 
   List<TabData> _buildTabs() {
