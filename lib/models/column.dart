@@ -86,6 +86,7 @@ class TColumn extends TColumnBase {
     required super.keyword,
     required super.columnName,
     required super.useMissingKeywordCheck,
+    required super.useMinColumnCheck,
     required this.columnId,
     required this.labelSizeId,
     required this.order,
@@ -133,6 +134,7 @@ class TColumn extends TColumnBase {
     String? keyword,
     String? columnName,
     bool? useMissingKeywordCheck,
+    bool? useMinColumnCheck,
     int? columnId,
     int? labelSizeId,
     int? order,
@@ -180,6 +182,7 @@ class TColumn extends TColumnBase {
       columnName: columnName ?? this.columnName,
       useMissingKeywordCheck:
           useMissingKeywordCheck ?? this.useMissingKeywordCheck,
+        useMinColumnCheck: useMinColumnCheck ?? this.useMinColumnCheck,
       columnId: columnId ?? this.columnId,
       labelSizeId: labelSizeId ?? this.labelSizeId,
       order: order ?? this.order,
@@ -274,6 +277,7 @@ class TColumn extends TColumnBase {
       keyword: s('RICH_KEYWORD'),
       columnName: s('RICH_COLUMN_NAME'),
       useMissingKeywordCheck: v('RICH_CHECK_YN') != 0,
+      useMinColumnCheck: v('RICH_MIN_CHECK') != 0,
 
       timeBarcodeType: v('RICH_TIMEBARCODE_TYPE'),
       autoInc: v('RICH_AUTO_INC') != 0,
@@ -368,6 +372,7 @@ class TColumnDAO extends DAO {
 			CASE WHEN BM_RICH_COLUMN.RICH_USE_DATERANGE IS NULL THEN 0 ELSE BM_RICH_COLUMN.RICH_USE_DATERANGE END AS RICH_USE_DATERANGE,
 			COALESCE(CONVERT(NVARCHAR(12), BM_RICH_COLUMN.RICH_DATERANGE COLLATE ${DAO.CP949}), N'') AS RICH_DATERANGE,
 			CASE WHEN BM_RICH_CHECK_COLUMNS.RICH_CHECK_YN IS NULL THEN 0 ELSE BM_RICH_CHECK_COLUMNS.RICH_CHECK_YN END AS RICH_CHECK_YN,
+      CASE WHEN BM_RICH_COL_MIN.RICH_MIN_CHECK IS NULL THEN 0 ELSE BM_RICH_COL_MIN.RICH_MIN_CHECK END AS RICH_MIN_CHECK,
 			CASE WHEN BM_GS1_COLUMN_INFO.COLUMN_GS1_CODE IS NULL THEN '01' ELSE BM_GS1_COLUMN_INFO.COLUMN_GS1_CODE END AS COLUMN_GS1_CODE, 
 			CASE WHEN BM_GS1_COLUMN_INFO.COLUMN_GS1_FORMAT_OPTION IS NULL THEN -1 ELSE BM_GS1_COLUMN_INFO.COLUMN_GS1_FORMAT_OPTION END AS COLUMN_GS1_FORMAT_OPTION, 
 			CASE WHEN VIEW_BM_GS1_CONTAIN_COLUMN.CONTAIN_COLUMNS_ID IS NULL THEN 0 ELSE 1 END AS USE_GS1_CODE,
@@ -377,6 +382,9 @@ class TColumnDAO extends DAO {
 		LEFT OUTER JOIN BM_RICH_CHECK_COLUMNS  
 		  ON BM_RICH_COLUMN.RICH_COLUMN_ID = BM_RICH_CHECK_COLUMNS.RICH_COLUMN_ID  
 		 AND BM_RICH_COLUMN.RICH_LABELSIZE_ID = BM_RICH_CHECK_COLUMNS.RICH_LABELSIZE_ID 	
+    LEFT OUTER JOIN BM_RICH_COL_MIN
+      ON BM_RICH_COLUMN.RICH_COLUMN_ID = BM_RICH_COL_MIN.RICH_COLUMN_ID
+     AND BM_RICH_COLUMN.RICH_LABELSIZE_ID = BM_RICH_COL_MIN.RICH_LABELSIZE_ID
 		LEFT OUTER JOIN BM_GS1_COLUMN_INFO 
 		  ON BM_RICH_COLUMN.RICH_COLUMN_ID = BM_GS1_COLUMN_INFO.COLUMN_ID 
 		LEFT OUTER JOIN VIEW_BM_GS1_CONTAIN_COLUMN 
@@ -408,5 +416,48 @@ class TColumnDAO extends DAO {
       debugLog('$END, $e');
       throw Exception(e);
     }
+  }
+
+  static Future<void> updateMinColumnCheck({
+    required int labelSizeId,
+    required TColumn column,
+    required bool checked,
+  }) async {
+    const sql = '''
+MERGE BM_RICH_COL_MIN AS T
+USING (
+  SELECT
+    @labelSizeId AS RICH_LABELSIZE_ID,
+    @columnId AS RICH_COLUMN_ID,
+    @keyword AS RICH_KEYWORD,
+    @columnName AS RICH_COLUMN_NAME,
+    @columnOrder AS RICH_COLUMN_ORDER,
+    @minCheck AS RICH_MIN_CHECK
+) AS S
+ON T.RICH_LABELSIZE_ID=S.RICH_LABELSIZE_ID AND T.RICH_COLUMN_ID=S.RICH_COLUMN_ID
+WHEN MATCHED THEN
+  UPDATE SET T.RICH_KEYWORD=S.RICH_KEYWORD,
+    T.RICH_COLUMN_NAME=S.RICH_COLUMN_NAME,
+    T.RICH_COLUMN_ORDER=S.RICH_COLUMN_ORDER,
+    T.RICH_MIN_CHECK=S.RICH_MIN_CHECK
+WHEN NOT MATCHED THEN
+  INSERT (
+    RICH_COLUMN_ID, RICH_LABELSIZE_ID, RICH_KEYWORD, RICH_COLUMN_NAME,
+    RICH_COLUMN_ORDER, RICH_MIN_CHECK
+  ) VALUES (
+    S.RICH_COLUMN_ID, S.RICH_LABELSIZE_ID, S.RICH_KEYWORD, S.RICH_COLUMN_NAME,
+    S.RICH_COLUMN_ORDER, S.RICH_MIN_CHECK
+  );
+''';
+
+    await DbClient.instance.writeDataWithParams(sql, {
+      'labelSizeId': labelSizeId,
+      'columnId': column.columnId,
+      'keyword': column.keyword,
+      'columnName': column.columnName,
+      'columnOrder': column.order,
+      'minCheck': checked ? 1 : 0,
+    });
+    column.useMinColumnCheck = checked;
   }
 }

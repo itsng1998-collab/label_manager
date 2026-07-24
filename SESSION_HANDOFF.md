@@ -7,19 +7,17 @@
 - 이 파일에는 현재 상태, 최근 완료 항목, 검증, 다음 액션만 기록한다.
 
 ## 현재 상태
-- 자동품목갱신과 저울출력 탭에 라벨출력과 같은 상단 검색 영역을 노출했고, 각 탭 테이블의 현재 활성 컬럼 기준 검색과 재검색 reset까지 연결했으며 커밋만 남아 있다.
-- 최신 로그에서 `home tab shortcut ignored ... reason=routeInactive routeCurrent=false`가 반복된 것을 확인했고, 잘못된 route 차단을 제거했으며 중복 처리 원인이던 최상위 Focus 래퍼도 제거했고 커밋만 남아 있다.
-- 탭 메뉴를 여러 번 전환할 때 `LabelSheetOutputCaptureController is already attached` 오류가 나던 문제를 수정했고 커밋만 남아 있다.
-- 탭 메뉴 선택 가능 상태에서 F1/F2/F3 키로 품목관리, 공용라벨관리, 라벨출력 탭 이동이 되지 않던 문제를 수정했고 커밋만 남아 있다.
-- 탭메뉴 저울출력 처음 진입 빈 테이블 수정, 저울출력 lazy sync 전환, SQL Server 호환 규칙 추가, 로그 규칙 문구 명확화까지 모두 커밋 완료 상태다.
-- 최신 관련 커밋:
-- `d9bada5` Clarify logging rule wording
-- `8846281` Add SQL Server compatibility session rule
-- `2fc8ba2` Defer scale output sync until tab open
-- `733d3b4` Fix initial scale output tab load
-- 현재 작업트리에는 이번 자동품목갱신/저울출력 검색 추가와 범위 밖 사용자 변경 [lib/core/app.dart](lib/core/app.dart)가 있다.
+- 품목관리에 레거시형 컬럼 헤더 체크박스를 추가했다. 현재 포팅에서도 `주원료`와 동적 컬럼 헤더에서 최소표시 체크/언체크가 가능하고, `BM_RICH_COL_MIN.RICH_MIN_CHECK`로 즉시 저장된다.
+- 공용 `FortuneTable`에 헤더 체크박스 옵션을 추가했고, 품목관리에서는 체크 시 컬럼 폭을 축소하고 해제 시 원래 폭으로 복원한다.
+- 이번 작업 관련 검증과 handoff 갱신은 완료됐고, 남은 것은 관련 파일만 분리 커밋하는 단계다.
+- 현재 작업트리에는 이번 품목관리 헤더 체크박스 작업과 범위 밖 사용자 변경 [lib/core/app.dart](lib/core/app.dart)가 있다.
 
 ## 최근 완료 항목
+- 품목관리 `주원료`와 동적 컬럼 헤더에 레거시형 체크박스를 추가했다.
+- `BM_RICH_COL_MIN`의 `RICH_MIN_CHECK`를 현재 Flutter 모델에 로드하도록 일반 컬럼/특수 컬럼 조회를 보강했다.
+- 품목관리 헤더 체크 변경 시 `BM_RICH_COL_MIN`을 즉시 upsert 하도록 저장 경로를 추가했다.
+- `FortuneTable` 헤더가 선택적으로 체크박스를 렌더링할 수 있도록 공용 테이블 컴포넌트를 확장했다.
+- 품목관리 헤더 체크박스 노출과 폭 변경을 위젯 테스트로 추가했다.
 - 자동품목갱신과 저울출력도 홈 상단 검색 바가 보이도록 탭 노출 조건을 확장했다.
 - 공용 `TableSearchResult`를 도입해 품목관리, 자동품목갱신, 저울출력이 같은 검색 결과 계약을 사용하도록 정리했다.
 - 자동품목갱신 페이지 컨트롤러에 검색/검색 reset API를 추가하고, target 테이블의 현재 활성 컬럼 기준으로 다음 일치 행을 선택하도록 연결했다.
@@ -42,6 +40,7 @@
 - 저울출력 미리보기에서 개체 패널을 숨기고, 줌 툴바를 우하단 command bar에서 중량/가격 영역 상단으로 이동했다.
 
 ## 최근 검증
+- `flutter test test/fortune_table_test.dart` 통과.
 - `flutter test test/fortune_table_test.dart test/automatic_item_update_page_test.dart test/scale_output_test.dart` 통과.
 - `flutter test test/fortune_table_test.dart` 통과.
 - `flutter test test/label_print_session_test.dart` 통과.
@@ -51,6 +50,7 @@
 - 저울출력 관련 수정 파일 analyzer 오류 없음 확인.
 
 ## 다음 작업 시작점
+- 품목관리 헤더 최소표시 동작 후속 요청은 [lib/page_home/item_manage.dart](lib/page_home/item_manage.dart), [lib/models/column.dart](lib/models/column.dart), [lib/models/column_special.dart](lib/models/column_special.dart), [third_party/fortune_sheet/lib/src/fortune_table.dart](third_party/fortune_sheet/lib/src/fortune_table.dart)부터 확인한다.
 - 저울출력 후속 요청이 들어오면 [lib/page_home/scale_output_page.dart](lib/page_home/scale_output_page.dart), [lib/home_page_manager.dart](lib/home_page_manager.dart), [lib/models/scale_output.dart](lib/models/scale_output.dart)부터 확인한다.
 - 미리보기/개체 패널/줌 위치 관련 후속 요청은 [lib/widgets/label_output_preview.dart](lib/widgets/label_output_preview.dart)와 [lib/page_label_sheet/label_sheet_workbench.dart](lib/page_label_sheet/label_sheet_workbench.dart)를 먼저 본다.
 - DB 저장 경로 정책 후속 요청은 [lib/database/db_scale_connect_info.dart](lib/database/db_scale_connect_info.dart)와 [test/db_scale_connect_info_test.dart](test/db_scale_connect_info_test.dart)를 먼저 본다.

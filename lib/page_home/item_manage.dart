@@ -2,8 +2,10 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:fortune_sheet/fortune_sheet.dart' hide Rect;
+import 'package:label_manager/models/column_base.dart';
 import 'package:label_manager/models/column.dart';
 import 'package:label_manager/models/column_content.dart';
+import 'package:label_manager/models/column_special.dart';
 import 'package:label_manager/models/column_type.dart';
 import 'package:label_manager/models/item_manager_draft.dart';
 import 'package:label_manager/models/item_of_market.dart';
@@ -108,6 +110,8 @@ class ItemManage extends StatefulWidget {
   final bool canEdit;
   final ItemManageController? controller;
   final ValueChanged<Set<int>>? onPublishCheckedItemIdsChanged;
+  final Future<void> Function(TColumnBase column, bool checked)?
+  onMinColumnCheckChanged;
   final VoidCallback? onReady;
 
   const ItemManage({
@@ -136,6 +140,7 @@ class ItemManage extends StatefulWidget {
     this.canEdit = true,
     this.controller,
     this.onPublishCheckedItemIdsChanged,
+    this.onMinColumnCheckChanged,
     this.onReady,
   });
 
@@ -160,6 +165,7 @@ class _ItemManageState extends State<ItemManage> {
   static const Color _publishCheckedRowColor = Color(0xFFEAF4FF);
   static const Color _addedRowColor = Color(0xFFEAF7EE);
   static const Color _modifiedRowColor = Color(0xFFFFF6DF);
+  static const double _minimizedHeaderColumnWidth = 44;
 
   final FortuneTableCheckboxController _publishCheckboxController =
       FortuneTableCheckboxController();
@@ -186,6 +192,7 @@ class _ItemManageState extends State<ItemManage> {
   String _activeSearchColumnId = 'itemName';
   int _searchStartIndex = 0;
   bool _readyScheduled = false;
+  bool _headerMinCheckBusy = false;
 
   @override
   void initState() {
@@ -1201,17 +1208,69 @@ class _ItemManageState extends State<ItemManage> {
     _publishCheckboxController.setCheckedRows(_publishColumnId, nextRows);
   }
 
+  Future<void> _toggleMinColumnCheck(TColumnBase column, bool checked) async {
+    if (_headerMinCheckBusy || widget.commandBusy) {
+      return;
+    }
+    final onChanged = widget.onMinColumnCheckChanged;
+    if (onChanged == null) {
+      return;
+    }
+    final previous = column.useMinColumnCheck;
+    setState(() {
+      _headerMinCheckBusy = true;
+      column.useMinColumnCheck = checked;
+    });
+    try {
+      await onChanged(column, checked);
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          column.useMinColumnCheck = previous;
+        });
+        _showWarning('헤더 최소표시 설정을 저장하지 못했습니다.\n$error');
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _headerMinCheckBusy = false;
+        });
+      }
+    }
+  }
+
+  TColumnBase? get _elementColumn {
+    for (final column in TColumnSpecial.datas ?? const <TColumnBase>[]) {
+      if (column.keyword == SpecalKeyword.INDEX_ELEMENT.keyword) {
+        return column;
+      }
+    }
+    return null;
+  }
+
+  double _dynamicColumnWidth(TColumn column) => column.useMinColumnCheck
+      ? _minimizedHeaderColumnWidth
+      : max(column.width.toDouble(), 70);
+
+  double _elementColumnWidth(TColumnBase? column) =>
+      column?.useMinColumnCheck == true ? _minimizedHeaderColumnWidth : 180;
+
   List<FortuneTableColumn<ItemOfMarket>> get _columns {
     final publishSelectionEnabled =
       !widget.commandBusy && widget.draftController?.isDirty != true;
     final extras = List<TColumn>.from(TColumn.datas ?? const <TColumn>[]);
+    final elementColumn = _elementColumn;
     final extraColumns = extras
         .map(
           (c) => FortuneTableColumn<ItemOfMarket>(
             id: 'dyn_${c.columnId}',
             header: c.columnName,
-            initialWidth: max(c.width.toDouble(), 70),
-            minWidth: 70,
+            initialWidth: _dynamicColumnWidth(c),
+            minWidth: _minimizedHeaderColumnWidth,
+            headerCheckboxValue: c.useMinColumnCheck,
+            headerCheckboxEnabled: !_headerMinCheckBusy && !widget.commandBusy,
+            onHeaderCheckboxChanged:
+                (checked) => _toggleMinColumnCheck(c, checked),
             text: (row) {
               final draft = _draftByDisplayItem[row];
               if (draft != null) {
@@ -1329,11 +1388,16 @@ class _ItemManageState extends State<ItemManage> {
           );
         },
       ),
-      const FortuneTableColumn<ItemOfMarket>(
+      FortuneTableColumn<ItemOfMarket>(
         id: 'element',
         header: '주원료',
-        initialWidth: 180,
-        minWidth: 70,
+        initialWidth: _elementColumnWidth(elementColumn),
+        minWidth: _minimizedHeaderColumnWidth,
+        headerCheckboxValue: elementColumn?.useMinColumnCheck,
+        headerCheckboxEnabled: !_headerMinCheckBusy && !widget.commandBusy,
+        onHeaderCheckboxChanged: elementColumn == null
+            ? null
+            : (checked) => _toggleMinColumnCheck(elementColumn, checked),
         text: _element,
       ),
       ...extraColumns,

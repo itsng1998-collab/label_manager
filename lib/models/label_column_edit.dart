@@ -84,6 +84,7 @@ class LabelColumnDraft {
         keyword: keyword.trim().toUpperCase(),
         columnName: columnName.trim(),
         useMissingKeywordCheck: false,
+        useMinColumnCheck: false,
         columnId: 0,
         labelSizeId: labelSizeId,
         order: order,

@@ -199,6 +199,9 @@ class FortuneTableColumn<T> {
     this.checkboxController,
     this.onCheckboxChanged,
     this.onCheckboxChangedAt,
+    this.headerCheckboxValue,
+    this.headerCheckboxEnabled = true,
+    this.onHeaderCheckboxChanged,
     this.isTextEditable,
     this.onTextCommitted,
     this.onDoubleTap,
@@ -215,6 +218,9 @@ class FortuneTableColumn<T> {
   final FortuneTableCheckboxController? checkboxController;
   final void Function(T row, bool value)? onCheckboxChanged;
   final void Function(T row, int rowIndex, bool value)? onCheckboxChangedAt;
+  final bool? headerCheckboxValue;
+  final bool headerCheckboxEnabled;
+  final ValueChanged<bool>? onHeaderCheckboxChanged;
   final bool Function(T row, int rowIndex)? isTextEditable;
   final FutureOr<void> Function(T row, int rowIndex, String value)?
   onTextCommitted;
@@ -227,6 +233,9 @@ class FortuneTableColumn<T> {
       checkboxController != null ||
       onCheckboxChanged != null ||
       onCheckboxChangedAt != null;
+
+    bool get hasHeaderCheckbox =>
+      headerCheckboxValue != null || onHeaderCheckboxChanged != null;
 }
 
 class FortuneTable<T> extends StatefulWidget {
@@ -797,6 +806,7 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: List.generate(widths.length, (index) {
+        final column = widget.columns[index];
         return Container(
           width: widths[index],
           decoration: const BoxDecoration(
@@ -808,16 +818,41 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
           ),
           alignment: Alignment.center,
           padding: const EdgeInsets.symmetric(horizontal: 6),
-          child: Text(
-            widget.columns[index].header,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
+          child: column.hasHeaderCheckbox
+              ? Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _FortuneTableCheckbox(
+                      key: ValueKey('fortune_table_header_checkbox_${column.id}'),
+                      value: column.headerCheckboxValue ?? false,
+                      enabled: column.headerCheckboxEnabled,
+                      onChanged: column.onHeaderCheckboxChanged,
+                    ),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        column.header,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                )
+              : Text(
+                  column.header,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
         );
       }),
     );
@@ -1358,22 +1393,24 @@ class _FortuneTableCheckbox extends StatelessWidget {
     super.key,
     required this.value,
     required this.onChanged,
+    this.enabled = true,
   });
 
   final bool value;
-  final ValueChanged<bool> onChanged;
+  final ValueChanged<bool>? onChanged;
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTap: () => onChanged(!value),
+      onTap: !enabled || onChanged == null ? null : () => onChanged!(!value),
       child: SizedBox.square(
         dimension: _FortuneTableState._checkboxSize + 10,
         child: Center(
           child: CustomPaint(
             size: const Size.square(_FortuneTableState._checkboxSize),
-            painter: _FortuneTableCheckboxPainter(value),
+            painter: _FortuneTableCheckboxPainter(value, enabled: enabled),
           ),
         ),
       ),
@@ -1382,18 +1419,24 @@ class _FortuneTableCheckbox extends StatelessWidget {
 }
 
 class _FortuneTableCheckboxPainter extends CustomPainter {
-  const _FortuneTableCheckboxPainter(this.checked);
+  const _FortuneTableCheckboxPainter(this.checked, {required this.enabled});
 
   final bool checked;
+  final bool enabled;
 
   @override
   void paint(Canvas canvas, Size size) {
     final rect = Offset.zero & size;
-    canvas.drawRect(rect, Paint()..color = Colors.white);
+    canvas.drawRect(
+      rect,
+      Paint()..color = enabled ? Colors.white : const Color(0xFFE0E0E0),
+    );
     canvas.drawRect(
       rect.deflate(0.5),
       Paint()
-        ..color = _FortuneTableState._checkboxBorderColor
+        ..color = enabled
+            ? _FortuneTableState._checkboxBorderColor
+            : const Color(0xFF9AA0A6)
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1,
     );
@@ -1415,6 +1458,6 @@ class _FortuneTableCheckboxPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _FortuneTableCheckboxPainter oldDelegate) {
-    return oldDelegate.checked != checked;
+    return oldDelegate.checked != checked || oldDelegate.enabled != enabled;
   }
 }

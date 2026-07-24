@@ -3038,6 +3038,32 @@ class _HomePageManagerState extends State<HomePageManager> {
     }
   }
 
+  Future<void> _handleItemManagerMinColumnCheckChanged(
+    TColumnBase column,
+    bool checked,
+  ) async {
+    final labelSizeId = _effectiveLabelSize?.labelSizeId;
+    if (labelSizeId == null) {
+      throw StateError('현재 라벨이 선택되지 않아 최소표시 설정을 저장할 수 없습니다.');
+    }
+    if (column is TColumn) {
+      await TColumnDAO.updateMinColumnCheck(
+        labelSizeId: labelSizeId,
+        column: column,
+        checked: checked,
+      );
+      return;
+    }
+    if (column.keyword == SpecalKeyword.INDEX_ELEMENT.keyword) {
+      await TColumnSpecial.updateElementMinColumnCheck(
+        labelSizeId: labelSizeId,
+        checked: checked,
+      );
+      return;
+    }
+    throw StateError('지원하지 않는 최소표시 컬럼입니다: ${column.keyword}');
+  }
+
   void _syncLabelPrintRows() {
     final labelSize = _effectiveLabelSize;
     final draftController = _itemDraftController;
@@ -3191,6 +3217,7 @@ class _HomePageManagerState extends State<HomePageManager> {
           commandBusy: _itemDraftCommandBusy,
           canEdit: User.instance?.canManageItemStructure == true,
           onPublishCheckedItemIdsChanged: _handlePublishCheckedItemIdsChanged,
+          onMinColumnCheckChanged: _handleItemManagerMinColumnCheckChanged,
         ),
         closable: false,
         keepAlive: true,

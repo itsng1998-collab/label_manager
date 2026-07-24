@@ -6,7 +6,12 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fortune_sheet/fortune_sheet.dart' hide Rect;
 import 'package:label_manager/models/additional_item.dart';
+import 'package:label_manager/models/barcode.dart';
+import 'package:label_manager/models/column.dart';
+import 'package:label_manager/models/column_base.dart';
 import 'package:label_manager/models/column_content.dart';
+import 'package:label_manager/models/column_special.dart';
+import 'package:label_manager/models/column_type.dart';
 import 'package:label_manager/models/item.dart';
 import 'package:label_manager/models/item_manager_draft.dart';
 import 'package:label_manager/models/item_of_market.dart';
@@ -1178,6 +1183,119 @@ void main() {
 
     expect(_cellColorForText(tester, '첫째 품목'), const Color(0xFFEAF4FF));
     expect(_cellColorForText(tester, '둘째 품목'), const Color(0xFFE3F2FD));
+  });
+
+  testWidgets('ItemManage shows minimum-column header checkboxes', (
+    tester,
+  ) async {
+    final originalColumns = TColumn.datas;
+    final originalSpecialColumns = TColumnSpecial.datas;
+    addTearDown(() {
+      TColumn.datas = originalColumns;
+      TColumnSpecial.datas = originalSpecialColumns;
+    });
+
+    final dynamicColumn = _testColumn(columnId: 101, columnName: '판매가');
+    dynamicColumn.useMinColumnCheck = true;
+    TColumn.datas = [dynamicColumn];
+    TColumnSpecial.datas = [
+      TColumnBase(
+        columnType: const TColumnType(
+          code: TColumnType.TYPE_FIX,
+          name: '고정',
+          order: 0,
+        ),
+        keyword: SpecalKeyword.INDEX_ELEMENT.keyword,
+        columnName: SpecalKeyword.INDEX_ELEMENT.columnName,
+        useMinColumnCheck: true,
+      ),
+    ];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 800,
+            height: 220,
+            child: ItemManage(items: [_testItemOfMarket(itemName: '품목')]),
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      find.byKey(const ValueKey('fortune_table_header_checkbox_element')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('fortune_table_header_checkbox_dyn_101')),
+      findsOneWidget,
+    );
+
+    final table = tester.widget<FortuneTable<ItemOfMarket>>(
+      find.byType(FortuneTable<ItemOfMarket>),
+    );
+    expect(table.columns[3].initialWidth, 44);
+    expect(table.columns[4].initialWidth, 44);
+  });
+
+  testWidgets('ItemManage header checkbox updates minimum-column state', (
+    tester,
+  ) async {
+    final originalColumns = TColumn.datas;
+    final originalSpecialColumns = TColumnSpecial.datas;
+    addTearDown(() {
+      TColumn.datas = originalColumns;
+      TColumnSpecial.datas = originalSpecialColumns;
+    });
+
+    final dynamicColumn = _testColumn(columnId: 101, columnName: '판매가');
+    TColumn.datas = [dynamicColumn];
+    TColumnSpecial.datas = [
+      TColumnBase(
+        columnType: const TColumnType(
+          code: TColumnType.TYPE_FIX,
+          name: '고정',
+          order: 0,
+        ),
+        keyword: SpecalKeyword.INDEX_ELEMENT.keyword,
+        columnName: SpecalKeyword.INDEX_ELEMENT.columnName,
+      ),
+    ];
+    TColumnBase? changedColumn;
+    bool? changedValue;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 800,
+            height: 220,
+            child: ItemManage(
+              items: [_testItemOfMarket(itemName: '품목')],
+              onMinColumnCheckChanged: (column, checked) async {
+                changedColumn = column;
+                changedValue = checked;
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(
+      find.byKey(const ValueKey('fortune_table_header_checkbox_dyn_101')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(changedColumn, same(dynamicColumn));
+    expect(changedValue, isTrue);
+    expect(dynamicColumn.useMinColumnCheck, isTrue);
+
+    final table = tester.widget<FortuneTable<ItemOfMarket>>(
+      find.byType(FortuneTable<ItemOfMarket>),
+    );
+    expect(table.columns[4].initialWidth, 44);
   });
 
   testWidgets('ItemManage distinguishes added and modified draft rows', (
@@ -2673,5 +2791,63 @@ ItemOfMarket _testItemOfMarket({
     topMargin: 0,
     leftPush: 0,
     topPush: 0,
+  );
+}
+
+TColumn _testColumn({
+  int columnId = 101,
+  String columnName = '동적컬럼',
+  int width = 120,
+}) {
+  return TColumn(
+    columnId: columnId,
+    labelSizeId: 20,
+    order: 1,
+    width: width,
+    height: 30,
+    barcodeType: BarcodeType.Code128,
+    useBarcodeCheckDigit: false,
+    showBarcodeNum: false,
+    showQRCodeText: false,
+    qrTextAlignment: QRTextAlignment.ALIGN_LEFT,
+    useUserDefineQRData: false,
+    userDefineQRData: '',
+    userDefineQRText: '',
+    pixelSize: 0,
+    title: '',
+    visible: true,
+    qrCodeCreateType: QRCodeCreateType.QRCODE_TYPE_PLAIN_TEXT,
+    natriumJoinString: '',
+    qrTextFontSize: 0,
+    qrTextFontName: '',
+    qrCodeScalePercent: 100,
+    columnType: const TColumnType(
+      code: TColumnType.TYPE_FIX,
+      name: '고정',
+      order: 0,
+    ),
+    keyword: 'COL_$columnId',
+    columnName: columnName,
+    useMissingKeywordCheck: false,
+    useMinColumnCheck: false,
+    timeBarcodeType: 0,
+    autoInc: false,
+    autoIncSize: 0,
+    autoIncSave: false,
+    autoIncRange: 0,
+    autoIncZeroDel: false,
+    autoIncUpdate: false,
+    searchPrint: false,
+    userDefineBarcodeText: '',
+    lineCheck: 0,
+    lineSize: 0,
+    gs1ai: '',
+    formatOption: 0,
+    useGS1Code: false,
+    containColumns: '',
+    showGS1Code: false,
+    rotate: 0,
+    useDateRange: false,
+    dateRange: '',
   );
 }

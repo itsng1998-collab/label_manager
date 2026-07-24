@@ -8,15 +8,17 @@ class TColumnBase {
   final String keyword;
   final String columnName;
   bool useMissingKeywordCheck;
+  bool useMinColumnCheck;
 
   TColumnBase({
     required this.columnType,
     required this.keyword,
     required this.columnName,
     this.useMissingKeywordCheck = false,
+    this.useMinColumnCheck = false,
   });
 
   @override
   String toString() =>
-    '${columnType.toString()}, keyword: $keyword, columnName: $columnName, useMissingKeywordCheck: $useMissingKeywordCheck';
+    '${columnType.toString()}, keyword: $keyword, columnName: $columnName, useMissingKeywordCheck: $useMissingKeywordCheck, useMinColumnCheck: $useMinColumnCheck';
 }
