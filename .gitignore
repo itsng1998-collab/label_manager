@@ -43,6 +43,7 @@ migrate_working_dir/
 /coverage/
 /installer/
 /version.txt
+/assets/data/labelmanager_scale_output.db
 third_party/mssql_connection/**/Flutter/Generated.xcconfig
 third_party/mssql_connection/**/Flutter/flutter_export_environment.sh
 third_party/mssql_connection/**/Flutter/ephemeral/

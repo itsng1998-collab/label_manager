@@ -92,24 +92,37 @@ class DbScaleConnectInfoHelper {
   static DatabaseFactory get _databaseFactory =>
       _isDesktop ? ffi.databaseFactoryFfiNoIsolate : databaseFactory;
 
+  @visibleForTesting
+  static String desktopDbBaseDirPath({
+    required bool isWindows,
+    required bool isReleaseMode,
+    required String applicationSupportPath,
+    String? windowsAppDataPath,
+  }) {
+    if (isWindows && isReleaseMode) {
+      final appData = windowsAppDataPath?.trim();
+      if (appData != null && appData.isNotEmpty) {
+        return p.join(appData, 'com.itsng', 'label_manager');
+      }
+    }
+    return applicationSupportPath;
+  }
+
   static Future<String> _dbPath() async {
     if (kIsWeb) {
       throw UnsupportedError('sqflite is not supported on Web');
     }
     Directory baseDir;
     if (_isDesktop) {
-      if (Platform.isWindows && kReleaseMode) {
-        final appData = Platform.environment['APPDATA'];
-        if (appData != null && appData.trim().isNotEmpty) {
-          baseDir = Directory(p.join(appData, 'com.itsng', 'label_manager'));
-        } else {
-          baseDir = Directory.current;
-        }
-      } else if (kDebugMode) {
-        baseDir = Directory.current;
-      } else {
-        baseDir = await getApplicationSupportDirectory();
-      }
+      final supportDir = await getApplicationSupportDirectory();
+      baseDir = Directory(
+        desktopDbBaseDirPath(
+          isWindows: Platform.isWindows,
+          isReleaseMode: kReleaseMode,
+          applicationSupportPath: supportDir.path,
+          windowsAppDataPath: Platform.environment['APPDATA'],
+        ),
+      );
     } else {
       baseDir = await getApplicationDocumentsDirectory();
     }
