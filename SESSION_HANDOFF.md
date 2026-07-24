@@ -7,6 +7,7 @@
 - 이 파일에는 현재 상태, 최근 완료 항목, 검증, 다음 액션만 기록한다.
 
 ## 현재 상태
+- 탭 메뉴를 여러 번 전환할 때 `LabelSheetOutputCaptureController is already attached` 오류가 나던 문제를 수정했고 커밋만 남아 있다.
 - 탭 메뉴 선택 가능 상태에서 F1/F2/F3 키로 품목관리, 공용라벨관리, 라벨출력 탭 이동이 되지 않던 문제를 수정했고 커밋만 남아 있다.
 - 탭메뉴 저울출력 처음 진입 빈 테이블 수정, 저울출력 lazy sync 전환, SQL Server 호환 규칙 추가, 로그 규칙 문구 명확화까지 모두 커밋 완료 상태다.
 - 최신 관련 커밋:
@@ -14,9 +15,11 @@
 - `8846281` Add SQL Server compatibility session rule
 - `2fc8ba2` Defer scale output sync until tab open
 - `733d3b4` Fix initial scale output tab load
-- 현재 작업트리에는 이번 탭 단축키 수정과 범위 밖 사용자 변경 [lib/core/app.dart](lib/core/app.dart)가 있다.
+- 현재 작업트리에는 이번 output capture attach 수정과 범위 밖 사용자 변경 [lib/core/app.dart](lib/core/app.dart)가 있다.
 
 ## 최근 완료 항목
+- 같은 output capture owner token으로 preview workbench state가 재생성될 때는 기존 attach를 합법적인 owner 교체로 받아들이도록 `LabelSheetOutputCaptureController` attach 검증을 보정했다.
+- 같은 owner token remount 시 attach 오류가 재발하지 않는 위젯 테스트를 추가했다.
 - HomePageManager 최상위에 키 이벤트 focus 경계를 연결해 기존 F1/F2/F3 탭 단축키 처리 함수가 실제로 실행되도록 수정했다.
 - 다음 세션에서 바로 복사/붙여넣기할 수 있도록 이 파일 상단에 시작 문구를 추가했다.
 - [SESSION_RULES.md](SESSION_RULES.md)의 `로그 파일에는 비즈니스 로직을 넣지 않는다` 문구를 로그 기록/파싱은 관측과 진단만 담당하고 업무 판단·상태 변경·저장·재시도는 직접 수행하지 않는다는 의미로 구체화했다.
@@ -29,6 +32,7 @@
 - 저울출력 미리보기에서 개체 패널을 숨기고, 줌 툴바를 우하단 command bar에서 중량/가격 영역 상단으로 이동했다.
 
 ## 최근 검증
+- `flutter test test/label_print_session_test.dart` 통과.
 - `flutter test test/fortune_table_test.dart` 통과.
 - `flutter test test/scale_output_test.dart` 통과.
 - `flutter test test/db_scale_connect_info_test.dart` 통과.

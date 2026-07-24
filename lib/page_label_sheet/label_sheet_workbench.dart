@@ -2110,6 +2110,7 @@ class LabelSheetOutputCaptureController {
   void _validateAttach(_LabelSheetWorkbenchState state, Object ownerToken) {
     if (_state != null &&
         _state != state &&
+        _ownerToken != ownerToken &&
         _replacementOwnerToken != ownerToken) {
       throw StateError(
         'LabelSheetOutputCaptureController is already attached.',

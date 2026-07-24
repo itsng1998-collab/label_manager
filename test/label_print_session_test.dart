@@ -577,6 +577,35 @@ void main() {
     expect(captureController.debugActiveSheet?.id, 'first');
   });
 
+  testWidgets('output capture controller allows remount with same owner token', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    final captureController = LabelSheetOutputCaptureController();
+
+    Widget buildWorkbench(Key key, String sheetId) {
+      return MaterialApp(
+        home: LabelSheetWorkbench(
+          key: key,
+          initialWorkbook: FortuneWorkbook(
+            sheets: [FortuneSheet(id: sheetId, name: 'Sheet')],
+          ),
+          outputCaptureController: captureController,
+          outputCaptureOwnerToken: 'same-owner',
+        ),
+      );
+    }
+
+    await tester.pumpWidget(buildWorkbench(const ValueKey('first'), 'first'));
+    expect(tester.takeException(), isNull);
+    expect(captureController.debugActiveSheet?.id, 'first');
+
+    await tester.pumpWidget(buildWorkbench(const ValueKey('second'), 'second'));
+    expect(tester.takeException(), isNull);
+    expect(captureController.isAttached, isTrue);
+    expect(captureController.debugActiveSheet?.id, 'second');
+  });
+
   testWidgets('started output capture survives workbench detach', (
     tester,
   ) async {
