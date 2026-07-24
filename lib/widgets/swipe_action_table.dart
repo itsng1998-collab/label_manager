@@ -7,6 +7,10 @@ import 'package:flutter/services.dart';
 
 import 'package:label_manager/core/ui_scale.dart';
 
+const Duration swipeActionTableDragStartDelay = Duration(milliseconds: 150);
+
+enum SwipeActionTableRowDragStartBehavior { immediate, longPress }
+
 class SwipeActionTableCellState {
   const SwipeActionTableCellState({
     required this.actionRailOpen,
@@ -105,12 +109,18 @@ class SwipeActionTable<T> extends StatefulWidget {
     this.rowNumberText,
     this.rowColorBuilder,
     this.rowDragDataBuilder,
+    this.rowDragFeedbackBuilder,
     this.onRowDragStarted,
     this.onRowDragEnded,
+    this.rowDragStartBehavior = SwipeActionTableRowDragStartBehavior.longPress,
+    this.rowDragStartDelay = swipeActionTableDragStartDelay,
     this.onFocusChanged,
     this.scrollToIndex,
     this.selectedIndex,
     this.onRowSelected,
+    this.onRowPointerDown,
+    this.onRowPointerMove,
+    this.onRowPointerUp,
     this.onRowReorder,
   });
 
@@ -136,12 +146,19 @@ class SwipeActionTable<T> extends StatefulWidget {
   final String Function(T row, int index)? rowNumberText;
   final Color Function(T row, int index, bool selected)? rowColorBuilder;
   final Object? Function(T row, int index)? rowDragDataBuilder;
+  final Widget Function(T row, int index, Widget defaultFeedback)?
+  rowDragFeedbackBuilder;
   final void Function(T row, int index)? onRowDragStarted;
   final void Function(T row, int index)? onRowDragEnded;
+  final SwipeActionTableRowDragStartBehavior rowDragStartBehavior;
+  final Duration rowDragStartDelay;
   final ValueChanged<bool>? onFocusChanged;
   final int? scrollToIndex;
   final int? selectedIndex;
   final void Function(T row, int index)? onRowSelected;
+  final void Function(T row, int index, PointerDownEvent event)? onRowPointerDown;
+  final void Function(T row, int index, PointerMoveEvent event)? onRowPointerMove;
+  final void Function(T row, int index, PointerUpEvent event)? onRowPointerUp;
   final void Function(int fromIndex, int toIndex)? onRowReorder;
 
   @override
@@ -1065,12 +1082,18 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
           else
             Listener(
               behavior: HitTestBehavior.translucent,
-              onPointerDown: (event) => _handleRowPointerDown(
-                row,
-                index,
-                rowWidths,
-                event.localPosition,
-              ),
+              onPointerDown: (event) {
+                widget.onRowPointerDown?.call(row, index, event);
+                _handleRowPointerDown(
+                  row,
+                  index,
+                  rowWidths,
+                  event.localPosition,
+                );
+              },
+              onPointerMove: (event) =>
+                  widget.onRowPointerMove?.call(row, index, event),
+              onPointerUp: (event) => widget.onRowPointerUp?.call(row, index, event),
               child: rowSurface,
             ),
           for (final x in separators)
@@ -1155,19 +1178,41 @@ class _SwipeActionTableState<T> extends State<SwipeActionTable<T>> {
       ),
     );
     final dragData = widget.rowDragDataBuilder?.call(row, index);
+    final defaultDragFeedback = _buildDataRowFeedback(row, index, widths);
+    final dragFeedback = widget.rowDragFeedbackBuilder?.call(
+          row,
+          index,
+          defaultDragFeedback,
+        ) ??
+        defaultDragFeedback;
     final draggableRow = dragData == null
         ? rowBox
-        : Draggable<Object>(
-            data: dragData,
-            feedback: Material(
-              elevation: 4,
-              child: _buildDataRowFeedback(row, index, widths),
+        : switch (widget.rowDragStartBehavior) {
+            SwipeActionTableRowDragStartBehavior.immediate => Draggable<Object>(
+              data: dragData,
+              feedback: Material(
+                elevation: 4,
+                child: dragFeedback,
+              ),
+              childWhenDragging: Opacity(opacity: 0.45, child: rowBox),
+              onDragStarted: () => widget.onRowDragStarted?.call(row, index),
+              onDragEnd: (_) => widget.onRowDragEnded?.call(row, index),
+              child: rowBox,
             ),
-            childWhenDragging: Opacity(opacity: 0.45, child: rowBox),
-            onDragStarted: () => widget.onRowDragStarted?.call(row, index),
-            onDragEnd: (_) => widget.onRowDragEnded?.call(row, index),
-            child: rowBox,
-          );
+            SwipeActionTableRowDragStartBehavior.longPress =>
+              LongPressDraggable<Object>(
+                data: dragData,
+                delay: widget.rowDragStartDelay,
+                feedback: Material(
+                  elevation: 4,
+                  child: dragFeedback,
+                ),
+                childWhenDragging: Opacity(opacity: 0.45, child: rowBox),
+                onDragStarted: () => widget.onRowDragStarted?.call(row, index),
+                onDragEnd: (_) => widget.onRowDragEnded?.call(row, index),
+                child: rowBox,
+              ),
+          };
     final onRowReorder = widget.onRowReorder;
     if (!widget.rowReorderEnabled ||
         onRowReorder == null ||

@@ -1,0 +1,116 @@
+저울출력 탭을 다음과 같이 포팅한다.
+
+* 보완·예외 처리를 과도하게 하지 않는다.
+* SQL Server 커밋 오류 전달·가능한 rollback까지만 수행한다.
+* SQL Server DB 마이그레이션을 하지 않는다.
+* 레거시 저울출력 탭을 기준으로 하되, 현재 포팅된 라벨출력의 좌하단 프린터 영역과 자동품목갱신의 화면/상태 분리 방식을 참조한다.
+* 현재 placeholder인 저울출력 탭은 독립 page widget으로 교체한다.
+
+참조 기준 파일:
+* 레거시 화면/행동: .tmp/LabelManager/LabelManager/ScalePrintDlg.cpp
+* 레거시 모델/흐름: .tmp/LabelManager/LabelManager/ScalePrintModel.cpp, .tmp/LabelManager/LabelManager/ScalePrintModel.h
+* 레거시 저울 설정: .tmp/LabelManager/LabelManager/ScaleSetupDlg.cpp
+* 레거시 로컬 연결정보 저장: .tmp/LabelManager/LabelManagerLib/LocalScaleConnectInfoManager.cpp, .h
+* 현재 프린터 영역: lib/page_home/label_print_page.dart
+* 현재 상태 분리 예시: lib/page_home/automatic_item_update_page.dart
+* 현재 공용 프린터 설정 dialog: lib/widgets/label_print_settings_dialog.dart
+
+화면 구성:
+* 전체 레이아웃은 좌측 대상 테이블, 우측 미리보기와 저울 정보 영역으로 구성한다.
+* 좌측 테이블은 품목관리/라벨출력과 같은 FortuneTable 계열 위젯으로 구현한다.
+* 우측 미리보기는 품목관리의 출력내용 미리보기 로직을 재사용한다.
+* 우측 저울 정보 영역에는 최소한 품명, 중량, 가격 표시/입력 영역을 둔다.
+* 저울 연결설정은 프린터 설정과 섞지 않고 우측 저울 정보 영역의 별도 진입점으로 분리한다.
+* 현재 라벨크기 setup.useScale 이 true일 때만 우측 저울 정보 영역에 연결, 해제, 현재 포트/연결상태 표시와 현재 수신 중량 표시를 포함한다.
+* 현재 라벨크기 setup.useScale 이 false이면 저울 제어는 숨기고 일반 출력처럼 동작한다.
+* 하단 프린터 영역은 라벨출력과 같은 배치로 구현한다: [프린터 설정] {선택된 프린터 라벨} [발행]
+* 별도 미리보기 버튼은 두지 않는다. 선택 행 변경과 값 변경 시 우측 미리보기를 즉시 갱신한다.
+
+레거시 기준 동작:
+* 대상 목록의 원본은 현재 라벨크기 기준 품목관리의 마지막 저장/조회 baseline 데이터다.
+* 화면 표시는 baseline 품목 중 발행 체크된 행만 대상으로 한다.
+* 품목관리 쪽에 활성 편집 또는 미저장 변경이 있으면 저울출력 진입과 데이터 재구성을 차단한다.
+* 저울출력 탭 자신도 활성 편집, busy, 연결/발행 처리 중에는 home data context 변경을 차단한다.
+* 현재 라벨크기 setup.useScale 이 true인 저울 라벨 상태일 때는 다건 동시 발행을 허용하지 않는다. 체크된 출력 대상이 여러 개면 안내 후 진행하지 않는다.
+* 행 선택 시 우측 품명/중량/가격과 미리보기를 해당 행 기준으로 갱신한다.
+* WEIGHT keyword 컬럼 값이 있으면 중량 입력 기본값으로 반영한다.
+* TPRICE keyword 컬럼 값은 레거시처럼 가격 계산 기준값으로 사용한다.
+* 실제 발행 시 SWEIGHT, SPRICE 특수값은 현재 출력 materialization/projection 단계에 주입한다.
+* 저울이 연결되지 않았거나 중량이 비어 있어도, 레거시처럼 사용자 확인 후 발행은 허용한다.
+* 저울 수신 중량이 들어오면 레거시처럼 현재 중량 문자열을 갱신하고, TPRICE 기준값이 있으면 가격 문자열도 함께 다시 계산해 화면과 미리보기에 반영한다.
+* 수신 원문은 파싱용으로만 사용하고, 현재 화면 중량 문자열과 SWEIGHT 주입값은 공백과 단위를 제거한 숫자 문자열로 통일한다.
+* 가격 계산은 레거시 수식을 그대로 따른다. 공백 제거 후 `kg` 단위면 `weight * 10 * TPRICE`, `g` 단위면 `weight / 100 * TPRICE`로 계산하고, 결과는 `floor((price / 10) + 0.5) * 10`으로 10원 단위 반올림한다.
+* 현재 화면 가격 문자열과 SPRICE 주입값은 레거시처럼 콤마나 단위 없는 정수 문자열로 통일한다.
+* 계산 결과가 0이면 가격 문자열은 빈 값으로 둔다.
+* 1차 포팅에서는 레거시에 없던 별도 가격 자동보정 규칙이나 추가 수동 편집 규칙을 만들지 않는다. 발행에는 현재 화면의 중량/가격 문자열을 사용한다.
+* 전체 발행 체크 재구성 시에는 레거시처럼 첫 번째 유효 대상을 다시 선택한다.
+* 특정 품목의 발행 체크 변경으로 목록을 다시 맞출 때는 레거시처럼 해당 item id 기준으로 다시 선택한다.
+* 품목정보 저장/변경, 공용라벨 저장/복사로 현재 baseline이 무효화되면 현재 출력 목록과 미리보기를 비우고 다시 준비하도록 한다.
+
+프린터 설정:
+* 프린터 설정 dialog는 라벨출력에서 사용하는 공용 dialog UI를 재사용한다.
+* 저울출력은 라벨출력 좌하단 프린터 영역과 동일한 표시 계약을 사용한다.
+* 공용 프린터 설정값 중 프린터명, 좌/우/상 여백, leftPush, topPush, 추가 영역, 방향, 줄간격을 그대로 사용한다.
+* 품목 개별 값이 우선인 항목은 레거시처럼 품목 값을 쓰고, 아니면 공용 프린터 설정값을 fallback으로 쓴다.
+* 공용 dialog snapshot의 `lineSpacingPercent` 값은 저울출력 row의 `linefeed` fallback 값으로 매핑한다.
+* 공용 프린터 설정 dialog에는 직렬 포트, baud rate, parity 같은 저울 연결 항목을 넣지 않는다.
+* 저울출력은 공용 dialog의 화면과 입력 검증만 재사용하고, 초기값 로드와 적용 후 저장은 레거시처럼 현재 labelSizeId 기준 로컬 저장소를 사용한다.
+* 저울출력은 기존 공용 `loadLabelPrintSettingsSnapshot()`와 `saveLabelPrintSettingsSnapshot()`를 직접 호출해 전역 preference를 덮어쓰지 않는다. scale_output 쪽 wrapper/helper에서 labelSizeId 기준 snapshot 변환과 저장을 담당한다.
+* 저울출력용 프린터 설정 로컬 저장소는 최소한 `printerName`, `leftMargin`, `rightMargin`, `topMargin`, `leftPush`, `topPush`, `extraArea`, `orientation`, `lineSpacing` 을 현재 `labelSizeId` 기준으로 저장한다.
+* 프린터 설정 적용 후에는 현재 rows를 순회하면서 품목 override가 없는 margin 과 linefeed 값만 레거시처럼 즉시 다시 반영하고, leftPush/topPush/orientation/extraArea 는 현재 프린터 설정 snapshot 값으로 유지한 채 preview materialization과 실제 print materialization에서 사용한다.
+* 프린터 설정 적용 시 이미 만들어 둔 preview cache와 실제 print materialization용 파생 출력 데이터는 함께 무효화하고 현재 선택/rows 기준으로 다시 만든다.
+
+저울 연결 설정:
+* 레거시의 COM 포트, baud rate, data bit, stop bit, parity, auto print 설정은 SQL Server가 아니라 로컬 SQLite에 저장한다.
+* 신규 로컬 설정 저장은 현재 로컬 DB helper 패턴(lib/database/db_server_connect_info.dart)을 따라 별도 helper로 구현한다.
+* 테이블 이름과 필드는 레거시를 그대로 따른다: BM_RICH_SCALE_CONNECT_SETUP, PORT_NAME, BAUD_RATE, DATA_BIT, STOP_BIT, PARITY_BIT, AUTO_PRINT
+* 로컬 설정이 없으면 레거시 기본값을 사용한다: COM1, 9600, data 8, stop 1, parity none, auto print 0
+* 1차 포팅에는 저울 연결, 해제, 연결상태 표시, 수신 중량 반영을 포함한다.
+* 1차 포팅에는 auto print 자동 발행 동작을 포함하지 않는다.
+* AUTO_PRINT 값은 로컬 설정 호환용으로만 저장하고, 1차 포팅 UI에는 auto print 체크 항목을 노출하지 않는다.
+* 자동 reconnect, background retry, 다중 장치 관리 같은 확장은 추가하지 않는다.
+
+상태 구조:
+* 자동품목갱신처럼 page widget과 session/controller를 분리한다.
+* 저울출력 상태는 품목관리 draft나 라벨출력 session에 섞지 않는다.
+* controller는 최소한 다음 상태를 소유한다: 출력 대상 rows, 선택 item id, busy, 현재 저울 연결 상태, 현재 포트명, 현재 화면 중량 문자열, 현재 화면 가격 문자열, 프린터 설정 snapshot
+* 단순 UI 표시 상태 외에 비즈니스 판단을 로그나 widget local state에 숨기지 않는다.
+
+필요한 신규 파일:
+* lib/page_home/scale_output_page.dart
+* lib/models/scale_output.dart
+* lib/database/db_scale_connect_info.dart
+
+신규 model/DAO 최소 범위:
+* ScaleOutputRowDraft: item id, 품명, 발행매수, 사용 라벨크기명, width/height, margin, leftPush/topPush, linefeed
+* ScaleOutputSessionController: rows/selection/busy/scale status/current screen weight/current screen price/printer snapshot 관리
+* ScaleConnectInfo: portName, baudRate, dataBit, stopBit, parityBit, autoPrint
+* DbScaleConnectInfoHelper: 로컬 SQLite 생성/조회/업데이트만 담당
+* ScaleConnectionService 또는 동등 책임: 직렬 연결, 해제, 수신 문자열 해석과 controller 반영만 담당
+* ScaleOutputPrintSettingsStore 또는 동등 책임: labelSizeId 기준 프린터 설정 snapshot 로드/저장과 적용 후 row 재반영 helper만 담당
+
+SQL Server 관련 구현 범위:
+* 기존 품목/라벨/컬럼/출력용 데이터 조회는 현재 모델과 DAO를 재사용한다.
+* 발행 이력 저장은 레거시 기준 동작이므로 1차 포팅 완료 범위에 포함한다.
+* 발행 이력 저장은 기존 라벨출력 경로 또는 공용 helper를 재사용해 구현하고, 새 SQL Server 구조는 추가하지 않는다.
+* 레거시처럼 물리 발행 뒤 같은 흐름에서 발행 이력을 저장하고, SQL Server 오류는 그대로 전달한다.
+* 새 SQL Server 테이블/컬럼/인덱스/procedure는 추가하지 않는다.
+* commit 중 오류가 나면 가능한 rollback까지만 수행하고 오류를 그대로 전달한다.
+* rollback 범위는 SQL Server 쓰기 작업에만 한정하며, 물리 발행 자체를 rollback 대상으로 보지 않는다.
+
+구현 순서:
+* 1. home_page_manager.dart의 scale_output placeholder를 실제 page로 교체한다.
+* 2. scale_output.dart에 session row/controller를 추가한다.
+* 3. db_scale_connect_info.dart와 저울 연결 service를 추가해 연결/해제/수신 흐름을 준비한다.
+* 4. scale_output_page.dart에서 좌측 테이블, 우측 미리보기/저울 정보, 하단 프린터 영역을 구현한다.
+* 5. 공용 프린터 설정 dialog와 별도 저울 설정 진입점을 연결한다.
+* 6. 실제 발행은 기존 print pipeline을 재사용하되 SWEIGHT, SPRICE 값을 projection 단계에 주입하고 발행 이력을 함께 저장한다.
+
+검증 기준:
+* 단일 체크 행 선택 시 우측 미리보기가 즉시 바뀐다.
+* 프린터 설정 변경 시 하단 프린터명과 미리보기가 같이 갱신된다.
+* 저울 미연결 상태에서도 확인 후 발행할 수 있다.
+* 저울 연결 성공 시 현재 포트와 연결상태가 표시되고, 수신 중량이 우측 영역에 반영된다.
+* 다건 체크 상태에서 저울 라벨 발행을 시도하면 레거시처럼 차단된다.
+* 발행 성공 시 레거시와 같이 발행 이력이 저장된다.
+* 로컬 저울 연결설정을 저장 후 재진입하면 마지막 값이 복원된다.

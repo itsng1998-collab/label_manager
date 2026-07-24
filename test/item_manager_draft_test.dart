@@ -96,7 +96,6 @@ void main() {
 
       final controller = ItemManagerDraftController.fromItems(
         items: [first, second],
-        rawSnapshots: {10: _snapshot(10), 20: _snapshot(20)},
         scopedColumnContents: scoped,
       );
 
@@ -271,7 +270,6 @@ void main() {
     test('rejects values that exceed save SQL string limits', () {
       final controller = ItemManagerDraftController.fromItems(
         items: [_itemOfMarket(itemId: 10, order: 1, name: '기존 품목')],
-        rawSnapshots: {10: _snapshot(10)},
         scopedColumnContents: TColumnContentScopedView(const {}),
         validationRules: const [
           ItemManagerColumnValidationRule(
@@ -360,21 +358,11 @@ void main() {
               elementPayload: 'UEsDempty',
             ),
           ],
-          importViewState: const ItemManagerImportViewState(
-            selectedItemId: 20,
-            selectedIndex: 1,
-          ),
         );
 
         expect(controller.deletedSourceItemIds, {10, 20});
         expect(controller.deletedRowsBySourceItemId, isEmpty);
         expect(controller.hasImportedRows, isTrue);
-        expect(controller.importViewState?.toJson(), {
-          'selectedItemId': 20,
-          'selectedIndex': 1,
-          'sortState': const [],
-          'filterState': const {},
-        });
         expect(imported.map((row) => row.rowState), [
           ItemManagerDraftRowState.imported,
           ItemManagerDraftRowState.imported,
@@ -484,7 +472,6 @@ void main() {
       final row = _itemOfMarket(itemId: 10, order: 1, name: '품목');
       final controller = ItemManagerDraftController.fromItems(
         items: [row],
-        rawSnapshots: {10: _snapshot(10)},
         scopedColumnContents: TColumnContentScopedView(const {}),
         validationRules: const [
           ItemManagerColumnValidationRule(
@@ -552,7 +539,6 @@ void main() {
       final row = _itemOfMarket(itemId: 10, order: 1, name: '품목');
       final controller = ItemManagerDraftController.fromItems(
         items: [row],
-        rawSnapshots: {10: _snapshot(10)},
         scopedColumnContents: TColumnContentScopedView(const {}),
         requireElement: true,
       );
@@ -580,7 +566,6 @@ void main() {
       final row = _itemOfMarket(itemId: 10, order: 1, name: '품목');
       final controller = ItemManagerDraftController.fromItems(
         items: [row],
-        rawSnapshots: {10: _snapshot(10)},
         scopedColumnContents: TColumnContentScopedView(const {}),
         validationRules: const [
           ItemManagerColumnValidationRule(
@@ -634,7 +619,6 @@ void main() {
       final row = _itemOfMarket(itemId: 10, order: 1, name: '품목');
       final controller = ItemManagerDraftController.fromItems(
         items: [row],
-        rawSnapshots: {10: _snapshot(10)},
         scopedColumnContents: TColumnContentScopedView(const {}),
         validationRules: const [
           ItemManagerColumnValidationRule(
@@ -710,7 +694,6 @@ void main() {
 
       final controller = ItemManagerDraftController.fromItems(
         items: [row],
-        rawSnapshots: {10: _snapshot(10)},
         scopedColumnContents: TColumnContentScopedView(const {}),
         validationRules: const [
           ItemManagerColumnValidationRule(
@@ -784,7 +767,6 @@ void main() {
       ];
       final controller = ItemManagerDraftController.fromItems(
         items: [row],
-        rawSnapshots: {10: _snapshot(10)},
         scopedColumnContents: TColumnContentScopedView(const {}),
         validationRules: rules,
         labelSizeName: '10*8',
@@ -826,7 +808,6 @@ void main() {
     test('recalculates legacy time barcode suffixes as dirty values', () {
       final controller = ItemManagerDraftController.fromItems(
         items: [_itemOfMarket(itemId: 10, order: 1, name: '품목')],
-        rawSnapshots: {10: _snapshot(10)},
         scopedColumnContents: TColumnContentScopedView({
           const ColumnItemKey(columnId: 7, itemId: 10): TColumnContent(
             colContentId: 1,
@@ -924,13 +905,9 @@ void main() {
 ItemManagerDraftController _controller(List<ItemOfMarket> items) {
   return ItemManagerDraftController.fromItems(
     items: items,
-    rawSnapshots: {
-      for (final item in items) item.item.itemId: _snapshot(item.item.itemId),
-    },
     scopedColumnContents: TColumnContentScopedView(const {}),
   );
 }
-
 ItemOfMarket _itemOfMarket({
   required int itemId,
   required int order,
@@ -979,35 +956,5 @@ ItemOfMarket _itemOfMarket({
     topMargin: 0,
     leftPush: 0,
     topPush: 0,
-  );
-}
-
-ItemOfMarketRawSnapshot _snapshot(int itemId) {
-  return ItemOfMarketRawSnapshot(
-    marketId: 3,
-    itemId: itemId,
-    additionalItemId: null,
-    gdsNo: null,
-    dateSaleStart: null,
-    dateSaleEnd: null,
-    discountPercent: null,
-    discountAmount: null,
-    dateStartDiscount: null,
-    dateEndDiscount: null,
-    useDefineElement: null,
-    rtfText: null,
-    useLinefeed: null,
-    linefeed: null,
-    useScaleBarcode: null,
-    printCount: null,
-    useLabelSize: null,
-    labelSizeWidth: null,
-    labelSizeHeight: null,
-    useMargin: null,
-    leftMargin: null,
-    rightMargin: null,
-    topMargin: null,
-    leftPush: null,
-    topPush: null,
   );
 }

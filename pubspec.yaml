@@ -75,6 +75,7 @@ dependencies:
 
   r_get_ip:
     path: ./third_party/r_get_ip
+  serial_port_win32: ^2.3.0
 
 dev_dependencies:
   flutter_test:

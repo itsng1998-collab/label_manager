@@ -120,36 +120,23 @@
 - 하단 에디터 내용을 수정한 뒤 Enter/저장 없이 다른 행을 선택할 때 자동 반영되는 코드는 확인되지 않았다.
 - 현재 Flutter 앱은 이미 `RICH_ELEMENT_SHEET` 기반 주원료 편집/저장과 출력 preview `#ELEMENT` rich run 합성 경로를 갖고 있다.
 
-2.7 변경 취소용 SQLite 백업 정책
+2.7 변경 취소 정책
 
-- 현재 앱은 `path_provider`, `sqflite`, `sqflite_common_ffi` 의존성을 이미 사용하므로 별도 패키지를 추가하지 않는다.
-- 품목관리 대상은 최대 1만 행까지 고려한다.
-- 임시편집 백업은 추가/삽입/삭제/수정 후 사용자가 `변경 취소`를 선택할 때 품목 테이블을 편집 시작 전 상태로 복원하기 위한 세션 전용 SQLite 파일이다.
-- 이 백업은 재시작 복구 목적이 아니라, 취소용 원본을 메모리에 복제할 때의 OOM 부담과 단일 JSON 문서 전체 재직렬화 비용을 피하기 위한 로컬 임시 저장소이다.
-- 일반 편집은 원본 전체를 백업하지 않는다. 품목명, 일반 셀, 주원료, 순서처럼 실제 변경되는 대상의 변경 전 값만 최초 변경 직전에 저장한다.
-- 같은 대상을 여러 번 수정해도 `INSERT OR IGNORE` 또는 동등한 PK 충돌 무시 방식으로 최초 원본을 유지하고 이후 값으로 덮어쓰지 않는다.
-- 품목명만 수정하면 해당 행의 대형 `RICH_ELEMENT_SHEET`/legacy RTF payload를 저장하지 않는다. 주원료를 실제 수정하거나 기존 행을 삭제할 때만 해당 payload를 저장한다.
-- 기존 행 삭제는 취소 시 행 전체를 되살려야 하므로 원래 위치/order, 품목 기본값, current market raw snapshot, 주원료 plain/payload/format, 현재 화면의 일반 컬럼 값을 저장한다. 이미 다른 수정으로 저장된 최초 원본은 삭제 백업으로 덮어쓰지 않고 아직 없는 필드만 보충한다.
-- 신규 행은 원본이 없으므로 SQLite에는 신규 `rowKey`만 기록하고 취소 시 working table에서 제거한다. 신규 행의 현재 draft 전체를 취소 원본으로 중복 저장하지 않는다.
-- Excel 가져오기는 working table 전체를 교체하므로 예외적으로 import 적용 직전 기존 전체 행, 전체 일반 컬럼 값, 전체 주원료 payload, 전체 순서와 필요한 UI 복원 정보를 하나의 SQLite batch transaction으로 백업한다.
-- SQLite backup transaction이 성공한 뒤에만 해당 working draft 변경 또는 Excel 전체 교체를 적용한다. 백업 실패 시 원본을 잃을 수 있는 변경을 적용하지 않고 오류를 표시한다.
-- 변경 취소는 SQL Server를 다시 조회하지 않고 SQLite에 저장한 최초 원본을 역적용한다. 외부 DB 변경 감지용 baseline checksum, payload edge hash, mapping fingerprint는 생성하지 않는다.
-- backup mode는 일반 변경 대상만 저장하는 `delta`와 Excel 전체 교체 원본을 저장하는 `full_import`로 구분한다.
-- dirty가 없는 상태에서 앱 시작 후 최초 품목 테이블 진입 또는 새 브랜드/라벨 조회를 시작하면 기존 임시 백업 파일과 메타데이터를 폐기한다.
+- 현재 품목관리 `변경 취소`는 세션 SQLite 백업 복원이 아니라 현재 라벨크기/market 기준 DB 재조회로 동작한다.
+- 취소 전에 활성 편집기를 flush하고 사용자가 `변경 취소`를 확정하면, 현재 선택 item id와 fallback row index를 보존한 뒤 같은 dataset을 `forceReload`로 다시 읽는다.
+- 재조회가 성공하면 새로 로드한 행 목록에서 보존한 item id를 우선 복원하고, 해당 item id가 없으면 fallback row index, 그것도 없으면 첫 행을 선택한다.
+- 재조회가 실패하면 working draft를 조용히 덮어쓰지 않고 오류를 표시한다.
+- 품목관리는 더 이상 변경 취소용 SQLite 임시 파일, delta/full-import backup mode, 최초 원본 before-image 저장 정책을 사용하지 않는다.
+- baseline checksum, payload edge hash, mapping fingerprint 같은 별도 외부 변경 감지값도 생성하지 않는다.
+- dirty가 있는 동안 브랜드/라벨 변경과 다른 탭으로의 컨텍스트 전환을 차단하는 정책은 유지한다.
 - 최초 품목관리 진입과 브랜드 변경 조회의 진행 스낵바는 기본 표시 시간으로 자동 종료하지 않고, DB 조회와 ItemManage 렌더 준비가 끝난 시점에 명시적으로 닫는다.
 - 브랜드/라벨/품목 DB 조회가 실패하면 진행 스낵바를 닫고 네트워크 연결 확인 경고 다이얼로그를 표시하며, 빈 목록을 정상 로드 완료처럼 처리하지 않는다.
 - 품목관리 진입 진행 스낵바는 DB 조회만으로 완료 처리하지 않는다. ItemManage/FortuneTable 첫 렌더, post-frame 선택·레이아웃 처리, 출력내용 미리보기 overlay 렌더와 부모 후처리 프레임까지 끝난 뒤 종료한다.
-- dirty 상태에서는 브랜드/라벨 변경 자체를 차단하므로 다른 브랜드/라벨 조회로 인한 백업 폐기는 발생하지 않는다.
-- 같은 편집 세션의 위젯 재생성/리빌드에서는 임시 파일 백업을 폐기하지 않는다.
-- 변경 취소 완료, 정상 저장 완료, 종료, dirty가 없는 새 조회 시작 시 SQLite 연결을 닫고 임시 DB와 `-wal`/`-shm` 파일을 폐기한다.
-- 백업 파일은 앱 지원 디렉터리의 `item_manager_drafts` 하위에 저장한다. Windows release 기준으로는 기존 로컬 DB/로그 정책과 같이 사용자별 앱 데이터 영역을 사용한다.
-- SQLite schema version이 현재 구현과 다르면 재시작 복구나 migration을 시도하지 않고 stale 임시 DB를 삭제한 뒤 새 편집 세션에서 다시 생성한다.
-- 따라서 변경 취소용 SQLite 저장소 생성/행 단위 백업/복원/폐기는 이번 구현 범위에 포함한다.
 
 2.7.1 품목관리 RTF 변환과 임시 편집 정책
 
 - 현재 Flutter 품목관리는 legacy `RICH_ELEMENT_RTF`가 있는 행을 테이블 로드 후 비동기 큐로 `RICH_ELEMENT_SHEET`로 자동 마이그레이션하는 경로가 있다.
-- 해당 자동 마이그레이션은 DB와 캐시를 사용자의 명시적 저장 없이 변경할 수 있으므로, 변경 직전 원본을 보존하는 SQLite 백업/취소 정책과 충돌한다.
+- 해당 자동 마이그레이션은 DB와 캐시를 사용자의 명시적 저장 없이 변경할 수 있으므로, 사용자가 의도한 편집 세션과 `변경 취소 = DB 재조회` 계약을 흐릴 수 있다.
 - 품목관리 편집 기능에서는 테이블 진입 시 legacy RTF 전체 자동 마이그레이션을 수행하지 않는다.
 - 품목관리 편집 기능이 활성화된 화면에서는 라벨크기 로드 직후 `_startItemElementAutoMigration()` 호출 자체를 skip한다.
 - 행 선택/주원료 로드 시 `Item.elementRTF`가 encoded workbook save 형식이면 `RICH_ELEMENT_SHEET` 조회값으로 보고 그대로 사용한다.
@@ -157,7 +144,7 @@
 - 미리보기 표시 목적의 lazy 변환은 display-only cache로만 보관하고 dirty 편집 상태를 켜지 않는다.
 - 주원료 편집 진입 또는 사용자의 명시적 변환 적용으로 생성된 lazy 변환 결과만 draft 변경으로 반영한다.
 - draft lazy 변환 결과는 즉시 DB에 자동 저장하지 않고, 편집 세션의 draft 변경으로만 반영한다.
-- draft lazy 변환으로 주원료 draft가 생성되면 해당 기존 행의 변환 전 원본은 최초 1회 SQLite에 저장한다.
+- draft lazy 변환으로 주원료 draft가 생성돼도 즉시 별도 취소 snapshot을 저장하지 않는다. 취소는 전체 dataset 재조회로 정리한다.
 - 사용자가 `저장`을 확정할 때만 `RICH_ELEMENT`와 `RICH_ELEMENT_SHEET`를 DB에 저장한다.
 - dirty 편집 세션이 시작되면 기존 RTF 자동 마이그레이션 큐는 취소하거나 결과 반영을 중단한다.
 - dirty가 없는 별도 유지보수/마이그레이션 경로에서만 background RTF DB 마이그레이션을 허용한다.
@@ -254,9 +241,9 @@
 - 레거시의 update item apply 테이블 구조는 재현 대상이 아니며, 현재 Flutter의 품목/컬럼 DAO와 DB 테이블 구조에 맞춰 insert/update/delete를 수행한다.
 - 현재 `DbClient`/`DbIsolateAction`은 단일 write/query 중심이고 품목 저장용 transaction API가 없으므로, 저장 구현 전 `DbIsolateAction.transaction` 단일 action을 먼저 마련한다. 단일 SQL batch transaction은 제한적 fallback으로만 사용한다.
 - 품목관리 저장 DAO는 기존 `ItemDAO.updateElementSheetByItemId` 범위를 넘어 신규 item/market mapping/column content insert, 기존 item/column content update, delete/order update를 transaction 안에서 수행할 수 있게 별도로 추가한다.
-- 사용자가 `취소`에서 `변경 취소`를 선택하면 SQLite에 저장한 최초 원본을 working table에 역적용하고 임시 편집 상태를 폐기한다.
-- 엑셀 가져오기 전체 교체는 적용 직전 전체 원본을 SQLite transaction으로 백업하고, 변경 취소 시 DB 재조회 없이 해당 원본과 import 직전 UI metadata를 복원한다.
-- 변경 전 복원 기준과 draft 편집 상태는 임시 파일 백업에도 저장하고, 화면 복원 완료/변경 취소/종료/dirty가 없는 새 조회 시작 시 정리한다.
+- 사용자가 `취소`에서 `변경 취소`를 선택하면 현재 라벨크기 기준 DB 재조회로 working table과 선택 상태를 clean baseline으로 되돌린다.
+- 엑셀 가져오기 전체 교체도 같은 draft 편집 상태 안에서 관리하고, 변경 취소 시 별도 import snapshot 복원 대신 DB 재조회로 정리한다.
+- 복원 기준은 세션 로컬 backup 파일이 아니라 현재 dataset 재조회 결과이며, 화면 복원 완료/변경 취소/종료/dirty가 없는 새 조회 시작 시 draft 상태를 정리한다.
 - 품목관리 편집 기능 중 legacy RTF 변환은 lazy draft 변환으로 처리하고, 사용자의 `저장` 전에는 자동 DB 마이그레이션을 수행하지 않는다.
 - 임시 편집 중에는 데이터 손실을 막기 위해 브랜드/라벨 선택, 품목관리 외 탭 이동, 플로팅 창의 `출력내용 미리보기` 탭 이동을 막는다.
 - 로그아웃/앱 종료처럼 화면을 벗어나는 동작은 `저장하지 않고 종료할까요?` 확인 후 `종료` 또는 `계속 편집`으로 처리한다.

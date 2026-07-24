@@ -28,15 +28,14 @@ import 'package:label_manager/models/column.dart';
 import 'package:label_manager/models/customer.dart';
 import 'package:label_manager/models/gs1_ai.dart';
 import 'package:label_manager/models/item.dart';
-import 'package:label_manager/models/item_manager_draft_backup.dart';
 import 'package:label_manager/models/item_manager_draft.dart';
 import 'package:label_manager/models/item_manager_save.dart';
 import 'package:label_manager/models/automatic_item_update_draft.dart';
-import 'package:label_manager/models/automatic_item_update_draft_backup.dart';
 import 'package:label_manager/models/automatic_item_update_save.dart';
 import 'package:label_manager/models/item_of_market.dart';
 import 'package:label_manager/models/label_print.dart';
 import 'package:label_manager/models/label_print_auto_increment.dart';
+import 'package:label_manager/models/scale_output.dart';
 import 'package:label_manager/printing/label_print_pipeline.dart';
 import 'package:label_manager/printing/label_print_dispatcher.dart';
 import 'package:label_manager/printing/label_print_persistence.dart';
@@ -58,13 +57,13 @@ import 'package:label_manager/page_label_sheet/label_sheet_workbench.dart';
 import 'package:label_manager/page_label_sheet/label_sheet_rtf_import.dart';
 import 'package:label_manager/page_label_sheet/label_sheet_rtf_preview.dart';
 import 'package:label_manager/page_label_sheet/label_sheet_rtf_preview_debug.dart';
-import 'package:label_manager/utils/debug_logger.dart';
 import 'package:label_manager/utils/log_context.dart';
 import 'package:label_manager/utils/item_manager_debug_log.dart';
 import 'package:label_manager/utils/on_messages.dart';
 import 'package:label_manager/page_home/item_manage.dart';
 import 'package:label_manager/page_home/automatic_item_update_page.dart';
 import 'package:label_manager/page_home/label_print_page.dart';
+import 'package:label_manager/page_home/scale_output_page.dart';
 import 'package:label_manager/page_home/item_code_data_resolver.dart';
 import 'package:label_manager/page_home/item_manager_xlsx.dart';
 import 'package:label_manager/page_home/date_type_setup_dialog.dart';
@@ -76,9 +75,10 @@ import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
 import 'package:label_manager/widgets/label_output_preview.dart';
 import 'package:label_manager/widgets/label_print_settings_dialog.dart';
 import 'package:label_manager/widgets/swipe_action_table.dart';
+import 'package:label_manager/database/db_scale_connect_info.dart';
 
 bool itemManagerSearchVisibleForTab(Object? tabValue) =>
-  tabValue == 'items' || tabValue == 'label_print';
+    tabValue == 'items' || tabValue == 'label_print';
 
 @visibleForTesting
 Object? homeTabShortcutValue({
@@ -102,9 +102,31 @@ bool labelPrintTabSelectionBlocked({
   required bool itemDraftDirty,
 }) => hasActiveEditing || itemDraftCommandBusy || itemDraftDirty;
 
+bool homeTabTapBlocked({
+  required Object? currentTabValue,
+  required bool itemDraftContextChangeBlocked,
+  required bool autoItemUpdateContextChangeBlocked,
+}) => switch (currentTabValue) {
+  'items' => itemDraftContextChangeBlocked,
+  'auto_update' => autoItemUpdateContextChangeBlocked,
+  _ => false,
+};
+
+@visibleForTesting
+bool debugHomeTabTapBlockedForTesting({
+  required Object? currentTabValue,
+  required bool itemDraftContextChangeBlocked,
+  required bool autoItemUpdateContextChangeBlocked,
+}) => homeTabTapBlocked(
+  currentTabValue: currentTabValue,
+  itemDraftContextChangeBlocked: itemDraftContextChangeBlocked,
+  autoItemUpdateContextChangeBlocked: autoItemUpdateContextChangeBlocked,
+);
+
 const Duration itemManagerLoadProgressDuration = Duration(days: 1);
 const String itemManagerLoadFailureMessage =
     '품목 데이터를 불러오지 못했습니다. 네트워크 연결을 확인한 뒤 다시 시도해 주세요.';
+const double _blockedHomeTabTapOverlayHeight = 44;
 
 @visibleForTesting
 bool commonLabelSheetDirtyChangeBelongsToCurrentSession({
@@ -227,8 +249,18 @@ class _HomePageManagerState extends State<HomePageManager> {
       LabelPrintSessionController();
   final LabelSheetOutputCaptureController _labelPrintCaptureController =
       LabelSheetOutputCaptureController();
+    final ScaleOutputPageController _scaleOutputPageController =
+      ScaleOutputPageController();
+    final ScaleOutputSessionController _scaleOutputSessionController =
+      ScaleOutputSessionController();
+    final LabelSheetOutputCaptureController _scaleOutputCaptureController =
+      LabelSheetOutputCaptureController();
+    final ScaleConnectionService _scaleConnectionService =
+      ScaleConnectionService();
   LabelPrintUnit? _labelPrintRenderUnit;
   DateTime? _labelPrintRenderReferenceAt;
+    ScaleOutputUnit? _scaleOutputRenderUnit;
+    DateTime? _scaleOutputRenderReferenceAt;
   final GlobalKey _itemPreviewButtonKey = GlobalKey();
   final GlobalKey _commonLabelPreviewButtonKey = GlobalKey();
   final GlobalKey _rtfPreviewBoxKey = GlobalKey();
@@ -245,8 +277,8 @@ class _HomePageManagerState extends State<HomePageManager> {
   PreviewFloatingWindow? _commonLabelPreviewWindow;
   final LabelSheetImageImportController _commonLabelImageImportController =
       LabelSheetImageImportController();
-    final LabelSheetEditingLifecycleController
-    _commonLabelEditingLifecycleController =
+  final LabelSheetEditingLifecycleController
+  _commonLabelEditingLifecycleController =
       LabelSheetEditingLifecycleController();
   Timer? _rtfPreviewResizeDebounce;
   Timer? _rtfPreviewResizeFinalizeTimer;
@@ -268,8 +300,6 @@ class _HomePageManagerState extends State<HomePageManager> {
   ItemManagerDraftController? _itemDraftController;
   AutoItemUpdateDraftController? _autoItemUpdateDraftController;
   Set<int> _publishCheckedItemIds = const <int>{};
-  ItemManagerDraftBackupStore? _itemDraftBackup;
-  AutoItemUpdateDraftBackupStore? _autoItemUpdateDraftBackup;
   List<int> _itemDraftTargetMarketIds = const [];
   int? _itemDraftLoadedCustomerId;
   int? _itemDraftLoadedBrandId;
@@ -303,6 +333,7 @@ class _HomePageManagerState extends State<HomePageManager> {
   OverlayEntry? _labelSettingsOverlayEntry;
   OverlayEntry? _labelColumnEditOverlayEntry;
   OverlayEntry? _labelPrintProgressOverlayEntry;
+  OverlayEntry? _scaleOutputProgressOverlayEntry;
   // 브랜드 설정 다이얼로그에서 브랜드를 선택한 후 라벨 시트 로드가 완료될 때까지
   // 다이얼로그의 더블클릭을 차단하기 위한 플래그.
   final ValueNotifier<bool> _brandDialogBusyNotifier = ValueNotifier(false);
@@ -327,6 +358,13 @@ class _HomePageManagerState extends State<HomePageManager> {
     }
     if (_selectedTabValue() == 'auto_update') {
       _showItemPreviewWindow();
+    }
+    setState(() {});
+  }
+
+  void _handleScaleOutputChanged() {
+    if (!mounted) {
+      return;
     }
     setState(() {});
   }
@@ -367,104 +405,26 @@ class _HomePageManagerState extends State<HomePageManager> {
   }
 
   void _disposeAutoItemUpdateDraftController() {
-    _autoItemUpdateDraftController?.removeListener(_handleAutoItemUpdateDraftChanged);
+    _autoItemUpdateDraftController?.removeListener(
+      _handleAutoItemUpdateDraftChanged,
+    );
     _autoItemUpdateDraftController?.dispose();
     _autoItemUpdateDraftController = null;
-  }
-
-  Future<ItemManagerDraftBackupStore> _ensureItemDraftBackup() async {
-    final backup = _itemDraftBackup;
-    final controller = _itemDraftController;
-    if (backup == null || controller == null) {
-      throw StateError('품목관리 임시 백업 세션이 없습니다.');
-    }
-    await backup.start(
-      selectedRowKeys: controller.baselineSelectedRowKeys,
-      anchorRowKey: controller.baselineAnchorRowKey,
-    );
-    return backup;
-  }
-
-  Future<AutoItemUpdateDraftBackupStore> _ensureAutoItemUpdateDraftBackup() async {
-    final backup = _autoItemUpdateDraftBackup;
-    final controller = _autoItemUpdateDraftController;
-    if (backup == null || controller == null) {
-      throw StateError('자동품목갱신 임시 백업 세션이 없습니다.');
-    }
-    await backup.start(
-      selectedRowKeys: controller.baselineSelectedRowKeys,
-      anchorRowKey: controller.baselineAnchorRowKey,
-    );
-    return backup;
-  }
-
-  Future<void> _backupItemName(ItemManagerDraftRow row) async {
-    if (row.sourceItemId == null) return;
-    await (await _ensureItemDraftBackup()).captureItemName(row);
-  }
-
-  Future<void> _backupItemColumn(
-    ItemManagerDraftRow row,
-    int columnId,
-  ) async {
-    if (row.sourceItemId == null) return;
-    final controller = _itemDraftController!;
-    await (await _ensureItemDraftBackup()).captureCells(
-      row: row,
-      columnIds: controller.affectedColumnIds(columnId),
-      columnContents: controller.scopedColumnContents,
-    );
-  }
-
-  Future<void> _backupItemOrders(Iterable<ItemManagerDraftRow> rows) async {
-    if (!rows.any((row) => row.sourceItemId != null)) return;
-    await (await _ensureItemDraftBackup()).captureOrders(rows);
-  }
-
-  Future<void> _backupDeletedItemRows(
-    Iterable<ItemManagerDraftRow> rows,
-  ) async {
-    if (!rows.any((row) => row.sourceItemId != null)) return;
-    await (await _ensureItemDraftBackup()).captureDeletedRows(
-      rows: rows,
-      columnContents: _itemDraftController!.scopedColumnContents,
-    );
-  }
-
-  Future<void> _backupAutoItemUpdateApplyDate(
-    AutoItemUpdateDraftRow row,
-  ) async {
-    if (row.sourceUpdateItemId == null) return;
-    await (await _ensureAutoItemUpdateDraftBackup()).captureApplyDate(row);
-  }
-
-  Future<void> _backupAutoItemUpdateCell(
-    AutoItemUpdateDraftRow row,
-    int columnId,
-  ) async {
-    if (row.sourceUpdateItemId == null) return;
-    final controller = _autoItemUpdateDraftController;
-    if (controller == null) return;
-    await (await _ensureAutoItemUpdateDraftBackup()).captureCell(
-      row: row,
-      columnId: columnId,
-      original: controller.cellValues[
-        AutoItemUpdateCellKey(columnId: columnId, rowKey: row.rowKey)
-      ],
-    );
   }
 
   Future<bool> _reloadAutoItemUpdateDraftFromDatabase({
     String? selectedRowKey,
     int? fallbackIndex,
+    bool rebuildTabs = true,
   }) async {
     final labelSize = _currentLabelSize;
     final market = Market.instance;
-    final backup = _autoItemUpdateDraftBackup;
-    if (labelSize == null || market == null || backup == null) {
+    if (labelSize == null || market == null) {
       return false;
     }
-    final items = await UpdateItemDAO.selectPendingByLabelSizeId(labelSize.labelSizeId);
+    final items = await UpdateItemDAO.selectPendingByLabelSizeId(
+      labelSize.labelSizeId,
+    );
     final rows = [
       for (var index = 0; index < items.length; index += 1)
         AutoItemUpdateDraftRow.existing(
@@ -477,10 +437,11 @@ class _HomePageManagerState extends State<HomePageManager> {
       for (final row in rows)
         if (row.sourceUpdateItemId != null) row.sourceUpdateItemId!: row.rowKey,
     };
-    final cellValues = await UpdateItemColumnContentDAO.selectPendingByLabelSizeId(
-      labelSize.labelSizeId,
-      rowKeyByUpdateItemId: rowKeyByUpdateItemId,
-    );
+    final cellValues =
+        await UpdateItemColumnContentDAO.selectPendingByLabelSizeId(
+          labelSize.labelSizeId,
+          rowKeyByUpdateItemId: rowKeyByUpdateItemId,
+        );
     final serverToday = await UpdateItemDAO.selectServerToday();
     final controller = AutoItemUpdateDraftController(
       rows: rows,
@@ -488,22 +449,101 @@ class _HomePageManagerState extends State<HomePageManager> {
       serverToday: serverToday,
     );
     if (rows.isNotEmpty) {
-      final selected = selectedRowKey != null && controller.hasRowKey(selectedRowKey)
+      final selected =
+          selectedRowKey != null && controller.hasRowKey(selectedRowKey)
           ? selectedRowKey
-          : (fallbackIndex != null && fallbackIndex >= 0 && fallbackIndex < rows.length)
+          : (fallbackIndex != null &&
+                fallbackIndex >= 0 &&
+                fallbackIndex < rows.length)
           ? rows[fallbackIndex].rowKey
           : rows.first.rowKey;
       controller.setSelection([selected], anchorRowKey: selected);
     }
+    _autoItemUpdateDraftController?.removeListener(
+      _handleAutoItemUpdateDraftChanged,
+    );
     _autoItemUpdateDraftController?.dispose();
     _autoItemUpdateDraftController = controller;
-    await backup.close(deleteFile: false);
-    _autoItemUpdateDraftBackup = AutoItemUpdateDraftBackupStore(metadata: backup.metadata);
+    _autoItemUpdateDraftController!.addListener(
+      _handleAutoItemUpdateDraftChanged,
+    );
     if (mounted) {
-      _resetTabs();
+      if (rebuildTabs) {
+        _resetTabs();
+      }
       setState(() {});
     }
     return true;
+  }
+
+  Future<bool> _loadAutoItemUpdateDraftFromDatabase({
+    bool rebuildTabs = true,
+  }) async {
+    final labelSize = _currentLabelSize;
+    final market = Market.instance;
+    if (labelSize == null || market == null) {
+      return false;
+    }
+    final items = await UpdateItemDAO.selectPendingByLabelSizeId(
+      labelSize.labelSizeId,
+    );
+    final rows = [
+      for (var index = 0; index < items.length; index += 1)
+        AutoItemUpdateDraftRow.existing(
+          source: items[index],
+          currentMarketId: market.marketId,
+          originalIndex: index,
+        ),
+    ];
+    final rowKeyByUpdateItemId = {
+      for (final row in rows)
+        if (row.sourceUpdateItemId != null) row.sourceUpdateItemId!: row.rowKey,
+    };
+    final cellValues =
+        await UpdateItemColumnContentDAO.selectPendingByLabelSizeId(
+          labelSize.labelSizeId,
+          rowKeyByUpdateItemId: rowKeyByUpdateItemId,
+        );
+    final serverToday = await UpdateItemDAO.selectServerToday();
+    final controller = AutoItemUpdateDraftController(
+      rows: rows,
+      cellValues: cellValues,
+      serverToday: serverToday,
+    );
+    if (rows.isNotEmpty) {
+      final firstRowKey = rows.first.rowKey;
+      controller.setSelection([firstRowKey], anchorRowKey: firstRowKey);
+    }
+    _autoItemUpdateDraftController?.removeListener(
+      _handleAutoItemUpdateDraftChanged,
+    );
+    _autoItemUpdateDraftController?.dispose();
+    _autoItemUpdateDraftController = controller;
+    _autoItemUpdateDraftController!.addListener(
+      _handleAutoItemUpdateDraftChanged,
+    );
+    if (!mounted) {
+      return true;
+    }
+    if (rebuildTabs) {
+      _resetTabs();
+    }
+    setState(() {});
+    return true;
+  }
+
+  Future<bool> _ensureAutoItemUpdateDraftLoaded() async {
+    if (_autoItemUpdateDraftController != null) {
+      return true;
+    }
+    try {
+      return await _loadAutoItemUpdateDraftFromDatabase();
+    } catch (error) {
+      if (mounted) {
+        _showItemDraftError('자동품목갱신 불러오기 실패', error);
+      }
+      return false;
+    }
   }
 
   Future<bool> _flushAutoItemUpdateEdits(String errorTitle) async {
@@ -527,7 +567,9 @@ class _HomePageManagerState extends State<HomePageManager> {
 
   Future<void> _deleteAutoItemUpdateRows(Iterable<String> rowKeys) async {
     final controller = _autoItemUpdateDraftController;
-    if (controller == null || _autoItemUpdateCommandBusy || User.instance?.canEdit != true) {
+    if (controller == null ||
+        _autoItemUpdateCommandBusy ||
+        User.instance?.canEdit != true) {
       return;
     }
     final keys = rowKeys.toSet();
@@ -564,10 +606,6 @@ class _HomePageManagerState extends State<HomePageManager> {
     );
     if (confirmed != true || !mounted) return;
     try {
-      await (await _ensureAutoItemUpdateDraftBackup()).captureDeletedRows(
-        rows: rows,
-        cellValues: controller.cellValues,
-      );
       controller.deleteRows(keys);
       _resetTabs();
       if (mounted) setState(() {});
@@ -586,11 +624,13 @@ class _HomePageManagerState extends State<HomePageManager> {
     final fallbackIndex = anchorRowKey == null
         ? null
         : controller.rows.indexWhere((row) => row.rowKey == anchorRowKey);
+    var reloaded = false;
     setState(() => _autoItemUpdateCommandBusy = true);
     try {
-      final reloaded = await _reloadAutoItemUpdateDraftFromDatabase(
+      reloaded = await _reloadAutoItemUpdateDraftFromDatabase(
         selectedRowKey: anchorRowKey,
         fallbackIndex: fallbackIndex,
+        rebuildTabs: false,
       );
       if (!reloaded && mounted) {
         _showItemDraftError('자동품목갱신 새로 고침 실패', '자동품목갱신 목록을 다시 불러오지 못했습니다.');
@@ -598,13 +638,20 @@ class _HomePageManagerState extends State<HomePageManager> {
     } catch (error) {
       if (mounted) _showItemDraftError('자동품목갱신 새로 고침 실패', error);
     } finally {
-      if (mounted) setState(() => _autoItemUpdateCommandBusy = false);
+      if (mounted) {
+        setState(() => _autoItemUpdateCommandBusy = false);
+        if (reloaded) {
+          _resetTabs();
+        }
+      }
     }
   }
 
   Future<void> _cancelAutoItemUpdateDraft() async {
     final controller = _autoItemUpdateDraftController;
-    if (controller == null || !controller.isDirty || _autoItemUpdateCommandBusy) {
+    if (controller == null ||
+        !controller.isDirty ||
+        _autoItemUpdateCommandBusy) {
       return;
     }
     if (!await _flushAutoItemUpdateEdits('자동품목갱신 변경 취소 확인')) return;
@@ -627,30 +674,30 @@ class _HomePageManagerState extends State<HomePageManager> {
       ),
     );
     if (confirmed != true || !mounted) return;
+    final selectedRowKey = controller.anchorRowKey;
+    final fallbackIndex = selectedRowKey == null
+        ? null
+        : controller.rows.indexWhere((row) => row.rowKey == selectedRowKey);
+    var reloaded = false;
     setState(() => _autoItemUpdateCommandBusy = true);
     try {
-      final backup = _autoItemUpdateDraftBackup;
-      if (backup == null) {
-        throw StateError('변경 취소용 SQLite 백업이 없습니다.');
-      }
-      final snapshot = await backup.readSnapshot();
-      controller.restoreBackup(
-        applyDates: snapshot.applyDates,
-        elements: snapshot.elements,
-        cells: snapshot.cells,
-        addedRowKeys: snapshot.addedRowKeys,
-        deletedRows: snapshot.deletedRows,
-        deletedCells: snapshot.deletedCells,
-        selectedRowKeys: snapshot.selectedRowKeys,
-        anchorRowKey: snapshot.anchorRowKey,
+      reloaded = await _reloadAutoItemUpdateDraftFromDatabase(
+        selectedRowKey: selectedRowKey,
+        fallbackIndex: fallbackIndex,
+        rebuildTabs: false,
       );
-      await backup.clear();
-      _resetTabs();
-      if (mounted) setState(() {});
+      if (!reloaded && mounted) {
+        _showItemDraftError('자동품목갱신 변경 취소 실패', '자동품목갱신 목록을 다시 불러오지 못했습니다.');
+      }
     } catch (error) {
       if (mounted) _showItemDraftError('자동품목갱신 변경 취소 실패', error);
     } finally {
-      if (mounted) setState(() => _autoItemUpdateCommandBusy = false);
+      if (mounted) {
+        setState(() => _autoItemUpdateCommandBusy = false);
+        if (reloaded) {
+          _resetTabs();
+        }
+      }
     }
   }
 
@@ -696,40 +743,41 @@ class _HomePageManagerState extends State<HomePageManager> {
     final selectedRowIndex = selectedRowKey == null
         ? -1
         : controller.rows.indexWhere((row) => row.rowKey == selectedRowKey);
+    var reloaded = false;
     setState(() => _autoItemUpdateCommandBusy = true);
     try {
-      final result = await AutoItemUpdateSaveDAO.save(controller.toSaveCommand());
-      try {
-        await _autoItemUpdateDraftBackup?.clear();
-      } catch (_) {}
-      final nextSelectedRowKey = selectedRowKey != null && controller.hasRowKey(selectedRowKey)
+      final result = await AutoItemUpdateSaveDAO.save(
+        controller.toSaveCommand(),
+      );
+      final nextSelectedRowKey =
+          selectedRowKey != null && controller.hasRowKey(selectedRowKey)
           ? selectedRowKey
           : result.insertedUpdateItemIdsByRowKey.keys.firstOrNull;
-      final reloaded = await _reloadAutoItemUpdateDraftFromDatabase(
+      reloaded = await _reloadAutoItemUpdateDraftFromDatabase(
         selectedRowKey: nextSelectedRowKey,
         fallbackIndex: selectedRowIndex < 0 ? null : selectedRowIndex,
+        rebuildTabs: false,
       );
       if (!reloaded) {
+        _disposeAutoItemUpdateDraftController();
+        _resetTabs();
         throw StateError('DB 저장은 완료됐지만 자동품목갱신 목록을 다시 불러오지 못했습니다.');
       }
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('자동품목갱신 변경 사항을 저장했습니다.')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('자동품목갱신 변경 사항을 저장했습니다.')));
       }
     } catch (error) {
       if (mounted) _showItemDraftError('자동품목갱신 저장 실패', error);
     } finally {
-      if (mounted) setState(() => _autoItemUpdateCommandBusy = false);
+      if (mounted) {
+        setState(() => _autoItemUpdateCommandBusy = false);
+        if (reloaded) {
+          _resetTabs();
+        }
+      }
     }
-  }
-
-  Future<void> _recordAddedItemRows(Iterable<String> rowKeys) async {
-    await (await _ensureItemDraftBackup()).recordAddedRows(rowKeys);
-  }
-
-  Future<void> _recordAddedAutoItemUpdateRows(Iterable<String> rowKeys) async {
-    await (await _ensureAutoItemUpdateDraftBackup()).recordAddedRows(rowKeys);
   }
 
   List<AutoItemUpdateSourceSeed> _autoItemUpdateSourceRows() {
@@ -738,7 +786,8 @@ class _HomePageManagerState extends State<HomePageManager> {
     final customerId = Customer.instance?.customerId;
     final labelSizeId = _currentLabelSize?.labelSizeId;
     final brandId = _currentLabelSize?.brandId;
-    final sourceReady = controller != null &&
+    final sourceReady =
+        controller != null &&
         currentMarketId != null &&
         customerId != null &&
         labelSizeId != null &&
@@ -778,15 +827,9 @@ class _HomePageManagerState extends State<HomePageManager> {
     if (controller == null || _autoItemUpdateCommandBusy) {
       return;
     }
-    final addedKeys = controller.applyStagedRows();
-    try {
-      await _recordAddedAutoItemUpdateRows(addedKeys);
-      if (mounted) {
-        setState(() {});
-      }
-    } catch (error) {
-      controller.deleteRows(addedKeys);
-      rethrow;
+    controller.applyStagedRows();
+    if (mounted) {
+      setState(() {});
     }
   }
 
@@ -862,6 +905,7 @@ class _HomePageManagerState extends State<HomePageManager> {
     super.initState();
     _currentLabelSize = widget.selectedLabelSize;
     _tabController = _createTabController();
+    _scaleOutputSessionController.addListener(_handleScaleOutputChanged);
     HardwareKeyboard.instance.addHandler(_handleTabShortcutKeyEvent);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
@@ -1028,6 +1072,9 @@ class _HomePageManagerState extends State<HomePageManager> {
   }
 
   Future<void> _handleHeaderLabelSizeChanged(LabelSize? labelSize) async {
+    if (_blockHomeDataContextChange()) {
+      return;
+    }
     await _handleLabelSizeChanged(labelSize, skipDraftContextGuard: true);
   }
 
@@ -1256,8 +1303,8 @@ class _HomePageManagerState extends State<HomePageManager> {
         return false;
       }
 
-        if ((forceReload ||
-            labelSize?.labelSizeId != _currentLabelSize?.labelSizeId) &&
+      if ((forceReload ||
+              labelSize?.labelSizeId != _currentLabelSize?.labelSizeId) &&
           !_commonLabelEditingLifecycleController
               .prepareForOwnerReplacement()) {
         widget.onLabelSizeChanged(_currentLabelSize);
@@ -1297,10 +1344,6 @@ class _HomePageManagerState extends State<HomePageManager> {
       }
 
       if (labelSize == null) {
-        await _itemDraftBackup?.close();
-        await _autoItemUpdateDraftBackup?.close();
-        _itemDraftBackup = null;
-        _autoItemUpdateDraftBackup = null;
         _disposeItemDraftController();
         _disposeAutoItemUpdateDraftController();
         _itemDraftTargetMarketIds = const [];
@@ -1355,21 +1398,12 @@ class _HomePageManagerState extends State<HomePageManager> {
             labelSize.labelSizeId,
           ) ??
           const <ItemOfMarket>[];
-      final rawSnapshots =
-          await ItemOfMarketDAO.selectRawSnapshotsByMarketAndLabelSizeId(
-            market.marketId,
-            labelSize.labelSizeId,
-          ) ??
-          const <ItemOfMarketRawSnapshot>[];
       final scopedColumnContents =
           await TColumnContentDAO.selectScopedByItemIds(
             items.map((item) => item.item.itemId),
           );
       final nextController = ItemManagerDraftController.fromItems(
         items: items,
-        rawSnapshots: {
-          for (final snapshot in rawSnapshots) snapshot.itemId: snapshot,
-        },
         scopedColumnContents: scopedColumnContents,
         validationRules: [
           for (final column in columns)
@@ -1399,46 +1433,7 @@ class _HomePageManagerState extends State<HomePageManager> {
       final emptyElementPayload = labelSheetEncodeWorkbookSave(
         _itemElementWorkbook('', labelSize),
       );
-      final updateItems = await UpdateItemDAO.selectPendingByLabelSizeId(labelSize.labelSizeId);
-      final autoItemRows = [
-        for (var index = 0; index < updateItems.length; index += 1)
-          AutoItemUpdateDraftRow.existing(
-            source: updateItems[index],
-            currentMarketId: market.marketId,
-            originalIndex: index,
-          ),
-      ];
-      final autoItemRowKeys = {
-        for (final row in autoItemRows)
-          if (row.sourceUpdateItemId != null) row.sourceUpdateItemId!: row.rowKey,
-      };
-      final autoItemCells = await UpdateItemColumnContentDAO.selectPendingByLabelSizeId(
-        labelSize.labelSizeId,
-        rowKeyByUpdateItemId: autoItemRowKeys,
-      );
-      final autoItemServerToday = await UpdateItemDAO.selectServerToday();
-      final nextAutoItemUpdateController = AutoItemUpdateDraftController(
-        rows: autoItemRows,
-        cellValues: autoItemCells,
-        serverToday: autoItemServerToday,
-      );
-      if (autoItemRows.isNotEmpty) {
-        nextAutoItemUpdateController.setSelection(
-          [autoItemRows.first.rowKey],
-          anchorRowKey: autoItemRows.first.rowKey,
-        );
-      }
 
-      try {
-        await _itemDraftBackup?.close();
-        await _autoItemUpdateDraftBackup?.close();
-      } catch (_) {
-        nextController.dispose();
-        nextAutoItemUpdateController.dispose();
-        rethrow;
-      }
-      _itemDraftBackup = null;
-      _autoItemUpdateDraftBackup = null;
       _disposeItemDraftController();
       _disposeAutoItemUpdateDraftController();
       _currentLabelSize = labelSize;
@@ -1460,42 +1455,15 @@ class _HomePageManagerState extends State<HomePageManager> {
       _itemDraftLoadedBrandId = labelSize.brandId;
       _itemDraftLoadedLabelSizeId = labelSize.labelSizeId;
       _itemDraftLoadedMarketId = market.marketId;
-      _autoItemUpdateDraftController = nextAutoItemUpdateController;
-      _autoItemUpdateDraftController!.addListener(_handleAutoItemUpdateDraftChanged);
       _itemDraftEmptyElementPayload = emptyElementPayload;
-      _itemDraftBackup = ItemManagerDraftBackupStore(
-        metadata: ItemManagerDraftBackupMetadata(
-          draftKey: itemManagerDraftKey(
-            userId: user.userId,
-            customerId: customer.customerId,
-            brandId: labelSize.brandId,
-            labelSizeId: labelSize.labelSizeId,
-          ),
-          userId: user.userId,
-          customerId: customer.customerId,
-          brandId: labelSize.brandId,
-          labelSizeId: labelSize.labelSizeId,
-          currentMarketId: market.marketId,
-        ),
-      );
-      _autoItemUpdateDraftBackup = AutoItemUpdateDraftBackupStore(
-        metadata: AutoItemUpdateDraftBackupMetadata(
-          draftKey: automaticItemUpdateDraftKey(
-            userId: user.userId,
-            customerId: customer.customerId,
-            brandId: labelSize.brandId,
-            labelSizeId: labelSize.labelSizeId,
-            currentMarketId: market.marketId,
-          ),
-          userId: user.userId,
-          customerId: customer.customerId,
-          brandId: labelSize.brandId,
-          labelSizeId: labelSize.labelSizeId,
-          currentMarketId: market.marketId,
-        ),
-      );
       _labelPrintSessionController.applySettings(
         await loadLabelPrintSettingsSnapshot(),
+      );
+      _scaleOutputSessionController.applySettings(
+        await ScaleOutputPrintSettingsStore.load(labelSize.labelSizeId),
+      );
+      _scaleOutputSessionController.updateConnectInfo(
+        await DbScaleConnectInfoHelper.loadConnectInfo(),
       );
       _selectInitialItemOfMarket();
       debugLog(
@@ -1523,7 +1491,7 @@ class _HomePageManagerState extends State<HomePageManager> {
           'items': items.length,
           'columns': columns.length,
           'contents': scopedColumnContents.values.length,
-          'autoUpdates': updateItems.length,
+          'autoUpdates': _autoItemUpdateDraftController?.rows.length ?? 0,
           'targetMarkets': targetMarketIds.length,
         },
       );
@@ -1559,9 +1527,9 @@ class _HomePageManagerState extends State<HomePageManager> {
   bool _blockItemDraftContextChange() {
     if (_labelPrintSessionController.busy) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('라벨 발행이 끝난 뒤 변경해 주세요.')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('라벨 발행이 끝난 뒤 변경해 주세요.')));
       }
       return true;
     }
@@ -1574,6 +1542,18 @@ class _HomePageManagerState extends State<HomePageManager> {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('현재 작업이 끝난 뒤 변경해 주세요.')));
+      }
+      return true;
+    }
+    if (_itemManageController.hasActiveEditing) {
+      _logItemDraftCancelDebug(
+        'contextChange blocked reason=activeEditing',
+        traceId: _lastItemDraftCancelTraceId,
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('품목 편집을 완료하거나 취소한 뒤 변경해 주세요.')),
+        );
       }
       return true;
     }
@@ -1599,17 +1579,17 @@ class _HomePageManagerState extends State<HomePageManager> {
   bool _blockAutoItemUpdateContextChange() {
     if (_labelPrintSessionController.busy) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('라벨 발행이 끝난 뒤 변경해 주세요.')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('라벨 발행이 끝난 뒤 변경해 주세요.')));
       }
       return true;
     }
     if (_autoItemUpdateCommandBusy) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('현재 작업이 끝난 뒤 변경해 주세요.')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('현재 작업이 끝난 뒤 변경해 주세요.')));
       }
       return true;
     }
@@ -1617,9 +1597,7 @@ class _HomePageManagerState extends State<HomePageManager> {
     if (_autoItemUpdatePageController.hasActiveEditing) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('자동품목갱신 편집을 완료하거나 취소한 뒤 변경해 주세요.'),
-          ),
+          const SnackBar(content: Text('자동품목갱신 편집을 완료하거나 취소한 뒤 변경해 주세요.')),
         );
       }
       return true;
@@ -1629,9 +1607,7 @@ class _HomePageManagerState extends State<HomePageManager> {
     }
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('자동품목갱신 편집 내용을 저장하거나 취소한 뒤 변경해 주세요.'),
-        ),
+        const SnackBar(content: Text('자동품목갱신 편집 내용을 저장하거나 취소한 뒤 변경해 주세요.')),
       );
     }
     return true;
@@ -1648,9 +1624,24 @@ class _HomePageManagerState extends State<HomePageManager> {
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
         ..showSnackBar(
-          const SnackBar(
-            content: Text('품목 편집 내용을 저장하거나 취소한 뒤 라벨출력을 이용해 주세요.'),
-          ),
+          const SnackBar(content: Text('품목 편집 내용을 저장하거나 취소한 뒤 라벨출력을 이용해 주세요.')),
+        );
+    }
+    return true;
+  }
+
+  bool _blockScaleOutputTabSelection() {
+    final blocked = labelPrintTabSelectionBlocked(
+      hasActiveEditing: _itemManageController.hasActiveEditing,
+      itemDraftCommandBusy: _itemDraftCommandBusy,
+      itemDraftDirty: _itemDraftController?.isDirty == true,
+    );
+    if (!blocked) return false;
+    if (mounted) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(content: Text('품목 편집 내용을 저장하거나 취소한 뒤 저울출력을 이용해 주세요.')),
         );
     }
     return true;
@@ -1658,6 +1649,7 @@ class _HomePageManagerState extends State<HomePageManager> {
 
   bool get _itemDraftContextChangeBlocked =>
       _labelPrintSessionController.busy ||
+      _itemManageController.hasActiveEditing ||
       _itemDraftCommandBusy ||
       _itemDraftController?.isDirty == true;
 
@@ -1668,12 +1660,78 @@ class _HomePageManagerState extends State<HomePageManager> {
       _autoItemUpdateDraftController?.isDirty == true ||
       _autoItemUpdateDraftController?.addModeOpen == true;
 
+    bool get _scaleOutputContextChangeBlocked =>
+      _scaleOutputSessionController.busy ||
+      _scaleOutputPageController.hasActiveEditing ||
+      _scaleOutputSessionController.connectionState ==
+        ScaleOutputConnectionState.connecting;
+
+  bool get _homeDataContextChangeBlocked =>
+      _itemDraftContextChangeBlocked ||
+      _autoItemUpdateContextChangeBlocked ||
+      _scaleOutputContextChangeBlocked;
+
+  bool get _shouldBlockCurrentTabTap => homeTabTapBlocked(
+    currentTabValue: _selectedTabValue(),
+    itemDraftContextChangeBlocked: _itemDraftContextChangeBlocked,
+    autoItemUpdateContextChangeBlocked: _autoItemUpdateContextChangeBlocked,
+  );
+
+  void _handleBlockedTabTap() {
+    final currentTabValue = _selectedTabValue();
+    switch (currentTabValue) {
+      case 'items':
+        _blockItemDraftContextChange();
+        return;
+      case 'auto_update':
+        _blockAutoItemUpdateContextChange();
+        return;
+      case 'scale_output':
+        _blockScaleOutputContextChange();
+        return;
+      default:
+        return;
+    }
+  }
+
   bool _blockHomeDataContextChange() {
     if (_itemDraftContextChangeBlocked) {
       return _blockItemDraftContextChange();
     }
     if (_autoItemUpdateContextChangeBlocked) {
       return _blockAutoItemUpdateContextChange();
+    }
+    if (_scaleOutputContextChangeBlocked) {
+      return _blockScaleOutputContextChange();
+    }
+    return false;
+  }
+
+  bool _blockScaleOutputContextChange() {
+    if (_scaleOutputSessionController.busy) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('저울 라벨 발행이 끝난 뒤 변경해 주세요.')),
+        );
+      }
+      return true;
+    }
+    if (_scaleOutputSessionController.connectionState ==
+        ScaleOutputConnectionState.connecting) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('저울 연결 처리가 끝난 뒤 변경해 주세요.')),
+        );
+      }
+      return true;
+    }
+    if (_scaleOutputPageController.hasActiveEditing) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('저울출력 편집을 완료한 뒤 변경해 주세요.')),
+        );
+      }
+      return true;
     }
     return false;
   }
@@ -1727,54 +1785,23 @@ class _HomePageManagerState extends State<HomePageManager> {
         traceId: traceId,
       );
       if (confirmed != true || !mounted) return;
-      try {
-        _logItemDraftCancelDebug(
-          'cancel branch=sqlite restore start backup=${_itemDraftBackup != null}',
-          traceId: traceId,
-        );
-        final backup = _itemDraftBackup;
-        if (backup == null) {
-          throw StateError('변경 취소용 SQLite 백업이 없습니다.');
-        }
-        final snapshot = await backup.readSnapshot();
-        controller.restoreBackup(
-          fullImport: snapshot.mode == ItemManagerDraftBackupMode.fullImport,
-          itemNames: snapshot.itemNames,
-          elements: snapshot.elements,
-          cells: snapshot.cells,
-          orders: snapshot.orders,
-          addedRowKeys: snapshot.addedRowKeys,
-          deletedRows: snapshot.deletedRows,
-          deletedColumns: snapshot.deletedColumns,
-          selectedRowKeys: snapshot.selectedRowKeys,
-          anchorRowKey: snapshot.anchorRowKey,
-        );
-        await backup.clear();
-        _logItemDraftCancelDebug(
-          'cancel branch=sqlite restore completed',
-          traceId: traceId,
-        );
-      } catch (error) {
-        debugLog(
-          '[$_itemDraftCancelDebugVersion] trace=$traceId '
-          'event=sqlite restore failed error=$error',
-        );
-        if (mounted) _showItemDraftError('변경 취소 실패', error);
+      final selectedItemId = _selectedItemOfMarket?.item.itemId;
+      final fallbackIndex = _selectedItemIndex;
+      _logItemDraftCancelDebug(
+        'cancel branch=reload start selectedItemId=$selectedItemId fallbackIndex=$fallbackIndex',
+        traceId: traceId,
+      );
+      final reloaded = await _reloadItemDraftFromDatabase(
+        selectedItemId: selectedItemId,
+        fallbackIndex: fallbackIndex,
+      );
+      _logItemDraftCancelDebug(
+        'cancel branch=reload completed loaded=$reloaded',
+        traceId: traceId,
+      );
+      if (!reloaded) {
         return;
       }
-      final anchorRowKey = controller.anchorRowKey;
-      final selectedIndex = anchorRowKey == null
-          ? -1
-          : controller.rows.indexWhere((row) => row.rowKey == anchorRowKey);
-      if (selectedIndex >= 0) {
-        _selectedItemIndex = selectedIndex;
-        _selectedItemOfMarket = controller.rows[selectedIndex].source;
-      } else {
-        _selectedItemIndex = null;
-        _selectedItemOfMarket = null;
-      }
-      _resetTabs();
-      setState(() {});
     } finally {
       _logItemDraftCancelDebug(
         'cancel finished originalController=${identityHashCode(controller)} currentController=${_itemDraftController == null ? 'null' : identityHashCode(_itemDraftController!)}',
@@ -1909,14 +1936,6 @@ class _HomePageManagerState extends State<HomePageManager> {
       );
       final result = await ItemManagerSaveDAO.save(command);
       dbSaveCompleted = true;
-      try {
-        await _itemDraftBackup?.clear();
-      } catch (error, stackTrace) {
-        DebugLogger.log(
-          'Item draft backup cleanup failed after DB save: '
-          '$error\n$stackTrace',
-        );
-      }
       ItemManagerDebugLog.event(
         'save',
         'transactionCompleted',
@@ -1996,6 +2015,7 @@ class _HomePageManagerState extends State<HomePageManager> {
     final controller = _itemDraftController;
     if (controller == null ||
         User.instance?.canEdit != true ||
+        _itemManageController.hasActiveEditing ||
         controller.isDirty ||
         _itemDraftCommandBusy) {
       ItemManagerDebugLog.event('xlsxImport', 'blocked', trace: trace);
@@ -2074,14 +2094,7 @@ class _HomePageManagerState extends State<HomePageManager> {
           return;
         }
       }
-      await (await _ensureItemDraftBackup()).captureFullImport(controller);
-      final imported = controller.replaceAllWithImportedRows(
-        result.rows,
-        importViewState: ItemManagerImportViewState(
-          selectedItemId: _selectedItemOfMarket?.item.itemId,
-          selectedIndex: _selectedItemIndex,
-        ),
-      );
+      final imported = controller.replaceAllWithImportedRows(result.rows);
       final labelSize = _currentLabelSize;
       final marketId = Market.instance?.marketId;
       if (labelSize != null && marketId != null) {
@@ -2122,7 +2135,10 @@ class _HomePageManagerState extends State<HomePageManager> {
   Future<void> _exportItemManagerXlsx() async {
     final trace = ItemManagerDebugLog.nextTrace('xlsxExport');
     final controller = _itemDraftController;
-    if (controller == null || controller.isDirty || _itemDraftCommandBusy) {
+    if (controller == null ||
+        _itemManageController.hasActiveEditing ||
+        controller.isDirty ||
+        _itemDraftCommandBusy) {
       return;
     }
     if (controller.rows.isEmpty) {
@@ -2443,7 +2459,7 @@ class _HomePageManagerState extends State<HomePageManager> {
     );
   }
 
-  void _resetTabs() {
+  void _resetTabs({bool syncPreview = true}) {
     final selectedTabValue = _selectedTabValue();
     debugLog(
       'selectedTabValue=$selectedTabValue, '
@@ -2452,7 +2468,9 @@ class _HomePageManagerState extends State<HomePageManager> {
     _tabController = _createTabController();
     _restoreSelectedTab(selectedTabValue);
     setState(() {});
-    _syncPreviewWindowWithSelectedTab();
+    if (syncPreview) {
+      _syncPreviewWindowWithSelectedTab();
+    }
     _maybeAutoSelectCommonLabel();
   }
 
@@ -2468,7 +2486,7 @@ class _HomePageManagerState extends State<HomePageManager> {
       trace: trace,
       fields: {'generation': generation},
     );
-    _resetTabs();
+    _resetTabs(syncPreview: false);
     await completer.future;
     if (!mounted || generation != _itemManagerReadyGeneration) return false;
     final finalFrame = Completer<void>();
@@ -2485,6 +2503,7 @@ class _HomePageManagerState extends State<HomePageManager> {
     if (identical(_itemManagerReadyCompleter, completer)) {
       _itemManagerReadyCompleter = null;
     }
+    _syncPreviewWindowWithSelectedTab();
     return true;
   }
 
@@ -2550,10 +2569,19 @@ class _HomePageManagerState extends State<HomePageManager> {
     final leavingItems = currentTabValue == 'items' && tab?.value != 'items';
     final leavingAutoUpdate =
         currentTabValue == 'auto_update' && tab?.value != 'auto_update';
-    final blocked = switch ((leavingItems, leavingAutoUpdate, tab?.value)) {
-      (true, _, 'label_print') => _blockLabelPrintTabSelection(),
-      (true, _, _) => _blockItemDraftContextChange(),
-      (_, true, _) => _blockAutoItemUpdateContextChange(),
+    final leavingScaleOutput =
+        currentTabValue == 'scale_output' && tab?.value != 'scale_output';
+    final blocked = switch ((
+      leavingItems,
+      leavingAutoUpdate,
+      leavingScaleOutput,
+      tab?.value,
+    )) {
+      (true, _, _, 'label_print') => _blockLabelPrintTabSelection(),
+      (true, _, _, 'scale_output') => _blockScaleOutputTabSelection(),
+      (true, _, _, _) => _blockItemDraftContextChange(),
+      (_, true, _, _) => _blockAutoItemUpdateContextChange(),
+      (_, _, true, _) => _blockScaleOutputContextChange(),
       _ => false,
     };
     if (blocked) {
@@ -2586,6 +2614,9 @@ class _HomePageManagerState extends State<HomePageManager> {
     }
     if (mounted) {
       setState(() {});
+    }
+    if (tab?.value == 'auto_update' && _autoItemUpdateDraftController == null) {
+      unawaited(_ensureAutoItemUpdateDraftLoaded());
     }
     _logItemDraftCancelDebug(
       'tabSelection completed value=${tab?.value}',
@@ -2716,10 +2747,7 @@ class _HomePageManagerState extends State<HomePageManager> {
     try {
       await LabelColumnSaveDao.saveDialogAndReload(
         command,
-        reload: () => _handleLabelSizeChanged(
-          labelSize,
-          forceReload: true,
-        ),
+        reload: () => _handleLabelSizeChanged(labelSize, forceReload: true),
       );
     } finally {
       if (mounted) setState(() => _labelColumnEditCommandBusy = false);
@@ -2771,8 +2799,8 @@ class _HomePageManagerState extends State<HomePageManager> {
     final setup = labelSize?.labelSizeSetup;
     if (labelSize == null ||
         setup == null ||
-      _itemDraftCommandBusy ||
-      _itemDraftController?.isDirty == true) {
+        _itemDraftCommandBusy ||
+        _itemDraftController?.isDirty == true) {
       ItemManagerDebugLog.event('dateSetup', 'blocked', trace: trace);
       return;
     }
@@ -2961,6 +2989,7 @@ class _HomePageManagerState extends State<HomePageManager> {
       _publishCheckedItemIds = Set<int>.unmodifiable(itemIds);
     });
     _syncLabelPrintRows();
+    _syncScaleOutputRows();
   }
 
   void _syncLabelPrintRows() {
@@ -2992,6 +3021,49 @@ class _HomePageManagerState extends State<HomePageManager> {
     );
   }
 
+  void _syncScaleOutputRows() {
+    final labelSize = _effectiveLabelSize;
+    final draftController = _itemDraftController;
+    final items = ItemOfMarket.datas ?? const <ItemOfMarket>[];
+    if (labelSize == null || draftController == null) {
+      _scaleOutputSessionController.syncCheckedItems(
+        baselineItems: const <ItemOfMarket>[],
+        checkedItemIds: const <int>{},
+        createRow: (_) => throw StateError('저울출력 baseline이 없습니다.'),
+      );
+      return;
+    }
+    final columns = TColumn.datas ?? const <TColumn>[];
+    final weightColumnId = scaleOutputColumnIdForKeyword(columns, 'WEIGHT');
+    final priceBaseColumnId = scaleOutputColumnIdForKeyword(columns, 'TPRICE');
+    _scaleOutputSessionController.syncCheckedItems(
+      baselineItems: items,
+      checkedItemIds: _publishCheckedItemIds,
+      createRow: (item) => ScaleOutputRowDraft.fromBaseline(
+        item: item,
+        labelSize: labelSize,
+        copies: resolveLabelPrintCopies(
+          item: item,
+          columns: columns,
+          columnContents: draftController.scopedColumnContents,
+        ),
+        settings: _scaleOutputSessionController.settings,
+        defaultWeightText: weightColumnId == null
+            ? ''
+            : draftController.scopedColumnContents.value(
+                weightColumnId,
+                item.item.itemId,
+              ),
+        priceBaseText: priceBaseColumnId == null
+            ? ''
+            : draftController.scopedColumnContents.value(
+                priceBaseColumnId,
+                item.item.itemId,
+              ),
+      ),
+    );
+  }
+
   List<TabData> _buildTabs() {
     final itemManagerReadyGeneration = _itemManagerReadyGeneration;
     final commonLabelSizeId = _effectiveLabelSize?.labelSizeId;
@@ -3008,8 +3080,7 @@ class _HomePageManagerState extends State<HomePageManager> {
         content: ItemManage(
           key: ValueKey('items:$_labelContentKey'),
           controller: _itemManageController,
-          onReady: () =>
-            _handleItemManagerReady(itemManagerReadyGeneration),
+          onReady: () => _handleItemManagerReady(itemManagerReadyGeneration),
           items: ItemOfMarket.datas ?? const <ItemOfMarket>[],
           selectedIndex: _selectedItemIndex,
           onRowSelected: _handleItemRowSelected,
@@ -3019,32 +3090,26 @@ class _HomePageManagerState extends State<HomePageManager> {
           marketId: Market.instance?.marketId,
           emptyElementPayload: _itemDraftEmptyElementPayload,
           onExcelImport: User.instance?.canEdit != true
-            ? null
-            : _importItemManagerXlsx,
+              ? null
+              : _importItemManagerXlsx,
           onExcelExport: _exportItemManagerXlsx,
           onQrDataView: _showItemQrData,
           onItemOrderChange:
-            _effectiveLabelSize != null &&
-              User.instance?.canEdit == true &&
-              (ItemOfMarket.datas?.length ?? 0) >= 2
-            ? _changeItemOrder
-            : null,
+              _effectiveLabelSize != null &&
+                  User.instance?.canEdit == true &&
+                  (ItemOfMarket.datas?.length ?? 0) >= 2
+              ? _changeItemOrder
+              : null,
           itemOrderDisabledReason: User.instance?.canEdit != true
-            ? '편집 권한이 없습니다.'
-            : (ItemOfMarket.datas?.length ?? 0) < 2
-            ? '순서를 바꾸려면 품목이 2개 이상 필요합니다.'
-            : null,
+              ? '편집 권한이 없습니다.'
+              : (ItemOfMarket.datas?.length ?? 0) < 2
+              ? '순서를 바꾸려면 품목이 2개 이상 필요합니다.'
+              : null,
           onCancelDraft: _cancelItemDraft,
           onSaveDraft: _saveItemDraft,
-          onBeforeItemNameChange: _backupItemName,
-          onBeforeColumnChange: _backupItemColumn,
-          onBeforeRowsReordered: _backupItemOrders,
-          onBeforeRowsDeleted: _backupDeletedItemRows,
-          onRowsAdded: _recordAddedItemRows,
           commandBusy: _itemDraftCommandBusy,
           canEdit: User.instance?.canManageItemStructure == true,
-          onPublishCheckedItemIdsChanged:
-              _handlePublishCheckedItemIdsChanged,
+          onPublishCheckedItemIdsChanged: _handlePublishCheckedItemIdsChanged,
         ),
         closable: false,
         keepAlive: true,
@@ -3063,11 +3128,10 @@ class _HomePageManagerState extends State<HomePageManager> {
                   onBeforeSheetDialog: _handleCommonLabelSheetDialogOpening,
                   onSheetDialogClosed: _handleCommonLabelSheetDialogClosed,
                   imageImportController: _commonLabelImageImportController,
-                    editingLifecycleController:
+                  editingLifecycleController:
                       _commonLabelEditingLifecycleController,
                   onSheetDirtyChanged: (dirty) {
-                    final currentLabelSizeId =
-                        _effectiveLabelSize?.labelSizeId;
+                    final currentLabelSizeId = _effectiveLabelSize?.labelSizeId;
                     if (!commonLabelSheetDirtyChangeBelongsToCurrentSession(
                       sourceLabelSizeId: commonLabelSizeId,
                       currentLabelSizeId: currentLabelSizeId,
@@ -3119,10 +3183,7 @@ class _HomePageManagerState extends State<HomePageManager> {
           sourceReady: _autoItemUpdateSourceReady,
           commandBusy: _autoItemUpdateCommandBusy,
           canEdit: User.instance?.canEdit == true,
-          onBeforeApplyDateChange: _backupAutoItemUpdateApplyDate,
-          onBeforeCellChange: _backupAutoItemUpdateCell,
           onDeleteRows: _deleteAutoItemUpdateRows,
-          onApplyStagedRows: _applyAutoItemUpdateStagedRows,
           onRefresh: _refreshAutoItemUpdateDraft,
           onCancelDraft: _cancelAutoItemUpdateDraft,
           onSaveDraft: _saveAutoItemUpdateDraft,
@@ -3133,7 +3194,19 @@ class _HomePageManagerState extends State<HomePageManager> {
       TabData(
         value: 'scale_output',
         text: '저울출력',
-        content: const _PlaceholderTab(title: '저울출력'),
+        content: ScaleOutputPage(
+          controller: _scaleOutputSessionController,
+          pageController: _scaleOutputPageController,
+          previewBuilder: _buildScaleOutputPreview,
+          onPrinterSettings: _openScaleOutputPrinterSettings,
+          onScaleSettings: _openScaleConnectSettings,
+          onIssue: _issueScaleOutput,
+          onCancelIssue: _cancelScaleOutput,
+          onConnect: _connectScaleOutput,
+          onDisconnect: _disconnectScaleOutput,
+          useScale: _effectiveLabelSize?.labelSizeSetup?.useScale ?? false,
+          busy: _scaleOutputSessionController.busy,
+        ),
         closable: false,
         keepAlive: true,
       ),
@@ -3213,7 +3286,8 @@ class _HomePageManagerState extends State<HomePageManager> {
         selected = _selectedItemOfMarket;
         if (selected != null) {
           rowIdentity =
-              _itemDraftController?.anchorRowKey ?? 'item:${selected.item.itemId}';
+              _itemDraftController?.anchorRowKey ??
+              'item:${selected.item.itemId}';
         }
         onElementCommitted = _commitItemElementDraft;
         canSelectOutputPreview = () => !_blockItemDraftContextChange();
@@ -3332,10 +3406,6 @@ class _HomePageManagerState extends State<HomePageManager> {
     final controller = _itemDraftController;
     if (controller == null) {
       throw StateError('품목 draft가 없습니다.');
-    }
-    final row = controller.rows.firstWhere((row) => row.rowKey == rowKey);
-    if (row.sourceItemId != null) {
-      await (await _ensureItemDraftBackup()).captureElement(row);
     }
     controller.updateElement(
       rowKey,
@@ -3893,13 +3963,15 @@ class _HomePageManagerState extends State<HomePageManager> {
       readyCompleter.complete();
     }
     widget.onItemDraftDirtyChanged?.call(false);
-    unawaited(_itemDraftBackup?.close() ?? Future<void>.value());
-    unawaited(_autoItemUpdateDraftBackup?.close() ?? Future<void>.value());
     _itemDraftController?.removeListener(_handleItemDraftDirtyChanged);
     _itemDraftController?.dispose();
     _autoItemUpdateDraftController?.dispose();
     _closeLabelPrintProgressDialog();
+    _closeScaleOutputProgressDialog();
+    unawaited(_scaleConnectionService.disconnect());
     _labelPrintSessionController.dispose();
+    _scaleOutputSessionController.removeListener(_handleScaleOutputChanged);
+    _scaleOutputSessionController.dispose();
     _rtfPreviewResizeDebounce?.cancel();
     _rtfPreviewResizeFinalizeTimer?.cancel();
     _itemPreviewWindow?.dispose();
@@ -3920,22 +3992,21 @@ class _HomePageManagerState extends State<HomePageManager> {
     final query = _tabSearchController.text.trim();
     if (query.isEmpty) return;
     if (_selectedTabValue() == 'label_print') {
-      final found = _labelPrintSessionController.selectNextExact(
-        query,
-        (row) sync* {
-          yield row.item.item.itemName;
-          final draftController = _itemDraftController;
-          if (draftController == null) return;
-          for (final column in TColumn.datas ?? const <TColumn>[]) {
-            if (column.searchPrint) {
-              yield draftController.scopedColumnContents.value(
-                column.columnId,
-                row.itemId,
-              );
-            }
+      final found = _labelPrintSessionController.selectNextExact(query, (
+        row,
+      ) sync* {
+        yield row.item.item.itemName;
+        final draftController = _itemDraftController;
+        if (draftController == null) return;
+        for (final column in TColumn.datas ?? const <TColumn>[]) {
+          if (column.searchPrint) {
+            yield draftController.scopedColumnContents.value(
+              column.columnId,
+              row.itemId,
+            );
           }
-        },
-      );
+        }
+      });
       if (found || !mounted) return;
       await showDialog<void>(
         context: context,
@@ -3982,21 +4053,21 @@ class _HomePageManagerState extends State<HomePageManager> {
     final columns = TColumn.datas ?? const <TColumn>[];
     final specialColumns = TColumnSpecial.datas ?? const <TColumnBase>[];
     final renderUnit = _labelPrintRenderUnit?.row.itemId == row.itemId
-      ? _labelPrintRenderUnit
-      : null;
+        ? _labelPrintRenderUnit
+        : null;
     final referenceAt = renderUnit == null
-      ? DateTime.now()
-      : _labelPrintRenderReferenceAt!;
-    final projectedColumnValues = renderUnit?.projectedColumnValues ??
-      projectLabelPrintColumnValues(
-        itemId: row.itemId,
-        copyIndex: 0,
-        columns: columns,
-        columnContents:
-          TColumnContent.datas ??
-          const <ColumnItemKey, TColumnContent>{},
-        referenceAt: referenceAt,
-      );
+        ? DateTime.now()
+        : _labelPrintRenderReferenceAt!;
+    final projectedColumnValues =
+        renderUnit?.projectedColumnValues ??
+        projectLabelPrintColumnValues(
+          itemId: row.itemId,
+          copyIndex: 0,
+          columns: columns,
+          columnContents:
+              TColumnContent.datas ?? const <ColumnItemKey, TColumnContent>{},
+          referenceAt: referenceAt,
+        );
     return _ItemOutputPreviewTab(
       key: ValueKey('label-print-preview:${row.itemId}'),
       item: row.item,
@@ -4017,8 +4088,75 @@ class _HomePageManagerState extends State<HomePageManager> {
       outputCaptureController: _labelPrintCaptureController,
       referenceAt: referenceAt,
       projectedColumnValues: projectedColumnValues,
-        zoomToolbarPlacement: LabelSheetZoomToolbarPlacement.hidden,
-        zoomController: zoomController,
+      zoomToolbarPlacement: LabelSheetZoomToolbarPlacement.hidden,
+      zoomController: zoomController,
+    );
+  }
+
+  Map<int, String> _scaleOutputProjectedColumnValues(
+    ScaleOutputRowDraft row, {
+    ScaleOutputUnit? renderUnit,
+    required DateTime referenceAt,
+  }) {
+    final columns = TColumn.datas ?? const <TColumn>[];
+    final base = renderUnit?.projectedColumnValues ??
+        projectLabelPrintColumnValues(
+          itemId: row.itemId,
+          copyIndex: 0,
+          columns: columns,
+          columnContents:
+              TColumnContent.datas ?? const <ColumnItemKey, TColumnContent>{},
+          referenceAt: referenceAt,
+        );
+    return <int, String>{
+      ...base,
+      ...scaleOutputProjectedSpecialValues(
+        item: row.item,
+        weightText: renderUnit?.row.weightText ?? row.weightText,
+        priceText: renderUnit?.row.priceText ?? row.priceText,
+      ),
+    };
+  }
+
+  Widget _buildScaleOutputPreview(
+    ScaleOutputRowDraft row,
+    LabelSheetZoomController zoomController,
+  ) {
+    final columns = TColumn.datas ?? const <TColumn>[];
+    final specialColumns = TColumnSpecial.datas ?? const <TColumnBase>[];
+    final renderUnit = _scaleOutputRenderUnit?.row.itemId == row.itemId
+        ? _scaleOutputRenderUnit
+        : null;
+    final referenceAt = renderUnit == null
+        ? DateTime.now()
+        : _scaleOutputRenderReferenceAt!;
+    final projectedColumnValues = _scaleOutputProjectedColumnValues(
+      row,
+      renderUnit: renderUnit,
+      referenceAt: referenceAt,
+    );
+    return _ItemOutputPreviewTab(
+      key: ValueKey('scale-output-preview:${row.itemId}:${row.weightText}:${row.priceText}'),
+      item: row.item,
+      elementText: row.item.item.element,
+      elementWorkbook: _itemElementWorkbook(
+        row.item.item.element,
+        _effectiveLabelSize,
+      ),
+      labelSize: _effectiveLabelSize,
+      imageObjectIds: _itemPreviewImageObjectIdsFor([
+        ...specialColumns,
+        ...columns,
+      ]),
+      barcodeObjectIds: _itemPreviewBarcodeObjectIdsFor([
+        ...specialColumns,
+        ...columns,
+      ]),
+      outputCaptureController: _scaleOutputCaptureController,
+      referenceAt: referenceAt,
+      projectedColumnValues: projectedColumnValues,
+      zoomToolbarPlacement: LabelSheetZoomToolbarPlacement.hidden,
+      zoomController: zoomController,
     );
   }
 
@@ -4031,6 +4169,88 @@ class _HomePageManagerState extends State<HomePageManager> {
     await saveLabelPrintSettingsSnapshot(settings);
     if (!mounted) return;
     _labelPrintSessionController.applySettings(settings);
+  }
+
+  Future<void> _openScaleOutputPrinterSettings() async {
+    final labelSizeId = _effectiveLabelSize?.labelSizeId;
+    if (labelSizeId == null) return;
+    final settings = await showLabelPrintSettingsDialog(
+      context: context,
+      initial: _scaleOutputSessionController.settings,
+    );
+    if (!mounted || settings == null) return;
+    await ScaleOutputPrintSettingsStore.save(labelSizeId, settings);
+    if (!mounted) return;
+    _scaleOutputSessionController.applySettings(settings);
+  }
+
+  Future<void> _openScaleConnectSettings() async {
+    if (_scaleOutputSessionController.connectionState ==
+            ScaleOutputConnectionState.connected ||
+        _scaleOutputSessionController.connectionState ==
+            ScaleOutputConnectionState.connecting) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            const SnackBar(content: Text('저울 연결을 해제한 뒤 설정을 변경해 주세요.')),
+          );
+      }
+      return;
+    }
+    final settings = await showScaleConnectSettingsDialog(
+      context: context,
+      initial: _scaleOutputSessionController.connectInfo,
+      availablePorts: _scaleConnectionService.availablePorts(),
+    );
+    if (!mounted || settings == null) return;
+    await DbScaleConnectInfoHelper.saveConnectInfo(settings);
+    if (!mounted) return;
+    _scaleOutputSessionController.updateConnectInfo(settings);
+  }
+
+  Future<void> _connectScaleOutput() async {
+    final info = _scaleOutputSessionController.connectInfo;
+    _scaleOutputSessionController.setConnectionState(
+      ScaleOutputConnectionState.connecting,
+      statusText: '연결 중',
+      portName: info.portName,
+    );
+    try {
+      await _scaleConnectionService.connect(
+        info: info,
+        onWeight: (rawWeight) {
+          if (!mounted) return;
+          _scaleOutputSessionController.applyIncomingWeight(rawWeight);
+        },
+      );
+      if (!mounted) return;
+      _scaleOutputSessionController.setConnectionState(
+        ScaleOutputConnectionState.connected,
+        statusText: '연결됨',
+        portName: info.portName,
+      );
+    } catch (error) {
+      if (!mounted) return;
+      _scaleOutputSessionController.setConnectionState(
+        ScaleOutputConnectionState.error,
+        statusText: '$error',
+        portName: info.portName,
+      );
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text('저울 연결에 실패했습니다: $error')));
+    }
+  }
+
+  Future<void> _disconnectScaleOutput() async {
+    await _scaleConnectionService.disconnect();
+    if (!mounted) return;
+    _scaleOutputSessionController.setConnectionState(
+      ScaleOutputConnectionState.disconnected,
+      statusText: '연결 안 됨',
+      portName: _scaleOutputSessionController.connectInfo.portName,
+    );
   }
 
   Future<void> _issueLabelPrint() async {
@@ -4075,13 +4295,10 @@ class _HomePageManagerState extends State<HomePageManager> {
       final dpi = printerDpi?.toDouble() ?? profile.dpi ?? 203;
       final rows = _labelPrintSessionController.rows;
       final columns = List<TColumn>.unmodifiable(
-        [...TColumn.datas ?? const <TColumn>[]]
-          ..sort((left, right) {
-            final order = left.order.compareTo(right.order);
-            return order != 0
-                ? order
-                : left.columnId.compareTo(right.columnId);
-          }),
+        [...TColumn.datas ?? const <TColumn>[]]..sort((left, right) {
+          final order = left.order.compareTo(right.order);
+          return order != 0 ? order : left.columnId.compareTo(right.columnId);
+        }),
       );
       final columnContents = Map<ColumnItemKey, TColumnContent>.unmodifiable(
         TColumnContent.datas ?? const <ColumnItemKey, TColumnContent>{},
@@ -4172,7 +4389,9 @@ class _HomePageManagerState extends State<HomePageManager> {
           hybridCaptures[unit] = hybrid;
         }
         final errors = capturedSheet.images
-            .map((image) => image.extraFields['itemCodeError']?.toString().trim())
+            .map(
+              (image) => image.extraFields['itemCodeError']?.toString().trim(),
+            )
             .whereType<String>()
             .where((message) => message.isNotEmpty)
             .toList();
@@ -4192,20 +4411,17 @@ class _HomePageManagerState extends State<HomePageManager> {
         resolvedMetrics[unit] = metrics;
       }
 
-      final groups = groupAdjacentLabelPrintUnits(
-        units,
-        (unit) {
-          final metrics = resolvedMetrics[unit]!;
-          return LabelPhysicalPageSpec(
-            widthMm: unit.row.widthMm,
-            heightMm: unit.row.heightMm,
-            sourceWidthMm: metrics.effectiveSourceWidthMm,
-            sourceHeightMm: metrics.effectiveSourceHeightMm,
-            dpi: dpi,
-            backend: backend,
-          );
-        },
-      );
+      final groups = groupAdjacentLabelPrintUnits(units, (unit) {
+        final metrics = resolvedMetrics[unit]!;
+        return LabelPhysicalPageSpec(
+          widthMm: unit.row.widthMm,
+          heightMm: unit.row.heightMm,
+          sourceWidthMm: metrics.effectiveSourceWidthMm,
+          sourceHeightMm: metrics.effectiveSourceHeightMm,
+          dpi: dpi,
+          backend: backend,
+        );
+      });
       final payloads = <LabelPrintJobGroup, List<int>>{};
       for (final group in groups) {
         if (backend == LabelPrintBackend.pdf) {
@@ -4260,10 +4476,11 @@ class _HomePageManagerState extends State<HomePageManager> {
         columnContents: columnContents,
         referenceAt: requestedAt,
       );
-      final historyParents = labelPrintHistoryEnabledForUserId(
-        commandUser.userId,
-        systemUserId: User.SYSTEM,
-      )
+      final historyParents =
+          labelPrintHistoryEnabledForUserId(
+            commandUser.userId,
+            systemUserId: User.SYSTEM,
+          )
           ? buildLabelPrintHistoryParents(
               acceptedUnits: acceptedUnits,
               columns: columns,
@@ -4286,16 +4503,14 @@ class _HomePageManagerState extends State<HomePageManager> {
               ),
             )
           : const <Map<String, Object?>>[];
-      final persistence = await LabelPrintPersistenceService()
-          .save(
-            values: autoIncrementValues,
-            historyParents: historyParents,
-          );
+      final persistence = await LabelPrintPersistenceService().save(
+        values: autoIncrementValues,
+        historyParents: historyParents,
+      );
       if (persistence.state == LabelPrintPersistenceState.succeeded &&
           persistence.committedAutoIncrementValues.isNotEmpty) {
         final nextContents = <ColumnItemKey, TColumnContent>{...columnContents};
-        for (final entry
-            in persistence.committedAutoIncrementValues.entries) {
+        for (final entry in persistence.committedAutoIncrementValues.entries) {
           final previous = nextContents[entry.key];
           if (previous == null) continue;
           nextContents[entry.key] = TColumnContent(
@@ -4320,8 +4535,9 @@ class _HomePageManagerState extends State<HomePageManager> {
           '인쇄 작업은 접수되었으나 ${_labelPrintPersistenceTarget(autoIncrementValues, historyParents)}을 저장하지 못했습니다: ${persistence.error}',
         LabelPrintPersistenceState.outcomeUnknown =>
           '인쇄 작업은 접수되었으나 ${_labelPrintPersistenceTarget(autoIncrementValues, historyParents)}의 저장 결과를 확인할 수 없습니다: ${persistence.error}',
-        _ when _labelPrintSessionController.cancellationRequested &&
-            acceptedUnits.length < units.length =>
+        _
+            when _labelPrintSessionController.cancellationRequested &&
+                acceptedUnits.length < units.length =>
           '라벨 발행을 취소했습니다. 접수 매수: ${acceptedUnits.length}',
         _ when dispatchError != null && acceptedUnits.isNotEmpty =>
           '라벨 일부만 접수되었습니다. 접수 매수: ${acceptedUnits.length}, 오류: $dispatchError',
@@ -4350,6 +4566,373 @@ class _HomePageManagerState extends State<HomePageManager> {
 
   void _cancelLabelPrint() => _labelPrintSessionController.requestCancel();
 
+  Future<void> _issueScaleOutput() async {
+    if (!_scaleOutputSessionController.beginIssue()) return;
+    final rows = _scaleOutputSessionController.rows;
+    final useScale = _effectiveLabelSize?.labelSizeSetup?.useScale ?? false;
+    if (scaleOutputBlocksMultiIssue(useScale: useScale, rowCount: rows.length)) {
+      _scaleOutputSessionController.endIssue();
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            const SnackBar(content: Text('저울 라벨은 한 번에 하나의 품목만 발행할 수 있습니다.')),
+          );
+      }
+      return;
+    }
+    final selectedRow = _scaleOutputSessionController.selectedRow;
+    if (useScale && selectedRow != null) {
+      final needsConfirm = scaleOutputNeedsIssueConfirmation(
+        useScale: useScale,
+        isConnected: _scaleOutputSessionController.isConnected,
+        weightText: selectedRow.weightText,
+      );
+      if (needsConfirm) {
+        final proceed = await showDialog<bool>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            title: const Text('발행 확인'),
+            content: const Text('저울이 연결되지 않았거나 중량이 비어 있습니다. 계속 발행하시겠습니까?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(false),
+                child: const Text('취소'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(dialogContext).pop(true),
+                child: const Text('확인'),
+              ),
+            ],
+          ),
+        );
+        if (proceed != true) {
+          _scaleOutputSessionController.endIssue();
+          return;
+        }
+      }
+    }
+
+    final originalSelection = _scaleOutputSessionController.selectedItemId;
+    final requestedAt = DateTime.now();
+    _scaleOutputRenderReferenceAt = requestedAt;
+    try {
+      final settings = _scaleOutputSessionController.settings;
+      final commandUser = User.instance;
+      final commandMarket = Market.instance;
+      final commandCustomer = Customer.instance;
+      final commandBrand = widget.selectedBrand;
+      final commandLabelSize = _effectiveLabelSize;
+      if (commandUser == null ||
+          commandMarket == null ||
+          commandCustomer == null ||
+          commandBrand == null ||
+          commandLabelSize == null) {
+        throw StateError('저울출력 기준 정보를 확인할 수 없습니다.');
+      }
+      final printerName = settings.printerName?.trim() ?? '';
+      final printers = await Printing.listPrinters();
+      final printer = printers.firstWhereOrNull(
+        (candidate) =>
+            candidate.name.trim().toLowerCase() == printerName.toLowerCase(),
+      );
+      if (printer == null) {
+        throw StateError('발행할 프린터를 찾을 수 없습니다.');
+      }
+      final profile = detectPrinterProfile(printer);
+      final portName = Platform.isWindows
+          ? await RawPrinterWin32.queryPrinterPortName(printer)
+          : null;
+      final backend = resolveLabelPrintBackend(
+        language: profile.language,
+        portName: portName,
+      );
+      final printerDpi = Platform.isWindows
+          ? await RawPrinterWin32.queryPrinterDpi(printer)
+          : null;
+      final dpi = printerDpi?.toDouble() ?? profile.dpi ?? 203;
+      final columns = List<TColumn>.unmodifiable(
+        [...TColumn.datas ?? const <TColumn>[]]..sort((left, right) {
+          final order = left.order.compareTo(right.order);
+          return order != 0 ? order : left.columnId.compareTo(right.columnId);
+        }),
+      );
+      final columnContents = Map<ColumnItemKey, TColumnContent>.unmodifiable(
+        TColumnContent.datas ?? const <ColumnItemKey, TColumnContent>{},
+      );
+      final units = expandScaleOutputUnits(
+        rows,
+        referenceAt: requestedAt,
+        columns: columns,
+        columnContents: columnContents,
+      );
+      if (units.isEmpty) {
+        throw StateError('전체 발행매수는 1 이상이어야 합니다.');
+      }
+
+      _scaleOutputSessionController.reportIssueUnit(
+        unitNumber: 1,
+        totalUnits: units.length,
+      );
+      _openScaleOutputProgressDialog();
+
+      final renderedPages = <ScaleOutputUnit, LabelSheetRenderedPage>{};
+      final hybridCaptures = <ScaleOutputUnit, LabelSheetHybridEzplCapture>{};
+      final resolvedMetrics = <ScaleOutputUnit, LabelSheetPrintPageMetrics>{};
+      for (var unitIndex = 0; unitIndex < units.length; unitIndex += 1) {
+        if (_scaleOutputSessionController.cancellationRequested) {
+          if (mounted) {
+            ScaffoldMessenger.of(context)
+              ..hideCurrentSnackBar()
+              ..showSnackBar(
+                const SnackBar(content: Text('저울 라벨 발행을 취소했습니다. 접수 매수: 0')),
+              );
+          }
+          return;
+        }
+        _scaleOutputSessionController.reportIssueUnit(
+          unitNumber: unitIndex + 1,
+          totalUnits: units.length,
+        );
+        final unit = units[unitIndex];
+        _scaleOutputRenderUnit = unit;
+        _scaleOutputSessionController.selectItem(unit.row.itemId);
+        _scaleOutputSessionController.refreshPreview();
+        await WidgetsBinding.instance.endOfFrame;
+        await WidgetsBinding.instance.endOfFrame;
+        final options = _scaleOutputPrintOptions(unit.row, settings);
+        late final fs.FortuneSheet capturedSheet;
+        late final LabelSheetPrintPageMetrics metrics;
+        if (backend == LabelPrintBackend.pdf) {
+          final capture = await _scaleOutputCaptureController.capture(
+            dpi: dpi,
+            lineSpacingPercent: unit.row.lineSpacingPercent,
+          );
+          if (capture == null) {
+            throw StateError(
+              '${unit.row.item.item.itemName} 라벨 이미지를 생성할 수 없습니다.',
+            );
+          }
+          capturedSheet = capture.sheet;
+          metrics = LabelSheetPrintPageMetrics(
+            labelWidthMm: unit.row.widthMm,
+            labelHeightMm: unit.row.heightMm,
+            sourceWidthMm: capture.sourceWidthMm,
+            sourceHeightMm: capture.sourceHeightMm,
+            dpi: dpi,
+          );
+          renderedPages[unit] = LabelSheetRenderedPage(
+            pngBytes: capture.pngBytes,
+            metrics: metrics,
+            options: options,
+          );
+        } else {
+          final hybrid = await _scaleOutputCaptureController.captureHybridEzpl(
+            metrics: LabelSheetPrintPageMetrics(
+              labelWidthMm: unit.row.widthMm,
+              labelHeightMm: unit.row.heightMm,
+              dpi: dpi,
+            ),
+            options: options,
+            lineSpacingPercent: unit.row.lineSpacingPercent,
+          );
+          if (hybrid == null) {
+            throw StateError(
+              '${unit.row.item.item.itemName} 라벨 이미지를 생성할 수 없습니다.',
+            );
+          }
+          capturedSheet = hybrid.sheet;
+          metrics = hybrid.metrics;
+          hybridCaptures[unit] = hybrid;
+        }
+        final errors = capturedSheet.images
+            .map(
+              (image) => image.extraFields['itemCodeError']?.toString().trim(),
+            )
+            .whereType<String>()
+            .where((message) => message.isNotEmpty)
+            .toList();
+        if (errors.isNotEmpty) {
+          throw StateError(
+            '${unit.row.item.item.itemName} ${unit.copyIndex + 1}번째 라벨: ${errors.first}',
+          );
+        }
+        if (!LabelSheetPrintLayout.resolve(
+          metrics: metrics,
+          options: options,
+        ).hasContentIntersection) {
+          throw StateError(
+            '${unit.row.item.item.itemName}의 출력 영역과 라벨 영역이 겹치지 않습니다.',
+          );
+        }
+        resolvedMetrics[unit] = metrics;
+      }
+
+      final labelUnits = [for (final unit in units) unit.toLabelPrintUnit()];
+      final groups = groupAdjacentLabelPrintUnits(labelUnits, (unit) {
+        final sourceUnit = units[labelUnits.indexOf(unit)];
+        final metrics = resolvedMetrics[sourceUnit]!;
+        return LabelPhysicalPageSpec(
+          widthMm: sourceUnit.row.widthMm,
+          heightMm: sourceUnit.row.heightMm,
+          sourceWidthMm: metrics.effectiveSourceWidthMm,
+          sourceHeightMm: metrics.effectiveSourceHeightMm,
+          dpi: dpi,
+          backend: backend,
+        );
+      });
+      final payloads = <LabelPrintJobGroup, List<int>>{};
+      final groupSourceUnits = <LabelPrintJobGroup, List<ScaleOutputUnit>>{};
+      var unitCursor = 0;
+      for (var groupIndex = 0; groupIndex < groups.length; groupIndex += 1) {
+        final group = groups[groupIndex];
+        final sourceUnits = units.sublist(unitCursor, unitCursor + group.units.length);
+        unitCursor += group.units.length;
+        groupSourceUnits[group] = sourceUnits;
+        if (backend == LabelPrintBackend.pdf) {
+          payloads[group] = await buildLabelSheetPdfGroupBytes([
+            for (final unit in sourceUnits) renderedPages[unit]!,
+          ]);
+        } else {
+          final bytes = BytesBuilder(copy: false);
+          for (final unit in sourceUnits) {
+            bytes.add(hybridCaptures[unit]!.bytes);
+          }
+          payloads[group] = bytes.takeBytes();
+        }
+      }
+
+      final acceptedUnits = <ScaleOutputUnit>[];
+      Object? dispatchError;
+      for (var groupIndex = 0; groupIndex < groups.length; groupIndex += 1) {
+        if (_scaleOutputSessionController.cancellationRequested) break;
+        final group = groups[groupIndex];
+        final sourceUnits = groupSourceUnits[group]!;
+        final payload = Uint8List.fromList(payloads[group]!);
+        var accepted = false;
+        try {
+          accepted = switch (backend) {
+            LabelPrintBackend.pdf => await Printing.directPrintPdf(
+              printer: printer,
+              name: 'ITSnG_Scale_${requestedAt.millisecondsSinceEpoch}',
+              format: PdfPageFormat(
+                group.pageSpec.widthMm * PdfPageFormat.mm,
+                (group.pageSpec.heightMm + settings.extraAreaMm) *
+                    PdfPageFormat.mm,
+                marginAll: 0,
+              ),
+              dynamicLayout: false,
+              onLayout: (_) async => payload,
+            ),
+            LabelPrintBackend.ezplRaw => await (() async {
+              await RawPrinterWin32.sendRaw(printer, payload);
+              return true;
+            })(),
+          };
+          if (!accepted) {
+            dispatchError = StateError('프린터가 인쇄 요청을 접수하지 않았습니다.');
+          }
+        } catch (error) {
+          dispatchError = error;
+        }
+        if (!accepted) break;
+        acceptedUnits.addAll(sourceUnits);
+      }
+
+      final acceptedLabelUnits = [for (final unit in acceptedUnits) unit.toLabelPrintUnit()];
+      final autoIncrementValues = buildAcceptedAutoIncrementValues(
+        acceptedUnits: acceptedLabelUnits,
+        columns: columns,
+        columnContents: columnContents,
+        referenceAt: requestedAt,
+      );
+      final historyParents = labelPrintHistoryEnabledForUserId(
+            commandUser.userId,
+            systemUserId: User.SYSTEM,
+          )
+          ? buildLabelPrintHistoryParents(
+              acceptedUnits: acceptedLabelUnits,
+              columns: columns,
+              columnContents: columnContents,
+              context: LabelPrintHistoryContext(
+                userId: commandUser.userId,
+                userName: commandUser.name,
+                userGradeCode: commandUser.grade.code,
+                userGradeLabel: commandUser.grade.label,
+                marketId: commandMarket.marketId,
+                marketName: commandMarket.name,
+                customerId: commandCustomer.customerId,
+                customerName: commandCustomer.customerName,
+                brandId: commandBrand.brandId,
+                brandName: commandBrand.brandName,
+                labelSizeId: commandLabelSize.labelSizeId,
+                labelSizeName: commandLabelSize.labelSizeName,
+                printerName: printer.name,
+                extraAreaMm: settings.extraAreaMm,
+              ),
+            )
+          : const <Map<String, Object?>>[];
+      final persistence = await LabelPrintPersistenceService().save(
+        values: autoIncrementValues,
+        historyParents: historyParents,
+      );
+      if (persistence.state == LabelPrintPersistenceState.succeeded &&
+          persistence.committedAutoIncrementValues.isNotEmpty) {
+        final nextContents = <ColumnItemKey, TColumnContent>{...columnContents};
+        for (final entry in persistence.committedAutoIncrementValues.entries) {
+          final previous = nextContents[entry.key];
+          if (previous == null) continue;
+          nextContents[entry.key] = TColumnContent(
+            colContentId: previous.colContentId,
+            columnId: previous.columnId,
+            itemId: previous.itemId,
+            editable: previous.editable,
+            dataString: entry.value,
+          );
+        }
+        final scopedView = TColumnContentScopedView(nextContents);
+        TColumnContent.setDatas(scopedView.values);
+        _itemDraftController?.replaceBaselineColumnContents(scopedView);
+      }
+      if (!mounted) return;
+      final message = switch (persistence.state) {
+        LabelPrintPersistenceState.failed =>
+          '인쇄 작업은 접수되었으나 ${_labelPrintPersistenceTarget(autoIncrementValues, historyParents)}을 저장하지 못했습니다: ${persistence.error}',
+        LabelPrintPersistenceState.outcomeUnknown =>
+          '인쇄 작업은 접수되었으나 ${_labelPrintPersistenceTarget(autoIncrementValues, historyParents)}의 저장 결과를 확인할 수 없습니다: ${persistence.error}',
+        _
+            when _scaleOutputSessionController.cancellationRequested &&
+                acceptedUnits.length < units.length =>
+          '저울 라벨 발행을 취소했습니다. 접수 매수: ${acceptedUnits.length}',
+        _ when dispatchError != null && acceptedUnits.isNotEmpty =>
+          '저울 라벨 일부만 접수되었습니다. 접수 매수: ${acceptedUnits.length}, 오류: $dispatchError',
+        _ when dispatchError != null => '저울 라벨 발행에 실패했습니다: $dispatchError',
+        _ => '저울 라벨 발행을 완료했습니다. 접수 매수: ${acceptedUnits.length}',
+      };
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(message)));
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            SnackBar(content: Text('저울 라벨 발행에 실패했습니다: $error')),
+          );
+      }
+    } finally {
+      _closeScaleOutputProgressDialog();
+      _scaleOutputRenderUnit = null;
+      _scaleOutputRenderReferenceAt = null;
+      if (originalSelection != null) {
+        _scaleOutputSessionController.selectItem(originalSelection);
+      }
+      _scaleOutputSessionController.endIssue();
+    }
+  }
+
+  void _cancelScaleOutput() => _scaleOutputSessionController.requestCancel();
+
   void _openLabelPrintProgressDialog() {
     if (_labelPrintProgressOverlayEntry != null) return;
     final entry = OverlayEntry(
@@ -4369,6 +4952,25 @@ class _HomePageManagerState extends State<HomePageManager> {
     _labelPrintProgressOverlayEntry = null;
   }
 
+  void _openScaleOutputProgressDialog() {
+    if (_scaleOutputProgressOverlayEntry != null) return;
+    final entry = OverlayEntry(
+      builder: (_) => BlockingModelessDialog(
+        child: ScaleOutputProgressDialog(
+          controller: _scaleOutputSessionController,
+          onCancel: _cancelScaleOutput,
+        ),
+      ),
+    );
+    _scaleOutputProgressOverlayEntry = entry;
+    Overlay.of(context, rootOverlay: true).insert(entry);
+  }
+
+  void _closeScaleOutputProgressDialog() {
+    _scaleOutputProgressOverlayEntry?.remove();
+    _scaleOutputProgressOverlayEntry = null;
+  }
+
   String _labelPrintPersistenceTarget(
     Map<ColumnItemKey, String> values,
     List<Map<String, Object?>> historyParents,
@@ -4381,6 +4983,23 @@ class _HomePageManagerState extends State<HomePageManager> {
 
   LabelSheetPrintOptions _labelPrintOptions(
     LabelPrintRowDraft row,
+    LabelPrintSettingsSnapshot settings,
+  ) => LabelSheetPrintOptions(
+    copies: 1,
+    leftMarginMm: row.leftMarginMm,
+    rightMarginMm: row.rightMarginMm,
+    topMarginMm: row.topMarginMm,
+    leftPushMm: row.leftPushMm,
+    topPushMm: row.topPushMm,
+    extraAreaMm: settings.extraAreaMm,
+    autoSpacingPercent: row.lineSpacingPercent,
+    orientation: settings.orientation == LabelPrintOrientation.vertical
+        ? LabelSheetPrintOrientation.vertical
+        : LabelSheetPrintOrientation.horizontal,
+  );
+
+  LabelSheetPrintOptions _scaleOutputPrintOptions(
+    ScaleOutputRowDraft row,
     LabelPrintSettingsSnapshot settings,
   ) => LabelSheetPrintOptions(
     copies: 1,
@@ -4583,8 +5202,8 @@ class _HomePageManagerState extends State<HomePageManager> {
               onBrandChanged: _handleBrandChanged,
               onLabelSizeChanged: _handleHeaderLabelSizeChanged,
               onDropdownMenuStateChanged: _handleTopDropdownMenuStateChanged,
-              dropdownChangeBlocked: _itemDraftContextChangeBlocked,
-              onBlockedDropdownTap: _blockItemDraftContextChange,
+              dropdownChangeBlocked: _homeDataContextChangeBlocked,
+              onBlockedDropdownTap: _blockHomeDataContextChange,
               settingsEnabled: settingsEnabled,
               onBrandSettingsPressed: settingsEnabled
                   ? _openBrandSettingsDialog
@@ -4613,7 +5232,28 @@ class _HomePageManagerState extends State<HomePageManager> {
                 side: const BorderSide(color: Color(0xFFE6E6E6)),
               ),
               clipBehavior: Clip.antiAlias,
-              child: Column(children: [Expanded(child: tabbedView)]),
+              child: Column(
+                children: [
+                  Expanded(
+                    child: Stack(
+                      children: [
+                        Positioned.fill(child: tabbedView),
+                        if (_shouldBlockCurrentTabTap)
+                          Positioned(
+                            left: 0,
+                            right: 0,
+                            top: 0,
+                            height: lmSize(_blockedHomeTabTapOverlayHeight),
+                            child: GestureDetector(
+                              behavior: HitTestBehavior.opaque,
+                              onTap: _handleBlockedTabTap,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -4647,7 +5287,8 @@ class _HomePageManagerState extends State<HomePageManager> {
       itemId: row.sourceItemId,
       labelSizeId: labelSize?.labelSizeId ?? row.labelSizeId,
       itemName: row.itemName,
-      labelSizeName: labelSize?.labelSizeName ?? matched?.item.labelSizeName ?? '',
+      labelSizeName:
+          labelSize?.labelSizeName ?? matched?.item.labelSizeName ?? '',
       element: row.element,
       elementRTF: row.elementRtf,
       price: row.price,
@@ -4716,10 +5357,6 @@ class _HomePageManagerState extends State<HomePageManager> {
     final controller = _autoItemUpdateDraftController;
     if (controller == null) {
       throw StateError('자동품목갱신 draft가 없습니다.');
-    }
-    final row = controller.rows.firstWhere((entry) => entry.rowKey == rowKey);
-    if (row.sourceUpdateItemId != null) {
-      await (await _ensureAutoItemUpdateDraftBackup()).captureElement(row);
     }
     controller.updateElement(
       rowKey,
@@ -5080,7 +5717,10 @@ class _DropdownField<T> extends StatelessWidget {
                     isDense: true,
                     filled: true,
                     fillColor: enabled ? Colors.white : const Color(0xFFE9ECEF),
-                    contentPadding: lmInsetsSymmetric(horizontal: 4, vertical: 10),
+                    contentPadding: lmInsetsSymmetric(
+                      horizontal: 4,
+                      vertical: 10,
+                    ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(4),
                       borderSide: const BorderSide(color: Color(0xFFCED4DA)),
@@ -5400,15 +6040,6 @@ Gs1AiDefinition? _itemManagerGs1Definition(TColumn column) {
   return Gs1AiDefinitions.values[definitionCode];
 }
 
-class _PlaceholderTab extends StatelessWidget {
-  final String title;
-  const _PlaceholderTab({required this.title});
-  @override
-  Widget build(BuildContext context) {
-    return Center(child: Text('$title (준비 중)'));
-  }
-}
-
 class _RtfPreviewAiConvertButton extends StatefulWidget {
   const _RtfPreviewAiConvertButton({required this.onPressed});
 
@@ -5498,7 +6129,8 @@ class _ItemPreviewPanel extends StatefulWidget {
     String rowIdentity,
     String elementPlain,
     String elementPayload,
-  ) onElementCommitted;
+  )
+  onElementCommitted;
   final bool Function() canSelectOutputPreview;
   final bool canEdit;
 
@@ -5613,17 +6245,14 @@ class _ItemPreviewPanelState extends State<_ItemPreviewPanel> {
     });
     _updateOutputPreviewTabContent();
     unawaited(
-        widget
+      widget
           .onElementCommitted(widget.rowIdentity, next, encodedWorkbook)
-          .catchError((
-        Object error,
-        StackTrace stackTrace,
-      ) {
-        debugLog(
-          'item element draft auto commit failed '
-          'rowIdentity=${widget.rowIdentity}, error=$error\n$stackTrace',
-        );
-      }),
+          .catchError((Object error, StackTrace stackTrace) {
+            debugLog(
+              'item element draft auto commit failed '
+              'rowIdentity=${widget.rowIdentity}, error=$error\n$stackTrace',
+            );
+          }),
     );
   }
 
@@ -5890,17 +6519,20 @@ class _ItemElementPreviewTab extends StatelessWidget {
       hideStatisticBar: true,
       limitCellActionsToClipboardAndClear: true,
       canEditObjects: canEdit,
+      showObjectPanelOpenButton: false,
       zoomToolbarPlacement: LabelSheetZoomToolbarPlacement.previewTabAreaEnd,
       onUserWorkbookChanged: canEdit ? onWorkbookChanged : null,
       onUserWorkbookChangedShouldNotify: canEdit
           ? (previous, current) =>
-            !_itemElementWorkbookContentEquals(previous, current)
+                !_itemElementWorkbookContentEquals(previous, current)
           : null,
       onSave: canEdit
-          ? (width, height, encodedWorkbook) =>
-                onSave(context, width, height, encodedWorkbook).then(
-                  (_) => LabelSheetSaveResult.applied,
-                )
+          ? (width, height, encodedWorkbook) => onSave(
+              context,
+              width,
+              height,
+              encodedWorkbook,
+            ).then((_) => LabelSheetSaveResult.applied)
           : null,
     );
   }
@@ -5966,10 +6598,7 @@ bool _itemManagerDateSettingsEnabled({
   required bool commandBusy,
   required bool draftDirty,
 }) =>
-    selectedTabValue == 'items' &&
-    hasDateSetup &&
-    !commandBusy &&
-    !draftDirty;
+    selectedTabValue == 'items' && hasDateSetup && !commandBusy && !draftDirty;
 
 List<String> _itemPreviewImageObjectIdsFor(Iterable<TColumnBase> columns) {
   return commonLabelImageObjectIdsFromColumns(columns);
@@ -5992,7 +6621,7 @@ class _ItemOutputPreviewTab extends StatelessWidget {
     this.referenceAt,
     this.projectedColumnValues,
     this.zoomToolbarPlacement =
-      LabelSheetZoomToolbarPlacement.previewTabAreaEnd,
+        LabelSheetZoomToolbarPlacement.previewTabAreaEnd,
     this.zoomController,
   });
 
@@ -6046,7 +6675,8 @@ Widget debugItemPreviewPanelForTesting({
     String rowIdentity,
     String elementPlain,
     String elementPayload,
-  )? onElementCommitted,
+  )?
+  onElementCommitted,
   bool Function()? canSelectOutputPreview,
   bool canEdit = true,
 }) => _ItemPreviewPanel(
@@ -6185,9 +6815,9 @@ fs.FortuneWorkbook debugMaterializeItemImagesForTesting(
         ItemCodeColumnSpec.fromColumn(column),
     ];
     String columnValue(int columnId) =>
-      projectedColumnValues?[columnId] ??
-      TColumnContent.get(columnId, item.item.itemId)?.dataString ??
-      '';
+        projectedColumnValues?[columnId] ??
+        TColumnContent.get(columnId, item.item.itemId)?.dataString ??
+        '';
     return (
       workbook: _replaceItemPreviewKeywords(
         _itemOutputPreviewPrivateWorkbook(workbook, labelSize),
@@ -6521,6 +7151,9 @@ Map<String, String> _itemOutputPreviewReplacements({
           columnValue?.call(column.columnId) ??
           TColumnContent.get(column.columnId, item.item.itemId)?.dataString ??
           '',
+    for (final special in TColumnSpecial.datas ?? const <TColumnBase>[])
+      if (scaleOutputSpecialColumnIdForKeyword(special.keyword) case final columnId?)
+        '#${special.keyword}': columnValue?.call(columnId) ?? '',
   };
 }
 
@@ -7167,7 +7800,7 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
       height: dialogHeight,
       closeIcon: const _BrandDialogCloseIcon(),
       onClose: widget.onClose,
-        closeEnabled:
+      closeEnabled:
           !_changingBrand &&
           !_submittingLabelNameEdit &&
           !_deletingLabel &&
@@ -7329,8 +7962,7 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
       onDeleteRow: _deleteLabel,
       onNameDoubleTap: _handleLabelNameDoubleTap,
       inlineTrailingBuilder: _buildLabelInlineTrailing,
-        enabled:
-          !_orderEditMode && !_submittingLabelNameEdit && !_deletingLabel,
+      enabled: !_orderEditMode && !_submittingLabelNameEdit && !_deletingLabel,
       fillLastColumn: true,
       autoFitColumns: false,
       rowSwipeEnabled: !_orderEditMode,
@@ -7820,7 +8452,7 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
     );
     if (_editingIndex != null ||
         _orderEditMode ||
-      _deletingLabel ||
+        _deletingLabel ||
         index < 0 ||
         index >= _labels.length) {
       debugLog(
@@ -7952,9 +8584,9 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
       'labelNameDoubleTap index=$index editingIndex=$_editingIndex orderEditMode=$_orderEditMode selecting=$_selectingLabel labelSizeId=${label.labelSizeId} name=${label.labelSizeName}',
     );
     if (_editingIndex != null ||
-      _orderEditMode ||
-      _selectingLabel ||
-      _deletingLabel) {
+        _orderEditMode ||
+        _selectingLabel ||
+        _deletingLabel) {
       debugLog(
         'labelNameDoubleTap blocked editingIndex=$_editingIndex orderEditMode=$_orderEditMode selecting=$_selectingLabel',
       );
@@ -7973,9 +8605,9 @@ class _LabelSettingsDialogState extends State<_LabelSettingsDialog> {
 
   void _startOrderEditMode() {
     if (_editingIndex != null ||
-      _applyingOrderChanges ||
-      _orderEditMode ||
-      _deletingLabel) {
+        _applyingOrderChanges ||
+        _orderEditMode ||
+        _deletingLabel) {
       debugLog(
         'labelSettings reorder startBlocked editingIndex=$_editingIndex applying=$_applyingOrderChanges orderEditMode=$_orderEditMode',
       );
@@ -8595,8 +9227,7 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
       height: dialogHeight,
       closeIcon: const _BrandDialogCloseIcon(),
       onClose: widget.onClose,
-      closeEnabled:
-          !_submissionGate.submitting && !_applyingOrderChanges,
+      closeEnabled: !_submissionGate.submitting && !_applyingOrderChanges,
       footer: _orderEditMode ? _buildBrandOrderEditFooter() : null,
       child: Padding(
         padding: const EdgeInsets.only(left: 8, right: 8, bottom: 8),
@@ -8673,7 +9304,9 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
   int? get _selectedBrandIndex {
     final selectedBrandId = _selectedBrandId;
     if (selectedBrandId == null) return null;
-    final index = _brands.indexWhere((brand) => brand.brandId == selectedBrandId);
+    final index = _brands.indexWhere(
+      (brand) => brand.brandId == selectedBrandId,
+    );
     return index >= 0 ? index : null;
   }
 
@@ -8894,8 +9527,8 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
       'brandNameDoubleTap index=$index editingIndex=$_editingIndex busy=${widget.busyNotifier.value} brandId=${brand.brandId} name=${brand.brandName}',
     );
     if (_editingIndex != null ||
-      widget.busyNotifier.value ||
-      _submissionGate.submitting) {
+        widget.busyNotifier.value ||
+        _submissionGate.submitting) {
       debugLog(
         'brandNameDoubleTap blocked editingIndex=$_editingIndex busy=${widget.busyNotifier.value}',
       );
@@ -9120,11 +9753,8 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
     Brand? inserted;
     try {
       final reloadError = await runSettingsWriteThenReload<Brand>(
-        write: () => BrandDAO.insertByBrandName(
-          customerId,
-          brandName,
-          insertIndex + 1,
-        ),
+        write: () =>
+            BrandDAO.insertByBrandName(customerId, brandName, insertIndex + 1),
         onCommitted: (value) {
           inserted = value;
           if (!mounted) return;
@@ -9357,8 +9987,8 @@ class _BrandSettingsDialogState extends State<_BrandSettingsDialog> {
       final nextSelectedBrand = wasSelected
           ? _resolveBrandAfterDelete(currentIndex)
           : widget.selectedBrand;
-        setState(() => _brands.removeAt(currentIndex));
-        widget.onBrandsCommitted(List<Brand>.from(_brands));
+      setState(() => _brands.removeAt(currentIndex));
+      widget.onBrandsCommitted(List<Brand>.from(_brands));
 
       try {
         final reloadedBrands = await _reloadBrandsChanged(

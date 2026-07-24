@@ -899,6 +899,50 @@ void main() {
     expect(selectionController.selectedRows, {0, 1, 2});
   });
 
+  testWidgets('FortuneTable drag reports the last selection focus row', (tester) async {
+    final selectionController = FortuneTableSelectionController();
+    addTearDown(selectionController.dispose);
+    var focusedRow = -1;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 260,
+            height: 180,
+            child: FortuneTable<String>(
+              rows: const ['첫째', '둘째', '셋째', '넷째'],
+              autoFitColumns: false,
+              multiSelectionEnabled: true,
+              selectionController: selectionController,
+              onSelectionFocusChanged: (_, rowIndex) {
+                focusedRow = rowIndex;
+              },
+              columns: [
+                FortuneTableColumn<String>(
+                  id: 'name',
+                  header: '이름',
+                  initialWidth: 120,
+                  text: (row) => row,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final tableTopLeft = tester.getTopLeft(find.byType(FortuneTable<String>));
+    final gesture = await tester.startGesture(
+      tableTopLeft + const Offset(40 + 60, 36 + 14),
+    );
+    await gesture.moveBy(const Offset(0, 56));
+    await gesture.up();
+    await tester.pump();
+
+    expect(focusedRow, 2);
+  });
+
   testWidgets('ItemManage renders the FortuneTable management table', (
     tester,
   ) async {
@@ -963,15 +1007,11 @@ void main() {
 
     await tester.pumpWidget(buildItemManage(() => readyCount += 1));
 
-    expect(readyCount, 0);
-    await tester.pump();
     expect(readyCount, 1);
     await tester.pump();
     expect(readyCount, 1);
 
     await tester.pumpWidget(buildItemManage(() => readyCount += 10));
-    expect(readyCount, 1);
-    await tester.pump();
     expect(readyCount, 11);
   });
 
@@ -1037,7 +1077,6 @@ void main() {
     final source = _testItemOfMarket(itemName: '테스트 품목');
     final controller = ItemManagerDraftController.fromItems(
       items: [source],
-      rawSnapshots: {source.item.itemId: _rawSnapshot(source.item.itemId)},
       scopedColumnContents: TColumnContentScopedView(const {}),
     );
     addTearDown(controller.dispose);
@@ -1145,7 +1184,6 @@ void main() {
     final source = _testItemOfMarket(itemName: '기존 품목', marketId: 1);
     final controller = ItemManagerDraftController.fromItems(
       items: [source],
-      rawSnapshots: {source.item.itemId: _rawSnapshot(source.item.itemId)},
       scopedColumnContents: TColumnContentScopedView(const {}),
     );
     addTearDown(controller.dispose);
@@ -1188,7 +1226,6 @@ void main() {
     final second = _testItemOfMarket(itemName: '둘째 품목', itemId: 20);
     final controller = ItemManagerDraftController.fromItems(
       items: [first, second],
-      rawSnapshots: {10: _rawSnapshot(10), 20: _rawSnapshot(20)},
       scopedColumnContents: TColumnContentScopedView(const {}),
     );
     addTearDown(controller.dispose);
@@ -1240,7 +1277,6 @@ void main() {
 
     final refreshedController = ItemManagerDraftController.fromItems(
       items: [first],
-      rawSnapshots: {10: _rawSnapshot(10)},
       scopedColumnContents: TColumnContentScopedView(const {}),
     );
     addTearDown(refreshedController.dispose);
@@ -1283,7 +1319,6 @@ void main() {
     final source = _testItemOfMarket(itemName: '조회 전용 품목', itemId: 10);
     final controller = ItemManagerDraftController.fromItems(
       items: [source],
-      rawSnapshots: {10: _rawSnapshot(10)},
       scopedColumnContents: TColumnContentScopedView(const {}),
     );
     addTearDown(controller.dispose);
@@ -1336,7 +1371,6 @@ void main() {
     final source = _testItemOfMarket(itemName: '기존 품목');
     final controller = ItemManagerDraftController.fromItems(
       items: [source],
-      rawSnapshots: {10: _rawSnapshot(10)},
       scopedColumnContents: TColumnContentScopedView(const {}),
     );
     addTearDown(controller.dispose);
@@ -2017,6 +2051,182 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
   });
 
+  testWidgets('ItemManage disables Excel actions while a cell edit is active', (
+    tester,
+  ) async {
+    final source = _testItemOfMarket(itemName: '정상 품목', itemId: 10);
+    final controller = ItemManagerDraftController.fromItems(
+      items: [source],
+      scopedColumnContents: TColumnContentScopedView(const {}),
+    );
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 600,
+            height: 220,
+            child: ItemManage(
+              items: const [],
+              draftController: controller,
+              labelSize: const LabelSize(
+                labelSizeId: 20,
+                brandId: 30,
+                labelSizeName: '테스트 라벨',
+              ),
+              marketId: 1,
+              onCancelDraft: () async {},
+              onSaveDraft: () async {},
+              onExcelImport: () async {},
+              onExcelExport: () async {},
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      tester
+          .widget<OutlinedButton>(
+            find.widgetWithText(OutlinedButton, '엑셀 가져오기'),
+          )
+          .onPressed,
+      isNotNull,
+    );
+    expect(
+      tester
+          .widget<OutlinedButton>(
+            find.widgetWithText(OutlinedButton, '엑셀 내보내기'),
+          )
+          .onPressed,
+      isNotNull,
+    );
+
+    await tester.tap(find.text('정상 품목'));
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.tap(find.text('정상 품목'));
+    await tester.pump();
+
+    expect(find.byType(EditableText), findsOneWidget);
+    expect(
+      tester
+          .widget<OutlinedButton>(
+            find.widgetWithText(OutlinedButton, '엑셀 가져오기'),
+          )
+          .onPressed,
+      isNull,
+    );
+    expect(
+      tester
+          .widget<OutlinedButton>(
+            find.widgetWithText(OutlinedButton, '엑셀 내보내기'),
+          )
+          .onPressed,
+      isNull,
+    );
+
+    await tester.enterText(find.byType(EditableText), '수정된 품목');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pump();
+
+    expect(find.byType(EditableText), findsNothing);
+    expect(controller.rows.single.itemName, '수정된 품목');
+    expect(
+      tester
+          .widget<OutlinedButton>(
+            find.widgetWithText(OutlinedButton, '엑셀 가져오기'),
+          )
+          .onPressed,
+      isNull,
+    );
+    await tester.pump(const Duration(milliseconds: 100));
+  });
+
+  testWidgets('ItemManage re-enables Excel actions after committing a clean cell edit', (
+    tester,
+  ) async {
+    final source = _testItemOfMarket(itemName: '그대로 품목', itemId: 11);
+    final controller = ItemManagerDraftController.fromItems(
+      items: [source],
+      scopedColumnContents: TColumnContentScopedView(const {}),
+    );
+    addTearDown(controller.dispose);
+    final itemManageController = ItemManageController();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 600,
+            height: 220,
+            child: ItemManage(
+              items: const [],
+              controller: itemManageController,
+              draftController: controller,
+              labelSize: const LabelSize(
+                labelSizeId: 20,
+                brandId: 30,
+                labelSizeName: '테스트 라벨',
+              ),
+              marketId: 1,
+              canEdit: true,
+              onExcelImport: () async {},
+              onExcelExport: () async {},
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      tester
+          .widget<OutlinedButton>(
+            find.widgetWithText(OutlinedButton, '엑셀 가져오기'),
+          )
+          .onPressed,
+      isNotNull,
+    );
+
+    await tester.tap(find.text('그대로 품목'));
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.tap(find.text('그대로 품목'));
+    await tester.pump();
+
+    expect(find.byType(EditableText), findsOneWidget);
+    expect(
+      tester
+          .widget<OutlinedButton>(
+            find.widgetWithText(OutlinedButton, '엑셀 가져오기'),
+          )
+          .onPressed,
+      isNull,
+    );
+
+    await itemManageController.commitEditing();
+    await tester.pump();
+
+    expect(find.byType(EditableText), findsNothing);
+    expect(controller.isDirty, isFalse);
+    expect(
+      tester
+          .widget<OutlinedButton>(
+            find.widgetWithText(OutlinedButton, '엑셀 가져오기'),
+          )
+          .onPressed,
+      isNotNull,
+    );
+    expect(
+      tester
+          .widget<OutlinedButton>(
+            find.widgetWithText(OutlinedButton, '엑셀 내보내기'),
+          )
+          .onPressed,
+      isNotNull,
+    );
+    await tester.pump(const Duration(milliseconds: 100));
+  });
+
   testWidgets('ItemManage blocks mutations when edit permission is missing', (
     tester,
   ) async {
@@ -2461,35 +2671,5 @@ ItemOfMarket _testItemOfMarket({
     topMargin: 0,
     leftPush: 0,
     topPush: 0,
-  );
-}
-
-ItemOfMarketRawSnapshot _rawSnapshot(int itemId) {
-  return ItemOfMarketRawSnapshot(
-    marketId: 1,
-    itemId: itemId,
-    additionalItemId: null,
-    gdsNo: null,
-    dateSaleStart: null,
-    dateSaleEnd: null,
-    discountPercent: null,
-    discountAmount: null,
-    dateStartDiscount: null,
-    dateEndDiscount: null,
-    useDefineElement: null,
-    rtfText: null,
-    useLinefeed: null,
-    linefeed: null,
-    useScaleBarcode: null,
-    printCount: null,
-    useLabelSize: null,
-    labelSizeWidth: null,
-    labelSizeHeight: null,
-    useMargin: null,
-    leftMargin: null,
-    rightMargin: null,
-    topMargin: null,
-    leftPush: null,
-    topPush: null,
   );
 }

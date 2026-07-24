@@ -378,6 +378,33 @@ void main() {
     );
   });
 
+  test('home tab clicks are blocked only for active dirty edit tabs', () {
+    expect(
+      debugHomeTabTapBlockedForTesting(
+        currentTabValue: 'items',
+        itemDraftContextChangeBlocked: true,
+        autoItemUpdateContextChangeBlocked: false,
+      ),
+      isTrue,
+    );
+    expect(
+      debugHomeTabTapBlockedForTesting(
+        currentTabValue: 'auto_update',
+        itemDraftContextChangeBlocked: false,
+        autoItemUpdateContextChangeBlocked: true,
+      ),
+      isTrue,
+    );
+    expect(
+      debugHomeTabTapBlockedForTesting(
+        currentTabValue: 'common_label',
+        itemDraftContextChangeBlocked: true,
+        autoItemUpdateContextChangeBlocked: true,
+      ),
+      isFalse,
+    );
+  });
+
   testWidgets(
     'label settings button is active when date settings is available',
     (tester) async {
@@ -1050,6 +1077,26 @@ void main() {
     expect(blockedRequests, 1);
     expect(find.text('* 라벨을 편집 저장 후 가능합니다.'), findsNothing);
     expect(find.text('주원료 및 함량'), findsWidgets);
+  });
+
+  testWidgets('item preview hides floating object panel button', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: debugItemPreviewPanelForTesting(
+            item: _testItemOfMarket(itemId: 10, itemName: '첫 품목'),
+            labelSize: _testLabelSizeWithFormData(r'{\rtf1\ansi legacy}'),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byTooltip('개체 패널 열기'), findsNothing);
+    expect(
+      find.widgetWithIcon(IconButton, Icons.layers_outlined),
+      findsNothing,
+    );
   });
 
   test('label sheet toolbar starts with save and print actions', () {

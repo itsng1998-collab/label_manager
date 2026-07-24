@@ -124,10 +124,11 @@ class FortuneTableFocusController extends ChangeNotifier {
   }
 }
 
-class FortuneTableEditingController {
+class FortuneTableEditingController extends ChangeNotifier {
   Object? _owner;
   Future<void> Function()? _commitEditing;
   bool Function()? _hasActiveEditing;
+  bool _lastHasActiveEditing = false;
 
   bool get hasActiveEditing => _hasActiveEditing?.call() ?? false;
 
@@ -143,6 +144,7 @@ class FortuneTableEditingController {
     _owner = owner;
     _commitEditing = commitEditing;
     _hasActiveEditing = hasActiveEditing;
+    _lastHasActiveEditing = hasActiveEditing();
   }
 
   void _detach(Object owner) {
@@ -150,6 +152,17 @@ class FortuneTableEditingController {
     _owner = null;
     _commitEditing = null;
     _hasActiveEditing = null;
+    if (_lastHasActiveEditing) {
+      _lastHasActiveEditing = false;
+      notifyListeners();
+    }
+  }
+
+  void _editingStateMayHaveChanged() {
+    final next = hasActiveEditing;
+    if (_lastHasActiveEditing == next) return;
+    _lastHasActiveEditing = next;
+    notifyListeners();
   }
 }
 
@@ -227,6 +240,7 @@ class FortuneTable<T> extends StatefulWidget {
     this.editingController,
     this.scrollController,
     this.onRowSelected,
+    this.onSelectionFocusChanged,
     this.onCellActivated,
     this.onRowSecondaryTapDown,
     this.onRectChanged,
@@ -249,6 +263,7 @@ class FortuneTable<T> extends StatefulWidget {
   final FortuneTableEditingController? editingController;
   final FortuneTableScrollController? scrollController;
   final void Function(T row, int index)? onRowSelected;
+  final void Function(T row, int index)? onSelectionFocusChanged;
   final void Function(T row, int rowIndex, String columnId)? onCellActivated;
   final void Function(T row, int index, TapDownDetails details)?
   onRowSecondaryTapDown;
@@ -299,10 +314,8 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
   final ScrollController _hScrollHeader = ScrollController();
   final ScrollController _hScrollBody = ScrollController();
   final ScrollController _vScrollBody = ScrollController();
-  final ScrollController _vScrollIndex = ScrollController();
   final FocusNode _focusNode = FocusNode(debugLabel: 'FortuneTable');
   bool _syncingHorizontal = false;
-  bool _syncingVertical = false;
   late List<double> _widths;
   List<double> _effectiveColumnWidths = const [];
   Set<FortuneTableCheckboxController> _checkboxControllers =
@@ -337,8 +350,6 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
     _syncCheckboxControllerListeners(<FortuneTableColumn<T>>[]);
     _hScrollBody.addListener(_syncHorizontalFromBody);
     _hScrollHeader.addListener(_syncHorizontalFromHeader);
-    _vScrollBody.addListener(_syncVerticalFromBody);
-    _vScrollIndex.addListener(_syncVerticalFromIndex);
   }
 
   @override
@@ -416,7 +427,6 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
     _hScrollHeader.dispose();
     _hScrollBody.dispose();
     _vScrollBody.dispose();
-    _vScrollIndex.dispose();
     super.dispose();
   }
 
@@ -472,22 +482,41 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
                       children: [
                         SizedBox(
                           width: widget.rowNumberWidth,
-                          child: ScrollConfiguration(
-                            behavior: const _FortuneTableScrollBehavior(
-                              dragScrollEnabled: false,
-                            ),
-                            child: ListView.builder(
-                              controller: _vScrollIndex,
-                              itemExtent: widget.rowHeight,
-                              itemCount: widget.rows.length,
-                              itemBuilder: (context, index) =>
-                                  _scrollSignalBoundary(
-                                    _rowHeaderCell(
-                                      '${index + 1}',
-                                      _headerColor,
-                                      widget.rowHeight,
+                          child: IgnorePointer(
+                            child: ClipRect(
+                              child: AnimatedBuilder(
+                                animation: _vScrollBody,
+                                builder: (context, _) {
+                                  return Transform.translate(
+                                    offset: Offset(
+                                      0,
+                                      _vScrollBody.hasClients
+                                          ? -_vScrollBody.offset
+                                          : 0,
                                     ),
-                                  ),
+                                    child: OverflowBox(
+                                      alignment: Alignment.topLeft,
+                                      minHeight: 0,
+                                      maxHeight: double.infinity,
+                                      child: SizedBox(
+                                        height:
+                                            widget.rows.length *
+                                            widget.rowHeight,
+                                        child: Column(
+                                          children: List.generate(
+                                            widget.rows.length,
+                                            (index) => _rowHeaderCell(
+                                              '${index + 1}',
+                                              _headerColor,
+                                              widget.rowHeight,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
                             ),
                           ),
                         ),
@@ -628,6 +657,7 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
       controller.selectAll(widget.rows.length);
       if (widget.rows.isNotEmpty) {
         _selectionAnchorIndex = 0;
+        widget.onSelectionFocusChanged?.call(widget.rows.first, 0);
       }
       return KeyEventResult.handled;
     }
@@ -967,16 +997,11 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
             : _isTextEditable(column, row, rowIndex)
             ? () => _startTextEditing(row, rowIndex, columnIndex, column)
             : null,
-        child: SizedBox.expand(
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              column.text(row),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 14, color: Color(0xFF202124)),
-            ),
-          ),
+        child: Text(
+          column.text(row),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontSize: 14, color: Color(0xFF202124)),
         ),
       ),
     );
@@ -1010,7 +1035,9 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
       _editingRowIndex = rowIndex;
       _editingColumnIndex = columnIndex;
     });
+    widget.editingController?._editingStateMayHaveChanged();
     _selectRowIndex(rowIndex);
+    widget.onSelectionFocusChanged?.call(row, rowIndex);
     widget.onRowSelected?.call(row, rowIndex);
   }
 
@@ -1043,9 +1070,11 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
     operation = _commitTextEditing().whenComplete(() {
       if (identical(_pendingTextCommit, operation)) {
         _pendingTextCommit = null;
+        widget.editingController?._editingStateMayHaveChanged();
       }
     });
     _pendingTextCommit = operation;
+    widget.editingController?._editingStateMayHaveChanged();
     return operation;
   }
 
@@ -1060,6 +1089,7 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
   void _cancelTextEditing() {
     if (_editingRowIndex == null) return;
     setState(_clearTextEditingState);
+    widget.editingController?._editingStateMayHaveChanged();
     _restoreTableFocus();
   }
 
@@ -1127,6 +1157,7 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
       setState(() => _selectedIndex = rowIndex);
     }
     _selectRowIndex(rowIndex);
+    widget.onSelectionFocusChanged?.call(row, rowIndex);
     widget.onRowSelected?.call(row, rowIndex);
   }
 
@@ -1162,6 +1193,7 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
     final deltaRows = (event.localPosition.dy / widget.rowHeight).floor();
     final targetIndex = (rowIndex + deltaRows).clamp(0, widget.rows.length - 1);
     controller.selectRange(dragStartIndex, targetIndex);
+    widget.onSelectionFocusChanged?.call(widget.rows[targetIndex], targetIndex);
   }
 
   void _endDragSelection() {
@@ -1218,6 +1250,7 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
       _selectedIndex = rowIndex;
       _selectionAnchorIndex = rowIndex;
       widget.selectionController?.setSelectedRows([rowIndex]);
+      widget.onSelectionFocusChanged?.call(widget.rows[rowIndex], rowIndex);
       _focusNode.requestFocus();
       _revealCell(rowIndex, columnIndex);
       setState(() {});
@@ -1297,31 +1330,6 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
     _syncingHorizontal = false;
   }
 
-  void _syncVerticalFromBody() {
-    if (_syncingVertical) return;
-    if (!_vScrollBody.hasClients || !_vScrollIndex.hasClients) return;
-    _syncingVertical = true;
-    _vScrollIndex.jumpTo(
-      _vScrollBody.offset.clamp(
-        _vScrollIndex.position.minScrollExtent,
-        _vScrollIndex.position.maxScrollExtent,
-      ),
-    );
-    _syncingVertical = false;
-  }
-
-  void _syncVerticalFromIndex() {
-    if (_syncingVertical) return;
-    if (!_vScrollBody.hasClients || !_vScrollIndex.hasClients) return;
-    _syncingVertical = true;
-    _vScrollBody.jumpTo(
-      _vScrollIndex.offset.clamp(
-        _vScrollBody.position.minScrollExtent,
-        _vScrollBody.position.maxScrollExtent,
-      ),
-    );
-    _syncingVertical = false;
-  }
 
   void _scheduleRectReport() {
     if (widget.onRectChanged == null) return;

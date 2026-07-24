@@ -14,7 +14,7 @@ String appVersion = '';
 
 bool isAutoLogin = false;
 bool isDesktop = true;
-bool isShowLogo = true;
+bool isShowLogo = false;
 
 // 추적 로그 활성화 여부 (기본값: true)
 bool traceLogEnabled = true;

@@ -1890,6 +1890,7 @@ class LabelSheetWorkbench extends StatefulWidget {
     this.copyOnlyContextMenu = false,
     this.limitCellActionsToClipboardAndClear = false,
     this.canEditObjects = true,
+    this.showObjectPanelOpenButton = true,
     this.zoomToolbarPlacement = LabelSheetZoomToolbarPlacement.sheetToolbarEnd,
     this.zoomController,
     this.onInitialLoadComplete,
@@ -1932,6 +1933,7 @@ class LabelSheetWorkbench extends StatefulWidget {
   final bool copyOnlyContextMenu;
   final bool limitCellActionsToClipboardAndClear;
   final bool canEditObjects;
+  final bool showObjectPanelOpenButton;
   final LabelSheetZoomToolbarPlacement zoomToolbarPlacement;
   final LabelSheetZoomController? zoomController;
   final VoidCallback? onInitialLoadComplete;
@@ -4330,7 +4332,9 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
               fit: StackFit.expand,
               children: [
                 sheetSurface,
-                if (!_objectDockEligible && !overlayObjectPanel)
+                if (widget.showObjectPanelOpenButton &&
+                    !_objectDockEligible &&
+                    !overlayObjectPanel)
                   Positioned(
                     top: 48,
                     right: 8,

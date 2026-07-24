@@ -63,27 +63,6 @@ int? resolveItemManagerSavedSelectionItemId({
 
 enum ItemManagerElementPayloadFormat { empty, workbook, legacyRtf, unknown }
 
-class ItemManagerImportViewState {
-  const ItemManagerImportViewState({
-    this.selectedItemId,
-    this.selectedIndex,
-    this.sortState = const [],
-    this.filterState = const {},
-  });
-
-  final int? selectedItemId;
-  final int? selectedIndex;
-  final List<Object?> sortState;
-  final Map<String, Object?> filterState;
-
-  Map<String, Object?> toJson() => {
-    'selectedItemId': selectedItemId,
-    'selectedIndex': selectedIndex,
-    'sortState': sortState,
-    'filterState': filterState,
-  };
-}
-
 class ItemManagerDraftValidationError extends StateError {
   ItemManagerDraftValidationError({
     required this.rowKey,
@@ -166,7 +145,6 @@ class ItemManagerDraftRow {
   final String elementPayload;
   final ItemManagerElementPayloadFormat elementPayloadFormat;
   final Map<int, ItemManagerColumnDraft> columnDrafts;
-  final ItemOfMarketRawSnapshot? currentMarketSnapshot;
   final ItemManagerNewMappingDefaults? newMappingDefaults;
   final ItemOfMarket? source;
 
@@ -185,19 +163,14 @@ class ItemManagerDraftRow {
     required this.elementPayload,
     required this.elementPayloadFormat,
     required this.columnDrafts,
-    required this.currentMarketSnapshot,
     required this.newMappingDefaults,
     required this.source,
   });
 
   factory ItemManagerDraftRow.existing({
     required ItemOfMarket source,
-    required ItemOfMarketRawSnapshot currentMarketSnapshot,
     required int originalIndex,
   }) {
-    if (source.item.itemId != currentMarketSnapshot.itemId) {
-      throw ArgumentError('Item and raw snapshot identities must match.');
-    }
     return ItemManagerDraftRow(
       rowKey: 'item:${source.item.itemId}',
       itemId: source.item.itemId,
@@ -213,7 +186,6 @@ class ItemManagerDraftRow {
       elementPayload: source.item.elementRTF,
       elementPayloadFormat: _classifyElementPayload(source.item.elementRTF),
       columnDrafts: const {},
-      currentMarketSnapshot: currentMarketSnapshot,
       newMappingDefaults: null,
       source: source,
     );
@@ -248,7 +220,6 @@ class ItemManagerDraftRow {
       elementPayload: emptyElementPayload,
       elementPayloadFormat: _classifyElementPayload(emptyElementPayload),
       columnDrafts: const {},
-      currentMarketSnapshot: null,
       newMappingDefaults: newMappingDefaults,
       source: null,
     );
@@ -261,10 +232,20 @@ class ItemManagerDraftRow {
     required int labelSizeId,
     required String labelSizeName,
   }) {
-    if (source != null && rowState == ItemManagerDraftRowState.existing) {
-      return source!;
+    if (source case final baseSource?) {
+      return baseSource.copyWith(
+        item: Item(
+          itemId: baseSource.item.itemId,
+          labelSizeId: baseSource.item.labelSizeId,
+          itemName: itemName,
+          labelSizeName: baseSource.item.labelSizeName,
+          element: elementPlain,
+          elementRTF: elementPayload,
+          price: itemPrice,
+          order: order,
+        ),
+      );
     }
-    final snapshot = currentMarketSnapshot;
     final defaults = newMappingDefaults;
     final now = DateTime.now();
     return ItemOfMarket(
@@ -280,40 +261,34 @@ class ItemManagerDraftRow {
         order: order,
       ),
       additionalItem: AdditionalItem(
-        AdditionalItemId: snapshot?.additionalItemId ?? 0,
+        AdditionalItemId: 0,
         itemId: itemId ?? 0,
         element: '',
         elementRTF: '',
         price: 0,
       ),
-      gdsNo: snapshot?.gdsNo ?? defaults?.gdsNo ?? 0,
-      dateSaleStart: snapshot?.dateSaleStart ?? defaults?.dateSaleStart ?? now,
-      dateSaleEnd: snapshot?.dateSaleEnd ?? defaults?.dateSaleEnd ?? now,
-      discountPercent:
-          snapshot?.discountPercent ?? defaults?.discountPercent ?? 0,
-      discountAmount: snapshot?.discountAmount ?? defaults?.discountAmount ?? 0,
-      dateStartDiscount:
-          snapshot?.dateStartDiscount ?? defaults?.dateStartDiscount ?? now,
-      dateEndDiscount:
-          snapshot?.dateEndDiscount ?? defaults?.dateEndDiscount ?? now,
-      useDefineElement:
-          snapshot?.useDefineElement ?? defaults?.useDefineElement ?? false,
-      rtfText: snapshot?.rtfText ?? defaults?.rtfText ?? '',
-      useLinefeed: snapshot?.useLinefeed ?? defaults?.useLinefeed ?? false,
-      linefeed: snapshot?.linefeed ?? defaults?.linefeed ?? 100,
-      useScaleBarcode:
-          snapshot?.useScaleBarcode ?? defaults?.useScaleBarcode ?? false,
-      printCount: snapshot?.printCount ?? defaults?.printCount ?? 1,
-      useLabelSize: snapshot?.useLabelSize ?? defaults?.useLabelSize ?? false,
-      labelSizeWidth: snapshot?.labelSizeWidth ?? defaults?.labelSizeWidth ?? 0,
-      labelSizeHeight:
-          snapshot?.labelSizeHeight ?? defaults?.labelSizeHeight ?? 0,
-      useMargin: snapshot?.useMargin ?? defaults?.useMargin ?? false,
-      leftMargin: snapshot?.leftMargin ?? defaults?.leftMargin ?? 0,
-      rightMargin: snapshot?.rightMargin ?? defaults?.rightMargin ?? 0,
-      topMargin: snapshot?.topMargin ?? defaults?.topMargin ?? 0,
-      leftPush: snapshot?.leftPush ?? defaults?.leftPush ?? 0,
-      topPush: snapshot?.topPush ?? defaults?.topPush ?? 0,
+        gdsNo: defaults?.gdsNo ?? 0,
+        dateSaleStart: defaults?.dateSaleStart ?? now,
+        dateSaleEnd: defaults?.dateSaleEnd ?? now,
+        discountPercent: defaults?.discountPercent ?? 0,
+        discountAmount: defaults?.discountAmount ?? 0,
+        dateStartDiscount: defaults?.dateStartDiscount ?? now,
+        dateEndDiscount: defaults?.dateEndDiscount ?? now,
+        useDefineElement: defaults?.useDefineElement ?? false,
+        rtfText: defaults?.rtfText ?? '',
+        useLinefeed: defaults?.useLinefeed ?? false,
+        linefeed: defaults?.linefeed ?? 100,
+        useScaleBarcode: defaults?.useScaleBarcode ?? false,
+        printCount: defaults?.printCount ?? 1,
+        useLabelSize: defaults?.useLabelSize ?? false,
+        labelSizeWidth: defaults?.labelSizeWidth ?? 0,
+        labelSizeHeight: defaults?.labelSizeHeight ?? 0,
+        useMargin: defaults?.useMargin ?? false,
+        leftMargin: defaults?.leftMargin ?? 0,
+        rightMargin: defaults?.rightMargin ?? 0,
+        topMargin: defaults?.topMargin ?? 0,
+        leftPush: defaults?.leftPush ?? 0,
+        topPush: defaults?.topPush ?? 0,
     );
   }
 
@@ -341,7 +316,6 @@ class ItemManagerDraftRow {
       elementPayload: elementPayload ?? this.elementPayload,
       elementPayloadFormat: elementPayloadFormat ?? this.elementPayloadFormat,
       columnDrafts: columnDrafts ?? this.columnDrafts,
-      currentMarketSnapshot: currentMarketSnapshot,
       newMappingDefaults: newMappingDefaults,
       source: source,
     );
@@ -363,8 +337,6 @@ class ItemManagerDraftController extends ChangeNotifier {
   String? _baselineAnchorRowKey;
   int? _selectedColumnId;
   int _focusRequestId = 0;
-  ItemManagerImportViewState? _importViewState;
-
   ItemManagerDraftController({
     required List<ItemManagerDraftRow> rows,
     required this.scopedColumnContents,
@@ -380,7 +352,6 @@ class ItemManagerDraftController extends ChangeNotifier {
 
   factory ItemManagerDraftController.fromItems({
     required List<ItemOfMarket> items,
-    required Map<int, ItemOfMarketRawSnapshot> rawSnapshots,
     required TColumnContentScopedView scopedColumnContents,
     List<ItemManagerColumnValidationRule> validationRules = const [],
     bool requireElement = false,
@@ -390,16 +361,9 @@ class ItemManagerDraftController extends ChangeNotifier {
     final rows = <ItemManagerDraftRow>[];
     for (var index = 0; index < items.length; index++) {
       final item = items[index];
-      final snapshot = rawSnapshots[item.item.itemId];
-      if (snapshot == null) {
-        throw ArgumentError(
-          'Missing raw snapshot for itemId:${item.item.itemId}.',
-        );
-      }
       rows.add(
         ItemManagerDraftRow.existing(
           source: item,
-          currentMarketSnapshot: snapshot,
           originalIndex: index,
         ),
       );
@@ -433,8 +397,6 @@ class ItemManagerDraftController extends ChangeNotifier {
       _rows.any((row) => row.rowState != ItemManagerDraftRowState.existing);
   bool get hasImportedRows =>
       _rows.any((row) => row.rowState == ItemManagerDraftRowState.imported);
-  ItemManagerImportViewState? get importViewState => _importViewState;
-
   void replaceBaselineColumnContents(TColumnContentScopedView value) {
     scopedColumnContents = value;
     notifyListeners();
@@ -459,7 +421,6 @@ class ItemManagerDraftController extends ChangeNotifier {
       ..addAll(_baselineRows);
     _deletedSourceItemIds.clear();
     _deletedRowsBySourceItemId.clear();
-    _importViewState = null;
     ItemManagerDraftRow? selectedRow;
     for (final row in _rows) {
       if (row.sourceItemId == selectedItemId) {
@@ -522,7 +483,6 @@ class ItemManagerDraftController extends ChangeNotifier {
       ..addAll(_baselineRows);
     _deletedSourceItemIds.clear();
     _deletedRowsBySourceItemId.clear();
-    _importViewState = null;
     final validKeys = _rows.map((row) => row.rowKey).toSet();
     _selectedRowKeys
       ..clear()
@@ -538,99 +498,6 @@ class ItemManagerDraftController extends ChangeNotifier {
     _baselineAnchorRowKey = _anchorRowKey;
     _selectedColumnId = null;
     notifyListeners();
-  }
-
-  void restoreBackup({
-    required bool fullImport,
-    required Map<int, String> itemNames,
-    required Map<int, ({String plain, String payload})> elements,
-    required Map<ColumnItemKey, TColumnContent> cells,
-    required Map<int, ({int originalIndex, int order})> orders,
-    required Set<String> addedRowKeys,
-    required Map<int, ItemManagerDraftRow> deletedRows,
-    required Map<ColumnItemKey, TColumnContent> deletedColumns,
-    required Iterable<String> selectedRowKeys,
-    String? anchorRowKey,
-  }) {
-    final restoredRows = <ItemManagerDraftRow>[];
-    if (fullImport) {
-      restoredRows.addAll(deletedRows.values);
-    } else {
-      for (final row in _rows) {
-        if (addedRowKeys.contains(row.rowKey) || row.sourceItemId == null) {
-          continue;
-        }
-        final itemId = row.sourceItemId!;
-        final element = elements[itemId];
-        final originalOrder = orders[itemId];
-        final source = row.source!;
-        restoredRows.add(
-          ItemManagerDraftRow.existing(
-            source: source.copyWith(
-              item: source.item.copyWith(
-                itemName: itemNames[itemId],
-                element: element?.plain,
-                elementRTF: element?.payload,
-                order: originalOrder?.order,
-              ),
-            ),
-            currentMarketSnapshot: row.currentMarketSnapshot!,
-            originalIndex: originalOrder?.originalIndex ?? row.originalIndex,
-          ),
-        );
-      }
-      for (final entry in deletedRows.entries) {
-        if (!restoredRows.any((row) => row.sourceItemId == entry.key)) {
-          final originalOrder = orders[entry.key];
-          final row = entry.value;
-          final element = elements[entry.key];
-          restoredRows.add(
-            ItemManagerDraftRow.existing(
-              source: row.source!.copyWith(
-                item: row.source!.item.copyWith(
-                  itemName: itemNames[entry.key],
-                  element: element?.plain,
-                  elementRTF: element?.payload,
-                  order: originalOrder?.order,
-                ),
-              ),
-              currentMarketSnapshot: row.currentMarketSnapshot!,
-              originalIndex:
-                  originalOrder?.originalIndex ?? row.originalIndex,
-            ),
-          );
-        }
-      }
-    }
-    restoredRows.sort((left, right) {
-      final orderCompare = left.source!.item.order.compareTo(
-        right.source!.item.order,
-      );
-      return orderCompare != 0
-          ? orderCompare
-          : left.sourceItemId!.compareTo(right.sourceItemId!);
-    });
-    final normalizedRows = [
-      for (var index = 0; index < restoredRows.length; index += 1)
-        ItemManagerDraftRow.existing(
-          source: restoredRows[index].source!,
-          currentMarketSnapshot: restoredRows[index].currentMarketSnapshot!,
-          originalIndex: index,
-        ),
-    ];
-    final restoredColumns = fullImport
-        ? Map<ColumnItemKey, TColumnContent>.from(deletedColumns)
-        : Map<ColumnItemKey, TColumnContent>.from(
-            scopedColumnContents.values,
-          )
-      ..addAll(cells)
-      ..addAll(deletedColumns);
-    restoreJournalBaseline(
-      rows: normalizedRows,
-      columnContents: TColumnContentScopedView(restoredColumns),
-      selectedRowKeys: selectedRowKeys,
-      anchorRowKey: anchorRowKey,
-    );
   }
 
   String columnValue(ItemManagerDraftRow row, int columnId) {
@@ -1214,9 +1081,8 @@ class ItemManagerDraftController extends ChangeNotifier {
   }
 
   List<ItemManagerDraftRow> replaceAllWithImportedRows(
-    List<ItemManagerImportedRow> importedRows, {
-    ItemManagerImportViewState? importViewState,
-  }) {
+    List<ItemManagerImportedRow> importedRows,
+  ) {
     ItemManagerDebugLog.event(
       'draftImportReplace',
       'started',
@@ -1263,7 +1129,6 @@ class ItemManagerDraftController extends ChangeNotifier {
         ),
     ];
     _validateRows(replacements);
-    _importViewState = importViewState;
     _baselineRows = const [];
     _deletedRowsBySourceItemId.clear();
     scopedColumnContents = TColumnContentScopedView(const {});
@@ -1428,7 +1293,7 @@ class ItemManagerDraftController extends ChangeNotifier {
     }
     for (final row in rows) {
       final existing = row.sourceItemId != null;
-      if (existing != (row.currentMarketSnapshot != null) ||
+      if (existing != (row.source != null) ||
           existing == (row.newMappingDefaults != null)) {
         throw ArgumentError('Draft row state does not match its snapshots.');
       }

@@ -193,6 +193,7 @@ class _ItemManageState extends State<ItemManage> {
     super.initState();
     _publishCheckboxController.addListener(_handlePublishChecksChanged);
     _selectionController.addListener(_handleSelectionChanged);
+    _editingController.addListener(_handleEditingStateChanged);
     widget.draftController?.addListener(_handleDraftChanged);
     _attachController();
   }
@@ -219,6 +220,10 @@ class _ItemManageState extends State<ItemManage> {
     _selectionController.setSelectedRows(
       _selectionController.selectedRows.where((index) => index < rowCount),
     );
+  }
+
+  void _handleEditingStateChanged() {
+    if (mounted) setState(() {});
   }
 
   void _handleDraftChanged() {
@@ -320,6 +325,7 @@ class _ItemManageState extends State<ItemManage> {
     widget.draftController?.removeListener(_handleDraftChanged);
     _publishCheckboxController.removeListener(_handlePublishChecksChanged);
     _selectionController.removeListener(_handleSelectionChanged);
+    _editingController.removeListener(_handleEditingStateChanged);
     _addCountController.dispose();
     _insertCountController.dispose();
     _publishCheckboxController.dispose();
@@ -388,12 +394,9 @@ class _ItemManageState extends State<ItemManage> {
     _readyScheduled = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        onReady();
-      });
-      WidgetsBinding.instance.ensureVisualUpdate();
+      onReady();
     });
+    WidgetsBinding.instance.ensureVisualUpdate();
   }
 
   ItemManageSearchResult _search(String query) {
@@ -426,7 +429,8 @@ class _ItemManageState extends State<ItemManage> {
 
   Widget _buildCommandFooter() {
     final dirty = widget.draftController?.isDirty == true;
-    final cleanEnabled = !widget.commandBusy && !dirty;
+    final cleanEnabled =
+      !widget.commandBusy && !dirty && !_editingController.hasActiveEditing;
     final dirtyEnabled =
         widget.canEdit &&
         !widget.commandBusy && dirty;

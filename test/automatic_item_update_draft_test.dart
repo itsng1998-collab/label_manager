@@ -94,6 +94,21 @@ void main() {
       expect(controller.isDirty, isFalse);
     });
 
+    test('same selection and anchor does not notify again', () {
+      final controller = _controller();
+      var notifications = 0;
+      controller.addListener(() {
+        notifications += 1;
+      });
+
+      controller.setSelection(const {'update:20'}, anchorRowKey: 'update:20');
+      controller.setSelection(const {'update:20'}, anchorRowKey: 'update:20');
+
+      expect(notifications, 1);
+      expect(controller.selectedRowKeys, {'update:20'});
+      expect(controller.anchorRowKey, 'update:20');
+    });
+
     test('delete removes existing ids but not unsaved added rows', () {
       final controller = _controller();
       controller.stageAppendItems([_seed(itemId: 30, itemName: '추가 품목 1')]);

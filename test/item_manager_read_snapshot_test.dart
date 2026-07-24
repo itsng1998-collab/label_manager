@@ -21,27 +21,6 @@ void main() {
       expect(item.labelSizeHeight, 40);
     });
 
-    test('raw market snapshot preserves null and empty values', () {
-      final snapshot = ItemOfMarketRawSnapshot.fromMap({
-        'MARKET_ID': 3,
-        'ITEM_ID': 7,
-        'ADDITIONAL_ITEM_ID': null,
-        'SALE_START_DATE': null,
-        'DISCOUNT_START_DATE': null,
-        'USER_DEFINE_ELEMENT_RTF': '',
-        'LABEL_SIZE_WIDTH': null,
-      });
-
-      expect(snapshot.marketId, 3);
-      expect(snapshot.itemId, 7);
-      expect(snapshot.additionalItemId, isNull);
-      expect(snapshot.dateSaleStart, isNull);
-      expect(snapshot.dateStartDiscount, isNull);
-      expect(snapshot.rtfText, '');
-      expect(snapshot.labelSizeWidth, isNull);
-      expect(ItemOfMarketDAO.SelectRawSnapshotSql, isNot(contains('COALESCE')));
-    });
-
     test('customer market query uses only customer condition', () {
       expect(
         MarketDAO.WhereSqlCustomerId,

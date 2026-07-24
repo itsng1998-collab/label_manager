@@ -5,7 +5,6 @@ import 'package:fortune_sheet/fortune_sheet.dart' hide Rect;
 import 'package:label_manager/models/automatic_item_update_draft.dart';
 import 'package:label_manager/models/column.dart';
 import 'package:label_manager/widgets/swipe_action_table.dart';
-import 'package:label_manager/widgets/blocking_modeless_dialog.dart';
 
 class AutoItemUpdatePageController {
   Object? _owner;
@@ -49,8 +48,6 @@ class AutoItemUpdatePage extends StatefulWidget {
     this.sourceReady = false,
     this.commandBusy = false,
     this.canEdit = true,
-    this.onBeforeApplyDateChange,
-    this.onBeforeCellChange,
     this.onDeleteRows,
     this.onApplyStagedRows,
     this.onRefresh,
@@ -66,8 +63,6 @@ class AutoItemUpdatePage extends StatefulWidget {
   final bool sourceReady;
   final bool commandBusy;
   final bool canEdit;
-  final Future<void> Function(AutoItemUpdateDraftRow row)? onBeforeApplyDateChange;
-  final Future<void> Function(AutoItemUpdateDraftRow row, int columnId)? onBeforeCellChange;
   final Future<void> Function(Iterable<String> rowKeys)? onDeleteRows;
   final Future<void> Function()? onApplyStagedRows;
   final Future<void> Function()? onRefresh;
@@ -82,8 +77,6 @@ class _AutoItemUpdatePageState extends State<AutoItemUpdatePage> {
   static const String _menuAdd = 'add';
   static const String _menuDelete = 'delete';
   static const String _menuDeleteSelected = 'deleteSelected';
-  static const String _menuInputDate = 'inputDate';
-  static const String _menuFindItem = 'findItem';
   static const String _menuRefresh = 'refresh';
   static const Color _addedRowColor = Color(0xFFEAF7EE);
   static const Color _modifiedRowColor = Color(0xFFFFF6DF);
@@ -91,10 +84,13 @@ class _AutoItemUpdatePageState extends State<AutoItemUpdatePage> {
   static const double _sourceMinWidth = 240;
   static const double _railWidth = 48;
   static const double _targetMinWidth = 480;
+  static const EdgeInsets _menuItemPadding = EdgeInsets.symmetric(horizontal: 12);
   static const double _sourceHeaderHeight = 36;
   static const double _sourceRowHeight = 28;
   static const Color _sourceRowSelectedColor = Color(0xFFDCEBFF);
   static const Color _targetDropZoneColor = Color(0x22007ACC);
+  static const double _sourcePointerMoveThreshold = 8;
+  static const Duration _sourceRowDragStartDelay = Duration(milliseconds: 80);
 
   static String _sourceItemName(AutoItemUpdateSourceSeed row) => row.itemName;
 
@@ -104,10 +100,17 @@ class _AutoItemUpdatePageState extends State<AutoItemUpdatePage> {
       FortuneTableFocusController();
   final FortuneTableEditingController _editingController =
       FortuneTableEditingController();
+    final FocusNode _sourcePaneFocusNode = FocusNode();
+  final GlobalKey _sourceTableViewportKey = GlobalKey();
   bool _contextMenuOpen = false;
   bool _targetDropActive = false;
+  bool _sourceAppendBusy = false;
   final Set<int> _selectedSourceItemIds = <int>{};
   int? _sourceAnchorIndex;
+  Offset? _sourcePointerDownPosition;
+  bool _sourcePointerMoved = false;
+  bool _deferSourceSingleSelection = false;
+  int? _deferredSourceSelectionIndex;
 
   @override
   void initState() {
@@ -161,6 +164,7 @@ class _AutoItemUpdatePageState extends State<AutoItemUpdatePage> {
     _selectionController.removeListener(_handleSelectionChanged);
     _selectionController.dispose();
     _focusController.dispose();
+    _sourcePaneFocusNode.dispose();
     widget.controller?._detach(this);
     super.dispose();
   }
@@ -233,14 +237,8 @@ class _AutoItemUpdatePageState extends State<AutoItemUpdatePage> {
             width: contentWidth,
             child: Row(
               children: [
-                SizedBox(
-                  width: _sourceMinWidth,
-                  child: _buildSourcePane(),
-                ),
-                SizedBox(
-                  width: _railWidth,
-                  child: _buildAddModeRail(),
-                ),
+                SizedBox(width: _sourceMinWidth, child: _buildSourcePane()),
+                SizedBox(width: _railWidth, child: _buildAddModeRail()),
                 SizedBox(
                   width: contentWidth - _sourceMinWidth - _railWidth,
                   child: _buildTargetTable(rows),
@@ -254,101 +252,347 @@ class _AutoItemUpdatePageState extends State<AutoItemUpdatePage> {
   }
 
   Widget _buildSourcePane() {
-    final controller = widget.draftController;
-    final canApply =
-        widget.sourceReady && !widget.commandBusy && controller?.hasStagedRows == true;
-    return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(right: BorderSide(color: Color(0xFFE6E8EB))),
-      ),
-      child: Column(
-        children: [
-          const SizedBox(
-            height: 40,
-            child: Center(
-              child: Text(
-                '원본 품목',
-                style: TextStyle(fontWeight: FontWeight.w600),
-              ),
-            ),
-          ),
-          Expanded(
-            child: widget.sourceReady
-                ? _buildSourceList()
-                : const Center(
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 16),
-                      child: Text(
-                        '품목관리 원본 목록을 아직 준비하지 못했습니다.',
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
+    return Focus(
+      focusNode: _sourcePaneFocusNode,
+      autofocus: true,
+      onKeyEvent: (_, event) {
+        if (event is! KeyDownEvent) {
+          return KeyEventResult.ignored;
+        }
+        final keys = HardwareKeyboard.instance.logicalKeysPressed;
+        final isSelectAll = event.logicalKey == LogicalKeyboardKey.keyA &&
+            (keys.contains(LogicalKeyboardKey.controlLeft) ||
+                keys.contains(LogicalKeyboardKey.controlRight) ||
+                keys.contains(LogicalKeyboardKey.metaLeft) ||
+                keys.contains(LogicalKeyboardKey.metaRight));
+        if (!isSelectAll) {
+          return KeyEventResult.ignored;
+        }
+        _selectAllSourceRows();
+        return KeyEventResult.handled;
+      },
+      child: Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          border: Border(right: BorderSide(color: Color(0xFFE6E8EB))),
+        ),
+        child: widget.sourceReady
+            ? _buildSourceList()
+            : const Center(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16),
+                  child: Text(
+                    '품목관리 원본 목록을 아직 준비하지 못했습니다.',
+                    textAlign: TextAlign.center,
                   ),
-          ),
-          Container(
-            height: 48,
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-            decoration: const BoxDecoration(
-              border: Border(top: BorderSide(color: Color(0xFFE6E8EB))),
-            ),
-            child: Row(
-              children: [
-                OutlinedButton(
-                  onPressed: widget.commandBusy ? null : _cancelAddMode,
-                  child: const Text('취소'),
                 ),
-                const SizedBox(width: 8),
-                FilledButton(
-                  onPressed: canApply ? _applyAddMode : null,
-                  child: const Text('적용'),
-                ),
-              ],
-            ),
-          ),
-        ],
+              ),
       ),
     );
   }
 
+  bool get _busy => widget.commandBusy || _sourceAppendBusy;
+
+  Future<void> _appendSelectedSourceItems() async {
+    final selected = [
+      for (final source in widget.sourceRows)
+        if (_selectedSourceItemIds.contains(source.itemId)) source,
+    ];
+    await _appendSourceItems(selected);
+  }
+
+  Future<void> _appendSourceItems(List<AutoItemUpdateSourceSeed> sources) async {
+    final controller = widget.draftController;
+    if (controller == null || !widget.sourceReady || sources.isEmpty || _busy) {
+      return;
+    }
+    setState(() {
+      _sourceAppendBusy = true;
+    });
+    try {
+      controller.stageAppendItems(sources);
+      if (widget.onApplyStagedRows case final onApply?) {
+        await onApply();
+      } else {
+        controller.applyStagedRows();
+      }
+      _selectedSourceItemIds.clear();
+      _sourceAnchorIndex = null;
+    } catch (error) {
+      _showWarning('품목 추가 적용에 실패했습니다.\n$error');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _sourceAppendBusy = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _handleFooterCancel() async {
+    final controller = widget.draftController;
+    if (controller == null || _busy || !widget.canEdit) {
+      return;
+    }
+    if (controller.addModeOpen == true && controller.isDirty != true) {
+      controller.cancelStagedRows();
+      _selectedSourceItemIds.clear();
+      _sourceAnchorIndex = null;
+      if (mounted) {
+        setState(() {});
+      }
+      return;
+    }
+    await widget.onCancelDraft?.call();
+  }
+
+  void _closeSourcePane() {
+    final controller = widget.draftController;
+    if (controller == null || _busy) {
+      return;
+    }
+    controller.cancelStagedRows();
+    _selectedSourceItemIds.clear();
+    _sourceAnchorIndex = null;
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  Set<int> _blockedSourceItemIds() {
+    final controller = widget.draftController;
+    if (controller == null) {
+      return const <int>{};
+    }
+    return {
+      for (final row in controller.rows) row.sourceItemId,
+    };
+  }
+
+  bool _canSelectSourceRow(AutoItemUpdateSourceSeed row) {
+    return !_blockedSourceItemIds().contains(row.itemId);
+  }
+
+  bool _sourceSelectionModifierPressed() {
+    final keys = HardwareKeyboard.instance.logicalKeysPressed;
+    return keys.contains(LogicalKeyboardKey.shiftLeft) ||
+        keys.contains(LogicalKeyboardKey.shiftRight) ||
+        keys.contains(LogicalKeyboardKey.controlLeft) ||
+        keys.contains(LogicalKeyboardKey.controlRight) ||
+        keys.contains(LogicalKeyboardKey.metaLeft) ||
+        keys.contains(LogicalKeyboardKey.metaRight);
+  }
+
+  void _applySingleSourceSelection(int index) {
+    if (index < 0 || index >= widget.sourceRows.length) {
+      return;
+    }
+    final source = widget.sourceRows[index];
+    if (!_canSelectSourceRow(source)) {
+      return;
+    }
+    _selectedSourceItemIds
+      ..clear()
+      ..add(source.itemId);
+    _sourceAnchorIndex = index;
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  void _selectAllSourceRows() {
+    if (!widget.sourceReady || _busy) {
+      return;
+    }
+    final selectableRows = [
+      for (var index = 0; index < widget.sourceRows.length; index += 1)
+        if (_canSelectSourceRow(widget.sourceRows[index]))
+          (index: index, itemId: widget.sourceRows[index].itemId),
+    ];
+    if (selectableRows.isEmpty) {
+      return;
+    }
+    _selectedSourceItemIds
+      ..clear()
+      ..addAll(selectableRows.map((entry) => entry.itemId));
+    _sourceAnchorIndex = selectableRows.first.index;
+    if (!_sourcePaneFocusNode.hasFocus) {
+      _sourcePaneFocusNode.requestFocus();
+    }
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  void _selectSourceRange(int startIndex, int endIndex) {
+    final start = startIndex < endIndex ? startIndex : endIndex;
+    final end = startIndex > endIndex ? startIndex : endIndex;
+    final next = <int>{};
+    for (var rowIndex = start; rowIndex <= end; rowIndex += 1) {
+      final row = widget.sourceRows[rowIndex];
+      if (_canSelectSourceRow(row)) {
+        next.add(row.itemId);
+      }
+    }
+    _selectedSourceItemIds
+      ..clear()
+      ..addAll(next);
+    _sourceAnchorIndex = startIndex;
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  void _handleSourcePointerDown(
+    AutoItemUpdateSourceSeed row,
+    int index,
+    PointerDownEvent event,
+  ) {
+    if (!_canSelectSourceRow(row) || _busy) {
+      return;
+    }
+    _sourcePointerDownPosition = event.position;
+    _sourcePointerMoved = false;
+    _deferSourceSingleSelection =
+      !_sourceSelectionModifierPressed() &&
+      _selectedSourceItemIds.length > 1 &&
+      _selectedSourceItemIds.contains(row.itemId);
+    _deferredSourceSelectionIndex = _deferSourceSingleSelection ? index : null;
+  }
+
+  void _handleSourcePointerMove(
+    AutoItemUpdateSourceSeed row,
+    int index,
+    PointerMoveEvent event,
+  ) {
+    final pointerDownPosition = _sourcePointerDownPosition;
+    if (pointerDownPosition == null || _busy) {
+      return;
+    }
+    final delta = event.position - pointerDownPosition;
+    if (!_sourcePointerMoved &&
+        (delta.dx.abs() >= _sourcePointerMoveThreshold ||
+            delta.dy.abs() >= _sourcePointerMoveThreshold)) {
+      _sourcePointerMoved = true;
+    }
+  }
+
+  void _handleSourcePointerUp(
+    AutoItemUpdateSourceSeed row,
+    int index,
+    PointerUpEvent event,
+  ) {
+    if (_deferSourceSingleSelection &&
+        _deferredSourceSelectionIndex == index &&
+        !_sourcePointerMoved) {
+      _applySingleSourceSelection(index);
+    }
+    _sourcePointerDownPosition = null;
+    _sourcePointerMoved = false;
+    _deferSourceSingleSelection = false;
+    _deferredSourceSelectionIndex = null;
+  }
+
+  int? _sourceRowIndexForGlobalPosition(Offset globalPosition) {
+    final context = _sourceTableViewportKey.currentContext;
+    if (context == null) {
+      return null;
+    }
+    final renderObject = context.findRenderObject();
+    if (renderObject is! RenderBox || !renderObject.hasSize) {
+      return null;
+    }
+    final localPosition = renderObject.globalToLocal(globalPosition);
+    if (localPosition.dx < 0 ||
+        localPosition.dy < _sourceHeaderHeight ||
+        localPosition.dx > renderObject.size.width ||
+        localPosition.dy > renderObject.size.height) {
+      return null;
+    }
+    final rowIndex =
+        ((localPosition.dy - _sourceHeaderHeight) / _sourceRowHeight).floor();
+    if (rowIndex < 0 || rowIndex >= widget.sourceRows.length) {
+      return null;
+    }
+    return rowIndex;
+  }
+
   Widget _buildSourceList() {
-    return SwipeActionTable<AutoItemUpdateSourceSeed>(
-      key: const Key('auto-item-update-source-table'),
-      rows: widget.sourceRows,
-      rowNumberWidth: 0,
-      headerHeight: _sourceHeaderHeight,
-      rowHeight: _sourceRowHeight,
-      autoFitColumns: false,
-      fillLastColumn: true,
-      selectedIndex: _selectedSourceIndex(),
-      rowColorBuilder: (row, index, selected) {
-        if (_selectedSourceItemIds.contains(row.itemId)) {
-          return _sourceRowSelectedColor;
-        }
-        return index.isEven ? Colors.white : const Color(0xFFF2F4F7);
-      },
-      onRowSelected: (_, index) => _selectSourceRow(index),
-      rowDragDataBuilder: (row, index) =>
-          widget.sourceReady && !widget.commandBusy
-          ? _dragPayloadForSourceRow(row, index)
-          : null,
-      onRowDragStarted: (row, index) {
-        final payload = _dragPayloadForSourceRow(row, index);
-        _selectedSourceItemIds
-          ..clear()
-          ..addAll(payload.itemIds);
-        _sourceAnchorIndex = index;
-        if (mounted) {
-          setState(() {});
-        }
-      },
-      columns: const [
-        SwipeActionTableColumn<AutoItemUpdateSourceSeed>(
-          header: '품목명',
-          text: _sourceItemName,
-          fillRemaining: true,
-        ),
-      ],
+    final blockedItemIds = _blockedSourceItemIds();
+    return KeyedSubtree(
+      key: _sourceTableViewportKey,
+      child: SwipeActionTable<AutoItemUpdateSourceSeed>(
+        key: const Key('auto-item-update-source-table'),
+        rows: widget.sourceRows,
+        rowNumberWidth: 0,
+        headerHeight: _sourceHeaderHeight,
+        rowHeight: _sourceRowHeight,
+        autoFitColumns: false,
+        fillLastColumn: true,
+        rowDragStartBehavior: SwipeActionTableRowDragStartBehavior.longPress,
+        rowDragStartDelay: _sourceRowDragStartDelay,
+        selectedIndex: _selectedSourceIndex(),
+        rowColorBuilder: (row, index, selected) {
+          if (blockedItemIds.contains(row.itemId)) {
+            return index.isEven ? const Color(0xFFF5F5F5) : const Color(0xFFEDEDED);
+          }
+          if (_selectedSourceItemIds.contains(row.itemId)) {
+            return _sourceRowSelectedColor;
+          }
+          return index.isEven ? Colors.white : const Color(0xFFF2F4F7);
+        },
+        onRowSelected: (_, index) => _selectSourceRow(index),
+        onRowPointerDown: _handleSourcePointerDown,
+        onRowPointerMove: _handleSourcePointerMove,
+        onRowPointerUp: _handleSourcePointerUp,
+        rowDragDataBuilder: (row, index) =>
+            widget.sourceReady && !_busy && _canSelectSourceRow(row)
+                ? _dragPayloadForSourceRow(row, index)
+                : null,
+        rowDragFeedbackBuilder: (row, index, defaultFeedback) =>
+            _buildSourceDragFeedback(
+              _dragPayloadForSourceRow(row, index),
+              defaultFeedback,
+            ),
+        onRowDragStarted: (row, index) {
+          if (!_canSelectSourceRow(row)) {
+            return;
+          }
+          _deferSourceSingleSelection = false;
+          _deferredSourceSelectionIndex = null;
+          if (!_sourcePaneFocusNode.hasFocus) {
+            _sourcePaneFocusNode.requestFocus();
+          }
+          final payload = _dragPayloadForSourceRow(row, index);
+          _selectedSourceItemIds
+            ..clear()
+            ..addAll(payload.itemIds);
+          _sourceAnchorIndex = index;
+          if (mounted) {
+            setState(() {});
+          }
+        },
+        columns: [
+          SwipeActionTableColumn<AutoItemUpdateSourceSeed>(
+            header: '원본 품목명',
+            text: _sourceItemName,
+            fillRemaining: true,
+            headerTrailing: IconButton(
+              key: const Key('auto-item-update-source-close-button'),
+              tooltip: '원본 품목 영역 닫기',
+              onPressed: _busy ? null : _closeSourcePane,
+              icon: const Icon(
+                Icons.close,
+                size: 16,
+                color: Color(0xFFB8BEC8),
+              ),
+              splashRadius: 16,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints.tightFor(width: 28, height: 28),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -370,11 +614,84 @@ class _AutoItemUpdatePageState extends State<AutoItemUpdatePage> {
     );
   }
 
+  Widget _buildSourceDragFeedback(
+    _AutoItemUpdateSourceDragPayload payload,
+    Widget defaultFeedback,
+  ) {
+    if (payload.rows.length <= 1) {
+      return defaultFeedback;
+    }
+    final previewRows = payload.rows.take(3).toList(growable: false);
+    final previewHeight = _sourceRowHeight + (previewRows.length - 1) * 8 + 6;
+    return SizedBox(
+      width: _sourceMinWidth,
+      height: previewHeight,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          for (var index = previewRows.length - 1; index >= 0; index -= 1)
+            Positioned(
+              top: index * 8,
+              left: index * 6,
+              right: 0,
+              child: Opacity(
+                opacity: 1 - index * 0.14,
+                child: _buildSourceDragFeedbackCard(
+                  label: previewRows[index].itemName,
+                  isTop: index == 0,
+                  extraCount:
+                      index == 0 ? payload.rows.length - previewRows.length : 0,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSourceDragFeedbackCard({
+    required String label,
+    required bool isTop,
+    required int extraCount,
+  }) {
+    return Container(
+      height: _sourceRowHeight,
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      decoration: BoxDecoration(
+        color: isTop ? Colors.white : const Color(0xFFF6F8FB),
+        border: Border.all(color: const Color(0xFFD1D9E0)),
+        borderRadius: BorderRadius.circular(6),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x18000000),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.drag_indicator, size: 14, color: Color(0xFF6B7280)),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              extraCount > 0 ? '$label 외 $extraCount건' : label,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 13, color: Color(0xFF111827)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   int? _selectedSourceIndex() {
     if (_sourceAnchorIndex != null &&
         _sourceAnchorIndex! >= 0 &&
         _sourceAnchorIndex! < widget.sourceRows.length &&
-        _selectedSourceItemIds.contains(widget.sourceRows[_sourceAnchorIndex!].itemId)) {
+        _selectedSourceItemIds.contains(
+          widget.sourceRows[_sourceAnchorIndex!].itemId,
+        )) {
       return _sourceAnchorIndex;
     }
     for (var index = 0; index < widget.sourceRows.length; index += 1) {
@@ -391,6 +708,17 @@ class _AutoItemUpdatePageState extends State<AutoItemUpdatePage> {
     }
     final keys = HardwareKeyboard.instance.logicalKeysPressed;
     final source = widget.sourceRows[index];
+    if (!_canSelectSourceRow(source)) {
+      return;
+    }
+    if (_deferSourceSingleSelection &&
+        _deferredSourceSelectionIndex == index &&
+        !_sourcePointerMoved) {
+      return;
+    }
+    if (!_sourcePaneFocusNode.hasFocus) {
+      _sourcePaneFocusNode.requestFocus();
+    }
     final next = <int>{..._selectedSourceItemIds};
     if (keys.contains(LogicalKeyboardKey.shiftLeft) ||
         keys.contains(LogicalKeyboardKey.shiftRight)) {
@@ -412,17 +740,9 @@ class _AutoItemUpdatePageState extends State<AutoItemUpdatePage> {
       }
       _sourceAnchorIndex = index;
     } else {
-      if (next.isEmpty || (next.length == 1 && next.contains(source.itemId))) {
-        next
-          ..clear()
-          ..add(source.itemId);
-      } else if (next.contains(source.itemId)) {
-        next
-          ..clear()
-          ..add(source.itemId);
-      } else {
-        next.add(source.itemId);
-      }
+      next
+        ..clear()
+        ..add(source.itemId);
       _sourceAnchorIndex = index;
     }
     _selectedSourceItemIds
@@ -435,12 +755,12 @@ class _AutoItemUpdatePageState extends State<AutoItemUpdatePage> {
 
   Widget _buildAddModeRail() {
     final enabled =
-        widget.sourceReady && !widget.commandBusy && _selectedSourceItemIds.isNotEmpty;
+        widget.sourceReady && !_busy && _selectedSourceItemIds.isNotEmpty;
     return Center(
       child: Tooltip(
         message: '선택 품목 추가',
         child: IconButton(
-          onPressed: enabled ? _stageSelectedSourceItems : null,
+          onPressed: enabled ? _appendSelectedSourceItems : null,
           icon: const Icon(Icons.arrow_forward),
         ),
       ),
@@ -457,8 +777,14 @@ class _AutoItemUpdatePageState extends State<AutoItemUpdatePage> {
       selectionController: _selectionController,
       focusController: _focusController,
       editingController: _editingController,
-      onRowSelected: (row, _) {
-        controller?.setSelection([row.rowKey], anchorRowKey: row.rowKey);
+      onSelectionFocusChanged: (row, _) {
+        if (controller == null) {
+          return;
+        }
+        controller.setSelection(
+          _selectedTargetRowKeys(controller),
+          anchorRowKey: row.rowKey,
+        );
       },
       onRowSecondaryTapDown: controller?.addModeOpen == true
           ? null
@@ -473,7 +799,7 @@ class _AutoItemUpdatePageState extends State<AutoItemUpdatePage> {
       return table;
     }
     return DragTarget<_AutoItemUpdateSourceDragPayload>(
-      onWillAcceptWithDetails: (details) => widget.sourceReady && !widget.commandBusy,
+      onWillAcceptWithDetails: (details) => widget.sourceReady && !_busy,
       onMove: (_) {
         if (_targetDropActive || !mounted) {
           return;
@@ -492,7 +818,7 @@ class _AutoItemUpdatePageState extends State<AutoItemUpdatePage> {
       },
       onAcceptWithDetails: (details) {
         _targetDropActive = false;
-        _stageSourceItems(details.data.rows);
+        _appendSourceItems(details.data.rows);
         if (mounted) {
           setState(() {});
         }
@@ -500,7 +826,9 @@ class _AutoItemUpdatePageState extends State<AutoItemUpdatePage> {
       builder: (context, _, _) => DecoratedBox(
         decoration: BoxDecoration(
           border: Border.all(
-            color: _targetDropActive ? const Color(0xFF007ACC) : Colors.transparent,
+            color: _targetDropActive
+                ? const Color(0xFF007ACC)
+                : Colors.transparent,
             width: 2,
           ),
           color: _targetDropActive ? _targetDropZoneColor : Colors.transparent,
@@ -532,8 +860,8 @@ class _AutoItemUpdatePageState extends State<AutoItemUpdatePage> {
       final selectedKeys = controller == null
           ? const <String>{}
           : (_selectedTargetRowKeys(controller).isNotEmpty
-            ? _selectedTargetRowKeys(controller)
-            : controller.selectedRowKeys);
+              ? _selectedTargetRowKeys(controller)
+              : controller.selectedRowKeys);
       final hasContextRow = rowKey != null;
       final canAdd =
           widget.canEdit && !widget.commandBusy && controller?.addModeOpen != true;
@@ -561,32 +889,30 @@ class _AutoItemUpdatePageState extends State<AutoItemUpdatePage> {
           PopupMenuItem<String>(
             value: _menuAdd,
             enabled: canAdd,
+            height: fortuneContextMenuRowHeight,
+            padding: _menuItemPadding,
             child: const Text('자동갱신 품목추가'),
           ),
           PopupMenuItem<String>(
             value: _menuDelete,
             enabled: canDelete,
+            height: fortuneContextMenuRowHeight,
+            padding: _menuItemPadding,
             child: const Text('품목삭제'),
           ),
           PopupMenuItem<String>(
             value: _menuDeleteSelected,
             enabled: canDeleteSelected,
+            height: fortuneContextMenuRowHeight,
+            padding: _menuItemPadding,
             child: const Text('블럭선택 품목삭제'),
           ),
-          PopupMenuItem<String>(
-            value: _menuInputDate,
-            enabled: controller?.addModeOpen != true && hasContextRow,
-            child: const Text('블럭선택 날짜입력'),
-          ),
-          PopupMenuItem<String>(
-            value: _menuFindItem,
-            enabled: controller?.addModeOpen != true && hasContextRow,
-            child: const Text('품목찾기'),
-          ),
-          const PopupMenuDivider(),
+          const PopupMenuDivider(height: fortuneContextMenuDividerHeight),
           PopupMenuItem<String>(
             value: _menuRefresh,
             enabled: !widget.commandBusy,
+            height: fortuneContextMenuRowHeight,
+            padding: _menuItemPadding,
             child: const Text('새로 고침'),
           ),
         ],
@@ -595,12 +921,21 @@ class _AutoItemUpdatePageState extends State<AutoItemUpdatePage> {
         return;
       }
       if (command == _menuAdd) {
+        if (!await _flushContextMenuEditing('자동갱신 품목추가')) {
+          return;
+        }
         controller?.startAddMode();
       } else if (command == _menuDelete) {
+        if (!await _flushContextMenuEditing('품목삭제')) {
+          return;
+        }
         if (rowKey != null) {
           await widget.onDeleteRows?.call({rowKey});
         }
       } else if (command == _menuDeleteSelected) {
+        if (!await _flushContextMenuEditing('블럭선택 품목삭제')) {
+          return;
+        }
         await widget.onDeleteRows?.call(selectedKeys);
       } else if (command == _menuRefresh) {
         await widget.onRefresh?.call();
@@ -610,74 +945,18 @@ class _AutoItemUpdatePageState extends State<AutoItemUpdatePage> {
     }
   }
 
-  void _stageSelectedSourceItems() {
-    final controller = widget.draftController;
-    if (controller == null || !widget.sourceReady) {
-      return;
-    }
-    final selected = [
-      for (final source in widget.sourceRows)
-        if (_selectedSourceItemIds.contains(source.itemId)) source,
-    ];
-    _stageSourceItems(selected);
-  }
-
-  void _stageSourceItems(List<AutoItemUpdateSourceSeed> sources) {
-    final controller = widget.draftController;
-    if (controller == null || !widget.sourceReady || sources.isEmpty) {
-      return;
-    }
-    controller.stageAppendItems(sources);
-  }
-
-  Future<void> _cancelAddMode() async {
-    final controller = widget.draftController;
-    if (controller == null || widget.commandBusy) {
-      return;
-    }
-    final confirmed = await showBlockingModelessOverlayDialog<bool>(
-      context: context,
-      builder: (dialogContext, close) => AlertDialog(
-        content: const Text('자동갱신 품목 추가를 취소할까요?'),
-        actions: [
-          TextButton(onPressed: () => close(false), child: const Text('계속 편집')),
-          FilledButton(onPressed: () => close(true), child: const Text('취소')),
-        ],
-      ),
-    );
-    if (confirmed != true || !mounted) {
-      return;
-    }
-    controller.cancelStagedRows();
-    _selectedSourceItemIds.clear();
-    _sourceAnchorIndex = null;
-  }
-
-  Future<void> _applyAddMode() async {
-    final controller = widget.draftController;
-    if (controller == null || controller.hasStagedRows != true || widget.commandBusy) {
-      return;
-    }
-    final confirmed = await showBlockingModelessOverlayDialog<bool>(
-      context: context,
-      builder: (dialogContext, close) => AlertDialog(
-        content: const Text('선택 품목을 자동품목갱신에 적용할까요?'),
-        actions: [
-          TextButton(onPressed: () => close(false), child: const Text('취소')),
-          FilledButton(onPressed: () => close(true), child: const Text('적용')),
-        ],
-      ),
-    );
-    if (confirmed != true || !mounted) {
-      return;
-    }
+  Future<bool> _flushContextMenuEditing(String actionLabel) async {
     try {
-      await widget.onApplyStagedRows?.call();
-      _selectedSourceItemIds.clear();
-      _sourceAnchorIndex = null;
-    } catch (error) {
-      _showWarning('품목 추가 적용에 실패했습니다.\n$error');
+      await _editingController.commitEditing();
+    } catch (_) {
+      _showWarning('$actionLabel 전에 현재 편집을 완료해 주세요.');
+      return false;
     }
+    if (_editingController.hasActiveEditing) {
+      _showWarning('$actionLabel 전에 현재 편집을 완료해 주세요.');
+      return false;
+    }
+    return true;
   }
 
   List<FortuneTableColumn<AutoItemUpdateDraftRow>> _columns() {
@@ -728,12 +1007,6 @@ class _AutoItemUpdatePageState extends State<AutoItemUpdatePage> {
     int rowIndex,
     String value,
   ) async {
-    try {
-      await widget.onBeforeApplyDateChange?.call(row);
-    } catch (error) {
-      _showWarning('변경 취소용 백업을 저장하지 못했습니다.\n$error');
-      return;
-    }
     final applied = widget.draftController?.updateApplyDate(row.rowKey, value) ?? false;
     if (!applied) {
       _showWarning('갱신날짜는 오늘 날짜 이후의 yyyyMMdd 형식만 입력할 수 있습니다.');
@@ -745,12 +1018,6 @@ class _AutoItemUpdatePageState extends State<AutoItemUpdatePage> {
     int columnId,
     String value,
   ) async {
-    try {
-      await widget.onBeforeCellChange?.call(row, columnId);
-    } catch (error) {
-      _showWarning('변경 취소용 백업을 저장하지 못했습니다.\n$error');
-      return;
-    }
     widget.draftController?.updateCellValue(
       row.rowKey,
       columnId: columnId,
@@ -768,11 +1035,10 @@ class _AutoItemUpdatePageState extends State<AutoItemUpdatePage> {
 
   Widget _buildCommandFooter() {
     final controller = widget.draftController;
-    final dirtyEnabled =
-        widget.canEdit &&
-        !widget.commandBusy &&
-        controller?.isDirty == true &&
-        controller?.addModeOpen != true;
+    final cancelEnabled = widget.canEdit &&
+        !_busy &&
+        ((controller?.isDirty == true) || controller?.addModeOpen == true);
+    final saveEnabled = widget.canEdit && !_busy && controller?.isDirty == true;
     return Container(
       height: 48,
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
@@ -782,7 +1048,7 @@ class _AutoItemUpdatePageState extends State<AutoItemUpdatePage> {
       ),
       child: Row(
         children: [
-          if (widget.commandBusy) ...[
+          if (_busy) ...[
             const SizedBox(
               width: 16,
               height: 16,
@@ -793,14 +1059,12 @@ class _AutoItemUpdatePageState extends State<AutoItemUpdatePage> {
           ],
           const Spacer(),
           OutlinedButton(
-            onPressed: dirtyEnabled && widget.onCancelDraft != null
-                ? widget.onCancelDraft
-                : null,
+            onPressed: cancelEnabled ? _handleFooterCancel : null,
             child: const Text('취소'),
           ),
           const SizedBox(width: 8),
           FilledButton(
-            onPressed: dirtyEnabled && widget.onSaveDraft != null
+            onPressed: saveEnabled && widget.onSaveDraft != null
                 ? widget.onSaveDraft
                 : null,
             child: const Text('저장'),
@@ -834,6 +1098,7 @@ class _AutoItemUpdateSourceDragPayload {
   final Set<int> itemIds;
   final int anchorIndex;
 }
+
 
 String _rowNumberText(AutoItemUpdateDraftRow row) =>
     '${row.originalIndex + 1}';
