@@ -1,5 +1,6 @@
 ## 다음 세션 시작 문구
-- [SESSION_RULES.md](SESSION_RULES.md)와 [SESSION_HANDOFF.md](SESSION_HANDOFF.md)를 확인해 이전 세션 작업을 이어서 진행해줘
+- SESSION_RULES.md와 SESSION_HANDOFF.md를 확인해 이전 세션 작업을 이어서 진행해줘
+- SESSION_RULES.md와 SESSION_HANDOFF.md를 확인해 이전 세션 작업을 이어서 진행하게 대기해줘
 
 ## 상시 규칙
 - 상시 규칙은 [SESSION_RULES.md](SESSION_RULES.md)를 기준으로 따른다.
