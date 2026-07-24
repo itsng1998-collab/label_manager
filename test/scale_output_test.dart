@@ -8,6 +8,8 @@ import 'package:label_manager/models/item_of_market.dart';
 import 'package:label_manager/models/label_print.dart';
 import 'package:label_manager/models/scale_output.dart';
 import 'package:label_manager/page_home/scale_output_page.dart';
+import 'package:label_manager/page_label_sheet/label_sheet_workbench.dart';
+import 'package:label_manager/widgets/label_output_preview.dart';
 
 void main() {
   test('weight text strips units and spaces', () {
@@ -345,6 +347,71 @@ void main() {
 
     expect(reloadAllCount, 1);
     expect(reloadSelectedCount, 0);
+  });
+
+  testWidgets('scale output moves zoom toolbar above weight and price fields', (
+    tester,
+  ) async {
+    final controller = ScaleOutputSessionController();
+    controller.syncCheckedItems(
+      baselineItems: [_item()],
+      checkedItemIds: const {1},
+      createRow: (_) => _row(),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ScaleOutputPage(
+            controller: controller,
+            previewBuilder: (_, __) => const SizedBox.shrink(),
+            onPrinterSettings: () {},
+            onScaleSettings: () {},
+            onReloadAll: () {},
+            onReloadSelected: () {},
+            onIssue: () {},
+            onCancelIssue: () {},
+            onConnect: () {},
+            onDisconnect: () {},
+            useScale: true,
+          ),
+        ),
+      ),
+    );
+
+    final zoomToolbar = find.byKey(const ValueKey('label-sheet-zoom-toolbar'));
+    final weightField = find.widgetWithText(TextField, '중량');
+    final printerButton = find.widgetWithText(OutlinedButton, '프린터 설정');
+
+    expect(zoomToolbar, findsOneWidget);
+    expect(tester.getTopRight(zoomToolbar).dy, lessThan(tester.getTopLeft(weightField).dy));
+    expect(tester.getTopLeft(zoomToolbar).dy, lessThan(tester.getTopLeft(printerButton).dy));
+  });
+
+  testWidgets('label output preview hides object panel in preview mode', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: LabelOutputPreview(
+            workbook: FortuneWorkbook(
+              sheets: [FortuneSheet(id: 'sheet-1', name: 'Sheet 1')],
+            ),
+            hintText: null,
+            identityKey: 'preview-test',
+            imageObjectIds: const [],
+            barcodeObjectIds: const [],
+          ),
+        ),
+      ),
+    );
+
+    final workbench = tester.widget<LabelSheetWorkbench>(
+      find.byType(LabelSheetWorkbench),
+    );
+    expect(workbench.allowObjectPanel, isFalse);
+    expect(workbench.showObjectPanelOpenButton, isFalse);
   });
 }
 

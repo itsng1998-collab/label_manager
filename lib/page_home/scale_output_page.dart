@@ -465,9 +465,16 @@ class _ScaleOutputPageState extends State<ScaleOutputPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                row?.item.item.itemName ?? '선택된 품목 없음',
-                style: Theme.of(context).textTheme.titleMedium,
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      row?.item.item.itemName ?? '선택된 품목 없음',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                  ),
+                  LabelSheetZoomToolbar(controller: _zoomController),
+                ],
               ),
               const SizedBox(height: 12),
               if (widget.useScale) ...[
@@ -595,9 +602,6 @@ class _ScaleOutputPageState extends State<ScaleOutputPage> {
             label: Text(widget.busy ? '발행 취소' : '발행'),
           ),
           const Spacer(),
-          LabelSheetZoomToolbar(
-            controller: _zoomController,
-          ),
         ],
       ),
     ),

@@ -93,6 +93,8 @@ class _LabelOutputPreviewState extends State<LabelOutputPreview> {
             hideStatisticBar: true,
             copyOnlyContextMenu: true,
             canEditObjects: false,
+            allowObjectPanel: false,
+            showObjectPanelOpenButton: false,
             zoomToolbarPlacement: widget.zoomToolbarPlacement,
             zoomController: widget.zoomController,
           ),

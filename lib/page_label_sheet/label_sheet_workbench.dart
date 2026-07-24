@@ -1890,6 +1890,7 @@ class LabelSheetWorkbench extends StatefulWidget {
     this.copyOnlyContextMenu = false,
     this.limitCellActionsToClipboardAndClear = false,
     this.canEditObjects = true,
+    this.allowObjectPanel = true,
     this.showObjectPanelOpenButton = true,
     this.zoomToolbarPlacement = LabelSheetZoomToolbarPlacement.sheetToolbarEnd,
     this.zoomController,
@@ -1933,6 +1934,7 @@ class LabelSheetWorkbench extends StatefulWidget {
   final bool copyOnlyContextMenu;
   final bool limitCellActionsToClipboardAndClear;
   final bool canEditObjects;
+  final bool allowObjectPanel;
   final bool showObjectPanelOpenButton;
   final LabelSheetZoomToolbarPlacement zoomToolbarPlacement;
   final LabelSheetZoomController? zoomController;
@@ -2330,6 +2332,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
 
   void _handleObjectPanelOpenRequest(FortuneObjectPanelOpenRequest request) {
     if (!mounted) return;
+    if (!widget.allowObjectPanel) return;
     final editRequest =
         request.propertyField != null && request.objectKey != null;
     if (!editRequest) {
@@ -2598,6 +2601,8 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
   void initState() {
     super.initState();
     _isDirty = widget.initialDirty;
+    _userWantsObjectDockOpen = widget.allowObjectPanel;
+    _objectOverlayOpen = false;
     _controller.addListener(_handleControllerCommandStateChanged);
     _initializeZoomFromExternalController();
     widget.zoomController?._attach(_setLabelSheetZoomPercent);
@@ -2715,6 +2720,19 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
         widget.zoomToolbarPlacement !=
             LabelSheetZoomToolbarPlacement.previewTabAreaEnd) {
       _removeZoomToolbarFloatingOverlay();
+    }
+    if (oldWidget.allowObjectPanel != widget.allowObjectPanel &&
+        !widget.allowObjectPanel) {
+      setState(() {
+        _userWantsObjectDockOpen = false;
+        _objectOverlayOpen = false;
+        _objectOverlayTriggerFocus = null;
+        _objectOverlayPreviousFocus = null;
+        _objectPropertyFocusField = null;
+        _objectPropertyFocusSheetId = null;
+        _objectPropertyFocusObjectKey = null;
+        _objectPropertyFocusGeneration += 1;
+      });
     }
   }
 
@@ -4139,8 +4157,10 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
               420.0,
               constraints.maxWidth - 480 - 8,
             );
-            final objectPanelPresentation = _objectDockEligible
-                ? _userWantsObjectDockOpen
+            final objectPanelPresentation = !widget.allowObjectPanel
+              ? FortuneObjectPanelPresentation.hidden
+              : _objectDockEligible
+              ? _userWantsObjectDockOpen
                       ? FortuneObjectPanelPresentation.dock
                       : FortuneObjectPanelPresentation.hidden
                 : _objectOverlayOpen
