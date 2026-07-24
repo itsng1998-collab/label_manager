@@ -1,18 +1,21 @@
+## 다음 세션 시작 문구
+- [SESSION_RULES.md](SESSION_RULES.md)와 [SESSION_HANDOFF.md](SESSION_HANDOFF.md)를 확인해 이전 세션 작업을 이어서 진행해줘
+
 ## 상시 규칙
 - 상시 규칙은 [SESSION_RULES.md](SESSION_RULES.md)를 기준으로 따른다.
 - 이 파일에는 현재 상태, 최근 완료 항목, 검증, 다음 액션만 기록한다.
 
 ## 현재 상태
-- 탭메뉴 저울출력 처음 진입시 빈 테이블 수정 이후, 라벨 load와 저울출력 row 생성을 분리하는 lazy sync 전환까지 완료했고 커밋만 남아 있다.
-- SQL 관련 후속 작업에서 히스토리를 확인해 대상 버전 호환 구문만 쓰도록 [SESSION_RULES.md](SESSION_RULES.md)에 상시 규칙을 추가했다.
-- [SESSION_RULES.md](SESSION_RULES.md)의 로그 규칙 문구를 관측/진단 전용 의미로 더 명확하게 정리했고 커밋만 남아 있다.
+- 탭메뉴 저울출력 처음 진입 빈 테이블 수정, 저울출력 lazy sync 전환, SQL Server 호환 규칙 추가, 로그 규칙 문구 명확화까지 모두 커밋 완료 상태다.
 - 최신 관련 커밋:
-- `882447d` Adjust scale output preview controls
-- `a22c006` Move scale output DB out of workspace
-- `6344d28` Fix scale output table reload behavior
-- 현재 작업트리에는 이번 규칙 문서 수정과 범위 밖 사용자 변경 [lib/core/app.dart](lib/core/app.dart)가 있다.
+- `d9bada5` Clarify logging rule wording
+- `8846281` Add SQL Server compatibility session rule
+- `2fc8ba2` Defer scale output sync until tab open
+- `733d3b4` Fix initial scale output tab load
+- 현재 작업트리에는 범위 밖 사용자 변경 [lib/core/app.dart](lib/core/app.dart)만 남아 있다.
 
 ## 최근 완료 항목
+- 다음 세션에서 바로 복사/붙여넣기할 수 있도록 이 파일 상단에 시작 문구를 추가했다.
 - [SESSION_RULES.md](SESSION_RULES.md)의 `로그 파일에는 비즈니스 로직을 넣지 않는다` 문구를 로그 기록/파싱은 관측과 진단만 담당하고 업무 판단·상태 변경·저장·재시도는 직접 수행하지 않는다는 의미로 구체화했다.
 - 탭메뉴 저울출력 처음 진입시 라벨/품목 로드 직후 `_syncScaleOutputRows()`가 호출되지 않아 테이블 rows가 비어 있던 문제를 수정했다.
 - 라벨 변경 시 저울출력 rows를 즉시 만들지 않고, 저울출력 탭이 실제로 선택될 때만 sync하도록 바꿨다.
