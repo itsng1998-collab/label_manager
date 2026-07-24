@@ -96,9 +96,6 @@ Object? homeTabShortcutValue({
 }
 
 @visibleForTesting
-bool homeTabShortcutRouteAllowsHandling(bool? isCurrent) => isCurrent ?? true;
-
-@visibleForTesting
 bool labelPrintTabSelectionBlocked({
   required bool hasActiveEditing,
   required bool itemDraftCommandBusy,
@@ -2780,16 +2777,6 @@ class _HomePageManagerState extends State<HomePageManager> {
         key == LogicalKeyboardKey.f2 ||
         key == LogicalKeyboardKey.f3 ||
         key == LogicalKeyboardKey.f5;
-    final route = ModalRoute.of(context);
-    if (!homeTabShortcutRouteAllowsHandling(route?.isCurrent)) {
-      if (isHomeTabShortcutKey) {
-        debugLog(
-          'home tab shortcut ignored key=$key reason=routeInactive '
-          'routeCurrent=${route?.isCurrent}',
-        );
-      }
-      return false;
-    }
     final keyboard = HardwareKeyboard.instance;
     if (key == LogicalKeyboardKey.f5 &&
         !keyboard.isAltPressed &&
@@ -5348,14 +5335,7 @@ class _HomePageManagerState extends State<HomePageManager> {
         ),
       ],
     );
-    return Focus(
-      autofocus: true,
-      onKeyEvent: (_, event) =>
-          _handleTabShortcutKeyEvent(event)
-              ? KeyEventResult.handled
-              : KeyEventResult.ignored,
-      child: result,
-    );
+    return result;
   }
 
   AutoItemUpdateDraftRow? _selectedAutoItemUpdateRow() {
