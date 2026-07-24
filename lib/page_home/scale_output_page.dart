@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:fortune_sheet/fortune_sheet.dart';
 import 'package:label_manager/database/db_scale_connect_info.dart';
 import 'package:label_manager/models/scale_output.dart';
+import 'package:label_manager/page_home/table_search.dart';
 import 'package:label_manager/page_label_sheet/label_sheet_workbench.dart';
 import 'package:label_manager/widgets/vertical_pane_splitter.dart';
 
@@ -225,6 +226,10 @@ class _ScaleOutputPageState extends State<ScaleOutputPage> {
 
   final FortuneTableEditingController _editingController =
       FortuneTableEditingController();
+    final FortuneTableSelectionController _selectionController =
+      FortuneTableSelectionController();
+    final FortuneTableFocusController _focusController =
+      FortuneTableFocusController();
   final FortuneTableScrollController _tableScrollController =
       FortuneTableScrollController();
   final LabelSheetZoomController _zoomController = LabelSheetZoomController(
@@ -236,6 +241,8 @@ class _ScaleOutputPageState extends State<ScaleOutputPage> {
   final FocusNode _priceFocusNode = FocusNode();
   double _tableFraction = 0.55;
   int? _lastSelectedItemId;
+  String _activeSearchColumnId = 'itemName';
+  int _searchStartIndex = 0;
   bool _syncingTextControllers = false;
   bool _contextMenuOpen = false;
 
@@ -266,6 +273,8 @@ class _ScaleOutputPageState extends State<ScaleOutputPage> {
   void _attachController() {
     widget.pageController?.attach(
       owner: this,
+      search: _search,
+      resetSearch: () => _searchStartIndex = 0,
       commitEditing: () async {
         _weightFocusNode.unfocus();
         _priceFocusNode.unfocus();
@@ -278,6 +287,8 @@ class _ScaleOutputPageState extends State<ScaleOutputPage> {
   void dispose() {
     widget.controller.removeListener(_handleChanged);
     widget.pageController?.detach(this);
+    _selectionController.dispose();
+    _focusController.dispose();
     _weightFocusNode.dispose();
     _priceFocusNode.dispose();
     _weightController.dispose();
@@ -336,8 +347,16 @@ class _ScaleOutputPageState extends State<ScaleOutputPage> {
       columns: _columns,
       autoFitColumns: false,
       selectedIndex: selectedIndex < 0 ? null : selectedIndex,
+      selectionController: _selectionController,
+      focusController: _focusController,
       editingController: _editingController,
       scrollController: _tableScrollController,
+      onCellActivated: (_, _, columnId) {
+        if (_activeSearchColumnId != columnId) {
+          _searchStartIndex = 0;
+        }
+        _activeSearchColumnId = columnId;
+      },
       onRowSelected: (row, _) => widget.controller.selectItem(row.itemId),
       onRowSecondaryTapDown: (row, _, details) {
         widget.controller.selectItem(row.itemId);
@@ -408,6 +427,28 @@ class _ScaleOutputPageState extends State<ScaleOutputPage> {
         _commandBar(),
       ],
     );
+  }
+
+  TableSearchResult _search(String query) {
+    final rows = widget.controller.rows;
+    final columns = _columns;
+    final columnIndex = columns.indexWhere(
+      (column) => column.id == _activeSearchColumnId,
+    );
+    if (rows.isEmpty || columnIndex < 0) {
+      return TableSearchResult.unavailable;
+    }
+    final column = columns[columnIndex];
+    for (var index = _searchStartIndex; index < rows.length; index += 1) {
+      if (!column.text(rows[index]).contains(query)) continue;
+      final row = rows[index];
+      _searchStartIndex = index + 1;
+      _selectionController.setSelectedRows([index]);
+      widget.controller.selectItem(row.itemId);
+      _focusController.focusCell(index, column.id);
+      return TableSearchResult.found;
+    }
+    return TableSearchResult.reachedEnd;
   }
 
   Future<void> _showContextMenu(TapDownDetails details) async {

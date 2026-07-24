@@ -11,6 +11,7 @@ import 'package:label_manager/models/item_of_market.dart';
 import 'package:label_manager/models/label_print.dart';
 import 'package:label_manager/models/label_print_auto_increment.dart';
 import 'package:label_manager/models/label_size.dart';
+import 'package:label_manager/page_home/table_search.dart';
 import 'package:label_manager/printing/label_print_pipeline.dart';
 import 'package:serial_port_win32/serial_port_win32.dart';
 import 'package:win32/win32.dart';
@@ -348,10 +349,17 @@ class ScaleOutputRowDraft {
 
 class ScaleOutputPageController {
   Object? _owner;
+  TableSearchResult Function(String query)? _search;
+  VoidCallback? _resetSearch;
   Future<void> Function()? _commitEditing;
   bool Function()? _hasActiveEditing;
 
   bool get hasActiveEditing => _hasActiveEditing?.call() ?? false;
+
+  TableSearchResult search(String query) =>
+      _search?.call(query) ?? TableSearchResult.unavailable;
+
+  void resetSearch() => _resetSearch?.call();
 
   Future<void> commitEditing() async {
     await _commitEditing?.call();
@@ -359,10 +367,14 @@ class ScaleOutputPageController {
 
   void attach({
     required Object owner,
+    required TableSearchResult Function(String query) search,
+    required VoidCallback resetSearch,
     required Future<void> Function() commitEditing,
     required bool Function() hasActiveEditing,
   }) {
     _owner = owner;
+    _search = search;
+    _resetSearch = resetSearch;
     _commitEditing = commitEditing;
     _hasActiveEditing = hasActiveEditing;
   }
@@ -370,6 +382,8 @@ class ScaleOutputPageController {
   void detach(Object owner) {
     if (!identical(_owner, owner)) return;
     _owner = null;
+    _search = null;
+    _resetSearch = null;
     _commitEditing = null;
     _hasActiveEditing = null;
   }

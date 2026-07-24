@@ -4,14 +4,22 @@ import 'package:fortune_sheet/fortune_sheet.dart' hide Rect;
 
 import 'package:label_manager/models/automatic_item_update_draft.dart';
 import 'package:label_manager/models/column.dart';
+import 'package:label_manager/page_home/table_search.dart';
 import 'package:label_manager/widgets/swipe_action_table.dart';
 
 class AutoItemUpdatePageController {
   Object? _owner;
+  TableSearchResult Function(String query)? _search;
+  VoidCallback? _resetSearch;
   Future<void> Function()? _commitEditing;
   bool Function()? _hasActiveEditing;
 
   bool get hasActiveEditing => _hasActiveEditing?.call() ?? false;
+
+  TableSearchResult search(String query) =>
+      _search?.call(query) ?? TableSearchResult.unavailable;
+
+  void resetSearch() => _resetSearch?.call();
 
   Future<void> commitEditing() async {
     await _commitEditing?.call();
@@ -19,10 +27,14 @@ class AutoItemUpdatePageController {
 
   void _attach({
     required Object owner,
+    required TableSearchResult Function(String query) search,
+    required VoidCallback resetSearch,
     required Future<void> Function() commitEditing,
     required bool Function() hasActiveEditing,
   }) {
     _owner = owner;
+    _search = search;
+    _resetSearch = resetSearch;
     _commitEditing = commitEditing;
     _hasActiveEditing = hasActiveEditing;
   }
@@ -32,6 +44,8 @@ class AutoItemUpdatePageController {
       return;
     }
     _owner = null;
+    _search = null;
+    _resetSearch = null;
     _commitEditing = null;
     _hasActiveEditing = null;
   }
@@ -107,6 +121,8 @@ class _AutoItemUpdatePageState extends State<AutoItemUpdatePage> {
   bool _sourceAppendBusy = false;
   final Set<int> _selectedSourceItemIds = <int>{};
   int? _sourceAnchorIndex;
+  String _activeSearchColumnId = 'itemName';
+  int _searchStartIndex = 0;
   Offset? _sourcePointerDownPosition;
   bool _sourcePointerMoved = false;
   bool _deferSourceSingleSelection = false;
@@ -138,6 +154,8 @@ class _AutoItemUpdatePageState extends State<AutoItemUpdatePage> {
   void _attachController() {
     widget.controller?._attach(
       owner: this,
+      search: _search,
+      resetSearch: () => _searchStartIndex = 0,
       commitEditing: _editingController.commitEditing,
       hasActiveEditing: () => _editingController.hasActiveEditing,
     );
@@ -777,6 +795,12 @@ class _AutoItemUpdatePageState extends State<AutoItemUpdatePage> {
       selectionController: _selectionController,
       focusController: _focusController,
       editingController: _editingController,
+      onCellActivated: (_, _, columnId) {
+        if (_activeSearchColumnId != columnId) {
+          _searchStartIndex = 0;
+        }
+        _activeSearchColumnId = columnId;
+      },
       onSelectionFocusChanged: (row, _) {
         if (controller == null) {
           return;
@@ -836,6 +860,29 @@ class _AutoItemUpdatePageState extends State<AutoItemUpdatePage> {
         child: table,
       ),
     );
+  }
+
+  TableSearchResult _search(String query) {
+    final controller = widget.draftController;
+    final rows = controller?.rows ?? const <AutoItemUpdateDraftRow>[];
+    final columns = _columns();
+    final columnIndex = columns.indexWhere(
+      (column) => column.id == _activeSearchColumnId,
+    );
+    if (rows.isEmpty || columnIndex < 0) {
+      return TableSearchResult.unavailable;
+    }
+    final column = columns[columnIndex];
+    for (var index = _searchStartIndex; index < rows.length; index += 1) {
+      if (!column.text(rows[index]).contains(query)) continue;
+      final row = rows[index];
+      _searchStartIndex = index + 1;
+      _selectionController.setSelectedRows([index]);
+      controller?.setSelection({row.rowKey}, anchorRowKey: row.rowKey);
+      _focusController.focusCell(index, column.id);
+      return TableSearchResult.found;
+    }
+    return TableSearchResult.reachedEnd;
   }
 
   Future<void> _showContextMenu(

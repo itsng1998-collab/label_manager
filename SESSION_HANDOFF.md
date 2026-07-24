@@ -7,6 +7,7 @@
 - 이 파일에는 현재 상태, 최근 완료 항목, 검증, 다음 액션만 기록한다.
 
 ## 현재 상태
+- 자동품목갱신과 저울출력 탭에 라벨출력과 같은 상단 검색 영역을 노출했고, 각 탭 테이블의 현재 활성 컬럼 기준 검색과 재검색 reset까지 연결했으며 커밋만 남아 있다.
 - 최신 로그에서 `home tab shortcut ignored ... reason=routeInactive routeCurrent=false`가 반복된 것을 확인했고, 잘못된 route 차단을 제거했으며 중복 처리 원인이던 최상위 Focus 래퍼도 제거했고 커밋만 남아 있다.
 - 탭 메뉴를 여러 번 전환할 때 `LabelSheetOutputCaptureController is already attached` 오류가 나던 문제를 수정했고 커밋만 남아 있다.
 - 탭 메뉴 선택 가능 상태에서 F1/F2/F3 키로 품목관리, 공용라벨관리, 라벨출력 탭 이동이 되지 않던 문제를 수정했고 커밋만 남아 있다.
@@ -16,9 +17,14 @@
 - `8846281` Add SQL Server compatibility session rule
 - `2fc8ba2` Defer scale output sync until tab open
 - `733d3b4` Fix initial scale output tab load
-- 현재 작업트리에는 이번 F키 단축키 route gate 제거/중복 처리 정리와 범위 밖 사용자 변경 [lib/core/app.dart](lib/core/app.dart)가 있다.
+- 현재 작업트리에는 이번 자동품목갱신/저울출력 검색 추가와 범위 밖 사용자 변경 [lib/core/app.dart](lib/core/app.dart)가 있다.
 
 ## 최근 완료 항목
+- 자동품목갱신과 저울출력도 홈 상단 검색 바가 보이도록 탭 노출 조건을 확장했다.
+- 공용 `TableSearchResult`를 도입해 품목관리, 자동품목갱신, 저울출력이 같은 검색 결과 계약을 사용하도록 정리했다.
+- 자동품목갱신 페이지 컨트롤러에 검색/검색 reset API를 추가하고, target 테이블의 현재 활성 컬럼 기준으로 다음 일치 행을 선택하도록 연결했다.
+- 저울출력 페이지 컨트롤러에 검색/검색 reset API를 추가하고, 현재 활성 컬럼 기준으로 다음 일치 행을 선택하면서 선택 품목과 포커스를 함께 이동하도록 연결했다.
+- 자동품목갱신/저울출력 검색 동작을 위젯 테스트로 추가했다.
 - 최신 `.tmp/log/app_2026-07-24_17-23-30.log`에서 F1/F2/F3가 모두 `routeInactive routeCurrent=false`로 무시되는 것을 확인했다.
 - HomePageManager의 global F키 핸들러에서 잘못된 route current 차단을 제거했다.
 - 중복 단축키 로그와 이중 처리 경로를 만들던 HomePageManager 최상위 Focus 래퍼를 제거했다.
@@ -36,6 +42,7 @@
 - 저울출력 미리보기에서 개체 패널을 숨기고, 줌 툴바를 우하단 command bar에서 중량/가격 영역 상단으로 이동했다.
 
 ## 최근 검증
+- `flutter test test/fortune_table_test.dart test/automatic_item_update_page_test.dart test/scale_output_test.dart` 통과.
 - `flutter test test/fortune_table_test.dart` 통과.
 - `flutter test test/label_print_session_test.dart` 통과.
 - `flutter test test/scale_output_test.dart` 통과.

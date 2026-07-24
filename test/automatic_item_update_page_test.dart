@@ -9,6 +9,7 @@ import 'package:label_manager/models/column.dart';
 import 'package:label_manager/models/column_type.dart';
 import 'package:label_manager/models/update_item.dart';
 import 'package:label_manager/page_home/automatic_item_update_page.dart';
+import 'package:label_manager/page_home/table_search.dart';
 import 'package:label_manager/widgets/swipe_action_table.dart';
 
 void main() {
@@ -186,6 +187,64 @@ void main() {
 
       expect(find.text('품목삭제'), findsOneWidget);
       expect(find.text('새로 고침'), findsOneWidget);
+    });
+
+    testWidgets('controller search selects the next matching auto update row', (tester) async {
+      final controller = AutoItemUpdateDraftController(
+        rows: [
+          AutoItemUpdateDraftRow.existing(
+            source: UpdateItem(
+              updateItemId: 10,
+              itemId: 100,
+              itemName: '첫 품목',
+              labelSizeId: 4,
+              element: '주원료',
+              elementRTF: r'{\rtf1 element}',
+              price: 0,
+              applyDate: DateTime(2026, 7, 25),
+              isApply: false,
+            ),
+            currentMarketId: 3,
+            originalIndex: 0,
+          ),
+          AutoItemUpdateDraftRow.existing(
+            source: UpdateItem(
+              updateItemId: 20,
+              itemId: 200,
+              itemName: '둘째 품목',
+              labelSizeId: 4,
+              element: '부원료',
+              elementRTF: r'{\rtf1 element}',
+              price: 0,
+              applyDate: DateTime(2026, 7, 26),
+              isApply: false,
+            ),
+            currentMarketId: 3,
+            originalIndex: 1,
+          ),
+        ],
+        cellValues: const {},
+        serverToday: DateTime(2026, 7, 23),
+      );
+      final pageController = AutoItemUpdatePageController();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: AutoItemUpdatePage(
+              columns: const <TColumn>[],
+              draftController: controller,
+              controller: pageController,
+            ),
+          ),
+        ),
+      );
+
+      expect(pageController.search('둘째'), TableSearchResult.found);
+      await tester.pump();
+
+      expect(controller.selectedRowKeys, {'update:20'});
+      expect(controller.anchorRowKey, 'update:20');
     });
 
     testWidgets('블럭 선택 상태에서 우클릭한 선택 행은 블럭을 유지하고 삭제한다', (tester) async {

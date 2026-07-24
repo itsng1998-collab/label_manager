@@ -8,6 +8,7 @@ import 'package:label_manager/models/column_type.dart';
 import 'package:label_manager/models/item_manager_draft.dart';
 import 'package:label_manager/models/item_of_market.dart';
 import 'package:label_manager/models/label_size.dart';
+import 'package:label_manager/page_home/table_search.dart';
 import 'package:label_manager/utils/item_manager_debug_log.dart';
 import 'package:label_manager/utils/log_context.dart';
 
@@ -30,11 +31,9 @@ String itemManagerDeleteConfirmationMessage({
   return "선택한 '$firstItemName' 외 ${selectedCount - 1}개 항목을 모두 삭제하시겠습니까?";
 }
 
-enum ItemManageSearchResult { found, reachedEnd, unavailable }
-
 class ItemManageController {
   Object? _owner;
-  ItemManageSearchResult Function(String query)? _search;
+  TableSearchResult Function(String query)? _search;
   VoidCallback? _resetSearch;
   Future<void> Function()? _commitEditing;
   Set<int> Function()? _publishCheckedItemIds;
@@ -45,8 +44,8 @@ class ItemManageController {
 
   bool get hasActiveEditing => _hasActiveEditing?.call() ?? false;
 
-  ItemManageSearchResult search(String query) =>
-      _search?.call(query) ?? ItemManageSearchResult.unavailable;
+    TableSearchResult search(String query) =>
+      _search?.call(query) ?? TableSearchResult.unavailable;
 
   void resetSearch() => _resetSearch?.call();
 
@@ -56,7 +55,7 @@ class ItemManageController {
 
   void _attach({
     required Object owner,
-    required ItemManageSearchResult Function(String query) search,
+    required TableSearchResult Function(String query) search,
     required VoidCallback resetSearch,
     required Future<void> Function() commitEditing,
     required Set<int> Function() publishCheckedItemIds,
@@ -399,14 +398,14 @@ class _ItemManageState extends State<ItemManage> {
     WidgetsBinding.instance.ensureVisualUpdate();
   }
 
-  ItemManageSearchResult _search(String query) {
+  TableSearchResult _search(String query) {
     final rows = _resolveDisplayItems();
     final columns = _columns;
     final columnIndex = columns.indexWhere(
       (column) => column.id == _activeSearchColumnId,
     );
     if (rows.isEmpty || columnIndex < 0) {
-      return ItemManageSearchResult.unavailable;
+      return TableSearchResult.unavailable;
     }
     final column = columns[columnIndex];
     for (var index = _searchStartIndex; index < rows.length; index += 1) {
@@ -422,9 +421,9 @@ class _ItemManageState extends State<ItemManage> {
       }
       _focusController.focusCell(index, column.id);
       widget.onRowSelected?.call(rows[index], index);
-      return ItemManageSearchResult.found;
+      return TableSearchResult.found;
     }
-    return ItemManageSearchResult.reachedEnd;
+    return TableSearchResult.reachedEnd;
   }
 
   Widget _buildCommandFooter() {

@@ -64,6 +64,7 @@ import 'package:label_manager/page_home/item_manage.dart';
 import 'package:label_manager/page_home/automatic_item_update_page.dart';
 import 'package:label_manager/page_home/label_print_page.dart';
 import 'package:label_manager/page_home/scale_output_page.dart';
+import 'package:label_manager/page_home/table_search.dart';
 import 'package:label_manager/page_home/item_code_data_resolver.dart';
 import 'package:label_manager/page_home/item_manager_xlsx.dart';
 import 'package:label_manager/page_home/date_type_setup_dialog.dart';
@@ -78,7 +79,10 @@ import 'package:label_manager/widgets/swipe_action_table.dart';
 import 'package:label_manager/database/db_scale_connect_info.dart';
 
 bool itemManagerSearchVisibleForTab(Object? tabValue) =>
-    tabValue == 'items' || tabValue == 'label_print';
+  tabValue == 'items' ||
+  tabValue == 'label_print' ||
+  tabValue == 'auto_update' ||
+  tabValue == 'scale_output';
 
 @visibleForTesting
 Object? homeTabShortcutValue({
@@ -4070,7 +4074,8 @@ class _HomePageManagerState extends State<HomePageManager> {
   Future<void> _onTabSearch() async {
     final query = _tabSearchController.text.trim();
     if (query.isEmpty) return;
-    if (_selectedTabValue() == 'label_print') {
+    final selectedTabValue = _selectedTabValue();
+    if (selectedTabValue == 'label_print') {
       final found = _labelPrintSessionController.selectNextExact(query, (
         row,
       ) sync* {
@@ -4102,9 +4107,34 @@ class _HomePageManagerState extends State<HomePageManager> {
       );
       return;
     }
-    if (_selectedTabValue() != 'items') return;
-    final result = _itemManageController.search(query);
-    if (result == ItemManageSearchResult.found || !mounted) return;
+    final result = switch (selectedTabValue) {
+      'items' => _itemManageController.search(query),
+      'auto_update' => _autoItemUpdatePageController.search(query),
+      'scale_output' => _scaleOutputPageController.search(query),
+      _ => TableSearchResult.unavailable,
+    };
+    if (result == TableSearchResult.found || !mounted) return;
+    if (result == TableSearchResult.unavailable) {
+      final content = switch (selectedTabValue) {
+        'auto_update' => '검색할 자동갱신 품목이 없습니다.',
+        'scale_output' => '검색할 저울출력 품목이 없습니다.',
+        _ => '일치하는 품목이 없습니다.',
+      };
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('검색'),
+          content: Text(content),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('확인'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
     final restart = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -4122,7 +4152,15 @@ class _HomePageManagerState extends State<HomePageManager> {
         ],
       ),
     );
-    if (restart == true) _itemManageController.resetSearch();
+    if (restart != true) return;
+    switch (selectedTabValue) {
+      case 'items':
+        _itemManageController.resetSearch();
+      case 'auto_update':
+        _autoItemUpdatePageController.resetSearch();
+      case 'scale_output':
+        _scaleOutputPageController.resetSearch();
+    }
   }
 
   Widget _buildLabelPrintPreview(

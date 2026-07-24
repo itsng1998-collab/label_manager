@@ -1,0 +1,1 @@
+enum TableSearchResult { found, reachedEnd, unavailable }

@@ -12,6 +12,7 @@ import 'package:label_manager/models/item_manager_draft.dart';
 import 'package:label_manager/models/item_of_market.dart';
 import 'package:label_manager/models/label_size.dart';
 import 'package:label_manager/page_home/item_manage.dart';
+import 'package:label_manager/page_home/table_search.dart';
 import 'package:label_manager/home_page_manager.dart';
 
 void main() {
@@ -142,11 +143,12 @@ void main() {
     await queue.wait();
   });
 
-  test('top search is visible on item and label print tabs', () {
+  test('top search is visible on item, label print, auto update, and scale output tabs', () {
     expect(itemManagerSearchVisibleForTab('items'), isTrue);
     expect(itemManagerSearchVisibleForTab('common_label'), isFalse);
     expect(itemManagerSearchVisibleForTab('label_print'), isTrue);
-    expect(itemManagerSearchVisibleForTab('auto_update'), isFalse);
+    expect(itemManagerSearchVisibleForTab('auto_update'), isTrue);
+    expect(itemManagerSearchVisibleForTab('scale_output'), isTrue);
     expect(itemManagerSearchVisibleForTab(null), isFalse);
   });
 
@@ -1054,22 +1056,22 @@ void main() {
       ),
     );
 
-    expect(searchController.search('Alpha'), ItemManageSearchResult.found);
+    expect(searchController.search('Alpha'), TableSearchResult.found);
     expect(selectedIndex, 0);
-    expect(searchController.search('Alpha'), ItemManageSearchResult.found);
+    expect(searchController.search('Alpha'), TableSearchResult.found);
     expect(selectedIndex, 1);
     expect(
       searchController.search('Alpha'),
-      ItemManageSearchResult.reachedEnd,
+      TableSearchResult.reachedEnd,
     );
 
     searchController.resetSearch();
-    expect(searchController.search('Alpha'), ItemManageSearchResult.found);
+    expect(searchController.search('Alpha'), TableSearchResult.found);
     expect(selectedIndex, 0);
 
     await tester.tap(find.text('둘째 원료'));
     await tester.pump();
-    expect(searchController.search('셋째'), ItemManageSearchResult.found);
+    expect(searchController.search('셋째'), TableSearchResult.found);
     expect(selectedIndex, 2);
   });
 

@@ -8,6 +8,7 @@ import 'package:label_manager/models/item_of_market.dart';
 import 'package:label_manager/models/label_print.dart';
 import 'package:label_manager/models/scale_output.dart';
 import 'package:label_manager/page_home/scale_output_page.dart';
+import 'package:label_manager/page_home/table_search.dart';
 import 'package:label_manager/page_label_sheet/label_sheet_workbench.dart';
 import 'package:label_manager/widgets/label_output_preview.dart';
 
@@ -234,6 +235,42 @@ void main() {
 
     expect(find.text('preview:2:Second Item'), findsOneWidget);
     expect(find.text('preview:1:Scale Item'), findsNothing);
+  });
+
+  testWidgets('page controller search selects the next matching scale output row', (tester) async {
+    final controller = ScaleOutputSessionController();
+    final pageController = ScaleOutputPageController();
+    controller.syncCheckedItems(
+      baselineItems: [_item(), _item(itemId: 2, itemName: 'Second Item')],
+      checkedItemIds: const {1, 2},
+      createRow: (item) => _row(item: item),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ScaleOutputPage(
+            controller: controller,
+            pageController: pageController,
+            previewBuilder: (_, __) => const SizedBox.shrink(),
+            onPrinterSettings: () {},
+            onScaleSettings: () {},
+            onReloadAll: () {},
+            onReloadSelected: () {},
+            onIssue: () {},
+            onCancelIssue: () {},
+            onConnect: () {},
+            onDisconnect: () {},
+            useScale: true,
+          ),
+        ),
+      ),
+    );
+
+    expect(pageController.search('Second'), TableSearchResult.found);
+    await tester.pump();
+
+    expect(controller.selectedItemId, 2);
   });
 
   testWidgets('printer label updates when settings change', (tester) async {
