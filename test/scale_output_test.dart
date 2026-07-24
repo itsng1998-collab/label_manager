@@ -1,3 +1,5 @@
+import 'package:fortune_sheet/fortune_sheet.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:label_manager/models/additional_item.dart';
@@ -86,6 +88,25 @@ void main() {
     );
   });
 
+  test('scale output shows all baseline rows by default', () {
+    expect(
+      scaleOutputVisibleItemIds(
+        showAllRows: true,
+        baselineItems: [_item(), _item(itemId: 2, itemName: 'Second Item')],
+        checkedItemIds: const <int>{2},
+      ),
+      <int>{1, 2},
+    );
+    expect(
+      scaleOutputVisibleItemIds(
+        showAllRows: false,
+        baselineItems: [_item(), _item(itemId: 2, itemName: 'Second Item')],
+        checkedItemIds: const <int>{2},
+      ),
+      <int>{2},
+    );
+  });
+
   test('incoming weight updates selected row weight and price', () {
     final controller = ScaleOutputSessionController();
     controller.syncCheckedItems(
@@ -158,6 +179,8 @@ void main() {
             previewBuilder: (_, __) => const SizedBox.shrink(),
             onPrinterSettings: () {},
             onScaleSettings: () {},
+            onReloadAll: () {},
+            onReloadSelected: () {},
             onIssue: () {},
             onCancelIssue: () {},
             onConnect: () {},
@@ -190,6 +213,8 @@ void main() {
             previewBuilder: (row, _) => Text('preview:${row.itemId}:${row.item.item.itemName}'),
             onPrinterSettings: () {},
             onScaleSettings: () {},
+            onReloadAll: () {},
+            onReloadSelected: () {},
             onIssue: () {},
             onCancelIssue: () {},
             onConnect: () {},
@@ -227,6 +252,8 @@ void main() {
             previewBuilder: (_, __) => const SizedBox.shrink(),
             onPrinterSettings: () {},
             onScaleSettings: () {},
+            onReloadAll: () {},
+            onReloadSelected: () {},
             onIssue: () {},
             onCancelIssue: () {},
             onConnect: () {},
@@ -256,6 +283,68 @@ void main() {
 
     expect(find.text('Zebra-01'), findsOneWidget);
     expect(find.text('선택된 프린터 없음'), findsNothing);
+  });
+
+  testWidgets('scale output context menu matches legacy commands and spacing', (
+    tester,
+  ) async {
+    final controller = ScaleOutputSessionController();
+    controller.syncCheckedItems(
+      baselineItems: [_item()],
+      checkedItemIds: const {1},
+      createRow: (_) => _row(),
+    );
+    var reloadAllCount = 0;
+    var reloadSelectedCount = 0;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ScaleOutputPage(
+            controller: controller,
+            previewBuilder: (_, __) => const SizedBox.shrink(),
+            onPrinterSettings: () {},
+            onScaleSettings: () {},
+            onReloadAll: () => reloadAllCount += 1,
+            onReloadSelected: () => reloadSelectedCount += 1,
+            onIssue: () {},
+            onCancelIssue: () {},
+            onConnect: () {},
+            onDisconnect: () {},
+            useScale: true,
+          ),
+        ),
+      ),
+    );
+
+    final table = find.byType(FortuneTable<ScaleOutputRowDraft>);
+    await tester.tapAt(tester.getCenter(table), buttons: kSecondaryMouseButton);
+    await tester.pumpAndSettle();
+
+    expect(find.text('전체내용 다시가져오기'), findsOneWidget);
+    expect(find.text('선택내용 다시가져오기'), findsOneWidget);
+
+    final reloadAllItem = tester.widget<PopupMenuItem<String>>(
+      find.ancestor(
+        of: find.text('전체내용 다시가져오기'),
+        matching: find.byType(PopupMenuItem<String>),
+      ),
+    );
+    final reloadSelectedItem = tester.widget<PopupMenuItem<String>>(
+      find.ancestor(
+        of: find.text('선택내용 다시가져오기'),
+        matching: find.byType(PopupMenuItem<String>),
+      ),
+    );
+    expect(reloadAllItem.height, fortuneContextMenuRowHeight);
+    expect(reloadSelectedItem.height, fortuneContextMenuRowHeight);
+    expect(reloadSelectedItem.enabled, isFalse);
+
+    await tester.tap(find.text('전체내용 다시가져오기'));
+    await tester.pumpAndSettle();
+
+    expect(reloadAllCount, 1);
+    expect(reloadSelectedCount, 0);
   });
 }
 

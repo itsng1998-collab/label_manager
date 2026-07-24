@@ -300,6 +300,7 @@ class _HomePageManagerState extends State<HomePageManager> {
   ItemManagerDraftController? _itemDraftController;
   AutoItemUpdateDraftController? _autoItemUpdateDraftController;
   Set<int> _publishCheckedItemIds = const <int>{};
+  bool _scaleOutputShowAllRows = true;
   List<int> _itemDraftTargetMarketIds = const [];
   int? _itemDraftLoadedCustomerId;
   int? _itemDraftLoadedBrandId;
@@ -1356,6 +1357,7 @@ class _HomePageManagerState extends State<HomePageManager> {
         widget.onLabelSizeChanged(null);
         ItemOfMarket.datas = <ItemOfMarket>[];
         _publishCheckedItemIds = const <int>{};
+        _scaleOutputShowAllRows = true;
         _selectedItemOfMarket = null;
         _selectedItemIndex = null;
         _itemPreviewClosedByUser = false;
@@ -1448,6 +1450,7 @@ class _HomePageManagerState extends State<HomePageManager> {
       TColumnSpecial.datas = specialColumns;
       ItemOfMarket.datas = items;
       _publishCheckedItemIds = const <int>{};
+      _scaleOutputShowAllRows = true;
       widget.onLabelSizeChanged(labelSize);
       _itemDraftController = nextController;
       _itemDraftController!.addListener(_handleItemDraftDirtyChanged);
@@ -3036,9 +3039,14 @@ class _HomePageManagerState extends State<HomePageManager> {
     final columns = TColumn.datas ?? const <TColumn>[];
     final weightColumnId = scaleOutputColumnIdForKeyword(columns, 'WEIGHT');
     final priceBaseColumnId = scaleOutputColumnIdForKeyword(columns, 'TPRICE');
-    _scaleOutputSessionController.syncCheckedItems(
+    final visibleItemIds = scaleOutputVisibleItemIds(
+      showAllRows: _scaleOutputShowAllRows,
       baselineItems: items,
       checkedItemIds: _publishCheckedItemIds,
+    );
+    _scaleOutputSessionController.syncCheckedItems(
+      baselineItems: items,
+      checkedItemIds: visibleItemIds,
       createRow: (item) => ScaleOutputRowDraft.fromBaseline(
         item: item,
         labelSize: labelSize,
@@ -3062,6 +3070,24 @@ class _HomePageManagerState extends State<HomePageManager> {
               ),
       ),
     );
+  }
+
+  void _reloadScaleOutputAllRows() {
+    if (!_scaleOutputShowAllRows) {
+      setState(() {
+        _scaleOutputShowAllRows = true;
+      });
+    }
+    _syncScaleOutputRows();
+  }
+
+  void _reloadScaleOutputSelectedRows() {
+    if (_scaleOutputShowAllRows) {
+      setState(() {
+        _scaleOutputShowAllRows = false;
+      });
+    }
+    _syncScaleOutputRows();
   }
 
   List<TabData> _buildTabs() {
@@ -3200,6 +3226,8 @@ class _HomePageManagerState extends State<HomePageManager> {
           previewBuilder: _buildScaleOutputPreview,
           onPrinterSettings: _openScaleOutputPrinterSettings,
           onScaleSettings: _openScaleConnectSettings,
+          onReloadAll: _reloadScaleOutputAllRows,
+          onReloadSelected: _reloadScaleOutputSelectedRows,
           onIssue: _issueScaleOutput,
           onCancelIssue: _cancelScaleOutput,
           onConnect: _connectScaleOutput,
@@ -4568,21 +4596,18 @@ class _HomePageManagerState extends State<HomePageManager> {
 
   Future<void> _issueScaleOutput() async {
     if (!_scaleOutputSessionController.beginIssue()) return;
-    final rows = _scaleOutputSessionController.rows;
     final useScale = _effectiveLabelSize?.labelSizeSetup?.useScale ?? false;
-    if (scaleOutputBlocksMultiIssue(useScale: useScale, rowCount: rows.length)) {
+    final selectedRow = _scaleOutputSessionController.selectedRow;
+    if (selectedRow == null) {
       _scaleOutputSessionController.endIssue();
       if (mounted) {
         ScaffoldMessenger.of(context)
           ..hideCurrentSnackBar()
-          ..showSnackBar(
-            const SnackBar(content: Text('저울 라벨은 한 번에 하나의 품목만 발행할 수 있습니다.')),
-          );
+          ..showSnackBar(const SnackBar(content: Text('발행할 품목을 선택해 주세요.')));
       }
       return;
     }
-    final selectedRow = _scaleOutputSessionController.selectedRow;
-    if (useScale && selectedRow != null) {
+    if (useScale) {
       final needsConfirm = scaleOutputNeedsIssueConfirmation(
         useScale: useScale,
         isConnected: _scaleOutputSessionController.isConnected,
@@ -4661,7 +4686,7 @@ class _HomePageManagerState extends State<HomePageManager> {
         TColumnContent.datas ?? const <ColumnItemKey, TColumnContent>{},
       );
       final units = expandScaleOutputUnits(
-        rows,
+        [selectedRow],
         referenceAt: requestedAt,
         columns: columns,
         columnContents: columnContents,

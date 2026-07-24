@@ -182,6 +182,8 @@ class ScaleOutputPage extends StatefulWidget {
     required this.previewBuilder,
     required this.onPrinterSettings,
     required this.onScaleSettings,
+    required this.onReloadAll,
+    required this.onReloadSelected,
     required this.onIssue,
     required this.onCancelIssue,
     required this.onConnect,
@@ -199,6 +201,8 @@ class ScaleOutputPage extends StatefulWidget {
   previewBuilder;
   final VoidCallback onPrinterSettings;
   final VoidCallback onScaleSettings;
+  final VoidCallback onReloadAll;
+  final VoidCallback onReloadSelected;
   final VoidCallback onIssue;
   final VoidCallback onCancelIssue;
   final VoidCallback onConnect;
@@ -215,6 +219,9 @@ class _ScaleOutputPageState extends State<ScaleOutputPage> {
   static const double _splitterWidth = 7;
   static const double _minimumPaneWidth = 300;
   static const int _defaultPreviewZoomPercent = 150;
+  static const EdgeInsets _menuItemPadding = EdgeInsets.symmetric(horizontal: 12);
+  static const String _menuReloadAll = 'reloadAll';
+  static const String _menuReloadSelected = 'reloadSelected';
 
   final FortuneTableEditingController _editingController =
       FortuneTableEditingController();
@@ -230,6 +237,7 @@ class _ScaleOutputPageState extends State<ScaleOutputPage> {
   double _tableFraction = 0.55;
   int? _lastSelectedItemId;
   bool _syncingTextControllers = false;
+  bool _contextMenuOpen = false;
 
   @override
   void initState() {
@@ -331,6 +339,10 @@ class _ScaleOutputPageState extends State<ScaleOutputPage> {
       editingController: _editingController,
       scrollController: _tableScrollController,
       onRowSelected: (row, _) => widget.controller.selectItem(row.itemId),
+      onRowSecondaryTapDown: (row, _, details) {
+        widget.controller.selectItem(row.itemId);
+        _showContextMenu(details);
+      },
     );
     final selected = selectedIndex < 0 ? null : rows[selectedIndex];
     final preview = selected == null
@@ -348,7 +360,13 @@ class _ScaleOutputPageState extends State<ScaleOutputPage> {
               if (constraints.maxWidth < 1080) {
                 return Column(
                   children: [
-                    Expanded(child: table),
+                    Expanded(
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.translucent,
+                        onSecondaryTapDown: _showContextMenu,
+                        child: table,
+                      ),
+                    ),
                     const Divider(height: 1),
                     Expanded(child: _rightPane(preview)),
                   ],
@@ -363,7 +381,14 @@ class _ScaleOutputPageState extends State<ScaleOutputPage> {
               );
               return Row(
                 children: [
-                  SizedBox(width: availableWidth * tableFraction, child: table),
+                  SizedBox(
+                    width: availableWidth * tableFraction,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.translucent,
+                      onSecondaryTapDown: _showContextMenu,
+                      child: table,
+                    ),
+                  ),
                   VerticalPaneSplitter(
                     width: _splitterWidth,
                     onDrag: (delta) {
@@ -383,6 +408,49 @@ class _ScaleOutputPageState extends State<ScaleOutputPage> {
         _commandBar(),
       ],
     );
+  }
+
+  Future<void> _showContextMenu(TapDownDetails details) async {
+    if (_contextMenuOpen) return;
+    _contextMenuOpen = true;
+    try {
+      final command = await showMenu<String>(
+        context: context,
+        position: RelativeRect.fromLTRB(
+          details.globalPosition.dx,
+          details.globalPosition.dy,
+          details.globalPosition.dx,
+          details.globalPosition.dy,
+        ),
+        popUpAnimationStyle: AnimationStyle.noAnimation,
+        items: const [
+          PopupMenuItem<String>(
+            value: _menuReloadAll,
+            height: fortuneContextMenuRowHeight,
+            padding: _menuItemPadding,
+            child: Text('전체내용 다시가져오기'),
+          ),
+          PopupMenuItem<String>(
+            value: _menuReloadSelected,
+            enabled: false,
+            height: fortuneContextMenuRowHeight,
+            padding: _menuItemPadding,
+            child: Text('선택내용 다시가져오기'),
+          ),
+        ],
+      );
+      if (!mounted || command == null) return;
+      switch (command) {
+        case _menuReloadAll:
+          widget.onReloadAll();
+          break;
+        case _menuReloadSelected:
+          widget.onReloadSelected();
+          break;
+      }
+    } finally {
+      _contextMenuOpen = false;
+    }
   }
 
   Widget _rightPane(Widget preview) {

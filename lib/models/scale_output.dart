@@ -105,6 +105,15 @@ bool scaleOutputNeedsIssueConfirmation({
   return useScale && (!isConnected || weightText.trim().isEmpty);
 }
 
+Set<int> scaleOutputVisibleItemIds({
+  required bool showAllRows,
+  required Iterable<ItemOfMarket> baselineItems,
+  required Set<int> checkedItemIds,
+}) {
+  if (!showAllRows) return checkedItemIds;
+  return <int>{for (final item in baselineItems) item.item.itemId};
+}
+
 String? scaleOutputComputePriceText({
   required String rawWeightText,
   required String priceBaseText,
