@@ -96,6 +96,9 @@ Object? homeTabShortcutValue({
 }
 
 @visibleForTesting
+bool homeTabShortcutRouteAllowsHandling(bool? isCurrent) => isCurrent ?? true;
+
+@visibleForTesting
 bool labelPrintTabSelectionBlocked({
   required bool hasActiveEditing,
   required bool itemDraftCommandBusy,
@@ -2768,22 +2771,39 @@ class _HomePageManagerState extends State<HomePageManager> {
   }
 
   bool _handleTabShortcutKeyEvent(KeyEvent event) {
-    if (event is! KeyDownEvent || ModalRoute.of(context)?.isCurrent != true) {
+    if (event is! KeyDownEvent) {
+      return false;
+    }
+    final key = event.logicalKey;
+    final isHomeTabShortcutKey =
+        key == LogicalKeyboardKey.f1 ||
+        key == LogicalKeyboardKey.f2 ||
+        key == LogicalKeyboardKey.f3 ||
+        key == LogicalKeyboardKey.f5;
+    final route = ModalRoute.of(context);
+    if (!homeTabShortcutRouteAllowsHandling(route?.isCurrent)) {
+      if (isHomeTabShortcutKey) {
+        debugLog(
+          'home tab shortcut ignored key=$key reason=routeInactive '
+          'routeCurrent=${route?.isCurrent}',
+        );
+      }
       return false;
     }
     final keyboard = HardwareKeyboard.instance;
-    if (event.logicalKey == LogicalKeyboardKey.f5 &&
+    if (key == LogicalKeyboardKey.f5 &&
         !keyboard.isAltPressed &&
         !keyboard.isControlPressed &&
         !keyboard.isMetaPressed &&
         !keyboard.isShiftPressed &&
         !_autoItemUpdatePageController.hasActiveEditing &&
         _selectedTabValue() == 'auto_update') {
+      debugLog('home tab shortcut handled key=$key target=auto_update_refresh');
       unawaited(_refreshAutoItemUpdateDraft());
       return true;
     }
     final tabValue = homeTabShortcutValue(
-      key: event.logicalKey,
+      key: key,
       editing: _itemManageController.hasActiveEditing,
       modifierPressed:
           keyboard.isAltPressed ||
@@ -2791,12 +2811,31 @@ class _HomePageManagerState extends State<HomePageManager> {
           keyboard.isMetaPressed ||
           keyboard.isShiftPressed,
     );
-    if (tabValue == null) return false;
+    if (tabValue == null) {
+      if (isHomeTabShortcutKey) {
+        debugLog(
+          'home tab shortcut ignored key=$key '
+          'editing=${_itemManageController.hasActiveEditing} '
+          'modifiers='
+          '${keyboard.isAltPressed || keyboard.isControlPressed || keyboard.isMetaPressed || keyboard.isShiftPressed}',
+        );
+      }
+      return false;
+    }
     final index = _tabs.indexWhere((tab) => tab.value == tabValue);
-    if (index < 0) return false;
+    if (index < 0) {
+      debugLog('home tab shortcut ignored key=$key reason=tabMissing target=$tabValue');
+      return false;
+    }
     if (_tabController.selectedIndex != index) {
+      debugLog(
+        'home tab shortcut handled key=$key current=${_selectedTabValue()} '
+        'target=$tabValue index=$index',
+      );
       _tabController.selectedIndex = index;
       _onTabSelection(index, _tabs[index]);
+    } else {
+      debugLog('home tab shortcut handled key=$key target=$tabValue alreadySelected=true');
     }
     return true;
   }

@@ -201,6 +201,12 @@ void main() {
     );
   });
 
+  test('home tab shortcut route gate allows null and current routes only', () {
+    expect(homeTabShortcutRouteAllowsHandling(null), isTrue);
+    expect(homeTabShortcutRouteAllowsHandling(true), isTrue);
+    expect(homeTabShortcutRouteAllowsHandling(false), isFalse);
+  });
+
   test('label print tab gate blocks only active item editing states', () {
     expect(
       labelPrintTabSelectionBlocked(
