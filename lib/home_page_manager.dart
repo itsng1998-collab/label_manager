@@ -5309,7 +5309,14 @@ class _HomePageManagerState extends State<HomePageManager> {
         ),
       ],
     );
-    return result;
+    return Focus(
+      autofocus: true,
+      onKeyEvent: (_, event) =>
+          _handleTabShortcutKeyEvent(event)
+              ? KeyEventResult.handled
+              : KeyEventResult.ignored,
+      child: result,
+    );
   }
 
   AutoItemUpdateDraftRow? _selectedAutoItemUpdateRow() {
