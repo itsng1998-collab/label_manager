@@ -263,6 +263,8 @@ class FortuneTable<T> extends StatefulWidget {
       fontSize: 14,
       fontWeight: FontWeight.bold,
     ),
+    this.headerMaxLines = 1,
+    this.headerWrapAfterCharacters,
     this.rowHeight = 28,
     this.autoFitColumns = true,
     this.fillLastColumn = false,
@@ -288,6 +290,8 @@ class FortuneTable<T> extends StatefulWidget {
   final double rowNumberWidth;
   final double headerHeight;
   final TextStyle headerTextStyle;
+  final int headerMaxLines;
+  final int? headerWrapAfterCharacters;
   final double rowHeight;
   final bool autoFitColumns;
   final bool fillLastColumn;
@@ -862,6 +866,7 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
                 child: column.hasHeaderCheckbox
                     ? Row(
                         mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
                           _FortuneTableCheckbox(
                             key: ValueKey(
@@ -872,22 +877,10 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
                             onChanged: column.onHeaderCheckboxChanged,
                           ),
                           const SizedBox(width: 4),
-                          Expanded(
-                            child: Text(
-                              column.header,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: widget.headerTextStyle,
-                            ),
-                          ),
+                          Expanded(child: _buildHeaderText(column.header)),
                         ],
                       )
-                    : Text(
-                        column.header,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: widget.headerTextStyle,
-                      ),
+                    : _buildHeaderText(column.header),
               ),
               Positioned(
                 key: ValueKey('fortune_table_column_resize_${column.id}'),
@@ -909,6 +902,38 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
           ),
         );
       }),
+    );
+  }
+
+  Widget _buildHeaderText(String header) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        var displayText = header;
+        final wrapAfterCharacters = widget.headerWrapAfterCharacters;
+        if (widget.headerMaxLines > 1 &&
+            wrapAfterCharacters != null &&
+            wrapAfterCharacters > 0 &&
+            _measureText(
+                  header,
+                  widget.headerTextStyle,
+                  MediaQuery.textScalerOf(context),
+                ) >
+                constraints.maxWidth) {
+          final characters = header.runes.toList();
+          if (characters.length > wrapAfterCharacters) {
+            displayText = '${String.fromCharCodes(characters.take(wrapAfterCharacters))}\n'
+                '${String.fromCharCodes(characters.skip(wrapAfterCharacters))}';
+          }
+        }
+        return Text(
+          displayText,
+          key: ValueKey('fortune_table_header_text:$header'),
+          maxLines: widget.headerMaxLines,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+          style: widget.headerTextStyle,
+        );
+      },
     );
   }
 

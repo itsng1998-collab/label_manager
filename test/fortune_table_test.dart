@@ -1389,15 +1389,37 @@ void main() {
     final table = tester.widget<FortuneTable<ItemOfMarket>>(
       find.byType(FortuneTable<ItemOfMarket>),
     );
+    expect(table.headerMaxLines, 2);
+    expect(table.headerWrapAfterCharacters, 2);
     expect(table.columns[3].initialWidth, 70);
     expect(table.columns[3].autoFit, isFalse);
     expect(table.columns[4].initialWidth, 70);
     expect(table.columns[4].autoFit, isFalse);
     for (final column in table.columns) {
-      final headerText = tester.widget<Text>(find.text(column.header));
+      final headerText = tester.widget<Text>(
+        find.byKey(ValueKey('fortune_table_header_text:${column.header}')),
+      );
       expect(headerText.style?.fontSize, 13);
       expect(headerText.style?.fontWeight, FontWeight.normal);
     }
+    expect(
+      tester
+          .widget<Text>(
+            find.byKey(
+              const ValueKey('fortune_table_header_text:판매가'),
+            ),
+          )
+          .data,
+      '판매\n가',
+    );
+
+    final checkboxCenter = tester.getCenter(
+      find.byKey(const ValueKey('fortune_table_header_checkbox_dyn_101')),
+    );
+    final headerCenter = tester.getCenter(
+      find.byKey(const ValueKey('fortune_table_header_text:판매가')),
+    );
+    expect(checkboxCenter.dy, closeTo(headerCenter.dy, 0.5));
   });
 
   testWidgets('ItemManage header checkbox updates minimum-column state', (

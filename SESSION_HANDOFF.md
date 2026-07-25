@@ -7,6 +7,12 @@
 - 이 파일에는 현재 상태, 최근 완료 항목, 검증, 다음 액션만 기록한다.
 
 ## 현재 상태
+- 완료: 품목관리 테이블 컬럼 헤더를 최대 2줄로 표시하고, 폭 부족 시 한글 두 글자 뒤에서 다음 줄로 넘기며 헤더 체크박스를 세로 가운데 정렬했다.
+- 편집 완료: 공용 `FortuneTable`에 기본값이 기존 한 줄인 `headerMaxLines`/`headerWrapAfterCharacters` 옵션을 추가했다. 품목관리만 2줄/두 글자를 지정하며, 한 줄 폭이 부족할 때만 두 글자 뒤에 줄바꿈을 넣고 둘째 줄에서 말줄임한다. 체크박스 헤더 Row는 세로 가운데 정렬을 명시했다.
+- 테스트 추가: 품목관리 옵션값, 최소화된 `판매가` 헤더의 `판매\n가` 분리, 체크박스와 라벨의 세로 중심 일치를 검증한다.
+- 집중 검증 완료: `flutter test test/fortune_table_test.dart --plain-name "ItemManage shows minimum-column header checkboxes"` 통과. 수정 Dart 파일 포맷 완료, 정적 진단 오류 없음.
+- 전체 검증 완료: `flutter test test/fortune_table_test.dart` 54개 전체 통과.
+- stage/commit 대상: [third_party/fortune_sheet/lib/src/fortune_table.dart], [lib/page_home/item_manage.dart], [test/fortune_table_test.dart], [SESSION_HANDOFF.md]. 사용자 변경 [lib/core/app.dart]는 제외한다.
 - 완료: 자동품목갱신 편집 중에도 플로팅 미리보기 복원 버튼을 클릭할 수 있도록 수정했다.
 - 원인: `_shouldBlockCurrentTabTap`의 44px 투명 차단 레이어가 `TabbedView.trailing`에 있는 복원 버튼보다 위에서 hit-test를 선점한다.
 - 편집 완료: 자동품목갱신에서 복원 버튼이 실제 표시된 영역만 차단 레이어의 hit-test를 통과시킨다. 다른 탭·검색·헤더 영역의 편집모드 클릭 제한과 품목관리 동작은 유지한다.

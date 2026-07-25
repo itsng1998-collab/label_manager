@@ -376,6 +376,8 @@ class _ItemManageState extends State<ItemManage> {
                 fontSize: 13,
                 fontWeight: FontWeight.normal,
               ),
+              headerMaxLines: 2,
+              headerWrapAfterCharacters: 2,
               selectedIndex: widget.selectedIndex,
               selectionController: _selectionController,
               focusController: _focusController,
