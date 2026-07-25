@@ -13,6 +13,7 @@
 - lifecycle 편집 완료: 모든 dialog의 open/close와 동일 dialog 중복 방지는 유지하되, 편집·저장이 있는 owner만 실제 dirty·write-busy·active editing을 중앙 종료 흐름에 제공한다. 읽기 전용 dialog는 종료 차단 상태를 만들지 않고 닫힌 뒤 늦은 결과만 폐기한다.
 - 검증 완료: 이전 과잉 문구 3개가 0건이고 대체 계약 6개가 반영됐으며 `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`가 통과했다. 두 문서 diagnostics 오류가 없고 전체 diff가 5차 권장안 2건과 관련 Phase·테스트·완료 계약에 한정됨을 확인했다. 문서 변경이므로 Flutter test는 실행하지 않았다.
 - stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함한다. 사용자 소유 변경 [lib/core/app.dart]는 제외한다.
+- 로컬 커밋 완료: `be5755c` (`앱 메뉴 5차 UX 단순화 권장안 병합`).
 - 완료: [doc/app_menu_porting.txt]의 4차 UX 단순화 권장안 3건을 병합했다. Esc는 focused child의 실제 취소 상태가 있을 때만 우선 처리하고, 조회 dialog의 filter·조회 button·건수·합계는 데이터 성격에 따라 선택하며, disabled reason의 ellipsis·tooltip·별도 semantics는 실제 필요할 때만 적용한다.
 - 수정 예정 파일/목적: [doc/app_menu_porting.txt]의 권한 표시, FortuneTable 조회 책임, dialog Esc, 조회 dialog, AppBar widget test를 정리한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
 - 지시서 편집 완료: inline disabled reason은 유지하되 두 줄까지 허용하고 실제 잘림과 custom renderer에만 tooltip·별도 semantics를 요구하도록 완화했다. 조회 UI는 read-only `FortuneTable`을 공통으로 유지하고 filter·조회 button·건수·합계는 레거시와 데이터 성격에 필요한 항목만 제공하도록 변경했다.
