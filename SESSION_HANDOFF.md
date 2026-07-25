@@ -11,6 +11,7 @@
 - 관리 dialog UX 완료: 추가·수정·삭제는 visible toolbar/rail에 두고 context menu는 보조 경로로만 사용한다. 공용 footer는 왼쪽 상태/진행, 오른쪽 취소/저장 또는 조회 command를 고정한다.
 - 메뉴 상태 UX 완료: transient disabled reason은 popup에 직접 표시하고 tooltip은 전체 문구 보조에만 사용한다. 검색출력 mode는 popup checkmark로 통일하고 menu item 또는 메뉴 밖 `F12` 변경 후 다음 popup open 시 controller 상태를 반영한다.
 - 문서 자동 검증 완료: keyboard/focus, inline disabled reason, visible CRUD command, 공용 footer, 검색출력 checkmark 필수 기준 10개가 원칙·테스트·완료 기준에 반영됐고 이전 선택형 표현은 0개다. popup open 중 `F12` 차단과 다음 open 시 checkmark 반영 규칙의 충돌도 제거했으며 문서 진단 오류 없음.
+- 2차 UX 권장안 커밋: `9c5c19b` (`메뉴 포팅 2차 UX 권장안 반영`).
 - 완료: [doc/app_menu_porting.txt] UX 재검토 권장안 6건을 병합했다. Esc는 셀 편집 취소→선택 해제→dialog 닫기 순서, write busy는 닫기 차단, read busy는 취소/닫기 유지, 초기/복원 focus와 Enter 동작을 명시했다.
 - 권한/AppBar UX 완료: 현재 로그인/등급 policy의 비노출 command와 legacyInactive는 메뉴에서 숨기고 로그인·사용자 변경 시 재계산한다. transient dirty/busy만 사유와 함께 비활성화한다. 메뉴를 먼저 overflow로 합친 뒤 title을 한 줄 ellipsis하며 서버 상태와 현재 로그인/로그아웃 command는 유지한다.
 - dialog 크기 UX 완료: 보편적인 80~90% 규칙을 제거하고 화면 여백과 기능별 content max size 중 작은 값을 사용한다. 기본 max는 현재 라벨 항목 편집창의 1168x720이며 더 넓은 결과가 확인된 경우에만 기능별로 확장한다.
