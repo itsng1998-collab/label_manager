@@ -12,6 +12,7 @@
 - 관리자 복사 편집 완료: 근거 없는 원본 관리자 selector와 별도 데이터 목록 preview를 제거했다. 레거시의 협력업체·원본/대상 거래처·브랜드·라벨 크기 selector 및 두 복사 옵션을 유지하고 대상에 기존 column 데이터가 있을 때만 손실 경고를 표시하도록 명시했다.
 - 검증 완료: 이전 과잉 문구 1개가 0건이고 레거시 UX 계약 5개가 반영됐으며 `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`가 통과했다. 두 문서 diagnostics 오류가 없고 전체 diff가 관리자 복사 권장안 1건에 한정됨을 확인했다. 문서 변경이므로 Flutter test는 실행하지 않았다.
 - stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함한다. 사용자 소유 변경 [lib/core/app.dart]는 제외한다.
+- 로컬 커밋 완료: `274ba53` (`앱 메뉴 6차 UX 단순화 권장안 병합`).
 - 완료: [doc/app_menu_porting.txt]의 5차 UX 단순화 권장안 2건을 병합했다. dialog는 기능별 content 크기를 먼저 정하고 1168x720을 밀도 높은 화면의 참고 상한으로만 사용하며, lifecycle에는 실제 dirty·write-busy·active editing이 있는 owner만 종료 차단 상태를 제공한다.
 - 수정 예정 파일/목적: [doc/app_menu_porting.txt]의 상태 소유권, 종료 command, dialog 크기·lifecycle, Phase 1, 공용 dialog test, 체크리스트·금지 사항·최종 완료 기준을 정리한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
 - dialog 크기 편집 완료: 입력 수, table column과 command 영역에 맞는 기능별 content 크기를 먼저 정하고 화면 가용 영역으로 clamp한다. 1168x720은 넓은 table·편집 dialog의 참고 상한으로만 유지하고 내용이 적은 dialog를 확대하지 않는다.
