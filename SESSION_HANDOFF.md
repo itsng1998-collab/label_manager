@@ -12,6 +12,7 @@
 - 툴팁 편집 완료: 복원 버튼 `Tooltip`에 안정 key와 400ms hover 대기시간을 지정했다. [test/label_sheet_toolbar_test.dart]에 실제 mouse hover overlay 표시 및 80mm 라벨/660px viewport의 190% 최초 맞춤과 사용자 변경 후 재적용 방지 테스트를 추가했다.
 - 검증 완료: 신규 집중 테스트 2개 및 `flutter test test/label_sheet_toolbar_test.dart` 157개 전체 통과. 수정 Dart 파일 포맷 완료, [lib/page_label_sheet/label_sheet_workbench.dart], [lib/widgets/label_output_preview.dart], [lib/home_page_manager.dart], [test/label_sheet_toolbar_test.dart] 정적 진단 오류 없음.
 - stage/commit 대상: [lib/page_label_sheet/label_sheet_workbench.dart], [lib/widgets/label_output_preview.dart], [lib/home_page_manager.dart], [test/label_sheet_toolbar_test.dart], [SESSION_HANDOFF.md]. 사용자 변경 [lib/core/app.dart]는 제외한다.
+- 구현 커밋: `5f1f595` (`품목 미리보기 가로 맞춤 확대 적용`).
 - 완료: 자동품목갱신 플로팅창 닫기 시 품목관리와 같은 복원 버튼 대상 애니메이션과 복원 버튼 표시를 적용하고, 두 탭의 복원 버튼 툴팁을 구분했다.
 - 원인: 공용 `_handleItemPreviewCloseRequested`는 애니메이션을 지원하지만 `_buildItemPreviewButton`과 `_restoreItemPreviewWindow`가 `items` 탭만 허용해 자동품목갱신에서는 목표 버튼 슬롯과 복원 동작이 없었다.
 - 편집 완료: 품목관리/자동품목갱신을 공용 `_itemPreviewSupportedTab`으로 판정하여 두 탭 모두 닫기 애니메이션 대상 슬롯, 복원 버튼 표시, 복원 동작을 사용한다. 툴팁은 각각 `품목관리 미리보기 열기`, `자동품목갱신 미리보기 열기`로 지정했다.
