@@ -16,6 +16,7 @@
 - 표적 문서 검증 완료: non-route gate·재연결 lease/focus·close-before-dispatch 7개 검사, app-scope gate/renderer close 경계 8개 검사, blocking route 분류 9개 검사, route 닫힘 lifecycle 5개 검사가 모두 통과했다. `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`도 성공했다.
 - 최종 문서 검증 완료: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md] diagnostics 오류 없음. 전체 diff가 10차 권장안 3건과 관련 구현·테스트·체크리스트 계약에 한정됨을 확인했다.
 - stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함한다. 사용자 소유 변경 [lib/core/app.dart]는 제외한다.
+- 로컬 커밋 완료: `0dc1e06` (`앱 메뉴 10차 UX 권장안 병합`).
 - 완료: [doc/app_menu_porting.txt] 9차 UX 재검토 권장안 3건을 병합했다. 기존 탭의 출력·연결·저장 busy와 활성 편집을 로그아웃/종료 guard에 포함하고, display 이동 시 변경된 native minimum의 런타임 적용을 허용하며, clean 로그아웃에는 일반 확인창을 추가하지 않도록 계약을 명확히 했다.
 - 수정 예정 파일/목적: [doc/app_menu_porting.txt]의 반응형 window policy, command 상태 소유권, 로그아웃/종료 순서, Phase·테스트·체크리스트·금지 사항·최종 완료 기준을 함께 갱신한다. [SESSION_HANDOFF.md]에는 편집·검증·commit 단계를 기록한다.
 - 검증 범위: 필수 문구 표적 검사, `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`, 두 문서 diagnostics, stage 파일 분리를 확인했다. 문서 변경이므로 Flutter test는 실행하지 않았다.
