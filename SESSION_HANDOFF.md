@@ -7,6 +7,12 @@
 - 이 파일에는 현재 상태, 최근 완료 항목, 검증, 다음 액션만 기록한다.
 
 ## 현재 상태
+- 완료: [doc/app_menu_porting.txt] 최종 UX 재검토 권장안 3건을 병합했다. 로그인/로그아웃은 inventory/controller에 유지하되 `파일/관리` popup에서 숨기고 AppBar 오른쪽 고정 아이콘을 유일한 노출 위치로 정했다. 종료는 popup에 유지한다.
+- 관리 dialog UX 보정 완료: visible toolbar/rail은 모든 관리창이 아니라 행 CRUD dialog에만 적용하고 실제 지원 command만 표시한다. 비CRUD dialog와 지원하지 않는 command에는 CRUD button을 렌더링하지 않는다.
+- 사용자 관리 권한 완료: 지점 관리와 동일하게 실제 `OnEnableManager`의 `IsSystemAdmin`/`IsCoopAdmin`/`IsAdminConnect`/`IsCoopAdminConnect` 조건을 명시하고 `MANAGER_USER` 숨김을 테스트로 고정했다. Flutter의 session-connect 조건은 신뢰 가능한 상태가 포팅된 경우에만 허용한다.
+- 1차 문서 검증 완료: `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md` 성공, 두 문서 진단 오류 없음, 기존 포괄적 CRUD 강제·중복 로그인 연결 문구 검색 결과 없음.
+- 최종 문서 검증 완료: 권한 보정 후 `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md` 재실행 성공, 두 문서 진단 오류 없음. 전체 diff에서 최종 UX 권장안 3건 외 변경 없음.
+- stage/commit 대상: `doc/app_menu_porting.txt`, `SESSION_HANDOFF.md`만 포함한다. 사용자 소유 변경 `lib/core/app.dart`는 제외한다.
 - 완료: [doc/app_menu_porting.txt] 2차 UX 재검토 권장안 5건을 병합했다. AppBar popup의 키보드 열기·이동·실행·닫기와 focus 복원, 메뉴 open 중 전역 단축키 차단을 명시했다.
 - 관리 dialog UX 완료: 추가·수정·삭제는 visible toolbar/rail에 두고 context menu는 보조 경로로만 사용한다. 공용 footer는 왼쪽 상태/진행, 오른쪽 취소/저장 또는 조회 command를 고정한다.
 - 메뉴 상태 UX 완료: transient disabled reason은 popup에 직접 표시하고 tooltip은 전체 문구 보조에만 사용한다. 검색출력 mode는 popup checkmark로 통일하고 menu item 또는 메뉴 밖 `F12` 변경 후 다음 popup open 시 controller 상태를 반영한다.
