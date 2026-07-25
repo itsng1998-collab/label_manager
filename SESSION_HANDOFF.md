@@ -7,15 +7,16 @@
 - 이 파일에는 현재 상태, 최근 완료 항목, 검증, 다음 액션만 기록한다.
 
 ## 현재 상태
-- 진행 중: [doc/app_menu_porting.txt] 9차 UX 재검토 권장안 3건을 병합한다. 기존 탭의 출력·연결·저장 busy와 활성 편집을 로그아웃/종료 guard에 포함하고, display 이동 시 변경된 native minimum의 런타임 적용을 허용하며, clean 로그아웃에는 일반 확인창을 추가하지 않도록 계약을 명확히 한다.
+- 완료: [doc/app_menu_porting.txt] 9차 UX 재검토 권장안 3건을 병합했다. 기존 탭의 출력·연결·저장 busy와 활성 편집을 로그아웃/종료 guard에 포함하고, display 이동 시 변경된 native minimum의 런타임 적용을 허용하며, clean 로그아웃에는 일반 확인창을 추가하지 않도록 계약을 명확히 했다.
 - 수정 예정 파일/목적: [doc/app_menu_porting.txt]의 반응형 window policy, command 상태 소유권, 로그아웃/종료 순서, Phase·테스트·체크리스트·금지 사항·최종 완료 기준을 함께 갱신한다. [SESSION_HANDOFF.md]에는 편집·검증·commit 단계를 기록한다.
-- 검증 예정: 필수 문구 표적 검사, `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`, 두 문서 diagnostics, stage 파일 분리 확인. 문서 변경이므로 Flutter test는 실행하지 않는다.
+- 검증 범위: 필수 문구 표적 검사, `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`, 두 문서 diagnostics, stage 파일 분리를 확인했다. 문서 변경이므로 Flutter test는 실행하지 않았다.
 - 편집 완료: [doc/app_menu_porting.txt]에 `HomePageManager` 단일 기존 메인 탭 guard와 `top-level dialog coordinator → 기존 메인 탭 guard → DB 정리 → 실제 종료` 순서를 추가했다. 출력·연결·저장 busy와 activeEditing은 로그아웃/종료를 차단하고, 여러 dirty는 한 번만 확인하며, clean 로그아웃/종료에는 일반 확인창을 추가하지 않는다.
 - window policy 편집 완료: 초기 minimum은 `WindowOptions.minimumSize`로 한 번만 적용하고, runtime에는 target display 변경으로 `effectiveMinimum`이 달라졌을 때만 `windowManager.setMinimumSize()`를 적용한다. bounds clamp는 minimum 변화와 분리해 새 작업 영역 밖일 때만 수행하도록 모순을 제거했다.
 - 표적 문서 검증 완료: PowerShell 9개 필수 계약 검사에서 runtime minimum changed-only/적용 예외, workspace guard 소유권/공용 종료 순서, clean 로그아웃 무확인, busy 차단, dirty 합산 확인, 이전 고정 금지·모호한 로그아웃 확인 문구 제거가 모두 확인됐다.
 - 조건 분리 검증 완료: minimum changed-only, minimum과 독립된 out-of-bounds clamp, 작업 영역 안의 불필요한 이동 금지, 같은 minimum의 display 이동 test, 최종 완료 계약을 확인했다.
 - 최종 문서 검증 완료: `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md` 성공, 두 문서 diagnostics 오류 없음. 전체 diff가 9차 권장안 3건과 검증 계약에 한정됨을 확인했다.
 - stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함한다. 사용자 소유 변경 [lib/core/app.dart]는 제외한다.
+- 로컬 커밋 완료: `8e1dba6` (`앱 메뉴 9차 UX 권장안 병합`).
 - 완료: [doc/app_menu_porting.txt] 8차 UX 재검토 권장안 2건을 병합했다. Navigator route modal은 `ModalRoute.isCurrent`로 중앙 감지하고 `OverlayEntry` blocking surface만 참조 계수 lease를 사용하도록 shortcut gate를 보정했으며, 960x640을 권장 content minimum으로 유지하되 native minimum은 대상 display의 logical `visibleSize`로 clamp했다.
 - 편집 완료: `blocksGlobalShortcuts`를 `homeRouteIsCurrent != true || overlayLeaseCount > 0`으로 정의하고 기존 저장·삭제·검색·로그아웃·설정 `showDialog`/`showGeneralDialog` 호출부의 수동 lease를 금지했다. window policy는 `effectiveMinimum`과 초기 bounds를 target `visibleSize`로 제한하고 `WindowOptions.minimumSize`에 최초 표시 전에 적용하며, 작은 display의 pane 축소·scroll fallback과 display 이동 재계산을 반응형·상태 소유권·공용 dialog·Phase·widget/integration test·체크리스트·금지 사항·최종 완료 기준에 반영했다.
 - 집중 문서 검증 완료: `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md` 성공. PowerShell 필수 계약 검사에서 route current gate, overlay-only lease, 기존 modal 무lease, 권장 content minimum, display clamp, `WindowOptions.minimumSize`, 작은 display fallback, native integration 검증이 모두 확인됐다. 고정 `windowManager.setMinimumSize(const Size(960, 640))`와 기존 owning command lease 문구는 제거됐다.
