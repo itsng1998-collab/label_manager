@@ -13,6 +13,7 @@
 - lease 소유권 보정 완료: 기존 설정 dialog의 AppBar·원래 탭 버튼 진입점이 공유하는 `_open...Settings()` owning command method에서 lease를 한 번만 획득하도록 명시했다. 두 진입점의 동일 gate 사용, 중복 acquire 금지, `finally` 해제 표적 검사가 모두 통과했다.
 - 최종 문서 검증 완료: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md] 진단 오류 없음. 전체 diff에서 세 UX 권장안과 lease 소유권 보정 외 변경이 없음을 확인했다.
 - stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함한다. 사용자 소유 변경 [lib/core/app.dart]는 제외한다.
+- 로컬 커밋 완료: `5d06658` (`앱 메뉴 7차 UX 권장안 병합`).
 - 완료: [doc/app_menu_porting.txt] 6차 UX 재검토 권장안 3건을 병합했다. 차단형 overlay가 열린 동안 `HardwareKeyboard` 전역 F1/F2/F3/F5/F12를 공용 coordinator/controller 상태로 차단하고, 실제 활성 shortcut의 우측 hint와 별도 입력 dialog를 여는 popup label의 `...` 표기 계약을 추가했다.
 - 편집 완료: AppBar 표시 원칙에 dialog-opening `...`와 shortcut 보조 영역을 추가하고, `AppMenuCommand`의 optional `shortcutLabel`/`opensDialog`, `blocksGlobalShortcuts` 상태 소유권, widget-level key 차단과 전역 handler의 차이를 command 구조·공용 dialog·phase·widget test·체크리스트·금지 사항·최종 완료 기준에 반영했다.
 - 집중 문서 검증 완료: `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md` 성공. PowerShell 필수 계약 검사에서 `shortcutLabel`, `opensDialog`, `blocksGlobalShortcuts`, F1/F2/F3/F5/F12, dialog `...`, shortcut semantics가 모두 확인됐고 이전 F12 단독 차단 문구는 제거됐다.
