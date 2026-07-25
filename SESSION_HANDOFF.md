@@ -7,6 +7,16 @@
 - 이 파일에는 현재 상태, 최근 완료 항목, 검증, 다음 액션만 기록한다.
 
 ## 현재 상태
+- 완료: [doc/app_menu_porting.txt]의 10차 명확화 권장안 5건을 병합했다. 레거시 `OnEnableSystemAdmin`/`OnEnableAdmin`/`OnEnableManager` 권한 분리, 관리 dialog selector 권한, 이더넷 `legacyInactive`, 업데이트 메시지 역할, 기존 private 설정 owning method의 공개 command 위임 경로를 정리했다.
+- 사용자 확정: 업데이트 메시지는 레거시 전체 범위로 포팅한다. 시스템·협력업체 관리자는 사용자별 단일 공지 편집과 대상 지정을 제공하고, 일반 사용자는 현재 사용자 공지 열람과 다시 보지 않기를 제공한다.
+- 수정 예정 파일/목적: [doc/app_menu_porting.txt]의 command별 권한·selector 계약, 이더넷 범위와 Phase, 업데이트 메시지, 설정 command 연결, policy·테스트 계약을 명확히 한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
+- 지시서 권한 편집 완료: `systemAdminCommand`, `adminCommand`, `managerCommand`를 레거시 update handler와 동일한 세 policy로 정의하고 협력업체·거래처·지점·사용자·관리자 복사·검색 및 치환·영양성분·고정 항목 command에 매핑했다.
+- selector 계약 편집 완료: command visibility와 내부 selector 활성 상태를 분리하고 거래처·지점·사용자 관리의 협력업체·거래처·지점 selector 범위를 레거시 조건으로 명시했다.
+- 설정·공지 범위 편집 완료: 이더넷 설정을 Phase 4에서 제외해 `legacyInactive`로 옮기고, 업데이트 메시지는 현재 사용자별 단일 row와 등급별 레거시 전체 동작으로 확정했다. 저울·프린터 설정은 공개 controller command가 기존 private owning method에 위임하도록 명확히 했다.
+- 테스트 계약 편집 완료: 세 command policy와 mapping, selector 권한, 이더넷 숨김, 공지 등급별 동작, 공개 설정 command 위임을 각 focused test 책임으로 추가했다.
+- 검증 실행 예정: 이전 모호 문구 제거와 새 계약 반영을 표적 검색하고, `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`, 두 문서 diagnostics, 전체 diff와 stage 대상 분리를 확인한다. 문서 변경이므로 Flutter test는 실행하지 않는다.
+- 검증 완료: 이전 모호·오류 문구 6종이 0건이고 새 권한·selector·이더넷·공지·설정 위임 계약이 21개 지점에 반영됐다. 이더넷은 inventory·숨김 policy·Phase 5·focused test에만 남으며 `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`가 통과했다. 두 문서 diagnostics 오류가 없고 전체 diff가 10차 권장안 5건과 사용자 확정 공지 범위에 한정됨을 확인했다. 문서 변경이므로 Flutter test는 실행하지 않았다.
+- stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함한다. 사용자 소유 변경 [lib/core/app.dart]는 제외한다.
 - 완료: [doc/app_menu_porting.txt]의 9차 명확화 권장안 4건을 병합했다. commit 결과 불명·commit 후 reload 실패를 일반 저장 실패와 구분하고, transaction 제어는 공용 `DbClient.transaction` test가 소유하며, 실제 server integration은 명시적 opt-in과 비운영 CRUD 조건으로 제한한다.
 - 사용자 확정: 신규 dialog와 기존 메인 탭이 함께 dirty이면 로그아웃·메뉴 종료·OS 종료 요청에서 전체 dirty를 한 번의 통합 확인으로 처리한다. 각 owner는 상태와 폐기 callback을 소유하고 `LifecycleManager` 종료 흐름은 해당 요청 동안 실제 dirty 요약·callback만 수집하며 범용 dialog coordinator로 확장하지 않는다.
 - 수정 예정 파일/목적: [doc/app_menu_porting.txt]의 transaction 결과 경계·테스트 책임, lifecycle 상태 소유권·로그아웃/종료·공용 dialog·Phase/test/완료 기준, integration test 실행 조건을 명확히 한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
