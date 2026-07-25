@@ -15,6 +15,7 @@
 - 검증 실행 예정: 이전 확장 문구 제거와 새 레거시 범위 계약을 표적 검색하고, `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`, 두 문서 diagnostics, 전체 diff와 stage 대상 분리를 확인한다. 문서 변경이므로 Flutter test는 실행하지 않는다.
 - 검증 완료: 이전 확장 문구 5종이 0건이고 새 레거시 범위 계약이 5개 핵심 지점에 반영됐다. `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`가 통과했고 두 문서 diagnostics 오류가 없으며, 전체 diff가 세 조회 command와 focused DAO test 계약에 한정됨을 확인했다. 문서 변경이므로 Flutter test는 실행하지 않았다.
 - stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함한다. 사용자 소유 변경 [lib/core/app.dart]는 제외한다.
+- 로컬 커밋 완료: `8ee98c9` (`앱 메뉴 12차 레거시 조회 범위 축소`).
 - 완료: [doc/app_menu_porting.txt]의 11차 명확화 권장안 3건을 병합했다. 저장 결과 불명·commit 후 reload 실패는 기존 dialog와 같이 안내 후 닫기로 통일하고, 발행내역은 `BM_RICH_PRINT_LOG`의 라벨·저울 통합 조회와 레거시 filter 범위로 제한하며, 미사용 demo `LoginHistoryPage`는 직접 재사용하지 않고 차단형 dialog content로 전환했다.
 - 사용자 확인 불필요: 세 항목 모두 레거시와 현재 구현이 한 방향을 결정한다. 신규 읽기 전용 mode·수동 재조회 command·출력 경로 구분·pagination·별도 route/page를 추가하지 않는다.
 - 수정 예정 파일/목적: [doc/app_menu_porting.txt]의 transaction 결과별 UI, 관리자 복사, 발행내역 조회 source·범위, 사용자 접속 이력 content 소유권과 관련 focused test를 레거시 범위로 확정한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
