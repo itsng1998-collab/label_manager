@@ -265,6 +265,9 @@ class FortuneTable<T> extends StatefulWidget {
     ),
     this.headerMaxLines = 1,
     this.headerWrapAfterCharacters,
+    this.headerLineSpacingReduction = 0,
+    this.headerCheckboxPadding = 5,
+    this.headerCheckboxLabelGap = 4,
     this.rowHeight = 28,
     this.autoFitColumns = true,
     this.fillLastColumn = false,
@@ -292,6 +295,9 @@ class FortuneTable<T> extends StatefulWidget {
   final TextStyle headerTextStyle;
   final int headerMaxLines;
   final int? headerWrapAfterCharacters;
+  final double headerLineSpacingReduction;
+  final double headerCheckboxPadding;
+  final double headerCheckboxLabelGap;
   final double rowHeight;
   final bool autoFitColumns;
   final bool fillLastColumn;
@@ -865,6 +871,10 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
                 padding: const EdgeInsets.symmetric(horizontal: 6),
                 child: column.hasHeaderCheckbox
                     ? Row(
+                        key: ValueKey(
+                          'fortune_table_header_group_${column.id}',
+                        ),
+                        mainAxisSize: MainAxisSize.min,
                         mainAxisAlignment: MainAxisAlignment.center,
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
@@ -874,10 +884,11 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
                             ),
                             value: column.headerCheckboxValue ?? false,
                             enabled: column.headerCheckboxEnabled,
+                            padding: widget.headerCheckboxPadding,
                             onChanged: column.onHeaderCheckboxChanged,
                           ),
-                          const SizedBox(width: 4),
-                          Expanded(child: _buildHeaderText(column.header)),
+                          SizedBox(width: widget.headerCheckboxLabelGap),
+                          Flexible(child: _buildHeaderText(column.header)),
                         ],
                       )
                     : _buildHeaderText(column.header),
@@ -908,6 +919,7 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
   Widget _buildHeaderText(String header) {
     return LayoutBuilder(
       builder: (context, constraints) {
+        final headerTextStyle = _headerTextStyle();
         var displayText = header;
         final wrapAfterCharacters = widget.headerWrapAfterCharacters;
         if (widget.headerMaxLines > 1 &&
@@ -915,7 +927,7 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
             wrapAfterCharacters > 0 &&
             _measureText(
                   header,
-                  widget.headerTextStyle,
+                  headerTextStyle,
                   MediaQuery.textScalerOf(context),
                 ) >
                 constraints.maxWidth) {
@@ -931,10 +943,27 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
           maxLines: widget.headerMaxLines,
           overflow: TextOverflow.ellipsis,
           textAlign: TextAlign.center,
-          style: widget.headerTextStyle,
+          style: headerTextStyle,
         );
       },
     );
+  }
+
+  TextStyle _headerTextStyle() {
+    if (widget.headerLineSpacingReduction <= 0) {
+      return widget.headerTextStyle;
+    }
+    final fontSize = widget.headerTextStyle.fontSize ?? 14;
+    final painter = TextPainter(
+      text: TextSpan(text: '가', style: widget.headerTextStyle),
+      textDirection: TextDirection.ltr,
+      textScaler: TextScaler.noScaling,
+    );
+    final lineHeight = math.max(
+      fontSize,
+      painter.preferredLineHeight - widget.headerLineSpacingReduction,
+    );
+    return widget.headerTextStyle.copyWith(height: lineHeight / fontSize);
   }
 
   void _startColumnResize(int index) {
@@ -1492,11 +1521,13 @@ class _FortuneTableCheckbox extends StatelessWidget {
     required this.value,
     required this.onChanged,
     this.enabled = true,
+    this.padding = 5,
   });
 
   final bool value;
   final ValueChanged<bool>? onChanged;
   final bool enabled;
+  final double padding;
 
   @override
   Widget build(BuildContext context) {
@@ -1504,7 +1535,7 @@ class _FortuneTableCheckbox extends StatelessWidget {
       behavior: HitTestBehavior.opaque,
       onTap: !enabled || onChanged == null ? null : () => onChanged!(!value),
       child: SizedBox.square(
-        dimension: _FortuneTableState._checkboxSize + 10,
+        dimension: _FortuneTableState._checkboxSize + padding * 2,
         child: Center(
           child: CustomPaint(
             size: const Size.square(_FortuneTableState._checkboxSize),

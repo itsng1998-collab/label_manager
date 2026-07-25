@@ -7,6 +7,12 @@
 - 이 파일에는 현재 상태, 최근 완료 항목, 검증, 다음 액션만 기록한다.
 
 ## 현재 상태
+- 완료: 품목관리 두 줄 컬럼 헤더의 줄 간격을 2px 줄이고, 체크박스와 라벨을 좁게 붙인 하나의 그룹으로 컬럼 가운데 정렬했다.
+- 편집 완료: `FortuneTable`에 기본 동작을 유지하는 `headerLineSpacingReduction`, `headerCheckboxPadding`, `headerCheckboxLabelGap` 옵션을 추가했다. 품목관리는 각각 2/1/1px을 사용하며 체크박스 헤더의 라벨 `Expanded`를 제거해 묶음 전체가 필요한 폭만 차지하고 가운데 정렬된다.
+- 테스트 수정: 긴 `판매가격` 헤더의 두 글자 줄바꿈, 2px 축소 line-height, 체크박스-라벨 1px 레이아웃 간격, 결합 그룹 중심과 세로 중심을 검증한다.
+- 집중 검증 완료: `flutter test test/fortune_table_test.dart --plain-name "ItemManage shows minimum-column header checkboxes"` 통과. text scaler 중복 반영 방지 수정 후 재검증도 통과했다.
+- 수정 Dart 파일 포맷 완료, 정적 진단 오류 없음. 전체 검증 완료: `flutter test test/fortune_table_test.dart` 54개 전체 통과.
+- stage/commit 대상: [third_party/fortune_sheet/lib/src/fortune_table.dart], [lib/page_home/item_manage.dart], [test/fortune_table_test.dart], [SESSION_HANDOFF.md]. 사용자 변경 [lib/core/app.dart]는 제외한다.
 - 완료: 품목관리 테이블 컬럼 헤더를 최대 2줄로 표시하고, 폭 부족 시 한글 두 글자 뒤에서 다음 줄로 넘기며 헤더 체크박스를 세로 가운데 정렬했다.
 - 편집 완료: 공용 `FortuneTable`에 기본값이 기존 한 줄인 `headerMaxLines`/`headerWrapAfterCharacters` 옵션을 추가했다. 품목관리만 2줄/두 글자를 지정하며, 한 줄 폭이 부족할 때만 두 글자 뒤에 줄바꿈을 넣고 둘째 줄에서 말줄임한다. 체크박스 헤더 Row는 세로 가운데 정렬을 명시했다.
 - 테스트 추가: 품목관리 옵션값, 최소화된 `판매가` 헤더의 `판매\n가` 분리, 체크박스와 라벨의 세로 중심 일치를 검증한다.

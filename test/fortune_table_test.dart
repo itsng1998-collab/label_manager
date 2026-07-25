@@ -1349,7 +1349,7 @@ void main() {
       TColumnSpecial.datas = originalSpecialColumns;
     });
 
-    final dynamicColumn = _testColumn(columnId: 101, columnName: '판매가');
+    final dynamicColumn = _testColumn(columnId: 101, columnName: '판매가격');
     dynamicColumn.useMinColumnCheck = true;
     TColumn.datas = [dynamicColumn];
     TColumnSpecial.datas = [
@@ -1391,6 +1391,9 @@ void main() {
     );
     expect(table.headerMaxLines, 2);
     expect(table.headerWrapAfterCharacters, 2);
+    expect(table.headerLineSpacingReduction, 2);
+    expect(table.headerCheckboxPadding, 1);
+    expect(table.headerCheckboxLabelGap, 1);
     expect(table.columns[3].initialWidth, 70);
     expect(table.columns[3].autoFit, isFalse);
     expect(table.columns[4].initialWidth, 70);
@@ -1406,20 +1409,39 @@ void main() {
       tester
           .widget<Text>(
             find.byKey(
-              const ValueKey('fortune_table_header_text:판매가'),
+              const ValueKey('fortune_table_header_text:판매가격'),
             ),
           )
           .data,
-      '판매\n가',
+      '판매\n가격',
     );
 
-    final checkboxCenter = tester.getCenter(
+    final checkboxRect = tester.getRect(
       find.byKey(const ValueKey('fortune_table_header_checkbox_dyn_101')),
     );
-    final headerCenter = tester.getCenter(
-      find.byKey(const ValueKey('fortune_table_header_text:판매가')),
+    final headerRect = tester.getRect(
+      find.byKey(const ValueKey('fortune_table_header_text:판매가격')),
     );
-    expect(checkboxCenter.dy, closeTo(headerCenter.dy, 0.5));
+    final groupRect = tester.getRect(
+      find.byKey(const ValueKey('fortune_table_header_group_dyn_101')),
+    );
+    expect(checkboxRect.center.dy, closeTo(headerRect.center.dy, 0.5));
+    expect(headerRect.left - checkboxRect.right, closeTo(1, 0.5));
+    expect(
+      (checkboxRect.left + headerRect.right) / 2,
+      closeTo(groupRect.center.dx, 0.5),
+    );
+    expect(
+      tester
+          .widget<Text>(
+            find.byKey(
+              const ValueKey('fortune_table_header_text:판매가격'),
+            ),
+          )
+          .style
+          ?.height,
+      lessThan(1.2),
+    );
   });
 
   testWidgets('ItemManage header checkbox updates minimum-column state', (
