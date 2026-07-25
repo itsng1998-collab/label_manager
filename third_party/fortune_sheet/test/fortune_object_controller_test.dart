@@ -24,6 +24,20 @@ FortuneSheetPainter fortuneSheetPainter(WidgetTester tester) {
 }
 
 void main() {
+  test('barcode input filter follows ZXing writer character sets', () {
+    expect(fortuneFilterBarcodeInput('EAN-13', '12A한34'), '1234');
+    expect(fortuneFilterBarcodeInput('UPC-A', '0-12 3'), '0123');
+    expect(fortuneFilterBarcodeInput('I2OF5', '12AB34'), '1234');
+    expect(
+      fortuneFilterBarcodeInput('codabar', 'A12B한C/tN*E'),
+      'A12BC/N*E',
+    );
+    expect(fortuneFilterBarcodeInput('code39', 'Ab-12한'), 'Ab-12');
+    expect(fortuneFilterBarcodeInput('code93', 'ab_12한'), 'ab_12');
+    expect(fortuneFilterBarcodeInput('code128', 'ab\n12한'), 'ab\n12');
+    expect(fortuneFilterBarcodeInput('qrCode', '한글-123'), '한글-123');
+  });
+
   test('barcode objects use unfiltered bitmap scaling', () {
     expect(
       fortuneObjectImageFilterQuality(FortuneSheetObjectKind.barcode),
@@ -2598,8 +2612,27 @@ void main() {
         ),
       );
       await tester.pump();
+      final barcodeTextField = find.byKey(
+        const ValueKey('fortune-object-property-barcodeText'),
+      );
       await tester.enterText(
-        find.byKey(const ValueKey('fortune-object-property-barcodeText')),
+        find.byKey(const ValueKey('fortune-object-property-barcodeFormatId')),
+        'ean13',
+      );
+      expect(
+        tester.widget<TextField>(barcodeTextField).controller?.text,
+        isEmpty,
+      );
+      await tester.enterText(
+        find.byKey(const ValueKey('fortune-object-property-barcodeFormatId')),
+        'CODE128',
+      );
+      await tester.enterText(
+        barcodeTextField,
+        'DRAFT-A한',
+      );
+      expect(
+        tester.widget<TextField>(barcodeTextField).controller?.text,
         'DRAFT-A',
       );
       final propertyList = find.byType(ListView).last;

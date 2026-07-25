@@ -1578,8 +1578,20 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
           ),
         if (widget.snapshot.activeKey!.kind ==
             FortuneSheetObjectKind.barcode) ...[
-          _field('형식', 'barcodeFormatId'),
-          _field('데이터', 'barcodeText'),
+          _field(
+            '형식',
+            'barcodeFormatId',
+            onChanged: _handleBarcodeFormatChanged,
+          ),
+          _field(
+            '데이터',
+            'barcodeText',
+            inputFormatters: [
+              FortuneBarcodeInputFormatter(
+                _fields['barcodeFormatId']?.text ?? '',
+              ),
+            ],
+          ),
           _field('모듈 배율', 'moduleScale'),
           _field('바 높이', 'barHeight'),
           _field('앞쪽 텍스트', 'leadingText'),
@@ -1726,6 +1738,7 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
     String name, {
     String? suffix,
     ValueChanged<String>? onChanged,
+    List<TextInputFormatter>? inputFormatters,
   }) {
     return TextField(
       key: ValueKey('fortune-object-property-$name'),
@@ -1736,12 +1749,25 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
       ),
       decoration: InputDecoration(labelText: label, suffixText: suffix),
       style: const TextStyle(fontSize: 13),
+      inputFormatters: inputFormatters,
       readOnly: !widget.controller.objectMutationEnabled,
       onChanged: onChanged,
       onSubmitted: widget.controller.objectMutationEnabled
           ? (_) => _apply()
           : null,
     );
+  }
+
+  void _handleBarcodeFormatChanged(String formatId) {
+    final controller = _fields['barcodeText'];
+    if (controller != null) {
+      final formatter = FortuneBarcodeInputFormatter(formatId);
+      controller.value = formatter.formatEditUpdate(
+        controller.value,
+        controller.value,
+      );
+    }
+    setState(() {});
   }
 
   Widget _connectionField() {

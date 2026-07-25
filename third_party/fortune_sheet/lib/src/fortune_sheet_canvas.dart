@@ -226,6 +226,71 @@ class FortuneObjectConnectionOption {
   final bool? showHumanReadableText;
 }
 
+String fortuneFilterBarcodeInput(String formatId, String input) {
+  final normalizedFormat = formatId.toLowerCase().replaceAll(
+    RegExp('[^a-z0-9]'),
+    '',
+  );
+  bool allowsCodeUnit(int codeUnit) {
+    if (const {
+      'ean8',
+      'ean13',
+      'itf',
+      'i2of5',
+      'upca',
+      'upce',
+    }.contains(normalizedFormat)) {
+      return codeUnit >= 0x30 && codeUnit <= 0x39;
+    }
+    if (normalizedFormat == 'codabar') {
+      return '0123456789-\$:/.+ABCDTN*E'.codeUnits.contains(codeUnit);
+    }
+    if (const {'code39', 'code93'}.contains(normalizedFormat)) {
+      return codeUnit <= 0x7f;
+    }
+    if (normalizedFormat == 'code128') {
+      return codeUnit <= 0x7f || (codeUnit >= 0xf1 && codeUnit <= 0xf4);
+    }
+    return true;
+  }
+
+  return String.fromCharCodes(input.codeUnits.where(allowsCodeUnit));
+}
+
+class FortuneBarcodeInputFormatter extends TextInputFormatter {
+  const FortuneBarcodeInputFormatter(this.formatId);
+
+  final String formatId;
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    final filtered = fortuneFilterBarcodeInput(formatId, newValue.text);
+    if (filtered == newValue.text) {
+      return newValue;
+    }
+    int filteredOffset(int offset) {
+      final safeOffset = offset.clamp(0, newValue.text.length);
+      return fortuneFilterBarcodeInput(
+        formatId,
+        newValue.text.substring(0, safeOffset),
+      ).length;
+    }
+
+    return TextEditingValue(
+      text: filtered,
+      selection: TextSelection(
+        baseOffset: filteredOffset(newValue.selection.baseOffset),
+        extentOffset: filteredOffset(newValue.selection.extentOffset),
+        affinity: newValue.selection.affinity,
+        isDirectional: newValue.selection.isDirectional,
+      ),
+    );
+  }
+}
+
 @visibleForTesting
 FilterQuality fortuneObjectImageFilterQuality(
   FortuneSheetObjectKind objectKind,
@@ -25935,6 +26000,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       _barcodeTextFontMenuOpen = false;
       _barcodeTextFontSizeMenuOpen = false;
       _barcodeErrorText = null;
+      _filterBarcodeTextForSelectedFormat();
     });
   }
 
@@ -26108,6 +26174,14 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     if (_barcodeAspectLocked) {
       _handleBarcodeWidthChanged();
     }
+  }
+
+  void _filterBarcodeTextForSelectedFormat() {
+    final formatter = FortuneBarcodeInputFormatter(_selectedBarcodeFormat.id);
+    _barcodeTextController.value = formatter.formatEditUpdate(
+      _barcodeTextController.value,
+      _barcodeTextController.value,
+    );
   }
 
   double? get _imageInsertAspectRatio {
@@ -47615,6 +47689,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
               controller: _barcodeTextController,
               focusNode: _barcodeTextFocusNode,
               keyboardType: TextInputType.text,
+              inputFormatters: [
+                FortuneBarcodeInputFormatter(_selectedBarcodeFormat.id),
+              ],
             ),
           if (!_barcodeFormatMenuIntersects(size, widthRect))
             _buildBarcodeDialogInput(
@@ -47725,6 +47802,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     required TextEditingController controller,
     required FocusNode focusNode,
     TextInputType? keyboardType,
+    List<TextInputFormatter>? inputFormatters,
     bool signed = false,
   }) {
     return Positioned(
@@ -47783,6 +47861,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
               enableInteractiveSelection: true,
               rendererIgnoresPointer: true,
               maxLines: 1,
+              inputFormatters: inputFormatters,
               keyboardType:
                   keyboardType ??
                   TextInputType.numberWithOptions(

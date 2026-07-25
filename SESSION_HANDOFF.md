@@ -7,6 +7,12 @@
 - 이 파일에는 현재 상태, 최근 완료 항목, 검증, 다음 액션만 기록한다.
 
 ## 현재 상태
+- 완료: 바코드 삽입 다이얼로그와 개체 패널 속성의 값 입력에 형식별 지원 문자 제한을 공통 적용하고 검증했다. 관련 파일만 분리 커밋할 예정이다.
+- 정책: EAN/UPC/ITF는 숫자, Codabar는 ZXing alphabet/guard 문자, Code39/Code93/Code128은 extended ASCII만 입력받고, 길이·체크디지트는 입력 중간 상태를 막지 않는다. 형식 변경 시 현재 값도 같은 규칙으로 정리한다.
+- [third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart](third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart): `fortuneFilterBarcodeInput`/`FortuneBarcodeInputFormatter`를 추가하고 삽입 값 입력 및 형식 변경에 적용했다.
+- [third_party/fortune_sheet/lib/src/fortune_object_layer_panel.dart](third_party/fortune_sheet/lib/src/fortune_object_layer_panel.dart): 바코드 데이터 필드에 공용 formatter를 적용하고 형식 변경 시 기존 값을 즉시 정리한다.
+- [third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart](third_party/fortune_sheet/test/fortune_barcode_dialog_test.dart), [third_party/fortune_sheet/test/fortune_object_controller_test.dart](third_party/fortune_sheet/test/fortune_object_controller_test.dart): EAN-13 비지원 문자 차단, ZXing writer별 문자 규칙, 속성 패널 입력/형식 변경 테스트를 추가했다.
+- 검증: 집중 테스트 5개, 바코드 다이얼로그 전체 33개, 개체 컨트롤 전체 49개, 라벨 시트 툴바 전체 147개 통과. 수정 Dart 파일 diagnostics 오류 없음.
 - 완료: 바코드 객체 표시 깨짐, 좁은 개체 패널의 바코드 연결 ID overflow, 패널 리사이즈 시 툴바 `더 보기` 미노출을 수정하고 검증했다. 기능 커밋 `c3877af` 완료.
 - 원인: 바코드 PNG까지 일반 이미지와 동일한 `FilterQuality.medium`으로 확대해 비정수 줌에서 모듈 경계가 보간되고, 연결 ID 드롭다운이 `isExpanded` 없이 선택 항목의 본래 폭을 요구하며, 최신 수동 커밋 `75bf1b8`에서 `_labelSheetZoomToolbarRightInset`과 `toolbarRightInset` 전달이 삭제됐다.
 - [third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart](third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart): 바코드 객체 bitmap만 `FilterQuality.none`/antiAlias 비활성으로 그리고 일반 이미지는 기존 medium 필터를 유지한다.

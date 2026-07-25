@@ -1887,7 +1887,7 @@ void main() {
                 child: FortuneSheetCanvas(
                   workbook: workbook,
                   barcodeFormats: const [
-                    FortuneBarcodeFormatOption(id: 'code128', label: 'Code128'),
+                    FortuneBarcodeFormatOption(id: 'ean13', label: 'EAN-13'),
                   ],
                   barcodeRenderer: (request) async {
                     renderCount += 1;
@@ -1951,10 +1951,17 @@ void main() {
         of: find.byKey(const ValueKey('fortune-barcode-text-input')),
         matching: find.byType(EditableText),
       ),
-      '12345',
+      '12A한345',
     );
     await tester.pump();
 
+    final textEditor = tester.widget<EditableText>(
+      find.descendant(
+        of: find.byKey(const ValueKey('fortune-barcode-text-input')),
+        matching: find.byType(EditableText),
+      ),
+    );
+    expect(textEditor.controller.text, '12345');
     expect(painter().barcodeCanConfirm, isTrue);
 
     await tester.tapAt(
@@ -1963,6 +1970,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(renderCount, 1);
+    expect(capturedRequest?.text, '12345');
     expect(capturedRequest?.width, 120);
     expect(capturedRequest?.height, 60);
     expect(painter().barcodeDialogOpen, isFalse);
