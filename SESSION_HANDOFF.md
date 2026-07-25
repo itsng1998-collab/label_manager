@@ -9,6 +9,7 @@
 ## 현재 상태
 - 완료: [doc/app_menu_porting.txt]에 메뉴 포팅으로 추가되는 모든 관리 목록·조회 결과의 반복 행 table은 공용 `FortuneTable<T>`/`FortuneTableColumn<T>`을 사용하도록 명시했다. `DataTable`, `Table`, row별 `ListView`, 기능별 자체 table 구현은 금지하고 시트 미리보기용 `FortuneSheet`와 역할을 구분했다.
 - 문서 자동 검증 완료: FortuneTable 공통 원칙, 관리/조회 화면 기준, 공용 API 확장 경로, widget test, 명령별 체크리스트, 금지 사항, 최종 완료 기준의 필수 항목 9개가 모두 반영됐다.
+- FortuneTable 지침 커밋: `e01ed27` (`메뉴 포팅 테이블 공용화 지침 추가`).
 - 완료: [doc/app_menu_porting.txt]에 레거시 `파일/검색/설정` 25개 명령의 AppBar 포팅 작업지시서를 작성했다. `도움말`은 이번 완료 범위에서 제외하고 후속 참고로만 기록했다.
 - 문서 완료: 넓은 화면 3개 그룹 아이콘/좁은 화면 overflow, command inventory/policy/controller 소유권, 현재 기능 재사용 경로, 미구현 명령별 page/dialog/model/DAO/DB gate, 단계별 구현 순서와 완료 체크리스트를 명시했다.
 - 레거시 대조 완료: 고정 항목 메뉴 리소스의 `IDM_FIX_COLUMN_MANAGER(32853)`와 실제 message map의 `IDM_FIX_COLUMN_MANAGE(32854)` 불일치를 기록하고 Flutter에서는 단일 ID로 정규화하도록 했다. `공용라벨 수정 이력`, `거래게시판`은 내부 기능 구현 후에도 legacyInactive로 유지한다.
