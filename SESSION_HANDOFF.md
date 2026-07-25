@@ -7,6 +7,12 @@
 - 이 파일에는 현재 상태, 최근 완료 항목, 검증, 다음 액션만 기록한다.
 
 ## 현재 상태
+- 완료: [doc/app_menu_porting.txt] 3차 UX 재검토 권장안 4건을 병합했다. 공용 footer 적용 범위 축소, 프린터 설정 command 명시적 분리, Esc의 다중 선택 한정, `파일/관리` 중립 아이콘을 적용했다.
+- 편집 완료: UX 원칙·개별 command 계약·phase·widget test·체크리스트·금지 사항·최종 완료 기준에 네 권장안을 반영했다.
+- 1차 문서 검증 완료: `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md` 성공, 두 문서 진단 오류 없음, 이전 포괄 footer/일반 선택 Esc/문맥 의존 프린터/관리자 전용 파일 아이콘 문구 검색 결과 없음.
+- 계약 보정 완료: `AppMenuCommandId`를 Flutter owning action 기준으로 정의하고 legacy ID를 별도 provenance로 분리해 프린터 설정 1→2 mapping을 허용했다. footer가 없는 화면의 Tab 순서도 존재하는 command 영역만 포함하도록 정리했다.
+- 최종 문서 검증 완료: 계약 보정 후 `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md` 재실행 성공, 두 문서 진단 오류 없음. 전체 diff에서 네 UX 권장안과 command/focus 계약 보정 외 변경 없음.
+- stage/commit 대상: `doc/app_menu_porting.txt`, `SESSION_HANDOFF.md`만 포함한다. 사용자 소유 변경 `lib/core/app.dart`는 제외한다.
 - 완료: [doc/app_menu_porting.txt] 최종 UX 재검토 권장안 3건을 병합했다. 로그인/로그아웃은 inventory/controller에 유지하되 `파일/관리` popup에서 숨기고 AppBar 오른쪽 고정 아이콘을 유일한 노출 위치로 정했다. 종료는 popup에 유지한다.
 - 관리 dialog UX 보정 완료: visible toolbar/rail은 모든 관리창이 아니라 행 CRUD dialog에만 적용하고 실제 지원 command만 표시한다. 비CRUD dialog와 지원하지 않는 command에는 CRUD button을 렌더링하지 않는다.
 - 사용자 관리 권한 완료: 지점 관리와 동일하게 실제 `OnEnableManager`의 `IsSystemAdmin`/`IsCoopAdmin`/`IsAdminConnect`/`IsCoopAdminConnect` 조건을 명시하고 `MANAGER_USER` 숨김을 테스트로 고정했다. Flutter의 session-connect 조건은 신뢰 가능한 상태가 포팅된 경우에만 허용한다.
