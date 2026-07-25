@@ -12,6 +12,7 @@
 - 편집 완료: `FortuneTableColumn.autoFit`을 추가해 공용 자동 폭 안에서 컬럼별 고정 폭을 지원한다. 품목관리는 행 번호 40px 유지, 발행·라벨크기·품명·일반 동적 컬럼 내용 자동 맞춤, 주원료 420px 고정, 최소화 주원료·동적 컬럼 70px 고정으로 변경했다.
 - 검증 완료: 컬럼별 자동 맞춤 제외, 품목관리 일반 폭 규칙, 최소화 70px, 동적 컬럼의 자동 맞춤→최소화 고정 전환 집중 테스트 통과. `flutter test test/fortune_table_test.dart` 52개 전체 통과, 최종 정리 후 집중 테스트 재통과, 수정 Dart 파일 포맷 및 정적 진단 오류 없음.
 - stage/commit 대상: [third_party/fortune_sheet/lib/src/fortune_table.dart], [lib/page_home/item_manage.dart], [test/fortune_table_test.dart], [SESSION_HANDOFF.md]. 사용자 변경 [lib/core/app.dart]는 제외한다.
+- 구현 커밋: `4142aa7` (`품목관리 컬럼 폭을 레거시 기준으로 조정`).
 - 완료: 품목관리 테이블의 모든 컬럼 헤더 라벨을 기존 14px bold에서 13px normal로 변경했다.
 - 편집 완료: `FortuneTable`에 기존 스타일을 기본값으로 유지하는 선택적 `headerTextStyle`을 추가하고 일반/체크박스 헤더 분기와 자동 너비 측정에 공통 적용했다. 품목관리 호출부에서만 흰색 13px `FontWeight.normal`을 전달해 다른 테이블에는 영향이 없다.
 - 검증 완료: `ItemManage shows minimum-column header checkboxes` 집중 테스트 및 `flutter test test/fortune_table_test.dart` 51개 전체 통과. 발행·라벨크기·품명·주원료·동적 컬럼 헤더가 모두 13px `FontWeight.normal`로 렌더링되며 수정 Dart 파일 포맷 및 정적 진단 오류 없음.
