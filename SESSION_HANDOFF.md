@@ -17,6 +17,7 @@
 - 검증 실행 예정: 이전 선택형 문구 제거와 레거시 범위 계약 반영을 표적 검색하고, `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`, 두 문서 diagnostics, 전체 diff와 stage 대상 분리를 확인한다. 문서 변경이므로 Flutter test는 실행하지 않는다.
 - 검증 완료: 이전 선택형·확장 문구 6종이 0건이고 레거시 고정 계약이 9개 핵심 지점에 반영됐다. `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`가 통과했고 두 문서 diagnostics 오류가 없으며, 전체 diff가 11차 권장안 3건과 대표 focused test에 한정됨을 확인했다. 문서 변경이므로 Flutter test는 실행하지 않았다.
 - stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함한다. 사용자 소유 변경 [lib/core/app.dart]는 제외한다.
+- 로컬 커밋 완료: `f02b680` (`앱 메뉴 11차 레거시 범위 명확화`).
 - 완료: [doc/app_menu_porting.txt]의 10차 명확화 권장안 5건을 병합했다. 레거시 `OnEnableSystemAdmin`/`OnEnableAdmin`/`OnEnableManager` 권한 분리, 관리 dialog selector 권한, 이더넷 `legacyInactive`, 업데이트 메시지 역할, 기존 private 설정 owning method의 공개 command 위임 경로를 정리했다.
 - 사용자 확정: 업데이트 메시지는 레거시 전체 범위로 포팅한다. 시스템·협력업체 관리자는 사용자별 단일 공지 편집과 대상 지정을 제공하고, 일반 사용자는 현재 사용자 공지 열람과 다시 보지 않기를 제공한다.
 - 수정 예정 파일/목적: [doc/app_menu_porting.txt]의 command별 권한·selector 계약, 이더넷 범위와 Phase, 업데이트 메시지, 설정 command 연결, policy·테스트 계약을 명확히 한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
