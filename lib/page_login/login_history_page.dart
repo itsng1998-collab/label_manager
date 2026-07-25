@@ -1,7 +1,6 @@
 // UTF-8, 한국어 주석
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:intl/date_symbol_data_local.dart';
 
 import '../models/login_event.dart';
 import '../database/db_connection_status_icon.dart';
@@ -45,14 +44,8 @@ class _LoginHistoryPageState extends State<LoginHistoryPage> {
   }
 
   Future<void> _initIntlAndQuery() async {
-    // 기본 포맷(시스템 로케일)으로 먼저 세팅
-    _dateFmt = DateFormat('yyyy-MM-dd');
-    _timeFmt = DateFormat('a hh:mm:ss');
-    try {
-      await initializeDateFormatting('ko_KR', null);
-      _dateFmt = DateFormat('yyyy-MM-dd', 'ko_KR');
-      _timeFmt = DateFormat('a hh:mm:ss', 'ko_KR');
-    } catch (_) {}
+    _dateFmt = DateFormat.yMd();
+    _timeFmt = DateFormat.jms();
     await _query();
     if (mounted) setState(() {});
   }

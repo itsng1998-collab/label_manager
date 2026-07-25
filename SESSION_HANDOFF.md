@@ -7,6 +7,15 @@
 - 이 파일에는 현재 상태, 최근 완료 항목, 검증, 다음 액션만 기록한다.
 
 ## 현재 상태
+- 완료: 앱 시작 locale/날짜 표시를 OS 설정에 맞추고 공용라벨관리 우측 패널의 초기·최소 폭과 컬럼 리사이징 계약을 수정했다.
+- locale 정책: 앱 시작 시 OS locale로 `Intl.defaultLocale`/날짜 심볼을 초기화하고 Flutter Material/Cupertino localization을 활성화한다. 화면 표시 날짜는 locale skeleton을 사용하고 DB·로그 저장 문자열 형식은 유지한다.
+- 공용라벨관리 정책: 기존 테이블 기본 합계 360에서 10을 뺀 `350.0`을 우측 패널 초기·최소 폭 상수로 사용하며, 실제 테이블 viewport에서 행번호 40과 필수등록 70을 고정하고 키워드/이름에 나머지 폭을 균등 배분한다.
+- 수정 예정: [lib/main.dart](lib/main.dart), locale 초기화 helper, [lib/page_login/login_history_page.dart](lib/page_login/login_history_page.dart), [lib/page_home/common_label_manage.dart](lib/page_home/common_label_manage.dart), 관련 테스트와 [pubspec.yaml](pubspec.yaml).
+- 편집 완료: `lib/core/locale_config.dart`의 `initializeLabelManagerLocale`가 OS locale을 `Intl.defaultLocale`과 날짜 심볼에 적용하며, `lib/main.dart`는 Material/Cupertino localization delegate와 지원 locale을 활성화한다. `lib/page_login/login_history_page.dart`의 표시 포맷은 `DateFormat.yMd()`/`DateFormat.jms()`로 변경했다.
+- 편집 완료: `lib/page_home/common_label_manage.dart`에 우측 패널 초기·최소 폭 350, 행번호 40, 필수등록 70 상수를 추가했다. `commonLabelColumnWidthsForViewport`가 패널 리사이징마다 나머지 폭을 키워드/이름에 균등 배분하고 필수등록 폭을 고정한다.
+- 테스트 추가: `test/locale_config_test.dart`에서 `en_US`/`ko_KR` 기본 locale 및 날짜 형식을 검증하고, `test/common_label_manage_test.dart`에서 350px 초기·최소 폭과 키워드/이름 균등 배분·필수등록 70px 고정을 검증한다.
+- 검증 완료: `flutter pub get` 성공. 수정 Dart 파일 전체 정적 진단 오류 없음. `locale_config_test.dart`와 `common_label_manage_test.dart` 관련 테스트 통과.
+- 커밋 대상: `SESSION_HANDOFF.md`, `lib/main.dart`, `lib/core/locale_config.dart`, `lib/page_login/login_history_page.dart`, `lib/page_home/common_label_manage.dart`, `pubspec.yaml`, `pubspec.lock`, 관련 테스트. 사용자 변경 `lib/core/app.dart`는 제외한다.
 - 완료: 바코드 삽입 다이얼로그와 개체 패널 속성의 값 입력에 형식별 지원 문자 제한을 공통 적용하고 검증했다. 기능 커밋 `916ae00` 완료.
 - 정책: EAN/UPC/ITF는 숫자, Codabar는 ZXing alphabet/guard 문자, Code39/Code93/Code128은 extended ASCII만 입력받고, 길이·체크디지트는 입력 중간 상태를 막지 않는다. 형식 변경 시 현재 값도 같은 규칙으로 정리한다.
 - [third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart](third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart): `fortuneFilterBarcodeInput`/`FortuneBarcodeInputFormatter`를 추가하고 삽입 값 입력 및 형식 변경에 적용했다.

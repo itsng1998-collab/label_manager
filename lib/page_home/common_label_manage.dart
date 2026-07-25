@@ -13,6 +13,22 @@ import 'package:label_manager/page_label_sheet/label_sheet_page.dart';
 import 'package:label_manager/page_label_sheet/label_sheet_workbench.dart';
 import 'package:label_manager/utils/log_context.dart';
 
+const double commonLabelRightPaneInitialWidth = 350.0;
+const double commonLabelRightPaneMinWidth = 350.0;
+const double commonLabelRowNumberWidth = 40.0;
+const double commonLabelRequiredColumnWidth = 70.0;
+const double _commonLabelFlexibleColumnMinWidth = 60.0;
+
+@visibleForTesting
+List<double> commonLabelColumnWidthsForViewport(double viewportWidth) {
+  final remainingWidth =
+      viewportWidth - commonLabelRowNumberWidth - commonLabelRequiredColumnWidth;
+  final flexibleWidth = remainingWidth / 2 < _commonLabelFlexibleColumnMinWidth
+      ? _commonLabelFlexibleColumnMinWidth
+      : remainingWidth / 2;
+  return [flexibleWidth, flexibleWidth, commonLabelRequiredColumnWidth];
+}
+
 @visibleForTesting
 List<String> commonLabelBarcodeObjectIdsFor(
   List<TColumnBase> specialColumns,
@@ -222,8 +238,7 @@ class CommonLabelManage extends StatefulWidget {
 }
 
 class _CommonLabelManageState extends State<CommonLabelManage> {
-  // 초기 분할: 좌측이 더 넓게(우측 약 40%)
-  double _rightFraction = 0.2;
+  double _rightFraction = 0;
   bool _rightWidthChangedByUser = false;
   static const double _handleWidth = 8;
 
@@ -238,9 +253,10 @@ class _CommonLabelManageState extends State<CommonLabelManage> {
       builder: (context, constraints) {
         final totalWidth = constraints.maxWidth;
         final minLeft = totalWidth * (4 / 7); // 좌측 최소 4/7 비율(≈4:3)
-        final minRight = 160.0; // 우측이 0이 되지 않도록 기본 여유
         final maxRight = totalWidth - minLeft - _handleWidth;
-        final rightLower = maxRight < minRight ? maxRight : minRight;
+        final rightLower = maxRight < commonLabelRightPaneMinWidth
+          ? maxRight
+          : commonLabelRightPaneMinWidth;
         final columns = TColumn.datas ?? const <TColumn>[];
         final specialColumns = TColumnSpecial.datas ?? const <TColumnBase>[];
         final barcodeObjectIds = commonLabelBarcodeObjectIdsFor(
@@ -260,14 +276,6 @@ class _CommonLabelManageState extends State<CommonLabelManage> {
           specialColumns,
           columns,
         );
-        final fitRightWidth = [
-          _CommonLabelTable.tableWidthFor(context, [
-            ...specialColumns,
-            ...columns,
-          ]),
-          minRight,
-        ].reduce((a, b) => a > b ? a : b).clamp(rightLower, maxRight);
-
         // 우측 폭 계산 및 하한선 적용
         final double rightWidth;
         if (_rightWidthChangedByUser) {
@@ -275,7 +283,9 @@ class _CommonLabelManageState extends State<CommonLabelManage> {
               .clamp(rightLower, maxRight)
               .toDouble();
         } else {
-          rightWidth = fitRightWidth.toDouble();
+          rightWidth = commonLabelRightPaneInitialWidth
+              .clamp(rightLower, maxRight)
+              .toDouble();
         }
         final leftWidth = totalWidth - rightWidth - _handleWidth;
 
@@ -365,10 +375,6 @@ class _RightPaneState extends State<_RightPane> {
         const double minTop = 120;
         const double minBottom = 100;
         final columns = List<TColumnBase>.from(TColumn.datas ?? const []);
-        final columnWidths = _CommonLabelTable.columnWidthsFor(context, [
-          ...widget.columns,
-          ...columns,
-        ]);
 
         var topHeight = totalHeight * _topFraction;
         topHeight = topHeight.clamp(
@@ -385,7 +391,6 @@ class _RightPaneState extends State<_RightPane> {
               height: topHeight,
               child: _CommonLabelTable(
                 columns: widget.columns,
-                columnWidths: columnWidths,
               ),
             ),
             _HSplitter(
@@ -420,7 +425,6 @@ class _RightPaneState extends State<_RightPane> {
               ),
               child: _CommonLabelTable(
                 columns: columns,
-                columnWidths: columnWidths,
               ),
             ),
           ],
@@ -432,57 +436,10 @@ class _RightPaneState extends State<_RightPane> {
 
 class _CommonLabelTable extends StatefulWidget {
   final List<TColumnBase> columns;
-  final List<double>? columnWidths;
-  const _CommonLabelTable({required this.columns, this.columnWidths});
+  const _CommonLabelTable({required this.columns});
 
-  static const List<double> _baseWidths = [110, 140, 70];
+  static const List<double> _baseWidths = [120, 120, 70];
   static const List<String> _baseHeaders = ['키워드', '이름', '필수등록'];
-  static const double _rowNumberWidth = 40;
-
-  static double tableWidthFor(BuildContext context, List<TColumnBase> columns) {
-    return _rowNumberWidth +
-        columnWidthsFor(
-          context,
-          columns,
-        ).reduce((a, b) => a + b);
-  }
-
-  static List<double> columnWidthsFor(
-    BuildContext context,
-    List<TColumnBase> columns,
-  ) {
-    final scaler = MediaQuery.of(context).textScaler;
-    return List<double>.generate(
-      _baseHeaders.length,
-      (index) => autoFitWidth(index, columns, scaler),
-    );
-  }
-
-  static double autoFitWidth(
-    int index,
-    List<TColumnBase> columns,
-    TextScaler scaler,
-  ) {
-    const style = TextStyle(fontSize: 14);
-    var maxWidth = _measureText(_headerTitle(index), style, scaler) + 24;
-    for (final row in columns) {
-      final text = _cellText(row, index);
-      maxWidth = maxWidth > _measureText(text, style, scaler) + 24
-          ? maxWidth
-          : _measureText(text, style, scaler) + 24;
-    }
-    return maxWidth < _minWidth(index) ? _minWidth(index) : maxWidth;
-  }
-
-  static double _measureText(String text, TextStyle style, TextScaler scaler) {
-    final painter = TextPainter(
-      text: TextSpan(text: text, style: style),
-      maxLines: 1,
-      textDirection: TextDirection.ltr,
-      textScaler: scaler,
-    )..layout();
-    return painter.size.width;
-  }
 
   static String _headerTitle(int idx) => _baseHeaders[idx];
 
@@ -493,7 +450,9 @@ class _CommonLabelTable extends StatefulWidget {
     return '';
   }
 
-  static double _minWidth(int idx) => idx < _baseWidths.length ? 60.0 : 70.0;
+  static double _minWidth(int idx) => idx == 2
+      ? commonLabelRequiredColumnWidth
+      : _commonLabelFlexibleColumnMinWidth;
 
   @override
   State<_CommonLabelTable> createState() => _CommonLabelTableState();
@@ -525,33 +484,40 @@ class _CommonLabelTableState extends State<_CommonLabelTable> {
 
   @override
   Widget build(BuildContext context) {
-    return FortuneTable<TColumnBase>(
-      rows: widget.columns,
-      columns: [
-        for (var index = 0;
-            index < _CommonLabelTable._baseHeaders.length;
-            index += 1)
-          FortuneTableColumn<TColumnBase>(
-            id: 'common_label_$index',
-            header: _CommonLabelTable._headerTitle(index),
-            initialWidth:
-                widget.columnWidths?[index] ?? _CommonLabelTable._baseWidths[index],
-            minWidth: _CommonLabelTable._minWidth(index),
-            text: (row) => _CommonLabelTable._cellText(row, index),
-            checkboxController:
-              index == 2 ? _missingKeywordCheckController : null,
-            onCheckboxChangedAt: index == 2
-                ? (row, rowIndex, value) {
-                    setState(() {
-                      widget.columns[rowIndex].useMissingKeywordCheck = value;
-                    });
-                  }
-                : null,
-          ),
-      ],
-      autoFitColumns: widget.columnWidths == null,
-      fillLastColumn: true,
-      rowNumberWidth: _CommonLabelTable._rowNumberWidth,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columnWidths = commonLabelColumnWidthsForViewport(
+          constraints.maxWidth,
+        );
+        return FortuneTable<TColumnBase>(
+          rows: widget.columns,
+          columns: [
+            for (var index = 0;
+                index < _CommonLabelTable._baseHeaders.length;
+                index += 1)
+              FortuneTableColumn<TColumnBase>(
+                id: 'common_label_$index',
+                header: _CommonLabelTable._headerTitle(index),
+                initialWidth: columnWidths[index],
+                minWidth: _CommonLabelTable._minWidth(index),
+                text: (row) => _CommonLabelTable._cellText(row, index),
+                checkboxController:
+                    index == 2 ? _missingKeywordCheckController : null,
+                onCheckboxChangedAt: index == 2
+                    ? (row, rowIndex, value) {
+                        setState(() {
+                          widget.columns[rowIndex].useMissingKeywordCheck =
+                              value;
+                        });
+                      }
+                    : null,
+              ),
+          ],
+          autoFitColumns: false,
+          fillLastColumn: false,
+          rowNumberWidth: commonLabelRowNumberWidth,
+        );
+      },
     );
   }
 

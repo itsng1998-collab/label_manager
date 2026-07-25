@@ -79,6 +79,16 @@ TColumn _storedColumn(
 }
 
 void main() {
+  test('right pane starts and stops at ten less than previous table width', () {
+    expect(commonLabelRightPaneInitialWidth, 350);
+    expect(commonLabelRightPaneMinWidth, 350);
+  });
+
+  test('keyword and name share resize space while required width stays fixed', () {
+    expect(commonLabelColumnWidthsForViewport(350), [120, 120, 70]);
+    expect(commonLabelColumnWidthsForViewport(450), [170, 170, 70]);
+  });
+
   test('barcode object ids include only barcode column types', () {
     final objectIds = commonLabelBarcodeObjectIdsFor(
       [

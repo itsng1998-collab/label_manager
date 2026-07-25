@@ -2,13 +2,14 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:intl/date_symbol_data_local.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'core/app.dart';
 import 'core/bootstrap.dart';
 import 'core/lifecycle.dart';
+import 'core/locale_config.dart';
 import 'core/ui_scale.dart';
 import 'database/db_reconnect_overlay.dart';
 import 'package:label_manager/utils/debug_logger.dart';
@@ -39,8 +40,10 @@ Future<void> main(List<String> args) async {
 
   unawaited(LabelPrinterPreferences.removePreferredPrinterIfMissing());
 
-  // 한국어 로케일용 날짜/시간 포맷터 초기화
-  await initializeDateFormatting('ko_KR');
+  // OS 로케일에 맞춰 날짜/시간 포맷터를 초기화한다.
+  await initializeLabelManagerLocale(
+    WidgetsBinding.instance.platformDispatcher.locale,
+  );
 
   // 데스크톱 환경에서는 지정한 디스플레이로 이동 후 최대화.
   if (Platform.isWindows || Platform.isMacOS) {
@@ -63,6 +66,8 @@ Future<void> main(List<String> args) async {
   runApp(
     MaterialApp(
       debugShowCheckedModeBanner: false,
+      localizationsDelegates: GlobalMaterialLocalizations.delegates,
+      supportedLocales: GlobalMaterialLocalizations.supportedLocales,
       builder: (context, child) =>
           withLabelManagerCompactUi(context, DbReconnectOverlay(child: child)),
       home: const HomePage(),
