@@ -13,6 +13,7 @@ class FortuneSheetApp extends StatefulWidget {
     this.showFormulaBar,
     this.showSheetTabs,
     this.gridClientSize,
+    this.toolbarRightInset = 0,
     this.controller,
     this.imagePicker,
     this.barcodeRenderer,
@@ -37,6 +38,7 @@ class FortuneSheetApp extends StatefulWidget {
   final bool? showFormulaBar;
   final bool? showSheetTabs;
   final FortuneSheetGridClientPhysicalSize? gridClientSize;
+  final double toolbarRightInset;
   final FortuneSheetController? controller;
   final FortuneImagePicker? imagePicker;
   final FortuneBarcodeRenderer? barcodeRenderer;
@@ -161,6 +163,7 @@ class _FortuneSheetAppState extends State<FortuneSheetApp> {
         settings: widget.settings,
         showFormulaBar: widget.showFormulaBar,
         showSheetTabs: widget.showSheetTabs,
+        toolbarRightInset: widget.toolbarRightInset,
         controller: widget.controller,
         imagePicker: widget.imagePicker,
         barcodeRenderer: widget.barcodeRenderer,

@@ -145,6 +145,7 @@ TColumn _testColumn(int id, String keyword) {
     keyword: keyword,
     columnName: keyword,
     useMissingKeywordCheck: false,
+    useMinColumnCheck: false,
     columnId: id,
     labelSizeId: 20,
     order: 1,
@@ -3300,6 +3301,62 @@ void main() {
     );
   });
 
+  testWidgets('docked object panel keeps toolbar overflow commands reachable', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 1000,
+            height: 450,
+            child: LabelSheetWorkbench(
+              initialWorkbook: FortuneWorkbook(
+                sheets: [FortuneSheet(id: 's1', name: 'Label')],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    final sheetFinder = find.byType(FortuneSheetApp);
+    final sheetRect = tester.getRect(sheetFinder);
+    final sheetApp = tester.widget<FortuneSheetApp>(sheetFinder);
+    final toolbarItems = fortuneToolbarItemsWithCustom(
+      sheetApp.settings!.toolbarItems,
+      sheetApp.settings!.customToolbarItems,
+    );
+    final overflowItems = fortuneToolbarOverflowItems(
+      sheetRect.width,
+      items: toolbarItems,
+    );
+    expect(overflowItems, isNotEmpty);
+
+    final painter = _currentFortunePainter(tester);
+    final semantics = painter.semanticsBuilder(sheetRect.size);
+    final moreLabel = painter.locale.toolbarTooltipLabels[
+      fortuneToolbarMorePopupKey
+    ];
+    final moreNodes = semantics.where(
+      (node) => node.properties.label == moreLabel,
+    );
+    expect(moreNodes, hasLength(1));
+
+    await tester.tapAt(
+      tester.getTopLeft(find.byType(FortuneSheetCanvas)) +
+          moreNodes.single.rect.center,
+    );
+    await tester.pump();
+
+    expect(
+      _currentFortunePainter(tester).toolbarPopupKey,
+      fortuneToolbarMorePopupKey,
+    );
+  });
+
   testWidgets('narrow object overlay caps at 300 within safe insets', (
     tester,
   ) async {
@@ -4249,7 +4306,7 @@ void main() {
     await tester.tapAt(splitterCenter);
     await tester.pumpAndSettle();
     preferences = await SharedPreferences.getInstance();
-    expect(preferences.getDouble('label_sheet_object_panel_width'), 300);
+    expect(preferences.getDouble('label_sheet_object_panel_width'), 200);
   });
 
   testWidgets('constrained object panel starts drag from its visible width', (

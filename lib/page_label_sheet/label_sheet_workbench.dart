@@ -207,6 +207,7 @@ const String _labelSheetImageImportFilePathPrefsKey =
     'label_sheet_image_import_file_path';
 const String _labelFileDirectoryPrefsKey = 'label_file_directory';
 const double _labelSheetImportMinReadableFontHeightMm = 2.5;
+const double _labelSheetZoomToolbarRightInset = 124.0;
 
 const List<String> labelSheetToolbarItems = [
   labelSheetSaveToolbarCommand,
@@ -2514,7 +2515,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
         return;
       }
       setState(() {
-        _objectPanelWidth = math.max(260.0, width);
+        _objectPanelWidth = math.max(200.0, width);
       });
     });
   }
@@ -4218,6 +4219,11 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
               onOpenObjectPanelRequest: _handleObjectPanelOpenRequest,
               onCloseObjectPanelRequest: _closeObjectPanel,
               objectPanelPresentation: objectPanelPresentation,
+                toolbarRightInset:
+                  widget.zoomToolbarPlacement ==
+                    LabelSheetZoomToolbarPlacement.sheetToolbarEnd
+                  ? _labelSheetZoomToolbarRightInset
+                  : 0,
               locale: _locale,
               barcodeRenderer:
                   widget.barcodeRenderer ?? labelSheetBarcodeRenderer,
@@ -4312,8 +4318,8 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
                     onDrag: (delta) {
                       setState(() {
                         _objectPanelWidth = (_objectPanelWidth - delta).clamp(
-                          260.0,
-                          math.max(260.0, maximumDockPanelWidth),
+                          200.0,
+                          math.max(200.0, maximumDockPanelWidth),
                         );
                       });
                     },
@@ -4337,9 +4343,9 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
                     onDoubleTap: () {
                       _objectPanelWidthChangedByUser = true;
                       setState(() {
-                        _objectPanelWidth = 300.0.clamp(
-                          260.0,
-                          math.max(260.0, maximumDockPanelWidth),
+                        _objectPanelWidth = 200.0.clamp(
+                          200.0,
+                          math.max(200.0, maximumDockPanelWidth),
                         );
                       });
                       _queueObjectPanelWidthSave(_objectPanelWidth);

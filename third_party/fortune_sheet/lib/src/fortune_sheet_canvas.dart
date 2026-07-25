@@ -3090,6 +3090,7 @@ class FortuneSheetCanvas extends StatefulWidget {
     this.settings,
     this.showFormulaBar,
     this.showSheetTabs,
+    this.toolbarRightInset = 0,
     this.controller,
     this.imagePicker,
     this.barcodeRenderer,
@@ -3113,6 +3114,7 @@ class FortuneSheetCanvas extends StatefulWidget {
   final FortuneSettings? settings;
   final bool? showFormulaBar;
   final bool? showSheetTabs;
+  final double toolbarRightInset;
   final FortuneSheetController? controller;
   final FortuneImagePicker? imagePicker;
   final FortuneBarcodeRenderer? barcodeRenderer;
@@ -29419,9 +29421,16 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     }
     final width = buildSize?.width ?? context.size?.width ?? double.infinity;
     return fortuneVisibleToolbarItemRects(
-      width,
+      _toolbarLayoutWidth(width),
       items: _toolbarItemsWithCustom(),
     );
+  }
+
+  double _toolbarLayoutWidth(double width) {
+    if (!width.isFinite) {
+      return width;
+    }
+    return math.max(0.0, width - widget.toolbarRightInset);
   }
 
   List<String> _toolbarItemsWithCustom() {
@@ -29439,7 +29448,10 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       ];
     }
     return key == fortuneToolbarMorePopupKey
-        ? fortuneToolbarOverflowItems(width, items: _toolbarItemsWithCustom())
+        ? fortuneToolbarOverflowItems(
+            _toolbarLayoutWidth(width),
+            items: _toolbarItemsWithCustom(),
+          )
         : key == fortuneToolbarFreezePopupKey
         ? fortuneFreezeMenuItems
         : key == fortuneToolbarCommentCommand
@@ -48480,6 +48492,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
               final sheetPainter = FortuneSheetPainter(
                 workbook: _workbook,
                 gridSize: sheetPaintSize,
+                toolbarRightInset: widget.toolbarRightInset,
                 locale: widget.locale,
                 selection: selection,
                 scrollOffset: scrollOffset,

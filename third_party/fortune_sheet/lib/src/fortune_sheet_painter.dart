@@ -62486,6 +62486,7 @@ class FortuneSheetPainter extends CustomPainter {
   FortuneSheetPainter({
     required this.workbook,
     this.gridSize,
+    this.toolbarRightInset = 0,
     this.locale = const FortuneSheetLocale(),
     required this.selection,
     required this.scrollOffset,
@@ -62710,6 +62711,7 @@ class FortuneSheetPainter extends CustomPainter {
 
   final FortuneWorkbook workbook;
   final Size? gridSize;
+  final double toolbarRightInset;
   final FortuneSheetLocale locale;
   final FortuneSelection selection;
   final Offset scrollOffset;
@@ -62933,6 +62935,13 @@ class FortuneSheetPainter extends CustomPainter {
   final Offset? sheetRulerTooltipPosition;
   final Set<String> contextMenuCheckedItems;
 
+  double _toolbarLayoutWidth(double width) {
+    if (!width.isFinite) {
+      return width;
+    }
+    return math.max(0.0, width - toolbarRightInset);
+  }
+
   CustomPainter toolbarPopupForegroundPainter() {
     return _FortuneToolbarPopupForegroundPainter(this);
   }
@@ -63020,13 +63029,14 @@ class FortuneSheetPainter extends CustomPainter {
     final customToolbarItems = {
       for (final item in settings.customToolbarItems) item.key: item,
     };
+    final toolbarWidth = _toolbarLayoutWidth(size.width);
     final lastVisibleIndex = fortuneToolbarLastVisibleItemIndex(
-      size.width,
+      toolbarWidth,
       items: toolbarItems,
     );
     for (var i = 0; i <= lastVisibleIndex; i += 1) {
       final item = toolbarItems[i];
-      final advance = fortuneToolbarItemAdvance(item, width: size.width);
+      final advance = fortuneToolbarItemAdvance(item, width: toolbarWidth);
       if (item == '|') {
         canvas.drawRect(
           Rect.fromLTWH(x + 6, 10, 1, 20),
@@ -63035,7 +63045,7 @@ class FortuneSheetPainter extends CustomPainter {
         x += advance;
         continue;
       }
-      final rect = fortuneToolbarItemRectAt(x, item, width: size.width);
+      final rect = fortuneToolbarItemRectAt(x, item, width: toolbarWidth);
       final hovered = toolbarHoveredKey == item;
       final arrowHovered = toolbarHoveredComboArrowKey == item;
       final active = toolbarPopupKey == item || toolbarActiveKeys.contains(item);
@@ -63055,7 +63065,7 @@ class FortuneSheetPainter extends CustomPainter {
         x += advance;
         continue;
       }
-      final useTextCombo = fortuneToolbarItemUsesTextCombo(item, size.width);
+      final useTextCombo = fortuneToolbarItemUsesTextCombo(item, toolbarWidth);
       final useIconCombo =
           FortuneToolbarIconPainter.comboIconIds.contains(item) &&
           !useTextCombo;
@@ -63106,7 +63116,7 @@ class FortuneSheetPainter extends CustomPainter {
       final rect = fortuneToolbarItemRectAt(
         x,
         fortuneToolbarMorePopupKey,
-        width: size.width,
+        width: toolbarWidth,
       );
       if (toolbarHoveredKey == fortuneToolbarMorePopupKey) {
         canvas.drawRRect(
@@ -67803,7 +67813,10 @@ class FortuneSheetPainter extends CustomPainter {
       settings.toolbarItems,
       settings.customToolbarItems,
     );
-    for (final entry in fortuneVisibleToolbarItemRects(width, items: items)) {
+    for (final entry in fortuneVisibleToolbarItemRects(
+      _toolbarLayoutWidth(width),
+      items: items,
+    )) {
       if (entry.key == itemKey) return entry.value;
     }
     return null;
@@ -67819,7 +67832,7 @@ class FortuneSheetPainter extends CustomPainter {
     if (key == fortuneToolbarMorePopupKey) {
       final settings = workbook.settings;
       return fortuneToolbarOverflowItems(
-        width,
+        _toolbarLayoutWidth(width),
         items: fortuneToolbarItemsWithCustom(
           settings.toolbarItems,
           settings.customToolbarItems,
@@ -78300,6 +78313,7 @@ class FortuneSheetPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant FortuneSheetPainter oldDelegate) {
     return oldDelegate.workbook != workbook ||
+        oldDelegate.toolbarRightInset != toolbarRightInset ||
         oldDelegate.locale != locale ||
         oldDelegate.selection != selection ||
         oldDelegate.scrollOffset != scrollOffset ||
@@ -79489,7 +79503,7 @@ class FortuneSheetPainter extends CustomPainter {
       return const <CustomPainterSemantics>[];
     }
     final entries = fortuneVisibleToolbarItemRects(
-      size.width,
+      _toolbarLayoutWidth(size.width),
       items: fortuneToolbarItemsWithCustom(
         settings.toolbarItems,
         settings.customToolbarItems,
@@ -79511,7 +79525,10 @@ class FortuneSheetPainter extends CustomPainter {
         continue;
       }
       final rect = entry.value;
-      if (fortuneToolbarItemUsesCombo(entry.key, size.width)) {
+      if (fortuneToolbarItemUsesCombo(
+        entry.key,
+        _toolbarLayoutWidth(size.width),
+      )) {
         final arrowRect = fortuneToolbarComboArrowRect(rect);
         semantics.add(
           CustomPainterSemantics(

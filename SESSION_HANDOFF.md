@@ -7,6 +7,15 @@
 - 이 파일에는 현재 상태, 최근 완료 항목, 검증, 다음 액션만 기록한다.
 
 ## 현재 상태
+- 완료: 라벨 시트 개체 패널 도킹 시 축소된 시트 툴바에서 가려진 명령을 `더 보기(...)`로 노출하고 팝업으로 실행할 수 있도록 보완했다. 관련 검증 완료, 커밋 단계다.
+- stage/commit 대상: `SESSION_HANDOFF.md`, 라벨 시트 workbench/toolbar test, FortuneSheet app/canvas/painter. 범위 밖 [lib/core/app.dart](lib/core/app.dart)는 제외한다.
+- 원인: 라벨 시트의 줌 컨트롤이 시트 툴바 우측 위에 겹치지만 FortuneSheet overflow 계산은 전체 폭을 사용해, 우측 끝 `더 보기` 버튼이 줌 컨트롤 아래에 가려지고 pointer 입력도 줌 컨트롤이 가로챘다.
+- [third_party/fortune_sheet/lib/src/fortune_sheet_app.dart](third_party/fortune_sheet/lib/src/fortune_sheet_app.dart): 런타임 전용 `toolbarRightInset`을 canvas로 전달한다.
+- [third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart](third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart): toolbar hit-test와 overflow popup 항목 계산에 우측 예약 폭을 적용한다.
+- [third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart](third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart): toolbar 그리기, semantics, popup anchor/항목 계산에 같은 예약 폭을 적용한다.
+- [lib/page_label_sheet/label_sheet_workbench.dart](lib/page_label_sheet/label_sheet_workbench.dart): 줌 컨트롤이 sheet toolbar 끝에 있을 때만 124px을 FortuneSheet toolbar 우측에서 예약한다.
+- [test/label_sheet_toolbar_test.dart](test/label_sheet_toolbar_test.dart): 개체 패널 도킹 상태에서 `더 보기` 버튼이 노출되고 클릭 시 popup이 열리는 회귀 테스트를 추가했다. 기존 fixture의 필수 `useMinColumnCheck: false`도 보완했다.
+- 사용자가 [lib/page_label_sheet/label_sheet_workbench.dart](lib/page_label_sheet/label_sheet_workbench.dart)의 패널 복원/드래그 최소 폭 일부를 `260→200`, 더블클릭 기본 폭을 `300→200`으로 변경한 상태이며 이 변경은 유지한다.
 - 품목관리에 레거시형 컬럼 헤더 체크박스를 추가했다. 현재 포팅에서도 `주원료`와 동적 컬럼 헤더에서 최소표시 체크/언체크가 가능하고, `BM_RICH_COL_MIN.RICH_MIN_CHECK`로 즉시 저장된다.
 - 공용 `FortuneTable`에 헤더 체크박스 옵션을 추가했고, 품목관리에서는 체크 시 컬럼 폭을 축소하고 해제 시 원래 폭으로 복원한다.
 - 이번 작업 관련 검증과 handoff 갱신은 완료됐고, 남은 것은 관련 파일만 분리 커밋하는 단계다.
@@ -40,6 +49,10 @@
 - 저울출력 미리보기에서 개체 패널을 숨기고, 줌 툴바를 우하단 command bar에서 중량/가격 영역 상단으로 이동했다.
 
 ## 최근 검증
+- 수정된 Dart 5개 파일 formatter 완료, diagnostics 오류 없음.
+- `flutter test test/label_sheet_toolbar_test.dart` 145개 전체 통과.
+- `flutter test test/label_sheet_toolbar_test.dart --plain-name "docked object panel keeps toolbar overflow commands reachable"` 통과.
+- `flutter test third_party/fortune_sheet/test/fortune_sheet_canvas_test.dart --name "toolbar (overflow exposes upstream more aria label|more popup exposes overflowed item aria labels)"` 2개 통과.
 - `flutter test test/fortune_table_test.dart` 통과.
 - `flutter test test/fortune_table_test.dart test/automatic_item_update_page_test.dart test/scale_output_test.dart` 통과.
 - `flutter test test/fortune_table_test.dart` 통과.
@@ -50,6 +63,7 @@
 - 저울출력 관련 수정 파일 analyzer 오류 없음 확인.
 
 ## 다음 작업 시작점
+- 라벨 시트 툴바/개체 패널 후속 요청은 [lib/page_label_sheet/label_sheet_workbench.dart](lib/page_label_sheet/label_sheet_workbench.dart)와 FortuneSheet의 `toolbarRightInset` 전달 경로부터 확인한다.
 - 품목관리 헤더 최소표시 동작 후속 요청은 [lib/page_home/item_manage.dart](lib/page_home/item_manage.dart), [lib/models/column.dart](lib/models/column.dart), [lib/models/column_special.dart](lib/models/column_special.dart), [third_party/fortune_sheet/lib/src/fortune_table.dart](third_party/fortune_sheet/lib/src/fortune_table.dart)부터 확인한다.
 - 저울출력 후속 요청이 들어오면 [lib/page_home/scale_output_page.dart](lib/page_home/scale_output_page.dart), [lib/home_page_manager.dart](lib/home_page_manager.dart), [lib/models/scale_output.dart](lib/models/scale_output.dart)부터 확인한다.
 - 미리보기/개체 패널/줌 위치 관련 후속 요청은 [lib/widgets/label_output_preview.dart](lib/widgets/label_output_preview.dart)와 [lib/page_label_sheet/label_sheet_workbench.dart](lib/page_label_sheet/label_sheet_workbench.dart)를 먼저 본다.
