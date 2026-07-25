@@ -14,6 +14,7 @@
 - 문서 자동 검증 완료: PowerShell 필수 문자열 점검에서 전체 메뉴 ID, DB/transaction 제약, Phase 0~5, 완료 체크리스트와 3개 AppBar 그룹 기준 36개가 모두 통과했다. `그룹 아이콘 4개`, `file, search, settings, help` 잔존 없음.
 - 최종 문서 검토 완료: `도움말` 구현이 Phase 1/5와 최종 완료 기준에 섞이지 않도록 후속 참고로 분리했고 [doc/app_menu_porting.txt], [SESSION_HANDOFF.md] 진단 오류 없음.
 - stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]. 사용자 변경 [lib/core/app.dart]는 제외한다.
+- 문서 구현 커밋: `88eba17` (`AppBar 메뉴 포팅 지시서 작성`).
 - 완료: 레거시 사용자 권한 정책을 적용하고 `tester01` 로그인 계정을 일반 사용자로 강제해 UI를 테스트할 수 있게 했다.
 - 테스트 권한 위치: [lib/models/user.dart]의 `User.clientUserTestOverrideId = 'tester01'`. 테스트 해제 시 이 값을 `null`로 변경한다. DB 권한은 수정하지 않고 로그인 시 메모리의 유효 `grade`만 `CLIENT_USER`로 바꾼다.
 - 편집 완료: 일반 사용자는 레거시와 같이 공용라벨관리와 자동품목갱신 탭을 표시하지 않는다. 품목관리/라벨출력/저울출력은 유지한다.
