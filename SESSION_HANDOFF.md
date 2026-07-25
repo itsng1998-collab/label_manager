@@ -7,6 +7,14 @@
 - 이 파일에는 현재 상태, 최근 완료 항목, 검증, 다음 액션만 기록한다.
 
 ## 현재 상태
+- 완료: Code128 삽입 시 바코드가 대각선 반복 무늬로 깨지는 문제를 수정했다.
+- 원인: `flutter_zxing`은 실제 ZXing `BitMatrix`의 1채널 픽셀 전체를 반환하지만 결과에 폭·높이가 없다. 선형 바코드 최소 모듈 폭이 요청 폭보다 커질 때 현재 코드가 요청 폭으로 행을 나눠 다음 행 시작점이 계속 밀린다.
+- 수정 파일: `lib/page_label_sheet/label_sheet_workbench.dart`에서 선형 바코드에 한해 반환 길이와 요청 높이로 실제 폭을 복원하고 1채널로 디코딩한다. `test/label_sheet_toolbar_test.dart`에 행 폭 불일치 회귀 테스트를 추가했다.
+- 편집 완료: `labelSheetDecodeEncodedBarcodeImage`에 `inferWidthFromLength`를 추가하고 선형 바코드 renderer에서만 활성화했다. native raw buffer는 계약대로 1채널로 고정한다.
+- 테스트 추가: 요청 폭보다 native `BitMatrix` 폭이 큰 1채널 synthetic buffer에서 각 행의 픽셀 경계와 실제 폭이 복원되는지 검증한다.
+- 집중 검증: `flutter test test/label_sheet_toolbar_test.dart --plain-name "linear barcode raw buffer restores native matrix row width"` 통과. 실제 encoder 통합 테스트는 Flutter 테스트 프로세스에서 `flutter_zxing.dll`을 로드하지 못해 제거했으며 제품 앱의 DLL 로드 경로와는 별개다.
+- 전체 검증: `flutter test test/label_sheet_toolbar_test.dart` 148개 전체 통과. 수정 Dart 파일 정적 진단 오류 없음.
+- 로그 버전: `FSDBG-2026-07-25-barcode-native-width-v32`. 사용자 재검증 로그에서 이 문자열로 수정 버전 로드 여부를 확인한다.
 - 완료: 현재 Flutter SDK에 없는 `GlobalMaterialLocalizations.supportedLocales` 사용을 공개 상수 `kMaterialSupportedLanguages` 기반 locale 목록으로 교체하고, `TColumn` 생성자 계약 변경으로 누락된 테스트 fixture의 `useMinColumnCheck`를 보완했다.
 - 수정 파일: `lib/main.dart`, `test/automatic_item_update_page_test.dart`, `test/common_label_manage_test.dart`, `test/label_column_edit_dialog_test.dart`, `test/label_column_edit_test.dart`, `test/label_column_save_test.dart`. fixture 값은 기존 기본 동작을 유지하도록 `false`를 사용한다.
 - 검증: 요청된 6개 파일의 LSP 오류 없음. `automatic_item_update_page_test.dart`, `common_label_manage_test.dart`, `label_column_edit_test.dart`, `label_column_save_test.dart` 합계 52개 통과. `label_column_edit_dialog_test.dart`는 17개 통과, 기존 드래그/애니메이션 동작 4개 실패로 이번 생성자 인자 보완과 무관하다.

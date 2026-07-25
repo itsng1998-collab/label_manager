@@ -373,6 +373,9 @@ Future<FortuneBarcodeRenderResult?> labelSheetBarcodeRenderer(
     data,
     width: sourceWidth,
     height: bodyHeight,
+    inferWidthFromLength: _labelSheetLinearBarcodeFormatIds.contains(
+      request.formatId,
+    ),
   );
   final scaledBarcode = imglib.copyResize(
     barcode,
@@ -436,20 +439,18 @@ imglib.Image labelSheetDecodeEncodedBarcodeImage(
   Uint8List data, {
   required int width,
   required int height,
+  bool inferWidthFromLength = false,
 }) {
-  final pixelCount = math.max(1, width * height);
-  var numChannels = 1;
-  if (data.lengthInBytes % pixelCount == 0) {
-    final inferredChannels = data.lengthInBytes ~/ pixelCount;
-    if (inferredChannels >= 1 && inferredChannels <= 4) {
-      numChannels = inferredChannels;
-    }
-  }
+  final decodedWidth = inferWidthFromLength &&
+          height > 0 &&
+          data.lengthInBytes % height == 0
+      ? math.max(1, data.lengthInBytes ~/ height)
+      : width;
   return imglib.Image.fromBytes(
-    width: width,
+    width: decodedWidth,
     height: height,
     bytes: Uint8List.fromList(data).buffer,
-    numChannels: numChannels,
+    numChannels: 1,
   );
 }
 

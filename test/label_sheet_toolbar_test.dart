@@ -245,6 +245,27 @@ Offset _floatingResizeGripPoint(WidgetTester tester, String key) {
 }
 
 void main() {
+  test('linear barcode raw buffer restores native matrix row width', () {
+    final data = Uint8List.fromList([
+      ...List<int>.filled(10, 0),
+      ...List<int>.filled(10, 127),
+      ...List<int>.filled(10, 255),
+    ]);
+
+    final decoded = labelSheetDecodeEncodedBarcodeImage(
+      data,
+      width: 4,
+      height: 3,
+      inferWidthFromLength: true,
+    );
+
+    expect(decoded.width, 10);
+    expect(decoded.height, 3);
+    expect(decoded.getPixel(9, 0).r, 0);
+    expect(decoded.getPixel(0, 1).r, 127);
+    expect(decoded.getPixel(0, 2).r, 255);
+  });
+
   test('item manager load progress does not expire during slow DB work', () {
     expect(
       itemManagerLoadProgressDuration,
