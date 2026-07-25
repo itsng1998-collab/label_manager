@@ -7,6 +7,12 @@
 - 이 파일에는 현재 상태, 최근 완료 항목, 검증, 다음 액션만 기록한다.
 
 ## 현재 상태
+- 완료: [doc/app_menu_porting.txt]의 3차 UX 단순화 권장안 3건을 병합했다. popup command icon은 선택 사항으로 완화하고, legacy command ID는 runtime metadata가 아닌 포팅 inventory fixture에서 관리하며, AppBar widget test에 섞인 업무 policy/controller 검증을 owning focused test로 분리했다.
+- 수정 예정 파일/목적: [doc/app_menu_porting.txt]의 AppBar 표시 원칙, command 타입, 프린터 command mapping, Phase 0, unit/widget test, 완료 체크리스트를 함께 정리한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
+- 지시서 편집 완료: AppBar 그룹 icon은 유지하되 text 중심인 현재 popup UX에 맞춰 command icon을 optional로 변경했다. runtime `AppMenuCommand`에서 legacy provenance field를 제거하고 레거시 handler/ID mapping을 포팅 대조 fixture 책임으로 옮겼다.
+- 테스트 책임 편집 완료: AppBar widget test는 대표 renderer 동작만 확인하고 `OnEnableManager` 권한, 프린터 command 연결, 메뉴 밖 F12 상태 갱신은 각각 policy/owning controller focused test에서 검증하도록 분리했다.
+- 검증 완료: 제거 대상 문구 4개가 0건이고 필수 계약 5개가 반영됐으며 `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`가 통과했다. 두 문서 diagnostics 오류가 없고 전체 diff가 3차 권장안 3건에 한정됨을 확인했다. 문서 변경이므로 Flutter test는 실행하지 않았다.
+- stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함한다. 사용자 소유 변경 [lib/core/app.dart]는 제외한다.
 - 완료: [doc/app_menu_porting.txt]의 2차 UX 단순화 권장안 5건을 병합했다. 메뉴 포팅과 무관한 native minimum, 별도 전역 dialog coordinator, 선행 공용 footer/date picker helper, 일괄 visible CRUD toolbar, `requiresFurtherInput`과 실제 취소 없는 `조회 취소` 계약을 제거하거나 현재 owning 패턴에 맞게 완화했다.
 - 수정 예정 파일/목적: [doc/app_menu_porting.txt]의 목표 UI, 공용 타입·상태 소유권, 개별 조회 계약, 공용 dialog·관리/조회 원칙, Phase·테스트·체크리스트·금지 사항·최종 완료 기준을 함께 정리한다. [SESSION_HANDOFF.md]에는 편집·검증·commit 단계를 기록한다.
 - 검증 완료: 제거 대상 8개 검색 결과는 0건이고 유지 대상 핵심 계약 8개 표적 검사가 통과했다. `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md` 성공, 두 문서 diagnostics 오류 없음, 전체 diff가 2차 권장안 5건에 한정됨을 확인했다. 문서 변경이므로 Flutter test는 실행하지 않았다.
