@@ -205,6 +205,7 @@ class FortuneTableColumn<T> {
     this.isTextEditable,
     this.onTextCommitted,
     this.onDoubleTap,
+    this.autoFit = true,
     this.fillRemaining = false,
   });
 
@@ -225,6 +226,7 @@ class FortuneTableColumn<T> {
   final FutureOr<void> Function(T row, int rowIndex, String value)?
   onTextCommitted;
   final FutureOr<void> Function(T row, int rowIndex)? onDoubleTap;
+  final bool autoFit;
   final bool fillRemaining;
 
   bool get isCheckbox =>
@@ -740,6 +742,7 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
     for (var index = 0; index < oldColumns.length; index += 1) {
       if (oldColumns[index].initialWidth != newColumns[index].initialWidth ||
           oldColumns[index].minWidth != newColumns[index].minWidth ||
+          oldColumns[index].autoFit != newColumns[index].autoFit ||
           oldColumns[index].fillRemaining != newColumns[index].fillRemaining) {
         return true;
       }
@@ -768,6 +771,9 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
     const bodyStyle = TextStyle(fontSize: 14);
     return List<double>.generate(widget.columns.length, (index) {
       final column = widget.columns[index];
+      if (!column.autoFit) {
+        return math.max(column.initialWidth, column.minWidth);
+      }
       var maxWidth =
           _measureText(column.header, widget.headerTextStyle, scaler) + 24;
       for (final row in widget.rows) {

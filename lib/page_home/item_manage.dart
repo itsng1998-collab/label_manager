@@ -1,4 +1,3 @@
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:fortune_sheet/fortune_sheet.dart' hide Rect;
@@ -165,7 +164,8 @@ class _ItemManageState extends State<ItemManage> {
   static const Color _publishCheckedRowColor = Color(0xFFEAF4FF);
   static const Color _addedRowColor = Color(0xFFEAF7EE);
   static const Color _modifiedRowColor = Color(0xFFFFF6DF);
-  static const double _minimizedHeaderColumnWidth = 44;
+  static const double _minimizedHeaderColumnWidth = 70;
+  static const double _expandedElementColumnWidth = 420;
 
   final FortuneTableCheckboxController _publishCheckboxController =
       FortuneTableCheckboxController();
@@ -370,7 +370,7 @@ class _ItemManageState extends State<ItemManage> {
             child: FortuneTable<ItemOfMarket>(
               rows: displayItems,
               columns: columns,
-              autoFitColumns: false,
+              autoFitColumns: true,
               headerTextStyle: const TextStyle(
                 color: Colors.white,
                 fontSize: 13,
@@ -1253,12 +1253,13 @@ class _ItemManageState extends State<ItemManage> {
     return null;
   }
 
-  double _dynamicColumnWidth(TColumn column) => column.useMinColumnCheck
-      ? _minimizedHeaderColumnWidth
-      : max(column.width.toDouble(), 70);
+  double _dynamicColumnWidth(TColumn column) =>
+    column.useMinColumnCheck ? _minimizedHeaderColumnWidth : 70;
 
   double _elementColumnWidth(TColumnBase? column) =>
-      column?.useMinColumnCheck == true ? _minimizedHeaderColumnWidth : 180;
+      column?.useMinColumnCheck == true
+      ? _minimizedHeaderColumnWidth
+      : _expandedElementColumnWidth;
 
   List<FortuneTableColumn<ItemOfMarket>> get _columns {
     final publishSelectionEnabled =
@@ -1272,6 +1273,7 @@ class _ItemManageState extends State<ItemManage> {
             header: c.columnName,
             initialWidth: _dynamicColumnWidth(c),
             minWidth: _minimizedHeaderColumnWidth,
+            autoFit: !c.useMinColumnCheck,
             headerCheckboxValue: c.useMinColumnCheck,
             headerCheckboxEnabled: !_headerMinCheckBusy && !widget.commandBusy,
             onHeaderCheckboxChanged:
@@ -1398,6 +1400,7 @@ class _ItemManageState extends State<ItemManage> {
         header: '주원료',
         initialWidth: _elementColumnWidth(elementColumn),
         minWidth: _minimizedHeaderColumnWidth,
+        autoFit: false,
         headerCheckboxValue: elementColumn?.useMinColumnCheck,
         headerCheckboxEnabled: !_headerMinCheckBusy && !widget.commandBusy,
         onHeaderCheckboxChanged: elementColumn == null

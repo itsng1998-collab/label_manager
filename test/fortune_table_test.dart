@@ -357,6 +357,39 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
   });
 
+  testWidgets('FortuneTable keeps fixed column width during auto fit', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 500,
+            height: 120,
+            child: FortuneTable<String>(
+              rows: const ['자동 맞춤보다 훨씬 긴 셀 내용'],
+              columns: [
+                FortuneTableColumn<String>(
+                  id: 'fixed',
+                  header: '고정',
+                  text: (row) => row,
+                  initialWidth: 90,
+                  autoFit: false,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final header = find.ancestor(
+      of: find.text('고정'),
+      matching: find.byType(Container),
+    ).first;
+    expect(tester.getSize(header).width, 90);
+  });
+
   testWidgets('FortuneTable editing controller waits for active commit', (
     tester,
   ) async {
@@ -980,12 +1013,18 @@ void main() {
     final table = tester.widget<FortuneTable<ItemOfMarket>>(
       find.byType(FortuneTable<ItemOfMarket>),
     );
-    expect(table.autoFitColumns, isFalse);
+    expect(table.autoFitColumns, isTrue);
     expect(table.columns.map((column) => column.initialWidth), [
       40,
       100,
       280,
-      180,
+      420,
+    ]);
+    expect(table.columns.map((column) => column.autoFit), [
+      true,
+      true,
+      true,
+      false,
     ]);
 
     await tester.tap(find.text('테스트 품목'));
@@ -1235,8 +1274,10 @@ void main() {
     final table = tester.widget<FortuneTable<ItemOfMarket>>(
       find.byType(FortuneTable<ItemOfMarket>),
     );
-    expect(table.columns[3].initialWidth, 44);
-    expect(table.columns[4].initialWidth, 44);
+    expect(table.columns[3].initialWidth, 70);
+    expect(table.columns[3].autoFit, isFalse);
+    expect(table.columns[4].initialWidth, 70);
+    expect(table.columns[4].autoFit, isFalse);
     for (final column in table.columns) {
       final headerText = tester.widget<Text>(find.text(column.header));
       expect(headerText.style?.fontSize, 13);
@@ -1288,6 +1329,11 @@ void main() {
       ),
     );
 
+    var table = tester.widget<FortuneTable<ItemOfMarket>>(
+      find.byType(FortuneTable<ItemOfMarket>),
+    );
+    expect(table.columns[4].autoFit, isTrue);
+
     await tester.tap(
       find.byKey(const ValueKey('fortune_table_header_checkbox_dyn_101')),
     );
@@ -1297,10 +1343,11 @@ void main() {
     expect(changedValue, isTrue);
     expect(dynamicColumn.useMinColumnCheck, isTrue);
 
-    final table = tester.widget<FortuneTable<ItemOfMarket>>(
+    table = tester.widget<FortuneTable<ItemOfMarket>>(
       find.byType(FortuneTable<ItemOfMarket>),
     );
-    expect(table.columns[4].initialWidth, 44);
+    expect(table.columns[4].initialWidth, 70);
+    expect(table.columns[4].autoFit, isFalse);
   });
 
   testWidgets('ItemManage distinguishes added and modified draft rows', (
