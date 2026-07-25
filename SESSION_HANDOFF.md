@@ -16,6 +16,7 @@
 - 추가 검증 완료: `flutter test test/label_print_session_test.dart test/scale_output_test.dart` 36개 전체 통과. (`runTests` 도구는 두 파일의 테스트를 발견하지 못해 Flutter CLI로 검증했다.)
 - 최종 정적 진단: [lib/home_page_manager.dart], [test/label_sheet_toolbar_test.dart] 오류 없음.
 - stage/commit 대상: [lib/home_page_manager.dart], [test/label_sheet_toolbar_test.dart], [SESSION_HANDOFF.md]. 사용자 변경 [lib/core/app.dart]는 제외한다.
+- 구현 커밋: `a0ad3b0` (`미리보기 라벨 정보 동기화`).
 - 완료: 공용라벨 저장 후 DB와 `LabelSize.datas`만 갱신되고 이미 조회된 품목관리/라벨출력/자동품목갱신/저울출력이 이전 `_currentLabelSize` workbook을 유지하는 문제를 수정했다.
 - 원인: `LabelSheetPage` 저장 성공 결과가 `HomePageManager`까지 전달되지 않으며 `_labelContentKey`도 workbook hash를 포함하지 않는다.
 - 수정 파일: `LabelSheetPage → CommonLabelManage → HomePageManager` 저장 완료 콜백을 추가했다. 동일 labelSizeId의 `_currentLabelSize`를 새 객체로 교체하고 workbook hash 기반 content key로 탭/열린 preview를 재생성하되 기존 draft/session controller는 유지한다.
