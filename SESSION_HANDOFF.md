@@ -7,6 +7,13 @@
 - 이 파일에는 현재 상태, 최근 완료 항목, 검증, 다음 액션만 기록한다.
 
 ## 현재 상태
+- 완료: 공용라벨의 `#ELEMENT` 치환으로 행 높이가 증가할 때 모든 미리보기의 바코드·이미지·선·도형이 행 증가분만큼 함께 이동하도록 수정했다.
+- 원인: `_replaceSheetKeywords`는 치환 내용에 맞춰 `rowHeights`만 늘리고 `images`, `lines`, `shapes`의 세로 위치를 이동하지 않는다. 행 높이 변화 자체는 정상 동작이다.
+- 편집 완료: `_replaceSheetKeywords`가 원본 대비 증가한 각 행의 아래 경계와 증가분을 계산하고, 경계 아래 이미지/바코드와 도형의 `top`, 선의 `y1`/`y2`에 누적 적용한다. 모든 미리보기가 공유하는 materialize 경로에 적용했다.
+- 회귀 테스트 추가: `item output moves objects below an expanded element row`에서 이미지·선·도형이 늘어난 행 높이만큼 함께 이동하는지 검증한다. 수정 전 이미지 `top`이 `25`에 남아 기대값 `47`과 달라 실패함을 확인했다.
+- 검증 완료: 수정 후 신규 집중 테스트 통과, Dart 포맷 적용, [lib/home_page_manager.dart]와 [test/label_sheet_toolbar_test.dart] 정적 진단 오류 없음, `flutter test test/label_sheet_toolbar_test.dart` 153개 전체 통과.
+- 추가 검증 완료: `flutter test test/label_print_session_test.dart test/scale_output_test.dart` 36개 전체 통과.
+- stage/commit 대상: [lib/home_page_manager.dart], [test/label_sheet_toolbar_test.dart], [SESSION_HANDOFF.md]. 사용자 변경 [lib/core/app.dart]는 제외한다.
 - 완료: 같은 품목의 품목관리/라벨출력/자동품목갱신/저울출력 미리보기가 최신 공용라벨과 동일한 치환 입력을 사용하도록 통일했다.
 - 원인: `LabelOutputPreview.identityKey`가 materialized workbook 내용을 포함하지 않아 keepAlive 화면이 공용라벨 저장 전 workbook을 유지한다. 또한 품목관리는 저장된 `elementRTF` workbook을 쓰지만 라벨출력/저울출력은 `element` 평문으로 재생성하며, 품목관리 baseline 미리보기는 출력 계열의 projected column 값 생성도 사용하지 않는다.
 - 편집 완료: [lib/home_page_manager.dart]의 `_ItemOutputPreviewTab` identity에 최종 materialized workbook fingerprint를 포함했다. `_buildLabelPrintPreview`/`_buildScaleOutputPreview`는 `_itemElementFormStateFor`로 저장된 `elementRTF` workbook을 사용하며, 품목관리 baseline/라벨출력/저울출력의 기본 컬럼 projection은 `_baselineOutputProjectedColumnValues`를 공유한다. 자동품목갱신 draft와 저울의 현재 중량/가격 override는 유지한다.

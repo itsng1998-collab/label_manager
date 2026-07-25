@@ -797,6 +797,65 @@ void main() {
     );
   });
 
+  test('item output moves objects below an expanded element row', () {
+    final workbook = FortuneWorkbook(
+      sheets: [
+        FortuneSheet(
+          id: 'label',
+          name: '라벨',
+          rowHeights: const {0: 20, 1: 20},
+          columnWidths: const {0: 120},
+          cells: {
+            const FortuneCellCoord(0, 0): const FortuneCell(
+              value: '#ELEMENT',
+              textWrap: '2',
+            ),
+          },
+          images: const [
+            FortuneImage(
+              id: 'barcode',
+              src: 'data:image/png;base64,AAA=',
+              left: 10,
+              top: 25,
+              width: 80,
+              height: 15,
+            ),
+          ],
+          lines: const [
+            FortuneLine(id: 'line', x1: 5, y1: 25, x2: 100, y2: 25),
+          ],
+          shapes: const [
+            FortuneShape(
+              id: 'shape',
+              kind: FortuneShapeKind.rectangle,
+              left: 20,
+              top: 30,
+              width: 30,
+              height: 10,
+            ),
+          ],
+        ),
+      ],
+    );
+    const elementCell = FortuneCell(
+      value: '첫째 줄\n둘째 줄\n셋째 줄',
+      textWrap: '2',
+    );
+
+    final materialized = debugMaterializeItemImagesForTesting(
+      workbook,
+      const {'#ELEMENT': '첫째 줄\n둘째 줄\n셋째 줄'},
+      elementCell: elementCell,
+    ).sheets.single;
+    final rowDelta = materialized.rowHeights[0]! - 20;
+
+    expect(rowDelta, greaterThan(0));
+    expect(materialized.images.single.top, 25 + rowDelta);
+    expect(materialized.lines.single.y1, 25 + rowDelta);
+    expect(materialized.lines.single.y2, 25 + rowDelta);
+    expect(materialized.shapes.single.top, 30 + rowDelta);
+  });
+
   test('item output preview prefers projected column values over shared content', () {
     final previousColumns = TColumn.datas;
     TColumn.datas = [_testColumn(7, 'EXP')];

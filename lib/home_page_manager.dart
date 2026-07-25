@@ -6980,12 +6980,14 @@ String debugItemCodeErrorPlaceholderForTesting() =>
 fs.FortuneWorkbook debugMaterializeItemImagesForTesting(
   fs.FortuneWorkbook workbook,
   Map<String, String> replacements,
+  {fs.FortuneCell? elementCell}
 ) => workbook.copyWith(
   sheets: [
     for (final sheet in workbook.sheets)
       _replaceSheetKeywords(
         sheet,
         replacements,
+        elementCell: elementCell,
         imageKeywords: const <String>{},
       ),
   ],
@@ -7450,12 +7452,59 @@ fs.FortuneSheet _replaceSheetKeywords(
     }
   }
   nextImages.addAll(insertedImages);
+  final rowShifts = _itemPreviewRowShifts(sheet, nextRowHeights);
   return sheet.copyWith(
     cells: nextCells,
-    images: nextImages,
+    images: [
+      for (final image in nextImages)
+        image.copyWith(top: _itemPreviewShiftedY(image.top, rowShifts)),
+    ],
+    lines: [
+      for (final line in sheet.lines)
+        line.copyWith(
+          y1: _itemPreviewShiftedY(line.y1, rowShifts),
+          y2: _itemPreviewShiftedY(line.y2, rowShifts),
+        ),
+    ],
+    shapes: [
+      for (final shape in sheet.shapes)
+        shape.copyWith(top: _itemPreviewShiftedY(shape.top, rowShifts)),
+    ],
     rowHeights: nextRowHeights,
     customHeight: nextCustomHeight,
   );
+}
+
+List<({double boundary, double delta})> _itemPreviewRowShifts(
+  fs.FortuneSheet sheet,
+  Map<int, double> nextRowHeights,
+) {
+  final shifts = <({double boundary, double delta})>[];
+  for (final entry in nextRowHeights.entries) {
+    final previousHeight =
+        sheet.rowHeights[entry.key] ?? sheet.defaultRowHeight ?? 19;
+    final delta = entry.value - previousHeight;
+    if (delta <= 0) continue;
+    final boundary = _itemCellRect(
+      sheet,
+      fs.FortuneCellCoord(entry.key, 0),
+    ).bottom;
+    shifts.add((boundary: boundary, delta: delta));
+  }
+  return shifts;
+}
+
+double _itemPreviewShiftedY(
+  double value,
+  List<({double boundary, double delta})> shifts,
+) {
+  var result = value;
+  for (final shift in shifts) {
+    if (value >= shift.boundary) {
+      result += shift.delta;
+    }
+  }
+  return result;
 }
 
 ({fs.FortuneCell cell, fs.FortuneImage? image})? _itemImageReplacementForCell(
