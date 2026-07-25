@@ -13,6 +13,7 @@
 - 완료 체크리스트 편집 완료: command 성격과 실제 구현 범위에 적용되는 항목만 충족하며, DB·신규 dialog·반복 행 table·조회·draft 저장·쓰기 transaction 항목에 각각 적용 조건을 명시했다.
 - 검증 완료: 이전 과잉 문구 2개가 0건이고 대체 계약 5개가 반영됐으며 `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`가 통과했다. 두 문서 diagnostics 오류가 없고 전체 diff가 7차 권장안 2건에 한정됨을 확인했다. 문서 변경이므로 Flutter test는 실행하지 않았다.
 - stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함한다. 사용자 소유 변경 [lib/core/app.dart]는 제외한다.
+- 로컬 커밋 완료: `b9d5c6e` (`앱 메뉴 7차 UX 단순화 권장안 병합`).
 - 완료: [doc/app_menu_porting.txt]의 6차 UX 단순화 권장안 1건을 병합했다. 관리자 복사는 원본 관리자나 별도 데이터 목록 preview를 요구하지 않고, 레거시와 같은 협력업체·원본/대상 거래처·브랜드·라벨 크기 selector, `브랜드 복사`·`품목까지 복사` 옵션과 기존 대상 데이터가 있을 때의 조건부 손실 경고를 사용한다.
 - 수정 예정 파일/목적: [doc/app_menu_porting.txt]의 관리자 복사 command 계약을 레거시 `AdminCopyDlg` UI와 실행 흐름에 맞게 정리한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
 - 관리자 복사 편집 완료: 근거 없는 원본 관리자 selector와 별도 데이터 목록 preview를 제거했다. 레거시의 협력업체·원본/대상 거래처·브랜드·라벨 크기 selector 및 두 복사 옵션을 유지하고 대상에 기존 column 데이터가 있을 때만 손실 경고를 표시하도록 명시했다.
