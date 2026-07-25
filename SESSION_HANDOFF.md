@@ -17,6 +17,7 @@
 - 집중 검증 완료: 신규 테스트 2개와 `test/label_size_cache_test.dart` 1개 통과. 수정 파일 정적 진단 오류 없음.
 - 전체 검증 완료: `flutter test test/label_sheet_toolbar_test.dart` 150개 통과.
 - 로그 버전: `FSDBG-2026-07-25-common-label-sync-v33`.
+- 기능 커밋: `0ef2ef0` (`공용라벨 저장 후 연관 화면 동기화`). 원격 push 및 배포 빌드는 수행하지 않았다.
 - 완료: Code128 삽입 시 바코드가 대각선 반복 무늬로 깨지는 문제를 수정했다.
 - 원인: `flutter_zxing`은 실제 ZXing `BitMatrix`의 1채널 픽셀 전체를 반환하지만 결과에 폭·높이가 없다. 선형 바코드 최소 모듈 폭이 요청 폭보다 커질 때 현재 코드가 요청 폭으로 행을 나눠 다음 행 시작점이 계속 밀린다.
 - 수정 파일: `lib/page_label_sheet/label_sheet_workbench.dart`에서 선형 바코드에 한해 반환 길이와 요청 높이로 실제 폭을 복원하고 1채널로 디코딩한다. `test/label_sheet_toolbar_test.dart`에 행 폭 불일치 회귀 테스트를 추가했다.
