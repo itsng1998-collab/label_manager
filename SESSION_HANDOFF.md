@@ -11,6 +11,7 @@
 - 권한/AppBar UX 완료: 현재 로그인/등급 policy의 비노출 command와 legacyInactive는 메뉴에서 숨기고 로그인·사용자 변경 시 재계산한다. transient dirty/busy만 사유와 함께 비활성화한다. 메뉴를 먼저 overflow로 합친 뒤 title을 한 줄 ellipsis하며 서버 상태와 현재 로그인/로그아웃 command는 유지한다.
 - dialog 크기 UX 완료: 보편적인 80~90% 규칙을 제거하고 화면 여백과 기능별 content max size 중 작은 값을 사용한다. 기본 max는 현재 라벨 항목 편집창의 1168x720이며 더 넓은 결과가 확인된 경우에만 기능별로 확장한다.
 - 문서 자동 검증 완료: UX 권장 필수 기준 10개가 모두 반영됐고 이전 disabled/80~90%/Esc·조회 busy 일괄 닫기 규칙은 0개다. [doc/app_menu_porting.txt], [SESSION_HANDOFF.md] 진단 오류 없음.
+- UX 권장안 커밋: `65482e8` (`메뉴 포팅 UX 권장안 반영`).
 - 완료: [doc/app_menu_porting.txt]의 AppBar 메뉴 화면 UX를 현재 프로젝트 스타일로 병합했다. 신규 관리·편집·조회 화면은 `BlockingModelessDialog` + `BlockingModelessDialogFrame`을 사용하고, 기존 핵심 작업은 현재 메인 탭, 기존 설정은 owning dialog를 재사용한다.
 - dialog 지침 완료: 별도 route page/신규 메인 탭/native child window 금지, 단일 overlay, write busy 닫기 차단, read busy 취소/닫기, 중첩 확인용 `showBlockingModelessOverlayDialog`, 실패 시 draft 유지 기준과 widget/integration test를 명시했다.
 - 문서 자동 검증 완료: 공용 dialog 타입·예외·수명주기·중첩 확인·테스트·완료 기준 필수 항목 10개가 모두 반영됐고 `page/dialog`, `dialog/page` 선택 표현은 0개다. 남은 `page` 표기는 기존 파일명·핵심 탭·신규 route 금지 문구뿐이며 문서 진단 오류 없음.
