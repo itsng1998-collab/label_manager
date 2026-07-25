@@ -131,6 +131,7 @@ class LabelSheetPage extends StatelessWidget {
     this.imageImportController,
     this.editingLifecycleController,
     this.onDirtyChanged,
+    this.onSaved,
   });
 
   final LabelSize? labelSize;
@@ -146,6 +147,7 @@ class LabelSheetPage extends StatelessWidget {
   final LabelSheetImageImportController? imageImportController;
   final LabelSheetEditingLifecycleController? editingLifecycleController;
   final ValueChanged<bool>? onDirtyChanged;
+  final ValueChanged<LabelSize>? onSaved;
 
   @override
   Widget build(BuildContext context) {
@@ -262,7 +264,19 @@ class LabelSheetPage extends StatelessWidget {
       final id = labelSize!.labelSizeId;
       debugLog('saving workbook for labelSizeId=$id, width=$width, height=$height');
       await LabelSizeDAO.updateByLabelSizeId(id, width, height, encodedWorkbook);
-      LabelSize.replaceCachedFormData(id, width, height, encodedWorkbook);
+      final updated = LabelSize.replaceCachedFormData(
+        id,
+        width,
+        height,
+        encodedWorkbook,
+      ) ?? labelSize!.copyWith(
+        labelSizeCommon: LabelSizeCommon(
+          width: width,
+          height: height,
+          rtf: encodedWorkbook,
+        ),
+      );
+      onSaved?.call(updated);
       debugLog('$END - save completed');
       return LabelSheetSaveResult.applied;
     }

@@ -138,6 +138,21 @@ bool commonLabelSheetDirtyChangeBelongsToCurrentSession({
   required int? currentLabelSizeId,
 }) => sourceLabelSizeId == currentLabelSizeId;
 
+@visibleForTesting
+LabelSize? commonLabelSavedSessionValue({
+  required LabelSize? current,
+  required LabelSize saved,
+}) => current?.labelSizeId == saved.labelSizeId ? saved : current;
+
+@visibleForTesting
+String homeLabelContentKey(LabelSize? labelSize, int setupRevision) {
+  final formData = labelSize?.labelSizeCommon?.rtf ?? '';
+  return '${labelSize?.labelSizeId ?? 'none'}:'
+      '${labelSize?.labelSizeCommon?.width ?? 0}:'
+      '${labelSize?.labelSizeCommon?.height ?? 0}:'
+      '${formData.length}:${formData.hashCode}:$setupRevision';
+}
+
 Future<void> showItemManagerLoadFailureDialog(BuildContext context) {
   ScaffoldMessenger.of(context).clearSnackBars();
   return showDialog<void>(
@@ -854,13 +869,8 @@ class _HomePageManagerState extends State<HomePageManager> {
   }
 
   LabelSize? get _effectiveLabelSize => _currentLabelSize;
-  String get _labelContentKey {
-    final labelSize = _effectiveLabelSize;
-    return '${labelSize?.labelSizeId ?? 'none'}:'
-        '${labelSize?.labelSizeCommon?.width ?? 0}:'
-        '${labelSize?.labelSizeCommon?.height ?? 0}:'
-        '$_labelSetupRevision';
-  }
+  String get _labelContentKey =>
+      homeLabelContentKey(_effectiveLabelSize, _labelSetupRevision);
 
   List<DropdownMenuItem<Brand>> _brandDropdownItems(List<Brand> brands) =>
       brands
@@ -2975,6 +2985,34 @@ class _HomePageManagerState extends State<HomePageManager> {
     _labelSettingsOverlayEntry?.markNeedsBuild();
   }
 
+  void _handleCommonLabelSaved(LabelSize saved) {
+    final current = _currentLabelSize;
+    if (current?.labelSizeId != saved.labelSizeId) {
+      debugLog(
+        'commonLabel saved ignored currentLabelSizeId=${current?.labelSizeId} '
+        'savedLabelSizeId=${saved.labelSizeId}',
+      );
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _currentLabelSize?.labelSizeId != saved.labelSizeId) {
+        return;
+      }
+      _currentLabelSize = commonLabelSavedSessionValue(
+        current: _currentLabelSize,
+        saved: saved,
+      );
+      _commonLabelSheetDirty = false;
+      _rtfPreviewReadyKey = null;
+      widget.onLabelSizeChanged(saved);
+      _resetTabs();
+      debugLog(
+        'commonLabel saved propagated labelSizeId=${saved.labelSizeId} '
+        'contentKey=$_labelContentKey',
+      );
+    });
+  }
+
   void _closeBrandSettingsDialog() {
     debugLog(
       'brandSettings overlay close requested exists=${_brandSettingsOverlayEntry != null}',
@@ -3238,6 +3276,7 @@ class _HomePageManagerState extends State<HomePageManager> {
                   imageImportController: _commonLabelImageImportController,
                   editingLifecycleController:
                       _commonLabelEditingLifecycleController,
+                    onLabelSaved: _handleCommonLabelSaved,
                   onSheetDirtyChanged: (dirty) {
                     final currentLabelSizeId = _effectiveLabelSize?.labelSizeId;
                     if (!commonLabelSheetDirtyChangeBelongsToCurrentSession(

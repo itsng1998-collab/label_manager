@@ -297,6 +297,53 @@ void main() {
     );
   });
 
+  test('common label save replaces only the matching current session', () {
+    const current = LabelSize(
+      labelSizeId: 10,
+      brandId: 1,
+      labelSizeName: '현재',
+      labelSizeCommon: LabelSizeCommon(width: 100, height: 60, rtf: 'old'),
+    );
+    const saved = LabelSize(
+      labelSizeId: 10,
+      brandId: 1,
+      labelSizeName: '현재',
+      labelSizeCommon: LabelSizeCommon(width: 100, height: 60, rtf: 'new'),
+    );
+    const other = LabelSize(
+      labelSizeId: 11,
+      brandId: 1,
+      labelSizeName: '다른 라벨',
+      labelSizeCommon: LabelSizeCommon(width: 100, height: 60, rtf: 'other'),
+    );
+
+    expect(
+      commonLabelSavedSessionValue(current: current, saved: saved),
+      same(saved),
+    );
+    expect(
+      commonLabelSavedSessionValue(current: current, saved: other),
+      same(current),
+    );
+  });
+
+  test('label content key changes when saved workbook content changes', () {
+    const before = LabelSize(
+      labelSizeId: 10,
+      brandId: 1,
+      labelSizeName: '라벨',
+      labelSizeCommon: LabelSizeCommon(width: 100, height: 60, rtf: 'old'),
+    );
+    const after = LabelSize(
+      labelSizeId: 10,
+      brandId: 1,
+      labelSizeName: '라벨',
+      labelSizeCommon: LabelSizeCommon(width: 100, height: 60, rtf: 'new'),
+    );
+
+    expect(homeLabelContentKey(before, 0), isNot(homeLabelContentKey(after, 0)));
+  });
+
   testWidgets(
     'item manager load failure closes progress and shows warning dialog',
     (tester) async {

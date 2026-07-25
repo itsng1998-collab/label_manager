@@ -7,6 +7,16 @@
 - 이 파일에는 현재 상태, 최근 완료 항목, 검증, 다음 액션만 기록한다.
 
 ## 현재 상태
+- 완료: 공용라벨 저장 후 DB와 `LabelSize.datas`만 갱신되고 이미 조회된 품목관리/라벨출력/자동품목갱신/저울출력이 이전 `_currentLabelSize` workbook을 유지하는 문제를 수정했다.
+- 원인: `LabelSheetPage` 저장 성공 결과가 `HomePageManager`까지 전달되지 않으며 `_labelContentKey`도 workbook hash를 포함하지 않는다.
+- 수정 파일: `LabelSheetPage → CommonLabelManage → HomePageManager` 저장 완료 콜백을 추가했다. 동일 labelSizeId의 `_currentLabelSize`를 새 객체로 교체하고 workbook hash 기반 content key로 탭/열린 preview를 재생성하되 기존 draft/session controller는 유지한다.
+- 편집 완료: `LabelSheetPage.onSaved`와 `CommonLabelManage.onLabelSaved`가 DB 저장·`LabelSize.datas` 교체 후 새 `LabelSize`를 전달한다.
+- 편집 완료: `HomePageManager._handleCommonLabelSaved`가 다음 frame에 동일 ID의 `_currentLabelSize`와 부모 선택값을 교체하고 `_resetTabs()`로 품목관리/라벨출력/자동품목갱신/저울출력 및 열린 floating preview를 새 workbook 기준으로 재생성한다.
+- 편집 완료: `homeLabelContentKey`에 formData 길이/hash를 포함해 라벨 크기가 같아도 저장 workbook이 바뀌면 keepAlive content key가 변경된다.
+- 테스트 추가: 동일 ID 저장만 현재 세션을 교체하고 다른 라벨 이벤트는 무시하는 정책, 같은 크기의 workbook 변경 시 content key 변경을 검증한다.
+- 집중 검증 완료: 신규 테스트 2개와 `test/label_size_cache_test.dart` 1개 통과. 수정 파일 정적 진단 오류 없음.
+- 전체 검증 완료: `flutter test test/label_sheet_toolbar_test.dart` 150개 통과.
+- 로그 버전: `FSDBG-2026-07-25-common-label-sync-v33`.
 - 완료: Code128 삽입 시 바코드가 대각선 반복 무늬로 깨지는 문제를 수정했다.
 - 원인: `flutter_zxing`은 실제 ZXing `BitMatrix`의 1채널 픽셀 전체를 반환하지만 결과에 폭·높이가 없다. 선형 바코드 최소 모듈 폭이 요청 폭보다 커질 때 현재 코드가 요청 폭으로 행을 나눠 다음 행 시작점이 계속 밀린다.
 - 수정 파일: `lib/page_label_sheet/label_sheet_workbench.dart`에서 선형 바코드에 한해 반환 길이와 요청 높이로 실제 폭을 복원하고 1채널로 디코딩한다. `test/label_sheet_toolbar_test.dart`에 행 폭 불일치 회귀 테스트를 추가했다.
