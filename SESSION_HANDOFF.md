@@ -13,6 +13,7 @@
 - 지시서 편집 완료: shortcut gate는 차단 surface 중 전역 F-key 금지와 non-modal preview 제외 결과만 남기고 observer identity set·transition 완료·lease 자료구조 강제를 제거했다. 창 정책은 최초 display minimum/bounds clamp만 유지하고 runtime display 추적을 후속 재현 이슈로 분리했으며, popup 실행·focus·dropdown 공용화도 결과와 실제 중복 기준으로 축약했다.
 - 범위·검증 정리 완료: 거래게시판과 공용라벨 이력은 inventory/legacyInactive 숨김만 유지하고 활성화 전 내부 구현 의무를 제거했다. 공용 shell 동작은 대표 widget test에서 한 번 검증하고 command별로 권한·업무 흐름·DB 오류·변경 owner 회귀만 확인하도록 테스트 matrix와 체크리스트를 축소했다.
 - stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함한다. 사용자 소유 변경 [lib/core/app.dart]는 제외한다.
+- 로컬 커밋 완료: `03b88b2` (`앱 메뉴 포팅 UX 지시서 단순화`).
 - 완료: [doc/app_menu_porting.txt] 10차 UX 재검토 권장안 3건을 병합했다. `DbReconnectOverlay` 같은 widget-tree blocking surface를 전역 shortcut gate와 focus lifecycle에 포함하고, AppBar menu는 popup/lease가 완전히 닫힌 뒤 owning command를 실행하도록 순서를 고정했으며, floating preview `OverlayRoute`가 Home 단축키를 오차단하지 않도록 route current 추정을 blocking route observer 집계로 교체했다.
 - 수정 예정 파일/목적: [doc/app_menu_porting.txt]의 반응형·키보드 계약, command controller/dispatcher 상태 소유권, 검색출력 mode, 공용 dialog, Phase·widget test·체크리스트·금지 사항·최종 완료 기준을 함께 갱신한다. [SESSION_HANDOFF.md]에는 편집·검증·commit 단계를 기록한다.
 - 검증 범위: 필수 문구 표적 검사, `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`, 두 문서 diagnostics, 전체 diff 및 stage 파일 분리를 확인했다. 문서 변경이므로 Flutter test는 실행하지 않았다.
