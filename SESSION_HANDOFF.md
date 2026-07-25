@@ -11,6 +11,7 @@
 - 편집 완료: 홈 State가 `_itemElementPreviewZoomController`를 별도로 소유해 `_ItemPreviewPanel` 재생성 후에도 유지한다. `_ItemElementPreviewTab`은 viewport 폭과 workbook 물리폭 또는 `LabelSize` 가로폭 fallback으로 최초 가로 맞춤을 계산하고 같은 controller 수명에는 재적용하지 않는다.
 - 검증 완료: `item element preview fits width and keeps changed zoom`에서 100mm 라벨/660px 패널의 최초 150%와 사용자 변경 100%의 패널 재생성 후 유지를 확인했다. `flutter test test/label_sheet_toolbar_test.dart` 158개 전체 통과, 수정 Dart 파일 포맷 및 정적 진단 오류 없음.
 - stage/commit 대상: [lib/home_page_manager.dart], [lib/widgets/label_output_preview.dart], [test/label_sheet_toolbar_test.dart], [SESSION_HANDOFF.md]. 사용자 변경 [lib/core/app.dart]는 제외한다.
+- 구현 커밋: `4473883` (`주원료 미리보기 가로 맞춤 확대 적용`).
 - 완료: 품목관리/자동품목갱신 출력 미리보기의 초기 확대율을 라벨 가로폭 기준으로 자동 맞춤하고, 자동품목갱신 복원 버튼의 실제 mouse hover 툴팁 표시를 보장했다.
 - 편집 완료: [lib/page_label_sheet/label_sheet_workbench.dart]의 `LabelSheetZoomController.applyInitialAutoFit`이 controller 수명 동안 최초 한 번만 확대율을 적용한다. [lib/widgets/label_output_preview.dart]의 선택적 `autoFitWidth`는 viewport에서 눈금/스크롤 여유 58px를 제외한 폭과 라벨 물리 가로폭을 비교해 넘치지 않는 10% 단위 확대율을 계산한다. [lib/home_page_manager.dart]의 품목/자동갱신 출력 미리보기에서만 활성화했으며 라벨출력/저울출력은 변경하지 않았다.
 - 툴팁 편집 완료: 복원 버튼 `Tooltip`에 안정 key와 400ms hover 대기시간을 지정했다. [test/label_sheet_toolbar_test.dart]에 실제 mouse hover overlay 표시 및 80mm 라벨/660px viewport의 190% 최초 맞춤과 사용자 변경 후 재적용 방지 테스트를 추가했다.
