@@ -334,6 +334,7 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
   final FocusNode _focusNode = FocusNode(debugLabel: 'FortuneTable');
   bool _syncingHorizontal = false;
   late List<double> _widths;
+  final Map<String, double> _manuallyResizedWidths = <String, double>{};
   List<double> _effectiveColumnWidths = const [];
   Set<FortuneTableCheckboxController> _checkboxControllers =
       <FortuneTableCheckboxController>{};
@@ -378,6 +379,22 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
   @override
   void didUpdateWidget(covariant FortuneTable<T> oldWidget) {
     super.didUpdateWidget(oldWidget);
+    final currentColumnIds = widget.columns.map((column) => column.id).toSet();
+    _manuallyResizedWidths.removeWhere(
+      (columnId, _) => !currentColumnIds.contains(columnId),
+    );
+    final oldColumnsById = {
+      for (final column in oldWidget.columns) column.id: column,
+    };
+    for (final column in widget.columns) {
+      final oldColumn = oldColumnsById[column.id];
+      if (oldColumn != null &&
+          (oldColumn.initialWidth != column.initialWidth ||
+              oldColumn.minWidth != column.minWidth ||
+              oldColumn.autoFit != column.autoFit)) {
+        _manuallyResizedWidths.remove(column.id);
+      }
+    }
     if (oldWidget.columns.length != widget.columns.length ||
         _initialWidthsChanged(oldWidget.columns, widget.columns)) {
       _widths = _initialWidths();
@@ -731,7 +748,10 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
   List<double> _initialWidths() {
     return [
       for (final column in widget.columns)
-        math.max(column.initialWidth, column.minWidth),
+        math.max(
+          _manuallyResizedWidths[column.id] ?? column.initialWidth,
+          column.minWidth,
+        ),
     ];
   }
 
@@ -771,6 +791,10 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
     const bodyStyle = TextStyle(fontSize: 14);
     return List<double>.generate(widget.columns.length, (index) {
       final column = widget.columns[index];
+      final manuallyResizedWidth = _manuallyResizedWidths[column.id];
+      if (manuallyResizedWidth != null) {
+        return math.max(manuallyResizedWidth, column.minWidth);
+      }
       if (!column.autoFit) {
         return math.max(column.initialWidth, column.minWidth);
       }
@@ -820,47 +844,91 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: List.generate(widths.length, (index) {
         final column = widget.columns[index];
-        return Container(
+        return SizedBox(
           width: widths[index],
-          decoration: const BoxDecoration(
-            color: _headerColor,
-            border: Border(
-              right: BorderSide(color: _headerSeparatorColor),
-              bottom: BorderSide(color: _headerSeparatorColor),
-            ),
-          ),
-          alignment: Alignment.center,
-          padding: const EdgeInsets.symmetric(horizontal: 6),
-          child: column.hasHeaderCheckbox
-              ? Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    _FortuneTableCheckbox(
-                      key: ValueKey('fortune_table_header_checkbox_${column.id}'),
-                      value: column.headerCheckboxValue ?? false,
-                      enabled: column.headerCheckboxEnabled,
-                      onChanged: column.onHeaderCheckboxChanged,
-                    ),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Container(
+                decoration: const BoxDecoration(
+                  color: _headerColor,
+                  border: Border(
+                    right: BorderSide(color: _headerSeparatorColor),
+                    bottom: BorderSide(color: _headerSeparatorColor),
+                  ),
+                ),
+                alignment: Alignment.center,
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+                child: column.hasHeaderCheckbox
+                    ? Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          _FortuneTableCheckbox(
+                            key: ValueKey(
+                              'fortune_table_header_checkbox_${column.id}',
+                            ),
+                            value: column.headerCheckboxValue ?? false,
+                            enabled: column.headerCheckboxEnabled,
+                            onChanged: column.onHeaderCheckboxChanged,
+                          ),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              column.header,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: widget.headerTextStyle,
+                            ),
+                          ),
+                        ],
+                      )
+                    : Text(
                         column.header,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: widget.headerTextStyle,
                       ),
-                    ),
-                  ],
-                )
-              : Text(
-                  column.header,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: widget.headerTextStyle,
+              ),
+              Positioned(
+                key: ValueKey('fortune_table_column_resize_${column.id}'),
+                top: 0,
+                right: 0,
+                bottom: 0,
+                width: 8,
+                child: MouseRegion(
+                  cursor: SystemMouseCursors.resizeColumn,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onHorizontalDragStart: (_) => _startColumnResize(index),
+                    onHorizontalDragUpdate: (details) =>
+                        _resizeColumn(index, details.delta.dx),
+                  ),
                 ),
+              ),
+            ],
+          ),
         );
       }),
     );
+  }
+
+  void _startColumnResize(int index) {
+    if (index < 0 || index >= widget.columns.length) return;
+    if (index < _effectiveColumnWidths.length) {
+      _widths[index] = _effectiveColumnWidths[index];
+    }
+  }
+
+  void _resizeColumn(int index, double delta) {
+    if (delta == 0 || index < 0 || index >= widget.columns.length) return;
+    final column = widget.columns[index];
+    final currentWidth = _widths[index];
+    final nextWidth = math.max(column.minWidth, currentWidth + delta);
+    _manuallyResizedWidths[column.id] = nextWidth;
+    setState(() {
+      _widths[index] = nextWidth;
+      _tableSignature = _autoFitSignature();
+    });
   }
 
   Widget _buildRow(T row, int rowIndex, List<double> widths) {

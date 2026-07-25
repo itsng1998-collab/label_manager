@@ -390,6 +390,121 @@ void main() {
     expect(tester.getSize(header).width, 90);
   });
 
+  testWidgets('FortuneTable resizes columns and keeps manual width', (
+    tester,
+  ) async {
+    var rows = const ['짧음'];
+    var fixedWidth = false;
+    late StateSetter rebuild;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 500,
+            height: 120,
+            child: StatefulBuilder(
+              builder: (context, setState) {
+                rebuild = setState;
+                return FortuneTable<String>(
+                  rows: rows,
+                  columns: [
+                    FortuneTableColumn<String>(
+                      id: 'resizable',
+                      header: '크기 조정',
+                      text: (row) => row,
+                      initialWidth: fixedWidth ? 80 : 120,
+                      minWidth: 70,
+                      autoFit: !fixedWidth,
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final handle = find.byKey(
+      const ValueKey('fortune_table_column_resize_resizable'),
+    );
+    final mouseRegion = tester.widget<MouseRegion>(
+      find.descendant(of: handle, matching: find.byType(MouseRegion)),
+    );
+    expect(mouseRegion.cursor, SystemMouseCursors.resizeColumn);
+
+    double headerWidth() => tester
+        .getSize(
+          find.ancestor(
+            of: find.text('크기 조정'),
+            matching: find.byType(SizedBox),
+          ).first,
+        )
+        .width;
+
+    final initialWidth = headerWidth();
+    await tester.drag(handle, const Offset(50, 0));
+    await tester.pump();
+    expect(headerWidth(), closeTo(initialWidth + 50, 0.1));
+
+    rebuild(() => rows = const ['자동 맞춤을 다시 계산할 만큼 훨씬 긴 셀 내용']);
+    await tester.pump();
+    expect(headerWidth(), closeTo(initialWidth + 50, 0.1));
+
+    await tester.drag(handle, const Offset(-1000, 0));
+    await tester.pump();
+    expect(headerWidth(), 70);
+
+    rebuild(() => fixedWidth = true);
+    await tester.pump();
+    expect(headerWidth(), 80);
+  });
+
+  testWidgets('FortuneTable resizes fill column from displayed width', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 400,
+            height: 120,
+            child: FortuneTable<String>(
+              rows: const ['값'],
+              columns: [
+                FortuneTableColumn<String>(
+                  id: 'fill',
+                  header: '채움',
+                  text: (row) => row,
+                  initialWidth: 100,
+                  fillRemaining: true,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final handle = find.byKey(
+      const ValueKey('fortune_table_column_resize_fill'),
+    );
+    double headerWidth() => tester
+        .getSize(
+          find.ancestor(
+            of: find.text('채움'),
+            matching: find.byType(SizedBox),
+          ).first,
+        )
+        .width;
+    final displayedWidth = headerWidth();
+
+    await tester.drag(handle, const Offset(30, 0));
+    await tester.pump();
+
+    expect(headerWidth(), closeTo(displayedWidth + 30, 0.1));
+  });
+
   testWidgets('FortuneTable editing controller waits for active commit', (
     tester,
   ) async {
