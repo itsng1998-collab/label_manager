@@ -7,6 +7,9 @@
 - 이 파일에는 현재 상태, 최근 완료 항목, 검증, 다음 액션만 기록한다.
 
 ## 현재 상태
+- 완료: [doc/app_menu_porting.txt]의 AppBar 메뉴 화면 UX를 현재 프로젝트 스타일로 병합했다. 신규 관리·편집·조회 화면은 `BlockingModelessDialog` + `BlockingModelessDialogFrame`을 사용하고, 기존 핵심 작업은 현재 메인 탭, 기존 설정은 owning dialog를 재사용한다.
+- dialog 지침 완료: 별도 route page/신규 메인 탭/native child window 금지, 80~90% 대형 조회창, 단일 overlay, dirty 닫기·Esc 확인, busy 닫기 차단, 중첩 확인용 `showBlockingModelessOverlayDialog`, 실패 시 draft 유지 기준과 widget/integration test를 명시했다.
+- 문서 자동 검증 완료: 공용 dialog 타입·예외·수명주기·중첩 확인·테스트·완료 기준 필수 항목 10개가 모두 반영됐고 `page/dialog`, `dialog/page` 선택 표현은 0개다. 남은 `page` 표기는 기존 파일명·핵심 탭·신규 route 금지 문구뿐이며 문서 진단 오류 없음.
 - 완료: [doc/app_menu_porting.txt]에 메뉴 포팅으로 추가되는 모든 관리 목록·조회 결과의 반복 행 table은 공용 `FortuneTable<T>`/`FortuneTableColumn<T>`을 사용하도록 명시했다. `DataTable`, `Table`, row별 `ListView`, 기능별 자체 table 구현은 금지하고 시트 미리보기용 `FortuneSheet`와 역할을 구분했다.
 - 문서 자동 검증 완료: FortuneTable 공통 원칙, 관리/조회 화면 기준, 공용 API 확장 경로, widget test, 명령별 체크리스트, 금지 사항, 최종 완료 기준의 필수 항목 9개가 모두 반영됐다.
 - FortuneTable 지침 커밋: `e01ed27` (`메뉴 포팅 테이블 공용화 지침 추가`).
