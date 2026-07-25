@@ -133,20 +133,25 @@ END CATCH
 
 - 화면 전체 폭만 하드코딩해 판단하지 말고 AppBar title과 actions에 실제 제공된 폭을 `LayoutBuilder`로 판단한다.
 - 그룹 3개, 서버 상태, 로그인/로그아웃이 겹치지 않는 폭에서는 그룹 아이콘을 각각 표시한다.
-- 폭이 부족하면 그룹 버튼을 `more_vert` 하나로 합친다.
+- 폭이 부족하면 그룹 버튼을 먼저 `more_vert` 하나로 합친다.
 - overflow 안에서도 `파일/관리`, `조회/이력`, `설정` 구분과 separator를 유지한다.
 - 서버 상태와 로그인/로그아웃은 항상 오른쪽 끝에 남긴다.
+- 메뉴를 합친 뒤에도 폭이 부족하면 title은 `maxLines: 1`, `softWrap: false`, `TextOverflow.ellipsis`로 줄인다. 서버 상태와 현재 로그인/로그아웃 command를 title보다 먼저 숨기거나 줄이지 않는다.
 - 버튼 출현/소멸로 AppBar 높이나 body 위치가 바뀌지 않게 한다.
 - 100%, 125%, 150% Windows display scale과 긴 버전 문자열에서 overflow가 없는지 widget test 또는 screenshot으로 확인한다.
 
 ### 3.3 권한 표시 방식
 
-- 레거시 MainFrm menu는 권한이 부족한 command를 비활성화한다. AppBar 그룹 메뉴도 같은 방식을 기본으로 한다.
-- 그룹 자체는 로그인 상태에서 표시하되 내부 항목은 command별 권한에 따라 비활성화한다.
+- 레거시 MainFrm의 비활성 표시를 그대로 복제하지 않고 현재 Flutter 앱의 권한 UX를 따른다.
+- 현재 로그인 상태나 사용자 등급 policy에서 표시 대상이 아닌 command는 `visible=false`로 메뉴에서 숨긴다. 로그인/로그아웃 또는 사용자 변경 시 policy를 다시 계산한다.
+- dirty, busy, 필수 선택 누락처럼 현재 상태를 해결하면 실행할 수 있는 command만 표시한 채 비활성화하고 `disabledReason`을 tooltip 또는 보조 문구로 제공한다.
+- `legacyInactive` command는 inventory와 내부 기능을 유지하되 production 메뉴에서는 숨긴다. 별도 활성화 요구가 있을 때 policy 상수 한 곳에서만 노출을 변경한다.
+- 그룹 안에 표시할 command가 하나도 없으면 빈 그룹 아이콘도 숨긴다.
+- 로그인/로그아웃은 현재 상태에 맞는 command 하나만 표시한다.
 - 비로그인 상태에서는 서버 상태, 로그인과 종료만 사용할 수 있다.
 - 일반 사용자 UI의 기존 레거시 정책은 유지한다.
   - 공용라벨관리/자동품목갱신 탭은 숨김.
-  - 품목관리 편집 command는 숨김 또는 비활성.
+  - 품목관리 편집 command는 숨김.
   - 조회 가능한 command는 유지.
 - `tester01` 테스트 override는 `lib/models/user.dart`의 `User.clientUserTestOverrideId`를 사용하며 메뉴 자체에 별도 예외를 만들지 않는다.
 
@@ -192,8 +197,9 @@ END CATCH
 - 메뉴 선택이 brand, label size, 탭, draft context를 바꾸는 경우 기존 `_block...ContextChange` 경로를 재사용한다.
 - 읽기 전용 이력 조회까지 일괄 차단하지 않는다.
 - 저장 command busy 중 DB를 다시 갱신하거나 같은 데이터를 수정하는 command만 비활성화한다.
-- 권한 부족과 편집 중 차단을 같은 이유 문자열로 처리하지 않는다.
-- disabled reason은 테스트 가능한 순수 policy 결과로 유지하되, 과도한 안내 dialog를 만들지 않는다.
+- 로그인 상태/등급/`legacyInactive`처럼 현재 policy에서 표시 대상이 아닌 command는 `visible=false`로 처리하고 disabled reason을 만들지 않는다.
+- 편집 중, command busy, 필수 context 누락은 서로 다른 disabled reason으로 계산한다.
+- disabled reason은 테스트 가능한 순수 policy 결과로 유지하고 tooltip 또는 popup 보조 문구로만 안내한다. 별도 경고 dialog를 띄우지 않는다.
 
 ## 5. 레거시 메뉴 inventory와 포팅 계약
 
@@ -201,17 +207,17 @@ END CATCH
 
 ### 5.1.1 로그인 (`IDM_LOGIN`)
 
-- 레거시: 로그아웃 상태에서만 활성.
+- 레거시: 로그아웃 상태에서만 활성. Flutter 메뉴에서는 로그아웃 상태에만 표시한다.
 - 현행 연결: `HomePage._showStartupDialog()` 또는 DB 연결이 없을 때 `_loginToServerDB()`.
 - 새 로그인 화면을 만들지 않는다.
 - 메뉴 command와 기존 AppBar 로그인 아이콘은 같은 method를 호출한다.
 - 검증:
-  - 비로그인 활성, 로그인 후 비활성.
+  - 비로그인 상태에는 로그인만, 로그인 상태에는 로그아웃만 표시.
   - DB 연결 유무에 따른 기존 분기 유지.
 
 ### 5.1.2 로그아웃 (`IDM_LOGOUT`)
 
-- 레거시: 로그인 상태에서만 활성.
+- 레거시: 로그인 상태에서만 활성. Flutter 메뉴에서는 로그인 상태에만 표시한다.
 - 현행 연결: `HomePage._onLogout(false)`.
 - 품목/자동갱신/공용라벨 편집 상태 확인을 우회하지 않는다.
 - 검증: 기존 로그아웃 확인, login log 저장, 상태 초기화가 아이콘 경로와 동일함을 확인한다.
@@ -317,9 +323,9 @@ END CATCH
 - 내부 조회 기능은 `CCommonLabelLog`와 `BM_RICH_LABELSIZE_FORM_LOG` 계열의 실제 schema를 기준으로 구현한다.
 - before/after workbook payload를 raw text로만 보여주지 말고 현재 LabelSheet read-only preview로 비교할 수 있게 한다.
 - 비교/미리보기는 원본 payload를 수정하지 않는다.
-- 메뉴 활성 상태는 레거시 동등성을 위해 기본 disabled로 유지한다.
+- production 메뉴에서는 `legacyInactive` policy로 숨긴다.
 - 별도의 명시 요구로 활성화할 때 command policy 상수 한 곳만 변경하도록 한다.
-- 기능 미완성을 이유로 disabled 처리하지 않는다. 내부 기능과 테스트를 완료한 뒤 legacyInactive 정책 때문에 disabled여야 한다.
+- 기능 미완성을 숨김 사유로 사용하지 않는다. 내부 기능과 테스트를 완료한 뒤 legacyInactive 정책 때문에 숨겨야 한다.
 
 ### 5.2.6 발행 통계 조회 (`IDM_STATUS_PRINT`)
 
@@ -334,7 +340,7 @@ END CATCH
 ### 5.3.1 품목별 정보 편집 (`IDM_EDIT_ITEMINFO`)
 
 - 신규 화면을 만들지 않고 품목관리 탭으로 이동한다.
-- 일반 사용자는 레거시 정책에 따라 command를 비활성화한다.
+- 일반 사용자는 현재 Flutter 권한 UX에 따라 command를 표시하지 않는다.
 - 현재 편집 중 context가 있으면 기존 탭 변경 차단 흐름을 사용한다.
 - 탭 이동 후 현재 brand/label size의 품목 목록과 선택을 유지한다.
 
@@ -388,7 +394,7 @@ END CATCH
 - `CTradeBoardViewDlg`와 데이터 source가 실제로 동작하는지 끝까지 확인한다.
 - 기존 DB/URL source가 확인되면 `BlockingModelessDialog` 기반 내부 화면과 model/DAO를 구현한다.
 - source가 존재하지 않으면 임의 게시판 테이블이나 외부 서비스를 만들지 않고 blocker로 기록한다.
-- 내부 기능이 구현돼도 메뉴는 legacyInactive로 기본 disabled 상태를 유지한다.
+- 내부 기능이 구현돼도 production 메뉴에서는 legacyInactive로 숨긴다.
 
 ### 5.3.8 이더넷 설정 (`IDM_SETUP_ETHENET`)
 
@@ -482,10 +488,18 @@ END CATCH
 - 이미 동작하는 저울·프린터 설정 등의 owning dialog는 기존 command를 그대로 호출한다. AppBar 연결을 이유로 같은 dialog를 `BlockingModelessDialog`로 한 번 더 감싸지 않는다.
 - 신규 관리·편집·조회 기능은 별도 `Navigator` route page, 새 메인 탭 또는 Windows native child window로 구현하지 않는다. 예외가 필요하면 장시간 상시 작업이어야 하며 근거와 영향 범위를 `SESSION_HANDOFF.md`에 기록하고 별도 승인 후 진행한다.
 - 한 command의 overlay는 동시에 하나만 존재해야 한다. 이미 열려 있으면 두 번째 overlay와 중복 조회를 만들지 않는다.
-- 작은 설정 dialog는 내용에 맞는 고정 크기를 사용하고, 관리·조회 dialog는 화면의 약 80~90% 범위에서 `MediaQuery`로 clamp해 `FortuneTable` 가용 영역을 확보한다. 24px 이상의 바깥 여백과 제목/본문/footer의 최소 높이를 유지한다.
+- 작은 기존 설정 dialog는 현재 크기를 유지하되 화면보다 커지지 않도록 clamp한다.
+- 신규 관리·조회 dialog는 보편적인 화면 비율을 강제하지 않는다. `MediaQuery`에서 가로 48px, 세로 64px 이상의 바깥 여백을 뺀 사용 가능 영역과 기능별 content max size 중 작은 값을 사용한다.
+- 관리·조회 dialog의 기본 content max size는 현재 라벨 항목 편집창과 같은 1168x720을 기준으로 한다. 더 넓은 결과 column이 실제로 필요할 때만 기능별 max width를 늘리고 100%, 125%, 150% display scale에서 검증한다.
 - 제목 bar에는 전체 한글 기능명과 닫기 icon을 표시한다. footer는 오른쪽에 `취소`/`저장` 또는 조회 기능에 맞는 닫기 command를 두고 dialog마다 위치를 바꾸지 않는다.
-- 미저장 변경이 있는 닫기 icon과 Esc는 폐기 확인을 거친다. 저장/삭제/조회 command busy 중에는 중복 실행과 닫기를 비활성화한다.
+- dialog를 열면 filter가 있으면 첫 filter, 없으면 `FortuneTable`에 초기 focus를 둔다. Tab 순서는 filter → table → command footer이며 비활성 control은 건너뛴다.
+- Esc 우선순위는 `활성 셀 편집 취소 → FortuneTable 선택 해제 → dialog 닫기 요청`이다. 셀 편집이나 선택이 Esc를 처리한 경우 dialog를 닫지 않는다.
+- dialog 닫기 요청 시 clean 상태는 즉시 닫고 dirty 상태만 폐기 확인을 거친다. Enter는 활성 셀 편집 확정에 사용하며 dialog 전체 저장 command를 실행하지 않는다.
+- Esc/닫기/focus 반환을 dialog마다 복제하지 않는다. 필요한 callback이나 intent가 공용 wrapper에 없으면 `blocking_modeless_dialog.dart`의 공용 API와 test를 먼저 확장한다.
+- 저장·삭제 transaction busy 중에는 중복 실행과 닫기를 비활성화한다.
+- 읽기 전용 조회 busy 중에는 `조회 취소` 또는 닫기 경로를 유지한다. DB Future 자체를 취소할 수 없으면 overlay를 닫은 뒤 늦게 도착한 결과가 폐기된 dialog나 새 조회 상태에 반영되지 않게 한다. 자동 retry나 복구 저장소는 추가하지 않는다.
 - dialog 안에서 확인·경고를 겹쳐 표시할 때는 일반 `showDialog`가 overlay 아래에 삽입되지 않도록 `showBlockingModelessOverlayDialog`를 사용한다.
+- 중첩 확인창을 닫으면 확인창을 연 원래 control 또는 table cell로 focus를 복원한다.
 - 저장 또는 commit 실패 시 dialog와 draft를 유지하고 오류를 한 번 전달한다. 성공 시 필요한 cache를 갱신한 뒤 overlay를 제거하고 controller, listener, focus node를 dispose한다.
 
 ### 7.2 FortuneTable 사용 원칙
@@ -514,6 +528,7 @@ END CATCH
 - filter, 조회 button, read-only `FortuneTable`, 건수/합계 영역을 제공한다.
 - 최초 자동 조회 여부와 기본 기간은 레거시를 따른다.
 - 조회 중 중복 요청만 막고 일반적인 자동 retry는 추가하지 않는다.
+- 조회 중에도 `조회 취소` 또는 닫기 command를 사용할 수 있어야 하며 닫힌 dialog에 늦은 결과를 적용하지 않는다.
 - 빈 결과는 정상 상태로 표시하고 오류와 구분한다.
 - export가 레거시에 있거나 명시 요구가 있을 때만 추가한다.
 
@@ -536,7 +551,7 @@ END CATCH
 
 완료 기준:
 - 파일/검색/설정 command 누락 없음.
-- 권한과 inactive 상태가 테스트로 고정됨.
+- 권한별 visible/enabled 상태와 legacyInactive 숨김이 테스트로 고정됨.
 
 ### Phase 1. AppBar shell과 기존 기능 연결
 
@@ -559,7 +574,7 @@ END CATCH
 2. 발행내역 조회를 현 persistence schema 기준으로 구현한다.
 3. 발행 통계를 구현한다.
 4. 데이터내용 이력과 공용라벨 이력 schema를 확인해 구현한다.
-5. 공용라벨 이력은 내부 구현 후 legacyInactive 상태를 유지한다.
+5. 공용라벨 이력은 내부 구현 후 production 메뉴에서 legacyInactive 숨김 상태를 유지한다.
 
 완료 기준:
 - 조회 기능에 DML이 없음.
@@ -603,10 +618,10 @@ END CATCH
 
 1. 거래게시판 내부 기능은 source가 확인될 때만 구현.
 2. 공용라벨 이력 내부 구현 확인.
-3. legacyInactive 메뉴는 disabled 상태 유지.
+3. legacyInactive command는 production 메뉴에서 숨김 상태 유지.
 
 완료 기준:
-- disabled가 미완성 은폐 수단이 아니라 legacy policy임을 테스트로 확인.
+- 숨김이 미완성 은폐 수단이 아니라 legacyInactive policy임을 테스트로 확인.
 
 ## 9. 테스트 지시
 
@@ -626,18 +641,21 @@ END CATCH
 - `test/app_menu_bar_test.dart`
   - 넓은 화면 그룹 아이콘 3개.
   - 좁은 화면 overflow 1개.
+  - 메뉴 collapse 후 긴 title의 한 줄 ellipsis와 서버 상태/로그인 command 유지.
   - tooltip.
   - separator와 command label.
-  - 권한별 enabled/disabled.
+  - 권한 부족·legacyInactive command 숨김, transient dirty/busy command의 disabled reason 표시.
   - 서버 상태와 로그아웃 버튼 위치 유지.
 - 각 관리/조회 dialog의 기본 render, filter, draft, save/cancel, 실패 상태.
 - 신규 관리·조회 dialog가 `BlockingModelessDialog`와 `BlockingModelessDialogFrame`을 사용하고 배경 pointer/key 입력을 차단하는지 검증.
 - 같은 command를 연속 실행해도 overlay가 하나만 존재하는지 검증.
-- dirty 상태의 닫기 icon/Esc 폐기 확인, busy 중 닫기 비활성화, 저장 실패 후 dialog/draft 유지 검증.
+- Esc가 활성 셀 편집 취소, 선택 해제, dialog 닫기 요청 순서로 한 단계씩 처리되는지 검증.
+- dirty 닫기 확인, write busy 중 닫기 비활성화, read busy 중 취소/닫기, 저장 실패 후 dialog/draft 유지 검증.
+- 초기 focus와 Tab 순서, Enter 셀 편집 확정, 중첩 확인창 종료 후 원래 control/table cell focus 복원을 검증.
 - 중첩 확인창이 `showBlockingModelessOverlayDialog`를 통해 현재 dialog 위에 표시되는지 검증.
 - 반복 행을 표시하는 각 관리/조회 화면이 `FortuneTable`과 `FortuneTableColumn`을 사용하고 별도 `DataTable`/`Table`로 구현되지 않았는지 검증.
 - 공용 `FortuneTable` API를 확장한 경우 `test/fortune_table_test.dart`에 해당 동작과 기존 화면 회귀 검증 추가.
-- legacyInactive menu disabled.
+- legacyInactive command가 production 메뉴에 렌더링되지 않음.
 
 ### 9.3 integration test
 
@@ -669,11 +687,13 @@ flutter test test/scale_output_test.dart
 - [ ] 실제 기존 DB schema 확인.
 - [ ] command ID/label/icon/group 등록.
 - [ ] 권한과 로그인 상태 테스트.
+- [ ] 현재 로그인/등급 policy의 비노출 command와 legacyInactive는 숨김, transient dirty/busy는 사유가 있는 비활성 상태로 표시됨.
 - [ ] 편집/busy 차단 정책 확인.
 - [ ] 기존 기능이면 owning command 재사용.
 - [ ] 미구현 기능이면 필요한 model/DAO와 `BlockingModelessDialog` 기반 화면 구현.
 - [ ] 기존 핵심 탭 이동 외에 별도 route page, 신규 메인 탭, native child window를 추가하지 않음.
-- [ ] dirty 닫기/Esc 확인, busy 닫기 차단, 중복 overlay 방지, 실패 시 draft 유지가 검증됨.
+- [ ] Esc 편집 취소/선택 해제/닫기 우선순위와 focus 이동·복원이 검증됨.
+- [ ] write busy 닫기 차단, read busy 취소/닫기, 중복 overlay 방지, 실패 시 draft 유지가 검증됨.
 - [ ] 관리 목록/조회 결과의 반복 행 table이 공용 `FortuneTable`을 사용함.
 - [ ] 조회/저장/취소/오류 UI 구현.
 - [ ] commit 오류 전달과 가능한 rollback 검증.
@@ -707,13 +727,14 @@ flutter test test/scale_output_test.dart
 전체 포팅 완료 시 다음 상태여야 한다.
 
 - AppBar에는 폭에 따라 그룹 아이콘 3개 또는 overflow 메뉴 1개가 표시된다.
+- AppBar title은 메뉴 collapse 후에도 공간이 부족하면 한 줄 ellipsis되고 서버 상태와 현재 로그인/로그아웃 command는 유지된다.
 - 서버 상태와 로그인/로그아웃 영역은 기존 위치와 동작을 유지한다.
 - 파일/검색/설정의 모든 레거시 command가 inventory와 권한 policy에 존재한다.
 - 현재 동작 기능은 중복 구현 없이 같은 command로 연결된다.
 - 미구현 기능은 실제 `BlockingModelessDialog` 기반 화면, model/DAO, DB 계약과 테스트를 갖는다.
 - 기존 핵심 탭 이동과 기존 owning 설정 dialog를 제외한 신규 관리·편집·조회 화면은 공용 차단형 overlay dialog로 일관되게 열린다.
 - 모든 관리 목록과 조회 결과의 반복 행 table은 공용 `FortuneTable`을 사용한다.
-- legacyInactive 기능은 내부 구현 완료 후 기본 disabled 상태를 유지한다.
+- legacyInactive 기능은 내부 구현 완료 후 production 메뉴에서 숨김 상태를 유지한다.
 - DB schema는 변경되지 않는다.
 - 저장 오류는 호출자에게 전달되고 가능한 transaction만 rollback된다.
 - 과도한 fallback, retry, 자동 보정 없이 레거시 업무 동작과 현 UI 구조가 일관되게 결합된다.
