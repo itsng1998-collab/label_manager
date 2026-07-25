@@ -7,6 +7,15 @@
 - 이 파일에는 현재 상태, 최근 완료 항목, 검증, 다음 액션만 기록한다.
 
 ## 현재 상태
+- 완료: [doc/app_menu_porting.txt]의 9차 명확화 권장안 4건을 병합했다. commit 결과 불명·commit 후 reload 실패를 일반 저장 실패와 구분하고, transaction 제어는 공용 `DbClient.transaction` test가 소유하며, 실제 server integration은 명시적 opt-in과 비운영 CRUD 조건으로 제한한다.
+- 사용자 확정: 신규 dialog와 기존 메인 탭이 함께 dirty이면 로그아웃·메뉴 종료·OS 종료 요청에서 전체 dirty를 한 번의 통합 확인으로 처리한다. 각 owner는 상태와 폐기 callback을 소유하고 `LifecycleManager` 종료 흐름은 해당 요청 동안 실제 dirty 요약·callback만 수집하며 범용 dialog coordinator로 확장하지 않는다.
+- 수정 예정 파일/목적: [doc/app_menu_porting.txt]의 transaction 결과 경계·테스트 책임, lifecycle 상태 소유권·로그아웃/종료·공용 dialog·Phase/test/완료 기준, integration test 실행 조건을 명확히 한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
+- transaction 결과 계약 편집 완료: commit 전 DML/validation 확정 실패는 draft 재시도를 허용하고, `DbCommitOutcomeUnknown`은 같은 draft 재실행을 차단하며, commit 성공 후 reload 실패는 committed 상태를 반영하고 수동 재조회 또는 닫기만 제공하도록 구분했다.
+- lifecycle 계약 편집 완료: 활성 owner의 exit snapshot을 수집해 busy/active editing을 먼저 차단하고, 신규 dialog와 기존 메인 탭의 모든 dirty 표시명·폐기 callback을 한 번의 확인으로 처리한다. 직접 dialog 닫기는 해당 dialog의 기존 확인 흐름을 유지한다.
+- transaction test 계약 편집 완료: begin/commit/rollback과 commit 결과 불명은 공용 DB test가 소유하고 신규 DAO는 statement·parameter·결과 decoding 및 실제 사용하는 rowcount/codec만 검증하도록 범위를 구분했다.
+- integration test 계약 편집 완료: 실제 server test는 명시적 opt-in으로 제한하고 CRUD는 식별된 비운영 DB, 전용 ID 범위·초기 상태·정리 절차가 모두 있을 때만 허용하며 실패 simulation은 fake driver unit test에서 수행한다.
+- 검증 완료: 이전 애매한 문구 6개가 0건이고 대체 계약이 19개 지점에 반영됐으며 `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`가 통과했다. 두 문서 diagnostics 오류가 없고 전체 diff가 9차 권장안 4건과 사용자 확정 통합 확인 계약에 한정됨을 확인했다. 문서 변경이므로 Flutter test는 실행하지 않았다.
+- stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함한다. 사용자 소유 변경 [lib/core/app.dart]는 제외한다.
 - 완료: [doc/app_menu_porting.txt]의 8차 UX 단순화 권장안 2건을 병합했다. 검색·치환은 결과 table을 저장 전 확인 화면으로 사용해 별도 preview dialog·대상 건수 UI를 추가하지 않고, footer 없는 busy 표시는 작업 성격에 따라 spinner 또는 짧은 상태 문구를 선택한다.
 - 수정 예정 파일/목적: [doc/app_menu_porting.txt]의 검색·치환 command와 Phase 4 완료 기준, footer 없는 busy 표시 계약을 레거시·현행 UX에 맞게 정리한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
 - 검색·치환 편집 완료: 선택·치환한 변경값을 같은 결과 table에서 저장 전에 확인하고 레거시의 일괄 치환·최종 저장 확인을 유지한다. 별도 preview dialog·대상 건수 panel은 추가하지 않으며 변경 행 저장만 하나의 transaction으로 처리한다.
