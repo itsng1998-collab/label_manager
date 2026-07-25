@@ -7,6 +7,15 @@
 - 이 파일에는 현재 상태, 최근 완료 항목, 검증, 다음 액션만 기록한다.
 
 ## 현재 상태
+- 완료: [doc/app_menu_porting.txt]의 검색·치환, 발행내역, 거래처·사용자 관리, 검색출력 설정과 조회 command 권한에서 남은 조사형·포괄형 문구를 레거시 활성 동작으로 고정했다.
+- 사용자 확정: 거래처·사용자 관리의 레거시 `Connect` 기능을 이번 AppBar 포팅 범위에 포함한다. 원래 관리자 보존, 연결 상태, 업무 context 전환과 관리자 접속 로그까지만 포팅하며 다른 경로에서 세션성 관리자 권한을 만들지 않는다.
+- 수정 예정 파일/목적: [doc/app_menu_porting.txt]의 5.1.4, 5.1.6, 5.2.1~5.2.4, 5.2.6, 5.3.11, 6.2와 관련 Phase/test 계약을 실제 레거시 handler/dialog/model/DAO 범위로 명확히 한다. [SESSION_HANDOFF.md]에는 파일별 편집·검증·stage/commit 결과를 기록한다.
+- 관리·세션 계약 편집 완료: 거래처·사용자 `Connect`의 원래 관리자 1회 보존, 레거시 연결 상태, 사용자·지점·거래처·협력업체 context 전환과 관리자 접속 로그를 포팅 범위에 포함했다. 최초 로그인과 두 owning command만 연결 상태를 설정하며 임의 사용자 전환·권한 상승·impersonation UI는 추가하지 않는다. 사용자 생성·수정 등급은 `CLIENT_USER`·`MANAGER_USER`, 신규 기본값은 `CLIENT_USER`로 고정했다.
+- 검색·조회 계약 편집 완료: 검색·치환을 현재 거래처의 `품명`·`주원료` 부분 일치와 선택적 브랜드·label size 범위, 기존 개별/일괄 치환·편집/출력 이동·변경 행 저장으로 고정했다. 발행내역은 실제 세 검색 종류와 일치 방식, 레거시 결과 column·합계·상세만 포팅하며 네 조회 command 권한을 `loggedIn`으로 명시했다.
+- 설정·테스트 계약 편집 완료: 검색출력 설정을 브랜드·label size별 column의 `RICH_SEARCH_PRINT` 개별/전체 선택·해제와 적용으로 제한했다. 관리 `Connect`, 사용자 등급, 검색·치환, 발행내역, 검색출력 설정과 조회 권한을 owning focused test 책임에 반영했다.
+- 검증 실행 예정: 이전 조사형·포괄형 문구 제거와 새 레거시 고정 계약을 표적 검색하고, `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`, 두 문서 diagnostics, 전체 diff와 stage 대상 분리를 확인한다. 문서 변경이므로 Flutter test는 실행하지 않는다.
+- 검증 완료: 이전 조사형·포괄형 문구 5종이 0건이고 새 레거시 고정 계약이 11개 핵심 지점에 반영됐다. `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`가 통과했고 두 문서 diagnostics 오류가 없으며, 전체 diff가 확정한 6건과 관련 Phase/focused test 계약에 한정됨을 확인했다. 문서 변경이므로 Flutter test는 실행하지 않았다.
+- stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함한다. 사용자 소유 변경 [lib/core/app.dart]는 제외한다.
 - 완료: [doc/app_menu_porting.txt]의 사용자 접속 이력, 데이터내용 이력, 발행 통계 지침에서 레거시 실제 조회 조건보다 확장된 filter·before/after 비교·미사용 합계 요구를 제거했다.
 - 사용자 확인 불필요: 레거시 dialog/model/DAO의 활성 조회 경로가 범위를 한 방향으로 결정한다. 접속·데이터내용 이력은 기간과 권한별 협력업체/거래처 조건으로 제한하고, 발행 통계는 기간·거래처·브랜드·라벨 크기·품목명·검색 column/값·완전/부분 일치만 포팅한다.
 - 수정 예정 파일/목적: [doc/app_menu_porting.txt]의 5.2.3, 5.2.4, 5.2.6과 관련 Phase/test/checklist 문구를 레거시 범위로 축소한다. [SESSION_HANDOFF.md]에는 파일 편집·검증·stage/commit 결과를 기록한다.
