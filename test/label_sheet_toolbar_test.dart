@@ -1426,6 +1426,56 @@ void main() {
     await gesture.removePointer();
   });
 
+  testWidgets('auto update edit barrier allows preview restore button', (
+    tester,
+  ) async {
+    final previewButtonKey = GlobalKey();
+    var previewRestoreCount = 0;
+    var blockedTapCount = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 400,
+            height: 100,
+            child: Stack(
+              children: [
+                Positioned(
+                  top: 8,
+                  right: 80,
+                  child: SizedBox(
+                    key: previewButtonKey,
+                    width: 40,
+                    height: 40,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => previewRestoreCount += 1,
+                    ),
+                  ),
+                ),
+                Positioned.fill(
+                  child: debugPointerBarrierExceptForTesting(
+                    passthroughKey: previewButtonKey,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => blockedTapCount += 1,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tapAt(tester.getCenter(find.byKey(previewButtonKey)));
+    await tester.tapAt(const Offset(20, 80));
+
+    expect(previewRestoreCount, 1);
+    expect(blockedTapCount, 1);
+  });
+
   testWidgets('item output preview applies width fit only once', (
     tester,
   ) async {

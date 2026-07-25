@@ -9,6 +9,7 @@ import 'package:dropdown_button2/dropdown_button2.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:fortune_sheet/fortune_sheet.dart' as fs;
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
 import 'package:pdf/pdf.dart';
@@ -5333,11 +5334,7 @@ class _HomePageManagerState extends State<HomePageManager> {
     final selectedTabValue = _selectedTabValue();
     final selected = _itemPreviewSupportedTab(selectedTabValue);
     final window = _itemPreviewWindow;
-    final shouldShow =
-        selected &&
-        _itemPreviewClosedByUser &&
-        window != null &&
-        !window.isVisible;
+    final shouldShow = _itemPreviewRestoreButtonShouldShow(selectedTabValue);
     final shouldKeepSlot = selected && window != null;
     final button = _PreviewRestoreButton(
       key: _itemPreviewButtonKey,
@@ -5444,9 +5441,18 @@ class _HomePageManagerState extends State<HomePageManager> {
                             right: 0,
                             top: 0,
                             height: lmSize(_blockedHomeTabTapOverlayHeight),
-                            child: GestureDetector(
-                              behavior: HitTestBehavior.opaque,
-                              onTap: _handleBlockedTabTap,
+                            child: _PointerBarrierExceptGlobalKey(
+                              passthroughKey:
+                                  _itemPreviewRestoreButtonShouldShow(
+                                    _selectedTabValue(),
+                                  ) &&
+                                      _selectedTabValue() == 'auto_update'
+                                  ? _itemPreviewButtonKey
+                                  : null,
+                              child: GestureDetector(
+                                behavior: HitTestBehavior.opaque,
+                                onTap: _handleBlockedTabTap,
+                              ),
                             ),
                           ),
                       ],
@@ -5460,6 +5466,14 @@ class _HomePageManagerState extends State<HomePageManager> {
       ],
     );
     return result;
+  }
+
+  bool _itemPreviewRestoreButtonShouldShow(Object? selectedTabValue) {
+    final window = _itemPreviewWindow;
+    return _itemPreviewSupportedTab(selectedTabValue) &&
+        _itemPreviewClosedByUser &&
+        window != null &&
+        !window.isVisible;
   }
 
   AutoItemUpdateDraftRow? _selectedAutoItemUpdateRow() {
@@ -5651,6 +5665,50 @@ class _PreviewRestoreButtonState extends State<_PreviewRestoreButton> {
   }
 }
 
+class _PointerBarrierExceptGlobalKey extends SingleChildRenderObjectWidget {
+  const _PointerBarrierExceptGlobalKey({
+    required this.passthroughKey,
+    required super.child,
+  });
+
+  final GlobalKey? passthroughKey;
+
+  @override
+  RenderObject createRenderObject(BuildContext context) =>
+      _RenderPointerBarrierExceptGlobalKey(passthroughKey);
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    _RenderPointerBarrierExceptGlobalKey renderObject,
+  ) {
+    renderObject.passthroughKey = passthroughKey;
+  }
+}
+
+class _RenderPointerBarrierExceptGlobalKey extends RenderProxyBox {
+  _RenderPointerBarrierExceptGlobalKey(this.passthroughKey);
+
+  GlobalKey? passthroughKey;
+
+  @override
+  bool hitTest(BoxHitTestResult result, {required Offset position}) {
+    final passthroughRenderObject = passthroughKey
+        ?.currentContext
+        ?.findRenderObject();
+    if (passthroughRenderObject is RenderBox &&
+        passthroughRenderObject.attached) {
+      final passthroughRect =
+          passthroughRenderObject.localToGlobal(Offset.zero) &
+          passthroughRenderObject.size;
+      if (passthroughRect.contains(localToGlobal(position))) {
+        return false;
+      }
+    }
+    return super.hitTest(result, position: position);
+  }
+}
+
 bool _itemPreviewSupportedTab(Object? tabValue) =>
   tabValue == 'items' || tabValue == 'auto_update';
 
@@ -5674,6 +5732,15 @@ Widget debugPreviewRestoreButtonForTesting({
   visible: visible,
   tooltip: tooltip,
   onPressed: onPressed ?? () {},
+);
+
+@visibleForTesting
+Widget debugPointerBarrierExceptForTesting({
+  required GlobalKey passthroughKey,
+  required Widget child,
+}) => _PointerBarrierExceptGlobalKey(
+  passthroughKey: passthroughKey,
+  child: child,
 );
 
 class _TopControlArea extends StatelessWidget {
