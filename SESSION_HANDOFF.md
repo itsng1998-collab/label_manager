@@ -7,6 +7,12 @@
 - 이 파일에는 현재 상태, 최근 완료 항목, 검증, 다음 액션만 기록한다.
 
 ## 현재 상태
+- 완료: [doc/app_menu_porting.txt]의 4차 UX 단순화 권장안 3건을 병합했다. Esc는 focused child의 실제 취소 상태가 있을 때만 우선 처리하고, 조회 dialog의 filter·조회 button·건수·합계는 데이터 성격에 따라 선택하며, disabled reason의 ellipsis·tooltip·별도 semantics는 실제 필요할 때만 적용한다.
+- 수정 예정 파일/목적: [doc/app_menu_porting.txt]의 권한 표시, FortuneTable 조회 책임, dialog Esc, 조회 dialog, AppBar widget test를 정리한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
+- 지시서 편집 완료: inline disabled reason은 유지하되 두 줄까지 허용하고 실제 잘림과 custom renderer에만 tooltip·별도 semantics를 요구하도록 완화했다. 조회 UI는 read-only `FortuneTable`을 공통으로 유지하고 filter·조회 button·건수·합계는 레거시와 데이터 성격에 필요한 항목만 제공하도록 변경했다.
+- Esc 계약 편집 완료: 셀 편집이나 비어 있지 않은 다중 선택처럼 focused child에 실제 취소 상태가 있을 때만 Esc를 먼저 처리하고, 그렇지 않으면 dialog 닫기 요청으로 전달하도록 일반화했다.
+- 검증 완료: 이전 강제 문구 3개가 0건이고 대체·유지 계약 7개가 반영됐으며 `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`가 통과했다. 두 문서 diagnostics 오류가 없고 전체 diff가 4차 권장안 3건에 한정됨을 확인했다. 문서 변경이므로 Flutter test는 실행하지 않았다.
+- stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함한다. 사용자 소유 변경 [lib/core/app.dart]는 제외한다.
 - 완료: [doc/app_menu_porting.txt]의 3차 UX 단순화 권장안 3건을 병합했다. popup command icon은 선택 사항으로 완화하고, legacy command ID는 runtime metadata가 아닌 포팅 inventory fixture에서 관리하며, AppBar widget test에 섞인 업무 policy/controller 검증을 owning focused test로 분리했다.
 - 수정 예정 파일/목적: [doc/app_menu_porting.txt]의 AppBar 표시 원칙, command 타입, 프린터 command mapping, Phase 0, unit/widget test, 완료 체크리스트를 함께 정리한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
 - 지시서 편집 완료: AppBar 그룹 icon은 유지하되 text 중심인 현재 popup UX에 맞춰 command icon을 optional로 변경했다. runtime `AppMenuCommand`에서 legacy provenance field를 제거하고 레거시 handler/ID mapping을 포팅 대조 fixture 책임으로 옮겼다.

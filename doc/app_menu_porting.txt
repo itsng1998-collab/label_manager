@@ -156,7 +156,7 @@ END CATCH
 - 현재 로그인 상태나 사용자 등급 policy에서 표시 대상이 아닌 command는 `visible=false`로 메뉴에서 숨긴다. 로그인/로그아웃 또는 사용자 변경 시 policy를 다시 계산한다.
 - dirty, busy, 필수 선택 누락처럼 현재 상태를 해결하면 실행할 수 있는 command만 표시한 채 비활성화한다.
 - 비활성 popup item은 명령명 아래 또는 오른쪽에 짧은 `disabledReason`을 직접 표시한다. hover에 의존하는 tooltip을 유일한 안내로 사용하지 않는다.
-- `disabledReason`은 popup의 정해진 폭에서 한 줄 ellipsis하고 전체 내용은 tooltip과 semantics label로 보조한다.
+- `disabledReason`은 현재 품목관리 popup처럼 읽을 수 있는 길이로 직접 표시하며 필요한 경우 두 줄까지 허용한다. 실제 공간 때문에 문구를 줄일 때만 tooltip으로 전체 내용을 보조하고, 기본 text semantics로 정보가 전달되지 않는 custom renderer에만 별도 semantics label을 추가한다.
 - `legacyInactive` command는 inventory와 숨김 policy만 유지한다. 별도 활성화 요구가 있을 때 실제 기능 범위와 노출 policy를 함께 검토한다.
 - 그룹 안에 표시할 command가 하나도 없으면 빈 그룹 아이콘도 숨긴다.
 - 로그인/로그아웃 command는 inventory와 controller에 유지하되 `파일/관리` popup에는 렌더링하지 않는다. 현재 상태에 맞는 AppBar 오른쪽 고정 아이콘 하나만 표시한다.
@@ -515,7 +515,7 @@ command마다 모든 등급 조합을 반복하지 않는다. 공용 policy tabl
 - 명시적 draft 저장이나 command 영역이 필요한 신규 dialog는 `BlockingModelessDialogFrame.footer`에 화면에 필요한 상태와 `취소`/`저장`, `취소`/`적용`, `닫기` command를 직접 구성한다. 같은 footer 구조가 둘 이상에서 반복될 때만 공용 widget으로 추출한다.
 - 즉시 적용형·단순 설정형 dialog와 기존 owning dialog는 현재 동작에 지속적인 footer가 없으면 억지로 추가하지 않는다.
 - dialog를 열면 현재 작업의 첫 번째 주요 입력이나 table에 초기 focus를 두고, 비활성 control을 건너뛰며 마우스 없이 주요 입력과 command를 이동할 수 있게 한다. 화면마다 동일한 고정 Tab 영역 순서를 강제하지 않는다.
-- Esc 우선순위는 `활성 셀 편집 취소 → FortuneTable 다중 선택 해제 → dialog 닫기 요청`이다. 셀 편집이나 다중 선택이 Esc를 처리한 경우 dialog를 닫지 않는다. 일반 단일 행 선택은 별도 취소 단계로 간주하지 않고 Esc가 바로 dialog 닫기 요청으로 이어진다.
+- Esc는 현재 focus를 가진 child에 실제 취소할 상태가 있을 때만 그 상태를 먼저 취소한다. 활성 셀 편집이나 비어 있지 않은 다중 선택이 Esc를 처리하면 dialog를 닫지 않고, 처리할 상태가 없으면 dialog 닫기 요청으로 이어진다. 일반 단일 행 선택은 별도 취소 단계로 간주하지 않는다.
 - dialog 닫기 요청 시 clean 상태는 즉시 닫고 dirty 상태만 폐기 확인을 거친다. Enter는 활성 셀 편집 확정에 사용하며 dialog 전체 저장 command를 실행하지 않는다.
 - dialog를 닫으면 가능한 경우 이를 연 AppBar control로 focus를 돌린다. 공용 wrapper 확장은 실제로 여러 dialog에서 같은 처리가 중복될 때 수행한다.
 - 신규 dialog의 owning controller는 dirty/busy 상태를 `LifecycleManager.notifyExitRequested()` 흐름에 제공한다. dialog별 observer가 각자 종료 확인창을 띄우지 않는다.
@@ -534,7 +534,7 @@ command마다 모든 등급 조합을 반복하지 않는다. 공용 policy tabl
 - 신규 화면에서 Flutter `DataTable`, `Table`, row별 `ListView` 조합 또는 기능별 자체 table widget으로 대체하지 않는다.
 - column은 `FortuneTableColumn<T>`으로 선언하고 공용 header, column resize, 정렬, 선택, checkbox, 편집 callback 중 필요한 기존 API를 재사용한다.
 - 관리 화면의 row draft와 저장 상태는 dialog/controller가 소유한다. `FortuneTable` 내부에 DAO 호출이나 업무 저장 로직을 넣지 않는다.
-- 조회 화면은 `FortuneTable`을 read-only로 구성하고 filter, 조회 command, 합계/건수는 table 바깥의 owning dialog가 관리한다.
+- 조회 화면은 `FortuneTable`을 read-only로 구성한다. 레거시 동작과 데이터 성격상 필요한 filter, 조회 command, 건수 또는 합계는 table 바깥의 owning dialog가 관리한다.
 - 필요한 공용 table 기능이 없으면 개별 화면에 wrapper나 중복 구현을 추가하기 전에 `third_party/fortune_sheet/lib/src/fortune_table.dart`의 공용 API로 확장하고 `test/fortune_table_test.dart`에서 검증한다.
 - `FortuneSheet`/LabelSheet는 workbook·라벨 시트 편집 또는 read-only 시트 미리보기에만 사용하며, 일반 관리 목록과 조회 결과 table 용도로 사용하지 않는다.
 - 단일 상세값, key-value form, 선택 항목이 없는 짧은 안내 목록처럼 반복 column table이 아닌 UI는 `FortuneTable` 적용 대상이 아니다.
@@ -556,7 +556,7 @@ command마다 모든 등급 조합을 반복하지 않는다. 공용 policy tabl
 
 ### 7.4 조회 dialog
 
-- filter, 조회 button, read-only `FortuneTable`, 건수/합계 영역을 제공한다.
+- 조회 결과는 read-only `FortuneTable`로 표시하고, filter, 명시적 조회 button, 건수와 합계는 레거시 동작과 해당 데이터에 필요한 항목만 제공한다. 자동 조회에는 불필요한 조회 button을 추가하지 않고 일반 이력에는 의미 없는 합계를 만들지 않는다.
 - 최초 자동 조회 여부와 기본 기간은 레거시를 따른다.
 - 조회 중 중복 요청만 막고 일반적인 자동 retry는 추가하지 않는다.
 - 조회 중에도 닫기 command를 사용할 수 있어야 하며 닫힌 dialog에 늦은 결과를 적용하지 않는다. 실제 취소 가능한 조회에만 별도 `조회 취소` command를 제공한다.
@@ -696,7 +696,7 @@ command마다 모든 등급 조합을 반복하지 않는다. 공용 policy tabl
   - separator와 command label.
   - popup이 command의 간결한 한글 기본 label을 그대로 표시함.
   - 실제 활성 shortcut이 있는 `품목별 정보 편집`의 `F1`, `검색출력모드`의 `F12`가 명령명과 분리된 오른쪽 보조 영역 및 semantics에 표시되고 미구현 shortcut은 표시되지 않음.
-  - 권한 부족·legacyInactive command 숨김, transient dirty/busy command의 inline disabled reason·ellipsis·semantics 표시.
+  - 권한 부족·legacyInactive command 숨김과 transient dirty/busy command의 inline disabled reason 표시. 문구를 실제로 줄이는 renderer만 전체 tooltip을, 기본 text semantics가 부족한 custom renderer만 별도 semantics를 검증한다.
   - 로그인/로그아웃 command는 inventory에 존재하지만 `파일/관리` popup에는 렌더링되지 않고 현재 상태의 AppBar 고정 아이콘 하나만 표시.
   - 대표 command를 통해 별도 command ID·label 렌더링과 주입된 검색출력 mode 상태에 맞는 checkmark 표시.
   - 서버 상태와 로그아웃 버튼 위치 유지.
