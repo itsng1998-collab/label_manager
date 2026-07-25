@@ -3437,6 +3437,11 @@ class _HomePageManagerState extends State<HomePageManager> {
           rowIdentity =
               _itemDraftController?.anchorRowKey ??
               'item:${selected.item.itemId}';
+          referenceAt = DateTime.now();
+          projectedColumnValues = _baselineOutputProjectedColumnValues(
+            itemId: selected.item.itemId,
+            referenceAt: referenceAt,
+          );
         }
         onElementCommitted = _commitItemElementDraft;
         canSelectOutputPreview = () => !_blockItemDraftContextChange();
@@ -4243,22 +4248,18 @@ class _HomePageManagerState extends State<HomePageManager> {
         : _labelPrintRenderReferenceAt!;
     final projectedColumnValues =
         renderUnit?.projectedColumnValues ??
-        projectLabelPrintColumnValues(
+        _baselineOutputProjectedColumnValues(
           itemId: row.itemId,
-          copyIndex: 0,
-          columns: columns,
-          columnContents:
-              TColumnContent.datas ?? const <ColumnItemKey, TColumnContent>{},
           referenceAt: referenceAt,
         );
     return _ItemOutputPreviewTab(
       key: ValueKey('label-print-preview:${row.itemId}'),
       item: row.item,
       elementText: row.item.item.element,
-      elementWorkbook: _itemElementWorkbook(
-        row.item.item.element,
+      elementWorkbook: _itemElementFormStateFor(
+        row.item,
         _effectiveLabelSize,
-      ),
+      ).workbook,
       labelSize: _effectiveLabelSize,
       imageObjectIds: _itemPreviewImageObjectIdsFor([
         ...specialColumns,
@@ -4283,12 +4284,8 @@ class _HomePageManagerState extends State<HomePageManager> {
   }) {
     final columns = TColumn.datas ?? const <TColumn>[];
     final base = renderUnit?.projectedColumnValues ??
-        projectLabelPrintColumnValues(
+        _baselineOutputProjectedColumnValues(
           itemId: row.itemId,
-          copyIndex: 0,
-          columns: columns,
-          columnContents:
-              TColumnContent.datas ?? const <ColumnItemKey, TColumnContent>{},
           referenceAt: referenceAt,
         );
     return <int, String>{
@@ -4322,10 +4319,10 @@ class _HomePageManagerState extends State<HomePageManager> {
       key: ValueKey('scale-output-preview:${row.itemId}:${row.weightText}:${row.priceText}'),
       item: row.item,
       elementText: row.item.item.element,
-      elementWorkbook: _itemElementWorkbook(
-        row.item.item.element,
+      elementWorkbook: _itemElementFormStateFor(
+        row.item,
         _effectiveLabelSize,
-      ),
+      ).workbook,
       labelSize: _effectiveLabelSize,
       imageObjectIds: _itemPreviewImageObjectIdsFor([
         ...specialColumns,
@@ -4342,6 +4339,18 @@ class _HomePageManagerState extends State<HomePageManager> {
       zoomController: zoomController,
     );
   }
+
+  Map<int, String> _baselineOutputProjectedColumnValues({
+    required int itemId,
+    required DateTime referenceAt,
+  }) => projectLabelPrintColumnValues(
+    itemId: itemId,
+    copyIndex: 0,
+    columns: TColumn.datas ?? const <TColumn>[],
+    columnContents:
+        TColumnContent.datas ?? const <ColumnItemKey, TColumnContent>{},
+    referenceAt: referenceAt,
+  );
 
   Future<void> _openLabelPrintSettings() async {
     final settings = await showLabelPrintSettingsDialog(
@@ -6833,7 +6842,7 @@ class _ItemOutputPreviewTab extends StatelessWidget {
       hintText: preview.hintText,
       identityKey:
           'item-output:${labelSize?.labelSizeId ?? 'none'}:${item.item.itemId}:'
-          '${labelOutputPreviewValuesFingerprint(projectedColumnValues)}',
+          '${itemOutputPreviewWorkbookFingerprint(preview.workbook)}',
       labelSize: labelSize,
       imageObjectIds: imageObjectIds,
       barcodeObjectIds: barcodeObjectIds,
@@ -6842,6 +6851,15 @@ class _ItemOutputPreviewTab extends StatelessWidget {
       zoomController: zoomController,
     );
   }
+}
+
+@visibleForTesting
+int itemOutputPreviewWorkbookFingerprint(fs.FortuneWorkbook? workbook) {
+  if (workbook == null) return 0;
+  final json = labelSheetSanitizeWorkbookSaveJson(
+    fs.FortuneSheetCodec.workbookToJson(workbook),
+  );
+  return jsonEncode(json).hashCode;
 }
 
 @visibleForTesting
@@ -7111,6 +7129,12 @@ Future<fs.FortuneWorkbook?> debugItemElementWorkbookFromRichEditRtfForTesting(
   String rtf,
   LabelSize? labelSize,
 ) => _itemElementWorkbookFromRichEditRtfAsync(rtf, labelSize);
+
+@visibleForTesting
+fs.FortuneWorkbook debugItemElementWorkbookForOutputTesting(
+  ItemOfMarket item,
+  LabelSize? labelSize,
+) => _itemElementFormStateFor(item, labelSize).workbook;
 
 Future<fs.FortuneWorkbook?> _itemElementWorkbookFromRichEditRtfAsync(
   String rtf,

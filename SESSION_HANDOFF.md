@@ -7,6 +7,15 @@
 - 이 파일에는 현재 상태, 최근 완료 항목, 검증, 다음 액션만 기록한다.
 
 ## 현재 상태
+- 완료: 같은 품목의 품목관리/라벨출력/자동품목갱신/저울출력 미리보기가 최신 공용라벨과 동일한 치환 입력을 사용하도록 통일했다.
+- 원인: `LabelOutputPreview.identityKey`가 materialized workbook 내용을 포함하지 않아 keepAlive 화면이 공용라벨 저장 전 workbook을 유지한다. 또한 품목관리는 저장된 `elementRTF` workbook을 쓰지만 라벨출력/저울출력은 `element` 평문으로 재생성하며, 품목관리 baseline 미리보기는 출력 계열의 projected column 값 생성도 사용하지 않는다.
+- 편집 완료: [lib/home_page_manager.dart]의 `_ItemOutputPreviewTab` identity에 최종 materialized workbook fingerprint를 포함했다. `_buildLabelPrintPreview`/`_buildScaleOutputPreview`는 `_itemElementFormStateFor`로 저장된 `elementRTF` workbook을 사용하며, 품목관리 baseline/라벨출력/저울출력의 기본 컬럼 projection은 `_baselineOutputProjectedColumnValues`를 공유한다. 자동품목갱신 draft와 저울의 현재 중량/가격 override는 유지한다.
+- 테스트 추가: [test/label_sheet_toolbar_test.dart]에 저장된 item element workbook 재사용 및 공용라벨 편집 시 preview workbook fingerprint 변경 회귀 테스트를 추가했다.
+- 검증: 첫 편집 직후 [lib/home_page_manager.dart] 정적 진단 오류 없음. 신규 집중 테스트 2개 통과. Dart 포맷 적용 완료.
+- 검증 완료: `flutter test test/label_sheet_toolbar_test.dart` 152개 전체 통과.
+- 추가 검증 완료: `flutter test test/label_print_session_test.dart test/scale_output_test.dart` 36개 전체 통과. (`runTests` 도구는 두 파일의 테스트를 발견하지 못해 Flutter CLI로 검증했다.)
+- 최종 정적 진단: [lib/home_page_manager.dart], [test/label_sheet_toolbar_test.dart] 오류 없음.
+- stage/commit 대상: [lib/home_page_manager.dart], [test/label_sheet_toolbar_test.dart], [SESSION_HANDOFF.md]. 사용자 변경 [lib/core/app.dart]는 제외한다.
 - 완료: 공용라벨 저장 후 DB와 `LabelSize.datas`만 갱신되고 이미 조회된 품목관리/라벨출력/자동품목갱신/저울출력이 이전 `_currentLabelSize` workbook을 유지하는 문제를 수정했다.
 - 원인: `LabelSheetPage` 저장 성공 결과가 `HomePageManager`까지 전달되지 않으며 `_labelContentKey`도 workbook hash를 포함하지 않는다.
 - 수정 파일: `LabelSheetPage → CommonLabelManage → HomePageManager` 저장 완료 콜백을 추가했다. 동일 labelSizeId의 `_currentLabelSize`를 새 객체로 교체하고 workbook hash 기반 content key로 탭/열린 preview를 재생성하되 기존 draft/session controller는 유지한다.

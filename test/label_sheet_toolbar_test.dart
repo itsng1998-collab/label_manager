@@ -83,6 +83,7 @@ ItemOfMarket _testItemOfMarket({
   int itemId = 10,
   String itemName = '테스트 품목',
   String element = '원재료',
+  String elementRTF = '',
 }) {
   final now = DateTime(2026, 7, 7);
   return ItemOfMarket(
@@ -93,7 +94,7 @@ ItemOfMarket _testItemOfMarket({
       itemName: itemName,
       labelSizeName: '테스트 라벨',
       element: element,
-      elementRTF: '',
+      elementRTF: elementRTF,
       price: 0,
       order: 0,
     ),
@@ -733,6 +734,67 @@ void main() {
       isTrue,
     );
     expect(runs.any((run) => run.text == '설탕' && run.italic == true), isTrue);
+  });
+
+  test('output preview uses the same saved item element workbook', () {
+    final savedElementWorkbook = FortuneWorkbook(
+      sheets: [
+        FortuneSheet(
+          id: 'item_element',
+          name: '주원료 및 함량',
+          cells: {
+            const FortuneCellCoord(0, 0): const FortuneCell(
+              value: '저장 원재료',
+              inlineRuns: [
+                FortuneInlineTextRun(
+                  text: '저장 원재료',
+                  bold: true,
+                  rawBold: 1,
+                  hasRawBold: true,
+                ),
+              ],
+            ),
+          },
+        ),
+      ],
+    );
+    final item = _testItemOfMarket(
+      element: '평문 원재료',
+      elementRTF: labelSheetEncodeWorkbookSave(savedElementWorkbook),
+    );
+
+    final outputWorkbook = debugItemElementWorkbookForOutputTesting(
+      item,
+      _testLabelSizeWithFormData(''),
+    );
+
+    final outputCell =
+        outputWorkbook.sheets.single.cells[const FortuneCellCoord(0, 0)]!;
+    expect(outputCell.renderedText, '저장 원재료');
+    expect(outputCell.inlineRuns!.single.bold, isTrue);
+  });
+
+  test('output preview workbook fingerprint tracks common label edits', () {
+    FortuneWorkbook workbook(String value) => FortuneWorkbook(
+      sheets: [
+        FortuneSheet(
+          id: 'item_output_preview_sheet_01',
+          name: '테스트 라벨',
+          cells: {
+            const FortuneCellCoord(0, 0): FortuneCell(value: value),
+          },
+        ),
+      ],
+    );
+
+    expect(
+      itemOutputPreviewWorkbookFingerprint(workbook('수정 전')),
+      itemOutputPreviewWorkbookFingerprint(workbook('수정 전')),
+    );
+    expect(
+      itemOutputPreviewWorkbookFingerprint(workbook('수정 전')),
+      isNot(itemOutputPreviewWorkbookFingerprint(workbook('수정 후'))),
+    );
   });
 
   test('item output preview prefers projected column values over shared content', () {
