@@ -123,9 +123,14 @@ class _LabelOutputPreviewState extends State<LabelOutputPreview> {
 int labelOutputPreviewFitWidthZoomPercent({
   required double viewportWidth,
   required fs.FortuneSheet sheet,
+  double? fallbackLabelWidthMm,
 }) {
   const reservedWidth = 58.0;
-  final labelWidth = fs.fortuneSheetGridClientLogicalSize(sheet)?.width;
+  final labelWidth =
+      fs.fortuneSheetGridClientLogicalSize(sheet)?.width ??
+      (fallbackLabelWidthMm != null && fallbackLabelWidthMm > 0
+          ? fs.fortuneMillimetersToLogicalPixels(fallbackLabelWidthMm)
+          : null);
   if (labelWidth == null || labelWidth <= 0) {
     return labelSheetDefaultZoomPercent;
   }

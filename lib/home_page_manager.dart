@@ -276,6 +276,8 @@ class _HomePageManagerState extends State<HomePageManager> {
       LabelSheetOutputCaptureController();
       final LabelSheetZoomController _itemOutputPreviewZoomController =
         LabelSheetZoomController();
+      final LabelSheetZoomController _itemElementPreviewZoomController =
+        LabelSheetZoomController();
     final ScaleConnectionService _scaleConnectionService =
       ScaleConnectionService();
   LabelPrintUnit? _labelPrintRenderUnit;
@@ -3466,6 +3468,7 @@ class _HomePageManagerState extends State<HomePageManager> {
         labelSize: _effectiveLabelSize,
         referenceAt: referenceAt,
         projectedColumnValues: projectedColumnValues,
+        elementPreviewZoomController: _itemElementPreviewZoomController,
         outputPreviewZoomController: _itemOutputPreviewZoomController,
         onElementCommitted: onElementCommitted,
         canSelectOutputPreview: canSelectOutputPreview,
@@ -4133,6 +4136,7 @@ class _HomePageManagerState extends State<HomePageManager> {
     _rtfPreviewResizeFinalizeTimer?.cancel();
     _itemPreviewWindow?.dispose();
     _commonLabelPreviewWindow?.dispose();
+    _itemElementPreviewZoomController.dispose();
     _itemOutputPreviewZoomController.dispose();
     _tabController.dispose();
     _tabSearchController.dispose();
@@ -6345,6 +6349,7 @@ class _ItemPreviewPanel extends StatefulWidget {
     this.labelSize,
     this.referenceAt,
     this.projectedColumnValues,
+    this.elementPreviewZoomController,
     this.outputPreviewZoomController,
     this.canEdit = true,
   });
@@ -6354,6 +6359,7 @@ class _ItemPreviewPanel extends StatefulWidget {
   final LabelSize? labelSize;
   final DateTime? referenceAt;
   final Map<int, String>? projectedColumnValues;
+  final LabelSheetZoomController? elementPreviewZoomController;
   final LabelSheetZoomController? outputPreviewZoomController;
   final Future<void> Function(
     String rowIdentity,
@@ -6375,6 +6381,10 @@ class _ItemPreviewPanelState extends State<_ItemPreviewPanel> {
   );
   late String _elementText = _elementForm.text;
   int _elementRtfConversionGeneration = 0;
+    late final bool _ownsElementPreviewZoomController =
+      widget.elementPreviewZoomController == null;
+    late final LabelSheetZoomController _elementPreviewZoomController =
+      widget.elementPreviewZoomController ?? LabelSheetZoomController();
     late final bool _ownsOutputPreviewZoomController =
       widget.outputPreviewZoomController == null;
     late final LabelSheetZoomController _outputPreviewZoomController =
@@ -6454,6 +6464,9 @@ class _ItemPreviewPanelState extends State<_ItemPreviewPanel> {
   void dispose() {
     _elementRtfConversionGeneration += 1;
     _controller.dispose();
+    if (_ownsElementPreviewZoomController) {
+      _elementPreviewZoomController.dispose();
+    }
     if (_ownsOutputPreviewZoomController) {
       _outputPreviewZoomController.dispose();
     }
@@ -6606,6 +6619,7 @@ class _ItemPreviewPanelState extends State<_ItemPreviewPanel> {
           item: widget.item,
           labelSize: widget.labelSize,
           elementForm: _elementForm,
+          zoomController: _elementPreviewZoomController,
           canEdit: widget.canEdit,
           onWorkbookChanged: _handleElementWorkbookChanged,
           onSave: _handleElementSheetSave,
@@ -6713,6 +6727,7 @@ class _ItemElementPreviewTab extends StatelessWidget {
     required this.item,
     required this.labelSize,
     required this.elementForm,
+    required this.zoomController,
     required this.canEdit,
     required this.onWorkbookChanged,
     required this.onSave,
@@ -6721,6 +6736,7 @@ class _ItemElementPreviewTab extends StatelessWidget {
   final ItemOfMarket item;
   final LabelSize? labelSize;
   final _ItemElementFormState elementForm;
+  final LabelSheetZoomController zoomController;
   final bool canEdit;
   final ValueChanged<fs.FortuneWorkbook> onWorkbookChanged;
   final Future<void> Function(
@@ -6741,37 +6757,52 @@ class _ItemElementPreviewTab extends StatelessWidget {
                 sheet.copyWith(authority: const <String, Object?>{'sheet': 1}),
             ],
           );
-    return LabelSheetWorkbench(
-      key: ValueKey(
-        'item-element:${labelSize?.labelSizeId ?? 'none'}:${item.item.itemId}:${elementForm.sourceHash}',
-      ),
-      initialWorkbook: workbook,
-      labelSize: labelSize,
-      initialDirty: canEdit && elementForm.convertedFromRtf,
-      toolbarItems: canEdit ? _itemElementToolbarItems : const <String>[],
-      hideToolbar: !canEdit,
-      hideRowColumnHeaderLabels: true,
-      hideSelectionHighlight: true,
-      rulerCornerSizeLabelUsesAsterisk: true,
-      disableSheetRulerGuideInteraction: true,
-      hideStatisticBar: true,
-      limitCellActionsToClipboardAndClear: true,
-      canEditObjects: canEdit,
-      showObjectPanelOpenButton: false,
-      zoomToolbarPlacement: LabelSheetZoomToolbarPlacement.previewTabAreaEnd,
-      onUserWorkbookChanged: canEdit ? onWorkbookChanged : null,
-      onUserWorkbookChangedShouldNotify: canEdit
-          ? (previous, current) =>
-                !_itemElementWorkbookContentEquals(previous, current)
-          : null,
-      onSave: canEdit
-          ? (width, height, encodedWorkbook) => onSave(
-              context,
-              width,
-              height,
-              encodedWorkbook,
-            ).then((_) => LabelSheetSaveResult.applied)
-          : null,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth.isFinite) {
+          zoomController.applyInitialAutoFit(
+            labelOutputPreviewFitWidthZoomPercent(
+              viewportWidth: constraints.maxWidth,
+              sheet: workbook.activeSheet,
+              fallbackLabelWidthMm: labelSize?.labelSizeCommon?.width.toDouble(),
+            ),
+          );
+        }
+        return LabelSheetWorkbench(
+          key: ValueKey(
+            'item-element:${labelSize?.labelSizeId ?? 'none'}:${item.item.itemId}:${elementForm.sourceHash}',
+          ),
+          initialWorkbook: workbook,
+          labelSize: labelSize,
+          initialDirty: canEdit && elementForm.convertedFromRtf,
+          toolbarItems: canEdit ? _itemElementToolbarItems : const <String>[],
+          hideToolbar: !canEdit,
+          hideRowColumnHeaderLabels: true,
+          hideSelectionHighlight: true,
+          rulerCornerSizeLabelUsesAsterisk: true,
+          disableSheetRulerGuideInteraction: true,
+          hideStatisticBar: true,
+          limitCellActionsToClipboardAndClear: true,
+          canEditObjects: canEdit,
+          showObjectPanelOpenButton: false,
+          zoomToolbarPlacement:
+              LabelSheetZoomToolbarPlacement.previewTabAreaEnd,
+          zoomController: zoomController,
+          onUserWorkbookChanged: canEdit ? onWorkbookChanged : null,
+          onUserWorkbookChangedShouldNotify: canEdit
+              ? (previous, current) =>
+                    !_itemElementWorkbookContentEquals(previous, current)
+              : null,
+          onSave: canEdit
+              ? (width, height, encodedWorkbook) => onSave(
+                  context,
+                  width,
+                  height,
+                  encodedWorkbook,
+                ).then((_) => LabelSheetSaveResult.applied)
+              : null,
+        );
+      },
     );
   }
 }
@@ -6919,6 +6950,7 @@ Widget debugItemPreviewPanelForTesting({
   String? rowIdentity,
   DateTime? referenceAt,
   Map<int, String>? projectedColumnValues,
+  LabelSheetZoomController? elementPreviewZoomController,
   LabelSheetZoomController? outputPreviewZoomController,
   Future<void> Function(
     String rowIdentity,
@@ -6934,6 +6966,7 @@ Widget debugItemPreviewPanelForTesting({
   labelSize: labelSize,
   referenceAt: referenceAt,
   projectedColumnValues: projectedColumnValues,
+  elementPreviewZoomController: elementPreviewZoomController,
   outputPreviewZoomController: outputPreviewZoomController,
   onElementCommitted: onElementCommitted ?? (_, _, _) async {},
   canSelectOutputPreview: canSelectOutputPreview ?? () => true,

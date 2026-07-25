@@ -1335,6 +1335,39 @@ void main() {
     expect(tester.widget<EditableText>(zoomInput).controller.text, '110');
   });
 
+  testWidgets('item element preview fits width and keeps changed zoom', (
+    tester,
+  ) async {
+    final zoomController = LabelSheetZoomController();
+    addTearDown(zoomController.dispose);
+
+    Widget panel() => MaterialApp(
+      home: Scaffold(
+        body: SizedBox(
+          width: 660,
+          height: 500,
+          child: debugItemPreviewPanelForTesting(
+            item: _testItemOfMarket(itemId: 10, itemName: '주원료 확대율 품목'),
+            labelSize: _testLabelSizeWithFormData(''),
+            elementPreviewZoomController: zoomController,
+          ),
+        ),
+      ),
+    );
+
+    await tester.pumpWidget(panel());
+    await tester.pumpAndSettle();
+    expect(zoomController.value, 150);
+
+    zoomController.setZoomPercent(100);
+    await tester.pumpWidget(const MaterialApp(home: SizedBox()));
+    await tester.pump();
+    await tester.pumpWidget(panel());
+    await tester.pumpAndSettle();
+
+    expect(zoomController.value, 100);
+  });
+
   testWidgets('item preview hides floating object panel button', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
