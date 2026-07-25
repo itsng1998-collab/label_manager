@@ -12,6 +12,7 @@
 - 편집 완료: 공용 `FortuneTable` 헤더 오른쪽 8px에 `resizeColumn` 커서와 수평 drag 핸들을 추가했다. 수동 폭은 컬럼 ID별로 보존되어 자동 맞춤/데이터 rebuild가 덮지 않으며 `minWidth` 미만으로 줄지 않는다. 품목관리 최소화처럼 컬럼의 초기 폭·최소 폭·자동 맞춤 규칙이 바뀌면 이전 수동 폭을 폐기한다.
 - 검증 완료: 커서, 확대, 최소 폭 제한, 자동 맞춤 데이터 rebuild 후 수동 폭 유지, 컬럼 규칙 변경 시 새 폭 적용, 잔여 폭 채움 컬럼의 실제 표시 폭 기준 리사이즈 테스트 통과. `flutter test test/fortune_table_test.dart test/automatic_item_update_page_test.dart test/label_print_session_test.dart test/scale_output_test.dart` 115개 전체 통과, 수정 Dart 파일 포맷 및 정적 진단 오류 없음.
 - stage/commit 대상: [third_party/fortune_sheet/lib/src/fortune_table.dart], [test/fortune_table_test.dart], [SESSION_HANDOFF.md]. 사용자 변경 [lib/core/app.dart]는 제외한다.
+- 구현 커밋: `b6d7733` (`메인 테이블 컬럼 리사이즈 복원`).
 - 완료: 현재 품목관리 테이블 컬럼 폭을 레거시 기준으로 변경했다. 행 번호는 기본 폭, 발행·라벨크기·품명·일반 동적 컬럼은 내용 기반 자동 폭, 주원료는 레거시 60 단위, 최소화 컬럼은 레거시 10 단위를 사용한다.
 - 적용 기준: FarPoint Spread 문자 폭 단위를 Flutter logical px로 환산해 10 단위를 70px, 60 단위를 420px로 적용한다. `RICH_WIDTH`는 출력 바코드/이미지 크기이므로 동적 테이블 폭 계산에서는 제거한다.
 - 편집 완료: `FortuneTableColumn.autoFit`을 추가해 공용 자동 폭 안에서 컬럼별 고정 폭을 지원한다. 품목관리는 행 번호 40px 유지, 발행·라벨크기·품명·일반 동적 컬럼 내용 자동 맞춤, 주원료 420px 고정, 최소화 주원료·동적 컬럼 70px 고정으로 변경했다.
