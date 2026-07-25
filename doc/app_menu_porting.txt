@@ -346,15 +346,17 @@ END CATCH
 - `lib/page_login/login_history_page.dart`는 현재 사용처가 없는 demo route/page이며 `Scaffold`, `Card`, `DataTable`, 일반 `showDatePicker`를 사용하므로 직접 재사용하지 않는다.
 - 해당 파일의 demo row와 page shell을 제거하고 AppBar owning command가 여는 `BlockingModelessDialogFrame`용 content widget으로 전환한다. 기존 `BM_LOGIN_LOG`를 조회하는 DAO API를 구현하고 결과는 read-only `FortuneTable`로 표시한다.
 - `LoginLogDAO`를 조회까지 확장하거나 조회 책임이 다르면 `LoginHistoryDAO`를 작성한다.
-- 레거시 `CLoginLogDlg`의 기간, 협력업체/거래처/지점/사용자 filter와 권한별 selector 범위를 포팅한다.
+- 조회 filter는 레거시 `CLoginLogDlg`와 같이 기간과 권한별 협력업체/거래처 범위만 포팅한다. 지점과 사용자는 filter로 추가하지 않는다.
+- 사용자 ID·등급, 로그인 시각·상태·IP, 거래처와 프로그램 버전은 레거시 결과 column으로만 표시한다.
 - 별도 route, `Scaffold`, `AppBar`, 장식용 `Card`, `DataTable`을 유지하지 않는다. 날짜 선택은 기존 `showBlockingModelessOverlayDialog` 경로로 현재 차단형 dialog 위에 표시하며, 같은 구성이 둘 이상에서 반복될 때만 공용 date picker helper로 추출한다.
 - locale 표시 형식은 현 `DateFormat`을 사용하되 DB 저장 문자열 형식은 변경하지 않는다.
 
 ### 5.2.4 데이터내용 이력 조회 (`IDM_CONTENT_SAVE_LOG`)
 
 - 레거시 기준: `OnContentSaveLog` → `CContentSaveLogDlg`와 model/DAO.
-- 조회하는 로그 테이블과 before/after field를 레거시 SQL로 확인한다.
-- 품목, label size, column, 사용자, 변경 시각 filter와 표시 column을 레거시 기준으로 포팅한다.
+- 기존 `BM_CONTENT_SAVE_LOG`를 조회 source로 사용한다.
+- 조회 filter는 레거시와 같이 기간과 권한별 협력업체/거래처 범위만 포팅한다. 품목, label size, column, 사용자와 변경 시각을 filter로 추가하지 않는다.
+- 사용자 ID·등급, 품목명, label size, 저장 시각·IP와 신규/수정 상태는 결과 column으로 표시한다. 레거시의 행 상세는 `CONTENT_COLUMNS`와 `CONTENTS`를 표시하며 별도 before/after 비교 field나 UI를 추가하지 않는다.
 - 현재 프로젝트의 저장 로그 table이 없거나 기존 schema가 다르면 migration으로 해결하지 않는다. blocker로 기록한다.
 - 조회 전용 DAO와 row model만 작성하며 원본 업무 데이터를 변경하지 않는다.
 
@@ -368,8 +370,8 @@ END CATCH
 
 - 레거시 기준: `OnStatusPrint` → `CStatusPrintDlg`, `CStatusPrintModel`.
 - 현행 `BM_RICH_STATUS`, `BM_RICH_STATUS_DATA` 저장 계약은 `label_print_persistence.dart`에서 확인한다.
-- 레거시의 기간, 사용자 등급, 품목/라벨, 발행 수량 집계 기준을 그대로 포팅한다.
-- SQL aggregate가 compatibility 100에서 동작하는지 DAO test로 고정한다.
+- 조회 filter는 레거시 활성 조회 흐름의 기간, 권한별 거래처, 브랜드, label size, 품목명, 검색 column·값과 완전/부분 일치 조건만 포팅한다.
+- 사용자 등급은 결과 field로만 표시하며 filter로 추가하지 않는다. 발행 수량은 각 결과의 `RICH_PRINT_COUNT`를 표시하고, 활성 조회 흐름에서 사용하지 않는 `SelectPrintCountSum` 계열 합계 기능이나 별도 SQL aggregate를 추가하지 않는다.
 - 통계 조회는 저장 이력 생성과 분리하며 조회 시 원본 데이터를 갱신하지 않는다.
 
 ## 5.3 설정 그룹
@@ -697,6 +699,8 @@ command마다 모든 등급 조합을 반복하지 않는다. 공용 policy tabl
 - 관리 dialog focused test에서 command visibility와 selector 활성 상태를 분리해 거래처·지점·사용자 관리의 대표 권한 경계를 검증한다.
 - 업데이트 메시지 focused test에서 현재 사용자별 단일 row 조회, 시스템·협력업체 관리자 편집 범위, 일반 사용자 읽기 전용·다시 보지 않기와 세션성 연결 상태만으로 편집 권한이 확대되지 않는지 검증한다.
 - 발행내역 focused test에서 `BM_RICH_PRINT_LOG` 조회, 레거시 filter·날짜 범위와 라벨·저울 통합 결과를 검증한다. 출력 경로 구분이나 pagination이 없는 것은 별도 기능 test로 확대하지 않고 query/model 계약에서 확인한다.
+- 사용자 접속 이력과 데이터내용 이력 DAO focused test에서 기간과 권한별 협력업체/거래처 조건, 레거시 결과 column decoding을 검증한다. 데이터내용 이력의 행 상세는 `CONTENT_COLUMNS`와 `CONTENTS`만 사용한다.
+- 발행 통계 DAO focused test에서 기간·거래처·브랜드·label size·품목명·검색 column/값·완전/부분 일치 조건과 결과의 사용자 등급·`RICH_PRINT_COUNT` decoding을 검증한다. 사용자 등급 filter나 별도 합계 query test를 추가하지 않는다.
 - 단축키 차단 helper를 별도로 추가한 경우 차단 surface 활성/중첩/종료와 non-modal preview 제외 결과만 검증한다. route identity나 lease 내부 구조는 테스트 계약으로 고정하지 않는다.
 - 각 신규 model/DAO codec test.
 - 공용 `DbClient.transaction`의 `BEGIN TRANSACTION`, `COMMIT`, 가능한 rollback, 원래 오류 보존과 `DbCommitOutcomeUnknown` 변환은 기존 `test/db_transaction_test.dart`와 `test/db_client_test.dart`에서 한 번 검증한다. 신규 DAO test에서 이 제어 SQL 문자열을 중복 검사하지 않는다.
