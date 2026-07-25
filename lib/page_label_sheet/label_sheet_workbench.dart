@@ -208,6 +208,8 @@ const String _labelSheetImageImportFilePathPrefsKey =
 const String _labelFileDirectoryPrefsKey = 'label_file_directory';
 const double _labelSheetImportMinReadableFontHeightMm = 2.5;
 const double _labelSheetZoomToolbarRightInset = 124.0;
+const double _labelSheetObjectPanelMinWidth = 150.0;
+const double _labelSheetObjectPanelInitialWidth = 150.0;
 
 const List<String> labelSheetToolbarItems = [
   labelSheetSaveToolbarCommand,
@@ -2183,7 +2185,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
   bool _userWantsObjectDockOpen = true;
   bool _objectOverlayOpen = false;
   bool _objectDockEligible = true;
-  double _objectPanelWidth = 300;
+  double _objectPanelWidth = _labelSheetObjectPanelInitialWidth;
   String? _objectPropertyFocusField;
   String? _objectPropertyFocusSheetId;
   FortuneSheetObjectKey? _objectPropertyFocusObjectKey;
@@ -2515,7 +2517,7 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
         return;
       }
       setState(() {
-        _objectPanelWidth = math.max(200.0, width);
+        _objectPanelWidth = math.max(_labelSheetObjectPanelMinWidth, width);
       });
     });
   }
@@ -4217,13 +4219,13 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
                 widget.onDirtyChanged?.call(true);
               },
               onOpenObjectPanelRequest: _handleObjectPanelOpenRequest,
-              onCloseObjectPanelRequest: _closeObjectPanel,
-              objectPanelPresentation: objectPanelPresentation,
                 toolbarRightInset:
                   widget.zoomToolbarPlacement ==
                     LabelSheetZoomToolbarPlacement.sheetToolbarEnd
                   ? _labelSheetZoomToolbarRightInset
                   : 0,
+              onCloseObjectPanelRequest: _closeObjectPanel,
+              objectPanelPresentation: objectPanelPresentation,
               locale: _locale,
               barcodeRenderer:
                   widget.barcodeRenderer ?? labelSheetBarcodeRenderer,
@@ -4240,7 +4242,13 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
               showSheetTabs: false,
             );
             final dockPanelWidth = _objectPanelWidth
-                .clamp(260.0, math.max(260.0, maximumDockPanelWidth))
+                .clamp(
+                  _labelSheetObjectPanelMinWidth,
+                  math.max(
+                    _labelSheetObjectPanelMinWidth,
+                    maximumDockPanelWidth,
+                  ),
+                )
                 .toDouble();
             final dockObjectPanel =
                 _objectDockEligible && _userWantsObjectDockOpen;
@@ -4318,8 +4326,11 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
                     onDrag: (delta) {
                       setState(() {
                         _objectPanelWidth = (_objectPanelWidth - delta).clamp(
-                          200.0,
-                          math.max(200.0, maximumDockPanelWidth),
+                          _labelSheetObjectPanelMinWidth,
+                          math.max(
+                            _labelSheetObjectPanelMinWidth,
+                            maximumDockPanelWidth,
+                          ),
                         );
                       });
                     },
@@ -4343,9 +4354,13 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
                     onDoubleTap: () {
                       _objectPanelWidthChangedByUser = true;
                       setState(() {
-                        _objectPanelWidth = 200.0.clamp(
-                          200.0,
-                          math.max(200.0, maximumDockPanelWidth),
+                        _objectPanelWidth = _labelSheetObjectPanelInitialWidth
+                            .clamp(
+                          _labelSheetObjectPanelMinWidth,
+                          math.max(
+                            _labelSheetObjectPanelMinWidth,
+                            maximumDockPanelWidth,
+                          ),
                         );
                       });
                       _queueObjectPanelWidthSave(_objectPanelWidth);

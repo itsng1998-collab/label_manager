@@ -3304,6 +3304,9 @@ void main() {
   testWidgets('docked object panel keeps toolbar overflow commands reachable', (
     tester,
   ) async {
+    SharedPreferences.setMockInitialValues(<String, Object>{
+      'label_sheet_object_panel_width': 300.0,
+    });
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
@@ -3360,6 +3363,10 @@ void main() {
   testWidgets('toolbar more runs hidden object insertion commands', (
     tester,
   ) async {
+    SharedPreferences.setMockInitialValues(<String, Object>{
+      'label_sheet_object_panel_width': 300.0,
+    });
+
     Future<void> pumpWorkbench() async {
       await tester.pumpWidget(
         MaterialApp(
@@ -4419,13 +4426,18 @@ void main() {
     await tester.pumpAndSettle();
 
     final splitter = find.byType(VerticalPaneSplitter);
+    final panel = find.byType(FortuneObjectLayerPanel);
+    expect(tester.getSize(panel).width, 150);
+
+    await tester.drag(splitter, const Offset(120, 0));
+    await tester.pumpAndSettle();
+    expect(tester.getSize(panel).width, 150);
+
     await tester.drag(splitter, const Offset(-120, 0));
     await tester.pumpAndSettle();
     var preferences = await SharedPreferences.getInstance();
-    final draggedWidth = tester
-        .getSize(find.byType(FortuneObjectLayerPanel))
-        .width;
-    expect(draggedWidth, isNot(300));
+    final draggedWidth = tester.getSize(panel).width;
+    expect(draggedWidth, greaterThan(150));
     expect(
       preferences.getDouble('label_sheet_object_panel_width'),
       draggedWidth,
@@ -4437,7 +4449,7 @@ void main() {
     await tester.tapAt(splitterCenter);
     await tester.pumpAndSettle();
     preferences = await SharedPreferences.getInstance();
-    expect(preferences.getDouble('label_sheet_object_panel_width'), 200);
+    expect(preferences.getDouble('label_sheet_object_panel_width'), 150);
   });
 
   testWidgets('constrained object panel starts drag from its visible width', (
