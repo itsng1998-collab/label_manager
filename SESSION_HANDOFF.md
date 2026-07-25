@@ -13,6 +13,7 @@
 - 회귀 테스트: 패널을 완전히 제거하고 같은 controller로 재생성한 뒤 출력 미리보기 확대율 110%가 유지되는지 검증한다.
 - 검증 완료: 신규 집중 테스트 통과, Dart 포맷 적용, [lib/home_page_manager.dart]와 [test/label_sheet_toolbar_test.dart] 정적 진단 오류 없음, `flutter test test/label_sheet_toolbar_test.dart` 154개 전체 통과.
 - stage/commit 대상: [lib/home_page_manager.dart], [test/label_sheet_toolbar_test.dart], [SESSION_HANDOFF.md]. 사용자 변경 [lib/core/app.dart]는 제외한다.
+- 구현 커밋: `97d23d1` (`품목 미리보기 확대율 유지`).
 - 완료: 공용라벨의 `#ELEMENT` 치환으로 행 높이가 증가할 때 모든 미리보기의 바코드·이미지·선·도형이 행 증가분만큼 함께 이동하도록 수정했다.
 - 원인: `_replaceSheetKeywords`는 치환 내용에 맞춰 `rowHeights`만 늘리고 `images`, `lines`, `shapes`의 세로 위치를 이동하지 않는다. 행 높이 변화 자체는 정상 동작이다.
 - 편집 완료: `_replaceSheetKeywords`가 원본 대비 증가한 각 행의 아래 경계와 증가분을 계산하고, 경계 아래 이미지/바코드와 도형의 `top`, 선의 `y1`/`y2`에 누적 적용한다. 모든 미리보기가 공유하는 materialize 경로에 적용했다.
