@@ -138,13 +138,17 @@ END CATCH
 - 서버 상태와 로그인/로그아웃은 항상 오른쪽 끝에 남긴다.
 - 메뉴를 합친 뒤에도 폭이 부족하면 title은 `maxLines: 1`, `softWrap: false`, `TextOverflow.ellipsis`로 줄인다. 서버 상태와 현재 로그인/로그아웃 command를 title보다 먼저 숨기거나 줄이지 않는다.
 - 버튼 출현/소멸로 AppBar 높이나 body 위치가 바뀌지 않게 한다.
+- Tab으로 그룹 아이콘에 focus하고 Enter 또는 Space로 메뉴를 연다. 메뉴 안에서는 위/아래 방향키로 항목을 이동하고 Enter로 실행하며 Esc로 닫은 뒤 원래 그룹 아이콘에 focus를 복원한다.
+- 메뉴가 열려 있는 동안 `F12` 같은 화면 전역 단축키가 메뉴 뒤의 command를 실행하지 않게 한다. 메뉴를 닫은 뒤에는 기존 단축키가 정상 동작해야 한다.
 - 100%, 125%, 150% Windows display scale과 긴 버전 문자열에서 overflow가 없는지 widget test 또는 screenshot으로 확인한다.
 
 ### 3.3 권한 표시 방식
 
 - 레거시 MainFrm의 비활성 표시를 그대로 복제하지 않고 현재 Flutter 앱의 권한 UX를 따른다.
 - 현재 로그인 상태나 사용자 등급 policy에서 표시 대상이 아닌 command는 `visible=false`로 메뉴에서 숨긴다. 로그인/로그아웃 또는 사용자 변경 시 policy를 다시 계산한다.
-- dirty, busy, 필수 선택 누락처럼 현재 상태를 해결하면 실행할 수 있는 command만 표시한 채 비활성화하고 `disabledReason`을 tooltip 또는 보조 문구로 제공한다.
+- dirty, busy, 필수 선택 누락처럼 현재 상태를 해결하면 실행할 수 있는 command만 표시한 채 비활성화한다.
+- 비활성 popup item은 명령명 아래 또는 오른쪽에 짧은 `disabledReason`을 직접 표시한다. hover에 의존하는 tooltip을 유일한 안내로 사용하지 않는다.
+- `disabledReason`은 popup의 정해진 폭에서 한 줄 ellipsis하고 전체 내용은 tooltip과 semantics label로 보조한다.
 - `legacyInactive` command는 inventory와 내부 기능을 유지하되 production 메뉴에서는 숨긴다. 별도 활성화 요구가 있을 때 policy 상수 한 곳에서만 노출을 변경한다.
 - 그룹 안에 표시할 command가 하나도 없으면 빈 그룹 아이콘도 숨긴다.
 - 로그인/로그아웃은 현재 상태에 맞는 command 하나만 표시한다.
@@ -172,6 +176,9 @@ END CATCH
 - `lib/widgets/app_menu_bar.dart`
   - 넓은/좁은 레이아웃과 popup 표시만 담당.
   - command 상태를 받아 렌더링하고 선택된 command ID를 콜백으로 전달.
+- `lib/widgets/app_dialog_command_footer.dart` 또는 동등한 공용 footer
+  - 왼쪽 상태/진행 영역과 오른쪽 command 영역의 높이, padding, 버튼 간격을 통일.
+  - 관리 dialog는 `취소`/`저장`, 조회 dialog는 `조회 취소`/`닫기` 등 전달된 command만 렌더링.
 - `lib/core/app_menu_controller.dart` 또는 동등한 controller
   - `HomePage` AppBar와 `HomePageManager` command 실행을 연결.
   - controller attach/detach는 기존 controller pattern을 따른다.
@@ -199,7 +206,7 @@ END CATCH
 - 저장 command busy 중 DB를 다시 갱신하거나 같은 데이터를 수정하는 command만 비활성화한다.
 - 로그인 상태/등급/`legacyInactive`처럼 현재 policy에서 표시 대상이 아닌 command는 `visible=false`로 처리하고 disabled reason을 만들지 않는다.
 - 편집 중, command busy, 필수 context 누락은 서로 다른 disabled reason으로 계산한다.
-- disabled reason은 테스트 가능한 순수 policy 결과로 유지하고 tooltip 또는 popup 보조 문구로만 안내한다. 별도 경고 dialog를 띄우지 않는다.
+- disabled reason은 테스트 가능한 순수 policy 결과로 유지하고 popup item 안의 보조 문구로 직접 안내한다. tooltip은 전체 문구 보조에만 사용하고 별도 경고 dialog를 띄우지 않는다.
 
 ## 5. 레거시 메뉴 inventory와 포팅 계약
 
@@ -416,7 +423,8 @@ END CATCH
 
 - 레거시 observer 흐름에서 mode가 영향을 주는 검색 필드, 출력 대상, 키보드 단축키 `F12`를 확인한다.
 - 단순 bool toggle이라도 mode state는 AppBar widget이 아니라 HomePageManager/controller가 소유한다.
-- mode 활성 상태는 메뉴 checked state 또는 segmented indicator로 표시한다.
+- popup에서는 command 앞 checkmark로 mode 활성 상태를 표시한다. segmented control은 사용하지 않는다.
+- menu item을 선택하면 controller mode를 변경하고 popup을 닫는다. 메뉴가 닫힌 상태에서 `F12`로 mode가 바뀌어도 다음 popup open 시 controller의 현재 값을 읽어 checkmark를 표시한다.
 - 현재 라벨출력 command와 중복되는 부분은 출력 pipeline을 재사용한다.
 - 레거시와 다른 자동 검색/자동 발행 규칙을 추가하지 않는다.
 
@@ -491,7 +499,8 @@ END CATCH
 - 작은 기존 설정 dialog는 현재 크기를 유지하되 화면보다 커지지 않도록 clamp한다.
 - 신규 관리·조회 dialog는 보편적인 화면 비율을 강제하지 않는다. `MediaQuery`에서 가로 48px, 세로 64px 이상의 바깥 여백을 뺀 사용 가능 영역과 기능별 content max size 중 작은 값을 사용한다.
 - 관리·조회 dialog의 기본 content max size는 현재 라벨 항목 편집창과 같은 1168x720을 기준으로 한다. 더 넓은 결과 column이 실제로 필요할 때만 기능별 max width를 늘리고 100%, 125%, 150% display scale에서 검증한다.
-- 제목 bar에는 전체 한글 기능명과 닫기 icon을 표시한다. footer는 오른쪽에 `취소`/`저장` 또는 조회 기능에 맞는 닫기 command를 두고 dialog마다 위치를 바꾸지 않는다.
+- 제목 bar에는 전체 한글 기능명과 닫기 icon을 표시한다.
+- footer는 공용 `AppDialogCommandFooter` 또는 동등한 widget을 사용한다. 왼쪽에는 상태·선택 건수·진행 표시, 오른쪽에는 `취소`/`저장` 또는 조회 기능에 맞는 command를 두고 dialog마다 높이, 위치, 간격을 바꾸지 않는다.
 - dialog를 열면 filter가 있으면 첫 filter, 없으면 `FortuneTable`에 초기 focus를 둔다. Tab 순서는 filter → table → command footer이며 비활성 control은 건너뛴다.
 - Esc 우선순위는 `활성 셀 편집 취소 → FortuneTable 선택 해제 → dialog 닫기 요청`이다. 셀 편집이나 선택이 Esc를 처리한 경우 dialog를 닫지 않는다.
 - dialog 닫기 요청 시 clean 상태는 즉시 닫고 dirty 상태만 폐기 확인을 거친다. Enter는 활성 셀 편집 확정에 사용하며 dialog 전체 저장 command를 실행하지 않는다.
@@ -518,6 +527,9 @@ END CATCH
 
 - 운영 도구 성격에 맞게 밀도 높은 `FortuneTable` + 명확한 command footer를 사용한다.
 - 장식용 카드 중첩, hero, 과도한 animation을 사용하지 않는다.
+- 추가·수정·삭제는 테이블 상단 toolbar 또는 측면 command rail에 항상 보이는 icon button으로 제공하고 tooltip을 표시한다.
+- 우클릭 context menu를 제공할 수 있지만 동일 command의 보조 경로여야 한다. 추가·수정·삭제를 우클릭 메뉴에서만 제공하지 않는다.
+- footer는 공용 footer를 사용하고 row command를 넣지 않는다. 왼쪽 상태/진행과 오른쪽 `취소`/`저장`만 배치한다.
 - 추가/수정은 draft에서 수행하고 저장/취소를 명시한다.
 - 삭제는 레거시 확인 문구와 종속성 검사를 따른다.
 - 저장 성공 후 해당 목록과 필요한 app cache만 reload한다.
@@ -561,6 +573,7 @@ END CATCH
 4. 저울 설정, 라벨출력/저울출력 프린터 설정을 HomePageManager controller로 연결한다.
 5. update notice 공용 dialog를 추출해 메뉴에서 연결한다.
 6. 신규 관리·조회 dialog의 공용 `BlockingModelessDialog` open/close pattern을 적용한다.
+7. 신규 관리·조회 dialog에 공용 command footer와 visible CRUD toolbar/rail pattern을 적용한다.
 
 완료 기준:
 - 기존 화면 버튼과 AppBar 메뉴가 같은 owning command를 호출함.
@@ -642,9 +655,12 @@ END CATCH
   - 넓은 화면 그룹 아이콘 3개.
   - 좁은 화면 overflow 1개.
   - 메뉴 collapse 후 긴 title의 한 줄 ellipsis와 서버 상태/로그인 command 유지.
+  - Tab focus, Enter/Space 열기, 방향키 이동, Enter 실행, Esc 닫기와 그룹 아이콘 focus 복원.
+  - 메뉴가 열린 동안 화면 전역 `F12` command 차단, 닫힌 뒤 기존 단축키 복원.
   - tooltip.
   - separator와 command label.
-  - 권한 부족·legacyInactive command 숨김, transient dirty/busy command의 disabled reason 표시.
+  - 권한 부족·legacyInactive command 숨김, transient dirty/busy command의 inline disabled reason·ellipsis·semantics 표시.
+  - 검색출력 mode menu item 선택과 메뉴 밖 `F12` 변경 후 다음 popup open 시 controller 값에 맞는 checkmark 표시.
   - 서버 상태와 로그아웃 버튼 위치 유지.
 - 각 관리/조회 dialog의 기본 render, filter, draft, save/cancel, 실패 상태.
 - 신규 관리·조회 dialog가 `BlockingModelessDialog`와 `BlockingModelessDialogFrame`을 사용하고 배경 pointer/key 입력을 차단하는지 검증.
@@ -652,6 +668,8 @@ END CATCH
 - Esc가 활성 셀 편집 취소, 선택 해제, dialog 닫기 요청 순서로 한 단계씩 처리되는지 검증.
 - dirty 닫기 확인, write busy 중 닫기 비활성화, read busy 중 취소/닫기, 저장 실패 후 dialog/draft 유지 검증.
 - 초기 focus와 Tab 순서, Enter 셀 편집 확정, 중첩 확인창 종료 후 원래 control/table cell focus 복원을 검증.
+- 관리 dialog의 추가·수정·삭제 command가 visible toolbar/rail에 있고 context menu만으로 제공되지 않는지 검증.
+- 공용 footer의 왼쪽 상태/진행과 오른쪽 command 정렬, 고정 높이·간격을 검증.
 - 중첩 확인창이 `showBlockingModelessOverlayDialog`를 통해 현재 dialog 위에 표시되는지 검증.
 - 반복 행을 표시하는 각 관리/조회 화면이 `FortuneTable`과 `FortuneTableColumn`을 사용하고 별도 `DataTable`/`Table`로 구현되지 않았는지 검증.
 - 공용 `FortuneTable` API를 확장한 경우 `test/fortune_table_test.dart`에 해당 동작과 기존 화면 회귀 검증 추가.
@@ -688,6 +706,7 @@ flutter test test/scale_output_test.dart
 - [ ] command ID/label/icon/group 등록.
 - [ ] 권한과 로그인 상태 테스트.
 - [ ] 현재 로그인/등급 policy의 비노출 command와 legacyInactive는 숨김, transient dirty/busy는 사유가 있는 비활성 상태로 표시됨.
+- [ ] AppBar menu의 키보드 탐색, 닫기 후 focus 복원, 열린 동안 전역 단축키 차단이 검증됨.
 - [ ] 편집/busy 차단 정책 확인.
 - [ ] 기존 기능이면 owning command 재사용.
 - [ ] 미구현 기능이면 필요한 model/DAO와 `BlockingModelessDialog` 기반 화면 구현.
@@ -695,6 +714,7 @@ flutter test test/scale_output_test.dart
 - [ ] Esc 편집 취소/선택 해제/닫기 우선순위와 focus 이동·복원이 검증됨.
 - [ ] write busy 닫기 차단, read busy 취소/닫기, 중복 overlay 방지, 실패 시 draft 유지가 검증됨.
 - [ ] 관리 목록/조회 결과의 반복 행 table이 공용 `FortuneTable`을 사용함.
+- [ ] 관리 CRUD command는 visible toolbar/rail에 있고 footer는 공용 widget으로 상태/진행과 취소/저장만 표시함.
 - [ ] 조회/저장/취소/오류 UI 구현.
 - [ ] commit 오류 전달과 가능한 rollback 검증.
 - [ ] DB migration 미사용 확인.
@@ -715,6 +735,9 @@ flutter test test/scale_output_test.dart
 - 관리 기능을 하나의 거대한 dialog/model/DAO에 합치지 않는다.
 - HomePage와 HomePageManager에 같은 업무 command를 중복 구현하지 않는다.
 - 메뉴 widget에서 직접 SQL을 실행하지 않는다.
+- 비활성 popup item의 실행 불가 사유를 hover tooltip으로만 제공하지 않는다.
+- 관리 dialog의 추가·수정·삭제 command를 우클릭 context menu에서만 제공하지 않는다.
+- dialog마다 footer 높이, padding, 정렬, 버튼 간격을 개별 구현하지 않는다.
 - 신규 관리·편집·조회 command를 별도 route page, 신규 메인 탭 또는 Windows native child window로 구현하지 않는다.
 - `BlockingModelessDialog` 안에서 일반 `showDialog`로 중첩 확인창을 열지 않는다.
 - 관리·조회용 반복 행 table을 `DataTable`, `Table`, row별 `ListView` 또는 기능별 자체 table widget으로 새로 구현하지 않는다.
@@ -728,12 +751,14 @@ flutter test test/scale_output_test.dart
 
 - AppBar에는 폭에 따라 그룹 아이콘 3개 또는 overflow 메뉴 1개가 표시된다.
 - AppBar title은 메뉴 collapse 후에도 공간이 부족하면 한 줄 ellipsis되고 서버 상태와 현재 로그인/로그아웃 command는 유지된다.
+- AppBar menu는 키보드만으로 열기·이동·실행·닫기가 가능하고 닫힌 뒤 원래 그룹 아이콘에 focus가 복원된다.
 - 서버 상태와 로그인/로그아웃 영역은 기존 위치와 동작을 유지한다.
 - 파일/검색/설정의 모든 레거시 command가 inventory와 권한 policy에 존재한다.
 - 현재 동작 기능은 중복 구현 없이 같은 command로 연결된다.
 - 미구현 기능은 실제 `BlockingModelessDialog` 기반 화면, model/DAO, DB 계약과 테스트를 갖는다.
 - 기존 핵심 탭 이동과 기존 owning 설정 dialog를 제외한 신규 관리·편집·조회 화면은 공용 차단형 overlay dialog로 일관되게 열린다.
 - 모든 관리 목록과 조회 결과의 반복 행 table은 공용 `FortuneTable`을 사용한다.
+- 모든 관리 dialog는 visible CRUD toolbar/rail과 공용 command footer를 사용한다.
 - legacyInactive 기능은 내부 구현 완료 후 production 메뉴에서 숨김 상태를 유지한다.
 - DB schema는 변경되지 않는다.
 - 저장 오류는 호출자에게 전달되고 가능한 transaction만 rollback된다.
