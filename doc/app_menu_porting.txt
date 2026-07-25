@@ -135,11 +135,13 @@ END CATCH
 - 화면 전체 폭만 하드코딩해 판단하지 말고 AppBar title과 actions에 실제 제공된 폭을 `LayoutBuilder`로 판단한다.
 - 그룹 3개, 서버 상태, 로그인/로그아웃이 겹치지 않는 폭에서는 그룹 아이콘을 각각 표시한다.
 - 폭이 부족하면 그룹 버튼을 먼저 `more_vert` 하나로 합친다.
-- overflow 안에서도 `파일/관리`, `조회/이력`, `설정` 구분과 separator를 유지한다.
+- 통합 overflow의 첫 단계에는 현재 표시할 command가 있는 `파일/관리`, `조회/이력`, `설정` 그룹만 표시하고, 그룹을 선택하면 해당 command의 2단계 submenu 또는 panel을 연다. 전체 command를 하나의 긴 평면 목록으로 합치지 않는다.
+- 그룹 submenu/panel은 화면의 사용 가능 높이로 clamp하고 필요한 경우 세로 scroll을 제공한다. 키보드 focus 항목이 viewport 밖으로 이동하면 자동으로 reveal한다.
 - 서버 상태와 로그인/로그아웃은 항상 오른쪽 끝에 남긴다.
 - 메뉴를 합친 뒤에도 폭이 부족하면 title은 `maxLines: 1`, `softWrap: false`, `TextOverflow.ellipsis`로 줄인다. 서버 상태와 현재 로그인/로그아웃 command를 title보다 먼저 숨기거나 줄이지 않는다.
 - 버튼 출현/소멸로 AppBar 높이나 body 위치가 바뀌지 않게 한다.
-- Tab으로 그룹 아이콘에 focus하고 Enter 또는 Space로 메뉴를 연다. 메뉴 안에서는 위/아래 방향키로 항목을 이동하고 Enter로 실행하며 Esc로 닫은 뒤 원래 그룹 아이콘에 focus를 복원한다.
+- Tab으로 그룹 아이콘에 focus하고 Enter 또는 Space로 메뉴를 연다. 메뉴 안에서는 위/아래 방향키로 항목을 이동하고 Enter로 실행한다. 통합 overflow에서는 오른쪽/Enter로 그룹에 진입하고 왼쪽/Esc로 한 단계 돌아가며, 첫 단계의 Esc는 메뉴를 닫는다.
+- Esc 또는 바깥 클릭으로 메뉴만 닫으면 원래 그룹 아이콘에 focus를 복원한다. command가 top-level dialog를 열면 그룹 focus 복원을 보류하고 dialog의 초기 control로 focus를 넘긴다.
 - 메뉴가 열려 있는 동안 `F12` 같은 화면 전역 단축키가 메뉴 뒤의 command를 실행하지 않게 한다. 메뉴를 닫은 뒤에는 기존 단축키가 정상 동작해야 한다.
 - 100%, 125%, 150% Windows display scale과 긴 버전 문자열에서 overflow가 없는지 widget test 또는 screenshot으로 확인한다.
 
@@ -187,6 +189,10 @@ END CATCH
   - `HomePage` AppBar와 `HomePageManager` command 실행을 연결.
   - controller attach/detach는 기존 controller pattern을 따른다.
   - 화면별 private method를 복제하지 않는다.
+- `lib/core/app_menu_dialog_coordinator.dart` 또는 동등한 coordinator
+  - 신규 AppBar top-level blocking overlay의 active command ID, `OverlayEntry`, dirty/busy, trigger focus를 한 곳에서 소유.
+  - 중첩 확인창·picker를 제외하고 top-level blocking overlay를 앱 전체에서 하나만 허용.
+  - dialog 닫기, AppBar command 재진입, OS 종료 요청의 순서를 직렬화하고 overlay queue나 stack을 만들지 않음.
 
 ### 4.2 상태 소유권
 
@@ -199,6 +205,10 @@ END CATCH
   - 라벨출력/저울출력 프린터 설정.
   - 저울 연결 설정.
   - 업무 DB를 사용하는 관리/조회 dialog의 실행과 refresh callback.
+- top-level dialog coordinator가 소유할 상태:
+  - 현재 열린 신규 AppBar blocking dialog와 originating command/group focus.
+  - dialog dirty/busy와 close/exit 요청.
+  - dialog가 없을 때는 상태를 남기지 않는다.
 - 각 dialog가 소유할 command:
   - 자기 화면의 편집 draft, 저장, 취소, 행 선택.
 - AppBar는 `HomePageManager` private state를 직접 읽지 않는다. controller가 노출하는 command state snapshot 또는 `ValueListenable`을 사용한다.
@@ -291,7 +301,9 @@ END CATCH
 
 - 현행 `PopScope`와 `LifecycleManager.notifyExitRequested()` 경로를 command API로 추출해 재사용한다.
 - `SystemNavigator.pop()`을 메뉴에서 직접 중복 호출하지 않는다.
-- 편집 중 종료 확인과 DB 정리 순서는 창 닫기와 동일해야 한다.
+- 메뉴 종료와 OS 창 닫기는 먼저 top-level dialog coordinator에 종료 가능 여부를 요청한다.
+- 활성 dialog가 write busy면 종료를 거부하고, dirty면 현재 overlay 위에서 폐기 확인을 한 번 표시하며, clean이면 dialog를 닫은 뒤 기존 탭 draft 확인과 DB 정리를 진행한다.
+- 편집 중 종료 확인과 DB 정리 순서는 창 닫기와 동일해야 하며 dialog와 기존 탭이 각각 중복 확인창을 띄우지 않는다.
 
 ## 5.2 조회/이력 그룹
 
@@ -504,7 +516,7 @@ END CATCH
 - 로그인, 로그아웃, 종료, 즉시 적용되는 검색출력 mode toggle처럼 별도 편집 화면이 없는 command도 억지로 dialog를 만들지 않는다.
 - 이미 동작하는 저울·프린터 설정 등의 owning dialog는 기존 command를 그대로 호출한다. AppBar 연결을 이유로 같은 dialog를 `BlockingModelessDialog`로 한 번 더 감싸지 않는다.
 - 신규 관리·편집·조회 기능은 별도 `Navigator` route page, 새 메인 탭 또는 Windows native child window로 구현하지 않는다. 예외가 필요하면 장시간 상시 작업이어야 하며 근거와 영향 범위를 `SESSION_HANDOFF.md`에 기록하고 별도 승인 후 진행한다.
-- 한 command의 overlay는 동시에 하나만 존재해야 한다. 이미 열려 있으면 두 번째 overlay와 중복 조회를 만들지 않는다.
+- 중첩 확인창·picker를 제외한 신규 AppBar top-level blocking overlay는 command 종류와 관계없이 앱 전체에서 하나만 존재해야 한다. 같은 command나 다른 command가 다시 요청되면 새 entry를 쌓거나 queue하지 않고 기존 dialog에 focus한다.
 - 작은 기존 설정 dialog는 현재 크기를 유지하되 화면보다 커지지 않도록 clamp한다.
 - 신규 관리·조회 dialog는 보편적인 화면 비율을 강제하지 않는다. `MediaQuery`에서 가로 48px, 세로 64px 이상의 바깥 여백을 뺀 사용 가능 영역과 기능별 content max size 중 작은 값을 사용한다.
 - 관리·조회 dialog의 기본 content max size는 현재 라벨 항목 편집창과 같은 1168x720을 기준으로 한다. 더 넓은 결과 column이 실제로 필요할 때만 기능별 max width를 늘리고 100%, 125%, 150% display scale에서 검증한다.
@@ -516,6 +528,8 @@ END CATCH
 - Esc 우선순위는 `활성 셀 편집 취소 → FortuneTable 다중 선택 해제 → dialog 닫기 요청`이다. 셀 편집이나 다중 선택이 Esc를 처리한 경우 dialog를 닫지 않는다. 일반 단일 행 선택은 별도 취소 단계로 간주하지 않고 Esc가 바로 dialog 닫기 요청으로 이어진다.
 - dialog 닫기 요청 시 clean 상태는 즉시 닫고 dirty 상태만 폐기 확인을 거친다. Enter는 활성 셀 편집 확정에 사용하며 dialog 전체 저장 command를 실행하지 않는다.
 - 초기 focus, Esc/닫기, focus 반환을 dialog마다 복제하지 않는다. 필요한 `initialFocusNode` 또는 callback/intent가 공용 wrapper에 없으면 `blocking_modeless_dialog.dart`의 공용 API와 test를 먼저 확장한다.
+- top-level dialog가 닫히면 coordinator가 originating AppBar 그룹 또는 overflow icon으로 focus를 복원한다. responsive collapse나 권한 변경으로 trigger가 사라졌으면 현재 AppBar의 첫 활성 menu control을 fallback으로 사용한다.
+- 신규 dialog의 dirty/busy 상태는 coordinator를 통해 `LifecycleManager.notifyExitRequested()` 흐름에 참여한다. dialog별 observer가 각자 종료 확인창을 띄우지 않는다.
 - 저장·삭제 transaction busy 중에는 중복 실행과 닫기를 비활성화한다.
 - footer가 없는 즉시 적용형·단순 설정형 dialog는 busy를 시작한 control 가까이에 spinner와 필요한 짧은 상태 문구를 표시하고 관련 입력과 command만 비활성화한다. 진행 표시 없이 닫기만 비활성화해 화면이 멈춘 것처럼 보이게 하지 않는다.
 - 읽기 전용 조회 busy 중에는 `조회 취소` 또는 닫기 경로를 유지한다. DB Future 자체를 취소할 수 없으면 overlay를 닫은 뒤 늦게 도착한 결과가 폐기된 dialog나 새 조회 상태에 반영되지 않게 한다. 자동 retry나 복구 저장소는 추가하지 않는다.
@@ -583,12 +597,12 @@ END CATCH
 
 ### Phase 1. AppBar shell과 기존 기능 연결
 
-1. AppBar 그룹 아이콘과 좁은 화면 overflow를 구현한다.
+1. AppBar 그룹 아이콘과 좁은 화면의 2단계 overflow를 구현한다.
 2. login/logout/exit를 기존 HomePage command에 연결한다.
 3. 품목관리 탭 이동을 연결한다.
 4. 저울 설정, 라벨출력/저울출력 프린터 설정을 HomePageManager controller로 연결한다.
 5. update notice 공용 dialog를 추출해 메뉴에서 연결한다.
-6. 신규 관리·조회 dialog의 공용 `BlockingModelessDialog` open/close, 초기 focus, 중첩 modal/picker pattern을 적용한다.
+6. 전역 top-level dialog coordinator와 신규 관리·조회 dialog의 공용 `BlockingModelessDialog` open/close, 초기 focus, 중첩 modal/picker pattern을 적용한다.
 7. 명시적 draft 저장·조회 command 영역이 필요한 신규 dialog에 공용 command footer를 적용하고, 행 CRUD를 지원하는 dialog에만 실제 지원 command의 visible toolbar/rail pattern을 적용한다.
 
 완료 기준:
@@ -671,8 +685,10 @@ END CATCH
 - `test/app_menu_bar_test.dart`
   - 넓은 화면 그룹 아이콘 3개.
   - 좁은 화면 overflow 1개.
+  - overflow 첫 단계의 그룹 3개와 2단계 command submenu/panel, 좌우키 진입·복귀와 단계별 Esc.
+  - 100%, 125%, 150% Windows display scale에서 popup의 화면 높이 clamp, 세로 scroll, 키보드 focus 항목 자동 reveal.
   - 메뉴 collapse 후 긴 title의 한 줄 ellipsis와 서버 상태/로그인 command 유지.
-  - Tab focus, Enter/Space 열기, 방향키 이동, Enter 실행, Esc 닫기와 그룹 아이콘 focus 복원.
+  - Tab focus, Enter/Space 열기, 방향키 이동, Enter 실행, 메뉴 취소 시 그룹 focus 복원과 dialog 실행 시 내부 초기 focus 인계.
   - 메뉴가 열린 동안 화면 전역 `F12` command 차단, 닫힌 뒤 기존 단축키 복원.
   - tooltip.
   - 비로그인·저권한 상태에서 종료만 남아도 `파일/관리`가 중립적인 `Icons.menu`로 표시.
@@ -685,7 +701,9 @@ END CATCH
   - 서버 상태와 로그아웃 버튼 위치 유지.
 - 각 관리/조회 dialog의 기본 render, filter, draft, save/cancel, 실패 상태.
 - 신규 관리·조회 dialog가 `BlockingModelessDialog`와 `BlockingModelessDialogFrame`을 사용하고 배경 pointer/key 입력을 차단하는지 검증.
-- 같은 command를 연속 실행해도 overlay가 하나만 존재하는지 검증.
+- 같은 command와 서로 다른 command를 연속 실행해도 top-level overlay가 하나만 존재하고 기존 dialog에 focus되는지 검증.
+- top-level dialog 종료 후 originating AppBar control로 focus가 복원되고 trigger가 사라졌을 때 fallback control로 이동하는지 검증.
+- clean/dirty/write-busy dialog가 열린 상태에서 메뉴 종료와 OS 창 닫기가 같은 coordinator 경로를 사용하고 확인창을 중복 표시하지 않는지 검증.
 - Esc가 활성 셀 편집 취소, 다중 선택 해제, dialog 닫기 요청 순서로 한 단계씩 처리되고 일반 단일 행 선택에서는 바로 닫기 요청으로 이어지는지 검증.
 - dirty 닫기 확인, write busy 중 닫기 비활성화, read busy 중 취소/닫기, 저장 실패 후 dialog/draft 유지 검증.
 - table dialog와 form-only dialog의 초기 focus와 Tab 순서, Enter 셀 편집 확정, 중첩 확인창·date/time picker 종료 후 원래 control/table cell focus 복원을 검증.
@@ -731,7 +749,8 @@ flutter test test/scale_output_test.dart
 - [ ] 현재 로그인/등급 policy의 비노출 command와 legacyInactive는 숨김, transient dirty/busy는 사유가 있는 비활성 상태로 표시됨.
 - [ ] 로그인/로그아웃은 `파일/관리` popup에 중복되지 않고 현재 상태의 AppBar 고정 아이콘 하나로만 표시됨.
 - [ ] 사용자 관리와 지점 관리의 `OnEnableManager` visibility policy 및 `MANAGER_USER` 숨김이 검증됨.
-- [ ] AppBar menu의 키보드 탐색, 닫기 후 focus 복원, 열린 동안 전역 단축키 차단이 검증됨.
+- [ ] AppBar menu의 키보드 탐색, 메뉴 취소 시 trigger focus 복원, dialog 실행 시 내부 focus 인계, 열린 동안 전역 단축키 차단이 검증됨.
+- [ ] 통합 overflow는 3개 그룹의 2단계 구조이며 높이 clamp·scroll·focus reveal·단계별 Esc가 검증됨.
 - [ ] `파일/관리`는 종료만 남는 상태에서도 관리자 전용으로 오인되지 않는 중립 아이콘을 사용함.
 - [ ] 라벨출력/저울출력 프린터 설정은 명시적인 별도 command이며 현재 탭에 따라 같은 항목의 의미를 바꾸지 않음.
 - [ ] 편집/busy 차단 정책 확인.
@@ -740,6 +759,9 @@ flutter test test/scale_output_test.dart
 - [ ] 기존 핵심 탭 이동 외에 별도 route page, 신규 메인 탭, native child window를 추가하지 않음.
 - [ ] table/form-only dialog의 초기 focus와 Tab 순서, Esc 편집 취소/다중 선택 해제/닫기 우선순위, 단일 선택 시 즉시 닫기 요청과 focus 이동·복원이 검증됨.
 - [ ] write busy 닫기 차단, read busy 취소/닫기, 중복 overlay 방지, 실패 시 draft 유지가 검증됨.
+- [ ] top-level blocking overlay는 전역 coordinator가 하나만 소유하고 서로 다른 command 요청도 stack/queue하지 않음.
+- [ ] top-level dialog dirty/busy가 메뉴 종료와 OS 창 닫기의 `LifecycleManager` 흐름에 참여하고 확인창을 중복 표시하지 않음.
+- [ ] top-level dialog 실행·종료 시 AppBar trigger와 dialog 초기 control 사이 focus 인계·복원이 검증됨.
 - [ ] footer가 없는 즉시 적용형·단순 설정형 dialog는 실행 control 가까이에 busy 상태를 표시함.
 - [ ] 중첩 확인·경고·date/time picker는 차단형 dialog 위의 공용 overlay helper를 사용하고 원래 control로 focus를 복원함.
 - [ ] dropdown 등 별도 overlay surface는 공용 overlay-safe control을 사용하고 화면별 `OverlayEntry`를 복제하지 않음.
@@ -755,6 +777,7 @@ flutter test test/scale_output_test.dart
 ## 11. 금지 사항
 
 - 동작하지 않는 메뉴를 활성 상태로 먼저 노출하지 않는다.
+- 좁은 화면 overflow에 모든 command를 하나의 긴 평면 목록으로 표시하지 않는다.
 - 미구현 command를 snackbar `준비 중`으로 완료 처리하지 않는다.
 - 레거시 INACTIVE command를 임의 활성화하지 않는다.
 - schema가 없다는 이유로 앱 시작 시 table/column을 자동 생성하지 않는다.
@@ -773,6 +796,8 @@ flutter test test/scale_output_test.dart
 - footer 없는 dialog에서 진행 표시 없이 닫기와 입력만 비활성화하지 않는다.
 - 신규 관리·편집·조회 command를 별도 route page, 신규 메인 탭 또는 Windows native child window로 구현하지 않는다.
 - `BlockingModelessDialog` 안에서 일반 `showDialog`, `showDatePicker`, `showTimePicker`로 중첩 modal을 열지 않는다.
+- 신규 AppBar top-level blocking overlay를 command별로 따로 쌓거나 queue하지 않는다.
+- 신규 dialog dirty/busy를 확인하지 않고 메뉴 종료나 OS 창 닫기를 진행하지 않는다.
 - 차단형 overlay가 열린 동안 뒤쪽 `ScaffoldMessenger` snackbar로 오류나 사용자 action을 요구하지 않는다.
 - 관리·조회용 반복 행 table을 `DataTable`, `Table`, row별 `ListView` 또는 기능별 자체 table widget으로 새로 구현하지 않는다.
 - 테스트를 위해 운영 사용자 권한이나 운영 DB row를 수정하지 않는다.
@@ -784,13 +809,15 @@ flutter test test/scale_output_test.dart
 전체 포팅 완료 시 다음 상태여야 한다.
 
 - AppBar에는 폭에 따라 그룹 아이콘 3개 또는 overflow 메뉴 1개가 표시된다.
+- 통합 overflow는 3개 그룹의 2단계 구조와 화면 높이 clamp·scroll·키보드 reveal을 제공한다.
 - AppBar title은 메뉴 collapse 후에도 공간이 부족하면 한 줄 ellipsis되고 서버 상태와 현재 로그인/로그아웃 command는 유지된다.
-- AppBar menu는 키보드만으로 열기·이동·실행·닫기가 가능하고 닫힌 뒤 원래 그룹 아이콘에 focus가 복원된다.
+- AppBar menu는 키보드만으로 열기·이동·실행·닫기가 가능하다. 메뉴만 취소하면 원래 trigger에 focus가 복원되고 top-level dialog를 실행하면 dialog 내부로 focus가 인계된다.
 - 서버 상태와 로그인/로그아웃 영역은 기존 위치와 동작을 유지한다.
 - 파일/검색/설정의 모든 레거시 command가 inventory와 권한 policy에 존재한다.
 - 현재 동작 기능은 중복 구현 없이 같은 command로 연결된다.
 - 미구현 기능은 실제 `BlockingModelessDialog` 기반 화면, model/DAO, DB 계약과 테스트를 갖는다.
 - 기존 핵심 탭 이동과 기존 owning 설정 dialog를 제외한 신규 관리·편집·조회 화면은 공용 차단형 overlay dialog로 일관되게 열린다.
+- 신규 AppBar top-level blocking overlay는 전역 coordinator가 하나만 소유하고 dirty/busy·종료 요청·AppBar focus 복원을 함께 관리한다.
 - 차단형 dialog의 모든 중첩 modal/picker는 현재 dialog 위에 표시되고, form-only dialog도 첫 활성 입력에 초기 focus가 설정된다.
 - 모든 관리 목록과 조회 결과의 반복 행 table은 공용 `FortuneTable`을 사용한다.
 - 명시적 draft 저장 흐름이 있는 신규 관리 dialog는 공용 command footer를 사용하고, 즉시 적용형·단순 설정형과 기존 owning dialog는 필요한 command 영역만 유지한다. 행 CRUD dialog만 실제 지원 command의 visible toolbar/rail을 사용한다.

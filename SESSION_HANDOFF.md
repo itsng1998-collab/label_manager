@@ -7,6 +7,12 @@
 - 이 파일에는 현재 상태, 최근 완료 항목, 검증, 다음 액션만 기록한다.
 
 ## 현재 상태
+- 완료: [doc/app_menu_porting.txt] 5차 UX 재검토 권장안 4건을 병합했다. 통합 overflow의 2단계 탐색·세로 제약, top-level overlay 전역 단일 소유, 신규 dialog dirty/busy 종료 연동, AppBar-dialog focus 인계를 적용했다.
+- 편집 완료: AppBar 반응형·command 구조/소유권·종료 command·공용 dialog 원칙·phase·widget test·체크리스트·금지 사항·최종 완료 기준에 네 권장안을 반영했다.
+- 1차 문서 검증 완료: `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md` 성공, 두 문서 진단 오류 없음. 평면 overflow, command별 top-level overlay, 신규 dialog 종료 누락 문구가 제거됐음을 확인했다.
+- focus 계약 보정 완료: 체크리스트와 최종 완료 기준의 무조건 그룹 focus 복원을 메뉴 취소 시 trigger 복원과 top-level dialog 실행 시 내부 focus 인계로 분리했다. overflow 높이·scroll·focus reveal은 Windows 100%/125%/150% 배율에서 검증하도록 명시했다.
+- 최종 문서 검증 완료: focus/overflow 보정 후 `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md` 재실행 성공, 두 문서 진단 오류 없음. 전체 diff에서 네 UX 권장안과 focus/overflow 계약 보정 외 변경 없음.
+- stage/commit 대상: `doc/app_menu_porting.txt`, `SESSION_HANDOFF.md`만 포함한다. 사용자 소유 변경 `lib/core/app.dart`는 제외한다.
 - 완료: [doc/app_menu_porting.txt] 4차 UX 재검토 권장안 4건을 병합했다. 중첩 modal/picker의 root overlay 처리, form-only 초기 focus, overlay 내부 오류 전달, footer 없는 busy 피드백을 적용했다.
 - 편집 완료: 사용자 접속 이력 계약, 공용 dialog 원칙, 오류 처리, phase, widget test, 체크리스트, 금지 사항, 최종 완료 기준에 네 권장안을 반영했다.
 - 1차 문서 검증 완료: `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md` 성공, 두 문서 진단 오류 없음. 일반 picker/snackbar 허용과 FortuneTable 고정 초기 focus 문구가 제거되고 무표시 busy가 금지됐음을 확인했다.
