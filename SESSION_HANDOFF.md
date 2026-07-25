@@ -13,6 +13,7 @@
 - focus 계약 보정 완료: 체크리스트와 최종 완료 기준의 무조건 그룹 focus 복원을 메뉴 취소 시 trigger 복원과 top-level dialog 실행 시 내부 focus 인계로 분리했다. overflow 높이·scroll·focus reveal은 Windows 100%/125%/150% 배율에서 검증하도록 명시했다.
 - 최종 문서 검증 완료: focus/overflow 보정 후 `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md` 재실행 성공, 두 문서 진단 오류 없음. 전체 diff에서 네 UX 권장안과 focus/overflow 계약 보정 외 변경 없음.
 - stage/commit 대상: `doc/app_menu_porting.txt`, `SESSION_HANDOFF.md`만 포함한다. 사용자 소유 변경 `lib/core/app.dart`는 제외한다.
+- 로컬 커밋 완료: `b7713b9` (`앱 메뉴 5차 UX 권장안 병합`).
 - 완료: [doc/app_menu_porting.txt] 4차 UX 재검토 권장안 4건을 병합했다. 중첩 modal/picker의 root overlay 처리, form-only 초기 focus, overlay 내부 오류 전달, footer 없는 busy 피드백을 적용했다.
 - 편집 완료: 사용자 접속 이력 계약, 공용 dialog 원칙, 오류 처리, phase, widget test, 체크리스트, 금지 사항, 최종 완료 기준에 네 권장안을 반영했다.
 - 1차 문서 검증 완료: `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md` 성공, 두 문서 진단 오류 없음. 일반 picker/snackbar 허용과 FortuneTable 고정 초기 focus 문구가 제거되고 무표시 busy가 금지됐음을 확인했다.
