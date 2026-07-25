@@ -7,6 +7,13 @@
 - 이 파일에는 현재 상태, 최근 완료 항목, 검증, 다음 액션만 기록한다.
 
 ## 현재 상태
+- 완료: [doc/app_menu_porting.txt]의 2차 UX 단순화 권장안 5건을 병합했다. 메뉴 포팅과 무관한 native minimum, 별도 전역 dialog coordinator, 선행 공용 footer/date picker helper, 일괄 visible CRUD toolbar, `requiresFurtherInput`과 실제 취소 없는 `조회 취소` 계약을 제거하거나 현재 owning 패턴에 맞게 완화했다.
+- 수정 예정 파일/목적: [doc/app_menu_porting.txt]의 목표 UI, 공용 타입·상태 소유권, 개별 조회 계약, 공용 dialog·관리/조회 원칙, Phase·테스트·체크리스트·금지 사항·최종 완료 기준을 함께 정리한다. [SESSION_HANDOFF.md]에는 편집·검증·commit 단계를 기록한다.
+- 검증 완료: 제거 대상 8개 검색 결과는 0건이고 유지 대상 핵심 계약 8개 표적 검사가 통과했다. `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md` 성공, 두 문서 diagnostics 오류 없음, 전체 diff가 2차 권장안 5건에 한정됨을 확인했다. 문서 변경이므로 Flutter test는 실행하지 않았다.
+- 지시서 편집 완료: 기존 desktop window 초기화는 변경하지 않고 AppBar 폭 대응만 검증하도록 native minimum 계약을 제거했다. `requiresFurtherInput`과 popup `...` 규칙도 삭제하고 기본 한글 label과 실제 shortcut 표시만 유지했다.
+- dialog 소유권 편집 완료: 별도 전역 coordinator 대신 각 owning controller가 동일 dialog 중복 실행과 dirty/busy·종료 상태를 관리한다. footer와 date picker helper는 기존 frame slot/overlay helper를 먼저 사용하고 같은 구조가 둘 이상 반복될 때만 추출하도록 변경했다.
+- 관리·조회 UX 편집 완료: CRUD command는 작업 빈도와 현재 owning 화면에 따라 toolbar, rail 또는 context menu를 선택한다. 취소 불가능한 DB Future에는 `조회 취소`를 노출하지 않고 닫힌 dialog의 늦은 결과만 폐기한다.
+- stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함한다. 사용자 소유 [lib/core/app.dart]는 제외한다.
 - 완료: [doc/app_menu_porting.txt]의 누적 UX 지시를 사용자에게 보이는 결과 중심으로 단순화했다. 권한·dirty/busy 보호·DB 제약·공용 `FortuneTable`·차단 화면 중 전역 단축키 금지는 유지하고, 구체적인 route observer/lease 알고리즘, runtime display 이동 보정, 희귀 focus 예외, 숨김 기능 선행 구현, 중복 테스트·체크리스트는 축소했다.
 - 수정 예정 파일/목적: [doc/app_menu_porting.txt]의 반응형·단축키·focus·legacyInactive·Phase·테스트·체크리스트·금지 사항·최종 완료 기준을 최소 동작 계약으로 정리한다. [SESSION_HANDOFF.md]에는 파일별 편집, 검증, stage/commit 결과를 기록한다.
 - 검증 완료: `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`와 핵심 계약 6개 표적 검사가 통과했다. 제거 대상 구현 용어 검색 결과는 0건이고 두 문서 diagnostics 오류가 없으며, 문서 변경만 수행해 Flutter test는 실행하지 않았다.
