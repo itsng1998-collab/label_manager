@@ -16,6 +16,7 @@
 - 검증 실행 예정: 이전 탭 이동·영양성분 정렬/중복 조사·고정 항목 활성 구현·검색출력 조사 문구 제거와 새 계약 반영을 PowerShell 표적 검사로 확인하고, `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`, 두 문서 diagnostics, 전체 diff와 stage 대상 분리를 검증한다. 문서 변경이므로 Flutter test는 실행하지 않는다.
 - 검증 완료: 이전 모순·조사 문구 5종이 0건이고 새 핵심 계약 8종이 모두 반영됐다. `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`가 통과했고 두 문서 diagnostics 오류가 없으며, 전체 diff가 확정한 다섯 command와 관련 policy·Phase·focused test 계약에 한정됨을 확인했다. 문서 변경이므로 Flutter test는 실행하지 않았다.
 - stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함한다. 사용자 소유 변경 [lib/core/app.dart]는 제외한다.
+- 로컬 커밋 완료: `0bdc266` (`앱 메뉴 14차 레거시 설정 범위 명확화`).
 - 완료: [doc/app_menu_porting.txt]의 검색·치환, 발행내역, 거래처·사용자 관리, 검색출력 설정과 조회 command 권한에서 남은 조사형·포괄형 문구를 레거시 활성 동작으로 고정했다.
 - 사용자 확정: 거래처·사용자 관리의 레거시 `Connect` 기능을 이번 AppBar 포팅 범위에 포함한다. 원래 관리자 보존, 연결 상태, 업무 context 전환과 관리자 접속 로그까지만 포팅하며 다른 경로에서 세션성 관리자 권한을 만들지 않는다.
 - 수정 예정 파일/목적: [doc/app_menu_porting.txt]의 5.1.4, 5.1.6, 5.2.1~5.2.4, 5.2.6, 5.3.11, 6.2와 관련 Phase/test 계약을 실제 레거시 handler/dialog/model/DAO 범위로 명확히 한다. [SESSION_HANDOFF.md]에는 파일별 편집·검증·stage/commit 결과를 기록한다.
