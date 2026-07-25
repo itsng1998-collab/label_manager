@@ -12,6 +12,7 @@
 - 편집 완료: 품목관리/자동품목갱신을 공용 `_itemPreviewSupportedTab`으로 판정하여 두 탭 모두 닫기 애니메이션 대상 슬롯, 복원 버튼 표시, 복원 동작을 사용한다. 툴팁은 각각 `품목관리 미리보기 열기`, `자동품목갱신 미리보기 열기`로 지정했다.
 - 검증 완료: 탭 지원/툴팁 집중 테스트 및 `floating preview hide animation keeps child layout stable` 통과, Dart 포맷 적용, [lib/home_page_manager.dart]와 [test/label_sheet_toolbar_test.dart] 정적 진단 오류 없음, `flutter test test/label_sheet_toolbar_test.dart` 155개 전체 통과.
 - stage/commit 대상: [lib/home_page_manager.dart], [test/label_sheet_toolbar_test.dart], [SESSION_HANDOFF.md]. 사용자 변경 [lib/core/app.dart]는 제외한다.
+- 구현 커밋: `7e2eecf` (`자동갱신 미리보기 복원 버튼 지원`).
 - 완료: 품목관리 `출력내용 미리보기`에서 조정한 확대율이 다른 메인 탭으로 이동했다가 돌아와도 유지되도록 수정했다.
 - 원인: 내부 `주원료 및 함량 ↔ 출력내용 미리보기` 탭 왕복은 keepAlive로 확대율이 유지되지만, 메인 탭 전환 시 `_showItemPreviewWindow`가 floating window child를 새 `_ItemPreviewPanel`로 교체하여 workbench 내부 확대율이 폐기된다.
 - 편집 완료: `_HomePageManagerState`가 `_itemOutputPreviewZoomController`를 소유하고 새 `_ItemPreviewPanel` 및 `_ItemOutputPreviewTab`에 계속 전달한다. 품목관리 세션이 dispose될 때만 controller를 해제한다.
