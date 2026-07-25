@@ -7,7 +7,7 @@
 - 이 파일에는 현재 상태, 최근 완료 항목, 검증, 다음 액션만 기록한다.
 
 ## 현재 상태
-- 완료: 라벨 시트 도킹 개체 패널의 최소 폭과 초기 폭을 상단 상수 `_labelSheetObjectPanelMinWidth`, `_labelSheetObjectPanelInitialWidth`로 정의해 모두 `150.0`으로 통일했다. 관련 파일만 분리 커밋할 예정이다.
+- 완료: 라벨 시트 도킹 개체 패널의 최소 폭과 초기 폭을 상단 상수 `_labelSheetObjectPanelMinWidth`, `_labelSheetObjectPanelInitialWidth`로 정의해 모두 `150.0`으로 통일했다. 기능 커밋 `2f68cdc` 완료.
 - [lib/page_label_sheet/label_sheet_workbench.dart](lib/page_label_sheet/label_sheet_workbench.dart): 초기 상태, 저장 폭 복원, 도킹 폭 계산, 드래그 최소 폭, 더블클릭 초기화를 두 상수 기준으로 변경했다.
 - [test/label_sheet_toolbar_test.dart](test/label_sheet_toolbar_test.dart): 기존 폭 저장 테스트가 초기 폭 150, 드래그 최소 폭 150, 확대 폭 저장, 더블클릭 초기화 150을 검증하도록 보강했다.
 - 검증: 포맷 후 개체 패널 폭 집중 테스트 1개 통과, 수정 Dart 파일 2개 diagnostics 오류 없음. 전체 147개 중 145개 통과, 더보기 관련 2개는 범위 밖 사용자 변경인 `toolbarRightInset` 제거로 `More` 클릭이 줌 툴바에 차단되어 실패했다. 해당 사용자 변경은 unstaged로 유지한다.
