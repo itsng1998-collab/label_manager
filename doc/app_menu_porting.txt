@@ -149,9 +149,13 @@ END CATCH
 - 버튼 출현/소멸로 AppBar 높이나 body 위치가 바뀌지 않게 한다.
 - Tab으로 그룹 아이콘에 focus하고 Enter 또는 Space로 메뉴를 연다. 메뉴 안에서는 위/아래 방향키로 항목을 이동하고 Enter로 실행한다. 통합 overflow에서는 오른쪽/Enter로 그룹에 진입하고 왼쪽/Esc로 한 단계 돌아가며, 첫 단계의 Esc는 메뉴를 닫는다.
 - Esc 또는 바깥 클릭으로 메뉴만 닫으면 원래 그룹 아이콘에 focus를 복원한다. command가 top-level dialog를 열면 그룹 focus 복원을 보류하고 dialog의 초기 control로 focus를 넘긴다.
-- `showDialog`, `showGeneralDialog`, route 기반 popup처럼 `Navigator` route를 추가하는 surface는 호출부마다 lease를 붙이지 않는다. Home 화면의 전역 handler가 `ModalRoute.of(context)?.isCurrent != true`를 중앙에서 확인해 관련 F-key를 소비한다.
-- AppBar menu나 `BlockingModelessDialog`처럼 home route의 current 상태를 바꾸지 않는 `OverlayEntry` blocking surface만 공용 shortcut gate lease를 획득한다. overlay lease는 활성 surface 수를 추적하는 참조 계수형 token으로 구현하고 정상 종료·오류 경로에서 정확히 한 번 release한다.
-- `blocksGlobalShortcuts`는 `homeRouteIsCurrent != true || overlayLeaseCount > 0`으로 계산한다. 중첩 overlay 하나가 닫혀도 바깥 overlay가 남아 있으면 차단을 유지하고, home route가 다시 current이며 마지막 overlay lease가 해제된 뒤에만 단축키를 복원한다. 각 전역 handler는 command 분기 전에 이 상태를 확인하고 F1/F2/F3/F5/F12를 소비한다.
+- `showDialog`, `showGeneralDialog`, route 기반 popup처럼 root `Navigator`에 blocking `ModalRoute`를 추가하는 surface는 호출부마다 lease를 붙이지 않는다. app-scope `NavigatorObserver`가 baseline Home route 위에 활성인 blocking route를 identity set으로 중앙 집계하고 push/pop/remove/replace에서 정확히 갱신한다. `didPop` 즉시 count를 줄이지 않고 reverse transition과 overlay 제거가 완료된 뒤 해당 route identity를 제거해 닫힘 animation 중 단축키가 먼저 복원되지 않게 한다.
+- 현재 `PreviewFloatingWindow`의 `_PreviewFloatingRoute`처럼 장시간 유지되는 non-modal `OverlayRoute`는 blocking route count에 포함하지 않는다. `ModalRoute.of(context)?.isCurrent`만으로 차단 여부를 계산하면 floating preview가 표시된 동안 Home 전역 단축키를 계속 오차단하므로 금지한다.
+- AppBar menu, `BlockingModelessDialog`, `DbReconnectOverlay`처럼 Navigator blocking route를 추가하지 않고 배경 입력을 막는 surface는 구현 방식이 `OverlayEntry`인지 widget tree인지와 관계없이 공용 non-route blocking lease를 획득한다. lease는 활성 surface 수를 추적하는 참조 계수형 token으로 구현하고 정상 종료·오류 경로에서 정확히 한 번 release한다.
+- `blocksGlobalShortcuts`는 `blockingNavigatorRouteCount > 0 || nonRouteBlockingLeaseCount > 0`으로 계산한다. 중첩 surface 하나가 닫혀도 다른 blocking route나 non-route surface가 남아 있으면 차단을 유지하고, 두 count가 모두 0이 된 뒤에만 단축키를 복원한다. 각 전역 handler는 command 분기 전에 이 상태를 확인하고 F1/F2/F3/F5/F12를 소비한다.
+- `DbReconnectOverlay`는 재연결 UI가 실제 표시되는 동안 lease를 하나만 유지하고 숨김·복구·취소로 화면이 제거되면 해제한다. 표시 시 취소 button 같은 최초 활성 control로 focus를 옮기고, 닫힐 때 이전 focus가 아직 유효하면 복원하되 그 사이 열린 상위 modal/dialog의 focus를 빼앗지 않는다.
+- command item을 선택하면 안정 ID와 trigger focus를 먼저 snapshot한 뒤 1단계/2단계 AppBar popup을 모두 제거하고 menu lease 해제와 renderer의 close 완료 신호를 기다린 다음 owning command를 한 번 호출한다. close 완료 신호는 관련 `OverlayEntry` 제거와 menu focus cleanup이 끝난 뒤 완료하며 고정 delay나 임의 1-frame 대기로 대체하지 않는다. popup widget의 `onTap` 안에서 dialog·탭 이동·toggle·종료 command를 즉시 실행하지 않는다.
+- command가 top-level surface를 열면 trigger focus 복원을 보류하고 새 surface의 초기 control로 넘긴다. command가 차단·실패·취소되어 새 surface나 탭 전환이 발생하지 않은 경우에만 살아 있는 원래 trigger 또는 현재 AppBar의 첫 활성 menu control로 focus를 복원한다.
 - 권장 960x640과 이보다 작은 대표 display `visibleSize`, 100%, 125%, 150% Windows display scale, 긴 버전 문자열에서 AppBar와 body의 접근성·overflow를 widget test와 Windows integration/screenshot으로 나눠 확인한다.
 
 ### 3.3 권한 표시 방식
@@ -188,6 +192,11 @@ END CATCH
 - `lib/core/app_menu_policy.dart`
   - 로그인 상태, `UserGrade`, 현재 작업 상태로 command 상태를 계산하는 순수 policy.
   - command 실행은 하지 않는다.
+- `lib/core/global_shortcut_gate.dart` 또는 동등한 app-scope service
+  - baseline Home route 위의 blocking `ModalRoute` identity set과 AppBar menu, `BlockingModelessDialog`, `DbReconnectOverlay` 등 non-route blocking surface가 공유하는 참조 계수형 lease/count를 소유.
+  - 메뉴 controller나 특정 Home widget의 lifecycle에 종속되지 않으며 로그인 전 재연결 UI에서도 사용할 수 있음.
+  - root `NavigatorObserver`를 제공해 route push/pop/remove/replace와 실제 닫힘 완료를 반영하고 `blocksGlobalShortcuts`를 계산함. baseline Home `PageRoute`와 non-modal `OverlayRoute`는 blocking count에서 제외함.
+  - pop 요청과 reverse transition 사이에는 route를 활성 set에 유지하고 `TransitionRoute.completed` 또는 동등한 overlay 제거 완료 신호 뒤에 제거함. 강제 remove/replace와 dispose에서도 stale identity를 남기거나 새 route를 잘못 제거하지 않음.
 - `lib/core/desktop_window_policy.dart`
   - 권장 content minimum 960x640과 target `visibleSize ?? size`로 native `effectiveMinimum`과 초기 bounds를 계산하는 순수 policy.
   - display 조회, `WindowOptions`, window 이동 event 같은 plugin 책임은 소유하지 않는다.
@@ -201,8 +210,8 @@ END CATCH
 - `lib/core/app_menu_controller.dart` 또는 동등한 controller
   - `HomePage` AppBar와 `HomePageManager` command 실행을 연결.
   - controller attach/detach는 기존 controller pattern을 따른다.
-  - home route current 여부와 `OverlayEntry` blocking surface의 참조 계수형 lease를 합산한 `blocksGlobalShortcuts` snapshot 또는 `ValueListenable`을 노출한다.
-  - overlay 전용 acquire/release token API를 제공하고 `Navigator` modal 호출부에는 lease를 요구하지 않는다.
+  - 공용 shortcut gate의 `blocksGlobalShortcuts`를 전역 handler에 제공한다. route set과 non-route lease 소유권을 메뉴 controller 안에 가두지 않는다.
+  - AppBar popup close 완료와 owning command 실행을 직렬화하는 dispatcher를 제공한다. popup renderer나 item callback이 command를 직접 실행하지 않는다.
   - 화면별 private method를 복제하지 않는다.
 - `lib/core/app_menu_dialog_coordinator.dart` 또는 동등한 coordinator
   - 신규 AppBar top-level blocking overlay의 active command ID, `OverlayEntry`, dirty/busy, trigger focus를 한 곳에서 소유.
@@ -224,7 +233,7 @@ END CATCH
 - top-level dialog coordinator가 소유할 상태:
   - 현재 열린 신규 AppBar blocking dialog와 originating command/group focus.
   - dialog dirty/busy와 close/exit 요청.
-  - 자신이 여는 top-level/nested `OverlayEntry`의 shortcut gate lease. `Navigator` modal은 home route current 상태로 감지한다.
+  - 자신이 여는 top-level/nested `OverlayEntry`의 non-route blocking lease. `Navigator` modal은 app-scope observer의 blocking route set으로 감지한다.
   - dialog가 없을 때는 상태를 남기지 않는다.
 - 기존 `showDialog`/`showGeneralDialog` owning command는 AppBar와 원래 화면의 호출 경로를 그대로 공유하며 별도 lease를 소유하지 않는다. 동일 dialog를 coordinator 소유 overlay로 바꾸거나 `BlockingModelessDialog`로 다시 감싸지 않는다.
 - 각 dialog가 소유할 command:
@@ -466,7 +475,7 @@ END CATCH
 - 레거시 observer 흐름에서 mode가 영향을 주는 검색 필드, 출력 대상, 키보드 단축키 `F12`를 확인한다.
 - 단순 bool toggle이라도 mode state는 AppBar widget이 아니라 HomePageManager/controller가 소유한다.
 - popup에서는 command 앞 checkmark로 mode 활성 상태를 표시한다. segmented control은 사용하지 않는다.
-- menu item을 선택하면 controller mode를 변경하고 popup을 닫는다. 메뉴가 닫힌 상태에서 `F12`로 mode가 바뀌어도 다음 popup open 시 controller의 현재 값을 읽어 checkmark를 표시한다.
+- menu item을 선택하면 command ID를 확정하고 AppBar popup과 menu lease가 완전히 닫힌 뒤 controller mode를 변경한다. 메뉴가 닫힌 상태에서 `F12`로 mode가 바뀌어도 다음 popup open 시 controller의 현재 값을 읽어 checkmark를 표시한다.
 - 현재 라벨출력 command와 중복되는 부분은 출력 pipeline을 재사용한다.
 - 레거시와 다른 자동 검색/자동 발행 규칙을 추가하지 않는다.
 
@@ -533,10 +542,11 @@ END CATCH
 
 - AppBar 메뉴에서 새로 여는 관리·편집·조회 화면은 `OverlayEntry`의 root에 `BlockingModelessDialog`를 두고, 실제 창은 `BlockingModelessDialogFrame`으로 구성한다.
 - 공용 wrapper는 구조상 modeless overlay이지만 배경의 pointer/touch와 처리되지 않은 key event를 차단한다. dialog가 열린 동안 배경 탭이나 AppBar command를 조작할 수 있게 우회하지 않는다.
-- widget tree의 key 차단만으로 `HardwareKeyboard.instance.addHandler` 전역 handler가 차단된다고 가정하지 않는다. Home route가 current가 아니거나 `OverlayEntry` blocking lease가 하나라도 활성화된 동안 `blocksGlobalShortcuts`를 먼저 확인해 F1/F2/F3 탭 이동, F5 새로고침, F12 검색출력 mode를 실행하지 않고 해당 전역 key를 소비한다. dialog 내부의 Tab, Enter, Esc와 셀 편집 shortcut은 이 gate 대상에 포함하지 않는다.
+- widget tree의 key 차단만으로 `HardwareKeyboard.instance.addHandler` 전역 handler가 차단된다고 가정하지 않는다. blocking Navigator route 또는 non-route blocking lease가 하나라도 활성화된 동안 `blocksGlobalShortcuts`를 먼저 확인해 F1/F2/F3 탭 이동, F5 새로고침, F12 검색출력 mode를 실행하지 않고 해당 전역 key를 소비한다. dialog 내부의 Tab, Enter, Esc와 셀 편집 shortcut은 이 gate 대상에 포함하지 않는다.
+- `DbReconnectOverlay`처럼 widget tree 안에서 `ModalBarrier`를 렌더링하는 기존 전역 차단 UI도 non-route blocking lease에 참여시킨다. pointer barrier만으로 전역 `HardwareKeyboard` handler나 뒤쪽 focus가 차단된다고 가정하지 않는다.
 - 기존 품목관리·공용라벨관리·라벨출력·자동품목갱신·저울출력처럼 상시 반복 작업으로 이미 존재하는 메인 탭은 그대로 재사용한다. `품목별 정보 편집`처럼 기존 탭으로 이동하는 command에는 dialog를 중복 생성하지 않는다.
 - 로그인, 로그아웃, 종료, 즉시 적용되는 검색출력 mode toggle처럼 별도 편집 화면이 없는 command도 억지로 dialog를 만들지 않는다.
-- 이미 동작하는 저울·프린터 설정 등의 `showDialog`/`showGeneralDialog` owning dialog는 기존 command를 그대로 호출한다. Navigator route가 home route를 가리는 동안 중앙 route 상태가 전역 shortcut을 차단하므로 호출부에 lease를 추가하지 않고, 같은 dialog를 `BlockingModelessDialog`로 한 번 더 감싸거나 coordinator 소유로 이전하지 않는다.
+- 이미 동작하는 저울·프린터 설정 등의 `showDialog`/`showGeneralDialog` owning dialog는 기존 command를 그대로 호출한다. app-scope observer가 해당 blocking `ModalRoute`를 중앙 집계하므로 호출부에 lease를 추가하지 않고, 같은 dialog를 `BlockingModelessDialog`로 한 번 더 감싸거나 coordinator 소유로 이전하지 않는다.
 - 신규 관리·편집·조회 기능은 별도 `Navigator` route page, 새 메인 탭 또는 Windows native child window로 구현하지 않는다. 예외가 필요하면 장시간 상시 작업이어야 하며 근거와 영향 범위를 `SESSION_HANDOFF.md`에 기록하고 별도 승인 후 진행한다.
 - 중첩 확인창·picker를 제외한 신규 AppBar top-level blocking overlay는 command 종류와 관계없이 앱 전체에서 하나만 존재해야 한다. 같은 command나 다른 command가 다시 요청되면 새 entry를 쌓거나 queue하지 않고 기존 dialog에 focus한다.
 - 작은 기존 설정 dialog는 현재 크기를 유지하되 화면보다 커지지 않도록 clamp한다.
@@ -625,14 +635,19 @@ END CATCH
 3. 품목관리 탭 이동을 연결한다.
 4. 저울 설정, 라벨출력/저울출력 프린터 설정을 HomePageManager controller로 연결한다.
 5. update notice 공용 dialog를 추출해 메뉴에서 연결한다.
-6. 전역 top-level dialog coordinator와 신규 관리·조회 dialog의 공용 `BlockingModelessDialog` open/close, 초기 focus, 중첩 modal/picker pattern을 적용한다. Navigator surface는 home route current 상태로, `OverlayEntry` blocking surface는 참조 계수형 lease로 감지해 합산한 `blocksGlobalShortcuts`를 모든 전역 F1/F2/F3/F5/F12 handler에 연결한다.
-7. `HomePageManager`의 기존 출력·연결·저장 busy, 활성 편집, 품목·자동갱신·공용라벨 dirty를 단일 로그아웃/종료 guard로 노출하고 top-level dialog coordinator 뒤의 공용 lifecycle 순서에 연결한다.
-8. 명시적 draft 저장·조회 command 영역이 필요한 신규 dialog에 공용 command footer를 적용하고, 행 CRUD를 지원하는 dialog에만 실제 지원 command의 visible toolbar/rail pattern을 적용한다.
+6. app-scope shortcut gate와 root `NavigatorObserver`를 추가한다. baseline Home 위의 blocking `ModalRoute`만 identity set으로 집계하고 `PreviewFloatingWindow`의 non-modal `OverlayRoute`는 제외하며, AppBar menu·modeless overlay·`DbReconnectOverlay`는 non-route blocking lease로 합산한 `blocksGlobalShortcuts`를 모든 전역 F1/F2/F3/F5/F12 handler에 연결한다.
+7. 전역 top-level dialog coordinator와 신규 관리·조회 dialog의 공용 `BlockingModelessDialog` open/close, 초기 focus, 중첩 modal/picker pattern을 적용한다.
+8. AppBar menu dispatcher가 command ID/trigger snapshot, 전체 popup close, menu lease release와 renderer close 완료 대기, owning command 1회 실행, 결과별 focus 인계·복원을 순서대로 수행하게 한다.
+9. `HomePageManager`의 기존 출력·연결·저장 busy, 활성 편집, 품목·자동갱신·공용라벨 dirty를 단일 로그아웃/종료 guard로 노출하고 top-level dialog coordinator 뒤의 공용 lifecycle 순서에 연결한다.
+10. 명시적 draft 저장·조회 command 영역이 필요한 신규 dialog에 공용 command footer를 적용하고, 행 CRUD를 지원하는 dialog에만 실제 지원 command의 visible toolbar/rail pattern을 적용한다.
 
 완료 기준:
 - 기존 화면 버튼과 AppBar 메뉴가 같은 owning command를 호출함.
 - 편집 차단을 우회하지 않음.
 - 신규 관리·조회 command가 별도 route page, 새 메인 탭 또는 native child window를 만들지 않음.
+- AppBar popup이 완전히 닫히기 전에 owning command가 실행되지 않고 command당 한 번만 실행됨.
+- 재연결 차단 UI가 표시되는 동안 전역 F-key와 배경 focus 이동이 차단됨.
+- floating preview `OverlayRoute`만 표시된 상태에서는 기존 Home 전역 F-key가 오차단되지 않음.
 - 권장 960x640과 이보다 작은 target `visibleSize`, Windows 100%/125%/150% 배율에서 AppBar와 현재 핵심 탭의 주요 command에 접근할 수 있고 native minimum이 작업 영역을 넘지 않음.
 - clean 로그아웃/종료에는 일반 확인창이 없고, 기존 메인 탭 busy/activeEditing/dirty가 신규 dialog 상태와 같은 lifecycle 순서로 처리됨.
 - wide/narrow widget test 통과.
@@ -701,6 +716,11 @@ END CATCH
   - legacy command ID provenance와 프린터 설정 1→2 command mapping.
   - 권한 matrix.
   - 로그인/편집/busy/inactive 상태.
+- `test/global_shortcut_gate_test.dart`
+  - baseline Home route 제외, blocking `ModalRoute` push/pop/remove/replace identity set 집계.
+  - non-modal floating `OverlayRoute` 제외와 중첩 non-route lease 참조 계수.
+  - route count와 lease count를 합산한 `blocksGlobalShortcuts` 및 중복 release 방지.
+  - blocking route reverse transition 중 차단 유지와 실제 overlay 제거 완료 후 복원.
 - 각 신규 model/DAO codec test.
 - transaction SQL에 `BEGIN TRANSACTION`, `COMMIT`, `IF @@TRANCOUNT > 0 ROLLBACK`, `THROW`가 존재하는지 집중 검증.
 - compatibility 100 금지 함수 미사용 검증.
@@ -717,6 +737,7 @@ END CATCH
   - 메뉴 collapse 후 긴 title의 한 줄 ellipsis와 서버 상태/로그인 command 유지.
   - Tab focus, Enter/Space 열기, 방향키 이동, Enter 실행, 메뉴 취소 시 그룹 focus 복원과 dialog 실행 시 내부 초기 focus 인계.
   - 메뉴가 열린 동안 `HardwareKeyboard` 화면 전역 F1/F2/F3/F5/F12 command 차단, 닫힌 뒤 기존 단축키 복원.
+  - command ID/trigger snapshot 후 1단계/2단계 popup 전체 제거, menu lease 해제와 renderer close 완료, owning command 1회 실행 순서. dialog command는 내부 focus로 인계하고 차단·실패·취소된 command만 살아 있는 trigger로 복원.
   - tooltip.
   - 비로그인·저권한 상태에서 종료만 남아도 `파일/관리`가 중립적인 `Icons.menu`로 표시.
   - separator와 command label.
@@ -730,7 +751,9 @@ END CATCH
   - 서버 상태와 로그아웃 버튼 위치 유지.
 - 각 관리/조회 dialog의 기본 render, filter, draft, save/cancel, 실패 상태.
 - 신규 관리·조회 dialog가 `BlockingModelessDialog`와 `BlockingModelessDialogFrame`을 사용하고 배경 pointer/key 입력을 차단하는지 검증.
-- route 기반 popup, 기존 저장·삭제·검색·로그아웃 확인, 라벨출력/저울출력 프린터 설정과 저울 연결 설정이 열린 동안 home route `isCurrent=false`로 `HardwareKeyboard` 전역 F1/F2/F3/F5/F12를 차단하는지 검증한다. AppBar menu와 top-level/nested `OverlayEntry`는 참조 계수 lease로 차단하고 중첩 overlay 하나만 닫히면 유지한다. home route가 다시 current이고 마지막 overlay lease가 정상·오류로 해제된 뒤 복원하며, dialog 내부 Tab/Enter/Esc와 셀 편집 shortcut은 유지한다.
+- route 기반 popup, 기존 저장·삭제·검색·로그아웃 확인, 라벨출력/저울출력 프린터 설정과 저울 연결 설정의 blocking `ModalRoute`가 활성인 동안 `HardwareKeyboard` 전역 F1/F2/F3/F5/F12를 차단하는지 검증한다. AppBar menu, top-level/nested `OverlayEntry`, widget-tree `DbReconnectOverlay`는 참조 계수형 non-route blocking lease로 차단하고 중첩 surface 하나만 닫히면 유지한다. 마지막 blocking route와 lease가 정상·오류로 제거된 뒤 복원하며, dialog 내부 Tab/Enter/Esc와 셀 편집 shortcut은 유지한다.
+- 품목/공용라벨 floating preview의 non-modal `OverlayRoute`만 표시된 상태에서는 Home F1/F2/F3/F5/F12가 기존 조건대로 동작하고, 그 위에 실제 popup/dialog를 열었을 때만 차단되는지 검증한다.
+- `DbReconnectOverlay` 표시 중 pointer와 전역 F1/F2/F3/F5/F12가 뒤쪽 화면에 도달하지 않고 최초 활성 control로 focus가 이동하는지 검증한다. 복구·취소 후 이전 focus를 복원하되 재연결 중 새로 열린 상위 modal/dialog focus는 덮어쓰지 않고, 상태가 반복 갱신돼도 lease를 중복 획득하거나 음수로 해제하지 않는지 확인한다.
 - `test/desktop_window_policy_test.dart`에서 권장 960x640보다 큰/같은/작은 `visibleSize ?? size`별 `effectiveMinimum`과 초기 bounds clamp를 검증한다. desktop window lifecycle test는 display 변경 후 minimum 계산값이 달라질 때만 runtime `setMinimumSize`를 한 번 적용하고, minimum이 같아도 bounds가 새 작업 영역 밖이면 clamp하며 이미 안이면 이동시키지 않는지 검증한다. 실제 `window_manager` 최소 크기와 100%/125%/150% multi-monitor 이동은 Windows integration 또는 screenshot으로 확인하며 widget test만으로 native DPI 동작을 완료 처리하지 않는다.
 - 같은 command와 서로 다른 command를 연속 실행해도 top-level overlay가 하나만 존재하고 기존 dialog에 focus되는지 검증.
 - top-level dialog 종료 후 originating AppBar control로 focus가 복원되고 trigger가 사라졌을 때 fallback control로 이동하는지 검증.
@@ -781,7 +804,10 @@ flutter test test/scale_output_test.dart
 - [ ] 현재 로그인/등급 policy의 비노출 command와 legacyInactive는 숨김, transient dirty/busy는 사유가 있는 비활성 상태로 표시됨.
 - [ ] 로그인/로그아웃은 `파일/관리` popup에 중복되지 않고 현재 상태의 AppBar 고정 아이콘 하나로만 표시됨.
 - [ ] 사용자 관리와 지점 관리의 `OnEnableManager` visibility policy 및 `MANAGER_USER` 숨김이 검증됨.
-- [ ] AppBar menu의 키보드 탐색, 메뉴 취소 시 trigger focus 복원, dialog 실행 시 내부 focus 인계, Navigator route 비활성 상태와 `OverlayEntry` lease를 합산한 `HardwareKeyboard` 전역 F1/F2/F3/F5/F12 차단 및 마지막 surface 종료 후 복원이 검증됨.
+- [ ] AppBar menu의 키보드 탐색, 메뉴 취소 시 trigger focus 복원, dialog 실행 시 내부 focus 인계, app-scope blocking Navigator route set과 non-route blocking lease를 합산한 `HardwareKeyboard` 전역 F1/F2/F3/F5/F12 차단 및 마지막 surface 종료 후 복원이 검증됨.
+- [ ] `PreviewFloatingWindow`의 non-modal `OverlayRoute`는 shortcut gate에서 제외되고 그 위의 실제 modal/popup만 차단함.
+- [ ] AppBar menu 선택은 command ID/trigger snapshot → 전체 popup close → menu lease release/renderer close 완료 → owning command 1회 실행 순서를 따르고 결과에 맞게 focus를 인계 또는 복원함.
+- [ ] `DbReconnectOverlay` 등 widget-tree blocking surface도 shortcut gate lease, 최초 focus, 조건부 이전 focus 복원에 참여함.
 - [ ] `requiresFurtherInput` command의 popup 표시명에만 `...`를 사용하고 단순 공지·안내 dialog에는 사용하지 않으며, 실제 활성 shortcut만 명령명과 분리된 오른쪽 보조 영역과 semantics에 표시함.
 - [ ] 권장 content minimum 960x640, target `visibleSize`로 clamp한 native `effectiveMinimum`, 초기 bounds, display 이동과 100%/125%/150% 배율에서 AppBar·핵심 탭 주요 command 접근성이 검증됨.
 - [ ] 초기 native minimum은 `WindowOptions.minimumSize`로 한 번 적용되고 display 변경 시 계산값이 달라진 경우에만 runtime `setMinimumSize`가 적용되며 bounds는 새 작업 영역 밖일 때만 clamp됨.
@@ -825,7 +851,8 @@ flutter test test/scale_output_test.dart
 - HomePage와 HomePageManager에 같은 업무 command를 중복 구현하지 않는다.
 - 메뉴 widget에서 직접 SQL을 실행하지 않는다.
 - popup 표시명의 `...`나 shortcut을 command별 문자열에 직접 합치거나, `blocksGlobalShortcuts` 확인 없이 화면 전역 `HardwareKeyboard` handler를 추가하지 않는다.
-- `Navigator` modal 호출부마다 shortcut lease를 수동 추가하지 않는다. route 상태가 바뀌지 않는 `OverlayEntry`에만 lease를 사용하고, 중첩 overlay가 남아 있는데 안쪽 surface 종료만으로 차단을 해제하지 않는다.
+- `Navigator` modal 호출부마다 shortcut lease를 수동 추가하지 않는다. route 상태가 바뀌지 않는 AppBar menu·`OverlayEntry`·widget-tree blocking surface에만 non-route blocking lease를 사용하고, 중첩 surface가 남아 있는데 하나의 종료만으로 차단을 해제하지 않는다.
+- AppBar popup item의 `onTap`에서 owning command를 직접 실행하거나 popup/menu lease가 남은 상태에서 dialog·탭 이동·toggle·종료를 시작하지 않는다.
 - native minimum을 target display의 logical `visibleSize ?? size`보다 크게 설정하지 않는다. 초기 표시 직후 같은 minimum을 중복 적용하거나 display 변경 없이 `setMinimumSize()`로 덮어쓰지 않는다. runtime 호출은 target display 변경으로 계산값이 달라진 경우에만 허용한다. 작은 display를 지원하려고 서버 상태·로그인 command를 숨기지 않는다.
 - 비활성 popup item의 실행 불가 사유를 hover tooltip으로만 제공하지 않는다.
 - 행 CRUD dialog의 지원 command를 우클릭 context menu에서만 제공하지 않는다.
@@ -855,7 +882,8 @@ flutter test test/scale_output_test.dart
 - AppBar title은 메뉴 collapse 후에도 공간이 부족하면 한 줄 ellipsis되고 서버 상태와 현재 로그인/로그아웃 command는 유지된다.
 - AppBar menu는 키보드만으로 열기·이동·실행·닫기가 가능하다. 메뉴만 취소하면 원래 trigger에 focus가 복원되고 top-level dialog를 실행하면 dialog 내부로 focus가 인계된다.
 - AppBar menu는 추가 입력·선택이 필요한 `requiresFurtherInput` command의 popup 표시명에만 `...`를 사용하고 실제 활성 shortcut을 오른쪽 보조 영역과 semantics에 표시한다.
-- Navigator modal로 home route가 current가 아니거나 AppBar menu·신규 `OverlayEntry`의 참조 계수 lease가 활성인 동안 `HardwareKeyboard` 전역 F1/F2/F3/F5/F12의 뒤쪽 command 실행을 막고 마지막 차단 surface의 정상·오류 종료 후에만 복원한다.
+- app-scope observer에 blocking `ModalRoute`가 있거나 AppBar menu·신규 `OverlayEntry`·`DbReconnectOverlay` 같은 non-route blocking surface의 참조 계수 lease가 활성인 동안 `HardwareKeyboard` 전역 F1/F2/F3/F5/F12의 뒤쪽 command 실행을 막고 마지막 차단 surface의 정상·오류 종료 후에만 복원한다. 지속형 floating preview `OverlayRoute`는 차단하지 않는다.
+- AppBar menu command는 전체 popup과 menu lease가 닫힌 뒤 정확히 한 번 실행되며, 새 surface를 열면 그 안으로 focus를 인계하고 열지 못하면 유효한 AppBar trigger로 복원한다.
 - 서버 상태와 로그인/로그아웃 영역은 기존 위치와 동작을 유지한다.
 - 파일/검색/설정의 모든 레거시 command가 inventory와 권한 policy에 존재한다.
 - 현재 동작 기능은 중복 구현 없이 같은 command로 연결된다.

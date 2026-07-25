@@ -7,6 +7,15 @@
 - 이 파일에는 현재 상태, 최근 완료 항목, 검증, 다음 액션만 기록한다.
 
 ## 현재 상태
+- 완료: [doc/app_menu_porting.txt] 10차 UX 재검토 권장안 3건을 병합했다. `DbReconnectOverlay` 같은 widget-tree blocking surface를 전역 shortcut gate와 focus lifecycle에 포함하고, AppBar menu는 popup/lease가 완전히 닫힌 뒤 owning command를 실행하도록 순서를 고정했으며, floating preview `OverlayRoute`가 Home 단축키를 오차단하지 않도록 route current 추정을 blocking route observer 집계로 교체했다.
+- 수정 예정 파일/목적: [doc/app_menu_porting.txt]의 반응형·키보드 계약, command controller/dispatcher 상태 소유권, 검색출력 mode, 공용 dialog, Phase·widget test·체크리스트·금지 사항·최종 완료 기준을 함께 갱신한다. [SESSION_HANDOFF.md]에는 편집·검증·commit 단계를 기록한다.
+- 검증 범위: 필수 문구 표적 검사, `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`, 두 문서 diagnostics, 전체 diff 및 stage 파일 분리를 확인했다. 문서 변경이므로 Flutter test는 실행하지 않았다.
+- shortcut gate 편집 완료: app-scope `global_shortcut_gate`가 baseline Home 위의 blocking `ModalRoute` identity set과 non-route blocking lease를 합산한다. `DbReconnectOverlay`는 표시 transition에서 lease·초기 focus·조건부 focus 복원을 관리하고, 지속형 `_PreviewFloatingRoute`는 blocking count에서 제외한다.
+- route lifecycle 편집 완료: root `NavigatorObserver`가 push/pop/remove/replace를 추적하되 `didPop` 즉시 count를 줄이지 않고 reverse transition/overlay 제거 완료 후 route identity를 제거한다. 강제 remove/replace/dispose의 stale identity 방지와 focused test를 명시했다.
+- menu dispatcher 편집 완료: command ID/trigger snapshot → 1·2단계 popup 제거 → menu lease 해제 및 renderer close 완료 신호 → owning command 1회 실행 → 결과별 focus 인계/복원 순서로 고정하고 popup `onTap` 직접 실행과 고정 delay를 금지했다.
+- 표적 문서 검증 완료: non-route gate·재연결 lease/focus·close-before-dispatch 7개 검사, app-scope gate/renderer close 경계 8개 검사, blocking route 분류 9개 검사, route 닫힘 lifecycle 5개 검사가 모두 통과했다. `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`도 성공했다.
+- 최종 문서 검증 완료: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md] diagnostics 오류 없음. 전체 diff가 10차 권장안 3건과 관련 구현·테스트·체크리스트 계약에 한정됨을 확인했다.
+- stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함한다. 사용자 소유 변경 [lib/core/app.dart]는 제외한다.
 - 완료: [doc/app_menu_porting.txt] 9차 UX 재검토 권장안 3건을 병합했다. 기존 탭의 출력·연결·저장 busy와 활성 편집을 로그아웃/종료 guard에 포함하고, display 이동 시 변경된 native minimum의 런타임 적용을 허용하며, clean 로그아웃에는 일반 확인창을 추가하지 않도록 계약을 명확히 했다.
 - 수정 예정 파일/목적: [doc/app_menu_porting.txt]의 반응형 window policy, command 상태 소유권, 로그아웃/종료 순서, Phase·테스트·체크리스트·금지 사항·최종 완료 기준을 함께 갱신한다. [SESSION_HANDOFF.md]에는 편집·검증·commit 단계를 기록한다.
 - 검증 범위: 필수 문구 표적 검사, `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`, 두 문서 diagnostics, stage 파일 분리를 확인했다. 문서 변경이므로 Flutter test는 실행하지 않았다.
