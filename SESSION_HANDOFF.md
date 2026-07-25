@@ -13,6 +13,7 @@
 - 계약 보정 완료: private overlay dropdown 구현을 신규 화면에서 복제하지 않고 공용 overlay-safe control로 추출하도록 명시하고 z-order·경계 clamp·선택·닫기 테스트를 추가했다.
 - 최종 문서 검증 완료: overlay surface 보정 후 `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md` 재실행 성공, 두 문서 진단 오류 없음. 전체 diff에서 네 UX 권장안과 공용 overlay-safe dropdown 보정 외 변경 없음.
 - stage/commit 대상: `doc/app_menu_porting.txt`, `SESSION_HANDOFF.md`만 포함한다. 사용자 소유 변경 `lib/core/app.dart`는 제외한다.
+- 로컬 커밋 완료: `5c9fe30` (`앱 메뉴 4차 UX 권장안 병합`).
 - 완료: [doc/app_menu_porting.txt] 3차 UX 재검토 권장안 4건을 병합했다. 공용 footer 적용 범위 축소, 프린터 설정 command 명시적 분리, Esc의 다중 선택 한정, `파일/관리` 중립 아이콘을 적용했다.
 - 편집 완료: UX 원칙·개별 command 계약·phase·widget test·체크리스트·금지 사항·최종 완료 기준에 네 권장안을 반영했다.
 - 1차 문서 검증 완료: `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md` 성공, 두 문서 진단 오류 없음, 이전 포괄 footer/일반 선택 Esc/문맥 의존 프린터/관리자 전용 파일 아이콘 문구 검색 결과 없음.
