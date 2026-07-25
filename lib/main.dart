@@ -67,7 +67,7 @@ Future<void> main(List<String> args) async {
     MaterialApp(
       debugShowCheckedModeBanner: false,
       localizationsDelegates: GlobalMaterialLocalizations.delegates,
-      supportedLocales: GlobalMaterialLocalizations.supportedLocales,
+      supportedLocales: kMaterialSupportedLanguages.map(Locale.new),
       builder: (context, child) =>
           withLabelManagerCompactUi(context, DbReconnectOverlay(child: child)),
       home: const HomePage(),

@@ -438,7 +438,6 @@ class _CommonLabelTable extends StatefulWidget {
   final List<TColumnBase> columns;
   const _CommonLabelTable({required this.columns});
 
-  static const List<double> _baseWidths = [120, 120, 70];
   static const List<String> _baseHeaders = ['키워드', '이름', '필수등록'];
 
   static String _headerTitle(int idx) => _baseHeaders[idx];

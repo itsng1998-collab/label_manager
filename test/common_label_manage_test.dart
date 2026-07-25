@@ -35,6 +35,7 @@ TColumn _storedColumn(
     keyword: keyword,
     columnName: columnName ?? keyword,
     useMissingKeywordCheck: false,
+    useMinColumnCheck: false,
     columnId: 1,
     labelSizeId: 10,
     order: 1,

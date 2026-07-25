@@ -1008,6 +1008,7 @@ TColumn _column(int id, String name) {
     keyword: name,
     columnName: name,
     useMissingKeywordCheck: false,
+    useMinColumnCheck: false,
     columnId: id,
     labelSizeId: 4,
     order: 1,

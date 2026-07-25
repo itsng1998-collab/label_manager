@@ -18,6 +18,7 @@ TColumn _column(int id, String keyword, {int order = 1}) => TColumn(
   keyword: keyword,
   columnName: keyword,
   useMissingKeywordCheck: false,
+  useMinColumnCheck: false,
   columnId: id,
   labelSizeId: 10,
   order: order,
