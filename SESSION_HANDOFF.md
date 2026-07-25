@@ -17,6 +17,7 @@
 - 검증 실행 예정: 이전 모호 문구 제거와 새 계약 반영을 표적 검색하고, `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`, 두 문서 diagnostics, 전체 diff와 stage 대상 분리를 확인한다. 문서 변경이므로 Flutter test는 실행하지 않는다.
 - 검증 완료: 이전 모호·오류 문구 6종이 0건이고 새 권한·selector·이더넷·공지·설정 위임 계약이 21개 지점에 반영됐다. 이더넷은 inventory·숨김 policy·Phase 5·focused test에만 남으며 `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`가 통과했다. 두 문서 diagnostics 오류가 없고 전체 diff가 10차 권장안 5건과 사용자 확정 공지 범위에 한정됨을 확인했다. 문서 변경이므로 Flutter test는 실행하지 않았다.
 - stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함한다. 사용자 소유 변경 [lib/core/app.dart]는 제외한다.
+- 로컬 커밋 완료: `af5e56d` (`앱 메뉴 10차 지시서 명확화 권장안 병합`).
 - 완료: [doc/app_menu_porting.txt]의 9차 명확화 권장안 4건을 병합했다. commit 결과 불명·commit 후 reload 실패를 일반 저장 실패와 구분하고, transaction 제어는 공용 `DbClient.transaction` test가 소유하며, 실제 server integration은 명시적 opt-in과 비운영 CRUD 조건으로 제한한다.
 - 사용자 확정: 신규 dialog와 기존 메인 탭이 함께 dirty이면 로그아웃·메뉴 종료·OS 종료 요청에서 전체 dirty를 한 번의 통합 확인으로 처리한다. 각 owner는 상태와 폐기 callback을 소유하고 `LifecycleManager` 종료 흐름은 해당 요청 동안 실제 dirty 요약·callback만 수집하며 범용 dialog coordinator로 확장하지 않는다.
 - 수정 예정 파일/목적: [doc/app_menu_porting.txt]의 transaction 결과 경계·테스트 책임, lifecycle 상태 소유권·로그아웃/종료·공용 dialog·Phase/test/완료 기준, integration test 실행 조건을 명확히 한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
