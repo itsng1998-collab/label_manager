@@ -7,6 +7,12 @@
 - 이 파일에는 현재 상태, 최근 완료 항목, 검증, 다음 액션만 기록한다.
 
 ## 현재 상태
+- 완료: [doc/app_menu_porting.txt] 7차 UX 재검토 권장안 3건을 병합했다. 기존 owning dialog까지 포함하는 참조 계수형 전역 shortcut 차단 lease, 지원 최소 창 크기 960x640 logical px, 추가 입력 여부를 정확히 나타내는 `requiresFurtherInput` metadata로 계약을 보정했다.
+- 편집 완료: 반응형 기준에 `windowManager.setMinimumSize(const Size(960, 640))`와 배율별 AppBar/body 검증을 추가했다. `opensDialog`를 `requiresFurtherInput`으로 교체하고 단순 공지·안내 dialog에는 `...`를 붙이지 않으며, AppBar menu·신규 overlay·기존 프린터/저울 owning dialog가 공용 shortcut gate lease를 acquire하고 `finally`에서 release하도록 command 구조·상태 소유권·공용 dialog·Phase·widget test·체크리스트·금지 사항·최종 완료 기준을 갱신했다.
+- 집중 문서 검증 완료: `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md` 성공. PowerShell 필수 계약 검사에서 `requiresFurtherInput`, 최소 창 API/배율 검증, 참조 계수형 lease, 기존 dialog `finally` 해제, 중첩 lease 유지, 공지 `...` 제외가 모두 확인됐고 `opensDialog` 잔존은 없다.
+- lease 소유권 보정 완료: 기존 설정 dialog의 AppBar·원래 탭 버튼 진입점이 공유하는 `_open...Settings()` owning command method에서 lease를 한 번만 획득하도록 명시했다. 두 진입점의 동일 gate 사용, 중복 acquire 금지, `finally` 해제 표적 검사가 모두 통과했다.
+- 최종 문서 검증 완료: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md] 진단 오류 없음. 전체 diff에서 세 UX 권장안과 lease 소유권 보정 외 변경이 없음을 확인했다.
+- stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함한다. 사용자 소유 변경 [lib/core/app.dart]는 제외한다.
 - 완료: [doc/app_menu_porting.txt] 6차 UX 재검토 권장안 3건을 병합했다. 차단형 overlay가 열린 동안 `HardwareKeyboard` 전역 F1/F2/F3/F5/F12를 공용 coordinator/controller 상태로 차단하고, 실제 활성 shortcut의 우측 hint와 별도 입력 dialog를 여는 popup label의 `...` 표기 계약을 추가했다.
 - 편집 완료: AppBar 표시 원칙에 dialog-opening `...`와 shortcut 보조 영역을 추가하고, `AppMenuCommand`의 optional `shortcutLabel`/`opensDialog`, `blocksGlobalShortcuts` 상태 소유권, widget-level key 차단과 전역 handler의 차이를 command 구조·공용 dialog·phase·widget test·체크리스트·금지 사항·최종 완료 기준에 반영했다.
 - 집중 문서 검증 완료: `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md` 성공. PowerShell 필수 계약 검사에서 `shortcutLabel`, `opensDialog`, `blocksGlobalShortcuts`, F1/F2/F3/F5/F12, dialog `...`, shortcut semantics가 모두 확인됐고 이전 F12 단독 차단 문구는 제거됐다.
