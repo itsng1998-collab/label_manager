@@ -13,6 +13,7 @@
 - 계약 보정 완료: `AppMenuCommandId`를 Flutter owning action 기준으로 정의하고 legacy ID를 별도 provenance로 분리해 프린터 설정 1→2 mapping을 허용했다. footer가 없는 화면의 Tab 순서도 존재하는 command 영역만 포함하도록 정리했다.
 - 최종 문서 검증 완료: 계약 보정 후 `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md` 재실행 성공, 두 문서 진단 오류 없음. 전체 diff에서 네 UX 권장안과 command/focus 계약 보정 외 변경 없음.
 - stage/commit 대상: `doc/app_menu_porting.txt`, `SESSION_HANDOFF.md`만 포함한다. 사용자 소유 변경 `lib/core/app.dart`는 제외한다.
+- 로컬 커밋 완료: `6bde37b` (`앱 메뉴 3차 UX 권장안 병합`).
 - 완료: [doc/app_menu_porting.txt] 최종 UX 재검토 권장안 3건을 병합했다. 로그인/로그아웃은 inventory/controller에 유지하되 `파일/관리` popup에서 숨기고 AppBar 오른쪽 고정 아이콘을 유일한 노출 위치로 정했다. 종료는 popup에 유지한다.
 - 관리 dialog UX 보정 완료: visible toolbar/rail은 모든 관리창이 아니라 행 CRUD dialog에만 적용하고 실제 지원 command만 표시한다. 비CRUD dialog와 지원하지 않는 command에는 CRUD button을 렌더링하지 않는다.
 - 사용자 관리 권한 완료: 지점 관리와 동일하게 실제 `OnEnableManager`의 `IsSystemAdmin`/`IsCoopAdmin`/`IsAdminConnect`/`IsCoopAdminConnect` 조건을 명시하고 `MANAGER_USER` 숨김을 테스트로 고정했다. Flutter의 session-connect 조건은 신뢰 가능한 상태가 포팅된 경우에만 허용한다.
