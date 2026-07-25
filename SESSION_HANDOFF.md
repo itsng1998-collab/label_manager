@@ -15,6 +15,7 @@
 - 집중 검증: `flutter test test/label_sheet_toolbar_test.dart --plain-name "linear barcode raw buffer restores native matrix row width"` 통과. 실제 encoder 통합 테스트는 Flutter 테스트 프로세스에서 `flutter_zxing.dll`을 로드하지 못해 제거했으며 제품 앱의 DLL 로드 경로와는 별개다.
 - 전체 검증: `flutter test test/label_sheet_toolbar_test.dart` 148개 전체 통과. 수정 Dart 파일 정적 진단 오류 없음.
 - 로그 버전: `FSDBG-2026-07-25-barcode-native-width-v32`. 사용자 재검증 로그에서 이 문자열로 수정 버전 로드 여부를 확인한다.
+- 기능 커밋: `93af7d5` (`바코드 네이티브 행 폭 디코딩 수정`). 원격 push 및 배포 빌드는 수행하지 않았다.
 - 완료: 현재 Flutter SDK에 없는 `GlobalMaterialLocalizations.supportedLocales` 사용을 공개 상수 `kMaterialSupportedLanguages` 기반 locale 목록으로 교체하고, `TColumn` 생성자 계약 변경으로 누락된 테스트 fixture의 `useMinColumnCheck`를 보완했다.
 - 수정 파일: `lib/main.dart`, `test/automatic_item_update_page_test.dart`, `test/common_label_manage_test.dart`, `test/label_column_edit_dialog_test.dart`, `test/label_column_edit_test.dart`, `test/label_column_save_test.dart`. fixture 값은 기존 기본 동작을 유지하도록 `false`를 사용한다.
 - 검증: 요청된 6개 파일의 LSP 오류 없음. `automatic_item_update_page_test.dart`, `common_label_manage_test.dart`, `label_column_edit_test.dart`, `label_column_save_test.dart` 합계 52개 통과. `label_column_edit_dialog_test.dart`는 17개 통과, 기존 드래그/애니메이션 동작 4개 실패로 이번 생성자 인자 보완과 무관하다.
