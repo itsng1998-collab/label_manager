@@ -3602,7 +3602,7 @@ class _HomePageManagerState extends State<HomePageManager> {
   }
 
   void _restoreItemPreviewWindow() {
-    if (_selectedTabValue() != 'items') return;
+    if (!_itemPreviewSupportedTab(_selectedTabValue())) return;
     _itemPreviewClosedByUser = false;
     setState(() {});
     _showItemPreviewWindow();
@@ -5310,6 +5310,7 @@ class _HomePageManagerState extends State<HomePageManager> {
     final button = _PreviewRestoreButton(
       key: _commonLabelPreviewButtonKey,
       visible: shouldShow,
+      tooltip: '공용라벨 미리보기 열기',
       onPressed: _restoreCommonLabelPreviewWindow,
     );
     if (!shouldKeepSlot) {
@@ -5325,7 +5326,8 @@ class _HomePageManagerState extends State<HomePageManager> {
   }
 
   Widget _buildItemPreviewButton(BuildContext context) {
-    final selected = _selectedTabValue() == 'items';
+    final selectedTabValue = _selectedTabValue();
+    final selected = _itemPreviewSupportedTab(selectedTabValue);
     final window = _itemPreviewWindow;
     final shouldShow =
         selected &&
@@ -5336,6 +5338,7 @@ class _HomePageManagerState extends State<HomePageManager> {
     final button = _PreviewRestoreButton(
       key: _itemPreviewButtonKey,
       visible: shouldShow,
+      tooltip: _itemPreviewRestoreTooltip(selectedTabValue),
       onPressed: _restoreItemPreviewWindow,
     );
     if (!shouldKeepSlot) {
@@ -5563,10 +5566,12 @@ class _PreviewRestoreButton extends StatefulWidget {
   const _PreviewRestoreButton({
     super.key,
     required this.visible,
+    required this.tooltip,
     required this.onPressed,
   });
 
   final bool visible;
+  final String tooltip;
   final VoidCallback onPressed;
 
   @override
@@ -5594,48 +5599,65 @@ class _PreviewRestoreButtonState extends State<_PreviewRestoreButton> {
       maintainState: true,
       maintainAnimation: true,
       maintainSize: true,
-      child: MouseRegion(
-        cursor: SystemMouseCursors.click,
-        onEnter: (_) => setState(() => _hovered = true),
-        onExit: (_) => setState(() {
-          _hovered = false;
-          _pressed = false;
-        }),
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTapDown: (_) => setState(() => _pressed = true),
-          onTapCancel: () => setState(() => _pressed = false),
-          onTapUp: (_) => setState(() => _pressed = false),
-          onTap: widget.onPressed,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 90),
-            width: lmSize(28),
-            height: lmSize(28),
-            decoration: BoxDecoration(
-              color: background,
-              borderRadius: BorderRadius.circular(6),
-              border: Border.all(
-                color: _hovered
-                    ? const Color(0xFF9AA0A6)
-                    : const Color(0xFFCED4DA),
+      child: Tooltip(
+        message: widget.tooltip,
+        child: MouseRegion(
+          cursor: SystemMouseCursors.click,
+          onEnter: (_) => setState(() => _hovered = true),
+          onExit: (_) => setState(() {
+            _hovered = false;
+            _pressed = false;
+          }),
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTapDown: (_) => setState(() => _pressed = true),
+            onTapCancel: () => setState(() => _pressed = false),
+            onTapUp: (_) => setState(() => _pressed = false),
+            onTap: widget.onPressed,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 90),
+              width: lmSize(28),
+              height: lmSize(28),
+              decoration: BoxDecoration(
+                color: background,
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(
+                  color: _hovered
+                      ? const Color(0xFF9AA0A6)
+                      : const Color(0xFFCED4DA),
+                ),
+                boxShadow: _hovered
+                    ? const [
+                        BoxShadow(
+                          color: Color(0x16000000),
+                          blurRadius: 5,
+                          offset: Offset(0, 2),
+                        ),
+                      ]
+                    : null,
               ),
-              boxShadow: _hovered
-                  ? const [
-                      BoxShadow(
-                        color: Color(0x16000000),
-                        blurRadius: 5,
-                        offset: Offset(0, 2),
-                      ),
-                    ]
-                  : null,
+              child: Icon(Icons.preview, size: lmSize(17), color: foreground),
             ),
-            child: Icon(Icons.preview, size: lmSize(17), color: foreground),
           ),
         ),
       ),
     );
   }
 }
+
+bool _itemPreviewSupportedTab(Object? tabValue) =>
+  tabValue == 'items' || tabValue == 'auto_update';
+
+String _itemPreviewRestoreTooltip(Object? tabValue) =>
+  tabValue == 'auto_update' ? '자동품목갱신 미리보기 열기' : '품목관리 미리보기 열기';
+
+@visibleForTesting
+bool debugItemPreviewSupportedTabForTesting(Object? tabValue) =>
+  _itemPreviewSupportedTab(tabValue);
+
+@visibleForTesting
+String debugItemPreviewRestoreTooltipForTesting(Object? tabValue) =>
+  _itemPreviewRestoreTooltip(tabValue);
 
 class _TopControlArea extends StatelessWidget {
   final ValueChanged<Brand?> onBrandChanged;

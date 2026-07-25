@@ -1354,6 +1354,20 @@ void main() {
     );
   });
 
+  test('item preview restore supports item and auto update tabs', () {
+    expect(debugItemPreviewSupportedTabForTesting('items'), isTrue);
+    expect(debugItemPreviewSupportedTabForTesting('auto_update'), isTrue);
+    expect(debugItemPreviewSupportedTabForTesting('label_print'), isFalse);
+    expect(
+      debugItemPreviewRestoreTooltipForTesting('items'),
+      '품목관리 미리보기 열기',
+    );
+    expect(
+      debugItemPreviewRestoreTooltipForTesting('auto_update'),
+      '자동품목갱신 미리보기 열기',
+    );
+  });
+
   test('label sheet toolbar starts with save and print actions', () {
     final settings = labelSheetSettings(
       const FortuneSettings(),
