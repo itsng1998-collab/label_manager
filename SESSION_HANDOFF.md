@@ -14,6 +14,7 @@
 - 검증 완료: 수정 후 신규 집중 테스트 통과, Dart 포맷 적용, [lib/home_page_manager.dart]와 [test/label_sheet_toolbar_test.dart] 정적 진단 오류 없음, `flutter test test/label_sheet_toolbar_test.dart` 153개 전체 통과.
 - 추가 검증 완료: `flutter test test/label_print_session_test.dart test/scale_output_test.dart` 36개 전체 통과.
 - stage/commit 대상: [lib/home_page_manager.dart], [test/label_sheet_toolbar_test.dart], [SESSION_HANDOFF.md]. 사용자 변경 [lib/core/app.dart]는 제외한다.
+- 구현 커밋: `b813435` (`동적 행 높이에 개체 위치 연동`).
 - 완료: 같은 품목의 품목관리/라벨출력/자동품목갱신/저울출력 미리보기가 최신 공용라벨과 동일한 치환 입력을 사용하도록 통일했다.
 - 원인: `LabelOutputPreview.identityKey`가 materialized workbook 내용을 포함하지 않아 keepAlive 화면이 공용라벨 저장 전 workbook을 유지한다. 또한 품목관리는 저장된 `elementRTF` workbook을 쓰지만 라벨출력/저울출력은 `element` 평문으로 재생성하며, 품목관리 baseline 미리보기는 출력 계열의 projected column 값 생성도 사용하지 않는다.
 - 편집 완료: [lib/home_page_manager.dart]의 `_ItemOutputPreviewTab` identity에 최종 materialized workbook fingerprint를 포함했다. `_buildLabelPrintPreview`/`_buildScaleOutputPreview`는 `_itemElementFormStateFor`로 저장된 `elementRTF` workbook을 사용하며, 품목관리 baseline/라벨출력/저울출력의 기본 컬럼 projection은 `_baselineOutputProjectedColumnValues`를 공유한다. 자동품목갱신 draft와 저울의 현재 중량/가격 override는 유지한다.
