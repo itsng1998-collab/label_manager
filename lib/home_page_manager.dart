@@ -117,6 +117,20 @@ bool homeTabTapBlocked({
   _ => false,
 };
 
+bool homeTabVisibleForUser({
+  required Object? tabValue,
+  required bool canEdit,
+}) => switch (tabValue) {
+  'common_label' || 'auto_update' => canEdit,
+  _ => true,
+};
+
+@visibleForTesting
+bool debugHomeTabVisibleForUserForTesting({
+  required Object? tabValue,
+  required bool canEdit,
+}) => homeTabVisibleForUser(tabValue: tabValue, canEdit: canEdit);
+
 @visibleForTesting
 bool debugHomeTabTapBlockedForTesting({
   required Object? currentTabValue,
@@ -3265,7 +3279,10 @@ class _HomePageManagerState extends State<HomePageManager> {
         closable: false,
         keepAlive: true,
       ),
-      if (User.instance?.canAccessCommonLabelManagement == true)
+      if (homeTabVisibleForUser(
+        tabValue: 'common_label',
+        canEdit: User.instance?.canEdit == true,
+      ))
         TabData(
           value: 'common_label',
           text: '공용라벨관리(F2)',
@@ -3323,26 +3340,30 @@ class _HomePageManagerState extends State<HomePageManager> {
           closable: false,
           keepAlive: true,
         ),
-      TabData(
-        value: 'auto_update',
-        text: '자동품목갱신',
-        content: AutoItemUpdatePage(
-          columns: TColumn.datas ?? const <TColumn>[],
-          draftController: _autoItemUpdateDraftController,
-          controller: _autoItemUpdatePageController,
-          onTableRectChanged: _handleItemTableRectChanged,
-          sourceRows: _autoItemUpdateSourceRows(),
-          sourceReady: _autoItemUpdateSourceReady,
-          commandBusy: _autoItemUpdateCommandBusy,
-          canEdit: User.instance?.canEdit == true,
-          onDeleteRows: _deleteAutoItemUpdateRows,
-          onRefresh: _refreshAutoItemUpdateDraft,
-          onCancelDraft: _cancelAutoItemUpdateDraft,
-          onSaveDraft: _saveAutoItemUpdateDraft,
+      if (homeTabVisibleForUser(
+        tabValue: 'auto_update',
+        canEdit: User.instance?.canEdit == true,
+      ))
+        TabData(
+          value: 'auto_update',
+          text: '자동품목갱신',
+          content: AutoItemUpdatePage(
+            columns: TColumn.datas ?? const <TColumn>[],
+            draftController: _autoItemUpdateDraftController,
+            controller: _autoItemUpdatePageController,
+            onTableRectChanged: _handleItemTableRectChanged,
+            sourceRows: _autoItemUpdateSourceRows(),
+            sourceReady: _autoItemUpdateSourceReady,
+            commandBusy: _autoItemUpdateCommandBusy,
+            canEdit: User.instance?.canEdit == true,
+            onDeleteRows: _deleteAutoItemUpdateRows,
+            onRefresh: _refreshAutoItemUpdateDraft,
+            onCancelDraft: _cancelAutoItemUpdateDraft,
+            onSaveDraft: _saveAutoItemUpdateDraft,
+          ),
+          closable: false,
+          keepAlive: true,
         ),
-        closable: false,
-        keepAlive: true,
-      ),
       TabData(
         value: 'scale_output',
         text: '저울출력',
@@ -5367,12 +5388,14 @@ class _HomePageManagerState extends State<HomePageManager> {
       labelSizes,
       _effectiveLabelSize,
     );
-    final settingsEnabled = _selectedTabValue() == 'common_label';
+    final canEdit = User.instance?.canEdit == true;
+    final settingsEnabled = canEdit && _selectedTabValue() == 'common_label';
     final dateSettingsEnabled = _itemManagerDateSettingsEnabled(
       selectedTabValue: _selectedTabValue(),
       hasDateSetup: resolvedLabel?.labelSizeSetup != null,
       commandBusy: _itemDraftCommandBusy,
       draftDirty: _itemDraftController?.isDirty == true,
+      canEdit: canEdit,
     );
 
     final tabbedView = TabbedViewTheme(
@@ -5401,6 +5424,7 @@ class _HomePageManagerState extends State<HomePageManager> {
               onDropdownMenuStateChanged: _handleTopDropdownMenuStateChanged,
               dropdownChangeBlocked: _homeDataContextChangeBlocked,
               onBlockedDropdownTap: _blockHomeDataContextChange,
+              showSettingsControls: canEdit,
               settingsEnabled: settingsEnabled,
               onBrandSettingsPressed: settingsEnabled
                   ? _openBrandSettingsDialog
@@ -5749,6 +5773,7 @@ class _TopControlArea extends StatelessWidget {
   final ValueChanged<bool> onDropdownMenuStateChanged;
   final bool dropdownChangeBlocked;
   final VoidCallback onBlockedDropdownTap;
+  final bool showSettingsControls;
   final bool settingsEnabled;
   final VoidCallback? onBrandSettingsPressed;
   final VoidCallback? onLabelSettingsPressed;
@@ -5764,6 +5789,7 @@ class _TopControlArea extends StatelessWidget {
     required this.onDropdownMenuStateChanged,
     required this.dropdownChangeBlocked,
     required this.onBlockedDropdownTap,
+    required this.showSettingsControls,
     required this.settingsEnabled,
     required this.onBrandSettingsPressed,
     required this.onLabelSettingsPressed,
@@ -5826,24 +5852,27 @@ class _TopControlArea extends StatelessWidget {
                           width: isDesktop ? 220 : 150,
                           labelWidth: 48,
                         ),
-                        SizedBox(width: lmSize(6)),
-                        SizedBox(
-                          height: lmSize(36),
-                          child: OutlinedButton(
-                            onPressed: onBrandSettingsPressed,
-                            style: OutlinedButton.styleFrom(
-                              minimumSize: lmSize2(60, 36),
-                              padding: lmInsetsSymmetric(horizontal: 8),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
+                        if (showSettingsControls) ...[
+                          SizedBox(width: lmSize(6)),
+                          SizedBox(
+                            height: lmSize(36),
+                            child: OutlinedButton(
+                              key: const ValueKey('brand-settings-button'),
+                              onPressed: onBrandSettingsPressed,
+                              style: OutlinedButton.styleFrom(
+                                minimumSize: lmSize2(60, 36),
+                                padding: lmInsetsSymmetric(horizontal: 8),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                              ),
+                              child: const Text(
+                                '설정',
+                                style: TextStyle(fontSize: 14),
                               ),
                             ),
-                            child: const Text(
-                              '설정',
-                              style: TextStyle(fontSize: 14),
-                            ),
                           ),
-                        ),
+                        ],
                         SizedBox(width: lmSize(10)),
                         _DropdownField<LabelSize>(
                           label: '라벨',
@@ -5858,50 +5887,52 @@ class _TopControlArea extends StatelessWidget {
                           width: isDesktop ? 220 : 150,
                           labelWidth: 48,
                         ),
-                        SizedBox(width: lmSize(6)),
-                        SizedBox(
-                          height: lmSize(36),
-                          child: PopupMenuButton<String>(
-                            enabled: labelMenuEnabled,
-                            tooltip: '라벨 설정',
-                            onSelected: (value) {
-                              if (value == 'label') {
-                                onLabelSettingsPressed?.call();
-                              } else if (value == 'date') {
-                                onDateSettingsPressed?.call();
-                              }
-                            },
-                            itemBuilder: (_) => [
-                              PopupMenuItem(
-                                value: 'label',
-                                enabled: onLabelSettingsPressed != null,
-                                child: const Text('라벨 설정...'),
-                              ),
-                              PopupMenuItem(
-                                value: 'date',
-                                enabled: onDateSettingsPressed != null,
-                                child: const Text('날짜 타입 설정...'),
-                              ),
-                            ],
-                            child: IgnorePointer(
-                              child: OutlinedButton.icon(
-                                onPressed: labelMenuEnabled ? () {} : null,
-                                icon: const Icon(Icons.settings, size: 16),
-                                label: const Text(
-                                  '설정',
-                                  style: TextStyle(fontSize: 14),
+                        if (showSettingsControls) ...[
+                          SizedBox(width: lmSize(6)),
+                          SizedBox(
+                            height: lmSize(36),
+                            child: PopupMenuButton<String>(
+                              enabled: labelMenuEnabled,
+                              tooltip: '라벨 설정',
+                              onSelected: (value) {
+                                if (value == 'label') {
+                                  onLabelSettingsPressed?.call();
+                                } else if (value == 'date') {
+                                  onDateSettingsPressed?.call();
+                                }
+                              },
+                              itemBuilder: (_) => [
+                                PopupMenuItem(
+                                  value: 'label',
+                                  enabled: onLabelSettingsPressed != null,
+                                  child: const Text('라벨 설정...'),
                                 ),
-                                style: OutlinedButton.styleFrom(
-                                  minimumSize: lmSize2(72, 36),
-                                  padding: lmInsetsSymmetric(horizontal: 8),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10),
+                                PopupMenuItem(
+                                  value: 'date',
+                                  enabled: onDateSettingsPressed != null,
+                                  child: const Text('날짜 타입 설정...'),
+                                ),
+                              ],
+                              child: IgnorePointer(
+                                child: OutlinedButton.icon(
+                                  onPressed: labelMenuEnabled ? () {} : null,
+                                  icon: const Icon(Icons.settings, size: 16),
+                                  label: const Text(
+                                    '설정',
+                                    style: TextStyle(fontSize: 14),
+                                  ),
+                                  style: OutlinedButton.styleFrom(
+                                    minimumSize: lmSize2(72, 36),
+                                    padding: lmInsetsSymmetric(horizontal: 8),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
                                   ),
                                 ),
                               ),
                             ),
                           ),
-                        ),
+                        ],
                       ],
                     ),
                     const Spacer(),
@@ -6933,8 +6964,13 @@ bool _itemManagerDateSettingsEnabled({
   required bool hasDateSetup,
   required bool commandBusy,
   required bool draftDirty,
+  required bool canEdit,
 }) =>
-    selectedTabValue == 'items' && hasDateSetup && !commandBusy && !draftDirty;
+    canEdit &&
+    selectedTabValue == 'items' &&
+    hasDateSetup &&
+    !commandBusy &&
+    !draftDirty;
 
 List<String> _itemPreviewImageObjectIdsFor(Iterable<TColumnBase> columns) {
   return commonLabelImageObjectIdsFromColumns(columns);
@@ -7051,6 +7087,7 @@ Widget debugTopControlAreaForTesting({
   LabelSize? selectedLabelSize,
   ValueChanged<LabelSize?>? onLabelSizeChanged,
   bool dropdownChangeBlocked = false,
+  bool showSettingsControls = true,
   VoidCallback? onBlockedDropdownTap,
 }) => Material(
   child: SizedBox(
@@ -7061,6 +7098,7 @@ Widget debugTopControlAreaForTesting({
       onDropdownMenuStateChanged: (_) {},
       dropdownChangeBlocked: dropdownChangeBlocked,
       onBlockedDropdownTap: onBlockedDropdownTap ?? () {},
+      showSettingsControls: showSettingsControls,
       settingsEnabled: false,
       onBrandSettingsPressed: null,
       onLabelSettingsPressed: onLabelSettingsPressed,
@@ -7088,11 +7126,13 @@ bool debugItemManagerDateSettingsEnabledForTesting({
   bool hasDateSetup = true,
   bool commandBusy = false,
   bool draftDirty = false,
+  bool canEdit = true,
 }) => _itemManagerDateSettingsEnabled(
   selectedTabValue: selectedTabValue,
   hasDateSetup: hasDateSetup,
   commandBusy: commandBusy,
   draftDirty: draftDirty,
+  canEdit: canEdit,
 );
 
 @visibleForTesting

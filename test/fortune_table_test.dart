@@ -2603,26 +2603,11 @@ void main() {
       ),
     );
 
-    expect(
-      tester
-          .widget<OutlinedButton>(
-            find.widgetWithText(OutlinedButton, '엑셀 가져오기'),
-          )
-          .onPressed,
-      isNull,
-    );
-    expect(
-      tester
-          .widget<OutlinedButton>(find.widgetWithText(OutlinedButton, '취소'))
-          .onPressed,
-      isNull,
-    );
-    expect(
-      tester
-          .widget<FilledButton>(find.widgetWithText(FilledButton, '저장'))
-          .onPressed,
-      isNull,
-    );
+    expect(find.text('엑셀 가져오기'), findsNothing);
+    expect(find.text('엑셀 내보내기'), findsNothing);
+    expect(find.text('취소'), findsNothing);
+    expect(find.text('저장'), findsNothing);
+    expect(find.byType(FortuneTable<ItemOfMarket>), findsOneWidget);
 
     await tester.tap(find.text('조회 전용 품목'));
     await tester.pump();

@@ -7,6 +7,15 @@
 - 이 파일에는 현재 상태, 최근 완료 항목, 검증, 다음 액션만 기록한다.
 
 ## 현재 상태
+- 완료: 레거시 사용자 권한 정책을 적용하고 `tester01` 로그인 계정을 일반 사용자로 강제해 UI를 테스트할 수 있게 했다.
+- 테스트 권한 위치: [lib/models/user.dart]의 `User.clientUserTestOverrideId = 'tester01'`. 테스트 해제 시 이 값을 `null`로 변경한다. DB 권한은 수정하지 않고 로그인 시 메모리의 유효 `grade`만 `CLIENT_USER`로 바꾼다.
+- 편집 완료: 일반 사용자는 레거시와 같이 공용라벨관리와 자동품목갱신 탭을 표시하지 않는다. 품목관리/라벨출력/저울출력은 유지한다.
+- 편집 완료: 일반 사용자는 품목관리 하단의 엑셀 가져오기·내보내기·취소·저장 영역과 상단 브랜드/라벨/날짜 설정 버튼을 표시하지 않는다. 품목 테이블과 발행 선택은 유지한다.
+- 테스트 추가: `tester01` 강제 일반 사용자, 다른 계정 DB 등급 유지, 일반 사용자 제한 탭 노출 정책을 검증한다.
+- 테스트 추가: 일반 사용자 설정 버튼/품목관리 명령 숨김, 날짜 설정 차단, 조회 테이블 유지를 검증한다.
+- 집중 검증 완료: `test/user_test.dart` 3개 통과. 일반 사용자 품목관리 명령 숨김/조회 테이블 유지 및 상단 설정 UI 숨김 위젯 테스트 통과.
+- 수정 Dart 파일 포맷 완료, 정적 진단 오류 없음. 전체 검증 완료: `flutter test test/user_test.dart test/fortune_table_test.dart test/label_sheet_toolbar_test.dart` 218개 전체 통과.
+- stage/commit 대상: [lib/models/user.dart], [lib/home_page_manager.dart], [lib/page_home/item_manage.dart], [test/user_test.dart], [test/fortune_table_test.dart], [test/label_sheet_toolbar_test.dart], [SESSION_HANDOFF.md]. 사용자 변경 [lib/core/app.dart]는 제외한다.
 - 완료: 품목관리 두 줄 컬럼 헤더의 줄 간격을 2px 줄이고, 체크박스와 라벨을 좁게 붙인 하나의 그룹으로 컬럼 가운데 정렬했다.
 - 편집 완료: `FortuneTable`에 기본 동작을 유지하는 `headerLineSpacingReduction`, `headerCheckboxPadding`, `headerCheckboxLabelGap` 옵션을 추가했다. 품목관리는 각각 2/1/1px을 사용하며 체크박스 헤더의 라벨 `Expanded`를 제거해 묶음 전체가 필요한 폭만 차지하고 가운데 정렬된다.
 - 테스트 수정: 긴 `판매가격` 헤더의 두 글자 줄바꿈, 2px 축소 line-height, 체크박스-라벨 1px 레이아웃 간격, 결합 그룹 중심과 세로 중심을 검증한다.

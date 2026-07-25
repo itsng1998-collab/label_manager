@@ -444,6 +444,9 @@ class _ItemManageState extends State<ItemManage> {
   }
 
   Widget _buildCommandFooter() {
+    if (!widget.canEdit) {
+      return const SizedBox.shrink();
+    }
     final dirty = widget.draftController?.isDirty == true;
     final cleanEnabled =
       !widget.commandBusy && !dirty && !_editingController.hasActiveEditing;

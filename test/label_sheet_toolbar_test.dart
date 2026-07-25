@@ -447,6 +447,36 @@ void main() {
       ),
       isFalse,
     );
+    expect(
+      debugItemManagerDateSettingsEnabledForTesting(
+        selectedTabValue: 'items',
+        canEdit: false,
+      ),
+      isFalse,
+    );
+  });
+
+  testWidgets('client users do not see legacy settings controls', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1400, 500);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: debugTopControlAreaForTesting(
+            showSettingsControls: false,
+            onLabelSettingsPressed: () {},
+            onDateSettingsPressed: () {},
+          ),
+        ),
+      ),
+    );
+
+    expect(find.byKey(const ValueKey('brand-settings-button')), findsNothing);
+    expect(find.byTooltip('라벨 설정'), findsNothing);
   });
 
   test('home tab clicks are blocked only for active dirty edit tabs', () {
@@ -473,6 +503,37 @@ void main() {
         autoItemUpdateContextChangeBlocked: true,
       ),
       isFalse,
+    );
+  });
+
+  test('legacy restricted tabs are hidden from client users', () {
+    expect(
+      debugHomeTabVisibleForUserForTesting(
+        tabValue: 'common_label',
+        canEdit: false,
+      ),
+      isFalse,
+    );
+    expect(
+      debugHomeTabVisibleForUserForTesting(
+        tabValue: 'auto_update',
+        canEdit: false,
+      ),
+      isFalse,
+    );
+    expect(
+      debugHomeTabVisibleForUserForTesting(
+        tabValue: 'label_print',
+        canEdit: false,
+      ),
+      isTrue,
+    );
+    expect(
+      debugHomeTabVisibleForUserForTesting(
+        tabValue: 'scale_output',
+        canEdit: false,
+      ),
+      isTrue,
     );
   });
 
