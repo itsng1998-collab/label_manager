@@ -256,6 +256,11 @@ class FortuneTable<T> extends StatefulWidget {
     this.rowColorBuilder,
     this.rowNumberWidth = 40,
     this.headerHeight = 36,
+    this.headerTextStyle = const TextStyle(
+      color: Colors.white,
+      fontSize: 14,
+      fontWeight: FontWeight.bold,
+    ),
     this.rowHeight = 28,
     this.autoFitColumns = true,
     this.fillLastColumn = false,
@@ -280,6 +285,7 @@ class FortuneTable<T> extends StatefulWidget {
   final Color? Function(T row, int rowIndex, bool selected)? rowColorBuilder;
   final double rowNumberWidth;
   final double headerHeight;
+  final TextStyle headerTextStyle;
   final double rowHeight;
   final bool autoFitColumns;
   final bool fillLastColumn;
@@ -759,12 +765,13 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
 
   List<double> _autoFitWidths() {
     final scaler = MediaQuery.of(context).textScaler;
-    const style = TextStyle(fontSize: 14);
+    const bodyStyle = TextStyle(fontSize: 14);
     return List<double>.generate(widget.columns.length, (index) {
       final column = widget.columns[index];
-      var maxWidth = _measureText(column.header, style, scaler) + 24;
+      var maxWidth =
+          _measureText(column.header, widget.headerTextStyle, scaler) + 24;
       for (final row in widget.rows) {
-        final width = _measureText(column.text(row), style, scaler) + 24;
+        final width = _measureText(column.text(row), bodyStyle, scaler) + 24;
         if (width > maxWidth) maxWidth = width;
       }
       return maxWidth < column.minWidth ? column.minWidth : maxWidth;
@@ -834,11 +841,7 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
                         column.header,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                        ),
+                        style: widget.headerTextStyle,
                       ),
                     ),
                   ],
@@ -847,11 +850,7 @@ class _FortuneTableState<T> extends State<FortuneTable<T>> {
                   column.header,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: widget.headerTextStyle,
                 ),
         );
       }),

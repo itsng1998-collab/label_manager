@@ -1237,6 +1237,11 @@ void main() {
     );
     expect(table.columns[3].initialWidth, 44);
     expect(table.columns[4].initialWidth, 44);
+    for (final column in table.columns) {
+      final headerText = tester.widget<Text>(find.text(column.header));
+      expect(headerText.style?.fontSize, 13);
+      expect(headerText.style?.fontWeight, FontWeight.normal);
+    }
   });
 
   testWidgets('ItemManage header checkbox updates minimum-column state', (

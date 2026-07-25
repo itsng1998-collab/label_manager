@@ -371,6 +371,11 @@ class _ItemManageState extends State<ItemManage> {
               rows: displayItems,
               columns: columns,
               autoFitColumns: false,
+              headerTextStyle: const TextStyle(
+                color: Colors.white,
+                fontSize: 13,
+                fontWeight: FontWeight.normal,
+              ),
               selectedIndex: widget.selectedIndex,
               selectionController: _selectionController,
               focusController: _focusController,

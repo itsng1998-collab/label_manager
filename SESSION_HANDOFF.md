@@ -7,6 +7,10 @@
 - 이 파일에는 현재 상태, 최근 완료 항목, 검증, 다음 액션만 기록한다.
 
 ## 현재 상태
+- 완료: 품목관리 테이블의 모든 컬럼 헤더 라벨을 기존 14px bold에서 13px normal로 변경했다.
+- 편집 완료: `FortuneTable`에 기존 스타일을 기본값으로 유지하는 선택적 `headerTextStyle`을 추가하고 일반/체크박스 헤더 분기와 자동 너비 측정에 공통 적용했다. 품목관리 호출부에서만 흰색 13px `FontWeight.normal`을 전달해 다른 테이블에는 영향이 없다.
+- 검증 완료: `ItemManage shows minimum-column header checkboxes` 집중 테스트 및 `flutter test test/fortune_table_test.dart` 51개 전체 통과. 발행·라벨크기·품명·주원료·동적 컬럼 헤더가 모두 13px `FontWeight.normal`로 렌더링되며 수정 Dart 파일 포맷 및 정적 진단 오류 없음.
+- stage/commit 대상: [third_party/fortune_sheet/lib/src/fortune_table.dart], [lib/page_home/item_manage.dart], [test/fortune_table_test.dart], [SESSION_HANDOFF.md]. 사용자 변경 [lib/core/app.dart]는 제외한다.
 - 완료: 품목관리/자동품목갱신의 `주원료 및 함량` 탭도 출력내용 미리보기와 동일하게 최초 가로 맞춤 확대를 적용하고 사용자 조정값을 패널 재생성 후 유지한다.
 - 편집 완료: 홈 State가 `_itemElementPreviewZoomController`를 별도로 소유해 `_ItemPreviewPanel` 재생성 후에도 유지한다. `_ItemElementPreviewTab`은 viewport 폭과 workbook 물리폭 또는 `LabelSize` 가로폭 fallback으로 최초 가로 맞춤을 계산하고 같은 controller 수명에는 재적용하지 않는다.
 - 검증 완료: `item element preview fits width and keeps changed zoom`에서 100mm 라벨/660px 패널의 최초 150%와 사용자 변경 100%의 패널 재생성 후 유지를 확인했다. `flutter test test/label_sheet_toolbar_test.dart` 158개 전체 통과, 수정 Dart 파일 포맷 및 정적 진단 오류 없음.
