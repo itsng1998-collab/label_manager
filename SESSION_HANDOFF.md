@@ -7,7 +7,7 @@
 - 이 파일에는 현재 상태, 최근 완료 항목, 검증, 다음 액션만 기록한다.
 
 ## 현재 상태
-- 완료: 라벨 시트 툴바 `더 보기`에서 바코드/선/도형/개체 명령을 원래 툴바 동작으로 연결하고, 더보기에서 연 모든 2차 popup을 시트 우상단에 배치하며 체크 열과 병합 메뉴 아이콘 정렬을 보완했다. 검증 완료, 커밋 단계다.
+- 완료: 라벨 시트 툴바 `더 보기`에서 바코드/선/도형/개체 명령을 원래 툴바 동작으로 연결하고, 더보기에서 연 모든 2차 popup을 시트 우상단에 배치하며 체크 열과 병합 메뉴 아이콘 정렬을 보완했다. 검증 및 기능 커밋 `188b834` 완료.
 - 원인: more popup 항목 클릭이 원래 툴바 버튼 문맥을 잃은 채 `_activateToolbarPopupCommand`로 전달되고, 2차 popup은 화면에서 숨은 원래 버튼 rect를 찾지 못한다. more-origin 상태와 현재 toolbar 항목 기준 dispatcher가 필요하다.
 - [third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart](third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart): more 항목을 현재 toolbar 명령 유형으로 다시 dispatch하고, 2차 popup의 more-origin 상태와 우상단 가상 anchor를 추가했다.
 - [third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart](third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart): 모든 more-origin 2차 popup의 우상단 anchor, more 고정 체크 열/활성 항목 체크, 병합 메뉴의 라벨 뒤 아이콘 배치를 추가했다.
