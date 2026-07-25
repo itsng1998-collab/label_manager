@@ -7,6 +7,12 @@
 - 이 파일에는 현재 상태, 최근 완료 항목, 검증, 다음 액션만 기록한다.
 
 ## 현재 상태
+- 완료: [doc/app_menu_porting.txt]의 8차 UX 단순화 권장안 2건을 병합했다. 검색·치환은 결과 table을 저장 전 확인 화면으로 사용해 별도 preview dialog·대상 건수 UI를 추가하지 않고, footer 없는 busy 표시는 작업 성격에 따라 spinner 또는 짧은 상태 문구를 선택한다.
+- 수정 예정 파일/목적: [doc/app_menu_porting.txt]의 검색·치환 command와 Phase 4 완료 기준, footer 없는 busy 표시 계약을 레거시·현행 UX에 맞게 정리한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
+- 검색·치환 편집 완료: 선택·치환한 변경값을 같은 결과 table에서 저장 전에 확인하고 레거시의 일괄 치환·최종 저장 확인을 유지한다. 별도 preview dialog·대상 건수 panel은 추가하지 않으며 변경 행 저장만 하나의 transaction으로 처리한다.
+- busy 표시 편집 완료: footer 없는 즉시 적용형·단순 설정형 dialog는 작업 성격에 맞는 spinner 또는 짧은 상태 문구를 사용하고, 장시간 저장처럼 설명이 필요할 때만 둘을 함께 표시한다.
+- 검증 완료: 이전 강제 문구 3개가 0건이고 대체 계약 4개가 반영됐으며 `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`가 통과했다. 두 문서 diagnostics 오류가 없고 전체 diff가 8차 권장안 2건에 한정됨을 확인했다. 문서 변경이므로 Flutter test는 실행하지 않았다.
+- stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함한다. 사용자 소유 변경 [lib/core/app.dart]는 제외한다.
 - 완료: [doc/app_menu_porting.txt]의 7차 UX 단순화 권장안 2건을 병합했다. 협력업체 관리는 행 추가·수정 입력 dialog 단위의 적용/취소와 즉시 저장을 사용하고, 명령별 완료 체크리스트는 command 성격에 적용되는 항목만 충족하도록 조건을 구분한다.
 - 수정 예정 파일/목적: [doc/app_menu_porting.txt]의 협력업체 관리 저장 흐름과 명령별 완료 체크리스트를 레거시·현행 UX에 맞게 정리한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
 - 지시서 편집 완료: 협력업체 관리에서 목록 전체의 전역 저장/취소 footer를 제거하고 추가·수정 입력 dialog의 적용 성공 시 즉시 저장·목록 갱신하도록 명시했다.
