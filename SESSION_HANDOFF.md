@@ -16,6 +16,7 @@
 - integration test 계약 편집 완료: 실제 server test는 명시적 opt-in으로 제한하고 CRUD는 식별된 비운영 DB, 전용 ID 범위·초기 상태·정리 절차가 모두 있을 때만 허용하며 실패 simulation은 fake driver unit test에서 수행한다.
 - 검증 완료: 이전 애매한 문구 6개가 0건이고 대체 계약이 19개 지점에 반영됐으며 `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`가 통과했다. 두 문서 diagnostics 오류가 없고 전체 diff가 9차 권장안 4건과 사용자 확정 통합 확인 계약에 한정됨을 확인했다. 문서 변경이므로 Flutter test는 실행하지 않았다.
 - stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함한다. 사용자 소유 변경 [lib/core/app.dart]는 제외한다.
+- 로컬 커밋 완료: `d610e52` (`앱 메뉴 9차 지시서 명확화 권장안 병합`).
 - 완료: [doc/app_menu_porting.txt]의 8차 UX 단순화 권장안 2건을 병합했다. 검색·치환은 결과 table을 저장 전 확인 화면으로 사용해 별도 preview dialog·대상 건수 UI를 추가하지 않고, footer 없는 busy 표시는 작업 성격에 따라 spinner 또는 짧은 상태 문구를 선택한다.
 - 수정 예정 파일/목적: [doc/app_menu_porting.txt]의 검색·치환 command와 Phase 4 완료 기준, footer 없는 busy 표시 계약을 레거시·현행 UX에 맞게 정리한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
 - 검색·치환 편집 완료: 선택·치환한 변경값을 같은 결과 table에서 저장 전에 확인하고 레거시의 일괄 치환·최종 저장 확인을 유지한다. 별도 preview dialog·대상 건수 panel은 추가하지 않으며 변경 행 저장만 하나의 transaction으로 처리한다.
