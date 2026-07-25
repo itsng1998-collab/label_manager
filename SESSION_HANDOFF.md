@@ -7,6 +7,13 @@
 - 이 파일에는 현재 상태, 최근 완료 항목, 검증, 다음 액션만 기록한다.
 
 ## 현재 상태
+- 완료: [doc/app_menu_porting.txt]에 레거시 `파일/검색/설정` 25개 명령의 AppBar 포팅 작업지시서를 작성했다. `도움말`은 이번 완료 범위에서 제외하고 후속 참고로만 기록했다.
+- 문서 완료: 넓은 화면 3개 그룹 아이콘/좁은 화면 overflow, command inventory/policy/controller 소유권, 현재 기능 재사용 경로, 미구현 명령별 page/dialog/model/DAO/DB gate, 단계별 구현 순서와 완료 체크리스트를 명시했다.
+- 레거시 대조 완료: 고정 항목 메뉴 리소스의 `IDM_FIX_COLUMN_MANAGER(32853)`와 실제 message map의 `IDM_FIX_COLUMN_MANAGE(32854)` 불일치를 기록하고 Flutter에서는 단일 ID로 정규화하도록 했다. `공용라벨 수정 이력`, `거래게시판`은 내부 기능 구현 후에도 legacyInactive로 유지한다.
+- DB 제약 완료: 과도한 보완/예외 처리 금지, DB migration 금지, 기존 스키마 확인 전 SQL 작성 금지, compatibility level 100, commit 오류 전달과 `@@TRANCOUNT > 0`일 때 가능한 rollback, 필요한 경우에만 model/DAO 추가를 고정했다.
+- 문서 자동 검증 완료: PowerShell 필수 문자열 점검에서 전체 메뉴 ID, DB/transaction 제약, Phase 0~5, 완료 체크리스트와 3개 AppBar 그룹 기준 36개가 모두 통과했다. `그룹 아이콘 4개`, `file, search, settings, help` 잔존 없음.
+- 최종 문서 검토 완료: `도움말` 구현이 Phase 1/5와 최종 완료 기준에 섞이지 않도록 후속 참고로 분리했고 [doc/app_menu_porting.txt], [SESSION_HANDOFF.md] 진단 오류 없음.
+- stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]. 사용자 변경 [lib/core/app.dart]는 제외한다.
 - 완료: 레거시 사용자 권한 정책을 적용하고 `tester01` 로그인 계정을 일반 사용자로 강제해 UI를 테스트할 수 있게 했다.
 - 테스트 권한 위치: [lib/models/user.dart]의 `User.clientUserTestOverrideId = 'tester01'`. 테스트 해제 시 이 값을 `null`로 변경한다. DB 권한은 수정하지 않고 로그인 시 메모리의 유효 `grade`만 `CLIENT_USER`로 바꾼다.
 - 편집 완료: 일반 사용자는 레거시와 같이 공용라벨관리와 자동품목갱신 탭을 표시하지 않는다. 품목관리/라벨출력/저울출력은 유지한다.
