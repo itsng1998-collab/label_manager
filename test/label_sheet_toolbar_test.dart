@@ -1269,6 +1269,71 @@ void main() {
     expect(find.text('주원료 및 함량'), findsWidgets);
   });
 
+  testWidgets('item output preview keeps zoom after panel recreation', (
+    tester,
+  ) async {
+    final zoomController = LabelSheetZoomController();
+    addTearDown(zoomController.dispose);
+    final encodedLabel = labelSheetEncodeWorkbookSave(
+      FortuneWorkbook(
+        sheets: [
+          FortuneSheet(
+            id: 'label',
+            name: '라벨',
+            cells: {
+              const FortuneCellCoord(0, 0): const FortuneCell(
+                value: '#ITEMNAME',
+              ),
+            },
+          ),
+        ],
+      ),
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: debugItemPreviewPanelForTesting(
+            item: _testItemOfMarket(itemId: 10, itemName: '확대율 품목'),
+            labelSize: _testLabelSizeWithFormData(encodedLabel),
+            outputPreviewZoomController: zoomController,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('출력내용 미리보기').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('+').last);
+    await tester.pump();
+
+    var zoomInput = find
+      .byKey(const ValueKey('label-sheet-zoom-input'))
+      .last;
+    expect(tester.widget<EditableText>(zoomInput).controller.text, '110');
+    expect(zoomController.value, 110);
+
+    await tester.pumpWidget(const MaterialApp(home: SizedBox()));
+    await tester.pump();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: debugItemPreviewPanelForTesting(
+            item: _testItemOfMarket(itemId: 10, itemName: '확대율 품목'),
+            labelSize: _testLabelSizeWithFormData(encodedLabel),
+            outputPreviewZoomController: zoomController,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('출력내용 미리보기').last);
+    await tester.pumpAndSettle();
+
+    zoomInput = find.byKey(const ValueKey('label-sheet-zoom-input')).last;
+    expect(tester.widget<EditableText>(zoomInput).controller.text, '110');
+  });
+
   testWidgets('item preview hides floating object panel button', (tester) async {
     await tester.pumpWidget(
       MaterialApp(

@@ -274,6 +274,8 @@ class _HomePageManagerState extends State<HomePageManager> {
       ScaleOutputSessionController();
     final LabelSheetOutputCaptureController _scaleOutputCaptureController =
       LabelSheetOutputCaptureController();
+      final LabelSheetZoomController _itemOutputPreviewZoomController =
+        LabelSheetZoomController();
     final ScaleConnectionService _scaleConnectionService =
       ScaleConnectionService();
   LabelPrintUnit? _labelPrintRenderUnit;
@@ -3464,6 +3466,7 @@ class _HomePageManagerState extends State<HomePageManager> {
         labelSize: _effectiveLabelSize,
         referenceAt: referenceAt,
         projectedColumnValues: projectedColumnValues,
+        outputPreviewZoomController: _itemOutputPreviewZoomController,
         onElementCommitted: onElementCommitted,
         canSelectOutputPreview: canSelectOutputPreview,
         canEdit: canEdit,
@@ -4130,6 +4133,7 @@ class _HomePageManagerState extends State<HomePageManager> {
     _rtfPreviewResizeFinalizeTimer?.cancel();
     _itemPreviewWindow?.dispose();
     _commonLabelPreviewWindow?.dispose();
+    _itemOutputPreviewZoomController.dispose();
     _tabController.dispose();
     _tabSearchController.dispose();
     _brandSettingsOverlayEntry?.remove();
@@ -6306,6 +6310,7 @@ class _ItemPreviewPanel extends StatefulWidget {
     this.labelSize,
     this.referenceAt,
     this.projectedColumnValues,
+    this.outputPreviewZoomController,
     this.canEdit = true,
   });
 
@@ -6314,6 +6319,7 @@ class _ItemPreviewPanel extends StatefulWidget {
   final LabelSize? labelSize;
   final DateTime? referenceAt;
   final Map<int, String>? projectedColumnValues;
+  final LabelSheetZoomController? outputPreviewZoomController;
   final Future<void> Function(
     String rowIdentity,
     String elementPlain,
@@ -6334,6 +6340,10 @@ class _ItemPreviewPanelState extends State<_ItemPreviewPanel> {
   );
   late String _elementText = _elementForm.text;
   int _elementRtfConversionGeneration = 0;
+    late final bool _ownsOutputPreviewZoomController =
+      widget.outputPreviewZoomController == null;
+    late final LabelSheetZoomController _outputPreviewZoomController =
+      widget.outputPreviewZoomController ?? LabelSheetZoomController();
   late final TabbedViewController _controller = TabbedViewController(
     _buildTabs(),
     onTabSelection: _handleTabSelection,
@@ -6409,6 +6419,9 @@ class _ItemPreviewPanelState extends State<_ItemPreviewPanel> {
   void dispose() {
     _elementRtfConversionGeneration += 1;
     _controller.dispose();
+    if (_ownsOutputPreviewZoomController) {
+      _outputPreviewZoomController.dispose();
+    }
     super.dispose();
   }
 
@@ -6602,6 +6615,7 @@ class _ItemPreviewPanelState extends State<_ItemPreviewPanel> {
       projectedColumnValues: widget.projectedColumnValues,
       imageObjectIds: resolvedImageObjectIds,
       barcodeObjectIds: resolvedBarcodeObjectIds,
+      zoomController: _outputPreviewZoomController,
     );
   }
 
@@ -6869,6 +6883,7 @@ Widget debugItemPreviewPanelForTesting({
   String? rowIdentity,
   DateTime? referenceAt,
   Map<int, String>? projectedColumnValues,
+  LabelSheetZoomController? outputPreviewZoomController,
   Future<void> Function(
     String rowIdentity,
     String elementPlain,
@@ -6883,6 +6898,7 @@ Widget debugItemPreviewPanelForTesting({
   labelSize: labelSize,
   referenceAt: referenceAt,
   projectedColumnValues: projectedColumnValues,
+  outputPreviewZoomController: outputPreviewZoomController,
   onElementCommitted: onElementCommitted ?? (_, _, _) async {},
   canSelectOutputPreview: canSelectOutputPreview ?? () => true,
   canEdit: canEdit,
