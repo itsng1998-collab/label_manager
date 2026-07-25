@@ -5600,7 +5600,9 @@ class _PreviewRestoreButtonState extends State<_PreviewRestoreButton> {
       maintainAnimation: true,
       maintainSize: true,
       child: Tooltip(
+        key: ValueKey('preview-restore-tooltip:${widget.tooltip}'),
         message: widget.tooltip,
+        waitDuration: const Duration(milliseconds: 400),
         child: MouseRegion(
           cursor: SystemMouseCursors.click,
           onEnter: (_) => setState(() => _hovered = true),
@@ -5658,6 +5660,17 @@ bool debugItemPreviewSupportedTabForTesting(Object? tabValue) =>
 @visibleForTesting
 String debugItemPreviewRestoreTooltipForTesting(Object? tabValue) =>
   _itemPreviewRestoreTooltip(tabValue);
+
+@visibleForTesting
+Widget debugPreviewRestoreButtonForTesting({
+  required String tooltip,
+  bool visible = true,
+  VoidCallback? onPressed,
+}) => _PreviewRestoreButton(
+  visible: visible,
+  tooltip: tooltip,
+  onPressed: onPressed ?? () {},
+);
 
 class _TopControlArea extends StatelessWidget {
   final ValueChanged<Brand?> onBrandChanged;
@@ -6885,6 +6898,7 @@ class _ItemOutputPreviewTab extends StatelessWidget {
       outputCaptureController: outputCaptureController,
       zoomToolbarPlacement: zoomToolbarPlacement,
       zoomController: zoomController,
+      autoFitWidth: true,
     );
   }
 }

@@ -34,6 +34,7 @@ import 'package:label_manager/page_label_sheet/label_sheet_save_codec.dart';
 import 'package:label_manager/page_label_sheet/label_sheet_workbench.dart';
 import 'package:label_manager/utils/on_messages.dart';
 import 'package:label_manager/printing/label_printer_preferences.dart';
+import 'package:label_manager/widgets/label_output_preview.dart';
 import 'package:label_manager/widgets/vertical_pane_splitter.dart';
 import 'package:path/path.dart' as p;
 import 'package:printing/printing.dart';
@@ -1366,6 +1367,76 @@ void main() {
       debugItemPreviewRestoreTooltipForTesting('auto_update'),
       '자동품목갱신 미리보기 열기',
     );
+  });
+
+  testWidgets('auto update preview restore button shows tooltip on hover', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: debugPreviewRestoreButtonForTesting(
+              tooltip: '자동품목갱신 미리보기 열기',
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final button = find.byIcon(Icons.preview);
+    final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await gesture.addPointer(location: tester.getCenter(button));
+    await tester.pump(const Duration(milliseconds: 450));
+
+    expect(find.text('자동품목갱신 미리보기 열기'), findsOneWidget);
+    await gesture.removePointer();
+  });
+
+  testWidgets('item output preview applies width fit only once', (
+    tester,
+  ) async {
+    final zoomController = LabelSheetZoomController();
+    addTearDown(zoomController.dispose);
+    final workbook = FortuneWorkbook(
+      sheets: [
+        FortuneSheet(
+          id: 'label',
+          name: '라벨',
+          extraFields: const {
+            fortuneSheetGridClientWidthMmKey: 80,
+            fortuneSheetGridClientHeightMmKey: 60,
+          },
+        ),
+      ],
+    );
+
+    Widget preview(String identityKey) => MaterialApp(
+      home: Scaffold(
+        body: SizedBox(
+          width: 660,
+          height: 500,
+          child: LabelOutputPreview(
+            workbook: workbook,
+            hintText: null,
+            identityKey: identityKey,
+            imageObjectIds: const [],
+            barcodeObjectIds: const [],
+            zoomController: zoomController,
+            autoFitWidth: true,
+          ),
+        ),
+      ),
+    );
+
+    await tester.pumpWidget(preview('initial'));
+    await tester.pumpAndSettle();
+    expect(zoomController.value, 190);
+
+    zoomController.setZoomPercent(100);
+    await tester.pumpWidget(preview('rebuilt'));
+    await tester.pumpAndSettle();
+    expect(zoomController.value, 100);
   });
 
   test('label sheet toolbar starts with save and print actions', () {

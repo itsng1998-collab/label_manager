@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:fortune_sheet/fortune_sheet.dart' as fs;
 import 'package:label_manager/models/label_size.dart';
@@ -25,6 +27,7 @@ class LabelOutputPreview extends StatefulWidget {
     this.zoomToolbarPlacement =
       LabelSheetZoomToolbarPlacement.previewTabAreaEnd,
     this.zoomController,
+    this.autoFitWidth = false,
   });
 
   final fs.FortuneWorkbook? workbook;
@@ -36,6 +39,7 @@ class LabelOutputPreview extends StatefulWidget {
   final LabelSheetOutputCaptureController? outputCaptureController;
   final LabelSheetZoomToolbarPlacement zoomToolbarPlacement;
   final LabelSheetZoomController? zoomController;
+  final bool autoFitWidth;
 
   @override
   State<LabelOutputPreview> createState() => _LabelOutputPreviewState();
@@ -72,36 +76,66 @@ class _LabelOutputPreviewState extends State<LabelOutputPreview> {
       return const _LabelOutputPreviewHint('현재 공용라벨 시트가 없습니다.');
     }
     final messages = labelOutputPreviewMessages(value);
-    return Column(
-      children: [
-        if (messages.isNotEmpty)
-          _LabelOutputPreviewMessages(messages: messages),
-        Expanded(
-          child: LabelSheetWorkbench(
-            key: ValueKey(widget.identityKey),
-            initialWorkbook: value,
-            labelSize: widget.labelSize,
-            imageObjectIds: widget.imageObjectIds,
-            barcodeObjectIds: widget.barcodeObjectIds,
-            outputCaptureController: widget.outputCaptureController,
-            outputCaptureOwnerToken: widget.identityKey,
-            hideToolbar: true,
-            hideRowColumnHeaderLabels: true,
-            hideSelectionHighlight: true,
-            rulerCornerSizeLabelUsesAsterisk: true,
-            disableSheetRulerGuideInteraction: true,
-            hideStatisticBar: true,
-            copyOnlyContextMenu: true,
-            canEditObjects: false,
-            allowObjectPanel: false,
-            showObjectPanelOpenButton: false,
-            zoomToolbarPlacement: widget.zoomToolbarPlacement,
-            zoomController: widget.zoomController,
-          ),
-        ),
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (widget.autoFitWidth && constraints.maxWidth.isFinite) {
+          widget.zoomController?.applyInitialAutoFit(
+            labelOutputPreviewFitWidthZoomPercent(
+              viewportWidth: constraints.maxWidth,
+              sheet: value.activeSheet,
+            ),
+          );
+        }
+        return Column(
+          children: [
+            if (messages.isNotEmpty)
+              _LabelOutputPreviewMessages(messages: messages),
+            Expanded(
+              child: LabelSheetWorkbench(
+                key: ValueKey(widget.identityKey),
+                initialWorkbook: value,
+                labelSize: widget.labelSize,
+                imageObjectIds: widget.imageObjectIds,
+                barcodeObjectIds: widget.barcodeObjectIds,
+                outputCaptureController: widget.outputCaptureController,
+                outputCaptureOwnerToken: widget.identityKey,
+                hideToolbar: true,
+                hideRowColumnHeaderLabels: true,
+                hideSelectionHighlight: true,
+                rulerCornerSizeLabelUsesAsterisk: true,
+                disableSheetRulerGuideInteraction: true,
+                hideStatisticBar: true,
+                copyOnlyContextMenu: true,
+                canEditObjects: false,
+                allowObjectPanel: false,
+                showObjectPanelOpenButton: false,
+                zoomToolbarPlacement: widget.zoomToolbarPlacement,
+                zoomController: widget.zoomController,
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
+}
+
+int labelOutputPreviewFitWidthZoomPercent({
+  required double viewportWidth,
+  required fs.FortuneSheet sheet,
+}) {
+  const reservedWidth = 58.0;
+  final labelWidth = fs.fortuneSheetGridClientLogicalSize(sheet)?.width;
+  if (labelWidth == null || labelWidth <= 0) {
+    return labelSheetDefaultZoomPercent;
+  }
+  final availableWidth = math.max(1.0, viewportWidth - reservedWidth);
+  final rawPercent = availableWidth / labelWidth * 100;
+  final steppedPercent = (rawPercent / 10).floor() * 10;
+  return steppedPercent.clamp(
+    labelSheetMinZoomPercent,
+    labelSheetMaxZoomPercent,
+  );
 }
 
 List<({String text, bool error})> labelOutputPreviewMessages(

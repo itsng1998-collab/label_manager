@@ -49,6 +49,13 @@ class LabelSheetZoomController extends ValueNotifier<int> {
       );
 
   ValueChanged<int>? _setZoomPercent;
+  bool _initialAutoFitApplied = false;
+
+  void applyInitialAutoFit(int percent) {
+    if (_initialAutoFitApplied) return;
+    _initialAutoFitApplied = true;
+    setZoomPercent(percent);
+  }
 
   void setZoomPercent(int percent) {
     final callback = _setZoomPercent;
