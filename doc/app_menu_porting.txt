@@ -253,7 +253,8 @@ END CATCH
 - 권한: system admin 또는 레거시 admin-connect 상태.
 - 현행 구현:
   - 기존 `Cooperator` model/조회 API를 먼저 확인한다.
-  - 목록, 추가, 이름 수정, 삭제, 저장/취소를 제공하는 `BlockingModelessDialog` 기반 관리 dialog를 구현한다.
+  - 목록, 추가, 이름 수정, 삭제를 제공하는 `BlockingModelessDialog` 기반 관리 dialog를 구현한다.
+  - 추가·수정은 별도 입력 dialog의 적용/취소 단위로 수행하고, 적용 성공 시 즉시 저장한 뒤 목록을 갱신한다. 목록 전체의 전역 저장/취소 footer는 두지 않는다.
   - 신규 CRUD가 필요하면 `CooperatorDAO`를 최소 확장한다.
   - 삭제 종속성은 레거시 DAO가 검사하는 기존 조건만 적용한다.
 - DB gate: `BM_COOPERATOR` 실제 컬럼과 레거시 SQL을 확인하기 전 DML SQL을 작성하지 않는다.
@@ -721,21 +722,22 @@ command마다 모든 등급 조합을 반복하지 않는다. 공용 policy tabl
 
 ## 10. 명령별 완료 체크리스트
 
-각 command는 아래 항목이 모두 충족돼야 완료다.
+각 command는 아래 항목 중 해당 command의 성격과 실제 구현 범위에 적용되는 항목을 충족해야 완료다. 비해당 항목을 충족하기 위해 별도 UI, DB 접근 또는 transaction을 추가하지 않는다.
 
 - [ ] 레거시 handler/dialog/model/DAO 확인.
-- [ ] 실제 기존 DB schema 확인.
+- [ ] DB를 사용하는 command는 실제 기존 DB schema 확인.
 - [ ] command ID/label/group과 optional icon/`shortcutLabel` 등록.
 - [ ] 해당 command의 권한·로그인·legacyInactive 또는 busy/dirty 조건 확인.
 - [ ] 기존 기능이면 owning command 재사용.
 - [ ] 미구현 기능이면 필요한 model/DAO와 `BlockingModelessDialog` 기반 화면 구현.
 - [ ] 기존 핵심 탭 이동 외에 별도 route page, 신규 메인 탭, native child window를 추가하지 않음.
-- [ ] 신규 dialog의 주요 입력, Esc, 오류와 종료 흐름이 공용 계약을 따르고, 편집·저장이 있는 경우에만 실제 dirty/write-busy/active editing 상태를 처리함.
-- [ ] 관리 목록/조회 결과의 반복 행 table이 공용 `FortuneTable`을 사용함.
+- [ ] 신규 dialog를 여는 command는 주요 입력, Esc, 오류와 종료 흐름이 공용 계약을 따르고, 편집·저장이 있는 경우에만 실제 dirty/write-busy/active editing 상태를 처리함.
+- [ ] 관리 목록 또는 조회 결과에 반복 행 table이 있는 command는 공용 `FortuneTable`을 사용함.
 - [ ] 행 CRUD command는 작업 빈도와 현재 owning 화면에 맞는 toolbar/rail/context menu를 사용하고 비CRUD dialog에는 불필요한 CRUD command가 없음.
-- [ ] 조회/저장/취소/오류 UI 구현.
-- [ ] commit 오류 전달과 가능한 rollback 검증.
-- [ ] DB migration 미사용 확인.
+- [ ] 조회 command는 데이터 성격에 필요한 조회 UI와 오류 흐름을 구현함.
+- [ ] 명시적 draft 저장 흐름이 있는 command만 저장/취소 UI를 구현함.
+- [ ] 쓰기 transaction이 있는 command는 commit 오류 전달과 가능한 rollback을 검증함.
+- [ ] DB를 사용하는 command는 DB migration을 사용하지 않음.
 - [ ] focused test 통과.
 - [ ] 변경한 owner의 관련 회귀 test 통과.
 - [ ] `SESSION_HANDOFF.md`에 구현/검증/commit 기록.
