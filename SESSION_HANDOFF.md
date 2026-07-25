@@ -7,6 +7,11 @@
 - 이 파일에는 현재 상태, 최근 완료 항목, 검증, 다음 액션만 기록한다.
 
 ## 현재 상태
+- 완료: 라벨 시트 툴바 `더 보기`에서 바코드/선/도형/개체 명령을 원래 툴바 동작으로 연결하고, 더보기에서 연 모든 2차 popup을 시트 우상단에 배치하며 체크 열과 병합 메뉴 아이콘 정렬을 보완했다. 검증 완료, 커밋 단계다.
+- 원인: more popup 항목 클릭이 원래 툴바 버튼 문맥을 잃은 채 `_activateToolbarPopupCommand`로 전달되고, 2차 popup은 화면에서 숨은 원래 버튼 rect를 찾지 못한다. more-origin 상태와 현재 toolbar 항목 기준 dispatcher가 필요하다.
+- [third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart](third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart): more 항목을 현재 toolbar 명령 유형으로 다시 dispatch하고, 2차 popup의 more-origin 상태와 우상단 가상 anchor를 추가했다.
+- [third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart](third_party/fortune_sheet/lib/src/fortune_sheet_painter.dart): 모든 more-origin 2차 popup의 우상단 anchor, more 고정 체크 열/활성 항목 체크, 병합 메뉴의 라벨 뒤 아이콘 배치를 추가했다.
+- [test/label_sheet_toolbar_test.dart](test/label_sheet_toolbar_test.dart): 바코드/선/도형/개체 more 동작과 체크/토글/우상단 popup, 체크 열/병합 아이콘 배치 테스트를 추가했다.
 - 완료: 라벨 시트 개체 패널 도킹 시 축소된 시트 툴바에서 가려진 명령을 `더 보기(...)`로 노출하고 팝업으로 실행할 수 있도록 보완했다. 관련 검증 및 기능 커밋 `73c8c5f` 완료.
 - 범위 밖 [lib/core/app.dart](lib/core/app.dart)는 커밋에서 제외했다.
 - 원인: 라벨 시트의 줌 컨트롤이 시트 툴바 우측 위에 겹치지만 FortuneSheet overflow 계산은 전체 폭을 사용해, 우측 끝 `더 보기` 버튼이 줌 컨트롤 아래에 가려지고 pointer 입력도 줌 컨트롤이 가로챘다.
@@ -49,7 +54,13 @@
 - 저울출력 미리보기에서 개체 패널을 숨기고, 줌 툴바를 우하단 command bar에서 중량/가격 영역 상단으로 이동했다.
 
 ## 최근 검증
-- 수정된 Dart 5개 파일 formatter 완료, diagnostics 오류 없음.
+- 수정된 Dart 3개 파일 formatter 완료, diagnostics 오류 없음.
+- `flutter test test/label_sheet_toolbar_test.dart` 147개 전체 통과.
+- FortuneSheet canvas의 더보기/외부 닫기/병합 focused 테스트 3개 통과.
+- 바코드 삽입 다이얼로그, 선 삽입, 개체 패널 직접 툴바 focused 테스트 각 1개 통과.
+- `flutter test test/label_sheet_toolbar_test.dart --plain-name "toolbar more runs hidden object insertion commands"` 통과.
+- `flutter test test/label_sheet_toolbar_test.dart --plain-name "toolbar popup rows reserve check space and trail merge icons"` 통과.
+- `flutter test third_party/fortune_sheet/test/fortune_sheet_canvas_test.dart --plain-name "toolbar more popup exposes overflowed dropdown items"` 통과.
 - `flutter test test/label_sheet_toolbar_test.dart` 145개 전체 통과.
 - `flutter test test/label_sheet_toolbar_test.dart --plain-name "docked object panel keeps toolbar overflow commands reachable"` 통과.
 - `flutter test third_party/fortune_sheet/test/fortune_sheet_canvas_test.dart --name "toolbar (overflow exposes upstream more aria label|more popup exposes overflowed item aria labels)"` 2개 통과.

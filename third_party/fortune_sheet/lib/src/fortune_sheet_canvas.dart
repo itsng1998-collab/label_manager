@@ -3314,6 +3314,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
   double _sheetScrollbarDragStartPosition = 0;
   double _sheetScrollbarDragStartOffset = 0;
   String? toolbarPopupKey;
+  bool _toolbarPopupOpenedFromMore = false;
   Color? _toolbarRecentTextColor;
   Color? _toolbarRecentBackgroundColor;
   Color _toolbarRecentBorderColor = const Color(0xff000000);
@@ -10024,6 +10025,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       }
       _commitSheetRename();
       setState(() {
+        _toolbarPopupOpenedFromMore = false;
         contextMenuAt = null;
         sheetTabMenuAt = null;
         hiddenSheetListAt = null;
@@ -10094,6 +10096,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       return true;
     }
     setState(() {
+      _toolbarPopupOpenedFromMore = false;
       contextMenuAt = null;
       sheetTabMenuAt = null;
       hiddenSheetListAt = null;
@@ -29630,6 +29633,9 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         break;
       }
     }
+    if (itemRect == null && _toolbarPopupOpenedFromMore) {
+      itemRect = Rect.fromLTWH(size.width, fortuneToolbarButtonTop, 0, 0);
+    }
     final options = _toolbarPopupOptionsFor(key, size.width);
     final width = fortuneToolbarPopupWidthFor(
       key,
@@ -29727,7 +29733,10 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         _commitEditing();
       }
       _commitSheetRename();
-      _activateToolbarPopupCommand(toolbarPopupCommand);
+      _activateToolbarPopupCommand(
+        toolbarPopupCommand,
+        openedFromMore: toolbarPopupKey == fortuneToolbarMorePopupKey,
+      );
       return true;
     }
     return true;
@@ -30219,7 +30228,10 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     return null;
   }
 
-  void _activateToolbarPopupCommand(String command) {
+  void _activateToolbarPopupCommand(
+    String command, {
+    bool openedFromMore = false,
+  }) {
     if (command == 'modal') {
       return;
     }
@@ -30246,7 +30258,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     if (_activateCustomToolbarItem(command)) {
       return;
     }
-    if (fortuneToolbarItems.contains(command)) {
+    if (_toolbarItemsWithCustom().contains(command)) {
       if (_isToolbarEditCommand(command)) {
         _activateToolbarEditCommand(command);
         return;
@@ -30257,6 +30269,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       }
       if (_isToolbarComboCommand(command)) {
         setState(() {
+          _toolbarPopupOpenedFromMore = openedFromMore;
           toolbarPopupKey = command;
           _toolbarPopupHoveredIndex = null;
           _toolbarPopupScrollOffset = _initialToolbarPopupScrollOffsetFor(
@@ -30269,6 +30282,10 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
         return;
       }
       if (_isToolbarImmediateCommand(command)) {
+        setState(() {
+          toolbarPopupKey = null;
+          _toolbarPopupOpenedFromMore = false;
+        });
         _activateToolbarImmediateCommand(command);
         return;
       }
@@ -42316,6 +42333,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     _cancelFilterDropdownScrollbarDrag();
     _sheetTabMenuSheetIndex = null;
     toolbarPopupKey = null;
+    _toolbarPopupOpenedFromMore = false;
     _toolbarPopupHoveredIndex = null;
     _toolbarPopupScrollOffset = 0;
     _toolbarPopupHoveredScrollButtonDirection = null;
@@ -48493,6 +48511,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
                 workbook: _workbook,
                 gridSize: sheetPaintSize,
                 toolbarRightInset: widget.toolbarRightInset,
+                toolbarPopupOpenedFromMore: _toolbarPopupOpenedFromMore,
                 locale: widget.locale,
                 selection: selection,
                 scrollOffset: scrollOffset,

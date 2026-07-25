@@ -3357,6 +3357,137 @@ void main() {
     );
   });
 
+  testWidgets('toolbar more runs hidden object insertion commands', (
+    tester,
+  ) async {
+    Future<void> pumpWorkbench() async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              width: 800,
+              height: 700,
+              child: LabelSheetWorkbench(
+                key: UniqueKey(),
+                initialWorkbook: FortuneWorkbook(
+                  sheets: [FortuneSheet(id: 's1', name: 'Label')],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump();
+    }
+
+    Future<CustomPainterSemantics> openMoreCommand(String command) async {
+      final canvasFinder = find.byType(FortuneSheetCanvas);
+      final canvasTopLeft = tester.getTopLeft(canvasFinder);
+      var painter = _currentFortunePainter(tester);
+      var semantics = painter.semanticsBuilder(
+        tester.getSize(canvasFinder),
+      );
+      final moreLabel = painter.locale.toolbarTooltipLabels[
+        fortuneToolbarMorePopupKey
+      ];
+      final moreNode = semantics.singleWhere(
+        (node) => node.properties.label == moreLabel,
+      );
+      await tester.tapAt(canvasTopLeft + moreNode.rect.center);
+      await tester.pump();
+
+      painter = _currentFortunePainter(tester);
+      semantics = painter.semanticsBuilder(tester.getSize(canvasFinder));
+      final commandLabel = painter.locale.toolbarTooltipLabels[command];
+      final commandNodes = semantics.where(
+        (node) => node.properties.label == commandLabel,
+      );
+      expect(
+        commandNodes,
+        hasLength(1),
+        reason:
+            'command=$command label=$commandLabel semantics='
+            '${semantics.map((node) => node.properties.label).whereType<String>().toList()}',
+      );
+      return commandNodes.single;
+    }
+
+    Future<void> selectMoreCommand(String command) async {
+      final commandNode = await openMoreCommand(command);
+      await tester.tapAt(
+        tester.getTopLeft(find.byType(FortuneSheetCanvas)) +
+            commandNode.rect.center,
+      );
+      await tester.pump();
+    }
+
+    await pumpWorkbench();
+    await selectMoreCommand(fortuneToolbarBarcodeCommand);
+    expect(_currentFortunePainter(tester).barcodeDialogOpen, isTrue);
+
+    await pumpWorkbench();
+    await selectMoreCommand(fortuneToolbarLineCommand);
+    expect(
+      _currentFortunePainter(tester).toolbarActiveKeys,
+      contains(fortuneToolbarLineCommand),
+    );
+
+    await pumpWorkbench();
+    await selectMoreCommand(fortuneToolbarShapeCommand);
+    final shapePainter = _currentFortunePainter(tester);
+    expect(shapePainter.toolbarPopupKey, fortuneToolbarShapeCommand);
+    final shapeSemantics = shapePainter.semanticsBuilder(
+      tester.getSize(find.byType(FortuneSheetCanvas)),
+    );
+    final rectangleNode = shapeSemantics.singleWhere(
+      (node) =>
+          node.properties.label ==
+          shapePainter.locale.toolbarTooltipLabels[
+            fortuneToolbarRectangleCommand
+          ],
+    );
+    expect(
+      rectangleNode.rect.right,
+      closeTo(
+        tester.getSize(find.byType(FortuneSheetCanvas)).width -
+            fortuneToolbarPopupViewportMargin,
+        0.01,
+      ),
+    );
+
+    await pumpWorkbench();
+    var objectNode = await openMoreCommand(fortuneToolbarObjectPanelCommand);
+    expect(objectNode.properties.checked, isTrue);
+    await tester.tapAt(
+      tester.getTopLeft(find.byType(FortuneSheetCanvas)) +
+          objectNode.rect.center,
+    );
+    await tester.pumpAndSettle();
+    expect(find.byType(FortuneObjectLayerPanel), findsNothing);
+
+    objectNode = await openMoreCommand(fortuneToolbarObjectPanelCommand);
+    expect(objectNode.properties.checked, isFalse);
+    await tester.tapAt(
+      tester.getTopLeft(find.byType(FortuneSheetCanvas)) +
+          objectNode.rect.center,
+    );
+    await tester.pumpAndSettle();
+    expect(find.byType(FortuneObjectLayerPanel), findsOneWidget);
+  });
+
+  test('toolbar popup rows reserve check space and trail merge icons', () {
+    const row = ui.Rect.fromLTWH(10, 20, 180, 40);
+    final checkRect = fortuneToolbarMorePopupCheckRect(row);
+    final moreLabelRect = fortuneToolbarMorePopupLabelRect(row);
+    final mergeLabelRect = fortuneToolbarMergePopupLabelRect(row);
+    final mergeIconRect = fortuneToolbarMergePopupIconRect(row);
+
+    expect(moreLabelRect.left, greaterThan(checkRect.right));
+    expect(mergeLabelRect.left, lessThan(mergeIconRect.left));
+    expect(mergeLabelRect.right, lessThanOrEqualTo(mergeIconRect.left));
+  });
+
   testWidgets('narrow object overlay caps at 300 within safe insets', (
     tester,
   ) async {

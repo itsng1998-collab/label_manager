@@ -2670,6 +2670,40 @@ const double fortuneToolbarMergePopupIconLeftPadding = 12.0;
 const double fortuneToolbarMergePopupIconTopPadding = 8.0;
 const double fortuneToolbarMergePopupIconSize = 24.0;
 const double fortuneToolbarMergePopupIconTextGap = 4.0;
+const double fortuneToolbarMorePopupCheckAreaWidth = 28.0;
+
+Rect fortuneToolbarMergePopupIconRect(Rect row) => Rect.fromLTWH(
+  row.right -
+      fortuneToolbarMergePopupIconLeftPadding -
+      fortuneToolbarMergePopupIconSize,
+  row.top + fortuneToolbarMergePopupIconTopPadding,
+  fortuneToolbarMergePopupIconSize,
+  fortuneToolbarMergePopupIconSize,
+);
+
+Rect fortuneToolbarMergePopupLabelRect(Rect row) => Rect.fromLTWH(
+  row.left + fortuneToolbarMergePopupIconLeftPadding,
+  row.top,
+  row.width -
+      fortuneToolbarMergePopupIconLeftPadding * 2 -
+      fortuneToolbarMergePopupIconSize -
+      fortuneToolbarMergePopupIconTextGap,
+  row.height,
+);
+
+Rect fortuneToolbarMorePopupCheckRect(Rect row) =>
+    Rect.fromLTWH(row.left + 12, row.top + 7, 14, 14);
+
+Rect fortuneToolbarMorePopupLabelRect(Rect row) => Rect.fromLTWH(
+  row.left +
+      fortuneToolbarSelectOptionHorizontalPadding +
+      fortuneToolbarMorePopupCheckAreaWidth,
+  row.top,
+  row.width -
+      fortuneToolbarSelectOptionHorizontalPadding * 2 -
+      fortuneToolbarMorePopupCheckAreaWidth,
+  row.height,
+);
 const double fortuneToolbarHorizontalAlignPopupWidth = 90.0;
 const double fortuneToolbarHorizontalAlignPopupVerticalPadding = 20.0;
 const double fortuneToolbarHorizontalAlignPopupContentTopPadding = 10.0;
@@ -62487,6 +62521,7 @@ class FortuneSheetPainter extends CustomPainter {
     required this.workbook,
     this.gridSize,
     this.toolbarRightInset = 0,
+    this.toolbarPopupOpenedFromMore = false,
     this.locale = const FortuneSheetLocale(),
     required this.selection,
     required this.scrollOffset,
@@ -62712,6 +62747,7 @@ class FortuneSheetPainter extends CustomPainter {
   final FortuneWorkbook workbook;
   final Size? gridSize;
   final double toolbarRightInset;
+  final bool toolbarPopupOpenedFromMore;
   final FortuneSheetLocale locale;
   final FortuneSelection selection;
   final Offset scrollOffset;
@@ -63412,28 +63448,12 @@ class FortuneSheetPainter extends CustomPainter {
       FortuneToolbarIconPainter.draw(
         canvas,
         option,
-        Rect.fromLTWH(
-          row.left + fortuneToolbarMergePopupIconLeftPadding,
-          row.top + fortuneToolbarMergePopupIconTopPadding,
-          fortuneToolbarMergePopupIconSize,
-          fortuneToolbarMergePopupIconSize,
-        ),
+        fortuneToolbarMergePopupIconRect(row),
       );
       _drawText(
         canvas,
         _toolbarPopupLabel(option),
-        Rect.fromLTWH(
-          row.left +
-              fortuneToolbarMergePopupIconLeftPadding +
-              fortuneToolbarMergePopupIconSize +
-              fortuneToolbarMergePopupIconTextGap,
-          row.top,
-          row.width -
-              fortuneToolbarMergePopupIconLeftPadding * 2 -
-              fortuneToolbarMergePopupIconSize -
-              fortuneToolbarMergePopupIconTextGap,
-          row.height,
-        ),
+        fortuneToolbarMergePopupLabelRect(row),
         fontSize: 12,
         align: TextAlign.right,
       );
@@ -67819,7 +67839,9 @@ class FortuneSheetPainter extends CustomPainter {
     )) {
       if (entry.key == itemKey) return entry.value;
     }
-    return null;
+    return toolbarPopupOpenedFromMore
+        ? Rect.fromLTWH(width, fortuneToolbarButtonTop, 0, 0)
+        : null;
   }
 
   List<String> _toolbarPopupOptionsFor(String key, double width) {
@@ -68091,20 +68113,32 @@ class FortuneSheetPainter extends CustomPainter {
         );
         _drawToolbarShapePopupIcon(canvas, row, options[i]);
       } else {
+        if (toolbarPopupKey == fortuneToolbarMorePopupKey &&
+            toolbarActiveKeys.contains(options[i])) {
+          _drawToolbarPopupCheckMark(canvas, row);
+        }
+        final labelRect = toolbarPopupKey == fortuneToolbarMorePopupKey
+            ? fortuneToolbarMorePopupLabelRect(row)
+            : Rect.fromLTWH(
+                row.left + fortuneToolbarSelectOptionHorizontalPadding,
+                row.top,
+                row.width -
+                    fortuneToolbarSelectOptionHorizontalPadding * 2,
+                row.height,
+              );
         _drawText(
           canvas,
           label,
           Rect.fromLTWH(
-            row.left + fortuneToolbarSelectOptionHorizontalPadding,
-            row.top,
-            row.width -
-                fortuneToolbarSelectOptionHorizontalPadding * 2 -
+            labelRect.left,
+            labelRect.top,
+            labelRect.width -
                 (hasConditionFormatArrow
                     ? fortuneConditionFormatTopLevelArrowReservedWidth
                     : hasBorderSubmenuArrow
                     ? fortuneConditionFormatTopLevelArrowReservedWidth
                     : 0),
-            row.height,
+            labelRect.height,
           ),
           fontSize: 12,
         );
@@ -68684,6 +68718,21 @@ class FortuneSheetPainter extends CustomPainter {
         );
       }
     }
+  }
+
+  void _drawToolbarPopupCheckMark(Canvas canvas, Rect row) {
+    final rect = fortuneToolbarMorePopupCheckRect(row);
+    final paint = Paint()
+      ..color = const Color(0xff0188fb)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+    final path = Path()
+      ..moveTo(rect.left + 3, rect.center.dy)
+      ..lineTo(rect.left + 6, rect.bottom - 4)
+      ..lineTo(rect.right - 3, rect.top + 4);
+    canvas.drawPath(path, paint);
   }
 
   void _drawConditionFormatSubmenu(
@@ -78314,6 +78363,7 @@ class FortuneSheetPainter extends CustomPainter {
   bool shouldRepaint(covariant FortuneSheetPainter oldDelegate) {
     return oldDelegate.workbook != workbook ||
         oldDelegate.toolbarRightInset != toolbarRightInset ||
+        oldDelegate.toolbarPopupOpenedFromMore != toolbarPopupOpenedFromMore ||
         oldDelegate.locale != locale ||
         oldDelegate.selection != selection ||
         oldDelegate.scrollOffset != scrollOffset ||
@@ -79637,6 +79687,7 @@ class FortuneSheetPainter extends CustomPainter {
           properties: SemanticsProperties(
             label: label,
             button: true,
+            checked: toolbarActiveKeys.contains(option),
             textDirection: textDirection,
           ),
         ),
