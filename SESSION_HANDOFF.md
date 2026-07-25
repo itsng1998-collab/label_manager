@@ -7,6 +7,15 @@
 - 이 파일에는 현재 상태, 최근 완료 항목, 검증, 다음 액션만 기록한다.
 
 ## 현재 상태
+- 완료: [doc/app_menu_porting.txt]의 품목별 정보 편집, 영양성분 형식·영양성분표, 고정 항목 관리, 검색출력모드 계약을 레거시 활성 코드와 사용자 확정 범위로 고정했다.
+- 사용자 확정: `품목별 정보 편집`은 단순 품목관리 탭 이동이 아니라 레거시 품목별 출력 보정값을 일괄 편집하는 전용 관리 dialog로 포팅한다. 검색출력모드는 중복 일치 시에도 레거시처럼 DB가 반환한 첫 행 1건을 즉시 발행한다. 고정 항목 관리는 메뉴 리소스 ID와 message map ID 불일치로 도달 경로가 확인되지 않았으므로 `legacyUnreachable`로 기록하고 production 메뉴에서 숨긴다.
+- 수정 예정 파일/목적: [doc/app_menu_porting.txt]의 5.3.1~5.3.4, 5.3.10과 관련 Phase/test/완료 계약을 실제 레거시 field·검증·CRUD·preview·검색출력 동작 및 사용자 확정 범위로 명확히 한다. [SESSION_HANDOFF.md]에는 파일별 편집·검증·stage/commit 결과를 기록한다.
+- 설정 command 계약 편집 완료: 품목별 정보 편집을 현재 지점·label size의 줄간격·발행수량·개별 크기·margin/push 일괄 편집 전용 dialog로 고정했다. 영양성분 형식은 실제 parent/detail CRUD·필수 검증·순차 keyword·연관 삭제만 포팅하고 정렬·중복 검증은 추가하지 않으며, 영양성분표는 형식·명칭·RTF·폭 CRUD와 선택 행 RTF read-only preview로 고정했다.
+- 숨김·검색출력 계약 편집 완료: 고정 항목 관리는 두 legacy ID 불일치와 활성 진입점 부재를 `legacyUnreachable` 사유로 기록해 production에서 숨기고 Phase 4 구현 대상에서 제외했다. 검색출력모드는 `F12`/menu 공용 state, tab·button 전환, 현재 label size의 품명 또는 `RICH_SEARCH_PRINT` column 완전 일치 첫 행 1건 즉시 발행과 입력 초기화로 고정했다.
+- Phase·테스트 계약 편집 완료: inventory/policy/Phase 5/체크리스트/최종 상태에 `legacyUnreachable`을 추가하고 Phase 4와 focused test를 네 활성 설정 command의 실제 field·transaction·preview·출력 동작에 맞췄다.
+- 검증 실행 예정: 이전 탭 이동·영양성분 정렬/중복 조사·고정 항목 활성 구현·검색출력 조사 문구 제거와 새 계약 반영을 PowerShell 표적 검사로 확인하고, `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`, 두 문서 diagnostics, 전체 diff와 stage 대상 분리를 검증한다. 문서 변경이므로 Flutter test는 실행하지 않는다.
+- 검증 완료: 이전 모순·조사 문구 5종이 0건이고 새 핵심 계약 8종이 모두 반영됐다. `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`가 통과했고 두 문서 diagnostics 오류가 없으며, 전체 diff가 확정한 다섯 command와 관련 policy·Phase·focused test 계약에 한정됨을 확인했다. 문서 변경이므로 Flutter test는 실행하지 않았다.
+- stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함한다. 사용자 소유 변경 [lib/core/app.dart]는 제외한다.
 - 완료: [doc/app_menu_porting.txt]의 검색·치환, 발행내역, 거래처·사용자 관리, 검색출력 설정과 조회 command 권한에서 남은 조사형·포괄형 문구를 레거시 활성 동작으로 고정했다.
 - 사용자 확정: 거래처·사용자 관리의 레거시 `Connect` 기능을 이번 AppBar 포팅 범위에 포함한다. 원래 관리자 보존, 연결 상태, 업무 context 전환과 관리자 접속 로그까지만 포팅하며 다른 경로에서 세션성 관리자 권한을 만들지 않는다.
 - 수정 예정 파일/목적: [doc/app_menu_porting.txt]의 5.1.4, 5.1.6, 5.2.1~5.2.4, 5.2.6, 5.3.11, 6.2와 관련 Phase/test 계약을 실제 레거시 handler/dialog/model/DAO 범위로 명확히 한다. [SESSION_HANDOFF.md]에는 파일별 편집·검증·stage/commit 결과를 기록한다.

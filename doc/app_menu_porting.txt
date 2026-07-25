@@ -160,7 +160,7 @@ END CATCH
 - dirty, busy, 필수 선택 누락처럼 현재 상태를 해결하면 실행할 수 있는 command만 표시한 채 비활성화한다.
 - 비활성 popup item은 명령명 아래 또는 오른쪽에 짧은 `disabledReason`을 직접 표시한다. hover에 의존하는 tooltip을 유일한 안내로 사용하지 않는다.
 - `disabledReason`은 현재 품목관리 popup처럼 읽을 수 있는 길이로 직접 표시하며 필요한 경우 두 줄까지 허용한다. 실제 공간 때문에 문구를 줄일 때만 tooltip으로 전체 내용을 보조하고, 기본 text semantics로 정보가 전달되지 않는 custom renderer에만 별도 semantics label을 추가한다.
-- `legacyInactive` command는 inventory와 숨김 policy만 유지한다. 별도 활성화 요구가 있을 때 실제 기능 범위와 노출 policy를 함께 검토한다.
+- `legacyInactive`와 `legacyUnreachable` command는 inventory와 숨김 policy만 유지한다. `legacyInactive`는 레거시가 명시적으로 비활성화한 command, `legacyUnreachable`은 메뉴 리소스에서 활성 handler까지 도달하는 경로가 확인되지 않은 command에 사용한다. 별도 활성화 요구나 실제 도달 경로가 확인될 때 기능 범위와 노출 policy를 함께 검토한다.
 - 그룹 안에 표시할 command가 하나도 없으면 빈 그룹 아이콘도 숨긴다.
 - 로그인/로그아웃 command는 inventory와 controller에 유지하되 `파일/관리` popup에는 렌더링하지 않는다. 현재 상태에 맞는 AppBar 오른쪽 고정 아이콘 하나만 표시한다.
 - 종료 command는 AppBar 고정 아이콘으로 중복하지 않고 `파일/관리` popup에 유지한다.
@@ -225,7 +225,7 @@ END CATCH
 - 메뉴 선택이 brand, label size, 탭, draft context를 바꾸는 경우 기존 `_block...ContextChange` 경로를 재사용한다.
 - 읽기 전용 이력 조회까지 일괄 차단하지 않는다.
 - 저장 command busy 중 DB를 다시 갱신하거나 같은 데이터를 수정하는 command만 비활성화한다.
-- 로그인 상태/등급/`legacyInactive`처럼 현재 policy에서 표시 대상이 아닌 command는 `visible=false`로 처리하고 disabled reason을 만들지 않는다.
+- 로그인 상태/등급/`legacyInactive`/`legacyUnreachable`처럼 현재 policy에서 표시 대상이 아닌 command는 `visible=false`로 처리하고 disabled reason을 만들지 않는다.
 - 편집 중, command busy, 필수 context 누락은 서로 다른 disabled reason으로 계산한다.
 - disabled reason은 테스트 가능한 순수 policy 결과로 유지하고 popup item 안의 보조 문구로 직접 안내한다. tooltip은 전체 문구 보조에만 사용하고 별도 경고 dialog를 띄우지 않는다.
 
@@ -392,27 +392,34 @@ END CATCH
 
 ### 5.3.1 품목별 정보 편집 (`IDM_EDIT_ITEMINFO`)
 
-- 신규 화면을 만들지 않고 품목관리 탭으로 이동한다.
+- 레거시 기준: `OnEditItemInfo` → `CMainWindowModel::OnSelectEditItemInfo` → `CItemInfoDlg`/`CItemInfoModel`.
 - 일반 사용자는 현재 Flutter 권한 UX에 따라 command를 표시하지 않는다.
-- 현재 편집 중 context가 있으면 기존 탭 변경 차단 흐름을 사용한다.
-- 탭 이동 후 현재 brand/label size의 품목 목록과 선택을 유지한다.
+- 현재 지점과 현재 label size의 품목별 출력 보정값을 일괄 편집하는 전용 `BlockingModelessDialog`를 구현한다. 단순 품목관리 탭 이동으로 대체하거나 품목관리의 상시 column을 늘리지 않는다.
+- 반복 행은 `FortuneTable`로 표시하고 품명은 읽기 전용으로 둔다. 편집 대상은 레거시 활성 field인 줄간격 사용 여부·줄간격, 저울 바코드 사용 여부, 기본 발행 수량, 개별 label size 사용 여부·폭·높이, 개별 margin 사용 여부, 좌·우·상 margin과 좌·상 push로 제한한다.
+- 줄간격, 개별 label size, margin의 세부 입력은 각 사용 여부가 켜진 행에서만 편집 가능하게 한다. 판매 시작일, 원가, 할인 관련 field처럼 레거시 dialog에서 숨긴 field를 이번 command에 추가하지 않는다.
+- 기존 `ItemOfMarket`과 `ItemOfMarketDAO`를 재사용하거나 최소 확장한다. 저장은 현재 목록의 변경값을 레거시 `CItemOfMarketDAO::UpdateBatch`에 대응하는 하나의 batch/transaction으로 반영하고, 성공 후 현재 품목·출력 session이 사용하는 `ItemOfMarket` 목록만 갱신한다.
+- dialog가 dirty이면 닫기·로그아웃·종료의 기존 통합 폐기 확인에 포함하고, 저장 중에는 닫기와 중복 저장을 차단한다.
 
 ### 5.3.2 영양성분 형식추가 (`IDM_NEW_NUTTYPE`)
 
 - 레거시 기준: `OnInsertNewNutTypeDlg` → `CNuttypeManagerDlg`.
 - 권한: 6.1의 `adminCommand`.
-- 형식 목록, 추가/수정/삭제, 정렬, 중복 검증을 레거시 dialog/model/DAO에서 확인한다.
-- 관련 기존 테이블과 column이 실제 DB에 있는지 확인한 뒤 model/DAO를 작성한다.
+- `BM_RICH_NUTTYPE` 형식 목록과 `BM_RICH_NUTCOLUMN` 구성 행의 추가·수정·삭제를 포팅한다. 형식명은 필수이고 구성 행은 1개 이상이어야 한다.
+- 구성 행 추가 시 keyword는 레거시처럼 `N01`부터 순서대로 자동 부여하고 사용자가 수정하지 못하게 하며 성분명만 편집한다. 별도 행 정렬 command, 형식명·성분명 중복 검증, 신규 검증 규칙을 추가하지 않는다.
+- 기존 형식 수정은 parent 이름을 갱신하고 기존 detail을 삭제한 뒤 현재 구성 행을 다시 저장한다. 형식 삭제는 해당 형식을 사용하는 `BM_RICH_NUTBOX`, `BM_RICH_NUTCOLUMN`, `BM_RICH_NUTTYPE` 순서의 연관 삭제를 하나의 transaction으로 처리한다.
+- 관련 기존 테이블과 column이 실제 DB에 있는지 확인한 뒤 전용 model/DAO를 작성한다.
 - 현재 label column/barcode 모델에 억지로 포함하지 않는다.
-- 저장은 형식 parent와 detail이 함께 성공해야 하면 하나의 transaction으로 처리한다.
+- 신규·수정의 형식 parent와 detail 저장도 하나의 transaction으로 처리한다. `MAX(RICH_NUTTYPE_ID)`로 방금 삽입한 parent를 추측하지 않고 현재 SQL Server 2017과 compatibility level 100에서 지원하는 동일 transaction의 생성 ID 반환을 사용한다.
 
 ### 5.3.3 영양성분표 추가 (`IDM_NEW_NUTBOX`)
 
 - 레거시 기준: `OnInsertNewNutboxDlg` → `CNutBoxManagerDlg`.
 - 권한: 6.1의 `adminCommand`.
-- 영양성분 형식과 표 instance의 관계를 레거시 model에서 확인한다.
-- 형식 관리와 공용 shell은 재사용할 수 있으나 DAO와 draft 책임은 구분한다.
-- 레거시가 제공하는 preview가 있으면 현재 LabelSheet/FortuneSheet read-only renderer를 우선 사용한다.
+- `BM_RICH_NUTBOX` 목록에 영양성분 형식명과 표 명칭을 표시하고 형식 ID 순서로 조회한다. 선택 행의 `RICH_NUTBOX_DATA` RTF는 목록 옆 읽기 전용 preview로 표시한다.
+- 추가·수정 입력은 영양성분 형식, 표 명칭, RTF 내용, 폭만 제공한다. 명칭과 0이 아닌 폭, 형식 선택을 필수로 검증하고 별도 영양성분 schema나 field를 추가하지 않는다.
+- 추가·수정은 `RICH_NUTBOX_TYPE`, `RICH_NUTBOX_NAME`, `RICH_NUTBOX_DATA`, `RICH_NUTBOX_WIDTH`만 저장하고 삭제는 선택한 `RICH_NUTBOX_ID` 한 건만 처리한다.
+- RTF 편집·읽기 전용 preview는 현 프로젝트의 기존 RTF renderer/helper를 우선 재사용한다. `RICH_NUTBOX_DATA`를 FortuneSheet workbook으로 변환하거나 renderer 재사용을 위해 별도 저장 형식을 추가하지 않는다.
+- 형식 관리와 공용 dialog/table shell은 재사용할 수 있으나 영양성분표 row model, DAO와 입력 draft는 형식 관리의 parent/detail 저장 책임과 섞지 않는다.
 - 임의의 신규 nutrition schema를 만들지 않는다.
 
 ### 5.3.4 고정 항목 관리 (`IDM_FIX_COLUMN_MANAGER` / `IDM_FIX_COLUMN_MANAGE`)
@@ -420,10 +427,9 @@ END CATCH
 - 레거시 기준: `OnFixColumnManage` → `CFixColumnEditDlg`.
 - 권한: 6.1의 `systemAdminCommand`.
 - 레거시 메뉴 리소스는 `IDM_FIX_COLUMN_MANAGER(32853)`를 사용하지만 `MainFrm.cpp`의 command/update message map은 `IDM_FIX_COLUMN_MANAGE(32854)`를 사용한다.
-- 포팅 전 실제 legacy build의 도달 경로를 확인하고 Flutter inventory에서는 하나의 `fixColumnManage` ID로 정규화한다. 두 ID를 별도 메뉴로 만들지 않는다.
-- `SpecalKeyword`, `TColumnSpecial`, 날짜/주원료 같은 현 고정 항목 모델과 레거시 저장 source를 먼저 대조한다.
-- 현재 코드 상수만 변경하는 UI로 만들지 않는다. 레거시가 DB에 저장하는 항목만 CRUD 대상으로 한다.
-- schema가 확인되지 않으면 migration 없이 blocker 처리한다.
+- 현재 소스에는 두 ID를 잇는 alias나 다른 활성 진입점이 없어 메뉴에서 handler까지 도달하는 경로가 확인되지 않는다. Flutter inventory에는 하나의 `fixColumnManage` ID와 두 legacy ID의 불일치 사유를 기록하고 `legacyUnreachable`로 분류한다.
+- production 메뉴에서는 숨기며 이번 포팅의 dialog/model/DAO 구현·내부 schema 조사·완료 판정 범위에서 제외한다. 두 ID를 별도 메뉴로 만들거나 도달하지 않는 handler를 활성 command로 되살리지 않는다.
+- 실제 배포된 레거시 binary에서 도달 경로가 확인되거나 별도 활성화 요구가 생기면 `CFixColumnEditDlg`, `SpecalKeyword`, `TColumnSpecial`과 실제 저장 source를 다시 대조해 별도 범위로 구현한다. schema가 확인되지 않으면 migration 없이 blocker 처리한다.
 
 ### 5.3.5 전자저울 관리 (`IDM_SETUP_SCALE`)
 
@@ -473,12 +479,13 @@ END CATCH
 
 ### 5.3.10 검색출력모드 (`IDM_SEARCH_PRINT_MODE`)
 
-- 레거시 observer 흐름에서 mode가 영향을 주는 검색 필드, 출력 대상, 키보드 단축키 `F12`를 확인한다.
+- 레거시처럼 `F12`와 menu command가 같은 bool mode를 toggle한다. mode가 켜지면 메인 tab을 비활성화하고 기존 검색 button label을 `발행`으로, 꺼지면 `검색`으로 복원한다.
+- mode가 꺼진 상태의 검색 button은 기존 검색·치환 흐름을 유지한다. mode가 켜진 상태에서는 현재 label size 안에서 품명 완전 일치 또는 `RICH_SEARCH_PRINT=1`인 column 내용 완전 일치로 조회한다.
+- 일치 결과가 여러 건이어도 별도 선택·중복 경고·정렬을 추가하지 않고 레거시처럼 DB가 반환한 첫 행의 품목 1건을 기존 라벨출력 pipeline으로 즉시 발행한다. 발행 요청 후 검색 입력을 비운다.
 - 단순 bool toggle이라도 mode state는 AppBar widget이 아니라 HomePageManager/controller가 소유한다.
 - popup에서는 command 앞 checkmark로 mode 활성 상태를 표시한다. segmented control은 사용하지 않는다.
 - menu item을 선택하면 AppBar popup을 닫은 뒤 controller mode를 한 번 변경한다. 메뉴가 닫힌 상태에서 `F12`로 mode가 바뀌어도 다음 popup open 시 controller의 현재 값을 읽어 checkmark를 표시한다.
-- 현재 라벨출력 command와 중복되는 부분은 출력 pipeline을 재사용한다.
-- 레거시와 다른 자동 검색/자동 발행 규칙을 추가하지 않는다.
+- 프린터 설정, 자동 증가, 출력 log 등은 현재 라벨출력 pipeline을 재사용한다. mode 전용 출력 구현이나 레거시와 다른 자동 검색/자동 발행 규칙을 추가하지 않는다.
 
 ### 5.3.11 검색출력 설정 (`IDM_SEARCH_PRINT_SETUP`)
 
@@ -512,7 +519,7 @@ END CATCH
 
 - `systemAdmin`: `SYSTEM_ADMIN_USER`.
 - `admin`: `SYSTEM_ADMIN_USER` 또는 `COOP_ADMIN_USER`.
-- `systemAdminCommand`: 레거시 `OnEnableSystemAdmin`과 같이 `IsSystemAdmin` 또는 `IsAdminConnect`를 허용한다. 협력업체 관리와 고정 항목 관리에 사용한다.
+- `systemAdminCommand`: 레거시 `OnEnableSystemAdmin`과 같이 `IsSystemAdmin` 또는 `IsAdminConnect`를 허용한다. 협력업체 관리에 사용하며 고정 항목 관리는 inventory의 권한 metadata만 유지하되 `legacyUnreachable` 숨김이 우선한다.
 - `adminCommand`: 레거시 `OnEnableAdmin`과 같이 `IsSystemAdmin`, `IsCoopAdmin`, `IsAdminConnect`, `IsCoopAdminConnect`, `IsFirstConnectByAdmin` 중 하나를 허용한다. 거래처 관리, 관리자 복사, 영양성분 형식·표에 사용한다.
 - `managerCommand`: 레거시 `OnEnableManager`와 같이 `IsSystemAdmin`, `IsCoopAdmin`, `IsAdminConnect`, `IsCoopAdminConnect` 중 하나를 허용한다. 지점 관리, 사용자 관리, 검색 및 치환에 사용하며 `IsFirstConnectByAdmin`과 `MANAGER_USER`를 자동 포함하지 않는다.
 - 세 command policy의 세션성 연결 상태는 6.2의 신뢰 가능한 source가 포팅된 경우에만 포함한다. 해당 상태가 없을 때 `systemAdminCommand`의 기본 등급은 `systemAdmin`, `adminCommand`와 `managerCommand`의 기본 등급은 `admin`이며, 임의로 허용 범위를 넓히지 않는다.
@@ -530,7 +537,7 @@ END CATCH
 
 ### 6.3 policy 테스트 필수 matrix
 
-command마다 모든 등급 조합을 반복하지 않는다. 공용 policy table test에서 비로그인, 관리자 계열, 일반 사용자, `tester01` override, `legacyInactive`의 대표 경계를 고정한다. `systemAdminCommand`, `adminCommand`, `managerCommand`는 `IsFirstConnectByAdmin` 포함 여부와 `MANAGER_USER` 제외를 포함한 서로 다른 경계를 한 번씩 검증하고, command별 test는 해당 command에 별도 권한이나 busy/dirty 조건이 있을 때만 추가한다. admin-connect session은 실제 신뢰 가능한 상태가 구현된 command에만 검증한다.
+command마다 모든 등급 조합을 반복하지 않는다. 공용 policy table test에서 비로그인, 관리자 계열, 일반 사용자, `tester01` override, `legacyInactive`, `legacyUnreachable`의 대표 경계를 고정한다. `systemAdminCommand`, `adminCommand`, `managerCommand`는 `IsFirstConnectByAdmin` 포함 여부와 `MANAGER_USER` 제외를 포함한 서로 다른 경계를 한 번씩 검증하고, command별 test는 해당 command에 별도 권한이나 busy/dirty 조건이 있을 때만 추가한다. admin-connect session은 실제 신뢰 가능한 상태가 구현된 command에만 검증한다.
 
 ## 7. 화면 및 DAO 구현 공통 기준
 
@@ -540,7 +547,7 @@ command마다 모든 등급 조합을 반복하지 않는다. 공용 policy tabl
 - 공용 wrapper는 구조상 modeless overlay이지만 배경의 pointer/touch와 처리되지 않은 key event를 차단한다. dialog가 열린 동안 배경 탭이나 AppBar command를 조작할 수 있게 우회하지 않는다.
 - widget tree의 key 차단만으로 `HardwareKeyboard.instance.addHandler` 전역 handler가 차단된다고 가정하지 않는다. 차단 surface가 보이는 동안 F1/F2/F3 탭 이동, F5 새로고침, F12 검색출력 mode를 실행하지 않으며 dialog 내부의 Tab, Enter, Esc와 셀 편집 shortcut은 유지한다.
 - `DbReconnectOverlay`처럼 widget tree 안에서 `ModalBarrier`를 렌더링하는 기존 전역 차단 UI도 같은 단축키 차단 결과를 보장한다.
-- 기존 품목관리·공용라벨관리·라벨출력·자동품목갱신·저울출력처럼 상시 반복 작업으로 이미 존재하는 메인 탭은 그대로 재사용한다. `품목별 정보 편집`처럼 기존 탭으로 이동하는 command에는 dialog를 중복 생성하지 않는다.
+- 기존 품목관리·공용라벨관리·라벨출력·자동품목갱신·저울출력처럼 상시 반복 작업으로 이미 존재하는 메인 탭은 그대로 재사용한다. 다만 레거시 `품목별 정보 편집`은 품목관리 탭과 저장 책임이 다른 출력 보정값 일괄 편집 기능이므로 5.3.1의 전용 차단형 dialog로 구현한다.
 - 로그인, 로그아웃, 종료, 즉시 적용되는 검색출력 mode toggle처럼 별도 편집 화면이 없는 command도 억지로 dialog를 만들지 않는다.
 - 이미 동작하는 저울·프린터 설정 등의 `showDialog`/`showGeneralDialog` owning dialog는 기존 command를 그대로 호출하고 같은 dialog를 `BlockingModelessDialog`로 한 번 더 감싸거나 coordinator 소유로 이전하지 않는다.
 - 신규 관리·편집·조회 기능은 별도 `Navigator` route page, 새 메인 탭 또는 Windows native child window로 구현하지 않는다. 예외가 필요하면 장시간 상시 작업이어야 하며 근거와 영향 범위를 `SESSION_HANDOFF.md`에 기록하고 별도 승인 후 진행한다.
@@ -614,27 +621,26 @@ command마다 모든 등급 조합을 반복하지 않는다. 공용 policy tabl
 
 ### Phase 0. inventory와 command contract 고정
 
-1. 파일/검색/설정의 Flutter owning action마다 `AppMenuCommandId`, group, label, optional icon, optional `shortcutLabel`, permission, legacyInactive를 순수 table로 작성한다.
+1. 파일/검색/설정의 Flutter owning action마다 `AppMenuCommandId`, group, label, optional icon, optional `shortcutLabel`, permission, `legacyInactive`, `legacyUnreachable`을 순수 table로 작성한다.
 2. 모든 command의 레거시 handler, legacy command ID 대응 관계와 현 구현 상태는 포팅 대조용 test fixture로 고정한다. 하나의 legacy ID에서 분리된 여러 Flutter command는 서로 다른 안정 ID를 갖는다.
 3. 권한 matrix unit test를 먼저 작성한다.
 4. 아직 기능이 없는 command도 ID를 예약하되 실제 menu에는 기능 완료 시점에만 연결한다.
 
 완료 기준:
 - 파일/검색/설정 command 누락 없음.
-- 권한별 visible/enabled 상태와 legacyInactive 숨김이 테스트로 고정됨.
+- 권한별 visible/enabled 상태와 `legacyInactive`/`legacyUnreachable` 숨김이 테스트로 고정됨.
 
 ### Phase 1. AppBar shell과 기존 기능 연결
 
 1. AppBar 그룹 아이콘과 좁은 화면의 2단계 overflow를 구현한다. 기존 desktop window 초기화 동작은 변경하지 않는다.
 2. login/logout/exit를 기존 HomePage command에 연결한다.
-3. 품목관리 탭 이동을 연결한다.
-4. 저울 설정, 라벨출력/저울출력 프린터 설정을 HomePageManager controller로 연결한다.
-5. update notice 공용 dialog를 추출해 메뉴에서 연결한다.
-6. AppBar menu·modal dialog·modeless overlay·`DbReconnectOverlay`가 보이는 동안 전역 F1/F2/F3/F5/F12를 차단하고 non-modal `PreviewFloatingWindow`만 보일 때는 기존 단축키를 유지한다.
-7. 신규 관리·조회 dialog의 owning controller에 `BlockingModelessDialog` open/close, 동일 dialog 중복 방지, 초기 focus와 중첩 modal/picker pattern을 적용한다. 편집 또는 저장이 있는 dialog에만 실제 dirty, write-busy, active editing 상태를 추가한다.
-8. AppBar popup을 닫은 뒤 owning command를 한 번 실행하고, dialog를 열면 내부로 focus를 넘긴다.
-9. `HomePageManager`와 신규 dialog owner가 실제 busy, active editing, dirty 표시명·폐기 callback을 exit snapshot으로 제공하고, 공용 lifecycle guard가 차단 상태를 먼저 평가한 뒤 모든 dirty를 한 번 확인하고 overlay를 정리하도록 연결한다.
-10. 명시적 draft 저장·command 영역은 기존 frame footer slot에 구성하고, 행 CRUD command는 작업 빈도와 현재 owning 화면에 맞는 toolbar, rail 또는 context menu에 배치한다.
+3. 저울 설정, 라벨출력/저울출력 프린터 설정을 HomePageManager controller로 연결한다.
+4. update notice 공용 dialog를 추출해 메뉴에서 연결한다.
+5. AppBar menu·modal dialog·modeless overlay·`DbReconnectOverlay`가 보이는 동안 전역 F1/F2/F3/F5/F12를 차단하고 non-modal `PreviewFloatingWindow`만 보일 때는 기존 단축키를 유지한다.
+6. 신규 관리·조회 dialog의 owning controller에 `BlockingModelessDialog` open/close, 동일 dialog 중복 방지, 초기 focus와 중첩 modal/picker pattern을 적용한다. 편집 또는 저장이 있는 dialog에만 실제 dirty, write-busy, active editing 상태를 추가한다.
+7. AppBar popup을 닫은 뒤 owning command를 한 번 실행하고, dialog를 열면 내부로 focus를 넘긴다.
+8. `HomePageManager`와 신규 dialog owner가 실제 busy, active editing, dirty 표시명·폐기 callback을 exit snapshot으로 제공하고, 공용 lifecycle guard가 차단 상태를 먼저 평가한 뒤 모든 dirty를 한 번 확인하고 overlay를 정리하도록 연결한다.
+9. 명시적 draft 저장·command 영역은 기존 frame footer slot에 구성하고, 행 CRUD command는 작업 빈도와 현재 owning 화면에 맞는 toolbar, rail 또는 context menu에 배치한다.
 
 완료 기준:
 - 기존 화면 버튼과 AppBar 메뉴가 같은 owning command를 호출함.
@@ -682,9 +688,9 @@ command마다 모든 등급 조합을 반복하지 않는다. 공용 policy tabl
 
 ### Phase 4. 설정 데이터 관리
 
-1. 영양성분 형식.
-2. 영양성분표.
-3. 고정 항목 관리.
+1. 품목별 정보 편집.
+2. 영양성분 형식.
+3. 영양성분표.
 4. 검색출력 설정과 mode.
 5. 검색 및 치환.
 
@@ -693,13 +699,14 @@ command마다 모든 등급 조합을 반복하지 않는다. 공용 policy tabl
 - mode/settings/data 저장 책임이 분리됨.
 - 검색/치환 결과 table의 변경값 확인, 레거시 확인 흐름과 transaction 검증 통과.
 
-### Phase 5. legacyInactive 최종 검증
+### Phase 5. 숨김 command 최종 검증
 
 1. 거래게시판, 공용라벨 이력, 이더넷 설정을 inventory에 유지한다.
-2. legacyInactive command는 production 메뉴에서 숨김 상태를 유지한다.
+2. 고정 항목 관리를 `legacyUnreachable`과 두 legacy ID의 불일치 사유와 함께 inventory에 유지한다.
+3. `legacyInactive`와 `legacyUnreachable` command는 production 메뉴에서 숨김 상태를 유지한다.
 
 완료 기준:
-- legacyInactive command가 production 메뉴에 노출되지 않음.
+- `legacyInactive`와 `legacyUnreachable` command가 production 메뉴에 노출되지 않음.
 
 ## 9. 테스트 지시
 
@@ -707,12 +714,16 @@ command마다 모든 등급 조합을 반복하지 않는다. 공용 policy tabl
 
 - `test/app_menu_policy_test.dart`
   - runtime command inventory와 상태 policy.
-  - 대표 권한 경계와 로그인/편집/busy/legacyInactive 상태.
+  - 대표 권한 경계와 로그인/편집/busy/`legacyInactive`/`legacyUnreachable` 상태.
 - 포팅 대조용 inventory fixture test
   - 레거시 handler와 legacy command ID 대응 관계.
   - 레거시 `IDM_SETUP_PRINT`에서 분리한 프린터 설정 1→2 command mapping.
-- 해당 policy focused test에서 세 legacy command policy의 차이, 각 command mapping, 사용자 관리와 지점 관리의 `MANAGER_USER` 숨김, 이더넷 설정의 `legacyInactive` 상태를 검증한다.
-- 해당 owning controller focused test에서 저울 연결 설정과 라벨출력/저울출력 프린터 설정의 공개 command가 기존 private owning method에 한 번 위임하는지, 메뉴 밖 `F12` 변경 후 검색출력 mode 상태가 갱신되는지 검증한다.
+- 해당 policy focused test에서 세 legacy command policy의 차이, 각 command mapping, 사용자 관리와 지점 관리의 `MANAGER_USER` 숨김, 이더넷 설정의 `legacyInactive`, 고정 항목 관리의 `legacyUnreachable` 상태와 production 숨김을 검증한다.
+- 해당 owning controller focused test에서 저울 연결 설정과 라벨출력/저울출력 프린터 설정의 공개 command가 기존 private owning method에 한 번 위임하는지 검증한다.
+- 품목별 정보 편집 focused test에서 현재 지점·label size 목록, 레거시 출력 보정 field의 활성 조건과 일괄 저장, 성공 후 필요한 `ItemOfMarket` 목록 갱신, dirty/busy 종료 차단을 검증한다.
+- 영양성분 형식 focused test에서 형식명 필수, 구성 행 1개 이상, 순차 keyword 자동 부여, parent/detail transaction과 형식 삭제의 연관 삭제를 검증한다. 정렬 command나 별도 중복 검증은 추가하지 않는다.
+- 영양성분표 focused test에서 형식·명칭·RTF·폭 CRUD, 명칭·폭·형식 검증과 선택 행 RTF read-only preview를 검증한다.
+- 검색출력 mode focused test에서 `F12`와 menu toggle이 같은 controller state를 사용하고, tab/button 상태가 전환되며 현재 label size의 품명 또는 `RICH_SEARCH_PRINT` column 완전 일치 첫 행 1건만 기존 pipeline으로 즉시 발행한 뒤 입력을 비우는지 검증한다.
 - 관리 dialog focused test에서 command visibility와 selector 활성 상태를 분리해 거래처·지점·사용자 관리의 대표 권한 경계를 검증한다.
 - 거래처·사용자 관리 focused test에서 선택 대상 `Connect`가 원래 관리자를 한 번만 보존하고 레거시 조건의 연결 상태와 사용자·지점·거래처·협력업체 context를 설정하며 관리자 접속 로그를 한 번 저장하는지 검증한다. 임의 경로에서는 연결 상태를 만들지 않는다.
 - 사용자 관리 focused test에서 생성·수정 등급은 `CLIENT_USER`·`MANAGER_USER`만 표시되고 신규 기본값이 `CLIENT_USER`인지 검증한다.
@@ -744,7 +755,7 @@ command마다 모든 등급 조합을 반복하지 않는다. 공용 policy tabl
   - separator와 command label.
   - popup이 command의 간결한 한글 기본 label을 그대로 표시함.
   - 실제 활성 shortcut이 있는 `품목별 정보 편집`의 `F1`, `검색출력모드`의 `F12`가 명령명과 분리된 오른쪽 보조 영역 및 semantics에 표시되고 미구현 shortcut은 표시되지 않음.
-  - 권한 부족·legacyInactive command 숨김과 transient dirty/busy command의 inline disabled reason 표시. 문구를 실제로 줄이는 renderer만 전체 tooltip을, 기본 text semantics가 부족한 custom renderer만 별도 semantics를 검증한다.
+  - 권한 부족·`legacyInactive`·`legacyUnreachable` command 숨김과 transient dirty/busy command의 inline disabled reason 표시. 문구를 실제로 줄이는 renderer만 전체 tooltip을, 기본 text semantics가 부족한 custom renderer만 별도 semantics를 검증한다.
   - 로그인/로그아웃 command는 inventory에 존재하지만 `파일/관리` popup에는 렌더링되지 않고 현재 상태의 AppBar 고정 아이콘 하나만 표시.
   - 대표 command를 통해 별도 command ID·label 렌더링과 주입된 검색출력 mode 상태에 맞는 checkmark 표시.
   - 서버 상태와 로그아웃 버튼 위치 유지.
@@ -754,7 +765,7 @@ command마다 모든 등급 조합을 반복하지 않는다. 공용 policy tabl
 - 대표 저장 dialog test에서 commit 전 확정 실패는 draft를 유지하고, `DbCommitOutcomeUnknown`과 commit 후 reload 실패는 안내 후 dialog를 닫으며 같은 draft의 재저장 UI나 별도 읽기 전용·수동 재조회 mode를 만들지 않는지 검증한다.
 - 사용자 접속 이력 focused test에서 demo row·route page 없이 차단형 dialog content와 read-only `FortuneTable`, overlay date picker를 사용하는지 검증한다.
 - 반복 행 화면은 `FortuneTable`을 사용한다. 공용 API를 확장한 경우에만 `test/fortune_table_test.dart`에 해당 동작과 관련 회귀를 추가한다.
-- `legacyInactive` command가 production 메뉴에 렌더링되지 않는지 검증한다.
+- `legacyInactive`와 `legacyUnreachable` command가 production 메뉴에 렌더링되지 않는지 검증한다.
 
 ### 9.3 integration test
 
@@ -776,7 +787,7 @@ command마다 모든 등급 조합을 반복하지 않는다. 공용 policy tabl
 - [ ] 레거시 handler/dialog/model/DAO 확인.
 - [ ] DB를 사용하는 command는 실제 기존 DB schema 확인.
 - [ ] command ID/label/group과 optional icon/`shortcutLabel` 등록.
-- [ ] 해당 command의 권한·로그인·legacyInactive 또는 busy/dirty 조건 확인.
+- [ ] 해당 command의 권한·로그인·`legacyInactive`·`legacyUnreachable` 또는 busy/dirty 조건 확인.
 - [ ] 기존 기능이면 owning command 재사용.
 - [ ] 미구현 기능이면 필요한 model/DAO와 `BlockingModelessDialog` 기반 화면 구현.
 - [ ] 기존 핵심 탭 이동 외에 별도 route page, 신규 메인 탭, native child window를 추가하지 않음.
@@ -797,6 +808,7 @@ command마다 모든 등급 조합을 반복하지 않는다. 공용 policy tabl
 - 좁은 화면 overflow에 모든 command를 하나의 긴 평면 목록으로 표시하지 않는다.
 - 미구현 command를 snackbar `준비 중`으로 완료 처리하지 않는다.
 - 레거시 INACTIVE command를 임의 활성화하지 않는다.
+- 레거시 메뉴에서 handler 도달 경로가 확인되지 않은 command를 임의 활성화하지 않는다.
 - schema가 없다는 이유로 앱 시작 시 table/column을 자동 생성하지 않는다.
 - DB migration script를 추가하거나 실행하지 않는다.
 - generic catch에서 DB 오류를 성공/빈 결과로 바꾸지 않는다.
@@ -848,7 +860,7 @@ command마다 모든 등급 조합을 반복하지 않는다. 공용 policy tabl
 - 모든 관리 목록과 조회 결과의 반복 행 table은 공용 `FortuneTable`을 사용한다.
 - 명시적 draft 저장 흐름이 있는 신규 관리 dialog는 기존 frame footer slot에 필요한 command를 구성하고, 즉시 적용형·단순 설정형과 기존 owning dialog는 필요한 command 영역만 유지한다. 행 CRUD command는 작업 빈도와 owning 화면에 맞는 toolbar, rail 또는 context menu를 사용한다.
 - footer 없는 busy 상태는 실행 control 가까이에 표시되고, 차단형 overlay 오류는 inline 또는 공용 overlay dialog로 전달된다.
-- legacyInactive command는 inventory에 유지하되 production 메뉴에서는 숨기며 활성화 요구 전에는 내부 구현을 완료 조건으로 삼지 않는다.
+- `legacyInactive`와 `legacyUnreachable` command는 inventory에 사유와 함께 유지하되 production 메뉴에서는 숨기며 활성화 요구나 실제 도달 경로 확인 전에는 내부 구현을 완료 조건으로 삼지 않는다.
 - DB schema는 변경되지 않는다.
 - 저장 오류는 호출자에게 전달되고 가능한 transaction만 rollback된다. `DbCommitOutcomeUnknown`과 commit 후 reload 실패는 같은 draft를 재저장하지 않도록 안내 후 dialog를 닫고, 다시 열 때 최신 데이터를 조회한다.
 - 과도한 fallback, retry, 자동 보정 없이 레거시 업무 동작과 현 UI 구조가 일관되게 결합된다.
