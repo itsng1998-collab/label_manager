@@ -7,6 +7,11 @@
 - 이 파일에는 현재 상태, 최근 완료 항목, 검증, 다음 액션만 기록한다.
 
 ## 현재 상태
+- 완료: [doc/app_menu_porting.txt] 6차 UX 재검토 권장안 3건을 병합했다. 차단형 overlay가 열린 동안 `HardwareKeyboard` 전역 F1/F2/F3/F5/F12를 공용 coordinator/controller 상태로 차단하고, 실제 활성 shortcut의 우측 hint와 별도 입력 dialog를 여는 popup label의 `...` 표기 계약을 추가했다.
+- 편집 완료: AppBar 표시 원칙에 dialog-opening `...`와 shortcut 보조 영역을 추가하고, `AppMenuCommand`의 optional `shortcutLabel`/`opensDialog`, `blocksGlobalShortcuts` 상태 소유권, widget-level key 차단과 전역 handler의 차이를 command 구조·공용 dialog·phase·widget test·체크리스트·금지 사항·최종 완료 기준에 반영했다.
+- 집중 문서 검증 완료: `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md` 성공. PowerShell 필수 계약 검사에서 `shortcutLabel`, `opensDialog`, `blocksGlobalShortcuts`, F1/F2/F3/F5/F12, dialog `...`, shortcut semantics가 모두 확인됐고 이전 F12 단독 차단 문구는 제거됐다.
+- 최종 문서 검증 완료: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md] 진단 오류 없음. 전체 diff에서 세 UX 권장안 외 변경이 없고, popup shortcut hint는 실제 menu command인 F1/F12만 표시하며 전역 gate는 기존 handler 범위인 F1/F2/F3/F5/F12 전체를 차단하도록 구분했다.
+- stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함한다. 사용자 소유 변경 [lib/core/app.dart]는 제외한다.
 - 완료: [doc/app_menu_porting.txt] 5차 UX 재검토 권장안 4건을 병합했다. 통합 overflow의 2단계 탐색·세로 제약, top-level overlay 전역 단일 소유, 신규 dialog dirty/busy 종료 연동, AppBar-dialog focus 인계를 적용했다.
 - 편집 완료: AppBar 반응형·command 구조/소유권·종료 command·공용 dialog 원칙·phase·widget test·체크리스트·금지 사항·최종 완료 기준에 네 권장안을 반영했다.
 - 1차 문서 검증 완료: `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md` 성공, 두 문서 진단 오류 없음. 평면 overflow, command별 top-level overlay, 신규 dialog 종료 누락 문구가 제거됐음을 확인했다.

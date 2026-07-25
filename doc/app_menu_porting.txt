@@ -127,6 +127,8 @@ END CATCH
   - 좁은 화면 통합 메뉴: `Icons.more_vert`
 - `파일/관리`는 비로그인·저권한 상태에서 종료만 남을 수 있으므로 관리자 전용으로 오인되는 아이콘을 사용하지 않는다.
 - 팝업 내부에는 아이콘과 전체 한글 명령명을 함께 표시한다.
+- 별도 입력 dialog를 여는 command의 popup 표시명에는 `...`를 붙인다. 즉시 실행, toggle, 기존 탭 이동, 종료처럼 추가 입력 화면을 열지 않는 command에는 붙이지 않는다. 안정 ID, 기본 `label`, dialog title에는 `...`를 포함하지 않고 popup renderer가 command metadata로 표시명만 구성한다.
+- 실제 활성 전역 shortcut이 있는 command는 명령명 문자열에 `(F1)`처럼 합치지 않고 popup 오른쪽의 고정 보조 영역에 `F1`, `F12` 같은 `shortcutLabel`을 표시한다. `품목별 정보 편집`의 `F1`과 `검색출력모드`의 `F12`부터 적용하며, 아직 구현되지 않았거나 현재 화면에서 실행되지 않는 shortcut은 표시하지 않는다. semantics에는 기본 명령명과 shortcut을 함께 제공한다.
 - separator는 레거시 메뉴의 command group 경계를 유지한다.
 - 위험 command의 확인은 팝업 메뉴가 아니라 해당 화면의 저장/삭제 command 시점에 수행한다.
 
@@ -142,7 +144,7 @@ END CATCH
 - 버튼 출현/소멸로 AppBar 높이나 body 위치가 바뀌지 않게 한다.
 - Tab으로 그룹 아이콘에 focus하고 Enter 또는 Space로 메뉴를 연다. 메뉴 안에서는 위/아래 방향키로 항목을 이동하고 Enter로 실행한다. 통합 overflow에서는 오른쪽/Enter로 그룹에 진입하고 왼쪽/Esc로 한 단계 돌아가며, 첫 단계의 Esc는 메뉴를 닫는다.
 - Esc 또는 바깥 클릭으로 메뉴만 닫으면 원래 그룹 아이콘에 focus를 복원한다. command가 top-level dialog를 열면 그룹 focus 복원을 보류하고 dialog의 초기 control로 focus를 넘긴다.
-- 메뉴가 열려 있는 동안 `F12` 같은 화면 전역 단축키가 메뉴 뒤의 command를 실행하지 않게 한다. 메뉴를 닫은 뒤에는 기존 단축키가 정상 동작해야 한다.
+- 메뉴 또는 top-level/nested blocking overlay가 열린 동안 공용 `blocksGlobalShortcuts` 상태를 활성화해 `HardwareKeyboard.instance.addHandler`로 등록된 `F1`/`F2`/`F3`/`F5`/`F12` 같은 화면 전역 단축키가 뒤쪽 command를 실행하지 않게 한다. 각 전역 handler는 command 분기 전에 이 상태를 확인하고 차단된 key를 소비한다. 메뉴와 모든 blocking overlay가 닫히면 기존 단축키가 정상 동작해야 한다.
 - 100%, 125%, 150% Windows display scale과 긴 버전 문자열에서 overflow가 없는지 widget test 또는 screenshot으로 확인한다.
 
 ### 3.3 권한 표시 방식
@@ -173,6 +175,7 @@ END CATCH
   - `AppMenuGroup`: file, search, settings.
   - `AppMenuCommandId`: Flutter에서 사용자가 실행하는 owning action별 안정 ID.
   - legacy command ID는 별도 provenance field로 보존한다. 현재 프로젝트에서 이미 분리된 설정 context를 명시적인 command로 노출하는 경우에만 여러 Flutter command가 하나의 legacy command ID를 공유할 수 있다.
+  - command metadata는 기본 `label`, icon, optional `shortcutLabel`, 별도 입력 dialog를 여는지를 나타내는 `opensDialog`를 포함한다. popup의 `...`와 shortcut 보조 영역은 이 metadata로 렌더링하며 command별 widget 문자열로 중복하지 않는다.
   - `AppMenuCommandState`: visible, enabled, disabledReason.
   - DB나 BuildContext를 참조하지 않는 순수 값 타입.
 - `lib/core/app_menu_policy.dart`
@@ -188,6 +191,7 @@ END CATCH
 - `lib/core/app_menu_controller.dart` 또는 동등한 controller
   - `HomePage` AppBar와 `HomePageManager` command 실행을 연결.
   - controller attach/detach는 기존 controller pattern을 따른다.
+  - AppBar popup과 dialog coordinator의 상태를 합산한 `blocksGlobalShortcuts` snapshot 또는 `ValueListenable`을 노출한다.
   - 화면별 private method를 복제하지 않는다.
 - `lib/core/app_menu_dialog_coordinator.dart` 또는 동등한 coordinator
   - 신규 AppBar top-level blocking overlay의 active command ID, `OverlayEntry`, dirty/busy, trigger focus를 한 곳에서 소유.
@@ -208,6 +212,7 @@ END CATCH
 - top-level dialog coordinator가 소유할 상태:
   - 현재 열린 신규 AppBar blocking dialog와 originating command/group focus.
   - dialog dirty/busy와 close/exit 요청.
+  - top-level dialog와 중첩 확인창·picker를 포함한 blocking overlay 활성 상태. App menu controller는 이 상태와 popup open 상태를 합산해 전역 shortcut gate로 사용한다.
   - dialog가 없을 때는 상태를 남기지 않는다.
 - 각 dialog가 소유할 command:
   - 자기 화면의 편집 draft, 저장, 취소, 행 선택.
@@ -512,6 +517,7 @@ END CATCH
 
 - AppBar 메뉴에서 새로 여는 관리·편집·조회 화면은 `OverlayEntry`의 root에 `BlockingModelessDialog`를 두고, 실제 창은 `BlockingModelessDialogFrame`으로 구성한다.
 - 공용 wrapper는 구조상 modeless overlay이지만 배경의 pointer/touch와 처리되지 않은 key event를 차단한다. dialog가 열린 동안 배경 탭이나 AppBar command를 조작할 수 있게 우회하지 않는다.
+- widget tree의 key 차단만으로 `HardwareKeyboard.instance.addHandler` 전역 handler가 차단된다고 가정하지 않는다. AppBar popup 또는 top-level/nested blocking overlay가 활성화된 동안 `blocksGlobalShortcuts`를 먼저 확인해 F1/F2/F3 탭 이동, F5 새로고침, F12 검색출력 mode를 실행하지 않고 해당 전역 key를 소비한다. dialog 내부의 Tab, Enter, Esc와 셀 편집 shortcut은 이 gate 대상에 포함하지 않는다.
 - 기존 품목관리·공용라벨관리·라벨출력·자동품목갱신·저울출력처럼 상시 반복 작업으로 이미 존재하는 메인 탭은 그대로 재사용한다. `품목별 정보 편집`처럼 기존 탭으로 이동하는 command에는 dialog를 중복 생성하지 않는다.
 - 로그인, 로그아웃, 종료, 즉시 적용되는 검색출력 mode toggle처럼 별도 편집 화면이 없는 command도 억지로 dialog를 만들지 않는다.
 - 이미 동작하는 저울·프린터 설정 등의 owning dialog는 기존 command를 그대로 호출한다. AppBar 연결을 이유로 같은 dialog를 `BlockingModelessDialog`로 한 번 더 감싸지 않는다.
@@ -586,7 +592,7 @@ END CATCH
 
 ### Phase 0. inventory와 command contract 고정
 
-1. 파일/검색/설정의 Flutter owning action마다 `AppMenuCommandId`, group, label, icon, legacy command ID provenance, permission, legacyInactive를 순수 table로 작성한다. 하나의 legacy ID를 공유하는 명시적 context 분리 command는 같은 provenance와 서로 다른 안정 ID를 갖는다.
+1. 파일/검색/설정의 Flutter owning action마다 `AppMenuCommandId`, group, label, icon, optional `shortcutLabel`, `opensDialog`, legacy command ID provenance, permission, legacyInactive를 순수 table로 작성한다. 하나의 legacy ID를 공유하는 명시적 context 분리 command는 같은 provenance와 서로 다른 안정 ID를 갖는다.
 2. 모든 command의 레거시 handler와 현 구현 상태를 test fixture로 고정한다.
 3. 권한 matrix unit test를 먼저 작성한다.
 4. 아직 기능이 없는 command도 ID를 예약하되 실제 menu에는 기능 완료 시점에만 연결한다.
@@ -602,7 +608,7 @@ END CATCH
 3. 품목관리 탭 이동을 연결한다.
 4. 저울 설정, 라벨출력/저울출력 프린터 설정을 HomePageManager controller로 연결한다.
 5. update notice 공용 dialog를 추출해 메뉴에서 연결한다.
-6. 전역 top-level dialog coordinator와 신규 관리·조회 dialog의 공용 `BlockingModelessDialog` open/close, 초기 focus, 중첩 modal/picker pattern을 적용한다.
+6. 전역 top-level dialog coordinator와 신규 관리·조회 dialog의 공용 `BlockingModelessDialog` open/close, 초기 focus, 중첩 modal/picker pattern을 적용하고 AppBar popup 및 blocking overlay 활성 상태를 합산한 `blocksGlobalShortcuts` gate를 모든 전역 F1/F2/F3/F5/F12 handler에 연결한다.
 7. 명시적 draft 저장·조회 command 영역이 필요한 신규 dialog에 공용 command footer를 적용하고, 행 CRUD를 지원하는 dialog에만 실제 지원 command의 visible toolbar/rail pattern을 적용한다.
 
 완료 기준:
@@ -689,10 +695,12 @@ END CATCH
   - 100%, 125%, 150% Windows display scale에서 popup의 화면 높이 clamp, 세로 scroll, 키보드 focus 항목 자동 reveal.
   - 메뉴 collapse 후 긴 title의 한 줄 ellipsis와 서버 상태/로그인 command 유지.
   - Tab focus, Enter/Space 열기, 방향키 이동, Enter 실행, 메뉴 취소 시 그룹 focus 복원과 dialog 실행 시 내부 초기 focus 인계.
-  - 메뉴가 열린 동안 화면 전역 `F12` command 차단, 닫힌 뒤 기존 단축키 복원.
+  - 메뉴가 열린 동안 `HardwareKeyboard` 화면 전역 F1/F2/F3/F5/F12 command 차단, 닫힌 뒤 기존 단축키 복원.
   - tooltip.
   - 비로그인·저권한 상태에서 종료만 남아도 `파일/관리`가 중립적인 `Icons.menu`로 표시.
   - separator와 command label.
+  - 별도 입력 dialog를 여는 popup 표시명에만 `...`가 붙고 즉시 실행·toggle·탭 이동·종료에는 붙지 않으며, 기본 label과 dialog title에는 `...`가 포함되지 않음.
+  - 실제 활성 shortcut이 있는 `품목별 정보 편집`의 `F1`, `검색출력모드`의 `F12`가 명령명과 분리된 오른쪽 보조 영역 및 semantics에 표시되고 미구현 shortcut은 표시되지 않음.
   - 권한 부족·legacyInactive command 숨김, transient dirty/busy command의 inline disabled reason·ellipsis·semantics 표시.
   - 로그인/로그아웃 command는 inventory에 존재하지만 `파일/관리` popup에는 렌더링되지 않고 현재 상태의 AppBar 고정 아이콘 하나만 표시.
   - 사용자 관리와 지점 관리가 같은 실제 `OnEnableManager` visibility policy를 사용하며 `MANAGER_USER`에는 숨김.
@@ -701,6 +709,7 @@ END CATCH
   - 서버 상태와 로그아웃 버튼 위치 유지.
 - 각 관리/조회 dialog의 기본 render, filter, draft, save/cancel, 실패 상태.
 - 신규 관리·조회 dialog가 `BlockingModelessDialog`와 `BlockingModelessDialogFrame`을 사용하고 배경 pointer/key 입력을 차단하는지 검증.
+- top-level dialog와 중첩 확인창·picker 각각이 열린 동안 `HardwareKeyboard` 전역 F1/F2/F3/F5/F12 handler가 뒤쪽 탭 이동·새로고침·mode 변경을 실행하지 않고 key를 소비하며, 마지막 blocking overlay가 닫히면 복원되는지 검증. dialog 내부 Tab/Enter/Esc와 셀 편집 shortcut은 유지한다.
 - 같은 command와 서로 다른 command를 연속 실행해도 top-level overlay가 하나만 존재하고 기존 dialog에 focus되는지 검증.
 - top-level dialog 종료 후 originating AppBar control로 focus가 복원되고 trigger가 사라졌을 때 fallback control로 이동하는지 검증.
 - clean/dirty/write-busy dialog가 열린 상태에서 메뉴 종료와 OS 창 닫기가 같은 coordinator 경로를 사용하고 확인창을 중복 표시하지 않는지 검증.
@@ -744,12 +753,13 @@ flutter test test/scale_output_test.dart
 
 - [ ] 레거시 handler/dialog/model/DAO 확인.
 - [ ] 실제 기존 DB schema 확인.
-- [ ] command ID/label/icon/group 등록.
+- [ ] command ID/label/icon/group과 optional `shortcutLabel`/`opensDialog` 등록.
 - [ ] 권한과 로그인 상태 테스트.
 - [ ] 현재 로그인/등급 policy의 비노출 command와 legacyInactive는 숨김, transient dirty/busy는 사유가 있는 비활성 상태로 표시됨.
 - [ ] 로그인/로그아웃은 `파일/관리` popup에 중복되지 않고 현재 상태의 AppBar 고정 아이콘 하나로만 표시됨.
 - [ ] 사용자 관리와 지점 관리의 `OnEnableManager` visibility policy 및 `MANAGER_USER` 숨김이 검증됨.
-- [ ] AppBar menu의 키보드 탐색, 메뉴 취소 시 trigger focus 복원, dialog 실행 시 내부 focus 인계, 열린 동안 전역 단축키 차단이 검증됨.
+- [ ] AppBar menu의 키보드 탐색, 메뉴 취소 시 trigger focus 복원, dialog 실행 시 내부 focus 인계, menu/top-level/nested blocking overlay가 열린 동안 `HardwareKeyboard` 전역 F1/F2/F3/F5/F12 차단과 종료 후 복원이 검증됨.
+- [ ] 별도 입력 dialog command의 popup 표시명에만 `...`를 사용하고, 실제 활성 shortcut만 명령명과 분리된 오른쪽 보조 영역과 semantics에 표시함.
 - [ ] 통합 overflow는 3개 그룹의 2단계 구조이며 높이 clamp·scroll·focus reveal·단계별 Esc가 검증됨.
 - [ ] `파일/관리`는 종료만 남는 상태에서도 관리자 전용으로 오인되지 않는 중립 아이콘을 사용함.
 - [ ] 라벨출력/저울출력 프린터 설정은 명시적인 별도 command이며 현재 탭에 따라 같은 항목의 의미를 바꾸지 않음.
@@ -788,6 +798,7 @@ flutter test test/scale_output_test.dart
 - 관리 기능을 하나의 거대한 dialog/model/DAO에 합치지 않는다.
 - HomePage와 HomePageManager에 같은 업무 command를 중복 구현하지 않는다.
 - 메뉴 widget에서 직접 SQL을 실행하지 않는다.
+- popup 표시명의 `...`나 shortcut을 command별 문자열에 직접 합치거나, `blocksGlobalShortcuts` 확인 없이 화면 전역 `HardwareKeyboard` handler를 추가하지 않는다.
 - 비활성 popup item의 실행 불가 사유를 hover tooltip으로만 제공하지 않는다.
 - 행 CRUD dialog의 지원 command를 우클릭 context menu에서만 제공하지 않는다.
 - 지원하지 않는 CRUD command를 비활성 toolbar/rail button으로 표시하지 않는다.
@@ -812,6 +823,8 @@ flutter test test/scale_output_test.dart
 - 통합 overflow는 3개 그룹의 2단계 구조와 화면 높이 clamp·scroll·키보드 reveal을 제공한다.
 - AppBar title은 메뉴 collapse 후에도 공간이 부족하면 한 줄 ellipsis되고 서버 상태와 현재 로그인/로그아웃 command는 유지된다.
 - AppBar menu는 키보드만으로 열기·이동·실행·닫기가 가능하다. 메뉴만 취소하면 원래 trigger에 focus가 복원되고 top-level dialog를 실행하면 dialog 내부로 focus가 인계된다.
+- AppBar menu는 dialog-opening command의 popup 표시명에만 `...`를 사용하고 실제 활성 shortcut을 오른쪽 보조 영역과 semantics에 표시한다.
+- AppBar popup 또는 top-level/nested blocking overlay가 열린 동안 `HardwareKeyboard` 전역 F1/F2/F3/F5/F12는 뒤쪽 command를 실행하지 않으며 마지막 차단 surface가 닫히면 복원된다.
 - 서버 상태와 로그인/로그아웃 영역은 기존 위치와 동작을 유지한다.
 - 파일/검색/설정의 모든 레거시 command가 inventory와 권한 policy에 존재한다.
 - 현재 동작 기능은 중복 구현 없이 같은 command로 연결된다.
