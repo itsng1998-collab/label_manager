@@ -16,6 +16,7 @@
 - 검증 실행 예정: 이전 조사형·포괄형 문구 제거와 새 레거시 고정 계약을 표적 검색하고, `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`, 두 문서 diagnostics, 전체 diff와 stage 대상 분리를 확인한다. 문서 변경이므로 Flutter test는 실행하지 않는다.
 - 검증 완료: 이전 조사형·포괄형 문구 5종이 0건이고 새 레거시 고정 계약이 11개 핵심 지점에 반영됐다. `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`가 통과했고 두 문서 diagnostics 오류가 없으며, 전체 diff가 확정한 6건과 관련 Phase/focused test 계약에 한정됨을 확인했다. 문서 변경이므로 Flutter test는 실행하지 않았다.
 - stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함한다. 사용자 소유 변경 [lib/core/app.dart]는 제외한다.
+- 로컬 커밋 완료: `b29f85a` (`앱 메뉴 13차 레거시 범위 명확화`).
 - 완료: [doc/app_menu_porting.txt]의 사용자 접속 이력, 데이터내용 이력, 발행 통계 지침에서 레거시 실제 조회 조건보다 확장된 filter·before/after 비교·미사용 합계 요구를 제거했다.
 - 사용자 확인 불필요: 레거시 dialog/model/DAO의 활성 조회 경로가 범위를 한 방향으로 결정한다. 접속·데이터내용 이력은 기간과 권한별 협력업체/거래처 조건으로 제한하고, 발행 통계는 기간·거래처·브랜드·라벨 크기·품목명·검색 column/값·완전/부분 일치만 포팅한다.
 - 수정 예정 파일/목적: [doc/app_menu_porting.txt]의 5.2.3, 5.2.4, 5.2.6과 관련 Phase/test/checklist 문구를 레거시 범위로 축소한다. [SESSION_HANDOFF.md]에는 파일 편집·검증·stage/commit 결과를 기록한다.
