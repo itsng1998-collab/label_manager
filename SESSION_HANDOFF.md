@@ -14,6 +14,7 @@
 - 집중 검증 완료: `flutter test test/label_sheet_toolbar_test.dart --plain-name "auto update edit barrier allows preview restore button"` 통과. 수정 Dart 파일 포맷 완료, 정적 진단 오류 없음.
 - 전체 검증 완료: `flutter test test/label_sheet_toolbar_test.dart` 159개 전체 통과.
 - stage/commit 대상: [lib/home_page_manager.dart], [test/label_sheet_toolbar_test.dart], [SESSION_HANDOFF.md]. 사용자 변경 [lib/core/app.dart]는 제외한다.
+- 구현 커밋: `b9a17ad` (`자동갱신 미리보기 복원 클릭 허용`).
 - 완료: 품목관리/라벨출력/자동품목갱신/저울출력의 공용 `FortuneTable` 헤더 구분선 컬럼 리사이즈를 복원했다.
 - 원인: 현재 `_buildHeader`에는 구분선 장식만 있고 `MouseRegion`/수평 drag handler가 없어 리사이즈 커서와 폭 변경 기능이 제거된 상태다. 최근 자동 맞춤은 사용자 폭을 재계산으로 덮을 수 있어 수동 폭을 컬럼 ID별로 보존해야 한다.
 - 편집 완료: 공용 `FortuneTable` 헤더 오른쪽 8px에 `resizeColumn` 커서와 수평 drag 핸들을 추가했다. 수동 폭은 컬럼 ID별로 보존되어 자동 맞춤/데이터 rebuild가 덮지 않으며 `minWidth` 미만으로 줄지 않는다. 품목관리 최소화처럼 컬럼의 초기 폭·최소 폭·자동 맞춤 규칙이 바뀌면 이전 수동 폭을 폐기한다.
