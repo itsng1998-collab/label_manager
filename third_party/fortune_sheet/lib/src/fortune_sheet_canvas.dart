@@ -226,6 +226,13 @@ class FortuneObjectConnectionOption {
   final bool? showHumanReadableText;
 }
 
+@visibleForTesting
+FilterQuality fortuneObjectImageFilterQuality(
+  FortuneSheetObjectKind objectKind,
+) => objectKind == FortuneSheetObjectKind.barcode
+    ? FilterQuality.none
+    : FilterQuality.medium;
+
 class FortuneObjectConnectionChoice {
   const FortuneObjectConnectionChoice({
     required this.value,
@@ -18788,7 +18795,7 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
       if (decoded == null) {
         _drawScreenshotImagePlaceholder(canvas, rect, image);
       } else {
-        _drawScreenshotImageBitmap(canvas, rect, decoded);
+        _drawScreenshotImageBitmap(canvas, rect, decoded, object.key.kind);
       }
       canvas.restore();
     }
@@ -18858,12 +18865,19 @@ class _FortuneSheetCanvasState extends State<FortuneSheetCanvas> {
     canvas.restore();
   }
 
-  void _drawScreenshotImageBitmap(Canvas canvas, Rect rect, ui.Image image) {
+  void _drawScreenshotImageBitmap(
+    Canvas canvas,
+    Rect rect,
+    ui.Image image,
+    FortuneSheetObjectKind objectKind,
+  ) {
     canvas.drawImageRect(
       image,
       Rect.fromLTWH(0, 0, image.width.toDouble(), image.height.toDouble()),
       rect,
-      Paint()..filterQuality = FilterQuality.medium,
+      Paint()
+        ..isAntiAlias = objectKind != FortuneSheetObjectKind.barcode
+        ..filterQuality = fortuneObjectImageFilterQuality(objectKind),
     );
   }
 

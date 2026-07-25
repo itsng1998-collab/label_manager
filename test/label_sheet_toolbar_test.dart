@@ -3325,6 +3325,12 @@ void main() {
     await tester.pump();
     await tester.pump();
 
+    await tester.drag(
+      find.byType(VerticalPaneSplitter),
+      const Offset(-80, 0),
+    );
+    await tester.pumpAndSettle();
+
     final sheetFinder = find.byType(FortuneSheetApp);
     final sheetRect = tester.getRect(sheetFinder);
     final sheetApp = tester.widget<FortuneSheetApp>(sheetFinder);
@@ -4427,17 +4433,17 @@ void main() {
 
     final splitter = find.byType(VerticalPaneSplitter);
     final panel = find.byType(FortuneObjectLayerPanel);
-    expect(tester.getSize(panel).width, 150);
+    expect(tester.getSize(panel).width, 160);
 
     await tester.drag(splitter, const Offset(120, 0));
     await tester.pumpAndSettle();
-    expect(tester.getSize(panel).width, 150);
+    expect(tester.getSize(panel).width, 160);
 
     await tester.drag(splitter, const Offset(-120, 0));
     await tester.pumpAndSettle();
     var preferences = await SharedPreferences.getInstance();
     final draggedWidth = tester.getSize(panel).width;
-    expect(draggedWidth, greaterThan(150));
+    expect(draggedWidth, greaterThan(160));
     expect(
       preferences.getDouble('label_sheet_object_panel_width'),
       draggedWidth,
@@ -4449,7 +4455,7 @@ void main() {
     await tester.tapAt(splitterCenter);
     await tester.pumpAndSettle();
     preferences = await SharedPreferences.getInstance();
-    expect(preferences.getDouble('label_sheet_object_panel_width'), 150);
+    expect(preferences.getDouble('label_sheet_object_panel_width'), 160);
   });
 
   testWidgets('constrained object panel starts drag from its visible width', (

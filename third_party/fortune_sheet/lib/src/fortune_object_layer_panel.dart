@@ -1757,6 +1757,7 @@ class _ObjectPropertyEditorState extends State<_ObjectPropertyEditor> {
     );
     return DropdownButtonFormField<String>(
       key: const ValueKey('fortune-object-property-connectionId'),
+      isExpanded: true,
       focusNode: _fieldFocusNodes.putIfAbsent(
         'connectionId',
         () => FocusNode(debugLabel: 'Fortune object property connectionId'),

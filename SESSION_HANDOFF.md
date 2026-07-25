@@ -7,6 +7,13 @@
 - 이 파일에는 현재 상태, 최근 완료 항목, 검증, 다음 액션만 기록한다.
 
 ## 현재 상태
+- 완료: 바코드 객체 표시 깨짐, 좁은 개체 패널의 바코드 연결 ID overflow, 패널 리사이즈 시 툴바 `더 보기` 미노출을 수정하고 검증했다. 관련 파일만 분리 커밋할 예정이다.
+- 원인: 바코드 PNG까지 일반 이미지와 동일한 `FilterQuality.medium`으로 확대해 비정수 줌에서 모듈 경계가 보간되고, 연결 ID 드롭다운이 `isExpanded` 없이 선택 항목의 본래 폭을 요구하며, 최신 수동 커밋 `75bf1b8`에서 `_labelSheetZoomToolbarRightInset`과 `toolbarRightInset` 전달이 삭제됐다.
+- [third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart](third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart): 바코드 객체 bitmap만 `FilterQuality.none`/antiAlias 비활성으로 그리고 일반 이미지는 기존 medium 필터를 유지한다.
+- [third_party/fortune_sheet/lib/src/fortune_object_layer_panel.dart](third_party/fortune_sheet/lib/src/fortune_object_layer_panel.dart): 연결 ID 드롭다운에 `isExpanded: true`를 적용해 160px 패널에서도 선택 항목을 가용 폭 안에 제한한다.
+- [lib/page_label_sheet/label_sheet_workbench.dart](lib/page_label_sheet/label_sheet_workbench.dart): 최신 수동 커밋에서 삭제된 124px 줌 툴바 우측 예약 전달을 복원했다.
+- [third_party/fortune_sheet/test/fortune_object_controller_test.dart](third_party/fortune_sheet/test/fortune_object_controller_test.dart), [test/label_sheet_toolbar_test.dart](test/label_sheet_toolbar_test.dart): 바코드 필터, 좁은 속성 패널, 패널 리사이징 후 더보기 동작 회귀 테스트를 추가/보강했다.
+- 검증: FortuneSheet 개체 컨트롤 전체 48개, 라벨 시트 툴바 전체 147개 통과. 포맷 후 패널 폭/리사이징/더보기 집중 테스트 3개 재통과, 수정 Dart 파일 diagnostics 오류 없음.
 - 완료: 라벨 시트 도킹 개체 패널의 최소 폭과 초기 폭을 상단 상수 `_labelSheetObjectPanelMinWidth`, `_labelSheetObjectPanelInitialWidth`로 정의해 모두 `150.0`으로 통일했다. 기능 커밋 `2f68cdc` 완료.
 - [lib/page_label_sheet/label_sheet_workbench.dart](lib/page_label_sheet/label_sheet_workbench.dart): 초기 상태, 저장 폭 복원, 도킹 폭 계산, 드래그 최소 폭, 더블클릭 초기화를 두 상수 기준으로 변경했다.
 - [test/label_sheet_toolbar_test.dart](test/label_sheet_toolbar_test.dart): 기존 폭 저장 테스트가 초기 폭 150, 드래그 최소 폭 150, 확대 폭 저장, 더블클릭 초기화 150을 검증하도록 보강했다.

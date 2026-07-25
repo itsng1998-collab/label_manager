@@ -24,6 +24,17 @@ FortuneSheetPainter fortuneSheetPainter(WidgetTester tester) {
 }
 
 void main() {
+  test('barcode objects use unfiltered bitmap scaling', () {
+    expect(
+      fortuneObjectImageFilterQuality(FortuneSheetObjectKind.barcode),
+      FilterQuality.none,
+    );
+    expect(
+      fortuneObjectImageFilterQuality(FortuneSheetObjectKind.image),
+      FilterQuality.medium,
+    );
+  });
+
   test('connection choices dedupe options and mark stale current values', () {
     final choices = fortuneObjectConnectionChoices(
       options: const [
@@ -43,6 +54,83 @@ void main() {
     expect(choices[1].label, '회사 로고');
     expect(choices.last.label, '연결 끊김 (Missing)');
     expect(choices.last.stale, isTrue);
+  });
+
+  testWidgets('narrow barcode property panel constrains connection dropdown', (
+    tester,
+  ) async {
+    final controller = FortuneSheetController();
+    final workbook = FortuneWorkbook(
+      settings: const FortuneSettings(
+        showToolbar: false,
+        showFormulaBar: false,
+      ),
+      sheets: [
+        FortuneSheet(
+          id: 's1',
+          name: 'Sheet1',
+          images: const [
+            FortuneImage(
+              id: 'barcode_1',
+              src: 'data:image/png;base64,$_testPngBase64',
+              left: 20,
+              top: 20,
+              width: 120,
+              height: 60,
+              extraFields: {
+                'fortuneBarcode': true,
+                fortuneBarcodeObjectIdExtraKey: 'BARCODE_WITH_LONG_ID',
+                'barcodeText': '1234567890',
+                'barcodeFormatId': 'code128',
+              },
+            ),
+          ],
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Row(
+          children: [
+            SizedBox(
+              width: 500,
+              height: 600,
+              child: FortuneSheetCanvas(
+                workbook: workbook,
+                controller: controller,
+              ),
+            ),
+            SizedBox(
+              width: 160,
+              height: 600,
+              child: FortuneObjectLayerPanel(
+                controller: controller,
+                barcodeObjectOptions: const [
+                  FortuneObjectConnectionOption(
+                    value: 'BARCODE_WITH_LONG_ID',
+                    label: '폭보다 긴 바코드 연결 항목',
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    controller.selectObject(
+      const FortuneSheetObjectKey(
+        FortuneSheetObjectKind.barcode,
+        'barcode_1',
+      ),
+    );
+    await tester.pump();
+
+    expect(
+      find.byKey(const ValueKey('fortune-object-property-connectionId')),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets(

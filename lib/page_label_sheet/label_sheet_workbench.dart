@@ -207,6 +207,7 @@ const String _labelSheetImageImportFilePathPrefsKey =
     'label_sheet_image_import_file_path';
 const String _labelFileDirectoryPrefsKey = 'label_file_directory';
 const double _labelSheetImportMinReadableFontHeightMm = 2.5;
+const double _labelSheetZoomToolbarRightInset = 124.0;
 const double _labelSheetObjectPanelMinWidth = 160.0;
 const double _labelSheetObjectPanelInitialWidth = 160.0;
 
@@ -4220,6 +4221,11 @@ class _LabelSheetWorkbenchState extends State<LabelSheetWorkbench>
               onOpenObjectPanelRequest: _handleObjectPanelOpenRequest,
               onCloseObjectPanelRequest: _closeObjectPanel,
               objectPanelPresentation: objectPanelPresentation,
+                toolbarRightInset:
+                  widget.zoomToolbarPlacement ==
+                    LabelSheetZoomToolbarPlacement.sheetToolbarEnd
+                  ? _labelSheetZoomToolbarRightInset
+                  : 0,
               locale: _locale,
               barcodeRenderer:
                   widget.barcodeRenderer ?? labelSheetBarcodeRenderer,
