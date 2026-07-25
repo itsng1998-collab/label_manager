@@ -11,6 +11,7 @@
 - 수정 파일: `lib/main.dart`, `test/automatic_item_update_page_test.dart`, `test/common_label_manage_test.dart`, `test/label_column_edit_dialog_test.dart`, `test/label_column_edit_test.dart`, `test/label_column_save_test.dart`. fixture 값은 기존 기본 동작을 유지하도록 `false`를 사용한다.
 - 검증: 요청된 6개 파일의 LSP 오류 없음. `automatic_item_update_page_test.dart`, `common_label_manage_test.dart`, `label_column_edit_test.dart`, `label_column_save_test.dart` 합계 52개 통과. `label_column_edit_dialog_test.dart`는 17개 통과, 기존 드래그/애니메이션 동작 4개 실패로 이번 생성자 인자 보완과 무관하다.
 - 정리: 공용라벨 테이블 리사이징 변경 후 미사용이 된 `_baseWidths` 상수를 제거했다. 전체 진단의 자동품목/FortuneSheet 미사용 선언은 기존 범위 밖 상태로 유지한다.
+- 기능 커밋: `82efe17` (`로케일 지원 목록과 테스트 생성자 오류 수정`). 원격 push 및 배포 빌드는 수행하지 않았다.
 - 완료: 앱 시작 locale/날짜 표시를 OS 설정에 맞추고 공용라벨관리 우측 패널의 초기·최소 폭과 컬럼 리사이징 계약을 수정했다.
 - locale 정책: 앱 시작 시 OS locale로 `Intl.defaultLocale`/날짜 심볼을 초기화하고 Flutter Material/Cupertino localization을 활성화한다. 화면 표시 날짜는 locale skeleton을 사용하고 DB·로그 저장 문자열 형식은 유지한다.
 - 공용라벨관리 정책: 기존 테이블 기본 합계 360에서 10을 뺀 `350.0`을 우측 패널 초기·최소 폭 상수로 사용하며, 실제 테이블 viewport에서 행번호 40과 필수등록 70을 고정하고 키워드/이름에 나머지 폭을 균등 배분한다.
