@@ -13,6 +13,7 @@
 - 집중 검증 완료: `flutter test test/fortune_table_test.dart --plain-name "ItemManage shows minimum-column header checkboxes"` 통과. 수정 Dart 파일 포맷 완료, 정적 진단 오류 없음.
 - 전체 검증 완료: `flutter test test/fortune_table_test.dart` 54개 전체 통과.
 - stage/commit 대상: [third_party/fortune_sheet/lib/src/fortune_table.dart], [lib/page_home/item_manage.dart], [test/fortune_table_test.dart], [SESSION_HANDOFF.md]. 사용자 변경 [lib/core/app.dart]는 제외한다.
+- 구현 커밋: `29fb73d` (`품목관리 컬럼 헤더 두 줄 표시`).
 - 완료: 자동품목갱신 편집 중에도 플로팅 미리보기 복원 버튼을 클릭할 수 있도록 수정했다.
 - 원인: `_shouldBlockCurrentTabTap`의 44px 투명 차단 레이어가 `TabbedView.trailing`에 있는 복원 버튼보다 위에서 hit-test를 선점한다.
 - 편집 완료: 자동품목갱신에서 복원 버튼이 실제 표시된 영역만 차단 레이어의 hit-test를 통과시킨다. 다른 탭·검색·헤더 영역의 편집모드 클릭 제한과 품목관리 동작은 유지한다.
