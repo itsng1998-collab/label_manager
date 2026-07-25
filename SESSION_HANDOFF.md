@@ -16,6 +16,7 @@
 - 테스트 추가: `test/locale_config_test.dart`에서 `en_US`/`ko_KR` 기본 locale 및 날짜 형식을 검증하고, `test/common_label_manage_test.dart`에서 350px 초기·최소 폭과 키워드/이름 균등 배분·필수등록 70px 고정을 검증한다.
 - 검증 완료: `flutter pub get` 성공. 수정 Dart 파일 전체 정적 진단 오류 없음. `locale_config_test.dart`와 `common_label_manage_test.dart` 관련 테스트 통과.
 - 커밋 대상: `SESSION_HANDOFF.md`, `lib/main.dart`, `lib/core/locale_config.dart`, `lib/page_login/login_history_page.dart`, `lib/page_home/common_label_manage.dart`, `pubspec.yaml`, `pubspec.lock`, 관련 테스트. 사용자 변경 `lib/core/app.dart`는 제외한다.
+- 기능 커밋: `2ca11e6` (`OS 로케일과 공용라벨 패널 리사이징 적용`). 원격 push 및 배포 빌드는 수행하지 않았다.
 - 완료: 바코드 삽입 다이얼로그와 개체 패널 속성의 값 입력에 형식별 지원 문자 제한을 공통 적용하고 검증했다. 기능 커밋 `916ae00` 완료.
 - 정책: EAN/UPC/ITF는 숫자, Codabar는 ZXing alphabet/guard 문자, Code39/Code93/Code128은 extended ASCII만 입력받고, 길이·체크디지트는 입력 중간 상태를 막지 않는다. 형식 변경 시 현재 값도 같은 규칙으로 정리한다.
 - [third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart](third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart): `fortuneFilterBarcodeInput`/`FortuneBarcodeInputFormatter`를 추가하고 삽입 값 입력 및 형식 변경에 적용했다.
