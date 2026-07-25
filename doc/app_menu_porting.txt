@@ -141,14 +141,17 @@ END CATCH
 - 그룹 submenu/panel은 화면의 사용 가능 높이로 clamp하고 필요한 경우 세로 scroll을 제공한다. 키보드 focus 항목이 viewport 밖으로 이동하면 자동으로 reveal한다.
 - 서버 상태와 로그인/로그아웃은 항상 오른쪽 끝에 남긴다.
 - 메뉴를 합친 뒤에도 폭이 부족하면 title은 `maxLines: 1`, `softWrap: false`, `TextOverflow.ellipsis`로 줄인다. 서버 상태와 현재 로그인/로그아웃 command를 title보다 먼저 숨기거나 줄이지 않는다.
-- Windows가 지원하는 최소 창 크기는 `Size(960, 640)` logical px로 고정하고 `lib/core/bootstrap.dart`의 desktop 초기화에서 `windowManager.setMinimumSize(const Size(960, 640))`를 적용한다. AppBar와 양분할 작업 화면을 이보다 작은 임의 폭에 맞추기 위해 고정 action을 숨기지 않는다.
-- 960x640에서 AppBar 고정 영역과 현재 FortuneTable·preview 본문이 겹치거나 overflow하면 해당 화면의 실제 최소 필요 크기를 측정해 공용 최소 창 크기를 상향한다. 화면별로 서로 다른 native 최소 크기를 설정하거나 960x640 아래로 낮추지 않는다.
+- Windows의 권장 content minimum은 `Size(960, 640)` logical px로 유지한다. 대상 display의 사용 가능 크기는 `visibleSize ?? size`로 정하고, native minimum은 이 logical size를 넘지 않도록 각 축을 clamp한 `effectiveMinimum`을 계산한다.
+- `lib/core/bootstrap.dart`는 display 조회 후 `WindowOptions.minimumSize`에 `effectiveMinimum`을 전달해 최초 표시 전에 적용한다. 이미 제공되는 `WindowOptions`를 두고 `show()` 뒤에 `windowManager.setMinimumSize()`를 별도로 호출하지 않는다. 초기 bounds도 대상 display의 `visibleSize`를 넘지 않는다.
+- `lib/core/desktop_window_policy.dart` 또는 동등한 순수 helper가 권장 content minimum, `effectiveMinimum`, 초기 bounds clamp를 계산한다. 이 helper는 `window_manager`나 `screen_retriever`를 직접 호출하지 않고 `bootstrap.dart`가 조회한 logical `Size`만 받는다.
+- 창을 다른 display로 옮기거나 display 구성이 바뀌면 같은 순수 window policy로 `effectiveMinimum`을 다시 계산한다. 960x640보다 작은 작업 영역에서는 AppBar collapse/title ellipsis와 핵심 탭의 pane 축소·scroll fallback으로 주요 command에 접근할 수 있어야 하며 서버 상태와 로그인/로그아웃 command를 숨기지 않는다.
 - 버튼 출현/소멸로 AppBar 높이나 body 위치가 바뀌지 않게 한다.
 - Tab으로 그룹 아이콘에 focus하고 Enter 또는 Space로 메뉴를 연다. 메뉴 안에서는 위/아래 방향키로 항목을 이동하고 Enter로 실행한다. 통합 overflow에서는 오른쪽/Enter로 그룹에 진입하고 왼쪽/Esc로 한 단계 돌아가며, 첫 단계의 Esc는 메뉴를 닫는다.
 - Esc 또는 바깥 클릭으로 메뉴만 닫으면 원래 그룹 아이콘에 focus를 복원한다. command가 top-level dialog를 열면 그룹 focus 복원을 보류하고 dialog의 초기 control로 focus를 넘긴다.
-- AppBar menu, 신규 top-level/nested overlay, AppBar에서 재사용하는 기존 `showDialog`/`showGeneralDialog` owning dialog를 포함한 모든 blocking surface가 열린 동안 공용 shortcut gate lease를 획득해 `blocksGlobalShortcuts=true`로 유지한다. `HardwareKeyboard.instance.addHandler`로 등록된 `F1`/`F2`/`F3`/`F5`/`F12` 같은 화면 전역 단축키는 command 분기 전에 이 상태를 확인하고 차단된 key를 소비한다.
-- shortcut gate는 bool 대입이 아니라 활성 surface 수를 추적하는 참조 계수형 lease로 구현한다. 각 surface는 open 직전에 acquire하고 모든 정상 종료·오류 경로의 `finally`에서 release한다. 중첩 surface 하나가 닫혀도 바깥 blocking surface가 남아 있으면 차단을 유지하고 마지막 lease가 해제된 뒤에만 기존 단축키를 복원한다.
-- 960x640 최소 창과 100%, 125%, 150% Windows display scale, 긴 버전 문자열에서 AppBar와 body overflow가 없는지 widget test 또는 screenshot으로 확인한다.
+- `showDialog`, `showGeneralDialog`, route 기반 popup처럼 `Navigator` route를 추가하는 surface는 호출부마다 lease를 붙이지 않는다. Home 화면의 전역 handler가 `ModalRoute.of(context)?.isCurrent != true`를 중앙에서 확인해 관련 F-key를 소비한다.
+- AppBar menu나 `BlockingModelessDialog`처럼 home route의 current 상태를 바꾸지 않는 `OverlayEntry` blocking surface만 공용 shortcut gate lease를 획득한다. overlay lease는 활성 surface 수를 추적하는 참조 계수형 token으로 구현하고 정상 종료·오류 경로에서 정확히 한 번 release한다.
+- `blocksGlobalShortcuts`는 `homeRouteIsCurrent != true || overlayLeaseCount > 0`으로 계산한다. 중첩 overlay 하나가 닫혀도 바깥 overlay가 남아 있으면 차단을 유지하고, home route가 다시 current이며 마지막 overlay lease가 해제된 뒤에만 단축키를 복원한다. 각 전역 handler는 command 분기 전에 이 상태를 확인하고 F1/F2/F3/F5/F12를 소비한다.
+- 권장 960x640과 이보다 작은 대표 display `visibleSize`, 100%, 125%, 150% Windows display scale, 긴 버전 문자열에서 AppBar와 body의 접근성·overflow를 widget test와 Windows integration/screenshot으로 나눠 확인한다.
 
 ### 3.3 권한 표시 방식
 
@@ -184,6 +187,9 @@ END CATCH
 - `lib/core/app_menu_policy.dart`
   - 로그인 상태, `UserGrade`, 현재 작업 상태로 command 상태를 계산하는 순수 policy.
   - command 실행은 하지 않는다.
+- `lib/core/desktop_window_policy.dart`
+  - 권장 content minimum 960x640과 target `visibleSize ?? size`로 native `effectiveMinimum`과 초기 bounds를 계산하는 순수 policy.
+  - display 조회, `WindowOptions`, window 이동 event 같은 plugin 책임은 소유하지 않는다.
 - `lib/widgets/app_menu_bar.dart`
   - 넓은/좁은 레이아웃과 popup 표시만 담당.
   - command 상태를 받아 렌더링하고 선택된 command ID를 콜백으로 전달.
@@ -194,7 +200,8 @@ END CATCH
 - `lib/core/app_menu_controller.dart` 또는 동등한 controller
   - `HomePage` AppBar와 `HomePageManager` command 실행을 연결.
   - controller attach/detach는 기존 controller pattern을 따른다.
-  - AppBar popup, 신규 overlay, 기존 owning dialog가 공유하는 참조 계수형 shortcut gate의 `blocksGlobalShortcuts` snapshot 또는 `ValueListenable`과 acquire/release lease API를 노출한다.
+  - home route current 여부와 `OverlayEntry` blocking surface의 참조 계수형 lease를 합산한 `blocksGlobalShortcuts` snapshot 또는 `ValueListenable`을 노출한다.
+  - overlay 전용 acquire/release token API를 제공하고 `Navigator` modal 호출부에는 lease를 요구하지 않는다.
   - 화면별 private method를 복제하지 않는다.
 - `lib/core/app_menu_dialog_coordinator.dart` 또는 동등한 coordinator
   - 신규 AppBar top-level blocking overlay의 active command ID, `OverlayEntry`, dirty/busy, trigger focus를 한 곳에서 소유.
@@ -215,9 +222,9 @@ END CATCH
 - top-level dialog coordinator가 소유할 상태:
   - 현재 열린 신규 AppBar blocking dialog와 originating command/group focus.
   - dialog dirty/busy와 close/exit 요청.
-  - 자신이 여는 top-level dialog와 중첩 확인창·picker의 shortcut gate lease. 기존 owning dialog의 lease와 활성 수는 공용 gate가 합산한다.
+  - 자신이 여는 top-level/nested `OverlayEntry`의 shortcut gate lease. `Navigator` modal은 home route current 상태로 감지한다.
   - dialog가 없을 때는 상태를 남기지 않는다.
-- AppBar와 기존 탭 버튼이 공유하는 `_open...Settings()` 같은 owning command method가 dialog `Future`를 기다리는 전체 구간에서 공용 shortcut gate lease를 소유한다. 진입점별로 lease를 중복 획득하지 않고 기존 dialog를 coordinator 소유 overlay로 바꾸거나 `BlockingModelessDialog`로 다시 감싸지 않는다.
+- 기존 `showDialog`/`showGeneralDialog` owning command는 AppBar와 원래 화면의 호출 경로를 그대로 공유하며 별도 lease를 소유하지 않는다. 동일 dialog를 coordinator 소유 overlay로 바꾸거나 `BlockingModelessDialog`로 다시 감싸지 않는다.
 - 각 dialog가 소유할 command:
   - 자기 화면의 편집 draft, 저장, 취소, 행 선택.
 - AppBar는 `HomePageManager` private state를 직접 읽지 않는다. controller가 노출하는 command state snapshot 또는 `ValueListenable`을 사용한다.
@@ -521,10 +528,10 @@ END CATCH
 
 - AppBar 메뉴에서 새로 여는 관리·편집·조회 화면은 `OverlayEntry`의 root에 `BlockingModelessDialog`를 두고, 실제 창은 `BlockingModelessDialogFrame`으로 구성한다.
 - 공용 wrapper는 구조상 modeless overlay이지만 배경의 pointer/touch와 처리되지 않은 key event를 차단한다. dialog가 열린 동안 배경 탭이나 AppBar command를 조작할 수 있게 우회하지 않는다.
-- widget tree의 key 차단만으로 `HardwareKeyboard.instance.addHandler` 전역 handler가 차단된다고 가정하지 않는다. AppBar menu나 신규·기존 blocking surface의 shortcut gate lease가 하나라도 활성화된 동안 `blocksGlobalShortcuts`를 먼저 확인해 F1/F2/F3 탭 이동, F5 새로고침, F12 검색출력 mode를 실행하지 않고 해당 전역 key를 소비한다. dialog 내부의 Tab, Enter, Esc와 셀 편집 shortcut은 이 gate 대상에 포함하지 않는다.
+- widget tree의 key 차단만으로 `HardwareKeyboard.instance.addHandler` 전역 handler가 차단된다고 가정하지 않는다. Home route가 current가 아니거나 `OverlayEntry` blocking lease가 하나라도 활성화된 동안 `blocksGlobalShortcuts`를 먼저 확인해 F1/F2/F3 탭 이동, F5 새로고침, F12 검색출력 mode를 실행하지 않고 해당 전역 key를 소비한다. dialog 내부의 Tab, Enter, Esc와 셀 편집 shortcut은 이 gate 대상에 포함하지 않는다.
 - 기존 품목관리·공용라벨관리·라벨출력·자동품목갱신·저울출력처럼 상시 반복 작업으로 이미 존재하는 메인 탭은 그대로 재사용한다. `품목별 정보 편집`처럼 기존 탭으로 이동하는 command에는 dialog를 중복 생성하지 않는다.
 - 로그인, 로그아웃, 종료, 즉시 적용되는 검색출력 mode toggle처럼 별도 편집 화면이 없는 command도 억지로 dialog를 만들지 않는다.
-- 이미 동작하는 저울·프린터 설정 등의 owning dialog는 기존 command를 그대로 호출한다. AppBar와 기존 화면이 공유하는 owning command method는 open 직전에 공용 shortcut gate lease를 한 번 획득하고 dialog `Future`의 `finally`에서 해제하되, 같은 dialog를 `BlockingModelessDialog`로 한 번 더 감싸거나 coordinator 소유로 이전하지 않는다.
+- 이미 동작하는 저울·프린터 설정 등의 `showDialog`/`showGeneralDialog` owning dialog는 기존 command를 그대로 호출한다. Navigator route가 home route를 가리는 동안 중앙 route 상태가 전역 shortcut을 차단하므로 호출부에 lease를 추가하지 않고, 같은 dialog를 `BlockingModelessDialog`로 한 번 더 감싸거나 coordinator 소유로 이전하지 않는다.
 - 신규 관리·편집·조회 기능은 별도 `Navigator` route page, 새 메인 탭 또는 Windows native child window로 구현하지 않는다. 예외가 필요하면 장시간 상시 작업이어야 하며 근거와 영향 범위를 `SESSION_HANDOFF.md`에 기록하고 별도 승인 후 진행한다.
 - 중첩 확인창·picker를 제외한 신규 AppBar top-level blocking overlay는 command 종류와 관계없이 앱 전체에서 하나만 존재해야 한다. 같은 command나 다른 command가 다시 요청되면 새 entry를 쌓거나 queue하지 않고 기존 dialog에 focus한다.
 - 작은 기존 설정 dialog는 현재 크기를 유지하되 화면보다 커지지 않도록 clamp한다.
@@ -607,19 +614,19 @@ END CATCH
 
 ### Phase 1. AppBar shell과 기존 기능 연결
 
-1. AppBar 그룹 아이콘과 좁은 화면의 2단계 overflow를 구현하고 desktop 초기화에 960x640 logical px 최소 창 크기를 적용한다.
+1. AppBar 그룹 아이콘과 좁은 화면의 2단계 overflow를 구현한다. desktop 초기화에는 권장 content minimum 960x640과 대상 display의 logical `visibleSize`로 `effectiveMinimum`을 계산하는 순수 window policy를 두고 `WindowOptions.minimumSize`에 적용한다.
 2. login/logout/exit를 기존 HomePage command에 연결한다.
 3. 품목관리 탭 이동을 연결한다.
 4. 저울 설정, 라벨출력/저울출력 프린터 설정을 HomePageManager controller로 연결한다.
 5. update notice 공용 dialog를 추출해 메뉴에서 연결한다.
-6. 전역 top-level dialog coordinator와 신규 관리·조회 dialog의 공용 `BlockingModelessDialog` open/close, 초기 focus, 중첩 modal/picker pattern을 적용한다. AppBar menu, 신규 overlay, 기존 owning dialog가 모두 참조 계수형 shortcut gate lease를 사용하게 하고 `blocksGlobalShortcuts`를 모든 전역 F1/F2/F3/F5/F12 handler에 연결한다.
+6. 전역 top-level dialog coordinator와 신규 관리·조회 dialog의 공용 `BlockingModelessDialog` open/close, 초기 focus, 중첩 modal/picker pattern을 적용한다. Navigator surface는 home route current 상태로, `OverlayEntry` blocking surface는 참조 계수형 lease로 감지해 합산한 `blocksGlobalShortcuts`를 모든 전역 F1/F2/F3/F5/F12 handler에 연결한다.
 7. 명시적 draft 저장·조회 command 영역이 필요한 신규 dialog에 공용 command footer를 적용하고, 행 CRUD를 지원하는 dialog에만 실제 지원 command의 visible toolbar/rail pattern을 적용한다.
 
 완료 기준:
 - 기존 화면 버튼과 AppBar 메뉴가 같은 owning command를 호출함.
 - 편집 차단을 우회하지 않음.
 - 신규 관리·조회 command가 별도 route page, 새 메인 탭 또는 native child window를 만들지 않음.
-- 960x640과 Windows 100%/125%/150% 배율에서 AppBar와 현재 핵심 탭 body에 overflow가 없음.
+- 권장 960x640과 이보다 작은 target `visibleSize`, Windows 100%/125%/150% 배율에서 AppBar와 현재 핵심 탭의 주요 command에 접근할 수 있고 native minimum이 작업 영역을 넘지 않음.
 - wide/narrow widget test 통과.
 
 ### Phase 2. 읽기 전용 이력/통계
@@ -698,7 +705,7 @@ END CATCH
   - 좁은 화면 overflow 1개.
   - overflow 첫 단계의 그룹 3개와 2단계 command submenu/panel, 좌우키 진입·복귀와 단계별 Esc.
   - 100%, 125%, 150% Windows display scale에서 popup의 화면 높이 clamp, 세로 scroll, 키보드 focus 항목 자동 reveal.
-  - 960x640 logical px 최소 창에서 그룹 collapse, title ellipsis, 서버 상태/로그인 command와 현재 핵심 탭 body가 overflow 없이 유지됨.
+  - 권장 960x640 logical px와 이보다 작은 대표 target `visibleSize`에서 그룹 collapse, title ellipsis, 서버 상태/로그인 command와 현재 핵심 탭의 pane 축소·scroll fallback이 주요 command 접근성을 유지함.
   - 메뉴 collapse 후 긴 title의 한 줄 ellipsis와 서버 상태/로그인 command 유지.
   - Tab focus, Enter/Space 열기, 방향키 이동, Enter 실행, 메뉴 취소 시 그룹 focus 복원과 dialog 실행 시 내부 초기 focus 인계.
   - 메뉴가 열린 동안 `HardwareKeyboard` 화면 전역 F1/F2/F3/F5/F12 command 차단, 닫힌 뒤 기존 단축키 복원.
@@ -715,7 +722,8 @@ END CATCH
   - 서버 상태와 로그아웃 버튼 위치 유지.
 - 각 관리/조회 dialog의 기본 render, filter, draft, save/cancel, 실패 상태.
 - 신규 관리·조회 dialog가 `BlockingModelessDialog`와 `BlockingModelessDialogFrame`을 사용하고 배경 pointer/key 입력을 차단하는지 검증.
-- AppBar menu, top-level dialog, 중첩 확인창·picker, 기존 라벨출력/저울출력 프린터 설정과 저울 연결 설정 각각이 열린 동안 `HardwareKeyboard` 전역 F1/F2/F3/F5/F12 handler가 뒤쪽 탭 이동·새로고침·mode 변경을 실행하지 않고 key를 소비하는지 검증한다. 기존 설정 dialog는 AppBar와 원래 탭 버튼 양쪽 진입에서 같은 owning command lease를 사용하는지 확인한다. 중첩 surface 하나만 닫히면 차단을 유지하고 마지막 lease가 정상·오류로 해제된 뒤 복원하며, dialog 내부 Tab/Enter/Esc와 셀 편집 shortcut은 유지한다.
+- route 기반 popup, 기존 저장·삭제·검색·로그아웃 확인, 라벨출력/저울출력 프린터 설정과 저울 연결 설정이 열린 동안 home route `isCurrent=false`로 `HardwareKeyboard` 전역 F1/F2/F3/F5/F12를 차단하는지 검증한다. AppBar menu와 top-level/nested `OverlayEntry`는 참조 계수 lease로 차단하고 중첩 overlay 하나만 닫히면 유지한다. home route가 다시 current이고 마지막 overlay lease가 정상·오류로 해제된 뒤 복원하며, dialog 내부 Tab/Enter/Esc와 셀 편집 shortcut은 유지한다.
+- `test/desktop_window_policy_test.dart`에서 권장 960x640보다 큰/같은/작은 `visibleSize ?? size`별 `effectiveMinimum`과 초기 bounds clamp를 검증한다. 실제 `window_manager` 최소 크기와 100%/125%/150% multi-monitor 이동은 Windows integration 또는 screenshot으로 확인하며 widget test만으로 native DPI 동작을 완료 처리하지 않는다.
 - 같은 command와 서로 다른 command를 연속 실행해도 top-level overlay가 하나만 존재하고 기존 dialog에 focus되는지 검증.
 - top-level dialog 종료 후 originating AppBar control로 focus가 복원되고 trigger가 사라졌을 때 fallback control로 이동하는지 검증.
 - clean/dirty/write-busy dialog가 열린 상태에서 메뉴 종료와 OS 창 닫기가 같은 coordinator 경로를 사용하고 확인창을 중복 표시하지 않는지 검증.
@@ -764,9 +772,9 @@ flutter test test/scale_output_test.dart
 - [ ] 현재 로그인/등급 policy의 비노출 command와 legacyInactive는 숨김, transient dirty/busy는 사유가 있는 비활성 상태로 표시됨.
 - [ ] 로그인/로그아웃은 `파일/관리` popup에 중복되지 않고 현재 상태의 AppBar 고정 아이콘 하나로만 표시됨.
 - [ ] 사용자 관리와 지점 관리의 `OnEnableManager` visibility policy 및 `MANAGER_USER` 숨김이 검증됨.
-- [ ] AppBar menu의 키보드 탐색, 메뉴 취소 시 trigger focus 복원, dialog 실행 시 내부 focus 인계, menu/신규 overlay/기존 owning dialog가 열린 동안 참조 계수형 lease에 의한 `HardwareKeyboard` 전역 F1/F2/F3/F5/F12 차단과 마지막 surface 종료 후 복원이 검증됨.
+- [ ] AppBar menu의 키보드 탐색, 메뉴 취소 시 trigger focus 복원, dialog 실행 시 내부 focus 인계, Navigator route 비활성 상태와 `OverlayEntry` lease를 합산한 `HardwareKeyboard` 전역 F1/F2/F3/F5/F12 차단 및 마지막 surface 종료 후 복원이 검증됨.
 - [ ] `requiresFurtherInput` command의 popup 표시명에만 `...`를 사용하고 단순 공지·안내 dialog에는 사용하지 않으며, 실제 활성 shortcut만 명령명과 분리된 오른쪽 보조 영역과 semantics에 표시함.
-- [ ] Windows 최소 창 크기 960x640 logical px와 100%/125%/150% 배율에서 AppBar와 핵심 탭 body overflow가 없음.
+- [ ] 권장 content minimum 960x640, target `visibleSize`로 clamp한 native `effectiveMinimum`, 초기 bounds, display 이동과 100%/125%/150% 배율에서 AppBar·핵심 탭 주요 command 접근성이 검증됨.
 - [ ] 통합 overflow는 3개 그룹의 2단계 구조이며 높이 clamp·scroll·focus reveal·단계별 Esc가 검증됨.
 - [ ] `파일/관리`는 종료만 남는 상태에서도 관리자 전용으로 오인되지 않는 중립 아이콘을 사용함.
 - [ ] 라벨출력/저울출력 프린터 설정은 명시적인 별도 command이며 현재 탭에 따라 같은 항목의 의미를 바꾸지 않음.
@@ -806,8 +814,8 @@ flutter test test/scale_output_test.dart
 - HomePage와 HomePageManager에 같은 업무 command를 중복 구현하지 않는다.
 - 메뉴 widget에서 직접 SQL을 실행하지 않는다.
 - popup 표시명의 `...`나 shortcut을 command별 문자열에 직접 합치거나, `blocksGlobalShortcuts` 확인 없이 화면 전역 `HardwareKeyboard` handler를 추가하지 않는다.
-- shortcut 차단 상태를 단일 bool로 직접 덮어쓰거나 기존 owning dialog를 gate lease 없이 열지 않는다. 중첩 surface가 남아 있는데 안쪽 surface 종료만으로 차단을 해제하지 않는다.
-- 960x640 logical px 아래의 임의 창 폭을 지원하려고 서버 상태·로그인 command를 숨기거나 화면별 native 최소 크기를 따로 설정하지 않는다.
+- `Navigator` modal 호출부마다 shortcut lease를 수동 추가하지 않는다. route 상태가 바뀌지 않는 `OverlayEntry`에만 lease를 사용하고, 중첩 overlay가 남아 있는데 안쪽 surface 종료만으로 차단을 해제하지 않는다.
+- native minimum을 target display의 logical `visibleSize`보다 크게 설정하거나 `show()` 뒤에 별도 `setMinimumSize()`로 덮어쓰지 않는다. 작은 display를 지원하려고 서버 상태·로그인 command를 숨기지 않는다.
 - 비활성 popup item의 실행 불가 사유를 hover tooltip으로만 제공하지 않는다.
 - 행 CRUD dialog의 지원 command를 우클릭 context menu에서만 제공하지 않는다.
 - 지원하지 않는 CRUD command를 비활성 toolbar/rail button으로 표시하지 않는다.
@@ -829,12 +837,12 @@ flutter test test/scale_output_test.dart
 전체 포팅 완료 시 다음 상태여야 한다.
 
 - AppBar에는 폭에 따라 그룹 아이콘 3개 또는 overflow 메뉴 1개가 표시된다.
-- Windows 창은 최소 960x640 logical px를 보장하고 100%/125%/150% 배율에서 AppBar와 핵심 탭 body가 overflow되지 않는다.
+- Windows 창은 권장 content minimum 960x640과 target display의 logical `visibleSize`를 기준으로 native `effectiveMinimum`을 정하고, 작은 고배율 display에서도 AppBar와 핵심 탭의 주요 command에 접근할 수 있다.
 - 통합 overflow는 3개 그룹의 2단계 구조와 화면 높이 clamp·scroll·키보드 reveal을 제공한다.
 - AppBar title은 메뉴 collapse 후에도 공간이 부족하면 한 줄 ellipsis되고 서버 상태와 현재 로그인/로그아웃 command는 유지된다.
 - AppBar menu는 키보드만으로 열기·이동·실행·닫기가 가능하다. 메뉴만 취소하면 원래 trigger에 focus가 복원되고 top-level dialog를 실행하면 dialog 내부로 focus가 인계된다.
 - AppBar menu는 추가 입력·선택이 필요한 `requiresFurtherInput` command의 popup 표시명에만 `...`를 사용하고 실제 활성 shortcut을 오른쪽 보조 영역과 semantics에 표시한다.
-- AppBar menu, 신규 overlay 또는 기존 owning dialog가 열린 동안 참조 계수형 shortcut gate가 `HardwareKeyboard` 전역 F1/F2/F3/F5/F12의 뒤쪽 command 실행을 막고 마지막 차단 surface의 정상·오류 종료 후에만 복원한다.
+- Navigator modal로 home route가 current가 아니거나 AppBar menu·신규 `OverlayEntry`의 참조 계수 lease가 활성인 동안 `HardwareKeyboard` 전역 F1/F2/F3/F5/F12의 뒤쪽 command 실행을 막고 마지막 차단 surface의 정상·오류 종료 후에만 복원한다.
 - 서버 상태와 로그인/로그아웃 영역은 기존 위치와 동작을 유지한다.
 - 파일/검색/설정의 모든 레거시 command가 inventory와 권한 policy에 존재한다.
 - 현재 동작 기능은 중복 구현 없이 같은 command로 연결된다.

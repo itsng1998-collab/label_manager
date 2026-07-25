@@ -7,6 +7,12 @@
 - 이 파일에는 현재 상태, 최근 완료 항목, 검증, 다음 액션만 기록한다.
 
 ## 현재 상태
+- 완료: [doc/app_menu_porting.txt] 8차 UX 재검토 권장안 2건을 병합했다. Navigator route modal은 `ModalRoute.isCurrent`로 중앙 감지하고 `OverlayEntry` blocking surface만 참조 계수 lease를 사용하도록 shortcut gate를 보정했으며, 960x640을 권장 content minimum으로 유지하되 native minimum은 대상 display의 logical `visibleSize`로 clamp했다.
+- 편집 완료: `blocksGlobalShortcuts`를 `homeRouteIsCurrent != true || overlayLeaseCount > 0`으로 정의하고 기존 저장·삭제·검색·로그아웃·설정 `showDialog`/`showGeneralDialog` 호출부의 수동 lease를 금지했다. window policy는 `effectiveMinimum`과 초기 bounds를 target `visibleSize`로 제한하고 `WindowOptions.minimumSize`에 최초 표시 전에 적용하며, 작은 display의 pane 축소·scroll fallback과 display 이동 재계산을 반응형·상태 소유권·공용 dialog·Phase·widget/integration test·체크리스트·금지 사항·최종 완료 기준에 반영했다.
+- 집중 문서 검증 완료: `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md` 성공. PowerShell 필수 계약 검사에서 route current gate, overlay-only lease, 기존 modal 무lease, 권장 content minimum, display clamp, `WindowOptions.minimumSize`, 작은 display fallback, native integration 검증이 모두 확인됐다. 고정 `windowManager.setMinimumSize(const Size(960, 640))`와 기존 owning command lease 문구는 제거됐다.
+- window policy 경계 보정 완료: [lib/core/desktop_window_policy.dart] 또는 동등한 순수 helper가 `visibleSize ?? size`를 입력받아 권장 minimum·native `effectiveMinimum`·초기 bounds clamp를 계산하고, plugin 조회/적용은 [lib/core/bootstrap.dart]가 소유하도록 분리했다. [test/desktop_window_policy_test.dart] 표적 검증을 명시했으며 fallback·plugin 비의존성·테스트 경계 검사가 모두 통과했다.
+- 최종 문서 검증 완료: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md] 진단 오류 없음. 전체 diff에서 두 UX 권장안과 window policy 경계 보정 외 변경이 없음을 확인했다.
+- stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함한다. 사용자 소유 변경 [lib/core/app.dart]는 제외한다.
 - 완료: [doc/app_menu_porting.txt] 7차 UX 재검토 권장안 3건을 병합했다. 기존 owning dialog까지 포함하는 참조 계수형 전역 shortcut 차단 lease, 지원 최소 창 크기 960x640 logical px, 추가 입력 여부를 정확히 나타내는 `requiresFurtherInput` metadata로 계약을 보정했다.
 - 편집 완료: 반응형 기준에 `windowManager.setMinimumSize(const Size(960, 640))`와 배율별 AppBar/body 검증을 추가했다. `opensDialog`를 `requiresFurtherInput`으로 교체하고 단순 공지·안내 dialog에는 `...`를 붙이지 않으며, AppBar menu·신규 overlay·기존 프린터/저울 owning dialog가 공용 shortcut gate lease를 acquire하고 `finally`에서 release하도록 command 구조·상태 소유권·공용 dialog·Phase·widget test·체크리스트·금지 사항·최종 완료 기준을 갱신했다.
 - 집중 문서 검증 완료: `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md` 성공. PowerShell 필수 계약 검사에서 `requiresFurtherInput`, 최소 창 API/배율 검증, 참조 계수형 lease, 기존 dialog `finally` 해제, 중첩 lease 유지, 공지 `...` 제외가 모두 확인됐고 `opensDialog` 잔존은 없다.
