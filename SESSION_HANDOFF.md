@@ -7,8 +7,8 @@
 - 이 파일에는 현재 상태, 최근 완료 항목, 검증, 다음 액션만 기록한다.
 
 ## 현재 상태
-- 완료: 라벨 시트 개체 패널 도킹 시 축소된 시트 툴바에서 가려진 명령을 `더 보기(...)`로 노출하고 팝업으로 실행할 수 있도록 보완했다. 관련 검증 완료, 커밋 단계다.
-- stage/commit 대상: `SESSION_HANDOFF.md`, 라벨 시트 workbench/toolbar test, FortuneSheet app/canvas/painter. 범위 밖 [lib/core/app.dart](lib/core/app.dart)는 제외한다.
+- 완료: 라벨 시트 개체 패널 도킹 시 축소된 시트 툴바에서 가려진 명령을 `더 보기(...)`로 노출하고 팝업으로 실행할 수 있도록 보완했다. 관련 검증 및 기능 커밋 `73c8c5f` 완료.
+- 범위 밖 [lib/core/app.dart](lib/core/app.dart)는 커밋에서 제외했다.
 - 원인: 라벨 시트의 줌 컨트롤이 시트 툴바 우측 위에 겹치지만 FortuneSheet overflow 계산은 전체 폭을 사용해, 우측 끝 `더 보기` 버튼이 줌 컨트롤 아래에 가려지고 pointer 입력도 줌 컨트롤이 가로챘다.
 - [third_party/fortune_sheet/lib/src/fortune_sheet_app.dart](third_party/fortune_sheet/lib/src/fortune_sheet_app.dart): 런타임 전용 `toolbarRightInset`을 canvas로 전달한다.
 - [third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart](third_party/fortune_sheet/lib/src/fortune_sheet_canvas.dart): toolbar hit-test와 overflow popup 항목 계산에 우측 예약 폭을 적용한다.
