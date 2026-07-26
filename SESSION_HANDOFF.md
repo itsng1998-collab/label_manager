@@ -7,6 +7,17 @@
 - 이 파일에는 현재 상태, 최근 완료 항목, 검증, 다음 액션만 기록한다.
 
 ## 현재 상태
+- 완료: [doc/app_menu_porting.txt] 35차 감사의 관리자 복사 프로시저 schema gate, dialog 종료 후 owner refresh 순서와 검색출력 child 표시명을 활성 레거시 기준으로 병합하고 검증했다.
+- 사용자 확인: 추가 확인 사항 없음. 프로시저 metadata는 구현 전 schema 확인에만 사용하고 runtime 복사에서는 레거시처럼 확인된 세 프로시저를 직접 호출한다. 관리자 복사는 commit 성공 후 dialog를 닫고 `AdminCopyFinish` owner refresh를 실행하며, 검색출력 child 표시명은 레거시 리소스의 `검색출력모드`·`설정`을 사용한다.
+- 수정 예정 파일/목적: [doc/app_menu_porting.txt] 5.1.7과 focused test에서 runtime capability gate를 제거하고 구현 전 schema blocker와 프로시저 호출 순서·오류 전달만 유지한다. 관리자 복사 성공 순서를 `commit → dialog close → label size 재조회 → owner reload/clear`로 고정하고 post-commit refresh 실패는 1.3 계약을 적용한다. 3.2·widget test에는 검색출력 parent/child 실제 표시명을 명시한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
+- 검증 실행 예정: 각 문서 편집 직후 `git diff --check`를 실행한다. 이어서 35차 필수 계약과 runtime capability gate·이전 reload 문구 제거를 PowerShell 표적 검사로 확인하고, 두 문서 diagnostics, 전체 diff, stage 대상을 검증한다. 문서 전용 변경이므로 Flutter test는 실행하지 않는다.
+- 관리자 복사 본문 편집 완료: [doc/app_menu_porting.txt] 5.1.7에서 프로시저 metadata를 구현 전 1회 schema gate로 한정하고 runtime 직접 호출·오류 전달, `commit → dialog close → label size 재조회 → owner reload/clear`와 post-commit refresh 실패 처리를 반영했다. 수정 직후 표적 검사 `4/4`, 이전 runtime gate·reload 문구 잔존 `0`과 `git diff --check`가 통과했다.
+- 검색출력 표시명 편집 완료: [doc/app_menu_porting.txt] 3.2와 widget test에 parent `검색출력`, child `검색출력모드`·`설정` 실제 표시명을 고정하고 기능 제목·내부 ID로 child label을 바꾸지 않도록 했다. 표적 검사 `3/3`과 `git diff --check`가 통과했다.
+- Phase·focused test 편집 완료: [doc/app_menu_porting.txt] Phase 3과 관리자 복사 focused test에 구현 전 schema 확인, runtime metadata 미조회·직접 호출, commit 후 dialog close·owner refresh와 refresh 실패 처리를 동기화했다. 표적 검사 `7/7`, 이전 runtime capability test 잔존 `0`과 `git diff --check`가 통과했다.
+- 검증 완료: 35차 필수 계약 `11/11`, 이전 runtime capability gate·test, 이전 reload 순서와 모호 child label 잔존 `0`이며 두 문서 diagnostics 오류가 없고 `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`가 통과했다.
+- diff 검토 완료: 변경은 관리자 복사의 구현 전 프로시저 schema gate·runtime 직접 호출, commit 후 dialog close·owner refresh 및 검색출력 parent/child 표시명에만 한정됐다. 기존 사용자 변경 [lib/core/app.dart], [lib/models/user.dart], [test/scale_output_test.dart]는 건드리지 않았다. 문서 전용 변경이므로 Flutter test는 실행하지 않는다.
+- stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함하고 기존 사용자 변경 3개는 제외한다.
+- stage 검증 완료: `git diff --cached --check`가 통과했다. staged 목록은 [SESSION_HANDOFF.md], [doc/app_menu_porting.txt] 두 문서뿐이며 첫 검증 시 변경 규모는 17 insertions, 7 deletions다.
 - 완료: [doc/app_menu_porting.txt] 34차 감사의 앱 종료 이력 순서, 레거시 검색출력 하위 메뉴, visibility 적용 후 separator와 활성 command 완료 범위를 권장안으로 병합하고 검증했다.
 - 사용자 확인: 추가 확인 사항 없음. 종료 이력은 DB 연결과 session 값이 살아 있을 때 기록해야 하고, 검색출력 계층은 활성 레거시 [LabelManager.rc]의 `설정 > 검색출력 > 검색출력모드/설정` 구조로 확정한다. separator는 기존 경계만 유지하며 숨김 command 때문에 빈 경계를 표시하지 않고, hidden command 내부 구현은 기존 제외 계약을 유지한다.
 - 수정 예정 파일/목적: [doc/app_menu_porting.txt] 3.1·3.2와 widget test에 검색출력 하위 메뉴·단계별 키보드 이동 및 visible command 사이 separator를 명시하고, 5.1.8·Phase 1·종료 test에 session snapshot과 `LOGOUT` 기록을 DB·session 정리보다 앞에 둔다. 체크리스트·최종 완료의 미구현 기능은 production 노출 대상 활성 command로 한정한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
