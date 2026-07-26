@@ -212,10 +212,10 @@ END CATCH
   - 저울 연결 설정.
   - 업무 DB를 사용하는 관리/조회 dialog의 실행과 refresh callback.
   - 기존 메인 탭의 로그아웃/종료 상태 제공. 현재 출력·연결·저장 `writeBusy`, 활성 셀/행 편집 `activeEditing`, 품목·자동갱신·공용라벨 `dirty`를 소유 상태에서 계산하고, dirty 작업의 짧은 표시명과 폐기 callback을 확인창 없이 반환하는 exit snapshot API로 노출한다.
-- 신규 AppBar dialog를 여는 owning controller는 해당 dialog의 active와 close 상태, 실제로 존재하는 dirty, write-busy, active editing 상태만 소유한다. dirty이면 짧은 표시명과 폐기 callback을 exit snapshot으로 제공한다. 읽기 전용 dialog에 dirty나 write-busy 상태를 만들지 않는다. 같은 dialog의 open 요청이 처리 중이거나 이미 열려 있으면 중복 entry를 만들지 않는다. 서로 다른 dialog의 실행을 위한 전역 queue나 coordinator는 추가하지 않는다.
-- 로그아웃·메뉴 종료·OS 종료의 공용 lifecycle guard는 요청 시점의 활성 dialog owner와 `HomePageManager` exit snapshot만 수집한다. 하나라도 write-busy 또는 active editing이면 dirty 확인창 없이 종료를 차단하고, 그 외에는 모든 dirty 표시명을 한 확인창에 합산한다. 사용자가 폐기를 승인한 경우에만 각 owner의 폐기 callback을 정확히 한 번 실행한다.
-- 위 수집은 종료 요청에만 사용하는 작은 `LifecycleManager` 계약이며 dialog open/close, focus, command 실행을 조정하는 범용 coordinator로 확장하지 않는다.
-- 기존 `showDialog`/`showGeneralDialog` owning command는 AppBar와 원래 화면의 호출 경로를 그대로 공유한다. 동일 dialog를 coordinator 소유 overlay로 바꾸거나 `BlockingModelessDialog`로 다시 감싸지 않는다.
+- 신규 AppBar dialog를 여는 owning controller는 해당 dialog의 active와 close 상태, 실제로 존재하는 dirty, write-busy, active editing 상태만 소유한다. dialog가 열려 있는 동안 종료 전용 lifecycle participant를 등록하고 닫히면 해제한다. participant는 guard 통과 뒤 사용할 close callback과 optional exit snapshot provider를 노출한다. dirty이면 짧은 표시명과 확인창 없는 폐기 callback을 snapshot에 제공하고, clean·읽기 전용 dialog는 snapshot이 비어 있어도 participant 등록을 유지해 종료 시 overlay와 늦은 결과를 정리한다. dirty 폐기 callback은 draft만 정리하고 overlay 제거는 participant close callback이 담당한다. 읽기 전용 dialog에 dirty나 write-busy 상태를 만들지 않는다. 같은 dialog의 open 요청이 처리 중이거나 이미 열려 있으면 중복 entry를 만들지 않는다. 서로 다른 dialog의 실행을 위한 전역 queue나 coordinator는 추가하지 않는다.
+- 로그아웃·메뉴 종료·OS 종료의 공용 lifecycle guard는 요청 시점의 활성 lifecycle participant와 `HomePageManager` exit snapshot을 한 번 수집한다. 기존 프린터·저울 설정 modal route 활성, write-busy 또는 active editing이 하나라도 있으면 dirty 확인창 없이 종료를 차단하고, 그 외에는 모든 dirty 표시명을 한 확인창에 합산한다. 사용자가 폐기를 승인한 경우에만 각 dirty owner의 폐기 callback을 정확히 한 번 실행하고, 이어서 활성 overlay participant의 close callback을 정확히 한 번 실행한다.
+- 위 participant 등록과 snapshot 수집은 종료 요청에만 사용하는 작은 `LifecycleManager` 계약이다. dialog별 `LifecycleCallbacks` observer가 각각 확인하는 구조로 만들지 않고 `notifyExitRequested()` 흐름의 공용 guard 하나가 평가한다. registry가 일반 dialog open/close, focus, command 실행을 조정하는 범용 coordinator로 확장되지 않게 한다.
+- 기존 `showDialog`/`showGeneralDialog` owning command는 AppBar와 원래 화면의 호출 경로를 그대로 공유한다. 동일 dialog를 coordinator 소유 overlay로 바꾸거나 `BlockingModelessDialog`로 다시 감싸지 않는다. 기존 프린터·저울 설정 modal route는 owning method의 `await` 구간에만 종료 전용 active modal blocker를 등록하고 `finally`에서 해제한다. 이 route가 열려 있으면 공용 guard는 설정창을 먼저 닫도록 안내하고 종료를 차단하며, route 내부 draft를 dirty snapshot에 포함하거나 자동 폐기·자동 닫기하지 않는다.
 - 각 dialog가 소유할 command:
   - 자기 화면의 편집 draft, 저장, 취소, 행 선택.
 - AppBar는 `HomePageManager` private state를 직접 읽지 않는다. controller가 노출하는 command state snapshot 또는 `ValueListenable`을 사용한다.
@@ -251,7 +251,7 @@ END CATCH
 - 레거시: 로그인 상태에서만 활성. Flutter에서는 AppBar 오른쪽 고정 로그아웃 아이콘으로만 표시하고 `파일/관리` popup에는 표시하지 않는다.
 - 현행 연결: `HomePage._onLogout(false)`.
 - clean 상태에는 일반 로그아웃 확인창을 새로 추가하지 않고 바로 기존 로그아웃을 진행한다. 확인은 저장하지 않은 작업을 폐기할 때만 표시한다.
-- `_doLogout()` 전에 공용 lifecycle guard로 활성 신규 dialog와 `HomePageManager`의 exit snapshot을 함께 확인한다. 라벨 발행, 저울 발행·연결, 품목·자동갱신 저장 같은 `writeBusy`는 로그아웃을 거부하고 해당 owner의 차단 사유를 한 번 안내한다. 품목·자동갱신·저울출력 또는 신규 dialog의 active editing은 자동 확정하거나 폐기하지 않고 먼저 편집 완료 또는 취소를 요구한다.
+- `_doLogout()` 전에 공용 lifecycle guard로 활성 lifecycle participant와 `HomePageManager`의 exit snapshot을 함께 확인한다. 기존 프린터·저울 설정 modal route가 열려 있으면 설정창을 먼저 닫도록 로그아웃을 차단한다. 라벨 발행, 저울 발행·연결, 품목·자동갱신 저장 같은 `writeBusy`는 로그아웃을 거부하고 해당 owner의 차단 사유를 한 번 안내한다. 품목·자동갱신·저울출력 또는 신규 dialog의 active editing은 자동 확정하거나 폐기하지 않고 먼저 편집 완료 또는 취소를 요구한다.
 - 신규 dialog와 품목·자동갱신·공용라벨 중 하나 이상이 dirty면 영향받는 작업명을 한 번의 폐기 확인에 합산한다. 승인 시 각 owner의 폐기 callback을 한 번씩 실행하고, 화면별 확인창을 연속으로 띄우거나 일부 상태만 확인하고 나머지를 우회하지 않는다.
 - lifecycle guard를 통과한 명시적 로그아웃은 현재 로그인 상태이고 master-key가 아니며 원래 관리자 `ConnectOrigin`이 없을 때만 현재 사용자·거래처 값으로 `BM_LOGIN_LOG`에 `LOGOUT`을 한 번 기록한다. 관리자 `Connect` 중인 명시적 로그아웃과 master-key 로그아웃은 기록하지 않는다. 이력 기록을 시도한 뒤 사용자·지점·거래처·협력업체 context, master-key, `IsFirstConnectByAdmin`, 두 관리자 연결 flag와 원래 관리자를 초기화하고 main view를 숨기고 reset한다.
 - `LOGOUT` 저장 오류는 한 번 전달하되 로그아웃과 session·화면 초기화를 중단하거나 자동 재시도하지 않는다. 이력에 필요한 값을 session 초기화 뒤에 다시 읽거나 관리자 접속 이력을 대신 기록하지 않는다.
@@ -359,7 +359,8 @@ END CATCH
 
 - 현행 `PopScope`와 `LifecycleManager.notifyExitRequested()` 경로를 command API로 추출해 재사용한다.
 - `SystemNavigator.pop()`을 메뉴에서 직접 중복 호출하지 않는다.
-- 메뉴 종료와 OS 창 닫기는 같은 command에서 `활성 owner exit snapshot 수집 → write-busy/active editing 차단 → 전체 dirty 통합 확인과 승인된 폐기 callback 실행 → 열린 overlay 정리 → DB 정리 → 실제 종료` 순서로 처리한다.
+- 메뉴 종료와 OS 창 닫기는 같은 command에서 `활성 lifecycle participant와 HomePageManager snapshot 수집 → 기존 프린터·저울 설정 modal route·write-busy·active editing 차단 → 전체 dirty 통합 확인과 승인된 폐기 callback 실행 → 활성 overlay participant close callback 실행 → DB 정리 → 실제 종료` 순서로 처리한다.
+- 기존 프린터·저울 설정 modal route가 열려 있으면 자동으로 닫거나 draft를 dirty 확인에 합치지 않고, 설정창을 먼저 닫도록 안내한 뒤 종료를 중단한다.
 - 활성 신규 dialog와 기존 메인 탭 중 하나라도 write-busy이면 종료를 거부한다. active editing은 자동 확정하거나 폐기하지 않고 종료를 중단해 먼저 편집 완료 또는 취소를 요구한다.
 - 차단 상태가 없으면 신규 dialog와 품목·자동갱신·공용라벨의 dirty를 한 번의 폐기 확인에 합산한다. 취소하면 어떤 상태도 변경하지 않고, 승인하면 각 dirty owner의 폐기 callback을 정확히 한 번 실행한다.
 - 모든 owner가 clean이면 일반 확인창을 추가하지 않는다. 메뉴 종료와 OS 창 닫기는 같은 차단 사유, 통합 폐기 확인, DB 정리 순서를 사용한다.
@@ -660,7 +661,7 @@ command마다 모든 등급 조합을 반복하지 않는다. 공용 policy tabl
 - `DbReconnectOverlay`처럼 widget tree 안에서 `ModalBarrier`를 렌더링하는 기존 전역 차단 UI도 같은 단축키 차단 결과를 보장한다.
 - 기존 품목관리·공용라벨관리·라벨출력·자동품목갱신·저울출력처럼 상시 반복 작업으로 이미 존재하는 메인 탭은 그대로 재사용한다. 다만 레거시 `품목별 정보 편집`은 품목관리 탭과 저장 책임이 다른 출력 보정값 일괄 편집 기능이므로 5.3.1의 전용 차단형 dialog로 구현한다.
 - 로그인, 로그아웃, 종료, 즉시 적용되는 검색출력 mode toggle처럼 별도 편집 화면이 없는 command도 억지로 dialog를 만들지 않는다.
-- 이미 동작하는 저울·프린터 설정 등의 `showDialog`/`showGeneralDialog` owning dialog는 기존 command를 그대로 호출하고 같은 dialog를 `BlockingModelessDialog`로 한 번 더 감싸거나 coordinator 소유로 이전하지 않는다.
+- 이미 동작하는 저울·프린터 설정 등의 `showDialog`/`showGeneralDialog` owning dialog는 기존 command를 그대로 호출하고 같은 dialog를 `BlockingModelessDialog`로 한 번 더 감싸거나 coordinator 소유로 이전하지 않는다. 이 modal route는 열린 동안 종료 전용 active modal blocker만 등록해 로그아웃·메뉴 종료·OS 종료를 차단하고 닫힐 때 해제하며, 내부 draft 추적이나 자동 닫기를 추가하지 않는다.
 - 신규 관리·편집·조회 기능은 별도 `Navigator` route page, 새 메인 탭 또는 Windows native child window로 구현하지 않는다. 예외가 필요하면 장시간 상시 작업이어야 하며 근거와 영향 범위를 `SESSION_HANDOFF.md`에 기록하고 별도 승인 후 진행한다.
 - 신규 AppBar dialog의 owning controller는 동일 dialog를 중복으로 열지 않는다. 차단형 dialog가 열린 동안 AppBar와 전역 command가 차단되므로 서로 다른 dialog 요청을 위한 전역 queue, stack 또는 focus 전환 처리는 추가하지 않는다.
 - 작은 기존 설정 dialog는 현재 크기를 유지하되 화면보다 커지지 않도록 clamp한다.
@@ -670,12 +671,12 @@ command마다 모든 등급 조합을 반복하지 않는다. 공용 policy tabl
 - 명시적 draft 저장이나 command 영역이 필요한 신규 dialog는 `BlockingModelessDialogFrame.footer`에 화면에 필요한 상태와 `취소`/`저장`, `취소`/`적용`, `닫기` command를 직접 구성한다. 같은 footer 구조가 둘 이상에서 반복될 때만 공용 widget으로 추출한다.
 - 즉시 적용형·단순 설정형 dialog와 기존 owning dialog는 현재 동작에 지속적인 footer가 없으면 억지로 추가하지 않는다.
 - dialog를 열면 현재 작업의 첫 번째 주요 입력이나 table에 초기 focus를 두고, 비활성 control을 건너뛰며 마우스 없이 주요 입력과 command를 이동할 수 있게 한다. 화면마다 동일한 고정 Tab 영역 순서를 강제하지 않는다.
-- Esc는 현재 focus를 가진 child에 실제 취소할 상태가 있을 때만 그 상태를 먼저 취소한다. 활성 셀 편집이나 비어 있지 않은 다중 선택이 Esc를 처리하면 dialog를 닫지 않고, 처리할 상태가 없으면 dialog 닫기 요청으로 이어진다. 일반 단일 행 선택은 별도 취소 단계로 간주하지 않는다.
+- Esc는 현재 focus를 가진 child에 실제 취소할 상태가 있을 때만 그 상태를 먼저 취소한다. 활성 셀 편집, dropdown, picker처럼 child가 Esc를 직접 처리하면 dialog를 닫지 않고, 처리할 상태가 없으면 dialog 닫기 요청으로 이어진다. 일반 단일 행 선택과 checkbox 다중 선택은 별도 Esc 취소 단계로 간주하지 않는다.
 - 사용자가 해당 dialog만 직접 닫을 때는 clean 상태를 즉시 닫고 그 dialog가 dirty일 때만 폐기 확인을 거친다. 로그아웃·메뉴 종료·OS 종료는 dialog별 확인창을 띄우지 않고 공용 lifecycle guard의 전체 dirty 통합 확인을 사용한다. dialog-level Enter는 현재 focus child가 셀·입력 편집으로 먼저 소비하지 않았고 개별 command에 예외가 명시되지 않았을 때 dialog 전체 저장 command를 실행하지 않는다.
 - 화면별 Enter 예외는 활성 레거시 동작만 따른다. 협력업체·거래처·지점·사용자 추가/수정 입력은 적용 command를 실행하고 검증을 통과하면 입력 dialog를 닫아 parent 저장·목록 갱신으로 돌아간다. 품목별 정보 편집은 저장 command가 활성일 때 저장하고 dialog를 유지하며, 영양성분 형식·표 입력은 저장 후에도 dialog를 유지한다. 영양성분 형식·표 manager 목록의 Enter는 현재 선택에 대한 수정 command를 실행하고 미선택이면 안내만 표시한다. 업데이트 메시지는 등급별 저장 후 dialog를 닫고, 사용자 관리 검색 입력은 이름 검색을 실행한다. 발행내역과 발행 통계는 현재 filter로 조회하고 사용자 접속 이력과 데이터내용 이력은 조회·닫기를 실행하지 않는다. 검색출력 설정은 5.3.11의 적용 후 유지 계약을 따른다. 네 계층형 관리 목록과 관리자 복사에서 child가 소비하지 않은 Enter는 수정·복사·닫기를 실행하지 않는다. 이 예외를 다른 dialog로 확대하지 않는다.
 - dialog를 닫으면 가능한 경우 이를 연 AppBar control로 focus를 돌린다. 공용 wrapper 확장은 실제로 여러 dialog에서 같은 처리가 중복될 때 수행한다.
-- dirty, write-busy 또는 active editing처럼 실제 종료 차단 상태가 있는 신규 dialog owner만 exit snapshot을 `LifecycleManager.notifyExitRequested()` 흐름에 제공한다. dialog별 observer가 각자 종료 확인창을 띄우지 않는다.
-- 읽기 전용 dialog는 종료용 dirty/write-busy 상태를 추가하지 않고 닫은 뒤 늦은 조회 결과를 폐기한다. 공용 lifecycle guard는 신규 dialog와 `HomePageManager` snapshot을 함께 평가하고 통합 dirty 확인이 끝난 뒤 열린 overlay를 정리한다. HomePage나 AppBar가 manager의 private 상태를 각각 복제하거나 별도 확인창을 만들지 않는다.
+- 모든 활성 신규 dialog owner는 종료 전용 lifecycle participant로 등록하되 dirty, write-busy 또는 active editing이 있을 때만 non-empty exit snapshot을 제공한다. clean·읽기 전용 participant도 close callback 수집을 위해 등록을 유지하고, dialog별 observer가 각자 종료 확인창을 띄우지 않는다.
+- 읽기 전용 dialog는 종료용 dirty/write-busy 상태를 추가하지 않고 닫은 뒤 늦은 조회 결과를 폐기한다. 공용 lifecycle guard는 활성 participant와 `HomePageManager` snapshot을 함께 평가하고 통합 dirty 확인이 끝난 뒤 수집한 overlay close callback을 실행한다. HomePage나 AppBar가 manager의 private 상태를 각각 복제하거나 별도 확인창을 만들지 않는다.
 - 저장·삭제 transaction busy 중에는 중복 실행과 닫기를 비활성화한다.
 - footer가 없는 즉시 적용형·단순 설정형 dialog는 busy를 시작한 control 가까이에 작업 성격에 맞는 spinner 또는 짧은 상태 문구를 표시하고 관련 입력과 command만 비활성화한다. 장시간 저장처럼 상태 설명이 필요한 경우에만 spinner와 문구를 함께 표시하며, 진행 표시 없이 닫기만 비활성화해 화면이 멈춘 것처럼 보이게 하지 않는다.
 - 읽기 전용 조회 busy 중에도 닫기 경로를 유지한다. 실제 조회 취소 API가 있을 때만 `조회 취소` command를 표시한다. 취소할 수 없는 DB Future는 dialog를 닫은 뒤 늦게 도착한 결과만 폐기하며 자동 retry나 복구 저장소를 추가하지 않는다.
@@ -684,7 +685,8 @@ command마다 모든 등급 조합을 반복하지 않는다. 공용 policy tabl
 - 중첩 확인창이나 picker를 닫으면 가능한 경우 이를 연 control로 focus를 복원한다.
 - commit 전 DML/validation 단계의 확정 실패는 dialog와 draft를 유지하고 오류를 한 번 전달한다. `DbCommitOutcomeUnknown`과 commit 성공 후 reload 실패는 1.3의 결과별 계약을 적용해 같은 draft를 재저장하지 못하게 한다.
 - 단, 5.1.3~5.1.6의 추가·수정 입력은 사용자 확정과 활성 레거시 동작에 따라 적용 시 child dialog를 먼저 닫고 parent validation·DML을 실행한다. parent validation·DML이 실패하면 manager와 기존 목록을 유지하고 오류를 한 번 전달하되 child를 자동 재개방하거나 draft를 복구하지 않는다. 이 예외를 다른 입력 dialog로 확대하지 않는다.
-- commit과 필요한 reload가 모두 성공하면 committed 상태를 반영한 뒤 overlay를 제거하고 controller, listener, focus node를 dispose한다.
+- 5.1.3~5.1.6의 협력업체·거래처·지점·사용자 parent manager는 추가·수정·삭제 commit과 필요한 reload가 성공하면 목록·선택·command 상태만 7.3 계약대로 갱신하고 열린 상태를 유지한다. 추가·수정 child는 DML 전에 이미 닫혔으므로 성공 후 다시 닫거나 parent overlay까지 제거하지 않는다.
+- 그 밖의 저장 dialog는 commit과 필요한 reload가 모두 성공하면 committed 상태를 반영한 뒤 overlay를 제거하고 controller, listener, focus node를 dispose한다. 아래 화면별 유지 예외를 우선한다.
 - 5.3.1 품목별 정보 편집은 사용자 확정과 레거시 동작에 따라 저장 성공 후 committed 기준과 dirty·write-busy만 갱신하고 dialog와 현재 목록 상태를 유지한다. 이 화면에 공통 성공 후 overlay 제거 규칙을 적용하지 않는다.
 - 단, 5.3.2 영양성분 형식과 5.3.3 영양성분표의 신규·수정 입력 dialog는 사용자 확정과 레거시 동작에 따라 저장 성공 후에도 같은 입력 상태로 열린 채 유지한다. 이 두 화면에 공통 성공 후 overlay 제거 규칙, 자동 draft 초기화, 신규에서 수정 mode로의 자동 전환이나 중복 저장 차단을 적용하지 않는다.
 - 5.3.11 검색출력 설정도 사용자 확정과 레거시 동작에 따라 적용 성공 후 committed 기준과 dirty만 갱신하고 dialog를 유지하며 Enter로 적용 command를 실행한다. 변경이 없는 재적용도 허용하고 이 화면에만 공통 성공 후 overlay 제거와 Enter 비저장 규칙을 적용하지 않는다.
@@ -713,7 +715,7 @@ command마다 모든 등급 조합을 반복하지 않는다. 공용 policy tabl
 - 즉시 적용형·단순 설정형 관리 dialog는 footer 없이 title bar 닫기와 본문 command만 사용할 수 있다.
 - 추가/수정은 draft에서 수행하고 저장/취소를 명시한다.
 - 협력업체·거래처·지점·사용자 추가/수정 child dialog는 UI draft와 입력 검증만 소유하고 DAO·SQL을 호출하지 않는다. 취소하면 child만 닫고 parent DML·reload·성공 안내를 모두 실행하지 않는다. 적용하면 child를 닫고 반환된 draft로 parent/controller가 필요한 validation을 수행한 뒤 본체 DML을 최대 한 번 실행한다.
-- 네 관리 dialog는 parent 저장과 필요한 transaction이 성공한 뒤 현재 범위 목록을 DAO 반환 순서로 다시 조회하고 성공 안내를 한 번 표시한다. reload 후 행 선택을 해제하고 선택·scroll을 복원하지 않으며 command 상태는 각 본문의 context·selection 규칙으로 다시 계산한다. 지점 관리도 commit 전에 reload하거나 성공 안내를 표시하지 않는다.
+- 네 관리 dialog는 parent 저장과 필요한 transaction이 성공한 뒤 parent manager를 닫지 않고 현재 범위 목록을 DAO 반환 순서로 다시 조회하고 성공 안내를 한 번 표시한다. reload 후 행 선택을 해제하고 선택·scroll을 복원하지 않으며 command 상태는 각 본문의 context·selection 규칙으로 다시 계산한다. 지점 관리도 commit 전에 reload하거나 성공 안내를 표시하지 않는다.
 - 삭제는 개별 command에 명시된 비밀번호 gate, 확인 문구와 연관 삭제 범위만 따른다. 공통 사전 종속성 검사나 추가 확인 단계를 만들지 않는다.
 - 저장 성공 후 해당 목록과 개별 command에 명시된 app cache만 reload한다.
 - 각 dialog의 owning controller가 해당 overlay와 open/close command를 관리한다.
@@ -759,9 +761,9 @@ command마다 모든 등급 조합을 반복하지 않는다. 공용 policy tabl
 3. 저울 설정, 라벨출력/저울출력 프린터 설정을 HomePageManager controller로 연결한다. 저울 설정은 persisted 통신값·자동발행, 시험 연결 lifecycle과 연결 owner 복원을 포함하고, 두 프린터 설정은 각 session controller와 전역 preference·label-size별 저장소 경계를 유지한다.
 4. update notice 공용 dialog를 추출해 메뉴에서 연결한다.
 5. AppBar menu·modal dialog·modeless overlay·`DbReconnectOverlay`가 보이는 동안 전역 F1/F2/F3/F5/F12를 차단하고 non-modal `PreviewFloatingWindow`만 보일 때는 기존 단축키를 유지한다.
-6. 신규 관리·조회 dialog의 owning controller에 `BlockingModelessDialog` open/close, 동일 dialog 중복 방지, 초기 focus와 중첩 modal/picker pattern을 적용한다. 편집 또는 저장이 있는 dialog에만 실제 dirty, write-busy, active editing 상태를 추가한다.
+6. 신규 관리·조회 dialog의 owning controller에 `BlockingModelessDialog` open/close, 동일 dialog 중복 방지, 초기 focus와 중첩 modal/picker pattern을 적용한다. 모든 활성 dialog는 종료 전용 participant로 등록하되 편집 또는 저장이 있는 dialog에만 실제 dirty, write-busy, active editing snapshot을 추가한다. 기존 프린터·저울 설정 modal route는 열린 동안 active modal blocker만 등록한다.
 7. AppBar popup을 닫은 뒤 owning command를 한 번 실행하고, dialog를 열면 내부로 focus를 넘긴다.
-8. `HomePageManager`와 신규 dialog owner가 실제 busy, active editing, dirty 표시명·폐기 callback을 exit snapshot으로 제공하고, 공용 lifecycle guard가 차단 상태를 먼저 평가한 뒤 모든 dirty를 한 번 확인하고 overlay를 정리하도록 연결한다.
+8. `HomePageManager`와 신규 dialog owner가 실제 busy, active editing, dirty 표시명·폐기 callback을 exit snapshot으로 제공하고, 공용 lifecycle guard가 활성 participant를 한 번 수집해 기존 프린터·저울 설정 modal route와 차단 상태를 먼저 평가한 뒤 모든 dirty를 한 번 확인하고 overlay close callback을 실행하도록 연결한다.
 9. 명시적 draft 저장·command 영역은 기존 frame footer slot에 구성하고, 행 CRUD command는 작업 빈도와 현재 owning 화면에 맞는 toolbar, rail 또는 context menu에 배치한다.
 
 완료 기준:
@@ -772,7 +774,7 @@ command마다 모든 등급 조합을 반복하지 않는다. 공용 policy tabl
 - 재연결 차단 UI가 표시되는 동안 전역 F-key와 배경 focus 이동이 차단됨.
 - floating preview `OverlayRoute`만 표시된 상태에서는 기존 Home 전역 F-key가 오차단되지 않음.
 - 넓은 폭과 좁은 대표 폭에서 AppBar와 현재 핵심 탭의 주요 command에 접근할 수 있음.
-- clean 로그아웃/종료에는 일반 확인창이 없고, 신규 dialog와 기존 메인 탭의 busy/activeEditing은 먼저 차단되며 모든 dirty는 한 번의 통합 확인으로 처리됨.
+- clean 로그아웃/종료에는 일반 확인창이 없고, 기존 프린터·저울 설정 modal route와 신규 dialog·기존 메인 탭의 busy/activeEditing은 먼저 차단되며 모든 dirty는 한 번의 통합 확인으로 처리되고 clean·읽기 전용 overlay도 guard 통과 뒤 닫힘.
 - 일반·master-key·`IsFirstConnectByAdmin` 로그인의 session 상태와 `LOGIN` 기록 조건, 일반·master-key·관리자 `Connect`의 명시적 로그아웃 및 앱 종료별 `LOGOUT` 기록 조건이 활성 레거시와 일치함. 이력 저장 실패는 상태 전환을 취소하거나 자동 재시도하지 않음.
 - 업데이트 메시지의 실제 등급별 대상 우선순위와 `UN_STATE`가 일치하고, 사용자 선택 0건이 더 넓은 대상으로 확대되지 않음.
 - 업데이트 메시지의 startup 표시 component와 메뉴 DB 저장 owner가 분리되고 관리자 no-op control이 `UN_VERSION`·로컬 억제 상태를 변경하지 않음.
@@ -855,6 +857,9 @@ command마다 모든 등급 조합을 반복하지 않는다. 공용 policy tabl
 - `test/app_menu_policy_test.dart`
   - runtime command inventory와 상태 policy.
   - 대표 권한 경계와 로그인/편집/busy/`legacyInactive`/`legacyUnreachable` 상태.
+- `test/lifecycle_test.dart`
+  - 종료 participant 등록·해제, 요청 시점의 안정된 snapshot 1회 수집, 차단 상태 우선 평가, 승인된 dirty 폐기 callback과 overlay close callback의 각 1회 실행.
+  - clean·읽기 전용 participant의 빈 snapshot과 close callback, 기존 프린터·저울 설정 modal route blocker의 종료 거부와 해제 후 재요청 성공.
 - 포팅 대조용 inventory fixture test
   - 레거시 handler와 legacy command ID 대응 관계.
   - 레거시 `IDM_SETUP_PRINT`에서 분리한 프린터 설정 1→2 command mapping.
@@ -867,7 +872,7 @@ command마다 모든 등급 조합을 반복하지 않는다. 공용 policy tabl
 - 검색출력 mode focused test에서 `F12`와 menu toggle이 로그인 subtree 밖의 같은 controller state를 사용하고 tab/button 상태가 전환되는지 검증한다. 로그아웃·재로그인에는 bool과 checkmark·tab 비활성·`발행` label을 유지하고 앱 controller 신규 생성에는 `false`로 시작하며 DB·파일·preference 저장은 0회인지 확인한다. 빈 입력은 조회·발행 0건, 검색 결과 0건은 발행 0건과 각 오류 1회인지 확인한다. 레거시 `BM_RICH_COL_CONTENT` join·품목 ID group 범위에서 현재 label size의 품명 또는 `RICH_SEARCH_PRINT` column 완전 일치 첫 group 1건만 `ORDER BY` 없이 기존 pipeline으로 즉시 발행하고, content 행이 없는 품목을 추가하지 않으며 모든 처리 시도 후 입력을 비우는지 검증한다.
 - 관리 dialog focused test에서 command visibility와 selector 활성 상태를 분리해 거래처·지점·사용자 관리의 대표 권한 경계를 검증한다. 지점 관리는 현재 로그인 협력업체·거래처 초기값과 `IsManager`의 두 selector 잠금, `IsCoopAdmin`의 협력업체만 잠금, `IsSystemAdmin`·`IsAdminConnect`·`IsCoopAdminConnect`의 두 selector 활성화를 확인하되 `MANAGER_USER` command 접근을 허용하지 않는다.
 - 관리 dialog focused test에서 협력업체·거래처·지점·사용자 목록의 유효 행 더블클릭이 선택 후 수정 입력을 열고 header·빈 영역은 무시하는지 확인한다. 네 manager 목록과 관리자 복사의 dialog-level Enter는 무동작이고, 각 추가/수정 입력은 Enter로 적용해 검증 성공 시 닫힌 뒤 parent 저장·목록 갱신으로 이어지는지 검증한다. 사용자 관리 검색 입력의 Enter는 이름 검색만 실행한다.
-- 관리 dialog focused test에서 네 child 입력의 취소는 parent validation·DML·reload·성공 안내 0회인지, 적용은 child 종료 후 필요한 parent validation과 본체 DML 최대 1회인지 확인한다. parent validation·DML 실패는 manager·기존 목록 유지, 오류 1회, child 재개방·draft 복구 0회이고 성공 때만 reload·선택 해제·화면별 command 상태 재계산·성공 안내 1회인지 검증한다. 지점 transaction은 commit 전에 reload·성공 안내를 실행하지 않는다.
+- 관리 dialog focused test에서 네 child 입력의 취소는 parent validation·DML·reload·성공 안내 0회인지, 적용은 child 종료 후 필요한 parent validation과 본체 DML 최대 1회인지 확인한다. parent validation·DML 실패는 manager·기존 목록 유지, 오류 1회, child 재개방·draft 복구 0회이고 성공 때만 parent manager를 닫지 않은 채 reload·선택 해제·화면별 command 상태 재계산·성공 안내 1회인지 검증한다. 삭제 성공도 parent manager를 유지하며, 지점 transaction은 commit 전에 reload·성공 안내를 실행하지 않는다.
 - 관리 dialog focused test에서 별도 수정 button·context command가 없고 협력업체·거래처의 추가 상시 사용, 거래처 삭제·Connect의 미선택 안내, 지점의 거래처 context별 추가·삭제 활성과 미선택 삭제 안내를 검증한다. 사용자 관리는 유효 지점·`전체 표시`에 따른 추가 활성과 선택별 삭제·Connect 활성, reload 후 오래된 row index·Connect 상태 제거를 확인한다.
 - 관리 dialog focused test에서 거래처 관리의 협력업체 변경은 거래처 reload·선택 해제, 지점 관리의 협력업체 변경은 거래처 재조회 후 자동 선택 없이 지점 clear·추가/삭제 비활성, 거래처 선택은 지점 reload·command 활성인지 검증한다. 사용자 관리의 협력업체 변경은 거래처만 남기고 지점·사용자 clear, 거래처 변경은 첫 반환 지점·사용자 조회 또는 지점 없음의 빈 목록·추가 비활성, `전체 표시` on/off는 현재 협력업체·지점 범위와 selector·추가 상태를 각각 적용하는지 확인한다.
 - 협력업체·거래처·지점 관리 focused test에서 삭제 전 공용 시스템 비밀번호 계산과 각 1회의 확인을 검증하고, 사용자·영양성분 삭제에는 이 gate가 추가되지 않는지 확인한다.
@@ -911,9 +916,9 @@ command마다 모든 등급 조합을 반복하지 않는다. 공용 policy tabl
   - 로그인/로그아웃 command는 inventory에 존재하지만 `파일/관리` popup에는 렌더링되지 않고 현재 상태의 AppBar 고정 아이콘 하나만 표시.
   - 대표 command를 통해 별도 command ID·label 렌더링과 주입된 검색출력 mode 상태에 맞는 checkmark 표시.
   - 서버 상태와 로그아웃 버튼 위치 유지.
-- 공용 dialog test에서 `BlockingModelessDialog`의 배경 입력 차단, 첫 주요 입력 focus, Esc와 중첩 picker z-order를 한 번 검증한다. dirty와 write-busy는 이를 지원하는 편집 dialog에서, read-busy 중 닫기와 늦은 결과 폐기는 대표 읽기 전용 dialog에서 검증한다. 각 command test는 해당 화면의 filter, draft, save/cancel, 실패 상태처럼 고유한 흐름만 추가한다.
+- 공용 dialog test에서 `BlockingModelessDialog`의 배경 입력 차단, 첫 주요 입력 focus, Esc와 중첩 picker z-order를 한 번 검증한다. 활성 셀 편집·dropdown·picker가 Esc를 소비하는 경우와 일반 행·checkbox 다중 선택은 소비하지 않고 닫기 요청으로 이어지는 경우를 구분한다. dirty와 write-busy는 이를 지원하는 편집 dialog에서, read-busy 중 닫기와 늦은 결과 폐기는 대표 읽기 전용 dialog에서 검증한다. 각 command test는 해당 화면의 filter, draft, save/cancel, 실패 상태처럼 고유한 흐름만 추가한다.
 - 대표 route dialog, AppBar menu, `BlockingModelessDialog`, `DbReconnectOverlay`에서 전역 F-key 차단을 검증하고, 중첩 surface가 남으면 차단이 유지되며 마지막 surface 종료 후 복원되는지 확인한다. non-modal floating preview만 보일 때는 차단하지 않는다.
-- 로그아웃·종료 test에서 신규 dialog 또는 기존 메인 탭의 write busy와 active editing은 dirty 확인 전에 종료를 차단하고, 양쪽 owner의 여러 dirty는 한 번만 확인하며, 승인된 폐기 callback은 각각 한 번만 실행되고 취소 시 상태가 유지되며, clean 상태는 일반 확인 없이 진행되는지 검증한다.
+- 로그아웃·종료 test에서 활성 lifecycle participant를 요청 시점에 한 번 수집하고 신규 dialog 또는 기존 메인 탭의 write busy와 active editing은 dirty 확인 전에 종료를 차단하는지 검증한다. 양쪽 owner의 여러 dirty는 한 번만 확인하며 승인된 폐기 callback과 활성 overlay close callback은 각각 한 번만 실행되고 취소 시 상태가 유지되어야 한다. clean·읽기 전용 participant는 일반 확인 없이 닫히고 늦은 결과가 폐기되며, 기존 프린터·저울 설정 modal route는 자동 닫기·dirty 확인 없이 설정창을 먼저 닫도록 종료를 차단하는지 확인한다.
 - 대표 저장 dialog test에서 commit 전 확정 실패는 draft를 유지하고, `DbCommitOutcomeUnknown`과 commit 후 reload 실패는 안내 후 dialog를 닫으며 같은 draft의 재저장 UI나 별도 읽기 전용·수동 재조회 mode를 만들지 않는지 검증한다.
 - 사용자 접속 이력 focused test에서 demo row·route page 없이 차단형 dialog content와 read-only `FortuneTable`, overlay date picker를 사용하는지 검증한다.
 - 반복 행 화면은 `FortuneTable`을 사용한다. 공용 API를 확장한 경우에만 `test/fortune_table_test.dart`에 해당 동작과 관련 회귀를 추가한다.
@@ -981,6 +986,7 @@ command마다 모든 등급 조합을 반복하지 않는다. 공용 policy tabl
 - `BlockingModelessDialog` 안에서 일반 `showDialog`, `showDatePicker`, `showTimePicker`로 중첩 modal을 열지 않는다.
 - 같은 신규 AppBar dialog의 `OverlayEntry`를 중복으로 쌓지 않는다.
 - 신규 dialog에 실제 dirty, write-busy 또는 active editing이 있는데 이를 확인하지 않고 메뉴 종료나 OS 창 닫기를 진행하지 않는다. 읽기 전용 dialog에 종료 차단 상태를 임의로 추가하지 않는다.
+- clean·읽기 전용 dialog를 lifecycle participant 등록에서 제외해 로그아웃·종료 뒤 overlay나 늦은 조회 결과를 남기지 않는다. 기존 프린터·저울 설정 modal route를 자동으로 닫거나 route draft를 통합 dirty로 확대하지 않는다.
 - HomePage나 AppBar가 `HomePageManager`의 기존 출력·연결·저장 busy, activeEditing, dirty private 상태를 각각 복제해 판정하거나 clean 로그아웃에 일반 확인창을 추가하지 않는다.
 - 차단형 overlay가 열린 동안 뒤쪽 `ScaffoldMessenger` snackbar로 오류나 사용자 action을 요구하지 않는다.
 - 관리·조회용 반복 행 table을 `DataTable`, `Table`, row별 `ListView` 또는 기능별 자체 table widget으로 새로 구현하지 않는다.
@@ -1006,8 +1012,8 @@ command마다 모든 등급 조합을 반복하지 않는다. 공용 policy tabl
 - 현재 동작 기능은 중복 구현 없이 같은 command로 연결된다.
 - 미구현 기능은 실제 `BlockingModelessDialog` 기반 화면, model/DAO, DB 계약과 테스트를 갖는다.
 - 기존 핵심 탭 이동과 기존 owning 설정 dialog를 제외한 신규 관리·편집·조회 화면은 공용 차단형 overlay dialog로 일관되게 열린다.
-- 신규 AppBar dialog는 owning controller가 동일 dialog 중복 실행과 close를 관리하고, 실제 편집·저장 상태가 있을 때만 exit snapshot을 제공한다. 종료 요청의 dirty 요약·폐기 callback 수집 외에 서로 다른 dialog를 위한 전역 coordinator는 추가하지 않는다.
-- 로그아웃·메뉴 종료·OS 창 닫기는 신규 dialog와 기존 메인 탭의 exit snapshot을 함께 평가한다. 읽기 전용 dialog는 닫고 늦은 결과를 폐기하며, write-busy와 activeEditing은 dirty 확인 전에 종료를 막고 모든 dirty 상태는 한 번의 통합 확인으로 처리한다. clean 상태에는 일반 확인창을 추가하지 않는다.
+- 신규 AppBar dialog는 owning controller가 동일 dialog 중복 실행과 close를 관리하고 열린 동안 lifecycle participant를 등록한다. 실제 편집·저장 상태가 있을 때만 non-empty exit snapshot을 제공하되 clean·읽기 전용 participant도 종료 후 overlay 정리를 위한 close callback을 제공한다. 종료 요청의 snapshot·폐기·close callback 수집 외에 서로 다른 dialog를 위한 전역 coordinator는 추가하지 않는다.
+- 로그아웃·메뉴 종료·OS 창 닫기는 활성 lifecycle participant와 기존 메인 탭의 exit snapshot을 함께 평가한다. 기존 프린터·저울 설정 modal route가 열려 있으면 설정창을 먼저 닫도록 종료를 차단한다. 읽기 전용 dialog는 guard 통과 뒤 닫고 늦은 결과를 폐기하며, write-busy와 activeEditing은 dirty 확인 전에 종료를 막고 모든 dirty 상태는 한 번의 통합 확인으로 처리한다. clean 상태에는 일반 확인창을 추가하지 않는다.
 - 차단형 dialog의 모든 중첩 modal/picker는 현재 dialog 위에 표시되고, form-only dialog도 첫 활성 입력에 초기 focus가 설정된다.
 - 모든 관리 목록과 조회 결과의 반복 행 table은 공용 `FortuneTable`을 사용한다.
 - 명시적 draft 저장 흐름이 있는 신규 관리 dialog는 기존 frame footer slot에 필요한 command를 구성하고, 즉시 적용형·단순 설정형과 기존 owning dialog는 필요한 command 영역만 유지한다. 행 CRUD command는 작업 빈도와 owning 화면에 맞는 toolbar, rail 또는 context menu를 사용한다.

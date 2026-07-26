@@ -7,6 +7,17 @@
 - 이 파일에는 현재 상태, 최근 완료 항목, 검증, 다음 액션만 기록한다.
 
 ## 현재 상태
+- 완료: [doc/app_menu_porting.txt] 32차 감사의 공통 종료 participant/snapshot 경계, 기존 프린터·저울 설정 modal route 종료 처리, 저장 성공 후 dialog 유지 범위와 Esc 동작을 레거시 및 사용자 확정 기준으로 병합하고 검증했다.
+- 사용자 확정: 기존 프린터·저울 설정 modal route가 열린 상태에서 OS 종료 요청이 오면 설정창을 먼저 닫도록 종료를 차단한다. route draft를 통합 dirty에 포함하거나 차단형 overlay로 재포장하지 않는다.
+- 수정 예정 파일/목적: [doc/app_menu_porting.txt] 4.2, 5.1.2·5.1.8, 7.1·7.3, Phase 1과 focused/widget/완료 계약에서 활성 lifecycle participant와 optional exit snapshot을 분리하고, clean·읽기 전용 overlay 정리, 기존 프린터·저울 설정 modal route 종료 차단, 네 관리 parent 유지, 레거시 Esc 닫기를 명확히 한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
+- 상태 소유권·종료 본문 편집 완료: [doc/app_menu_porting.txt] 4.2와 5.1.2·5.1.8에 lifecycle participant의 close callback·optional snapshot, 공용 guard 1회 수집, 기존 modal route blocker와 종료 순서를 반영했다.
+- dialog 공통 계약 편집 완료: [doc/app_menu_porting.txt] 7.1·7.3에 clean·읽기 전용 participant 등록, checkbox 다중 선택의 Esc 미소비, 네 관리 parent의 CRUD 성공 후 유지와 그 밖의 저장 dialog overlay 제거 범위를 분리했다.
+- Phase·테스트·완료 계약 편집 완료: [doc/app_menu_porting.txt] Phase 1, lifecycle unit test, focused/widget test, 금지·최종 상태에 participant 등록·해제, modal blocker, clean overlay close, 관리 parent 유지와 Esc 범위를 동기화했다.
+- 검증 완료: [SESSION_HANDOFF.md]와 [doc/app_menu_porting.txt]의 각 첫 편집 직후 `git diff --check`가 통과했다. 지시서 구간별 표적 검사에서 종료 계약 필수 3개, dialog 계약 필수 3개, Phase·테스트 필수 5개가 반영되고 이전 owner-only 종료 순서, 무조건 overlay 제거 bullet이 제거됐음을 확인했다.
+- 검증 완료: 32차 필수 계약 `13/13`, 이전 모순 문구·무조건 overlay 제거 bullet·사용자 확정보다 넓은 modal route 표현 잔존 `0`이며 두 문서 diagnostics 오류가 없고 `git diff --check -- doc/app_menu_porting.txt SESSION_HANDOFF.md`가 통과했다.
+- diff 검토 완료: 변경은 종료 전용 participant/snapshot·close 순서, 기존 프린터·저울 설정 modal blocker, 관리 parent 유지, 레거시 Esc와 관련 Phase·테스트·완료 계약에만 한정됐다. 기존 사용자 변경 [lib/core/app.dart], [lib/models/user.dart], [test/scale_output_test.dart]는 건드리지 않았다. 문서 전용 변경이므로 Flutter test는 실행하지 않는다.
+- stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함하고 기존 사용자 변경 3개는 제외한다.
+- stage 검증 완료: `git diff --cached --check` 통과. staged 목록은 [SESSION_HANDOFF.md], [doc/app_menu_porting.txt] 두 문서뿐이며 첫 검증 시 변경 규모는 36 insertions, 20 deletions다.
 - 완료: [doc/app_menu_porting.txt] 31차 감사의 업데이트 메시지 공용 표시·DB 저장 경계와 대상 지정, 검색출력 mode 수명·조회 후보, 검색출력 설정 column 순서를 활성 레거시와 사용자 확정 기준으로 병합하고 검증·commit했다.
 - 사용자 확정: 검색출력 mode는 로그아웃 후 재로그인해도 프로세스 종료 전까지 유지한다. 업데이트 메시지는 관리자에게 저장되지 않는 version 편집과 `다시 보지 않기` control도 레거시 화면처럼 표시하되 저장하지 않는다. 사용자 선택의 마지막 행 누락 결함은 복제하지 않고 표시된 모든 행을 대상으로 처리한다.
 - 수정 예정 파일/목적: [doc/app_menu_porting.txt] 5.3.9~5.3.11, Phase 1·4와 focused test에서 startup 공지와 메뉴 DB 상태의 소유 경계, 등급별 대상 우선순위·no-op UI·사용자 선택 범위, 프로세스 수명 mode 복원, 레거시 검색 join·column 순서를 명확히 한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
