@@ -520,10 +520,15 @@ END CATCH
 ### 5.3.5 전자저울 관리 (`IDM_SETUP_SCALE`)
 
 - 권한: 6.1의 `loggedIn`.
-- 기존 저울출력의 `showScaleConnectSettingsDialog`, `DbScaleConnectInfoHelper`, `_openScaleConnectSettings()` owning method를 재사용한다.
+- 기존 저울출력의 `showScaleConnectSettingsDialog`, `DbScaleConnectInfoHelper`, `ScaleConnectionService`, `_openScaleConnectSettings()` owning method를 확장해 재사용한다. 별도 저울 설정 owner나 연결 service를 만들지 않는다.
 - `HomePageManager` controller에 공개 command API를 노출하고, 이 API가 기존 private `_openScaleConnectSettings()`에 위임한다. private method를 외부에서 직접 호출할 수 있게 변경하거나 내용을 AppBar controller에 복제하지 않는다.
-- 저울 연결 중에는 기존 정책대로 먼저 연결 해제를 요구한다.
-- 포트 scan, 연결 retry 같은 추가 보완을 메뉴 포팅 범위에 넣지 않는다.
+- command는 저울 발행 busy·연결 여부·연결 처리 중 여부를 별도 비활성 조건으로 추가하지 않고 레거시처럼 활성 상태를 유지한다. 진입 시 기존 연결 또는 진행 중인 연결을 자동으로 종료하고 session 상태를 연결 해제로 바꾼 뒤 dialog에 연결 소유권을 넘긴다. 먼저 수동 연결 해제를 요구하지 않으며, 늦게 완료된 이전 연결 결과가 dialog의 연결 소유권이나 session 상태를 다시 바꾸지 않게 한다.
+- 초기값은 label size session 적재 여부와 무관하게 command 진입 시 `DbScaleConnectInfoHelper.loadConnectInfo()`로 읽은 persisted 설정을 사용한다. controller 기본값을 persisted 값처럼 표시하거나 적용 시 기본값으로 덮어쓰지 않는다.
+- 활성 레거시 `CScaleSetupDlg` 범위에 따라 포트 `COM1`~`COM10`, baud rate `110`, `300`, `600`, `1200`, `2400`, `4800`, `9600`, `14400`, `19200`, `38400`, `56000`, `57600`, `115200`, `128000`, `256000`, data bit `4`~`8`, parity `Even`·`Odd`·`None`·`Mark`·`Space`, stop bit `1`·`1.5`·`2`와 자동발행 여부를 편집한다. 현재 int stop bit model·validation·Win32 mapping은 이 값을 손실 없이 전달하도록 기존 model/storage/service 안에서 함께 조정하고, 지원값을 `115200`이나 다른 값으로 묵시 대체하지 않는다. schema migration은 추가하지 않는다.
+- dialog의 `연결` command는 현재 입력한 다섯 통신값으로 시험 연결하고 성공·실패 상태와 수신 중량을 표시한다. 시험 연결 성공 중 다섯 통신값 중 하나를 바꾸면 시험 연결을 닫고 상태·중량을 비운 뒤 다시 연결할 수 있게 한다.
+- 적용은 여섯 설정값을 기존 local DB에 저장하고 성공한 값으로 `_scaleOutputSessionController.updateConnectInfo()`를 한 번 실행한 뒤 닫는다. 취소·닫기는 저장하거나 controller를 갱신하지 않는다. 어느 경로로 닫든 시험 연결을 종료하고 기존 저울출력 owner를 연결 해제 상태로 복원하며 자동 재연결하지 않는다.
+- 자동발행은 checkbox 저장에 그치지 않고 저울출력 수신 경로에서 persisted 값을 사용한다. 활성 레거시와 같이 안정 상태 `ST`이고 중량이 0보다 큰 수신 1건에 5초 timer를 한 번 시작하며, timer 중 중복 예약하지 않고 만료 시 계속 연결돼 있으면 기존 저울 발행 command를 한 번 실행한다. 연결이 없으면 발행하지 않고 timer 상태만 초기화하며 별도 retry·추가 debounce를 만들지 않는다.
+- 동적 포트 scan, 연결 retry 같은 추가 보완을 메뉴 포팅 범위에 넣지 않는다.
 
 ### 5.3.6 프린터 설정 (`IDM_SETUP_PRINT`)
 
@@ -536,7 +541,9 @@ END CATCH
 - private owning method를 public으로 바꾸거나 설정 dialog 실행 내용을 AppBar controller에 복제하지 않는다.
 - 현재 탭에 따라 같은 menu item의 의미나 label을 바꾸지 않고, 다른 탭에서 라벨출력 설정으로 자동 기본화하지 않는다.
 - 두 command는 로그인 상태에서만 표시하고 각각 기존 라벨출력·저울출력 owner가 busy일 때 비활성화한다. `라벨출력 프린터 설정`에는 label size·저울 연결·현재 탭 조건을 추가하지 않는다. `저울출력 프린터 설정`은 `_effectiveLabelSize`가 없을 때만 추가로 비활성화하고 label size 선택이 필요하다는 짧은 `disabledReason`을 표시한다. 저울 연결 여부나 `useScale`을 추가 조건으로 만들지 않는다.
-- 설정 저장은 기존 `LabelPrintSettingsController`/DAO를 재사용한다.
+- `라벨출력 프린터 설정`은 label size 없이도 실행되므로 command 진입 시 `loadLabelPrintSettingsSnapshot()`으로 persisted preference를 읽어 dialog 초기값으로 사용한다. 적용은 `saveLabelPrintSettingsSnapshot()` 성공 후 `_labelPrintSessionController.applySettings()`를 한 번 실행한다.
+- `저울출력 프린터 설정`은 현재 `_effectiveLabelSize.labelSizeId`의 `_scaleOutputSessionController.settings`를 초기값으로 사용한다. 적용은 `ScaleOutputPrintSettingsStore.save(labelSizeId, settings)` 성공 후 `_scaleOutputSessionController.applySettings()`를 한 번 실행한다. 다른 label size나 라벨출력 preference에 반영하지 않는다.
+- 두 command 모두 취소·닫기에는 저장과 session controller 갱신을 실행하지 않는다. 존재하지 않는 공용 `LabelPrintSettingsController`나 포괄 DAO를 새로 만들지 않고, 기존 두 session controller와 각 저장 helper를 그대로 소유 경계로 사용한다.
 - 별도 전역 printer schema를 만들지 않는다.
 
 ### 5.3.7 거래게시판 (`IDM_TRADE_BOARD`)
@@ -746,7 +753,7 @@ command마다 모든 등급 조합을 반복하지 않는다. 공용 policy tabl
 
 1. AppBar 그룹 아이콘과 좁은 화면의 2단계 overflow를 구현한다. 기존 desktop window 초기화 동작은 변경하지 않는다.
 2. login/logout/exit를 기존 HomePage command에 연결한다.
-3. 저울 설정, 라벨출력/저울출력 프린터 설정을 HomePageManager controller로 연결한다.
+3. 저울 설정, 라벨출력/저울출력 프린터 설정을 HomePageManager controller로 연결한다. 저울 설정은 persisted 통신값·자동발행, 시험 연결 lifecycle과 연결 owner 복원을 포함하고, 두 프린터 설정은 각 session controller와 전역 preference·label-size별 저장소 경계를 유지한다.
 4. update notice 공용 dialog를 추출해 메뉴에서 연결한다.
 5. AppBar menu·modal dialog·modeless overlay·`DbReconnectOverlay`가 보이는 동안 전역 F1/F2/F3/F5/F12를 차단하고 non-modal `PreviewFloatingWindow`만 보일 때는 기존 단축키를 유지한다.
 6. 신규 관리·조회 dialog의 owning controller에 `BlockingModelessDialog` open/close, 동일 dialog 중복 방지, 초기 focus와 중첩 modal/picker pattern을 적용한다. 편집 또는 저장이 있는 dialog에만 실제 dirty, write-busy, active editing 상태를 추가한다.
@@ -848,7 +855,7 @@ command마다 모든 등급 조합을 반복하지 않는다. 공용 policy tabl
   - 레거시 `IDM_SETUP_PRINT`에서 분리한 프린터 설정 1→2 command mapping.
 - 해당 policy focused test에서 세 legacy command policy의 차이, 각 command mapping, 사용자 관리와 지점 관리의 `MANAGER_USER` 숨김, `품목별 정보 편집`·`전자저울 관리`·`검색출력모드`·`검색출력 설정`·`업데이트 메시지`의 `loggedIn`, 이더넷 설정의 `legacyInactive`, 고정 항목 관리의 `legacyUnreachable` 상태와 production 숨김을 검증한다.
 - 로그인·로그아웃 focused test에서 `SYSTEM` 직접·시스템 비밀번호와 시스템 관리자 자기 비밀번호는 `IsFirstConnectByAdmin`이지만 master-key가 아니고, 비시스템 사용자의 레거시 직접 비밀번호만 master-key인지 검증한다. 일반·`IsFirstConnectByAdmin` 로그인은 `LOGIN` 1회, master-key 로그인은 0회인지 확인한다. 일반 명시적 로그아웃은 `LOGOUT` 1회, master-key·관리자 `Connect` 중 명시적 로그아웃은 0회, 일반·관리자 `Connect` 중 앱 종료는 1회, master-key 종료는 0회인지 확인한다. 이력 저장은 session 초기화 전 값을 사용하고 오류 1회 뒤에도 로그인 초기화 또는 로그아웃·종료 정리를 계속하며, 자동 재시도와 종료 요청·detached 중복 기록은 0회인지 검증한다.
-- 해당 owning controller focused test에서 저울 연결 설정과 라벨출력/저울출력 프린터 설정의 공개 command가 기존 private owning method에 한 번 위임하는지 검증한다. 두 프린터 command의 로그인·owner busy 조건, 라벨출력 command에 label size 조건이 없는 것과 저울출력 command만 `_effectiveLabelSize`를 요구하는 것을 함께 검증한다.
+- 해당 owning controller focused test에서 저울 연결 설정과 라벨출력/저울출력 프린터 설정의 공개 command가 기존 private owning method에 한 번 위임하는지 검증한다. 저울 설정 command는 발행 busy·연결됨·연결 처리 중에도 활성이고 진입 시 기존·진행 중 연결을 종료하며 늦은 연결 결과를 폐기하는지, persisted 초기값과 레거시 통신값 전체를 손실 없이 표시·전달하는지 확인한다. 시험 연결 성공·실패와 수신 중량, 통신값 변경 시 시험 연결 종료·상태 초기화, 적용의 여섯 값 저장·controller 갱신, 취소와 모든 닫기 경로의 저장 0회·시험 연결 종료·연결 해제 owner 복원을 검증한다. 자동발행은 `ST`·양수 중량에서 5초 timer 하나만 예약하고 연결 유지 시 기존 발행 command 1회, 연결 해제 시 발행 0회이며 retry·추가 debounce가 없는지 확인한다. 두 프린터 command의 로그인·owner busy 조건, 라벨출력 command에 label size 조건이 없는 것과 저울출력 command만 `_effectiveLabelSize`를 요구하는 것을 함께 검증하고, persisted 초기값·저장 helper·session controller가 서로 섞이지 않으며 취소 시 저장·반영 0회인지 확인한다.
 - 품목별 정보 편집 focused test에서 로그인 사용자 전체의 command 표시, 현재 로그인 지점·메인 선택 label size 목록, dialog 내부 selector 부재와 브랜드·label size 미선택 시 DAO 0회·빈 목록·저장 비활성, 레거시 출력 보정 field의 활성 조건과 일괄 저장, 성공 후 필요한 `ItemOfMarket` 목록 갱신·committed 기준·dirty 해제와 dialog·행 선택·scroll 유지, 저장 command가 활성일 때 Enter 저장, dirty/busy 종료 차단을 검증한다. 이 command에 `F1` shortcut metadata나 실행 mapping을 추가하지 않는다.
 - 영양성분 형식 focused test에서 manager의 선택 전 추가·수정·삭제 활성, Enter와 좌표 무관 sheet 더블클릭의 수정 command, 미선택 수정 안내와 삭제 `연관 경고·확인 → 선택 검사 → DML 0건` 순서를 검증한다. 형식명 필수와 구성 행 1개 이상만 적용하고 빈 구성 성분명은 허용하며, 빈 구성의 `N01`과 마지막 표시 keyword 기준 증가, 중간 행 삭제 후 미재번호, parent/detail transaction과 형식 삭제 연관 삭제를 확인한다. 저장 button과 입력 dialog Enter 모두 저장하고 같은 신규·수정 상태가 유지되며 신규 저장을 다시 실행할 수 있는지, manager `Refresh()` 후에는 선택이 해제되는지 검증한다. trim, 행별 성분명 필수·중복 검증, 정렬 command나 자동 수정 mode 전환을 추가하지 않는다.
 - 영양성분표 focused test에서 manager의 선택 전 추가·수정·삭제 활성, Enter와 유효 셀·행 더블클릭의 수정 command, header·빈 영역 더블클릭 무시, 미선택 수정 안내와 삭제 `확인 → 선택 검사 → DML 0건` 순서를 검증한다. 신규 형식 selector 활성·미선택과 빈 RTF 초기값, 수정 시 저장 형식·명칭·RTF·폭 load, 명칭 → 0이 아닌 폭 → 형식 선택의 순차 검증과 빈 RTF 저장 허용, 네 field CRUD, 일반 삭제와 선택 행 RTF read-only preview를 확인한다. 저장 button과 입력 dialog Enter 모두 저장하고 같은 신규·수정 상태가 유지되는지, 수정 dialog를 닫은 뒤에만 기존 행 선택·preview가 복원되고 추가·삭제 후에는 복원되지 않는지 검증한다. trim, RTF 필수, 폭 양수·범위 검증이나 오류 일괄 수집을 추가하지 않는다.
