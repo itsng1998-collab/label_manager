@@ -18,6 +18,7 @@
 - diff 검토 완료: 변경은 종료 전용 participant/snapshot·close 순서, 기존 프린터·저울 설정 modal blocker, 관리 parent 유지, 레거시 Esc와 관련 Phase·테스트·완료 계약에만 한정됐다. 기존 사용자 변경 [lib/core/app.dart], [lib/models/user.dart], [test/scale_output_test.dart]는 건드리지 않았다. 문서 전용 변경이므로 Flutter test는 실행하지 않는다.
 - stage/commit 대상: [doc/app_menu_porting.txt], [SESSION_HANDOFF.md]만 포함하고 기존 사용자 변경 3개는 제외한다.
 - stage 검증 완료: `git diff --cached --check` 통과. staged 목록은 [SESSION_HANDOFF.md], [doc/app_menu_porting.txt] 두 문서뿐이며 첫 검증 시 변경 규모는 36 insertions, 20 deletions다.
+- commit 완료: `2b58315` (`앱 메뉴 32차 생명주기 계약 명확화`). 두 문서만 포함했고 기존 사용자 변경 3개는 제외했다.
 - 완료: [doc/app_menu_porting.txt] 31차 감사의 업데이트 메시지 공용 표시·DB 저장 경계와 대상 지정, 검색출력 mode 수명·조회 후보, 검색출력 설정 column 순서를 활성 레거시와 사용자 확정 기준으로 병합하고 검증·commit했다.
 - 사용자 확정: 검색출력 mode는 로그아웃 후 재로그인해도 프로세스 종료 전까지 유지한다. 업데이트 메시지는 관리자에게 저장되지 않는 version 편집과 `다시 보지 않기` control도 레거시 화면처럼 표시하되 저장하지 않는다. 사용자 선택의 마지막 행 누락 결함은 복제하지 않고 표시된 모든 행을 대상으로 처리한다.
 - 수정 예정 파일/목적: [doc/app_menu_porting.txt] 5.3.9~5.3.11, Phase 1·4와 focused test에서 startup 공지와 메뉴 DB 상태의 소유 경계, 등급별 대상 우선순위·no-op UI·사용자 선택 범위, 프로세스 수명 mode 복원, 레거시 검색 join·column 순서를 명확히 한다. [SESSION_HANDOFF.md]에는 편집·검증·stage/commit 결과를 기록한다.
